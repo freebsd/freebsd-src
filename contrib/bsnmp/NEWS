@@ -1,3 +1,16 @@
+1.10
+	Change all the tick handling in the daemon from 32-bit to 64-bit.
+	Bump the modules' major version number to 3.
+
+	snmp_dialog: make the syntax of the variable bindings in the outgoing
+	message SNMP_SYNTAX_NULL regardless of the syntax given by the user.
+
+	Fix an error in timer handling in the LIBBEGEMOT case.
+
+	snmpd/main.c: Fix a 64-bit warning.
+
+	lib/snmpclient: Add snmp_parse_server().
+
 1.9
 	tcpwrapper support from glebius@freebsd.org.
 

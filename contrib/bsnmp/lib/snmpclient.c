@@ -1,4 +1,7 @@
 /*
+ * Copyright (c) 2004-2005
+ *	Hartmut Brandt.
+ *	All rights reserved.
  * Copyright (c) 2001-2003
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  *	All rights reserved.
@@ -27,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpclient.c,v 1.29 2004/08/06 08:46:57 brandt Exp $
+ * $Begemot: bsnmp/lib/snmpclient.c,v 1.31 2005/05/23 11:10:13 brandt_h Exp $
  *
  * Support functions for SNMP clients.
  */
@@ -115,12 +118,12 @@ struct tabwork {
  * Set the error string
  */
 static void
-seterr(const char *fmt, ...)
+seterr(struct snmp_client *sc, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	vsnprintf(snmp_client.error, sizeof(snmp_client.error), fmt, ap);
+	vsnprintf(sc->error, sizeof(sc->error), fmt, ap);
 	va_end(ap);
 }
 
@@ -186,11 +189,11 @@ table_find(struct tabwork *work, const struct asn_oid *var)
 
 	/* Not found create new one */
 	if ((e = malloc(work->descr->entry_size)) == NULL) {
-		seterr("no memory for table entry");
+		seterr(&snmp_client, "no memory for table entry");
 		return (NULL);
 	}
 	if ((w = malloc(sizeof(*w))) == NULL) {
-		seterr("no memory for table entry");
+		seterr(&snmp_client, "no memory for table entry");
 		free(e);
 		return (NULL);
 	}
@@ -204,11 +207,12 @@ table_find(struct tabwork *work, const struct asn_oid *var)
 
 		  case SNMP_SYNTAX_INTEGER:
 			if (var->len < p + 1) {
-				seterr("bad index: need integer");
+				seterr(&snmp_client, "bad index: need integer");
 				goto err;
 			}
 			if (var->subs[p] > INT32_MAX) {
-				seterr("bad index: integer too large");
+				seterr(&snmp_client,
+				    "bad index: integer too large");
 				goto err;
 			}
 			*(int32_t *)(void *)((u_char *)e +
@@ -217,21 +221,25 @@ table_find(struct tabwork *work, const struct asn_oid *var)
 
 		  case SNMP_SYNTAX_OCTETSTRING:
 			if (var->len < p + 1) {
-				seterr("bad index: need string length");
+				seterr(&snmp_client,
+				    "bad index: need string length");
 				goto err;
 			}
 			len = var->subs[p++];
 			if (var->len < p + len) {
-				seterr("bad index: string too short");
+				seterr(&snmp_client,
+				    "bad index: string too short");
 				goto err;
 			}
 			if ((ptr = malloc(len + 1)) == NULL) {
-				seterr("no memory for index string");
+				seterr(&snmp_client,
+				    "no memory for index string");
 				goto err;
 			}
 			for (j = 0; j < len; j++) {
 				if (var->subs[p] > UCHAR_MAX) {
-					seterr("bad index: char too large");
+					seterr(&snmp_client,
+					    "bad index: char too large");
 					free(ptr);
 					goto err;
 				}
@@ -247,12 +255,14 @@ table_find(struct tabwork *work, const struct asn_oid *var)
 
 		  case SNMP_SYNTAX_OID:
 			if (var->len < p + 1) {
-				seterr("bad index: need oid length");
+				seterr(&snmp_client,
+				    "bad index: need oid length");
 				goto err;
 			}
 			oid.len = var->subs[p++];
 			if (var->len < p + oid.len) {
-				seterr("bad index: oid too short");
+				seterr(&snmp_client,
+				    "bad index: oid too short");
 				goto err;
 			}
 			for (j = 0; j < oid.len; j++)
@@ -263,12 +273,14 @@ table_find(struct tabwork *work, const struct asn_oid *var)
 
 		  case SNMP_SYNTAX_IPADDRESS:
 			if (var->len < p + 4) {
-				seterr("bad index: need ip-address");
+				seterr(&snmp_client,
+				    "bad index: need ip-address");
 				goto err;
 			}
 			for (j = 0; j < 4; j++) {
 				if (var->subs[p] > 0xff) {
-					seterr("bad index: ipaddress too large");
+					seterr(&snmp_client,
+					    "bad index: ipaddress too large");
 					goto err;
 				}
 				((u_char *)e +
@@ -279,11 +291,13 @@ table_find(struct tabwork *work, const struct asn_oid *var)
 
 		  case SNMP_SYNTAX_GAUGE:
 			if (var->len < p + 1) {
-				seterr("bad index: need unsigned");
+				seterr(&snmp_client,
+				    "bad index: need unsigned");
 				goto err;
 			}
 			if (var->subs[p] > UINT32_MAX) {
-				seterr("bad index: unsigned too large");
+				seterr(&snmp_client,
+				    "bad index: unsigned too large");
 				goto err;
 			}
 			*(uint32_t *)(void *)((u_char *)e +
@@ -357,7 +371,7 @@ table_value(const struct snmp_table *descr, struct entry *e,
 
 	/* check syntax */
 	if (b->syntax != descr->entries[i].syntax) {
-		seterr("bad syntax (%u instead of %u)", b->syntax,
+		seterr(&snmp_client, "bad syntax (%u instead of %u)", b->syntax,
 		    descr->entries[i].syntax);
 		return (-1);
 	}
@@ -371,7 +385,7 @@ table_value(const struct snmp_table *descr, struct entry *e,
 
 	  case SNMP_SYNTAX_OCTETSTRING:
 		if ((ptr = malloc(b->v.octetstring.len + 1)) == NULL) {
-			seterr("no memory for string");
+			seterr(&snmp_client, "no memory for string");
 			return (-1);
 		}
 		memcpy(ptr, b->v.octetstring.octets, b->v.octetstring.len);
@@ -460,7 +474,7 @@ table_check_response(struct tabwork *work, const struct snmp_pdu *resp)
 			/* EOT */
 			return (0);
 		/* Error */
-		seterr("error fetching table: status=%d index=%d",
+		seterr(&snmp_client, "error fetching table: status=%d index=%d",
 		    resp->error_status, resp->error_index);
 		return (-1);
 	}
@@ -470,11 +484,13 @@ table_check_response(struct tabwork *work, const struct snmp_pdu *resp)
 			if (!asn_is_suboid(&work->descr->last_change, &b->var) ||
 			    b->var.len != work->descr->last_change.len + 1 ||
 			    b->var.subs[work->descr->last_change.len] != 0) {
-				seterr("last_change: bad response");
+				seterr(&snmp_client,
+				    "last_change: bad response");
 				return (-1);
 			}
 			if (b->syntax != SNMP_SYNTAX_TIMETICKS) {
-				seterr("last_change: bad syntax %u", b->syntax);
+				seterr(&snmp_client,
+				    "last_change: bad syntax %u", b->syntax);
 				return (-1);
 			}
 			if (work->first) {
@@ -483,7 +499,8 @@ table_check_response(struct tabwork *work, const struct snmp_pdu *resp)
 
 			} else if (work->last_change != b->v.uint32) {
 				if (++work->iter >= work->descr->max_iter) {
-					seterr("max iteration count exceeded");
+					seterr(&snmp_client,
+					    "max iteration count exceeded");
 					return (-1);
 				}
 				table_free(work, 1);
@@ -517,12 +534,13 @@ table_check_cons(struct tabwork *work)
 		    work->descr->req_mask) {
 			if (work->descr->last_change.len == 0) {
 				if (++work->iter >= work->descr->max_iter) {
-					seterr("max iteration count exceeded");
+					seterr(&snmp_client,
+					    "max iteration count exceeded");
 					return (-1);
 				}
 				return (-2);
 			}
-			seterr("inconsistency detected %llx %llx",
+			seterr(&snmp_client, "inconsistency detected %llx %llx",
 			    e->found, work->descr->req_mask);
 			return (-1);
 		}
@@ -608,7 +626,7 @@ table_cb(struct snmp_pdu *req __unused, struct snmp_pdu *resp, void *arg)
 
 	if (resp == NULL) {
 		/* timeout */
-		seterr("no response to fetch table request");
+		seterr(&snmp_client, "no response to fetch table request");
 		table_free(work, 1);
 		work->callback(work->table, work->arg, -1);
 		free(work);
@@ -686,7 +704,7 @@ snmp_table_fetch_async(const struct snmp_table *descr, void *list,
 	struct tabwork *work;
 
 	if ((work = malloc(sizeof(*work))) == NULL) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
 	}
 
@@ -859,14 +877,14 @@ open_client_udp(const char *host, const char *port)
 	if (snmp_client.chost == NULL) {
 		if ((snmp_client.chost = malloc(1 + sizeof(DEFAULT_HOST)))
 		    == NULL) {
-			seterr("%s", strerror(errno));
+			seterr(&snmp_client, "%s", strerror(errno));
 			return (-1);
 		}
 		strcpy(snmp_client.chost, DEFAULT_HOST);
 	}
 	if (host != NULL) {
 		if ((ptr = malloc(1 + strlen(host))) == NULL) {
-			seterr("%s", strerror(errno));
+			seterr(&snmp_client, "%s", strerror(errno));
 			return (-1);
 		}
 		free(snmp_client.chost);
@@ -876,14 +894,14 @@ open_client_udp(const char *host, const char *port)
 	if (snmp_client.cport == NULL) {
 		if ((snmp_client.cport = malloc(1 + sizeof(DEFAULT_PORT)))
 		    == NULL) {
-			seterr("%s", strerror(errno));
+			seterr(&snmp_client, "%s", strerror(errno));
 			return (-1);
 		}
 		strcpy(snmp_client.cport, DEFAULT_PORT);
 	}
 	if (port != NULL) {
 		if ((ptr = malloc(1 + strlen(port))) == NULL) {
-			seterr("%s", strerror(errno));
+			seterr(&snmp_client, "%s", strerror(errno));
 			return (-1);
 		}
 		free(snmp_client.cport);
@@ -899,7 +917,8 @@ open_client_udp(const char *host, const char *port)
 	hints.ai_protocol = 0;
 	error = getaddrinfo(snmp_client.chost, snmp_client.cport, &hints, &res0);
 	if (error != 0) {
-		seterr("%s: %s", snmp_client.chost, gai_strerror(error));
+		seterr(&snmp_client, "%s: %s", snmp_client.chost,
+		    gai_strerror(error));
 		return (-1);
 	}
 	res = res0;
@@ -907,14 +926,14 @@ open_client_udp(const char *host, const char *port)
 		if ((snmp_client.fd = socket(res->ai_family, res->ai_socktype,
 		    res->ai_protocol)) == -1) {
 			if ((res = res->ai_next) == NULL) {
-				seterr("%s", strerror(errno));
+				seterr(&snmp_client, "%s", strerror(errno));
 				freeaddrinfo(res0);
 				return (-1);
 			}
 		} else if (connect(snmp_client.fd, res->ai_addr,
 		    res->ai_addrlen) == -1) {
 			if ((res = res->ai_next) == NULL) {
-				seterr("%s", strerror(errno));
+				seterr(&snmp_client, "%s", strerror(errno));
 				freeaddrinfo(res0);
 				return (-1);
 			}
@@ -944,14 +963,14 @@ open_client_local(const char *path)
 	if (snmp_client.chost == NULL) {
 		if ((snmp_client.chost = malloc(1 + sizeof(DEFAULT_LOCAL)))
 		    == NULL) {
-			seterr("%s", strerror(errno));
+			seterr(&snmp_client, "%s", strerror(errno));
 			return (-1);
 		}
 		strcpy(snmp_client.chost, DEFAULT_LOCAL);
 	}
 	if (path != NULL) {
 		if ((ptr = malloc(1 + strlen(path))) == NULL) {
-			seterr("%s", strerror(errno));
+			seterr(&snmp_client, "%s", strerror(errno));
 			return (-1);
 		}
 		free(snmp_client.chost);
@@ -965,7 +984,7 @@ open_client_local(const char *path)
 		stype = SOCK_STREAM;
 
 	if ((snmp_client.fd = socket(PF_LOCAL, stype, 0)) == -1) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
 	}
 
@@ -973,7 +992,7 @@ open_client_local(const char *path)
 	    "%s", SNMP_LOCAL_PATH);
 
 	if (mktemp(snmp_client.local_path) == NULL) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		(void)close(snmp_client.fd);
 		snmp_client.fd = -1;
 		return (-1);
@@ -984,7 +1003,7 @@ open_client_local(const char *path)
 	strcpy(sa.sun_path, snmp_client.local_path);
 
 	if (bind(snmp_client.fd, (struct sockaddr *)&sa, sizeof(sa)) == -1) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		(void)close(snmp_client.fd);
 		snmp_client.fd = -1;
 		(void)remove(snmp_client.local_path);
@@ -999,7 +1018,7 @@ open_client_local(const char *path)
 	sa.sun_path[sizeof(sa.sun_path) - 1] = '\0';
 
 	if (connect(snmp_client.fd, (struct sockaddr *)&sa, sa.sun_len) == -1) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		(void)close(snmp_client.fd);
 		snmp_client.fd = -1;
 		(void)remove(snmp_client.local_path);
@@ -1020,7 +1039,7 @@ snmp_open(const char *host, const char *port, const char *readcomm,
 	/* still open ? */
 	if (snmp_client.fd != -1) {
 		errno = EBUSY;
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
 	}
 
@@ -1046,14 +1065,14 @@ snmp_open(const char *host, const char *port, const char *readcomm,
 		break;
 
 	  default:
-		seterr("bad transport mapping");
+		seterr(&snmp_client, "bad transport mapping");
 		return (-1);
 	}
 	tout.tv_sec = 0;
 	tout.tv_usec = 0;
 	if (setsockopt(snmp_client.fd, SOL_SOCKET, SO_SNDTIMEO,
 	    &tout, sizeof(struct timeval)) == -1) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		(void)close(snmp_client.fd);
 		snmp_client.fd = -1;
 		if (snmp_client.local_path[0] != '\0')
@@ -1175,7 +1194,7 @@ snmp_send_packet(struct snmp_pdu * pdu)
         ssize_t ret;
  
 	if ((buf = malloc(snmp_client.txbuflen)) == NULL) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
 	}
 
@@ -1184,7 +1203,7 @@ snmp_send_packet(struct snmp_pdu * pdu)
         b.asn_ptr = buf; 
         b.asn_len = snmp_client.txbuflen;
         if (snmp_pdu_encode(pdu, &b)) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		free(buf);
 		return (-1);
 	}
@@ -1193,7 +1212,7 @@ snmp_send_packet(struct snmp_pdu * pdu)
                 snmp_pdu_dump(pdu);
 
         if ((ret = send(snmp_client.fd, buf, b.asn_ptr - buf, 0)) == -1) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		free(buf);
                 return (-1);
 	}
@@ -1238,7 +1257,7 @@ snmp_pdu_send(struct snmp_pdu *pdu, snmp_send_cb_f func, void *arg)
 	int32_t id;
 
 	if ((listentry = malloc(sizeof(struct sent_pdu))) == NULL) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
 	}
 
@@ -1296,7 +1315,7 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 #endif
 
 	if ((buf = malloc(snmp_client.rxbuflen)) == NULL) {
-		seterr("%s", strerror(errno));
+		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
 	}
 	dopoll = setpoll = 0;
@@ -1307,14 +1326,16 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 			/* wait with timeout */
 			if (setsockopt(snmp_client.fd, SOL_SOCKET, SO_RCVTIMEO,
 			    tv, sizeof(*tv)) == -1) {
-				seterr("setsockopt: %s", strerror(errno));
+				seterr(&snmp_client, "setsockopt: %s",
+				    strerror(errno));
 				free(buf);
 				return (-1);
 			}
 			optlen = sizeof(*tv);
 			if (getsockopt(snmp_client.fd, SOL_SOCKET, SO_RCVTIMEO,
 			    tv, &optlen) == -1) {
-				seterr("getsockopt: %s", strerror(errno));
+				seterr(&snmp_client, "getsockopt: %s",
+				    strerror(errno));
 				free(buf);
 				return (-1);
 			}
@@ -1330,7 +1351,8 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 			/* poll */
 			dopoll = 1;
 			if ((flags = fcntl(snmp_client.fd, F_GETFL, 0)) == -1) {
-				seterr("fcntl: %s", strerror(errno));
+				seterr(&snmp_client, "fcntl: %s",
+				    strerror(errno));
 				free(buf);
 				return (-1);
 			}
@@ -1338,7 +1360,8 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 				setpoll = 1;
 				flags |= O_NONBLOCK;
 				if (fcntl(snmp_client.fd, F_SETFL, flags) == -1) {
-					seterr("fcntl: %s", strerror(errno));
+					seterr(&snmp_client, "fcntl: %s",
+					    strerror(errno));
 					free(buf);
 					return (-1);
 				}
@@ -1364,14 +1387,14 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 		free(buf);
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return (0);
-		seterr("recv: %s", strerror(saved_errno));
+		seterr(&snmp_client, "recv: %s", strerror(saved_errno));
 		return (-1);
 	}
 	if (ret == 0) {
 		/* this happens when we have a streaming socket and the
 		 * remote side has closed it */
 		free(buf);
-		seterr("recv: socket closed by peer");
+		seterr(&snmp_client, "recv: socket closed by peer");
 		errno = EPIPE;
 		return (-1);
 	}
@@ -1380,7 +1403,7 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 	abuf.asn_len = ret;
 
 	if (SNMP_CODE_OK != (ret = snmp_pdu_decode(&abuf, pdu, &ip))) {
-		seterr("snmp_decode_pdu: failed %d", ret);
+		seterr(&snmp_client, "snmp_decode_pdu: failed %d", ret);
 		free(buf);
 		return (-1);
 	}
@@ -1428,7 +1451,7 @@ snmp_receive(int blocking)
 
 	resp = malloc(sizeof(struct snmp_pdu));
 	if (resp == NULL) {
-		seterr("no memory for returning PDU");
+		seterr(&snmp_client, "no memory for returning PDU");
 		return (-1) ;
 	}
 
@@ -1614,11 +1637,23 @@ snmp_dialog(struct snmp_v1_pdu *req, struct snmp_v1_pdu *resp)
 	int ret;
         struct timeval tv = snmp_client.timeout;
 	struct timeval end;
+	struct snmp_pdu pdu;
 
+	/*
+	 * Make a copy of the request and replace the syntaxes by NULL
+	 * if this is a GET,GETNEXT or GETBULK.
+	 */
+	pdu = *req;
+	if (pdu.type == SNMP_PDU_GET || pdu.type == SNMP_PDU_GETNEXT ||
+	    pdu.type == SNMP_PDU_GETBULK) {
+		for (i = 0; i < pdu.nbindings; i++)
+			pdu.bindings[i].syntax = SNMP_SYNTAX_NULL;
+	}
+	
         for (i = 0; i <= snmp_client.retries; i++) {
 		(void)gettimeofday(&end, NULL);
 		timeradd(&end, &snmp_client.timeout, &end);
-                if ((reqid = snmp_send_packet(req)) == -1)
+                if ((reqid = snmp_send_packet(&pdu)) == -1)
 			return (-1);
 		for (;;) {
 			(void)gettimeofday(&tv, NULL);
@@ -1641,7 +1676,7 @@ snmp_dialog(struct snmp_v1_pdu *req, struct snmp_v1_pdu *resp)
 		}
         }
 	errno = ETIMEDOUT;
-	seterr("retry count exceeded");
+	seterr(&snmp_client, "retry count exceeded");
         return (-1);
 }
 
@@ -1681,6 +1716,105 @@ snmp_client_set_port(struct snmp_client *cl, const char *p)
 		if (cl->cport != NULL)
 			free(cl->cport);
 		cl->cport = np;
+	}
+	return (0);
+}
+
+/*
+ * parse a server specification
+ *
+ * [trans::][community@][server][:port]
+ */
+int
+snmp_parse_server(struct snmp_client *sc, const char *str)
+{
+	const char *p, *s = str;
+
+	/* look for a double colon */
+	for (p = s; *p != '\0'; p++) {
+		if (*p == '\\' && p[1] != '\0') {
+			p++;
+			continue;
+		}
+		if (*p == ':' && p[1] == ':')
+			break;
+	}
+	if (*p != '\0') {
+		if (p > s) {
+			if (p - s == 3 && strncmp(s, "udp", 3) == 0)
+				sc->trans = SNMP_TRANS_UDP;
+			else if (p - s == 6 && strncmp(s, "stream", 6) == 0)
+				sc->trans = SNMP_TRANS_LOC_STREAM;
+			else if (p - s == 5 && strncmp(s, "dgram", 5) == 0)
+				sc->trans = SNMP_TRANS_LOC_DGRAM;
+			else {
+				seterr(sc, "unknown SNMP transport '%.*s'",
+				    (int)(p - s), s);
+				return (-1);
+			}
+		}
+		s = p + 2;
+	}
+
+	/* look for a @ */
+	for (p = s; *p != '\0'; p++) {
+		if (*p == '\\' && p[1] != '\0') {
+			p++;
+			continue;
+		}
+		if (*p == '@')
+			break;
+	}
+
+	if (*p != '\0') {
+		if (p - s > SNMP_COMMUNITY_MAXLEN) {
+			seterr(sc, "community string too long");
+			return (-1);
+		}
+		strncpy(sc->read_community, s, p - s);
+		sc->read_community[p - s] = '\0';
+		strncpy(sc->write_community, s, p - s);
+		sc->write_community[p - s] = '\0';
+		s = p + 1;
+	}
+
+	/* look for a colon */
+	for (p = s; *p != '\0'; p++) {
+		if (*p == '\\' && p[1] != '\0') {
+			p++;
+			continue;
+		}
+		if (*p == ':')
+			break;
+	}
+
+	if (*p == ':') {
+		if (p > s) {
+			/* host:port */
+			free(sc->chost);
+			if ((sc->chost = malloc(p - s + 1)) == NULL) {
+				seterr(sc, "%s", strerror(errno));
+				return (-1);
+			}
+			strncpy(sc->chost, s, p - s);
+			sc->chost[p - s] = '\0';
+		}
+		/* port */
+		free(sc->cport);
+		if ((sc->cport = malloc(strlen(p + 1) + 1)) == NULL) {
+			seterr(sc, "%s", strerror(errno));
+			return (-1);
+		}
+		strcpy(sc->cport, p + 1);
+
+	} else if (p > s) {
+		/* host */
+		free(sc->chost);
+		if ((sc->chost = malloc(strlen(s) + 1)) == NULL) {
+			seterr(sc, "%s", strerror(errno));
+			return (-1);
+		}
+		strcpy(sc->chost, s);
 	}
 	return (0);
 }
