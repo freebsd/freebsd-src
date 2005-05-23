@@ -188,6 +188,12 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>The &man.gethostbyname.3;, &man.gethostbyname2.3;, and
+      &man.gethostbyaddr.3; functions are now thread-safe.</para>
+
+    <para>The &man.getnetent.3;, &man.getnetbyname.3;, and
+      &man.getnetbyaddr.3; functions are now thread-safe.</para>
+
     <para>The &man.getprotoent.3;, &man.getprotobyname.3;, and
       &man.getprotobynumber.3; functions are now thread-safe.</para>
 
