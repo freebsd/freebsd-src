@@ -679,11 +679,11 @@ start_all_aps(void)
 #ifndef PC98
 	u_char mpbiosreason;
 #endif
-	u_long mpbioswarmvec;
 	struct pcpu *pc;
 	char *stack;
 	uintptr_t kptbase;
-	int i, pg, apic_id, cpu;
+	u_int32_t mpbioswarmvec;
+	int apic_id, cpu, i, pg;
 
 	POSTCODE(START_ALL_APS_POST);
 
@@ -693,7 +693,7 @@ start_all_aps(void)
 	install_ap_tramp();
 
 	/* save the current value of the warm-start vector */
-	mpbioswarmvec = *((u_long *) WARMBOOT_OFF);
+	mpbioswarmvec = *((u_int32_t *) WARMBOOT_OFF);
 #ifndef PC98
 	outb(CMOS_REG, BIOS_RESET);
 	mpbiosreason = inb(CMOS_DATA);
@@ -777,7 +777,8 @@ start_all_aps(void)
 	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
 	/* restore the warmstart vector */
-	*(u_long *) WARMBOOT_OFF = mpbioswarmvec;
+	*(u_int32_t *) WARMBOOT_OFF = mpbioswarmvec;
+
 #ifndef PC98
 	outb(CMOS_REG, BIOS_RESET);
 	outb(CMOS_DATA, mpbiosreason);
@@ -1097,6 +1098,7 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 void
 smp_invltlb(void)
 {
+
 	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLTLB, 0, 0);
 #ifdef COUNT_XINVLTLB_HITS
@@ -1108,6 +1110,7 @@ smp_invltlb(void)
 void
 smp_invlpg(vm_offset_t addr)
 {
+
 	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLPG, addr, 0);
 #ifdef COUNT_XINVLTLB_HITS
@@ -1119,6 +1122,7 @@ smp_invlpg(vm_offset_t addr)
 void
 smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
 {
+
 	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLRNG, addr1, addr2);
 #ifdef COUNT_XINVLTLB_HITS
@@ -1131,6 +1135,7 @@ smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
 void
 smp_masked_invltlb(u_int mask)
 {
+
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, 0, 0);
 #ifdef COUNT_XINVLTLB_HITS
@@ -1142,6 +1147,7 @@ smp_masked_invltlb(u_int mask)
 void
 smp_masked_invlpg(u_int mask, vm_offset_t addr)
 {
+
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, addr, 0);
 #ifdef COUNT_XINVLTLB_HITS
@@ -1153,6 +1159,7 @@ smp_masked_invlpg(u_int mask, vm_offset_t addr)
 void
 smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 {
+
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, addr1, addr2);
 #ifdef COUNT_XINVLTLB_HITS

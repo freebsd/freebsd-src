@@ -476,7 +476,7 @@ init_secondary(void)
 	wrmsr(MSR_STAR, msr);
 	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
 
-	/* Disable local apic just to be sure. */
+	/* Disable local APIC just to be sure. */
 	lapic_disable();
 
 	/* signal our startup to the BSP. */
@@ -612,11 +612,11 @@ set_logical_apic_ids(void)
 static int
 start_all_aps(void)
 {
-	u_char mpbiosreason;
+	vm_offset_t va = boot_address + KERNBASE;
+	u_int64_t *pt4, *pt3, *pt2;
 	u_int32_t mpbioswarmvec;
 	int apic_id, cpu, i;
-	u_int64_t *pt4, *pt3, *pt2;
-	vm_offset_t va = boot_address + KERNBASE;
+	u_char mpbiosreason;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
@@ -657,8 +657,7 @@ start_all_aps(void)
 	outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 
 	/* start each AP */
-	cpu = 0;
-	for (apic_id = 0; apic_id < MAXCPU; apic_id++) {
+	for (cpu = 0, apic_id = 0; apic_id < MAXCPU; apic_id++) {
 
 		/* Ignore non-existent CPUs and the BSP. */
 		if (!cpu_info[apic_id].cpu_present ||
@@ -899,8 +898,9 @@ void
 smp_invltlb(void)
 {
 
-	if (smp_started)
+	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLTLB, 0, 0);
+	}
 }
 
 void
@@ -915,32 +915,36 @@ void
 smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
 {
 
-	if (smp_started)
+	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLRNG, addr1, addr2);
+	}
 }
 
 void
 smp_masked_invltlb(u_int mask)
 {
 
-	if (smp_started)
+	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, 0, 0);
+	}
 }
 
 void
 smp_masked_invlpg(u_int mask, vm_offset_t addr)
 {
 
-	if (smp_started)
+	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, addr, 0);
+	}
 }
 
 void
 smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 {
 
-	if (smp_started)
+	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, addr1, addr2);
+	}
 }
 
 
