@@ -17,6 +17,6 @@ INCS=	snmp_${MOD}.h
 
 EXTRAMIBDEFS= atm_freebsd.def
 
-CFLAGS+= -I${SNMP_ATM}
+CFLAGS+= -I${SNMP_ATM} -I${CONTRIB}/snmpd -I${CONTRIB}/snmp_mibII
 
 .include <bsd.lib.mk>
