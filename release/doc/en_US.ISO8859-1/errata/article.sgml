@@ -100,7 +100,14 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-    <para>No issues.</para>
+    <para>(22 May 2005) An information disclosure vulnerability has
+      been discovered in processors using Hyper-Threading Technology
+      (HTT).  For more information, as well as a patch that adds a
+      boot-time tunable variable that disables the use of HTT by
+      default, consult security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>.
+      </para>
+
   </sect1>
 
   <sect1 id="late-news">
