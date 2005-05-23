@@ -26,10 +26,10 @@
 .\"
 .\" Author: Hartmut Brandt <harti@freebsd.org>
 .\"
-.\" $Begemot: libunimsg/man/unisap.3,v 1.2 2003/08/21 16:01:08 hbb Exp $
+.\" $Begemot: libunimsg/man/unisap.3,v 1.4 2005/05/23 12:00:10 brandt_h Exp $
 .\"
-.Dd August 23, 2002
-.Dt unisap 3
+.Dd May 23, 2005
+.Dt UNISAP 3
 .Os
 .Sh NAME
 .Nm unimsg ,
@@ -106,7 +106,7 @@ struct uni_sap {
 that consists of 5 elements matching different information elements in
 the SETUP message. Each of these elements has a tag that defines how
 the SVE is to be matched with the information element. The tag is one of
-.Bl -tag -widht ".It Dv UNISVE_PRESENT"
+.Bl -tag -width ".Dv UNISVE_PRESENT"
 .It Dv UNISVE_ABSENT
 The information element has to absent from the SETUP message.
 .It Dv UNISVE_PRESENT
@@ -165,7 +165,7 @@ Where the
 .Fa user
 fields is matched only if the
 .Fa proto
-field specifies 
+field specifies
 .Dv UNI_BLLI_L2_USER .
 The layer 3 SVE is:
 .Bd -literal -offset indent
@@ -222,7 +222,7 @@ The function
 checks a complete SAP and returns one of the above codes.
 .Pp
 There is a definition
-.Dv UNISVE_ERRSTR					
+.Dv UNISVE_ERRSTR
 that evaluates to a comma separated list of strings that can be used
 to initializes an array of char pointers to map the error codes into
 human readable strings.
@@ -250,6 +250,6 @@ Finally the function
 is used to match a SAP against the information elements from a SETUP message.
 It returns 1 if they match and 0 otherwise.
 .Sh SEE ALSO
-.Xr libunimsg 3 ,
+.Xr libunimsg 3
 .Sh AUTHORS
 .An Hartmut Brandt Aq harti@freebsd.org
