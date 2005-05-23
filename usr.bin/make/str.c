@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
  * (size + 1) since we need space for the terminating NULL.  The
  * buffer is set to NULL, since no common buffer is alloated yet.
  */
-static void
+void
 ArgArray_Init(ArgArray *aa)
 {
 
