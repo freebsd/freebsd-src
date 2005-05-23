@@ -1,7 +1,7 @@
 /* multi.c -- multiple-column tables (@multitable) for makeinfo.
-   $Id: multi.c,v 1.4 2002/11/04 21:28:10 karl Exp $
+   $Id: multi.c,v 1.8 2004/04/11 17:56:47 karl Exp $
 
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002 Free Software
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2004 Free Software
    Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -18,11 +18,13 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
    
-   Written by phr@gnu.org (Paul Rubin).  */
+   Originally written by phr@gnu.org (Paul Rubin).  */
 
 #include "system.h"
+#include "cmds.h"
 #include "insertion.h"
 #include "makeinfo.h"
+#include "multi.h"
 #include "xml.h"
 
 #define MAXCOLS 100             /* remove this limit later @@ */
@@ -66,6 +68,13 @@ struct env
 /* index in environment table of currently selected environment */
 static int current_env_no;
 
+/* current column number */
+static int current_column_no;
+
+/* We need to make a difference between template based widths and
+   @columnfractions for HTML tables' sake.  Sigh.  */
+static int seen_column_fractions;
+
 /* column number of last column in current multitable */
 static int last_column;
 
@@ -75,133 +84,13 @@ static int hsep, vsep;
 
 /* whether this is the first row. */
 static int first_row;
-
-static void output_multitable_row ();
 
-/* Output a row.  Calls insert, but also flushes the buffered output
-   when we see a newline, since in multitable every line is a separate
-   paragraph.  */
-static void
-out_char (ch)
-    int ch;
-{
-  if (html)
-    add_char (ch);
-  else
-    {
-      int env = select_output_environment (0);
-      insert (ch);
-      if (ch == '\n')
-	{
-	  uninhibit_output_flushing ();
-	  flush_output ();
-	  inhibit_output_flushing ();
-	}
-      select_output_environment (env);
-    }
-}
-
-
-void
-draw_horizontal_separator ()
-{
-  int i, j, s;
-
-  if (html)
-    {
-      add_word ("<hr>");
-      return;
-    }
-  if (xml)
-    return;
-
-  for (s = 0; s < envs[0].current_indent; s++)
-    out_char (' ');
-  if (vsep)
-    out_char ('+');
-  for (i = 1; i <= last_column; i++) {
-    for (j = 0; j <= envs[i].fill_column; j++)
-      out_char ('-');
-    if (vsep)
-      out_char ('+');
-  }
-  out_char ('\n');
-}
-
-
-/* multitable strategy:
-    for each item {
-       for each column in an item {
-        initialize a new paragraph
-        do ordinary formatting into the new paragraph
-        save the paragraph away
-        repeat if there are more paragraphs in the column
-      }
-      dump out the saved paragraphs and free the storage
-    }
-
-   For HTML we construct a simple HTML 3.2 table with <br>s inserted
-   to help non-tables browsers.  `@item' inserts a <tr> and `@tab'
-   inserts <td>; we also try to close <tr>.  The only real
-   alternative is to rely on the info formatting engine and present
-   preformatted text.  */
-
-void
-do_multitable ()
-{
-  int ncolumns;
-
-  if (multitable_active)
-    {
-      line_error ("Multitables cannot be nested");
-      return;
-    }
-
-  close_single_paragraph ();
-
-  /* scan the current item function to get the field widths
-     and number of columns, and set up the output environment list
-     accordingly. */
-  /*  if (docbook)*/ /* 05-08 */
-  if (xml)
-    xml_no_para = 1;
-  ncolumns = setup_multitable_parameters ();
-  first_row = 1;
-
-  /* <p> for non-tables browsers.  @multitable implicitly ends the
-     current paragraph, so this is ok.  */
-  if (html)
-    add_word ("<p><table>");
-  /*  else if (docbook)*/ /* 05-08 */
-  else if (xml)
-    {
-      int *widths = xmalloc (ncolumns * sizeof (int));
-      int i;
-      for (i=0; i<ncolumns; i++)
-	widths[i] = envs[i+1].fill_column;
-      xml_begin_multitable (ncolumns, widths);
-      free (widths);
-    }
-
-  if (hsep)
-    draw_horizontal_separator ();
-
-  /* The next @item command will direct stdout into the first column
-     and start processing.  @tab will then switch to the next column,
-     and @item will flush out the saved output and return to the first
-     column.  Environment #1 is the first column.  (Environment #0 is
-     the normal output) */
-
-  ++multitable_active;
-}
-
 /* Called to handle a {...} template on the @multitable line.
    We're at the { and our first job is to find the matching }; as a side
    effect, we change *PARAMS to point to after it.  Our other job is to
    expand the template text and return the width of that string.  */
 static unsigned
-find_template_width (params)
-     char **params;
+find_template_width (char **params)
 {
   char *template, *xtemplate;
   unsigned len;
@@ -241,107 +130,11 @@ find_template_width (params)
   return len;
 }
 
-
-/* Read the parameters for a multitable from the current command
-   line, save the parameters away, and return the
-   number of columns. */
-int
-setup_multitable_parameters ()
-{
-  char *params = insertion_stack->item_function;
-  int nchars;
-  float columnfrac;
-  char command[200]; /* xx no fixed limits */
-  int i = 1;
-
-  /* We implement @hsep and @vsep even though TeX doesn't.
-     We don't get mixing of @columnfractions and templates right,
-     but TeX doesn't either.  */
-  hsep = vsep = 0;
-
-  while (*params) {
-    while (whitespace (*params))
-      params++;
-
-    if (*params == '@') {
-      sscanf (params, "%200s", command);
-      nchars = strlen (command);
-      params += nchars;
-      if (strcmp (command, "@hsep") == 0)
-        hsep++;
-      else if (strcmp (command, "@vsep") == 0)
-        vsep++;
-      else if (strcmp (command, "@columnfractions") == 0) {
-        /* Clobber old environments and create new ones, starting at #1.
-           Environment #0 is the normal output, so don't mess with it. */
-        for ( ; i <= MAXCOLS; i++) {
-          if (sscanf (params, "%f", &columnfrac) < 1)
-            goto done;
-          /* Unfortunately, can't use %n since m68k-hp-bsd libc (at least)
-             doesn't support it.  So skip whitespace (preceding the
-             number) and then non-whitespace (the number).  */
-          while (*params && (*params == ' ' || *params == '\t'))
-            params++;
-          /* Hmm, but what about @columnfractions 3foo.  Well, I suppose
-             it's invalid input anyway.  */
-          while (*params && *params != ' ' && *params != '\t'
-                 && *params != '\n' && *params != '@')
-            params++;
-          setup_output_environment (i,
-                     (int) (columnfrac * (fill_column - current_indent) + .5));
-        }
-      }
-
-    } else if (*params == '{') {
-      unsigned template_width = find_template_width (&params);
-      
-      /* This gives us two spaces between columns.  Seems reasonable.
-         How to take into account current_indent here?  */
-      setup_output_environment (i++, template_width + 2);
-      
-    } else {
-      warning (_("ignoring stray text `%s' after @multitable"), params);
-      break;
-    }
-  }
-
-done:
-  flush_output ();
-  inhibit_output_flushing ();
-
-  last_column = i - 1;
-  return last_column;
-}
-
-/* Initialize environment number ENV_NO, of width WIDTH.
-   The idea is that we're going to use one environment for each column of
-   a multitable, so we can build them up separately and print them
-   all out at the end. */
-int
-setup_output_environment (env_no, width)
-    int env_no;
-    int width;
-{
-  int old_env = select_output_environment (env_no);
-
-  /* clobber old environment and set width of new one */
-  init_paragraph ();
-
-  /* make our change */
-  fill_column = width;
-
-  /* Save new environment and restore previous one. */
-  select_output_environment (old_env);
-
-  return env_no;
-}
-
 /* Direct current output to environment number N.  Used when
    switching work from one column of a multitable to the next.
    Returns previous environment number. */
-int 
-select_output_environment (n)
-    int n;
+static int 
+select_output_environment (int n)
 {
   struct env *e = &envs[current_env_no];
   int old_env_no = current_env_no;
@@ -368,9 +161,233 @@ select_output_environment (n)
   return old_env_no;
 }
 
-/* advance to the next environment number */
+/* Initialize environment number ENV_NO, of width WIDTH.
+   The idea is that we're going to use one environment for each column of
+   a multitable, so we can build them up separately and print them
+   all out at the end. */
+static int
+setup_output_environment (int env_no, int width)
+{
+  int old_env = select_output_environment (env_no);
+
+  /* clobber old environment and set width of new one */
+  init_paragraph ();
+
+  /* make our change */
+  fill_column = width;
+
+  /* Save new environment and restore previous one. */
+  select_output_environment (old_env);
+
+  return env_no;
+}
+
+/* Read the parameters for a multitable from the current command
+   line, save the parameters away, and return the
+   number of columns. */
+static int
+setup_multitable_parameters (void)
+{
+  char *params = insertion_stack->item_function;
+  int nchars;
+  float columnfrac;
+  char command[200]; /* xx no fixed limits */
+  int i = 1;
+
+  /* We implement @hsep and @vsep even though TeX doesn't.
+     We don't get mixing of @columnfractions and templates right,
+     but TeX doesn't either.  */
+  hsep = vsep = 0;
+
+  /* Assume no @columnfractions per default.  */
+  seen_column_fractions = 0;
+
+  while (*params) {
+    while (whitespace (*params))
+      params++;
+
+    if (*params == '@') {
+      sscanf (params, "%200s", command);
+      nchars = strlen (command);
+      params += nchars;
+      if (strcmp (command, "@hsep") == 0)
+        hsep++;
+      else if (strcmp (command, "@vsep") == 0)
+        vsep++;
+      else if (strcmp (command, "@columnfractions") == 0) {
+        seen_column_fractions = 1;
+        /* Clobber old environments and create new ones, starting at #1.
+           Environment #0 is the normal output, so don't mess with it. */
+        for ( ; i <= MAXCOLS; i++) {
+          if (sscanf (params, "%f", &columnfrac) < 1)
+            goto done;
+          /* Unfortunately, can't use %n since m68k-hp-bsd libc (at least)
+             doesn't support it.  So skip whitespace (preceding the
+             number) and then non-whitespace (the number).  */
+          while (*params && (*params == ' ' || *params == '\t'))
+            params++;
+          /* Hmm, but what about @columnfractions 3foo.  Oh well, 
+             it's invalid input anyway.  */
+          while (*params && *params != ' ' && *params != '\t'
+                 && *params != '\n' && *params != '@')
+            params++;
+
+          {
+            /* For html/xml/docbook, translate fractions into integer
+               percentages, adding .005 to avoid rounding problems.  For
+               info, we want the character width.  */
+            int width = xml || html ? (columnfrac + .005) * 100
+                        : (columnfrac * (fill_column - current_indent) + .5);
+            setup_output_environment (i, width);
+          }
+        }
+      }
+
+    } else if (*params == '{') {
+      unsigned template_width = find_template_width (&params);
+
+      /* This gives us two spaces between columns.  Seems reasonable.
+         How to take into account current_indent here?  */
+      setup_output_environment (i++, template_width + 2);
+      
+    } else {
+      warning (_("ignoring stray text `%s' after @multitable"), params);
+      break;
+    }
+  }
+
+done:
+  flush_output ();
+  inhibit_output_flushing ();
+
+  last_column = i - 1;
+  return last_column;
+}
+
+/* Output a row.  Calls insert, but also flushes the buffered output
+   when we see a newline, since in multitable every line is a separate
+   paragraph.  */
+static void
+out_char (int ch)
+{
+  if (html || xml)
+    add_char (ch);
+  else
+    {
+      int env = select_output_environment (0);
+      insert (ch);
+      if (ch == '\n')
+	{
+	  uninhibit_output_flushing ();
+	  flush_output ();
+	  inhibit_output_flushing ();
+	}
+      select_output_environment (env);
+    }
+}
+
+
+static void
+draw_horizontal_separator (void)
+{
+  int i, j, s;
+
+  if (html)
+    {
+      add_word ("<hr>");
+      return;
+    }
+  if (xml)
+    return;
+
+  for (s = 0; s < envs[0].current_indent; s++)
+    out_char (' ');
+  if (vsep)
+    out_char ('+');
+  for (i = 1; i <= last_column; i++) {
+    for (j = 0; j <= envs[i].fill_column; j++)
+      out_char ('-');
+    if (vsep)
+      out_char ('+');
+  }
+  out_char (' ');
+  out_char ('\n');
+}
+
+
+/* multitable strategy:
+    for each item {
+       for each column in an item {
+        initialize a new paragraph
+        do ordinary formatting into the new paragraph
+        save the paragraph away
+        repeat if there are more paragraphs in the column
+      }
+      dump out the saved paragraphs and free the storage
+    }
+
+   For HTML we construct a simple HTML 3.2 table with <br>s inserted
+   to help non-tables browsers.  `@item' inserts a <tr> and `@tab'
+   inserts <td>; we also try to close <tr>.  The only real
+   alternative is to rely on the info formatting engine and present
+   preformatted text.  */
+
 void
-nselect_next_environment ()
+do_multitable (void)
+{
+  int ncolumns;
+
+  if (multitable_active)
+    {
+      line_error ("Multitables cannot be nested");
+      return;
+    }
+
+  close_single_paragraph ();
+
+  if (xml)
+    {
+      xml_no_para = 1;
+      if (output_paragraph[output_paragraph_offset-1] == '\n')
+        output_paragraph_offset--;
+    }
+
+  /* scan the current item function to get the field widths
+     and number of columns, and set up the output environment list
+     accordingly. */
+  ncolumns = setup_multitable_parameters ();
+  first_row = 1;
+
+  /* <p> for non-tables browsers.  @multitable implicitly ends the
+     current paragraph, so this is ok.  */
+  if (html)
+    add_html_block_elt ("<p><table summary=\"\">");
+  /*  else if (docbook)*/ /* 05-08 */
+  else if (xml)
+    {
+      int *widths = xmalloc (ncolumns * sizeof (int));
+      int i;
+      for (i=0; i<ncolumns; i++)
+	widths[i] = envs[i+1].fill_column;
+      xml_begin_multitable (ncolumns, widths);
+      free (widths);
+    }
+
+  if (hsep)
+    draw_horizontal_separator ();
+
+  /* The next @item command will direct stdout into the first column
+     and start processing.  @tab will then switch to the next column,
+     and @item will flush out the saved output and return to the first
+     column.  Environment #1 is the first column.  (Environment #0 is
+     the normal output) */
+
+  ++multitable_active;
+}
+
+/* advance to the next environment number */
+static void
+nselect_next_environment (void)
 {
   if (current_env_no >= last_column) {
     line_error (_("Too many columns in multitable item (max %d)"), last_column);
@@ -382,8 +399,8 @@ nselect_next_environment ()
 
 /* do anything needed at the beginning of processing a
    multitable column. */
-void
-init_column ()
+static void
+init_column (void)
 {
   /* don't indent 1st paragraph in the item */
   cm_noindent ();
@@ -392,50 +409,8 @@ init_column ()
   skip_whitespace ();
 }
 
-/* start a new item (row) of a multitable */
-int
-multitable_item ()
-{
-  if (!multitable_active) {
-    line_error ("multitable_item internal error: no active multitable");
-    xexit (1);
-  }
-
-  if (html)
-    {
-      if (!first_row)
-	add_word ("<br></td></tr>");	/* <br> for non-tables browsers. */
-      add_word ("<tr align=\"left\"><td valign=\"top\">");
-      first_row = 0;
-      return 0;
-    }
-  /*  else if (docbook)*/ /* 05-08 */
-  else if (xml)
-    {
-      xml_end_multitable_row (first_row);
-      first_row = 0;
-      return 0;
-    }
-  first_row = 0;
-
-  if (current_env_no > 0) {
-    output_multitable_row ();
-  }
-  /* start at column 1 */
-  select_output_environment (1);
-  if (!output_paragraph) {
-    line_error (_("[unexpected] cannot select column #%d in multitable"),
-                current_env_no);
-    xexit (1);
-  }
-
-  init_column ();
-
-  return 0;
-}
-
 static void
-output_multitable_row ()
+output_multitable_row (void)
 {
   /* offset in the output paragraph of the next char needing
      to be output for that column. */
@@ -520,18 +495,108 @@ output_multitable_row ()
   }
 }
 
+int after_headitem = 0;
+int headitem_row = 0;
+
+/* start a new item (row) of a multitable */
+int
+multitable_item (void)
+{
+  if (!multitable_active) {
+    line_error ("multitable_item internal error: no active multitable");
+    xexit (1);
+  }
+
+  current_column_no = 1;
+
+  if (html)
+    {
+      if (!first_row)
+        /* <br> for non-tables browsers. */
+	add_word_args ("<br></%s></tr>", after_headitem ? "th" : "td");
+
+      if (seen_column_fractions)
+        add_word_args ("<tr align=\"left\"><%s valign=\"top\" width=\"%d%%\">",
+            headitem_flag ? "th" : "td",
+            envs[current_column_no].fill_column);
+      else
+        add_word_args ("<tr align=\"left\"><%s valign=\"top\">",
+            headitem_flag ? "th" : "td");
+
+      if (headitem_flag)
+        after_headitem = 1;
+      else
+        after_headitem = 0;
+      first_row = 0;
+      headitem_row = headitem_flag;
+      headitem_flag = 0;
+      return 0;
+    }
+  /*  else if (docbook)*/ /* 05-08 */
+  else if (xml)
+    {
+      xml_end_multitable_row (first_row);
+      if (headitem_flag)
+        after_headitem = 1;
+      else
+        after_headitem = 0;
+      first_row = 0;
+      headitem_flag = 0;
+      return 0;
+    }
+  first_row = 0;
+
+  if (current_env_no > 0) {
+    output_multitable_row ();
+  }
+  /* start at column 1 */
+  select_output_environment (1);
+  if (!output_paragraph) {
+    line_error (_("[unexpected] cannot select column #%d in multitable"),
+                current_env_no);
+    xexit (1);
+  }
+
+  init_column ();
+
+  if (headitem_flag)
+    hsep = 1;
+  else
+    hsep = 0;
+
+  if (headitem_flag)
+    after_headitem = 1;
+  else
+    after_headitem = 0;
+  headitem_flag = 0;
+
+  return 0;
+}
+
 #undef CHAR_AT
 #undef CHAR_ADDR
 
 /* select a new column in current row of multitable */
 void
-cm_tab ()
+cm_tab (void)
 {
   if (!multitable_active)
     error (_("ignoring @tab outside of multitable"));
+
+  current_column_no++;
   
   if (html)
-    add_word ("</td><td valign=\"top\">");
+    {
+      if (seen_column_fractions)
+        add_word_args ("</%s><%s valign=\"top\" width=\"%d%%\">",
+            headitem_row ? "th" : "td",
+            headitem_row ? "th" : "td",
+            envs[current_column_no].fill_column);
+      else
+        add_word_args ("</%s><%s valign=\"top\">",
+            headitem_row ? "th" : "td",
+            headitem_row ? "th" : "td");
+    }
   /*  else if (docbook)*/ /* 05-08 */
   else if (xml)
     xml_end_multitable_column ();
@@ -544,7 +609,7 @@ cm_tab ()
 /* close a multitable, flushing its output and resetting
    whatever needs resetting */
 void
-end_multitable ()
+end_multitable (void)
 {
   if (!html && !docbook) 
     output_multitable_row ();
@@ -558,7 +623,7 @@ end_multitable ()
   close_insertion_paragraph ();
 
   if (html)
-    add_word ("<br></td></tr></table>\n");
+    add_word_args ("<br></%s></tr></table>\n", headitem_row ? "th" : "td");
   /*  else if (docbook)*/ /* 05-08 */
   else if (xml)
     xml_end_multitable ();

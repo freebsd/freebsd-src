@@ -1,7 +1,7 @@
 /* makeinfo.h -- declarations for Makeinfo.
-   $Id: makeinfo.h,v 1.10 2003/05/12 13:12:32 karl Exp $
+   $Id: makeinfo.h,v 1.17 2004/11/30 02:03:23 karl Exp $
 
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004 Free
    Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -31,13 +31,6 @@
 
 /* Hardcoded per GNU standards, not dependent on argv[0].  */
 DECLARE (char *, progname, "makeinfo");
-
-enum reftype
-{
-  menu_reference, followed_reference
-};
-
-extern char *get_xref_token ();
 
 /* Nonzero means a string is in execution, as opposed to a file. */
 DECLARE (int, executing_string, 0);
@@ -45,8 +38,6 @@ DECLARE (int, executing_string, 0);
 /* Nonzero means to inhibit writing macro expansions to the output
    stream, because it has already been written. */
 DECLARE (int, me_inhibit_expansion, 0);
-
-extern char *expansion (), *text_expansion (), *full_expansion ();
 
 /* Current output stream. */
 DECLARE (FILE *, output_stream, NULL);
@@ -67,6 +58,10 @@ DECLARE (int, output_column, 0);
 
 /* Position in the output file. */
 DECLARE (int, output_position, 0);
+
+/* Number of lines in the output.  */
+DECLARE (int, output_line_number, 1);
+DECLARE (int, node_line_number, 0);
 
 /* The offset into OUTPUT_PARAGRAPH where we have a meta character
    produced by a markup such as @code or @dfn.  */
@@ -96,7 +91,14 @@ DECLARE (int, current_indent, 0);
 DECLARE (int, do_first_par_indent, 0);
 
 /* Amount by which @example indentation increases/decreases. */
+DECLARE (int, example_indentation_increment, 5);
+
+/* Amount by which @table, @defun, etc. indentation increases/decreases.  */
 DECLARE (int, default_indentation_increment, 5);
+
+/* Amount by which xml indentation increases/decreases.
+   Zero means unnecessary whitespace is compressed.  */
+DECLARE (int, xml_indentation_increment, 2);
 
 /* Nonzero indicates that filling a line also indents the new line. */
 DECLARE (int, indented_fill, 0);
@@ -133,7 +135,6 @@ DECLARE (int, enable_encoding, 0);
 
 /* Nonzero means escape characters in HTML output. */
 DECLARE (int, escape_html, 1);
-extern char *escape_string (); /* do HTML escapes */
 
 /* Access key number for next menu entry to be generated (1 to 9, or 10 to
    mean no access key)  */
@@ -153,6 +154,9 @@ DECLARE (char *, current_node, NULL);
 
 /* Command name in the process of being hacked. */
 DECLARE (char *, command, NULL);
+
+/* Nonzero if we have seen an @titlepage command.  */
+DECLARE (int, titlepage_cmd_present, 0);
 
 /* @copying ... @end copying. */
 DECLARE (char *, copying_text, NULL);
@@ -186,6 +190,9 @@ DECLARE (char *, css_include, NULL);
    is, generate plain text.  (--no-headers) */
 DECLARE (int, no_headers, 0);
 
+/* Nonzero means that we process @docbook and @ifdocbook.  (--ifdocbook) */
+DECLARE (int, process_docbook, 0);
+
 /* Nonzero means that we process @html and @rawhtml even when not
    generating HTML.  (--ifhtml) */
 DECLARE (int, process_html, 0);
@@ -218,7 +225,7 @@ DECLARE (int, verbose_mode, 0);
 
 /* Nonzero means prefix each @chapter, ... with a number like
    1, 1.1, etc.  (--number-sections) */
-DECLARE (int, number_sections, 0);
+DECLARE (int, number_sections, 1);
 
 /* Nonzero means split size.  When zero, DEFAULT_SPLIT_SIZE is used. */
 DECLARE (int, split_size, 0);
@@ -262,8 +269,16 @@ DECLARE (int, expensive_validation, 0);
 #define digit_value(c) ((c) - '0')
 #endif
 
-#define HTML_SAFE "$-_.+!*'()"
-#define URL_SAFE_CHAR(ch) (isalnum (ch) || strchr (HTML_SAFE, ch))
+/* These characters are not really HTML-safe (with strict XHTML),
+   and also there are possible collisions.  That's the whole reason we
+   designed a new conversion scheme in the first place.  But we
+   nevertheless need to generate the old names.  See
+   `add_escaped_anchor_name' in html.c.  */
+#define OLD_HTML_SAFE "$-_.+!*'()"
+#define OLD_URL_SAFE_CHAR(ch) (strchr (OLD_HTML_SAFE, ch))
+
+/* For the current/stable scheme.  */
+#define URL_SAFE_CHAR(ch) (isalnum (ch))
 
 #define COMMAND_PREFIX '@'
 
@@ -296,7 +311,76 @@ DECLARE (int, splitting, 1);    /* Defaults to true for now. */
 #define looking_at(string) \
   (strncmp (input_text + input_text_offset, string, strlen (string)) == 0)
 
+/* Any list with a member named `next'.  */
+typedef struct generic_list {
+  struct generic_list *next;
+} GENERIC_LIST;
+
+/* Reverse the order of a list.  */
+extern GENERIC_LIST * reverse_list (GENERIC_LIST *list);
+
 /* Possibly return Local Variables trailer for Info output.  */
-extern char *info_trailer ();
+extern char *info_trailer (void),
+  *expansion (char *str, int implicit_code),
+  *text_expansion (char *str),
+  *maybe_escaped_expansion (char *str, int implicit_code, int do_escape_html),
+  *full_expansion (char *str, int implicit_code);
+
+extern void free_and_clear (char **pointer),
+  add_word (char *string),
+  add_char (int character),
+  add_meta_char (int character),
+  close_single_paragraph (void),
+  insert_string (const char *),
+  insert (int character),
+  get_rest_of_line (int expand, char **string),
+  add_html_block_elt (char *string),
+  get_until_in_braces (char *match, char **string),
+  get_until_in_line (int expand, char *match, char **string),
+  canon_white (char *string),
+  discard_until (char *string),
+  indent (int amount),
+  kill_self_indent (int count),
+  backup_input_pointer (void),
+  inhibit_output_flushing (void),
+  uninhibit_output_flushing (void),
+  flush_output (void),
+  start_paragraph (void),
+  close_paragraph (void),
+  close_insertion_paragraph (void),
+  init_paragraph (void),
+  ignore_blank_line (void),
+  reader_loop (void),
+  discard_braces (void),
+  replace_with_expansion (int from, int *to),
+  fix_whitespace (char *string),
+  add_html_elt (char *string);
+
+extern int get_until (char *match, char **string),
+  set_paragraph_indent (char *string),
+  self_delimiting (int character),
+  search_forward (char *string, int from),
+  search_forward_until_pos (char *string, int from, int end_pos),
+  next_nonwhitespace_character (void),
+  fs_error (char *filename);
+
+#if defined (VA_FPRINTF) && __STDC__
+/* Unfortunately we must use prototypes if we are to use <stdarg.h>.  */
+extern void add_word_args (const char *, ...),
+  add_html_block_elt_args (const char *, ...),
+  execute_string (char *, ...),
+  warning (const char *format, ...),
+  error (const char *format, ...),
+  line_error (const char *format, ...),
+  file_line_error (char *infile, int lno, const char *format, ...);
+#else
+extern void add_word_args (),
+  add_html_block_elt_args (),
+  execute_string (),
+  warning (),
+  error (),
+  line_error (),
+  file_line_error ();
+#endif /* no prototypes */
 
 #endif /* not MAKEINFO_H */

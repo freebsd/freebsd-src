@@ -1,8 +1,9 @@
-$Id: NEWS,v 1.57 2003/06/10 20:50:03 karl Exp $
-This file records noteworthy changes.
+$Id: NEWS,v 1.103 2004/12/24 16:43:58 karl Exp $
+This file records noteworthy changes, very tersely.
+See the manual for detailed information.
 
-  Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2003,
-  2001, 2002, 2003 Free Software Foundation, Inc.
+  Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+  2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
   Copying and distribution of this file, with or without modification,
   are permitted in any medium without royalty provided the copyright
@@ -18,10 +19,107 @@ because the historical method of doing copyright permissions using
 @ifinfo failed to output copyright information in the HTML (or XML)
 formats.  The manual has detailed explanations and examples.  For
 convenience, here's a url to one of the relevant sections:
-  http://texinfo.org/manual/Document-Permissions.html
+  http://www.gnu.org/software/texinfo/manual/texinfo/html_node/Document-Permissions.html
 
 -------------------------------------------------------------------------------
+
+4.8 (31 December 2004)
+* Language:
+  . new command @euro for the Euro currency symbol, and
+    @documentencoding has some support for ISO-8859-15.
+  . new command @abbr for general abbreviations.
+  . new command @slanted to typeset text in a slanted font,
+    and @sansserif to typeset in a sans serif font.
+* makeinfo:
+  . An empty first argument to cross-reference commands, such as @xref,
+    causes an error.  This change was made in 4.1, but not mentioned in NEWS.
+  . HTML output:
+    - <a name="..."> constructs are added for the old-style
+      conversion of node names to HTML names, so that external references
+      to them can continue to work.
+    - "g_t" prefixed to targets for node names beginning with a
+      nonletter, for XHTML compatibility.
+  . Docbook output: recognize more image formats.
+* texi2dvi:
+  . new option --recode, to call recode for input character translation.
+* Distribution:
+  . new convenience script texi2pdf, equivalent to texi2dvi --pdf (from tetex).
+  . some cross-compiling support in configure && make.
+  . new configure option --disable-install-warnings, for TeX.
+    distributions which do have the files installed.
+  . automake 1.9.4.
 
+
+4.7 (9 April 2004)
+* Language:
+  . new commands @float, @caption, @shortcaption, @listoffloats for
+    initial implementation of floating material (figures, tables, etc).
+    Ironically, they do not yet actually float anywhere.
+  . new commands @docbook, @ifdocbook, @ifnotdocbook for conditional Docbook.
+  . new commands @ordf{} and @ordm{} for Spanish feminine/masculine ordinals.
+  . new commands @deftypecv[x] for class variables in typed OO languages.
+  . new command @registeredsymbol for the r-in-a-circle symbol.
+  . new command @headitem to make a heading row in @multitable.
+  . new command @LaTeX{} for the LaTeX logo.
+  . new command @comma{} to avoid comma-parsing problems.
+  . @url is now a synonym for @uref; new command @indicateurl has the
+    old meaning of just displaying a url as text.
+  . @quotation now accepts an optional argument for labelling the text
+      as a `Note', `Tip', etc.
+  . @defun (et al.) heading lines can now be continued with a lone @.
+  . @acronym accepts an optional argument for the meaning of the acronym.
+* makeinfo:
+  . New environment variable TEXINFO_OUTPUT_FORMAT determines the output
+    format at runtime, if no options are specified.
+  . New option --plaintext, equivalent to --no-headers with Info output.
+  . All outputs:
+    - sections are numbered by default.
+  . Info output:
+    - punctuation is inserted after @pxref and @ref, if needed to make
+      cross-references valid.
+    - line numbers included in index menus, so Info readers can go to
+      the exact line of an entry, not just a node.  Also in plaintext output.
+    - ^@^H[index^@^H] cookie included in index menus, so Info readers
+      can handle the ] etc. commands better.
+  . HTML output:
+    - new algorithm for cross-references to other manuals, for maximum
+      portability and stability.
+    - include node name in <title> with split output.
+    - @multicolumn fractions become percentages.
+    - entities used for bullets, quotes, dashes, and others.
+    - index entries are links to the exact locations.
+    - <h4> and <h5> used for @sub and @subsubsections again.
+    - accented dotless i supported.
+  . XML output: many new tags and structure to preserve more source features.
+  . Docbook output:
+    - upgraded DTD to Docbook XML 4.2, no longer using Docbook SGML.
+    - improved translation in general, for instance:
+    - line annotations and marked quotations.
+* texi2dvi:
+  . if available, use etex (pdfetex if --pdf) by default.
+  . if the input file includes thumbpdf.sty (for LaTeX), then run thumbpdf.
+  . more output if --debug.
+* texinfo.tex:
+  . @defun names are now printed in typewriter (instead of bold), and
+    within the arguments, @var text is printed in slanted typewriter.
+  . @tex code is executed inside a TeX group, so that any changes must
+    be prefixed with \global (or the equivalent) to be effective.  (This
+    change was actually made years ago, but never made it into the NEWS.)
+* info:
+  . new option --where (aka --location, -w) to report where an Info file
+    would be found, instead of reading it.
+  . by default, output ANSI terminal escape sequences as-is; new option
+    --no-raw-escapes overrides this.
+  . use the newly-generated index line numbers.
+* Distribution:
+  . new script gendocs.sh (not installed), for use by GNU maintainers in
+    getting their manuals on the GNU web site.  Documented in
+    maintain.texi (http://www.gnu.org/prep/maintain/).
+  . Most code uses ANSI C prototypes, to some extent.
+  . New translation: nb.
+  . automake 1.8.3, autoconf 2.59, gettext 0.14.1.
+
+
 4.6 (10 June 2003)
 * Language:
   . new command @/ specifies an allowable breakpoint within a line.

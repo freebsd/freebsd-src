@@ -1,5 +1,5 @@
 /* node.h -- declarations for Node.
-   $Id: node.h,v 1.1 2002/08/25 23:38:39 karl Exp $
+   $Id: node.h,v 1.2 2004/04/11 17:56:47 karl Exp $
 
    Copyright (C) 1996, 1997, 1998, 1999, 2002 Free Software Foundation, Inc.
 
@@ -22,6 +22,8 @@
 #ifndef NODE_H
 #define NODE_H
 
+#include "xref.h"
+
 /* The various references that we know about. */
 /* What we remember for each node. */
 typedef struct tentry
@@ -39,6 +41,7 @@ typedef struct tentry
   int number;           /* Number for this node, relevant for HTML
                            splitting -- from use+define order, not just
                            define. */
+  int order;            /* The order of the tag, starting from zero.  */
   char *html_fname;	/* The HTML file to which this node is written
 			   (non-NULL only for HTML splitting).  */
 } TAG_ENTRY;
@@ -85,6 +88,9 @@ extern TAG_ENTRY *tag_table;
 /* Counter for setting node_ref.number; zero is Top. */
 extern int node_number;
 
+/* Node order counter.  */
+extern int node_order;
+
 /* The current node's section level. */
 extern int current_section;
 
@@ -92,22 +98,32 @@ extern int current_section;
    corresponding to the current node in HTML mode. */
 extern int outstanding_node;
 
-extern TAG_ENTRY *find_node ();
+extern TAG_ENTRY *find_node (char *name);
 
 /* A search string which is used to find a line defining a node. */
 DECLARE (char *, node_search_string, "\n@node ");
 
 /* Extract node name from a menu item. */
-extern char *glean_node_from_menu ();
+extern char *glean_node_from_menu (int remember_ref, enum reftype ref_type);
 
 /* Remember a node for later validation.  */
-extern void remember_node_reference ();
+extern void remember_node_reference (char *node, int line, enum reftype type);
 
 /* Remember the name of the current output file.  */
-extern void set_current_output_filename ();
+extern void set_current_output_filename (const char *fname);
 
 /* Expand macros and commands in the node name and canonicalize
    whitespace in the resulting expansion.  */
-extern char *expand_node_name ();
+extern char *expand_node_name (char *node);
+
+extern int number_of_node (char *node);
+
+extern void init_tag_table (void);
+extern void write_tag_table (char *filename);
+extern void free_node_references (void);
+extern void free_node_node_references (void);
+extern void validate_file (TAG_ENTRY *tag_table);
+extern void split_file (char *filename, int size);
+extern void clean_old_split_files (char *filename);
 
 #endif /* NODE_H */

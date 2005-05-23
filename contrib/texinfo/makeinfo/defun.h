@@ -1,5 +1,5 @@
 /* defun.h -- declaration for defuns.
-   $Id: defun.h,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: defun.h,v 1.2 2004/04/11 17:56:47 karl Exp $
 
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -24,8 +24,8 @@
 
 #include "insertion.h"
 
-extern enum insertion_type get_base_type ();
-extern void cm_defun ();
+extern enum insertion_type get_base_type (int type);
+extern void cm_defun (void);
 
 #endif /* !DEFUN_H */
 
