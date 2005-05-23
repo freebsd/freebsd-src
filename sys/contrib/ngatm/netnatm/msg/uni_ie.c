@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/netnatm/msg/uni_ie.c,v 1.15 2004/08/05 07:10:59 brandt Exp $
+ * $Begemot: libunimsg/netnatm/msg/uni_ie.c,v 1.16 2005/05/23 12:06:30 brandt_h Exp $
  *
  * Private definitions for the IE code file.
  *
@@ -6235,6 +6235,7 @@ DEF_IE_DECODE(net, called_soft)
 			if(!vpi_seen) {
 				ie->vpi = *msg->b_rptr++ << 8;
 				ie->vpi |= *msg->b_rptr++;
+				vpi_seen = 1;
 			} else {
 				msg->b_rptr += 2;
 			}
@@ -6246,6 +6247,7 @@ DEF_IE_DECODE(net, called_soft)
 			if(!vci_seen) {
 				ie->vci = *msg->b_rptr++ << 8;
 				ie->vci |= *msg->b_rptr++;
+				vci_seen = 1;
 			} else {
 				msg->b_rptr += 2;
 			}
