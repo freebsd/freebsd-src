@@ -28,8 +28,9 @@ $FreeBSD$
 */lib/memcpy.c
 */lib/memmove.c
 */lib/mkstemp.c
+*/lib/strcase.h
 */lib/strcasecmp.c
-*/lib/strdup.c
+*/lib/strdup.*
 */lib/strerror.c
 */lib/strncasecmp.c
 */lib/tempname.c
@@ -41,10 +42,16 @@ $FreeBSD$
 */util/*awk
 */util/deref.c
 */util/fix*
+*/util/gdoc
 */util/gen-dir-node
+*/util/gendocs*
 */util/infosrch
 */util/install-info-html
 */util/tex3patch
 */util/texi-docstring-magic.el
 */util/texi2dvi
+*/util/texi2pdf
+*/util/texinfo-cat.in
+*/util/texinfo.dtd
+*/util/texinfo.xsl
 */util/txitextest
