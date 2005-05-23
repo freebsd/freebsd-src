@@ -26,8 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: libunimsg/netnatm/api/unisap.h,v 1.5 2004/07/08 08:22:01 brandt Exp $
- * $FreeBSD$
+ * $Begemot: libunimsg/netnatm/api/unisap.h,v 1.6 2005/05/23 11:49:17 brandt_h Exp $
  */
 #ifndef _NETNATM_API_UNISAP_H_
 #define _NETNATM_API_UNISAP_H_
