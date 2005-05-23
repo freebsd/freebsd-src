@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpclient.h,v 1.18 2004/08/06 08:46:57 brandt Exp $
+ * $Begemot: bsnmp/lib/snmpclient.h,v 1.19 2005/05/23 11:10:14 brandt_h Exp $
  */
 #ifndef _BSNMP_SNMPCLIENT_H
 #define _BSNMP_SNMPCLIENT_H
@@ -180,5 +180,8 @@ int snmp_table_fetch_async(const struct snmp_table *, void *,
 
 /* send a request and wait for the response */
 int snmp_dialog(struct snmp_pdu *_req, struct snmp_pdu *_resp);
+
+/* parse a server specification */
+int snmp_parse_server(struct snmp_client *, const char *);
 
 #endif /* _BSNMP_SNMPCLIENT_H */

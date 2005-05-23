@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_route.c,v 1.5 2004/08/06 08:47:04 brandt Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_route.c,v 1.6 2005/05/23 09:03:41 brandt_h Exp $
  *
  * Routing table
  */
@@ -42,7 +42,7 @@ struct sroute {
 };
 static TAILQ_HEAD(, sroute) sroute_list = TAILQ_HEAD_INITIALIZER(sroute_list);
 
-static uint32_t route_tick;
+static uint64_t route_tick;
 static u_int route_total;
 
 static int

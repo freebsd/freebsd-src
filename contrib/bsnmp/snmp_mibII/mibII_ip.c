@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_ip.c,v 1.10 2004/08/06 08:47:01 brandt Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_ip.c,v 1.11 2005/05/23 09:03:40 brandt_h Exp $
  *
  * ip group scalars.
  */
@@ -44,9 +44,9 @@ static struct icmpstat icmpstat;
 
 static int	ip_forwarding;
 static int	ip_defttl;
-static uint32_t ip_tick;
+static uint64_t ip_tick;
 
-static uint32_t ipstat_tick;
+static uint64_t ipstat_tick;
 
 static int
 fetch_ipstat(void)
