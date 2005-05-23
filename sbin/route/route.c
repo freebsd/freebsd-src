@@ -963,18 +963,19 @@ getaddr(which, s, hpp)
 	case AF_INET6:
 	{
 		struct addrinfo hints, *res;
+		int ecode;
 
 		q = NULL;
 		if (which == RTA_DST && (q = strchr(s, '/')) != NULL)
 			*q = '\0';
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = afamily;	/*AF_INET6*/
-		hints.ai_flags = AI_NUMERICHOST;
 		hints.ai_socktype = SOCK_DGRAM;		/*dummy*/
-		if (getaddrinfo(s, "0", &hints, &res) != 0 ||
-		    res->ai_family != AF_INET6 ||
+		ecode = getaddrinfo(s, NULL, &hints, &res);
+		if (ecode != 0 || res->ai_family != AF_INET6 ||
 		    res->ai_addrlen != sizeof(su->sin6)) {
-			(void) fprintf(stderr, "%s: bad value\n", s);
+			(void) fprintf(stderr, "%s: %s\n", s,
+			    gai_strerror(ecode));
 			exit(1);
 		}
 		memcpy(&su->sin6, res->ai_addr, sizeof(su->sin6));
