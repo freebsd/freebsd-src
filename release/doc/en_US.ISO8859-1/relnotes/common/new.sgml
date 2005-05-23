@@ -406,6 +406,9 @@
 	&man.sab.4; drivers are now disabled in the
 	<filename>GENERIC</filename> kernel. &merged;</para>
 
+      <para>The &man.uftdi.4; driver now supports the FTDI FT2232C
+	chip.</para>
+
       <para>The &man.uplcom.4; driver now supports handling of the
 	<literal>CTS</literal> signal.</para>
 
@@ -424,7 +427,7 @@
 
 	<para>The &man.uaudio.4; driver now has some added
 	  functionality, including volume control on more inputs and
-	  recording capability on some devices.</para>
+	  recording capability on some devices. &merged;</para>
 
       </sect4>
 
@@ -440,7 +443,8 @@
 	  driver.</para>
 
 	<para>The &man.bge.4; driver now supports the &man.altq.4;
-	  framework.</para>
+	  framework, as well as the BCM5714, 5721, 5750, 5751, 5751M and 5789
+	  chips. &merged;</para>
 
 	<para>The &man.cdce.4; USB Communication Device Class Ethernet
 	  driver has been added. &merged;</para>
@@ -451,7 +455,8 @@
 
 	<para>The &man.cx.4; driver is now MPSAFE. &merged;</para>
 
-	<para>The &man.dc.4; driver now supports the &man.altq.4; framework.</para>
+	<para>The &man.dc.4; driver now supports the &man.altq.4;
+	  framework. &merged;</para>
 
 	<para>The &man.ed.4; driver now supports the &man.altq.4;
 	  framework.  &merged;</para>
@@ -476,7 +481,7 @@
 	  and &man.ural.4; (for Ralink Technology RT2500USB)
 	  drivers have been added.</para>
 
-	<para>The &man.ixgb.4; driver is now MPSAFE.</para>
+	<para>The &man.ixgb.4; driver is now MPSAFE. &merged;</para>
 
 	<para>The musycc driver, for the LanMedia LMC1504 T1/E1
 	  network interface card, has been removed due to
@@ -528,7 +533,7 @@
 	  compiled) into the kernel.</para>
 
 	<para>The &man.xl.4; driver now supports
-	  &man.polling.4;.</para>
+	  &man.polling.4;. &merged;</para>
 
       </sect4>
     </sect3>
