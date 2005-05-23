@@ -26,10 +26,10 @@
 .\"
 .\" Author: Hartmut Brandt <harti@freebsd.org>
 .\"
-.\" $Begemot: libunimsg/man/unimsg.3,v 1.2 2003/08/21 16:01:08 hbb Exp $
+.\" $Begemot: libunimsg/man/unimsg.3,v 1.3 2005/05/23 12:00:09 brandt_h Exp $
 .\"
-.Dd August 23, 2002
-.Dt unimsg 3
+.Dd May 23, 2005
+.Dt UNIMSG 3
 .Os
 .Sh NAME
 .Nm uni_msg_len ,
@@ -192,8 +192,8 @@ The function
 .Fn uni_msg_append8
 appends one byte to the message and the function
 .Fn uni_msg_append32
-appends a 32-bit value in network byte order to the message (
-.Fa b_wptr
+appends a 32-bit value in network byte order to the message
+.Fa ( b_wptr
 needs not to be aligned). All three functions call
 .Fn uni_msg_ensure
 to make sure, that the buffer contents fit into the message. They

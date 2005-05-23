@@ -26,10 +26,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: libunimsg/man/unistruct.3,v 1.3 2004/07/08 08:21:43 brandt Exp $
+.\" $Begemot: libunimsg/man/unistruct.3,v 1.4 2005/05/23 12:00:10 brandt_h Exp $
 .\"
-.Dd October 30, 2003
-.Dt unistruct 3
+.Dd May 23, 2005
+.Dt UNISTRUCT 3
 .Os
 .Sh NAME
 .Nm libngatm
@@ -46,7 +46,7 @@ The
 library handles UNI 4.0 messages.
 For each information element and message
 type the header files contain a structure definition.
-Additionally there 
+Additionally there
 are a number of help structures and a global context structure for some
 of the library functions.
 This document only describes the common structures.
@@ -116,7 +116,7 @@ is used for error processing and is one of:
 .It Dv UNI_IEACT_CLEAR
 clear call
 .It Dv UNI_IEACT_IGNORE
-ignore IE and proceed 
+ignore IE and proceed
 .It Dv UNI_IEACT_REPORT
 ignore IE, report and proceed
 .It Dv UNI_IEACT_MSG_IGNORE
@@ -311,7 +311,7 @@ The size of tabulation to use in printing.
 4 is a good value.
 .El
 .Sh SEE ALSO
-.Xr libunimsg 3 ,
+.Xr libunimsg 3
 .Sh STANDARDS
 This implementation conforms to the applicable ITU-T
 recommendations and ATM Forum standards with the exception of some limitations
