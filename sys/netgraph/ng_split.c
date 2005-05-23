@@ -112,9 +112,8 @@ ng_split_newhook(node_p node, hook_p hook, const char *name)
 		localhook = &priv->in;
 	} else if (strcmp(name, NG_SPLIT_HOOK_OUT) == 0) {
 		localhook = &priv->out;
-	} else {
-		return (EPFNOSUPPORT);
-	}
+	} else
+		return (EINVAL);
 
 	if (*localhook != NULL)
 		return (EISCONN);
