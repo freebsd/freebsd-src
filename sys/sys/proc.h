@@ -370,7 +370,7 @@ struct thread {
 #define	TDP_SA		0x00000080 /* A scheduler activation based thread. */
 #define	TDP_UNUSED8	0x00000100 /* --available -- */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
-#define	TDP_WAKEPROC0	0x00000400 /* Wants caller to wakeup(&proc0) */
+#define	TDP_UNUSED10	0x00000400 /* --available -- */
 #define	TDP_CAN_UNBIND	0x00000800 /* Only temporarily bound. */
 #define	TDP_SCHED1	0x00001000 /* Reserved for scheduler private use */
 #define	TDP_SCHED2	0x00002000 /* Reserved for scheduler private use */
@@ -848,6 +848,7 @@ void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
+void 	kick_proc0(void);
 int	leavepgrp(struct proc *p);
 int	maybe_preempt(struct thread *td);
 void	mi_switch(int flags, struct thread *newtd);

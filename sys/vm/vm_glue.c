@@ -113,6 +113,10 @@ SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, scheduler, NULL)
 static void swapout(struct proc *);
 #endif
 
+
+static volatile int proc0_rescan;
+
+
 /*
  * MPSAFE
  *
@@ -596,6 +600,9 @@ scheduler(dummy)
 loop:
 	if (vm_page_count_min()) {
 		VM_WAIT;
+		mtx_lock_spin(&sched_lock);
+		proc0_rescan = 0;
+		mtx_unlock_spin(&sched_lock);
 		goto loop;
 	}
 
@@ -641,7 +648,13 @@ loop:
 	 * Nothing to do, back to sleep.
 	 */
 	if ((p = pp) == NULL) {
-		tsleep(&proc0, PVM, "sched", maxslp * hz / 2);
+		mtx_lock_spin(&sched_lock);
+		if (!proc0_rescan) {
+			TD_SET_IWAIT(&thread0);
+			mi_switch(SW_VOL, NULL);
+		}
+		proc0_rescan = 0;
+		mtx_unlock_spin(&sched_lock);
 		goto loop;
 	}
 	PROC_LOCK(p);
@@ -653,6 +666,9 @@ loop:
 	 */
 	if (p->p_sflag & (PS_INMEM | PS_SWAPPINGOUT | PS_SWAPPINGIN)) {
 		PROC_UNLOCK(p);
+		mtx_lock_spin(&sched_lock);
+		proc0_rescan = 0;
+		mtx_unlock_spin(&sched_lock);
 		goto loop;
 	}
 
@@ -668,9 +684,28 @@ loop:
 	PROC_UNLOCK(p);
 	mtx_lock_spin(&sched_lock);
 	p->p_swtime = 0;
+	proc0_rescan = 0;
 	mtx_unlock_spin(&sched_lock);
 	goto loop;
 }
+
+void kick_proc0(void)
+{
+	struct thread *td = &thread0;
+
+		
+	if (TD_AWAITING_INTR(td)) {
+		CTR2(KTR_INTR, "%s: setrunqueue %d", __func__, 0);
+		TD_CLR_IWAIT(td);
+		setrunqueue(td, SRQ_INTR);
+	} else {
+		proc0_rescan = 1;
+		CTR2(KTR_INTR, "%s: state %d",
+		    __func__, td->td_state);
+	}
+	
+}
+
 
 #ifndef NO_SWAPPING
 
