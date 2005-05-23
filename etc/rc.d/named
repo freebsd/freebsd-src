@@ -58,12 +58,8 @@ chroot_autoupdate()
 
 	# Mount a devfs in the chroot directory if needed
 	#
-	if [ ! -c ${named_chrootdir}/dev/random -o \
-	    ! -c ${named_chrootdir}/dev/null ]; then
-		umount ${named_chrootdir}/dev 2>/dev/null
-		mount_devfs devfs ${named_chrootdir}/dev
-	fi
-	devfs -m ${named_chrootdir}/dev rule apply hide
+	umount ${named_chrootdir}/dev 2>/dev/null
+	devfs_domount ${named_chrootdir}/dev devfsrules_hide_all
 	devfs -m ${named_chrootdir}/dev rule apply path null unhide
 	devfs -m ${named_chrootdir}/dev rule apply path random unhide
 
