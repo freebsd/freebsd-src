@@ -131,7 +131,7 @@ struct ngtype {
 TAILQ_HEAD(ngtype_list, ngtype);
 
 static struct ngtype_list ngtype_list;
-static u_int32_t ngtype_tick;
+static uint64_t ngtype_tick;
 
 
 /*
