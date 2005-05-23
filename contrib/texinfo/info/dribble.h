@@ -3,7 +3,7 @@
 /* This file is part of GNU Info, a program for reading online documentation
    stored in Info format.
 
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1993, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,12 +30,12 @@ extern FILE *info_dribble_file;
 
 /* Open a dribble file named NAME, perhaps closing an already open one.
    This sets the global variable INFO_DRIBBLE_FILE to the open stream. */
-extern void open_dribble_file ();
+extern void open_dribble_file (char *name);
 
 /* If there is a dribble file already open, close it. */
-extern void close_dribble_file ();
+extern void close_dribble_file (void);
 
 /* Write some output to our existing dribble file. */
-extern void dribble ();
+extern void dribble (unsigned char byte);
 
 #endif /* !_DRIBBLE_H_ */

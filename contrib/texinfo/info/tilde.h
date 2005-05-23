@@ -1,12 +1,10 @@
-/* tilde.h: Externally available variables and function in libtilde.a. */
-
-/* This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
+/* tilde.h: Externally available variables and function in libtilde.a.
+   $Id: tilde.h,v 1.3 2004/04/11 17:56:46 karl Exp $
 
    This file has appeared in prior works by the Free Software Foundation;
    thus it carries copyright dates from 1988 through 1993.
 
-   Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993 Free Software
+   Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 2004 Free Software
    Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -47,10 +45,10 @@ extern char **tilde_additional_prefixes;
 extern char **tilde_additional_suffixes;
 
 /* Return a new string which is the result of tilde expanding STRING. */
-extern char *tilde_expand ();
+extern char *tilde_expand (char *string);
 
 /* Do the work of tilde expansion on FILENAME.  FILENAME starts with a
    tilde.  If there is no expansion, call tilde_expansion_failure_hook. */
-extern char *tilde_expand_word ();
+extern char *tilde_expand_word (char *filename);
 
 #endif /* not TILDE_H */
