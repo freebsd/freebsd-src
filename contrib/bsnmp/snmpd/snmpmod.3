@@ -26,9 +26,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.8 2005/02/25 11:56:01 brandt_h Exp $
+.\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.10 2005/05/23 09:10:11 brandt_h Exp $
 .\"
-.Dd August 16, 2002
+.Dd May 23, 2005
 .Dt SNMPMOD 3
 .Os
 .Sh NAME
@@ -119,9 +119,9 @@ Begemot SNMP library
 .Fn FIND_OBJECT_INT "LIST" "OID" "SUB"
 .Fn NEXT_OBJECT_OID "LIST" "OID" "SUB"
 .Fn NEXT_OBJECT_INT "LIST" "OID" "SUB"
-.Vt extern u_int32_t this_tick ;
-.Vt extern u_int32_t start_tick ;
-.Ft u_int32_t
+.Vt extern uint64_t this_tick ;
+.Vt extern uint64_t start_tick ;
+.Ft uint64_t
 .Fn get_ticks "void"
 .Vt extern struct systemg systemg ;
 .Ft u_int
@@ -450,7 +450,8 @@ The variable
 contains the tick when the daemon was started.
 The function
 .Fn get_ticks
-returns the current tick. The number of ticks since the daemon was started
+returns the current tick.
+The number of ticks since the daemon was started
 is
 .Bd -literal -offset indent
 get_ticks() - start_tick

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_interfaces.c,v 1.14 2005/02/25 16:04:42 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_interfaces.c,v 1.15 2005/05/23 09:03:39 brandt_h Exp $
  *
  * Interfaces group.
  */
@@ -135,13 +135,17 @@ ifchange_func(struct snmp_context *ctx __unused, struct snmp_dependency *dep,
 	abort();
 }
 
+/*
+ * Return difference to daemon start time in ticks truncated to a
+ * 32-bit value. If the timeval is 0 then return 0.
+ */
 static uint32_t
 ticks_get_timeval(struct timeval *tv)
 {
-	uint32_t v;
+	uint64_t v;
 
 	if (tv->tv_sec != 0 || tv->tv_usec != 0) {
-		v = 100 * tv->tv_sec + tv->tv_usec / 10000;
+		v = 100ULL * tv->tv_sec + tv->tv_usec / 10000ULL;
 		if (v > start_tick)
 			return (v - start_tick);
 	}
