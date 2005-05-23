@@ -1,7 +1,7 @@
 /* xexit.c -- exit with attention to return values and closing stdout.
-   $Id: xexit.c,v 1.4 2003/05/19 13:10:59 karl Exp $
+   $Id: xexit.c,v 1.5 2004/04/11 17:56:46 karl Exp $
 
-   Copyright (C) 1999, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2003, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,8 +47,7 @@
    unsuccessfully.  */
 
 void
-xexit (exit_status)
-     int exit_status;
+xexit (int exit_status)
 {
   if (ferror (stdout))
     {

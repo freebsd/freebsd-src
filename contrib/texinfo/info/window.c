@@ -1,7 +1,7 @@
 /* window.c -- windows in Info.
-   $Id: window.c,v 1.2 2003/02/11 16:39:06 karl Exp $
+   $Id: window.c,v 1.4 2004/04/11 17:56:46 karl Exp $
 
-   Copyright (C) 1993, 1997, 1998, 2001, 2002, 2003 Free Software
+   Copyright (C) 1993, 1997, 1998, 2001, 2002, 2003, 2004 Free Software
    Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -51,8 +51,7 @@ WINDOW *active_window = NULL;
    Create the first window ever.
    You pass the dimensions of the total screen size. */
 void
-window_initialize_windows (width, height)
-     int width, height;
+window_initialize_windows (int width, int height)
 {
   the_screen = xmalloc (sizeof (WINDOW));
   the_echo_area = xmalloc (sizeof (WINDOW));
@@ -83,7 +82,7 @@ window_initialize_windows (width, height)
      area. */
   the_echo_area->height = ECHO_AREA_HEIGHT;
   active_window->height = the_screen->height - 1 - the_echo_area->height;
-  window_new_screen_size (width, height, NULL);
+  window_new_screen_size (width, height);
 
   /* The echo area uses a different keymap than normal info windows. */
   the_echo_area->keymap = echo_area_keymap;
@@ -103,8 +102,7 @@ window_initialize_windows (width, height)
 VFunction *window_deletion_notifier = NULL;
 
 void
-window_new_screen_size (width, height)
-     int width, height;
+window_new_screen_size (int width, int height)
 {
   register WINDOW *win;
   int delta_height, delta_each, delta_leftover;
@@ -232,7 +230,7 @@ window_new_screen_size (width, height)
           if ((win->height < WINDOW_MIN_HEIGHT) ||
               (win->height > avail))
             {
-              WINDOW *lastwin;
+              WINDOW *lastwin = NULL;
 
               /* Split the space among the available windows. */
               delta_each = avail / numwins;
@@ -262,8 +260,7 @@ window_new_screen_size (width, height)
    window.  If the window could not be made return a NULL pointer.  The
    active window is not changed.*/
 WINDOW *
-window_make_window (node)
-     NODE *node;
+window_make_window (NODE *node)
 {
   WINDOW *window;
 
@@ -377,9 +374,7 @@ window_make_window (node)
    the previous and next windows in the chain.  If there is only one user
    window, then no change takes place. */
 void
-window_change_window_height (window, amount)
-     WINDOW *window;
-     int amount;
+window_change_window_height (WINDOW *window, int amount)
 {
   register WINDOW *win, *prev, *next;
 
@@ -510,8 +505,7 @@ window_change_window_height (window, amount)
    internal nodes as well, otherwise do not change the height of such
    windows. */
 void
-window_tile_windows (style)
-     int style;
+window_tile_windows (int style)
 {
   WINDOW *win, *last_adjusted;
   int numwins, avail, per_win_height, leftover;
@@ -564,8 +558,7 @@ window_tile_windows (style)
 /* Toggle the state of line wrapping in WINDOW.  This can do a bit of fancy
    redisplay. */
 void
-window_toggle_wrap (window)
-     WINDOW *window;
+window_toggle_wrap (WINDOW *window)
 {
   if (window->flags & W_NoWrap)
     window->flags &= ~W_NoWrap;
@@ -599,9 +592,7 @@ window_toggle_wrap (window)
 
 /* Set WINDOW to display NODE. */
 void
-window_set_node_of_window (window, node)
-     WINDOW *window;
-     NODE *node;
+window_set_node_of_window (WINDOW *window, NODE *node)
 {
   window->node = node;
   window->pagetop = 0;
@@ -619,8 +610,7 @@ window_set_node_of_window (window, node)
    If the active window is the next or previous window, choose that window
    as the recipient of the extra space.  Otherwise, prefer the next window. */
 void
-window_delete_window (window)
-     WINDOW *window;
+window_delete_window (WINDOW *window)
 {
   WINDOW *next, *prev, *window_to_fix;
 
@@ -691,9 +681,7 @@ window_delete_window (window)
 
 /* For every window in CHAIN, set the flags member to have FLAG set. */
 void
-window_mark_chain (chain, flag)
-     WINDOW *chain;
-     int flag;
+window_mark_chain (WINDOW *chain, int flag)
 {
   register WINDOW *win;
 
@@ -703,9 +691,7 @@ window_mark_chain (chain, flag)
 
 /* For every window in CHAIN, clear the flags member of FLAG. */
 void
-window_unmark_chain (chain, flag)
-     WINDOW *chain;
-     int flag;
+window_unmark_chain (WINDOW *chain, int flag)
 {
   register WINDOW *win;
 
@@ -716,8 +702,7 @@ window_unmark_chain (chain, flag)
 /* Return the number of characters it takes to display CHARACTER on the
    screen at HPOS. */
 int
-character_width (character, hpos)
-     int character, hpos;
+character_width (int character, int hpos)
 {
   int printable_limit = 127;
   int width = 1;
@@ -751,9 +736,7 @@ character_width (character, hpos)
 /* Return the number of characters it takes to display STRING on the screen
    at HPOS. */
 int
-string_width (string, hpos)
-     char *string;
-     int hpos;
+string_width (char *string, int hpos)
 {
   register int i, width, this_char_width;
 
@@ -782,8 +765,7 @@ string_width (string, hpos)
 /* Quickly guess the approximate number of lines that NODE would
    take to display.  This really only counts carriage returns. */
 int
-window_physical_lines (node)
-     NODE *node;
+window_physical_lines (NODE *node)
 {
   register int i, lines;
   char *contents;
@@ -802,8 +784,7 @@ window_physical_lines (node)
 /* Calculate a list of line starts for the node belonging to WINDOW.  The line
    starts are pointers to the actual text within WINDOW->NODE. */
 void
-calculate_line_starts (window)
-     WINDOW *window;
+calculate_line_starts (WINDOW *window)
 {
   register int i, hpos;
   char **line_starts = NULL;
@@ -869,7 +850,7 @@ calculate_line_starts (window)
 	    cwidth = character_width (c, hpos);
 
           /* If this character fits within this line, just do the next one. */
-          if ((hpos + cwidth) < window->width)
+          if ((hpos + cwidth) < (unsigned int) window->width)
             {
               i++;
               hpos += cwidth;
@@ -918,8 +899,7 @@ calculate_line_starts (window)
 
 /* Given WINDOW, recalculate the line starts for the node it displays. */
 void
-recalculate_line_starts (window)
-     WINDOW *window;
+recalculate_line_starts (WINDOW *window)
 {
   maybe_free (window->line_starts);
   calculate_line_starts (window);
@@ -933,8 +913,7 @@ int window_scroll_step = 0;
 
 /* Adjust the pagetop of WINDOW such that the cursor point will be visible. */
 void
-window_adjust_pagetop (window)
-     WINDOW *window;
+window_adjust_pagetop (WINDOW *window)
 {
   register int line = 0;
   char *contents;
@@ -991,8 +970,7 @@ window_adjust_pagetop (window)
 
 /* Return the index of the line containing point. */
 int
-window_line_of_point (window)
-     WINDOW *window;
+window_line_of_point (WINDOW *window)
 {
   register int i, start = 0;
 
@@ -1014,8 +992,7 @@ window_line_of_point (window)
 
 /* Get and return the goal column for this window. */
 int
-window_get_goal_column (window)
-     WINDOW *window;
+window_get_goal_column (WINDOW *window)
 {
   if (!window->node)
     return (-1);
@@ -1030,8 +1007,7 @@ window_get_goal_column (window)
 
 /* Get and return the printed column offset of the cursor in this window. */
 int
-window_get_cursor_column (window)
-     WINDOW *window;
+window_get_cursor_column (WINDOW *window)
 {
   int i, hpos, end;
   char *line;
@@ -1069,11 +1045,9 @@ window_get_cursor_column (window)
 /* Count the number of characters in LINE that precede the printed column
    offset of GOAL. */
 int
-window_chars_to_goal (line, goal)
-     char *line;
-     int goal;
+window_chars_to_goal (char *line, int goal)
 {
-  register int i, check, hpos;
+  register int i, check = 0, hpos;
 
   for (hpos = 0, i = 0; line[i] != '\n'; i++)
     {
@@ -1099,8 +1073,7 @@ window_chars_to_goal (line, goal)
 
 /* Create a modeline for WINDOW, and store it in window->modeline. */
 void
-window_make_modeline (window)
-     WINDOW *window;
+window_make_modeline (WINDOW *window)
 {
   register int i;
   char *modeline;
@@ -1214,9 +1187,7 @@ window_make_modeline (window)
 
 /* Make WINDOW start displaying at PERCENT percentage of its node. */
 void
-window_goto_percentage (window, percent)
-     WINDOW *window;
-     int percent;
+window_goto_percentage (WINDOW *window, int percent)
 {
   int desired_line;
 
@@ -1235,9 +1206,7 @@ window_goto_percentage (window, percent)
 
 /* Get the state of WINDOW, and save it in STATE. */
 void
-window_get_state (window, state)
-     WINDOW *window;
-     WINDOW_STATE *state;
+window_get_state (WINDOW *window, SEARCH_STATE *state)
 {
   state->node = window->node;
   state->pagetop = window->pagetop;
@@ -1246,9 +1215,7 @@ window_get_state (window, state)
 
 /* Set the node, pagetop, and point of WINDOW. */
 void
-window_set_state (window, state)
-     WINDOW *window;
-     WINDOW_STATE *state;
+window_set_state (WINDOW *window, SEARCH_STATE *state)
 {
   if (window->node != state->node)
     window_set_node_of_window (window, state->node);
@@ -1264,7 +1231,7 @@ static NODE *echo_area_node = NULL;
 
 /* Make the node of the_echo_area be an empty one. */
 static void
-free_echo_area ()
+free_echo_area (void)
 {
   if (echo_area_node)
     {
@@ -1279,7 +1246,7 @@ free_echo_area ()
 /* Clear the echo area, removing any message that is already present.
    The echo area is cleared immediately. */
 void
-window_clear_echo_area ()
+window_clear_echo_area (void)
 {
   free_echo_area ();
   display_update_one_window (the_echo_area);
@@ -1290,9 +1257,7 @@ window_clear_echo_area ()
    printf () hair is present.  The message appears immediately.  If there was
    already a message appearing in the echo area, it is removed. */
 void
-window_message_in_echo_area (format, arg1, arg2)
-     char *format;
-     void *arg1, *arg2;
+window_message_in_echo_area (char *format, void *arg1, void *arg2)
 {
   free_echo_area ();
   echo_area_node = build_message_node (format, arg1, arg2);
@@ -1309,9 +1274,7 @@ static int old_echo_area_nodes_index = 0;
 static int old_echo_area_nodes_slots = 0;
 
 void
-message_in_echo_area (format, arg1, arg2)
-     char *format;
-     void *arg1, *arg2;
+message_in_echo_area (char *format, void *arg1, void *arg2)
 {
   if (echo_area_node)
     {
@@ -1324,7 +1287,7 @@ message_in_echo_area (format, arg1, arg2)
 }
 
 void
-unmessage_in_echo_area ()
+unmessage_in_echo_area (void)
 {
   free_echo_area ();
 
@@ -1343,8 +1306,7 @@ static int message_buffer_size = 0;
 /* Ensure that there is enough space to stuff LENGTH characters into
    MESSAGE_BUFFER. */
 static void
-message_buffer_resize (length)
-     int length;
+message_buffer_resize (int length)
 {
   if (!message_buffer)
     {
@@ -1362,9 +1324,7 @@ message_buffer_resize (length)
 /* Format MESSAGE_BUFFER with the results of printing FORMAT with ARG1 and
    ARG2. */
 static void
-build_message_buffer (format, arg1, arg2, arg3)
-     char *format;
-     void *arg1, *arg2, *arg3;
+build_message_buffer (char *format, void *arg1, void *arg2, void *arg3)
 {
   register int i, len;
   void *args[3];
@@ -1511,9 +1471,7 @@ build_message_buffer (format, arg1, arg2, arg3)
 /* Build a new node which has FORMAT printed with ARG1 and ARG2 as the
    contents. */
 NODE *
-build_message_node (format, arg1, arg2)
-     char *format;
-     void *arg1, *arg2;
+build_message_node (char *format, void *arg1, void *arg2)
 {
   NODE *node;
 
@@ -1526,7 +1484,7 @@ build_message_node (format, arg1, arg2)
 
 /* Convert the contents of the message buffer to a node. */
 NODE *
-message_buffer_to_node ()
+message_buffer_to_node (void)
 {
   NODE *node;
 
@@ -1548,16 +1506,14 @@ message_buffer_to_node ()
 
 /* Useful functions can be called from outside of window.c. */
 void
-initialize_message_buffer ()
+initialize_message_buffer (void)
 {
   message_buffer_index = 0;
 }
 
 /* Print FORMAT with ARG1,2 to the end of the current message buffer. */
 void
-printf_to_message_buffer (format, arg1, arg2, arg3)
-     char *format;
-     void *arg1, *arg2, *arg3;
+printf_to_message_buffer (char *format, void *arg1, void *arg2, void *arg3)
 {
   build_message_buffer (format, arg1, arg2, arg3);
 }
@@ -1565,7 +1521,7 @@ printf_to_message_buffer (format, arg1, arg2, arg3)
 /* Return the current horizontal position of the "cursor" on the most
    recently output message buffer line. */
 int
-message_buffer_length_this_line ()
+message_buffer_length_this_line (void)
 {
   register int i;
 
@@ -1579,9 +1535,7 @@ message_buffer_length_this_line ()
 
 /* Pad STRING to COUNT characters by inserting blanks. */
 int
-pad_to (count, string)
-     int count;
-     char *string;
+pad_to (int count, char *string)
 {
   register int i;
 
