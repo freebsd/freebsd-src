@@ -283,7 +283,6 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		if ((type = ng_findtype(mkp->type)) == NULL) {
 			char filename[NG_TYPESIZ + 3];
 			linker_file_t lf;
-			int error;
 
 			/* Not found, try to load it as a loadable module. */
 			snprintf(filename, sizeof(filename), "ng_%s",
