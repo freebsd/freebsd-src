@@ -315,12 +315,12 @@ print_hid_device(hid_device_p hid_device, FILE *f)
  
 	for (i = 0; i < desc->size; i ++) {
 			if ((i % 8) == 0)
-				fprintf(stdout, "\n		");
+				fprintf(f, "\n		");
  
 			fprintf(f, "0x%2.2x ", desc->data[i]);
 	}
                 
-	fprintf(stdout,
+	fprintf(f,
 "\n"		\
 "	};\n"	\
 "}\n");

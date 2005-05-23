@@ -283,7 +283,8 @@ server_process(bthid_server_p srv, int fd)
 	char		data[1024];
 	int		len;
 
-	assert(s != NULL);
+	if (s == NULL)
+		return (0); /* can happen on device disconnect */
 
 	do {
 		len = read(fd, data, sizeof(data));
