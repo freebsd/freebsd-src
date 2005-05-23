@@ -1,84 +1,119 @@
-$Id: TODO,v 1.8 2003/04/27 13:12:24 karl Exp $
+$Id: TODO,v 1.26 2004/11/22 23:57:32 karl Exp $
 This is the todo list for GNU Texinfo.
 If you are interested in working on any of these, email bug-texinfo@gnu.org.
 
-  Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 
-  2001, 2002, 2003 Free Software Foundation.
+  Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2003, 
+  2001, 2002, 2003, 2004 Free Software Foundation.
 
   Copying and distribution of this file, with or without modification,
   are permitted in any medium without royalty provided the copyright
   notice and this notice are preserved.
 
 * General:
-  - Test for memory leaks, e.g., with valgrind:
-    http://developer.kde.org/~sewardj/
-  - Rationalize and improve the dir categories in existing manuals.
-    See http://mail.gnu.org/pipermail/emacs-devel/2002-October/013094.html
-    (and the containing thread).
-  - Extend and improve the tests.
+  - @euro{}.
+  - Support installation of manuals in different languages, along these lines:
+    . support a LINGUAS file or variable saying which subdirs LL in the
+      source to descend into (under doc/).
+    . within each subdir LL, install the info files into $infodir/LL,
+      and run install-info on $infodir/LL/dir.
+    . info (both emacs and standalone) should read $infodir/$LANG/dir
+      as the first dir file, and likewise read info files first from
+      $infodir/$LANG, before falling back to $infodir.
+    . consider ways to avoid installing images in both places.
+      In fact, images probably need to be installed in a subdir
+      $infodir/MANUAL/ in the first place, to avoid conflicts of having
+      the same image name in different manuals.
+    For a test case, see texinfo cvs, with its one translated manual
+    (info-fr.texi).
+    From Wojciech Polak.
+  - Monitor and improve the dir categories in existing manuals,
+    following the Free Software Directory categories.  Much mail to
+    developers has already been sent, what's needed now is to check new
+    releases and make sure they are using the right categories.
+    See the util/dir-example in the Texinfo distribution for our current
+    recommended categories.
+    For background, see the thread (which discusses a lot of other
+    issues too) at
+    http://mail.gnu.org/pipermail/emacs-devel/2002-10/msg00011.html,
+    especially 
+      http://mail.gnu.org/archive/html/emacs-devel/2002-10/msg00090.html
+      http://mail.gnu.org/archive/html/emacs-devel/2002-10/msg00137.html
   - Get Info declared as a MIME Content-Type.
+  - Likewise the `info:' URI scheme; a library consortium has proposed a
+    completely different purpose for the URI scheme, but I don't know
+    how to send comments, despite it being a "request for comments".  Sigh.
+    There is mail about this in the bug-texinfo archives:
+      http://mail.gnu.org/archive/html/bug-texinfo/2003-09/msg00086.html
   - Support compressed image files.
-  - Handle reference card creation, perhaps by only paying attention to
+  - Support reference card creation, perhaps by only paying attention to
     sectioning and @def... commands.
   - Allow @end (and other?) commands to be indented in the source.
+  - Test for memory leaks, e.g., with valgrind:
+    http://developer.kde.org/~sewardj/
+  - Extend and improve the tests.
 
 * Language:
-  - @figure, something like:
-@figure [xref-label]
-@figureinclude <filename>, [<height>], [<width>]
-@figurehsize <dimen>
-@figurevsize <dimen>
-@caption ... @end caption
-<arbitrary Texinfo commands>
-@end figure
   - @else for the @if... conditionals.
   - @xindexterm [def] primary [,secondary [,tertiary]]  or some such?
+  - Allow subitems and `see' and `see also' in indices.
   - multicolumn * width to take up `the rest'.
   - another table command to take N succeeding items and split them
     into M columns (see eplain).
   - support bibliographies with BibTeX (see web2c/doc for kludge prototype).
   - @flushboth to combine @flushleft and @flushright, for RFC's.
   - @part sectioning command.
-  - Allow subitems and `see' and `see also' in indices.
   - @exercise/@answer command for, e.g., gawk.
   - Allow @hsep/@vsep at @item, instead of just in template.
   - Support automatic line numbering of examples.
   - Better macro syntax.
+  - Better def... command syntax.
   - Allow : in node names for info files, for names like
     `class::method'.  Likewise index entries.  A quoting mechanism such
     as surrounding node names with SPACE BACKSPACE is probably the best
     solution, although this is an incompatible change to Info format, sigh.
-  - Change bars.  This is difficult or impossible in TeX,
-    unfortunately.  To do it right requires device driver support.
-    wdiff or ediff may be all we can do.
-  - @LaTeX{} command to produce the LaTeX logo.
+  - Glossary/general definition support (dumas msg 28 Nov 2003 17:09:57 +0100).
+  - Add support for other Latin 9 (and Latin 2 and Latin 1) characters.
 
 * Makeinfo:
+  - Translation of "Appendix" etc. should depend on @doclang not $LANG.
   - Try directory of main source file.
-  - Support @`{@dotless{i}} et al. in HTML.
+  - Make makeinfo -E just do macro expansion, avoiding all error checks.
+    That way, texi2dvi could run makeinfo --iftex -E.
   - A detexinfo program, like detex or delatex.  This command would
     strip all the texinfo commands out, and would be used as a filter on
     the way to a speller.  An option would be to NOT strip comments out.
     makeinfo --no-headers comes close.
   - If node name contains an @ command, complain explicitly.
-  - Call Ghostscript to get ASCII/jpg output for the @image command.
-  - Better HTML output: allow settable background color, table colors
-    and spacing, <head> meta tags, back link from footnote marker, etc.
+  - Use @documentlanguage instead of LANG for many translations.
+  - HTML: split output by chapter to improve context, per Akim.
+    Generate dummy files for all nodes for the sake of cross-references.
+  - HTML: support thumbnails.
+  - HTML: make images of math, maybe.
+  - HTML: allow settable background color, table colors and spacing,
+    <head> meta tags, etc.  A la http://texi2html.cvshome.org.  In fact:
+  - HTML: have a library of different CSS styles.
+    http://mail.gnu.org/archive/html/bug-texinfo/2004-01/msg00025.html
+  - XML: cannot be loaded directly in a browser; why not?
+  - Docbook: &euro; and other entities do not work; does anything work?
   - Rewrite completely to simplify generation of different formats.
 
 * TeX:
   - Use @ as the escape character, and Texinfo syntax generally, in the
-    table of contents, aux, and index files.  Eliminate all the crazy
+    table of contents and index files.  Eliminate all the crazy
     multiple redefinitions of every Texinfo command in different contexts.
-  - Handle @hsep and @vsep in @multitables.
-  - Introduce new command to change \bindingoffset.
+  - Support input in any encoding and language, via ec or Latin Modern fonts.
   - Reasonable way to change fonts from the default (some work has been
     done), to allow for PostScript fonts, for example.
+  - @multitable: handle @hsep and @vsep.
+  - @multitable: repeat table headings if multiple pages long.
+  - @multitable: support a heading line concept (<thead> in HTML).
+  - Introduce new command to change \bindingoffset.
   - How about using latex2html to produce HTML?
-  - Support 8-bit input characters, perhaps via the ec fonts.
-  - Repeat table headings if a @multitable is multiple pages long.
   - Table of contents gets misaligned if there are 10 or more [sub]sections.
   - Use url.sty (or something) to allow linebreak of url's.
+  - Include hyperlink \special's in the DVI output for xdvi, etc.
+  - PDF: make each letter of the index (A, B, ...) a section in the TOC.
+    From Carsten Dominik <dominik@astro.uva.nl>.
 
 * Doc:
   - Include a complete functional summary, as in a reference card, in
@@ -96,29 +131,37 @@ If you are interested in working on any of these, email bug-texinfo@gnu.org.
   - Search all nodes of dir file at startup, then can have
     INFO-DIR-SEPARATE-GROUPS and other such.
   - Better dir file merging.
+  - Global dir file (as in /etc/conf/dir) and texinfo config file
+    specifying which info directories to search.  From Dale Mellor.
+    http://mail.gnu.org/mailman/private/gnu-prog-discuss/2003q4/000439.html
   - Steal interface ideas from Lynx: number links, use color, etc.
     Perhaps code from the pinfo viewer can be reused:
     http://zeus.polsl.gliwice.pl/~pborys/.
   - More sample .infokey files, so people can choose without writing their own.
   - q within help should quit help like C-x 0.
-  - Incorporate an X-based viewer, perhaps tkinfo
+  - Incorporate an X-based viewer, perhaps saxinfo or tkinfo
       http://www.math.ucsb.edu/~boldt/tkinfo/
-    or saxinfo.
+  - Make "info foo bar" search for bar in foo's index(es) if no menu match.
+  - Handle M-n, C-u m, and C-u g like Emacs Info (opening new windows).
   - Write technical definition of Info format.
 
-* PDF:
-  - make each letter of the index (A, B, ...) a section in the TOC.
-    From Carsten Dominik <dominik@astro.uva.nl>.
-  
 * install-info:
-  - be able to copy the info file to compile-time $(infodir), to
+  - be able to copy the info file to compile-time $infodir, to
     simplify by-hand installation.
+  - also support installing HTML files, etc., along with subsidiary
+    @image (or other) files.  In subdirs.  Or something.
+  - support info dir entries for other than the current info file name;
+    see comments in menu_item_equal.
+  - merge features with Debian install-info, so we can have one program.
 
 * texindex:
   - read source file (specified by new option) for @documentlanguage
-  and/or @documentencoding, and change the sorting appropriately.
-  From: Wojciech Polak <polak@gnu.org>, 26 Apr 2003 11:30:59 +0200.
+    and/or @documentencoding, and change the sorting appropriately.
+  From: Wojciech Polak, 26 Apr 2003 11:30:59 +0200.
 
+* Distribution:
+  - generate txi-??.tex from .po's to make translators' jobs easier.
+    From Akim and Karl E.
 
 Ideas that will not be implemented:
 - Process Texinfo files directly instead of converting to Info:
@@ -128,5 +171,11 @@ Ideas that will not be implemented:
   [This has the disadvantage of needing to be updated when the
   Texinfo language changes, so don't.]
 
-- Split HTML output by chapter.
-  [Then cross-references in HTML cannot be generated consistently.]
+- Call Ghostscript to get ASCII/jpg output for the @image command.
+  [makeinfo should not try to be make, or assume it knows how the user
+   wants to generate images.  Too many different methods are possible.]
+
+- Change bars.  This is difficult or impossible in TeX,
+  unfortunately.  To do it right requires device driver support.
+  wdiff or ediff may be all we can do.  Merely specifying what should be
+  changed is not obvious.

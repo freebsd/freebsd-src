@@ -1,8 +1,8 @@
 /* texindex -- sort TeX index dribble output into an actual index.
-   $Id: texindex.c,v 1.9 2003/05/19 13:10:59 karl Exp $
+   $Id: texindex.c,v 1.11 2004/04/11 17:56:47 karl Exp $
 
    Copyright (C) 1987, 1991, 1992, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003 Free Software Foundation, Inc.
+   2002, 2003, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,13 +37,15 @@ static char *program_name = "texindex";
 #define memset(ptr, ignore, count) bzero (ptr, count)
 #endif
 
-char *mktemp ();
+char *mktemp (char *);
 
 #if !defined (SEEK_SET)
 #  define SEEK_SET 0
 #  define SEEK_CUR 1
 #  define SEEK_END 2
 #endif /* !SEEK_SET */
+
+struct linebuffer;
 
 /* When sorting in core, this structure describes one line
    and the position and length of its first keyfield.  */
@@ -121,34 +123,34 @@ char first_initial;
 int keep_tempfiles;
 
 /* Forward declarations of functions in this file. */
-void decode_command ();
-void sort_in_core ();
-void sort_offline ();
-char **parsefile ();
-char *find_field ();
-char *find_pos ();
-long find_value ();
-char *find_braced_pos ();
-char *find_braced_end ();
-void writelines ();
-int compare_field ();
-int compare_full ();
-long readline ();
-int merge_files ();
-int merge_direct ();
-void pfatal_with_name ();
-void fatal ();
-void error ();
+void decode_command (int argc, char **argv);
+void sort_in_core (char *infile, int total, char *outfile);
+void sort_offline (char *infile, off_t total, char *outfile);
+char **parsefile (char *filename, char **nextline, char *data, long int size);
+char *find_field (struct keyfield *keyfield, char *str, long int *lengthptr);
+char *find_pos (char *str, int words, int chars, int ignore_blanks);
+long find_value (char *start, long int length);
+char *find_braced_pos (char *str, int words, int chars, int ignore_blanks);
+char *find_braced_end (char *str);
+void writelines (char **linearray, int nlines, FILE *ostream);
+int compare_field (struct keyfield *keyfield, char *start1,
+                   long int length1, long int pos1, char *start2,
+                   long int length2, long int pos2);
+int compare_full (const void *, const void *);
+long readline (struct linebuffer *linebuffer, FILE *stream);
+int merge_files (char **infiles, int nfiles, char *outfile);
+int merge_direct (char **infiles, int nfiles, char *outfile);
+void pfatal_with_name (const char *name);
+void fatal (const char *format, const char *arg);
+void error (const char *format, const char *arg);
 void *xmalloc (), *xrealloc ();
-char *concat ();
-void flush_tempfiles ();
+char *concat (char *s1, char *s2);
+void flush_tempfiles (int to_count);
 
 #define MAX_IN_CORE_SORT 500000
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   int i;
 
@@ -260,8 +262,7 @@ TEXINDEX_OPTION texindex_options[] = {
 };
 
 void
-usage (result_value)
-     int result_value;
+usage (int result_value)
 {
   register int i;
   FILE *f = result_value ? stderr : stdout;
@@ -301,9 +302,7 @@ Texinfo home page: http://www.gnu.org/software/texinfo/"), f);
    and set up the vector of keyfields and the vector of input files. */
 
 void
-decode_command (argc, argv)
-     int argc;
-     char **argv;
+decode_command (int argc, char **argv)
 {
   int arg_index = 1;
   char **ip;
@@ -340,11 +339,10 @@ decode_command (argc, argv)
             {
               printf ("texindex (GNU %s) %s\n", PACKAGE, VERSION);
               puts ("");
-              printf (_("Copyright (C) %s Free Software Foundation, Inc.\n\
-There is NO warranty.  You may redistribute this software\n\
+              puts ("Copyright (C) 2004 Free Software Foundation, Inc.");
+              printf (_("There is NO warranty.  You may redistribute this software\n\
 under the terms of the GNU General Public License.\n\
-For more information about these matters, see the files named COPYING.\n"),
-                  "2003");
+For more information about these matters, see the files named COPYING.\n"));
               xexit (0);
             }
           else if ((strcmp (arg, "--keep") == 0) ||
@@ -389,8 +387,7 @@ For more information about these matters, see the files named COPYING.\n"),
 /* Return a name for temporary file COUNT. */
 
 static char *
-maketempname (count)
-     int count;
+maketempname (int count)
 {
   static char *tempbase = NULL;
   char tempsuffix[10];
@@ -413,8 +410,7 @@ maketempname (count)
 /* Delete all temporary files up to TO_COUNT. */
 
 void
-flush_tempfiles (to_count)
-     int to_count;
+flush_tempfiles (int to_count)
 {
   if (keep_tempfiles)
     return;
@@ -426,9 +422,10 @@ flush_tempfiles (to_count)
 /* Compare LINE1 and LINE2 according to the specified set of keyfields. */
 
 int
-compare_full (line1, line2)
-     char **line1, **line2;
+compare_full (const void *p1, const void *p2)
 {
+  char **line1 = (char **) p1;
+  char **line2 = (char **) p2;
   int i;
 
   /* Compare using the first keyfield;
@@ -440,7 +437,8 @@ compare_full (line1, line2)
       long length1, length2;
       char *start1 = find_field (&keyfields[i], *line1, &length1);
       char *start2 = find_field (&keyfields[i], *line2, &length2);
-      int tem = compare_field (&keyfields[i], start1, length1, *line1 - text_base,
+      int tem = compare_field (&keyfields[i], start1, length1,
+                               *line1 - text_base,
                                start2, length2, *line2 - text_base);
       if (tem)
         {
@@ -457,11 +455,11 @@ compare_full (line1, line2)
    in which the first keyfield is identified in advance.
    For positional sorting, assumes that the order of the lines in core
    reflects their nominal order.  */
-
 int
-compare_prepared (line1, line2)
-     struct lineinfo *line1, *line2;
+compare_prepared (const void *p1, const void *p2)
 {
+  struct lineinfo *line1 = (struct lineinfo *) p1;
+  struct lineinfo *line2 = (struct lineinfo *) p2;
   int i;
   int tem;
   char *text1, *text2;
@@ -498,7 +496,8 @@ compare_prepared (line1, line2)
       long length1, length2;
       char *start1 = find_field (&keyfields[i], text1, &length1);
       char *start2 = find_field (&keyfields[i], text2, &length2);
-      int tem = compare_field (&keyfields[i], start1, length1, text1 - text_base,
+      int tem = compare_field (&keyfields[i], start1, length1,
+                               text1 - text_base,
                                start2, length2, text2 - text_base);
       if (tem)
         {
@@ -517,10 +516,7 @@ compare_prepared (line1, line2)
    the two lines in the input.  */
 
 int
-compare_general (str1, str2, pos1, pos2, use_keyfields)
-     char *str1, *str2;
-     long pos1, pos2;
-     int use_keyfields;
+compare_general (char *str1, char *str2, long int pos1, long int pos2, int use_keyfields)
 {
   int i;
 
@@ -551,10 +547,7 @@ compare_general (str1, str2, pos1, pos2, use_keyfields)
    is stored into the int that LENGTHPTR points to.  */
 
 char *
-find_field (keyfield, str, lengthptr)
-     struct keyfield *keyfield;
-     char *str;
-     long *lengthptr;
+find_field (struct keyfield *keyfield, char *str, long int *lengthptr)
 {
   char *start;
   char *end;
@@ -594,10 +587,7 @@ find_field (keyfield, str, lengthptr)
    after finding the specified word.  */
 
 char *
-find_pos (str, words, chars, ignore_blanks)
-     char *str;
-     int words, chars;
-     int ignore_blanks;
+find_pos (char *str, int words, int chars, int ignore_blanks)
 {
   int i;
   char *p = str;
@@ -630,10 +620,7 @@ find_pos (str, words, chars, ignore_blanks)
    and that braces within fields are balanced. */
 
 char *
-find_braced_pos (str, words, chars, ignore_blanks)
-     char *str;
-     int words, chars;
-     int ignore_blanks;
+find_braced_pos (char *str, int words, int chars, int ignore_blanks)
 {
   int i;
   int bracelevel;
@@ -682,8 +669,7 @@ find_braced_pos (str, words, chars, ignore_blanks)
    The position returned is just before the closing brace. */
 
 char *
-find_braced_end (str)
-     char *str;
+find_braced_end (char *str)
 {
   int bracelevel;
   char *p = str;
@@ -704,9 +690,7 @@ find_braced_end (str)
 }
 
 long
-find_value (start, length)
-     char *start;
-     long length;
+find_value (char *start, long int length)
 {
   while (length != 0L)
     {
@@ -724,7 +708,7 @@ find_value (start, length)
 int char_order[256];
 
 void
-init_char_order ()
+init_char_order (void)
 {
   int i;
   for (i = 1; i < 256; i++)
@@ -745,14 +729,8 @@ init_char_order ()
    The sign of the value reports the relation between the fields. */
 
 int
-compare_field (keyfield, start1, length1, pos1, start2, length2, pos2)
-     struct keyfield *keyfield;
-     char *start1;
-     long length1;
-     long pos1;
-     char *start2;
-     long length2;
-     long pos2;
+compare_field (struct keyfield *keyfield, char *start1, long int length1,
+               long int pos1, char *start2, long int length2, long int pos2)
 {
   if (keyfields->positional)
     {
@@ -836,8 +814,7 @@ struct linebuffer
 /* Initialize LINEBUFFER for use. */
 
 void
-initbuffer (linebuffer)
-     struct linebuffer *linebuffer;
+initbuffer (struct linebuffer *linebuffer)
 {
   linebuffer->size = 200;
   linebuffer->buffer = (char *) xmalloc (200);
@@ -847,9 +824,7 @@ initbuffer (linebuffer)
    Return the length of the line.  */
 
 long
-readline (linebuffer, stream)
-     struct linebuffer *linebuffer;
-     FILE *stream;
+readline (struct linebuffer *linebuffer, FILE *stream)
 {
   char *buffer = linebuffer->buffer;
   char *p = linebuffer->buffer;
@@ -879,10 +854,7 @@ readline (linebuffer, stream)
 /* Sort an input file too big to sort in core.  */
 
 void
-sort_offline (infile, total, outfile)
-     char *infile;
-     off_t total;
-     char *outfile;
+sort_offline (char *infile, off_t total, char *outfile)
 {
   /* More than enough. */
   int ntemps = 2 * (total + MAX_IN_CORE_SORT - 1) / MAX_IN_CORE_SORT;
@@ -978,10 +950,7 @@ fail:
    then indexify it and send the output to OUTFILE (or to stdout).  */
 
 void
-sort_in_core (infile, total, outfile)
-     char *infile;
-     int total;
-     char *outfile;
+sort_in_core (char *infile, int total, char *outfile)
 {
   char **nextline;
   char *data = (char *) xmalloc (total + 1);
@@ -1049,7 +1018,7 @@ sort_in_core (infile, total, outfile)
      Make a `struct lineinfo' for each line, which records the keyfield
      as well as the line, and sort them.  */
 
-  lineinfo = (struct lineinfo *) malloc ((nextline - linearray) * sizeof (struct lineinfo));
+  lineinfo = malloc ((nextline - linearray) * sizeof (struct lineinfo));
 
   if (lineinfo)
     {
@@ -1099,11 +1068,7 @@ sort_in_core (infile, total, outfile)
    Value 0 means input file contents are invalid.  */
 
 char **
-parsefile (filename, nextline, data, size)
-     char *filename;
-     char **nextline;
-     char *data;
-     long size;
+parsefile (char *filename, char **nextline, char *data, long int size)
 {
   char *p, *end;
   char **line = nextline;
@@ -1144,7 +1109,7 @@ parsefile (filename, nextline, data, size)
       if (line == linearray + nlines)
         {
           char **old = linearray;
-          linearray = (char **) xrealloc (linearray, sizeof (char *) * (nlines *= 4));
+          linearray = xrealloc (linearray, sizeof (char *) * (nlines *= 4));
           line += linearray - old;
         }
     }
@@ -1200,7 +1165,7 @@ char lastinitial1[2];
 /* Initialize static storage for writing an index. */
 
 void
-init_index ()
+init_index (void)
 {
   pending = 0;
   lastinitial = lastinitial1;
@@ -1219,9 +1184,7 @@ init_index ()
    insert headers for each initial character, etc.  */
 
 void
-indexify (line, ostream)
-     char *line;
-     FILE *ostream;
+indexify (char *line, FILE *ostream)
 {
   char *primary, *secondary, *pagenumber;
   int primarylength, secondarylength = 0, pagelength;
@@ -1321,7 +1284,8 @@ indexify (line, ostream)
       lastsecondary[0] = 0;
     }
 
-  /* Should not have an entry with no subtopic following one with a subtopic. */
+  /* Should not have an entry with no subtopic following one with a
+     subtopic. */
 
   if (nosecondary && *lastsecondary)
     error (_("entry %s follows an entry with a secondary name"), line);
@@ -1354,15 +1318,14 @@ indexify (line, ostream)
 
   /* Here to add one more page number to the current entry. */
   if (pending++ != 1)
-    fputs (", ", ostream);      /* Punctuate first, if this is not the first. */
+    fputs (", ", ostream);  /* Punctuate first, if this is not the first. */
   fwrite (pagenumber, pagelength, 1, ostream);
 }
 
 /* Close out any unfinished output entry. */
 
 void
-finish_index (ostream)
-     FILE *ostream;
+finish_index (FILE *ostream)
 {
   if (pending)
     fputs ("}\n", ostream);
@@ -1374,10 +1337,7 @@ finish_index (ostream)
    Each line is copied out of the input file it was found in. */
 
 void
-writelines (linearray, nlines, ostream)
-     char **linearray;
-     int nlines;
-     FILE *ostream;
+writelines (char **linearray, int nlines, FILE *ostream)
 {
   char **stop_line = linearray + nlines;
   char **next_line;
@@ -1388,11 +1348,13 @@ writelines (linearray, nlines, ostream)
 
   for (next_line = linearray; next_line != stop_line; next_line++)
     {
-      /* If -u was specified, output the line only if distinct from previous one.  */
+      /* If -u was specified, output the line only if distinct from
+         previous one.  */
       if (next_line == linearray
       /* Compare previous line with this one, using only the
          explicitly specd keyfields. */
-          || compare_general (*(next_line - 1), *next_line, 0L, 0L, num_keyfields - 1))
+          || compare_general (*(next_line - 1), *next_line, 0L, 0L,
+                              num_keyfields - 1))
         {
           char *p = *next_line;
           char c;
@@ -1417,10 +1379,7 @@ writelines (linearray, nlines, ostream)
 #define MAX_DIRECT_MERGE 10
 
 int
-merge_files (infiles, nfiles, outfile)
-     char **infiles;
-     int nfiles;
-     char *outfile;
+merge_files (char **infiles, int nfiles, char *outfile)
 {
   char **tempfiles;
   int ntemps;
@@ -1468,10 +1427,7 @@ merge_files (infiles, nfiles, outfile)
    use it only with a bounded number of input files.  */
 
 int
-merge_direct (infiles, nfiles, outfile)
-     char **infiles;
-     int nfiles;
-     char *outfile;
+merge_direct (char **infiles, int nfiles, char *outfile)
 {
   struct linebuffer *lb1, *lb2;
   struct linebuffer **thisline, **prevline;
@@ -1499,20 +1455,20 @@ merge_direct (infiles, nfiles, outfile)
       return 0;
     }
 
-  /* For each file, make two line buffers.
-     Also, for each file, there is an element of `thisline'
-     which points at any time to one of the file's two buffers,
-     and an element of `prevline' which points to the other buffer.
-     `thisline' is supposed to point to the next available line from the file,
-     while `prevline' holds the last file line used,
-     which is remembered so that we can verify that the file is properly sorted. */
+  /* For each file, make two line buffers.  Also, for each file, there
+     is an element of `thisline' which points at any time to one of the
+     file's two buffers, and an element of `prevline' which points to
+     the other buffer.  `thisline' is supposed to point to the next
+     available line from the file, while `prevline' holds the last file
+     line used, which is remembered so that we can verify that the file
+     is properly sorted. */
 
   /* lb1 and lb2 contain one buffer each per file. */
   lb1 = (struct linebuffer *) xmalloc (nfiles * sizeof (struct linebuffer));
   lb2 = (struct linebuffer *) xmalloc (nfiles * sizeof (struct linebuffer));
 
-  /* thisline[i] points to the linebuffer holding the next available line in file i,
-     or is zero if there are no lines left in that file.  */
+  /* thisline[i] points to the linebuffer holding the next available
+     line in file i, or is zero if there are no lines left in that file.  */
   thisline = (struct linebuffer **)
     xmalloc (nfiles * sizeof (struct linebuffer *));
   /* prevline[i] points to the linebuffer holding the last used line
@@ -1625,8 +1581,7 @@ merge_direct (infiles, nfiles, outfile)
 /* Print error message and exit.  */
 
 void
-fatal (format, arg)
-     char *format, *arg;
+fatal (const char *format, const char *arg)
 {
   error (format, arg);
   xexit (1);
@@ -1634,8 +1589,7 @@ fatal (format, arg)
 
 /* Print error message.  FORMAT is printf control string, ARG is arg for it. */
 void
-error (format, arg)
-     char *format, *arg;
+error (const char *format, const char *arg)
 {
   printf ("%s: ", program_name);
   printf (format, arg);
@@ -1644,16 +1598,14 @@ error (format, arg)
 }
 
 void
-perror_with_name (name)
-     char *name;
+perror_with_name (const char *name)
 {
   fprintf (stderr, "%s: ", program_name);
   perror (name);
 }
 
 void
-pfatal_with_name (name)
-     char *name;
+pfatal_with_name (const char *name)
 {
   perror_with_name (name);
   xexit (1);
@@ -1663,8 +1615,7 @@ pfatal_with_name (name)
 /* Return a newly-allocated string concatenating S1 and S2.  */
 
 char *
-concat (s1, s2)
-     char *s1, *s2;
+concat (char *s1, char *s2)
 {
   int len1 = strlen (s1), len2 = strlen (s2);
   char *result = (char *) xmalloc (len1 + len2 + 1);
@@ -1675,19 +1626,3 @@ concat (s1, s2)
 
   return result;
 }
-
-#if !defined (HAVE_STRCHR)
-char *
-strrchr (string, character)
-     char *string;
-     int character;
-{
-  register int i;
-
-  for (i = strlen (string) - 1; i > -1; i--)
-    if (string[i] == character)
-      return (string + i);
-
-  return ((char *)NULL);
-}
-#endif /* HAVE_STRCHR */

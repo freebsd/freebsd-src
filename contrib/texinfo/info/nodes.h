@@ -1,7 +1,7 @@
 /* nodes.h -- How we represent nodes internally.
-   $Id: nodes.h,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: nodes.h,v 1.3 2004/04/11 17:56:46 karl Exp $
 
-   Copyright (C) 1993, 1997, 1998, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 1998, 2002, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,33 +123,34 @@ extern int info_loaded_files_slots;
    already, or it may not.  If it does not already appear, find the file,
    and add it to the list of loaded files.  If the file cannot be found,
    return a NULL FILE_BUFFER *. */
-extern FILE_BUFFER *info_find_file ();
+extern FILE_BUFFER *info_find_file (char *filename);
 
 /* Force load the file named FILENAME, and return the information structure
    describing this file.  Even if the file was already loaded, this loads
    a new buffer, rebuilds tags and nodes, and returns a new FILE_BUFFER *. */
-extern FILE_BUFFER *info_load_file ();
+extern FILE_BUFFER *info_load_file (char *filename);
 
 /* Return a pointer to a NODE structure for the Info node (FILENAME)NODENAME.
    FILENAME can be passed as NULL, in which case the filename of "dir" is used.
    NODENAME can be passed as NULL, in which case the nodename of "Top" is used.
    If the node cannot be found, return a NULL pointer. */
-extern NODE *info_get_node ();
+extern NODE *info_get_node (char *filename, char *nodename);
 
 /* Return a pointer to a NODE structure for the Info node NODENAME in
    FILE_BUFFER.  NODENAME can be passed as NULL, in which case the
    nodename of "Top" is used.  If the node cannot be found, return a
    NULL pointer. */
-extern NODE *info_get_node_of_file_buffer ();
+extern NODE *info_get_node_of_file_buffer (char *nodename,
+    FILE_BUFFER *file_buffer);
 
 /* Grovel FILE_BUFFER->contents finding tags and nodes, and filling in the
    various slots.  This can also be used to rebuild a tag or node table. */
-extern void build_tags_and_nodes ();
+extern void build_tags_and_nodes (FILE_BUFFER *file_buffer);
 
 /* When non-zero, this is a string describing the most recent file error. */
 extern char *info_recent_file_error;
 
 /* Create a new, empty file buffer. */
-extern FILE_BUFFER *make_file_buffer ();
+extern FILE_BUFFER *make_file_buffer (void);
 
 #endif /* not NODES_H */
