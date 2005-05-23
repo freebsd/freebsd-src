@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: libunimsg/sscop/common.c,v 1.4 2004/07/08 08:22:27 brandt Exp $
+ * $Begemot: libunimsg/sscop/common.c,v 1.5 2005/05/23 11:46:16 brandt_h Exp $
  */
 
 #include <sys/types.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: libunimsg/snmp_atm/snmp_atm.c,v 1.2 2004/08/06 17:30:40 brandt Exp $
+ * $Begemot: libunimsg/snmp_atm/snmp_atm.c,v 1.3 2005/05/23 11:46:46 brandt_h Exp $
  *
  * SNMP module for ATM hardware interfaces.
  */
@@ -58,7 +58,7 @@ struct atmif_list atmif_list = TAILQ_HEAD_INITIALIZER(atmif_list);
 static int started;
 
 /* last time table was changed */
-static uint32_t last_change;
+static uint64_t last_change;
 
 /* for the registration */
 static const struct asn_oid oid_begemotAtm = OIDX_begemotAtm;
@@ -271,6 +271,7 @@ attach_if(struct mibif *ifp)
 
 	aif->pub.ifp = ifp;
 	aif->index = ifp->index;
+	TAILQ_INIT(&aif->notify);
 
 	if (atmif_sys_attach_if(aif)) {
 		free(aif);

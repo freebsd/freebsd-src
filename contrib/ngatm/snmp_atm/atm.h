@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: libunimsg/snmp_atm/atm.h,v 1.2 2004/08/11 07:55:22 brandt Exp $
+ * $Begemot: libunimsg/snmp_atm/atm.h,v 1.3 2005/05/23 11:46:46 brandt_h Exp $
  */
 
 #include <sys/types.h>
@@ -36,8 +36,8 @@
 #include <net/if.h>
 #include <net/if_mib.h>
 
-#include <bsnmp/snmpmod.h>
-#include <bsnmp/snmp_mibII.h>
+#include "snmpmod.h"
+#include "snmp_mibII.h"
 #include "snmp_atm.h"
 
 /*
