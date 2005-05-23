@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_udp.c,v 1.6 2004/08/06 08:47:05 brandt Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_udp.c,v 1.7 2005/05/23 09:03:42 brandt_h Exp $
  *
  * udp
  */
@@ -43,7 +43,7 @@ struct udp_index {
 	struct xinpcb	*inp;
 };
 
-static uint32_t udp_tick;
+static uint64_t udp_tick;
 static struct udpstat udpstat;
 static struct xinpgen *xinpgen;
 static size_t xinpgen_len;
