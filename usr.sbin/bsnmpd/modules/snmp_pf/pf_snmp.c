@@ -47,7 +47,7 @@ struct lmodule *module;
 
 static int dev = -1;
 static int started;
-static uint32_t pf_tick;
+static uint64_t pf_tick;
 
 static struct pf_status pfs;
 
