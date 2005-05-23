@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.21 2005/02/25 16:04:41 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.22 2005/05/23 09:03:37 brandt_h Exp $
  *
  * Implementation of the standard interfaces and ip MIB.
  */
@@ -85,10 +85,10 @@ struct mibarp_list mibarp_list = TAILQ_HEAD_INITIALIZER(mibarp_list);
 int32_t mib_if_number;
 
 /* last change of table */
-uint32_t mib_iftable_last_change;
+uint64_t mib_iftable_last_change;
 
 /* last change of stack table */
-uint32_t mib_ifstack_last_change;
+uint64_t mib_ifstack_last_change;
 
 /* if this is set, one of our lists may be bad. refresh them when idle */
 int mib_iflist_bad;
@@ -97,7 +97,7 @@ int mib_iflist_bad;
 int mib_netsock;
 
 /* last time refreshed */
-uint32_t mibarpticks;
+uint64_t mibarpticks;
 
 /* info on system clocks */
 struct clockinfo clockinfo;

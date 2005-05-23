@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/main.c,v 1.91 2005/04/22 12:18:14 brandt_h Exp $
+ * $Begemot: bsnmp/snmpd/main.c,v 1.93 2005/05/23 11:10:16 brandt_h Exp $
  *
  * SNMPd main stuff.
  */
@@ -59,8 +59,8 @@
 #define	PATH_PID	"/var/run/%s.pid"
 #define PATH_CONFIG	"/etc/%s.config"
 
-u_int32_t this_tick;	/* start of processing of current packet */
-u_int32_t start_tick;	/* start of processing */
+uint64_t this_tick;	/* start of processing of current packet (absolute) */
+uint64_t start_tick;	/* start of processing */
 
 struct systemg systemg = {
 	NULL,
@@ -908,8 +908,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	 * In case of AF_INET{6} peer, do hosts_access(5) check.
 	 */
 	if (inet_ntop(pi->peer->sa_family,
-	    &((struct sockaddr_in *)pi->peer)->sin_addr, client,
-	    sizeof(client)) != NULL) {
+	    &((const struct sockaddr_in *)(const void *)pi->peer)->sin_addr,
+	    client, sizeof(client)) != NULL) {
 		request_set(&req, RQ_CLIENT_ADDR, client, 0);
 		if (hosts_access(&req) == 0) {
 			syslog(LOG_ERR, "refused connection from %.500s",
@@ -1468,8 +1468,8 @@ main(int argc, char *argv[])
 
 	init_actvals();
 
-	start_tick = get_ticks();
 	this_tick = get_ticks();
+	start_tick = this_tick;
 
 	/* start transports */
 	if (atexit(trans_stop) == -1) {
@@ -1596,18 +1596,18 @@ main(int argc, char *argv[])
 	return (0);
 }
 
-
-u_int32_t
+uint64_t
 get_ticks()
 {
 	struct timeval tv;
-	u_int32_t ret;
+	uint64_t ret;
 
 	if (gettimeofday(&tv, NULL))
 		abort();
-	ret = tv.tv_sec * 100 + tv.tv_usec / 10000;
+	ret = tv.tv_sec * 100ULL + tv.tv_usec / 10000ULL;
 	return (ret);
 }
+
 /*
  * Timer support
  */
@@ -2276,7 +2276,7 @@ or_register(const struct asn_oid *or, const char *descr, struct lmodule *mod)
 	objres->index = idx;
 	objres->oid = *or;
 	strlcpy(objres->descr, descr, sizeof(objres->descr));
-	objres->uptime = get_ticks() - start_tick;
+	objres->uptime = (uint32_t)(get_ticks() - start_tick);
 	objres->module = mod;
 
 	INSERT_OBJECT_INT(objres, &objres_list);
