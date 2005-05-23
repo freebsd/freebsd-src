@@ -1,4 +1,7 @@
 .\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
 .\" Copyright (c) 2001-2003
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
@@ -26,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.8 2005/02/25 11:55:58 brandt_h Exp $
+.\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.9 2005/05/23 11:10:12 brandt_h Exp $
 .\"
-.Dd August 15, 2002
+.Dd May 23, 2005
 .Dt BSNMPCLIENT 3
 .Os
 .Sh NAME
@@ -44,6 +47,7 @@
 .Nm snmp_pdu_check ,
 .Nm snmp_pdu_send ,
 .Nm snmp_oid_append ,
+.Nm snmp_parse_server ,
 .Nm snmp_receive ,
 .Nm snmp_table_cb_f ,
 .Nm snmp_table_fetch ,
@@ -86,6 +90,8 @@ Begemot SNMP library
 .Fn snmp_pdu_send "struct snmp_pdu *pdu" "snmp_send_cb_f func" "void *uarg"
 .Ft int
 .Fn snmp_oid_append "struct asn_oid *oid" "const char *fmt" "..."
+.Ft int
+.Fn snmp_parse_server "struct snmp_client *sc" "const char *str"
 .Ft int
 .Fn snmp_receive "int blocking"
 .Ft typedef void
@@ -571,6 +577,28 @@ PDU is returned in
 .Fa resp .
 If no reponse could be received after all timeouts and retries, the function
 returns -1. If a response was received 0 is returned.
+.Pp
+The function
+.Fn snmp_parse_server
+is used to parse an SNMP server specification string and fill in the
+fields of a
+.Vt struct snmp_client .
+The syntax of a server specification is
+.Pp
+.D1 [trans::][community@][server][:port]
+.Pp
+where
+.Va trans
+is the transport name (one of udp, stream or dgram),
+.Va community
+is the string to be used for both the read and the write community,
+.Va server
+is the server's host name in case of UDP and the path name in case
+of a local socket, and
+.Va port
+is the port in case of UDP transport.
+The function returns 0 in the case of success and return -1 and sets
+the error string in case of an error.
 .Sh DIAGNOSTICS
 If an error occures in any of the function an error indication as described
 above is returned. Additionally the function sets a printable error string

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII.h,v 1.13 2004/08/06 08:46:59 brandt Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII.h,v 1.14 2005/05/23 09:03:38 brandt_h Exp $
  *
  * Implementation of the interfaces and IP groups of MIB-II.
  */
@@ -179,16 +179,16 @@ extern struct mibarp_list mibarp_list;
 extern int32_t mib_if_number;
 
 /* last change of interface table */
-extern uint32_t mib_iftable_last_change;
+extern uint64_t mib_iftable_last_change;
 
 /* last change of stack table */
-extern uint32_t mib_ifstack_last_change;
+extern uint64_t mib_ifstack_last_change;
 
 /* if this is set, one of our lists may be bad. refresh them when idle */
 extern int mib_iflist_bad;
 
 /* last time refreshed */
-extern uint32_t mibarpticks;
+extern uint64_t mibarpticks;
 
 /* info on system clocks */
 extern struct clockinfo clockinfo;

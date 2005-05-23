@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_ntp/snmp_ntp.c,v 1.3 2005/04/26 16:26:23 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_ntp/snmp_ntp.c,v 1.4 2005/05/23 09:03:48 brandt_h Exp $
  *
  * NTP interface for SNMPd.
  */
@@ -79,7 +79,7 @@ static const struct asn_oid oid_ntpMIB = OIDX_ntpMIB;
 static u_int reg_index;
 
 /* last time we've fetch the system variables */
-static uint32_t sysinfo_tick;
+static uint64_t sysinfo_tick;
 
 /* cached system variables */
 static int32_t	sys_leap;
@@ -107,7 +107,7 @@ static int	sysb_stability;
 static double	sys_stability;
 
 /* last time we've fetch the peer list */
-static uint32_t peers_tick;
+static uint64_t peers_tick;
 
 /* request sequence number generator */
 static uint16_t	seqno;

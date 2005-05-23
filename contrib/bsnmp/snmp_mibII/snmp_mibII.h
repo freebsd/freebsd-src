@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/snmp_mibII.h,v 1.16 2005/02/25 16:04:43 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_mibII/snmp_mibII.h,v 1.17 2005/05/23 09:03:43 brandt_h Exp $
  *
  * Implementation of the interfaces and IP groups of MIB-II.
  */
@@ -58,14 +58,14 @@ struct mibif {
 	char		name[IFNAMSIZ];
 	char		descr[256];
 	struct ifmibdata mib;
-	u_int32_t	mibtick;
+	uint64_t	mibtick;
 	void		*specmib;
 	size_t		specmiblen;
 	u_char		*physaddr;
 	u_int		physaddrlen;
 	int		has_connector;
 	int		trap_enable;
-	u_int32_t	counter_disc;
+	uint64_t	counter_disc;
 
 	/*
 	 * This is needed to handle interface type specific information
