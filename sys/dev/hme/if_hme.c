@@ -1645,6 +1645,8 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 	    HME_MAC_RXCFG_HENABLE, 0))
 		return;
 
+	/* make RXMAC really SIMPLEX */
+	macc |= HME_MAC_RXCFG_ME;
 	if (reenable)
 		macc |= HME_MAC_RXCFG_ENABLE;
 	else
@@ -1692,5 +1694,6 @@ chipit:
 	HME_MAC_WRITE_4(sc, HME_MACI_HASHTAB2, hash[2]);
 	HME_MAC_WRITE_4(sc, HME_MACI_HASHTAB3, hash[3]);
 	hme_mac_bitflip(sc, HME_MACI_RXCFG, macc, 0,
-	    macc & (HME_MAC_RXCFG_ENABLE | HME_MAC_RXCFG_HENABLE));
+	    macc & (HME_MAC_RXCFG_ENABLE | HME_MAC_RXCFG_HENABLE |
+	    HME_MAC_RXCFG_ME));
 }
