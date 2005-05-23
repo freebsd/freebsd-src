@@ -1,7 +1,7 @@
 /* filesys.h -- external declarations for filesys.c.
-   $Id: filesys.h,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: filesys.h,v 1.3 2004/04/11 17:56:45 karl Exp $
 
-   Copyright (C) 1993, 1997, 1998, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 1998, 2002, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,11 +28,11 @@
 extern char *infopath;
 
 /* Make INFOPATH have absolutely nothing in it. */
-extern void zap_infopath ();
+extern void zap_infopath (void);
 
 /* Add PATH to the list of paths found in INFOPATH.  2nd argument says
    whether to put PATH at the front or end of INFOPATH. */
-extern void info_add_path ();
+extern void info_add_path (char *path, int where);
 
 /* Defines that are passed along with the pathname to info_add_path (). */
 #define INFOPATH_PREPEND 0
@@ -41,27 +41,29 @@ extern void info_add_path ();
 /* Expand the filename in PARTIAL to make a real name for this operating
    system.  This looks in INFO_PATHS in order to find the correct file.
    If it can't find the file, it returns NULL. */
-extern char *info_find_fullpath ();
+extern char *info_find_fullpath (char *partial);
 
 /* Given a chunk of text and its length, convert all CRLF pairs at the
    EOLs into a single Newline character.  Return the length of produced
    text.  */
-long convert_eols ();
+long convert_eols (char *text, long textlen);
 
 /* Read the contents of PATHNAME, returning a buffer with the contents of
    that file in it, and returning the size of that buffer in FILESIZE.
    FINFO is a stat struct which has already been filled in by the caller.
    If the file cannot be read, return a NULL pointer. */
-extern char *filesys_read_info_file ();
-extern char *filesys_read_compressed ();
+extern char *filesys_read_info_file (char *pathname, long int *filesize,
+    struct stat *finfo, int *is_compressed);
+
+extern char *filesys_read_compressed (char *pathname, long int *filesize);
 
 /* Return the command string that would be used to decompress FILENAME. */
-extern char *filesys_decompressor_for_file ();
-extern int compressed_filename_p ();
+extern char *filesys_decompressor_for_file (char *filename);
+extern int compressed_filename_p (char *filename);
 
 /* A function which returns a pointer to a static buffer containing
    an error message for FILENAME and ERROR_NUM. */
-extern char *filesys_error_string ();
+extern char *filesys_error_string (char *filename, int error_num);
 
 /* The number of the most recent file system error. */
 extern int filesys_error_number;
@@ -69,10 +71,10 @@ extern int filesys_error_number;
 /* Given a string containing units of information separated by colons,
    return the next one pointed to by IDX, or NULL if there are no more.
    Advance IDX to the character after the colon. */
-extern char *extract_colon_unit ();
+extern char *extract_colon_unit (char *string, int *idx);
 
 /* Return true if FILENAME is `dir', with a possible compression suffix.  */
-extern int is_dir_name ();
+extern int is_dir_name (char *filename);
 
 /* The default value of INFOPATH. */
 #if !defined (DEFAULT_INFOPATH)

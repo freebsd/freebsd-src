@@ -1,7 +1,8 @@
 /* footnote.h -- declarations for footnote.c.
-   $Id: footnote.h,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: footnote.h,v 1.2 2004/04/11 17:56:47 karl Exp $
 
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,11 +28,11 @@ extern int number_footnotes;
 extern int already_outputting_pending_notes;
 
 /* The Texinfo @commands.  */
-extern void cm_footnote ();
-extern void cm_footnotestyle ();
+extern void cm_footnote (void);
+extern void cm_footnotestyle (void);
 
-extern int set_footnote_style ();    /* called for -s option */
+extern int set_footnote_style (char *string);    /* called for -s option */
 
-extern void output_pending_notes (); /* called for output */
+extern void output_pending_notes (void); /* called for output */
 
 #endif /* !FOOTNOTE_H */

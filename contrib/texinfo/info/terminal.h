@@ -1,7 +1,8 @@
 /* terminal.h -- The external interface to terminal I/O.
-   $Id: terminal.h,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: terminal.h,v 1.3 2004/04/11 17:56:46 karl Exp $
 
-   Copyright (C) 1993, 1996, 1997, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1996, 1997, 2001, 2002, 2004 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,68 +53,71 @@ extern int terminal_can_scroll;
    The variables SCREENHEIGHT and SCREENWIDTH are set to the dimensions that
    this terminal actually has.  The variable TERMINAL_HAS_META_P becomes non-
    zero if this terminal supports a Meta key. */
-extern void terminal_initialize_terminal ();
+extern void terminal_initialize_terminal (char *terminal_name);
 extern VFunction *terminal_initialize_terminal_hook;
 
 /* Return the current screen width and height in the variables
    SCREENWIDTH and SCREENHEIGHT. */
-extern void terminal_get_screen_size ();
+extern void terminal_get_screen_size (void);
 extern VFunction *terminal_get_screen_size_hook;
 
 /* Save and restore tty settings. */
-extern void terminal_prep_terminal (), terminal_unprep_terminal ();
-extern VFunction *terminal_prep_terminal_hook, *terminal_unprep_terminal_hook;
+extern void terminal_prep_terminal (void);
+extern void terminal_unprep_terminal (void);
+
+extern VFunction *terminal_prep_terminal_hook;
+extern VFunction *terminal_unprep_terminal_hook;
 
 /* Re-initialize the terminal to TERMINAL_NAME. */
-extern void terminal_new_terminal ();
+extern void terminal_new_terminal (char *terminal_name);
 extern VFunction *terminal_new_terminal_hook;
 
 /* Move the cursor to the terminal location of X and Y. */
-extern void terminal_goto_xy ();
+extern void terminal_goto_xy (int x, int y);
 extern VFunction *terminal_goto_xy_hook;
 
 /* Print STRING to the terminal at the current position. */
-extern void terminal_put_text ();
+extern void terminal_put_text (char *string);
 extern VFunction *terminal_put_text_hook;
 
 /* Print NCHARS from STRING to the terminal at the current position. */
-extern void terminal_write_chars ();
+extern void terminal_write_chars (char *string, int nchars);
 extern VFunction *terminal_write_chars_hook;
 
 /* Clear from the current position of the cursor to the end of the line. */
-extern void terminal_clear_to_eol ();
+extern void terminal_clear_to_eol (void);
 extern VFunction *terminal_clear_to_eol_hook;
 
 /* Clear the entire terminal screen. */
-extern void terminal_clear_screen ();
+extern void terminal_clear_screen (void);
 extern VFunction *terminal_clear_screen_hook;
 
 /* Move the cursor up one line. */
-extern void terminal_up_line ();
+extern void terminal_up_line (void);
 extern VFunction *terminal_up_line_hook;
 
 /* Move the cursor down one line. */
-extern void terminal_down_line ();
+extern void terminal_down_line (void);
 extern VFunction *terminal_down_line_hook;
 
 /* Turn on reverse video if possible. */
-extern void terminal_begin_inverse ();
+extern void terminal_begin_inverse (void);
 extern VFunction *terminal_begin_inverse_hook;
 
 /* Turn off reverse video if possible. */
-extern void terminal_end_inverse ();
+extern void terminal_end_inverse (void);
 extern VFunction *terminal_end_inverse_hook;
 
 /* Scroll an area of the terminal, starting with the region from START
    to END, AMOUNT lines.  If AMOUNT is negative, the lines are scrolled
    towards the top of the screen, else they are scrolled towards the
    bottom of the screen. */
-extern void terminal_scroll_terminal ();
+extern void terminal_scroll_terminal (int start, int end, int amount);
 extern VFunction *terminal_scroll_terminal_hook;
 
 /* Ring the terminal bell.  The bell is run visibly if it both has one and
    terminal_use_visible_bell_p is non-zero. */
-extern void terminal_ring_bell ();
+extern void terminal_ring_bell (void);
 extern VFunction *terminal_ring_bell_hook;
 
 /* The key sequences output by special keys, if this terminal has any. */
