@@ -27,6 +27,9 @@
 /* Define to 1 if you have the <argz.h> header file. */
 /* #undef HAVE_ARGZ_H */
 
+/* Define to 1 if you have the `asprintf' function. */
+#define HAVE_ASPRINTF 1
+
 /* Define to 1 if you have the `bzero' function. */
 #define HAVE_BZERO 1
 
@@ -34,21 +37,41 @@
    */
 /* #undef HAVE_DCGETTEXT */
 
+/* Define to 1 if you have the declaration of `feof_unlocked', and to 0 if you
+   don't. */
+#define HAVE_DECL_FEOF_UNLOCKED 1
+
+/* Define to 1 if you have the declaration of `fgets_unlocked', and to 0 if
+   you don't. */
+#define HAVE_DECL_FGETS_UNLOCKED 0
+
+/* Define to 1 if you have the declaration of `getc_unlocked', and to 0 if you
+   don't. */
+#define HAVE_DECL_GETC_UNLOCKED 1
+
 /* Define to 1 if you have the declaration of `getenv', and to 0 if you don't.
    */
 #define HAVE_DECL_GETENV 1
 
-/* Define if this function is declared. */
-#define HAVE_DECL_STRCASECMP 1
+/* Define to 1 if you have the declaration of `memchr', and to 0 if you don't.
+   */
+#define HAVE_DECL_MEMCHR 1
 
-/* Define if this function is declared. */
+/* Define to 1 if you have the declaration of `strcoll', and to 0 if you
+   don't. */
 #define HAVE_DECL_STRCOLL 1
 
-/* Define if this function is declared. */
+/* Define to 1 if you have the declaration of `strerror', and to 0 if you
+   don't. */
 #define HAVE_DECL_STRERROR 1
 
-/* Define if this function is declared. */
-#define HAVE_DECL_STRNCASECMP 1
+/* Define to 1 if you have the declaration of `_snprintf', and to 0 if you
+   don't. */
+#define HAVE_DECL__SNPRINTF 0
+
+/* Define to 1 if you have the declaration of `_snwprintf', and to 0 if you
+   don't. */
+#define HAVE_DECL__SNWPRINTF 0
 
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 /* #undef HAVE_DOPRNT */
@@ -56,17 +79,11 @@
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
-/* Define to 1 if you have the `feof_unlocked' function. */
-#define HAVE_FEOF_UNLOCKED 1
-
-/* Define to 1 if you have the `fgets_unlocked' function. */
-/* #undef HAVE_FGETS_UNLOCKED */
+/* Define to 1 if you have the `fwprintf' function. */
+#define HAVE_FWPRINTF 1
 
 /* Define to 1 if you have the `getcwd' function. */
 #define HAVE_GETCWD 1
-
-/* Define to 1 if you have the `getc_unlocked' function. */
-#define HAVE_GETC_UNLOCKED 1
 
 /* Define to 1 if you have the `getegid' function. */
 #define HAVE_GETEGID 1
@@ -90,7 +107,10 @@
 #define HAVE_GETUID 1
 
 /* Define if you have the iconv() function. */
-/* #undef HAVE_ICONV */
+#define HAVE_ICONV 1
+
+/* Define if you have the 'intmax_t' type in <stdint.h> or <inttypes.h>. */
+#define HAVE_INTMAX_T 1
 
 /* Define if <inttypes.h> exists and doesn't clash with <sys/types.h>. */
 #define HAVE_INTTYPES_H 1
@@ -116,6 +136,12 @@
 
 /* Define to 1 if you have the <locale.h> header file. */
 #define HAVE_LOCALE_H 1
+
+/* Define if you have the 'long double' type. */
+#define HAVE_LONG_DOUBLE 1
+
+/* Define if you have the 'long long' type. */
+#define HAVE_LONG_LONG 1
 
 /* Define to 1 if you have the <malloc.h> header file. */
 /* #undef HAVE_MALLOC_H */
@@ -150,6 +176,9 @@
 /* Define to 1 if you have the <nl_types.h> header file. */
 #define HAVE_NL_TYPES_H 1
 
+/* Define if your printf() function supports format strings with positions. */
+#define HAVE_POSIX_PRINTF 1
+
 /* Define to 1 if you have the `putenv' function. */
 #define HAVE_PUTENV 1
 
@@ -173,6 +202,9 @@
 
 /* Define to 1 if you have the `sigsetmask' function. */
 #define HAVE_SIGSETMASK 1
+
+/* Define to 1 if you have the `snprintf' function. */
+#define HAVE_SNPRINTF 1
 
 /* Define to 1 if you have the <stddef.h> header file. */
 #define HAVE_STDDEF_H 1
@@ -272,6 +304,15 @@
 /* Define to 1 if you have the `vprintf' function. */
 #define HAVE_VPRINTF 1
 
+/* Define if you have the 'wchar_t' type. */
+#define HAVE_WCHAR_T 1
+
+/* Define to 1 if you have the `wcslen' function. */
+#define HAVE_WCSLEN 1
+
+/* Define if you have the 'wint_t' type. */
+#define HAVE_WINT_T 1
+
 /* Define to 1 if you have the `__argz_count' function. */
 /* #undef HAVE___ARGZ_COUNT */
 
@@ -288,7 +329,7 @@
 /* #undef HAVE___SECURE_GETENV */
 
 /* Define as const if the declaration of iconv() needs const. */
-/* #undef ICONV_CONST */
+#define ICONV_CONST const
 
 /* Define if integer division by zero raises signal SIGFPE. */
 #define INTDIV0_RAISES_SIGFPE 1
@@ -303,13 +344,13 @@
 #define PACKAGE_NAME "GNU Texinfo"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "GNU Texinfo 4.6"
+#define PACKAGE_STRING "GNU Texinfo 4.8"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "texinfo"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.6"
+#define PACKAGE_VERSION "4.8"
 
 /* Define if <inttypes.h> exists and defines unusable PRI* macros. */
 /* #undef PRI_MACROS_BROKEN */
@@ -317,12 +358,16 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
 
+/* Define as the maximum value of type 'size_t', if the system doesn't define
+   it. */
+/* #undef SIZE_MAX */
+
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at run-time.
-        STACK_DIRECTION > 0 => grows toward higher addresses
-        STACK_DIRECTION < 0 => grows toward lower addresses
-        STACK_DIRECTION = 0 => direction of growth unknown */
+	STACK_DIRECTION > 0 => grows toward higher addresses
+	STACK_DIRECTION < 0 => grows toward lower addresses
+	STACK_DIRECTION = 0 => direction of growth unknown */
 /* #undef STACK_DIRECTION */
 
 /* Define to 1 if the `S_IS*' macros in <sys/stat.h> do not work properly. */
@@ -335,7 +380,7 @@
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "4.6"
+#define VERSION "4.8"
 
 /* Define to 1 if on MINIX. */
 /* #undef _MINIX */
@@ -350,15 +395,24 @@
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
 
-/* Define as `__inline' if that's what the C compiler calls it, or to nothing
-   if it is not supported. */
+/* Define to `__inline__' or `__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
 /* #undef inline */
+#endif
 
 /* Define to rpl_mkstemp if the replacement function should be used. */
 /* #undef mkstemp */
 
 /* Define to `long' if <sys/types.h> does not define. */
 /* #undef off_t */
+
+/* Define as the type of the result of subtracting two pointers, if the system
+   doesn't define it. */
+/* #undef ptrdiff_t */
+
+/* Define to empty if the C compiler doesn't support this keyword. */
+/* #undef signed */
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 /* #undef size_t */
