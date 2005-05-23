@@ -138,12 +138,21 @@
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
+	<para>The &man.uaudio.4; driver now has some added
+	  functionality, including volume control on more inputs and
+	  recording capability on some devices.</para>
+
 	<para></para>
 
       </sect4>
 
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
+
+	<para>The &man.bge.4; driver now supports the BCM5714 and 5789
+	  chips.</para>
+
+	<para>The &man.ixgb.4; driver is now MPSAFE.</para>
 
 	<para arch="i386,amd64">Drivers using the &man.ndis.4; device
 	  driver wrapper mechanism are now built and loaded
@@ -152,6 +161,8 @@
 	  drivers can now be built with the &man.ndisgen.8; utility;
 	  the result is a kernel module that can be loaded into a
 	  running kernel using &man.kldload.8;.</para>
+
+	<para>The &man.xl.4; driver now supports &man.polling.4;</para>
 
       </sect4>
     </sect3>
