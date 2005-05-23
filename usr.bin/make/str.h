@@ -67,6 +67,7 @@ typedef struct ArgArray {
 #define	STR_ADDSPACE	0x01	/* add a space when Str_Concat'ing */
 #define	STR_ADDSLASH	0x04	/* add a slash when Str_Concat'ing */
 
+void ArgArray_Init(ArgArray *);
 void ArgArray_Done(ArgArray *);
 
 char *str_concat(const char *, const char *, int);
