@@ -593,15 +593,9 @@ critical_exit(void)
 	td = curthread;
 	KASSERT(td->td_critnest != 0,
 	    ("critical_exit: td_critnest == 0"));
-	if (td->td_critnest == 1) {
-		if (td->td_pflags & TDP_WAKEPROC0) {
-			td->td_pflags &= ~TDP_WAKEPROC0;
-			wakeup(&proc0);
-		}
-		
-		td->td_critnest = 0;
-
 #ifdef PREEMPTION
+	if (td->td_critnest == 1) {
+		td->td_critnest = 0;
 		mtx_assert(&sched_lock, MA_NOTOWNED);
 		if (td->td_owepreempt) {
 			td->td_critnest = 1;
@@ -610,12 +604,11 @@ critical_exit(void)
 			mi_switch(SW_INVOL, NULL);
 			mtx_unlock_spin(&sched_lock);
 		}
-	             
+	} else 
 #endif
-
-	} else {
 		td->td_critnest--;
-	}
+	
+	
 	CTR4(KTR_CRITICAL, "critical_exit by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
 }

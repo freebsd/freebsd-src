@@ -410,11 +410,10 @@ setrunnable(struct thread *td)
 			p->p_sflag |= PS_SWAPINREQ;
 			/*
 			 * due to a LOR between sched_lock and
-			 * the sleepqueue chain locks, delay
-			 * wakeup proc0 until thread leaves
-			 * critical region.
+			 * the sleepqueue chain locks, use
+			 * lower level scheduling functions.
 			 */
-			curthread->td_pflags |= TDP_WAKEPROC0;
+			kick_proc0();
 		}
 	} else
 		sched_wakeup(td);
