@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/snmpmod.h,v 1.27 2004/08/06 08:47:14 brandt Exp $
+ * $Begemot: bsnmp/snmpd/snmpmod.h,v 1.28 2005/05/23 09:03:59 brandt_h Exp $
  *
  * SNMP daemon data and functions exported to modules.
  */
@@ -159,11 +159,16 @@
 
 struct lmodule;
 
-/* ticks when program and current packet was started */
-extern u_int32_t this_tick;
-extern u_int32_t start_tick;
+/* The tick when the program was started. This is the absolute time of
+ * the start in 100th of a second. */
+extern uint64_t start_tick;
 
-u_int32_t get_ticks(void);
+/* The tick when the current packet was received. This is the absolute
+ * time in 100th of second. */
+extern uint64_t this_tick;
+
+/* Get the current absolute time in 100th of a second. */
+uint64_t get_ticks(void);
 
 /*
  * Return code for proxy function
