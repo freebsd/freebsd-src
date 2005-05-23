@@ -1,7 +1,7 @@
 /* doc.h -- Structures associating function pointers with documentation.
-   $Id: doc.h,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: doc.h,v 1.3 2004/04/11 17:56:45 karl Exp $
 
-   Copyright (C) 1993, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1993, 2001, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,15 +66,6 @@ typedef struct
 
 extern FUNCTION_DOC function_doc_array[];
 
-extern char *function_documentation ();
-extern char *key_documentation ();
-extern char *pretty_keyname ();
-extern char *pretty_keyseq ();
-extern char *where_is ();
-extern char *replace_in_documentation ();
-extern void info_document_key ();
-extern void dump_map_to_message_buffer ();
-
 /* Under the old key-binding system, an info command is specified by
    the pointer to its function.  Under the new INFOKEY binding system, 
    it is specified by a pointer to the command's FUNCTION_DOC structure,
@@ -82,7 +73,9 @@ extern void dump_map_to_message_buffer ();
    easily divined using the InfoFunction() extractor.  */
 #if defined(INFOKEY)
 typedef FUNCTION_DOC InfoCommand;
-#define InfoFunction(ic) ((ic) ? (ic)->func : NULL)
+/* The cast to VFunction * prevents pgcc from complaining about
+   dereferencing a void *.  */
+#define InfoFunction(ic) ((ic) ? (ic)->func : (VFunction *) NULL)
 #define InfoCmd(fn) (&function_doc_array[A_##fn])
 #define DocInfoCmd(fd) ((fd) && (fd)->func ? (fd) : NULL)
 #else /* !INFOKEY */
@@ -92,8 +85,19 @@ typedef VFunction InfoCommand;
 #define DocInfoCmd(fd) ((fd)->func)
 #endif /* !INFOKEY */
 
+#include "infomap.h" /* for Keymap.  */
+
 #if defined (NAMED_FUNCTIONS)
-extern char *function_name ();
-extern InfoCommand *named_function ();
+extern char *function_name (InfoCommand *cmd);
+extern InfoCommand *named_function (char *name);
 #endif /* NAMED_FUNCTIONS */
+
+extern char *function_documentation (InfoCommand *cmd);
+extern char *key_documentation (char key, Keymap map);
+extern char *pretty_keyname (unsigned char key);
+extern char *pretty_keyseq (char *keyseq);
+extern char *where_is (Keymap map, InfoCommand *cmd);
+extern char *replace_in_documentation (char *string, int help_is_only_window_p);
+extern void dump_map_to_message_buffer (char *prefix, Keymap map);
+
 #endif /* !DOC_H */

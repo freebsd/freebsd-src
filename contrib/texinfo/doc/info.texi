@@ -1,4 +1,7 @@
-\input texinfo    @c -*-texinfo-*-
+\input texinfo.tex    @c -*-texinfo-*-
+@c We must \input texinfo.tex instead of texinfo, otherwise make
+@c distcheck in the Texinfo distribution fails, because the texinfo Info
+@c file is made first, and texi2dvi must include . first in the path.
 @comment %**start of header
 @setfilename info.info
 @settitle Info
@@ -6,13 +9,12 @@
 @syncodeindex vr cp
 @syncodeindex ky cp
 @comment %**end of header
-@comment $Id: info.texi,v 1.3 2002/11/06 00:45:36 karl Exp $
 
 @copying
 This file describes how to use Info, the on-line, menu-driven GNU
 documentation system.
 
-Copyright (C) 1989, 1992, 1996, 1997, 1998, 1999, 2000, 2001, 2002
+Copyright (C) 1989, 1992, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
 Free Software Foundation, Inc.
 
 @quotation
@@ -50,6 +52,8 @@ license to the document, as described in section 6 of the license.
 @insertcopying
 @end titlepage
 
+@contents
+
 @ifnottex
 @node Top
 @top Info: An Introduction
@@ -57,6 +61,11 @@ license to the document, as described in section 6 of the license.
 The GNU Project distributes most of its on-line manuals in the
 @dfn{Info format}, which you read using an @dfn{Info reader}.  You are
 probably using an Info reader to read this now.
+
+There are two primary Info readers: @code{info}, a stand-alone program
+designed just to read Info files, and the @code{info} package in GNU
+Emacs, a general-purpose editor.  At present, only the Emacs reader
+supports using a mouse.
 
 @ifinfo
 If you are new to the Info reader and want to learn how to use it,
@@ -80,7 +89,7 @@ Started' chapter.
 @comment  node-name,  next,  previous,  up
 @chapter Getting Started
 
-This first part of the Info manual describes how to get around inside
+This first part of this Info manual describes how to get around inside
 of Info.  The second part of the manual describes various advanced
 Info commands, and how to write an Info as distinct from a Texinfo
 file.  The third part briefly explains how to generate Info files from
@@ -107,7 +116,7 @@ stand-alone program designed just to read Info files.
 @item
 Type @code{emacs} at the command line; then type @kbd{C-h i}
 (@kbd{Control-h}, followed by @kbd{i}).  This approach uses the Info
-mode of the Emacs program, an editor with many other capabilities.
+mode of the Emacs editor.
 @end enumerate
 
 In either case, then type @kbd{mInfo} (just the letters), followed by
@@ -121,14 +130,15 @@ the screen.
 @end ifnotinfo
 
 @menu
-* Help-Small-Screen::   Starting Info on a Small Screen
-* Help::                How to use Info
-* Help-P::              Returning to the Previous node
+* Help-Small-Screen::   Starting Info on a Small Screen.
+* Help::                How to use Info.
+* Help-P::              Returning to the Previous node.
 * Help-^L::             The Space, DEL, B and ^L commands.
-* Help-M::              Menus
-* Help-Xref::           Following cross-references
-* Help-Int::            Some intermediate Info commands
-* Help-Q::              Quitting Info
+* Help-Inv::            Invisible text in Emacs Info.
+* Help-M::              Menus.
+* Help-Xref::           Following cross-references.
+* Help-Int::            Some intermediate Info commands.
+* Help-Q::              Quitting Info.
 @end menu
 
 @node Help-Small-Screen
@@ -202,8 +212,8 @@ This is line 59
 If you have managed to get here, go back to the beginning with
 @kbd{DEL} (or @key{BACKSPACE}), and come back here again, then you
 understand the about the @samp{Space} and @samp{Backspace} keys.  So
-now type an @kbd{n} ---just one character; don't type the quotes and
-don't type the Return key afterward--- to get to the normal start of
+now type an @kbd{n}---just one character; don't type the quotes and
+don't type the Return key afterward---to get to the normal start of
 the course.
 @end ifinfo
 
@@ -212,6 +222,10 @@ the course.
 @section How to use Info
 
 You are talking to the program Info, for reading documentation.
+
+  There are two ways to use Info: from within Emacs or as a
+stand-alone reader that you can invoke from a shell using the command
+@command{info}.
 
 @cindex node, in Info documents
   Right now you are looking at one @dfn{Node} of Information.
@@ -229,8 +243,8 @@ well.  In Emacs, the header line is duplicated in a special typeface,
 and the duplicate remains at the top of the window all the time even
 if you scroll through the node.
 
-  Besides a @samp{Next}, a node can have a @samp{Previous} or an
-@samp{Up} links, or both.  As you can see, this node has all of these
+  Besides a @samp{Next}, a node can have a @samp{Previous} link, or an
+@samp{Up} link, or both.  As you can see, this node has all of these
 links.
 
 @kindex n @r{(Info mode)}
@@ -261,9 +275,10 @@ command.  Another @kbd{n} command now would take you to the next
 node, @samp{Help-^L}.
 
 @format
->> But do not type @kbd{n} yet.  First, try the @kbd{p} command,
-   or click the middle mouse button on the @samp{Prev} link.  That
-   takes you to the @samp{Previous} node.  Then use @kbd{n} to return here.
+>> But do not type @kbd{n} yet.  First, try the @kbd{p} command, or
+   (in Emacs) click the middle mouse button on the @samp{Prev} link.
+   That takes you to the @samp{Previous} node.  Then use @kbd{n} to
+   return here.
 @end format
 
   If you read this in Emacs, you will see an @samp{Info} item in the
@@ -279,13 +294,13 @@ to.  You could make Info skip past an important warning that was
 coming up.
 
 @format
->> Now do an @kbd{n}, or click the middle mouse button on the @samp{Next}
-   link, to get to the node @samp{Help-^L} and learn more.
+>> Now do an @kbd{n}, or (in Emacs) click the middle mouse button on
+   the @samp{Next} link, to get to the node @samp{Help-^L} and learn more.
 @end format
 
-@node Help-^L, Help-M, Help-P, Getting Started
+@node Help-^L, Help-Inv, Help-P, Getting Started
 @comment  node-name,  next,  previous,  up
-@section The Space, DEL, B and ^L commands.
+@section The Space, DEL, B and ^L commands
 
   This node's mode line tells you that you are now at node
 @samp{Help-^L}, and the header line tells you that @kbd{p} would get
@@ -360,7 +375,7 @@ scroll beyond the beginning or the end of the current node.
 
 @kindex C-l @r{(Info mode)}
   If your screen is ever garbaged, you can tell Info to display it
-again by typing @kbd{C-l} (@kbd{Control-L}, that is---hold down
+again by typing @kbd{C-l} (@kbd{Control-L}---that is, hold down
 @key{CTRL} and type @kbd{L} or @kbd{l}).
 
 @format
@@ -399,8 +414,8 @@ the list, make it go away by typing a @key{SPC} repeatedly.
 
   (If you are using the stand-alone Info reader, type @kbd{C-x 0} to
 return here, that is---press and hold @key{CTRL}, type an @kbd{x},
-then release @key{CTRL} and @kbd{x}, and press @kbd{0}---a zero, not
-the letter ``o''.)
+then release @key{CTRL} and @kbd{x}, and press @kbd{0}; that's a zero,
+not the letter ``o''.)
 
   From now on, you will encounter large nodes without warning, and
 will be expected to know how to use @key{SPC} and @key{BACKSPACE} to
@@ -409,30 +424,103 @@ the same size screen, it would be impossible to warn you anyway.
 
 @format
 >> Now type @kbd{n}, or click the middle mouse button on the @samp{Next} link,
-   to see the description of the @kbd{m} command.
+   to visit the next node.
 @end format
 
-@node Help-M, Help-Xref, Help-^L, Getting Started
+@node Help-Inv, Help-M, Help-^L, Getting Started
+@comment  node-name,  next,  previous,  up
+@section Invisible text in Emacs Info
+
+  Before discussing menus, we need to make some remarks that are only
+relevant to users reading Info using Emacs.  Users of the stand-alone
+version can skip this node by typing @kbd{]} now.
+
+@cindex invisible text in Emacs
+  In Emacs, certain text that appears in the stand-alone version is
+normally hidden, technically because it has the @samp{invisibility}
+property.  Invisible text is really a part of the text.  It becomes
+visible (by default) after killing and yanking, it appears in printed
+output, it gets saved to file just like any other text, and so on.
+Thus it is useful to know it is there.
+
+@findex visible-mode
+You can make invisible text visible by using the command @kbd{M-x
+visible-mode}.  Visible mode is a minor mode, so using the command a
+second time will make the text invisible again.  Watch the effects of
+the command on the ``menu'' below and the top line of this node.
+
+If you prefer to @emph{always} see the invisible text, you can set
+@code{Info-hide-note-references} to @code{nil}.  Enabling Visible mode
+permanently is not a real alternative, because Emacs Info also uses
+(although less extensively) another text property that can change the
+text being displayed, the @samp{display} property.  Only the
+invisibility property is affected by Visible mode.  When, in this
+tutorial, we refer to the @samp{Emacs} behavior, we mean the
+@emph{default} Emacs behavior.
+
+Now type @kbd{]}, to learn about the @kbd{]} and @kbd{[} commands.
+
+@menu
+* ]:         Help-].               Node telling about ].
+* stuff:     Help-].               Same node.
+* Help-]::                         Yet again, same node.
+@end menu
+
+@node Help-], , , Help-Inv
+@subsection The @kbd{]} and @kbd{[} commands
+
+If you type @kbd{n} now, you get an error message saying that this
+node has no next node.  Similarly, if you type @kbd{p}, the error
+message tells you that there is no previous node.  (The exact message
+depends on the Info reader you use.)  This is because @kbd{n} and
+@kbd{p} carry you to the next and previous node @emph{at the same
+level}.  The present node is contained in a menu (see next) of the
+node you came from, and hence is considered to be at a lower level.
+It is the only node in the previous node's menu (even though it was
+listed three times). Hence it has no next or previous node that
+@kbd{n} or @kbd{p} could move to.
+
+If you systematically move through a manual by typing @kbd{n}, you run
+the risk of skipping many nodes.  You do not run this risk if you
+systematically use @kbd{@key{SPC}}, because, when you scroll to the
+bottom of a node and type another @kbd{@key{SPC}}, then this carries
+you to the following node in the manual @emph{regardless of level}.
+If you immediately want to go to that node, without having to scroll
+to the bottom of the screen first, you can type @kbd{]}.
+
+Similarly, @kbd{@key{BACKSPACE}} carries you to the preceding node
+regardless of level, after you scrolled to the beginning of the
+present node.  If you want to go to the preceding node immediately,
+you can type @kbd{[}.
+
+For instance, typing this sequence will come back here in three steps:
+@kbd{[ n [}.  To do the same backward, type @kbd{] p ]}.
+
+Now type @kbd{]} to go to the next node and learn about menus.
+
+@node Help-M, Help-Xref, Help-Inv, Getting Started
 @comment  node-name,  next,  previous,  up
 @section Menus and the @kbd{m} command
 
 @cindex menus in an Info document
 @cindex Info menus
-  With only the @kbd{n} (next) and @kbd{p} (previous) commands for
-moving between nodes, nodes are restricted to a linear sequence.
-Menus allow a branching structure.  A menu is a list of other nodes
-you can move to.  It is actually just part of the text of the node
-formatted specially so that Info can interpret it.  The beginning of a
-menu is always identified by a line which starts with @samp{* Menu:}.
-A node contains a menu if and only if it has a line in it which starts
-that way.  The only menu you can use at any moment is the one in the
-node you are in.  To use a menu in any other node, you must move to
-that node first.
+  With only the @kbd{n} (next), @kbd{p} (previous), @kbd{@key{SPC}},
+@kbd{@key{BACKSPACE}}, @kbd{]} and @kbd{[} commands for moving between
+nodes, nodes are restricted to a linear sequence.  Menus allow a
+branching structure.  A menu is a list of other nodes you can move to.
+It is actually just part of the text of the node formatted specially
+so that Info can interpret it.  The beginning of a menu is always
+identified by a line which starts with @w{@samp{* Menu:}}.  A node
+contains a menu if and only if it has a line in it which starts that
+way.  The only menu you can use at any moment is the one in the node
+you are in.  To use a menu in any other node, you must move to that
+node first.
 
   After the start of the menu, each line that starts with a @samp{*}
-identifies one subtopic.  The line usually contains a brief name
-for the subtopic (followed by a @samp{:}), the name of the node that talks
-about that subtopic, and optionally some further description of the
+identifies one subtopic.  The line usually contains a brief name for
+the subtopic (followed by a @samp{:}, normally hidden in Emacs), the
+name of the node that talks about that subtopic (again, normally
+hidden in Emacs), and optionally some further description of the
 subtopic.  Lines in the menu that do not start with a @samp{*} have no
 special meaning---they are only for the human reader's benefit and do
 not define additional subtopics.  Here is an example:
@@ -444,7 +532,11 @@ not define additional subtopics.  Here is an example:
 The subtopic name is Foo, and the node describing it is @samp{Node
 about FOO}.  The rest of the line is just for the reader's
 Information.  [[ But this line is not a real menu item, simply because
-there is no line above it which starts with @samp{* Menu:}.]]
+there is no line above it which starts with @w{@samp{* Menu:}}.  Also,
+in a real menu item, the @samp{*} would appear at the very start of
+the line.  This is why the ``normally hidden'' text in Emacs, namely
+@samp{: Node about FOO.}, is actually visible in this example, even
+when Visible mode is off.]]
 
   When you use a menu to go to another node (in a way that will be
 described soon), what you specify is the subtopic name, the first
@@ -463,7 +555,7 @@ abbreviation for this:
 
 @noindent
 This means that the subtopic name and node name are the same; they are
-both @samp{Foo}.
+both @samp{Foo}.  (The @samp{::} is normally hidden in Emacs.)
 
 @format
 >> Now use @key{SPC} to find the menu in this node, then come back to
@@ -488,16 +580,18 @@ another command.  The @kbd{m} command is different: it needs to know
 the @dfn{name of the subtopic}.  Once you have typed @kbd{m}, Info
 tries to read the subtopic name.
 
-  Now look for the line containing many dashes near the bottom of the
-screen.  There is one more line beneath that one, but usually it is
-blank.  When it is blank, Info is ready for a command, such as @kbd{n}
-or @kbd{b} or @key{SPC} or @kbd{m}.  If that line contains text ending
-in a colon, it means Info is reading more input for the last command.
-You can't type an Info command then, because Info is trying to read
-input, not commands.  You must either give the input and finish the
-command you started, or type @kbd{Control-g} to cancel the command.
-When you have done one of those things, the input entry line becomes
-blank again.  Then you can type Info commands again.
+  Now, in the stand-alone Info, look for the line containing many
+dashes near the bottom of the screen.  (This is the stand-alone
+equivalent for the mode line in Emacs.)  There is one more line
+beneath that one, but usually it is blank.  (In Emacs, this is the
+echo area.)  When it is blank, Info is ready for a command, such as
+@kbd{n} or @kbd{b} or @key{SPC} or @kbd{m}.  If that line contains
+text ending in a colon, it means Info is reading more input for the
+last command.  You can't type an Info command then, because Info is
+trying to read input, not commands.  You must either give the input
+and finish the command you started, or type @kbd{Control-g} to cancel
+the command.  When you have done one of those things, the input entry
+line becomes blank again.  Then you can type Info commands again.
 
 @findex Info-menu
   The command to go to a subnode via a menu is @kbd{m}.  After you type
@@ -534,6 +628,8 @@ three ways of going to one place, Help-FOO:
 * Bar:  Help-FOO.       We have made two ways to get to the same place.
 * Help-FOO::            And yet another!
 @end menu
+
+(Turn Visible mode on if you are using Emacs.)
 
 @format
 >>  Now type just an @kbd{m} and see what happens:
@@ -610,14 +706,6 @@ node's header line it acts like @kbd{n}, @kbd{p}, or @kbd{u}, etc.  At
 end of the node's text @kbd{Mouse-2} moves to the next node, or up if
 there's no next node.
 
-  Here is another way to get to Help-FOO, a menu.  You can ignore this
-if you want, or else try it by typing @key{TAB} and then @key{RET}, or
-clicking @kbd{Mouse-2} on it (but then please come back to here).
-
-@menu
-* Help-FOO::
-@end menu
-
 @format
 >> Type @kbd{n} to see more commands.
 @end format
@@ -656,7 +744,8 @@ pointer shown in the header line (provided that you have a mouse).
   In Info documentation, you will see many @dfn{cross references}.
 Cross references look like this: @xref{Help-Cross, Cross}.  That text
 is a real, live cross reference, whose name is @samp{Cross} and which
-points to the node named @samp{Help-Cross}.
+points to the node named @samp{Help-Cross}.  (The node name is hidden
+in Emacs.  Do @kbd{M-x visible-mode} to show or hide it.)
 
 @kindex f @r{(Info mode)}
 @findex Info-follow-reference
@@ -699,6 +788,48 @@ to cancel the @kbd{f}.
   The @key{TAB} and @kbd{M-@key{TAB}} key, which move between menu
 items in a menu, also move between cross references outside of menus.
 
+  Sometimes a cross reference (or a node) can lead to another file (in
+other words another ``manual''), or, on occasion, even a file on a
+remote machine (although Info files distributed with Emacs or the
+stand-alone Info avoid using remote links).  Such a cross reference
+looks like this: @xref{Top,, Overview of Texinfo, texinfo, Texinfo:
+The GNU Documentation Format}.  (After following this link, type
+@kbd{l} to get back to this node.)  Here the name @samp{texinfo}
+between parentheses (shown in the stand-alone version) refers to the
+file name.  This file name appears in cross references and node names
+if it differs from the current file.  In Emacs, the file name is
+hidden (along with other text).  (Use @kbd{M-x visible-mode} to show
+or hide it.)
+
+  The remainder of this node applies only to the Emacs version.  If
+you use the stand-alone version, you can type @kbd{n} immediately.
+
+  To some users, switching manuals is a much bigger switch than
+switching sections.  These users like to know that they are going to
+be switching to another manual (and which one) before actually doing
+so, especially given that, if one does not notice, Info commands like
+@kbd{t} (see the next node) can have confusing results.
+
+  If you put your mouse over the cross reference and if the cross
+reference leads to a different manual, then the information appearing
+in a separate box (tool tip) or in the echo area, will mention the
+file the cross reference will carry you to (between parentheses).
+This is also true for menu subtopic names.  If you have a mouse, just
+leave it over the @samp{Overview} cross reference above and watch what
+happens.
+
+  If you always like to have that information available without having
+to move your mouse over the cross reference, set
+@code{Info-hide-note-references} to a value other than t (@pxref{Emacs
+Info Variables}).  You might also want to do that if you have a lot of
+cross references to files on remote machines and have non-permanent or
+slow access, since otherwise you might not be able to distinguish
+between local and remote links.
+
+@format
+>> Now type @kbd{n} to learn more commands.
+@end format
+
 @node Help-Int, Help-Q, Help-Xref, Getting Started
 @comment  node-name,  next,  previous,  up
 @section Some intermediate Info commands
@@ -706,12 +837,16 @@ items in a menu, also move between cross references outside of menus.
   The introductory course is almost over; please continue
 a little longer to learn some intermediate-level commands.
 
-  Most Info files have an index, which is actually a large node that
-contains nothing but a menu.  The menu has one menu item for each
-topic listed in the index.  You can find the index node from the main
-menu of the file, with the @kbd{m} command; then you can use the
-@kbd{m} command again in the index node to go to the node that
-describes the topic.
+  Most Info files have an index, which is actually a large node
+containing little but a menu.  The menu has one menu item for each
+topic listed in the index.  (As a special feature, menus for indices
+may also include the line number within the node of the index entry.
+This allows Info readers to go to the exact line of an entry, not just
+the start of the containing node.)
+
+  You can get to the index from the main menu of the file with the
+@kbd{m} command; then you can use the @kbd{m} command again in the
+index node to go to the node that describes the topic you want.
 
   There is also a short-cut Info command, @kbd{i}, which does all of
 that for you.  It searches the index for a given topic (a string) and
@@ -728,23 +863,17 @@ records the nodes where you have been in a special history list.  The
 @kbd{l} command revisits nodes in the history list; each successive
 @kbd{l} command moves one step back through the history.
 
-  If you have been following directions, an @kbd{l} command now will get
-you back to @samp{Help-M}.  Another @kbd{l} command would undo the
-@kbd{u} and get you back to @samp{Help-FOO}.  Another @kbd{l} would undo
-the @kbd{m} and get you back to @samp{Help-M}.
-
   In Emacs, @kbd{l} runs the command @code{Info-last}.
 
 @format
->> Try typing three @kbd{l}'s, pausing in between to see what each
-   @kbd{l} does.  Then follow directions again and you will end up
-   back here.
+>> Try typing @kbd{p p n} and then three @kbd{l}'s, pausing in between
+to see what each @kbd{l} does.  You should wind up right back here.
 @end format
 
   Note the difference between @kbd{l} and @kbd{p}: @kbd{l} moves to
 where @emph{you} last were, whereas @kbd{p} always moves to the node
 which the header says is the @samp{Previous} node (from this node, the
-@samp{Prev} link leads to @samp{Help-M}).
+@samp{Prev} link leads to @samp{Help-Xref}).
 
 @kindex d @r{(Info mode)}
 @findex Info-directory
@@ -796,10 +925,10 @@ Texinfo file.  (However, in most cases, writing a Texinfo file is
 better, since you can use it to make a printed manual or produce other
 formats, such as HTML and DocBook, as well as for generating Info
 files.)  @xref{Top,, Overview of Texinfo, texinfo, Texinfo: The GNU
-Documentation Format}.)
+Documentation Format}.
 
 @menu
-* Advanced::             Advanced Info commands: g, s, e, and 1 - 5.
+* Advanced::             Advanced Info commands: g, e, and 1 - 9.
 * Info Search::          How to search Info documents for specific subjects.
 * Add::                  Describes how to add new nodes to the hierarchy.
                            Also tells what nodes look like.
@@ -816,7 +945,7 @@ Documentation Format}.)
 
 Here are some more Info commands that make it easier to move around.
 
-@unnumberedsubsec @kbd{g} goes to a node by name
+@subheading @kbd{g} goes to a node by name
 
 @kindex g @r{(Info mode)}
 @findex Info-goto-node
@@ -842,7 +971,7 @@ the node @samp{Top} in the Info file @file{dir}.  Likewise,
 all of the current file by typing @kbd{g*@key{RET}} or all of any
 other file with @kbd{g(@var{filename})@key{RET}}.
 
-@unnumberedsubsec @kbd{1} -- @kbd{9} choose a menu subtopic by its number
+@subheading @kbd{1}--@kbd{9} choose a menu subtopic by its number
 
 @kindex 1 @r{through} 9 @r{(Info mode)}
 @findex Info-nth-menu-item
@@ -856,17 +985,18 @@ In the stand-alone reader, @kbd{0} goes through the last menu item;
 this is so you need not count how many entries are there.  In Emacs,
 the digit keys run the command @code{Info-nth-menu-item}.
 
-  If your display supports multiple fonts, and you are using Emacs'
-Info mode to read Info files, the @samp{*} for the fifth menu item
-stands out, either in color or in some other attribute, such as
-underline, and so is the @samp{*} for the ninth item; this makes it
-easy to see at a glance which number to use for an item.
+  If your display supports multiple fonts, colors or underlining, and
+you are using Emacs' Info mode to read Info files, the third, sixth
+and ninth menu items have a @samp{*} that stands out, either in color
+or in some other attribute, such as underline; this makes it easy to
+see at a glance which number to use for an item.
 
-  Some terminals don't support colors or underlining.  If you need to
-actually count items, it is better to use @kbd{m} instead, and specify
-the name, or use @key{TAB} to quickly move between menu items.
+  Some terminals don't support either multiple fonts, colors or
+underlining.  If you need to actually count items, it is better to use
+@kbd{m} instead, and specify the name, or use @key{TAB} to quickly
+move between menu items.
 
-@unnumberedsubsec @kbd{e} makes Info document editable
+@subheading @kbd{e} makes Info document editable
 
 @kindex e @r{(Info mode)}
 @findex Info-edit
@@ -880,6 +1010,23 @@ only if the variable @code{Info-enable-edit} is non-@code{nil}.
 @code{Info-edit}.  The stand-alone Info reader doesn't allow you to
 edit the Info file, so typing @kbd{e} there goes to the end of the
 current node.
+
+@subheading @kbd{M-n} creates a new independent Info buffer in Emacs
+
+@kindex M-n @r{(Info mode)}
+@findex clone-buffer
+@cindex multiple Info buffers
+  If you are reading Info in Emacs, you can select a new independent
+Info buffer in another window by typing @kbd{M-n}.  The new buffer
+starts out as an exact copy of the old one, but you will be able to
+move independently between nodes in the two buffers.  (In Info mode,
+@kbd{M-n} runs the Emacs command @code{clone-buffer}.)
+
+  In Emacs Info, you can also produce new Info buffers by giving a
+numeric prefix argument to the @kbd{m} and @kbd{g} commands.  @kbd{C-u
+m} and @kbd{C-u g} go to a new node in exactly the same way that
+@kbd{m} and @kbd{g} do, but they do so in a new Info buffer which they
+select in another window.
 
 @node Info Search, Add, Advanced, Expert Info
 @comment  node-name,  next,  previous,  up
@@ -914,7 +1061,7 @@ you typed @emph{as a substring}.  For each match, Info shows in the
 echo area the full index entry it found.  Often, the text of the full
 index entry already gives you enough information to decide whether it
 is relevant to what you are looking for, so we recommend that you read
-what Emacs shows in the echo are before looking at the node it
+what Info shows in the echo area before looking at the node it
 displays.
 
   Since @kbd{i} looks for a substring, you can search for subjects even
@@ -929,11 +1076,17 @@ options, and key sequences that the program provides.  If you are
 looking for a description of a command, an option, or a key, just type
 their names when @kbd{i} prompts you for a topic.  For example, if you
 want to read the description of what the @kbd{C-f} key does, type
-@kbd{iC-f@key{RET}}.  Here @kbd{C-f} are 3 literal characters
+@kbd{i C - f @key{RET}}.  Here @kbd{C-f} are 3 literal characters
 @samp{C}, @samp{-}, and @samp{f}, not the ``Control-f'' command key
 you type inside Emacs to run the command bound to @kbd{C-f}.
 
   In Emacs, @kbd{i} runs the command @code{Info-index}.
+
+@findex info-apropos
+If you don't know what manual documents something, try the @kbd{M-x
+info-apropos} command.  It prompts for a string and then looks up that
+string in all the indices of all the Info documents installed on your
+system.
 
 @kindex s @r{(Info mode)}
 @findex Info-search
@@ -1049,15 +1202,15 @@ The @kbd{m} command searches the current node's menu for the topic which it
 reads from the terminal.
 
 @cindex menu and menu entry format
-  A menu begins with a line starting with @samp{* Menu:}.  The rest of the
-line is a comment.  After the starting line, every line that begins
-with a @samp{* } lists a single topic.  The name of the topic--what
-the user must type at the @kbd{m}'s command prompt to select this
-topic---comes right after the star and space, and is followed by a
-colon, spaces and tabs, and the name of the node which discusses that
-topic.  The node name, like node names following @samp{Next}, @samp{Previous}
-and @samp{Up}, may be terminated with a tab, comma, or newline; it may also
-be terminated with a period.
+  A menu begins with a line starting with @w{@samp{* Menu:}}.  The
+rest of the line is a comment.  After the starting line, every line
+that begins with a @samp{* } lists a single topic.  The name of the
+topic---what the user must type at the @kbd{m}'s command prompt to
+select this topic---comes right after the star and space, and is
+followed by a colon, spaces and tabs, and the name of the node which
+discusses that topic.  The node name, like node names following
+@samp{Next}, @samp{Previous} and @samp{Up}, may be terminated with a
+tab, comma, or newline; it may also be terminated with a period.
 
   If the node name and topic name are the same, then rather than
 giving the name twice, the abbreviation @samp{* @var{name}::} may be
@@ -1278,6 +1431,14 @@ the @samp{Next}, @samp{Prev}, and @samp{Up} links.  A header line does
 not scroll with the rest of the buffer, making these links always
 visible.
 
+@item Info-hide-note-references
+As explained in earlier nodes, the Emacs version of Info normally
+hides some text in menus and cross-references.  You can completely
+disable this feature, by setting this option to @code{nil}.  Setting
+it to a value that is neither @code{nil} nor @code{t} produces an
+intermediate behavior, hiding a limited amount of text, but showing
+all text that could potentially be useful.
+
 @item Info-scroll-prefer-subnodes
 If set to a non-@code{nil} value, @key{SPC} and @key{BACKSPACE} (or
 @key{DEL}) keys in a menu visit subnodes of the current node before
@@ -1286,7 +1447,7 @@ node's menu appears on the screen, the next @key{SPC} moves to a
 subnode indicated by the following menu item.  Setting this option to
 @code{nil} results in behavior similar to the stand-alone Info reader
 program, which visits the first subnode from the menu only when you
-hit the end of the current node.  The default is @code{t}.
+hit the end of the current node.  The default is @code{nil}.
 
 @item Info-enable-active-nodes
 When set to a non-@code{nil} value, allows Info to execute Lisp code
@@ -1331,3 +1492,7 @@ topics discussed in this document.
 @printindex cp
 
 @bye
+
+@ignore
+   arch-tag: 965c1638-01d6-4156-9227-b10418b9d8e8
+@end ignore

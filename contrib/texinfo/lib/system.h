@@ -1,7 +1,7 @@
 /* system.h: system-dependent declarations; include this first.
-   $Id: system.h,v 1.5 2003/03/22 17:40:39 karl Exp $
+   $Id: system.h,v 1.12 2004/04/26 13:56:57 karl Exp $
 
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software
+   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004 Free Software
    Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -32,15 +32,11 @@
 /* MiKTeX defines substring() in a separate DLL, where it has its
    own __declspec declaration.  We don't want to try to duplicate 
    this Microsoft-ism here.  */
-extern char *substring ();
+extern char *substring (const char *, const char *);
 #endif
 
-/* <unistd.h> should be included before any preprocessor test
-   of _POSIX_VERSION.  */
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif /* HAVE_UNISTD_H */
-
+/* We follow the order of header inclusion from Autoconf's
+   ac_includes_default, more or less.  */
 #include <stdio.h>
 #include <sys/types.h>
 #include <ctype.h>
@@ -61,10 +57,6 @@ extern char *substring ();
 #define _(String) gettext (String)
 #define N_(String) (String)
 
-#ifndef HAVE_LC_MESSAGES
-#define LC_MESSAGES (-1)
-#endif
-
 #ifdef STDC_HEADERS
 #define getopt system_getopt
 #include <stdlib.h>
@@ -75,15 +67,33 @@ extern char *getenv ();
 
 /* Don't use bcopy!  Use memmove if source and destination may overlap,
    memcpy otherwise.  */
-#ifdef HAVE_STRING_H
+#if HAVE_STRING_H
 # if !STDC_HEADERS && HAVE_MEMORY_H
 #  include <memory.h>
 # endif
 # include <string.h>
-#else
+#endif
+
+#if HAVE_STRINGS_H
+/* Always include <strings.h> if we have it.  This is because that's
+   what Autoconf's AC_CHECK_DECL does.  On IBM AIX 4.2, strncasecmp is
+   only declared in strings.h.  */
 # include <strings.h>
+#endif
+
+#if !HAVE_STRNCASECMP || !HAVE_STRCASECMP
+# include "strcase.h"
+#endif
+
+#if !HAVE_DECL_MEMCHR
 char *memchr ();
 #endif
+
+/* <unistd.h> defines _POSIX_VERSION, but Paul Eggert points out that is
+   only supposed to be used in user code, not other system headers.  */
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
 
 #include <errno.h>
 #ifndef errno
@@ -191,30 +201,41 @@ extern int strcoll ();
 #   define HAVE_LONG_FILENAMES(dir)  (pathconf (dir, _PC_NAME_MAX) > 12)
 #   define NULL_DEVICE	"/dev/null"
 #   define DEFAULT_INFOPATH "c:/djgpp/info;/usr/local/info;/usr/info;."
-#  else  /* !__DJGPP__ */
+    /* DJGPP supports /dev/null, which is okay for Unix aficionados,
+       shell scripts and Makefiles, but interactive DOS die-hards
+       would probably want to have NUL as well.  */
+#   define ALSO_NULL_DEVICE  "NUL"
+#  else  /* O_BINARY && !__DJGPP__ */
 #   define HAVE_LONG_FILENAMES(dir)  (0)
 #   define NULL_DEVICE	"NUL"
-#  endif /* !__DJGPP__ */
+#  endif /* O_BINARY && !__DJGPP__ */
 #  define SET_SCREEN_SIZE_HELPER terminal_prep_terminal()
 #  define DEFAULT_INFO_PRINT_COMMAND ">PRN"
-# else   /* !__MSDOS__ */
+# else   /* O_BINARY && !__MSDOS__ */
 #  define setmode(f,m)  _setmode(f,m)
 #  define HAVE_LONG_FILENAMES(dir)   (1)
 #  define NULL_DEVICE	"NUL"
-# endif  /* !__MSDOS__ */
-# define SET_BINARY(f)  do {if (!isatty(f)) setmode(f,O_BINARY);} while(0)
-# define FOPEN_RBIN	"rb"
-# define FOPEN_WBIN	"wb"
-# define IS_SLASH(c)	((c) == '/' || (c) == '\\')
-# define HAVE_DRIVE(n)	((n)[0] && (n)[1] == ':')
-# define IS_ABSOLUTE(n)	(IS_SLASH((n)[0]) || ((n)[0] && (n)[1] == ':'))
+# endif  /* O_BINARY && !__MSDOS__ */
+# ifdef __CYGWIN__
+#  define DEFAULT_TMPDIR	"/tmp/"
+#  define PATH_SEP	":"
+# else  /* O_BINARY && !__CYGWIN__ */
+#  define DEFAULT_TMPDIR	"c:/"
+#  define PATH_SEP	";"
+# endif /* O_BINARY && !__CYGWIN__ */
+  /* Back to any O_BINARY system.  */
 # define FILENAME_CMP	strcasecmp
 # define FILENAME_CMPN	strncasecmp
-# define PATH_SEP	";"
-# define STRIP_DOT_EXE	1
-# define DEFAULT_TMPDIR	"c:/"
+# define FOPEN_RBIN	"rb"
+# define FOPEN_WBIN	"wb"
+# define HAVE_DRIVE(n)	((n)[0] && (n)[1] == ':')
+# define IS_SLASH(c)	((c) == '/' || (c) == '\\')
+# define IS_ABSOLUTE(n)	(IS_SLASH((n)[0]) || ((n)[0] && (n)[1] == ':'))
 # define PIPE_USE_FORK	0
-#else  /* not O_BINARY */
+# define SET_BINARY(f)  do {if (!isatty(f)) setmode(f,O_BINARY);} while(0)
+# define STRIP_DOT_EXE	1
+
+#else  /* not O_BINARY, i.e., Unix */
 # define SET_BINARY(f)	(void)0
 # define FOPEN_RBIN	"r"
 # define FOPEN_WBIN	"w"
@@ -235,12 +256,8 @@ extern int strcoll ();
 # define PIPE_USE_FORK	1
 #endif /* not O_BINARY */
 
-/* DJGPP supports /dev/null, which is okay for Unix aficionados,
-   shell scripts and Makefiles, but interactive DOS die-hards
-   would probably want to have NUL as well.  */
-#ifdef __DJGPP__
-# define ALSO_NULL_DEVICE  "NUL"
-#else
+/* Everything but DJGPP.  */
+#ifndef ALSO_NULL_DEVICE
 # define ALSO_NULL_DEVICE  ""
 #endif
 
@@ -248,15 +265,17 @@ extern int strcoll ();
 #include <pwd.h>
 #endif
 /* Some systems don't declare this function in pwd.h. */
-struct passwd *getpwnam ();
+struct passwd *getpwnam (const char *name);
 
 /* Our library routines not included in any system library.  */
-extern void *xmalloc (), *xrealloc ();
-extern char *xstrdup ();
-extern void xexit ();
+extern void *xmalloc (size_t), *xrealloc (void *, size_t);
+extern char *xstrdup (const char *);
+extern void xexit (int);
 
 /* For convenience.  */
 #define STREQ(s1,s2) (strcmp (s1, s2) == 0)
+#define STRCASEEQ(s1,s2) (strcasecmp (s1, s2) == 0)
+#define STRNCASEEQ(s1,s2,n) (strncasecmp (s1, s2, n) == 0)
 
 /* We don't need anything fancy.  If we did need something fancy, gnulib
    has it.  */
