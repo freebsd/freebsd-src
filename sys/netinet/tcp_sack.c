@@ -339,6 +339,8 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 	int tmp_olen;
 	u_char *tmp_cp;
 	struct sackhole *cur, *temp;
+	struct sackblk sack, sack_blocks[TCP_MAX_SACK];
+	int i, j, next_sack_blk, num_sack_blks;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
 	if (!tp->sack_enable)
@@ -354,74 +356,103 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 	tmp_cp = cp + 2;
 	tmp_olen = optlen - 2;
 	tcpstat.tcps_sack_rcv_blocks++;
-	if (tp->t_maxseg == 0)
-		panic("tcp_sack_option"); /* Should never happen */
+	/*
+	 * Sort the SACK blocks so we can update the scoreboard
+	 * with just one pass. The overhead of sorting upto 4 elements
+	 * is less than making 3 passes over the scoreboard.
+	 */
+	num_sack_blks = 0;
 	while (tmp_olen > 0) {
-		struct sackblk sack;
-
-		bcopy(tmp_cp, (char *) &(sack.start), sizeof(tcp_seq));
+		bcopy(tmp_cp, &sack, sizeof(sack));
 		sack.start = ntohl(sack.start);
-		bcopy(tmp_cp + sizeof(tcp_seq),
-		    (char *) &(sack.end), sizeof(tcp_seq));
 		sack.end = ntohl(sack.end);
+		if (SEQ_GT(sack.end, sack.start) &&
+		    SEQ_GT(sack.start, tp->snd_una) &&
+		    SEQ_GT(sack.start, th->th_ack) &&
+		    SEQ_LEQ(sack.end, tp->snd_max))
+			sack_blocks[num_sack_blks++] = sack;
 		tmp_olen -= TCPOLEN_SACK;
 		tmp_cp += TCPOLEN_SACK;
-		if (SEQ_LEQ(sack.end, sack.start))
-			continue; /* bad SACK fields */
-		if (SEQ_LEQ(sack.end, tp->snd_una))
-			continue; /* old block */
-		if (SEQ_GT(th->th_ack, tp->snd_una)) {
-			if (SEQ_LT(sack.start, th->th_ack))
-				continue;
+	}
+	if (num_sack_blks == 0)
+		return 0;
+	/* Bubble sort */
+	for (i = 0; i < num_sack_blks; i++) {
+		for (j = i + 1; j < num_sack_blks; j++) {
+			if (SEQ_GT(sack_blocks[i].start,
+				   sack_blocks[j].start)){
+				sack = sack_blocks[i];
+				sack_blocks[i] = sack_blocks[j];
+				sack_blocks[j] = sack;
+			}
 		}
-		if (SEQ_GT(sack.end, tp->snd_max))
+	}
+	if (TAILQ_EMPTY(&tp->snd_holes))
+		/*
+		 * Empty scoreboard. Need to initialize rcv_lastsack (it may be
+		 * uninitialized or have a bogus value). Scoreboard holes
+		 * (from the sack blocks received) are created later below (in
+		 * the logic that adds holes to the tail of the scoreboard).
+		 */
+		tp->rcv_lastsack = tp->snd_una;
+	next_sack_blk = 0;
+	cur = TAILQ_FIRST(&tp->snd_holes);
+	/*
+	 * Since the incoming sack blocks are sorted, we can process them
+	 * making one sweep of the scoreboard.
+	 */
+	while ((next_sack_blk < num_sack_blks) && (cur != NULL)) {
+		sack = sack_blocks[next_sack_blk];
+		if (SEQ_LT(tp->rcv_lastsack, sack.start))
+			/*
+			 * The sack block acks data to the right of all the holes
+			 * in the scoreboard. No need to iterate over the
+			 * scoreboard anymore.
+			 */
+			break;
+		if (SEQ_LEQ(sack.end, cur->start)) {
+			/*
+			 * SACKs data before the current hole.
+			 * Ignore the sack block. Go to the next sack
+			 * block.
+			 */
+			next_sack_blk++;
 			continue;
-		if (TAILQ_EMPTY(&tp->snd_holes)) { /* first hole */
-			cur = tcp_sackhole_alloc(tp, th->th_ack, sack.start);
-			if (cur == NULL) {
-				/* ENOBUFS, so ignore SACKed block for now*/
-				continue;
-			}
-			TAILQ_INSERT_HEAD(&tp->snd_holes, cur, scblink);
-			tp->rcv_lastsack = sack.end;
-			/* Update the sack scoreboard "cache" */
-			tp->sackhint.nexthole = cur;
-			continue; /* with next sack block */
 		}
-		/* Go thru list of holes. */
-		cur = TAILQ_FIRST(&tp->snd_holes);
-		while (cur) {
-			if (SEQ_LEQ(sack.end, cur->start))
-				/* SACKs data before the current hole */
-				break; /* no use going through more holes */
-			if (SEQ_GEQ(sack.start, cur->end)) {
-				/* SACKs data beyond the current hole */
+		if (SEQ_GEQ(sack.start, cur->end)) {
+			/*
+			 * SACKs data beyond the current hole.
+			 * Go to the next hole.
+			 */
+			cur = TAILQ_NEXT(cur, scblink);
+			continue;
+		}
+		tp->sackhint.sack_bytes_rexmit -= (cur->rxmit - cur->start);
+		KASSERT(tp->sackhint.sack_bytes_rexmit >= 0,
+			("sackhint bytes rtx >= 0"));
+		if (SEQ_LEQ(sack.start, cur->start)) {
+			/* Data acks at least the beginning of hole */
+			if (SEQ_GEQ(sack.end, cur->end)) {
+				/* Acks entire hole, so delete hole */
+				if (tp->sackhint.nexthole == cur)
+					tp->sackhint.nexthole =	
+						TAILQ_NEXT(cur, scblink);
+				temp = cur;
 				cur = TAILQ_NEXT(cur, scblink);
+				TAILQ_REMOVE(&tp->snd_holes, temp, scblink);
+				tcp_sackhole_free(tp, temp);
+				/*
+				 * The sack block may ack all or part of the next
+				 * hole too, so continue onto the next hole.
+				 */
 				continue;
+			} else {
+				/* Move start of hole forward */
+				cur->start = sack.end;
+				cur->rxmit = SEQ_MAX(cur->rxmit, cur->start);
 			}
-			tp->sackhint.sack_bytes_rexmit -=
-				(cur->rxmit - cur->start);
-			KASSERT(tp->sackhint.sack_bytes_rexmit >= 0,
-				("sackhint bytes rtx >= 0"));
-			if (SEQ_LEQ(sack.start, cur->start)) {
-				/* Data acks at least the beginning of hole */
-				if (SEQ_GEQ(sack.end, cur->end)) {
-					/* Acks entire hole, so delete hole */
-					if (tp->sackhint.nexthole == cur)
-						tp->sackhint.nexthole =
-						    TAILQ_NEXT(cur, scblink);
-					temp = cur;
-					cur = TAILQ_NEXT(cur, scblink);
-					TAILQ_REMOVE(&tp->snd_holes,
-						temp, scblink);
-					tcp_sackhole_free(tp, temp);
-					continue;
-				} else {
-					/* Move start of hole forward */
-					cur->start = sack.end;
-					cur->rxmit = SEQ_MAX(cur->rxmit, cur->start);
-				}
-			} else if (SEQ_GEQ(sack.end, cur->end)) {
+		} else {
+			if (SEQ_GEQ(sack.end, cur->end)) {
 				/* Move end of hole backward */
 				cur->end = sack.start;
 				cur->rxmit = SEQ_MIN(cur->rxmit, cur->end);
@@ -438,18 +469,32 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 					TAILQ_INSERT_AFTER(&tp->snd_holes,
 							   cur, temp, scblink);
 					cur->end = sack.start;
-					cur->rxmit = SEQ_MIN(cur->rxmit,
-						cur->end);
+					cur->rxmit = SEQ_MIN(cur->rxmit, cur->end);
 					tp->sackhint.sack_bytes_rexmit +=
 						(cur->rxmit - cur->start);
 					cur = temp;
 				}
 			}
-			tp->sackhint.sack_bytes_rexmit +=
-			    (cur->rxmit - cur->start);
-			cur = TAILQ_NEXT(cur, scblink);
 		}
-		/* At this point, we have iterated the whole scoreboard. */
+		tp->sackhint.sack_bytes_rexmit += (cur->rxmit - cur->start);
+		/*
+		 * Testing sack.end against cur->end tells us whether we're done
+		 * with the sack block or the sack hole. Accordingly, we advance
+		 * one or the other. 
+		 */
+		if (SEQ_GEQ(sack.end, cur->end))
+			cur = TAILQ_NEXT(cur, scblink);
+		else
+			next_sack_blk++;
+	}
+	/* Iterated all the holes in the scoreboard. Add new holes. */
+	for ( ; next_sack_blk < num_sack_blks ; next_sack_blk++) {
+		sack = sack_blocks[next_sack_blk];
+		/*
+		 * The two SEQ_LT() checks here that test rcv_laststart against
+		 * sack.start and sack.end seem redundant, but they're necessary
+		 * to deal with overlapping sack blocks.
+		 */
 		if (SEQ_LT(tp->rcv_lastsack, sack.start)) {
 			/* Need to append new hole at end. */
 			temp = tcp_sackhole_alloc(tp, tp->rcv_lastsack,
