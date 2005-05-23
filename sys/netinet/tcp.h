@@ -102,7 +102,7 @@ struct tcphdr {
 #define	TCPOPT_SACK_HDR		(TCPOPT_NOP<<24|TCPOPT_NOP<<16|TCPOPT_SACK<<8)
 /* Miscellaneous constants */
 #define	MAX_SACK_BLKS	6	/* Max # SACK blocks stored at sender side */
-#define	TCP_MAX_SACK	3	/* MAX # SACKs sent in any segment */
+#define	TCP_MAX_SACK	4	/* MAX # SACKs sent in any segment */
 
 
 /*
