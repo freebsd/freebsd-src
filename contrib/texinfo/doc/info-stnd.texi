@@ -1,5 +1,8 @@
-\input texinfo    @c -*-texinfo-*-
-@comment $Id: info-stnd.texi,v 1.5 2003/02/19 13:32:54 karl Exp $
+\input texinfo.tex    @c -*-texinfo-*-
+@comment $Id: info-stnd.texi,v 1.9 2004/12/14 16:58:15 karl Exp $
+@c We must \input texinfo.tex instead of texinfo, otherwise make
+@c distcheck in the Texinfo distribution fails, because the texinfo Info
+@c file is made first, and texi2dvi must include . first in the path.
 @comment %**start of header
 @setfilename info-stnd.info
 @include version-stnd.texi
@@ -14,8 +17,8 @@ This manual is for GNU Info (version @value{VERSION}, @value{UPDATED}),
 a program for viewing documents in Info format (usually created from
 Texinfo source files).
 
-Copyright @copyright{} 1992, 1993, 1996, 1997, 1998, 1999, 2001, 2002, 2003
-Free Software Foundation, Inc.
+Copyright @copyright{} 1992, 1993, 1996, 1997, 1998, 1999, 2001, 2002,
+2003, 2004 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -201,7 +204,7 @@ Produces a relatively brief description of the available Info options.
 @cindex index search, selecting from the command line
 @cindex online help, using Info as
 After processing all command-line arguments, go to the index in the Info
-file and search for index entries which matche @var{string}.  If such an
+file and search for index entries which match @var{string}.  If such an
 entry is found, the Info session begins with displaying the node pointed
 to by the first matching index entry; press @kbd{,} to step through the
 rest of the matching entries.  If no such entry exists, print @samp{no
@@ -235,17 +238,17 @@ Each node that Info visits will be output to @var{filename} instead of
 interactively viewed.  A value of @code{-} for @var{filename} specifies
 the standard output.
 
-@cindex colors in man pages
-@cindex ANSI escape sequences in man pages
+@cindex colors in documents
+@cindex ANSI escape sequences in documents
 @item --raw-escapes
+@itemx --no-raw-escapes
 @itemx -R
-Do not remove ANSI escape sequences from man pages.  Some versions of
+Do not remove ANSI escape sequences from documents.  Some versions of
 Groff, the GNU document formatter, produce man pages with ANSI escape
 sequences for bold, italics, and underlined characters, and for
-colorized text.  By default, Info removes those escape sequences
-before it displays the man page.  If your terminal supports these
-escapes, use @code{--raw-escapes} to let the terminal handle them and
-display the man pages with those attributes.
+colorized text.  By default, Info lets those escape sequences pass
+through directly to the terminal.  If your terminal does not support
+these escapes, use @code{--no-raw-escapes} to make Info remove them.
 
 @cindex replaying recorded keystrokes
 @item --restore=@var{dribble-file}
@@ -299,6 +302,14 @@ modeled after Emacs.
 (@xref{Custom Key Bindings},
 for a more general way of altering GNU Info's key bindings.)
 
+@cindex Info manual location
+@cindex Where is an Info manual?
+@item --where
+@itemx --location
+@itemx -w
+Show the filename that would be read and exit, instead of actually
+reading it and starting Info.
+
 @item @var{menu-item}
 @cindex menu, following
 @anchor{command-line menu items}
@@ -337,19 +348,19 @@ following all the menu items given on the command line.  This is so
 @cindex moving the cursor
 
 Many people find that reading screens of text page by page is made
-easier when one is able to indicate particular pieces of text with some
-kind of pointing device.  Since this is the case, GNU Info (both the
-Emacs and standalone versions) have several commands which allow you to
-move the cursor about the screen.  The notation used in this manual to
-describe keystrokes is identical to the notation used within the Emacs
-manual, and the GNU Readline manual.  @xref{Characters, , Character
-Conventions, emacs, the GNU Emacs Manual}, if you are unfamiliar with the
-notation@footnote{
-Here's a short summary.  @kbd{C-@var{x}} means press the @kbd{CTRL} key
-and the key @var{x}.  @kbd{M-@var{x}} means press the @kbd{META} key and
-the key @var{x}.  On many terminals th @kbd{META} key is known as the
-@kbd{ALT} key.  @kbd{SPC} is the space bar.  The other keys are usually
-called by the names imprinted on them.}.
+easier when one is able to indicate particular pieces of text with
+some kind of pointing device.  Since this is the case, GNU Info (both
+the Emacs and standalone versions) have several commands which allow
+you to move the cursor about the screen.  The notation used in this
+manual to describe keystrokes is identical to the notation used within
+the Emacs manual, and the GNU Readline manual.  @xref{User Input,,,
+emacs, the GNU Emacs Manual}, if you are unfamiliar with the
+notation.@footnote{Here's a short summary.  @kbd{C-@var{x}} means
+press the @kbd{CTRL} key and the key @var{x}.  @kbd{M-@var{x}} means
+press the @kbd{META} key and the key @var{x}.  On many terminals th
+@kbd{META} key is known as the @kbd{ALT} key.  @kbd{SPC} is the space
+bar.  The other keys are usually called by the names imprinted on
+them.}
 
 The following table lists the basic cursor movement commands in Info.
 Each entry consists of the key sequence you should type to execute the
@@ -699,7 +710,7 @@ Select the `Up' node.
 @end table
 
 You can easily select a node that you have already viewed in this window
-by using the @samp{l} command -- this name stands for "last", and
+by using the @samp{l} command---this name stands for ``last'', and
 actually moves backwards through the history of visited nodes for this
 window.  This is handy when you followed a reference to another node,
 possibly to read about a related issue, and would like then to resume
@@ -977,7 +988,7 @@ is case-sensitive; otherwise Info ignores the letter case.
 @cindex index, searching
 @cindex searching, in the indices
 Look up a string in the indices for this Info file, and select a node
-where the found index entry points to.
+to which the found index entry points.
 
 @item @key{,} (@code{next-index-match})
 @kindex ,
@@ -1028,9 +1039,10 @@ has all of its important concepts indexed, so the @samp{i} command
 lets you use a manual as a reference.
 
 If you don't know what manual documents something, try the @kbd{M-x
-index-apropos}.  It prompts for a string and then looks up that string
-in all the indices of all the Info documents installed on your system.
-It can also be invoked from the command line; see @ref{--apropos}.
+index-apropos} command.  It prompts for a string and then looks up
+that string in all the indices of all the Info documents installed on
+your system.  It can also be invoked from the command line; see
+@ref{--apropos}.
 
 
 @node Xref Commands
@@ -1290,8 +1302,7 @@ Split the current window into two windows, both showing the same node.
 Each window is one half the size of the original window, and the cursor
 remains in the original window.  The variable @code{automatic-tiling}
 can cause all of the windows on the screen to be resized for you
-automatically, please @pxref{Variables, , automatic-tiling} for more
-information.
+automatically (@pxref{Variables, , automatic-tiling}).
 
 @item @kbd{C-x @key{0}} (@code{delete-window})
 @cindex windows, deleting
@@ -1311,7 +1322,7 @@ Delete all of the windows excepting the current one.
 @findex scroll-other-window
 Scroll the other window, in the same fashion that @samp{C-v} might
 scroll the current window.  Given a negative argument, scroll the
-"other" window backward.
+``other'' window backward.
 
 @item @kbd{C-x @key{^}} (@code{grow-window})
 @kindex C-x ^
@@ -1567,7 +1578,7 @@ with @samp{fol}.
 @item @key{ESC C-v} (@code{echo-area-scroll-completions-window})
 @kindex ESC C-v, in the echo area
 @findex echo-area-scroll-completions-window
-Scroll the completions window, if that is visible, or the "other"
+Scroll the completions window, if that is visible, or the ``other''
 window if not.
 @end table
 
@@ -1894,7 +1905,7 @@ nonzero value, Info attempts to scroll the node text by that many lines;
 if that is enough to bring the cursor back into the window, that is what
 is done.  The default value of this variable is 0, thus placing the
 cursor (and the text it is attached to) in the center of the window.
-Setting this variable to 1 causes a kind of "smooth scrolling" which
+Setting this variable to 1 causes a kind of ``smooth scrolling'' which
 some people prefer.
 
 @item show-index-match

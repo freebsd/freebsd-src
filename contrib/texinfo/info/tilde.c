@@ -1,8 +1,8 @@
 /* tilde.c -- tilde expansion code (~/foo := $HOME/foo).
-   $Id: tilde.c,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: tilde.c,v 1.3 2004/04/11 17:56:46 karl Exp $
 
-   Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1996, 1998, 1999, 2002
-   Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1996, 1998, 1999,
+   2002, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 /* Include config.h before doing alloca.  */
 #include "info.h"
+#include "tilde.h"
 
 #if defined (TEST) || defined (STATIC_MALLOC)
 static void *xmalloc (), *xrealloc ();
@@ -59,9 +60,7 @@ char **tilde_additional_suffixes = default_suffixes;
    the tilde which starts the expansion.  Place the length of the text
    which identified this tilde starter in LEN, excluding the tilde itself. */
 static int
-tilde_find_prefix (string, len)
-     char *string;
-     int *len;
+tilde_find_prefix (char *string, int *len)
 {
   register int i, j, string_len;
   register char **prefixes = tilde_additional_prefixes;
@@ -92,8 +91,7 @@ tilde_find_prefix (string, len)
 /* Find the end of a tilde expansion in STRING, and return the index of
    the character which ends the tilde definition.  */
 static int
-tilde_find_suffix (string)
-     char *string;
+tilde_find_suffix (char *string)
 {
   register int i, j, string_len;
   register char **suffixes = tilde_additional_suffixes;
@@ -116,10 +114,9 @@ tilde_find_suffix (string)
 
 /* Return a new string which is the result of tilde expanding STRING. */
 char *
-tilde_expand (string)
-     char *string;
+tilde_expand (char *string)
 {
-  char *result, *tilde_expand_word ();
+  char *result;
   int result_size, result_index;
 
   result_size = result_index = 0;
@@ -179,8 +176,7 @@ tilde_expand (string)
 /* Do the work of tilde expansion on FILENAME.  FILENAME starts with a
    tilde.  If there is no expansion, call tilde_expansion_failure_hook. */
 char *
-tilde_expand_word (filename)
-     char *filename;
+tilde_expand_word (char *filename)
 {
   char *dirname = filename ? xstrdup (filename) : NULL;
 
@@ -236,9 +232,7 @@ tilde_expand_word (filename)
                  expansion, then let them try. */
               if (tilde_expansion_failure_hook)
                 {
-                  char *expansion;
-
-                  expansion = (*tilde_expansion_failure_hook) (username);
+                  char *expansion = (*tilde_expansion_failure_hook) (username);
 
                   if (expansion)
                     {

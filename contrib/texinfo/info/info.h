@@ -1,7 +1,7 @@
 /* info.h -- Header file which includes all of the other headers.
-   $Id: info.h,v 1.2 2003/02/11 16:39:06 karl Exp $
+   $Id: info.h,v 1.4 2004/04/11 17:56:45 karl Exp $
 
-   Copyright (C) 1993, 1997, 1998, 1999, 2001, 2002, 2003 Free Software
+   Copyright (C) 1993, 1997, 1998, 1999, 2001, 2002, 2003, 2004 Free Software
    Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -126,7 +126,9 @@ extern int raw_escapes_p;
 /* Print FORMAT with ARG1 and ARG2.  If the window system was initialized,
    then the message is printed in the echo area.  Otherwise, a message is
    output to stderr. */
-extern void info_error ();
+extern void info_error (char *format, void *arg1, void *arg2);
+
+extern void add_file_directory_to_path (char *filename);
 
 /* Error message defines. */
 extern const char *msg_cant_find_node;
@@ -147,16 +149,12 @@ extern const char *msg_win_too_small;
 extern const char *msg_cant_make_help;
 
 
-extern char *filename_non_directory ();	/* Found in info-utils.c. */
-
 #if defined(INFOKEY)
-extern void set_variable_to_value ();	/* Found in variables.c. */
+/* Found in variables.c. */
+extern void set_variable_to_value (char *name, char *value);
 #endif /* INFOKEY */
 
-#if !defined (BUILDING_LIBRARY)
-extern int info_windows_initialized_p;	/* Found in session.c */
-/* Found in window.c. */
-extern void message_in_echo_area (), unmessage_in_echo_area ();
-#endif /* !BUILDING_LIBRARY */
+/* Found in m-x.c.  */
+extern char *read_function_name (char *prompt, WINDOW *window);
 
 #endif /* !INFO_H */

@@ -1,7 +1,7 @@
 /* defun.c -- @defun and friends.
-   $Id: defun.c,v 1.6 2003/05/09 23:51:10 karl Exp $
+   $Id: defun.c,v 1.11 2004/04/11 17:56:46 karl Exp $
 
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003 Free Software
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004 Free Software
    Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -38,8 +38,7 @@ struct token_accumulator
 };
 
 static void
-initialize_token_accumulator (accumulator)
-     struct token_accumulator *accumulator;
+initialize_token_accumulator (struct token_accumulator *accumulator)
 {
   accumulator->length = 0;
   accumulator->index = 0;
@@ -47,9 +46,7 @@ initialize_token_accumulator (accumulator)
 }
 
 static void
-accumulate_token (accumulator, token)
-     struct token_accumulator *accumulator;
-     char *token;
+accumulate_token (struct token_accumulator *accumulator, char *token)
 {
   if (accumulator->index >= accumulator->length)
     {
@@ -64,8 +61,7 @@ accumulate_token (accumulator, token)
 /* Given STRING_POINTER pointing at an open brace, skip forward and return a
    pointer to just past the matching close brace. */
 static int
-scan_group_in_string (string_pointer)
-     char **string_pointer;
+scan_group_in_string (char **string_pointer)
 {
   char *scan_string = (*string_pointer) + 1;
   unsigned int level = 1;
@@ -106,8 +102,7 @@ scan_group_in_string (string_pointer)
    Contiguous whitespace characters are converted to a token
    consisting of a single space. */
 static char **
-args_from_string (string)
-     char *string;
+args_from_string (char *string)
 {
   struct token_accumulator accumulator;
   char *token_start, *token_end;
@@ -176,6 +171,15 @@ args_from_string (string)
           token_end = balanced ? (scan_string - 1) : scan_string;
         }
 
+      /* Make commas separate tokens so to differentiate them from
+         parameter types in XML output. */
+      else if (*scan_string == ',')
+	{
+          token_start = scan_string;
+          scan_string += 1;
+          token_end = scan_string;
+	}
+
       /* Otherwise a token is delimited by whitespace, parentheses,
          brackets, or braces.  A token is also ended by a command. */
       else
@@ -198,6 +202,14 @@ args_from_string (string)
                   break;
                 }
 
+	      /* End token if we are looking at a comma, as commas are
+		 delimiters too. */
+	      if (c == ',')
+		{
+		  scan_string--;
+		  break;
+		}
+
               /* If we encounter a command embedded within a token,
                  then end the token. */
               if (c == COMMAND_PREFIX)
@@ -216,11 +228,15 @@ args_from_string (string)
 }
 
 static void
-process_defun_args (defun_args, auto_var_p)
-     char **defun_args;
-     int auto_var_p;
+process_defun_args (char **defun_args, int auto_var_p)
 {
   int pending_space = 0;
+
+  if (xml)
+    {
+      xml_process_defun_args (defun_args, auto_var_p);
+      return;
+    }
 
   for (;;)
     {
@@ -245,38 +261,25 @@ process_defun_args (defun_args, auto_var_p)
         {
           /* Within @deffn and friends, texinfo.tex makes parentheses
              sans serif and brackets bold.  We use roman instead.  */
-          insert_html_tag (START, "");
+          if (html)
+            insert_html_tag (START, "");
+            
           add_char (defun_arg[0]);
-          insert_html_tag (END, "");
+          
+          if (html)
+            insert_html_tag (END, "");
         }
-      else if (defun_arg[0] == '&')
-        if (html)
-          {
-            defun_arg = escape_string (xstrdup (defun_arg));
-            add_word (defun_arg);
-            free (defun_arg);
-          }
-        else
-          add_word (defun_arg);
-      else if (defun_arg[0] == COMMAND_PREFIX)
-        execute_string ("%s", defun_arg);
-      else if (auto_var_p)
-        if (html)
-          {
-            defun_arg = escape_string (xstrdup (defun_arg));
-            add_word (defun_arg);
-            free (defun_arg);
-          }
-        else
-          add_word (defun_arg);
+      /* else if (defun_arg[0] == '&' || defun_arg[0] == COMMAND_PREFIX) */
+        /* execute_string ("%s", defun_arg); */
+      /* else if (auto_var_p) */
+        /* execute_string ("%s", defun_arg); */
       else
-        add_word (defun_arg);
+        execute_string ("%s", defun_arg);
     }
 }
 
 static char *
-next_nonwhite_defun_arg (arg_pointer)
-     char ***arg_pointer;
+next_nonwhite_defun_arg (char ***arg_pointer)
 {
   char **scan = (*arg_pointer);
   char *arg = (*scan++);
@@ -296,10 +299,9 @@ next_nonwhite_defun_arg (arg_pointer)
 /* This is needed also in insertion.c.  */
 
 enum insertion_type
-get_base_type (type)
-     enum insertion_type type;
+get_base_type (int type)
 {
-  enum insertion_type base_type;
+  int base_type;
   switch (type)
     {
     case defivar:	base_type = defcv; break;
@@ -307,6 +309,7 @@ get_base_type (type)
     case defmethod:	base_type = defop; break;
     case defopt:	base_type = defvr; break;
     case defspec:	base_type = deffn; break;
+    case deftypecv:	base_type = deftypecv; break;
     case deftypefun:	base_type = deftypefn; break;
     case deftypeivar:	base_type = deftypeivar; break;
     case deftypemethod:	base_type = deftypemethod; break;
@@ -326,14 +329,14 @@ get_base_type (type)
    TYPE says which insertion this is.
    X_P, if nonzero, says not to start a new insertion. */
 static void
-defun_internal (type, x_p)
-     enum insertion_type type;
-     int x_p;
+defun_internal (int type, int x_p)
 {
-  enum insertion_type base_type;
+  int base_type;
   char **defun_args, **scan_args;
   const char *category;
-  char *defined_name, *type_name, *type_name2;
+  char *defined_name;
+  char *type_name = NULL;
+  char *type_name2 = NULL;
 
   {
     char *line;
@@ -355,6 +358,33 @@ defun_internal (type, x_p)
        Unfortunately, this means that you can't call macros, use @value, etc.
        inside @def.. commands, sigh.  */
     get_rest_of_line (0, &line);
+
+    /* Basic line continuation.  If a line ends with \s*@\s* concatanate
+       the next line. */
+    {
+      char *next_line, *new_line;
+      int i;
+
+      line_continuation:
+        i = strlen (line) - 1;
+
+        if (line[i] == '@' && line[i-1] != '@')
+          {
+            get_rest_of_line (0, &next_line);
+            new_line = (char *) xmalloc (i + strlen (next_line) + 2);
+            strncpy (new_line, line, i);
+            new_line[i] = '\0';
+            free (line);
+            strcat (new_line, " ");
+            strcat (new_line, next_line);
+            line = xstrdup (new_line);
+            free (next_line);
+            free (new_line);
+
+            goto line_continuation;
+          }
+    }
+
     defun_args = (args_from_string (line));
     free (line);
   }
@@ -399,7 +429,8 @@ defun_internal (type, x_p)
     }
 
   /* The class name.  */
-  if ((base_type == deftypefn)
+  if ((base_type == deftypecv)
+      || (base_type == deftypefn)
       || (base_type == deftypevr)
       || (base_type == defcv)
       || (base_type == defop)
@@ -410,8 +441,9 @@ defun_internal (type, x_p)
     type_name = next_nonwhite_defun_arg (&scan_args);
 
   /* The type name for typed languages.  */
-  if ((base_type == deftypemethod)
+  if ((base_type == deftypecv)
       || (base_type == deftypeivar)
+      || (base_type == deftypemethod)
       || (base_type == deftypeop)
      )
     type_name2 = next_nonwhite_defun_arg (&scan_args);
@@ -452,72 +484,84 @@ defun_internal (type, x_p)
   current_indent -= default_indentation_increment;
   start_paragraph ();
 
-  if (!x_p) {
-    /* Start the definition on new paragraph.  */
-    if (html)
-      add_word ("<p>\n");
-  }
-
-  if (!html && !docbook)
+  if (!html && !xml)
     switch (base_type)
       {
       case deffn:
       case defvr:
       case deftp:
-        execute_string (" -- %s: %s", category, defined_name);
+        execute_string (" --- %s: %s", category, defined_name);
         break;
       case deftypefn:
       case deftypevr:
-        execute_string (" -- %s: %s %s", category, type_name, defined_name);
+        execute_string (" --- %s: %s %s", category, type_name, defined_name);
         break;
       case defcv:
-        execute_string (" -- %s %s %s: %s", category, _("of"), type_name,
+        execute_string (" --- %s %s %s: %s", category, _("of"), type_name,
                         defined_name);
         break;
+      case deftypecv:
       case deftypeivar:
-        execute_string (" -- %s %s %s: %s %s", category, _("of"), type_name,
+        execute_string (" --- %s %s %s: %s %s", category, _("of"), type_name,
                         type_name2, defined_name);
         break;
       case defop:
-        execute_string (" -- %s %s %s: %s", category, _("on"), type_name,
+        execute_string (" --- %s %s %s: %s", category, _("on"), type_name,
                         defined_name);
         break;
       case deftypeop:
-        execute_string (" -- %s %s %s: %s %s", category, _("on"), type_name,
+        execute_string (" --- %s %s %s: %s %s", category, _("on"), type_name,
                         type_name2, defined_name);
         break;
       case deftypemethod:
-        execute_string (" -- %s %s %s: %s %s", category, _("on"), type_name,
+        execute_string (" --- %s %s %s: %s %s", category, _("on"), type_name,
                         type_name2, defined_name);
         break;
       }
-
-  if (html)
+  else if (html)
     {
       /* If this is not a @def...x version, it could only
          be a normal version @def.... So start the table here.  */
       if (!x_p)
-	{
-	  add_html_elt ("<table width=");
-	  add_word ("\"100%\">\n");
-	}
+        insert_string ("<div class=\"defun\">\n");
+      else
+        rollback_empty_tag ("blockquote");
 
-      /* If this is an @def...x there has to be an other @def... before
-         it, so this is only a new row within an existing table.  With
-         two complete standalone tables the gap between them is too big.  */
-      add_word ("<tr>\n");
-      add_html_elt ("<td align=\"left\">");
+      /* xx The single words (on, off) used here, should depend on
+         documentlanguage and NOT on gettext  --kama.  */
+      switch (base_type)
+        {
+        case deffn:
+        case defvr:
+        case deftp:
+        case deftypefn:
+        case deftypevr:
+          execute_string ("--- %s: ", category);
+          break;
+
+        case defcv:
+        case deftypecv:
+        case deftypeivar:
+	  execute_string ("--- %s %s %s: ", category, _("of"), type_name);
+	  break;
+
+        case defop:
+        case deftypemethod:
+        case deftypeop:
+	  execute_string ("--- %s %s %s: ", category, _("on"), type_name);
+	  break;
+	} /* switch (base_type)... */
 
       switch (base_type)
         {
         case deffn:
         case defvr:
         case deftp:
-          /* <i> is for the following function arguments.  */
+          /* <var> is for the following function arguments.  */
           insert_html_tag (START, "b");
           execute_string ("%s", defined_name);
           insert_html_tag (END, "b");
-          insert_html_tag (START, "i");
+          insert_html_tag (START, "var");
           break;
         case deftypefn:
         case deftypevr:
@@ -525,58 +569,30 @@ defun_internal (type, x_p)
           insert_html_tag (START, "b");
           execute_string ("%s", defined_name);
           insert_html_tag (END, "b");
-          insert_html_tag (START, "i");
+          insert_html_tag (START, "var");
           break;
         case defcv:
         case defop:
           insert_html_tag (START, "b");
           execute_string ("%s", defined_name);
           insert_html_tag (END, "b");
-          insert_html_tag (START, "i");
+          insert_html_tag (START, "var");
           break;
+        case deftypecv:
+        case deftypeivar:
         case deftypemethod:
         case deftypeop:
-        case deftypeivar:
           execute_string ("%s ", type_name2);
           insert_html_tag (START, "b");
           execute_string ("%s", defined_name);
           insert_html_tag (END, "b");
-          insert_html_tag (START, "i");
+          insert_html_tag (START, "var");
           break;
         }
-    } /* if (html)... */
-
-  if (docbook)
-    {
-      switch (base_type)
-        {
-        case deffn:
-        case defvr:
-        case deftp:
-        case defcv:
-        case defop:
-	  xml_insert_element (FUNCTION, START);
-          execute_string ("%s", defined_name);
-	  xml_insert_element (FUNCTION, END);
-          break;
-        case deftypefn:
-        case deftypevr:
-          execute_string ("%s ", type_name);
-	  xml_insert_element (FUNCTION, START);
-          execute_string ("%s", defined_name);
-	  xml_insert_element (FUNCTION, END);
-          break;
-        case deftypemethod:
-        case deftypeop:
-        case deftypeivar:
-          execute_string ("%s ", type_name2);
-	  xml_insert_element (FUNCTION, START);
-          execute_string ("%s", defined_name);
-	  xml_insert_element (FUNCTION, END);
-          break;
-        }
-
-    } /* if (docbook)... */
+    }
+  else if (xml)
+    xml_begin_def_term (base_type, category, defined_name, type_name,
+	type_name2);
 
   current_indent += default_indentation_increment;
 
@@ -606,95 +622,52 @@ defun_internal (type, x_p)
     }
 
   current_indent -= default_indentation_increment;
-  close_single_paragraph ();
+  if (!html)
+    close_single_paragraph ();
 
-  if (html)
+  /* Make an entry in the appropriate index.  (XML and
+     Docbook already got their entries, so skip them.)  */
+  if (!xml)
+    switch (base_type)
+      {
+      case deffn:
+      case deftypefn:
+	execute_string ("@findex %s\n", defined_name);
+	break;
+      case defcv:
+      case deftypecv:
+      case deftypevr:
+      case defvr:
+	execute_string ("@vindex %s\n", defined_name);
+	break;
+      case deftypeivar:
+	execute_string ("@vindex %s %s %s\n", defined_name, _("of"),
+                        type_name);
+	break;
+      case defop:
+      case deftypeop:
+      case deftypemethod:
+	execute_string ("@findex %s %s %s\n", defined_name, _("on"),
+                        type_name);
+	break;
+      case deftp:
+	execute_string ("@tindex %s\n", defined_name);
+	break;
+      }
+
+  if (xml)
+    xml_end_def_term ();
+  else if (html)
     {
-      /* xx The single words (on, off) used here, should depend on
-         documentlanguage and NOT on gettext  --kama.  */
-      switch (base_type)
-        {
-        case deffn:
-        case defvr:
-        case deftp:
-        case deftypefn:
-        case deftypevr:
-          insert_html_tag (END, "i"); /* close italic area for arguments */
-          /* put the rest into the second column */
-	  add_word ("</td>\n");
-          add_html_elt ("<td align=\"right\">");
-          execute_string ("%s", category);
-          break;
-
-        case defcv:
-	  add_word ("</td>\n");
-	  add_html_elt ("<td align=\"right\">");
-	  execute_string ("%s %s %s", category, _("of"), type_name);
-	  break;
-
-        case defop:
-        case deftypemethod:
-        case deftypeop:
-          insert_html_tag (END, "i");
-	  add_word ("</td>\n");
-	  add_html_elt ("<td align=\"right\">");
-	  execute_string ("%s %s %s", category, _("on"), type_name);
-	  break;
-
-        case deftypeivar:
-          insert_html_tag (END, "i");
-	  add_word ("</td>\n");
-	  add_html_elt ("<td align=\"right\">");
-	  execute_string ("%s %s %s", category, _("of"), type_name);
-	  break;
-	} /* switch (base_type)... */
-
-      add_word ("</td>\n"); /* close second column */
-      add_word ("</tr>\n"); /* close row */
-
-      /* This is needed because I have to know if the next line is
-         normal text or another @def..x.  If text follows, create a new
-         table to get the indentation for the following text.
-
-         This construction would fail if someone uses:
-          @deffn
-          @sp 2
-          @deffnx
-          .
-          @end deffn
-         But we don't care. */
-      if (!looking_at ("@def"))
-        {
-          add_word ("</table>\n");
-          add_html_elt ("<table width=\"95%\" align=\"center\">");
-          add_word ("\n<tr><td>\n");
-        }
-
-    } /* if (html)... */
-
-  /* Make an entry in the appropriate index. */
-  switch (base_type)
-    {
-    case deffn:
-    case deftypefn:
-      execute_string ("@findex %s\n", defined_name);
-      break;
-    case defvr:
-    case deftypevr:
-    case defcv:
-      execute_string ("@vindex %s\n", defined_name);
-      break;
-    case deftypeivar:
-      execute_string ("@vindex %s %s %s\n", defined_name, _("of"), type_name);
-      break;
-    case defop:
-    case deftypeop:
-    case deftypemethod:
-      execute_string ("@findex %s %s %s\n", defined_name, _("on"), type_name);
-      break;
-    case deftp:
-      execute_string ("@tindex %s\n", defined_name);
-      break;
+      inhibit_paragraph_indentation = 1;
+      no_indent = 1;
+      insert_html_tag (END, "var");
+      insert_string ("<br>\n");
+      /* Indent the definition a bit.  */
+      add_html_block_elt ("<blockquote>");
+      no_indent = 0;
+      inhibit_paragraph_indentation = 0;
+      paragraph_is_open = 0;
     }
 
   /* Deallocate the token list. */
@@ -713,9 +686,9 @@ defun_internal (type, x_p)
    If the name of the calling command ends in `x', then this is an extra
    entry included in the body of an insertion of the same type. */
 void
-cm_defun ()
+cm_defun (void)
 {
-  enum insertion_type type;
+  int type;
   char *base_command = xstrdup (command);  /* command with any `x' removed */
   int x_p = (command[strlen (command) - 1] == 'x');
 
@@ -726,15 +699,22 @@ cm_defun ()
 
   /* If we are adding to an already existing insertion, then make sure
      that we are already in an insertion of type TYPE. */
-  if (x_p && (!insertion_level || insertion_stack->insertion != type))
+  if (x_p)
     {
-      line_error (_("Must be in `@%s' environment to use `@%s'"),
-                  base_command, command);
-      discard_until ("\n");
-      return;
+      INSERTION_ELT *i = insertion_stack;
+      /* Skip over ifclear and ifset conditionals.  */
+      while (i && (i->insertion == ifset || i->insertion == ifclear))
+        i = i->next;
+        
+      if (!i || i->insertion != type)
+        {
+          line_error (_("Must be in `@%s' environment to use `@%s'"),
+                      base_command, command);
+          discard_until ("\n");
+          return;
+        }
     }
-  else
-    defun_internal (type, x_p);
 
+  defun_internal (type, x_p);
   free (base_command);
 }

@@ -1,5 +1,5 @@
 /* macro.h -- declarations for macro.c.
-   $Id: macro.h,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: macro.h,v 1.2 2004/04/11 17:56:47 karl Exp $
 
    Copyright (C) 1998, 99 Free Software Foundation, Inc.
 
@@ -48,24 +48,30 @@ typedef struct {
 #define ME_RECURSE      0x01
 #define ME_QUOTE_ARG    0x02
 
-extern void execute_macro ();
-extern MACRO_DEF *find_macro ();
-extern char *expand_macro ();
+extern void execute_macro (MACRO_DEF *def);
+extern MACRO_DEF *find_macro (char *name);
+extern char *expand_macro (MACRO_DEF *def);
 
-extern ITEXT *remember_itext ();
-extern void forget_itext ();
-extern void maybe_write_itext ();
-extern void write_region_to_macro_output ();
-extern void append_to_expansion_output ();
-extern void me_append_before_this_command ();
-extern void me_execute_string ();
+extern ITEXT *remember_itext (char *pointer, int offset);
+extern void forget_itext (char *pointer);
+extern void maybe_write_itext (char *pointer, int offset);
+extern void write_region_to_macro_output (char *string, int start, int end);
+extern void append_to_expansion_output (int offset);
+extern void me_append_before_this_command (void);
+extern void me_execute_string (char *execution_string);
+extern void me_execute_string_keep_state (char *execution_string,
+    char *append_string);
 
-extern char *alias_expand ();
-extern int enclosure_command ();
-extern void enclosure_expand ();
+extern char *alias_expand (char *tok);
+extern int enclosure_command (char *tok);
+extern void enclosure_expand (int arg, int start, int end);
 
 /* The @commands.  */
-extern void cm_macro (), cm_rmacro (), cm_unmacro ();
-extern void cm_alias (), cm_definfoenclose ();
+extern void cm_macro (void), cm_rmacro (void), cm_unmacro (void);
+extern void cm_alias (void), cm_definfoenclose (void);
+
+extern int array_len (char **array);
+extern void free_array (char **array);
+extern char **get_brace_args (int quote_single);
 
 #endif /* not MACRO_H */

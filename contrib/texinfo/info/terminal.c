@@ -1,8 +1,8 @@
 /* terminal.c -- how to handle the physical terminal for Info.
-   $Id: terminal.c,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: terminal.c,v 1.3 2004/04/11 17:56:46 karl Exp $
 
    Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1996, 1997, 1998,
-   1999, 2001, 2002 Free Software Foundation, Inc.
+   1999, 2001, 2002, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-   Written by Brian Fox (bfox@ai.mit.edu). */
+   Originally written by Brian Fox (bfox@ai.mit.edu). */
 
 #include "info.h"
 #include "terminal.h"
@@ -103,9 +103,6 @@ static char *visible_bell;
 /* The string to write to turn on the meta key, if this term has one. */
 static char *term_mm;
 
-/* The string to write to turn off the meta key, if this term has one. */
-static char *term_mo;
-
 /* The string to turn on inverse mode, if this term has one. */
 static char *term_invbeg;
 
@@ -116,8 +113,7 @@ static char *term_invend;
    return its argument, all the code I've looked at (termutils, less)
    does so, so fine.  */
 static int
-output_character_function (c)
-     int c;
+output_character_function (int c)
 {
   putc (c, stdout);
   return c;
@@ -132,9 +128,9 @@ output_character_function (c)
 
 /* Tell the terminal that we will be doing cursor addressable motion.  */
 static void
-terminal_begin_using_terminal ()
+terminal_begin_using_terminal (void)
 {
-  RETSIGTYPE (*sigsave) ();
+  RETSIGTYPE (*sigsave) (int signum);
 
   if (term_keypad_on)
       send_to_terminal (term_keypad_on);
@@ -163,9 +159,9 @@ terminal_begin_using_terminal ()
 /* Tell the terminal that we will not be doing any more cursor
    addressable motion. */
 static void
-terminal_end_using_terminal ()
+terminal_end_using_terminal (void)
 {
-  RETSIGTYPE (*sigsave) ();
+  RETSIGTYPE (*sigsave) (int signum);
 
   if (term_keypad_off)
       send_to_terminal (term_keypad_off);
@@ -230,8 +226,7 @@ char *term_kx = NULL;	/* del */
 
 /* Move the cursor to the terminal location of X and Y. */
 void
-terminal_goto_xy (x, y)
-     int x, y;
+terminal_goto_xy (int x, int y)
 {
   if (terminal_goto_xy_hook)
     (*terminal_goto_xy_hook) (x, y);
@@ -244,8 +239,7 @@ terminal_goto_xy (x, y)
 
 /* Print STRING to the terminal at the current position. */
 void
-terminal_put_text (string)
-     char *string;
+terminal_put_text (char *string)
 {
   if (terminal_put_text_hook)
     (*terminal_put_text_hook) (string);
@@ -257,9 +251,7 @@ terminal_put_text (string)
 
 /* Print NCHARS from STRING to the terminal at the current position. */
 void
-terminal_write_chars (string, nchars)
-     char *string;
-     int nchars;
+terminal_write_chars (char *string, int nchars)
 {
   if (terminal_write_chars_hook)
     (*terminal_write_chars_hook) (string, nchars);
@@ -272,7 +264,7 @@ terminal_write_chars (string, nchars)
 
 /* Clear from the current position of the cursor to the end of the line. */
 void
-terminal_clear_to_eol ()
+terminal_clear_to_eol (void)
 {
   if (terminal_clear_to_eol_hook)
     (*terminal_clear_to_eol_hook) ();
@@ -284,7 +276,7 @@ terminal_clear_to_eol ()
 
 /* Clear the entire terminal screen. */
 void
-terminal_clear_screen ()
+terminal_clear_screen (void)
 {
   if (terminal_clear_screen_hook)
     (*terminal_clear_screen_hook) ();
@@ -296,7 +288,7 @@ terminal_clear_screen ()
 
 /* Move the cursor up one line. */
 void
-terminal_up_line ()
+terminal_up_line (void)
 {
   if (terminal_up_line_hook)
     (*terminal_up_line_hook) ();
@@ -308,7 +300,7 @@ terminal_up_line ()
 
 /* Move the cursor down one line. */
 void
-terminal_down_line ()
+terminal_down_line (void)
 {
   if (terminal_down_line_hook)
     (*terminal_down_line_hook) ();
@@ -320,7 +312,7 @@ terminal_down_line ()
 
 /* Turn on reverse video if possible. */
 void
-terminal_begin_inverse ()
+terminal_begin_inverse (void)
 {
   if (terminal_begin_inverse_hook)
     (*terminal_begin_inverse_hook) ();
@@ -332,7 +324,7 @@ terminal_begin_inverse ()
 
 /* Turn off reverse video if possible. */
 void
-terminal_end_inverse ()
+terminal_end_inverse (void)
 {
   if (terminal_end_inverse_hook)
     (*terminal_end_inverse_hook) ();
@@ -345,7 +337,7 @@ terminal_end_inverse ()
 /* Ring the terminal bell.  The bell is run visibly if it both has one and
    terminal_use_visible_bell_p is non-zero. */
 void
-terminal_ring_bell ()
+terminal_ring_bell (void)
 {
   if (terminal_ring_bell_hook)
     (*terminal_ring_bell_hook) ();
@@ -360,8 +352,7 @@ terminal_ring_bell ()
 
 /* At the line START, delete COUNT lines from the terminal display. */
 static void
-terminal_delete_lines (start, count)
-     int start, count;
+terminal_delete_lines (int start, int count)
 {
   int lines;
 
@@ -384,8 +375,7 @@ terminal_delete_lines (start, count)
 
 /* At the line START, insert COUNT lines in the terminal display. */
 static void
-terminal_insert_lines (start, count)
-     int start, count;
+terminal_insert_lines (int start, int count)
 {
   int lines;
 
@@ -412,8 +402,7 @@ terminal_insert_lines (start, count)
    towards the top of the screen, else they are scrolled towards the
    bottom of the screen. */
 void
-terminal_scroll_terminal (start, end, amount)
-     int start, end, amount;
+terminal_scroll_terminal (int start, int end, int amount)
 {
   if (!terminal_can_scroll)
     return;
@@ -449,8 +438,7 @@ terminal_scroll_terminal (start, end, amount)
 /* Re-initialize the terminal considering that the TERM/TERMCAP variable
    has changed. */
 void
-terminal_new_terminal (terminal_name)
-     char *terminal_name;
+terminal_new_terminal (char *terminal_name)
 {
   if (terminal_new_terminal_hook)
     (*terminal_new_terminal_hook) (terminal_name);
@@ -462,7 +450,7 @@ terminal_new_terminal (terminal_name)
 
 /* Set the global variables SCREENWIDTH and SCREENHEIGHT. */
 void
-terminal_get_screen_size ()
+terminal_get_screen_size (void)
 {
   if (terminal_get_screen_size_hook)
     (*terminal_get_screen_size_hook) ();
@@ -522,8 +510,7 @@ terminal_get_screen_size ()
    TERMINAL_HAS_META_P becomes nonzero if this terminal supports a Meta
    key.  Finally, the terminal screen is cleared. */
 void
-terminal_initialize_terminal (terminal_name)
-     char *terminal_name;
+terminal_initialize_terminal (char *terminal_name)
 {
   char *buffer;
 
@@ -632,12 +619,10 @@ terminal_initialize_terminal (terminal_name)
   if (terminal_has_meta_p)
     {
       term_mm = tgetstr ("mm", &buffer);
-      term_mo = tgetstr ("mo", &buffer);
     }
   else
     {
       term_mm = NULL;
-      term_mo = NULL;
     }
 
   /* Attempt to find the arrow keys.  */
@@ -704,7 +689,7 @@ struct ltchars original_ltchars;
 
 /* Prepare to start using the terminal to read characters singly. */
 void
-terminal_prep_terminal ()
+terminal_prep_terminal (void)
 {
   int tty;
 
@@ -844,7 +829,7 @@ terminal_prep_terminal ()
 /* Restore the tty settings back to what they were before we started using
    this terminal. */
 void
-terminal_unprep_terminal ()
+terminal_unprep_terminal (void)
 {
   int tty;
 

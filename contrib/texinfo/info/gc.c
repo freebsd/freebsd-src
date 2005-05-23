@@ -1,9 +1,7 @@
-/* gc.c -- Functions to remember and garbage collect unused node contents. */
+/* gc.c -- Functions to remember and garbage collect unused node contents.
+   $Id: gc.c,v 1.3 2004/04/11 17:56:45 karl Exp $
 
-/* This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1993, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,8 +32,7 @@ static int gcable_pointers_slots = 0;
    is not actually garbage collected until no info window contains a node
    whose contents member is equal to the pointer. */
 void
-add_gcable_pointer (pointer)
-     char *pointer;
+add_gcable_pointer (char *pointer)
 {
   gc_pointers ();
   add_pointer_to_array (pointer, gcable_pointers_index, gcable_pointers,
@@ -45,7 +42,7 @@ add_gcable_pointer (pointer)
 /* Grovel the list of info windows and gc-able pointers finding those
    node->contents which are collectible, and free them. */
 void
-gc_pointers ()
+gc_pointers (void)
 {
   register int i, j, k;
   INFO_WINDOW *iw;

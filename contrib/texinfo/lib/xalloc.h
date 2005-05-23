@@ -1,5 +1,7 @@
 /* xalloc.h -- malloc with out-of-memory checking
-   Copyright (C) 1990-1998, 1999, 2000 Free Software Foundation, Inc.
+
+   Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2003, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,13 +22,11 @@
 
 # include <stddef.h>
 
-# ifndef PARAMS
-#  if defined PROTOTYPES || (defined __STDC__ && __STDC__)
-#   define PARAMS(Args) Args
-#  else
-#   define PARAMS(Args) ()
-#  endif
+
+# ifdef __cplusplus
+extern "C" {
 # endif
+
 
 # ifndef __attribute__
 #  if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 8) || __STRICT_ANSI__
@@ -38,52 +38,53 @@
 #  define ATTRIBUTE_NORETURN __attribute__ ((__noreturn__))
 # endif
 
-/* Exit value when the requested amount of memory is not available.
-   It is initialized to EXIT_FAILURE, but the caller may set it to
-   some other value.  */
-extern int xalloc_exit_failure;
-
-/* If this pointer is non-zero, run the specified function upon each
-   allocation failure.  It is initialized to zero. */
-extern void (*xalloc_fail_func) PARAMS ((void));
-
-/* If XALLOC_FAIL_FUNC is undefined or a function that returns, this
-   message is output.  It is translated via gettext.
-   Its value is "memory exhausted".  */
-extern char const xalloc_msg_memory_exhausted[];
-
-/* This function is always triggered when memory is exhausted.  It is
-   in charge of honoring the three previous items.  This is the
+/* This function is always triggered when memory is exhausted.
+   It must be defined by the application, either explicitly
+   or by using gnulib's xalloc-die module.  This is the
    function to call when one wants the program to die because of a
    memory allocation failure.  */
-extern void xalloc_die PARAMS ((void)) ATTRIBUTE_NORETURN;
+extern void xalloc_die (void) ATTRIBUTE_NORETURN;
 
-void *xmalloc PARAMS ((size_t n));
-void *xcalloc PARAMS ((size_t n, size_t s));
-void *xrealloc PARAMS ((void *p, size_t n));
-char *xstrdup PARAMS ((const char *str));
+void *xmalloc (size_t s);
+void *xnmalloc (size_t n, size_t s);
+void *xzalloc (size_t s);
+void *xcalloc (size_t n, size_t s);
+void *xrealloc (void *p, size_t s);
+void *xnrealloc (void *p, size_t n, size_t s);
+void *x2realloc (void *p, size_t *pn);
+void *x2nrealloc (void *p, size_t *pn, size_t s);
+void *xclone (void const *p, size_t s);
+char *xstrdup (const char *str);
 
-# define XMALLOC(Type, N_items) ((Type *) xmalloc (sizeof (Type) * (N_items)))
-# define XCALLOC(Type, N_items) ((Type *) xcalloc (sizeof (Type), (N_items)))
-# define XREALLOC(Ptr, Type, N_items) \
-  ((Type *) xrealloc ((void *) (Ptr), sizeof (Type) * (N_items)))
+/* Return 1 if an array of N objects, each of size S, cannot exist due
+   to size arithmetic overflow.  S must be positive and N must be
+   nonnegative.  This is a macro, not an inline function, so that it
+   works correctly even when SIZE_MAX < N.
 
-/* Declare and alloc memory for VAR of type TYPE. */
-# define NEW(Type, Var)  Type *(Var) = XMALLOC (Type, 1)
+   By gnulib convention, SIZE_MAX represents overflow in size
+   calculations, so the conservative dividend to use here is
+   SIZE_MAX - 1, since SIZE_MAX might represent an overflowed value.
+   However, malloc (SIZE_MAX) fails on all known hosts where
+   sizeof (ptrdiff_t) <= sizeof (size_t), so do not bother to test for
+   exactly-SIZE_MAX allocations on such hosts; this avoids a test and
+   branch when S is known to be 1.  */
+# define xalloc_oversized(n, s) \
+    ((size_t) (sizeof (ptrdiff_t) <= sizeof (size_t) ? -1 : -2) / (s) < (n))
 
-/* Free VAR only if non NULL. */
-# define XFREE(Var)	\
-   do {                 \
-      if (Var)          \
-        free (Var);     \
-   } while (0)
+/* These macros are deprecated; they will go away soon, and are retained
+   temporarily only to ease conversion to the functions described above.  */
+# define CCLONE(p, n) xclone (p, (n) * sizeof *(p))
+# define CLONE(p) xclone (p, sizeof *(p))
+# define NEW(type, var) type *var = xmalloc (sizeof (type))
+# define XCALLOC(type, n) xcalloc (n, sizeof (type))
+# define XMALLOC(type, n) xnmalloc (n, sizeof (type))
+# define XREALLOC(p, type, n) xnrealloc (p, n, sizeof (type))
+# define XFREE(p) free (p)
 
-/* Return a pointer to a malloc'ed copy of the array SRC of NUM elements. */
-# define CCLONE(Src, Num) \
-  (memcpy (xmalloc (sizeof (*Src) * (Num)), (Src), sizeof (*Src) * (Num)))
 
-/* Return a malloc'ed copy of SRC. */
-# define CLONE(Src) CCLONE (Src, 1)
+# ifdef __cplusplus
+}
+# endif
 
 
 #endif /* !XALLOC_H_ */
