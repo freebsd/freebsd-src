@@ -426,17 +426,16 @@ struct cpu_functions arm9_cpufuncs = {
 
 	/* Cache operations */
 
-	arm9_cache_syncI,		/* icache_sync_all	*/
-	arm9_cache_syncI_rng,		/* icache_sync_range	*/
+	arm9_icache_sync_all,		/* icache_sync_all	*/
+	arm9_icache_sync_range,		/* icache_sync_range	*/
 
-		/* ...cache in write-though mode... */
-	arm9_cache_flushD,		/* dcache_wbinv_all	*/
-	arm9_cache_flushD_rng,		/* dcache_wbinv_range	*/
-	arm9_cache_flushD_rng,		/* dcache_inv_range	*/
-	(void *)cpufunc_nullop,		/* dcache_wb_range	*/
+	arm9_dcache_wbinv_all,		/* dcache_wbinv_all	*/
+	arm9_dcache_wbinv_range,	/* dcache_wbinv_range	*/
+/*XXX*/	arm9_dcache_wbinv_range,	/* dcache_inv_range	*/
+	arm9_dcache_wb_range,		/* dcache_wb_range	*/
 
-	arm9_cache_flushID,		/* idcache_wbinv_all	*/
-	arm9_cache_flushID_rng,		/* idcache_wbinv_range	*/
+	arm9_idcache_wbinv_all,		/* idcache_wbinv_all	*/
+	arm9_idcache_wbinv_range,	/* idcache_wbinv_range	*/
 
 	/* Other functions */
 
@@ -973,6 +972,11 @@ set_cpufuncs()
 		cpufuncs = arm9_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;	/* V4 or higher */
 		get_cachetype_cp15();
+		arm9_dcache_sets_inc = 1U << arm_dcache_l2_linesize;
+		arm9_dcache_sets_max = (1U << (arm_dcache_l2_linesize +
+		    arm_dcache_l2_nsets)) - arm9_dcache_sets_inc;
+		arm9_dcache_index_inc = 1U << (32 - arm_dcache_l2_assoc);
+		arm9_dcache_index_max = 0U - arm9_dcache_index_inc;
 #ifdef ARM9_CACHE_WRITE_THROUGH
 		pmap_pte_init_arm9();
 #else
@@ -1844,14 +1848,14 @@ arm9_setup(args)
 	cpuctrl = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_32BP_ENABLE
 	    | CPU_CONTROL_32BD_ENABLE | CPU_CONTROL_SYST_ENABLE
 	    | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
-	    | CPU_CONTROL_WBUF_ENABLE;
+	    | CPU_CONTROL_WBUF_ENABLE | CPU_CONTROL_LABT_ENABLE;
 	cpuctrlmask = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_32BP_ENABLE
 		 | CPU_CONTROL_32BD_ENABLE | CPU_CONTROL_SYST_ENABLE
 		 | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
 		 | CPU_CONTROL_WBUF_ENABLE | CPU_CONTROL_ROM_ENABLE
 		 | CPU_CONTROL_BEND_ENABLE | CPU_CONTROL_AFLT_ENABLE
-		 | CPU_CONTROL_LABT_ENABLE | CPU_CONTROL_BPRD_ENABLE
-		 | CPU_CONTROL_CPCLK;
+		 | CPU_CONTROL_LABT_ENABLE | CPU_CONTROL_VECRELOC
+		 | CPU_CONTROL_ROUNDROBIN;
 
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
@@ -1869,7 +1873,7 @@ arm9_setup(args)
 	cpu_idcache_wbinv_all();
 
 	/* Set the control register */
-	cpu_control(0xffffffff, cpuctrl);
+	cpu_control(cpuctrlmask, cpuctrl);
 	ctrl = cpuctrl;
 
 }
