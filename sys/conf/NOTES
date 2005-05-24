@@ -916,6 +916,12 @@ device		vcoda			#coda minicache <-> venus comm.
 #
 options 	EXT2FS
 
+#
+# Add support for the ReiserFS filesystem (used in Linux). Currently,
+# this is limited to read-only access.
+#
+options		REISERFS
+
 # Use real implementations of the aio_* system calls.  There are numerous
 # stability and security issues in the current aio code that make it
 # unsuitable for inclusion on machines with untrusted local users.
