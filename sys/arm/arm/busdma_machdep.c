@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/uio.h>
 #include <sys/ktr.h>
+#include <sys/kernel.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -85,6 +86,8 @@ struct bus_dma_tag {
 #define DMAMAP_LINEAR		0x1
 #define DMAMAP_MBUF		0x2
 #define DMAMAP_UIO		0x4
+#define DMAMAP_ALLOCATED	0x10
+#define DMAMAP_STATIC_BUSY	0x20
 #define DMAMAP_TYPE_MASK	(DMAMAP_LINEAR|DMAMAP_MBUF|DMAMAP_UIO)
 #define DMAMAP_COHERENT		0x8
 struct bus_dmamap {
@@ -93,6 +96,13 @@ struct bus_dmamap {
 	void 		*buffer;
 	int		len;
 };
+
+#define BUSDMA_STATIC_MAPS	500
+static struct bus_dmamap map_pool[BUSDMA_STATIC_MAPS];
+
+static struct mtx busdma_mtx;
+
+MTX_SYSINIT(busdma_mtx, &busdma_mtx, "busdma lock", MTX_DEF);
 
 /*
  * Check to see if the specified page is in an allowed DMA range.
@@ -156,6 +166,39 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
 #else
 	printf("DRIVER_ERROR: busdma dflt_lock called\n");
 #endif
+}
+
+static bus_dmamap_t
+_busdma_alloc_dmamap(void)
+{
+	int i;
+	bus_dmamap_t map;
+
+	mtx_lock(&busdma_mtx);
+	for (i = 0; i < BUSDMA_STATIC_MAPS; i++)
+		if (!(map_pool[i].flags & DMAMAP_STATIC_BUSY)) {
+			bzero(&map_pool[i], sizeof(map_pool[i]));
+			map_pool[i].flags |= DMAMAP_STATIC_BUSY;
+			mtx_unlock(&busdma_mtx);
+			return (&map_pool[i]);
+		}
+	mtx_unlock(&busdma_mtx);
+	map = malloc(sizeof(*map), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (map)
+		map->flags |= DMAMAP_ALLOCATED;
+	return (map);
+}
+
+static void
+_busdma_free_dmamap(bus_dmamap_t map)
+{
+	if (map->flags & DMAMAP_ALLOCATED)
+		free(map, M_DEVBUF);
+	else {
+		mtx_lock(&busdma_mtx);
+		map->flags &= ~DMAMAP_STATIC_BUSY;
+		mtx_unlock(&busdma_mtx);
+	}
 }
 
 /*
@@ -282,14 +325,13 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	int error = 0;
 #endif
 
-	newmap = malloc(sizeof(*newmap), M_DEVBUF, M_NOWAIT | M_ZERO);
+	newmap = _busdma_alloc_dmamap();
 	if (newmap == NULL) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d", __func__, dmat, ENOMEM);
 		return (ENOMEM);
 	}
 	*mapp = newmap;
 	newmap->dmat = dmat;
-	newmap->flags = 0;
 	dmat->map_count++;
 
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
@@ -306,7 +348,7 @@ int
 bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 
-	free(map, M_DEVBUF);
+	_busdma_free_dmamap(map);
         dmat->map_count--;
 	CTR2(KTR_BUSDMA, "%s: tag %p error 0", __func__, dmat);
         return (0);
@@ -332,14 +374,13 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	if (flags & BUS_DMA_ZERO)
 		mflags |= M_ZERO;
 
-	newmap = malloc(sizeof(*newmap), M_DEVBUF, M_NOWAIT | M_ZERO);
+	newmap = _busdma_alloc_dmamap();
 	if (newmap == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->flags, ENOMEM);
 		return (ENOMEM);
 	}
 	dmat->map_count++;
-	newmap->flags = 0;
 	*mapp = newmap;
 	newmap->dmat = dmat;
 	
@@ -357,7 +398,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
         }
         if (*vaddr == NULL) {
 		if (newmap != NULL) {
-			free(newmap, M_DEVBUF);
+			_busdma_free_dmamap(newmap);
 			dmat->map_count--;
 		}
 		*mapp = NULL;
@@ -379,7 +420,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
 	}
 	dmat->map_count--;
-	free(map, M_DEVBUF);
+	_busdma_free_dmamap(map);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
 }
 
@@ -416,7 +457,7 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
 		 * XXX Don't support checking for coherent mappings
 		 * XXX in user address space.
 		 */
-		if (__predict_true(pmap == pmap_kernel())) {
+		if (0 && __predict_true(pmap == pmap_kernel())) {
 			(void) pmap_get_pde_pte(pmap, vaddr, &pde, &ptep);
 			if (__predict_false(pmap_pde_section(pde))) {
 				curaddr = (*pde & L1_S_FRAME) |
@@ -574,15 +615,18 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 	map->flags &= ~DMAMAP_TYPE_MASK;
 	map->flags |= DMAMAP_MBUF | DMAMAP_COHERENT;
 	map->buffer = m0;
+	map->len = 0;
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
 		vm_offset_t lastaddr = 0;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
-			if (m->m_len > 0)
+			if (m->m_len > 0) {
 				error = bus_dmamap_load_buffer(dmat,
 				    dm_segments, map, m->m_data, m->m_len, 
 				    pmap_kernel(), flags, &lastaddr, &nsegs);
+				map->len += m->m_len;
+			}
 		}
 	} else {
 		error = EINVAL;
@@ -616,6 +660,7 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 	map->flags &= ~DMAMAP_TYPE_MASK;
 	map->flags |= DMAMAP_MBUF | DMAMAP_COHERENT;
 	map->buffer = m0;			
+	map->len = 0;
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
 		vm_offset_t lastaddr = 0;
 		struct mbuf *m;
@@ -626,6 +671,7 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 						m->m_data, m->m_len,
 						pmap_kernel(), flags, &lastaddr,
 						nsegs);
+				map->len += m->m_len;
 			}
 		}
 	} else {
@@ -663,6 +709,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 	map->flags &= ~DMAMAP_TYPE_MASK;
 	map->flags |= DMAMAP_UIO|DMAMAP_COHERENT;
 	map->buffer = uio;
+	map->len = 0;
 
 	if (uio->uio_segflg == UIO_USERSPACE) {
 		KASSERT(uio->uio_td != NULL,
@@ -686,6 +733,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 			error = bus_dmamap_load_buffer(dmat, dm_segments, map,
 			    addr, minlen, pmap, flags, &lastaddr, &nsegs);
 
+			map->len += minlen;
 			resid -= minlen;
 		}
 	}
@@ -719,18 +767,14 @@ static void
 bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 {
 
-	if (op & BUS_DMASYNC_POSTREAD ||
-	    op == (BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)) {
-		cpu_dcache_wbinv_range((vm_offset_t)buf, len);
-		return;
-	}
 	if (op & BUS_DMASYNC_PREWRITE)
 		cpu_dcache_wb_range((vm_offset_t)buf, len);
-	if (op & BUS_DMASYNC_PREREAD) {
+	if (op & BUS_DMASYNC_POSTREAD) {
 		if ((((vm_offset_t)buf | len) & arm_dcache_align_mask) == 0)
- 			cpu_dcache_inv_range((vm_offset_t)buf, len);
+			cpu_dcache_inv_range((vm_offset_t)buf, len);
 		else    
 			cpu_dcache_wbinv_range((vm_offset_t)buf, len);
+
 	}
 }
 
@@ -742,10 +786,14 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	int resid;
 	struct iovec *iov;
 	
-	if (op == BUS_DMASYNC_POSTWRITE)
+	if (!(op & (BUS_DMASYNC_PREWRITE | BUS_DMASYNC_POSTREAD)))
 		return;
 	if (map->flags & DMAMAP_COHERENT)
 		return;
+	if (map->len > PAGE_SIZE) {
+		cpu_dcache_wbinv_all();
+		return;
+	}
 	CTR3(KTR_BUSDMA, "%s: op %x flags %x", __func__, op, map->flags);
 	switch(map->flags & DMAMAP_TYPE_MASK) {
 	case DMAMAP_LINEAR:
