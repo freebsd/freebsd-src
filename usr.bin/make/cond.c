@@ -283,16 +283,14 @@ static Boolean
 CondDoDefined(int argLen, char *arg)
 {
 	char	savec = arg[argLen];
-	char	*p1;
 	Boolean	result;
 
 	arg[argLen] = '\0';
-	if (Var_Value(arg, VAR_CMD, &p1) != NULL) {
+	if (Var_Value(arg, VAR_CMD) != NULL) {
 		result = TRUE;
 	} else {
 		result = FALSE;
 	}
-	free(p1);
 	arg[argLen] = savec;
 	return (result);
 }

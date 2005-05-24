@@ -663,7 +663,7 @@ main(int argc, char **argv)
 	const char *machine_arch;
 	const char *machine_cpu;
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
-	char *p, *p1;
+	char *p;
 	const char *pathp;
 	const char *path;
 	char mdpath[MAXPATHLEN];
@@ -973,9 +973,8 @@ main(int argc, char **argv)
 	ReadMakefile(".depend");
 
 	/* Install all the flags into the MAKE envariable. */
-	if (((p = Var_Value(".MAKEFLAGS", VAR_GLOBAL, &p1)) != NULL) && *p)
+	if (((p = Var_Value(".MAKEFLAGS", VAR_GLOBAL)) != NULL) && *p)
 		setenv("MAKEFLAGS", p, 1);
-	free(p1);
 
 	/*
 	 * For compatibility, look at the directories in the VPATH variable

@@ -993,12 +993,9 @@ void
 Arch_Touch(GNode *gn)
 {
 	struct arfile	*ar;
-	char		*p1, *p2;
 
-	ar = ArchFindMember(Var_Value(ARCHIVE, gn, &p1),
-	    Var_Value(TARGET, gn, &p2), "r+");
-	free(p1);
-	free(p2);
+	ar = ArchFindMember(Var_Value(ARCHIVE, gn),
+	    Var_Value(TARGET, gn), "r+");
 
 	if (ar != NULL) {
 		ArchArchiveTouch(ar, (int64_t)now);
@@ -1057,12 +1054,9 @@ int
 Arch_MTime(GNode *gn)
 {
 	int64_t	mtime;
-	char	*p1, *p2;
 
-	mtime = ArchStatMember(Var_Value(ARCHIVE, gn, &p1),
-	    Var_Value(TARGET, gn, &p2), TRUE);
-	free(p1);
-	free(p2);
+	mtime = ArchStatMember(Var_Value(ARCHIVE, gn),
+	    Var_Value(TARGET, gn), TRUE);
 
 	if (mtime == INT_MIN) {
 		mtime = 0;

@@ -1142,26 +1142,22 @@ Var_Exists(const char *name, GNode *ctxt)
  * Return the value of the named variable in the given context
  *
  * Results:
- *	The value if the variable exists, NULL if it doesn't
+ *	The value if the variable exists, NULL if it doesn't.
  */
 char *
-Var_Value(const char *name, GNode *ctxt, char **frp)
+Var_Value(const char name[], GNode *ctxt)
 {
 	Var	*v;
 	char	*n;
-	char	*p;
 
 	n = VarPossiblyExpand(name, ctxt);
 	v = VarFindAny(n, ctxt);
-	if (v == NULL) {
-		p = NULL;
-		*frp = NULL;
-	} else {
-		p = Buf_Data(v->val);
-		*frp = NULL;
-	}
 	free(n);
-	return (p);
+	if (v == NULL) {
+		return (NULL);
+	} else {
+		return (Buf_Data(v->val));
+	}
 }
 
 /**
@@ -2558,17 +2554,14 @@ Var_Print(Lst *vlist, Boolean expandVars)
 			v = emalloc(strlen(name) + 1 + 3);
 			sprintf(v, "${%s}", name);
 
-			value = Buf_Peel(Var_Subst(v,
-			    VAR_GLOBAL, FALSE));
+			value = Buf_Peel(Var_Subst(v, VAR_GLOBAL, FALSE));
 			printf("%s\n", value);
 
 			free(v);
 			free(value);
 		} else {
-			value = Var_Value(name, VAR_GLOBAL, &v);
+			value = Var_Value(name, VAR_GLOBAL);
 			printf("%s\n", value != NULL ? value : "");
-			if (v != NULL)
-				free(v);
 		}
 	}
 }
