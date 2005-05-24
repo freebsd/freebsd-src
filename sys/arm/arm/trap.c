@@ -428,7 +428,7 @@ data_abort_handler(trapframe_t *tf)
 
 	if (map != kernel_map) {
 		PROC_LOCK(p);
-		p->p_lock++;
+		p->p_lock--;
 		PROC_UNLOCK(p);
 	}
 	if (user == 0) {
