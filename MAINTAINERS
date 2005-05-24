@@ -105,7 +105,7 @@ nfs		alfred	Will be happy to review code, but not mandatory.
 rpc.lockd	alfred	Will be happy to review code, but not mandatory.
 truss		alfred	Will be happy to review code, but not mandatory.
 rpc		alfred	Pre-commit review requested.
-pkg_install	eik	Pre-commit review or approval from portmgr@ requested.
+pkg_install	krion	Pre-commit review or approval from portmgr@ requested.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
