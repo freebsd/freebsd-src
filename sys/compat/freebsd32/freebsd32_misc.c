@@ -1145,7 +1145,7 @@ freebsd32_sigaction(struct thread *td, struct freebsd32_sigaction_args *uap)
 	} else
 		sap = NULL;
 	error = kern_sigaction(td, uap->sig, sap, &osa, 0);
-	if (error != 0 && uap->oact != NULL) {
+	if (error == 0 && uap->oact != NULL) {
 		s32.sa_u = PTROUT(osa.sa_handler);
 		CP(osa, s32, sa_flags);
 		CP(osa, s32, sa_mask);
@@ -1174,7 +1174,7 @@ freebsd4_freebsd32_sigaction(struct thread *td,
 	} else
 		sap = NULL;
 	error = kern_sigaction(td, uap->sig, sap, &osa, KSA_FREEBSD4);
-	if (error != 0 && uap->oact != NULL) {
+	if (error == 0 && uap->oact != NULL) {
 		s32.sa_u = PTROUT(osa.sa_handler);
 		CP(osa, s32, sa_flags);
 		CP(osa, s32, sa_mask);
