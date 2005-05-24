@@ -9,7 +9,7 @@ SRCS=	arch.c buf.c cond.c dir.c for.c hash.c hash_tables.c job.c	\
 	util.c var.c
 
 NO_WERROR=
-WARNS?=	3
+WARNS?=	6
 NO_SHARED?=	YES
 
 CFLAGS+=-DMAKE_VERSION=\"5200408120\"
