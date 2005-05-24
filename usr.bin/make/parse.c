@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include "make.h"
 #include "parse.h"
 #include "pathnames.h"
+#include "shell.h"
 #include "str.h"
 #include "suff.h"
 #include "targ.h"
@@ -1087,7 +1088,7 @@ ParseDoDependency(char *line)
 		*line = '\0';
 
 	} else if (specType == ExShell) {
-		if (!Job_ParseShell(line)) {
+		if (!Shell_Parse(line)) {
 			Parse_Error(PARSE_FATAL,
 			    "improper shell specification");
 			return;
