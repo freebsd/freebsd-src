@@ -143,6 +143,8 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	    "cmp	%1, %3\n"
 	    "streq	%4, [%2]\n"
 	    "2:\n"
+	    "mov	%1, #0\n"
+	    "str	%1, [%0]\n"
 	    "moveq	%1, #1\n"
 	    "movne	%1, #0\n"
 	    : "=r" (ras_start), "=r" (done)
@@ -166,6 +168,8 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 	    "add	%1, %1, %3\n"
 	    "str	%1, [%2]\n"
 	    "2:\n"
+	    "mov	%1, #0\n"
+	    "str	%1, [%0]\n"
 	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (val));
 }
 
@@ -185,6 +189,9 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
 	    "sub	%1, %1, %3\n"
 	    "str	%1, [%2]\n"
 	    "2:\n"
+	    "mov	%1, #0\n"
+	    "str	%1, [%0]\n"
+
 	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (val));
 }
 
@@ -204,6 +211,9 @@ atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 	    "orr	%1, %1, %3\n"
 	    "str	%1, [%2]\n"
 	    "2:\n"
+	    "mov	%1, #0\n"
+	    "str	%1, [%0]\n"
+
 	    : "=r" (ras_start), "=r" (start), "+r" (address), "+r" (setmask));
 }
 
@@ -223,6 +233,8 @@ atomic_clear_32(volatile uint32_t *address, uint32_t clearmask)
 	    "bic	%1, %1, %3\n"
 	    "str	%1, [%2]\n"
 	    "2:\n"
+	    "mov	%1, #0\n"
+	    "str	%1, [%0]\n"
 	    : "=r" (ras_start), "=r" (start), "+r" (address), "+r" (clearmask));
 
 }
