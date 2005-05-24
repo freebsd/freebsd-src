@@ -2786,7 +2786,7 @@ CompatInterrupt(int signo)
 	interrupted = 0;
 
 	if (curTarg != NULL && !Targ_Precious(curTarg)) {
-		char	  *file = Var_Value(TARGET, curTarg);
+		const char	*file = Var_Value(TARGET, curTarg);
 
 		if (!noExecute && eunlink(file) != -1) {
 			printf("*** %s removed\n", file);

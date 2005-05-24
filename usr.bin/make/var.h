@@ -80,6 +80,6 @@ void Var_SetGlobal(const char *, const char *);
 void Var_SetEnv(const char *, struct GNode *);
 struct Buffer *Var_Subst(const char *, struct GNode *, Boolean);
 struct Buffer *Var_SubstOnly(const char *, const char *, Boolean);
-char *Var_Value(const char *, struct GNode *);
+const char *Var_Value(const char [], struct GNode *);
 
 #endif /* var_h_9cccafce */
