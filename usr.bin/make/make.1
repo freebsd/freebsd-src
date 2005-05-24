@@ -1311,6 +1311,20 @@ is false, this is a command template to execute a command so that errors
 are ignored.
 The template must contain a
 .Ql %s .
+.It Va meta
+This is a string of meta characters of the shell.
+.It Va builtins
+This is a string holding all the shell's builtin commands separated by blanks.
+The
+.Va meta
+and
+.Va builtins
+strings are used in compat mode.
+When a command line contains neither a meta
+character not starts with a shell builtin it is executed directly without
+invoking a shell.
+When one of these strings (or both) is empty all commands are executed
+through a shell.
 .El
 .Pp
 Values that are strings must be surrounded by double quotes.
