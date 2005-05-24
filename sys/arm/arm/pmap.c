@@ -2965,12 +2965,12 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 }
 
 static void
-pmap_wb_page(vm_page_t m)
+pmap_wb_page(vm_page_t m, boolean_t do_inv)
 {
 	struct pv_entry *pv;
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list)
-	    pmap_dcache_wb_range(pv->pv_pmap, pv->pv_va, PAGE_SIZE, FALSE,
+	    pmap_dcache_wb_range(pv->pv_pmap, pv->pv_va, PAGE_SIZE, do_inv,
 		(pv->pv_flags & PVF_WRITE) == 0);
 }
 
@@ -2988,7 +2988,7 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		pmap_wb_page(m[i]);
+		pmap_wb_page(m[i], TRUE);
 		pmap_kenter_internal(va, VM_PAGE_TO_PHYS(m[i]), 
 		    KENTER_CACHE);
 		va += PAGE_SIZE;
@@ -3003,10 +3003,15 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 void
 pmap_qremove(vm_offset_t va, int count)
 {
+	vm_paddr_t pa;
 	int i;
 
 	for (i = 0; i < count; i++) {
-		pmap_kremove(va);
+		pa = vtophys(va);
+		if (pa) {
+			pmap_wb_page(PHYS_TO_VM_PAGE(pa), TRUE);
+			pmap_kremove(va);
+		}
 		va += PAGE_SIZE;
 	}
 }
@@ -3516,7 +3521,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	VM_OBJECT_UNLOCK(m->object);
 	mtx_lock(&Giant);
 	pmap_enter(pmap, va, m, VM_PROT_READ|VM_PROT_EXECUTE, FALSE);
-	pmap_dcache_wbinv_all(pmap);
+	pmap_idcache_wbinv_all(pmap);
 	mtx_unlock(&Giant);
 	VM_OBJECT_LOCK(m->object);
 	vm_page_lock_queues();
@@ -4277,6 +4282,7 @@ pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
+	cpu_dcache_wbinv_all();
 	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
 }
 
