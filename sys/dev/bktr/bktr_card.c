@@ -870,11 +870,14 @@ checkEEPROM:
 
 checkTuner:
 
-	if (card == CARD_MIRO && mt2032_init(bktr) == 0) {
+#if !defined( BKTR_OVERRIDE_TUNER )
+	if (card == CARD_MIRO && mt2032_init(bktr) == 0 &&
+	    bktr->bt848_tuner == -1) {
 		bktr->card = cards[ (card = CARD_PINNACLE_PCTV_RAVE) ];
 		select_tuner( bktr, TUNER_MT2032 );
 		goto checkDBX;
 	}
+#endif
 
 	/* look for a tuner */
 	tuner_i2c_address = locate_tuner_address( bktr );
