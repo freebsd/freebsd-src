@@ -82,11 +82,7 @@ static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
 SYSCTL_NODE(_kern, OID_AUTO, __CONCAT(elf, __ELF_WORD_SIZE), CTLFLAG_RW, 0,
     "");
 
-#ifdef __arm__
-int __elfN(fallback_brand) = 9;
-#else
 int __elfN(fallback_brand) = -1;
-#endif
 SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
     fallback_brand, CTLFLAG_RW, &__elfN(fallback_brand), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) " brand of last resort");
