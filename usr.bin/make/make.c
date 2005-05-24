@@ -338,10 +338,10 @@ Make_HandleUse(GNode *cgn, GNode *pgn)
 void
 Make_Update(GNode *cgn)
 {
-	GNode	*pgn;	/* the parent node */
-	char	*cname;	/* the child's name */
-	LstNode	*ln;	/* Element in parents and iParents lists */
-	char	*cpref;
+	GNode		*pgn;	/* the parent node */
+	const char	*cname;	/* the child's name */
+	LstNode		*ln;	/* Element in parents and iParents lists */
+	const char	*cpref;
 
 	cname = Var_Value(TARGET, cgn);
 
@@ -491,9 +491,9 @@ Make_Update(GNode *cgn)
 void
 Make_DoAllVar(GNode *gn)
 {
-	LstNode	*ln;
-	GNode	*cgn;
-	char	*child;
+	LstNode		*ln;
+	GNode		*cgn;
+	const char	*child;
 
 	LST_FOREACH(ln, &gn->children) {
 		/*
