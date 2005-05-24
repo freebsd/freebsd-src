@@ -36,42 +36,75 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)job.h	8.1 (Berkeley) 6/6/93
  * $FreeBSD$
  */
 
-#ifndef job_h_4678dfd1
-#define	job_h_4678dfd1
+#ifndef shell_h_6002e3b8
+#define	shell_h_6002e3b8
 
-/*-
- * job.h --
- *	Definitions pertaining to the running of jobs in parallel mode.
- */
+#include <sys/queue.h>
 
-#include <stdio.h>
-
+#include "str.h"
 #include "util.h"
 
-struct Buffer;
-struct GNode;
-struct Lst;
+/**
+ * Shell Specifications:
+ *
+ * Some special stuff goes on if a shell doesn't have error control. In such
+ * a case, errCheck becomes a printf template for echoing the command,
+ * should echoing be on and ignErr becomes another printf template for
+ * executing the command while ignoring the return status. If either of these
+ * strings is empty when hasErrCtl is FALSE, the command will be executed
+ * anyway as is and if it causes an error, so be it.
+ */
+struct Shell {
+	TAILQ_ENTRY(Shell) link;	/* link all shell descriptions */
 
-void Job_Touch(struct GNode *, Boolean);
-Boolean Job_CheckCommands(struct GNode *, void (*abortProc)(const char *, ...));
-void Job_CatchChildren(Boolean);
-void Job_CatchOutput(int flag);
-void Job_Make(struct GNode *);
-void Job_Init(int);
-Boolean Job_Full(void);
-Boolean Job_Empty(void);
-int Job_Finish(void);
-void Job_Wait(void);
-void Job_AbortAll(void);
+	/*
+	 * the name of the shell. For Bourne and C shells, this is used
+	 * only to find the shell description when used as the single
+	 * source of a .SHELL target.
+	 */
+	char	*name;
 
-void Proc_Init(void);
+	char	*path;		/* full path to the shell */
 
-struct Buffer *Cmd_Exec(const char *, const char **);
+	/* True if both echoOff and echoOn defined */
+	Boolean	hasEchoCtl;
 
-void Compat_Run(struct Lst *);
+	char	*echoOff;	/* command to turn off echo */
+	char	*echoOn;	/* command to turn it back on */
 
-#endif /* job_h_4678dfd1 */
+	/*
+	 * What the shell prints, and its length, when given the
+	 * echo-off command. This line will not be printed when
+	 * received from the shell. This is usually the command which
+	 * was executed to turn off echoing
+	 */
+	char	*noPrint;
+
+	/* set if can control error checking for individual commands */
+	Boolean	hasErrCtl;
+
+	/* string to turn error checking on */
+	char	*errCheck;
+
+	/* string to turn off error checking */
+	char	*ignErr;
+
+	char	*echo;	/* command line flag: echo commands */
+	char	*exit;	/* command line flag: exit on error */
+
+	ArgArray builtins;	/* ordered list of shell builtins */
+	char	*meta;		/* shell meta characters */
+
+	Boolean	unsetenv;	/* unsetenv("ENV") before exec */
+};
+TAILQ_HEAD(Shells, Shell);
+
+extern struct Shell		*commandShell;
+
+void				Shell_Init(void);
+Boolean				Shell_Parse(const char []);
+
+#endif /* shell_h_6002e3b8 */
