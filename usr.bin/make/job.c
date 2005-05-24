@@ -278,6 +278,8 @@ TAILQ_HEAD(JobList, Job);
  * anyway as is and if it causes an error, so be it.
  */
 struct Shell {
+	TAILQ_ENTRY(Shell) link;	/* link all shell descriptions */
+
 	/*
 	 * the name of the shell. For Bourne and C shells, this is used
 	 * only to find the shell description when used as the single
@@ -315,6 +317,7 @@ struct Shell {
 	ArgArray builtins;
 	char	*meta;
 };
+TAILQ_HEAD(Shells, Shell);
 
 /*
  * error handling variables
@@ -375,45 +378,40 @@ static int	numCommands;
 #define	CSH_META	"#=|^(){};&<>*?[]:$`\\@\n"
 #define	SH_META		"#=|^(){};&<>*?[]:$`\\\n"
 
-static const char *const shells[][2] = {
+static const char *const shells_init[] = {
 	/*
 	 * CSH description. The csh can do echo control by playing
 	 * with the setting of the 'echo' shell variable. Sadly,
 	 * however, it is unable to do error control nicely.
 	 */
-	{ "csh",
-	  "name=csh path='" PATH_DEFSHELLDIR "/csh' "
-	  "quiet='unset verbose' echo='set verbose' filter='unset verbose' "
-	  "hasErrCtl=N check='echo \"%s\"\n' ignore='csh -c \"%s || exit 0\"' "
-	  "echoFlag=v errFlag=e "
-	  "meta='" CSH_META "' builtins='" CSH_BUILTINS "'"
-	},
+	"name=csh path='" PATH_DEFSHELLDIR "/csh' "
+	"quiet='unset verbose' echo='set verbose' filter='unset verbose' "
+	"hasErrCtl=N check='echo \"%s\"\n' ignore='csh -c \"%s || exit 0\"' "
+	"echoFlag=v errFlag=e "
+	"meta='" CSH_META "' builtins='" CSH_BUILTINS "'",
+
 	/*
 	 * SH description. Echo control is also possible and, under
 	 * sun UNIX anyway, one can even control error checking.
 	 */
-	{
-	  "sh",
-	  "name=sh path='" PATH_DEFSHELLDIR "/sh' "
-	  "quiet='set -' echo='set -v' filter='set -' "
-	  "hasErrCtl=Y check='set -e' ignore='set +e' "
-	  "echoFlag=v errFlag=e "
-	  "meta='" SH_META "' builtins='" SH_BUILTINS "'"
-	},
+	"name=sh path='" PATH_DEFSHELLDIR "/sh' "
+	"quiet='set -' echo='set -v' filter='set -' "
+	"hasErrCtl=Y check='set -e' ignore='set +e' "
+	"echoFlag=v errFlag=e "
+	"meta='" SH_META "' builtins='" SH_BUILTINS "'",
+
 	/*
 	 * KSH description. The Korn shell has a superset of
 	 * the Bourne shell's functionality. There are probably builtins
 	 * missing here.
 	 */
-	{
-	  "ksh",
-	  "name=ksh path='" PATH_DEFSHELLDIR "/ksh' "
-	  "quiet='set -' echo='set -v' filter='set -' "
-	  "hasErrCtl=Y check='set -e' ignore='set +e' "
-	  "echoFlag=v errFlag=e "
-	  "meta='" SH_META "' builtins='" SH_BUILTINS "'"
-	},
-	{ NULL, NULL }
+	"name=ksh path='" PATH_DEFSHELLDIR "/ksh' "
+	"quiet='set -' echo='set -v' filter='set -' "
+	"hasErrCtl=Y check='set -e' ignore='set +e' "
+	"echoFlag=v errFlag=e "
+	"meta='" SH_META "' builtins='" SH_BUILTINS "'",
+
+	NULL
 };
 
 /*
@@ -421,6 +419,11 @@ static const char *const shells[][2] = {
  * It is set by the Job_ParseShell function.
  */
 static struct Shell *commandShell = NULL;
+
+/*
+ * This is the list of all known shells.
+ */
+static struct Shells shells = TAILQ_HEAD_INITIALIZER(shells);
 
 /*
  * The maximum number of jobs that may run. This is initialize from the
@@ -2581,12 +2584,138 @@ JobShellDump(const struct Shell *sh)
 	fprintf(stderr, "\n  meta='%s'\n", sh->meta);
 }
 
-static void
+/**
+ * Parse a shell specification line and return the new Shell structure.
+ * In case of an error a message is printed and NULL is returned.
+ */
+static struct Shell *
+JobParseShellSpec(const char *spec, Boolean *fullSpec)
+{
+	ArgArray	aa;
+	struct Shell	*sh;
+	char		*eq;
+	char		*keyw;
+	int		arg;
+
+	*fullSpec = FALSE;
+
+	sh = emalloc(sizeof(*sh));
+	memset(sh, 0, sizeof(*sh));
+	ArgArray_Init(&sh->builtins);
+
+	/*
+	 * Parse the specification by keyword but skip the first word
+	 */
+	brk_string(&aa, spec, TRUE);
+
+	for (arg = 1; arg < aa.argc; arg++) {
+		/*
+		 * Split keyword and value
+		 */
+		keyw = aa.argv[arg];
+		if ((eq = strchr(keyw, '=')) == NULL) {
+			Parse_Error(PARSE_FATAL, "missing '=' in shell "
+			    "specification keyword '%s'", keyw);
+			ArgArray_Done(&aa);
+			JobFreeShell(sh);
+			return (NULL);
+		}
+		*eq++ = '\0';
+
+		if (strcmp(keyw, "path") == 0) {
+			free(sh->path);
+			sh->path = estrdup(eq);
+		} else if (strcmp(keyw, "name") == 0) {
+			free(sh->name);
+			sh->name = estrdup(eq);
+		} else if (strcmp(keyw, "quiet") == 0) {
+			free(sh->echoOff);
+			sh->echoOff = estrdup(eq);
+			*fullSpec = TRUE;
+		} else if (strcmp(keyw, "echo") == 0) {
+			free(sh->echoOn);
+			sh->echoOn = estrdup(eq);
+			*fullSpec = TRUE;
+		} else if (strcmp(keyw, "filter") == 0) {
+			free(sh->noPrint);
+			sh->noPrint = estrdup(eq);
+			*fullSpec = TRUE;
+		} else if (strcmp(keyw, "echoFlag") == 0) {
+			free(sh->echo);
+			sh->echo = estrdup(eq);
+			*fullSpec = TRUE;
+		} else if (strcmp(keyw, "errFlag") == 0) {
+			free(sh->exit);
+			sh->exit = estrdup(eq);
+			*fullSpec = TRUE;
+		} else if (strcmp(keyw, "hasErrCtl") == 0) {
+			sh->hasErrCtl = (*eq == 'Y' || *eq == 'y' ||
+			    *eq == 'T' || *eq == 't');
+			*fullSpec = TRUE;
+		} else if (strcmp(keyw, "check") == 0) {
+			free(sh->errCheck);
+			sh->errCheck = estrdup(eq);
+			*fullSpec = TRUE;
+		} else if (strcmp(keyw, "ignore") == 0) {
+			free(sh->ignErr);
+			sh->ignErr = estrdup(eq);
+			*fullSpec = TRUE;
+		} else if (strcmp(keyw, "builtins") == 0) {
+			ArgArray_Done(&sh->builtins);
+			brk_string(&sh->builtins, eq, TRUE);
+			qsort(sh->builtins.argv + 1, sh->builtins.argc - 1,
+			    sizeof(char *), sort_builtins);
+			*fullSpec = TRUE;
+		} else if (strcmp(keyw, "meta") == 0) {
+			free(sh->meta);
+			sh->meta = estrdup(eq);
+			*fullSpec = TRUE;
+		} else {
+			Parse_Error(PARSE_FATAL, "unknown keyword in shell "
+			    "specification '%s'", keyw);
+			ArgArray_Done(&aa);
+			JobFreeShell(sh);
+			return (NULL);
+		}
+	}
+	ArgArray_Done(&aa);
+
+	/*
+	 * Some checks (could be more)
+	 */
+	if (*fullSpec) {
+		if ((sh->echoOn != NULL) ^ (sh->echoOff != NULL)) {
+			Parse_Error(PARSE_FATAL, "Shell must have either both "
+			    "echoOff and echoOn or none of them");
+			JobFreeShell(sh);
+			return (NULL);
+		}
+
+		if (sh->echoOn != NULL && sh->echoOff != NULL)
+			sh->hasEchoCtl = TRUE;
+	}
+
+	return (sh);
+}
+
+/**
+ * Parse the builtin shell specifications and put them into the shell
+ * list. Then select the default shell to be the current shell. This
+ * is called from main() before any parsing (including MAKEFLAGS and
+ * command line) is done.
+ */
+void
 Shell_Init(void)
 {
+	int i;
+	struct Shell *sh;
+	Boolean fullSpec;
 
-	if (commandShell == NULL) {
-		commandShell = JobMatchShell(shells[DEFSHELL][0]);
+	for (i = 0; shells_init[i] != NULL; i++) {
+		sh = JobParseShellSpec(shells_init[i], &fullSpec);
+		TAILQ_INSERT_TAIL(&shells, sh, link);
+		if (i == DEFSHELL)
+			commandShell = sh;
 	}
 }
 
@@ -2666,8 +2795,6 @@ Job_Init(int maxproc)
 	} else {
 		targFmt = TARG_FMT;
 	}
-
-	Shell_Init();
 
 	/*
 	 * Catch the four signals that POSIX specifies if they aren't ignored.
@@ -2787,116 +2914,6 @@ Job_Empty(void)
 	}
 }
 
-static struct Shell *
-JobParseShellSpec(const char *spec, Boolean *fullSpec)
-{
-	ArgArray	aa;
-	struct Shell	*sh;
-	char		*eq;
-	char		*keyw;
-	int		arg;
-
-	*fullSpec = FALSE;
-
-	sh = emalloc(sizeof(*sh));
-	memset(sh, 0, sizeof(*sh));
-	ArgArray_Init(&sh->builtins);
-
-	/*
-	 * Parse the specification by keyword but skip the first word
-	 */
-	brk_string(&aa, spec, TRUE);
-
-	for (arg = 1; arg < aa.argc; arg++) {
-		/*
-		 * Split keyword and value
-		 */
-		keyw = aa.argv[arg];
-		if ((eq = strchr(keyw, '=')) == NULL) {
-			Parse_Error(PARSE_FATAL, "missing '=' in shell "
-			    "specification keyword '%s'", keyw);
-			ArgArray_Done(&aa);
-			JobFreeShell(sh);
-			return (NULL);
-		}
-		*eq++ = '\0';
-
-		if (strcmp(keyw, "path") == 0) {
-			free(sh->path);
-			sh->path = estrdup(eq);
-		} else if (strcmp(keyw, "name") == 0) {
-			free(sh->name);
-			sh->name = estrdup(eq);
-		} else if (strcmp(keyw, "quiet") == 0) {
-			free(sh->echoOff);
-			sh->echoOff = estrdup(eq);
-			*fullSpec = TRUE;
-		} else if (strcmp(keyw, "echo") == 0) {
-			free(sh->echoOn);
-			sh->echoOn = estrdup(eq);
-			*fullSpec = TRUE;
-		} else if (strcmp(keyw, "filter") == 0) {
-			free(sh->noPrint);
-			sh->noPrint = estrdup(eq);
-			*fullSpec = TRUE;
-		} else if (strcmp(keyw, "echoFlag") == 0) {
-			free(sh->echo);
-			sh->echo = estrdup(eq);
-			*fullSpec = TRUE;
-		} else if (strcmp(keyw, "errFlag") == 0) {
-			free(sh->exit);
-			sh->exit = estrdup(eq);
-			*fullSpec = TRUE;
-		} else if (strcmp(keyw, "hasErrCtl") == 0) {
-			sh->hasErrCtl = (*eq == 'Y' || *eq == 'y' ||
-			    *eq == 'T' || *eq == 't');
-			*fullSpec = TRUE;
-		} else if (strcmp(keyw, "check") == 0) {
-			free(sh->errCheck);
-			sh->errCheck = estrdup(eq);
-			*fullSpec = TRUE;
-		} else if (strcmp(keyw, "ignore") == 0) {
-			free(sh->ignErr);
-			sh->ignErr = estrdup(eq);
-			*fullSpec = TRUE;
-		} else if (strcmp(keyw, "builtins") == 0) {
-			ArgArray_Done(&sh->builtins);
-			brk_string(&sh->builtins, eq, TRUE);
-			qsort(sh->builtins.argv + 1, sh->builtins.argc - 1,
-			    sizeof(char *), sort_builtins);
-			*fullSpec = TRUE;
-		} else if (strcmp(keyw, "meta") == 0) {
-			free(sh->meta);
-			sh->meta = estrdup(eq);
-			*fullSpec = TRUE;
-		} else {
-			Parse_Error(PARSE_FATAL, "unknown keyword in shell "
-			    "specification '%s'", keyw);
-			ArgArray_Done(&aa);
-			JobFreeShell(sh);
-			return (NULL);
-		}
-	}
-	ArgArray_Done(&aa);
-
-	/*
-	 * Some checks (could be more)
-	 */
-	if (*fullSpec) {
-		if ((sh->echoOn != NULL) ^ (sh->echoOff != NULL)) {
-			Parse_Error(PARSE_FATAL, "Shell must have either both "
-			    "echoOff and echoOn or none of them");
-			JobFreeShell(sh);
-			return (NULL);
-		}
-
-		if (sh->echoOn != NULL && sh->echoOff != NULL)
-			sh->hasEchoCtl = TRUE;
-	}
-
-	return (sh);
-}
-
 /**
  * Find a matching shell in 'shells' given its final component.
  *
@@ -2908,12 +2925,11 @@ JobParseShellSpec(const char *spec, Boolean *fullSpec)
 static struct Shell *
 JobMatchShell(const char *name)
 {
-	u_int			sh;
-	Boolean			fullSpec;
+	struct Shell	*sh;
 
-	for (sh = 0; shells[sh][0] != NULL; sh++)
-		if (strcmp(shells[sh][0], name) == 0)
-			return (JobParseShellSpec(shells[sh][1], &fullSpec));
+	TAILQ_FOREACH(sh, &shells, link)
+		if (strcmp(sh->name, name) == 0)
+			return (sh);
 
 	return (NULL);
 }
@@ -3001,44 +3017,49 @@ Job_ParseShell(const char line[])
 			return (FALSE);
 		}
 		JobFreeShell(sh);
-		sh = match;
+		commandShell = match;
 
-	} else {
-		/*
-		 * The user provided a path. If s/he gave nothing else
-		 * (fullSpec is FALSE), try and find a matching shell in the
-		 * ones we know of. Else we just take the specification at its
-		 * word and copy it to a new location. In either case, we need
-		 * to record the path the user gave for the shell.
-		 */
-		if (sh->name == NULL) {
-			/* get the base name as the name */
-			if ((sh->name = strrchr(sh->path, '/')) == NULL) {
-				sh->name = estrdup(sh->path);
-			} else {
-				sh->name = estrdup(sh->name + 1);
-			}
-		}
+		return (TRUE);
+	}
 
-		if (!fullSpec) {
-			if ((match = JobMatchShell(sh->name)) == NULL) {
-				Parse_Error(PARSE_FATAL,
-				    "%s: no matching shell", sh->name);
-				JobFreeShell(sh);
-				return (FALSE);
-			}
-			free(match->path);
-			match->path = sh->path;
-			sh->path = NULL;
-			JobFreeShell(sh);
-			sh = match;
+	/*
+	 * The user provided a path. If s/he gave nothing else
+	 * (fullSpec is FALSE), try and find a matching shell in the
+	 * ones we know of. Else we just take the specification at its
+	 * word and copy it to a new location. In either case, we need
+	 * to record the path the user gave for the shell.
+	 */
+	if (sh->name == NULL) {
+		/* get the base name as the name */
+		if ((sh->name = strrchr(sh->path, '/')) == NULL) {
+			sh->name = estrdup(sh->path);
+		} else {
+			sh->name = estrdup(sh->name + 1);
 		}
 	}
 
-	/* set the new shell */
-	JobFreeShell(commandShell);
-	commandShell = sh;
+	if (!fullSpec) {
+		if ((match = JobMatchShell(sh->name)) == NULL) {
+			Parse_Error(PARSE_FATAL,
+			    "%s: no matching shell", sh->name);
+			JobFreeShell(sh);
+			return (FALSE);
+		}
 
+		/* set the patch on the matching shell */
+		free(match->path);
+		match->path = sh->path;
+		sh->path = NULL;
+
+		JobFreeShell(sh);
+		commandShell = match;
+		return (TRUE);
+	}
+
+	TAILQ_INSERT_HEAD(&shells, sh, link);
+
+	/* set the new shell */
+	commandShell = sh;
 	return (TRUE);
 }
 
@@ -3230,8 +3251,6 @@ Cmd_Exec(const char *cmd, const char **error)
 	*error = NULL;
 	buf = Buf_Init(0);
 
-	if (commandShell == NULL)
-		Shell_Init();
 	/*
 	 * Open a pipe for fetching its output
 	 */
@@ -3881,8 +3900,6 @@ Compat_Run(Lst *targs)
 	GNode	*gn = NULL;	/* Current root target */
 	int	error_cnt;		/* Number of targets not remade due to errors */
 	LstNode	*ln;
-
-	Shell_Init();		/* Set up shell. */
 
 	if (signal(SIGINT, SIG_IGN) != SIG_IGN) {
 		signal(SIGINT, CompatCatchSig);

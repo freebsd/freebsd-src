@@ -71,6 +71,8 @@ void Job_AbortAll(void);
 
 void Proc_Init(void);
 
+void Shell_Init(void);
+
 struct Buffer *Cmd_Exec(const char *, const char **);
 
 void Compat_Run(struct Lst *);
