@@ -1024,7 +1024,7 @@ int	blen;
 	(void) sprintf(t, "%*.*s%u", len, len, ipf->fl_ifname, ipf->fl_unit);
 	t += strlen(t);
 #endif
-#if (defined(__sgi) || defined(__powerpc__))
+#if (defined(__sgi) || defined(__powerpc__) || defined(__arm__))
 	if ((ipf->fl_group[0] == 255) && (ipf->fl_group[1] == '\0'))
 #else
 	if ((ipf->fl_group[0] == -1) && (ipf->fl_group[1] == '\0'))
