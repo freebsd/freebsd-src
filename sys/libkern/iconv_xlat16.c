@@ -57,16 +57,16 @@ iconv_xlat16_open(struct iconv_converter_class *dcp,
 	struct iconv_cspair *csp, struct iconv_cspair *cspf, void **dpp)
 {
 	struct iconv_xlat16 *dp;
-	uint32_t *headp, *idxp, dist = 0;
+	uint32_t *headp, **idxp;
 	int i;
 
 	dp = (struct iconv_xlat16 *)kobj_create((struct kobj_class*)dcp, M_ICONV, M_WAITOK);
-	headp = idxp = (uint32_t *)csp->cp_data;
-	dist = 0x200;
+	headp = (uint32_t *)((caddr_t)csp->cp_data + sizeof(dp->d_table));
+	idxp = (uint32_t **)csp->cp_data;
 	for (i = 0 ; i < 0x200 ; i++) {
 		if (*idxp) {
-			dp->d_table[i] = headp + dist;
-			dist += 0x80;
+			dp->d_table[i] = headp;
+			headp += 0x80;
 		} else {
 			dp->d_table[i] = NULL;
 		}
