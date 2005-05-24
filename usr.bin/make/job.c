@@ -316,6 +316,8 @@ struct Shell {
 
 	ArgArray builtins;
 	char	*meta;
+
+	Boolean	unsetenv;	/* unsetenv("ENV") before exec */
 };
 TAILQ_HEAD(Shells, Shell);
 
@@ -409,7 +411,7 @@ static const char *const shells_init[] = {
 	"quiet='set -' echo='set -v' filter='set -' "
 	"hasErrCtl=Y check='set -e' ignore='set +e' "
 	"echoFlag=v errFlag=e "
-	"meta='" SH_META "' builtins='" SH_BUILTINS "'",
+	"meta='" SH_META "' builtins='" SH_BUILTINS "' unsetenv=T",
 
 	NULL
 };
@@ -646,13 +648,6 @@ Proc_Init()
 	sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
 	sa.sa_handler = catch_child;
 	sigaction(SIGCHLD, &sa, NULL);
-
-#if DEFSHELL == 2
-	/*
-	 * Turn off ENV to make ksh happier.
-	 */
-	unsetenv("ENV");
-#endif
 }
 
 /**
@@ -696,6 +691,11 @@ ProcExec(const ProcStuff *ps)
 		 */
 		if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1)
 			Punt("Cannot dup2: %s", strerror(errno));
+	}
+
+	if (commandShell->unsetenv) {
+		/* for the benfit of ksh */
+		unsetenv("ENV");
 	}
 
 	/*
@@ -2582,6 +2582,7 @@ JobShellDump(const struct Shell *sh)
 	for (i = 1; i < sh->builtins.argc; i++)
 		fprintf(stderr, " '%s'", sh->builtins.argv[i]);
 	fprintf(stderr, "\n  meta='%s'\n", sh->meta);
+	fprintf(stderr, "  unsetenv=%d\n", sh->unsetenv);
 }
 
 /**
@@ -2669,6 +2670,10 @@ JobParseShellSpec(const char *spec, Boolean *fullSpec)
 		} else if (strcmp(keyw, "meta") == 0) {
 			free(sh->meta);
 			sh->meta = estrdup(eq);
+			*fullSpec = TRUE;
+		} else if (strcmp(keyw, "unsetenv") == 0) {
+			sh->unsetenv = (*eq == 'Y' || *eq == 'y' ||
+			    *eq == 'T' || *eq == 't');
 			*fullSpec = TRUE;
 		} else {
 			Parse_Error(PARSE_FATAL, "unknown keyword in shell "
