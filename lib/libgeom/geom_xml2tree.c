@@ -368,6 +368,8 @@ geom_gettree(struct gmesh *gmp)
 	int error;
 
 	p = geom_getxml();
+	if (p == NULL)
+		return (errno);
 	error = geom_xml2tree(gmp, p);
 	free(p);
 	return (error);
