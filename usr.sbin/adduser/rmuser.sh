@@ -301,7 +301,7 @@ if [ ! "$userlist" ]; then
 		show_usage
 		exit 1
 	else
-		echo -n "Please enter one or more user name's: "
+		echo -n "Please enter one or more usernames: "
 		read userlist
 	fi
 fi
