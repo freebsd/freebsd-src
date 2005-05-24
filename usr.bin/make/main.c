@@ -785,6 +785,13 @@ main(int argc, char **argv)
 				 * can be processed correctly */
 	Var_Init(environ);	/* As well as the lists of variables for
 				 * parsing arguments */
+
+	/*
+	 * Initialize the Shell so that we have a shell for != assignments
+	 * on the command line.
+	 */
+	Shell_Init();
+
 	/*
 	 * Initialize various variables.
 	 *	MAKE also gets this name, for compatibility
