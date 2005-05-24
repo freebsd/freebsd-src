@@ -20,7 +20,7 @@ CFLAGS+=-D__FBSDID=__RCSID
 # There is no obvious performance improvement currently.
 # CFLAGS+=-DUSE_KQUEUE
 
-main.o: ${MAKEFILE}
+main.o shell.o: ${MAKEFILE}
 
 # Directive and keyword tables. We use hash tables. These hash tables have been
 # generated with mph which can be found on the usual GNU mirrors.
