@@ -2,6 +2,6 @@
 # a very simple makefile...
 pmake:
 	@echo 'make started.'
-	cc -DDEFSHELL=1 -I. -c *.c
+	cc -DDEFSHELLNAME=\"sh\" -I. -c *.c
 	cc *.o -o pmake
 	@echo 'make completed.'
