@@ -1328,13 +1328,11 @@ moused_ums0_port="/dev/ums0"</programlisting>
   <sect2 id="doc">
     <title>Documentation</title>
 
-    <para>The &man.sched.4bsd.4; and &man.sched.ule.4; manual pages
-      have been added.  These explain the kernel options <literal>SCHED_4BSD</literal>
-      and <literal>SCHED_ULE</literal>, as well as some applicable sysctl variables.</para>
-
-    <para>The &man.ataraid.4; manual page
-      has been added.  It explains the &man.ata.4; software
-      RAID driver.</para>
+    <para>Documentation of existing functionality has been improved by
+      the addition of the following manual pages: &man.ataraid.4;,
+      &man.sched.4bsd.4;, &man.sched.ule.4;, &man.snd.fm801.4;,
+      &man.snd.neomagic.4;, &man.snd.via8233.4;, &man.snd.via82c686.4;,
+      and &man.snd.vibes.4;.</para>
 
     <para>Manual pages in the base system have received a number of
       cleanups, both for content and presentation.  Cross-references
