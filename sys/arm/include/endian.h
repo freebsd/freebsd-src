@@ -87,16 +87,17 @@ __bswap32_var(__uint32_t v)
 {
 	__uint32_t t1;
 
-	t1 = v ^ ((v << 16) | (v >> 16));
-	t1 &= 0xff00ffffU;
-	v = (v >> 8) | (v << 24);
-	v ^= (t1 >> 8);
+	__asm __volatile("eor %1, %0, %0, ror #16\n"
+	    		"bic %1, %1, #0x00ff0000\n"
+			"mov %0, %0, ror #8\n"
+			"eor %0, %0, %1, lsr #8\n"
+			 : "+r" (v), "=r" (t1));
 	
 	return (v);
  }
 
 static __inline __uint16_t
-__bswap16_var(__uint32_t v)
+__bswap16_var(__uint16_t v)
 {
 	__asm __volatile(
 	    "mov    %0, %1, ror #8\n"
