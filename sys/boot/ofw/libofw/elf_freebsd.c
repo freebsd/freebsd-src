@@ -54,7 +54,12 @@ __elfN(ofw_loadfile)(char *filename, u_int64_t dest,
 		return (r);
 
 #if defined(__powerpc__)
-	__syncicache((void *) (*result)->f_addr, (*result)->f_size);
+	/*
+	 * No need to sync the icache for modules: this will
+	 * be done by the kernel after relocation.
+	 */
+	if (!strcmp((*result)->f_type, "elf kernel"))
+		__syncicache((void *) (*result)->f_addr, (*result)->f_size);
 #endif
 	return (0);
 }
