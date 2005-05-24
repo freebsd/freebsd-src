@@ -58,7 +58,7 @@ SUBDIR=	adjkerntz \
 	mount_nfs4 \
 	mount_ntfs \
 	mount_nullfs \
-	mount_reiserfs \
+	${_mount_reiserfs} \
 	mount_std \
 	mount_udf \
 	mount_umapfs \
@@ -114,6 +114,7 @@ _ping6=		ping6
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
+_mount_reiserfs=	mount_reiserfs
 .if ${MACHINE} == "i386"
 _fdisk=		fdisk
 .elif ${MACHINE} == "pc98"
