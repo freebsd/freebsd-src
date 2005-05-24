@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socketvar.h>
 #include <sys/sf_buf.h>
+#include <sys/unistd.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
@@ -106,6 +107,8 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	struct switchframe *sf;
 	struct mdproc *mdp2;
 
+	if ((flags & RFPROC) == 0)
+		return;
 	pcb1 = td1->td_pcb;
 	pcb2 = (struct pcb *)(td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
 #ifdef __XSCALE__
@@ -267,8 +270,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	tf->tf_spsr &= ~PSR_C_bit;
 	tf->tf_r0 = 0;
 	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
-	td->td_pcb->un_32.pcb32_und_sp = td->td_kstack + td->td_kstack_pages
-	    * PAGE_SIZE + USPACE_UNDEF_STACK_TOP;
+	td->td_pcb->un_32.pcb32_und_sp = td->td_kstack + USPACE_UNDEF_STACK_TOP;
 
 	/* Setup to release sched_lock in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
@@ -317,8 +319,7 @@ cpu_thread_setup(struct thread *td)
 	td->td_pcb = (struct pcb *)(td->td_kstack + td->td_kstack_pages * 
 	    PAGE_SIZE) - 1;
 	td->td_frame = (struct trapframe *)
-	    ((u_int)td->td_kstack + td->td_kstack_pages * PAGE_SIZE + 
-	     USPACE_SVC_STACK_TOP - sizeof(struct pcb)) - 1;
+	    ((u_int)td->td_kstack + USPACE_SVC_STACK_TOP - sizeof(struct pcb)) - 1;
 #ifdef __XSCALE__
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
 #endif  
