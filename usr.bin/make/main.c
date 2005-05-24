@@ -663,7 +663,7 @@ main(int argc, char **argv)
 	const char *machine_arch;
 	const char *machine_cpu;
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
-	char *p;
+	const char *p;
 	const char *pathp;
 	const char *path;
 	char mdpath[MAXPATHLEN];

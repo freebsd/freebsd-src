@@ -1144,7 +1144,7 @@ Var_Exists(const char *name, GNode *ctxt)
  * Results:
  *	The value if the variable exists, NULL if it doesn't.
  */
-char *
+const char *
 Var_Value(const char name[], GNode *ctxt)
 {
 	Var	*v;
@@ -2545,12 +2545,13 @@ Var_Print(Lst *vlist, Boolean expandVars)
 {
 	LstNode		*n;
 	const char	*name;
-	char		*v;
-	char		*value;
 
 	LST_FOREACH(n, vlist) {
 		name = Lst_Datum(n);
 		if (expandVars) {
+			char *value;
+			char *v;
+
 			v = emalloc(strlen(name) + 1 + 3);
 			sprintf(v, "${%s}", name);
 
@@ -2560,7 +2561,7 @@ Var_Print(Lst *vlist, Boolean expandVars)
 			free(v);
 			free(value);
 		} else {
-			value = Var_Value(name, VAR_GLOBAL);
+			const char *value = Var_Value(name, VAR_GLOBAL);
 			printf("%s\n", value != NULL ? value : "");
 		}
 	}
