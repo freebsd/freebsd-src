@@ -52,6 +52,7 @@
 .Op Fl m Ar directory
 .Ek
 .Op Fl V Ar variable
+.Op Fl x Ar warning_options
 .Op Ar variable Ns No = Ns Ar value
 .Op Ar target ...
 .Sh DESCRIPTION
@@ -245,6 +246,25 @@ Set the value of the variable
 .Ar variable
 to
 .Ar value .
+.It Fl x Ar warning_options
+Specify extended warning options.
+This option may be specified several times.
+A
+.Ar warning_option
+can be prefixed with 'no' in which case the warning is switched off.
+The currently available options are:
+.Bl -tag -width Ds
+.It Ar dirsyntax
+Warn if anything except blanks and comments follows an
+.Ic .endif
+or
+.Ic .else
+directive.
+.El
+.Pp
+See also the
+.Ic .WARN
+special target.
 .El
 .Pp
 There are seven different types of lines in a makefile: file dependency
@@ -1361,6 +1381,19 @@ command in the file.
 Each source specifies a suffix to
 .Nm .
 If no sources are specified, any previous specified suffices are deleted.
+.It Ic .WARN
+Each source specifies a warning flag as previously described for the
+.Fl x
+command line option.
+Warning flags specified on the command line take precedence over flags
+specified in the Makefile.
+Also command line warning flags are pushed to sub-makes through the
+.Ev MAKEFLAGS
+environment variables so that a warning flag specified on the command
+line will influence all sub-makes.
+Several flags can be specified on a single
+.Ic .WARN
+target by seperating them with blanks.
 .El
 .Sh ENVIRONMENT
 The
