@@ -775,7 +775,8 @@ ArchArchiveTouch(struct arfile *ar, int64_t ts)
 	 * change timestamp, be sure to not NUL-terminated it, but
 	 * to fill with spaces.
 	 */
-	snprintf(ar->hdr.ar_date, sizeof(ar->hdr.ar_date), "%lld", ts);
+	snprintf(ar->hdr.ar_date, sizeof(ar->hdr.ar_date), "%jd",
+	    (intmax_t)ts);
 	memset(ar->hdr.ar_date + strlen(ar->hdr.ar_date),
 	    ' ', sizeof(ar->hdr.ar_date) - strlen(ar->hdr.ar_date));
 
