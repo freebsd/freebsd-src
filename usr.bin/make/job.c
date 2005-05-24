@@ -2719,7 +2719,7 @@ Shell_Init(void)
 	for (i = 0; shells_init[i] != NULL; i++) {
 		sh = JobParseShellSpec(shells_init[i], &fullSpec);
 		TAILQ_INSERT_TAIL(&shells, sh, link);
-		if (i == DEFSHELL)
+		if (strcmp(sh->name, DEFSHELLNAME) == 0)
 			commandShell = sh;
 	}
 }

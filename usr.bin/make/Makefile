@@ -98,12 +98,8 @@ hash:
 # allow you to shoot yourself in the foot if you want to :-)
 
 MAKE_SHELL?=	sh
-.if ${MAKE_SHELL} == "csh"
-CFLAGS+=	-DDEFSHELL=0
-.elif ${MAKE_SHELL} == "sh"
-CFLAGS+=	-DDEFSHELL=1
-.elif ${MAKE_SHELL} == "ksh"
-CFLAGS+=	-DDEFSHELL=2
+.if ${MAKE_SHELL} == "csh" || ${MAKE_SHELL} == "sh" || ${MAKE_SHELL} == "ksh"
+CFLAGS+=	-DDEFSHELLNAME=\"${MAKE_SHELL}\"
 .else
 .error "MAKE_SHELL must be set to one of \"csh\", \"sh\" or \"ksh\"."
 .endif
