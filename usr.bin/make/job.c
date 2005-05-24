@@ -1236,7 +1236,6 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 		 * commands.
 		 */
 		if (DEFAULT != NULL && !Lst_IsEmpty(&DEFAULT->commands)) {
-			char *p1;
 			/*
 			 * Make only looks for a .DEFAULT if the node was
 			 * never the target of an operator, so that's what we
@@ -1248,8 +1247,7 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 			 * .DEFAULT itself.
 			 */
 			Make_HandleUse(DEFAULT, gn);
-			Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), gn);
-			free(p1);
+			Var_Set(IMPSRC, Var_Value(TARGET, gn), gn);
 
 		} else if (Dir_MTime(gn) == 0) {
 			/*
@@ -2788,13 +2786,11 @@ CompatInterrupt(int signo)
 	interrupted = 0;
 
 	if (curTarg != NULL && !Targ_Precious(curTarg)) {
-		char	  *p1;
-		char	  *file = Var_Value(TARGET, curTarg, &p1);
+		char	  *file = Var_Value(TARGET, curTarg);
 
 		if (!noExecute && eunlink(file) != -1) {
 			printf("*** %s removed\n", file);
 		}
-		free(p1);
 	}
 
 	/*
@@ -3109,9 +3105,7 @@ CompatMake(GNode *gn, GNode *pgn)
 		}
 
 		if (Lst_Member(&gn->iParents, pgn) != NULL) {
-			char *p1;
-			Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
-			free(p1);
+			Var_Set(IMPSRC, Var_Value(TARGET, gn), pgn);
 		}
 
 		/*
@@ -3254,11 +3248,7 @@ CompatMake(GNode *gn, GNode *pgn)
 			pgn->make = FALSE;
 
 		} else {
-			char *p1;
-
-			printf("\n\nStop in %s.\n",
-			    Var_Value(".CURDIR", gn, &p1));
-			free(p1);
+			printf("\n\nStop in %s.\n", Var_Value(".CURDIR", gn));
 			exit(1);
 		}
 	} else if (gn->made == ERROR) {
@@ -3269,9 +3259,7 @@ CompatMake(GNode *gn, GNode *pgn)
 		pgn->make = FALSE;
 	} else {
 		if (Lst_Member(&gn->iParents, pgn) != NULL) {
-			char *p1;
-			Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
-			free(p1);
+			Var_Set(IMPSRC, Var_Value(TARGET, gn), pgn);
 		}
 		switch(gn->made) {
 		  case BEINGMADE:

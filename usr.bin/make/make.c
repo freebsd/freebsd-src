@@ -341,12 +341,9 @@ Make_Update(GNode *cgn)
 	GNode	*pgn;	/* the parent node */
 	char	*cname;	/* the child's name */
 	LstNode	*ln;	/* Element in parents and iParents lists */
-	char	*p1;
-	char	*ptr;
 	char	*cpref;
 
-	cname = Var_Value(TARGET, cgn, &p1);
-	free(p1);
+	cname = Var_Value(TARGET, cgn);
 
 	/*
 	 * If the child was actually made, see what its modification time is
@@ -464,7 +461,7 @@ Make_Update(GNode *cgn)
 	 * Set the .PREFIX and .IMPSRC variables for all the implied parents
 	 * of this node.
 	 */
-	cpref = Var_Value(PREFIX, cgn, &ptr);
+	cpref = Var_Value(PREFIX, cgn);
 	for (ln = Lst_First(&cgn->iParents); ln != NULL; ln = Lst_Succ(ln)) {
 		pgn = Lst_Datum(ln);
 		if (pgn->make) {
@@ -472,7 +469,6 @@ Make_Update(GNode *cgn)
 			Var_Set(PREFIX, cpref, pgn);
 		}
 	}
-	free(ptr);
 }
 
 /**
@@ -498,7 +494,6 @@ Make_DoAllVar(GNode *gn)
 	LstNode	*ln;
 	GNode	*cgn;
 	char	*child;
-	char	*p1;
 
 	LST_FOREACH(ln, &gn->children) {
 		/*
@@ -517,7 +512,6 @@ Make_DoAllVar(GNode *gn)
 		cgn = Lst_Datum(ln);
 
 		if ((cgn->type & (OP_EXEC | OP_USE | OP_INVISIBLE)) == 0) {
-			p1 = NULL;
 			if (OP_NOP(cgn->type)) {
 				/*
 				 * this node is only source; use the specific
@@ -525,7 +519,7 @@ Make_DoAllVar(GNode *gn)
 				 */
 				child = cgn->path ? cgn->path : cgn->name;
 			} else
-				child = Var_Value(TARGET, cgn, &p1);
+				child = Var_Value(TARGET, cgn);
 			Var_Append(ALLSRC, child, gn);
 			if (gn->type & OP_JOIN) {
 				if (cgn->made == MADE) {
@@ -554,7 +548,6 @@ Make_DoAllVar(GNode *gn)
 				 */
 				Var_Append(OODATE, child, gn);
 			}
-			free(p1);
 		}
 	}
 
@@ -566,8 +559,7 @@ Make_DoAllVar(GNode *gn)
 	}
 
 	if (gn->type & OP_JOIN) {
-		Var_Set(TARGET, Var_Value(ALLSRC, gn, &p1), gn);
-		free(p1);
+		Var_Set(TARGET, Var_Value(ALLSRC, gn), gn);
 	}
 }
 
