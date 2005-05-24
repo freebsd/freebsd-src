@@ -570,7 +570,7 @@ struct bktr_softc {
     int         vbiinsert;      /* Position for next write into circular buffer */
     int         vbistart;       /* Position of last read from circular buffer */
     int         vbisize;        /* Number of bytes in the circular buffer */
-    u_long	vbi_sequence_number;	/* sequence number for VBI */
+    uint32_t	vbi_sequence_number;	/* sequence number for VBI */
     int		vbi_read_blocked;	/* user process blocked on read() from /dev/vbi */
     struct selinfo vbi_select;	/* Data used by select() on /dev/vbi */
     
