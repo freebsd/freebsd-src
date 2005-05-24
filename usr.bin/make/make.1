@@ -1325,6 +1325,11 @@ character not starts with a shell builtin it is executed directly without
 invoking a shell.
 When one of these strings (or both) is empty all commands are executed
 through a shell.
+.It Va unsetenv
+If true remove the
+.Ev ENV
+environment variable before executing any command.
+This is useful for the Korn-shell ksh.
 .El
 .Pp
 Values that are strings must be surrounded by double quotes.
