@@ -193,6 +193,7 @@ SUBDIR=	${_3dfx} \
 	rc \
 	rc4 \
 	re \
+	${_reiserfs} \
 	rl \
 	rp \
 	rue \
@@ -353,6 +354,7 @@ _pecoff=	pecoff
 _pst=		pst
 _puc=		puc
 _ray=		ray
+_reiserfs=	reiserfs
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
