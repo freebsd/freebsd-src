@@ -298,7 +298,6 @@ ENTRY(cpu_switch)
 	ldr	r5, [r9, #(PCB_DACR)]		/* r5 = new DACR */
 	mov	r2, #DOMAIN_CLIENT
 	cmp     r5, r2, lsl #(PMAP_DOMAIN_KERNEL * 2) /* Sw to kernel thread? */
-	mcreq	p15, 0, r5, c3, c0, 0	/* Update DACR for new context */
 	beq     .Lcs_context_switched        /* Yup. Don't flush cache */
 	mrc	p15, 0, r0, c3, c0, 0		/* r0 = old DACR */
 	/*
@@ -462,6 +461,7 @@ ENTRY(fork_trampoline)
 	mrs	r0, cpsr
 	orr	r0, r0, #(I32_bit)
 	msr	cpsr_c, r0
+	DO_AST
 	PULLFRAME
 
 	movs	pc, lr			/* Exit */
