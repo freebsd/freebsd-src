@@ -192,7 +192,7 @@ struct tcpcb {
 	int	sack_enable;		/* enable SACK for this connection */
 	int	snd_numholes;		/* number of holes seen by sender */
 	TAILQ_HEAD(, sackhole) snd_holes;	/* SACK scoreboard (sorted) */
-	tcp_seq	rcv_lastsack;		/* last seq number(+1) sack'd by rcv'r*/
+	tcp_seq	snd_fack;		/* last seq number(+1) sack'd by rcv'r*/
 	int	rcv_numsacks;		/* # distinct sack blks present */
 	struct sackblk sackblks[MAX_SACK_BLKS]; /* seq nos. of sack blocks */
 	tcp_seq sack_newdata;		/* New data xmitted in this recovery
