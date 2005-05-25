@@ -36,9 +36,9 @@
 #include <net/if.h>
 #include <net/if_mib.h>
 
-#include "snmpmod.h"
-#include "snmp_mibII.h"
-#include "snmp_atm.h"
+#include <bsnmp/snmpmod.h>
+#include <bsnmp/snmp_mibII.h>
+#include <bsnmp/snmp_atm.h>
 
 /*
  * Event registrations
