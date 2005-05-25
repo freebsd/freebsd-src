@@ -136,8 +136,7 @@ extern char fusubailout[];
 int last_fault_code;	/* For the benefit of pmap_fault_fixup() */
 #endif
 
-#if defined(CPU_ARM3) || defined(CPU_ARM6) || \
-    defined(CPU_ARM7) || defined(CPU_ARM7TDMI)
+#if defined(CPU_ARM7TDMI)
 /* These CPUs may need data/prefetch abort fixups */
 #define	CPU_ABORT_FIXUP_REQUIRED
 #endif
