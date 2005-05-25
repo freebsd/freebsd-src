@@ -114,12 +114,12 @@ _ping6=		ping6
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-_mount_reiserfs=	mount_reiserfs
 .if ${MACHINE} == "i386"
 _fdisk=		fdisk
 .elif ${MACHINE} == "pc98"
 _fdisk_pc98=	fdisk_pc98
 .endif
+_mount_reiserfs= mount_reiserfs
 _sconfig=	sconfig
 .endif
 
