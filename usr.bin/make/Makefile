@@ -20,6 +20,12 @@ CFLAGS+=-D__FBSDID=__RCSID
 # There is no obvious performance improvement currently.
 # CFLAGS+=-DUSE_KQUEUE
 
+# Make object files which depend on preprocessor symbols defined in
+# the Makefile which are not compilation options but rather configuration
+# options dependend on the Makefile. main.c needs MAKE_VERSION while
+# shell.c uses DEFSHELLNAME. This will cause recompilation in the case
+# the definition is changed in the makefile. It will of course not cause
+# recompilation if one does 'make MAKE_SHELL=csh'.
 main.o shell.o: ${MAKEFILE}
 
 # Directive and keyword tables. We use hash tables. These hash tables have been
