@@ -444,7 +444,7 @@ mib_extract_addrs(int addrs, u_char *info, struct sockaddr **out)
 
 	for (i = 0; i < RTAX_MAX; i++) {
 		if ((addrs & (1 << i)) != 0) {
-			*out = (struct sockaddr *)info;
+			*out = (struct sockaddr *)(void *)info;
 			info += roundup((*out)->sa_len, sizeof(long));
 		} else
 			*out = NULL;
