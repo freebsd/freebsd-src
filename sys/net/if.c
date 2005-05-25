@@ -530,13 +530,52 @@ if_attachdomain1(struct ifnet *ifp)
 }
 
 /*
+ * Remove any network addresses from an interface.
+ */
+
+void
+if_purgeaddrs(struct ifnet *ifp)
+{
+	struct ifaddr *ifa, *next;
+
+	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
+
+		if (ifa->ifa_addr->sa_family == AF_LINK)
+			continue;
+#ifdef INET
+		/* XXX: Ugly!! ad hoc just for INET */
+		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+			struct ifaliasreq ifr;
+
+			bzero(&ifr, sizeof(ifr));
+			ifr.ifra_addr = *ifa->ifa_addr;
+			if (ifa->ifa_dstaddr)
+				ifr.ifra_broadaddr = *ifa->ifa_dstaddr;
+			if (in_control(NULL, SIOCDIFADDR, (caddr_t)&ifr, ifp,
+			    NULL) == 0)
+				continue;
+		}
+#endif /* INET */
+#ifdef INET6
+		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET6) {
+			in6_purgeaddr(ifa);
+			/* ifp_addrhead is already updated */
+			continue;
+		}
+#endif /* INET6 */
+		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
+		IFAFREE(ifa);
+	}
+}
+
+/*
  * Detach an interface, removing it from the
  * list of "active" interfaces.
  */
 void
 if_detach(struct ifnet *ifp)
 {
-	struct ifaddr *ifa, *next;
+	struct ifaddr *ifa;
 	struct radix_node_head	*rnh;
 	int s;
 	int i;
@@ -568,35 +607,7 @@ if_detach(struct ifnet *ifp)
 		altq_detach(&ifp->if_snd);
 #endif
 
-	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; ifa = next) {
-		next = TAILQ_NEXT(ifa, ifa_link);
-
-		if (ifa->ifa_addr->sa_family == AF_LINK)
-			continue;
-#ifdef INET
-		/* XXX: Ugly!! ad hoc just for INET */
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
-			struct ifaliasreq ifr;
-
-			bzero(&ifr, sizeof(ifr));
-			ifr.ifra_addr = *ifa->ifa_addr;
-			if (ifa->ifa_dstaddr)
-				ifr.ifra_broadaddr = *ifa->ifa_dstaddr;
-			if (in_control(NULL, SIOCDIFADDR, (caddr_t)&ifr, ifp,
-			    NULL) == 0)
-				continue;
-		}
-#endif /* INET */
-#ifdef INET6
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET6) {
-			in6_purgeaddr(ifa);
-			/* ifp_addrhead is already updated */
-			continue;
-		}
-#endif /* INET6 */
-		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		IFAFREE(ifa);
-	}
+	if_purgeaddrs(ifp);
 
 #ifdef INET6
 	/*
