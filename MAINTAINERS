@@ -113,7 +113,11 @@ Please remove stale entries from both their origin, and this file.
 Please also consider removing the lines from the files listed below and
 stating your preferences here instead.
 
+List below generated with:
+$ cd /usr/src; find */* -type f|xargs egrep 'MAINTAINER[ <tab>]*='
+
 bin/dd/Makefile:MAINTAINER=	green@FreeBSD.org
+contrib/cvs/FREEBSD-upgrade:MAINTAINER=	peter@FreeBSD.org
 games/fortune/datfiles/Makefile:MAINTAINER=	jkh
 gnu/usr.bin/cvs/Makefile:MAINTAINER=	peter@FreeBSD.org
 gnu/usr.bin/cvs/contrib/Makefile:MAINTAINER=	peter@FreeBSD.org
@@ -123,9 +127,13 @@ gnu/usr.bin/cvs/doc/Makefile:MAINTAINER=	peter@FreeBSD.org
 gnu/usr.bin/cvs/lib/Makefile:MAINTAINER=	peter@FreeBSD.org
 gnu/usr.bin/cvs/libdiff/Makefile:MAINTAINER=	peter@FreeBSD.org
 gnu/usr.bin/man/apropos/Makefile:MAINTAINER= wosch
+lib/libc/posix1e/Makefile.inc:MAINTAINER=	rwatson@FreeBSD.org
 lib/libusbhid/Makefile:MAINTAINER=	n_hibma@FreeBSD.ORG
 lib/libz/Makefile:MAINTAINER=peter@FreeBSD.org
+sbin/dhclient/Makefile.inc:MAINTAINER=     mbr
 sys/compat/svr4/Makefile:MAINTAINER=	newton@freebsd.org
+sys/dev/asr/MAINTAINER:MAINTAINER = obrien@freebsd, scott_long@btc.adaptec.com, mark_salyzyn@adaptec.com
+sys/dev/bktr/CHANGELOG.TXT: * MAINTAINER = Roger Hardiman <roger@freebsd.org>
 sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
 sys/modules/bktr/bktr_mem/Makefile:MAINTAINER=	roger@freebsd.org
 sys/modules/cam/Makefile:MAINTAINER=	n_hibma@freebsd.org
@@ -147,6 +155,5 @@ sys/modules/usb/Makefile:MAINTAINER=	n_hibma@freebsd.org
 sys/modules/uscanner/Makefile:MAINTAINER=	n_hibma@freebsd.org
 tools/tools/sysdoc/Makefile:MAINTAINER=	trhodes@FreeBSD.org
 usr.bin/locate/Makefile:MAINTAINER= wosch
-usr.sbin/ntp/doc/Makefile:MAINTAINER=	sheldonh
 usr.sbin/pppstats/Makefile:MAINTAINER=	peter@freebsd.org
 usr.sbin/zic/Makefile:MAINTAINER=	wollman@FreeBSD.org
