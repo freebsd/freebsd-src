@@ -257,6 +257,8 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 
 	g_trace(G_T_TOPOLOGY, "mbr_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
+	if (!strcmp(pp->geom->class->name, MBR_CLASS_NAME))
+		return (NULL);
 	gp = g_slice_new(mp, NDOSPART, pp, &cp, &ms, sizeof *ms, g_mbr_start);
 	if (gp == NULL)
 		return (NULL);
