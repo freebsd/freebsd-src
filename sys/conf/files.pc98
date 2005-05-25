@@ -159,6 +159,15 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_pc98.c		standard
 geom/geom_pc98_enc.c		standard
+gnu/reiserfs/reiserfs_hashes.c	optional reiserfs \
+	warning "kernel contains GPL contaminated ReiserFS filesystem"
+gnu/reiserfs/reiserfs_inode.c	optional reiserfs
+gnu/reiserfs/reiserfs_item_ops.c optional reiserfs
+gnu/reiserfs/reiserfs_namei.c	optional reiserfs
+gnu/reiserfs/reiserfs_prints.c	optional reiserfs
+gnu/reiserfs/reiserfs_stree.c	optional reiserfs
+gnu/reiserfs/reiserfs_vfsops.c	optional reiserfs
+gnu/reiserfs/reiserfs_vnops.c	optional reiserfs
 i386/bios/apm.c			optional apm
 #i386/i386/apic_vector.s		optional apic
 i386/i386/atomic.c		standard				\
