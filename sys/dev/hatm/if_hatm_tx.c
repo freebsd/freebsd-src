@@ -94,7 +94,7 @@ __FBSDID("$FreeBSD$");
 #define	hatm_get_txmbuf(SC)						\
 	do {								\
 		if (++sc->txmbuf > 20000)				\
-			DBG(sc,	TX ("txmbuf %u", sc->txmbuf));		\
+			DBG(sc,	TX, ("txmbuf %u", sc->txmbuf));		\
 		else if (sc->txmbuf == 1)				\
 			DBG(sc, TX, ("txmbuf leaves 0"));		\
 	} while (0)
