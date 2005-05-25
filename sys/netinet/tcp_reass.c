@@ -1840,9 +1840,8 @@ trimthenstep6:
 				else if (++tp->t_dupacks > tcprexmtthresh ||
 					 ((tcp_do_newreno || tp->sack_enable) &&
 					  IN_FASTRECOVERY(tp))) {
-
                                         if (tp->sack_enable && IN_FASTRECOVERY(tp)) {
-						int data_in_pipe;
+						int awnd;
 						
 						/*
 						 * Compute the amount of data in flight first.
@@ -1850,9 +1849,9 @@ trimthenstep6:
 						 * we have less than 1/2 the original window's 	
 						 * worth of data in flight.
 						 */
-						data_in_pipe = (tp->snd_nxt - tp->rcv_lastsack) +
+						awnd = (tp->snd_nxt - tp->snd_fack) +
 							tp->sackhint.sack_bytes_rexmit;
-						if (data_in_pipe < tp->snd_ssthresh) {
+						if (awnd < tp->snd_ssthresh) {
 							tp->snd_cwnd += tp->t_maxseg;
 							if (tp->snd_cwnd > tp->snd_ssthresh)
 								tp->snd_cwnd = tp->snd_ssthresh;
