@@ -389,12 +389,12 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 	}
 	if (TAILQ_EMPTY(&tp->snd_holes))
 		/*
-		 * Empty scoreboard. Need to initialize rcv_lastsack (it may be
+		 * Empty scoreboard. Need to initialize snd_fack (it may be
 		 * uninitialized or have a bogus value). Scoreboard holes
 		 * (from the sack blocks received) are created later below (in
 		 * the logic that adds holes to the tail of the scoreboard).
 		 */
-		tp->rcv_lastsack = tp->snd_una;
+		tp->snd_fack = tp->snd_una;
 	next_sack_blk = 0;
 	cur = TAILQ_FIRST(&tp->snd_holes);
 	/*
@@ -403,7 +403,7 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 	 */
 	while ((next_sack_blk < num_sack_blks) && (cur != NULL)) {
 		sack = sack_blocks[next_sack_blk];
-		if (SEQ_LT(tp->rcv_lastsack, sack.start))
+		if (SEQ_LT(tp->snd_fack, sack.start))
 			/*
 			 * The sack block acks data to the right of all the holes
 			 * in the scoreboard. No need to iterate over the
@@ -495,19 +495,19 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 		 * sack.start and sack.end seem redundant, but they're necessary
 		 * to deal with overlapping sack blocks.
 		 */
-		if (SEQ_LT(tp->rcv_lastsack, sack.start)) {
+		if (SEQ_LT(tp->snd_fack, sack.start)) {
 			/* Need to append new hole at end. */
-			temp = tcp_sackhole_alloc(tp, tp->rcv_lastsack,
+			temp = tcp_sackhole_alloc(tp, tp->snd_fack,
 						  sack.start);
 			if (temp == NULL)
 				continue; /* ENOBUFS */
 			TAILQ_INSERT_TAIL(&tp->snd_holes, temp, scblink);
-			tp->rcv_lastsack = sack.end;
+			tp->snd_fack = sack.end;
 			if (tp->sackhint.nexthole == NULL)
 				tp->sackhint.nexthole = temp;
 		}
-		if (SEQ_LT(tp->rcv_lastsack, sack.end))
-			tp->rcv_lastsack = sack.end;
+		if (SEQ_LT(tp->snd_fack, sack.end))
+			tp->snd_fack = sack.end;
 	}
 	return (0);
 }
@@ -689,12 +689,12 @@ tcp_sack_adjust(struct tcpcb *tp)
 	INP_LOCK_ASSERT(tp->t_inpcb);
 	if (cur == NULL)
 		return; /* No holes */
-	if (SEQ_GEQ(tp->snd_nxt, tp->rcv_lastsack))
+	if (SEQ_GEQ(tp->snd_nxt, tp->snd_fack))
 		return; /* We're already beyond any SACKed blocks */
 	/*
 	 * Two cases for which we want to advance snd_nxt:
 	 * i) snd_nxt lies between end of one hole and beginning of another
-	 * ii) snd_nxt lies between end of last hole and rcv_lastsack
+	 * ii) snd_nxt lies between end of last hole and snd_fack
 	 */
 	while ((p = TAILQ_NEXT(cur, scblink)) != NULL) {
 		if (SEQ_LT(tp->snd_nxt, cur->end))
@@ -708,6 +708,6 @@ tcp_sack_adjust(struct tcpcb *tp)
 	}
 	if (SEQ_LT(tp->snd_nxt, cur->end))
 		return;
-	tp->snd_nxt = tp->rcv_lastsack;
+	tp->snd_nxt = tp->snd_fack;
 	return;
 }
