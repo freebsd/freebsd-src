@@ -628,7 +628,7 @@ CondToken(Boolean doEval)
 			}
 			free(string);
 			if (rhs == condExpr) {
-				if (!qt && *cp == ')')
+				if (*cp == '\0' || (!qt && *cp == ')'))
 					condExpr = cp;
 				else
 					condExpr = cp + 1;
