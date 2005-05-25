@@ -1438,6 +1438,12 @@ static int
 g_mirror_try_destroy(struct g_mirror_softc *sc)
 {
 
+	if (sc->sc_rootmount != NULL) {
+		G_MIRROR_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
+		    sc->sc_rootmount);
+		root_mount_rel(sc->sc_rootmount);
+		sc->sc_rootmount = NULL;
+	}
 	g_topology_lock();
 	if (!g_mirror_can_destroy(sc)) {
 		g_topology_unlock();
@@ -1891,19 +1897,16 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			 * Disks went down in starting phase, so destroy
 			 * device.
 			 */
-			G_MIRROR_DEBUG(1, "root_mount_rel[1] %p", sc->sc_rootmount);
-			root_mount_rel(sc->sc_rootmount);
-			sc->sc_rootmount = NULL;
 			callout_drain(&sc->sc_callout);
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
+			G_MIRROR_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
+			    sc->sc_rootmount);
+			root_mount_rel(sc->sc_rootmount);
+			sc->sc_rootmount = NULL;
 			return;
 		} else {
 			return;
 		}
-
-		G_MIRROR_DEBUG(1, "root_mount_rel[2] %p", sc->sc_rootmount);
-		root_mount_rel(sc->sc_rootmount);
-		sc->sc_rootmount = NULL;
 
 		/*
 		 * Activate all disks with the biggest syncid.
@@ -1923,6 +1926,10 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			if (ndisks == 0) {
 				/* No valid disks found, destroy device. */
 				sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
+				G_MIRROR_DEBUG(1, "root_mount_rel[%u] %p",
+				    __LINE__, sc->sc_rootmount);
+				root_mount_rel(sc->sc_rootmount);
+				sc->sc_rootmount = NULL;
 				return;
 			}
 		} else {
@@ -2054,7 +2061,6 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			if (state == G_MIRROR_DISK_STATE_STALE)
 				sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID;
 		}
-		wakeup(&g_mirror_class);
 		break;
 	    }
 	case G_MIRROR_DEVICE_STATE_RUNNING:
@@ -2077,6 +2083,12 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			 */
 			if (sc->sc_provider == NULL)
 				g_mirror_launch_provider(sc);
+		}
+		if (sc->sc_rootmount != NULL) {
+			G_MIRROR_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
+			    sc->sc_rootmount);
+			root_mount_rel(sc->sc_rootmount);
+			sc->sc_rootmount = NULL;
 		}
 		/*
 		 * Genid should be bumped immediately, so do it here.
