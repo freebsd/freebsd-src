@@ -50,43 +50,13 @@
 /*
  * Step 1: Count the number of CPU types configured into the kernel.
  */
-#if defined(_KERNEL_OPT)
-#define	CPU_NTYPES	(defined(CPU_ARM2) + defined(CPU_ARM250) +	\
-			 defined(CPU_ARM3) +				\
-			 defined(CPU_ARM6) + defined(CPU_ARM7) +	\
-			 defined(CPU_ARM7TDMI) +			\
-			 defined(CPU_ARM8) + defined(CPU_ARM9) +	\
-			 defined(CPU_ARM10) +				\
-			 defined(CPU_SA110) + defined(CPU_SA1100) +	\
-			 defined(CPU_SA1110) +				\
-			 defined(CPU_IXP12X0) +				\
-			 defined(CPU_XSCALE_80200) +			\
-			 defined(CPU_XSCALE_80321) +			\
-			 defined(CPU_XSCALE_PXA2X0) + 			\
-			 defined(CPU_XSCALE_IXP425))
-#else
 #define	CPU_NTYPES	2
-#endif /* _KERNEL_OPT */
 
 /*
  * Step 2: Determine which ARM architecture versions are configured.
  */
-#if !defined(_KERNEL_OPT) ||						\
-    (defined(CPU_ARM2) || defined(CPU_ARM250) || defined(CPU_ARM3))
-#define	ARM_ARCH_2	1
-#else
-#define	ARM_ARCH_2	0
-#endif
 
-#if !defined(_KERNEL_OPT) ||						\
-    (defined(CPU_ARM6) || defined(CPU_ARM7))
-#define	ARM_ARCH_3	1
-#else
-#define	ARM_ARCH_3	0
-#endif
-
-#if !defined(_KERNEL_OPT) ||						\
-    (defined(CPU_ARM7TDMI) || defined(CPU_ARM8) || defined(CPU_ARM9) ||	\
+#if (defined(CPU_ARM7TDMI) || defined(CPU_ARM8) || defined(CPU_ARM9) ||	\
      defined(CPU_ARM10) || defined(CPU_SA110) || defined(CPU_SA1100) || \
      defined(CPU_SA1110) || defined(CPU_IXP12X0) || defined(CPU_XSCALE_IXP425))
 #define	ARM_ARCH_4	1
@@ -94,15 +64,14 @@
 #define	ARM_ARCH_4	0
 #endif
 
-#if !defined(_KERNEL_OPT) ||						\
-    (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
+#if (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
      defined(CPU_XSCALE_PXA2X0))
 #define	ARM_ARCH_5	1
 #else
 #define	ARM_ARCH_5	0
 #endif
 
-#define	ARM_NARCH	(ARM_ARCH_2 + ARM_ARCH_3 + ARM_ARCH_4 + ARM_ARCH_5)
+#define	ARM_NARCH	(ARM_ARCH_4 + ARM_ARCH_5)
 #if ARM_NARCH == 0 && !defined(_KLD_MODULE)
 #error ARM_NARCH is 0
 #endif
@@ -161,8 +130,7 @@
  *	ARM_XSCALE_PMU		Performance Monitoring Unit on 80200 and 80321
  */
 
-#if !defined(_KERNEL_OPT) ||						\
-    (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321))
+#if (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321))
 #define ARM_XSCALE_PMU	1
 #else
 #define ARM_XSCALE_PMU	0
