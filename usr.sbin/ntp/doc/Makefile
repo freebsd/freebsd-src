@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	sheldonh
-
 FILESDIR=	${SHAREDIR}/doc/ntp
 
 FILES=	accopt.htm assoc.htm audio.htm authopt.htm biblio.htm build.htm \
