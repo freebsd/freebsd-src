@@ -2083,12 +2083,12 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			 */
 			if (sc->sc_provider == NULL)
 				g_mirror_launch_provider(sc);
-		}
-		if (sc->sc_rootmount != NULL) {
-			G_MIRROR_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
-			    sc->sc_rootmount);
-			root_mount_rel(sc->sc_rootmount);
-			sc->sc_rootmount = NULL;
+			if (sc->sc_rootmount != NULL) {
+				G_MIRROR_DEBUG(1, "root_mount_rel[%u] %p",
+				    __LINE__, sc->sc_rootmount);
+				root_mount_rel(sc->sc_rootmount);
+				sc->sc_rootmount = NULL;
+			}
 		}
 		/*
 		 * Genid should be bumped immediately, so do it here.
