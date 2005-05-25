@@ -408,6 +408,7 @@ tapclose(dev, foo, bar, td)
 	int		 bar;
 	struct thread	*td;
 {
+	struct ifaddr *ifa;
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = &tp->tap_if;
 	int			s;
@@ -426,24 +427,10 @@ tapclose(dev, foo, bar, td)
 		s = splimp();
 		if_down(ifp);
 		if (ifp->if_flags & IFF_RUNNING) {
-			/* find internet addresses and delete routes */
-			struct ifaddr	*ifa = NULL;
-
-			/* In desparate need of ifaddr locking. */
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				if (ifa->ifa_addr->sa_family == AF_INET) {
-					rtinit(ifa, (int)RTM_DELETE, 0);
-
-					/* remove address from interface */
-					bzero(ifa->ifa_addr,
-						   sizeof(*(ifa->ifa_addr)));
-					bzero(ifa->ifa_dstaddr,
-						   sizeof(*(ifa->ifa_dstaddr)));
-					bzero(ifa->ifa_netmask,
-						   sizeof(*(ifa->ifa_netmask)));
-				}
+				rtinit(ifa, (int)RTM_DELETE, 0);
 			}
-
+			if_purgeaddrs(ifp);
 			ifp->if_flags &= ~IFF_RUNNING;
 		}
 		splx(s);
