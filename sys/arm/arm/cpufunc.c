@@ -107,183 +107,6 @@ int	arm_dcache_align_mask;
 /* 1 == use cpu_sleep(), 0 == don't */
 int cpu_do_powersave;
 int ctrl;
-#ifdef CPU_ARM3
-struct cpu_functions arm3_cpufuncs = {
-	/* CPU functions */
-	
-	cpufunc_id,			/* id			*/
-	cpufunc_nullop,			/* cpwait		*/
-
-	/* MMU functions */
-
-	arm3_control,			/* control		*/
-	NULL,				/* domain		*/
-	NULL,				/* setttb		*/
-	NULL,				/* faultstatus		*/
-	NULL,				/* faultaddress		*/
-
-	/* TLB functions */
-
-	cpufunc_nullop,			/* tlb_flushID		*/
-	(void *)cpufunc_nullop,		/* tlb_flushID_SE	*/
-	cpufunc_nullop,			/* tlb_flushI		*/
-	(void *)cpufunc_nullop,		/* tlb_flushI_SE	*/
-	cpufunc_nullop,			/* tlb_flushD		*/
-	(void *)cpufunc_nullop,		/* tlb_flushD_SE	*/
-
-	/* Cache operations */
-
-	cpufunc_nullop,			/* icache_sync_all	*/
-	(void *) cpufunc_nullop,	/* icache_sync_range	*/
-
-	arm3_cache_flush,		/* dcache_wbinv_all	*/
-	(void *)arm3_cache_flush,	/* dcache_wbinv_range	*/
-	(void *)arm3_cache_flush,	/* dcache_inv_range	*/
-	(void *)cpufunc_nullop,		/* dcache_wb_range	*/
-
-	arm3_cache_flush,		/* idcache_wbinv_all	*/
-	(void *)arm3_cache_flush,	/* idcache_wbinv_range	*/
-
-	/* Other functions */
-
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
-	cpufunc_nullop,			/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
-
-	(void *)cpufunc_nullop,		/* sleep		*/
-
-	/* Soft functions */
-
-	early_abort_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
-
-	NULL,				/* context_switch	*/
-
-	(void *)cpufunc_nullop		/* cpu setup		*/
-
-};
-#endif	/* CPU_ARM3 */
-
-#ifdef CPU_ARM6
-struct cpu_functions arm6_cpufuncs = {
-	/* CPU functions */
-	
-	cpufunc_id,			/* id			*/
-	cpufunc_nullop,			/* cpwait		*/
- 
-	/* MMU functions */
-
-	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* domain		*/
-	arm67_setttb,			/* setttb		*/
-	cpufunc_faultstatus,		/* faultstatus		*/
-	cpufunc_faultaddress,		/* faultaddress		*/
-
-	/* TLB functions */
-
-	arm67_tlb_flush,		/* tlb_flushID		*/
-	arm67_tlb_purge,		/* tlb_flushID_SE	*/
-	arm67_tlb_flush,		/* tlb_flushI		*/
-	arm67_tlb_purge,		/* tlb_flushI_SE	*/
-	arm67_tlb_flush,		/* tlb_flushD		*/
-	arm67_tlb_purge,		/* tlb_flushD_SE	*/
-
-	/* Cache operations */
-
-	cpufunc_nullop,			/* icache_sync_all	*/
-	(void *) cpufunc_nullop,	/* icache_sync_range	*/
-
-	arm67_cache_flush,		/* dcache_wbinv_all	*/
-	(void *)arm67_cache_flush,	/* dcache_wbinv_range	*/
-	(void *)arm67_cache_flush,	/* dcache_inv_range	*/
-	(void *)cpufunc_nullop,		/* dcache_wb_range	*/
-
-	arm67_cache_flush,		/* idcache_wbinv_all	*/
-	(void *)arm67_cache_flush,	/* idcache_wbinv_range	*/
-
-	/* Other functions */
-
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
-	cpufunc_nullop,			/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
-
-	(void *)cpufunc_nullop,		/* sleep		*/
-
-	/* Soft functions */
-
-#ifdef ARM6_LATE_ABORT
-	late_abort_fixup,		/* dataabt_fixup	*/
-#else
-	early_abort_fixup,		/* dataabt_fixup	*/
-#endif
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
-
-	arm67_context_switch,		/* context_switch	*/
-
-	arm6_setup			/* cpu setup		*/
-
-};
-#endif	/* CPU_ARM6 */
-
-#ifdef CPU_ARM7
-struct cpu_functions arm7_cpufuncs = {
-	/* CPU functions */
-	
-	cpufunc_id,			/* id			*/
-	cpufunc_nullop,			/* cpwait		*/
-
-	/* MMU functions */
-
-	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* domain		*/
-	arm67_setttb,			/* setttb		*/
-	cpufunc_faultstatus,		/* faultstatus		*/
-	cpufunc_faultaddress,		/* faultaddress		*/
-
-	/* TLB functions */
-
-	arm67_tlb_flush,		/* tlb_flushID		*/
-	arm67_tlb_purge,		/* tlb_flushID_SE	*/
-	arm67_tlb_flush,		/* tlb_flushI		*/
-	arm67_tlb_purge,		/* tlb_flushI_SE	*/
-	arm67_tlb_flush,		/* tlb_flushD		*/
-	arm67_tlb_purge,		/* tlb_flushD_SE	*/
-
-	/* Cache operations */
-
-	cpufunc_nullop,			/* icache_sync_all	*/
-	(void *)cpufunc_nullop,		/* icache_sync_range	*/
-
-	arm67_cache_flush,		/* dcache_wbinv_all	*/
-	(void *)arm67_cache_flush,	/* dcache_wbinv_range	*/
-	(void *)arm67_cache_flush,	/* dcache_inv_range	*/
-	(void *)cpufunc_nullop,		/* dcache_wb_range	*/
-
-	arm67_cache_flush,		/* idcache_wbinv_all	*/
-	(void *)arm67_cache_flush,	/* idcache_wbinv_range	*/
-
-	/* Other functions */
-
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
-	cpufunc_nullop,			/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
-
-	(void *)cpufunc_nullop,		/* sleep		*/
-
-	/* Soft functions */
-
-	late_abort_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
-
-	arm67_context_switch,		/* context_switch	*/
-
-	arm7_setup			/* cpu setup		*/
-
-};
-#endif	/* CPU_ARM7 */
 
 #ifdef CPU_ARM7TDMI
 struct cpu_functions arm7tdmi_cpufuncs = {
@@ -836,9 +659,8 @@ get_cachetype_cp15()
 }
 #endif /* ARM7TDMI || ARM8 || ARM9 || XSCALE */
 
-#if defined(CPU_ARM2) || defined(CPU_ARM250) || defined(CPU_ARM3) || \
-    defined(CPU_ARM6) || defined(CPU_ARM7) || defined(CPU_SA110) || \
-    defined(CPU_SA1100) || defined(CPU_SA1110) || defined(CPU_IXP12X0)
+#if defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) || \
+    defined(CPU_IXP12X0)
 /* Cache information for CPUs without cache type registers. */
 struct cachetab {
 	u_int32_t ct_cpuid;
@@ -854,14 +676,6 @@ struct cachetab {
 
 struct cachetab cachetab[] = {
     /* cpuid,           cache type,       u,  dsiz, ls, wy,  isiz, ls, wy */
-    { CPU_ID_ARM2,      0,                1,     0,  0,  0,     0,  0,  0 },
-    { CPU_ID_ARM250,    0,                1,     0,  0,  0,     0,  0,  0 },
-    { CPU_ID_ARM3,      CPU_CT_CTYPE_WT,  1,  4096, 16, 64,     0,  0,  0 },
-    { CPU_ID_ARM610,	CPU_CT_CTYPE_WT,  1,  4096, 16, 64,     0,  0,  0 },
-    { CPU_ID_ARM710,    CPU_CT_CTYPE_WT,  1,  8192, 32,  4,     0,  0,  0 },
-    { CPU_ID_ARM7500,   CPU_CT_CTYPE_WT,  1,  4096, 16,  4,     0,  0,  0 },
-    { CPU_ID_ARM710A,   CPU_CT_CTYPE_WT,  1,  8192, 16,  4,     0,  0,  0 },
-    { CPU_ID_ARM7500FE, CPU_CT_CTYPE_WT,  1,  4096, 16,  4,     0,  0,  0 },
     /* XXX is this type right for SA-1? */
     { CPU_ID_SA110,	CPU_CT_CTYPE_WB1, 0, 16384, 32, 32, 16384, 32, 32 },
     { CPU_ID_SA1100,	CPU_CT_CTYPE_WB1, 0,  8192, 32, 32, 16384, 32, 32 },
@@ -897,7 +711,7 @@ get_cachetype_table()
 	arm_dcache_align_mask = arm_dcache_align - 1;
 }
 
-#endif /* ARM2 || ARM250 || ARM3 || ARM6 || ARM7 || SA110 || SA1100 || SA1111 || IXP12X0 */
+#endif /* SA110 || SA1100 || SA1111 || IXP12X0 */
 
 /*
  * Cannot panic here as we may not have a console yet ...
@@ -914,36 +728,6 @@ set_cpufuncs()
 	 * CPU type where we want to use it by default, then we set it.
 	 */
 
-#ifdef CPU_ARM3
-	if ((cputype & CPU_ID_IMPLEMENTOR_MASK) == CPU_ID_ARM_LTD &&
-	    (cputype & 0x00000f00) == 0x00000300) {
-		cpufuncs = arm3_cpufuncs;
-		cpu_reset_needs_v4_MMU_disable = 0;
-		get_cachetype_table();
-		return 0;
-	}
-#endif	/* CPU_ARM3 */
-#ifdef CPU_ARM6
-	if ((cputype & CPU_ID_IMPLEMENTOR_MASK) == CPU_ID_ARM_LTD &&
-	    (cputype & 0x00000f00) == 0x00000600) {
-		cpufuncs = arm6_cpufuncs;
-		cpu_reset_needs_v4_MMU_disable = 0;
-		get_cachetype_table();
-		pmap_pte_init_generic();
-		return 0;
-	}
-#endif	/* CPU_ARM6 */
-#ifdef CPU_ARM7
-	if ((cputype & CPU_ID_IMPLEMENTOR_MASK) == CPU_ID_ARM_LTD &&
-	    CPU_ID_IS7(cputype) &&
-	    (cputype & CPU_ID_7ARCH_MASK) == CPU_ID_7ARCH_V3) {
-		cpufuncs = arm7_cpufuncs;
-		cpu_reset_needs_v4_MMU_disable = 0;
-		get_cachetype_table();
-		pmap_pte_init_generic();
-		return 0;
-	}
-#endif	/* CPU_ARM7 */
 #ifdef CPU_ARM7TDMI
 	if ((cputype & CPU_ID_IMPLEMENTOR_MASK) == CPU_ID_ARM_LTD &&
 	    CPU_ID_IS7(cputype) &&
@@ -1199,8 +983,7 @@ cpufunc_null_fixup(arg)
 }
 
 
-#if defined(CPU_ARM2) || defined(CPU_ARM250) || defined(CPU_ARM3) || \
-    defined(CPU_ARM6) || defined(CPU_ARM7) || defined(CPU_ARM7TDMI)
+#if defined(CPU_ARM7TDMI)
 
 #ifdef DEBUG_FAULT_CORRECTION
 #define DFC_PRINTF(x)		printf x
@@ -1350,8 +1133,7 @@ early_abort_fixup(arg)
 #endif	/* CPU_ARM2/250/3/6/7 */
 
 
-#if (defined(CPU_ARM6) && defined(ARM6_LATE_ABORT)) || defined(CPU_ARM7) || \
-	defined(CPU_ARM7TDMI)
+#if defined(CPU_ARM7TDMI)
 /*
  * "Late" (base updated) data abort fixup
  *
@@ -1529,15 +1311,14 @@ late_abort_fixup(arg)
 
 	return early_abort_fixup(arg);
 }
-#endif	/* CPU_ARM6(LATE)/7/7TDMI */
+#endif	/* CPU_ARM7TDMI */
 
 /*
  * CPU Setup code
  */
 
-#if defined(CPU_ARM6) || defined(CPU_ARM7) || defined(CPU_ARM7TDMI) || \
-	defined(CPU_ARM8) || defined (CPU_ARM9) || defined(CPU_SA110) || \
-	defined(CPU_SA1100) || defined(CPU_SA1110) || \
+#if defined(CPU_ARM7TDMI) || defined(CPU_ARM8) || defined (CPU_ARM9) || \
+    defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) || \
 	defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
 	defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
 
@@ -1584,10 +1365,9 @@ parse_cpu_options(args, optlist, cpuctrl)
 	}
 	return(cpuctrl);
 }
-#endif /* CPU_ARM6 || CPU_ARM7 || CPU_ARM7TDMI || CPU_ARM8 || CPU_SA110 */
+#endif /* CPU_ARM7TDMI || CPU_ARM8 || CPU_SA110 */
 
-#if defined (CPU_ARM6) || defined(CPU_ARM7) || defined(CPU_ARM7TDMI) \
-	|| defined(CPU_ARM8)
+#if defined(CPU_ARM7TDMI) || defined(CPU_ARM8)
 struct cpu_option arm678_options[] = {
 #ifdef COMPAT_12
 	{ "nocache",		IGN, BIC, CPU_CONTROL_IDC_ENABLE },
@@ -1601,104 +1381,6 @@ struct cpu_option arm678_options[] = {
 };
 
 #endif	/* CPU_ARM6 || CPU_ARM7 || CPU_ARM7TDMI || CPU_ARM8 */
-
-#ifdef CPU_ARM6
-struct cpu_option arm6_options[] = {
-	{ "arm6.cache",		BIC, OR,  CPU_CONTROL_IDC_ENABLE },
-	{ "arm6.nocache",	OR,  BIC, CPU_CONTROL_IDC_ENABLE },
-	{ "arm6.writebuf",	BIC, OR,  CPU_CONTROL_WBUF_ENABLE },
-	{ "arm6.nowritebuf",	OR,  BIC, CPU_CONTROL_WBUF_ENABLE },
-	{ NULL,			IGN, IGN, 0 }
-};
-
-void
-arm6_setup(args)
-	char *args;
-{
-	int cpuctrl, cpuctrlmask;
-
-	/* Set up default control registers bits */
-	cpuctrl = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_32BP_ENABLE
-		 | CPU_CONTROL_32BD_ENABLE | CPU_CONTROL_SYST_ENABLE
-		 | CPU_CONTROL_IDC_ENABLE | CPU_CONTROL_WBUF_ENABLE;
-	cpuctrlmask = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_32BP_ENABLE
-		 | CPU_CONTROL_32BD_ENABLE | CPU_CONTROL_SYST_ENABLE
-		 | CPU_CONTROL_IDC_ENABLE | CPU_CONTROL_WBUF_ENABLE
-		 | CPU_CONTROL_ROM_ENABLE | CPU_CONTROL_BEND_ENABLE
-		 | CPU_CONTROL_AFLT_ENABLE;
-
-#ifdef ARM6_LATE_ABORT
-	cpuctrl |= CPU_CONTROL_LABT_ENABLE;
-#endif	/* ARM6_LATE_ABORT */
-
-#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
-	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
-#endif
-
-	cpuctrl = parse_cpu_options(args, arm678_options, cpuctrl);
-	cpuctrl = parse_cpu_options(args, arm6_options, cpuctrl);
-
-#ifdef __ARMEB__
-	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
-#endif
-
-	/* Clear out the cache */
-	cpu_idcache_wbinv_all();
-
-	/* Set the control register */
-	ctrl = cpuctrl;
-	cpu_control(0xffffffff, cpuctrl);
-}
-#endif	/* CPU_ARM6 */
-
-#ifdef CPU_ARM7
-struct cpu_option arm7_options[] = {
-	{ "arm7.cache",		BIC, OR,  CPU_CONTROL_IDC_ENABLE },
-	{ "arm7.nocache",	OR,  BIC, CPU_CONTROL_IDC_ENABLE },
-	{ "arm7.writebuf",	BIC, OR,  CPU_CONTROL_WBUF_ENABLE },
-	{ "arm7.nowritebuf",	OR,  BIC, CPU_CONTROL_WBUF_ENABLE },
-#ifdef COMPAT_12
-	{ "fpaclk2",		BIC, OR,  CPU_CONTROL_CPCLK },
-#endif	/* COMPAT_12 */
-	{ "arm700.fpaclk",	BIC, OR,  CPU_CONTROL_CPCLK },
-	{ NULL,			IGN, IGN, 0 }
-};
-
-void
-arm7_setup(args)
-	char *args;
-{
-	int cpuctrl, cpuctrlmask;
-
-	cpuctrl = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_32BP_ENABLE
-		 | CPU_CONTROL_32BD_ENABLE | CPU_CONTROL_SYST_ENABLE
-		 | CPU_CONTROL_IDC_ENABLE | CPU_CONTROL_WBUF_ENABLE;
-	cpuctrlmask = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_32BP_ENABLE
-		 | CPU_CONTROL_32BD_ENABLE | CPU_CONTROL_SYST_ENABLE
-		 | CPU_CONTROL_IDC_ENABLE | CPU_CONTROL_WBUF_ENABLE
-		 | CPU_CONTROL_CPCLK | CPU_CONTROL_LABT_ENABLE
-		 | CPU_CONTROL_ROM_ENABLE | CPU_CONTROL_BEND_ENABLE
-		 | CPU_CONTROL_AFLT_ENABLE;
-
-#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
-	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
-#endif
-
-	cpuctrl = parse_cpu_options(args, arm678_options, cpuctrl);
-	cpuctrl = parse_cpu_options(args, arm7_options, cpuctrl);
-
-#ifdef __ARMEB__
-	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
-#endif
-
-	/* Clear out the cache */
-	cpu_idcache_wbinv_all();
-
-	/* Set the control register */
-	ctrl = cpuctrl;
-	cpu_control(0xffffffff, cpuctrl);
-}
-#endif	/* CPU_ARM7 */
 
 #ifdef CPU_ARM7TDMI
 struct cpu_option arm7tdmi_options[] = {
