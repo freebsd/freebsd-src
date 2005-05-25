@@ -177,6 +177,14 @@ COMMON ITEMS:
 	make -DALWAYS_CHECK_MAKE buildkernel KERNCONF=YOUR_KERNEL_HERE
 	make -DALWAYS_CHECK_MAKE installkernel KERNCONF=YOUR_KERNEL_HERE
 
+	To test a kernel once
+	---------------------
+	If you just want to boot a kernel once (because you are not sure
+	if it works, or if you want to boot a known bad kernel to provide
+	debugging information) run
+	make installkernel KERNCONF=YOUR_KERNEL_HERE KODIR=/boot/testkernel
+	nextboot -k testkernel
+
 	To just build a kernel when you know that it won't mess you up
 	--------------------------------------------------------------
 	This assumes you are already running a 5.X system.  Replace
