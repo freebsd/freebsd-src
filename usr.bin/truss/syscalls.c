@@ -82,6 +82,8 @@ struct syscall syscalls[] = {
 	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}}},
 	{ "open", 1, 3,
 	  { { String | IN, 0} , { Hex, 1}, {Octal, 2}}},
+	{ "mkdir", 1, 2,
+	  { { String, 0} , {Octal, 1}}},
 	{ "linux_open", 1, 3,
 	  { { String, 0 }, { Hex, 1}, { Octal, 2 }}},
 	{ "close", 1, 1,
@@ -419,7 +421,7 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args, long retval) {
 	(POLLIN | POLLPRI | POLLOUT | POLLERR | POLLHUP | POLLNVAL | \
 	 POLLRDNORM |POLLRDBAND | POLLWRBAND | POLLINIGNEOF) 
 
-	  u += snprintf(tmp + used, per_fd,
+	  u = snprintf(tmp + used, per_fd,
 	    "%s%d 0x%hx%s%s%s%s%s%s%s%s%s ",
 	    i > 0 ? " " : "",
 	    pfd[i].fd,
