@@ -1195,6 +1195,8 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				logerror("sendto");
 				errno = e;
 				switch (errno) {
+				case ENOBUFS:
+				case ENETDOWN:
 				case EHOSTUNREACH:
 				case EHOSTDOWN:
 					break;
