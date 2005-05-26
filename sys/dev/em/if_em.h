@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2001-2003, Intel Corporation
+Copyright (c) 2001-2005, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -422,11 +422,6 @@ struct adapter {
         boolean_t       pcix_82544;
 	boolean_t       in_detach;
 
-#ifdef DBG_STATS
-	unsigned long   no_pkts_avail;
-	unsigned long   clean_tx_interrupts;
-
-#endif
 	struct em_hw_stats stats;
 };
 
