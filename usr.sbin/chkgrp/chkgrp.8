@@ -44,7 +44,8 @@ errors.
 Specifically, it checks that every non-blank, non-comment
 entry is composed of four colon-separated fields, that none of them
 contains whitespace, and that the third field (the group ID) is
-numeric.
+numeric. It will also check for invalid characters in the group names
+and group members.
 .Sh FILES
 .Bl -tag -width /etc/group -compact
 .It Pa /etc/group
@@ -64,8 +65,6 @@ For each error found,
 .Nm
 will print an error message containing the name of the file being
 scanned and the line number on which the error was found.
-Otherwise no
-output is produced.
 .Sh SEE ALSO
 .Xr getgrent 3 ,
 .Xr group 5
@@ -79,6 +78,8 @@ The
 .Nm
 utility and this manual page were written by
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.Pp
+Further functionality was added by
+.An Liam J. Foy Aq liamfoy@dragonflybsd.org .
 .Sh BUGS
-Should check fields more thoroughly for allowed/disallowed
-characters, and the range of the group ID.
+Should check the range of the group ID.
