@@ -316,6 +316,11 @@
       <para>The <command>autoboot</command> loader command
 	now supports the prompt parameter.</para>
 
+      <para>The <command>autoboot</command> will now prevent the user
+	from interrupting the boot process at all if the
+	<varname>autoboot_delay</varname> variable is set to
+	<literal>-1</literal>. &merged;</para>
+
       <para>A loader menu option to set <varname>hint.atkbd.0.flags=0x1</varname>
 	has been added.  This setting allows USB keyboards to work
 	if no PS/2 keyboard is attached.</para>
@@ -600,7 +605,7 @@
 	running &os; to do NetFlow version 5 exports. &merged;</para>
 
       <para>&man.sed.1; now supports a <option>-l</option> option to
-	make its output line-buffered.</para>
+	make its output line-buffered. &merged;</para>
 
       <para>The &man.sppp.4; driver now includes Frame Relay
 	support. &merged;</para>
@@ -1165,7 +1170,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       9.3.0 to version 9.3.1.  &merged;</para>
 
     <para><application>bsnmp</application> has been updated from 1.7
-      to 1.9.</para>
+      to 1.10.</para>
 
     <para><application>bzip2</application> has been updated from 1.0.2
       to 1.0.3.</para>
@@ -1202,6 +1207,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
       as of 4 February 2005 has been added.  More information can be
       found in the &man.nc.1; manual page. &merged;</para>
 
+    <para><application>NgATM</application> has been updated from 1.0
+      to 1.2.</para>
+
     <para><application>OpenPAM</application> has been updated from the
       Eelgrass release to the Feterita release.</para>
 
@@ -1222,6 +1230,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para><application>tcsh</application> has been updated from
       6.13.00 to 6.14.00.</para>
 
+    <para><application>texinfo</application> has been updated from 4.6
+      to 4.8.</para>
+
     <para>The timezone database has been updated from the
       <application>tzdata2004e</application> release to the
       <application>tzdata2004g</application> release. &merged;</para>
@@ -1235,6 +1246,11 @@ moused_ums0_port="/dev/ums0"</programlisting>
       <option>-q</option> flag to suppress the output of the port
       version comparison characters <literal>&lt;</literal>,
       <literal>=</literal>, and <literal>&gt;</literal>.</para>
+
+    <para>The &man.pkg.version.1; utility now supports a
+      <option>-I</option> flag, which causes only the
+      <filename>INDEX</filename> file to be used for determining if a
+      package is out of date.</para>
 
     <para>The
       <filename>ports/INDEX<replaceable>*</replaceable></filename>
@@ -1333,6 +1349,8 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para>Documentation of existing functionality has been improved by
       the addition of the following manual pages: &man.ataraid.4;,
+      &man.devfs.conf.5, &man.devfs.rules.5,
+      &man.pthread.atfork.3;
       &man.sched.4bsd.4;, &man.sched.ule.4;, &man.snd.fm801.4;,
       &man.snd.neomagic.4;, &man.snd.via8233.4;, &man.snd.via82c686.4;,
       and &man.snd.vibes.4;.</para>
