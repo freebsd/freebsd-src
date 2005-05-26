@@ -1816,8 +1816,7 @@ pmap_nuke_pv(struct vm_page *pg, pmap_t pm, struct pv_entry *pve)
 		if (TAILQ_FIRST(&pg->md.pv_list) == NULL)
 			pg->md.pvh_attrs &= ~PVF_REF;
 		vm_page_flag_clear(pg, PG_WRITEABLE);
-	} else if (pmap_track_modified(pve->pv_va))
-		vm_page_dirty(pg);
+	}
 	if (TAILQ_FIRST(&pg->md.pv_list))
 		vm_page_flag_set(pg, PG_REFERENCED);
 	if (pve->pv_flags & PVF_WRITE)
