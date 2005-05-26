@@ -810,12 +810,12 @@ ng_l2tp_recv_lower(node_p node, struct mbuf *m, meta_p meta)
 		offset = ntohs(offset);
 
 		/* Trim offset padding */
-		if (offset <= 2 || offset > m->m_pkthdr.len) {
+		if ((2+offset) > m->m_pkthdr.len) {
 			priv->stats.recvInvalid++;
 			NG_FREE_DATA(m, meta);
 			return (EINVAL);
 		}
-		m_adj(m, offset);
+		m_adj(m, 2+offset);
 	}
 
 	/* Handle control packets */
