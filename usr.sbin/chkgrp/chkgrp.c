@@ -50,7 +50,7 @@ main(int argc, char *argv[])
     size_t len;
     int n = 0, k, e = 0;
     char *line, *f[4], *p;
-    const char *gfn;
+    const char *cp, *gfn;
     FILE *gf;
 
     /* check arguments */
@@ -104,30 +104,46 @@ main(int argc, char *argv[])
 		break;
 	    line[i++] = 0;
 	}
+
+	for (cp = f[0] ; *cp ; cp++) {
+	    if (!isalnum(*cp) && *cp != '.' && *cp != '_' && *cp != '-') {
+		warnx("%s: line %d: '%c' invalid character", gfn, n, *cp);
+		e++;
+	    }
+	}
+
+	for (cp = f[3] ; *cp ; cp++) {
+	    if (!isalnum(*cp) && *cp != '.' && *cp != '_' && *cp != '-' &&
+			*cp != ',') {
+		warnx("%s: line %d: '%c' invalid character", gfn, n, *cp);
+		e++;
+	    }
+	}
+
 	if (k < 4) {
 	    warnx("%s: line %d: missing field(s)", gfn, n);
 	    e++;
-	    continue;
 	}
 
 	/* check if fourth field ended with a colon */
 	if (i < len) {
 	    warnx("%s: line %d: too many fields", gfn, n);
 	    e++;
-	    continue;
 	}
 	
 	/* check that none of the fields contain whitespace */
-	for (k = 0; k < 4; k++)
-	    if (strcspn(f[k], " \t") != strlen(f[k]))
+	for (k = 0; k < 4; k++) {
+	    if (strcspn(f[k], " \t") != strlen(f[k])) {
 		warnx("%s: line %d: field %d contains whitespace",
 		      gfn, n, k+1);
+		e++;
+	    }
+	}
 
 	/* check that the GID is numeric */
 	if (strspn(f[2], "0123456789") != strlen(f[2])) {
 	    warnx("%s: line %d: GID is not numeric", gfn, n);
 	    e++;
-	    continue;
 	}
 	
 #if 0
@@ -142,5 +158,7 @@ main(int argc, char *argv[])
 
     /* done */
     fclose(gf);
+    if (e == 0)
+	printf("%s is fine\n", gfn);
     exit(e ? EX_DATAERR : EX_OK);
 }
