@@ -129,9 +129,8 @@ arm_handler_execute(void *frame, int irqnb)
 	td->td_intr_nesting_level++;
 	if (irqnb == 0)
 		irqnb = arm_get_irqnb(frame);
-	arm_mask_irqs(irqnb);
-	enable_interrupts(I32_bit|F32_bit);
 	while (irqnb != 0) {
+		arm_mask_irqs(irqnb);
 		i = ffs(irqnb) - 1;
 		intrcnt[intrcnt_tab[i]]++;
 		irqnb &= ~(1U << i);
