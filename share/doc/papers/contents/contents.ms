@@ -26,13 +26,14 @@
 .OH '''Papers Contents'
 .EH 'Papers Contents'''
 .TL
-UNIX Papers
-.sp
-\s-2FreeBSD 2.1\s+2
-.sp
-\fRApril, 1996\fR
+UNIX Papers coming with FreeBSD
 .PP
-
+These papers are of both historic and current interest, but most of them are
+many years old.
+More recent documentation is available from
+.>> <a href="http://www.freebsd.org/docs/">
+http://www.FreeBSD.org/docs/
+.>> </a>
 
 .IP
 .tl '\fBBerkeley Pascal''px\fP'
