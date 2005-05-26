@@ -219,12 +219,7 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 
-		/*
-		 * Determine if input is a pipe.  4.4BSD will set the SOCKET
-		 * bit in the st_mode field for pipes.  Fix this then.
-		 */
-		if (lseek(fileno(stdin), (off_t)0, SEEK_CUR) == -1 &&
-		    errno == ESPIPE) {
+		if ((sb.st_mode & S_IFMT) == S_IFSOCK || (sb.st_mode & S_IFMT) == S_IFIFO) {
 			errno = 0;
 			fflag = 0;		/* POSIX.2 requires this. */
 		}
