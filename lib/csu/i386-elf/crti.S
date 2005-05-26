@@ -28,12 +28,14 @@
 	.globl	_init
 	.type	_init,@function
 _init:
+	sub	$12,%esp	/* re-align stack pointer */
 
 	.section .fini,"ax",@progbits
 	.align	4
 	.globl	_fini
 	.type	_fini,@function
 _fini:
+	sub	$12,%esp	/* re-align stack pointer */
 
 	.section .rodata
 .ascii "$FreeBSD$\0"
