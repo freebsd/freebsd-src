@@ -220,7 +220,6 @@ main(int argc, char *argv[])
 		}
 
 		if ((sb.st_mode & S_IFMT) == S_IFSOCK || (sb.st_mode & S_IFMT) == S_IFIFO) {
-			errno = 0;
 			fflag = 0;		/* POSIX.2 requires this. */
 		}
 
