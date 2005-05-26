@@ -90,6 +90,8 @@ struct syscall syscalls[] = {
 	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}}},
 	{ "open", 1, 3,
 	  { { String | IN, 0} , { Hex, 1}, {Octal, 2}}},
+	{ "mkdir", 1, 2,
+	  { { String, 0} , {Octal, 1}}},
 	{ "linux_open", 1, 3,
 	  { { String, 0 }, { Hex, 1}, { Octal, 2 }}},
 	{ "close", 1, 1,
