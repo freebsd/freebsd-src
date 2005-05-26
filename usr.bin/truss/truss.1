@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd November 23, 1997
+.Dd September 3, 2004
 .Dt TRUSS 1
 .Os
 .Sh NAME
@@ -68,6 +68,13 @@ and
 .Ar command
 options are mutually exclusive.)
 .El
+.Pp
+The
+.Xr procctl 8
+utility can be used to clear tracepoints in a stuck process
+left behind if
+.Nm
+terminates abnormally.
 .Sh EXAMPLES
 # Follow the system calls used in echoing "hello"
 .Dl $ truss /bin/echo hello
@@ -78,7 +85,8 @@ options are mutually exclusive.)
 .Sh SEE ALSO
 .Xr kdump 1 ,
 .Xr ktrace 1 ,
-.Xr procfs 5
+.Xr procfs 5 ,
+.Xr procctl 8
 .Sh HISTORY
 The
 .Nm
