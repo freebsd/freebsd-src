@@ -155,6 +155,16 @@ struct syscall syscalls[] = {
 	{ "recvfrom", 1, 6, { { Int, 0 }, { Ptr | OUT, 1 }, { Int, 2 }, { Int, 3 }, { Sockaddr | OUT, 4}, {Ptr | OUT, 5}}},
 	{ "getitimer", 1, 2, { { Int, 0 }, { Itimerval | OUT, 2 }}},
 	{ "setitimer", 1, 3, { { Int, 0 }, { Itimerval, 1} , { Itimerval | OUT, 2 }}},
+	{ "utimes", 1, 2,
+		{ { String | IN, 0 }, { Timeval | IN, 1 }}},
+	{ "lutimes", 1, 2,
+		{ { String | IN, 0 }, { Timeval | IN, 1 }}},
+	{ "futimes", 1, 2,
+		{ { Int, 0 }, { Timeval | IN, 1 }}},
+	{ "chflags", 1, 2,
+		{ { String | IN, 0 }, { Hex, 1 }}},
+	{ "lchflags", 1, 2,
+		{ { String | IN, 0 }, { Hex, 1 }}},
 	{ 0, 0, 0, { { 0, 0 }}},
 };
 
