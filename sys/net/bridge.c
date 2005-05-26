@@ -864,24 +864,32 @@ bridge_in(struct ifnet *ifp, struct mbuf *m)
     case (uintptr_t)BDG_DROP:
 	m_freem(m);
 	return (NULL);
+
     case (uintptr_t)BDG_LOCAL:
 	return (m);
+
     case (uintptr_t)BDG_BCAST:
     case (uintptr_t)BDG_MCAST:
         m = bdg_forward(m, dst);
-#ifdef	DIAGNOSTIC	/* glebius: am I right here? */
-	if (m == NULL) {
+#ifdef	DIAGNOSTIC
+	if (m == NULL)
 		if_printf(ifp, "bridge dropped %s packet\n",
 		     dst == BDG_BCAST ? "broadcast" : "multicast");
-		return (NULL);
-	}
 #endif
 	return (m);
+
     default:
         m = bdg_forward(m, dst);
+	/*
+	 * But in some cases the bridge may return the
+	 * packet for us to free; sigh.
+	 */
+	if (m != NULL)
+		m_freem(m);
+
     }
 
-    return (NULL); /* not reached */
+    return (NULL);
 }
 
 /*
