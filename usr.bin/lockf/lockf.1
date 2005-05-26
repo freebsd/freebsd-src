@@ -42,7 +42,8 @@ The
 .Nm
 utility acquires an exclusive lock on a
 .Ar file ,
-creating it if necessary.
+creating it if necessary,
+.Em "and removing the file on exit unless explictly told not to."
 While holding the lock, it executes a
 .Ar command
 with optional
@@ -86,6 +87,11 @@ before giving up.
 A timeout of 0 may be given, in which case
 .Nm
 will fail unless it can acquire the lock immediately.
+When a lock times out,
+.Ar command
+is
+.Em not
+executed.
 .El
 .Pp
 In no event will
