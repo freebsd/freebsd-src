@@ -604,9 +604,6 @@
       <para>A new &man.ng.netflow.4; NetGraph node allows a router
 	running &os; to do NetFlow version 5 exports. &merged;</para>
 
-      <para>&man.sed.1; now supports a <option>-l</option> option to
-	make its output line-buffered. &merged;</para>
-
       <para>The &man.sppp.4; driver now includes Frame Relay
 	support. &merged;</para>
 
@@ -1055,6 +1052,9 @@
 
     <para>The rune(3) non-standard multibyte and wide character support
       interface has been removed.</para>
+
+    <para>&man.sed.1; now supports a <option>-l</option> option to
+      make its output line-buffered. &merged;</para>
 
     <para>The &man.strftime.3; function now supports some GNU extensions
       such as <literal>-</literal> (no padding),
