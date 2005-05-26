@@ -127,7 +127,11 @@
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para></para>
+      <para>The <command>autoboot</command> will now prevent the user
+	from interrupting the boot process at all if the
+	<varname>autoboot_delay</varname> variable is set to
+	<literal>-1</literal>.</para>
+
     </sect3>
 
     <sect3 id="proc">
@@ -222,6 +226,9 @@
       with other threads receiving a 1MB stack size by default.  On
       64-bit platforms, the default stack sizes are 4MB and 2MB
       respectively.</para>
+
+    <para>&man.sed.1; now supports a <option>-l</option> option to
+      make its output line-buffered.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
