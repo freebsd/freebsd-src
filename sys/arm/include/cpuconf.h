@@ -72,7 +72,7 @@
 #endif
 
 #define	ARM_NARCH	(ARM_ARCH_4 + ARM_ARCH_5)
-#if ARM_NARCH == 0 && !defined(_KLD_MODULE)
+#if ARM_NARCH == 0 && !defined(KLD_MODULE)
 #error ARM_NARCH is 0
 #endif
 
