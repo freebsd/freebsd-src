@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2001-2003, Intel Corporation
+Copyright (c) 2001-2005, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -60,6 +60,8 @@ POSSIBILITY OF SUCH DAMAGE.
 /* The happy-fun DELAY macro is defined in /usr/src/sys/i386/include/clock.h */
 #define usec_delay(x) DELAY(x)
 #define msec_delay(x) DELAY(1000*(x))
+/* TODO: Should we be paranoid about delaying in interrupt context? */
+#define msec_delay_irq(x) DELAY(1000*(x))
 
 #define MSGOUT(S, A, B)     printf(S "\n", A, B)
 #define DEBUGFUNC(F)        DEBUGOUT(F);
@@ -117,7 +119,24 @@ struct em_osdep
 #define E1000_READ_REG_ARRAY(hw, reg, index) \
     E1000_READ_OFFSET(hw, E1000_REG_OFFSET(hw, reg) + ((index) << 2))
 
+#define E1000_READ_REG_ARRAY_DWORD E1000_READ_REG_ARRAY
+
 #define E1000_WRITE_REG_ARRAY(hw, reg, index, value) \
+    E1000_WRITE_OFFSET(hw, E1000_REG_OFFSET(hw, reg) + ((index) << 2), value)
+
+#define E1000_WRITE_REG_ARRAY_BYTE(hw, reg, index, value) \
+    bus_space_write_1( ((struct em_osdep *)(hw)->back)->mem_bus_space_tag, \
+                       ((struct em_osdep *)(hw)->back)->mem_bus_space_handle, \
+                       E1000_REG_OFFSET(hw, reg) + (index), \
+                       value)
+
+#define E1000_WRITE_REG_ARRAY_WORD(hw, reg, index, value) \
+    bus_space_write_2( ((struct em_osdep *)(hw)->back)->mem_bus_space_tag, \
+                       ((struct em_osdep *)(hw)->back)->mem_bus_space_handle, \
+                       E1000_REG_OFFSET(hw, reg) + (index), \
+                       value)
+
+#define E1000_WRITE_REG_ARRAY_DWORD(hw, reg, index, value) \
     E1000_WRITE_OFFSET(hw, E1000_REG_OFFSET(hw, reg) + ((index) << 2), value)
 
 #endif  /* _FREEBSD_OS_H_ */
