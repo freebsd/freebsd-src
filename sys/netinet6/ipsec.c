@@ -1691,6 +1691,7 @@ ipsec_get_reqlevel(isr, af)
 				level = ah_net_deflev;
 			else
 				level = ah_trans_deflev;
+			break;
 		case IPPROTO_IPCOMP:
 			/*
 			 * we don't really care, as IPcomp document says that
