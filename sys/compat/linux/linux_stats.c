@@ -227,8 +227,7 @@ bsd_to_linux_ftype(const char *fstypename)
 }
 
 static void
-bsd_to_linux_statfs(struct thread *td, struct statfs *bsd_statfs,
-    struct l_statfs *linux_statfs)
+bsd_to_linux_statfs(struct statfs *bsd_statfs, struct l_statfs *linux_statfs)
 {
 
 	linux_statfs->f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
@@ -261,7 +260,7 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	LFREEPATH(path);
 	if (error)
 		return (error);
-	bsd_to_linux_statfs(td, &bsd_statfs, &linux_statfs);
+	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 
@@ -279,7 +278,7 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	error = kern_fstatfs(td, args->fd, &bsd_statfs);
 	if (error)
 		return error;
-	bsd_to_linux_statfs(td, &bsd_statfs, &linux_statfs);
+	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 
