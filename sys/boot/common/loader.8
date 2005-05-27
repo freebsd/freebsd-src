@@ -65,6 +65,7 @@ will probe for a console and set the
 variable, or set it to serial console
 .Pq Dq comconsole
 if the previous boot stage used that.
+If multiple consoles are selected, they will be listed separated by spaces.
 Then, devices are probed,
 .Va currdev
 and
@@ -391,7 +392,11 @@ List of semicolon-separated search path for bootable kernels.
 The default is
 .Dq Li kernel .
 .It Va console
-Defines the current console.
+Defines the current console or consoles.
+Multiple consoles may be specified.
+In that case, the first listed console will become the default console for
+userland output (e.g. from
+.Xr init 8 ).
 .It Va currdev
 Selects the default device.
 Syntax for devices is odd.
