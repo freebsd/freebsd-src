@@ -240,7 +240,8 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 
 	mtx_lock(&Giant);
 	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
-	if ((error = namei(&nd)) != 0) {
+	error = namei(&nd);
+	if (error) {
 		mtx_unlock(&Giant);
 		return (error);
 	}
@@ -308,7 +309,8 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	struct statfs *sp, sb;
 	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, fd, &fp)) != 0)
+	error = getvnode(td->td_proc->p_fd, fd, &fp);
+	if (error)
 		return (error);
 	mtx_lock(&Giant);
 	mp = fp->f_vnode->v_mount;
@@ -604,7 +606,8 @@ freebsd4_fhstatfs(td, uap)
 	fhandle_t fh;
 	int error;
 
-	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
+	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
+	if (error)
 		return (error);
 	error = kern_fhstatfs(td, fh, &sf);
 	if (error)
@@ -4188,12 +4191,13 @@ fhstatfs(td, uap)
 	fhandle_t fh;
 	int error;
 
-	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
+	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
+	if (error)
 		return (error);
 	error = kern_fhstatfs(td, fh, &sf);
-	if (error == 0)
-		error = copyout(&sf, uap->buf, sizeof(sf));
-	return (error);
+	if (error)
+		return (error);
+	return (copyout(&sf, uap->buf, sizeof(sf)));
 }
 
 int
@@ -4209,7 +4213,8 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 		return (error);
 	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
-	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp)))
+	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
+	if (error)
 		return (error);
 	mp = vp->v_mount;
 	sp = &mp->mnt_stat;
@@ -4225,7 +4230,8 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if ((error = VFS_STATFS(mp, sp, td)) != 0)
+	error = VFS_STATFS(mp, sp, td);
+	if (error)
 		return (error);
 	*buf = *sp;
 	return (0);
