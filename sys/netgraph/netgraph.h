@@ -614,8 +614,6 @@ struct ng_item {
 #define NGQF_READER	0x04		/* queued as a reader */
 #define NGQF_WRITER	0x00		/* queued as a writer */
 
-#define NGQF_FREE	0x08
-
 /*
  * Get the mbuf (etc) out of an item.
  * Sets the value in the item to NULL in case we need to call NG_FREE_ITEM()
@@ -666,10 +664,6 @@ static __inline hook_p		_ngi_hook(item_p item, char *file, int line);
 static __inline void
 _ngi_check(item_p item, char *file, int line) 
 {
-	if (item->el_flags & NGQF_FREE) {
-		dumpitem(item, file, line);
-		panic ("free item!");
-	}
 	(item)->lastline = line;
 	(item)->lastfile = file;
 }
