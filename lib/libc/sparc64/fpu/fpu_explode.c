@@ -101,7 +101,14 @@ __fpu_itof(fp, i)
 	 * fpu_norm()'s handling of `supernormals'; see fpu_subr.c.
 	 */
 	fp->fp_exp = FP_LG;
-	fp->fp_mant[0] = (int)i < 0 ? -i : i;
+	/*
+	 * The sign bit decides whether i should be interpreted as
+	 * a signed or unsigned entity.
+	 */
+	if (fp->fp_sign && (int)i < 0)
+		fp->fp_mant[0] = -i;
+	else
+		fp->fp_mant[0] = i;
 	fp->fp_mant[1] = 0;
 	fp->fp_mant[2] = 0;
 	fp->fp_mant[3] = 0;
@@ -127,7 +134,14 @@ __fpu_xtof(fp, i)
 	 * fpu_norm()'s handling of `supernormals'; see fpu_subr.c.
 	 */
 	fp->fp_exp = FP_LG2;
-	*((int64_t*)fp->fp_mant) = (int64_t)i < 0 ? -i : i;
+	/*
+	 * The sign bit decides whether i should be interpreted as
+	 * a signed or unsigned entity.
+	 */
+	if (fp->fp_sign && (int64_t)i < 0)
+		*((int64_t*)fp->fp_mant) = -i;
+	else
+		*((int64_t*)fp->fp_mant) = i;
 	fp->fp_mant[2] = 0;
 	fp->fp_mant[3] = 0;
 	__fpu_norm(fp);
