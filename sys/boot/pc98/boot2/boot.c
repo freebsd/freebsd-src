@@ -124,8 +124,8 @@ boot(int drive)
 	readfile("boot.config", boot_config, BOOT_CONFIG_SIZE);
 		name = "/boot/loader";
 	if (boot_config[0] != '\0') {
-		printf("boot.config: %s", boot_config);
 		getbootdev(boot_config, &loadflags);
+		printf("boot.config: %s", boot_config);
 		if (openrd() != 0)
 			name = "kernel";
 	}

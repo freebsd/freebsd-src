@@ -243,9 +243,9 @@ main(void)
 	fsread(ino, cmd, sizeof(cmd));
 
     if (*cmd) {
-	printf("%s: %s", PATH_CONFIG, cmd);
 	if (parse())
 	    autoboot = 0;
+	printf("%s: %s", PATH_CONFIG, cmd);
 	/* Do not process this command twice */
 	*cmd = 0;
     }
