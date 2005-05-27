@@ -159,15 +159,12 @@ soisdisconnecting(so)
 {
 
 	/*
-	 * XXXRW: This code separately acquires SOCK_LOCK(so) and
-	 * SOCKBUF_LOCK(&so->so_rcv) even though they are the same mutex to
-	 * avoid introducing the assumption  that they are the same.
+	 * XXXRW: This code assumes that SOCK_LOCK(so) and
+	 * SOCKBUF_LOCK(&so->so_rcv) are the same.
 	 */
-	SOCK_LOCK(so);
+	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_state &= ~SS_ISCONNECTING;
 	so->so_state |= SS_ISDISCONNECTING;
-	SOCK_UNLOCK(so);
-	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
 	sorwakeup_locked(so);
 	SOCKBUF_LOCK(&so->so_snd);
@@ -182,16 +179,12 @@ soisdisconnected(so)
 {
 
 	/*
-	 * XXXRW: This code separately acquires SOCK_LOCK(so) and
-	 * SOCKBUF_LOCK(&so->so_rcv) even though they are the same mutex to
-	 * avoid introducing the assumption  that they are the same.
+	 * XXXRW: This code assumes that SOCK_LOCK(so) and
+	 * SOCKBUF_LOCK(&so->so_rcv) are the same.
 	 */
-	/* XXXRW: so_state locking? */
-	SOCK_LOCK(so);
+	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
 	so->so_state |= SS_ISDISCONNECTED;
-	SOCK_UNLOCK(so);
-	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
 	sorwakeup_locked(so);
 	SOCKBUF_LOCK(&so->so_snd);
