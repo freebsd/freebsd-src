@@ -230,7 +230,7 @@ i386_fmtdev(void *vdev)
  * Set currdev to suit the value being supplied in (value)
  */
 int
-i386_setcurrdev(struct env_var *ev, int flags, void *value)
+i386_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
     struct i386_devdesc	*ncurr;
     int			rv;
