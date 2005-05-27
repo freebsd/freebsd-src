@@ -345,10 +345,8 @@ sleepq_catch_signals(void *wchan)
 	struct sleepqueue *sq;
 	struct thread *td;
 	struct proc *p;
-	int do_upcall;
 	int sig;
 
-	do_upcall = 0;
 	td = curthread;
 	p = td->td_proc;
 	sc = SC_LOOKUP(wchan);
@@ -370,8 +368,6 @@ sleepq_catch_signals(void *wchan)
 	mtx_unlock(&p->p_sigacts->ps_mtx);
 	if (sig == 0 && thread_suspend_check(1))
 		sig = SIGSTOP;
-	else
-		do_upcall = thread_upcall_check(td);
 	PROC_UNLOCK(p);
 
 	/*
@@ -383,7 +379,7 @@ sleepq_catch_signals(void *wchan)
 	sleepq_lock(wchan);
 	sq = sleepq_lookup(wchan);
 	mtx_lock_spin(&sched_lock);
-	if (TD_ON_SLEEPQ(td) && (sig != 0 || do_upcall != 0))
+	if (TD_ON_SLEEPQ(td) && sig != 0)
 		sleepq_resume_thread(sq, td, -1);
 	else if (!TD_ON_SLEEPQ(td) && sig == 0)
 		td->td_flags &= ~TDF_SINTR;
