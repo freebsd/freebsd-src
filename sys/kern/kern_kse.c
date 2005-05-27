@@ -1427,16 +1427,6 @@ out:
 	return (error);	/* go sync */
 }
 
-int
-thread_upcall_check(struct thread *td)
-{
-	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
-	if (td->td_kflags & TDK_WAKEUP)
-		return (1);
-	else
-		return (0);
-}
-
 /*
  * called after ptrace resumed a process, force all
  * virtual CPUs to schedule upcall for SA process,
