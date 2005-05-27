@@ -928,7 +928,6 @@ struct thread *thread_switchout(struct thread *td, int flags,
 void	thread_unlink(struct thread *td);
 void	thread_unsuspend(struct proc *p);
 void	thread_unsuspend_one(struct thread *td);
-int	thread_upcall_check(struct thread *td);
 void	thread_unthread(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
 void	thread_user_enter(struct thread *td);
