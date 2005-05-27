@@ -28,7 +28,7 @@ ipfstat \- reports on packet filter statistics and filter list
 \fBipfstat\fP examines /dev/kmem using the symbols \fB_fr_flags\fP,
 \fB_frstats\fP, \fB_filterin\fP, and \fB_filterout\fP.
 To run and work, it needs to be able to read both /dev/kmem and the
-kernel itself.  The kernel name defaults to \fB/kernel\fP.
+kernel itself.  The kernel name defaults to \fB/boot/kernel/kernel\fP.
 .PP
 The default behaviour of \fBipfstat\fP
 is to retrieve and display the accumulated statistics which have been
