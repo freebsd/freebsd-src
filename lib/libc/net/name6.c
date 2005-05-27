@@ -195,7 +195,7 @@ struct hp_order {
 	} aio_un;
 #define aio_sa aio_un.aiou_sa
 	int aio_matchlen;
-	u_char *aio_h_addr;
+	char *aio_h_addr;
 };
 
 static struct	 hostent *_hpcopy(struct hostent *hp, int *errp);
@@ -742,7 +742,7 @@ _hpreorder(struct hostent *hp)
 {
 	struct hp_order *aio;
 	int i, n;
-	u_char *ap;
+	char *ap;
 	struct sockaddr *sa;
 	struct policyhead policyhead;
 
@@ -784,7 +784,7 @@ _hpreorder(struct hostent *hp)
 	}
 
 	for (i = 0; i < n; i++) {
-		ap = (u_char *)hp->h_addr_list[i];
+		ap = hp->h_addr_list[i];
 		aio[i].aio_h_addr = ap;
 		sa = &aio[i].aio_sa;
 		switch (hp->h_addrtype) {
