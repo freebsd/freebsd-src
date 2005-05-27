@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#include <netinet/in.h>
 #include <bluetooth.h>
 #include <stdio.h>
 #include <sdp.h>
@@ -317,15 +318,23 @@ sdp_print(uint32_t level, uint8_t const *start, uint8_t const *end)
 
 		case SDP_DATA_UINT128:
 		case SDP_DATA_INT128:
-		case SDP_DATA_UUID128:
 			SDP_GET128(&value.int128, start);
-			printf("int128/uuid128 %#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x\n",
+			printf("u/int128 %#8.8x%8.8x%8.8x%8.8x\n",
 				*(uint32_t *)&value.int128.b[0],
-				*(uint16_t *)&value.int128.b[4],
-				*(uint16_t *)&value.int128.b[6],
-				*(uint16_t *)&value.int128.b[8],
-				*(uint16_t *)&value.int128.b[10],
+				*(uint32_t *)&value.int128.b[4],
+				*(uint32_t *)&value.int128.b[8],
 				*(uint32_t *)&value.int128.b[12]);
+			break;
+
+		case SDP_DATA_UUID128:
+			SDP_GET_UUID128(&value.int128, start);
+			printf("uuid128 %#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x\n",
+				ntohl(*(uint32_t *)&value.int128.b[0]),
+				ntohs(*(uint16_t *)&value.int128.b[4]),
+				ntohs(*(uint16_t *)&value.int128.b[6]),
+				ntohs(*(uint16_t *)&value.int128.b[8]),
+				ntohs(*(uint16_t *)&value.int128.b[10]),
+				ntohl(*(uint32_t *)&value.int128.b[12]));
 			break;
 
 		case SDP_DATA_INT8:

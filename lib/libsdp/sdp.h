@@ -360,9 +360,31 @@ typedef struct sdp_attr *	sdp_attr_p;
 	(l)->b[3]  = *t_cp++; \
 	(l)->b[2]  = *t_cp++; \
 	(l)->b[1]  = *t_cp++; \
+	(l)->b[0]  = *t_cp++; \
 	(cp) += 16; \
 }
-#else /* BYTE_ORDER != LITTLE_ENDIAN */
+
+#define SDP_GET_UUID128(l, cp) { \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
+	(l)->b[0]  = *t_cp++; \
+	(l)->b[1]  = *t_cp++; \
+	(l)->b[2]  = *t_cp++; \
+	(l)->b[3]  = *t_cp++; \
+	(l)->b[4]  = *t_cp++; \
+	(l)->b[5]  = *t_cp++; \
+	(l)->b[6]  = *t_cp++; \
+	(l)->b[7]  = *t_cp++; \
+	(l)->b[8]  = *t_cp++; \
+	(l)->b[9]  = *t_cp++; \
+	(l)->b[10] = *t_cp++; \
+	(l)->b[11] = *t_cp++; \
+	(l)->b[12] = *t_cp++; \
+	(l)->b[13] = *t_cp++; \
+	(l)->b[14] = *t_cp++; \
+	(l)->b[15] = *t_cp++; \
+	(cp) += 16; \
+}
+#elif BYTE_ORDER == BIG_ENDIAN
 #define SDP_GET128(l, cp) { \
 	register uint8_t *t_cp = (uint8_t *)(cp); \
 	(l)->b[0]  = *t_cp++; \
@@ -383,6 +405,10 @@ typedef struct sdp_attr *	sdp_attr_p;
 	(l)->b[15] = *t_cp++; \
 	(cp) += 16; \
 }
+
+#define	SDP_GET_UUID128(l, cp)	SDP_GET128(l, cp)
+#else
+#error	"Unsupported BYTE_ORDER"
 #endif /* BYTE_ORDER */
 
 #define SDP_PUT8(b, cp) { \
@@ -445,7 +471,28 @@ typedef struct sdp_attr *	sdp_attr_p;
 	*t_cp   = (l)->b[0];  \
 	(cp) += 16; \
 }
-#else /* BYTE_ORDER != LITTLE_ENDIAN */
+
+#define SDP_PUT_UUID128(l, cp) { \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
+	*t_cp++ = (l)->b[0];  \
+	*t_cp++ = (l)->b[1];  \
+	*t_cp++ = (l)->b[2];  \
+	*t_cp++ = (l)->b[3];  \
+	*t_cp++ = (l)->b[4];  \
+	*t_cp++ = (l)->b[5];  \
+	*t_cp++ = (l)->b[6];  \
+	*t_cp++ = (l)->b[7];  \
+	*t_cp++ = (l)->b[8];  \
+	*t_cp++ = (l)->b[9];  \
+	*t_cp++ = (l)->b[10]; \
+	*t_cp++ = (l)->b[11]; \
+	*t_cp++ = (l)->b[12]; \
+	*t_cp++ = (l)->b[13]; \
+	*t_cp++ = (l)->b[14]; \
+	*t_cp   = (l)->b[15]; \
+	(cp) += 16; \
+}
+#elif BYTE_ORDER == BIG_ENDIAN
 #define SDP_PUT128(l, cp) { \
 	register uint8_t *t_cp = (uint8_t *)(cp); \
 	*t_cp++ = (l)->b[0];  \
@@ -466,6 +513,10 @@ typedef struct sdp_attr *	sdp_attr_p;
 	*t_cp   = (l)->b[15]; \
 	(cp) += 16; \
 }
+
+#define SDP_PUT_UUID128(l, cp)	SDP_PUT128(l, cp)
+#else
+#error	"Unsupported BYTE_ORDER"
 #endif /* BYTE_ORDER */
 
 void *             sdp_open       (bdaddr_t const *l, bdaddr_t const *r);
