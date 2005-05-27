@@ -501,7 +501,7 @@ usage(char const *whine)
 
 	fprintf(stderr, "%s\n", whine);
 	fprintf(stderr,
-	    "Usage: ministat [ -c confidence ] [-s] [file [file ...]]\n");
+	    "Usage: ministat [ -c confidence ] [-ns] [file [file ...]]\n");
 	fprintf(stderr, "\tconfidence = {");
 	for (i = 0; i < NCONF; i++) {
 		fprintf(stderr, "%s%g%%",
@@ -509,6 +509,7 @@ usage(char const *whine)
 		    studentpct[i]);
 	}
 	fprintf(stderr, "}\n");
+	fprintf(stderr, "\t-n : print summary statistics only, no graph/test\n");
 	fprintf(stderr, "\t-s : print avg/median/stddev bars on separate lines\n");
 	exit (2);
 }
@@ -522,9 +523,10 @@ main(int argc, char **argv)
 	char *p;
 	int c, i, ci;
 	int flag_s = 0;
+	int flag_n = 0;
 
 	ci = -1;
-	while ((c = getopt(argc, argv, "c:s")) != -1)
+	while ((c = getopt(argc, argv, "c:sn")) != -1)
 		switch (c) {
 		case 'c':
 			a = strtod(optarg, &p);
@@ -535,6 +537,9 @@ main(int argc, char **argv)
 					ci = i;
 			if (ci == -1)
 				usage("No support for confidence level");
+			break;
+		case 'n':
+			flag_n = 1;
 			break;
 		case 's':
 			flag_s = 1;
@@ -562,17 +567,20 @@ main(int argc, char **argv)
 		}
 	}
 
-	SetupPlot(74, flag_s);
-	for (i = 0; i < nds; i++)
-		DimPlot(ds[i]);
-	for (i = 0; i < nds; i++)
-		PlotSet(ds[i], i + 1);
-	DumpPlot();
+	if (!flag_n) {
+		SetupPlot(74, flag_s);
+		for (i = 0; i < nds; i++)
+			DimPlot(ds[i]);
+		for (i = 0; i < nds; i++)
+			PlotSet(ds[i], i + 1);
+		DumpPlot();
+	}
 	VitalsHead();
 	Vitals(ds[0], 1);
 	for (i = 1; i < nds; i++) {
 		Vitals(ds[i], i + 1);
-		Relative(ds[i], ds[0], ci);
+		if (!flag_n)
+			Relative(ds[i], ds[0], ci);
 	}
 	exit(0);
 }
