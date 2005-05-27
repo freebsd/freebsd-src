@@ -461,6 +461,7 @@ options 	ALTQ_DEBUG
 # is not already compiled into the kernel. Each type below has a
 # corresponding man page, e.g., ng_async(8).
 options 	NETGRAPH		#netgraph(4) system
+options 	NETGRAPH_DEBUG
 options 	NETGRAPH_ASYNC
 options 	NETGRAPH_ATMLLC
 options 	NETGRAPH_ATM_ATMPIF

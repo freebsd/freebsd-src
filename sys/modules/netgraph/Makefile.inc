@@ -6,4 +6,6 @@ CFLAGS+=	-Wall
 
 EXPORT_SYMS=	YES	# XXX evaluate
 
+SRCS+=	opt_netgraph.h
+
 .include "../Makefile.inc"

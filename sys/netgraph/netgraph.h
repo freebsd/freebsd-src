@@ -53,8 +53,10 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+
+#include "opt_netgraph.h"
+
 /* debugging options */
-#define NETGRAPH_DEBUG 
 #define NG_SEPARATE_MALLOC	/* make modules use their own malloc types */
 
 /*
