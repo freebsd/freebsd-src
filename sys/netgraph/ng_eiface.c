@@ -32,10 +32,8 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/mutex.h>
 #include <sys/errno.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
@@ -76,7 +74,7 @@ static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 /* Node private data */
 struct ng_eiface_private {
 	struct arpcom	arpcom;		/* per-interface network data */
-	struct ifnet	*ifp;		/* This interface */
+#define	sc_ifp		arpcom.ac_if
 	int		unit;		/* Interface unit number */
 	node_p		node;		/* Our netgraph node */
 	hook_p		ether;		/* Hook for ethernet stream */
@@ -92,114 +90,30 @@ static void	ng_eiface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
 
 /* Netgraph methods */
+static int		ng_eiface_mod_event(module_t, int, void *);
 static ng_constructor_t	ng_eiface_constructor;
 static ng_rcvmsg_t	ng_eiface_rcvmsg;
 static ng_shutdown_t	ng_eiface_rmnode;
 static ng_newhook_t	ng_eiface_newhook;
 static ng_rcvdata_t	ng_eiface_rcvdata;
-static ng_connect_t	ng_eiface_connect;
 static ng_disconnect_t	ng_eiface_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
 	.version =	NG_ABI_VERSION,
 	.name =		NG_EIFACE_NODE_TYPE,
+	.mod_event =	ng_eiface_mod_event,
 	.constructor =	ng_eiface_constructor,
 	.rcvmsg =	ng_eiface_rcvmsg,
 	.shutdown =	ng_eiface_rmnode,
 	.newhook =	ng_eiface_newhook,
-	.connect =	ng_eiface_connect,
 	.rcvdata =	ng_eiface_rcvdata,
 	.disconnect =	ng_eiface_disconnect,
 	.cmdlist =	ng_eiface_cmdlist
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
-/* We keep a bitmap indicating which unit numbers are free.
-   One means the unit number is free, zero means it's taken. */
-static int	*ng_eiface_units = NULL;
-static int	ng_eiface_units_len = 0;
-static int	ng_units_in_use = 0;
-
-#define UNITS_BITSPERWORD	(sizeof(*ng_eiface_units) * NBBY)
-
-static struct mtx	ng_eiface_mtx;
-MTX_SYSINIT(ng_eiface, &ng_eiface_mtx, "ng_eiface", MTX_DEF);
-
-/************************************************************************
-			HELPER STUFF
- ************************************************************************/
-/*
- * Find the first free unit number for a new interface.
- * Increase the size of the unit bitmap as necessary.
- */
-static __inline int
-ng_eiface_get_unit(int *unit)
-{
-	int index, bit;
-
-	mtx_lock(&ng_eiface_mtx);
-	for (index = 0; index < ng_eiface_units_len
-	    && ng_eiface_units[index] == 0; index++);
-	if (index == ng_eiface_units_len) {		/* extend array */
-		int i, *newarray, newlen;
-
-		newlen = (2 * ng_eiface_units_len) + 4;
-		MALLOC(newarray, int *, newlen * sizeof(*ng_eiface_units),
-		    M_NETGRAPH, M_NOWAIT);
-		if (newarray == NULL) {
-			mtx_unlock(&ng_eiface_mtx);
-			return (ENOMEM);
-		}
-		bcopy(ng_eiface_units, newarray,
-		    ng_eiface_units_len * sizeof(*ng_eiface_units));
-		for (i = ng_eiface_units_len; i < newlen; i++)
-			newarray[i] = ~0;
-		if (ng_eiface_units != NULL)
-			FREE(ng_eiface_units, M_NETGRAPH);
-		ng_eiface_units = newarray;
-		ng_eiface_units_len = newlen;
-	}
-	bit = ffs(ng_eiface_units[index]) - 1;
-	KASSERT(bit >= 0 && bit <= UNITS_BITSPERWORD - 1,
-	    ("%s: word=%d bit=%d", __func__, ng_eiface_units[index], bit));
-	ng_eiface_units[index] &= ~(1 << bit);
-	*unit = (index * UNITS_BITSPERWORD) + bit;
-	ng_units_in_use++;
-	mtx_unlock(&ng_eiface_mtx);
-	return (0);
-}
-
-/*
- * Free a no longer needed unit number.
- */
-static __inline void
-ng_eiface_free_unit(int unit)
-{
-	int index, bit;
-
-	index = unit / UNITS_BITSPERWORD;
-	bit = unit % UNITS_BITSPERWORD;
-	mtx_lock(&ng_eiface_mtx);
-	KASSERT(index < ng_eiface_units_len,
-	    ("%s: unit=%d len=%d", __func__, unit, ng_eiface_units_len));
-	KASSERT((ng_eiface_units[index] & (1 << bit)) == 0,
-	    ("%s: unit=%d is free", __func__, unit));
-	ng_eiface_units[index] |= (1 << bit);
-	/*
-	 * XXX We could think about reducing the size of ng_eiface_units[]
-	 * XXX here if the last portion is all ones
-	 * XXX At least free it if no more units.
-	 * Needed if we are to eventually be able to unload.
-	 */
-	ng_units_in_use--;
-	if (ng_units_in_use == 0) { /* XXX make SMP safe */
-		FREE(ng_eiface_units, M_NETGRAPH);
-		ng_eiface_units_len = 0;
-		ng_eiface_units = NULL;
-	}
-	mtx_unlock(&ng_eiface_mtx);
-}
+static struct unrhdr	*ng_eiface_unit;
 
 /************************************************************************
 			INTERFACE STUFF
@@ -274,7 +188,7 @@ static void
 ng_eiface_init(void *xsc)
 {
 	priv_p sc = xsc;
-	struct ifnet *ifp = sc->ifp;
+	struct ifnet *ifp = &sc->sc_ifp;
 	int s;
 
 	s = splimp();
@@ -415,25 +329,19 @@ ng_eiface_constructor(node_p node)
 {
 	struct ifnet *ifp;
 	priv_p priv;
-	int error = 0;
 
 	/* Allocate node and interface private structures */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_WAITOK);
+	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
-	bzero(priv, sizeof(*priv));
 
 	ifp = &(priv->arpcom.ac_if);
 
 	/* Link them together */
 	ifp->if_softc = priv;
-	priv->ifp = ifp;
 
 	/* Get an interface unit number */
-	if ((error = ng_eiface_get_unit(&priv->unit)) != 0) {
-		FREE(priv, M_NETGRAPH);
-		return (error);
-	}
+	priv->unit = alloc_unr(ng_eiface_unit);
 
 	/* Link together node and private info */
 	NG_NODE_SET_PRIVATE(node, priv);
@@ -488,7 +396,7 @@ static int
 ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ifnet *const ifp = priv->ifp;
+	struct ifnet *const ifp = &priv->sc_ifp;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -589,7 +497,7 @@ static int
 ng_eiface_rcvdata(hook_p hook, item_p item)
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	struct ifnet *const ifp = priv->ifp;
+	struct ifnet *const ifp = &priv->sc_ifp;
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
@@ -626,25 +534,13 @@ static int
 ng_eiface_rmnode(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ifnet *const ifp = priv->ifp;
+	struct ifnet *const ifp = &priv->sc_ifp;
 
 	ether_ifdetach(ifp);
-	ng_eiface_free_unit(priv->unit);
+	free_unr(ng_eiface_unit, priv->unit);
 	FREE(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
-	return (0);
-}
-
-
-/*
- * This is called once we've already connected a new hook to the other node.
- * It gives us a chance to balk at the last minute.
- */
-static int
-ng_eiface_connect(hook_p hook)
-{
-	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }
 
@@ -658,4 +554,26 @@ ng_eiface_disconnect(hook_p hook)
 
 	priv->ether = NULL;
 	return (0);
+}
+
+/*
+ * Handle loading and unloading for this node type.
+ */
+static int
+ng_eiface_mod_event(module_t mod, int event, void *data)
+{
+	int error = 0;
+
+	switch (event) {
+	case MOD_LOAD:
+		ng_eiface_unit = new_unrhdr(0, 0xffff, NULL);
+		break;
+	case MOD_UNLOAD:
+		delete_unrhdr(ng_eiface_unit);
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return (error);
 }
