@@ -421,12 +421,6 @@ static struct vm_object l2zone_obj;
 static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
 int pmap_pagedaemon_waken = 0;
 
-void pmap_deactivate(struct thread *);
-
-void
-pmap_deactivate(struct thread *td)
-{
-}
 /*
  * This list exists for the benefit of pmap_map_chunk().  It keeps track
  * of the kernel L2 tables during bootstrap, so that pmap_map_chunk() can
