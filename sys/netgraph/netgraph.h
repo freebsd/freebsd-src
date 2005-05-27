@@ -1077,6 +1077,8 @@ int	ng_rmtype(struct ng_type *tp);
 int	ng_snd_item(item_p item, int queue);
 int 	ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn,
 	void *arg1, int arg2);
+int 	ng_queue_fn(node_p node, hook_p hook, ng_item_fn *fn,
+	void *arg1, int arg2);
 int	ng_uncallout(struct callout *c, node_p node);
 int	ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	    ng_item_fn *fn, void * arg1, int arg2);

@@ -3569,8 +3569,9 @@ ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg)
 	return (item);
 }
 
-int
-ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
+static __inline int
+ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
+	int queue)
 {
 	item_p item;
 
@@ -3587,7 +3588,19 @@ ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
 	NGI_FN(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	return(ng_snd_item(item, 0));
+	return(ng_snd_item(item, queue));
+}
+
+int
+ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
+{
+	return (ng_send_fn1(node, hook, fn, arg1, arg2, 0));
+}
+
+int
+ng_queue_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
+{
+	return (ng_send_fn1(node, hook, fn, arg1, arg2, 1));
 }
 
 /* 
