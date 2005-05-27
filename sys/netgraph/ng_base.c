@@ -3058,8 +3058,8 @@ ngb_mod_event(module_t mod, int event, void *data)
 		ng_qzone = uma_zcreate("NetGraph items", sizeof(struct ng_item),
 		    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
 		uma_zone_set_max(ng_qzone, maxalloc);
-		/* XXX could use NETISR_MPSAFE but need to verify code */
-		netisr_register(NETISR_NETGRAPH, (netisr_t *)ngintr, NULL, 0);
+		netisr_register(NETISR_NETGRAPH, (netisr_t *)ngintr, NULL,
+		    NETISR_MPSAFE);
 		break;
 	case MOD_UNLOAD:
 		/* You cant unload it because an interface may be using it.  */
