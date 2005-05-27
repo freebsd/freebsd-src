@@ -526,6 +526,7 @@ freebsd4_getfsstat(td, uap)
 	maxcount = uap->bufsize / sizeof(struct ostatfs);
 	sfsp = (caddr_t)uap->buf;
 	count = 0;
+	mtx_lock(&Giant);
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (!prison_check_mount(td->td_ucred, mp)) {
@@ -567,6 +568,7 @@ freebsd4_getfsstat(td, uap)
 			error = copyout(&osb, sfsp, sizeof(osb));
 			if (error) {
 				vfs_unbusy(mp, td);
+				mtx_unlock(&Giant);
 				return (error);
 			}
 			sfsp += sizeof(osb);
@@ -577,6 +579,7 @@ freebsd4_getfsstat(td, uap)
 		vfs_unbusy(mp, td);
 	}
 	mtx_unlock(&mountlist_mtx);
+	mtx_unlock(&Giant);
 	if (sfsp && count > maxcount)
 		td->td_retval[0] = maxcount;
 	else
