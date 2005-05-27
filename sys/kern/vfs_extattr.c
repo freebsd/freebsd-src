@@ -443,7 +443,7 @@ getfsstat(td, uap)
 /*
  * Get old format filesystem statistics.
  */
-static void cvtstatfs(struct thread *, struct statfs *, struct ostatfs *);
+static void cvtstatfs(struct statfs *, struct ostatfs *);
 
 #ifndef _SYS_SYSPROTO_H_
 struct freebsd4_statfs_args {
@@ -466,7 +466,7 @@ freebsd4_statfs(td, uap)
 	error = kern_statfs(td, uap->path, UIO_USERSPACE, &sf);
 	if (error)
 		return (error);
-	cvtstatfs(td, &sf, &osb);
+	cvtstatfs(&sf, &osb);
 	return (copyout(&osb, uap->buf, sizeof(osb)));
 }
 
@@ -494,7 +494,7 @@ freebsd4_fstatfs(td, uap)
 	error = kern_fstatfs(td, uap->fd, &sf);
 	if (error)
 		return (error);
-	cvtstatfs(td, &sf, &osb);
+	cvtstatfs(&sf, &osb);
 	return (copyout(&osb, uap->buf, sizeof(osb)));
 }
 
@@ -564,7 +564,7 @@ freebsd4_getfsstat(td, uap)
 				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 				sp = &sb;
 			}
-			cvtstatfs(td, sp, &osb);
+			cvtstatfs(sp, &osb);
 			error = copyout(&osb, sfsp, sizeof(osb));
 			if (error) {
 				vfs_unbusy(mp, td);
@@ -615,7 +615,7 @@ freebsd4_fhstatfs(td, uap)
 	error = kern_fhstatfs(td, fh, &sf);
 	if (error)
 		return (error);
-	cvtstatfs(td, &sf, &osb);
+	cvtstatfs(&sf, &osb);
 	return (copyout(&osb, uap->buf, sizeof(osb)));
 }
 
@@ -623,8 +623,7 @@ freebsd4_fhstatfs(td, uap)
  * Convert a new format statfs structure to an old format statfs structure.
  */
 static void
-cvtstatfs(td, nsp, osp)
-	struct thread *td;
+cvtstatfs(nsp, osp)
 	struct statfs *nsp;
 	struct ostatfs *osp;
 {
