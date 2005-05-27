@@ -174,14 +174,15 @@ do_umntall(char *hostname) {
 	struct timeval try;
 	CLIENT *clp;
 
-	clp = clnt_create(hostname, RPCPROG_MNT, RPCMNT_VER1, "udp");
+	try.tv_sec = 3;
+	try.tv_usec = 0;
+	clp = clnt_create_timed(hostname, RPCPROG_MNT, RPCMNT_VER1, "udp",
+	    &try);
 	if (clp == NULL) {
 		warnx("%s: %s", hostname, clnt_spcreateerror("RPCPROG_MNT"));
 		return (0);
 	}
 	clp->cl_auth = authunix_create_default();
-	try.tv_sec = 3;
-	try.tv_usec = 0;
 	clnt_stat = clnt_call(clp, RPCMNT_UMNTALL,
 	    (xdrproc_t)xdr_void, (caddr_t)0,
 	    (xdrproc_t)xdr_void, (caddr_t)0, try);
@@ -201,14 +202,15 @@ do_umount(char *hostname, char *dirp) {
 	struct timeval try;
 	CLIENT *clp;
 
-	clp = clnt_create(hostname, RPCPROG_MNT, RPCMNT_VER1, "udp");
+	try.tv_sec = 3;
+	try.tv_usec = 0;
+	clp = clnt_create_timed(hostname, RPCPROG_MNT, RPCMNT_VER1, "udp",
+	    &try);
 	if (clp  == NULL) {
 		warnx("%s: %s", hostname, clnt_spcreateerror("RPCPROG_MNT"));
 		return (0);
 	}
 	clp->cl_auth = authsys_create_default();
-	try.tv_sec = 3;
-	try.tv_usec = 0;
 	clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, (xdrproc_t)xdr_dir, dirp,
 	    (xdrproc_t)xdr_void, (caddr_t)0, try);
 	if (clnt_stat != RPC_SUCCESS)
