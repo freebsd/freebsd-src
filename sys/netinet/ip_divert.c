@@ -273,7 +273,12 @@ div_output(struct socket *so, struct mbuf *m,
 	struct divert_tag *dt;
 	int error = 0;
 
+	/*
+	 * An mbuf may hasn't come from userland, but we pretend
+	 * that it has.
+	 */
 	m->m_pkthdr.rcvif = NULL;
+	m->m_nextpkt = NULL;
 
 	if (control)
 		m_freem(control);		/* XXX */
