@@ -3951,6 +3951,8 @@ getfh(td, uap)
  *
  * warning: do not remove the suser() call or this becomes one giant
  * security hole.
+ *
+ * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct fhopen_args {
@@ -3990,13 +3992,16 @@ fhopen(td, uap)
 	if (error)
 		return(error);
 	/* find the mount point */
+	mtx_lock(&Giant);
 	mp = vfs_getvfs(&fhp.fh_fsid);
-	if (mp == NULL)
-		return (ESTALE);
+	if (mp == NULL) {
+		error = ESTALE;
+		goto out;
+	}
 	/* now give me my vnode, it gets returned to me locked */
 	error = VFS_FHTOVP(mp, &fhp.fh_fid, &vp);
 	if (error)
-		return (error);
+		goto out;
 	/*
 	 * from now on we have to make sure not
 	 * to forget about the vnode
@@ -4044,7 +4049,7 @@ fhopen(td, uap)
 		VOP_UNLOCK(vp, 0, td);				/* XXX */
 		if ((error = vn_start_write(NULL, &mp, V_WAIT | PCATCH)) != 0) {
 			vrele(vp);
-			return (error);
+			goto out;
 		}
 		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);	/* XXX */
@@ -4115,7 +4120,7 @@ fhopen(td, uap)
 			 * release our private reference
 			 */
 			fdrop(fp, td);
-			return(error);
+			goto out;
 		}
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		fp->f_flag |= FHASLOCK;
@@ -4123,16 +4128,21 @@ fhopen(td, uap)
 
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
+	mtx_unlock(&Giant);
 	td->td_retval[0] = indx;
 	return (0);
 
 bad:
 	vput(vp);
+out:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
 /*
  * Stat an (NFS) file handle.
+ *
+ * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct fhstat_args {
@@ -4160,12 +4170,18 @@ fhstat(td, uap)
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error)
 		return (error);
-	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
+	mtx_lock(&Giant);
+	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL) {
+		mtx_unlock(&Giant);
 		return (ESTALE);
-	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp)))
+	}
+	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp))) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
 	vput(vp);
+	mtx_unlock(&Giant);
 	if (error)
 		return (error);
 	error = copyout(&sb, uap->sb, sizeof(sb));
@@ -4174,6 +4190,8 @@ fhstat(td, uap)
 
 /*
  * Implement fstatfs() for (NFS) file handles.
+ *
+ * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct fhstatfs_args {
@@ -4213,18 +4231,25 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	error = suser(td);
 	if (error)
 		return (error);
-	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
+	mtx_lock(&Giant);
+	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL) {
+		mtx_unlock(&Giant);
 		return (ESTALE);
+	}
 	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 	mp = vp->v_mount;
 	sp = &mp->mnt_stat;
 	vput(vp);
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 #endif
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
@@ -4233,6 +4258,7 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
+	mtx_unlock(&Giant);
 	if (error)
 		return (error);
 	*buf = *sp;
