@@ -420,7 +420,7 @@
 295	UNIMPL	nosys
 296	UNIMPL	nosys
 ; XXX 297 is 300 in NetBSD 
-297	COMPAT4	{ int fhstatfs(const struct fhandle *u_fhp, \
+297	MCOMPAT4	{ int fhstatfs(const struct fhandle *u_fhp, \
 		    struct ostatfs *buf); }
 298	MSTD	{ int fhopen(const struct fhandle *u_fhp, int flags); }
 299	MSTD	{ int fhstat(const struct fhandle *u_fhp, struct stat *sb); }
