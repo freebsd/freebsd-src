@@ -417,13 +417,17 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		error = ENOTCONN;
 		goto release;
 	}
+
+	if (sap == NULL)
+		len = 0;		/* Make compiler happy. */
+	else
+		len = sap->sg_len - 2;
+
 	/*
 	 * If the user used any of these ways to not specify an address
 	 * then handle specially.
 	 */
-	if ((sap == NULL)
-	    || ((len = sap->sg_len - 2) <= 0)
-	    || (*sap->sg_data == '\0')) {
+	if ((sap == NULL) || (len <= 0) || (*sap->sg_data == '\0')) {
 		if (NG_NODE_NUMHOOKS(pcbp->sockdata->node) != 1) {
 			error = EDESTADDRREQ;
 			goto release;
