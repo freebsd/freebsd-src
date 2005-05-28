@@ -384,11 +384,7 @@ To kill processes from outside the jail, use the
 .Xr jexec 8
 utility in conjunction with the one of the
 .Xr kill 1
-commands above, or use the
-.Xr killall 1
-utility with the
-.Fl j
-option.
+commands above.
 .Pp
 The
 .Pa /proc/ Ns Ar pid Ns Pa /status
@@ -415,6 +411,23 @@ Just add the following line to
 .Pa /etc/sysctl.conf :
 .Pp
 .Dl security.jail.set_hostname_allowed=0
+.Pp
+You can also list/kill processes based on their jail ID.
+To show processes and their jail ID use the following command:
+.Pp
+.Bd -literal -offset indent
+ps ax -o pid,jid,args
+.Ed
+.Pp
+To show and then kill processes in jail number 3 use the following commands:
+.Pp
+.Bd -literal -offset indent
+pgrep -lfj 3
+pkill -j 3
+or:
+killall -j 3
+.Ed
+.Pp
 .Ss "Sysctl MIB Entries"
 Certain aspects of the jail containments environment may be modified from
 the host environment using
@@ -515,6 +528,8 @@ and
 .Sh SEE ALSO
 .Xr killall 1 ,
 .Xr newaliases 1 ,
+.Xr pgrep 1 ,
+.Xr pkill 1 ,
 .Xr ps 1 ,
 .Xr chroot 2 ,
 .Xr jail 2 ,
