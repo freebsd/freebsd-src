@@ -275,7 +275,7 @@ linker_file_register_modules(linker_file_t lf)
 {
 	struct mod_metadata **start, **stop, **mdp;
 	const moduledata_t *moddata;
-	int error;
+	int first_error, error;
 
 	KLD_DPF(FILE, ("linker_file_register_modules: registering modules"
 	    " in %s\n", lf->filename));
@@ -293,6 +293,7 @@ linker_file_register_modules(linker_file_t lf)
 		} else
 			return (0);
 	}
+	first_error = 0;
 	for (mdp = start; mdp < stop; mdp++) {
 		if ((*mdp)->md_type != MDT_MODULE)
 			continue;
@@ -303,10 +304,11 @@ linker_file_register_modules(linker_file_t lf)
 		if (error) {
 			printf("Module %s failed to register: %d\n",
 			    moddata->name, error);
-			return (error);
+			if (first_error == 0)
+				first_error = error;
 		}
 	}
-	return (0);
+	return (first_error);
 }
 
 static void
