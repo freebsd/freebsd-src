@@ -756,7 +756,7 @@
 	<ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:01.nfs.asc">FreeBSD-EN-05:01.nfs</ulink>.
 	&merged;</para>
 
-      <para arch="i386">Read-only support for ReiserFS version 3 has been
+      <para arch="i386,pc98">Read-only support for ReiserFS version 3 has been
 	added.  See &man.mount.reiserfs.8; for details.</para>
 
     </sect3>
