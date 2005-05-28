@@ -39,7 +39,7 @@
  * This list is derived from the SNMP list of ifTypes, originally
  * documented in RFC1573, now maintained as:
  *
- * 	ftp.isi.edu/in-notes/iana/assignments/smi-numbers
+ * 	http://www.iana.org/assignments/smi-numbers
  */
 
 #define	IFT_OTHER	0x1		/* none of the following */
