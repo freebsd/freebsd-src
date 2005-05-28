@@ -227,7 +227,7 @@
 145	MCOMPAT	{ int setrlimit(u_int which, struct orlimit *rlp); }
 146	MCOMPAT	{ int killpg(int pgid, int signum); }
 147	MSTD	{ int setsid(void); }
-148	STD	{ int quotactl(char *path, int cmd, int uid, caddr_t arg); }
+148	MSTD	{ int quotactl(char *path, int cmd, int uid, caddr_t arg); }
 149	MCOMPAT	{ int quota(void); }
 150	MCPT_NOA { int getsockname(int fdec, caddr_t asa, int *alen); }\
 		    getsockname getsockname_args int
