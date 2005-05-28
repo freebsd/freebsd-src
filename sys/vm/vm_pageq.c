@@ -100,7 +100,6 @@ vm_pageq_enqueue(int queue, vm_page_t m)
  *	vm_add_new_page:
  *
  *	Add a new page to the freelist for use by the system.
- *	Must be called at splhigh().
  */
 vm_page_t
 vm_pageq_add_new_page(vm_paddr_t pa)
@@ -153,7 +152,7 @@ vm_pageq_add_new_page(vm_paddr_t pa)
  *
  * 	vm_page_unqueue() without any wakeup
  *
- *	This routine must be called at splhigh().
+ *	The queue containing the given page must be locked.
  *	This routine may not block.
  */
 void
@@ -175,7 +174,7 @@ vm_pageq_remove_nowakeup(vm_page_t m)
  *
  *	Remove a page from its queue.
  *
- *	This routine must be called at splhigh().
+ *	The queue containing the given page must be locked.
  *	This routine may not block.
  */
 void
@@ -210,7 +209,7 @@ vm_pageq_remove(vm_page_t m)
  *	caches tend to be physical caches, while object spaces tend 
  *	to be virtual.
  *
- *	This routine must be called at splvm().
+ *	The specified queue must be locked.
  *	This routine may not block.
  *
  *	This routine may only be called from the vm_pageq_find()
