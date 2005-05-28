@@ -422,8 +422,8 @@
 ; XXX 297 is 300 in NetBSD 
 297	COMPAT4	{ int fhstatfs(const struct fhandle *u_fhp, \
 		    struct ostatfs *buf); }
-298	STD	{ int fhopen(const struct fhandle *u_fhp, int flags); }
-299	STD	{ int fhstat(const struct fhandle *u_fhp, struct stat *sb); }
+298	MSTD	{ int fhopen(const struct fhandle *u_fhp, int flags); }
+299	MSTD	{ int fhstat(const struct fhandle *u_fhp, struct stat *sb); }
 ; syscall numbers for FreeBSD
 300	MSTD	{ int modnext(int modid); }
 301	MSTD	{ int modstat(int modid, struct module_stat* stat); }
@@ -565,7 +565,7 @@
 		    int flags); }
 396	MSTD	{ int statfs(char *path, struct statfs *buf); }
 397	MSTD	{ int fstatfs(int fd, struct statfs *buf); }
-398	STD	{ int fhstatfs(const struct fhandle *u_fhp, \
+398	MSTD	{ int fhstatfs(const struct fhandle *u_fhp, \
 		    struct statfs *buf); }
 399	UNIMPL	nosys
 400	MNOSTD	{ int ksem_close(semid_t id); }
