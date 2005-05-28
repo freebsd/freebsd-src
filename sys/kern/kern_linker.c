@@ -300,9 +300,11 @@ linker_file_register_modules(linker_file_t lf)
 		KLD_DPF(FILE, ("Registering module %s in %s\n",
 		    moddata->name, lf->filename));
 		error = module_register(moddata, lf);
-		if (error)
+		if (error) {
 			printf("Module %s failed to register: %d\n",
 			    moddata->name, error);
+			return (error);
+		}
 	}
 	return (0);
 }
@@ -354,7 +356,11 @@ linker_load_file(const char *filename, linker_file_t *result)
 		if (error != ENOENT)
 			foundfile = 1;
 		if (lf) {
-			linker_file_register_modules(lf);
+			error = linker_file_register_modules(lf);
+			if (error == EEXIST) {
+				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+				goto out;
+			}
 			linker_file_register_sysctls(lf);
 			linker_file_sysinit(lf);
 			lf->flags |= LINKER_FILE_LINKED;
