@@ -54,13 +54,11 @@
 #define	timer_spkr_release() \
 	release_timer1()
 
-static __inline void
-spkr_set_pitch(u_int16_t pitch)
-{
-
-	outb(TIMER_CNTR1, pitch & 0xff);
-	outb(TIMER_CNTR1, pitch >> 8);
-}
+#define	spkr_set_pitch(pitch) \
+	do { \
+		outb(TIMER_CNTR1, (pitch) & 0xff); \
+		outb(TIMER_CNTR1, (pitch) >> 8); \
+	} while(0)
 
 #endif /* _KERNEL */
 
