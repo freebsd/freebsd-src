@@ -2054,6 +2054,11 @@ do {									\
 				ulp = NULL;
 				break;
 
+			case IPPROTO_OSPFIGP:
+				/* XXX OSPF header check? */
+				PULLUP_TO(hlen, ulp, struct ip6_ext);
+				break;
+
 			default:
 				printf( "IPFW2: IPV6 - Unknown Extension Header (%d)\n",
 				    proto);
