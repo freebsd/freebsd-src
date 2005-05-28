@@ -164,6 +164,8 @@ SYSCTL_INT(_kern_prison, OID_AUTO, quotas, CTLFLAG_RW, &prison_quotas, 0, "");
 
 /*
  * Change filesystem quotas.
+ *
+ * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct quotactl_args {
@@ -189,17 +191,23 @@ quotactl(td, uap)
 
 	if (jailed(td->td_ucred) && !prison_quotas)
 		return (EPERM);
+	mtx_lock(&Giant);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
+	if ((error = namei(&nd)) != 0) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = vn_start_write(nd.ni_vp, &vmp, V_WAIT | PCATCH);
 	mp = nd.ni_vp->v_mount;
 	vrele(nd.ni_vp);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, td);
 	vn_finished_write(vmp);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
