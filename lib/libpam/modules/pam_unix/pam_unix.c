@@ -231,7 +231,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 		if (getaddrinfo(rhost, NULL, &hints, &res) == 0) {
 			getnameinfo(res->ai_addr, res->ai_addrlen,
 			    rhostip, sizeof(rhostip), NULL, 0,
-			    NI_NUMERICHOST|NI_WITHSCOPEID);
+			    NI_NUMERICHOST);
 		}
 		if (res != NULL)
 			freeaddrinfo(res);

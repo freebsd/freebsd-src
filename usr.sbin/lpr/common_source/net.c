@@ -230,13 +230,13 @@ checkremote(struct printer *pp)
 	for (lr = local_res; lr; lr = lr->ai_next) {
 		h1[0] = '\0';
 		if (getnameinfo(lr->ai_addr, lr->ai_addrlen, h1, sizeof(h1),
-				NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID) != 0)
+				NULL, 0, NI_NUMERICHOST) != 0)
 			continue;
 		for (rr = remote_res; rr; rr = rr->ai_next) {
 			h2[0] = '\0';
 			if (getnameinfo(rr->ai_addr, rr->ai_addrlen,
 					h2, sizeof(h2), NULL, 0,
-					NI_NUMERICHOST | NI_WITHSCOPEID) != 0)
+					NI_NUMERICHOST) != 0)
 				continue;
 			if (strcmp(h1, h2) == 0)
 				ncommonaddrs++;

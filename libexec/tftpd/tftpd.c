@@ -269,7 +269,7 @@ main(int argc, char *argv[])
 			unmappedaddr((struct sockaddr_in6 *)&ss);
 			getnameinfo((struct sockaddr *)&ss, ss.ss_len,
 				    hbuf, sizeof(hbuf), NULL, 0,
-				    NI_NUMERICHOST | NI_WITHSCOPEID);
+				    NI_NUMERICHOST);
 			asprintf(&tempchroot, "%s/%s", chroot_dir, hbuf);
 			if (ipchroot == 2)
 				statret = stat(tempchroot, &sb);
@@ -490,8 +490,7 @@ option_fail:
 		char hbuf[NI_MAXHOST];
 
 		getnameinfo((struct sockaddr *)&from, from.ss_len,
-			    hbuf, sizeof(hbuf), NULL, 0, 
-			    NI_WITHSCOPEID);
+			    hbuf, sizeof(hbuf), NULL, 0, 0);
 		syslog(LOG_INFO, "%s: %s request for %s: %s", hbuf,
 			tp->th_opcode == WRQ ? "write" : "read",
 			filename, errtomsg(ecode));

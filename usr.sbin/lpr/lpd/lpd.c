@@ -675,7 +675,7 @@ chkhost(struct sockaddr *f, int ch_opts)
 	if (error) {
 		errsav = error;
 		error = getnameinfo(f, f->sa_len, hostbuf, sizeof(hostbuf),
-		    NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
+		    NULL, 0, NI_NUMERICHOST);
 		if (error) {
 			asprintf(&syserr,
 			    "can not determine hostname for remote host (%d,%d)",
@@ -701,7 +701,7 @@ chkhost(struct sockaddr *f, int ch_opts)
 
 	/* Need address in stringform for comparison (no DNS lookup here) */
 	error = getnameinfo(f, f->sa_len, hostbuf, sizeof(hostbuf), NULL, 0,
-	    NI_NUMERICHOST | NI_WITHSCOPEID);
+	    NI_NUMERICHOST);
 	if (error) {
 		asprintf(&syserr, "Cannot print IP address (error %d)",
 		    error);
@@ -743,7 +743,7 @@ chkhost(struct sockaddr *f, int ch_opts)
 	good = 0;
 	for (r = res; good == 0 && r; r = r->ai_next) {
 		error = getnameinfo(r->ai_addr, r->ai_addrlen, ip, sizeof(ip),
-		    NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
+		    NULL, 0, NI_NUMERICHOST);
 		if (!error && !strcmp(from_ip, ip))
 			good = 1;
 	}

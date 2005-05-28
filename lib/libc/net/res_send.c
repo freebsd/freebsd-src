@@ -141,8 +141,7 @@ static void Perror(FILE *, char *, int);
 		char pbuf[NI_MAXSERV];
 
 		if (getnameinfo(address, address->sa_len, abuf, sizeof(abuf),
-		    pbuf, sizeof(pbuf),
-		    NI_NUMERICHOST|NI_NUMERICSERV|NI_WITHSCOPEID) != 0) {
+		    pbuf, sizeof(pbuf), NI_NUMERICHOST|NI_NUMERICSERV) != 0) {
 			strncpy(abuf, "?", sizeof(abuf));
 			strncpy(pbuf, "?", sizeof(pbuf));
 		}
@@ -444,7 +443,7 @@ res_send(buf, buflen, ans, anssiz)
 
 		Dprint((_res.options & RES_DEBUG) &&
 		       getnameinfo(nsap, salen, abuf, sizeof(abuf),
-			   NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID) == 0,
+			   NULL, 0, NI_NUMERICHOST) == 0,
 		       (stdout, ";; Querying server (# %d) address = %s\n",
 			ns + 1, abuf));
 

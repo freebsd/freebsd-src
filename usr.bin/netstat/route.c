@@ -903,7 +903,7 @@ netname6(struct sockaddr_in6 *sa6, struct in6_addr *mask)
 	static char line[MAXHOSTNAMELEN];
 	u_char *p = (u_char *)mask;
 	u_char *lim;
-	int masklen, illegal = 0, flag = NI_WITHSCOPEID;
+	int masklen, illegal = 0, flag = 0;
 
 	if (mask) {
 		for (masklen = 0, lim = p + 16; p < lim; p++) {
@@ -963,7 +963,7 @@ char *
 routename6(struct sockaddr_in6 *sa6)
 {
 	static char line[MAXHOSTNAMELEN];
-	int flag = NI_WITHSCOPEID;
+	int flag = 0;
 	/* use local variable for safety */
 	struct sockaddr_in6 sa6_local = {AF_INET6, sizeof(sa6_local),};
 

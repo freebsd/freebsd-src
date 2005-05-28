@@ -32,11 +32,7 @@ static char sccsid[] = "@(#) socket.c 1.15 97/03/21 19:27:24";
 #include <syslog.h>
 #include <string.h>
 
-#ifdef INET6
-#ifndef NI_WITHSCOPEID
-#define NI_WITHSCOPEID	0
-#endif
-#else
+#ifndef INET6
 extern char *inet_ntoa();
 #endif
 
@@ -159,7 +155,7 @@ struct host_info *host;
 					: sizeof(struct sockaddr_in6);
 #endif
     getnameinfo(sin, salen, host->addr, sizeof(host->addr),
-		NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
+		NULL, 0, NI_NUMERICHOST);
 #else
     struct sockaddr_in *sin = host->sin;
 
@@ -211,7 +207,7 @@ struct host_info *host;
 	}
 	if (ap)
 	    err = getnameinfo(sin, salen, hname, sizeof(hname),
-			      NULL, 0, NI_WITHSCOPEID | NI_NAMEREQD);
+			      NULL, 0, NI_NAMEREQD);
     }
     if (!err) {
 
@@ -316,7 +312,7 @@ struct host_info *host;
 	     */
 
 	    getnameinfo(sin, salen, hname, sizeof(hname),
-			NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
+			NULL, 0, NI_NUMERICHOST);
 	    tcpd_warn("host name/address mismatch: %s != %.*s",
 		      hname, STRING_LENGTH,
 		      (res0->ai_canonname == NULL) ? "" : res0->ai_canonname);

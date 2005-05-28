@@ -89,11 +89,6 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
 /*
  * Since "struct ifreq" is composed of various union members, callers
  * should pay special attention to interprete the value.
@@ -1232,11 +1227,6 @@ tunnel_status(int s)
 	u_long srccmd, dstcmd;
 	struct ifreq *ifrp;
 	const char *ver = "";
-#ifdef NI_WITHSCOPEID
-	const int niflag = NI_NUMERICHOST | NI_WITHSCOPEID;
-#else
-	const int niflag = NI_NUMERICHOST;
-#endif
 #ifdef INET6
 	struct in6_ifreq in6_ifr;
 	int s6;
@@ -1271,7 +1261,7 @@ tunnel_status(int s)
 		in6_fillscopeid((struct sockaddr_in6 *)&ifrp->ifr_addr);
 #endif
 	getnameinfo(&ifrp->ifr_addr, ifrp->ifr_addr.sa_len,
-	    psrcaddr, sizeof(psrcaddr), 0, 0, niflag);
+	    psrcaddr, sizeof(psrcaddr), 0, 0, NI_NUMERICHOST);
 #ifdef INET6
 	if (ifrp->ifr_addr.sa_family == AF_INET6)
 		ver = "6";
@@ -1284,7 +1274,7 @@ tunnel_status(int s)
 		in6_fillscopeid((struct sockaddr_in6 *)&ifrp->ifr_addr);
 #endif
 	getnameinfo(&ifrp->ifr_addr, ifrp->ifr_addr.sa_len,
-	    pdstaddr, sizeof(pdstaddr), 0, 0, niflag);
+	    pdstaddr, sizeof(pdstaddr), 0, 0, NI_NUMERICHOST);
 
 	printf("\ttunnel inet%s %s --> %s\n", ver,
 	    psrcaddr, pdstaddr);
@@ -1385,8 +1375,7 @@ in6_status(int s __unused, struct rt_addrinfo * info)
 	scopeid = sin->sin6_scope_id;
 
 	error = getnameinfo((struct sockaddr *)sin, sin->sin6_len, addr_buf,
-			    sizeof(addr_buf), NULL, 0,
-			    NI_NUMERICHOST|NI_WITHSCOPEID);
+			    sizeof(addr_buf), NULL, 0, NI_NUMERICHOST);
 	if (error != 0)
 		inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
 			  sizeof(addr_buf));
@@ -1416,7 +1405,7 @@ in6_status(int s __unused, struct rt_addrinfo * info)
 			error = getnameinfo((struct sockaddr *)sin,
 					    sin->sin6_len, addr_buf,
 					    sizeof(addr_buf), NULL, 0,
-					    NI_NUMERICHOST|NI_WITHSCOPEID);
+					    NI_NUMERICHOST);
 			if (error != 0)
 				inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
 					  sizeof(addr_buf));

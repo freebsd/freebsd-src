@@ -86,11 +86,6 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
 void	 badlogin(char *);
 void	 checknologin(void);
 void	 dolastlog(int);
@@ -234,8 +229,7 @@ main(argc, argv)
 					    res->ai_addrlen,
 					    hostbuf,
 					    sizeof(hostbuf), NULL, 0,
-					    NI_NUMERICHOST|
-					    NI_WITHSCOPEID);
+					    NI_NUMERICHOST);
 					optarg = strdup(hostbuf);
 					if (optarg == NULL) {
 						syslog(LOG_NOTICE,
@@ -480,7 +474,7 @@ main(argc, argv)
 
 				getnameinfo(res->ai_addr, res->ai_addrlen,
 				    hostbuf, sizeof(hostbuf), NULL, 0,
-				    NI_NUMERICHOST|NI_WITHSCOPEID);
+				    NI_NUMERICHOST);
 				if ((optarg = strdup(hostbuf)) == NULL) {
 					syslog(LOG_NOTICE, "strdup(): %m");
 					sleepexit(1);

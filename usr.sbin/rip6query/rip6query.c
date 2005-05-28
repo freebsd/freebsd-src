@@ -56,11 +56,6 @@
 
 #include "route6d.h"
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define NI_WITHSCOPEID	0
-#endif
-
 int	s;
 struct sockaddr_in6 sin6;
 struct rip6	*ripbuf;
@@ -192,7 +187,7 @@ sa_n2a(sa)
 	static char buf[NI_MAXHOST];
 
 	if (getnameinfo(sa, sa->sa_len, buf, sizeof(buf),
-			NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID) != 0) {
+			NULL, 0, NI_NUMERICHOST) != 0) {
 		snprintf(buf, sizeof(buf), "%s", "(invalid)");
 	}
 	return buf;
