@@ -203,6 +203,8 @@ ntp_gettime1(struct ntptimeval *ntvp)
 {
 	struct timespec atv;	/* nanosecond time */
 
+	GIANT_REQUIRED;
+
 	nanotime(&atv);
 	ntvp->time.tv_sec = atv.tv_sec;
 	ntvp->time.tv_nsec = atv.tv_nsec;
@@ -261,7 +263,9 @@ ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
 {	
 	struct ntptimeval ntv;
 
+	mtx_lock(&Giant);
 	ntp_gettime1(&ntv);
+	mtx_unlock(&Giant);
 
 	return (copyout(&ntv, uap->ntvp, sizeof(ntv)));
 }
