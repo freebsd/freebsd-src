@@ -553,7 +553,7 @@
 388	MSTD	{ int __mac_set_fd(int fd, struct mac *mac_p); }
 389	MSTD	{ int __mac_set_file(const char *path_p, \
 		    struct mac *mac_p); }
-390	STD	{ int kenv(int what, const char *name, char *value, \
+390	MSTD	{ int kenv(int what, const char *name, char *value, \
 		    int len); }
 391	MSTD	{ int lchflags(const char *path, int flags); }
 392	MSTD	{ int uuidgen(struct uuid *store, int count); }
