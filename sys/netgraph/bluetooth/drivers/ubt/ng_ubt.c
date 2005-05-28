@@ -258,8 +258,8 @@ USB_MATCH(ubt)
 {
 	/*
 	 * If for some reason device should not be attached then put
-	 * VendorID/ProductID pair into the list below. Currently I
-	 * do not know of any such devices. The format is as follows:
+	 * VendorID/ProductID pair into the list below. The format is
+	 * as follows:
 	 *
 	 *	{ VENDOR_ID, PRODUCT_ID },
 	 *
@@ -267,17 +267,19 @@ USB_MATCH(ubt)
 	 */
 
 	Static struct usb_devno const	ubt_ignored_devices[] = {
+		{ USB_VENDOR_AVM, 0x3800 }, /* AVM USB Bluetooth-Adapter BlueFritz! */
 		{ 0, 0 } /* This should be the last item in the list */
 	};
 
 	/*
 	 * If device violates Bluetooth specification and has bDeviceClass,
 	 * bDeviceSubClass and bDeviceProtocol set to wrong values then you
-	 * could try to put VendorID/ProductID pair into the list below. 
+	 * could try to put VendorID/ProductID pair into the list below.
+	 * Adding VendorID/ProductID pair into this list forces ng_ubt(4)
+	 * to attach to the broken device.
 	 */
 
 	Static struct usb_devno const	ubt_broken_devices[] = {
-		{ USB_VENDOR_AVM, 0x3800 }, /* AVM USB Bluetooth-Adapter BlueFritz! */
 		{ 0, 0 } /* This should be the last item in the list */
 	};
 
