@@ -67,8 +67,8 @@
 15	MSTD	{ int chmod(char *path, int mode); }
 16	MSTD	{ int chown(char *path, int uid, int gid); }
 17	MSTD	{ int obreak(char *nsize); } break obreak_args int
-18	COMPAT4	{ int getfsstat(struct ostatfs *buf, long bufsize, int flags); }
-19	COMPAT	{ long lseek(int fd, long offset, int whence); }
+18	MCOMPAT4	{ int getfsstat(struct ostatfs *buf, long bufsize, int flags); }
+19	MCOMPAT	{ long lseek(int fd, long offset, int whence); }
 20	MSTD	{ pid_t getpid(void); }
 21	STD	{ int mount(char *type, char *path, int flags, caddr_t data); }
 ; XXX `path' should have type `const char *' but we're not ready for that.
@@ -93,9 +93,9 @@
 35	MSTD	{ int fchflags(int fd, int flags); }
 36	MSTD	{ int sync(void); }
 37	MSTD	{ int kill(int pid, int signum); }
-38	COMPAT	{ int stat(char *path, struct ostat *ub); }
+38	MCOMPAT	{ int stat(char *path, struct ostat *ub); }
 39	MSTD	{ pid_t getppid(void); }
-40	COMPAT	{ int lstat(char *path, struct ostat *ub); }
+40	MCOMPAT	{ int lstat(char *path, struct ostat *ub); }
 41	MSTD	{ int dup(u_int fd); }
 42	MSTD	{ int pipe(void); }
 43	MSTD	{ gid_t getegid(void); }
@@ -205,8 +205,8 @@
 126	MSTD	{ int setreuid(int ruid, int euid); }
 127	MSTD	{ int setregid(int rgid, int egid); }
 128	MSTD	{ int rename(char *from, char *to); }
-129	COMPAT	{ int truncate(char *path, long length); }
-130	COMPAT	{ int ftruncate(int fd, long length); }
+129	MCOMPAT	{ int truncate(char *path, long length); }
+130	MCOMPAT	{ int ftruncate(int fd, long length); }
 131	MSTD	{ int flock(int fd, int how); }
 132	MSTD	{ int mkfifo(char *path, int mode); }
 133	MSTD	{ int sendto(int s, caddr_t buf, size_t len, int flags, \
@@ -244,8 +244,8 @@
 155	MNOIMPL	{ int nfssvc(int flag, caddr_t argp); }
 156	COMPAT	{ int getdirentries(int fd, char *buf, u_int count, \
 		    long *basep); }
-157	COMPAT4	{ int statfs(char *path, struct ostatfs *buf); }
-158	COMPAT4	{ int fstatfs(int fd, struct ostatfs *buf); }
+157	MCOMPAT4	{ int statfs(char *path, struct ostatfs *buf); }
+158	MCOMPAT4	{ int fstatfs(int fd, struct ostatfs *buf); }
 159	UNIMPL	nosys
 160	MSTD	{ int lgetfh(char *fname, struct fhandle *fhp); }
 161	MSTD	{ int getfh(char *fname, struct fhandle *fhp); }
