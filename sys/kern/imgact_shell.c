@@ -36,6 +36,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 
+#define	KEEP_OLDCODE	1
+#if BYTE_ORDER == LITTLE_ENDIAN		/* temp for OLD_CODE kludge */
+#define	DBG_MAGIC	0x2B23		/* #+ in "little-endian" */
+#define	OLD_MAGIC	0x3C23		/* #< */
+#else
+#define	DBG_MAGIC	0x232B		/* #+ in big-endian */
+#define	OLD_MAGIC	0x233C		/* #< */
+#endif
+
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define SHELLMAGIC	0x2123 /* #! */
 #else
@@ -43,15 +52,65 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * Shell interpreter image activator. An interpreter name beginning
- *	at imgp->args->begin_argv is the minimal successful exit requirement.
+ * At the time of this writing, MAXSHELLCMDLEN == PAGE_SIZE.  This is
+ * significant because the caller has only mapped in one page of the
+ * file we're reading.  This code should be changed to know how to
+ * read in the second page, but I'm not doing that just yet...
+ */
+#if MAXSHELLCMDLEN > PAGE_SIZE
+#error "MAXSHELLCMDLEN is larger than a single page!"
+#endif
+
+/**
+ * Shell interpreter image activator. An interpreter name beginning at
+ * imgp->args->begin_argv is the minimal successful exit requirement.
+ *
+ * If the given file is a shell-script, then the first line will start
+ * with the two characters `#!' (aka SHELLMAGIC), followed by the name
+ * of the shell-interpreter to run, followed by zero or more tokens.
+ *
+ * The interpreter is then started up such that it will see:
+ *    arg[0] -> The name of interpreter as specified after `#!' in the
+ *		first line of the script.  The interpreter name must
+ *		not be longer than MAXSHELLCMDLEN bytes.
+ *    arg[1] -> *If* there are any additional tokens on the first line,
+ *		then we add a new arg[1], which is a copy of the rest of
+ *		that line.  The copy starts at the first token after the
+ *		interpreter name.  We leave it to the interpreter to
+ *		parse the tokens in that value.
+ *    arg[x] -> the full pathname of the script.  This will either be
+ *		arg[2] or arg[1], depending on whether or not tokens
+ *		were found after the interpreter name.
+ *  arg[x+1] -> all the arguments that were specified on the original
+ *		command line.
+ *
+ * This processing is described in the execve(2) man page.
+ */
+
+/*
+ * HISTORICAL NOTE: From 1993 to mid-2005, FreeBSD parsed out the tokens as
+ * found on the first line of the script, and setup each token as a separate
+ * value in arg[].  This extra processing did not match the behavior of other
+ * OS's, and caused a few subtle problems.  For one, it meant the kernel was
+ * deciding how those values should be parsed (wrt characters for quoting or
+ * comments, etc), while the interpreter might have other rules for parsing.
+ * It also meant the interpreter had no way of knowing which arguments came
+ * from the first line of the shell script, and which arguments were specified
+ * by the user on the command line.
+ *
+ * Only few things in the base system might depend on that non-standard
+ * processing (mainly /bin/sh and /usr/bin/env).  And for programs which are
+ * not in the base system, the "newer" behavior matches how NetBSD, OpenBSD,
+ * Linux, Solaris, AIX, IRIX, and many other Unixes have set up the arg-list
+ * for the interpreter.  So if a program can handle this behavior on those
+ * other OS's, it should be able to handle it for FreeBSD too.
  */
 int
 exec_shell_imgact(imgp)
 	struct image_params *imgp;
 {
 	const char *image_header = imgp->image_header;
-	const char *ihp;
+	const char *ihp, *interpb, *interpe, *maxp, *optb, *opte;
 	int error, offset;
 	size_t length, clength;
 	struct vattr vattr;
@@ -79,14 +138,34 @@ exec_shell_imgact(imgp)
 	if (error)
 		return (error);
 
-	clength = (vattr.va_size > MAXSHELLCMDLEN) ?
-	    MAXSHELLCMDLEN : vattr.va_size;
+	/*
+	 * Copy shell name and arguments from image_header into a string
+	 *	buffer.  Remember that the caller has mapped only the
+	 *	first page of the file into memory.
+	 */
+	clength = (vattr.va_size > PAGE_SIZE) ? PAGE_SIZE : vattr.va_size;
+
+	maxp = &image_header[clength];
+	ihp = &image_header[2];
+#if KEEP_OLDCODE
+	/*
+	 * XXX - Temporarily provide a quick-and-dirty way to get the
+	 * older, non-standard option-parsing behavior, just in case
+	 * someone finds themselves in an emergency where they need it.
+	 * This will not be documented.  It is only for initial testing.
+	 */
+	if (*(const short *)ihp == OLD_MAGIC)
+		ihp += 2;
+	else
+		goto new_code;
+	interpb = ihp;
+
 	/*
 	 * Figure out the number of bytes that need to be reserved in the
 	 * argument string to copy the contents of the interpreter's command
 	 * line into the argument string.
 	 */
-	ihp = &image_header[2];
+	ihp = interpb;
 	offset = 0;
 	while (ihp < &image_header[clength]) {
 		/* Skip any whitespace */
@@ -152,7 +231,7 @@ exec_shell_imgact(imgp)
 	 * Loop through the interpreter name yet again, copying as
 	 * we go.
 	 */
-	ihp = &image_header[2];
+	ihp = interpb;
 	offset = 0;
 	while (ihp < &image_header[clength]) {
 		/* Skip whitespace */
@@ -174,7 +253,95 @@ exec_shell_imgact(imgp)
 		imgp->args->begin_argv[offset++] = '\0';
 		imgp->args->argc++;
 	}
+	goto common_end;
+new_code:
+#endif
+	/*
+	 * Find the beginning and end of the interpreter_name.  If the
+	 * line does not include any interpreter, or if the name which
+	 * was found is too long, we bail out.
+	 */
+	while (ihp < maxp && ((*ihp == ' ') || (*ihp == '\t')))
+		ihp++;
+	interpb = ihp;
+	while (ihp < maxp && ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n')
+	    && (*ihp != '\0')))
+		ihp++;
+	interpe = ihp;
+	if (interpb == interpe)
+		return (ENOEXEC);
+	if ((interpe - interpb) >= MAXSHELLCMDLEN)
+		return (ENAMETOOLONG);
 
+	/*
+	 * Find the beginning of the options (if any), and the end-of-line.
+	 * Then trim the trailing blanks off the value.  Note that some
+	 * other operating systems do *not* trim the trailing whitespace...
+	 */
+	while (ihp < maxp && ((*ihp == ' ') || (*ihp == '\t')))
+		ihp++;
+	optb = ihp;
+	while (ihp < maxp && ((*ihp != '\n') && (*ihp != '\0')))
+		ihp++;
+	opte = ihp;
+	while (--ihp > interpe && ((*ihp == ' ') || (*ihp == '\t')))
+		opte = ihp;
+
+	/*
+	 * We need to "pop" (remove) the present value of arg[0], and "push"
+	 * either two or three new values in the arg[] list.  To do this,
+	 * we first shift all the other values in the `begin_argv' area to
+	 * provide the exact amount of room for the values added.  Set up
+	 * `offset' as the number of bytes to be added to the `begin_argv'
+	 * area, and 'length' as the number of bytes being removed.
+	 */
+	offset = interpe - interpb + 1;			/* interpreter */
+	if (opte != optb)				/* options (if any) */
+		offset += opte - optb + 1;
+	offset += strlen(imgp->args->fname) + 1;	/* fname of script */
+	length = (imgp->args->argc == 0) ? 0 :
+	    strlen(imgp->args->begin_argv) + 1;		/* bytes to delete */
+
+	if (offset - length > imgp->args->stringspace)
+		return (E2BIG);
+
+	bcopy(imgp->args->begin_argv + length, imgp->args->begin_argv + offset,
+	    imgp->args->endp - (imgp->args->begin_argv + length));
+
+	offset -= length;		/* calculate actual adjustment */
+	imgp->args->begin_envv += offset;
+	imgp->args->endp += offset;
+	imgp->args->stringspace -= offset;
+
+	/*
+	 * If there was no arg[0] when we started, then the interpreter_name
+	 * is adding an argument (instead of replacing the arg[0] we started
+	 * with).  And we're always adding an argument when we include the
+	 * full pathname of the original script.
+	 */
+	if (imgp->args->argc == 0)
+		imgp->args->argc = 1;
+	imgp->args->argc++;
+
+	/*
+	 * The original arg[] list has been shifted appropriately.  Copy in
+	 * the interpreter name and options-string.
+	 */
+	length = interpe - interpb;
+	bcopy(interpb, imgp->args->buf, length);
+	*(imgp->args->buf + length) = '\0';
+	offset = length + 1;
+	if (opte != optb) {
+		length = opte - optb;
+		bcopy(optb, imgp->args->buf + offset, length);
+		*(imgp->args->buf + offset + length) = '\0';
+		offset += length + 1;
+		imgp->args->argc++;
+	}
+
+#if KEEP_OLDCODE
+common_end:
+#endif
 	/*
 	 * Finally, add the filename onto the end for the interpreter to
 	 * use and copy the interpreter's name to imgp->interpreter_name
