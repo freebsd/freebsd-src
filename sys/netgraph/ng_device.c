@@ -63,6 +63,7 @@
 #define	ERROUT(x) do { error = (x); goto done; } while (0)
 
 /* Netgraph methods */
+static int		ng_device_mod_event(module_t, int, void *);
 static ng_constructor_t	ng_device_constructor;
 static ng_rcvmsg_t	ng_device_rcvmsg;
 static ng_shutdown_t	ng_device_shutdown;
@@ -74,6 +75,7 @@ static ng_disconnect_t	ng_device_disconnect;
 static struct ng_type ngd_typestruct = {
 	.version =	NG_ABI_VERSION,
 	.name =		NG_DEVICE_NODE_TYPE,
+	.mod_event =	ng_device_mod_event,
 	.constructor =	ng_device_constructor,
 	.rcvmsg	=	ng_device_rcvmsg,
 	.shutdown = 	ng_device_shutdown,
