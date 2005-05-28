@@ -366,7 +366,7 @@
 245	UNIMPL	nosys
 246	UNIMPL	nosys
 247	UNIMPL	nosys
-248	STD	{ int ntp_gettime(struct ntptimeval *ntvp); }
+248	MSTD	{ int ntp_gettime(struct ntptimeval *ntvp); }
 249	UNIMPL	nosys
 ; syscall numbers initially used in OpenBSD
 250	MSTD	{ int minherit(void *addr, size_t len, int inherit); }
