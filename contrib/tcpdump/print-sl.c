@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-sl.c,v 1.62.2.2 2003/11/16 08:51:44 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-sl.c,v 1.65 2005/04/06 21:32:42 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -71,7 +71,7 @@ sl_if_print(const struct pcap_pkthdr *h, const u_char *p)
 
 	switch (IP_V(ip)) {
 	case 4:
-		ip_print((u_char *)ip, length);
+	        ip_print(gndo, (u_char *)ip, length);
 		break;
 #ifdef INET6
 	case 6:
@@ -106,7 +106,7 @@ sl_bsdos_if_print(const struct pcap_pkthdr *h, const u_char *p)
 		sliplink_print(p, ip, length);
 #endif
 
-	ip_print((u_char *)ip, length);
+	ip_print(gndo, (u_char *)ip, length);
 
 	return (SLIP_HDRLEN);
 }

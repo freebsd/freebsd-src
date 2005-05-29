@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.53.2.3 2003/12/29 22:33:18 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.61 2005/04/06 21:32:41 mcr Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -44,6 +44,7 @@ static const char rcsid[] _U_ =
 
 #include "llc.h"
 #include "ethertype.h"
+#include "oui.h"
 
 static struct tok llc_values[] = {
         { LLCSAP_NULL,     "Null" },
@@ -96,7 +97,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 	memcpy((char *)&llc, (char *)p, min(caplen, sizeof(llc)));
 
 	if (eflag)
-	  printf("LLC, dsap %s (0x%02x), ssap %s (0x%02x), cmd 0x%02x, ",
+	  printf("LLC, dsap %s (0x%02x), ssap %s (0x%02x), cmd 0x%02x: ",
                  tok2str(llc_values,"Unknown",llc.dsap),
 		 llc.dsap,
                  tok2str(llc_values,"Unknown",llc.ssap),
@@ -118,9 +119,12 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		 * such as an 802.11 network; this has appeared in at
 		 * least one capture file.)
 		 */
-		printf("(NOV-802.3) ");
-		ipx_print(p, length);
-		return (1);
+
+            if (eflag)
+		printf("IPX-802.3: ");
+
+            ipx_print(p, length);
+            return (1);
 	}
 
 	if (llc.ssap == LLCSAP_8021D && llc.dsap == LLCSAP_8021D) {
@@ -129,7 +133,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 	}
 
 	if (llc.ssap == LLCSAP_IP && llc.dsap == LLCSAP_IP) {
-		ip_print(p+4, length-4);
+		ip_print(gndo, p+4, length-4);
 		return (1);
 	}
 
@@ -218,6 +222,14 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 
 		orgcode = EXTRACT_24BITS(&llc.llc_orgcode[0]);
 		et = EXTRACT_16BITS(&llc.llc_ethertype[0]);
+
+                if (eflag)
+                    (void)printf("oui %s (0x%06x), ethertype %s (0x%04x): ",
+                                 tok2str(oui_values,"Unknown",orgcode),
+                                 orgcode,
+                                 tok2str(ethertype_values,"Unknown", et),
+                                 et);
+
 		/*
 		 * XXX - what *is* the right bridge pad value here?
 		 * Does anybody ever bridge one form of LAN traffic
@@ -310,7 +322,6 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		length -= 4;
 		caplen -= 4;
 	}
-	(void)printf(" len=%d", length);
 	return(1);
 }
 
@@ -429,3 +440,11 @@ snap_print(const u_char *p, u_int length, u_int caplen,
 	}
 	return (0);
 }
+
+
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */
