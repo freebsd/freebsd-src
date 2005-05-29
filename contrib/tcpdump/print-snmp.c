@@ -58,7 +58,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.56.2.3 2004/03/23 06:59:59 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.62 2005/01/05 04:05:04 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -76,6 +76,8 @@ static const char rcsid[] _U_ =
 
 #include "interface.h"
 #include "addrtoname.h"
+
+#undef OPAQUE  /* defined in <wingdi.h> */
 
 /*
  * Universal ASN.1 types
@@ -393,13 +395,6 @@ const char *SnmpVersion[] = {
 #define ASN_ID_EXT 0x1f		/* extension ID in tag field */
 
 /*
- * truncated==1 means the packet was complete, but we don't have all of
- * it to decode.
- */
-static int truncated;
-#define ifNotTruncated if (truncated) fputs("[|snmp]", stdout); else
-
-/*
  * This decodes the next ASN.1 object in the stream pointed to by "p"
  * (and of real-length "len") and stores the intermediate data in the
  * provided BE object.
@@ -416,9 +411,10 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 	elem->asnlen = 0;
 	elem->type = BE_ANY;
 	if (len < 1) {
-		ifNotTruncated fputs("[nothing to parse]", stdout);
+		fputs("[nothing to parse]", stdout);
 		return -1;
 	}
+	TCHECK(*p);
 
 	/*
 	 * it would be nice to use a bit field, but you can't depend on them.
@@ -442,52 +438,66 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 	p++; len--; hdr = 1;
 	/* extended tag field */
 	if (id == ASN_ID_EXT) {
-		for (id = 0; *p & ASN_BIT8 && len > 0; len--, hdr++, p++)
+		/*
+		 * The ID follows, as a sequence of octets with the
+		 * 8th bit set and the remaining 7 bits being
+		 * the next 7 bits of the value, terminated with
+		 * an octet with the 8th bit not set.
+		 *
+		 * First, assemble all the octets with the 8th
+		 * bit set.  XXX - this doesn't handle a value
+		 * that won't fit in 32 bits.
+		 */
+		for (id = 0; *p & ASN_BIT8; len--, hdr++, p++) {
+			if (len < 1) {
+				fputs("[Xtagfield?]", stdout);
+				return -1;
+			}
+			TCHECK(*p);
 			id = (id << 7) | (*p & ~ASN_BIT8);
-		if (len == 0 && *p & ASN_BIT8) {
-			ifNotTruncated fputs("[Xtagfield?]", stdout);
+		}
+		if (len < 1) {
+			fputs("[Xtagfield?]", stdout);
 			return -1;
 		}
+		TCHECK(*p);
 		elem->id = id = (id << 7) | *p;
 		--len;
 		++hdr;
 		++p;
 	}
 	if (len < 1) {
-		ifNotTruncated fputs("[no asnlen]", stdout);
+		fputs("[no asnlen]", stdout);
 		return -1;
 	}
+	TCHECK(*p);
 	elem->asnlen = *p;
 	p++; len--; hdr++;
 	if (elem->asnlen & ASN_BIT8) {
 		u_int32_t noct = elem->asnlen % ASN_BIT8;
 		elem->asnlen = 0;
 		if (len < noct) {
-			ifNotTruncated printf("[asnlen? %d<%d]", len, noct);
+			printf("[asnlen? %d<%d]", len, noct);
 			return -1;
 		}
+		TCHECK2(*p, noct);
 		for (; noct-- > 0; len--, hdr++)
 			elem->asnlen = (elem->asnlen << ASN_SHIFT8) | *p++;
 	}
 	if (len < elem->asnlen) {
-		if (!truncated) {
-			printf("[len%d<asnlen%u]", len, elem->asnlen);
-			return -1;
-		}
-		/* maybe should check at least 4? */
-		elem->asnlen = len;
+		printf("[len%d<asnlen%u]", len, elem->asnlen);
+		return -1;
 	}
 	if (form >= sizeof(Form)/sizeof(Form[0])) {
-		ifNotTruncated printf("[form?%d]", form);
+		printf("[form?%d]", form);
 		return -1;
 	}
 	if (class >= sizeof(Class)/sizeof(Class[0])) {
-		ifNotTruncated printf("[class?%c/%d]", *Form[form], class);
+		printf("[class?%c/%d]", *Form[form], class);
 		return -1;
 	}
 	if ((int)id >= Class[class].numIDs) {
-		ifNotTruncated printf("[id?%c/%s/%d]", *Form[form],
-			Class[class].name, id);
+		printf("[id?%c/%s/%d]", *Form[form], Class[class].name, id);
 		return -1;
 	}
 
@@ -506,6 +516,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 				elem->type = BE_INT;
 				data = 0;
 
+				TCHECK2(*p, elem->asnlen);
 				if (*p & ASN_BIT8)	/* negative */
 					data = -1;
 				for (i = elem->asnlen; i-- > 0; p++)
@@ -544,6 +555,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 			case GAUGE:
 			case TIMETICKS: {
 				register u_int32_t data;
+				TCHECK2(*p, elem->asnlen);
 				elem->type = BE_UNS;
 				data = 0;
 				for (i = elem->asnlen; i-- > 0; p++)
@@ -554,6 +566,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 
 			case COUNTER64: {
 				register u_int32_t high, low;
+				TCHECK2(*p, elem->asnlen);
 			        elem->type = BE_UNS64;
 				high = 0, low = 0;
 				for (i = elem->asnlen; i-- > 0; p++) {
@@ -595,10 +608,11 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 			break;
 
 		default:
-			elem->type = BE_OCTET;
-			elem->data.raw = (caddr_t)p;
 			printf("[P/%s/%s]",
 				Class[class].name, Class[class].Id[id]);
+			TCHECK2(*p, elem->asnlen);
+			elem->type = BE_OCTET;
+			elem->data.raw = (caddr_t)p;
 			break;
 		}
 		break;
@@ -637,6 +651,10 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 	p += elem->asnlen;
 	len -= elem->asnlen;
 	return elem->asnlen + hdr;
+
+trunc:
+	fputs("[|snmp]", stdout);
+	return -1;
 }
 
 /*
@@ -644,7 +662,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
  * This used to be an integral part of asn1_parse() before the intermediate
  * BE form was added.
  */
-static void
+static int
 asn1_print(struct be *elem)
 {
 	u_char *p = (u_char *)elem->data.raw;
@@ -654,6 +672,7 @@ asn1_print(struct be *elem)
 	switch (elem->type) {
 
 	case BE_OCTET:
+		TCHECK2(*p, asnlen);
 		for (i = asnlen; i-- > 0; p++)
 			printf("_%.2x", *p);
 		break;
@@ -662,13 +681,14 @@ asn1_print(struct be *elem)
 		break;
 
 	case BE_OID: {
-	int o = 0, first = -1, i = asnlen;
+		int o = 0, first = -1, i = asnlen;
 
 		if (!sflag && !nflag && asnlen > 2) {
 			struct obj_abrev *a = &obj_abrev_list[0];
+			size_t a_len = strlen(a->oid);
 			for (; a->node; a++) {
-				if (!memcmp(a->oid, (char *)p,
-				    strlen(a->oid))) {
+				TCHECK2(*p, a_len);
+				if (memcmp(a->oid, (char *)p, a_len) == 0) {
 					objp = a->node->child;
 					i -= strlen(a->oid);
 					p += strlen(a->oid);
@@ -680,6 +700,7 @@ asn1_print(struct be *elem)
 		}
 
 		for (; !sflag && i-- > 0; p++) {
+			TCHECK(*p);
 			o = (o << ASN_SHIFT7) + (*p & ~ASN_BIT8);
 			if (*p & ASN_LONGLEN)
 			        continue;
@@ -759,6 +780,7 @@ asn1_print(struct be *elem)
 	case BE_STR: {
 		register int printable = 1, first = 1;
 		const u_char *p = elem->data.str;
+		TCHECK2(*p, asnlen);
 		for (i = asnlen; printable && i-- > 0; p++)
 			printable = isprint(*p) || isspace(*p);
 		p = elem->data.str;
@@ -781,6 +803,7 @@ asn1_print(struct be *elem)
 	case BE_INETADDR:
 		if (asnlen != ASNLEN_INETADDR)
 			printf("[inetaddr len!=%d]", ASNLEN_INETADDR);
+		TCHECK2(*p, asnlen);
 		for (i = asnlen; i-- != 0; p++) {
 			printf((i == asnlen-1) ? "%u" : ".%u", *p);
 		}
@@ -805,6 +828,11 @@ asn1_print(struct be *elem)
 		fputs("[be!?]", stdout);
 		break;
 	}
+	return 0;
+
+trunc:
+	fputs("[|snmp]", stdout);
+	return -1;
 }
 
 #ifdef notdef
@@ -827,7 +855,8 @@ asn1_decode(u_char *p, u_int length)
 		i = asn1_parse(p, length, &elem);
 		if (i >= 0) {
 			fputs(" ", stdout);
-			asn1_print(&elem);
+			if (asn1_print(&elem) < 0)
+				return;
 			if (elem.type == BE_SEQ || elem.type == BE_PDU) {
 				fputs(" {", stdout);
 				asn1_decode(elem.data.raw, elem.asnlen);
@@ -863,14 +892,16 @@ static struct smi2be smi2betab[] = {
     { SMI_BASETYPE_UNKNOWN,		BE_NONE }
 };
 
-static void smi_decode_oid(struct be *elem, unsigned int *oid,
-			   unsigned int oidsize, unsigned int *oidlen)
+static int
+smi_decode_oid(struct be *elem, unsigned int *oid,
+	       unsigned int oidsize, unsigned int *oidlen)
 {
 	u_char *p = (u_char *)elem->data.raw;
 	u_int32_t asnlen = elem->asnlen;
 	int o = 0, first = -1, i = asnlen;
 
 	for (*oidlen = 0; sflag && i-- > 0; p++) {
+		TCHECK(*p);
 	        o = (o << ASN_SHIFT7) + (*p & ~ASN_BIT8);
 		if (*p & ASN_LONGLEN)
 		    continue;
@@ -893,6 +924,11 @@ static void smi_decode_oid(struct be *elem, unsigned int *oid,
 		}
 		o = 0;
 	}
+	return 0;
+
+trunc:
+	fputs("[|snmp]", stdout);
+	return -1;
 }
 
 static int smi_check_type(SmiBasetype basetype, int be)
@@ -949,6 +985,10 @@ static int smi_check_a_range(SmiType *smiType, SmiRange *smiRange,
     case SMI_BASETYPE_UNKNOWN:
 	ok = 1;
 	break;
+
+    default:
+	ok = 0;
+	break;
     }
 
     return ok;
@@ -981,16 +1021,19 @@ static int smi_check_range(SmiType *smiType, struct be *elem)
 	return ok;
 }
 
-static SmiNode *smi_print_variable(struct be *elem)
+static SmiNode *smi_print_variable(struct be *elem, int *status)
 {
 	unsigned int oid[128], oidlen;
 	SmiNode *smiNode = NULL;
-	int i;
+	unsigned int i;
 
-	smi_decode_oid(elem, oid, sizeof(oid)/sizeof(unsigned int), &oidlen);
+	*status = smi_decode_oid(elem, oid, sizeof(oid)/sizeof(unsigned int),
+	    &oidlen);
+	if (*status < 0)
+		return NULL;
 	smiNode = smiGetNodeByOID(oidlen, oid);
 	if (! smiNode) {
-	        asn1_print(elem);
+		*status = asn1_print(elem);
 		return NULL;
 	}
 	if (vflag) {
@@ -1003,27 +1046,27 @@ static SmiNode *smi_print_variable(struct be *elem)
 		        printf(".%u", oid[i]);
 		}
 	}
+	*status = 0;
 	return smiNode;
 }
 
-static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
+static int
+smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 {
-	unsigned int oid[128], oidlen;
+	unsigned int i, oid[128], oidlen;
 	SmiType *smiType;
 	SmiNamedNumber *nn;
-	int i, done = 0;
+	int done = 0;
 
 	if (! smiNode || ! (smiNode->nodekind
 			    & (SMI_NODEKIND_SCALAR | SMI_NODEKIND_COLUMN))) {
-	    asn1_print(elem);
-	    return;
+	    return asn1_print(elem);
 	}
 
 	if (elem->type == BE_NOSUCHOBJECT
 	    || elem->type == BE_NOSUCHINST
 	    || elem->type == BE_ENDOFMIBVIEW) {
-	    asn1_print(elem);
-	    return;
+	    return asn1_print(elem);
 	}
 
 	if (NOTIFY_CLASS(pduid) && smiNode->access < SMI_ACCESS_NOTIFY) {
@@ -1045,8 +1088,7 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 
 	smiType = smiGetNodeType(smiNode);
 	if (! smiType) {
-	    asn1_print(elem);
-	    return;
+	    return asn1_print(elem);
 	}
 
 	if (! smi_check_type(smiType->basetype, elem->type)) {
@@ -1109,8 +1151,9 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 	}
 
 	if (! done) {
-	        asn1_print(elem);
+		return asn1_print(elem);
 	}
+	return 0;
 }
 #endif
 
@@ -1158,6 +1201,7 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
 #ifdef LIBSMI
 	SmiNode *smiNode = NULL;
 #endif
+	int status;
 
 	/* Sequence of varBind */
 	if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1202,16 +1246,18 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
 			return;
 		}
 #ifdef LIBSMI
-		smiNode = smi_print_variable(&elem);
+		smiNode = smi_print_variable(&elem, &status);
 #else
-		asn1_print(&elem);
+		status = asn1_print(&elem);
 #endif
+		if (status < 0)
+			return;
 		length -= count;
 		np += count;
 
 		if (pduid != GETREQ && pduid != GETNEXTREQ
 		    && pduid != GETBULKREQ)
-				fputs("=", stdout);
+			fputs("=", stdout);
 
 		/* objVal (ANY) */
 		if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1220,16 +1266,19 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
 		    || pduid == GETBULKREQ) {
 			if (elem.type != BE_NULL) {
 				fputs("[objVal!=NULL]", stdout);
-				asn1_print(&elem);
+				if (asn1_print(&elem) < 0)
+					return;
 			}
 		} else {
 		        if (elem.type != BE_NULL) {
 #ifdef LIBSMI
-			        smi_print_value(smiNode, pduid, &elem);
+				status = smi_print_value(smiNode, pduid, &elem);
 #else
-				asn1_print(&elem);
+				status = asn1_print(&elem);
 #endif
 			}
+			if (status < 0)
+				return;
 		}
 		length = vblength;
 		np = vbend;
@@ -1241,7 +1290,7 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
  * GetBulk, Inform, V2Trap, and Report
  */
 static void
-snmppdu_print(u_char pduid, const u_char *np, u_int length)
+snmppdu_print(u_short pduid, const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0, error;
@@ -1336,7 +1385,8 @@ trappdu_print(const u_char *np, u_int length)
 		asn1_print(&elem);
 		return;
 	}
-	asn1_print(&elem);
+	if (asn1_print(&elem) < 0)
+		return;
 	length -= count;
 	np += count;
 
@@ -1350,7 +1400,8 @@ trappdu_print(const u_char *np, u_int length)
 		asn1_print(&elem);
 		return;
 	}
-	asn1_print(&elem);
+	if (asn1_print(&elem) < 0)
+		return;
 	length -= count;
 	np += count;
 
@@ -1396,7 +1447,8 @@ trappdu_print(const u_char *np, u_int length)
 		asn1_print(&elem);
 		return;
 	}
-	asn1_print(&elem);
+	if (asn1_print(&elem) < 0)
+		return;
 	length -= count;
 	np += count;
 
@@ -1425,7 +1477,8 @@ pdu_print(const u_char *np, u_int length, int version)
 	if (vflag) {
 		fputs("{ ", stdout);
 	}
-	asn1_print(&pdu);
+	if (asn1_print(&pdu) < 0)
+		return;
 	fputs(" ", stdout);
 	/* descend into PDU */
 	length = pdu.asnlen;
@@ -1788,14 +1841,6 @@ snmp_print(const u_char *np, u_int length)
 	struct be elem;
 	int count = 0;
 	int version = 0;
-
-	truncated = 0;
-
-	/* truncated packet? */
-	if (np + length > snapend) {
-		truncated = 1;
-		length = snapend - np;
-	}
 
 	putchar(' ');
 

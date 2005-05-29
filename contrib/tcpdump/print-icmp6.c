@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp6.c,v 1.72.2.4 2004/03/24 00:14:09 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp6.c,v 1.79 2005/01/14 10:41:50 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -51,6 +51,8 @@ static const char *get_lifetime(u_int32_t);
 static void print_lladdr(const u_char *, size_t);
 static void icmp6_opt_print(const u_char *, int);
 static void mld6_print(const u_char *);
+static void mldv2_report_print(const u_char *, u_int);
+static void mldv2_query_print(const u_char *, u_int);
 static struct udphdr *get_upperlayer(u_char *, u_int *);
 static void dnsname_print(const u_char *, const u_char *);
 static void icmp6_nodeinfo_print(u_int, const u_char *, const u_char *);
@@ -59,6 +61,92 @@ static void icmp6_rrenum_print(const u_char *, const u_char *);
 #ifndef abs
 #define abs(a)	((0 < (a)) ? (a) : -(a))
 #endif
+
+static struct tok icmp6_type_values[] = {
+    { ICMP6_DST_UNREACH, "destination unreachable"},
+    { ICMP6_PACKET_TOO_BIG, "packet too big"},
+    { ICMP6_TIME_EXCEEDED, "time exceeded in-transit"},
+    { ICMP6_PARAM_PROB, "parameter problem"},
+    { ICMP6_ECHO_REQUEST, "echo request"},
+    { ICMP6_ECHO_REPLY, "echo reply"},
+    { MLD6_LISTENER_QUERY, "multicast listener query "},
+    { MLD6_LISTENER_REPORT, "multicast listener report "},
+    { MLD6_LISTENER_DONE, "multicast listener done "},
+    { ND_ROUTER_SOLICIT, "router solicitation "},
+    { ND_ROUTER_ADVERT, "router advertisement"},
+    { ND_NEIGHBOR_SOLICIT, "neighbor solicitation"},
+    { ND_NEIGHBOR_ADVERT, "neighbor advertisment"},
+    { ND_REDIRECT, "redirect"},
+    { ICMP6_ROUTER_RENUMBERING, "router renumbering"},
+    { IND_SOLICIT, "inverse neighbor solicitation"},
+    { IND_ADVERT, "inverse neighbor advertisement"},
+    { MLDV2_LISTENER_REPORT, "multicast listener report v2 "},
+    { ICMP6_HADISCOV_REQUEST, "ha discovery request"},
+    { ICMP6_HADISCOV_REPLY, "ha discovery reply"},
+    { ICMP6_MOBILEPREFIX_SOLICIT, "mobile router solicitation"},
+    { ICMP6_MOBILEPREFIX_ADVERT, "mobile router advertisement"},
+    { ICMP6_WRUREQUEST, "who-are-you request"},
+    { ICMP6_WRUREPLY, "who-are-you reply"},
+    { ICMP6_NI_QUERY, "node information query"},
+    { ICMP6_NI_REPLY, "node information reply"},
+    { MLD6_MTRACE, "mtrace message"},
+    { MLD6_MTRACE_RESP, "mtrace response"},
+    { 0,	NULL }
+};
+
+static struct tok icmp6_dst_unreach_code_values[] = {
+    { ICMP6_DST_UNREACH_NOROUTE, "unreachable route" },
+    { ICMP6_DST_UNREACH_ADMIN, " unreachable prohibited"},
+    { ICMP6_DST_UNREACH_BEYONDSCOPE, "beyond scope"},
+    { ICMP6_DST_UNREACH_ADDR, "unreachable address"},
+    { ICMP6_DST_UNREACH_NOPORT, "unreachable port"},
+    { 0,	NULL }
+};
+
+static struct tok icmp6_opt_pi_flag_values[] = {
+    { ND_OPT_PI_FLAG_ONLINK, "onlink" },
+    { ND_OPT_PI_FLAG_AUTO, "auto" },
+    { ND_OPT_PI_FLAG_ROUTER, "router" },
+    { 0,	NULL }
+};
+
+static struct tok icmp6_opt_ra_flag_values[] = {
+    { ND_RA_FLAG_MANAGED, "managed" },
+    { ND_RA_FLAG_OTHER, "other stateful"},
+    { ND_RA_FLAG_HOME_AGENT, "home agent"},
+    { 0,	NULL }
+};
+
+static struct tok icmp6_nd_na_flag_values[] = {
+    { ND_NA_FLAG_ROUTER, "router" },
+    { ND_NA_FLAG_SOLICITED, "solicited" },
+    { ND_NA_FLAG_OVERRIDE, "override" },
+    { 0,	NULL }
+};
+
+
+static struct tok icmp6_opt_values[] = {
+   { ND_OPT_SOURCE_LINKADDR, "source link-address"},
+   { ND_OPT_TARGET_LINKADDR, "destination link-address"},
+   { ND_OPT_PREFIX_INFORMATION, "prefix info"},
+   { ND_OPT_REDIRECTED_HEADER, "redirected header"},
+   { ND_OPT_MTU, "mtu"},
+   { ND_OPT_ADVINTERVAL, "advertisment interval"},
+   { ND_OPT_HOMEAGENT_INFO, "homeagent information"},
+   { ND_OPT_ROUTE_INFO, "route info"},
+   { 0,	NULL }
+};
+
+/* mldv2 report types */
+static struct tok mldv2report2str[] = {
+	{ 1,	"is_in" },
+	{ 2,	"is_ex" },
+	{ 3,	"to_in" },
+	{ 4,	"to_ex" },
+	{ 5,	"allow" },
+	{ 6,	"block" },
+	{ 0,	NULL }
+};
 
 static const char *
 get_rtpref(u_int v)
@@ -178,26 +266,34 @@ icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 		}
 	}
 
+        printf("ICMP6, %s", tok2str(icmp6_type_values,"unknown icmp6 type (%u)",dp->icmp6_type));
+
+        /* display cosmetics: print the packet length for printer that use the vflag now */
+        if (vflag && (dp->icmp6_type ==
+                      ND_ROUTER_SOLICIT ||
+                      ND_ROUTER_ADVERT ||
+                      ND_NEIGHBOR_ADVERT ||
+                      ND_NEIGHBOR_SOLICIT ||
+                      ND_REDIRECT ||
+                      ICMP6_HADISCOV_REPLY ||
+                      ICMP6_MOBILEPREFIX_ADVERT ))
+            printf(", length %u", length);
+                      
 	switch (dp->icmp6_type) {
 	case ICMP6_DST_UNREACH:
 		TCHECK(oip->ip6_dst);
+                printf(", %s", tok2str(icmp6_dst_unreach_code_values,"unknown unreach code (%u)",dp->icmp6_code));
 		switch (dp->icmp6_code) {
-		case ICMP6_DST_UNREACH_NOROUTE:
-			printf("icmp6: %s unreachable route",
-			       ip6addr_string(&oip->ip6_dst));
-			break;
+
+		case ICMP6_DST_UNREACH_NOROUTE: /* fall through */
 		case ICMP6_DST_UNREACH_ADMIN:
-			printf("icmp6: %s unreachable prohibited",
-			       ip6addr_string(&oip->ip6_dst));
-			break;
+		case ICMP6_DST_UNREACH_ADDR:
+                        printf(" %s",ip6addr_string(&oip->ip6_dst));
+                        break;
 		case ICMP6_DST_UNREACH_BEYONDSCOPE:
-			printf("icmp6: %s beyond scope of source address %s",
+			printf(" %s, source address %s",
 			       ip6addr_string(&oip->ip6_dst),
 			       ip6addr_string(&oip->ip6_src));
-			break;
-		case ICMP6_DST_UNREACH_ADDR:
-			printf("icmp6: %s unreachable address",
-			       ip6addr_string(&oip->ip6_dst));
 			break;
 		case ICMP6_DST_UNREACH_NOPORT:
 			if ((ouh = get_upperlayer((u_char *)oip, &prot))
@@ -207,46 +303,46 @@ icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 			dport = EXTRACT_16BITS(&ouh->uh_dport);
 			switch (prot) {
 			case IPPROTO_TCP:
-				printf("icmp6: %s tcp port %s unreachable",
+				printf(", %s tcp port %s",
 					ip6addr_string(&oip->ip6_dst),
 					tcpport_string(dport));
 				break;
 			case IPPROTO_UDP:
-				printf("icmp6: %s udp port %s unreachable",
+				printf(", %s udp port %s",
 					ip6addr_string(&oip->ip6_dst),
 					udpport_string(dport));
 				break;
 			default:
-				printf("icmp6: %s protocol %d port %d unreachable",
+				printf(", %s protocol %d port %d unreachable",
 					ip6addr_string(&oip->ip6_dst),
 					oip->ip6_nxt, dport);
 				break;
 			}
 			break;
 		default:
-			printf("icmp6: %s unreachable code-#%d",
-				ip6addr_string(&oip->ip6_dst),
-				dp->icmp6_code);
-			break;
+                    if (vflag <= 1) {
+                            print_unknown_data(bp,"\n\t",length);
+                            return;
+                    }
+                    break;
 		}
 		break;
 	case ICMP6_PACKET_TOO_BIG:
 		TCHECK(dp->icmp6_mtu);
-		printf("icmp6: too big %u", EXTRACT_32BITS(&dp->icmp6_mtu));
+		printf(", mtu %u", EXTRACT_32BITS(&dp->icmp6_mtu));
 		break;
 	case ICMP6_TIME_EXCEEDED:
 		TCHECK(oip->ip6_dst);
 		switch (dp->icmp6_code) {
 		case ICMP6_TIME_EXCEED_TRANSIT:
-			printf("icmp6: time exceeded in-transit for %s",
+			printf(" for %s",
 				ip6addr_string(&oip->ip6_dst));
 			break;
 		case ICMP6_TIME_EXCEED_REASSEMBLY:
-			printf("icmp6: ip6 reassembly time exceeded");
+			printf(" (reassembly)");
 			break;
 		default:
-			printf("icmp6: time exceeded code-#%d",
-				dp->icmp6_code);
+			printf(", unknown code (%u)", dp->icmp6_code);
 			break;
 		}
 		break;
@@ -254,19 +350,16 @@ icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 		TCHECK(oip->ip6_dst);
 		switch (dp->icmp6_code) {
 		case ICMP6_PARAMPROB_HEADER:
-			printf("icmp6: parameter problem errorneous - octet %u",
-				EXTRACT_32BITS(&dp->icmp6_pptr));
+			printf(", errorneous - octet %u", EXTRACT_32BITS(&dp->icmp6_pptr));
 			break;
 		case ICMP6_PARAMPROB_NEXTHEADER:
-			printf("icmp6: parameter problem next header - octet %u",
-				EXTRACT_32BITS(&dp->icmp6_pptr));
+			printf(", next header - octet %u", EXTRACT_32BITS(&dp->icmp6_pptr));
 			break;
 		case ICMP6_PARAMPROB_OPTION:
-			printf("icmp6: parameter problem option - octet %u",
-				EXTRACT_32BITS(&dp->icmp6_pptr));
+			printf(", option - octet %u", EXTRACT_32BITS(&dp->icmp6_pptr));
 			break;
 		default:
-			printf("icmp6: parameter problem code-#%d",
+			printf(", code-#%d",
 			       dp->icmp6_code);
 			break;
 		}
@@ -274,59 +367,47 @@ icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 	case ICMP6_ECHO_REQUEST:
 	case ICMP6_ECHO_REPLY:
 		TCHECK(dp->icmp6_seq);
-		printf("icmp6: echo %s seq %u",
-			dp->icmp6_type == ICMP6_ECHO_REQUEST ?
-			"request" : "reply",
-			EXTRACT_16BITS(&dp->icmp6_seq));
+		printf(", seq %u", EXTRACT_16BITS(&dp->icmp6_seq));
 		break;
 	case ICMP6_MEMBERSHIP_QUERY:
-		printf("icmp6: multicast listener query ");
-		mld6_print((const u_char *)dp);
+		if (length == MLD_MINLEN) {
+			mld6_print((const u_char *)dp);
+		} else if (length >= MLDV2_MINLEN) {
+			printf("v2 ");
+			mldv2_query_print((const u_char *)dp, length);
+		} else {
+			printf(" unknown-version (len %u) ", length);
+		}
 		break;
 	case ICMP6_MEMBERSHIP_REPORT:
-		printf("icmp6: multicast listener report ");
 		mld6_print((const u_char *)dp);
 		break;
 	case ICMP6_MEMBERSHIP_REDUCTION:
-		printf("icmp6: multicast listener done ");
 		mld6_print((const u_char *)dp);
 		break;
 	case ND_ROUTER_SOLICIT:
-		printf("icmp6: router solicitation ");
-		if (vflag) {
 #define RTSOLLEN 8
+		if (vflag) {
 			icmp6_opt_print((const u_char *)dp + RTSOLLEN,
 					length - RTSOLLEN);
 		}
 		break;
 	case ND_ROUTER_ADVERT:
-		printf("icmp6: router advertisement");
+#define RTADVLEN 16
 		if (vflag) {
 			struct nd_router_advert *p;
 
 			p = (struct nd_router_advert *)dp;
 			TCHECK(p->nd_ra_retransmit);
-			printf("(chlim=%d, ", (int)p->nd_ra_curhoplimit);
-			if (p->nd_ra_flags_reserved & ND_RA_FLAG_MANAGED)
-				printf("M");
-			if (p->nd_ra_flags_reserved & ND_RA_FLAG_OTHER)
-				printf("O");
-			if (p->nd_ra_flags_reserved & ND_RA_FLAG_HOME_AGENT)
-				printf("H");
+			printf("\n\thop limit %u, Flags [%s]" \
+                               ", pref %s, router lifetime %us, reachable time %us, retrans time %us",
+                               (u_int)p->nd_ra_curhoplimit,
+                               bittok2str(icmp6_opt_ra_flag_values,"none",(p->nd_ra_flags_reserved)),
+                               get_rtpref(p->nd_ra_flags_reserved),
+                               EXTRACT_16BITS(&p->nd_ra_router_lifetime),
+                               EXTRACT_32BITS(&p->nd_ra_reachable),
+                               EXTRACT_32BITS(&p->nd_ra_retransmit));
 
-			if ((p->nd_ra_flags_reserved & ~ND_RA_FLAG_RTPREF_MASK)
-			    != 0)
-				printf(" ");
-
-			printf("pref=%s, ",
-			    get_rtpref(p->nd_ra_flags_reserved));
-
-			printf("router_ltime=%d, ", EXTRACT_16BITS(&p->nd_ra_router_lifetime));
-			printf("reachable_time=%u, ",
-				EXTRACT_32BITS(&p->nd_ra_reachable));
-			printf("retrans_time=%u)",
-				EXTRACT_32BITS(&p->nd_ra_retransmit));
-#define RTADVLEN 16
 			icmp6_opt_print((const u_char *)dp + RTADVLEN,
 					length - RTADVLEN);
 		}
@@ -336,8 +417,7 @@ icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 		struct nd_neighbor_solicit *p;
 		p = (struct nd_neighbor_solicit *)dp;
 		TCHECK(p->nd_ns_target);
-		printf("icmp6: neighbor sol: who has %s",
-			ip6addr_string(&p->nd_ns_target));
+		printf(", who has %s", ip6addr_string(&p->nd_ns_target));
 		if (vflag) {
 #define NDSOLLEN 24
 			icmp6_opt_print((const u_char *)dp + NDSOLLEN,
@@ -351,26 +431,13 @@ icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 
 		p = (struct nd_neighbor_advert *)dp;
 		TCHECK(p->nd_na_target);
-		printf("icmp6: neighbor adv: tgt is %s",
+		printf(", tgt is %s",
 			ip6addr_string(&p->nd_na_target));
 		if (vflag) {
-#define ND_NA_FLAG_ALL	\
-	(ND_NA_FLAG_ROUTER|ND_NA_FLAG_SOLICITED|ND_NA_FLAG_OVERRIDE)
-			/* we don't need ntohl() here.  see advanced-api-04. */
-			if (p->nd_na_flags_reserved &  ND_NA_FLAG_ALL) {
-#undef ND_NA_FLAG_ALL
-				u_int32_t flags;
-
-				flags = p->nd_na_flags_reserved;
-				printf("(");
-				if (flags & ND_NA_FLAG_ROUTER)
-					printf("R");
-				if (flags & ND_NA_FLAG_SOLICITED)
-					printf("S");
-				if (flags & ND_NA_FLAG_OVERRIDE)
-					printf("O");
-				printf(")");
-			}
+                        printf(", Flags [%s]",
+                               bittok2str(icmp6_nd_na_flag_values,
+                                          "none",
+                                          EXTRACT_32BITS(&p->nd_na_flags_reserved)));
 #define NDADVLEN 24
 			icmp6_opt_print((const u_char *)dp + NDADVLEN,
 					length - NDADVLEN);
@@ -381,8 +448,7 @@ icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 	case ND_REDIRECT:
 #define RDR(i) ((struct nd_redirect *)(i))
 		TCHECK(RDR(dp)->nd_rd_dst);
-		printf("icmp6: redirect %s",
-		    getname6((const u_char *)&RDR(dp)->nd_rd_dst));
+		printf(", %s", getname6((const u_char *)&RDR(dp)->nd_rd_dst));
 		TCHECK(RDR(dp)->nd_rd_target);
 		printf(" to %s",
 		    getname6((const u_char*)&RDR(dp)->nd_rd_target));
@@ -401,58 +467,55 @@ icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 	case ICMP6_NI_REPLY:
 		icmp6_nodeinfo_print(length, bp, ep);
 		break;
-	case ICMP6_HADISCOV_REQUEST:
-		printf("icmp6: ha discovery request");
-		if (vflag) {
-			TCHECK(dp->icmp6_data16[0]);
-			printf("(id=%d)", EXTRACT_16BITS(&dp->icmp6_data16[0]));
-		}
+	case IND_SOLICIT:
+	case IND_ADVERT:
 		break;
+	case ICMP6_V2_MEMBERSHIP_REPORT:
+		mldv2_report_print((const u_char *) dp, length);
+		break;
+	case ICMP6_MOBILEPREFIX_SOLICIT: /* fall through */
+	case ICMP6_HADISCOV_REQUEST:
+                TCHECK(dp->icmp6_data16[0]);
+                printf(", id 0x%04x", EXTRACT_16BITS(&dp->icmp6_data16[0]));
+                break;
 	case ICMP6_HADISCOV_REPLY:
-		printf("icmp6: ha discovery reply");
 		if (vflag) {
 			struct in6_addr *in6;
 			u_char *cp;
 
 			TCHECK(dp->icmp6_data16[0]);
-			printf("(id=%d", EXTRACT_16BITS(&dp->icmp6_data16[0]));
+			printf(", id 0x%04x", EXTRACT_16BITS(&dp->icmp6_data16[0]));
 			cp = (u_char *)dp + length;
 			in6 = (struct in6_addr *)(dp + 1);
 			for (; (u_char *)in6 < cp; in6++) {
 				TCHECK(*in6);
 				printf(", %s", ip6addr_string(in6));
 			}
-			printf(")");
-		}
-		break;
-	case ICMP6_MOBILEPREFIX_SOLICIT:
-		printf("icmp6: mobile router solicitation");
-		if (vflag) {
-			TCHECK(dp->icmp6_data16[0]);
-			printf("(id=%d)", EXTRACT_16BITS(&dp->icmp6_data16[0]));
 		}
 		break;
 	case ICMP6_MOBILEPREFIX_ADVERT:
-		printf("icmp6: mobile router advertisement");
 		if (vflag) {
 			TCHECK(dp->icmp6_data16[0]);
-			printf("(id=%d", EXTRACT_16BITS(&dp->icmp6_data16[0]));
+			printf(", id 0x%04x", EXTRACT_16BITS(&dp->icmp6_data16[0]));
 			if (dp->icmp6_data16[1] & 0xc0)
 				printf(" ");
 			if (dp->icmp6_data16[1] & 0x80)
 				printf("M");
 			if (dp->icmp6_data16[1] & 0x40)
 				printf("O");
-			printf(")");
 #define MPADVLEN 8
 			icmp6_opt_print((const u_char *)dp + MPADVLEN,
 					length - MPADVLEN);
 		}
 		break;
 	default:
-		printf("icmp6: type-#%d", dp->icmp6_type);
-		break;
-	}
+                printf(", length %u", length);
+                if (vflag <= 1)
+                    print_unknown_data(bp,"\n\t", length);
+                return;
+        }
+        if (!vflag)
+            printf(", length %u", length); 
 	return;
 trunc:
 	fputs("[|icmp6]", stdout);
@@ -564,89 +627,57 @@ icmp6_opt_print(const u_char *bp, int resid)
 		if (cp + (op->nd_opt_len << 3) > ep)
 			goto trunc;
 
+                printf("\n\t  %s option (%u), length %u (%u): ",
+                       tok2str(icmp6_opt_values, "unknown", op->nd_opt_type),
+                       op->nd_opt_type,
+                       op->nd_opt_len << 3,
+                       op->nd_opt_len);
+
 		switch (op->nd_opt_type) {
 		case ND_OPT_SOURCE_LINKADDR:
 			opl = (struct nd_opt_hdr *)op;
-			printf("(src lladdr: ");
 			l = (op->nd_opt_len << 3) - 2;
 			print_lladdr(cp + 2, l);
-			/*(*/
-			printf(")");
 			break;
 		case ND_OPT_TARGET_LINKADDR:
 			opl = (struct nd_opt_hdr *)op;
-			printf("(tgt lladdr: ");
 			l = (op->nd_opt_len << 3) - 2;
 			print_lladdr(cp + 2, l);
-			/*(*/
-			printf(")");
 			break;
 		case ND_OPT_PREFIX_INFORMATION:
 			opp = (struct nd_opt_prefix_info *)op;
 			TCHECK(opp->nd_opt_pi_prefix);
-			printf("(prefix info: ");	/*)*/
-			if (op->nd_opt_len != 4) {
-				printf("badlen");
-				/*(*/
-				printf(")");
-				break;
-			}
-			if (opp->nd_opt_pi_flags_reserved & ND_OPT_PI_FLAG_ONLINK)
-				printf("L");
-			if (opp->nd_opt_pi_flags_reserved & ND_OPT_PI_FLAG_AUTO)
-				printf("A");
-			if (opp->nd_opt_pi_flags_reserved & ND_OPT_PI_FLAG_ROUTER)
-				printf("R");
-			if (opp->nd_opt_pi_flags_reserved)
-				printf(" ");
-			printf("valid_ltime=%s,",
-			    get_lifetime(EXTRACT_32BITS(&opp->nd_opt_pi_valid_time)));
-			printf("preferred_ltime=%s,",
-			    get_lifetime(EXTRACT_32BITS(&opp->nd_opt_pi_preferred_time)));
-			printf("prefix=%s/%d",
-			    ip6addr_string(&opp->nd_opt_pi_prefix),
-			    opp->nd_opt_pi_prefix_len);
-			if (opp->nd_opt_pi_len != 4)
-				printf("!");
-			/*(*/
-			printf(")");
+                        printf("%s/%u%s, Flags [%s], valid time %ss",
+                               ip6addr_string(&opp->nd_opt_pi_prefix),
+                               opp->nd_opt_pi_prefix_len,
+                               (op->nd_opt_len != 4) ? "badlen" : "",
+                               bittok2str(icmp6_opt_pi_flag_values, "none", opp->nd_opt_pi_flags_reserved),
+                               get_lifetime(EXTRACT_32BITS(&opp->nd_opt_pi_valid_time)));
+                        printf(", pref. time %ss", get_lifetime(EXTRACT_32BITS(&opp->nd_opt_pi_preferred_time)));
 			break;
 		case ND_OPT_REDIRECTED_HEADER:
 			opr = (struct icmp6_opts_redirect *)op;
-			printf("(redirect)");
+                        print_unknown_data(bp,"\n\t    ",op->nd_opt_len<<3);
 			/* xxx */
 			break;
 		case ND_OPT_MTU:
 			opm = (struct nd_opt_mtu *)op;
 			TCHECK(opm->nd_opt_mtu_mtu);
-			printf("(mtu:");	/*)*/
-			if (op->nd_opt_len != 1) {
-				printf("badlen");
-				/*(*/
-				printf(")");
-				break;
-			}
-			printf(" mtu=%u", EXTRACT_32BITS(&opm->nd_opt_mtu_mtu));
-			if (opm->nd_opt_mtu_len != 1)
-				printf("!");
-			printf(")");
-			break;
+			printf(" %u%s",
+                               EXTRACT_32BITS(&opm->nd_opt_mtu_mtu),
+                               (op->nd_opt_len != 1) ? "bad option length" : "" );
+                        break;
 		case ND_OPT_ADVINTERVAL:
 			opa = (struct nd_opt_advinterval *)op;
 			TCHECK(opa->nd_opt_adv_interval);
-			printf("(advint:");	/*)*/
-			printf(" advint=%u",
-			    EXTRACT_32BITS(&opa->nd_opt_adv_interval));
-			/*(*/
-			printf(")");
+			printf(" %us", EXTRACT_32BITS(&opa->nd_opt_adv_interval));
 			break;
 		case ND_OPT_HOMEAGENT_INFO:
 			oph = (struct nd_opt_homeagent_info *)op;
 			TCHECK(oph->nd_opt_hai_lifetime);
-			printf("(ha info:");	/*)*/
-			printf(" pref=%d", EXTRACT_16BITS(&oph->nd_opt_hai_preference));
-			printf(", lifetime=%u", EXTRACT_16BITS(&oph->nd_opt_hai_lifetime));
-			printf(")");
+			printf(" preference %u, lifetime %u",
+                               EXTRACT_16BITS(&oph->nd_opt_hai_preference),
+                               EXTRACT_16BITS(&oph->nd_opt_hai_lifetime));
 			break;
 		case ND_OPT_ROUTE_INFO:
 			opri = (struct nd_opt_route_info *)op;
@@ -667,20 +698,22 @@ icmp6_opt_print(const u_char *bp, int resid)
 			default:
 				goto trunc;
 			}
-			printf("(rtinfo:");	/*)*/
 			printf(" %s/%u", ip6addr_string(&in6),
 			    opri->nd_opt_rti_prefixlen);
 			printf(", pref=%s", get_rtpref(opri->nd_opt_rti_flags));
 			printf(", lifetime=%s",
 			    get_lifetime(EXTRACT_32BITS(&opri->nd_opt_rti_lifetime)));
-			/*(*/
-			printf(")");
 			break;
 		default:
-			printf("(unknown opt_type=%d, opt_len=%d)",
-			       op->nd_opt_type, op->nd_opt_len);
-			break;
+                        if (vflag <= 1) {
+                            print_unknown_data(cp+2,"\n\t  ", (op->nd_opt_len << 3) - 2); /* skip option header */
+                            return;
+                        }
+                        break;
 		}
+                /* do we want to see an additional hexdump ? */
+                if (vflag> 1)
+                    print_unknown_data(cp+2,"\n\t    ", (op->nd_opt_len << 3) - 2); /* skip option header */
 
 		cp += op->nd_opt_len << 3;
 		resid -= op->nd_opt_len << 3;
@@ -710,6 +743,128 @@ mld6_print(const u_char *bp)
 }
 
 static void
+mldv2_report_print(const u_char *bp, u_int len)
+{
+    struct icmp6_hdr *icp = (struct icmp6_hdr *) bp;
+    u_int group, nsrcs, ngroups;
+    u_int i, j;
+
+    /* Minimum len is 8 */
+    if (len < 8) {
+	printf(" [invalid len %d]", len);
+	return;
+    }
+
+    TCHECK(icp->icmp6_data16[1]);
+    ngroups = ntohs(icp->icmp6_data16[1]);
+    printf(", %d group record(s)", ngroups);
+    if (vflag > 0) {
+	/* Print the group records */
+	group = 8;
+        for (i = 0; i < ngroups; i++) {
+	    /* type(1) + auxlen(1) + numsrc(2) + grp(16) */
+	    if (len < group + 20) {
+		printf(" [invalid number of groups]");
+		return;
+	    }
+            TCHECK2(bp[group + 4], 16);
+            printf(" [gaddr %s", ip6addr_string(&bp[group + 4]));
+	    printf(" %s", tok2str(mldv2report2str, " [v2-report-#%d]",
+								bp[group]));
+            nsrcs = (bp[group + 2] << 8) + bp[group + 3];
+	    /* Check the number of sources and print them */
+	    if (len < group + 20 + (nsrcs * 16)) {
+		printf(" [invalid number of sources %d]", nsrcs);
+		return;
+	    }
+            if (vflag == 1)
+                printf(", %d source(s)", nsrcs);
+            else {
+		/* Print the sources */
+                (void)printf(" {");
+                for (j = 0; j < nsrcs; j++) {
+                    TCHECK2(bp[group + 20 + j * 16], 16);
+		    printf(" %s", ip6addr_string(&bp[group + 20 + j * 16]));
+		}
+                (void)printf(" }");
+            }
+	    /* Next group record */
+            group += 20 + nsrcs * 16;
+	    printf("]");
+        }
+    }
+    return;
+trunc:
+    (void)printf("[|icmp6]");
+    return;
+}
+
+static void
+mldv2_query_print(const u_char *bp, u_int len)
+{
+    struct icmp6_hdr *icp = (struct icmp6_hdr *) bp;
+    u_int mrc;
+    int mrt, qqi;
+    u_int nsrcs;
+    register u_int i;
+
+    /* Minimum len is 28 */
+    if (len < 28) {
+	printf(" [invalid len %d]", len);
+	return;
+    }
+    TCHECK(icp->icmp6_data16[0]);
+    mrc = ntohs(icp->icmp6_data16[0]);
+    if (mrc < 32768) {
+	mrt = mrc;
+    } else {
+        mrt = ((mrc & 0x0fff) | 0x1000) << (((mrc & 0x7000) >> 12) + 3);
+    }
+    if (vflag) {
+	(void)printf(" [max resp delay=%d]", mrt);
+    }
+    TCHECK2(bp[8], 16);
+    printf(" [gaddr %s", ip6addr_string(&bp[8]));
+
+    if (vflag) {
+        TCHECK(bp[25]);
+	if (bp[24] & 0x08) {
+		printf(" sflag");
+	}
+	if (bp[24] & 0x07) {
+		printf(" robustness=%d", bp[24] & 0x07);
+	}
+	if (bp[25] < 128) {
+		qqi = bp[25];
+	} else {
+		qqi = ((bp[25] & 0x0f) | 0x10) << (((bp[25] & 0x70) >> 4) + 3);
+	}
+	printf(" qqi=%d", qqi);
+    }
+
+    TCHECK2(bp[26], 2);
+    nsrcs = ntohs(*(u_short *)&bp[26]);
+    if (nsrcs > 0) {
+	if (len < 28 + nsrcs * 16)
+	    printf(" [invalid number of sources]");
+	else if (vflag > 1) {
+	    printf(" {");
+	    for (i = 0; i < nsrcs; i++) {
+		TCHECK2(bp[28 + i * 16], 16);
+		printf(" %s", ip6addr_string(&bp[28 + i * 16]));
+	    }
+	    printf(" }");
+	} else
+	    printf(", %d source(s)", nsrcs);
+    }
+    printf("]");
+    return;
+trunc:
+    (void)printf("[|icmp6]");
+    return;
+}
+
+void
 dnsname_print(const u_char *cp, const u_char *ep)
 {
 	int i;
@@ -764,10 +919,10 @@ icmp6_nodeinfo_print(u_int icmp6len, const u_char *bp, const u_char *ep)
 	case ICMP6_NI_QUERY:
 		if (siz == sizeof(*dp) + 4) {
 			/* KAME who-are-you */
-			printf("icmp6: who-are-you request");
+			printf(" who-are-you request");
 			break;
 		}
-		printf("icmp6: node information query");
+		printf(" node information query");
 
 		TCHECK2(*dp, sizeof(*ni6));
 		ni6 = (struct icmp6_nodeinfo *)dp;
@@ -883,7 +1038,7 @@ icmp6_nodeinfo_print(u_int icmp6len, const u_char *bp, const u_char *ep)
 		needcomma = 0;
 
 		ni6 = (struct icmp6_nodeinfo *)dp;
-		printf("icmp6: node information reply");
+		printf(" node information reply");
 		printf(" (");	/*)*/
 		switch (ni6->ni_code) {
 		case ICMP6_NI_SUCCESS:

@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/ospf.h,v 1.11 2003/10/22 17:08:46 hannes Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/ospf.h,v 1.16 2004/09/20 14:56:34 hannes Exp $ (LBL) */
 /*
  * Copyright (c) 1991, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
@@ -43,6 +43,7 @@
 #define	OSPF_OPTION_EA	0x10	/* EA bit: External Attribute capable */
 #define	OSPF_OPTION_DC	0x20	/* DC bit: Demand circuit capable */
 #define	OSPF_OPTION_O	0x40	/* O bit: Opaque LSA capable */
+#define	OSPF_OPTION_DN	0x80	/* DN bit: Up/Down Bit capable - draft-ietf-ospf-2547-dnbit-04 */
 
 /* ospf_authtype	*/
 #define	OSPF_AUTH_NONE		0	/* No auth-data */
@@ -63,13 +64,14 @@
 #define	LS_TYPE_ASE		5   /* ASE  */
 #define	LS_TYPE_GROUP		6   /* Group membership (multicast */
 				    /* extensions 23 July 1991) */
-#define	LS_TYPE_NSSA            7   /* rfc1587 - Not so Stubby Areas */
+#define	LS_TYPE_NSSA            7   /* rfc3101 - Not so Stubby Areas */
 #define	LS_TYPE_OPAQUE_LL       9   /* rfc2370 - Opaque Link Local */
 #define	LS_TYPE_OPAQUE_AL      10   /* rfc2370 - Opaque Link Local */
 #define	LS_TYPE_OPAQUE_DW      11   /* rfc2370 - Opaque Domain Wide */
 
 #define LS_OPAQUE_TYPE_TE       1   /* rfc3630 */
-#define LS_OPAQUE_TYPE_GRACE    3   /* draft-ietf-ospf-hitless-restart */
+#define LS_OPAQUE_TYPE_GRACE    3   /* rfc3623 */
+#define LS_OPAQUE_TYPE_RI       4   /* draft-ietf-ospf-cap-03 */
 
 #define LS_OPAQUE_TE_TLV_ROUTER 1   /* rfc3630 */
 #define LS_OPAQUE_TE_TLV_LINK   2   /* rfc3630 */
@@ -87,9 +89,21 @@
 #define LS_OPAQUE_TE_LINK_SUBTLV_LINK_PROTECTION_TYPE 14 /* draft-ietf-ccamp-ospf-gmpls-extensions */
 #define LS_OPAQUE_TE_LINK_SUBTLV_INTF_SW_CAP_DESCR    15 /* draft-ietf-ccamp-ospf-gmpls-extensions */
 #define LS_OPAQUE_TE_LINK_SUBTLV_SHARED_RISK_GROUP    16 /* draft-ietf-ccamp-ospf-gmpls-extensions */
+#define LS_OPAQUE_TE_LINK_SUBTLV_DIFFSERV_TE          17 /* draft-ietf-tewg-diff-te-proto-06 */
 
 #define LS_OPAQUE_TE_LINK_SUBTLV_LINK_TYPE_PTP        1  /* rfc3630 */
 #define LS_OPAQUE_TE_LINK_SUBTLV_LINK_TYPE_MA         2  /* rfc3630 */
+
+#define LS_OPAQUE_GRACE_TLV_PERIOD       1 /* rfc3623 */
+#define LS_OPAQUE_GRACE_TLV_REASON       2 /* rfc3623 */
+#define LS_OPAQUE_GRACE_TLV_INT_ADDRESS  3 /* rfc3623 */
+
+#define LS_OPAQUE_GRACE_TLV_REASON_UNKNOWN     0 /* rfc3623 */
+#define LS_OPAQUE_GRACE_TLV_REASON_SW_RESTART  1 /* rfc3623 */
+#define LS_OPAQUE_GRACE_TLV_REASON_SW_UPGRADE  2 /* rfc3623 */
+#define LS_OPAQUE_GRACE_TLV_REASON_CP_SWITCH   3 /* rfc3623 */
+
+#define LS_OPAQUE_RI_TLV_CAP             1 /* draft-ietf-ospf-cap-03 */
 
 /*************************************************
  *
@@ -197,6 +211,20 @@ struct lsa {
 	    u_int16_t length;
 	    u_int8_t data[1]; /* may repeat   */
 	} un_te_lsa_tlv;
+
+        /* Opaque Grace LSA */
+        struct {
+	    u_int16_t type;
+	    u_int16_t length;
+	    u_int8_t data[1]; /* may repeat   */
+	} un_grace_tlv;
+
+        /* Opaque Router information LSA */
+        struct {
+	    u_int16_t type;
+	    u_int16_t length;
+	    u_int8_t data[1]; /* may repeat   */
+	} un_ri_tlv;
 
         /* Unknown LSA */
         struct unknown {

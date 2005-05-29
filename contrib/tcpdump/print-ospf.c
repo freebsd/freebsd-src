@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.45.2.4 2004/03/24 02:44:30 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.56 2004/09/29 16:49:31 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -51,6 +51,7 @@ static struct tok ospf_option_values[] = {
 	{ OSPF_OPTION_EA,	"Advertise External" },
 	{ OSPF_OPTION_DC,	"Demand Circuit" },
 	{ OSPF_OPTION_O,	"Opaque" },
+	{ OSPF_OPTION_DN,	"Up/Down" },
 	{ 0,			NULL }
 };
 
@@ -103,6 +104,7 @@ static struct tok ospf_dd_flag_values[] = {
 static struct tok lsa_opaque_values[] = {
 	{ LS_OPAQUE_TYPE_TE,    "Traffic Engineering" },
 	{ LS_OPAQUE_TYPE_GRACE, "Graceful restart" },
+	{ LS_OPAQUE_TYPE_RI,    "Router Information" },
 	{ 0,			NULL }
 };
 
@@ -126,16 +128,48 @@ static struct tok lsa_opaque_te_link_tlv_subtlv_values[] = {
 	{ LS_OPAQUE_TE_LINK_SUBTLV_LINK_PROTECTION_TYPE, "Link Protection Type" },
 	{ LS_OPAQUE_TE_LINK_SUBTLV_INTF_SW_CAP_DESCR,    "Interface Switching Capability" },
 	{ LS_OPAQUE_TE_LINK_SUBTLV_SHARED_RISK_GROUP,    "Shared Risk Link Group" },
+	{ LS_OPAQUE_TE_LINK_SUBTLV_DIFFSERV_TE,          "Diffserv TE" },
 	{ 0,			NULL }
 };
 
-#define LS_OPAQUE_TE_LINK_SUBTLV_LINK_TYPE_PTP        1  /* rfc3630 */
-#define LS_OPAQUE_TE_LINK_SUBTLV_LINK_TYPE_MA         2  /* rfc3630 */
+static struct tok lsa_opaque_grace_tlv_values[] = {
+	{ LS_OPAQUE_GRACE_TLV_PERIOD,             "Grace Period" },
+	{ LS_OPAQUE_GRACE_TLV_REASON,             "Graceful restart Reason" },
+	{ LS_OPAQUE_GRACE_TLV_INT_ADDRESS,        "IPv4 interface address" },
+	{ 0,		        NULL }
+};
+
+static struct tok lsa_opaque_grace_tlv_reason_values[] = {
+	{ LS_OPAQUE_GRACE_TLV_REASON_UNKNOWN,     "Unknown" },
+	{ LS_OPAQUE_GRACE_TLV_REASON_SW_RESTART,  "Software Restart" },
+	{ LS_OPAQUE_GRACE_TLV_REASON_SW_UPGRADE,  "Software Reload/Upgrade" },
+	{ LS_OPAQUE_GRACE_TLV_REASON_CP_SWITCH,   "Control Processor Switch" },
+	{ 0,		        NULL }
+};
 
 static struct tok lsa_opaque_te_tlv_link_type_sub_tlv_values[] = {
 	{ LS_OPAQUE_TE_LINK_SUBTLV_LINK_TYPE_PTP, "Point-to-point" },
 	{ LS_OPAQUE_TE_LINK_SUBTLV_LINK_TYPE_MA,  "Multi-Access" },
 	{ 0,			NULL }
+};
+
+static struct tok lsa_opaque_ri_tlv_values[] = {
+	{ LS_OPAQUE_RI_TLV_CAP, "Router Capabilities" },
+	{ 0,		        NULL }
+};
+
+static struct tok lsa_opaque_ri_tlv_cap_values[] = {
+	{ 1, "Reserved" },
+	{ 2, "Reserved" },
+	{ 4, "Reserved" },
+	{ 8, "Reserved" },
+	{ 16, "graceful restart capable" },
+	{ 32, "graceful restart helper" },
+	{ 64, "Stub router support" },
+	{ 128, "Traffic engineering" },
+	{ 256, "p2p over LAN" },
+	{ 512, "path computation server" },
+	{ 0,		        NULL }
 };
 
 static char tstr[] = " [|ospf]";
@@ -219,7 +253,7 @@ ospf_print_lsa(register const struct lsa *lsap)
 	register const struct aslametric *almp;
 	register const struct mcla *mcp;
 	register const u_int32_t *lp;
-	register int j, k, tlv_type, tlv_length, subtlv_type, subtlv_length, priority_level;
+	register int j, k, tlv_type, tlv_length, subtlv_type, subtlv_length, priority_level, bandwidth_constraint;
 	register int ls_length;
 	const u_int8_t *tptr;
 	int count_srlg;
@@ -348,6 +382,7 @@ ospf_print_lsa(register const struct lsa *lsap)
 		break;
 
 	case LS_TYPE_ASE:
+        case LS_TYPE_NSSA: /* fall through - those LSAs share the same format */
 		TCHECK(lsap->lsa_un.un_nla.nla_mask);
 		printf("\n\t    Mask %s",
 		    ipaddr_string(&lsap->lsa_un.un_asla.asla_mask));
@@ -412,6 +447,117 @@ ospf_print_lsa(register const struct lsa *lsap)
 	case LS_TYPE_OPAQUE_DW:
 
 	    switch (*(&lsap->ls_hdr.un_lsa_id.opaque_field.opaque_type)) {
+            case LS_OPAQUE_TYPE_RI:
+		tptr = (u_int8_t *)(&lsap->lsa_un.un_ri_tlv.type);
+
+		while (ls_length != 0) {
+                    TCHECK2(*tptr, 4);
+		    if (ls_length < 4) {
+                        printf("\n\t    Remaining LS length %u < 4", ls_length);
+                        return(ls_end);
+                    }
+                    tlv_type = EXTRACT_16BITS(tptr);
+                    tlv_length = EXTRACT_16BITS(tptr+2);
+                    tptr+=4;
+                    ls_length-=4;
+                    
+                    printf("\n\t    %s TLV (%u), length: %u, value: ",
+                           tok2str(lsa_opaque_ri_tlv_values,"unknown",tlv_type),
+                           tlv_type,
+                           tlv_length);
+
+                    if (tlv_length > ls_length) {
+                        printf("\n\t    Bogus length %u > %u", tlv_length,
+                            ls_length);
+                        return(ls_end);
+                    }
+                    ls_length-=tlv_length;
+                    TCHECK2(*tptr, tlv_length);
+                    switch(tlv_type) {
+
+                    case LS_OPAQUE_RI_TLV_CAP:
+                        if (tlv_length != 4) {
+                            printf("\n\t    Bogus length %u != 4", tlv_length);
+                            return(ls_end);
+                        }
+                        printf("Capabilities: %s",
+                               bittok2str(lsa_opaque_ri_tlv_cap_values, "Unknown", EXTRACT_32BITS(tptr)));
+                        break;
+                    default:
+                        if (vflag <= 1) {
+                            if(!print_unknown_data(tptr,"\n\t      ",tlv_length))
+                                return(ls_end);
+                        }
+                        break;
+
+                    }
+                    tptr+=tlv_length;
+                }
+
+                break;
+            case LS_OPAQUE_TYPE_GRACE:
+		tptr = (u_int8_t *)(&lsap->lsa_un.un_grace_tlv.type);
+
+		while (ls_length != 0) {
+                    TCHECK2(*tptr, 4);
+		    if (ls_length < 4) {
+                        printf("\n\t    Remaining LS length %u < 4", ls_length);
+                        return(ls_end);
+                    }
+                    tlv_type = EXTRACT_16BITS(tptr);
+                    tlv_length = EXTRACT_16BITS(tptr+2);
+                    tptr+=4;
+                    ls_length-=4;
+                    
+                    printf("\n\t    %s TLV (%u), length: %u, value: ",
+                           tok2str(lsa_opaque_grace_tlv_values,"unknown",tlv_type),
+                           tlv_type,
+                           tlv_length);
+
+                    if (tlv_length > ls_length) {
+                        printf("\n\t    Bogus length %u > %u", tlv_length,
+                            ls_length);
+                        return(ls_end);
+                    }
+                    ls_length-=tlv_length;
+                    TCHECK2(*tptr, tlv_length);
+                    switch(tlv_type) {
+
+                    case LS_OPAQUE_GRACE_TLV_PERIOD:
+                        if (tlv_length != 4) {
+                            printf("\n\t    Bogus length %u != 4", tlv_length);
+                            return(ls_end);
+                        }
+                        printf("%us",EXTRACT_32BITS(tptr));
+                        break;
+                    case LS_OPAQUE_GRACE_TLV_REASON:
+                        if (tlv_length != 1) {
+                            printf("\n\t    Bogus length %u != 1", tlv_length);
+                            return(ls_end);
+                        }
+                        printf("%s (%u)",
+                               tok2str(lsa_opaque_grace_tlv_reason_values, "Unknown", *tptr),
+                               *tptr);
+                        break;
+                    case LS_OPAQUE_GRACE_TLV_INT_ADDRESS:
+                        if (tlv_length != 4) {
+                            printf("\n\t    Bogus length %u != 4", tlv_length);
+                            return(ls_end);
+                        }
+                        printf("%s", ipaddr_string(tptr));
+                        break;
+                    default:
+                        if (vflag <= 1) {
+                            if(!print_unknown_data(tptr,"\n\t      ",tlv_length))
+                                return(ls_end);
+                        }
+                        break;
+
+                    }
+                    tptr+=tlv_length;
+                }
+
+                break;
 	    case LS_OPAQUE_TYPE_TE:
 		tptr = (u_int8_t *)(&lsap->lsa_un.un_te_lsa_tlv.type);
 
@@ -485,6 +631,18 @@ ospf_print_lsa(register const struct lsa *lsap)
                                     bw.i = EXTRACT_32BITS(tptr+priority_level*4);
                                     printf("\n\t\tpriority level %d: %.3f Mbps",
                                            priority_level,
+                                           bw.f*8/1000000 );
+                                }
+                                break;
+                            case LS_OPAQUE_TE_LINK_SUBTLV_DIFFSERV_TE:
+                                printf("\n\t\tBandwidth Constraints Model ID: %s (%u)",
+                                       tok2str(diffserv_te_bc_values, "unknown", *tptr),
+                                       *tptr);
+                                /* decode BCs until the subTLV ends */
+                                for (bandwidth_constraint = 0; bandwidth_constraint < (subtlv_length-4)/4; bandwidth_constraint++) {
+                                    bw.i = EXTRACT_32BITS(tptr+4+bandwidth_constraint*4);
+                                    printf("\n\t\t  Bandwidth constraint %d: %.3f Mbps",
+                                           bandwidth_constraint,
                                            bw.f*8/1000000 );
                                 }
                                 break;
@@ -736,10 +894,9 @@ ospf_print(register const u_char *bp, register u_int length,
 	/* value.  If it's not valid, say so and return */
 	TCHECK(op->ospf_type);
 	cp = tok2str(type2str, "unknown LS-type", op->ospf_type);
-	printf("OSPFv%u, %s (%u), length: %u",
+	printf("OSPFv%u, %s, length: %u",
 	       op->ospf_version,
 	       cp,
-	       op->ospf_type,
 	       length);
 	if (*cp == 'u')
 		return;

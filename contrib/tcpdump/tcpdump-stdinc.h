@@ -29,7 +29,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.7.2.1 2003/11/16 09:57:50 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.12 2005/03/27 01:35:45 guy Exp $ (LBL)
  */
 
 /*
@@ -52,16 +52,23 @@
 #include <io.h>
 #include "IP6_misc.h"
 #include <fcntl.h>
+#include <sys/types.h>
+#include <net/netdb.h>  /* in wpcap's Win32/include */
 
 #ifdef __MINGW32__
 #include <stdint.h>
-int* _errno();
-#define errno (*_errno())
+#endif
 
-#define INET_ADDRSTRLEN 16
+/* Protos for missing/x.c functions (ideally <missing/addrinfo.h>
+ * should be used, but it clashes with <ws2tcpip.h>).
+ */
+extern const char *inet_ntop (int, const void *, char *, size_t);
+extern int inet_pton (int, const char *, void *);
+extern int inet_aton (const char *cp, struct in_addr *addr);
+
+#ifndef INET6_ADDRSTRLEN
 #define INET6_ADDRSTRLEN 46
-
-#endif /* __MINGW32__ */
+#endif
 
 #ifndef toascii
 #define toascii(c) ((c) & 0x7f)
@@ -77,24 +84,14 @@ typedef char* caddr_t;
 #define vsnprintf _vsnprintf
 #define RETSIGTYPE void
 
-#if !defined(__MINGW32__) && !defined(__WATCOMC__)
-#undef toascii
-#define isascii __isascii
-#define toascii __toascii
-#define stat _stat
-#define open _open
-#define fstat _fstat
-#define read _read
-#define O_RDONLY _O_RDONLY
-
-typedef short ino_t;
-#endif /* __MINGW32__ */
-
 #else /* WIN32 */
 
 #include <ctype.h>
 #include <unistd.h>
 #include <netdb.h>
+#ifdef INTTYPES_H_DEFINES_FORMATS
+#include <inttypes.h>
+#endif
 #include <sys/param.h>
 #include <sys/types.h>			/* concession to AIX */
 #include <sys/time.h>
@@ -123,6 +120,41 @@ typedef short ino_t;
   #define FOPEN_READ_BIN   FOPEN_READ_TXT
   #define FOPEN_WRITE_TXT  "w"
   #define FOPEN_WRITE_BIN  FOPEN_WRITE_TXT
+#endif
+
+#if defined(__GNUC__) && defined(__i386__)
+  #undef ntohl
+  #undef ntohs
+  #undef htonl
+  #undef htons
+
+  extern __inline__ unsigned long __ntohl (unsigned long x);
+  extern __inline__ unsigned short __ntohs (unsigned short x);
+
+  #define ntohl(x)  __ntohl(x)
+  #define ntohs(x)  __ntohs(x)
+  #define htonl(x)  __ntohl(x)
+  #define htons(x)  __ntohs(x)
+
+  extern __inline__ unsigned long __ntohl (unsigned long x)
+  {
+    __asm__ ("xchgb %b0, %h0\n\t"   /* swap lower bytes  */
+             "rorl  $16, %0\n\t"    /* swap words        */
+             "xchgb %b0, %h0"       /* swap higher bytes */
+            : "=q" (x) : "0" (x));
+    return (x);
+  }
+
+  extern __inline__ unsigned short __ntohs (unsigned short x)
+  {
+    __asm__ ("xchgb %b0, %h0"       /* swap bytes */
+            : "=q" (x) : "0" (x));
+    return (x);
+  }
+#endif
+
+#ifndef INET_ADDRSTRLEN
+#define INET_ADDRSTRLEN 16
 #endif
 
 #endif /* tcpdump_stdinc_h */

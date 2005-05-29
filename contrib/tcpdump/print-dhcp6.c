@@ -30,14 +30,15 @@
  * RFC3315: DHCPv6
  * supported DHCPv6 options: 
  *  RFC3319,
- *  draft-ietf-dhc-dhcpv6-opt-dnsconfig-04.txt,
- *  draft-ietf-dhc-dhcpv6-opt-prefix-delegation-05.txt
- *  draft-ietf-dhc-dhcpv6-opt-timeconfig-02.txt,
+ *  RFC3633,
+ *  RFC3646,
+ *  draft-ietf-dhc-dhcpv6-opt-timeconfig-03.txt,
+ *  draft-ietf-dhc-lifetime-00.txt,
  */
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-dhcp6.c,v 1.27.2.4 2003/11/18 23:26:14 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-dhcp6.c,v 1.35 2004/07/06 22:16:03 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -107,12 +108,17 @@ struct dhcp6_relay {
 #define DH6OPT_IADDR 5
 #define DH6OPT_ORO 6
 #define DH6OPT_PREFERENCE 7
-#  define DH6OPT_PREF_UNDEF -1
 #  define DH6OPT_PREF_MAX 255
 #define DH6OPT_ELAPSED_TIME 8
 #define DH6OPT_RELAY_MSG 9
 /*#define DH6OPT_SERVER_MSG 10 deprecated */
 #define DH6OPT_AUTH 11
+#  define DH6OPT_AUTHPROTO_DELAYED 2
+#  define DH6OPT_AUTHPROTO_RECONFIG 3
+#  define DH6OPT_AUTHALG_HMACMD5 1
+#  define DH6OPT_AUTHRDM_MONOCOUNTER 0
+#  define DH6OPT_AUTHRECONFIG_KEY 1
+#  define DH6OPT_AUTHRECONFIG_HMACMD5 2
 #define DH6OPT_UNICAST 12
 #define DH6OPT_STATUS_CODE 13
 #  define DH6OPT_STCODE_SUCCESS 0
@@ -133,25 +139,23 @@ struct dhcp6_relay {
 #define DH6OPT_SIP_SERVER_A 22
 #define DH6OPT_DNS 23
 #define DH6OPT_DNSNAME 24
+#define DH6OPT_IA_PD 25
+#define DH6OPT_IA_PD_PREFIX 26
 
 /*
- * The option type has not been assigned for the following options.
- * We temporarily adopt values used in the service specification document
+ * The old prefix delegation option used in the service specification document
  * (200206xx version) by NTT Communications.
- * Note that we'll change the following definitions if different type values
- * are officially assigned.
  */
 #define DH6OPT_PREFIX_DELEGATION 30
 #define DH6OPT_PREFIX_INFORMATION 31
 #define DH6OPT_PREFIX_REQUEST 32
 
 /*
- * The followings are also unassigned numbers.
- * We temporarily use values as of KAME snap 20031013.
+ * The following one is an unassigned number.
+ * We temporarily use values as of KAME snap 20040322.
  */
-#define DH6OPT_IA_PD 33
-#define DH6OPT_IA_PD_PREFIX 34
 #define DH6OPT_NTP_SERVERS 35
+#define DH6OPT_LIFETIME 36
 
 struct dhcp6opt {
 	u_int16_t dh6opt_type;
@@ -176,6 +180,16 @@ struct dhcp6_ia_prefix {
 	struct in6_addr dh6opt_ia_prefix_addr;
 }  __attribute__ ((__packed__));
 
+struct dhcp6_auth {
+	u_int16_t dh6opt_auth_type;
+	u_int16_t dh6opt_auth_len;
+	u_int8_t dh6opt_auth_proto;
+	u_int8_t dh6opt_auth_alg;
+	u_int8_t dh6opt_auth_rdm;
+	u_int8_t dh6opt_auth_rdinfo[8];
+	/* authentication information follows */
+} __attribute__ ((__packed__));
+
 static const char *
 dhcp6opt_name(int type)
 {
@@ -199,10 +213,20 @@ dhcp6opt_name(int type)
 		return "elapsed time";
 	case DH6OPT_RELAY_MSG:
 		return "relay message";
+	case DH6OPT_AUTH:
+		return "authentication";
+	case DH6OPT_UNICAST:
+		return "server unicast";
 	case DH6OPT_STATUS_CODE:
 		return "status code";
 	case DH6OPT_RAPID_COMMIT:
 		return "rapid commit";
+	case DH6OPT_USER_CLASS:
+		return "user class";
+	case DH6OPT_VENDOR_CLASS:
+		return "vendor class";
+	case DH6OPT_VENDOR_OPTS:
+		return "vendor-specific info";
 	case DH6OPT_INTERFACE_ID:
 		return "interface ID";
 	case DH6OPT_RECONF_MSG:
@@ -210,11 +234,13 @@ dhcp6opt_name(int type)
 	case DH6OPT_RECONF_ACCEPT:
 		return "reconfigure accept";
 	case DH6OPT_SIP_SERVER_D:
-		return "SIP Servers Domain";
+		return "SIP servers domain";
 	case DH6OPT_SIP_SERVER_A:
-		return "SIP Servers Address";
+		return "SIP servers address";
 	case DH6OPT_DNS:
 		return "DNS";
+	case DH6OPT_DNSNAME:
+		return "DNS name";
 	case DH6OPT_PREFIX_DELEGATION:
 		return "prefix delegation";
 	case DH6OPT_PREFIX_INFORMATION:
@@ -225,6 +251,8 @@ dhcp6opt_name(int type)
 		return "IA_PD prefix";
 	case DH6OPT_NTP_SERVERS:
 		return "NTP Server";
+	case DH6OPT_LIFETIME:
+		return "lifetime";
 	default:
 		snprintf(genstr, sizeof(genstr), "opt_%d", type);
 		return(genstr);
@@ -273,6 +301,8 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 	struct in6_addr addr6;
 	struct dhcp6_ia ia;
 	struct dhcp6_ia_prefix ia_prefix;
+	struct dhcp6_auth authopt;
+	u_int authinfolen, authrealmlen;
 
 	if (cp == ep)
 		return;
@@ -372,6 +402,97 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 		case DH6OPT_RELAY_MSG:
 			printf(" (");
 			dhcp6_print((const u_char *)(dh6o + 1), optlen);
+			printf(")");
+			break;
+		case DH6OPT_AUTH:
+			if (optlen < sizeof(authopt) - sizeof(*dh6o)) {
+				printf(" ?)");
+				break;
+			}
+			memcpy(&authopt, dh6o, sizeof(authopt));
+			switch (authopt.dh6opt_auth_proto) {
+			case DH6OPT_AUTHPROTO_DELAYED:
+				printf(" proto: delayed");
+				break;
+			case DH6OPT_AUTHPROTO_RECONFIG:
+				printf(" proto: reconfigure");
+				break;
+			default:
+				printf(" proto: %d",
+				    authopt.dh6opt_auth_proto);
+				break;
+			}
+			switch (authopt.dh6opt_auth_alg) {
+			case DH6OPT_AUTHALG_HMACMD5:
+				/* XXX: may depend on the protocol */
+				printf(", alg: HMAC-MD5");
+				break;
+			default:
+				printf(", alg: %d", authopt.dh6opt_auth_alg);
+				break;
+			}
+			switch (authopt.dh6opt_auth_rdm) {
+			case DH6OPT_AUTHRDM_MONOCOUNTER:
+				printf(", RDM: mono");
+				break;
+			default:
+				printf(", RDM: %d", authopt.dh6opt_auth_rdm);
+				break;
+			}
+			tp = (u_char *)&authopt.dh6opt_auth_rdinfo;
+			printf(", RD:");
+			for (i = 0; i < 4; i++, tp += sizeof(val16))
+				printf(" %04x", EXTRACT_16BITS(tp));
+
+			/* protocol dependent part */
+			tp = (u_char *)dh6o + sizeof(authopt);
+			authinfolen =
+			    optlen + sizeof(*dh6o) - sizeof(authopt); 
+			switch (authopt.dh6opt_auth_proto) {
+			case DH6OPT_AUTHPROTO_DELAYED:
+				if (authinfolen == 0)
+					break;
+				if (authinfolen < 20) {
+					printf(" ??");
+					break;
+				}
+				authrealmlen = authinfolen - 20;
+				if (authrealmlen > 0) {
+					printf(", realm: ");
+				}
+				for (i = 0; i < authrealmlen; i++, tp++)
+					printf("%02x", *tp);
+				printf(", key ID: %08x", EXTRACT_32BITS(tp));
+				tp += 4;
+				printf(", HMAC-MD5:");
+				for (i = 0; i < 4; i++, tp+= 4)
+					printf(" %08x", EXTRACT_32BITS(tp));
+				break;
+			case DH6OPT_AUTHPROTO_RECONFIG:
+				if (authinfolen != 17) {
+					printf(" ??");
+					break;
+				}
+				switch (*tp++) {
+				case DH6OPT_AUTHRECONFIG_KEY:
+					printf(" reconfig-key");
+					break;
+				case DH6OPT_AUTHRECONFIG_HMACMD5:
+					printf(" type: HMAC-MD5");
+					break;
+				default:
+					printf(" type: ??");
+					break;
+				}
+				printf(" value:");
+				for (i = 0; i < 4; i++, tp+= 4)
+					printf(" %08x", EXTRACT_32BITS(tp));
+				break;
+			default:
+				printf(" ??");
+				break;
+			}
+
 			printf(")");
 			break;
 		case DH6OPT_RAPID_COMMIT: /* nothing todo */
@@ -486,6 +607,15 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				    (u_char *)(dh6o + 1) + optlen);
 			}
 			printf(")");
+			break;
+		case DH6OPT_LIFETIME:
+			if (optlen != 4) {
+				printf(" ?)");
+				break;
+			}
+			memcpy(&val32, dh6o + 1, sizeof(val32));
+			val32 = ntohl(val32);
+			printf(" %d)", (int)val32);
 			break;
 		default:
 			printf(")");
