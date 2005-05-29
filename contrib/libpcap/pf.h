@@ -26,11 +26,11 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/pf.h,v 1.1.2.1 2004/03/28 21:45:33 fenner Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pf.h,v 1.3 2004/04/02 06:33:30 guy Exp $ (LBL)
  */
 
 /*	from $OpenBSD: pfvar.h,v 1.170 2003/08/22 21:50:34 david Exp $ */
- 
+
 enum	{ PF_INOUT=0, PF_IN=1, PF_OUT=2 };
 enum	{ PF_PASS=0, PF_DROP=1, PF_SCRUB=2, PF_NAT=3, PF_NONAT=4,
 	  PF_BINAT=5, PF_NOBINAT=6, PF_RDR=7, PF_NORDR=8, PF_SYNPROXY_DROP=9 };
@@ -64,7 +64,7 @@ enum	{ PF_PASS=0, PF_DROP=1, PF_SCRUB=2, PF_NAT=3, PF_NONAT=4,
 
 struct pfloghdr {
 	u_int8_t	length;
-	sa_family_t	af;
+	u_int8_t	af;
 	u_int8_t	action;
 	u_int8_t	reason;
 	char		ifname[IFNAMSIZ];
