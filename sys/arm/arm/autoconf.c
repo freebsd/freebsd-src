@@ -87,12 +87,12 @@ configure(void *dummy)
 	device_add_child(root_bus, "nexus", 0);
 	
 	root_bus_configure();
-
-	cold = 0;
-	cninit_finish();
 }
 
 static void
 configure_final(void *dummy)
 {
+
+	cninit_finish();
+	cold = 0;
 }
