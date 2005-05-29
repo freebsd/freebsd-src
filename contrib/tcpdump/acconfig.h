@@ -20,6 +20,8 @@
 /* define if your struct __res_state has the nsort member */
 #undef HAVE_NEW_RES_STATE
 
+/* define if <inttypes.h> defines PRI[doxu]64 macros */
+#undef INTTYPES_H_DEFINES_FORMATS
 
 /*
  * define if struct ether_header.ether_dhost is a struct with ether_addr_octet
@@ -86,6 +88,9 @@
 /* define if libpcap has pcap_datalink_val_to_description() */
 #undef HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION
 
+/* define if you have getrpcbynumber() */
+#undef HAVE_GETRPCBYNUMBER
+
 /* define if unaligned memory accesses fail */
 #undef LBL_ALIGN
 
@@ -106,9 +111,17 @@
 #undef int8_t
 #undef int16_t
 #undef int32_t
+#undef int64_t
+#undef u_int8_t
 #undef u_int16_t
 #undef u_int32_t
-#undef u_int8_t
+#undef u_int64_t
+
+/* Workaround for missing 64-bit formats */
+#undef PRId64
+#undef PRIo64
+#undef PRIx64
+#undef PRIu64
 
 /* Whether or not to include the possibly-buggy SMB printer */
 #undef TCPDUMP_DO_SMB
@@ -126,3 +139,9 @@
 
 /* Define if you have a dnet_htoa declaration in <netdnet/dnetdb.h>.  */
 #undef HAVE_NETDNET_DNETDB_H_DNET_HTOA
+
+/* define if should drop privileges by default */
+#undef WITH_USER
+
+/* define if should chroot when dropping privileges */
+#undef WITH_CHROOT

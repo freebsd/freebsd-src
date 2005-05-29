@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/gmpls.c,v 1.2.2.2 2003/11/16 08:51:05 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/gmpls.c,v 1.5 2004/09/15 17:54:10 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -130,5 +130,16 @@ struct tok gmpls_payload_values[] = {
     { 56,   "ESCON"},
     { 57,   "FICON"},
     { 58,   "Fiber Channel"},
+    { 0, NULL }
+};
+
+#define DIFFSERV_BC_MODEL_RDM           0   /* draft-ietf-tewg-diff-te-proto-07 */
+#define DIFFSERV_BC_MODEL_MAM           1   /* draft-ietf-tewg-diff-te-proto-07 */ 
+#define DIFFSERV_BC_MODEL_EXTD_MAM      254 /* experimental */
+
+struct tok diffserv_te_bc_values[] = {
+    {  DIFFSERV_BC_MODEL_RDM, "Russian dolls"},
+    {  DIFFSERV_BC_MODEL_MAM, "Maximum allocation"},
+    {  DIFFSERV_BC_MODEL_EXTD_MAM, "Maximum allocation with E-LSP support"},
     { 0, NULL }
 };

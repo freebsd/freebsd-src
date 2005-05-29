@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ntp.c,v 1.37.2.2 2003/11/16 08:51:36 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ntp.c,v 1.41 2004/01/28 14:54:50 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -52,6 +52,26 @@ static void p_sfix(const struct s_fixedpt *);
 static void p_ntp_time(const struct l_fixedpt *);
 static void p_ntp_delta(const struct l_fixedpt *, const struct l_fixedpt *);
 
+static struct tok ntp_mode_values[] = {
+    { MODE_UNSPEC,    "unspecified" },
+    { MODE_SYM_ACT,   "symmetric active" },
+    { MODE_SYM_PAS,   "symmetric passive" },
+    { MODE_CLIENT,    "Client" },
+    { MODE_SERVER,    "Server" },
+    { MODE_BROADCAST, "Broadcast" },
+    { MODE_RES1,      "Reserved" },
+    { MODE_RES2,      "Reserved" },
+    { 0, NULL }
+};
+
+static struct tok ntp_leapind_values[] = {
+    { NO_WARNING,     "" },
+    { PLUS_SEC,       "+1s" },
+    { MINUS_SEC,      "-1s" },
+    { ALARM,          "clock unsynchronized" },
+    { 0, NULL }
+};
+
 /*
  * Print ntp requests
  */
@@ -62,90 +82,49 @@ ntp_print(register const u_char *cp, u_int length)
 	int mode, version, leapind;
 
 	bp = (struct ntpdata *)cp;
-	/* Note funny sized packets */
-	if (length != sizeof(struct ntpdata))
-		(void)printf(" [len=%d]", length);
 
 	TCHECK(bp->status);
 
 	version = (int)(bp->status & VERSIONMASK) >> 3;
 	printf("NTPv%d", version);
 
-	leapind = bp->status & LEAPMASK;
-	switch (leapind) {
-
-	case NO_WARNING:
-		break;
-
-	case PLUS_SEC:
-		fputs(" +1s", stdout);
-		break;
-
-	case MINUS_SEC:
-		fputs(" -1s", stdout);
-		break;
-	}
-
 	mode = bp->status & MODEMASK;
-	switch (mode) {
+        if (!vflag) {
+            printf (", %s, length %u",
+                    tok2str(ntp_mode_values, "Unknown mode", mode),
+                    length);
+            return;
+        }
+        
+        printf (", length %u\n\t%s",
+                length,
+                tok2str(ntp_mode_values, "Unknown mode", mode));        
 
-	case MODE_UNSPEC:	/* unspecified */
-		fputs(" unspec", stdout);
-		break;
-
-	case MODE_SYM_ACT:	/* symmetric active */
-		fputs(" sym_act", stdout);
-		break;
-
-	case MODE_SYM_PAS:	/* symmetric passive */
-		fputs(" sym_pas", stdout);
-		break;
-
-	case MODE_CLIENT:	/* client */
-		fputs(" client", stdout);
-		break;
-
-	case MODE_SERVER:	/* server */
-		fputs(" server", stdout);
-		break;
-
-	case MODE_BROADCAST:	/* broadcast */
-		fputs(" bcast", stdout);
-		break;
-
-	case MODE_RES1:		/* reserved */
-		fputs(" res1", stdout);
-		break;
-
-	case MODE_RES2:		/* reserved */
-		fputs(" res2", stdout);
-		break;
-
-	}
+	leapind = bp->status & LEAPMASK;
+        printf (", Leap indicator: %s (%u)",
+                tok2str(ntp_leapind_values, "Unknown", leapind),
+                leapind);
 
 	TCHECK(bp->stratum);
-	printf(", strat %d", bp->stratum);
+	printf(", Stratum %u", bp->stratum);
 
 	TCHECK(bp->ppoll);
-	printf(", poll %d", bp->ppoll);
+	printf(", poll %us", bp->ppoll);
 
 	/* Can't TCHECK bp->precision bitfield so bp->distance + 0 instead */
-	TCHECK2(bp->distance, 0);
-	printf(", prec %d", bp->precision);
+	TCHECK2(bp->root_delay, 0);
+	printf(", precision %d", bp->precision);
 
-	if (!vflag)
-		return;
+	TCHECK(bp->root_delay);
+	fputs("\n\tRoot Delay: ", stdout);
+	p_sfix(&bp->root_delay);
 
-	TCHECK(bp->distance);
-	fputs(" dist ", stdout);
-	p_sfix(&bp->distance);
-
-	TCHECK(bp->dispersion);
-	fputs(", disp ", stdout);
-	p_sfix(&bp->dispersion);
+	TCHECK(bp->root_dispersion);
+	fputs(", Root dispersion: ", stdout);
+	p_sfix(&bp->root_dispersion);
 
 	TCHECK(bp->refid);
-	fputs(", ref ", stdout);
+	fputs(", Reference-ID: ", stdout);
 	/* Interpretation depends on stratum */
 	switch (bp->stratum) {
 
@@ -172,21 +151,29 @@ ntp_print(register const u_char *cp, u_int length)
 		break;
 	}
 
-	TCHECK(bp->reftime);
-	putchar('@');
-	p_ntp_time(&(bp->reftime));
+	TCHECK(bp->ref_timestamp);
+	fputs("\n\t  Reference Timestamp:  ", stdout);
+	p_ntp_time(&(bp->ref_timestamp));
 
-	TCHECK(bp->org);
-	fputs(" orig ", stdout);
-	p_ntp_time(&(bp->org));
+	TCHECK(bp->org_timestamp);
+	fputs("\n\t  Originator Timestamp: ", stdout);
+	p_ntp_time(&(bp->org_timestamp));
 
-	TCHECK(bp->rec);
-	fputs(" rec ", stdout);
-	p_ntp_delta(&(bp->org), &(bp->rec));
+	TCHECK(bp->rec_timestamp);
+	fputs("\n\t  Receive Timestamp:    ", stdout);
+	p_ntp_time(&(bp->rec_timestamp));
 
-	TCHECK(bp->xmt);
-	fputs(" xmt ", stdout);
-	p_ntp_delta(&(bp->org), &(bp->xmt));
+	TCHECK(bp->xmt_timestamp);
+	fputs("\n\t  Transmit Timestamp:   ", stdout);
+	p_ntp_time(&(bp->xmt_timestamp));
+
+	fputs("\n\t    Originator - Receive Timestamp:  ", stdout);
+	p_ntp_delta(&(bp->org_timestamp), &(bp->rec_timestamp));
+
+	fputs("\n\t    Originator - Transmit Timestamp: ", stdout);
+	p_ntp_delta(&(bp->org_timestamp), &(bp->xmt_timestamp));
+
+        /* FIXME key-id, authentication */
 
 	return;
 
@@ -229,9 +216,9 @@ p_ntp_time(register const struct l_fixedpt *lfp)
 
 #ifdef HAVE_STRFTIME
 	/*
-	 * For extra verbosity, print the time in human-readable format.
+	 * print the time in human-readable format.
 	 */
-	if (vflag > 1 && i) {
+	if (i) {
 	    time_t seconds = i - JAN_1970;
 	    struct tm *tm;
 	    char time_buf[128];

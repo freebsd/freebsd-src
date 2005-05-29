@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/udp.h,v 1.5 2003/10/27 22:44:37 hannes Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/udp.h,v 1.8 2005/04/06 21:33:28 mcr Exp $ (LBL) */
 /*
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -52,12 +52,15 @@ struct udphdr {
 #define NTP_PORT 123		/*XXX*/
 #define SNMPTRAP_PORT 162	/*XXX*/
 #define ISAKMP_PORT 500		/*XXX*/
+#define SYSLOG_PORT 514         /* rfc3164 */
 #define TIMED_PORT 525		/*XXX*/
 #define RIP_PORT 520		/*XXX*/
 #define LDP_PORT 646
 #define AODV_PORT 654		/*XXX*/
 #define KERBEROS_SEC_PORT 750	/*XXX*/
 #define L2TP_PORT 1701		/*XXX*/
+#define SIP_PORT 5060
+#define ISAKMP_PORT_NATT  4500  /* rfc3948 */
 #define ISAKMP_PORT_USER1 7500	/*XXX - nonstandard*/
 #define ISAKMP_PORT_USER2 8500	/*XXX - nonstandard*/
 #define RX_PORT_LOW 7000	/*XXX*/
@@ -76,6 +79,7 @@ struct udphdr {
 #define MPLS_LSP_PING_PORT      3503 /* draft-ietf-mpls-lsp-ping-02.txt */
 #define BFD_CONTROL_PORT        3784 /* draft-katz-ward-bfd-v4v6-1hop-00.txt */
 #define BFD_ECHO_PORT           3785 /* draft-katz-ward-bfd-v4v6-1hop-00.txt */
+#define LMP_PORT                49998 /* unofficial - no IANA assignment yet */
 
 #ifdef INET6
 #define RIPNG_PORT 521		/*XXX*/

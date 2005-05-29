@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/aclocal.m4,v 1.98.2.4 2004/03/28 21:04:49 fenner Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/aclocal.m4,v 1.106 2005/03/27 03:31:01 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996, 1997, 1998
 dnl	The Regents of the University of California.  All rights reserved.
@@ -166,8 +166,13 @@ AC_DEFUN(AC_LBL_C_INIT,
 # at least some versions of HP's C compiler can inline that, but can't
 # inline a function that returns a struct pointer.
 #
+# Make sure we use the V_CCOPT flags, because some of those might
+# disable inlining.
+#
 AC_DEFUN(AC_LBL_C_INLINE,
     [AC_MSG_CHECKING(for inline)
+    save_CFLAGS="$CFLAGS"
+    CFLAGS="$V_CCOPT"
     AC_CACHE_VAL(ac_cv_lbl_inline, [
 	ac_cv_lbl_inline=""
 	ac_lbl_cc_inline=no
@@ -195,6 +200,7 @@ AC_DEFUN(AC_LBL_C_INLINE,
 	if test "$ac_lbl_cc_inline" = yes ; then
 	    ac_cv_lbl_inline=$ac_lbl_inline
 	fi])
+    CFLAGS="$save_CFLAGS"
     if test ! -z "$ac_cv_lbl_inline" ; then
 	AC_MSG_RESULT($ac_cv_lbl_inline)
     else
@@ -587,6 +593,47 @@ AC_DEFUN(AC_LBL_CHECK_TYPE,
     fi])
 
 dnl
+dnl Check whether a given format can be used to print 64-bit integers
+dnl
+AC_DEFUN(AC_LBL_CHECK_64BIT_FORMAT,
+  [
+    AC_MSG_CHECKING([whether %$1x can be used to format 64-bit integers])
+    AC_RUN_IFELSE(
+      [
+	AC_LANG_SOURCE(
+	  [[
+#	    ifdef HAVE_INTTYPES_H
+	    #include <inttypes.h>
+#	    endif
+	    #include <stdio.h>
+	    #include <sys/types.h>
+
+	    main()
+	    {
+	      u_int64_t t = 1;
+	      char strbuf[16+1];
+	      sprintf(strbuf, "%016$1x", t << 32);
+	      if (strcmp(strbuf, "0000000100000000") == 0)
+		exit(0);
+	      else
+		exit(1);
+	    }
+	  ]])
+      ],
+      [
+	AC_DEFINE(PRId64, "$1d")
+	AC_DEFINE(PRIo64, "$1o")
+	AC_DEFINE(PRIx64, "$1x")
+	AC_DEFINE(PRIu64, "$1u")
+	AC_MSG_RESULT(yes)
+      ],
+      [
+	AC_MSG_RESULT(no)
+	$2
+      ])
+  ])
+
+dnl
 dnl Checks to see if unaligned memory accesses fail
 dnl
 dnl usage:
@@ -977,6 +1024,20 @@ dnl check for u_int32_t
 	AC_MSG_RESULT($ac_cv_u_int32_t)
 	if test $ac_cv_u_int32_t = yes; then
 		AC_DEFINE(HAVE_U_INT32_T)
+	else
+		$1=no
+	fi
+dnl check for u_int64_t
+	AC_MSG_CHECKING(for u_int64_t)
+	AC_CACHE_VAL(ac_cv_u_int64_t,
+	AC_TRY_COMPILE([
+#		include <sys/types.h>],
+		[u_int64_t i],
+		ac_cv_u_int64_t=yes,
+		ac_cv_u_int64_t=no))
+	AC_MSG_RESULT($ac_cv_u_int64_t)
+	if test $ac_cv_u_int64_t = yes; then
+		AC_DEFINE(HAVE_U_INT64_T)
 	else
 		$1=no
 	fi

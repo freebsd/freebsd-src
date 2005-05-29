@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-pim.c,v 1.37.2.4 2004/03/24 02:52:37 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-pim.c,v 1.45 2005/04/06 21:32:42 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -29,6 +29,56 @@ static const char rcsid[] _U_ =
 #endif
 
 #include <tcpdump-stdinc.h>
+#include "interface.h"
+
+#define PIMV2_TYPE_HELLO         0
+#define PIMV2_TYPE_REGISTER      1
+#define PIMV2_TYPE_REGISTER_STOP 2
+#define PIMV2_TYPE_JOIN_PRUNE    3
+#define PIMV2_TYPE_BOOTSTRAP     4
+#define PIMV2_TYPE_ASSERT        5
+#define PIMV2_TYPE_GRAFT         6
+#define PIMV2_TYPE_GRAFT_ACK     7
+#define PIMV2_TYPE_CANDIDATE_RP  8
+#define PIMV2_TYPE_PRUNE_REFRESH 9
+
+static struct tok pimv2_type_values[] = {
+    { PIMV2_TYPE_HELLO,         "Hello" },
+    { PIMV2_TYPE_REGISTER,      "Register" },
+    { PIMV2_TYPE_REGISTER_STOP, "Register Stop" },
+    { PIMV2_TYPE_JOIN_PRUNE,    "Join / Prune" },
+    { PIMV2_TYPE_BOOTSTRAP,     "Bootstrap" },
+    { PIMV2_TYPE_ASSERT,        "Assert" },
+    { PIMV2_TYPE_GRAFT,         "Graft" },
+    { PIMV2_TYPE_GRAFT_ACK,     "Graft Acknowledgement" },
+    { PIMV2_TYPE_CANDIDATE_RP,  "Candidate RP Advertisement" },
+    { PIMV2_TYPE_PRUNE_REFRESH, "Prune Refresh" },
+    { 0, NULL}
+};
+
+#define PIMV2_HELLO_OPTION_HOLDTIME             1
+#define PIMV2_HELLO_OPTION_LANPRUNEDELAY        2
+#define PIMV2_HELLO_OPTION_DR_PRIORITY_OLD     18
+#define PIMV2_HELLO_OPTION_DR_PRIORITY         19
+#define PIMV2_HELLO_OPTION_GENID               20
+#define PIMV2_HELLO_OPTION_REFRESH_CAP         21
+#define PIMV2_HELLO_OPTION_BIDIR_CAP           22
+#define PIMV2_HELLO_OPTION_ADDRESS_LIST        24
+#define PIMV2_HELLO_OPTION_ADDRESS_LIST_OLD 65001
+
+static struct tok pimv2_hello_option_values[] = {
+    { PIMV2_HELLO_OPTION_HOLDTIME,         "Hold Time" },
+    { PIMV2_HELLO_OPTION_LANPRUNEDELAY,    "LAN Prune Delay" },
+    { PIMV2_HELLO_OPTION_DR_PRIORITY_OLD,  "DR Priority (Old)" },
+    { PIMV2_HELLO_OPTION_DR_PRIORITY,      "DR Priority" },
+    { PIMV2_HELLO_OPTION_GENID,            "Generation ID" },
+    { PIMV2_HELLO_OPTION_REFRESH_CAP,      "State Refresh Capability" },
+    { PIMV2_HELLO_OPTION_BIDIR_CAP,        "Bi-Directional Capability" },
+    { PIMV2_HELLO_OPTION_ADDRESS_LIST,     "Address List" },
+    { PIMV2_HELLO_OPTION_ADDRESS_LIST_OLD, "Address List (Old)" },
+    { 0, NULL}
+};
+
 
 /*
  * XXX: We consider a case where IPv6 is not ready yet for portability,
@@ -363,12 +413,25 @@ pim_print(register const u_char *bp, register u_int len)
 #endif
 
 	switch (PIM_VER(pim->pim_typever)) {
-	case 2:		/* avoid hardcoding? */
-		(void)printf("pim v2");
-		pimv2_print(bp, len);
-		break;
+	case 2:
+            if (!vflag) {
+                printf("PIMv%u, %s, length: %u",
+                       PIM_VER(pim->pim_typever),
+                       tok2str(pimv2_type_values,"Unknown Type",PIM_TYPE(pim->pim_typever)),
+                       len);
+                return;
+            } else {
+                printf("PIMv%u, length: %u\n\t%s",
+                       PIM_VER(pim->pim_typever),
+                       len,
+                       tok2str(pimv2_type_values,"Unknown Type",PIM_TYPE(pim->pim_typever)));
+                pimv2_print(bp, len);
+            }
+            break;
 	default:
-		(void)printf("pim v%d", PIM_VER(pim->pim_typever));
+		printf("PIMv%u, length: %u",
+                       PIM_VER(pim->pim_typever),
+                       len);
 		break;
 	}
 	return;
@@ -561,94 +624,86 @@ pimv2_print(register const u_char *bp, register u_int len)
 	TCHECK(pim->pim_rsv);
 	pimv2_addr_len = pim->pim_rsv;
 	if (pimv2_addr_len != 0)
-		(void)printf("[RFC2117-encoding] ");
+		(void)printf(", RFC2117-encoding");
 
 	switch (PIM_TYPE(pim->pim_typever)) {
-	case 0:
+	case PIMV2_TYPE_HELLO:
 	    {
 		u_int16_t otype, olen;
-		(void)printf(" Hello");
 		bp += 4;
 		while (bp < ep) {
 			TCHECK2(bp[0], 4);
 			otype = EXTRACT_16BITS(&bp[0]);
 			olen = EXTRACT_16BITS(&bp[2]);
 			TCHECK2(bp[0], 4 + olen);
-			switch (otype) {
-			case 1:		/* Hold time */
-				(void)printf(" (Hold-time ");
-				relts_print(EXTRACT_16BITS(&bp[4]));
-				(void)printf(")");
-				break;
 
-			case 2:		/* LAN Prune Delay */
-				(void)printf(" (LAN-Prune-Delay: ");
+                        printf("\n\t  %s Option (%u), length: %u, Value: ",
+                               tok2str( pimv2_hello_option_values,"Unknown",otype),
+                               otype,
+                               olen);
+			bp += 4;
+
+			switch (otype) {
+			case PIMV2_HELLO_OPTION_HOLDTIME:
+                                relts_print(EXTRACT_16BITS(bp));
+                                break;
+
+			case PIMV2_HELLO_OPTION_LANPRUNEDELAY:
 				if (olen != 4) {
-					(void)printf("!olen=%d!)", olen);
+					(void)printf("ERROR: Option Lenght != 4 Bytes (%u)", olen);
 				} else {
 					char t_bit;
 					u_int16_t lan_delay, override_interval;
-					lan_delay = EXTRACT_16BITS(&bp[4]);
-					override_interval = EXTRACT_16BITS(&bp[6]);
+					lan_delay = EXTRACT_16BITS(bp);
+					override_interval = EXTRACT_16BITS(bp+2);
 					t_bit = (lan_delay & 0x8000)? 1 : 0;
 					lan_delay &= ~0x8000;
-					(void)printf("T-bit=%d lan-delay=%dms override-interval=%dms)",
+					(void)printf("\n\t    T-bit=%d, LAN delay %dms, Override interval %dms",
 					t_bit, lan_delay, override_interval);
 				}
 				break;
 
-			case 18:	/* Old DR-Priority */
-				if (olen == 4)
-					(void)printf(" (OLD-DR-Priority: %d)",
-							EXTRACT_32BITS(&bp[4]));
-				else
-					goto unknown;
+			case PIMV2_HELLO_OPTION_DR_PRIORITY_OLD:
+			case PIMV2_HELLO_OPTION_DR_PRIORITY:
+                                switch (olen) {
+                                case 0:
+                                    printf("Bi-Directional Capability (Old)");
+                                    break;
+                                case 4:
+                                    printf("%u", EXTRACT_32BITS(bp));
+                                    break;
+                                default:
+                                    printf("ERROR: Option Lenght != 4 Bytes (%u)", olen);
+                                    break;
+                                }
+                                break;
+
+			case PIMV2_HELLO_OPTION_GENID:
+                                (void)printf("0x%08x", EXTRACT_32BITS(bp));
 				break;
 
-
-			case 19:	/* DR-Priority */
-				if (olen == 0) {
-					(void)printf(" (OLD-bidir-capable)");
-					break;
+			case PIMV2_HELLO_OPTION_REFRESH_CAP:
+                                (void)printf("v%d", *bp);
+				if (*(bp+1) != 0) {
+                                    (void)printf(", interval ");
+                                    relts_print(*(bp+1));
 				}
-				(void)printf(" (DR-Priority: ");
-				if (olen != 4) {
-					(void)printf("!olen=%d!)", olen);
-				} else {
-					(void)printf("%d)", EXTRACT_32BITS(&bp[4]));
+				if (EXTRACT_16BITS(bp+2) != 0) {
+                                    (void)printf(" ?0x%04x?", EXTRACT_16BITS(bp+2));
 				}
 				break;
 
-			case 20:
-				(void)printf(" (Genid: 0x%08x)", EXTRACT_32BITS(&bp[4]));
+			case  PIMV2_HELLO_OPTION_BIDIR_CAP:
 				break;
 
-			case 21:
-				(void)printf(" (State Refresh Capable; v%d", bp[4]);
-				if (bp[5] != 0) {
-					(void)printf(" interval ");
-					relts_print(bp[5]);
-				}
-				if (EXTRACT_16BITS(&bp[6]) != 0) {
-					(void)printf(" ?0x%04x?", EXTRACT_16BITS(&bp[6]));
-				}
-				(void)printf(")");
-				break;
-
-			case 22:	/* Bidir-Capable */
-				(void)printf(" (bidir-capable)");
-				break;
-
-			case 24:	/* Address List */
-			case 65001:	/* Address List (old implementations) */
-				(void)printf(" (%saddr-list",
-					     otype == 65001 ? "old" : "");
+                        case PIMV2_HELLO_OPTION_ADDRESS_LIST_OLD:
+                        case PIMV2_HELLO_OPTION_ADDRESS_LIST:
 				if (vflag > 1) {
-					const u_char *ptr = &bp[4];
-					while (ptr < &bp[4 + olen]) {
+					const u_char *ptr = bp;
+					while (ptr < (bp+olen)) {
 						int advance;
 
-						printf(" ");
+						printf("\n\t    ");
 						advance = pimv2_addr_print(ptr, pimv2_unicast, 0);
 						if (advance < 0) {
 							printf("...");
@@ -657,23 +712,24 @@ pimv2_print(register const u_char *bp, register u_int len)
 						ptr += advance;
 					}
 				}
-				(void)printf(")");
 				break;
 			default:
-			unknown:
-				if (vflag)
-					(void)printf(" [Hello option %d]", otype);
+                                if (vflag <= 1)
+                                    print_unknown_data(bp,"\n\t    ",olen);
+                                break;
 			}
-			bp += 4 + olen;
+                        /* do we want to see an additionally hexdump ? */
+                        if (vflag> 1)
+                            print_unknown_data(bp,"\n\t    ",olen);
+			bp += olen;
 		}
 		break;
 	    }
 
-	case 1:
+	case PIMV2_TYPE_REGISTER:
 	{
 		struct ip *ip;
 
-		(void)printf(" Register");
 		if (vflag && bp + 8 <= ep) {
 			(void)printf(" %s%s", bp[4] & 0x80 ? "B" : "",
 				bp[4] & 0x40 ? "N" : "");
@@ -687,7 +743,7 @@ pimv2_print(register const u_char *bp, register u_int len)
 		switch (IP_V(ip)) {
 		case 4:	/* IPv4 */
 			printf(" ");
-			ip_print(bp, len);
+			ip_print(gndo, bp, len);
 			break;
 #ifdef INET6
 		case 6:	/* IPv6 */
@@ -702,8 +758,7 @@ pimv2_print(register const u_char *bp, register u_int len)
 		break;
 	}
 
-	case 2:
-		(void)printf(" Register-Stop");
+	case PIMV2_TYPE_REGISTER_STOP:
 		bp += 4; len -= 4;
 		if (bp >= ep)
 			break;
@@ -723,9 +778,46 @@ pimv2_print(register const u_char *bp, register u_int len)
 		bp += advance; len -= advance;
 		break;
 
-	case 3:
-	case 6:
-	case 7:
+	case PIMV2_TYPE_JOIN_PRUNE:
+	case PIMV2_TYPE_GRAFT:
+	case PIMV2_TYPE_GRAFT_ACK:
+
+
+        /*
+         * 0                   1                   2                   3
+         *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |PIM Ver| Type  | Addr length   |           Checksum            |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |             Unicast-Upstream Neighbor Address                 |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |  Reserved     | Num groups    |          Holdtime             |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |            Encoded-Multicast Group Address-1                  |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |   Number of Joined  Sources   |   Number of Pruned Sources    |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |               Encoded-Joined Source Address-1                 |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |                             .                                 |
+         *  |                             .                                 |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |               Encoded-Joined Source Address-n                 |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |               Encoded-Pruned Source Address-1                 |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |                             .                                 |
+         *  |                             .                                 |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |               Encoded-Pruned Source Address-n                 |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |                           .                                   |
+         *  |                           .                                   |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         *  |                Encoded-Multicast Group Address-n              |
+         *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         */
+
 	    {
 		u_int8_t ngroup;
 		u_int16_t holdtime;
@@ -733,22 +825,11 @@ pimv2_print(register const u_char *bp, register u_int len)
 		u_int16_t nprune;
 		int i, j;
 
-		switch (PIM_TYPE(pim->pim_typever)) {
-		case 3:
-			(void)printf(" Join/Prune");
-			break;
-		case 6:
-			(void)printf(" Graft");
-			break;
-		case 7:
-			(void)printf(" Graft-ACK");
-			break;
-		}
 		bp += 4; len -= 4;
 		if (PIM_TYPE(pim->pim_typever) != 7) {	/*not for Graft-ACK*/
 			if (bp >= ep)
 				break;
-			(void)printf(" upstream-neighbor=");
+			(void)printf(", upstream-neighbor: ");
 			if ((advance = pimv2_addr_print(bp, pimv2_unicast, 0)) < 0) {
 				(void)printf("...");
 				break;
@@ -759,11 +840,11 @@ pimv2_print(register const u_char *bp, register u_int len)
 			break;
 		ngroup = bp[1];
 		holdtime = EXTRACT_16BITS(&bp[2]);
-		(void)printf(" groups=%u", ngroup);
+		(void)printf("\n\t  %u group(s)", ngroup);
 		if (PIM_TYPE(pim->pim_typever) != 7) {	/*not for Graft-ACK*/
-			(void)printf(" holdtime=");
+			(void)printf(", holdtime: ");
 			if (holdtime == 0xffff)
-				(void)printf("infty");
+				(void)printf("infinite");
 			else
 				relts_print(holdtime);
 		}
@@ -771,7 +852,7 @@ pimv2_print(register const u_char *bp, register u_int len)
 		for (i = 0; i < ngroup; i++) {
 			if (bp >= ep)
 				goto jp_done;
-			(void)printf(" (group%d: ", i);
+			(void)printf("\n\t    group #%u: ", i+1);
 			if ((advance = pimv2_addr_print(bp, pimv2_group, 0)) < 0) {
 				(void)printf("...)");
 				goto jp_done;
@@ -783,36 +864,32 @@ pimv2_print(register const u_char *bp, register u_int len)
 			}
 			njoin = EXTRACT_16BITS(&bp[0]);
 			nprune = EXTRACT_16BITS(&bp[2]);
-			(void)printf(" join=%u", njoin);
+			(void)printf(", joined sources: %u, pruned sources: %u", njoin,nprune);
 			bp += 4; len -= 4;
 			for (j = 0; j < njoin; j++) {
-				(void)printf(" ");
+				(void)printf("\n\t      joined source #%u: ",j+1);
 				if ((advance = pimv2_addr_print(bp, pimv2_source, 0)) < 0) {
 					(void)printf("...)");
 					goto jp_done;
 				}
 				bp += advance; len -= advance;
 			}
-			(void)printf(" prune=%u", nprune);
 			for (j = 0; j < nprune; j++) {
-				(void)printf(" ");
+				(void)printf("\n\t      pruned source #%u: ",j+1);
 				if ((advance = pimv2_addr_print(bp, pimv2_source, 0)) < 0) {
 					(void)printf("...)");
 					goto jp_done;
 				}
 				bp += advance; len -= advance;
 			}
-			(void)printf(")");
 		}
 	jp_done:
 		break;
 	    }
 
-	case 4:
+	case PIMV2_TYPE_BOOTSTRAP:
 	{
 		int i, j, frpcnt;
-
-		(void)printf(" Bootstrap");
 		bp += 4;
 
 		/* Fragment Tag, Hash Mask len, and BSR-priority */
@@ -886,8 +963,7 @@ pimv2_print(register const u_char *bp, register u_int len)
 	   bs_done:
 		break;
 	}
-	case 5:
-		(void)printf(" Assert");
+	case PIMV2_TYPE_ASSERT:
 		bp += 4; len -= 4;
 		if (bp >= ep)
 			break;
@@ -913,11 +989,9 @@ pimv2_print(register const u_char *bp, register u_int len)
 		(void)printf(" metric=%u", EXTRACT_32BITS(&bp[4]));
 		break;
 
-	case 8:
+	case PIMV2_TYPE_CANDIDATE_RP:
 	{
 		int i, pfxcnt;
-
-		(void)printf(" Candidate-RP-Advertisement");
 		bp += 4;
 
 		/* Prefix-Cnt, Priority, and Holdtime */
@@ -953,8 +1027,7 @@ pimv2_print(register const u_char *bp, register u_int len)
 		break;
 	}
 
-	case 9:
-		(void)printf(" Prune-Refresh");
+	case PIMV2_TYPE_PRUNE_REFRESH:
 		(void)printf(" src=");
 		if ((advance = pimv2_addr_print(bp, pimv2_unicast, 0)) < 0) {
 			(void)printf("...");
@@ -989,3 +1062,10 @@ pimv2_print(register const u_char *bp, register u_int len)
 trunc:
 	(void)printf("[|pim]");
 }
+
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */

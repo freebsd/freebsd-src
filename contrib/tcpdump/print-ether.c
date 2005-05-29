@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.82.2.3 2003/12/29 22:42:21 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.95 2005/04/06 21:32:39 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -37,10 +37,24 @@ static const char rcsid[] _U_ =
 #include "ethertype.h"
 
 #include "ether.h"
-
-const u_char *snapend;
+#include "llc.h"
 
 const struct tok ethertype_values[] = { 
+    /* not really ethertypes but PIDs that are used
+       in the SNAP printer - its more convenient
+       to put them into a single tokentable */
+    { PID_RFC2684_ETH_FCS,      "Ethernet + FCS" },
+    { PID_RFC2684_ETH_NOFCS,    "Ethernet no FCS" },
+    { PID_RFC2684_802_4_FCS,    "802.4 + FCS" },
+    { PID_RFC2684_802_4_NOFCS,  "w/o FCS" },
+    { PID_RFC2684_802_5_FCS,    "Tokenring + FCS" },
+    { PID_RFC2684_802_5_NOFCS,  "Tokenring no FCS" },
+    { PID_RFC2684_FDDI_FCS,     "FDDI + FCS" },
+    { PID_RFC2684_FDDI_NOFCS,   "FDDI no FCS" },
+    { PID_RFC2684_802_6_FCS,    "802.6 + FCS" },
+    { PID_RFC2684_802_6_NOFCS,  "802.6 no FCS" },
+    { PID_RFC2684_BPDU,         "BPDU" },
+    /* the real Ethertypes */
     { ETHERTYPE_IP,		"IPv4" },
     { ETHERTYPE_MPLS,		"MPLS unicast" },
     { ETHERTYPE_MPLS_MULTI,	"MPLS multicast" },
@@ -69,7 +83,11 @@ const struct tok ethertype_values[] = {
     { ETHERTYPE_PPP,            "PPP" },
     { ETHERTYPE_PPPOED,         "PPPoE D" },
     { ETHERTYPE_PPPOES,         "PPPoE S" },
+    { ETHERTYPE_EAPOL,          "EAPOL" },
+    { ETHERTYPE_JUMBO,          "Jumbo" },
     { ETHERTYPE_LOOPBACK,       "Loopback" },
+    { ETHERTYPE_ISO,            "OSI" },
+    { ETHERTYPE_GRE_ISO,        "GRE-OSI" },
     { 0, NULL}
 };
 
@@ -151,7 +169,7 @@ ether_print(const u_char *p, u_int length, u_int caplen)
 /*
  * This is the top level routine of the printer.  'p' points
  * to the ether header of the packet, 'h->ts' is the timestamp,
- * 'h->length' is the length of the packet off the wire, and 'h->caplen'
+ * 'h->len' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
 u_int
@@ -184,7 +202,7 @@ ether_encap_print(u_short ether_type, const u_char *p,
 	switch (ether_type) {
 
 	case ETHERTYPE_IP:
-		ip_print(p, length);
+	        ip_print(gndo, p, length);
 		return (1);
 
 #ifdef INET6
@@ -195,7 +213,7 @@ ether_encap_print(u_short ether_type, const u_char *p,
 
 	case ETHERTYPE_ARP:
 	case ETHERTYPE_REVARP:
-		arp_print(p, length, caplen);
+  	        arp_print(gndo, p, length, caplen);
 		return (1);
 
 	case ETHERTYPE_DN:
@@ -248,9 +266,42 @@ ether_encap_print(u_short ether_type, const u_char *p,
 
 		return (1);
 
+        case ETHERTYPE_JUMBO:
+                ether_type = ntohs(*(u_int16_t *)(p));
+                p += 2;
+                length -= 2;      
+                caplen -= 2;
+
+                if (ether_type > ETHERMTU) {
+                    if (eflag)
+                        printf("ethertype %s, ",
+                               tok2str(ethertype_values,"0x%04x", ether_type));
+                    goto recurse;
+                }
+
+                *extracted_ether_type = 0;
+
+                if (llc_print(p, length, caplen, p - 16, p - 10,
+                              extracted_ether_type) == 0) {
+                    ether_hdr_print(p - 16, length + 2);
+                }
+
+                if (!xflag && !qflag)
+                    default_print(p - 16, caplen + 2);
+
+                return (1);
+
+        case ETHERTYPE_ISO:
+                isoclns_print(p+1, length-1, length-1);
+                return(1);
+
 	case ETHERTYPE_PPPOED:
 	case ETHERTYPE_PPPOES:
 		pppoe_print(p, length);
+		return (1);
+
+	case ETHERTYPE_EAPOL:
+	        eap_print(gndo, p, length);
 		return (1);
 
 	case ETHERTYPE_PPP:
@@ -277,3 +328,12 @@ ether_encap_print(u_short ether_type, const u_char *p,
 		return (0);
 	}
 }
+
+
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */
+
