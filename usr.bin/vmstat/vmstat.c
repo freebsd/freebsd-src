@@ -897,10 +897,22 @@ dointr(void)
 	    (long long)inttotal, (long long)(inttotal / uptime));
 }
 
+/*
+ * domem() replicates the kernel implementation of kern.malloc by inspecting
+ * kernel data structures, which is appropriate for use on a core dump.
+ * domem() must identify the set of malloc types, walk the list, and coalesce
+ * per-CPU state to report.  It relies on direct access to internal kernel
+ * data structures that have a fragile (and intentionally unexposed) ABI.
+ * This logic should not be used by live monitoring tools, which should
+ * instead rely solely on the sysctl interface.
+ */
 static void
 domem(void)
 {
+	struct malloc_type_stats mts_local, *mts;
+	struct malloc_type_internal mti;
 	struct malloc_type type;
+	int i;
 	
 	if (kd == NULL) {
 		dosysctl("kern.malloc");
@@ -924,15 +936,34 @@ domem(void)
 		    sizeof(type))
 			errx(1, "%s: %p: %s", __func__, type.ks_next,
 			    kvm_geterr(kd));
-		if (type.ks_calls == 0)
+		if (kvm_read(kd, (u_long)type.ks_handle, &mti, sizeof(mti)) !=
+		    sizeof(mti))
+			errx(1, "%s: %p: %s", __func__, type.ks_handle,
+			    kvm_geterr(kd));
+
+		bzero(&mts_local, sizeof(mts_local));
+		for (i = 0; i < MAXCPU; i++) {
+			mts = &mti.mti_stats[i];
+			mts_local.mts_memalloced += mts->mts_memalloced;
+			mts_local.mts_memfreed += mts->mts_memfreed;
+			mts_local.mts_numallocs += mts->mts_numallocs;
+			mts_local.mts_numfrees += mts->mts_numfrees;
+			mts_local.mts_size |= mts->mts_size;
+		}
+		if (mts_local.mts_numallocs == 0)
 			continue;
+
+		/*
+		 * Unlike in kern_malloc.c, we don't mask inter-CPU races, as			 * vmstat on a core is likely for debugging purposes.
+		 */
+
 		str = kgetstr(type.ks_shortdesc);
-		(void)printf("%13s%6lu%6luK%7luK%9llu",
+		(void)printf("%13s%6lu%6luK       -%9llu",
 		    str,
-		    type.ks_inuse,
-		    (type.ks_memuse + 1023) / 1024,
-		    (type.ks_maxused + 1023) / 1024,
-		    (long long unsigned)type.ks_calls);
+		    mts_local.mts_numallocs - mts_local.mts_numfrees,
+		    ((mts_local.mts_memalloced - mts_local.mts_memfreed) +
+		    1023) / 1024,
+		    mts_local.mts_numallocs);
 		free(str);
 		for (kmemzonenum = 0, first = 1; ; kmemzonenum++) {
 			kreado(X_KMEMZONES, &kz, sizeof(kz),
@@ -941,7 +972,7 @@ domem(void)
 				(void)printf("\n");
 				break;
 			}
-			if (!(type.ks_size & (1 << kmemzonenum)))
+			if (!(mts_local.mts_size & (1 << kmemzonenum)))
 				continue;
 			if (first)
 				(void)printf("  ");
