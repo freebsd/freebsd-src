@@ -719,6 +719,8 @@
 
     &hwlist.snd.als4000;
 
+    &hwlist.snd.audiocs;
+
     &hwlist.snd.cmi;
 
     &hwlist.snd.cs4281;
