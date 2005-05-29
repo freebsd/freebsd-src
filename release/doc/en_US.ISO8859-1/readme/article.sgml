@@ -285,13 +285,6 @@
 	  </listitem>
 
 	  <listitem>
-	    <para><filename>EARLY.TXT</filename>: A migration guide
-	      for users of &os; 4.<replaceable>X</replaceable> who are
-	      new to &os; 5.<replaceable>X</replaceable> series of
-	      releases.</para>
-	  </listitem>
-
-	  <listitem>
 	    <para><filename>RELNOTES.TXT</filename>: The release
 	      notes, showing what's new and different in &os;
 	      &release.current; compared to the previous release (&os;
