@@ -181,7 +181,7 @@ done:
  * save directory.
  */
 static int
-check_space(char *savedir, off_t dumpsize)
+check_space(const char *savedir, off_t dumpsize)
 {
 	FILE *fp;
 	off_t minfree, spacefree, totfree, needed;
@@ -224,7 +224,7 @@ check_space(char *savedir, off_t dumpsize)
 #define BLOCKMASK (~(BLOCKSIZE-1))
 
 static void
-DoFile(char *savedir, const char *device)
+DoFile(const char *savedir, const char *device)
 {
 	static char *buf = NULL;
 	struct kerneldumpheader kdhf, kdhl;
@@ -528,7 +528,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	char *savedir;
+	const char *savedir = ".";
 	struct fstab *fsp;
 	int i, ch, error;
 
@@ -537,11 +537,6 @@ main(int argc, char **argv)
 
 	openlog("savecore", LOG_PERROR, LOG_DAEMON);
 
-	savedir = strdup(".");
-	if (savedir == NULL) {
-		syslog(LOG_ERR, "Cannot allocate memory");
-		exit(1);
-	}
 	while ((ch = getopt(argc, argv, "Ccfkvz")) != -1)
 		switch(ch) {
 		case 'C':
