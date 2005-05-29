@@ -147,9 +147,13 @@ ng_ipfw_newhook(node_p node, hook_p hook, const char *name)
 	const char *cp;
 	char *endptr;
 
+	/* Protect from leading zero */
+	if (name[0] == '0' && name[1] != '\0')
+		return (EINVAL);
+
 	/* Check that name contains only digits */
 	for (cp = name; *cp != '\0'; cp++)
-		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
+		if (!isdigit(*cp))
 			return (EINVAL);
 
 	/* Convert it to integer */
