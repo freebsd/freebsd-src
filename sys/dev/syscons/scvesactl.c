@@ -2,6 +2,9 @@
  * Copyright (c) 1998 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
+ * This code is derived from software contributed to The DragonFly Project
+ * by Sascha Wildner <saw@online.de>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -105,6 +108,17 @@ vesa_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *
 			return ENODEV;
 		mode = (cmd & 0xff) + M_VESA_BASE;
 		return sc_set_graphics_mode(scp, tp, mode);
+	default:
+		if (IOCGROUP(cmd) == 'V') {
+			if (!(scp->sc->adp->va_flags & V_ADP_MODECHANGE))
+				return ENODEV;
+
+			mode = (cmd & 0xff) + M_VESA_BASE;
+
+			if ((mode > M_VESA_FULL_1280) &&
+			    (mode < M_VESA_MODE_MAX))
+				return sc_set_graphics_mode(scp, tp, mode);
+		}
 	}
 
 	if (prev_user_ioctl)
