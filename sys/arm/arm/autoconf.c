@@ -79,13 +79,14 @@ device_t nexus_dev;
 static void
 configure_first(void *dummy)
 {
+
+	device_add_child(root_bus, "nexus", 0);
 }
 
 static void
 configure(void *dummy)
 {
-	device_add_child(root_bus, "nexus", 0);
-	
+
 	root_bus_configure();
 }
 
