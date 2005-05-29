@@ -30,7 +30,7 @@ static const char copyright[] _U_ =
     "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.216.2.10 2004/03/17 19:47:48 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.253 2005/01/27 18:30:36 hannes Exp $ (LBL)";
 #endif
 
 /* $FreeBSD$ */
@@ -58,12 +58,22 @@ extern int SIZE_BUF;
 #define uint UINT
 #endif /* WIN32 */
 
+#ifdef HAVE_SMI_H
+#include <smi.h>
+#endif
+
 #include <pcap.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef WIN32
+#include <pwd.h>
+#include <grp.h>
+#include <errno.h>
+#endif /* WIN32 */
 
+#include "netdissect.h"
 #include "interface.h"
 #include "addrtoname.h"
 #include "machdep.h"
@@ -71,33 +81,19 @@ extern int SIZE_BUF;
 #include "gmt2local.h"
 #include "pcap-missing.h"
 
+netdissect_options Gndo;
+netdissect_options *gndo = &Gndo;
+
+/*
+ * Define the maximum number of files for the -C flag, and how many
+ * characters can be added to a filename for the -C flag (which
+ * should be enough to handle MAX_CFLAG - 1).
+ */
+#define MAX_CFLAG	1000000
+#define MAX_CFLAG_CHARS	6
+
 int dflag;			/* print filter code */
-int eflag;			/* print ethernet header */
-int fflag;			/* don't translate "foreign" IP address */
 int Lflag;			/* list available data link types and exit */
-int nflag;			/* leave addresses as numbers */
-int Nflag;			/* remove domains from printed host names */
-int Oflag = 1;			/* run filter code optimizer */
-int pflag;			/* don't go promiscuous */
-int qflag;			/* quick (shorter) output */
-int Rflag = 1;			/* print sequence # field in AH/ESP*/
-int sflag = 0;			/* use the libsmi to translate OIDs */
-int Sflag;			/* print raw TCP sequence numbers */
-int tflag = 1;			/* print packet arrival time */
-int Uflag = 0;			/* "unbuffered" output of dump files */
-int uflag = 0;			/* Print undecoded NFS handles */
-int vflag;			/* verbose */
-int xflag;			/* print packet in hex */
-int Xflag;			/* print packet in ascii as well as hex */
-off_t Cflag = 0;                /* rotate dump files after this many bytes */
-int Aflag = 0;                  /* print packet only in ascii observing LF, CR, TAB, SPACE */
-int dlt = -1;		/* if != -1, ask libpcap for the DLT it names */
-
-const char *dlt_name = NULL;
-
-char *espsecret = NULL;		/* ESP secret key */
-
-int packettype;
 
 static int infodelay;
 static int infoprint;
@@ -112,18 +108,27 @@ static void usage(void) __attribute__((noreturn));
 static void show_dlts_and_exit(pcap_t *pd) __attribute__((noreturn));
 
 static void print_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
+static void ndo_default_print(netdissect_options *, const u_char *, u_int);
 static void dump_packet_and_trunc(u_char *, const struct pcap_pkthdr *, const u_char *);
 static void dump_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
+static void droproot(const char *, const char *);
+static void ndo_error(netdissect_options *ndo, const char *fmt, ...);
+static void ndo_warning(netdissect_options *ndo, const char *fmt, ...);
 
 #ifdef SIGINFO
 RETSIGTYPE requestinfo(int);
 #endif
 
+#if defined(USE_WIN32_MM_TIMER)
+  #include <MMsystem.h>
+  static UINT timer_id;
+  static void CALLBACK verbose_stats_dump(UINT, UINT, DWORD_PTR, DWORD_PTR, DWORD_PTR);
+#elif defined(HAVE_ALARM)
+  static void verbose_stats_dump(int sig);
+#endif
+
 static void info(int);
 static u_int packets_captured;
-
-/* Length of saved portion of packet. */
-int snaplen = DEFAULT_SNAPLEN;
 
 typedef u_int (*if_printer)(const struct pcap_pkthdr *, const u_char *);
 
@@ -153,6 +158,9 @@ static struct printer printers[] = {
 	{ sl_bsdos_if_print,	DLT_SLIP_BSDOS },
 #endif
 	{ ppp_if_print,		DLT_PPP },
+#ifdef DLT_PPP_WITHDIRECTION
+	{ ppp_if_print,		DLT_PPP_WITHDIRECTION },
+#endif
 #ifdef DLT_PPP_BSDOS
 	{ ppp_bsdos_if_print,	DLT_PPP_BSDOS },
 #endif
@@ -208,8 +216,23 @@ static struct printer printers[] = {
 #ifdef DLT_ENC
 	{ enc_if_print, 	DLT_ENC },
 #endif
+#ifdef DLT_SYMANTEC_FIREWALL
+	{ symantec_if_print, 	DLT_SYMANTEC_FIREWALL },
+#endif
 #ifdef DLT_APPLE_IP_OVER_IEEE1394
 	{ ap1394_if_print,	DLT_APPLE_IP_OVER_IEEE1394 },
+#endif
+#ifdef DLT_JUNIPER_ATM1
+	{ juniper_atm1_print,	DLT_JUNIPER_ATM1 },
+#endif
+#ifdef DLT_JUNIPER_ATM2
+	{ juniper_atm2_print,	DLT_JUNIPER_ATM2 },
+#endif
+#ifdef DLT_JUNIPER_MLFR
+	{ juniper_mlfr_print,	DLT_JUNIPER_MLFR },
+#endif
+#ifdef DLT_JUNIPER_MLPPP
+	{ juniper_mlppp_print,	DLT_JUNIPER_MLPPP },
 #endif
 	{ NULL,			0 },
 };
@@ -292,6 +315,12 @@ show_dlts_and_exit(pcap_t *pd)
 #endif /* WIN32 */
 
 #ifdef HAVE_PCAP_FINDALLDEVS
+#ifndef HAVE_PCAP_IF_T
+#undef HAVE_PCAP_FINDALLDEVS
+#endif
+#endif
+
+#ifdef HAVE_PCAP_FINDALLDEVS
 #define D_FLAG	"D"
 #else
 #define D_FLAG
@@ -303,12 +332,89 @@ show_dlts_and_exit(pcap_t *pd)
 #define U_FLAG
 #endif
 
+#ifndef WIN32
+/* Drop root privileges and chroot if necessary */
+static void
+droproot(const char *username, const char *chroot_dir)
+{
+	struct passwd *pw = NULL;
+
+	if (chroot_dir && !username) {
+		fprintf(stderr, "tcpdump: Chroot without dropping root is insecure\n");
+		exit(1);
+	}
+	
+	pw = getpwnam(username);
+	if (pw) {
+		if (chroot_dir) {
+			if (chroot(chroot_dir) != 0 || chdir ("/") != 0) {
+				fprintf(stderr, "tcpdump: Couldn't chroot/chdir to '%.64s': %s\n",
+				    chroot_dir, pcap_strerror(errno));
+				exit(1);
+			}
+		}
+		if (initgroups(pw->pw_name, pw->pw_gid) != 0 ||
+		    setgid(pw->pw_gid) != 0 || setuid(pw->pw_uid) != 0) {
+			fprintf(stderr, "tcpdump: Couldn't change to '%.32s' uid=%lu gid=%lu: %s\n",
+			    username, 
+			    (unsigned long)pw->pw_uid,
+			    (unsigned long)pw->pw_gid,
+			    pcap_strerror(errno));
+			exit(1);
+		}
+	}
+	else {
+		fprintf(stderr, "tcpdump: Couldn't find user '%.32s'\n",
+		    username);
+		exit(1);
+	}
+}
+#endif /* WIN32 */
+
+static int
+getWflagChars(int x)
+{
+	int c = 0;
+
+	x -= 1;
+	while (x > 0) {
+		c += 1;
+		x /= 10;
+	}
+
+	return c;
+}
+
+
+static void
+MakeFilename(char *buffer, char *orig_name, int cnt, int max_chars)
+{
+	if (cnt == 0 && max_chars == 0)
+		strcpy(buffer, orig_name);
+	else
+		sprintf(buffer, "%s%0*d", orig_name, max_chars, cnt);
+}
+
+static int tcpdump_printf(netdissect_options *ndo _U_,
+			  const char *fmt, ...)
+{
+  
+  va_list args;
+  int ret;
+
+  va_start(args, fmt);
+  ret=vfprintf(stdout, fmt, args);
+  va_end(args);
+
+  return ret;
+}
+
 int
 main(int argc, char **argv)
 {
 	register int cnt, op, i;
 	bpf_u_int32 localnet, netmask;
-	register char *cp, *infile, *cmdbuf, *device, *RFileName, *WFileName;
+	register char *cp, *infile, *cmdbuf, *device, *RFileName, *WFileName, *WFileNameAlt;
 	pcap_handler callback;
 	int type;
 	struct bpf_program fcode;
@@ -319,6 +425,8 @@ main(int argc, char **argv)
 	struct dump_info dumpinfo;
 	u_char *pcap_userdata;
 	char ebuf[PCAP_ERRBUF_SIZE];
+	char *username = NULL;
+	char *chroot_dir = NULL;
 #ifdef HAVE_PCAP_FINDALLDEVS
 	pcap_if_t *devpointer;
 	int devnum;
@@ -329,6 +437,15 @@ main(int argc, char **argv)
 	if(wsockinit() != 0) return 1;
 #endif /* WIN32 */
 
+        gndo->ndo_Oflag=1;
+	gndo->ndo_Rflag=1;
+	gndo->ndo_dlt=-1;
+	gndo->ndo_default_print=ndo_default_print;
+	gndo->ndo_printf=tcpdump_printf;
+	gndo->ndo_error=ndo_error;
+	gndo->ndo_warning=ndo_warning;
+	gndo->ndo_snaplen = DEFAULT_SNAPLEN;
+  
 	cnt = -1;
 	device = NULL;
 	infile = NULL;
@@ -348,7 +465,7 @@ main(int argc, char **argv)
 
 	opterr = 0;
 	while (
-	    (op = getopt(argc, argv, "aA" B_FLAG "c:C:d" D_FLAG "eE:fF:i:lLm:nNOpqr:Rs:StT:u" U_FLAG "vw:xXy:Y")) != -1)
+	    (op = getopt(argc, argv, "aA" B_FLAG "c:C:d" D_FLAG "eE:fF:i:lLm:M:nNOpqr:Rs:StT:u" U_FLAG "vw:W:xXy:YZ:")) != -1)
 		switch (op) {
 
 		case 'a':
@@ -413,7 +530,7 @@ main(int argc, char **argv)
 #ifndef HAVE_LIBCRYPTO
 			warning("crypto code not compiled in");
 #endif
-			espsecret = optarg;
+			gndo->ndo_espsecret = optarg;
 			break;
 
 		case 'f':
@@ -501,6 +618,14 @@ main(int argc, char **argv)
 #endif
 			break;
 
+		case 'M':
+			/* TCP-MD5 shared secret */
+#ifndef HAVE_LIBCRYPTO
+			warning("crypto code not compiled in");
+#endif
+			tcpmd5secret = optarg;
+			break;
+
 		case 'O':
 			Oflag = 0;
 			break;
@@ -538,7 +663,7 @@ main(int argc, char **argv)
 			break;
 
 		case 't':
-			--tflag;
+			++tflag;
 			break;
 
 		case 'T':
@@ -582,20 +707,27 @@ main(int argc, char **argv)
 			WFileName = optarg;
 			break;
 
+		case 'W':
+			Wflag = atoi(optarg);
+			if (Wflag < 0) 
+				error("invalid number of output files %s", optarg);
+			WflagChars = getWflagChars(Wflag);
+			break;
+
 		case 'x':
 			++xflag;
 			break;
 
 		case 'X':
-		        ++xflag;
 			++Xflag;
 			break;
 
 		case 'y':
-			dlt_name = optarg;
-			dlt = pcap_datalink_name_to_val(dlt_name);
-			if (dlt < 0)
-				error("invalid data link type %s", dlt_name);
+			gndo->ndo_dltname = optarg;
+			gndo->ndo_dlt =
+			  pcap_datalink_name_to_val(gndo->ndo_dltname);
+			if (gndo->ndo_dlt < 0)
+				error("invalid data link type %s", gndo->ndo_dltname);
 			break;
 
 #if defined(HAVE_PCAP_DEBUG) || defined(HAVE_YYDEBUG)
@@ -612,13 +744,55 @@ main(int argc, char **argv)
 			}
 			break;
 #endif
+		case 'Z':
+			if (optarg) {
+				username = strdup(optarg);
+			}
+			else {
+				usage();
+				/* NOTREACHED */
+			}
+			break;
+
 		default:
 			usage();
 			/* NOTREACHED */
 		}
 
-	if (tflag > 0)
+	switch (tflag) {
+
+	case 0: /* Default */
+	case 4: /* Default + Date*/
 		thiszone = gmt2local(0);
+		break;
+
+	case 1: /* No time stamp */
+	case 2: /* Unix timeval style */
+	case 3: /* Microseconds since previous packet */
+		break;
+
+	default: /* Not supported */
+		error("only -t, -tt, -ttt, and -tttt are supported");
+		break;
+	}
+
+#ifdef WITH_CHROOT
+	/* if run as root, prepare for chrooting */
+	if (getuid() == 0 || geteuid() == 0) {
+		/* future extensibility for cmd-line arguments */
+		if (!chroot_dir)
+			chroot_dir = WITH_CHROOT;
+	}
+#endif
+
+#ifdef WITH_USER
+	/* if run as root, prepare for dropping root privileges */
+	if (getuid() == 0 || geteuid() == 0) {
+		/* Run with '-Z root' to restore old behaviour */ 
+		if (!username)
+			username = WITH_USER;
+	}
+#endif
 
 	if (RFileName != NULL) {
 		int dlt;
@@ -634,7 +808,8 @@ main(int argc, char **argv)
 		 * people's trace files (especially if we're set-UID
 		 * root).
 		 */
-		setuid(getuid());
+		if (setgid(getgid()) != 0 || setuid(getuid()) != 0 )
+			fprintf(stderr, "Warning: setgid/setuid failed !\n");
 #endif /* WIN32 */
 		pd = pcap_open_offline(RFileName, ebuf);
 		if (pd == NULL)
@@ -661,11 +836,8 @@ main(int argc, char **argv)
 				error("%s", ebuf);
 		}
 #ifdef WIN32
-		if(IsTextUnicode(device,  
-			wcslen((short*)device),                // Device always ends with a double \0, so this way to determine its 
-													// length should be always valid
-			NULL))
-		{
+		if(strlen(device) == 1)	//we assume that an ASCII string is always longer than 1 char
+		{						//a Unicode string has a \0 as second byte (so strlen() is 1)
 			fprintf(stderr, "%s: listening on %ws\n", program_name, device);
 		}
 		else
@@ -681,11 +853,24 @@ main(int argc, char **argv)
 			error("%s", ebuf);
 		else if (*ebuf)
 			warning("%s", ebuf);
+		/*
+		 * Let user own process after socket has been opened.
+		 */
+#ifndef WIN32
+		if (setgid(getgid()) != 0 || setuid(getuid()) != 0)
+			fprintf(stderr, "Warning: setgid/setuid failed !\n");
+#endif /* WIN32 */
+#ifdef WIN32
+		if(UserBufferSize != 1000000)
+			if(pcap_setbuff(pd, UserBufferSize)==-1){
+				error("%s", pcap_geterr(pd));
+			}
+#endif /* WIN32 */
 		if (Lflag)
 			show_dlts_and_exit(pd);
-		if (dlt >= 0) {
+		if (gndo->ndo_dlt >= 0) {
 #ifdef HAVE_PCAP_SET_DATALINK
-			if (pcap_set_datalink(pd, dlt) < 0)
+			if (pcap_set_datalink(pd, gndo->ndo_dlt) < 0)
 				error("%s", pcap_geterr(pd));
 #else
 			/*
@@ -693,13 +878,13 @@ main(int argc, char **argv)
 			 * data link type, so we only let them
 			 * set it to what it already is.
 			 */
-			if (dlt != pcap_datalink(pd)) {
+			if (gndo->ndo_dlt != pcap_datalink(pd)) {
 				error("%s is not one of the DLTs supported by this device\n",
-				    dlt_name);
+				      gndo->ndo_dltname);
 			}
 #endif
 			(void)fprintf(stderr, "%s: data link type %s\n",
-			              program_name, dlt_name);
+			              program_name, gndo->ndo_dltname);
 			(void)fflush(stderr);
 		}
 		i = pcap_snapshot(pd);
@@ -712,12 +897,6 @@ main(int argc, char **argv)
 			netmask = 0;
 			warning("%s", ebuf);
 		}
-		/*
-		 * Let user own process after socket has been opened.
-		 */
-#ifndef WIN32
-		setuid(getuid());
-#endif /* WIN32 */
 	}
 	if (infile)
 		cmdbuf = read_infile(infile);
@@ -747,7 +926,13 @@ main(int argc, char **argv)
 	if (pcap_setfilter(pd, &fcode) < 0)
 		error("%s", pcap_geterr(pd));
 	if (WFileName) {
-		pcap_dumper_t *p = pcap_dump_open(pd, WFileName);
+		pcap_dumper_t *p;
+
+		WFileNameAlt = (char *)malloc(strlen(WFileName) + MAX_CFLAG_CHARS + 1);
+		if (WFileNameAlt == NULL)
+			error("malloc of WFileNameAlt");
+		MakeFilename(WFileNameAlt, WFileName, 0, WflagChars);
+		p = pcap_dump_open(pd, WFileNameAlt);
 		if (p == NULL)
 			error("%s", pcap_geterr(pd));
 		if (Cflag != 0) {
@@ -764,18 +949,46 @@ main(int argc, char **argv)
 		type = pcap_datalink(pd);
 		printinfo.printer = lookup_printer(type);
 		if (printinfo.printer == NULL) {
-			dlt_name = pcap_datalink_val_to_name(type);
-			if (dlt_name != NULL)
-				error("unsupported data link type %s", dlt_name);
+			gndo->ndo_dltname = pcap_datalink_val_to_name(type);
+			if (gndo->ndo_dltname != NULL)
+				error("unsupported data link type %s",
+				      gndo->ndo_dltname);
 			else
 				error("unsupported data link type %d", type);
 		}
 		callback = print_packet;
 		pcap_userdata = (u_char *)&printinfo;
 	}
+#ifndef WIN32
+	/*
+	 * We cannot do this earlier, because we want to be able to open
+	 * the file (if done) for writing before giving up permissions.
+	 */
+	if (getuid() == 0 || geteuid() == 0) {
+		if (username || chroot_dir)
+			droproot(username, chroot_dir);
+	}
+#endif /* WIN32 */
 #ifdef SIGINFO
 	(void)setsignal(SIGINFO, requestinfo);
 #endif
+
+	if (vflag > 0 && WFileName) {
+		/*
+		 * When capturing to a file, "-v" means tcpdump should,
+		 * every 10 secodns, "v"erbosely report the number of
+		 * packets captured.
+		 */
+#ifdef USE_WIN32_MM_TIMER
+		/* call verbose_stats_dump() each 1000 +/-100msec */
+		timer_id = timeSetEvent(1000, 100, verbose_stats_dump, 0, TIME_PERIODIC);
+		setvbuf(stderr, NULL, _IONBF, 0);
+#elif defined(HAVE_ALARM)
+		(void)setsignal(SIGALRM, verbose_stats_dump);
+		alarm(1);
+#endif
+	}
+
 #ifndef WIN32
 	if (RFileName == NULL) {
 		int dlt;
@@ -838,6 +1051,14 @@ main(int argc, char **argv)
 static RETSIGTYPE
 cleanup(int signo _U_)
 {
+#ifdef USE_WIN32_MM_TIMER
+	if (timer_id)
+		timeKillEvent(timer_id);
+	timer_id = 0;
+#elif defined(HAVE_ALARM)
+	alarm(0);
+#endif
+
 #ifdef HAVE_PCAP_BREAKLOOP
 	/*
 	 * We have "pcap_breakloop()"; use it, so that we do as little
@@ -895,37 +1116,9 @@ info(register int verbose)
 }
 
 static void
-reverse(char *s)
-{
-	int i, j, c;
-
-	for (i = 0, j = strlen(s) - 1; i < j; i++, j--) {
-		c = s[i];
-		s[i] = s[j];
-		s[j] = c;
-	}
-}
-
-
-static void
-swebitoa(unsigned int n, char *s)
-{
-	unsigned int i;
-
-	i = 0;
-	do {
-		s[i++] = n % 10 + '0';
-	} while ((n /= 10) > 0);
-
-	s[i] = '\0';
-	reverse(s);
-}
-
-static void
 dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
 	struct dump_info *dump_info;
-	static uint cnt = 2;
 	char *name;
 
 	++packets_captured;
@@ -944,14 +1137,18 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 		 * Close the current file and open a new one.
 		 */
 		pcap_dump_close(dump_info->p);
-		if (cnt >= 1000)
-			error("too many output files");
-		name = (char *) malloc(strlen(dump_info->WFileName) + 4);
+		Cflag_count++;
+		if (Wflag > 0) {
+			if (Cflag_count >= Wflag)
+				Cflag_count = 0;
+		} else {
+			if (Cflag_count >= MAX_CFLAG)
+				error("too many output files");
+		}
+		name = (char *)malloc(strlen(dump_info->WFileName) + MAX_CFLAG_CHARS + 1);
 		if (name == NULL)
 			error("dump_packet_and_trunc: malloc");
-		strcpy(name, dump_info->WFileName);
-		swebitoa(cnt, name + strlen(dump_info->WFileName));
-		cnt++;
+		MakeFilename(name, dump_info->WFileName, Cflag_count, WflagChars);
 		dump_info->p = pcap_dump_open(dump_info->pd, name);
 		free(name);
 		if (dump_info->p == NULL)
@@ -1016,7 +1213,7 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 			/*
 			 * Include the link-layer header.
 			 */
-			default_print(sp, h->caplen);
+			hex_print("\n\t", sp, h->caplen);
 		} else {
 			/*
 			 * Don't include the link-layer header - and if
@@ -1024,7 +1221,26 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 			 * print nothing.
 			 */
 			if (h->caplen > hdrlen)
-				default_print(sp + hdrlen,
+				hex_print("\n\t", sp + hdrlen,
+				    h->caplen - hdrlen);
+		}
+       } else if (Xflag) {
+		/*
+		 * Print the raw packet data.
+		 */
+		if (Xflag > 1) {
+			/*
+			 * Include the link-layer header.
+			 */
+			ascii_print("\n\t", sp, h->caplen);
+		} else {
+			/*
+			 * Don't include the link-layer header - and if
+			 * we have nothing past the link-layer header,
+			 * print nothing.
+			 */
+			if (h->caplen > hdrlen)
+				ascii_print("\n\t", sp + hdrlen,
 				    h->caplen - hdrlen);
 		}
 	}
@@ -1056,18 +1272,26 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	 * "Wpcap_version" information on Windows.
 	 */
 	char WDversion[]="current-cvs.tcpdump.org";
+#if !defined(HAVE_GENERATED_VERSION)
 	char version[]="current-cvs.tcpdump.org";
+#endif
 	char pcap_version[]="current-cvs.tcpdump.org";
-	char Wpcap_version[]="3.0 alpha";
+	char Wpcap_version[]="3.1";
 #endif
 
 /*
  * By default, print the specified data out in hex.
  */
-void
-default_print(register const u_char *bp, register u_int length)
+static void
+ndo_default_print(netdissect_options *ndo _U_, const u_char *bp, u_int length)
 {
-    ascii_print("\n\t", bp, length); /* pass on lf and identation string */
+	ascii_print("\n\t", bp, length); /* pass on lf and identation string */
+}
+
+void
+default_print(const u_char *bp, u_int length)
+{
+	ndo_default_print(gndo, bp, length);
 }
 
 #ifdef SIGINFO
@@ -1077,6 +1301,29 @@ RETSIGTYPE requestinfo(int signo _U_)
 		++infoprint;
 	else
 		info(0);
+}
+#endif
+
+/*
+ * Called once each second in verbose mode while dumping to file
+ */
+#ifdef USE_WIN32_MM_TIMER
+void CALLBACK verbose_stats_dump (UINT timer_id _U_, UINT msg _U_, DWORD_PTR arg _U_,
+                                  DWORD_PTR dw1 _U_, DWORD_PTR dw2 _U_)
+{
+	struct pcap_stat stat;
+
+	if (infodelay == 0 && pcap_stats(pd, &stat) >= 0)
+		fprintf(stderr, "Got %u\r", packets_captured);
+}
+#elif defined(HAVE_ALARM)
+static void verbose_stats_dump(int sig _U_)
+{
+	struct pcap_stat stat;
+
+	if (infodelay == 0 && pcap_stats(pd, &stat) >= 0)
+		fprintf(stderr, "Got %u\r", packets_captured);
+	alarm(1);
 }
 #endif
 
@@ -1093,8 +1340,12 @@ usage(void)
 #endif /* HAVE_PCAP_LIB_VERSION */
 
 #ifdef HAVE_PCAP_LIB_VERSION
+#ifdef WIN32
+	(void)fprintf(stderr, "%s version %s, based on tcpdump version %s\n", program_name, WDversion, version);
+#else /* WIN32 */
 	(void)fprintf(stderr, "%s version %s\n", program_name, version);
-	(void)fprintf(stderr, "%s\n", pcap_lib_version());
+#endif /* WIN32 */
+	(void)fprintf(stderr, "%s\n",pcap_lib_version());
 #else /* HAVE_PCAP_LIB_VERSION */
 #ifdef WIN32
 	(void)fprintf(stderr, "%s version %s, based on tcpdump version %s\n", program_name, WDversion, version);
@@ -1107,10 +1358,51 @@ usage(void)
 	(void)fprintf(stderr,
 "Usage: %s [-aAd" D_FLAG "eflLnNOpqRStu" U_FLAG "vxX]" B_FLAG_USAGE " [-c count] [ -C file_size ]\n", program_name);
 	(void)fprintf(stderr,
-"\t\t[ -E algo:secret ] [ -F file ] [ -i interface ] [ -r file ]\n");
+"\t\t[ -E algo:secret ] [ -F file ] [ -i interface ] [ -M secret ]\n");
 	(void)fprintf(stderr,
-"\t\t[ -s snaplen ] [ -T type ] [ -w file ] [ -y datalinktype ]\n");
+"\t\t[ -r file ] [ -s snaplen ] [ -T type ] [ -w file ]\n");
+	(void)fprintf(stderr,
+"\t\t[ -W filecount ] [ -y datalinktype ] [ -Z user ]\n");
 	(void)fprintf(stderr,
 "\t\t[ expression ]\n");
 	exit(1);
 }
+
+
+
+/* VARARGS */
+static void
+ndo_error(netdissect_options *ndo _U_, const char *fmt, ...)
+{
+	va_list ap;
+
+	(void)fprintf(stderr, "%s: ", program_name);
+	va_start(ap, fmt);
+	(void)vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	if (*fmt) {
+		fmt += strlen(fmt);
+		if (fmt[-1] != '\n')
+			(void)fputc('\n', stderr);
+	}
+	exit(1);
+	/* NOTREACHED */
+}
+
+/* VARARGS */
+static void
+ndo_warning(netdissect_options *ndo _U_, const char *fmt, ...)
+{
+	va_list ap;
+
+	(void)fprintf(stderr, "%s: WARNING: ", program_name);
+	va_start(ap, fmt);
+	(void)vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	if (*fmt) {
+		fmt += strlen(fmt);
+		if (fmt[-1] != '\n')
+			(void)fputc('\n', stderr);
+	}
+}
+

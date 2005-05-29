@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ip6.c,v 1.32.2.8 2003/11/24 20:31:22 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ip6.c,v 1.47 2005/04/06 21:32:40 mcr Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -65,15 +65,42 @@ ip6_print(register const u_char *bp, register u_int length)
 
 	TCHECK(*ip6);
 	if (length < sizeof (struct ip6_hdr)) {
-		(void)printf("truncated-ip6 %d", length);
+		(void)printf("truncated-ip6 %u", length);
 		return;
 	}
+
+        if (!eflag)
+            printf("IP6 ");
 
 	payload_len = EXTRACT_16BITS(&ip6->ip6_plen);
 	len = payload_len + sizeof(struct ip6_hdr);
 	if (length < len)
-		(void)printf("truncated-ip6 - %d bytes missing!",
+		(void)printf("truncated-ip6 - %u bytes missing!",
 			len - length);
+
+        if (vflag) {
+            flow = EXTRACT_32BITS(&ip6->ip6_flow);
+            printf("(");
+#if 0
+            /* rfc1883 */
+            if (flow & 0x0f000000)
+		(void)printf("pri 0x%02x, ", (flow & 0x0f000000) >> 24);
+            if (flow & 0x00ffffff)
+		(void)printf("flowlabel 0x%06x, ", flow & 0x00ffffff);
+#else
+            /* RFC 2460 */
+            if (flow & 0x0ff00000)
+		(void)printf("class 0x%02x, ", (flow & 0x0ff00000) >> 20);
+            if (flow & 0x000fffff)
+		(void)printf("flowlabel 0x%05x, ", flow & 0x000fffff);
+#endif
+
+            (void)printf("hlim %u, next-header: %s (%u), length: %u) ",
+                         ip6->ip6_hlim,
+                         tok2str(ipproto_values,"unknown",ip6->ip6_nxt),
+                         ip6->ip6_nxt,
+                         payload_len);
+        }
 
 	/*
 	 * Cut off the snapshot length to the end of the IP payload.
@@ -108,7 +135,7 @@ ip6_print(register const u_char *bp, register u_int length)
 		case IPPROTO_FRAGMENT:
 			advance = frag6_print(cp, (const u_char *)ip6);
 			if (snapend <= cp + advance)
-				goto end;
+				return;
 			nh = *cp;
 			fragmented = 1;
 			break;
@@ -127,23 +154,23 @@ ip6_print(register const u_char *bp, register u_int length)
 			 */
 			advance = mobility_print(cp, (const u_char *)ip6);
 			nh = *cp;
-			goto end;
+			return;
 		case IPPROTO_ROUTING:
 			advance = rt6_print(cp, (const u_char *)ip6);
 			nh = *cp;
 			break;
 		case IPPROTO_SCTP:
 			sctp_print(cp, (const u_char *)ip6, len);
-			goto end;
+			return;
 		case IPPROTO_TCP:
 			tcp_print(cp, len, (const u_char *)ip6, fragmented);
-			goto end;
+			return;
 		case IPPROTO_UDP:
 			udp_print(cp, len, (const u_char *)ip6, fragmented);
-			goto end;
+			return;
 		case IPPROTO_ICMPV6:
 			icmp6_print(cp, len, (const u_char *)ip6, fragmented);
-			goto end;
+			return;
 		case IPPROTO_AH:
 			advance = ah_print(cp);
 			nh = *cp;
@@ -151,7 +178,7 @@ ip6_print(register const u_char *bp, register u_int length)
 		case IPPROTO_ESP:
 		    {
 			int enh, padlen;
-			advance = esp_print(cp, (const u_char *)ip6, &enh, &padlen);
+			advance = esp_print(gndo, cp, len, (const u_char *)ip6, &enh, &padlen);
 			nh = enh & 0xff;
 			len -= padlen;
 			break;
@@ -166,56 +193,29 @@ ip6_print(register const u_char *bp, register u_int length)
 
 		case IPPROTO_PIM:
 			pim_print(cp, len);
-			goto end;
+			return;
 		case IPPROTO_OSPF:
 			ospf6_print(cp, len);
-			goto end;
+			return;
 
 		case IPPROTO_IPV6:
 			ip6_print(cp, len);
-			goto end;
+			return;
 
 		case IPPROTO_IPV4:
-			ip_print(cp, len);
-			goto end;
+		        ip_print(gndo, cp, len);
+			return;
 
 		case IPPROTO_NONE:
 			(void)printf("no next header");
-			goto end;
+			return;
 
 		default:
 			(void)printf("ip-proto-%d %d", ip6->ip6_nxt, len);
-			goto end;
+			return;
 		}
 	}
 
- end:
-
-	flow = EXTRACT_32BITS(&ip6->ip6_flow);
-#if 0
-	/* rfc1883 */
-	if (flow & 0x0f000000)
-		(void)printf(" [pri 0x%x]", (flow & 0x0f000000) >> 24);
-	if (flow & 0x00ffffff)
-		(void)printf(" [flowlabel 0x%x]", flow & 0x00ffffff);
-#else
-	/* RFC 2460 */
-	if (flow & 0x0ff00000)
-		(void)printf(" [class 0x%x]", (flow & 0x0ff00000) >> 20);
-	if (flow & 0x000fffff)
-		(void)printf(" [flowlabel 0x%x]", flow & 0x000fffff);
-#endif
-
-	if (ip6->ip6_hlim <= 1)
-		(void)printf(" [hlim %u]", ip6->ip6_hlim);
-
-	if (vflag) {
-		printf(" (");
-		(void)printf("len %u", payload_len);
-		if (ip6->ip6_hlim > 1)
-			(void)printf(", hlim %d", (int)ip6->ip6_hlim);
-		printf(")");
-	}
 	return;
 trunc:
 	(void)printf("[|ip6]");
