@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.55.2.4 2003/12/15 01:42:24 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.68 2004/12/18 08:52:10 guy Exp $ (LBL)
  */
 
 #ifndef pcap_int_h
@@ -45,6 +45,11 @@ extern "C" {
 #ifdef WIN32
 #include <packet32.h>
 #endif /* WIN32 */
+
+#ifdef MSDOS
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 /*
  * Savefile
@@ -74,13 +79,14 @@ struct pcap_md {
 	u_long	TotDrops;	/* count of dropped packets */
 	long	TotMissed;	/* missed by i/f during this run */
 	long	OrigMissed;	/* missed by i/f before this run */
+	char	*device;	/* device name */
 #ifdef linux
 	int	sock_packet;	/* using Linux 2.0 compatible interface */
 	int	timeout;	/* timeout specified to pcap_open_live */
 	int	clear_promisc;	/* must clear promiscuous mode when we close */
 	int	cooked;		/* using SOCK_DGRAM rather than SOCK_RAW */
+	int	ifindex;	/* interface index of device we're bound to */
 	int	lo_ifindex;	/* interface index of the loopback device */
-	char	*device;	/* device name */
 	struct pcap *next;	/* list of open promiscuous sock_packet pcaps */
 #endif
 
@@ -89,7 +95,7 @@ struct pcap_md {
 	u_int	dag_mem_bottom;	/* DAG card current memory bottom pointer */
 	u_int	dag_mem_top;	/* DAG card current memory top pointer */
 	int	dag_fcs_bits;	/* Number of checksum bits from link layer */
-	int dag_offset_flags; /* Flags to pass to dag_offset(). */
+	int	dag_offset_flags; /* Flags to pass to dag_offset(). */
 #endif
 };
 
@@ -102,6 +108,7 @@ struct pcap {
 #else
 	int fd;
 	int selectable_fd;
+	int send_fd;
 #endif /* WIN32 */
 	int snapshot;
 	int linktype;
@@ -109,6 +116,15 @@ struct pcap {
 	int offset;		/* offset for proper alignment */
 
 	int break_loop;		/* flag set to force break from packet-reading loop */
+
+#ifdef PCAP_FDDIPAD
+	int fddipad;
+#endif
+
+#ifdef MSDOS
+        int inter_packet_wait;   /* offline: wait between packets */
+        void (*wait_proc)(void); /*          call proc while waiting */
+#endif
 
 	struct pcap_sf sf;
 	struct pcap_md md;
@@ -130,6 +146,7 @@ struct pcap {
 	 * Methods.
 	 */
 	int	(*read_op)(pcap_t *, int cnt, pcap_handler, u_char *);
+	int	(*inject_op)(pcap_t *, const void *, size_t);
 	int	(*setfilter_op)(pcap_t *, struct bpf_program *);
 	int	(*set_datalink_op)(pcap_t *, int);
 	int	(*getnonblock_op)(pcap_t *, char *);
@@ -144,7 +161,7 @@ struct pcap {
 
 	char errbuf[PCAP_ERRBUF_SIZE + 1];
 	int dlt_count;
-	int *dlt_list;
+	u_int *dlt_list;
 
 	struct pcap_pkthdr pcap_header;	/* This is needed for the pcap_next_ex() to work */
 };
@@ -252,10 +269,12 @@ extern int vsnprintf (char *, size_t, const char *, va_list ap);
 /*
  * Routines that most pcap implementations can use for non-blocking mode.
  */
-#ifndef WIN32
+#if !defined(WIN32) && !defined(MSDOS)
 int	pcap_getnonblock_fd(pcap_t *, char *);
 int	pcap_setnonblock_fd(pcap_t *p, int, char *);
 #endif
+
+void	pcap_close_common(pcap_t *);
 
 /*
  * Internal interfaces for "pcap_findalldevs()".
@@ -267,10 +286,10 @@ int	pcap_setnonblock_fd(pcap_t *p, int, char *);
  * "pcap_add_if()" adds an interface to the list of interfaces.
  */
 int	pcap_platform_finddevs(pcap_if_t **, char *);
-int	add_addr_to_iflist(pcap_if_t **, char *, u_int, struct sockaddr *,
+int	add_addr_to_iflist(pcap_if_t **, const char *, u_int, struct sockaddr *,
 	    size_t, struct sockaddr *, size_t, struct sockaddr *, size_t,
 	    struct sockaddr *, size_t, char *);
-int	pcap_add_if(pcap_if_t **, char *, u_int, const char *, char *);
+int	pcap_add_if(pcap_if_t **, const char *, u_int, const char *, char *);
 struct sockaddr *dup_sockaddr(struct sockaddr *, size_t);
 int	add_or_find_if(pcap_if_t **, pcap_if_t **, const char *, u_int,
 	    const char *, char *);
@@ -278,9 +297,6 @@ int	add_or_find_if(pcap_if_t **, pcap_if_t **, const char *, u_int,
 #ifdef WIN32
 char	*pcap_win32strerror(void);
 #endif
-
-/* XXX */
-extern	int pcap_fddipad;
 
 int	install_bpf_program(pcap_t *, struct bpf_program *);
 
