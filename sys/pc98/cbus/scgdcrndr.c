@@ -61,6 +61,7 @@ static vr_draw_border_t		gdc_grborder;
 static void			gdc_nop(scr_stat *scp, ...);
 
 static sc_rndr_sw_t txtrndrsw = {
+	(vr_init_t *)gdc_nop,
 	gdc_txtclear,
 	gdc_txtborder,
 	gdc_txtdraw,	
@@ -74,6 +75,7 @@ RENDERER(gdc, 0, txtrndrsw, gdc_set);
 
 #ifndef SC_NO_MODE_CHANGE
 static sc_rndr_sw_t grrndrsw = {
+	(vr_init_t *)gdc_nop,
 	(vr_clear_t *)gdc_nop,
 	gdc_grborder,
 	(vr_draw_t *)gdc_nop,
