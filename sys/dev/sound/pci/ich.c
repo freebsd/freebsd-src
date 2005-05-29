@@ -642,7 +642,7 @@ ich_pci_probe(device_t dev)
 
 	case I6300ESBID:
 		device_set_desc(dev, "Intel 6300ESB");
-		return -1000;	/* allow a better driver to override us */
+		return BUS_PROBE_LOW_PRIORITY;
 
 	case ICH6ID:
 		device_set_desc(dev, "Intel ICH6 (82801FB)");
