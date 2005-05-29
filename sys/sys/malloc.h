@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1987, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 2005 Robert N. M. Watson
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,25 +52,79 @@
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
+/*
+ * Two malloc type structures are present: malloc_type, which is used by a
+ * type owner to declare the type, and malloc_type_internal, which holds
+ * malloc-owned statistics and other ABI-sensitive fields, such as the set of
+ * malloc statistics indexed by the compile-time MAXCPU constant.
+ * Applications should avoid introducing dependence on the allocator private
+ * data layout and size.
+ *
+ * The malloc_type ks_next field is protected by malloc_mtx.  Other fields in
+ * malloc_type are static after initialization so unsynchronized.
+ *
+ * Statistics in malloc_type_stats are written only when holding a critical
+ * section and running on the CPU associated with the index into the stat
+ * array, but read lock-free resulting in possible (minor) races, which the
+ * monitoring app should take into account.
+ */
+struct malloc_type_stats {
+	u_long	mts_memalloced;		/* Bytes allocated on CPU. */
+	u_long	mts_memfreed;		/* Bytes freed on CPU. */
+	u_long	mts_numallocs;		/* Number of allocates on CPU. */
+	u_long	mts_numfrees;		/* number of frees on CPU. */
+	u_long	mts_size;		/* Bitmask of sizes allocated on CPU. */
+	u_long	_mts_reserved1;		/* Reserved field. */
+	u_long	_mts_reserved2;		/* Reserved field. */
+	u_long	_mts_reserved3;		/* Reserved field. */
+};
+
+struct malloc_type_internal {
+	struct malloc_type_stats	mti_stats[MAXCPU];
+};
+
+/*
+ * ABI-compatible version of the old 'struct malloc_type', only all stats are
+ * now malloc-managed in malloc-owned memory rather than in caller memory, so
+ * as to avoid ABI issues.  The ks_next pointer is reused as a pointer to the
+ * internal data handle.
+ */
 struct malloc_type {
-	struct malloc_type *ks_next;	/* next in list */
-	u_long 	ks_memuse;	/* total memory held in bytes */
-	u_long	ks_size;	/* sizes of this thing that are allocated */
-	u_long	ks_inuse;	/* # of packets of this type currently in use */
-	uint64_t ks_calls;	/* total packets of this type ever allocated */
-	u_long	ks_maxused;	/* maximum number ever used */
-	u_long	ks_magic;	/* if it's not magic, don't touch it */
-	const char *ks_shortdesc;	/* short description */
-	struct mtx ks_mtx;	/* lock for stats */
+	struct malloc_type *ks_next;	/* Next in global chain. */
+	u_long		 _ks_memuse;	/* No longer used. */
+	u_long		 _ks_size;	/* No longer used. */
+	u_long		 _ks_inuse;	/* No longer used. */
+	uint64_t	 _ks_calls;	/* No longer used. */
+	u_long		 _ks_maxused;	/* No longer used. */
+	u_long		 ks_magic;	/* Detect programmer error. */
+	const char	*ks_shortdesc;	/* Printable type name. */
+
+	/*
+	 * struct malloc_type was terminated with a struct mtx, which is no
+	 * longer required.  For ABI reasons, continue to flesh out the full
+	 * size of the old structure, but reuse the _lo_class field for our
+	 * internal data handle.
+	 */
+	void		*ks_handle;	/* Priv. data, was lo_class. */
+	const char	*_lo_name;
+	const char	*_lo_type;
+	u_int		 _lo_flags;
+	void		*_lo_list_next;
+	struct witness	*_lo_witness;
+	uintptr_t	 _mtx_lock;
+	u_int		 _mtx_recurse;
 };
 
 #ifdef _KERNEL
-#define	MALLOC_DEFINE(type, shortdesc, longdesc) \
-	struct malloc_type type[1] = { \
-		{ NULL, 0, 0, 0, 0, 0, M_MAGIC, shortdesc, {} } \
-	}; \
-	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_SECOND, malloc_init, type); \
-	SYSUNINIT(type##_uninit, SI_SUB_KMEM, SI_ORDER_ANY, malloc_uninit, type)
+#define	MALLOC_DEFINE(type, shortdesc, longdesc)			\
+	struct malloc_type type[1] = {					\
+		{ NULL, 0, 0, 0, 0, 0, M_MAGIC, shortdesc, NULL, NULL,	\
+		    NULL, 0, NULL, NULL, 0, 0 }				\
+	};								\
+	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_SECOND, malloc_init,	\
+	    type);							\
+	SYSUNINIT(type##_uninit, SI_SUB_KMEM, SI_ORDER_ANY,		\
+	    malloc_uninit, type);
 
 #define	MALLOC_DECLARE(type) \
 	extern struct malloc_type type[1]
