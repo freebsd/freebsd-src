@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 
-
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
@@ -67,91 +66,6 @@ SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 device_t isa_bus_device = 0;
-#endif
-
-#if 0
-
-static int
-atoi(const char *s)
-{
-    int n = 0;
-    while (*s >= '0' && *s <= '9')
-	n = n * 10 + (*s++ - '0');
-    return n;
-}
-
-static const char *
-bootdev_field(int which)
-{
-	char *p = bootinfo.booted_dev;
-	char *q;
-	static char field[128];
-
-	/* Skip characters to find the right field */
-	for (; which; which--) {
-		while (*p != ' ' && *p != '\0')
-			p++;
-		if (*p)
-			p++;
-	}
-
-	/* Copy out the field and return it */
-	q = field;
-	while (*p != ' ' && *p != '\0')
-		*q++ = *p++;
-	*q = '\0';
-
-	return field;
-}
-
-static const char *
-bootdev_protocol(void)
-{
-	return bootdev_field(0);
-}
-
-static int
-bootdev_slot(void)
-{
-	return atoi(bootdev_field(2));
-}
-
-static int
-bootdev_unit(void)
-{
-	return atoi(bootdev_field(5));
-}
-
-static int
-bootdev_bus(void)
-{
-	return atoi(bootdev_field(1));
-}
-
-static int
-bootdev_channel(void)
-{
-	return atoi(bootdev_field(3));
-}
-
-static const char *
-bootdev_remote_address(void)
-{
-	return bootdev_field(4);
-}
-
-static int
-bootdev_boot_dev_type(void)
-{
-	return atoi(bootdev_field(6));
-}
-
-static const char *
-bootdev_ctrl_dev_type(void)
-{
-	return bootdev_field(7);
-}
-
 #endif
 
 /*
@@ -189,5 +103,6 @@ configure_final(void *dummy)
 	 */
 	alpha_pal_swpipl(ALPHA_PSL_IPL_0);
 
+	cninit_finish();
 	cold = 0;
 }
