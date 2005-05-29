@@ -42,8 +42,6 @@
 #include <sys/proc.h>
 #include <sys/bus.h>
 
-#include <machine/bus_memio.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>

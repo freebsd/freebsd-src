@@ -94,7 +94,6 @@
 #include <cam/scsi/scsi_message.h>
 
 #include <machine/clock.h>
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/endian.h>
 #include <machine/resource.h>

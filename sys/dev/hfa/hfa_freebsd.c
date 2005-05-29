@@ -67,7 +67,6 @@
 #include <sys/conf.h>
 
 #include <sys/module.h>
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>

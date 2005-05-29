@@ -33,7 +33,6 @@
 
 #include "acpi.h"
 
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/pci_cfgreg.h>
 #include <dev/pci/pcireg.h>

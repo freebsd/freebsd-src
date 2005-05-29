@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/bus.h>
-#include <machine/bus_pio.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 #include <compat/netbsd/dvcfg.h>

@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/tty.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/timepps.h>

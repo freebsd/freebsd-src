@@ -95,7 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/if_vlan_var.h>
 
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 
