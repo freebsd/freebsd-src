@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/nametoaddr.c,v 1.68.2.3 2003/11/19 18:13:48 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/nametoaddr.c,v 1.77 2005/03/27 22:26:25 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -55,12 +55,19 @@ static const char rcsid[] _U_ =
 
 #ifndef WIN32
 #ifdef HAVE_ETHER_HOSTTON
+/*
+ * XXX - do we need any of this if <netinet/if_ether.h> doesn't declare
+ * ether_hostton()?
+ */
 #ifdef HAVE_NETINET_IF_ETHER_H
 struct mbuf;		/* Squelch compiler warnings on some platforms for */
 struct rtentry;		/* declarations in <net/if.h> */
 #include <net/if.h>	/* for "struct ifnet" in "struct arpcom" on Solaris */
 #include <netinet/if_ether.h>
 #endif /* HAVE_NETINET_IF_ETHER_H */
+#ifdef NETINET_ETHER_H_DECLARES_ETHER_HOSTTON
+#include <netinet/ether.h>
+#endif /* NETINET_ETHER_H_DECLARES_ETHER_HOSTTON */
 #endif /* HAVE_ETHER_HOSTTON */
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -126,6 +133,7 @@ pcap_nametoaddrinfo(const char *name)
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;	/*not really*/
+	hints.ai_protocol = IPPROTO_TCP;	/*not really*/
 	error = getaddrinfo(name, NULL, &hints, &res);
 	if (error)
 		return NULL;
@@ -278,6 +286,30 @@ pcap_nametoeproto(const char *s)
 	return PROTO_UNDEF;
 }
 
+#include "llc.h"
+
+/* Static data base of LLC values. */
+static struct eproto llc_db[] = {
+	{ "iso", LLCSAP_ISONS },
+	{ "stp", LLCSAP_8021D },
+	{ "ipx", LLCSAP_IPX },
+	{ "netbeui", LLCSAP_NETBEUI },
+	{ (char *)0, 0 }
+};
+
+int
+pcap_nametollc(const char *s)
+{
+	struct eproto *p = llc_db;
+
+	while (p->s != 0) {
+		if (strcmp(p->s, s) == 0)
+			return p->p;
+		p += 1;
+	}
+	return PROTO_UNDEF;
+}
+
 /* Hex digit to integer. */
 static inline int
 xdtoi(c)
@@ -391,18 +423,8 @@ pcap_ether_hostton(const char *name)
 }
 #else
 
-/*
- * XXX - perhaps this should, instead, be declared in "lbl/os-XXX.h" files,
- * for those OS versions that don't declare it, rather than being declared
- * here?  That way, for example, we could declare it on FreeBSD 2.x (which
- * doesn't declare it), but not on FreeBSD 3.x (which declares it like
- * this) or FreeBSD 4.x (which declares it with its first argument as
- * "const char *", so no matter how we declare it here, it'll fail to
- * compile on one of 3.x or 4.x).
- */
-#if !defined(sgi) && !defined(__NetBSD__) && !defined(__FreeBSD__) && \
-       !defined(_UNICOSMP)
-extern int ether_hostton(char *, struct ether_addr *);
+#if !defined(HAVE_DECL_ETHER_HOSTTON) || !HAVE_DECL_ETHER_HOSTTON
+extern int ether_hostton(const char *, struct ether_addr *);
 #endif
 
 /* Use the os supplied routines */
