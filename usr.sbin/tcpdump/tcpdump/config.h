@@ -9,6 +9,9 @@
 /* Define if you have SSLeay 0.9.0b with the buggy cast128. */
 /* #undef HAVE_BUGGY_CAST128 */
 
+/* Define if you enable IPv6 support */
+/* #undef INET6 */
+
 /* Define if you enable support for the libsmi. */
 /* #undef LIBSMI */
 
@@ -21,6 +24,8 @@
 /* define if your struct __res_state has the nsort member */
 /* #undef HAVE_NEW_RES_STATE */
 
+/* define if <inttypes.h> defines PRI[doxu]64 macros */
+#define INTTYPES_H_DEFINES_FORMATS 1
 
 /*
  * define if struct ether_header.ether_dhost is a struct with ether_addr_octet
@@ -87,6 +92,9 @@
 /* define if libpcap has pcap_datalink_val_to_description() */
 #define HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION 1
 
+/* define if you have getrpcbynumber() */
+#define HAVE_GETRPCBYNUMBER 1
+
 /* define if unaligned memory accesses fail */
 /* #undef LBL_ALIGN */
 
@@ -107,9 +115,17 @@
 /* #undef int8_t */
 /* #undef int16_t */
 /* #undef int32_t */
+/* #undef int64_t */
+/* #undef u_int8_t */
 /* #undef u_int16_t */
 /* #undef u_int32_t */
-/* #undef u_int8_t */
+/* #undef u_int64_t */
+
+/* Workaround for missing 64-bit formats */
+/* #undef PRId64 */
+/* #undef PRIo64 */
+/* #undef PRIx64 */
+/* #undef PRIu64 */
 
 /* Whether or not to include the possibly-buggy SMB printer */
 #define TCPDUMP_DO_SMB 1
@@ -128,8 +144,21 @@
 /* Define if you have a dnet_htoa declaration in <netdnet/dnetdb.h>.  */
 /* #undef HAVE_NETDNET_DNETDB_H_DNET_HTOA */
 
+/* define if should drop privileges by default */
+/* #undef WITH_USER */
+
+/* define if should chroot when dropping privileges */
+/* #undef WITH_CHROOT */
+
+/* Define to 1 if you have the `alarm' function. */
+#define HAVE_ALARM 1
+
 /* Define to 1 if you have the `bpf_dump' function. */
 #define HAVE_BPF_DUMP 1
+
+/* Define to 1 if you have the declaration of `ether_ntohost', and to 0 if you
+   don't. */
+#define HAVE_DECL_ETHER_NTOHOST 1
 
 /* Define to 1 if you have the `ether_ntohost' function. */
 #define HAVE_ETHER_NTOHOST 1
@@ -165,10 +194,10 @@
 /* #undef HAVE_NETINET_ETHER_H */
 
 /* Define to 1 if you have the <netinet/if_ether.h> header file. */
-/* #undef HAVE_NETINET_IF_ETHER_H */
+#define HAVE_NETINET_IF_ETHER_H 1
 
 /* Define to 1 if you have the <openssl/evp.h> header file. */
-/* #define HAVE_OPENSSL_EVP_H 1 */
+/* #undef HAVE_OPENSSL_EVP_H 1 */
 
 /* Define to 1 if you have the `pcap_breakloop' function. */
 #define HAVE_PCAP_BREAKLOOP 1
@@ -254,6 +283,12 @@
 /* define if your compiler has __attribute__ */
 #define HAVE___ATTRIBUTE__ 1
 
+/* Define to 1 if netinet/ether.h declares `ether_ntohost' */
+/* #undef NETINET_ETHER_H_DECLARES_ETHER_NTOHOST */
+
+/* Define to 1 if netinet/if_ether.h declares `ether_ntohost' */
+#define NETINET_IF_ETHER_H_DECLARES_ETHER_NTOHOST 
+
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT ""
 
@@ -280,6 +315,9 @@
 
 /* The size of a `long', as computed by sizeof. */
 #define SIZEOF_LONG 4
+
+/* The size of a `long long', as computed by sizeof. */
+#define SIZEOF_LONG_LONG 8
 
 /* The size of a `short', as computed by sizeof. */
 #define SIZEOF_SHORT 2
