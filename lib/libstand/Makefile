@@ -127,10 +127,25 @@ SRCS+=	syncicache.c
 .endif
 SRCS+=	_setjmp.S
 
-# decompression functionality from libz
+# decompression functionality from libbz2
+# NOTE: to actually test this functionality after libbz2 upgrade compile
+# loader(8) with LOADER_BZIP2_SUPPORT defined
 .PATH: ${.CURDIR}/../../contrib/bzip2
-CFLAGS+= -DBZ_NO_STDIO -I${.CURDIR}/../../contrib/bzip2
-SRCS+=	bzlib.c crctable.c decompress.c huffman.c randtable.c
+CFLAGS+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS -I${.CURDIR}/../../contrib/bzip2
+SRCS+=	libstand_bzlib_private.h
+
+.for file in bzlib.c crctable.c decompress.c huffman.c randtable.c
+SRCS+=	_${file}
+CLEANFILES+=	_${file}
+
+_${file}: ${file}
+	sed "s|bzlib_private\.h|libstand_bzlib_private.h|" ${.ALLSRC} > ${.TARGET}
+.endfor
+
+CLEANFILES+= libstand_bzlib_private.h
+libstand_bzlib_private.h: bzlib_private.h
+	sed -e 's|<stdlib.h>|"stand.h"|' \
+		${.ALLSRC} > ${.TARGET}
 
 # decompression functionality from libz
 .PATH: ${.CURDIR}/../libz
@@ -147,7 +162,7 @@ _${file}: ${file}
 
 # depend on stand.h being able to be included multiple times
 CLEANFILES+= libstand_zutil.h
-libstand_zutil.h: ${.CURDIR}/../libz/zutil.h
+libstand_zutil.h: zutil.h
 	sed -e 's|<stddef.h>|"stand.h"|' \
 	    -e 's|<string.h>|"stand.h"|' \
 	    -e 's|<stdlib.h>|"stand.h"|' \
