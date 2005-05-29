@@ -38,6 +38,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 #endif /* not lint */
 #endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -118,6 +119,7 @@ main(int argc, char *argv[])
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
+	oldfp = NULL;
 	while ((ch = getopt(argc, argv, "BCLNd:ips:u:v")) != -1)
 		switch(ch) {
 		case 'B':			/* big-endian output */
