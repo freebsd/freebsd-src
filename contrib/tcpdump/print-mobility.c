@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-mobility.c,v 1.9.2.2 2003/11/16 08:51:33 guy Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-mobility.c,v 1.11 2003/11/16 09:36:28 guy Exp $";
 #endif
 
 #ifdef INET6

@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-mpls.c,v 1.8.2.2 2003/11/16 08:51:34 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-mpls.c,v 1.13 2005/04/06 21:32:41 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -44,20 +44,7 @@ static const char rcsid[] _U_ =
 #include "addrtoname.h"
 #include "interface.h"
 #include "extract.h"			/* must come after interface.h */
-
-#define LABEL_MASK	0xfffff000
-#define LABEL_SHIFT	12
-#define	EXP_MASK	0x00000e00
-#define EXP_SHIFT	9
-#define	STACK_MASK	0x00000100
-#define STACK_SHIFT	8
-#define TTL_MASK	0x000000ff
-#define TTL_SHIFT	0
-
-#define MPLS_LABEL(x)	(((x) & LABEL_MASK) >> LABEL_SHIFT)
-#define MPLS_EXP(x)	(((x) & EXP_MASK) >> EXP_SHIFT)
-#define MPLS_STACK(x)	(((x) & STACK_MASK) >> STACK_SHIFT)
-#define MPLS_TTL(x)	(((x) & TTL_MASK) >> TTL_SHIFT)
+#include "mpls.h"
 
 static const char *mpls_labelname[] = {
 /*0*/	"IPv4 explicit NULL", "router alert", "IPv6 explicit NULL",
@@ -99,7 +86,7 @@ mpls_print(const u_char *bp, u_int length)
 	switch (MPLS_LABEL(v)) {
 	case 0:	/* IPv4 explicit NULL label */
         case 3:	/* IPv4 implicit NULL label */
-		ip_print(p, length - (p - bp));
+		ip_print(gndo, p, length - (p - bp));
 		break;
 #ifdef INET6
 	case 2:	/* IPv6 explicit NULL label */
@@ -135,7 +122,7 @@ mpls_print(const u_char *bp, u_int length)
                     case 0x4f:
 		        if (vflag>0) {
                             printf("\n\t");
-                            ip_print(p, length - (p - bp));
+                            ip_print(gndo, p, length - (p - bp));
 			    }
                         else printf(", IP, length: %u",length);
                         break;
@@ -184,13 +171,10 @@ trunc:
 	printf("[|MPLS]");
 }
 
+
 /*
- * draft-ietf-mpls-lsp-ping-02.txt
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
  */
-void
-mpls_lsp_ping_print(const u_char *pptr, u_int length)
-{
-    printf("UDP, LSP-PING, length: %u", length);
-    if (vflag >1)
-	print_unknown_data(pptr,"\n\t  ", length);
-}

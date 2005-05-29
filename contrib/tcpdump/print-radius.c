@@ -44,7 +44,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "$Id: print-radius.c,v 1.19.2.4 2004/02/06 14:38:51 hannes Exp $";
+    "$Id: print-radius.c,v 1.27 2004/07/21 21:45:47 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -840,9 +840,9 @@ radius_attr_print(register const u_char *attr, u_int length)
         printf(" [|radius]");
         return;
      }
-     /* do we want to see an additionally hexdump ? */
+     /* do we also want to see a hex dump ? */
      if (vflag> 1 && rad_attr->len >= 2)
-         print_unknown_data((char *)rad_attr+2,"\n\t    ",(rad_attr->len)-2);
+         print_unknown_data((u_char *)rad_attr+2,"\n\t    ",(rad_attr->len)-2);
 
      length-=(rad_attr->len);
      rad_attr = (struct radius_attr *)( ((char *)(rad_attr))+rad_attr->len);
