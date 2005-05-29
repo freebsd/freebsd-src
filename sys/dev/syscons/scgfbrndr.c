@@ -65,6 +65,7 @@ static vr_draw_mouse_t		gfb_mouse;
 static void			gfb_nop(scr_stat *scp, ...);
 
 sc_rndr_sw_t txtrndrsw = {
+	(vr_init_t *)gfb_nop,
 	gfb_clear,
 	gfb_border,
 	gfb_draw,	
@@ -77,6 +78,7 @@ sc_rndr_sw_t txtrndrsw = {
 
 #ifdef SC_PIXEL_MODE
 sc_rndr_sw_t gfbrndrsw = {
+	(vr_init_t *)gfb_nop,
 	gfb_clear,
 	gfb_border,
 	gfb_draw,
@@ -90,6 +92,7 @@ sc_rndr_sw_t gfbrndrsw = {
 
 #ifndef SC_NO_MODE_CHANGE
 sc_rndr_sw_t grrndrsw = {
+	(vr_init_t *)gfb_nop,
 	(vr_clear_t *)gfb_nop,
 	gfb_border,
 	(vr_draw_t *)gfb_nop,
