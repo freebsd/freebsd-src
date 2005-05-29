@@ -2,6 +2,9 @@
  * Copyright (c) 1992-1998 Søren Schmidt
  * All rights reserved.
  *
+ * This code is derived from software contributed to The DragonFly Project
+ * by Sascha Wildner <saw@online.de>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -3042,6 +3045,7 @@ sc_init_emulator(scr_stat *scp, char *name)
     if (sw == scp->tsw) {
 	error = (*sw->te_init)(scp, &scp->ts, SC_TE_WARM_INIT);
 	scp->rndr = rndr;
+	scp->rndr->init(scp);
 	sc_clear_screen(scp);
 	/* assert(error == 0); */
 	return error;
@@ -3062,6 +3066,7 @@ sc_init_emulator(scr_stat *scp, char *name)
     scp->tsw = sw;
     scp->ts = p;
     scp->rndr = rndr;
+    scp->rndr->init(scp);
 
     /* XXX */
     (*sw->te_default_attr)(scp, user_default.std_color, user_default.rev_color);
@@ -3420,6 +3425,7 @@ set_mode(scr_stat *scp)
 
     /* setup video hardware for the given mode */
     (*vidsw[scp->sc->adapter]->set_mode)(scp->sc->adp, scp->mode);
+    scp->rndr->init(scp);
 #ifndef __sparc64__
     sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 		(void *)scp->sc->adp->va_window, FALSE);

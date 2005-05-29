@@ -13,7 +13,7 @@
 .\"     @(#)vidcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2002
+.Dd May 29, 2005
 .Dt VIDCONTROL 1
 .Os
 .Sh NAME
@@ -88,7 +88,12 @@ The modes currently recognized are:
 The raster text mode
 .Ar VESA_800x600
 can also be chosen.
-See
+Alternatively, a mode can be specified with its number by using a mode name of
+the form
+.Ar MODE_<NUMBER> .
+A list of valid mode numbers can be obtained with the
+.Fl i Cm mode
+option. See
 .Sx Video Mode Support
 below.
 .It Ar foreground Op Ar background
@@ -292,9 +297,8 @@ so that desired font files will be automatically loaded
 when the system starts up.
 See below.
 .Pp
-If you want to use the raster text mode
-.Ar VESA_800x600 ,
-you need to recompile your kernel with the
+If you want to use any of the raster text modes you need to recompile your
+kernel with the
 .Dv SC_PIXEL_MODE
 option.
 See
@@ -528,6 +532,7 @@ categories of the
 .Em "Ports Collection" .
 .Sh AUTHORS
 .An S\(/oren Schmidt Aq sos@FreeBSD.org
+.An Sascha Wildner
 .Sh CONTRIBUTORS
 .An Maxim Sobolev Aq sobomax@FreeBSD.org ,
 .An Nik Clayton Aq nik@FreeBSD.org
