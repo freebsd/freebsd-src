@@ -57,13 +57,14 @@ SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
 static void
 configure_first(void *dummy)
 {
+
+	nexusdev = device_add_child(root_bus, "nexus", 0);
 }
 
 static void
 configure(void *dummy)
 {
 
-	nexusdev = device_add_child(root_bus, "nexus", 0);
 	root_bus_configure();
 #ifdef DEV_ISA
 	if (isa_bus_device != NULL)
