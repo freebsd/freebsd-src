@@ -31,9 +31,10 @@
 #if 0
 static char sccsid[] = "@(#)interactive.c	8.5 (Berkeley) 5/1/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -753,7 +754,7 @@ fcmp(const void *f1, const void *f2)
  * respond to interrupts
  */
 void
-onintr(int signo)
+onintr(int signo __unused)
 {
 	if (command == 'i' && runshell)
 		longjmp(reset, 1);
