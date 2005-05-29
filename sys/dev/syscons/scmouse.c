@@ -679,26 +679,20 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		cur_scp->status &= ~MOUSE_HIDDEN;
 		if (!ISGRAPHSC(cur_scp))
 		    mark_all(cur_scp);
-		splx(s);
-		return 0;
-	    } else {
-		splx(s);
-		return EINVAL;
 	    }
-	    break;
+	    splx(s);
+	    return 0;
+	    /* NOTREACHED */
 
 	case MOUSE_HIDE:
 	    s = spltty();
 	    if (scp->sc->flags & SC_MOUSE_ENABLED) {
 		scp->sc->flags &= ~SC_MOUSE_ENABLED;
 		sc_remove_all_mouse(scp->sc);
-		splx(s);
-		return 0;
-	    } else {
-		splx(s);
-		return EINVAL;
 	    }
-	    break;
+	    splx(s);
+	    return 0;
+	    /* NOTREACHED */
 
 	case MOUSE_MOVEABS:
 	    s = spltty();
