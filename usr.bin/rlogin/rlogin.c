@@ -228,7 +228,7 @@ main(argc, argv)
 #ifdef KERBEROS
 		case 'k':
 			dest_realm = dst_realm_buf;
-			(void)strncpy(dest_realm, optarg, REALM_SZ);
+			(void)strlcpy(dest_realm, optarg, REALM_SZ);
 			break;
 #endif
 		case 'l':
