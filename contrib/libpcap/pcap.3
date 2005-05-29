@@ -1,4 +1,4 @@
-.\" @(#) $Header: /tcpdump/master/libpcap/pcap.3,v 1.51.2.9 2004/03/28 21:45:32 fenner Exp $
+.\" @(#) $Header: /tcpdump/master/libpcap/pcap.3,v 1.64 2004/12/17 21:27:54 guy Exp $
 .\"
 .\" Copyright (c) 1994, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
@@ -39,7 +39,9 @@ pcap_t *pcap_open_live(const char *device, int snaplen,
 int promisc, int to_ms, char *errbuf)
 pcap_t *pcap_open_dead(int linktype, int snaplen)
 pcap_t *pcap_open_offline(const char *fname, char *errbuf)
+pcap_t *pcap_fopen_offline(FILE *fp, char *errbuf)
 pcap_dumper_t *pcap_dump_open(pcap_t *p, const char *fname)
+pcap_dumper_t *pcap_dump_fopen(pcap_t *p, FILE *fp)
 .ft
 .LP
 .ft B
@@ -88,6 +90,11 @@ void pcap_breakloop(pcap_t *)
 .ft
 .LP
 .ft B
+int pcap_inject(pcap_t *p, const void *buf, size_t size)
+int pcap_sendpacket(pcap_t *p, const u_char *buf, int size)
+.ft
+.LP
+.ft B
 int pcap_datalink(pcap_t *p)
 int pcap_list_datalinks(pcap_t *p, int **dlt_buf);
 int pcap_set_datalink(pcap_t *p, int dlt);
@@ -101,7 +108,7 @@ int pcap_minor_version(pcap_t *p)
 int pcap_stats(pcap_t *p, struct pcap_stat *ps)
 FILE *pcap_file(pcap_t *p)
 int pcap_fileno(pcap_t *p)
-int pcap_get_selectable_fd(pcap_t *p)
+int pcap_get_selectable_fd(pcap_t *p);
 void pcap_perror(pcap_t *p, char *prefix)
 char *pcap_geterr(pcap_t *p)
 char *pcap_strerror(int error)
@@ -128,6 +135,7 @@ in
 .BR pcap_open_live() ,
 .BR pcap_open_dead() ,
 .BR pcap_open_offline() ,
+.BR pcap_fopen_offline() ,
 .BR pcap_setnonblock() ,
 .BR pcap_getnonblock() ,
 .BR pcap_findalldevs() ,
@@ -206,9 +214,16 @@ and
 .BR tcpslice(1) .
 The name "-" in a synonym for
 .BR stdin .
+Alternatively, you may call
+.B pcap_fopen_offline()
+to read dumped data from an existing open stream
+.IR fp .
+Note that on Windows, that stream should be opened in binary mode.
 .I errbuf
 is used to return error text and is only set when
 .B pcap_open_offline()
+or
+.B pcap_fopen_offline()
 fails and returns
 .BR NULL .
 .PP
@@ -226,12 +241,17 @@ struct as returned by
 or
 .BR pcap_open_live() .
 .I fname
-specifies the name of the file to open.
+specifies the name of the file to open. Alternatively, you may call
+.B pcap_dump_fopen()
+to write data to an existing open stream
+.IR fp .
+Note that on Windows, that stream should be opened in binary mode.
 If
 .B NULL
 is returned,
 .B pcap_geterr()
 can be used to get the error text.
+.PP
 .PP
 .B pcap_setnonblock()
 puts a capture descriptor, opened with
@@ -353,6 +373,13 @@ to by
 .BR addr ;
 may be null if the interface isn't a point-to-point interface
 .RE
+.PP
+Note that not all the addresses in the list of addresses are
+necessarily IPv4 or IPv6 addresses - you must check the
+.B sa_family
+member of the
+.B "struct sockaddr"
+before interpreting the contents of the address.
 .PP
 .B \-1
 is returned on failure, in which case
@@ -627,6 +654,45 @@ or
 the flag is cleared, so a subsequent call will resume reading packets. 
 If a positive number is returned, the flag is not cleared, so a
 subsequent call will return \-2 and clear the flag.
+.PP
+.B pcap_inject()
+sends a raw packet through the network interface;
+.I buf
+points to the data of the packet, including the link-layer header, and
+.I size
+is the number of bytes in the packet.
+It returns the number of bytes written on success.  A return of \-1
+indicates an error in which case
+.B pcap_perror()
+or
+.B pcap_geterr()
+may be used to display the error text.
+Note that, even if you successfully open the network interface, you
+might not have permission to send packets on it, or it might not support
+sending packets; as
+.I pcap_open_live()
+doesn't have a flag to indicate whether to open for capturing, sending,
+or capturing and sending, you cannot request an open that supports
+sending and be notified at open time whether sending will be possible.
+Note also that some devices might not support sending packets.
+.PP
+Note that, on some platforms, the link-layer header of the packet that's
+sent might not be the same as the link-layer header of the packet
+supplied to
+.BR pcap_inject() ,
+as the source link-layer address, if the header contains such an
+address, might be changed to be the address assigned to the interface on
+which the packet it sent, if the platform doesn't support sending
+completely raw and unchanged packets.
+.PP
+.B pcap_sendpacket()
+is like
+.BR pcap_inject() ,
+but it returns 0 on success and \-1 on failure.
+.RB ( pcap_inject()
+comes from OpenBSD;
+.B pcap_sendpacket()
+comes from WinPcap.  Both are provided for compatibility.)
 .PP
 .B pcap_dump()
 outputs a packet to the ``savefile'' opened with

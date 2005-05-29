@@ -31,21 +31,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.52 2004/12/18 08:52:11 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap1.h,v 1.2 2004/03/30 14:42:50 mcr Exp $ (LBL)
  */
 
 #ifndef lib_pcap_h
 #define lib_pcap_h
 
-#if defined(WIN32)
-  #include <pcap-stdinc.h>
-#elif defined(MSDOS)
-  #include <sys/types.h>
-  #include <sys/socket.h>  /* u_int, u_char etc. */
-#else /* UN*X */
-  #include <sys/types.h>
-  #include <sys/time.h>
-#endif /* WIN32/MSDOS/UN*X */
+#ifdef WIN32
+#include <pcap-stdinc.h>
+#else /* WIN32 */
+#include <sys/types.h>
+#include <sys/time.h>
+#endif /* WIN32 */
 
 #ifndef PCAP_DONT_INCLUDE_PCAP_BPF_H
 #include <pcap-bpf.h>
@@ -57,8 +54,8 @@
 extern "C" {
 #endif
 
-#define PCAP_VERSION_MAJOR 2
-#define PCAP_VERSION_MINOR 4
+#define PCAP_VERSION_MAJOR 3
+#define PCAP_VERSION_MINOR 0
 
 #define PCAP_ERRBUF_SIZE 256
 
@@ -110,14 +107,64 @@ typedef struct pcap_addr pcap_addr_t;
  * versions of libpcap and programs that use it (such as tcpdump) will
  * be able to read your new capture file format.
  */
-struct pcap_file_header {
-	bpf_u_int32 magic;
-	u_short version_major;
-	u_short version_minor;
-	bpf_int32 thiszone;	/* gmt to local correction */
-	bpf_u_int32 sigfigs;	/* accuracy of timestamps */
-	bpf_u_int32 snaplen;	/* max length saved portion of each pkt */
+
+enum pcap1_info_types {
+        PCAP_DATACAPTURE,
+	PCAP_TIMESTAMP,
+	PCAP_WALLTIME,
+	PCAP_TIMESKEW,
+	PCAP_PROBEPLACE,              /* aka direction */
+	PCAP_COMMENT,                 /* comment */
+};
+
+struct pcap1_info_container {
+	bpf_u_int32 info_len;         /* in bytes */
+	bpf_u_int32 info_type;        /* enum pcap1_info_types */
+	unsigned char info_data[0];
+};
+
+struct pcap1_info_timestamp {
+	struct pcap1_info_container pic;
+	bpf_u_int32    nanoseconds;   /* 10^-9 of seconds */
+	bpf_u_int32    seconds;       /* seconds since Unix epoch - GMT */
+	bpf_u_int16    macroseconds;  /* 16 bits more of MSB of time */
+	bpf_u_int16    sigfigs;	      /* accuracy of timestamps - LSB bits */
+};	
+	
+struct pcap1_info_packet {
+	struct pcap1_info_container pic;
+	bpf_u_int32 caplen;	/* length of portion present */
+	bpf_u_int32 len;	/* length this packet (off wire) */
 	bpf_u_int32 linktype;	/* data link type (LINKTYPE_*) */
+	bpf_u_int32 ifIndex;	/* abstracted interface index */
+	unsigned char packet_data[0];
+};	
+
+enum pcap1_probe {
+	INBOUND  =1,
+	OUTBOUND =2,
+	FORWARD  =3,
+	PREENCAP =4,
+	POSTDECAP=5,
+};
+
+struct pcap1_info_probe {
+	struct pcap1_info_container pic;
+	bpf_u_int32                 probeloc;   /* enum pcap1_probe */
+        unsigned char               probe_desc[0];
+};
+	
+struct pcap1_info_comment {
+	struct pcap1_info_container pic;
+        unsigned char               comment[0];
+};
+	
+struct pcap1_packet_header {
+	bpf_u_int32 magic;
+	u_short     version_major;
+	u_short     version_minor;
+        bpf_u_int32 block_len;
+	struct pcap1_info_container pics[0];
 };
 
 /*
@@ -125,11 +172,6 @@ struct pcap_file_header {
  * This gets around the problem of different headers for different
  * packet interfaces.
  */
-struct pcap_pkthdr {
-	struct timeval ts;	/* time stamp */
-	bpf_u_int32 caplen;	/* length of portion present */
-	bpf_u_int32 len;	/* length this packet (off wire) */
-};
 
 /*
  * As returned by the pcap_stats()
@@ -142,39 +184,6 @@ struct pcap_stat {
 	u_int bs_capt;		/* number of packets that reach the application */
 #endif /* WIN32 */
 };
-
-#ifdef MSDOS
-/*
- * As returned by the pcap_stats_ex()
- */
-struct pcap_stat_ex {
-       u_long  rx_packets;        /* total packets received       */
-       u_long  tx_packets;        /* total packets transmitted    */
-       u_long  rx_bytes;          /* total bytes received         */
-       u_long  tx_bytes;          /* total bytes transmitted      */
-       u_long  rx_errors;         /* bad packets received         */
-       u_long  tx_errors;         /* packet transmit problems     */
-       u_long  rx_dropped;        /* no space in Rx buffers       */
-       u_long  tx_dropped;        /* no space available for Tx    */
-       u_long  multicast;         /* multicast packets received   */
-       u_long  collisions;
-
-       /* detailed rx_errors: */
-       u_long  rx_length_errors;
-       u_long  rx_over_errors;    /* receiver ring buff overflow  */
-       u_long  rx_crc_errors;     /* recv'd pkt with crc error    */
-       u_long  rx_frame_errors;   /* recv'd frame alignment error */
-       u_long  rx_fifo_errors;    /* recv'r fifo overrun          */
-       u_long  rx_missed_errors;  /* recv'r missed packet         */
-
-       /* detailed tx_errors */
-       u_long  tx_aborted_errors;
-       u_long  tx_carrier_errors;
-       u_long  tx_fifo_errors;
-       u_long  tx_heartbeat_errors;
-       u_long  tx_window_errors;
-     };
-#endif
 
 /*
  * Item in a list of interfaces.
@@ -208,7 +217,6 @@ int	pcap_lookupnet(const char *, bpf_u_int32 *, bpf_u_int32 *, char *);
 pcap_t	*pcap_open_live(const char *, int, int, int, char *);
 pcap_t	*pcap_open_dead(int, int);
 pcap_t	*pcap_open_offline(const char *, char *);
-pcap_t	*pcap_fopen_offline(FILE *, char *);
 void	pcap_close(pcap_t *);
 int	pcap_loop(pcap_t *, int, pcap_handler, u_char *);
 int	pcap_dispatch(pcap_t *, int, pcap_handler, u_char *);
@@ -221,8 +229,6 @@ int	pcap_setfilter(pcap_t *, struct bpf_program *);
 int	pcap_getnonblock(pcap_t *, char *);
 int	pcap_setnonblock(pcap_t *, int, char *);
 void	pcap_perror(pcap_t *, char *);
-int	pcap_inject(pcap_t *, const void *, size_t);
-int	pcap_sendpacket(pcap_t *, const u_char *, int);
 char	*pcap_strerror(int);
 char	*pcap_geterr(pcap_t *);
 int	pcap_compile(pcap_t *, struct bpf_program *, char *, int,
@@ -246,7 +252,6 @@ FILE	*pcap_file(pcap_t *);
 int	pcap_fileno(pcap_t *);
 
 pcap_dumper_t *pcap_dump_open(pcap_t *, const char *);
-pcap_dumper_t *pcap_dump_fopen(pcap_t *, FILE *fp);
 int	pcap_dump_flush(pcap_dumper_t *);
 void	pcap_dump_close(pcap_dumper_t *);
 void	pcap_dump(u_char *, const struct pcap_pkthdr *, const u_char *);
@@ -263,44 +268,32 @@ int	bpf_validate(struct bpf_insn *f, int len);
 char	*bpf_image(struct bpf_insn *, int);
 void	bpf_dump(struct bpf_program *, int);
 
-#if defined(WIN32)
-
+#ifdef WIN32
 /*
  * Win32 definitions
  */
 
 int pcap_setbuff(pcap_t *p, int dim);
 int pcap_setmode(pcap_t *p, int mode);
+int pcap_sendpacket(pcap_t *p, u_char *buf, int size);
 int pcap_setmintocopy(pcap_t *p, int size);
 
 #ifdef WPCAP
 /* Include file with the wpcap-specific extensions */
 #include <Win32-Extensions.h>
-#endif /* WPCAP */
+#endif
 
 #define MODE_CAPT 0
 #define MODE_STAT 1
-#define MODE_MON 2
 
-#elif defined(MSDOS)
-
-/*
- * MS-DOS definitions
- */
-
-int  pcap_stats_ex (pcap_t *, struct pcap_stat_ex *);
-void pcap_set_wait (pcap_t *p, void (*yield)(void), int wait);
-u_long pcap_mac_packets (void);
-
-#else /* UN*X */
-
+#else
 /*
  * UN*X definitions
  */
 
 int	pcap_get_selectable_fd(pcap_t *);
 
-#endif /* WIN32/MSDOS/UN*X */
+#endif /* WIN32 */
 
 #ifdef __cplusplus
 }

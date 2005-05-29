@@ -21,7 +21,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/gencode.c,v 1.193.2.8 2004/03/29 20:53:47 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/gencode.c,v 1.221 2005/03/27 22:10:23 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -33,7 +33,6 @@ static const char rcsid[] _U_ =
 #else /* WIN32 */
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #endif /* WIN32 */
 
 /*
@@ -58,6 +57,10 @@ static const char rcsid[] _U_ =
 #include <memory.h>
 #include <setjmp.h>
 #include <stdarg.h>
+
+#ifdef MSDOS
+#include "pcap-dos.h"
+#endif
 
 #include "pcap-int.h"
 
@@ -97,14 +100,12 @@ static const char rcsid[] _U_ =
 static jmp_buf top_ctx;
 static pcap_t *bpf_pcap;
 
-/* Hack for updating VLAN offsets. */
-static u_int	orig_linktype = -1, orig_nl = -1, orig_nl_nosnap = -1;
+/* Hack for updating VLAN, MPLS offsets. */
+static u_int	orig_linktype = -1U, orig_nl = -1U, orig_nl_nosnap = -1U;
 
 /* XXX */
 #ifdef PCAP_FDDIPAD
-int	pcap_fddipad = PCAP_FDDIPAD;
-#else
-int	pcap_fddipad;
+static int	pcap_fddipad;
 #endif
 
 /* VARARGS */
@@ -123,7 +124,7 @@ bpf_error(const char *fmt, ...)
 	/* NOTREACHED */
 }
 
-static void init_linktype(int);
+static void init_linktype(pcap_t *);
 
 static int alloc_reg(void);
 static void free_reg(int);
@@ -133,8 +134,10 @@ static struct block *root;
 /*
  * We divy out chunks of memory rather than call malloc each time so
  * we don't have to worry about leaking memory.  It's probably
- * not a big deal if all this memory was wasted but it this ever
+ * not a big deal if all this memory was wasted but if this ever
  * goes into a library that would probably not be a good idea.
+ *
+ * XXX - this *is* in a library....
  */
 #define NCHUNKS 16
 #define CHUNK0SIZE 1024
@@ -165,6 +168,7 @@ static struct block *gen_uncond(int);
 static inline struct block *gen_true(void);
 static inline struct block *gen_false(void);
 static struct block *gen_ether_linktype(int);
+static struct block *gen_linux_sll_linktype(int);
 static struct block *gen_linktype(int);
 static struct block *gen_snap(bpf_u_int32, bpf_u_int32, u_int);
 static struct block *gen_llc(int);
@@ -340,7 +344,7 @@ pcap_compile(pcap_t *p, struct bpf_program *program,
 	}
 
 	lex_init(buf ? buf : "");
-	init_linktype(pcap_datalink(p));
+	init_linktype(p);
 	(void)pcap_parse();
 
 	if (n_errors)
@@ -577,15 +581,15 @@ gen_ncmp(datasize, offset, mask, jtype, jvalue, reverse)
 {
 	struct slist *s;
 	struct block *b;
- 
+
 	s = new_stmt(BPF_LD|datasize|BPF_ABS);
 	s->s.k = offset;
- 
+
 	if (mask != 0xffffffff) {
 		s->next = new_stmt(BPF_ALU|BPF_AND|BPF_K);
 		s->next->s.k = mask;
 	}
- 
+
 	b = new_block(JMP(jtype));
 	b->stmts = s;
 	b->s.k = jvalue;
@@ -678,10 +682,13 @@ static u_int off_nl_nosnap;
 static int linktype;
 
 static void
-init_linktype(type)
-	int type;
+init_linktype(p)
+	pcap_t *p;
 {
-	linktype = type;
+	linktype = pcap_datalink(p);
+#ifdef PCAP_FDDIPAD
+	pcap_fddipad = p->fddipad;
+#endif
 
 	/*
 	 * Assume it's not raw ATM with a pseudo-header, for now.
@@ -698,7 +705,7 @@ init_linktype(type)
 	orig_nl = -1;
 	orig_nl_nosnap = -1;
 
-	switch (type) {
+	switch (linktype) {
 
 	case DLT_ARCNET:
 		off_linktype = 2;
@@ -750,6 +757,7 @@ init_linktype(type)
 		return;
 
 	case DLT_PPP:
+	case DLT_PPP_PPPD:
 	case DLT_C_HDLC:		/* BSD/OS Cisco HDLC */
 	case DLT_PPP_SERIAL:		/* NetBSD sync/async serial PPP */
 		off_linktype = 2;
@@ -922,7 +930,7 @@ init_linktype(type)
 		off_vpi = SUNATM_VPI_POS;
 		off_vci = SUNATM_VCI_POS;
 		off_proto = PROTO_POS;
-		off_mac = -1;	/* LLC-encapsulated, so no MAC-layer header */	
+		off_mac = -1;	/* LLC-encapsulated, so no MAC-layer header */
 		off_payload = SUNATM_PKT_BEGIN_POS;
 		off_linktype = off_payload;
 		off_nl = off_payload+8;		/* 802.2+SNAP */
@@ -993,11 +1001,45 @@ init_linktype(type)
 		off_nl_nosnap = -1;
 		return;
 
+	case DLT_DOCSIS:
+		/*
+		 * Currently, only raw "link[N:M]" filtering is supported.
+		 */
+		off_linktype = -1;
+		off_nl = -1;
+		off_nl_nosnap = -1;
+		return;
+
+	case DLT_SYMANTEC_FIREWALL:
+		off_linktype = 6;
+		off_nl = 44;		/* Ethernet II */
+		off_nl_nosnap = 44;	/* XXX - what does it do with 802.3 packets? */
+		return;
+
 	case DLT_PFLOG:
 		off_linktype = 0;
 		/* XXX read from header? */
 		off_nl = PFLOG_HDRLEN;
 		off_nl_nosnap = PFLOG_HDRLEN;
+		return;
+
+        case DLT_JUNIPER_MLFR:
+        case DLT_JUNIPER_MLPPP:
+                off_linktype = 4;
+		off_nl = 4;
+		off_nl_nosnap = -1;
+                return;
+
+	case DLT_JUNIPER_ATM1:
+		off_linktype = 4; /* in reality variable between 4-8 */
+		off_nl = 4;
+		off_nl_nosnap = 14;
+		return;
+
+	case DLT_JUNIPER_ATM2:
+		off_linktype = 8; /* in reality variable between 8-12 */
+		off_nl = 8;
+		off_nl_nosnap = 18;
 		return;
 
 #ifdef DLT_PFSYNC
@@ -1232,6 +1274,172 @@ gen_ether_linktype(proto)
 }
 
 static struct block *
+gen_linux_sll_linktype(proto)
+	register int proto;
+{
+	struct block *b0, *b1;
+
+	switch (proto) {
+
+	case LLCSAP_IP:
+		b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
+		b1 = gen_cmp(off_linktype + 2, BPF_H, (bpf_int32)
+			     ((LLCSAP_IP << 8) | LLCSAP_IP));
+		gen_and(b0, b1);
+		return b1;
+
+	case LLCSAP_ISONS:
+		/*
+		 * OSI protocols always use 802.2 encapsulation.
+		 * XXX - should we check both the DSAP and the
+		 * SSAP, like this, or should we check just the
+		 * DSAP?
+		 */
+		b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
+		b1 = gen_cmp(off_linktype + 2, BPF_H, (bpf_int32)
+			     ((LLCSAP_ISONS << 8) | LLCSAP_ISONS));
+		gen_and(b0, b1);
+		return b1;
+
+	case LLCSAP_NETBEUI:
+		/*
+		 * NetBEUI always uses 802.2 encapsulation.
+		 * XXX - should we check both the DSAP and the
+		 * LSAP, like this, or should we check just the
+		 * DSAP?
+		 */
+		b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
+		b1 = gen_cmp(off_linktype + 2, BPF_H, (bpf_int32)
+			     ((LLCSAP_NETBEUI << 8) | LLCSAP_NETBEUI));
+		gen_and(b0, b1);
+		return b1;
+
+	case LLCSAP_IPX:
+		/*
+		 *	Ethernet_II frames, which are Ethernet
+		 *	frames with a frame type of ETHERTYPE_IPX;
+		 *
+		 *	Ethernet_802.3 frames, which have a frame
+		 *	type of LINUX_SLL_P_802_3;
+		 *
+		 *	Ethernet_802.2 frames, which are 802.3
+		 *	frames with an 802.2 LLC header (i.e, have
+		 *	a frame type of LINUX_SLL_P_802_2) and
+		 *	with the IPX LSAP as the DSAP in the LLC
+		 *	header;
+		 *
+		 *	Ethernet_SNAP frames, which are 802.3
+		 *	frames with an LLC header and a SNAP
+		 *	header and with an OUI of 0x000000
+		 *	(encapsulated Ethernet) and a protocol
+		 *	ID of ETHERTYPE_IPX in the SNAP header.
+		 *
+		 * First, do the checks on LINUX_SLL_P_802_2
+		 * frames; generate the check for either
+		 * Ethernet_802.2 or Ethernet_SNAP frames, and
+		 * then put a check for LINUX_SLL_P_802_2 frames
+		 * before it.
+		 */
+		b0 = gen_cmp(off_linktype + 2, BPF_B,
+		    (bpf_int32)LLCSAP_IPX);
+		b1 = gen_snap(0x000000, ETHERTYPE_IPX,
+		    off_linktype + 2);
+		gen_or(b0, b1);
+		b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
+		gen_and(b0, b1);
+
+		/*
+		 * Now check for 802.3 frames and OR that with
+		 * the previous test.
+		 */
+		b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_3);
+		gen_or(b0, b1);
+
+		/*
+		 * Now add the check for Ethernet_II frames, and
+		 * do that before checking for the other frame
+		 * types.
+		 */
+		b0 = gen_cmp(off_linktype, BPF_H,
+		    (bpf_int32)ETHERTYPE_IPX);
+		gen_or(b0, b1);
+		return b1;
+
+	case ETHERTYPE_ATALK:
+	case ETHERTYPE_AARP:
+		/*
+		 * EtherTalk (AppleTalk protocols on Ethernet link
+		 * layer) may use 802.2 encapsulation.
+		 */
+
+		/*
+		 * Check for 802.2 encapsulation (EtherTalk phase 2?);
+		 * we check for the 802.2 protocol type in the
+		 * "Ethernet type" field.
+		 */
+		b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
+
+		/*
+		 * 802.2-encapsulated ETHERTYPE_ATALK packets are
+		 * SNAP packets with an organization code of
+		 * 0x080007 (Apple, for Appletalk) and a protocol
+		 * type of ETHERTYPE_ATALK (Appletalk).
+		 *
+		 * 802.2-encapsulated ETHERTYPE_AARP packets are
+		 * SNAP packets with an organization code of
+		 * 0x000000 (encapsulated Ethernet) and a protocol
+		 * type of ETHERTYPE_AARP (Appletalk ARP).
+		 */
+		if (proto == ETHERTYPE_ATALK)
+			b1 = gen_snap(0x080007, ETHERTYPE_ATALK,
+			    off_linktype + 2);
+		else	/* proto == ETHERTYPE_AARP */
+			b1 = gen_snap(0x000000, ETHERTYPE_AARP,
+			    off_linktype + 2);
+		gen_and(b0, b1);
+
+		/*
+		 * Check for Ethernet encapsulation (Ethertalk
+		 * phase 1?); we just check for the Ethernet
+		 * protocol type.
+		 */
+		b0 = gen_cmp(off_linktype, BPF_H, (bpf_int32)proto);
+
+		gen_or(b0, b1);
+		return b1;
+
+	default:
+		if (proto <= ETHERMTU) {
+			/*
+			 * This is an LLC SAP value, so the frames
+			 * that match would be 802.2 frames.
+			 * Check for the 802.2 protocol type
+			 * in the "Ethernet type" field, and
+			 * then check the DSAP.
+			 */
+			b0 = gen_cmp(off_linktype, BPF_H,
+			    LINUX_SLL_P_802_2);
+			b1 = gen_cmp(off_linktype + 2, BPF_B,
+			     (bpf_int32)proto);
+			gen_and(b0, b1);
+			return b1;
+		} else {
+			/*
+			 * This is an Ethernet type, so compare
+			 * the length/type field with it (if
+			 * the frame is an 802.2 frame, the length
+			 * field will be <= ETHERMTU, and, as
+			 * "proto" is > ETHERMTU, this test
+			 * will fail and the frame won't match,
+			 * which is what we want).
+			 */
+			return gen_cmp(off_linktype, BPF_H,
+			    (bpf_int32)proto);
+		}
+	}
+}
+
+static struct block *
 gen_linktype(proto)
 	register int proto;
 {
@@ -1241,6 +1449,7 @@ gen_linktype(proto)
 
 	case DLT_EN10MB:
 		return gen_ether_linktype(proto);
+		/*NOTREACHED*/
 		break;
 
 	case DLT_C_HDLC:
@@ -1252,6 +1461,7 @@ gen_linktype(proto)
 
 		default:
 			return gen_cmp(off_linktype, BPF_H, (bpf_int32)proto);
+			/*NOTREACHED*/
 			break;
 		}
 		break;
@@ -1265,6 +1475,7 @@ gen_linktype(proto)
 	case DLT_ATM_CLIP:
 	case DLT_IP_OVER_FC:
 		return gen_llc(proto);
+		/*NOTREACHED*/
 		break;
 
 	case DLT_SUNATM:
@@ -1302,164 +1513,8 @@ gen_linktype(proto)
 		}
 
 	case DLT_LINUX_SLL:
-		switch (proto) {
-
-		case LLCSAP_IP:
-			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
-			b1 = gen_cmp(off_linktype + 2, BPF_H, (bpf_int32)
-				     ((LLCSAP_IP << 8) | LLCSAP_IP));
-			gen_and(b0, b1);
-			return b1;
-
-		case LLCSAP_ISONS:
-			/*
-			 * OSI protocols always use 802.2 encapsulation.
-			 * XXX - should we check both the DSAP and the
-			 * LSAP, like this, or should we check just the
-			 * DSAP?
-			 */
-			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
-			b1 = gen_cmp(off_linktype + 2, BPF_H, (bpf_int32)
-				     ((LLCSAP_ISONS << 8) | LLCSAP_ISONS));
-			gen_and(b0, b1);
-			return b1;
-
-		case LLCSAP_NETBEUI:
-			/*
-			 * NetBEUI always uses 802.2 encapsulation.
-			 * XXX - should we check both the DSAP and the
-			 * LSAP, like this, or should we check just the
-			 * DSAP?
-			 */
-			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
-			b1 = gen_cmp(off_linktype + 2, BPF_H, (bpf_int32)
-				     ((LLCSAP_NETBEUI << 8) | LLCSAP_NETBEUI));
-			gen_and(b0, b1);
-			return b1;
-
-		case LLCSAP_IPX:
-			/*
-			 *	Ethernet_II frames, which are Ethernet
-			 *	frames with a frame type of ETHERTYPE_IPX;
-			 *
-			 *	Ethernet_802.3 frames, which have a frame
-			 *	type of LINUX_SLL_P_802_3;
-			 *
-			 *	Ethernet_802.2 frames, which are 802.3
-			 *	frames with an 802.2 LLC header (i.e, have
-			 *	a frame type of LINUX_SLL_P_802_2) and
-			 *	with the IPX LSAP as the DSAP in the LLC
-			 *	header;
-			 *
-			 *	Ethernet_SNAP frames, which are 802.3
-			 *	frames with an LLC header and a SNAP
-			 *	header and with an OUI of 0x000000
-			 *	(encapsulated Ethernet) and a protocol
-			 *	ID of ETHERTYPE_IPX in the SNAP header.
-			 *
-			 * First, do the checks on LINUX_SLL_P_802_2
-			 * frames; generate the check for either
-			 * Ethernet_802.2 or Ethernet_SNAP frames, and
-			 * then put a check for LINUX_SLL_P_802_2 frames
-			 * before it.
-			 */
-			b0 = gen_cmp(off_linktype + 2, BPF_B,
-			    (bpf_int32)LLCSAP_IPX);
-			b1 = gen_snap(0x000000, ETHERTYPE_IPX,
-			    off_linktype + 2);
-			gen_or(b0, b1);
-			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
-			gen_and(b0, b1);
-
-			/*
-			 * Now check for 802.3 frames and OR that with
-			 * the previous test.
-			 */
-			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_3);
-			gen_or(b0, b1);
-
-			/*
-			 * Now add the check for Ethernet_II frames, and
-			 * do that before checking for the other frame
-			 * types.
-			 */
-			b0 = gen_cmp(off_linktype, BPF_H,
-			    (bpf_int32)ETHERTYPE_IPX);
-			gen_or(b0, b1);
-			return b1;
-
-		case ETHERTYPE_ATALK:
-		case ETHERTYPE_AARP:
-			/*
-			 * EtherTalk (AppleTalk protocols on Ethernet link
-			 * layer) may use 802.2 encapsulation.
-			 */
-
-			/*
-			 * Check for 802.2 encapsulation (EtherTalk phase 2?);
-			 * we check for the 802.2 protocol type in the
-			 * "Ethernet type" field.
-			 */
-			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
-
-			/*
-			 * 802.2-encapsulated ETHERTYPE_ATALK packets are
-			 * SNAP packets with an organization code of
-			 * 0x080007 (Apple, for Appletalk) and a protocol
-			 * type of ETHERTYPE_ATALK (Appletalk).
-			 *
-			 * 802.2-encapsulated ETHERTYPE_AARP packets are
-			 * SNAP packets with an organization code of
-			 * 0x000000 (encapsulated Ethernet) and a protocol
-			 * type of ETHERTYPE_AARP (Appletalk ARP).
-			 */
-			if (proto == ETHERTYPE_ATALK)
-				b1 = gen_snap(0x080007, ETHERTYPE_ATALK,
-				    off_linktype + 2);
-			else	/* proto == ETHERTYPE_AARP */
-				b1 = gen_snap(0x000000, ETHERTYPE_AARP,
-				    off_linktype + 2);
-			gen_and(b0, b1);
-
-			/*
-			 * Check for Ethernet encapsulation (Ethertalk
-			 * phase 1?); we just check for the Ethernet
-			 * protocol type.
-			 */
-			b0 = gen_cmp(off_linktype, BPF_H, (bpf_int32)proto);
-
-			gen_or(b0, b1);
-			return b1;
-
-		default:
-			if (proto <= ETHERMTU) {
-				/*
-				 * This is an LLC SAP value, so the frames
-				 * that match would be 802.2 frames.
-				 * Check for the 802.2 protocol type
-				 * in the "Ethernet type" field, and
-				 * then check the DSAP.
-				 */
-				b0 = gen_cmp(off_linktype, BPF_H,
-				    LINUX_SLL_P_802_2);
-				b1 = gen_cmp(off_linktype + 2, BPF_B,
-				     (bpf_int32)proto);
-				gen_and(b0, b1);
-				return b1;
-			} else {
-				/*
-				 * This is an Ethernet type, so compare
-				 * the length/type field with it (if
-				 * the frame is an 802.2 frame, the length
-				 * field will be <= ETHERMTU, and, as
-				 * "proto" is > ETHERMTU, this test
-				 * will fail and the frame won't match,
-				 * which is what we want).
-				 */
-				return gen_cmp(off_linktype, BPF_H,
-				    (bpf_int32)proto);
-			}
-		}
+		return gen_linux_sll_linktype(proto);
+		/*NOTREACHED*/
 		break;
 
 	case DLT_SLIP:
@@ -1483,9 +1538,11 @@ gen_linktype(proto)
 		default:
 			return gen_false();		/* always false */
 		}
+		/*NOTREACHED*/
 		break;
 
 	case DLT_PPP:
+	case DLT_PPP_PPPD:
 	case DLT_PPP_SERIAL:
 	case DLT_PPP_ETHER:
 		/*
@@ -1669,6 +1726,7 @@ gen_linktype(proto)
 #endif /* INET6 */
 		else
 			return gen_false();
+		/*NOTREACHED*/
 		break;
 
 	case DLT_ARCNET:
@@ -1689,7 +1747,7 @@ gen_linktype(proto)
 #endif /* INET6 */
 
 		case ETHERTYPE_IP:
-			b0 = gen_cmp(off_linktype, BPF_B, 
+			b0 = gen_cmp(off_linktype, BPF_B,
 				     (bpf_int32)ARCTYPE_IP);
 			b1 = gen_cmp(off_linktype, BPF_B,
 				     (bpf_int32)ARCTYPE_IP_OLD);
@@ -1699,7 +1757,7 @@ gen_linktype(proto)
 		case ETHERTYPE_ARP:
 			b0 = gen_cmp(off_linktype, BPF_B,
 				     (bpf_int32)ARCTYPE_ARP);
-			b1 = gen_cmp(off_linktype, BPF_B, 
+			b1 = gen_cmp(off_linktype, BPF_B,
 				     (bpf_int32)ARCTYPE_ARP_OLD);
 			gen_or(b0, b1);
 			return (b1);
@@ -1712,6 +1770,7 @@ gen_linktype(proto)
 			return (gen_cmp(off_linktype, BPF_B,
 					(bpf_int32)ARCTYPE_ATALK));
 		}
+		/*NOTREACHED*/
 		break;
 
 	case DLT_LTALK:
@@ -1721,6 +1780,7 @@ gen_linktype(proto)
 		default:
 			return gen_false();
 		}
+		/*NOTREACHED*/
 		break;
 
 	case DLT_FRELAY:
@@ -1766,10 +1826,27 @@ gen_linktype(proto)
 		default:
 			return gen_false();
 		}
+		/*NOTREACHED*/
 		break;
 
+        case DLT_JUNIPER_MLFR:
+        case DLT_JUNIPER_MLPPP:
+	case DLT_JUNIPER_ATM1:
+	case DLT_JUNIPER_ATM2:
+		/* just lets verify the magic number for now -
+		 * on ATM we may have up to 6 different encapsulations on the wire
+		 * and need a lot of heuristics to figure out that the payload
+		 * might be;
+		 *
+		 * FIXME encapsulation specific BPF_ filters
+		 */
+		return gen_mcmp(0, BPF_W, 0x4d474300, 0xffffff00); /* compare the magic number */
+
 	case DLT_LINUX_IRDA:
-	        bpf_error("IrDA link-layer type filtering not implemented");
+		bpf_error("IrDA link-layer type filtering not implemented");
+
+	case DLT_DOCSIS:
+		bpf_error("DOCSIS link-layer type filtering not implemented");
 	}
 
 	/*
@@ -2504,7 +2581,7 @@ gen_dnhostop(addr, dir, base_off)
 		return b1;
 
 	case Q_ISO:
-	        bpf_error("ISO host filtering not implemented");
+		bpf_error("ISO host filtering not implemented");
 
 	default:
 		abort();
@@ -2978,91 +3055,91 @@ gen_proto_abbrev(proto)
 		break;
 
 	case Q_ISO:
-	        b1 = gen_linktype(LLCSAP_ISONS);
+		b1 = gen_linktype(LLCSAP_ISONS);
 		break;
 
 	case Q_ESIS:
-	        b1 = gen_proto(ISO9542_ESIS, Q_ISO, Q_DEFAULT);
+		b1 = gen_proto(ISO9542_ESIS, Q_ISO, Q_DEFAULT);
 		break;
 
 	case Q_ISIS:
-	        b1 = gen_proto(ISO10589_ISIS, Q_ISO, Q_DEFAULT);
+		b1 = gen_proto(ISO10589_ISIS, Q_ISO, Q_DEFAULT);
 		break;
 
 	case Q_ISIS_L1: /* all IS-IS Level1 PDU-Types */
-	        b0 = gen_proto(ISIS_L1_LAN_IIH, Q_ISIS, Q_DEFAULT);
-	        b1 = gen_proto(ISIS_PTP_IIH, Q_ISIS, Q_DEFAULT); /* FIXME extract the circuit-type bits */
+		b0 = gen_proto(ISIS_L1_LAN_IIH, Q_ISIS, Q_DEFAULT);
+		b1 = gen_proto(ISIS_PTP_IIH, Q_ISIS, Q_DEFAULT); /* FIXME extract the circuit-type bits */
 		gen_or(b0, b1);
-	        b0 = gen_proto(ISIS_L1_LSP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L1_LSP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
-	        b0 = gen_proto(ISIS_L1_CSNP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L1_CSNP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
-	        b0 = gen_proto(ISIS_L1_PSNP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L1_PSNP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
 		break;
 
 	case Q_ISIS_L2: /* all IS-IS Level2 PDU-Types */
-	        b0 = gen_proto(ISIS_L2_LAN_IIH, Q_ISIS, Q_DEFAULT);
-	        b1 = gen_proto(ISIS_PTP_IIH, Q_ISIS, Q_DEFAULT); /* FIXME extract the circuit-type bits */
+		b0 = gen_proto(ISIS_L2_LAN_IIH, Q_ISIS, Q_DEFAULT);
+		b1 = gen_proto(ISIS_PTP_IIH, Q_ISIS, Q_DEFAULT); /* FIXME extract the circuit-type bits */
 		gen_or(b0, b1);
-	        b0 = gen_proto(ISIS_L2_LSP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L2_LSP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
-	        b0 = gen_proto(ISIS_L2_CSNP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L2_CSNP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
-	        b0 = gen_proto(ISIS_L2_PSNP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L2_PSNP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
 		break;
 
 	case Q_ISIS_IIH: /* all IS-IS Hello PDU-Types */
-	        b0 = gen_proto(ISIS_L1_LAN_IIH, Q_ISIS, Q_DEFAULT);
-	        b1 = gen_proto(ISIS_L2_LAN_IIH, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L1_LAN_IIH, Q_ISIS, Q_DEFAULT);
+		b1 = gen_proto(ISIS_L2_LAN_IIH, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
-	        b0 = gen_proto(ISIS_PTP_IIH, Q_ISIS, Q_DEFAULT);                
+		b0 = gen_proto(ISIS_PTP_IIH, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
 		break;
 
-	case Q_ISIS_LSP: 
-	        b0 = gen_proto(ISIS_L1_LSP, Q_ISIS, Q_DEFAULT);
-	        b1 = gen_proto(ISIS_L2_LSP, Q_ISIS, Q_DEFAULT);
+	case Q_ISIS_LSP:
+		b0 = gen_proto(ISIS_L1_LSP, Q_ISIS, Q_DEFAULT);
+		b1 = gen_proto(ISIS_L2_LSP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
 		break;
 
 	case Q_ISIS_SNP:
-	        b0 = gen_proto(ISIS_L1_CSNP, Q_ISIS, Q_DEFAULT);
-	        b1 = gen_proto(ISIS_L2_CSNP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L1_CSNP, Q_ISIS, Q_DEFAULT);
+		b1 = gen_proto(ISIS_L2_CSNP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
-	        b0 = gen_proto(ISIS_L1_PSNP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L1_PSNP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
-	        b0 = gen_proto(ISIS_L2_PSNP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L2_PSNP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
 		break;
 
 	case Q_ISIS_CSNP:
-	        b0 = gen_proto(ISIS_L1_CSNP, Q_ISIS, Q_DEFAULT);
-	        b1 = gen_proto(ISIS_L2_CSNP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L1_CSNP, Q_ISIS, Q_DEFAULT);
+		b1 = gen_proto(ISIS_L2_CSNP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
 		break;
 
 	case Q_ISIS_PSNP:
-	        b0 = gen_proto(ISIS_L1_PSNP, Q_ISIS, Q_DEFAULT);
-	        b1 = gen_proto(ISIS_L2_PSNP, Q_ISIS, Q_DEFAULT);
+		b0 = gen_proto(ISIS_L1_PSNP, Q_ISIS, Q_DEFAULT);
+		b1 = gen_proto(ISIS_L2_PSNP, Q_ISIS, Q_DEFAULT);
 		gen_or(b0, b1);
 		break;
 
 	case Q_CLNP:
-	        b1 = gen_proto(ISO8473_CLNP, Q_ISO, Q_DEFAULT);
+		b1 = gen_proto(ISO8473_CLNP, Q_ISO, Q_DEFAULT);
 		break;
 
 	case Q_STP:
-	        b1 = gen_linktype(LLCSAP_8021D);
+		b1 = gen_linktype(LLCSAP_8021D);
 		break;
 
 	case Q_IPX:
-	        b1 = gen_linktype(LLCSAP_IPX);
+		b1 = gen_linktype(LLCSAP_IPX);
 		break;
 
 	case Q_NETBEUI:
-	        b1 = gen_linktype(LLCSAP_NETBEUI);
+		b1 = gen_linktype(LLCSAP_NETBEUI);
 		break;
 
 	default:
@@ -3303,8 +3380,11 @@ lookup_proto(name, proto)
 	case Q_LINK:
 		/* XXX should look up h/w protocol type based on linktype */
 		v = pcap_nametoeproto(name);
-		if (v == PROTO_UNDEF)
-			bpf_error("unknown ether proto '%s'", name);
+		if (v == PROTO_UNDEF) {
+			v = pcap_nametollc(name);
+			if (v == PROTO_UNDEF)
+				bpf_error("unknown ether proto '%s'", name);
+		}
 		break;
 
 	case Q_ISO:
@@ -3696,6 +3776,7 @@ gen_proto(v, proto, dir)
 			 * XXX - what about SNAP-encapsulated frames?
 			 */
 			return gen_cmp(2, BPF_H, (0x03<<8) | v);
+			/*NOTREACHED*/
 			break;
 
 		case DLT_C_HDLC:
@@ -4136,6 +4217,7 @@ gen_mcode(s1, s2, masklen, q)
 		bpf_error("Mask syntax for networks only");
 		/* NOTREACHED */
 	}
+	/* NOTREACHED */
 }
 
 struct block *
@@ -4770,6 +4852,7 @@ gen_broadcast(proto)
 		return b2;
 	}
 	bpf_error("only link-layer/IP broadcast filters supported");
+	/* NOTREACHED */
 }
 
 /*
@@ -4986,6 +5069,7 @@ gen_multicast(proto)
 #endif /* INET6 */
 	}
 	bpf_error("link-layer multicast filters supported only on ethernet/FDDI/token ring/ARCNET/802.11/ATM LANE/Fibre Channel");
+	/* NOTREACHED */
 }
 
 /*
@@ -5036,6 +5120,31 @@ gen_inbound(dir)
 		    (bpf_int32)((dir == 0) ? PF_IN : PF_OUT));
 		break;
 
+	case DLT_PPP_PPPD:
+		if (dir) {
+			/* match outgoing packets */
+			b0 = gen_cmp(0, BPF_B, PPP_PPPD_OUT);
+		} else {
+			/* match incoming packets */
+			b0 = gen_cmp(0, BPF_B, PPP_PPPD_IN);
+		}
+		break;
+
+        case DLT_JUNIPER_MLFR:
+        case DLT_JUNIPER_MLPPP:
+	case DLT_JUNIPER_ATM1:
+	case DLT_JUNIPER_ATM2:
+		/* juniper flags (including direction) are stored
+		 * the byte after the 3-byte magic number */
+		if (dir) {
+			/* match outgoing packets */
+			b0 = gen_mcmp(3, BPF_B, 0, 0x01);
+		} else {
+			/* match incoming packets */
+			b0 = gen_mcmp(3, BPF_B, 1, 0x01);
+		}
+	    break;
+
 	default:
 		bpf_error("inbound/outbound not supported on linktype %d",
 		    linktype);
@@ -5064,7 +5173,7 @@ gen_pf_ifname(const char *ifname)
 		    len-1);
 		/* NOTREACHED */
 	}
-	b0 = gen_bcmp(off, strlen(ifname), ifname);
+	b0 = gen_bcmp(off, strlen(ifname), (const u_char *)ifname);
 	return (b0);
 }
 
@@ -5084,7 +5193,7 @@ gen_pf_ruleset(char *ruleset)
 		/* NOTREACHED */
 	}
 	b0 = gen_bcmp(offsetof(struct pfloghdr, ruleset),
-	    strlen(ruleset), ruleset);
+	    strlen(ruleset), (const u_char *)ruleset);
 	return (b0);
 }
 
@@ -5240,7 +5349,80 @@ gen_vlan(vlan_num)
 	if (vlan_num >= 0) {
 		struct block *b1;
 
-		b1 = gen_cmp(orig_nl, BPF_H, (bpf_int32)vlan_num);
+		b1 = gen_mcmp(orig_nl, BPF_H, (bpf_int32)vlan_num, 0x0fff);
+		gen_and(b0, b1);
+		b0 = b1;
+	}
+
+	return (b0);
+}
+
+/*
+ * support for MPLS
+ */
+struct block *
+gen_mpls(label_num)
+	int label_num;
+{
+	struct	block	*b0;
+
+	/*
+	 * Change the offsets to point to the type and data fields within
+	 * the MPLS packet.  This is somewhat of a kludge.
+	 */
+	if (orig_nl == (u_int)-1) {
+		orig_linktype = off_linktype;	/* save original values */
+		orig_nl = off_nl;
+		orig_nl_nosnap = off_nl_nosnap;
+
+		switch (linktype) {
+
+		case DLT_EN10MB:
+			off_linktype = 16;
+			off_nl_nosnap = 18;
+			off_nl = 18;
+
+			b0 = gen_cmp(orig_linktype, BPF_H, (bpf_int32)ETHERTYPE_MPLS);
+			break;
+
+		case DLT_PPP:
+			off_linktype = 6;
+			off_nl_nosnap = 8;
+			off_nl = 8;
+
+			b0 = gen_cmp(orig_linktype, BPF_H, (bpf_int32)PPP_MPLS_UCAST);
+			break;
+
+		case DLT_C_HDLC:
+			off_linktype = 6;
+			off_nl_nosnap = 8;
+			off_nl = 8;
+
+			b0 = gen_cmp(orig_linktype, BPF_H, (bpf_int32)ETHERTYPE_MPLS);
+			break;
+
+			/* FIXME add other DLT_s ...
+			 * for Frame-Relay/and ATM this may get messy due to SNAP headers
+			 * leave it for now */
+
+		default:
+			bpf_error("no MPLS support for data link type %d",
+				  linktype);
+			b0 = NULL;
+			/*NOTREACHED*/
+		}
+	} else {
+		bpf_error("'mpls' can't be combined with 'vlan' or another 'mpls'");
+		b0 = NULL;
+		/*NOTREACHED*/
+	}
+
+	/* If a specific MPLS label is requested, check it */
+	if (label_num >= 0) {
+		struct block *b1;
+
+		label_num = label_num << 12; /* label is shifted 12 bits on the wire */
+		b1 = gen_mcmp(orig_nl, BPF_W, (bpf_int32)label_num, 0xfffff000); /* only compare the first 20 bits */
 		gen_and(b0, b1);
 		b0 = b1;
 	}
@@ -5425,15 +5607,15 @@ gen_msg_abbrev(type)
 		break;
 
 	case A_CALLPROCEED:
-		b1 = gen_atmfield_code(A_MSGTYPE, CALL_PROCEED, BPF_JEQ, 0); 
+		b1 = gen_atmfield_code(A_MSGTYPE, CALL_PROCEED, BPF_JEQ, 0);
 		break;
 
 	case A_CONNECT:
 		b1 = gen_atmfield_code(A_MSGTYPE, CONNECT, BPF_JEQ, 0);
-		break;		       
+		break;
 
 	case A_CONNECTACK:
-		b1 = gen_atmfield_code(A_MSGTYPE, CONNECT_ACK, BPF_JEQ, 0);  
+		b1 = gen_atmfield_code(A_MSGTYPE, CONNECT_ACK, BPF_JEQ, 0);
 		break;
 
 	case A_RELEASE:
@@ -5441,7 +5623,7 @@ gen_msg_abbrev(type)
 		break;
 
 	case A_RELEASE_DONE:
-		b1 = gen_atmfield_code(A_MSGTYPE, RELEASE_DONE, BPF_JEQ, 0);  
+		b1 = gen_atmfield_code(A_MSGTYPE, RELEASE_DONE, BPF_JEQ, 0);
 		break;
 
 	default:
@@ -5468,9 +5650,9 @@ gen_atmmulti_abbrev(type)
 		if (!is_atm)
 			bpf_error("'oamf4' supported only on raw ATM");
 		/* OAM F4 type */
-		b0 = gen_atmfield_code(A_VCI, 3, BPF_JEQ, 0); 
+		b0 = gen_atmfield_code(A_VCI, 3, BPF_JEQ, 0);
 		b1 = gen_atmfield_code(A_VCI, 4, BPF_JEQ, 0);
-		gen_or(b0, b1); 
+		gen_or(b0, b1);
 		b0 = gen_atmfield_code(A_VPI, 0, BPF_JEQ, 0);
 		gen_and(b0, b1);
 		break;
