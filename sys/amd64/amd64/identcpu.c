@@ -214,7 +214,7 @@ printcpuinfo(void)
 				"\020"
 				"\001SSE3"	/* SSE3 */
 				"\002<b1>"
-				"\003RSVD2>"	/* "Reserved" bit 2 */
+				"\003RSVD2"	/* "Reserved" bit 2 */
 				"\004MON"	/* MONITOR/MWAIT Instructions */
 				"\005DS_CPL"	/* CPL Qualified Debug Store */
 				"\006<b5>"	/* Machine specific registers */
