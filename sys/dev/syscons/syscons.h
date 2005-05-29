@@ -2,6 +2,9 @@
  * Copyright (c) 1995-1998 Søren Schmidt
  * All rights reserved.
  *
+ * This code is derived from software contributed to The DragonFly Project
+ * by Sascha Wildner <saw@online.de>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -413,6 +416,7 @@ typedef struct sc_term_sw {
 		       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 /* renderer function table */
+typedef void	vr_init_t(scr_stat *scp);
 typedef void	vr_clear_t(scr_stat *scp, int c, int attr);
 typedef void	vr_draw_border_t(scr_stat *scp, int color);
 typedef void	vr_draw_t(scr_stat *scp, int from, int count, int flip);
@@ -424,6 +428,7 @@ typedef void	vr_set_mouse_t(scr_stat *scp);
 typedef void	vr_draw_mouse_t(scr_stat *scp, int x, int y, int on);
 
 typedef struct sc_rndr_sw {
+	vr_init_t		*init;
 	vr_clear_t		*clear;
 	vr_draw_border_t	*draw_border;
 	vr_draw_t		*draw;
