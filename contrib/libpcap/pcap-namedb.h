@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-namedb.h,v 1.8 2000/07/29 07:36:43 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-namedb.h,v 1.10 2005/03/17 07:02:32 guy Exp $ (LBL)
  */
 
-#ifndef lib_pcap_ethers_h
-#define lib_pcap_ethers_h
+#ifndef lib_pcap_namedb_h
+#define lib_pcap_namedb_h
 
 #ifdef __cplusplus
 extern "C" {
@@ -67,6 +67,7 @@ bpf_u_int32 pcap_nametonetaddr(const char *);
 int	pcap_nametoport(const char *, int *, int *);
 int	pcap_nametoproto(const char *);
 int	pcap_nametoeproto(const char *);
+int	pcap_nametollc(const char *);
 /*
  * If a protocol is unknown, PROTO_UNDEF is returned.
  * Also, pcap_nametoport() returns the protocol along with the port number.

@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/grammar.y,v 1.79.2.3 2004/03/28 21:45:32 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/grammar.y,v 1.86 2004/12/18 08:49:23 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -33,7 +33,6 @@ static const char rcsid[] _U_ =
 #include <pcap-stdinc.h>
 #else /* WIN32 */
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #endif /* WIN32 */
 
@@ -49,7 +48,6 @@ struct rtentry;
 #endif /* WIN32 */
 
 #include <stdio.h>
-#include <strings.h>
 
 #include "pcap-int.h"
 
@@ -128,7 +126,7 @@ pcap_parse()
 %token	LSH RSH
 %token  LEN
 %token  IPV6 ICMPV6 AH ESP
-%token	VLAN
+%token	VLAN MPLS
 %token  ISO ESIS CLNP ISIS L1 L2 IIH LSP SNP CSNP PSNP 
 %token  STP
 %token  IPX
@@ -324,6 +322,8 @@ other:	  pqual TK_BROADCAST	{ $$ = gen_broadcast($1); }
 	| OUTBOUND		{ $$ = gen_inbound(1); }
 	| VLAN pnum		{ $$ = gen_vlan($2); }
 	| VLAN			{ $$ = gen_vlan(-1); }
+	| MPLS pnum		{ $$ = gen_mpls($2); }
+	| MPLS			{ $$ = gen_mpls(-1); }
 	| pfvar			{ $$ = $1; }
 	;
 
