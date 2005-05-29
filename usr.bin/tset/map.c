@@ -196,6 +196,7 @@ mapped(type)
 	MAP *mapp;
 	int match;
 
+	match = 0;
 	for (mapp = maplist; mapp; mapp = mapp->next)
 		if (mapp->porttype == NULL || !strcmp(mapp->porttype, type)) {
 			switch (mapp->conditional) {

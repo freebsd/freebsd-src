@@ -279,6 +279,7 @@ whois(const char *query, const char *hostname, int flags)
 	int i, s;
 	size_t c, len;
 
+	s = -1;
 	hostres = gethostinfo(hostname, 1);
 	for (res = hostres; res; res = res->ai_next) {
 		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
