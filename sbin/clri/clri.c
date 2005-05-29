@@ -41,6 +41,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)clri.c	8.2 (Berkeley) 9/23/93";
 #endif /* not lint */
 #endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -85,6 +86,7 @@ main(int argc, char *argv[])
 		usage();
 
 	fs = *++argv;
+	sbp = NULL;
 
 	/* get the superblock. */
 	if ((fd = open(fs, O_RDWR, 0)) < 0)
@@ -102,10 +104,8 @@ main(int argc, char *argv[])
 		    sbp->fs_bsize >= (int)sizeof(struct fs))
 			break;
 	}
-	if (sblock_try[i] == -1) {
-		fprintf(stderr, "Cannot find file system superblock\n");
-		exit(2);
-	}
+	if (sblock_try[i] == -1)
+		errx(2, "cannot find file system superblock");
 	bsize = sbp->fs_bsize;
 
 	/* remaining arguments are inode numbers. */
