@@ -27,7 +27,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-token.c,v 1.22.2.2 2003/11/16 08:51:51 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-token.c,v 1.25 2004/03/17 23:24:38 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -187,7 +187,7 @@ token_print(const u_char *p, u_int length, u_int caplen)
 /*
  * This is the top level routine of the printer.  'p' points
  * to the TR header of the packet, 'h->ts' is the timestamp,
- * 'h->length' is the length of the packet off the wire, and 'h->caplen'
+ * 'h->len' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
 u_int

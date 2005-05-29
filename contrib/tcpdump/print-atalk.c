@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-atalk.c,v 1.78.2.2 2003/11/16 08:51:11 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-atalk.c,v 1.81 2004/05/01 09:41:50 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -181,6 +181,9 @@ atalk_print(register const u_char *bp, u_int length)
 	register const struct atDDP *dp;
 	u_short snet;
 
+        if(!eflag)
+            printf("AT ");
+
 	if (length < ddpSize) {
 		(void)printf(" [|ddp %d]", length);
 		return;
@@ -189,7 +192,7 @@ atalk_print(register const u_char *bp, u_int length)
 	snet = EXTRACT_16BITS(&dp->srcNet);
 	printf("%s.%s", ataddr_string(snet, dp->srcNode),
 	       ddpskt_string(dp->srcSkt));
-	printf(" > %s.%s:",
+	printf(" > %s.%s: ",
 	       ataddr_string(EXTRACT_16BITS(&dp->dstNet), dp->dstNode),
 	       ddpskt_string(dp->dstSkt));
 	bp += ddpSize;
@@ -248,6 +251,10 @@ ddp_print(register const u_char *bp, register u_int length, register int t,
 
 	case ddpATP:
 		atp_print((const struct atATP *)bp, length);
+		break;
+
+	case ddpEIGRP:
+		eigrp_print(bp, length);
 		break;
 
 	default:

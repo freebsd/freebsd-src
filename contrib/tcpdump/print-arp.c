@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-arp.c,v 1.61.2.2 2003/11/16 08:51:10 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-arp.c,v 1.64 2004/04/30 16:42:14 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,7 +35,7 @@ static const char rcsid[] _U_ =
 #include <stdio.h>
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "ether.h"
 #include "ethertype.h"
@@ -160,173 +160,184 @@ struct	atmarp_pkthdr {
 static u_char ezero[6];
 
 static void
-atmarp_addr_print(const u_char *ha, u_int ha_len, const u_char *srca,
+atmarp_addr_print(netdissect_options *ndo,
+		  const u_char *ha, u_int ha_len, const u_char *srca,
     u_int srca_len)
 {
 	if (ha_len == 0)
-		(void)printf("<No address>");
+		ND_PRINT((ndo, "<No address>"));
 	else {
-		(void)printf("%s", linkaddr_string(ha, ha_len));
-		if (srca_len != 0)
-			(void)printf(",%s", linkaddr_string(srca, srca_len));
+		ND_PRINT((ndo, "%s", linkaddr_string(ha, ha_len)));
+		if (srca_len != 0) 
+			ND_PRINT((ndo, ",%s",
+				  linkaddr_string(srca, srca_len)));
 	}
 }
 
 static void
-atmarp_print(const u_char *bp, u_int length, u_int caplen)
+atmarp_print(netdissect_options *ndo,
+	     const u_char *bp, u_int length, u_int caplen)
 {
 	const struct atmarp_pkthdr *ap;
 	u_short pro, hrd, op;
 
 	ap = (const struct atmarp_pkthdr *)bp;
-	TCHECK(*ap);
+	ND_TCHECK(*ap);
 
 	hrd = ATMHRD(ap);
 	pro = ATMPRO(ap);
 	op = ATMOP(ap);
 
-	if (!TTEST2(*aar_tpa(ap), ATMTPLN(ap))) {
-		(void)printf("truncated-atmarp");
-		default_print((const u_char *)ap, length);
+	if (!ND_TTEST2(*aar_tpa(ap), ATMTPLN(ap))) {
+		ND_PRINT((ndo, "truncated-atmarp"));
+		ND_DEFAULTPRINT((const u_char *)ap, length);
 		return;
 	}
 
 	if ((pro != ETHERTYPE_IP && pro != ETHERTYPE_TRAIL) ||
 	    ATMSPLN(ap) != 4 || ATMTPLN(ap) != 4) {
-		(void)printf("atmarp-#%d for proto #%d (%d/%d) hardware #%d",
-				op, pro, ATMSPLN(ap), ATMTPLN(ap), hrd);
+		ND_PRINT((ndo, "atmarp-#%d for proto #%d (%d/%d) hardware #%d",
+			  op, pro, ATMSPLN(ap), ATMTPLN(ap), hrd));
 		return;
 	}
 	if (pro == ETHERTYPE_TRAIL)
-		(void)printf("trailer-");
+		ND_PRINT((ndo, "trailer-"));
 	switch (op) {
 
 	case ARPOP_REQUEST:
-		(void)printf("arp who-has %s", ipaddr_string(ATMTPA(ap)));
+		ND_PRINT((ndo, "arp who-has %s", ipaddr_string(ATMTPA(ap))));
 		if (ATMTHLN(ap) != 0) {
-			(void)printf(" (");
-			atmarp_addr_print(ATMTHA(ap), ATMTHLN(ap),
+			ND_PRINT((ndo, " ("));
+			atmarp_addr_print(ndo, ATMTHA(ap), ATMTHLN(ap),
 			    ATMTSA(ap), ATMTSLN(ap));
-			(void)printf(")");
+			ND_PRINT((ndo, ")"));
 		}
-		(void)printf(" tell %s", ipaddr_string(ATMSPA(ap)));
+		ND_PRINT((ndo, " tell %s", ipaddr_string(ATMSPA(ap))));
 		break;
 
 	case ARPOP_REPLY:
-		(void)printf("arp reply %s", ipaddr_string(ATMSPA(ap)));
-		(void)printf(" is-at ");
-		atmarp_addr_print(ATMSHA(ap), ATMSHLN(ap), ATMSSA(ap),
+		ND_PRINT((ndo, "arp reply %s", ipaddr_string(ATMSPA(ap))));
+		ND_PRINT((ndo, " is-at "));
+		atmarp_addr_print(ndo, ATMSHA(ap), ATMSHLN(ap), ATMSSA(ap),
 		    ATMSSLN(ap));
 		break;
 
 	case ARPOP_INVREQUEST:
-		(void)printf("invarp who-is ");
-		atmarp_addr_print(ATMTHA(ap), ATMTHLN(ap), ATMTSA(ap),
+		ND_PRINT((ndo, "invarp who-is "));
+		atmarp_addr_print(ndo, ATMTHA(ap), ATMTHLN(ap), ATMTSA(ap),
 		    ATMTSLN(ap));
-		(void)printf(" tell ");
-		atmarp_addr_print(ATMSHA(ap), ATMSHLN(ap), ATMSSA(ap),
+		ND_PRINT((ndo, " tell "));
+		atmarp_addr_print(ndo, ATMSHA(ap), ATMSHLN(ap), ATMSSA(ap),
 		    ATMSSLN(ap));
 		break;
 
 	case ARPOP_INVREPLY:
-		(void)printf("invarp reply ");
-		atmarp_addr_print(ATMSHA(ap), ATMSHLN(ap), ATMSSA(ap),
+		ND_PRINT((ndo, "invarp reply "));
+		atmarp_addr_print(ndo, ATMSHA(ap), ATMSHLN(ap), ATMSSA(ap),
 		    ATMSSLN(ap));
-		(void)printf(" at %s", ipaddr_string(ATMSPA(ap)));
+		ND_PRINT((ndo, " at %s", ipaddr_string(ATMSPA(ap))));
 		break;
 
 	case ATMARPOP_NAK:
-		(void)printf("nak reply for %s",
-			ipaddr_string(ATMSPA(ap)));
+		ND_PRINT((ndo, "nak reply for %s",
+			  ipaddr_string(ATMSPA(ap))));
 		break;
 
 	default:
-		(void)printf("atmarp-#%d", op);
-		default_print((const u_char *)ap, caplen);
+		ND_PRINT((ndo, "atmarp-#%d", op));
+		ND_DEFAULTPRINT((const u_char *)ap, caplen);
 		return;
 	}
 	return;
 trunc:
-	(void)printf("[|atmarp]");
+	ND_PRINT((ndo, "[|atmarp]"));
 }
 
 void
-arp_print(const u_char *bp, u_int length, u_int caplen)
+arp_print(netdissect_options *ndo,
+	  const u_char *bp, u_int length, u_int caplen)
 {
 	const struct arp_pkthdr *ap;
 	u_short pro, hrd, op;
 
 	ap = (const struct arp_pkthdr *)bp;
-	TCHECK(*ap);
+	ND_TCHECK(*ap);
 	hrd = HRD(ap);
 	if (hrd == ARPHRD_ATM2225) {
-		atmarp_print(bp, length, caplen);
+	        atmarp_print(ndo, bp, length, caplen);
 		return;
 	}
 	pro = PRO(ap);
 	op = OP(ap);
 
-	if (!TTEST2(*ar_tpa(ap), PLN(ap))) {
-		(void)printf("truncated-arp");
-		default_print((const u_char *)ap, length);
+	if (!ND_TTEST2(*ar_tpa(ap), PLN(ap))) {
+		ND_PRINT((ndo, "truncated-arp"));
+		ND_DEFAULTPRINT((const u_char *)ap, length);
 		return;
 	}
 
 	if ((pro != ETHERTYPE_IP && pro != ETHERTYPE_TRAIL) ||
 	    PLN(ap) != 4 || HLN(ap) == 0) {
-		(void)printf("arp-#%d for proto #%d (%d) hardware #%d (%d)",
-				op, pro, PLN(ap), hrd, HLN(ap));
+		ND_PRINT((ndo, "arp-#%d for proto #%d (%d) hardware #%d (%d)",
+			  op, pro, PLN(ap), hrd, HLN(ap)));
 		return;
 	}
 	if (pro == ETHERTYPE_TRAIL)
-		(void)printf("trailer-");
+		ND_PRINT((ndo, "trailer-"));
 	switch (op) {
 
 	case ARPOP_REQUEST:
-		(void)printf("arp who-has %s", ipaddr_string(TPA(ap)));
+		ND_PRINT((ndo, "arp who-has %s", ipaddr_string(TPA(ap))));
 		if (memcmp((const char *)ezero, (const char *)THA(ap), HLN(ap)) != 0)
-			(void)printf(" (%s)",
-			    linkaddr_string(THA(ap), HLN(ap)));
-		(void)printf(" tell %s", ipaddr_string(SPA(ap)));
+			ND_PRINT((ndo, " (%s)",
+				  linkaddr_string(THA(ap), HLN(ap))));
+		ND_PRINT((ndo, " tell %s", ipaddr_string(SPA(ap))));
 		break;
 
 	case ARPOP_REPLY:
-		(void)printf("arp reply %s", ipaddr_string(SPA(ap)));
-		(void)printf(" is-at %s", linkaddr_string(SHA(ap), HLN(ap)));
+		ND_PRINT((ndo, "arp reply %s", ipaddr_string(SPA(ap))));
+		ND_PRINT((ndo, " is-at %s", linkaddr_string(SHA(ap), HLN(ap))));
 		break;
 
 	case ARPOP_REVREQUEST:
-		(void)printf("rarp who-is %s tell %s",
-			linkaddr_string(THA(ap), HLN(ap)),
-			linkaddr_string(SHA(ap), HLN(ap)));
+		ND_PRINT((ndo, "rarp who-is %s tell %s",
+			  linkaddr_string(THA(ap), HLN(ap)),
+			  linkaddr_string(SHA(ap), HLN(ap))));
 		break;
 
 	case ARPOP_REVREPLY:
-		(void)printf("rarp reply %s at %s",
-			linkaddr_string(THA(ap), HLN(ap)),
-			ipaddr_string(TPA(ap)));
+		ND_PRINT((ndo, "rarp reply %s at %s",
+			  linkaddr_string(THA(ap), HLN(ap)),
+			  ipaddr_string(TPA(ap))));
 		break;
 
 	case ARPOP_INVREQUEST:
-		(void)printf("invarp who-is %s tell %s",
-			linkaddr_string(THA(ap), HLN(ap)),
-			linkaddr_string(SHA(ap), HLN(ap)));
+		ND_PRINT((ndo, "invarp who-is %s tell %s",
+			  linkaddr_string(THA(ap), HLN(ap)),
+			  linkaddr_string(SHA(ap), HLN(ap))));
 		break;
 
 	case ARPOP_INVREPLY:
-		(void)printf("invarp reply %s at %s",
-			linkaddr_string(THA(ap), HLN(ap)),
-			ipaddr_string(TPA(ap)));
+		ND_PRINT((ndo,"invarp reply %s at %s",
+			  linkaddr_string(THA(ap), HLN(ap)),
+			  ipaddr_string(TPA(ap))));
 		break;
 
 	default:
-		(void)printf("arp-#%d", op);
-		default_print((const u_char *)ap, caplen);
+		ND_PRINT((ndo, "arp-#%d", op));
+		ND_DEFAULTPRINT((const u_char *)ap, caplen);
 		return;
 	}
 	if (hrd != ARPHRD_ETHER)
-		printf(" hardware #%d", hrd);
+		ND_PRINT((ndo, " hardware #%d", hrd));
 	return;
 trunc:
-	(void)printf("[|arp]");
+	ND_PRINT((ndo, "[|arp]"));
 }
+
+/*
+ * Local Variables:
+ * c-style: bsd
+ * End:
+ */
+
