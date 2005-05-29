@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
@@ -45,6 +43,9 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "@(#)tsort.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -121,6 +122,7 @@ main(int argc, char *argv[])
 	int bsize, ch, nused;
 	BUF bufs[2];
 
+	fp = NULL;
 	while ((ch = getopt(argc, argv, "dlq")) != -1)
 		switch (ch) {
 		case 'd':
