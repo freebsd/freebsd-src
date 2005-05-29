@@ -32,6 +32,8 @@
 #ifndef _SYS_SYSENT_H_
 #define	_SYS_SYSENT_H_
 
+#include <bsm/audit.h>
+
 struct thread;
 
 typedef	int	sy_call_t(struct thread *, void *);
@@ -39,6 +41,7 @@ typedef	int	sy_call_t(struct thread *, void *);
 struct sysent {		/* system call table */
 	int	sy_narg;	/* number of arguments */
 	sy_call_t *sy_call;	/* implementing function */
+	au_event_t sy_auevent;	/* audit event associated with syscall */
 };
 
 #define SYF_ARGMASK	0x0000FFFF
