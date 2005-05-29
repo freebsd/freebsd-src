@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/fad-win32.c,v 1.7.2.1 2003/11/15 23:26:40 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/fad-win32.c,v 1.11 2005/01/29 00:52:22 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -155,8 +155,7 @@ pcap_add_if_win32(pcap_if_t **devlist, char *name, const char *desc,
 	/*
 	 * Add an entry for this interface, with no addresses.
 	 */
-	if (add_or_find_if(&curdev, devlist, (char *)name, 0, (char *)desc,
-	    errbuf) == -1) {
+	if (add_or_find_if(&curdev, devlist, name, 0, desc, errbuf) == -1) {
 		/*
 		 * Failure.
 		 */
@@ -221,14 +220,30 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 	pcap_if_t *devlist = NULL;
 	int ret = 0;
 	const char *desc;
-	char AdaptersName[8192];
-	ULONG NameLength = 8192;
+	char *AdaptersName;
+	ULONG NameLength;
 	char *name;
 	
+	PacketGetAdapterNames(NULL, &NameLength);
+
+	if (NameLength > 0)
+		AdaptersName = (char*) malloc(NameLength);
+	else
+	{
+		*alldevsp = NULL;
+		return 0;
+	}
+	if (AdaptersName == NULL)
+	{
+		snprintf(errbuf, PCAP_ERRBUF_SIZE, "Cannot allocate enough memory to list the adapters.");
+		return (-1);
+	}			
+
 	if (!PacketGetAdapterNames(AdaptersName, &NameLength)) {
 		snprintf(errbuf, PCAP_ERRBUF_SIZE,
 			"PacketGetAdapterNames: %s",
 			pcap_win32strerror());
+		free(AdaptersName);
 		return (-1);
 	}
 	
@@ -261,14 +276,13 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 	 */
 	name = &AdaptersName[0];
 	while (*name != '\0') {
-	/*
-	 * Add an entry for this interface.
-	 */
-	if (pcap_add_if_win32(&devlist, name, desc,
-			errbuf) == -1) {
+		/*
+		 * Add an entry for this interface.
+		 */
+		if (pcap_add_if_win32(&devlist, name, desc, errbuf) == -1) {
 			/*
-			* Failure.
-			*/
+			 * Failure.
+			 */
 			ret = -1;
 			break;
 		}
@@ -277,15 +291,16 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 	}
 	
 	if (ret == -1) {
-	/*
-	 * We had an error; free the list we've been constructing.
-	 */
-	if (devlist != NULL) {
+		/*
+		 * We had an error; free the list we've been constructing.
+		 */
+		if (devlist != NULL) {
 			pcap_freealldevs(devlist);
 			devlist = NULL;
 		}
 	}
 	
 	*alldevsp = devlist;
+	free(AdaptersName);
 	return (ret);
 }

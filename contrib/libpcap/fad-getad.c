@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/fad-getad.c,v 1.7.2.2 2004/03/11 23:04:52 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/fad-getad.c,v 1.10 2004/11/04 07:26:04 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -56,6 +56,10 @@ static const char rcsid[] _U_ =
 
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
+#endif
+
+#ifdef AF_PACKET
+# include <linux/if_packet.h>
 #endif
 
 /*
@@ -99,6 +103,11 @@ get_sa_len(struct sockaddr *addr)
 #ifdef AF_INET6
 	case AF_INET6:
 		return (sizeof (struct sockaddr_in6));
+#endif
+
+#ifdef AF_PACKET
+	case AF_PACKET:
+		return (sizeof (struct sockaddr_ll));
 #endif
 
 	default:
