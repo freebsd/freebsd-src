@@ -35,7 +35,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-"@(#) $Header: /tcpdump/master/tcpdump/print-sctp.c,v 1.13.2.2 2003/11/16 08:51:44 guy Exp $ (NETLAB/PEL)";
+"@(#) $Header: /tcpdump/master/tcpdump/print-sctp.c,v 1.16 2004/12/15 08:43:23 guy Exp $ (NETLAB/PEL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -74,6 +74,7 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
   int chunkCount;
   const struct sctpChunkDesc *chunkDescPtr;
   const void *nextChunk;
+  const char *sep;
 
   sctpPktHdr = (const struct sctpHeader*) bp;
   endPacketPtr = (const u_char*)sctpPktHdr+sctpPacketLength;
@@ -125,9 +126,10 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
   }
   fflush(stdout);
 
-  if (vflag < 2)
-	return;
-
+  if (vflag >= 2)
+    sep = "\n\t";
+  else
+    sep = " (";
   /* cycle through all chunks, printing information on each one */
   for (chunkCount = 0,
 	 chunkDescPtr = (const struct sctpChunkDesc *)
@@ -150,7 +152,7 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 
       nextChunk = (const void *) (chunkEnd + align);
 
-      printf("\n\t%d) ", chunkCount+1);
+      printf("%s%d) ", sep, chunkCount+1);
       switch (chunkDescPtr->chunkID)
 	{
 	case SCTP_DATA :
@@ -189,7 +191,7 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	    printf("[PPID 0x%x] ", EXTRACT_32BITS(&dataHdrPtr->payloadtype));
 	    fflush(stdout);
 
-	    if (vflag)		/* if verbose output is specified */
+	    if (vflag >= 2)	   /* if verbose output is specified */
 	      {		           /* at the command line */
 		const u_char *payloadPtr;
 
@@ -341,5 +343,8 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	  printf("[Unknown chunk type: 0x%x]", chunkDescPtr->chunkID);
 	  return;
 	}
+
+	if (vflag < 2)
+	  sep = ", (";
     }
 }

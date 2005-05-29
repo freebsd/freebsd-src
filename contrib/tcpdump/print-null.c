@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-null.c,v 1.49.2.2 2003/11/16 08:51:36 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-null.c,v 1.53 2005/04/06 21:32:41 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -125,7 +125,7 @@ null_print(u_int family, u_int length)
 /*
  * This is the top level routine of the printer.  'p' points
  * to the ether header of the packet, 'h->ts' is the timestamp,
- * 'h->length' is the length of the packet off the wire, and 'h->caplen'
+ * 'h->len' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
 u_int
@@ -163,7 +163,7 @@ null_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	switch (family) {
 
 	case BSD_AF_INET:
-		ip_print(p, length);
+	        ip_print(gndo, p, length);
 		break;
 
 #ifdef INET6
@@ -197,3 +197,9 @@ null_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	return (NULL_HDRLEN);
 }
 
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */

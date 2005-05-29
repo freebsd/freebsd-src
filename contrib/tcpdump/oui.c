@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/oui.c,v 1.2.2.1 2004/02/06 14:38:51 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/oui.c,v 1.4 2005/04/06 20:13:13 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -29,8 +29,12 @@ static const char rcsid[] _U_ =
 /* FIXME complete OUI list using a script */
 
 struct tok oui_values[] = {
-    { 0x009069, "Juniper"},
-    { 0x00000c, "Cisco"},
+    { OUI_ENCAP_ETHER, "Ethernet" },
+    { OUI_CISCO, "Cisco" },
+    { OUI_CISCO_90, "Cisco bridged" },
+    { OUI_RFC2684, "Ethernet bridged" },
+    { OUI_APPLETALK, "Appletalk" },
+    { OUI_JUNIPER, "Juniper"},
 };
 
 /* list taken from ethereal/packet-radius.c */

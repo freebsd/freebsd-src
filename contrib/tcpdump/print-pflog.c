@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-pflog.c,v 1.7.2.4 2004/03/29 21:56:26 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-pflog.c,v 1.13 2005/04/06 21:32:41 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -75,11 +75,14 @@ static struct tok pf_directions[] = {
 static void
 pflog_print(const struct pfloghdr *hdr)
 {
-	if (ntohl(hdr->subrulenr) == (u_int32_t)-1)
-		printf("rule %u/", ntohl(hdr->rulenr));
+	u_int32_t rulenr, subrulenr;
+
+	rulenr = ntohl(hdr->rulenr);
+	subrulenr = ntohl(hdr->subrulenr);
+	if (subrulenr == (u_int32_t)-1)
+		printf("rule %u/", rulenr);
 	else
-		printf("rule %u.%s.%u/", ntohl(hdr->rulenr), hdr->ruleset,
-		    ntohl(hdr->subrulenr));
+		printf("rule %u.%s.%u/", rulenr, hdr->ruleset, subrulenr);
 
 	printf("%s: %s %s on %s: ",
 	    tok2str(pf_reasons, "unkn(%u)", hdr->reason),
@@ -133,7 +136,7 @@ pflog_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 #if OPENBSD_AF_INET != AF_INET
 		case OPENBSD_AF_INET:		/* XXX: read pcap files */
 #endif
-			ip_print(p, length);
+		        ip_print(gndo, p, length);
 			break;
 
 #ifdef INET6
@@ -158,3 +161,10 @@ trunc:
 	printf("[|pflog]");
 	return (hdrlen);
 }
+
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */

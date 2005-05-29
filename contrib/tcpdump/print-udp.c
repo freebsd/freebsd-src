@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-udp.c,v 1.124.2.5 2003/11/19 00:19:25 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-udp.c,v 1.138 2005/04/07 00:28:17 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -34,8 +34,6 @@ static const char rcsid[] _U_ =
 #undef SEGSIZE
 #endif
 #include <arpa/tftp.h>
-
-#include <rpc/rpc.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -52,6 +50,8 @@ static const char rcsid[] _U_ =
 #include "ip6.h"
 #endif
 #include "ipproto.h"
+#include "rpc_auth.h"
+#include "rpc_msg.h"
 
 #include "nameser.h"
 #include "nfs.h"
@@ -468,8 +468,8 @@ udp_print(register const u_char *bp, u_int length,
 		return;
 	}
 	if (packettype) {
-		register struct rpc_msg *rp;
-		enum msg_type direction;
+		register struct sunrpc_msg *rp;
+		enum sunrpc_msg_type direction;
 
 		switch (packettype) {
 
@@ -484,9 +484,9 @@ udp_print(register const u_char *bp, u_int length,
 			break;
 
 		case PT_RPC:
-			rp = (struct rpc_msg *)(up + 1);
-			direction = (enum msg_type)EXTRACT_32BITS(&rp->rm_direction);
-			if (direction == CALL)
+			rp = (struct sunrpc_msg *)(up + 1);
+			direction = (enum sunrpc_msg_type)EXTRACT_32BITS(&rp->rm_direction);
+			if (direction == SUNRPC_CALL)
 				sunrpcrequest_print((u_char *)rp, length,
 				    (u_char *)ip);
 			else
@@ -526,7 +526,7 @@ udp_print(register const u_char *bp, u_int length,
 #ifdef INET6
 			    ip6 != NULL);
 #else
-			    FALSE);
+			    0);
 #endif
 			break;
 		}
@@ -534,24 +534,24 @@ udp_print(register const u_char *bp, u_int length,
 	}
 
 	if (!qflag) {
-		register struct rpc_msg *rp;
-		enum msg_type direction;
+		register struct sunrpc_msg *rp;
+		enum sunrpc_msg_type direction;
 
-		rp = (struct rpc_msg *)(up + 1);
+		rp = (struct sunrpc_msg *)(up + 1);
 		if (TTEST(rp->rm_direction)) {
-			direction = (enum msg_type)EXTRACT_32BITS(&rp->rm_direction);
-			if (dport == NFS_PORT && direction == CALL) {
+			direction = (enum sunrpc_msg_type)EXTRACT_32BITS(&rp->rm_direction);
+			if (dport == NFS_PORT && direction == SUNRPC_CALL) {
 				nfsreq_print((u_char *)rp, length,
 				    (u_char *)ip);
 				return;
 			}
-			if (sport == NFS_PORT && direction == REPLY) {
+			if (sport == NFS_PORT && direction == SUNRPC_REPLY) {
 				nfsreply_print((u_char *)rp, length,
 				    (u_char *)ip);
 				return;
 			}
 #ifdef notdef
-			if (dport == SUNRPC_PORT && direction == CALL) {
+			if (dport == SUNRPC_PORT && direction == SUNRPC_CALL) {
 				sunrpcrequest_print((u_char *)rp, length, (u_char *)ip);
 				return;
 			}
@@ -568,7 +568,7 @@ udp_print(register const u_char *bp, u_int length,
 	}
 	udpipaddr_print(ip, sport, dport);
 
-	if (IP_V(ip) == 4 && vflag && !fragmented) {
+	if (IP_V(ip) == 4 && (vflag > 1) && !fragmented) {
 		int sum = up->uh_sum;
 		if (sum == 0) {
 			(void)printf("[no cksum] ");
@@ -613,13 +613,15 @@ udp_print(register const u_char *bp, u_int length,
 #ifdef INET6
 			    ip6 != NULL);
 #else
-			    FALSE);
+			    0);
 #endif
-		else if (ISPORT(ISAKMP_PORT))
-			isakmp_print((const u_char *)(up + 1), length, bp2);
+	        else if (ISPORT(ISAKMP_PORT))
+			 isakmp_print(gndo, (const u_char *)(up + 1), length, bp2);
+  	        else if (ISPORT(ISAKMP_PORT_NATT))
+			 isakmp_rfc3948_print(gndo, (const u_char *)(up + 1), length, bp2);
 #if 1 /*???*/
-		else if (ISPORT(ISAKMP_PORT_USER1) || ISPORT(ISAKMP_PORT_USER2))
-			isakmp_print((const u_char *)(up + 1), length, bp2);
+   	        else if (ISPORT(ISAKMP_PORT_USER1) || ISPORT(ISAKMP_PORT_USER2))
+			isakmp_print(gndo, (const u_char *)(up + 1), length, bp2);
 #endif
 		else if (ISPORT(SNMP_PORT) || ISPORT(SNMPTRAP_PORT))
 			snmp_print((const u_char *)(up + 1), length);
@@ -673,14 +675,29 @@ udp_print(register const u_char *bp, u_int length,
                 else if (ISPORT(LDP_PORT))
 			ldp_print((const u_char *)(up + 1), length);
                 else if (ISPORT(MPLS_LSP_PING_PORT))
-			mpls_lsp_ping_print((const u_char *)(up + 1), length);
+			lspping_print((const u_char *)(up + 1), length);
 		else if (dport == BFD_CONTROL_PORT ||
 			 dport == BFD_ECHO_PORT )
 			bfd_print((const u_char *)(up+1), length, dport);
+                else if (ISPORT(LMP_PORT))
+			lmp_print((const u_char *)(up + 1), length);
+                else if (ISPORT(SIP_PORT))
+			sip_print((const u_char *)(up + 1), length);
+                else if (ISPORT(SYSLOG_PORT))
+			syslog_print((const u_char *)(up + 1), length);
 		else
-			(void)printf("UDP, length: %u",
+			(void)printf("UDP, length %u",
 			    (u_int32_t)(ulen - sizeof(*up)));
 #undef ISPORT
 	} else
-		(void)printf("UDP, length: %u", (u_int32_t)(ulen - sizeof(*up)));
+		(void)printf("UDP, length %u", (u_int32_t)(ulen - sizeof(*up)));
 }
+
+
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */
+

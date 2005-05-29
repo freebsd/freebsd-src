@@ -9,3 +9,4 @@ config.h
 stamp-h
 stamp-h.in
 tcpdump
+autom4te.cache

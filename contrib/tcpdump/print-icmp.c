@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.73.2.3 2004/03/24 00:56:34 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.81 2005/04/06 21:32:40 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -40,6 +40,7 @@ static const char rcsid[] _U_ =
 #include "ip.h"
 #include "udp.h"
 #include "ipproto.h"
+#include "mpls.h"
 
 /*
  * Interface Control Message Protocol Definitions.
@@ -85,6 +86,12 @@ struct icmp {
 			struct ip idi_ip;
 			/* options and then 64 bits of data */
 		} id_ip;
+                struct mpls_ext {
+                    u_int8_t legacy_header[128]; /* extension header starts 128 bytes after ICMP header */
+                    u_int8_t version_res[2];
+                    u_int8_t checksum[2];
+                    u_int8_t data[1];
+                } mpls_ext;
 		u_int32_t id_mask;
 		u_int8_t id_data[1];
 	} icmp_dun;
@@ -94,7 +101,13 @@ struct icmp {
 #define	icmp_ip		icmp_dun.id_ip.idi_ip
 #define	icmp_mask	icmp_dun.id_mask
 #define	icmp_data	icmp_dun.id_data
+#define	icmp_mpls_ext_version	icmp_dun.mpls_ext.version_res
+#define	icmp_mpls_ext_checksum	icmp_dun.mpls_ext.checksum
+#define	icmp_mpls_ext_data	icmp_dun.mpls_ext.data
 };
+
+#define ICMP_MPLS_EXT_EXTRACT_VERSION(x) (((x)&0xf0)>>4) 
+#define ICMP_MPLS_EXT_VERSION 2
 
 /*
  * Lower bounds on packet lengths for various types.
@@ -105,6 +118,7 @@ struct icmp {
  * ip header length.
  */
 #define	ICMP_MINLEN	8				/* abs minimum */
+#define ICMP_EXTD_MINLEN (156 - sizeof (struct ip))     /* draft-bonica-icmp-mpls-02 */
 #define	ICMP_TSLEN	(8 + 3 * sizeof (u_int32_t))	/* timestamp */
 #define	ICMP_MASKLEN	12				/* address mask */
 #define	ICMP_ADVLENMIN	(8 + sizeof (struct ip) + 8)	/* min */
@@ -158,6 +172,8 @@ struct icmp {
 	(type) == ICMP_TSTAMP || (type) == ICMP_TSTAMPREPLY || \
 	(type) == ICMP_IREQ || (type) == ICMP_IREQREPLY || \
 	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
+#define	ICMP_MPLS_EXT_TYPE(type) \
+	((type) == ICMP_UNREACH || (type) == ICMP_TIMXCEED)
 /* rfc1700 */
 #ifndef ICMP_UNREACH_NET_UNKNOWN
 #define ICMP_UNREACH_NET_UNKNOWN	6	/* destination net unknown */
@@ -260,6 +276,19 @@ struct id_rdiscovery {
 	u_int32_t ird_pref;
 };
 
+/* draft-bonica-icmp-mpls-02 */
+struct icmp_mpls_ext_object_header_t {
+    u_int8_t length[2];
+    u_int8_t class_num;
+    u_int8_t ctype;
+};
+
+static const struct tok icmp_mpls_ext_obj_values[] = {
+    { 1, "MPLS Stack Entry" },
+    { 2, "Extended Payload" },
+    { 0, NULL}
+};
+
 void
 icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 {
@@ -269,7 +298,10 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 	const char *str, *fmt;
 	const struct ip *oip;
 	const struct udphdr *ouh;
-	u_int hlen, dport, mtu;
+        const u_int8_t *obj_tptr;
+        u_int32_t raw_label;
+	const struct icmp_mpls_ext_object_header_t *icmp_mpls_ext_object_header;
+	u_int hlen, dport, mtu, obj_tlen, obj_class_num, obj_ctype;
 	char buf[MAXHOSTNAMELEN + 100];
 
 	dp = (struct icmp *)bp;
@@ -477,7 +509,7 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 		str = tok2str(icmp2str, "type-#%d", dp->icmp_type);
 		break;
 	}
-	(void)printf("icmp %d: %s", plen, str);
+	(void)printf("ICMP %s, length %u", str, plen);
 	if (vflag && !fragmented) { /* don't attempt checksumming if this is a frag */
 		u_int16_t sum, icmp_sum;
 		if (TTEST2(*bp, plen)) {
@@ -490,13 +522,88 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 			}
 		}
 	}
-	if (vflag > 1 && !ICMP_INFOTYPE(dp->icmp_type)) {
+	if (vflag >= 1 && !ICMP_INFOTYPE(dp->icmp_type)) {
 		bp += 8;
-		(void)printf(" for ");
+		(void)printf("\n\t");
 		ip = (struct ip *)bp;
 		snaplen = snapend - bp;
-		ip_print(bp, EXTRACT_16BITS(&ip->ip_len));
+		ip_print(gndo, bp, EXTRACT_16BITS(&ip->ip_len));
 	}
+
+        if (vflag >= 1 && plen > ICMP_EXTD_MINLEN && ICMP_MPLS_EXT_TYPE(dp->icmp_type)) {
+
+            TCHECK(*(dp->icmp_mpls_ext_version));
+            printf("\n\tMPLS extension v%u",ICMP_MPLS_EXT_EXTRACT_VERSION(*(dp->icmp_mpls_ext_version)));
+            
+            /*
+             * Sanity checking of the header.
+             */
+            if (ICMP_MPLS_EXT_EXTRACT_VERSION(*(dp->icmp_mpls_ext_version)) != ICMP_MPLS_EXT_VERSION) {
+                printf(" packet not supported");
+                return;
+            }
+
+            hlen = plen - ICMP_EXTD_MINLEN;
+            TCHECK2(*(dp->icmp_mpls_ext_checksum), 2);
+            printf(", checksum 0x%04x (unverified), length %u", /* FIXME */
+                   EXTRACT_16BITS(dp->icmp_mpls_ext_checksum),
+                   hlen);
+
+            hlen -= 4; /* subtract common header size */
+            obj_tptr = (u_int8_t *)dp->icmp_mpls_ext_data;
+
+            while (hlen > sizeof(struct icmp_mpls_ext_object_header_t)) {
+
+                icmp_mpls_ext_object_header = (struct icmp_mpls_ext_object_header_t *)obj_tptr;
+                TCHECK(*icmp_mpls_ext_object_header);
+                obj_tlen = EXTRACT_16BITS(icmp_mpls_ext_object_header->length);
+                obj_class_num = icmp_mpls_ext_object_header->class_num;
+                obj_ctype = icmp_mpls_ext_object_header->ctype;
+                obj_tptr += sizeof(struct icmp_mpls_ext_object_header_t);
+
+                printf("\n\t  %s Object (%u), Class-Type: %u, length %u",
+                       tok2str(icmp_mpls_ext_obj_values,"unknown",obj_class_num),
+                       obj_class_num,
+                       obj_ctype,
+                       obj_tlen);
+
+                hlen-=sizeof(struct icmp_mpls_ext_object_header_t); /* length field includes tlv header */
+                if (obj_tlen < sizeof(struct icmp_mpls_ext_object_header_t))
+                    break;
+                obj_tlen-=sizeof(struct icmp_mpls_ext_object_header_t);
+
+                switch (obj_class_num) {
+                case 1:
+                    switch(obj_ctype) {
+                    case 1:
+                        TCHECK2(*obj_tptr, 4);
+                        raw_label = EXTRACT_32BITS(obj_tptr);
+                        printf("\n\t    label %u, exp %u", MPLS_LABEL(raw_label), MPLS_EXP(raw_label));
+                        if (MPLS_STACK(raw_label))
+                            printf(", [S]");
+                        printf(", ttl %u", MPLS_TTL(raw_label));
+                        break;
+                    default:
+                        print_unknown_data(obj_tptr, "\n\t    ", obj_tlen);
+                    }
+                    break;
+
+               /*
+                *  FIXME those are the defined objects that lack a decoder
+                *  you are welcome to contribute code ;-)
+                */
+                case 2:
+                default:
+                    print_unknown_data(obj_tptr, "\n\t    ", obj_tlen);
+                    break;
+                }
+                if (hlen < obj_tlen)
+                    break;
+                hlen -= obj_tlen;
+                obj_tptr += obj_tlen;
+            }
+        }
+
 	return;
 trunc:
 	fputs("[|icmp]", stdout);

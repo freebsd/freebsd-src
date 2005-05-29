@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-sunrpc.c,v 1.43.2.2 2003/11/16 08:51:47 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-sunrpc.c,v 1.46 2004/12/27 00:41:31 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -30,13 +30,12 @@ static const char rcsid[] _U_ =
 
 #include <tcpdump-stdinc.h>
 
+#ifdef HAVE_GETRPCBYNUMBER
 #include <rpc/rpc.h>
 #ifdef HAVE_RPC_RPCENT_H
 #include <rpc/rpcent.h>
-#endif
-#ifndef WIN32
-#include <rpc/pmap_prot.h>
-#endif /* WIN32 */
+#endif /* HAVE_RPC_RPCENT_H */
+#endif /* HAVE_GETRPCBYNUMBER */
 
 #include <stdio.h>
 #include <string.h>
@@ -49,6 +48,10 @@ static const char rcsid[] _U_ =
 #ifdef INET6
 #include "ip6.h"
 #endif
+
+#include "rpc_auth.h"
+#include "rpc_msg.h"
+#include "pmap_prot.h"
 
 static struct tok proc2str[] = {
 	{ PMAPPROC_NULL,	"null" },
@@ -67,7 +70,7 @@ void
 sunrpcrequest_print(register const u_char *bp, register u_int length,
 		    register const u_char *bp2)
 {
-	register const struct rpc_msg *rp;
+	register const struct sunrpc_msg *rp;
 	register const struct ip *ip;
 #ifdef INET6
 	register const struct ip6_hdr *ip6;
@@ -75,7 +78,7 @@ sunrpcrequest_print(register const u_char *bp, register u_int length,
 	u_int32_t x;
 	char srcid[20], dstid[20];	/*fits 32bit*/
 
-	rp = (struct rpc_msg *)bp;
+	rp = (struct sunrpc_msg *)bp;
 
 	if (!nflag) {
 		snprintf(srcid, sizeof(srcid), "0x%x",
@@ -133,7 +136,7 @@ static char *
 progstr(prog)
 	u_int32_t prog;
 {
-#ifndef WIN32
+#ifdef HAVE_GETRPCBYNUMBER
 	register struct rpcent *rp;
 #endif
 	static char buf[32];
@@ -141,12 +144,12 @@ progstr(prog)
 
 	if (lastprog != 0 && prog == lastprog)
 		return (buf);
-#ifndef WIN32
+#ifdef HAVE_GETRPCBYNUMBER
 	rp = getrpcbynumber(prog);
 	if (rp == NULL)
-#endif /* WIN32 */
+#endif
 		(void) snprintf(buf, sizeof(buf), "#%u", prog);
-#ifndef WIN32
+#ifdef HAVE_GETRPCBYNUMBER
 	else
 		strlcpy(buf, rp->r_name, sizeof(buf));
 #endif
