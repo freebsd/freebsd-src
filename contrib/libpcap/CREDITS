@@ -21,12 +21,16 @@ Additional people who have contributed patches:
 	Brian Ginsbach			<ginsbach@cray.com>
 	Charles M. Hannum		<mycroft@netbsd.org>
 	Chris G. Demetriou		<cgd@netbsd.org>
+	Chris Lightfoot			<cwrl@users.sourceforge.net>
 	Chris Pepper			<pepper@mail.reppep.com>
 	Darren Reed			<darrenr@reed.wattle.id.au>
 	David Kaelbling			<drk@sgi.com>
 	David Young			<dyoung@ojctech.com>
+	Dean Gaudet			<dean@arctic.org>
 	Don Ebright			<Don.Ebright@compuware.com> 
+	Dug Song			<dugsong@monkey.org>
 	Eric Anderson			<anderse@hpl.hp.com>
+        Erik de Castro Lopo             <erik.de.castro.lopo@sensorynetworks.com>
 	Franz Schaefer			<schaefer@mond.at>
 	Gianluca Varenni		<varenni@netgroup-serv.polito.it>
 	Gisle Vanem			<giva@bgnett.no>
@@ -54,9 +58,12 @@ Additional people who have contributed patches:
 	Love Hörnquist-Åstrand		<lha@stacken.kth.se>
 	Maciej W. Rozycki		<macro@ds2.pg.gda.pl>
 	Marcus Felipe Pereira		<marcus@task.com.br>
+	Mark Pizzolato			<List-tcpdump-workers@subscriptions.pizzolato.net>
 	Martin Husemann			<martin@netbsd.org>
+	Matthew Luckie			<mjl@luckie.org.nz>
 	Mike Wiacek			<mike@iroot.net>
 	Monroe Williams			<monroe@pobox.com>
+	Nicolas Dade			<ndade@nsd.dyndns.org>
 	Octavian Cerna			<tavy@ylabs.com>
 	Olaf Kirch			<okir@caldera.de>
 	Onno van der Linden		<onno@simplex.nl>
