@@ -169,11 +169,11 @@ row(struct utmp *ut)
 	if (d_first < 0)
 		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 
+	state = '?';
+	idle = 0;
 	if (Tflag || uflag) {
 		snprintf(tty, sizeof(tty), "%s%.*s", _PATH_DEV,
 			UT_LINESIZE, ut->ut_line);
-		state = '?';
-		idle = 0;
 		if (stat(tty, &sb) == 0) {
 			state = sb.st_mode & (S_IWOTH|S_IWGRP) ?
 			    '+' : '-';
