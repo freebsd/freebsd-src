@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-egp.c,v 1.34.2.2 2003/11/16 08:51:18 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-egp.c,v 1.37 2005/01/12 11:19:09 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -214,7 +214,7 @@ trunc:
 }
 
 void
-egp_print(register const u_int8_t *bp)
+egp_print(register const u_int8_t *bp, register u_int length)
 {
 	register const struct egp_packet *egp;
 	register int status;
@@ -222,7 +222,7 @@ egp_print(register const u_int8_t *bp)
 	register int type;
 
 	egp = (struct egp_packet *)bp;
-	if (!TTEST(*egp)) {
+        if (!TTEST2(*egp, length)) {
 		printf("[|egp]");
 		return;
 	}

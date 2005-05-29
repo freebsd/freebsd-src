@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-isakmp.c,v 1.36.2.11 2004/03/24 01:32:42 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-isakmp.c,v 1.51 2005/04/07 00:28:17 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -415,9 +415,10 @@ isakmp_attr_print(const u_char *p, const u_char *ep)
 }
 
 static const u_char *
-isakmp_sa_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase, u_int32_t doi0 _U_,
-	u_int32_t proto0, int depth)
+isakmp_sa_print(const struct isakmp_gen *ext,
+		u_int item_len _U_,
+		const u_char *ep, u_int32_t phase, u_int32_t doi0 _U_,
+		u_int32_t proto0, int depth)
 {
 	const struct isakmp_pl_sa *p;
 	struct isakmp_pl_sa sa;
@@ -475,9 +476,9 @@ trunc:
 }
 
 static const u_char *
-isakmp_p_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase, u_int32_t doi0,
-	u_int32_t proto0 _U_, int depth)
+isakmp_p_print(const struct isakmp_gen *ext, u_int item_len _U_,
+	       const u_char *ep, u_int32_t phase, u_int32_t doi0,
+	       u_int32_t proto0 _U_, int depth)
 {
 	const struct isakmp_pl_p *p;
 	struct isakmp_pl_p prop;
@@ -633,9 +634,9 @@ trunc:
 }
 
 static const u_char *
-isakmp_ke_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase _U_, u_int32_t doi _U_,
-	u_int32_t proto _U_, int depth _U_)
+isakmp_ke_print(const struct isakmp_gen *ext, u_int item_len _U_,
+		const u_char *ep _U_, u_int32_t phase _U_, u_int32_t doi _U_,
+		u_int32_t proto _U_, int depth _U_)
 {
 	struct isakmp_gen e;
 
@@ -656,9 +657,9 @@ trunc:
 }
 
 static const u_char *
-isakmp_id_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase, u_int32_t doi _U_,
-	u_int32_t proto _U_, int depth _U_)
+isakmp_id_print(const struct isakmp_gen *ext, u_int item_len _U_,
+		const u_char *ep _U_, u_int32_t phase, u_int32_t doi _U_,
+		u_int32_t proto _U_, int depth _U_)
 {
 #define USE_IPSECDOI_IN_PHASE1	1
 	const struct isakmp_pl_id *p;
@@ -834,9 +835,10 @@ trunc:
 }
 
 static const u_char *
-isakmp_cert_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase _U_, u_int32_t doi0 _U_,
-	u_int32_t proto0 _U_, int depth _U_)
+isakmp_cert_print(const struct isakmp_gen *ext, u_int item_len _U_,
+		  const u_char *ep _U_, u_int32_t phase _U_,
+		  u_int32_t doi0 _U_,
+		  u_int32_t proto0 _U_, int depth _U_)
 {
 	const struct isakmp_pl_cert *p;
 	struct isakmp_pl_cert cert;
@@ -865,9 +867,9 @@ trunc:
 }
 
 static const u_char *
-isakmp_cr_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase _U_, u_int32_t doi0 _U_,
-	u_int32_t proto0 _U_, int depth _U_)
+isakmp_cr_print(const struct isakmp_gen *ext, u_int item_len _U_,
+		const u_char *ep _U_, u_int32_t phase _U_, u_int32_t doi0 _U_,
+		u_int32_t proto0 _U_, int depth _U_)
 {
 	const struct isakmp_pl_cert *p;
 	struct isakmp_pl_cert cert;
@@ -896,9 +898,9 @@ trunc:
 }
 
 static const u_char *
-isakmp_hash_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase _U_, u_int32_t doi _U_,
-	u_int32_t proto _U_, int depth _U_)
+isakmp_hash_print(const struct isakmp_gen *ext, u_int item_len _U_,
+		  const u_char *ep _U_, u_int32_t phase _U_, u_int32_t doi _U_,
+		  u_int32_t proto _U_, int depth _U_)
 {
 	struct isakmp_gen e;
 
@@ -919,9 +921,9 @@ trunc:
 }
 
 static const u_char *
-isakmp_sig_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase _U_, u_int32_t doi _U_,
-	u_int32_t proto _U_, int depth _U_)
+isakmp_sig_print(const struct isakmp_gen *ext, u_int item_len _U_,
+		 const u_char *ep _U_, u_int32_t phase _U_, u_int32_t doi _U_,
+		 u_int32_t proto _U_, int depth _U_)
 {
 	struct isakmp_gen e;
 
@@ -942,9 +944,11 @@ trunc:
 }
 
 static const u_char *
-isakmp_nonce_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase _U_, u_int32_t doi _U_,
-	u_int32_t proto _U_, int depth _U_)
+isakmp_nonce_print(const struct isakmp_gen *ext,
+		   u_int item_len _U_,
+		   const u_char *ep _U_,
+		   u_int32_t phase _U_, u_int32_t doi _U_,
+		   u_int32_t proto _U_, int depth _U_)
 {
 	struct isakmp_gen e;
 
@@ -1092,8 +1096,9 @@ isakmp_n_print(const struct isakmp_gen *ext, u_int item_len,
 			break;
 		default:
 			/* NULL is dummy */
-			isakmp_print(cp, item_len - sizeof(*p) - n.spi_size,
-				NULL);
+			isakmp_print(gndo, cp,
+				     item_len - sizeof(*p) - n.spi_size,
+				     NULL);
 		}
 		printf(")");
 	}
@@ -1104,9 +1109,9 @@ trunc:
 }
 
 static const u_char *
-isakmp_d_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase _U_, u_int32_t doi0 _U_,
-	u_int32_t proto0 _U_, int depth _U_)
+isakmp_d_print(const struct isakmp_gen *ext, u_int item_len _U_,
+	       const u_char *ep _U_, u_int32_t phase _U_, u_int32_t doi0 _U_,
+	       u_int32_t proto0 _U_, int depth _U_)
 {
 	const struct isakmp_pl_d *p;
 	struct isakmp_pl_d d;
@@ -1147,9 +1152,10 @@ trunc:
 }
 
 static const u_char *
-isakmp_vid_print(const struct isakmp_gen *ext, u_int item_len,
-	const u_char *ep, u_int32_t phase _U_, u_int32_t doi _U_,
-	u_int32_t proto _U_, int depth _U_)
+isakmp_vid_print(const struct isakmp_gen *ext,
+		 u_int item_len _U_, const u_char *ep _U_,
+		 u_int32_t phase _U_, u_int32_t doi _U_,
+		 u_int32_t proto _U_, int depth _U_)
 {
 	struct isakmp_gen e;
 
@@ -1196,7 +1202,7 @@ isakmp_sub0_print(u_char np, const struct isakmp_gen *ext, const u_char *ep,
 		 * XXX - what if item_len is too short, or too long,
 		 * for this payload type?
 		 */
-		cp = (*NPFUNC(np))(ext, item_len, ep, phase, doi, proto, depth);
+		cp = (*npfunc[np])(ext, item_len, ep, phase, doi, proto, depth);
 	} else {
 		printf("%s", NPSTR(np));
 		cp += item_len;
@@ -1268,7 +1274,9 @@ safememcpy(void *p, const void *q, size_t l)
 }
 
 void
-isakmp_print(const u_char *bp, u_int length, const u_char *bp2)
+isakmp_print(netdissect_options *ndo,
+	     const u_char *bp, u_int length,
+	     const u_char *bp2)
 {
 	const struct isakmp *p;
 	struct isakmp base;
@@ -1279,7 +1287,7 @@ isakmp_print(const u_char *bp, u_int length, const u_char *bp2)
 	int major, minor;
 
 	p = (const struct isakmp *)bp;
-	ep = snapend;
+	ep = ndo->ndo_snapend;
 
 	if ((struct isakmp *)ep < p + 1) {
 		printf("[|isakmp]");
@@ -1378,3 +1386,64 @@ done:
 		}
 	}
 }
+
+void
+isakmp_rfc3948_print(netdissect_options *ndo,
+		     const u_char *bp, u_int length,
+		     const u_char *bp2)
+{
+	const u_char *ep;
+	ep = ndo->ndo_snapend;
+
+	if(length == 1 && bp[0]==0xff) {
+		ND_PRINT((ndo, "isakmp-nat-keep-alive"));
+		return;
+	}
+
+	if(length < 4) {
+		goto trunc;
+	}
+
+	/*
+	 * see if this is an IKE packet
+	 */
+	if(bp[0]==0 && bp[1]==0 && bp[2]==0 && bp[3]==0) {
+		ND_PRINT((ndo, "NONESP-encap: "));
+		isakmp_print(ndo, bp+4, length-4, bp2);
+		return;
+	}
+
+	/* must be an ESP packet */
+	{
+		int nh, enh, padlen;
+		int advance;
+
+		ND_PRINT((ndo, "UDP-encap: "));
+
+		advance = esp_print(ndo, bp, length, bp2, &enh, &padlen);
+		if(advance <= 0)
+			return;
+
+		bp += advance;
+		length -= advance + padlen;
+		nh = enh & 0xff;
+	     
+		ip_print_inner(ndo, bp, length, nh, bp2);
+		return;
+	}
+
+trunc:
+	printf("[|isakmp]");
+	return;
+}
+
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */
+
+
+  
+

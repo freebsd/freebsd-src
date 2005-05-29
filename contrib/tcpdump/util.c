@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.87.2.3 2003/12/29 22:42:23 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.95 2005/03/21 11:35:55 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -116,19 +116,25 @@ ts_print(register const struct timeval *tvp)
 	static unsigned b_sec;
 	static unsigned b_usec;
 
-	switch(tflag) {
-	case 1: /* Default */
+	switch (tflag) {
+
+	case 0: /* Default */
 		s = (tvp->tv_sec + thiszone) % 86400;
 		(void)printf("%02d:%02d:%02d.%06u ",
 			     s / 3600, (s % 3600) / 60, s % 60,
 			     (unsigned)tvp->tv_usec);
 		break;
-	case -1: /* Unix timeval style */
+
+	case 1: /* No time stamp */
+		break;
+
+	case 2: /* Unix timeval style */
 		(void)printf("%u.%06u ",
 			     (unsigned)tvp->tv_sec,
 			     (unsigned)tvp->tv_usec);
 		break;
-	case -2:
+
+	case 3: /* Microseconds since previous packet */
 		if (b_sec == 0) {
 			printf("000000 ");
 		} else {
@@ -146,7 +152,8 @@ ts_print(register const struct timeval *tvp)
 		b_sec = tvp->tv_sec;
 		b_usec = tvp->tv_usec;
 		break;
-	case -3: /* Default + Date*/
+
+	case 4: /* Default + Date*/
 		s = (tvp->tv_sec + thiszone) % 86400;
 		Time = (tvp->tv_sec + thiszone) - s;
 		tm = gmtime (&Time);
@@ -209,20 +216,35 @@ print_unknown_data(const u_char *cp,const char *ident,int len)
  * Convert a token value to a string; use "fmt" if not found.
  */
 const char *
-tok2str(register const struct tok *lp, register const char *fmt,
-	register int v)
+tok2strbuf(register const struct tok *lp, register const char *fmt,
+	   register int v, char *buf, size_t bufsize)
 {
-	static char buf[128];
-
-	while (lp->s != NULL) {
+	while (lp->s != NULL && lp != NULL) {
 		if (lp->v == v)
 			return (lp->s);
 		++lp;
 	}
 	if (fmt == NULL)
 		fmt = "#%d";
-	(void)snprintf(buf, sizeof(buf), fmt, v);
-	return (buf);
+
+	(void)snprintf(buf, bufsize, fmt, v);
+	return (const char *)buf;
+}
+
+/*
+ * Convert a token value to a string; use "fmt" if not found.
+ */
+const char *
+tok2str(register const struct tok *lp, register const char *fmt,
+	register int v)
+{
+	static char buf[4][128];
+	static int idx = 0;
+	char *ret;
+
+	ret = buf[idx];
+	idx = (idx+1) & 3;
+	return tok2strbuf(lp, fmt, v, ret, sizeof(buf[0]));
 }
 
 /*
@@ -231,14 +253,14 @@ tok2str(register const struct tok *lp, register const char *fmt,
  */
 char *
 bittok2str(register const struct tok *lp, register const char *fmt,
-	register int v)
+	   register int v)
 {
         static char buf[256]; /* our stringbuffer */
         int buflen=0;
         register int rotbit; /* this is the bit we rotate through all bitpositions */
         register int tokval;
 
-	while (lp->s != NULL) {
+	while (lp->s != NULL && lp != NULL) {
             tokval=lp->v;   /* load our first value */
             rotbit=1;
             while (rotbit != 0) {

@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-cip.c,v 1.21.2.2 2003/11/16 08:51:15 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-cip.c,v 1.25 2005/04/06 21:32:39 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -63,7 +63,7 @@ cip_print(int length)
 /*
  * This is the top level routine of the printer.  'p' points
  * to the LLC/SNAP or raw header of the packet, 'h->ts' is the timestamp,
- * 'h->length' is the length of the packet off the wire, and 'h->caplen'
+ * 'h->len' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
 u_int
@@ -101,8 +101,16 @@ cip_if_print(const struct pcap_pkthdr *h, const u_char *p)
 		/*
 		 * LLC header is absent; treat it as just IP.
 		 */
-		ip_print(p, length);
+		ip_print(gndo, p, length);
 	}
 
 	return (0);
 }
+
+
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */
