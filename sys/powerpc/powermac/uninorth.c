@@ -205,7 +205,7 @@ uninorth_attach(device_t dev)
 	sc->sc_iostart = io->host;
 	if (rman_init(&sc->sc_io_rman) != 0 ||
 	    rman_manage_region(&sc->sc_io_rman, io->pci_lo,
-	    io->pci_lo + io->size_lo) != 0) {
+	    io->pci_lo + io->size_lo - 1) != 0) {
 		device_printf(dev, "failed to set up io range management\n");
 		return (ENXIO);
 	}
@@ -223,7 +223,7 @@ uninorth_attach(device_t dev)
 	}
 	for (i = 0; i < nmem; i++) {
 		if (rman_manage_region(&sc->sc_mem_rman, mem[i]->pci_lo,
-		    mem[i]->pci_lo + mem[i]->size_lo) != 0) {
+		    mem[i]->pci_lo + mem[i]->size_lo - 1) != 0) {
 			device_printf(dev,
 			    "failed to set up memory range management\n");
 			return (ENXIO);
