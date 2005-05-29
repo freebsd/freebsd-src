@@ -69,6 +69,7 @@ configure_final(void *dummy)
 	 */
 	mtmsr(mfmsr() | PSL_EE | PSL_RI);
 
+	cninit_finish();
 	cold = 0;
 }
 
