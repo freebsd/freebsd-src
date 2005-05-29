@@ -1,4 +1,4 @@
-.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.148.2.6 2004/03/28 21:25:03 fenner Exp $ (LBL)
+.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.167 2004/12/28 22:31:25 guy Exp $ (LBL)
 .\"
 .\"	$NetBSD: tcpdump.8,v 1.9 2003/03/31 00:18:17 perry Exp $
 .\"
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.TH TCPDUMP 1  "7 January 2004"
+.TH TCPDUMP 1  "22 March 2004"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
@@ -56,11 +56,15 @@ tcpdump \- dump traffic on a network
 .I module
 ]
 [
-.B \-r
-.I file
+.B \-M
+.I secret
 ]
 .br
 .ti +8
+[
+.B \-r
+.I file
+]
 [
 .B \-s
 .I snaplen
@@ -76,6 +80,12 @@ tcpdump \- dump traffic on a network
 .br
 .ti +8
 [
+.B \-W
+.I filecount
+]
+.br
+.ti +8
+[
 .B \-E
 .I spi@ipaddr algo:secret,...
 ]
@@ -84,6 +94,10 @@ tcpdump \- dump traffic on a network
 [
 .B \-y
 .I datalinktype
+]
+[
+.B \-Z
+.I user
 ]
 .ti +8
 [
@@ -250,7 +264,7 @@ currently larger than \fIfile_size\fP and, if so, close the current
 savefile and open a new one.  Savefiles after the first savefile will
 have the name specified with the
 .B \-w
-flag, with a number after it, starting at 2 and continuing upward.
+flag, with a number after it, starting at 1 and continuing upward.
 The units of \fIfile_size\fP are millions of bytes (1,000,000 bytes,
 not 1,048,576 bytes).
 .TP
@@ -384,6 +398,10 @@ Load SMI MIB module definitions from file \fImodule\fR.
 This option
 can be used several times to load several MIB modules into \fItcpdump\fP.
 .TP
+.B \-M
+Use \fIsecret\fP as a shared secret for validating the digests found in
+TCP segments with the TCP-MD5 option (RFC 2385), if present.
+.TP
 .B \-n
 Don't convert addresses (i.e., host addresses, port numbers, etc.) to names.
 .TP
@@ -493,11 +511,15 @@ that lacks the
 function.
 .TP
 .B \-v
-(Slightly more) verbose output.
+When parsing and printing, produce (slightly more) verbose output.
 For example, the time to live,
 identification, total length and options in an IP packet are printed.
 Also enables additional packet integrity checks such as verifying the
 IP and ICMP header checksum.
+.IP
+When writing to a file with the
+.B \-w
+option, report, every 10 seconds, the number of packets captured.
 .TP
 .B \-vv
 Even more verbose output.
@@ -518,6 +540,16 @@ Write the raw packets to \fIfile\fR rather than parsing and printing
 them out.
 They can later be printed with the \-r option.
 Standard output is used if \fIfile\fR is ``-''.
+.TP
+.B \-W
+Used in conjunction with the 
+.I \-C 
+option, this will limit the number
+of files created to the specified number, and begin overwriting files
+from the beginning, thus creating a 'rotating' buffer. 
+In addition, it will name
+the files with enough leading 0s to support the maximum number of
+files, allowing them to sort correctly.
 .TP
 .B \-x
 Print each packet (minus its link level header) in hex.
@@ -544,6 +576,14 @@ its link level header, in hex and ASCII.
 .TP
 .B \-y
 Set the data link type to use while capturing packets to \fIdatalinktype\fP.
+.TP
+.B \-Z
+Drops privileges (if root) and changes user ID to
+.I user
+and the group ID to the primary group of
+.IR user .
+.IP
+This behavior can also be enabled by default at compile time.
 .IP "\fI expression\fP"
 .RS
 selects which packets will be dumped.
@@ -685,18 +725,18 @@ which is equivalent to:
 If \fIhost\fR is a name with multiple IP addresses, each address will
 be checked for a match.
 .IP "\fBether dst \fIehost\fP
-True if the ethernet destination address is \fIehost\fP.
+True if the Ethernet destination address is \fIehost\fP.
 \fIEhost\fP
 may be either a name from /etc/ethers or a number (see
 .IR ethers (3N)
 for numeric format).
 .IP "\fBether src \fIehost\fP
-True if the ethernet source address is \fIehost\fP.
+True if the Ethernet source address is \fIehost\fP.
 .IP "\fBether host \fIehost\fP
-True if either the ethernet source or destination address is \fIehost\fP.
+True if either the Ethernet source or destination address is \fIehost\fP.
 .IP "\fBgateway\fP \fIhost\fP
 True if the packet used \fIhost\fP as a gateway.
-I.e., the ethernet
+I.e., the Ethernet
 source or destination address was \fIhost\fP but neither the IP source
 nor the IP destination was \fIhost\fP.
 \fIHost\fP must be a name and
@@ -776,9 +816,9 @@ True if the packet is an IP packet (see
 .IR ip (4P))
 of protocol type \fIprotocol\fP.
 \fIProtocol\fP can be a number or one of the names
-\fIicmp\fP, \fIicmp6\fP, \fIigmp\fP, \fIigrp\fP, \fIpim\fP, \fIah\fP,
-\fIesp\fP, \fIvrrp\fP, \fIudp\fP, or \fItcp\fP.
-Note that the identifiers \fItcp\fP, \fIudp\fP, and \fIicmp\fP are also
+\fBicmp\fP, \fBicmp6\fP, \fBigmp\fP, \fBigrp\fP, \fBpim\fP, \fBah\fP,
+\fBesp\fP, \fBvrrp\fP, \fBudp\fP, or \fBtcp\fP.
+Note that the identifiers \fBtcp\fP, \fBudp\fP, and \fBicmp\fP are also
 keywords and must be escaped via backslash (\\), which is \\\\ in the C-shell.
 Note that this primitive does not chase the protocol header chain.
 .IP "\fBip6 proto \fIprotocol\fR"
@@ -804,7 +844,7 @@ so this can be somewhat slow.
 .IP "\fBip protochain \fIprotocol\fR"
 Equivalent to \fBip6 protochain \fIprotocol\fR, but this is for IPv4.
 .IP "\fBether broadcast\fR"
-True if the packet is an ethernet broadcast packet.
+True if the packet is an Ethernet broadcast packet.
 The \fIether\fP
 keyword is optional.
 .IP "\fBip broadcast\fR"
@@ -819,8 +859,8 @@ done has no netmask or because the capture is being done on the Linux
 "any" interface, which can capture on more than one interface, this
 check will not work correctly.
 .IP "\fBether multicast\fR"
-True if the packet is an ethernet multicast packet.
-The \fIether\fP
+True if the packet is an Ethernet multicast packet.
+The \fBether\fP
 keyword is optional.
 This is shorthand for `\fBether[0] & 1 != 0\fP'.
 .IP "\fBip multicast\fR"
@@ -830,9 +870,9 @@ True if the packet is an IPv6 multicast packet.
 .IP  "\fBether proto \fIprotocol\fR"
 True if the packet is of ether type \fIprotocol\fR.
 \fIProtocol\fP can be a number or one of the names
-\fIip\fP, \fIip6\fP, \fIarp\fP, \fIrarp\fP, \fIatalk\fP, \fIaarp\fP,
-\fIdecnet\fP, \fIsca\fP, \fIlat\fP, \fImopdl\fP, \fImoprc\fP,
-\fIiso\fP, \fIstp\fP, \fIipx\fP, or \fInetbeui\fP.
+\fBip\fP, \fBip6\fP, \fBarp\fP, \fBrarp\fP, \fBatalk\fP, \fBaarp\fP,
+\fBdecnet\fP, \fBsca\fP, \fBlat\fP, \fBmopdl\fP, \fBmoprc\fP,
+\fBiso\fP, \fBstp\fP, \fBipx\fP, or \fBnetbeui\fP.
 Note these identifiers are also keywords
 and must be escaped via backslash (\\).
 .IP
@@ -855,10 +895,10 @@ The exceptions are:
 \fItcpdump\fR checks the DSAP (Destination Service Access Point) and
 SSAP (Source Service Access Point) fields of the LLC header;
 .TP
-\fBstp\fP and \fInetbeui\fP
+\fBstp\fP and \fBnetbeui\fP
 \fItcpdump\fR checks the DSAP of the LLC header;
 .TP
-\fIatalk\fP
+\fBatalk\fP
 \fItcpdump\fR checks for a SNAP-format packet with an OUI of 0x080007
 and the AppleTalk etype.
 .RE
@@ -867,7 +907,7 @@ In the case of Ethernet, \fItcpdump\fR checks the Ethernet type field
 for most of those protocols.  The exceptions are:
 .RS
 .TP
-\fBiso\fP, \fBsap\fP, and \fBnetbeui\fP
+\fBiso\fP, \fBstp\fP, and \fBnetbeui\fP
 \fItcpdump\fR checks for an 802.3 frame and then checks the LLC header as
 it does for FDDI, Token Ring, and 802.11;
 .TP
@@ -985,7 +1025,7 @@ where \fIp\fR is one of the above protocols.
 .IP "\fBiso proto \fIprotocol\fR"
 True if the packet is an OSI packet of protocol type \fIprotocol\fP.
 \fIProtocol\fP can be a number or one of the names
-\fIclnp\fP, \fIesis\fP, or \fIisis\fP.
+\fBclnp\fP, \fBesis\fP, or \fBisis\fP.
 .IP "\fBclnp\fR, \fBesis\fR, \fBisis\fR"
 Abbreviations for:
 .in +.5i
@@ -1053,7 +1093,8 @@ True if the relation holds, where \fIrelop\fR is one of >, <, >=, <=, =,
 !=, and \fIexpr\fR is an arithmetic expression composed of integer
 constants (expressed in standard C syntax), the normal binary operators
 [+, -, *, /, &, |, <<, >>], a length operator, and special packet data
-accessors.
+accessors.  Note that all comparisons are unsigned, so that, for example,
+0x80000000 and 0xffffffff are > 0.
 To access
 data inside the packet, use the following syntax:
 .in +.5i
@@ -1207,6 +1248,16 @@ tcpdump 'tcp[tcpflags] & (tcp-syn|tcp-fin) != 0 and not src and dst net \fIlocal
 .fi
 .RE
 .LP
+To print all IPv4 HTTP packets to and from port 80, i.e. print only
+packets that contain data, not, for example, SYN and FIN packets and
+ACK-only packets.  (IPv6 is left as an exercise for the reader.)
+.RS
+.nf
+.B
+tcpdump 'tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)'
+.fi
+.RE
+.LP
 To print IP packets longer than 576 bytes sent through gateway \fIsnup\fP:
 .RS
 .nf
@@ -1217,7 +1268,7 @@ tcpdump 'gateway snup and ip[2:2] > 576'
 .LP
 To print IP broadcast or multicast packets that were
 .I not
-sent via ethernet broadcast or multicast:
+sent via Ethernet broadcast or multicast:
 .RS
 .nf
 .B
@@ -1246,7 +1297,7 @@ gives a brief description and examples of most of the formats.
 Link Level Headers
 .LP
 If the '-e' option is given, the link level header is printed out.
-On ethernets, the source and destination addresses, protocol,
+On Ethernets, the source and destination addresses, protocol,
 and packet length are printed.
 .LP
 On FDDI networks, the  '-e' option causes \fItcpdump\fP to print
@@ -1324,9 +1375,9 @@ arp reply csam is-at CSAM\fR
 .fi
 .RE
 The first line says that rtsg sent an arp packet asking
-for the ethernet address of internet host csam.
+for the Ethernet address of internet host csam.
 Csam
-replies with its ethernet address (in this example, ethernet addresses
+replies with its Ethernet address (in this example, Ethernet addresses
 are in caps and internet addresses in lower case).
 .LP
 This would look less redundant if we had done \fItcpdump \-n\fP:
@@ -1348,8 +1399,8 @@ CSAM RTSG 0806  64: arp reply csam is-at CSAM\fR
 .sp .5
 .fi
 .RE
-For the first packet this says the ethernet source address is RTSG, the
-destination is the ethernet broadcast address, the type field
+For the first packet this says the Ethernet source address is RTSG, the
+destination is the Ethernet broadcast address, the type field
 contained hex 0806 (type ETHER_ARP) and the total length was 64 bytes.
 .HD
 TCP Packets
@@ -1777,11 +1828,6 @@ Be warned that with -v a single SMB packet
 may take up a page or more, so only use -v if you really want all the
 gory details.
 
-If you are decoding SMB sessions containing unicode strings then you
-may wish to set the environment variable USE_UNICODE to 1.
-A patch to
-auto-detect unicode strings would be welcome.
-
 For information on SMB packet formats and what all te fields mean see
 www.cifs.org or the pub/samba/specs/ directory on your favorite
 samba.org mirror site.
@@ -2136,7 +2182,7 @@ and is as accurate as the kernel's clock.
 The timestamp reflects the time the kernel first saw the packet.
 No attempt
 is made to account for the time lag between when the
-ethernet interface removed the packet from the wire and when the kernel
+Ethernet interface removed the packet from the wire and when the kernel
 serviced the `new packet' interrupt.
 .SH "SEE ALSO"
 bpf(4), pcap(3)
