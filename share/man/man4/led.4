@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2003
+.Dd May 29, 2005
 .Dt LED 4
 .Os
 .Sh NAME
@@ -34,10 +34,10 @@
 .In dev/led/led.h
 .Pp
 .Fd "typedef void led_t(void *priv, int onoff);"
-.Ft dev_t
+.Ft struct cdev *
 .Fn led_create "led_t *func" "void *priv" "char const *name"
 .Ft void
-.Fn led_destroy "dev_t dev"
+.Fn led_destroy "struct cdev *"
 .Sh DESCRIPTION
 The
 .Nm
