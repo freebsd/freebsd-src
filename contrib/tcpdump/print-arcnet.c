@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-arcnet.c,v 1.15.2.2 2003/11/16 08:51:09 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-arcnet.c,v 1.20 2005/04/06 21:32:38 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -103,7 +103,7 @@ arcnet_print(const u_char *bp, u_int length, int phds, int flag, u_int seqid)
 /*
  * This is the top level routine of the printer.  'p' points
  * to the ARCNET header of the packet, 'h->ts' is the timestamp,
- * 'h->length' is the length of the packet off the wire, and 'h->caplen'
+ * 'h->len' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
 u_int
@@ -187,7 +187,7 @@ arcnet_if_print(const struct pcap_pkthdr *h, const u_char *p)
 /*
  * This is the top level routine of the printer.  'p' points
  * to the ARCNET header of the packet, 'h->ts' is the timestamp,
- * 'h->length' is the length of the packet off the wire, and 'h->caplen'
+ * 'h->len' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.  It is quite similar
  * to the non-Linux style printer except that Linux doesn't ever
  * supply packets that look like exception frames, it always supplies
@@ -259,7 +259,7 @@ arcnet_encap_print(u_char arctype, const u_char *p,
 
 	case ARCTYPE_IP_OLD:
 	case ARCTYPE_IP:
-		ip_print(p, length);
+	        ip_print(gndo, p, length);
 		return (1);
 
 #ifdef INET6
@@ -271,7 +271,7 @@ arcnet_encap_print(u_char arctype, const u_char *p,
 	case ARCTYPE_ARP_OLD:
 	case ARCTYPE_ARP:
 	case ARCTYPE_REVARP:
-		arp_print(p, length, caplen);
+	  arp_print(gndo, p, length, caplen);
 		return (1);
 
 	case ARCTYPE_ATALK:	/* XXX was this ever used? */
@@ -288,3 +288,10 @@ arcnet_encap_print(u_char arctype, const u_char *p,
 		return (0);
 	}
 }
+
+/*
+ * Local Variables:
+ * c-style: bsd
+ * End:
+ */
+

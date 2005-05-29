@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.28.2.3 2004/03/24 00:46:03 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.32 2005/04/06 21:32:38 mcr Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -76,7 +76,7 @@ chdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 	ip = (const struct ip *)(p + CHDLC_HDRLEN);
 	switch (proto) {
 	case ETHERTYPE_IP:
-		ip_print((const u_char *)ip, length);
+		ip_print(gndo, (const u_char *)ip, length);
 		break;
 #ifdef INET6
 	case ETHERTYPE_IPV6:
@@ -182,3 +182,11 @@ chdlc_slarp_print(const u_char *cp, u_int length)
 trunc:
 	printf("[|slarp]");
 }
+
+
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */

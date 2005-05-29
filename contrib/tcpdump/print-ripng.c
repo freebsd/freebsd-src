@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ripng.c,v 1.15.2.2 2003/11/16 08:51:42 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ripng.c,v 1.18 2005/01/04 00:15:54 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -31,28 +31,20 @@ static const char rcsid[] _U_ =
 #ifdef INET6
 
 #include <tcpdump-stdinc.h>
-
-#ifdef WIN32
-const struct in6_addr in6addr_any;        /* :: */
-#endif /* WIN32 */
-
-#ifdef __MINGW32__
-int
-IN6_ADDR_EQUAL(const struct in6_addr *a, const struct in6_addr *b)
-{
-    return (memcmp(a, b, sizeof(struct in6_addr)) == 0);
-}
-
-#define IN6_IS_ADDR_UNSPECIFIED(a) IN6_ADDR_EQUAL((a), &in6addr_any)
-
-#endif /* __MINGW32__ */
-
 #include <stdio.h>
 
 #include "route6d.h"
 #include "interface.h"
 #include "addrtoname.h"
 #include "extract.h"
+
+#if !defined(IN6_IS_ADDR_UNSPECIFIED) && !defined(_MSC_VER) /* MSVC inline */
+static int IN6_IS_ADDR_UNSPECIFIED(const struct in6_addr *addr)
+{
+    static const struct in6_addr in6addr_any;        /* :: */
+    return (memcmp(addr, &in6addr_any, sizeof(*addr)) == 0);
+}
+#endif
 
 static int
 rip6_entry_print(register const struct netinfo6 *ni, int metric)

@@ -1,4 +1,4 @@
-/* $Header: /tcpdump/master/tcpdump/ntp.h,v 1.7 2003/08/06 04:58:21 guy Exp $ */
+/* $Header: /tcpdump/master/tcpdump/ntp.h,v 1.8 2004/01/28 14:34:50 hannes Exp $ */
 
 /*
  * Based on ntp.h from the U of MD implementation
@@ -37,48 +37,58 @@ struct s_fixedpt {
 	u_int16_t fraction;
 };
 
-/*  =================  Table 3.3. Packet Variables   ================= */
-/*
- *    0			  1		      2			  3
- *    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   |LI | VN  | Mode|	  Stratum    |	    Poll     |	 Precision   |
- *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   |			   Synchronizing Distance		     |
- *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   |			  Synchronizing Dispersion		     |
- *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   |			Reference Clock Identifier		     |
- *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   |								     |
- *   |		       Reference Timestamp (64 bits)		     |
- *   |								     |
- *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   |								     |
- *   |		       Originate Timestamp (64 bits)		     |
- *   |								     |
- *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   |								     |
- *   |			Receive Timestamp (64 bits)		     |
- *   |								     |
- *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   |								     |
- *   |			Transmit Timestamp (64 bits)		     |
- *   |								     |
- *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*/
+/* rfc2030
+ *                      1                   2                   3
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |LI | VN  |Mode |    Stratum    |     Poll      |   Precision   |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                          Root Delay                           |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                       Root Dispersion                         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                     Reference Identifier                      |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                                               |
+ * |                   Reference Timestamp (64)                    |
+ * |                                                               |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                                               |
+ * |                   Originate Timestamp (64)                    |
+ * |                                                               |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                                               |
+ * |                    Receive Timestamp (64)                     |
+ * |                                                               |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                                               |
+ * |                    Transmit Timestamp (64)                    |
+ * |                                                               |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                 Key Identifier (optional) (32)                |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                                               |
+ * |                                                               |
+ * |                 Message Digest (optional) (128)               |
+ * |                                                               |
+ * |                                                               |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+
 struct ntpdata {
 	u_char status;		/* status of local clock and leap info */
 	u_char stratum;		/* Stratum level */
 	u_char ppoll;		/* poll value */
 	int precision:8;
-	struct s_fixedpt distance;
-	struct s_fixedpt dispersion;
+	struct s_fixedpt root_delay;
+	struct s_fixedpt root_dispersion;
 	u_int32_t refid;
-	struct l_fixedpt reftime;
-	struct l_fixedpt org;
-	struct l_fixedpt rec;
-	struct l_fixedpt xmt;
+	struct l_fixedpt ref_timestamp;
+	struct l_fixedpt org_timestamp;
+	struct l_fixedpt rec_timestamp;
+	struct l_fixedpt xmt_timestamp;
+        u_int32_t key_id;
+        u_int8_t  message_digest[16];
 };
 /*
  *	Leap Second Codes (high order two bits)
