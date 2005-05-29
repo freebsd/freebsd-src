@@ -75,5 +75,6 @@ static void
 configure_final(void *dummy)
 {
 
+	cninit_finish();
 	cold = 0;
 }
