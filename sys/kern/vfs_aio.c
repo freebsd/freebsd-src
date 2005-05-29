@@ -248,7 +248,6 @@ struct kaioinfo {
 static TAILQ_HEAD(,aiothreadlist) aio_activeproc;	/* Active daemons */
 static TAILQ_HEAD(,aiothreadlist) aio_freeproc;		/* Idle daemons */
 static TAILQ_HEAD(,aiocblist) aio_jobs;			/* Async job list */
-static TAILQ_HEAD(,aiocblist) aio_bufjobs;		/* Phys I/O job list */
 
 static void	aio_init_aioinfo(struct proc *p);
 static void	aio_onceonly(void);
@@ -344,7 +343,6 @@ aio_onceonly(void)
 	TAILQ_INIT(&aio_freeproc);
 	TAILQ_INIT(&aio_activeproc);
 	TAILQ_INIT(&aio_jobs);
-	TAILQ_INIT(&aio_bufjobs);
 	kaio_zone = uma_zcreate("AIO", sizeof(struct kaioinfo), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	aiop_zone = uma_zcreate("AIOP", sizeof(struct aiothreadlist), NULL,
@@ -1133,7 +1131,6 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	s = splbio();
 	aiocbe->bp = bp;
 	bp->b_caller1 = (void *)aiocbe;
-	TAILQ_INSERT_TAIL(&aio_bufjobs, aiocbe, list);
 	TAILQ_INSERT_TAIL(&ki->kaio_bufqueue, aiocbe, plist);
 	aiocbe->jobstate = JOBST_JOBQBUF;
 	cb->_aiocb_private.status = cb->aio_nbytes;
@@ -1168,7 +1165,6 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 		if (aiocbe->jobstate != JOBST_JOBBFINISHED) {
 			aiocbe->jobstate = JOBST_JOBBFINISHED;
 			aiocbe->jobflags |= AIOCBLIST_DONE;
-			TAILQ_REMOVE(&aio_bufjobs, aiocbe, list);
 			TAILQ_REMOVE(&ki->kaio_bufqueue, aiocbe, plist);
 			TAILQ_INSERT_TAIL(&ki->kaio_bufdone, aiocbe, plist);
 			notify = 1;
@@ -2190,7 +2186,6 @@ aio_physwakeup(struct buf *bp)
 		ki = p->p_aioinfo;
 		if (ki) {
 			ki->kaio_buffer_finished_count++;
-			TAILQ_REMOVE(&aio_bufjobs, aiocbe, list);
 			TAILQ_REMOVE(&ki->kaio_bufqueue, aiocbe, plist);
 			TAILQ_INSERT_TAIL(&ki->kaio_bufdone, aiocbe, plist);
 
