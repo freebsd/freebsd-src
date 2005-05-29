@@ -59,9 +59,7 @@
 
 #if NPCI > 0
 #define AIC_PCI_CONFIG 1
-#include <machine/bus_memio.h>
 #endif
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/endian.h>
 #include <machine/clock.h>

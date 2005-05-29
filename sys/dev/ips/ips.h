@@ -43,7 +43,6 @@
 #include <sys/sema.h>
 #include <sys/time.h>
 
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>

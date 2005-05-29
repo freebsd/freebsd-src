@@ -76,10 +76,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <machine/cpu.h>
-#ifdef __FreeBSD__
-#include <machine/bus_pio.h>
-#include <machine/bus_memio.h>
-#endif
 #include <machine/bus.h>
 #ifdef __NetBSD__
 #include <machine/intr.h>

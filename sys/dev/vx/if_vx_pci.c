@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_arp.h>
 
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>

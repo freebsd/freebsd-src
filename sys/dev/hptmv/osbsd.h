@@ -32,7 +32,6 @@
 #include <sys/resource.h>
 #include <sys/eventhandler.h>
 
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/bus.h>

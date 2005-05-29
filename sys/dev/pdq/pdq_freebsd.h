@@ -48,8 +48,6 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <machine/bus_memio.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>

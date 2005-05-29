@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/endian.h>
 
-#include <machine/bus_memio.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 

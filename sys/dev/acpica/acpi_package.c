@@ -31,7 +31,6 @@
 #include <sys/bus.h>
 #include <sys/sbuf.h>
 
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>

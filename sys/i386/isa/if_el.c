@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>

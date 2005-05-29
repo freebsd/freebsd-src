@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
 #include <machine/clock.h>
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/pc/vesa.h>
 #include <machine/resource.h>
