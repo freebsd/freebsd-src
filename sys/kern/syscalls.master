@@ -7,7 +7,7 @@
 ; Columns: number [M]type nargs name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
 ;	type	one of [M]STD, [M]OBSOL, [M]UNIMPL, [M]COMPAT, [M]CPT_NOA,
-;		[M]LIBCOMPAT, [M]NODEF,  [M]NOARGS,  [M]NOPROTO,  [M]NOIMPL,
+;		[M]LIBCOMPAT, [M]NODEF, [M]NOARGS, [M]NOPROTO, [M]NOIMPL,
 ;		[M]NOSTD, [M]COMPAT4
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
@@ -439,34 +439,34 @@
 311	MSTD	{ int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
 312	MSTD	{ int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
 313	OBSOL	signanosleep
-314     NOSTD	{ int aio_return(struct aiocb *aiocbp); }
-315     NOSTD	{ int aio_suspend(struct aiocb * const * aiocbp, int nent, \
+314	NOSTD	{ int aio_return(struct aiocb *aiocbp); }
+315	NOSTD	{ int aio_suspend(struct aiocb * const * aiocbp, int nent, \
 		    const struct timespec *timeout); }
-316     NOSTD	{ int aio_cancel(int fd, struct aiocb *aiocbp); }
-317     NOSTD	{ int aio_error(struct aiocb *aiocbp); }
-318     NOSTD	{ int aio_read(struct aiocb *aiocbp); }
-319     NOSTD	{ int aio_write(struct aiocb *aiocbp); }
-320     NOSTD	{ int lio_listio(int mode, struct aiocb * const *acb_list, \
+316	NOSTD	{ int aio_cancel(int fd, struct aiocb *aiocbp); }
+317	NOSTD	{ int aio_error(struct aiocb *aiocbp); }
+318	NOSTD	{ int aio_read(struct aiocb *aiocbp); }
+319	NOSTD	{ int aio_write(struct aiocb *aiocbp); }
+320	NOSTD	{ int lio_listio(int mode, struct aiocb * const *acb_list, \
 		    int nent, struct sigevent *sig); }
-321     MSTD	{ int yield(void); }
+321	MSTD	{ int yield(void); }
 322	OBSOL	thr_sleep
 323	OBSOL	thr_wakeup
-324     MSTD	{ int mlockall(int how); }
-325     MSTD	{ int munlockall(void); }
-326     MSTD	{ int __getcwd(u_char *buf, u_int buflen); }
+324	MSTD	{ int mlockall(int how); }
+325	MSTD	{ int munlockall(void); }
+326	MSTD	{ int __getcwd(u_char *buf, u_int buflen); }
 
-327     MSTD	{ int sched_setparam (pid_t pid, \
+327	MSTD	{ int sched_setparam (pid_t pid, \
 		    const struct sched_param *param); }
-328     MSTD	{ int sched_getparam (pid_t pid, struct sched_param *param); }
+328	MSTD	{ int sched_getparam (pid_t pid, struct sched_param *param); }
 
-329     MSTD	{ int sched_setscheduler (pid_t pid, int policy, \
+329	MSTD	{ int sched_setscheduler (pid_t pid, int policy, \
 		    const struct sched_param *param); }
-330     MSTD	{ int sched_getscheduler (pid_t pid); }
+330	MSTD	{ int sched_getscheduler (pid_t pid); }
 
-331     MSTD	{ int sched_yield (void); }
-332     MSTD	{ int sched_get_priority_max (int policy); }
-333     MSTD	{ int sched_get_priority_min (int policy); }
-334     MSTD	{ int sched_rr_get_interval (pid_t pid, \
+331	MSTD	{ int sched_yield (void); }
+332	MSTD	{ int sched_get_priority_max (int policy); }
+333	MSTD	{ int sched_get_priority_min (int policy); }
+334	MSTD	{ int sched_rr_get_interval (pid_t pid, \
 		    struct timespec *interval); }
 335	MSTD	{ int utrace(const void *addr, size_t len); }
 336	MCOMPAT4 { int sendfile(int fd, int s, off_t offset, size_t nbytes, \
