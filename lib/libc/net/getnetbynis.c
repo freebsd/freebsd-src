@@ -99,6 +99,9 @@ _getnetbynis(const char *name, char *map, int af, struct netent *ne,
 		cp++;
 
 	ne->n_net = inet_network(cp);
+#if __LONG_BIT == 64
+	ne->__n_pad0 = 0;	/* ABI compatibility */
+#endif
 	ne->n_addrtype = AF_INET;
 
 	q = ne->n_aliases = ned->net_aliases;
@@ -149,22 +152,22 @@ _nis_getnetbyname(void *rval, void *cb_data, va_list ap)
 
 }
 
-int 
+int
 _nis_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 {
 #ifdef YP
-	unsigned long addr;
+	uint32_t addr;
 	int af;
 	struct netent *ne;
 	struct netent_data *ned;
 	char *str, *cp;
-	unsigned long net2;
+	uint32_t net2;
 	int nn;
 	unsigned int netbr[4];
 	char buf[MAXDNAME];
 	int error;
 
-	addr = va_arg(ap, unsigned long);
+	addr = va_arg(ap, uint32_t);
 	af = va_arg(ap, int);
 	ne = va_arg(ap, struct netent *);
 	ned = va_arg(ap, struct netent_data *);

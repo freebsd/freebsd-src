@@ -120,7 +120,8 @@ getnetbyname_r(const char *name, struct netent *ne, struct netent_data *ned)
 }
 
 int
-getnetbyaddr_r(u_long addr, int af, struct netent *ne, struct netent_data *ned)
+getnetbyaddr_r(uint32_t addr, int af, struct netent *ne,
+    struct netent_data *ned)
 {
 	int rval;
 
@@ -170,7 +171,7 @@ getnetbyaddr(u_long addr, int af)
 
 	if ((nd = __netdata_init()) == NULL)
 		return NULL;
-	if (getnetbyaddr_r(addr, af, &nd->net, &nd->data) != 0)
+	if (getnetbyaddr_r((uint32_t)addr, af, &nd->net, &nd->data) != 0)
 		return NULL;
 	return &nd->net;
 }

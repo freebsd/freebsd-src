@@ -63,6 +63,8 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <machine/_limits.h>
+#include <machine/endian.h>
 
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
@@ -72,6 +74,11 @@ typedef	__size_t	size_t;
 #ifndef _SOCKLEN_T_DECLARED
 typedef	__socklen_t	socklen_t;
 #define	_SOCKLEN_T_DECLARED
+#endif
+
+#ifndef _UINT32_T_DECLARED
+typedef	__uint32_t	uint32_t;
+#define	_UINT32_T_DECLARED
 #endif
 
 #ifndef _PATH_HEQUIV
@@ -99,14 +106,27 @@ struct hostent {
 };
 
 /*
- * Assumption here is that a network number
- * fits in an unsigned long -- probably a poor one.
+ * Note: n_net used to be an unsigned long integer.
+ * In XNS5, and subsequently in POSIX-2001 it was changed to an
+ * uint32_t.
+ * To accomodate for this while preserving binary compatibility with
+ * the old interface, we prepend or append 32 bits of padding,
+ * depending on the (LP64) architecture's endianness.
+ *
+ * This should be deleted the next time the libc major number is
+ * incremented.
  */
 struct netent {
 	char		*n_name;	/* official name of net */
 	char		**n_aliases;	/* alias list */
 	int		n_addrtype;	/* net address type */
-	unsigned long	n_net;		/* network # */
+#if __LONG_BIT == 64 && _BYTE_ORDER == _BIG_ENDIAN
+	uint32_t	__n_pad0;	/* ABI compatibility */
+#endif
+	uint32_t	n_net;		/* network # */
+#if __LONG_BIT == 64 && _BYTE_ORDER == _LITTLE_ENDIAN
+	uint32_t	__n_pad0;	/* ABI compatibility */
+#endif
 };
 
 struct servent {
@@ -122,12 +142,29 @@ struct protoent {
 	int	p_proto;	/* protocol # */
 };
 
+/*
+ * Note: ai_addrlen used to be a size_t, per RFC 2553.
+ * In XNS5.2, and subsequently in POSIX-2001 and RFC 3493 it was
+ * changed to a socklen_t.
+ * To accomodate for this while preserving binary compatibility with the
+ * old interface, we prepend or append 32 bits of padding, depending on
+ * the (LP64) architecture's endianness.
+ *
+ * This should be deleted the next time the libc major number is
+ * incremented.
+ */
 struct addrinfo {
 	int	ai_flags;	/* AI_PASSIVE, AI_CANONNAME, AI_NUMERICHOST */
 	int	ai_family;	/* PF_xxx */
 	int	ai_socktype;	/* SOCK_xxx */
 	int	ai_protocol;	/* 0 or IPPROTO_xxx for IPv4 and IPv6 */
-	size_t	ai_addrlen;	/* length of ai_addr */
+#if __LONG_BIT == 64 && _BYTE_ORDER == _BIG_ENDIAN
+	uint32_t __ai_pad0;	/* ABI compatibility */
+#endif
+	socklen_t ai_addrlen;	/* length of ai_addr */
+#if __LONG_BIT == 64 && _BYTE_ORDER == _LITTLE_ENDIAN
+	uint32_t __ai_pad0;	/* ABI compatibility */
+#endif
 	char	*ai_canonname;	/* canonical name for hostname */
 	struct	sockaddr *ai_addr;	/* binary address */
 	struct	addrinfo *ai_next;	/* next structure in linked list */
