@@ -41,12 +41,12 @@
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
 0	UNIMPL
-1	MNOPROTO { void sys_exit(int rval); } exit sys_exit_args void
+1	MNOPROTO	{ void sys_exit(int rval); } exit sys_exit_args void
 2	MSTD	{ int linux_fork(void); }
-3	MNOPROTO { int read(int fd, char *buf, u_int nbyte); }
-4	MNOPROTO { int write(int fd, char *buf, u_int nbyte); }
+3	MNOPROTO	{ int read(int fd, char *buf, u_int nbyte); }
+4	MNOPROTO	{ int write(int fd, char *buf, u_int nbyte); }
 5	UNIMPL
-6	MNOPROTO { int close(int fd); }
+6	MNOPROTO	{ int close(int fd); }
 7	MSTD	{ int osf1_wait4(int pid, int *status, int options, \
 				struct osf1_rusage *rusage); }
 8	UNIMPL
@@ -64,8 +64,8 @@
 20	NOPROTO	{ int getpid(void); } 
 21	UNIMPL	osf1_mount
 22	STD	{ int linux_umount(char *path, l_int flags); }
-23	MNOPROTO { int setuid(uid_t uid); }
-24	MNOPROTO { int getuid(void); }
+23	MNOPROTO	{ int setuid(uid_t uid); }
+24	MNOPROTO	{ int getuid(void); }
 25	UNIMPL
 26	MSTD	{ int linux_ptrace(void); }
 27	UNIMPL
@@ -80,15 +80,15 @@
 36	NOPROTO	{ int sync(void); }
 37	MSTD	{ int linux_kill(l_int pid, l_int signum); }
 38	UNIMPL
-39	MNOPROTO { int setpgid(int pid, int pgid); }
+39	MNOPROTO	{ int setpgid(int pid, int pgid); }
 40	UNIMPL
-41	MNOPROTO { int dup(u_int fd); }
-42	MNOPROTO { int pipe(void); }
+41	MNOPROTO	{ int dup(u_int fd); }
+42	MNOPROTO	{ int pipe(void); }
 43	UNIMPL	osf_set_program_attributes
 44	UNIMPL
 45	STD	{ int linux_open(char *path, l_int flags, l_int mode); }
 46	UNIMPL
-47	MNOPROTO { int getgid(void); }
+47	MNOPROTO	{ int getgid(void); }
 48	MSTD	{ int osf1_sigprocmask(int how, u_long mask); }
 49	UNIMPL
 50	UNIMPL
@@ -101,10 +101,10 @@
 57	STD	{ int linux_symlink(char *path, char *to); }
 58	STD	{ int linux_readlink(char *name, char *buf, l_int count); }
 59	STD	{ int linux_execve(char *path, char **argp, char **envp); }
-60	MNOPROTO { int umask(int newmask); }
+60	MNOPROTO	{ int umask(int newmask); }
 61	NOPROTO	{ int chroot(char *path); }
 62	UNIMPL
-63	MNOPROTO { int getpgrp(void); }
+63	MNOPROTO	{ int getpgrp(void); }
 64	STD	{ int linux_getpagesize(void); }
 65	UNIMPL
 66	MSTD	{ int linux_vfork(void); }
@@ -118,7 +118,7 @@
 73	STD	{ int linux_munmap(l_ulong addr, l_size_t len); }
 74	STD	{ int linux_mprotect(l_ulong addr, l_size_t len, \
 				l_ulong prot); }
-75	MNOPROTO { int madvise(void *addr, size_t len, int behav); }
+75	MNOPROTO	{ int madvise(void *addr, size_t len, int behav); }
 76	STD	{ int linux_vhangup(void); }
 77	UNIMPL
 78	UNIMPL
@@ -132,17 +132,17 @@
 85	UNIMPL
 86	UNIMPL	osf_getitimer
 87	STD	{ int linux_gethostname(void); }
-88	MNOPROTO { int osethostname(char *hostname, u_int len); } \
+88	MNOPROTO	{ int osethostname(char *hostname, u_int len); } \
 				osethostname sethostname_args int
 89	STD	{ int linux_getdtablesize(void); }
-90	MNOPROTO { int dup2(u_int from, u_int to); }
+90	MNOPROTO	{ int dup2(u_int from, u_int to); }
 91	STD	{ int linux_newfstat(l_uint fd, struct l_newstat *buf); }
 92	MSTD	{ int linux_fcntl(l_uint fd, l_uint cmd, l_ulong arg); }
 93	STD	{ int osf1_select(u_int nd, fd_set *in, fd_set *ou, \
 				fd_set *ex, struct timeval *tv); }
 94	NOPROTO	{ int poll(struct pollfd*, unsigned int nfds, long timeout); }
 95	NOPROTO	{ int fsync(int fd); }
-96	MNOPROTO { int setpriority(int which, int who, int prio); }
+96	MNOPROTO	{ int setpriority(int which, int who, int prio); }
 97	STD	{ int osf1_socket(int domain, int type, int protocol); }
 98	STD	{ int linux_connect(l_int s, struct l_sockaddr *name, \
 				l_int namelen); }
@@ -150,7 +150,7 @@
 				accept accept_args int
 100	UNIMPL	osf_getpriority
 101	NOPROTO	{ int osend(int s, caddr_t buf, int len, int flags); }
-102     NOPROTO { int orecv(int s, caddr_t buf, int len, int flags); }
+102	NOPROTO { int orecv(int s, caddr_t buf, int len, int flags); }
 103	MSTD	{ int osf1_sigreturn(struct osigcontext *sigcntxp); }
 104	NOPROTO	{ int bind(int s, caddr_t name, int namelen); }
 105	NOPROTO	{ int setsockopt(int s, int level, int name, caddr_t val, \
@@ -179,14 +179,14 @@
 125	NOPROTO	{ int orecvfrom(int s, caddr_t buf, size_t len, int flags, \
 				caddr_t from, int *fromlenaddr); } \
 				recvfrom recvfrom_args int
-126	MNOPROTO { int setreuid(int ruid, int euid); }
-127	MNOPROTO { int setregid(int rgid, int egid); }
+126	MNOPROTO	{ int setreuid(int ruid, int euid); }
+127	MNOPROTO	{ int setregid(int rgid, int egid); }
 128	STD	{ int linux_rename(char *from, char *to); }
 129	STD	{ int linux_truncate(char *path, l_ulong length); }
 130	NOPROTO	{ int oftruncate(int fd, long length); }
 131	NOPROTO	{ int flock(int fd, int how); }
-132	MNOPROTO { int setgid(gid_t gid); }
-133     STD     { int osf1_sendto(int s, caddr_t buf, size_t len, int flags, \
+132	MNOPROTO	{ int setgid(gid_t gid); }
+133	STD	{ int osf1_sendto(int s, caddr_t buf, size_t len, int flags, \
 				struct sockaddr *to, int tolen); }
 134	NOPROTO	{ int shutdown(int s, int how); }
 135	STD	{ int linux_socketpair(void); }
@@ -203,7 +203,7 @@
 145	MSTD	{ int linux_setrlimit(l_uint resource, \
 				struct l_rlimit *rlim); }
 146	UNIMPL
-147	MNOPROTO { int setsid(void); }
+147	MNOPROTO	{ int setsid(void); }
 148	STD	{ int linux_quotactl(void); }
 149	UNIMPL
 150	NOPROTO	{ int ogetsockname(int fdec, caddr_t asa, int *alen);} \
@@ -224,7 +224,7 @@
 163	UNIMPL
 164	UNIMPL
 165	UNIMPL	osf_getdomainname
-166	MNOPROTO { int setdomainname(char *name, int len); }
+166	MNOPROTO	{ int setdomainname(char *name, int len); }
 167	UNIMPL
 168	UNIMPL
 169	UNIMPL
@@ -298,7 +298,7 @@
 230	UNIMPL
 231	UNIMPL
 232	UNIMPL
-233	MNOPROTO { int getpgid(int pid); }
+233	MNOPROTO	{ int getpgid(int pid); }
 234	MSTD	{ int linux_getsid(l_pid_t pid); }
 235	STD	{ int linux_sigaltstack(void); }
 236	UNIMPL
@@ -384,10 +384,10 @@
 				void *arg); }
 312	MSTD	{ int linux_clone(l_int flags, void *stack); }
 313	STD	{ int linux_uselib(char *library); }	
-314	MNOPROTO { int mlock(const void *addr, size_t len); }
-315	MNOPROTO { int munlock(const void *addr, size_t len); }
-316	MNOPROTO { int mlockall(int how); }
-317	MNOPROTO { int munlockall(void); }
+314	MNOPROTO	{ int mlock(const void *addr, size_t len); }
+315	MNOPROTO	{ int munlock(const void *addr, size_t len); }
+316	MNOPROTO	{ int mlockall(int how); }
+317	MNOPROTO	{ int munlockall(void); }
 318	STD	{ int linux_sysinfo(void); }
 319	STD	{ int linux_sysctl(struct l___sysctl_args *args); }
 320	UNIMPL	sys_idle
@@ -400,27 +400,27 @@
 327	STD	{ int linux_ustat(l_dev_t dev, struct l_ustat *ubuf); }
 328	STD	{ int linux_statfs(char *path, struct l_statfs_buf *buf); }
 329	STD	{ int linux_fstatfs(l_uint fd, struct l_statfs_buf *buf); }
-330	MNOPROTO { int sched_setparam(pid_t pid, \
+330	MNOPROTO	{ int sched_setparam(pid_t pid, \
 				const struct sched_param *param); }
-331	MNOPROTO { int sched_getparam(pid_t pid, struct sched_param *param); }
+331	MNOPROTO	{ int sched_getparam(pid_t pid, struct sched_param *param); }
 332	MSTD	{ int linux_sched_setscheduler(l_pid_t pid, l_int policy, \
 				struct l_sched_param *param); }
 333	MSTD	{ int linux_sched_getscheduler(l_pid_t pid); }
-334	MNOPROTO { int sched_yield(void); }
+334	MNOPROTO	{ int sched_yield(void); }
 335	MSTD	{ int linux_sched_get_priority_max(l_int policy); }
 336	MSTD	{ int linux_sched_get_priority_min (l_int policy); }
 337	NOPROTO	{ int sched_rr_get_interval (pid_t pid, \
 				struct timespec *interval); }
 338	UNIMPL	sys_afs_syscall
 339	STD	{ int linux_newuname(struct l_newuname_t *buf); }
-340	MNOPROTO { int nanosleep(const struct timespec *rqtp, \
+340	MNOPROTO	{ int nanosleep(const struct timespec *rqtp, \
 				struct timespec *rmtp); }
 341	STD	{ int linux_mremap(l_ulong addr, l_ulong old_len, \
 				l_ulong new_len, l_ulong flags, \
 				l_ulong new_addr); }
 342	STD	{ int linux_nfsservctl(void); }
-343	MNOPROTO { int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
-344	MNOPROTO { int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
+343	MNOPROTO	{ int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
+344	MNOPROTO	{ int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
 345	STD	{ int linux_pciconfig_read(void); }
 346	STD	{ int linux_pciconfig_write(void); }
 347	STD	{ int linux_query_module(void); }
@@ -442,13 +442,13 @@
 358	STD	{ int linux_select(l_int nfds, l_fd_set *readfds, \
 				l_fd_set *writefds, l_fd_set *exceptfds, \
 				struct l_timeval *timeout); }
-359	MNOPROTO { int gettimeofday(struct timeval *tp, struct timezone *tzp); }
-360	MNOPROTO { int settimeofday(struct timeval *tp, struct timezone *tzp); }
+359	MNOPROTO	{ int gettimeofday(struct timeval *tp, struct timezone *tzp); }
+360	MNOPROTO	{ int settimeofday(struct timeval *tp, struct timezone *tzp); }
 361	MSTD	{ int linux_getitimer(l_int which, struct l_itimerval *itv); }
 362	MSTD	{ int linux_setitimer(l_int which, struct l_itimerval *itv, \
 				struct l_itimerval *oitv); }
 363	STD	{ int linux_utimes(char *fname, struct l_timeval *times); }
-364	MNOPROTO { int getrusage(int who, struct rusage *rusage); }
+364	MNOPROTO	{ int getrusage(int who, struct rusage *rusage); }
 365	MSTD	{ int linux_wait4(l_pid_t pid, l_uint *status, l_int options, \
 				struct l_rusage *rusage); }		
 366	STD	{ int linux_adjtimex(void); }
@@ -456,8 +456,8 @@
 368	STD	{ int linux_capget(void); }
 369	STD	{ int linux_capset(void); }
 370	STD	{ int linux_sendfile(void); }
-371	MNOPROTO { int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
-372	MNOPROTO { int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
+371	MNOPROTO	{ int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
+372	MNOPROTO	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
 373	UNIMPL	sys_dipc
 374	STD	{ int linux_pivot_root(char *new_root, char *put_old); }
 375	STD	{ int linux_mincore(l_ulong start, l_size_t len, u_char *vec); }
