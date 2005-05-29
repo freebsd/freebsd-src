@@ -37,11 +37,12 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)logger.c	8.1 (Berkeley) 6/6/93";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -190,7 +191,7 @@ logmessage(int pri, char *host, char *buf)
 		hints.ai_socktype = SOCK_DGRAM;
 		error = getaddrinfo(host, "syslog", &hints, &res);
 		if (error == EAI_SERVICE) {
-			warnx ("syslog/udp: unknown service");	/* not fatal */
+			warnx("syslog/udp: unknown service");	/* not fatal */
 			error = getaddrinfo(host, "514", &hints, &res);
 		}
 		if (error)
@@ -217,6 +218,7 @@ logmessage(int pri, char *host, char *buf)
 	if ((len = asprintf(&line, "<%d>%s", pri, buf)) == -1)
 		errx(1, "asprintf");
 
+	lsent = -1;
 	for (i = 0; i < nsock; ++i) {
 		lsent = sendto(socks[i].sock, line, len, 0,
 			       (struct sockaddr *)&socks[i].addr,
