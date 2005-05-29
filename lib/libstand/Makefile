@@ -129,7 +129,7 @@ SRCS+=	_setjmp.S
 
 # decompression functionality from libz
 .PATH: ${.CURDIR}/../../contrib/bzip2
-CFLAGS+= -DBZ_NO_STDIO
+CFLAGS+= -DBZ_NO_STDIO -I${.CURDIR}/../../contrib/bzip2
 SRCS+=	bzlib.c crctable.c decompress.c huffman.c randtable.c
 
 # decompression functionality from libz
