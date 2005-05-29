@@ -72,17 +72,6 @@
 #ifndef _MACHINE_BUS_H_
 #define _MACHINE_BUS_H_
 
-/*
- * Platform notes:
- * o	We don't use the _MACHINE_BUS_PIO_H_ and _MACHINE_BUS_MEMIO_H_
- *	macros to conditionally compile for I/O port, memory mapped I/O
- *	or both. It's a micro-optimization that is not worth the pain
- *	because there is no I/O port space. I/O ports are emulated by
- *	doing memory mapped I/O in a special memory range. The address
- *	translation is slightly magic for I/O port accesses, but it does
- *	not warrant the overhead.
- */
-
 #include <machine/_bus.h>
 #include <machine/cpufunc.h>
 

@@ -74,8 +74,6 @@ __FBSDID("$FreeBSD$");
 #ifdef __FreeBSD__
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/bus_pio.h>
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 
 #include <compat/netbsd/dvcfg.h>

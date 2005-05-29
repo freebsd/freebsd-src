@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 
 #include <machine/clock.h>      /* for DELAY */
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>

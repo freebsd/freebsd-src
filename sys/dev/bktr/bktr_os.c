@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>		/* used by smbus and newbus */
 
-#include <machine/bus_memio.h>	/* used by bus space */
 #include <machine/bus.h>	/* used by bus space and newbus */
 #include <sys/bus.h>
 

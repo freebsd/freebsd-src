@@ -37,7 +37,6 @@
 #include <sys/ioccom.h>
 #include <sys/stat.h>
 
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>

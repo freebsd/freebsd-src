@@ -41,7 +41,6 @@
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/tty.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <sys/timepps.h>
 

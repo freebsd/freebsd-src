@@ -62,7 +62,6 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>

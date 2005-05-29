@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>		/* cdevsw stuff */
 #include <sys/malloc.h>		/* malloc region definitions */
 #include <sys/module.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/clock.h>	/* DELAY() */
