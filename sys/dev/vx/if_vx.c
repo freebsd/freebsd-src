@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 
 #include <sys/bus.h>

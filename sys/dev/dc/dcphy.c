@@ -60,8 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/miivar.h>
 #include "miidevs.h"
 
-#include <machine/bus_pio.h>
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>

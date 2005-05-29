@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 
 #include <cam/cam.h>

@@ -55,8 +55,6 @@ __KERNEL_RCSID(0, "$NetBSD: pdq_ifsubr.c,v 1.38 2001/12/21 23:21:47 matt Exp $")
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <machine/bus_memio.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h> 

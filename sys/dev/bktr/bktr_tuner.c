@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #endif
 
-#include <machine/bus_memio.h>          /* for bus space */
 #include <machine/bus.h>
 #include <sys/bus.h>
 #endif

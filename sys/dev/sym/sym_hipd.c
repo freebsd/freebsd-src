@@ -86,17 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <machine/bus_memio.h>
-/*
- *  Only include bus_pio if needed.
- *  This avoids bus space primitives to be uselessly bloated 
- *  by out-of-age PIO operations.
- */
-#ifdef	SYM_CONF_IOMAPPED
-#include <machine/bus_pio.h>
-#endif
 #include <machine/bus.h>
-
 #include <machine/resource.h>
 #include <sys/rman.h>
 

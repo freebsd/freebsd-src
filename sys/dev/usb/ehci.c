@@ -72,8 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <machine/bus_pio.h>
-#include <machine/bus_memio.h>
 #include <sys/lockmgr.h>
 #if defined(DIAGNOSTIC) && defined(__i386__) && defined(__FreeBSD__)
 #include <machine/cpu.h>

@@ -51,14 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/bus.h>
  
-/*
- * XXX It appears that BusLogic PCI adapters go out to lunch if you 
- *     attempt to perform memory mapped I/O.
- */
-#if 0
-#include <machine/bus_memio.h>
-#endif
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 

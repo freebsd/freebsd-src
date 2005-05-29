@@ -41,7 +41,6 @@
 #include <sys/disk.h>
 #include <geom/geom_disk.h>
 
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
