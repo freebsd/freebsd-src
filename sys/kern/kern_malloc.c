@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1987, 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 2005 Robert N. M. Watson
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
@@ -133,6 +136,8 @@ struct {
 	{0, NULL},
 };
 
+static uma_zone_t mt_zone;
+
 #ifdef DEBUG_MEMGUARD
 u_int vm_memguard_divisor;
 SYSCTL_UINT(_vm, OID_AUTO, memguard_divisor, CTLFLAG_RD, &vm_memguard_divisor,
@@ -197,41 +202,44 @@ malloc_last_fail(void)
  * Add this to the informational malloc_type bucket.
  */
 static void
-malloc_type_zone_allocated(struct malloc_type *ksp, unsigned long size,
+malloc_type_zone_allocated(struct malloc_type *mtp, unsigned long size,
     int zindx)
 {
-	mtx_lock(&ksp->ks_mtx);
-	ksp->ks_calls++;
+	struct malloc_type_internal *mtip;
+	struct malloc_type_stats *mtsp;
+
+	critical_enter();
+	mtip = mtp->ks_handle;
+	mtsp = &mtip->mti_stats[curcpu];
+	mtsp->mts_memalloced += size;
+	mtsp->mts_numallocs++;
 	if (zindx != -1)
-		ksp->ks_size |= 1 << zindx;
-	if (size != 0) {
-		ksp->ks_memuse += size;
-		ksp->ks_inuse++;
-		if (ksp->ks_memuse > ksp->ks_maxused)
-			ksp->ks_maxused = ksp->ks_memuse;
-	}
-	mtx_unlock(&ksp->ks_mtx);
+		mtsp->mts_size |= 1 << zindx;
+	critical_exit();
 }
 
 void
-malloc_type_allocated(struct malloc_type *ksp, unsigned long size)
+malloc_type_allocated(struct malloc_type *mtp, unsigned long size)
 {
-	malloc_type_zone_allocated(ksp, size, -1);
+
+	malloc_type_zone_allocated(mtp, size, -1);
 }
 
 /*
  * Remove this allocation from the informational malloc_type bucket.
  */
 void
-malloc_type_freed(struct malloc_type *ksp, unsigned long size)
+malloc_type_freed(struct malloc_type *mtp, unsigned long size)
 {
-	mtx_lock(&ksp->ks_mtx);
-	KASSERT(size <= ksp->ks_memuse,
-		("malloc(9)/free(9) confusion.\n%s",
-		 "Probably freeing with wrong type, but maybe not here."));
-	ksp->ks_memuse -= size;
-	ksp->ks_inuse--;
-	mtx_unlock(&ksp->ks_mtx);
+	struct malloc_type_internal *mtip;
+	struct malloc_type_stats *mtsp;
+
+	critical_enter();
+	mtip = mtp->ks_handle;
+	mtsp = &mtip->mti_stats[curcpu];
+	mtsp->mts_memfreed += size;
+	mtsp->mts_numfrees++;
+	critical_exit();
 }
 
 /*
@@ -243,7 +251,7 @@ malloc_type_freed(struct malloc_type *ksp, unsigned long size)
  *	the allocation fails.
  */
 void *
-malloc(unsigned long size, struct malloc_type *type, int flags)
+malloc(unsigned long size, struct malloc_type *mtp, int flags)
 {
 	int indx;
 	caddr_t va;
@@ -290,7 +298,7 @@ malloc(unsigned long size, struct malloc_type *type, int flags)
 
 #ifdef DEBUG_MEMGUARD
 	/* XXX CHANGEME! */
-	if (type == M_SUBPROC)
+	if (mtp == M_SUBPROC)
 		return memguard_alloc(size, flags);
 #endif
 
@@ -306,13 +314,13 @@ malloc(unsigned long size, struct malloc_type *type, int flags)
 		va = uma_zalloc(zone, flags);
 		if (va != NULL)
 			size = keg->uk_size;
-		malloc_type_zone_allocated(type, va == NULL ? 0 : size, indx);
+		malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
 	} else {
 		size = roundup(size, PAGE_SIZE);
 		zone = NULL;
 		keg = NULL;
 		va = uma_large_malloc(size, flags);
-		malloc_type_allocated(type, va == NULL ? 0 : size);
+		malloc_type_allocated(mtp, va == NULL ? 0 : size);
 	}
 	if (flags & M_WAITOK)
 		KASSERT(va != NULL, ("malloc(M_WAITOK) returned NULL"));
@@ -334,7 +342,7 @@ malloc(unsigned long size, struct malloc_type *type, int flags)
  *	This routine may not block.
  */
 void
-free(void *addr, struct malloc_type *type)
+free(void *addr, struct malloc_type *mtp)
 {
 	uma_slab_t slab;
 	u_long size;
@@ -345,15 +353,12 @@ free(void *addr, struct malloc_type *type)
 
 #ifdef DEBUG_MEMGUARD
 	/* XXX CHANGEME! */
-	if (type == M_SUBPROC) {
+	if (mtp == M_SUBPROC) {
 		memguard_free(addr);
 		return;
 	}
 #endif
 
-	KASSERT(type->ks_memuse > 0,
-		("malloc(9)/free(9) confusion.\n%s",
-		 "Probably freeing with wrong type, but maybe not here."));
 	size = 0;
 
 	slab = vtoslab((vm_offset_t)addr & (~UMA_SLAB_MASK));
@@ -365,7 +370,7 @@ free(void *addr, struct malloc_type *type)
 
 	if (!(slab->us_flags & UMA_SLAB_MALLOC)) {
 #ifdef INVARIANTS
-		struct malloc_type **mtp = addr;
+		struct malloc_type **mtpp = addr;
 #endif
 		size = slab->us_keg->uk_size;
 #ifdef INVARIANTS
@@ -377,25 +382,25 @@ free(void *addr, struct malloc_type *type)
 		 * This code assumes that size is a multiple of 8 bytes for
 		 * 64 bit machines
 		 */
-		mtp = (struct malloc_type **)
-		    ((unsigned long)mtp & ~UMA_ALIGN_PTR);
-		mtp += (size - sizeof(struct malloc_type *)) /
+		mtpp = (struct malloc_type **)
+		    ((unsigned long)mtpp & ~UMA_ALIGN_PTR);
+		mtpp += (size - sizeof(struct malloc_type *)) /
 		    sizeof(struct malloc_type *);
-		*mtp = type;
+		*mtpp = mtp;
 #endif
 		uma_zfree_arg(LIST_FIRST(&slab->us_keg->uk_zones), addr, slab);
 	} else {
 		size = slab->us_size;
 		uma_large_free(slab);
 	}
-	malloc_type_freed(type, size);
+	malloc_type_freed(mtp, size);
 }
 
 /*
  *	realloc: change the size of a memory block
  */
 void *
-realloc(void *addr, unsigned long size, struct malloc_type *type, int flags)
+realloc(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 {
 	uma_slab_t slab;
 	unsigned long alloc;
@@ -403,11 +408,16 @@ realloc(void *addr, unsigned long size, struct malloc_type *type, int flags)
 
 	/* realloc(NULL, ...) is equivalent to malloc(...) */
 	if (addr == NULL)
-		return (malloc(size, type, flags));
+		return (malloc(size, mtp, flags));
+
+	/*
+	 * XXX: Should report free of old memory and alloc of new memory to
+	 * per-CPU stats.
+	 */
 
 #ifdef DEBUG_MEMGUARD
 /* XXX: CHANGEME! */
-if (type == M_SUBPROC) {
+if (mtp == M_SUBPROC) {
 	slab = NULL;
 	alloc = size;
 } else {
@@ -435,12 +445,12 @@ if (type == M_SUBPROC) {
 #endif
 
 	/* Allocate a new, bigger (or smaller) block */
-	if ((newaddr = malloc(size, type, flags)) == NULL)
+	if ((newaddr = malloc(size, mtp, flags)) == NULL)
 		return (NULL);
 
 	/* Copy over original contents */
 	bcopy(addr, newaddr, min(size, alloc));
-	free(addr, type);
+	free(addr, mtp);
 	return (newaddr);
 }
 
@@ -448,12 +458,12 @@ if (type == M_SUBPROC) {
  *	reallocf: same as realloc() but free memory on failure.
  */
 void *
-reallocf(void *addr, unsigned long size, struct malloc_type *type, int flags)
+reallocf(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 {
 	void *mem;
 
-	if ((mem = realloc(addr, size, type, flags)) == NULL)
-		free(addr, type);
+	if ((mem = realloc(addr, size, mtp, flags)) == NULL)
+		free(addr, mtp);
 	return (mem);
 }
 
@@ -543,6 +553,13 @@ kmeminit(void *dummy)
 
 	uma_startup2();
 
+	mt_zone = uma_zcreate("mt_zone", sizeof(struct malloc_type_internal),
+#ifdef INVARIANTS
+	    mtrash_ctor, mtrash_dtor, mtrash_init, mtrash_fini,
+#else
+	    NULL, NULL, NULL, NULL,
+#endif
+	    UMA_ALIGN_PTR, UMA_ZONE_MALLOC);
 	for (i = 0, indx = 0; kmemzones[indx].kz_size != 0; indx++) {
 		int size = kmemzones[indx].kz_size;
 		char *name = kmemzones[indx].kz_name;
@@ -564,125 +581,141 @@ kmeminit(void *dummy)
 void
 malloc_init(void *data)
 {
-	struct malloc_type *type = (struct malloc_type *)data;
+	struct malloc_type_internal *mtip;
+	struct malloc_type *mtp;
+
+	KASSERT(cnt.v_page_count != 0, ("malloc_register before vm_init"));
+
+	mtp = data;
+	mtip = uma_zalloc(mt_zone, M_WAITOK | M_ZERO);
+	mtp->ks_handle = mtip;
 
 	mtx_lock(&malloc_mtx);
-	if (type->ks_magic != M_MAGIC)
-		panic("malloc type lacks magic");
-
-	if (cnt.v_page_count == 0)
-		panic("malloc_init not allowed before vm init");
-
-	if (type->ks_next != NULL)
-		return;
-
-	type->ks_next = kmemstatistics;	
-	kmemstatistics = type;
-	mtx_init(&type->ks_mtx, type->ks_shortdesc, "Malloc Stats", MTX_DEF);
+	mtp->ks_next = kmemstatistics;
+	kmemstatistics = mtp;
 	mtx_unlock(&malloc_mtx);
 }
 
 void
 malloc_uninit(void *data)
 {
-	struct malloc_type *type = (struct malloc_type *)data;
-	struct malloc_type *t;
+	struct malloc_type_internal *mtip;
+	struct malloc_type *mtp, *temp;
 
+	mtp = data;
+	KASSERT(mtp->ks_handle != NULL, ("malloc_deregister: cookie NULL"));
 	mtx_lock(&malloc_mtx);
-	mtx_lock(&type->ks_mtx);
-	if (type->ks_magic != M_MAGIC)
-		panic("malloc type lacks magic");
-
-	if (cnt.v_page_count == 0)
-		panic("malloc_uninit not allowed before vm init");
-
-	if (type == kmemstatistics)
-		kmemstatistics = type->ks_next;
-	else {
-		for (t = kmemstatistics; t->ks_next != NULL; t = t->ks_next) {
-			if (t->ks_next == type) {
-				t->ks_next = type->ks_next;
-				break;
-			}
+	mtip = mtp->ks_handle;
+	mtp->ks_handle = NULL;
+	if (mtp != kmemstatistics) {
+		for (temp = kmemstatistics; temp != NULL;
+		    temp = temp->ks_next) {
+			if (temp->ks_next == mtp)
+				temp->ks_next = mtp->ks_next;
 		}
-	}
-	type->ks_next = NULL;
-	mtx_destroy(&type->ks_mtx);
+	} else
+		kmemstatistics = mtp->ks_next;
 	mtx_unlock(&malloc_mtx);
+	uma_zfree(mt_zone, mtp);
 }
 
 static int
 sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 {
-	struct malloc_type *type;
+	struct malloc_type_stats mts_local, *mtsp;
+	struct malloc_type_internal *mtip;
+	struct malloc_type *mtp;
+	struct sbuf sbuf;
+	long temp_allocs, temp_bytes;
 	int linesize = 128;
-	int curline;
 	int bufsize;
 	int first;
 	int error;
 	char *buf;
-	char *p;
 	int cnt;
-	int len;
 	int i;
 
 	cnt = 0;
 
+	/* Guess at how much room is needed. */
 	mtx_lock(&malloc_mtx);
-	for (type = kmemstatistics; type != NULL; type = type->ks_next)
+	for (mtp = kmemstatistics; mtp != NULL; mtp = mtp->ks_next)
 		cnt++;
-
 	mtx_unlock(&malloc_mtx);
+
 	bufsize = linesize * (cnt + 1);
-	p = buf = (char *)malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
+	buf = malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
+	sbuf_new(&sbuf, buf, bufsize, SBUF_FIXEDLEN);
+
 	mtx_lock(&malloc_mtx);
-
-	len = snprintf(p, linesize,
+	sbuf_printf(&sbuf,
 	    "\n        Type  InUse MemUse HighUse Requests  Size(s)\n");
-	p += len;
-
-	for (type = kmemstatistics; cnt != 0 && type != NULL;
-	    type = type->ks_next, cnt--) {
-		if (type->ks_calls == 0)
+	for (mtp = kmemstatistics; cnt != 0 && mtp != NULL;
+	    mtp = mtp->ks_next, cnt--) {
+		mtip = mtp->ks_handle;
+		bzero(&mts_local, sizeof(mts_local));
+		for (i = 0; i < MAXCPU; i++) {
+			mtsp = &mtip->mti_stats[i];
+			mts_local.mts_memalloced += mtsp->mts_memalloced;
+			mts_local.mts_memfreed += mtsp->mts_memfreed;
+			mts_local.mts_numallocs += mtsp->mts_numallocs;
+			mts_local.mts_numfrees += mtsp->mts_numfrees;
+			mts_local.mts_size |= mtsp->mts_size;
+		}
+		if (mts_local.mts_numallocs == 0)
 			continue;
 
-		curline = linesize - 2;	/* Leave room for the \n */
-		len = snprintf(p, curline, "%13s%6lu%6luK%7luK%9llu",
-			type->ks_shortdesc,
-			type->ks_inuse,
-			(type->ks_memuse + 1023) / 1024,
-			(type->ks_maxused + 1023) / 1024,
-			(long long unsigned)type->ks_calls);
-		curline -= len;
-		p += len;
+		/*
+		 * Due to races in per-CPU statistics gather, it's possible to
+		 * get a slightly negative number here.  If we do, approximate
+		 * with 0.
+		 */
+		if (mts_local.mts_numallocs > mts_local.mts_numfrees)
+			temp_allocs = mts_local.mts_numallocs -
+			    mts_local.mts_numfrees;
+		else
+			temp_allocs = 0;
+
+		/*
+		 * Ditto for bytes allocated.
+		 */
+		if (mts_local.mts_memalloced > mts_local.mts_memfreed)
+			temp_bytes = mts_local.mts_memalloced -
+			    mts_local.mts_memfreed;
+		else
+			temp_bytes = 0;
+
+		/*
+		 * XXXRW: High-waterwark is no longer easily available, so
+		 * we just print '-' for that column.
+		 */
+		sbuf_printf(&sbuf, "%13s%6lu%6luK       -%9lu",
+		    mtp->ks_shortdesc,
+		    temp_allocs,
+		    (temp_bytes + 1023) / 1024,
+		    mts_local.mts_numallocs);
 
 		first = 1;
 		for (i = 0; i < sizeof(kmemzones) / sizeof(kmemzones[0]) - 1;
 		    i++) {
-			if (type->ks_size & (1 << i)) {
+			if (mts_local.mts_size & (1 << i)) {
 				if (first)
-					len = snprintf(p, curline, "  ");
+					sbuf_printf(&sbuf, "  ");
 				else
-					len = snprintf(p, curline, ",");
-				curline -= len;
-				p += len;
-
-				len = snprintf(p, curline,
-				    "%s", kmemzones[i].kz_name);
-				curline -= len;
-				p += len;
-
+					sbuf_printf(&sbuf, ",");
+				sbuf_printf(&sbuf, "%s",
+				    kmemzones[i].kz_name);
 				first = 0;
 			}
 		}
-
-		len = snprintf(p, 2, "\n");
-		p += len;
+		sbuf_printf(&sbuf, "\n");
 	}
-
+	sbuf_finish(&sbuf);
 	mtx_unlock(&malloc_mtx);
-	error = SYSCTL_OUT(req, buf, p - buf);
 
+	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
+
+	sbuf_delete(&sbuf);
 	free(buf, M_TEMP);
 	return (error);
 }
@@ -696,6 +729,7 @@ static int
 sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 {
 	int linesize = 64;
+	struct sbuf sbuf;
 	uint64_t count;
 	uint64_t waste;
 	uint64_t mem;
@@ -704,7 +738,6 @@ sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 	char *buf;
 	int rsize;
 	int size;
-	char *p;
 	int len;
 	int i;
 
@@ -714,34 +747,30 @@ sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 	waste = 0;
 	mem = 0;
 
-	p = buf = (char *)malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
-	len = snprintf(p, bufsize,
+	buf = malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
+	sbuf_new(&sbuf, buf, bufsize, SBUF_FIXEDLEN);
+	sbuf_printf(&sbuf, 
 	    "\n  Size                    Requests  Real Size\n");
-	bufsize -= len;
-	p += len;
-
 	for (i = 0; i < KMEM_ZSIZE; i++) {
 		size = i << KMEM_ZSHIFT;
 		rsize = kmemzones[kmemsize[i]].kz_size;
 		count = (long long unsigned)krequests[i];
 
-		len = snprintf(p, bufsize, "%6d%28llu%11d\n",
-		    size, (unsigned long long)count, rsize);
-		bufsize -= len;
-		p += len;
+		sbuf_printf(&sbuf, "%6d%28llu%11d\n", size,
+		    (unsigned long long)count, rsize);
 
 		if ((rsize * count) > (size * count))
 			waste += (rsize * count) - (size * count);
 		mem += (rsize * count);
 	}
-
-	len = snprintf(p, bufsize,
+	sbuf_printf(&sbuf,
 	    "\nTotal memory used:\t%30llu\nTotal Memory wasted:\t%30llu\n",
 	    (unsigned long long)mem, (unsigned long long)waste);
-	p += len;
+	sbuf_finish(&sbuf);
 
-	error = SYSCTL_OUT(req, buf, p - buf);
+	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
 
+	sbuf_delete(&sbuf);
 	free(buf, M_TEMP);
 	return (error);
 }
