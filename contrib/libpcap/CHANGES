@@ -1,4 +1,4 @@
-@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.56.4.3 2004/03/30 14:29:16 mcr Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.59 2004/03/30 14:42:50 mcr Exp $ (LBL)
 
 Tue.   March 30, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.3 release
 

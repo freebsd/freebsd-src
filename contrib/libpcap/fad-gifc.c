@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/fad-gifc.c,v 1.4.2.1 2003/11/15 23:26:39 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/fad-gifc.c,v 1.8 2005/01/29 10:34:04 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -255,6 +255,9 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 	struct ifconf ifc;
 	char *buf = NULL;
 	unsigned buf_size;
+#ifdef HAVE_SOLARIS
+	char *p, *q;
+#endif
 	struct ifreq ifrflags, ifrnetmask, ifrbroadaddr, ifrdstaddr;
 	struct sockaddr *netmask, *broadaddr, *dstaddr;
 	size_t netmask_size, broadaddr_size, dstaddr_size;
@@ -322,6 +325,28 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 			ifnext = ifrp + 1;
 		else
 			ifnext = (struct ifreq *)((char *)ifrp + n);
+
+		/*
+		 * XXX - The 32-bit compatibility layer for Linux on IA-64
+		 * is slightly broken. It correctly converts the structures
+		 * to and from kernel land from 64 bit to 32 bit but 
+		 * doesn't update ifc.ifc_len, leaving it larger than the 
+		 * amount really used. This means we read off the end 
+		 * of the buffer and encounter an interface with an 
+		 * "empty" name. Since this is highly unlikely to ever 
+		 * occur in a valid case we can just finish looking for 
+		 * interfaces if we see an empty name.
+		 */
+		if (!(*ifrp->ifr_name))
+			break;
+
+		/*
+		 * Skip entries that begin with "dummy".
+		 * XXX - what are these?  Is this Linux-specific?
+		 * Are there platforms on which we shouldn't do this?
+		 */
+		if (strncmp(ifrp->ifr_name, "dummy", 5) == 0)
+			continue;
 
 		/*
 		 * Get the flags for this interface, and skip it if it's
@@ -448,6 +473,34 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 			dstaddr = NULL;
 			dstaddr_size = 0;
 		}
+
+#ifdef HAVE_SOLARIS
+		/*
+		 * If this entry has a colon followed by a number at
+		 * the end, it's a logical interface.  Those are just
+		 * the way you assign multiple IP addresses to a real
+		 * interface, so an entry for a logical interface should
+		 * be treated like the entry for the real interface;
+		 * we do that by stripping off the ":" and the number.
+		 */
+		p = strchr(ifrp->ifr_name, ':');
+		if (p != NULL) {
+			/*
+			 * We have a ":"; is it followed by a number?
+			 */
+			q = p + 1;
+			while (isdigit((unsigned char)*q))
+				q++;
+			if (*q == '\0') {
+				/*
+				 * All digits after the ":" until the end.
+				 * Strip off the ":" and everything after
+				 * it.
+				 */
+				*p = '\0';
+			}
+		}
+#endif
 
 		/*
 		 * Add information for this address to the list.
