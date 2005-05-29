@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _BSM_AUDIT_KEVENTS_H
-#define	_BSM_AUDIT_KEVENTS_H
+#ifndef _BSM_AUDIT_KEVENTS_H_
+#define	_BSM_AUDIT_KEVENTS_H_
 
 /*
  * This is a place-holder include file that defines exactly one audit event:
@@ -35,4 +35,4 @@
  */
 #define	AUE_NULL	0
 
-#endif /* !_BSM_AUDIT_KEVENTS_H */
+#endif /* !_BSM_AUDIT_KEVENTS_H_ */
