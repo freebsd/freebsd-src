@@ -79,6 +79,7 @@ configure_first(void *dummy)
 static void
 configure(void *dummy)
 {
+
 	device_add_child(root_bus, "nexus", 0);
 
 	root_bus_configure();
@@ -102,5 +103,6 @@ configure_final(void *dummy)
 	 */
 	enable_intr();
 
+	cninit_finish();
 	cold = 0;
 }
