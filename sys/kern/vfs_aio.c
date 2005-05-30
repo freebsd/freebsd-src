@@ -245,6 +245,8 @@ struct kaioinfo {
 #define KAIO_WAKEUP	0x2	/* wakeup process when there is a significant event */
 
 static TAILQ_HEAD(,aiothreadlist) aio_freeproc;		/* Idle daemons */
+static struct mtx aio_freeproc_mtx;
+
 static TAILQ_HEAD(,aiocblist) aio_jobs;			/* Async job list */
 
 static void	aio_init_aioinfo(struct proc *p);
@@ -339,6 +341,7 @@ aio_onceonly(void)
 	    EVENTHANDLER_PRI_ANY);
 	kqueue_add_filteropts(EVFILT_AIO, &aio_filtops);
 	TAILQ_INIT(&aio_freeproc);
+	mtx_init(&aio_freeproc_mtx, "aio_freeproc", NULL, MTX_DEF);
 	TAILQ_INIT(&aio_jobs);
 	kaio_zone = uma_zcreate("AIO", sizeof(struct kaioinfo), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
@@ -779,7 +782,6 @@ aio_daemon(void *uproc)
 	struct pgrp *newpgrp;
 	struct session *newsess;
 
-	mtx_lock(&Giant);
 	/*
 	 * Local copies of curproc (cp) and vmspace (myvm)
 	 */
@@ -796,19 +798,18 @@ aio_daemon(void *uproc)
 	aiop->aiothread = td;
 	aiop->aiothreadflags |= AIOP_FREE;
 
-	s = splnet();
-
 	/*
 	 * Place thread (lightweight process) onto the AIO free thread list.
 	 */
+	mtx_lock(&aio_freeproc_mtx);
 	TAILQ_INSERT_HEAD(&aio_freeproc, aiop, list);
-
-	splx(s);
+	mtx_unlock(&aio_freeproc_mtx);
 
 	/*
 	 * Get rid of our current filedescriptors.  AIOD's don't need any
 	 * filedescriptors, except as temporarily inherited from the client.
 	 */
+	mtx_lock(&Giant);
 	fdfree(td);
 
 	mtx_unlock(&Giant);
@@ -839,12 +840,12 @@ aio_daemon(void *uproc)
 		/*
 		 * Take daemon off of free queue
 		 */
+		mtx_lock(&aio_freeproc_mtx);
 		if (aiop->aiothreadflags & AIOP_FREE) {
-			s = splnet();
 			TAILQ_REMOVE(&aio_freeproc, aiop, list);
 			aiop->aiothreadflags &= ~AIOP_FREE;
-			splx(s);
 		}
+		mtx_unlock(&aio_freeproc_mtx);
 
 		/*
 		 * Check for jobs.
@@ -973,21 +974,23 @@ aio_daemon(void *uproc)
 			curcp = mycp;
 		}
 
-		s = splnet();
+		mtx_lock(&aio_freeproc_mtx);
 		TAILQ_INSERT_HEAD(&aio_freeproc, aiop, list);
 		aiop->aiothreadflags |= AIOP_FREE;
-		splx(s);
 
 		/*
 		 * If daemon is inactive for a long time, allow it to exit,
 		 * thereby freeing resources.
 		 */
-		if (tsleep(aiop->aiothread, PRIBIO, "aiordy", aiod_lifetime)) {
+		if (msleep(aiop->aiothread, &aio_freeproc_mtx, PDROP | PRIBIO,
+		    "aiordy", aiod_lifetime)) {
 			s = splnet();
 			if (TAILQ_EMPTY(&aio_jobs)) {
+				mtx_lock(&aio_freeproc_mtx);
 				if ((aiop->aiothreadflags & AIOP_FREE) &&
 				    (num_aio_procs > target_aio_procs)) {
 					TAILQ_REMOVE(&aio_freeproc, aiop, list);
+					mtx_unlock(&aio_freeproc_mtx);
 					splx(s);
 					uma_zfree(aiop_zone, aiop);
 					num_aio_procs--;
@@ -1000,6 +1003,7 @@ aio_daemon(void *uproc)
 #endif
 					kthread_exit(0);
 				}
+				mtx_unlock(&aio_freeproc_mtx);
 			}
 			splx(s);
 		}
@@ -1252,11 +1256,13 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 	}
 
 	while (wakecount--) {
+		mtx_lock(&aio_freeproc_mtx);
 		if ((aiop = TAILQ_FIRST(&aio_freeproc)) != 0) {
 			TAILQ_REMOVE(&aio_freeproc, aiop, list);
 			aiop->aiothreadflags &= ~AIOP_FREE;
 			wakeup(aiop->aiothread);
 		}
+		mtx_unlock(&aio_freeproc_mtx);
 	}
 }
 
@@ -1492,7 +1498,7 @@ no_kqueue:
 	 * (thread) due to resource issues, we return an error for now (EAGAIN),
 	 * which is likely not the correct thing to do.
 	 */
-	s = splnet();
+	mtx_lock(&aio_freeproc_mtx);
 retryproc:
 	if ((aiop = TAILQ_FIRST(&aio_freeproc)) != NULL) {
 		TAILQ_REMOVE(&aio_freeproc, aiop, list);
@@ -1502,13 +1508,16 @@ retryproc:
 	    ((ki->kaio_active_count + num_aio_resv_start) <
 	    ki->kaio_maxactive_count)) {
 		num_aio_resv_start++;
+		mtx_unlock(&aio_freeproc_mtx);
 		if ((error = aio_newproc()) == 0) {
+			mtx_lock(&aio_freeproc_mtx);
 			num_aio_resv_start--;
 			goto retryproc;
 		}
+		mtx_lock(&aio_freeproc_mtx);
 		num_aio_resv_start--;
 	}
-	splx(s);
+	mtx_unlock(&aio_freeproc_mtx);
 done:
 	return (error);
 }
