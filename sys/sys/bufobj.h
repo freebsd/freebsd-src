@@ -125,6 +125,7 @@ struct bufobj {
 
 void bufobj_wdrop(struct bufobj *bo);
 void bufobj_wref(struct bufobj *bo);
+void bufobj_wrefl(struct bufobj *bo);
 int bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag, int slptimeo);
 int bufobj_wwait(struct bufobj *bo, int slpflag, int timeo);
 int bufsync(struct bufobj *bo, int waitfor, struct thread *td);
