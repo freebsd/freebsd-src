@@ -195,14 +195,14 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 {
 	struct apm_bios_arg args;
 	int apmerr;
-	const char *line_msg[] = { "off-line", "on-line" };
+	const char *line_msg[] = { "off-line", "on-line" , "backup power"};
 
 	printf("APM version: %d.%d\n", aip->ai_major, aip->ai_minor);
 	printf("APM Management: %s\n", aip->ai_status ? "Enabled" : "Disabled");
 	printf("AC Line status: ");
 	if (aip->ai_acline == APM_UNKNOWN)
 		printf("unknown\n");
-	else if (aip->ai_acline > 1)
+	else if (aip->ai_acline > 2)
 		printf("invalid value (0x%x)\n", aip->ai_acline);
 	else
 		printf("%s\n", line_msg[aip->ai_acline]);
