@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003, Joseph Koshy
+ * Copyright (c) 2003-2005, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,20 +39,25 @@
 #include <sys/proc.h>
 #include <sys/sx.h>
 
-#define	PMC_FN_PROCESS_EXIT		1
-#define	PMC_FN_PROCESS_EXEC		2
-#define	PMC_FN_PROCESS_FORK		3
-#define	PMC_FN_CSW_IN			4
-#define	PMC_FN_CSW_OUT			5
+#define	PMC_FN_PROCESS_EXEC		1
+#define	PMC_FN_CSW_IN			2
+#define	PMC_FN_CSW_OUT			3
+#define	PMC_FN_DO_SAMPLES		4
+
+#define	PMC_FN_PROCESS_EXIT		5	/* obsolete */
+#define	PMC_FN_PROCESS_FORK		6	/* obsolete */
 
 /* hook */
 extern int (*pmc_hook)(struct thread *_td, int _function, void *_arg);
-extern int (*pmc_intr)(int cpu, uintptr_t pc);
+extern int (*pmc_intr)(int _cpu, uintptr_t _pc, int _usermode);
 
 /* SX lock protecting the hook */
 extern struct sx pmc_sx;
 
-/* hook invocation; for use within the kernel */
+/* Per-cpu flags indicating availability of sampling data */
+extern cpumask_t pmc_cpumask;
+
+/* Hook invocation; for use within the kernel */
 #define	PMC_CALL_HOOK(t, cmd, arg)		\
 do {						\
 	sx_slock(&pmc_sx);			\
@@ -61,7 +66,7 @@ do {						\
 	sx_sunlock(&pmc_sx);			\
 } while (0)
 
-/* hook invocation that needs an exclusive lock */
+/* Hook invocation that needs an exclusive lock */
 #define	PMC_CALL_HOOK_X(t, cmd, arg)		\
 do {						\
 	sx_xlock(&pmc_sx);			\
@@ -70,21 +75,25 @@ do {						\
 	sx_xunlock(&pmc_sx);			\
 } while (0)
 
-/* context switches cannot take locks */
-#define	PMC_SWITCH_CONTEXT(t, cmd)		\
+/*
+ * Some hook invocations (e.g., from context switch and clock handling
+ * code) need to be lock-free.
+ */
+#define	PMC_CALL_HOOK_UNLOCKED(t, cmd, arg)	\
 do {						\
 	if (pmc_hook != NULL)			\
-		(pmc_hook)((t), (cmd), NULL);	\
+		(pmc_hook)((t), (cmd), (arg));	\
 } while (0)
 
+#define	PMC_SWITCH_CONTEXT(t,cmd)	PMC_CALL_HOOK_UNLOCKED(t,cmd,NULL)
 
-/*
- * check if a process is using HWPMCs.
- */
-
+/* Check if a process is using HWPMCs.*/
 #define PMC_PROC_IS_USING_PMCS(p)				\
 	(__predict_false(atomic_load_acq_int(&(p)->p_flag) &	\
 	    P_HWPMC))
+
+/* Check if a CPU has recorded samples. */
+#define	PMC_CPU_HAS_SAMPLES(C)	(__predict_false(pmc_cpumask & (1 << (C))))
 
 /* helper functions */
 int	pmc_cpu_is_disabled(int _cpu);

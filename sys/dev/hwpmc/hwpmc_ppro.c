@@ -672,7 +672,7 @@ p6_stop_pmc(int cpu, int ri)
 }
 
 static int
-p6_intr(int cpu, uintptr_t eip)
+p6_intr(int cpu, uintptr_t eip, int usermode)
 {
 	(void) cpu;
 	(void) eip;
