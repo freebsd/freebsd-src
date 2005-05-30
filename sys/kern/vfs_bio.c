@@ -3667,6 +3667,15 @@ bufstrategy(struct bufobj *bo, struct buf *bp)
 }
 
 void
+bufobj_wrefl(struct bufobj *bo)
+{
+
+	KASSERT(bo != NULL, ("NULL bo in bufobj_wref"));
+	ASSERT_BO_LOCKED(bo);
+	bo->bo_numoutput++;
+}
+
+void
 bufobj_wref(struct bufobj *bo)
 {
 
