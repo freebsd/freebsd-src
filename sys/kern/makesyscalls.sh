@@ -199,7 +199,7 @@ s/\$//g
 		exit 1
 	}
 	function parseline() {
-		f=3			# toss number and type
+		f=4			# toss number, type, audit event
 		argc= 0;
 		argssize = "0"
 		if ($NF != "}") {
@@ -213,9 +213,10 @@ s/\$//g
 			rettype="int"
 			end=NF
 		}
-		if ($2 == "NODEF") {
-			funcname=$3
-			argssize = "AS(" $5 ")"
+		if ($3 == "NODEF") {
+			auditev="AUE_NULL"
+			funcname=$4
+			argssize = "AS(" $6 ")"
 			return
 		}
 		if ($f != "{")
@@ -238,9 +239,9 @@ s/\$//g
 			funcalias = funcname
 		if (argalias == "") {
 			argalias = funcname "_args"
-			if ($2 == "COMPAT")
+			if ($3 == "COMPAT")
 				argalias = "o" argalias
-			if ($2 == "COMPAT4")
+			if ($3 == "COMPAT4")
 				argalias = "freebsd4_" argalias
 		}
 		f++
@@ -274,50 +275,57 @@ s/\$//g
 		if (argc != 0)
 			argssize = "AS(" argalias ")"
 	}
-	{	comment = $3
-		if (NF < 6)
-			for (i = 4; i <= NF; i++)
+	{	comment = $4
+		if (NF < 7)
+			for (i = 5; i <= NF; i++)
 				comment = comment " " $i
+	}
+
+	#
+	# The AUE_ audit event identifier.
+	#
+	{
+		auditev = $2;
 	}
 
 	# The 'M' type prefix
 	#
 	{
 		mpsafe = "SYF_MPSAFE | ";
-		if ($2 == "MSTD") {
-			$2 = "STD";
-		} else if ($2 == "MNODEF") {
-			$2 = "NODEF";
-		} else if ($2 == "MNOARGS") {
-			$2 = "NOARGS";
-		} else if ($2 == "MNOPROTO") {
-			$2 = "NOPROTO";
-		} else if ($2 == "MNOIMPL") {
-			$2 = "NOIMPL";
-		} else if ($2 == "MNOSTD") {
-			$2 = "NOSTD";
-		} else if ($2 == "MCOMPAT") {
-			$2 = "COMPAT";
-		} else if ($2 == "MCOMPAT4") {
-			$2 = "COMPAT4";
-		} else if ($2 == "MCPT_NOA") {
-			$2 = "CPT_NOA";
-		} else if ($2 == "MLIBCOMPAT") {
-			$2 = "LIBCOMPAT";
-		} else if ($2 == "MOBSOL") {
-			$2 = "OBSOL";
-		} else if ($2 == "MUNIMPL") {
-			$2 = "UNIMPL";
+		if ($3 == "MSTD") {
+			$3 = "STD";
+		} else if ($3 == "MNODEF") {
+			$3 = "NODEF";
+		} else if ($3 == "MNOARGS") {
+			$3 = "NOARGS";
+		} else if ($3 == "MNOPROTO") {
+			$3 = "NOPROTO";
+		} else if ($3 == "MNOIMPL") {
+			$3 = "NOIMPL";
+		} else if ($3 == "MNOSTD") {
+			$3 = "NOSTD";
+		} else if ($3 == "MCOMPAT") {
+			$3 = "COMPAT";
+		} else if ($3 == "MCOMPAT4") {
+			$3 = "COMPAT4";
+		} else if ($3 == "MCPT_NOA") {
+			$3 = "CPT_NOA";
+		} else if ($3 == "MLIBCOMPAT") {
+			$3 = "LIBCOMPAT";
+		} else if ($3 == "MOBSOL") {
+			$3 = "OBSOL";
+		} else if ($3 == "MUNIMPL") {
+			$3 = "UNIMPL";
 		} else {
 			mpsafe = "";
 		}
 	}
-	$2 == "STD" || $2 == "NODEF" || $2 == "NOARGS"  || $2 == "NOPROTO" \
-	    || $2 == "NOIMPL" || $2 == "NOSTD" {
+	$3 == "STD" || $3 == "NODEF" || $3 == "NOARGS"  || $3 == "NOPROTO" \
+	    || $3 == "NOIMPL" || $3 == "NOSTD" {
 		parseline()
 		if ((!nosys || funcname != "nosys") && \
 		    (funcname != "lkmnosys") && (funcname != "lkmressys")) {
-			if (argc != 0 && $2 != "NOARGS" && $2 != "NOPROTO") {
+			if (argc != 0 && $3 != "NOARGS" && $3 != "NOPROTO") {
 				printf("struct %s {\n", argalias) > sysarg
 				for (i = 1; i <= argc; i++)
 					printf("\tchar %s_l_[PADL_(%s)]; " \
@@ -327,12 +335,12 @@ s/\$//g
 					    argname[i], argtype[i]) > sysarg
 				printf("};\n") > sysarg
 			}
-			else if ($2 != "NOARGS" && $2 != "NOPROTO" && \
-			    $2 != "NODEF")
+			else if ($3 != "NOARGS" && $3 != "NOPROTO" && \
+			    $3 != "NODEF")
 				printf("struct %s {\n\tregister_t dummy;\n};\n",
 				    argalias) > sysarg
 		}
-		if (($2 != "NOPROTO" && $2 != "NODEF" && \
+		if (($3 != "NOPROTO" && $3 != "NODEF" && \
 		    (funcname != "nosys" || !nosys)) || \
 		    (funcname == "lkmnosys" && !lkmnosys) || \
 		    funcname == "lkmressys") {
@@ -346,21 +354,21 @@ s/\$//g
 			lkmnosys = 1
 		printf("\t{ %s%s, (sy_call_t *)", mpsafe, argssize) > sysent
 		column = 8 + 2 + length(mpsafe) + length(argssize) + 15
-		if ($2 == "NOIMPL") {
-			printf("%s },", "nosys") > sysent
+		if ($3 == "NOIMPL") {
+			printf("%s },", "nosys, AUE_NULL") > sysent
 			column = column + length("nosys") + 3
-		} else if ($2 == "NOSTD") {
-			printf("%s },", "lkmressys") > sysent
+		} else if ($3 == "NOSTD") {
+			printf("%s },", "lkmressys, AUE_NULL") > sysent
 			column = column + length("lkmressys") + 3
 		} else {
-			printf("%s },", funcname) > sysent
-			column = column + length(funcname) + 3
+			printf("%s, %s },", funcname, auditev) > sysent
+			column = column + length(funcname) + length(auditev) + 3
 		} 
 		align_sysent_comment(column)
 		printf("/* %d = %s */\n", syscall, funcalias) > sysent
 		printf("\t\"%s\",\t\t\t/* %d = %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
-		if ($2 != "NODEF") {
+		if ($3 != "NODEF") {
 			printf("#define\t%s%s\t%d\n", syscallprefix,
 		    	    funcalias, syscall) > syshdr
 			printf(" \\\n\t%s.o", funcalias) > sysmk
@@ -368,14 +376,14 @@ s/\$//g
 		syscall++
 		next
 	}
-	$2 == "COMPAT" || $2 == "COMPAT4" || $2 == "CPT_NOA" {
-		if ($2 == "COMPAT" || $2 == "CPT_NOA") {
+	$3 == "COMPAT" || $3 == "COMPAT4" || $3 == "CPT_NOA" {
+		if ($3 == "COMPAT" || $3 == "CPT_NOA") {
 			ncompat++
 			out = syscompat
 			outdcl = syscompatdcl
 			wrap = "compat"
 			prefix = "o"
-		} else if ($2 == "COMPAT4") {
+		} else if ($3 == "COMPAT4") {
 			ncompat4++
 			out = syscompat4
 			outdcl = syscompat4dcl
@@ -383,7 +391,7 @@ s/\$//g
 			prefix = "freebsd4_"
 		}
 		parseline()
-		if (argc != 0 && $2 != "CPT_NOA") {
+		if (argc != 0 && $3 != "CPT_NOA") {
 			printf("struct %s {\n", argalias) > out
 			for (i = 1; i <= argc; i++)
 				printf("\tchar %s_l_[PADL_(%s)]; %s %s; " \
@@ -393,15 +401,15 @@ s/\$//g
 				    argname[i], argtype[i]) > out
 			printf("};\n") > out
 		}
-		else if($2 != "CPT_NOA")
+		else if($3 != "CPT_NOA")
 			printf("struct %s {\n\tregister_t dummy;\n};\n",
 			    argalias) > sysarg
 		printf("%s\t%s%s(struct thread *, struct %s *);\n",
 		    rettype, prefix, funcname, argalias) > outdcl
-		printf("\t{ %s(%s%s,%s) },",
-		    wrap, mpsafe, argssize, funcname) > sysent
+		printf("\t{ %s(%s%s,%s), %s },",
+		    wrap, mpsafe, argssize, funcname, auditev) > sysent
 		align_sysent_comment(8 + 9 + length(mpsafe) + \
-		    length(argssize) + 1 + length(funcname) + 4)
+		    length(argssize) + 1 + length(funcname) + length(auditev) + 4)
 		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
 		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
@@ -410,14 +418,14 @@ s/\$//g
 		syscall++
 		next
 	}
-	$2 == "LIBCOMPAT" {
+	$3 == "LIBCOMPAT" {
 		ncompat++
 		parseline()
 		printf("%s\to%s();\n", rettype, funcname) > syscompatdcl
-		printf("\t{ compat(%s%s,%s) },",
-		    mpsafe, argssize, funcname) > sysent
+		printf("\t{ compat(%s%s,%s), %s },",
+		    mpsafe, argssize, funcname, auditev) > sysent
 		align_sysent_comment(8 + 9 + length(mpsafe) + \
-		    length(argssize) + 1 + length(funcname) + 4)
+		    length(argssize) + 1 + length(funcname) + length(auditev) + 4)
 		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
 		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
@@ -427,19 +435,19 @@ s/\$//g
 		syscall++
 		next
 	}
-	$2 == "OBSOL" {
-		printf("\t{ 0, (sy_call_t *)nosys },") > sysent
+	$3 == "OBSOL" {
+		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL },") > sysent
 		align_sysent_comment(34)
 		printf("/* %d = obsolete %s */\n", syscall, comment) > sysent
 		printf("\t\"obs_%s\",\t\t\t/* %d = obsolete %s */\n",
-		    $3, syscall, comment) > sysnames
+		    $4, syscall, comment) > sysnames
 		printf("\t\t\t\t/* %d is obsolete %s */\n",
 		    syscall, comment) > syshdr
 		syscall++
 		next
 	}
-	$2 == "UNIMPL" {
-		printf("\t{ 0, (sy_call_t *)nosys },\t\t\t/* %d = %s */\n",
+	$3 == "UNIMPL" {
+		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL },\t\t\t/* %d = %s */\n",
 		    syscall, comment) > sysent
 		printf("\t\"#%d\",\t\t\t/* %d = %s */\n",
 		    syscall, syscall, comment) > sysnames
@@ -447,7 +455,7 @@ s/\$//g
 		next
 	}
 	{
-		printf "%s: line %d: unrecognized keyword %s\n", infile, NR, $2
+		printf "%s: line %d: unrecognized keyword %s\n", infile, NR, $3
 		exit 1
 	}
 	END {
@@ -455,6 +463,7 @@ s/\$//g
 
 		if (ncompat != 0 || ncompat4 != 0)
 			printf "#include \"opt_compat.h\"\n\n" > syssw
+		printf "#include \<bsm/audit_kevents.h\>\n" > syssw
 
 		if (ncompat != 0) {
 			printf "\n#ifdef %s\n", compat > sysinc
