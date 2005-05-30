@@ -1507,15 +1507,19 @@ SYSCTL_INT(_debug, OID_AUTO, dobkgrdwrite, CTLFLAG_RW, &dobkgrdwrite, 0,
 static void
 ffs_backgroundwritedone(struct buf *bp)
 {
+	struct bufobj *bufobj;
 	struct buf *origbp;
 
 	/*
 	 * Find the original buffer that we are writing.
 	 */
-	BO_LOCK(bp->b_bufobj);
+	bufobj = bp->b_bufobj;
+	BO_LOCK(bufobj);
 	if ((origbp = gbincore(bp->b_bufobj, bp->b_lblkno)) == NULL)
 		panic("backgroundwritedone: lost buffer");
-	BO_UNLOCK(bp->b_bufobj);
+	/* Grab an extra reference to be dropped by the bufdone() below. */
+	bufobj_wrefl(bufobj);
+	BO_UNLOCK(bufobj);
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
@@ -1525,18 +1529,14 @@ ffs_backgroundwritedone(struct buf *bp)
 	if (LIST_FIRST(&bp->b_dep) != NULL)
 		softdep_move_dependencies(bp, origbp);
 #endif
-
 	/*
-	 * This buffer is marked B_NOCACHE, so when it is released
-	 * by biodone, it will be tossed. We mark it with BIO_READ
-	 * to avoid biodone doing a second bufobj_wdrop.
+	 * This buffer is marked B_NOCACHE so when it is released
+	 * by biodone it will be tossed.
 	 */
 	bp->b_flags |= B_NOCACHE;
-	bp->b_iocmd = BIO_READ;
 	bp->b_flags &= ~(B_CACHE | B_DONE);
-	bp->b_iodone = 0;
 	bufdone(bp);
-	BO_LOCK(origbp->b_bufobj);
+	BO_LOCK(bufobj);
 	/*
 	 * Clear the BV_BKGRDINPROG flag in the original buffer
 	 * and awaken it if it is waiting for the write to complete.
@@ -1550,7 +1550,7 @@ ffs_backgroundwritedone(struct buf *bp)
 		origbp->b_vflags &= ~BV_BKGRDWAIT;
 		wakeup(&origbp->b_xflags);
 	}
-	BO_UNLOCK(origbp->b_bufobj);
+	BO_UNLOCK(bufobj);
 }
 
 
