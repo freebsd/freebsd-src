@@ -83,7 +83,8 @@ static vr_blink_cursor_t	vga_pxlblink_planar;
 static vr_draw_mouse_t		vga_pxlmouse_direct;
 static vr_draw_mouse_t		vga_pxlmouse_planar;
 #else
-#define vga_pxlmouse		(vr_draw_mouse_t *)vga_nop
+#define vga_pxlmouse_direct	(vr_draw_mouse_t *)vga_nop
+#define vga_pxlmouse_planar	(vr_draw_mouse_t *)vga_nop
 #endif
 #endif /* SC_PIXEL_MODE */
 
