@@ -405,6 +405,12 @@
 	the MC146818-compatible clock found on some &ultrasparc; II
 	and III models. &merged;</para>
 
+      <para arch="i386">The &man.syscons.4; driver now supports VESA
+	(15, 16, 24, and 32 bit) modes.  To enable this feature, two
+	kernel options <literal>SC_PIXEL_MODE</literal> and
+	<literal>VESA</literal> (or corresponding kernel module)
+	are needed.</para>
+
       <para arch="sparc64">The &man.uart.4; driver is now enabled in
 	the <filename>GENERIC</filename> kernel, and is now the
 	default driver for serial ports.  The ofw_console and
@@ -1191,6 +1197,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para><application>Heimdal</application> has been updated from
       0.6.1 to 0.6.3. &merged;</para>
 
+    <para><application>libpcap</application> has been updated from
+      v0.8.3 to v0.9.1 (alpha 096).</para>
+
     <para><application>libregex</application> has been updated from a
       snapshot from <application>GNU grep</application> 2.5.1 to a
       snapshot from the <literal>fedora-glibc-2_3_4-21</literal> tag
@@ -1226,6 +1235,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.3. &merged;</para>
+
+    <para><application>TCPDUMP</application> has been updated from
+      v3.8.3 to v3.9.1 (alpha 096).</para>
 
     <para><application>tcsh</application> has been updated from
       6.13.00 to 6.14.00.</para>
