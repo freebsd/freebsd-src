@@ -6,6 +6,11 @@
 
 ; Columns: number type nargs name alt{name,tag,rtyp}/comments
 ;       number  system call number, must be in order
+;	audit	the audit event associated with the system call
+;		A value of AUE_NULL means no auditing, but it also means that
+;		there is no audit event for the call at this time. For the
+;		case where the event exists, but we don't want auditing, the
+;		event should be #defined to AUE_NULL in audit_kevents.h.
 ;       type    one of STD, OBSOL, UNIMPL, COMPAT
 ;       name    psuedo-prototype of syscall routine
 ;               If one of the following alts is different, then all appear:
@@ -30,340 +35,409 @@
 #include <alpha/osf1/osf1_proto.h>
 
 
-0	NOPROTO	{ int nosys(void); }
-1	MNOPROTO { void sys_exit(int rval); } exit sys_exit_args void
-2	MNOPROTO { int fork(void); }
-3	MNOPROTO { ssize_t read(int fd, char *buf, ssize_t nbyte); }
-4	MNOPROTO { ssize_t write(int fd, char *buf, ssize_t nbyte); }
-5	UNIMPL	old open
-6	MNOPROTO { int close(int fd); }
-7	MSTD	{ int osf1_wait4(int pid, int *status, int options, \
-		    struct osf1_rusage *rusage); }
-8	UNIMPL	old creat
-9	NOPROTO	{ int link(char *path, char *link); }
-10	NOPROTO	{ int unlink(char *path); }
-11	UNIMPL	execv
-12	NOPROTO	{ int chdir(char *path); }
-13	NOPROTO	{ int fchdir(int fd); }
-14	STD	{ int osf1_mknod(char *path, int mode, int dev); }
-15	NOPROTO	{ int chmod(char *path, int mode); }
-16	NOPROTO	{ int chown(char *path, int uid, int gid); }
-17	NOPROTO	{ int obreak(char *nsize); }
-18	STD	{ int osf1_getfsstat(struct osf1_statfs *buf, long bufsize, \
-		    int flags); }
-19	STD	{ off_t osf1_lseek(int fd, off_t offset, int whence); }
-20	MNOPROTO { pid_t getpid(void); }
-21	STD	{ int osf1_mount(int type, char *path, int flags, \
-		    caddr_t data); }
-22	STD	{ int osf1_unmount(char *path, int flags); }
-23	MSTD	{ int osf1_setuid(uid_t uid); }
-24	MNOPROTO { uid_t getuid(void); }
-25	UNIMPL	exec_with_loader
-26	UNIMPL	ptrace
-27	UNIMPL	recvmsg
-28	UNIMPL	sendmsg
-29	NOPROTO	{ int recvfrom(int s, caddr_t buf, size_t len, int flags, \
-		    caddr_t from, int *fromlenaddr); }
-30	NOPROTO	{ int accept(int s, caddr_t name, int *anamelen); }
-31	NOPROTO	{ int getpeername(int fdes, caddr_t asa, int *alen); }
-32	NOPROTO	{ int getsockname(int fdes, caddr_t asa, int *alen); }
-33	STD	{ int osf1_access(char *path, int flags); }
-34	UNIMPL	chflags
-35	UNIMPL	fchflags
-36	NOPROTO	{ int sync(void); }
-37	MSTD	{ int osf1_kill(int pid, int signum); }
-38	UNIMPL	old stat
-39	MNOPROTO { int setpgid(int pid, int pgid); }
-40	UNIMPL	old lstat
-41	MNOPROTO { int dup(u_int fd); }
-42	MNOPROTO { int pipe(void); }
-43	STD	{ int osf1_set_program_attributes(vm_offset_t text_start, \
-		    vm_offset_t text_len, vm_offset_t bss_start, \
-		    vm_offset_t bss_len); }
-44	UNIMPL	profil
-45	STD	{ int osf1_open(char *path, int flags, int mode); }
-46	OBSOL	sigaction
-47	MNOPROTO { gid_t getgid(void); }
-48	MSTD	{ int osf1_sigprocmask(int how, osf1_sigset_t mask); }
-49	MNOPROTO { int getlogin(char *namebuf, u_int namelen); }
-50	MNOPROTO { int setlogin(char *namebuf); }
-51	NOPROTO	{ int acct(char *path); }
-52	MSTD	{ int osf1_sigpending(struct proc *p, osf1_sigset_t *mask ); }
-53	STD	{ int osf1_classcntl(int opcode, int arg1, int arg2, int arg3);}
-54	STD	{ int osf1_ioctl(int fd, int com, caddr_t data); }
-55	STD	{ int osf1_reboot(int opt); }
-56	NOPROTO	{ int revoke(char *path); }
-57	NOPROTO	{ int symlink(char *path, char *link); }
-58	NOPROTO	{ int readlink(char *path, char *buf, int count); }
-59	STD	{ int osf1_execve(char *path, char **argp, char **envp); }
-60	MNOPROTO { int umask(int newmask); }
-61	NOPROTO	{ int chroot(char *path); }
-62	UNIMPL	old fstat
-63	MNOPROTO { int getpgrp(void); }
-64	NOPROTO	{ int ogetpagesize(void); }
-65	UNIMPL	mremap
-66	MNOPROTO { int vfork(void); }
-67	STD	{ int osf1_stat(char *path, struct osf1_stat *ub); }
-68	STD	{ int osf1_lstat(char *path, struct osf1_stat *ub); }
-69	UNIMPL	sbrk
-70	UNIMPL	sstk
-71	STD	{ caddr_t osf1_mmap(caddr_t addr, size_t len, int prot, \
-		    int flags, int fd, off_t pos); }
-72	UNIMPL	ovadvise
-73	NOPROTO	{ int munmap(caddr_t addr, size_t len); }
-74	NOPROTO	{ int mprotect(void *addr, size_t len, int prot); }
+0	AUE_NULL	NOPROTO	{ int nosys(void); }
+1	AUE_NULL	MNOPROTO { void sys_exit(int rval); } exit \
+				    sys_exit_args void
+2	AUE_NULL	MNOPROTO { int fork(void); }
+3	AUE_NULL	MNOPROTO { ssize_t read(int fd, char *buf, \
+				    ssize_t nbyte); }
+4	AUE_NULL	MNOPROTO { ssize_t write(int fd, char *buf, \
+				    ssize_t nbyte); }
+5	AUE_NULL	UNIMPL	old open
+6	AUE_NULL	MNOPROTO { int close(int fd); }
+7	AUE_NULL	MSTD	{ int osf1_wait4(int pid, int *status, \
+				    int options, \
+				    struct osf1_rusage *rusage); }
+8	AUE_NULL	UNIMPL	old creat
+9	AUE_NULL	NOPROTO	{ int link(char *path, char *link); }
+10	AUE_NULL	NOPROTO	{ int unlink(char *path); }
+11	AUE_NULL	UNIMPL	execv
+12	AUE_NULL	NOPROTO	{ int chdir(char *path); }
+13	AUE_NULL	NOPROTO	{ int fchdir(int fd); }
+14	AUE_NULL	STD	{ int osf1_mknod(char *path, int mode, \
+				    int dev); }
+15	AUE_NULL	NOPROTO	{ int chmod(char *path, int mode); }
+16	AUE_NULL	NOPROTO	{ int chown(char *path, int uid, int gid); }
+17	AUE_NULL	NOPROTO	{ int obreak(char *nsize); }
+18	AUE_NULL	STD	{ int osf1_getfsstat( \
+				    struct osf1_statfs *buf, long bufsize, \
+				    int flags); }
+19	AUE_NULL	STD	{ off_t osf1_lseek(int fd, off_t offset, \
+				    int whence); }
+20	AUE_NULL	MNOPROTO { pid_t getpid(void); }
+21	AUE_NULL	STD	{ int osf1_mount(int type, char *path, \
+				    int flags, caddr_t data); }
+22	AUE_NULL	STD	{ int osf1_unmount(char *path, int flags); }
+23	AUE_NULL	MSTD	{ int osf1_setuid(uid_t uid); }
+24	AUE_NULL	MNOPROTO { uid_t getuid(void); }
+25	AUE_NULL	UNIMPL	exec_with_loader
+26	AUE_NULL	UNIMPL	ptrace
+27	AUE_NULL	UNIMPL	recvmsg
+28	AUE_NULL	UNIMPL	sendmsg
+29	AUE_NULL	NOPROTO	{ int recvfrom(int s, caddr_t buf, \
+				    size_t len, int flags, caddr_t from, \
+				    int *fromlenaddr); }
+30	AUE_NULL	NOPROTO	{ int accept(int s, caddr_t name, \
+				    int *anamelen); }
+31	AUE_NULL	NOPROTO	{ int getpeername(int fdes, caddr_t asa, \
+				    int *alen); }
+32	AUE_NULL	NOPROTO	{ int getsockname(int fdes, caddr_t asa, \
+				    int *alen); }
+33	AUE_NULL	STD	{ int osf1_access(char *path, int flags); }
+34	AUE_NULL	UNIMPL	chflags
+35	AUE_NULL	UNIMPL	fchflags
+36	AUE_NULL	NOPROTO	{ int sync(void); }
+37	AUE_NULL	MSTD	{ int osf1_kill(int pid, int signum); }
+38	AUE_NULL	UNIMPL	old stat
+39	AUE_NULL	MNOPROTO { int setpgid(int pid, int pgid); }
+40	AUE_NULL	UNIMPL	old lstat
+41	AUE_NULL	MNOPROTO { int dup(u_int fd); }
+42	AUE_NULL	MNOPROTO { int pipe(void); }
+43	AUE_NULL	STD	{ int osf1_set_program_attributes( \
+				    vm_offset_t text_start, \
+				    vm_offset_t text_len, \
+				    vm_offset_t bss_start, \
+				    vm_offset_t bss_len); }
+44	AUE_NULL	UNIMPL	profil
+45	AUE_NULL	STD	{ int osf1_open(char *path, int flags, \
+				    int mode); }
+46	AUE_NULL	OBSOL	sigaction
+47	AUE_NULL	MNOPROTO { gid_t getgid(void); }
+48	AUE_NULL	MSTD	{ int osf1_sigprocmask(int how, \
+				    osf1_sigset_t mask); }
+49	AUE_NULL	MNOPROTO { int getlogin(char *namebuf, \
+				    u_int namelen); }
+50	AUE_NULL	MNOPROTO { int setlogin(char *namebuf); }
+51	AUE_NULL	NOPROTO	{ int acct(char *path); }
+52	AUE_NULL	MSTD	{ int osf1_sigpending(struct proc *p, \
+				    osf1_sigset_t *mask ); }
+53	AUE_NULL	STD	{ int osf1_classcntl(int opcode, int arg1, \
+				    int arg2, int arg3);}
+54	AUE_NULL	STD	{ int osf1_ioctl(int fd, int com, \
+				    caddr_t data); }
+55	AUE_NULL	STD	{ int osf1_reboot(int opt); }
+56	AUE_NULL	NOPROTO	{ int revoke(char *path); }
+57	AUE_NULL	NOPROTO	{ int symlink(char *path, char *link); }
+58	AUE_NULL	NOPROTO	{ int readlink(char *path, char *buf, \
+				    int count); }
+59	AUE_NULL	STD	{ int osf1_execve(char *path, char **argp, \
+				    char **envp); }
+60	AUE_NULL	MNOPROTO { int umask(int newmask); }
+61	AUE_NULL	NOPROTO	{ int chroot(char *path); }
+62	AUE_NULL	UNIMPL	old fstat
+63	AUE_NULL	MNOPROTO { int getpgrp(void); }
+64	AUE_NULL	NOPROTO	{ int ogetpagesize(void); }
+65	AUE_NULL	UNIMPL	mremap
+66	AUE_NULL	MNOPROTO { int vfork(void); }
+67	AUE_NULL	STD	{ int osf1_stat(char *path, \
+				    struct osf1_stat *ub); }
+68	AUE_NULL	STD	{ int osf1_lstat(char *path, \
+				    struct osf1_stat *ub); }
+69	AUE_NULL	UNIMPL	sbrk
+70	AUE_NULL	UNIMPL	sstk
+71	AUE_NULL	STD	{ caddr_t osf1_mmap(caddr_t addr, \
+				    size_t len, int prot, int flags, int fd, \
+				    off_t pos); }
+72	AUE_NULL	UNIMPL	ovadvise
+73	AUE_NULL	NOPROTO	{ int munmap(caddr_t addr, size_t len); }
+74	AUE_NULL	NOPROTO	{ int mprotect(void *addr, size_t len, \
+				    int prot); }
 ; XXX
-75	STD	{ int osf1_madvise(void); }
-76	UNIMPL	old vhangup
-77	UNIMPL	kmodcall
-78	UNIMPL	mincore
-79	MNOPROTO { int getgroups(u_int gidsetsize, gid_t *gidset); }
-80	MNOPROTO { int setgroups(u_int gidsetsize, gid_t *gidset); }
-81	UNIMPL	old getpgrp
+75	AUE_NULL	STD	{ int osf1_madvise(void); }
+76	AUE_NULL	UNIMPL	old vhangup
+77	AUE_NULL	UNIMPL	kmodcall
+78	AUE_NULL	UNIMPL	mincore
+79	AUE_NULL	MNOPROTO { int getgroups(u_int gidsetsize, \
+				    gid_t *gidset); }
+80	AUE_NULL	MNOPROTO { int setgroups(u_int gidsetsize, \
+				    gid_t *gidset); }
+81	AUE_NULL	UNIMPL	old getpgrp
 ; OSF/1 setpgrp(); identical in function to setpgid().  XXX
-82	MSTD	{ int osf1_setpgrp(int pid, int pgid); } 
-83	STD	{ int osf1_setitimer(u_int which, struct itimerval *itv, \
-		    struct itimerval *oitv); }
-84	UNIMPL	old wait
-85	STD	{ int osf1_table(long id, long index, void *addr, long nel, \
-		    u_long lel); }
-86	STD	{ int osf1_getitimer(u_int which, struct itimerval *itv); }
-87	MNOPROTO { int ogethostname(char *hostname, u_int len); } \
-		    ogethostname gethostname_args int
-88	MNOPROTO { int osethostname(char *hostname, u_int len); } \
-		    osethostname sethostname_args int
-89	MNOPROTO { int getdtablesize(void); }
-90	MNOPROTO { int dup2(u_int from, u_int to); }
-91	STD	{ int osf1_fstat(int fd, void *sb); }
-92	MSTD	{ int osf1_fcntl(int fd, int cmd, void *arg); }
-93	STD	{ int osf1_select(u_int nd, fd_set *in, fd_set *ou, \
-                    fd_set *ex, struct timeval *tv); }
-94	NOPROTO	{ int poll(struct pollfd *fds, u_int nfds, int timeout); }
-95	NOPROTO	{ int fsync(int fd); }
-96	MNOPROTO { int setpriority(int which, int who, int prio); }
-97	STD	{ int osf1_socket(int domain, int type, int protocol); }
-98	NOPROTO	{ int connect(int s, caddr_t name, int namelen); }
-99	NOPROTO	{ int oaccept(int s, caddr_t name, int *anamelen); } \
-		    oaccept accept_args int
-100	MNOPROTO { int getpriority(int which, int who); }
-101	NOPROTO	{ int osend(int s, caddr_t buf, int len, int flags); }
-102	NOPROTO	{ int orecv(int s, caddr_t buf, int len, int flags); }
-103	MSTD	{ int osf1_sigreturn(struct osigcontext *sigcntxp); }
-104	NOPROTO	{ int bind(int s, caddr_t name, int namelen); }
-105	NOPROTO	{ int setsockopt(int s, int level, int name, caddr_t val, \
-		    int valsize); }
-106	NOPROTO	{ int listen(int s, int backlog); }
-107	UNIMPL	plock
-108	UNIMPL	old sigvec
-109	UNIMPL	old sigblock
-110	UNIMPL	old sigsetmask
-111	MSTD	{ int osf1_sigsuspend(osf1_sigset_t ss); }
-112	MSTD	{ int osf1_osigstack(struct sigstack *nss, \
-		    struct sigstack *oss); }
-113	UNIMPL	old recvmsg
-114	UNIMPL	old sendmsg
-115	UNIMPL	vtrace
-116	STD	{ int osf1_gettimeofday(struct timeval *tp, \
-		    struct timezone *tzp); }
+82	AUE_NULL	MSTD	{ int osf1_setpgrp(int pid, int pgid); } 
+83	AUE_NULL	STD	{ int osf1_setitimer(u_int which, \
+				    struct itimerval *itv, \
+				    struct itimerval *oitv); }
+84	AUE_NULL	UNIMPL	old wait
+85	AUE_NULL	STD	{ int osf1_table(long id, long index, \
+				    void *addr, long nel, u_long lel); }
+86	AUE_NULL	STD	{ int osf1_getitimer(u_int which, \
+				    struct itimerval *itv); }
+87	AUE_NULL	MNOPROTO { int ogethostname(char *hostname, \
+				    u_int len); } ogethostname \
+				    gethostname_args int
+88	AUE_NULL	MNOPROTO { int osethostname(char *hostname, \
+				    u_int len); } osethostname \
+				    sethostname_args int
+89	AUE_NULL	MNOPROTO { int getdtablesize(void); }
+90	AUE_NULL	MNOPROTO { int dup2(u_int from, u_int to); }
+91	AUE_NULL	STD	{ int osf1_fstat(int fd, void *sb); }
+92	AUE_NULL	MSTD	{ int osf1_fcntl(int fd, int cmd, \
+				    void *arg); }
+93	AUE_NULL	STD	{ int osf1_select(u_int nd, fd_set *in, \
+				    fd_set *ou, fd_set *ex, \
+				    struct timeval *tv); }
+94	AUE_NULL	NOPROTO	{ int poll(struct pollfd *fds, u_int nfds, \
+				    int timeout); }
+95	AUE_NULL	NOPROTO	{ int fsync(int fd); }
+96	AUE_NULL	MNOPROTO { int setpriority(int which, int who, \
+				    int prio); }
+97	AUE_NULL	STD	{ int osf1_socket(int domain, int type, \
+				    int protocol); }
+98	AUE_NULL	NOPROTO	{ int connect(int s, caddr_t name, \
+				    int namelen); }
+99	AUE_NULL	NOPROTO	{ int oaccept(int s, caddr_t name, \
+				    int *anamelen); } oaccept accept_args int
+100	AUE_NULL	MNOPROTO { int getpriority(int which, int who); }
+101	AUE_NULL	NOPROTO	{ int osend(int s, caddr_t buf, int len, \
+				    int flags); }
+102	AUE_NULL	NOPROTO	{ int orecv(int s, caddr_t buf, int len, \
+				    int flags); }
+103	AUE_NULL	MSTD	{ int osf1_sigreturn( \
+				    struct osigcontext *sigcntxp); }
+104	AUE_NULL	NOPROTO	{ int bind(int s, caddr_t name, \
+				    int namelen); }
+105	AUE_NULL	NOPROTO	{ int setsockopt(int s, int level, int name, \
+				    caddr_t val, int valsize); }
+106	AUE_NULL	NOPROTO	{ int listen(int s, int backlog); }
+107	AUE_NULL	UNIMPL	plock
+108	AUE_NULL	UNIMPL	old sigvec
+109	AUE_NULL	UNIMPL	old sigblock
+110	AUE_NULL	UNIMPL	old sigsetmask
+111	AUE_NULL	MSTD	{ int osf1_sigsuspend(osf1_sigset_t ss); }
+112	AUE_NULL	MSTD	{ int osf1_osigstack(struct sigstack *nss, \
+				    struct sigstack *oss); }
+113	AUE_NULL	UNIMPL	old recvmsg
+114	AUE_NULL	UNIMPL	old sendmsg
+115	AUE_NULL	UNIMPL	vtrace
+116	AUE_NULL	STD	{ int osf1_gettimeofday(struct timeval *tp, \
+				    struct timezone *tzp); }
 ; XXX
-117	STD	{ int osf1_getrusage(long who, void *rusage); }
-118	NOPROTO	{ int getsockopt(int s, int level, int name, caddr_t val, \
-		    int *avalsize); }
-119	UNIMPL	
-120	STD	{ int osf1_readv(int fd, struct osf1_iovec *iovp, \
-		    u_int iovcnt); }
-121	STD	{ int osf1_writev(int fd, struct osf1_iovec *iovp, \
-		    u_int iovcnt); }
-122	MNOPROTO { int settimeofday(struct timeval *tv, struct timezone *tzp); }
-123	NOPROTO	{ int fchown(int fd, int uid, int gid); }
-124	NOPROTO	{ int fchmod(int fd, int mode); }
-125	NOPROTO	{ int orecvfrom(int s, caddr_t buf, size_t len, int flags, \
-		    caddr_t from, int *fromlenaddr); } \
-		    orecvfrom recvfrom_args int
-126	MNOPROTO { int setreuid(int ruid, int euid); }
-127	MNOPROTO { int setregid(int rgid, int egid); }
-128	NOPROTO	{ int rename(const char *from, const char *to); }
-129	STD	{ int osf1_truncate(char *path, off_t length); }
-130	STD	{ int osf1_ftruncate(int fd, off_t length); }
-131	NOPROTO	{ int flock(int fd, int how); }
-132	MSTD	{ int osf1_setgid(gid_t gid); }
-133	STD	{ int osf1_sendto(int s, caddr_t buf, size_t len, int flags, \
-		    struct sockaddr *to, int tolen); }
-134	NOPROTO	{ int shutdown(int s, int how); }
-135	UNIMPL	socketpair
-136	NOPROTO	{ int mkdir(char *path, int mode); }
-137	NOPROTO	{ int rmdir(char *path); }
-138	NOPROTO	{ int utimes(char *path, struct timeval *tptr); }
-139	OBSOL	4.2 sigreturn
-140	UNIMPL	adjtime
-141	NOPROTO	{ int ogetpeername(int fdes, caddr_t asa, int *alen); }
-142	MNOPROTO { int32_t ogethostid(void); }
-143	MNOPROTO { int osethostid(int32_t hostid); }
-144	MSTD	{ int osf1_getrlimit(u_int which, struct rlimit *rlp); }
-145	MSTD	{ int osf1_setrlimit(u_int which, struct rlimit *rlp); }
-146	UNIMPL	old killpg
-147	MNOPROTO { int setsid(void); }
-148	UNIMPL	quotactl
-149	MNOPROTO { int oquota(void); }
-150	NOPROTO	{ int ogetsockname(int fdec, caddr_t asa, int *alen);} \
-		    ogetsockname getsockname_args int
-151	UNIMPL
-152	UNIMPL
-153	UNIMPL
-154	UNIMPL
-155	UNIMPL
-156	MSTD	{ int osf1_sigaction(long signum, struct osf1_sigaction *nsa, \
-		    struct osf1_sigaction *osa, void *sigtramp); }
-157	UNIMPL
-158	UNIMPL	nfssvc
-159	NOPROTO	{ int ogetdirentries(int fd, char *buf, u_int count, \
-		    long *basep); }
-160     STD	{ int osf1_statfs(char *path, struct osf1_statfs *buf, \
-		    int len); }
-161     STD	{ int osf1_fstatfs(int fd, struct osf1_statfs *buf, int len); }
-162	UNIMPL
-163	UNIMPL	async_daemon
-164	UNIMPL	getfh
-165	MNOPROTO { int getdomainname(char *domainname, int len); }
-166	MNOPROTO { int setdomainname(char *domainname, int len); }
-167	UNIMPL
-168	UNIMPL
-169	UNIMPL	exportfs
-170	UNIMPL
-171	UNIMPL
-172	UNIMPL	alt msgctl
-173	UNIMPL	alt msgget
-174	UNIMPL	alt msgrcv
-175	UNIMPL	alt msgsnd
-176	UNIMPL	alt semctl
-177	UNIMPL	alt semget
-178	UNIMPL	alt semop
-179	UNIMPL	alt uname
-180	UNIMPL
-181	UNIMPL	alt plock
-182	UNIMPL	lockf
-183	UNIMPL
-184	UNIMPL	getmnt
-185	UNIMPL
-186	UNIMPL	unmount
-187	UNIMPL	alt sigpending
-188	UNIMPL	alt setsid
-189	UNIMPL
-190	UNIMPL
-191	UNIMPL
-192	UNIMPL
-193	UNIMPL
-194	UNIMPL
-195	UNIMPL
-196	UNIMPL
-197	UNIMPL
-198	UNIMPL
-199	UNIMPL	swapon
-200	MNOPROTO { int msgctl(int msqid, int cmd, struct msqid_ds *buf); }
-201	MNOPROTO { int msgget(key_t key, int msgflg); }
-202	MNOPROTO { int msgrcv(int msqid, void *msgp, size_t msgsz, \
-		    long msgtyp, int msgflg); }
-203	MNOPROTO { int msgsnd(int msqid, void *msgp, size_t msgsz, \
-		    int msgflg); }
-204	MNOPROTO { int __semctl(int semid, int semnum, int cmd, \
-		    union semun *arg); }
-205	MNOPROTO { int semget(key_t key, int nsems, int semflg); }
-206	MNOPROTO { int semop(int semid, struct sembuf *sops, u_int nsops); }
-207	MNOPROTO { int uname(struct utsname *name); }
-208	NOPROTO	{ int lchown(char *path, int uid, int gid); }
-209	MNOPROTO { int shmat(int shmid, void *shmaddr, int shmflg); }
-210	MNOPROTO { int shmctl(int shmid, int cmd, struct shmid_ds *buf); }
-211	MNOPROTO { int shmdt(void *shmaddr); }
-212	MNOPROTO { int shmget(key_t key, int size, int shmflg); }
-213	UNIMPL	mvalid
-214	UNIMPL	getaddressconf
-215	UNIMPL	msleep
-216	UNIMPL	mwakeup
-217	STD	{ int osf1_msync(caddr_t addr, size_t len, int flags); }
-218	MSTD	{int osf1_signal(int signum, void *handler); }
-219	UNIMPL	utc gettime
-220	UNIMPL	utc adjtime
-221	UNIMPL
-222	UNIMPL	security
-223	UNIMPL	kloadcall
-224	UNIMPL	
-225	UNIMPL
-226	UNIMPL
-227	UNIMPL
-228	UNIMPL
-229	UNIMPL
-230	UNIMPL
-231	UNIMPL
-232	UNIMPL
-233	MNOPROTO { pid_t getpgid(pid_t pid); }
-234	MNOPROTO { pid_t getsid(pid_t pid); }
-235	MSTD	{ int osf1_sigaltstack(struct osf1_sigaltstack *nss, \
-		    struct osf1_sigaltstack *oss); }
-236	UNIMPL	waitid
-237	UNIMPL	priocntlset
-238	UNIMPL	sigsendset
-239	UNIMPL
-240	UNIMPL	msfs_syscall
-241	MSTD	{ int osf1_sysinfo(int cmd, char *buf, long count); }
-242	UNIMPL	uadmin
-243	UNIMPL	fuser
-244	STD	{ int osf1_proplist_syscall(void); }
-245	STD	{ int osf1_ntpadjtime(void *tp); }
-246	STD	{ int osf1_ntpgettime(void *tp); }
-247	STD	{ int osf1_pathconf(char *path, int name); }
-248	STD	{ int osf1_fpathconf(int fd, int name); }
-249	UNIMPL
-250	STD	{ int osf1_uswitch(long cmd, long mask); }
-251	STD	{ int osf1_usleep_thread(struct timeval *sleep, \
-		    struct timeval *slept); }
-252	UNIMPL	audcntl
-253	UNIMPL	audgen
-254	UNIMPL	sysfs
-255	UNIMPL
-256	STD	{ int osf1_getsysinfo(u_long op, caddr_t buffer, \
-		    u_long nbytes, caddr_t arg, u_long flag); }
-257	STD	{ int osf1_setsysinfo(u_long op, caddr_t buffer, \
-		    u_long nbytes, caddr_t arg, u_long flag); }
-258	UNIMPL	afs_syscall
-259	UNIMPL	swapctl
-260	UNIMPL	memcntl
-261	UNIMPL	
-262	UNIMPL	
-263	UNIMPL	
-264	UNIMPL	
-265	UNIMPL	
-266	UNIMPL	
-267	UNIMPL	
-268	UNIMPL	
-269	UNIMPL	
-270	UNIMPL	
-271	UNIMPL	
-272	UNIMPL	
-273	UNIMPL	
-274	UNIMPL	
-275	UNIMPL	
-276	UNIMPL	
-277	UNIMPL	
-278	UNIMPL	
-279	UNIMPL	
-280	UNIMPL	
-281	UNIMPL	
-282	UNIMPL	
-283	UNIMPL	
-284	UNIMPL	
-285	UNIMPL	
-286	UNIMPL	
-287	UNIMPL	
-288	UNIMPL	
-289	UNIMPL	
-290	UNIMPL	
-291	UNIMPL	
-292	UNIMPL	
-293	UNIMPL	
-294	UNIMPL	
-295	UNIMPL	
-296	UNIMPL	
-297	UNIMPL	
-298	UNIMPL	
-299	UNIMPL	
-300	UNIMPL	
+117	AUE_NULL	STD	{ int osf1_getrusage(long who, \
+				    void *rusage); }
+118	AUE_NULL	NOPROTO	{ int getsockopt(int s, int level, int name, \
+				    caddr_t val, int *avalsize); }
+119	AUE_NULL	UNIMPL	
+120	AUE_NULL	STD	{ int osf1_readv(int fd, \
+				    struct osf1_iovec *iovp, u_int iovcnt); }
+121	AUE_NULL	STD	{ int osf1_writev(int fd, \
+				    struct osf1_iovec *iovp, u_int iovcnt); }
+122	AUE_NULL	MNOPROTO { int settimeofday(struct timeval *tv, \
+				    struct timezone *tzp); }
+123	AUE_NULL	NOPROTO	{ int fchown(int fd, int uid, int gid); }
+124	AUE_NULL	NOPROTO	{ int fchmod(int fd, int mode); }
+125	AUE_NULL	NOPROTO	{ int orecvfrom(int s, caddr_t buf, \
+				    size_t len, int flags, caddr_t from, \
+				    int *fromlenaddr); } orecvfrom \
+				    recvfrom_args int
+126	AUE_NULL	MNOPROTO { int setreuid(int ruid, int euid); }
+127	AUE_NULL	MNOPROTO { int setregid(int rgid, int egid); }
+128	AUE_NULL	NOPROTO	{ int rename(const char *from, \
+				    const char *to); }
+129	AUE_NULL	STD	{ int osf1_truncate(char *path, \
+				    off_t length); }
+130	AUE_NULL	STD	{ int osf1_ftruncate(int fd, off_t length); }
+131	AUE_NULL	NOPROTO	{ int flock(int fd, int how); }
+132	AUE_NULL	MSTD	{ int osf1_setgid(gid_t gid); }
+133	AUE_NULL	STD	{ int osf1_sendto(int s, caddr_t buf, \
+				    size_t len, int flags, \
+				    struct sockaddr *to, int tolen); }
+134	AUE_NULL	NOPROTO	{ int shutdown(int s, int how); }
+135	AUE_NULL	UNIMPL	socketpair
+136	AUE_NULL	NOPROTO	{ int mkdir(char *path, int mode); }
+137	AUE_NULL	NOPROTO	{ int rmdir(char *path); }
+138	AUE_NULL	NOPROTO	{ int utimes(char *path, \
+				    struct timeval *tptr); }
+139	AUE_NULL	OBSOL	4.2 sigreturn
+140	AUE_NULL	UNIMPL	adjtime
+141	AUE_NULL	NOPROTO	{ int ogetpeername(int fdes, caddr_t asa, \
+				    int *alen); }
+142	AUE_NULL	MNOPROTO { int32_t ogethostid(void); }
+143	AUE_NULL	MNOPROTO { int osethostid(int32_t hostid); }
+144	AUE_NULL	MSTD	{ int osf1_getrlimit(u_int which, \
+				    struct rlimit *rlp); }
+145	AUE_NULL	MSTD	{ int osf1_setrlimit(u_int which, \
+				    struct rlimit *rlp); }
+146	AUE_NULL	UNIMPL	old killpg
+147	AUE_NULL	MNOPROTO { int setsid(void); }
+148	AUE_NULL	UNIMPL	quotactl
+149	AUE_NULL	MNOPROTO { int oquota(void); }
+150	AUE_NULL	NOPROTO	{ int ogetsockname(int fdec, caddr_t asa, \
+				    int *alen);} ogetsockname \
+				    getsockname_args int
+151	AUE_NULL	UNIMPL
+152	AUE_NULL	UNIMPL
+153	AUE_NULL	UNIMPL
+154	AUE_NULL	UNIMPL
+155	AUE_NULL	UNIMPL
+156	AUE_NULL	MSTD	{ int osf1_sigaction(long signum, \
+				    struct osf1_sigaction *nsa, \
+				    struct osf1_sigaction *osa, \
+				    void *sigtramp); }
+157	AUE_NULL	UNIMPL
+158	AUE_NULL	UNIMPL	nfssvc
+159	AUE_NULL	NOPROTO	{ int ogetdirentries(int fd, char *buf, \
+				    u_int count, long *basep); }
+160     AUE_NULL	STD	{ int osf1_statfs(char *path, \
+				    struct osf1_statfs *buf, int len); }
+161     AUE_NULL	STD	{ int osf1_fstatfs(int fd, \
+				    struct osf1_statfs *buf, int len); }
+162	AUE_NULL	UNIMPL
+163	AUE_NULL	UNIMPL	async_daemon
+164	AUE_NULL	UNIMPL	getfh
+165	AUE_NULL	MNOPROTO { int getdomainname(char *domainname, \
+				    int len); }
+166	AUE_NULL	MNOPROTO { int setdomainname(char *domainname, \
+				    int len); }
+167	AUE_NULL	UNIMPL
+168	AUE_NULL	UNIMPL
+169	AUE_NULL	UNIMPL	exportfs
+170	AUE_NULL	UNIMPL
+171	AUE_NULL	UNIMPL
+172	AUE_NULL	UNIMPL	alt msgctl
+173	AUE_NULL	UNIMPL	alt msgget
+174	AUE_NULL	UNIMPL	alt msgrcv
+175	AUE_NULL	UNIMPL	alt msgsnd
+176	AUE_NULL	UNIMPL	alt semctl
+177	AUE_NULL	UNIMPL	alt semget
+178	AUE_NULL	UNIMPL	alt semop
+179	AUE_NULL	UNIMPL	alt uname
+180	AUE_NULL	UNIMPL
+181	AUE_NULL	UNIMPL	alt plock
+182	AUE_NULL	UNIMPL	lockf
+183	AUE_NULL	UNIMPL
+184	AUE_NULL	UNIMPL	getmnt
+185	AUE_NULL	UNIMPL
+186	AUE_NULL	UNIMPL	unmount
+187	AUE_NULL	UNIMPL	alt sigpending
+188	AUE_NULL	UNIMPL	alt setsid
+189	AUE_NULL	UNIMPL
+190	AUE_NULL	UNIMPL
+191	AUE_NULL	UNIMPL
+192	AUE_NULL	UNIMPL
+193	AUE_NULL	UNIMPL
+194	AUE_NULL	UNIMPL
+195	AUE_NULL	UNIMPL
+196	AUE_NULL	UNIMPL
+197	AUE_NULL	UNIMPL
+198	AUE_NULL	UNIMPL
+199	AUE_NULL	UNIMPL	swapon
+200	AUE_NULL	MNOPROTO { int msgctl(int msqid, int cmd, \
+				    struct msqid_ds *buf); }
+201	AUE_NULL	MNOPROTO { int msgget(key_t key, int msgflg); }
+202	AUE_NULL	MNOPROTO { int msgrcv(int msqid, void *msgp, \
+				    size_t msgsz, long msgtyp, int msgflg); }
+203	AUE_NULL	MNOPROTO { int msgsnd(int msqid, void *msgp, \
+				    size_t msgsz, int msgflg); }
+204	AUE_NULL	MNOPROTO { int __semctl(int semid, int semnum, \
+				    int cmd, union semun *arg); }
+205	AUE_NULL	MNOPROTO { int semget(key_t key, int nsems, \
+				    int semflg); }
+206	AUE_NULL	MNOPROTO { int semop(int semid, struct sembuf *sops, \
+				    u_int nsops); }
+207	AUE_NULL	MNOPROTO { int uname(struct utsname *name); }
+208	AUE_NULL	NOPROTO	{ int lchown(char *path, int uid, int gid); }
+209	AUE_NULL	MNOPROTO { int shmat(int shmid, void *shmaddr, \
+				    int shmflg); }
+210	AUE_NULL	MNOPROTO { int shmctl(int shmid, int cmd, \
+				    struct shmid_ds *buf); }
+211	AUE_NULL	MNOPROTO { int shmdt(void *shmaddr); }
+212	AUE_NULL	MNOPROTO { int shmget(key_t key, int size, \
+				    int shmflg); }
+213	AUE_NULL	UNIMPL	mvalid
+214	AUE_NULL	UNIMPL	getaddressconf
+215	AUE_NULL	UNIMPL	msleep
+216	AUE_NULL	UNIMPL	mwakeup
+217	AUE_NULL	STD	{ int osf1_msync(caddr_t addr, size_t len, \
+				    int flags); }
+218	AUE_NULL	MSTD	{int osf1_signal(int signum, void *handler); }
+219	AUE_NULL	UNIMPL	utc gettime
+220	AUE_NULL	UNIMPL	utc adjtime
+221	AUE_NULL	UNIMPL
+222	AUE_NULL	UNIMPL	security
+223	AUE_NULL	UNIMPL	kloadcall
+224	AUE_NULL	UNIMPL	
+225	AUE_NULL	UNIMPL
+226	AUE_NULL	UNIMPL
+227	AUE_NULL	UNIMPL
+228	AUE_NULL	UNIMPL
+229	AUE_NULL	UNIMPL
+230	AUE_NULL	UNIMPL
+231	AUE_NULL	UNIMPL
+232	AUE_NULL	UNIMPL
+233	AUE_NULL	MNOPROTO { pid_t getpgid(pid_t pid); }
+234	AUE_NULL	MNOPROTO { pid_t getsid(pid_t pid); }
+235	AUE_NULL	MSTD	{ int osf1_sigaltstack( \
+				    struct osf1_sigaltstack *nss, \
+				    struct osf1_sigaltstack *oss); }
+236	AUE_NULL	UNIMPL	waitid
+237	AUE_NULL	UNIMPL	priocntlset
+238	AUE_NULL	UNIMPL	sigsendset
+239	AUE_NULL	UNIMPL
+240	AUE_NULL	UNIMPL	msfs_syscall
+241	AUE_NULL	MSTD	{ int osf1_sysinfo(int cmd, char *buf, \
+				    long count); }
+242	AUE_NULL	UNIMPL	uadmin
+243	AUE_NULL	UNIMPL	fuser
+244	AUE_NULL	STD	{ int osf1_proplist_syscall(void); }
+245	AUE_NULL	STD	{ int osf1_ntpadjtime(void *tp); }
+246	AUE_NULL	STD	{ int osf1_ntpgettime(void *tp); }
+247	AUE_NULL	STD	{ int osf1_pathconf(char *path, int name); }
+248	AUE_NULL	STD	{ int osf1_fpathconf(int fd, int name); }
+249	AUE_NULL	UNIMPL
+250	AUE_NULL	STD	{ int osf1_uswitch(long cmd, long mask); }
+251	AUE_NULL	STD	{ int osf1_usleep_thread( \
+				    struct timeval *sleep, \
+				    struct timeval *slept); }
+252	AUE_NULL	UNIMPL	audcntl
+253	AUE_NULL	UNIMPL	audgen
+254	AUE_NULL	UNIMPL	sysfs
+255	AUE_NULL	UNIMPL
+256	AUE_NULL	STD	{ int osf1_getsysinfo(u_long op, \
+				    caddr_t buffer, u_long nbytes, \
+				    caddr_t arg, u_long flag); }
+257	AUE_NULL	STD	{ int osf1_setsysinfo(u_long op, \
+				    caddr_t buffer, u_long nbytes, \
+				    caddr_t arg, u_long flag); }
+258	AUE_NULL	UNIMPL	afs_syscall
+259	AUE_NULL	UNIMPL	swapctl
+260	AUE_NULL	UNIMPL	memcntl
+261	AUE_NULL	UNIMPL	
+262	AUE_NULL	UNIMPL	
+263	AUE_NULL	UNIMPL	
+264	AUE_NULL	UNIMPL	
+265	AUE_NULL	UNIMPL	
+266	AUE_NULL	UNIMPL	
+267	AUE_NULL	UNIMPL	
+268	AUE_NULL	UNIMPL	
+269	AUE_NULL	UNIMPL	
+270	AUE_NULL	UNIMPL	
+271	AUE_NULL	UNIMPL	
+272	AUE_NULL	UNIMPL	
+273	AUE_NULL	UNIMPL	
+274	AUE_NULL	UNIMPL	
+275	AUE_NULL	UNIMPL	
+276	AUE_NULL	UNIMPL	
+277	AUE_NULL	UNIMPL	
+278	AUE_NULL	UNIMPL	
+279	AUE_NULL	UNIMPL	
+280	AUE_NULL	UNIMPL	
+281	AUE_NULL	UNIMPL	
+282	AUE_NULL	UNIMPL	
+283	AUE_NULL	UNIMPL	
+284	AUE_NULL	UNIMPL	
+285	AUE_NULL	UNIMPL	
+286	AUE_NULL	UNIMPL	
+287	AUE_NULL	UNIMPL	
+288	AUE_NULL	UNIMPL	
+289	AUE_NULL	UNIMPL	
+290	AUE_NULL	UNIMPL	
+291	AUE_NULL	UNIMPL	
+292	AUE_NULL	UNIMPL	
+293	AUE_NULL	UNIMPL	
+294	AUE_NULL	UNIMPL	
+295	AUE_NULL	UNIMPL	
+296	AUE_NULL	UNIMPL	
+297	AUE_NULL	UNIMPL	
+298	AUE_NULL	UNIMPL	
+299	AUE_NULL	UNIMPL	
+300	AUE_NULL	UNIMPL	
