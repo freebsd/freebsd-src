@@ -398,24 +398,29 @@ aio_init_aioinfo(struct proc *p)
 {
 	struct kaioinfo *ki;
 
+	ki = uma_zalloc(kaio_zone, M_WAITOK);
+	ki->kaio_flags = 0;
+	ki->kaio_maxactive_count = max_aio_per_proc;
+	ki->kaio_active_count = 0;
+	ki->kaio_qallowed_count = max_aio_queue_per_proc;
+	ki->kaio_queue_count = 0;
+	ki->kaio_ballowed_count = max_buf_aio;
+	ki->kaio_buffer_count = 0;
+	ki->kaio_buffer_finished_count = 0;
+	ki->kaio_p = p;
+	TAILQ_INIT(&ki->kaio_jobdone);
+	TAILQ_INIT(&ki->kaio_jobqueue);
+	TAILQ_INIT(&ki->kaio_bufdone);
+	TAILQ_INIT(&ki->kaio_bufqueue);
+	TAILQ_INIT(&ki->kaio_liojoblist);
+	TAILQ_INIT(&ki->kaio_sockqueue);
+	PROC_LOCK(p);
 	if (p->p_aioinfo == NULL) {
-		ki = uma_zalloc(kaio_zone, M_WAITOK);
 		p->p_aioinfo = ki;
-		ki->kaio_flags = 0;
-		ki->kaio_maxactive_count = max_aio_per_proc;
-		ki->kaio_active_count = 0;
-		ki->kaio_qallowed_count = max_aio_queue_per_proc;
-		ki->kaio_queue_count = 0;
-		ki->kaio_ballowed_count = max_buf_aio;
-		ki->kaio_buffer_count = 0;
-		ki->kaio_buffer_finished_count = 0;
-		ki->kaio_p = p;
-		TAILQ_INIT(&ki->kaio_jobdone);
-		TAILQ_INIT(&ki->kaio_jobqueue);
-		TAILQ_INIT(&ki->kaio_bufdone);
-		TAILQ_INIT(&ki->kaio_bufqueue);
-		TAILQ_INIT(&ki->kaio_liojoblist);
-		TAILQ_INIT(&ki->kaio_sockqueue);
+		PROC_UNLOCK(p);
+	} else {
+		PROC_UNLOCK(p);
+		uma_zfree(kaio_zone, ki);
 	}
 
 	while (num_aio_procs < target_aio_procs)
