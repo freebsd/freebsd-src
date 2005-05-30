@@ -196,7 +196,6 @@ struct aiocblist {
  * AIO process info
  */
 #define AIOP_FREE	0x1			/* proc on free queue */
-#define AIOP_SCHED	0x2			/* proc explicitly scheduled */
 
 struct aiothreadlist {
 	int aiothreadflags;			/* AIO proc flags */
@@ -797,8 +796,6 @@ aio_daemon(void *uproc)
 	/*
 	 * Place thread (lightweight process) onto the AIO free thread list.
 	 */
-	if (TAILQ_EMPTY(&aio_freeproc))
-		wakeup(&aio_freeproc);
 	TAILQ_INSERT_HEAD(&aio_freeproc, aiop, list);
 
 	splx(s);
@@ -843,7 +840,6 @@ aio_daemon(void *uproc)
 			aiop->aiothreadflags &= ~AIOP_FREE;
 			splx(s);
 		}
-		aiop->aiothreadflags &= ~AIOP_SCHED;
 
 		/*
 		 * Check for jobs.
@@ -972,13 +968,7 @@ aio_daemon(void *uproc)
 			curcp = mycp;
 		}
 
-		/*
-		 * If we are the first to be put onto the free queue, wakeup
-		 * anyone waiting for a daemon.
-		 */
 		s = splnet();
-		if (TAILQ_EMPTY(&aio_freeproc))
-			wakeup(&aio_freeproc);
 		TAILQ_INSERT_HEAD(&aio_freeproc, aiop, list);
 		aiop->aiothreadflags |= AIOP_FREE;
 		splx(s);
@@ -987,8 +977,7 @@ aio_daemon(void *uproc)
 		 * If daemon is inactive for a long time, allow it to exit,
 		 * thereby freeing resources.
 		 */
-		if ((aiop->aiothreadflags & AIOP_SCHED) == 0 &&
-		    tsleep(aiop->aiothread, PRIBIO, "aiordy", aiod_lifetime)) {
+		if (tsleep(aiop->aiothread, PRIBIO, "aiordy", aiod_lifetime)) {
 			s = splnet();
 			if (TAILQ_EMPTY(&aio_jobs)) {
 				if ((aiop->aiothreadflags & AIOP_FREE) &&
