@@ -1347,7 +1347,7 @@ struct pmc_mdep  {
 	int (*pmd_stop_pmc)(int _cpu, int _ri);
 
 	/* handle a PMC interrupt */
-	int (*pmd_intr)(int _cpu, uintptr_t _pc);
+	int (*pmd_intr)(int _cpu, uintptr_t _pc, int _usermode);
 
 	int (*pmd_describe)(int _cpu, int _ri, struct pmc_info *_pi,
 		struct pmc **_ppmc);

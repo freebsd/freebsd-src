@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -178,6 +181,19 @@ trap(frame)
 		kdb_reenter();
 		goto out;
 	}
+#endif
+
+#ifdef	HWPMC_HOOKS
+	/*
+	 * CPU PMCs interrupt using an NMI.  If the PMC module is
+	 * active, pass the 'rip' value to the PMC module's interrupt
+	 * handler.  A return value of '1' from the handler means that
+	 * the NMI was handled by it and we can return immediately.
+	 */
+	if (type == T_NMI && pmc_intr &&
+	    (*pmc_intr)(PCPU_GET(cpuid), (uintptr_t) frame.tf_rip,
+		TRAPF_USERMODE(&frame)))
+		goto out;
 #endif
 
 	if ((frame.tf_rflags & PSL_I) == 0) {

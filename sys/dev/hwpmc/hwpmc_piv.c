@@ -1452,7 +1452,7 @@ p4_lapic_enable_pmc_interrupt(void)
 
 
 static int
-p4_intr(int cpu, uintptr_t eip)
+p4_intr(int cpu, uintptr_t eip, int usermode)
 {
 	int i, pmc_interrupted;
 	uint32_t cccrval, pmi_ovf_mask;
@@ -1462,6 +1462,7 @@ p4_intr(int cpu, uintptr_t eip)
 	pmc_value_t v;
 
 	(void) eip;
+	(void) usermode;
 	PMCDBG(MDP,INT, 1, "cpu=%d eip=%x pcint=0x%x", cpu, eip,
 	    lapic->lvt_pcint);
 
