@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Joseph Koshy
+ * Copyright (c) 2003-2005, Joseph Koshy
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,7 +35,9 @@ struct sx pmc_sx;
 int (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
 
 /* Interrupt handler */
-int (*pmc_intr)(int cpu, uintptr_t pc) = NULL;
+int (*pmc_intr)(int cpu, uintptr_t pc, int usermode) = NULL;
+
+cpumask_t pmc_cpumask;
 
 /*
  * Since PMC(4) may not be loaded in the current kernel, the
