@@ -569,7 +569,7 @@ struct proc {
 	char		p_step;		/* (c) Process is stopped. */
 	u_char		p_pfsflags;	/* (c) Procfs flags. */
 	struct nlminfo	*p_nlminfo;	/* (?) Only used by/for lockd. */
-	struct kaioinfo	*p_aioinfo;	/* (?) ASYNC I/O info. */
+	struct kaioinfo	*p_aioinfo;	/* (c) ASYNC I/O info. */
 	struct thread	*p_singlethread;/* (c + j) If single threading this is it */
 	int		p_suspcount;	/* (c) Num threads in suspended mode. */
 	struct thread	*p_xthread;	/* (c) Trap thread */
