@@ -50,6 +50,8 @@
         ..
         rc.d
         ..
+        security
+        ..
         skel
         ..
         ssh
