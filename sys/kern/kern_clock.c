@@ -69,6 +69,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/gmon.h>
 #endif
 
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
+
 #ifdef DEVICE_POLLING
 extern void hardclock_device_poll(void);
 #endif /* DEVICE_POLLING */
@@ -191,6 +195,11 @@ hardclock_process(frame)
 		}
 	}
 	mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
+
+#ifdef	HWPMC_HOOKS
+	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
+		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
+#endif
 }
 
 /*

@@ -739,7 +739,7 @@ amd_stop_pmc(int cpu, int ri)
  */
 
 static int
-amd_intr(int cpu, uintptr_t eip)
+amd_intr(int cpu, uintptr_t eip, int usermode)
 {
 	int i, retval;
 	enum pmc_mode mode;
@@ -747,6 +747,8 @@ amd_intr(int cpu, uintptr_t eip)
 	struct pmc *pm;
 	struct pmc_cpu *pc;
 	struct pmc_hw *phw;
+
+	(void) usermode;
 
 	KASSERT(cpu >= 0 && cpu < mp_ncpus,
 	    ("[amd,%d] out of range CPU %d", __LINE__, cpu));
