@@ -245,7 +245,6 @@ struct kaioinfo {
 #define KAIO_RUNDOWN	0x1	/* process is being run down */
 #define KAIO_WAKEUP	0x2	/* wakeup process when there is a significant event */
 
-static TAILQ_HEAD(,aiothreadlist) aio_activeproc;	/* Active daemons */
 static TAILQ_HEAD(,aiothreadlist) aio_freeproc;		/* Idle daemons */
 static TAILQ_HEAD(,aiocblist) aio_jobs;			/* Async job list */
 
@@ -341,7 +340,6 @@ aio_onceonly(void)
 	    EVENTHANDLER_PRI_ANY);
 	kqueue_add_filteropts(EVFILT_AIO, &aio_filtops);
 	TAILQ_INIT(&aio_freeproc);
-	TAILQ_INIT(&aio_activeproc);
 	TAILQ_INIT(&aio_jobs);
 	kaio_zone = uma_zcreate("AIO", sizeof(struct kaioinfo), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
@@ -842,7 +840,6 @@ aio_daemon(void *uproc)
 		if (aiop->aiothreadflags & AIOP_FREE) {
 			s = splnet();
 			TAILQ_REMOVE(&aio_freeproc, aiop, list);
-			TAILQ_INSERT_TAIL(&aio_activeproc, aiop, list);
 			aiop->aiothreadflags &= ~AIOP_FREE;
 			splx(s);
 		}
@@ -980,7 +977,6 @@ aio_daemon(void *uproc)
 		 * anyone waiting for a daemon.
 		 */
 		s = splnet();
-		TAILQ_REMOVE(&aio_activeproc, aiop, list);
 		if (TAILQ_EMPTY(&aio_freeproc))
 			wakeup(&aio_freeproc);
 		TAILQ_INSERT_HEAD(&aio_freeproc, aiop, list);
@@ -1264,7 +1260,6 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 	while (wakecount--) {
 		if ((aiop = TAILQ_FIRST(&aio_freeproc)) != 0) {
 			TAILQ_REMOVE(&aio_freeproc, aiop, list);
-			TAILQ_INSERT_TAIL(&aio_activeproc, aiop, list);
 			aiop->aiothreadflags &= ~AIOP_FREE;
 			wakeup(aiop->aiothread);
 		}
@@ -1507,7 +1502,6 @@ no_kqueue:
 retryproc:
 	if ((aiop = TAILQ_FIRST(&aio_freeproc)) != NULL) {
 		TAILQ_REMOVE(&aio_freeproc, aiop, list);
-		TAILQ_INSERT_TAIL(&aio_activeproc, aiop, list);
 		aiop->aiothreadflags &= ~AIOP_FREE;
 		wakeup(aiop->aiothread);
 	} else if (((num_aio_resv_start + num_aio_procs) < max_aio_procs) &&
