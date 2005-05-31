@@ -79,6 +79,10 @@ struct ta_ops {
 
 	/* FreeBSD specific extensions. */
 	td_err_e (*to_thr_sstep)(const td_thrhandle_t *, int);
+#if defined(__i386__)
+	td_err_e (*to_thr_getxmmregs)(const td_thrhandle_t *, char *);
+	td_err_e (*to_thr_setxmmregs)(const td_thrhandle_t *, const char *);
+#endif
 };
 
 #ifdef TD_DEBUG
