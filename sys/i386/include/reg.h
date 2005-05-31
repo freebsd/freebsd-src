@@ -114,6 +114,18 @@ struct fpreg {
 	unsigned char	fpr_pad[64];
 };
 
+struct xmmreg {
+	/*
+	 * XXX should get struct from npx.h.  Here we give a slightly
+	 * simplified struct.  This may be too much detail.  Perhaps
+	 * an array of unsigned longs is best.
+	 */
+	unsigned long	xmm_env[8];
+	unsigned char	xmm_acc[8][16];
+	unsigned char	xmm_reg[8][16];
+	unsigned char	xmm_pad[224];
+};
+
 /*
  * Register set accessible via /proc/$pid/dbregs.
  */

@@ -228,6 +228,14 @@ libc_r_db_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *ti)
 	return ((err == PS_OK) ? TD_OK : TD_ERR);
 }
 
+#ifdef __i386__
+static td_err_e
+libc_r_db_thr_getxmmregs(const td_thrhandle_t *th, char *fxsave)
+{
+	return (TD_NOFPREGS);
+}
+#endif
+
 static td_err_e
 libc_r_db_thr_getfpregs(const td_thrhandle_t *th, prfpregset_t *r)
 {
@@ -284,6 +292,14 @@ libc_r_db_thr_set_event(const td_thrhandle_t *th, td_thr_events_t *ev)
 	return (0);
 }
 
+#ifdef __i386__
+static td_err_e
+libc_r_db_thr_setxmmregs(const td_thrhandle_t *th, const char *fxsave)
+{
+	return (TD_NOFPREGS);
+}
+#endif
+
 static td_err_e
 libc_r_db_thr_setfpregs(const td_thrhandle_t *th, const prfpregset_t *r)
 {
@@ -324,5 +340,9 @@ struct ta_ops libc_r_db_ops = {
 	.to_thr_set_event       = libc_r_db_thr_set_event,
 	.to_thr_setfpregs       = libc_r_db_thr_setfpregs,
 	.to_thr_setgregs        = libc_r_db_thr_setgregs,
-	.to_thr_validate        = libc_r_db_thr_validate
+	.to_thr_validate        = libc_r_db_thr_validate,
+#ifdef __i386__
+	.to_thr_getxmmregs	= libc_r_db_thr_getxmmregs,
+	.to_thr_setxmmregs	= libc_r_db_thr_setxmmregs,
+#endif
 };

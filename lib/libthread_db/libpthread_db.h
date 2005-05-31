@@ -82,6 +82,10 @@ void pt_reg_to_ucontext(const struct reg *, ucontext_t *);
 void pt_ucontext_to_reg(const ucontext_t *, struct reg *);
 void pt_fpreg_to_ucontext(const struct fpreg *, ucontext_t *);
 void pt_ucontext_to_fpreg(const ucontext_t *, struct fpreg *);
+#ifdef __i386__
+void pt_fxsave_to_ucontext(const char *, ucontext_t *);
+void pt_ucontext_to_fxsave(const ucontext_t *, char *);
+#endif
 int  pt_reg_sstep(struct reg *reg, int step);
 
 #endif /* _LIBPTHREAD_DB_H_ */

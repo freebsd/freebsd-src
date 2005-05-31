@@ -110,10 +110,18 @@ static td_err_e (*td_ta_event_getmsg_p) (const td_thragent_t *ta,
 					 td_event_msg_t *msg);
 static td_err_e (*td_thr_get_info_p) (const td_thrhandle_t *th,
 				      td_thrinfo_t *infop);
+#ifdef PT_GETXMMREGS
+static td_err_e (*td_thr_getxmmregs_p) (const td_thrhandle_t *th,
+					char *regset);
+#endif
 static td_err_e (*td_thr_getfpregs_p) (const td_thrhandle_t *th,
 				       prfpregset_t *regset);
 static td_err_e (*td_thr_getgregs_p) (const td_thrhandle_t *th,
 				      prgregset_t gregs);
+#ifdef PT_GETXMMREGS
+static td_err_e (*td_thr_setxmmregs_p) (const td_thrhandle_t *th,
+					const char *fpregs);
+#endif
 static td_err_e (*td_thr_setfpregs_p) (const td_thrhandle_t *th,
 				       const prfpregset_t *fpregs);
 static td_err_e (*td_thr_setgregs_p) (const td_thrhandle_t *th,
@@ -786,6 +794,9 @@ fbsd_lwp_fetch_registers (int regno)
   gregset_t gregs;
   fpregset_t fpregs;
   lwpid_t lwp;
+#ifdef PT_GETXMMREGS
+  char xmmregs[512];
+#endif
 
   if (!target_has_execution)
     {
@@ -800,10 +811,20 @@ fbsd_lwp_fetch_registers (int regno)
     error ("Cannot get lwp %d registers: %s\n", lwp, safe_strerror (errno));
   supply_gregset (&gregs);
   
-  if (ptrace (PT_GETFPREGS, lwp, (caddr_t) &fpregs, 0) == -1)
-    error ("Cannot get lwp %d registers: %s\n ", lwp, safe_strerror (errno));
-
-  supply_fpregset (&fpregs);
+#ifdef PT_GETXMMREGS
+  if (ptrace (PT_GETXMMREGS, lwp, xmmregs, 0) == 0)
+    {
+      i387_supply_fxsave (current_regcache, -1, xmmregs);
+    }
+  else
+    {
+#endif
+      if (ptrace (PT_GETFPREGS, lwp, (caddr_t) &fpregs, 0) == -1)
+	error ("Cannot get lwp %d registers: %s\n ", lwp, safe_strerror (errno));
+      supply_fpregset (&fpregs);
+#ifdef PT_GETXMMREGS
+    }
+#endif
 }
 
 static void
@@ -813,6 +834,9 @@ fbsd_thread_fetch_registers (int regno)
   prfpregset_t fpregset;
   td_thrhandle_t th;
   td_err_e err;
+#ifdef PT_GETXMMREGS
+  char xmmregs[512];
+#endif
 
   if (!IS_THREAD (inferior_ptid))
     {
@@ -831,15 +855,26 @@ fbsd_thread_fetch_registers (int regno)
     error ("Cannot fetch general-purpose registers for thread %d: Thread ID=%ld, %s",
            pid_to_thread_id (inferior_ptid),
            GET_THREAD (inferior_ptid), thread_db_err_str (err));
-
-  err = td_thr_getfpregs_p (&th, &fpregset);
-  if (err != TD_OK)
-    error ("Cannot get floating-point registers for thread %d: Thread ID=%ld, %s",
-           pid_to_thread_id (inferior_ptid),
-           GET_THREAD (inferior_ptid), thread_db_err_str (err));
+#ifdef PT_GETXMMREGS
+  err = td_thr_getxmmregs_p (&th, xmmregs);
+  if (err == TD_OK)
+    {
+      i387_supply_fxsave (current_regcache, -1, xmmregs);
+    }
+  else
+    {
+#endif
+      err = td_thr_getfpregs_p (&th, &fpregset);
+      if (err != TD_OK)
+	error ("Cannot get floating-point registers for thread %d: Thread ID=%ld, %s",
+	       pid_to_thread_id (inferior_ptid),
+	       GET_THREAD (inferior_ptid), thread_db_err_str (err));
+      supply_fpregset (&fpregset);
+#ifdef PT_GETXMMREGS
+    }
+#endif
 
   supply_gregset (gregset);
-  supply_fpregset (&fpregset);
 }
 
 static void
@@ -848,6 +883,9 @@ fbsd_lwp_store_registers (int regno)
   gregset_t gregs;
   fpregset_t fpregs;
   lwpid_t lwp;
+#ifdef PT_GETXMMREGS
+  char xmmregs[512];
+#endif
 
   /* FIXME, is it possible ? */
   if (!IS_LWP (inferior_ptid))
@@ -864,6 +902,20 @@ fbsd_lwp_store_registers (int regno)
   fill_gregset (&gregs, regno);
   if (ptrace (PT_SETREGS, lwp, (caddr_t) &gregs, 0) == -1)
       error ("Cannot set lwp %d registers: %s\n", lwp, safe_strerror (errno));
+
+#ifdef PT_GETXMMREGS
+  if (regno != -1)
+    if (ptrace (PT_GETXMMREGS, lwp, xmmregs, 0) == -1)
+      goto noxmm;
+
+  i387_fill_fxsave (xmmregs, regno);
+  if (ptrace (PT_SETXMMREGS, lwp, xmmregs, 0) == -1)
+    goto noxmm;
+
+  return;
+
+noxmm:
+#endif
 
   if (regno != -1)
     if (ptrace (PT_GETFPREGS, lwp, (caddr_t) &fpregs, 0) == -1)
@@ -883,6 +935,9 @@ fbsd_thread_store_registers (int regno)
   prfpregset_t fpregset;
   td_thrhandle_t th;
   td_err_e err;
+#ifdef PT_GETXMMREGS
+  char xmmregs[512];
+#endif
 
   if (!IS_THREAD (inferior_ptid))
     {
@@ -913,12 +968,22 @@ fbsd_thread_store_registers (int regno)
 
   fill_gregset (gregset, regno);
   fill_fpregset (&fpregset, regno);
+#ifdef PT_GETXMMREGS
+  i387_fill_fxsave (xmmregs, regno);
+#endif
 
   err = td_thr_setgregs_p (&th, gregset);
   if (err != TD_OK)
     error ("Cannot store general-purpose registers for thread %d: Thread ID=%d, %s",
            pid_to_thread_id (inferior_ptid), GET_THREAD (inferior_ptid),
            thread_db_err_str (err));
+
+#ifdef PT_GETXMMREGS
+  err = td_thr_setxmmregs_p (&th, xmmregs);
+  if (err == TD_OK)
+    return;
+#endif
+
   err = td_thr_setfpregs_p (&th, &fpregset);
   if (err != TD_OK)
     error ("Cannot store floating-point registers for thread %d: Thread ID=%d, %s",
@@ -1351,8 +1416,14 @@ thread_db_load (void)
   resolve(td_ta_map_lwp2thr);
   resolve(td_ta_thr_iter);
   resolve(td_thr_get_info);
+#ifdef PT_GETXMMREGS
+  resolve(td_thr_getxmmregs);
+#endif
   resolve(td_thr_getfpregs);
   resolve(td_thr_getgregs);
+#ifdef PT_GETXMMREGS
+  resolve(td_thr_setxmmregs);
+#endif
   resolve(td_thr_setfpregs);
   resolve(td_thr_setgregs);
   resolve(td_thr_sstep);
@@ -1517,6 +1588,35 @@ ps_lsetfpregs (struct ps_prochandle *ph, lwpid_t lwpid,
   do_cleanups (old_chain);
   return PS_OK;
 }
+
+#ifdef PT_GETXMMREGS
+ps_err_e
+ps_lgetxmmregs (struct ps_prochandle *ph, lwpid_t lwpid, char *xmmregs)
+{
+  struct cleanup *old_chain;
+
+  old_chain = save_inferior_ptid ();
+  inferior_ptid = BUILD_LWP (lwpid, PIDGET (inferior_ptid));
+  target_fetch_registers (-1);
+  i387_fill_fxsave (xmmregs, -1);
+  do_cleanups (old_chain);
+  return PS_OK;
+}
+
+ps_err_e
+ps_lsetxmmregs (struct ps_prochandle *ph, lwpid_t lwpid,
+		const char *xmmregs)
+{
+  struct cleanup *old_chain;
+
+  old_chain = save_inferior_ptid ();
+  inferior_ptid = BUILD_LWP (lwpid, PIDGET (inferior_ptid));
+  i387_supply_fxsave (current_regcache, -1, xmmregs);
+  target_store_registers (-1);
+  do_cleanups (old_chain);
+  return PS_OK;
+}
+#endif
 
 ps_err_e
 ps_lstop(struct ps_prochandle *ph, lwpid_t lwpid)

@@ -81,6 +81,20 @@ pt_ucontext_to_fpreg(const ucontext_t *uc, struct fpreg *r)
 }
 
 void
+pt_fxsave_to_ucontext(const char* r, ucontext_t *uc)
+{
+	if (has_xmm_regs)
+		memcpy(&uc->uc_mcontext.mc_fpstate, r, sizeof(struct savexmm));
+}
+
+void
+pt_ucontext_to_fxsave(const ucontext_t *uc, char *r)
+{
+	if (has_xmm_regs)
+		memcpy(r, &uc->uc_mcontext.mc_fpstate, sizeof(struct savexmm));
+}
+
+void
 pt_md_init(void)
 {
 	ucontext_t uc;

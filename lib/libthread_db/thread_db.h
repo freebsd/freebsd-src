@@ -227,9 +227,15 @@ td_err_e td_thr_dbsuspend(const td_thrhandle_t *);
 td_err_e td_thr_event_enable(const td_thrhandle_t *, int);
 td_err_e td_thr_event_getmsg(const td_thrhandle_t *, td_event_msg_t *);
 td_err_e td_thr_get_info(const td_thrhandle_t *, td_thrinfo_t *);
+#ifdef __i386__
+td_err_e td_thr_getxmmregs(const td_thrhandle_t *, char *);
+#endif
 td_err_e td_thr_getfpregs(const td_thrhandle_t *, prfpregset_t *);
 td_err_e td_thr_getgregs(const td_thrhandle_t *, prgregset_t);
 td_err_e td_thr_set_event(const td_thrhandle_t *, td_thr_events_t *);
+#ifdef __i386__
+td_err_e td_thr_setxmmregs(const td_thrhandle_t *, const char *);
+#endif
 td_err_e td_thr_setfpregs(const td_thrhandle_t *, const prfpregset_t *);
 td_err_e td_thr_setgregs(const td_thrhandle_t *, const prgregset_t);
 td_err_e td_thr_validate(const td_thrhandle_t *);

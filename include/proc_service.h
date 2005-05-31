@@ -51,6 +51,10 @@ ps_err_e ps_lgetfpregs(struct ps_prochandle *, lwpid_t, prfpregset_t *);
 ps_err_e ps_lgetregs(struct ps_prochandle *, lwpid_t, prgregset_t);
 ps_err_e ps_lsetfpregs(struct ps_prochandle *, lwpid_t, const prfpregset_t *);
 ps_err_e ps_lsetregs(struct ps_prochandle *, lwpid_t, const prgregset_t);
+#ifdef __i386__
+ps_err_e ps_lgetxmmregs (struct ps_prochandle *, lwpid_t, char *);
+ps_err_e ps_lsetxmmregs (struct ps_prochandle *, lwpid_t, const char *);
+#endif
 ps_err_e ps_lstop(struct ps_prochandle *, lwpid_t);
 ps_err_e ps_pcontinue(struct ps_prochandle *);
 ps_err_e ps_pdmodel(struct ps_prochandle *, int *);

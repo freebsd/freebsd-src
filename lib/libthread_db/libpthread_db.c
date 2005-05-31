@@ -641,6 +641,51 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	return (0);
 }
 
+#ifdef __i386__
+static td_err_e
+pt_thr_getxmmregs(const td_thrhandle_t *th, char *fxsave)
+{
+	const td_thragent_t *ta = th->th_ta;
+	struct kse_thr_mailbox tmbx;
+	psaddr_t tcb_addr, tmbx_addr, ptr;
+	lwpid_t lwp;
+	int ret;
+
+	return TD_ERR;
+
+	TDBG_FUNC();
+
+	ret = pt_validate(th);
+	if (ret)
+		return (ret);
+
+	if (ta->map[th->th_tid].type == PT_LWP) {
+		ret = ps_lgetxmmregs(ta->ph, ta->map[th->th_tid].lwp, fxsave);
+		return (P2T(ret));
+	}
+
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_tcb,
+	               &tcb_addr, sizeof(tcb_addr));
+	if (ret != 0)
+		return (P2T(ret));
+	tmbx_addr = tcb_addr + ta->thread_off_tmbx;
+	ptr = tmbx_addr + offsetof(struct kse_thr_mailbox, tm_lwp);
+	ret = ps_pread(ta->ph, ptr, &lwp, sizeof(lwpid_t));
+	if (ret != 0)
+		return (P2T(ret));
+	if (lwp != 0) {
+		ret = ps_lgetxmmregs(ta->ph, lwp, fxsave);
+		return (P2T(ret));
+	}
+
+	ret = ps_pread(ta->ph, tmbx_addr, &tmbx, sizeof(tmbx));
+	if (ret != 0)
+		return (P2T(ret));
+	pt_ucontext_to_fxsave(&tmbx.tm_context, fxsave);
+	return (0);
+}
+#endif
+
 static td_err_e
 pt_thr_getfpregs(const td_thrhandle_t *th, prfpregset_t *fpregs)
 {
@@ -722,6 +767,57 @@ pt_thr_getgregs(const td_thrhandle_t *th, prgregset_t gregs)
 	pt_ucontext_to_reg(&tmbx.tm_context, gregs);
 	return (0);
 }
+
+#ifdef __i386__
+static td_err_e
+pt_thr_setxmmregs(const td_thrhandle_t *th, const char *fxsave)
+{
+	const td_thragent_t *ta = th->th_ta;
+	struct kse_thr_mailbox tmbx;
+	psaddr_t tcb_addr, tmbx_addr, ptr;
+	lwpid_t lwp;
+	int ret;
+
+	return TD_ERR;
+
+	TDBG_FUNC();
+
+	ret = pt_validate(th);
+	if (ret)
+		return (ret);
+
+	if (ta->map[th->th_tid].type == PT_LWP) {
+		ret = ps_lsetxmmregs(ta->ph, ta->map[th->th_tid].lwp, fxsave);
+		return (P2T(ret));
+	}
+
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
+	                ta->thread_off_tcb,
+                        &tcb_addr, sizeof(tcb_addr));
+	if (ret != 0)
+		return (P2T(ret));
+	tmbx_addr = tcb_addr + ta->thread_off_tmbx;
+	ptr = tmbx_addr + offsetof(struct kse_thr_mailbox, tm_lwp);
+	ret = ps_pread(ta->ph, ptr, &lwp, sizeof(lwpid_t));
+	if (ret != 0)
+		return (P2T(ret));
+	if (lwp != 0) {
+		ret = ps_lsetxmmregs(ta->ph, lwp, fxsave);
+		return (P2T(ret));
+	}
+	/*
+	 * Read a copy of context, this makes sure that registers
+	 * not covered by structure reg won't be clobbered
+	 */
+	ret = ps_pread(ta->ph, tmbx_addr, &tmbx, sizeof(tmbx));
+	if (ret != 0)
+		return (P2T(ret));
+
+	pt_fxsave_to_ucontext(fxsave, &tmbx.tm_context);
+	ret = ps_pwrite(ta->ph, tmbx_addr, &tmbx, sizeof(tmbx));
+	return (P2T(ret));
+}
+#endif
 
 static td_err_e
 pt_thr_setfpregs(const td_thrhandle_t *th, const prfpregset_t *fpregs)
@@ -1009,4 +1105,8 @@ struct ta_ops libpthread_db_ops = {
 
 	/* FreeBSD specific extensions. */
 	.to_thr_sstep		= pt_thr_sstep,
+#ifdef __i386__
+	.to_thr_getxmmregs	= pt_thr_getxmmregs,
+	.to_thr_setxmmregs	= pt_thr_setxmmregs,
+#endif
 };
