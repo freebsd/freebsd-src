@@ -41,7 +41,6 @@ __RCSID("$FreeBSD$");
 __RCSID("$Revision: 2.26 $");
 #ident "$Revision: 2.26 $"
 #endif
-#ident "$FreeBSD$"
 
 
 struct parm *parms;
