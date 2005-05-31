@@ -33,7 +33,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$FreeBSD$"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * $Log: lex.l,v $
