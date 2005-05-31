@@ -10,23 +10,6 @@
 # $FreeBSD$
 #
 
-all: sh csh ksh
-	@${MAKE} sh_test
-	@${MAKE} csh_test
-	@if [ -x /bin/ksh ] ; then ${MAKE} ksh_test ; fi
-
-sh: sh.sh
-	@cp ${.CURDIR}/sh.sh ${.OBJDIR}/sh
-	@chmod +x ${.OBJDIR}/sh
-
-csh: sh.sh
-	@cp ${.CURDIR}/sh.sh ${.OBJDIR}/csh
-	@chmod +x ${.OBJDIR}/csh
-
-ksh: sh.sh
-	@cp ${.CURDIR}/sh.sh ${.OBJDIR}/ksh
-	@chmod +x ${.OBJDIR}/ksh
-
 .ifmake sh_test
 
 .SHELL: path=${.OBJDIR}/sh

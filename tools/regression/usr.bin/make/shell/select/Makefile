@@ -7,25 +7,20 @@
 # $FreeBSD$
 #
 
-all:
-	@${MAKE} sh
-	@${MAKE} csh
-	@if [ -x /bin/ksh ] ; then ${MAKE} ksh ; fi
-
-.ifmake sh
+.ifmake sh_test
 
 .SHELL: name=sh
-sh: print_path
+sh_test: print_path
 
-.elifmake csh
+.elifmake csh_test
 
 .SHELL: name=csh
-csh: print_path
+csh_test: print_path
 
-.elifmake ksh
+.elifmake ksh_test
 
 .SHELL: name=ksh
-ksh: print_path
+ksh_test: print_path
 
 .endif
 
