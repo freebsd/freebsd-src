@@ -45,7 +45,6 @@ __RCSID("$FreeBSD$");
 __RCSID("$Revision: 2.23 $");
 #ident "$Revision: 2.23 $"
 #endif
-#ident "$FreeBSD$"
 
 #define log(x, msg) syslog(x, msg)
 #define panic(s) {log(LOG_ERR,s); exit(1);}

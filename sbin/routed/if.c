@@ -40,7 +40,7 @@ __RCSID("$FreeBSD$");
 __RCSID("$Revision: 2.27 $");
 #ident "$Revision: 2.27 $"
 #endif
-#ident "$FreeBSD$"
+
 struct interface *ifnet;		/* all interfaces */
 
 /* hash table for all interfaces, big enough to tolerate ridiculous
