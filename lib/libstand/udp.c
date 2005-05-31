@@ -128,7 +128,7 @@ sendudp(d, pkt, len)
 	if (cc == -1)
 		return (-1);
 	if (cc != len)
-		panic("sendudp: bad write (%d != %d)", cc, len);
+		panic("sendudp: bad write (%zd != %zd)", cc, len);
 	return (cc - (sizeof(*ip) + sizeof(*uh)));
 }
 
