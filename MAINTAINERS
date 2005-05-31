@@ -92,6 +92,10 @@ contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
 contrib/pf	mlaier	Pre-commit review requested.
 binutils	obrien	Insists on BU blocked from unapproved commits
+file		obrien	Insists to keep file blocked from other's unapproved
+			commits
+contrib/bzip2	obrien	Pre-commit review required.
+lukemftpd	obrien	Pre-commit review required.
 geom_concat	pjd	Pre-commit review preferred.
 geom_gate	pjd	Pre-commit review preferred.
 geom_label	pjd	Pre-commit review preferred.
