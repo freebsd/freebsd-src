@@ -42,7 +42,6 @@ __RCSID("$FreeBSD$");
 __RCSID("$Revision: 2.27 $");
 #ident "$Revision: 2.27 $"
 #endif
-#ident "$FreeBSD$"
 
 /* router advertisement ICMP packet */
 struct icmp_ad {

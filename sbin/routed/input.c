@@ -39,7 +39,6 @@ __RCSID("$FreeBSD$");
 __RCSID("$Revision: 2.26 $");
 #ident "$Revision: 2.26 $"
 #endif
-#ident "$FreeBSD$"
 
 static void input(struct sockaddr_in *, struct interface *, struct interface *,
 		  struct rip *, int);
