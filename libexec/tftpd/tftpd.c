@@ -134,7 +134,7 @@ main(int argc, char *argv[])
 	tzset();			/* syslog in localtime */
 
 	openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
-	while ((ch = getopt(argc, argv, "cClns:u:Uw")) != -1) {
+	while ((ch = getopt(argc, argv, "cClns:u:U:w")) != -1) {
 		switch (ch) {
 		case 'c':
 			ipchroot = 1;
