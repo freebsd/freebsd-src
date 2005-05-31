@@ -41,30 +41,8 @@
 #include <string.h>
 #include "stand.h"
 
-#ifdef __i386__
-typedef unsigned int iaddr_t;	/* unsigned int same size as pointer	*/
-typedef int saddr_t;		/* signed int same size as pointer	*/
-#endif
-#ifdef __alpha__
-typedef unsigned long iaddr_t;	/* unsigned long same size as pointer	*/
-typedef long saddr_t;		/* signed long same size as pointer	*/
-#endif
-#ifdef __powerpc__
-typedef unsigned int iaddr_t;	/* unsigned int same size as pointer	*/
-typedef int saddr_t;		/* signed int same size as pointer	*/
-#endif
-#ifdef __ia64__
-typedef unsigned long iaddr_t;	/* unsigned long same size as pointer	*/
-typedef long saddr_t;		/* signed long same size as pointer	*/
-#endif
-#ifdef __sparc64__
-typedef unsigned long iaddr_t;	/* unsigned long same size as pointer	*/
-typedef long saddr_t;		/* signed long same size as pointer	*/
-#endif
-#ifdef __arm__
-typedef unsigned long iaddr_t;	/* unsigned int same size as pointer	*/
-typedef int saddr_t;		/* signed int same size as pointer	*/
-#endif
+typedef uintptr_t iaddr_t;	/* unsigned int same size as pointer	*/
+typedef intptr_t saddr_t;	/* signed int same size as pointer	*/
 #include "zalloc_mem.h"
 
 #define Prototype extern
