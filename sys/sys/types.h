@@ -44,6 +44,8 @@
 #include <machine/endian.h>
 #include <sys/_types.h>
 
+#include <sys/_pthreadtypes.h>
+
 #if __BSD_VISIBLE
 typedef	unsigned char	u_char;
 typedef	unsigned short	u_short;
