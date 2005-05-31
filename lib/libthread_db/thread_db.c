@@ -184,6 +184,16 @@ td_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	return (ta->ta_ops->to_thr_get_info(th, info));
 }
 
+#ifdef __i386__
+td_err_e
+td_thr_getxmmregs(const td_thrhandle_t *th, char *fxsave)
+{
+	const td_thragent_t *ta = th->th_ta;
+	return (ta->ta_ops->to_thr_getxmmregs(th, fxsave));
+}
+#endif
+
+
 td_err_e
 td_thr_getfpregs(const td_thrhandle_t *th, prfpregset_t *fpregset)
 {
@@ -204,6 +214,15 @@ td_thr_set_event(const td_thrhandle_t *th, td_thr_events_t *events)
 	const td_thragent_t *ta = th->th_ta;
 	return (ta->ta_ops->to_thr_set_event(th, events));
 }
+
+#ifdef __i386__
+td_err_e
+td_thr_setxmmregs(const td_thrhandle_t *th, const char *fxsave)
+{
+	const td_thragent_t *ta = th->th_ta;
+	return (ta->ta_ops->to_thr_setxmmregs(th, fxsave));
+}
+#endif
 
 td_err_e
 td_thr_setfpregs(const td_thrhandle_t *th, const prfpregset_t *fpregs)
