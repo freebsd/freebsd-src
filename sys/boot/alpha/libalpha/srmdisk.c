@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static int	bd_init(void);
-static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
-static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
+static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, char *buf, size_t *rsize);
+static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, char *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
 static void	bd_print(int verbose);
@@ -342,7 +342,7 @@ bd_close(struct open_file *f)
 }
 
 static int 
-bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
+bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
 {
     struct bcache_devdata	bcd;
     struct open_disk	*od = (struct open_disk *)devdata;
@@ -353,7 +353,7 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
 }
 
 static int 
-bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize)
+bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, char *buf, size_t *rsize)
 {
     prom_return_t	ret;
     struct open_disk	*od = (struct open_disk *)devdata;
