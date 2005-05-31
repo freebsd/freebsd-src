@@ -93,6 +93,7 @@ static vop_advlock_t	devfs_advlock;
 static vop_close_t	devfs_close;
 static vop_fsync_t	devfs_fsync;
 static vop_getattr_t	devfs_getattr;
+static vop_lookup_t	devfs_lookup;
 static vop_lookup_t	devfs_lookupx;
 static vop_mknod_t	devfs_mknod;
 static vop_open_t	devfs_open;
@@ -111,8 +112,62 @@ static vop_setlabel_t	devfs_setlabel;
 #endif
 static vop_symlink_t	devfs_symlink;
 
-extern struct vop_vector devfs_vnodeops;
-extern struct vop_vector devfs_specops;
+static struct vop_vector devfs_vnodeops = {
+	.vop_default =		&default_vnodeops,
+
+	.vop_access =		devfs_access,
+	.vop_getattr =		devfs_getattr,
+	.vop_ioctl =		devfs_rioctl,
+	.vop_lookup =		devfs_lookup,
+	.vop_mknod =		devfs_mknod,
+	.vop_pathconf =		devfs_pathconf,
+	.vop_read =		devfs_rread,
+	.vop_readdir =		devfs_readdir,
+	.vop_readlink =		devfs_readlink,
+	.vop_reclaim =		devfs_reclaim,
+	.vop_remove =		devfs_remove,
+	.vop_revoke =		devfs_revoke,
+	.vop_setattr =		devfs_setattr,
+#ifdef MAC
+	.vop_setlabel =		devfs_setlabel,
+#endif
+	.vop_symlink =		devfs_symlink,
+};
+
+static struct vop_vector devfs_specops = {
+	.vop_default =		&default_vnodeops,
+
+	.vop_access =		devfs_access,
+	.vop_advlock =		devfs_advlock,
+	.vop_bmap =		VOP_PANIC,
+	.vop_close =		devfs_close,
+	.vop_create =		VOP_PANIC,
+	.vop_fsync =		devfs_fsync,
+	.vop_getattr =		devfs_getattr,
+	.vop_lease =		VOP_NULL,
+	.vop_link =		VOP_PANIC,
+	.vop_mkdir =		VOP_PANIC,
+	.vop_mknod =		VOP_PANIC,
+	.vop_open =		devfs_open,
+	.vop_pathconf =		devfs_pathconf,
+	.vop_print =		devfs_print,
+	.vop_read =		VOP_PANIC,
+	.vop_readdir =		VOP_PANIC,
+	.vop_readlink =		VOP_PANIC,
+	.vop_reallocblks =	VOP_PANIC,
+	.vop_reclaim =		devfs_reclaim,
+	.vop_remove =		devfs_remove,
+	.vop_rename =		VOP_PANIC,
+	.vop_revoke =		devfs_revoke,
+	.vop_rmdir =		VOP_PANIC,
+	.vop_setattr =		devfs_setattr,
+#ifdef MAC
+	.vop_setlabel =		devfs_setlabel,
+#endif
+	.vop_strategy =		VOP_PANIC,
+	.vop_symlink =		VOP_PANIC,
+	.vop_write =		VOP_PANIC,
+};
 
 static u_int
 devfs_random(void)
@@ -1385,63 +1440,6 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 	fp->f_nextoff = uio->uio_offset;
 	return (error);
 }
-
-static struct vop_vector devfs_vnodeops = {
-	.vop_default =		&default_vnodeops,
-
-	.vop_access =		devfs_access,
-	.vop_getattr =		devfs_getattr,
-	.vop_ioctl =		devfs_rioctl,
-	.vop_lookup =		devfs_lookup,
-	.vop_mknod =		devfs_mknod,
-	.vop_pathconf =		devfs_pathconf,
-	.vop_read =		devfs_rread,
-	.vop_readdir =		devfs_readdir,
-	.vop_readlink =		devfs_readlink,
-	.vop_reclaim =		devfs_reclaim,
-	.vop_remove =		devfs_remove,
-	.vop_revoke =		devfs_revoke,
-	.vop_setattr =		devfs_setattr,
-#ifdef MAC
-	.vop_setlabel =		devfs_setlabel,
-#endif
-	.vop_symlink =		devfs_symlink,
-};
-
-static struct vop_vector devfs_specops = {
-	.vop_default =		&default_vnodeops,
-
-	.vop_access =		devfs_access,
-	.vop_advlock =		devfs_advlock,
-	.vop_bmap =		VOP_PANIC,
-	.vop_close =		devfs_close,
-	.vop_create =		VOP_PANIC,
-	.vop_fsync =		devfs_fsync,
-	.vop_getattr =		devfs_getattr,
-	.vop_lease =		VOP_NULL,
-	.vop_link =		VOP_PANIC,
-	.vop_mkdir =		VOP_PANIC,
-	.vop_mknod =		VOP_PANIC,
-	.vop_open =		devfs_open,
-	.vop_pathconf =		devfs_pathconf,
-	.vop_print =		devfs_print,
-	.vop_read =		VOP_PANIC,
-	.vop_readdir =		VOP_PANIC,
-	.vop_readlink =		VOP_PANIC,
-	.vop_reallocblks =	VOP_PANIC,
-	.vop_reclaim =		devfs_reclaim,
-	.vop_remove =		devfs_remove,
-	.vop_rename =		VOP_PANIC,
-	.vop_revoke =		devfs_revoke,
-	.vop_rmdir =		VOP_PANIC,
-	.vop_setattr =		devfs_setattr,
-#ifdef MAC
-	.vop_setlabel =		devfs_setlabel,
-#endif
-	.vop_strategy =		VOP_PANIC,
-	.vop_symlink =		VOP_PANIC,
-	.vop_write =		VOP_PANIC,
-};
 
 dev_t
 dev2udev(struct cdev *x)
