@@ -170,7 +170,7 @@ main(void)
     if (bootfile[0])
 	setenv("bootfile", bootfile, 1);
     env_setenv("currdev", EV_VOLATILE, alpha_fmtdev(&currdev), alpha_setcurrdev, env_nounset);
-    env_setenv("loaddev", EV_VOLATILE,  alpha_fmtdev(&currdev), env_noset, env_nounset);
+    env_setenv("loaddev", EV_VOLATILE, alpha_fmtdev(&currdev), env_noset, env_nounset);
     setenv("LINES", "24", 1);				/* optional */
     
     archsw.arch_autoload = alpha_autoload;
