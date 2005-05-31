@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#include <netinet/in.h>
 #include <bluetooth.h>
 #include <ctype.h>
 #include <sdp.h>
@@ -118,14 +119,14 @@ print_service_class_id_list(uint8_t const *start, uint8_t const *end)
 		case SDP_DATA_UUID128: {
 			int128_t	uuid;
 
-			SDP_GET128(&uuid, start);
+			SDP_GET_UUID128(&uuid, start);
 			fprintf(stdout, "\t%#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x\n",
-					*(uint32_t *)&uuid.b[0],
-					*(uint16_t *)&uuid.b[4],
-					*(uint16_t *)&uuid.b[6],
-					*(uint16_t *)&uuid.b[8],
-					*(uint16_t *)&uuid.b[10],
-					*(uint32_t *)&uuid.b[12]);
+					ntohl(*(uint32_t *)&uuid.b[0]),
+					ntohs(*(uint16_t *)&uuid.b[4]),
+					ntohs(*(uint16_t *)&uuid.b[6]),
+					ntohs(*(uint16_t *)&uuid.b[8]),
+					ntohs(*(uint16_t *)&uuid.b[10]),
+					ntohl(*(uint32_t *)&uuid.b[12]));
 			} break;
 
 		default:
@@ -179,14 +180,14 @@ print_protocol_descriptor(uint8_t const *start, uint8_t const *end)
 		break;
 
 	case SDP_DATA_UUID128:
-		SDP_GET128(&value.int128, start);
+		SDP_GET_UUID128(&value.int128, start);
 		fprintf(stdout, "\t%#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x\n",
-				*(uint32_t *)&value.int128.b[0],
-				*(uint16_t *)&value.int128.b[4],
-				*(uint16_t *)&value.int128.b[6],
-				*(uint16_t *)&value.int128.b[8],
-				*(uint16_t *)&value.int128.b[10],
-				*(uint32_t *)&value.int128.b[12]);
+				ntohl(*(uint32_t *)&value.int128.b[0]),
+				ntohs(*(uint16_t *)&value.int128.b[4]),
+				ntohs(*(uint16_t *)&value.int128.b[6]),
+				ntohs(*(uint16_t *)&value.int128.b[8]),
+				ntohs(*(uint16_t *)&value.int128.b[10]),
+				ntohl(*(uint32_t *)&value.int128.b[12]));
 		break;
 
 	default:
@@ -235,15 +236,23 @@ print_protocol_descriptor(uint8_t const *start, uint8_t const *end)
 
 		case SDP_DATA_UINT128:
 		case SDP_DATA_INT128:
-		case SDP_DATA_UUID128:
 			SDP_GET128(&value.int128, start);
-			fprintf(stdout, "u/int/uuid128 %#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x\n",
+			fprintf(stdout, "u/int128 %#8.8x%8.8x%8.8x%8.8x\n",
 				*(uint32_t *)&value.int128.b[0],
-				*(uint16_t *)&value.int128.b[4],
-				*(uint16_t *)&value.int128.b[6],
-				*(uint16_t *)&value.int128.b[8],
-				*(uint16_t *)&value.int128.b[10],
+				*(uint32_t *)&value.int128.b[4],
+				*(uint32_t *)&value.int128.b[8],
 				*(uint32_t *)&value.int128.b[12]);
+			break;
+
+		case SDP_DATA_UUID128:
+			SDP_GET_UUID128(&value.int128, start);
+			fprintf(stdout, "uuid128 %#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x\n",
+				ntohl(*(uint32_t *)&value.int128.b[0]),
+				ntohs(*(uint16_t *)&value.int128.b[4]),
+				ntohs(*(uint16_t *)&value.int128.b[6]),
+				ntohs(*(uint16_t *)&value.int128.b[8]),
+				ntohs(*(uint16_t *)&value.int128.b[10]),
+				ntohl(*(uint32_t *)&value.int128.b[12]));
 			break;
 
 		case SDP_DATA_STR8:
@@ -446,14 +455,14 @@ print_bluetooth_profile_descriptor_list(uint8_t const *start, uint8_t const *end
 		case SDP_DATA_UUID128: {
 			int128_t	uuid;
 
-			SDP_GET128(&uuid, start);
+			SDP_GET_UUID128(&uuid, start);
 			fprintf(stdout, "\t%#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x ",
-					*(uint32_t *)&uuid.b[0],
-					*(uint16_t *)&uuid.b[4],
-					*(uint16_t *)&uuid.b[6],
-					*(uint16_t *)&uuid.b[8],
-					*(uint16_t *)&uuid.b[10],
-					*(uint32_t *)&uuid.b[12]);
+					ntohl(*(uint32_t *)&uuid.b[0]),
+					ntohs(*(uint16_t *)&uuid.b[4]),
+					ntohs(*(uint16_t *)&uuid.b[6]),
+					ntohs(*(uint16_t *)&uuid.b[8]),
+					ntohs(*(uint16_t *)&uuid.b[10]),
+					ntohl(*(uint32_t *)&uuid.b[12]));
 			} break;
 
 		default:

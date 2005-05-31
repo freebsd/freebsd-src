@@ -34,11 +34,13 @@
 .Nm SDP_GET32 ,
 .Nm SDP_GET64 ,
 .Nm SDP_GET128 ,
+.Nm SDP_GET_UUID128 ,
 .Nm SDP_PUT8 ,
 .Nm SDP_PUT16 ,
 .Nm SDP_PUT32 ,
 .Nm SDP_PUT64 ,
 .Nm SDP_PUT128 ,
+.Nm SDP_PUT_UUID128 ,
 .Nm sdp_open ,
 .Nm sdp_open_local ,
 .Nm sdp_close ,
@@ -57,11 +59,13 @@
 .Fn SDP_GET32 "l" "cp"
 .Fn SDP_GET64 "l" "cp"
 .Fn SDP_GET128 "l" "cp"
+.Fn SDP_GET_UUID128 "l" "cp"
 .Fn SDP_PUT8 "b" "cp"
 .Fn SDP_PUT16 "s" "cp"
 .Fn SDP_PUT32 "l" "cp"
 .Fn SDP_PUT64 "l" "cp"
 .Fn SDP_PUT128 "l" "cp"
+.Fn SDP_PUT_UUID128 "l" "cp"
 .Ft "void *"
 .Fn sdp_open "bdaddr_t const *l" "bdaddr_t const *r"
 .Ft "void *"
@@ -113,6 +117,14 @@ and
 .Fn SDP_PUT128
 macros are used to put byte, short, long, long long and 128-bit integer
 into the buffer pointed by
+.Fa cp
+pointer.
+The pointer is automatically advanced.
+.Pp
+.Fn SDP_GET_UUID128
+and
+.Fn SDP_PUT_UUID128
+macros are used to get and put 128-bit UUID into the buffer pointed by
 .Fa cp
 pointer.
 The pointer is automatically advanced.
@@ -359,7 +371,7 @@ sdp_attr_t     proto = { SDP_ATTR_INVALID,0,sizeof(buffer),buffer };
 if ((ss = sdp_open(NG_HCI_BDADDR_ANY, remote)) == NULL)
         /* exit ENOMEM */
 if (sdp_error(ss) != 0)
-        /* exit spd_error(ss) */
+        /* exit sdp_error(ss) */
 
 if (sdp_search(ss, 1, &serv, 1, &attr, 1, &proto) != 0)
         /* exit sdp_error(ss) */
