@@ -5,9 +5,15 @@
 cd `dirname $0`
 . ../../common.sh
 
-desc_test()
-{
-	echo "Check that the shell can be replaced."
-}
+# Description
+DESC="Check that the shell can be replaced."
 
-eval_cmd $1
+# Setup
+TEST_COPY_FILES="shell 755"
+
+# Run
+TEST_N=2
+TEST_1=
+TEST_2=-j2
+
+eval_cmd $*

@@ -5,9 +5,14 @@
 cd `dirname $0`
 . ../../common.sh
 
-desc_test()
-{
-	echo "Select the builtin sh shell."
-}
+# Description
+DESC="Select the builtin sh shell."
 
-eval_cmd $1
+# Run
+TEST_N=3
+TEST_1="sh_test"
+TEST_2="csh_test"
+TEST_3="ksh_test"
+TEST_3_SKIP="no ksh on FreeBSD"
+
+eval_cmd $*

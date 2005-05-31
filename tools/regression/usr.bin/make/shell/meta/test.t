@@ -5,9 +5,15 @@
 cd `dirname $0`
 . ../../common.sh
 
-desc_test()
-{
-	echo "Check that a command line with meta characters is passed to the shell."
-}
+# Description
+DESC="Check that a command line with meta characters is passed to the shell."
 
-eval_cmd $1
+# Setup
+TEST_COPY_FILES="sh 755"
+
+# Run
+TEST_N=2
+TEST_1="-B no-meta"
+TEST_2="-B meta"
+
+eval_cmd $*

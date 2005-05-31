@@ -5,17 +5,11 @@
 cd `dirname $0`
 . ../../common.sh
 
-setup_test()
-{
-	cat > ${WORK_DIR}/Makefile << _EOF_
-all:
-	echo hello
-_EOF_
-}
+# Description
+DESC="A Makefile file with only a 'all:' file dependency specification, and shell command."
 
-desc_test()
-{
-	echo "A Makefile file with only a 'all:' file dependency specification, and shell command."
-}
+# Run
+TEST_N=1
+TEST_1=
 
-eval_cmd $1
+eval_cmd $*

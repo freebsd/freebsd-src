@@ -7,17 +7,7 @@
 #
 # $FreeBSD$
 
-all: sh
-	@MAKEFLAGS= ${MAKE} -B no-builtin
-	@MAKEFLAGS= ${MAKE} -B builtin
-
-sh: sh.sh
-	@cp ${.CURDIR}/sh.sh ${.OBJDIR}/sh
-	@chmod +x ${.OBJDIR}/sh
-
-.ifmake builtin || no-builtin
-
-.SHELL: path="${.OBJDIR}/sh"
+.SHELL: path="${.CURDIR}/sh"
 
 .PHONY: builtin no-builtin
 
@@ -26,5 +16,3 @@ builtin:
 
 no-builtin:
 	@ls -d .
-
-.endif

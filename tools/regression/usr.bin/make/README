@@ -2,28 +2,68 @@ $FreeBSD$
 
 This directory contains regression tests for make(1).
 
-The tests are invoked via the test.sh script or prove(1) from p5-Test-Harness
+To invoke the tests install prove(1) from ports/devel/p5-Test-Harness and
+run 'prove -r'. Alternatively one can use 'sh ./all.sh test' and scan the
+output for '^not ok'.
 
-	% test.sh [-v] [-m path_to_make_binary] command
+----------------------------------------------------------------------------
 
-	clean	- Remove the results and the other temp files that
-		  are produced by running the test. This brings the
-		  test into its initial state.
+The rest of this file is intented for developers.
 
-	compare	- Check if results of the test match the expected
-		  output from stdout, stderr, and the status.
+The tests are invoked via the test.sh script or prove(1) from p5-Test-Harness.
+Tests are normally executed in a special test directory that is built under
+/tmp. The reason for this is, that make tests are generally influenced by
+all file in a directory, by files in one of make's obscure object directories
+as well as in other directories make happens to look into. Therefor the
+test scripts build a clean environment in the temp directory and the
+tests are executed by cd-ing into that directory and invoking make. The
+output of the make run (standard output, standard error and the exit status)
+are written into files that are created in another directory. So the layout
+for the shell/builtin test looks like:
 
-	desc	- print description of test
+	./shell/builtin/			- directory with test stuff
+	/tmp/make.${USER}/shell/builtin		- actual test directory
+	/tmp/make.${USER}/shell/builtin.OUTPUT	- output files
 
-	diff	- Output the diffs from the tests and the expected
-		  stdout, stderr, and the status files.
+So a full test consists of the following steps:
 
-	run	- Invoke test, compare, and clean in sequence.
+	setup	- Set up the test environment by creating the test directory
+		  and populating it with the needed files. If the test
+		  directory already exists an error is printed.
 
-	test	- Invoke the test code
+	run	- Run the test and produce the output into the output
+		  directory.
 
-	update	- Copy the output of the last test run as the expected
-		  output from stdout, stderr, and the status.
+	show	- Show the result files on the screen.
+
+	compare	- Compare the results in the output directory with those
+		  in the test source directory. This just prints whether
+		  the test was ok or not in the format used by prove(1).
+
+	diff	- Diff the output files and the expected output files.
+
+	reset	- Reset the test to its initial state.
+
+	clean	- Remove both the test directory and the output directory.
+
+Each of these steps can independently be invoked with the test script
+contained in each directory. These test scripts are called test.t.
+Additionally the scripts understand the following commands:
+
+	test	- Run setup, run and compare.
+
+	prove	- Run setup, run, compare and clean. This is identically
+		  to invoking the script without an argument.
+
+	desc	- Print a short test description.
+
+	update	- Update the expected results from the actual results.
+
+The test script has the following syntax:
+
+	% test.t [-v] [-m path_to_make_binary] command
+
+To invoke it via prove(1) use:
 
 	% [MAKE_PROG=path_to_make_binary] prove [options] [files/directories]
 
@@ -31,30 +71,102 @@ Example:
 	% sh test.t -m `pwd`/../obj/make run
 	% MAKE_PROG=/usr/obj/usr/src/usr.bin/make/make prove -r
 
-Variables
----------
-WORK_BASE	- base directory for working files
-SRC_BASE	- test source base directory
-SUBDIR		- subdirectory below WORK_BASE and SRC_BASE for current test
-WORK_DIR	- ${WORK_BASE}/${SUBDIR}
-SRC_DIR		- ${SRC_BASE}/${SUBDIR}
-MAKE_PROG	- path to the make program to test
+The test scripts use the following environment variables that can be set
+by the user in the test script's environment:
 
-WORK_BASE and MAKE_PROG are intented to be set by the user. All other
-variables are set by the script and can be used in scripts.
+	WORK_BASE
+		- Base directory for working files. If not set
+		  /tmp/make.${USER} is used.
 
-Directory layout
-----------------
-common.sh		- common code
-all.sh			- recursively call test scripts
+	MAKE_PROG
+		- Path to the make program to test. If not set
+		  /usr/bin/make is used.
 
-basic/
-      t0/test.t	- regression test
-      t1/test.t	- regression test
-      t2/test.t	- regression test
-variables/
-          t0/test.t	- regression test
-          t1/test.t	- regression test
+The following variables are available to test scripts:
 
-Each test directory should contain at least a test.t script
-and the expected output files.
+	SRC_BASE
+		- test source base directory. This is determined by
+		  repeatedly doing cd .. and checking for common.sh.
+		  Therefor this can fail if a test source directory is 
+		  actually a symbolic link and is physically not located
+		  below the directory containing common.sh.
+
+	SUBDIR	
+		- subdirectory below WORK_BASE and SRC_BASE for current test
+
+	WORK_DIR
+		- ${WORK_BASE}/${SUBDIR}
+
+	SRC_DIR
+		- ${SRC_BASE}/${SUBDIR}
+
+The following variables and functions may be defined by the test script.
+This also lists special filenames.
+
+	DESC
+		A one-line description of the test.
+
+	TEST_MAKE_DIRS
+		A list of pairs of directory names and modes. These
+		directories are created during setup and reset. When
+		the directory already exists (during reset) only the
+		mode change is applied.
+
+		TEST_MAKE_DIRS="subdir 775 subdir/sub 555"
+
+	TEST_COPY_FILES
+		A list of pairs of file names and modes. These files
+		are copied from the source to the working directory
+		during setup and reset. When the file already exists
+		(during reset) only the mode change is applied. Files
+		may be copied from/to sub-directories. The sub-directory
+		in the working directory must already exists (see
+		TEST_MAKE_DIRS).
+
+		TEST_COPY_FILES="libtest.a 444 subdir/libfoo.a 444"
+
+	TEST_TOUCH
+		List of pairs of file names and arguments to touch(1).
+		During setup and reset for each list element touch(1)
+		is executed.
+
+		TEST_TOUCH="file1 '-t 200501011257'"
+
+	TEST_LINK
+		List of pairs of filenames. Each pair is passed to ln(1).
+		All names are prefixed with the working directory.
+
+	Makefile
+		If a file with this name exists in the source directory
+		it is automatically copied to the working directory.
+
+	setup_test()
+		If this function exists it is executed at the end of the
+		setup.
+
+	reset_test()
+		If this function exists it is executed at the end of the
+		reset.
+
+	TEST_CLEAN_FILES
+		A list of file to be deleted when resetting.
+
+	TEST_N
+		Number of tests in this script. If not set this is assumed
+		to be 1.
+
+	TEST_<number>
+		Arguments to make for test number <number>. If not set
+		the default argument of test<number> is used. To run a test
+		without argument to make, set TEST_<number> to the empty string.
+
+	TEST_<number>_SKIP
+		To skip a test (for whatever reason) this should be set
+		to a string explaining the reason for skipping the test.
+
+	run_test()
+		Function to run a test. This function gets a single argument
+		which is the number of the test to executed. The default
+		function evaluates the variable TEST_<number> and calls
+		make with the arguments in this variable.
+
