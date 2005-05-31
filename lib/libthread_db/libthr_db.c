@@ -505,6 +505,24 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	return (0);
 }
 
+#ifdef __i386__
+static td_err_e
+pt_thr_getxmmregs(const td_thrhandle_t *th, char *fxsave)
+{
+	const td_thragent_t *ta = th->th_ta;
+	int ret;
+
+	TDBG_FUNC();
+
+	ret = pt_validate(th);
+	if (ret)
+		return (ret);
+
+	ret = ps_lgetxmmregs(ta->ph, th->th_tid, fxsave);
+	return (P2T(ret));
+}
+#endif
+
 static td_err_e
 pt_thr_getfpregs(const td_thrhandle_t *th, prfpregset_t *fpregs)
 {
@@ -536,6 +554,24 @@ pt_thr_getgregs(const td_thrhandle_t *th, prgregset_t gregs)
 	ret = ps_lgetregs(ta->ph, th->th_tid, gregs);
 	return (P2T(ret));
 }
+
+#ifdef __i386__
+static td_err_e
+pt_thr_setxmmregs(const td_thrhandle_t *th, const char *fxsave)
+{
+	const td_thragent_t *ta = th->th_ta;
+	int ret;
+
+	TDBG_FUNC();
+
+	ret = pt_validate(th);
+	if (ret)
+		return (ret);
+
+	ret = ps_lsetxmmregs(ta->ph, th->th_tid, fxsave);
+	return (P2T(ret));
+}
+#endif
 
 static td_err_e
 pt_thr_setfpregs(const td_thrhandle_t *th, const prfpregset_t *fpregs)
@@ -742,4 +778,8 @@ struct ta_ops libthr_db_ops = {
 
 	/* FreeBSD specific extensions. */
 	.to_thr_sstep		= pt_thr_sstep,
+#ifdef __i386__
+	.to_thr_getxmmregs	= pt_thr_getxmmregs,
+	.to_thr_setxmmregs	= pt_thr_setxmmregs,
+#endif
 };
