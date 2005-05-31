@@ -44,7 +44,8 @@
 
 __weak_reference(_pthread_exit, pthread_exit);
 
-void _exit(int status)
+void
+_exit(int status)
 {
 	int		flags;
 	int             i;
