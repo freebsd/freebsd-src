@@ -101,7 +101,7 @@ sendrecv(d, sproc, sbuf, ssize, rproc, rbuf, rsize)
 			}
 			cc = (*sproc)(d, sbuf, ssize);
 			if (cc != -1 && cc < ssize)
-				panic("sendrecv: short write! (%d < %d)",
+				panic("sendrecv: short write! (%zd < %zd)",
 				    cc, ssize);
 
 			tleft = tmo;
