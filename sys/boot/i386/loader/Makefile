@@ -25,7 +25,7 @@ CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .endif
 
-.if defined(LOADER_BZIP2_SUPPORT)
+.if !defined(LOADER_NO_BZIP2_SUPPORT)
 CFLAGS+=	-DLOADER_BZIP2_SUPPORT
 .endif
 .if !defined(LOADER_NO_GZIP_SUPPORT)
