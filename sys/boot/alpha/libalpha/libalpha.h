@@ -60,7 +60,7 @@ struct alpha_devdesc
 
 extern int	alpha_getdev(void **vdev, const char *devspec, const char **path);
 extern char	*alpha_fmtdev(void *vdev);
-extern int	alpha_setcurrdev(struct env_var *ev, int flags, void *value);
+extern int	alpha_setcurrdev(struct env_var *ev, int flags, const void *value);
 
 #define MAXDEV	31	/* maximum number of distinct devices */
 
