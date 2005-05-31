@@ -169,7 +169,7 @@ Gcompile (char const *pattern, size_t size)
   char const *motif = pattern;
 
   check_utf8 ();
-  re_set_syntax (RE_SYNTAX_GREP | RE_HAT_LISTS_NOT_NEWLINE);
+  re_set_syntax (RE_SYNTAX_GREP | RE_HAT_LISTS_NOT_NEWLINE | (match_icase ? RE_ICASE : 0));
   dfasyntax (RE_SYNTAX_GREP | RE_HAT_LISTS_NOT_NEWLINE, match_icase, eolbyte);
 
   /* For GNU regex compiler we have to pass the patterns separately to detect
@@ -248,12 +248,12 @@ Ecompile (char const *pattern, size_t size)
   check_utf8 ();
   if (strcmp (matcher, "awk") == 0)
     {
-      re_set_syntax (RE_SYNTAX_AWK);
+      re_set_syntax (RE_SYNTAX_AWK | (match_icase ? RE_ICASE : 0));
       dfasyntax (RE_SYNTAX_AWK, match_icase, eolbyte);
     }
   else
     {
-      re_set_syntax (RE_SYNTAX_POSIX_EGREP);
+      re_set_syntax (RE_SYNTAX_POSIX_EGREP | (match_icase ? RE_ICASE : 0));
       dfasyntax (RE_SYNTAX_POSIX_EGREP, match_icase, eolbyte);
     }
 
