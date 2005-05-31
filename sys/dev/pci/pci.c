@@ -823,6 +823,13 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	}
 
 	/*
+	 * If base is 0, then we have problems.  It is best to ignore
+	 * such entires for the moment.  These will be allocated later if
+	 * the driver specifically requests them.
+	 */
+	if (base == 0)
+		return 1;
+	/*
 	 * This code theoretically does the right thing, but has
 	 * undesirable side effects in some cases where peripherals
 	 * respond oddly to having these bits enabled.  Let the user
@@ -847,13 +854,6 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f))
 			return (1);
 	}
-	/*
-	 * If base is 0, then we have problems.  It is best to ignore
-	 * such entires for the moment.  These will be allocated later if
-	 * the driver specifically requests them.
-	 */
-	if (base == 0)
-		return 1;
 
 	start = base;
 	end = base + (1 << ln2size) - 1;
