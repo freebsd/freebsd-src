@@ -223,7 +223,7 @@ alpha_fmtdev(void *vdev)
  * Set currdev to suit the value being supplied in (value)
  */
 int
-alpha_setcurrdev(struct env_var *ev, int flags, void *value)
+alpha_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
     struct alpha_devdesc	*ncurr;
     int			rv;
