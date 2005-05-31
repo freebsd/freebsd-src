@@ -1253,7 +1253,7 @@ void	_waitq_remove(pthread_t pthread);
 void	_waitq_setactive(void);
 void	_waitq_clearactive(void);
 #endif
-void    _thread_exit(char *, int, char *);
+void    _thread_exit(char *, int, char *) __dead2;
 void    _thread_exit_cleanup(void);
 int	_thread_fd_getflags(int);
 int     _thread_fd_lock(int, int, struct timespec *);
@@ -1393,7 +1393,7 @@ int	__sys_close(int);
 int	__sys_dup(int);
 int	__sys_dup2(int, int);
 int	__sys_execve(const char *, char * const *, char * const *);
-void	__sys_exit(int);
+void	__sys_exit(int) __dead2;
 int	__sys_fchown(int, uid_t, gid_t);
 pid_t	__sys_fork(void);
 long	__sys_fpathconf(int, int);
