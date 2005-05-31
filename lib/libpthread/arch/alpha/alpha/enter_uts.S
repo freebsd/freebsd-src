@@ -39,3 +39,4 @@ LEAF(_alpha_enter_uts, 4)
 	mov	a1, ra
 	mov	a1, t12
 	RET
+	END(_alpha_enter_uts)
