@@ -5,14 +5,14 @@
 cd `dirname $0`
 . ../../common.sh
 
-setup_test()
-{
-	cp /dev/null ${WORK_DIR}/Makefile
-}
+# Description
+DESC="An empty Makefile file and no target given."
 
-desc_test()
-{
-	echo "An empty Makefile file."
-}
+# Setup
+TEST_TOUCH="Makefile ''"
 
-eval_cmd $1
+# Run
+TEST_N=1
+TEST_1=
+
+eval_cmd $*

@@ -5,14 +5,11 @@
 cd `dirname $0`
 . ../../common.sh
 
-setup_test()
-{
-	rm -f ${WORK_DIR}/Makefile
-}
+# Description
+DESC="No Makefile file, no command line target."
 
-desc_test()
-{
-	echo "No Makefile file."
-}
+# Run
+TEST_N=1
+TEST_1=
 
-eval_cmd $1
+eval_cmd $*
