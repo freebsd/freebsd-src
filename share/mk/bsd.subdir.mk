@@ -57,13 +57,13 @@ _SUBDIR: .USE
 	done
 .endif
 
-${SUBDIR}::
+${SUBDIR}: .PHONY
 	${_+_}@if test -d ${.TARGET}.${MACHINE_ARCH}; then \
 		cd ${.CURDIR}/${.TARGET}.${MACHINE_ARCH}; \
 	else \
 		cd ${.CURDIR}/${.TARGET}; \
 	fi; \
-	${_+_}${MAKE} all
+	${MAKE} all
 
 
 .for __target in all all-man checkdpadd clean cleandepend cleandir \
