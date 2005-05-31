@@ -10,17 +10,7 @@
 #
 # $FreeBSD$
 
-all: shell
-	${MAKE} test1
-	${MAKE} -j1 test1
-
-shell: sh.sh
-	@cp ${.CURDIR}/sh.sh ${.OBJDIR}/shell
-	@chmod +x ${.OBJDIR}/shell
-
-.ifmake test1
-
-.SHELL: name="shell" path="${.OBJDIR}/shell"			\
+.SHELL: name="shell" path="${.CURDIR}/shell"			\
 	quiet="be quiet" echo="be verbose" filter="be verbose"	\
 	echoFlag="x" errFlag="y"				\
 	hasErrCtl=y check="check errors" ignore="ignore errors"
@@ -29,5 +19,3 @@ shell: sh.sh
 test1:
 	-@funny $$
 	funnier $$
-
-.endif

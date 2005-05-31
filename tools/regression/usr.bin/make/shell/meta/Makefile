@@ -7,16 +7,6 @@
 #
 # $FreeBSD$
 
-all: sh
-	@MAKEFLAGS= ${MAKE} -B no-meta
-	@MAKEFLAGS= ${MAKE} -B meta
-
-sh: sh.sh
-	@cp ${.CURDIR}/sh.sh ${.OBJDIR}/sh
-	@chmod +x ${.OBJDIR}/sh
-
-.ifmake meta || no-meta
-
 .SHELL: path="${.OBJDIR}/sh"
 
 .PHONY: meta no-meta
@@ -26,5 +16,3 @@ meta:
 
 no-meta:
 	@ls -d .
-
-.endif
