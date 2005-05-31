@@ -131,7 +131,7 @@ SRCS+=	_setjmp.S
 # NOTE: to actually test this functionality after libbz2 upgrade compile
 # loader(8) with LOADER_BZIP2_SUPPORT defined
 .PATH: ${.CURDIR}/../../contrib/bzip2
-CFLAGS+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS -I${.CURDIR}/../../contrib/bzip2
+CFLAGS+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 SRCS+=	libstand_bzlib_private.h
 
 .for file in bzlib.c crctable.c decompress.c huffman.c randtable.c
