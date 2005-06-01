@@ -644,7 +644,9 @@ tcp_drop(tp, errno)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(tp->t_inpcb);
+
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tp->t_state = TCPS_CLOSED;
 		(void) tcp_output(tp);
@@ -765,6 +767,7 @@ tcp_close(tp)
 	struct socket *so = inp->inp_socket;
 #endif
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(inp);
 
 	tcp_discardcb(tp);
@@ -832,6 +835,7 @@ tcp_notify(inp, error)
 {
 	struct tcpcb *tp = (struct tcpcb *)inp->inp_ppcb;
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(inp);
 
 	/*
@@ -1432,7 +1436,9 @@ tcp_drop_syn_sent(inp, errno)
 {
 	struct tcpcb *tp = intotcpcb(inp);
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(inp);
+
 	if (tp != NULL && tp->t_state == TCPS_SYN_SENT) {
 		tcp_drop(tp, errno);
 		return (NULL);
