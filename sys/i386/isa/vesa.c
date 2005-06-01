@@ -652,8 +652,6 @@ vesa_bios_init(void)
 		printf("VESA: information block\n");
 		dump_buffer(buf, 64);
 	}
-	if (vesa_adp_info->v_flags & V_NONVGA)
-		return 1;
 	if (vesa_adp_info->v_version < 0x0102) {
 		printf("VESA: VBE version %d.%d is not supported; "
 		       "version 1.2 or later is required.\n",
