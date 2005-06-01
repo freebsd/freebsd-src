@@ -1236,7 +1236,11 @@ static struct tcpcb *
 tcp_disconnect(tp)
 	register struct tcpcb *tp;
 {
-	struct socket *so = tp->t_inpcb->inp_socket;
+	struct inpcb *inp = tp->t_inpcb;
+	struct socket *so = inp->inp_socket;
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	INP_LOCK_ASSERT(inp);
 
 	if (tp->t_state < TCPS_ESTABLISHED)
 		tp = tcp_close(tp);
@@ -1266,6 +1270,9 @@ static struct tcpcb *
 tcp_usrclosed(tp)
 	register struct tcpcb *tp;
 {
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	INP_LOCK_ASSERT(tp->t_inpcb);
 
 	switch (tp->t_state) {
 
