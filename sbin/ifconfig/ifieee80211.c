@@ -85,6 +85,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -431,16 +432,16 @@ set80211chanlist(const char *val, int d, int s, const struct afswtch *rafp)
 		switch (sscanf(cp, "%u-%u", &first, &last)) {
 		case 1:
 			if (first > MAXCHAN)
-				errx(-1, "channel %u out of range, max %u",
+				errx(-1, "channel %u out of range, max %zu",
 					first, MAXCHAN);
 			setbit(chanlist.ic_channels, first);
 			break;
 		case 2:
 			if (first > MAXCHAN)
-				errx(-1, "channel %u out of range, max %u",
+				errx(-1, "channel %u out of range, max %zu",
 					first, MAXCHAN);
 			if (last > MAXCHAN)
-				errx(-1, "channel %u out of range, max %u",
+				errx(-1, "channel %u out of range, max %zu",
 					last, MAXCHAN);
 			if (first > last)
 				errx(-1, "void channel range, %u > %u",
@@ -688,7 +689,7 @@ printie(const char* tag, const uint8_t *ie, size_t ielen, int maxlen)
  * to hexadecimal.  If the result is truncated then replace the last
  * three characters with "...".
  */
-static size_t
+static int
 copy_essid(char buf[], size_t bufsize, const u_int8_t *essid, size_t essid_len)
 {
 	const u_int8_t *p; 
@@ -1263,10 +1264,10 @@ printkey(const struct ieee80211req_key *ik)
 		printf(">");
 		if (ik->ik_type != IEEE80211_CIPHER_WEP &&
 		    (ik->ik_keyrsc != 0 || verbose))
-			printf(" rsc %llu", ik->ik_keyrsc);
+			printf(" rsc %ju", (uintmax_t)ik->ik_keyrsc);
 		if (ik->ik_type != IEEE80211_CIPHER_WEP &&
 		    (ik->ik_keytsc != 0 || verbose))
-			printf(" tsc %llu", ik->ik_keytsc);
+			printf(" tsc %ju", (uintmax_t)ik->ik_keytsc);
 		if (ik->ik_flags != 0 && verbose) {
 			const char *sep = " ";
 
