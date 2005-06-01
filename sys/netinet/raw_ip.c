@@ -616,6 +616,7 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 static void
 rip_pcbdetach(struct socket *so, struct inpcb *inp)
 {
+
 	INP_INFO_WLOCK_ASSERT(&ripcbinfo);
 	INP_LOCK_ASSERT(inp);
 
