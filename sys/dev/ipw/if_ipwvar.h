@@ -97,6 +97,7 @@ struct ipw_softc {
 #define IPW_FLAG_FW_CACHED		(1 << 0)
 #define IPW_FLAG_FW_INITED		(1 << 1)
 #define IPW_FLAG_HAS_RADIO_SWITCH	(1 << 2)
+#define	IPW_FLAG_FW_WARNED		(1 << 3)
 
 	int				irq_rid;
 	int				mem_rid;
