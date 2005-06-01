@@ -1539,11 +1539,16 @@ trimthenstep6:
 			close:
 				tp->t_state = TCPS_CLOSED;
 				tcpstat.tcps_drops++;
+				KASSERT(headlocked, ("tcp_input: "
+				    "trimthenstep6: tcp_close: head not "
+				    "locked"));
 				tp = tcp_close(tp);
 				break;
 
 			case TCPS_CLOSING:
 			case TCPS_LAST_ACK:
+				KASSERT(headlocked, ("trimthenstep6: "
+				    "tcp_close.2: head not locked"));
 				tp = tcp_close(tp);
 				break;
 
@@ -1651,6 +1656,8 @@ trimthenstep6:
 	 */
 	if ((so->so_state & SS_NOFDREF) &&
 	    tp->t_state > TCPS_CLOSE_WAIT && tlen) {
+		KASSERT(headlocked, ("trimthenstep6: tcp_close.3: head not "
+		    "locked"));
 		tp = tcp_close(tp);
 		tcpstat.tcps_rcvafterclose++;
 		rstreason = BANDLIM_UNLIMITED;
@@ -1676,6 +1683,8 @@ trimthenstep6:
 			if (thflags & TH_SYN &&
 			    tp->t_state == TCPS_TIME_WAIT &&
 			    SEQ_GT(th->th_seq, tp->rcv_nxt)) {
+				KASSERT(headlocked, ("trimthenstep6: "
+				    "tcp_close.4: head not locked"));
 				tp = tcp_close(tp);
 				goto findpcb;
 			}
@@ -2178,6 +2187,8 @@ process_ACK:
 		 */
 		case TCPS_LAST_ACK:
 			if (ourfinisacked) {
+				KASSERT(headlocked, ("tcp_input: process_ACK:"
+				    " tcp_close: head not locked"));
 				tp = tcp_close(tp);
 				goto drop;
 			}
