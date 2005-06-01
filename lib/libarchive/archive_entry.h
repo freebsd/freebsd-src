@@ -96,6 +96,8 @@ const char		*archive_entry_uname(struct archive_entry *);
  */
 
 void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
+void	archive_entry_set_atime(struct archive_entry *, time_t, long);
+void	archive_entry_set_ctime(struct archive_entry *, time_t, long);
 void	archive_entry_set_fflags(struct archive_entry *,
 	    unsigned long set, unsigned long clear);
 /* Returns pointer to start of first invalid token, or NULL if none. */

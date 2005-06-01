@@ -568,6 +568,20 @@ archive_entry_copy_hardlink_w(struct archive_entry *entry, const wchar_t *target
 	aes_copy_wcs(&entry->ae_hardlink, target);
 }
 
+void
+archive_entry_set_atime(struct archive_entry *entry, time_t t, long ns)
+{
+	entry->ae_stat.st_atime = t;
+	ARCHIVE_STAT_SET_ATIME_NANOS(&entry->ae_stat, ns);
+}
+
+void
+archive_entry_set_ctime(struct archive_entry *entry, time_t t, long ns)
+{
+	entry->ae_stat.st_ctime = t;
+	ARCHIVE_STAT_SET_CTIME_NANOS(&entry->ae_stat, ns);
+}
+
 /* Set symlink if symlink is already set, else set hardlink. */
 void
 archive_entry_set_link(struct archive_entry *entry, const char *target)
