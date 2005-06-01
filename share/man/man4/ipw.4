@@ -49,6 +49,14 @@ This mode requires the use of an access point.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Pp
+This driver requires firmware to be loaded before it will work.
+You need to obtain
+.Xr ipwcontrol 8
+from the IPW web page listed below to accomplish loading the firmware
+before 
+.Xr ifconfig 8 
+will work.
 .Sh EXAMPLES
 Join an existing BSS network (ie: connect to an access point):
 .Pp
@@ -74,6 +82,11 @@ ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
 .Bl -diag
 .It "ipw%d: device timeout"
 The driver will reset the hardware. This should not happen.
+.It "ipw%d: Please load firmware"
+The required firmeware has not been loaded into the card, and therefore
+the card cannot operate.  Load the firmware with
+.Xr ipwcontrol 8
+before proceeding.
 .El
 .Sh SEE ALSO
 .Xr an 4 ,
