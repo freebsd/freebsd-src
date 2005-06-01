@@ -1054,6 +1054,9 @@ after_listen:
 						inet_ntoa(inp->inp_inc.inc_faddr),
 						inp->inp_inc.inc_fport,
 						tp->rcv_byps / tp->rcv_pps);
+					KASSERT(headlocked, ("tcp_input: "
+					    "after_listen: tcp_drop: head "
+					    "not locked"));
 					tp = tcp_drop(tp, ECONNRESET);
 					tcpstat.tcps_minmssdrops++;
 					goto drop;
@@ -1341,8 +1344,11 @@ after_listen:
 			goto dropwithreset;
 		}
 		if (thflags & TH_RST) {
-			if (thflags & TH_ACK)
+			if (thflags & TH_ACK) {
+				KASSERT(headlocked, ("tcp_input: after_listen"
+				    ": tcp_drop.2: head not locked"));
 				tp = tcp_drop(tp, ECONNREFUSED);
+			}
 			goto drop;
 		}
 		if ((thflags & TH_SYN) == 0)
@@ -1738,6 +1744,8 @@ trimthenstep6:
 	 * error and we send an RST and drop the connection.
 	 */
 	if (thflags & TH_SYN) {
+		KASSERT(headlocked, ("tcp_input: tcp_drop: trimthenstep6: "
+		    "head not locked"));
 		tp = tcp_drop(tp, ECONNRESET);
 		rstreason = BANDLIM_UNLIMITED;
 		goto drop;
