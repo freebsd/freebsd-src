@@ -164,6 +164,10 @@ This also lists special filenames.
 		To skip a test (for whatever reason) this should be set
 		to a string explaining the reason for skipping the test.
 
+	TEST_<number>_TODO
+		For a test that should fail this is a short string describing
+		what the problem in make(1) is that should be fixed.
+
 	run_test()
 		Function to run a test. This function gets a single argument
 		which is the number of the test to executed. The default

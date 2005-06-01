@@ -35,8 +35,7 @@ ensure_run()
 	FAIL=
 	N=1
 	while [ ${N} -le ${TEST_N} ] ; do
-		eval skip=\${TEST_${N}_SKIP}
-		if [ -z "${skip}" ] ; then
+		if ! skip_test ${N} ; then
 			if [ ! -f ${OUTPUT_DIR}/status.${N} -o \
 			     ! -f ${OUTPUT_DIR}/stdout.${N} -o \
 			     ! -f ${OUTPUT_DIR}/stderr.${N} ] ; then
@@ -70,6 +69,19 @@ print_usage()
 	echo " desc	- print short description"
 	echo " update	- update the expected results with the current results"
 	echo " help	- show this information"
+}
+
+#
+# Return 0 if we should skip the test. 1 otherwise
+#
+skip_test()
+{
+	eval skip=\${TEST_${1}_SKIP}
+	if [ -z "${skip}" ] ; then
+		return 1
+	else
+		return 0
+	fi
 }
 
 #
@@ -238,8 +250,7 @@ eval_run()
 
 	N=1
 	while [ ${N} -le ${TEST_N} ] ; do
-		eval skip=\${TEST_${N}_SKIP}
-		if [ -z "${skip}" ] ; then
+		if ! skip_test ${N} ; then
 			( cd ${WORK_DIR} ;
 			  exec 1>${OUTPUT_DIR}/stdout.${N} 2>${OUTPUT_DIR}/stderr.${N}
 			  run_test ${N}
@@ -274,8 +285,7 @@ eval_show()
 
 	N=1
 	while [ ${N} -le ${TEST_N} ] ; do
-		eval skip=\${TEST_${N}_SKIP}
-		if [ -z "${skip}" ] ; then
+		if ! skip_test ${N} ; then
 			echo "=== Test ${N} Status =================="
 			cat ${OUTPUT_DIR}/status.${N}
 			echo ".......... Stdout .................."
@@ -302,20 +312,28 @@ eval_compare()
 	echo "1..${TEST_N}"
 	N=1
 	while [ ${N} -le ${TEST_N} ] ; do
-		eval skip=\${TEST_${N}_SKIP}
-		if [ -z "${skip}" ] ; then
-			FAIL=
-			do_compare stdout ${N} || FAIL="${FAIL}stdout "
-			do_compare stderr ${N} || FAIL="${FAIL}stderr "
-			do_compare status ${N} || FAIL="${FAIL}status "
-			if [ ! -z "$FAIL" ]; then
-				echo "not ok ${N} ${SUBDIR}/${N} # reason: ${FAIL}"
-			else
-				echo "ok ${N} ${SUBDIR}/${N}"
-			fi
-		else
-			echo "ok ${N} ${SUBDIR}/${N} # skip: ${skip}"
+		fail=
+		todo=
+		if ! skip_test ${N} ; then
+			do_compare stdout ${N} || fail="${fail}stdout "
+			do_compare stderr ${N} || fail="${fail}stderr "
+			do_compare status ${N} || fail="${fail}status "
+			eval todo=\${TEST_${N}_TODO}
 		fi
+		if [ ! -z "$fail" ]; then
+			echo -n "not "
+		fi
+		echo -n "ok ${N} ${SUBDIR}/${N}"
+		if [ ! -z "$fail" -o ! -z "$todo" ]; then
+			echo -n " # "
+		fi
+		if [ ! -z "$todo" ] ; then
+			echo -n "TODO $todo; "
+		fi
+		if [ ! -z "$fail" ] ; then
+			echo "reason: ${fail}"
+		fi
+		echo
 		N=$((N + 1))
 	done
 }
@@ -354,8 +372,7 @@ eval_diff()
 
 	N=1
 	while [ ${N} -le ${TEST_N} ] ; do
-		eval skip=\${TEST_${N}_SKIP}
-		if [ -z "${skip}" ] ; then
+		if ! skip_test ${N} ; then
 			FAIL=
 			do_diff stdout ${N}
 			do_diff stderr ${N}
@@ -400,8 +417,7 @@ eval_update()
 	FAIL=
 	N=1
 	while [ ${N} -le ${TEST_N} ] ; do
-		eval skip=\${TEST_${N}_SKIP}
-		if [ -z "${skip}" ] ; then
+		if ! skip_test ${N} ; then
 			cp ${OUTPUT_DIR}/stdout.${N} expected.stdout.${N}
 			cp ${OUTPUT_DIR}/stderr.${N} expected.stderr.${N}
 			cp ${OUTPUT_DIR}/status.${N} expected.status.${N}
