@@ -1187,6 +1187,8 @@ tcp_attach(so)
 	int isipv6 = INP_CHECK_SOCKAF(so, AF_INET6) != 0;
 #endif
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		error = soreserve(so, tcp_sendspace, tcp_recvspace);
 		if (error)
