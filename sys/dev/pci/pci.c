@@ -824,7 +824,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 
 	/*
 	 * If base is 0, then we have problems.  It is best to ignore
-	 * such entires for the moment.  These will be allocated later if
+	 * such entries for the moment.  These will be allocated later if
 	 * the driver specifically requests them.
 	 */
 	if (base == 0)
