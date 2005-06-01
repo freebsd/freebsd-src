@@ -582,6 +582,19 @@ archive_entry_set_ctime(struct archive_entry *entry, time_t t, long ns)
 	ARCHIVE_STAT_SET_CTIME_NANOS(&entry->ae_stat, ns);
 }
 
+time_t
+archive_entry_ctime(struct archive_entry *entry)
+{
+	return (entry->ae_stat.st_ctime);
+}
+
+long
+archive_entry_ctime_nsec(struct archive_entry *entry)
+{
+	(void)entry; /* entry can be unused here. */
+	return (ARCHIVE_STAT_CTIME_NANOS(&entry->ae_stat));
+}
+
 /* Set symlink if symlink is already set, else set hardlink. */
 void
 archive_entry_set_link(struct archive_entry *entry, const char *target)
