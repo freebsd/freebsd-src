@@ -496,6 +496,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		bus_size_t buflen, bus_dmamap_callback_t *callback,
 		void *callback_arg, int flags)
 {
+	bus_dma_segment_t	segment;
 	vm_offset_t		vaddr;
 	vm_offset_t		paddr;
 	bus_dma_segment_t      *sg;
@@ -512,6 +513,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		 * of the bus address space.
 		 */
 		vaddr = trunc_page((vm_offset_t) buf);
+		dmat->segments = &segment;
 		dmat->segments[0].ds_addr =
 			map->busaddress + (vm_offset_t) buf - vaddr;
 		dmat->segments[0].ds_len = buflen;
@@ -522,6 +524,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 				  buflen);
 		map->buflen = buflen;
 		(*callback)(callback_arg, dmat->segments, 1, error);
+		dmat->segments = NULL;
 
 		return (0);
 	}
