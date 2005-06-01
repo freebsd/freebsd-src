@@ -1211,6 +1211,8 @@ tcp_attach(so)
 		int nofd = so->so_state & SS_NOFDREF;	/* XXX */
 
 		so->so_state &= ~SS_NOFDREF;	/* don't free the socket yet */
+
+		INP_LOCK(inp);
 #ifdef INET6
 		if (isipv6)
 			in6_pcbdetach(inp);
