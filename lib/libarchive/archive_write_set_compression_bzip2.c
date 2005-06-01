@@ -68,7 +68,7 @@ static int	drive_compressor(struct archive *, struct private_data *,
 int
 archive_write_set_compression_bzip2(struct archive *a)
 {
-	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW, "archive_write_set_compression_bzip2");
 	a->compression_init = &archive_compressor_bzip2_init;
 	a->compression_code = ARCHIVE_COMPRESSION_BZIP2;
 	a->compression_name = "bzip2";
