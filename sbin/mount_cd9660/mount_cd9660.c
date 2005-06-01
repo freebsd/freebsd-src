@@ -77,7 +77,7 @@ struct mntopt mopts[] = {
 	{ "rrip", 1, ISOFSMNT_NORRIP, 1 },
 	{ "joliet", 1, ISOFSMNT_NOJOLIET, 1 },
 	{ "strictjoliet", 1, ISOFSMNT_BROKENJOLIET, 1 },
-	{ NULL }
+	MOPT_NULL
 };
 
 int	get_ssector(const char *dev);
