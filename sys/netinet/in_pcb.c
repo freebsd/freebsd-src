@@ -692,6 +692,8 @@ void
 in_pcbdisconnect(inp)
 	struct inpcb *inp;
 {
+
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
 	inp->inp_faddr.s_addr = INADDR_ANY;
@@ -711,6 +713,7 @@ in_pcbdetach(inp)
 	struct socket *so = inp->inp_socket;
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
