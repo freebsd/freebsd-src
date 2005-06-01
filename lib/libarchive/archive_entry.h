@@ -66,6 +66,8 @@ struct archive_entry	*archive_entry_new(void);
 
 time_t			 archive_entry_atime(struct archive_entry *);
 long			 archive_entry_atime_nsec(struct archive_entry *);
+time_t			 archive_entry_ctime(struct archive_entry *);
+long			 archive_entry_ctime_nsec(struct archive_entry *);
 dev_t			 archive_entry_dev(struct archive_entry *);
 void			 archive_entry_fflags(struct archive_entry *,
 			     unsigned long *set, unsigned long *clear);
