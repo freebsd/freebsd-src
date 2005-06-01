@@ -638,7 +638,6 @@ kern_setrlimit(td, which, limp)
 			vm_size_t size;
 			vm_prot_t prot;
 
-			mtx_lock(&Giant);
 			if (limp->rlim_cur > oldssiz) {
 				prot = p->p_sysent->sv_stackprot;
 				size = limp->rlim_cur - oldssiz;
@@ -653,7 +652,6 @@ kern_setrlimit(td, which, limp)
 			size = round_page(size);
 			(void)vm_map_protect(&p->p_vmspace->vm_map,
 			    addr, addr + size, prot, FALSE);
-			mtx_unlock(&Giant);
 		}
 	}
 	return (0);
