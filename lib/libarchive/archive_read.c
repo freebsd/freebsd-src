@@ -85,7 +85,7 @@ archive_read_new(void)
 int
 archive_read_set_bytes_per_block(struct archive *a, int bytes_per_block)
 {
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_set_bytes_per_block");
 	if (bytes_per_block < 1)
 		bytes_per_block = 1;
 	a->bytes_per_block = bytes_per_block;
@@ -106,7 +106,7 @@ archive_read_open(struct archive *a, void *client_data,
 	int high_bidder;
 	int e;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_open");
 
 	if (reader == NULL)
 		__archive_errx(1,
@@ -207,8 +207,8 @@ archive_read_next_header(struct archive *a, struct archive_entry **entryp)
 	struct archive_entry *entry;
 	int slot, ret;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA, "archive_read_next_header");
 
 	*entryp = NULL;
 	entry = a->entry;
@@ -405,7 +405,7 @@ archive_read_data_skip(struct archive *a)
 	ssize_t size;
 	off_t offset;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA, "archive_read_data_skip");
 
 	if (a->format->read_data_skip != NULL)
 		r = (a->format->read_data_skip)(a);
@@ -434,7 +434,7 @@ int
 archive_read_data_block(struct archive *a,
     const void **buff, size_t *size, off_t *offset)
 {
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA, "archive_read_data_block");
 
 	if (a->format->read_data == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
@@ -456,7 +456,7 @@ archive_read_data_block(struct archive *a,
 int
 archive_read_close(struct archive *a)
 {
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_close");
 	a->state = ARCHIVE_STATE_CLOSED;
 
 	/* Call cleanup functions registered by optional components. */
@@ -480,7 +480,7 @@ archive_read_finish(struct archive *a)
 	int i;
 	int slots;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_finish");
 	if (a->state != ARCHIVE_STATE_CLOSED)
 		archive_read_close(a);
 
@@ -516,7 +516,7 @@ __archive_read_register_format(struct archive *a,
 {
 	int i, number_slots;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "__archive_read_register_format");
 
 	number_slots = sizeof(a->formats) / sizeof(a->formats[0]);
 
@@ -549,7 +549,7 @@ __archive_read_register_compression(struct archive *a,
 {
 	int i, number_slots;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "__archive_read_register_compression");
 
 	number_slots = sizeof(a->decompressors) / sizeof(a->decompressors[0]);
 
