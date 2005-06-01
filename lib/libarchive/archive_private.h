@@ -199,16 +199,6 @@ struct archive {
 };
 
 
-/*
- * Utility function to format a USTAR header into a buffer.  If
- * "strict" is set, this tries to create the absolutely most portable
- * version of a ustar header.  If "strict" is set to 0, then it will
- * relax certain requirements.
- */
-int
-__archive_write_format_header_ustar(struct archive *, char buff[512],
-    struct archive_entry *, int tartype, int strict);
-
 #define	ARCHIVE_STATE_ANY	0xFFFFU
 #define	ARCHIVE_STATE_NEW	1U
 #define	ARCHIVE_STATE_HEADER	2U
@@ -218,12 +208,9 @@ __archive_write_format_header_ustar(struct archive *, char buff[512],
 #define	ARCHIVE_STATE_FATAL	0x8000U
 
 /* Check magic value and state; exit if it isn't valid. */
-void
-__archive_check_magic(struct archive *, unsigned magic,
-    unsigned state, const char *func);
+void	__archive_check_magic(struct archive *, unsigned magic,
+	    unsigned state, const char *func);
 
-#define	archive_check_magic(a,m,s) \
-	__archive_check_magic((a), (m), (s), __func__)
 
 int	__archive_read_register_format(struct archive *a,
 	    void *format_data,
@@ -240,5 +227,20 @@ int	__archive_read_register_compression(struct archive *a,
 void	__archive_errx(int retvalue, const char *msg);
 
 #define	err_combine(a,b)	((a) < (b) ? (a) : (b))
+
+
+/*
+ * Utility function to format a USTAR header into a buffer.  If
+ * "strict" is set, this tries to create the absolutely most portable
+ * version of a ustar header.  If "strict" is set to 0, then it will
+ * relax certain requirements.
+ *
+ * Generally, format-specific declarations don't belong in this
+ * header; this is a rare example of a function that is shared by
+ * two very similar formats (ustar and pax).
+ */
+int
+__archive_write_format_header_ustar(struct archive *, char buff[512],
+    struct archive_entry *, int tartype, int strict);
 
 #endif
