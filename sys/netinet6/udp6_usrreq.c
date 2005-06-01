@@ -498,12 +498,17 @@ udp6_abort(struct socket *so)
 	struct inpcb *inp;
 	int s;
 
+	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0)
+	if (inp == 0) {
+		INP_INFO_WUNLOCK(&udbinfo);
 		return EINVAL;	/* ??? possible? panic instead? */
+	}
 	soisdisconnected(so);
 	s = splnet();
+	INP_LOCK(inp);
 	in6_pcbdetach(inp);
+	INP_INFO_WUNLOCK(&udbinfo);
 	splx(s);
 	return 0;
 }
