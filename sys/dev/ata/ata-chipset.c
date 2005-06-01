@@ -838,6 +838,7 @@ ata_intel_ident(device_t dev)
      { ATA_I82801FB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH6" },
      { ATA_I82801FB_S1,0, 0, 0x00, ATA_SA150, "Intel ICH6" },
      { ATA_I82801FB_R1,0, 0, 0x00, ATA_SA150, "Intel ICH6" },
+     { ATA_I82801FBM,  0, 0, 0x00, ATA_SA150, "Intel ICH6" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -924,7 +925,8 @@ ata_intel_reset(struct ata_channel *ch)
 
     /* ICH6 has 4 SATA ports as master/slave on 2 channels so deal with pairs */
     if (ctlr->chip->chipid == ATA_I82801FB_S1 ||
-	ctlr->chip->chipid == ATA_I82801FB_R1) {
+	ctlr->chip->chipid == ATA_I82801FB_R1 ||
+	ctlr->chip->chipid == ATA_I82801FBM) {
 	mask = (0x0005 << ch->unit);
     }
     else {
