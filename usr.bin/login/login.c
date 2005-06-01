@@ -171,6 +171,7 @@ main(int argc, char *argv[])
 	const char *tp;
 	const char *shell = NULL;
 	login_cap_t *lc = NULL;
+	login_cap_t *lc_user = NULL;
 	pid_t pid;
 
 	(void)signal(SIGQUIT, SIG_IGN);
@@ -354,8 +355,10 @@ main(int argc, char *argv[])
 	 * Establish the login class.
 	 */
 	lc = login_getpwclass(pwd);
+	lc_user = login_getuserclass(pwd);
 
-	quietlog = login_getcapbool(lc, "hushlogin", 0);
+	if (!(quietlog = login_getcapbool(lc_user, "hushlogin", 0)))
+		quietlog = login_getcapbool(lc, "hushlogin", 0);
 
 	/*
 	 * Switching needed for NFS with root access disabled.
@@ -568,7 +571,8 @@ main(int argc, char *argv[])
 		else
 			motd(_PATH_MOTDFILE);
 
-		if (login_getcapbool(lc, "nocheckmail", 0) == 0) {
+		if (login_getcapbool(lc_user, "nocheckmail", 0) == 0 &&
+		    login_getcapbool(lc, "nocheckmail", 0) == 0) {
 			char *cx;
 
 			/* $MAIL may have been set by class. */
@@ -585,6 +589,7 @@ main(int argc, char *argv[])
 		}
 	}
 
+	login_close(lc_user);
 	login_close(lc);
 
 	(void)signal(SIGALRM, SIG_DFL);
