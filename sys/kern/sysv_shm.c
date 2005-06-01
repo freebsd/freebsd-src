@@ -872,7 +872,7 @@ shminit()
 
 	TUNABLE_INT_FETCH("kern.ipc.shmmaxpgs", &shminfo.shmall);
 	for (i = PAGE_SIZE; i > 0; i--) {
-		shminfo.shmmax = shminfo.shmall * PAGE_SIZE;
+		shminfo.shmmax = shminfo.shmall * i;
 		if (shminfo.shmmax >= shminfo.shmall)
 			break;
 	}
