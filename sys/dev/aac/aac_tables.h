@@ -83,6 +83,7 @@ static struct aac_code_lookup aac_cpu_variant[] = {
 	{"MPC824x",		CPUMPC_824x},
 	{"Unknown StrongARM",	CPUARM_xxx},
 	{"Unknown PowerPC",	CPUPPC_xxx},
+	{"IOP302/303",		CPUI960_30X},
 	{NULL, 0},
 	{"Unknown processor",	0}
 };

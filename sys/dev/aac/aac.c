@@ -2353,9 +2353,12 @@ aac_describe_controller(struct aac_softc *sc)
 	sc->aac_revision = info->KernelRevision;
 
 	if (bootverbose) {
-		device_printf(sc->aac_dev, "%s %dMHz, %dMB cache memory, %s\n", 
+		device_printf(sc->aac_dev, "%s %dMHz, %dMB memory "
+		    "(%dMB cache, %dMB execution), %s\n", 
 		    aac_describe_code(aac_cpu_variant, info->CpuVariant),
-		    info->ClockSpeed, info->BufferMem / (1024 * 1024), 
+		    info->ClockSpeed, info->TotalMem / (1024 * 1024), 
+		    info->BufferMem / (1024 * 1024),
+		    info->ExecutionMem / (1024 * 1024),
 		    aac_describe_code(aac_battery_platform,
 		    info->batteryPlatform));
 
