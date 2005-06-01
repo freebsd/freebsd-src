@@ -504,7 +504,6 @@ udp_ctlinput(cmd, sa, vip)
 	struct inpcb *(*notify)(struct inpcb *, int) = udp_notify;
 	struct in_addr faddr;
 	struct inpcb *inp;
-	int s;
 
 	faddr = ((struct sockaddr_in *)sa)->sin_addr;
 	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
@@ -525,7 +524,6 @@ udp_ctlinput(cmd, sa, vip)
 	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
 	if (ip) {
-		s = splnet();
 		uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
 		INP_INFO_RLOCK(&udbinfo);
 		inp = in_pcblookup_hash(&udbinfo, faddr, uh->uh_dport,
@@ -538,7 +536,6 @@ udp_ctlinput(cmd, sa, vip)
 			INP_UNLOCK(inp);
 		}
 		INP_INFO_RUNLOCK(&udbinfo);
-		splx(s);
 	} else
 		in_pcbnotifyall(&udbinfo, faddr, inetctlerrmap[cmd], notify);
 }
@@ -546,7 +543,7 @@ udp_ctlinput(cmd, sa, vip)
 static int
 udp_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	int error, i, n, s;
+	int error, i, n;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
@@ -568,12 +565,10 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	/*
 	 * OK, now we're committed to doing something.
 	 */
-	s = splnet();
 	INP_INFO_RLOCK(&udbinfo);
 	gencnt = udbinfo.ipi_gencnt;
 	n = udbinfo.ipi_count;
 	INP_INFO_RUNLOCK(&udbinfo);
-	splx(s);
 
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
 		+ n * sizeof(struct xinpcb));
@@ -592,7 +587,6 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (inp_list == 0)
 		return ENOMEM;
 
-	s = splnet();
 	INP_INFO_RLOCK(&udbinfo);
 	for (inp = LIST_FIRST(udbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
@@ -603,7 +597,6 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_UNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&udbinfo);
-	splx(s);
 	n = i;
 
 	error = 0;
@@ -629,13 +622,11 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		 * while we were processing this request, and it
 		 * might be necessary to retry.
 		 */
-		s = splnet();
 		INP_INFO_RLOCK(&udbinfo);
 		xig.xig_gen = udbinfo.ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
 		xig.xig_count = udbinfo.ipi_count;
 		INP_INFO_RUNLOCK(&udbinfo);
-		splx(s);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
 	free(inp_list, M_TEMP);
@@ -651,7 +642,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	struct xucred xuc;
 	struct sockaddr_in addrs[2];
 	struct inpcb *inp;
-	int error, s;
+	int error;
 
 	error = suser_cred(req->td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
@@ -659,7 +650,6 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
 	if (error)
 		return (error);
-	s = splnet();
 	INP_INFO_RLOCK(&udbinfo);
 	inp = in_pcblookup_hash(&udbinfo, addrs[1].sin_addr, addrs[1].sin_port,
 				addrs[0].sin_addr, addrs[0].sin_port, 1, NULL);
@@ -673,7 +663,6 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	cru2x(inp->inp_socket->so_cred, &xuc);
 out:
 	INP_INFO_RUNLOCK(&udbinfo);
-	splx(s);
 	if (error == 0)
 		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
@@ -914,7 +903,6 @@ static int
 udp_abort(struct socket *so)
 {
 	struct inpcb *inp;
-	int s;
 
 	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
@@ -924,10 +912,8 @@ udp_abort(struct socket *so)
 	}
 	INP_LOCK(inp);
 	soisdisconnected(so);
-	s = splnet();
 	in_pcbdetach(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
-	splx(s);
 	return 0;
 }
 
@@ -935,7 +921,7 @@ static int
 udp_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct inpcb *inp;
-	int s, error;
+	int error;
 
 	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
@@ -948,9 +934,7 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 		INP_INFO_WUNLOCK(&udbinfo);
 		return error;
 	}
-	s = splnet();
 	error = in_pcballoc(so, &udbinfo, "udpinp");
-	splx(s);
 	if (error) {
 		INP_INFO_WUNLOCK(&udbinfo);
 		return error;
@@ -969,7 +953,7 @@ static int
 udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp;
-	int s, error;
+	int error;
 
 	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
@@ -978,9 +962,7 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return EINVAL;
 	}
 	INP_LOCK(inp);
-	s = splnet();
 	error = in_pcbbind(inp, nam, td->td_ucred);
-	splx(s);
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
 	return error;
@@ -990,7 +972,7 @@ static int
 udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp;
-	int s, error;
+	int error;
 	struct sockaddr_in *sin;
 
 	INP_INFO_WLOCK(&udbinfo);
@@ -1005,12 +987,10 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		INP_INFO_WUNLOCK(&udbinfo);
 		return EISCONN;
 	}
-	s = splnet();
 	sin = (struct sockaddr_in *)nam;
 	if (jailed(td->td_ucred))
 		prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
 	error = in_pcbconnect(inp, nam, td->td_ucred);
-	splx(s);
 	if (error == 0)
 		soisconnected(so);
 	INP_UNLOCK(inp);
@@ -1022,7 +1002,6 @@ static int
 udp_detach(struct socket *so)
 {
 	struct inpcb *inp;
-	int s;
 
 	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
@@ -1031,10 +1010,8 @@ udp_detach(struct socket *so)
 		return EINVAL;
 	}
 	INP_LOCK(inp);
-	s = splnet();
 	in_pcbdetach(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
-	splx(s);
 	return 0;
 }
 
@@ -1042,7 +1019,6 @@ static int
 udp_disconnect(struct socket *so)
 {
 	struct inpcb *inp;
-	int s;
 
 	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
@@ -1057,12 +1033,10 @@ udp_disconnect(struct socket *so)
 		return ENOTCONN;
 	}
 
-	s = splnet();
 	in_pcbdisconnect(inp);
 	inp->inp_laddr.s_addr = INADDR_ANY;
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
-	splx(s);
 	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
 	return 0;
 }
