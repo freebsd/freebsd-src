@@ -58,7 +58,7 @@
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
-	{ NULL }
+	MOPT_NULL
 };
 
 static gid_t	a_gid(char *);

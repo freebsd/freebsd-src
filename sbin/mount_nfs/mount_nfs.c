@@ -121,7 +121,7 @@ struct mntopt mopts[] = {
 	{ "lockd", 1, ALTF_NOLOCKD, 1 },
 	{ "inet4", 1, ALTF_NOINET4, 1 },
 	{ "inet6", 1, ALTF_NOINET6, 1 },
-	{ NULL }
+	MOPT_NULL
 };
 
 struct nfs_args nfsdefargs = {

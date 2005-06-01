@@ -73,7 +73,7 @@ static struct mntopt mopts[] = {
 	{ "shortnames", 0, MSDOSFSMNT_SHORTNAME, 1 },
 	{ "longnames", 0, MSDOSFSMNT_LONGNAME, 1 },
 	{ "nowin95", 0, MSDOSFSMNT_NOWIN95, 1 },
-	{ NULL }
+	MOPT_NULL
 };
 
 static gid_t	a_gid(char *);
