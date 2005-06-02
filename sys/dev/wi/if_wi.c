@@ -751,8 +751,10 @@ wi_init(void *arg)
 	}
 
 	/* Configure WEP. */
-	if (ic->ic_caps & IEEE80211_C_WEP)
+	if (ic->ic_caps & IEEE80211_C_WEP) {
+		sc->sc_cnfauthmode = ic->ic_bss->ni_authmode;
 		wi_write_wep(sc);
+	}
 
 	/* Set multicast filter. */
 	wi_write_multi(sc);
