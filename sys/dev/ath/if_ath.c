@@ -649,6 +649,10 @@ ath_resume(struct ath_softc *sc)
 		if (ifp->if_flags & IFF_RUNNING)
 			ath_start(ifp);
 	}
+	if (sc->sc_softled) {
+		ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin);
+		ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !sc->sc_ledon);
+	}
 }
 
 void
