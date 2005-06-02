@@ -2246,17 +2246,19 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 				p->p_stats->p_ru.ru_inblock += cb->inputcharge;
 				cb->inputcharge = 0;
 			}
+			error = cb->uaiocb._aiocb_private.error;
 			aio_free_entry(cb);
-			return (cb->uaiocb._aiocb_private.error);
+			return (error);
 		}
 
 		s = splbio();
  		if ((cb = TAILQ_FIRST(&ki->kaio_bufdone)) != 0 ) {
 			splx(s);
 			suword(uap->aiocbp, (uintptr_t)cb->uuaiocb);
+			error = cb->uaiocb._aiocb_private.error;
 			td->td_retval[0] = cb->uaiocb._aiocb_private.status;
 			aio_free_entry(cb);
-			return (cb->uaiocb._aiocb_private.error);
+			return (error);
 		}
 
 		ki->kaio_flags |= KAIO_WAKEUP;
