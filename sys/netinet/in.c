@@ -356,10 +356,15 @@ in_control(so, cmd, data, ifp, td)
 			return (EINVAL);
 		oldaddr = ia->ia_dstaddr;
 		ia->ia_dstaddr = *(struct sockaddr_in *)&ifr->ifr_dstaddr;
-		if (ifp->if_ioctl && (error = (*ifp->if_ioctl)
-					(ifp, SIOCSIFDSTADDR, (caddr_t)ia))) {
-			ia->ia_dstaddr = oldaddr;
-			return (error);
+		if (ifp->if_ioctl) {
+			IFF_LOCKGIANT(ifp);
+			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR,
+			    (caddr_t)ia);
+			IFF_UNLOCKGIANT(ifp);
+			if (error) {
+				ia->ia_dstaddr = oldaddr;
+				return (error);
+			}
 		}
 		if (ia->ia_flags & IFA_ROUTE) {
 			ia->ia_ifa.ifa_dstaddr = (struct sockaddr *)&oldaddr;
@@ -456,7 +461,10 @@ in_control(so, cmd, data, ifp, td)
 	default:
 		if (ifp == 0 || ifp->if_ioctl == 0)
 			return (EOPNOTSUPP);
-		return ((*ifp->if_ioctl)(ifp, cmd, data));
+		IFF_LOCKGIANT(ifp);
+		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		IFF_UNLOCKGIANT(ifp);
+		return (error);
 	}
 
 	/*
@@ -689,15 +697,19 @@ in_ifinit(ifp, ia, sin, scrub)
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	if (ifp->if_ioctl &&
-	    (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia))) {
-		splx(s);
-		/* LIST_REMOVE(ia, ia_hash) is done in in_control */
-		ia->ia_addr = oldaddr;
-		if (ia->ia_addr.sin_family == AF_INET)
-			LIST_INSERT_HEAD(INADDR_HASH(ia->ia_addr.sin_addr.s_addr),
-			    ia, ia_hash);
-		return (error);
+	if (ifp->if_ioctl) {
+		IFF_LOCKGIANT(ifp);
+		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
+		IFF_UNLOCKGIANT(ifp);
+		if (error) {
+			splx(s);
+			/* LIST_REMOVE(ia, ia_hash) is done in in_control */
+			ia->ia_addr = oldaddr;
+			if (ia->ia_addr.sin_family == AF_INET)
+				LIST_INSERT_HEAD(INADDR_HASH(
+				    ia->ia_addr.sin_addr.s_addr), ia, ia_hash);
+			return (error);
+		}
 	}
 	splx(s);
 	if (scrub) {
