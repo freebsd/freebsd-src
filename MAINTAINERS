@@ -71,8 +71,6 @@ etc/sendmail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
 dhcp		mbr	Needs to pre-approve commits to contrib/isc-dhcp, so
 			changes can be made to the isc.org CVS repository.
-RELENG_4_*	security-officer	Requires Security Officer approval.
-RELENG_5_*	security-officer	Requires Security Officer approval.
 libfetch	des	Advance notification requested.
 fetch		des	Advance notification requested.
 libpam		des	Pre-commit review requested.
