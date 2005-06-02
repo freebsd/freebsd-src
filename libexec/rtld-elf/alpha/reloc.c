@@ -58,13 +58,13 @@ extern Elf_Dyn _GOT_END_;
  * We don't use these when relocating jump slots and GOT entries,
  * since they are guaranteed to be aligned.
  */
-#define load64(p) ({						\
-	Elf_Addr __res;						\
-	__asm__("ldq_u %0,%1" : "=r"(__res) : "m"(*(p)));	\
-	__res; })
 
-#define store64(p, v)						\
-	__asm__("stq_u %1,%0" : "=m"(*(p)) : "r"(v))
+struct ualong {
+	Elf_Addr x __attribute__((packed));
+};
+
+#define	load64(p)	(((struct ualong *)(p))->x)
+#define	store64(p,v)	(((struct ualong *)(p))->x = (v))
 
 /* Relocate a non-PLT object with addend. */
 static int
