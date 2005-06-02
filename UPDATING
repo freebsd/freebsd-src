@@ -1859,21 +1859,16 @@ COMMON ITEMS:
 	/usr/src/etc/rc.d/preseedrandom				[8]
 	mergemaster -p						[9]
 	rm -rf /usr/include/g++
-	make installworld
-	mergemaster -i						[10]
+	make installworld					[11]
+	mergemaster -i						[12]
 	<reboot>
 
 	Make sure that you've read the UPDATING file to understand the
 	tweaks to various things you need.  At this point in the life
-	cycle of current, things change often and you are on your own
-	to cope.  The defaults can also change, so please read ALL of
-	the UPDATING entries.
-
-	Also, if you are tracking -current, you must be subscribed to
-	freebsd-current@freebsd.org.  Make sure that before you update
-	your sources that you have read and understood all the recent
-	messages there.  If in doubt, please track -stable which has
-	much fewer pitfalls.
+	cycle of stable, things change fairly rarely.  However, many
+	changes from 4.x to 5.x are not reflected in this breif section.
+	The defaults can also change, so please read ALL of the UPDATING
+	entries.
 
 	If you have any ports or packages installed on the system, please
 	see /usr/ports/UPDATING.  The following items are known to cause
@@ -1892,6 +1887,18 @@ COMMON ITEMS:
 	    (except rc.conf) may cause problems.
 	(e) Device names have changed and MAKEDEV is gone.
 	(f) The boot loader defaults have changed, which may cause confusion.
+	(g) If the build dies for some reason and you reboot, you'll be booting
+	    with new libraries, but old paths.  You will need to tell ldconfig
+	    about them with
+		ldconfig /lib /usr/lib /usr/local/lib
+	(h) If the system appears to hang, try toggling the scroll lock.  Many
+	    kvm switches use Scroll Lock to switch screens and on such systems
+	    a hang can often just be scroll lock active.
+	(i) named now runs in a chroot unless you disable this.  See
+	    named_chrootdir in /etc/defaults/rc.conf for details on restoring
+	    4.x behavior.
+	(j) Ports that use PAM on 4.x should be recompiled.  This is especially
+	    true for sudo.  know thy root password before the upgrade!
 
 	[1] Before you upgrade, please make sure that you are not using
 	compatibility slices.  These are device names of the form, on i386 and
@@ -1920,7 +1927,14 @@ COMMON ITEMS:
 	[4] If you have legacy ISA devices, you may need to create your own
 	device.hints to reflect your unique hardware configuration.
 
-	[5] 4.x boot loader can be used to boot a 5.x system, however it is
+	[5] Since make installkernel also does a make heirarchy, PAM will
+	stop working because /etc/pam.d's existance overrides /etc/pam.conf.
+	If you want to login to your system after the install kernel, or if
+	you have accidentally rebooted a remote system into multi-user, the
+	existance of /etc/pam.d will cause remote logins to fail.  It is
+	safe to remove it at this step as it will be recreated later.
+
+	[6] 4.x boot loader can be used to boot a 5.x system, however it is
 	difficult to do that at best.  If you wish to try, then you should
 	interrupt the boot and at the ok prompt type:
 		ok unload
@@ -1928,13 +1942,12 @@ COMMON ITEMS:
 	If this fails to work, you must install a new boot loader as described
 	here.
 
-	[6] If you have third party modules, such as vmware, you should
+	[7] If you have third party modules, such as vmware, you should
 	disable them at this point so they don't crash your system on reboot.
 
-	[7] From the bootblocks, boot -s, and then do
+	[8] From the bootblocks, boot -s, and then do
 		fsck -p
-		mount -u /
-		mount -a
+		mount -a -t ufs
 		cd /usr/src
 		adjkerntz -i		# if CMOS is wall time
 	Also, when doing a major release upgrade, it is required that you boot
@@ -1943,23 +1956,30 @@ COMMON ITEMS:
 	your userland.  These are harmless and can be ignored while you
 	proceed to the next step.
 
-	[8] In order to create temporary files, /dev/random must be
+	[9] In order to create temporary files, /dev/random must be
 	initialized by feeding data into it.  /usr/src/etc/rc.d/preseedrandom
 	takes care of this.
 
-	[9] Usually this step is a noop.  However, from time to time you may
+	[10] Usually this step is a noop.  However, from time to time you may
 	need to do this if you get unknown user in the following step.  It
 	never hurts to do it all the time.  You may need to install a new
 	mergemaster (cd src/usr.sbin/mergemaster && make install) after the
 	buildworld before this step if you last updated from current before
-	20020224 or from -stable before 20020408.
+	20020224 or from -stable before 20020408.  If you are installing not
+	from /usr/src, don't forget the -m option.
 
-	[10] Note: This step is non-optional.  Failure to do this step can
+	[11] If you are using a non-standard /usr/obj, you need to set
+	an appropriate MAKEOBJDIRPREFIX before this step.
+
+	[12] Note: This step is non-optional.  Failure to do this step can
 	result in a significant reduction in the functionality of the system.
 	Attempting to do it by hand is not recommended and those that pursue
 	this avenue should read this file carefully, as well as the archives
 	of freebsd-current and freebsd-hackers mailing lists for potential
-	gotchas.
+	gotchas.  Also, if you are installing not from /usr/src, don't
+	forget the -m option.  Also note: since many libraries moved into
+	/lib with 5.x, failure to run mergemaster will result in many
+	shared libraries that should be there not being found.
 
 FORMAT:
 
