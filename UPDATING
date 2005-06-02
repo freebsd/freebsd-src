@@ -1853,7 +1853,7 @@ COMMON ITEMS:
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE		[3]
 	cp sys/${MACHINE}/conf/GENERIC.hints /boot/device.hints [4]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
-	cd sys/boot ; make STRIP="" install			[5]
+	cd sys/boot ; make STRIP= install			[5]
 								[6]
 	<reboot in single user>					[7]
 	/usr/src/etc/rc.d/preseedrandom				[8]
