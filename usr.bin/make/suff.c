@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
  *	    	  	    	if the target had no implicit sources.
  */
 
+#include	  <assert.h>
 #include    	  <stdio.h>
 #include	  "make.h"
 #include	  "hash.h"
@@ -205,8 +206,7 @@ SuffStrIsPrefix (char *pref, char *str)
 /*-
  *-----------------------------------------------------------------------
  * SuffSuffIsSuffix  --
- *	See if suff is a suffix of str. Str should point to THE END of the
- *	string to check. (THE END == the null byte)
+ *	See if suff is a suffix of str.
  *
  * Results:
  *	NULL if it ain't, pointer to character in str before suffix if
@@ -221,13 +221,16 @@ SuffSuffIsSuffix (Suff *s, char *str)
 {
     char	   *p1;	    	/* Pointer into suffix name */
     char	   *p2;	    	/* Pointer into string being examined */
+    size_t	   len;
 
+    len = strlen(str);
     p1 = s->name + s->nameLen;
-    p2 = str;
+    p2 = str + len;
 
-    while (p1 >= s->name && *p1 == *p2) {
+    while (p1 >= s->name && len > 0 && *p1 == *p2) {
 	p1--;
 	p2--;
+	len--;
     }
 
     return (p1 == s->name - 1 ? p2 : NULL);
@@ -252,6 +255,7 @@ SuffSuffIsSuffixP(void *s, void *str)
 {
     return(!SuffSuffIsSuffix((Suff *) s, (char *) str));
 }
+
 
 /*-
  *-----------------------------------------------------------------------
@@ -720,7 +724,7 @@ SuffRebuildGraph(void *transformp, void *sp)
     /*
      * Not from, maybe to?
      */
-    cp = SuffSuffIsSuffix(s, transform->name + strlen(transform->name));
+    cp = SuffSuffIsSuffix(s, transform->name);
     if (cp != (char *)NULL) {
 	/*
 	 * Null-terminate the source suffix in order to find it.
@@ -1407,8 +1411,7 @@ SuffExpandChildren(void *cgnp, void *pgnp)
 	 *   suffix, use its path.
 	 * Else use the default system search path.
 	 */
-	cp = cgn->name + strlen(cgn->name);
-	ln = Lst_Find(sufflist, (void *)cp, SuffSuffIsSuffixP);
+	ln = Lst_Find(sufflist, (void *)cgn->name, SuffSuffIsSuffixP);
 
 	DEBUGF(SUFF, ("Wildcard expanding \"%s\"...", cgn->name));
 
@@ -1670,7 +1673,7 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
 	/*
 	 * Use first matching suffix...
 	 */
-	ln = Lst_Find(ms->parents, eoarch, SuffSuffIsSuffixP);
+	ln = Lst_Find(ms->parents, gn->name, SuffSuffIsSuffixP);
 
 	if (ln != NULL) {
 	    /*
@@ -1768,7 +1771,7 @@ SuffFindNormalDeps(GNode *gn, Lst slst)
 	/*
 	 * Look for next possible suffix...
 	 */
-	ln = Lst_FindFrom(sufflist, ln, eoname, SuffSuffIsSuffixP);
+	ln = Lst_FindFrom(sufflist, ln, gn->name, SuffSuffIsSuffixP);
 
 	if (ln != NULL) {
 	    int	    prefLen;	    /* Length of the prefix */
@@ -1793,6 +1796,7 @@ SuffFindNormalDeps(GNode *gn, Lst slst)
 	     * the length of the suffix from the end of the name.
 	     */
 	    prefLen = (eoname - target->suff->nameLen) - sopref;
+	    assert(prefLen >= 0);
 	    target->pref = emalloc(prefLen + 1);
 	    memcpy(target->pref, sopref, prefLen);
 	    target->pref[prefLen] = '\0';
