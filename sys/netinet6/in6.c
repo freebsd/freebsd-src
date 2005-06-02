@@ -1507,10 +1507,14 @@ in6_ifinit(ifp, ia, sin6, newhost)
 
 	ia->ia_addr = *sin6;
 
-	if (ifacount <= 1 && ifp->if_ioctl &&
-	    (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia))) {
-		splx(s);
-		return (error);
+	if (ifacount <= 1 && ifp->if_ioctl) {
+		IFF_LOCKGIANT(ifp);
+		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
+		IFF_UNLOCKGIANT(ifp);
+		if (error) {
+			splx(s);
+			return (error);
+		}
 	}
 	splx(s);
 
