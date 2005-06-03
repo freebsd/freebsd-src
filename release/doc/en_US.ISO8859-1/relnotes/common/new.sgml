@@ -285,6 +285,9 @@
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
+    <para arch="i386,amd64">&os; always uses the local APIC timer
+      even on uni-processor systems now.</para>
+
     <para arch="i386,amd64,ia64">The default <varname>HZ</varname>
       parameter (which controls various kernel timers) has been
       increased from <literal>100</literal> to <literal>1000</literal>
@@ -299,6 +302,13 @@
       and ia64).  As a result, compatibility modules need to be
       rebuilt to stay synchronized with data structure changes in the
       kernel.</para>
+
+    <para>A new tunable <varname>vm.blacklist</varname> has been added.
+      This can hold a space or comma separated list of physical addresses.
+      The pages containing these physical addresses will
+      not be added to the free list and thus will effectively
+      be ignored by the &os; VM system.  The physical addresses
+      of any ignored pages are listed in the message buffer as well.</para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
@@ -590,6 +600,8 @@
 	Note that &man.ipfw.8; rules have to be carefully crafted to
 	make sure that things like PMTU discovery do not break. &merged;</para>
 
+      <para>The &man.ipfw.8; now supports IPv4 only rules.</para>
+
       <para>&man.ipnat.8; now allows redirect rules to
 	work for non-TCP/UDP packets.  &merged;</para>
 
@@ -786,7 +798,9 @@
     <para arch="amd64">Machine-specific optimized versions of
       &man.bcmp.3;, &man.bcopy.3;, &man.bzero.3;, &man.memcmp.3;,
       &man.memcpy.3;, &man.memmove.3;, &man.memset.3;, &man.strcat.3;
-      and &man.strcpy.3; have been implemented.</para>
+      and &man.strcpy.3; have been implemented.  Several mathematics
+      functions such as &man.ceill.3; and &man.sqrtf.3; are also
+      replaced with the optimized versions.</para>
 
     <para>The &man.chflags.1; utility now supports the
       <option>-h</option> flag, which supports changing flags on
@@ -832,6 +846,18 @@
 
     <para>The &man.getservent.3;, &man.getservbyname.3;, and
       &man.getservbyport.3; functions are now thread-safe. &merged;</para>
+
+    <para>For conformation to IEEE Std 1003.1-2001
+      (also known as POSIX 2001), the <varname>n_net</varname>
+      of <varname>struct netent</varname> and the first argument
+      of &man.getnetbyaddr.3; has been changed to an uint32_t.
+      Due to these changes the ABI on 64-bit platforms becomes
+      incompatible with previous releases of &os; and
+      the major version number of libpcap has been bumped.
+      If you upgrade &os; for 64-bit platforms, note that all of
+      the userland programs which use &man.getnetbyaddr.3;,
+      &man.getnetbyname.3;, &man.getnetent.3; and/or
+      <application>libpcap</application> have to be recompiled.</para>
 
     <para>The gvinum(8) utility now supports
       <command>checkparity</command>,
@@ -1183,6 +1209,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para><application>FILE</application> has been updated from 4.10
       to 4.12.</para>
+
+    <para><application>GNU GCC</application> has been updated from
+      from 3.4.2-prerelease as of 28 July, 2004 to 3.4.4.</para>
 
     <para>A number of bug fixes and performance enhancements have been
       added to <application>GNU grep</application> in the form of
