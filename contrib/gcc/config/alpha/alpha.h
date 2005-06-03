@@ -641,6 +641,7 @@ extern const char *alpha_tls_size_string; /* For -mtls-size= */
 #define HARD_REGNO_MODE_OK(REGNO, MODE) 				\
   ((REGNO) >= 32 && (REGNO) <= 62 					\
    ? (MODE) == SFmode || (MODE) == DFmode || (MODE) == DImode		\
+     || (MODE) == SCmode || (MODE) == DCmode				\
    : 1)
 
 /* Value is 1 if MODE is a supported vector mode.  */
@@ -1189,6 +1190,7 @@ do {						\
 #define INCOMING_RETURN_ADDR_RTX  gen_rtx_REG (Pmode, 26)
 #define DWARF_FRAME_RETURN_COLUMN DWARF_FRAME_REGNUM (26)
 #define DWARF_ALT_FRAME_RETURN_COLUMN DWARF_FRAME_REGNUM (64)
+#define DWARF_ZERO_REG 31
 
 /* Describe how we implement __builtin_eh_return.  */
 #define EH_RETURN_DATA_REGNO(N)	((N) < 4 ? (N) + 16 : INVALID_REGNUM)

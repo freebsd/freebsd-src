@@ -5960,22 +5960,24 @@
   [(set (pc)
 	(if_then_else
 	 (match_operator 5 "equality_operator"
-	  [(and:SI (not:SI (match_operand:SI 3 "s_register_operand" "l,l,l,l"))
-		   (match_operand:SI 2 "s_register_operand" "0,1,1,1"))
+	  [(and:SI (not:SI (match_operand:SI 3 "s_register_operand" "l,l,l,l,l"))
+		   (match_operand:SI 2 "s_register_operand" "0,1,1,1,1"))
 	   (const_int 0)])
 	 (label_ref (match_operand 4 "" ""))
 	 (pc)))
-   (set (match_operand:SI 0 "thumb_cbrch_target_operand" "=l,*?h,*?m,*?m")
+   (set (match_operand:SI 0 "thumb_cbrch_target_operand" "=!l,l,*?h,*?m,*?m")
 	(and:SI (not:SI (match_dup 3)) (match_dup 2)))
-   (clobber (match_scratch:SI 1 "=X,l,&l,&l"))]
+   (clobber (match_scratch:SI 1 "=X,l,l,&l,&l"))]
   "TARGET_THUMB"
   "*
   {
   if (which_alternative == 0)
     output_asm_insn (\"bic\\t%0, %3\", operands);
-  else if (which_alternative == 1)
+  else if (which_alternative <= 2)
     {
       output_asm_insn (\"bic\\t%1, %3\", operands);
+      /* It's ok if OP0 is a lo-reg, even though the mov will set the
+	 conditions again, since we're only testing for equality.  */
       output_asm_insn (\"mov\\t%0, %1\", operands);
     }
   else
@@ -6234,10 +6236,10 @@
        case 1:
 	 output_asm_insn (\"cmn\t%1, %2\", operands);
 	 break;
-       case 3:
+       case 2:
 	 output_asm_insn (\"add\t%0, %1, %2\", operands);
 	 break;
-       case 4:
+       case 3:
 	 output_asm_insn (\"add\t%0, %0, %2\", operands);
 	 break;
        }
@@ -7128,8 +7130,8 @@
 	    (const_string "no")))
    (set (attr "length") 
         (if_then_else
-	    (and (ge (minus (match_dup 0) (pc)) (const_int -2048))
-		 (le (minus (match_dup 0) (pc)) (const_int 2044)))
+	    (and (ge (minus (match_dup 0) (pc)) (const_int -2044))
+		 (le (minus (match_dup 0) (pc)) (const_int 2048)))
   	    (const_int 2)
 	    (const_int 4)))]
 )
