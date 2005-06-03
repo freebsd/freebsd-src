@@ -1,6 +1,6 @@
 // RB tree implementation -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -161,7 +161,8 @@ namespace std
       typedef _Rb_tree_node_base::_Base_ptr _Base_ptr;
       typedef _Rb_tree_node<_Tp>*           _Link_type;
 
-      _Rb_tree_iterator() { }
+      _Rb_tree_iterator()
+      : _M_node() { }
 
       _Rb_tree_iterator(_Link_type __x)
       : _M_node(__x) { }
@@ -231,7 +232,8 @@ namespace std
       typedef _Rb_tree_node_base::_Const_Base_ptr _Base_ptr;
       typedef const _Rb_tree_node<_Tp>*           _Link_type;
 
-      _Rb_tree_const_iterator() { }
+      _Rb_tree_const_iterator()
+      : _M_node() { }
 
       _Rb_tree_const_iterator(_Link_type __x)
       : _M_node(__x) { }
@@ -702,7 +704,7 @@ namespace std
 	       const _Rb_tree<_Key,_Val,_KeyOfValue,_Compare,_Alloc>& __y)
     {
       return __x.size() == __y.size()
-	     && equal(__x.begin(), __x.end(), __y.begin());
+	     && std::equal(__x.begin(), __x.end(), __y.begin());
     }
 
   template<typename _Key, typename _Val, typename _KeyOfValue,
@@ -711,8 +713,8 @@ namespace std
     operator<(const _Rb_tree<_Key,_Val,_KeyOfValue,_Compare,_Alloc>& __x,
 	      const _Rb_tree<_Key,_Val,_KeyOfValue,_Compare,_Alloc>& __y)
     {
-      return lexicographical_compare(__x.begin(), __x.end(), 
-				     __y.begin(), __y.end());
+      return std::lexicographical_compare(__x.begin(), __x.end(), 
+					  __y.begin(), __y.end());
     }
 
   template<typename _Key, typename _Val, typename _KeyOfValue,
