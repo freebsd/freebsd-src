@@ -322,23 +322,25 @@ void	arm9_setttb		(u_int);
 
 void	arm9_tlb_flushID_SE	(u_int va);
 
-void	arm9_cache_flushID	(void);
-void	arm9_cache_flushID_SE	(u_int);
-void	arm9_cache_flushI	(void);
-void	arm9_cache_flushI_SE	(u_int);
-void	arm9_cache_flushD	(void);
-void	arm9_cache_flushD_SE	(u_int);
+void	arm9_icache_sync_all	__P((void));
+void	arm9_icache_sync_range	__P((vm_offset_t, vm_size_t));
 
-void	arm9_cache_cleanID	(void);
+void	arm9_dcache_wbinv_all	__P((void));
+void	arm9_dcache_wbinv_range __P((vm_offset_t, vm_size_t));
+void	arm9_dcache_inv_range	__P((vm_offset_t, vm_size_t));
+void	arm9_dcache_wb_range	__P((vm_offset_t, vm_size_t));
 
-void	arm9_cache_syncI	(void);
-void	arm9_cache_flushID_rng	(vm_offset_t, vm_size_t);
-void	arm9_cache_flushD_rng	(vm_offset_t, vm_size_t);
-void	arm9_cache_syncI_rng	(vm_offset_t, vm_size_t);
+void	arm9_idcache_wbinv_all	__P((void));
+void	arm9_idcache_wbinv_range __P((vm_offset_t, vm_size_t));
 
 void	arm9_context_switch	(void);
 
 void	arm9_setup		(char *string);
+
+extern unsigned arm9_dcache_sets_max;
+extern unsigned arm9_dcache_sets_inc;
+extern unsigned arm9_dcache_index_max;
+extern unsigned arm9_dcache_index_inc;
 #endif
 
 #ifdef CPU_ARM10
