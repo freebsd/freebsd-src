@@ -483,9 +483,21 @@ rtl_split_block (basic_block bb, void *insnp)
   edge e;
   rtx insn = insnp;
 
-  /* There is no point splitting the block after its end.  */
-  if (BB_END (bb) == insn)
-    return 0;
+  if (!insn)
+    {
+      insn = first_insn_after_basic_block_note (bb);
+
+      if (insn)
+	insn = PREV_INSN (insn);
+      else
+	insn = get_last_insn ();
+    }
+
+  /* We probably should check type of the insn so that we do not create
+     inconsistent cfg.  It is checked in verify_flow_info anyway, so do not
+     bother.  */
+  if (insn == BB_END (bb))
+    emit_note_after (NOTE_INSN_DELETED, insn);
 
   /* Create the new basic block.  */
   new_bb = create_basic_block (NEXT_INSN (insn), BB_END (bb), bb);
@@ -2710,6 +2722,18 @@ cfg_layout_split_edge (edge e)
 
   new_bb->count = e->count;
   new_bb->frequency = EDGE_FREQUENCY (e);
+
+  /* ??? This info is likely going to be out of date very soon, but we must
+     create it to avoid getting an ICE later.  */
+  if (e->dest->global_live_at_start)
+    {
+      new_bb->global_live_at_start = OBSTACK_ALLOC_REG_SET (&flow_obstack);
+      new_bb->global_live_at_end = OBSTACK_ALLOC_REG_SET (&flow_obstack);
+      COPY_REG_SET (new_bb->global_live_at_start,
+		    e->dest->global_live_at_start);
+      COPY_REG_SET (new_bb->global_live_at_end,
+		    e->dest->global_live_at_start);
+    }
 
   new_e = make_edge (new_bb, e->dest, EDGE_FALLTHRU);
   new_e->probability = REG_BR_PROB_BASE;

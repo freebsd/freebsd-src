@@ -2144,12 +2144,15 @@ operands_match_p (rtx x, rtx y)
 	j = REGNO (y);
 
       /* On a WORDS_BIG_ENDIAN machine, point to the last register of a
-	 multiple hard register group, so that for example (reg:DI 0) and
-	 (reg:SI 1) will be considered the same register.  */
+	 multiple hard register group of scalar integer registers, so that
+	 for example (reg:DI 0) and (reg:SI 1) will be considered the same
+	 register.  */
       if (WORDS_BIG_ENDIAN && GET_MODE_SIZE (GET_MODE (x)) > UNITS_PER_WORD
+	  && SCALAR_INT_MODE_P (GET_MODE (x))
 	  && i < FIRST_PSEUDO_REGISTER)
 	i += HARD_REGNO_NREGS (i, GET_MODE (x)) - 1;
       if (WORDS_BIG_ENDIAN && GET_MODE_SIZE (GET_MODE (y)) > UNITS_PER_WORD
+	  && SCALAR_INT_MODE_P (GET_MODE (y))
 	  && j < FIRST_PSEUDO_REGISTER)
 	j += HARD_REGNO_NREGS (j, GET_MODE (y)) - 1;
 
@@ -3061,6 +3064,7 @@ find_reloads (rtx insn, int replace, int ind_levels, int live_known,
 		  {
 		    /* Operands don't match.  */
 		    rtx value;
+		    int loc1, loc2;
 		    /* Retroactively mark the operand we had to match
 		       as a loser, if it wasn't already.  */
 		    if (this_alternative_win[m])
@@ -3069,12 +3073,26 @@ find_reloads (rtx insn, int replace, int ind_levels, int live_known,
 		    if (this_alternative[m] == (int) NO_REGS)
 		      bad = 1;
 		    /* But count the pair only once in the total badness of
-		       this alternative, if the pair can be a dummy reload.  */
+		       this alternative, if the pair can be a dummy reload.
+		       The pointers in operand_loc are not swapped; swap
+		       them by hand if necessary.  */
+		    if (swapped && i == commutative)
+		      loc1 = commutative + 1;
+		    else if (swapped && i == commutative + 1)
+		      loc1 = commutative;
+		    else
+		      loc1 = i;
+		    if (swapped && m == commutative)
+		      loc2 = commutative + 1;
+		    else if (swapped && m == commutative + 1)
+		      loc2 = commutative;
+		    else
+		      loc2 = m;
 		    value
 		      = find_dummy_reload (recog_data.operand[i],
 					   recog_data.operand[m],
-					   recog_data.operand_loc[i],
-					   recog_data.operand_loc[m],
+					   recog_data.operand_loc[loc1],
+					   recog_data.operand_loc[loc2],
 					   operand_mode[i], operand_mode[m],
 					   this_alternative[m], -1,
 					   this_alternative_earlyclobber[m]);

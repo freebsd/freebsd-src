@@ -767,7 +767,6 @@ static tree handle_nothrow_attribute (tree *, tree, tree, int, bool *);
 static tree handle_cleanup_attribute (tree *, tree, tree, int, bool *);
 static tree handle_warn_unused_result_attribute (tree *, tree, tree, int,
 						 bool *);
-static tree vector_size_helper (tree, tree);
 
 static void check_function_nonnull (tree, tree);
 static void check_nonnull_arg (void *, tree, unsigned HOST_WIDE_INT);
@@ -1138,7 +1137,7 @@ fname_decl (unsigned int rid, tree id)
       input_line = saved_lineno;
     }
   if (!ix && !current_function_decl)
-    pedwarn ("%J'%D' is not defined outside of function scope", decl, decl);
+    pedwarn ("'%D' is not defined outside of function scope", decl);
 
   return decl;
 }
@@ -4643,7 +4642,10 @@ handle_mode_attribute (tree *node, tree name, tree args ATTRIBUTE_UNUSED,
       else
 	for (j = 0; j < NUM_MACHINE_MODES; j++)
 	  if (!strcmp (p, GET_MODE_NAME (j)))
-	    mode = (enum machine_mode) j;
+	    {
+	      mode = (enum machine_mode) j;
+	      break;
+	    }
 
       if (mode == VOIDmode)
 	error ("unknown machine mode `%s'", p);
@@ -4676,8 +4678,44 @@ handle_mode_attribute (tree *node, tree name, tree args ATTRIBUTE_UNUSED,
 							mode);
 	      *node = ptr_type;
 	    }
+	  else if (TREE_CODE (type) == ENUMERAL_TYPE)
+	    {
+	      /* For enumeral types, copy the precision from the integer
+		 type returned above.  If not an INTEGER_TYPE, we can't use
+		 this mode for this type.  */
+	      if (TREE_CODE (typefm) != INTEGER_TYPE)
+		{
+		  error ("cannot use mode %qs for enumeral types", p);
+		  return NULL_TREE;
+		}
+
+	      if (!(flags & (int) ATTR_FLAG_TYPE_IN_PLACE))
+		type = build_type_copy (type);
+
+	      /* We cannot use layout_type here, because that will attempt
+		 to re-layout all variants, corrupting our original.  */
+	      TYPE_PRECISION (type) = TYPE_PRECISION (typefm);
+	      TYPE_MIN_VALUE (type) = TYPE_MIN_VALUE (typefm);
+	      TYPE_MAX_VALUE (type) = TYPE_MAX_VALUE (typefm);
+	      TYPE_SIZE (type) = TYPE_SIZE (typefm);
+	      TYPE_SIZE_UNIT (type) = TYPE_SIZE_UNIT (typefm);
+	      TYPE_MODE (type) = TYPE_MODE (typefm);
+	      if (!TYPE_USER_ALIGN (type))
+		TYPE_ALIGN (type) = TYPE_ALIGN (typefm);
+
+	      *node = type;
+	    }
+	  else if (VECTOR_MODE_P (mode)
+		   ? TREE_CODE (type) != TREE_CODE (TREE_TYPE (typefm))
+		   : TREE_CODE (type) != TREE_CODE (typefm))
+		   
+	    {
+	      error ("mode `%s' applied to inappropriate type", p);
+	      return NULL_TREE;
+	    }
 	  else
-	  *node = typefm;
+	    *node = typefm;
+
 	  /* No need to layout the type here.  The caller should do this.  */
 	}
     }
@@ -5246,55 +5284,9 @@ handle_vector_size_attribute (tree *node, tree name, tree args,
     }
 
   /* Build back pointers if needed.  */
-  *node = vector_size_helper (*node, new_type);
+  *node = reconstruct_complex_type (*node, new_type);
 
   return NULL_TREE;
-}
-
-/* HACK.  GROSS.  This is absolutely disgusting.  I wish there was a
-   better way.
-
-   If we requested a pointer to a vector, build up the pointers that
-   we stripped off while looking for the inner type.  Similarly for
-   return values from functions.
-
-   The argument "type" is the top of the chain, and "bottom" is the
-   new type which we will point to.  */
-
-static tree
-vector_size_helper (tree type, tree bottom)
-{
-  tree inner, outer;
-
-  if (POINTER_TYPE_P (type))
-    {
-      inner = vector_size_helper (TREE_TYPE (type), bottom);
-      outer = build_pointer_type (inner);
-    }
-  else if (TREE_CODE (type) == ARRAY_TYPE)
-    {
-      inner = vector_size_helper (TREE_TYPE (type), bottom);
-      outer = build_array_type (inner, TYPE_DOMAIN (type));
-    }
-  else if (TREE_CODE (type) == FUNCTION_TYPE)
-    {
-      inner = vector_size_helper (TREE_TYPE (type), bottom);
-      outer = build_function_type (inner, TYPE_ARG_TYPES (type));
-    }
-  else if (TREE_CODE (type) == METHOD_TYPE)
-    {
-      inner = vector_size_helper (TREE_TYPE (type), bottom);
-      outer = build_method_type_directly (TYPE_METHOD_BASETYPE (type),
-					  inner, 
-					  TYPE_ARG_TYPES (type));
-    }
-  else
-    return bottom;
-
-  TREE_READONLY (outer) = TREE_READONLY (type);
-  TREE_THIS_VOLATILE (outer) = TREE_THIS_VOLATILE (type);
-
-  return outer;
 }
 
 /* Handle the "nonnull" attribute.  */

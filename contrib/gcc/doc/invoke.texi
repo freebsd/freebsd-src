@@ -1,12 +1,12 @@
 @c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-@c 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+@c 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
 @ignore
 @c man begin COPYRIGHT
 Copyright @copyright{} 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.2 or
@@ -188,7 +188,7 @@ in the following sections.
 -Weffc++  -Wno-deprecated @gol
 -Wno-non-template-friend  -Wold-style-cast @gol
 -Woverloaded-virtual  -Wno-pmf-conversions @gol
--Wsign-promo  -Wsynth}
+-Wsign-promo}
 
 @item Objective-C Language Options
 @xref{Objective-C Dialect Options,,Options Controlling Objective-C Dialect}.
@@ -421,7 +421,7 @@ in the following sections.
 -mpowerpc-gfxopt  -mno-powerpc-gfxopt @gol
 -mnew-mnemonics  -mold-mnemonics @gol
 -mfull-toc   -mminimal-toc  -mno-fp-in-toc  -mno-sum-in-toc @gol
--m64  -m32  -mxl-call  -mno-xl-call  -mpe @gol
+-m64  -m32  -mxl-compat  -mno-xl-compat  -mpe @gol
 -malign-power  -malign-natural @gol
 -msoft-float  -mhard-float  -mmultiple  -mno-multiple @gol
 -mstring  -mno-string  -mupdate  -mno-update @gol
@@ -605,8 +605,11 @@ in the following sections.
 -mconstant-gp  -mauto-pic  -minline-float-divide-min-latency @gol
 -minline-float-divide-max-throughput @gol
 -minline-int-divide-min-latency @gol
--minline-int-divide-max-throughput  -mno-dwarf2-asm @gol
--mfixed-range=@var{register-range}}
+-minline-int-divide-max-throughput  @gol
+-minline-sqrt-min-latency -minline-sqrt-max-throughput @gol
+-mno-dwarf2-asm -mearly-stop-bits @gol
+-mfixed-range=@var{register-range} -mtls-size=@var{tls-size} @gol
+-mtune=@var{cpu-type} -mt -pthread -milp32 -mlp64}
 
 @emph{D30V Options}
 @gccoptlist{-mextmem  -mextmemory  -monchip  -mno-asm-optimize @gol
@@ -1700,13 +1703,6 @@ Warn when overload resolution chooses a promotion from unsigned or
 enumerated type to a signed type, over a conversion to an unsigned type of
 the same size.  Previous versions of G++ would try to preserve
 unsignedness, but the standard mandates the current behavior.
-
-@item -Wsynth @r{(C++ only)}
-@opindex Wsynth
-@cindex warning for synthesized methods
-@cindex synthesized methods, warning
-Warn when G++'s synthesis behavior does not match that of cfront.  For
-instance:
 
 @smallexample
 struct A @{
@@ -4198,8 +4194,8 @@ Enabled at levels @option{-O2}, @option{-O3}.
 @opindex freorder-functions
 Reorder basic blocks in the compiled function in order to reduce number of
 taken branches and improve code locality. This is implemented by using special
-subsections @code{text.hot} for most frequently executed functions and
-@code{text.unlikely} for unlikely executed functions.  Reordering is done by
+subsections @code{.text.hot} for most frequently executed functions and
+@code{.text.unlikely} for unlikely executed functions.  Reordering is done by
 the linker so object file format must support named sections and linker must
 place them in a reasonable way.
 
@@ -4828,6 +4824,12 @@ order to make tracer effective.
 @item max-cse-path-length
 
 Maximum number of basic blocks on path that cse considers.
+
+@item max-last-value-rtl
+
+The maximum size measured as number of RTLs that can be recorded in an
+expression in combiner for a pseudo register as last known value of that
+register.  The default is 10000.
 
 @item ggc-min-expand
 
@@ -6161,7 +6163,7 @@ These @samp{-m} options are supported on the SPARC:
 @opindex mapp-regs
 Specify @option{-mapp-regs} to generate output using the global registers
 2 through 4, which the SPARC SVR4 ABI reserves for applications.  This
-is the default.
+is the default, except on Solaris.
 
 To be fully SVR4 ABI compliant at the cost of some performance loss,
 specify @option{-mno-app-regs}.  You should compile libraries and system
@@ -6384,7 +6386,7 @@ on SPARC-V9 processors in 64-bit environments:
 @item -mlittle-endian
 @opindex mlittle-endian
 Generate code for a processor running in little-endian mode. It is only
-available for a few configurations and most notably not on Solaris.
+available for a few configurations and most notably not on Solaris and Linux.
 
 @item -m32
 @itemx -m64
@@ -7050,7 +7052,7 @@ Supported values for @var{cpu_type} are @samp{401}, @samp{403},
 @samp{601}, @samp{602}, @samp{603}, @samp{603e}, @samp{604},
 @samp{604e}, @samp{620}, @samp{630}, @samp{740}, @samp{7400},
 @samp{7450}, @samp{750}, @samp{801}, @samp{821}, @samp{823},
-@samp{860}, @samp{970}, @samp{common}, @samp{ec603e}, @samp{G3},
+@samp{860}, @samp{970}, @samp{8540}, @samp{common}, @samp{ec603e}, @samp{G3},
 @samp{G4}, @samp{G5}, @samp{power}, @samp{power2}, @samp{power3},
 @samp{power4}, @samp{power5}, @samp{powerpc}, @samp{powerpc64},
 @samp{rios}, @samp{rios1}, @samp{rios2}, @samp{rsc}, and @samp{rs64a}.
@@ -7178,13 +7180,17 @@ Specifying @option{-maix64} implies @option{-mpowerpc64} and
 @option{-mpowerpc}, while @option{-maix32} disables the 64-bit ABI and
 implies @option{-mno-powerpc64}.  GCC defaults to @option{-maix32}.
 
-@item -mxl-call
-@itemx -mno-xl-call
-@opindex mxl-call
-@opindex mno-xl-call
-On AIX, pass floating-point arguments to prototyped functions beyond the
-register save area (RSA) on the stack in addition to argument FPRs.  The
-AIX calling convention was extended but not initially documented to
+@item -mxl-compat
+@itemx -mno-xl-compat
+@opindex mxl-compat
+@opindex mno-xl-compat
+Produce code that conforms more closely to IBM XLC semantics when using
+AIX-compatible ABI.  Pass floating-point arguments to prototyped
+functions beyond the register save area (RSA) on the stack in addition
+to argument FPRs.  Do not assume that most significant double in 128
+bit long double value is properly rounded when comparing values.
+
+The AIX calling convention was extended but not initially documented to
 handle an obscure K&R C case of calling a function that takes the
 address of its arguments with fewer arguments than declared.  AIX XL
 compilers access floating point arguments which do not fit in the
@@ -10031,12 +10037,30 @@ using the minimum latency algorithm.
 Generate code for inline divides of integer values
 using the maximum throughput algorithm.
 
+@item -minline-sqrt-min-latency
+@opindex minline-sqrt-min-latency
+Generate code for inline square roots
+using the minimum latency algorithm.
+
+@item -minline-sqrt-max-throughput
+@opindex minline-sqrt-max-throughput
+Generate code for inline square roots
+using the maximum throughput algorithm.
+
 @item -mno-dwarf2-asm
 @itemx -mdwarf2-asm
 @opindex mno-dwarf2-asm
 @opindex mdwarf2-asm
 Don't (or do) generate assembler code for the DWARF2 line number debugging
 info.  This may be useful when not using the GNU assembler.
+
+@item -mearly-stop-bits
+@itemx -mno-early-stop-bits
+@opindex mearly-stop-bits
+@opindex mno-early-stop-bits
+Allow stop bits to be placed earlier than immediately preceding the
+instruction that triggered the stop bit.  This can improve instruction
+scheduling, but does not always do so.
 
 @item -mfixed-range=@var{register-range}
 @opindex mfixed-range
@@ -10046,13 +10070,34 @@ useful when compiling kernel code.  A register range is specified as
 two registers separated by a dash.  Multiple register ranges can be
 specified separated by a comma.
 
-@item -mearly-stop-bits
-@itemx -mno-early-stop-bits
-@opindex mearly-stop-bits
-@opindex mno-early-stop-bits
-Allow stop bits to be placed earlier than immediately preceding the
-instruction that triggered the stop bit.  This can improve instruction
-scheduling, but does not always do so.
+@item -mtls-size=@var{tls-size}
+@opindex mtls-size
+Specify bit size of immediate TLS offsets.  Valid values are 14, 22, and
+64.
+
+@item -mtune-arch=@var{cpu-type}
+@opindex mtune-arch
+Tune the instruction scheduling for a particular CPU, Valid values are
+itanium, itanium1, merced, itanium2, and mckinley.
+
+@item -mt
+@itemx -pthread
+@opindex mt
+@opindex pthread
+Add support for multithreading using the POSIX threads library.  This
+option sets flags for both the preprocessor and linker.  It does
+not affect the thread safety of object code produced by the compiler or
+that of libraries supplied with it.  These are HP-UX specific flags.
+
+@item -milp32
+@itemx -mlp64
+@opindex milp32
+@opindex mlp64
+Generate code for a 32-bit or 64-bit environment.
+The 32-bit environment sets int, long and pointer to 32 bits.
+The 64-bit environment sets int to 32 bits and long and pointer
+to 64 bits.  These are HP-UX specific flags.
+
 @end table
 
 @node D30V Options
@@ -11269,8 +11314,8 @@ localization information that allow GCC to work with different
 national conventions.  GCC inspects the locale categories
 @env{LC_CTYPE} and @env{LC_MESSAGES} if it has been configured to do
 so.  These locale categories can be set to any value supported by your
-installation.  A typical value is @samp{en_UK} for English in the United
-Kingdom.
+installation.  A typical value is @samp{en_GB.UTF-8} for English in the United
+Kingdom encoded in UTF-8.
 
 The @env{LC_CTYPE} environment variable specifies character
 classification.  GCC uses it to determine the character boundaries in

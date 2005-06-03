@@ -1828,7 +1828,8 @@ fold_convert (tree type, tree arg)
   if (TYPE_MAIN_VARIANT (type) == TYPE_MAIN_VARIANT (orig))
     return fold (build1 (NOP_EXPR, type, arg));
 
-  if (INTEGRAL_TYPE_P (type) || POINTER_TYPE_P (type))
+  if (INTEGRAL_TYPE_P (type) || POINTER_TYPE_P (type)
+      || TREE_CODE (type) == OFFSET_TYPE)
     {
       if (TREE_CODE (arg) == INTEGER_CST)
 	{
@@ -1836,7 +1837,8 @@ fold_convert (tree type, tree arg)
 	  if (tem != NULL_TREE)
 	    return tem;
 	}
-      if (INTEGRAL_TYPE_P (orig) || POINTER_TYPE_P (orig))
+      if (INTEGRAL_TYPE_P (orig) || POINTER_TYPE_P (orig)
+	  || TREE_CODE (orig) == OFFSET_TYPE)
         return fold (build1 (NOP_EXPR, type, arg));
       if (TREE_CODE (orig) == COMPLEX_TYPE)
 	{
@@ -2187,10 +2189,21 @@ operand_equal_p (tree arg0, tree arg1, int only_const)
     {
     case '1':
       /* Two conversions are equal only if signedness and modes match.  */
-      if ((TREE_CODE (arg0) == NOP_EXPR || TREE_CODE (arg0) == CONVERT_EXPR)
-	  && (TREE_UNSIGNED (TREE_TYPE (arg0))
-	      != TREE_UNSIGNED (TREE_TYPE (arg1))))
-	return 0;
+      switch (TREE_CODE (arg0))
+        {
+        case NOP_EXPR:
+        case CONVERT_EXPR:
+        case FIX_CEIL_EXPR:
+        case FIX_TRUNC_EXPR:
+        case FIX_FLOOR_EXPR:
+        case FIX_ROUND_EXPR:
+	  if (TREE_UNSIGNED (TREE_TYPE (arg0))
+	      != TREE_UNSIGNED (TREE_TYPE (arg1)))
+	    return 0;
+	  break;
+	default:
+	  break;
+	}
 
       return operand_equal_p (TREE_OPERAND (arg0, 0),
 			      TREE_OPERAND (arg1, 0), 0);
@@ -4452,9 +4465,9 @@ extract_muldiv_1 (tree t, tree c, enum tree_code code, tree wide_type)
 		     && TYPE_IS_SIZETYPE (TREE_TYPE (op0)))
 	       && (GET_MODE_SIZE (TYPE_MODE (ctype))
 	           > GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (op0)))))
-	      /* ... or its type is larger than ctype,
-		 then we cannot pass through this truncation.  */
-	      || (GET_MODE_SIZE (TYPE_MODE (ctype))
+	      /* ... or this is a truncation (t is narrower than op0),
+		 then we cannot pass through this narrowing.  */
+	      || (GET_MODE_SIZE (TYPE_MODE (type))
 		  < GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (op0))))
 	      /* ... or signedness changes for division or modulus,
 		 then we cannot pass through this conversion.  */
@@ -4475,7 +4488,21 @@ extract_muldiv_1 (tree t, tree c, enum tree_code code, tree wide_type)
 	return t1;
       break;
 
-    case NEGATE_EXPR:  case ABS_EXPR:
+    case ABS_EXPR:
+      /* If widening the type changes it from signed to unsigned, then we
+         must avoid building ABS_EXPR itself as unsigned.  */
+      if (TREE_UNSIGNED (ctype) && !TREE_UNSIGNED (type))
+        {
+          tree cstype = (*lang_hooks.types.signed_type) (ctype);
+          if ((t1 = extract_muldiv (op0, c, code, cstype)) != 0)
+            {
+              t1 = fold (build1 (tcode, cstype, fold_convert (cstype, t1)));
+              return fold_convert (ctype, t1);
+            }
+          break;
+        }
+      /* FALLTHROUGH */
+    case NEGATE_EXPR:
       if ((t1 = extract_muldiv (op0, c, code, wide_type)) != 0)
 	return fold (build1 (tcode, ctype, fold_convert (ctype, t1)));
       break;

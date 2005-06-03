@@ -1340,7 +1340,8 @@ expand_call_inline (tree *tp, int *walk_subtrees, void *data)
 	}
       else if (warn_inline && DECL_DECLARED_INLINE_P (fn)
 	       && !DECL_IN_SYSTEM_HEADER (fn)
-	       && strlen (reason))
+	       && strlen (reason)
+	       && !lookup_attribute ("noinline", DECL_ATTRIBUTES (fn)))
 	{
 	  warning ("%Jinlining failed in call to '%F': %s", fn, fn, reason);
 	  warning ("called from here");
@@ -1547,8 +1548,11 @@ expand_call_inline (tree *tp, int *walk_subtrees, void *data)
   splay_tree_delete (id->decl_map);
   id->decl_map = st;
 
-  /* The new expression has side-effects if the old one did.  */
-  TREE_SIDE_EFFECTS (expr) = TREE_SIDE_EFFECTS (t);
+  /* Although, from the semantic viewpoint, the new expression has
+     side-effects only if the old one did, it is not possible, from
+     the technical viewpoint, to evaluate the body of a function
+     multiple times without serious havoc.  */
+  TREE_SIDE_EFFECTS (expr) = 1;
 
   /* Replace the call by the inlined body.  Wrap it in an
      EXPR_WITH_FILE_LOCATION so that we'll get debugging line notes

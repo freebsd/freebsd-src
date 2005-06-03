@@ -1860,6 +1860,9 @@ compile_file (void)
 
   dw2_output_indirect_constants ();
 
+  /* Flush any pending equate directives.  */
+  process_pending_assemble_output_defs ();
+
   if (profile_arc_flag || flag_test_coverage || flag_branch_probabilities)
     {
       timevar_push (TV_DUMP);
@@ -3656,8 +3659,7 @@ rest_of_compilation (tree decl)
   if ((*targetm.binds_local_p) (current_function_decl))
     {
       int pref = cfun->preferred_stack_boundary;
-      if (cfun->recursive_call_emit
-          && cfun->stack_alignment_needed > cfun->preferred_stack_boundary)
+      if (cfun->stack_alignment_needed > cfun->preferred_stack_boundary)
 	pref = cfun->stack_alignment_needed;
       cgraph_rtl_info (current_function_decl)->preferred_incoming_stack_boundary
         = pref;
@@ -4489,8 +4491,6 @@ process_options (void)
 static void
 backend_init (void)
 {
-  init_adjust_machine_modes ();
-
   init_emit_once (debug_info_level == DINFO_LEVEL_NORMAL
 		  || debug_info_level == DINFO_LEVEL_VERBOSE
 #ifdef VMS_DEBUGGING_INFO
@@ -4634,6 +4634,11 @@ do_compile (void)
   /* Don't do any more if an error has already occurred.  */
   if (!errorcount)
     {
+      /* This must be run always, because it is needed to compute the FP
+	 predefined macros, such as __LDBL_MAX__, for targets using non
+	 default FP formats.  */
+      init_adjust_machine_modes ();
+
       /* Set up the back-end if requested.  */
       if (!no_backend)
 	backend_init ();

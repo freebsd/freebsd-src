@@ -390,20 +390,55 @@ call_operand (rtx op, enum machine_mode mode)
 int
 sdata_symbolic_operand (rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
 {
+  HOST_WIDE_INT offset = 0, size = 0;
+
   switch (GET_CODE (op))
     {
     case CONST:
-      if (GET_CODE (XEXP (op, 0)) != PLUS
-	  || GET_CODE (XEXP (XEXP (op, 0), 0)) != SYMBOL_REF)
+      op = XEXP (op, 0);
+      if (GET_CODE (op) != PLUS
+	  || GET_CODE (XEXP (op, 0)) != SYMBOL_REF
+	  || GET_CODE (XEXP (op, 1)) != CONST_INT)
 	break;
-      op = XEXP (XEXP (op, 0), 0);
+      offset = INTVAL (XEXP (op, 1));
+      op = XEXP (op, 0);
       /* FALLTHRU */
 
     case SYMBOL_REF:
       if (CONSTANT_POOL_ADDRESS_P (op))
-	return GET_MODE_SIZE (get_pool_mode (op)) <= ia64_section_threshold;
+	{
+	  size = GET_MODE_SIZE (get_pool_mode (op));
+	  if (size > ia64_section_threshold)
+	    return false;
+	}
       else
-	return SYMBOL_REF_LOCAL_P (op) && SYMBOL_REF_SMALL_P (op);
+	{
+	  tree t;
+
+	  if (!SYMBOL_REF_LOCAL_P (op) || !SYMBOL_REF_SMALL_P (op))
+	    return false;
+
+	  /* Note that in addition to DECLs, we can get various forms
+	     of constants here.  */
+	  t = SYMBOL_REF_DECL (op);
+	  if (DECL_P (t))
+	    t = DECL_SIZE_UNIT (t);
+	  else
+	    t = TYPE_SIZE_UNIT (TREE_TYPE (t));
+	  if (t && host_integerp (t, 0))
+	    {
+	      size = tree_low_cst (t, 0);
+	      if (size < 0)
+		size = 0;
+	    }
+	}
+
+      /* Deny the stupid user trick of addressing outside the object.  Such
+	 things quickly result in GPREL22 relocation overflows.  Of course,
+	 they're also highly undefined.  From a pure pedant's point of view
+	 they deserve a slap on the wrist (such as provided by a relocation
+	 overflow), but that just leads to bugzilla noise.  */
+      return (offset >= 0 && offset <= size);
 
     default:
       break;
@@ -3154,10 +3189,13 @@ ia64_expand_epilogue (int sibcall_p)
 	 preserve those input registers used as arguments to the sibling call.
 	 It is unclear how to compute that number here.  */
       if (current_frame_info.n_input_regs != 0)
-	emit_insn (gen_alloc (gen_rtx_REG (DImode, fp),
-			      GEN_INT (0), GEN_INT (0),
-			      GEN_INT (current_frame_info.n_input_regs),
-			      GEN_INT (0)));
+	{
+	  rtx n_inputs = GEN_INT (current_frame_info.n_input_regs);
+	  insn = emit_insn (gen_alloc (gen_rtx_REG (DImode, fp),
+				const0_rtx, const0_rtx,
+				n_inputs, const0_rtx));
+	  RTX_FRAME_RELATED_P (insn) = 1;
+	}
     }
 }
 
@@ -3283,15 +3321,16 @@ static bool
 ia64_assemble_integer (rtx x, unsigned int size, int aligned_p)
 {
   if (size == POINTER_SIZE / BITS_PER_UNIT
-      && aligned_p
       && !(TARGET_NO_PIC || TARGET_AUTO_PIC)
       && GET_CODE (x) == SYMBOL_REF
       && SYMBOL_REF_FUNCTION_P (x))
     {
-      if (POINTER_SIZE == 32)
-	fputs ("\tdata4\t@fptr(", asm_out_file);
-      else
-	fputs ("\tdata8\t@fptr(", asm_out_file);
+      static const char * const directive[2][2] = {
+	  /* 64-bit pointer */  /* 32-bit pointer */
+	{ "\tdata8.ua\t@fptr(", "\tdata4.ua\t@fptr("},	/* unaligned */
+	{ "\tdata8\t@fptr(",    "\tdata4\t@fptr("}	/* aligned */
+      };
+      fputs (directive[(aligned_p != 0)][POINTER_SIZE == 32], asm_out_file);
       output_addr_const (asm_out_file, x);
       fputs (")\n", asm_out_file);
       return true;
@@ -3917,6 +3956,12 @@ ia64_function_arg_pass_by_reference (CUMULATIVE_ARGS *cum ATTRIBUTE_UNUSED,
 static bool
 ia64_function_ok_for_sibcall (tree decl, tree exp ATTRIBUTE_UNUSED)
 {
+  /* We can't perform a sibcall if the current function has the syscall_linkage
+     attribute.  */
+  if (lookup_attribute ("syscall_linkage",
+			TYPE_ATTRIBUTES (TREE_TYPE (current_function_decl))))
+    return false;
+
   /* We must always return with our current GP.  This means we can
      only sibcall to functions defined in the current module.  */
   return decl && (*targetm.binds_local_p) (decl);
@@ -7782,13 +7827,24 @@ process_set (FILE *asm_out_file, rtx pat)
     {
       dest_regno = REGNO (dest);
 
-      /* If this isn't the final destination for ar.pfs, the alloc
-	 shouldn't have been marked frame related.  */
-      if (dest_regno != current_frame_info.reg_save_ar_pfs)
-	abort ();
-
-      fprintf (asm_out_file, "\t.save ar.pfs, r%d\n",
-	       ia64_dbx_register_number (dest_regno));
+      /* If this is the final destination for ar.pfs, then this must
+	 be the alloc in the prologue.  */
+      if (dest_regno == current_frame_info.reg_save_ar_pfs)
+	fprintf (asm_out_file, "\t.save ar.pfs, r%d\n",
+		 ia64_dbx_register_number (dest_regno));
+      else
+	{
+	  /* This must be an alloc before a sibcall.  We must drop the
+	     old frame info.  The easiest way to drop the old frame
+	     info is to ensure we had a ".restore sp" directive
+	     followed by a new prologue.  If the procedure doesn't
+	     have a memory-stack frame, we'll issue a dummy ".restore
+	     sp" now.  */
+	  if (current_frame_info.total_size == 0 && !frame_pointer_needed)
+	    /* if haven't done process_epilogue() yet, do it now */
+	    process_epilogue ();
+	  fprintf (asm_out_file, "\t.prologue\n");
+	}
       return 1;
     }
 

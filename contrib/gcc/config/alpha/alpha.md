@@ -77,6 +77,7 @@
    (UNSPECV_PLDGP2	11)	; prologue ldgp
    (UNSPECV_SET_TP	12)
    (UNSPECV_RPCC	13)
+   (UNSPECV_SETJMPR_ER	14)	; builtin_setjmp_receiver fragment
   ])
 
 ;; Where necessary, the suffixes _le and _be are used to distinguish between
@@ -438,9 +439,9 @@
 ;; and if we split before reload, we will require additional instructions.
 
 (define_insn "*adddi_fp_hack"
-  [(set (match_operand:DI 0 "register_operand" "=r")
-        (plus:DI (match_operand:DI 1 "reg_no_subreg_operand" "r")
-		 (match_operand:DI 2 "const_int_operand" "n")))]
+  [(set (match_operand:DI 0 "register_operand" "=r,r,r")
+        (plus:DI (match_operand:DI 1 "reg_no_subreg_operand" "r,r,r")
+		 (match_operand:DI 2 "const_int_operand" "K,L,n")))]
   "NONSTRICT_REG_OK_FP_BASE_P (operands[1])
    && INTVAL (operands[2]) >= 0
    /* This is the largest constant an lda+ldah pair can add, minus
@@ -454,7 +455,10 @@
 			   + max_reg_num () * UNITS_PER_WORD
 			   + current_function_pretend_args_size)
 	      - current_function_pretend_args_size))"
-  "#")
+  "@
+   lda %0,%2(%1)
+   ldah %0,%h2(%1)
+   #")
 
 ;; Don't do this if we are adjusting SP since we don't want to do it
 ;; in two steps.  Don't split FP sources for the reason listed above.
@@ -6897,70 +6901,44 @@
   "jmp $31,(%0),0"
   [(set_attr "type" "ibr")])
 
-(define_insn "*builtin_setjmp_receiver_er_sl_1"
-  [(unspec_volatile [(label_ref (match_operand 0 "" ""))] UNSPECV_SETJMPR)]
-  "TARGET_EXPLICIT_RELOCS && TARGET_ABI_OSF && TARGET_AS_CAN_SUBTRACT_LABELS"
-  "lda $27,$LSJ%=-%l0($27)\n$LSJ%=:")
-  
-(define_insn "*builtin_setjmp_receiver_er_1"
-  [(unspec_volatile [(label_ref (match_operand 0 "" ""))] UNSPECV_SETJMPR)]
-  "TARGET_EXPLICIT_RELOCS && TARGET_ABI_OSF"
-  "br $27,$LSJ%=\n$LSJ%=:"
-  [(set_attr "type" "ibr")])
-
-(define_split
-  [(unspec_volatile [(label_ref (match_operand 0 "" ""))] UNSPECV_SETJMPR)]
-  "TARGET_EXPLICIT_RELOCS && TARGET_ABI_OSF
-   && prev_nonnote_insn (insn) == operands[0]"
-  [(const_int 0)]
-  "
-{
-  emit_note (NOTE_INSN_DELETED);
-  DONE;
-}")
-
-(define_insn "*builtin_setjmp_receiver_1"
+(define_expand "builtin_setjmp_receiver"
   [(unspec_volatile [(label_ref (match_operand 0 "" ""))] UNSPECV_SETJMPR)]
   "TARGET_ABI_OSF"
-  "br $27,$LSJ%=\n$LSJ%=:\;ldgp $29,0($27)"
-  [(set_attr "length" "12")
-   (set_attr "type" "multi")])
+  "")
 
-(define_expand "builtin_setjmp_receiver_er"
-  [(unspec_volatile [(label_ref (match_operand 0 "" ""))] UNSPECV_SETJMPR)
+(define_insn_and_split "*builtin_setjmp_receiver_1"
+  [(unspec_volatile [(match_operand 0 "" "")] UNSPECV_SETJMPR)]
+  "TARGET_ABI_OSF"
+{
+  if (TARGET_EXPLICIT_RELOCS)
+    return "#";
+  else
+    return "br $27,$LSJ%=\n$LSJ%=:\;ldgp $29,0($27)";
+}
+  "&& TARGET_EXPLICIT_RELOCS && reload_completed"
+  [(unspec_volatile [(match_dup 0)] UNSPECV_SETJMPR_ER)
    (set (match_dup 1)
 	(unspec_volatile:DI [(match_dup 2) (match_dup 3)] UNSPECV_LDGP1))
    (set (match_dup 1)
 	(unspec:DI [(match_dup 1) (match_dup 3)] UNSPEC_LDGP2))]
-  ""
 {
   operands[1] = pic_offset_table_rtx;
   operands[2] = gen_rtx_REG (Pmode, 27);
   operands[3] = GEN_INT (alpha_next_sequence_number++);
-})
+}
+  [(set_attr "length" "12")
+   (set_attr "type" "multi")])
 
-(define_expand "builtin_setjmp_receiver"
-  [(unspec_volatile [(label_ref (match_operand 0 "" ""))] UNSPECV_SETJMPR)]
-  "TARGET_ABI_OSF"
-{
-  if (TARGET_EXPLICIT_RELOCS)
-    {
-      emit_insn (gen_builtin_setjmp_receiver_er (operands[0]));
-      DONE;
-    }
-})
+(define_insn "*builtin_setjmp_receiver_er_sl_1"
+  [(unspec_volatile [(match_operand 0 "" "")] UNSPECV_SETJMPR_ER)]
+  "TARGET_ABI_OSF && TARGET_EXPLICIT_RELOCS && TARGET_AS_CAN_SUBTRACT_LABELS"
+  "lda $27,$LSJ%=-%l0($27)\n$LSJ%=:")
 
-(define_expand "exception_receiver_er"
-  [(set (match_dup 0)
-	(unspec_volatile:DI [(match_dup 1) (match_dup 2)] UNSPECV_LDGP1))
-   (set (match_dup 0)
-	(unspec:DI [(match_dup 0) (match_dup 2)] UNSPEC_LDGP2))]
-  ""
-{
-  operands[0] = pic_offset_table_rtx;
-  operands[1] = gen_rtx_REG (Pmode, 26);
-  operands[2] = GEN_INT (alpha_next_sequence_number++);
-})
+(define_insn "*builtin_setjmp_receiver_er_1"
+  [(unspec_volatile [(match_operand 0 "" "")] UNSPECV_SETJMPR_ER)]
+  "TARGET_ABI_OSF && TARGET_EXPLICIT_RELOCS"
+  "br $27,$LSJ%=\n$LSJ%=:"
+  [(set_attr "type" "ibr")])
 
 (define_expand "exception_receiver"
   [(unspec_volatile [(match_dup 0)] UNSPECV_EHR)]
@@ -6968,27 +6946,37 @@
 {
   if (TARGET_LD_BUGGY_LDGP)
     operands[0] = alpha_gp_save_rtx ();
-  else if (TARGET_EXPLICIT_RELOCS)
-    {
-      emit_insn (gen_exception_receiver_er ());
-      DONE;
-    }
   else
     operands[0] = const0_rtx;
 })
 
-(define_insn "*exception_receiver_1"
-  [(unspec_volatile [(const_int 0)] UNSPECV_EHR)]
-  "! TARGET_LD_BUGGY_LDGP"
-  "ldgp $29,0($26)"
-  [(set_attr "length" "8")
-   (set_attr "type" "multi")])
-
 (define_insn "*exception_receiver_2"
   [(unspec_volatile [(match_operand:DI 0 "memory_operand" "m")] UNSPECV_EHR)]
-  "TARGET_LD_BUGGY_LDGP"
+  "TARGET_ABI_OSF && TARGET_LD_BUGGY_LDGP"
   "ldq $29,%0"
   [(set_attr "type" "ild")])
+
+(define_insn_and_split "*exception_receiver_1"
+  [(unspec_volatile [(const_int 0)] UNSPECV_EHR)]
+  "TARGET_ABI_OSF"
+{
+  if (TARGET_EXPLICIT_RELOCS)
+    return "ldah $29,0($26)\t\t!gpdisp!%*\;lda $29,0($29)\t\t!gpdisp!%*";
+  else
+    return "ldgp $29,0($26)";
+}
+  "&& TARGET_EXPLICIT_RELOCS && reload_completed"
+  [(set (match_dup 0)
+	(unspec_volatile:DI [(match_dup 1) (match_dup 2)] UNSPECV_LDGP1))
+   (set (match_dup 0)
+	(unspec:DI [(match_dup 0) (match_dup 2)] UNSPEC_LDGP2))]
+{
+  operands[0] = pic_offset_table_rtx;
+  operands[1] = gen_rtx_REG (Pmode, 26);
+  operands[2] = GEN_INT (alpha_next_sequence_number++);
+}
+  [(set_attr "length" "8")
+   (set_attr "type" "multi")])
 
 (define_expand "nonlocal_goto_receiver"
   [(unspec_volatile [(const_int 0)] UNSPECV_BLOCKAGE)
