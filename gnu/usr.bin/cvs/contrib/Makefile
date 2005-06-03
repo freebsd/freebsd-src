@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	peter@FreeBSD.org
-
 .include "../Makefile.inc"
 
 .PATH:	${CVSDIR}/contrib
