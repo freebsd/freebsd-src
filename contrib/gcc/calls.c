@@ -1719,8 +1719,8 @@ load_register_parameters (struct arg_data *args, int num_actuals,
 	    use_group_regs (call_fusage, reg);
 	  else if (nregs == -1)
 	    use_reg (call_fusage, reg);
-	  else
-	    use_regs (call_fusage, REGNO (reg), nregs == 0 ? 1 : nregs);
+	  else if (nregs > 0)
+	    use_regs (call_fusage, REGNO (reg), nregs);
 	}
     }
 }
@@ -2730,10 +2730,14 @@ expand_call (tree exp, rtx target, int ignore)
 	 Also, do all pending adjustments now if there is any chance
 	 this might be a call to alloca or if we are expanding a sibling
 	 call sequence or if we are calling a function that is to return
-	 with stack pointer depressed.  */
+	 with stack pointer depressed.
+	 Also do the adjustments before a throwing call, otherwise
+	 exception handling can fail; PR 19225. */
       if (pending_stack_adjust >= 32
 	  || (pending_stack_adjust > 0
 	      && (flags & (ECF_MAY_BE_ALLOCA | ECF_SP_DEPRESSED)))
+	  || (pending_stack_adjust > 0
+	      && flag_exceptions && !(flags & ECF_NOTHROW))
 	  || pass == 0)
 	do_pending_stack_adjust ();
 

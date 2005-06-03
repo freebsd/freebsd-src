@@ -1086,7 +1086,7 @@ extern int fixuplabelno;
 #define LINK_START_FREEBSD_SPEC	""
 
 #define LINK_OS_FREEBSD_SPEC "\
-  %{p:%e`-p' not supported; use `-pg' and gprof(1)} \
+  %{p:%nconsider using `-pg' instead of `-p' with gprof(1)} \
   %{Wl,*:%*} \
   %{v:-V} \
   %{assert*} %{R*} %{rpath*} %{defsym*} \
@@ -1115,8 +1115,9 @@ extern int fixuplabelno;
 %{static:crtbeginT.o%s;shared|pie:crtbeginS.o%s;:crtbegin.o%s}"
 #endif
 
-#define	ENDFILE_LINUX_SPEC "%{!shared:crtend.o%s} %{shared:crtendS.o%s} \
-%{mnewlib: ecrtn.o%s} %{!mnewlib: crtn.o%s}"
+#define	ENDFILE_LINUX_SPEC "\
+%{shared|pie:crtendS.o%s;:crtend.o%s} \
+%{mnewlib:ecrtn.o%s;:crtn.o%s}"
 
 #define LINK_START_LINUX_SPEC ""
 
@@ -1358,4 +1359,4 @@ ncrtn.o%s"
 #define DOUBLE_INT_ASM_OP "\t.quad\t"
 
 /* Generate entries in .fixup for relocatable addresses.  */
-#define RELOCATABLE_NEEDS_FIXUP
+#define RELOCATABLE_NEEDS_FIXUP 1

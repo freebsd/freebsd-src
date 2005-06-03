@@ -348,9 +348,11 @@ split_nonconstant_init_1 (tree dest, tree init, tree *pcode)
     case VECTOR_TYPE:
       if (!initializer_constant_valid_p (init, type))
 	{
+	  tree cons = copy_node (init);
 	  CONSTRUCTOR_ELTS (init) = NULL;
-	  code = build (MODIFY_EXPR, type, dest, init);
+	  code = build (MODIFY_EXPR, type, dest, cons);
 	  code = build_stmt (EXPR_STMT, code);
+	  *pcode = code;
 	  pcode = &TREE_CHAIN (code);
 	}
       break;
@@ -445,28 +447,18 @@ store_init_value (tree decl, tree init)
 	init = build_x_compound_expr_from_list (init, "initializer");
     }
 
-  /* End of special C++ code.  */
-
   /* Digest the specified initializer into an expression.  */
   value = digest_init (type, init, (tree *) 0);
-
-  /* Store the expression if valid; else report error.  */
-
-  if (TREE_CODE (value) == ERROR_MARK)
-    ;
-  /* Other code expects that initializers for objects of types that need
-     constructing never make it into DECL_INITIAL, and passes 'init' to
-     build_aggr_init without checking DECL_INITIAL.  So just return.  */
-  else if (TYPE_NEEDS_CONSTRUCTING (type))
-    return build (INIT_EXPR, type, decl, value);
-  else if (TREE_STATIC (decl)
-	   && (! TREE_CONSTANT (value)
-	       || ! initializer_constant_valid_p (value, TREE_TYPE (value))))
+  /* If the initializer is not a constant, fill in DECL_INITIAL with
+     the bits that are constant, and then return an expression that
+     will perform the dynamic initialization.  */
+  if (value != error_mark_node
+      && (! TREE_CONSTANT (value)
+	  || ! initializer_constant_valid_p (value, TREE_TYPE (value))))
     return split_nonconstant_init (decl, value);
-  
-  /* Store the VALUE in DECL_INITIAL.  If we're building a
-     statement-tree we will actually expand the initialization later
-     when we output this function.  */
+  /* If the value is a constant, just put it in DECL_INITIAL.  If DECL
+     is an automatic variable, the middle end will turn this into a
+     dynamic initialization later.  */
   DECL_INITIAL (decl) = value;
   return NULL_TREE;
 }

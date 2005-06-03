@@ -1,6 +1,7 @@
 /* Functions related to building classes and their related objects.
    Copyright (C) 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004  Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2005
+     Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GCC.
@@ -1847,6 +1848,36 @@ base_derived_from (tree derived, tree base)
   return false;
 }
 
+typedef struct count_depth_data {
+  /* The depth of the current subobject, with "1" as the depth of the
+     most derived object in the hierarchy.  */
+  size_t depth;
+  /* The maximum depth found so far.  */
+  size_t max_depth;
+} count_depth_data;
+
+/* Called from find_final_overrider via dfs_walk.  */
+
+static tree
+dfs_depth_post (tree binfo ATTRIBUTE_UNUSED, void *data)
+{
+  count_depth_data *cd = (count_depth_data *) data;
+  if (cd->depth > cd->max_depth)
+    cd->max_depth = cd->depth;
+  cd->depth--;
+  return NULL_TREE;
+}
+
+/* Called from find_final_overrider via dfs_walk.  */
+
+static tree
+dfs_depth_q (tree derived, int i, void *data)
+{
+  count_depth_data *cd = (count_depth_data *) data;
+  cd->depth++;
+  return BINFO_BASETYPE (derived, i);
+}
+
 typedef struct find_final_overrider_data_s {
   /* The function for which we are trying to find a final overrider.  */
   tree fn;
@@ -1856,9 +1887,63 @@ typedef struct find_final_overrider_data_s {
   tree most_derived_type;
   /* The candidate overriders.  */
   tree candidates;
-  /* Binfos which inherited virtually on the current path.  */
-  tree vpath;
+  /* Each entry in this array is the next-most-derived class for a
+     virtual base class along the current path.  */
+  tree *vpath_list;
+  /* A pointer one past the top of the VPATH_LIST.  */
+  tree *vpath;
 } find_final_overrider_data;
+
+/* Add the overrider along the current path to FFOD->CANDIDATES.
+   Returns true if an overrider was found; false otherwise.  */
+
+static bool
+dfs_find_final_overrider_1 (tree binfo, 
+			    tree *vpath, 
+			    find_final_overrider_data *ffod)
+{
+  tree method;
+	  
+  /* If BINFO is not the most derived type, try a more derived class.
+     A definition there will overrider a definition here.  */
+  if (!same_type_p (BINFO_TYPE (binfo), ffod->most_derived_type))
+    {
+      tree derived;
+
+      if (TREE_VIA_VIRTUAL (binfo))
+	derived = *--vpath;
+      else
+	derived = BINFO_INHERITANCE_CHAIN (binfo);
+      if (dfs_find_final_overrider_1 (derived, vpath, ffod))
+	return true;
+    }
+
+  method = look_for_overrides_here (BINFO_TYPE (binfo), ffod->fn);
+  if (method)
+    {
+      tree *candidate = &ffod->candidates;
+      
+      /* Remove any candidates overridden by this new function.  */
+      while (*candidate)
+	{
+	  /* If *CANDIDATE overrides METHOD, then METHOD
+	     cannot override anything else on the list.  */
+	  if (base_derived_from (TREE_VALUE (*candidate), binfo))
+	    return true;
+	  /* If METHOD overrides *CANDIDATE, remove *CANDIDATE.  */
+	  if (base_derived_from (binfo, TREE_VALUE (*candidate)))
+	    *candidate = TREE_CHAIN (*candidate);
+	  else
+	    candidate = &TREE_CHAIN (*candidate);
+	}
+      
+      /* Add the new function.  */
+      ffod->candidates = tree_cons (method, binfo, ffod->candidates);
+      return true;
+    }
+
+  return false;
+}
 
 /* Called from find_final_overrider via dfs_walk.  */
 
@@ -1868,57 +1953,7 @@ dfs_find_final_overrider (tree binfo, void* data)
   find_final_overrider_data *ffod = (find_final_overrider_data *) data;
 
   if (binfo == ffod->declaring_base)
-    {
-      /* We've found a path to the declaring base.  Walk the path from
-	 derived to base, looking for an overrider for FN.  */
-      tree path, probe, vpath;
-
-      /* Build the path, using the inheritance chain and record of
-	 virtual inheritance.  */
-      for (path = NULL_TREE, probe = binfo, vpath = ffod->vpath;;)
-	{
-	  path = tree_cons (NULL_TREE, probe, path);
-	  if (same_type_p (BINFO_TYPE (probe), ffod->most_derived_type))
-	    break;
-	  if (TREE_VIA_VIRTUAL (probe))
-	    {
-	      probe = TREE_VALUE (vpath);
-	      vpath = TREE_CHAIN (vpath);
-	    }
-	  else
-	    probe = BINFO_INHERITANCE_CHAIN (probe);
-	}
-      /* Now walk path, looking for overrides.  */
-      for (; path; path = TREE_CHAIN (path))
-	{
-	  tree method = look_for_overrides_here
-	    (BINFO_TYPE (TREE_VALUE (path)), ffod->fn);
-	  
-	  if (method)
-	    {
-	      tree *candidate = &ffod->candidates;
-	      path = TREE_VALUE (path);
-
-	      /* Remove any candidates overridden by this new function.  */
-	      while (*candidate)
-		{
-		  /* If *CANDIDATE overrides METHOD, then METHOD
-		     cannot override anything else on the list.  */
-		  if (base_derived_from (TREE_VALUE (*candidate), path))
-		    return NULL_TREE;
-		  /* If METHOD overrides *CANDIDATE, remove *CANDIDATE.  */
-		  if (base_derived_from (path, TREE_VALUE (*candidate)))
-		    *candidate = TREE_CHAIN (*candidate);
-		  else
-		    candidate = &TREE_CHAIN (*candidate);
-		}
-	      
-	      /* Add the new function.  */
-	      ffod->candidates = tree_cons (method, path, ffod->candidates);
-	      break;
-	    }
-	}
-    }
+    dfs_find_final_overrider_1 (binfo, ffod->vpath, ffod);
 
   return NULL_TREE;
 }
@@ -1930,7 +1965,7 @@ dfs_find_final_overrider_q (tree derived, int ix, void *data)
   find_final_overrider_data *ffod = (find_final_overrider_data *) data;
 
   if (TREE_VIA_VIRTUAL (binfo))
-    ffod->vpath = tree_cons (NULL_TREE, derived, ffod->vpath);
+    *ffod->vpath++ = derived;
   
   return binfo;
 }
@@ -1940,8 +1975,8 @@ dfs_find_final_overrider_post (tree binfo, void *data)
 {
   find_final_overrider_data *ffod = (find_final_overrider_data *) data;
 
-  if (TREE_VIA_VIRTUAL (binfo) && TREE_CHAIN (ffod->vpath))
-    ffod->vpath = TREE_CHAIN (ffod->vpath);
+  if (TREE_VIA_VIRTUAL (binfo))
+    ffod->vpath--;
   
   return NULL_TREE;
 }
@@ -1955,6 +1990,7 @@ static tree
 find_final_overrider (tree derived, tree binfo, tree fn)
 {
   find_final_overrider_data ffod;
+  count_depth_data cd;
 
   /* Getting this right is a little tricky.  This is valid:
 
@@ -1976,18 +2012,26 @@ find_final_overrider (tree derived, tree binfo, tree fn)
      different overriders along any two, then there is a problem.  */
   if (DECL_THUNK_P (fn))
     fn = THUNK_TARGET (fn);
-  
+
+  /* Determine the depth of the hierarchy.  */
+  cd.depth = 0;
+  cd.max_depth = 0;
+  dfs_walk (derived, dfs_depth_post, dfs_depth_q, &cd);
+
   ffod.fn = fn;
   ffod.declaring_base = binfo;
   ffod.most_derived_type = BINFO_TYPE (derived);
   ffod.candidates = NULL_TREE;
-  ffod.vpath = NULL_TREE;
+  ffod.vpath_list = (tree *) xcalloc (cd.max_depth, sizeof (tree));
+  ffod.vpath = ffod.vpath_list;
 
   dfs_walk_real (derived,
 		 dfs_find_final_overrider,
 		 dfs_find_final_overrider_post,
 		 dfs_find_final_overrider_q,
 		 &ffod);
+
+  free (ffod.vpath_list);
 
   /* If there was no winner, issue an error message.  */
   if (!ffod.candidates || TREE_CHAIN (ffod.candidates))
@@ -2072,6 +2116,9 @@ update_vtable_entry_for_fn (tree t, tree binfo, tree fn, tree* virtuals,
          also be converting to the return type of FN, we have to
          combine the two conversions here.  */
       tree fixed_offset, virtual_offset;
+
+      over_return = TREE_TYPE (over_return);
+      base_return = TREE_TYPE (base_return);
       
       if (DECL_THUNK_P (fn))
 	{
@@ -2089,32 +2136,51 @@ update_vtable_entry_for_fn (tree t, tree binfo, tree fn, tree* virtuals,
 	virtual_offset =
 	  TREE_VALUE (purpose_member
 		      (BINFO_TYPE (virtual_offset),
-		       CLASSTYPE_VBASECLASSES (TREE_TYPE (over_return))));
-      else if (!same_type_p (TREE_TYPE (over_return),
-			     TREE_TYPE (base_return)))
+		       CLASSTYPE_VBASECLASSES (over_return)));
+      else if (!same_type_ignoring_top_level_qualifiers_p
+	       (over_return, base_return))
 	{
-	  /* There was no existing virtual thunk (which takes
-	     precedence).  */
-	  tree thunk_binfo;
-	  base_kind kind;
-	  
-	  thunk_binfo = lookup_base (TREE_TYPE (over_return),
-				     TREE_TYPE (base_return),
-				     ba_check | ba_quiet, &kind);
+  	  /* There was no existing virtual thunk (which takes
+	     precedence).  So find the binfo of the base function's
+	     return type within the overriding function's return type.
+	     We cannot call lookup base here, because we're inside a
+	     dfs_walk, and will therefore clobber the BINFO_MARKED
+	     flags.  Fortunately we know the covariancy is valid (it
+	     has already been checked), so we can just iterate along
+	     the binfos, which have been chained in inheritance graph
+	     order.  Of course it is lame that we have to repeat the
+	     search here anyway -- we should really be caching pieces
+	     of the vtable and avoiding this repeated work.  */
+	  tree thunk_binfo, base_binfo;
 
-	  if (thunk_binfo && (kind == bk_via_virtual
-			      || !BINFO_OFFSET_ZEROP (thunk_binfo)))
+	  /* Find the base binfo within the overriding function's
+	     return type.  We will always find a thunk_binfo, except
+	     when the covariancy is invalid (which we will have
+	     already diagnosed).  */
+	  for (base_binfo = TYPE_BINFO (base_return),
+	       thunk_binfo = TYPE_BINFO (over_return);
+	       thunk_binfo;
+	       thunk_binfo = TREE_CHAIN (thunk_binfo))
+	    if (same_type_p (BINFO_TYPE (thunk_binfo),
+			     BINFO_TYPE (base_binfo)))
+	      break;
+	  
+	  /* See if virtual inheritance is involved.  */
+	  for (virtual_offset = thunk_binfo;
+	       virtual_offset;
+	       virtual_offset = BINFO_INHERITANCE_CHAIN (virtual_offset))
+	    if (TREE_VIA_VIRTUAL (virtual_offset))
+	      break;
+	  
+	  if (virtual_offset
+	      || (thunk_binfo && !BINFO_OFFSET_ZEROP (thunk_binfo)))
 	    {
 	      tree offset = convert (ssizetype, BINFO_OFFSET (thunk_binfo));
 
-	      if (kind == bk_via_virtual)
+	      if (virtual_offset)
 		{
-		  /* We convert via virtual base. Find the virtual
-		     base and adjust the fixed offset to be from there.  */
-		  while (!TREE_VIA_VIRTUAL (thunk_binfo))
-		    thunk_binfo = BINFO_INHERITANCE_CHAIN (thunk_binfo);
-
-		  virtual_offset = thunk_binfo;
+		  /* We convert via virtual base.  Adjust the fixed
+		     offset to be from there.  */
 		  offset = size_diffop
 		    (offset, convert
 		     (ssizetype, BINFO_OFFSET (virtual_offset)));
@@ -5174,6 +5240,7 @@ finish_struct (tree t, tree attributes)
     {
       finish_struct_methods (t);
       TYPE_SIZE (t) = bitsize_zero_node;
+      TYPE_SIZE_UNIT (t) = size_zero_node;
     }
   else
     finish_struct_1 (t);

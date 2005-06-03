@@ -1,5 +1,5 @@
 /* Definitions for C++ name lookup routines.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -2018,7 +2018,8 @@ push_overloaded_decl (tree decl, int flags)
 	      if (TREE_CODE (tmp) == OVERLOAD && OVL_USED (tmp)
 		  && !(flags & PUSH_USING)
 		  && compparms (TYPE_ARG_TYPES (TREE_TYPE (fn)),
-				TYPE_ARG_TYPES (TREE_TYPE (decl))))
+				TYPE_ARG_TYPES (TREE_TYPE (decl)))
+		  && ! decls_match (fn, decl))
 		error ("`%#D' conflicts with previous using declaration `%#D'",
 			  decl, fn);
 
@@ -2804,6 +2805,7 @@ push_class_level_binding (tree name, tree x)
        || TREE_CODE (x) == CONST_DECL
        || (TREE_CODE (x) == TYPE_DECL
 	   && !DECL_SELF_REFERENCE_P (x))
+       || DECL_CLASS_TEMPLATE_P (x)
        /* A data member of an anonymous union.  */
        || (TREE_CODE (x) == FIELD_DECL
 	   && DECL_CONTEXT (x) != current_class_type))
@@ -2968,27 +2970,6 @@ set_namespace_binding (tree name, tree scope, tree val)
   timevar_pop (TV_NAME_LOOKUP);
 }
 
-/* Compute the namespace where a declaration is defined.  */
-
-static tree
-decl_namespace (tree decl)
-{
-  timevar_push (TV_NAME_LOOKUP);
-  if (TYPE_P (decl))
-    decl = TYPE_STUB_DECL (decl);
-  while (DECL_CONTEXT (decl))
-    {
-      decl = DECL_CONTEXT (decl);
-      if (TREE_CODE (decl) == NAMESPACE_DECL)
-	POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, decl);
-      if (TYPE_P (decl))
-	decl = TYPE_STUB_DECL (decl);
-      my_friendly_assert (DECL_P (decl), 390);
-    }
-
-  POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, global_namespace);
-}
-
 /* Set the context of a declaration to scope. Complain if we are not
    outside scope.  */
 
@@ -3057,9 +3038,9 @@ current_decl_namespace (void)
     return TREE_PURPOSE (decl_namespace_list);
 
   if (current_class_type)
-    result = decl_namespace (TYPE_STUB_DECL (current_class_type));
+    result = decl_namespace_context (current_class_type);
   else if (current_function_decl)
-    result = decl_namespace (current_function_decl);
+    result = decl_namespace_context (current_function_decl);
   else 
     result = current_namespace;
   return result;
@@ -3187,7 +3168,7 @@ void
 push_decl_namespace (tree decl)
 {
   if (TREE_CODE (decl) != NAMESPACE_DECL)
-    decl = decl_namespace (decl);
+    decl = decl_namespace_context (decl);
   decl_namespace_list = tree_cons (ORIGINAL_NAMESPACE (decl),
                                    NULL_TREE, decl_namespace_list);
 }
@@ -3231,6 +3212,9 @@ do_namespace_alias (tree alias, tree namespace)
   alias = build_lang_decl (NAMESPACE_DECL, alias, void_type_node);     
   DECL_NAMESPACE_ALIAS (alias) = namespace;
   DECL_EXTERNAL (alias) = 1;
+  DECL_CONTEXT (alias) = current_scope ();
+  if (!DECL_CONTEXT (alias))
+    DECL_CONTEXT (alias) = FROB_CONTEXT (current_namespace);
   pushdecl (alias);
 }
 
@@ -3405,7 +3389,7 @@ parse_using_directive (tree namespace, tree attribs)
 	{
 	  if (!toplevel_bindings_p ())
 	    error ("strong using only meaningful at namespace scope");
-	  else
+	  else if (namespace != error_mark_node)
 	    DECL_NAMESPACE_ASSOCIATIONS (namespace)
 	      = tree_cons (current_namespace, 0,
 			   DECL_NAMESPACE_ASSOCIATIONS (namespace));
@@ -4275,7 +4259,7 @@ arg_assoc_class (struct arg_lookup *k, tree type)
     return false;
   k->classes = tree_cons (type, NULL_TREE, k->classes);
   
-  context = decl_namespace (TYPE_MAIN_DECL (type));
+  context = decl_namespace_context (type);
   if (arg_assoc_namespace (k, context))
     return true;
   
@@ -4357,7 +4341,7 @@ arg_assoc_type (struct arg_lookup *k, tree type)
       return arg_assoc_type (k, TREE_TYPE (type));
     case UNION_TYPE:
     case ENUMERAL_TYPE:
-      return arg_assoc_namespace (k, decl_namespace (TYPE_MAIN_DECL (type)));
+      return arg_assoc_namespace (k, decl_namespace_context (type));
     case METHOD_TYPE:
       /* The basetype is referenced in the first arg type, so just
 	 fall through.  */
@@ -4559,11 +4543,8 @@ maybe_process_template_type_declaration (tree type, int globalize,
     ;
   else
     {
-      maybe_check_template_type (type);
-
       my_friendly_assert (IS_AGGR_TYPE (type)
 			  || TREE_CODE (type) == ENUMERAL_TYPE, 0);
-
 
       if (processing_template_decl)
 	{
