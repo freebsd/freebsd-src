@@ -748,7 +748,7 @@ static const char *cpp_unique_options =
  %{MMD:-MMD %{!o:%b.d}%{o*:%.d%*}}\
  %{M} %{MM} %{MF*} %{MG} %{MP} %{MQ*} %{MT*}\
  %{!E:%{!M:%{!MM:%{MD|MMD:%{o*:-MQ %*}}}}}\
- %{trigraphs} %{remap} %{g3:-dD} %{H} %C %{D*&U*&A*} %{i*} %Z %i\
+ %{remap} %{g3:-dD} %{H} %C %{D*&U*&A*} %{i*} %Z %i\
  %{E|M|MM:%W{o*}}";
 
 /* This contains cpp options which are common with cc1_options and are passed
@@ -757,8 +757,9 @@ static const char *cpp_unique_options =
    options used to set target flags.  Those special target flags settings may
    in turn cause preprocessor symbols to be defined specially.  */
 static const char *cpp_options =
-"%(cpp_unique_options) %1 %{m*} %{std*} %{ansi} %{W*&pedantic*} %{w} %{f*}\
- %{g*:%{!g0:%{!fno-working-directory:-fworking-directory}}} %{O*} %{undef}";
+"%(cpp_unique_options) %1 %{m*} %{std*&ansi&trigraphs} %{W*&pedantic*} %{w}\
+ %{f*} %{g*:%{!g0:%{!fno-working-directory:-fworking-directory}}} %{O*}\
+ %{undef}";
 
 /* This contains cpp options which are not passed when the preprocessor
    output will be used by another program.  */
@@ -769,7 +770,7 @@ static const char *cc1_options =
 "%{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
  %1 %{!Q:-quiet} -dumpbase %B %{d*} %{m*} %{a*}\
  %{c|S:%{o*:-auxbase-strip %*}%{!o*:-auxbase %b}}%{!c:%{!S:-auxbase %b}}\
- %{g*} %{O*} %{W*&pedantic*} %{w} %{std*} %{ansi}\
+ %{g*} %{O*} %{W*&pedantic*} %{w} %{std*&ansi&trigraphs}\
  %{v:-version} %{pg:-p} %{p} %{f*} %{undef}\
  %{Qn:-fno-ident} %{--help:--help}\
  %{--target-help:--target-help}\
@@ -914,7 +915,7 @@ static const struct compiler default_compilers[] =
 		cc1 %(cpp_unique_options) %(cc1_options)}}}\
         %{!fsyntax-only:%(invoke_as)}}}}", 0},
   {"-",
-   "%{!E:%e-E required when input is from standard input}\
+   "%{!E:%e-E or -x required when input is from standard input}\
     %(trad_capable_cpp) %(cpp_options) %(cpp_debug_options)", 0},
   {".h", "@c-header", 0},
   {"@c-header",
@@ -1644,11 +1645,18 @@ init_spec (void)
 #else
 			    "-lgcc_s%M"
 #endif
+#ifdef USE_LIBUNWIND_EXCEPTIONS
+			    " -lunwind"
+#endif
 			    ,
 			    "-lgcc",
 			    "-lgcc_eh"
 #ifdef USE_LIBUNWIND_EXCEPTIONS
+# ifdef HAVE_LD_STATIC_DYNAMIC
+			    " %{!static:-Bstatic} -lunwind %{!static:-Bdynamic}"
+# else
 			    " -lunwind"
+# endif
 #endif
 			    );
 
