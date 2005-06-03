@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.4.2.14 2003/10/14 18:22:42 wilko Exp 
+ *	FreeBSD
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -133,6 +133,8 @@
 #define	MII_STR_xxBROADCOM_BCM5705	"BCM5705 10/100/1000baseTX PHY"
 #define	MII_MODEL_xxBROADCOM_BCM5750	0x0018
 #define	MII_STR_xxBROADCOM_BCM5750	"BCM5750 10/100/1000baseTX PHY"
+#define	MII_MODEL_xxBROADCOM_BCM5714	0x0034
+#define	MII_STR_xxBROADCOM_BCM5714	"BCM5714 10/100/1000baseTX PHY"
 
 /* Davicom Semiconductor PHYs */
 #define	MII_MODEL_xxDAVICOM_DM9101	0x0000
