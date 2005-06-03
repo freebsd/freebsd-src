@@ -280,13 +280,15 @@ GTFILES = $(srcdir)/input.h $(srcdir)/coretypes.h $(srcdir)/cpplib.h \
   $(srcdir)/c-common.h $(srcdir)/c-tree.h \
   $(srcdir)/alias.c $(srcdir)/bitmap.c $(srcdir)/cselib.c $(srcdir)/cgraph.c \
   $(srcdir)/dbxout.c $(srcdir)/dwarf2out.c $(srcdir)/dwarf2asm.c \
+  $(srcdir)/dojump.c \
   $(srcdir)/emit-rtl.c $(srcdir)/except.c $(srcdir)/explow.c $(srcdir)/expr.c \
   $(srcdir)/fold-const.c $(srcdir)/function.c \
   $(srcdir)/gcse.c $(srcdir)/integrate.c $(srcdir)/lists.c $(srcdir)/optabs.c \
   $(srcdir)/profile.c $(srcdir)/ra-build.c $(srcdir)/regclass.c \
   $(srcdir)/reg-stack.c $(srcdir)/cfglayout.c $(srcdir)/langhooks.c \
   $(srcdir)/sdbout.c $(srcdir)/stmt.c $(srcdir)/stor-layout.c \
-  $(srcdir)/stringpool.c $(srcdir)/tree.c $(srcdir)/varasm.c  $(out_file)
+  $(srcdir)/stringpool.c $(srcdir)/tree.c $(srcdir)/varasm.c \
+  $(out_file)
 
 #
 # Build a list of frontend directories to look into
