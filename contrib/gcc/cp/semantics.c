@@ -4,7 +4,7 @@
    and during the instantiation of template functions. 
 
    Copyright (C) 1998, 1999, 2000, 2001, 2002,
-   2003, 2004 Free Software Foundation, Inc.
+   2003, 2004, 2005 Free Software Foundation, Inc.
    Written by Mark Mitchell (mmitchell@usa.net) based on code found
    formerly in parse.y and pt.c.  
 
@@ -1388,19 +1388,16 @@ finish_qualified_id_expr (tree qualifying_class, tree expr, bool done,
 					  qualifying_class);
   else if (BASELINK_P (expr) && !processing_template_decl)
     {
-      tree fn;
       tree fns;
 
       /* See if any of the functions are non-static members.  */
       fns = BASELINK_FUNCTIONS (expr);
       if (TREE_CODE (fns) == TEMPLATE_ID_EXPR)
 	fns = TREE_OPERAND (fns, 0);
-      for (fn = fns; fn; fn = OVL_NEXT (fn))
-	if (DECL_NONSTATIC_MEMBER_FUNCTION_P (fn))
-	  break;
       /* If so, the expression may be relative to the current
 	 class.  */
-      if (fn && current_class_type 
+      if (!shared_member_p (fns)
+	  && current_class_type 
 	  && DERIVED_FROM_P (qualifying_class, current_class_type))
 	expr = (build_class_member_access_expr 
 		(maybe_dummy_object (qualifying_class, NULL),
@@ -1446,6 +1443,9 @@ finish_stmt_expr_expr (tree expr)
   tree result = NULL_TREE;
   tree type = void_type_node;
 
+  if (error_operand_p (expr))
+    return error_mark_node;
+  
   if (expr)
     {
       type = TREE_TYPE (expr);
@@ -2561,31 +2561,35 @@ finish_id_expression (tree id_expression,
 	  if (TREE_CODE (decl) == VAR_DECL
 	      || TREE_CODE (decl) == PARM_DECL)
 	    return decl;
+	  /* The same is true for FIELD_DECL, but we also need to
+	     make sure that the syntax is correct.  */
+	  else if (TREE_CODE (decl) == FIELD_DECL)
+	    {
+	      /* Since SCOPE is NULL here, this is an unqualified name.
+		 Access checking has been performed during name lookup
+		 already.  Turn off checking to avoid duplicate errors.  */
+	      push_deferring_access_checks (dk_no_check);
+	      decl = finish_non_static_data_member
+		       (decl, current_class_ref,
+			/*qualifying_scope=*/NULL_TREE);
+	      pop_deferring_access_checks ();
+	      return decl;
+	    }
 	  return id_expression;
 	}
 
       /* Only certain kinds of names are allowed in constant
        expression.  Enumerators and template parameters 
        have already been handled above.  */
-      if (integral_constant_expression_p)
+      if (integral_constant_expression_p
+	  && !DECL_INTEGRAL_CONSTANT_VAR_P (decl))
 	{
-	    /* Const variables or static data members of integral or
-	      enumeration types initialized with constant expressions
-	      are OK.  */
-	  if (TREE_CODE (decl) == VAR_DECL
-	      && CP_TYPE_CONST_P (TREE_TYPE (decl))
-	      && INTEGRAL_OR_ENUMERATION_TYPE_P (TREE_TYPE (decl))
-	      && DECL_INITIALIZED_BY_CONSTANT_EXPRESSION_P (decl))
-	    ;
-	  else
+	  if (!allow_non_integral_constant_expression_p)
 	    {
-	      if (!allow_non_integral_constant_expression_p)
-		{
-		  error ("`%D' cannot appear in a constant-expression", decl);
-		  return error_mark_node;
-		}
-	      *non_integral_constant_expression_p = true;
+	      error ("`%D' cannot appear in a constant-expression", decl);
+	      return error_mark_node;
 	    }
+	  *non_integral_constant_expression_p = true;
 	}
       
       if (TREE_CODE (decl) == NAMESPACE_DECL)
@@ -2630,8 +2634,15 @@ finish_id_expression (tree id_expression,
 	    decl = build (SCOPE_REF, TREE_TYPE (decl), scope, decl);
 	}
       else if (TREE_CODE (decl) == FIELD_DECL)
-	decl = finish_non_static_data_member (decl, current_class_ref,
-					      /*qualifying_scope=*/NULL_TREE);
+	{
+	  /* Since SCOPE is NULL here, this is an unqualified name.
+	     Access checking has been performed during name lookup
+	     already.  Turn off checking to avoid duplicate errors.  */
+	  push_deferring_access_checks (dk_no_check);
+	  decl = finish_non_static_data_member (decl, current_class_ref,
+						/*qualifying_scope=*/NULL_TREE);
+	  pop_deferring_access_checks ();
+	}
       else if (is_overloaded_fn (decl))
 	{
 	  tree first_fn = OVL_CURRENT (decl);
@@ -2643,7 +2654,8 @@ finish_id_expression (tree id_expression,
 	    mark_used (first_fn);
 
 	  if (TREE_CODE (first_fn) == FUNCTION_DECL
-	      && DECL_FUNCTION_MEMBER_P (first_fn))
+	      && DECL_FUNCTION_MEMBER_P (first_fn)
+	      && !shared_member_p (decl))
 	    {
 	      /* A set of member functions.  */
 	      decl = maybe_dummy_object (DECL_CONTEXT (first_fn), 0);
@@ -2935,18 +2947,6 @@ expand_body (tree fn)
 
   extract_interface_info ();
 
-  /* If this function is marked with the constructor attribute, add it
-     to the list of functions to be called along with constructors
-     from static duration objects.  */
-  if (DECL_STATIC_CONSTRUCTOR (fn))
-    static_ctors = tree_cons (NULL_TREE, fn, static_ctors);
-
-  /* If this function is marked with the destructor attribute, add it
-     to the list of functions to be called along with destructors from
-     static duration objects.  */
-  if (DECL_STATIC_DESTRUCTOR (fn))
-    static_dtors = tree_cons (NULL_TREE, fn, static_dtors);
-
   if (DECL_CLONED_FUNCTION_P (fn))
     {
       /* If this is a clone, go through the other clones now and mark
@@ -3009,6 +3009,18 @@ expand_or_defer_fn (tree fn)
   if (DECL_DECLARED_INLINE_P (fn))
     import_export_decl (fn);
 
+  /* If this function is marked with the constructor attribute, add it
+     to the list of functions to be called along with constructors
+     from static duration objects.  */
+  if (DECL_STATIC_CONSTRUCTOR (fn))
+    static_ctors = tree_cons (NULL_TREE, fn, static_ctors);
+
+  /* If this function is marked with the destructor attribute, add it
+     to the list of functions to be called along with destructors from
+     static duration objects.  */
+  if (DECL_STATIC_DESTRUCTOR (fn))
+    static_dtors = tree_cons (NULL_TREE, fn, static_dtors);
+
   function_depth++;
 
   /* Expand or defer, at the whim of the compilation unit manager.  */
@@ -3035,6 +3047,27 @@ nullify_returns_r (tree* tp, int* walk_subtrees, void* data)
   else if (TREE_CODE (*tp) == CLEANUP_STMT
 	   && CLEANUP_DECL (*tp) == nrv)
     CLEANUP_EH_ONLY (*tp) = 1;
+  /* Replace the DECL_STMT for the NRV with an initialization of the
+     RESULT_DECL, if needed.  */
+  else if (TREE_CODE (*tp) == DECL_STMT
+	   && DECL_STMT_DECL (*tp) == nrv)
+    {
+      tree init;
+      if (DECL_INITIAL (nrv)
+	  && DECL_INITIAL (nrv) != error_mark_node)
+	{
+	  init = build (INIT_EXPR, void_type_node,
+			DECL_RESULT (current_function_decl),
+			DECL_INITIAL (nrv));
+	  DECL_INITIAL (nrv) = error_mark_node;
+	}
+      else
+	init = NULL_TREE;
+      init = build_stmt (EXPR_STMT, init);
+      TREE_CHAIN (init) = TREE_CHAIN (*tp);
+      STMT_LINENO (init) = STMT_LINENO (*tp);
+      *tp = init;
+    }
 
   /* Keep iterating.  */
   return NULL_TREE;

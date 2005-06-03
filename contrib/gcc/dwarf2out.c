@@ -1,6 +1,6 @@
 /* Output Dwarf2 format symbol table information from GCC.
    Copyright (C) 1992, 1993, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004 Free Software Foundation, Inc.
+   2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Gary Funck (gary@intrepid.com).
    Derived from DWARF 1 implementation of Ron Guilmette (rfg@monkeys.com).
    Extensively modified by Jason Merrill (jason@cygnus.com).
@@ -3649,6 +3649,7 @@ static bool is_java (void);
 static bool is_fortran (void);
 static bool is_ada (void);
 static void remove_AT (dw_die_ref, enum dwarf_attribute);
+static void remove_child_TAG (dw_die_ref, enum dwarf_tag);
 static inline void free_die (dw_die_ref);
 static void remove_children (dw_die_ref);
 static void add_child_die (dw_die_ref, dw_die_ref);
@@ -5052,6 +5053,34 @@ remove_AT (dw_die_ref die, enum dwarf_attribute attr_kind)
 
       if (removed != 0)
 	free_AT (removed);
+    }
+}
+
+/* Remove child die whose die_tag is specified tag.  */
+
+static void
+remove_child_TAG (dw_die_ref die, enum dwarf_tag tag)
+{
+  dw_die_ref current, prev, next;
+  current = die->die_child;
+  prev = NULL;
+  while (current != NULL)
+    {
+      if (current->die_tag == tag)
+	{
+	  next = current->die_sib;
+	  if (prev == NULL)
+	    die->die_child = next;
+	  else
+	    prev->die_sib = next;
+	  free_die (current);
+	  current = next;
+	}
+      else
+	{
+	  prev = current;
+	  current = current->die_sib;
+	}
     }
 }
 
@@ -8851,6 +8880,12 @@ loc_descriptor_from_tree (tree loc, int addressp)
     case EXPR_WITH_FILE_LOCATION:
       return loc_descriptor_from_tree (EXPR_WFL_NODE (loc), addressp);
 
+    case FIX_TRUNC_EXPR:
+    case FIX_CEIL_EXPR:
+    case FIX_FLOOR_EXPR:
+    case FIX_ROUND_EXPR:
+      return 0;
+
     default:
       /* Leave front-end specific codes as simply unknown.  This comes
 	 up, for instance, with the C STMT_EXPR.  */
@@ -8858,9 +8893,15 @@ loc_descriptor_from_tree (tree loc, int addressp)
           >= (unsigned int) LAST_AND_UNUSED_TREE_CODE)
 	return 0;
 
+#ifdef ENABLE_CHECKING
       /* Otherwise this is a generic code; we should just lists all of
 	 these explicitly.  Aborting means we forgot one.  */
       abort ();
+#else
+      /* In a release build, we want to degrade gracefully: better to
+	 generate incomplete debugging information than to crash.  */
+      return NULL;
+#endif
     }
 
   /* Show if we can't fill the request for an address.  */
@@ -9457,19 +9498,33 @@ rtl_for_decl_location (tree decl)
     {
       if (rtl == NULL_RTX || is_pseudo_reg (rtl))
 	{
-	  tree declared_type = type_main_variant (TREE_TYPE (decl));
-	  tree passed_type = type_main_variant (DECL_ARG_TYPE (decl));
+	  tree declared_type = TREE_TYPE (decl);
+	  tree passed_type = DECL_ARG_TYPE (decl);
+	  enum machine_mode dmode = TYPE_MODE (declared_type);
+	  enum machine_mode pmode = TYPE_MODE (passed_type);
 
 	  /* This decl represents a formal parameter which was optimized out.
 	     Note that DECL_INCOMING_RTL may be NULL in here, but we handle
 	     all cases where (rtl == NULL_RTX) just below.  */
-	  if (declared_type == passed_type)
+	  if (dmode == pmode)
 	    rtl = DECL_INCOMING_RTL (decl);
-	  else if (! BYTES_BIG_ENDIAN
-		   && TREE_CODE (declared_type) == INTEGER_TYPE
-		   && (GET_MODE_SIZE (TYPE_MODE (declared_type))
-		       <= GET_MODE_SIZE (TYPE_MODE (passed_type))))
-	    rtl = DECL_INCOMING_RTL (decl);
+	  else if (SCALAR_INT_MODE_P (dmode)
+		   && GET_MODE_SIZE (dmode) <= GET_MODE_SIZE (pmode)
+		   && DECL_INCOMING_RTL (decl))
+	    {
+	      rtx inc = DECL_INCOMING_RTL (decl);
+	      if (REG_P (inc))
+		rtl = inc;
+	      else if (GET_CODE (inc) == MEM)
+		{
+		  if (BYTES_BIG_ENDIAN)
+		    rtl = adjust_address_nv (inc, dmode,
+					     GET_MODE_SIZE (pmode)
+					     - GET_MODE_SIZE (dmode));
+		  else
+		    rtl = inc;
+		}
+	    }
 	}
 
       /* If the parm was passed in registers, but lives on the stack, then
@@ -10209,7 +10264,8 @@ scope_die_for (tree t, dw_die_ref context_die)
   if (containing_scope && TREE_CODE (containing_scope) == FUNCTION_TYPE)
     containing_scope = NULL_TREE;
 
-  if (containing_scope == NULL_TREE)
+  if (containing_scope == NULL_TREE 
+      || TREE_CODE (containing_scope) == TRANSLATION_UNIT_DECL)
     scope_die = comp_unit_die;
   else if (TYPE_P (containing_scope))
     {
@@ -10846,9 +10902,9 @@ gen_subprogram_die (tree decl, dw_die_ref context_die)
 	{
 	  subr_die = old_die;
 
-	  /* Clear out the declaration attribute and the parm types.  */
+	  /* Clear out the declaration attribute and the formal parameters.  */
 	  remove_AT (subr_die, DW_AT_declaration);
-	  remove_children (subr_die);
+	  remove_child_TAG (subr_die, DW_TAG_formal_parameter);
 	}
       else
 	{
