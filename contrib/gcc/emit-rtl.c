@@ -2910,11 +2910,19 @@ get_first_nonnote_insn (void)
 {
   rtx insn = first_insn;
 
-  while (insn)
+  if (insn)
     {
-      insn = next_insn (insn);
-      if (insn == 0 || GET_CODE (insn) != NOTE)
-	break;
+      if (NOTE_P (insn))
+	for (insn = next_insn (insn);
+	     insn && NOTE_P (insn);
+	     insn = next_insn (insn))
+	  continue;
+      else
+	{
+	  if (GET_CODE (insn) == INSN
+	      && GET_CODE (PATTERN (insn)) == SEQUENCE)
+	    insn = XVECEXP (PATTERN (insn), 0, 0);
+	}
     }
 
   return insn;
@@ -2928,11 +2936,20 @@ get_last_nonnote_insn (void)
 {
   rtx insn = last_insn;
 
-  while (insn)
+  if (insn)
     {
-      insn = previous_insn (insn);
-      if (insn == 0 || GET_CODE (insn) != NOTE)
-	break;
+      if (NOTE_P (insn))
+	for (insn = previous_insn (insn);
+	     insn && NOTE_P (insn);
+	     insn = previous_insn (insn))
+	  continue;
+      else
+	{
+	  if (GET_CODE (insn) == INSN
+	      && GET_CODE (PATTERN (insn)) == SEQUENCE)
+	    insn = XVECEXP (PATTERN (insn), 0,
+			    XVECLEN (PATTERN (insn), 0) - 1);
+	}
     }
 
   return insn;
