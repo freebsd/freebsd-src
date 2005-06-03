@@ -2,8 +2,6 @@
 # $FreeBSD$
 #
 
-MAINTAINER=peter@FreeBSD.org
-
 LIB=		z
 SHLIBDIR?=	/lib
 MAN=		zlib.3
