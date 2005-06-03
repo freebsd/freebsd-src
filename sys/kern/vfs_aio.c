@@ -1566,6 +1566,7 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 	ki = p->p_aioinfo;
 	if (ki == NULL)
 		return (EINVAL);
+	PROC_LOCK(p);
 	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t) cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
@@ -1590,6 +1591,7 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 	}
 	splx(s);
  done:
+	PROC_UNLOCK(p);
 	if (cb != NULL) {
 		if (ujob == cb->uuaiocb) {
 			td->td_retval[0] =
@@ -1664,11 +1666,13 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 
 	error = 0;
 	for (;;) {
+		PROC_LOCK(p);
 		TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 			for (i = 0; i < njoblist; i++) {
 				if (((intptr_t)
 				    cb->uaiocb._aiocb_private.kernelinfo) ==
 				    ijoblist[i]) {
+					PROC_UNLOCK(p);
 					if (ujoblist[i] != cb->uuaiocb)
 						error = EINVAL;
 					uma_zfree(aiol_zone, ijoblist);
@@ -1685,6 +1689,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 				if (((intptr_t)
 				    cb->uaiocb._aiocb_private.kernelinfo) ==
 				    ijoblist[i]) {
+					PROC_UNLOCK(p);
 					splx(s);
 					if (ujoblist[i] != cb->uuaiocb)
 						error = EINVAL;
@@ -1696,7 +1701,8 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 		}
 
 		ki->kaio_flags |= KAIO_WAKEUP;
-		error = tsleep(p, PRIBIO | PCATCH, "aiospn", timo);
+		error = msleep(p, &p->p_mtx, PDROP | PRIBIO | PCATCH, "aiospn",
+		    timo);
 		splx(s);
 
 		if (error == ERESTART || error == EINTR) {
@@ -1855,9 +1861,11 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	if ((jobref == -1) || (jobref == 0))
 		return (EINVAL);
 
+	PROC_LOCK(p);
 	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
+			PROC_UNLOCK(p);
 			td->td_retval[0] = cb->uaiocb._aiocb_private.error;
 			return (0);
 		}
@@ -1869,6 +1877,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	    plist)) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
+			PROC_UNLOCK(p);
 			td->td_retval[0] = EINPROGRESS;
 			splx(s);
 			return (0);
@@ -1879,6 +1888,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	    plist)) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
+			PROC_UNLOCK(p);
 			td->td_retval[0] = EINPROGRESS;
 			splx(s);
 			return (0);
@@ -1891,6 +1901,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	    plist)) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
+			PROC_UNLOCK(p);
 			td->td_retval[0] = cb->uaiocb._aiocb_private.error;
 			splx(s);
 			return (0);
@@ -1901,12 +1912,14 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	    plist)) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
+			PROC_UNLOCK(p);
 			td->td_retval[0] = EINPROGRESS;
 			splx(s);
 			return (0);
 		}
 	}
 	splx(s);
+	PROC_UNLOCK(p);
 
 #if (0)
 	/*
@@ -2235,7 +2248,9 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 		return (EAGAIN);
 
 	for (;;) {
+		PROC_LOCK(p);
 		if ((cb = TAILQ_FIRST(&ki->kaio_jobdone)) != 0) {
+			PROC_UNLOCK(p);
 			suword(uap->aiocbp, (uintptr_t)cb->uuaiocb);
 			td->td_retval[0] = cb->uaiocb._aiocb_private.status;
 			if (cb->uaiocb.aio_lio_opcode == LIO_WRITE) {
@@ -2253,6 +2268,7 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 
 		s = splbio();
  		if ((cb = TAILQ_FIRST(&ki->kaio_bufdone)) != 0 ) {
+			PROC_UNLOCK(p);
 			splx(s);
 			suword(uap->aiocbp, (uintptr_t)cb->uuaiocb);
 			error = cb->uaiocb._aiocb_private.error;
@@ -2262,7 +2278,8 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 		}
 
 		ki->kaio_flags |= KAIO_WAKEUP;
-		error = tsleep(p, PRIBIO | PCATCH, "aiowc", timo);
+		error = msleep(p, &p->p_mtx, PDROP | PRIBIO | PCATCH, "aiowc",
+		    timo);
 		splx(s);
 
 		if (error == ERESTART)
