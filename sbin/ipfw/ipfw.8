@@ -623,7 +623,7 @@ The search terminates.
 .It Cm fwd | forward Ar ipaddr Ns Op , Ns Ar port
 Change the next-hop on matching packets to
 .Ar ipaddr ,
-which can be an IP address in dotted quad format or a host name.
+which can be an IP address or a host name.
 The search terminates if this rule matches.
 .Pp
 If
@@ -805,14 +805,16 @@ Rule fields have the following meaning:
 .It Ar protocol : Oo Cm not Oc Ar protocol-name | protocol-number
 An IP protocol specified by number or name
 (for a complete list see
-.Pa /etc/protocols ) .
-The
-.Cm ip ,
-.Cm ip6 ,
-.Cm ipv6 ,
-or
-.Cm all
-keywords mean any protocol will match.
+.Pa /etc/protocols ) , 
+or one of the following keywords:
+.Bl -tag -width indent 
+.It Cm ip4 | ipv4
+Matches IPv4 packets.
+.It Cm ip6 | ipv6
+Matches IPv6 packets.
+.It Cm ip | all 
+Matches any packet.
+.El
 .Pp
 The
 .Cm { Ar protocol Cm or ... }
@@ -861,7 +863,7 @@ Hostnames are resolved at the time the rule is added to the firewall list.
 .It Ar addr Ns / Ns Ar masklen
 Matches all addresses with base
 .Ar addr
-(specified as a dotted quad or a hostname)
+(specified as an IP address or a hostname)
 and mask width of
 .Cm masklen
 bits.
@@ -870,7 +872,7 @@ all IP numbers from 1.2.3.0 to 1.2.3.127 .
 .It Ar addr Ns : Ns Ar mask
 Matches all addresses with base
 .Ar addr
-(specified as a dotted quad or a hostname)
+(specified as an IP address or a hostname)
 and the mask of
 .Ar mask ,
 specified as a dotted quad.
@@ -887,7 +889,7 @@ error-prone.
 .It Ar list : Bro Ar num | num-num Brc Ns Op Ns , Ns Ar list
 Matches all addresses with base address
 .Ar addr
-(specified as a dotted quad or a hostname)
+(specified as an IP address or a hostname)
 and whose last byte is in the list between braces { } .
 Note that there must be no spaces between braces and
 numbers (spaces after commas are allowed).
@@ -1444,7 +1446,7 @@ Each entry is represented by an
 .Ar addr Ns Op / Ns Ar masklen
 and will match all addresses with base
 .Ar addr
-(specified as a dotted quad or a hostname)
+(specified as an IP address or a hostname)
 and mask width of
 .Ar masklen
 bits.
