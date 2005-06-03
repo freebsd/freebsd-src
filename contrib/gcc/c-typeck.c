@@ -647,7 +647,7 @@ same_translation_unit_p (tree t1, tree t2)
   while (t2 && TREE_CODE (t2) != TRANSLATION_UNIT_DECL)
     switch (TREE_CODE_CLASS (TREE_CODE (t2)))
       {
-      case 'd': t2 = DECL_CONTEXT (t1); break;
+      case 'd': t2 = DECL_CONTEXT (t2); break;
       case 't': t2 = TYPE_CONTEXT (t2); break;
       case 'b': t2 = BLOCK_SUPERCONTEXT (t2); break;
       default: abort ();
@@ -1319,26 +1319,6 @@ build_component_ref (tree datum, tree component)
   enum tree_code code = TREE_CODE (type);
   tree field = NULL;
   tree ref;
-
-  /* If DATUM is a COMPOUND_EXPR, move our reference inside it.
-     If pedantic ensure that the arguments are not lvalues; otherwise,
-     if the component is an array, it would wrongly decay to a pointer in
-     C89 mode.
-     We cannot do this with a COND_EXPR, because in a conditional expression
-     the default promotions are applied to both sides, and this would yield
-     the wrong type of the result; for example, if the components have
-     type "char".  */
-  switch (TREE_CODE (datum))
-    {
-    case COMPOUND_EXPR:
-      {
-	tree value = build_component_ref (TREE_OPERAND (datum, 1), component);
-	return build (COMPOUND_EXPR, TREE_TYPE (value),
-		      TREE_OPERAND (datum, 0), pedantic_non_lvalue (value));
-      }
-    default:
-      break;
-    }
 
   /* See if there is a field or component with name COMPONENT.  */
 
@@ -4117,18 +4097,32 @@ digest_init (tree type, tree init, int require_constant)
   /* Build a VECTOR_CST from a *constant* vector constructor.  If the
      vector constructor is not constant (e.g. {1,2,3,foo()}) then punt
      below and handle as a constructor.  */
-    if (code == VECTOR_TYPE
-        && comptypes (TREE_TYPE (inside_init), type, COMPARE_STRICT)
-        && TREE_CONSTANT (inside_init))
-      {
-	if (TREE_CODE (inside_init) == VECTOR_CST
-	    && comptypes (TYPE_MAIN_VARIANT (TREE_TYPE (inside_init)),
-			  TYPE_MAIN_VARIANT (type),
-			  COMPARE_STRICT))
-	  return inside_init;
-	else
-	  return build_vector (type, CONSTRUCTOR_ELTS (inside_init));
-      }
+  if (code == VECTOR_TYPE
+      && comptypes (TREE_TYPE (inside_init), type, COMPARE_STRICT)
+      && TREE_CONSTANT (inside_init))
+    {
+      if (TREE_CODE (inside_init) == VECTOR_CST
+	  && comptypes (TYPE_MAIN_VARIANT (TREE_TYPE (inside_init)),
+			TYPE_MAIN_VARIANT (type),
+			COMPARE_STRICT))
+	return inside_init;
+
+      if (TREE_CODE (inside_init) == CONSTRUCTOR)
+	{
+ 	  tree link;
+ 
+ 	  /* Iterate through elements and check if all constructor
+ 	     elements are *_CSTs.  */
+ 	  for (link = CONSTRUCTOR_ELTS (inside_init);
+ 	       link;
+ 	       link = TREE_CHAIN (link))
+ 	    if (TREE_CODE_CLASS (TREE_CODE (TREE_VALUE (link))) != 'c')
+ 	      break;
+ 
+ 	  if (link == NULL)
+ 	    return build_vector (type, CONSTRUCTOR_ELTS (inside_init));
+ 	}
+    }
 
   /* Any type can be initialized
      from an expression of the same type, optionally with braces.  */
@@ -6570,6 +6564,14 @@ void
 c_finish_case (void)
 {
   struct c_switch *cs = switch_stack;
+
+  /* If we've not seen any case labels (or a default), we may still
+     need to chain any statements that were seen as the SWITCH_BODY.  */
+  if (SWITCH_BODY (cs->switch_stmt) == NULL)
+    {
+      SWITCH_BODY (cs->switch_stmt) = TREE_CHAIN (cs->switch_stmt);
+      TREE_CHAIN (cs->switch_stmt) = NULL_TREE;
+    }
 
   /* Rechain the next statements to the SWITCH_STMT.  */
   last_tree = cs->switch_stmt;
