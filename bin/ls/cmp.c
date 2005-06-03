@@ -139,3 +139,21 @@ revstatcmp(const FTSENT *a, const FTSENT *b)
 
 	return (statcmp(b, a));
 }
+
+int
+sizecmp(const FTSENT *a, const FTSENT *b)
+{
+
+	if (b->fts_statp->st_size > a->fts_statp->st_size)
+		return (1);
+	if (b->fts_statp->st_size < a->fts_statp->st_size)
+		return (-1);
+	return (strcoll(a->fts_name, b->fts_name));
+}
+
+int
+revsizecmp(const FTSENT *a, const FTSENT *b)
+{
+
+	return (sizecmp(b, a));
+}
