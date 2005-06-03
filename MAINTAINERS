@@ -31,6 +31,7 @@ ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
 NEWCARD		imp	Pre-commit review requested.
 OLDCARD		imp	Pre-commit review requested.
+pci bus		imp,jhb	Pre-commit review requested.
 telnet		markm	Heads-up appreciated. Try not to break it.
 secure/*	markm	Heads-up appreciated. Try not to break it.
 kerberos5	nectar  Pre-commit review requested.
@@ -139,7 +140,6 @@ games/fortune/datfiles/Makefile:MAINTAINER=	jkh
 gnu/usr.bin/man/apropos/Makefile:MAINTAINER= wosch
 lib/libc/posix1e/Makefile.inc:MAINTAINER=	rwatson@FreeBSD.org
 lib/libusbhid/Makefile:MAINTAINER=	n_hibma@FreeBSD.ORG
-lib/libz/Makefile:MAINTAINER=peter@FreeBSD.org
 sbin/dhclient/Makefile.inc:MAINTAINER=     mbr
 sys/compat/svr4/Makefile:MAINTAINER=	newton@freebsd.org
 sys/dev/asr/MAINTAINER:MAINTAINER = obrien@freebsd, scott_long@btc.adaptec.com, mark_salyzyn@adaptec.com
@@ -163,5 +163,4 @@ sys/modules/usb/Makefile:MAINTAINER=	n_hibma@freebsd.org
 sys/modules/uscanner/Makefile:MAINTAINER=	n_hibma@freebsd.org
 tools/tools/sysdoc/Makefile:MAINTAINER=	trhodes@FreeBSD.org
 usr.bin/locate/Makefile:MAINTAINER= wosch
-usr.sbin/pppstats/Makefile:MAINTAINER=	peter@freebsd.org
 usr.sbin/zic/Makefile:MAINTAINER=	wollman@FreeBSD.org
