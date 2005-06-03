@@ -251,7 +251,7 @@ Boston, MA 02111-1307, USA.  */
 #define DBX_OUTPUT_LBRAC(FILE, NAME)					\
   do {									\
     fprintf (asmfile, "%s %d,0,0,", ASM_STABN_OP, N_LBRAC);		\
-    assemble_name (asmfile, buf);					\
+    assemble_name (asmfile, NAME);					\
         fputc ('-', asmfile);						\
         assemble_name (asmfile,						\
 	      	 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
@@ -262,7 +262,7 @@ Boston, MA 02111-1307, USA.  */
 #define DBX_OUTPUT_RBRAC(FILE, NAME)					\
   do {									\
     fprintf (asmfile, "%s %d,0,0,", ASM_STABN_OP, N_RBRAC);		\
-    assemble_name (asmfile, buf);					\
+    assemble_name (asmfile, NAME);					\
         fputc ('-', asmfile);						\
         assemble_name (asmfile,						\
 		 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
