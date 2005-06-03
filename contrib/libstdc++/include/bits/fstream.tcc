@@ -396,8 +396,7 @@ namespace std
 	      // Convert pending sequence to external representation,
 	      // and output.
 	      if (_M_convert_to_external(this->pbase(),
-					 this->pptr() - this->pbase())
-		  && (!__testeof || !_M_file.sync()))
+					 this->pptr() - this->pbase()))
 		{
 		  _M_set_buffer(0);
 		  __ret = traits_type::not_eof(__c);
@@ -497,6 +496,74 @@ namespace std
    template<typename _CharT, typename _Traits>
      streamsize
      basic_filebuf<_CharT, _Traits>::
+     xsgetn(_CharT* __s, streamsize __n)
+     {
+       // Clear out pback buffer before going on to the real deal...
+       streamsize __ret = 0;
+       if (this->_M_pback_init)
+	 {
+	   if (__n > 0 && this->gptr() == this->eback())
+	     {
+	       *__s++ = *this->gptr();
+	       this->gbump(1);
+	       __ret = 1;
+	       --__n;
+	     }
+	   _M_destroy_pback();
+	 }
+       
+       // Optimization in the always_noconv() case, to be generalized in the
+       // future: when __n > __buflen we read directly instead of using the
+       // buffer repeatedly.
+       const bool __testin = this->_M_mode & ios_base::in;
+       const streamsize __buflen = this->_M_buf_size > 1 ? this->_M_buf_size - 1
+	                                                 : 1;
+       if (__n > __buflen && __check_facet(_M_codecvt).always_noconv()
+	   && __testin && !_M_writing)
+	 {
+	   // First, copy the chars already present in the buffer.
+	   const streamsize __avail = this->egptr() - this->gptr();
+	   if (__avail != 0)
+	     {
+	       if (__avail == 1)
+		 *__s = *this->gptr();
+	       else
+		 traits_type::copy(__s, this->gptr(), __avail);
+	       __s += __avail;
+	       this->gbump(__avail);
+	       __ret += __avail;
+	       __n -= __avail;
+	     }
+
+	   const streamsize __len = _M_file.xsgetn(reinterpret_cast<char*>(__s),
+						   __n);
+	   if (__len == -1)
+	     __throw_ios_failure(__N("basic_filebuf::xsgetn "
+				     "error reading the file"));
+	   __ret += __len;
+	   if (__len == __n)
+	     {
+	       _M_set_buffer(0);
+	       _M_reading = true;
+	     }
+	   else if (__len == 0)
+	     {
+	       // If end of file is reached, set 'uncommitted'
+	       // mode, thus allowing an immediate write without
+	       // an intervening seek.
+	       _M_set_buffer(-1);
+	       _M_reading = false;
+	     }
+	 }
+       else
+	 __ret += __streambuf_type::xsgetn(__s, __n);
+
+       return __ret;
+     }
+
+   template<typename _CharT, typename _Traits>
+     streamsize
+     basic_filebuf<_CharT, _Traits>::
      xsputn(const _CharT* __s, streamsize __n)
      {
        // Optimization in the always_noconv() case, to be generalized in the
@@ -504,8 +571,8 @@ namespace std
        // using the buffer.
        streamsize __ret = 0;
        const bool __testout = this->_M_mode & ios_base::out;
-       if (__testout && !_M_reading
-	   && __check_facet(_M_codecvt).always_noconv())
+       if (__check_facet(_M_codecvt).always_noconv()
+	   && __testout && !_M_reading)
 	{
 	  // Measurement would reveal the best choice.
 	  const streamsize __chunk = 1ul << 10;
@@ -724,7 +791,6 @@ namespace std
     {
       // Make sure that the internal buffer resyncs its idea of
       // the file position with the external file.
-      // NB: _M_file.sync() will be called within.
       int __ret = 0;
       if (this->pbase() < this->pptr())
 	{

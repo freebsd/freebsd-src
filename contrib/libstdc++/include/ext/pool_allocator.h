@@ -48,6 +48,7 @@
 #define _POOL_ALLOCATOR_H 1
 
 #include <bits/c++config.h>
+#include <cstdlib>
 #include <new>
 #include <bits/functexcept.h>
 #include <bits/atomicity.h>
@@ -72,7 +73,7 @@ namespace __gnu_cxx
    *  @endif
    *  (See @link Allocators allocators info @endlink for more.)
    */
-    class __pool_base
+    class __pool_alloc_base
     {
     protected:
 
@@ -116,7 +117,7 @@ namespace __gnu_cxx
 
 
   template<typename _Tp>
-    class __pool_alloc : private __pool_base
+    class __pool_alloc : private __pool_alloc_base
     {
     private:
       static _Atomic_word	    _S_force_new;

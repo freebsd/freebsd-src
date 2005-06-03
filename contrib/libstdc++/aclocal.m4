@@ -633,6 +633,25 @@ AC_DEFUN([GLIBCXX_CHECK_LFS], [
 
 
 dnl
+dnl Check for whether a fully dynamic basic_string implementation should
+dnl be turned on, that does not put empty objects in per-process static
+dnl memory (mostly useful together with shared memory allocators, see PR
+dnl libstdc++/16612 for details).
+dnl
+dnl --enable-fully-dynamic-string defines _GLIBCXX_FULLY_DYNAMIC_STRING
+dnl --disable-fully-dynamic-string leaves _GLIBCXX_FULLY_DYNAMIC_STRING undefined
+dnl  +  Usage:  GLIBCXX_ENABLE_FULLY_DYNAMIC_STRING[(DEFAULT)]
+dnl       Where DEFAULT is either `yes' or `no'.
+dnl
+AC_DEFUN([GLIBCXX_ENABLE_FULLY_DYNAMIC_STRING], [
+  GLIBCXX_ENABLE(fully-dynamic-string,$1,,[do not put empty strings in per-process static memory])
+  if test $enable_fully_dynamic_string = yes; then
+    AC_DEFINE(_GLIBCXX_FULLY_DYNAMIC_STRING)
+  fi
+])
+
+
+dnl
 dnl Does any necessary configuration of the testsuite directory.  Generates
 dnl the testsuite_hooks.h header.
 dnl
@@ -1612,6 +1631,23 @@ if test $enable_symvers != no; then
   CFLAGS=' -lgcc_s'
   AC_TRY_LINK(, [return 0;], glibcxx_shared_libgcc=yes, glibcxx_shared_libgcc=no)
   CFLAGS="$ac_save_CFLAGS"
+  if test $glibcxx_shared_libgcc = no; then
+    cat > conftest.c <<EOF
+int main (void) { return 0; }
+EOF
+changequote(,)dnl
+    glibcxx_libgcc_s_suffix=`${CC-cc} $CFLAGS $CPPFLAGS $LDFLAGS \
+			     -shared -shared-libgcc -o conftest.so \
+			     conftest.c -v 2>&1 >/dev/null \
+			     | sed -n 's/^.* -lgcc_s\([^ ]*\) .*$/\1/p'`
+changequote([,])dnl
+    rm -f conftest.c conftest.so
+    if test x${glibcxx_libgcc_s_suffix+set} = xset; then
+      CFLAGS=" -lgcc_s$glibcxx_libgcc_s_suffix"
+      AC_TRY_LINK(, [return 0;], glibcxx_shared_libgcc=yes)
+      CFLAGS="$ac_save_CFLAGS"
+    fi
+  fi
   AC_MSG_RESULT($glibcxx_shared_libgcc)
 fi
 
