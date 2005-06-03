@@ -192,6 +192,11 @@ struct knote {
 #define kn_data		kn_kevent.data
 #define kn_fp		kn_ptr.p_fp
 };
+struct kevent_copyops {
+	void	*arg;
+	int	(*k_copyout)(void *arg, struct kevent *kevp, int count);
+	int	(*k_copyin)(void *arg, struct kevent *kevp, int count);
+};
 
 struct thread;
 struct proc;
