@@ -153,6 +153,8 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_NETGRAPH,		/* send to ng_ipfw		*/
 	O_NGTEE,		/* copy to ng_ipfw		*/
 
+	O_IP4,
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
 

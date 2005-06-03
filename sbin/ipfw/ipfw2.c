@@ -275,6 +275,8 @@ enum tokens {
 	TOK_EXT6HDR,
 	TOK_DSTIP6,
 	TOK_SRCIP6,
+
+	TOK_IPV4,
 };
 
 struct _s_x dummynet_params[] = {
@@ -395,6 +397,8 @@ struct _s_x rule_options[] = {
 	{ "flow-id",		TOK_FLOWID},
 	{ "ipv6",		TOK_IPV6},
 	{ "ip6",		TOK_IPV6},
+	{ "ipv4",		TOK_IPV4},
+	{ "ip4",		TOK_IPV4},
 	{ "dst-ipv6",		TOK_DSTIP6},
 	{ "dst-ip6",		TOK_DSTIP6},
 	{ "src-ipv6",		TOK_SRCIP6},
@@ -1260,6 +1264,7 @@ print_ext6hdr( ipfw_insn *cmd )
 #define	HAVE_DSTIP	0x0004
 #define	HAVE_MAC	0x0008
 #define	HAVE_MACTYPE	0x0010
+#define	HAVE_PROTO4	0x0040
 #define	HAVE_PROTO6	0x0080
 #define	HAVE_OPTIONS	0x8000
 
@@ -1283,11 +1288,14 @@ show_prerequisites(int *flags, int want, int cmd)
 		return;
 	}
 	if ( !(*flags & HAVE_OPTIONS)) {
-		/* XXX BED: !(*flags & HAVE_PROTO) in patch */
-		if ( !(*flags & HAVE_PROTO6) && (want & HAVE_PROTO6))
-			printf(" ipv6");
 		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO))
-			printf(" ip");
+			if ( (*flags & HAVE_PROTO4))
+				printf(" ip4");
+			else if ( (*flags & HAVE_PROTO6))
+				printf(" ip6");
+			else
+				printf(" ip");
+
 		if ( !(*flags & HAVE_SRCIP) && (want & HAVE_SRCIP))
 			printf(" from any");
 		if ( !(*flags & HAVE_DSTIP) && (want & HAVE_DSTIP))
@@ -1468,9 +1476,23 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	/*
 	 * then print the body.
 	 */
+        for (l = rule->act_ofs, cmd = rule->cmd ;
+			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
+		if ((cmd->len & F_OR) || (cmd->len & F_NOT))
+			continue;
+		if (cmd->opcode == O_IP4) {
+			flags |= HAVE_PROTO4;
+			break;
+		} else if (cmd->opcode == O_IP6) {
+			flags |= HAVE_PROTO6;
+			break;
+		}			
+	}
 	if (rule->_pad & 1) {	/* empty rules before options */
-		if (!do_compact)
-			printf(" ip from any to any");
+		if (!do_compact) {
+			show_prerequisites(&flags, HAVE_PROTO, 0);
+			printf(" from any to any");
+		}
 		flags |= HAVE_IP | HAVE_OPTIONS;
 	}
 
@@ -1600,6 +1622,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				printf(" not");
 			proto = cmd->arg1;
 			pe = getprotobynumber(cmd->arg1);
+			if ((flags & (HAVE_PROTO4 | HAVE_PROTO6)) &&
+			    !(flags & HAVE_PROTO))
+				show_prerequisites(&flags,
+				    HAVE_IP | HAVE_OPTIONS, 0);
 			if (flags & HAVE_OPTIONS)
 				printf(" proto");
 			if (pe)
@@ -1611,6 +1637,12 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			break;
 
 		default: /*options ... */
+			if (!(cmd->len & (F_OR|F_NOT)))
+				if (((cmd->opcode == O_IP6) &&
+				    (flags & HAVE_PROTO6)) ||
+				    ((cmd->opcode == O_IP4) &&
+				    (flags & HAVE_PROTO4)))
+					break;
 			show_prerequisites(&flags, HAVE_IP | HAVE_OPTIONS, 0);
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
@@ -1810,8 +1842,12 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			    }
 				break;
 
-			case O_IP6:   
+			case O_IP6:
 				printf(" ipv6");
+				break;
+
+			case O_IP4:
+				printf(" ipv4");
 				break;
 
 			case O_ICMP6TYPE:
@@ -3506,13 +3542,18 @@ add_proto(ipfw_insn *cmd, char *av, u_char *proto)
 	*proto = IPPROTO_IP;
 
 	if (_substrcmp(av, "all") == 0)
-		; /* same as "ip" */
-	else if ((*proto = atoi(av)) > 0)
+		; /* do not set O_IP4 nor O_IP6 */
+	else if (strcmp(av, "ipv4") == 0 || strcmp(av, "ip4") == 0)
+		/* explicit "just IPv4" rule */
+		fill_cmd(cmd, O_IP4, 0, 0);
+	else if (strcmp(av, "ipv6") == 0 || strcmp(av, "ip6") == 0) {
+		/* explicit "just IPv6" rule */
+		*proto = IPPROTO_IPV6;
+		fill_cmd(cmd, O_IP6, 0, 0);
+	} else if ((*proto = atoi(av)) > 0)
 		; /* all done! */
 	else if ((pe = getprotobyname(av)) != NULL)
 		*proto = pe->p_proto;
-	else if (strcmp(av, "ipv6") == 0 || strcmp(av, "ip6") == 0)
-		*proto = IPPROTO_IPV6;
 	else
 		return NULL;
 	if (*proto != IPPROTO_IP && *proto != IPPROTO_IPV6)
@@ -4347,8 +4388,6 @@ read_options:
 		case TOK_PROTO:
 			NEED1("missing protocol");
 			if (add_proto(cmd, *av, &proto)) {
-				if (proto == IPPROTO_IPV6)
-					fill_cmd(cmd, O_IP6, 0, 0);
 				ac--; av++;
 			} else
 				errx(EX_DATAERR, "invalid protocol ``%s''",
@@ -4433,6 +4472,10 @@ read_options:
 
 		case TOK_IPV6:
 			fill_cmd(cmd, O_IP6, 0, 0);
+			break;
+
+		case TOK_IPV4:
+			fill_cmd(cmd, O_IP4, 0, 0);
 			break;
 
 		case TOK_EXT6HDR:
