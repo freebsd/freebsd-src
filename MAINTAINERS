@@ -138,7 +138,6 @@ $ cd /usr/src; find */* -type f|xargs egrep 'MAINTAINER[ <tab>]*='
 bin/dd/Makefile:MAINTAINER=	green@FreeBSD.org
 games/fortune/datfiles/Makefile:MAINTAINER=	jkh
 gnu/usr.bin/man/apropos/Makefile:MAINTAINER= wosch
-lib/libc/posix1e/Makefile.inc:MAINTAINER=	rwatson@FreeBSD.org
 lib/libusbhid/Makefile:MAINTAINER=	n_hibma@FreeBSD.ORG
 sbin/dhclient/Makefile.inc:MAINTAINER=     mbr
 sys/compat/svr4/Makefile:MAINTAINER=	newton@freebsd.org
