@@ -135,7 +135,6 @@ List below generated with:
 $ cd /usr/src; find */* -type f|xargs egrep 'MAINTAINER[ <tab>]*='
 
 bin/dd/Makefile:MAINTAINER=	green@FreeBSD.org
-contrib/cvs/FREEBSD-upgrade:MAINTAINER=	peter@FreeBSD.org
 games/fortune/datfiles/Makefile:MAINTAINER=	jkh
 gnu/usr.bin/man/apropos/Makefile:MAINTAINER= wosch
 lib/libc/posix1e/Makefile.inc:MAINTAINER=	rwatson@FreeBSD.org
