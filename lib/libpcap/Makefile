@@ -19,7 +19,7 @@ CFLAGS+=-DHAVE_SNPRINTF -DHAVE_VSNPRINTF
 CFLAGS+=-DINET6
 .endif
 
-SHLIB_MAJOR=3
+SHLIB_MAJOR=4
 
 #
 # Magic to grab sources out of src/contrib
