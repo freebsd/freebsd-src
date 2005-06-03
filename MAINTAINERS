@@ -149,7 +149,6 @@ sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
 sys/modules/bktr/bktr_mem/Makefile:MAINTAINER=	roger@freebsd.org
 sys/modules/cam/Makefile:MAINTAINER=	n_hibma@freebsd.org
 sys/modules/linux/Makefile:MAINTAINER=	emulation@FreeBSD.org
-sys/modules/pecoff/Makefile:MAINTAINER=	takawata@FreeBSD.org
 sys/modules/streams/Makefile:MAINTAINER=	newton@atdot.dotat.org
 sys/modules/svr4/Makefile:MAINTAINER=	newton@FreeBSD.org
 sys/modules/udbp/Makefile:MAINTAINER=	n_hibma@freebsd.org
