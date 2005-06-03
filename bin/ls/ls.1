@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2005
+.Dd June 2, 2005
 .Dt LS 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHLPRTWZabcdfghiklmnopqrstuwx1
+.Op Fl ABCFGHLPRSTWZabcdfghiklmnopqrstuwx1
 .Op Ar
 .Sh DESCRIPTION
 For each operand that names a
@@ -133,6 +133,9 @@ and
 options.
 .It Fl R
 Recursively list subdirectories encountered.
+.It Fl S
+Sort by size (largest file first) before sorting the operands by
+lexicographical order.
 .It Fl T
 When used with the
 .Fl l
@@ -221,8 +224,7 @@ the character
 .Ql \&? ;
 this is the default when output is to a terminal.
 .It Fl r
-Reverse the order of the sort to get reverse
-lexicographical order or the oldest entries first.
+Reverse the order of the sort.
 .It Fl s
 Display the number of file system blocks actually used by each file, in units
 of 512 bytes, where partial units are rounded up to the next integer value.

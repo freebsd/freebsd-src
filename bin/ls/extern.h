@@ -38,6 +38,8 @@ int	 namecmp(const FTSENT *, const FTSENT *);
 int	 revnamecmp(const FTSENT *, const FTSENT *);
 int	 statcmp(const FTSENT *, const FTSENT *);
 int	 revstatcmp(const FTSENT *, const FTSENT *);
+int	 sizecmp(const FTSENT *, const FTSENT *);
+int	 revsizecmp(const FTSENT *, const FTSENT *);
 
 void	 printcol(const DISPLAY *);
 void	 printlong(const DISPLAY *);
