@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	gallatin@FreeBSD.org
-
 .PATH: ${.CURDIR}/../../alpha/osf1
 
 KMOD=	osf1
