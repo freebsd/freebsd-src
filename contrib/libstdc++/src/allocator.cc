@@ -44,22 +44,22 @@ namespace __gnu_internal
 namespace __gnu_cxx
 {
   // Definitions for __pool_alloc_base.
-  __pool_base::_Obj* volatile*
-  __pool_base::_M_get_free_list(size_t __bytes)
+  __pool_alloc_base::_Obj* volatile*
+  __pool_alloc_base::_M_get_free_list(size_t __bytes)
   { 
     size_t __i = ((__bytes + (size_t)_S_align - 1) / (size_t)_S_align - 1);
     return _S_free_list + __i;
   }
 
   mutex_type&
-  __pool_base::_M_get_mutex()
+  __pool_alloc_base::_M_get_mutex()
   { return __gnu_internal::palloc_init_mutex; }
 
   // Allocate memory in large chunks in order to avoid fragmenting the
   // heap too much.  Assume that __n is properly aligned.  We hold the
   // allocation lock.
   char*
-  __pool_base::_M_allocate_chunk(size_t __n, int& __nobjs)
+  __pool_alloc_base::_M_allocate_chunk(size_t __n, int& __nobjs)
   {
     char* __result;
     size_t __total_bytes = __n * __nobjs;
@@ -91,8 +91,11 @@ namespace __gnu_cxx
 	
 	size_t __bytes_to_get = (2 * __total_bytes
 				 + _M_round_up(_S_heap_size >> 4));
-	_S_start_free = static_cast<char*>(::operator new(__bytes_to_get));
-	if (_S_start_free == 0)
+	try
+	  {
+	    _S_start_free = static_cast<char*>(::operator new(__bytes_to_get));
+	  }
+	catch (...)
 	  {
 	    // Try to make do with what we have.  That can't hurt.  We
 	    // do not try smaller requests, since that tends to result
@@ -112,11 +115,9 @@ namespace __gnu_cxx
 		    // right free list.
 		  }
 	      }
-	    _S_end_free = 0;        // In case of exception.
-
-	    // This should either throw an exception or remedy the situation.
-	    // Thus we assume it succeeded.
-	    _S_start_free = static_cast<char*>(::operator new(__bytes_to_get));
+	    // What we have wasn't enough.  Rethrow.
+	    _S_start_free = _S_end_free = 0;   // We have no chunk.
+	    __throw_exception_again;
 	  }
 	_S_heap_size += __bytes_to_get;
 	_S_end_free = _S_start_free + __bytes_to_get;
@@ -128,7 +129,7 @@ namespace __gnu_cxx
   // __n"'s free list.  We assume that __n is properly aligned.  We
   // hold the allocation lock.
   void*
-  __pool_base::_M_refill(size_t __n)
+  __pool_alloc_base::_M_refill(size_t __n)
   {
     int __nobjs = 20;
     char* __chunk = _M_allocate_chunk(__n, __nobjs);
@@ -159,11 +160,11 @@ namespace __gnu_cxx
     return __result;
   }
 
-  __pool_base::_Obj* volatile __pool_base::_S_free_list[_S_free_list_size];
+  __pool_alloc_base::_Obj* volatile __pool_alloc_base::_S_free_list[_S_free_list_size];
   
-  char* __pool_base::_S_start_free = 0;
+  char* __pool_alloc_base::_S_start_free = 0;
   
-  char* __pool_base::_S_end_free = 0;
+  char* __pool_alloc_base::_S_end_free = 0;
   
-  size_t __pool_base::_S_heap_size = 0;
+  size_t __pool_alloc_base::_S_heap_size = 0;
 } // namespace __gnu_cxx

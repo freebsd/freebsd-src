@@ -123,6 +123,7 @@ namespace std
 	{
 	  // Update egptr() to match the actual string end.
 	  _M_update_egptr();
+
 	  if (this->gptr() < this->egptr())
 	    __ret = traits_type::to_int_type(*this->gptr());
 	}
@@ -141,10 +142,11 @@ namespace std
       __testin &= !(__mode & ios_base::out);
       __testout &= !(__mode & ios_base::in);
 
-      if (_M_string.capacity() && (__testin || __testout || __testboth))
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 453. basic_stringbuf::seekoff need not always fail for an empty stream.
+      const char_type* __beg = __testin ? this->eback() : this->pbase();
+      if ((__beg || !__off) && (__testin || __testout || __testboth))
 	{
-	  char_type* __beg = __testin ? this->eback() : this->pbase();
-
 	  _M_update_egptr();
 
 	  off_type __newoffi = 0;
@@ -181,15 +183,15 @@ namespace std
     seekpos(pos_type __sp, ios_base::openmode __mode)
     {
       pos_type __ret =  pos_type(off_type(-1));
-      if (_M_string.capacity())
-	{
-	  off_type __pos (__sp);
-	  const bool __testin = (ios_base::in & this->_M_mode & __mode) != 0;
-	  const bool __testout = (ios_base::out & this->_M_mode & __mode) != 0;
-	  char_type* __beg = __testin ? this->eback() : this->pbase();
+      const bool __testin = (ios_base::in & this->_M_mode & __mode) != 0;
+      const bool __testout = (ios_base::out & this->_M_mode & __mode) != 0;
 
+      const char_type* __beg = __testin ? this->eback() : this->pbase();
+      if (__beg)
+	{
 	  _M_update_egptr();
 
+	  off_type __pos(__sp);
 	  const bool __testpos = 0 <= __pos
 	                         && __pos <=  this->egptr() - __beg;
 	  if ((__testin || __testout) && __testpos)
@@ -198,7 +200,7 @@ namespace std
 		this->gbump((__beg + __pos) - this->gptr());
 	      if (__testout)
                 this->pbump((__beg + __pos) - this->pptr());
-	      __ret = pos_type(off_type(__pos));
+	      __ret = __sp;
 	    }
 	}
       return __ret;
