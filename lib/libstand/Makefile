@@ -18,8 +18,9 @@ CFLAGS+= -I${.CURDIR}
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
 .endif
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-mpreferred-stack-boundary=2
+CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
 .endif
 .if ${MACHINE_ARCH} == "powerpc"
 CFLAGS+=	-msoft-float -D_STANDALONE
