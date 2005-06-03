@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	takawata@FreeBSD.org
-
 .PATH: ${.CURDIR}/../../compat/pecoff
 
 KMOD=	pecoff
