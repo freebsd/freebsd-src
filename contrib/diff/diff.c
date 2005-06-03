@@ -785,9 +785,6 @@ static void
 specify_style (style)
      enum output_style style;
 {
-  if (output_style != OUTPUT_NORMAL
-      && output_style != style)
-    error ("conflicting specifications of output style", 0, 0);
   output_style = style;
 }
 
