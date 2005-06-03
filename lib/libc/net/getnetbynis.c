@@ -99,9 +99,6 @@ _getnetbynis(const char *name, char *map, int af, struct netent *ne,
 		cp++;
 
 	ne->n_net = inet_network(cp);
-#if __LONG_BIT == 64
-	ne->__n_pad0 = 0;	/* ABI compatibility */
-#endif
 	ne->n_addrtype = AF_INET;
 
 	q = ne->n_aliases = ned->net_aliases;

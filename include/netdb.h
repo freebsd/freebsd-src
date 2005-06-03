@@ -105,28 +105,11 @@ struct hostent {
 #define	h_addr	h_addr_list[0]	/* address, for backward compatibility */
 };
 
-/*
- * Note: n_net used to be an unsigned long integer.
- * In XNS5, and subsequently in POSIX-2001 it was changed to an
- * uint32_t.
- * To accomodate for this while preserving binary compatibility with
- * the old interface, we prepend or append 32 bits of padding,
- * depending on the (LP64) architecture's endianness.
- *
- * This should be deleted the next time the libc major number is
- * incremented.
- */
 struct netent {
 	char		*n_name;	/* official name of net */
 	char		**n_aliases;	/* alias list */
 	int		n_addrtype;	/* net address type */
-#if __LONG_BIT == 64 && _BYTE_ORDER == _BIG_ENDIAN
-	uint32_t	__n_pad0;	/* ABI compatibility */
-#endif
 	uint32_t	n_net;		/* network # */
-#if __LONG_BIT == 64 && _BYTE_ORDER == _LITTLE_ENDIAN
-	uint32_t	__n_pad0;	/* ABI compatibility */
-#endif
 };
 
 struct servent {
@@ -262,11 +245,7 @@ struct hostent	*gethostbyname2(const char *, int);
 struct hostent	*gethostent(void);
 struct hostent	*getipnodebyaddr(const void *, size_t, int, int *);
 struct hostent	*getipnodebyname(const char *, int, int, int *);
-#if __LONG_BIT == 64
-struct netent	*getnetbyaddr(unsigned long, int);	/* ABI compatibility */
-#else
 struct netent	*getnetbyaddr(uint32_t, int);
-#endif
 struct netent	*getnetbyname(const char *);
 struct netent	*getnetent(void);
 int		getnetgrent(char **, char **, char **);

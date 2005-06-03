@@ -165,17 +165,13 @@ getnetbyname(const char *name)
 }
 
 struct netent *
-#if __LONG_BIT == 64
-getnetbyaddr(u_long addr, int af)		/* ABI compatibility */
-#else
 getnetbyaddr(uint32_t addr, int af)
-#endif
 {
 	struct netdata *nd;
 
 	if ((nd = __netdata_init()) == NULL)
 		return NULL;
-	if (getnetbyaddr_r((uint32_t)addr, af, &nd->net, &nd->data) != 0)
+	if (getnetbyaddr_r(addr, af, &nd->net, &nd->data) != 0)
 		return NULL;
 	return &nd->net;
 }
