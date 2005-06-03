@@ -1961,6 +1961,7 @@ ipfw_chk(struct ip_fw_args *args)
 	int is_ipv6 = 0;
 	u_int16_t ext_hd = 0;	/* bits vector for extension header filtering */
 	/* end of ipv6 variables */
+	int is_ipv4 = 0;
 
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (IP_FW_PASS);	/* accept */
@@ -2076,6 +2077,7 @@ do {									\
 	} else if (pktlen >= sizeof(struct ip) &&
 	    (args->eh == NULL || ntohs(args->eh->ether_type) == ETHERTYPE_IP) &&
 	    mtod(m, struct ip *)->ip_v == 4) {
+	    	is_ipv4 = 1;
 		ip = mtod(m, struct ip *);
 		hlen = ip->ip_hl << 2;
 		args->f_id.addr_type = 4;
@@ -2676,6 +2678,10 @@ check_body:
 				match = is_ipv6;
 				break;
 #endif
+
+			case O_IP4:
+				match = is_ipv4;
+				break;
 
 			/*
 			 * The second set of opcodes represents 'actions',
@@ -3322,6 +3328,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IP6_DST_ME:
 		case O_EXT_HDR:
 		case O_IP6:
+		case O_IP4:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
