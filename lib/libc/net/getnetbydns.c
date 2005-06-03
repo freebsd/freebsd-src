@@ -259,9 +259,6 @@ getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
 			break;
 		}
 		ne->n_aliases++;
-#if __LONG_BIT == 64
-		ne->__n_pad0 = 0;	/* ABI compatibility */
-#endif
 		return 0;
 	}
 	h_errno = TRY_AGAIN;
@@ -334,9 +331,6 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 		while ((net & 0xff) == 0 && net != 0)
 			net >>= 8;
 		ne->n_net = net;
-#if __LONG_BIT == 64
-		ne->__n_pad0 = 0;	/* ABI compatibility */
-#endif
 		return NS_SUCCESS;
 	}
 	return NS_NOTFOUND;
