@@ -493,7 +493,7 @@
 	<para>The gx(4) driver has been removed because
 	  it is no longer maintained actively and
 	  the &man.em.4; driver supports all of the supported hardware.</para>
-	  
+
 	<para>The &man.hme.4; driver is now MPSAFE. &merged;</para>
 
 	<para>The &man.ipw.4; (for Intel PRO/Wireless 2100),
@@ -1374,7 +1374,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       <note>
 	<para>Users of older versions of
 	  <application>KDE</application> should follow the upgrading
-	  procedure documented on the 
+	  procedure documented on the
 	  <ulink url="http://freebsd.kde.org/">KDE on FreeBSD</ulink> Web
 	  page or in <filename>ports/UPDATING</filename>.</para>
 	</note>
