@@ -258,7 +258,6 @@ iq80321_attach(device_t dev)
 	device_add_child(dev, "pcib", busno);
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
-	printf("attach\n");
 
 	return (0);
 }
