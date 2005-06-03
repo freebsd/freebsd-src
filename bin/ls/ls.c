@@ -127,6 +127,7 @@ static int f_singlecol;		/* use single column output */
        int f_statustime;	/* use time of last mode change */
 static int f_stream;		/* stream the output, separate with commas */
 static int f_timesort;		/* sort by time vice name */
+static int f_sizesort;
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
        int f_label;		/* show MAC label */
@@ -179,8 +180,8 @@ main(int argc, char *argv[])
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
- 	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWZabcdfghiklmnopqrstuwx")) 
-	    != -1) {
+ 	while ((ch = getopt(argc, argv,
+	    "1ABCFGHLPRSTWZabcdfghiklmnopqrstuwx")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C, -x and -l options all override each other so
@@ -298,6 +299,9 @@ main(int argc, char *argv[])
 		case 't':
 			f_timesort = 1;
 			break;
+		case 'S':
+			f_sizesort = 1;
+			break;
 		case 'W':
 			f_whiteout = 1;
 			break;
@@ -360,11 +364,12 @@ main(int argc, char *argv[])
 #endif
 
 	/*
-	 * If not -F, -i, -l, -s or -t options, don't require stat
+	 * If not -F, -i, -l, -s, -S or -t options, don't require stat
 	 * information, unless in color mode in which case we do
 	 * need this to determine which colors to display.
 	 */
-	if (!f_inode && !f_longform && !f_size && !f_timesort && !f_type
+	if (!f_inode && !f_longform && !f_size && !f_timesort &&
+	    !f_sizesort && !f_type
 #ifdef COLORLS
 	    && !f_color
 #endif
@@ -397,21 +402,25 @@ main(int argc, char *argv[])
 	}
 	/* Select a sort function. */
 	if (f_reversesort) {
-		if (!f_timesort)
+		if (!f_timesort && !f_sizesort)
 			sortfcn = revnamecmp;
 		else if (f_accesstime)
 			sortfcn = revacccmp;
 		else if (f_statustime)
 			sortfcn = revstatcmp;
+		else if (f_sizesort)
+			sortfcn = revsizecmp;
 		else		/* Use modification time. */
 			sortfcn = revmodcmp;
 	} else {
-		if (!f_timesort)
+		if (!f_timesort && !f_sizesort)
 			sortfcn = namecmp;
 		else if (f_accesstime)
 			sortfcn = acccmp;
 		else if (f_statustime)
 			sortfcn = statcmp;
+		else if (f_sizesort)
+			sortfcn = sizecmp;
 		else		/* Use modification time. */
 			sortfcn = modcmp;
 	}
