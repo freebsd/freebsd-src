@@ -118,6 +118,7 @@ _ping6=		ping6
 _fdisk=		fdisk
 .elif ${MACHINE} == "pc98"
 _fdisk_pc98=	fdisk_pc98
+_sconfig=	sconfig
 .endif
 _mount_reiserfs= mount_reiserfs
 _sconfig=	sconfig
