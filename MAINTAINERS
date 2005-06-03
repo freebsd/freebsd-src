@@ -88,7 +88,8 @@ nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 pppd/chat	peter	Try not to break it.
 groff		ru	Recommends pre-commit review.
-share/mk	ru	Recommends pre-commit review.
+share/mk	ru	This is a vital component of the build system, so I
+			offer a pre-commit review for anything non-trivial.
 ipfw		ipfw	Pre-commit review preferred. send to ipfw@freebsd.org
 drm		anholt	Just keep me informed of changes, try not to break it.
 regression	jmallett	Will help write new tests, etc.
