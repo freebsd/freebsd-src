@@ -2849,6 +2849,8 @@ extern void dump_tree_statistics (void);
 extern void expand_function_end (void);
 extern void expand_function_start (tree, int);
 extern void expand_pending_sizes (tree);
+extern tree make_vector (enum machine_mode, tree, int);
+extern tree reconstruct_complex_type (tree, tree);
 
 extern int real_onep (tree);
 extern int real_twop (tree);
@@ -2980,6 +2982,7 @@ enum tls_model decl_tls_model (tree);
 extern void resolve_unique_section (tree, int, int);
 extern void mark_referenced (tree);
 extern void notice_global_symbol (tree);
+extern void process_pending_assemble_output_defs (void);
 
 /* In stmt.c */
 extern void emit_nop (void);

@@ -1,5 +1,5 @@
 /* DWARF2 exception handling and frame unwind runtime interface routines.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GCC.
@@ -187,6 +187,11 @@ _Unwind_GetGR (struct _Unwind_Context *context, int index)
 {
   int size;
   void *ptr;
+
+#ifdef DWARF_ZERO_REG
+  if (index == DWARF_ZERO_REG)
+    return 0;
+#endif
 
   index = DWARF_REG_TO_UNWIND_COLUMN (index);
   if (index >= (int) sizeof(dwarf_reg_size_table))
@@ -677,6 +682,10 @@ execute_stack_op (const unsigned char *op_ptr, const unsigned char *op_end,
 	case DW_OP_mul:
 	case DW_OP_or:
 	case DW_OP_plus:
+	case DW_OP_shl:
+	case DW_OP_shr:
+	case DW_OP_shra:
+	case DW_OP_xor:
 	case DW_OP_le:
 	case DW_OP_ge:
 	case DW_OP_eq:
@@ -1365,5 +1374,24 @@ uw_identify_context (struct _Unwind_Context *context)
 
 
 #include "unwind.inc"
+
+#if defined (USE_GAS_SYMVER) && defined (SHARED) && defined (USE_LIBUNWIND_EXCEPTIONS)
+alias (_Unwind_Backtrace);
+alias (_Unwind_DeleteException);
+alias (_Unwind_FindEnclosingFunction);
+alias (_Unwind_ForcedUnwind);
+alias (_Unwind_GetDataRelBase);
+alias (_Unwind_GetTextRelBase);
+alias (_Unwind_GetCFA);
+alias (_Unwind_GetGR);
+alias (_Unwind_GetIP);
+alias (_Unwind_GetLanguageSpecificData);
+alias (_Unwind_GetRegionStart);
+alias (_Unwind_RaiseException);
+alias (_Unwind_Resume);
+alias (_Unwind_Resume_or_Rethrow);
+alias (_Unwind_SetGR);
+alias (_Unwind_SetIP);
+#endif
 
 #endif /* !USING_SJLJ_EXCEPTIONS */

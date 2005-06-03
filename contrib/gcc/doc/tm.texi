@@ -291,6 +291,26 @@ the value of @code{LIB_SPEC}.
 
 If this macro is not defined, the GCC driver provides a default that
 passes the string @option{-lgcc} to the linker.
+
+By default, if @code{ENABLE_SHARED_LIBGCC} is defined, the
+@code{LIBGCC_SPEC} is not directly used by the driver program but is
+instead modified to refer to different versions of @file{libgcc.a}
+depending on the values of the command line flags @option{-static},
+@option{-shared}, @option{-static-libgcc}, and @option{-shared-libgcc}.
+@end defmac
+
+@defmac USE_LD_AS_NEEDED
+A macro that controls the modifications to @code{LIBGCC_SPEC}.
+If nonzero, a spec will be
+generated that uses --as-needed and the shared libgcc in place of the
+static exception handler library, when linking without any of
+@code{-static}, @code{-static-libgcc}, or @code{-shared-libgcc}.
+@end defmac
+
+@defmac LINK_EH_SPEC
+If defined, this C string constant is added to @code{LINK_SPEC}.
+When @code{USE_LD_AS_NEEDED} is zero or undefined, it also affects
+the modifications to @code{LIBGCC_SPEC}.
 @end defmac
 
 @defmac STARTFILE_SPEC
@@ -1500,6 +1520,34 @@ the latter will take precedence. If @samp{__attribute__((packed))} is
 used on a single field when MS bit-fields are in use, it will take
 precedence for that field, but the alignment of the rest of the structure
 may affect its placement.
+@end deftypefn
+
+@deftypefn {Target Hook} {const char *} TARGET_MANGLE_FUNDAMENTAL_TYPE (tree @var{type})
+If your target defines any fundamental types, define this hook to
+return the appropriate encoding for these types as part of a C++
+mangled name.  The @var{type} argument is the tree structure
+representing the type to be mangled.  The hook may be applied to trees
+which are not target-specific fundamental types; it should return
+@code{NULL} for all such types, as well as arguments it does not
+recognize.  If the return value is not @code{NULL}, it must point to
+a statically-allocated string constant.
+
+Target-specific fundamental types might be new fundamental types or
+qualified versions of ordinary fundamental types.  Encode new
+fundamental types as @samp{@w{u @var{n} @var{name}}}, where @var{name}
+is the name used for the type in source code, and @var{n} is the
+length of @var{name} in decimal.  Encode qualified versions of
+ordinary types as @samp{@w{U @var{n} @var{name} @var{code}}}, where
+@var{name} is the name used for the type qualifier in source code,
+@var{n} is the length of @var{name} as above, and @var{code} is the
+code used to represent the unqualified version of this type.  (See
+@code{write_builtin_type} in @file{cp/mangle.c} for the list of
+codes.)  In both cases the spaces are for clarity; do not include any
+spaces in your string.
+
+The default version of this hook always returns @code{NULL}, which is
+appropriate for a target that does not define any new fundamental
+types.
 @end deftypefn
 
 @node Type Layout
@@ -2929,6 +2977,14 @@ general register, but an alternate column needs to be used for
 signal frames.
 @end defmac
 
+@defmac DWARF_ZERO_REG
+A C expression whose value is an integer giving a DWARF 2 register
+number that is considered to always have the value zero.  This should
+only be defined if the target has an architected zero register, and
+someone decided it was a good idea to use that register number to
+terminate the stack backtrace.  New ports should avoid this.
+@end defmac
+
 @defmac INCOMING_FRAME_SP_OFFSET
 A C expression whose value is an integer giving the offset, in bytes,
 from the value of the stack pointer register to the top of the stack
@@ -4278,7 +4334,7 @@ You need not define this macro if you did not define
 @code{DELAY_SLOTS_FOR_EPILOGUE}.
 @end defmac
 
-@deftypefn {Target Hook} void TARGET_ASM_OUTPUT_MI_THUNK (FILE *@var{file}, tree @var{thunk_fndecl}, HOST_WIDE_INT @var{delta}, tree @var{function})
+@deftypefn {Target Hook} void TARGET_ASM_OUTPUT_MI_THUNK (FILE *@var{file}, tree @var{thunk_fndecl}, HOST_WIDE_INT @var{delta}, HOST_WIDE_INT @var{vcall_offset}, tree @var{function})
 A function that outputs the assembler code for a thunk
 function, used to implement C++ virtual function calls with multiple
 inheritance.  The thunk acts as a wrapper around a virtual function,
@@ -4292,7 +4348,15 @@ in C++.  This is the incoming argument @emph{before} the function prologue,
 e.g.@: @samp{%o0} on a sparc.  The addition must preserve the values of
 all other incoming arguments.
 
-After the addition, emit code to jump to @var{function}, which is a
+Then, if @var{vcall_offset} is nonzero, an additional adjustment should be
+made after adding @code{delta}.  In particular, if @var{p} is the
+adjusted pointer, the following adjustment should be made:
+
+@smallexample
+p += (*((ptrdiff_t **)p))[vcall_offset/sizeof(ptrdiff_t)]
+@end smallexample
+
+After the additions, emit code to jump to @var{function}, which is a
 @code{FUNCTION_DECL}.  This is a direct pure jump, not a call, and does
 not touch the return address.  Hence returning from @var{FUNCTION} will
 return to whoever called the current @samp{thunk}.
@@ -4312,19 +4376,12 @@ front end will generate a less efficient heavyweight thunk that calls
 not support varargs.
 @end deftypefn
 
-@deftypefn {Target Hook} void TARGET_ASM_OUTPUT_MI_VCALL_THUNK (FILE *@var{file}, tree @var{thunk_fndecl}, HOST_WIDE_INT @var{delta}, int @var{vcall_offset}, tree @var{function})
-A function like @code{TARGET_ASM_OUTPUT_MI_THUNK}, except that if
-@var{vcall_offset} is nonzero, an additional adjustment should be made
-after adding @code{delta}.  In particular, if @var{p} is the
-adjusted pointer, the following adjustment should be made:
-
-@smallexample
-p += (*((ptrdiff_t **)p))[vcall_offset/sizeof(ptrdiff_t)]
-@end smallexample
-
-@noindent
-If this function is defined, it will always be used in place of
-@code{TARGET_ASM_OUTPUT_MI_THUNK}.
+@deftypefn {Target Hook} bool TARGET_ASM_CAN_OUTPUT_MI_THUNK (tree @var{thunk_fndecl}, HOST_WIDE_INT @var{delta}, HOST_WIDE_INT @var{vcall_offset}, tree @var{function})
+A function that returns true if TARGET_ASM_OUTPUT_MI_THUNK would be able
+to output the assembler code for the thunk function specified by the
+arguments it is passed, and false otherwise.  In the latter case, the
+generic approach will be used by the C++ front end, with the limitations
+previously exposed.
 @end deftypefn
 
 @node Profiling
@@ -6894,6 +6951,15 @@ the tree nodes are available.
 @findex SET_ASM_OP
 If @code{SET_ASM_OP} is defined, a default definition is provided which is
 correct for most systems.
+@end defmac
+
+@defmac TARGET_DEFERRED_OUTPUT_DEFS (@var{decl_of_name}, @var{decl_of_value})
+A C statement that evaluates to true if the assembler code which defines
+(equates) the symbol whose tree node is @var{decl_of_name} to have the value
+of the tree node @var{decl_of_value} should be emitted near the end of the
+current compilation unit.  The default is to not defer output of defines.
+This macro affects defines output by @samp{ASM_OUTPUT_DEF} and
+@samp{ASM_OUTPUT_DEF_FROM_DECLS}.
 @end defmac
 
 @defmac ASM_OUTPUT_WEAK_ALIAS (@var{stream}, @var{name}, @var{value})
