@@ -188,10 +188,10 @@ defer_opt (enum opt_code code, const char *arg)
 
 /* Common initialization before parsing options.  */
 unsigned int
-c_common_init_options (unsigned int argc, const char **argv ATTRIBUTE_UNUSED)
+c_common_init_options (unsigned int argc, const char **argv)
 {
   static const unsigned int lang_flags[] = {CL_C, CL_ObjC, CL_CXX, CL_ObjCXX};
-  unsigned int result;
+  unsigned int i, result;
 
   /* This is conditionalized only because that is the way the front
      ends used to do it.  Maybe this should be unconditional?  */
@@ -224,17 +224,25 @@ c_common_init_options (unsigned int argc, const char **argv ATTRIBUTE_UNUSED)
 
   result = lang_flags[c_language];
 
-  /* If potentially preprocessing Fortran we have to accept its front
-     end options since the driver passes most of them through.  */
-#ifdef CL_F77
-  if (c_language == clk_c && argc > 2
-      && !strcmp (argv[2], "-traditional-cpp" ))
+  if (c_language == clk_c)
     {
-      permit_fortran_options = true;
-      result |= CL_F77;
-    }
+      for (i = 1; i < argc; i++)
+	{
+	  /* If preprocessing assembly language, accept any of the C-family
+	     front end options since the driver may pass them through.  */
+	  if (! strcmp (argv[i], "-lang-asm"))
+	    result |= CL_C | CL_ObjC | CL_CXX | CL_ObjCXX;
+#ifdef CL_F77
+	  /* If potentially preprocessing Fortran we have to accept its
+	     front end options since the driver may them through.  */
+	  else if (! strcmp (argv[i], "-traditional-cpp"))
+	    {
+	      permit_fortran_options = true;
+	      result |= CL_F77;
+	    }
 #endif
-
+	}
+    }
   return result;
 }
 
@@ -1165,8 +1173,12 @@ c_common_post_options (const char **pfilename)
 
   *pfilename = this_input_filename
     = cpp_read_main_file (parse_in, in_fnames[0]);
+  /* Don't do any compilation or preprocessing if there is no input file.  */
   if (this_input_filename == NULL)
-    return true;
+    {
+      errorcount++;
+      return false;
+    }
 
   if (flag_working_directory
       && flag_preprocess_only && ! flag_no_line_commands)
@@ -1355,11 +1367,13 @@ sanitize_cpp_opts (void)
 
   /* Disable -dD, -dN and -dI if normal output is suppressed.  Allow
      -dM since at least glibc relies on -M -dM to work.  */
+  /* Also, flag_no_output implies flag_no_line_commands, always. */
   if (flag_no_output)
     {
       if (flag_dump_macros != 'M')
 	flag_dump_macros = 0;
       flag_dump_includes = 0;
+      flag_no_line_commands = 1;
     }
 
   cpp_opts->unsigned_char = !flag_signed_char;

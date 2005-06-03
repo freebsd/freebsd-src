@@ -22,7 +22,7 @@ along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+-/* $FreeBSD$ */
 
 #undef  CC1_SPEC
 #define CC1_SPEC "%(cc1_cpu) %{profile:-p}"
@@ -113,15 +113,8 @@ Boston, MA 02111-1307, USA.  */
 
 /* FreeBSD sets the rounding precision of the FPU to 53 bits.  Let the
    compiler get the contents of <float.h> and std::numeric_limits correct.  */
-#define SUBTARGET_OVERRIDE_OPTIONS			\
-  do {							\
-    if (!TARGET_64BIT) {				\
-      REAL_MODE_FORMAT (XFmode)				\
-	= &ieee_extended_intel_96_round_53_format;	\
-      REAL_MODE_FORMAT (TFmode)				\
-	= &ieee_extended_intel_96_round_53_format;	\
-    }							\
-  } while (0)
+#undef TARGET_96_ROUND_53_LONG_DOUBLE
+#define TARGET_96_ROUND_53_LONG_DOUBLE (!TARGET_64BIT)
 
 /* Tell final.c that we don't need a label passed to mcount.  */
 #define NO_PROFILE_COUNTERS	1
