@@ -307,7 +307,14 @@
  * We define this here since <stddef.h>, <sys/queue.h>, and <sys/types.h>
  * require it.
  */
+#ifndef __cplusplus
 #define	__offsetof(type, field)	((size_t)(&((type *)0)->field))
+#else
+#define __offsetof(type, field)					\
+  (__offsetof__ (reinterpret_cast <size_t>			\
+                 (&reinterpret_cast <const volatile char &>	\
+                  (static_cast<type *> (0)->field))))
+#endif
 #define	__rangeof(type, start, end) \
 	(__offsetof(type, end) - __offsetof(type, start))
 
