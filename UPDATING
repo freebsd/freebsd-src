@@ -25,9 +25,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	The n_net of a struct netent was changed to an uint32_t, and
 	1st argument of getnetbyaddr() was changed to an uint32_t, to
 	conform to POSIX-2001.  These changes broke an ABI
-	compatibility on 64 bit architecture.  You have to recompile
-	userland programs that use getnetbyaddr(3), getnetbyname(3)
-	and/or getnetent(3) on 64 bit architecture.
+	compatibility on 64 bit architecture.  With these changes,
+	shlib major of libpcap was bumped.  You have to recompile
+	userland programs that use getnetbyaddr(3), getnetbyname(3),
+	getnetent(3) and/or libpcap on 64 bit architecture.
 
 20050528:
 	Kernel parsing of extra options on '#!' first lines of shell
