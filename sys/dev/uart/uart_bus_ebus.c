@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
+#include <machine/ver.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
@@ -64,6 +65,7 @@ uart_ebus_probe(device_t dev)
 {
 	const char *nm, *cmpt;
 	struct uart_softc *sc;
+	struct uart_devinfo dummy;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -73,6 +75,24 @@ uart_ebus_probe(device_t dev)
 	cmpt = ofw_bus_get_compat(dev);
 	if (!strcmp(nm, "su") || !strcmp(nm, "su_pnp") || (cmpt != NULL &&
 	    (!strcmp(cmpt, "su") || !strcmp(cmpt, "su16550")))) {
+		/*
+		 * On AXi and AXmp boards the NS16550 (used to connect
+		 * keyboard/mouse) share their IRQ lines with the i8042.
+		 * Any IRQ activity (typically during attach) of the
+		 * NS16550 used to connect the keyboard when actually the
+		 * PS/2 keyboard is selected in OFW causes interaction
+		 * with the OBP i8042 driver resulting in a hang and vice
+		 * versa. As RS232 keyboards and mice obviously aren't
+		 * meant to be used in parallel with PS/2 ones on these
+		 * boards don't attach to the NS16550 in case the RS232
+		 * keyboard isn't selected in order to prevent such hangs.
+		 */
+		if ((!strcmp(sparc64_model, "SUNW,UltraAX-MP") ||
+		    !strcmp(sparc64_model, "SUNW,UltraSPARC-IIi-Engine")) &&
+		    uart_cpu_getdev(UART_DEV_KEYBOARD, &dummy)) {
+				device_disable(dev);
+				return (ENXIO);
+		}
 		sc->sc_class = &uart_ns8250_class;
 		return (uart_bus_probe(dev, 0, 0, 0, 0));
 	}
