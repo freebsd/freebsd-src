@@ -149,30 +149,33 @@ uart_cpu_getdev_dbgport(phandle_t options, char *dev, size_t devsz)
 }
 
 /*
- * Get the package handle of the device that is selected as the keyboard
- * port.
- * XXX this also matches PS/2 keyboard controllers and most likely also
- * USB keyboards.
+ * Get the package handle of the UART that is selected as the keyboard port,
+ * if it's actually used to connect the keyboard according to the OF. I.e.
+ * this will return the UART used to connect the keyboard regardless whether
+ * it's stdin or not, however not in case the user or the OF gave preference
+ * to e.g. a PS/2 keyboard by setting /aliases/keyboard accordingly.
  */
 static phandle_t
-uart_cpu_getdev_keyboard(phandle_t root, char *dev, size_t devsz)
+uart_cpu_getdev_keyboard(char *dev, size_t devsz)
 {
 	char buf[32];
-	phandle_t child, node;
+	phandle_t input;
 
-	child = OF_child(root);
-	while (child != 0 && child != -1) {
-		if (OF_getprop(child, "device_type", buf, sizeof(buf)) != -1 &&
-		    !strcmp(buf, "serial") &&
-		    OF_getprop(child, "keyboard", buf, sizeof(buf)) != -1) {
-			OF_getprop(child, "name", dev, devsz);
-			return (child);
-		}
-		if ((node = uart_cpu_getdev_keyboard(child, dev, devsz)) != -1)
-			return (node);
-		child = OF_peer(child);
-	}
-	return (-1);
+	if ((input = OF_finddevice("keyboard")) == -1)
+		return (-1);
+	if (OF_getprop(input, "device_type", buf, sizeof(buf)) == -1)
+		return (-1);
+	if (strcmp(buf, "serial") != 0)
+		return (-1);
+	if (OF_getprop(input, "name", dev, devsz) == -1)
+		return (-1);
+	/*
+	 * So far this also matched PS/2 keyboard nodes so make sure it's
+	 * one of the SCCs/UARTs known to be used to connect keyboards.
+	 */
+	if (strcmp(dev, "su") && strcmp(dev, "su_pnp") && strcmp(dev, "zs"))
+		return (-1);
+	return (input);
 }
 
 int
@@ -194,7 +197,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		input = uart_cpu_getdev_dbgport(options, dev, sizeof(dev));
 		break;
 	case UART_DEV_KEYBOARD:
-		input = uart_cpu_getdev_keyboard(OF_peer(0), dev, sizeof(dev));
+		input = uart_cpu_getdev_keyboard(dev, sizeof(dev));
 		break;
 	default:
 		input = -1;
