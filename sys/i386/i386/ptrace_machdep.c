@@ -35,9 +35,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 
+#if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
+#define CPU_ENABLE_SSE
+#endif
+#if defined(CPU_DISABLE_SSE)
+#undef CPU_ENABLE_SSE
+#endif
+
 int
 cpu_ptrace(struct thread *td, int req, void *addr, int data)
 {
+#ifdef CPU_ENABLE_SSE
 	int error;
 
 	if (!cpu_fxsr)
@@ -59,4 +67,7 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	}
 
 	return (error);
+#else
+	return (EINVAL);
+#endif
 }
