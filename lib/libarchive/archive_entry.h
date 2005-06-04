@@ -32,6 +32,12 @@
 #include <unistd.h>
 #include <wchar.h>
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * Description of an archive entry.
  *
@@ -214,5 +220,10 @@ int	 archive_entry_acl_count(struct archive_entry *, int want_type);
  */
 int		 __archive_entry_acl_parse_w(struct archive_entry *,
 		     const wchar_t *, int type);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !ARCHIVE_ENTRY_H_INCLUDED */
