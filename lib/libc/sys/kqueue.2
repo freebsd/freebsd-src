@@ -324,15 +324,6 @@ returned by the
 .Fn aio_*
 system call.
 The filter returns under the same conditions as aio_error.
-.Pp
-Alternatively, a kevent structure may be initialized, with
-.Va ident
-containing the descriptor of the kqueue, and the
-address of the kevent structure placed in the
-.Va aio_lio_opcode
-field of the AIO request.
-However, this approach will not work on
-architectures with 64-bit pointers, and should be considered deprecated.
 .It EVFILT_VNODE
 Takes a file descriptor as the identifier and the events to watch for in
 .Va fflags ,
