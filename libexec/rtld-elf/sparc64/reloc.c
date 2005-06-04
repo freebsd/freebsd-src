@@ -649,7 +649,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 24);
 			where[5] = ORG5;
 			flush(where, 20);
-			where[4] = SLLX    | 12;
+			where[4] = SLLX    | 32;
 			flush(where, 16);
 			where[3] = OR      | LOVAL((target) >> 32);
 			flush(where, 12);
