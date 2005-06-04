@@ -1,6 +1,4 @@
-# $FreeBSD$ 
-
-MAINTAINER=	n_hibma@freebsd.org
+# $FreeBSD$
 
 S=	${.CURDIR}/../..
 
