@@ -83,11 +83,12 @@ int realstathz;
 int tickincr = 1;
 
 /*
- * The schedulable entity that can be given a context to run.
- * A process may have several of these. Probably one per processor
- * but posibly a few more. In this universe they are grouped
- * with a KSEG that contains the priority and niceness
- * for the group.
+ * The following datastructures are allocated within their parent structure
+ * but are scheduler specific.
+ */
+/*
+ * The schedulable entity that can be given a context to run.  A process may
+ * have several of these.
  */
 struct kse {
 	TAILQ_ENTRY(kse) ke_procq;	/* (j/z) Run queue. */
@@ -109,36 +110,20 @@ struct kse {
 	int		ke_ticks;	/* Tick count */
 
 };
-
-
-#define td_kse td_sched
+#define	td_kse			td_sched
 #define	td_slptime		td_kse->ke_slptime
 #define ke_proc			ke_thread->td_proc
 #define ke_ksegrp		ke_thread->td_ksegrp
-
+#define	ke_assign		ke_procq.tqe_next
 /* flags kept in ke_flags */
-#define	KEF_SCHED0	0x00001	/* For scheduler-specific use. */
-#define	KEF_SCHED1	0x00002	/* For scheduler-specific use. */
-#define	KEF_SCHED2	0x00004	/* For scheduler-specific use. */
-#define	KEF_SCHED3	0x00008	/* For scheduler-specific use. */
-#define	KEF_SCHED4	0x00010 
-#define	KEF_SCHED5	0x00020 
-#define	KEF_DIDRUN	0x02000	/* Thread actually ran. */
-#define	KEF_EXIT	0x04000	/* Thread is being killed. */
-
-/*
- * These datastructures are allocated within their parent datastructure but
- * are scheduler specific.
- */
-
-#define	ke_assign	ke_procq.tqe_next
-
 #define	KEF_ASSIGNED	0x0001		/* Thread is being migrated. */
 #define	KEF_BOUND	0x0002		/* Thread can not migrate. */
 #define	KEF_XFERABLE	0x0004		/* Thread was added as transferable. */
 #define	KEF_HOLD	0x0008		/* Thread is temporarily bound. */
 #define	KEF_REMOVED	0x0010		/* Thread was removed while ASSIGNED */
-#define	KEF_INTERNAL	0x0020
+#define	KEF_INTERNAL	0x0020		/* Thread added due to migration. */
+#define	KEF_DIDRUN	0x02000		/* Thread actually ran. */
+#define	KEF_EXIT	0x04000		/* Thread is being killed. */
 
 struct kg_sched {
 	struct thread	*skg_last_assigned; /* (j) Last thread assigned to */
@@ -154,27 +139,8 @@ struct kg_sched {
 #define kg_runtime		kg_sched->skg_runtime
 #define kg_slptime		kg_sched->skg_slptime
 
-#define SLOT_RELEASE(kg)						\
-do {									\
-	kg->kg_avail_opennings++; 					\
-	CTR3(KTR_RUNQ, "kg %p(%d) Slot released (->%d)",		\
-	kg,								\
-	kg->kg_concurrency,						\
-	 kg->kg_avail_opennings);					\
-	/*KASSERT((kg->kg_avail_opennings <= kg->kg_concurrency),	\
-	    ("slots out of whack")); */					\
-} while (0)
-
-#define SLOT_USE(kg)							\
-do {									\
-	kg->kg_avail_opennings--; 					\
-	CTR3(KTR_RUNQ, "kg %p(%d) Slot used (->%d)",			\
-	kg,								\
-	kg->kg_concurrency,						\
-	 kg->kg_avail_opennings);					\
-	/*KASSERT((kg->kg_avail_opennings >= 0),			\
-	    ("slots out of whack"));*/ 					\
-} while (0)
+#define SLOT_RELEASE(kg)	(kg)->kg_avail_opennings++
+#define	SLOT_USE(kg)		(kg)->kg_avail_opennings--
 
 static struct kse kse0;
 static struct kg_sched kg_sched0;
@@ -315,38 +281,38 @@ static struct kseq	kseq_cpu;
 #define	KSEQ_CPU(x)	(&kseq_cpu)
 #endif
 
-static void	slot_fill(struct ksegrp *kg);
+static void slot_fill(struct ksegrp *);
 static struct kse *sched_choose(void);		/* XXX Should be thread * */
-static void sched_slice(struct kse *ke);
-static void sched_priority(struct ksegrp *kg);
-static void sched_thread_priority(struct thread *td, u_char prio);
-static int sched_interact_score(struct ksegrp *kg);
-static void sched_interact_update(struct ksegrp *kg);
-static void sched_interact_fork(struct ksegrp *kg);
-static void sched_pctcpu_update(struct kse *ke);
+static void sched_slice(struct kse *);
+static void sched_priority(struct ksegrp *);
+static void sched_thread_priority(struct thread *, u_char);
+static int sched_interact_score(struct ksegrp *);
+static void sched_interact_update(struct ksegrp *);
+static void sched_interact_fork(struct ksegrp *);
+static void sched_pctcpu_update(struct kse *);
 
 /* Operations on per processor queues */
-static struct kse * kseq_choose(struct kseq *kseq);
-static void kseq_setup(struct kseq *kseq);
-static void kseq_load_add(struct kseq *kseq, struct kse *ke);
-static void kseq_load_rem(struct kseq *kseq, struct kse *ke);
-static __inline void kseq_runq_add(struct kseq *kseq, struct kse *ke, int);
-static __inline void kseq_runq_rem(struct kseq *kseq, struct kse *ke);
-static void kseq_nice_add(struct kseq *kseq, int nice);
-static void kseq_nice_rem(struct kseq *kseq, int nice);
+static struct kse * kseq_choose(struct kseq *);
+static void kseq_setup(struct kseq *);
+static void kseq_load_add(struct kseq *, struct kse *);
+static void kseq_load_rem(struct kseq *, struct kse *);
+static __inline void kseq_runq_add(struct kseq *, struct kse *, int);
+static __inline void kseq_runq_rem(struct kseq *, struct kse *);
+static void kseq_nice_add(struct kseq *, int);
+static void kseq_nice_rem(struct kseq *, int);
 void kseq_print(int cpu);
 #ifdef SMP
-static int kseq_transfer(struct kseq *ksq, struct kse *ke, int class);
-static struct kse *runq_steal(struct runq *rq);
+static int kseq_transfer(struct kseq *, struct kse *, int);
+static struct kse *runq_steal(struct runq *);
 static void sched_balance(void);
 static void sched_balance_groups(void);
-static void sched_balance_group(struct kseq_group *ksg);
-static void sched_balance_pair(struct kseq *high, struct kseq *low);
-static void kseq_move(struct kseq *from, int cpu);
-static int kseq_idled(struct kseq *kseq);
-static void kseq_notify(struct kse *ke, int cpu);
+static void sched_balance_group(struct kseq_group *);
+static void sched_balance_pair(struct kseq *, struct kseq *);
+static void kseq_move(struct kseq *, int);
+static int kseq_idled(struct kseq *);
+static void kseq_notify(struct kse *, int);
 static void kseq_assign(struct kseq *);
-static struct kse *kseq_steal(struct kseq *kseq, int stealidle);
+static struct kse *kseq_steal(struct kseq *, int);
 #define	KSE_CAN_MIGRATE(ke)						\
     ((ke)->ke_thread->td_pinned == 0 && ((ke)->ke_flags & KEF_BOUND) == 0)
 #endif
@@ -1390,7 +1356,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 */
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
 		newtd->td_kse->ke_runq = ksq->ksq_curr;
-		SLOT_USE(newtd->td_ksegrp);
 		TD_SET_RUNNING(newtd);
 		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
 	} else
