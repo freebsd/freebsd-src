@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2003, Jeffrey Roberson <jeff@freebsd.org>
+ * Copyright (c) 2002-2005, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
