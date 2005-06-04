@@ -351,6 +351,19 @@ archive_entry_atime_nsec(struct archive_entry *entry)
 	return (ARCHIVE_STAT_ATIME_NANOS(&entry->ae_stat));
 }
 
+time_t
+archive_entry_ctime(struct archive_entry *entry)
+{
+	return (entry->ae_stat.st_ctime);
+}
+
+long
+archive_entry_ctime_nsec(struct archive_entry *entry)
+{
+	(void)entry; /* entry can be unused here. */
+	return (ARCHIVE_STAT_CTIME_NANOS(&entry->ae_stat));
+}
+
 dev_t
 archive_entry_dev(struct archive_entry *entry)
 {
@@ -580,19 +593,6 @@ archive_entry_set_ctime(struct archive_entry *entry, time_t t, long ns)
 {
 	entry->ae_stat.st_ctime = t;
 	ARCHIVE_STAT_SET_CTIME_NANOS(&entry->ae_stat, ns);
-}
-
-time_t
-archive_entry_ctime(struct archive_entry *entry)
-{
-	return (entry->ae_stat.st_ctime);
-}
-
-long
-archive_entry_ctime_nsec(struct archive_entry *entry)
-{
-	(void)entry; /* entry can be unused here. */
-	return (ARCHIVE_STAT_CTIME_NANOS(&entry->ae_stat));
 }
 
 /* Set symlink if symlink is already set, else set hardlink. */
