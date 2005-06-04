@@ -177,7 +177,6 @@ struct aiocblist {
 	int	jobstate;
 	int	inputcharge;
 	int	outputcharge;
-	struct	callout_handle timeouthandle;
 	struct	buf *bp;		/* Buffer pointer */
 	struct	proc *userproc;		/* User process */ /* Not td! */
 	struct  ucred *cred;		/* Active credential when created */
@@ -232,7 +231,6 @@ struct kaioinfo {
 	int	kaio_queue_finished_count; /* number of daemon jobs finished */
 	int	kaio_buffer_count;	/* number of physio buffers */
 	int	kaio_buffer_finished_count; /* count of I/O done */
-	struct 	proc *kaio_p;		/* process that uses this kaio block */
 	TAILQ_HEAD(,aio_liojob) kaio_liojoblist; /* list of lio jobs */
 	TAILQ_HEAD(,aiocblist) kaio_jobqueue;	/* job queue for process */
 	TAILQ_HEAD(,aiocblist) kaio_jobdone;	/* done queue for process */
@@ -262,7 +260,6 @@ static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *uproc);
 static void	aio_swake_cb(struct socket *, struct sockbuf *);
 static int	aio_unload(void);
-static void	process_signal(void *aioj);
 static int	filt_aioattach(struct knote *kn);
 static void	filt_aiodetach(struct knote *kn);
 static int	filt_aio(struct knote *kn, long hint);
@@ -410,7 +407,6 @@ aio_init_aioinfo(struct proc *p)
 	ki->kaio_ballowed_count = max_buf_aio;
 	ki->kaio_buffer_count = 0;
 	ki->kaio_buffer_finished_count = 0;
-	ki->kaio_p = p;
 	TAILQ_INIT(&ki->kaio_jobdone);
 	TAILQ_INIT(&ki->kaio_jobqueue);
 	TAILQ_INIT(&ki->kaio_bufdone);
@@ -529,7 +525,6 @@ aio_free_entry(struct aiocblist *aiocbe)
 		uma_zfree(aiolio_zone, lj);
 	}
 	aiocbe->jobstate = JOBST_NULL;
-	untimeout(process_signal, aiocbe, aiocbe->timeouthandle);
 	fdrop(aiocbe->fd_file, curthread);
 	crfree(aiocbe->cred);
 	uma_zfree(aiocb_zone, aiocbe);
@@ -1280,7 +1275,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	struct socket *so;
 	int s;
 	int error;
-	int opcode, user_opcode;
+	int opcode;
 	struct aiocblist *aiocbe;
 	struct aiothreadlist *aiop;
 	struct kaioinfo *ki;
@@ -1292,7 +1287,6 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	aiocbe = uma_zalloc(aiocb_zone, M_WAITOK);
 	aiocbe->inputcharge = 0;
 	aiocbe->outputcharge = 0;
-	callout_handle_init(&aiocbe->timeouthandle);
 	/* XXX - need a lock */
 	knlist_init(&aiocbe->klist, NULL);
 
@@ -1316,7 +1310,6 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	aiocbe->uuaiocb = job;
 
 	/* Get the opcode. */
-	user_opcode = aiocbe->uaiocb.aio_lio_opcode;
 	if (type != LIO_NOP)
 		aiocbe->uaiocb.aio_lio_opcode = type;
 	opcode = aiocbe->uaiocb.aio_lio_opcode;
@@ -1385,23 +1378,8 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_KEVENT) {
 		kev.ident = aiocbe->uaiocb.aio_sigevent.sigev_notify_kqueue;
 		kev.udata = aiocbe->uaiocb.aio_sigevent.sigev_value.sigval_ptr;
-	}
-	else {
-		/*
-		 * This method for requesting kevent-based notification won't
-		 * work on the alpha, since we're passing in a pointer
-		 * via aio_lio_opcode, which is an int.  Use the SIGEV_KEVENT-
-		 * based method instead.
-		 */
-		if (user_opcode == LIO_NOP || user_opcode == LIO_READ ||
-		    user_opcode == LIO_WRITE)
-			goto no_kqueue;
-
-		error = copyin((struct kevent *)(uintptr_t)user_opcode,
-		    &kev, sizeof(kev));
-		if (error)
-			goto aqueue_fail;
-	}
+	} else
+		goto no_kqueue;
 	if ((u_int)kev.ident >= fdp->fd_nfiles ||
 	    (kq_fp = fdp->fd_ofiles[kev.ident]) == NULL ||
 	    (kq_fp->f_type != DTYPE_KQUEUE)) {
@@ -2118,32 +2096,6 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 }
 
 /*
- * This is a weird hack so that we can post a signal.  It is safe to do so from
- * a timeout routine, but *not* from an interrupt routine.
- */
-static void
-process_signal(void *aioj)
-{
-	struct aiocblist *aiocbe = aioj;
-	struct aio_liojob *lj = aiocbe->lio;
-	struct aiocb *cb = &aiocbe->uaiocb;
-
-	if ((lj) && (lj->lioj_signal.sigev_notify == SIGEV_SIGNAL) &&
-		(lj->lioj_queue_count == lj->lioj_queue_finished_count)) {
-		PROC_LOCK(lj->lioj_ki->kaio_p);
-		psignal(lj->lioj_ki->kaio_p, lj->lioj_signal.sigev_signo);
-		PROC_UNLOCK(lj->lioj_ki->kaio_p);
-		lj->lioj_flags |= LIOJ_SIGNAL_POSTED;
-	}
-
-	if (cb->aio_sigevent.sigev_notify == SIGEV_SIGNAL) {
-		PROC_LOCK(aiocbe->userproc);
-		psignal(aiocbe->userproc, cb->aio_sigevent.sigev_signo);
-		PROC_UNLOCK(aiocbe->userproc);
-	}
-}
-
-/*
  * Interrupt handler for physio, performs the necessary process wakeups, and
  * signals.
  */
@@ -2178,17 +2130,19 @@ aio_physwakeup(struct buf *bp)
 			 * wakeup/signal if all of the interrupt jobs are done.
 			 */
 			if (lj->lioj_buffer_finished_count ==
-			    lj->lioj_buffer_count) {
+			    lj->lioj_buffer_count &&
+			    lj->lioj_queue_finished_count ==
+			    lj->lioj_queue_count) {
 				/*
 				 * Post a signal if it is called for.
 				 */
 				if ((lj->lioj_flags &
 				    (LIOJ_SIGNAL|LIOJ_SIGNAL_POSTED)) ==
 				    LIOJ_SIGNAL) {
+					PROC_LOCK(p);
+					psignal(p, lj->lioj_signal.sigev_signo);
+					PROC_UNLOCK(p);
 					lj->lioj_flags |= LIOJ_SIGNAL_POSTED;
-					aiocbe->timeouthandle =
-						timeout(process_signal,
-							aiocbe, 0);
 				}
 			}
 		}
@@ -2207,9 +2161,11 @@ aio_physwakeup(struct buf *bp)
 			}
 		}
 
-		if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL)
-			aiocbe->timeouthandle =
-				timeout(process_signal, aiocbe, 0);
+		if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL) {
+			PROC_LOCK(p);
+			psignal(p, aiocbe->uaiocb.aio_sigevent.sigev_signo);
+			PROC_UNLOCK(p);
+		}
 	}
 	mtx_unlock(&Giant);
 }
