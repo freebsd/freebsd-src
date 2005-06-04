@@ -117,7 +117,7 @@ struct	entry {
 	struct	kinfo_proc *dkp;	/* debug option proc list */
 } *ep, *ehead = NULL, **nextp = &ehead;
 
-#define debugproc(p) *((struct kinfo_proc **)&(p)->ki_spare[0])
+#define	debugproc(p) *((struct kinfo_proc **)&(p)->ki_udata)
 
 /* W_DISPHOSTSIZE should not be greater than UT_HOSTSIZE */
 #define	W_DISPHOSTSIZE	16
