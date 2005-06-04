@@ -117,7 +117,7 @@ struct auxio_softc {
 };
 
 static void	auxio_led_func(void *arg, int onoff);
-static void	auxio_attach_common(struct auxio_softc *);
+static int	auxio_attach_common(struct auxio_softc *);
 static int	auxio_bus_probe(device_t);
 static int	auxio_sbus_attach(device_t);
 static int	auxio_ebus_attach(device_t);
@@ -224,7 +224,6 @@ static int
 auxio_ebus_attach(device_t dev)
 {
 	struct auxio_softc *sc;
-	struct resource *res;
 	u_long start, count;
 	int i;
 
@@ -233,18 +232,32 @@ auxio_ebus_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	AUXIO_LOCK_INIT(sc);
-	sc->sc_nauxio = AUXIO_PCIO_MAX;
-	sc->sc_flags = AUXIO_LEDONLY | AUXIO_EBUS;
 	for (i = 0;
 	    i < AUXIO_PCIO_MAX &&
-	    bus_get_resource(dev, SYS_RES_IOPORT, i, &start, &count) == 0;
-             i++) {
-		sc->sc_rid[i] = i;
+	    bus_get_resource(dev, SYS_RES_MEMORY, i, &start, &count) == 0; i++)
 		if (bootverbose)
 			device_printf(sc->sc_dev,
 			    "Got rid %d, start %#lx, count %#lx\n",
 			    i, start, count);
-		res = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+	if (i < 1) {
+		device_printf(dev, "no LED resource\n");
+		return (ENXIO);
+	}
+	sc->sc_nauxio = i;
+	sc->sc_flags = AUXIO_LEDONLY | AUXIO_EBUS;
+
+	return(auxio_attach_common(sc));
+}
+
+static int
+auxio_attach_common(struct auxio_softc *sc)
+{
+	struct resource *res;
+	int i;
+
+	for (i = 0; i < sc->sc_nauxio; i++) {
+		sc->sc_rid[i] = i;
+		res = bus_alloc_resource_any(sc->sc_dev, SYS_RES_MEMORY,
 		    &sc->sc_rid[i], RF_ACTIVE);
 		if (res == NULL) {
 			device_printf(sc->sc_dev,
@@ -255,8 +268,11 @@ auxio_ebus_attach(device_t dev)
 		sc->sc_regt[i] = rman_get_bustag(res);
 		sc->sc_regh[i] = rman_get_bushandle(res);
 	}
-	sc->sc_nauxio = i;
-	auxio_attach_common(sc);
+
+	sc->sc_led_stat = auxio_led_read(sc);
+	sc->sc_led_dev = led_create(auxio_led_func, sc, "auxioled");
+	/* turn on the LED */
+	auxio_led_func(sc, 1);
 
 	return (0);
 
@@ -264,15 +280,6 @@ attach_fail:
 	auxio_free_resource(sc);
 
 	return (ENXIO);
-}
-
-static void
-auxio_attach_common(struct auxio_softc *sc)
-{
-	sc->sc_led_stat = auxio_led_read(sc);
-	sc->sc_led_dev = led_create(auxio_led_func, sc, "auxioled");
-	/* turn on the LED */
-	auxio_led_func(sc, 1);
 }
 
 static int
@@ -291,14 +298,12 @@ auxio_bus_detach(device_t dev)
 static void
 auxio_free_resource(struct auxio_softc *sc)
 {
-	int i, n;
+	int i;
 
-	n = sc->sc_nauxio;
-	for (i = 0; i < n; i++)
+	for (i = 0; i < sc->sc_nauxio; i++)
 		if (sc->sc_res[i])
-			bus_release_resource(sc->sc_dev,
-			    (sc->sc_flags & AUXIO_SBUS) ? SYS_RES_MEMORY :
-			    SYS_RES_IOPORT, sc->sc_rid[i], sc->sc_res[i]);
+			bus_release_resource(sc->sc_dev, SYS_RES_MEMORY,
+			    sc->sc_rid[i], sc->sc_res[i]);
 	AUXIO_LOCK_DESTROY(sc);
 }
 
@@ -306,7 +311,6 @@ static int
 auxio_sbus_attach(device_t dev)
 {
 	struct auxio_softc *sc;
-	struct resource *res;
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
@@ -315,21 +319,6 @@ auxio_sbus_attach(device_t dev)
 	AUXIO_LOCK_INIT(sc);
 	sc->sc_nauxio = 1;
 	sc->sc_flags = AUXIO_LEDONLY | AUXIO_SBUS;
-	sc->sc_rid[AUXIO_PCIO_LED] = 0;
-	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
-	    &sc->sc_rid[AUXIO_PCIO_LED], RF_ACTIVE);
-	if (res == NULL) {
-		device_printf(sc->sc_dev, "could not allocate resources\n");
-		goto attach_fail;
-	}
-	sc->sc_res[AUXIO_PCIO_LED] = res;
-	sc->sc_regt[AUXIO_PCIO_LED] = rman_get_bustag(res);
-	sc->sc_regh[AUXIO_PCIO_LED] = rman_get_bushandle(res);
-	auxio_attach_common(sc);
-	return (0);
 
-attach_fail:
-	auxio_free_resource(sc);
-
-	return (ENXIO);
+	return (auxio_attach_common(sc));
 }
