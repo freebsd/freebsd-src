@@ -151,7 +151,7 @@ pcf_ebus_attach(device_t dev)
 	}
 
 	/* IO port is mandatory */
-	sc->res_ioport = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+	sc->res_ioport = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->rid_ioport, RF_ACTIVE);
 	if (sc->res_ioport == 0) {
 		device_printf(dev, "cannot reserve I/O port range\n");
@@ -218,9 +218,9 @@ error:
 		    sc->res_irq);
 	}
 	if (sc->res_ioport != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, sc->rid_ioport,
+		bus_deactivate_resource(dev, SYS_RES_MEMORY, sc->rid_ioport,
 		    sc->res_ioport);
-		bus_release_resource(dev, SYS_RES_IOPORT, sc->rid_ioport,
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->rid_ioport,
 		    sc->res_ioport);
 	}
 	return (rv);
@@ -249,9 +249,9 @@ pcf_ebus_detach(device_t dev)
 		    sc->res_irq);
 	}
 
-	bus_deactivate_resource(dev, SYS_RES_IOPORT, sc->rid_ioport,
+	bus_deactivate_resource(dev, SYS_RES_MEMORY, sc->rid_ioport,
 	    sc->res_ioport);
-	bus_release_resource(dev, SYS_RES_IOPORT, sc->rid_ioport,
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->rid_ioport,
 	    sc->res_ioport);
 
 	return (0);
