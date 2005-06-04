@@ -81,12 +81,12 @@ static vi_putc_t creator_putc;
 static vi_puts_t creator_puts;
 static vi_putm_t creator_putm;
 
+static void creator_cursor_enable(struct creator_softc *sc, int onoff);
+static void creator_cursor_install(struct creator_softc *sc);
 static void creator_ras_fifo_wait(struct creator_softc *sc, int n);
 static void creator_ras_setbg(struct creator_softc *sc, int bg);
 static void creator_ras_setfg(struct creator_softc *sc, int fg);
 static void creator_ras_wait(struct creator_softc *sc);
-static void creator_cursor_enable(struct creator_softc *, int);
-static void creator_cursor_install(struct creator_softc *);
 
 static video_switch_t creatorvidsw = {
 	.probe			= creator_probe,
@@ -191,7 +191,22 @@ creator_configure(int flags)
 	char buf[32];
 	int i;
 
+	/*
+	 * For the high-level console probing return the number of
+	 * registered adapters.
+	 */
+	if (!(flags & VIO_PROBE_ONLY)) {
+		for (i = 0; vid_find_adapter(CREATOR_DRIVER_NAME, i) >= 0; i++)
+			;
+		return (i);
+	}
+
+	/* Low-level console probing and initialization. */
+
 	sc = &creator_softc;
+	if (sc->sc_va.va_flags & V_ADP_REGISTERED)
+		goto found;
+
 	if ((chosen = OF_finddevice("/chosen")) == -1)
 		return (0);
 	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1)
@@ -201,14 +216,7 @@ creator_configure(int flags)
 	if (OF_getprop(output, "name", buf, sizeof(buf)) == -1)
 		return (0);
 	if (strcmp(buf, "SUNW,ffb") == 0 || strcmp(buf, "SUNW,afb") == 0) {
-		/*
-		 * When being called a second time, i.e. during
-		 * sc_probe_unit(), just return at this point.
-		 * Note that the polarity of the VIO_PROBE_ONLY
-		 * flag is somewhat non-intuitive.
-		 */
-		if (!(flags & VIO_PROBE_ONLY))
-			goto found;
+		sc->sc_flags = CREATOR_CONSOLE;
 		if (strcmp(buf, "SUNW,afb") == 0)
 			sc->sc_flags |= CREATOR_AFB;
 		sc->sc_node = output;
@@ -297,12 +305,6 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 		}
 	}
 
-	/*
-	 * FFB_DAC_CFG_TGEN_VIDE must be turned on for creator_set_mode()
-	 * to take effect.
-	 */
-	creator_blank_display(adp, V_DISPLAY_ON);
-	creator_set_mode(adp, 0);
 	creator_blank_display(adp, V_DISPLAY_BLANK);
 
 	adp->va_flags |= V_ADP_COLOR | V_ADP_BORDER | V_ADP_INITIALIZED;
@@ -331,20 +333,8 @@ creator_query_mode(video_adapter_t *adp, video_info_t *info)
 static int
 creator_set_mode(video_adapter_t *adp, int mode)
 {
-	struct creator_softc *sc;
 
-	sc = (struct creator_softc *)adp;
-	creator_ras_fifo_wait(sc, 4);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_ROP, FBC_ROP_NEW);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_DRAWOP, FBC_DRAWOP_RECTANGLE);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_PMASK, 0xffffffff);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONTINC, 0x10000);
-
-	creator_ras_setbg(sc, 0x0);
-	creator_ras_setfg(sc, 0xffffff);
-	creator_ras_wait(sc);
-
-	return (0);
+	return (ENODEV);
 }
 
 static int
@@ -491,13 +481,12 @@ creator_ioctl(video_adapter_t *adp, u_long cmd, caddr_t data)
 		break;
 	case FBIOSCURSOR:
 		fbc = (struct fbcursor *)data;
-		if (fbc->set & FB_CUR_SETCUR) {
-			if (fbc->enable == 0) {
-				creator_cursor_enable(sc, 0);
-				sc->sc_flags &= ~CREATOR_CUREN;
-			} else
-				return (ENODEV);
-		}
+		if (fbc->set & FB_CUR_SETCUR && fbc->enable == 0) {
+			creator_cursor_enable(sc, 0);
+			sc->sc_flags &= ~CREATOR_CUREN;
+		} else
+			return (ENODEV);
+		break;
 		break;
 	default:
 		return (fb_commonioctl(adp, cmd, data));
@@ -518,7 +507,8 @@ creator_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 	struct creator_softc *sc;
 
 	sc = (struct creator_softc *)adp;
-	creator_ras_fifo_wait(sc, 2);
+	creator_ras_fifo_wait(sc, 3);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_PMASK, 0xffffffff);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_ROP, FBC_ROP_NEW);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_DRAWOP, FBC_DRAWOP_RECTANGLE);
 	creator_ras_setfg(sc, cmap[val & 0xf]);
@@ -593,10 +583,11 @@ creator_putc(video_adapter_t *adp, vm_offset_t off, u_int8_t c, u_int8_t a)
 	p = (uint16_t *)sc->sc_font + (c * adp->va_info.vi_cheight);
 	creator_ras_setfg(sc, cmap[a & 0xf]);
 	creator_ras_setbg(sc, cmap[(a >> 4) & 0xf]);
-	creator_ras_fifo_wait(sc, 2 + adp->va_info.vi_cheight);
+	creator_ras_fifo_wait(sc, 3 + adp->va_info.vi_cheight);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONTXY,
 	    ((row + sc->sc_ymargin) << 16) | (col + sc->sc_xmargin));
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONTW, adp->va_info.vi_cwidth);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONTINC, 0x10000);
 	for (i = 0; i < adp->va_info.vi_cheight; i++) {
 		FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONT, *p++ << 16);
 	}

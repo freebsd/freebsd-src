@@ -234,9 +234,10 @@ struct creator_softc {
 
 	int			sc_flags;
 #define	CREATOR_AFB		(1 << 0)
-#define	CREATOR_CUREN		(1 << 1)
-#define	CREATOR_CURINV		(1 << 2)
-#define	CREATOR_PAC1		(1 << 3)
+#define	CREATOR_CONSOLE		(1 << 1)
+#define	CREATOR_CUREN		(1 << 2)
+#define	CREATOR_CURINV		(1 << 3)
+#define	CREATOR_PAC1		(1 << 4)
 };
 
 #endif /* !_DEV_FB_CREATOR_H_ */
