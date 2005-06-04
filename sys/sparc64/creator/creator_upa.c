@@ -301,4 +301,13 @@ creator_shutdown(void *v)
 	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2,
 	    sc->sc_flags & CREATOR_CURINV ? 0 :
 	    FFB_DAC_CUR_CTRL_P0 | FFB_DAC_CUR_CTRL_P1);
+	/*
+	 * In case this is the console set the cursor of the stdout
+	 * instance to the start of the last line so OFW output ends
+	 * up beneath what FreeBSD left on the screen.
+	 */
+	if (sc->sc_flags & CREATOR_CONSOLE) {
+		OF_interpret("stdout @ is my-self 0 to column#", 0);
+		OF_interpret("stdout @ is my-self #lines 1 - to line#", 0);
+	}
 }
