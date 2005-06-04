@@ -124,6 +124,7 @@ rpc.lockd	alfred	Will be happy to review code, but not mandatory.
 truss		alfred	Will be happy to review code, but not mandatory.
 rpc		alfred	Pre-commit review requested.
 pkg_install	krion	Pre-commit review or approval from portmgr@ requested.
+linux emul	emulation	Please discuss changes here.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
@@ -143,7 +144,6 @@ sys/dev/asr/MAINTAINER:MAINTAINER = obrien@freebsd, scott_long@btc.adaptec.com, 
 sys/dev/bktr/CHANGELOG.TXT: * MAINTAINER = Roger Hardiman <roger@freebsd.org>
 sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
 sys/modules/bktr/bktr_mem/Makefile:MAINTAINER=	roger@freebsd.org
-sys/modules/linux/Makefile:MAINTAINER=	emulation@FreeBSD.org
 sys/modules/streams/Makefile:MAINTAINER=	newton@atdot.dotat.org
 sys/modules/svr4/Makefile:MAINTAINER=	newton@FreeBSD.org
 sys/modules/urio/Makefile:MAINTAINER=	Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
