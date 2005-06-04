@@ -1,7 +1,7 @@
 #	from: @(#)Makefile    5.10 (Berkeley) 6/24/90
 # $FreeBSD$
 
-.PATH: ${DESTDIR}/usr/include/rpcsvc
+.PATH: ${.CURDIR}/../../include/rpcsvc
 
 LIB=    rpcsvc
 
