@@ -1142,7 +1142,7 @@ set_perm(struct archive *a, int fd, struct archive_entry *entry,
 }
 
 
-#if defined(HAVE_CHFLAGS) && !defined(__linux)
+#if ( defined(HAVE_LCHFLAGS) || defined(HAVE_CHFLAGS) || defined(HAVE_FCHFLAGS) ) && !defined(__linux)
 static int
 set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
     unsigned long set, unsigned long clear)
@@ -1174,17 +1174,34 @@ set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
 
 	extract->st.st_flags &= ~clear;
 	extract->st.st_flags |= set;
+#ifdef HAVE_FCHFLAGS
+	/* If platform has fchflags() and we were given an fd, use it. */
+	if (fd >= 0 && fchflags(fd, extract->st.st_flags) == 0)
+		return (ARCHIVE_OK);
+#endif
+	/*
+	 * If we can't use the fd to set the flags, we'll use the
+	 * pathname to set flags.  We prefer lchflags() but will use
+	 * chflags() if we must.
+	 */
+#ifdef HAVE_LCHFLAGS
+	if (lchflags(name, extract->st.st_flags) == 0)
+		return (ARCHIVE_OK);
+#elif defined(HAVE_CHFLAGS)
 	if (chflags(name, extract->st.st_flags) == 0)
 		return (ARCHIVE_OK);
-
+#endif
 	archive_set_error(a, errno,
 	    "Failed to set file flags");
 	return (ARCHIVE_WARN);
 }
-#endif /* HAVE_CHFLAGS */
 
-#ifdef __linux
-/* Linux has flags too, but uses ioctl() instead of chflags(). */
+#elif defined(__linux)
+
+/*
+ * Linux has flags too, but uses ioctl() to access them instead of
+ * having a separate chflags() system call.
+ */
 static int
 set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
     unsigned long set, unsigned long clear)
@@ -1196,18 +1213,17 @@ set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
 	unsigned long newflags, oldflags;
 
 	extract = a->extract;
-	ret = ARCHIVE_OK;
 	if (set == 0  && clear == 0)
-		return (ret);
+		return (ARCHIVE_OK);
 	/* Only regular files and dirs can have flags. */
 	if (!S_ISREG(mode) && !S_ISDIR(mode))
-		return (ret);
+		return (ARCHIVE_OK);
 
 	/* If we weren't given an fd, open it ourselves. */
 	if (myfd < 0)
 		myfd = open(name, O_RDONLY|O_NONBLOCK);
 	if (myfd < 0)
-		return (ret);
+		return (ARCHIVE_OK);
 
 	/*
 	 * Linux has no define for the flags that are only settable
@@ -1218,6 +1234,7 @@ set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
 	 * XXX As above, this would be way simpler if we didn't have
 	 * to read the current flags from disk. XXX
 	 */
+	ret = ARCHIVE_OK;
 	/* Try setting the flags as given. */
 	if (ioctl(myfd, EXT2_IOC_GETFLAGS, &oldflags) >= 0) {
 		newflags = (oldflags & ~clear) | set;
@@ -1244,6 +1261,26 @@ cleanup:
 		close(myfd);
 	return (ret);
 }
+
+#else /* Not HAVE_CHFLAGS && Not __linux */
+
+/*
+ * Of course, some systems have neither BSD chflags() nor Linux' flags
+ * support through ioctl().
+ */
+static int
+set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
+    unsigned long set, unsigned long clear)
+{
+	(void)a;
+	(void)fd;
+	(void)name;
+	(void)mode;
+	(void)set;
+	(void)clear;
+	return (ARCHIVE_OK);
+}
+
 #endif /* __linux */
 
 #ifndef HAVE_POSIX_ACL
