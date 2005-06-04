@@ -149,7 +149,7 @@ rtc_attach(device_t dev)
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct mc146818_softc));
 
-	mtx_init(&sc->sc_mtx, "rtc_mtx", NULL, MTX_DEF);
+	mtx_init(&sc->sc_mtx, "rtc_mtx", NULL, MTX_SPIN);
 
 	if (strcmp(device_get_name(device_get_parent(dev)), "isa") == 0)
 		rtype = SYS_RES_IOPORT;
