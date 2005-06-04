@@ -190,21 +190,26 @@ sunkbd_configure(int flags)
 {
 	struct sunkbd_softc *sc;
 
-	if (KBD_IS_CONFIGURED(&sunkbd_softc.sc_kbd))
-		goto found;
-
-	if (!KBD_IS_INITIALIZED(&sunkbd_softc.sc_kbd)) {
-		if (uart_cpu_getdev(UART_DEV_KEYBOARD, &uart_keyboard))
+	/*
+	 * We are only prepared to be used for the high-level console
+	 * when the keyboard is both configured and attached.
+	 */
+	if (!(flags & KB_CONF_PROBE_ONLY)) {
+		if (KBD_IS_INITIALIZED(&sunkbd_softc.sc_kbd))
+			goto found;
+		else
 			return (0);
-		if (uart_probe(&uart_keyboard))
-			return (0);
-		uart_init(&uart_keyboard);
-
-		uart_keyboard.type = UART_DEV_KEYBOARD;
-		uart_keyboard.attach = sunkbd_attach;
-		uart_add_sysdev(&uart_keyboard);
-		KBD_INIT_DONE(&sunkbd_softc.sc_kbd);
 	}
+
+	if (uart_cpu_getdev(UART_DEV_KEYBOARD, &uart_keyboard))
+		return (0);
+	if (uart_probe(&uart_keyboard))
+		return (0);
+	uart_init(&uart_keyboard);
+
+	uart_keyboard.type = UART_DEV_KEYBOARD;
+	uart_keyboard.attach = sunkbd_attach;
+	uart_add_sysdev(&uart_keyboard);
 
 	if (sunkbd_probe_keyboard(&uart_keyboard) == -1)
 		return (0);
@@ -222,7 +227,6 @@ sunkbd_configure(int flags)
 	kbd_register(&sc->sc_kbd);
 
 	sc->sc_sysdev = &uart_keyboard;
-	KBD_CONFIG_DONE(&sc->sc_kbd);
 
  found:
 	/* Return number of found keyboards. */
@@ -254,6 +258,7 @@ sunkbd_attach(struct uart_softc *sc)
 		    &sunkbd_softc, SWI_TTY, INTR_TYPE_TTY, &sc->sc_softih);
 
 		sc->sc_opened = 1;
+		KBD_INIT_DONE(&sunkbd_softc.sc_kbd);
 	}
 
 	return (0);
