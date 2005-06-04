@@ -375,6 +375,7 @@ static struct witness_order_list_entry order_lists[] = {
 #endif
 #ifdef __sparc64__
 	{ "ipi", &lock_class_mtx_spin },
+	{ "rtc_mtx", &lock_class_mtx_spin },
 #endif
 #endif
 	{ "clk", &lock_class_mtx_spin },
