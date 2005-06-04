@@ -29,6 +29,16 @@
 #ifndef ARCHIVE_H_INCLUDED
 #define	ARCHIVE_H_INCLUDED
 
+
+#include <sys/types.h>  /* Linux requires this for off_t */
+#include <inttypes.h>  /* For int64_t */
+#include <unistd.h>  /* For ssize_t and size_t */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * If ARCHIVE_API_VERSION != archive_api_version(), then the library you
  * were linked with is using an incompatible API.  This is almost
@@ -50,10 +60,6 @@ int		archive_api_version(void);
 int		archive_api_feature(void);
 /* Textual name/version of the library. */
 const char *	archive_version(void);
-
-#include <sys/types.h>  /* Linux requires this for off_t */
-#include <inttypes.h>  /* For int64_t */
-#include <unistd.h>  /* For ssize_t and size_t */
 
 #define	ARCHIVE_BYTES_PER_RECORD	  512
 #define	ARCHIVE_DEFAULT_BYTES_PER_BLOCK	10240
@@ -317,5 +323,9 @@ const char	*archive_error_string(struct archive *);
 const char	*archive_format_name(struct archive *);
 int		 archive_format(struct archive *);
 void		 archive_set_error(struct archive *, int _err, const char *fmt, ...);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !ARCHIVE_H_INCLUDED */
