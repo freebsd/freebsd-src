@@ -110,7 +110,6 @@ static bus_probe_nomatch_t ebus_probe_nomatch;
 static bus_alloc_resource_t ebus_alloc_resource;
 static bus_release_resource_t ebus_release_resource;
 static bus_get_resource_list_t ebus_get_resource_list;
-static bus_get_resource_t ebus_get_resource;
 static ofw_bus_get_compat_t ebus_get_compat;
 static ofw_bus_get_model_t ebus_get_model;
 static ofw_bus_get_name_t ebus_get_name;
@@ -137,7 +136,7 @@ static device_method_t ebus_methods[] = {
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	ebus_release_resource),
-	DEVMETHOD(bus_get_resource,	ebus_get_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_compat,	ebus_get_compat),
@@ -309,12 +308,11 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * allocation type.
 	 */
 	switch (type) {
-	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		KASSERT(!(isdefault && passthrough),
 		    ("ebus_alloc_resource: passthrough of default alloc"));
 		if (!passthrough) {
-			rle = resource_list_find(rl, SYS_RES_MEMORY, *rid);
+			rle = resource_list_find(rl, type, *rid);
 			if (rle == NULL)
 				return (NULL);
 			KASSERT(rle->res == NULL,
@@ -366,12 +364,11 @@ ebus_release_resource(device_t bus, device_t child, int type, int rid,
 
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	switch (type) {
- 	case SYS_RES_IOPORT:
  	case SYS_RES_MEMORY:
 		if ((rv = rman_release_resource(res)) != 0)
 			return (rv);
 		if (!passthrough) {
-			rle = resource_list_find(rl, SYS_RES_MEMORY, rid);
+			rle = resource_list_find(rl, type, rid);
 			KASSERT(rle != NULL, ("ebus_release_resource: "
 			    "resource entry not found!"));
 			KASSERT(rle->res != NULL, ("ebus_alloc_resource: "
@@ -395,34 +392,6 @@ ebus_get_resource_list(device_t dev, device_t child)
 
 	edi = device_get_ivars(child);
 	return (&edi->edi_rl);
-}
-
-static int
-ebus_get_resource(device_t dev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
-{
-	struct resource_list *rl;
-	struct resource_list_entry *rle;
-
-	switch (type) {
- 	case SYS_RES_IOPORT:
- 	case SYS_RES_MEMORY:
-		rl = BUS_GET_RESOURCE_LIST(dev, child);
-		if (!rl)
-			return (EINVAL);
-		rle = resource_list_find(rl, SYS_RES_MEMORY, rid);
-		if (!rle)
-			return (ENOENT);
-		if (startp)
-			*startp = rle->start;
-		if (countp)
-			*countp = rle->count;
-		return (0);
-	case SYS_RES_IRQ:
-		return (bus_generic_rl_get_resource(dev, child, type, rid,
-		    startp, countp));
-	}
-	return (EINVAL);
 }
 
 static struct ebus_devinfo *
