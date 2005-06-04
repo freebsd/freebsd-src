@@ -247,7 +247,7 @@ sab_probe(device_t dev)
 	if (strcmp(name, "se") != 0 && strcmp(name, "serial") != 0)
 		return (ENXIO);
 	rid = 0;
-	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (res == NULL)
 		return (ENXIO);
@@ -268,7 +268,7 @@ sab_probe(device_t dev)
 		device_set_desc(dev, "Siemens SAB 82532 ???");
 		break;
 	}
-	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
 	return (0);
 }
 
@@ -287,7 +287,7 @@ sab_attach(device_t dev)
 	irqrid = 0;
 	irqres = NULL;
 	sc = device_get_softc(dev);
-	iores = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &iorid,
+	iores = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &iorid,
 	    RF_ACTIVE);
 	if (iores == NULL)
 		goto error;
@@ -350,7 +350,7 @@ sab_detach(device_t dev)
 	sc = device_get_softc(dev);
 	bus_generic_detach(dev);
 	if (sc->sc_iores != NULL)
-		bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_iorid,
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_iorid,
 		    sc->sc_iores);
 	return (0);
 }

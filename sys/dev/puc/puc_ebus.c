@@ -71,7 +71,7 @@ puc_ebus_attach(device_t dev)
 		dd.ports[i].bar = 0;
 		dd.ports[i].offset = 0x40 * i;
 		dd.ports[i].serialfreq = 0;
-		dd.ports[i].flags = 0;
+		dd.ports[i].flags = PUC_FLAGS_MEMORY;
 	}
 	return (puc_attach(dev, &dd));
 }
