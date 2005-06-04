@@ -14,10 +14,8 @@ ahd(4)		gibbs	Pre-commit review requested.
 NEWCARD		imp	Pre-commit review requested.
 OLDCARD		imp	Pre-commit review requested.
 wi		imp	Pre-commit review requested.
-telnet		markm	please ensure that a security-aware person
-			sanity-checks your work.
-secure/*	markm	please ensure that a security-aware person
-			sanity-checks your work.
+telnet		markm	Heads-up appreciated. Try not to break it.
+secure/*	markm	Heads-up appreciated. Try not to break it.
 kerberos5	nectar  Pre-commit review requested.
 heimdal		nectar	Pre-commit review requested.
 cdboot		jhb	Pre-commit review requested.
