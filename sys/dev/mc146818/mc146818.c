@@ -80,9 +80,9 @@ mc146818_attach(device_t dev)
 			sc->sc_setcent = mc146818_def_setcent;
 	}
 
-	mtx_lock(&sc->sc_mtx);
+	mtx_lock_spin(&sc->sc_mtx);
 	if (!(*sc->sc_mcread)(dev, MC_REGD) & MC_REGD_VRT) {
-		mtx_unlock(&sc->sc_mtx);
+		mtx_unlock_spin(&sc->sc_mtx);
 		device_printf(dev, "%s: battery low\n", __func__);
 		return (ENXIO);
 	}
@@ -94,7 +94,7 @@ mc146818_attach(device_t dev)
 	sc->sc_regb |= (sc->sc_flag & MC146818_BCD) ? 0 : MC_REGB_BINARY;
 	sc->sc_regb |= (sc->sc_flag & MC146818_12HR) ? 0 : MC_REGB_24HR;
 	(*sc->sc_mcwrite)(dev, MC_REGB, sc->sc_regb);
-	mtx_unlock(&sc->sc_mtx);
+	mtx_unlock_spin(&sc->sc_mtx);
 
 	clock_register(dev, 1000000);	/* 1 second resolution. */
 
@@ -116,16 +116,16 @@ mc146818_gettime(device_t dev, struct timespec *ts)
 
 	timeout = 1000000;	/* XXX how long should we wait? */
 
-	mtx_lock(&sc->sc_mtx);
 	/*
 	 * If MC_REGA_UIP is 0 we have at least 244us before the next
 	 * update. If it's 1 an update is imminent.
 	 */
 	for (;;) {
+		mtx_lock_spin(&sc->sc_mtx);
 		if (!((*sc->sc_mcread)(dev, MC_REGA) & MC_REGA_UIP))
 			break;
+		mtx_unlock_spin(&sc->sc_mtx);
 		if (--timeout < 0) {
-			mtx_unlock(&sc->sc_mtx);
 			device_printf(dev, "%s: timeout\n", __func__);
 			return (EBUSY);
 		}
@@ -148,7 +148,7 @@ mc146818_gettime(device_t dev, struct timespec *ts)
 		year += cent * 100;
 	} else if (year < POSIX_BASE_YEAR)
 		year += 100;
-	mtx_unlock(&sc->sc_mtx);
+	mtx_unlock_spin(&sc->sc_mtx);
 
 	ct.year = year;
 
@@ -166,19 +166,19 @@ mc146818_getsecs(device_t dev, int *secp)
 
 	timeout = 1000000;	/* XXX how long should we wait? */
 
-	mtx_lock(&sc->sc_mtx);
 	for (;;) {
+		mtx_lock_spin(&sc->sc_mtx);
 		if (!((*sc->sc_mcread)(dev, MC_REGA) & MC_REGA_UIP)) {
 			sec = FROMREG((*sc->sc_mcread)(dev, MC_SEC));
+			mtx_unlock_spin(&sc->sc_mtx);
 			break;
 		}
+		mtx_unlock_spin(&sc->sc_mtx);
 		if (--timeout == 0) {
-			mtx_unlock(&sc->sc_mtx);
 			device_printf(dev, "%s: timeout\n", __func__);
 			return (EBUSY);
 		}
 	}
-	mtx_unlock(&sc->sc_mtx);
 
 #undef FROMREG
 
@@ -206,7 +206,7 @@ mc146818_settime(device_t dev, struct timespec *ts)
 	ts->tv_nsec = 0;
 	clock_ts_to_ct(ts, &ct);
 
-	mtx_lock(&sc->sc_mtx);
+	mtx_lock_spin(&sc->sc_mtx);
 	/* Disable RTC updates and interrupts (if enabled). */
 	(*sc->sc_mcwrite)(dev, MC_REGB,
 	    ((sc->sc_regb & (MC_REGB_BINARY | MC_REGB_24HR)) | MC_REGB_SET));
@@ -232,7 +232,7 @@ mc146818_settime(device_t dev, struct timespec *ts)
 
 	/* Reenable RTC updates and interrupts. */
 	(*sc->sc_mcwrite)(dev, MC_REGB, sc->sc_regb);
-	mtx_unlock(&sc->sc_mtx);
+	mtx_unlock_spin(&sc->sc_mtx);
 
 #undef TOREG
 
