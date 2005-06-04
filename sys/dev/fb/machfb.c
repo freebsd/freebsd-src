@@ -291,10 +291,10 @@ static void machfb_adjust_frame(struct machfb_softc *, int, int);
 #endif
 static void machfb_putpalreg(struct machfb_softc *, uint8_t, uint8_t, uint8_t,
     uint8_t);
-static void machfb_shutdown_final(void *v);
-static void machfb_shutdown_reset(void *v);
+static void machfb_shutdown_final(void *);
+static void machfb_shutdown_reset(void *);
 
-static int machfb_configure(int flags);
+static int machfb_configure(int);
 
 static vi_probe_t machfb_probe;
 static vi_init_t machfb_init;
@@ -451,7 +451,21 @@ machfb_configure(int flags)
 	uint32_t id;
 	int i, space;
 
+	/*
+	 * For the high-level console probing return the number of
+	 * registered adapters.
+	 */
+	if (!(flags & VIO_PROBE_ONLY)) {
+		for (i = 0; vid_find_adapter(MACHFB_DRIVER_NAME, i) >= 0; i++)
+			;
+		return (i);
+	}
+
+	/* Low-level console probing and initialization. */
+
 	sc = &machfb_softc;
+	if (sc->sc_va.va_flags & V_ADP_REGISTERED)
+		goto found;
 
 	if ((chosen = OF_finddevice("/chosen")) == -1)	/* Quis contra nos? */
 		return (0);
@@ -466,14 +480,6 @@ machfb_configure(int flags)
 		return (0);
 	for (i = 0; i < sizeof(machfb_info) / sizeof(machfb_info[0]); i++) {
 		if (id == machfb_info[i].chip_id) {
-			/*
-			 * When being called a second time, i.e. during
-			 * sc_probe_unit(), just return at this point.
-			 * Note that the polarity of the VIO_PROBE_ONLY
-			 * flag is somewhat non-intuitive.
-			 */
-			if (!(flags & VIO_PROBE_ONLY))
-				goto found;
 			sc->sc_flags = MACHFB_CONSOLE;
 			sc->sc_node = output;
 			sc->sc_chip_id = id;
@@ -819,13 +825,11 @@ machfb_ioctl(video_adapter_t *adp, u_long cmd, caddr_t data)
 		break;
 	case FBIOSCURSOR:
 		fbc = (struct fbcursor *)data;
-		if (fbc->set & FB_CUR_SETCUR) {
-			if (fbc->enable == 0) {
-				machfb_cursor_enable(sc, 0);
-				sc->sc_flags &= ~MACHFB_CUREN;
-			} else
-				return (ENODEV);
-		}
+		if (fbc->set & FB_CUR_SETCUR && fbc->enable == 0) {
+			machfb_cursor_enable(sc, 0);
+			sc->sc_flags &= ~MACHFB_CUREN;
+		} else
+			return (ENODEV);
 		break;
 	default:
 		return (fb_commonioctl(adp, cmd, data));
@@ -1236,10 +1240,11 @@ machfb_pci_attach(device_t dev)
 	memset((void *)(adp->va_buffer + sc->sc_curoff), 0xaa, PAGE_SIZE);
 
 	/*
-	 * For cosmetics register a handler that turns off the mouse
-	 * pointer on halt. Register a second handler that turns off
-	 * the CRTC when resetting, otherwise the OFW boot command
-	 * issued by cpu_reset() just doesn't work.
+	 * Register a handler that performs some cosmetic surgery like
+	 * turning off the mouse pointer on halt in preparation for
+	 * handing the screen over to the OFW. Register another handler
+	 * that turns off the CRTC when resetting, otherwise the OFW
+	 * boot command issued by cpu_reset() just doesn't work.
 	 */
 	EVENTHANDLER_REGISTER(shutdown_final, machfb_shutdown_final, sc,
 	    SHUTDOWN_PRI_DEFAULT);
@@ -1479,6 +1484,15 @@ machfb_shutdown_final(void *v)
 	struct machfb_softc *sc = v;
 
 	machfb_cursor_enable(sc, 0);
+	/*
+	 * In case this is the console set the cursor of the stdout
+	 * instance to the start of the last line so OFW output ends
+	 * up beneath what FreeBSD left on the screen.
+	 */
+	if (sc->sc_flags & MACHFB_CONSOLE) {
+		OF_interpret("stdout @ is my-self 0 to column#", 0);
+		OF_interpret("stdout @ is my-self #lines 1 - to line#", 0);
+	}
 }
 
 static void
