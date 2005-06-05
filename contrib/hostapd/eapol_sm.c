@@ -11,6 +11,8 @@
  * license.
  *
  * See README and COPYING for more details.
+ *
+ * $FreeBSD$
  */
 
 #include <stdlib.h>
@@ -124,6 +126,8 @@ SM_STATE(AUTH_PAE, DISCONNECTED)
 	if (!from_initialize) {
 		if (sm->flags & EAPOL_SM_PREAUTH)
 			rsn_preauth_finished(sm->hapd, sm->sta, 0);
+		else
+			ieee802_1x_finished(sm->hapd, sm->sta, 0);
 	}
 }
 
@@ -174,6 +178,8 @@ SM_STATE(AUTH_PAE, HELD)
 		       HOSTAPD_LEVEL_WARNING, "authentication failed");
 	if (sm->flags & EAPOL_SM_PREAUTH)
 		rsn_preauth_finished(sm->hapd, sm->sta, 0);
+	else
+		ieee802_1x_finished(sm->hapd, sm->sta, 0);
 }
 
 
@@ -191,6 +197,8 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
 		       HOSTAPD_LEVEL_INFO, "authenticated");
 	if (sm->flags & EAPOL_SM_PREAUTH)
 		rsn_preauth_finished(sm->hapd, sm->sta, 1);
+	else
+		ieee802_1x_finished(sm->hapd, sm->sta, 1);
 }
 
 
