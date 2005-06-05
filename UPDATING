@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050605:
+	if_bridge was added to the tree. This has changed struct ifnet.
+	Please recompile userland and all network related modules.
+
 20050603:
 	The n_net of a struct netent was changed to an uint32_t, and
 	1st argument of getnetbyaddr() was changed to an uint32_t, to
