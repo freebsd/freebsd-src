@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.38 2004/06/26 09:11:14 jmc Exp $
+.\" $OpenBSD: ssh_config.5,v 1.49 2005/03/16 11:10:38 jmc Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH_CONFIG 5
@@ -64,7 +64,7 @@ system-wide configuration file
 .Pp
 For each parameter, the first obtained value
 will be used.
-The configuration files contain sections bracketed by
+The configuration files contain sections separated by
 .Dq Host
 specifications, and that section is only applied for hosts that
 match one of the patterns given in the specification.
@@ -121,9 +121,9 @@ Specifies which address family to use when connecting.
 Valid arguments are
 .Dq any ,
 .Dq inet
-(Use IPv4 only) or
+(use IPv4 only) or
 .Dq inet6
-(Use IPv6 only.)
+(use IPv6 only).
 .It Cm BatchMode
 If set to
 .Dq yes ,
@@ -360,11 +360,16 @@ option is also enabled.
 If this option is set to
 .Dq yes
 then remote X11 clients will have full access to the original X11 display.
+.Pp
 If this option is set to
 .Dq no
 then remote X11 clients will be considered untrusted and prevented
 from stealing or tampering with data belonging to trusted X11
 clients.
+Furthermore, the
+.Xr xauth 1
+token used for the session will be set to expire after 20 minutes.
+Remote clients will be refused access after this time.
 .Pp
 The default is
 .Dq no .
@@ -403,6 +408,22 @@ Forward (delegate) credentials to the server.
 The default is
 .Dq no .
 Note that this option applies to protocol version 2 only.
+.It Cm HashKnownHosts
+Indicates that
+.Nm ssh
+should hash host names and addresses when they are added to
+.Pa $HOME/.ssh/known_hosts .
+These hashed names may be used normally by
+.Nm ssh
+and
+.Nm sshd ,
+but they do not reveal identifying information should the file's contents
+be disclosed.
+The default is
+.Dq no .
+Note that hashing of names and addresses will not be retrospectively applied
+to existing known hosts files, but these may be manually hashed using
+.Xr ssh-keygen 1 .
 .It Cm HostbasedAuthentication
 Specifies whether to try rhosts based authentication with public key
 authentication.
@@ -468,16 +489,41 @@ This option is intented for situations where
 offers many different identities.
 The default is
 .Dq no .
+.It Cm KbdInteractiveDevices
+Specifies the list of methods to use in keyboard-interactive authentication.
+Multiple method names must be comma-separated.
+The default is to use the server specified list.
 .It Cm LocalForward
 Specifies that a TCP/IP port on the local machine be forwarded over
 the secure channel to the specified host and port from the remote machine.
-The first argument must be a port number, and the second must be
-.Ar host:port .
-IPv6 addresses can be specified with an alternative syntax:
-.Ar host/port .
-Multiple forwardings may be specified, and additional
-forwardings can be given on the command line.
+The first argument must be
+.Sm off
+.Oo Ar bind_address : Oc Ar port
+.Sm on
+and the second argument must be
+.Ar host : Ns Ar hostport .
+IPv6 addresses can be specified by enclosing addresses in square brackets or
+by using an alternative syntax:
+.Oo Ar bind_address Ns / Oc Ns Ar port
+and
+.Ar host Ns / Ns Ar hostport .
+Multiple forwardings may be specified, and additional forwardings can be
+given on the command line.
 Only the superuser can forward privileged ports.
+By default, the local port is bound in accordance with the
+.Cm GatewayPorts
+setting.
+However, an explicit
+.Ar bind_address
+may be used to bind the connection to a specific address.
+The
+.Ar bind_address
+of
+.Dq localhost
+indicates that the listening port be bound for local use only, while an
+empty address or
+.Sq *
+indicates that the port should be available from all interfaces.
 .It Cm LogLevel
 Gives the verbosity level that is used when logging messages from
 .Nm ssh .
@@ -522,9 +568,9 @@ Default is 22.
 .It Cm PreferredAuthentications
 Specifies the order in which the client should try protocol 2
 authentication methods.
-This allows a client to prefer one method (e.g.
+This allows a client to prefer one method (e.g.\&
 .Cm keyboard-interactive )
-over another method (e.g.
+over another method (e.g.\&
 .Cm password )
 The default for this option is:
 .Dq hostbased,publickey,keyboard-interactive,password .
@@ -583,13 +629,36 @@ This option applies to protocol version 2 only.
 .It Cm RemoteForward
 Specifies that a TCP/IP port on the remote machine be forwarded over
 the secure channel to the specified host and port from the local machine.
-The first argument must be a port number, and the second must be
-.Ar host:port .
-IPv6 addresses can be specified with an alternative syntax:
-.Ar host/port .
+The first argument must be
+.Sm off
+.Oo Ar bind_address : Oc Ar port
+.Sm on
+and the second argument must be
+.Ar host : Ns Ar hostport .
+IPv6 addresses can be specified by enclosing addresses in square brackets
+or by using an alternative syntax:
+.Oo Ar bind_address Ns / Oc Ns Ar port
+and
+.Ar host Ns / Ns Ar hostport .
 Multiple forwardings may be specified, and additional
 forwardings can be given on the command line.
 Only the superuser can forward privileged ports.
+.Pp
+If the
+.Ar bind_address
+is not specified, the default is to only bind to loopback addresses.
+If the
+.Ar bind_address
+is
+.Ql *
+or an empty string, then the forwarding is requested to listen on all
+interfaces.
+Specifying a remote
+.Ar bind_address
+will only succeed if the server's
+.Cm GatewayPorts
+option is enabled (see
+.Xr sshd_config 5 ) .
 .It Cm RhostsRSAAuthentication
 Specifies whether to try rhosts based authentication with RSA host
 authentication.
@@ -783,7 +852,7 @@ Note that this option applies to protocol version 2 only.
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20041028 .
+.Dq FreeBSD-20050605 .
 .It Cm XAuthLocation
 Specifies the full pathname of the
 .Xr xauth 1

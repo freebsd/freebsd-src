@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.69 2004/05/23 23:59:53 dtucker Exp $
+#	$OpenBSD: sshd_config,v 1.70 2004/12/23 23:11:00 djm Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -14,10 +14,11 @@
 # Note that some of FreeBSD's defaults differ from OpenBSD's, and
 # FreeBSD has a few additional options.
 
-#VersionAddendum FreeBSD-20041028
+#VersionAddendum FreeBSD-20050605
 
 #Port 22
 #Protocol 2
+#AddressFamily any
 #ListenAddress 0.0.0.0
 #ListenAddress ::
 

@@ -75,6 +75,12 @@ int mm_sshpam_respond(void *, u_int, char **);
 void mm_sshpam_free_ctx(void *);
 #endif
 
+#ifdef SSH_AUDIT_EVENTS
+#include "audit.h"
+void mm_audit_event(ssh_audit_event_t);
+void mm_audit_run_command(const char *);
+#endif
+
 struct Session;
 void mm_terminate(void);
 int mm_pty_allocate(int *, int *, char *, int);
