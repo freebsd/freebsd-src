@@ -35,11 +35,11 @@ SYSDIR=	${_dir}
 .endif
 .endfor
 PORTSMODULESENV=SYSDIR=${SYSDIR}
-.for __target in all install clean
+.for __target in all install reinstall clean
 ${__target}: ports-${__target}
 ports-${__target}:
 .for __i in ${PORTS_MODULES}
-	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/install/deinstall reinstall/}
+	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/install/deinstall reinstall/:C/reinstall/deinstall reinstall/}
 .endfor
 .endfor
 .endif
