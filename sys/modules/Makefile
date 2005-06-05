@@ -98,6 +98,7 @@ SUBDIR=	${_3dfx} \
 	${_ida} \
 	${_idt} \
 	${_ie} \
+	if_bridge \
 	if_disc \
 	if_ef \
 	if_faith \
