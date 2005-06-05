@@ -323,7 +323,6 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_IRQ:
 		return (resource_list_alloc(rl, bus, child, type, rid, start,
 		    end, count, flags));
-		break;
 	case SYS_RES_MEMORY:
 		if (!passthrough) {
 			if (rle == NULL)
@@ -352,8 +351,6 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				break;
 			}
 		}
-		break;
-	default:
 		break;
 	}
 	return (res);
