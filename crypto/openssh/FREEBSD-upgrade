@@ -42,7 +42,7 @@
 7) Run configure with the appropriate arguments:
 
 	$ ./configure --prefix=/usr --sysconfdir=/etc/ssh \
-		--with-pam --with-tcp-wrappers
+		--with-pam --with-tcp-wrappers --with-libedit
 
    Note that we don't want to configure OpenSSH for Kerberos using
    configure since we have to be able to turn it on or off depending
