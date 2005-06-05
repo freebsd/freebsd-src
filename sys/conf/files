@@ -1327,10 +1327,12 @@ net/bpf.c			standard
 net/bpf_filter.c		optional bpf
 net/bpf_filter.c		optional netgraph_bpf
 net/bridge.c			optional bridge
+net/bridgestp.c			optional if_bridge
 net/bsd_comp.c			optional ppp_bsdcomp
 net/if.c			standard
 net/if_arcsubr.c		optional arcnet
 net/if_atmsubr.c		optional atm
+net/if_bridge.c			optional if_bridge
 net/if_clone.c			standard
 net/if_disc.c			optional disc
 net/if_ef.c			optional ef
