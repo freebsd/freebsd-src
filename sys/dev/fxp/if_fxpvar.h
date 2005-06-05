@@ -192,11 +192,6 @@ struct fxp_softc {
 	int cu_resume_bug;
 	int revision;
 	int flags;
-	uint32_t saved_maps[5];	/* pci data */
-	uint32_t saved_biosaddr;
-	uint8_t saved_intline;
-	uint8_t saved_cachelnsz;
-	uint8_t saved_lattimer;
 	uint8_t rfa_size;
 	uint32_t tx_cmd;
 };
