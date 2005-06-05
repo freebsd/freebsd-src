@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.263 2004/08/15 11:01:37 dtucker Exp $
+# $Id: Makefile.in,v 1.270 2005/02/25 23:12:38 dtucker Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -43,6 +43,7 @@ LD=@LD@
 CFLAGS=@CFLAGS@
 CPPFLAGS=-I. -I$(srcdir) @CPPFLAGS@ $(PATHS) @DEFS@
 LIBS=@LIBS@
+LIBEDIT=@LIBEDIT@
 LIBPAM=@LIBPAM@
 LIBWRAP=@LIBWRAP@
 AR=@AR@
@@ -84,7 +85,8 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
 	monitor_mm.o monitor.o monitor_wrap.o kexdhs.o kexgexs.o \
 	auth-krb5.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
-	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o
+	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o \
+	audit.o audit-bsm.o
 
 MANPAGES	= scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-rand-helper.8.out ssh-keysign.8.out sshd_config.5.out ssh_config.5.out
 MANPAGES_IN	= scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-rand-helper.8 ssh-keysign.8 sshd_config.5 ssh_config.5
@@ -158,7 +160,7 @@ sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-common.o sftp-server.o
 	$(LD) -o $@ sftp-server.o sftp-common.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 sftp$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-client.o sftp-common.o sftp-glob.o progressmeter.o
-	$(LD) -o $@ progressmeter.o sftp.o sftp-client.o sftp-common.o sftp-glob.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+	$(LD) -o $@ progressmeter.o sftp.o sftp-client.o sftp-common.o sftp-glob.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(LIBEDIT)
 
 ssh-rand-helper${EXEEXT}: $(LIBCOMPAT) libssh.a ssh-rand-helper.o
 	$(LD) -o $@ ssh-rand-helper.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
@@ -194,13 +196,13 @@ moduli:
 
 clean:	regressclean
 	rm -f *.o *.a $(TARGETS) logintest config.cache config.log
-	rm -f *.out core
+	rm -f *.out core survey
 	(cd openbsd-compat && $(MAKE) clean)
 
 distclean:	regressclean
 	rm -f *.o *.a $(TARGETS) logintest config.cache config.log
 	rm -f *.out core opensshd.init
-	rm -f Makefile buildpkg.sh config.h config.status ssh_prng_cmds *~
+	rm -f Makefile buildpkg.sh config.h config.status ssh_prng_cmds survey.sh *~
 	rm -rf autom4te.cache
 	(cd openbsd-compat && $(MAKE) distclean)
 	(cd scard && $(MAKE) distclean)
@@ -228,8 +230,9 @@ distprep: catman-do
 	-rm -rf autom4te.cache
 	(cd scard && $(MAKE) -f Makefile.in distprep)
 
-install: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files host-key check-config
-install-nokeys: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files
+install: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files install-sysconf host-key check-config
+install-nokeys: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files install-sysconf
+install-nosysconf: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files
 
 check-config:
 	-$(DESTDIR)$(sbindir)/sshd -t -f $(DESTDIR)$(sysconfdir)/sshd_config
@@ -279,6 +282,8 @@ install-files: scard-install
 	ln -s ./ssh$(EXEEXT) $(DESTDIR)$(bindir)/slogin
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
 	ln -s ./ssh.1 $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
+
+install-sysconf:
 	if [ ! -d $(DESTDIR)$(sysconfdir) ]; then \
 		$(srcdir)/mkinstalldirs $(DESTDIR)$(sysconfdir); \
 	fi
@@ -292,7 +297,7 @@ install-files: scard-install
 	else \
 		echo "$(DESTDIR)$(sysconfdir)/sshd_config already exists, install will not overwrite"; \
 	fi
-	@if [ -f ssh_prng_cmds -a ! -z "$(INSTALL_SSH_PRNG_CMDS)" ]; then \
+	@if [ -f ssh_prng_cmds ] && [ ! -z "$(INSTALL_SSH_PRNG_CMDS)" ]; then \
 		if [ ! -f $(DESTDIR)$(sysconfdir)/ssh_prng_cmds ] ; then \
 			$(INSTALL) -m 644 ssh_prng_cmds.out $(DESTDIR)$(sysconfdir)/ssh_prng_cmds; \
 		else \
@@ -376,7 +381,7 @@ tests:	$(TARGETS)
 	BUILDDIR=`pwd`; \
 	[ -d `pwd`/regress ]  ||  mkdir -p `pwd`/regress; \
 	[ -f `pwd`/regress/Makefile ]  || \
-	    ln -s $(srcdir)/regress/Makefile `pwd`/regress/Makefile ; \
+	    ln -s `cd $(srcdir) && pwd`/regress/Makefile `pwd`/regress/Makefile ; \
 	TEST_SHELL="@TEST_SHELL@"; \
 	TEST_SSH_SSH="$${BUILDDIR}/ssh"; \
 	TEST_SSH_SSHD="$${BUILDDIR}/sshd"; \
@@ -406,9 +411,18 @@ tests:	$(TARGETS)
 		$@
 
 regressclean:
-	if [ -f regress/Makefile -a -r regress/Makefile ]; then \
+	if [ -f regress/Makefile ] && [ -r regress/Makefile ]; then \
 		(cd regress && $(MAKE) clean) \
 	fi
+
+survey: survey.sh ssh
+	@$(SHELL) ./survey.sh > survey
+	@echo 'The survey results have been placed in the file "survey" in the'
+	@echo 'current directory.  Please review the file then send with'
+	@echo '"make send-survey".'
+
+send-survey:	survey
+	mail portable-survey@mindrot.org <survey
 
 package: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS)
 	if [ "@MAKE_PACKAGE_SUPPORTED@" = yes ]; then \
