@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ssh-keysign
-SRCS=	ssh-keysign.c msg.c readconf.c
+SRCS=	ssh-keysign.c readconf.c
 MAN=	ssh-keysign.8
 CFLAGS+=-I${SSHDIR}
 .if defined(ENABLE_SUID_SSH)
