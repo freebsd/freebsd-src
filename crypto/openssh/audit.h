@@ -1,5 +1,7 @@
+/* $Id: audit.h,v 1.2 2005/02/08 10:52:48 dtucker Exp $ */
+
 /*
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2004, 2005 Darren Tucker.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,52 +24,33 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "includes.h"
-RCSID("$OpenBSD: auth2-passwd.c,v 1.5 2003/12/31 00:24:50 dtucker Exp $");
-
-#include "xmalloc.h"
-#include "packet.h"
-#include "log.h"
 #include "auth.h"
-#include "monitor_wrap.h"
-#include "servconf.h"
 
-/* import */
-extern ServerOptions options;
-
-static int
-userauth_passwd(Authctxt *authctxt)
-{
-	char *password, *newpass;
-	int authenticated = 0;
-	int change;
-	u_int len, newlen;
-
-	change = packet_get_char();
-	password = packet_get_string(&len);
-	if (change) {
-		/* discard new password from packet */
-		newpass = packet_get_string(&newlen);
-		memset(newpass, 0, newlen);
-		xfree(newpass);
-	}
-	packet_check_eom();
-
-	if (change)
-		logit("password change not supported");
-	else if (PRIVSEP(auth_password(authctxt, password)) == 1)
-		authenticated = 1;
-#ifdef HAVE_CYGWIN
-	if (check_nt_auth(1, authctxt->pw) == 0)
-		authenticated = 0;
-#endif
-	memset(password, 0, len);
-	xfree(password);
-	return authenticated;
-}
-
-Authmethod method_passwd = {
-	"password",
-	userauth_passwd,
-	&options.password_authentication
+#ifndef _SSH_AUDIT_H
+# define _SSH_AUDIT_H
+enum ssh_audit_event_type {
+	SSH_LOGIN_EXCEED_MAXTRIES,
+	SSH_LOGIN_ROOT_DENIED,
+	SSH_AUTH_SUCCESS,
+	SSH_AUTH_FAIL_NONE,
+	SSH_AUTH_FAIL_PASSWD,
+	SSH_AUTH_FAIL_KBDINT,	/* keyboard-interactive or challenge-response */
+	SSH_AUTH_FAIL_PUBKEY,	/* ssh2 pubkey or ssh1 rsa */
+	SSH_AUTH_FAIL_HOSTBASED,	/* ssh2 hostbased or ssh1 rhostsrsa */
+	SSH_AUTH_FAIL_GSSAPI,
+	SSH_INVALID_USER,
+	SSH_NOLOGIN,		/* denied by /etc/nologin, not implemented */
+	SSH_CONNECTION_CLOSE,	/* closed after attempting auth or session */
+	SSH_CONNECTION_ABANDON,	/* closed without completing auth */
+	SSH_AUDIT_UNKNOWN
 };
+typedef enum ssh_audit_event_type ssh_audit_event_t;
+
+void	audit_connection_from(const char *, int);
+void	audit_event(ssh_audit_event_t);
+void	audit_session_open(const char *);
+void	audit_session_close(const char *);
+void	audit_run_command(const char *);
+ssh_audit_event_t audit_classify_auth(const char *);
+
+#endif /* _SSH_AUDIT_H */

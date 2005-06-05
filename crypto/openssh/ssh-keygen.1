@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.63 2004/08/13 00:01:43 jmc Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.66 2005/03/01 18:15:56 jmc Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -80,6 +80,15 @@
 .Op Fl f Ar input_keyfile
 .Nm ssh-keygen
 .Fl D Ar reader
+.Nm ssh-keygen
+.Fl F Ar hostname
+.Op Fl f Ar known_hosts_file
+.Nm ssh-keygen
+.Fl H
+.Op Fl f Ar known_hosts_file
+.Nm ssh-keygen
+.Fl R Ar hostname
+.Op Fl f Ar known_hosts_file
 .Nm ssh-keygen
 .Fl U Ar reader
 .Op Fl f Ar input_keyfile
@@ -174,16 +183,23 @@ Specifies the number of primality tests to perform when screening DH-GEX
 candidates using the
 .Fl T
 command.
+.It Fl B
+Show the bubblebabble digest of specified private or public key file.
 .It Fl b Ar bits
 Specifies the number of bits in the key to create.
 Minimum is 512 bits.
 Generally, 1024 bits is considered sufficient.
 The default is 1024 bits.
+.It Fl C Ar comment
+Provides a new comment.
 .It Fl c
 Requests changing the comment in the private and public key files.
 This operation is only supported for RSA1 keys.
 The program will prompt for the file containing the private keys, for
 the passphrase if the key has one, and for the new comment.
+.It Fl D Ar reader
+Download the RSA public key stored in the smartcard in
+.Ar reader .
 .It Fl e
 This option will read a private or public OpenSSH key file and
 print the key in a
@@ -191,12 +207,41 @@ print the key in a
 to stdout.
 This option allows exporting keys for use by several commercial
 SSH implementations.
+.It Fl F Ar hostname
+Search for the specified
+.Ar hostname
+in a
+.Pa known_hosts
+file, listing any occurrences found.
+This option is useful to find hashed host names or addresses and may also be
+used in conjunction with the
+.Fl H
+option to print found keys in a hashed format.
+.It Fl f Ar filename
+Specifies the filename of the key file.
+.It Fl G Ar output_file
+Generate candidate primes for DH-GEX.
+These primes must be screened for
+safety (using the
+.Fl T
+option) before use.
 .It Fl g
 Use generic DNS format when printing fingerprint resource records using the
 .Fl r
 command.
-.It Fl f Ar filename
-Specifies the filename of the key file.
+.It Fl H
+Hash a
+.Pa known_hosts
+file, printing the result to standard output.
+This replaces all hostnames and addresses with hashed representations.
+These hashes may be used normally by
+.Nm ssh
+and
+.Nm sshd ,
+but they do not reveal identifying information should the file's contents
+be disclosed.
+This option will not modify existing hashed hostnames and is therefore safe
+to use on files that mix hashed and non-hashed names.
 .It Fl i
 This option will read an unencrypted private (or public) key file
 in SSH2-compatible format and print an OpenSSH compatible private
@@ -212,6 +257,13 @@ Private RSA1 keys are also supported.
 For RSA and DSA keys
 .Nm
 tries to find the matching public key file and prints its fingerprint.
+.It Fl M Ar memory
+Specify the amount of memory to use (in megabytes) when generating
+candidate moduli for DH-GEX.
+.It Fl N Ar new_passphrase
+Provides the new passphrase.
+.It Fl P Ar passphrase
+Provides the (old) passphrase.
 .It Fl p
 Requests changing the passphrase of a private key file instead of
 creating a new private key.
@@ -224,11 +276,27 @@ Silence
 Used by
 .Pa /etc/rc
 when creating a new key.
-.It Fl y
-This option will read a private
-OpenSSH format file and print an OpenSSH public key to stdout.
+.It Fl R Ar hostname
+Removes all keys belonging to
+.Ar hostname
+from a
+.Pa known_hosts
+file.
+This option is useful to delete hashed hosts (see the
+.Fl H
+option above).
+.It Fl r Ar hostname
+Print the SSHFP fingerprint resource record named
+.Ar hostname
+for the specified public key file.
+.It Fl S Ar start
+Specify start point (in hex) when generating candidate moduli for DH-GEX.
+.It Fl T Ar output_file
+Test DH group exchange candidate primes (generated using the
+.Fl G
+option) for safety.
 .It Fl t Ar type
-Specifies the type of the key to create.
+Specifies the type of key to create.
 The possible values are
 .Dq rsa1
 for protocol version 1 and
@@ -236,34 +304,6 @@ for protocol version 1 and
 or
 .Dq dsa
 for protocol version 2.
-.It Fl B
-Show the bubblebabble digest of specified private or public key file.
-.It Fl C Ar comment
-Provides the new comment.
-.It Fl D Ar reader
-Download the RSA public key stored in the smartcard in
-.Ar reader .
-.It Fl G Ar output_file
-Generate candidate primes for DH-GEX.
-These primes must be screened for
-safety (using the
-.Fl T
-option) before use.
-.It Fl M Ar memory
-Specify the amount of memory to use (in megabytes) when generating
-candidate moduli for DH-GEX.
-.It Fl N Ar new_passphrase
-Provides the new passphrase.
-.It Fl P Ar passphrase
-Provides the (old) passphrase.
-.It Fl S Ar start
-Specify start point (in hex) when generating candidate moduli for DH-GEX.
-.It Fl T Ar output_file
-Test DH group exchange candidate primes (generated using the
-.Fl G
-option) for safety.
-.It Fl W Ar generator
-Specify desired generator when testing candidate moduli for DH-GEX.
 .It Fl U Ar reader
 Upload an existing RSA private key into the smartcard in
 .Ar reader .
@@ -277,10 +317,11 @@ Multiple
 .Fl v
 options increase the verbosity.
 The maximum is 3.
-.It Fl r Ar hostname
-Print the SSHFP fingerprint resource record named
-.Ar hostname
-for the specified public key file.
+.It Fl W Ar generator
+Specify desired generator when testing candidate moduli for DH-GEX.
+.It Fl y
+This option will read a private
+OpenSSH format file and print an OpenSSH public key to stdout.
 .El
 .Sh MODULI GENERATION
 .Nm
@@ -299,7 +340,7 @@ The desired length of the primes may be specified by the
 option.
 For example:
 .Pp
-.Dl ssh-keygen -G moduli-2048.candidates -b 2048
+.Dl # ssh-keygen -G moduli-2048.candidates -b 2048
 .Pp
 By default, the search for primes begins at a random point in the
 desired length range.
@@ -319,7 +360,7 @@ will read candidates from standard input (or a file specified using the
 option).
 For example:
 .Pp
-.Dl ssh-keygen -T moduli-2048 -f moduli-2048.candidates
+.Dl # ssh-keygen -T moduli-2048 -f moduli-2048.candidates
 .Pp
 By default, each candidate will be subjected to 100 primality tests.
 This may be overridden using the
@@ -330,7 +371,7 @@ prime under consideration.
 If a specific generator is desired, it may be requested using the
 .Fl W
 option.
-Valid generator values are 2, 3 and 5.
+Valid generator values are 2, 3, and 5.
 .Pp
 Screened DH groups may be installed in
 .Pa /etc/moduli .

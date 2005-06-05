@@ -1,4 +1,4 @@
-/*	$OpenBSD: clientloop.h,v 1.11 2004/07/11 17:48:47 deraadt Exp $	*/
+/*	$OpenBSD: clientloop.h,v 1.12 2004/11/07 00:01:46 djm Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -40,3 +40,11 @@ int	 client_loop(int, int, int);
 void	 client_global_request_reply_fwd(int, u_int32_t, void *);
 void	 client_session2_setup(int, int, int, const char *, struct termios *,
 	    int, Buffer *, char **, dispatch_fn *);
+
+/* Multiplexing control protocol flags */
+#define SSHMUX_COMMAND_OPEN		1	/* Open new connection */
+#define SSHMUX_COMMAND_ALIVE_CHECK	2	/* Check master is alive */
+#define SSHMUX_COMMAND_TERMINATE	3	/* Ask master to exit */
+
+#define SSHMUX_FLAG_TTY			(1)	/* Request tty on open */
+#define SSHMUX_FLAG_SUBSYS		(1<<1)	/* Subsystem request on open */
