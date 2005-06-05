@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.250 2005/03/07 09:21:37 tim Exp $
+# $Id: configure.ac,v 1.260 2005/04/24 07:52:23 dtucker Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -75,7 +75,7 @@ if test -z "$LD" ; then
 	LD=$CC
 fi
 AC_SUBST(LD)
-	
+
 AC_C_INLINE
 if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wno-uninitialized"
@@ -84,7 +84,7 @@ fi
 AC_ARG_WITH(rpath,
 	[  --without-rpath         Disable auto-added -R linker paths],
 	[
-		if test "x$withval" = "xno" ; then	
+		if test "x$withval" = "xno" ; then
 			need_dash_r=""
 		fi
 		if test "x$withval" = "xyes" ; then
@@ -123,7 +123,7 @@ case "$host" in
 		])
 	dnl Check for various auth function declarations in headers.
 	AC_CHECK_DECLS([authenticate, loginrestrictions, loginsuccess,
-	    passwdexpired], , , [#include <usersec.h>])
+	    passwdexpired, setauthdb], , , [#include <usersec.h>])
 	dnl Check if loginfailed is declared and takes 4 arguments (AIX >= 5.2)
 	AC_CHECK_DECLS(loginfailed,
 		 [AC_MSG_CHECKING(if loginfailed takes 4 arguments)
@@ -274,7 +274,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	;;
 *-*-netbsd*)
 	check_for_libcrypt_before=1
-	if test "x$withval" != "xno" ; then	
+	if test "x$withval" != "xno" ; then
 		need_dash_r=1
 	fi
 	;;
@@ -297,7 +297,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(BROKEN_SAVED_UIDS)
 	;;
 *-*-solaris*)
-	if test "x$withval" != "xno" ; then	
+	if test "x$withval" != "xno" ; then
 		need_dash_r=1
 	fi
 	AC_DEFINE(PAM_SUN_CODEBASE)
@@ -361,6 +361,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(SETEUID_BREAKS_SETUID)
 	AC_DEFINE(BROKEN_SETREUID)
 	AC_DEFINE(BROKEN_SETREGID)
+	AC_DEFINE(PASSWD_NEEDS_USERNAME, 1, [must supply username to passwd])
 	;;
 # UnixWare 7.x, OpenUNIX 8
 *-*-sysv5*)
@@ -368,6 +369,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(SETEUID_BREAKS_SETUID)
 	AC_DEFINE(BROKEN_SETREUID)
 	AC_DEFINE(BROKEN_SETREGID)
+	AC_DEFINE(PASSWD_NEEDS_USERNAME, 1, [must supply username to passwd])
 	;;
 *-*-sysv*)
 	;;
@@ -472,15 +474,17 @@ esac
 AC_ARG_WITH(cflags,
 	[  --with-cflags           Specify additional flags to pass to compiler],
 	[
-		if test "x$withval" != "xno" ; then
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
 			CFLAGS="$CFLAGS $withval"
 		fi
-	]	
+	]
 )
 AC_ARG_WITH(cppflags,
 	[  --with-cppflags         Specify additional flags to pass to preprocessor] ,
 	[
-		if test "x$withval" != "xno"; then
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
 			CPPFLAGS="$CPPFLAGS $withval"
 		fi
 	]
@@ -488,18 +492,20 @@ AC_ARG_WITH(cppflags,
 AC_ARG_WITH(ldflags,
 	[  --with-ldflags          Specify additional flags to pass to linker],
 	[
-		if test "x$withval" != "xno" ; then
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
 			LDFLAGS="$LDFLAGS $withval"
 		fi
-	]	
+	]
 )
 AC_ARG_WITH(libs,
 	[  --with-libs             Specify additional libraries to link with],
 	[
-		if test "x$withval" != "xno" ; then
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
 			LIBS="$LIBS $withval"
 		fi
-	]	
+	]
 )
 
 AC_MSG_CHECKING(compiler and flags for sanity)
@@ -583,10 +589,9 @@ AC_SEARCH_LIBS(basename, gen, AC_DEFINE(HAVE_BASENAME))
 dnl zlib is required
 AC_ARG_WITH(zlib,
 	[  --with-zlib=PATH        Use zlib in PATH],
-	[
-		if test "x$withval" = "xno" ; then
-			AC_MSG_ERROR([*** zlib is required ***])
-		fi
+	[ if test "x$withval" = "xno" ; then
+		AC_MSG_ERROR([*** zlib is required ***])
+	  elif test "x$withval" != "xyes"; then
 		if test -d "$withval/lib"; then
 			if test -n "${need_dash_r}"; then
 				LDFLAGS="-L${withval}/lib -R${withval}/lib ${LDFLAGS}"
@@ -605,7 +610,7 @@ AC_ARG_WITH(zlib,
 		else
 			CPPFLAGS="-I${withval} ${CPPFLAGS}"
 		fi
-	]
+	fi ]
 )
 
 AC_CHECK_LIB(z, deflate, ,
@@ -638,29 +643,40 @@ AC_ARG_WITH(zlib-version-check,
 	]
 )
 
-AC_MSG_CHECKING(for zlib 1.1.4 or greater)
+AC_MSG_CHECKING(for possibly buggy zlib)
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
 #include <zlib.h>
 int main()
 {
-	int a, b, c, v;
-	if (sscanf(ZLIB_VERSION, "%d.%d.%d", &a, &b, &c) != 3)
+	int a=0, b=0, c=0, d=0, n, v;
+	n = sscanf(ZLIB_VERSION, "%d.%d.%d.%d", &a, &b, &c, &d);
+	if (n != 3 && n != 4)
 		exit(1);
-	v = a*1000000 + b*1000 + c;
-	if (v >= 1001004)
+	v = a*1000000 + b*10000 + c*100 + d;
+	fprintf(stderr, "found zlib version %s (%d)\n", ZLIB_VERSION, v);
+
+	/* 1.1.4 is OK */
+	if (a == 1 && b == 1 && c >= 4)
 		exit(0);
+
+	/* 1.2.1.2 and up are OK */
+	if (v >= 1020102)
+		exit(0);
+
 	exit(2);
 }
 	]])],
-	AC_MSG_RESULT(yes),
-	[ AC_MSG_RESULT(no)
+	AC_MSG_RESULT(no),
+	[ AC_MSG_RESULT(yes)
 	  if test -z "$zlib_check_nonfatal" ; then
 		AC_MSG_ERROR([*** zlib too old - check config.log ***
 Your reported zlib version has known security problems.  It's possible your
 vendor has fixed these problems without changing the version number.  If you
 are sure this is the case, you can disable the check by running
 "./configure --without-zlib-version-check".
-If you are in doubt, upgrade zlib to version 1.1.4 or greater.])
+If you are in doubt, upgrade zlib to version 1.2.1.2 or greater.
+See http://www.gzip.org/zlib/ for details.])
 	  else
 		AC_MSG_WARN([zlib version may have security problems])
 	  fi
@@ -730,7 +746,7 @@ int main(void){struct dirent d;exit(sizeof(d.d_name)<=sizeof(char));}
 		AC_MSG_RESULT(no)
 		AC_DEFINE(BROKEN_ONE_BYTE_DIRENT_D_NAME)
 	],
-	[ 
+	[
 		AC_MSG_WARN([cross compiling: assuming BROKEN_ONE_BYTE_DIRENT_D_NAME])
 		AC_DEFINE(BROKEN_ONE_BYTE_DIRENT_D_NAME)
 	]
@@ -759,7 +775,7 @@ AC_ARG_WITH(skey,
 			AC_DEFINE(SKEY)
 			LIBS="-lskey $LIBS"
 			SKEY_MSG="yes"
-	
+
 			AC_MSG_CHECKING([for s/key support])
 			AC_TRY_RUN(
 				[
@@ -794,7 +810,8 @@ AC_ARG_WITH(tcp-wrappers,
 			saved_LIBS="$LIBS"
 			saved_LDFLAGS="$LDFLAGS"
 			saved_CPPFLAGS="$CPPFLAGS"
-			if test -n "${withval}" -a "${withval}" != "yes"; then
+			if test -n "${withval}" && \
+			    test "x${withval}" != "xyes"; then
 				if test -d "${withval}/lib"; then
 					if test -n "${need_dash_r}"; then
 						LDFLAGS="-L${withval}/lib -R${withval}/lib ${LDFLAGS}"
@@ -846,13 +863,18 @@ LIBEDIT_MSG="no"
 AC_ARG_WITH(libedit,
 	[  --with-libedit[[=PATH]]   Enable libedit support for sftp],
 	[ if test "x$withval" != "xno" ; then
+		if test "x$withval" != "xyes"; then
+			CPPFLAGS="$CPPFLAGS -I$withval/include"
+			LDFLAGS="$LDFLAGS -L$withval/lib"
+		fi
 		AC_CHECK_LIB(edit, el_init,
 			[ AC_DEFINE(USE_LIBEDIT, [], [Use libedit for sftp])
 			  LIBEDIT="-ledit -lcurses"
 			  LIBEDIT_MSG="yes"
 			  AC_SUBST(LIBEDIT)
 			],
-			[], [-lcurses]
+			[ AC_MSG_ERROR(libedit not found) ],
+			[ -lcurses ]
 		)
 	fi ]
 )
@@ -1011,7 +1033,9 @@ if test "x$ac_cv_func_getpeereid" != "xyes" ; then
 		[#include <sys/types.h>
 		 #include <sys/socket.h>],
 		[int i = SO_PEERCRED;],
-		[AC_MSG_RESULT(yes)],
+		[ AC_MSG_RESULT(yes)
+		  AC_DEFINE(HAVE_SO_PEERCRED, [], [Have PEERCRED socket option])
+		],
 		[AC_MSG_RESULT(no)
 		NO_PEERCHECK=1]
         )
@@ -1090,7 +1114,8 @@ main()
 	)
 fi
 
-if test "x$ac_cv_func_getaddrinfo" = "xyes" -a "x$check_for_hpux_broken_getaddrinfo" = "x1"; then
+if test "x$ac_cv_func_getaddrinfo" = "xyes" && \
+    test "x$check_for_hpux_broken_getaddrinfo" = "x1"; then
 	AC_MSG_CHECKING(if getaddrinfo seems to work)
 	AC_TRY_RUN(
 		[
@@ -1158,7 +1183,8 @@ main(void)
 	)
 fi
 
-if test "x$ac_cv_func_getaddrinfo" = "xyes" -a "x$check_for_aix_broken_getaddrinfo" = "x1"; then
+if test "x$ac_cv_func_getaddrinfo" = "xyes" && \
+    test "x$check_for_aix_broken_getaddrinfo" = "x1"; then
 	AC_MSG_CHECKING(if getaddrinfo seems to work)
 	AC_TRY_RUN(
 		[
@@ -1467,7 +1493,7 @@ int main(void) { exit(RAND_status() == 1 ? 0 : 1); }
 	[
 		AC_MSG_WARN([cross compiling: assuming yes])
 		# This is safe, since all recent OpenSSL versions will
-		# complain at runtime if not seeded correctly. 
+		# complain at runtime if not seeded correctly.
 		OPENSSL_SEEDS_ITSELF=yes
 	]
 )
@@ -1489,10 +1515,10 @@ AC_ARG_WITH(rand-helper,
 			USE_RAND_HELPER=yes
 		fi
 	],
-)	
+)
 
 # Which randomness source do we use?
-if test ! -z "$OPENSSL_SEEDS_ITSELF" -a -z "$USE_RAND_HELPER" ; then
+if test ! -z "$OPENSSL_SEEDS_ITSELF" && test -z "$USE_RAND_HELPER" ; then
 	# OpenSSL only
 	AC_DEFINE(OPENSSL_PRNG_ONLY)
 	RAND_MSG="OpenSSL internal ONLY"
@@ -1582,10 +1608,11 @@ entropy_timeout=200
 AC_ARG_WITH(entropy-timeout,
 	[  --with-entropy-timeout  Specify entropy gathering command timeout (msec)],
 	[
-		if test "x$withval" != "xno" ; then
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
 			entropy_timeout=$withval
 		fi
-	]	
+	]
 )
 AC_DEFINE_UNQUOTED(ENTROPY_TIMEOUT_MSEC, $entropy_timeout)
 
@@ -1593,10 +1620,11 @@ SSH_PRIVSEP_USER=sshd
 AC_ARG_WITH(privsep-user,
 	[  --with-privsep-user=user Specify non-privileged user for privilege separation],
 	[
-		if test -n "$withval"; then
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
 			SSH_PRIVSEP_USER=$withval
 		fi
-	]	
+	]
 )
 AC_DEFINE_UNQUOTED(SSH_PRIVSEP_USER, "$SSH_PRIVSEP_USER")
 AC_SUBST(SSH_PRIVSEP_USER)
@@ -2030,9 +2058,9 @@ fi
 AC_CHECK_TYPES(struct timespec)
 
 # We need int64_t or else certian parts of the compile will fail.
-if test "x$ac_cv_have_int64_t" = "xno" -a \
-	"x$ac_cv_sizeof_long_int" != "x8" -a \
-	"x$ac_cv_sizeof_long_long_int" = "x0" ; then
+if test "x$ac_cv_have_int64_t" = "xno" && \
+	test "x$ac_cv_sizeof_long_int" != "x8" && \
+	test "x$ac_cv_sizeof_long_long_int" = "x0" ; then
 	echo "OpenSSH requires int64_t support.  Contact your vendor or install"
 	echo "an alternative compiler (I.E., GCC) before continuing."
 	echo ""
@@ -2324,23 +2352,28 @@ AC_ARG_WITH(sectok,
 )
 
 # Check whether user wants OpenSC support
+OPENSC_CONFIG="no"
 AC_ARG_WITH(opensc,
-	AC_HELP_STRING([--with-opensc=PFX],
-		       [Enable smartcard support using OpenSC]),
-	opensc_config_prefix="$withval", opensc_config_prefix="")
-if test x$opensc_config_prefix != x ; then
-  OPENSC_CONFIG=$opensc_config_prefix/bin/opensc-config
-  AC_PATH_PROG(OPENSC_CONFIG, opensc-config, no)
-  if test "$OPENSC_CONFIG" != "no"; then
-    LIBOPENSC_CFLAGS=`$OPENSC_CONFIG --cflags`
-    LIBOPENSC_LIBS=`$OPENSC_CONFIG --libs`
-    CPPFLAGS="$CPPFLAGS $LIBOPENSC_CFLAGS"
-    LDFLAGS="$LDFLAGS $LIBOPENSC_LIBS"
-    AC_DEFINE(SMARTCARD)
-    AC_DEFINE(USE_OPENSC)
-    SCARD_MSG="yes, using OpenSC"
-  fi
-fi
+	[--with-opensc[[=PFX]]       Enable smartcard support using OpenSC (optionally in PATH)],
+	[
+	    if test "x$withval" != "xno" ; then
+		if test "x$withval" != "xyes" ; then
+  			OPENSC_CONFIG=$withval/bin/opensc-config
+		else
+  			AC_PATH_PROG(OPENSC_CONFIG, opensc-config, no)
+		fi
+		if test "$OPENSC_CONFIG" != "no"; then
+			LIBOPENSC_CFLAGS=`$OPENSC_CONFIG --cflags`
+			LIBOPENSC_LIBS=`$OPENSC_CONFIG --libs`
+			CPPFLAGS="$CPPFLAGS $LIBOPENSC_CFLAGS"
+			LDFLAGS="$LDFLAGS $LIBOPENSC_LIBS"
+			AC_DEFINE(SMARTCARD)
+			AC_DEFINE(USE_OPENSC)
+			SCARD_MSG="yes, using OpenSC"
+		fi
+	    fi
+	]
+)
 
 # Check libraries needed by DNS fingerprint support
 AC_SEARCH_LIBS(getrrsetbyname, resolv,
@@ -2423,7 +2456,7 @@ AC_ARG_WITH(kerberos5,
 					 AC_DEFINE(HEIMDAL)
 					 K5LIBS="-lkrb5 -ldes"
 					 K5LIBS="$K5LIBS -lcom_err -lasn1"
-					 AC_CHECK_LIB(roken, net_write, 
+					 AC_CHECK_LIB(roken, net_write,
 					   [K5LIBS="$K5LIBS -lroken"])
 				       ],
 				       [ AC_MSG_RESULT(no)
@@ -2442,7 +2475,7 @@ AC_ARG_WITH(kerberos5,
 					$K5LIBS)
 				],
 				$K5LIBS)
-			
+
 			AC_CHECK_HEADER(gssapi.h, ,
 				[ unset ac_cv_header_gssapi_h
 				  CPPFLAGS="$CPPFLAGS -I${KRB5ROOT}/include/gssapi"
@@ -2482,7 +2515,8 @@ PRIVSEP_PATH=/var/empty
 AC_ARG_WITH(privsep-path,
 	[  --with-privsep-path=xxx Path for privilege separation chroot (default=/var/empty)],
 	[
-		if test "x$withval" != "$no" ; then
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
 			PRIVSEP_PATH=$withval
 		fi
 	]
@@ -2492,7 +2526,8 @@ AC_SUBST(PRIVSEP_PATH)
 AC_ARG_WITH(xauth,
 	[  --with-xauth=PATH       Specify path to xauth program ],
 	[
-		if test "x$withval" != "xno" ; then
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
 			xauth_path=$withval
 		fi
 	],
@@ -2610,7 +2645,7 @@ AC_ARG_WITH(md5-passwords,
 AC_ARG_WITH(shadow,
 	[  --without-shadow        Disable shadow password support],
 	[
-		if test "x$withval" = "xno" ; then	
+		if test "x$withval" = "xno" ; then
 			AC_DEFINE(DISABLE_SHADOW)
 			disable_shadow=yes
 		fi
@@ -2645,7 +2680,7 @@ else
 	AC_ARG_WITH(ipaddr-display,
 		[  --with-ipaddr-display   Use ip address instead of hostname in \$DISPLAY],
 		[
-			if test "x$withval" != "xno" ; then	
+			if test "x$withval" != "xno" ; then
 				AC_DEFINE(IPADDR_IN_DISPLAY)
 				DISPLAY_HACK_MSG="yes"
 			fi
@@ -2677,8 +2712,8 @@ if test "x$etc_default_login" != "xno"; then
 fi
 
 dnl BSD systems use /etc/login.conf so --with-default-path= has no effect
-if test $ac_cv_func_login_getcapbool = "yes" -a \
-	$ac_cv_header_login_cap_h = "yes" ; then
+if test $ac_cv_func_login_getcapbool = "yes" && \
+	test $ac_cv_header_login_cap_h = "yes" ; then
 	external_path_file=/etc/login.conf
 fi
 
@@ -2691,7 +2726,7 @@ AC_ARG_WITH(default-path,
 			AC_MSG_WARN([
 --with-default-path=PATH has no effect on this system.
 Edit /etc/login.conf instead.])
-		elif test "x$withval" != "xno" ; then	
+		elif test "x$withval" != "xno" ; then
 			if test ! -z "$external_path_file" ; then
 				AC_MSG_WARN([
 --with-default-path=PATH will only be used if PATH is not defined in
@@ -2732,11 +2767,11 @@ main()
 {
 	FILE *fd;
 	int rc;
-	
+
 	fd = fopen(DATA,"w");
 	if(fd == NULL)
 		exit(1);
-	
+
 	if ((rc = fprintf(fd,"%s", _PATH_STDPATH)) < 0)
 		exit(1);
 
@@ -2773,7 +2808,8 @@ fi
 AC_ARG_WITH(superuser-path,
 	[  --with-superuser-path=  Specify different path for super-user],
 	[
-		if test "x$withval" != "xno" ; then
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
 			AC_DEFINE_UNQUOTED(SUPERUSER_PATH, "$withval")
 			superuser_path=$withval
 		fi
@@ -2809,7 +2845,7 @@ BSD_AUTH_MSG=no
 AC_ARG_WITH(bsd-auth,
 	[  --with-bsd-auth         Enable BSD auth support],
 	[
-		if test "x$withval" != "xno" ; then	
+		if test "x$withval" != "xno" ; then
 			AC_DEFINE(BSD_AUTH)
 			BSD_AUTH_MSG=yes
 		fi
@@ -2819,7 +2855,7 @@ AC_ARG_WITH(bsd-auth,
 # Where to place sshd.pid
 piddir=/var/run
 # make sure the directory exists
-if test ! -d $piddir ; then	
+if test ! -d $piddir ; then
 	piddir=`eval echo ${sysconfdir}`
 	case $piddir in
 		NONE/*) piddir=`echo $piddir | sed "s~NONE~$ac_default_prefix~"` ;;
@@ -2829,9 +2865,10 @@ fi
 AC_ARG_WITH(pid-dir,
 	[  --with-pid-dir=PATH     Specify location of ssh.pid file],
 	[
-		if test "x$withval" != "xno" ; then	
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
 			piddir=$withval
-			if test ! -d $piddir ; then	
+			if test ! -d $piddir ; then
 			AC_MSG_WARN([** no $piddir directory on this system **])
 			fi
 		fi
@@ -2909,9 +2946,9 @@ AC_ARG_ENABLE(pututxline,
 AC_ARG_WITH(lastlog,
   [  --with-lastlog=FILE|DIR specify lastlog location [common locations]],
 	[
-		if test "x$withval" = "xno" ; then	
+		if test "x$withval" = "xno" ; then
 			AC_DEFINE(DISABLE_LASTLOG)
-		else
+		elif test -n "$withval"  &&  test "x${withval}" != "xyes"; then
 			conf_lastlog_location=$withval
 		fi
 	]
@@ -2978,7 +3015,7 @@ fi
 
 if test -n "$conf_lastlog_location"; then
 	AC_DEFINE_UNQUOTED(CONF_LASTLOG_FILE, "$conf_lastlog_location")
-fi	
+fi
 
 dnl utmp detection
 AC_MSG_CHECKING([if your system defines UTMP_FILE])
@@ -3008,7 +3045,7 @@ if test -z "$conf_utmp_location"; then
 fi
 if test -n "$conf_utmp_location"; then
 	AC_DEFINE_UNQUOTED(CONF_UTMP_FILE, "$conf_utmp_location")
-fi	
+fi
 
 dnl wtmp detection
 AC_MSG_CHECKING([if your system defines WTMP_FILE])
@@ -3038,7 +3075,7 @@ if test -z "$conf_wtmp_location"; then
 fi
 if test -n "$conf_wtmp_location"; then
 	AC_DEFINE_UNQUOTED(CONF_WTMP_FILE, "$conf_wtmp_location")
-fi	
+fi
 
 
 dnl utmpx detection - I don't know any system so perverse as to require
@@ -3066,7 +3103,7 @@ if test -z "$conf_utmpx_location"; then
 	fi
 else
 	AC_DEFINE_UNQUOTED(CONF_UTMPX_FILE, "$conf_utmpx_location")
-fi	
+fi
 
 dnl wtmpx detection
 AC_MSG_CHECKING([if your system defines WTMPX_FILE])
@@ -3091,7 +3128,7 @@ if test -z "$conf_wtmpx_location"; then
 	fi
 else
 	AC_DEFINE_UNQUOTED(CONF_WTMPX_FILE, "$conf_wtmpx_location")
-fi	
+fi
 
 
 if test ! -z "$blibpath" ; then

@@ -30,6 +30,7 @@
 
 #include "key.h"
 #include "hostfile.h"
+#include "buffer.h"
 #include <openssl/rsa.h>
 
 #ifdef HAVE_LOGIN_CAP
@@ -68,6 +69,7 @@ struct Authctxt {
 	char		*krb5_ticket_file;
 	char		*krb5_ccname;
 #endif
+	Buffer		*loginmsg;
 	void		*methoddata;
 };
 /*
@@ -184,6 +186,8 @@ void	 auth_debug_send(void);
 void	 auth_debug_reset(void);
 
 struct passwd *fakepw(void);
+
+int	 sys_auth_passwd(Authctxt *, const char *);
 
 #define AUTH_FAIL_MSG "Too many authentication failures for %.100s"
 

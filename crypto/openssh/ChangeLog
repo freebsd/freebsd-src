@@ -1,3 +1,178 @@
+20050524
+ - (djm) [contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+         [contrib/suse/openssh.spec] Update spec file versions to 4.1p1
+ - (dtucker) [auth-pam.c] Since people don't seem to be getting the message
+   that USE_POSIX_THREADS is unsupported, not recommended and generally a bad
+   idea, it is now known as UNSUPPORTED_POSIX_THREADS_HACK.  Attempting to use
+   USE_POSIX_THREADS will now generate an error so we don't silently change
+   behaviour.  ok djm@
+ - (dtucker) [openbsd-compat/bsd-cygwin_util.c] Ensure sufficient memory
+   allocation when retrieving core Windows environment.  Add CYGWIN variable
+   to propagated variables.  Patch from vinschen at redhat.com, ok djm@
+ - (djm) Release 4.1p1
+
+20050524
+ - (djm) [openbsd-compat/readpassphrase.c] bz #950: Retry tcsetattr to ensure
+   terminal modes are reset correctly. Fix from peak AT argo.troja.mff.cuni.cz;
+   "looks ok" dtucker@
+
+20050512
+ - (tim) [buildpkg.sh.in] missing ${PKG_INSTALL_ROOT} in init script
+   hard link section. Bug 1038.
+
+20050509
+ - (dtucker) [contrib/cygwin/ssh-host-config] Add a test and warning for a
+   user-mode mounts in Cygwin installation.  Patch from vinschen at redhat.com.
+
+20050504
+ - (djm) [ssh.c] some systems return EADDRINUSE on a bind to an already-used
+   unix domain socket, so catch that too; from jakob@ ok dtucker@
+
+20050503
+ - (dtucker) [canohost.c] normalise socket addresses returned by
+   get_remote_hostname().  This means that IPv4 addresses in log messages
+   on IPv6 enabled machines will no longer be prefixed by "::ffff:" and
+   AllowUsers, DenyUsers, AllowGroups, DenyGroups will match IPv4-style
+   addresses only for 4-in-6 mapped connections, regardless of whether
+   or not the machine is IPv6 enabled.  ok djm@
+
+20050425
+ - (dtucker) [regress/multiplex.sh] Use "kill -0 $pid" to check for the
+   existence of a process since it's more portable.  Found by jbasney at
+   ncsa.uiuc.edu; ok tim@
+ - (dtucker) [regress/multiplex.sh] Remove cleanup call since test-exec.sh
+   will clean up anyway.  From tim@
+ - (dtucker) [regress/multiplex.sh] Put control socket in /tmp so running
+   "make tests" works even if you're building on a filesystem that doesn't
+   support sockets.  From deengert at anl.gov, ok djm@
+
+20050424
+ - (dtucker) [INSTALL configure.ac] Make zlib version check test for 1.1.4 or
+   1.2.1.2 or higher.  With tim@, ok djm@
+
+20050423
+ - (tim) [config.guess] Add support for OpenServer 6.
+
+20050421
+ - (dtucker) [session.c] Bug #1024: Don't check pam_session_is_open if
+   UseLogin is set as PAM is not used to establish credentials in that
+   case.  Found by Michael Selvesteen, ok djm@
+
+20050419
+ - (dtucker) [INSTALL] Reference README.privsep for the privilege separation
+   requirements.  Pointed out by Bengt Svensson.
+ - (dtucker) [INSTALL] Put the s/key text and URL back together.
+ - (dtucker) [INSTALL] Fix s/key text too.
+
+20050411
+ - (tim) [configure.ac] UnixWare needs PASSWD_NEEDS_USERNAME
+
+20050405
+ - (dtucker) [configure.ac] Define HAVE_SO_PEERCRED if we have it.  ok djm@
+ - (dtucker) [auth-sia.c] Constify sys_auth_passwd, fixes build error on
+   Tru64.  Patch from cmadams at hiwaay.net.
+ - (dtucker) [auth-passwd.c auth-sia.h] Remove duplicate definitions of
+   sys_auth_passwd, pointed out by cmadams at hiwaay.net.
+
+20050403
+ - (djm) OpenBSD CVS Sync
+   - deraadt@cvs.openbsd.org 2005/03/31 18:39:21
+     [scp.c]
+     copy argv[] element instead of smashing the one that ps will see; ok otto
+   - djm@cvs.openbsd.org 2005/04/02 12:41:16
+     [scp.c]
+     since ssh has xstrdup, use it instead of strdup+test. unbreaks -Werror
+     build
+ - (dtucker) [monitor.c] Don't free buffers in audit functions, monitor_read
+   will free as needed.  ok tim@ djm@
+
+20050331
+ - (dtucker) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2005/03/16 11:10:38
+     [ssh_config.5]
+     get the syntax right for {Local,Remote}Forward;
+     based on a diff from markus;
+     problem report from ponraj;
+     ok dtucker@ markus@ deraadt@
+   - markus@cvs.openbsd.org 2005/03/16 21:17:39
+     [version.h]
+     4.1
+   - jmc@cvs.openbsd.org 2005/03/18 17:05:00
+     [sshd_config.5]
+     typo;
+ - (dtucker) [auth.h sshd.c openbsd-compat/port-aix.c] Bug #1006: fix bug in
+   handling of password expiry messages returned by AIX's authentication
+   routines, originally reported by robvdwal at sara.nl.
+ - (dtucker) [ssh.c] Prevent null pointer deref in port forwarding debug
+   message on some platforms.  Patch from pete at seebeyond.com via djm.
+ - (dtucker) [monitor.c] Remaining part of fix for bug #1006.
+
+20050329
+ - (dtucker) [contrib/aix/buildbff.sh] Bug #1005: Look up only the user we're
+   interested in which is much faster in large (eg LDAP or NIS) environments.
+   Patch from dleonard at vintela.com.
+
+20050321
+ - (dtucker) [configure.ac] Prevent configure --with-zlib from adding -Iyes
+   and -Lyes to CFLAGS and LIBS.  Pointed out by peter at slagheap.net,
+   with & ok tim@
+ - (dtucker) [configure.ac] Make configure error out if the user specifies
+   --with-libedit but the required libs can't be found, rather than silently
+   ignoring and continuing.  ok tim@
+ - (dtucker) [configure.ac openbsd-compat/port-aix.h] Prevent redefinitions
+   of setauthdb on AIX 5.3, reported by anders.liljegren at its.uu.se.
+
+20050317
+ - (tim) [configure.ac] Bug 998. Make path for --with-opensc optional.
+   Make --without-opensc work.
+ - (tim) [configure.ac] portability changes on test statements. Some shells
+   have problems with -a operator.
+ - (tim) [configure.ac] make some configure options a little more error proof.
+ - (tim) [configure.ac] remove trailing white space.
+
+20050314
+ - (dtucker) OpenBSD CVS Sync
+   - dtucker@cvs.openbsd.org 2005/03/10 10:15:02
+     [readconf.c]
+     Check listen addresses for null, prevents xfree from dying during
+     ClearAllForwardings (bz #996).  From  Craig Leres, ok markus@
+   - deraadt@cvs.openbsd.org 2005/03/10 22:01:05
+     [misc.c ssh-keygen.c servconf.c clientloop.c auth-options.c ssh-add.c
+     monitor.c sftp-client.c bufaux.h hostfile.c ssh.c sshconnect.c channels.c
+     readconf.c bufaux.c sftp.c]
+     spacing
+   - deraadt@cvs.openbsd.org 2005/03/10 22:40:38
+     [auth-options.c]
+     spacing
+   - markus@cvs.openbsd.org 2005/03/11 14:59:06
+     [ssh-keygen.c]
+     typo, missing \n; mpech
+   - jmc@cvs.openbsd.org 2005/03/12 11:55:03
+     [ssh_config.5]
+     escape `.' at eol to avoid double spacing issues;
+   - dtucker@cvs.openbsd.org 2005/03/14 10:09:03
+     [ssh-keygen.1]
+     Correct description of -H (bz #997);  ok markus@, punctuation jmc@
+   - dtucker@cvs.openbsd.org 2005/03/14 11:44:42
+     [auth.c]
+     Populate host for log message for logins denied by AllowUsers and
+     DenyUsers (bz #999); ok markus@ (patch by tryponraj at gmail.com)
+   - markus@cvs.openbsd.org 2005/03/14 11:46:56
+     [buffer.c buffer.h channels.c]
+     limit input buffer size for channels; bugzilla #896; with and ok dtucker@
+ - (tim) [contrib/caldera/openssh.spec] links in rc?.d were getting trashed
+   with a rpm -F
+
+20050313
+ - (dtucker) [contrib/cygwin/ssh-host-config] Makes the query for the
+   localized name of the local administrators group more reliable.  From
+   vinschen at redhat.com.
+
+20050312
+ - (dtucker) [regress/test-exec.sh] DEBUG can cause problems where debug
+   output ends up in the client's output, causing regress failures.  Found
+   by Corinna Vinschen.
+
 20050309
  - (dtucker) [regress/test-exec.sh] Set BIN_SH=xpg4 on OSF1/Digital Unix/Tru64
    so that regress tests behave.  From Chris Adams.
@@ -2321,4 +2496,4 @@
    - (djm) Trim deprecated options from INSTALL. Mention UsePAM
    - (djm) Fix quote handling in sftp; Patch from admorten AT umich.edu
 
-$Id: ChangeLog,v 1.3707.2.1 2005/03/09 04:52:09 djm Exp $
+$Id: ChangeLog,v 1.3758.2.2 2005/05/25 12:24:56 djm Exp $

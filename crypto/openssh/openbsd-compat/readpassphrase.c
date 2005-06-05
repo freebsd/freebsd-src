@@ -137,8 +137,11 @@ restart:
 		(void)write(output, "\n", 1);
 
 	/* Restore old terminal settings and signals. */
-	if (memcmp(&term, &oterm, sizeof(term)) != 0)
-		(void)tcsetattr(input, _T_FLUSH, &oterm);
+	if (memcmp(&term, &oterm, sizeof(term)) != 0) {
+		while (tcsetattr(input, _T_FLUSH, &oterm) == -1 &&
+		    errno == EINTR)
+			continue;
+	}
 	(void)sigaction(SIGALRM, &savealrm, NULL);
 	(void)sigaction(SIGHUP, &savehup, NULL);
 	(void)sigaction(SIGINT, &saveint, NULL);
