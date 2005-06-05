@@ -11,6 +11,8 @@
  * license.
  *
  * See README and COPYING for more details.
+ *
+ * $FreeBSD$
  */
 
 #include <stdlib.h>
@@ -755,7 +757,6 @@ void ieee802_1x_receive(hostapd *hapd, u8 *sa, u8 *buf, size_t len)
 		sta->eapol_sm->auth_pae.eapolStart = TRUE;
 		sta->eapol_sm->dot1xAuthEapolStartFramesRx++;
 		wpa_sm_event(hapd, sta, WPA_REAUTH_EAPOL);
-		eapol_sm_step(sta->eapol_sm);
 		break;
 
 	case IEEE802_1X_TYPE_EAPOL_LOGOFF:
@@ -766,7 +767,6 @@ void ieee802_1x_receive(hostapd *hapd, u8 *sa, u8 *buf, size_t len)
 			RADIUS_ACCT_TERMINATE_CAUSE_USER_REQUEST;
 		sta->eapol_sm->auth_pae.eapolLogoff = TRUE;
 		sta->eapol_sm->dot1xAuthEapolLogoffFramesRx++;
-		eapol_sm_step(sta->eapol_sm);
 		break;
 
 	case IEEE802_1X_TYPE_EAPOL_KEY:
@@ -809,8 +809,29 @@ void ieee802_1x_new_station(hostapd *hapd, struct sta_info *sta)
 	hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE8021X,
 		       HOSTAPD_LEVEL_DEBUG, "start authentication");
 	sta->eapol_sm = eapol_sm_alloc(hapd, sta);
-	if (sta->eapol_sm)
-		sta->eapol_sm->portEnabled = TRUE;
+	if (sta->eapol_sm == NULL) {
+		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE8021X,
+			       HOSTAPD_LEVEL_INFO, "failed to allocate "
+			       "state machine");
+		return;
+	}
+
+	sta->eapol_sm->portEnabled = TRUE;
+
+	if (sta->pmksa) {
+		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE8021X,
+			       HOSTAPD_LEVEL_DEBUG,
+			       "PMK from PMKSA cache - skip IEEE 802.1X/EAP");
+		/* Setup EAPOL state machines to already authenticated state
+		 * because of existing PMKSA information in the cache. */
+		sta->eapol_sm->keyRun = TRUE;
+		sta->eapol_sm->keyAvailable = TRUE;
+		sta->eapol_sm->auth_pae.state = AUTH_PAE_AUTHENTICATING;
+		sta->eapol_sm->be_auth.state = BE_AUTH_SUCCESS;
+		sta->eapol_sm->authSuccess = TRUE;
+		if (sta->eapol_sm->eap)
+			eap_sm_notify_cached(sta->eapol_sm->eap);
+	}
 }
 
 
@@ -1647,3 +1668,18 @@ int ieee802_1x_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
 
 	return len;
 }
+
+void ieee802_1x_finished(struct hostapd_data *hapd, struct sta_info *sta,
+			 int success)
+{
+	u8 *key;
+	size_t len;
+	/* TODO: get PMKLifetime from WPA parameters */
+	static const int dot11RSNAConfigPMKLifetime = 43200;
+
+	key = ieee802_1x_get_key_crypt(sta->eapol_sm, &len);
+	if (success && key) {
+		pmksa_cache_add(hapd, sta, key, dot11RSNAConfigPMKLifetime);
+	}
+}
+

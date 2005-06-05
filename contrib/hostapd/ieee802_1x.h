@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #ifndef IEEE802_1X_H
 #define IEEE802_1X_H
 
@@ -10,7 +12,13 @@ struct ieee802_1x_hdr {
 	/* followed by length octets of data */
 } __attribute__ ((packed));
 
+
+#if defined(IEEE802_1X_EAPOL_VERSION_2)
 #define EAPOL_VERSION 2
+#else
+/* Enable support for older Authenticators/Supplicants using EAPOL Version 1 */
+#define EAPOL_VERSION 1
+#endif /* ! IEEE802_1X_EAPOL_VERSION_2 */
 
 enum { IEEE802_1X_TYPE_EAP_PACKET = 0,
        IEEE802_1X_TYPE_EAPOL_START = 1,
@@ -80,5 +88,7 @@ int ieee802_1x_get_mib(struct hostapd_data *hapd, char *buf, size_t buflen);
 int ieee802_1x_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
 			   char *buf, size_t buflen);
 void hostapd_get_ntp_timestamp(u8 *buf);
+void ieee802_1x_finished(struct hostapd_data *hapd, struct sta_info *sta,
+			 int success);
 
 #endif /* IEEE802_1X_H */
