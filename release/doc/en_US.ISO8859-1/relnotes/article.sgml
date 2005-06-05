@@ -571,6 +571,11 @@
 	high availability and load balancing.
 	For more information, see the &man.carp.4; manual page.  &merged;</para>
 
+      <para>The &man.if.bridge.4; network bridging implementation,
+	originally from NetBSD, has been added.  It supports the IEEE
+	802.1D Spanning Tree Protocol, individual interface devices
+	for each bridge, and filtering of bridged packets.</para>
+
       <para>The &man.ipfw.4; <literal>IPDIVERT</literal> option is now
 	available as a kernel loadable module.
 	If this module is not loaded, &man.ipfw.4; will refuse to
@@ -1252,7 +1257,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       Eelgrass release to the Feterita release.</para>
 
     <para><application>OpenSSH</application> has been updated from 3.8p1
-      to 3.9p1.</para>
+      to 4.1p1.</para>
 
     <para><application>OpenSSL</application> has been updated from
       0.9.7d to 0.9.7e. &merged;</para>
