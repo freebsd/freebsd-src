@@ -213,7 +213,6 @@ struct aio_liojob {
 	int	lioj_queue_finished_count;
 	struct	sigevent lioj_signal;	/* signal on all I/O done */
 	TAILQ_ENTRY(aio_liojob) lioj_list;
-	struct	kaioinfo *lioj_ki;
 };
 #define	LIOJ_SIGNAL		0x1	/* signal on all done (lio) */
 #define	LIOJ_SIGNAL_POSTED	0x2	/* signal has been posted */
@@ -1967,7 +1966,6 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 	lj->lioj_buffer_finished_count = 0;
 	lj->lioj_queue_count = 0;
 	lj->lioj_queue_finished_count = 0;
-	lj->lioj_ki = ki;
 
 	/*
 	 * Setup signal.
