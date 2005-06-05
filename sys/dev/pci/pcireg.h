@@ -81,9 +81,6 @@
 #define PCIR_CACHELNSZ	0x0c
 #define PCIR_LATTIMER	0x0d
 #define PCIR_HDRTYPE	0x0e
-#ifndef BURN_BRIDGES
-#define	PCIR_HEADERTYPE	PCIR_HDRTYPE
-#endif
 #define PCIM_HDRTYPE		0x7f
 #define PCIM_HDRTYPE_NORMAL	0x00
 #define PCIM_HDRTYPE_BRIDGE	0x01
@@ -114,9 +111,6 @@
 
 #define PCIR_BARS	0x10
 #define	PCIR_BAR(x)	(PCIR_BARS + (x) * 4)
-#ifndef BURN_BRIDGES
-#define	PCIR_MAPS	PCIR_BARS
-#endif
 #define PCIR_CARDBUSCIS	0x28
 #define PCIR_SUBVEND_0	0x2c
 #define PCIR_SUBDEV_0	0x2e
