@@ -591,12 +591,12 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	/*
-	* Tap the packet off here for a bridge.  bridge_input()
-	* will return NULL if it has consumed the packet, otherwise
-	* it gets processed as normal.  Note that bridge_input()
-	* will always return the original packet if we need to
-	* process it locally.
-	*/
+	 * Tap the packet off here for a bridge.  bridge_input()
+	 * will return NULL if it has consumed the packet, otherwise
+	 * it gets processed as normal.  Note that bridge_input()
+	 * will always return the original packet if we need to
+	 * process it locally.
+	 */
 	if (ifp->if_bridge) {
 		KASSERT(bridge_input_p != NULL,
 		    ("ether_input: if_bridge not loaded!"));
@@ -618,10 +618,10 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		if (m == NULL)
 			return;
 		/*
-		* Bridge has determined that the packet is for us.
-		* Update our interface pointer -- we may have had
-		* to "bridge" the packet locally.
-		*/
+		 * Bridge has determined that the packet is for us.
+		 * Update our interface pointer -- we may have had
+		 * to "bridge" the packet locally.
+		 */
 		ifp = m->m_pkthdr.rcvif;
 	}
 
