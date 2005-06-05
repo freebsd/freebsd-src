@@ -102,12 +102,13 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	struct iovec *iov;
 	struct vmspace *vmspace;
 	struct vm_map *map;
-	vm_offset_t uva;
+	vm_offset_t offset, uva;
 	int s;
 
 	vmspace = curproc->p_vmspace;
 	map = &vmspace->vm_map;
 	uva = (vm_offset_t) uio->uio_iov->iov_base;
+	offset = uva & PAGE_MASK;
 
 	s = splvm();
 
@@ -158,22 +159,22 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	/* 
 	 * attach to mbuf
 	 */
-	m0->m_data = (caddr_t)sf_buf_kva(sf);
-	m0->m_len = PAGE_SIZE;
 	MEXTADD(m0, sf_buf_kva(sf), PAGE_SIZE, socow_iodone, sf, M_RDONLY,
 	    EXT_SFBUF);
+	m0->m_len = PAGE_SIZE - offset;
+	m0->m_data = (caddr_t)sf_buf_kva(sf) + offset;
 	socow_stats.success++;
 
 	iov = uio->uio_iov;
-	iov->iov_base = (char *)iov->iov_base + PAGE_SIZE;
-	iov->iov_len -= PAGE_SIZE;
-	uio->uio_resid -= PAGE_SIZE;
-	uio->uio_offset += PAGE_SIZE;
+	iov->iov_base = (char *)iov->iov_base + m0->m_len;
+	iov->iov_len -= m0->m_len;
+	uio->uio_resid -= m0->m_len;
+	uio->uio_offset += m0->m_len;
 	if (iov->iov_len == 0) {
 		uio->uio_iov++;
 		uio->uio_iovcnt--;
 	}
 
 	splx(s);
-	return(1);
+	return(m0->m_len);
 }
