@@ -2612,7 +2612,7 @@ static LONG arcmsr_detach(device_t dev)
 
 	arcmsr_shutdown(dev);
 	arcmsr_free_resource(pACB);
-	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_MAPS, pACB->sys_res_arcmsr);
+	bus_release_resource(dev, SYS_RES_MEMORY, PCI_BASE_ADDR0, pACB->sys_res_arcmsr);
 	bus_teardown_intr(dev, pACB->irqres, pACB->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, pACB->irqres);
 	xpt_async(AC_LOST_DEVICE, pACB->ppath, NULL);
