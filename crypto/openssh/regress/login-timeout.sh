@@ -1,4 +1,4 @@
-#	$OpenBSD: login-timeout.sh,v 1.3 2004/03/08 10:17:12 dtucker Exp $
+#	$OpenBSD: login-timeout.sh,v 1.4 2005/02/27 23:13:36 djm Exp $
 #	Placed in the Public Domain.
 
 tid="connect after login grace timeout"
@@ -8,7 +8,7 @@ echo "LoginGraceTime 10s" >> $OBJ/sshd_config
 echo "MaxStartups 1" >> $OBJ/sshd_config
 start_sshd
 
-(echo SSH-2.0-fake; sleep 60) | telnet localhost ${PORT} >/dev/null 2>&1 & 
+(echo SSH-2.0-fake; sleep 60) | telnet 127.0.0.1 ${PORT} >/dev/null 2>&1 & 
 sleep 15
 ${SSH} -F $OBJ/ssh_config somehost true
 if [ $? -ne 0 ]; then
@@ -21,7 +21,7 @@ trace "test login grace without privsep"
 echo "UsePrivilegeSeparation no" >> $OBJ/sshd_config
 start_sshd
 
-(echo SSH-2.0-fake; sleep 60) | telnet localhost ${PORT} >/dev/null 2>&1 & 
+(echo SSH-2.0-fake; sleep 60) | telnet 127.0.0.1 ${PORT} >/dev/null 2>&1 & 
 sleep 15
 ${SSH} -F $OBJ/ssh_config somehost true
 if [ $? -ne 0 ]; then

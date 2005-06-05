@@ -38,9 +38,8 @@ privsep user and chroot directory:
 Privsep requires operating system support for file descriptor passing.
 Compression will be disabled on systems without a working mmap MAP_ANON.
 
-PAM-enabled OpenSSH is known to function with privsep on Linux.
-It does not function on HP-UX with a trusted system
-configuration.
+PAM-enabled OpenSSH is known to function with privsep on AIX, HP-UX
+(including Trusted Mode), Linux and Solaris.
 
 On Cygwin, Tru64 Unix, OpenServer, and Unicos only the pre-authentication
 part of privsep is supported.  Post-authentication privsep is disabled
@@ -61,4 +60,4 @@ process 1005 is the sshd process listening for new connections.
 process 6917 is the privileged monitor process, 6919 is the user owned
 sshd process and 6921 is the shell process.
 
-$Id: README.privsep,v 1.14 2004/06/28 03:50:36 tim Exp $
+$Id: README.privsep,v 1.15 2004/10/06 10:09:32 dtucker Exp $

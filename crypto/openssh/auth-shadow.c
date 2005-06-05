@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: auth-shadow.c,v 1.5 2004/02/21 23:22:05 dtucker Exp $");
+RCSID("$Id: auth-shadow.c,v 1.6 2005/02/16 03:20:06 dtucker Exp $");
 
 #if defined(USE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
 #include <shadow.h>
@@ -32,6 +32,9 @@ RCSID("$Id: auth-shadow.c,v 1.5 2004/02/21 23:22:05 dtucker Exp $");
 #include "buffer.h"
 #include "log.h"
 
+#ifdef DAY
+# undef DAY
+#endif
 #define DAY	(24L * 60 * 60) /* 1 day in seconds */
 
 extern Buffer loginmsg;
