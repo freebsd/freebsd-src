@@ -417,7 +417,11 @@ ata_ahci_setup_fis(u_int8_t *fis, struct ata_request *request)
     fis[idx++] = request->u.ata.lba;
     fis[idx++] = request->u.ata.lba >> 8;
     fis[idx++] = request->u.ata.lba >> 16;
-    fis[idx++] = ATA_D_LBA | atadev->unit;
+    fis[idx] = ATA_D_LBA | atadev->unit;
+    if (atadev->flags & ATA_D_48BIT_ACTIVE)
+	idx++;
+    else
+	fis[idx++] |= (request->u.ata.lba >> 24 & 0x0f);
 
     fis[idx++] = request->u.ata.lba >> 24;
     fis[idx++] = request->u.ata.lba >> 32; 
@@ -1498,7 +1502,8 @@ ata_intel_reset(device_t dev)
 
     /* ICH6 has 4 SATA ports as master/slave on 2 channels so deal with pairs */
     if (ctlr->chip->chipid == ATA_I82801FB_S1 ||
-	ctlr->chip->chipid == ATA_I82801FB_R1) {
+	ctlr->chip->chipid == ATA_I82801FB_R1 ||
+	ctlr->chip->chipid == ATA_I82801FB_M) {
 	mask = (0x0005 << ch->unit);
     }
     else {
