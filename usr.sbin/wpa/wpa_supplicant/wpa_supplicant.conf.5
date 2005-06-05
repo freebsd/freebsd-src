@@ -1,0 +1,157 @@
+.\" Copyright (c) 2005 Sam Leffler <sam@errno.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 3, 2005
+.Dt WPA_SUPPLICANT.CONF 5
+.Os
+.Sh NAME
+.Nm wpa_supplicant.conf
+.Nd "configuration file for wpa_supplicant utility"
+.Sh DESCRIPTION
+The
+.Xr wpa_supplicant 1
+program is an implementation of the WPA Supplicant component,
+i.e., the part that runs in the client stations.
+.Nm wpa_supplicant
+implements WPA key negotiation with a WPA Authenticator
+and EAP authentication with Authentication Server using
+configuration information stored in a text file.
+.Pp
+The configuration file consists of one or more network blocks, e.g.
+one for each used SSID.
+.Nm wpa_supplicant
+will automatically select the best network based on the order of
+the network blocks in the configuration file, network security level
+(WPA/WPA2 is preferred), and signal strength.
+.Sh CERTIFICATES
+.Pp
+Some EAP authentication methods require use of certificates.
+EAP-TLS uses both server- and client-side certificates,
+whereas EAP-PEAP and EAP-TTLS only require a server-side certificate.
+When a client certificate is used, a matching private key file must
+also be included in configuration.
+If the private key uses a passphrase, this
+has to be configured in the wpa_supplicant.conf file as "private_key_passwd".
+.Pp
+.Nm wpa_supplicant
+supports X.509 certificates in PEM and DER formats.
+User certificate and private key can be included in the same file.
+.Pp
+If the user certificate and private key is received in PKCS#12/PFX
+format, they need to be converted to suitable PEM/DER format for
+use by
+.Nm wpa_supplicant.
+This can be done using the
+.Xr openssl 1
+program, e.g. with following commands:
+.Bd -literal
+# convert client certificate and private key to PEM format
+openssl pkcs12 -in example.pfx -out user.pem -clcerts
+# convert CA certificate (if included in PFX file) to PEM format
+openssl pkcs12 -in example.pfx -out ca.pem -cacerts -nokeys
+.Be
+.Sh EXAMPLES
+.Pp
+WPA-Personal (PSK) as a home network and WPA-Enterprise with EAP-TLS
+as a work network:
+.Bd -literal
+# allow frontend (e.g., wpa_cli) to be used by all users in 'wheel' group
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+#
+# home network; allow all valid ciphers
+network={
+        ssid="home"
+        scan_ssid=1
+        key_mgmt=WPA-PSK
+        psk="very secret passphrase"
+}
+#
+# work network; use EAP-TLS with WPA; allow only CCMP and TKIP ciphers
+network={
+        ssid="work"
+        scan_ssid=1
+        key_mgmt=WPA-EAP
+        pairwise=CCMP TKIP
+        group=CCMP TKIP
+        eap=TLS
+        identity="user@example.com"
+        ca_cert="/etc/cert/ca.pem"
+        client_cert="/etc/cert/user.pem"
+        private_key="/etc/cert/user.prv"
+        private_key_passwd="password"
+}
+.Ed
+.Pp
+WPA-RADIUS/EAP-PEAP/MSCHAPv2 with RADIUS servers that use old peaplabel
+(e.g., Funk Odyssey and SBR, Meetinghouse Aegis, Interlink RAD-Series):
+.Bd -literal
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+network={
+        ssid="example"
+        scan_ssid=1
+        key_mgmt=WPA-EAP
+        eap=PEAP
+        identity="user@example.com"
+        password="foobar"
+        ca_cert="/etc/cert/ca.pem"
+        phase1="peaplabel=0"
+        phase2="auth=MSCHAPV2"
+}
+.Ed
+.Pp
+EAP-TTLS/EAP-MD5-Challenge configuration with anonymous identity for the
+unencrypted use. Real identity is sent only within an encrypted TLS tunnel.
+.Bd -literal
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+network={
+        ssid="example"
+        scan_ssid=1
+        key_mgmt=WPA-EAP
+        eap=TTLS
+        identity="user@example.com"
+        anonymous_identity="anonymous@example.com"
+        password="foobar"
+        ca_cert="/etc/cert/ca.pem"
+        phase2="auth=MD5"
+}
+.Ed
+.Sh SEE ALSO
+.Xr wpa_supplicant 1
+.Sh HISTORY
+The
+.Nm
+manual page and
+.Nm wpa_supplicant
+functionality first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+This manual page is derived from the README file in the
+.Nm wpa_supplicant
+distribution provided by
+.An Jouni Malinen  Aq jkmaline@cc.hut.fi .
