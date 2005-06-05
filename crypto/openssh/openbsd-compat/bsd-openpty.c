@@ -102,7 +102,6 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 		return (-1);
 	}
 
-#ifndef HAVE_CYGWIN
 	/*
 	 * Try to push the appropriate streams modules, as described 
 	 * in Solaris pts(7).
@@ -112,7 +111,6 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 # ifndef __hpux
 	ioctl(*aslave, I_PUSH, "ttcompat");
 # endif /* __hpux */
-#endif /* HAVE_CYGWIN */
 
 	return (0);
 

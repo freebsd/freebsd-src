@@ -52,6 +52,14 @@ http://www.lothar.com/tech/crypto/
 S/Key Libraries:
 http://www.sparc.spb.su/solaris/skey/
 
+LibEdit:
+
+sftp now supports command-line editing via NetBSD's libedit.  If your
+platform has it available natively you can use that, alternatively
+you might try these multi-platform ports:
+http://www.thrysoee.dk/editline/
+http://sourceforge.net/projects/libedit/
+
 If you wish to use --with-skey then you will need the above library
 installed.  No other current S/Key library is currently known to be
 supported.
@@ -192,7 +200,20 @@ running and has collected some Entropy.
 For more information on configuration, please refer to the manual pages
 for sshd, ssh and ssh-agent.
 
-4. Problems?
+4. (Optional) Send survey
+-------------------------
+
+$ make survey
+[check the contents and make sure there's no sensitive information]
+$ make send-survey
+
+This will send configuration information for the currently configured
+host to a survey address.  This will help determine which configurations
+are actually in use, and what valid combinations of configure options
+exist.  The raw data is available only to the OpenSSH developers, however
+summary data may be published.
+
+5. Problems?
 ------------
 
 If you experience problems compiling, installing or running OpenSSH.
@@ -200,4 +221,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.64 2004/05/26 23:59:31 dtucker Exp $
+$Id: INSTALL,v 1.66 2005/01/18 01:05:18 dtucker Exp $

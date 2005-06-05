@@ -29,7 +29,7 @@
 
 #include "includes.h"
 
-RCSID("$Id: bsd-cygwin_util.c,v 1.12 2004/04/18 11:15:45 djm Exp $");
+RCSID("$Id: bsd-cygwin_util.c,v 1.13 2004/08/30 10:42:08 dtucker Exp $");
 
 #ifdef HAVE_CYGWIN
 
@@ -38,6 +38,7 @@ RCSID("$Id: bsd-cygwin_util.c,v 1.12 2004/04/18 11:15:45 djm Exp $");
 #include <sys/utsname.h>
 #include <sys/vfs.h>
 #include <windows.h>
+#include "xmalloc.h"
 #define is_winnt       (GetVersion() < 0x80000000)
 
 #define ntsec_on(c)	((c) && strstr((c),"ntsec") && !strstr((c),"nontsec"))
@@ -96,7 +97,6 @@ has_capability(int what)
 	 */
 	if (!inited) {
 		struct utsname uts;
-		char *c;
 		
 		if (!uname(&uts)) {
 			int major_high = 0, major_low = 0, minor = 0;
@@ -234,6 +234,56 @@ register_9x_service(void)
 		GetProcAddress(kerneldll, "RegisterServiceProcess")))
 		return;
 	RegisterServiceProcess(0, 1);
+}
+
+#define NL(x) x, (sizeof (x) - 1)
+#define WENV_SIZ (sizeof (wenv_arr) / sizeof (wenv_arr[0]))
+
+static struct wenv {
+	const char *name;
+	size_t namelen;
+} wenv_arr[] = {
+	{ NL("ALLUSERSPROFILE=") },
+	{ NL("COMMONPROGRAMFILES=") },
+	{ NL("COMPUTERNAME=") },
+	{ NL("COMSPEC=") },
+	{ NL("NUMBER_OF_PROCESSORS=") },
+	{ NL("OS=") },
+	{ NL("PATH=") },
+	{ NL("PATHEXT=") },
+	{ NL("PROCESSOR_ARCHITECTURE=") },
+	{ NL("PROCESSOR_IDENTIFIER=") },
+	{ NL("PROCESSOR_LEVEL=") },
+	{ NL("PROCESSOR_REVISION=") },
+	{ NL("PROGRAMFILES=") },
+	{ NL("SYSTEMDRIVE=") },
+	{ NL("SYSTEMROOT=") },
+	{ NL("TMP=") },
+	{ NL("TEMP=") },
+	{ NL("WINDIR=") },
+};
+
+char **
+fetch_windows_environment(void)
+{
+	char **e, **p;
+	int i, idx = 0;
+
+	p = xmalloc(WENV_SIZ * sizeof(char *));
+	for (e = environ; *e != NULL; ++e) {
+		for (i = 0; i < WENV_SIZ; ++i) {
+			if (!strncmp(*e, wenv_arr[i].name, wenv_arr[i].namelen))
+				p[idx++] = *e;
+		}
+	}
+	p[idx] = NULL;
+	return p;
+}
+
+void
+free_windows_environment(char **p)
+{
+	xfree(p);
 }
 
 #endif /* HAVE_CYGWIN */

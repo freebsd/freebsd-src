@@ -1,4 +1,4 @@
-/* $Id: bsd-misc.h,v 1.17 2004/08/15 08:41:00 djm Exp $ */
+/* $Id: bsd-misc.h,v 1.18 2005/02/25 23:07:38 dtucker Exp $ */
 
 /*
  * Copyright (c) 1999-2004 Damien Miller <djm@mindrot.org>
@@ -66,10 +66,6 @@ int utimes(char *, struct timeval *);
 #ifndef HAVE_TRUNCATE
 int truncate (const char *, off_t);
 #endif /* HAVE_TRUNCATE */
-
-#if !defined(HAVE_SETGROUPS) && defined(SETGROUPS_NOOP)
-int setgroups(size_t, const gid_t *);
-#endif
 
 #if !defined(HAVE_NANOSLEEP) && !defined(HAVE_NSLEEP)
 #ifndef HAVE_STRUCT_TIMESPEC

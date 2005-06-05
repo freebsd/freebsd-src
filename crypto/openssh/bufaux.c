@@ -37,7 +37,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: bufaux.c,v 1.32 2004/02/23 15:12:46 markus Exp $");
+RCSID("$OpenBSD: bufaux.c,v 1.34 2004/12/06 16:00:43 markus Exp $");
 
 #include <openssl/bn.h>
 #include "bufaux.h"
@@ -49,8 +49,8 @@ RCSID("$OpenBSD: bufaux.c,v 1.32 2004/02/23 15:12:46 markus Exp $");
  * Stores an BIGNUM in the buffer with a 2-byte msb first bit count, followed
  * by (bits+7)/8 bytes of binary data, msb first.
  */
-void
-buffer_put_bignum(Buffer *buffer, const BIGNUM *value)
+int
+buffer_put_bignum_ret(Buffer *buffer, const BIGNUM *value)
 {
 	int bits = BN_num_bits(value);
 	int bin_size = (bits + 7) / 8;
@@ -60,9 +60,11 @@ buffer_put_bignum(Buffer *buffer, const BIGNUM *value)
 
 	/* Get the value of in binary */
 	oi = BN_bn2bin(value, buf);
-	if (oi != bin_size)
-		fatal("buffer_put_bignum: BN_bn2bin() failed: oi %d != bin_size %d",
+	if (oi != bin_size) {
+		error("buffer_put_bignum_ret: BN_bn2bin() failed: oi %d != bin_size %d",
 		    oi, bin_size);
+		return (-1);
+	}
 
 	/* Store the number of bits in the buffer in two bytes, msb first. */
 	PUT_16BIT(msg, bits);
@@ -72,36 +74,63 @@ buffer_put_bignum(Buffer *buffer, const BIGNUM *value)
 
 	memset(buf, 0, bin_size);
 	xfree(buf);
+
+	return (0);
+}
+
+void
+buffer_put_bignum(Buffer *buffer, const BIGNUM *value)
+{
+	if (buffer_put_bignum_ret(buffer, value) == -1)
+		fatal("buffer_put_bignum: buffer error");
 }
 
 /*
  * Retrieves an BIGNUM from the buffer.
  */
-void
-buffer_get_bignum(Buffer *buffer, BIGNUM *value)
+int
+buffer_get_bignum_ret(Buffer *buffer, BIGNUM *value)
 {
 	u_int bits, bytes;
 	u_char buf[2], *bin;
 
 	/* Get the number for bits. */
-	buffer_get(buffer, (char *) buf, 2);
+	if (buffer_get_ret(buffer, (char *) buf, 2) == -1) {
+		error("buffer_get_bignum_ret: invalid length");
+		return (-1);
+	}
 	bits = GET_16BIT(buf);
 	/* Compute the number of binary bytes that follow. */
 	bytes = (bits + 7) / 8;
-	if (bytes > 8 * 1024)
-		fatal("buffer_get_bignum: cannot handle BN of size %d", bytes);
-	if (buffer_len(buffer) < bytes)
-		fatal("buffer_get_bignum: input buffer too small");
+	if (bytes > 8 * 1024) {
+		error("buffer_get_bignum_ret: cannot handle BN of size %d", bytes);
+		return (-1);
+	}
+	if (buffer_len(buffer) < bytes) {
+		error("buffer_get_bignum_ret: input buffer too small");
+		return (-1);
+	}
 	bin = buffer_ptr(buffer);
 	BN_bin2bn(bin, bytes, value);
-	buffer_consume(buffer, bytes);
+	if (buffer_consume_ret(buffer, bytes) == -1) {
+		error("buffer_get_bignum_ret: buffer_consume failed");
+		return (-1);
+	}
+	return (0);
+}
+
+void
+buffer_get_bignum(Buffer *buffer, BIGNUM *value)
+{
+	if (buffer_get_bignum_ret(buffer, value) == -1)
+		fatal("buffer_get_bignum: buffer error");
 }
 
 /*
  * Stores an BIGNUM in the buffer in SSH2 format.
  */
-void
-buffer_put_bignum2(Buffer *buffer, const BIGNUM *value)
+int
+buffer_put_bignum2_ret(Buffer *buffer, const BIGNUM *value)
 {
 	u_int bytes;
 	u_char *buf;
@@ -110,69 +139,140 @@ buffer_put_bignum2(Buffer *buffer, const BIGNUM *value)
 
 	if (BN_is_zero(value)) {
 		buffer_put_int(buffer, 0);
-		return;
+		return 0;
 	}
-	if (value->neg)
-		fatal("buffer_put_bignum2: negative numbers not supported");
+	if (value->neg) {
+		error("buffer_put_bignum2_ret: negative numbers not supported");
+		return (-1);
+	}
 	bytes = BN_num_bytes(value) + 1; /* extra padding byte */
-	if (bytes < 2)
-		fatal("buffer_put_bignum2: BN too small");
+	if (bytes < 2) {
+		error("buffer_put_bignum2_ret: BN too small");
+		return (-1);
+	}
 	buf = xmalloc(bytes);
-	buf[0] = '\0';
+	buf[0] = 0x00;
 	/* Get the value of in binary */
 	oi = BN_bn2bin(value, buf+1);
-	if (oi != bytes-1)
-		fatal("buffer_put_bignum2: BN_bn2bin() failed: "
+	if (oi != bytes-1) {
+		error("buffer_put_bignum2_ret: BN_bn2bin() failed: "
 		    "oi %d != bin_size %d", oi, bytes);
+		xfree(buf);
+		return (-1);
+	}
 	hasnohigh = (buf[1] & 0x80) ? 0 : 1;
 	buffer_put_string(buffer, buf+hasnohigh, bytes-hasnohigh);
 	memset(buf, 0, bytes);
 	xfree(buf);
+	return (0);
+}
+
+void
+buffer_put_bignum2(Buffer *buffer, const BIGNUM *value)
+{
+	if (buffer_put_bignum2_ret(buffer, value) == -1)
+		fatal("buffer_put_bignum2: buffer error");
+}
+
+int
+buffer_get_bignum2_ret(Buffer *buffer, BIGNUM *value)
+{
+	u_int len;
+	u_char *bin;
+	
+	if ((bin = buffer_get_string_ret(buffer, &len)) == NULL) {
+		error("buffer_get_bignum2_ret: invalid bignum");
+		return (-1);
+	}
+
+	if (len > 0 && (bin[0] & 0x80)) {
+		error("buffer_get_bignum2_ret: negative numbers not supported");
+		return (-1);
+	}
+	if (len > 8 * 1024) {
+		error("buffer_get_bignum2_ret: cannot handle BN of size %d", len);
+		return (-1);
+	}
+	BN_bin2bn(bin, len, value);
+	xfree(bin);
+	return (0);
 }
 
 void
 buffer_get_bignum2(Buffer *buffer, BIGNUM *value)
 {
-	u_int len;
-	u_char *bin = buffer_get_string(buffer, &len);
-
-	if (len > 0 && (bin[0] & 0x80))
-		fatal("buffer_get_bignum2: negative numbers not supported");
-	if (len > 8 * 1024)
-		fatal("buffer_get_bignum2: cannot handle BN of size %d", len);
-	BN_bin2bn(bin, len, value);
-	xfree(bin);
+	if (buffer_get_bignum2_ret(buffer, value) == -1)
+		fatal("buffer_get_bignum2: buffer error");
 }
 
 /*
  * Returns integers from the buffer (msb first).
  */
 
-u_short
-buffer_get_short(Buffer *buffer)
+int
+buffer_get_short_ret(u_short *ret, Buffer *buffer)
 {
 	u_char buf[2];
 
-	buffer_get(buffer, (char *) buf, 2);
-	return GET_16BIT(buf);
+	if (buffer_get_ret(buffer, (char *) buf, 2) == -1)
+		return (-1);
+	*ret = GET_16BIT(buf);
+	return (0);
+}
+
+u_short
+buffer_get_short(Buffer *buffer)
+{
+	u_short ret;
+
+	if (buffer_get_short_ret(&ret, buffer) == -1)
+		fatal("buffer_get_short: buffer error");
+
+	return (ret);
+}
+
+int
+buffer_get_int_ret(u_int *ret, Buffer *buffer)
+{
+	u_char buf[4];
+
+	if (buffer_get_ret(buffer, (char *) buf, 4) == -1)
+		return (-1);
+	*ret = GET_32BIT(buf);
+	return (0);
 }
 
 u_int
 buffer_get_int(Buffer *buffer)
 {
-	u_char buf[4];
+	u_int ret;
 
-	buffer_get(buffer, (char *) buf, 4);
-	return GET_32BIT(buf);
+	if (buffer_get_int_ret(&ret, buffer) == -1)
+		fatal("buffer_get_int: buffer error");
+
+	return (ret);
+}
+
+int
+buffer_get_int64_ret(u_int64_t *ret, Buffer *buffer)
+{
+	u_char buf[8];
+
+	if (buffer_get_ret(buffer, (char *) buf, 8) == -1)
+		return (-1);
+	*ret = GET_64BIT(buf);
+	return (0);
 }
 
 u_int64_t
 buffer_get_int64(Buffer *buffer)
 {
-	u_char buf[8];
+	u_int64_t ret;
 
-	buffer_get(buffer, (char *) buf, 8);
-	return GET_64BIT(buf);
+	if (buffer_get_int64_ret(&ret, buffer) == -1)
+		fatal("buffer_get_int: buffer error");
+
+	return (ret);
 }
 
 /*
@@ -214,25 +314,41 @@ buffer_put_int64(Buffer *buffer, u_int64_t value)
  * to the returned string, and is not counted in length.
  */
 void *
-buffer_get_string(Buffer *buffer, u_int *length_ptr)
+buffer_get_string_ret(Buffer *buffer, u_int *length_ptr)
 {
 	u_char *value;
 	u_int len;
 
 	/* Get the length. */
 	len = buffer_get_int(buffer);
-	if (len > 256 * 1024)
-		fatal("buffer_get_string: bad string length %u", len);
+	if (len > 256 * 1024) {
+		error("buffer_get_string_ret: bad string length %u", len);
+		return (NULL);
+	}
 	/* Allocate space for the string.  Add one byte for a null character. */
 	value = xmalloc(len + 1);
 	/* Get the string. */
-	buffer_get(buffer, value, len);
+	if (buffer_get_ret(buffer, value, len) == -1) {
+		error("buffer_get_string_ret: buffer_get failed");
+		xfree(value);
+		return (NULL);
+	}
 	/* Append a null character to make processing easier. */
 	value[len] = 0;
 	/* Optionally return the length of the string. */
 	if (length_ptr)
 		*length_ptr = len;
-	return value;
+	return (value);
+}
+
+void *
+buffer_get_string(Buffer *buffer, u_int *length_ptr)
+{
+	void *ret;
+
+	if ((ret = buffer_get_string_ret(buffer, length_ptr)) == NULL)
+		fatal("buffer_get_string: buffer error");
+	return (ret);
 }
 
 /*
@@ -256,11 +372,22 @@ buffer_put_cstring(Buffer *buffer, const char *s)
  * Returns a character from the buffer (0 - 255).
  */
 int
+buffer_get_char_ret(char *ret, Buffer *buffer)
+{
+	if (buffer_get_ret(buffer, ret, 1) == -1) {
+		error("buffer_get_char_ret: buffer_get_ret failed");
+		return (-1);
+	}
+	return (0);
+}
+
+int
 buffer_get_char(Buffer *buffer)
 {
 	char ch;
 
-	buffer_get(buffer, &ch, 1);
+	if (buffer_get_char_ret(&ch, buffer) == -1)
+		fatal("buffer_get_char: buffer error");
 	return (u_char) ch;
 }
 

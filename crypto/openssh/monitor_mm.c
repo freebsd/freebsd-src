@@ -92,7 +92,7 @@ mm_create(struct mm_master *mmalloc, size_t size)
 	mm->mmalloc = mmalloc;
 
 	address = xmmap(size);
-	if (address == MAP_FAILED)
+	if (address == (void *)MAP_FAILED)
 		fatal("mmap(%lu): %s", (u_long)size, strerror(errno));
 
 	mm->address = address;

@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.19 2003/08/13 08:46:31 markus Exp $
+#	$OpenBSD: ssh_config,v 1.20 2005/01/28 09:45:53 dtucker Exp $
 
 # This is the ssh client system-wide configuration file.  See
 # ssh_config(5) for more information.  This file provides defaults for
@@ -13,7 +13,9 @@
 # Thus, host-specific definitions should be at the beginning of the
 # configuration file, and defaults at the end.
 
-# Site-wide defaults for various options
+# Site-wide defaults for some commonly used options.  For a comprehensive
+# list of available options, their meanings and defaults, please see the
+# ssh_config(5) man page.
 
 # Host *
 #   ForwardAgent no

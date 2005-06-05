@@ -35,7 +35,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-/* RCSID("$Id: loginrec.h,v 1.7 2003/06/03 02:18:50 djm Exp $"); */
+/* RCSID("$Id: loginrec.h,v 1.9 2005/02/02 06:10:11 dtucker Exp $"); */
 
 /**
  ** you should use the login_* calls to work around platform dependencies
@@ -62,7 +62,7 @@ union login_netinfo {
 /* string lengths - set very long */
 #define LINFO_PROGSIZE 64
 #define LINFO_LINESIZE 64
-#define LINFO_NAMESIZE 64
+#define LINFO_NAMESIZE 128
 #define LINFO_HOSTSIZE 256
 
 struct logininfo {
@@ -131,5 +131,7 @@ unsigned int login_get_lastlog_time(const int uid);
 char *line_fullname(char *dst, const char *src, int dstsize);
 char *line_stripname(char *dst, const char *src, int dstsize);
 char *line_abbrevname(char *dst, const char *src, int dstsize);
+
+void record_failed_login(const char *, const char *, const char *);
 
 #endif /* _HAVE_LOGINREC_H_ */

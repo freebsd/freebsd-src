@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: auth-bsdauth.c,v 1.5 2002/06/30 21:59:45 deraadt Exp $");
+RCSID("$OpenBSD: auth-bsdauth.c,v 1.6 2005/01/19 13:11:47 dtucker Exp $");
 
 #ifdef BSD_AUTH
 #include "xmalloc.h"
@@ -82,6 +82,9 @@ bsdauth_respond(void *ctx, u_int numresponses, char **responses)
 {
 	Authctxt *authctxt = ctx;
 	int authok;
+
+	if (!authctxt->valid)
+		return -1;
 
 	if (authctxt->as == 0)
 		error("bsdauth_respond: no bsd auth session");

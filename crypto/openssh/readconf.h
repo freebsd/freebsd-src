@@ -1,4 +1,4 @@
-/*	$OpenBSD: readconf.h,v 1.64 2004/07/11 17:48:47 deraadt Exp $	*/
+/*	$OpenBSD: readconf.h,v 1.66 2005/03/01 10:40:27 djm Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -21,9 +21,10 @@
 /* Data structure for representing a forwarding request. */
 
 typedef struct {
-	u_short	  port;		/* Port to forward. */
-	char	 *host;		/* Host to connect. */
-	u_short	  host_port;	/* Port to connect on host. */
+	char	 *listen_host;		/* Host (address) to listen on. */
+	u_short	  listen_port;		/* Port to forward. */
+	char	 *connect_host;		/* Host to connect. */
+	u_short	  connect_port;		/* Port to connect on connect_host. */
 }       Forward;
 /* Data structure for representing option data. */
 
@@ -111,17 +112,20 @@ typedef struct {
 
 	char	*control_path;
 	int	control_master;
+
+	int	hash_known_hosts;
 }       Options;
 
 
 void     initialize_options(Options *);
 void     fill_default_options(Options *);
 int	 read_config_file(const char *, const char *, Options *, int);
+int	 parse_forward(Forward *, const char *);
 
 int
 process_config_line(Options *, const char *, char *, const char *, int, int *);
 
-void	 add_local_forward(Options *, u_short, const char *, u_short);
-void	 add_remote_forward(Options *, u_short, const char *, u_short);
+void	 add_local_forward(Options *, const Forward *);
+void	 add_remote_forward(Options *, const Forward *);
 
 #endif				/* READCONF_H */
