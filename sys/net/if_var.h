@@ -184,6 +184,8 @@ struct ifnet {
 	struct  ifaltq if_snd;		/* output queue (includes altq) */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
 
+	void	*if_bridge;		/* bridge glue */
+
 	struct	lltable *lltables;	/* list of L3-L2 resolution tables */
 
 	struct	label *if_label;	/* interface MAC label */

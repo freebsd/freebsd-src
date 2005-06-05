@@ -238,6 +238,7 @@
 #define	IFT_ATMVCIENDPT		   0xc2 /* ATM VCI End Point */
 #define	IFT_OPTICALCHANNEL	   0xc3 /* Optical Channel */
 #define	IFT_OPTICALTRANSPORT	   0xc4 /* Optical Transport */
+#define	IFT_BRIDGE		   0xd1 /* Transparent bridge interface */
 
 #define	IFT_STF			   0xd7	/* 6to4 interface */
 

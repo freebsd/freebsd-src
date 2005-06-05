@@ -114,6 +114,10 @@ bdg_forward_t *bdg_forward_ptr;
 bdgtakeifaces_t *bdgtakeifaces_ptr;
 struct bdg_softc *ifp2sc;
 
+struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *); 
+int     (*bridge_output_p)(struct ifnet *, struct mbuf *, 
+		struct sockaddr *, struct rtentry *);
+
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -282,6 +286,15 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	else
 		(void)memcpy(eh->ether_shost, IFP2AC(ifp)->ac_enaddr,
 			sizeof(eh->ether_shost));
+
+       /*
+	* Bridges require special output handling.
+	*/
+	if (ifp->if_bridge) {
+		KASSERT(bridge_output_p != NULL,
+		    ("ether_input: if_bridge not loaded!"));
+		return ((*bridge_output_p)(ifp, m, NULL, NULL));
+	}
 
 	/*
 	 * If a simplex interface, and the packet is being sent to our
@@ -575,6 +588,41 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		(*ng_ether_input_p)(ifp, &m);
 		if (m == NULL)
 			return;
+	}
+
+	/*
+	* Tap the packet off here for a bridge.  bridge_input()
+	* will return NULL if it has consumed the packet, otherwise
+	* it gets processed as normal.  Note that bridge_input()
+	* will always return the original packet if we need to
+	* process it locally.
+	*/
+	if (ifp->if_bridge) {
+		KASSERT(bridge_input_p != NULL,
+		    ("ether_input: if_bridge not loaded!"));
+
+		/* Mark the packet as broadcast or multicast. This is also set
+		 * further down the code in ether_demux() but since the bridge
+		 * input routine rarely returns a mbuf for further processing,
+		 * it is an acceptable duplication.
+		 */
+		if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
+			if (bcmp(etherbroadcastaddr, eh->ether_dhost,
+				sizeof(etherbroadcastaddr)) == 0)
+				m->m_flags |= M_BCAST;
+			else
+				m->m_flags |= M_MCAST;
+		}
+	
+		m = (*bridge_input_p)(ifp, m);
+		if (m == NULL)
+			return;
+		/*
+		* Bridge has determined that the packet is for us.
+		* Update our interface pointer -- we may have had
+		* to "bridge" the packet locally.
+		*/
+		ifp = m->m_pkthdr.rcvif;
 	}
 
 	/* Check for bridging mode */
