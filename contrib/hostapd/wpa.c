@@ -11,6 +11,8 @@
  * license.
  *
  * See README and COPYING for more details.
+ *
+ * $FreeBSD$
  */
 
 #include <stdlib.h>
@@ -1943,20 +1945,6 @@ void wpa_sm_event(struct hostapd_data *hapd, struct sta_info *sta,
 	case WPA_REAUTH_EAPOL:
 		sm->ReAuthenticationRequest = TRUE;
 		break;
-	}
-
-	if ((event == WPA_ASSOC || event == WPA_REAUTH) &&
-	    sta->eapol_sm && sta->pmksa) {
-		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_WPA,
-			       HOSTAPD_LEVEL_DEBUG,
-			       "PMK from PMKSA cache - skip IEEE 802.1X/EAP");
-		/* Setup EAPOL state machines to already authenticated state
-		 * because of existing PMKSA information in the cache. */
-		sta->eapol_sm->keyRun = TRUE;
-		sta->eapol_sm->keyAvailable = TRUE;
-		sta->eapol_sm->auth_pae.state = AUTH_PAE_AUTHENTICATING;
-		sta->eapol_sm->be_auth.state = BE_AUTH_SUCCESS;
-		sta->eapol_sm->authSuccess = TRUE;
 	}
 
 	sm->PTK_valid = FALSE;

@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #ifndef EAP_H
 #define EAP_H
 
@@ -48,6 +50,7 @@ int eap_sm_step(struct eap_sm *sm);
 u8 eap_get_type(const char *name);
 void eap_set_eapRespData(struct eap_sm *sm, const u8 *eapRespData,
 			 size_t eapRespDataLen);
+void eap_sm_notify_cached(struct eap_sm *sm);
 
 #else /* EAP_AUTHENTICATOR */
 
@@ -75,6 +78,10 @@ static inline u8 eap_get_type(const char *name)
 static inline void eap_set_eapRespData(struct eap_sm *sm,
 				       const u8 *eapRespData,
 				       size_t eapRespDataLen)
+{
+}
+
+static inline void eap_sm_notify_cached(struct eap_sm *sm)
 {
 }
 
