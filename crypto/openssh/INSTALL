@@ -3,7 +3,7 @@
 
 You will need working installations of Zlib and OpenSSL.
 
-Zlib 1.1.4 or greater:
+Zlib 1.1.4 or 1.2.1.2 or greater (ealier 1.2.x versions have problems):
 http://www.gzip.org/zlib/
 
 OpenSSL 0.9.6 or greater:
@@ -50,19 +50,19 @@ lacks /dev/random and don't want to use OpenSSH's internal entropy collection.
 http://www.lothar.com/tech/crypto/
 
 S/Key Libraries:
+
+If you wish to use --with-skey then you will need the library below
+installed.  No other S/Key library is currently known to be supported.
+
 http://www.sparc.spb.su/solaris/skey/
 
 LibEdit:
-
 sftp now supports command-line editing via NetBSD's libedit.  If your
 platform has it available natively you can use that, alternatively
 you might try these multi-platform ports:
+
 http://www.thrysoee.dk/editline/
 http://sourceforge.net/projects/libedit/
-
-If you wish to use --with-skey then you will need the above library
-installed.  No other current S/Key library is currently known to be
-supported.
 
 2. Building / Installation
 --------------------------
@@ -90,6 +90,10 @@ make install
 
 This will install the binaries in /opt/{bin,lib,sbin}, but will place the
 configuration files in /etc/ssh.
+
+If you are using Privilege Separation (which is enabled by default)
+then you will also need to create the user, group and directory used by
+sshd for privilege separation.  See README.privsep for details.
 
 If you are using PAM, you may need to manually install a PAM control
 file as "/etc/pam.d/sshd" (or wherever your system prefers to keep
@@ -221,4 +225,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.66 2005/01/18 01:05:18 dtucker Exp $
+$Id: INSTALL,v 1.70 2005/04/24 07:52:23 dtucker Exp $

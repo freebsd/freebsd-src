@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.66 2005/03/01 18:15:56 jmc Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.67 2005/03/14 10:09:03 dtucker Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -232,8 +232,10 @@ command.
 .It Fl H
 Hash a
 .Pa known_hosts
-file, printing the result to standard output.
-This replaces all hostnames and addresses with hashed representations.
+file.
+This replaces all hostnames and addresses with hashed representations
+within the specified file; the original content is moved to a file with
+a .old suffix.
 These hashes may be used normally by
 .Nm ssh
 and

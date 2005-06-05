@@ -197,7 +197,7 @@ cat << EOF > $OBJ/sshd_config
 	#ListenAddress		::1
 	PidFile			$PIDFILE
 	AuthorizedKeysFile	$OBJ/authorized_keys_%u
-	LogLevel		DEBUG
+	LogLevel		VERBOSE
 	AcceptEnv		_XXX_TEST_*
 	AcceptEnv		_XXX_TEST
 	Subsystem	sftp	$SFTPSERVER

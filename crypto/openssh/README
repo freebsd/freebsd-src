@@ -61,4 +61,4 @@ References -
 [6] http://www.openbsd.org/cgi-bin/man.cgi?query=style&sektion=9
 [7] http://www.openssh.com/faq.html
 
-$Id: README,v 1.56.4.1 2005/03/09 03:12:09 djm Exp $
+$Id: README,v 1.57 2005/03/09 03:32:28 dtucker Exp $
