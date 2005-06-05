@@ -335,27 +335,6 @@ bfe_attach(device_t dev)
 	sc->bfe_unit = unit;
 
 	/*
-	 * Handle power management nonsense.
-	 */
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		u_int32_t membase, irq;
-
-		/* Save important PCI config data. */
-		membase = pci_read_config(dev, BFE_PCI_MEMLO, 4);
-		irq = pci_read_config(dev, BFE_PCI_INTLINE, 4);
-
-		/* Reset the power state. */
-		printf("bfe%d: chip is is in D%d power mode -- setting to D0\n",
-				sc->bfe_unit, pci_get_powerstate(dev));
-
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-
-		/* Restore PCI config data. */
-		pci_write_config(dev, BFE_PCI_MEMLO, membase, 4);
-		pci_write_config(dev, BFE_PCI_INTLINE, irq, 4);
-	}
-
-	/*
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
