@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect.c,v 1.158 2004/06/21 17:36:31 avsm Exp $");
+RCSID("$OpenBSD: sshconnect.c,v 1.161 2005/03/02 01:00:06 djm Exp $");
 
 #include <openssl/bn.h>
 
@@ -297,12 +297,6 @@ timeout_connect(int sockfd, const struct sockaddr *serv_addr,
  * second).  If proxy_command is non-NULL, it specifies the command (with %h
  * and %p substituted for host and port, respectively) to use to contact
  * the daemon.
- * Return values:
- *    0 for OK
- *    ECONNREFUSED if we got a "Connection Refused" by the peer on any address
- *    ECONNABORTED if we failed without a "Connection refused"
- * Suitable error messages for the connection failure will already have been
- * printed.
  */
 int
 ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
@@ -315,12 +309,6 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 	char ntop[NI_MAXHOST], strport[NI_MAXSERV];
 	struct addrinfo hints, *ai, *aitop;
 	struct servent *sp;
-	/*
-	 * Did we get only other errors than "Connection refused" (which
-	 * should block fallback to rsh and similar), or did we get at least
-	 * one "Connection refused"?
-	 */
-	int full_failure = 1;
 
 	debug2("ssh_connect: needpriv %d", needpriv);
 
@@ -381,8 +369,6 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 				memcpy(hostaddr, ai->ai_addr, ai->ai_addrlen);
 				break;
 			} else {
-				if (errno == ECONNREFUSED)
-					full_failure = 0;
 				debug("connect to address %s port %s: %s",
 				    ntop, strport, strerror(errno));
 				/*
@@ -408,9 +394,9 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 
 	/* Return failure if we didn't get a successful connection. */
 	if (attempt >= connection_attempts) {
-		logit("ssh: connect to host %s port %s: %s",
+		error("ssh: connect to host %s port %s: %s",
 		    host, strport, strerror(errno));
-		return full_failure ? ECONNABORTED : ECONNREFUSED;
+		return (-1);
 	}
 
 	debug("Connection established.");
@@ -568,7 +554,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 	char hostline[1000], *hostp, *fp;
 	HostStatus host_status;
 	HostStatus ip_status;
-	int local = 0, host_ip_differ = 0;
+	int r, local = 0, host_ip_differ = 0;
 	int salen;
 	char ntop[NI_MAXHOST];
 	char msg[1024];
@@ -692,7 +678,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 				    "'%.128s' not in list of known hosts.",
 				    type, ip);
 			else if (!add_host_to_hostfile(user_hostfile, ip,
-			    host_key))
+			    host_key, options.hash_known_hosts))
 				logit("Failed to add the %s host key for IP "
 				    "address '%.128s' to the list of known "
 				    "hosts (%.30s).", type, ip, user_hostfile);
@@ -748,17 +734,33 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 			if (!confirm(msg))
 				goto fail;
 		}
-		if (options.check_host_ip && ip_status == HOST_NEW) {
-			snprintf(hostline, sizeof(hostline), "%s,%s", host, ip);
-			hostp = hostline;
-		} else
-			hostp = host;
-
 		/*
 		 * If not in strict mode, add the key automatically to the
 		 * local known_hosts file.
 		 */
-		if (!add_host_to_hostfile(user_hostfile, hostp, host_key))
+		if (options.check_host_ip && ip_status == HOST_NEW) {
+			snprintf(hostline, sizeof(hostline), "%s,%s",
+			    host, ip);
+			hostp = hostline;
+			if (options.hash_known_hosts) {
+				/* Add hash of host and IP separately */
+				r = add_host_to_hostfile(user_hostfile, host,
+				    host_key, options.hash_known_hosts) &&
+				    add_host_to_hostfile(user_hostfile, ip,
+				    host_key, options.hash_known_hosts);
+			} else {
+				/* Add unhashed "host,ip" */
+				r = add_host_to_hostfile(user_hostfile,
+				    hostline, host_key,
+				    options.hash_known_hosts);
+			}
+		} else {
+			r = add_host_to_hostfile(user_hostfile, host, host_key,
+			    options.hash_known_hosts);
+			hostp = host;
+		}
+
+		if (!r)
 			logit("Failed to add the host to the list of known "
 			    "hosts (%.500s).", user_hostfile);
 		else

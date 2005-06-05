@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.201 2004/05/02 11:54:31 dtucker Exp $
+.\" $OpenBSD: sshd.8,v 1.206 2005/03/01 14:59:49 jmc Exp $
 .Dd September 25, 1999
 .Dt SSHD 8
 .Os
@@ -106,8 +106,6 @@ to use from those offered by the server.
 Next, the server and the client enter an authentication dialog.
 The client tries to authenticate itself using
 .Em .rhosts
-authentication,
-.Em .rhosts
 authentication combined with RSA host
 authentication, RSA challenge-response authentication, or password
 based authentication.
@@ -135,11 +133,6 @@ or
 .Ql \&*NP\&*
 ).
 .Pp
-.Em rhosts
-authentication is normally disabled
-because it is fundamentally insecure, but can be enabled in the server
-configuration file if desired.
-System security is not improved unless
 .Nm rshd ,
 .Nm rlogind ,
 and
@@ -427,7 +420,9 @@ or
 .Dq ssh-rsa .
 .Pp
 Note that lines in this file are usually several hundred bytes long
-(because of the size of the public key encoding).
+(because of the size of the public key encoding) up to a limit of
+8 kilobytes, which permits DSA keys up to 8 kilobits and RSA
+keys up to 16 kilobits.
 You don't want to type them in; instead, copy the
 .Pa identity.pub ,
 .Pa id_dsa.pub
@@ -558,6 +553,14 @@ to indicate negation: if the host name matches a negated
 pattern, it is not accepted (by that line) even if it matched another
 pattern on the line.
 .Pp
+Alternately, hostnames may be stored in a hashed form which hides host names
+and addresses should the file's contents be disclosed.
+Hashed hostnames start with a
+.Ql |
+character.
+Only one hashed hostname may appear on a single line and none of the above
+negation or wildcard operators may be applied.
+.Pp
 Bits, exponent, and modulus are taken directly from the RSA host key; they
 can be obtained, e.g., from
 .Pa /etc/ssh/ssh_host_key.pub .
@@ -588,6 +591,11 @@ and adding the host names at the front.
 .Bd -literal
 closenet,...,130.233.208.41 1024 37 159...93 closenet.hut.fi
 cvs.openbsd.org,199.185.137.3 ssh-rsa AAAA1234.....=
+.Ed
+.Bd -literal
+# A hashed hostname
+|1|JfKTdBh7rNbXkVAQCRp4OQoPfmI=|USECr3SWf1JUPsms5AqfD5QfxkM= ssh-rsa
+AAAA1234.....=
 .Ed
 .Sh FILES
 .Bl -tag -width Ds
@@ -657,6 +665,20 @@ These files should be writable only by root/the owner.
 should be world-readable, and
 .Pa $HOME/.ssh/known_hosts
 can, but need not be, world-readable.
+.It Pa /etc/motd
+See
+.Xr motd 5 .
+.It Pa $HOME/.hushlogin
+This file is used to suppress printing the last login time and
+.Pa /etc/motd ,
+if
+.Cm PrintLastLog
+and
+.Cm PrintMotd ,
+respectively,
+are enabled.
+It does not suppress printing of the banner specified by
+.Cm Banner .
 .It Pa /etc/nologin
 If this file exists,
 .Nm
@@ -670,7 +692,11 @@ Access controls that should be enforced by tcp-wrappers are defined here.
 Further details are described in
 .Xr hosts_access 5 .
 .It Pa $HOME/.rhosts
-This file contains host-username pairs, separated by a space, one per
+This file is used during
+.Cm RhostsRSAAuthentication
+and
+.Cm HostbasedAuthentication
+and contains host-username pairs, separated by a space, one per
 line.
 The given user on the corresponding host is permitted to log in
 without a password.
@@ -691,7 +717,9 @@ However, this file is
 not used by rlogin and rshd, so using this permits access using SSH only.
 .It Pa /etc/hosts.equiv
 This file is used during
-.Em rhosts
+.Cm RhostsRSAAuthentication
+and
+.Cm HostbasedAuthentication
 authentication.
 In the simplest form, this file contains host names, one per line.
 Users on
@@ -710,7 +738,7 @@ Negated entries start with
 If the client host/user is successfully matched in this file, login is
 automatically permitted provided the client and server user names are the
 same.
-Additionally, successful RSA host authentication is normally required.
+Additionally, successful client host key authentication is required.
 This file must be writable only by root; it is recommended
 that it be world-readable.
 .Pp

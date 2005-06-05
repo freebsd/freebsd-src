@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.117 2004/06/22 03:27:16 dtucker Exp $ */
+/* $Id: defines.h,v 1.119 2005/02/20 10:01:49 dtucker Exp $ */
 
 
 /* Constants */
@@ -288,6 +288,10 @@ struct	sockaddr_un {
 };
 #endif /* HAVE_SYS_UN_H */
 
+#ifndef HAVE_IN_ADDR_T
+typedef u_int32_t	in_addr_t;
+#endif
+
 #if defined(BROKEN_SYS_TERMIO_H) && !defined(_STRUCT_WINSIZE)
 #define _STRUCT_WINSIZE
 struct winsize {
@@ -530,6 +534,11 @@ struct winsize {
 # define getpgrp() getpgrp(0)
 #endif
 
+#ifdef USE_BSM_AUDIT
+# define SSH_AUDIT_EVENTS
+# define CUSTOM_SSH_AUDIT_EVENTS
+#endif
+
 /* OPENSSL_free() is Free() in versions before OpenSSL 0.9.6 */
 #if !defined(OPENSSL_VERSION_NUMBER) || (OPENSSL_VERSION_NUMBER < 0x0090600f)
 # define OPENSSL_free(x) Free(x)
@@ -642,6 +651,15 @@ struct winsize {
 #  undef USE_SHADOW
 # endif
 # define CUSTOM_SYS_AUTH_PASSWD 1
+#endif
+
+/* HP-UX 11.11 */
+#ifdef BTMP_FILE
+# define _PATH_BTMP BTMP_FILE
+#endif
+
+#if defined(USE_BTMP) && defined(_PATH_BTMP)
+# define CUSTOM_FAILED_LOGIN
 #endif
 
 /** end of login recorder definitions */

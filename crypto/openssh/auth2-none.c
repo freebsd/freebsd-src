@@ -74,6 +74,19 @@ auth2_read_banner(void)
 	return (banner);
 }
 
+void
+userauth_send_banner(const char *msg)
+{
+	if (datafellows & SSH_BUG_BANNER)
+		return;
+
+	packet_start(SSH2_MSG_USERAUTH_BANNER);
+	packet_put_cstring(msg);
+	packet_put_cstring("");		/* language, unused */
+	packet_send();
+	debug("%s: sent", __func__);
+}
+
 static void
 userauth_banner(void)
 {
@@ -84,12 +97,8 @@ userauth_banner(void)
 
 	if ((banner = PRIVSEP(auth2_read_banner())) == NULL)
 		goto done;
+	userauth_send_banner(banner);
 
-	packet_start(SSH2_MSG_USERAUTH_BANNER);
-	packet_put_cstring(banner);
-	packet_put_cstring("");		/* language, unused */
-	packet_send();
-	debug("userauth_banner: sent");
 done:
 	if (banner)
 		xfree(banner);
@@ -103,7 +112,7 @@ userauth_none(Authctxt *authctxt)
 	userauth_banner();
 #ifdef HAVE_CYGWIN
 	if (check_nt_auth(1, authctxt->pw) == 0)
-		return(0);
+		return (0);
 #endif
 	if (options.password_authentication)
 		return (PRIVSEP(auth_password(authctxt, "")));

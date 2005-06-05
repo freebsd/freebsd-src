@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.69 2004/05/23 23:59:53 dtucker Exp $
+#	$OpenBSD: sshd_config,v 1.70 2004/12/23 23:11:00 djm Exp $
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.
@@ -12,6 +12,7 @@
 
 #Port 22
 #Protocol 2,1
+#AddressFamily any
 #ListenAddress 0.0.0.0
 #ListenAddress ::
 

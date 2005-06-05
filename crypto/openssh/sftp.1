@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.57 2004/06/21 22:41:31 djm Exp $
+.\" $OpenBSD: sftp.1,v 1.61 2005/03/01 17:19:35 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -71,7 +71,9 @@ The second usage format will retrieve files automatically if a non-interactive
 authentication method is used; otherwise it will do so after
 successful interactive authentication.
 .Pp
-The third usage format allows the sftp client to start in a remote directory.
+The third usage format allows
+.Nm
+to start in a remote directory.
 .Pp
 The final usage format allows for automated sessions using the
 .Fl b
@@ -159,6 +161,7 @@ For full details of the options listed below, and their possible values, see
 .It GlobalKnownHostsFile
 .It GSSAPIAuthentication
 .It GSSAPIDelegateCredentials
+.It HashKnownHosts
 .It Host
 .It HostbasedAuthentication
 .It HostKeyAlgorithms
@@ -166,6 +169,7 @@ For full details of the options listed below, and their possible values, see
 .It HostName
 .It IdentityFile
 .It IdentitiesOnly
+.It KbdInteractiveDevices
 .It LogLevel
 .It MACs
 .It NoHostAuthenticationForLocalhost
@@ -192,7 +196,7 @@ For full details of the options listed below, and their possible values, see
 .It Fl P Ar sftp_server_path
 Connect directly to a local sftp server
 (rather than via
-.Xr ssh 1 )
+.Xr ssh 1 ) .
 This option may be useful in debugging the client and server.
 .It Fl R Ar num_requests
 Specify how many requests may be outstanding at any one time.
@@ -223,9 +227,13 @@ Once in interactive mode,
 .Nm
 understands a set of commands similar to those of
 .Xr ftp 1 .
-Commands are case insensitive and pathnames may be enclosed in quotes if they
-contain spaces.
-.Bl -tag -width "lmdir path"
+Commands are case insensitive.
+Pathnames that contain spaces must be enclosed in quotes.
+Any special characters contained within pathnames that are recognized by
+.Xr glob 3
+must be escaped with backslashes
+.Pq Sq \e .
+.Bl -tag -width Ds
 .It Ic bye
 Quit
 .Nm sftp .
@@ -237,6 +245,10 @@ Change group of file
 .Ar path
 to
 .Ar grp .
+.Ar path
+may contain
+.Xr glob 3
+characters and may match multiple files.
 .Ar grp
 must be a numeric GID.
 .It Ic chmod Ar mode Ar path
@@ -244,18 +256,26 @@ Change permissions of file
 .Ar path
 to
 .Ar mode .
+.Ar path
+may contain
+.Xr glob 3
+characters and may match multiple files.
 .It Ic chown Ar own Ar path
 Change owner of file
 .Ar path
 to
 .Ar own .
+.Ar path
+may contain
+.Xr glob 3
+characters and may match multiple files.
 .Ar own
 must be a numeric UID.
 .It Ic exit
 Quit
 .Nm sftp .
 .It Xo Ic get
-.Op Ar flags
+.Op Fl P
 .Ar remote-path
 .Op Ar local-path
 .Xc
@@ -265,9 +285,18 @@ and store it on the local machine.
 If the local
 path name is not specified, it is given the same name it has on the
 remote machine.
+.Ar remote-path
+may contain
+.Xr glob 3
+characters and may match multiple files.
+If it does and
+.Ar local-path
+is specified, then
+.Ar local-path
+must specify a directory.
 If the
 .Fl P
-flag is specified, then the file's full permission and access time are
+flag is specified, then full file permissions and access times are
 copied too.
 .It Ic help
 Display help text.
@@ -280,6 +309,14 @@ Display local directory listing of either
 or current directory if
 .Ar path
 is not specified.
+.Ar ls-options
+may contain any flags supported by the local system's
+.Xr ls 1
+command.
+.Ar path
+may contain
+.Xr glob 3
+characters and may match multiple files.
 .It Ic lmkdir Ar path
 Create local directory specified by
 .Ar path .
@@ -291,36 +328,44 @@ to
 .It Ic lpwd
 Print local working directory.
 .It Xo Ic ls
-.Op Ar flags
+.Op Fl 1aflnrSt
 .Op Ar path
 .Xc
-Display remote directory listing of either
+Display a remote directory listing of either
 .Ar path
-or current directory if
+or the current directory if
 .Ar path
 is not specified.
-If the
-.Fl l
-flag is specified, then display additional details including permissions
-and ownership information.
-The
-.Fl n
-flag will produce a long listing with user and group information presented
-numerically.
+.Ar path
+may contain
+.Xr glob 3
+characters and may match multiple files.
 .Pp
-By default,
+The following flags are recognized and alter the behaviour of
 .Ic ls
-listings are sorted in lexicographical order.
-This may be changed by specifying the
-.Fl S
-(sort by file size),
-.Fl t
-(sort by last modification time), or
-.Fl f
-(don't sort at all) flags.
-Additionally, the sort order may be reversed using the
-.Fl r
-flag.
+accordingly:
+.Bl -tag -width Ds
+.It Fl 1
+Produce single columnar output.
+.It Fl a
+List files beginning with a dot
+.Pq Sq \&. .
+.It Fl f
+Do not sort the listing.
+The default sort order is lexicographical.
+.It Fl l
+Display additional details including permissions
+and ownership information.
+.It Fl n
+Produce a long listing with user and group information presented
+numerically.
+.It Fl r
+Reverse the sort order of the listing.
+.It Fl S
+Sort the listing by file size.
+.It Fl t
+Sort the listing by last modification time.
+.El
 .It Ic lumask Ar umask
 Set local umask to
 .Ar umask .
@@ -330,7 +375,7 @@ Create remote directory specified by
 .It Ic progress
 Toggle display of progress meter.
 .It Xo Ic put
-.Op Ar flags
+.Op Fl P
 .Ar local-path
 .Op Ar remote-path
 .Xc
@@ -339,6 +384,15 @@ Upload
 and store it on the remote machine.
 If the remote path name is not specified, it is given the same name it has
 on the local machine.
+.Ar local-path
+may contain
+.Xr glob 3
+characters and may match multiple files.
+If it does and
+.Ar remote-path
+is specified, then
+.Ar remote-path
+must specify a directory.
 If the
 .Fl P
 flag is specified, then the file's full permission and access time are
@@ -379,10 +433,12 @@ Synonym for help.
 .El
 .Sh SEE ALSO
 .Xr ftp 1 ,
+.Xr ls 1 ,
 .Xr scp 1 ,
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,
 .Xr ssh-keygen 1 ,
+.Xr glob 3 ,
 .Xr ssh_config 5 ,
 .Xr sftp-server 8 ,
 .Xr sshd 8

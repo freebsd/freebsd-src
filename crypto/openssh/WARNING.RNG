@@ -55,11 +55,10 @@ Executing each program in the list can take a large amount of time,
 especially on slower machines. Additionally some program can take a
 disproportionate time to execute.
 
-Tuning the default entropy collection code is difficult at this point.
-It requires doing 'times ./ssh-rand-helper'  and modifying the
-($etcdir)/ssh_prng_cmds until you have found the issue.  In the next
-release we will be looking at support '-v' for verbose output to allow
-easier debugging.
+Tuning the random helper can be done by running ./ssh-random-helper in
+very verbose mode ("-vvv") and identifying the commands that are taking
+accessive amounts of time or hanging altogher.  Any problem commands can
+be modified or removed from ssh_prng_cmds.
 
 The default entropy collector will timeout programs which take too long
 to execute, the actual timeout used can be adjusted with the
@@ -93,4 +92,4 @@ If you are forced to use ssh-rand-helper consider still downloading
 prngd/egd and configure OpenSSH using --with-prngd-port=xx or
 --with-prngd-socket=xx (refer to INSTALL for more information).
 
-$Id: WARNING.RNG,v 1.6 2003/11/21 12:48:55 djm Exp $
+$Id: WARNING.RNG,v 1.7 2004/12/06 11:40:11 dtucker Exp $

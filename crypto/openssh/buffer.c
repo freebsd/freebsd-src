@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: buffer.c,v 1.21 2003/11/21 11:57:03 djm Exp $");
+RCSID("$OpenBSD: buffer.c,v 1.22 2004/10/29 23:56:17 djm Exp $");
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -126,34 +126,62 @@ buffer_len(Buffer *buffer)
 
 /* Gets data from the beginning of the buffer. */
 
+int
+buffer_get_ret(Buffer *buffer, void *buf, u_int len)
+{
+	if (len > buffer->end - buffer->offset) {
+		error("buffer_get_ret: trying to get more bytes %d than in buffer %d",
+		    len, buffer->end - buffer->offset);
+		return (-1);
+	}
+	memcpy(buf, buffer->buf + buffer->offset, len);
+	buffer->offset += len;
+	return (0);
+}
+
 void
 buffer_get(Buffer *buffer, void *buf, u_int len)
 {
-	if (len > buffer->end - buffer->offset)
-		fatal("buffer_get: trying to get more bytes %d than in buffer %d",
-		    len, buffer->end - buffer->offset);
-	memcpy(buf, buffer->buf + buffer->offset, len);
-	buffer->offset += len;
+	if (buffer_get_ret(buffer, buf, len) == -1)
+		fatal("buffer_get: buffer error");
 }
 
 /* Consumes the given number of bytes from the beginning of the buffer. */
 
+int
+buffer_consume_ret(Buffer *buffer, u_int bytes)
+{
+	if (bytes > buffer->end - buffer->offset) {
+		error("buffer_consume_ret: trying to get more bytes than in buffer");
+		return (-1);
+	}
+	buffer->offset += bytes;
+	return (0);
+}
+
 void
 buffer_consume(Buffer *buffer, u_int bytes)
 {
-	if (bytes > buffer->end - buffer->offset)
-		fatal("buffer_consume: trying to get more bytes than in buffer");
-	buffer->offset += bytes;
+	if (buffer_consume_ret(buffer, bytes) == -1)
+		fatal("buffer_consume: buffer error");
 }
 
 /* Consumes the given number of bytes from the end of the buffer. */
 
+int
+buffer_consume_end_ret(Buffer *buffer, u_int bytes)
+{
+	if (bytes > buffer->end - buffer->offset)
+		return (-1);
+	buffer->end -= bytes;
+	return (0);
+}
+
 void
 buffer_consume_end(Buffer *buffer, u_int bytes)
 {
-	if (bytes > buffer->end - buffer->offset)
+	if (buffer_consume_end_ret(buffer, bytes) == -1)
 		fatal("buffer_consume_end: trying to get more bytes than in buffer");
-	buffer->end -= bytes;
 }
 
 /* Returns a pointer to the first used byte in the buffer. */

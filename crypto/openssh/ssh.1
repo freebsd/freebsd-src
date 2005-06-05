@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.194 2004/08/12 21:41:13 jakob Exp $
+.\" $OpenBSD: ssh.1,v 1.205 2005/03/07 23:41:54 jmc Exp $
 .Dd September 25, 1999
 .Dt SSH 1
 .Os
@@ -43,40 +43,35 @@
 .Nd OpenSSH SSH client (remote login program)
 .Sh SYNOPSIS
 .Nm ssh
+.Bk -words
 .Op Fl 1246AaCfgkMNnqsTtVvXxY
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
-.Bk -words
 .Op Fl D Ar port
 .Op Fl e Ar escape_char
 .Op Fl F Ar configfile
 .Op Fl i Ar identity_file
-.Oo Fl L Xo
+.Oo Fl L\ \&
 .Sm off
-.Ar port :
-.Ar host :
-.Ar hostport
+.Oo Ar bind_address : Oc
+.Ar port : host : hostport
 .Sm on
-.Xc
 .Oc
-.Ek
 .Op Fl l Ar login_name
 .Op Fl m Ar mac_spec
+.Op Fl O Ar ctl_cmd
 .Op Fl o Ar option
-.Bk -words
 .Op Fl p Ar port
-.Ek
-.Oo Fl R Xo
+.Oo Fl R\ \&
 .Sm off
-.Ar port :
-.Ar host :
-.Ar hostport
+.Oo Ar bind_address : Oc
+.Ar port : host : hostport
 .Sm on
-.Xc
 .Oc
-.Op Fl S Ar ctl
+.Op Fl S Ar ctl_path
 .Oo Ar user Ns @ Oc Ns Ar hostname
 .Op Ar command
+.Ek
 .Sh DESCRIPTION
 .Nm
 (SSH client) is a program for logging into a remote machine and for
@@ -103,35 +98,25 @@ is specified,
 .Ar command
 is executed on the remote host instead of a login shell.
 .Ss SSH protocol version 1
-First, if the machine the user logs in from is listed in
-.Pa /etc/hosts.equiv
-or
-.Pa /etc/shosts.equiv
-on the remote machine, and the user names are
-the same on both sides, the user is immediately permitted to log in.
-Second, if
-.Pa .rhosts
-or
-.Pa .shosts
-exists in the user's home directory on the
-remote machine and contains a line containing the name of the client
-machine and the name of the user on that machine, the user is
-permitted to log in.
-This form of authentication alone is normally not
-allowed by the server because it is not secure.
-.Pp
-The second authentication method is the
+The first authentication method is the
 .Em rhosts
 or
 .Em hosts.equiv
 method combined with RSA-based host authentication.
-It means that if the login would be permitted by
-.Pa $HOME/.rhosts ,
-.Pa $HOME/.shosts ,
-.Pa /etc/hosts.equiv ,
+If the machine the user logs in from is listed in
+.Pa /etc/hosts.equiv
 or
-.Pa /etc/shosts.equiv ,
-and if additionally the server can verify the client's
+.Pa /etc/shosts.equiv
+on the remote machine, and the user names are
+the same on both sides, or if the files
+.Pa $HOME/.rhosts
+or
+.Pa $HOME/.shosts
+exist in the user's home directory on the
+remote machine and contain a line containing the name of the client
+machine and the name of the user on that machine, the user is
+considered for log in.
+Additionally, if the server can verify the client's
 host key (see
 .Pa /etc/ssh/ssh_known_hosts
 and
@@ -147,7 +132,7 @@ spoofing, DNS spoofing and routing spoofing.
 and the rlogin/rsh protocol in general, are inherently insecure and should be
 disabled if security is desired.]
 .Pp
-As a third authentication method,
+As a second authentication method,
 .Nm
 supports RSA based authentication.
 The scheme is based on public-key cryptography: there are cryptosystems
@@ -195,9 +180,6 @@ file corresponds to the conventional
 file, and has one key
 per line, though the lines can be very long).
 After this, the user can log in without giving the password.
-RSA authentication is much more secure than
-.Em rhosts
-authentication.
 .Pp
 The most convenient way to use RSA authentication may be with an
 authentication agent.
@@ -582,6 +564,7 @@ configuration files).
 Disables forwarding (delegation) of GSSAPI credentials to the server.
 .It Fl L Xo
 .Sm off
+.Oo Ar bind_address : Oc
 .Ar port : host : hostport
 .Sm on
 .Xc
@@ -589,7 +572,9 @@ Specifies that the given port on the local (client) host is to be
 forwarded to the given host and port on the remote side.
 This works by allocating a socket to listen to
 .Ar port
-on the local side, and whenever a connection is made to this port, the
+on the local side, optionally bound to the specified
+.Ar bind_address .
+Whenever a connection is made to this port, the
 connection is forwarded over the secure channel, and a connection is
 made to
 .Ar host
@@ -597,14 +582,30 @@ port
 .Ar hostport
 from the remote machine.
 Port forwardings can also be specified in the configuration file.
-Only root can forward privileged ports.
 IPv6 addresses can be specified with an alternative syntax:
 .Sm off
 .Xo
+.Op Ar bind_address No /
 .Ar port No / Ar host No /
-.Ar hostport .
+.Ar hostport
 .Xc
 .Sm on
+or by enclosing the address in square brackets.
+Only the superuser can forward privileged ports.
+By default, the local port is bound in accordance with the
+.Cm GatewayPorts
+setting.
+However, an explicit
+.Ar bind_address
+may be used to bind the connection to a specific address.
+The
+.Ar bind_address
+of
+.Dq localhost
+indicates that the listening port be bound for local use only, while an
+empty address or
+.Sq *
+indicates that the port should be available from all interfaces.
 .It Fl l Ar login_name
 Specifies the user to log in as on the remote machine.
 This also may be specified on a per-host basis in the configuration file.
@@ -650,6 +651,18 @@ program will be put in the background.
 needs to ask for a password or passphrase; see also the
 .Fl f
 option.)
+.It Fl O Ar ctl_cmd
+Control an active connection multiplexing master process.
+When the
+.Fl O
+option is specified, the
+.Ar ctl_cmd
+argument is interpreted and passed to the master process.
+Valid commands are:
+.Dq check
+(check that the master process is running) and
+.Dq exit
+(request the master to exit).
 .It Fl o Ar option
 Can be used to give options in the format used in the configuration file.
 This is useful for specifying options for which there is no separate
@@ -681,6 +694,7 @@ For full details of the options listed below, and their possible values, see
 .It GlobalKnownHostsFile
 .It GSSAPIAuthentication
 .It GSSAPIDelegateCredentials
+.It HashKnownHosts
 .It Host
 .It HostbasedAuthentication
 .It HostKeyAlgorithms
@@ -688,6 +702,7 @@ For full details of the options listed below, and their possible values, see
 .It HostName
 .It IdentityFile
 .It IdentitiesOnly
+.It KbdInteractiveDevices
 .It LocalForward
 .It LogLevel
 .It MACs
@@ -723,6 +738,7 @@ Quiet mode.
 Causes all warning and diagnostic messages to be suppressed.
 .It Fl R Xo
 .Sm off
+.Oo Ar bind_address : Oc
 .Ar port : host : hostport
 .Sm on
 .Xc
@@ -737,17 +753,36 @@ made to
 port
 .Ar hostport
 from the local machine.
+.Pp
 Port forwardings can also be specified in the configuration file.
 Privileged ports can be forwarded only when
 logging in as root on the remote machine.
-IPv6 addresses can be specified with an alternative syntax:
+IPv6 addresses can be specified by enclosing the address in square braces or
+using an alternative syntax:
 .Sm off
 .Xo
-.Ar port No / Ar host No /
-.Ar hostport .
-.Xc
+.Op Ar bind_address No /
+.Ar host No / Ar port No /
+.Ar hostport
+.Xc .
 .Sm on
-.It Fl S Ar ctl
+.Pp
+By default, the listening socket on the server will be bound to the loopback
+interface only.
+This may be overriden by specifying a
+.Ar bind_address .
+An empty
+.Ar bind_address ,
+or the address
+.Ql * ,
+indicates that the remote socket should listen on all interfaces.
+Specifying a remote
+.Ar bind_address
+will only succeed if the server's
+.Cm GatewayPorts
+option is enabled (see
+.Xr sshd_config 5 ) .
+.It Fl S Ar ctl_path
 Specifies the location of a control socket for connection sharing.
 Refer to the description of
 .Cm ControlPath
@@ -796,10 +831,23 @@ Users with the ability to bypass file permissions on the remote host
 (for the user's X authorization database)
 can access the local X11 display through the forwarded connection.
 An attacker may then be able to perform activities such as keystroke monitoring.
+.Pp
+For this reason, X11 forwarding is subjected to X11 SECURITY extension
+restrictions by default.
+Please refer to the
+.Nm
+.Fl Y
+option and the
+.Cm ForwardX11Trusted
+directive in
+.Xr ssh_config 5
+for more information.
 .It Fl x
 Disables X11 forwarding.
 .It Fl Y
 Enables trusted X11 forwarding.
+Trusted X11 forwardings are not subjected to the X11 SECURITY extension
+controls.
 .El
 .Sh CONFIGURATION FILES
 .Nm
@@ -859,7 +907,7 @@ and open an X11 window to read the passphrase.
 This is particularly useful when calling
 .Nm
 from a
-.Pa .Xsession
+.Pa .xsession
 or related script.
 (Note that on some machines it
 may be necessary to redirect the input from
@@ -1012,7 +1060,9 @@ By default
 is not setuid root.
 .It Pa $HOME/.rhosts
 This file is used in
-.Em rhosts
+.Cm RhostsRSAAuthentication
+and
+.Cm HostbasedAuthentication
 authentication to list the
 host/user pairs that are permitted to log in.
 (Note that this file is
@@ -1031,12 +1081,10 @@ The recommended
 permission for most machines is read/write for the user, and not
 accessible by others.
 .Pp
-Note that by default
+Note that
 .Xr sshd 8
-will be installed so that it requires successful RSA host
-authentication before permitting
-.Em rhosts
-authentication.
+allows authentication only in combination with client host key
+authentication before permitting log in.
 If the server machine does not have the client's host key in
 .Pa /etc/ssh/ssh_known_hosts ,
 it can be stored in
@@ -1049,15 +1097,19 @@ will automatically add the host key to
 This file is used exactly the same way as
 .Pa .rhosts .
 The purpose for
-having this file is to be able to use rhosts authentication with
-.Nm
-without permitting login with
+having this file is to be able to use
+.Cm RhostsRSAAuthentication
+and
+.Cm HostbasedAuthentication
+authentication without permitting login with
 .Xr rlogin
 or
 .Xr rsh 1 .
 .It Pa /etc/hosts.equiv
 This file is used during
-.Em rhosts
+.Cm RhostsRSAAuthentication
+and
+.Cm HostbasedAuthentication
 authentication.
 It contains
 canonical hosts names, one per line (the full format is described in the
@@ -1066,8 +1118,7 @@ manual page).
 If the client host is found in this file, login is
 automatically permitted provided client and server user names are the
 same.
-Additionally, successful RSA host authentication is normally
-required.
+Additionally, successful client host key authentication is required.
 This file should only be writable by root.
 .It Pa /etc/shosts.equiv
 This file is processed exactly as
