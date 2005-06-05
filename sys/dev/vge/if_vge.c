@@ -2380,13 +2380,6 @@ vge_suspend(dev)
 
 	vge_stop(sc);
 
-        for (i = 0; i < 5; i++)
-		sc->saved_maps[i] = pci_read_config(dev, PCIR_MAPS + i * 4, 4);
-	sc->saved_biosaddr = pci_read_config(dev, PCIR_BIOS, 4);
-	sc->saved_intline = pci_read_config(dev, PCIR_INTLINE, 1);
-	sc->saved_cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
-	sc->saved_lattimer = pci_read_config(dev, PCIR_LATTIMER, 1);
-
 	sc->suspended = 1;
 
 	return (0);
@@ -2407,14 +2400,6 @@ vge_resume(dev)
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
-
-        /* better way to do this? */
-	for (i = 0; i < 5; i++)
-		pci_write_config(dev, PCIR_MAPS + i * 4, sc->saved_maps[i], 4);
-	pci_write_config(dev, PCIR_BIOS, sc->saved_biosaddr, 4);
-	pci_write_config(dev, PCIR_INTLINE, sc->saved_intline, 1);
-	pci_write_config(dev, PCIR_CACHELNSZ, sc->saved_cachelnsz, 1);
-	pci_write_config(dev, PCIR_LATTIMER, sc->saved_lattimer, 1);
 
 	/* reenable busmastering */
 	pci_enable_busmaster(dev);
