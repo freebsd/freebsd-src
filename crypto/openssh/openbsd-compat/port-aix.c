@@ -151,7 +151,7 @@ aix_valid_authentications(const char *user)
  * returns 0.
  */
 int
-sys_auth_passwd(Authctxt *ctxt, const char *password, Buffer *loginmsg)
+sys_auth_passwd(Authctxt *ctxt, const char *password)
 {
 	char *authmsg = NULL, *msg, *name = ctxt->pw->pw_name;
 	int authsuccess = 0, expired, reenter, result;
@@ -181,7 +181,7 @@ sys_auth_passwd(Authctxt *ctxt, const char *password, Buffer *loginmsg)
 		 */
 		expired = passwdexpired(name, &msg);
 		if (msg && *msg) {
-			buffer_append(loginmsg, msg, strlen(msg));
+			buffer_append(ctxt->loginmsg, msg, strlen(msg));
 			aix_remove_embedded_newlines(msg);
 		}
 		debug3("AIX/passwdexpired returned %d msg %.100s", expired, msg);

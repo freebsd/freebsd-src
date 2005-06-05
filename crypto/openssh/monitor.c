@@ -25,7 +25,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: monitor.c,v 1.62 2005/01/30 11:18:08 dtucker Exp $");
+RCSID("$OpenBSD: monitor.c,v 1.63 2005/03/10 22:01:05 deraadt Exp $");
 
 #include <openssl/dh.h>
 
@@ -309,6 +309,8 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 
 	authctxt = _authctxt;
 	memset(authctxt, 0, sizeof(*authctxt));
+
+	authctxt->loginmsg = &loginmsg;
 
 	if (compat20) {
 		mon_dispatch = mon_dispatch_proto20;
@@ -976,7 +978,7 @@ mm_answer_keyallowed(int sock, Buffer *m)
 	debug3("%s: key_from_blob: %p", __func__, key);
 
 	if (key != NULL && authctxt->valid) {
-		switch(type) {
+		switch (type) {
 		case MM_USERKEY:
 			allowed = options.pubkey_authentication &&
 			    user_key_allowed(authctxt->pw, key);
@@ -1523,7 +1525,6 @@ mm_answer_audit_event(int socket, Buffer *m)
 	debug3("%s entering", __func__);
 
 	event = buffer_get_int(m);
-	buffer_free(m);
 	switch(event) {
 	case SSH_AUTH_FAIL_PUBKEY:
 	case SSH_AUTH_FAIL_HOSTBASED:
@@ -1552,7 +1553,6 @@ mm_answer_audit_command(int socket, Buffer *m)
 	/* sanity check command, if so how? */
 	audit_run_command(cmd);
 	xfree(cmd);
-	buffer_free(m);
 	return (0);
 }
 #endif /* SSH_AUDIT_EVENTS */

@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.47 2005/03/07 23:41:54 jmc Exp $
+.\" $OpenBSD: ssh_config.5,v 1.49 2005/03/16 11:10:38 jmc Exp $
 .Dd September 25, 1999
 .Dt SSH_CONFIG 5
 .Os
@@ -495,21 +495,17 @@ The default is to use the server specified list.
 .It Cm LocalForward
 Specifies that a TCP/IP port on the local machine be forwarded over
 the secure channel to the specified host and port from the remote machine.
-The first argument must be a port number, and the second must be
-.Xo
+The first argument must be
 .Sm off
-.Oo Ar bind_address : Oc
-.Ar host : port
+.Oo Ar bind_address : Oc Ar port
 .Sm on
-.Xc .
+and the second argument must be
+.Ar host : Ns Ar hostport .
 IPv6 addresses can be specified by enclosing addresses in square brackets or
 by using an alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar host No / Ar port
-.Xc .
-.Sm on
+.Oo Ar bind_address Ns / Oc Ns Ar port
+and
+.Ar host Ns / Ns Ar hostport .
 Multiple forwardings may be specified, and additional forwardings can be
 given on the command line.
 Only the superuser can forward privileged ports.
@@ -571,9 +567,9 @@ Default is 22.
 .It Cm PreferredAuthentications
 Specifies the order in which the client should try protocol 2
 authentication methods.
-This allows a client to prefer one method (e.g.
+This allows a client to prefer one method (e.g.\&
 .Cm keyboard-interactive )
-over another method (e.g.
+over another method (e.g.\&
 .Cm password )
 The default for this option is:
 .Dq hostbased,publickey,keyboard-interactive,password .
@@ -632,21 +628,17 @@ This option applies to protocol version 2 only.
 .It Cm RemoteForward
 Specifies that a TCP/IP port on the remote machine be forwarded over
 the secure channel to the specified host and port from the local machine.
-The first argument must be a port number, and the second must be
-.Xo
+The first argument must be
 .Sm off
-.Oo Ar bind_address : Oc
-.Ar host : port
+.Oo Ar bind_address : Oc Ar port
 .Sm on
-.Xc .
-IPv6 addresses can be specified by enclosing any addresses in square brackets
-or by using the alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar host No / Ar port
-.Xc .
-.Sm on
+and the second argument must be
+.Ar host : Ns Ar hostport .
+IPv6 addresses can be specified by enclosing addresses in square brackets
+or by using an alternative syntax:
+.Oo Ar bind_address Ns / Oc Ns Ar port
+and
+.Ar host Ns / Ns Ar hostport .
 Multiple forwardings may be specified, and additional
 forwardings can be given on the command line.
 Only the superuser can forward privileged ports.

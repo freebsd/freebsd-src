@@ -251,6 +251,8 @@ get_socket_address(int sock, int remote, int flags)
 	if (addr.ss_family == AF_INET6)
 		addrlen = sizeof(struct sockaddr_in6);
 
+	ipv64_normalise_mapped(&addr, &addrlen);
+
 	/* Get the address in ascii. */
 	if ((r = getnameinfo((struct sockaddr *)&addr, addrlen, ntop,
 	    sizeof(ntop), NULL, 0, flags)) != 0) {
