@@ -149,6 +149,7 @@ struct frmrinfo {
 /*
  * ISO PDTR 10178 contains among others
  */
+#define LLC_8021D_LSAP	0x42
 #define LLC_X25_LSAP	0x7e
 #define LLC_SNAP_LSAP	0xaa
 #define LLC_ISO_LSAP	0xfe
