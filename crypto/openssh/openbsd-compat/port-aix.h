@@ -1,4 +1,4 @@
-/* $Id: port-aix.h,v 1.24 2005/02/16 11:49:31 dtucker Exp $ */
+/* $Id: port-aix.h,v 1.25 2005/03/21 11:46:34 dtucker Exp $ */
 
 /*
  *
@@ -47,7 +47,9 @@
 
 /* These should be in the system headers but are not. */
 int usrinfo(int, char *, int);
+#if (HAVE_DECL_SETAUTHDB == 0)
 int setauthdb(const char *, char *);
+#endif
 /* these may or may not be in the headers depending on the version */
 #if (HAVE_DECL_AUTHENTICATE == 0)
 int authenticate(char *, char *, int *, char **);

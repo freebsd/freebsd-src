@@ -47,7 +47,7 @@ extern int saved_argc;
 extern char **saved_argv;
 
 int
-sys_auth_passwd(Authctxt *authctxt, char *pass)
+sys_auth_passwd(Authctxt *authctxt, const char *pass)
 {
 	int ret;
 	SIAENTITY *ent = NULL;

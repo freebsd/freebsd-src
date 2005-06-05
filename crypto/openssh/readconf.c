@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: readconf.c,v 1.137 2005/03/04 08:48:06 djm Exp $");
+RCSID("$OpenBSD: readconf.c,v 1.139 2005/03/10 22:01:05 deraadt Exp $");
 
 #include "ssh.h"
 #include "xmalloc.h"
@@ -253,12 +253,14 @@ clear_forwardings(Options *options)
 	int i;
 
 	for (i = 0; i < options->num_local_forwards; i++) {
-		xfree(options->local_forwards[i].listen_host);
+		if (options->local_forwards[i].listen_host != NULL)
+			xfree(options->local_forwards[i].listen_host);
 		xfree(options->local_forwards[i].connect_host);
 	}
 	options->num_local_forwards = 0;
 	for (i = 0; i < options->num_remote_forwards; i++) {
-		xfree(options->remote_forwards[i].listen_host);
+		if (options->remote_forwards[i].listen_host != NULL)
+			xfree(options->remote_forwards[i].listen_host);
 		xfree(options->remote_forwards[i].connect_host);
 	}
 	options->num_remote_forwards = 0;
@@ -299,7 +301,7 @@ process_config_line(Options *options, const char *host,
 	Forward fwd;
 
 	/* Strip trailing whitespace */
-	for(len = strlen(line) - 1; len > 0; len--) {
+	for (len = strlen(line) - 1; len > 0; len--) {
 		if (strchr(WHITESPACE, line[len]) == NULL)
 			break;
 		line[len] = '\0';

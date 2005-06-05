@@ -1,7 +1,7 @@
 #	$OpenBSD: multiplex.sh,v 1.10 2005/02/27 11:33:30 dtucker Exp $
 #	Placed in the Public Domain.
 
-CTL=$OBJ/ctl-sock
+CTL=/tmp/openssh.regress.ctl-sock.$$
 
 tid="connection multiplexing"
 
@@ -89,6 +89,4 @@ ${SSH} -S $CTL -Oexit otherhost || fail "send exit command failed"
 # Wait for master to exit
 sleep 2
 
-ps -p $MASTER_PID >/dev/null && fail "exit command failed" 
-
-cleanup
+kill -0 $MASTER_PID >/dev/null 2>&1 && fail "exit command failed" 

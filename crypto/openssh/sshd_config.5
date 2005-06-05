@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.39 2005/03/01 10:09:52 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.40 2005/03/18 17:05:00 jmc Exp $
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
 .Os
@@ -630,7 +630,7 @@ To disable TCP keepalive messages, the value should be set to
 .It Cm UseDNS
 Specifies whether
 .Nm sshd
-should lookup the remote host name and check that
+should look up the remote host name and check that
 the resolved host name for the remote IP address maps back to the
 very same IP address.
 The default is

@@ -47,7 +47,6 @@ RCSID("$OpenBSD: auth-passwd.c,v 1.33 2005/01/24 11:47:13 dtucker Exp $");
 
 extern Buffer loginmsg;
 extern ServerOptions options;
-int sys_auth_passwd(Authctxt *, const char *);
 
 #ifdef HAVE_LOGIN_CAP
 extern login_cap_t *lc;

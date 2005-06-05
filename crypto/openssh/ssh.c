@@ -40,7 +40,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh.c,v 1.233 2005/03/01 17:22:06 jmc Exp $");
+RCSID("$OpenBSD: ssh.c,v 1.234 2005/03/10 22:01:06 deraadt Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -856,8 +856,8 @@ ssh_init_forwarding(void)
 	for (i = 0; i < options.num_local_forwards; i++) {
 		debug("Local connections to %.200s:%d forwarded to remote "
 		    "address %.200s:%d",
-		    (options.local_forwards[i].listen_host == NULL) ? 
-		    (options.gateway_ports ? "*" : "LOCALHOST") : 
+		    (options.local_forwards[i].listen_host == NULL) ?
+		    (options.gateway_ports ? "*" : "LOCALHOST") :
 		    options.local_forwards[i].listen_host,
 		    options.local_forwards[i].listen_port,
 		    options.local_forwards[i].connect_host,
@@ -876,6 +876,8 @@ ssh_init_forwarding(void)
 	for (i = 0; i < options.num_remote_forwards; i++) {
 		debug("Remote connections from %.200s:%d forwarded to "
 		    "local address %.200s:%d",
+		    (options.remote_forwards[i].listen_host == NULL) ? 
+		    (options.gateway_ports ? "*" : "LOCALHOST") : 
 		    options.remote_forwards[i].listen_host,
 		    options.remote_forwards[i].listen_port,
 		    options.remote_forwards[i].connect_host,
@@ -1093,7 +1095,7 @@ ssh_control_listener(void)
 	old_umask = umask(0177);
 	if (bind(control_fd, (struct sockaddr*)&addr, addr_len) == -1) {
 		control_fd = -1;
-		if (errno == EINVAL)
+		if (errno == EINVAL || errno == EADDRINUSE)
 			fatal("ControlSocket %s already exists",
 			    options.control_path);
 		else
@@ -1343,7 +1345,7 @@ control_client(const char *path)
 
 	switch (mux_command) {
 	case SSHMUX_COMMAND_ALIVE_CHECK:
-		fprintf(stderr, "Master running (pid=%d)\r\n", 
+		fprintf(stderr, "Master running (pid=%d)\r\n",
 		    control_server_pid);
 		exit(0);
 	case SSHMUX_COMMAND_TERMINATE:

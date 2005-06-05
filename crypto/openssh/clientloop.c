@@ -59,7 +59,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: clientloop.c,v 1.135 2005/03/01 10:09:52 djm Exp $");
+RCSID("$OpenBSD: clientloop.c,v 1.136 2005/03/10 22:01:05 deraadt Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -627,7 +627,7 @@ client_process_control(fd_set * readset)
 			    "to %s? ", host);
 		if (allowed)
 			quit_pending = 1;
-		/* FALLTHROUGH */	
+		/* FALLTHROUGH */
 	case SSHMUX_COMMAND_ALIVE_CHECK:
 		/* Reply for SSHMUX_COMMAND_TERMINATE and ALIVE_CHECK */
 		buffer_clear(&m);

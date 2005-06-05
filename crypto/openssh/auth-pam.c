@@ -47,7 +47,7 @@
 
 /* Based on $FreeBSD$ */
 #include "includes.h"
-RCSID("$Id: auth-pam.c,v 1.121 2005/01/20 02:29:51 dtucker Exp $");
+RCSID("$Id: auth-pam.c,v 1.122 2005/05/25 06:18:10 dtucker Exp $");
 
 #ifdef USE_PAM
 #if defined(HAVE_SECURITY_PAM_APPL_H)
@@ -76,7 +76,17 @@ extern Buffer loginmsg;
 extern int compat20;
 extern u_int utmp_len;
 
+/* so we don't silently change behaviour */
 #ifdef USE_POSIX_THREADS
+# error "USE_POSIX_THREADS replaced by UNSUPPORTED_POSIX_THREADS_HACK"
+#endif
+
+/*
+ * Formerly known as USE_POSIX_THREADS, using this is completely unsupported
+ * and generally a bad idea.  Use at own risk and do not expect support if
+ * this breaks.
+ */
+#ifdef UNSUPPORTED_POSIX_THREADS_HACK
 #include <pthread.h>
 /*
  * Avoid namespace clash when *not* using pthreads for systems *with*
@@ -98,7 +108,7 @@ struct pam_ctxt {
 static void sshpam_free_ctx(void *);
 static struct pam_ctxt *cleanup_ctxt;
 
-#ifndef USE_POSIX_THREADS
+#ifndef UNSUPPORTED_POSIX_THREADS_HACK
 /*
  * Simulate threads with processes.
  */
@@ -255,7 +265,7 @@ import_environments(Buffer *b)
 
 	debug3("PAM: %s entering", __func__);
 
-#ifndef USE_POSIX_THREADS
+#ifndef UNSUPPORTED_POSIX_THREADS_HACK
 	/* Import variables set by do_pam_account */
 	sshpam_account_status = buffer_get_int(b);
 	sshpam_password_change_required(buffer_get_int(b));
@@ -384,7 +394,7 @@ sshpam_thread(void *ctxtp)
 	struct pam_conv sshpam_conv;
 	int flags = (options.permit_empty_passwd == 0 ?
 	    PAM_DISALLOW_NULL_AUTHTOK : 0);
-#ifndef USE_POSIX_THREADS
+#ifndef UNSUPPORTED_POSIX_THREADS_HACK
 	extern char **environ;
 	char **env_from_pam;
 	u_int i;
@@ -428,7 +438,7 @@ sshpam_thread(void *ctxtp)
 
 	buffer_put_cstring(&buffer, "OK");
 
-#ifndef USE_POSIX_THREADS
+#ifndef UNSUPPORTED_POSIX_THREADS_HACK
 	/* Export variables set by do_pam_account */
 	buffer_put_int(&buffer, sshpam_account_status);
 	buffer_put_int(&buffer, sshpam_authctxt->force_pwchange);
@@ -447,7 +457,7 @@ sshpam_thread(void *ctxtp)
 	buffer_put_int(&buffer, i);
 	for(i = 0; env_from_pam != NULL && env_from_pam[i] != NULL; i++)
 		buffer_put_cstring(&buffer, env_from_pam[i]);
-#endif /* USE_POSIX_THREADS */
+#endif /* UNSUPPORTED_POSIX_THREADS_HACK */
 
 	/* XXX - can't do much about an error here */
 	ssh_msg_send(ctxt->pam_csock, sshpam_err, &buffer);
