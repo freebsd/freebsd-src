@@ -1848,14 +1848,28 @@ ata_nvidia_chipinit(device_t dev)
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						   &ctlr->r_rid2, RF_ACTIVE))) {
+	    int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0440 : 0x0010;
+
 	    if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
 		bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
 				ata_nvidia_intr, ctlr, &ctlr->handle)) {
 		device_printf(dev, "unable to setup interrupt\n");
 		return ENXIO;
 	    }
+
+	    /* enable control access */
+	    pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 1) | 0x04,1);
+
+	    /* clear interrupt status */
+	    ATA_OUTB(ctlr->r_res2, offset, 0xff);
+
+	    /* enable device and PHY state change interrupts */
+	    ATA_OUTB(ctlr->r_res2, offset + 1, 0xdd);
+
+	    /* enable PCI interrupt */
 	    pci_write_config(dev, PCIR_COMMAND,
 			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
+
 	    ctlr->allocate = ata_nvidia_allocate;
 	    ctlr->reset = ata_nvidia_reset;
 	}
@@ -1874,7 +1888,6 @@ ata_nvidia_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0441 : 0x0011;
 
     /* setup the usual register normal pci style */
     ata_pci_allocate(dev);
@@ -1887,9 +1900,6 @@ ata_nvidia_allocate(device_t dev)
     ch->r_io[ATA_SCONTROL].offset = 0x08 + (ch->unit << 6);
     ch->flags |= ATA_NO_SLAVE;
 
-    /* enable PHY state change interrupts */
-    ATA_OUTB(ctlr->r_res2, offset,
-	     ATA_INB(ctlr->r_res2, offset) | (0x0c << (ch->unit << 2)));
     return 0;
 }
 
@@ -1902,20 +1912,22 @@ ata_nvidia_intr(void *data)
     u_int8_t status;
     int unit;
 
+    /* get interrupt status */
+    status = ATA_INB(ctlr->r_res2, offset);
+
+    /* clear interrupt status */
+    ATA_OUTB(ctlr->r_res2, offset, 0xff);
+
     for (unit = 0; unit < ctlr->channels; unit++) {
-	if (!(ch = ctlr->interrupt[unit].argument))
-	    continue;
-
-	if ((status = ATA_INB(ctlr->r_res2, offset))) {
-	    u_int32_t error = ATA_IDX_INL(ch, ATA_SERROR);
+	if ((ch = ctlr->interrupt[unit].argument)) {
 	    struct ata_connect_task *tp;
+	    int maskshift = ch->unit << 2;
 
-	    /* clear error bits/interrupt */
-	    ATA_IDX_OUTL(ch, ATA_SERROR, error);
-	    ATA_OUTB(ctlr->r_res2, offset, status);
+	    /* clear error status */
+	    ATA_IDX_OUTL(ch, ATA_SERROR, ATA_IDX_INL(ch, ATA_SERROR));
 
 	    /* check for and handle connect events */
-	    if ((status & (0x04 << (ch->unit << 2))) &&
+	    if (((status & (0x0c << maskshift)) == (0x04 << maskshift)) &&
 		(tp = (struct ata_connect_task *)
 		      malloc(sizeof(struct ata_connect_task),
 			     M_ATA, M_NOWAIT | M_ZERO))) {
@@ -1925,11 +1937,10 @@ ata_nvidia_intr(void *data)
 		tp->dev = ch->dev;
 		TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
 		taskqueue_enqueue(taskqueue_thread, &tp->task);
-
 	    }
 
 	    /* check for and handle disconnect events */
-	    if ((status & (0x08 << (ch->unit << 2))) &&
+	    if ((status & (0x08 << maskshift)) &&
 		(tp = (struct ata_connect_task *)
 		      malloc(sizeof(struct ata_connect_task),
 			   M_ATA, M_NOWAIT | M_ZERO))) {
@@ -1942,7 +1953,7 @@ ata_nvidia_intr(void *data)
 	    }
 
 	    /* any drive action to take care of ? */
-	    if (status & (0x01 << (ch->unit << 2))) {
+	    if (status & (0x01 << maskshift)) {
 		if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 		    int bmstat = 
 			ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
@@ -1961,19 +1972,9 @@ ata_nvidia_intr(void *data)
 static void
 ata_nvidia_reset(device_t dev)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0441 : 0x0011;
-
-    /* disable PHY state change interrupt */
-    ATA_OUTB(ctlr->r_res2, offset,
-	     ATA_INB(ctlr->r_res2, offset) & (~0x0c << (ch->unit << 2)));
 
     ata_sata_phy_enable(ch);
-
-    /* enable PHY state change interrupt */
-    ATA_OUTB(ctlr->r_res2, offset,
-	     ATA_INB(ctlr->r_res2, offset) | (0x0c << (ch->unit << 2)));
 }
 
 
