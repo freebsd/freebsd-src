@@ -71,7 +71,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: scp.c,v 1.117 2004/08/11 21:44:32 avsm Exp $");
+RCSID("$OpenBSD: scp.c,v 1.121 2005/04/02 12:41:16 djm Exp $");
 
 #include "xmalloc.h"
 #include "atomicio.h"
@@ -108,8 +108,10 @@ pid_t do_cmd_pid = -1;
 static void
 killchild(int signo)
 {
-	if (do_cmd_pid > 1)
+	if (do_cmd_pid > 1) {
 		kill(do_cmd_pid, signo);
+		waitpid(do_cmd_pid, NULL, 0);
+	}
 
 	_exit(1);
 }
@@ -359,20 +361,21 @@ void
 toremote(char *targ, int argc, char **argv)
 {
 	int i, len;
-	char *bp, *host, *src, *suser, *thost, *tuser;
+	char *bp, *host, *src, *suser, *thost, *tuser, *arg;
 
 	*targ++ = 0;
 	if (*targ == 0)
 		targ = ".";
 
-	if ((thost = strrchr(argv[argc - 1], '@'))) {
+	arg = xstrdup(argv[argc - 1]);
+	if ((thost = strrchr(arg, '@'))) {
 		/* user@host */
 		*thost++ = 0;
-		tuser = argv[argc - 1];
+		tuser = arg;
 		if (*tuser == '\0')
 			tuser = NULL;
 	} else {
-		thost = argv[argc - 1];
+		thost = arg;
 		tuser = NULL;
 	}
 
@@ -726,7 +729,7 @@ sink(int argc, char **argv)
 
 #define	atime	tv[0]
 #define	mtime	tv[1]
-#define	SCREWUP(str)	do { why = str; goto screwup; } while (0)
+#define	SCREWUP(str)	{ why = str; goto screwup; }
 
 	setimes = targisdir = 0;
 	mask = umask(0);

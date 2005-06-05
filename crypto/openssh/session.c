@@ -33,7 +33,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: session.c,v 1.180 2004/07/28 09:40:29 markus Exp $");
+RCSID("$OpenBSD: session.c,v 1.181 2004/12/23 17:35:48 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -246,6 +246,10 @@ do_authenticated1(Authctxt *authctxt)
 	u_int proto_len, data_len, dlen, compression_level = 0;
 
 	s = session_new();
+	if (s == NULL) {
+		error("no more sessions");
+		return;
+	}
 	s->authctxt = authctxt;
 	s->pw = authctxt->pw;
 
@@ -662,11 +666,15 @@ do_exec(Session *s, const char *command)
 		debug("Forced command '%.900s'", command);
 	}
 
-#ifdef GSSAPI
-	if (options.gss_authentication) {
-		temporarily_use_uid(s->pw);
-		ssh_gssapi_storecreds();
-		restore_uid();
+#ifdef SSH_AUDIT_EVENTS
+	if (command != NULL)
+		PRIVSEP(audit_run_command(command));
+	else if (s->ttyfd == -1) {
+		char *shell = s->pw->pw_shell;
+
+		if (shell[0] == '\0')	/* empty shell means /bin/sh */
+			shell =_PATH_BSHELL;
+		PRIVSEP(audit_run_command(shell));
 	}
 #endif
 
@@ -1002,7 +1010,13 @@ do_setup_env(Session *s, const char *shell)
 	 * The Windows environment contains some setting which are
 	 * important for a running system. They must not be dropped.
 	 */
-	copy_environment(environ, &env, &envsize);
+	{
+		char **p;
+
+		p = fetch_windows_environment();
+		copy_environment(p, &env, &envsize);
+		free_windows_environment(p);
+	}
 #endif
 
 	if (getenv("TZ"))
@@ -1111,14 +1125,24 @@ do_setup_env(Session *s, const char *shell)
 		child_set_env(&env, &envsize, "TMPDIR", cray_tmpdir);
 #endif /* _UNICOS */
 
+	/*
+	 * Since we clear KRB5CCNAME at startup, if it's set now then it
+	 * must have been set by a native authentication method (eg AIX or
+	 * SIA), so copy it to the child.
+	 */
+	{
+		char *cp;
+
+		if ((cp = getenv("KRB5CCNAME")) != NULL)
+			child_set_env(&env, &envsize, "KRB5CCNAME", cp);
+	}
+
 #ifdef _AIX
 	{
 		char *cp;
 
 		if ((cp = getenv("AUTHSTATE")) != NULL)
 			child_set_env(&env, &envsize, "AUTHSTATE", cp);
-		if ((cp = getenv("KRB5CCNAME")) != NULL)
-			child_set_env(&env, &envsize, "KRB5CCNAME", cp);
 		read_environment_file(&env, &envsize, "/etc/environment");
 	}
 #endif
@@ -1278,6 +1302,13 @@ do_setusercontext(struct passwd *pw)
 # ifdef __bsdi__
 		setpgid(0, 0);
 # endif
+#ifdef GSSAPI
+		if (options.gss_authentication) {
+			temporarily_use_uid(pw);
+			ssh_gssapi_storecreds();
+			restore_uid();
+		}
+#endif
 # ifdef USE_PAM
 		if (options.use_pam) {
 			do_pam_session();
@@ -1308,6 +1339,13 @@ do_setusercontext(struct passwd *pw)
 			exit(1);
 		}
 		endgrent();
+#ifdef GSSAPI
+		if (options.gss_authentication) {
+			temporarily_use_uid(pw);
+			ssh_gssapi_storecreds();
+			restore_uid();
+		}
+#endif
 # ifdef USE_PAM
 		/*
 		 * PAM credentials may take the form of supplementary groups.
@@ -1345,7 +1383,12 @@ do_pwchange(Session *s)
 	if (s->ttyfd != -1) {
 		fprintf(stderr,
 		    "You must change your password now and login again!\n");
+#ifdef PASSWD_NEEDS_USERNAME
+		execl(_PATH_PASSWD_PROG, "passwd", s->pw->pw_name,
+		    (char *)NULL);
+#else
 		execl(_PATH_PASSWD_PROG, "passwd", (char *)NULL);
+#endif
 		perror("passwd");
 	} else {
 		fprintf(stderr,
@@ -1462,10 +1505,18 @@ do_child(Session *s, const char *command)
 		 * generated messages, so if this in an interactive
 		 * login then display them too.
 		 */
-		if (command == NULL)
+		if (!check_quietlogin(s, command))
 			display_loginmsg();
 #endif /* HAVE_OSF_SIA */
 	}
+
+#ifdef USE_PAM
+	if (options.use_pam && !options.use_login && !is_pam_session_open()) {
+		debug3("PAM session not opened, exiting");
+		display_loginmsg();
+		exit(254);
+	}
+#endif
 
 	/*
 	 * Get the shell from the password data.  An empty shell field is

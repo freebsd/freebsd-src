@@ -26,9 +26,11 @@ RCSID("$FreeBSD$");
 #include "session.h"
 #include "uidswap.h"
 #include "monitor_wrap.h"
+#include "buffer.h"
 
 /* import */
 extern ServerOptions options;
+extern Buffer loginmsg;
 
 /*
  * convert ssh auth msg type into description
@@ -246,14 +248,33 @@ do_authloop(Authctxt *authctxt)
 #else
 		/* Special handling for root */
 		if (authenticated && authctxt->pw->pw_uid == 0 &&
-		    !auth_root_allowed(get_authname(type)))
+		    !auth_root_allowed(get_authname(type))) {
 			authenticated = 0;
+# ifdef SSH_AUDIT_EVENTS
+			PRIVSEP(audit_event(SSH_LOGIN_ROOT_DENIED));
+# endif
+		}
 #endif
 
 #ifdef USE_PAM
 		if (options.use_pam && authenticated &&
-		    !PRIVSEP(do_pam_account()))
-			authenticated = 0;
+		    !PRIVSEP(do_pam_account())) {
+			char *msg;
+			size_t len;
+
+			error("Access denied for user %s by PAM account "
+			   "configuration", authctxt->user);
+			len = buffer_len(&loginmsg);
+			buffer_append(&loginmsg, "\0", 1);
+			msg = buffer_ptr(&loginmsg);
+			/* strip trailing newlines */
+			if (len > 0)
+				while (len > 0 && msg[--len] == '\n')
+					msg[len] = '\0';
+			else
+				msg = "Access denied.";
+			packet_disconnect(msg);
+		}
 #endif
 
 		/* Log before sending the reply */
@@ -267,8 +288,12 @@ do_authloop(Authctxt *authctxt)
 		if (authenticated)
 			return;
 
-		if (authctxt->failures++ > options.max_authtries)
+		if (authctxt->failures++ > options.max_authtries) {
+#ifdef SSH_AUDIT_EVENTS
+			PRIVSEP(audit_event(SSH_LOGIN_EXCEED_MAXTRIES));
+#endif
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
+		}
 
 		packet_start(SSH_SMSG_FAILURE);
 		packet_send();

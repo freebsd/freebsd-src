@@ -7,7 +7,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keyscan.c,v 1.50 2004/08/11 21:44:32 avsm Exp $");
+RCSID("$OpenBSD: ssh-keyscan.c,v 1.52 2005/03/01 15:47:14 jmc Exp $");
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -28,6 +28,7 @@ RCSID("$OpenBSD: ssh-keyscan.c,v 1.50 2004/08/11 21:44:32 avsm Exp $");
 #include "log.h"
 #include "atomicio.h"
 #include "misc.h"
+#include "hostfile.h"
 
 /* Flag indicating whether IPv4 or IPv6.  This can be set on the command line.
    Default value is AF_UNSPEC means both IPv4 and IPv6. */
@@ -40,6 +41,8 @@ int ssh_port = SSH_DEFAULT_PORT;
 #define KT_RSA	4
 
 int get_keytypes = KT_RSA1;	/* Get only RSA1 keys by default */
+
+int hash_hosts = 0;		/* Hash hostname on output */
 
 #define MAXMAXFD 256
 
@@ -366,10 +369,14 @@ keygrab_ssh2(con *c)
 static void
 keyprint(con *c, Key *key)
 {
+	char *host = c->c_output_name ? c->c_output_name : c->c_name;
+
 	if (!key)
 		return;
+	if (hash_hosts && (host = host_hash(host, NULL, 0)) == NULL)
+		fatal("host_hash failed");
 
-	fprintf(stdout, "%s ", c->c_output_name ? c->c_output_name : c->c_name);
+	fprintf(stdout, "%s ", host);
 	key_write(key, stdout);
 	fputs("\n", stdout);
 }
@@ -676,7 +683,7 @@ fatal(const char *fmt,...)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-v46] [-p port] [-T timeout] [-t type] [-f file]\n"
+	fprintf(stderr, "usage: %s [-46Hv] [-f file] [-p port] [-T timeout] [-t type]\n"
 	    "\t\t   [host | addrlist namelist] [...]\n",
 	    __progname);
 	exit(1);
@@ -700,8 +707,11 @@ main(int argc, char **argv)
 	if (argc <= 1)
 		usage();
 
-	while ((opt = getopt(argc, argv, "v46p:T:t:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "Hv46p:T:t:f:")) != -1) {
 		switch (opt) {
+		case 'H':
+			hash_hosts = 1;
+			break;
 		case 'p':
 			ssh_port = a2port(optarg);
 			if (ssh_port == 0) {

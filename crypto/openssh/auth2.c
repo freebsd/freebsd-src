@@ -37,6 +37,7 @@ RCSID("$FreeBSD$");
 #include "dispatch.h"
 #include "pathnames.h"
 #include "monitor_wrap.h"
+#include "buffer.h"
 
 #ifdef GSSAPI
 #include "ssh-gss.h"
@@ -46,6 +47,7 @@ RCSID("$FreeBSD$");
 extern ServerOptions options;
 extern u_char *session_id2;
 extern u_int session_id2_len;
+extern Buffer loginmsg;
 
 /* methods */
 
@@ -174,6 +176,9 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 			if (options.use_pam)
 				PRIVSEP(start_pam(authctxt));
 #endif
+#ifdef SSH_AUDIT_EVENTS
+			PRIVSEP(audit_event(SSH_INVALID_USER));
+#endif
 		}
 		setproctitle("%s%s", authctxt->valid ? user : "unknown",
 		    use_privsep ? " [net]" : "");
@@ -242,12 +247,26 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 
 	/* Special handling for root */
 	if (authenticated && authctxt->pw->pw_uid == 0 &&
-	    !auth_root_allowed(method))
+	    !auth_root_allowed(method)) {
 		authenticated = 0;
+#ifdef SSH_AUDIT_EVENTS
+		PRIVSEP(audit_event(SSH_LOGIN_ROOT_DENIED));
+#endif
+	}
 
 #ifdef USE_PAM
-	if (options.use_pam && authenticated && !PRIVSEP(do_pam_account()))
-		authenticated = 0;
+	if (options.use_pam && authenticated) {
+		if (!PRIVSEP(do_pam_account())) {
+			/* if PAM returned a message, send it to the user */
+			if (buffer_len(&loginmsg) > 0) {
+				buffer_append(&loginmsg, "\0", 1);
+				userauth_send_banner(buffer_ptr(&loginmsg));
+				packet_write_wait();
+			}
+			fatal("Access denied for user %s by PAM account "
+			   "configuration", authctxt->user);
+		}
+	}
 #endif
 
 #ifdef _UNICOS
@@ -273,8 +292,12 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		/* now we can break out */
 		authctxt->success = 1;
 	} else {
-		if (authctxt->failures++ > options.max_authtries)
+		if (authctxt->failures++ > options.max_authtries) {
+#ifdef SSH_AUDIT_EVENTS
+			PRIVSEP(audit_event(SSH_LOGIN_EXCEED_MAXTRIES));
+#endif
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
+		}
 		methods = authmethods_get();
 		packet_start(SSH2_MSG_USERAUTH_FAILURE);
 		packet_put_cstring(methods);
