@@ -281,6 +281,13 @@ struct ifmediareq {
 	int	*ifm_ulist;		/* media words */
 };
 
+struct  ifdrv {
+	char            ifd_name[IFNAMSIZ];     /* if name, e.g. "en0" */
+	unsigned long   ifd_cmd;
+	size_t          ifd_len;
+	void            *ifd_data;
+};
+
 /* 
  * Structure used to retrieve aux status data from interfaces.
  * Kernel suppliers to this interface should respect the formatting
