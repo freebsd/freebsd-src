@@ -29,11 +29,13 @@ RCSID("$FreeBSD$");
 #include "auth.h"
 #include "log.h"
 #include "xmalloc.h"
+#include "servconf.h"
 
 /* limited protocol v1 interface to kbd-interactive authentication */
 
 extern KbdintDevice *devices[];
 static KbdintDevice *device;
+extern ServerOptions options;
 
 char *
 get_challenge(Authctxt *authctxt)
@@ -41,6 +43,11 @@ get_challenge(Authctxt *authctxt)
 	char *challenge, *name, *info, **prompts;
 	u_int i, numprompts;
 	u_int *echo_on;
+
+#ifdef USE_PAM
+	if (!options.use_pam)
+		remove_kbdint_device("pam");
+#endif
 
 	device = devices[0]; /* we always use the 1st device for protocol 1 */
 	if (device == NULL)

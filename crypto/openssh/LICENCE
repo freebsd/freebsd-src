@@ -97,7 +97,7 @@ OpenSSH contains no GPL code.
      * <http://www.core-sdi.com>
 
 3)
-    ssh-keygen was contributed by David Mazieres under a BSD-style
+    ssh-keyscan was contributed by David Mazieres under a BSD-style
     license.
 
      * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
@@ -203,6 +203,7 @@ OpenSSH contains no GPL code.
 	Wayne Schroeder
 	William Jones
 	Darren Tucker
+	Sun Microsystems
 
      * Redistribution and use in source and binary forms, with or without
      * modification, are permitted provided that the following conditions
@@ -329,4 +330,4 @@ OpenSSH contains no GPL code.
 
 
 ------
-$OpenBSD: LICENCE,v 1.18 2003/11/21 11:57:02 djm Exp $
+$OpenBSD: LICENCE,v 1.19 2004/08/30 09:18:08 markus Exp $

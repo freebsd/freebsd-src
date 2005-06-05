@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.35 2004/06/26 09:14:40 jmc Exp $
+.\" $OpenBSD: sshd_config.5,v 1.40 2005/03/18 17:05:00 jmc Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
@@ -84,6 +84,17 @@ Be warned that some environment variables could be used to bypass restricted
 user environments.
 For this reason, care should be taken in the use of this directive.
 The default is not to accept any environment variables.
+.It Cm AddressFamily
+Specifies which address family should be used by
+.Nm sshd .
+Valid arguments are
+.Dq any ,
+.Dq inet
+(use IPv4 only) or
+.Dq inet6
+(use IPv6 only).
+The default is
+.Dq any .
 .It Cm AllowGroups
 This keyword can be followed by a list of group name patterns, separated
 by spaces.
@@ -253,12 +264,15 @@ This prevents other remote hosts from connecting to forwarded ports.
 .Cm GatewayPorts
 can be used to specify that
 .Nm sshd
-should bind remote port forwardings to the wildcard address,
-thus allowing remote hosts to connect to forwarded ports.
-The argument must be
+should allow remote port forwardings to bind to non-loopback addresses, thus
+allowing other hosts to connect.
+The argument may be
+.Dq no
+to force remote port forwardings to be available to the local host only,
 .Dq yes
-or
-.Dq no .
+to force remote port forwardings to bind to the wildcard address, or
+.Dq clientspecified
+to allow the client to select the address to which the forwarding is bound.
 The default is
 .Dq no .
 .It Cm GSSAPIAuthentication
@@ -476,7 +490,7 @@ server allows login to accounts with empty password strings.
 The default is
 .Dq no .
 .It Cm PermitRootLogin
-Specifies whether root can login using
+Specifies whether root can log in using
 .Xr ssh 1 .
 The argument must be
 .Dq yes ,
@@ -496,9 +510,7 @@ the root user may be allowed in with its password even if
 .Pp
 If this option is set to
 .Dq without-password
-password authentication is disabled for root.  Note that other authentication
-methods (e.g., keyboard-interactive/PAM) may still allow root to login using
-a password.
+password authentication is disabled for root.
 .Pp
 If this option is set to
 .Dq forced-commands-only
@@ -512,7 +524,7 @@ All other authentication methods are disabled for root.
 .Pp
 If this option is set to
 .Dq no
-root is not allowed to login.
+root is not allowed to log in.
 .It Cm PermitUserEnvironment
 Specifies whether
 .Pa ~/.ssh/environment
@@ -544,7 +556,8 @@ See also
 .It Cm PrintLastLog
 Specifies whether
 .Nm sshd
-should print the date and time when the user last logged in.
+should print the date and time of the last user login when a user logs
+in interactively.
 The default is
 .Dq yes .
 .It Cm PrintMotd
@@ -647,7 +660,7 @@ To disable TCP keepalive messages, the value should be set to
 .It Cm UseDNS
 Specifies whether
 .Nm sshd
-should lookup the remote host name and check that
+should look up the remote host name and check that
 the resolved host name for the remote IP address maps back to the
 very same IP address.
 The default is
@@ -707,7 +720,7 @@ The default is
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20041028 .
+.Dq FreeBSD-20050605 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Nm sshd Ns 's
