@@ -7,10 +7,8 @@ SRCS=	if_bridge.c bridgestp.c opt_inet.h opt_inet6.h
 opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}
 	
+.if !defined(NO_INET6)
 opt_inet6.h:
-.if defined(NOINET6)
-	echo > ${.TARGET}
-.else
 	echo "#define INET6 1" > ${.TARGET}
 .endif
 
