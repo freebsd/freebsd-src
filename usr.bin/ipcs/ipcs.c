@@ -573,7 +573,7 @@ sysctlgatherstruct(addr, size, vecarr)
 		rv = sysctlbyname(xp->sysctl, (char *)addr + xp->offset,
 		    &tsiz, NULL, 0);
 		if (rv == -1)
-			errx(1, "sysctlbyname: %s", xp->sysctl);
+			err(1, "sysctlbyname: %s", xp->sysctl);
 		if (tsiz != xp->size)
 			errx(1, "%s size mismatch (expected %d, got %d)",
 			    xp->sysctl, xp->size, tsiz);
