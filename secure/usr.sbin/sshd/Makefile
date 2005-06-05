@@ -12,7 +12,11 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	auth-krb5.c \
 	auth2-gss.c gss-serv.c gss-serv-krb5.c \
 	loginrec.c auth-pam.c auth-shadow.c auth-sia.c md5crypt.c \
+	audit.c audit-bsm.c \
 	gss-genr.c
+
+# gss-genr.c really belongs in libssh; see src/secure/lib/libssh/Makefile
+
 MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR}
 
@@ -20,7 +24,7 @@ DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ} ${LIBWRAP} ${LIBPAM}
 LDADD=	-lssh -lutil -lz -lwrap ${MINUSLPAM}
 
 .if !defined(NO_KERBEROS)
-CFLAGS+= -DGSSAPI -DKRB5 -DHEIMDAL
+CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_H=1 -DKRB5 -DHEIMDAL
 DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN}
 LDADD+=	 -lgssapi -lkrb5 -lasn1 -lcom_err -lroken
 .endif
@@ -31,17 +35,6 @@ CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
 
 DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
 LDADD+=	-lcrypto -lcrypt
-
-.if defined(OPENSSH_USE_POSIX_THREADS)
-.if ((${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
-    ${MACHINE_ARCH} == "ia64") && !defined(NO_LIBPTHREAD)) || \
-    ((${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64") && \
-    !defined(NO_LIBC_R))
-CFLAGS+=-DUSE_POSIX_THREADS
-DPADD+= ${LIBPTHREAD}
-LDADD+= -lpthread
-.endif
-.endif
 
 .include <bsd.prog.mk>
 
