@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=   sftp-server
-SRCS=   sftp-common.c sftp-server.c
+SRCS=   sftp-server.c sftp-common.c
 MAN=	sftp-server.8
 CFLAGS+=-I${SSHDIR}
 
