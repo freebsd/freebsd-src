@@ -1,4 +1,4 @@
-/* $Id: bsd-cygwin_util.h,v 1.10 2003/08/07 06:28:16 dtucker Exp $ */
+/* $Id: bsd-cygwin_util.h,v 1.11 2004/08/30 10:42:08 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000, 2001, Corinna Vinschen <vinschen@cygnus.com>
@@ -46,6 +46,8 @@ int binary_pipe(int fd[2]);
 int check_nt_auth(int, struct passwd *);
 int check_ntsec(const char *);
 void register_9x_service(void);
+char **fetch_windows_environment(void);
+void free_windows_environment(char **);
 
 #define open binary_open
 #define pipe binary_pipe

@@ -1,4 +1,4 @@
-/* $Id: bsd-cray.h,v 1.11 2004/01/30 03:34:22 dtucker Exp $ */
+/* $Id: bsd-cray.h,v 1.12 2005/02/02 06:10:11 dtucker Exp $ */
 
 /*
  * Copyright (c) 2002, Cray Inc.  (Wendy Palm <wendyp@cray.com>)
@@ -42,9 +42,9 @@ void cray_init_job(struct passwd *);
 void cray_job_termination_handler(int);
 void cray_login_failure(char *, int );
 int cray_access_denied(char *);
-#define CUSTOM_FAILED_LOGIN 1
-void record_failed_login(const char *, const char *);
 extern char cray_tmpdir[];
+
+#define CUSTOM_FAILED_LOGIN 1
 
 #ifndef IA_SSHD
 # define IA_SSHD IA_LOGIN

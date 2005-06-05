@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keysign.c,v 1.16 2004/04/18 23:10:26 djm Exp $");
+RCSID("$OpenBSD: ssh-keysign.c,v 1.18 2004/08/23 14:29:23 dtucker Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -151,7 +151,8 @@ main(int argc, char **argv)
 	key_fd[0] = open(_PATH_HOST_RSA_KEY_FILE, O_RDONLY);
 	key_fd[1] = open(_PATH_HOST_DSA_KEY_FILE, O_RDONLY);
 
-	if ((pw = getpwuid(getuid())) == NULL)
+	original_real_uid = getuid();	/* XXX readconf.c needs this */
+	if ((pw = getpwuid(original_real_uid)) == NULL)
 		fatal("getpwuid failed");
 	pw = pwcopy(pw);
 
@@ -166,7 +167,6 @@ main(int argc, char **argv)
 #endif
 
 	/* verify that ssh-keysign is enabled by the admin */
-	original_real_uid = getuid();	/* XXX readconf.c needs this */
 	initialize_options(&options);
 	(void)read_config_file(_PATH_HOST_CONFIG_FILE, "", &options, 0);
 	fill_default_options(&options);

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.40 2003/11/25 23:10:08 matthieu Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.42 2005/03/01 17:32:19 jmc Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -45,7 +45,7 @@
 .Nd adds RSA or DSA identities to the authentication agent
 .Sh SYNOPSIS
 .Nm ssh-add
-.Op Fl lLdDxXc
+.Op Fl cDdLlXx
 .Op Fl t Ar life
 .Op Ar
 .Nm ssh-add
@@ -77,23 +77,6 @@ to work.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl l
-Lists fingerprints of all identities currently represented by the agent.
-.It Fl L
-Lists public key parameters of all identities currently represented by the agent.
-.It Fl d
-Instead of adding the identity, removes the identity from the agent.
-.It Fl D
-Deletes all identities from the agent.
-.It Fl x
-Lock the agent with a password.
-.It Fl X
-Unlock the agent.
-.It Fl t Ar life
-Set a maximum lifetime when adding identities to an agent.
-The lifetime may be specified in seconds or in a time format
-specified in
-.Xr sshd_config 5 .
 .It Fl c
 Indicates that added identities should be subject to confirmation before
 being used for authentication.
@@ -103,12 +86,30 @@ program mentioned below.
 Successful confirmation is signaled by a zero exit status from the
 .Ev SSH_ASKPASS
 program, rather than text entered into the requester.
-.It Fl s Ar reader
-Add key in smartcard
-.Ar reader .
+.It Fl D
+Deletes all identities from the agent.
+.It Fl d
+Instead of adding the identity, removes the identity from the agent.
 .It Fl e Ar reader
 Remove key in smartcard
 .Ar reader .
+.It Fl L
+Lists public key parameters of all identities currently represented
+by the agent.
+.It Fl l
+Lists fingerprints of all identities currently represented by the agent.
+.It Fl s Ar reader
+Add key in smartcard
+.Ar reader .
+.It Fl t Ar life
+Set a maximum lifetime when adding identities to an agent.
+The lifetime may be specified in seconds or in a time format
+specified in
+.Xr sshd_config 5 .
+.It Fl X
+Unlock the agent.
+.It Fl x
+Lock the agent with a password.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
@@ -129,7 +130,7 @@ and open an X11 window to read the passphrase.
 This is particularly useful when calling
 .Nm
 from a
-.Pa .Xsession
+.Pa .xsession
 or related script.
 (Note that on some machines it
 may be necessary to redirect the input from

@@ -35,9 +35,7 @@ static char rcsid[] = "$OpenBSD: inet_ntop.c,v 1.5 2002/08/23 16:27:31 itojun Ex
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#ifndef HAVE_CYGWIN
 #include <arpa/nameser.h>
-#endif
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>

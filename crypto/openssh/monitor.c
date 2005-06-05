@@ -25,7 +25,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: monitor.c,v 1.61 2004/07/17 05:31:41 dtucker Exp $");
+RCSID("$OpenBSD: monitor.c,v 1.62 2005/01/30 11:18:08 dtucker Exp $");
 
 #include <openssl/dh.h>
 
@@ -143,6 +143,11 @@ int mm_answer_gss_userok(int, Buffer *);
 int mm_answer_gss_checkmic(int, Buffer *);
 #endif
 
+#ifdef SSH_AUDIT_EVENTS
+int mm_answer_audit_event(int, Buffer *);
+int mm_answer_audit_command(int, Buffer *);
+#endif
+
 static Authctxt *authctxt;
 static BIGNUM *ssh1_challenge = NULL;	/* used for ssh1 rsa auth */
 
@@ -186,6 +191,9 @@ struct mon_table mon_dispatch_proto20[] = {
     {MONITOR_REQ_PAM_RESPOND, MON_ISAUTH, mm_answer_pam_respond},
     {MONITOR_REQ_PAM_FREE_CTX, MON_ONCE|MON_AUTHDECIDE, mm_answer_pam_free_ctx},
 #endif
+#ifdef SSH_AUDIT_EVENTS
+    {MONITOR_REQ_AUDIT_EVENT, MON_PERMIT, mm_answer_audit_event},
+#endif
 #ifdef BSD_AUTH
     {MONITOR_REQ_BSDAUTHQUERY, MON_ISAUTH, mm_answer_bsdauthquery},
     {MONITOR_REQ_BSDAUTHRESPOND, MON_AUTH,mm_answer_bsdauthrespond},
@@ -211,6 +219,10 @@ struct mon_table mon_dispatch_postauth20[] = {
     {MONITOR_REQ_PTY, 0, mm_answer_pty},
     {MONITOR_REQ_PTYCLEANUP, 0, mm_answer_pty_cleanup},
     {MONITOR_REQ_TERM, 0, mm_answer_term},
+#ifdef SSH_AUDIT_EVENTS
+    {MONITOR_REQ_AUDIT_EVENT, MON_PERMIT, mm_answer_audit_event},
+    {MONITOR_REQ_AUDIT_COMMAND, MON_PERMIT, mm_answer_audit_command},
+#endif
     {0, 0, NULL}
 };
 
@@ -239,6 +251,9 @@ struct mon_table mon_dispatch_proto15[] = {
     {MONITOR_REQ_PAM_RESPOND, MON_ISAUTH, mm_answer_pam_respond},
     {MONITOR_REQ_PAM_FREE_CTX, MON_ONCE|MON_AUTHDECIDE, mm_answer_pam_free_ctx},
 #endif
+#ifdef SSH_AUDIT_EVENTS
+    {MONITOR_REQ_AUDIT_EVENT, MON_PERMIT, mm_answer_audit_event},
+#endif
     {0, 0, NULL}
 };
 
@@ -246,6 +261,10 @@ struct mon_table mon_dispatch_postauth15[] = {
     {MONITOR_REQ_PTY, MON_ONCE, mm_answer_pty},
     {MONITOR_REQ_PTYCLEANUP, MON_ONCE, mm_answer_pty_cleanup},
     {MONITOR_REQ_TERM, 0, mm_answer_term},
+#ifdef SSH_AUDIT_EVENTS
+    {MONITOR_REQ_AUDIT_EVENT, MON_PERMIT, mm_answer_audit_event},
+    {MONITOR_REQ_AUDIT_COMMAND, MON_ONCE, mm_answer_audit_command},
+#endif
     {0, 0, NULL}
 };
 
@@ -609,6 +628,9 @@ mm_answer_pwnamallow(int sock, Buffer *m)
 	if (options.use_pam)
 		monitor_permit(mon_dispatch, MONITOR_REQ_PAM_START, 1);
 #endif
+#ifdef SSH_AUDIT_EVENTS
+	monitor_permit(mon_dispatch, MONITOR_REQ_AUDIT_COMMAND, 1);
+#endif
 
 	return (0);
 }
@@ -810,6 +832,9 @@ mm_answer_pam_account(int sock, Buffer *m)
 	ret = do_pam_account();
 
 	buffer_put_int(m, ret);
+	buffer_append(&loginmsg, "\0", 1);
+	buffer_put_cstring(m, buffer_ptr(&loginmsg));
+	buffer_clear(&loginmsg);
 
 	mm_request_send(sock, MONITOR_ANS_PAM_ACCOUNT, m);
 
@@ -1297,7 +1322,7 @@ mm_answer_sesskey(int sock, Buffer *m)
 	int rsafail;
 
 	/* Turn off permissions */
-	monitor_permit(mon_dispatch, MONITOR_REQ_SESSKEY, 1);
+	monitor_permit(mon_dispatch, MONITOR_REQ_SESSKEY, 0);
 
 	if ((p = BN_new()) == NULL)
 		fatal("%s: BN_new", __func__);
@@ -1487,6 +1512,50 @@ mm_answer_term(int sock, Buffer *req)
 	/* Terminate process */
 	exit(res);
 }
+
+#ifdef SSH_AUDIT_EVENTS
+/* Report that an audit event occurred */
+int
+mm_answer_audit_event(int socket, Buffer *m)
+{
+	ssh_audit_event_t event;
+
+	debug3("%s entering", __func__);
+
+	event = buffer_get_int(m);
+	buffer_free(m);
+	switch(event) {
+	case SSH_AUTH_FAIL_PUBKEY:
+	case SSH_AUTH_FAIL_HOSTBASED:
+	case SSH_AUTH_FAIL_GSSAPI:
+	case SSH_LOGIN_EXCEED_MAXTRIES:
+	case SSH_LOGIN_ROOT_DENIED:
+	case SSH_CONNECTION_CLOSE:
+	case SSH_INVALID_USER:
+		audit_event(event);
+		break;
+	default:
+		fatal("Audit event type %d not permitted", event);
+	}
+
+	return (0);
+}
+
+int
+mm_answer_audit_command(int socket, Buffer *m)
+{
+	u_int len;
+	char *cmd;
+
+	debug3("%s entering", __func__);
+	cmd = buffer_get_string(m, &len);
+	/* sanity check command, if so how? */
+	audit_run_command(cmd);
+	xfree(cmd);
+	buffer_free(m);
+	return (0);
+}
+#endif /* SSH_AUDIT_EVENTS */
 
 void
 monitor_apply_keystate(struct monitor *pmonitor)

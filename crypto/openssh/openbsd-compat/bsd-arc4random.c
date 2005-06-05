@@ -17,7 +17,7 @@
 #include "includes.h"
 #include "log.h"
 
-RCSID("$Id: bsd-arc4random.c,v 1.9 2004/07/18 23:30:40 djm Exp $");
+RCSID("$Id: bsd-arc4random.c,v 1.10 2005/02/16 02:01:28 djm Exp $");
 
 #ifndef HAVE_ARC4RANDOM
 
@@ -34,7 +34,8 @@ RCSID("$Id: bsd-arc4random.c,v 1.9 2004/07/18 23:30:40 djm Exp $");
 static int rc4_ready = 0;
 static RC4_KEY rc4;
 
-unsigned int arc4random(void)
+unsigned int
+arc4random(void)
 {
 	unsigned int r = 0;
 	static int first_time = 1;
@@ -53,7 +54,8 @@ unsigned int arc4random(void)
 	return(r);
 }
 
-void arc4random_stir(void)
+void
+arc4random_stir(void)
 {
 	unsigned char rand_buf[SEED_SIZE];
 	int i;

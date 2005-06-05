@@ -1,4 +1,4 @@
-/* $Id: acconfig.h,v 1.180 2004/08/16 13:12:06 dtucker Exp $ */
+/* $Id: acconfig.h,v 1.181 2005/02/25 23:07:38 dtucker Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -51,9 +51,6 @@
 /* supported by bsd-setproctitle.c */
 #undef SPT_TYPE
 #undef SPT_PADCHAR
-
-/* setgroups() NOOP allowed */
-#undef SETGROUPS_NOOP
 
 /* SCO workaround */
 #undef BROKEN_SYS_TERMIO_H

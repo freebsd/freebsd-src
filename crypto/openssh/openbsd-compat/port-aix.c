@@ -1,6 +1,7 @@
 /*
  *
  * Copyright (c) 2001 Gert Doering.  All rights reserved.
+ * Copyright (c) 2003,2004 Darren Tucker.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,18 +28,14 @@
 #include "auth.h"
 #include "ssh.h"
 #include "log.h"
-#include "servconf.h"
-#include "canohost.h"
 #include "xmalloc.h"
 #include "buffer.h"
 
 #ifdef _AIX
 
 #include <uinfo.h>
+#include <sys/socket.h>
 #include "port-aix.h"
-
-extern ServerOptions options;
-extern Buffer loginmsg;
 
 # ifdef HAVE_SETAUTHDB
 static char old_registry[REGISTRY_SIZE] = "";
@@ -51,6 +48,8 @@ static char old_registry[REGISTRY_SIZE] = "";
  * NOTE: TTY= should be set, but since no one uses it and it's hard to
  * acquire due to privsep code.  We will just drop support.
  */
+
+
 void
 aix_usrinfo(struct passwd *pw)
 {
@@ -92,6 +91,59 @@ aix_remove_embedded_newlines(char *p)
 }
 
 /*
+ * Test specifically for the case where SYSTEM == NONE and AUTH1 contains
+ * anything other than NONE or SYSTEM, which indicates that the admin has
+ * configured the account for purely AUTH1-type authentication.
+ *
+ * Since authenticate() doesn't check AUTH1, and sshd can't sanely support
+ * AUTH1 itself, in such a case authenticate() will allow access without
+ * authentation, which is almost certainly not what the admin intends.
+ *
+ * (The native tools, eg login, will process the AUTH1 list in addition to
+ * the SYSTEM list by using ckuserID(), however ckuserID() and AUTH1 methods
+ * have been deprecated since AIX 4.2.x and would be very difficult for sshd
+ * to support.
+ *
+ * Returns 0 if an unsupportable combination is found, 1 otherwise.
+ */
+static int
+aix_valid_authentications(const char *user)
+{
+	char *auth1, *sys, *p;
+	int valid = 1;
+
+	if (getuserattr((char *)user, S_AUTHSYSTEM, &sys, SEC_CHAR) != 0) {
+		logit("Can't retrieve attribute SYSTEM for %s: %.100s",
+		    user, strerror(errno));
+		return 0;
+	}
+
+	debug3("AIX SYSTEM attribute %s", sys);
+	if (strcmp(sys, "NONE") != 0)
+		return 1;	/* not "NONE", so is OK */
+
+	if (getuserattr((char *)user, S_AUTH1, &auth1, SEC_LIST) != 0) {
+		logit("Can't retrieve attribute auth1 for %s: %.100s",
+		    user, strerror(errno));
+		return 0;
+	}
+
+	p = auth1;
+	/* A SEC_LIST is concatenated strings, ending with two NULs. */
+	while (p[0] != '\0' && p[1] != '\0') {
+		debug3("AIX auth1 attribute list member %s", p);
+		if (strcmp(p, "NONE") != 0 && strcmp(p, "SYSTEM")) {
+			logit("Account %s has unsupported auth1 value '%s'",
+			    user, p);
+			valid = 0;
+		}
+		p += strlen(p) + 1;
+	}
+
+	return (valid);
+}
+
+/*
  * Do authentication via AIX's authenticate routine.  We loop until the
  * reenter parameter is 0, but normally authenticate is called only once.
  *
@@ -99,7 +151,7 @@ aix_remove_embedded_newlines(char *p)
  * returns 0.
  */
 int
-sys_auth_passwd(Authctxt *ctxt, const char *password)
+sys_auth_passwd(Authctxt *ctxt, const char *password, Buffer *loginmsg)
 {
 	char *authmsg = NULL, *msg, *name = ctxt->pw->pw_name;
 	int authsuccess = 0, expired, reenter, result;
@@ -111,6 +163,9 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
 		debug3("AIX/authenticate result %d, msg %.100s", result,
 		    authmsg);
 	} while (reenter);
+
+	if (!aix_valid_authentications(name))
+		result = -1;
 
 	if (result == 0) {
 		authsuccess = 1;
@@ -126,7 +181,7 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
 		 */
 		expired = passwdexpired(name, &msg);
 		if (msg && *msg) {
-			buffer_append(&loginmsg, msg, strlen(msg));
+			buffer_append(loginmsg, msg, strlen(msg));
 			aix_remove_embedded_newlines(msg);
 		}
 		debug3("AIX/passwdexpired returned %d msg %.100s", expired, msg);
@@ -136,7 +191,6 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
 			break;
 		case 1: /* expired, password change required */
 			ctxt->force_pwchange = 1;
-			disable_forwarding();
 			break;
 		default: /* user can't change(2) or other error (-1) */
 			logit("Password can't be changed for user %s: %.100s",
@@ -160,7 +214,7 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
  * Returns 1 if login is allowed, 0 if not allowed.
  */
 int
-sys_auth_allowed_user(struct passwd *pw)
+sys_auth_allowed_user(struct passwd *pw, Buffer *loginmsg)
 {
 	char *msg = NULL;
 	int result, permitted = 0;
@@ -187,7 +241,7 @@ sys_auth_allowed_user(struct passwd *pw)
 	if (result == -1 && errno == EPERM && stat(_PATH_NOLOGIN, &st) == 0)
 		permitted = 1;
 	else if (msg != NULL)
-		buffer_append(&loginmsg, msg, strlen(msg));
+		buffer_append(loginmsg, msg, strlen(msg));
 	if (msg == NULL)
 		msg = xstrdup("(none)");
 	aix_remove_embedded_newlines(msg);
@@ -200,17 +254,18 @@ sys_auth_allowed_user(struct passwd *pw)
 }
 
 int
-sys_auth_record_login(const char *user, const char *host, const char *ttynm)
+sys_auth_record_login(const char *user, const char *host, const char *ttynm,
+    Buffer *loginmsg)
 {
 	char *msg;
 	int success = 0;
 
 	aix_setauthdb(user);
-	if (loginsuccess((char *)user, host, ttynm, &msg) == 0) {
+	if (loginsuccess((char *)user, (char *)host, (char *)ttynm, &msg) == 0) {
 		success = 1;
 		if (msg != NULL) {
-			debug("AIX/loginsuccess: msg %s", __func__, msg);
-			buffer_append(&loginmsg, msg, strlen(msg));
+			debug("AIX/loginsuccess: msg %s", msg);
+			buffer_append(loginmsg, msg, strlen(msg));
 			xfree(msg);
 		}
 	}
@@ -223,18 +278,17 @@ sys_auth_record_login(const char *user, const char *host, const char *ttynm)
  * record_failed_login: generic "login failed" interface function
  */
 void
-record_failed_login(const char *user, const char *ttyname)
+record_failed_login(const char *user, const char *hostname, const char *ttyname)
 {
-	char *hostname = (char *)get_canonical_hostname(options.use_dns);
-
 	if (geteuid() != 0)
 		return;
 
 	aix_setauthdb(user);
 #   ifdef AIX_LOGINFAILED_4ARG
-	loginfailed((char *)user, hostname, (char *)ttyname, AUDIT_FAIL_AUTH);
+	loginfailed((char *)user, (char *)hostname, (char *)ttyname,
+	    AUDIT_FAIL_AUTH);
 #   else
-	loginfailed((char *)user, hostname, (char *)ttyname);
+	loginfailed((char *)user, (char *)hostname, (char *)ttyname);
 #   endif
 	aix_restoreauthdb();
 }
@@ -290,5 +344,34 @@ aix_restoreauthdb(void)
 }
 
 # endif /* WITH_AIXAUTHENTICATE */
+
+# if defined(AIX_GETNAMEINFO_HACK) && !defined(BROKEN_ADDRINFO)
+# undef getnameinfo
+/*
+ * For some reason, AIX's getnameinfo will refuse to resolve the all-zeros
+ * IPv6 address into its textual representation ("::"), so we wrap it
+ * with a function that will.
+ */
+int
+sshaix_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
+    size_t hostlen, char *serv, size_t servlen, int flags)
+{
+	struct sockaddr_in6 *sa6;
+	u_int32_t *a6;
+
+	if (flags & (NI_NUMERICHOST|NI_NUMERICSERV) &&
+	    sa->sa_family == AF_INET6) {
+		sa6 = (struct sockaddr_in6 *)sa;
+		a6 = sa6->sin6_addr.u6_addr.u6_addr32;
+
+		if (a6[0] == 0 && a6[1] == 0 && a6[2] == 0 && a6[3] == 0) {
+			strlcpy(host, "::", hostlen);
+			snprintf(serv, servlen, "%d", sa6->sin6_port);
+			return 0;
+		}
+	}
+	return getnameinfo(sa, salen, host, hostlen, serv, servlen, flags);
+}
+# endif /* AIX_GETNAMEINFO_HACK */
 
 #endif /* _AIX */

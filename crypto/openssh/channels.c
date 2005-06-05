@@ -39,7 +39,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: channels.c,v 1.209 2004/08/11 21:43:04 avsm Exp $");
+RCSID("$OpenBSD: channels.c,v 1.212 2005/03/01 10:09:52 djm Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -2179,14 +2179,14 @@ channel_setup_fwd_listener(int type, const char *listen_addr, u_short listen_por
     const char *host_to_connect, u_short port_to_connect, int gateway_ports)
 {
 	Channel *c;
-	int success, sock, on = 1;
+	int sock, r, success = 0, on = 1, wildcard = 0, is_client;
 	struct addrinfo hints, *ai, *aitop;
-	const char *host;
+	const char *host, *addr;
 	char ntop[NI_MAXHOST], strport[NI_MAXSERV];
 
-	success = 0;
 	host = (type == SSH_CHANNEL_RPORT_LISTENER) ?
 	    listen_addr : host_to_connect;
+	is_client = (type == SSH_CHANNEL_PORT_LISTENER);
 
 	if (host == NULL) {
 		error("No forward host name.");
@@ -2198,16 +2198,60 @@ channel_setup_fwd_listener(int type, const char *listen_addr, u_short listen_por
 	}
 
 	/*
+	 * Determine whether or not a port forward listens to loopback,
+	 * specified address or wildcard. On the client, a specified bind 
+	 * address will always override gateway_ports. On the server, a 
+	 * gateway_ports of 1 (``yes'') will override the client's 
+	 * specification and force a wildcard bind, whereas a value of 2 
+	 * (``clientspecified'') will bind to whatever address the client 
+	 * asked for.
+	 *
+	 * Special-case listen_addrs are:
+	 *
+	 * "0.0.0.0"               -> wildcard v4/v6 if SSH_OLD_FORWARD_ADDR
+	 * "" (empty string), "*"  -> wildcard v4/v6
+	 * "localhost"             -> loopback v4/v6
+	 */
+	addr = NULL;
+	if (listen_addr == NULL) {
+		/* No address specified: default to gateway_ports setting */
+		if (gateway_ports)
+			wildcard = 1;
+	} else if (gateway_ports || is_client) {
+		if (((datafellows & SSH_OLD_FORWARD_ADDR) &&
+		    strcmp(listen_addr, "0.0.0.0") == 0) ||
+		    *listen_addr == '\0' || strcmp(listen_addr, "*") == 0 ||
+		    (!is_client && gateway_ports == 1))
+			wildcard = 1;
+		else if (strcmp(listen_addr, "localhost") != 0)
+			addr = listen_addr;
+	}
+
+	debug3("channel_setup_fwd_listener: type %d wildcard %d addr %s",
+	    type, wildcard, (addr == NULL) ? "NULL" : addr);
+
+	/*
 	 * getaddrinfo returns a loopback address if the hostname is
 	 * set to NULL and hints.ai_flags is not AI_PASSIVE
 	 */
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = IPv4or6;
-	hints.ai_flags = gateway_ports ? AI_PASSIVE : 0;
+	hints.ai_flags = wildcard ? AI_PASSIVE : 0;
 	hints.ai_socktype = SOCK_STREAM;
 	snprintf(strport, sizeof strport, "%d", listen_port);
-	if (getaddrinfo(NULL, strport, &hints, &aitop) != 0)
-		packet_disconnect("getaddrinfo: fatal error");
+	if ((r = getaddrinfo(addr, strport, &hints, &aitop)) != 0) {
+		if (addr == NULL) {
+			/* This really shouldn't happen */
+			packet_disconnect("getaddrinfo: fatal error: %s",
+			    gai_strerror(r));
+		} else {
+			verbose("channel_setup_fwd_listener: "
+			    "getaddrinfo(%.64s): %s", addr, gai_strerror(r));
+			packet_send_debug("channel_setup_fwd_listener: "
+			    "getaddrinfo(%.64s): %s", addr, gai_strerror(r));
+		}
+		aitop = NULL;
+	}
 
 	for (ai = aitop; ai; ai = ai->ai_next) {
 		if (ai->ai_family != AF_INET && ai->ai_family != AF_INET6)
@@ -2279,7 +2323,7 @@ channel_cancel_rport_listener(const char *host, u_short port)
 		if (c != NULL && c->type == SSH_CHANNEL_RPORT_LISTENER &&
 		    strncmp(c->path, host, sizeof(c->path)) == 0 &&
 		    c->listening_port == port) {
-			debug2("%s: close clannel %d", __func__, i);
+			debug2("%s: close channel %d", __func__, i);
 			channel_free(c);
 			found = 1;
 		}
@@ -2290,11 +2334,12 @@ channel_cancel_rport_listener(const char *host, u_short port)
 
 /* protocol local port fwd, used by ssh (and sshd in v1) */
 int
-channel_setup_local_fwd_listener(u_short listen_port,
+channel_setup_local_fwd_listener(const char *listen_host, u_short listen_port,
     const char *host_to_connect, u_short port_to_connect, int gateway_ports)
 {
 	return channel_setup_fwd_listener(SSH_CHANNEL_PORT_LISTENER,
-	    NULL, listen_port, host_to_connect, port_to_connect, gateway_ports);
+	    listen_host, listen_port, host_to_connect, port_to_connect,
+	    gateway_ports);
 }
 
 /* protocol v2 remote port fwd, used by sshd */
@@ -2312,7 +2357,7 @@ channel_setup_remote_fwd_listener(const char *listen_address,
  */
 
 void
-channel_request_remote_forwarding(u_short listen_port,
+channel_request_remote_forwarding(const char *listen_host, u_short listen_port,
     const char *host_to_connect, u_short port_to_connect)
 {
 	int type, success = 0;
@@ -2323,7 +2368,14 @@ channel_request_remote_forwarding(u_short listen_port,
 
 	/* Send the forward request to the remote side. */
 	if (compat20) {
-		const char *address_to_bind = "0.0.0.0";
+		const char *address_to_bind;
+		if (listen_host == NULL)
+			address_to_bind = "localhost";
+		else if (*listen_host == '\0' || strcmp(listen_host, "*") == 0)
+			address_to_bind = "";
+		else
+			address_to_bind = listen_host;
+
 		packet_start(SSH2_MSG_GLOBAL_REQUEST);
 		packet_put_cstring("tcpip-forward");
 		packet_put_char(1);			/* boolean: want reply */
@@ -2369,10 +2421,9 @@ channel_request_remote_forwarding(u_short listen_port,
  * local side.
  */
 void
-channel_request_rforward_cancel(u_short port)
+channel_request_rforward_cancel(const char *host, u_short port)
 {
 	int i;
-	const char *address_to_bind = "0.0.0.0";
 
 	if (!compat20)
 		return;
@@ -2389,7 +2440,7 @@ channel_request_rforward_cancel(u_short port)
 	packet_start(SSH2_MSG_GLOBAL_REQUEST);
 	packet_put_cstring("cancel-tcpip-forward");
 	packet_put_char(0);
-	packet_put_cstring(address_to_bind);
+	packet_put_cstring(host == NULL ? "" : host);
 	packet_put_int(port);
 	packet_send();
 
@@ -2430,7 +2481,8 @@ channel_input_port_forward_request(int is_root, int gateway_ports)
 #endif
 
 	/* Initiate forwarding */
-	channel_setup_local_fwd_listener(port, hostname, host_port, gateway_ports);
+	channel_setup_local_fwd_listener(NULL, port, hostname,
+	    host_port, gateway_ports);
 
 	/* Free the argument string. */
 	xfree(hostname);
@@ -2577,7 +2629,7 @@ channel_send_window_changes(void)
 	struct winsize ws;
 
 	for (i = 0; i < channels_alloc; i++) {
-		if (channels[i] == NULL ||
+		if (channels[i] == NULL || !channels[i]->client_tty || 
 		    channels[i]->type != SSH_CHANNEL_OPEN)
 			continue;
 		if (ioctl(channels[i]->rfd, TIOCGWINSZ, &ws) < 0)

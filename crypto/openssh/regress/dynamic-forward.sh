@@ -1,4 +1,4 @@
-#	$OpenBSD: dynamic-forward.sh,v 1.3 2004/02/28 12:16:57 dtucker Exp $
+#	$OpenBSD: dynamic-forward.sh,v 1.4 2004/06/22 22:55:56 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="dynamic forwarding"
@@ -44,4 +44,7 @@ for p in 1 2; do
 	else
 		fail "no pid file: $OBJ/remote_pid"
 	fi
+
+	# Must allow time for connection tear-down
+	sleep 2
 done

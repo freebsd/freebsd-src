@@ -130,6 +130,9 @@ int auth_shadow_pwexpired(Authctxt *);
 #endif
 
 #include "auth-pam.h"
+#include "audit.h"
+void remove_kbdint_device(const char *);
+
 void disable_forwarding(void);
 
 void	do_authentication(Authctxt *);
@@ -137,6 +140,7 @@ void	do_authentication2(Authctxt *);
 
 void	auth_log(Authctxt *, int, char *, char *);
 void	userauth_finish(Authctxt *, int, char *);
+void	userauth_send_banner(const char *);
 int	auth_root_allowed(char *);
 
 char	*auth2_read_banner(void);

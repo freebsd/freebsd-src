@@ -185,7 +185,7 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
  * On HP-UX 11.11, shadow.h and prot.h provide conflicting declarations
  * of getspnam when _INCLUDE__STDC__ is defined, so we unset it here.
  */
-#ifdef __hpux
+#ifdef GETSPNAM_CONFLICTING_DEFS
 # ifdef _INCLUDE__STDC__
 #  undef _INCLUDE__STDC__
 # endif

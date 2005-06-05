@@ -187,6 +187,11 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 	snprintf(authctxt->krb5_ccname, len, "FILE:%s",
 	    authctxt->krb5_ticket_file);
 
+#ifdef USE_PAM
+	if (options.use_pam)
+		do_pam_putenv("KRB5CCNAME", authctxt->krb5_ccname);
+#endif
+
  out:
 	restore_uid();
 
