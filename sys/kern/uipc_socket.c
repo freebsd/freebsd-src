@@ -742,11 +742,9 @@ restart:
 				    space>=PAGE_SIZE &&
 				    uio->uio_iov->iov_len>=PAGE_SIZE) {
 					so_zerocp_stats.size_ok++;
-					if (!((vm_offset_t)
-					  uio->uio_iov->iov_base & PAGE_MASK)){
-						so_zerocp_stats.align_ok++;
-						cow_send = socow_setup(m, uio);
-					}
+					so_zerocp_stats.align_ok++;
+					cow_send = socow_setup(m, uio);
+					len = cow_send;
 				}
 				if (!cow_send) {
 					MCLGET(m, M_TRYWAIT);
@@ -756,8 +754,7 @@ restart:
 					} else {
 						len = min(min(MCLBYTES, resid), space);
 					}
-				} else
-					len = PAGE_SIZE;
+				}
 #else /* ZERO_COPY_SOCKETS */
 				if (top == NULL) {
 					m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
