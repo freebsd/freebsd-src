@@ -37,7 +37,7 @@
 #if !defined(HAVE_REALPATH) || defined(BROKEN_REALPATH)
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$OpenBSD: realpath.c,v 1.10 2003/08/01 21:04:59 millert Exp $";
+static char *rcsid = "$OpenBSD: realpath.c,v 1.11 2004/11/30 15:12:59 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -67,17 +67,25 @@ char *
 realpath(const char *path, char *resolved)
 {
 	struct stat sb;
-	int fd, n, needslash, serrno = 0;
-	char *p, *q, wbuf[MAXPATHLEN], start[MAXPATHLEN];
+	int fd, n, needslash, serrno;
+	char *p, *q, wbuf[MAXPATHLEN];
 	int symlinks = 0;
 
 	/* Save the starting point. */
-	getcwd(start,MAXPATHLEN);	
-	if ((fd = open(".", O_RDONLY)) < 0) {
-		(void)strlcpy(resolved, ".", MAXPATHLEN);
+#ifndef HAVE_FCHDIR
+	char start[MAXPATHLEN];
+	/* this is potentially racy but without fchdir we have no option */
+	if (getcwd(start, sizeof(start)) == NULL) {
+		resolved[0] = '.';
+		resolved[1] = '\0';
 		return (NULL);
 	}
-	close(fd);
+#endif
+	if ((fd = open(".", O_RDONLY)) < 0) {
+		resolved[0] = '.';
+		resolved[1] = '\0';
+		return (NULL);
+	}
 
 	/* Convert "." -> "" to optimize away a needless lstat() and chdir() */
 	if (path[0] == '.' && path[1] == '\0')
@@ -91,7 +99,10 @@ realpath(const char *path, char *resolved)
 	 *     if it is a directory, then change to that directory.
 	 * get the current directory name and append the basename.
 	 */
-	strlcpy(resolved, path, MAXPATHLEN);
+	if (strlcpy(resolved, path, MAXPATHLEN) >= MAXPATHLEN) {
+		serrno = ENAMETOOLONG;
+		goto err2;
+	}
 loop:
 	q = strrchr(resolved, '/');
 	if (q != NULL) {
@@ -114,11 +125,10 @@ loop:
 	if (*p != '\0' && lstat(p, &sb) == 0) {
 		if (S_ISLNK(sb.st_mode)) {
 			if (++symlinks > MAXSYMLINKS) {
-				serrno = ELOOP;
+				errno = ELOOP;
 				goto err1;
 			}
-			n = readlink(p, resolved, MAXPATHLEN-1);
-			if (n < 0)
+			if ((n = readlink(p, resolved, MAXPATHLEN-1)) < 0)
 				goto err1;
 			resolved[n] = '\0';
 			goto loop;
@@ -134,8 +144,11 @@ loop:
 	 * Save the last component name and get the full pathname of
 	 * the current directory.
 	 */
-	(void)strlcpy(wbuf, p, sizeof wbuf);
-	if (getcwd(resolved, MAXPATHLEN) == 0)
+	if (strlcpy(wbuf, p, sizeof(wbuf)) >= sizeof(wbuf)) {
+		errno = ENAMETOOLONG;
+		goto err1;
+	}
+	if (getcwd(resolved, MAXPATHLEN) == NULL)
 		goto err1;
 
 	/*
@@ -149,23 +162,43 @@ loop:
 
 	if (*wbuf) {
 		if (strlen(resolved) + strlen(wbuf) + needslash >= MAXPATHLEN) {
-			serrno = ENAMETOOLONG;
+			errno = ENAMETOOLONG;
 			goto err1;
 		}
-		if (needslash)
-			strlcat(resolved, "/", MAXPATHLEN);
-		strlcat(resolved, wbuf, MAXPATHLEN);
+		if (needslash) {
+			if (strlcat(resolved, "/", MAXPATHLEN) >= MAXPATHLEN) {
+				errno = ENAMETOOLONG;
+				goto err1;
+			}
+		}
+		if (strlcat(resolved, wbuf, MAXPATHLEN) >= MAXPATHLEN) {
+			errno = ENAMETOOLONG;
+			goto err1;
+		}
 	}
 
 	/* Go back to where we came from. */
+#ifdef HAVE_FCHDIR
+	if (fchdir(fd) < 0) {
+#else
 	if (chdir(start) < 0) {
+#endif
 		serrno = errno;
 		goto err2;
 	}
+
+	/* It's okay if the close fails, what's an fd more or less? */
+	(void)close(fd);
 	return (resolved);
 
-err1:	chdir(start);
-err2:	errno = serrno;
+err1:	serrno = errno;
+#ifdef HAVE_FCHDIR
+	(void)fchdir(fd);
+#else
+	chdir(start);
+#endif
+err2:	(void)close(fd);
+	errno = serrno;
 	return (NULL);
 }
 #endif /* !defined(HAVE_REALPATH) || defined(BROKEN_REALPATH) */

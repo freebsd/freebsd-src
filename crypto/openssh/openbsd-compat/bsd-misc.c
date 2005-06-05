@@ -18,7 +18,7 @@
 #include "includes.h"
 #include "xmalloc.h"
 
-RCSID("$Id: bsd-misc.c,v 1.25 2004/08/15 08:41:00 djm Exp $");
+RCSID("$Id: bsd-misc.c,v 1.26 2005/02/25 23:07:38 dtucker Exp $");
 
 #ifndef HAVE___PROGNAME
 char *__progname;
@@ -121,17 +121,6 @@ int truncate(const char *path, off_t length)
 	return(ret);
 }
 #endif /* HAVE_TRUNCATE */
-
-#if !defined(HAVE_SETGROUPS) && defined(SETGROUPS_NOOP)
-/*
- * Cygwin setgroups should be a noop.
- */
-int
-setgroups(size_t size, const gid_t *list)
-{
-	return (0);
-}
-#endif 
 
 #if !defined(HAVE_NANOSLEEP) && !defined(HAVE_NSLEEP)
 int nanosleep(const struct timespec *req, struct timespec *rem)

@@ -56,10 +56,12 @@ temporarily_use_uid(struct passwd *pw)
 	debug("temporarily_use_uid: %u/%u (e=%u/%u)",
 	    (u_int)pw->pw_uid, (u_int)pw->pw_gid,
 	    (u_int)saved_euid, (u_int)saved_egid);
+#ifndef HAVE_CYGWIN
 	if (saved_euid != 0) {
 		privileged = 0;
 		return;
 	}
+#endif
 #else
 	if (geteuid() != 0) {
 		privileged = 0;
@@ -200,10 +202,12 @@ permanently_set_uid(struct passwd *pw)
 		fatal("setuid %u: %.100s", (u_int)pw->pw_uid, strerror(errno));
 #endif
 
+#ifndef HAVE_CYGWIN
 	/* Try restoration of GID if changed (test clearing of saved gid) */
-	if (old_gid != pw->pw_gid &&
+	if (old_gid != pw->pw_gid && pw->pw_uid != 0 &&
 	    (setgid(old_gid) != -1 || setegid(old_gid) != -1))
 		fatal("%s: was able to restore old [e]gid", __func__);
+#endif
 
 	/* Verify GID drop was successful */
 	if (getgid() != pw->pw_gid || getegid() != pw->pw_gid) {

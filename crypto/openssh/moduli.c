@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.9 2004/07/11 17:48:47 deraadt Exp $ */
+/* $OpenBSD: moduli.c,v 1.10 2005/01/17 03:25:46 dtucker Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -56,7 +56,7 @@
 #define QTYPE_UNKNOWN		(0)
 #define QTYPE_UNSTRUCTURED	(1)
 #define QTYPE_SAFE		(2)
-#define QTYPE_SCHNOOR		(3)
+#define QTYPE_SCHNORR		(3)
 #define QTYPE_SOPHIE_GERMAIN	(4)
 #define QTYPE_STRONG		(5)
 
@@ -530,7 +530,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted)
 			break;
 		case QTYPE_UNSTRUCTURED:
 		case QTYPE_SAFE:
-		case QTYPE_SCHNOOR:
+		case QTYPE_SCHNORR:
 		case QTYPE_STRONG:
 		case QTYPE_UNKNOWN:
 			debug2("%10u: (%u)", count_in, in_type);

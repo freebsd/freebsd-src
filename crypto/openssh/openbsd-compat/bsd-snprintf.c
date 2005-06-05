@@ -58,7 +58,7 @@
 
 #include "includes.h"
 
-RCSID("$Id: bsd-snprintf.c,v 1.7 2003/05/18 14:13:39 djm Exp $");
+RCSID("$Id: bsd-snprintf.c,v 1.9 2004/09/23 11:35:09 dtucker Exp $");
 
 #if defined(BROKEN_SNPRINTF)		/* For those with broken snprintf() */
 # undef HAVE_SNPRINTF
@@ -369,7 +369,7 @@ fmtstr(char *buffer, size_t *currlen, size_t maxlen,
 	if (value == 0) 
 		value = "<NULL>";
 
-	for (strln = 0; value[strln]; ++strln); /* strlen */
+	for (strln = 0; strln < max && value[strln]; ++strln); /* strlen */
 	padlen = min - strln;
 	if (padlen < 0) 
 		padlen = 0;

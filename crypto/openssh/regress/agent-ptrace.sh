@@ -5,7 +5,7 @@ tid="disallow agent ptrace attach"
 
 if have_prog uname ; then
 	case `uname` in
-	AIX|CYGWIN*)
+	AIX|CYGWIN*|OSF1)
 		echo "skipped (not supported on this platform)"
 		exit 0
 		;;
@@ -41,7 +41,7 @@ EOF
 	if [ $? -ne 0 ]; then
 		fail "gdb failed: exit code $?"
 	fi
-	egrep 'ptrace: Operation not permitted.|procfs:.*Permission denied.|ttrace attach: Permission denied.' >/dev/null ${OBJ}/gdb.out
+	egrep 'ptrace: Operation not permitted.|procfs:.*Permission denied.|ttrace attach: Permission denied.|procfs:.*: Invalid argument.' >/dev/null ${OBJ}/gdb.out
 	r=$?
 	rm -f ${OBJ}/gdb.out
 	if [ $r -ne 0 ]; then
