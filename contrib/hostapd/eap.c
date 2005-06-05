@@ -10,6 +10,8 @@
  * license.
  *
  * See README and COPYING for more details.
+ *
+ * $FreeBSD$
  */
 
 #include <stdlib.h>
@@ -908,4 +910,12 @@ void eap_sm_deinit(struct eap_sm *sm)
 	free(sm->identity);
 	eap_user_free(sm->user);
 	free(sm);
+}
+
+void eap_sm_notify_cached(struct eap_sm *sm)
+{
+	if (sm == NULL)
+		return;
+
+	sm->EAP_state = EAP_SUCCESS;
 }
