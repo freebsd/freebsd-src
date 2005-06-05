@@ -93,6 +93,7 @@ SYSCTL_INT(_net_link, OID_AUTO, log_link_state_change, CTLFLAG_RW,
 	&log_link_state_change, 0,
 	"log interface link state change events");
 
+void	(*bstp_linkstate_p)(struct ifnet *ifp, int state);
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 
 struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
@@ -337,6 +338,7 @@ if_findindex(struct ifnet *ifp)
 	case IFT_XETHER:
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
+	case IFT_BRIDGE:
 		snprintf(eaddr, 18, "%6D", IFP2AC(ifp)->ac_enaddr, ":");
 		break;
 	default:
@@ -1049,6 +1051,11 @@ do_link_state_change(void *arg, int pending)
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
 #endif
+	if (ifp->if_bridge) {
+		KASSERT(bstp_linkstate_p != NULL,("if_bridge bstp not loaded!"));
+		(*bstp_linkstate_p)(ifp, link_state);
+	}
+
 	if (pending > 1)
 		if_printf(ifp, "%d link states coalesced\n", pending);
 	if (log_link_state_change)
@@ -1932,6 +1939,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_XETHER:
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
+	case IFT_BRIDGE:
 		bcopy(lladdr, IFP2AC(ifp)->ac_enaddr, len);
 		/*
 		 * XXX We also need to store the lladdr in LLADDR(sdl),
