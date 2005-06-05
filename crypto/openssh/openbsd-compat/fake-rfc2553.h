@@ -1,4 +1,4 @@
-/* $Id: fake-rfc2553.h,v 1.8 2004/02/10 02:05:41 dtucker Exp $ */
+/* $Id: fake-rfc2553.h,v 1.10 2005/02/11 07:32:13 dtucker Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -118,6 +118,7 @@ struct sockaddr_in6 {
 # define EAI_NODATA	1
 # define EAI_MEMORY	2
 # define EAI_NONAME	3
+# define EAI_SYSTEM	4
 #endif
 
 #ifndef HAVE_STRUCT_ADDRINFO

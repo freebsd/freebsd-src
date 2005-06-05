@@ -36,7 +36,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfile.c,v 1.57 2004/06/21 17:36:31 avsm Exp $");
+RCSID("$OpenBSD: authfile.c,v 1.60 2004/12/11 01:48:56 dtucker Exp $");
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -51,6 +51,7 @@ RCSID("$OpenBSD: authfile.c,v 1.57 2004/06/21 17:36:31 avsm Exp $");
 #include "log.h"
 #include "authfile.h"
 #include "rsa.h"
+#include "misc.h"
 
 /* Version identification string for SSH v1 identity files. */
 static const char authfile_id_string[] =
@@ -243,8 +244,10 @@ key_load_public_rsa1(int fd, const char *filename, char **commentp)
 		    filename, strerror(errno));
 		return NULL;
 	}
-	if (st.st_size > 1*1024*1024)
-		close(fd);
+	if (st.st_size > 1*1024*1024) {
+		error("key file %.200s too large", filename);
+		return NULL;
+	}
 	len = (size_t)st.st_size;		/* truncated */
 
 	buffer_init(&buffer);
@@ -335,6 +338,7 @@ key_load_private_rsa1(int fd, const char *filename, const char *passphrase,
 		return NULL;
 	}
 	if (st.st_size > 1*1024*1024) {
+		error("key file %.200s too large", filename);
 		close(fd);
 		return (NULL);
 	}
@@ -598,13 +602,14 @@ static int
 key_try_load_public(Key *k, const char *filename, char **commentp)
 {
 	FILE *f;
-	char line[4096];
+	char line[SSH_MAX_PUBKEY_BYTES];
 	char *cp;
+	u_long linenum = 0;
 
 	f = fopen(filename, "r");
 	if (f != NULL) {
-		while (fgets(line, sizeof(line), f)) {
-			line[sizeof(line)-1] = '\0';
+		while (read_keyfile_line(f, filename, line, sizeof(line),
+			    &linenum) != -1) {
 			cp = line;
 			switch (*cp) {
 			case '#':

@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: servconf.c,v 1.137 2004/08/13 11:09:24 dtucker Exp $");
+RCSID("$OpenBSD: servconf.c,v 1.140 2005/03/10 22:01:05 deraadt Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -27,8 +27,6 @@ RCSID("$FreeBSD$");
 static void add_listen_addr(ServerOptions *, char *, u_short);
 static void add_one_listen_addr(ServerOptions *, char *, u_short);
 
-/* AF_UNSPEC or AF_INET or AF_INET6 */
-extern int IPv4or6;
 /* Use of privilege separation or not */
 extern int use_privsep;
 
@@ -46,6 +44,7 @@ initialize_server_options(ServerOptions *options)
 	options->num_ports = 0;
 	options->ports_from_cmdline = 0;
 	options->listen_addrs = NULL;
+	options->address_family = -1;
 	options->num_host_key_files = 0;
 	options->pid_file = NULL;
 	options->server_key_bits = -1;
@@ -261,7 +260,8 @@ typedef enum {
 	sKerberosAuthentication, sKerberosOrLocalPasswd, sKerberosTicketCleanup,
 	sKerberosGetAFSToken,
 	sKerberosTgtPassing, sChallengeResponseAuthentication,
-	sPasswordAuthentication, sKbdInteractiveAuthentication, sListenAddress,
+	sPasswordAuthentication, sKbdInteractiveAuthentication,
+	sListenAddress, sAddressFamily,
 	sPrintMotd, sPrintLastLog, sIgnoreRhosts,
 	sX11Forwarding, sX11DisplayOffset, sX11UseLocalhost,
 	sStrictModes, sEmptyPasswd, sTCPKeepAlive,
@@ -339,6 +339,7 @@ static struct {
 	{ "skeyauthentication", sChallengeResponseAuthentication }, /* alias */
 	{ "checkmail", sDeprecated },
 	{ "listenaddress", sListenAddress },
+	{ "addressfamily", sAddressFamily },
 	{ "printmotd", sPrintMotd },
 	{ "printlastlog", sPrintLastLog },
 	{ "ignorerhosts", sIgnoreRhosts },
@@ -406,6 +407,8 @@ add_listen_addr(ServerOptions *options, char *addr, u_short port)
 
 	if (options->num_ports == 0)
 		options->ports[options->num_ports++] = SSH_DEFAULT_PORT;
+	if (options->address_family == -1)
+		options->address_family = AF_UNSPEC;
 	if (port == 0)
 		for (i = 0; i < options->num_ports; i++)
 			add_one_listen_addr(options, addr, options->ports[i]);
@@ -421,7 +424,7 @@ add_one_listen_addr(ServerOptions *options, char *addr, u_short port)
 	int gaierr;
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = IPv4or6;
+	hints.ai_family = options->address_family;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = (addr == NULL) ? AI_PASSIVE : 0;
 	snprintf(strport, sizeof strport, "%u", port);
@@ -442,6 +445,7 @@ process_server_config_line(ServerOptions *options, char *line,
 	char *cp, **charptr, *arg, *p;
 	int *intptr, value, i, n;
 	ServerOpCodes opcode;
+	u_short port;
 
 	cp = line;
 	arg = strdelim(&cp);
@@ -514,39 +518,40 @@ parse_time:
 
 	case sListenAddress:
 		arg = strdelim(&cp);
-		if (!arg || *arg == '\0' || strncmp(arg, "[]", 2) == 0)
-			fatal("%s line %d: missing inet addr.",
+		if (arg == NULL || *arg == '\0')
+			fatal("%s line %d: missing address",
 			    filename, linenum);
-		if (*arg == '[') {
-			if ((p = strchr(arg, ']')) == NULL)
-				fatal("%s line %d: bad ipv6 inet addr usage.",
-				    filename, linenum);
-			arg++;
-			memmove(p, p+1, strlen(p+1)+1);
-		} else if (((p = strchr(arg, ':')) == NULL) ||
-			    (strchr(p+1, ':') != NULL)) {
-			add_listen_addr(options, arg, 0);
-			break;
-		}
-		if (*p == ':') {
-			u_short port;
+		p = hpdelim(&arg);
+		if (p == NULL)
+			fatal("%s line %d: bad address:port usage",
+			    filename, linenum);
+		p = cleanhostname(p);
+		if (arg == NULL)
+			port = 0;
+		else if ((port = a2port(arg)) == 0)
+			fatal("%s line %d: bad port number", filename, linenum);
 
-			p++;
-			if (*p == '\0')
-				fatal("%s line %d: bad inet addr:port usage.",
-				    filename, linenum);
-			else {
-				*(p-1) = '\0';
-				if ((port = a2port(p)) == 0)
-					fatal("%s line %d: bad port number.",
-					    filename, linenum);
-				add_listen_addr(options, arg, port);
-			}
-		} else if (*p == '\0')
-			add_listen_addr(options, arg, 0);
+		add_listen_addr(options, p, port);
+
+		break;
+
+	case sAddressFamily:
+		arg = strdelim(&cp);
+		intptr = &options->address_family;
+		if (options->listen_addrs != NULL)
+			fatal("%s line %d: address family must be specified before "
+			    "ListenAddress.", filename, linenum);
+		if (strcasecmp(arg, "inet") == 0)
+			value = AF_INET;
+		else if (strcasecmp(arg, "inet6") == 0)
+			value = AF_INET6;
+		else if (strcasecmp(arg, "any") == 0)
+			value = AF_UNSPEC;
 		else
-			fatal("%s line %d: bad inet addr usage.",
-			    filename, linenum);
+			fatal("%s line %d: unsupported address family \"%s\".",
+			    filename, linenum, arg);
+		if (*intptr == -1)
+			*intptr = value;
 		break;
 
 	case sHostKeyFile:
@@ -725,7 +730,23 @@ parse_flag:
 
 	case sGatewayPorts:
 		intptr = &options->gateway_ports;
-		goto parse_flag;
+		arg = strdelim(&cp);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: missing yes/no/clientspecified "
+			    "argument.", filename, linenum);
+		value = 0;	/* silence compiler */
+		if (strcmp(arg, "clientspecified") == 0)
+			value = 2;
+		else if (strcmp(arg, "yes") == 0)
+			value = 1;
+		else if (strcmp(arg, "no") == 0)
+			value = 0;
+		else
+			fatal("%s line %d: Bad yes/no/clientspecified "
+			    "argument: %s", filename, linenum, arg);
+		if (*intptr == -1)
+			*intptr = value;
+		break;
 
 	case sUseDNS:
 		intptr = &options->use_dns;
@@ -992,7 +1013,7 @@ parse_server_config(ServerOptions *options, const char *filename, Buffer *conf)
 
 	obuf = cbuf = xstrdup(buffer_ptr(conf));
 	linenum = 1;
-	while((cp = strsep(&cbuf, "\n")) != NULL) {
+	while ((cp = strsep(&cbuf, "\n")) != NULL) {
 		if (process_server_config_line(options, cp, filename,
 		    linenum++) != 0)
 			bad_options++;

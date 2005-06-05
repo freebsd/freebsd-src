@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.19 2003/08/13 08:46:31 markus Exp $
+#	$OpenBSD: ssh_config,v 1.20 2005/01/28 09:45:53 dtucker Exp $
 #	$FreeBSD$
 
 # This is the ssh client system-wide configuration file.  See
@@ -14,7 +14,9 @@
 # Thus, host-specific definitions should be at the beginning of the
 # configuration file, and defaults at the end.
 
-# Site-wide defaults for various options
+# Site-wide defaults for some commonly used options.  For a comprehensive
+# list of available options, their meanings and defaults, please see the
+# ssh_config(5) man page.
 
 # Host *
 #   ForwardAgent no
@@ -36,4 +38,4 @@
 #   Cipher 3des
 #   Ciphers aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,aes192-cbc,aes256-cbc
 #   EscapeChar ~
-#   VersionAddendum FreeBSD-20041028
+#   VersionAddendum FreeBSD-20050605

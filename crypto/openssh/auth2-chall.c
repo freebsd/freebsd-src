@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: auth2-chall.c,v 1.21 2004/06/01 14:20:45 dtucker Exp $");
+RCSID("$OpenBSD: auth2-chall.c,v 1.22 2005/01/19 13:11:47 dtucker Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh2.h"
@@ -33,6 +33,10 @@ RCSID("$FreeBSD$");
 #include "xmalloc.h"
 #include "dispatch.h"
 #include "log.h"
+#include "servconf.h"
+
+/* import */
+extern ServerOptions options;
 
 static int auth2_challenge_start(Authctxt *);
 static int send_userauth_info_request(Authctxt *);
@@ -72,12 +76,32 @@ struct KbdintAuthctxt
 	u_int nreq;
 };
 
+#ifdef USE_PAM
+void
+remove_kbdint_device(const char *devname)
+{
+	int i, j;
+
+	for (i = 0; devices[i] != NULL; i++)
+		if (strcmp(devices[i]->name, devname) == 0) {
+			for (j = i; devices[j] != NULL; j++)
+				devices[j] = devices[j+1];
+			i--;
+		}
+}
+#endif
+
 static KbdintAuthctxt *
 kbdint_alloc(const char *devs)
 {
 	KbdintAuthctxt *kbdintctxt;
 	Buffer b;
 	int i;
+
+#ifdef USE_PAM
+	if (!options.use_pam)
+		remove_kbdint_device("pam");
+#endif
 
 	kbdintctxt = xmalloc(sizeof(KbdintAuthctxt));
 	if (strcmp(devs, "") == 0) {
@@ -275,12 +299,7 @@ input_userauth_info_response(int type, u_int32_t seq, void *ctxt)
 	}
 	packet_check_eom();
 
-	if (authctxt->valid) {
-		res = kbdintctxt->device->respond(kbdintctxt->ctxt,
-		    nresp, response);
-	} else {
-		res = -1;
-	}
+	res = kbdintctxt->device->respond(kbdintctxt->ctxt, nresp, response);
 
 	for (i = 0; i < nresp; i++) {
 		memset(response[i], 'r', strlen(response[i]));
@@ -292,7 +311,7 @@ input_userauth_info_response(int type, u_int32_t seq, void *ctxt)
 	switch (res) {
 	case 0:
 		/* Success! */
-		authenticated = 1;
+		authenticated = authctxt->valid ? 1 : 0;
 		break;
 	case 1:
 		/* Authentication needs further interaction */
