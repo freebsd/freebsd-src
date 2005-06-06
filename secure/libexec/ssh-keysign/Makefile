@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+LIBSSH=	${.OBJDIR}/../../lib/libssh/libssh.a
+
 PROG=	ssh-keysign
 SRCS=	ssh-keysign.c readconf.c
 MAN=	ssh-keysign.8
@@ -9,7 +11,7 @@ BINMODE=4511
 .endif
 
 DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD=	-lssh -lcrypt -lcrypto -lz
+LDADD=	${LIBSSH} -lcrypt -lcrypto -lz
 
 .include <bsd.prog.mk>
 
