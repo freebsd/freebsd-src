@@ -16,7 +16,7 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNOhjvyzf:p:P:C:c:d:i:I:k:K:r:t:X:D:m:s:S:o:b:";
+static char Options[] = "YNORhjvyzf:p:P:C:c:d:i:I:k:K:r:t:X:D:m:s:S:o:b:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
@@ -39,6 +39,7 @@ char	*InstalledPkg	= NULL;
 char	PlayPen[FILENAME_MAX];
 int	Dereference	= FALSE;
 int	PlistOnly	= FALSE;
+int	Recursive	= FALSE;
 enum zipper	Zipper	= GZIP;
 
 static void usage __P((void));
@@ -169,6 +170,10 @@ main(int argc, char **argv)
 	    }
 	    break;
 
+	case 'R':
+	    Recursive = TRUE;
+	    break;
+
 	case '?':
 	default:
 	    usage();
@@ -211,6 +216,6 @@ usage()
 "                  [-D displayfile] [-m mtreefile] [-o origin] ",
 "                  [-s srcdir] [-S basedir] ",
 "                  -c comment -d description -f packlist pkg-filename",
-"       pkg_create [-YNhvyz] -b pkg-name [pkg-filename]");
+"       pkg_create [-YNhvyzR] -b pkg-name [pkg-filename]");
     exit(1);
 }
