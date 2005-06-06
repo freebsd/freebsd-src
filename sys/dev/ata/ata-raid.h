@@ -70,10 +70,11 @@ struct ar_softc {
 #define AR_F_ITE_RAID           0x0020
 #define AR_F_LSIV2_RAID         0x0040
 #define AR_F_LSIV3_RAID         0x0080
-#define AR_F_PROMISE_RAID       0x0100
-#define AR_F_SII_RAID           0x0200
-#define AR_F_VIA_RAID           0x0400
-#define AR_F_FORMAT_MASK        0x07ff
+#define AR_F_NVIDIA_RAID        0x0100
+#define AR_F_PROMISE_RAID       0x0200
+#define AR_F_SII_RAID           0x0400
+#define AR_F_VIA_RAID           0x0800
+#define AR_F_FORMAT_MASK        0x0fff
 
     u_int               generation;     /* generation of this array */
     u_int64_t           total_sectors;
@@ -517,6 +518,60 @@ struct lsiv3_raid_conf {
     u_int32_t           timestamp;
     u_int8_t            filler_8[3];
     u_int8_t            checksum_1;
+} __packed;
+
+
+/* nVidia MediaShield Metadata */
+#define NVIDIA_LBA(dev) \
+	(((struct ad_softc *)device_get_ivars(dev))->total_secs - 2)
+
+struct nvidia_raid_conf {
+    u_int8_t            nvidia_id[8];
+#define NV_MAGIC                "NVIDIA  "
+
+    u_int32_t           config_size;
+    u_int32_t           checksum;
+    u_int16_t           version;
+    u_int8_t            disk_number;
+    u_int8_t            dummy_0;
+    u_int32_t           total_sectors;
+    u_int32_t           sector_size;
+    u_int8_t            serial[16];
+    u_int8_t            revision[4];
+    u_int32_t           dummy_1;
+
+    u_int32_t           magic_0;
+#define NV_MAGIC0               0x00640044
+
+    u_int64_t           magic_1;
+    u_int64_t           magic_2;
+    u_int8_t            flags;
+    u_int8_t            array_width;
+    u_int8_t            total_disks;
+    u_int8_t            dummy_2;
+    u_int16_t           type;
+#define NV_T_RAID0              0x00000080
+#define NV_T_RAID1              0x00000081
+#define NV_T_RAID3              0x00000083
+#define NV_T_RAID5              0x00000085
+#define NV_T_RAID01             0x00008180
+#define NV_T_SPAN               0x000000ff
+
+    u_int16_t           dummy_3;
+    u_int32_t           stripe_sectors;
+    u_int32_t           stripe_bytes;
+    u_int32_t           stripe_shift;
+    u_int32_t           stripe_mask;
+    u_int32_t           stripe_sizesectors;
+    u_int32_t           stripe_sizebytes;
+    u_int32_t           rebuild_lba;
+    u_int32_t           dummy_4;
+    u_int32_t           dummy_5;
+    u_int32_t           status;
+#define NV_S_BOOTABLE           0x00000001
+#define NV_S_DEGRADED           0x00000002
+
+    u_int32_t           filler[98];
 } __packed;
 
 
