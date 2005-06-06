@@ -943,7 +943,7 @@ static int
 fxp_suspend(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
-	int i, s;
+	int s;
 
 	FXP_LOCK(sc);
 	s = splimp();
@@ -968,7 +968,7 @@ fxp_resume(device_t dev)
 	struct fxp_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = &sc->sc_if;
 	uint16_t pci_command;
-	int i, s;
+	int s;
 
 	FXP_LOCK(sc);
 	s = splimp();
