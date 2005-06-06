@@ -508,8 +508,6 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 				cur->start = sblkp->end;
 				cur->rxmit = SEQ_MAX(cur->rxmit, cur->start);
 			}
-			/* Go to the previous hole. */
-			cur = TAILQ_PREV(cur, sackhole_head, scblink);
 		} else {
 			/* Data acks at least the end of hole */
 			if (SEQ_GEQ(sblkp->end, cur->end)) {
@@ -535,10 +533,17 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 							     cur->end);
 				}
 			}
-			/* Go to the previous sack block. */
-			sblkp--;
 		}
 		tp->sackhint.sack_bytes_rexmit += (cur->rxmit - cur->start);
+		/*
+		 * Testing sblkp->start against cur->start tells us whether
+		 * we're done with the sack block or the sack hole.
+		 * Accordingly, we advance one or the other.
+		 */
+		if (SEQ_LEQ(sblkp->start, cur->start))
+			cur = TAILQ_PREV(cur, sackhole_head, scblink);
+		else
+			sblkp--;
 	}
 	return (0);
 }
