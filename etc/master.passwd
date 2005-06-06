@@ -16,6 +16,7 @@ mailnull:*:26:26::0:0:Sendmail Default User:/var/spool/mqueue:/usr/sbin/nologin
 bind:*:53:53::0:0:Bind Sandbox:/:/usr/sbin/nologin
 proxy:*:62:62::0:0:Packet Filter pseudo-user:/nonexistent:/usr/sbin/nologin
 _pflogd:*:64:64::0:0:pflogd privsep user:/var/empty:/usr/sbin/nologin
+_dhcp:*:65:65::0:0:dhcp programs:/var/empty:/usr/sbin/nologin
 uucp:*:66:66::0:0:UUCP pseudo-user:/var/spool/uucppublic:/usr/local/libexec/uucp/uucico
 pop:*:68:6::0:0:Post Office Owner:/nonexistent:/usr/sbin/nologin
 www:*:80:80::0:0:World Wide Web Owner:/nonexistent:/usr/sbin/nologin
