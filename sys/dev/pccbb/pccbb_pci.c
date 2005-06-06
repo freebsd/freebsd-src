@@ -238,7 +238,6 @@ cbb_pci_probe(device_t brdev)
 	return (ENXIO);
 }
 
-#ifndef BURN_BRIDGES
 /*
  * Still need this because the pci code only does power for type 0
  * header devices.
@@ -264,7 +263,6 @@ cbb_powerstate_d0(device_t dev)
 		pci_write_config(dev, PCIR_INTLINE, irq, 4);
 	}
 }
-#endif
 
 /*
  * Print out the config space
@@ -302,9 +300,7 @@ cbb_pci_attach(device_t brdev)
 	sc->subbus = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 	SLIST_INIT(&sc->rl);
 	STAILQ_INIT(&sc->intr_handlers);
-#ifndef	BURN_BRIDGES
 	cbb_powerstate_d0(brdev);
-#endif
 
 	rid = CBBR_SOCKBASE;
 	sc->base_res = bus_alloc_resource_any(brdev, SYS_RES_MEMORY, &rid,
