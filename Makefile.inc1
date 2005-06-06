@@ -227,21 +227,21 @@ LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		MACHINE_ARCH=i386 \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
-		CC="cc ${LIB32CC}" \
-		CXX="c++ ${LIB32CXX}" \
-		OBJC="cc ${LIB32OBJC}" \
-		LD="ld -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
-		AS="as --32" \
+		CC="${CC} ${LIB32CC}" \
+		CXX="${CXX} ${LIB32CXX}" \
+		OBJC="${OBJC} ${LIB32OBJC}" \
+		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
+		AS="${AS} --32" \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32
 
 LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DNO_BIND -DNO_MAN -DNO_NLS -DNO_INFO -DNO_HTML \
-		CC="cc ${LIB32CC}" \
-		CXX="c++ ${LIB32CXX}" \
-		OBJC="cc ${LIB32OBJC}" \
-		LD="ld -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
-		AS="as --32" \
+		CC="${CC} ${LIB32CC}" \
+		CXX="${CXX} ${LIB32CXX}" \
+		OBJC="${OBJC} ${LIB32OBJC}" \
+		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
+		AS="${AS} --32" \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32
 .endif
