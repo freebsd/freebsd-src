@@ -2218,8 +2218,17 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 # ifdef INET6
 	case ETHERTYPE_IPV6 :
 		error = (dir == PFIL_IN) ? bridge_ip6_checkbasic(mp) : 0;
-		if (error == 0)
+
+		if (error == 0 && pfil_bridge && dir == PFIL_OUT)
+			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
+					dir, NULL);
+
+		if (error == 0 && pfil_member)
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, ifp,
+					dir, NULL);
+
+		if (error == 0 && pfil_bridge && dir == PFIL_IN)
+			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 		break;
 # endif
