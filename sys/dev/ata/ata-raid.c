@@ -74,6 +74,7 @@ static int ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_ite_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_lsiv2_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_lsiv3_read_meta(device_t dev, struct ar_softc **raidp);
+static int ata_raid_nvidia_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_promise_read_meta(device_t dev, struct ar_softc **raidp, int native);
 static int ata_raid_promise_write_meta(struct ar_softc *rdp);
 static int ata_raid_sii_read_meta(device_t dev, struct ar_softc **raidp);
@@ -94,6 +95,7 @@ static void ata_raid_intel_print_meta(struct intel_raid_conf *meta);
 static void ata_raid_ite_print_meta(struct ite_raid_conf *meta);
 static void ata_raid_lsiv2_print_meta(struct lsiv2_raid_conf *meta);
 static void ata_raid_lsiv3_print_meta(struct lsiv3_raid_conf *meta);
+static void ata_raid_nvidia_print_meta(struct nvidia_raid_conf *meta);
 static void ata_raid_promise_print_meta(struct promise_raid_conf *meta);
 static void ata_raid_sii_print_meta(struct sii_raid_conf *meta);
 static void ata_raid_via_print_meta(struct via_raid_conf *meta);
@@ -111,6 +113,7 @@ static disk_strategy_t ata_raid_strategy;
 static void
 ata_raid_attach(struct ar_softc *rdp, int writeback)
 {
+    char buffer[32] = {""};;
     int disk;
 
     mtx_init(&rdp->lock, "ATA PseudoRAID metadata lock", NULL, MTX_DEF);
@@ -118,9 +121,12 @@ ata_raid_attach(struct ar_softc *rdp, int writeback)
 
     /* sanitize arrays total_size % (width * interleave) == 0 */
     if (rdp->type == AR_T_RAID0 || rdp->type == AR_T_RAID01 ||
-	rdp->type == AR_T_RAID5)
+	rdp->type == AR_T_RAID5) {
 	rdp->total_sectors = (rdp->total_sectors/(rdp->interleave*rdp->width))*
 			     (rdp->interleave * rdp->width);
+	sprintf(buffer, " (stripe %d KB)",
+		(rdp->interleave * DEV_BSIZE) / 1024);
+    }
     rdp->disk = disk_alloc();
     rdp->disk->d_strategy = ata_raid_strategy;
     //rdp->disk->d_dump = ata_raid_dump;
@@ -134,9 +140,10 @@ ata_raid_attach(struct ar_softc *rdp, int writeback)
     rdp->disk->d_unit = rdp->lun;
     disk_create(rdp->disk, DISK_VERSION);
 
-    printf("ar%d: %lluMB <%s %s array> status: %s\n", rdp->lun,
+    printf("ar%d: %lluMB <%s %s%s> status: %s\n", rdp->lun,
 	   (unsigned long long)(rdp->total_sectors / ((1024L*1024L)/DEV_BSIZE)),
-	   ata_raid_format(rdp), ata_raid_type(rdp), ata_raid_flags(rdp));
+	   ata_raid_format(rdp), ata_raid_type(rdp),
+	   buffer, ata_raid_flags(rdp));
 
     if (testing || bootverbose)
 	printf("ar%d: %llu sectors [%dC/%dH/%dS] <%s> subdisks defined as:\n",
@@ -1206,6 +1213,11 @@ ata_raid_read_metadata(device_t subdisk)
 		return 0;
 	    break;
 
+	case ATA_NVIDIA_ID:
+	    if (ata_raid_nvidia_read_meta(subdisk, ata_raid_arrays))
+		return 0;
+	    break;
+
 	case 0:         /* XXX SOS cover up for bug in our PCI code */
 	case ATA_PROMISE_ID: 
 	    if (ata_raid_promise_read_meta(subdisk, ata_raid_arrays, 0))
@@ -1274,6 +1286,9 @@ ata_raid_write_metadata(struct ar_softc *rdp)
 
     case AR_F_LSIV3_RAID:
 	return ata_raid_lsiv3_write_meta(rdp);
+
+    case AR_F_NVIDIA_RAID:
+	return ata_raid_nvidia_write_meta(rdp);
 
     case AR_F_SII_RAID:
 	return ata_raid_sii_write_meta(rdp);
@@ -2345,6 +2360,131 @@ lsiv3_out:
     return retval;
 }
 
+/* nVidia MediaShield Metadata */
+static int
+ata_raid_nvidia_read_meta(device_t dev, struct ar_softc **raidp)
+{
+    struct ata_raid_subdisk *ars = device_get_softc(dev);
+    device_t parent = device_get_parent(dev);
+    struct nvidia_raid_conf *meta;
+    struct ar_softc *raid = NULL;
+    u_int32_t checksum, *ptr;
+    int array, count, retval = 0;
+
+    if (!(meta = (struct nvidia_raid_conf *)
+	  malloc(sizeof(struct nvidia_raid_conf), M_AR, M_NOWAIT | M_ZERO)))
+	return ENOMEM;
+
+    if (ata_raid_rw(parent, NVIDIA_LBA(parent),
+		    meta, sizeof(struct nvidia_raid_conf), ATA_R_READ)) {
+	if (testing || bootverbose)
+	    device_printf(parent, "nVidia read metadata failed\n");
+	goto nvidia_out;
+    }
+
+    /* check if this is a nVidia RAID struct */
+    if (strncmp(meta->nvidia_id, NV_MAGIC, strlen(NV_MAGIC))) {
+	if (testing || bootverbose)
+	    device_printf(parent, "nVidia check1 failed\n");
+	goto nvidia_out;
+    }
+
+    /* check if the checksum is OK */
+    for (checksum = 0, ptr = (u_int32_t*)meta, count = 0; 
+	 count < meta->config_size; count++)
+	checksum += *ptr++;
+    if (checksum) {  
+	if (testing || bootverbose)
+	    device_printf(parent, "nVidia check2 failed\n");
+	goto nvidia_out;
+    }
+
+    if (testing || bootverbose)
+	ata_raid_nvidia_print_meta(meta);
+
+    /* now convert nVidia meta into our generic form */
+    for (array = 0; array < MAX_ARRAYS; array++) {
+	if (!raidp[array]) {
+	    raidp[array] =
+		(struct ar_softc *)malloc(sizeof(struct ar_softc), M_AR,
+					  M_NOWAIT | M_ZERO);
+	    if (!raidp[array]) {
+		device_printf(parent, "failed to allocate metadata storage\n");
+		goto nvidia_out;
+	    }
+	}
+	raid = raidp[array];
+	if (raid->format && (raid->format != AR_F_NVIDIA_RAID))
+	    continue;
+
+	if (raid->format == AR_F_NVIDIA_RAID &&
+	    ((raid->magic_0 != meta->magic_1) ||
+	     (raid->magic_1 != meta->magic_2))) {
+	    continue;
+	}
+
+	switch (meta->type) {
+	case NV_T_SPAN:
+	    raid->type = AR_T_SPAN;
+	    break;
+
+	case NV_T_RAID0: 
+	    raid->type = AR_T_RAID0;
+	    break;
+
+	case NV_T_RAID1:
+	    raid->type = AR_T_RAID1;
+	    break;
+
+	case NV_T_RAID5:
+	    raid->type = AR_T_RAID5;
+	    break;
+
+	case NV_T_RAID01:
+	    raid->type = AR_T_RAID01;
+	    break;
+
+	default:
+	    device_printf(parent, "nVidia unknown RAID type 0x%02x\n",
+			  meta->type);
+	    free(raidp[array], M_AR);
+	    raidp[array] = NULL;
+	    goto nvidia_out;
+	}
+	raid->magic_0 = meta->magic_1;
+	raid->magic_1 = meta->magic_2;
+	raid->format = AR_F_NVIDIA_RAID;
+	raid->generation = 0;
+	raid->interleave = meta->stripe_sectors;
+	raid->width = meta->array_width;
+	raid->total_disks = meta->total_disks;
+	raid->total_sectors = meta->total_sectors;
+	raid->heads = 255;
+	raid->sectors = 63;
+	raid->cylinders = raid->total_sectors / (63 * 255);
+	raid->offset_sectors = 0;
+	raid->rebuild_lba = meta->rebuild_lba;
+	raid->lun = array;
+	raid->status = AR_S_READY;
+	if (meta->status & NV_S_DEGRADED)
+	    raid->status |= AR_S_DEGRADED;
+
+	raid->disks[meta->disk_number].dev = parent;
+	raid->disks[meta->disk_number].sectors =
+	    raid->total_sectors / raid->width;
+	raid->disks[meta->disk_number].flags =
+	    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_ONLINE);
+	ars->raid = raid;
+	ars->disk_number = meta->disk_number;
+	retval = 1;
+	break;
+    }
+
+nvidia_out:
+    free(meta, M_AR);
+    return retval;
+}
+
 /* Promise FastTrak Metadata */
 static int
 ata_raid_promise_read_meta(device_t dev, struct ar_softc **raidp, int native)
@@ -3182,6 +3322,7 @@ ata_raid_format(struct ar_softc *rdp)
     case AR_F_ITE_RAID:         return "Integrated Technology Express";
     case AR_F_LSIV2_RAID:       return "LSILogic v2 MegaRAID";
     case AR_F_LSIV3_RAID:       return "LSILogic v3 MegaRAID";
+    case AR_F_NVIDIA_RAID:      return "nVidia MediaShield";
     case AR_F_PROMISE_RAID:     return "Promise Fasttrak";
     case AR_F_SII_RAID:         return "Silicon Image Medley";
     case AR_F_VIA_RAID:         return "VIA Tech V-RAID";
@@ -3645,6 +3786,60 @@ ata_raid_lsiv3_print_meta(struct lsiv3_raid_conf *meta)
     printf("device              0x%02x\n", meta->device);
     printf("timestamp           0x%08x\n", meta->timestamp);
     printf("checksum_1          0x%02x\n", meta->checksum_1);
+    printf("=================================================\n");
+}
+
+static char *
+ata_raid_nvidia_type(int type)
+{
+    static char buffer[16];
+
+    switch (type) {
+    case NV_T_SPAN:     return "SPAN";
+    case NV_T_RAID0:    return "RAID0";
+    case NV_T_RAID1:    return "RAID1";
+    case NV_T_RAID3:    return "RAID3";
+    case NV_T_RAID5:    return "RAID5";
+    case NV_T_RAID01:   return "RAID0+1";
+    default:            sprintf(buffer, "UNKNOWN 0x%02x", type);
+			return buffer;
+    }
+}
+
+static void
+ata_raid_nvidia_print_meta(struct nvidia_raid_conf *meta)
+{
+    printf("******** ATA nVidia MediaShield Metadata ********\n");
+    printf("nvidia_id           <%.8s>\n", meta->nvidia_id);
+    printf("config_size         %d\n", meta->config_size);
+    printf("checksum            0x%08x\n", meta->checksum);
+    printf("version             0x%04x\n", meta->version);
+    printf("disk_number         %d\n", meta->disk_number);
+    printf("dummy_0             0x%02x\n", meta->dummy_0);
+    printf("total_sectors       %d\n", meta->total_sectors);
+    printf("sectors_size        %d\n", meta->sector_size);
+    printf("serial              %.16s\n", meta->serial);
+    printf("revision            %.4s\n", meta->revision);
+    printf("dummy_1             0x%08x\n", meta->dummy_1);
+    printf("magic_0             0x%08x\n", meta->magic_0);
+    printf("magic_1             0x%016llx\n", meta->magic_1);
+    printf("magic_2             0x%016llx\n", meta->magic_2);
+    printf("flags               0x%02x\n", meta->flags);
+    printf("array_width         %d\n", meta->array_width);
+    printf("total_disks         %d\n", meta->total_disks);
+    printf("dummy_2             0x%02x\n", meta->dummy_2);
+    printf("type                %s\n", ata_raid_nvidia_type(meta->type));
+    printf("dummy_3             0x%04x\n", meta->dummy_3);
+    printf("stripe_sectors      %d\n", meta->stripe_sectors);
+    printf("stripe_bytes        %d\n", meta->stripe_bytes);
+    printf("stripe_shift        %d\n", meta->stripe_shift);
+    printf("stripe_mask         0x%08x\n", meta->stripe_mask);
+    printf("stripe_sizesectors  %d\n", meta->stripe_sizesectors);
+    printf("stripe_sizebytes    %d\n", meta->stripe_sizebytes);
+    printf("rebuild_lba         %d\n", meta->rebuild_lba);
+    printf("dummy_4             0x%08x\n", meta->dummy_4);
+    printf("dummy_5             0x%08x\n", meta->dummy_5);
+    printf("status              0x%08x\n", meta->status);
     printf("=================================================\n");
 }
 
