@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 SSHSRC=	${.CURDIR}/../../../../crypto/openssh
+LIBSSH=	${.OBJDIR}/../../../../secure/lib/libssh/libssh.a
 
 LIB=	pam_ssh
 MAN=	pam_ssh.8
@@ -11,6 +12,6 @@ WARNS?=	0
 CFLAGS+= -I${SSHSRC}
 
 DPADD=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
-LDADD=	-lssh -lcrypto -lcrypt
+LDADD=	${LIBSSH} -lcrypto -lcrypt
 
 .include <bsd.lib.mk>
