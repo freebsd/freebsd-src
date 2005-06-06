@@ -3822,8 +3822,8 @@ ata_raid_nvidia_print_meta(struct nvidia_raid_conf *meta)
     printf("revision            %.4s\n", meta->revision);
     printf("dummy_1             0x%08x\n", meta->dummy_1);
     printf("magic_0             0x%08x\n", meta->magic_0);
-    printf("magic_1             0x%016llx\n", meta->magic_1);
-    printf("magic_2             0x%016llx\n", meta->magic_2);
+    printf("magic_1             0x%016llx\n",(unsigned long long)meta->magic_1);
+    printf("magic_2             0x%016llx\n",(unsigned long long)meta->magic_2);
     printf("flags               0x%02x\n", meta->flags);
     printf("array_width         %d\n", meta->array_width);
     printf("total_disks         %d\n", meta->total_disks);
