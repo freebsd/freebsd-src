@@ -59,9 +59,9 @@ static	void *tkip_attach(struct ieee80211com *, struct ieee80211_key *);
 static	void tkip_detach(struct ieee80211_key *);
 static	int tkip_setkey(struct ieee80211_key *);
 static	int tkip_encap(struct ieee80211_key *, struct mbuf *m, u_int8_t keyid);
-static	int tkip_enmic(struct ieee80211_key *, struct mbuf *);
+static	int tkip_enmic(struct ieee80211_key *, struct mbuf *, int);
 static	int tkip_decap(struct ieee80211_key *, struct mbuf *);
-static	int tkip_demic(struct ieee80211_key *, struct mbuf *);
+static	int tkip_demic(struct ieee80211_key *, struct mbuf *, int);
 
 static const struct ieee80211_cipher tkip  = {
 	.ic_name	= "TKIP",
@@ -209,11 +209,11 @@ tkip_encap(struct ieee80211_key *k, struct mbuf *m, u_int8_t keyid)
  * Add MIC to the frame as needed.
  */
 static int
-tkip_enmic(struct ieee80211_key *k, struct mbuf *m)
+tkip_enmic(struct ieee80211_key *k, struct mbuf *m, int force)
 {
 	struct tkip_ctx *ctx = k->wk_private;
 
-	if (k->wk_flags & IEEE80211_KEY_SWMIC) {
+	if (force || (k->wk_flags & IEEE80211_KEY_SWMIC)) {
 		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 		struct ieee80211com *ic = ctx->tc_ic;
 		int hdrlen;
@@ -321,11 +321,11 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m)
  * Verify and strip MIC from the frame.
  */
 static int
-tkip_demic(struct ieee80211_key *k, struct mbuf *m)
+tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 {
 	struct tkip_ctx *ctx = k->wk_private;
 
-	if (k->wk_flags & IEEE80211_KEY_SWMIC) {
+	if (force || (k->wk_flags & IEEE80211_KEY_SWMIC)) {
 		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 		int hdrlen = ieee80211_hdrsize(wh);
 		u8 mic[IEEE80211_WEP_MICLEN];
