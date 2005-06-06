@@ -2374,7 +2374,6 @@ vge_suspend(dev)
 	device_t		dev;
 {
 	struct vge_softc	*sc;
-	int			i;
 
 	sc = device_get_softc(dev);
 
@@ -2396,7 +2395,6 @@ vge_resume(dev)
 {
 	struct vge_softc	*sc;
 	struct ifnet		*ifp;
-	int			i;
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
