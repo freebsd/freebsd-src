@@ -34,7 +34,8 @@ __FBSDID("$FreeBSD$");
 
 static void sanity_check(void);
 static void make_dist(const char *, const char *, const char *, Package *);
-static int create_from_installed(const char *, const char *);
+static int create_from_installed_recursive(const char *, const char *);
+static int create_from_installed(const char *, const char *, const char *);
 
 static char *home;
 
@@ -79,8 +80,11 @@ pkg_perform(char **pkgs)
     } else
 	suf = "tar";
 
-    if (InstalledPkg != NULL)
-	return (create_from_installed(pkg, suf));
+    if (InstalledPkg != NULL) {
+    	if (!Recursive)
+	    return (create_from_installed(InstalledPkg, pkg, suf));
+	return (create_from_installed_recursive(pkg, suf));
+    }
 
     get_dash_string(&Comment);
     get_dash_string(&Desc);
@@ -446,15 +450,55 @@ cleanup(int sig)
 }
 
 static int
-create_from_installed(const char *pkg, const char *suf)
+create_from_installed_recursive(const char *pkg, const char *suf)
+{
+    FILE *fp;
+    Package plist;
+    PackingList p;
+    char tmp[PATH_MAX];
+    int rval;
+
+    if (!create_from_installed(InstalledPkg, pkg, suf))
+	return FALSE;
+    snprintf(tmp, sizeof(tmp), "%s/%s/%s", LOG_DIR, InstalledPkg, CONTENTS_FNAME);
+    if (!fexists(tmp)) {
+	warnx("can't find package '%s' installed!", InstalledPkg);
+	return FALSE;
+    }
+    /* Suck in the contents list */
+    plist.head = plist.tail = NULL;
+    fp = fopen(tmp, "r");
+    if (!fp) {
+	warnx("unable to open %s file", tmp);
+	return FALSE;
+    }
+    read_plist(&plist, fp);
+    fclose(fp);
+    rval = TRUE;
+    for (p = plist.head; p ; p = p->next) {
+	if (p->type != PLIST_PKGDEP)
+	    continue;
+	if (Verbose)
+	    printf("Creating package %s\n", p->name);
+	if (!create_from_installed(p->name, p->name, suf)) {
+	    rval = FALSE;
+	    break;
+	}
+    }
+    free_plist(&plist);
+    return rval;
+}
+
+static int
+create_from_installed(const char *ipkg, const char *pkg, const char *suf)
 {
     FILE *fp;
     Package plist;
     char homedir[MAXPATHLEN], log_dir[FILENAME_MAX];
 
-    snprintf(log_dir, sizeof(log_dir), "%s/%s", LOG_DIR, InstalledPkg);
+    snprintf(log_dir, sizeof(log_dir), "%s/%s", LOG_DIR, ipkg);
     if (!fexists(log_dir)) {
-	warnx("can't find package '%s' installed!", InstalledPkg);
+	warnx("can't find package '%s' installed!", ipkg);
 	return FALSE;
     }
     getcwd(homedir, sizeof(homedir));
@@ -485,5 +529,9 @@ create_from_installed(const char *pkg, const char *suf)
     make_dist(homedir, pkg, suf, &plist);
 
     free_plist(&plist);
+    if (chdir(homedir) == FAIL) {
+	warnx("can't change directory to '%s'!", homedir);
+	return FALSE;
+    }
     return TRUE;
 }
