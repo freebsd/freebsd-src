@@ -129,7 +129,8 @@ device		atkbd		# AT keyboard
 device		psm		# PS/2 mouse
 
 device		vga		# VGA video card driver
-device		tga		# TGA video card driver
+# TGA support is broken
+# device		tga		# TGA video card driver
 
 device		splash		# Splash screen and screen saver support
 
