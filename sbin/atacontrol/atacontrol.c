@@ -307,7 +307,7 @@ main(int argc, char **argv)
 			exit(EX_USAGE);
 		}
 		sprintf(device, "/dev/%s", argv[2]);
-		if ((fd = open(device, O_RDWR)) < 0)
+		if ((fd = open(device, O_RDONLY)) < 0)
 			err(1, "device not found");
 		if (argc == 4) {
 			mode = str2mode(argv[3]);
@@ -334,7 +334,7 @@ main(int argc, char **argv)
 			exit(EX_USAGE);
 		}
 		sprintf(device, "/dev/%s", argv[2]);
-		if ((fd = open(device, O_RDWR)) < 0)
+		if ((fd = open(device, O_RDONLY)) < 0)
 			err(1, "device not found");
 		ata_cap_print(fd);
 		exit(EX_OK);
