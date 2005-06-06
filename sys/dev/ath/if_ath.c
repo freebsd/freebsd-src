@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/ath/ah_desc.h>
 #include <contrib/dev/ath/ah_devid.h>		/* XXX for softled */
 
-/* unalligned little endian access */     
+/* unaligned little endian access */
 #define LE_READ_2(p)							\
 	((u_int16_t)							\
 	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8)))
@@ -110,7 +110,6 @@ static int	ath_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ath_fatal_proc(void *, int);
 static void	ath_rxorn_proc(void *, int);
 static void	ath_bmiss_proc(void *, int);
-static void	ath_initkeytable(struct ath_softc *);
 static int	ath_key_alloc(struct ieee80211com *,
 			const struct ieee80211_key *);
 static int	ath_key_delete(struct ieee80211com *,
@@ -160,6 +159,7 @@ static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_next_scan(void *);
 static void	ath_calibrate(void *);
 static int	ath_newstate(struct ieee80211com *, enum ieee80211_state, int);
+static void	ath_setup_stationkey(struct ieee80211_node *);
 static void	ath_newassoc(struct ieee80211com *,
 			struct ieee80211_node *, int);
 static int	ath_getchannels(struct ath_softc *, u_int cc,
@@ -301,11 +301,10 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * Get the hardware key cache size.
 	 */
 	sc->sc_keymax = ath_hal_keycachesize(ah);
-	if (sc->sc_keymax > sizeof(sc->sc_keymap) * NBBY) {
-		if_printf(ifp,
-			"Warning, using only %zu of %u key cache slots\n",
-			sizeof(sc->sc_keymap) * NBBY, sc->sc_keymax);
-		sc->sc_keymax = sizeof(sc->sc_keymap) * NBBY;
+	if (sc->sc_keymax > ATH_KEYMAX) {
+		if_printf(ifp, "Warning, using only %u of %u key cache slots\n",
+			ATH_KEYMAX, sc->sc_keymax);
+		sc->sc_keymax = ATH_KEYMAX;
 	}
 	/*
 	 * Reset the key cache since some parts do not
@@ -513,6 +512,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		if (ath_hal_tkipsplit(ah))
 			sc->sc_splitmic = 1;
 	}
+	sc->sc_hasclrkey = ath_hal_ciphersupported(ah, HAL_CIPHER_CLR);
+	sc->sc_mcastkey = ath_hal_getmcastkeysearch(ah);
 	/*
 	 * TPC support can be done either with a global cap or
 	 * per-packet support.  The latter is not available on
@@ -530,7 +531,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if (sc->sc_ac2q[WME_AC_BE] != sc->sc_ac2q[WME_AC_BK])
 		ic->ic_caps |= IEEE80211_C_WME;
 	/*
-	 * Check for frame bursting capability.
+	 * Check for misc other capabilities.
 	 */
 	if (ath_hal_hasbursting(ah))
 		ic->ic_caps |= IEEE80211_C_BURST;
@@ -878,7 +879,6 @@ ath_init(void *arg)
 	 * in the frame output path; there's nothing to do
 	 * here except setup the interrupt mask.
 	 */
-	ath_initkeytable(sc);		/* XXX still needed? */
 	if (ath_startrecv(sc) != 0) {
 		if_printf(ifp, "unable to start recv logic\n");
 		goto done;
@@ -1269,14 +1269,11 @@ ath_keyset_tkip(struct ath_softc *sc, const struct ieee80211_key *k,
 		 * TX/RX key goes at first index.
 		 * The hal handles the MIC keys are index+64.
 		 */
-		KASSERT(k->wk_keyix < IEEE80211_WEP_NKID,
-			("group key at index %u", k->wk_keyix));
 		memcpy(hk->kv_mic, k->wk_flags & IEEE80211_KEY_XMIT ?
 			k->wk_txmic : k->wk_rxmic, sizeof(hk->kv_mic));
-		KEYPRINTF(sc, k->wk_keyix, hk, zerobssid);
-		return ath_hal_keyset(ah, k->wk_keyix, hk, zerobssid);
+		KEYPRINTF(sc, k->wk_keyix, hk, mac);
+		return ath_hal_keyset(ah, k->wk_keyix, hk, mac);
 	}
-	/* XXX key w/o xmit/recv; need this for compression? */
 	return 0;
 #undef IEEE80211_KEY_XR
 }
@@ -1288,7 +1285,8 @@ ath_keyset_tkip(struct ath_softc *sc, const struct ieee80211_key *k,
  */
 static int
 ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
-	const u_int8_t mac[IEEE80211_ADDR_LEN])
+	const u_int8_t mac0[IEEE80211_ADDR_LEN],
+	struct ieee80211_node *bss)
 {
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 	static const u_int8_t ciphermap[] = {
@@ -1302,6 +1300,8 @@ ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
 	};
 	struct ath_hal *ah = sc->sc_ah;
 	const struct ieee80211_cipher *cip = k->wk_cipher;
+	u_int8_t gmac[IEEE80211_ADDR_LEN];
+	const u_int8_t *mac;
 	HAL_KEYVAL hk;
 
 	memset(&hk, 0, sizeof(hk));
@@ -1319,6 +1319,18 @@ ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
 	} else
 		hk.kv_type = HAL_CIPHER_CLR;
 
+	if ((k->wk_flags & IEEE80211_KEY_GROUP) && sc->sc_mcastkey) {
+		/*
+		 * Group keys on hardware that supports multicast frame
+		 * key search use a mac that is the sender's address with
+		 * the high bit set instead of the app-specified address.
+		 */
+		IEEE80211_ADDR_COPY(gmac, bss->ni_macaddr);
+		gmac[0] |= 0x80;
+		mac = gmac;
+	} else
+		mac = mac0;
+
 	if (hk.kv_type == HAL_CIPHER_TKIP &&
 	    (k->wk_flags & IEEE80211_KEY_SWMIC) == 0 &&
 	    sc->sc_splitmic) {
@@ -1328,36 +1340,6 @@ ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
 		return ath_hal_keyset(ah, k->wk_keyix, &hk, mac);
 	}
 #undef N
-}
-
-/*
- * Fill the hardware key cache with key entries.
- */
-static void
-ath_initkeytable(struct ath_softc *sc)
-{
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &sc->sc_if;
-	struct ath_hal *ah = sc->sc_ah;
-	const u_int8_t *bssid;
-	int i;
-
-	/* XXX maybe should reset all keys when !PRIVACY */
-	if (ic->ic_state == IEEE80211_S_SCAN)
-		bssid = ifp->if_broadcastaddr;
-	else
-		bssid = ic->ic_bss->ni_bssid;
-	for (i = 0; i < IEEE80211_WEP_NKID; i++) {
-		struct ieee80211_key *k = &ic->ic_nw_keys[i];
-
-		if (k->wk_keylen == 0) {
-			ath_hal_keyreset(ah, i);
-			DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s: reset key %u\n",
-				__func__, i);
-		} else {
-			ath_keyset(sc, k, bssid);
-		}
-	}
 }
 
 /*
@@ -1512,17 +1494,32 @@ ath_key_delete(struct ieee80211com *ic, const struct ieee80211_key *k)
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	const struct ieee80211_cipher *cip = k->wk_cipher;
+	struct ieee80211_node *ni;
 	u_int keyix = k->wk_keyix;
 
 	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s: delete key %u\n", __func__, keyix);
 
 	ath_hal_keyreset(ah, keyix);
 	/*
+	 * Check the key->node map and flush any ref.
+	 */
+	ni = sc->sc_keyixmap[keyix];
+	if (ni != NULL) {
+		ieee80211_free_node(ni);
+		sc->sc_keyixmap[keyix] = NULL;
+	}
+	/*
 	 * Handle split tx/rx keying required for TKIP with h/w MIC.
 	 */
 	if (cip->ic_cipher == IEEE80211_CIPHER_TKIP &&
-	    (k->wk_flags & IEEE80211_KEY_SWMIC) == 0 && sc->sc_splitmic)
+	    (k->wk_flags & IEEE80211_KEY_SWMIC) == 0 && sc->sc_splitmic) {
 		ath_hal_keyreset(ah, keyix+32);		/* RX key */
+		ni = sc->sc_keyixmap[keyix+32];
+		if (ni != NULL) {			/* as above... */
+			ieee80211_free_node(ni);
+			sc->sc_keyixmap[keyix+32] = NULL;
+		}
+	}
 	if (keyix >= IEEE80211_WEP_NKID) {
 		/*
 		 * Don't touch keymap entries for global keys so
@@ -1550,7 +1547,7 @@ ath_key_set(struct ieee80211com *ic, const struct ieee80211_key *k,
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 
-	return ath_keyset(sc, k, mac);
+	return ath_keyset(sc, k, mac, ic->ic_bss);
 }
 
 /*
@@ -2725,16 +2722,51 @@ rx_accept:
 		/*
 		 * Locate the node for sender, track state, and then
 		 * pass the (referenced) node up to the 802.11 layer
-		 * for its use.
+		 * for its use.  If the sender is unknown spam the
+		 * frame; it'll be dropped where it's not wanted.
 		 */
-		ni = ieee80211_find_rxnode(ic,
-			mtod(m, const struct ieee80211_frame_min *));
-
-		/*
-		 * Track rx rssi and do any rx antenna management.
-		 */
-		an = ATH_NODE(ni);
-		ATH_RSSI_LPF(an->an_avgrssi, ds->ds_rxstat.rs_rssi);
+		if (ds->ds_rxstat.rs_keyix != HAL_RXKEYIX_INVALID &&
+		    (ni = sc->sc_keyixmap[ds->ds_rxstat.rs_keyix]) != NULL) {
+			/*
+			 * Fast path: node is present in the key map;
+			 * grab a reference for processing the frame.
+			 */
+			an = ATH_NODE(ieee80211_ref_node(ni));
+			ATH_RSSI_LPF(an->an_avgrssi, ds->ds_rxstat.rs_rssi);
+			type = ieee80211_input(ic, m, ni,
+				ds->ds_rxstat.rs_rssi, ds->ds_rxstat.rs_tstamp);
+		} else {
+			/*
+			 * Locate the node for sender, track state, and then
+			 * pass the (referenced) node up to the 802.11 layer
+			 * for its use.
+			 */
+			ni = ieee80211_find_rxnode(ic,
+				mtod(m, const struct ieee80211_frame_min *));
+			/*
+			 * Track rx rssi and do any rx antenna management.
+			 */
+			an = ATH_NODE(ni);
+			ATH_RSSI_LPF(an->an_avgrssi, ds->ds_rxstat.rs_rssi);
+			/*
+			 * Send frame up for processing.
+			 */
+			type = ieee80211_input(ic, m, ni,
+				ds->ds_rxstat.rs_rssi, ds->ds_rxstat.rs_tstamp);
+			if (ni != ic->ic_bss) {
+				u_int16_t keyix;
+				/*
+				 * If the station has a key cache slot assigned
+				 * update the key->node mapping table.
+				 */
+				keyix = ni->ni_ucastkey.wk_keyix;
+				if (keyix != IEEE80211_KEYIX_NONE &&
+				    sc->sc_keyixmap[keyix] == NULL)
+					sc->sc_keyixmap[keyix] =
+						ieee80211_ref_node(ni);
+			}
+		}
+		ieee80211_free_node(ni);
 		if (sc->sc_diversity) {
 			/*
 			 * When using fast diversity, change the default rx
@@ -2748,13 +2780,6 @@ rx_accept:
 			} else
 				sc->sc_rxotherant = 0;
 		}
-
-		/*
-		 * Send frame up for processing.
-		 */
-		type = ieee80211_input(ic, m, ni,
-			ds->ds_rxstat.rs_rssi, ds->ds_rxstat.rs_tstamp);
-
 		if (sc->sc_softled) {
 			/*
 			 * Blink for any data frame.  Otherwise do a
@@ -2768,11 +2793,6 @@ rx_accept:
 			} else if (ticks - sc->sc_ledevent >= sc->sc_ledidle)
 				ath_led_event(sc, ATH_LED_POLL);
 		}
-
-		/*
-		 * Reclaim node reference.
-		 */
-		ieee80211_free_node(ni);
 rx_next:
 		STAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
 	} while (ath_rxbuf_init(sc, bf) == 0);
@@ -2816,7 +2836,7 @@ ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	qnum = ath_hal_setuptxqueue(ah, qtype, &qi);
 	if (qnum == -1) {
 		/*
-		 * NB: don't print a message, this happens 
+		 * NB: don't print a message, this happens
 		 * normally on parts with too few tx queues
 		 */
 		return NULL;
@@ -2908,7 +2928,7 @@ ath_txq_update(struct ath_softc *sc, int ac)
 /*
  * Callback from the 802.11 layer to update WME parameters.
  */
-static int 
+static int
 ath_wme_update(struct ieee80211com *ic)
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
@@ -3105,6 +3125,13 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 
 		/* packet header may have moved, reset our local pointer */
 		wh = mtod(m0, struct ieee80211_frame *);
+	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
+		/*
+		 * Use station key cache slot, if assigned.
+		 */
+		keyix = ni->ni_ucastkey.wk_keyix;
+		if (keyix == IEEE80211_KEYIX_NONE)
+			keyix = HAL_TXKEYIX_INVALID;
 	} else
 		keyix = HAL_TXKEYIX_INVALID;
 
@@ -4012,7 +4039,7 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		/*
 		 * NB: disable interrupts so we don't rx frames.
 		 */
-		ath_hal_intrset(ah, sc->sc_imask &~ ~HAL_INT_GLOBAL);
+		ath_hal_intrset(ah, sc->sc_imask &~ HAL_INT_GLOBAL);
 		/*
 		 * Notify the rate control algorithm.
 		 */
@@ -4061,12 +4088,12 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			 , ni->ni_capinfo
 			 , ieee80211_chan2ieee(ic, ni->ni_chan));
 
-		/*
-		 * Allocate and setup the beacon frame for AP or adhoc mode.
-		 */
-		if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
-		    ic->ic_opmode == IEEE80211_M_IBSS) {
+		switch (ic->ic_opmode) {
+		case IEEE80211_M_HOSTAP:
+		case IEEE80211_M_IBSS:
 			/*
+			 * Allocate and setup the beacon frame.
+			 *
 			 * Stop any previous beacon DMA.  This may be
 			 * necessary, for example, when an ibss merge
 			 * causes reconfiguration; there will be a state
@@ -4078,6 +4105,18 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			error = ath_beacon_alloc(sc, ni);
 			if (error != 0)
 				goto bad;
+			break;
+		case IEEE80211_M_STA:
+			/*
+			 * Allocate a key cache slot to the station.
+			 */
+			if ((ic->ic_flags & IEEE80211_F_PRIVACY) == 0 &&
+			    sc->sc_hasclrkey &&
+			    ni->ni_ucastkey.wk_keyix == IEEE80211_KEYIX_NONE)
+				ath_setup_stationkey(ni);
+			break;
+		default:
+			break;
 		}
 
 		/*
@@ -4111,6 +4150,36 @@ bad:
 }
 
 /*
+ * Allocate a key cache slot to the station so we can
+ * setup a mapping from key index to node. The key cache
+ * slot is needed for managing antenna state and for
+ * compression when stations do not use crypto.  We do
+ * it uniliaterally here; if crypto is employed this slot
+ * will be reassigned.
+ */
+static void
+ath_setup_stationkey(struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	u_int16_t keyix;
+
+	keyix = ath_key_alloc(ic, &ni->ni_ucastkey);
+	if (keyix == IEEE80211_KEYIX_NONE) {
+		/*
+		 * Key cache is full; we'll fall back to doing
+		 * the more expensive lookup in software.  Note
+		 * this also means no h/w compression.
+		 */
+		/* XXX msg+statistic */
+	} else {
+		ni->ni_ucastkey.wk_keyix = keyix;
+		/* NB: this will create a pass-thru key entry */
+		ath_keyset(sc, &ni->ni_ucastkey, ni->ni_macaddr, ic->ic_bss);
+	}
+}
+
+/*
  * Setup driver-specific state for a newly associated node.
  * Note that we're called also on a re-associate, the isnew
  * param tells us if this is the first time or not.
@@ -4121,6 +4190,13 @@ ath_newassoc(struct ieee80211com *ic, struct ieee80211_node *ni, int isnew)
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 
 	ath_rate_newassoc(sc, ATH_NODE(ni), isnew);
+	if (isnew &&
+	    (ic->ic_flags & IEEE80211_F_PRIVACY) == 0 && sc->sc_hasclrkey) {
+		KASSERT(ni->ni_ucastkey.wk_keyix == IEEE80211_KEYIX_NONE,
+		    ("new assoc with a unicast key already setup (keyix %u)",
+		    ni->ni_ucastkey.wk_keyix));
+		ath_setup_stationkey(ni);
+	}
 }
 
 static int
