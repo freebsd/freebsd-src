@@ -1,5 +1,6 @@
 # $FreeBSD$
-#
+
+LIBSSH=	${.OBJDIR}/../../lib/libssh/libssh.a
 
 PROG=	ssh
 CFLAGS+=-I${SSHDIR}
@@ -8,11 +9,10 @@ MAN=	ssh.1 ssh_config.5
 MLINKS=	ssh.1 slogin.1
 
 SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
-	sshconnect.c sshconnect1.c sshconnect2.c \
-	gss-genr.c
+	sshconnect.c sshconnect1.c sshconnect2.c
 
 DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ}
-LDADD=	-lssh -lutil -lz
+LDADD=	${LIBSSH} -lutil -lz
 
 .if !defined(NO_KERBEROS)
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_H=1 -DKRB5 -DHEIMDAL
