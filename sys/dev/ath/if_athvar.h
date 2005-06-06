@@ -57,6 +57,17 @@
 #define	ATH_TXMAXTRY	11		/* max number of transmit attempts */
 #define	ATH_TXINTR_PERIOD 5		/* max number of batched tx descriptors */
 
+/*
+ * The key cache is used for h/w cipher state and also for
+ * tracking station state such as the current tx antenna.
+ * We also setup a mapping table between key cache slot indices
+ * and station state to short-circuit node lookups on rx.
+ * Different parts have different size key caches.  We handle
+ * up to ATH_KEYMAX entries (could dynamically allocate state).
+ */
+#define	ATH_KEYMAX	128		/* max key cache size we handle */
+#define	ATH_KEYBYTES	(ATH_KEYMAX/NBBY)	/* storage space in bytes */
+
 /* driver-specific node state */
 struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
@@ -178,7 +189,7 @@ struct ath_softc {
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
 	void			(*sc_setdefantenna)(struct ath_softc *, u_int);
-	unsigned int		sc_invalid  : 1,/* disable hardware accesses */
+	unsigned int		sc_invalid : 1,	/* disable hardware accesses */
 				sc_mrretry : 1,	/* multi-rate retry support */
 				sc_softled : 1,	/* enable LED gpio status */
 				sc_splitmic: 1,	/* split TKIP MIC keys */
@@ -189,7 +200,8 @@ struct ath_softc {
 				sc_hastpc  : 1,	/* per-packet TPC support */
 				sc_ledstate: 1,	/* LED on/off state */
 				sc_blinking: 1,	/* LED blink operation active */
-				sc_mcastkey: 1;	/* mcast key cache search */
+				sc_mcastkey: 1,	/* mcast key cache search */
+				sc_hasclrkey:1;	/* CLR key supported */
 						/* rate tables */
 	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX];
 	const HAL_RATE_TABLE	*sc_currates;	/* current rate table */
@@ -208,7 +220,8 @@ struct ath_softc {
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
 	HAL_INT			sc_imask;	/* interrupt mask copy */
 	u_int			sc_keymax;	/* size of key cache */
-	u_int8_t		sc_keymap[16];	/* bit map of key cache use */
+	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
+	struct ieee80211_node	*sc_keyixmap[ATH_KEYMAX];/* key ix->node map */
 
 	u_int			sc_ledpin;	/* GPIO pin for driving LED */
 	u_int			sc_ledon;	/* pin setting for LED on */
@@ -471,6 +484,14 @@ void	ath_intr(void *);
 	ath_hal_setcapability(_ah, HAL_CAP_TPC, 1, _v, NULL)
 #define	ath_hal_hasbursting(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_BURST, 0, NULL) == HAL_OK)
+#ifdef notyet
+#define	ath_hal_hasmcastkeysearch(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_MCAST_KEYSRCH, 0, NULL) == HAL_OK)
+#define	ath_hal_getmcastkeysearch(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_MCAST_KEYSRCH, 1, NULL) == HAL_OK)
+#else
+#define	ath_hal_getmcastkeysearch(_ah)	0
+#endif
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
