@@ -958,8 +958,7 @@ fxp_suspend(device_t dev)
 }
 
 /*
- * Device resume routine.  Restore some PCI settings in case the BIOS
- * doesn't, re-enable busmastering, and restart the interface if
+ * Device resume routine. re-enable busmastering, and restart the interface if
  * appropriate.
  */
 static int
