@@ -44,6 +44,7 @@ extern char	*InstalledPkg;
 extern char	PlayPen[];
 extern int	Dereference;
 extern int	PlistOnly;
+extern int	Recursive;
 
 enum zipper {NONE, GZIP, BZIP, BZIP2 };
 extern enum zipper	Zipper;
