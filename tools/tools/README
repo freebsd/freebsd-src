@@ -42,6 +42,7 @@ pciid		Generate src/share/misc/pci_vendors.
 pirtool		A tool for dumping the $PIR table on i386 machines at runtime.
 portsinfo 	Generate list of new ports for last two weeks.
 prstats		Generate statistics about the PR database.
+recoverdisk	Copy as much data as possible from a deffective disk.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 sysdoc		Build a manual page with available sysctls for a specific
 		kernel configuration.
