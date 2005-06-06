@@ -88,6 +88,9 @@ SYSCTL_INT(_net_bpf, OID_AUTO, bufsize, CTLFLAG_RW,
 static int bpf_maxbufsize = BPF_MAXBUFSIZE;
 SYSCTL_INT(_net_bpf, OID_AUTO, maxbufsize, CTLFLAG_RW,
     &bpf_maxbufsize, 0, "");
+static int bpf_maxinsns = BPF_MAXINSNS;
+SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
+    &bpf_maxinsns, 0, "Maximum bpf program instructions");
 
 /*
  * bpf_iflist is a list of BPF interface structures, each corresponding to a
@@ -966,7 +969,7 @@ bpf_setf(d, fp)
 		return (0);
 	}
 	flen = fp->bf_len;
-	if (flen > BPF_MAXINSNS)
+	if (flen > bpf_maxinsns)
 		return (EINVAL);
 
 	size = flen * sizeof(*fp->bf_insns);
