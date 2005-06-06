@@ -1056,6 +1056,8 @@ do_link_state_change(void *arg, int pending)
 		(*bstp_linkstate_p)(ifp, link_state);
 	}
 
+	devctl_notify("IFNET", ifp->if_xname,
+	    (link_state == LINK_STATE_UP) ? "LINK_UP" : "LINK_DOWN", NULL);
 	if (pending > 1)
 		if_printf(ifp, "%d link states coalesced\n", pending);
 	if (log_link_state_change)
