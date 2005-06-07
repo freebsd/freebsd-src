@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.212 2004/08/04 21:11:31 ca Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.214 2005/02/04 22:01:45 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>

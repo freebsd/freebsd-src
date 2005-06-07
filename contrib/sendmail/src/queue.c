@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,8 +12,9 @@
  */
 
 #include <sendmail.h>
+#include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.939 2004/08/03 19:57:23 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.944 2005/02/17 23:58:58 ca Exp $")
 
 #include <dirent.h>
 
@@ -401,6 +402,7 @@ queueup(e, announce, msync)
 			/* NOTREACHED */
 		}
 		e->e_lockfp = tfp;
+		upd_qs(e, 1, 0, "queueup");
 	}
 
 	/* if newid, write the queue file directly (instead of temp file) */
@@ -6496,13 +6498,79 @@ disk_status(out, prefix)
 #endif /* _FFR_CONTROL_MSTAT */
 
 #if SM_CONF_SHM
+
+/*
+**  INIT_SEM -- initialize semaphore system
+**
+**	Parameters:
+**		owner -- is this the owner of semaphores?
+**
+**	Returns:
+**		none.
+*/
+
+#if _FFR_USE_SEM_LOCKING
+#if SM_CONF_SEM
+static int SemId = -1;		/* Semaphore Id */
+int SemKey = SM_SEM_KEY;
+#endif /* SM_CONF_SEM */
+#endif /* _FFR_USE_SEM_LOCKING */
+
+static void init_sem __P((bool));
+
+static void
+init_sem(owner)
+	bool owner;
+{
+#if _FFR_USE_SEM_LOCKING
+#if SM_CONF_SEM
+	SemId = sm_sem_start(SemKey, 1, 0, owner);
+	if (SemId < 0)
+	{
+		sm_syslog(LOG_ERR, NOQID,
+			"func=init_sem, sem_key=%ld, sm_sem_start=%d",
+			(long) SemKey, SemId);
+		return;
+	}
+#endif /* SM_CONF_SEM */
+#endif /* _FFR_USE_SEM_LOCKING */
+	return;
+}
+
+/*
+**  STOP_SEM -- stop semaphore system
+**
+**	Parameters:
+**		owner -- is this the owner of semaphores?
+**
+**	Returns:
+**		none.
+*/
+
+static void stop_sem __P((bool));
+
+static void
+stop_sem(owner)
+	bool owner;
+{
+#if _FFR_USE_SEM_LOCKING
+#if SM_CONF_SEM
+	if (owner && SemId >= 0)
+		sm_sem_stop(SemId);
+#endif /* SM_CONF_SEM */
+#endif /* _FFR_USE_SEM_LOCKING */
+	return;
+}
+
 /*
 **  UPD_QS -- update information about queue when adding/deleting an entry
 **
 **	Parameters:
 **		e -- envelope.
-**		delete -- delete/add entry.
-**		avail -- update the space available as well.
+**		count -- add/remove entry (+1/0/-1: add/no change/remove)
+**		space -- update the space available as well.
+**			(>0/0/<0: add/no change/remove)
+**		where -- caller (for logging)
 **
 **	Returns:
 **		none.
@@ -6513,13 +6581,17 @@ disk_status(out, prefix)
 */
 
 void
-upd_qs(e, delete, avail)
+upd_qs(e, count, space, where)
 	ENVELOPE *e;
-	bool delete;
-	bool avail;
+	int count;
+	int space;
+	char *where;
 {
 	short fidx;
 	int idx;
+# if _FFR_USE_SEM_LOCKING
+	int r;
+# endif /* _FFR_USE_SEM_LOCKING */
 	long s;
 
 	if (ShmId == SM_SHM_NO_ID || e == NULL)
@@ -6527,14 +6599,21 @@ upd_qs(e, delete, avail)
 	if (e->e_qgrp == NOQGRP || e->e_qdir == NOQDIR)
 		return;
 	idx = Queue[e->e_qgrp]->qg_qpaths[e->e_qdir].qp_idx;
+	if (tTd(73,2))
+		sm_dprintf("func=upd_qs, count=%d, space=%d, where=%s, idx=%d, entries=%d\n",
+			count, space, where, idx, QSHM_ENTRIES(idx));
 
 	/* XXX in theory this needs to be protected with a mutex */
-	if (QSHM_ENTRIES(idx) >= 0)
+	if (QSHM_ENTRIES(idx) >= 0 && count != 0)
 	{
-		if (delete)
-			--QSHM_ENTRIES(idx);
-		else
-			++QSHM_ENTRIES(idx);
+# if _FFR_USE_SEM_LOCKING
+		r = sm_sem_acq(SemId, 0, 1);
+# endif /* _FFR_USE_SEM_LOCKING */
+		QSHM_ENTRIES(idx) += count;
+# if _FFR_USE_SEM_LOCKING
+		if (r >= 0)
+			r = sm_sem_rel(SemId, 0, 1);
+# endif /* _FFR_USE_SEM_LOCKING */
 	}
 
 	fidx = Queue[e->e_qgrp]->qg_qpaths[e->e_qdir].qp_fsysidx;
@@ -6542,7 +6621,7 @@ upd_qs(e, delete, avail)
 		return;
 
 	/* update available space also?  (might be loseqfile) */
-	if (!avail)
+	if (space == 0)
 		return;
 
 	/* convert size to blocks; this causes rounding errors */
@@ -6551,7 +6630,7 @@ upd_qs(e, delete, avail)
 		return;
 
 	/* XXX in theory this needs to be protected with a mutex */
-	if (delete)
+	if (space > 0)
 		FILE_SYS_AVAIL(fidx) += s;
 	else
 		FILE_SYS_AVAIL(fidx) -= s;
@@ -6676,6 +6755,8 @@ init_shm(qn, owner, hash)
 	unsigned int hash;
 {
 	int i;
+	int count;
+	int save_errno;
 #if _FFR_SELECT_SHM
 	bool keyselect;
 #endif /* _FFR_SELECT_SHM */
@@ -6689,120 +6770,129 @@ init_shm(qn, owner, hash)
 #endif /* _FFR_SELECT_SHM */
 
 	/* This allows us to disable shared memory at runtime. */
-	if (ShmKey != 0)
+	if (ShmKey == 0)
+		return;
+
+	count = 0;
+	shms = SM_T_SIZE + qn * sizeof(QUEUE_SHM_T);
+#if _FFR_SELECT_SHM
+	keyselect = ShmKey == SEL_SHM_KEY;
+	if (keyselect)
 	{
-		int count;
-		int save_errno;
-
-		count = 0;
-		shms = SM_T_SIZE + qn * sizeof(QUEUE_SHM_T);
-#if _FFR_SELECT_SHM
-		keyselect = ShmKey == SEL_SHM_KEY;
-		if (keyselect)
+		if (owner)
+			ShmKey = FIRST_SHM_KEY;
+		else
 		{
-			if (owner)
-				ShmKey = FIRST_SHM_KEY;
-			else
-			{
-				ShmKey = read_key_file(ShmKeyFile, ShmKey);
-				keyselect = false;
-				if (ShmKey == SEL_SHM_KEY)
-					goto error;
-			}
+			ShmKey = read_key_file(ShmKeyFile, ShmKey);
+			keyselect = false;
+			if (ShmKey == SEL_SHM_KEY)
+				goto error;
 		}
+	}
 #endif /* _FFR_SELECT_SHM */
-		for (;;)
+	for (;;)
+	{
+		/* allow read/write access for group? */
+		Pshm = sm_shmstart(ShmKey, shms,
+				SHM_R|SHM_W|(SHM_R>>3)|(SHM_W>>3),
+				&ShmId, owner);
+		save_errno = errno;
+		if (Pshm != NULL || !sm_file_exists(save_errno))
+			break;
+		if (++count >= 3)
 		{
-			/* XXX: maybe allow read access for group? */
-			Pshm = sm_shmstart(ShmKey, shms, SHM_R|SHM_W, &ShmId,
-					   owner);
-			save_errno = errno;
-			if (Pshm != NULL || !sm_file_exists(save_errno))
-				break;
-			if (++count >= 3)
-			{
-#if _FFR_SELECT_SHM
-				if (keyselect)
-				{
-					++ShmKey;
-
-					/* back where we started? */
-					if (ShmKey == SEL_SHM_KEY)
-						break;
-					continue;
-				}
-#endif /* _FFR_SELECT_SHM */
-				break;
-			}
-#if _FFR_SELECT_SHM
-			/* only sleep if we are at the first key */
-			if (!keyselect || ShmKey == SEL_SHM_KEY)
-#endif /* _FFR_SELECT_SHM */
-			sleep(count);
-		}
-		if (Pshm != NULL)
-		{
-			int *p;
-
 #if _FFR_SELECT_SHM
 			if (keyselect)
-				(void) write_key_file(ShmKeyFile, (long) ShmKey);
+			{
+				++ShmKey;
+
+				/* back where we started? */
+				if (ShmKey == SEL_SHM_KEY)
+					break;
+				continue;
+			}
 #endif /* _FFR_SELECT_SHM */
-			p = (int *) Pshm;
-			if (owner)
-			{
-				*p = (int) shms;
-				*((pid_t *) SHM_OFF_PID(Pshm)) = CurrentPid;
-				p = (int *) SHM_OFF_TAG(Pshm);
-				*p = hash;
-			}
-			else
-			{
-				if (*p != (int) shms)
-				{
-					save_errno = EINVAL;
-					cleanup_shm(false);
-					goto error;
-				}
-				p = (int *) SHM_OFF_TAG(Pshm);
-				if (*p != (int) hash)
-				{
-					save_errno = EINVAL;
-					cleanup_shm(false);
-					goto error;
-				}
-
-				/*
-				**  XXX how to check the pid?
-				**  Read it from the pid-file? That does
-				**  not need to exist.
-				**  We could disable shm if we can't confirm
-				**  that it is the right one.
-				*/
-			}
-
-			PtrFileSys = (FILESYS *) OFF_FILE_SYS(Pshm);
-			PNumFileSys = (int *) OFF_NUM_FILE_SYS(Pshm);
-			QShm = (QUEUE_SHM_T *) OFF_QUEUE_SHM(Pshm);
-			PRSATmpCnt = (int *) OFF_RSA_TMP_CNT(Pshm);
-			*PRSATmpCnt = 0;
-			if (owner)
-			{
-				/* initialize values in shared memory */
-				NumFileSys = 0;
-				for (i = 0; i < qn; i++)
-					QShm[i].qs_entries = -1;
-			}
-			return;
+			break;
 		}
-  error:
-		if (LogLevel > (owner ? 8 : 11))
+#if _FFR_SELECT_SHM
+		/* only sleep if we are at the first key */
+		if (!keyselect || ShmKey == SEL_SHM_KEY)
+#endif /* _FFR_SELECT_SHM */
+		sleep(count);
+	}
+	if (Pshm != NULL)
+	{
+		int *p;
+
+#if _FFR_SELECT_SHM
+		if (keyselect)
+			(void) write_key_file(ShmKeyFile, (long) ShmKey);
+#endif /* _FFR_SELECT_SHM */
+		if (owner && RunAsUid != 0)
 		{
-			sm_syslog(owner ? LOG_ERR : LOG_NOTICE, NOQID,
-				  "can't %s shared memory, key=%ld: %s",
-				  owner ? "initialize" : "attach to",
-				  (long) ShmKey, sm_errstring(save_errno));
+	    		i = sm_shmsetowner(ShmId, RunAsUid, RunAsGid,
+					0660);
+			if (i != 0)
+				sm_syslog(LOG_ERR, NOQID,
+		  			"key=%ld, sm_shmsetowner=%d, RunAsUid=%d, RunAsGid=%d",
+		  			(long) ShmKey, i,
+	    				RunAsUid, RunAsGid);
 		}
+		p = (int *) Pshm;
+		if (owner)
+		{
+			*p = (int) shms;
+			*((pid_t *) SHM_OFF_PID(Pshm)) = CurrentPid;
+			p = (int *) SHM_OFF_TAG(Pshm);
+			*p = hash;
+		}
+		else
+		{
+			if (*p != (int) shms)
+			{
+				save_errno = EINVAL;
+				cleanup_shm(false);
+				goto error;
+			}
+			p = (int *) SHM_OFF_TAG(Pshm);
+			if (*p != (int) hash)
+			{
+				save_errno = EINVAL;
+				cleanup_shm(false);
+				goto error;
+			}
+
+			/*
+			**  XXX how to check the pid?
+			**  Read it from the pid-file? That does
+			**  not need to exist.
+			**  We could disable shm if we can't confirm
+			**  that it is the right one.
+			*/
+		}
+
+		PtrFileSys = (FILESYS *) OFF_FILE_SYS(Pshm);
+		PNumFileSys = (int *) OFF_NUM_FILE_SYS(Pshm);
+		QShm = (QUEUE_SHM_T *) OFF_QUEUE_SHM(Pshm);
+		PRSATmpCnt = (int *) OFF_RSA_TMP_CNT(Pshm);
+		*PRSATmpCnt = 0;
+		if (owner)
+		{
+			/* initialize values in shared memory */
+			NumFileSys = 0;
+			for (i = 0; i < qn; i++)
+				QShm[i].qs_entries = -1;
+		}
+		init_sem(owner);
+		return;
+	}
+  error:
+	if (LogLevel > (owner ? 8 : 11))
+	{
+		sm_syslog(owner ? LOG_ERR : LOG_NOTICE, NOQID,
+			  "can't %s shared memory, key=%ld: %s",
+			  owner ? "initialize" : "attach to",
+			  (long) ShmKey, sm_errstring(save_errno));
 	}
 }
 #endif /* SM_CONF_SHM */
@@ -7013,6 +7103,7 @@ cleanup_shm(owner)
 		Pshm = NULL;
 		ShmId = SM_SHM_NO_ID;
 	}
+	stop_sem(owner);
 }
 #endif /* SM_CONF_SHM */
 

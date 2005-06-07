@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -17,7 +17,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.902 2004/11/18 21:46:01 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.906 2005/03/16 00:36:09 ca Exp $")
 
 #include <sys/time.h>
 #include <sm/fdset.h>
@@ -80,13 +80,13 @@ static int reset_saslconn __P((sasl_conn_t **_conn, char *_hostname,
 				char *_auth_id, sasl_ssf_t *_ext_ssf));
 
 # define RESET_SASLCONN	\
-	result = reset_saslconn(&conn, AuthRealm, remoteip, localip, auth_id, \
-				&ext_ssf);	\
-	if (result != SASL_OK)			\
-	{					\
-		/* This is pretty fatal */	\
-		goto doquit;			\
-	}
+	do							\
+	{							\
+		result = reset_saslconn(&conn, AuthRealm, remoteip, \
+					localip, auth_id, &ext_ssf); \
+		if (result != SASL_OK)				\
+			sasl_ok = false;			\
+	} while (0)
 
 # else /* SASL >= 20000 */
 static int reset_saslconn __P((sasl_conn_t **_conn, char *_hostname,
@@ -94,12 +94,13 @@ static int reset_saslconn __P((sasl_conn_t **_conn, char *_hostname,
 				struct sockaddr_in *_saddr_l,
 				sasl_external_properties_t *_ext_ssf));
 # define RESET_SASLCONN	\
-	result = reset_saslconn(&conn, AuthRealm, &saddr_r, &saddr_l, &ext_ssf); \
-	if (result != SASL_OK)			\
-	{					\
-		/* This is pretty fatal */	\
-		goto doquit;			\
-	}
+	do							\
+	{							\
+		result = reset_saslconn(&conn, AuthRealm, &saddr_r, \
+					&saddr_l, &ext_ssf);	\
+		if (result != SASL_OK)				\
+			sasl_ok = false;			\
+	} while (0)
 
 # endif /* SASL >= 20000 */
 #endif /* SASL */
@@ -664,6 +665,7 @@ smtp(nullserver, d_flags, e)
 		*/
 
 # if SASL >= 20000
+		localip[0] = remoteip[0] = '\0';
 #  if NETINET || NETINET6
 		in = macvalue(macid("{daemon_family}"), e);
 		if (in != NULL && (
@@ -747,8 +749,6 @@ smtp(nullserver, d_flags, e)
 
 		/* XXX should these be options settable via .cf ? */
 		/* ssp.min_ssf = 0; is default due to memset() */
-# if STARTTLS
-# endif /* STARTTLS */
 		{
 			ssp.max_ssf = MaxSLBits;
 			ssp.maxbufsize = MAXOUTLEN;
@@ -4618,12 +4618,12 @@ help(topic, e)
 */
 
 static int
-reset_saslconn(sasl_conn_t ** conn, char *hostname,
+reset_saslconn(sasl_conn_t **conn, char *hostname,
 # if SASL >= 20000
 	       char *remoteip, char *localip,
 	       char *auth_id, sasl_ssf_t * ext_ssf)
 # else /* SASL >= 20000 */
-	       struct sockaddr_in * saddr_r, struct sockaddr_in * saddr_l,
+	       struct sockaddr_in *saddr_r, struct sockaddr_in *saddr_l,
 	       sasl_external_properties_t * ext_ssf)
 # endif /* SASL >= 20000 */
 {
@@ -4646,12 +4646,12 @@ reset_saslconn(sasl_conn_t ** conn, char *hostname,
 
 # if SASL >= 20000
 #  if NETINET || NETINET6
-	if (remoteip != NULL)
+	if (remoteip != NULL && *remoteip != '\0')
 		result = sasl_setprop(*conn, SASL_IPREMOTEPORT, remoteip);
 	if (result != SASL_OK)
 		return result;
 
-	if (localip != NULL)
+	if (localip != NULL && *localip != '\0')
 		result = sasl_setprop(*conn, SASL_IPLOCALPORT, localip);
 	if (result != SASL_OK)
 		return result;
