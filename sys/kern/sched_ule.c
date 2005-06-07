@@ -1350,14 +1350,22 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	}
 	if (newtd != NULL) {
 		/*
-		 * If we bring in a thread, 
-		 * then account for it as if it had been added to the
-		 * run queue and then chosen.
+		 * If we bring in a thread account for it as if it had been
+		 * added to the run queue and then chosen.
 		 */
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
 		newtd->td_kse->ke_runq = ksq->ksq_curr;
 		TD_SET_RUNNING(newtd);
 		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
+		/*
+		 * XXX When we preempt, we've already consumed a slot because
+		 * we got here through sched_add().  However, newtd can come
+		 * from thread_switchout() which can't SLOT_USE() because
+		 * the SLOT code is scheduler dependent.  We must use the
+		 * slot here otherwise.
+		 */
+		if ((flags & SW_PREEMPT) == 0)
+			SLOT_USE(newtd->td_ksegrp);
 	} else
 		newtd = choosethread();
 	if (td != newtd) {
