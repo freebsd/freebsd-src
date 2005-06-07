@@ -1,0 +1,227 @@
+#!/bin/sh
+#
+# $OpenBSD: dhclient-script,v 1.6 2004/05/06 18:22:41 claudio Exp $
+#
+# Copyright (c) 2003 Kenneth R Westerback <krw@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#
+
+#
+# Helper functions that implement common actions.
+#
+
+delete_old_address() {
+	if [ -n "$old_ip_address" ]; then
+		ifconfig $interface inet -alias $old_ip_address $medium
+		route delete "$old_ip_address" 127.0.0.1 >/dev/null 2>&1
+	fi
+}
+
+add_new_address() {
+	ifconfig $interface \
+		inet $new_ip_address \
+		netmask $new_subnet_mask \
+		broadcast $new_broadcast_address \
+		$medium
+
+	# XXX Original TIMEOUT code did not do this unless $new_routers was set?
+	route add $new_ip_address 127.0.0.1 >/dev/null 2>&1
+}
+
+delete_old_alias() {
+	if [ -n "$alias_ip_address" ]; then
+		ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
+		route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
+	fi
+}
+
+add_new_alias() {
+	if [ -n "$alias_ip_address" ]; then
+		ifconfig $interface inet alias $alias_ip_address netmask \
+		    $alias_subnet_mask
+		route add $alias_ip_address 127.0.0.1
+	fi
+}
+
+delete_old_routes() {
+	# Delete existing default route. We only allow one, so no need to
+	# process $old_routers list.
+	route delete default >/dev/null 2>&1
+
+	if [ -n "$old_static_routes" ]; then
+		set $old_static_routes
+		while [ $# -gt 1 ]; do
+			route delete "$1" "$2"
+			shift; shift
+		done
+	fi
+
+	arp -dan
+}
+
+add_new_routes() {
+	route delete default >/dev/null 2>&1
+	for router in $new_routers; do
+		if [ "$new_ip_address" = "$router" ]; then
+			route add default -iface $router >/dev/null 2>&1
+		else
+			route add default $router >/dev/null 2>&1
+		fi
+		# 2nd and subsequent default routers error out, so explicitly
+		# stop processing the list after the first one.
+		break
+	done
+
+	if [ -n "$new_static_routes" ]; then
+		set $new_static_routes
+		while [ $# -gt 1 ]; do
+			route add $1 $2
+			shift; shift
+		done
+	fi
+}
+
+add_new_resolv_conf() {
+	# XXX Old code did not create/update resolv.conf unless both
+	# $new_domain_name and $new_domain_name_servers were provided.  PR
+	# #3135 reported some ISP's only provide $new_domain_name_servers and
+	# thus broke the script. This code creates the resolv.conf if either
+	# are provided.
+
+	rm -f /etc/resolv.conf.std
+
+	if [ -n "$new_domain_name" ]; then
+		echo "search $new_domain_name" >>/etc/resolv.conf.std
+	fi
+
+	if [ -n "$new_domain_name_servers" ]; then
+		for nameserver in $new_domain_name_servers; do
+			echo "nameserver $nameserver" >>/etc/resolv.conf.std
+		done
+	fi
+
+	if [ -f /etc/resolv.conf.std ]; then
+		if [ -f /etc/resolv.conf.tail ]; then
+			cat /etc/resolv.conf.tail >>/etc/resolv.conf.std
+		fi
+
+		# In case (e.g. during OpenBSD installs) /etc/resolv.conf
+		# is a symbolic link, take care to preserve the link and write
+		# the new data in the correct location.
+
+		if [ -f /etc/resolv.conf ]; then
+			cat /etc/resolv.conf > /etc/resolv.conf.save
+		fi
+		cat /etc/resolv.conf.std > /etc/resolv.conf
+		rm -f /etc/resolv.conf.std
+
+		# Try to ensure correct ownership and permissions.
+		chown -RL root:wheel /etc/resolv.conf
+		chmod -RL 644 /etc/resolv.conf
+
+		return 0
+	fi
+
+	return 1
+}
+
+#
+# Start of active code.
+#
+
+if [ -n "$new_network_number" ]; then
+	echo "New Network Number: $new_network_number"
+fi
+
+if [ -n "$new_broadcast_address" ]; then
+	echo "New Broadcast Address: $new_broadcast_address"
+fi
+
+case $reason in
+MEDIUM)
+	ifconfig $interface $medium
+	ifconfig $interface inet -alias 0.0.0.0 $medium >/dev/null 2>&1
+	sleep 1
+	;;
+
+PREINIT)
+	delete_old_alias
+	ifconfig $interface inet 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up
+	;;
+
+ARPCHECK|ARPSEND)
+	;;
+
+BOUND|RENEW|REBIND|REBOOT)
+	if [ -n "$old_ip_address" ]; then
+		if [ "$old_ip_address" != "$alias_ip_address" ]; then
+			delete_old_alias
+		fi
+		if [ "$old_ip_address" != "$new_ip_address" ]; then
+			delete_old_address
+			delete_old_routes
+		fi
+	fi
+	if [ "$reason" = BOUND ] || \
+	   [ "$reason" = REBOOT ] || \
+	   [ -z "$old_ip_address" ] || \
+	   [ "$old_ip_address" != "$new_ip_address" ]; then
+		add_new_address
+		add_new_routes
+	fi
+	if [ "$new_ip_address" != "$alias_ip_address" ]; then
+		add_new_alias
+	fi
+	add_new_resolv_conf
+	;;
+
+EXPIRE|FAIL)
+	delete_old_alias
+	if [ -n "$old_ip_address" ]; then
+		delete_old_address
+		delete_old_routes
+	fi
+	# XXX Why add alias we just deleted above?
+	add_new_alias
+	if [ -f /etc/resolv.conf.save ]; then
+		cat /etc/resolv.conf.save > /etc/resolv.conf
+	fi
+	;;
+
+TIMEOUT)
+	delete_old_alias
+	add_new_address
+	sleep 1
+	if [ -n "$new_routers" ]; then
+		set "$new_routers"
+		if ping -q -c 1 -w 1 "$1"; then
+			if [ "$new_ip_address" != "$alias_ip_address" ]; then
+				add_new_alias
+			fi
+			add_new_routes
+			if add_new_resolv_conf; then
+				exit 0
+			fi
+		fi
+	fi
+	ifconfig $interface inet -alias $new_ip_address $medium
+	# XXX Why not a delete_old_address as before all other invocations of
+	#     delete_old_routes?
+	delete_old_routes
+	exit 1
+	;;
+esac
+
+exit 0
