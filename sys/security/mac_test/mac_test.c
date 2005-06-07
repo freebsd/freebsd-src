@@ -166,9 +166,9 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_sysv_msg, CTLFLAG_RD,
 static int	init_count_sysv_msq;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_sysv_msq, CTLFLAG_RD,
     &init_count_sysv_msq, 0, "ipc_msq init calls");
-static int	init_count_sysv_sema;
-SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_sysv_sema, CTLFLAG_RD,
-    &init_count_sysv_sema, 0, "ipc_sema init calls");
+static int	init_count_sysv_sem;
+SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_sysv_sem, CTLFLAG_RD,
+    &init_count_sysv_sem, 0, "ipc_sema init calls");
 static int	init_count_sysv_shm;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_sysv_shm, CTLFLAG_RD,
     &init_count_sysv_shm, 0, "ipc_shm init calls");
@@ -225,9 +225,9 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_sysv_msg, CTLFLAG_RD,
 static int	destroy_count_sysv_msq;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_sysv_msq, CTLFLAG_RD,
     &destroy_count_sysv_msq, 0, "ipc_msq destroy calls");
-static int	destroy_count_sysv_sema;
-SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_sysv_sema, CTLFLAG_RD,
-    &destroy_count_sysv_sema, 0, "ipc_sema destroy calls");
+static int	destroy_count_sysv_sem;
+SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_sysv_sem, CTLFLAG_RD,
+    &destroy_count_sysv_sem, 0, "ipc_sema destroy calls");
 static int	destroy_count_sysv_shm;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_sysv_shm, CTLFLAG_RD,
     &destroy_count_sysv_shm, 0, "ipc_shm destroy calls");
@@ -363,10 +363,10 @@ mac_test_init_sysv_msgqueue_label(struct label *label)
 }
 
 static void
-mac_test_init_sysv_sema_label(struct label *label)
+mac_test_init_sysv_sem_label(struct label *label)
 {
 	SLOT(label) = SYSVIPCSEMMAGIC;
-	atomic_add_int(&init_count_sysv_sema, 1);
+	atomic_add_int(&init_count_sysv_sem, 1);
 }
 
 static void
@@ -581,16 +581,16 @@ mac_test_destroy_sysv_msgqueue_label(struct label *label)
 }
 
 static void
-mac_test_destroy_sysv_sema_label(struct label *label)
+mac_test_destroy_sysv_sem_label(struct label *label)
 {
 
 	if (SLOT(label) == SYSVIPCSEMMAGIC || SLOT(label) == 0) {
-		atomic_add_int(&destroy_count_sysv_sema, 1);
+		atomic_add_int(&destroy_count_sysv_sem, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		DEBUGGER("mac_test_destroy_sysv_sema_label: dup destroy");
+		DEBUGGER("mac_test_destroy_sysv_sem_label: dup destroy");
 	} else {
-		DEBUGGER("mac_test_destroy_sysv_sema_label: corrupted label");
+		DEBUGGER("mac_test_destroy_sysv_sem_label: corrupted label");
 	}
 }
 
@@ -1106,7 +1106,7 @@ mac_test_create_sysv_msgqueue(struct ucred *cred,
 }
 
 static void
-mac_test_create_sysv_sema(struct ucred *cred, struct semid_kernel *semakptr,
+mac_test_create_sysv_sem(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semalabel)
 {
 
@@ -1337,7 +1337,7 @@ mac_test_cleanup_sysv_msgqueue(struct label *msqlabel)
 }
 
 static void
-mac_test_cleanup_sysv_sema(struct label *semalabel)
+mac_test_cleanup_sysv_sem(struct label *semalabel)
 {
 
 	ASSERT_SYSVIPCSEM_LABEL(semalabel);
@@ -2421,7 +2421,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_init_ifnet_label = mac_test_init_ifnet_label,
 	.mpo_init_sysv_msgmsg_label = mac_test_init_sysv_msgmsg_label,
 	.mpo_init_sysv_msgqueue_label = mac_test_init_sysv_msgqueue_label,
-	.mpo_init_sysv_sema_label = mac_test_init_sysv_sema_label,
+	.mpo_init_sysv_sem_label = mac_test_init_sysv_sem_label,
 	.mpo_init_sysv_shm_label = mac_test_init_sysv_shm_label,
 	.mpo_init_inpcb_label = mac_test_init_inpcb_label,
 	.mpo_init_ipq_label = mac_test_init_ipq_label,
@@ -2441,7 +2441,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_destroy_sysv_msgmsg_label = mac_test_destroy_sysv_msgmsg_label,
 	.mpo_destroy_sysv_msgqueue_label =
 	    mac_test_destroy_sysv_msgqueue_label,
-	.mpo_destroy_sysv_sema_label = mac_test_destroy_sysv_sema_label,
+	.mpo_destroy_sysv_sem_label = mac_test_destroy_sysv_sem_label,
 	.mpo_destroy_sysv_shm_label = mac_test_destroy_sysv_shm_label,
 	.mpo_destroy_inpcb_label = mac_test_destroy_inpcb_label,
 	.mpo_destroy_ipq_label = mac_test_destroy_ipq_label,
@@ -2497,7 +2497,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_create_inpcb_from_socket = mac_test_create_inpcb_from_socket,
 	.mpo_create_sysv_msgmsg = mac_test_create_sysv_msgmsg,
 	.mpo_create_sysv_msgqueue = mac_test_create_sysv_msgqueue,
-	.mpo_create_sysv_sema = mac_test_create_sysv_sema,
+	.mpo_create_sysv_sem = mac_test_create_sysv_sem,
 	.mpo_create_sysv_shm = mac_test_create_sysv_shm,
 	.mpo_create_datagram_from_ipq = mac_test_create_datagram_from_ipq,
 	.mpo_create_fragment = mac_test_create_fragment,
@@ -2523,7 +2523,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_thread_userret = mac_test_thread_userret,
 	.mpo_cleanup_sysv_msgmsg = mac_test_cleanup_sysv_msgmsg,
 	.mpo_cleanup_sysv_msgqueue = mac_test_cleanup_sysv_msgqueue,
-	.mpo_cleanup_sysv_sema = mac_test_cleanup_sysv_sema,
+	.mpo_cleanup_sysv_sem = mac_test_cleanup_sysv_sem,
 	.mpo_cleanup_sysv_shm = mac_test_cleanup_sysv_shm,
 	.mpo_check_bpfdesc_receive = mac_test_check_bpfdesc_receive,
 	.mpo_check_cred_relabel = mac_test_check_cred_relabel,
