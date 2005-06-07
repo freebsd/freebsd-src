@@ -1,4 +1,4 @@
-#	$Id: TRACEFLAGS,v 8.42 2003/06/13 22:29:11 lijian Exp $
+#	$Id: TRACEFLAGS,v 8.43 2005/02/16 23:38:51 ca Exp $
 0, 4	main.c		main	canonical name, UUCP node name, a.k.a.s
 0, 15	main.c		main	print configuration
 0, 44	util.c		printav	print address of each string
@@ -83,6 +83,7 @@
 #endif /* _FFR_QUEUE_SCHED_DBG */ 
 70	queue.c		quarantining
 71,>99	milter.c	quarantine on errors
+73	queue.c		shared memory updates
 80			content length
 81			sun remote mode
 91	mci.c		syslogging of MCI cache information

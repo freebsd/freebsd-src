@@ -1,10 +1,64 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1709 2005/01/12 04:32:31 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1730 2005/03/28 00:31:23 gshapiro Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.13.4/8.13.4	2005/03/27
+	The bug fixes in 8.13.3 for connection handling uncovered a
+		different error which could result in connections that
+		stay in CLOSE_WAIT state due to a variable that was not
+		properly initialized.  Problem noted by Michael Sims.
+	Deal with empty hostnames in hostsignature().  This bug could lead
+		to an endless loop when doing LMTP deliveries to another
+		host.  Problem first reported by Martin Lathoud and
+		tracked down by Gael Roualland.
+	Make sure return parameters are initialized in getmxrr().  Problem
+		found by Gael Roualland using valgrind.
+	If shared memory is used and the RunAsUser option is set, then the
+		owner and group of the shared memory segment is set to 
+		the ids specified RunAsUser and the access mode is set
+		to 0660 to allow for updates by sendmail processes.
+	The number of queue entries that is (optionally) kept in shared
+		memory was wrong in some cases, e.g., envelope splitting
+		and bounce generation.
+	Undo a change made in 8.13.0 to silently truncate long strings
+		in address rewriting because the message can be triggered
+		for header checks where long strings are legitimate.
+		Problem reported by Mary Verge DeSisto, and tracked
+		down with the help of John Beck of Sun Microsystems.
+	The internal stab map did not obey the -m flag.  Patch from
+		Rob McMahon of Warwick University, England.
+	The socket map did not obey the -f flag.  Problem noted by
+		Dan Ringdahl, forwarded by Andrzej Filip.
+	The addition of LDAP recursion in 8.13.0 broke enforcement of
+		the LDAP map -1 argument which tells the MTA to only
+		return success if and only if a single LDAP match is found.
+	Add additional error checks in the MTA for milter communication
+		to avoid a possible segmentation fault.  Based on patch
+		by Joe Maimon.
+	Do not trigger an assertion if X509_digest() returns success but
+		does not assign a value to its output parameter.  Based
+		on patch by Brian Kantor.
+	Add more checks when resetting internal AUTH data (applies only
+		to Cyrus SASL version 2).  Otherwise an SMTP session might
+		be dropped after an AUTH failure.
+	Portability:
+		Add LA_LONGLONG as valid LA_TYPE type for systems that use
+			"long long" to read load average data, e.g.,
+			AIX 5.1 in 32 bit mode.  Note: this has to be set
+			"by hand", it is not (yet) automatically detected.
+			Problem noted by Burak Bilen.
+		Use socklen_t for accept(), etc. on AIX 5.x.  This should
+			fix problems when compiling in 64 bit mode.
+			Problem first reported by Harry Meiert of
+			University of Bremen.
+	New Files:
+		include/sm/sem.h
+		libsm/sem.c
+		libsm/t-sem.c
 
 8.13.3/8.13.3	2005/01/11
 	Enhance handling of I/O errors, especially EOF, when STARTTLS
