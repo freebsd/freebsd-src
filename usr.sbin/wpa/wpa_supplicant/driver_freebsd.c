@@ -26,6 +26,7 @@
 #include "eloop.h"
 #include "wpa_supplicant.h"
 #include "l2_packet.h"
+#include "wpa.h"			/* XXX for RSN_INFO_ELEM */
 
 #include <sys/socket.h>
 #include <net/if.h>
@@ -179,8 +180,6 @@ wpa_driver_bsd_set_wpa(void *priv, int enabled)
 
 	if (!enabled && wpa_driver_bsd_set_wpa_ie(drv, NULL, 0) < 0)
 		ret = -1;
-	if (set80211param(drv, IEEE80211_IOC_ROAMING, enabled ? 2 : 0) < 0)
-		ret = -1;
 	if (set80211param(drv, IEEE80211_IOC_PRIVACY, enabled) < 0)
 		ret = -1;
 	if (set80211param(drv, IEEE80211_IOC_WPA, enabled ? 3 : 0) < 0)
@@ -195,7 +194,7 @@ wpa_driver_bsd_del_key(struct wpa_driver_bsd_data *drv, int key_idx,
 {
 	struct ieee80211req_del_key wk;
 
-	wpa_printf(MSG_DEBUG, "%s: keyidx=%d", __FUNCTION__, key_idx);
+	wpa_printf(MSG_DEBUG, "%s: keyidx=%d", __func__, key_idx);
 	memset(&wk, 0, sizeof(wk));
 	wk.idk_keyix = key_idx;
 	if (addr != NULL)
@@ -233,22 +232,22 @@ wpa_driver_bsd_set_key(void *priv, wpa_alg alg,
 		break;
 	default:
 		wpa_printf(MSG_DEBUG, "%s: unknown/unsupported algorithm %d",
-			__FUNCTION__, alg);
+			__func__, alg);
 		return -1;
 	}
 
 	wpa_printf(MSG_DEBUG, "%s: alg=%s key_idx=%d set_tx=%d seq_len=%d "
-		   "key_len=%d", __FUNCTION__, alg_name, key_idx, set_tx,
+		   "key_len=%d", __func__, alg_name, key_idx, set_tx,
 		   seq_len, key_len);
 
 	if (seq_len > sizeof(u_int64_t)) {
 		wpa_printf(MSG_DEBUG, "%s: seq_len %d too big",
-			__FUNCTION__, seq_len);
+			__func__, seq_len);
 		return -2;
 	}
 	if (key_len > sizeof(wk.ik_keydata)) {
 		wpa_printf(MSG_DEBUG, "%s: key length %d too big",
-			__FUNCTION__, key_len);
+			__func__, key_len);
 		return -3;
 	}
 
@@ -273,7 +272,7 @@ wpa_driver_bsd_set_countermeasures(void *priv, int enabled)
 {
 	struct wpa_driver_bsd_data *drv = priv;
 
-	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __FUNCTION__, enabled);
+	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __func__, enabled);
 	return set80211param(drv, IEEE80211_IOC_COUNTERMEASURES, enabled);
 }
 
@@ -283,7 +282,7 @@ wpa_driver_bsd_set_drop_unencrypted(void *priv, int enabled)
 {
 	struct wpa_driver_bsd_data *drv = priv;
 
-	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __FUNCTION__, enabled);
+	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __func__, enabled);
 	return set80211param(drv, IEEE80211_IOC_DROPUNENCRYPTED, enabled);
 }
 
@@ -293,7 +292,7 @@ wpa_driver_bsd_deauthenticate(void *priv, const u8 *addr, int reason_code)
 	struct wpa_driver_bsd_data *drv = priv;
 	struct ieee80211req_mlme mlme;
 
-	wpa_printf(MSG_DEBUG, "%s", __FUNCTION__);
+	wpa_printf(MSG_DEBUG, "%s", __func__);
 	mlme.im_op = IEEE80211_MLME_DEAUTH;
 	mlme.im_reason = reason_code;
 	memcpy(mlme.im_macaddr, addr, IEEE80211_ADDR_LEN);
@@ -306,7 +305,7 @@ wpa_driver_bsd_disassociate(void *priv, const u8 *addr, int reason_code)
 	struct wpa_driver_bsd_data *drv = priv;
 	struct ieee80211req_mlme mlme;
 
-	wpa_printf(MSG_DEBUG, "%s", __FUNCTION__);
+	wpa_printf(MSG_DEBUG, "%s", __func__);
 	mlme.im_op = IEEE80211_MLME_DISASSOC;
 	mlme.im_reason = reason_code;
 	memcpy(mlme.im_macaddr, addr, IEEE80211_ADDR_LEN);
@@ -318,30 +317,63 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 {
 	struct wpa_driver_bsd_data *drv = priv;
 	struct ieee80211req_mlme mlme;
+	int privacy;
 
-	int ret = 0;
+	wpa_printf(MSG_DEBUG,
+		"%s: ssid '%.*s' wpa ie len %u pairwise %u group %u key mgmt %u"
+		, __func__
+		, params->ssid_len, params->ssid
+		, params->wpa_ie_len
+		, params->pairwise_suite
+		, params->group_suite
+		, params->key_mgmt_suite
+	);
 
-	wpa_printf(MSG_DEBUG, "%s", __FUNCTION__);
-
-	/*
-	 * NB: Don't need to set the freq or cipher-related state as
-	 *     this is implied by the bssid which is used to locate
-	 *     the scanned node state which holds it.  The ssid is
-	 *     needed to disambiguate an AP that broadcasts multiple
-	 *     ssid's but uses the same bssid.
-	 */
 	/* XXX error handling is wrong but unclear what to do... */
 	if (wpa_driver_bsd_set_wpa_ie(drv, params->wpa_ie, params->wpa_ie_len) < 0)
-		ret = -1;
-	if (wpa_driver_bsd_set_ssid(drv, params->ssid, params->ssid_len) < 0)
-		ret = -1;
+		return -1;
+
+	privacy = !(params->pairwise_suite == CIPHER_NONE &&
+	    params->group_suite == CIPHER_NONE &&
+	    params->key_mgmt_suite == KEY_MGMT_NONE &&
+	    params->wpa_ie_len == 0);
+	wpa_printf(MSG_DEBUG, "%s: set PRIVACY %u", __func__, privacy);
+
+	if (set80211param(drv, IEEE80211_IOC_PRIVACY, privacy) < 0)
+		return -1;
+
+	if (params->wpa_ie_len &&
+	    set80211param(drv, IEEE80211_IOC_WPA,
+			  params->wpa_ie[0] == RSN_INFO_ELEM ? 2 : 1) < 0)
+		return -1;
+
 	memset(&mlme, 0, sizeof(mlme));
 	mlme.im_op = IEEE80211_MLME_ASSOC;
-	memcpy(mlme.im_macaddr, params->bssid, IEEE80211_ADDR_LEN);
+	if (params->ssid != NULL)
+		memcpy(mlme.im_ssid, params->ssid, params->ssid_len);
+	mlme.im_ssid_len = params->ssid_len;
+	if (params->bssid != NULL)
+		memcpy(mlme.im_macaddr, params->bssid, IEEE80211_ADDR_LEN);
 	if (set80211var(drv, IEEE80211_IOC_MLME, &mlme, sizeof(mlme)) < 0)
-		ret = -1;
+		return -1;
+	return 0;
+}
 
-	return ret;
+static int
+wpa_driver_bsd_set_auth_alg(void *priv, int auth_alg)
+{
+	struct wpa_driver_bsd_data *drv = priv;
+	int authmode;
+
+	if ((auth_alg & AUTH_ALG_OPEN_SYSTEM) &&
+	    (auth_alg & AUTH_ALG_SHARED_KEY))
+		authmode = IEEE80211_AUTH_AUTO;
+	else if (auth_alg & AUTH_ALG_SHARED_KEY)
+		authmode = IEEE80211_AUTH_SHARED;
+	else
+		authmode = IEEE80211_AUTH_OPEN;
+
+	return set80211param(drv, IEEE80211_IOC_AUTHMODE, authmode);
 }
 
 static int
@@ -582,23 +614,35 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 		return NULL;
 	memset(drv, 0, sizeof(*drv));
 	drv->sock = socket(PF_INET, SOCK_DGRAM, 0);
-	if (drv->sock < 0) {
-		free(drv);
-		return NULL;
-	}
+	if (drv->sock < 0)
+		goto fail1;
 	drv->route = socket(PF_ROUTE, SOCK_RAW, 0);
-	if (drv->route < 0) {
-		close(drv->sock);
-		free(drv);
-		return NULL;
-	}
+	if (drv->route < 0)
+		goto fail;
 	eloop_register_read_sock(drv->route,
 		wpa_driver_bsd_event_receive, ctx, NULL);
 
 	drv->ctx = ctx;
 	strncpy(drv->ifname, ifname, sizeof(drv->ifname));
 
+	if (set80211param(drv, IEEE80211_IOC_ROAMING, IEEE80211_ROAMING_MANUAL) < 0) {
+		wpa_printf(MSG_DEBUG, "%s: failed to set wpa_supplicant-based "
+			   "roaming: %s", __func__, strerror(errno));
+		goto fail;
+	}
+
+	if (set80211param(drv, IEEE80211_IOC_WPA, 1+2) < 0) {
+		wpa_printf(MSG_DEBUG, "%s: failed to enable WPA support %s",
+			   __func__, strerror(errno));
+		goto fail;
+	}
+
 	return drv;
+fail:
+	close(drv->sock);
+fail1:
+	free(drv);
+	return NULL;
 }
 
 static void
@@ -610,6 +654,11 @@ wpa_driver_bsd_deinit(void *priv)
 	/* NB: mark interface down */
 	if (getifflags(drv, &flags) == 0)
 		(void) setifflags(drv, flags &~ IFF_UP);
+
+	wpa_driver_bsd_set_wpa(drv, 0);
+	if (set80211param(drv, IEEE80211_IOC_ROAMING, IEEE80211_ROAMING_DEVICE) < 0)
+		wpa_printf(MSG_DEBUG, "%s: failed to enable driver-based "
+			   "roaming", __func__);
 
 	(void) close(drv->route);		/* ioctl socket */
 	(void) close(drv->sock);		/* event socket */
@@ -633,4 +682,5 @@ struct wpa_driver_ops wpa_driver_bsd_ops = {
 	.deauthenticate		= wpa_driver_bsd_deauthenticate,
 	.disassociate		= wpa_driver_bsd_disassociate,
 	.associate		= wpa_driver_bsd_associate,
+	.set_auth_alg		= wpa_driver_bsd_set_auth_alg,
 };
