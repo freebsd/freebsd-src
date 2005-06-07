@@ -21,6 +21,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050606:
+	The OpenBSD dhclient was imported in place of the ISC dhclient
+	and the network interface configuration scripts were updated
+	accordingly.  If you use DHCP to configure your interfaces, you
+	must now run devd.  Also, DNS updating was lost so you will need
+	to find a workaround if you use this feature.
+
 20050605:
 	if_bridge was added to the tree. This has changed struct ifnet.
 	Please recompile userland and all network related modules.
