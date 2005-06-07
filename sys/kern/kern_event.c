@@ -1364,7 +1364,16 @@ kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 	struct thread *td)
 {
 
-	return (ENXIO);
+	bzero((void *)st, sizeof *st);
+	/*
+	 * We no longer return kq_count because the unlocked value is useless.
+	 * If you spent all this time getting the count, why not spend your
+	 * syscall better by calling kevent?
+	 *
+	 * XXX - This is needed for libc_r.
+	 */
+	st->st_mode = S_IFIFO;
+	return (0);
 }
 
 /*ARGSUSED*/
