@@ -106,7 +106,7 @@ struct mac_policy_ops {
 	int	(*mpo_init_inpcb_label)(struct label *label, int flag);
 	void	(*mpo_init_sysv_msgmsg_label)(struct label *label);
 	void	(*mpo_init_sysv_msgqueue_label)(struct label *label);
-	void	(*mpo_init_sysv_sema_label)(struct label *label);
+	void	(*mpo_init_sysv_sem_label)(struct label *label);
 	void	(*mpo_init_sysv_shm_label)(struct label *label);
 	int	(*mpo_init_ipq_label)(struct label *label, int flag);
 	int	(*mpo_init_mbuf_label)(struct label *label, int flag);
@@ -125,7 +125,7 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_inpcb_label)(struct label *label);
 	void	(*mpo_destroy_sysv_msgmsg_label)(struct label *label);
 	void	(*mpo_destroy_sysv_msgqueue_label)(struct label *label);
-	void	(*mpo_destroy_sysv_sema_label)(struct label *label);
+	void	(*mpo_destroy_sysv_sem_label)(struct label *label);
 	void	(*mpo_destroy_sysv_shm_label)(struct label *label);
 	void	(*mpo_destroy_ipq_label)(struct label *label);
 	void	(*mpo_destroy_mbuf_label)(struct label *label);
@@ -139,7 +139,7 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_vnode_label)(struct label *label);
 	void	(*mpo_cleanup_sysv_msgmsg)(struct label *msglabel);
 	void	(*mpo_cleanup_sysv_msgqueue)(struct label *msqlabel);
-	void	(*mpo_cleanup_sysv_sema)(struct label *semalabel);
+	void	(*mpo_cleanup_sysv_sem)(struct label *semalabel);
 	void	(*mpo_cleanup_sysv_shm)(struct label *shmlabel);
 	void	(*mpo_copy_cred_label)(struct label *src,
 		    struct label *dest);
@@ -250,7 +250,7 @@ struct mac_policy_ops {
 		    struct msg *msgptr, struct label *msglabel);
 	void	(*mpo_create_sysv_msgqueue)(struct ucred *cred,
 		    struct msqid_kernel *msqkptr, struct label *msqlabel);
-	void	(*mpo_create_sysv_sema)(struct ucred *cred,
+	void	(*mpo_create_sysv_sem)(struct ucred *cred,
 		    struct semid_kernel *semakptr, struct label *semalabel);
 	void	(*mpo_create_sysv_shm)(struct ucred *cred,
 		    struct shmid_kernel *shmsegptr, struct label *shmlabel);
