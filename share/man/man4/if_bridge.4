@@ -81,7 +81,8 @@ Spanning Tree is used to detect and remove loops in a network topology.
 .Pp
 When filtering is enabled, bridged packets will pass through the filter
 inbound on the originating interface, on the bridge interface and outbound on
-the appropriate interfaces. This behaviour can be controlled using 
+the appropriate interfaces.
+Either stage can be disabled, this behaviour can be controlled using 
 .Xr sysctl 8 :
 .Bl -tag -width ".Va net.link.bridge.pfil_member"
 .It Va net.link.bridge.pfil_member
@@ -98,11 +99,24 @@ to enable enable filtering on the bridge interface, set
 to 
 .Li 0
 to disable it.
+.It Va net.link.bridge.ipfw
+Set to
+.Li 1
+to enable enable layer2 filtering with
+.Xr ipfirewall 4
+, set to 
+.Li 0
+to disable it.
+When ipfw is enabled pfil_bridge and pfil_member will be disabled so that IPFW
+is not run twice, these can be re-enabled if desired.
 .El
 .Pp
 ARP and REVARP packets are forwarded without being filtered and others
-that are not IP nor IPv6 packets are not forwarded when filtering is
-enabled.
+that are not IP nor IPv6 packets are not forwarded when 
+.Xr pfil 9
+filtering is enabled.
+IPFW can filter Ethernet types using 'mac-type' so all packets are passed to
+the filter for processing.
 .Pp
 Note that packets to and from the bridging host will be seen by the
 filter on the interface with the appropriate address configured as well
