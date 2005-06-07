@@ -57,7 +57,7 @@ ifconfig_up()
 		_cfg=0
 	fi
 
-	return ${cfg}
+	return $_cfg
 }
 
 # ifconfig_down if
@@ -69,7 +69,7 @@ ifconfig_down()
 {
 	[ -z "$1" ] && return 1
 	_ifs="^"
-	_ret=1
+	_cfg=1
 
 	inetList="`ifconfig $1 | grep 'inet ' | tr "\n" "$_ifs"`"
 
@@ -84,12 +84,13 @@ ifconfig_down()
 		IFS="$oldifs"
 		ifconfig $1 ${_inet} delete
 		IFS="$_ifs"
-		_ret=0
+		_cfg=0
 	done
 	IFS="$oldifs"
 
 	if wpaif $1; then
 		#/etc/rc.d/wpa_supplicant stop $1
+		_cfg=0
 	fi
 
 	if dhcpif $1; then
@@ -97,7 +98,7 @@ ifconfig_down()
 		_cfg=0
 	fi
 
-	return $_ret
+	return $_cfg
 }
 
 # _ifconfig_getargs if
