@@ -335,9 +335,11 @@ ngt_rcvdata(hook_p hook, item_p item)
 		m2 = m_dup(m, M_DONTWAIT);
 		if (m2) {
 			/* Deliver duplicate */
-			dup->stats.outOctets += m->m_pkthdr.len;
-			dup->stats.outFrames++;
 			NG_SEND_DATA_ONLY(error, dup->hook, m2);
+			if (error == 0) {
+				dup->stats.outOctets += m->m_pkthdr.len;
+				dup->stats.outFrames++;
+			}
 		}
 	}
 	/* Deliver frame out destination hook */
