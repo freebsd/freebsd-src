@@ -728,7 +728,7 @@ ieee80211_setup_wpa_ie(struct ieee80211com *ic, u_int8_t *ie)
 	}
 
 	/* optional capabilities */
-	if (rsn->rsn_caps != 0)
+	if (rsn->rsn_caps != 0 && rsn->rsn_caps != RSN_CAP_PREAUTH)
 		ADDSHORT(frm, rsn->rsn_caps);
 
 	/* calculate element length */
@@ -811,8 +811,7 @@ ieee80211_setup_rsn_ie(struct ieee80211com *ic, u_int8_t *ie)
 	}
 
 	/* optional capabilities */
-	if (rsn->rsn_caps != 0)
-		ADDSHORT(frm, rsn->rsn_caps);
+	ADDSHORT(frm, rsn->rsn_caps);
 	/* XXX PMKID */
 
 	/* calculate element length */
