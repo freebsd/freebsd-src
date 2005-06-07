@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
+#include <vm/uma.h>
+#include <vm/uma_int.h>
 
 #ifndef NSFBUFS
 #define NSFBUFS		(512 + maxusers * 16)
@@ -361,3 +363,168 @@ void
 cpu_exit(struct thread *td)
 {
 }
+
+#ifdef ARM_USE_SMALL_ALLOC
+
+static TAILQ_HEAD(,arm_small_page) pages_normal = 
+	TAILQ_HEAD_INITIALIZER(pages_normal);
+static TAILQ_HEAD(,arm_small_page) pages_wt = 
+	TAILQ_HEAD_INITIALIZER(pages_wt);
+static TAILQ_HEAD(,arm_small_page) free_pgdesc =
+	TAILQ_HEAD_INITIALIZER(free_pgdesc);
+
+extern uma_zone_t l2zone;
+
+struct mtx smallalloc_mtx;
+
+MALLOC_DEFINE(M_VMSMALLALLOC, "VM Small alloc", "VM Small alloc data");
+
+vm_offset_t alloc_curaddr;
+
+extern int doverbose;
+
+void
+arm_add_smallalloc_pages(void *list, void *mem, int bytes, int pagetable)
+{
+	struct arm_small_page *pg;
+	
+	bytes &= ~PAGE_SIZE;
+	while (bytes > 0) {
+		pg = (struct arm_small_page *)list;
+		pg->addr = mem;
+		if (pagetable)
+			TAILQ_INSERT_HEAD(&pages_wt, pg, pg_list);
+		else
+			TAILQ_INSERT_HEAD(&pages_normal, pg, pg_list);
+		list = (char *)list + sizeof(*pg);
+		mem = (char *)mem + PAGE_SIZE;
+		bytes -= PAGE_SIZE;
+	}
+}
+
+static void *
+arm_uma_do_alloc(struct arm_small_page **pglist, int bytes, int pagetable)
+{
+	void *ret;
+	vm_page_t page_array = NULL;
+
+	    
+	*pglist = (void *)kmem_malloc(kmem_map, (0x100000 / PAGE_SIZE) *
+	    sizeof(struct arm_small_page), M_WAITOK);
+	if (alloc_curaddr < 0xf0000000) {/* XXX */
+		mtx_lock(&Giant);
+		page_array = vm_page_alloc_contig(0x100000 / PAGE_SIZE,
+		    0, 0xffffffff, 0x100000, 0);
+		mtx_unlock(&Giant);
+	}
+	if (page_array) {
+		vm_paddr_t pa = VM_PAGE_TO_PHYS(page_array);
+		mtx_lock(&smallalloc_mtx);
+		ret = (void*)alloc_curaddr;
+		alloc_curaddr += 0x100000;
+		/* XXX: ARM_TP_ADDRESS should probably be move elsewhere. */
+		if (alloc_curaddr == ARM_TP_ADDRESS)
+			alloc_curaddr += 0x100000;
+		mtx_unlock(&smallalloc_mtx);
+		pmap_kenter_section((vm_offset_t)ret, pa
+		    , pagetable);
+
+		
+	} else {
+		kmem_free(kmem_map, (vm_offset_t)*pglist, 
+		    (0x100000 / PAGE_SIZE) * sizeof(struct arm_small_page));
+		*pglist = NULL;
+		ret = (void *)kmem_malloc(kmem_map, bytes, M_WAITOK);
+	}
+	return (ret);
+}
+
+void *
+uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+	void *ret;
+	struct arm_small_page *sp, *tmp;
+	TAILQ_HEAD(,arm_small_page) *head;
+	
+	*flags = UMA_SLAB_PRIV;
+	/*
+	 * For CPUs where we setup page tables as write back, there's no
+	 * need to maintain two separate pools.
+	 */
+	if (zone == l2zone && pte_l1_s_cache_mode != pte_l1_s_cache_mode_pt)
+		head = (void *)&pages_wt;
+	else
+		head = (void *)&pages_normal;
+
+	mtx_lock(&smallalloc_mtx);
+	sp = TAILQ_FIRST(head);
+
+	if (!sp) {
+		/* No more free pages, need to alloc more. */
+		mtx_unlock(&smallalloc_mtx);
+		if (!(wait & M_WAITOK)) {
+			*flags = UMA_SLAB_KMEM;
+			ret = (void *)kmem_malloc(kmem_map, bytes, wait);
+			return (ret);
+		}
+		/* Try to alloc 1MB of contiguous memory. */
+		ret = arm_uma_do_alloc(&sp, bytes, zone == l2zone ?
+		    SECTION_PT : SECTION_CACHE);
+		if (!sp) 
+			*flags = UMA_SLAB_KMEM;
+		mtx_lock(&smallalloc_mtx);
+		if (sp) {
+			for (int i = 0; i < (0x100000 / PAGE_SIZE) - 1;
+			    i++) {
+				tmp = &sp[i];
+				tmp->addr = (char *)ret + i * PAGE_SIZE;
+				TAILQ_INSERT_HEAD(head, tmp, pg_list);
+			}
+			ret = (char *)ret + 0x100000 - PAGE_SIZE;
+			TAILQ_INSERT_HEAD(&free_pgdesc, &sp[(0x100000 / (
+			    PAGE_SIZE)) - 1], pg_list);
+		}
+			
+	} else {
+		sp = TAILQ_FIRST(head);
+		TAILQ_REMOVE(head, sp, pg_list);
+		TAILQ_INSERT_HEAD(&free_pgdesc, sp, pg_list);
+		ret = sp->addr;
+		if (ret == NULL)
+			panic("NULL");
+		if (ret < (void *)0xa0000000)
+			panic("BLA %p", ret);
+	}
+	mtx_unlock(&smallalloc_mtx);
+	if ((wait & M_ZERO))
+		bzero(ret, bytes);
+	return (ret);
+}
+
+void
+uma_small_free(void *mem, int size, u_int8_t flags)
+{
+	pd_entry_t *pd;
+	pt_entry_t *pt;
+
+	if (flags & UMA_SLAB_KMEM)
+		kmem_free(kmem_map, (vm_offset_t)mem, size);
+	else {
+		struct arm_small_page *sp;
+
+		mtx_lock(&smallalloc_mtx);
+		sp = TAILQ_FIRST(&free_pgdesc);
+		KASSERT(sp != NULL, ("No more free page descriptor ?"));
+		TAILQ_REMOVE(&free_pgdesc, sp, pg_list);
+		sp->addr = mem;
+		pmap_get_pde_pte(kernel_pmap, (vm_offset_t)mem, &pd, &pt);
+		if ((*pd & pte_l1_s_cache_mask) == pte_l1_s_cache_mode_pt &&
+		    pte_l1_s_cache_mode_pt != pte_l1_s_cache_mode)
+			TAILQ_INSERT_HEAD(&pages_wt, sp, pg_list);
+		else
+			TAILQ_INSERT_HEAD(&pages_normal, sp, pg_list);
+		mtx_unlock(&smallalloc_mtx);
+	}
+}
+
+#endif
