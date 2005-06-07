@@ -33,7 +33,7 @@
 .\"	@(#)bcd.6	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2004
+.Dd June 7, 2005
 .Dt MORSE 6
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Op Fl elps
 .Op Fl d Ar device
 .Op Fl w Ar speed
+.Op Fl c Ar speed
 .Op Fl f Ar frequency
 .Op Ar string ...
 .Sh DESCRIPTION
@@ -73,6 +74,14 @@ support.
 Set the sending speed in words per minute.
 If not specified, the default
 speed of 20 WPM is used.
+.It Fl c Ar speed
+Farnsworth support.
+Set the spacing between characters in words per minute.
+This is independent of the speed
+that the individual characters are sent.
+If not specified, defaults to the effective value of the
+.Fl w
+option.
 .It Fl f Ar frequency
 Set the sidetone frequency to something other than the default 600 Hz.
 .It Fl d Ar device
@@ -91,6 +100,8 @@ or
 .Pp
 The
 .Fl w
+,
+.Fl c
 and
 .Fl f
 flags only work in conjunction with either the
@@ -176,6 +187,11 @@ added by
 Ability to key an external device added by
 .An J\(:org Wunsch
 (DL8DTL).
+.Pp
+Farnsworth support for
+.Nm
+added by
+.An Stephen Cravey (N5UUU).
 .Sh BUGS
 Only understands a few European characters
 (German and French),
