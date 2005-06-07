@@ -2092,8 +2092,7 @@ key_spddelete2(so, m, mhp)
 	if (mhp->ext[SADB_X_EXT_POLICY] == NULL ||
 	    mhp->extlen[SADB_X_EXT_POLICY] < sizeof(struct sadb_x_policy)) {
 		ipseclog((LOG_DEBUG, "key_spddelete2: invalid message is passed.\n"));
-		key_senderror(so, m, EINVAL);
-		return 0;
+		return key_senderror(so, m, EINVAL);
 	}
 
 	id = ((struct sadb_x_policy *)mhp->ext[SADB_X_EXT_POLICY])->sadb_x_policy_id;
@@ -2101,7 +2100,7 @@ key_spddelete2(so, m, mhp)
 	/* Is there SP in SPD ? */
 	if ((sp = key_getspbyid(id)) == NULL) {
 		ipseclog((LOG_DEBUG, "key_spddelete2: no SP found id:%u.\n", id));
-		key_senderror(so, m, EINVAL);
+		return key_senderror(so, m, EINVAL);
 	}
 
 	sp->state = IPSEC_SPSTATE_DEAD;
