@@ -25,6 +25,9 @@ CFLAGS+=-DEAP_TLS -DEAP_PEAP -DEAP_MSCHAPv2 -DEAP_LEAP -DEAP_PSK \
 SRCS+=	eap_tls.c eap_peap.c eap_mschapv2.c eap_leap.c eap_psk.c \
 	eap_tlv.c eap_tls_common.c tls_openssl.c ms_funcs.c crypto.c
 
+CFLAGS+=-DEAP_TTLS -DEAP_MD5
+SRCS+=	eap_ttls.c eap_md5.c
+
 # NB: requires patch to openssl
 #CFLAGS+= -DEAP_FAST
 #SRCS+=	eap_fast.c
