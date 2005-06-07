@@ -411,7 +411,7 @@ int	pmap_needs_pte_sync;
 #define pmap_is_current(pm)	((pm) == pmap_kernel() || \
             curproc->p_vmspace->vm_map.pmap == (pm))
 static uma_zone_t pvzone;
-static uma_zone_t l2zone;
+uma_zone_t l2zone;
 static uma_zone_t l2table_zone;
 static vm_offset_t pmap_kernel_l2dtable_kva;
 static vm_offset_t pmap_kernel_l2ptp_kva;
@@ -1101,20 +1101,27 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 	 * page tables, we simply fix up the cache-mode here if it's not
 	 * correct.
 	 */
-	l2b = pmap_get_l2_bucket(pmap_kernel(), va);
-	ptep = &l2b->l2b_kva[l2pte_index(va)];
-	pte = *ptep;
+#ifdef ARM_USE_SMALL_ALLOC
+	if (flags & UMA_SLAB_KMEM) {
+#endif
+		l2b = pmap_get_l2_bucket(pmap_kernel(), va);
+		ptep = &l2b->l2b_kva[l2pte_index(va)];
+		pte = *ptep;
 
-	if ((pte & L2_S_CACHE_MASK) != pte_l2_s_cache_mode_pt) {
-		/*
-		 * Page tables must have the cache-mode set to Write-Thru.
-		 */
-		*ptep = (pte & ~L2_S_CACHE_MASK) | pte_l2_s_cache_mode_pt;
-		PTE_SYNC(ptep);
-		cpu_tlb_flushD_SE(va);
-		cpu_cpwait();
+		if ((pte & L2_S_CACHE_MASK) != pte_l2_s_cache_mode_pt) {
+			/*
+			 * Page tables must have the cache-mode set to 
+			 * Write-Thru.
+			 */
+			*ptep = (pte & ~L2_S_CACHE_MASK) | pte_l2_s_cache_mode_pt;
+			PTE_SYNC(ptep);
+			cpu_tlb_flushD_SE(va);
+			cpu_cpwait();
+		}
+		
+#ifdef ARM_USE_SMALL_ALLOC
 	}
-
+#endif
 #endif
 	memset(mem, 0, L2_TABLE_SIZE_REAL);
 	PTE_SYNC_RANGE(mem, L2_TABLE_SIZE_REAL / sizeof(pt_entry_t));
@@ -1938,6 +1945,7 @@ pmap_init(void)
 	 * Allocate memory for random pmap data structures.  Includes the
 	 * pv_head_table.
 	 */
+
 	for(i = 0; i < vm_page_array_size; i++) {
 		vm_page_t m;
 
@@ -1957,6 +1965,7 @@ pmap_init(void)
 	 */
 	pmap_initialized = TRUE;
 	PDEBUG(1, printf("pmap_init: done!\n"));
+
 }
 
 int
@@ -2053,8 +2062,7 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 		 * changing. We've already set the cacheable bits based on
 		 * the assumption that we can write to this page.
 		 */
-		*ptep = (pte & ~L2_TYPE_MASK) | L2_S_PROTO | L2_S_PROT_W |
-		    pte_l2_s_cache_mask;
+		*ptep = (pte & ~L2_TYPE_MASK) | L2_S_PROTO | L2_S_PROT_W;
 		PTE_SYNC(ptep);
 		rv = 1;
 	} else
@@ -2403,6 +2411,11 @@ pmap_alloc_specials(vm_offset_t *availp, int pages, vm_offset_t *vap,
  *	(physical) address starting relative to 0]
  */
 #define PMAP_STATIC_L2_SIZE 16
+#ifdef ARM_USE_SMALL_ALLOC
+extern struct mtx smallalloc_mtx;
+extern vm_offset_t alloc_curaddr;
+#endif
+
 void
 pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt)
 {
@@ -2554,6 +2567,10 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	virtual_avail = round_page(virtual_avail);
 	virtual_end = lastaddr;
 	kernel_vm_end = pmap_curmaxkvaddr;
+#ifdef ARM_USE_SMALL_ALLOC
+	mtx_init(&smallalloc_mtx, "Small alloc page list", NULL, MTX_DEF);
+	alloc_curaddr = lastaddr;
+#endif
 }
 
 /***************************************************
@@ -2842,6 +2859,27 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 /***************************************************
  * Low level mapping routines.....
  ***************************************************/
+
+/* Map a section into the KVA. */
+
+void
+pmap_kenter_section(vm_offset_t va, vm_offset_t pa, int flags)
+{
+	pd_entry_t pd = L1_S_PROTO | pa | L1_S_PROT(PTE_KERNEL,
+	    VM_PROT_READ|VM_PROT_WRITE) | L1_S_DOM(PMAP_DOMAIN_KERNEL);
+	struct l1_ttable *l1;
+
+	KASSERT(((va | pa) & L1_S_OFFSET) == 0,
+	    ("Not a valid section mapping"));
+	if (flags & SECTION_CACHE)
+		pd |= pte_l1_s_cache_mode;
+	else if (flags & SECTION_PT)
+		pd |= pte_l1_s_cache_mode_pt;
+	SLIST_FOREACH(l1, &l1_list, l1_link) {
+		l1->l1_kva[L1_IDX(va)] = pd;
+		PTE_SYNC(&l1->l1_kva[L1_IDX(va)]);
+	}
+}
 
 /*
  * add a wired page to the kva

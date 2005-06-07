@@ -128,4 +128,8 @@
 #define MAXSLP		20
 
 #define VM_PROT_READ_IS_EXEC
+
+#ifdef ARM_USE_SMALL_ALLOC
+#define UMA_MD_SMALL_ALLOC
+#endif /* ARM_USE_SMALL_ALLOC */
 #endif	/* _MACHINE_VMPARAM_H_ */
