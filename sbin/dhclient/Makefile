@@ -1,30 +1,48 @@
-# ex:ts=8
+# $OpenBSD: Makefile,v 1.9 2004/05/04 12:52:05 henning Exp $
 #
-# @(#)Makefile	1.0 (obrien) 2/6/99
-# $Id$
+# Copyright (c) 1996, 1997 The Internet Software Consortium.
+# All rights reserved.
 #
-# Copyright (c) 1999 by David O'Brien
-# This file is under a "FreeBSD" copyright.  See /usr/src/sys/sys/copyright.h
-# for the terms of the copyright.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of The Internet Software Consortium nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+# CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
+# BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+# THE INTERNET SOFTWARE CONSORTIUM OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+# OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-.PATH:		${.CURDIR}/../../contrib/isc-dhcp/client ${.CURDIR}/../../contrib/isc-dhcp/common
+.include <bsd.own.mk>
 
-PROG=		dhclient
-MAN5=		dhclient.conf.5 dhclient.leases.5 dhcp-options.5
-MAN8=		dhclient.8 dhclient-script.8
+SRCS=	dhclient.c clparse.c alloc.c dispatch.c hash.c bpf.c options.c \
+	tree.c conflex.c errwarn.c inet.c packet.c convert.c tables.c \
+	parse.c privsep.c
 
-SRCS=		dhclient.c clparse.c
-SRCS+=		raw.c parse.c nit.c icmp.c dispatch.c conflex.c upf.c bpf.c \
-		socket.c packet.c memory.c print.c options.c inet.c convert.c \
-		tree.c tables.c hash.c alloc.c errwarn.c inet_addr.c
+PROG=	dhclient
+MAN=	dhclient.8 dhclient.conf.5 dhclient.leases.5 dhclient-script.8
 
-CFLAGS+= 	-I${.CURDIR}/../../contrib/isc-dhcp/includes \
-		-I${.CURDIR}/../../contrib/isc-dhcp
+CFLAGS+=-Wall
 
-afterinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/../../contrib/isc-dhcp/client/scripts/freebsd \
-		${BINDIR}/dhclient-script
+beforeinstall:
+	${INSTALL} ${INSTALL_COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${.CURDIR}/dhclient-script ${DESTDIR}/sbin/dhclient-script
 
 .include <bsd.prog.mk>
