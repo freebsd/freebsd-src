@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-INTERNALLIB=
 LIB=	ssh
+SHLIB_MAJOR=	2
 SRCS=	acss.c authfd.c authfile.c bufaux.c buffer.c \
 	canohost.c channels.c cipher.c cipher-acss.c cipher-aes.c \
 	cipher-bf1.c cipher-ctr.c cipher-3des1.c cleanup.c \
@@ -11,7 +11,11 @@ SRCS=	acss.c authfd.c authfile.c bufaux.c buffer.c \
 	atomicio.c key.c dispatch.c kex.c mac.c uidswap.c uuencode.c misc.c \
 	monitor_fdpass.c rijndael.c ssh-dss.c ssh-rsa.c dh.c kexdh.c \
 	kexgex.c kexdhc.c kexgexc.c scard.c msg.c progressmeter.c dns.c \
-	entropy.c scard-opensc.c gss-genr.c
+	entropy.c scard-opensc.c
+
+# gss-genr.c should be in $SRCS but causes linking problems, so it is
+# compiled directly into sshd instead.
+
 # Portability layer
 SRCS+=	bsd-closefrom.c bsd-misc.c getrrsetbyname.c vis.c xcrypt.c xmmap.c
 # FreeBSD additions
