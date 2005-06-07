@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1052 2004/12/15 22:45:55 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1061 2005/03/07 17:18:44 ca Exp $")
 
 #include <sendmail/pathnames.h>
 #if NEWDB
@@ -1432,6 +1432,7 @@ init_vendor_macros(e)
 #define LA_DEVSHORT	13	/* read short from a device */
 #define LA_ALPHAOSF	14	/* Digital UNIX (OSF/1 on Alpha) table() call */
 #define LA_PSET		15	/* Solaris per-processor-set load average */
+#define LA_LONGLONG	17 /* read kmem for avenrun; interpret as long long */
 
 /* do guesses based on general OS type */
 #ifndef LA_TYPE
@@ -1470,7 +1471,7 @@ init_vendor_macros(e)
 # define _PATH_KMEM	"/dev/kmem"
 #endif /* ! _PATH_KMEM */
 
-#if (LA_TYPE == LA_INT) || (LA_TYPE == LA_FLOAT) || (LA_TYPE == LA_SHORT)
+#if (LA_TYPE == LA_INT) || (LA_TYPE == LA_FLOAT) || (LA_TYPE == LA_SHORT) || (LA_TYPE == LA_LONGLONG)
 
 # include <nlist.h>
 
@@ -1504,8 +1505,12 @@ getla()
 # else /* LA_TYPE == LA_INT */
 #  if LA_TYPE == LA_SHORT
 	short avenrun[3];
-#  else /* LA_TYPE == LA_SHORT */
+#  else
+#   if LA_TYPE == LA_LONGLONG
+	long long avenrun[3];
+#   else /* LA_TYPE == LA_LONGLONG */
 	double avenrun[3];
+#   endif /* LA_TYPE == LA_LONGLONG */
 #  endif /* LA_TYPE == LA_SHORT */
 # endif /* LA_TYPE == LA_INT */
 	extern off_t lseek();
@@ -1571,7 +1576,7 @@ getla()
 				   sm_errstring(errno));
 		return -1;
 	}
-# if (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT)
+# if (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT) || (LA_TYPE == LA_LONGLONG)
 	if (tTd(3, 5))
 	{
 #  if LA_TYPE == LA_SHORT
@@ -1579,9 +1584,15 @@ getla()
 		if (tTd(3, 15))
 			sm_dprintf(", %d, %d", avenrun[1], avenrun[2]);
 #  else /* LA_TYPE == LA_SHORT */
+#   if LA_TYPE == LA_LONGLONG
+		sm_dprintf("getla: avenrun = %lld", avenrun[0]);
+		if (tTd(3, 15))
+			sm_dprintf(", %lld, %lld", avenrun[1], avenrun[2]);
+#   else /* LA_TYPE == LA_LONGLONG */
 		sm_dprintf("getla: avenrun = %ld", avenrun[0]);
 		if (tTd(3, 15))
 			sm_dprintf(", %ld, %ld", avenrun[1], avenrun[2]);
+#   endif /* LA_TYPE == LA_LONGLONG */
 #  endif /* LA_TYPE == LA_SHORT */
 		sm_dprintf("\n");
 	}
@@ -1589,7 +1600,7 @@ getla()
 		sm_dprintf("getla: %d\n",
 			(int) (avenrun[0] + FSCALE/2) >> FSHIFT);
 	return ((int) (avenrun[0] + FSCALE/2) >> FSHIFT);
-# else /* (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT) */
+# else /* (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT) || (LA_TYPE == LA_LONGLONG) */
 	if (tTd(3, 5))
 	{
 		sm_dprintf("getla: avenrun = %g", avenrun[0]);
@@ -1600,10 +1611,10 @@ getla()
 	if (tTd(3, 1))
 		sm_dprintf("getla: %d\n", (int) (avenrun[0] +0.5));
 	return ((int) (avenrun[0] + 0.5));
-# endif /* (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT) */
+# endif /* (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT) || (LA_TYPE == LA_LONGLONG) */
 }
 
-#endif /* (LA_TYPE == LA_INT) || (LA_TYPE == LA_FLOAT) || (LA_TYPE == LA_SHORT) */
+#endif /* (LA_TYPE == LA_INT) || (LA_TYPE == LA_FLOAT) || (LA_TYPE == LA_SHORT) || (LA_TYPE == LA_LONGLONG) */
 
 #if LA_TYPE == LA_READKSYM
 
@@ -6041,6 +6052,10 @@ char	*FFRCompileOptions[] =
 /* Problem noted by Anne Bennett of Concordia University */
 	"_FFR_DIGUNIX_SAFECHOWN",
 #endif /* _FFR_DIGUNIX_SAFECHOWN */
+#if _FFR_DM_PER_DAEMON
+	/* DeliveryMode per DaemonPortOptions: 'D' */
+	"_FFR_DM_PER_DAEMON",
+#endif /* _FFR_DM_PER_DAEMON */
 #if _FFR_DNSMAP_ALIASABLE
 	/* Allow dns map type to be used for aliases. */
 /* Don Lewis of TDK */
@@ -6171,6 +6186,10 @@ char	*FFRCompileOptions[] =
 	/* Disable PIPELINING, delay client if used. */
 	"_FFR_NO_PIPE",
 #endif /* _FFR_NO_PIPE */
+#if _FFR_LOG_NTRIES
+	/* log ntries=, from Nik Clayton of FreeBSD */
+	"_FFR_LOG_NTRIES",
+#endif /* _FFR_LOG_NTRIES */
 #if _FFR_PRIV_NOACTUALRECIPIENT
 	/*
 	** PrivacyOptions=noactualrecipient stops sendmail from putting 
@@ -6178,7 +6197,7 @@ char	*FFRCompileOptions[] =
 	** account that addresses map to.  Patch from Dan Harkless.
 	*/
 
-	"_FFR_PRIV_NOACTUALRECIPIENT"
+	"_FFR_PRIV_NOACTUALRECIPIENT",
 #endif /* _FFR_PRIV_NOACTUALRECIPIENT */
 #if _FFR_QUEUEDELAY
 	/* Exponential queue delay; disabled in 8.13 since it isn't used. */
@@ -6250,6 +6269,10 @@ char	*FFRCompileOptions[] =
 /* Chris Adams of HiWAAY Informations Services */
 	"_FFR_SPT_ALIGN",
 #endif /* _FFR_SPT_ALIGN */
+#if _FFR_SS_PER_DAEMON
+	/* SuperSafe per DaemonPortOptions: 'T' (better letter?) */
+	"_FFR_SS_PER_DAEMON",
+#endif /* _FFR_SS_PER_DAEMON */
 #if _FFR_TIMERS
 	/* Donated code (unused). */
 	"_FFR_TIMERS",
@@ -6267,6 +6290,9 @@ char	*FFRCompileOptions[] =
 
 	"_FFR_TRUSTED_QF",
 #endif /* _FFR_TRUSTED_QF */
+#if _FFR_USE_SEM_LOCKING
+	"_FFR_USE_SEM_LOCKING",
+#endif /* _FFR_USE_SEM_LOCKING */
 #if _FFR_USE_SETLOGIN
 	/* Use setlogin() */
 /* Peter Philipp */
