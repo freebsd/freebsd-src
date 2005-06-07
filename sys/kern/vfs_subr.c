@@ -2033,12 +2033,13 @@ vinactive(struct vnode *vp, struct thread *td)
 	VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
 	    ("vinactive: recursed on VI_DOINGINACT"));
 	vp->v_iflag |= VI_DOINGINACT;
+	vp->v_iflag &= ~VI_OWEINACT;
 	VI_UNLOCK(vp);
 	VOP_INACTIVE(vp, td);
 	VI_LOCK(vp);
 	VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
 	    ("vinactive: lost VI_DOINGINACT"));
-	vp->v_iflag &= ~(VI_DOINGINACT|VI_OWEINACT);
+	vp->v_iflag &= ~VI_DOINGINACT;
 }
 
 /*
