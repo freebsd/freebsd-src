@@ -266,12 +266,14 @@ void            show(const char *), play(const char *), morse(char);
 void		ttyout(const char *);
 void		sighandler(int);
 
-#define GETOPTOPTS "d:ef:lsw:"
+#define GETOPTOPTS "c:d:ef:lsw:"
 #define USAGE \
-"usage: morse [-els] [-d device] [-w speed] [-f frequency] [string ...]\n"
+"usage: morse [-els] [-d device] [-w speed] [-c speed] [-f frequency] [string ...]\n"
 
 static int      pflag, lflag, sflag, eflag;
-static int      wpm = 20;	/* words per minute */
+static int      wpm = 20;	/* effective words per minute */
+static int      cpm;		/* effective words per minute between
+				 * characters */
 #define FREQUENCY 600
 static int      freq = FREQUENCY;
 static char	*device;	/* for tty-controlled generator */
@@ -280,6 +282,7 @@ static char	*device;	/* for tty-controlled generator */
 #define CHAR_SPACE 3
 #define WORD_SPACE (7 - CHAR_SPACE - 1)
 static float    dot_clock;
+static float    cdot_clock;
 int             spkr, line;
 struct termios	otty, ntty;
 int		olflags;
@@ -287,10 +290,10 @@ int		olflags;
 #ifdef SPEAKER
 tone_t          sound;
 #undef GETOPTOPTS
-#define GETOPTOPTS "d:ef:lpsw:"
+#define GETOPTOPTS "c:d:ef:lpsw:"
 #undef USAGE
 #define USAGE \
-"usage: morse [-elps] [-d device] [-w speed] [-f frequency] [string ...]\n"
+"usage: morse [-elps] [-d device] [-w speed] [-c speed] [-f frequency] [string ...]\n"
 #endif
 
 static const struct morsetab *hightab;
@@ -303,6 +306,9 @@ main(int argc, char **argv)
 
 	while ((ch = getopt(argc, argv, GETOPTOPTS)) != -1)
 		switch ((char) ch) {
+ 		case 'c':
+ 			cpm = atoi(optarg);
+ 			break;
 		case 'd':
 			device = optarg;
 			break;
@@ -340,7 +346,9 @@ main(int argc, char **argv)
 		fputs("morse: only one of -p, -d and -l, -s allowed\n", stderr);
 		exit(1);
 	}
-	if ((pflag || device) && ((wpm < 1) || (wpm > 60))) {
+	if (cpm == 0)
+		cpm = wpm;
+	if ((pflag || device) && ((wpm < 1) || (wpm > 60) || (cpm < 1) || (cpm > 60))) {
 		fputs("morse: insane speed\n", stderr);
 		exit(1);
 	}
@@ -385,6 +393,12 @@ main(int argc, char **argv)
 		dot_clock = dot_clock / 2;	/* dot_clock runs at twice */
 						/* the dot rate */
 		dot_clock = dot_clock * 100;	/* scale for ioctl */
+
+		cdot_clock = cpm / 2.4;		/* dots/sec */
+		cdot_clock = 1 / cdot_clock;	/* duration of a dot */
+		cdot_clock = cdot_clock / 2;	/* dot_clock runs at twice */
+						/* the dot rate */
+		cdot_clock = cdot_clock * 100;	/* scale for ioctl */
 	}
 
 	argc -= optind;
@@ -492,7 +506,7 @@ play(const char *s)
 			break;
 		case ' ':
 			sound.frequency = 0;
-			sound.duration = dot_clock * WORD_SPACE;
+			sound.duration = cdot_clock * WORD_SPACE;
 			break;
 		default:
 			sound.duration = 0;
@@ -511,7 +525,7 @@ play(const char *s)
 		}
 	}
 	sound.frequency = 0;
-	sound.duration = dot_clock * CHAR_SPACE;
+	sound.duration = cdot_clock * CHAR_SPACE;
 	ioctl(spkr, SPKRTONE, &sound);
 #endif
 }
@@ -534,7 +548,7 @@ ttyout(const char *s)
 			break;
 		case ' ':
 			on = 0;
-			duration = dot_clock * WORD_SPACE;
+			duration = cdot_clock * WORD_SPACE;
 			break;
 		default:
 			on = 0;
@@ -554,7 +568,7 @@ ttyout(const char *s)
 		duration = dot_clock * 10000;
 		usleep(duration);
 	}
-	duration = dot_clock * CHAR_SPACE * 10000;
+	duration = cdot_clock * CHAR_SPACE * 10000;
 	usleep(duration);
 }
 
