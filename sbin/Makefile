@@ -15,6 +15,7 @@ SUBDIR=	adjkerntz \
 	conscontrol \
 	${_devd} \
 	devfs \
+	dhclient \
 	dmesg \
 	dump \
 	dumpfs \
