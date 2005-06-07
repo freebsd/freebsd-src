@@ -16,6 +16,7 @@ sshd
 bind
 proxy
 _pflogd
+_dhcp
 uucp
 pop
 www
