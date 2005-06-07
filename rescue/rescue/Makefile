@@ -11,11 +11,11 @@ nextboot_FIXED: ../../sbin/reboot/nextboot.sh
 	sed '1s/\/bin\//\/rescue\//' ${.ALLSRC} > ${.TARGET}
 CLEANFILES+= nextboot_FIXED
 
-SCRIPTS+= dhclient_FIXED
-SCRIPTSNAME_dhclient_FIXED= dhclient-script
-dhclient_FIXED: ../../contrib/isc-dhcp/client/scripts/freebsd
-	sed '1s/\/bin\//\/rescue\//' ${.ALLSRC} > ${.TARGET}
-CLEANFILES+= dhclient_FIXED
+#SCRIPTS+= dhclient_FIXED
+#SCRIPTSNAME_dhclient_FIXED= dhclient-script
+#dhclient_FIXED: ../../contrib/isc-dhcp/client/scripts/freebsd
+#	sed '1s/\/bin\//\/rescue\//' ${.ALLSRC} > ${.TARGET}
+#CLEANFILES+= dhclient_FIXED
 
 #################################################################
 #
@@ -174,8 +174,8 @@ CRUNCH_ALIAS_fsck_ffs= fsck_4.2bsd fsck_ufs
 CRUNCH_ALIAS_mount_std= mount_devfs mount_fdescfs mount_linprocfs mount_procfs
 
 # dhclient has historically been troublesome...
-CRUNCH_PROGS_sbin+= dhclient
-CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
+#CRUNCH_PROGS_sbin+= dhclient
+#CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 
 ##################################################################
 # Programs from stock /usr/bin
