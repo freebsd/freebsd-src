@@ -57,6 +57,10 @@
 #define	ATH_TXMAXTRY	11		/* max number of transmit attempts */
 #define	ATH_TXINTR_PERIOD 5		/* max number of batched tx descriptors */
 
+#define	ATH_BEACON_AIFS_DEFAULT	 0	/* default aifs for ap beacon q */
+#define	ATH_BEACON_CWMIN_DEFAULT 0	/* default cwmin for ap beacon q */
+#define	ATH_BEACON_CWMAX_DEFAULT 0	/* default cwmax for ap beacon q */
+
 /*
  * The key cache is used for h/w cipher state and also for
  * tracking station state such as the current tx antenna.
