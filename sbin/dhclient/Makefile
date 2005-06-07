@@ -38,12 +38,9 @@ SRCS=	dhclient.c clparse.c alloc.c dispatch.c hash.c bpf.c options.c \
 	parse.c privsep.c
 
 PROG=	dhclient
+SCRIPTS=dhclient-script
 MAN=	dhclient.8 dhclient.conf.5 dhclient.leases.5 dhclient-script.8
 
 CFLAGS+=-Wall
-
-beforeinstall:
-	${INSTALL} ${INSTALL_COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/dhclient-script ${DESTDIR}/sbin/dhclient-script
 
 .include <bsd.prog.mk>
