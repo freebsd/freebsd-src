@@ -102,8 +102,8 @@ network_common()
 	fi
 	[ -n "$2" ] && _verbose=yes
 
-	# Get a list of network interfaces. Do not include dhcp interfaces.
-	_ifn_list="`list_net_interfaces nodhcp`"
+	# Get a list of network interfaces.
+	_ifn_list="`list_net_interfaces`"
 
 	# Set the scope of the command (all interfaces or just one).
 	#

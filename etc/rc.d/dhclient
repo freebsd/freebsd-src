@@ -7,10 +7,7 @@
 # PROVIDE: dhclient
 # REQUIRE: netif ipfw ipfilter mountcritlocal cleanvar
 # BEFORE:  NETWORKING
-# KEYWORD: nojail
-#
-#	Note that there no syslog logging of dhclient messages at boot because
-#	dhclient needs to start before services that syslog depends upon do.
+# KEYWORD: nojail nostart
 #
 
 . /etc/rc.subr
@@ -18,96 +15,39 @@
 
 name="dhclient"
 rcvar=
-pidfile="/var/run/${name}.pid"
-start_precmd="dhclient_prestart"
-start_postcmd="dhclient_poststart"
-stop_precmd="dhclient_prestop"
-stop_postcmd="dhclient_poststop"
+start_cmd="dhclient_start"
+stop_cmd="dhclient_stop"
 
-dhclient_common()
+dhclient_start()
 {
-	dhcp_list="`list_net_interfaces dhcp`"
-	if [ -z "$dhcp_list" ]; then
-		return 1
-	fi
-
-	# Determine the scope of the command
-	#
-	_cooked_list="$dhcp_list"
-	if [ -n "$_cmdifn" ]; then
-		eval _cooked_list=\"`expr "$dhcp_list" : ".*\($_cmdifn\).*"`\"
-		if [ -z "$_cooked_list" ]; then
-			err 1 "No such network interface: $_cmdifn"
+	# prevent unnecessicary restarts
+	# XXX: should use a pidfile
+	if [ -x /usr/bin/pgrep ]; then
+		pids=`/usr/bin/pgrep -f "dhclient: $ifn(\$| .*)"`
+		if [ -n "$pids" ]; then
+			echo "${name} ${ifn}: already running?"
+			exit 0
 		fi
 	fi
-}
-
-dhclient_prestart()
-{
-	if [ $dhclient_common_error -eq 1 ]; then
-		return 1
-	fi
-	for ifn in ${_cooked_list}; do
-		ifscript_up ${ifn}
-	done
 
 	if checkyesno background_dhclient; then
-		rc_flags="${rc_flags} -nw"
+		rc_flags="${rc_flags} -b"
 	fi
 
-	rc_flags="${rc_flags} ${_cooked_list}"
-	return 0
+	${dhclient_program} ${rc_flags} $ifn
 }
 
-dhclient_poststart()
+dhclient_stop()
 {
-	for ifn in ${_cooked_list}; do
-		ifalias_up ${ifn}
-		ipx_up ${ifn}
-		ifconfig ${ifn}
-	done
+	ifconfig $ifn down	# cause dhclient to die
 }
 
-dhclient_prestop()
-{
-	if [ $dhclient_common_error -eq 1 ]; then
-		return 1
-	fi
-	for ifn in ${_cooked_list}; do
-		ipx_down ${ifn}
-		ifalias_down ${ifn}
-	done
-	echo -n "Releasing DHCP leases:"
-	for ifn in $_cooked_list ; do
-		${command} -r $ifn
-		if [ $? -eq 0 ]; then
-			echo -n " $ifn"
-		else
-			_fail="$_fail $ifn"
-		fi
-	done
-	echo '.'
-	debug "The following leases failed to release: $_fail"
-}
-
-dhclient_poststop()
-{
-	for ifn in ${_cooked_list}; do
-		ifscript_down ${ifn}
-	done
-}
-
-if [ -n "$2" ]; then
-	_cmdifn="$2"
-	stop_cmd=":"
-fi
+ifn="$2"
 
 load_rc_config $name
-dhclient_common_error=0
-dhclient_common || dhclient_common_error=1;
-if [ -n "$_cooked_list" ]; then
-	if [ -s $pidfile ]; then
-		stop_cmd=":"
-	fi
+
+if ! dhcpif $ifn; then
+	return 1
 fi
+
 run_rc_command "$1"
