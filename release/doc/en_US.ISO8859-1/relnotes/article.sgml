@@ -790,6 +790,9 @@
       <para><application>ACPI-CA</application> has been updated from
 	20040527 to 20041119. &merged;</para>
 
+      <para><application>sendmail</application> has been updated from
+	8.13.3 to 8.13.4.</para>
+
     </sect3>
   </sect2>
 
