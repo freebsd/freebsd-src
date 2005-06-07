@@ -370,7 +370,7 @@ stub_create_sysv_msgqueue(struct ucred *cred, struct msqid_kernel *msqkptr,
 }
 
 static void
-stub_create_sysv_sema(struct ucred *cred, struct semid_kernel *semakptr,
+stub_create_sysv_sem(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semalabel)
 {
 
@@ -543,7 +543,7 @@ stub_cleanup_sysv_msgqueue(struct label *msqlabel)
 }
 
 static void
-stub_cleanup_sysv_sema(struct label *semalabel)
+stub_cleanup_sysv_sem(struct label *semalabel)
 {
 
 }
@@ -1376,7 +1376,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_init_inpcb_label = stub_init_label_waitcheck,
 	.mpo_init_sysv_msgmsg_label = stub_init_label,
 	.mpo_init_sysv_msgqueue_label = stub_init_label,
-	.mpo_init_sysv_sema_label = stub_init_label,
+	.mpo_init_sysv_sem_label = stub_init_label,
 	.mpo_init_sysv_shm_label = stub_init_label,
 	.mpo_init_ipq_label = stub_init_label_waitcheck,
 	.mpo_init_mbuf_label = stub_init_label_waitcheck,
@@ -1394,7 +1394,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_destroy_inpcb_label = stub_destroy_label,
 	.mpo_destroy_sysv_msgmsg_label = stub_destroy_label,
 	.mpo_destroy_sysv_msgqueue_label = stub_destroy_label,
-	.mpo_destroy_sysv_sema_label = stub_destroy_label,
+	.mpo_destroy_sysv_sem_label = stub_destroy_label,
 	.mpo_destroy_sysv_shm_label = stub_destroy_label,
 	.mpo_destroy_ipq_label = stub_destroy_label,
 	.mpo_destroy_mbuf_label = stub_destroy_label,
@@ -1430,7 +1430,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_create_devfs_symlink = stub_create_devfs_symlink,
 	.mpo_create_sysv_msgmsg = stub_create_sysv_msgmsg,
 	.mpo_create_sysv_msgqueue = stub_create_sysv_msgqueue,
-	.mpo_create_sysv_sema = stub_create_sysv_sema,
+	.mpo_create_sysv_sem = stub_create_sysv_sem,
 	.mpo_create_sysv_shm = stub_create_sysv_shm,
 	.mpo_create_vnode_extattr = stub_create_vnode_extattr,
 	.mpo_create_mount = stub_create_mount,
@@ -1475,7 +1475,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_thread_userret = stub_thread_userret,
 	.mpo_cleanup_sysv_msgmsg = stub_cleanup_sysv_msgmsg,
 	.mpo_cleanup_sysv_msgqueue = stub_cleanup_sysv_msgqueue,
-	.mpo_cleanup_sysv_sema = stub_cleanup_sysv_sema,
+	.mpo_cleanup_sysv_sem = stub_cleanup_sysv_sem,
 	.mpo_cleanup_sysv_shm = stub_cleanup_sysv_shm,
 	.mpo_check_bpfdesc_receive = stub_check_bpfdesc_receive,
 	.mpo_check_cred_relabel = stub_check_cred_relabel,

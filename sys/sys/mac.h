@@ -151,7 +151,7 @@ void	mac_init_ifnet(struct ifnet *);
 int	mac_init_inpcb(struct inpcb *, int flag);
 void	mac_init_sysv_msgmsg(struct msg *);
 void	mac_init_sysv_msgqueue(struct msqid_kernel*);
-void	mac_init_sysv_sema(struct semid_kernel*);
+void	mac_init_sysv_sem(struct semid_kernel*);
 void	mac_init_sysv_shm(struct shmid_kernel*);
 int	mac_init_ipq(struct ipq *, int flag);
 int	mac_init_socket(struct socket *, int flag);
@@ -171,7 +171,7 @@ void	mac_destroy_ifnet(struct ifnet *);
 void	mac_destroy_inpcb(struct inpcb *);
 void	mac_destroy_sysv_msgmsg(struct msg *);
 void	mac_destroy_sysv_msgqueue(struct msqid_kernel *);
-void	mac_destroy_sysv_sema(struct semid_kernel *);
+void	mac_destroy_sysv_sem(struct semid_kernel *);
 void	mac_destroy_sysv_shm(struct shmid_kernel *);
 void	mac_destroy_ipq(struct ipq *);
 void	mac_destroy_socket(struct socket *);
@@ -230,7 +230,7 @@ void	mac_create_sysv_msgmsg(struct ucred *cred,
 	    struct msqid_kernel *msqkptr, struct msg *msgptr);
 void	mac_create_sysv_msgqueue(struct ucred *cred,
 	    struct msqid_kernel *msqkptr);
-void	mac_create_sysv_sema(struct ucred *cred,
+void	mac_create_sysv_sem(struct ucred *cred,
 	    struct semid_kernel *semakptr);
 void	mac_create_sysv_shm(struct ucred *cred,
 	    struct shmid_kernel *shmsegptr);
@@ -290,7 +290,7 @@ void	mac_thread_userret(struct thread *td);
  */
 void	mac_cleanup_sysv_msgmsg(struct msg *msgptr);
 void	mac_cleanup_sysv_msgqueue(struct msqid_kernel *msqkptr);
-void	mac_cleanup_sysv_sema(struct semid_kernel *semakptr);
+void	mac_cleanup_sysv_sem(struct semid_kernel *semakptr);
 void	mac_cleanup_sysv_shm(struct shmid_kernel *shmsegptr);
 
 /* Access control checks. */

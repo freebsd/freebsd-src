@@ -65,52 +65,52 @@ SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, ipc_semas, CTLFLAG_RD,
 #endif
 
 static struct label *
-mac_sysv_sema_label_alloc(void)
+mac_sysv_sem_label_alloc(void)
 {
 	struct label *label;
 
 	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(init_sysv_sema_label, label);
+	MAC_PERFORM(init_sysv_sem_label, label);
 	MAC_DEBUG_COUNTER_INC(&nmacipcsemas);
 	return (label);
 }
 
 void
-mac_init_sysv_sema(struct semid_kernel *semakptr)
+mac_init_sysv_sem(struct semid_kernel *semakptr)
 {
 
-	semakptr->label = mac_sysv_sema_label_alloc();
+	semakptr->label = mac_sysv_sem_label_alloc();
 }
 
 static void
-mac_sysv_sema_label_free(struct label *label)
+mac_sysv_sem_label_free(struct label *label)
 {
 
-	MAC_PERFORM(destroy_sysv_sema_label, label);
+	MAC_PERFORM(destroy_sysv_sem_label, label);
 	mac_labelzone_free(label);
 	MAC_DEBUG_COUNTER_DEC(&nmacipcsemas);
 }
 
 void
-mac_destroy_sysv_sema(struct semid_kernel *semakptr)
+mac_destroy_sysv_sem(struct semid_kernel *semakptr)
 {
 
-	mac_sysv_sema_label_free(semakptr->label);
+	mac_sysv_sem_label_free(semakptr->label);
 	semakptr->label = NULL;
 }
 
 void
-mac_create_sysv_sema(struct ucred *cred, struct semid_kernel *semakptr)
+mac_create_sysv_sem(struct ucred *cred, struct semid_kernel *semakptr)
 {
 
-	MAC_PERFORM(create_sysv_sema, cred, semakptr, semakptr->label);
+	MAC_PERFORM(create_sysv_sem, cred, semakptr, semakptr->label);
 }
 
 void
-mac_cleanup_sysv_sema(struct semid_kernel *semakptr)
+mac_cleanup_sysv_sem(struct semid_kernel *semakptr)
 {
 
-	MAC_PERFORM(cleanup_sysv_sema, semakptr->label);
+	MAC_PERFORM(cleanup_sysv_sem, semakptr->label);
 }
 
 int
