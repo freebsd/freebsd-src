@@ -724,7 +724,7 @@ bind_lease(struct interface_info *ip)
 
 	note("bound to %s -- renewal in %d seconds.",
 	    piaddr(ip->client->active->address),
-	    ip->client->active->renewal - cur_time);
+	    (int)(ip->client->active->renewal - cur_time));
 	ip->client->state = S_BOUND;
 	reinitialize_interfaces();
 	go_daemon();
@@ -1145,7 +1145,8 @@ again:
 
 	note("DHCPDISCOVER on %s to %s port %d interval %d",
 	    ip->name, inet_ntoa(sockaddr_broadcast.sin_addr),
-	    ntohs(sockaddr_broadcast.sin_port), ip->client->interval);
+	    ntohs(sockaddr_broadcast.sin_port),
+	    (int)ip->client->interval);
 
 	/* Send out a packet. */
 	(void)send_packet(ip, &ip->client->packet, ip->client->packet_length,
@@ -1196,8 +1197,8 @@ state_panic(void *ipp)
 				    ip->client->active->renewal) {
 					ip->client->state = S_BOUND;
 					note("bound: renewal in %d seconds.",
-					    ip->client->active->renewal -
-					    cur_time);
+					    (int)(ip->client->active->renewal -
+					    cur_time));
 					add_timeout(
 					    ip->client->active->renewal,
 					    state_bound, ip);
