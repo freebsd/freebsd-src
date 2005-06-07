@@ -1,4 +1,5 @@
 /*	$OpenBSD: dhclient.c,v 1.63 2005/02/06 17:10:13 krw Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright 2004 Henning Brauer <henning@openbsd.org>
@@ -55,6 +56,12 @@
 
 #include "dhcpd.h"
 #include "privsep.h"
+
+#include <net80211/ieee80211_freebsd.h>
+
+#ifndef _PATH_VAREMPTY
+#define	_PATH_VAREMPTY	"/var/empty"
+#endif
 
 #define	PERIOD 0x2e
 #define	hyphenchar(c) ((c) == 0x2d)
@@ -236,6 +243,30 @@ routehandler(struct protocol *p)
 		    ifan->ifan_index == ifi->index)
 			goto die;
 		break;
+	case RTM_IEEE80211:
+		ifan = (struct if_announcemsghdr *)rtm;
+		if (ifan->ifan_index != ifi->index)
+			break;
+		switch (ifan->ifan_what) {
+		case RTM_IEEE80211_ASSOC:
+			state_reboot(ifi);
+			break;
+		case RTM_IEEE80211_DISASSOC:
+			/*
+			 * Clear existing state; transition to the init
+			 * state and then wait for either a link down
+			 * notification or an associate event.
+			 */
+			script_init("EXPIRE", NULL);
+			script_write_params("old_", ifi->client->active);
+			if (ifi->client->alias)
+				script_write_params("alias_",
+					ifi->client->alias);
+			script_go();
+			ifi->client->state = S_INIT;
+			break;
+		}
+		break;
 	default:
 		break;
 	}
@@ -255,14 +286,18 @@ main(int argc, char *argv[])
 	extern char		*__progname;
 	int			 ch, fd, quiet = 0, i = 0;
 	int			 pipe_fd[2];
+	int			 immediate_daemon = 0;
 	struct passwd		*pw;
 
 	/* Initially, log errors to stderr as well as to syslogd. */
 	openlog(__progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
 	setlogmask(LOG_UPTO(LOG_INFO));
 
-	while ((ch = getopt(argc, argv, "c:dl:qu")) != -1)
+	while ((ch = getopt(argc, argv, "bc:dl:nqu")) != -1)
 		switch (ch) {
+		case 'b':
+			immediate_daemon = 1;
+			break;
 		case 'c':
 			path_dhclient_conf = optarg;
 			break;
@@ -374,6 +409,9 @@ main(int argc, char *argv[])
 	endpwent();
 
 	setproctitle("%s", ifi->name);
+
+	if (immediate_daemon)
+		go_daemon();
 
 	ifi->client->state = S_INIT;
 	state_reboot(ifi);
