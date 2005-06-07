@@ -2015,7 +2015,8 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 		runningcode = EIO;
 
 	if (uap->mode == LIO_WAIT) {
-		int command, found, jobref;
+		int command, found;
+		long jobref;
 
 		for (;;) {
 			found = 0;
