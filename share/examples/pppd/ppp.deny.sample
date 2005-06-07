@@ -19,6 +19,7 @@ mailnull
 bind
 proxy
 _pflogd
+_dhcp
 ftp
 uucp
 pop

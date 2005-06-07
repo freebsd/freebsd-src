@@ -23,6 +23,7 @@ MAILER-DAEMON: postmaster
 postmaster: root
 
 # General redirections for pseudo accounts
+_dhcp:	root
 _pflogd: root
 bin:	root
 bind:	root
