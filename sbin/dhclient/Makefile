@@ -1,60 +1,49 @@
-# Makefile for ISC DHCP client.
+# $OpenBSD: Makefile,v 1.9 2004/05/04 12:52:05 henning Exp $
 # $FreeBSD$
+#
+# Copyright (c) 1996, 1997 The Internet Software Consortium.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of The Internet Software Consortium nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+# CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
+# BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+# THE INTERNET SOFTWARE CONSORTIUM OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+# OF THE POSSIBILITY OF SUCH DAMAGE.
+#
 
-SUBDIR= common dst minires omapip dhcpctl client omshell
+.include <bsd.own.mk>
 
+SRCS=	dhclient.c clparse.c alloc.c dispatch.c hash.c bpf.c options.c \
+	tree.c conflex.c errwarn.c inet.c packet.c convert.c tables.c \
+	parse.c privsep.c
 
-# Our directory structure confuses crunchgen, so we must explicitly
-# list the requisite object files when building crunched binaries for
-# release floppies.
+PROG=	dhclient
+MAN=	dhclient.8 dhclient.conf.5 dhclient.leases.5 dhclient-script.8
 
-.ifdef(RELEASE_CRUNCH)
+CFLAGS+=-Wall
 
-CFLAGS+=-I../../contrib/isc-dhcp/includes
+beforeinstall:
+	${INSTALL} ${INSTALL_COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${.CURDIR}/dhclient-script ${DESTDIR}/sbin/dhclient-script
 
-# client
-OBJS=  client/clparse.o client/dhclient.o
-
-# common
-OBJS+=	common/alloc.o common/bpf.o common/comapi.o common/conflex.o \
-	common/ctrace.o common/discover.o common/dispatch.o common/dlpi.o \
-	common/dns.o common/ethernet.o common/execute.o common/fddi.o \
-	common/icmp.o common/inet.o common/lpf.o common/memory.o \
-	common/nit.o common/options.o common/packet.o common/parse.o \
-	common/print.o common/raw.o common/resolv.o common/socket.o \
-	common/tables.o common/tr.o common/tree.o common/upf.o
-
-# dst
-OBJS+=	dst/base64.o dst/dst_api.o dst/dst_support.o dst/hmac_link.o \
-	dst/md5_dgst.o dst/prandom.o
-
-# minires
-OBJS+=	minires/ns_date.o minires/ns_name.o minires/ns_parse%FIXED.o \
-	minires/ns_samedomain.o minires/ns_sign.o minires/ns_verify.o \
-	minires/res_comp.o minires/res_findzonecut.o minires/res_init.o	\
-	minires/res_mkquery.o minires/res_mkupdate.o minires/res_query%FIXED.o \
-	minires/res_send.o minires/res_sendsigned.o minires/res_update.o
-
-# omapi
-OBJS+=	omapip/alloc.o omapip/array.o omapip/auth.o omapip/buffer.o \
-	omapip/connection.o omapip/convert.o omapip/dispatch.o \
-	omapip/errwarn.o omapip/generic.o omapip/handle.o omapip/hash.o \
-	omapip/inet_addr.o omapip/listener.o omapip/message.o \
-	omapip/mrtrace.o omapip/protocol.o omapip/result.o \
-	omapip/support.o omapip/toisc.o omapip/trace.o
-
-# dhcpctl
-OBJS+=	dhcpctl/dhcpctl.o dhcpctl/callback.o dhcpctl/remote.o
-
-# src/release/Makefile (release.4) tries to invokes this makefile with
-# the target set to the list of all objects defined above.  This
-# top-level Makefile doesn't actually know how to build those objects
-# though, so we must run ``make all'' instead when we are asked to
-# generate an individual object file.
-
-# Note: Must have some commands here to override the default build action
-${OBJS}: all
-	@true
-.endif
-
-.include <bsd.subdir.mk>
+.include <bsd.prog.mk>
