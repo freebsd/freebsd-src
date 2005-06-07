@@ -1575,7 +1575,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		case O_IP6_SRC:
 		case O_IP6_SRC_MASK:
 		case O_IP6_SRC_ME:
-			show_prerequisites(&flags, HAVE_PROTO6, 0);
+			show_prerequisites(&flags, HAVE_PROTO, 0);
 			if (!(flags & HAVE_SRCIP))
 				printf(" from");
 			if ((cmd->len & F_OR) && !or_block)
@@ -3991,10 +3991,7 @@ add(int ac, char *av[])
 	NEED1("missing protocol");
 	if (add_proto(cmd, *av, &proto)) {
 		av++; ac--;
-		if (F_LEN(cmd) == 0)	/* plain IP */
-			proto = 0;
-		else {
-			proto = cmd->arg1;
+		if (F_LEN(cmd) != 0) {
 			prev = cmd;
 			cmd = next_cmd(cmd);
 		}
