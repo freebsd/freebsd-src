@@ -1,4 +1,5 @@
 /*	$OpenBSD: parse.c,v 1.11 2004/05/05 23:07:47 deraadt Exp $	*/
+/*	$FreeBSD$	*/
 
 /* Common parser code for dhcpd and dhclient. */
 
@@ -437,7 +438,7 @@ parse_date(FILE *cfile)
 		parse_warn("numeric day of week expected.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 	tm.tm_wday = atoi(val);
 
@@ -447,7 +448,7 @@ parse_date(FILE *cfile)
 		parse_warn("numeric year expected.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 	tm.tm_year = atoi(val);
 	if (tm.tm_year > 1900)
@@ -459,7 +460,7 @@ parse_date(FILE *cfile)
 		parse_warn("expected slash separating year from month.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 
 	/* Month... */
@@ -468,7 +469,7 @@ parse_date(FILE *cfile)
 		parse_warn("numeric month expected.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 	tm.tm_mon = atoi(val) - 1;
 
@@ -478,7 +479,7 @@ parse_date(FILE *cfile)
 		parse_warn("expected slash separating month from day.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 
 	/* Month... */
@@ -487,7 +488,7 @@ parse_date(FILE *cfile)
 		parse_warn("numeric day of month expected.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 	tm.tm_mday = atoi(val);
 
@@ -497,7 +498,7 @@ parse_date(FILE *cfile)
 		parse_warn("numeric hour expected.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 	tm.tm_hour = atoi(val);
 
@@ -507,7 +508,7 @@ parse_date(FILE *cfile)
 		parse_warn("expected colon separating hour from minute.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 
 	/* Minute... */
@@ -516,7 +517,7 @@ parse_date(FILE *cfile)
 		parse_warn("numeric minute expected.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 	tm.tm_min = atoi(val);
 
@@ -526,7 +527,7 @@ parse_date(FILE *cfile)
 		parse_warn("expected colon separating hour from minute.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 
 	/* Minute... */
@@ -535,7 +536,7 @@ parse_date(FILE *cfile)
 		parse_warn("numeric minute expected.");
 		if (token != SEMI)
 			skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 	tm.tm_sec = atoi(val);
 	tm.tm_isdst = 0;
@@ -548,7 +549,7 @@ parse_date(FILE *cfile)
 	if (token != SEMI) {
 		parse_warn("semicolon expected.");
 		skip_to_semi(cfile);
-		return (NULL);
+		return (0);
 	}
 
 	/* Guess the time value... */
