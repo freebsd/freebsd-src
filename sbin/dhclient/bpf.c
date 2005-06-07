@@ -1,4 +1,5 @@
 /*	$OpenBSD: bpf.c,v 1.13 2004/05/05 14:28:58 deraadt Exp $	*/
+/*	$FreeBSD$	*/
 
 /* BPF socket interface code, originally contributed by Archie Cobbs. */
 
@@ -220,6 +221,7 @@ if_register_receive(struct interface_info *info)
 	if (ioctl(info->rfdesc, BIOCSETF, &p) < 0)
 		error("Can't install packet filter program: %m");
 
+#ifdef BIOCSETWF
 	/* Set up the bpf write filter program structure. */
 	p.bf_len = dhcp_bpf_wfilter_len;
 	p.bf_insns = dhcp_bpf_wfilter;
@@ -232,6 +234,7 @@ if_register_receive(struct interface_info *info)
 
 	if (ioctl(info->rfdesc, BIOCLOCK, NULL) < 0)
 		error("Cannot lock bpf");
+#endif
 }
 
 ssize_t
