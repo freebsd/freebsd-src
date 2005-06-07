@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.260 2004/11/30 23:29:15 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.261 2005/02/16 23:38:51 ca Exp $")
 
 static void	collecttimeout __P((int));
 static void	eatfrom __P((char *volatile, ENVELOPE *));
@@ -728,6 +728,7 @@ readerr:
 	{
 		/* skip next few clauses */
 		/* EMPTY */
+		/* Note: updfs() is not called in this case! */
 	}
 	else if (sm_io_setinfo(df, SM_BF_COMMIT, NULL) < 0 && errno != EINVAL)
 	{
@@ -781,7 +782,7 @@ readerr:
 		df = NULL;
 
 		/* remove from available space in filesystem */
-		updfs(e, false, true);
+		updfs(e, 0, 1, "collect");
 	}
 
 	/* An EOF when running SMTP is an error */

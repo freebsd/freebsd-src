@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002, 2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002, 2004, 2005 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: t-shm.c,v 1.20 2004/08/03 20:51:36 ca Exp $")
+SM_RCSID("@(#)$Id: t-shm.c,v 1.22 2005/01/14 02:14:10 ca Exp $")
 
 #include <stdio.h>
 
@@ -82,6 +82,10 @@ shminter(owner)
 			break;
 		  case 'v':
 			printf("shmval: %d\n", *shm);
+			break;
+		  case 'S':
+			i = sm_shmsetowner(shmid, getuid(), getgid(), 0644);
+			printf("sm_shmsetowner=%d\n", i);
 			break;
 		}
 	}
@@ -165,6 +169,8 @@ shmtest(owner)
 	{
 		int r;
 
+		r = sm_shmsetowner(shmid, getuid(), getgid(), 0660);
+		SM_TEST(r == 0);
 		*shm = 1;
 		while (*shm == 1 && cnt++ < MAX_CNT)
 			sleep(1);
