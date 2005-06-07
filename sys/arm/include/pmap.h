@@ -503,8 +503,20 @@ const struct pmap_devmap *pmap_devmap_find_va(vm_offset_t, vm_size_t);
 void	pmap_devmap_bootstrap(vm_offset_t, const struct pmap_devmap *);
 void	pmap_devmap_register(const struct pmap_devmap *);
 
+#define SECTION_CACHE	0x1
+#define SECTION_PT	0x2
+void	pmap_kenter_section(vm_offset_t, vm_paddr_t, int flags);
+
 extern char *_tmppt;
 
+#ifdef ARM_USE_SMALL_ALLOC
+void	arm_add_smallalloc_pages(void *, void *, int, int);
+void 	arm_busy_pages(void);
+struct arm_small_page {
+	void *addr;
+	TAILQ_ENTRY(arm_small_page) pg_list;
+};
+#endif
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */
