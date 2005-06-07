@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 # $OpenBSD: dhclient-script,v 1.6 2004/05/06 18:22:41 claudio Exp $
+# $FreeBSD$
 #
 # Copyright (c) 2003 Kenneth R Westerback <krw@openbsd.org>
 #
@@ -18,15 +19,43 @@
 #
 #
 
+NETSTAT=/usr/bin/netstat
+GREP=/usr/bin/grep
+AWK=/usr/bin/awk
+HOSTNAME=/bin/hostname
+
+LOCALHOST=127.0.0.1
+
+if [ -x /usr/bin/logger ]; then
+	LOGGER="/usr/bin/logger -s -p user.notice -t dhclient"
+else
+	LOGGER=echo
+fi
+
 #
 # Helper functions that implement common actions.
 #
 
-delete_old_address() {
-	if [ -n "$old_ip_address" ]; then
-		ifconfig $interface inet -alias $old_ip_address $medium
-		route delete "$old_ip_address" 127.0.0.1 >/dev/null 2>&1
+check_hostname() {
+	current_hostname=`$HOSTNAME`
+	if [ -z "$current_hostname" ]; then
+		$LOGGER "New Hostname ($interface): $new_host_name"
+		$HOSTNAME $new_host_name
+	elif [ "$current_hostname" = "$old_host_name" -a \
+	       "$new_host_name" != "$old_host_name" ]; then
+		$LOGGER "New Hostname ($interface): $new_host_name"
+		$HOSTNAME $new_host_name
 	fi
+}
+
+arp_flush() {
+	arp -an -i $interface | \
+		sed -n -e 's/^.*(\(.*\)) at .*$/arp -d \1/p' | \
+		sh >/dev/null 2>&1
+}
+
+delete_old_address() {
+	ifconfig $interface inet -alias $old_ip_address $medium
 }
 
 add_new_address() {
@@ -36,14 +65,16 @@ add_new_address() {
 		broadcast $new_broadcast_address \
 		$medium
 
-	# XXX Original TIMEOUT code did not do this unless $new_routers was set?
-	route add $new_ip_address 127.0.0.1 >/dev/null 2>&1
+	$LOGGER "New IP Address ($interface): $new_ip_address"
+	$LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
+	$LOGGER "New Broadcast Address ($interface): $new_broadcast_address"
+	$LOGGER "New Routers ($interface): $new_routers"
 }
 
 delete_old_alias() {
 	if [ -n "$alias_ip_address" ]; then
 		ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
-		route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
+		route delete $alias_ip_address $LOCALHOST > /dev/null 2>&1
 	fi
 }
 
@@ -51,14 +82,17 @@ add_new_alias() {
 	if [ -n "$alias_ip_address" ]; then
 		ifconfig $interface inet alias $alias_ip_address netmask \
 		    $alias_subnet_mask
-		route add $alias_ip_address 127.0.0.1
+		route add $alias_ip_address $LOCALHOST
 	fi
 }
 
 delete_old_routes() {
-	# Delete existing default route. We only allow one, so no need to
-	# process $old_routers list.
-	route delete default >/dev/null 2>&1
+	route delete "$old_ip_address" $LOCALHOST >/dev/null 2>&1
+	for router in $old_routers; do
+		if [ $if_defaultroute = x -o $if_defaultroute = $interface ]; then
+			route delete default $route >/dev/null 2>&1
+		fi
+	done
 
 	if [ -n "$old_static_routes" ]; then
 		set $old_static_routes
@@ -68,11 +102,11 @@ delete_old_routes() {
 		done
 	fi
 
-	arp -dan
+	arp_flush
 }
 
 add_new_routes() {
-	route delete default >/dev/null 2>&1
+	route add $new_ip_address $LOCALHOST >/dev/null 2>&1
 	for router in $new_routers; do
 		if [ "$new_ip_address" = "$router" ]; then
 			route add default -iface $router >/dev/null 2>&1
@@ -85,6 +119,7 @@ add_new_routes() {
 	done
 
 	if [ -n "$new_static_routes" ]; then
+		$LOGGER "New Static Routes ($interface): $new_static_routes"
 		set $new_static_routes
 		while [ $# -gt 1 ]; do
 			route add $1 $2
@@ -141,12 +176,10 @@ add_new_resolv_conf() {
 # Start of active code.
 #
 
-if [ -n "$new_network_number" ]; then
-	echo "New Network Number: $new_network_number"
-fi
-
-if [ -n "$new_broadcast_address" ]; then
-	echo "New Broadcast Address: $new_broadcast_address"
+if [ -x $NETSTAT ]; then
+	if_defaulroute=`$NETSTAT -rn | $GREP "^default" | $AWK '{print $6}'`
+else
+	if_defaultroute="x"
 fi
 
 case $reason in
@@ -165,6 +198,7 @@ ARPCHECK|ARPSEND)
 	;;
 
 BOUND|RENEW|REBIND|REBOOT)
+	check_hostname
 	if [ -n "$old_ip_address" ]; then
 		if [ "$old_ip_address" != "$alias_ip_address" ]; then
 			delete_old_alias
@@ -205,6 +239,7 @@ TIMEOUT)
 	add_new_address
 	sleep 1
 	if [ -n "$new_routers" ]; then
+		$LOGGER "New Routers ($interface): $new_routers"
 		set "$new_routers"
 		if ping -q -c 1 -w 1 "$1"; then
 			if [ "$new_ip_address" != "$alias_ip_address" ]; then
@@ -217,8 +252,6 @@ TIMEOUT)
 		fi
 	fi
 	ifconfig $interface inet -alias $new_ip_address $medium
-	# XXX Why not a delete_old_address as before all other invocations of
-	#     delete_old_routes?
 	delete_old_routes
 	exit 1
 	;;
