@@ -253,6 +253,7 @@ SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
 
 static int pfil_bridge = 1; /* run pfil hooks on the bridge interface */
 static int pfil_member = 1; /* run pfil hooks on the member interface */
+static int pfil_ipfw = 0;   /* layer2 filter with ipfw */
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_bridge, CTLFLAG_RW,
     &pfil_bridge, 0, "Packet filter on the bridge interface");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_member, CTLFLAG_RW,
@@ -376,6 +377,35 @@ static moduledata_t bridge_mod = {
 
 DECLARE_MODULE(if_bridge, bridge_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
+/*
+ * handler for net.link.bridge.pfil_ipfw
+ */
+static int
+sysctl_pfil_ipfw(SYSCTL_HANDLER_ARGS)
+{
+    int enable = pfil_ipfw;
+    int error;
+
+    error = sysctl_handle_int(oidp, &enable, 0, req);
+    enable = (enable) ? 1 : 0;
+
+    if (enable != pfil_ipfw) {
+	pfil_ipfw = enable;
+
+	/*
+	 * Disable pfil so that ipfw doesnt run twice, if the user really wants
+	 * both then they can re-enable pfil_bridge and/or pfil_member.
+	 */
+	if (pfil_ipfw) {
+		pfil_bridge = 0;
+		pfil_member = 0;
+	}
+    }
+
+    return error;
+}
+SYSCTL_PROC(_net_link_bridge, OID_AUTO, ipfw, CTLTYPE_INT|CTLFLAG_RW,
+	    &pfil_ipfw, 0, &sysctl_pfil_ipfw, "I", "Layer2 filter with IPFW");
 
 /*
  * bridge_clone_create:
@@ -2109,14 +2139,25 @@ bridge_rtnode_destroy(struct bridge_softc *sc, struct bridge_rtnode *brt)
 static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 		struct ifnet *ifp, int dir)
 {
-	int snap, error;
+	int snap, error, i;
 	struct ether_header *eh1, eh2;
+	struct ip_fw_args args;
 	struct ip *ip;
 	struct llc llc;
 	u_int16_t ether_type;
 
 	snap = 0;
 	error = -1;	/* Default error if not error == 0 */
+
+	i = min((*mp)->m_pkthdr.len, max_protohdr);
+	if ((*mp)->m_len < i) {
+	    *mp = m_pullup(*mp, i);
+	    if (*mp == NULL) {
+		printf("%s: m_pullup failed\n", __func__);
+		return -1;
+	    }
+	}
+
 	eh1 = mtod(*mp, struct ether_header *);
 	ether_type = ntohs(eh1->ether_type);
 
@@ -2154,7 +2195,13 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 # endif /* INET6 */
 			break;
 		default:
-			goto bad;
+			/* 
+			 * ipfw allows layer2 protocol filtering using
+			 * 'mac-type' so we will let the packet past, if
+			 * ipfw is disabled then drop it.
+			 */
+			if (!IPFW_LOADED || pfil_ipfw == 0)
+				goto bad;
 	}
 
 	/* Strip off the Ethernet header and keep a copy. */
@@ -2243,6 +2290,22 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 		goto bad;
 
 	error = -1;
+
+	if (IPFW_LOADED && pfil_ipfw != 0) {
+		args.m = *mp;
+		args.oif = NULL;
+		args.next_hop = NULL;
+		args.rule = NULL;
+		args.eh = &eh2;
+		i = ip_fw_chk_ptr(&args);
+		*mp = args.m;
+
+		if (*mp == NULL)
+			return error;
+
+		if (i == IP_FW_DENY) /* drop */
+			goto bad;
+	}
 
 	/*
 	 * Finally, put everything back the way it was and return
