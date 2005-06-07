@@ -3,6 +3,7 @@ ARM32_NEW_VM_LAYOUT	opt_vm.h
 ARM9_CACHE_WRITE_THROUGH	opt_global.h
 ARM_CACHE_LOCK_ENABLE	opt_global.h
 ARMFPE			opt_global.h
+ARM_USE_SMALL_ALLOC	opt_global.h
 CPU_SA1100		opt_global.h
 CPU_SA1110		opt_global.h
 CPU_ARM9		opt_global.h
