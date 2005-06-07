@@ -1182,31 +1182,46 @@ ieee80211_find_node_with_ssid(struct ieee80211_node_table *nt,
 	const u_int8_t *macaddr, u_int ssidlen, const u_int8_t *ssid)
 #endif
 {
+#define	MATCH_SSID(ni, ssid, ssidlen) \
+	(ni->ni_esslen == ssidlen && memcmp(ni->ni_essid, ssid, ssidlen) == 0)
+	static const u_int8_t zeromac[IEEE80211_ADDR_LEN];
 	struct ieee80211com *ic = nt->nt_ic;
 	struct ieee80211_node *ni;
 	int hash;
 
-	hash = IEEE80211_NODE_HASH(macaddr);
 	IEEE80211_NODE_LOCK(nt);
-	LIST_FOREACH(ni, &nt->nt_hash[hash], ni_hash) {
-		if (IEEE80211_ADDR_EQ(ni->ni_macaddr, macaddr) &&
-		    ni->ni_esslen == ic->ic_des_esslen &&
-		    memcmp(ni->ni_essid, ic->ic_des_essid, ni->ni_esslen) == 0) {
-			ieee80211_ref_node(ni);		/* mark referenced */
-			IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
-#ifdef IEEE80211_DEBUG_REFCNT
-			    "%s (%s:%u) %p<%s> refcnt %d\n", __func__,
-			    func, line,
-#else
-			    "%s %p<%s> refcnt %d\n", __func__,
-#endif
-			     ni, ether_sprintf(ni->ni_macaddr),
-			     ieee80211_node_refcnt(ni));
-			break;
+	/*
+	 * A mac address that is all zero means match only the ssid;
+	 * otherwise we must match both.
+	 */
+	if (IEEE80211_ADDR_EQ(macaddr, zeromac)) {
+		TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
+			if (MATCH_SSID(ni, ssid, ssidlen))
+				break;
 		}
+	} else {
+		hash = IEEE80211_NODE_HASH(macaddr);
+		LIST_FOREACH(ni, &nt->nt_hash[hash], ni_hash) {
+			if (IEEE80211_ADDR_EQ(ni->ni_macaddr, macaddr) &&
+			    MATCH_SSID(ni, ssid, ssidlen))
+				break;
+		}
+	}
+	if (ni != NULL) {
+		ieee80211_ref_node(ni);	/* mark referenced */
+		IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
+#ifdef IEEE80211_DEBUG_REFCNT
+		    "%s (%s:%u) %p<%s> refcnt %d\n", __func__,
+		    func, line,
+#else
+		    "%s %p<%s> refcnt %d\n", __func__,
+#endif
+		     ni, ether_sprintf(ni->ni_macaddr),
+		     ieee80211_node_refcnt(ni));
 	}
 	IEEE80211_NODE_UNLOCK(nt);
 	return ni;
+#undef MATCH_SSID
 }
 
 static void

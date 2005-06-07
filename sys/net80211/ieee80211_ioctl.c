@@ -1618,14 +1618,14 @@ ieee80211_ioctl_setmlme(struct ieee80211com *ic, struct ieee80211req *ireq)
 			return EINVAL;
 		/* XXX must be in S_SCAN state? */
 
-		if (ic->ic_des_esslen != 0) {
+		if (mlme.im_ssid_len != 0) {
 			/*
 			 * Desired ssid specified; must match both bssid and
 			 * ssid to distinguish ap advertising multiple ssid's.
 			 */
 			ni = ieee80211_find_node_with_ssid(&ic->ic_scan,
 				mlme.im_macaddr,
-				ic->ic_des_esslen, ic->ic_des_essid);
+				mlme.im_ssid_len, mlme.im_ssid);
 		} else {
 			/*
 			 * Normal case; just match bssid.
