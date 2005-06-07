@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sys/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.983 2005/01/07 17:43:22 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.986 2005/03/05 02:28:50 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -4267,6 +4267,16 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 		bp += strlen(bp);
 	}
 
+#if _FFR_LOG_NTRIES
+	/* ntries */
+	if (e->e_ntries >= 0)
+	{
+		(void) sm_snprintf(bp, SPACELEFT(buf, bp),
+				   ", ntries=%d", e->e_ntries + 1);
+		bp += strlen(bp);
+	}
+#endif /* _FFR_LOG_NTRIES */
+
 # define STATLEN		(((SYSLOG_BUFSIZE) - 100) / 4)
 # if (STATLEN) < 63
 #  undef STATLEN
@@ -5672,6 +5682,10 @@ hostsignature(m, host)
 	    strcmp(m->m_mailer, "[IPC]") != 0 &&
 	    !(m->m_argv[0] != NULL && strcmp(m->m_argv[0], "TCP") == 0))
 		return "localhost";
+
+	/* an empty host does not have MX records */
+	if (*host == '\0')
+		return "_empty_";
 
 	/*
 	**  Check to see if this uses IPC -- if not, it can't have MX records.
