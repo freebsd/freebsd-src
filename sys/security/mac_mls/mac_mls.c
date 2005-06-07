@@ -1096,7 +1096,7 @@ mac_mls_create_sysv_msgqueue(struct ucred *cred, struct msqid_kernel *msqkptr,
 }
 
 static void
-mac_mls_create_sysv_sema(struct ucred *cred, struct semid_kernel *semakptr,
+mac_mls_create_sysv_sem(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semalabel)
 {
 	struct mac_mls *source, *dest;
@@ -1394,7 +1394,7 @@ mac_mls_cleanup_sysv_msgqueue(struct label *msqlabel)
 }
 
 static void
-mac_mls_cleanup_sysv_sema(struct label *semalabel)
+mac_mls_cleanup_sysv_sem(struct label *semalabel)
 {
 
 	bzero(SLOT(semalabel), sizeof(struct mac_mls));
@@ -2831,7 +2831,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_init_inpcb_label = mac_mls_init_label_waitcheck,
 	.mpo_init_sysv_msgmsg_label = mac_mls_init_label,
 	.mpo_init_sysv_msgqueue_label = mac_mls_init_label,
-	.mpo_init_sysv_sema_label = mac_mls_init_label,
+	.mpo_init_sysv_sem_label = mac_mls_init_label,
 	.mpo_init_sysv_shm_label = mac_mls_init_label,
 	.mpo_init_ipq_label = mac_mls_init_label_waitcheck,
 	.mpo_init_mbuf_label = mac_mls_init_label_waitcheck,
@@ -2849,7 +2849,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_destroy_inpcb_label = mac_mls_destroy_label,
 	.mpo_destroy_sysv_msgmsg_label = mac_mls_destroy_label,
 	.mpo_destroy_sysv_msgqueue_label = mac_mls_destroy_label,
-	.mpo_destroy_sysv_sema_label = mac_mls_destroy_label,
+	.mpo_destroy_sysv_sem_label = mac_mls_destroy_label,
 	.mpo_destroy_sysv_shm_label = mac_mls_destroy_label,
 	.mpo_destroy_ipq_label = mac_mls_destroy_label,
 	.mpo_destroy_mbuf_label = mac_mls_destroy_label,
@@ -2906,7 +2906,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_create_ipq = mac_mls_create_ipq,
 	.mpo_create_sysv_msgmsg = mac_mls_create_sysv_msgmsg,
 	.mpo_create_sysv_msgqueue = mac_mls_create_sysv_msgqueue,
-	.mpo_create_sysv_sema = mac_mls_create_sysv_sema,
+	.mpo_create_sysv_sem = mac_mls_create_sysv_sem,
 	.mpo_create_sysv_shm = mac_mls_create_sysv_shm,
 	.mpo_create_mbuf_from_inpcb = mac_mls_create_mbuf_from_inpcb,
 	.mpo_create_mbuf_from_mbuf = mac_mls_create_mbuf_from_mbuf,
@@ -2924,7 +2924,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_relabel_cred = mac_mls_relabel_cred,
 	.mpo_cleanup_sysv_msgmsg = mac_mls_cleanup_sysv_msgmsg,
 	.mpo_cleanup_sysv_msgqueue = mac_mls_cleanup_sysv_msgqueue,
-	.mpo_cleanup_sysv_sema = mac_mls_cleanup_sysv_sema,
+	.mpo_cleanup_sysv_sem = mac_mls_cleanup_sysv_sem,
 	.mpo_cleanup_sysv_shm = mac_mls_cleanup_sysv_shm,
 	.mpo_check_bpfdesc_receive = mac_mls_check_bpfdesc_receive,
 	.mpo_check_cred_relabel = mac_mls_check_cred_relabel,

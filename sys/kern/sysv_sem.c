@@ -248,7 +248,7 @@ seminit(void)
 		sema[i].u.sem_perm.mode = 0;
 		sema[i].u.sem_perm.seq = 0;
 #ifdef MAC
-		mac_init_sysv_sema(&sema[i]);
+		mac_init_sysv_sem(&sema[i]);
 #endif
 	}
 	for (i = 0; i < seminfo.semmni; i++)
@@ -274,7 +274,7 @@ semunload(void)
 	EVENTHANDLER_DEREGISTER(process_exit, semexit_tag);
 #ifdef MAC
 	for (i = 0; i < seminfo.semmni; i++)
-		mac_destroy_sysv_sema(&sema[i]);
+		mac_destroy_sysv_sem(&sema[i]);
 #endif
 	free(sem, M_SEM);
 	free(sema, M_SEM);
@@ -646,7 +646,7 @@ __semctl(td, uap)
 		}
 		semakptr->u.sem_perm.mode = 0;
 #ifdef MAC
-		mac_cleanup_sysv_sema(semakptr);
+		mac_cleanup_sysv_sem(semakptr);
 #endif
 		SEMUNDO_LOCK();
 		semundo_clear(semid, -1);
@@ -932,7 +932,7 @@ semget(td, uap)
 		bzero(sema[semid].u.sem_base,
 		    sizeof(sema[semid].u.sem_base[0])*nsems);
 #ifdef MAC
-		mac_create_sysv_sema(cred, &sema[semid]);
+		mac_create_sysv_sem(cred, &sema[semid]);
 #endif
 		DPRINTF(("sembase = 0x%x, next = 0x%x\n",
 		    sema[semid].u.sem_base, &sem[semtot]));
