@@ -65,10 +65,13 @@ ESS Technology Maestro3
 .El
 .Sh DIAGNOSTICS
 The hardware volume control buttons can be connected to two different pin
-sets on the chip, depending on the manufacturer.
+sets(GPIO or GD) on the chip, depending on the manufacturer.
 The driver has no way of determining this configuration, so a hint may be
 used to override the default guess.
-Add the line
+The default setting for hardware volume control assumes that GD pins
+are wired to control the hardware volume.
+For systems that have the GPIO pins wired to the hardware volume control
+buttons, add the line
 .Dq Li hint.pcm.0.hwvol_config="0"
 to the file
 .Pa /boot/device.hints
