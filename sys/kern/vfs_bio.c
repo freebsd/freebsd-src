@@ -1985,8 +1985,7 @@ buf_daemon()
 				flushbufqueues(1);
 				break;
 			}
-			waitrunningbufspace();
-			numdirtywakeup((lodirtybuffers + hidirtybuffers) / 2);
+			uio_yield();
 		}
 
 		/*
@@ -2034,13 +2033,28 @@ static int
 flushbufqueues(int flushdeps)
 {
 	struct thread *td = curthread;
+	struct buf sentinal;
 	struct vnode *vp;
 	struct mount *mp;
 	struct buf *bp;
 	int hasdeps;
+	int flushed;
+	int target;
 
+	target = numdirtybuffers - lodirtybuffers;
+	if (flushdeps && target > 2)
+		target /= 2;
+	flushed = 0;
+	bp = NULL;
 	mtx_lock(&bqlock);
-	TAILQ_FOREACH(bp, &bufqueues[QUEUE_DIRTY], b_freelist) {
+	TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], &sentinal, b_freelist);
+	while (flushed != target) {
+		bp = TAILQ_FIRST(&bufqueues[QUEUE_DIRTY]);
+		if (bp == &sentinal)
+			break;
+		TAILQ_REMOVE(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
+		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
+
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 			continue;
 		BO_LOCK(bp->b_bufobj);
@@ -2055,7 +2069,10 @@ flushbufqueues(int flushdeps)
 			bremfreel(bp);
 			mtx_unlock(&bqlock);
 			brelse(bp);
-			return (1);
+			flushed++;
+			numdirtywakeup((lodirtybuffers + hidirtybuffers) / 2);
+			mtx_lock(&bqlock);
+			continue;
 		}
 
 		if (LIST_FIRST(&bp->b_dep) != NULL && buf_countdeps(bp, 0)) {
@@ -2089,13 +2106,18 @@ flushbufqueues(int flushdeps)
 			vn_finished_write(mp);
 			VOP_UNLOCK(vp, 0, td);
 			flushwithdeps += hasdeps;
-			return (1);
+			flushed++;
+			waitrunningbufspace();
+			numdirtywakeup((lodirtybuffers + hidirtybuffers) / 2);
+			mtx_lock(&bqlock);
+			continue;
 		}
 		vn_finished_write(mp);
 		BUF_UNLOCK(bp);
 	}
+	TAILQ_REMOVE(&bufqueues[QUEUE_DIRTY], &sentinal, b_freelist);
 	mtx_unlock(&bqlock);
-	return (0);
+	return (flushed);
 }
 
 /*
