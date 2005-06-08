@@ -1216,6 +1216,8 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                             tptr = pptr + len;
                             break;
 			}
+                        if (advance < 0) /* infinite loop protection */
+                            break;
 			tptr += advance;
 		}
 		break;
@@ -1646,9 +1648,10 @@ bgp_update_print(const u_char *dat, int length)
 		while (dat + length > p) {
 			char buf[MAXHOSTNAMELEN + 100];
 			i = decode_prefix4(p, buf, sizeof(buf));
-			if (i == -1)
+			if (i == -1) {
 				printf("\n\t    (illegal prefix length)");
-			else if (i == -2)
+				break;
+			} else if (i == -2)
 				goto trunc;
 			else {
 				printf("\n\t    %s", buf);
