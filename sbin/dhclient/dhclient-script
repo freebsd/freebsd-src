@@ -172,6 +172,16 @@ add_new_resolv_conf() {
 	return 1
 }
 
+# Must be used on exit.   Invokes the local dhcp client exit hooks, if any.
+exit_with_hooks() {
+	exit_status=$1
+	if [ -f /etc/dhclient-exit-hooks ]; then
+		. /etc/dhclient-exit-hooks
+	fi
+	# probably should do something with exit status of the local script
+	exit $exit_status
+}
+
 #
 # Start of active code.
 #
@@ -247,14 +257,14 @@ TIMEOUT)
 			fi
 			add_new_routes
 			if add_new_resolv_conf; then
-				exit 0
+				exit_with_hooks 0
 			fi
 		fi
 	fi
 	ifconfig $interface inet -alias $new_ip_address $medium
 	delete_old_routes
-	exit 1
+	exit_with_hooks 1
 	;;
 esac
 
-exit 0
+exit_with_hooks 0
