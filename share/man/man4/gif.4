@@ -50,6 +50,11 @@ On
 .Nx ,
 .Nm
 can also tunnel ISO traffic over IPv[46] using EON encapsulation.
+Note that
+.Nm
+does not perform GRE encapsulation; use
+.Xr gre 4
+for GRE encapsulation.
 .Pp
 Each
 .Nm
@@ -183,6 +188,7 @@ variable
 .Va net.link.gif.parallel_tunnels
 to 1.
 .Sh SEE ALSO
+.Xr gre 4 ,
 .Xr inet 4 ,
 .Xr inet6 4 ,
 .Xr ifconfig 8
