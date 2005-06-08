@@ -87,6 +87,7 @@ ed_pci_attach(device_t dev)
                 ed_release_resources(dev);
                 return (error);
 	}
+	ed_Novell_read_mac(sc);
 
         error = ed_alloc_irq(dev, 0, RF_SHAREABLE);
         if (error) {
