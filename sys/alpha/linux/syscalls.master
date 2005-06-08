@@ -181,7 +181,7 @@
 				    struct l_sockaddr *name, l_int namelen); }
 99	AUE_NULL	NOPROTO	{ int oaccept(int s, caddr_t name, \
 				    int *anamelen); } accept accept_args int
-100	AUE_NULL	UNIMPL	osf_getpriority
+100	AUE_NULL	MSTD	{ int linux_getpriority(int which, int who); }
 101	AUE_NULL	NOPROTO	{ int osend(int s, caddr_t buf, int len, \
 				    int flags); }
 102	AUE_NULL	NOPROTO { int orecv(int s, caddr_t buf, int len, \
