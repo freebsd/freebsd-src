@@ -176,7 +176,7 @@
 93	AUE_NULL	NOPROTO	{ int oftruncate(int fd, long length); }
 94	AUE_NULL	NOPROTO	{ int fchmod(int fd, int mode); }
 95	AUE_NULL	NOPROTO	{ int fchown(int fd, int uid, int gid); }
-96	AUE_NULL	MNOPROTO { int getpriority(int which, int who); }
+96	AUE_NULL	MSTD	{ int linux_getpriority(int which, int who); }
 97	AUE_NULL	MNOPROTO { int setpriority(int which, int who, \
 				    int prio); }
 98	AUE_NULL	UNIMPL	profil
