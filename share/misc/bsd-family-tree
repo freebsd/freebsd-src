@@ -184,7 +184,12 @@ FreeBSD 5.2           |      |                 |                       |
  |                    |      |                 |                       |
  *---FreeBSD 5.3      |      |                 |                       |
  |      |             |      |             OpenBSD 3.6                 |
- |      v             |   NetBSD 2.0           |                       |
+ |      |             |   NetBSD 2.0           |                       |
+ |      |             |      |                 |                 DragonFly 1.2.0
+ |      |          Mac OS X  |                 |                       |
+ |   FreeBSD 5.4     10.4    |                 |                       |
+ |      |             |      |             OpenBSD 3.7                 |
+ |      V             |      |                 |                       |
  |                    |      |                 |                       |
 FreeBSD 6 -current    |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
@@ -201,7 +206,7 @@ was the announcement in Usenet or if it was available as tape.
 	the 4.4BSD Operating System.
 [APL] Apple website [http://www.apple.com/macosx/]
 [BSDI] Berkeley Software Design, Inc.
-[DFD] DragonFlyBSD Project, The.
+[DFB] DragonFlyBSD Project, The.
 [DOC] README, COPYRIGHT on tape.
 [FBD] FreeBSD Project, The.
 [KB]  Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources,
@@ -308,12 +313,13 @@ NetBSD 0.9              1993-08-23 [NBD]
 FreeBSD 1.0		1993-11-01 [FBD]
 BSD/386 1.1		1994-02-xx [BSDI]
 4.4BSD Lite             1994-03-01 [USE]
-FreeBSD 1.1		1994-04-xx [FBD]
-FreeBSD 1.1.5.1		1994-07-xx [FBD]
-				supersedes 1.1.5 3 days after release.
+FreeBSD 1.1		1994-05-07 [FBD]
+FreeBSD 1.1.5		1994-06-30 [FBD]
+FreeBSD 1.1.5.1		1994-07-05 [FBD]
+				supersedes 1.1.5 5 days after release.
 NetBSD 1.0              1994-10-26 [NBD]
 386BSD 1.0              1994-11-12 [USE]
-FreeBSD 2.0		1995-01-xx [FBD]
+FreeBSD 2.0		1994-11-23 [FBD]
 BSD/OS 2.0		1995-01-xx [BSDI] 4.4 lite based
 FreeBSD 2.0.5		1995-06-10 [FBD]
 BSD/OS 2.0.1		1995-06-xx [BSDI]
@@ -410,11 +416,15 @@ FreeBSD 5.2.1		2004-02-22 [FBD] (patch release)
 NetBSD 1.6.2		2004-03-01 [NBD] (patch release)
 OpenBSD 3.5		2004-04-01 [OBD]
 FreeBSD 4.10		2004-05-27 [FBD]
-DragonFly 1.0		2004-07-12 [DFD]
+DragonFly 1.0		2004-07-12 [DFB]
 OpenBSD 3.6		2004-10-29 [OBD]
 FreeBSD 5.3		2004-11-06 [FBD]
 NetBSD 2.0		2004-12-09 [NBD]
 FreeBSD 4.11		2005-01-25 [FBD]
+DragonFly 1.2.0		2005-04-08 [DFB]
+Mac OS X 10.4		2005-04-29 [APL]
+FreeBSD 5.4		2005-05-09 [FBD]
+OpenBSD 3.7		2005-05-19 [OBD]
 
 Bibliography
 ------------------------
@@ -441,7 +451,7 @@ Presented to the Tasmanian Unix Special Interest Group of the
 Australian Computer Society, Hobart, August 1993.
 
 Peter H. Salus. Unix at 25. Byte Magazine, October 1994.
-URL: http://www.byte.com/art/9410/sec8/art3.htm (unreachable)
+URL: http://www.byte.com/art/9410/sec8/art3.htm
 
 Andreas Klemm, Lars Köller. If you're going to San Francisco ...
 Die freien BSD-Varianten von Unix. c't April 1997, page 368ff.
