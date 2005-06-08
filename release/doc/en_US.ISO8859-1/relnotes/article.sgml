@@ -1279,7 +1279,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       v0.3.7 has been imported.  This is a user space IEEE
       802.11 AP and IEEE 802.1X/WPA/WPA2/EAP
       Authenticator and RADIUS authentication server.
-      For more details, see &man.hostapd.1;.</para>
+      For more details, see &man.hostapd.8;.</para>
 
     <para><application>libpcap</application> has been updated from
       v0.8.3 to v0.9.1 (alpha 096).</para>
@@ -1339,7 +1339,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para>The <application>WPA Supplicant</application>
       v0.3.8 has been imported.  This provides WPA Supplicant
       component of WPA/IEEE 802.11i features.
-      For more details, see &man.wpa.supplicant.1;.</para>
+      For more details, see &man.wpa.supplicant.8;.</para>
 
   </sect2>
 
