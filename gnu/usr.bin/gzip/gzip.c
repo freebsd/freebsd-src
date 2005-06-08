@@ -830,8 +830,11 @@ local void treat_file(iname)
     }
 
     close(ifd);
-    if (!to_stdout && close(ofd)) {
-	write_error();
+    if (!to_stdout) {
+        /* Copy modes, times, ownership, and remove the input file */
+        copy_stat(&istat);
+        if (close(ofd))
+	    write_error();
     }
     if (method == -1) {
 	if (!to_stdout) unlink (ofname);
@@ -850,10 +853,6 @@ local void treat_file(iname)
 	    fprintf(stderr, " -- replaced with %s", ofname);
 	}
 	fprintf(stderr, "\n");
-    }
-    /* Copy modes, times, ownership, and remove the input file */
-    if (!to_stdout) {
-	copy_stat(&istat);
     }
 }
 
@@ -1258,6 +1257,7 @@ local int get_method(in)
 		/* Copy the base name. Keep a directory prefix intact. */
                 char *p = basename(ofname);
                 char *base = p;
+		char *base2;
 		for (;;) {
 		    *p = (char)get_char();
 		    if (*p++ == '\0') break;
@@ -1265,6 +1265,8 @@ local int get_method(in)
 			error("corrupted input -- file name too large");
 		    }
 		}
+		base2 = basename (base);
+		strcpy(base, base2);
                 /* If necessary, adapt the name to local OS conventions: */
                 if (!list) {
                    MAKE_LEGAL_NAME(base);
@@ -1637,12 +1639,12 @@ local void copy_stat(ifstat)
     reset_times(ofname, ifstat);
 #endif
     /* Copy the protection modes */
-    if (chmod(ofname, ifstat->st_mode & 07777)) {
+    if (fchmod(ofd, ifstat->st_mode & 07777)) {
 	WARN((stderr, "%s: ", progname));
 	if (!quiet) perror(ofname);
     }
 #ifndef NO_CHOWN
-    chown(ofname, ifstat->st_uid, ifstat->st_gid);  /* Copy ownership */
+    (void) fchown(ofd, ifstat->st_uid, ifstat->st_gid);  /* Copy ownership */
 #endif
     remove_ofname = 0;
     /* It's now safe to remove the input file: */

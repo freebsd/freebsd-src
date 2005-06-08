@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050608:	p2	FreeBSD-SA-05:10.tcpdump, FreeBSD-SA-05:11.gzip
+	Correct several denial-of-service vulnerabilities in tcpdump.
+
+	Correct directory traversal and race condition vulnerabilities in gzip.
+
 20050513:	p1  	FreeBSD-SA-05:09.htt
 	Add a knob for disabling/enabling HTT.  Default off due to information
 	disclosure on multi-user systems.
