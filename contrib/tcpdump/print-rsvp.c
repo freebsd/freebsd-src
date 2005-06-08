@@ -875,10 +875,17 @@ rsvp_print(register const u_char *pptr, register u_int len) {
             switch(rsvp_obj_ctype) {
             case RSVP_CTYPE_IPV4:
                 while(obj_tlen >= 4 ) {
-                    printf("\n\t    Subobject Type: %s",
+                    printf("\n\t    Subobject Type: %s, length %u",
                            tok2str(rsvp_obj_xro_values,
                                    "Unknown %u",
-                                   RSVP_OBJ_XRO_MASK_SUBOBJ(*obj_tptr)));                
+                                   RSVP_OBJ_XRO_MASK_SUBOBJ(*obj_tptr)),
+                           *(obj_tptr+1));                
+
+                    if (*(obj_tptr+1) == 0) { /* prevent infinite loops */
+                        printf("\n\t      ERROR: zero length ERO subtype");
+                        break;
+                    }
+
                     switch(RSVP_OBJ_XRO_MASK_SUBOBJ(*obj_tptr)) {
                     case RSVP_OBJ_XRO_IPV4:
                         printf(", %s, %s/%u, Flags: [%s]",

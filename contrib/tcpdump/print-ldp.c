@@ -326,6 +326,9 @@ ldp_print(register const u_char *pptr, register u_int len) {
                EXTRACT_32BITS(&ldp_msg_header->id),
                LDP_MASK_U_BIT(EXTRACT_16BITS(&ldp_msg_header->type)) ? "continue processing" : "ignore");
 
+        if (msg_len == 0) /* infinite loop protection */
+            break;
+
         msg_tptr=tptr+sizeof(struct ldp_msg_header);
         msg_tlen=msg_len-sizeof(struct ldp_msg_header)+4; /* Type & Length fields not included */
 
