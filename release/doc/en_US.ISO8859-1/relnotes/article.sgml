@@ -212,6 +212,9 @@
       and threads currently holding sleep mutexes (and spin mutexes for
       the current thread).  &merged;</para>
 
+    <para>The &man.ichsmb.4; driver is now available as a loadable
+      kernel module.</para>
+
     <para>The &man.jail.8; feature now supports a new sysctl
       <varname>security.jail.chflags_allowed</varname>, which controls the
       behavior of &man.chflags.1; within a jail.
@@ -574,7 +577,9 @@
       <para>The &man.if.bridge.4; network bridging implementation,
 	originally from NetBSD, has been added.  It supports the IEEE
 	802.1D Spanning Tree Protocol, individual interface devices
-	for each bridge, and filtering of bridged packets.</para>
+	for each bridge, and filtering of bridged packets.
+	The &man.ifconfig.8; utility now supports to configure
+	&man.if.bridge.4;.</para>
 
       <para>The &man.ipfw.4; <literal>IPDIVERT</literal> option is now
 	available as a kernel loadable module.
@@ -616,6 +621,9 @@
 
       <para>The <filename>libalias</filename> library can now be built
         as a kernel module.</para>
+
+      <para>The link state change notifications of network interface
+	are sent to <filename>/dev/devctl</filename> now.</para>
 
       <para>A new &man.ng.ipfw.4; NetGraph node provides
 	a simple interface between the &man.ipfw.4; and &man.netgraph.4;
@@ -789,9 +797,6 @@
 
       <para><application>ACPI-CA</application> has been updated from
 	20040527 to 20041119. &merged;</para>
-
-      <para><application>sendmail</application> has been updated from
-	8.13.3 to 8.13.4.</para>
 
     </sect3>
   </sect2>
@@ -1163,6 +1168,9 @@
       &man.services.5;, and so on to be ignored if it did not end in a newline character,
       has been fixed. &merged;</para>
 
+    <para>A new system user/group <username>_dhcp</username>
+      has been added to support &man.dhclient.8; from OpenBSD.</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -1197,6 +1205,36 @@ moused_ums0_port="/dev/ums0"</programlisting>
 	such as to turn on/off softupdates, to specify a default owner
 	for the file system, and so on. &merged;</para>
 
+      <para>The following scripts have been removed because
+	they were NetBSD specific and never used in &os;:
+	<filename>altqd</filename>,
+	<filename>dhcpd</filename>,
+	<filename>dhcrelay</filename>,
+	<filename>downinterfaces</filename>,
+	<filename>gated</filename>,
+	<filename>ifwatchd</filename>,
+	<filename>kdc</filename>,
+	<filename>lkm1</filename>,
+	<filename>lkm2</filename>,
+	<filename>lkm3</filename>,
+	<filename>mixerctl</filename>,
+	<filename>mopd</filename>,
+	<filename>mountall</filename>,
+	<filename>ndbootd</filename>,
+	<filename>network</filename>,
+	<filename>poffd</filename>,
+	<filename>postfix</filename>,
+	<filename>ppp</filename>,
+	<filename>racoon</filename>,
+	<filename>raidframe</filename>,
+	<filename>rbootd</filename>,
+	<filename>rtsold</filename>,
+	<filename>screenblank</filename>,
+	<filename>swap2</filename>,
+	<filename>sysdb</filename>,
+	<filename>wscons</filename>,
+	<filename>xdm</filename>, and
+	<filename>xfs</filename></para>
     </sect3>
   </sect2>
 
@@ -1214,6 +1252,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para><application>bzip2</application> has been updated from 1.0.2
       to 1.0.3.</para>
+
+    <para><application>OpenBSD dhclient</application> as of OpenBSD 3.7
+      has been imported.</para>
 
     <para><application>FILE</application> has been updated from 4.10
       to 4.12.</para>
@@ -1233,6 +1274,12 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para><application>Heimdal</application> has been updated from
       0.6.1 to 0.6.3. &merged;</para>
+
+    <para>The <application>hostapd</application>
+      v0.3.7 has been imported.  This is a user space IEEE
+      802.11 AP and IEEE 802.1X/WPA/WPA2/EAP
+      Authenticator and RADIUS authentication server.
+      For more details, see &man.hostapd.1;.</para>
 
     <para><application>libpcap</application> has been updated from
       v0.8.3 to v0.9.1 (alpha 096).</para>
@@ -1273,6 +1320,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.3. &merged;</para>
 
+    <para><application>sendmail</application> has been updated from
+      version 8.13.3 to version 8.13.4.</para>
+
     <para><application>TCPDUMP</application> has been updated from
       v3.8.3 to v3.9.1 (alpha 096).</para>
 
@@ -1286,10 +1336,21 @@ moused_ums0_port="/dev/ums0"</programlisting>
       <application>tzdata2004e</application> release to the
       <application>tzdata2004g</application> release. &merged;</para>
 
+    <para>The <application>WPA Supplicant</application>
+      v0.3.8 has been imported.  This provides WPA Supplicant
+      component of WPA/IEEE 802.11i features.
+      For more details, see &man.wpa.supplicant.1;.</para>
+
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
+
+    <para>The &man.pkg.create.1; utility now supports a
+      <option>-R</option> flag.  When creating a package file
+      from the locally installed package, it creates package
+      files for all packages on which that locally installed
+      package depends if this flag is specified.</para>
 
     <para>The &man.pkg.version.1; utility now supports a
       <option>-q</option> flag to suppress the output of the port
