@@ -178,14 +178,16 @@ Set to PCCARD controller memory address or
 for the default value.
 .It Va pccard_ifconfig
 .Pq Vt str
-List of arguments to be passed to
-.Xr ifconfig 8
-at boot time or on
-insertion of the card (e.g.\&
-.Dq Cm inet Li 192.168.1.1 Cm netmask Li 255.255.255.0
-for a fixed address or
-.Dq Li DHCP
-for a DHCP client).
+This variable has the same format as the
+.Va ifconfig_ Ns Aq Ar interface
+variable
+(see
+.Va network_interfaces
+below).
+It is used as a fallback variable when there is no
+.Va ifconfig_ Ns Aq Ar interface
+is defined and only if the interface name is listed in
+.Va removable_interfaces .
 .It Va pccard_beep
 .Pq Vt int
 If 0,
@@ -229,6 +231,9 @@ daemon.
 .Pq Vt str
 List of removable network interfaces to be supported by
 .Pa /etc/pccard_ether .
+This also determines which interfaces will be able to use the
+.Va pccard_ifconfig
+fallback variable.
 .It Va tmpmfs
 Controls the creation of a
 .Pa /tmp
@@ -953,10 +958,11 @@ and
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
 variables.
 .Pp
-It is possible to bring up an interface with DHCP by setting the
+It is possible to bring up an interface with DHCP by adding
+.Dq Li DHCP
+to the
 .Va ifconfig_ Ns Aq Ar interface
-variable to
-.Dq Li DHCP .
+variable.
 For instance, to initialize the
 .Li ed0
 device via DHCP,
@@ -964,6 +970,24 @@ it is possible to use something like:
 .Bd -literal
 ifconfig_ed0="DHCP"
 .Ed
+.Pp
+Also, if your interface needs WPA authentication, it is possible to add
+.Dq Li WPA
+to the
+.Va ifconfig_ Ns Aq Ar interface
+variable.
+.Pp
+Finally, you can add
+.Xr ifconfig 8
+options in this variable, in addition to the
+.Pa /etc/start_if. Ns Aq Ar interface
+file.
+For instance, to initialize the
+.Li wi0
+device via DHCP, using WPA authentication and 802.11b mode, it is
+possible to use something like:
+.Bd -literal
+ifconfig_wi0="DHCP WPA mode 11b"
 .Pp
 It is also possible to rename interface by doing:
 .Bd -literal
