@@ -915,6 +915,10 @@ sem_forkhook(arg, p1, p2, flags)
 
 	mtx_lock(&sem_lock);
 	count = sem_count_proc(p1);
+	if (count == 0) {
+		mtx_unlock(&sem_lock);
+		return;
+	}
 race_lost:
 	mtx_assert(&sem_lock, MA_OWNED);
 	mtx_unlock(&sem_lock);
