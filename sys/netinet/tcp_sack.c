@@ -461,7 +461,6 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 		temp = tcp_sackhole_insert(tp, tp->snd_fack,sblkp->start,NULL);
 		if (temp == NULL)
 			return 0;
-		tcp_sackhole_insert(tp, tp->snd_fack, sblkp->start, NULL);
 		tp->snd_fack = sblkp->end;
 		/* Go to the previous sack block. */
 		sblkp--;
