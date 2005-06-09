@@ -265,7 +265,7 @@ main(int argc, char **argv)
 	/* configuration per interface */
 	if (ifinit()) {
 		warnmsg(LOG_ERR, __func__,
-		    "failed to initialization interfaces");
+		    "failed to initialize interfaces");
 		exit(1);
 		/*NOTREACHED*/
 	}
