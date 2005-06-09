@@ -257,6 +257,11 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	sp = &mp->mnt_stat;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
+	error = prison_canseemount(td->td_ucred, mp);
+	if (error) {
+		mtx_unlock(&Giant);
+		return (error);
+	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
@@ -271,14 +276,17 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
-	mtx_unlock(&Giant);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+		prison_enforce_statfs(td->td_ucred, mp, &sb);
 		sp = &sb;
 	}
+	mtx_unlock(&Giant);
 	*buf = *sp;
 	return (0);
 }
@@ -327,6 +335,11 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 		mtx_unlock(&Giant);
 		return (EBADF);
 	}
+	error = prison_canseemount(td->td_ucred, mp);
+	if (error) {
+		mtx_unlock(&Giant);
+		return (error);
+	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
@@ -342,14 +355,17 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
-	mtx_unlock(&Giant);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+		prison_enforce_statfs(td->td_ucred, mp, &sb);
 		sp = &sb;
 	}
+	mtx_unlock(&Giant);
 	*buf = *sp;
 	return (0);
 }
@@ -393,7 +409,7 @@ kern_getfsstat(struct thread *td, struct statfs *buf, size_t bufsize,
 	mtx_lock(&Giant);
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-		if (!prison_check_mount(td->td_ucred, mp)) {
+		if (prison_canseemount(td->td_ucred, mp) != 0) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
@@ -432,6 +448,7 @@ kern_getfsstat(struct thread *td, struct statfs *buf, size_t bufsize,
 			if (suser(td)) {
 				bcopy(sp, &sb, sizeof(sb));
 				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+				prison_enforce_statfs(td->td_ucred, mp, &sb);
 				sp = &sb;
 			}
 			if (bufseg == UIO_USERSPACE) {
@@ -4221,6 +4238,9 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	mp = vp->v_mount;
 	sp = &mp->mnt_stat;
 	vput(vp);
+	error = prison_canseemount(td->td_ucred, mp);
+	if (error)
+		return (error);
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
