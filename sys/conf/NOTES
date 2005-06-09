@@ -217,7 +217,7 @@ options 	MUTEX_WAKE_ALL
 #	  design.  If you aren't sure that you need it then you don't.
 #	  Relies on the PREEMPTION option.  DON'T TURN THIS ON.
 # IPI_PREEMPTION instructs the kernel to preempt threads running on other
-#         CPUS if needed.  Relies on the PREEMPTION option
+#	  CPUS if needed.  Relies on the PREEMPTION option
 # MUTEX_DEBUG enables various extra assertions in the mutex code.
 # SLEEPQUEUE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active sleep queues.
@@ -231,7 +231,7 @@ options 	MUTEX_WAKE_ALL
 # WITNESS_SKIPSPIN disables the witness checks on spin mutexes.
 options 	PREEMPTION
 options 	FULL_PREEMPTION
-options		IPI_PREEMPTION
+options 	IPI_PREEMPTION
 options 	MUTEX_DEBUG
 options 	WITNESS
 options 	WITNESS_KDB
