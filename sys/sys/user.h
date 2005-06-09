@@ -60,48 +60,48 @@
 /*
  * KERN_PROC subtype ops return arrays of selected proc structure entries:
  *
- * When adding new fields to this structure, ALWAYS add them at the end
- * and decrease the size of the spare field by the amount of space that
- * you are adding.  Byte aligned data should be added to the ki_sparestring
- * space; other entries should be added to the ki_spare space. Always
- * verify that sizeof(struct kinfo_proc) == KINFO_PROC_SIZE when you are
- * done. If you change the size of this structure, many programs will stop
- * working! Once you have added the new field, you will need to add code
- * to initialize it in two places: kern/kern_proc.c in the function
- * fill_kinfo_proc and in lib/libkvm/kvm_proc.c in the function kvm_proclist.
+ * This struct includes several arrays of spare space, with different arrays
+ * for different standard C-types.  When adding new variables to this struct,
+ * the space for byte-aligned data should be taken from the ki_sparestring,
+ * pointers from ki_spareptrs, word-aligned data from ki_spareints, and
+ * doubleword-aligned data from ki_sparelongs.  Make sure the space for new
+ * variables come from the array which matches the size and alignment of
+ * those variables on ALL hardware platforms, and then adjust the appropriate
+ * KI_NSPARE_* value(s) to match.
  *
- * KI_NSPARE is the number of spare-longs to define in the array at the
- * end of kinfo_proc.  It may need to be overridden on a platform-specific
- * basis as new fields are added.
+ * Always verify that sizeof(struct kinfo_proc) == KINFO_PROC_SIZE on all
+ * platforms after you have added new variables.  Note that if you change
+ * the value of KINFO_PROC_SIZE, then many userland programs will stop
+ * working until they are recompiled!
+ *
+ * Once you have added the new field, you will need to add code to initialize
+ * it in two places: function fill_kinfo_proc in sys/kern/kern_proc.c and
+ * function kvm_proclist in lib/libkvm/kvm_proc.c .
  */
-#define	KI_NSPARE	15
+#define	KI_NSPARE_INT	10
+#define	KI_NSPARE_LONG	12
+#define	KI_NSPARE_PTR	7
 
 #ifdef __alpha__
-#define	KINFO_PROC_SIZE	912
+#define	KINFO_PROC_SIZE	1088
 #endif
 #ifdef __amd64__
-#define	KINFO_PROC_SIZE	912
+#define	KINFO_PROC_SIZE	1088
 #endif
 #ifdef __arm__
-#undef KI_NSPARE			/* Fewer spare longs on this arch */
-#define	KI_NSPARE	13
-#define	KINFO_PROC_SIZE	648
+#define	KINFO_PROC_SIZE	768		/* value has not been tested... */
 #endif
 #ifdef __ia64__
-#define	KINFO_PROC_SIZE 912
+#define	KINFO_PROC_SIZE 1088
 #endif
 #ifdef __i386__
-#undef KI_NSPARE			/* Fewer spare longs on this arch */
-#define	KI_NSPARE	13
-#define	KINFO_PROC_SIZE	648
+#define	KINFO_PROC_SIZE	768
 #endif
 #ifdef __powerpc__
-#undef KI_NSPARE			/* Fewer spare longs on this arch */
-#define	KI_NSPARE	14
-#define	KINFO_PROC_SIZE	656
+#define	KINFO_PROC_SIZE	768
 #endif
 #ifdef __sparc64__
-#define	KINFO_PROC_SIZE 912
+#define	KINFO_PROC_SIZE 1088
 #endif
 #ifndef KINFO_PROC_SIZE
 #error "Unknown architecture"
@@ -159,6 +159,7 @@ struct kinfo_proc {
 	u_int	ki_estcpu;	 	/* Time averaged value of ki_cpticks */
 	u_int	ki_slptime;	 	/* Time since last blocked */
 	u_int	ki_swtime;	 	/* Time swapped in or out */
+	int	ki_spareint1;	 	/* unused (just here for alignment) */
 	u_int64_t ki_runtime;		/* Real time in microsec */
 	struct	timeval ki_start;	/* starting time */
 	struct	timeval ki_childtime;	/* time used by process children */
@@ -177,23 +178,37 @@ struct kinfo_proc {
 	char	ki_lockname[LOCKNAMELEN+1]; /* lock name */
 	char	ki_comm[COMMLEN+1];	/* command name */
 	char	ki_emul[KI_EMULNAMELEN+1];  /* emulation name */
+	/*
+	 * When adding new variables, take space for char-strings from the
+	 * front of ki_sparestrings, and ints from the end of ki_spareints.
+	 * That way the spare room from both arrays will remain contiguous.
+	 */
 	char	ki_sparestrings[68];	/* spare string space */
-	struct	rusage ki_rusage;	/* process rusage statistics */
-	long	ki_sflag;		/* PS_* flags */
+	int	ki_spareints[KI_NSPARE_INT];	/* spare room for growth */
+	int	ki_jid;			/* Process jail ID */
+	int	ki_numthreads;		/* XXXKSE number of threads in total */
+	lwpid_t	ki_tid;			/* XXXKSE thread id */
 	struct	priority ki_pri;	/* process priority */
-	long	ki_tdflags;		/* XXXKSE kthread flag */
+	struct	rusage ki_rusage;	/* process rusage statistics */
+	/* XXX - most fields in ki_rusage_ch are not (yet) filled in */
+	struct	rusage ki_rusage_ch;	/* rusage of children processes */
 	struct	pcb *ki_pcb;		/* kernel virtual addr of pcb */
 	void	*ki_kstack;		/* kernel virtual addr of stack */
-	struct	timeval ki_childstime;	/* system time used by children */
-	struct	timeval ki_childutime;	/* user time used by children */
-	lwpid_t	ki_tid;			/* XXXKSE thread id */
-	int	ki_numthreads;		/* XXXKSE number of threads in total */
 	void	*ki_udata;		/* User convenience pointer */
-	int	ki_jid;			/* Process jail ID */
-	int	ki_spare_int1;		/* unused (just here for alignment) */
-	long	ki_spare[KI_NSPARE];	/* spare room for later growth */
+	/*
+	 * When adding new variables, take space for pointers from the
+	 * front of ki_spareptrs, and longs from the end of ki_sparelongs.
+	 * That way the spare room from both arrays will remain contiguous.
+	 */
+	void	*ki_spareptrs[KI_NSPARE_PTR];	/* spare room for growth */
+	long	ki_sparelongs[KI_NSPARE_LONG];	/* spare room for growth */
+	long	ki_sflag;		/* PS_* flags */
+	long	ki_tdflags;		/* XXXKSE kthread flag */
 };
 void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
+/* XXX - the following two defines are temporary */
+#define	ki_childstime	ki_rusage_ch.ru_stime
+#define	ki_childutime	ki_rusage_ch.ru_utime
 
 /* ki_sessflag values */
 #define	KI_CTTY		0x00000001	/* controlling tty vnode active */
