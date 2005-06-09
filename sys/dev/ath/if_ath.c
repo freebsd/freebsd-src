@@ -2062,13 +2062,16 @@ ath_beacon_free(struct ath_softc *sc)
 static void
 ath_beacon_config(struct ath_softc *sc)
 {
+#define	TSF_TO_TU(_h,_l)	(((_h) << 22) | ((_l) >> 10))
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni = ic->ic_bss;
 	u_int32_t nexttbtt, intval;
 
-	nexttbtt = (LE_READ_4(ni->ni_tstamp.data + 4) << 22) |
-	    (LE_READ_4(ni->ni_tstamp.data) >> 10);
+	/* extract tstamp from last beacon and convert to TU */
+	nexttbtt = TSF_TO_TU(LE_READ_4(ni->ni_tstamp.data + 4),
+			     LE_READ_4(ni->ni_tstamp.data));
+	/* NB: the beacon interval is kept internally in TU's */
 	intval = ni->ni_intval & HAL_BEACON_PERIOD;
 	if (nexttbtt == 0)		/* e.g. for ap mode */
 		nexttbtt = intval;
@@ -2078,21 +2081,59 @@ ath_beacon_config(struct ath_softc *sc)
 		__func__, nexttbtt, intval, ni->ni_intval);
 	if (ic->ic_opmode == IEEE80211_M_STA) {
 		HAL_BEACON_STATE bs;
+		u_int64_t tsf;
+		u_int32_t tsftu;
+		int dtimperiod, dtimcount;
+		int cfpperiod, cfpcount;
 
-		/* NB: no PCF support right now */
+		/*
+		 * Setup dtim and cfp parameters according to
+		 * last beacon we received (which may be none).
+		 */
+		dtimperiod = ni->ni_dtim_period;
+		if (dtimperiod <= 0)		/* NB: 0 if not known */
+			dtimperiod = 1;
+		dtimcount = ni->ni_dtim_count;
+		if (dtimcount >= dtimperiod)	/* NB: sanity check */
+			dtimcount = 0;		/* XXX? */
+		cfpperiod = 1;			/* NB: no PCF support yet */
+		cfpcount = 0;
+#define	FUDGE	2
+		/*
+		 * Pull nexttbtt forward to reflect the current
+		 * TSF and calculate dtim+cfp state for the result.
+		 */
+		tsf = ath_hal_gettsf64(ah);
+		tsftu = TSF_TO_TU((u_int32_t)(tsf>>32), (u_int32_t)tsf) + FUDGE;
+		do {
+			nexttbtt += intval;
+			if (--dtimcount < 0) {
+				dtimcount = dtimperiod - 1;
+				if (--cfpcount < 0)
+					cfpcount = cfpperiod - 1;
+			}
+		} while (nexttbtt < tsftu);
+#undef FUDGE
 		memset(&bs, 0, sizeof(bs));
 		bs.bs_intval = intval;
 		bs.bs_nexttbtt = nexttbtt;
-		bs.bs_dtimperiod = bs.bs_intval;
-		bs.bs_nextdtim = nexttbtt;
+		bs.bs_dtimperiod = dtimperiod*intval;
+		bs.bs_nextdtim = bs.bs_nexttbtt + dtimcount*intval;
+		bs.bs_cfpperiod = cfpperiod*bs.bs_dtimperiod;
+		bs.bs_cfpnext = bs.bs_nextdtim + cfpcount*bs.bs_dtimperiod;
+		bs.bs_cfpmaxduration = 0;
+#if 0
 		/*
 		 * The 802.11 layer records the offset to the DTIM
 		 * bitmap while receiving beacons; use it here to
 		 * enable h/w detection of our AID being marked in
 		 * the bitmap vector (to indicate frames for us are
 		 * pending at the AP).
+		 * XXX do DTIM handling in s/w to WAR old h/w bugs
+		 * XXX enable based on h/w rev for newer chips
 		 */
 		bs.bs_timoffset = ni->ni_timoff;
+#endif
 		/*
 		 * Calculate the number of consecutive beacons to miss
 		 * before taking a BMISS interrupt.  The configuration
@@ -2121,8 +2162,9 @@ ath_beacon_config(struct ath_softc *sc)
 			bs.bs_sleepduration = roundup(bs.bs_sleepduration, bs.bs_dtimperiod);
 
 		DPRINTF(sc, ATH_DEBUG_BEACON, 
-			"%s: intval %u nexttbtt %u dtim %u nextdtim %u bmiss %u sleep %u cfp:period %u maxdur %u next %u timoffset %u\n"
+			"%s: tsf %ju tsf:tu %u intval %u nexttbtt %u dtim %u nextdtim %u bmiss %u sleep %u cfp:period %u maxdur %u next %u timoffset %u\n"
 			, __func__
+			, tsf, tsftu
 			, bs.bs_intval
 			, bs.bs_nexttbtt
 			, bs.bs_dtimperiod
@@ -2173,6 +2215,7 @@ ath_beacon_config(struct ath_softc *sc)
 		if (ic->ic_opmode == IEEE80211_M_IBSS && sc->sc_hasveol)
 			ath_beacon_proc(sc, 0);
 	}
+#undef TSF_TO_TU
 }
 
 static void
