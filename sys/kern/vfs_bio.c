@@ -2033,7 +2033,7 @@ static int
 flushbufqueues(int flushdeps)
 {
 	struct thread *td = curthread;
-	struct buf sentinal;
+	struct buf sentinel;
 	struct vnode *vp;
 	struct mount *mp;
 	struct buf *bp;
@@ -2047,10 +2047,10 @@ flushbufqueues(int flushdeps)
 	flushed = 0;
 	bp = NULL;
 	mtx_lock(&bqlock);
-	TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], &sentinal, b_freelist);
+	TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], &sentinel, b_freelist);
 	while (flushed != target) {
 		bp = TAILQ_FIRST(&bufqueues[QUEUE_DIRTY]);
-		if (bp == &sentinal)
+		if (bp == &sentinel)
 			break;
 		TAILQ_REMOVE(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
@@ -2115,7 +2115,7 @@ flushbufqueues(int flushdeps)
 		vn_finished_write(mp);
 		BUF_UNLOCK(bp);
 	}
-	TAILQ_REMOVE(&bufqueues[QUEUE_DIRTY], &sentinal, b_freelist);
+	TAILQ_REMOVE(&bufqueues[QUEUE_DIRTY], &sentinel, b_freelist);
 	mtx_unlock(&bqlock);
 	return (flushed);
 }
