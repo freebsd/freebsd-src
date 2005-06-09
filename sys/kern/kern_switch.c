@@ -341,12 +341,6 @@ maybe_preempt_in_ksegrp(struct thread *td)
 {
 	struct thread *running_thread;
 
-#ifndef FULL_PREEMPTION
-	int pri;
-	pri = td->td_priority;
-	if (!(pri >= PRI_MIN_ITHD && pri <= PRI_MAX_ITHD))
-		return;
-#endif
 	mtx_assert(&sched_lock, MA_OWNED);
 	running_thread = curthread;
 
@@ -356,14 +350,21 @@ maybe_preempt_in_ksegrp(struct thread *td)
 	if (td->td_priority >= running_thread->td_priority)
 		return;
 #ifdef PREEMPTION
+#ifndef FULL_PREEMPTION
+	if (td->td_priority > PRI_MAX_ITHD) {
+		running_thread->td_flags |= TDF_NEEDRESCHED;
+		return;
+	}
+#endif /* FULL_PREEMPTION */
+
 	if (running_thread->td_critnest > 1) 
 		running_thread->td_owepreempt = 1;
 	 else 		
 		 mi_switch(SW_INVOL, NULL);
 	
-#else
+#else /* PREEMPTION */
 	running_thread->td_flags |= TDF_NEEDRESCHED;
-#endif
+#endif /* PREEMPTION */
 	return;
 }
 
@@ -376,13 +377,6 @@ maybe_preempt_in_ksegrp(struct thread *td)
 	struct pcpu *pc;
 	struct pcpu *best_pcpu;
 	struct thread *cputhread;
-
-#ifndef FULL_PREEMPTION
-	int pri;
-	pri = td->td_priority;
-	if (!(pri >= PRI_MIN_ITHD && pri <= PRI_MAX_ITHD))
-		return;
-#endif
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
@@ -433,6 +427,17 @@ maybe_preempt_in_ksegrp(struct thread *td)
 		if (best_pcpu == NULL) 
 			return;
 
+#if defined(IPI_PREEMPTION) && defined(PREEMPTION)
+
+#if !defined(FULL_PREEMPTION)
+		if (td->td_priority  <=  PRI_MAX_ITHD)
+#endif /* ! FULL_PREEMPTION */
+			{
+				ipi_selected(best_pcpu->pc_cpumask, IPI_PREEMPT);
+				return;
+			}
+#endif /* defined(IPI_PREEMPTION) && defined(PREEMPTION) */
+
 		if (PCPU_GET(cpuid) != best_pcpu->pc_cpuid) {
 			best_pcpu->pc_curthread->td_flags |= TDF_NEEDRESCHED;
 			ipi_selected(best_pcpu->pc_cpumask, IPI_AST);
@@ -445,14 +450,21 @@ maybe_preempt_in_ksegrp(struct thread *td)
 	if (td->td_priority >= running_thread->td_priority)
 		return;
 #ifdef PREEMPTION
+
+#if !defined(FULL_PREEMPTION)
+	if (td->td_priority  >  PRI_MAX_ITHD) {
+		running_thread->td_flags |= TDF_NEEDRESCHED;
+	}
+#endif /* ! FULL_PREEMPTION */
+	
 	if (running_thread->td_critnest > 1) 
 		running_thread->td_owepreempt = 1;
 	 else 		
 		 mi_switch(SW_INVOL, NULL);
 	
-#else
+#else /* PREEMPTION */
 	running_thread->td_flags |= TDF_NEEDRESCHED;
-#endif
+#endif /* PREEMPTION */
 	return;
 }
 #endif /* !SMP */
@@ -664,7 +676,7 @@ maybe_preempt(struct thread *td)
 	    TD_IS_INHIBITED(ctd) || td->td_kse->ke_state != KES_THREAD)
 		return (0);
 #ifndef FULL_PREEMPTION
-	if (!(pri >= PRI_MIN_ITHD && pri <= PRI_MAX_ITHD) &&
+	if ((pri > PRI_MAX_ITHD) &&
 	    !(cpri >= PRI_MIN_IDLE))
 		return (0);
 #endif

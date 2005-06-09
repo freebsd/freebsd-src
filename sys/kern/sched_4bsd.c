@@ -1083,14 +1083,53 @@ forward_wakeup(int  cpunum)
 }
 #endif
 
+#ifdef SMP
+static void
+kick_other_cpu(int pri,int cpuid);
+
+
+static void
+kick_other_cpu(int pri,int cpuid)
+{	
+	struct pcpu * pcpu = pcpu_find(cpuid);
+	int cpri = pcpu->pc_curthread->td_priority;
+
+	if (idle_cpus_mask & pcpu->pc_cpumask) {
+		forward_wakeups_delivered++;
+		ipi_selected(pcpu->pc_cpumask, IPI_AST);
+		return;
+	}
+
+	if (pri >= cpri)
+		return;
+
+#if defined(IPI_PREEMPTION) && defined(PREEMPTION)
+
+#if !defined(FULL_PREEMPTION)
+	if (pri <= PRI_MAX_ITHD)
+#endif /* ! FULL_PREEMPTION */
+	{
+		ipi_selected(pcpu->pc_cpumask, IPI_PREEMPT);
+		return;
+	}
+#endif /* defined(IPI_PREEMPTION) && defined(PREEMPTION) */
+
+	pcpu->pc_curthread->td_flags |= TDF_NEEDRESCHED;
+	ipi_selected( pcpu->pc_cpumask , IPI_AST);
+	return;
+}
+
+#endif /* SMP */
+
 void
 sched_add(struct thread *td, int flags)
-{
-	struct kse *ke;
 #ifdef SMP
+{
+	
+	struct kse *ke;
 	int forwarded = 0;
 	int cpu;
-#endif
+	int single_cpu = 0;
 
 	ke = td->td_kse;
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -1103,25 +1142,76 @@ sched_add(struct thread *td, int flags)
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
 
-#ifdef SMP
-	if (KSE_CAN_MIGRATE(ke)) {
+
+	if (td->td_pinned != 0) {
+		cpu = td->td_lastcpu;
+		ke->ke_runq = &runq_pcpu[cpu];
+		single_cpu = 1;
+		CTR3(KTR_RUNQ,
+		    "sched_add: Put kse:%p(td:%p) on cpu%d runq", ke, td, cpu);
+	} else if ((ke)->ke_flags & KEF_BOUND) {
+		/* Find CPU from bound runq */
+		KASSERT(SKE_RUNQ_PCPU(ke),("sched_add: bound kse not on cpu runq"));
+		cpu =  ke->ke_runq - &runq_pcpu[0];
+		single_cpu = 1;
+		CTR3(KTR_RUNQ,
+		    "sched_add: Put kse:%p(td:%p) on cpu%d runq", ke, td, cpu);
+	} else {	
 		CTR2(KTR_RUNQ,
 		    "sched_add: adding kse:%p (td:%p) to gbl runq", ke, td);
 		cpu = NOCPU;
 		ke->ke_runq = &runq;
-	} else {
-		if (!SKE_RUNQ_PCPU(ke))
-			ke->ke_runq = &runq_pcpu[(cpu = PCPU_GET(cpuid))];
-		else
-			cpu = td->td_lastcpu;
-		CTR3(KTR_RUNQ,
-		    "sched_add: Put kse:%p(td:%p) on cpu%d runq", ke, td, cpu);
 	}
-#else
+	
+	if ((single_cpu) && (cpu != PCPU_GET(cpuid))) {
+	        kick_other_cpu(td->td_priority,cpu);
+	} else {
+		
+		if ( !single_cpu) {
+			cpumask_t me = PCPU_GET(cpumask);
+			int idle = idle_cpus_mask & me;	
+
+			if ( !idle  && ((flags & SRQ_INTR) == 0) &&
+			    (idle_cpus_mask & ~(hlt_cpus_mask  | me)))
+				forwarded = forward_wakeup(cpu);
+	
+		}
+
+		if (!forwarded) {
+			if (((flags & SRQ_YIELDING) == 0) && maybe_preempt(td))
+				return;
+			else
+				maybe_resched(td);
+		}
+	}
+	
+	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+		sched_load_add();
+	SLOT_USE(td->td_ksegrp);
+	runq_add(ke->ke_runq, ke, flags);
+	ke->ke_state = KES_ONRUNQ;
+}
+
+
+#else /* SMP */
+
+{
+	struct kse *ke;
+	ke = td->td_kse;
+	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(ke->ke_state != KES_ONRUNQ,
+	    ("sched_add: kse %p (%s) already in run queue", ke,
+	    ke->ke_proc->p_comm));
+	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
+	    ("sched_add: process swapped out"));
+	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
+	    td, td->td_proc->p_comm, td->td_priority, curthread,
+	    curthread->td_proc->p_comm);
+
+
 	CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p) to runq", ke, td);
 	ke->ke_runq = &runq;
 
-#endif
 	/* 
 	 * If we are yielding (on the way out anyhow) 
 	 * or the thread being saved is US,
@@ -1134,41 +1224,9 @@ sched_add(struct thread *td, int flags)
 	 * which also only happens when we are about to yield.
 	 */
 	if((flags & SRQ_YIELDING) == 0) {
-#ifdef SMP
-		cpumask_t me = PCPU_GET(cpumask);
-		int idle = idle_cpus_mask & me;
-		/*
-		 * Only try to kick off another CPU if
-		 * the thread is unpinned
-		 * or pinned to another cpu,
-		 * and there are other available and idle CPUs.
-		 * if we are idle, or it's an interrupt,
-		 * then skip straight to preemption.
-		 */
-		if ( (! idle) && ((flags & SRQ_INTR) == 0) &&
-		    (idle_cpus_mask & ~(hlt_cpus_mask | me)) &&
-		    ( KSE_CAN_MIGRATE(ke) ||
-		      ke->ke_runq != &runq_pcpu[PCPU_GET(cpuid)])) {
-			forwarded = forward_wakeup(cpu);
-		}
-		/*
-		 * If we failed to kick off another cpu, then look to 
-		 * see if we should preempt this CPU. Only allow this
-		 * if it is not pinned or IS pinned to this CPU.
-		 * If we are the idle thread, we also try do preempt.
-		 * as it will be quicker and being idle, we won't 
-		 * lose in doing so.. 
-		 */
-		if ((!forwarded) &&
-		    (ke->ke_runq == &runq ||
-		     ke->ke_runq == &runq_pcpu[PCPU_GET(cpuid)]))
-#endif
-
-		{
-			if (maybe_preempt(td))
-				return;
-		}
-	}
+		if (maybe_preempt(td))
+			return;
+	}	
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_add();
 	SLOT_USE(td->td_ksegrp);
@@ -1176,6 +1234,9 @@ sched_add(struct thread *td, int flags)
 	ke->ke_state = KES_ONRUNQ;
 	maybe_resched(td);
 }
+
+#endif /* SMP */
+
 
 void
 sched_rem(struct thread *td)
