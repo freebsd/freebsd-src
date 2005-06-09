@@ -54,7 +54,8 @@ set80211var(struct wpa_driver_bsd_data *drv, int op, const void *arg, int arg_le
 	ireq.i_data = (void *) arg;
 
 	if (ioctl(drv->sock, SIOCS80211, &ireq) < 0) {
-		perror("ioctl[SIOCS80211]");
+		fprintf(stderr, "ioctl[SIOCS80211, op %u, len %u]: %s\n",
+			op, arg_len, strerror(errno));
 		return -1;
 	}
 	return 0;
@@ -90,6 +91,8 @@ set80211param(struct wpa_driver_bsd_data *drv, int op, int arg)
 
 	if (ioctl(drv->sock, SIOCS80211, &ireq) < 0) {
 		perror("ioctl[SIOCS80211]");
+		fprintf(stderr, "ioctl[SIOCS80211, op %u, arg 0x%x]: %s\n",
+			op, arg, strerror(errno));
 		return -1;
 	}
 	return 0;
@@ -293,6 +296,7 @@ wpa_driver_bsd_deauthenticate(void *priv, const u8 *addr, int reason_code)
 	struct ieee80211req_mlme mlme;
 
 	wpa_printf(MSG_DEBUG, "%s", __func__);
+	memset(&mlme, 0, sizeof(mlme));
 	mlme.im_op = IEEE80211_MLME_DEAUTH;
 	mlme.im_reason = reason_code;
 	memcpy(mlme.im_macaddr, addr, IEEE80211_ADDR_LEN);
@@ -306,6 +310,7 @@ wpa_driver_bsd_disassociate(void *priv, const u8 *addr, int reason_code)
 	struct ieee80211req_mlme mlme;
 
 	wpa_printf(MSG_DEBUG, "%s", __func__);
+	memset(&mlme, 0, sizeof(mlme));
 	mlme.im_op = IEEE80211_MLME_DISASSOC;
 	mlme.im_reason = reason_code;
 	memcpy(mlme.im_macaddr, addr, IEEE80211_ADDR_LEN);
