@@ -467,6 +467,8 @@ route_output(struct mbuf *m, struct socket *so)
 					info.rti_info[RTAX_IFP] = NULL;
 					info.rti_info[RTAX_IFA] = NULL;
 				}
+			} else if ((ifp = rt->rt_ifp) != NULL) {
+				rtm->rtm_index = ifp->if_index;
 			}
 			len = rt_msg2(rtm->rtm_type, &info, NULL, NULL);
 			if (len > rtm->rtm_msglen) {
