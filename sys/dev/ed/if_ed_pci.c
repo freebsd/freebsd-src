@@ -78,33 +78,32 @@ ed_pci_probe(device_t dev)
 static int
 ed_pci_attach(device_t dev)
 {
-        struct	ed_softc *sc = device_get_softc(dev);
-        int	flags = 0;
-        int	error;
+	struct	ed_softc *sc = device_get_softc(dev);
+	int	flags = 0;
+	int	error;
 
-        error = ed_probe_Novell(dev, PCIR_BAR(0), flags);
-        if (error) {
-                ed_release_resources(dev);
-                return (error);
+	error = ed_probe_Novell(dev, PCIR_BAR(0), flags);
+	if (error) {
+		ed_release_resources(dev);
+		return (error);
 	}
 	ed_Novell_read_mac(sc);
 
-        error = ed_alloc_irq(dev, 0, RF_SHAREABLE);
-        if (error) {
-                ed_release_resources(dev);
-                return (error);
-        }
-
-        error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+	error = ed_alloc_irq(dev, 0, RF_SHAREABLE);
+	if (error) {
+		ed_release_resources(dev);
+		return (error);
+	}
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 	    edintr, sc, &sc->irq_handle);
-        if (error) {
-                ed_release_resources(dev);
-                return (error);
-        }
+	if (error) {
+		ed_release_resources(dev);
+		return (error);
+	}
 
 	error = ed_attach(dev);
-        if (error)
-                ed_release_resources(dev);
+	if (error)
+		ed_release_resources(dev);
 	return (error);
 }
 
