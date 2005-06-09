@@ -1907,6 +1907,9 @@ static int isis_print (const u_int8_t *p, u_int length)
                tlv_type,
                tlv_len);
 
+        if (tlv_len == 0) /* something is malformed */
+            break;
+
         /* now check if we have a decoder otherwise do a hexdump at the end*/
 	switch (tlv_type) {
 	case ISIS_TLV_AREA_ADDR:
@@ -1937,7 +1940,7 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
         case ISIS_TLV_ISNEIGH_VARLEN:
-            if (!TTEST2(*tptr, 1))
+            if (!TTEST2(*tptr, 1) || tmp < 3) /* min. TLV length */
 		goto trunctlv;
 	    lan_alen = *tptr++; /* LAN adress length */
             tmp --;
