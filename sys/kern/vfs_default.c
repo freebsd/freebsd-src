@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/event.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -82,6 +83,7 @@ struct vop_vector default_vnodeops = {
 	.vop_getwritemount = 	vop_stdgetwritemount,
 	.vop_inactive =		VOP_NULL,
 	.vop_ioctl =		VOP_ENOTTY,
+	.vop_kqfilter =		vop_stdkqfilter,
 	.vop_islocked =		vop_stdislocked,
 	.vop_lease =		VOP_NULL,
 	.vop_lock =		vop_stdlock,
@@ -462,6 +464,12 @@ vop_stdgetpages(ap)
 
 	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
 	    ap->a_count, ap->a_reqpage);
+}
+
+int
+vop_stdkqfilter(struct vop_kqfilter_args *ap)
+{
+	return vfs_kqfilter(ap);
 }
 
 /* XXX Needs good comment and more info in the manpage (VOP_PUTPAGES(9)). */
