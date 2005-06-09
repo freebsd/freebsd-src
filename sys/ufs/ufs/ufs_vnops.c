@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/dirent.h>
 #include <sys/lockf.h>
-#include <sys/event.h>
 #include <sys/conf.h>
 #include <sys/acl.h>
 #include <sys/mac.h>
@@ -109,11 +108,6 @@ static vop_symlink_t	ufs_symlink;
 static vop_whiteout_t	ufs_whiteout;
 static vop_close_t	ufsfifo_close;
 static vop_kqfilter_t	ufsfifo_kqfilter;
-static int filt_ufsread(struct knote *kn, long hint);
-static int filt_ufswrite(struct knote *kn, long hint);
-static int filt_ufsvnode(struct knote *kn, long hint);
-static void filt_ufsdetach(struct knote *kn);
-static vop_kqfilter_t	ufs_kqfilter;
 
 /*
  * A virgin directory (no blushing please).
@@ -179,7 +173,6 @@ ufs_create(ap)
 	    ap->a_dvp, ap->a_vpp, ap->a_cnp);
 	if (error)
 		return (error);
-	VN_KNOTE_UNLOCKED(ap->a_dvp, NOTE_WRITE);
 	return (0);
 }
 
@@ -206,7 +199,6 @@ ufs_mknod(ap)
 	    ap->a_dvp, vpp, ap->a_cnp);
 	if (error)
 		return (error);
-	VN_KNOTE_UNLOCKED(ap->a_dvp, NOTE_WRITE);
 	ip = VTOI(*vpp);
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 	if (vap->va_rdev != VNOVAL) {
@@ -590,7 +582,6 @@ ufs_setattr(ap)
 			return (EPERM);
 		error = ufs_chmod(vp, (int)vap->va_mode, cred, td);
 	}
-	VN_KNOTE_UNLOCKED(vp, NOTE_ATTRIB);
 	return (error);
 }
 
@@ -774,8 +765,6 @@ ufs_remove(ap)
 	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, 0);
 	if (ip->i_nlink <= 0)
 		vp->v_vflag |= VV_NOSYNC;
-	VN_KNOTE_UNLOCKED(vp, NOTE_DELETE);
-	VN_KNOTE_UNLOCKED(dvp, NOTE_WRITE);
 out:
 	return (error);
 }
@@ -836,8 +825,6 @@ ufs_link(ap)
 			softdep_change_linkcnt(ip);
 	}
 out:
-	VN_KNOTE_UNLOCKED(vp, NOTE_LINK);
-	VN_KNOTE_UNLOCKED(tdvp, NOTE_WRITE);
 	return (error);
 }
 
@@ -1012,7 +999,6 @@ abortit:
 		oldparent = dp->i_number;
 		doingdirectory = 1;
 	}
-	VN_KNOTE_UNLOCKED(fdvp, NOTE_WRITE);		/* XXX right place? */
 	vrele(fdvp);
 
 	/*
@@ -1121,7 +1107,6 @@ abortit:
 			}
 			goto bad;
 		}
-		VN_KNOTE_UNLOCKED(tdvp, NOTE_WRITE);
 		vput(tdvp);
 	} else {
 		if (xp->i_dev != dp->i_dev || xp->i_dev != ip->i_dev)
@@ -1205,9 +1190,7 @@ abortit:
 			    tcnp->cn_cred, tcnp->cn_thread)) != 0)
 				goto bad;
 		}
-		VN_KNOTE_UNLOCKED(tdvp, NOTE_WRITE);
 		vput(tdvp);
-		VN_KNOTE_UNLOCKED(tvp, NOTE_DELETE);
 		vput(tvp);
 		xp = NULL;
 	}
@@ -1277,7 +1260,6 @@ abortit:
 		error = ufs_dirremove(fdvp, xp, fcnp->cn_flags, 0);
 		xp->i_flag &= ~IN_RENAME;
 	}
-	VN_KNOTE_UNLOCKED(fvp, NOTE_RENAME);
 	if (dp)
 		vput(fdvp);
 	if (xp)
@@ -1596,7 +1578,6 @@ ufs_mkdir(ap)
 	
 bad:
 	if (error == 0) {
-		VN_KNOTE_UNLOCKED(dvp, NOTE_WRITE | NOTE_LINK);
 		*ap->a_vpp = tvp;
 	} else {
 #ifdef UFS_ACL
@@ -1694,7 +1675,6 @@ ufs_rmdir(ap)
 		}
 		goto out;
 	}
-	VN_KNOTE_UNLOCKED(dvp, NOTE_WRITE | NOTE_LINK);
 	cache_purge(dvp);
 	/*
 	 * Truncate inode. The only stuff left in the directory is "." and
@@ -1723,7 +1703,6 @@ ufs_rmdir(ap)
 		ufsdirhash_free(ip);
 #endif
 out:
-	VN_KNOTE_UNLOCKED(vp, NOTE_DELETE);
 	return (error);
 }
 
@@ -1748,7 +1727,6 @@ ufs_symlink(ap)
 	    vpp, ap->a_cnp);
 	if (error)
 		return (error);
-	VN_KNOTE_UNLOCKED(ap->a_dvp, NOTE_WRITE);
 	vp = *vpp;
 	len = strlen(ap->a_target);
 	if (len < vp->v_mount->mnt_maxsymlinklen) {
@@ -2005,7 +1983,7 @@ ufsfifo_kqfilter(ap)
 
 	error = fifo_specops.vop_kqfilter(ap);
 	if (error)
-		error = ufs_kqfilter(ap);
+		error = vfs_kqfilter(ap);
 	return (error);
 }
 
@@ -2389,106 +2367,6 @@ bad:
 	return (error);
 }
 
-static struct filterops ufsread_filtops = 
-	{ 1, NULL, filt_ufsdetach, filt_ufsread };
-static struct filterops ufswrite_filtops = 
-	{ 1, NULL, filt_ufsdetach, filt_ufswrite };
-static struct filterops ufsvnode_filtops = 
-	{ 1, NULL, filt_ufsdetach, filt_ufsvnode };
-
-static int
-ufs_kqfilter(ap)
-	struct vop_kqfilter_args /* {
-		struct vnode *a_vp;
-		struct knote *a_kn;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-	struct knote *kn = ap->a_kn;
-
-	switch (kn->kn_filter) {
-	case EVFILT_READ:
-		kn->kn_fop = &ufsread_filtops;
-		break;
-	case EVFILT_WRITE:
-		kn->kn_fop = &ufswrite_filtops;
-		break;
-	case EVFILT_VNODE:
-		kn->kn_fop = &ufsvnode_filtops;
-		break;
-	default:
-		return (1);
-	}
-
-	kn->kn_hook = (caddr_t)vp;
-
-	if (vp->v_pollinfo == NULL)
-		v_addpollinfo(vp);
-	if (vp->v_pollinfo == NULL)
-		return ENOMEM;
-	knlist_add(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
-
-	return (0);
-}
-
-static void
-filt_ufsdetach(struct knote *kn)
-{
-	struct vnode *vp = (struct vnode *)kn->kn_hook;
-
-	KASSERT(vp->v_pollinfo != NULL, ("Mising v_pollinfo"));
-	knlist_remove(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
-}
-
-/*ARGSUSED*/
-static int
-filt_ufsread(struct knote *kn, long hint)
-{
-	struct vnode *vp = (struct vnode *)kn->kn_hook;
-	struct inode *ip = VTOI(vp);
-
-	/*
-	 * filesystem is gone, so set the EOF flag and schedule 
-	 * the knote for deletion.
-	 */
-	if (hint == NOTE_REVOKE) {
-		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
-		return (1);
-	}
-
-        kn->kn_data = ip->i_size - kn->kn_fp->f_offset;
-        return (kn->kn_data != 0);
-}
-
-/*ARGSUSED*/
-static int
-filt_ufswrite(struct knote *kn, long hint)
-{
-
-	/*
-	 * filesystem is gone, so set the EOF flag and schedule 
-	 * the knote for deletion.
-	 */
-	if (hint == NOTE_REVOKE)
-		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
-
-        kn->kn_data = 0;
-        return (1);
-}
-
-static int
-filt_ufsvnode(struct knote *kn, long hint)
-{
-
-	if (kn->kn_sfflags & hint)
-		kn->kn_fflags |= hint;
-	if (hint == NOTE_REVOKE) {
-		kn->kn_flags |= EV_EOF;
-		return (1);
-	}
-	return (kn->kn_fflags != 0);
-}
-
 /* Global vfs data structures for ufs. */
 struct vop_vector ufs_vnodeops = {
 	.vop_default =		&default_vnodeops,
@@ -2511,7 +2389,6 @@ struct vop_vector ufs_vnodeops = {
 	.vop_open =		ufs_open,
 	.vop_pathconf =		ufs_pathconf,
 	.vop_poll =		vop_stdpoll,
-	.vop_kqfilter =		ufs_kqfilter,
 	.vop_print =		ufs_print,
 	.vop_readdir =		ufs_readdir,
 	.vop_readlink =		ufs_readlink,

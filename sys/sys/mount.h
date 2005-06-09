@@ -270,6 +270,7 @@ struct vnode *__mnt_vnode_next(struct vnode **nvp, struct mount *mp);
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
 #define	MNTK_MPSAFE	0x20000000	/* Filesystem is MPSAFE. */
+#define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 
 /*
  * Sysctl CTL_VFS definitions.
@@ -547,6 +548,13 @@ extern int mpsafe_vfs;
 {									\
 	if (VFS_NEEDSGIANT((MP)))					\
 		mtx_assert(&Giant, MA_OWNED);				\
+} while (0)
+
+#define VFS_SEND_KNOTE(vp, hint) do					\
+{									\
+	if ((vp)->v_mount &&						\
+	    ((vp)->v_mount->mnt_kern_flag & MNTK_NOKNOTE) == 0)		\
+		VN_KNOTE_UNLOCKED((vp), (hint));			\
 } while (0)
 
 #include <sys/module.h>
