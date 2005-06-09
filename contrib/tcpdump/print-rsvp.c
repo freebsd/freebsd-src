@@ -558,7 +558,7 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
         rsvp_obj_ctype=rsvp_obj_header->ctype;
 
         if(rsvp_obj_len % 4 || rsvp_obj_len < sizeof(struct rsvp_object_header)) {
-            printf("ERROR: object header too short %u < %lu", rsvp_obj_len,
+            printf("%sERROR: object header too short %u < %lu", ident, rsvp_obj_len,
                    (unsigned long)sizeof(const struct rsvp_object_header));
             return -1;
         }
@@ -883,11 +883,18 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
             switch(rsvp_obj_ctype) {
             case RSVP_CTYPE_IPV4:
                 while(obj_tlen >= 4 ) {
-                    printf("%s  Subobject Type: %s",
+                    printf("%s  Subobject Type: %s, length %u",
                            ident,
                            tok2str(rsvp_obj_xro_values,
                                    "Unknown %u",
-                                   RSVP_OBJ_XRO_MASK_SUBOBJ(*obj_tptr)));                
+                                   RSVP_OBJ_XRO_MASK_SUBOBJ(*obj_tptr)),
+                           *(obj_tptr+1));                
+
+                    if (*(obj_tptr+1) == 0) { /* prevent infinite loops */
+                        printf("%s  ERROR: zero length ERO subtype",ident);
+                        break;
+                    }
+
                     switch(RSVP_OBJ_XRO_MASK_SUBOBJ(*obj_tptr)) {
                     case RSVP_OBJ_XRO_IPV4:
                         printf(", %s, %s/%u, Flags: [%s]",
