@@ -123,7 +123,8 @@
 
 /* IPIs handled by IPI_BITMAPED_VECTOR  (XXX ups is there a better place?) */
 #define	IPI_AST		0 	/* Generate software trap. */
-#define IPI_BITMAP_LAST IPI_AST
+#define IPI_PREEMPT     1
+#define IPI_BITMAP_LAST IPI_PREEMPT
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */

@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 #include "opt_kstack_pages.h"
 #include "opt_mp_watchdog.h"
+#include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -955,6 +956,21 @@ ipi_bitmap_handler(struct clockframe frame)
 	u_int ipi_bitmap;
 
 	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
+
+#ifdef IPI_PREEMPTION
+	if (ipi_bitmap & IPI_PREEMPT) {
+		mtx_lock_spin(&sched_lock);
+		/* Don't preempt the idle thread */
+		if (curthread->td_priority <  PRI_MIN_IDLE) {
+			struct thread *running_thread = curthread;
+			if (running_thread->td_critnest > 1) 
+				running_thread->td_owepreempt = 1;
+			else 		
+				mi_switch(SW_INVOL | SW_PREEMPT, NULL);
+		}
+		mtx_unlock_spin(&sched_lock);
+	}
+#endif
 
 	/* Nothing to do for AST */
 }
