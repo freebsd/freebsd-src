@@ -1084,9 +1084,7 @@ forward_wakeup(int  cpunum)
 #endif
 
 #ifdef SMP
-static void
-kick_other_cpu(int pri,int cpuid);
-
+static void kick_other_cpu(int pri,int cpuid);
 
 static void
 kick_other_cpu(int pri,int cpuid)
@@ -1104,7 +1102,6 @@ kick_other_cpu(int pri,int cpuid)
 		return;
 
 #if defined(IPI_PREEMPTION) && defined(PREEMPTION)
-
 #if !defined(FULL_PREEMPTION)
 	if (pri <= PRI_MAX_ITHD)
 #endif /* ! FULL_PREEMPTION */
@@ -1118,14 +1115,12 @@ kick_other_cpu(int pri,int cpuid)
 	ipi_selected( pcpu->pc_cpumask , IPI_AST);
 	return;
 }
-
 #endif /* SMP */
 
 void
 sched_add(struct thread *td, int flags)
 #ifdef SMP
 {
-	
 	struct kse *ke;
 	int forwarded = 0;
 	int cpu;
@@ -1152,7 +1147,7 @@ sched_add(struct thread *td, int flags)
 	} else if ((ke)->ke_flags & KEF_BOUND) {
 		/* Find CPU from bound runq */
 		KASSERT(SKE_RUNQ_PCPU(ke),("sched_add: bound kse not on cpu runq"));
-		cpu =  ke->ke_runq - &runq_pcpu[0];
+		cpu = ke->ke_runq - &runq_pcpu[0];
 		single_cpu = 1;
 		CTR3(KTR_RUNQ,
 		    "sched_add: Put kse:%p(td:%p) on cpu%d runq", ke, td, cpu);
@@ -1163,22 +1158,21 @@ sched_add(struct thread *td, int flags)
 		ke->ke_runq = &runq;
 	}
 	
-	if ((single_cpu) && (cpu != PCPU_GET(cpuid))) {
+	if (single_cpu && (cpu != PCPU_GET(cpuid))) {
 	        kick_other_cpu(td->td_priority,cpu);
 	} else {
 		
-		if ( !single_cpu) {
+		if (!single_cpu) {
 			cpumask_t me = PCPU_GET(cpumask);
 			int idle = idle_cpus_mask & me;	
 
-			if ( !idle  && ((flags & SRQ_INTR) == 0) &&
-			    (idle_cpus_mask & ~(hlt_cpus_mask  | me)))
+			if (!idle && ((flags & SRQ_INTR) == 0) &&
+			    (idle_cpus_mask & ~(hlt_cpus_mask | me)))
 				forwarded = forward_wakeup(cpu);
-	
 		}
 
 		if (!forwarded) {
-			if (((flags & SRQ_YIELDING) == 0) && maybe_preempt(td))
+			if ((flags & SRQ_YIELDING) == 0 && maybe_preempt(td))
 				return;
 			else
 				maybe_resched(td);
@@ -1191,10 +1185,7 @@ sched_add(struct thread *td, int flags)
 	runq_add(ke->ke_runq, ke, flags);
 	ke->ke_state = KES_ONRUNQ;
 }
-
-
 #else /* SMP */
-
 {
 	struct kse *ke;
 	ke = td->td_kse;
@@ -1207,8 +1198,6 @@ sched_add(struct thread *td, int flags)
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
-
-
 	CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p) to runq", ke, td);
 	ke->ke_runq = &runq;
 
@@ -1234,9 +1223,7 @@ sched_add(struct thread *td, int flags)
 	ke->ke_state = KES_ONRUNQ;
 	maybe_resched(td);
 }
-
 #endif /* SMP */
-
 
 void
 sched_rem(struct thread *td)

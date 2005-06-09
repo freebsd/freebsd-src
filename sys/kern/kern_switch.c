@@ -428,9 +428,8 @@ maybe_preempt_in_ksegrp(struct thread *td)
 			return;
 
 #if defined(IPI_PREEMPTION) && defined(PREEMPTION)
-
 #if !defined(FULL_PREEMPTION)
-		if (td->td_priority  <=  PRI_MAX_ITHD)
+		if (td->td_priority <= PRI_MAX_ITHD)
 #endif /* ! FULL_PREEMPTION */
 			{
 				ipi_selected(best_pcpu->pc_cpumask, IPI_PREEMPT);
@@ -452,7 +451,7 @@ maybe_preempt_in_ksegrp(struct thread *td)
 #ifdef PREEMPTION
 
 #if !defined(FULL_PREEMPTION)
-	if (td->td_priority  >  PRI_MAX_ITHD) {
+	if (td->td_priority > PRI_MAX_ITHD) {
 		running_thread->td_flags |= TDF_NEEDRESCHED;
 	}
 #endif /* ! FULL_PREEMPTION */
@@ -676,10 +675,12 @@ maybe_preempt(struct thread *td)
 	    TD_IS_INHIBITED(ctd) || td->td_kse->ke_state != KES_THREAD)
 		return (0);
 #ifndef FULL_PREEMPTION
-	if ((pri > PRI_MAX_ITHD) &&
-	    !(cpri >= PRI_MIN_IDLE))
+	if (pri > PRI_MAX_ITHD)
 		return (0);
 #endif
+	if (cpri >= PRI_MIN_IDLE)
+		return (0);
+
 	if (ctd->td_critnest > 1) {
 		CTR1(KTR_PROC, "maybe_preempt: in critical section %d",
 		    ctd->td_critnest);
