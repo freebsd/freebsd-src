@@ -54,21 +54,6 @@ static struct ithd *ithreads[NIRQ];
 static int intrcnt_tab[NIRQ];
 static int intrcnt_index = 0;
 static int last_printed = 0;
-struct arm_intr {
-	driver_intr_t *handler;
-	void *arg;
-	void *cookiep;
-	int irq;
-};
-
-static void
-arm_intr_handler(void *arg)
-{	
-	struct arm_intr *intr = (struct arm_intr *)arg;
-
-	intr->handler(intr->arg);
-	arm_unmask_irqs(1 << intr->irq);
-}
 
 void	arm_handler_execute(void *, int);
 
@@ -77,17 +62,14 @@ arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg,
     int irq, int flags, void **cookiep)
 {
 	struct ithd *cur_ith;
-	struct arm_intr *intr = NULL;
 	int error;
 
 	if (irq < 0 || irq >= NIRQ)
 		return;
-	if (!(flags & INTR_FAST))
-		intr = malloc(sizeof(*intr), M_DEVBUF, M_WAITOK);
 	cur_ith = ithreads[irq];
 	if (cur_ith == NULL) {
-		error = ithread_create(&cur_ith, irq, 0, NULL, NULL, "intr%d:",
-		    irq);
+		error = ithread_create(&cur_ith, irq, 0, arm_mask_irq,
+		    arm_unmask_irq, "intr%d:", irq);
 		if (error)
 			return;
 		ithreads[irq] = cur_ith;
@@ -100,16 +82,14 @@ arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg,
 		intrcnt_index++;
 		
 	}
-	if (!(flags & INTR_FAST)) {
-		intr->handler = hand;
-		intr->arg = arg;
-		intr->irq = irq;
-		intr->cookiep = *cookiep;
-		ithread_add_handler(cur_ith, name, arm_intr_handler, intr, 
-		    ithread_priority(flags), flags, cookiep);
-	} else
-		ithread_add_handler(cur_ith, name, hand, arg, 
-		    ithread_priority(flags), flags, cookiep);
+	ithread_add_handler(cur_ith, name, hand, arg, 
+	    ithread_priority(flags), flags, cookiep);
+}
+
+int
+arm_remove_irqhandler(void *cookie)
+{
+	return (ithread_remove_handler(cookie));
 }
 
 void dosoftints(void);
@@ -127,13 +107,8 @@ arm_handler_execute(void *frame, int irqnb)
 	struct thread *td = curthread;
 
 	td->td_intr_nesting_level++;
-	if (irqnb == 0)
-		irqnb = arm_get_irqnb(frame);
-	while (irqnb != 0) {
-		arm_mask_irqs(irqnb);
-		i = ffs(irqnb) - 1;
+	while ((i = arm_get_next_irq()) != -1) {
 		intrcnt[intrcnt_tab[i]]++;
-		irqnb &= ~(1U << i);
 		ithd = ithreads[i];
 		if (!ithd)
 			continue;
@@ -144,10 +119,10 @@ arm_handler_execute(void *frame, int irqnb)
 				ih->ih_handler(ih->ih_argument ?
 				    ih->ih_argument : frame);
 			}
-			arm_unmask_irqs(1 << i);
-		} else if (ih)
+		} else if (ih) {
+			arm_mask_irq(i);
 			ithread_schedule(ithd);
-		irqnb |= arm_get_irqnb(frame);
+		}
 	}
 	td->td_intr_nesting_level--;
 }
