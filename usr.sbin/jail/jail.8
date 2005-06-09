@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2005
+.Dd June 9, 2005
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -455,20 +455,23 @@ and interact with various network subsystems, extra caution should be used
 where privileged access to jails is given out to untrusted parties.
 As such,
 by default this option is disabled.
-.It Va security.jail.getfsstatroot_only
-This MIB entry determines whether or not processes within a jail are able
-to see data for all mountpoints.
-When set to 1 (default), the
+.It Va security.jail.enforce_statfs
+This MIB entry determines which information processes in a jail are
+able to get about mount-points.
+It affects the behaviour of the following syscalls:
+.Xr statfs 2 ,
+.Xr fstatfs 2 ,
 .Xr getfsstat 2
-system call returns only (when called by jailed processes) the data for
-the file system on which the jail's root vnode is located.
-Note: this also has the effect of hiding other mounts inside a jail,
-such as
-.Pa /dev ,
-.Pa /tmp ,
 and
-.Pa /proc ,
-but errs on the side of leaking less information.
+.Xr fhstatfs 2
+(as well as similar compatibility syscalls).
+When set to 0, all mount-points are available without any restrictions.
+When set to 1, only mount-points below the jail's chroot directory are
+visible.
+In addition to that, the path to the jail's chroot directory is removed
+from the front of their pathnames.
+When set to 2 (default), above syscalls can operate only on a mount-point
+where the jail's chroot directory is located.
 .It Va security.jail.set_hostname_allowed
 This MIB entry determines whether or not processes within a jail are
 allowed to change their hostname via
