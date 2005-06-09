@@ -567,7 +567,7 @@ nglmi_rcvdata(hook_p hook, item_p item)
 	if (NG_HOOK_PRIVATE(hook) == NULL) {
 		goto drop;
 	}
-	packetlen = m->m_hdr.mh_len;
+	packetlen = m->m_len;
 
 	/* XXX what if it's more than 1 mbuf? */
 	if ((packetlen > MHLEN) && !(m->m_flags & M_EXT)) {
@@ -749,7 +749,7 @@ nglmi_checkdata(hook_p hook, struct mbuf *m)
 	int     resptype_seen = 0;	/* 0 , 1 (partial) or 2 (full) */
 	int     highest_dlci = 0;
 
-	packetlen = m->m_hdr.mh_len;
+	packetlen = m->m_len;
 	data = mtod(m, const u_char *);
 	if (*data != 0x03) {
 		log(LOG_WARNING, "nglmi: unexpected value in LMI(%d)\n", 1);
@@ -996,12 +996,12 @@ print:
 		const	u_char *bp = mtod(m, const u_char *);
 
 		k = i = 0;
-		loc = (m->m_hdr.mh_len - packetlen);
+		loc = (m->m_len - packetlen);
 		log(LOG_WARNING, "nglmi: error at location %d\n", loc);
-		while (k < m->m_hdr.mh_len) {
+		while (k < m->m_len) {
 			pos = 0;
 			j = 0;
-			while ((j++ < 16) && k < m->m_hdr.mh_len) {
+			while ((j++ < 16) && k < m->m_len) {
 				pos += sprintf(buf + pos, "%c%02x",
 					       ((loc == k) ? '>' : ' '),
 					       bp[k]);
@@ -1023,12 +1023,12 @@ reject:
 		const	u_char *bp = mtod(m, const u_char *);
 
 		k = i = 0;
-		loc = (m->m_hdr.mh_len - packetlen);
+		loc = (m->m_len - packetlen);
 		log(LOG_WARNING, "nglmi: error at location %d\n", loc);
-		while (k < m->m_hdr.mh_len) {
+		while (k < m->m_len) {
 			pos = 0;
 			j = 0;
-			while ((j++ < 16) && k < m->m_hdr.mh_len) {
+			while ((j++ < 16) && k < m->m_len) {
 				pos += sprintf(buf + pos, "%c%02x",
 					       ((loc == k) ? '>' : ' '),
 					       bp[k]);
