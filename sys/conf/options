@@ -69,6 +69,7 @@ CY_PCI_FASTINTR
 DIRECTIO	opt_directio.h
 FULL_PREEMPTION	opt_sched.h
 PREEMPTION	opt_sched.h
+IPI_PREEMPTION	opt_sched.h
 GEOM_AES	opt_geom.h
 GEOM_APPLE	opt_geom.h
 GEOM_BDE	opt_geom.h
