@@ -1681,7 +1681,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 	switch (subtype) {
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 	case IEEE80211_FC0_SUBTYPE_BEACON: {
-		u_int8_t *tstamp, *country;
+		u_int8_t *tstamp, *country, *tim;
 		u_int8_t chan, bchan, fhindex, erp;
 		u_int16_t capinfo, bintval, timoff;
 		u_int16_t fhdwell;
@@ -1718,7 +1718,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		tstamp  = frm;				frm += 8;
 		bintval = le16toh(*(u_int16_t *)frm);	frm += 2;
 		capinfo = le16toh(*(u_int16_t *)frm);	frm += 2;
-		ssid = rates = xrates = country = wpa = wme = NULL;
+		ssid = rates = xrates = country = wpa = wme = tim = NULL;
 		bchan = ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan);
 		chan = bchan;
 		fhdwell = 0;
@@ -1753,6 +1753,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				break;
 			case IEEE80211_ELEMID_TIM:
 				/* XXX ATIM? */
+				tim = frm;
 				timoff = frm - mtod(m0, u_int8_t *);
 				break;
 			case IEEE80211_ELEMID_IBSSPARMS:
@@ -1871,6 +1872,13 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			if (wme != NULL &&
 			    ieee80211_parse_wmeparams(ic, wme, wh) > 0)
 				ieee80211_wme_updateparams(ic);
+			if (tim != NULL) {
+				struct ieee80211_tim_ie *ie =
+				    (struct ieee80211_tim_ie *) tim;
+
+				ni->ni_dtim_count = ie->tim_count;
+				ni->ni_dtim_period = ie->tim_period;
+			}
 			/* NB: don't need the rest of this */
 			if ((ic->ic_flags & IEEE80211_F_SCAN) == 0)
 				return;
@@ -1931,6 +1939,13 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		ni->ni_fhdwell = fhdwell;
 		ni->ni_fhindex = fhindex;
 		ni->ni_erp = erp;
+		if (tim != NULL) {
+			struct ieee80211_tim_ie *ie =
+			    (struct ieee80211_tim_ie *) tim;
+
+			ni->ni_dtim_count = ie->tim_count;
+			ni->ni_dtim_period = ie->tim_period;
+		}
 		/*
 		 * Record the byte offset from the mac header to
 		 * the start of the TIM information element for
