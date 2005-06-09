@@ -607,11 +607,14 @@ ktrace(td, uap)
 			error = ESRCH;
 			goto done;
 		}
+		error = p_cansee(td, p);
 		/*
 		 * The slock of the proctree lock will keep this process
 		 * from going away, so unlocking the proc here is ok.
 		 */
 		PROC_UNLOCK(p);
+		if (error)
+			goto done;
 		if (descend)
 			ret |= ktrsetchildren(td, p, ops, facs, vp);
 		else
