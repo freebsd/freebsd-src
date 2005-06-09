@@ -37,7 +37,14 @@ int (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
 /* Interrupt handler */
 int (*pmc_intr)(int cpu, uintptr_t pc, int usermode) = NULL;
 
-cpumask_t pmc_cpumask;
+volatile cpumask_t pmc_cpumask;
+
+/*
+ * A global count of SS mode PMCs.  When non-zero, this means that
+ * we have processes that are sampling the system as a whole.
+ */
+
+volatile int pmc_ss_count;
 
 /*
  * Since PMC(4) may not be loaded in the current kernel, the

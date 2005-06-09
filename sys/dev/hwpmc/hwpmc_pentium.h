@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2005, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,58 +26,47 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_PMC_MDEP_H
-#define	_MACHINE_PMC_MDEP_H 1
+/* Machine dependent interfaces */
 
-/*
- * On the i386 platform we support the following PMCs.
- *
- * K7		AMD Athlon XP/MP and other 32 bit processors.
- * K8		AMD Athlon64 and Opteron PMCs in 32 bit mode.
- * PIV		Intel P4/HTT and P4/EMT64
- * PPRO		Intel Pentium Pro, Pentium-II, Pentium-III, Celeron and
- *		Pentium-M processors
- * PENTIUM	Intel Pentium MMX.
- */
+#ifndef _DEV_HWPMC_PENTIUM_H_
+#define	_DEV_HWPMC_PENTIUM_H_ 1
 
-#include <dev/hwpmc/hwpmc_amd.h> /* K7 and K8 */
-#include <dev/hwpmc/hwpmc_piv.h>
-#include <dev/hwpmc/hwpmc_ppro.h>
-#include <dev/hwpmc/hwpmc_pentium.h>
+/* Intel Pentium PMCs */
 
-/*
- * Architecture specific extensions to <sys/pmc.h> structures.
- */
+#define	PENTIUM_NPMCS	3		/* 1 TSC + 2 PMCs */
+#define	PENTIUM_CESR_PC1		(1 << 25)
+#define	PENTIUM_CESR_CC1_MASK		0x01C00000
+#define	PENTIUM_CESR_TO_CC1(C)		(((C) & 0x07) << 22)
+#define	PENTIUM_CESR_ES1_MASK		0x003F0000
+#define	PENTIUM_CESR_TO_ES1(E)		(((E) & 0x3F) << 16)
+#define	PENTIUM_CESR_PC0		(1 << 9)
+#define	PENTIUM_CESR_CC0_MASK		0x000001C0
+#define	PENTIUM_CESR_TO_CC0(C)		(((C) & 0x07) << 6)
+#define	PENTIUM_CESR_ES0_MASK		0x0000003F
+#define	PENTIUM_CESR_TO_ES0(E)		((E) & 0x3F)
+#define	PENTIUM_CESR_RESERVED		0xFC00FC00
 
-union pmc_md_op_pmcallocate  {
-	struct pmc_md_amd_op_pmcallocate	pm_amd;
- 	struct pmc_md_ppro_op_pmcallocate	pm_ppro;
-	struct pmc_md_pentium_op_pmcallocate	pm_pentium;
-	struct pmc_md_p4_op_pmcallocate		pm_p4;
-	uint64_t				__pad[4];
+#define	PENTIUM_MSR_CESR		0x11
+#define	PENTIUM_MSR_CTR0		0x12
+#define	PENTIUM_MSR_CTR1		0x13
+
+struct pmc_md_pentium_op_pmcallocate {
+	uint32_t	pm_pentium_config;
 };
-
-/* Logging */
-#define	PMCLOG_READADDR		PMCLOG_READ32
-#define	PMCLOG_EMITADDR		PMCLOG_EMIT32
 
 #ifdef _KERNEL
 
 /* MD extension for 'struct pmc' */
-union pmc_md_pmc  {
-	struct pmc_md_amd_pmc	pm_amd;
-	struct pmc_md_ppro_pmc	pm_ppro;
-	struct pmc_md_pentium_pmc pm_pentium;
-	struct pmc_md_p4_pmc	pm_p4;
+struct pmc_md_pentium_pmc {
+	uint32_t	pm_pentium_cesr;
 };
 
-struct pmc;
 
 /*
  * Prototypes
  */
 
-void	pmc_x86_lapic_enable_pmc_interrupt(void);
+int	pmc_initialize_p5(struct pmc_mdep *);		/* Pentium PMCs */
 
 #endif /* _KERNEL */
-#endif /* _MACHINE_PMC_MDEP_H */
+#endif /* _DEV_HWPMC_PENTIUM_H_ */

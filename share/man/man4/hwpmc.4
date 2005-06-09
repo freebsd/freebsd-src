@@ -186,18 +186,48 @@ The
 .Ic PMC_OP_PMCALLOCATE
 operation supports the following flags that modify the behavior
 of an allocated PMC:
-.Bl -tag -width indent
+.Bl -tag -width indent -compact
 .It Dv PMC_F_DESCENDANTS
-This flag is valid only for a PMC being allocated in process-private
+This modifier is valid only for a PMC being allocated in process-private
 mode.
 It signifies that the PMC will track hardware events for its
 target process and the target's current and future descendants.
+.It Dv PMC_F_KGMON
+This modifier is valid only for a PMC being allocated in system-wide
+sampling mode.
+It signifies that the PMC's sampling interrupt is to be used to drive
+kernel profiling via
+.Xr kgmon 8 .
+.It Dv PMC_F_LOG_PROCCSW
+This modifier is valid only for a PMC being allocated in process-private
+mode.
+When this modifier is present, at every process context switch time,
+.Nm
+will append a record containing the count of the hardware events
+seen by the process to the configured log file.
+.It Dv PMC_F_LOG_PROCEXIT
+This modifier is valid only for a PMC being allocated in process-private
+mode.
+With this modifier present,
+.Nm
+will maintain per-process counts for each target process attached to
+a PMC.
+At process exit time, a record containing the target process' pid and
+the accumulated per-process count for that process will be written to the
+configured log file.
 .El
+Modifiers
+.Dv PMC_F_LOG_PROCEXIT
+and
+.Dv PMC_F_LOG_PROCCSW
+may be used in combination with modifier
+.Dv PMC_F_DESCENDANTS
+to track the behaviour of complex pipelines of processes.
 .Ss SIGNALS
 The
 .Nm
 driver may deliver signals to processes that have allocated PMCs:
-.Bl -tag -width indent
+.Bl -tag -width "XXXXXXXX" -compact
 .It Bq SIGIO
 A
 .Ic PMC_OP_PMCRW
@@ -226,6 +256,12 @@ driver supports the following operations:
 .Bl -tag -width indent
 .It Ic PMC_OP_CONFIGURELOG
 Configure a log file for sampling mode PMCs.
+.It Ic PMC_OP_FLUSHLOG
+Transfer buffered log data inside
+.Nm
+to a configured output file.
+This operation returns to the caller after the write operation
+has returned.
 .It Ic PMC_OP_GETCPUINFO
 Retrieve information about the number of CPUs on the system and
 the number of hardware performance monitoring counters available per-CPU.
@@ -316,9 +352,11 @@ The behavior of
 .Nm
 is influenced by the following
 .Xr sysctl 8
+and
+.Xr loader 8
 tunables:
 .Bl -tag -width indent
-.It Va kern.hwpmc.debugflags
+.It Va kern.hwpmc.debugflags Pq string, read-write
 (Only available if the
 .Nm
 driver was compiled with
@@ -326,22 +364,34 @@ driver was compiled with
 Control the verbosity of debug messages from the
 .Nm
 driver.
-.It Va kern.hwpmc.hashsize
+.It Va kern.hwpmc.hashsize Pq integer, read-only
 The number of rows in the hash-tables used to keep track of owner and
 target processes.
-.It Va kern.hwpmc.mtxpoolsize
+The default is 16.
+.It Va kern.hwpmc.logbuffersize Pq integer, read-only
+The size in kilobytes of each log buffer used by
+.Nm Ap s
+logging function.
+The default buffers size is 4KB.
+.It Va kern.hwpmc.mtxpoolsize Pq integer, read-only
 The size of the spin mutex pool used by the PMC driver.
-.It Va kern.hwpmc.pcpubuffersize
-The size of the per-cpu hash table used when performing system-wide
-statistical profiling.
-.It Va security.bsd.unprivileged_syspmcs
+The default is 32.
+.It Va kern.hwpmc.nbuffers Pq integer, read-only
+The number of log buffers used by
+.Nm
+for logging.
+The default is 16.
+.It Va kern.hwpmc.nsamples Pq integer, read-only
+The number of entries in the per-cpu ring buffer used during sampling.
+The default is 16.
+.It Va security.bsd.unprivileged_syspmcs Pq boolean, read-write
 If set to non-zero, allow unprivileged processes to allocate system-wide
 PMCs.
 The default value is 0.
-.It Va security.bsd.unprivileged_proc_debug
+.It Va security.bsd.unprivileged_proc_debug Pq boolean, read-write
 If set to 0, the
 .Nm
-driver will only allow privileged process to attach PMCs to other
+driver will only allow privileged processes to attach PMCs to other
 processes.
 .El
 .Pp
@@ -361,11 +411,9 @@ Set the
 tunable
 .Va "security.bsd.unprivileged_syspmcs"
 to 0.
-.Pp
 This ensures that unprivileged processes cannot allocate system-wide
 PMCs and thus cannot observe the hardware behavior of the system
 as a whole.
-.Pp
 This tunable may also be set at boot time using
 .Xr loader 8 ,
 or with
@@ -379,7 +427,6 @@ Set the
 tunable
 .Va "security.bsd.unprivileged_proc_debug"
 to 0.
-.Pp
 This will ensure that an unprivileged process cannot attach a PMC
 to any process other than itself and thus cannot observe the hardware
 behavior of other processes with the same credentials.
@@ -390,6 +437,9 @@ System administrators should note that on IA-32 platforms
 makes the content of the IA-32 TSC counter available to all processes
 via the RDTSC instruction.
 .Sh IMPLEMENTATION NOTES
+.Ss SMP Symmetry
+The kernel driver requires all physical CPUs in an SMP system to have
+identical performance monitoring counter hardware.
 .Ss i386 TSC Handling
 Historically, on the x86 architecture,
 .Fx
@@ -398,9 +448,6 @@ read the TSC using the RDTSC instruction.
 The
 .Nm
 driver preserves this semantic.
-.Pp
-TSCs are treated as shared, read-only counters and hence are
-only allowed to be allocated in system-wide counting mode.
 .Ss Intel P4/HTT Handling
 On CPUs with HTT support, Intel P4 PMCs are capable of qualifying
 only a subset of hardware events on a per-logical CPU basis.
@@ -410,6 +457,44 @@ PMCs, then the
 driver will reject allocation requests for process-private PMCs that
 request counting of hardware events that cannot be counted separately
 for each logical CPU.
+.Ss Intel Pentium-Pro Handling
+Writing a value to the PMC MSRs found ing Intel Pentium-Pro style PMCs
+(found in
+.Tn "Intel Pentium Pro" ,
+.Tn "Pentium II" ,
+.Tn "Pentium III" ,
+.Tn "Pentium M"
+and
+.Tn "Celeron"
+processors) will replicate bit 31 of the
+value being written into the upper 8 bits of the MSR,
+bringing down the usable width of these PMCs to 31 bits.
+For process-virtual PMCs, the
+.Nm
+driver implements a workaround in software and makes the corrected 64
+bit count available via the
+.Ic PMC_OP_RW
+operation.
+Processes that intend to use RDPMC instructions directly or
+that intend to write values larger than 2^31 into these PMCs with
+.Ic PMC_OP_RW
+need to be aware of this hardware limitation.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It hwpmc: tunable hashsize=%d must be greater than zero.
+A negative value was supplied for tunable
+.Va kern.hwpmc.hashsize .
+.It hwpmc: tunable logbuffersize=%d must be greater than zero.
+A negative value was supplied for tunable
+.Va kern.hwpmc.logbuffersize .
+.It hwpmc: tunable nlogbuffers=%d must be greater than zero.
+A negative value was supplied for tunable
+.Va kern.hwpmc.nlogbuffers .
+.It hwpmc: tunable nsamples=%d out of range.
+The value for tunable
+.Va kern.hwpmc.nsamples
+was negative or greater than 65535.
+.El
 .Sh ERRORS
 An command issued to the
 .Nm
@@ -567,7 +652,11 @@ An
 operation was issued on a PMC whose MSR has been retrieved using
 .Ic PMC_OP_PMCX86GETMSR .
 .It Bq Er ESRCH
-A process issued a PMC operation request without having allocated any PMCs.
+A process issued a PMC operation request without having allocated any
+PMCs.
+.It Bq Er ESRCH
+A process issued a PMC operation request after the PMC was detached
+from all of its target processes.
 .It Bq Er ESRCH
 A
 .Ic PMC_OP_PMCATTACH
@@ -580,9 +669,6 @@ operation is not being monitored by the
 driver.
 .El
 .Sh BUGS
-The kernel driver requires all CPUs in an SMP system to be symmetric
-with respect to their performance monitoring counter resources.
-.Pp
 The driver samples the state of the kernel's logical processor support
 at the time of initialization (i.e., at module load time).
 On CPUs supporting logical processors, the driver could misbehave if
@@ -591,6 +677,7 @@ driver is active.
 .Sh SEE ALSO
 .Xr kenv 1 ,
 .Xr pmc 3 ,
+.Xr kgmon 8 ,
 .Xr kldload 8 ,
 .Xr pmccontrol 8 ,
 .Xr pmcstat 8 ,

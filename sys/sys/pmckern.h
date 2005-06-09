@@ -44,9 +44,6 @@
 #define	PMC_FN_CSW_OUT			3
 #define	PMC_FN_DO_SAMPLES		4
 
-#define	PMC_FN_PROCESS_EXIT		5	/* obsolete */
-#define	PMC_FN_PROCESS_FORK		6	/* obsolete */
-
 /* hook */
 extern int (*pmc_hook)(struct thread *_td, int _function, void *_arg);
 extern int (*pmc_intr)(int _cpu, uintptr_t _pc, int _usermode);
@@ -55,7 +52,10 @@ extern int (*pmc_intr)(int _cpu, uintptr_t _pc, int _usermode);
 extern struct sx pmc_sx;
 
 /* Per-cpu flags indicating availability of sampling data */
-extern cpumask_t pmc_cpumask;
+extern volatile cpumask_t pmc_cpumask;
+
+/* Count of system-wide sampling PMCs in existence */
+extern volatile int pmc_ss_count;
 
 /* Hook invocation; for use within the kernel */
 #define	PMC_CALL_HOOK(t, cmd, arg)		\
@@ -91,6 +91,8 @@ do {						\
 #define PMC_PROC_IS_USING_PMCS(p)				\
 	(__predict_false(atomic_load_acq_int(&(p)->p_flag) &	\
 	    P_HWPMC))
+
+#define	PMC_SYSTEM_SAMPLING_ACTIVE()		(pmc_ss_count > 0)
 
 /* Check if a CPU has recorded samples. */
 #define	PMC_CPU_HAS_SAMPLES(C)	(__predict_false(pmc_cpumask & (1 << (C))))
