@@ -1740,8 +1740,9 @@ ata_intel_new_setmode(device_t dev, int mode)
 
     if (mode >= ATA_UDMA0) {
 	pci_write_config(gparent, 0x48, reg48 | (0x0001 << devno), 2);
-	pci_write_config(gparent, 0x4a, (reg4a & ~(0x3 << (devno<<2))) | 
-				       (0x01 + !(mode & 0x01)), 2);
+	pci_write_config(gparent, 0x4a,
+			 (reg4a & ~(0x3 << (devno << 2))) |
+			 ((0x01 + !(mode & 0x01)) << (devno << 2)), 2);
     }
     else {
 	pci_write_config(gparent, 0x48, reg48 & ~(0x0001 << devno), 2);
