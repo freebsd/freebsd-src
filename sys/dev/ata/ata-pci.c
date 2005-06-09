@@ -535,7 +535,7 @@ ata_pcichannel_attach(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     int error;
 
-    if (ctlr->r_res1)
+    if (ctlr->dmainit)
 	ctlr->dmainit(dev);
     if (ch->dma)
 	ch->dma->alloc(dev);
