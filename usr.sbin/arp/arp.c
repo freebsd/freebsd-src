@@ -384,7 +384,7 @@ set(int argc, char **argv)
 	}
 	sdl_m.sdl_type = sdl->sdl_type;
 	sdl_m.sdl_index = sdl->sdl_index;
-	return (rtmsg(RTM_ADD, dst, &sdl_m) != NULL);
+	return (rtmsg(RTM_ADD, dst, &sdl_m) == NULL);
 }
 
 /*
