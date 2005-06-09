@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003,2004 Joseph Koshy
+ * Copyright (c) 2003-2005 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,14 +46,17 @@ __FBSDID("$FreeBSD$");
 #if defined(__i386__)
 static int k7_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
-static int p6_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+#endif
+#if defined(__amd64__)
+static int k8_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
+#endif
+#if defined(__i386__)
 static int p4_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 static int p5_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
-#elif defined(__amd64__)
-static int k8_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+static int p6_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
 
@@ -212,7 +215,7 @@ k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	int 		c, has_unitmask;
 	uint32_t	count, unitmask;
 
-	pmc_config->pm_amd_config = 0;
+	pmc_config->pm_md.pm_amd.pm_amd_config = 0;
 	pmc_config->pm_caps |= PMC_CAP_READ;
 
 	if (pe == PMC_EV_TSC_TSC) {
@@ -226,7 +229,7 @@ k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	    pe == PMC_EV_K7_DC_REFILLS_FROM_SYSTEM ||
 	    pe == PMC_EV_K7_DC_WRITEBACKS) {
 		has_unitmask = 1;
-		unitmask = K7_PMC_UNITMASK_MOESI;
+		unitmask = AMD_PMC_UNITMASK_MOESI;
 	} else
 		unitmask = has_unitmask = 0;
 
@@ -243,7 +246,8 @@ k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
 				return -1;
 
 			pmc_config->pm_caps |= PMC_CAP_THRESHOLD;
-			pmc_config->pm_amd_config |= K7_PMC_TO_COUNTER(count);
+			pmc_config->pm_md.pm_amd.pm_amd_config |=
+			    AMD_PMC_TO_COUNTER(count);
 
 		} else if (KWMATCH(p, K7_KW_EDGE)) {
 			pmc_config->pm_caps |= PMC_CAP_EDGE;
@@ -261,15 +265,15 @@ k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 			while ((c = tolower(*q++)) != 0)
 				if (c == 'm')
-					unitmask |= K7_PMC_UNITMASK_M;
+					unitmask |= AMD_PMC_UNITMASK_M;
 				else if (c == 'o')
-					unitmask |= K7_PMC_UNITMASK_O;
+					unitmask |= AMD_PMC_UNITMASK_O;
 				else if (c == 'e')
-					unitmask |= K7_PMC_UNITMASK_E;
+					unitmask |= AMD_PMC_UNITMASK_E;
 				else if (c == 's')
-					unitmask |= K7_PMC_UNITMASK_S;
+					unitmask |= AMD_PMC_UNITMASK_S;
 				else if (c == 'i')
-					unitmask |= K7_PMC_UNITMASK_I;
+					unitmask |= AMD_PMC_UNITMASK_I;
 				else if (c == '+')
 					continue;
 				else
@@ -286,13 +290,386 @@ k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 	if (has_unitmask) {
 		pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
-		pmc_config->pm_amd_config |=
-		    K7_PMC_TO_UNITMASK(unitmask);
+		pmc_config->pm_md.pm_amd.pm_amd_config |=
+		    AMD_PMC_TO_UNITMASK(unitmask);
 	}
 
 	return 0;
 
 }
+
+#endif
+
+#if	defined(__amd64__)
+
+/*
+ * AMD K8 PMCs.
+ *
+ * These are very similar to AMD K7 PMCs, but support more kinds of
+ * events.
+ */
+
+static struct pmc_event_alias k8_aliases[] = {
+	EV_ALIAS("branches",		"k8-fr-retired-taken-branches"),
+	EV_ALIAS("branch-mispredicts",
+	    "k8-fr-retired-taken-branches-mispredicted"),
+	EV_ALIAS("cycles",		"tsc"),
+	EV_ALIAS("dc-misses",		"k8-dc-miss"),
+	EV_ALIAS("ic-misses",		"k8-ic-miss"),
+	EV_ALIAS("instructions", 	"k8-fr-retired-x86-instructions"),
+	EV_ALIAS("interrupts",		"k8-fr-taken-hardware-interrupts"),
+	EV_ALIAS(NULL, NULL)
+};
+
+#define	__K8MASK(N,V) PMCMASK(N,(1 << (V)))
+
+/*
+ * Parsing tables
+ */
+
+/* fp dispatched fpu ops */
+static const struct pmc_masks k8_mask_fdfo[] = {
+	__K8MASK(add-pipe-excluding-junk-ops,	0),
+	__K8MASK(multiply-pipe-excluding-junk-ops,	1),
+	__K8MASK(store-pipe-excluding-junk-ops,	2),
+	__K8MASK(add-pipe-junk-ops,		3),
+	__K8MASK(multiply-pipe-junk-ops,	4),
+	__K8MASK(store-pipe-junk-ops,		5),
+	NULLMASK
+};
+
+/* ls segment register loads */
+static const struct pmc_masks k8_mask_lsrl[] = {
+	__K8MASK(es,	0),
+	__K8MASK(cs,	1),
+	__K8MASK(ss,	2),
+	__K8MASK(ds,	3),
+	__K8MASK(fs,	4),
+	__K8MASK(gs,	5),
+	__K8MASK(hs,	6),
+	NULLMASK
+};
+
+/* ls locked operation */
+static const struct pmc_masks k8_mask_llo[] = {
+	__K8MASK(locked-instructions,	0),
+	__K8MASK(cycles-in-request,	1),
+	__K8MASK(cycles-to-complete,	2),
+	NULLMASK
+};
+
+/* dc refill from {l2,system} and dc copyback */
+static const struct pmc_masks k8_mask_dc[] = {
+	__K8MASK(invalid,	0),
+	__K8MASK(shared,	1),
+	__K8MASK(exclusive,	2),
+	__K8MASK(owner,		3),
+	__K8MASK(modified,	4),
+	NULLMASK
+};
+
+/* dc one bit ecc error */
+static const struct pmc_masks k8_mask_dobee[] = {
+	__K8MASK(scrubber,	0),
+	__K8MASK(piggyback,	1),
+	NULLMASK
+};
+
+/* dc dispatched prefetch instructions */
+static const struct pmc_masks k8_mask_ddpi[] = {
+	__K8MASK(load,	0),
+	__K8MASK(store,	1),
+	__K8MASK(nta,	2),
+	NULLMASK
+};
+
+/* dc dcache accesses by locks */
+static const struct pmc_masks k8_mask_dabl[] = {
+	__K8MASK(accesses,	0),
+	__K8MASK(misses,	1),
+	NULLMASK
+};
+
+/* bu internal l2 request */
+static const struct pmc_masks k8_mask_bilr[] = {
+	__K8MASK(ic-fill,	0),
+	__K8MASK(dc-fill,	1),
+	__K8MASK(tlb-reload,	2),
+	__K8MASK(tag-snoop,	3),
+	__K8MASK(cancelled,	4),
+	NULLMASK
+};
+
+/* bu fill request l2 miss */
+static const struct pmc_masks k8_mask_bfrlm[] = {
+	__K8MASK(ic-fill,	0),
+	__K8MASK(dc-fill,	1),
+	__K8MASK(tlb-reload,	2),
+	NULLMASK
+};
+
+/* bu fill into l2 */
+static const struct pmc_masks k8_mask_bfil[] = {
+	__K8MASK(dirty-l2-victim,	0),
+	__K8MASK(victim-from-l2,	1),
+	NULLMASK
+};
+
+/* fr retired fpu instructions */
+static const struct pmc_masks k8_mask_frfi[] = {
+	__K8MASK(x87,			0),
+	__K8MASK(mmx-3dnow,		1),
+	__K8MASK(packed-sse-sse2,	2),
+	__K8MASK(scalar-sse-sse2,	3),
+	NULLMASK
+};
+
+/* fr retired fastpath double op instructions */
+static const struct pmc_masks k8_mask_frfdoi[] = {
+	__K8MASK(low-op-pos-0,		0),
+	__K8MASK(low-op-pos-1,		1),
+	__K8MASK(low-op-pos-2,		2),
+	NULLMASK
+};
+
+/* fr fpu exceptions */
+static const struct pmc_masks k8_mask_ffe[] = {
+	__K8MASK(x87-reclass-microfaults,	0),
+	__K8MASK(sse-retype-microfaults,	1),
+	__K8MASK(sse-reclass-microfaults,	2),
+	__K8MASK(sse-and-x87-microtraps,	3),
+	NULLMASK
+};
+
+/* nb memory controller page access event */
+static const struct pmc_masks k8_mask_nmcpae[] = {
+	__K8MASK(page-hit,	0),
+	__K8MASK(page-miss,	1),
+	__K8MASK(page-conflict,	2),
+	NULLMASK
+};
+
+/* nb memory controller turnaround */
+static const struct pmc_masks k8_mask_nmct[] = {
+	__K8MASK(dimm-turnaround,		0),
+	__K8MASK(read-to-write-turnaround,	1),
+	__K8MASK(write-to-read-turnaround,	2),
+	NULLMASK
+};
+
+/* nb memory controller bypass saturation */
+static const struct pmc_masks k8_mask_nmcbs[] = {
+	__K8MASK(memory-controller-hi-pri-bypass,	0),
+	__K8MASK(memory-controller-lo-pri-bypass,	1),
+	__K8MASK(dram-controller-interface-bypass,	2),
+	__K8MASK(dram-controller-queue-bypass,		3),
+	NULLMASK
+};
+
+/* nb sized commands */
+static const struct pmc_masks k8_mask_nsc[] = {
+	__K8MASK(nonpostwrszbyte,	0),
+	__K8MASK(nonpostwrszdword,	1),
+	__K8MASK(postwrszbyte,		2),
+	__K8MASK(postwrszdword,		3),
+	__K8MASK(rdszbyte,		4),
+	__K8MASK(rdszdword,		5),
+	__K8MASK(rdmodwr,		6),
+	NULLMASK
+};
+
+/* nb probe result */
+static const struct pmc_masks k8_mask_npr[] = {
+	__K8MASK(probe-miss,		0),
+	__K8MASK(probe-hit,		1),
+	__K8MASK(probe-hit-dirty-no-memory-cancel, 2),
+	__K8MASK(probe-hit-dirty-with-memory-cancel, 3),
+	NULLMASK
+};
+
+/* nb hypertransport bus bandwidth */
+static const struct pmc_masks k8_mask_nhbb[] = { /* HT bus bandwidth */
+	__K8MASK(command,	0),
+	__K8MASK(data, 	1),
+	__K8MASK(buffer-release, 2),
+	__K8MASK(nop,	3),
+	NULLMASK
+};
+
+#undef	__K8MASK
+
+#define	K8_KW_COUNT	"count"
+#define	K8_KW_EDGE	"edge"
+#define	K8_KW_INV	"inv"
+#define	K8_KW_MASK	"mask"
+#define	K8_KW_OS	"os"
+#define	K8_KW_USR	"usr"
+
+static int
+k8_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
+{
+	char 		*e, *p, *q;
+	int 		n;
+	uint32_t	count, evmask;
+	const struct pmc_masks	*pm, *pmask;
+
+	pmc_config->pm_caps |= PMC_CAP_READ;
+	pmc_config->pm_md.pm_amd.pm_amd_config = 0;
+
+	if (pe == PMC_EV_TSC_TSC) {
+		/* TSC events must be unqualified. */
+		if (ctrspec && *ctrspec != '\0')
+			return -1;
+		return 0;
+	}
+
+	pmask = NULL;
+	evmask = 0;
+
+#define	__K8SETMASK(M) pmask = k8_mask_##M
+
+	/* setup parsing tables */
+	switch (pe) {
+	case PMC_EV_K8_FP_DISPATCHED_FPU_OPS:
+		__K8SETMASK(fdfo);
+		break;
+	case PMC_EV_K8_LS_SEGMENT_REGISTER_LOAD:
+		__K8SETMASK(lsrl);
+		break;
+	case PMC_EV_K8_LS_LOCKED_OPERATION:
+		__K8SETMASK(llo);
+		break;
+	case PMC_EV_K8_DC_REFILL_FROM_L2:
+	case PMC_EV_K8_DC_REFILL_FROM_SYSTEM:
+	case PMC_EV_K8_DC_COPYBACK:
+		__K8SETMASK(dc);
+		break;
+	case PMC_EV_K8_DC_ONE_BIT_ECC_ERROR:
+		__K8SETMASK(dobee);
+		break;
+	case PMC_EV_K8_DC_DISPATCHED_PREFETCH_INSTRUCTIONS:
+		__K8SETMASK(ddpi);
+		break;
+	case PMC_EV_K8_DC_DCACHE_ACCESSES_BY_LOCKS:
+		__K8SETMASK(dabl);
+		break;
+	case PMC_EV_K8_BU_INTERNAL_L2_REQUEST:
+		__K8SETMASK(bilr);
+		break;
+	case PMC_EV_K8_BU_FILL_REQUEST_L2_MISS:
+		__K8SETMASK(bfrlm);
+		break;
+	case PMC_EV_K8_BU_FILL_INTO_L2:
+		__K8SETMASK(bfil);
+		break;
+	case PMC_EV_K8_FR_RETIRED_FPU_INSTRUCTIONS:
+		__K8SETMASK(frfi);
+		break;
+	case PMC_EV_K8_FR_RETIRED_FASTPATH_DOUBLE_OP_INSTRUCTIONS:
+		__K8SETMASK(frfdoi);
+		break;
+	case PMC_EV_K8_FR_FPU_EXCEPTIONS:
+		__K8SETMASK(ffe);
+		break;
+	case PMC_EV_K8_NB_MEMORY_CONTROLLER_PAGE_ACCESS_EVENT:
+		__K8SETMASK(nmcpae);
+		break;
+	case PMC_EV_K8_NB_MEMORY_CONTROLLER_TURNAROUND:
+		__K8SETMASK(nmct);
+		break;
+	case PMC_EV_K8_NB_MEMORY_CONTROLLER_BYPASS_SATURATION:
+		__K8SETMASK(nmcbs);
+		break;
+	case PMC_EV_K8_NB_SIZED_COMMANDS:
+		__K8SETMASK(nsc);
+		break;
+	case PMC_EV_K8_NB_PROBE_RESULT:
+		__K8SETMASK(npr);
+		break;
+	case PMC_EV_K8_NB_HT_BUS0_BANDWIDTH:
+	case PMC_EV_K8_NB_HT_BUS1_BANDWIDTH:
+	case PMC_EV_K8_NB_HT_BUS2_BANDWIDTH:
+		__K8SETMASK(nhbb);
+		break;
+
+	default:
+		break;		/* no options defined */
+	}
+
+	pmc_config->pm_caps |= PMC_CAP_WRITE;
+
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+		if (KWPREFIXMATCH(p, K8_KW_COUNT "=")) {
+			q = strchr(p, '=');
+			if (*++q == '\0') /* skip '=' */
+				return -1;
+
+			count = strtol(q, &e, 0);
+			if (e == q || *e != '\0')
+				return -1;
+
+			pmc_config->pm_caps |= PMC_CAP_THRESHOLD;
+			pmc_config->pm_md.pm_amd.pm_amd_config |=
+			    AMD_PMC_TO_COUNTER(count);
+
+		} else if (KWMATCH(p, K8_KW_EDGE)) {
+			pmc_config->pm_caps |= PMC_CAP_EDGE;
+		} else if (KWMATCH(p, K8_KW_INV)) {
+			pmc_config->pm_caps |= PMC_CAP_INVERT;
+		} else if (KWPREFIXMATCH(p, K8_KW_MASK "=")) {
+			if ((n = pmc_parse_mask(pmask, p, &evmask)) < 0)
+				return -1;
+			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
+		} else if (KWMATCH(p, K8_KW_OS)) {
+			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+		} else if (KWMATCH(p, K8_KW_USR)) {
+			pmc_config->pm_caps |= PMC_CAP_USER;
+		} else
+			return -1;
+	}
+
+	/* other post processing */
+
+	switch (pe) {
+	case PMC_EV_K8_FP_DISPATCHED_FPU_OPS:
+	case PMC_EV_K8_FP_CYCLES_WITH_NO_FPU_OPS_RETIRED:
+	case PMC_EV_K8_FP_DISPATCHED_FPU_FAST_FLAG_OPS:
+	case PMC_EV_K8_FR_RETIRED_FASTPATH_DOUBLE_OP_INSTRUCTIONS:
+	case PMC_EV_K8_FR_RETIRED_FPU_INSTRUCTIONS:
+	case PMC_EV_K8_FR_FPU_EXCEPTIONS:
+		/* XXX only available in rev B and later */
+		break;
+	case PMC_EV_K8_DC_DCACHE_ACCESSES_BY_LOCKS:
+		/* XXX only available in rev C and later */
+		break;
+	case PMC_EV_K8_LS_LOCKED_OPERATION:
+		/* XXX CPU Rev A,B evmask is to be zero */
+		if (evmask & (evmask - 1)) /* > 1 bit set */
+			return -1;
+		if (evmask == 0) {
+			evmask = 0x01; /* Rev C and later: #instrs */
+			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
+		}
+		break;
+	default:
+		if (evmask == 0 && pmask != NULL) {
+			for (pm = pmask; pm->pm_name; pm++)
+				evmask |= pm->pm_value;
+			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
+		}
+	}
+
+	if (pmc_config->pm_caps & PMC_CAP_QUALIFIER)
+		pmc_config->pm_md.pm_amd.pm_amd_config =
+		    AMD_PMC_TO_UNITMASK(evmask);
+
+	return 0;
+}
+
+#endif
+
+#if	defined(__i386__)
 
 /*
  * Intel P4 PMCs
@@ -629,7 +1006,8 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	const struct pmc_masks *pm, *pmask;
 
 	pmc_config->pm_caps |= PMC_CAP_READ;
-	pmc_config->pm_p4_cccrconfig = pmc_config->pm_p4_escrconfig = 0;
+	pmc_config->pm_md.pm_p4.pm_p4_cccrconfig =
+	    pmc_config->pm_md.pm_p4.pm_p4_escrconfig = 0;
 
 	if (pe == PMC_EV_TSC_TSC) {
 		/* TSC must not be further qualified */
@@ -838,7 +1216,7 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
 				return -1;
 
 			pmc_config->pm_caps |= PMC_CAP_TAGGING;
-			pmc_config->pm_p4_escrconfig |=
+			pmc_config->pm_md.pm_p4.pm_p4_escrconfig |=
 			    P4_ESCR_TO_TAG_VALUE(count);
 		} else if (KWPREFIXMATCH(p, P4_KW_THRESHOLD "=")) {
 			q = strchr(p, '=');
@@ -850,8 +1228,10 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
 				return -1;
 
 			pmc_config->pm_caps |= PMC_CAP_THRESHOLD;
-			pmc_config->pm_p4_cccrconfig &= ~P4_CCCR_THRESHOLD_MASK;
-			pmc_config->pm_p4_cccrconfig |= P4_CCCR_TO_THRESHOLD(count);
+			pmc_config->pm_md.pm_p4.pm_p4_cccrconfig &=
+			    ~P4_CCCR_THRESHOLD_MASK;
+			pmc_config->pm_md.pm_p4.pm_p4_cccrconfig |=
+			    P4_CCCR_TO_THRESHOLD(count);
 		} else if (KWMATCH(p, P4_KW_USR))
 			pmc_config->pm_caps |= PMC_CAP_USER;
 		else
@@ -865,7 +1245,7 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
 		pmc_config->pm_caps |= PMC_CAP_EDGE;
 
 	/* fill in thread activity mask */
-	pmc_config->pm_p4_cccrconfig |=
+	pmc_config->pm_md.pm_p4.pm_p4_cccrconfig |=
 	    P4_CCCR_TO_ACTIVE_THREAD(cccractivemask);
 
 	if (evmask)
@@ -896,9 +1276,26 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
 		}
 	}
 
-	pmc_config->pm_p4_escrconfig = P4_ESCR_TO_EVENT_MASK(evmask);
+	pmc_config->pm_md.pm_p4.pm_p4_escrconfig =
+	    P4_ESCR_TO_EVENT_MASK(evmask);
 
 	return 0;
+}
+
+/*
+ * Pentium style PMCs
+ */
+
+static struct pmc_event_alias p5_aliases[] = {
+	EV_ALIAS("cycles", "tsc"),
+	EV_ALIAS(NULL, NULL)
+};
+
+static int
+p5_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
+{
+	return -1 || pe || ctrspec || pmc_config; /* shut up gcc */
 }
 
 /*
@@ -1034,7 +1431,7 @@ p6_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	const struct pmc_masks *pm, *pmask;
 
 	pmc_config->pm_caps |= PMC_CAP_READ;
-	pmc_config->pm_p6_config = 0;
+	pmc_config->pm_md.pm_ppro.pm_ppro_config = 0;
 
 	if (pe == PMC_EV_TSC_TSC) {
 		if (ctrspec && *ctrspec != '\0')
@@ -1113,7 +1510,8 @@ p6_allocate_pmc(enum pmc_event pe, char *ctrspec,
 			if (e == q || *e != '\0')
 				return -1;
 			pmc_config->pm_caps |= PMC_CAP_THRESHOLD;
-			pmc_config->pm_p6_config |= P6_EVSEL_TO_CMASK(count);
+			pmc_config->pm_md.pm_ppro.pm_ppro_config |=
+			    P6_EVSEL_TO_CMASK(count);
 		} else if (KWMATCH(p, P6_KW_EDGE)) {
 			pmc_config->pm_caps |= PMC_CAP_EDGE;
 		} else if (KWMATCH(p, P6_KW_INV)) {
@@ -1222,471 +1620,18 @@ p6_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	}
 
 	if (pmc_config->pm_caps & PMC_CAP_QUALIFIER)
-		pmc_config->pm_p6_config |= P6_EVSEL_TO_UMASK(evmask);
+		pmc_config->pm_md.pm_ppro.pm_ppro_config |=
+		    P6_EVSEL_TO_UMASK(evmask);
 
 	return 0;
 }
 
-/*
- * Pentium style PMCs
- */
-
-static struct pmc_event_alias p5_aliases[] = {
-	EV_ALIAS("cycles", "tsc"),
-	EV_ALIAS(NULL, NULL)
-};
-
-static int
-p5_allocate_pmc(enum pmc_event pe, char *ctrspec,
-    struct pmc_op_pmcallocate *pmc_config)
-{
-	return -1 || pe || ctrspec || pmc_config; /* shut up gcc */
-}
-
-#elif defined(__amd64__)
-
-/*
- * AMD K8 PMCs.
- *
- * These are very similar to AMD K7 PMCs, but support more kinds of
- * events.
- */
-
-static struct pmc_event_alias k8_aliases[] = {
-	EV_ALIAS("branches",		"k8-fr-retired-taken-branches"),
-	EV_ALIAS("branch-mispredicts",
-	    "k8-fr-retired-taken-branches-mispredicted"),
-	EV_ALIAS("cycles",		"tsc"),
-	EV_ALIAS("dc-misses",		"k8-dc-miss"),
-	EV_ALIAS("ic-misses",		"k8-ic-miss"),
-	EV_ALIAS("instructions", 	"k8-fr-retired-x86-instructions"),
-	EV_ALIAS("interrupts",		"k8-fr-taken-hardware-interrupts"),
-	EV_ALIAS(NULL, NULL)
-};
-
-#define	__K8MASK(N,V) PMCMASK(N,(1 << (V)))
-
-/*
- * Parsing tables
- */
-
-/* fp dispatched fpu ops */
-static const struct pmc_masks k8_mask_fdfo[] = {
-	__K8MASK(add-pipe-excluding-junk-ops,	0),
-	__K8MASK(multiply-pipe-excluding-junk-ops,	1),
-	__K8MASK(store-pipe-excluding-junk-ops,	2),
-	__K8MASK(add-pipe-junk-ops,		3),
-	__K8MASK(multiply-pipe-junk-ops,	4),
-	__K8MASK(store-pipe-junk-ops,		5),
-	NULLMASK
-};
-
-/* ls segment register loads */
-static const struct pmc_masks k8_mask_lsrl[] = {
-	__K8MASK(es,	0),
-	__K8MASK(cs,	1),
-	__K8MASK(ss,	2),
-	__K8MASK(ds,	3),
-	__K8MASK(fs,	4),
-	__K8MASK(gs,	5),
-	__K8MASK(hs,	6),
-	NULLMASK
-};
-
-/* ls locked operation */
-static const struct pmc_masks k8_mask_llo[] = {
-	__K8MASK(locked-instructions,	0),
-	__K8MASK(cycles-in-request,	1),
-	__K8MASK(cycles-to-complete,	2),
-	NULLMASK
-};
-
-/* dc refill from {l2,system} and dc copyback */
-static const struct pmc_masks k8_mask_dc[] = {
-	__K8MASK(invalid,	0),
-	__K8MASK(shared,	1),
-	__K8MASK(exclusive,	2),
-	__K8MASK(owner,		3),
-	__K8MASK(modified,	4),
-	NULLMASK
-};
-
-/* dc one bit ecc error */
-static const struct pmc_masks k8_mask_dobee[] = {
-	__K8MASK(scrubber,	0),
-	__K8MASK(piggyback,	1),
-	NULLMASK
-};
-
-/* dc dispatched prefetch instructions */
-static const struct pmc_masks k8_mask_ddpi[] = {
-	__K8MASK(load,	0),
-	__K8MASK(store,	1),
-	__K8MASK(nta,	2),
-	NULLMASK
-};
-
-/* dc dcache accesses by locks */
-static const struct pmc_masks k8_mask_dabl[] = {
-	__K8MASK(accesses,	0),
-	__K8MASK(misses,	1),
-	NULLMASK
-};
-
-/* bu internal l2 request */
-static const struct pmc_masks k8_mask_bilr[] = {
-	__K8MASK(ic-fill,	0),
-	__K8MASK(dc-fill,	1),
-	__K8MASK(tlb-reload,	2),
-	__K8MASK(tag-snoop,	3),
-	__K8MASK(cancelled,	4),
-	NULLMASK
-};
-
-/* bu fill request l2 miss */
-static const struct pmc_masks k8_mask_bfrlm[] = {
-	__K8MASK(ic-fill,	0),
-	__K8MASK(dc-fill,	1),
-	__K8MASK(tlb-reload,	2),
-	NULLMASK
-};
-
-/* bu fill into l2 */
-static const struct pmc_masks k8_mask_bfil[] = {
-	__K8MASK(dirty-l2-victim,	0),
-	__K8MASK(victim-from-l2,	1),
-	NULLMASK
-};
-
-/* fr retired fpu instructions */
-static const struct pmc_masks k8_mask_frfi[] = {
-	__K8MASK(x87,			0),
-	__K8MASK(mmx-3dnow,		1),
-	__K8MASK(packed-sse-sse2,	2),
-	__K8MASK(scalar-sse-sse2,	3),
-	NULLMASK
-};
-
-/* fr retired fastpath double op instructions */
-static const struct pmc_masks k8_mask_frfdoi[] = {
-	__K8MASK(low-op-pos-0,		0),
-	__K8MASK(low-op-pos-1,		1),
-	__K8MASK(low-op-pos-2,		2),
-	NULLMASK
-};
-
-/* fr fpu exceptions */
-static const struct pmc_masks k8_mask_ffe[] = {
-	__K8MASK(x87-reclass-microfaults,	0),
-	__K8MASK(sse-retype-microfaults,	1),
-	__K8MASK(sse-reclass-microfaults,	2),
-	__K8MASK(sse-and-x87-microtraps,	3),
-	NULLMASK
-};
-
-/* nb memory controller page access event */
-static const struct pmc_masks k8_mask_nmcpae[] = {
-	__K8MASK(page-hit,	0),
-	__K8MASK(page-miss,	1),
-	__K8MASK(page-conflict,	2),
-	NULLMASK
-};
-
-/* nb memory controller turnaround */
-static const struct pmc_masks k8_mask_nmct[] = {
-	__K8MASK(dimm-turnaround,		0),
-	__K8MASK(read-to-write-turnaround,	1),
-	__K8MASK(write-to-read-turnaround,	2),
-	NULLMASK
-};
-
-/* nb memory controller bypass saturation */
-static const struct pmc_masks k8_mask_nmcbs[] = {
-	__K8MASK(memory-controller-hi-pri-bypass,	0),
-	__K8MASK(memory-controller-lo-pri-bypass,	1),
-	__K8MASK(dram-controller-interface-bypass,	2),
-	__K8MASK(dram-controller-queue-bypass,		3),
-	NULLMASK
-};
-
-/* nb sized commands */
-static const struct pmc_masks k8_mask_nsc[] = {
-	__K8MASK(nonpostwrszbyte,	0),
-	__K8MASK(nonpostwrszdword,	1),
-	__K8MASK(postwrszbyte,		2),
-	__K8MASK(postwrszdword,		3),
-	__K8MASK(rdszbyte,		4),
-	__K8MASK(rdszdword,		5),
-	__K8MASK(rdmodwr,		6),
-	NULLMASK
-};
-
-/* nb probe result */
-static const struct pmc_masks k8_mask_npr[] = {
-	__K8MASK(probe-miss,		0),
-	__K8MASK(probe-hit,		1),
-	__K8MASK(probe-hit-dirty-no-memory-cancel, 2),
-	__K8MASK(probe-hit-dirty-with-memory-cancel, 3),
-	NULLMASK
-};
-
-/* nb hypertransport bus bandwidth */
-static const struct pmc_masks k8_mask_nhbb[] = { /* HT bus bandwidth */
-	__K8MASK(command,	0),
-	__K8MASK(data, 	1),
-	__K8MASK(buffer-release, 2),
-	__K8MASK(nop,	3),
-	NULLMASK
-};
-
-#undef	__K8MASK
-
-#define	K8_KW_COUNT	"count"
-#define	K8_KW_EDGE	"edge"
-#define	K8_KW_INV	"inv"
-#define	K8_KW_MASK	"mask"
-#define	K8_KW_OS	"os"
-#define	K8_KW_USR	"usr"
-
-static int
-k8_allocate_pmc(enum pmc_event pe, char *ctrspec,
-    struct pmc_op_pmcallocate *pmc_config)
-{
-	char 		*e, *p, *q;
-	int 		n;
-	uint32_t	count, evmask;
-	const struct pmc_masks	*pm, *pmask;
-
-	pmc_config->pm_caps |= PMC_CAP_READ;
-	pmc_config->pm_amd_config = 0;
-
-	if (pe == PMC_EV_TSC_TSC) {
-		/* TSC events must be unqualified. */
-		if (ctrspec && *ctrspec != '\0')
-			return -1;
-		return 0;
-	}
-
-	pmask = NULL;
-	evmask = 0;
-
-#define	__K8SETMASK(M) pmask = k8_mask_##M
-
-	/* setup parsing tables */
-	switch (pe) {
-	case PMC_EV_K8_FP_DISPATCHED_FPU_OPS:
-		__K8SETMASK(fdfo);
-		break;
-	case PMC_EV_K8_LS_SEGMENT_REGISTER_LOAD:
-		__K8SETMASK(lsrl);
-		break;
-	case PMC_EV_K8_LS_LOCKED_OPERATION:
-		__K8SETMASK(llo);
-		break;
-	case PMC_EV_K8_DC_REFILL_FROM_L2:
-	case PMC_EV_K8_DC_REFILL_FROM_SYSTEM:
-	case PMC_EV_K8_DC_COPYBACK:
-		__K8SETMASK(dc);
-		break;
-	case PMC_EV_K8_DC_ONE_BIT_ECC_ERROR:
-		__K8SETMASK(dobee);
-		break;
-	case PMC_EV_K8_DC_DISPATCHED_PREFETCH_INSTRUCTIONS:
-		__K8SETMASK(ddpi);
-		break;
-	case PMC_EV_K8_DC_DCACHE_ACCESSES_BY_LOCKS:
-		__K8SETMASK(dabl);
-		break;
-	case PMC_EV_K8_BU_INTERNAL_L2_REQUEST:
-		__K8SETMASK(bilr);
-		break;
-	case PMC_EV_K8_BU_FILL_REQUEST_L2_MISS:
-		__K8SETMASK(bfrlm);
-		break;
-	case PMC_EV_K8_BU_FILL_INTO_L2:
-		__K8SETMASK(bfil);
-		break;
-	case PMC_EV_K8_FR_RETIRED_FPU_INSTRUCTIONS:
-		__K8SETMASK(frfi);
-		break;
-	case PMC_EV_K8_FR_RETIRED_FASTPATH_DOUBLE_OP_INSTRUCTIONS:
-		__K8SETMASK(frfdoi);
-		break;
-	case PMC_EV_K8_FR_FPU_EXCEPTIONS:
-		__K8SETMASK(ffe);
-		break;
-	case PMC_EV_K8_NB_MEMORY_CONTROLLER_PAGE_ACCESS_EVENT:
-		__K8SETMASK(nmcpae);
-		break;
-	case PMC_EV_K8_NB_MEMORY_CONTROLLER_TURNAROUND:
-		__K8SETMASK(nmct);
-		break;
-	case PMC_EV_K8_NB_MEMORY_CONTROLLER_BYPASS_SATURATION:
-		__K8SETMASK(nmcbs);
-		break;
-	case PMC_EV_K8_NB_SIZED_COMMANDS:
-		__K8SETMASK(nsc);
-		break;
-	case PMC_EV_K8_NB_PROBE_RESULT:
-		__K8SETMASK(npr);
-		break;
-	case PMC_EV_K8_NB_HT_BUS0_BANDWIDTH:
-	case PMC_EV_K8_NB_HT_BUS1_BANDWIDTH:
-	case PMC_EV_K8_NB_HT_BUS2_BANDWIDTH:
-		__K8SETMASK(nhbb);
-		break;
-
-	default:
-		break;		/* no options defined */
-	}
-
-	pmc_config->pm_caps |= PMC_CAP_WRITE;
-
-	while ((p = strsep(&ctrspec, ",")) != NULL) {
-		if (KWPREFIXMATCH(p, K8_KW_COUNT "=")) {
-			q = strchr(p, '=');
-			if (*++q == '\0') /* skip '=' */
-				return -1;
-
-			count = strtol(q, &e, 0);
-			if (e == q || *e != '\0')
-				return -1;
-
-			pmc_config->pm_caps |= PMC_CAP_THRESHOLD;
-			pmc_config->pm_amd_config |= K8_PMC_TO_COUNTER(count);
-
-		} else if (KWMATCH(p, K8_KW_EDGE)) {
-			pmc_config->pm_caps |= PMC_CAP_EDGE;
-		} else if (KWMATCH(p, K8_KW_INV)) {
-			pmc_config->pm_caps |= PMC_CAP_INVERT;
-		} else if (KWPREFIXMATCH(p, K8_KW_MASK "=")) {
-			if ((n = pmc_parse_mask(pmask, p, &evmask)) < 0)
-				return -1;
-			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
-		} else if (KWMATCH(p, K8_KW_OS)) {
-			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
-		} else if (KWMATCH(p, K8_KW_USR)) {
-			pmc_config->pm_caps |= PMC_CAP_USER;
-		} else
-			return -1;
-	}
-
-	/* other post processing */
-
-	switch (pe) {
-	case PMC_EV_K8_FP_DISPATCHED_FPU_OPS:
-	case PMC_EV_K8_FP_CYCLES_WITH_NO_FPU_OPS_RETIRED:
-	case PMC_EV_K8_FP_DISPATCHED_FPU_FAST_FLAG_OPS:
-	case PMC_EV_K8_FR_RETIRED_FASTPATH_DOUBLE_OP_INSTRUCTIONS:
-	case PMC_EV_K8_FR_RETIRED_FPU_INSTRUCTIONS:
-	case PMC_EV_K8_FR_FPU_EXCEPTIONS:
-		/* XXX only available in rev B and later */
-		break;
-	case PMC_EV_K8_DC_DCACHE_ACCESSES_BY_LOCKS:
-		/* XXX only available in rev C and later */
-		break;
-	case PMC_EV_K8_LS_LOCKED_OPERATION:
-		/* XXX CPU Rev A,B evmask is to be zero */
-		if (evmask & (evmask - 1)) /* > 1 bit set */
-			return -1;
-		if (evmask == 0) {
-			evmask = 0x01; /* Rev C and later: #instrs */
-			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
-		}
-		break;
-	default:
-		if (evmask == 0 && pmask != NULL) {
-			for (pm = pmask; pm->pm_name; pm++)
-				evmask |= pm->pm_value;
-			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
-		}
-	}
-
-	if (pmc_config->pm_caps & PMC_CAP_QUALIFIER)
-		pmc_config->pm_amd_config = K8_PMC_TO_UNITMASK(evmask);
-
-	return 0;
-}
 #endif
 
 /*
  * API entry points
  */
 
-int
-pmc_init(void)
-{
-	int error, pmc_mod_id;
-	uint32_t abi_version;
-	struct module_stat pmc_modstat;
-
-	if (pmc_syscall != -1) /* already inited */
-		return 0;
-
-	/* retrieve the system call number from the KLD */
-	if ((pmc_mod_id = modfind(PMC_MODULE_NAME)) < 0)
-		return -1;
-
-	pmc_modstat.version = sizeof(struct module_stat);
-	if ((error = modstat(pmc_mod_id, &pmc_modstat)) < 0)
-		return -1;
-
-	pmc_syscall = pmc_modstat.data.intval;
-
-	/* check ABI version against compiled-in version */
-	if (PMC_CALL(GETMODULEVERSION, &abi_version) < 0)
-		return (pmc_syscall = -1);
-
-	/* ignore patch numbers for the comparision */
-	if ((abi_version & 0xFFFF0000) != (PMC_VERSION & 0xFFFF0000)) {
-		errno  = EPROGMISMATCH;
-		return (pmc_syscall = -1);
-	}
-
-	if (PMC_CALL(GETCPUINFO, &cpu_info) < 0)
-		return (pmc_syscall = -1);
-
-	/* set parser pointer */
-	switch (cpu_info.pm_cputype) {
-#if defined(__i386__)
-	case PMC_CPU_AMD_K7:
-		pmc_mdep_event_aliases = k7_aliases;
-		pmc_mdep_allocate_pmc = k7_allocate_pmc;
-		break;
-	case PMC_CPU_INTEL_P5:
-		pmc_mdep_event_aliases = p5_aliases;
-		pmc_mdep_allocate_pmc = p5_allocate_pmc;
-		break;
-	case PMC_CPU_INTEL_P6:		/* P6 ... Pentium M CPUs have */
-	case PMC_CPU_INTEL_PII:		/* similar PMCs. */
-	case PMC_CPU_INTEL_PIII:
-	case PMC_CPU_INTEL_PM:
-		pmc_mdep_event_aliases = p6_aliases;
-		pmc_mdep_allocate_pmc = p6_allocate_pmc;
-		break;
-	case PMC_CPU_INTEL_PIV:
-		pmc_mdep_event_aliases = p4_aliases;
-		pmc_mdep_allocate_pmc = p4_allocate_pmc;
-		break;
-#elif defined(__amd64__)
-	case PMC_CPU_AMD_K8:
-		pmc_mdep_event_aliases = k8_aliases;
-		pmc_mdep_allocate_pmc = k8_allocate_pmc;
-		break;
-#endif
-
-	default:
-		/*
-		 * Some kind of CPU this version of the library knows nothing
-		 * about.  This shouldn't happen since the abi version check
-		 * should have caught this.
-		 */
-		errno = ENXIO;
-		return (pmc_syscall = -1);
-	}
-
-	return 0;
-}
 
 int
 pmc_allocate(const char *ctrspec, enum pmc_mode mode,
@@ -1774,229 +1719,6 @@ pmc_attach(pmc_id_t pmc, pid_t pid)
 }
 
 int
-pmc_detach(pmc_id_t pmc, pid_t pid)
-{
-	struct pmc_op_pmcattach pmc_detach_args;
-
-	pmc_detach_args.pm_pmc = pmc;
-	pmc_detach_args.pm_pid = pid;
-
-	return PMC_CALL(PMCDETACH, &pmc_detach_args);
-}
-
-int
-pmc_release(pmc_id_t pmc)
-{
-	struct pmc_op_simple	pmc_release_args;
-
-	pmc_release_args.pm_pmcid = pmc;
-
-	return PMC_CALL(PMCRELEASE, &pmc_release_args);
-}
-
-int
-pmc_start(pmc_id_t pmc)
-{
-	struct pmc_op_simple	pmc_start_args;
-
-	pmc_start_args.pm_pmcid = pmc;
-	return PMC_CALL(PMCSTART, &pmc_start_args);
-}
-
-int
-pmc_stop(pmc_id_t pmc)
-{
-	struct pmc_op_simple	pmc_stop_args;
-
-	pmc_stop_args.pm_pmcid = pmc;
-	return PMC_CALL(PMCSTOP, &pmc_stop_args);
-}
-
-int
-pmc_read(pmc_id_t pmc, pmc_value_t *value)
-{
-	struct pmc_op_pmcrw pmc_read_op;
-
-	pmc_read_op.pm_pmcid = pmc;
-	pmc_read_op.pm_flags = PMC_F_OLDVALUE;
-	pmc_read_op.pm_value = -1;
-
-	if (PMC_CALL(PMCRW, &pmc_read_op) < 0)
-		return -1;
-
-	*value = pmc_read_op.pm_value;
-
-	return 0;
-}
-
-int
-pmc_write(pmc_id_t pmc, pmc_value_t value)
-{
-	struct pmc_op_pmcrw pmc_write_op;
-
-	pmc_write_op.pm_pmcid = pmc;
-	pmc_write_op.pm_flags = PMC_F_NEWVALUE;
-	pmc_write_op.pm_value = value;
-
-	return PMC_CALL(PMCRW, &pmc_write_op);
-}
-
-int
-pmc_rw(pmc_id_t pmc, pmc_value_t newvalue, pmc_value_t *oldvaluep)
-{
-	struct pmc_op_pmcrw pmc_rw_op;
-
-	pmc_rw_op.pm_pmcid = pmc;
-	pmc_rw_op.pm_flags = PMC_F_NEWVALUE | PMC_F_OLDVALUE;
-	pmc_rw_op.pm_value = newvalue;
-
-	if (PMC_CALL(PMCRW, &pmc_rw_op) < 0)
-		return -1;
-
-	*oldvaluep = pmc_rw_op.pm_value;
-
-	return 0;
-}
-
-int
-pmc_set(pmc_id_t pmc, pmc_value_t value)
-{
-	struct pmc_op_pmcsetcount sc;
-
-	sc.pm_pmcid = pmc;
-	sc.pm_count = value;
-
-	if (PMC_CALL(PMCSETCOUNT, &sc) < 0)
-		return -1;
-
-	return 0;
-
-}
-
-int
-pmc_configure_logfile(int fd)
-{
-	struct pmc_op_configurelog cla;
-
-	cla.pm_logfd = fd;
-	if (PMC_CALL(CONFIGURELOG, &cla) < 0)
-		return -1;
-
-	return 0;
-}
-
-int
-pmc_get_driver_stats(struct pmc_op_getdriverstats *gms)
-{
-	return PMC_CALL(GETDRIVERSTATS, gms);
-}
-
-int
-pmc_ncpu(void)
-{
-	if (pmc_syscall == -1) {
-		errno = ENXIO;
-		return -1;
-	}
-
-	return cpu_info.pm_ncpu;
-}
-
-int
-pmc_npmc(int cpu)
-{
-	if (pmc_syscall == -1) {
-		errno = ENXIO;
-		return -1;
-	}
-
-	if (cpu < 0 || cpu >= (int) cpu_info.pm_ncpu) {
-		errno = EINVAL;
-		return -1;
-	}
-
-	return cpu_info.pm_npmc;
-}
-
-int
-pmc_enable(int cpu, int pmc)
-{
-	struct pmc_op_pmcadmin ssa;
-
-	ssa.pm_cpu = cpu;
-	ssa.pm_pmc = pmc;
-	ssa.pm_state = PMC_STATE_FREE;
-	return PMC_CALL(PMCADMIN, &ssa);
-}
-
-int
-pmc_disable(int cpu, int pmc)
-{
-	struct pmc_op_pmcadmin ssa;
-
-	ssa.pm_cpu = cpu;
-	ssa.pm_pmc = pmc;
-	ssa.pm_state = PMC_STATE_DISABLED;
-	return PMC_CALL(PMCADMIN, &ssa);
-}
-
-
-int
-pmc_pmcinfo(int cpu, struct pmc_op_getpmcinfo **ppmci)
-{
-	int nbytes, npmc, saved_errno;
-	struct pmc_op_getpmcinfo *pmci;
-
-	if ((npmc = pmc_npmc(cpu)) < 0)
-		return -1;
-
-	nbytes = sizeof(struct pmc_op_getpmcinfo) +
-	    npmc * sizeof(struct pmc_info);
-
-	if ((pmci = calloc(1, nbytes)) == NULL)
-		return -1;
-
-	pmci->pm_cpu  = cpu;
-
-	if (PMC_CALL(GETPMCINFO, pmci) < 0) {
-		saved_errno = errno;
-		free(pmci);
-		errno = saved_errno;
-		return -1;
-	}
-
-	*ppmci = pmci;
-	return 0;
-}
-
-int
-pmc_cpuinfo(const struct pmc_op_getcpuinfo **pci)
-{
-	if (pmc_syscall == -1) {
-		errno = ENXIO;
-		return -1;
-	}
-
-	*pci = &cpu_info;
-	return 0;
-}
-
-int
-pmc_width(pmc_id_t pmcid, uint32_t *width)
-{
-	unsigned int i;
-	enum pmc_class cl;
-
-	cl = PMC_ID_TO_CLASS(pmcid);
-	for (i = 0; i < cpu_info.pm_nclass; i++)
-		if (cpu_info.pm_classes[i].pm_class == cl) {
-			*width = cpu_info.pm_classes[i].pm_width;
-			return 0;
-		}
-	return EINVAL;
-}
-
-int
 pmc_capabilities(pmc_id_t pmcid, uint32_t *caps)
 {
 	unsigned int i;
@@ -2011,90 +1733,61 @@ pmc_capabilities(pmc_id_t pmcid, uint32_t *caps)
 	return EINVAL;
 }
 
-const char *
-pmc_name_of_cputype(enum pmc_cputype cp)
+int
+pmc_configure_logfile(int fd)
 {
-	if ((int) cp >= PMC_CPU_FIRST &&
-	    cp <= PMC_CPU_LAST)
-		return pmc_cputype_names[cp];
-	errno = EINVAL;
-	return NULL;
+	struct pmc_op_configurelog cla;
+
+	cla.pm_logfd = fd;
+	if (PMC_CALL(CONFIGURELOG, &cla) < 0)
+		return -1;
+	return 0;
 }
 
-const char *
-pmc_name_of_class(enum pmc_class pc)
+int
+pmc_cpuinfo(const struct pmc_cpuinfo **pci)
 {
-	if ((int) pc >= PMC_CLASS_FIRST &&
-	    pc <= PMC_CLASS_LAST)
-		return pmc_class_names[pc];
-
-	errno = EINVAL;
-	return NULL;
-}
-
-const char *
-pmc_name_of_mode(enum pmc_mode pm)
-{
-	if ((int) pm >= PMC_MODE_FIRST &&
-	    pm <= PMC_MODE_LAST)
-		return pmc_mode_names[pm];
-
-	errno = EINVAL;
-	return NULL;
-}
-
-const char *
-pmc_name_of_event(enum pmc_event pe)
-{
-	if ((int) pe >= PMC_EVENT_FIRST &&
-	    pe <= PMC_EVENT_LAST)
-		return pmc_event_table[pe].pm_ev_name;
-
-	errno = EINVAL;
-	return NULL;
-}
-
-const char *
-pmc_name_of_state(enum pmc_state ps)
-{
-	if ((int) ps >= PMC_STATE_FIRST &&
-	    ps <= PMC_STATE_LAST)
-		return pmc_state_names[ps];
-
-	errno = EINVAL;
-	return NULL;
-}
-
-const char *
-pmc_name_of_disposition(enum pmc_disp pd)
-{
-	if ((int) pd >= PMC_DISP_FIRST &&
-	    pd <= PMC_DISP_LAST)
-		return pmc_disposition_names[pd];
-
-	errno = EINVAL;
-	return NULL;
-}
-
-const char *
-pmc_name_of_capability(enum pmc_caps cap)
-{
-	int i;
-
-	/*
-	 * 'cap' should have a single bit set and should be in
-	 * range.
-	 */
-
-	if ((cap & (cap - 1)) || cap < PMC_CAP_FIRST ||
-	    cap > PMC_CAP_LAST) {
-		errno = EINVAL;
-		return NULL;
+	if (pmc_syscall == -1) {
+		errno = ENXIO;
+		return -1;
 	}
 
-	i = ffs(cap);
+	/* kernel<->library, library<->userland interfaces are identical */
+	*pci = (struct pmc_cpuinfo *) &cpu_info;
+	return 0;
+}
 
-	return pmc_capability_names[i - 1];
+int
+pmc_detach(pmc_id_t pmc, pid_t pid)
+{
+	struct pmc_op_pmcattach pmc_detach_args;
+
+	pmc_detach_args.pm_pmc = pmc;
+	pmc_detach_args.pm_pid = pid;
+
+	return PMC_CALL(PMCDETACH, &pmc_detach_args);
+}
+
+int
+pmc_disable(int cpu, int pmc)
+{
+	struct pmc_op_pmcadmin ssa;
+
+	ssa.pm_cpu = cpu;
+	ssa.pm_pmc = pmc;
+	ssa.pm_state = PMC_STATE_DISABLED;
+	return PMC_CALL(PMCADMIN, &ssa);
+}
+
+int
+pmc_enable(int cpu, int pmc)
+{
+	struct pmc_op_pmcadmin ssa;
+
+	ssa.pm_cpu = cpu;
+	ssa.pm_pmc = pmc;
+	ssa.pm_state = PMC_STATE_FREE;
+	return PMC_CALL(PMCADMIN, &ssa);
 }
 
 /*
@@ -2157,22 +1850,371 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 	return 0;
 }
 
-/*
- * Architecture specific APIs
- */
-
-#if defined(__i386__) || defined(__amd64__)
+int
+pmc_flush_logfile(void)
+{
+	return PMC_CALL(FLUSHLOG,0);
+}
 
 int
-pmc_x86_get_msr(pmc_id_t pmc, uint32_t *msr)
+pmc_get_driver_stats(struct pmc_driverstats *ds)
 {
-	struct pmc_op_x86_getmsr gm;
+	struct pmc_op_getdriverstats gms;
+
+	if (PMC_CALL(GETDRIVERSTATS, &gms) < 0)
+		return -1;
+
+	/* copy out fields in the current userland<->library interface */
+	ds->pm_intr_ignored    = gms.pm_intr_ignored;
+	ds->pm_intr_processed  = gms.pm_intr_processed;
+	ds->pm_intr_bufferfull = gms.pm_intr_bufferfull;
+	ds->pm_syscalls        = gms.pm_syscalls;
+	ds->pm_syscall_errors  = gms.pm_syscall_errors;
+	ds->pm_buffer_requests = gms.pm_buffer_requests;
+	ds->pm_buffer_requests_failed = gms.pm_buffer_requests_failed;
+	ds->pm_log_sweeps      = gms.pm_log_sweeps;
+
+	return 0;
+}
+
+int
+pmc_get_msr(pmc_id_t pmc, uint32_t *msr)
+{
+	struct pmc_op_getmsr gm;
 
 	gm.pm_pmcid = pmc;
-	if (PMC_CALL(PMCX86GETMSR, &gm) < 0)
+	if (PMC_CALL(PMCGETMSR, &gm) < 0)
 		return -1;
 	*msr = gm.pm_msr;
 	return 0;
 }
 
+int
+pmc_init(void)
+{
+	int error, pmc_mod_id;
+	uint32_t abi_version;
+	struct module_stat pmc_modstat;
+
+	if (pmc_syscall != -1) /* already inited */
+		return 0;
+
+	/* retrieve the system call number from the KLD */
+	if ((pmc_mod_id = modfind(PMC_MODULE_NAME)) < 0)
+		return -1;
+
+	pmc_modstat.version = sizeof(struct module_stat);
+	if ((error = modstat(pmc_mod_id, &pmc_modstat)) < 0)
+		return -1;
+
+	pmc_syscall = pmc_modstat.data.intval;
+
+	/* check the kernel module's ABI against our compiled-in version */
+	abi_version = PMC_VERSION;
+	if (PMC_CALL(GETMODULEVERSION, &abi_version) < 0)
+		return (pmc_syscall = -1);
+
+	/* ignore patch & minor numbers for the comparision */
+	if ((abi_version & 0xFF000000) != (PMC_VERSION & 0xFF000000)) {
+		errno  = EPROGMISMATCH;
+		return (pmc_syscall = -1);
+	}
+
+	if (PMC_CALL(GETCPUINFO, &cpu_info) < 0)
+		return (pmc_syscall = -1);
+
+	/* set parser pointer */
+	switch (cpu_info.pm_cputype) {
+#if defined(__i386__)
+	case PMC_CPU_AMD_K7:
+		pmc_mdep_event_aliases = k7_aliases;
+		pmc_mdep_allocate_pmc = k7_allocate_pmc;
+		break;
+	case PMC_CPU_INTEL_P5:
+		pmc_mdep_event_aliases = p5_aliases;
+		pmc_mdep_allocate_pmc = p5_allocate_pmc;
+		break;
+	case PMC_CPU_INTEL_P6:		/* P6 ... Pentium M CPUs have */
+	case PMC_CPU_INTEL_PII:		/* similar PMCs. */
+	case PMC_CPU_INTEL_PIII:
+	case PMC_CPU_INTEL_PM:
+		pmc_mdep_event_aliases = p6_aliases;
+		pmc_mdep_allocate_pmc = p6_allocate_pmc;
+		break;
+	case PMC_CPU_INTEL_PIV:
+		pmc_mdep_event_aliases = p4_aliases;
+		pmc_mdep_allocate_pmc = p4_allocate_pmc;
+		break;
+#elif defined(__amd64__)
+	case PMC_CPU_AMD_K8:
+		pmc_mdep_event_aliases = k8_aliases;
+		pmc_mdep_allocate_pmc = k8_allocate_pmc;
+		break;
 #endif
+
+	default:
+		/*
+		 * Some kind of CPU this version of the library knows nothing
+		 * about.  This shouldn't happen since the abi version check
+		 * should have caught this.
+		 */
+		errno = ENXIO;
+		return (pmc_syscall = -1);
+	}
+
+	return 0;
+}
+
+const char *
+pmc_name_of_capability(enum pmc_caps cap)
+{
+	int i;
+
+	/*
+	 * 'cap' should have a single bit set and should be in
+	 * range.
+	 */
+
+	if ((cap & (cap - 1)) || cap < PMC_CAP_FIRST ||
+	    cap > PMC_CAP_LAST) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	i = ffs(cap);
+
+	return pmc_capability_names[i - 1];
+}
+
+const char *
+pmc_name_of_class(enum pmc_class pc)
+{
+	if ((int) pc >= PMC_CLASS_FIRST &&
+	    pc <= PMC_CLASS_LAST)
+		return pmc_class_names[pc];
+
+	errno = EINVAL;
+	return NULL;
+}
+
+const char *
+pmc_name_of_cputype(enum pmc_cputype cp)
+{
+	if ((int) cp >= PMC_CPU_FIRST &&
+	    cp <= PMC_CPU_LAST)
+		return pmc_cputype_names[cp];
+	errno = EINVAL;
+	return NULL;
+}
+
+const char *
+pmc_name_of_disposition(enum pmc_disp pd)
+{
+	if ((int) pd >= PMC_DISP_FIRST &&
+	    pd <= PMC_DISP_LAST)
+		return pmc_disposition_names[pd];
+
+	errno = EINVAL;
+	return NULL;
+}
+
+const char *
+pmc_name_of_event(enum pmc_event pe)
+{
+	if ((int) pe >= PMC_EVENT_FIRST &&
+	    pe <= PMC_EVENT_LAST)
+		return pmc_event_table[pe].pm_ev_name;
+
+	errno = EINVAL;
+	return NULL;
+}
+
+const char *
+pmc_name_of_mode(enum pmc_mode pm)
+{
+	if ((int) pm >= PMC_MODE_FIRST &&
+	    pm <= PMC_MODE_LAST)
+		return pmc_mode_names[pm];
+
+	errno = EINVAL;
+	return NULL;
+}
+
+const char *
+pmc_name_of_state(enum pmc_state ps)
+{
+	if ((int) ps >= PMC_STATE_FIRST &&
+	    ps <= PMC_STATE_LAST)
+		return pmc_state_names[ps];
+
+	errno = EINVAL;
+	return NULL;
+}
+
+int
+pmc_ncpu(void)
+{
+	if (pmc_syscall == -1) {
+		errno = ENXIO;
+		return -1;
+	}
+
+	return cpu_info.pm_ncpu;
+}
+
+int
+pmc_npmc(int cpu)
+{
+	if (pmc_syscall == -1) {
+		errno = ENXIO;
+		return -1;
+	}
+
+	if (cpu < 0 || cpu >= (int) cpu_info.pm_ncpu) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return cpu_info.pm_npmc;
+}
+
+int
+pmc_pmcinfo(int cpu, struct pmc_pmcinfo **ppmci)
+{
+	int nbytes, npmc;
+	struct pmc_op_getpmcinfo *pmci;
+
+	if ((npmc = pmc_npmc(cpu)) < 0)
+		return -1;
+
+	nbytes = sizeof(struct pmc_op_getpmcinfo) +
+	    npmc * sizeof(struct pmc_info);
+
+	if ((pmci = calloc(1, nbytes)) == NULL)
+		return -1;
+
+	pmci->pm_cpu  = cpu;
+
+	if (PMC_CALL(GETPMCINFO, pmci) < 0) {
+		free(pmci);
+		return -1;
+	}
+
+	/* kernel<->library, library<->userland interfaces are identical */
+	*ppmci = (struct pmc_pmcinfo *) pmci;
+
+	return 0;
+}
+
+int
+pmc_read(pmc_id_t pmc, pmc_value_t *value)
+{
+	struct pmc_op_pmcrw pmc_read_op;
+
+	pmc_read_op.pm_pmcid = pmc;
+	pmc_read_op.pm_flags = PMC_F_OLDVALUE;
+	pmc_read_op.pm_value = -1;
+
+	if (PMC_CALL(PMCRW, &pmc_read_op) < 0)
+		return -1;
+
+	*value = pmc_read_op.pm_value;
+
+	return 0;
+}
+
+int
+pmc_release(pmc_id_t pmc)
+{
+	struct pmc_op_simple	pmc_release_args;
+
+	pmc_release_args.pm_pmcid = pmc;
+
+	return PMC_CALL(PMCRELEASE, &pmc_release_args);
+}
+
+int
+pmc_rw(pmc_id_t pmc, pmc_value_t newvalue, pmc_value_t *oldvaluep)
+{
+	struct pmc_op_pmcrw pmc_rw_op;
+
+	pmc_rw_op.pm_pmcid = pmc;
+	pmc_rw_op.pm_flags = PMC_F_NEWVALUE | PMC_F_OLDVALUE;
+	pmc_rw_op.pm_value = newvalue;
+
+	if (PMC_CALL(PMCRW, &pmc_rw_op) < 0)
+		return -1;
+
+	*oldvaluep = pmc_rw_op.pm_value;
+
+	return 0;
+}
+
+int
+pmc_set(pmc_id_t pmc, pmc_value_t value)
+{
+	struct pmc_op_pmcsetcount sc;
+
+	sc.pm_pmcid = pmc;
+	sc.pm_count = value;
+
+	if (PMC_CALL(PMCSETCOUNT, &sc) < 0)
+		return -1;
+
+	return 0;
+
+}
+
+int
+pmc_start(pmc_id_t pmc)
+{
+	struct pmc_op_simple	pmc_start_args;
+
+	pmc_start_args.pm_pmcid = pmc;
+	return PMC_CALL(PMCSTART, &pmc_start_args);
+}
+
+int
+pmc_stop(pmc_id_t pmc)
+{
+	struct pmc_op_simple	pmc_stop_args;
+
+	pmc_stop_args.pm_pmcid = pmc;
+	return PMC_CALL(PMCSTOP, &pmc_stop_args);
+}
+
+int
+pmc_width(pmc_id_t pmcid, uint32_t *width)
+{
+	unsigned int i;
+	enum pmc_class cl;
+
+	cl = PMC_ID_TO_CLASS(pmcid);
+	for (i = 0; i < cpu_info.pm_nclass; i++)
+		if (cpu_info.pm_classes[i].pm_class == cl) {
+			*width = cpu_info.pm_classes[i].pm_width;
+			return 0;
+		}
+	return EINVAL;
+}
+
+int
+pmc_write(pmc_id_t pmc, pmc_value_t value)
+{
+	struct pmc_op_pmcrw pmc_write_op;
+
+	pmc_write_op.pm_pmcid = pmc;
+	pmc_write_op.pm_flags = PMC_F_NEWVALUE;
+	pmc_write_op.pm_value = value;
+
+	return PMC_CALL(PMCRW, &pmc_write_op);
+}
+
+int
+pmc_writelog(uint32_t userdata)
+{
+	struct pmc_op_writelog wl;
+
+	wl.pm_userdata = userdata;
+	return PMC_CALL(WRITELOG, &wl);
+}

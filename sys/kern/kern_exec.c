@@ -670,14 +670,15 @@ interpret:
 
 #ifdef	HWPMC_HOOKS
 	/*
-	 * Check if the process is using PMCs and if so do exec() time
+	 * Check if system-wide sampling is in effect or if the
+	 * current process is using PMCs.  If so, do exec() time
 	 * processing.  This processing needs to happen AFTER the
 	 * P_INEXEC flag is cleared.
 	 *
 	 * The proc lock needs to be released before taking the PMC
 	 * SX.
 	 */
-	if (PMC_PROC_IS_USING_PMCS(p)) {
+	if (PMC_SYSTEM_SAMPLING_ACTIVE() || PMC_PROC_IS_USING_PMCS(p)) {
 		PROC_UNLOCK(p);
 		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC,
 		    (void *) &credential_changing);

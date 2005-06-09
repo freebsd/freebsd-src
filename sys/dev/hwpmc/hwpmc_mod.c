@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -39,8 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
+#include <sys/pmclog.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
@@ -48,7 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
+#include <sys/vnode.h>
 
+#include <machine/atomic.h>
 #include <machine/md_var.h>
 
 /*
@@ -135,6 +140,13 @@ static u_long pmc_ownerhashmask;
 static LIST_HEAD(pmc_ownerhash, pmc_owner)	*pmc_ownerhash;
 
 /*
+ * List of PMC owners with system-wide sampling PMCs.
+ */
+
+static LIST_HEAD(, pmc_owner)			pmc_ss_owners;
+
+
+/*
  * Prototypes
  */
 
@@ -144,54 +156,54 @@ static int	pmc_debugflags_parse(char *newstr, char *fence);
 #endif
 
 static int	load(struct module *module, int cmd, void *arg);
-static int	pmc_syscall_handler(struct thread *td, void *syscall_args);
-static int	pmc_configure_log(struct pmc_owner *po, int logfd);
-static void	pmc_log_process_exit(struct pmc *pm, struct pmc_process *pp);
+static int	pmc_attach_process(struct proc *p, struct pmc *pm);
 static struct pmc *pmc_allocate_pmc_descriptor(void);
-static struct pmc *pmc_find_pmc_descriptor_in_process(struct pmc_owner *po,
-    pmc_id_t pmc);
-static void	pmc_release_pmc_descriptor(struct pmc *pmc);
+static struct pmc_owner *pmc_allocate_owner_descriptor(struct proc *p);
+static int	pmc_attach_one_process(struct proc *p, struct pmc *pm);
 static int	pmc_can_allocate_rowindex(struct proc *p, unsigned int ri,
     int cpu);
-static struct pmc_process *pmc_find_process_descriptor(struct proc *p,
-    uint32_t mode);
-static void	pmc_remove_process_descriptor(struct pmc_process *pp);
+static int	pmc_can_attach(struct pmc *pm, struct proc *p);
+static void	pmc_cleanup(void);
+static int	pmc_detach_process(struct proc *p, struct pmc *pm);
+static int	pmc_detach_one_process(struct proc *p, struct pmc *pm,
+    int flags);
+static void	pmc_destroy_owner_descriptor(struct pmc_owner *po);
 static struct pmc_owner *pmc_find_owner_descriptor(struct proc *p);
 static int	pmc_find_pmc(pmc_id_t pmcid, struct pmc **pm);
+static struct pmc *pmc_find_pmc_descriptor_in_process(struct pmc_owner *po,
+    pmc_id_t pmc);
+static struct pmc_process *pmc_find_process_descriptor(struct proc *p,
+    uint32_t mode);
 static void	pmc_force_context_switch(void);
-static void	pmc_remove_owner(struct pmc_owner *po);
-static void	pmc_maybe_remove_owner(struct pmc_owner *po);
-static void	pmc_unlink_target_process(struct pmc *pmc,
-    struct pmc_process *pp);
 static void	pmc_link_target_process(struct pmc *pm,
     struct pmc_process *pp);
-static void	pmc_unlink_owner(struct pmc *pmc);
-static void	pmc_cleanup(void);
-static void	pmc_save_cpu_binding(struct pmc_binding *pb);
-static void	pmc_restore_cpu_binding(struct pmc_binding *pb);
-static void	pmc_select_cpu(int cpu);
+static void	pmc_maybe_remove_owner(struct pmc_owner *po);
+static void	pmc_process_csw_in(struct thread *td);
+static void	pmc_process_csw_out(struct thread *td);
 static void	pmc_process_exit(void *arg, struct proc *p);
 static void	pmc_process_fork(void *arg, struct proc *p1,
     struct proc *p2, int n);
-static int	pmc_attach_one_process(struct proc *p, struct pmc *pm);
-static int	pmc_attach_process(struct proc *p, struct pmc *pm);
-static int	pmc_detach_one_process(struct proc *p, struct pmc *pm,
-    int flags);
-static int	pmc_detach_process(struct proc *p, struct pmc *pm);
+static void	pmc_process_samples(int cpu);
+static void	pmc_release_pmc_descriptor(struct pmc *pmc);
+static void	pmc_remove_owner(struct pmc_owner *po);
+static void	pmc_remove_process_descriptor(struct pmc_process *pp);
+static void	pmc_restore_cpu_binding(struct pmc_binding *pb);
+static void	pmc_save_cpu_binding(struct pmc_binding *pb);
+static void	pmc_select_cpu(int cpu);
 static int	pmc_start(struct pmc *pm);
 static int	pmc_stop(struct pmc *pm);
-static int	pmc_can_attach(struct pmc *pm, struct proc *p);
+static int	pmc_syscall_handler(struct thread *td, void *syscall_args);
+static void	pmc_unlink_target_process(struct pmc *pmc,
+    struct pmc_process *pp);
 
 /*
  * Kernel tunables and sysctl(8) interface.
  */
 
-#define PMC_SYSCTL_NAME_PREFIX "kern." PMC_MODULE_NAME "."
-
 SYSCTL_NODE(_kern, OID_AUTO, hwpmc, CTLFLAG_RW, 0, "HWPMC parameters");
 
 #if	DEBUG
-unsigned int pmc_debugflags = PMC_DEBUG_DEFAULT_FLAGS;
+struct pmc_debugflags pmc_debugflags = PMC_DEBUG_DEFAULT_FLAGS;
 char	pmc_debugstr[PMC_DEBUG_STRSIZE];
 TUNABLE_STR(PMC_SYSCTL_NAME_PREFIX "debugflags", pmc_debugstr,
     sizeof(pmc_debugstr));
@@ -201,7 +213,7 @@ SYSCTL_PROC(_kern_hwpmc, OID_AUTO, debugflags,
 #endif
 
 /*
- * kern.pmc.hashrows -- determines the number of rows in the
+ * kern.hwpmc.hashrows -- determines the number of rows in the
  * of the hash table used to look up threads
  */
 
@@ -211,24 +223,22 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, hashsize, CTLFLAG_TUN|CTLFLAG_RD,
     &pmc_hashsize, 0, "rows in hash tables");
 
 /*
- * kern.pmc.pcpusize -- the size of each per-cpu
- * area for collection PC samples.
+ * kern.hwpmc.nsamples --- number of PC samples per CPU
  */
 
-static int pmc_pcpu_buffer_size = PMC_PCPU_BUFFER_SIZE;
-TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "pcpubuffersize", &pmc_pcpu_buffer_size);
-SYSCTL_INT(_kern_hwpmc, OID_AUTO, pcpubuffersize, CTLFLAG_TUN|CTLFLAG_RD,
-    &pmc_pcpu_buffer_size, 0, "size of per-cpu buffer in 4K pages");
+static int pmc_nsamples = PMC_NSAMPLES;
+TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "nsamples", &pmc_nsamples);
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, nsamples, CTLFLAG_TUN|CTLFLAG_RD,
+    &pmc_nsamples, 0, "number of PC samples per CPU");
 
 /*
- * kern.pmc.mtxpoolsize -- number of mutexes in the mutex pool.
+ * kern.hwpmc.mtxpoolsize -- number of mutexes in the mutex pool.
  */
 
 static int pmc_mtxpool_size = PMC_MTXPOOL_SIZE;
 TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "mtxpoolsize", &pmc_mtxpool_size);
 SYSCTL_INT(_kern_hwpmc, OID_AUTO, mtxpoolsize, CTLFLAG_TUN|CTLFLAG_RD,
     &pmc_mtxpool_size, 0, "size of spin mutex pool");
-
 
 
 /*
@@ -248,11 +258,11 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_syspmcs, CTLFLAG_RW,
     &pmc_unprivileged_syspmcs, 0,
     "allow unprivileged process to allocate system PMCs");
 
-#if	PMC_HASH_USE_CRC32
-
-#define	PMC_HASH_PTR(P,M)	(crc32(&(P), sizeof((P))) & (M))
-
-#else 	/* integer multiplication */
+/*
+ * Hash function.  Discard the lower 2 bits of the pointer since
+ * these are always zero for our uses.  The hash multiplier is
+ * round((2^LONG_BIT) * ((sqrt(5)-1)/2)).
+ */
 
 #if	LONG_BIT == 64
 #define	_PMC_HM		11400714819323198486u
@@ -262,15 +272,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_syspmcs, CTLFLAG_RW,
 #error 	Must know the size of 'long' to compile
 #endif
 
-/*
- * Hash function.  Discard the lower 2 bits of the pointer since
- * these are always zero for our uses.  The hash multiplier is
- * round((2^LONG_BIT) * ((sqrt(5)-1)/2)).
- */
-
 #define	PMC_HASH_PTR(P,M)	((((unsigned long) (P) >> 2) * _PMC_HM) & (M))
-
-#endif
 
 /*
  * Syscall structures
@@ -300,84 +302,141 @@ DECLARE_MODULE(pmc, pmc_mod, SI_SUB_SMP, SI_ORDER_ANY);
 MODULE_VERSION(pmc, PMC_VERSION);
 
 #if	DEBUG
+enum pmc_dbgparse_state {
+	PMCDS_WS,		/* in whitespace */
+	PMCDS_MAJOR,		/* seen a major keyword */
+	PMCDS_MINOR
+};
+
 static int
 pmc_debugflags_parse(char *newstr, char *fence)
 {
 	char c, *p, *q;
-	unsigned int tmpflags;
-	int level;
-	char tmpbuf[4];		/* 3 character keyword + '\0' */
+	struct pmc_debugflags *tmpflags;
+	int error, found, *newbits, tmp;
+	size_t kwlen;
 
-	tmpflags = 0;
-	level = 0xF;	/* max verbosity */
+	MALLOC(tmpflags, struct pmc_debugflags *, sizeof(*tmpflags),
+	    M_PMC, M_WAITOK|M_ZERO);
 
 	p = newstr;
+	error = 0;
 
-	for (; p < fence && (c = *p);) {
+	for (; p < fence && (c = *p); p++) {
 
-		/* skip separators */
-		if (c == ' ' || c == '\t' || c == ',') {
-			p++; continue;
+		/* skip white space */
+		if (c == ' ' || c == '\t')
+			continue;
+
+		/* look for a keyword followed by "=" */
+		for (q = p; p < fence && (c = *p) && c != '='; p++)
+			;
+		if (c != '=') {
+			error = EINVAL;
+			goto done;
 		}
 
-		(void) strlcpy(tmpbuf, p, sizeof(tmpbuf));
+		kwlen = p - q;
+		newbits = NULL;
 
-#define	CMP_SET_FLAG_MAJ(S,F)					\
-		else if (strncmp(tmpbuf, S, 3) == 0)		\
-			tmpflags |= __PMCDFMAJ(F)
+		/* lookup flag group name */
+#define	DBG_SET_FLAG_MAJ(S,F)						\
+		if (kwlen == sizeof(S)-1 && strncmp(q, S, kwlen) == 0)	\
+			newbits = &tmpflags->pdb_ ## F;
 
-#define	CMP_SET_FLAG_MIN(S,F)					\
-		else if (strncmp(tmpbuf, S, 3) == 0)		\
-			tmpflags |= __PMCDFMIN(F)
+		DBG_SET_FLAG_MAJ("cpu",		CPU);
+		DBG_SET_FLAG_MAJ("csw",		CSW);
+		DBG_SET_FLAG_MAJ("logging",	LOG);
+		DBG_SET_FLAG_MAJ("module",	MOD);
+		DBG_SET_FLAG_MAJ("md", 		MDP);
+		DBG_SET_FLAG_MAJ("owner",	OWN);
+		DBG_SET_FLAG_MAJ("pmc",		PMC);
+		DBG_SET_FLAG_MAJ("process",	PRC);
+		DBG_SET_FLAG_MAJ("sampling", 	SAM);
 
-		if (fence - p > 6 && strncmp(p, "level=", 6) == 0) {
-			p += 6;	/* skip over keyword */
-			level = strtoul(p, &q, 16);
+		if (newbits == NULL) {
+			error = EINVAL;
+			goto done;
 		}
-		CMP_SET_FLAG_MAJ("mod", MOD);
-		CMP_SET_FLAG_MAJ("pmc", PMC);
-		CMP_SET_FLAG_MAJ("ctx", CTX);
-		CMP_SET_FLAG_MAJ("own", OWN);
-		CMP_SET_FLAG_MAJ("prc", PRC);
-		CMP_SET_FLAG_MAJ("mdp", MDP);
-		CMP_SET_FLAG_MAJ("cpu", CPU);
 
-		CMP_SET_FLAG_MIN("all", ALL);
-		CMP_SET_FLAG_MIN("rel", REL);
-		CMP_SET_FLAG_MIN("ops", OPS);
-		CMP_SET_FLAG_MIN("ini", INI);
-		CMP_SET_FLAG_MIN("fnd", FND);
-		CMP_SET_FLAG_MIN("pmh", PMH);
-		CMP_SET_FLAG_MIN("pms", PMS);
-		CMP_SET_FLAG_MIN("orm", ORM);
-		CMP_SET_FLAG_MIN("omr", OMR);
-		CMP_SET_FLAG_MIN("tlk", TLK);
-		CMP_SET_FLAG_MIN("tul", TUL);
-		CMP_SET_FLAG_MIN("ext", EXT);
-		CMP_SET_FLAG_MIN("exc", EXC);
-		CMP_SET_FLAG_MIN("frk", FRK);
-		CMP_SET_FLAG_MIN("att", ATT);
-		CMP_SET_FLAG_MIN("swi", SWI);
-		CMP_SET_FLAG_MIN("swo", SWO);
-		CMP_SET_FLAG_MIN("reg", REG);
-		CMP_SET_FLAG_MIN("alr", ALR);
-		CMP_SET_FLAG_MIN("rea", REA);
-		CMP_SET_FLAG_MIN("wri", WRI);
-		CMP_SET_FLAG_MIN("cfg", CFG);
-		CMP_SET_FLAG_MIN("sta", STA);
-		CMP_SET_FLAG_MIN("sto", STO);
-		CMP_SET_FLAG_MIN("int", INT);
-		CMP_SET_FLAG_MIN("bnd", BND);
-		CMP_SET_FLAG_MIN("sel", SEL);
-		else	/* unrecognized keyword */
-			return EINVAL;
+		p++;		/* skip the '=' */
 
-		p += 4;	/* skip keyword and separator */
+		/* Now parse the individual flags */
+		tmp = 0;
+	newflag:
+		for (q = p; p < fence && (c = *p); p++)
+			if (c == ' ' || c == '\t' || c == ',')
+				break;
+
+		/* p == fence or c == ws or c == "," or c == 0 */
+
+		if ((kwlen = p - q) == 0) {
+			*newbits = tmp;
+			continue;
+		}
+
+		found = 0;
+#define	DBG_SET_FLAG_MIN(S,F)						\
+		if (kwlen == sizeof(S)-1 && strncmp(q, S, kwlen) == 0)	\
+			tmp |= found = (1 << PMC_DEBUG_MIN_ ## F)
+
+		/* a '*' denotes all possible flags in the group */
+		if (kwlen == 1 && *q == '*')
+			tmp = found = ~0;
+		/* look for individual flag names */
+		DBG_SET_FLAG_MIN("allocaterow", ALR);
+		DBG_SET_FLAG_MIN("allocate",	ALL);
+		DBG_SET_FLAG_MIN("attach",	ATT);
+		DBG_SET_FLAG_MIN("bind",	BND);
+		DBG_SET_FLAG_MIN("config",	CFG);
+		DBG_SET_FLAG_MIN("exec",	EXC);
+		DBG_SET_FLAG_MIN("exit",	EXT);
+		DBG_SET_FLAG_MIN("find",	FND);
+		DBG_SET_FLAG_MIN("flush",	FLS);
+		DBG_SET_FLAG_MIN("fork",	FRK);
+		DBG_SET_FLAG_MIN("getbuf",	GTB);
+		DBG_SET_FLAG_MIN("hook",	PMH);
+		DBG_SET_FLAG_MIN("init",	INI);
+		DBG_SET_FLAG_MIN("intr",	INT);
+		DBG_SET_FLAG_MIN("linktarget",	TLK);
+		DBG_SET_FLAG_MIN("mayberemove", OMR);
+		DBG_SET_FLAG_MIN("ops",		OPS);
+		DBG_SET_FLAG_MIN("read",	REA);
+		DBG_SET_FLAG_MIN("register",	REG);
+		DBG_SET_FLAG_MIN("release",	REL);
+		DBG_SET_FLAG_MIN("remove",	ORM);
+		DBG_SET_FLAG_MIN("sample",	SAM);
+		DBG_SET_FLAG_MIN("scheduleio",	SIO);
+		DBG_SET_FLAG_MIN("select",	SEL);
+		DBG_SET_FLAG_MIN("signal",	SIG);
+		DBG_SET_FLAG_MIN("swi",		SWI);
+		DBG_SET_FLAG_MIN("swo",		SWO);
+		DBG_SET_FLAG_MIN("start",	STA);
+		DBG_SET_FLAG_MIN("stop",	STO);
+		DBG_SET_FLAG_MIN("syscall",	PMS);
+		DBG_SET_FLAG_MIN("unlinktarget", TUL);
+		DBG_SET_FLAG_MIN("write",	WRI);
+		if (found == 0) {
+			/* unrecognized flag name */
+			error = EINVAL;
+			goto done;
+		}
+
+		if (c == 0 || c == ' ' || c == '\t') {	/* end of flag group */
+			*newbits = tmp;
+			continue;
+		}
+
+		p++;
+		goto newflag;
 	}
 
-	pmc_debugflags = (tmpflags|level);
+	/* save the new flag set */
+	bcopy(tmpflags, &pmc_debugflags, sizeof(pmc_debugflags));
 
-	return 0;
+ done:
+	FREE(tmpflags, M_PMC);
+	return error;
 }
 
 static int
@@ -391,13 +450,13 @@ pmc_debugflags_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 	n = sizeof(pmc_debugstr);
 	MALLOC(newstr, char *, n, M_PMC, M_ZERO|M_WAITOK);
-	(void) strlcpy(newstr, pmc_debugstr, sizeof(pmc_debugstr));
+	(void) strlcpy(newstr, pmc_debugstr, n);
 
 	error = sysctl_handle_string(oidp, newstr, n, req);
 
 	/* if there is a new string, parse and copy it */
 	if (error == 0 && req->newptr != NULL) {
-		fence = newstr + (n < req->newlen ? n : req->newlen);
+		fence = newstr + (n < req->newlen ? n : req->newlen + 1);
 		if ((error = pmc_debugflags_parse(newstr, fence)) == 0)
 			(void) strlcpy(pmc_debugstr, newstr,
 			    sizeof(pmc_debugstr));
@@ -597,53 +656,21 @@ pmc_force_context_switch(void)
 }
 
 /*
- * Update the per-pmc histogram
+ * Get the file name for an executable.  This is a simple wrapper
+ * around vn_fullpath(9).
  */
 
-void
-pmc_update_histogram(struct pmc_hw *phw, uintptr_t pc)
+static void
+pmc_getprocname(struct proc *p, char **fullpath, char **freepath)
 {
-	(void) phw;
-	(void) pc;
-}
-
-/*
- * Send a signal to a process.  This is meant to be invoked from an
- * interrupt handler.
- */
-
-void
-pmc_send_signal(struct pmc *pmc)
-{
-	(void) pmc;	/* shutup gcc */
-
-#if	0
-	struct proc   *proc;
 	struct thread *td;
 
-	KASSERT(pmc->pm_owner != NULL,
-	    ("[pmc,%d] No owner for PMC", __LINE__));
-
-	KASSERT((pmc->pm_owner->po_flags & PMC_FLAG_IS_OWNER) &&
-	    (pmc->pm_owner->po_flags & PMC_FLAG_HAS_TS_PMC),
-	    ("[pmc,%d] interrupting PMC owner has wrong flags 0x%x",
-		__LINE__, pmc->pm_owner->po_flags));
-
-	proc = pmc->pm_owner->po_owner;
-
-	KASSERT(curthread->td_proc == proc,
-	    ("[pmc,%d] interruping the wrong thread (owner %p, "
-		"cur %p)", __LINE__, (void *) proc, curthread->td_proc));
-
-	mtx_lock_spin(&sched_lock);
-	td = TAILQ_FIRST(&proc->p_threads);
-	mtx_unlock_spin(&sched_lock);
-	/* XXX RACE HERE: can 'td' disappear now? */
-	trapsignal(td, SIGPROF, 0);
-	/* XXX rework this to use the regular 'psignal' interface from a
-	   helper thread */
-#endif
-
+	td = curthread;
+	*fullpath = "unknown";
+	*freepath = NULL;
+	vn_lock(p->p_textvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_fullpath(td, p->p_textvp, fullpath, freepath);
+	VOP_UNLOCK(p->p_textvp, 0, td);
 }
 
 /*
@@ -653,7 +680,7 @@ pmc_send_signal(struct pmc *pmc)
 void
 pmc_remove_owner(struct pmc_owner *po)
 {
-	struct pmc_list *pl, *tmp;
+	struct pmc *pm, *tmp;
 
 	sx_assert(&pmc_sx, SX_XLOCKED);
 
@@ -662,42 +689,23 @@ pmc_remove_owner(struct pmc_owner *po)
 	/* Remove descriptor from the owner hash table */
 	LIST_REMOVE(po, po_next);
 
-	/* pass 1: release all owned PMC descriptors */
-	LIST_FOREACH_SAFE(pl, &po->po_pmcs, pl_next, tmp) {
+	/* release all owned PMC descriptors */
+	LIST_FOREACH_SAFE(pm, &po->po_pmcs, pm_next, tmp) {
+		PMCDBG(OWN,ORM,2, "pmc=%p", pm);
+		KASSERT(pm->pm_owner == po,
+		    ("[pmc,%d] owner %p != po %p", __LINE__, pm->pm_owner, po));
 
-		PMCDBG(OWN,ORM,2, "pl=%p pmc=%p", pl, pl->pl_pmc);
-
-		/* remove the associated PMC descriptor, if present */
-		if (pl->pl_pmc)
-			pmc_release_pmc_descriptor(pl->pl_pmc);
-
-		/* remove the linked list entry */
-		LIST_REMOVE(pl, pl_next);
-		FREE(pl, M_PMC);
+		pmc_release_pmc_descriptor(pm);	/* will unlink from the list */
 	}
 
-	/* pass 2: delete the pmc_list chain */
-	LIST_FOREACH_SAFE(pl, &po->po_pmcs, pl_next, tmp) {
-		KASSERT(pl->pl_pmc == NULL,
-		    ("[pmc,%d] non-null pmc pointer", __LINE__));
-		LIST_REMOVE(pl, pl_next);
-		FREE(pl, M_PMC);
-	}
-
+	KASSERT(po->po_sscount == 0,
+	    ("[pmc,%d] SS count not zero", __LINE__));
 	KASSERT(LIST_EMPTY(&po->po_pmcs),
-		("[pmc,%d] PMC list not empty", __LINE__));
+	    ("[pmc,%d] PMC list not empty", __LINE__));
 
-
-	/*
-	 * If this process owns a log file used for system wide logging,
-	 * remove the log file.
-	 *
-	 * XXX rework needed.
-	 */
-
+	/* de-configure the log file if present */
 	if (po->po_flags & PMC_PO_OWNS_LOGFILE)
-		pmc_configure_log(po, -1);
-
+		pmclog_deconfigure_log(po);
 }
 
 /*
@@ -719,7 +727,7 @@ pmc_maybe_remove_owner(struct pmc_owner *po)
 	if (LIST_EMPTY(&po->po_pmcs) &&
 	    ((po->po_flags & PMC_PO_OWNS_LOGFILE) == 0)) {
 		pmc_remove_owner(po);
-		FREE(po, M_PMC);
+		pmc_destroy_owner_descriptor(po);
 	}
 }
 
@@ -737,7 +745,9 @@ pmc_link_target_process(struct pmc *pm, struct pmc_process *pp)
 
 	KASSERT(pm != NULL && pp != NULL,
 	    ("[pmc,%d] Null pm %p or pp %p", __LINE__, pm, pp));
-
+	KASSERT(PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)),
+	    ("[pmc,%d] Attaching a non-process-virtual pmc=%p to pid=%d",
+		__LINE__, pm, pp->pp_proc->p_pid));
 	KASSERT(pp->pp_refcnt >= 0 && pp->pp_refcnt < ((int) md->pmd_npmc - 1),
 	    ("[pmc,%d] Illegal reference count %d for process record %p",
 		__LINE__, pp->pp_refcnt, (void *) pp));
@@ -766,6 +776,12 @@ pmc_link_target_process(struct pmc *pm, struct pmc_process *pp)
 	if (pm->pm_owner->po_owner == pp->pp_proc)
 		pm->pm_flags |= PMC_F_ATTACHED_TO_OWNER;
 
+	/*
+	 * Initialize the per-process values at this row index.
+	 */
+	pp->pp_pmcs[ri].pp_pmcval = PMC_TO_MODE(pm) == PMC_MODE_TS ?
+	    pm->pm_sc.pm_reloadcount : 0;
+
 	pp->pp_refcnt++;
 
 }
@@ -778,6 +794,7 @@ static void
 pmc_unlink_target_process(struct pmc *pm, struct pmc_process *pp)
 {
 	int ri;
+	struct proc *p;
 	struct pmc_target *ptgt;
 
 	sx_assert(&pmc_sx, SX_XLOCKED);
@@ -819,36 +836,17 @@ pmc_unlink_target_process(struct pmc *pm, struct pmc_process *pp)
 
 	LIST_REMOVE(ptgt, pt_next);
 	FREE(ptgt, M_PMC);
-}
 
-/*
- * Remove PMC descriptor 'pmc' from the owner descriptor.
- */
+	/* if the PMC now lacks targets, send the owner a SIGIO */
+	if (LIST_EMPTY(&pm->pm_targets)) {
+		p = pm->pm_owner->po_owner;
+		PROC_LOCK(p);
+		psignal(p, SIGIO);
+		PROC_UNLOCK(p);
 
-void
-pmc_unlink_owner(struct pmc *pm)
-{
-	struct pmc_list	*pl, *tmp;
-	struct pmc_owner *po;
-
-#if	DEBUG
-	KASSERT(LIST_EMPTY(&pm->pm_targets),
-	    ("[pmc,%d] unlinking PMC with targets", __LINE__));
-#endif
-
-	po = pm->pm_owner;
-
-	KASSERT(po != NULL, ("[pmc,%d] No owner for PMC", __LINE__));
-
-	LIST_FOREACH_SAFE(pl, &po->po_pmcs, pl_next, tmp) {
-		if (pl->pl_pmc == pm) {
-			pl->pl_pmc    = NULL;
-			pm->pm_owner = NULL;
-			return;
-		}
+		PMCDBG(PRC,SIG,2, "signalling proc=%p signal=%d", p,
+		    SIGIO);
 	}
-
-	KASSERT(0, ("[pmc,%d] couldn't find pmc in owner list", __LINE__));
 }
 
 /*
@@ -914,6 +912,7 @@ static int
 pmc_attach_one_process(struct proc *p, struct pmc *pm)
 {
 	int ri;
+	char *fullpath, *freepath;
 	struct pmc_process	*pp;
 
 	sx_assert(&pmc_sx, SX_XLOCKED);
@@ -931,7 +930,6 @@ pmc_attach_one_process(struct proc *p, struct pmc *pm)
 	 * If not, allocate space for a descriptor and link the
 	 * process descriptor and PMC.
 	 */
-
 	ri = PMC_TO_ROWINDEX(pm);
 
 	if ((pp = pmc_find_process_descriptor(p, PMC_FLAG_ALLOCATE)) == NULL)
@@ -945,6 +943,19 @@ pmc_attach_one_process(struct proc *p, struct pmc *pm)
 
 	pmc_link_target_process(pm, pp);
 
+	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)) &&
+	    (pm->pm_flags & PMC_F_ATTACHED_TO_OWNER) == 0)
+		pm->pm_flags |= PMC_F_NEEDS_LOGFILE;
+
+	pm->pm_flags |= PMC_F_ATTACH_DONE; /* mark as attached */
+
+	/* issue an attach event to a configured log file */
+	if (pm->pm_owner->po_flags & PMC_PO_OWNS_LOGFILE) {
+		pmc_getprocname(p, &fullpath, &freepath);
+		pmclog_process_pmcattach(pm, p->p_pid, fullpath);
+		if (freepath)
+			FREE(freepath, M_TEMP);
+	}
 	/* mark process as using HWPMCs */
 	PROC_LOCK(p);
 	p->p_flag |= P_HWPMC;
@@ -1043,12 +1054,15 @@ pmc_detach_one_process(struct proc *p, struct pmc *pm, int flags)
 
 	pmc_unlink_target_process(pm, pp);
 
+	/* Issue a detach entry if a log file is configured */
+	if (pm->pm_owner->po_flags & PMC_PO_OWNS_LOGFILE)
+		pmclog_process_pmcdetach(pm, p->p_pid);
+
 	/*
 	 * If there are no PMCs targetting this process, we remove its
 	 * descriptor from the target hash table and unset the P_HWPMC
 	 * flag in the struct proc.
 	 */
-
 	KASSERT(pp->pp_refcnt >= 0 && pp->pp_refcnt < (int) md->pmd_npmc,
 	    ("[pmc,%d] Illegal refcnt %d for process struct %p",
 		__LINE__, pp->pp_refcnt, pp));
@@ -1113,7 +1127,286 @@ pmc_detach_process(struct proc *p, struct pmc *pm)
 
  done:
 	sx_sunlock(&proctree_lock);
+
+	if (LIST_EMPTY(&pm->pm_targets))
+		pm->pm_flags &= ~PMC_F_ATTACH_DONE;
+
 	return 0;
+}
+
+
+/*
+ * Thread context switch IN
+ */
+
+static void
+pmc_process_csw_in(struct thread *td)
+{
+	int cpu;
+	unsigned int ri;
+	struct pmc *pm;
+	struct proc *p;
+	struct pmc_cpu *pc;
+	struct pmc_hw *phw;
+	struct pmc_process *pp;
+	pmc_value_t newvalue;
+
+	p = td->td_proc;
+
+	if ((pp = pmc_find_process_descriptor(p, PMC_FLAG_NONE)) == NULL)
+		return;
+
+	KASSERT(pp->pp_proc == td->td_proc,
+	    ("[pmc,%d] not my thread state", __LINE__));
+
+	critical_enter(); /* no preemption from this point */
+
+	cpu = PCPU_GET(cpuid); /* td->td_oncpu is invalid */
+
+	PMCDBG(CSW,SWI,1, "cpu=%d proc=%p (%d, %s) pp=%p", cpu, p,
+	    p->p_pid, p->p_comm, pp);
+
+	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	    ("[pmc,%d] wierd CPU id %d", __LINE__, cpu));
+
+	pc = pmc_pcpu[cpu];
+
+	for (ri = 0; ri < md->pmd_npmc; ri++) {
+
+		if ((pm = pp->pp_pmcs[ri].pp_pmc) == NULL)
+			continue;
+
+		KASSERT(PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)),
+		    ("[pmc,%d] Target PMC in non-virtual mode (%d)",
+			__LINE__, PMC_TO_MODE(pm)));
+
+		KASSERT(PMC_TO_ROWINDEX(pm) == ri,
+		    ("[pmc,%d] Row index mismatch pmc %d != ri %d",
+			__LINE__, PMC_TO_ROWINDEX(pm), ri));
+
+		/*
+		 * Only PMCs that are marked as 'RUNNING' need
+		 * be placed on hardware.
+		 */
+
+		if (pm->pm_state != PMC_STATE_RUNNING)
+			continue;
+
+		/* increment PMC runcount */
+		atomic_add_rel_32(&pm->pm_runcount, 1);
+
+		/* configure the HWPMC we are going to use. */
+		md->pmd_config_pmc(cpu, ri, pm);
+
+		phw = pc->pc_hwpmcs[ri];
+
+		KASSERT(phw != NULL,
+		    ("[pmc,%d] null hw pointer", __LINE__));
+
+		KASSERT(phw->phw_pmc == pm,
+		    ("[pmc,%d] hw->pmc %p != pmc %p", __LINE__,
+			phw->phw_pmc, pm));
+
+		/*
+		 * Write out saved value and start the PMC.
+		 *
+		 * Sampling PMCs use a per-process value, while
+		 * counting mode PMCs use a per-pmc value that is
+		 * inherited across descendants.
+		 */
+		if (PMC_TO_MODE(pm) == PMC_MODE_TS) {
+			mtx_pool_lock_spin(pmc_mtxpool, pm);
+			newvalue = PMC_PCPU_SAVED(cpu,ri) =
+			    pp->pp_pmcs[ri].pp_pmcval;
+			mtx_pool_unlock_spin(pmc_mtxpool, pm);
+		} else {
+			KASSERT(PMC_TO_MODE(pm) == PMC_MODE_TC,
+			    ("[pmc,%d] illegal mode=%d", __LINE__,
+			    PMC_TO_MODE(pm)));
+			mtx_pool_lock_spin(pmc_mtxpool, pm);
+			newvalue = PMC_PCPU_SAVED(cpu, ri) =
+			    pm->pm_gv.pm_savedvalue;
+			mtx_pool_unlock_spin(pmc_mtxpool, pm);
+		}
+
+		PMCDBG(CSW,SWI,1,"cpu=%d ri=%d new=%jd", cpu, ri, newvalue);
+
+		md->pmd_write_pmc(cpu, ri, newvalue);
+		md->pmd_start_pmc(cpu, ri);
+	}
+
+	/*
+	 * perform any other architecture/cpu dependent thread
+	 * switch-in actions.
+	 */
+
+	(void) (*md->pmd_switch_in)(pc, pp);
+
+	critical_exit();
+
+}
+
+/*
+ * Thread context switch OUT.
+ */
+
+static void
+pmc_process_csw_out(struct thread *td)
+{
+	int cpu;
+	enum pmc_mode mode;
+	unsigned int ri;
+	struct pmc *pm;
+	struct proc *p;
+	struct pmc_cpu *pc;
+	struct pmc_process *pp;
+	int64_t tmp;
+	pmc_value_t newvalue;
+
+	/*
+	 * Locate our process descriptor; this may be NULL if
+	 * this process is exiting and we have already removed
+	 * the process from the target process table.
+	 *
+	 * Note that due to kernel preemption, multiple
+	 * context switches may happen while the process is
+	 * exiting.
+	 *
+	 * Note also that if the target process cannot be
+	 * found we still need to deconfigure any PMCs that
+	 * are currently running on hardware.
+	 */
+
+	p = td->td_proc;
+	pp = pmc_find_process_descriptor(p, PMC_FLAG_NONE);
+
+	/*
+	 * save PMCs
+	 */
+
+	critical_enter();
+
+	cpu = PCPU_GET(cpuid); /* td->td_oncpu is invalid */
+
+	PMCDBG(CSW,SWO,1, "cpu=%d proc=%p (%d, %s) pp=%p", cpu, p,
+	    p->p_pid, p->p_comm, pp);
+
+	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	    ("[pmc,%d wierd CPU id %d", __LINE__, cpu));
+
+	pc = pmc_pcpu[cpu];
+
+	/*
+	 * When a PMC gets unlinked from a target PMC, it will
+	 * be removed from the target's pp_pmc[] array.
+	 *
+	 * However, on a MP system, the target could have been
+	 * executing on another CPU at the time of the unlink.
+	 * So, at context switch OUT time, we need to look at
+	 * the hardware to determine if a PMC is scheduled on
+	 * it.
+	 */
+
+	for (ri = 0; ri < md->pmd_npmc; ri++) {
+
+		pm = NULL;
+		(void) (*md->pmd_get_config)(cpu, ri, &pm);
+
+		if (pm == NULL)	/* nothing at this row index */
+			continue;
+
+		mode = PMC_TO_MODE(pm);
+		if (!PMC_IS_VIRTUAL_MODE(mode))
+			continue; /* not a process virtual PMC */
+
+		KASSERT(PMC_TO_ROWINDEX(pm) == ri,
+		    ("[pmc,%d] ri mismatch pmc(%d) ri(%d)",
+			__LINE__, PMC_TO_ROWINDEX(pm), ri));
+
+		/* Stop hardware if not already stopped */
+		if ((pm->pm_flags & PMC_F_IS_STALLED) == 0)
+			md->pmd_stop_pmc(cpu, ri);
+
+		/* reduce this PMC's runcount */
+		atomic_subtract_rel_32(&pm->pm_runcount, 1);
+
+		/*
+		 * If this PMC is associated with this process,
+		 * save the reading.
+		 */
+
+		if (pp != NULL && pp->pp_pmcs[ri].pp_pmc != NULL) {
+
+			KASSERT(pm == pp->pp_pmcs[ri].pp_pmc,
+			    ("[pmc,%d] pm %p != pp_pmcs[%d] %p", __LINE__,
+				pm, ri, pp->pp_pmcs[ri].pp_pmc));
+
+			KASSERT(pp->pp_refcnt > 0,
+			    ("[pmc,%d] pp refcnt = %d", __LINE__,
+				pp->pp_refcnt));
+
+			md->pmd_read_pmc(cpu, ri, &newvalue);
+
+			tmp = newvalue - PMC_PCPU_SAVED(cpu,ri);
+
+			PMCDBG(CSW,SWI,1,"cpu=%d ri=%d tmp=%jd", cpu, ri,
+			    tmp);
+
+			if (mode == PMC_MODE_TS) {
+
+				/*
+				 * For sampling process-virtual PMCs,
+				 * we expect the count to be
+				 * decreasing as the 'value'
+				 * programmed into the PMC is the
+				 * number of events to be seen till
+				 * the next sampling interrupt.
+				 */
+				if (tmp < 0)
+					tmp += pm->pm_sc.pm_reloadcount;
+				mtx_pool_lock_spin(pmc_mtxpool, pm);
+				pp->pp_pmcs[ri].pp_pmcval -= tmp;
+				if ((int64_t) pp->pp_pmcs[ri].pp_pmcval < 0)
+					pp->pp_pmcs[ri].pp_pmcval +=
+					    pm->pm_sc.pm_reloadcount;
+				mtx_pool_unlock_spin(pmc_mtxpool, pm);
+
+			} else {
+
+				/*
+				 * For counting process-virtual PMCs,
+				 * we expect the count to be
+				 * increasing monotonically, modulo a 64
+				 * bit wraparound.
+				 */
+				KASSERT((int64_t) tmp >= 0,
+				    ("[pmc,%d] negative increment cpu=%d "
+				     "ri=%d newvalue=%jx saved=%jx "
+				     "incr=%jx", __LINE__, cpu, ri,
+				     newvalue, PMC_PCPU_SAVED(cpu,ri), tmp));
+
+				mtx_pool_lock_spin(pmc_mtxpool, pm);
+				pm->pm_gv.pm_savedvalue += tmp;
+				pp->pp_pmcs[ri].pp_pmcval += tmp;
+				mtx_pool_unlock_spin(pmc_mtxpool, pm);
+
+				if (pm->pm_flags & PMC_F_LOG_PROCCSW)
+					pmclog_process_proccsw(pm, pp, tmp);
+			}
+		}
+
+		/* mark hardware as free */
+		md->pmd_config_pmc(cpu, ri, NULL);
+	}
+
+	/*
+	 * perform any other architecture/cpu dependent thread
+	 * switch out functions.
+	 */
+
+	(void) (*md->pmd_switch_out)(pc, pp);
+
+	critical_exit();
 }
 
 /*
@@ -1128,16 +1421,14 @@ const char *pmc_hooknames[] = {
 	"EXEC",
 	"FORK",
 	"CSW-IN",
-	"CSW-OUT"
+	"CSW-OUT",
+	"SAMPLE"
 };
 #endif
 
 static int
 pmc_hook_handler(struct thread *td, int function, void *arg)
 {
-
-	KASSERT(td->td_proc->p_flag & P_HWPMC,
-	    ("[pmc,%d] unregistered thread called pmc_hook()", __LINE__));
 
 	PMCDBG(MOD,PMH,1, "hook td=%p func=%d \"%s\" arg=%p", td, function,
 	    pmc_hooknames[function], arg);
@@ -1146,170 +1437,15 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 	{
 
 	/*
-	 * Process exit.
-	 *
-	 * Remove this process from all hash tables.  If this process
-	 * owned any PMCs, turn off those PMCs and deallocate them,
-	 * removing any associations with target processes.
-	 *
-	 * This function will be called by the last 'thread' of a
-	 * process.
-	 *
-	 */
-
-	case PMC_FN_PROCESS_EXIT: /* release PMCs */
-	{
-		int cpu;
-		unsigned int ri;
-		struct pmc *pm;
-		struct pmc_process *pp;
-		struct pmc_owner *po;
-		struct proc *p;
-		pmc_value_t newvalue, tmp;
-
-		sx_assert(&pmc_sx, SX_XLOCKED);
-
-		p = (struct proc *) arg;
-
-		/*
-		 * Since this code is invoked by the last thread in an
-		 * exiting process, we would have context switched IN
-		 * at some prior point.  Kernel mode context switches
-		 * may happen any time, so we want to disable a context
-		 * switch OUT till we get any PMCs targetting this
-		 * process off the hardware.
-		 *
-		 * We also need to atomically remove this process'
-		 * entry from our target process hash table, using
-		 * PMC_FLAG_REMOVE.
-		 */
-
-		PMCDBG(PRC,EXT,1, "process-exit proc=%p (%d, %s)", p, p->p_pid,
-		    p->p_comm);
-
-		critical_enter(); /* no preemption */
-
-		cpu = curthread->td_oncpu;
-
-		if ((pp = pmc_find_process_descriptor(p,
-			 PMC_FLAG_REMOVE)) != NULL) {
-
-			PMCDBG(PRC,EXT,2,
-			    "process-exit proc=%p pmc-process=%p", p, pp);
-
-			/*
-			 * The exiting process could the target of
-			 * some PMCs which will be running on
-			 * currently executing CPU.
-			 *
-			 * We need to turn these PMCs off like we
-			 * would do at context switch OUT time.
-			 */
-
-			for (ri = 0; ri < md->pmd_npmc; ri++) {
-
-				/*
-				 * Pick up the pmc pointer from hardware
-				 * state similar to the CSW_OUT code.
-				 */
-
-				pm = NULL;
-				(void) (*md->pmd_get_config)(cpu, ri, &pm);
-
-				PMCDBG(PRC,EXT,2, "ri=%d pm=%p", ri, pm);
-
-				if (pm == NULL ||
-				    !PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)))
-					continue;
-
-				PMCDBG(PRC,EXT,2, "ppmcs[%d]=%p pm=%p "
-				    "state=%d", ri, pp->pp_pmcs[ri].pp_pmc,
-				    pm, pm->pm_state);
-
-				KASSERT(PMC_TO_ROWINDEX(pm) == ri,
-				    ("[pmc,%d] ri mismatch pmc(%d) ri(%d)",
-					__LINE__, PMC_TO_ROWINDEX(pm), ri));
-
-				KASSERT(pm == pp->pp_pmcs[ri].pp_pmc,
-				    ("[pmc,%d] pm %p != pp_pmcs[%d] %p",
-					__LINE__, pm, ri,
-					pp->pp_pmcs[ri].pp_pmc));
-
-				(void) md->pmd_stop_pmc(cpu, ri);
-
-				KASSERT(pm->pm_runcount > 0,
-				    ("[pmc,%d] bad runcount ri %d rc %d",
-					__LINE__, ri, pm->pm_runcount));
-
-				if (pm->pm_state == PMC_STATE_RUNNING) {
-					md->pmd_read_pmc(cpu, ri, &newvalue);
-					tmp = newvalue -
-					    PMC_PCPU_SAVED(cpu,ri);
-
-					mtx_pool_lock_spin(pmc_mtxpool, pm);
-					pm->pm_gv.pm_savedvalue += tmp;
-					pp->pp_pmcs[ri].pp_pmcval += tmp;
-					mtx_pool_unlock_spin(pmc_mtxpool, pm);
-				}
-
-				atomic_subtract_rel_32(&pm->pm_runcount,1);
-
-				KASSERT((int) pm->pm_runcount >= 0,
-				    ("[pmc,%d] runcount is %d", __LINE__, ri));
-
-				(void) md->pmd_config_pmc(cpu, ri, NULL);
-			}
-
-			/*
-			 * Inform the MD layer of this pseudo "context switch
-			 * out"
-			 */
-
-			(void) md->pmd_switch_out(pmc_pcpu[cpu], pp);
-
-			critical_exit(); /* ok to be pre-empted now */
-
-			/*
-			 * Unlink this process from the PMCs that are
-			 * targetting it.  Log value at exit() time if
-			 * requested.
-			 */
-
-			for (ri = 0; ri < md->pmd_npmc; ri++)
-				if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
-					if (pm->pm_flags &
-					    PMC_F_LOG_TC_PROCEXIT)
-						pmc_log_process_exit(pm, pp);
-					pmc_unlink_target_process(pm, pp);
-				}
-
-			FREE(pp, M_PMC);
-
-
-		} else
-			critical_exit(); /* pp == NULL */
-
-		/*
-		 * If the process owned PMCs, free them up and free up
-		 * memory.
-		 */
-
-		if ((po = pmc_find_owner_descriptor(p)) != NULL) {
-			pmc_remove_owner(po);
-			FREE(po, M_PMC);
-		}
-
-	}
-	break;
-
-	/*
 	 * Process exec()
 	 */
 
 	case PMC_FN_PROCESS_EXEC:
 	{
 		int *credentials_changed;
+		char *fullpath, *freepath;
 		unsigned int ri;
+		int is_using_hwpmcs;
 		struct pmc *pm;
 		struct proc *p;
 		struct pmc_owner *po;
@@ -1317,16 +1453,32 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 		sx_assert(&pmc_sx, SX_XLOCKED);
 
+		p = td->td_proc;
+		pmc_getprocname(p, &fullpath, &freepath);
+
+		/* Inform owners of SS mode PMCs of the exec event. */
+		LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+		    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+			    pmclog_process_procexec(po, p->p_pid, fullpath);
+
+		PROC_LOCK(p);
+		is_using_hwpmcs = p->p_flag & P_HWPMC;
+		PROC_UNLOCK(p);
+
+		if (!is_using_hwpmcs) {
+			if (freepath)
+				FREE(freepath, M_TEMP);
+			break;
+		}
+
 		/*
 		 * PMCs are not inherited across an exec():  remove any
 		 * PMCs that this process is the owner of.
 		 */
 
-		p = td->td_proc;
-
 		if ((po = pmc_find_owner_descriptor(p)) != NULL) {
 			pmc_remove_owner(po);
-			FREE(po, M_PMC);
+			pmc_destroy_owner_descriptor(po);
 		}
 
 		/*
@@ -1336,6 +1488,23 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 		if ((pp = pmc_find_process_descriptor(p, 0)) == NULL)
 			break;
+
+		/*
+		 * Log the exec event to all monitoring owners.  Skip
+		 * owners who have already recieved the event because
+		 * the have system sampling PMCs active.
+		 */
+		for (ri = 0; ri < md->pmd_npmc; ri++)
+			if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
+				po = pm->pm_owner;
+				if (po->po_sscount == 0 &&
+				    po->po_flags & PMC_PO_OWNS_LOGFILE)
+					pmclog_process_procexec(po, p->p_pid,
+					    fullpath);
+			}
+
+		if (freepath)
+			FREE(freepath, M_TEMP);
 
 		credentials_changed = arg;
 
@@ -1370,304 +1539,45 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		if (pp->pp_refcnt == 0) {
 			pmc_remove_process_descriptor(pp);
 			FREE(pp, M_PMC);
+			break;
 		}
-	}
-	break;
-
-	/*
-	 * Process fork()
-	 */
-
-	case PMC_FN_PROCESS_FORK:
-	{
-		unsigned int ri;
-		uint32_t do_descendants;
-		struct pmc *pm;
-		struct pmc_process *ppnew, *ppold;
-		struct proc *newproc;
-
-		sx_assert(&pmc_sx, SX_XLOCKED);
-
-		newproc = (struct proc *) arg;
-
-		PMCDBG(PMC,FRK,2, "process-fork p1=%p p2=%p",
-		    curthread->td_proc, newproc);
-		/*
-		 * If the parent process (curthread->td_proc) is a
-		 * target of any PMCs, look for PMCs that are to be
-		 * inherited, and link these into the new process
-		 * descriptor.
-		 */
-
-		if ((ppold = pmc_find_process_descriptor(
-		    curthread->td_proc, PMC_FLAG_NONE)) == NULL)
-			break;
-
-		do_descendants = 0;
-		for (ri = 0; ri < md->pmd_npmc; ri++)
-			if ((pm = ppold->pp_pmcs[ri].pp_pmc) != NULL)
-				do_descendants |=
-				    pm->pm_flags & PMC_F_DESCENDANTS;
-		if (do_descendants == 0) /* nothing to do */
-			break;
-
-		if ((ppnew = pmc_find_process_descriptor(newproc,
-		    PMC_FLAG_ALLOCATE)) == NULL)
-			return ENOMEM;
-
-		/*
-		 * Run through all PMCs targeting the old process and
-		 * attach them to the new process.
-		 */
-
-		for (ri = 0; ri < md->pmd_npmc; ri++)
-			if ((pm = ppold->pp_pmcs[ri].pp_pmc) != NULL &&
-			    pm->pm_flags & PMC_F_DESCENDANTS)
-				pmc_link_target_process(pm, ppnew);
-
-		/*
-		 * Now mark the new process as being tracked by this
-		 * driver.
-		 */
-
-		PROC_LOCK(newproc);
-		newproc->p_flag |= P_HWPMC;
-		PROC_UNLOCK(newproc);
 
 	}
 	break;
-
-	/*
-	 * Thread context switch IN
-	 */
 
 	case PMC_FN_CSW_IN:
-	{
-		int cpu;
-		unsigned int ri;
-		struct pmc *pm;
-		struct proc *p;
-		struct pmc_cpu *pc;
-		struct pmc_hw *phw;
-		struct pmc_process *pp;
-		pmc_value_t newvalue;
-
-		p = td->td_proc;
-
-		if ((pp = pmc_find_process_descriptor(p, PMC_FLAG_NONE)) == NULL)
-			break;
-
-		KASSERT(pp->pp_proc == td->td_proc,
-		    ("[pmc,%d] not my thread state", __LINE__));
-
-		critical_enter(); /* no preemption on this CPU */
-
-		cpu = PCPU_GET(cpuid); /* td->td_oncpu is invalid */
-
-		PMCDBG(CTX,SWI,1, "cpu=%d proc=%p (%d, %s) pp=%p", cpu, p,
-		    p->p_pid, p->p_comm, pp);
-
-		KASSERT(cpu >= 0 && cpu < mp_ncpus,
-		    ("[pmc,%d] wierd CPU id %d", __LINE__, cpu));
-
-		pc = pmc_pcpu[cpu];
-
-		for (ri = 0; ri < md->pmd_npmc; ri++) {
-
-			if ((pm = pp->pp_pmcs[ri].pp_pmc) == NULL)
-				continue;
-
-			KASSERT(PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)),
-			    ("[pmc,%d] Target PMC in non-virtual mode (%d)",
-				__LINE__, PMC_TO_MODE(pm)));
-
-			KASSERT(PMC_TO_ROWINDEX(pm) == ri,
-			    ("[pmc,%d] Row index mismatch pmc %d != ri %d",
-				__LINE__, PMC_TO_ROWINDEX(pm), ri));
-
-			/*
-			 * Only PMCs that are marked as 'RUNNING' need
-			 * be placed on hardware.
-			 */
-
-			if (pm->pm_state != PMC_STATE_RUNNING)
-				continue;
-
-			/* increment PMC runcount */
-			atomic_add_rel_32(&pm->pm_runcount, 1);
-
-			/* configure the HWPMC we are going to use. */
-			md->pmd_config_pmc(cpu, ri, pm);
-
-			phw = pc->pc_hwpmcs[ri];
-
-			KASSERT(phw != NULL,
-			    ("[pmc,%d] null hw pointer", __LINE__));
-
-			KASSERT(phw->phw_pmc == pm,
-			    ("[pmc,%d] hw->pmc %p != pmc %p", __LINE__,
-				phw->phw_pmc, pm));
-
-			/* write out saved value and start the PMC */
-			mtx_pool_lock_spin(pmc_mtxpool, pm);
-			newvalue = PMC_PCPU_SAVED(cpu, ri) =
-			    pm->pm_gv.pm_savedvalue;
-			mtx_pool_unlock_spin(pmc_mtxpool, pm);
-
-			md->pmd_write_pmc(cpu, ri, newvalue);
-			md->pmd_start_pmc(cpu, ri);
-
-		}
-
-		/*
-		 * perform any other architecture/cpu dependent thread
-		 * switch-in actions.
-		 */
-
-		(void) (*md->pmd_switch_in)(pc, pp);
-
-		critical_exit();
-
-	}
-	break;
-
-	/*
-	 * Thread context switch OUT.
-	 */
+		pmc_process_csw_in(td);
+		break;
 
 	case PMC_FN_CSW_OUT:
-	{
-		int cpu;
-		unsigned int ri;
-		struct pmc *pm;
-		struct proc *p;
-		struct pmc_cpu *pc;
-		struct pmc_process *pp;
-		pmc_value_t newvalue, tmp;
+		pmc_process_csw_out(td);
+		break;
+
+	/*
+	 * Process accumulated PC samples.
+	 *
+	 * This function is expected to be called by hardclock() for
+	 * each CPU that has accumulated PC samples.
+	 *
+	 * This function is to be executed on the CPU whose samples
+	 * are being processed.
+	 */
+	case PMC_FN_DO_SAMPLES:
 
 		/*
-		 * Locate our process descriptor; this may be NULL if
-		 * this process is exiting and we have already removed
-		 * the process from the target process table.
-		 *
-		 * Note that due to kernel preemption, multiple
-		 * context switches may happen while the process is
-		 * exiting.
-		 *
-		 * Note also that if the target process cannot be
-		 * found we still need to deconfigure any PMCs that
-		 * are currently running on hardware.
+		 * Clear the cpu specific bit in the CPU mask before
+		 * do the rest of the processing.  If the NMI handler
+		 * gets invoked after the "atomic_clear_int()" call
+		 * below but before "pmc_process_samples()" gets
+		 * around to processing the interrupt, then we will
+		 * come back here at the next hardclock() tick (and
+		 * may find nothing to do if "pmc_process_samples()"
+		 * had already processed the interrupt).  We don't
+		 * lose the interrupt sample.
 		 */
-
-		p = td->td_proc;
-		pp = pmc_find_process_descriptor(p, PMC_FLAG_NONE);
-
-		/*
-		 * save PMCs
-		 */
-
-		critical_enter();
-
-		cpu = PCPU_GET(cpuid); /* td->td_oncpu is invalid */
-
-		PMCDBG(CTX,SWO,1, "cpu=%d proc=%p (%d, %s) pp=%p", cpu, p,
-		    p->p_pid, p->p_comm, pp);
-
-		KASSERT(cpu >= 0 && cpu < mp_ncpus,
-		    ("[pmc,%d wierd CPU id %d", __LINE__, cpu));
-
-		pc = pmc_pcpu[cpu];
-
-		/*
-		 * When a PMC gets unlinked from a target PMC, it will
-		 * be removed from the target's pp_pmc[] array.
-		 *
-		 * However, on a MP system, the target could have been
-		 * executing on another CPU at the time of the unlink.
-		 * So, at context switch OUT time, we need to look at
-		 * the hardware to determine if a PMC is scheduled on
-		 * it.
-		 */
-
-		for (ri = 0; ri < md->pmd_npmc; ri++) {
-
-			pm = NULL;
-			(void) (*md->pmd_get_config)(cpu, ri, &pm);
-
-			if (pm == NULL)	/* nothing at this row index */
-				continue;
-
-			if (!PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)))
-				continue; /* not a process virtual PMC */
-
-			KASSERT(PMC_TO_ROWINDEX(pm) == ri,
-			    ("[pmc,%d] ri mismatch pmc(%d) ri(%d)",
-				__LINE__, PMC_TO_ROWINDEX(pm), ri));
-
-			/* Stop hardware */
-			md->pmd_stop_pmc(cpu, ri);
-
-			/* reduce this PMC's runcount */
-			atomic_subtract_rel_32(&pm->pm_runcount, 1);
-
-			/*
-			 * If this PMC is associated with this process,
-			 * save the reading.
-			 */
-
-			if (pp != NULL && pp->pp_pmcs[ri].pp_pmc != NULL) {
-
-				KASSERT(pm == pp->pp_pmcs[ri].pp_pmc,
-				    ("[pmc,%d] pm %p != pp_pmcs[%d] %p",
-					__LINE__, pm, ri,
-					pp->pp_pmcs[ri].pp_pmc));
-
-				KASSERT(pp->pp_refcnt > 0,
-				    ("[pmc,%d] pp refcnt = %d", __LINE__,
-					pp->pp_refcnt));
-
-				md->pmd_read_pmc(cpu, ri, &newvalue);
-
-				tmp = newvalue - PMC_PCPU_SAVED(cpu,ri);
-
-				KASSERT((int64_t) tmp >= 0,
-				    ("[pmc,%d] negative increment cpu=%d "
-					"ri=%d newvalue=%jx saved=%jx "
-					"incr=%jx", __LINE__, cpu, ri,
-					newvalue, PMC_PCPU_SAVED(cpu,ri),
-					tmp));
-
-				/*
-				 * Increment the PMC's count and this
-				 * target process's count by the difference
-				 * between the current reading and the
-				 * saved value at context switch in time.
-				 */
-
-				mtx_pool_lock_spin(pmc_mtxpool, pm);
-
-				pm->pm_gv.pm_savedvalue += tmp;
-				pp->pp_pmcs[ri].pp_pmcval += tmp;
-
-				mtx_pool_unlock_spin(pmc_mtxpool, pm);
-
-			}
-
-			/* mark hardware as free */
-			md->pmd_config_pmc(cpu, ri, NULL);
-		}
-
-		/*
-		 * perform any other architecture/cpu dependent thread
-		 * switch out functions.
-		 */
-
-		(void) (*md->pmd_switch_out)(pc, pp);
-
-		critical_exit();
-
-	}
-	break;
+		atomic_clear_int(&pmc_cpumask, (1 << PCPU_GET(cpuid)));
+		pmc_process_samples(PCPU_GET(cpuid));
+		break;
 
 	default:
 #if DEBUG
@@ -1696,17 +1606,33 @@ pmc_allocate_owner_descriptor(struct proc *p)
 
 	/* allocate space for N pointers and one descriptor struct */
 	MALLOC(po, struct pmc_owner *, sizeof(struct pmc_owner),
-	    M_PMC, M_WAITOK);
+	    M_PMC, M_ZERO|M_WAITOK);
 
-	po->po_flags = 0;
+	po->po_sscount = po->po_error = po->po_flags = 0;
+	po->po_file  = NULL;
 	po->po_owner = p;
+	po->po_kthread = NULL;
 	LIST_INIT(&po->po_pmcs);
 	LIST_INSERT_HEAD(poh, po, po_next); /* insert into hash table */
+
+	TAILQ_INIT(&po->po_logbuffers);
+	mtx_init(&po->po_mtx, "pmc-owner-mtx", "pmc", MTX_SPIN);
 
 	PMCDBG(OWN,ALL,1, "allocate-owner proc=%p (%d, %s) pmc-owner=%p",
 	    p, p->p_pid, p->p_comm, po);
 
 	return po;
+}
+
+static void
+pmc_destroy_owner_descriptor(struct pmc_owner *po)
+{
+
+	PMCDBG(OWN,REL,1, "destroy-owner po=%p proc=%p (%d, %s)",
+	    po, po->po_owner, po->po_owner->p_pid, po->po_owner->p_comm);
+
+	mtx_destroy(&po->po_mtx);
+	FREE(po, M_PMC);
 }
 
 /*
@@ -1850,6 +1776,31 @@ pmc_destroy_pmc_descriptor(struct pmc *pm)
 #endif
 }
 
+static void
+pmc_wait_for_pmc_idle(struct pmc *pm)
+{
+#if	DEBUG
+	volatile int maxloop;
+
+	maxloop = 100 * mp_ncpus;
+#endif
+
+	/*
+	 * Loop (with a forced context switch) till the PMC's runcount
+	 * comes down to zero.
+	 */
+	while (atomic_load_acq_32(&pm->pm_runcount) > 0) {
+#if	DEBUG
+		maxloop--;
+		KASSERT(maxloop > 0,
+		    ("[pmc,%d] (ri%d, rc%d) waiting too long for "
+			"pmc to be free", __LINE__,
+			PMC_TO_ROWINDEX(pm), pm->pm_runcount));
+#endif
+		pmc_force_context_switch();
+	}
+}
+
 /*
  * This function does the following things:
  *
@@ -1865,12 +1816,10 @@ pmc_destroy_pmc_descriptor(struct pmc *pm)
 static void
 pmc_release_pmc_descriptor(struct pmc *pm)
 {
-#if	DEBUG
-	volatile int maxloop;
-#endif
 	u_int ri, cpu;
 	enum pmc_mode mode;
 	struct pmc_hw *phw;
+	struct pmc_owner *po;
 	struct pmc_process *pp;
 	struct pmc_target *ptgt, *tmp;
 	struct pmc_binding pb;
@@ -1895,21 +1844,21 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 		 * A system mode PMC runs on a specific CPU.  Switch
 		 * to this CPU and turn hardware off.
 		 */
-
 		pmc_save_cpu_binding(&pb);
 
 		cpu = PMC_TO_CPU(pm);
 
-		if (pm->pm_state == PMC_STATE_RUNNING) {
+		pmc_select_cpu(cpu);
 
-			pmc_select_cpu(cpu);
+		/* switch off non-stalled CPUs */
+		if (pm->pm_state == PMC_STATE_RUNNING &&
+		    (pm->pm_flags & PMC_F_IS_STALLED) == 0) {
 
 			phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
 
 			KASSERT(phw->phw_pmc == pm,
 			    ("[pmc, %d] pmc ptr ri(%d) hw(%p) pm(%p)",
 				__LINE__, ri, phw->phw_pmc, pm));
-
 			PMCDBG(PMC,REL,2, "stopping cpu=%d ri=%d", cpu, ri);
 
 			critical_enter();
@@ -1923,9 +1872,26 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 		md->pmd_config_pmc(cpu, ri, NULL);
 		critical_exit();
 
+		/* adjust the global and process count of SS mode PMCs */
+		if (mode == PMC_MODE_SS && pm->pm_state == PMC_STATE_RUNNING) {
+			po = pm->pm_owner;
+			po->po_sscount--;
+			if (po->po_sscount == 0) {
+				atomic_subtract_rel_int(&pmc_ss_count, 1);
+				LIST_REMOVE(po, po_ssnext);
+			}
+		}
+
 		pm->pm_state = PMC_STATE_DELETED;
 
 		pmc_restore_cpu_binding(&pb);
+
+		/*
+		 * We could have references to this PMC structure in
+		 * the per-cpu sample queues.  Wait for the queue to
+		 * drain.
+		 */
+		pmc_wait_for_pmc_idle(pm);
 
 	} else if (PMC_IS_VIRTUAL_MODE(mode)) {
 
@@ -1938,30 +1904,11 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 		 *
 		 * Then we wait till all CPUs are done with this PMC.
 		 */
-
 		pm->pm_state = PMC_STATE_DELETED;
 
 
-		/*
-		 * Wait for the PMCs runcount to come to zero.
-		 */
-
-#if	DEBUG
-		maxloop = 100 * mp_ncpus;
-#endif
-
-		while (atomic_load_acq_32(&pm->pm_runcount) > 0) {
-
-#if	DEBUG
-			maxloop--;
-			KASSERT(maxloop > 0,
-			    ("[pmc,%d] (ri%d, rc%d) waiting too long for "
-				"pmc to be free", __LINE__,
-				PMC_TO_ROWINDEX(pm), pm->pm_runcount));
-#endif
-
-			pmc_force_context_switch();
-		}
+		/* Wait for the PMCs runcount to come to zero. */
+		pmc_wait_for_pmc_idle(pm);
 
 		/*
 		 * At this point the PMC is off all CPUs and cannot be
@@ -1971,7 +1918,6 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 		 * it from the hash table.  The module-wide SX lock
 		 * protects us from races.
 		 */
-
 		LIST_FOREACH_SAFE(ptgt, &pm->pm_targets, pt_next, tmp) {
 			pp = ptgt->pt_process;
 			pmc_unlink_target_process(pm, pp); /* frees 'ptgt' */
@@ -2009,8 +1955,10 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 		PMC_UNMARK_ROW_THREAD(ri);
 
 	/* unlink from the owner's list */
-	if (pm->pm_owner)
-		pmc_unlink_owner(pm);
+	if (pm->pm_owner) {
+		LIST_REMOVE(pm, pm_next);
+		pm->pm_owner = NULL;
+	}
 
 	pmc_destroy_pmc_descriptor(pm);
 }
@@ -2022,47 +1970,29 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 static int
 pmc_register_owner(struct proc *p, struct pmc *pmc)
 {
-	struct pmc_list	*pl;
 	struct pmc_owner *po;
 
 	sx_assert(&pmc_sx, SX_XLOCKED);
 
-	MALLOC(pl, struct pmc_list *, sizeof(struct pmc_list), M_PMC,
-	    M_WAITOK);
-
-	if (pl == NULL)
-		return ENOMEM;
-
 	if ((po = pmc_find_owner_descriptor(p)) == NULL)
-		if ((po = pmc_allocate_owner_descriptor(p)) == NULL) {
-			FREE(pl, M_PMC);
+		if ((po = pmc_allocate_owner_descriptor(p)) == NULL)
 			return ENOMEM;
-		}
-
-	/* XXX is this too restrictive */
-	if (PMC_ID_TO_MODE(pmc->pm_id) == PMC_MODE_TS) {
-		/* can have only one TS mode PMC per process */
-		if (po->po_flags & PMC_PO_HAS_TS_PMC) {
-			FREE(pl, M_PMC);
-			return EINVAL;
-		}
-		po->po_flags |= PMC_PO_HAS_TS_PMC;
-	}
 
 	KASSERT(pmc->pm_owner == NULL,
 	    ("[pmc,%d] attempting to own an initialized PMC", __LINE__));
 	pmc->pm_owner  = po;
 
-	pl->pl_pmc = pmc;
-
-	LIST_INSERT_HEAD(&po->po_pmcs, pl, pl_next);
+	LIST_INSERT_HEAD(&po->po_pmcs, pmc, pm_next);
 
 	PROC_LOCK(p);
 	p->p_flag |= P_HWPMC;
 	PROC_UNLOCK(p);
 
-	PMCDBG(PMC,REG,1, "register-owner pmc-owner=%p pl=%p pmc=%p",
-	    po, pl, pmc);
+	if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+		pmclog_process_pmcallocate(pmc);
+
+	PMCDBG(PMC,REG,1, "register-owner pmc-owner=%p pmc=%p",
+	    po, pmc);
 
 	return 0;
 }
@@ -2096,7 +2026,6 @@ pmc_can_allocate_rowindex(struct proc *p, unsigned int ri, int cpu)
 {
 	enum pmc_mode mode;
 	struct pmc *pm;
-	struct pmc_list *pl;
 	struct pmc_owner *po;
 	struct pmc_process *pp;
 
@@ -2111,8 +2040,7 @@ pmc_can_allocate_rowindex(struct proc *p, unsigned int ri, int cpu)
 	 * CPU and same RI.
 	 */
 	if ((po = pmc_find_owner_descriptor(p)) != NULL)
-		LIST_FOREACH(pl, &po->po_pmcs, pl_next) {
-		    pm   = pl->pl_pmc;
+		LIST_FOREACH(pm, &po->po_pmcs, pm_next) {
 		    if (PMC_TO_ROWINDEX(pm) == ri) {
 			    mode = PMC_TO_MODE(pm);
 			    if (PMC_IS_VIRTUAL_MODE(mode))
@@ -2189,15 +2117,15 @@ pmc_can_allocate_row(int ri, enum pmc_mode mode)
 static struct pmc *
 pmc_find_pmc_descriptor_in_process(struct pmc_owner *po, pmc_id_t pmcid)
 {
-	struct pmc_list	*pl;
+	struct pmc *pm;
 
 	KASSERT(PMC_ID_TO_ROWINDEX(pmcid) < md->pmd_npmc,
 	    ("[pmc,%d] Illegal pmc index %d (max %d)", __LINE__,
 		PMC_ID_TO_ROWINDEX(pmcid), md->pmd_npmc));
 
-	LIST_FOREACH(pl, &po->po_pmcs, pl_next)
-	    if (pl->pl_pmc->pm_id == pmcid)
-		    return pl->pl_pmc;
+	LIST_FOREACH(pm, &po->po_pmcs, pm_next)
+	    if (pm->pm_id == pmcid)
+		    return pm;
 
 	return NULL;
 }
@@ -2232,6 +2160,7 @@ pmc_start(struct pmc *pm)
 {
 	int error, cpu, ri;
 	enum pmc_mode mode;
+	struct pmc_owner *po;
 	struct pmc_binding pb;
 
 	KASSERT(pm != NULL,
@@ -2243,36 +2172,67 @@ pmc_start(struct pmc *pm)
 
 	PMCDBG(PMC,OPS,1, "start pmc=%p mode=%d ri=%d", pm, mode, ri);
 
-	pm->pm_state = PMC_STATE_RUNNING;
+	po = pm->pm_owner;
 
 	if (PMC_IS_VIRTUAL_MODE(mode)) {
 
 		/*
-		 * If a PMCATTACH hadn't been done on this
-		 * PMC, attach this PMC to its owner process.
+		 * If a PMCATTACH has never been done on this PMC,
+		 * attach it to its owner process.
 		 */
 
 		if (LIST_EMPTY(&pm->pm_targets))
-			error = pmc_attach_process(pm->pm_owner->po_owner, pm);
+			error = (pm->pm_flags & PMC_F_ATTACH_DONE) ? ESRCH :
+			    pmc_attach_process(po->po_owner, pm);
+
+		/*
+		 * Disallow PMCSTART if a logfile is required but has not
+		 * been configured yet.
+		 */
+
+		if (error == 0 && (pm->pm_flags & PMC_F_NEEDS_LOGFILE) &&
+		    (po->po_flags & PMC_PO_OWNS_LOGFILE) == 0)
+			error = EDOOFUS;
 
 		/*
 		 * If the PMC is attached to its owner, then force a context
 		 * switch to ensure that the MD state gets set correctly.
 		 */
-		if (error == 0 && (pm->pm_flags & PMC_F_ATTACHED_TO_OWNER))
-			pmc_force_context_switch();
 
-		/*
-		 * Nothing further to be done; thread context switch code
-		 * will start/stop the hardware as appropriate.
-		 */
+		if (error == 0) {
+			pm->pm_state = PMC_STATE_RUNNING;
+			if (pm->pm_flags & PMC_F_ATTACHED_TO_OWNER)
+				pmc_force_context_switch();
+		}
 
 		return error;
+	}
 
+
+	/*
+	 * A system-wide PMC.
+	 */
+
+	if ((pm->pm_flags & PMC_F_NEEDS_LOGFILE) &&
+	    (po->po_flags & PMC_PO_OWNS_LOGFILE) == 0)
+		return EDOOFUS;	/* programming error */
+
+	/*
+	 * Add the owner to the global list if this is a system-wide
+	 * sampling PMC.
+	 */
+
+	if (mode == PMC_MODE_SS) {
+		if (po->po_sscount == 0) {
+			LIST_INSERT_HEAD(&pmc_ss_owners, po, po_ssnext);
+			atomic_add_rel_int(&pmc_ss_count, 1);
+			PMCDBG(PMC,OPS,1, "po=%p in global list", po);
+		}
+		po->po_sscount++;
 	}
 
 	/*
-	 * A system-wide PMC.  Move to the CPU associated with this
+	 * Move to the CPU associated with this
 	 * PMC, and start the hardware.
 	 */
 
@@ -2289,6 +2249,8 @@ pmc_start(struct pmc *pm)
 	 * global PMCs are configured at allocation time
 	 * so write out the initial value and start the PMC.
 	 */
+
+	pm->pm_state = PMC_STATE_RUNNING;
 
 	critical_enter();
 	if ((error = md->pmd_write_pmc(cpu, ri,
@@ -2311,6 +2273,7 @@ static int
 pmc_stop(struct pmc *pm)
 {
 	int cpu, error, ri;
+	struct pmc_owner *po;
 	struct pmc_binding pb;
 
 	KASSERT(pm != NULL, ("[pmc,%d] null pmc", __LINE__));
@@ -2361,6 +2324,18 @@ pmc_stop(struct pmc *pm)
 
 	pmc_restore_cpu_binding(&pb);
 
+	po = pm->pm_owner;
+
+	/* remove this owner from the global list of SS PMC owners */
+	if (PMC_TO_MODE(pm) == PMC_MODE_SS) {
+		po->po_sscount--;
+		if (po->po_sscount == 0) {
+			atomic_subtract_rel_int(&pmc_ss_count, 1);
+			LIST_REMOVE(po, po_ssnext);
+			PMCDBG(PMC,OPS,2,"po=%p removed from global list", po);
+		}
+	}
+
 	return error;
 }
 
@@ -2400,6 +2375,8 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 	PMC_GET_SX_XLOCK(ENOSYS);
 
+	DROP_GIANT();
+
 	is_sx_downgraded = 0;
 
 	c = (struct pmc_syscall_args *) syscall_args;
@@ -2437,15 +2414,48 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		/* mark this process as owning a log file */
 		p = td->td_proc;
 		if ((po = pmc_find_owner_descriptor(p)) == NULL)
-			if ((po = pmc_allocate_owner_descriptor(p)) == NULL)
-				return ENOMEM;
+			if ((po = pmc_allocate_owner_descriptor(p)) == NULL) {
+				error = ENOMEM;
+				break;
+			}
 
-		if ((error = pmc_configure_log(po, cl.pm_logfd)) != 0)
-			break;
-
+		/*
+		 * If a valid fd was passed in, try to configure that,
+		 * otherwise if 'fd' was less than zero and there was
+		 * a log file configured, flush its buffers and
+		 * de-configure it.
+		 */
+		if (cl.pm_logfd >= 0)
+			error = pmclog_configure_log(po, cl.pm_logfd);
+		else if (po->po_flags & PMC_PO_OWNS_LOGFILE) {
+			pmclog_process_closelog(po);
+			error = pmclog_flush(po);
+			if (error == 0)
+				error = pmclog_deconfigure_log(po);
+		} else
+			error = EINVAL;
 	}
 	break;
 
+
+	/*
+	 * Flush a log file.
+	 */
+
+	case PMC_OP_FLUSHLOG:
+	{
+		struct pmc_owner *po;
+
+		sx_assert(&pmc_sx, SX_XLOCKED);
+
+		if ((po = pmc_find_owner_descriptor(td->td_proc)) == NULL) {
+			error = EINVAL;
+			break;
+		}
+
+		error = pmclog_flush(po);
+	}
+	break;
 
 	/*
 	 * Retrieve hardware configuration.
@@ -2486,7 +2496,18 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 	case PMC_OP_GETMODULEVERSION:
 	{
-		error = copyout(&_pmc_version.mv_version, arg, sizeof(int));
+		uint32_t cv, modv;
+
+		/* retrieve the client's idea of the ABI version */
+		if ((error = copyin(arg, &cv, sizeof(uint32_t))) != 0)
+			break;
+		/* don't service clients newer than our driver */
+		modv = PMC_VERSION;
+		if ((cv & 0xFFFF0000) > (modv & 0xFFFF0000)) {
+			error = EPROGMISMATCH;
+			break;
+		}
+		error = copyout(&modv, arg, sizeof(int));
 	}
 	break;
 
@@ -2748,8 +2769,15 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		 * Look for valid values for 'pm_flags'
 		 */
 
-		if ((pa.pm_flags & ~(PMC_F_DESCENDANTS|PMC_F_LOG_TC_CSW))
-		    != 0) {
+		if ((pa.pm_flags & ~(PMC_F_DESCENDANTS | PMC_F_LOG_PROCCSW |
+		    PMC_F_LOG_PROCEXIT)) != 0) {
+			error = EINVAL;
+			break;
+		}
+
+		/* process logging options are not allowed for system PMCs */
+		if (PMC_IS_SYSTEM_MODE(mode) && (pa.pm_flags &
+		    (PMC_F_LOG_PROCCSW | PMC_F_LOG_PROCEXIT))) {
 			error = EINVAL;
 			break;
 		}
@@ -2759,11 +2787,8 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		 * CPU.
 		 */
 
-		if (PMC_IS_SAMPLING_MODE(mode)) {
+		if (PMC_IS_SAMPLING_MODE(mode))
 			caps |= PMC_CAP_INTERRUPT;
-			error = ENOSYS; /* for snapshot 6 */
-			break;
-		}
 
 		PMCDBG(PMC,ALL,2, "event=%d caps=0x%x mode=%d cpu=%d",
 		    pa.pm_ev, caps, mode, cpu);
@@ -2827,6 +2852,14 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		PMCDBG(PMC,ALL,2, "ev=%d class=%d mode=%d n=%d -> pmcid=%x",
 		    pmc->pm_event, pa.pm_class, mode, n, pmc->pm_id);
+
+		/* Process mode PMCs with logging enabled need log files */
+		if (pmc->pm_flags & (PMC_F_LOG_PROCEXIT | PMC_F_LOG_PROCCSW))
+			pmc->pm_flags |= PMC_F_NEEDS_LOGFILE;
+
+		/* All system mode sampling PMCs require a log file */
+		if (PMC_IS_SAMPLING_MODE(mode) && PMC_IS_SYSTEM_MODE(mode))
+			pmc->pm_flags |= PMC_F_NEEDS_LOGFILE;
 
 		/*
 		 * Configure global pmc's immediately
@@ -2999,6 +3032,85 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 
 	/*
+	 * Retrieve the MSR number associated with the counter
+	 * 'pmc_id'.  This allows processes to directly use RDPMC
+	 * instructions to read their PMCs, without the overhead of a
+	 * system call.
+	 */
+
+	case PMC_OP_PMCGETMSR:
+	{
+		int ri;
+		struct pmc	*pm;
+		struct pmc_target *pt;
+		struct pmc_op_getmsr gm;
+
+		PMC_DOWNGRADE_SX();
+
+		/* CPU has no 'GETMSR' support */
+		if (md->pmd_get_msr == NULL) {
+			error = ENOSYS;
+			break;
+		}
+
+		if ((error = copyin(arg, &gm, sizeof(gm))) != 0)
+			break;
+
+		if ((error = pmc_find_pmc(gm.pm_pmcid, &pm)) != 0)
+			break;
+
+		/*
+		 * The allocated PMC has to be a process virtual PMC,
+		 * i.e., of type MODE_T[CS].  Global PMCs can only be
+		 * read using the PMCREAD operation since they may be
+		 * allocated on a different CPU than the one we could
+		 * be running on at the time of the RDPMC instruction.
+		 *
+		 * The GETMSR operation is not allowed for PMCs that
+		 * are inherited across processes.
+		 */
+
+		if (!PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)) ||
+		    (pm->pm_flags & PMC_F_DESCENDANTS)) {
+			error = EINVAL;
+			break;
+		}
+
+		/*
+		 * It only makes sense to use a RDPMC (or its
+		 * equivalent instruction on non-x86 architectures) on
+		 * a process that has allocated and attached a PMC to
+		 * itself.  Conversely the PMC is only allowed to have
+		 * one process attached to it -- its owner.
+		 */
+
+		if ((pt = LIST_FIRST(&pm->pm_targets)) == NULL ||
+		    LIST_NEXT(pt, pt_next) != NULL ||
+		    pt->pt_process->pp_proc != pm->pm_owner->po_owner) {
+			error = EINVAL;
+			break;
+		}
+
+		ri = PMC_TO_ROWINDEX(pm);
+
+		if ((error = (*md->pmd_get_msr)(ri, &gm.pm_msr)) < 0)
+			break;
+
+		if ((error = copyout(&gm, arg, sizeof(gm))) < 0)
+			break;
+
+		/*
+		 * Mark our process as using MSRs.  Update machine
+		 * state using a forced context switch.
+		 */
+
+		pt->pt_process->pp_flags |= PMC_PP_ENABLE_MSR_ACCESS;
+		pmc_force_context_switch();
+
+	}
+	break;
+
+	/*
 	 * Release an allocated PMC
 	 */
 
@@ -3166,17 +3278,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 				 sizeof(prw.pm_value))))
 				break;
 
-		/*
-		 * send a signal (SIGIO) to the owner if it is trying to read
-		 * a PMC with no target processes attached.
-		 */
-
-		if (LIST_EMPTY(&pm->pm_targets) &&
-		    (prw.pm_flags & PMC_F_OLDVALUE)) {
-			PROC_LOCK(curthread->td_proc);
-			psignal(curthread->td_proc, SIGIO);
-			PROC_UNLOCK(curthread->td_proc);
-		}
 	}
 	break;
 
@@ -3291,107 +3392,34 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 
 	/*
-	 * Write a user-entry to the log file.
+	 * Flush the per-owner log file and Write a user-entry to the
+	 * log file.
 	 */
 
 	case PMC_OP_WRITELOG:
 	{
+		struct pmc_op_writelog wl;
+		struct pmc_owner *po;
 
 		PMC_DOWNGRADE_SX();
 
-		/*
-		 * flush all per-cpu hash tables
-		 * append user-log entry
-		 */
-
-		error = ENOSYS;
-	}
-	break;
-
-
-#if __i386__ || __amd64__
-
-	/*
-	 * Machine dependent operation for i386-class processors.
-	 *
-	 * Retrieve the MSR number associated with the counter
-	 * 'pmc_id'.  This allows processes to directly use RDPMC
-	 * instructions to read their PMCs, without the overhead of a
-	 * system call.
-	 */
-
-	case PMC_OP_PMCX86GETMSR:
-	{
-		int ri;
-		struct pmc	*pm;
-		struct pmc_target *pt;
-		struct pmc_op_x86_getmsr gm;
-
-		PMC_DOWNGRADE_SX();
-
-		/* CPU has no 'GETMSR' support */
-		if (md->pmd_get_msr == NULL) {
-			error = ENOSYS;
-			break;
-		}
-
-		if ((error = copyin(arg, &gm, sizeof(gm))) != 0)
+		if ((error = copyin(arg, &wl, sizeof(wl))) != 0)
 			break;
 
-		if ((error = pmc_find_pmc(gm.pm_pmcid, &pm)) != 0)
-			break;
-
-		/*
-		 * The allocated PMC has to be a process virtual PMC,
-		 * i.e., of type MODE_T[CS].  Global PMCs can only be
-		 * read using the PMCREAD operation since they may be
-		 * allocated on a different CPU than the one we could
-		 * be running on at the time of the RDPMC instruction.
-		 *
-		 * The GETMSR operation is not allowed for PMCs that
-		 * are inherited across processes.
-		 */
-
-		if (!PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)) ||
-		    (pm->pm_flags & PMC_F_DESCENDANTS)) {
+		if ((po = pmc_find_owner_descriptor(td->td_proc)) == NULL) {
 			error = EINVAL;
 			break;
 		}
 
-		/*
-		 * It only makes sense to use a RDPMC (or its
-		 * equivalent instruction on non-x86 architectures) on
-		 * a process that has allocated and attached a PMC to
-		 * itself.  Conversely the PMC is only allowed to have
-		 * one process attached to it -- its owner.
-		 */
-
-		if ((pt = LIST_FIRST(&pm->pm_targets)) == NULL ||
-		    LIST_NEXT(pt, pt_next) != NULL ||
-		    pt->pt_process->pp_proc != pm->pm_owner->po_owner) {
+		if ((po->po_flags & PMC_PO_OWNS_LOGFILE) == 0) {
 			error = EINVAL;
 			break;
 		}
 
-		ri = PMC_TO_ROWINDEX(pm);
-
-		if ((error = (*md->pmd_get_msr)(ri, &gm.pm_msr)) < 0)
-			break;
-
-		if ((error = copyout(&gm, arg, sizeof(gm))) < 0)
-			break;
-
-		/*
-		 * Mark our process as using MSRs.  Update machine
-		 * state using a forced context switch.
-		 */
-
-		pt->pt_process->pp_flags |= PMC_PP_ENABLE_MSR_ACCESS;
-		pmc_force_context_switch();
-
+		error = pmclog_process_userlog(po, &wl);
 	}
 	break;
-#endif
+
 
 	default:
 		error = EINVAL;
@@ -3406,6 +3434,8 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	if (error)
 		atomic_add_int(&pmc_stats.pm_syscall_errors, 1);
 
+	PICKUP_GIANT();
+
 	return error;
 }
 
@@ -3413,57 +3443,175 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
  * Helper functions
  */
 
+
 /*
- * Configure a log file.
+ * Interrupt processing.
+ *
+ * Find a free slot in the per-cpu array of PC samples and write the
+ * current (PMC,PID,PC) triple to it.  If an event was successfully
+ * added, a bit is set in mask 'pmc_cpumask' denoting that the
+ * DO_SAMPLES hook needs to be invoked from the clock handler.
+ *
+ * This function is meant to be called from an NMI handler.  It cannot
+ * use any of the locking primitives supplied by the OS.
  */
 
-static int
-pmc_configure_log(struct pmc_owner *po, int logfd)
+int
+pmc_process_interrupt(int cpu, struct pmc *pm, intfptr_t pc, int usermode)
 {
-	struct proc *p;
+	int error, ri;
+	struct thread *td;
+	struct pmc_sample *ps;
+	struct pmc_samplebuffer *psb;
 
-	return ENOSYS; /* for now */
+	error = 0;
+	ri = PMC_TO_ROWINDEX(pm);
 
-	p = po->po_owner;
+	psb = pmc_pcpu[cpu]->pc_sb;
 
-	if (po->po_logfd < 0 && logfd < 0) /* nothing to do */
-		return 0;
+	ps = psb->ps_write;
+	if (ps->ps_pc) {	/* in use, reader hasn't caught up */
+		atomic_add_int(&pmc_stats.pm_intr_bufferfull, 1);
+		atomic_set_int(&pm->pm_flags, PMC_F_IS_STALLED);
+		PMCDBG(SAM,INT,1,"(spc) cpu=%d pm=%p pc=%jx um=%d wr=%d rd=%d",
+		    cpu, pm, (int64_t) pc, usermode,
+		    (int) (psb->ps_write - psb->ps_samples),
+		    (int) (psb->ps_read - psb->ps_samples));
+		error = ENOMEM;
+		goto done;
+	}
 
-	if (po->po_logfd >= 0 && logfd < 0) {
-		/* deconfigure log */
-		/* XXX */
-		po->po_flags &= ~PMC_PO_OWNS_LOGFILE;
-		pmc_maybe_remove_owner(po);
+	/* fill in entry */
+	PMCDBG(SAM,INT,1,"cpu=%d pm=%p pc=%jx um=%d wr=%d rd=%d", cpu, pm,
+	    (int64_t) pc, usermode,
+	    (int) (psb->ps_write - psb->ps_samples),
+	    (int) (psb->ps_read - psb->ps_samples));
 
-	} else if (po->po_logfd < 0 && logfd >= 0) {
-		/* configure log file */
-		/* XXX */
-		po->po_flags |= PMC_PO_OWNS_LOGFILE;
+	atomic_add_rel_32(&pm->pm_runcount, 1);		/* hold onto PMC */
+	ps->ps_pmc = pm;
+	if ((td = curthread) && td->td_proc)
+		ps->ps_pid = td->td_proc->p_pid;
+	else
+		ps->ps_pid = -1;
+	ps->ps_usermode = usermode;
+	ps->ps_pc = pc;		/* mark entry as in use */
 
-		/* mark process as using HWPMCs */
-		PROC_LOCK(p);
-		p->p_flag |= P_HWPMC;
-		PROC_UNLOCK(p);
-	} else
-		return EBUSY;
+	/* increment write pointer, modulo ring buffer size */
+	ps++;
+	if (ps == psb->ps_fence)
+		psb->ps_write = psb->ps_samples;
+	else
+		psb->ps_write = ps;
 
-	return 0;
+ done:
+	/* mark CPU as needing processing */
+	atomic_set_rel_int(&pmc_cpumask, (1 << cpu));
+
+	return error;
 }
 
+
 /*
- * Log an exit event to the PMC owner's log file.
+ * Process saved PC samples.
  */
 
 static void
-pmc_log_process_exit(struct pmc *pm, struct pmc_process *pp)
+pmc_process_samples(int cpu)
 {
-	KASSERT(pm->pm_flags & PMC_F_LOG_TC_PROCEXIT,
-	    ("[pmc,%d] log-process-exit called gratuitously", __LINE__));
+	int n, ri;
+	struct pmc *pm;
+	struct thread *td;
+	struct pmc_owner *po;
+	struct pmc_sample *ps;
+	struct pmc_samplebuffer *psb;
 
-	(void) pm;
-	(void) pp;
+	KASSERT(PCPU_GET(cpuid) == cpu,
+	    ("[pmc,%d] not on the correct CPU pcpu=%d cpu=%d", __LINE__,
+		PCPU_GET(cpuid), cpu));
 
-	return;
+	psb = pmc_pcpu[cpu]->pc_sb;
+
+	for (n = 0; n < pmc_nsamples; n++) { /* bound on #iterations */
+
+		ps = psb->ps_read;
+		if (ps->ps_pc == (uintfptr_t) 0)	/* no data */
+			break;
+
+		pm = ps->ps_pmc;
+		po = pm->pm_owner;
+
+		KASSERT(PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)),
+		    ("[pmc,%d] pmc=%p non-sampling mode=%d", __LINE__,
+			pm, PMC_TO_MODE(pm)));
+
+		/* Ignore PMCs that have been switched off */
+		if (pm->pm_state != PMC_STATE_RUNNING)
+			goto entrydone;
+
+		PMCDBG(SAM,OPS,1,"cpu=%d pm=%p pc=%jx um=%d wr=%d rd=%d", cpu,
+		    pm, (int64_t) ps->ps_pc, ps->ps_usermode,
+		    (int) (psb->ps_write - psb->ps_samples),
+		    (int) (psb->ps_read - psb->ps_samples));
+
+		/*
+		 * If this is a process-mode PMC that is attached to
+		 * its owner, and if the PC is in user mode, update
+		 * profiling statistics like timer-based profiling
+		 * would have done.
+		 */
+		if (pm->pm_flags & PMC_F_ATTACHED_TO_OWNER) {
+			if (ps->ps_usermode) {
+				td = FIRST_THREAD_IN_PROC(po->po_owner);
+				addupc_intr(td, ps->ps_pc, 1);
+			}
+			goto entrydone;
+		}
+
+		/*
+		 * Otherwise, this is either a sampling mode PMC that
+		 * is attached to a different process than its owner,
+		 * or a system-wide sampling PMC.  Dispatch a log
+		 * entry to the PMC's owner process.
+		 */
+
+		pmclog_process_pcsample(pm, ps);
+
+	entrydone:
+		ps->ps_pc = (uintfptr_t) 0;	/* mark entry as free */
+		atomic_subtract_rel_32(&pm->pm_runcount, 1);
+
+		/* increment read pointer, modulo sample size */
+		if (++ps == psb->ps_fence)
+			psb->ps_read = psb->ps_samples;
+		else
+			psb->ps_read = ps;
+	}
+
+	atomic_add_int(&pmc_stats.pm_log_sweeps, 1);
+
+	/* Do not re-enable stalled PMCs if we failed to process any samples */
+	if (n == 0)
+		return;
+
+	/*
+	 * Restart any stalled sampling PMCs on this CPU.
+	 *
+	 * If the NMI handler sets PMC_F_IS_STALLED on a PMC after the
+	 * check below, we'll end up processing the stalled PMC at the
+	 * next hardclock tick.
+	 */
+	for (n = 0; n < md->pmd_npmc; n++) {
+		(void) (*md->pmd_get_config)(cpu,n,&pm);
+		if (pm == NULL ||			 /* !cfg'ed */
+		    pm->pm_state != PMC_STATE_RUNNING || /* !active */
+		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)) || /* !sampling */
+		    (pm->pm_flags & PMC_F_IS_STALLED) == 0) /* !stalled */
+			continue;
+
+		pm->pm_flags &= ~PMC_F_IS_STALLED;
+		ri = PMC_TO_ROWINDEX(pm);
+		(*md->pmd_start_pmc)(cpu, ri);
+	}
 }
 
 /*
@@ -3473,30 +3621,173 @@ pmc_log_process_exit(struct pmc *pm, struct pmc_process *pp)
 /*
  * Handle a process exit.
  *
+ * Remove this process from all hash tables.  If this process
+ * owned any PMCs, turn off those PMCs and deallocate them,
+ * removing any associations with target processes.
+ *
+ * This function will be called by the last 'thread' of a
+ * process.
+ *
  * XXX This eventhandler gets called early in the exit process.
  * Consider using a 'hook' invocation from thread_exit() or equivalent
  * spot.  Another negative is that kse_exit doesn't seem to call
  * exit1() [??].
+ *
  */
 
 static void
 pmc_process_exit(void *arg __unused, struct proc *p)
 {
 	int is_using_hwpmcs;
+	int cpu;
+	unsigned int ri;
+	struct pmc *pm;
+	struct pmc_process *pp;
+	struct pmc_owner *po;
+	pmc_value_t newvalue, tmp;
 
 	PROC_LOCK(p);
 	is_using_hwpmcs = p->p_flag & P_HWPMC;
 	PROC_UNLOCK(p);
 
-	if (is_using_hwpmcs) {
-		PMCDBG(PRC,EXT,1,"process-exit proc=%p (%d, %s)", p, p->p_pid,
-		    p->p_comm);
+	/*
+	 * Log a sysexit event to all SS PMC owners.
+	 */
+	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+		    pmclog_process_sysexit(po, p->p_pid);
 
-		PMC_GET_SX_XLOCK();
-		(void) pmc_hook_handler(curthread, PMC_FN_PROCESS_EXIT,
-		    (void *) p);
-		sx_xunlock(&pmc_sx);
+	if (!is_using_hwpmcs)
+		return;
+
+	PMC_GET_SX_XLOCK();
+	PMCDBG(PRC,EXT,1,"process-exit proc=%p (%d, %s)", p, p->p_pid,
+	    p->p_comm);
+
+	/*
+	 * Since this code is invoked by the last thread in an exiting
+	 * process, we would have context switched IN at some prior
+	 * point.  However, with PREEMPTION, kernel mode context
+	 * switches may happen any time, so we want to disable a
+	 * context switch OUT till we get any PMCs targetting this
+	 * process off the hardware.
+	 *
+	 * We also need to atomically remove this process'
+	 * entry from our target process hash table, using
+	 * PMC_FLAG_REMOVE.
+	 */
+	PMCDBG(PRC,EXT,1, "process-exit proc=%p (%d, %s)", p, p->p_pid,
+	    p->p_comm);
+
+	critical_enter(); /* no preemption */
+
+	cpu = curthread->td_oncpu;
+
+	if ((pp = pmc_find_process_descriptor(p,
+		 PMC_FLAG_REMOVE)) != NULL) {
+
+		PMCDBG(PRC,EXT,2,
+		    "process-exit proc=%p pmc-process=%p", p, pp);
+
+		/*
+		 * The exiting process could the target of
+		 * some PMCs which will be running on
+		 * currently executing CPU.
+		 *
+		 * We need to turn these PMCs off like we
+		 * would do at context switch OUT time.
+		 */
+		for (ri = 0; ri < md->pmd_npmc; ri++) {
+
+			/*
+			 * Pick up the pmc pointer from hardware
+			 * state similar to the CSW_OUT code.
+			 */
+			pm = NULL;
+			(void) (*md->pmd_get_config)(cpu, ri, &pm);
+
+			PMCDBG(PRC,EXT,2, "ri=%d pm=%p", ri, pm);
+
+			if (pm == NULL ||
+			    !PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)))
+				continue;
+
+			PMCDBG(PRC,EXT,2, "ppmcs[%d]=%p pm=%p "
+			    "state=%d", ri, pp->pp_pmcs[ri].pp_pmc,
+			    pm, pm->pm_state);
+
+			KASSERT(PMC_TO_ROWINDEX(pm) == ri,
+			    ("[pmc,%d] ri mismatch pmc(%d) ri(%d)",
+				__LINE__, PMC_TO_ROWINDEX(pm), ri));
+
+			KASSERT(pm == pp->pp_pmcs[ri].pp_pmc,
+			    ("[pmc,%d] pm %p != pp_pmcs[%d] %p",
+				__LINE__, pm, ri, pp->pp_pmcs[ri].pp_pmc));
+
+			(void) md->pmd_stop_pmc(cpu, ri);
+
+			KASSERT(pm->pm_runcount > 0,
+			    ("[pmc,%d] bad runcount ri %d rc %d",
+				__LINE__, ri, pm->pm_runcount));
+
+			/* Stopped the hardware only if it is actually on */
+			if (pm->pm_state == PMC_STATE_RUNNING &&
+			    (pm->pm_flags & PMC_F_IS_STALLED) == 0) {
+				md->pmd_read_pmc(cpu, ri, &newvalue);
+				tmp = newvalue -
+				    PMC_PCPU_SAVED(cpu,ri);
+
+				mtx_pool_lock_spin(pmc_mtxpool, pm);
+				pm->pm_gv.pm_savedvalue += tmp;
+				pp->pp_pmcs[ri].pp_pmcval += tmp;
+				mtx_pool_unlock_spin(pmc_mtxpool, pm);
+			}
+
+			atomic_subtract_rel_32(&pm->pm_runcount,1);
+
+			KASSERT((int) pm->pm_runcount >= 0,
+			    ("[pmc,%d] runcount is %d", __LINE__, ri));
+
+			(void) md->pmd_config_pmc(cpu, ri, NULL);
+		}
+
+		/*
+		 * Inform the MD layer of this pseudo "context switch
+		 * out"
+		 */
+		(void) md->pmd_switch_out(pmc_pcpu[cpu], pp);
+
+		critical_exit(); /* ok to be pre-empted now */
+
+		/*
+		 * Unlink this process from the PMCs that are
+		 * targetting it.  This will send a signal to
+		 * all PMC owner's whose PMCs are orphaned.
+		 *
+		 * Log PMC value at exit time if requested.
+		 */
+		for (ri = 0; ri < md->pmd_npmc; ri++)
+			if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
+				if (pm->pm_flags & PMC_F_LOG_PROCEXIT)
+					pmclog_process_procexit(pm, pp);
+				pmc_unlink_target_process(pm, pp);
+			}
+		FREE(pp, M_PMC);
+
+	} else
+		critical_exit(); /* pp == NULL */
+
+
+	/*
+	 * If the process owned PMCs, free them up and free up
+	 * memory.
+	 */
+	if ((po = pmc_find_owner_descriptor(p)) != NULL) {
+		pmc_remove_owner(po);
+		pmc_destroy_owner_descriptor(po);
 	}
+
+	sx_xunlock(&pmc_sx);
 }
 
 /*
@@ -3507,10 +3798,15 @@ pmc_process_exit(void *arg __unused, struct proc *p)
  */
 
 static void
-pmc_process_fork(void *arg __unused, struct proc *p1, struct proc *p2,
+pmc_process_fork(void *arg __unused, struct proc *p1, struct proc *newproc,
     int flags)
 {
 	int is_using_hwpmcs;
+	unsigned int ri;
+	uint32_t do_descendants;
+	struct pmc *pm;
+	struct pmc_owner *po;
+	struct pmc_process *ppnew, *ppold;
 
 	(void) flags;		/* unused parameter */
 
@@ -3518,14 +3814,72 @@ pmc_process_fork(void *arg __unused, struct proc *p1, struct proc *p2,
 	is_using_hwpmcs = p1->p_flag & P_HWPMC;
 	PROC_UNLOCK(p1);
 
-	if (is_using_hwpmcs) {
-		PMCDBG(PMC,FRK,1, "process-fork proc=%p (%d, %s)", p1,
-		    p1->p_pid, p1->p_comm);
-		PMC_GET_SX_XLOCK();
-		(void) pmc_hook_handler(curthread, PMC_FN_PROCESS_FORK,
-		    (void *) p2);
-		sx_xunlock(&pmc_sx);
-	}
+	/*
+	 * If there are system-wide sampling PMCs active, we need to
+	 * log all fork events to their owner's logs.
+	 */
+
+	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+		    pmclog_process_procfork(po, p1->p_pid, newproc->p_pid);
+
+	if (!is_using_hwpmcs)
+		return;
+
+	PMC_GET_SX_XLOCK();
+	PMCDBG(PMC,FRK,1, "process-fork proc=%p (%d, %s) -> %p", p1,
+	    p1->p_pid, p1->p_comm, newproc);
+
+	/*
+	 * If the parent process (curthread->td_proc) is a
+	 * target of any PMCs, look for PMCs that are to be
+	 * inherited, and link these into the new process
+	 * descriptor.
+	 */
+	if ((ppold = pmc_find_process_descriptor(curthread->td_proc,
+		 PMC_FLAG_NONE)) == NULL)
+		goto done;		/* nothing to do */
+
+	do_descendants = 0;
+	for (ri = 0; ri < md->pmd_npmc; ri++)
+		if ((pm = ppold->pp_pmcs[ri].pp_pmc) != NULL)
+			do_descendants |= pm->pm_flags & PMC_F_DESCENDANTS;
+	if (do_descendants == 0) /* nothing to do */
+		goto done;
+
+	/* allocate a descriptor for the new process  */
+	if ((ppnew = pmc_find_process_descriptor(newproc,
+		 PMC_FLAG_ALLOCATE)) == NULL)
+		goto done;
+
+	/*
+	 * Run through all PMCs that were targeting the old process
+	 * and which specified F_DESCENDANTS and attach them to the
+	 * new process.
+	 *
+	 * Log the fork event to all owners of PMCs attached to this
+	 * process, if not already logged.
+	 */
+	for (ri = 0; ri < md->pmd_npmc; ri++)
+		if ((pm = ppold->pp_pmcs[ri].pp_pmc) != NULL &&
+		    (pm->pm_flags & PMC_F_DESCENDANTS)) {
+			pmc_link_target_process(pm, ppnew);
+			po = pm->pm_owner;
+			if (po->po_sscount == 0 &&
+			    po->po_flags & PMC_PO_OWNS_LOGFILE)
+				pmclog_process_procfork(po, p1->p_pid,
+				    newproc->p_pid);
+		}
+
+	/*
+	 * Now mark the new process as being tracked by this driver.
+	 */
+	PROC_LOCK(newproc);
+	newproc->p_flag |= P_HWPMC;
+	PROC_UNLOCK(newproc);
+
+ done:
+	sx_xunlock(&pmc_sx);
 }
 
 
@@ -3542,8 +3896,9 @@ static const char *pmc_name_of_pmcclass[] = {
 static int
 pmc_initialize(void)
 {
-	int error, cpu, n;
+	int cpu, error, n;
 	struct pmc_binding pb;
+	struct pmc_samplebuffer *sb;
 
 	md = NULL;
 	error = 0;
@@ -3563,25 +3918,17 @@ pmc_initialize(void)
 	 */
 
 	if (pmc_hashsize <= 0) {
-		(void) printf("pmc: sysctl variable \""
-		    PMC_SYSCTL_NAME_PREFIX "hashsize\" must be greater than "
-		    "zero\n");
+		(void) printf("hwpmc: tunable hashsize=%d must be greater "
+		    "than zero.\n", pmc_hashsize);
 		pmc_hashsize = PMC_HASH_SIZE;
 	}
 
-#if	defined(__i386__)
-	/* determine the CPU kind.  This is i386 specific */
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
-		md = pmc_amd_initialize();
-	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
-		md = pmc_intel_initialize();
-	/* XXX: what about the other i386 CPU manufacturers? */
-#elif	defined(__amd64__)
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
-		md = pmc_amd_initialize();
-#else  /* other architectures */
-	md = NULL;
-#endif
+	if (pmc_nsamples <= 0 || pmc_nsamples > 65535) {
+		(void) printf("hwpmc: tunable nsamples=%d out of range.\n", pmc_nsamples);
+		pmc_nsamples = PMC_NSAMPLES;
+	}
+
+	md = pmc_md_initialize();
 
 	if (md == NULL || md->pmd_init == NULL)
 		return ENOSYS;
@@ -3608,6 +3955,24 @@ pmc_initialize(void)
 	if (error != 0)
 		return error;
 
+	/* allocate space for the sample array */
+	for (cpu = 0; cpu < mp_ncpus; cpu++) {
+		if (pmc_cpu_is_disabled(cpu))
+			continue;
+		MALLOC(sb, struct pmc_samplebuffer *,
+		    sizeof(struct pmc_samplebuffer) +
+		    pmc_nsamples * sizeof(struct pmc_sample), M_PMC,
+		    M_WAITOK|M_ZERO);
+
+		sb->ps_read = sb->ps_write = sb->ps_samples;
+		sb->ps_fence = sb->ps_samples + pmc_nsamples
+;
+		KASSERT(pmc_pcpu[cpu] != NULL,
+		    ("[pmc,%d] cpu=%d Null per-cpu data", __LINE__, cpu));
+
+		pmc_pcpu[cpu]->pc_sb = sb;
+	}
+
 	/* allocate space for the row disposition array */
 	pmc_pmcdisp = malloc(sizeof(enum pmc_mode) * md->pmd_npmc,
 	    M_PMC, M_WAITOK|M_ZERO);
@@ -3627,6 +3992,9 @@ pmc_initialize(void)
 	    &pmc_processhashmask);
 	mtx_init(&pmc_processhash_mtx, "pmc-process-hash", "pmc", MTX_SPIN);
 
+	LIST_INIT(&pmc_ss_owners);
+	pmc_ss_count = 0;
+
 	/* allocate a pool of spin mutexes */
 	pmc_mtxpool = mtx_pool_create("pmc", pmc_mtxpool_size, MTX_SPIN);
 
@@ -3639,6 +4007,9 @@ pmc_initialize(void)
 	    pmc_process_exit, NULL, EVENTHANDLER_PRI_ANY);
 	pmc_fork_tag = EVENTHANDLER_REGISTER(process_fork,
 	    pmc_process_fork, NULL, EVENTHANDLER_PRI_ANY);
+
+	/* initialize logging */
+	pmclog_initialize();
 
 	/* set hook functions */
 	pmc_intr = md->pmd_intr;
@@ -3670,7 +4041,9 @@ pmc_cleanup(void)
 
 	PMCDBG(MOD,INI,0, "%s", "cleanup");
 
-	pmc_intr = NULL;	/* no more interrupts please */
+	/* switch off sampling */
+	atomic_store_rel_int(&pmc_cpumask, 0);
+	pmc_intr = NULL;
 
 	sx_xlock(&pmc_sx);
 	if (pmc_hook == NULL) {	/* being unloaded already */
@@ -3701,7 +4074,8 @@ pmc_cleanup(void)
 				PROC_LOCK(po->po_owner);
 				psignal(po->po_owner, SIGBUS);
 				PROC_UNLOCK(po->po_owner);
-				FREE(po, M_PMC);
+
+				pmc_destroy_owner_descriptor(po);
 			}
 		}
 
@@ -3732,6 +4106,11 @@ pmc_cleanup(void)
 		pmc_ownerhash = NULL;
 	}
 
+	KASSERT(LIST_EMPTY(&pmc_ss_owners),
+	    ("[pmc,%d] Global SS owner list not empty", __LINE__));
+	KASSERT(pmc_ss_count == 0,
+	    ("[pmc,%d] Global SS count not empty", __LINE__));
+
  	/* do processor dependent cleanup */
 	PMCDBG(MOD,INI,3, "%s", "md cleanup");
 	if (md) {
@@ -3761,6 +4140,8 @@ pmc_cleanup(void)
 		FREE(pmc_pmcdisp, M_PMC);
 		pmc_pmcdisp = NULL;
 	}
+
+	pmclog_shutdown();
 
 	sx_xunlock(&pmc_sx); 	/* we are done */
 }

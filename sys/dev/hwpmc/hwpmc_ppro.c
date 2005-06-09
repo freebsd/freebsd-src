@@ -35,11 +35,29 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/systm.h>
 
-#include <machine/cputypes.h>
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
+#include <machine/pmc_mdep.h>
+#include <machine/specialreg.h>
 
 /*
  * PENTIUM PRO SUPPORT
+ *
+ * Quirks:
+ *
+ * - Both PMCs are enabled by a single bit P6_EVSEL_EN in performance
+ *   counter '0'.  This bit needs to be '1' if any of the two
+ *   performance counters are in use.  Perf counters can also be
+ *   switched off by writing zeros to their EVSEL register.
+ *
+ * - While the width of these counters is 40 bits, we do not appear to
+ *   have a way of writing 40 bits to the counter MSRs.  A WRMSR
+ *   instruction will sign extend bit 31 of the value being written to
+ *   the perf counter -- a value of 0x80000000 written to an perf
+ *   counter register will be sign extended to 0xFF80000000.
+ *
+ *   This quirk primarily affects thread-mode PMCs in counting mode, as
+ *   these PMCs read and write PMC registers at every context switch.
  */
 
 struct p6pmc_descr {
@@ -269,15 +287,42 @@ p6_find_event(enum pmc_event ev)
  * Per-CPU data structure for P6 class CPUs
  *
  * [common stuff]
+ * [flags for maintaining PMC start/stop state]
  * [3 struct pmc_hw pointers]
  * [3 struct pmc_hw structures]
  */
 
 struct p6_cpu {
 	struct pmc_cpu	pc_common;
+	uint32_t	pc_state;
 	struct pmc_hw	*pc_hwpmcs[P6_NPMCS];
 	struct pmc_hw	pc_p6pmcs[P6_NPMCS];
 };
+
+/*
+ * If CTR1 is active, we need to keep the 'EN' bit if CTR0 set,
+ * with the rest of CTR0 being zero'ed out.
+ */
+#define	P6_SYNC_CTR_STATE(PC) do {				\
+		uint32_t _config, _enable;			\
+		_enable = 0;					\
+		if ((PC)->pc_state & 0x02)			\
+			_enable |= P6_EVSEL_EN;			\
+		if ((PC)->pc_state & 0x01)			\
+			_config = rdmsr(P6_MSR_EVSEL0) | 	\
+			    P6_EVSEL_EN;			\
+		else						\
+			_config = 0;				\
+		wrmsr(P6_MSR_EVSEL0, _config | _enable);	\
+	} while (0)
+
+#define	P6_MARK_STARTED(PC,RI) do {				\
+		(PC)->pc_state |= (1 << ((RI)-1));		\
+	} while (0)
+
+#define	P6_MARK_STOPPED(PC,RI) do {				\
+		(PC)->pc_state &= ~(1<< ((RI)-1));		\
+	} while (0)
 
 static int
 p6_init(int cpu)
@@ -293,9 +338,6 @@ p6_init(int cpu)
 
 	MALLOC(pcs, struct p6_cpu *, sizeof(struct p6_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
-
-	if (pcs == NULL)
-		return ENOMEM;
 
 	phw = pcs->pc_p6pmcs;
 
@@ -377,12 +419,14 @@ p6_read_pmc(int cpu, int ri, pmc_value_t *v)
 	KASSERT(pm,
 	    ("[p6,%d] cpu %d ri %d pmc not configured", __LINE__, cpu, ri));
 
-	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
+	if (pd->pm_descr.pd_class == PMC_CLASS_TSC) {
+		*v = rdtsc();
 		return 0;
+	}
 
-	tmp = rdmsr(pd->pm_pmc_msr) & P6_PERFCTR_MASK;
+	tmp = rdmsr(pd->pm_pmc_msr) & P6_PERFCTR_READ_MASK;
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-		*v = -tmp;
+		*v = P6_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
 	else
 		*v = tmp;
 
@@ -413,9 +457,9 @@ p6_write_pmc(int cpu, int ri, pmc_value_t v)
 	    pd->pm_pmc_msr, v);
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-		v = -v;
+		v = P6_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
 
-	wrmsr(pd->pm_pmc_msr, v & P6_PERFCTR_MASK);
+	wrmsr(pd->pm_pmc_msr, v & P6_PERFCTR_WRITE_MASK);
 
 	return 0;
 }
@@ -518,7 +562,7 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	} else
 		allowed_unitmask = P6_EVSEL_TO_UMASK(pevent->pm_unitmask);
 
-	unitmask = a->pm_p6_config & P6_EVSEL_UMASK_MASK;
+	unitmask = a->pm_md.pm_ppro.pm_ppro_config & P6_EVSEL_UMASK_MASK;
 	if (unitmask & ~allowed_unitmask) /* disallow reserved bits */
 		return EINVAL;
 
@@ -533,7 +577,8 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		config |= unitmask;
 
 	if (caps & PMC_CAP_THRESHOLD)
-		config |= a->pm_p6_config & P6_EVSEL_CMASK_MASK;
+		config |= a->pm_md.pm_ppro.pm_ppro_config &
+		    P6_EVSEL_CMASK_MASK;
 
 	/* set at least one of the 'usr' or 'os' caps */
 	if (caps & PMC_CAP_USER)
@@ -550,7 +595,7 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (caps & PMC_CAP_INTERRUPT)
 		config |= P6_EVSEL_INT;
 
-	pm->pm_md.pm_p6.pm_p6_evsel = config;
+	pm->pm_md.pm_ppro.pm_ppro_evsel = config;
 
 	PMCDBG(MDP,ALL,2, "p6-allocate config=0x%x", config);
 
@@ -584,6 +629,7 @@ p6_start_pmc(int cpu, int ri)
 {
 	uint32_t config;
 	struct pmc *pm;
+	struct p6_cpu *pc;
 	struct pmc_hw *phw;
 	const struct p6pmc_descr *pd;
 
@@ -592,7 +638,8 @@ p6_start_pmc(int cpu, int ri)
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p6,%d] illegal row-index %d", __LINE__, ri));
 
-	phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
+	pc  = (struct p6_cpu *) pmc_pcpu[cpu];
+	phw = pc->pc_common.pc_hwpmcs[ri];
 	pm  = phw->phw_pmc;
 	pd  = &p6_pmcdesc[ri];
 
@@ -609,25 +656,24 @@ p6_start_pmc(int cpu, int ri)
 	    ("[p6,%d] unknown PMC class %d", __LINE__,
 		pd->pm_descr.pd_class));
 
-	config = pm->pm_md.pm_p6.pm_p6_evsel;
+	config = pm->pm_md.pm_ppro.pm_ppro_evsel;
 
 	PMCDBG(MDP,STA,2, "p6-start/2 cpu=%d ri=%d evselmsr=0x%x config=0x%x",
 	    cpu, ri, pd->pm_evsel_msr, config);
 
-	if (pd->pm_evsel_msr == P6_MSR_EVSEL0) /* CTR 0 */
-		wrmsr(pd->pm_evsel_msr, config | P6_EVSEL_EN);
-	else {			/* CTR1 shares the enable bit CTR 0 */
-		wrmsr(pd->pm_evsel_msr, config);
-		wrmsr(P6_MSR_EVSEL0, rdmsr(P6_MSR_EVSEL0) | P6_EVSEL_EN);
-	}
+	P6_MARK_STARTED(pc, ri);
+	wrmsr(pd->pm_evsel_msr, config);
+
+	P6_SYNC_CTR_STATE(pc);
+
 	return 0;
 }
 
 static int
 p6_stop_pmc(int cpu, int ri)
 {
-	uint32_t config;
 	struct pmc *pm;
+	struct p6_cpu *pc;
 	struct pmc_hw *phw;
 	struct p6pmc_descr *pd;
 
@@ -636,7 +682,8 @@ p6_stop_pmc(int cpu, int ri)
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p6,%d] illegal row index %d", __LINE__, ri));
 
-	phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
+	pc  = (struct p6_cpu *) pmc_pcpu[cpu];
+	phw = pc->pc_common.pc_hwpmcs[ri];
 	pm  = phw->phw_pmc;
 	pd  = &p6_pmcdesc[ri];
 
@@ -653,30 +700,75 @@ p6_stop_pmc(int cpu, int ri)
 
 	PMCDBG(MDP,STO,1, "p6-stop cpu=%d ri=%d", cpu, ri);
 
-	/*
-	 * If CTR0 is being turned off but CTR1 is active, we need
-	 * leave CTR0's EN field set.  If CTR1 is being stopped, it
-	 * suffices to zero its EVSEL register.
-	 */
+	wrmsr(pd->pm_evsel_msr, 0);	/* stop hw */
+	P6_MARK_STOPPED(pc, ri);	/* update software state */
 
-	if (ri == 1 &&
-	    pmc_pcpu[cpu]->pc_hwpmcs[2]->phw_pmc != NULL)
-		config = P6_EVSEL_EN;
-	else
-		config = 0;
-	wrmsr(pd->pm_evsel_msr, config);
+	P6_SYNC_CTR_STATE(pc);		/* restart CTR1 if need be */
 
-	PMCDBG(MDP,STO,2, "p6-stop/2 cpu=%d ri=%d config=0x%x", cpu, ri,
-	    config);
+	PMCDBG(MDP,STO,2, "p6-stop/2 cpu=%d ri=%d", cpu, ri);
 	return 0;
 }
 
 static int
 p6_intr(int cpu, uintptr_t eip, int usermode)
 {
-	(void) cpu;
-	(void) eip;
-	return 0;
+	int i, error, retval, ri;
+	uint32_t perf0cfg;
+	struct pmc *pm;
+	struct p6_cpu *pc;
+	struct pmc_hw *phw;
+	pmc_value_t v;
+
+	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	    ("[p6,%d] CPU %d out of range", __LINE__, cpu));
+
+	retval = 0;
+	pc = (struct p6_cpu *) pmc_pcpu[cpu];
+
+	/* stop both PMCs */
+	perf0cfg = rdmsr(P6_MSR_EVSEL0);
+	wrmsr(P6_MSR_EVSEL0, perf0cfg & ~P6_EVSEL_EN);
+
+	for (i = 0; i < P6_NPMCS-1; i++) {
+		ri = i + 1;
+
+		if (!P6_PMC_HAS_OVERFLOWED(i))
+			continue;
+
+		phw = pc->pc_common.pc_hwpmcs[ri];
+
+		if ((pm = phw->phw_pmc) == NULL ||
+		    pm->pm_state != PMC_STATE_RUNNING ||
+		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
+			continue;
+		}
+
+		retval = 1;
+
+		error = pmc_process_interrupt(cpu, pm, eip, usermode);
+		if (error)
+			P6_MARK_STOPPED(pc,ri);
+
+		/* reload sampling count */
+		v = pm->pm_sc.pm_reloadcount;
+		wrmsr(P6_MSR_PERFCTR0 + i,
+		    P6_RELOAD_COUNT_TO_PERFCTR_VALUE(v));
+
+	}
+
+	/*
+	 * On P6 processors, the LAPIC needs to have its PMC interrupt
+	 * unmasked after a PMC interrupt.
+	 */
+	if (retval)
+		pmc_x86_lapic_enable_pmc_interrupt();
+	else
+		atomic_add_int(&pmc_stats.pm_intr_ignored, 1);
+
+	/* restart counters that can be restarted */
+	P6_SYNC_CTR_STATE(pc);
+
+	return retval;
 }
 
 static int

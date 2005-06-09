@@ -38,93 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/systm.h>
 
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
+#include <machine/pmc_mdep.h>
+#include <machine/specialreg.h>
 
-/* AMD K7 and K8 PMCs */
-
-#define	AMD_PMC_EVSEL_0		0xC0010000
-#define	AMD_PMC_EVSEL_1		0xC0010001
-#define	AMD_PMC_EVSEL_2		0xC0010002
-#define	AMD_PMC_EVSEL_3		0xC0010003
-
-#define	AMD_PMC_PERFCTR_0	0xC0010004
-#define	AMD_PMC_PERFCTR_1	0xC0010005
-#define	AMD_PMC_PERFCTR_2	0xC0010006
-#define	AMD_PMC_PERFCTR_3	0xC0010007
-
-#define	K7_VALID_EVENT_CODE(c) (((c) >= 0x40 && (c) <= 0x47) ||		\
-	((c) >= 0x80 && (c) <= 0x85) || ((c) >= 0xC0 && (c) <= 0xC7) ||	\
-	((c) >= 0xCD && (c) <= 0xCF))
-
-#define AMD_PMC_CAPS (PMC_CAP_INTERRUPT | PMC_CAP_USER | \
-	PMC_CAP_SYSTEM | PMC_CAP_EDGE | PMC_CAP_THRESHOLD | \
-	PMC_CAP_READ | PMC_CAP_WRITE | PMC_CAP_INVERT | PMC_CAP_QUALIFIER)
-
-/* reserved bits include bit 21 and the top two bits of the unit mask */
-#define K7_PMC_RESERVED ((1 << 21) | (3 << 13))
-
-#define	K8_PMC_RESERVED (1 << 21)
-
-#define AMD_PMC_IS_STOPPED(evsel) ((rdmsr((evsel)) & AMD_PMC_ENABLE) == 0)
-#define AMD_PMC_HAS_OVERFLOWED(pmc) ((rdpmc(pmc) & (1ULL << 47)) == 0)
-
-#if	__i386__
-#define	AMD_NPMCS		K7_NPMCS
-#define	AMD_PMC_CLASS		PMC_CLASS_K7
-#define	AMD_PMC_COUNTERMASK	K7_PMC_COUNTERMASK
-#define	AMD_PMC_TO_COUNTER(x)	K7_PMC_TO_COUNTER(x)
-#define	AMD_PMC_INVERT		K7_PMC_INVERT
-#define	AMD_PMC_ENABLE		K7_PMC_ENABLE
-#define	AMD_PMC_INT		K7_PMC_INT
-#define	AMD_PMC_PC		K7_PMC_PC
-#define	AMD_PMC_EDGE		K7_PMC_EDGE
-#define	AMD_PMC_OS		K7_PMC_OS
-#define	AMD_PMC_USR		K7_PMC_USR
-
-#define	AMD_PMC_UNITMASK_M	K7_PMC_UNITMASK_M
-#define	AMD_PMC_UNITMASK_O	K7_PMC_UNITMASK_O
-#define	AMD_PMC_UNITMASK_E	K7_PMC_UNITMASK_E
-#define	AMD_PMC_UNITMASK_S	K7_PMC_UNITMASK_S
-#define	AMD_PMC_UNITMASK_I	K7_PMC_UNITMASK_I
-
-#define	AMD_PMC_UNITMASK	K7_PMC_UNITMASK
-#define	AMD_PMC_EVENTMASK	K7_PMC_EVENTMASK
-#define	AMD_PMC_TO_UNITMASK(x)	K7_PMC_TO_UNITMASK(x)
-#define	AMD_PMC_TO_EVENTMASK(x)	K7_PMC_TO_EVENTMASK(x)
-#define	AMD_VALID_BITS		K7_VALID_BITS
-
-#define	AMD_PMC_CLASS_NAME	"K7-"
-
-#elif	__amd64__
-
-#define	AMD_NPMCS		K8_NPMCS
-#define	AMD_PMC_CLASS		PMC_CLASS_K8
-#define	AMD_PMC_COUNTERMASK	K8_PMC_COUNTERMASK
-#define	AMD_PMC_TO_COUNTER(x)	K8_PMC_TO_COUNTER(x)
-#define	AMD_PMC_INVERT		K8_PMC_INVERT
-#define	AMD_PMC_ENABLE		K8_PMC_ENABLE
-#define	AMD_PMC_INT		K8_PMC_INT
-#define	AMD_PMC_PC		K8_PMC_PC
-#define	AMD_PMC_EDGE		K8_PMC_EDGE
-#define	AMD_PMC_OS		K8_PMC_OS
-#define	AMD_PMC_USR		K8_PMC_USR
-
-#define	AMD_PMC_UNITMASK_M	K8_PMC_UNITMASK_M
-#define	AMD_PMC_UNITMASK_O	K8_PMC_UNITMASK_O
-#define	AMD_PMC_UNITMASK_E	K8_PMC_UNITMASK_E
-#define	AMD_PMC_UNITMASK_S	K8_PMC_UNITMASK_S
-#define	AMD_PMC_UNITMASK_I	K8_PMC_UNITMASK_I
-
-#define	AMD_PMC_UNITMASK	K8_PMC_UNITMASK
-#define	AMD_PMC_EVENTMASK	K8_PMC_EVENTMASK
-#define	AMD_PMC_TO_UNITMASK(x)	K8_PMC_TO_UNITMASK(x)
-#define	AMD_PMC_TO_EVENTMASK(x)	K8_PMC_TO_EVENTMASK(x)
-#define	AMD_VALID_BITS		K8_VALID_BITS
-
-#define	AMD_PMC_CLASS_NAME	"K8-"
-
-#else
-#error	Unsupported architecture.
+#if	DEBUG
+enum pmc_class	amd_pmc_class;
 #endif
 
 /* AMD K7 & K8 PMCs */
@@ -134,7 +54,7 @@ struct amd_descr {
 	uint32_t	pm_perfctr; /* address of PERFCTR register */
 };
 
-static const struct amd_descr amd_pmcdesc[AMD_NPMCS] =
+static  struct amd_descr amd_pmcdesc[AMD_NPMCS] =
 {
     {
 	.pm_descr =
@@ -151,8 +71,8 @@ static const struct amd_descr amd_pmcdesc[AMD_NPMCS] =
     {
 	.pm_descr =
 	{
-		.pd_name  = AMD_PMC_CLASS_NAME "0",
-		.pd_class = AMD_PMC_CLASS,
+		.pd_name  = "",
+		.pd_class = -1,
 		.pd_caps  = AMD_PMC_CAPS,
 		.pd_width = 48
 	},
@@ -162,8 +82,8 @@ static const struct amd_descr amd_pmcdesc[AMD_NPMCS] =
     {
 	.pm_descr =
 	{
-		.pd_name  = AMD_PMC_CLASS_NAME "1",
-		.pd_class = AMD_PMC_CLASS,
+		.pd_name  = "",
+		.pd_class = -1,
 		.pd_caps  = AMD_PMC_CAPS,
 		.pd_width = 48
 	},
@@ -173,8 +93,8 @@ static const struct amd_descr amd_pmcdesc[AMD_NPMCS] =
     {
 	.pm_descr =
 	{
-		.pd_name  = AMD_PMC_CLASS_NAME "2",
-		.pd_class = AMD_PMC_CLASS,
+		.pd_name  = "",
+		.pd_class = -1,
 		.pd_caps  = AMD_PMC_CAPS,
 		.pd_width = 48
 	},
@@ -184,8 +104,8 @@ static const struct amd_descr amd_pmcdesc[AMD_NPMCS] =
     {
 	.pm_descr =
 	{
-		.pd_name  = AMD_PMC_CLASS_NAME "3",
-		.pd_class = AMD_PMC_CLASS,
+		.pd_name  = "",
+		.pd_class = -1,
 		.pd_caps  = AMD_PMC_CAPS,
 		.pd_width = 48
 	},
@@ -201,12 +121,12 @@ struct amd_event_code_map {
 };
 
 const struct amd_event_code_map amd_event_codes[] = {
-#if	__i386__
+#if	defined(__i386__)	/* 32 bit Athlon (K7) only */
 	{ PMC_EV_K7_DC_ACCESSES, 		0x40, 0 },
 	{ PMC_EV_K7_DC_MISSES,			0x41, 0 },
-	{ PMC_EV_K7_DC_REFILLS_FROM_L2,		0x42, K7_PMC_UNITMASK_MOESI },
-	{ PMC_EV_K7_DC_REFILLS_FROM_SYSTEM,	0x43, K7_PMC_UNITMASK_MOESI },
-	{ PMC_EV_K7_DC_WRITEBACKS,		0x44, K7_PMC_UNITMASK_MOESI },
+	{ PMC_EV_K7_DC_REFILLS_FROM_L2,		0x42, AMD_PMC_UNITMASK_MOESI },
+	{ PMC_EV_K7_DC_REFILLS_FROM_SYSTEM,	0x43, AMD_PMC_UNITMASK_MOESI },
+	{ PMC_EV_K7_DC_WRITEBACKS,		0x44, AMD_PMC_UNITMASK_MOESI },
 	{ PMC_EV_K7_L1_DTLB_MISS_AND_L2_DTLB_HITS, 0x45, 0 },
 	{ PMC_EV_K7_L1_AND_L2_DTLB_MISSES,	0x46, 0 },
 	{ PMC_EV_K7_MISALIGNED_REFERENCES,	0x47, 0 },
@@ -227,10 +147,9 @@ const struct amd_event_code_map amd_event_codes[] = {
 	{ PMC_EV_K7_RETIRED_RESYNC_BRANCHES,	0xC7, 0 },
 	{ PMC_EV_K7_INTERRUPTS_MASKED_CYCLES,	0xCD, 0 },
 	{ PMC_EV_K7_INTERRUPTS_MASKED_WHILE_PENDING_CYCLES, 0xCE, 0 },
-	{ PMC_EV_K7_HARDWARE_INTERRUPTS,	0xCF, 0 }
+	{ PMC_EV_K7_HARDWARE_INTERRUPTS,	0xCF, 0 },
 #endif
 
-#if	__amd64__
 	{ PMC_EV_K8_FP_DISPATCHED_FPU_OPS,		0x00, 0x3F },
 	{ PMC_EV_K8_FP_CYCLES_WITH_NO_FPU_OPS_RETIRED,	0x01, 0x00 },
 	{ PMC_EV_K8_FP_DISPATCHED_FPU_FAST_FLAG_OPS,	0x02, 0x00 },
@@ -327,7 +246,6 @@ const struct amd_event_code_map amd_event_codes[] = {
 	{ PMC_EV_K8_NB_HT_BUS0_BANDWIDTH,		0xF6, 0x0F },
 	{ PMC_EV_K8_NB_HT_BUS1_BANDWIDTH,		0xF7, 0x0F },
 	{ PMC_EV_K8_NB_HT_BUS2_BANDWIDTH,		0xF8, 0x0F }
-#endif
 
 };
 
@@ -373,13 +291,15 @@ amd_read_pmc(int cpu, int ri, pmc_value_t *v)
 		return 0;
 	}
 
-	KASSERT(pd->pm_descr.pd_class == AMD_PMC_CLASS,
+#if	DEBUG
+	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
+#endif
 
 	tmp = rdmsr(pd->pm_perfctr); /* RDMSR serializes */
 	if (PMC_IS_SAMPLING_MODE(mode))
-		*v = -tmp;
+		*v = AMD_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
 	else
 		*v = tmp;
 
@@ -418,13 +338,15 @@ amd_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
 		return 0;
 
-	KASSERT(pd->pm_descr.pd_class == AMD_PMC_CLASS,
+#if	DEBUG
+	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
+#endif
 
 	/* use 2's complement of the count for sampling mode PMCs */
 	if (PMC_IS_SAMPLING_MODE(mode))
-		v = -v;
+		v = AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
 
 	PMCDBG(MDP,WRI,1,"amd-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
@@ -552,8 +474,10 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		return 0;
 	}
 
-	KASSERT(pd->pd_class == AMD_PMC_CLASS,
+#if	DEBUG
+	KASSERT(pd->pd_class == amd_pmc_class,
 	    ("[amd,%d] Unknown PMC class (%d)", __LINE__, pd->pd_class));
+#endif
 
 	pe = a->pm_ev;
 
@@ -570,7 +494,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (i == amd_event_codes_size)
 		return EINVAL;
 
-	unitmask = a->pm_amd_config & AMD_PMC_UNITMASK;
+	unitmask = a->pm_md.pm_amd.pm_amd_config & AMD_PMC_UNITMASK;
 	if (unitmask & ~allowed_unitmask) /* disallow reserved bits */
 		return EINVAL;
 
@@ -578,7 +502,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		config |= unitmask;
 
 	if (caps & PMC_CAP_THRESHOLD)
-		config |= a->pm_amd_config & AMD_PMC_COUNTERMASK;
+		config |= a->pm_md.pm_amd.pm_amd_config & AMD_PMC_COUNTERMASK;
 
 	/* set at least one of the 'usr' or 'os' caps */
 	if (caps & PMC_CAP_USER)
@@ -631,7 +555,7 @@ amd_release_pmc(int cpu, int ri, struct pmc *pmc)
 
 #if 	DEBUG
 	pd = &amd_pmcdesc[ri];
-	if (pd->pm_descr.pd_class == AMD_PMC_CLASS)
+	if (pd->pm_descr.pd_class == amd_pmc_class)
 		KASSERT(AMD_PMC_IS_STOPPED(pd->pm_evsel),
 		    ("[amd,%d] PMC %d released while active", __LINE__, ri));
 #endif
@@ -669,9 +593,11 @@ amd_start_pmc(int cpu, int ri)
 	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
 		return 0;	/* TSCs are always running */
 
-	KASSERT(pd->pm_descr.pd_class == AMD_PMC_CLASS,
+#if	DEBUG
+	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
+#endif
 
 	KASSERT(AMD_PMC_IS_STOPPED(pd->pm_evsel),
 	    ("[amd,%d] pmc%d,cpu%d: Starting active PMC \"%s\"", __LINE__,
@@ -715,9 +641,11 @@ amd_stop_pmc(int cpu, int ri)
 	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
 		return 0;
 
-	KASSERT(pd->pm_descr.pd_class == AMD_PMC_CLASS,
+#if	DEBUG
+	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
+#endif
 
 	KASSERT(!AMD_PMC_IS_STOPPED(pd->pm_evsel),
 	    ("[amd,%d] PMC%d, CPU%d \"%s\" already stopped",
@@ -741,17 +669,17 @@ amd_stop_pmc(int cpu, int ri)
 static int
 amd_intr(int cpu, uintptr_t eip, int usermode)
 {
-	int i, retval;
-	enum pmc_mode mode;
-	uint32_t perfctr;
+	int i, error, retval, ri;
+	uint32_t config, evsel, perfctr;
 	struct pmc *pm;
 	struct pmc_cpu *pc;
 	struct pmc_hw *phw;
-
-	(void) usermode;
+	pmc_value_t v;
 
 	KASSERT(cpu >= 0 && cpu < mp_ncpus,
 	    ("[amd,%d] out of range CPU %d", __LINE__, cpu));
+
+	PMCDBG(MDP,INT,1, "cpu=%d eip=%p", cpu, (void *) eip);
 
 	retval = 0;
 
@@ -760,36 +688,53 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 	/*
 	 * look for all PMCs that have interrupted:
 	 * - skip over the TSC [PMC#0]
-	 * - look for a PMC with a valid 'struct pmc' association
-	 * - look for a PMC in (a) sampling mode and (b) which has
-	 *   overflowed.  If found, we update the process's
-	 *   histogram or send it a profiling signal by calling
-	 *   the appropriate helper function.
+	 * - look for a running, sampling PMC which has overflowed
+	 *   and which has a valid 'struct pmc' association
+	 *
+	 * If found, we call a helper to process the interrupt.
 	 */
 
-	for (i = 1; i < AMD_NPMCS; i++) {
+	for (i = 0; i < AMD_NPMCS-1; i++) {
 
-		phw = pc->pc_hwpmcs[i];
-		perfctr = amd_pmcdesc[i].pm_perfctr;
+		ri = i + 1;	/* row index; TSC is at ri == 0 */
+
+		if (!AMD_PMC_HAS_OVERFLOWED(i))
+			continue;
+
+		phw = pc->pc_hwpmcs[ri];
+
 		KASSERT(phw != NULL, ("[amd,%d] null PHW pointer", __LINE__));
 
 		if ((pm = phw->phw_pmc) == NULL ||
-		    pm->pm_state != PMC_STATE_RUNNING) {
-			atomic_add_int(&pmc_stats.pm_intr_ignored, 1);
+		    pm->pm_state != PMC_STATE_RUNNING ||
+		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
 			continue;
 		}
 
-		mode = PMC_TO_MODE(pm);
-		if (PMC_IS_SAMPLING_MODE(mode) &&
-		    AMD_PMC_HAS_OVERFLOWED(perfctr)) {
-			atomic_add_int(&pmc_stats.pm_intr_processed, 1);
-			if (PMC_IS_SYSTEM_MODE(mode))
-				pmc_update_histogram(phw, eip);
-			else if (PMC_IS_VIRTUAL_MODE(mode))
-				pmc_send_signal(pm);
-			retval = 1;
-		}
+		/* stop the PMC, reload count */
+		evsel   = AMD_PMC_EVSEL_0 + i;
+		perfctr = AMD_PMC_PERFCTR_0 + i;
+		v       = pm->pm_sc.pm_reloadcount;
+		config  = rdmsr(evsel);
+
+		KASSERT((config & ~AMD_PMC_ENABLE) ==
+		    (pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_ENABLE),
+		    ("[amd,%d] config mismatch reg=0x%x pm=0x%x", __LINE__,
+			config, pm->pm_md.pm_amd.pm_amd_evsel));
+
+		wrmsr(evsel, config & ~AMD_PMC_ENABLE);
+		wrmsr(perfctr, AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v));
+
+		/* restart if there was no error during logging */
+		error = pmc_process_interrupt(cpu, pm, eip, usermode);
+		if (error == 0)
+			wrmsr(evsel, config | AMD_PMC_ENABLE);
+
+		retval = 1;	/* found an interrupting PMC */
 	}
+
+	if (retval == 0)
+		atomic_add_int(&pmc_stats.pm_intr_ignored, 1);
 	return retval;
 }
 
@@ -881,9 +826,6 @@ amd_init(int cpu)
 	MALLOC(pcs, struct amd_cpu *, sizeof(struct amd_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
 
-	if (pcs == NULL)
-		return ENOMEM;
-
 	phw = &pcs->pc_amdpmcs[0];
 
 	/*
@@ -938,7 +880,8 @@ amd_cleanup(int cpu)
 	 * Next, free up allocated space.
 	 */
 
-	pcs = pmc_pcpu[cpu];
+	if ((pcs = pmc_pcpu[cpu]) == NULL)
+		return 0;
 
 #if	DEBUG
 	/* check the TSC */
@@ -951,8 +894,6 @@ amd_cleanup(int cpu)
 		    ("[amd,%d] CPU%d/PMC%d not stopped", __LINE__, cpu, i));
 	}
 #endif
-	KASSERT(pcs != NULL,
-	    ("[amd,%d] null per-cpu state pointer (cpu%d)", __LINE__, cpu));
 
 	pmc_pcpu[cpu] = NULL;
 	FREE(pcs, M_PMC);
@@ -966,30 +907,47 @@ amd_cleanup(int cpu)
 struct pmc_mdep *
 pmc_amd_initialize(void)
 {
-
+	enum pmc_cputype cputype;
+	enum pmc_class class;
 	struct pmc_mdep *pmc_mdep;
+	char *name;
+	int i;
 
-	/* The presence of hardware performance counters on the AMD
-	   Athlon, Duron or later processors, is _not_ indicated by
-	   any of the processor feature flags set by the 'CPUID'
-	   instruction, so we only check the 'instruction family'
-	   field returned by CPUID for instruction family >= 6. This
-	   test needs to be be refined. */
+	/*
+	 * The presence of hardware performance counters on the AMD
+	 * Athlon, Duron or later processors, is _not_ indicated by
+	 * any of the processor feature flags set by the 'CPUID'
+	 * instruction, so we only check the 'instruction family'
+	 * field returned by CPUID for instruction family >= 6.
+	 */
 
-	if ((cpu_id & 0xF00) < 0x600)
+	cputype = -1;
+	switch (cpu_id & 0xF00) {
+	case 0x600:		/* Athlon(tm) processor */
+		cputype = PMC_CPU_AMD_K7;
+		class = PMC_CLASS_K7;
+		name = "K7";
+		break;
+	case 0xF00:		/* Athlon64/Opteron processor */
+		cputype = PMC_CPU_AMD_K8;
+		class = PMC_CLASS_K8;
+		name = "K8";
+		break;
+	}
+
+	if ((int) cputype == -1) {
+		(void) printf("pmc: Unknown AMD CPU.\n");
 		return NULL;
+	}
+
+#if	DEBUG
+	amd_pmc_class = class;
+#endif
 
 	MALLOC(pmc_mdep, struct pmc_mdep *, sizeof(struct pmc_mdep),
 	    M_PMC, M_WAITOK|M_ZERO);
 
-#if	__i386__
-	pmc_mdep->pmd_cputype	   = PMC_CPU_AMD_K7;
-#elif	__amd64__
-	pmc_mdep->pmd_cputype	   = PMC_CPU_AMD_K8;
-#else
-#error	Unknown AMD CPU type.
-#endif
-
+	pmc_mdep->pmd_cputype	   = cputype;
 	pmc_mdep->pmd_npmc 	   = AMD_NPMCS;
 
 	/* this processor has two classes of usable PMCs */
@@ -1001,12 +959,20 @@ pmc_amd_initialize(void)
 	pmc_mdep->pmd_classes[0].pm_width   = 64;
 
 	/* AMD K7/K8 PMCs */
-	pmc_mdep->pmd_classes[1].pm_class   = AMD_PMC_CLASS;
+	pmc_mdep->pmd_classes[1].pm_class   = class;
 	pmc_mdep->pmd_classes[1].pm_caps    = AMD_PMC_CAPS;
 	pmc_mdep->pmd_classes[1].pm_width   = 48;
 
 	pmc_mdep->pmd_nclasspmcs[0] = 1;
 	pmc_mdep->pmd_nclasspmcs[1] = (AMD_NPMCS-1);
+
+	/* fill in the correct pmc name and class */
+	for (i = 1; i < AMD_NPMCS; i++) {
+		(void) snprintf(amd_pmcdesc[i].pm_descr.pd_name,
+		    sizeof(amd_pmcdesc[i].pm_descr.pd_name), "%s-%d",
+		    name, i-1);
+		amd_pmcdesc[i].pm_descr.pd_class = class;
+	}
 
 	pmc_mdep->pmd_init    	   = amd_init;
 	pmc_mdep->pmd_cleanup 	   = amd_cleanup;
