@@ -75,8 +75,17 @@ device		rl
 device		em
 device		uart
 device		pci
+
 device		ata
-device		atadisk
+device          atadisk         # ATA disk drives
+device          ataraid         # ATA RAID drives
+device          atapicd         # ATAPI CDROM drives
+device          atapifd         # ATAPI floppy drives
+device          atapist         # ATAPI tape drives
+options         ATA_STATIC_ID   # Static device numbering
+
+# SCSI Controllers
+
 device		pty
 device		iopwdog			# I80321 Watchdog
 device		"iq31244_7seg"		# IQ31244 7 seg
