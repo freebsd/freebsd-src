@@ -90,11 +90,13 @@ static action_fn nuke_entry;
 static int delete(char *host, int do_proxy);
 static void usage(void);
 static int set(int argc, char **argv);
-static void get(char *host);
+static int get(char *host);
 static int file(char *name);
 static struct rt_msghdr *rtmsg(int cmd,
-	struct sockaddr_inarp *dst, struct sockaddr_dl *sdl);
-static int get_ether_addr(u_int32_t ipaddr, struct ether_addr *hwaddr);
+    struct sockaddr_inarp *dst, struct sockaddr_dl *sdl);
+static int get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr);
+static struct sockaddr_inarp *getaddr(char *host);
+static int valid_type(int type);
 
 static int nflag;	/* no reverse dns lookups */
 static char *rifname;
@@ -168,7 +170,7 @@ main(int argc, char *argv[])
 		} else {
 			if (argc != 1)
 				usage();
-			get(argv[0]);
+			rtn = get(argv[0]);
 		}
 		break;
 	case F_SET:
@@ -176,7 +178,7 @@ main(int argc, char *argv[])
 		if (argc < 2 || argc > 6)
 			usage();
 		if (func == F_REPLACE)
-			delete(argv[0], 0);
+			(void)delete(argv[0], 0);
 		rtn = set(argc, argv) ? 1 : 0;
 		break;
 	case F_DELETE:
@@ -201,7 +203,7 @@ main(int argc, char *argv[])
 		break;
 	}
 
-	return(rtn);
+	return (rtn);
 }
 
 /*
@@ -260,30 +262,31 @@ getaddr(char *host)
 	if (reply.sin_addr.s_addr == INADDR_NONE) {
 		if (!(hp = gethostbyname(host))) {
 			warnx("%s: %s", host, hstrerror(h_errno));
-			return NULL;
+			return (NULL);
 		}
 		bcopy((char *)hp->h_addr, (char *)&reply.sin_addr,
 			sizeof reply.sin_addr);
 	}
-	return &reply;
+	return (&reply);
 }
 
 /*
- * returns true if the type is a valid one for ARP
+ * Returns true if the type is a valid one for ARP.
  */
 static int
 valid_type(int type)
 {
+
 	switch (type) {
-	default:
-		return 0;
 	case IFT_ETHER:
 	case IFT_FDDI:
 	case IFT_ISO88023:
 	case IFT_ISO88024:
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
-		return 1;
+		return (1);
+	default:
+		return (0);
 	}
 }
 
@@ -299,7 +302,7 @@ set(int argc, char **argv)
 	struct rt_msghdr *rtm;
 	struct ether_addr *ea;
 	char *host = argv[0], *eaddr = argv[1];
-	struct	sockaddr_dl sdl_m;
+	struct sockaddr_dl sdl_m;
 
 	argc -= 2;
 	argv += 2;
@@ -372,7 +375,7 @@ set(int argc, char **argv)
 		}
 		if (dst->sin_other & SIN_PROXY) {
 			printf("set: proxy entry exists for non 802 device\n");
-			return(1);
+			return (1);
 		}
 		dst->sin_other = SIN_PROXY;
 		proxy_only = 1;
@@ -390,21 +393,23 @@ set(int argc, char **argv)
 /*
  * Display an individual arp entry
  */
-static void
+static int
 get(char *host)
 {
 	struct sockaddr_inarp *addr;
 
 	addr = getaddr(host);
 	if (addr == NULL)
-		exit(1);
+		return (1);
 	if (0 == search(addr->sin_addr.s_addr, print_entry)) {
 		printf("%s (%s) -- no entry",
 		    host, inet_ntoa(addr->sin_addr));
 		if (rifname)
 			printf(" on %s", rifname);
 		printf("\n");
+		return (1);
 	}
+	return (0);
 }
 
 /*
@@ -419,7 +424,7 @@ delete(char *host, int do_proxy)
 
 	dst = getaddr(host);
 	if (dst == NULL)
-		return 1;
+		return (1);
 	dst->sin_other = do_proxy;
 	for (;;) {	/* try twice */
 		rtm = rtmsg(RTM_GET, dst, NULL);
@@ -505,7 +510,7 @@ search(u_long addr, action_fn *action)
 		(*action)(sdl, sin2, rtm);
 	}
 	free(buf);
-	return found_entry;
+	return (found_entry);
 }
 
 /*
@@ -605,7 +610,7 @@ nuke_entry(struct sockaddr_dl *sdl __unused,
 	char ip[20];
 
 	snprintf(ip, sizeof(ip), "%s", inet_ntoa(addr->sin_addr));
-	delete(ip, 0);
+	(void)delete(ip, 0);
 }
 
 static void
@@ -683,8 +688,8 @@ rtmsg(int cmd, struct sockaddr_inarp *dst, struct sockaddr_dl *sdl)
 		rtm->rtm_addrs |= RTA_DST;
 	}
 #define NEXTADDR(w, s) \
-	if (s && rtm->rtm_addrs & (w)) { \
-		bcopy(s, cp, sizeof(*s)); cp += SA_SIZE(s);}
+	if ((s) != NULL && rtm->rtm_addrs & (w)) { \
+		bcopy((s), cp, sizeof(*(s))); cp += SA_SIZE(s);}
 
 	NEXTADDR(RTA_DST, dst);
 	NEXTADDR(RTA_GATEWAY, sdl);
@@ -698,7 +703,7 @@ doit:
 	if ((rlen = write(s, (char *)&m_rtmsg, l)) < 0) {
 		if (errno != ESRCH || cmd != RTM_DELETE) {
 			warn("writing to routing socket");
-			return NULL;
+			return (NULL);
 		}
 	}
 	do {
@@ -706,7 +711,7 @@ doit:
 	} while (l > 0 && (rtm->rtm_seq != seq || rtm->rtm_pid != pid));
 	if (l < 0)
 		warn("read from routing socket");
-	return rtm;
+	return (rtm);
 }
 
 /*
@@ -716,10 +721,10 @@ doit:
 #define MAX_IFS		32
 
 static int
-get_ether_addr(u_int32_t ipaddr, struct ether_addr *hwaddr)
+get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr)
 {
 	struct ifreq *ifr, *ifend, *ifp;
-	uint32_t ina, mask;
+	in_addr_t ina, mask;
 	struct sockaddr_dl *dla;
 	struct ifreq ifreq;
 	struct ifconf ifc;
@@ -803,5 +808,5 @@ get_ether_addr(u_int32_t ipaddr, struct ether_addr *hwaddr)
 	retval = dla->sdl_alen;
 done:
 	close(sock);
-	return retval;
+	return (retval);
 }
