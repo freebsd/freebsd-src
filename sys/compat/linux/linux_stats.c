@@ -331,8 +331,9 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 	if (dev != NULL && vfinddev(dev, &vp)) {
 		if (vp->v_mount == NULL)
 			return (EINVAL);
-		if (!prison_check_mount(td->td_ucred, vp->v_mount))
-			return (EINVAL);
+		error = prison_canseemount(td->td_ucred, vp->v_mount);
+		if (error)
+			return (error);
 #ifdef MAC
 		error = mac_check_mount_stat(td->td_ucred, vp->v_mount);
 		if (error)
