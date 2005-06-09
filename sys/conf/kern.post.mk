@@ -28,7 +28,7 @@ modules-${target}:
 .endfor
 
 # Handle out of tree ports 
-.if defined(PORTS_MODULES)
+.if !defined(NO_MODULES) && defined(PORTS_MODULES)
 .for _dir in ${.CURDIR}/../../..
 .if !defined(SYSDIR) && exists(${_dir}/kern/)
 SYSDIR=	${_dir}
