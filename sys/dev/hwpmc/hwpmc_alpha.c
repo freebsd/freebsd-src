@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2005, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,41 +23,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
-/* Machine dependent interfaces */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#ifndef _MACHINE_PMC_MDEP_H
-#define	_MACHINE_PMC_MDEP_H 1
+#include <sys/param.h>
+#include <sys/pmc.h>
 
-#include <dev/hwpmc/hwpmc_amd.h>
-#include <dev/hwpmc/hwpmc_piv.h>
+#include <machine/pmc_mdep.h>
 
-union pmc_md_op_pmcallocate  {
-	struct pmc_md_amd_op_pmcallocate	pm_amd;
-	struct pmc_md_p4_op_pmcallocate		pm_p4;
-	uint64_t				__pad[4];
-};
-
-/* Logging */
-#define	PMCLOG_READADDR		PMCLOG_READ64
-#define	PMCLOG_EMITADDR		PMCLOG_EMIT64
-
-#ifdef	_KERNEL
-
-union pmc_md_pmc {
-	struct pmc_md_amd_pmc	pm_amd;
-	struct pmc_md_p4_pmc	pm_p4;
-};
-
-struct pmc;
-
-/*
- * Prototypes
- */
-
-void	pmc_x86_lapic_enable_pmc_interrupt(void);
-
-#endif
-#endif /* _MACHINE_PMC_MDEP_H */
+struct pmc_mdep *
+pmc_md_initialize()
+{
+	return NULL;
+}

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2005, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,17 +28,28 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/bus.h>
 #include <sys/pmc.h>
-#include <sys/pmckern.h>
-#include <sys/smp.h>
 #include <sys/systm.h>
 
-#include <machine/cputypes.h>
+#include <machine/apicreg.h>
+#include <machine/pmc_mdep.h>
 #include <machine/md_var.h>
 
-struct pmc_mdep *
+extern volatile lapic_t *lapic;
+
+void
+pmc_x86_lapic_enable_pmc_interrupt(void)
+{
+	uint32_t value;
+
+	value =  lapic->lvt_pcint;
+	value &= ~APIC_LVT_M;
+	lapic->lvt_pcint = value;
+}
+
+
+static struct pmc_mdep *
 pmc_intel_initialize(void)
 {
 	struct pmc_mdep *pmc_mdep;
@@ -53,6 +64,7 @@ pmc_intel_initialize(void)
 	cputype = -1;
 
 	switch (cpu_id & 0xF00) {
+#if	defined(__i386__)
 	case 0x500:		/* Pentium family processors */
 		cputype = PMC_CPU_INTEL_P5;
 		break;
@@ -75,12 +87,15 @@ pmc_intel_initialize(void)
 			break;
 		}
 		break;
+#endif
+#if	defined(__i386__) || defined(__amd64__)
 	case 0xF00:		/* P4 */
 		model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 		if (model >= 0 && model <= 3) /* known models */
 			cputype = PMC_CPU_INTEL_PIV;
 		break;
 	}
+#endif
 
 	if ((int) cputype == -1) {
 		printf("pmc: Unknown Intel CPU.\n");
@@ -101,14 +116,18 @@ pmc_intel_initialize(void)
 
 	switch (cputype) {
 
+#if	defined(__i386__) || defined(__amd64__)
+
 		/*
-		 * Intel Pentium 4 Processors
+		 * Intel Pentium 4 Processors, and P4/EMT64 processors.
 		 */
 
 	case PMC_CPU_INTEL_PIV:
 		error = pmc_initialize_p4(pmc_mdep);
 		break;
+#endif
 
+#if	defined(__i386__)
 		/*
 		 * P6 Family Processors
 		 */
@@ -129,6 +148,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_P5:
 		error = pmc_initialize_p5(pmc_mdep);
 		break;
+#endif
 
 	default:
 		KASSERT(0,("[intel,%d] Unknown CPU type", __LINE__));
@@ -140,4 +160,20 @@ pmc_intel_initialize(void)
 	}
 
 	return pmc_mdep;
+}
+
+
+/*
+ * Machine dependent initialization for x86 class platforms.
+ */
+
+struct pmc_mdep *
+pmc_md_initialize()
+{
+	/* determine the CPU kind */
+	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
+		return pmc_amd_initialize();
+	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
+		return pmc_intel_initialize();
+	return NULL;
 }

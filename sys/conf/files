@@ -1070,6 +1070,7 @@ gnu/ext2fs/ext2_vnops.c		optional ext2fs
 # Support for hardware performance monitoring counters
 #
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
+dev/hwpmc/hwpmc_logging.c	optional hwpmc
 #
 # isdn4bsd device drivers
 #

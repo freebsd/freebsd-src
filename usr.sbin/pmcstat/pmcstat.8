@@ -31,12 +31,18 @@
 .Nd performance measurement with performance monitoring hardware
 .Sh SYNOPSIS
 .Nm
+.Op Fl D Ar pathname
 .Op Fl C
+.Op Fl E
 .Op Fl O Ar logfilename
 .Op Fl P Ar event-spec
+.Op Fl R Ar logfilename
 .Op Fl S Ar event-spec
+.Op Fl W
 .Op Fl c Ar cpu
 .Op Fl d
+.Op Fl g
+.Op Fl m
 .Op Fl n Ar count
 .Op Fl o Ar outputfile
 .Op Fl p Ar event-spec
@@ -76,9 +82,9 @@ counting and sampling flavors.
 The values of all counting PMCs are printed in human readable form
 at regular intervals by
 .Nm .
-The output of sampling PMCs is configured to go to log file, for later
-analysis by tools like
-.Xr pmcreport 8 .
+The output of sampling PMCs may be configured to go to a log file for
+subsequent offline analysis, or, at the expense of greater
+overhead, may be configured to be processed on the fly.
 .Pp
 Hardware events to measure are specified to
 .Nm
@@ -94,23 +100,48 @@ process' current and future children.
 The following options are available:
 .Bl -tag -width indent
 .It Fl C
-Toggle between showing cumulative and incremental counts for
+Toggle between showing cumulative or incremental counts for
 subsequent counting mode PMCs specified on the command line.
 The default is to show incremental counts.
+.It Fl D Ar pathname
+Create files with per-program samples in the directory named
+by
+.Ar pathname .
+The default is to create these files in the current directory.
+.It Fl E
+Toggle showing per-process counts at the time a tracked process
+exits for subsequent process-mode PMCs specified on the command line.
+This option is useful for mapping the performance characteristics of a
+complex pipeline of processes when used in conjunction with the
+.Fl d
+option.
+The default is to not to enable per-process tracking.
 .It Fl O Ar logfilename
 Send the output of sampling mode PMCs to
 .Ar logfilename .
-The default file name is
-.Pa pmcstat.out ,
-in the current directory.
+If this option is not specified and one of the logging options
+is requested, then
+.Nm
+will print a human-readable version of the log to the configured
+output file.
 .It Fl P Ar event-spec
 Allocate a process mode sampling PMC measuring hardware events
 specified in
 .Ar event-spec .
+.It Fl R Ar logfilename
+Perform offline analysis using sampling data in file
+.Ar logfilename .
 .It Fl S Ar event-spec
 Allocate a system mode sampling PMC measuring hardware events
 specified in
 .Ar event-spec .
+.It Fl W
+Toggle logging the incremental counts seen by the threads of a
+tracked process each time they are scheduled on a CPU.
+This is an experimental feature intended to help analyse the
+dynamic behaviour of processes in the system.
+It may incur substantial overhead if enabled.
+The default is for this feature to be disabled.
 .It Fl c Ar cpu
 Set the cpu for subsequent system mode PMCs specified on the
 command line to
@@ -119,16 +150,23 @@ The default is to allocate system mode PMCs on CPU zero.
 .It Fl d
 Toggle between process mode PMCs measuring events for the target
 process' current and future children or only measuring events for
-the attached process.
+the target process.
 The default is to measure events for the target process alone.
+.It Fl g
+Produce execution profiles in a format compatible with
+.Xr gprof 1 .
+.It Fl m
+When producing
+.Xr gprof 1
+compatible execution profiles, merge profiles across multiple
+invocations of the same executable.
 .It Fl n Ar rate
 Set the default sampling rate for subsequent sampling mode
 PMCs specified on the command line.
 The default is to configure PMCs to sample the CPU's instruction
 pointer every 65536 events.
 .It Fl o Ar outputfile
-Send the periodic counter output of
-.Nm
+Send counter readings and printed representations of logged data
 to file
 .Ar outputfile .
 The default is to send output to
@@ -188,9 +226,9 @@ sometime after
 .Sh AUTHORS
 .An Joseph Koshy Aq jkoshy@FreeBSD.org
 .Sh SEE ALSO
+.Xr gprof 1 ,
 .Xr execvp 3 ,
 .Xr pmc 3 ,
 .Xr hwpmc 4 ,
 .Xr pmccontrol 8 ,
-.Xr pmcreport 8 ,
 .Xr sysctl 8

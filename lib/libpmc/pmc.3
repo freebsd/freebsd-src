@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2003-2005 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -36,7 +36,9 @@
 .Nm pmc_disable ,
 .Nm pmc_enable ,
 .Nm pmc_event_names_of_class ,
+.Nm pmc_flush_logfile ,
 .Nm pmc_get_driver_stats ,
+.Nm pmc_get_msr ,
 .Nm pmc_init ,
 .Nm pmc_name_of_capability ,
 .Nm pmc_name_of_class ,
@@ -53,9 +55,9 @@
 .Nm pmc_set ,
 .Nm pmc_start ,
 .Nm pmc_stop ,
-.Nm pmc_write ,
 .Nm pmc_width ,
-.Nm pmc_x86_get_msr
+.Nm pmc_write ,
+.Nm pmc_writelog
 .Nd programming API for using hardware performance monitoring counters
 .Sh LIBRARY
 .Lb libpmc
@@ -79,7 +81,7 @@
 .Ft int
 .Fn pmc_configure_logfile "int fd"
 .Ft int
-.Fn pmc_cpuinfo "const struct pmc_op_getcpuinfo **cpu_info"
+.Fn pmc_cpuinfo "const struct pmc_cpuinfo **cpu_info"
 .Ft int
 .Fo pmc_detach
 .Fa "pmc_id_t pmcid"
@@ -96,7 +98,11 @@
 .Fa "int *nevents"
 .Fc
 .Ft int
-.Fn pmc_get_driver_stats "struct pmc_op_getdriverstats *gms"
+.Fn pmc_flush_logfile "void"
+.Ft int
+.Fn pmc_get_driver_stats "struct pmc_driverstats *gms"
+.Ft int
+.Fn pmc_get_msr "pmc_id_t pmc" "uint32_t *msr"
 .Ft int
 .Fn pmc_init "void"
 .Ft "const char *"
@@ -118,7 +124,7 @@
 .Ft int
 .Fn pmc_npmc "uint32_t cpu"
 .Ft int
-.Fn pmc_pmcinfo "uint32_t cpu" "struct pmc_op_getpmcinfo **pmc_info"
+.Fn pmc_pmcinfo "uint32_t cpu" "struct pmc_pmcinfo **pmc_info"
 .Ft int
 .Fn pmc_read "pmc_id_t pmc" "pmc_value_t *value"
 .Ft int
@@ -134,9 +140,9 @@
 .Ft int
 .Fn pmc_write "pmc_id_t pmc" "pmc_value_t value"
 .Ft int
-.Fn pmc_width "pmc_id_t pmc" "uint32_t *width"
+.Fn pmc_writelog "uint32_t userdata"
 .Ft int
-.Fn pmc_x86_get_msr "int pmc" "uint32_t *msr"
+.Fn pmc_width "pmc_id_t pmc" "uint32_t *width"
 .Sh DESCRIPTION
 These functions implement a high-level library for using the
 system's hardware performance counters.
@@ -276,9 +282,24 @@ The
 .Fn pmc_configure_logfile
 function causes the
 .Xr hwpmc 4
-driver to log system wide performance data to file corresponding
+driver to log performance data to file corresponding
 to the process' file handle
 .Fa fd .
+If argument
+.Fa fd
+is -1, then any previously configured logging is reset
+and all data queued to be written are discarded.
+.Pp
+The
+.Fn pmc_flush_logfile
+function will send all data queued inside the
+.Xr hwpmc 4
+driver to the configured log file before returning.
+The
+.Fn pmc_writelog
+function will append a log entry containing the argument
+.Fa userdata
+to the log file.
 .Pp
 .Fn pmc_set
 configures an sampling PMC
@@ -307,8 +328,19 @@ module is unloaded using
 processes that have PMCs allocated to them will be sent a
 SIGBUS signal.
 .It SIGIO
-Attempting to read a PMC that is not currently attached to a running
-process will cause a SIGIO signal to be sent to the reader.
+The
+.Xr hwpmc 4
+driver will send a PMC owning process a SIGIO signal if:
+.Bl -bullet
+.It
+If any process-mode PMC allocated by it loses all its
+target processes.
+.It
+If the driver encounters an error when writing log data to a
+configured log file.
+This error may be retrieved by a subsequent call to
+.Fn pmc_flush_logfile .
+.El
 .El
 .Ss CONVENIENCE FUNCTIONS
 .Fn pmc_ncpu
@@ -321,10 +353,18 @@ returns the number of PMCs supported on CPU
 sets argument
 .Fa cpu_info
 to point to a structure with information about the system's CPUs.
+Function
 .Fn pmc_pmcinfo
 returns information about the current state of CPU
 .Fa cpu Ap s
 PMCs.
+This function sets argument
+.Fa *pmc_info
+to point to a memory area allocated with
+.Xr calloc 3 .
+The caller is expected to
+.Fn free
+the area when done.
 .Pp
 The functions
 .Fn pmc_name_of_capability ,
@@ -370,7 +410,7 @@ is the index of the PMC to be operated on.
 Only the super-user is allowed to enable and disable PMCs.
 .Ss X86 ARCHITECTURE SPECIFIC API
 The
-.Fn pmc_x86_get_msr
+.Fn pmc_get_msr
 function returns the processor model specific register number
 associated with
 .Fa pmc .
@@ -3096,25 +3136,39 @@ was unrecognized for this cpu type.
 .Pp
 Calls to
 .Fn pmc_attach ,
+.Fn pmc_configure_logfile ,
 .Fn pmc_detach ,
-.Fn pmc_release ,
-.Fn pmc_start ,
-.Fn pmc_stop ,
+.Fn pmc_disable ,
+.Fn pmc_enable ,
+.Fn pmc_get_driver_stats ,
+.Fn pmc_get_msr ,
 .Fn pmc_read ,
-.Fn pmc_write ,
+.Fn pmc_release ,
 .Fn pmc_rw ,
 .Fn pmc_set ,
-.Fn pmc_configure_logfile ,
-.Fn pmc_get_driver_stats ,
-.Fn pmc_enable ,
-.Fn pmc_disable ,
+.Fn pmc_start ,
+.Fn pmc_stop ,
+.Fn pmc_write ,
 and
-.Fn pmc_x86_get_msr
+.Fn pmc_writelog
 may fail with the errors described in
 .Xr hwpmc 4 .
+.Pp
+If a log file was configured using
+.Fn pmc_configure_logfile
+and the
+.Xr hwpmc 4
+driver encountered an error while logging data to it, then
+logging will be stopped and a subsequent call to
+.Fn pmc_flush_logfile
+will fail with the error code seen by the
+.Xr hwpmc 4
+driver.
 .Sh SEE ALSO
 .Xr modfind 2 ,
 .Xr modstat 2 ,
+.Xr calloc 3 ,
+.Xr pmclog 3 ,
 .Xr hwpmc 4 ,
 .Xr pmccontrol 8 ,
 .Xr pmcreport 8 ,
@@ -3126,12 +3180,6 @@ The information returned by
 and possibly
 .Fn pmc_npmc
 should really be available all the time, through a better designed
-interface.
-.Pp
-The API for
-.Fn pmc_cpuinfo
-and
-.Fn pmc_pmcinfo
-expose too much of the underlying
+interface and not just when
 .Xr hwpmc 4
-driver's internals to userland.
+is present in the kernel.

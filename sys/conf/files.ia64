@@ -52,6 +52,7 @@ dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
+dev/hwpmc/hwpmc_ia64.c		optional	hwpmc
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd

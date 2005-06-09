@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2005, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,58 +26,58 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_PMC_MDEP_H
-#define	_MACHINE_PMC_MDEP_H 1
+/* Machine dependent interfaces */
 
-/*
- * On the i386 platform we support the following PMCs.
- *
- * K7		AMD Athlon XP/MP and other 32 bit processors.
- * K8		AMD Athlon64 and Opteron PMCs in 32 bit mode.
- * PIV		Intel P4/HTT and P4/EMT64
- * PPRO		Intel Pentium Pro, Pentium-II, Pentium-III, Celeron and
- *		Pentium-M processors
- * PENTIUM	Intel Pentium MMX.
- */
+#ifndef _DEV_HWPMC_PPRO_H_
+#define	_DEV_HWPMC_PPRO_H_
 
-#include <dev/hwpmc/hwpmc_amd.h> /* K7 and K8 */
-#include <dev/hwpmc/hwpmc_piv.h>
-#include <dev/hwpmc/hwpmc_ppro.h>
-#include <dev/hwpmc/hwpmc_pentium.h>
+/* Intel PPro, Celeron, P-II, P-III, Pentium-M PMCS */
 
-/*
- * Architecture specific extensions to <sys/pmc.h> structures.
- */
+#define	P6_NPMCS	3		/* 1 TSC + 2 PMCs */
 
-union pmc_md_op_pmcallocate  {
-	struct pmc_md_amd_op_pmcallocate	pm_amd;
- 	struct pmc_md_ppro_op_pmcallocate	pm_ppro;
-	struct pmc_md_pentium_op_pmcallocate	pm_pentium;
-	struct pmc_md_p4_op_pmcallocate		pm_p4;
-	uint64_t				__pad[4];
+#define	P6_EVSEL_CMASK_MASK		0xFF000000
+#define	P6_EVSEL_TO_CMASK(C)		(((C) & 0xFF) << 24)
+#define	P6_EVSEL_INV			(1 << 23)
+#define	P6_EVSEL_EN			(1 << 22)
+#define	P6_EVSEL_INT			(1 << 20)
+#define	P6_EVSEL_PC			(1 << 19)
+#define	P6_EVSEL_E			(1 << 18)
+#define	P6_EVSEL_OS			(1 << 17)
+#define	P6_EVSEL_USR			(1 << 16)
+#define	P6_EVSEL_UMASK_MASK		0x0000FF00
+#define	P6_EVSEL_TO_UMASK(U)		(((U) & 0xFF) << 8)
+#define	P6_EVSEL_EVENT_SELECT(ES)	((ES) & 0xFF)
+#define	P6_EVSEL_RESERVED		(1 << 21)
+
+#define	P6_MSR_EVSEL0			0x0186
+#define	P6_MSR_EVSEL1			0x0187
+#define	P6_MSR_PERFCTR0			0x00C1
+#define	P6_MSR_PERFCTR1			0x00C2
+
+#define	P6_PERFCTR_READ_MASK		0xFFFFFFFFFFLL	/* 40 bits */
+#define	P6_PERFCTR_WRITE_MASK		0xFFFFFFFFU	/* 32 bits */
+
+#define	P6_RELOAD_COUNT_TO_PERFCTR_VALUE(R)	(-(R))
+#define	P6_PERFCTR_VALUE_TO_RELOAD_COUNT(P)	(-(P))
+
+#define	P6_PMC_HAS_OVERFLOWED(P)	((rdpmc(P) & (1LL << 39)) == 0)
+
+struct pmc_md_ppro_op_pmcallocate {
+	uint32_t	pm_ppro_config;
 };
-
-/* Logging */
-#define	PMCLOG_READADDR		PMCLOG_READ32
-#define	PMCLOG_EMITADDR		PMCLOG_EMIT32
 
 #ifdef _KERNEL
 
 /* MD extension for 'struct pmc' */
-union pmc_md_pmc  {
-	struct pmc_md_amd_pmc	pm_amd;
-	struct pmc_md_ppro_pmc	pm_ppro;
-	struct pmc_md_pentium_pmc pm_pentium;
-	struct pmc_md_p4_pmc	pm_p4;
+struct pmc_md_ppro_pmc {
+	uint32_t	pm_ppro_evsel;
 };
-
-struct pmc;
 
 /*
  * Prototypes
  */
 
-void	pmc_x86_lapic_enable_pmc_interrupt(void);
+int	pmc_initialize_p6(struct pmc_mdep *);		/* Pentium Pro PMCs */
 
 #endif /* _KERNEL */
-#endif /* _MACHINE_PMC_MDEP_H */
+#endif /* _DEV_HWPMC_PPRO_H_ */

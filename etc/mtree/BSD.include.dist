@@ -40,6 +40,8 @@
         ..
         firewire
         ..
+        hwpmc
+        ..
         ic
         ..
         ieee488

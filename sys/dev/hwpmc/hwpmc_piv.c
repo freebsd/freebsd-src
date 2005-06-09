@@ -35,8 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/systm.h>
 
-#include <machine/apicreg.h>
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
+#include <machine/specialreg.h>
 
 /*
  * PENTIUM 4 SUPPORT
@@ -134,7 +135,11 @@ __FBSDID("$FreeBSD$");
  *	     CPUy       +.....-
  *	     RC   0 1   2     1    0
  *
- * Here CPUx and CPUy are one of the two logical processors on a HTT CPU.
+ *     Key:
+ *     'CPU[xy]' : one of the two logical processors on a HTT CPU.
+ *     'RC'      : run count (#threads per physical core).
+ *     '+'       : point in time when a thread is put on a CPU.
+ *     '-'       : point in time where a thread is taken off a CPU.
  *
  * Handling HTT CONFIG
  *
@@ -438,13 +443,29 @@ struct p4_cpu {
 	struct pmc_hw	*pc_hwpmcs[P4_NPMCS];
 	struct pmc_hw	pc_p4pmcs[P4_NPMCS];
 	char		pc_escrs[P4_NESCR];
-	struct mtx	pc_mtx;	/* spin lock */
+	struct mtx	pc_mtx;		/* spin lock */
+	uint32_t	pc_intrflag;	/* NMI handler flags */
+	unsigned int	pc_intrlock;	/* NMI handler spin lock */
 	unsigned char	pc_flags[P4_NPMCS]; /* 4 bits each: {cfg,run}count */
 	union {
 		pmc_value_t pc_hw[P4_NPMCS * P4_NHTT];
 		uintptr_t   pc_ip[P4_NPMCS * P4_NHTT];
 	}		pc_si;
 	pmc_value_t	pc_pmc_values[P4_NPMCS * P4_NHTT];
+};
+
+/*
+ * A 'logical' CPU shares PMC resources with partner 'physical' CPU,
+ * except the TSC, which is architectural and hence seperate.  The
+ * 'logical' CPU descriptor thus has pointers to the physical CPUs
+ * descriptor state except for the TSC (rowindex 0) which is not
+ * shared.
+ */
+
+struct p4_logicalcpu {
+	struct pmc_cpu	pc_common;
+	struct pmc_hw	*pc_hwpmcs[P4_NPMCS];
+	struct pmc_hw	pc_tsc;
 };
 
 #define	P4_PCPU_PMC_VALUE(PC,RI,CPU) 	(PC)->pc_pmc_values[(RI)*((CPU) & 1)]
@@ -467,6 +488,29 @@ struct p4_cpu {
 #define	P4_PCPU_SET_CFGFLAGS(PC,RI,C)	P4_PCPU_SET_FLAGS(PC,RI,0xF0,((C) <<4))
 
 #define	P4_CPU_TO_FLAG(C)		(pmc_cpu_is_logical(cpu) ? 0x2 : 0x1)
+
+#define	P4_PCPU_GET_INTRFLAG(PC,I)	((PC)->pc_intrflag & (1 << (I)))
+#define	P4_PCPU_SET_INTRFLAG(PC,I,V)	do {		\
+		uint32_t __mask;			\
+		__mask = 1 << (I);			\
+		if ((V))				\
+			(PC)->pc_intrflag |= __mask;	\
+		else					\
+			(PC)->pc_intrflag &= ~__mask;	\
+	} while (0)
+
+/*
+ * A minimal spin lock implementation for use inside the NMI handler.
+ *
+ * We don't want to use a regular spin lock here, because curthread
+ * may not be consistent at the time the handler is invoked.
+ */
+#define	P4_PCPU_ACQ_INTR_SPINLOCK(PC) do {				\
+		while (!atomic_cmpset_acq_int(&pc->pc_intrlock, 0, 1))	\
+			ia32_pause();					\
+	} while (0)
+#define	P4_PCPU_REL_INTR_SPINLOCK(PC) 					\
+	atomic_store_rel_int(&pc->pc_intrlock, 0);
 
 /* ESCR row disposition */
 static int p4_escrdisp[P4_NESCR];
@@ -538,6 +582,7 @@ p4_init(int cpu)
 	int n, phycpu;
 	char *pescr;
 	struct p4_cpu *pcs;
+	struct p4_logicalcpu *plcs;
 	struct pmc_hw *phw;
 
 	KASSERT(cpu >= 0 && cpu < mp_ncpus,
@@ -562,8 +607,23 @@ p4_init(int cpu)
 			cpu, phycpu));
 		if (pcs == NULL) /* decline to init */
 			return ENXIO;
+
 		p4_system_has_htt = 1;
-		pmc_pcpu[cpu] = (struct pmc_cpu *) pcs;
+
+		MALLOC(plcs, struct p4_logicalcpu *,
+		    sizeof(struct p4_logicalcpu), M_PMC, M_WAITOK|M_ZERO);
+
+		/* The TSC is architectural state and is not shared */
+		plcs->pc_hwpmcs[0] = &plcs->pc_tsc;
+		plcs->pc_tsc.phw_state = PMC_PHW_FLAG_IS_ENABLED |
+		    PMC_PHW_CPU_TO_STATE(cpu) | PMC_PHW_INDEX_TO_STATE(0) |
+		    PMC_PHW_FLAG_IS_SHAREABLE;
+
+		/* Other PMCs are shared with the physical CPU */
+		for (n = 1; n < P4_NPMCS; n++)
+			plcs->pc_hwpmcs[n] = pcs->pc_hwpmcs[n];
+
+		pmc_pcpu[cpu] = (struct pmc_cpu *) plcs;
 		return 0;
 	}
 
@@ -605,16 +665,17 @@ p4_cleanup(int cpu)
 
 	PMCDBG(MDP,INI,0, "p4-cleanup cpu=%d", cpu);
 
-	/*
-	 * Free up the per-cpu structure for the given cpu if
-	 * allocated, and if this is a physical CPU.
-	 */
+	if ((pcs = (struct p4_cpu *) pmc_pcpu[cpu]) == NULL)
+		return 0;
 
-	if ((pcs = (struct p4_cpu *) pmc_pcpu[cpu]) != NULL &&
-	    !pmc_cpu_is_logical(cpu)) {
+	/*
+	 * If the CPU is physical we need to teardown the
+	 * full MD state.
+	 */
+	if (!pmc_cpu_is_logical(cpu))
 		mtx_destroy(&pcs->pc_mtx);
-		FREE(pcs, M_PMC);
-	}
+
+	FREE(pcs, M_PMC);
 
 	pmc_pcpu[cpu] = NULL;
 
@@ -637,7 +698,7 @@ p4_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
 	if (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS)
 		load_cr4(rcr4() | CR4_PCE);
 
-	PMCDBG(MDP,SWI,2, "cr4=0x%x", rcr4());
+	PMCDBG(MDP,SWI,2, "cr4=0x%x", (uint32_t) rcr4());
 
 	return 0;
 }
@@ -657,7 +718,7 @@ p4_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 	/* always disallow the RDPMC instruction */
 	load_cr4(rcr4() & ~CR4_PCE);
 
-	PMCDBG(MDP,SWO,2, "cr4=0x%x", rcr4());
+	PMCDBG(MDP,SWO,2, "cr4=0x%x", (uint32_t) rcr4());
 
 	return 0;
 }
@@ -681,6 +742,26 @@ p4_read_pmc(int cpu, int ri, pmc_value_t *v)
 	KASSERT(ri >= 0 && ri < P4_NPMCS,
 	    ("[p4,%d] illegal row-index %d", __LINE__, ri));
 
+
+	if (ri == 0) {	/* TSC */
+#if	DEBUG
+		pc  = (struct p4_cpu *) pmc_pcpu[cpu];
+		phw = pc->pc_hwpmcs[ri];
+		pm  = phw->phw_pmc;
+
+		KASSERT(pm, ("[p4,%d] cpu=%d ri=%d not configured", __LINE__,
+			    cpu, ri));
+		KASSERT(PMC_TO_CLASS(pm) == PMC_CLASS_TSC,
+		    ("[p4,%d] cpu=%d ri=%d not a TSC (%d)", __LINE__, cpu, ri,
+			PMC_TO_CLASS(pm)));
+		KASSERT(PMC_IS_COUNTING_MODE(PMC_TO_MODE(pm)),
+		    ("[p4,%d] TSC counter in non-counting mode", __LINE__));
+#endif
+		*v = rdtsc();
+		PMCDBG(MDP,REA,2, "p4-read -> %jx", *v);
+		return 0;
+	}
+
 	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
 	phw = pc->pc_hwpmcs[ri];
 	pd  = &p4_pmcdesc[ri];
@@ -697,14 +778,6 @@ p4_read_pmc(int cpu, int ri, pmc_value_t *v)
 	mode = PMC_TO_MODE(pm);
 
 	PMCDBG(MDP,REA,1, "p4-read cpu=%d ri=%d mode=%d", cpu, ri, mode);
-
-	if (PMC_TO_CLASS(pm) == PMC_CLASS_TSC) {
-		KASSERT(PMC_IS_COUNTING_MODE(mode),
-		    ("[p4,%d] TSC counter in non-counting mode", __LINE__));
-		*v = rdtsc();
-		PMCDBG(MDP,REA,2, "p4-read -> %jx", *v);
-		return 0;
-	}
 
 	KASSERT(pd->pm_descr.pd_class == PMC_CLASS_P4,
 	    ("[p4,%d] unknown PMC class %d", __LINE__, pd->pm_descr.pd_class));
@@ -747,6 +820,27 @@ p4_write_pmc(int cpu, int ri, pmc_value_t v)
 	KASSERT(ri >= 0 && ri < P4_NPMCS,
 	    ("[amd,%d] illegal row-index %d", __LINE__, ri));
 
+
+	/*
+	 * The P4's TSC register is writeable, but we don't allow a
+	 * write as changing the TSC's value could interfere with
+	 * timekeeping and other system functions.
+	 */
+	if (ri == 0) {
+#if	DEBUG
+		pc  = (struct p4_cpu *) pmc_pcpu[cpu];
+		phw = pc->pc_hwpmcs[ri];
+		pm  = phw->phw_pmc;
+		KASSERT(pm, ("[p4,%d] cpu=%d ri=%d not configured", __LINE__,
+			    cpu, ri));
+		KASSERT(PMC_TO_CLASS(pm) == PMC_CLASS_TSC,
+		    ("[p4,%d] cpu=%d ri=%d not a TSC (%d)", __LINE__,
+			cpu, ri, PMC_TO_CLASS(pm)));
+#endif
+		return 0;
+	}
+
+	/* Shared PMCs */
 	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
 	phw = pc->pc_hwpmcs[ri];
 	pm  = phw->phw_pmc;
@@ -760,14 +854,6 @@ p4_write_pmc(int cpu, int ri, pmc_value_t v)
 
 	PMCDBG(MDP,WRI,1, "p4-write cpu=%d ri=%d mode=%d v=%jx", cpu, ri,
 	    mode, v);
-
-	/*
-	 * The P4's TSC register is writeable, but we don't allow a
-	 * write as changing the TSC's value could interfere with
-	 * timekeeping and other system functions.
-	 */
-	if (PMC_TO_CLASS(pm) == PMC_CLASS_TSC)
-		return 0;
 
 	/*
 	 * write the PMC value to the register/saved value: for
@@ -808,7 +894,21 @@ p4_config_pmc(int cpu, int ri, struct pmc *pm)
 	KASSERT(ri >= 0 && ri < P4_NPMCS,
 	    ("[p4,%d] illegal row-index %d", __LINE__, ri));
 
-	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
+	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+
+	if (ri == 0) {		/* TSC */
+		pc = (struct p4_cpu *) pmc_pcpu[cpu];
+		phw = pc->pc_hwpmcs[ri];
+
+		KASSERT(pm == NULL || phw->phw_pmc == NULL,
+		    ("[p4,%d] hwpmc doubly config'ed", __LINE__));
+		phw->phw_pmc = pm;
+		return 0;
+	}
+
+	/* Shared PMCs */
+
+	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
 	phw = pc->pc_hwpmcs[ri];
 
 	KASSERT(pm == NULL || phw->phw_pmc == NULL ||
@@ -825,9 +925,6 @@ p4_config_pmc(int cpu, int ri, struct pmc *pm)
 	KASSERT(cfgflags == 0 || phw->phw_pmc,
 	    ("[p4,%d] cpu=%d ri=%d pmc configured with zero cfg count",
 		__LINE__, cpu, ri));
-
-	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d cfg=%d pm=%p", cpu, ri, cfgflags,
-	    pm);
 
 	cpuflag = P4_CPU_TO_FLAG(cpu);
 
@@ -1073,8 +1170,8 @@ p4_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	/* CCCR fields */
 	if (caps & PMC_CAP_THRESHOLD)
-		cccrvalue |= (a->pm_p4_cccrconfig & P4_CCCR_THRESHOLD_MASK) |
-		    P4_CCCR_COMPARE;
+		cccrvalue |= (a->pm_md.pm_p4.pm_p4_cccrconfig &
+		    P4_CCCR_THRESHOLD_MASK) | P4_CCCR_COMPARE;
 
 	if (caps & PMC_CAP_EDGE)
 		cccrvalue |= P4_CCCR_EDGE;
@@ -1083,7 +1180,8 @@ p4_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		cccrvalue |= P4_CCCR_COMPLEMENT;
 
 	if (p4_system_has_htt)
-		cccrvalue |= a->pm_p4_cccrconfig & P4_CCCR_ACTIVE_THREAD_MASK;
+		cccrvalue |= a->pm_md.pm_p4.pm_p4_cccrconfig &
+		    P4_CCCR_ACTIVE_THREAD_MASK;
 	else			/* no HTT; thread field should be '11b' */
 		cccrvalue |= P4_CCCR_TO_ACTIVE_THREAD(0x3);
 
@@ -1096,12 +1194,14 @@ p4_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	/* ESCR fields */
 	if (caps & PMC_CAP_QUALIFIER)
-		escrvalue |= a->pm_p4_escrconfig & P4_ESCR_EVENT_MASK_MASK;
+		escrvalue |= a->pm_md.pm_p4.pm_p4_escrconfig &
+		    P4_ESCR_EVENT_MASK_MASK;
 	if (caps & PMC_CAP_TAGGING)
-		escrvalue |= (a->pm_p4_escrconfig & P4_ESCR_TAG_VALUE_MASK) |
-		    P4_ESCR_TAG_ENABLE;
+		escrvalue |= (a->pm_md.pm_p4.pm_p4_escrconfig &
+		    P4_ESCR_TAG_VALUE_MASK) | P4_ESCR_TAG_ENABLE;
 	if (caps & PMC_CAP_QUALIFIER)
-		escrvalue |= (a->pm_p4_escrconfig & P4_ESCR_EVENT_MASK_MASK);
+		escrvalue |= (a->pm_md.pm_p4.pm_p4_escrconfig &
+		    P4_ESCR_EVENT_MASK_MASK);
 
 	/* HTT: T0_{OS,USR} bits may get moved to T1 at pmc start */
 	tflags = 0;
@@ -1434,116 +1534,150 @@ p4_stop_pmc(int cpu, int ri)
  * The hardware sets the CCCR_OVF whenever a counter overflow occurs, so the handler
  * examines all the 18 CCCR registers, processing the counters that have overflowed.
  *
- * On HTT machines, multiple logical CPUs may try to enter the NMI service
- * routine at the same time.
+ * On HTT machines, the CCCR register is shared and will interrupt
+ * both logical processors if so configured.  Thus multiple logical
+ * CPUs could enter the NMI service routine at the same time.  These
+ * will get serialized using a per-cpu spinlock dedicated for use in
+ * the NMI handler.
  */
-
-extern volatile lapic_t *lapic;
-
-static void
-p4_lapic_enable_pmc_interrupt(void)
-{
-	uint32_t value;
-
-	value =  lapic->lvt_pcint;
-	value &= ~APIC_LVT_M;
-	lapic->lvt_pcint = value;
-}
-
 
 static int
 p4_intr(int cpu, uintptr_t eip, int usermode)
 {
-	int i, pmc_interrupted;
-	uint32_t cccrval, pmi_ovf_mask;
+	int i, did_interrupt, error, ri;
+	uint32_t cccrval, ovf_mask, ovf_partner;
 	struct p4_cpu *pc;
 	struct pmc_hw *phw;
 	struct pmc *pm;
 	pmc_value_t v;
 
-	(void) eip;
-	(void) usermode;
-	PMCDBG(MDP,INT, 1, "cpu=%d eip=%x pcint=0x%x", cpu, eip,
-	    lapic->lvt_pcint);
+	PMCDBG(MDP,INT, 1, "cpu=%d eip=%p um=%d", cpu, (void *) eip, usermode);
 
-	pmc_interrupted = 0;
-	pc = (struct p4_cpu *) pmc_pcpu[cpu];
+	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
 
-	pmi_ovf_mask = pmc_cpu_is_logical(cpu) ?
+	ovf_mask = pmc_cpu_is_logical(cpu) ?
 	    P4_CCCR_OVF_PMI_T1 : P4_CCCR_OVF_PMI_T0;
-	pmi_ovf_mask |= P4_CCCR_OVF;
+	ovf_mask |= P4_CCCR_OVF;
+	if (p4_system_has_htt)
+		ovf_partner = pmc_cpu_is_logical(cpu) ? P4_CCCR_OVF_PMI_T0 :
+		    P4_CCCR_OVF_PMI_T1;
+	else
+		ovf_partner = 0;
+	did_interrupt = 0;
+
+	if (p4_system_has_htt)
+		P4_PCPU_ACQ_INTR_SPINLOCK(pc);
 
 	/*
-	 * Loop through all CCCRs, looking for ones that have the
-	 * OVF_PMI bit set for our logical CPU.
+	 * Loop through all CCCRs, looking for ones that have
+	 * interrupted this CPU.
 	 */
+	for (i = 0; i < P4_NPMCS-1; i++) {
 
-	for (i = 1; i < P4_NPMCS; i++) {
-		cccrval = rdmsr(P4_CCCR_MSR_FIRST + i - 1);
-
-		if ((cccrval & pmi_ovf_mask) != pmi_ovf_mask)
-			continue;
-
-		v = rdmsr(P4_PERFCTR_MSR_FIRST + i - 1);
-
-		pmc_interrupted = 1;
-
-		PMCDBG(MDP,INT, 2, "ri=%d v=%jx", i, v);
-
-		/* Stop the counter, and turn off the overflow  bit */
-		cccrval &= ~(P4_CCCR_OVF | P4_CCCR_ENABLE);
-		wrmsr(P4_CCCR_MSR_FIRST + i - 1, cccrval);
-
-		phw = pc->pc_hwpmcs[i];
-		pm  = phw->phw_pmc;
+		ri = i + 1;	/* row index */
 
 		/*
-		 * Ignore de-configured or stopped PMCs.
-		 * Also ignore counting mode PMCs that may
-		 * have overflowed their counters.
+		 * Check if our partner logical CPU has already marked
+		 * this PMC has having interrupted it.  If so, reset
+		 * the flag and process the interrupt, but leave the
+		 * hardware alone.
 		 */
-		if (pm == NULL ||
-		    pm->pm_state != PMC_STATE_RUNNING ||
-		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-			continue;
+		if (p4_system_has_htt && P4_PCPU_GET_INTRFLAG(pc,ri)) {
+			P4_PCPU_SET_INTRFLAG(pc,ri,0);
+			did_interrupt = 1;
 
-		/*
-		 * If the previous sample hasn't been read yet, the
-		 * sampling interrupt is coming in too fast for the
-		 * rest of the system to cope.  Do not re-enable the
-		 * counter.
-		 */
-
-		if (P4_PCPU_SAVED_IP(pc,i,cpu)) {
-			atomic_add_int(&pmc_stats.pm_intr_ignored, 1);
+			/*
+			 * Ignore de-configured or stopped PMCs.
+			 * Ignore PMCs not in sampling mode.
+			 */
+			phw = pc->pc_hwpmcs[ri];
+			pm  = phw->phw_pmc;
+			if (pm == NULL ||
+			    pm->pm_state != PMC_STATE_RUNNING ||
+			    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
+				continue;
+			}
+			(void) pmc_process_interrupt(cpu, pm, eip, usermode);
 			continue;
 		}
 
 		/*
-		 * write the the reload count and restart the
-		 * hardware.
+		 * Fresh interrupt.  Look for the CCCR_OVF bit
+		 * and the OVF_Tx bit for this logical
+		 * processor being set.
 		 */
+		cccrval = rdmsr(P4_CCCR_MSR_FIRST + i);
 
-		v = P4_RELOAD_COUNT_TO_PERFCTR_VALUE(
-			pm->pm_sc.pm_reloadcount);
-		wrmsr(P4_PERFCTR_MSR_FIRST + i - 1, v);
-		wrmsr(P4_CCCR_MSR_FIRST + i - 1,
-		    cccrval | P4_CCCR_ENABLE);
-	}
-
-	if (pmc_interrupted) {
+		if ((cccrval & ovf_mask) != ovf_mask)
+			continue;
 
 		/*
-		 * On Intel CPUs, the PMC 'pcint' entry in the LAPIC
-		 * gets masked when a PMC interrupts the CPU.  We need
-		 * to unmask this.
+		 * If the other logical CPU would also have been
+		 * interrupted due to the PMC being shared, record
+		 * this fact in the per-cpu saved interrupt flag
+		 * bitmask.
 		 */
-		p4_lapic_enable_pmc_interrupt();
+		if (p4_system_has_htt && (cccrval & ovf_partner))
+			P4_PCPU_SET_INTRFLAG(pc, ri, 1);
 
-		/* XXX: Invoke helper (non-NMI) interrupt here */
+		v = rdmsr(P4_PERFCTR_MSR_FIRST + i);
+
+		PMCDBG(MDP,INT, 2, "ri=%d v=%jx", ri, v);
+
+		/* Stop the counter, and reset the overflow  bit */
+		cccrval &= ~(P4_CCCR_OVF | P4_CCCR_ENABLE);
+		wrmsr(P4_CCCR_MSR_FIRST + i, cccrval);
+
+		did_interrupt = 1;
+
+		/*
+		 * Ignore de-configured or stopped PMCs.  Ignore PMCs
+		 * not in sampling mode.
+		 */
+		phw = pc->pc_hwpmcs[ri];
+		pm  = phw->phw_pmc;
+
+		if (pm == NULL ||
+		    pm->pm_state != PMC_STATE_RUNNING ||
+		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
+			continue;
+		}
+
+		/*
+		 * Process the interrupt.  Re-enable the PMC if
+		 * processing was successful.
+		 */
+		error = pmc_process_interrupt(cpu, pm, eip, usermode);
+
+		/*
+		 * Only the first processor executing the NMI handler
+		 * in a HTT pair will restart a PMC, and that too
+		 * only if there were no errors.
+		 */
+		v = P4_RELOAD_COUNT_TO_PERFCTR_VALUE(
+			pm->pm_sc.pm_reloadcount);
+		wrmsr(P4_PERFCTR_MSR_FIRST + i, v);
+		if (error == 0)
+			wrmsr(P4_CCCR_MSR_FIRST + i,
+			    cccrval | P4_CCCR_ENABLE);
 	}
 
-	return pmc_interrupted;
+	/* allow the other CPU to proceed */
+	if (p4_system_has_htt)
+		P4_PCPU_REL_INTR_SPINLOCK(pc);
+
+	/*
+	 * On Intel P4 CPUs, the PMC 'pcint' entry in the LAPIC gets
+	 * masked when a PMC interrupts the CPU.  We need to unmask
+	 * the interrupt source explicitly.
+	 */
+
+	if (did_interrupt)
+		pmc_x86_lapic_enable_pmc_interrupt();
+	else
+		atomic_add_int(&pmc_stats.pm_intr_ignored, 1);
+
+	return did_interrupt;
 }
 
 /*

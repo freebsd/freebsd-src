@@ -35,8 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/systm.h>
 
-#include <machine/cputypes.h>
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
+#include <machine/pmc_mdep.h>
 
 /*
  * Intel Pentium PMCs

@@ -118,10 +118,10 @@ dev/fb/splash.c			optional splash
 dev/fe/if_fe_cbus.c		optional fe isa
 dev/fe/if_fe_pccard.c		optional fe card
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
-dev/hwpmc/hwpmc_intel.c		optional hwpmc
 dev/hwpmc/hwpmc_pentium.c	optional hwpmc
 dev/hwpmc/hwpmc_piv.c		optional hwpmc
 dev/hwpmc/hwpmc_ppro.c		optional hwpmc
+dev/hwpmc/hwpmc_x86.c		optional hwpmc
 dev/io/iodev.c			optional io
 dev/kbd/kbd.c			optional pckbd
 dev/kbd/kbd.c			optional sc
