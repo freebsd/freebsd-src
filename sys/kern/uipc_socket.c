@@ -2054,10 +2054,8 @@ soo_kqfilter(struct file *fp, struct knote *kn)
 	case EVFILT_READ:
 		if (so->so_options & SO_ACCEPTCONN)
 			kn->kn_fop = &solisten_filtops;
-		else if (so->so_state & SS_ISCONNECTED)
-			kn->kn_fop = &soread_filtops;
 		else
-			return (EINVAL);
+			kn->kn_fop = &soread_filtops;
 		sb = &so->so_rcv;
 		break;
 	case EVFILT_WRITE:
