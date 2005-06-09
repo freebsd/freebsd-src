@@ -346,6 +346,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "TEAC" , "FD-05*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * Kingston DataTraveler II+ USB Pen-Drive.
+		 * Reported by: Pawel Jakub Dawidek <pjd@FreeBSD.org>
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Kingston" , "DataTraveler II+", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
