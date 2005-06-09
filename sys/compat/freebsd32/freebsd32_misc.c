@@ -156,32 +156,29 @@ copy_statfs(struct statfs *in, struct statfs32 *out)
 int
 freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfsstat_args *uap)
 {
+	struct statfs *buf, *sp;
+	struct statfs32 stat32;
+	size_t count, size;
 	int error;
-	caddr_t sg;
-	struct statfs32 *sp32, stat32;
-	struct statfs *sp = NULL, stat;
-	int maxcount, count, i;
 
-	sp32 = uap->buf;
-	maxcount = uap->bufsize / sizeof(struct statfs32);
-
-	if (sp32) {
-		sg = stackgap_init();
-		sp = stackgap_alloc(&sg, sizeof(struct statfs) * maxcount);
-		uap->buf = (struct statfs32 *)sp;
-	}
-	error = getfsstat(td, (struct getfsstat_args *) uap);
-	if (sp32 && !error) {
+	count = uap->bufsize / sizeof(struct statfs32);
+	size = count * sizeof(struct statfs);
+	if (size > 0)
+		buf = malloc(size, M_TEMP, M_WAITOK);
+	else
+		buf = NULL;
+	error = kern_getfsstat(td, buf, size, UIO_SYSSPACE, uap->flags);
+	if (buf != NULL) {
 		count = td->td_retval[0];
-		for (i = 0; i < count; i++) {
-			error = copyin(&sp[i], &stat, sizeof(stat));
-			if (error)
-				return (error);
-			copy_statfs(&stat, &stat32);
-			error = copyout(&stat32, &sp32[i], sizeof(stat32));
-			if (error)
-				return (error);
+		sp = buf;
+		while (count > 0 && error == 0) {
+			copy_statfs(sp, &stat32);
+			error = copyout(&stat32, uap->buf, sizeof(stat32));
+			sp++;
+			uap->buf++;
+			count--;
 		}
+		free(buf, M_TEMP);
 	}
 	return (error);
 }
