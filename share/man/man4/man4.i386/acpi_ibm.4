@@ -1,4 +1,5 @@
 .\" Copyright (c) 2005 Christian Brueffer
+.\" Copyright (c) 2005 Markus Brueffer
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,54 +25,189 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 7, 2005
+.Dd June 9, 2005
 .Dt ACPI_IBM 4 i386
 .Os
 .Sh NAME
 .Nm acpi_ibm
-.Nd "ACPI hotkey driver for IBM laptops"
+.Nd "ACPI extras driver for IBM laptops"
 .Sh SYNOPSIS
 .Cd "device acpi_ibm"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the hotkeys of IBM laptops.
+driver provides support for hotkeys and other components of IBM laptops.
 The main purpose of this driver is to provide an interface,
 accessible via
-.Xr sysctl 8 ,
+.Xr sysctl 8
+and
+.Xr devd 8 ,
 through which applications can determine the status of
 various laptop components.
 .Sh SYSCTLS
 The following sysctls are currently implemented:
 .Bl -tag -width indent
-.It Va dev.acpi_ibm.0.key_mask
-Current key mask.
-.It Va dev.acpi_ibm.0.version
-(read-only) Interface version of the
+.It Va dev.acpi_ibm.0.initialmask
+(read-only)
+Bitmask of ACPI events before the
 .Nm
-driver.
-.It Va dev.acpi_ibm.0.avail_mask
-(read-only) Available key mask.
-.It Va dev.acpi_ibm.0.enable
-Toggle
+driver was loaded.
+.It Va dev.acpi_ibm.0.availmask
+(read-only)
+Bitmask of all supported ACPI events.
+.It Va dev.acpi_ibm.0.events
+Enable ACPI events and set the
+.Va eventmask
+to
+.Va availmask .
+Without the
 .Nm
-driver activity.
-.It Va dev.acpi_ibm.0.misckey
-(read-only) Status of the misc button.
-.It Va dev.acpi_ibm.0.brightness
-(read-only) Current brightness level of the display.
+driver being loaded, only the Fn-F4 button generates an ACPI event.
+.It Va dev.acpi_ibm.0.eventmask
+Sets the ACPI events which are reported to
+.Xr devd 8 .
+Fn+F3, Fn+F4 and Fn+F12 always generate ACPI events, regardless which value
+.Va eventmask
+has.
+Depending on the ThinkPad model, the meaning of different bits in the
+.Va eventmask
+may vary.
+On a ThinkPad T41p this is a bitwise OR of the following:
+.Pp
+.Bl -tag -width indent-two -compact
+.It Li 1
+Fn + F1
+.It Li 2
+Fn + F2
+.It Li 4
+Fn + F3
+.It Li 8
+Fn + F4
+.It Li 16
+Fn + F5
+.It Li 32
+Fn + F6
+.It Li 64
+Fn + F7
+.It Li 128
+Fn + F8
+.It Li 256
+Fn + F9
+.It Li 512
+Fn + F10
+.It Li 1024
+Fn + F11
+.It Li 2048
+Fn + F12
+.It Li 4096
+Fn + Backspace
+.It Li 8192
+Fn + Insert
+.It Li 16384
+Fn + Delete
+.It Li 32768
+Fn + Home (Brightness Up)
+.It Li 65536
+Fn + End (Brightness Down)
+.It Li 131072
+Fn + PageUp
+.It Li 262144
+Fn + PageDown
+.It Li 524288
+Fn + Space (Zoom)
+.It Li 1048576
+Volume Up
+.It Li 2097152
+Volume Down
+.It Li 4194304
+Mute
+.It Li 8388608
+Access IBM Button
+.El
+.It Va dev.acpi_ibm.0.hotkey
+(read-only)
+Status of several buttons.
+Every time a button is pressed, the respecting bit is toggled.
+It is a bitwise OR of the following:
+.Pp
+.Bl -tag -width indent-two -compact
+.It Li 1
+Home Button
+.It Li 2
+Search Button
+.It Li 4
+Mail Button
+.It Li 8
+Access IBM Button
+.It Li 16
+Zoom (Fn + Space)
+.It Li 32
+Wireless LAN Button
+.It Li 64
+Video Button
+.It Li 128
+Hibernate Button
+.It Li 256
+ThinkLight Button
+.It Li 512
+Screen Expand (Fn + F8)
+.It Li 1024
+Brighness Up/Down Button
+.It Li 2048
+Volume Up/Down/Mute Button
+.El
+.It Va dev.acpi_ibm.0.lcd_brightness
+Current brightness level of the display.
 .It Va dev.acpi_ibm.0.volume
-(read-only) Speaker volume.
+Speaker volume.
 .It Va dev.acpi_ibm.0.mute
-(read-only) Indicates, whether the speakers are muted or not.
-.It Va dev.acpi_ibm.0.keylight
-(read-only) Indicates, whether the ThinkLight keyboard light is activated or not.
+Indicates, whether the speakers are muted or not.
+.It Va dev.acpi_ibm.0.thinklight
+Indicates, whether the ThinkLight keyboard light is activated or not.
 .It Va dev.acpi_ibm.0.bluetooth
 Toggle Bluetooth chip activity.
 .It Va dev.acpi_ibm.0.wlan
-Toggle WLAN chip activity.
+(read-only)
+Indicates whether the WLAN chip is active or not.
+.It Va dev.acpi_ibm.0.fan
+(read-only)
+Indicates whether the fan is on or off.
+.It Va dev.acpi_ibm.0.fan_speed
+(read-only)
+Fan speed in rounds per minute.
+A few older ThinkPads report the fan speed in levels ranging from 0 (off)
+to 7 (max).
+.It Va dev.acpi_ibm.0.thermal
+(read-only)
+Shows the readings of up to eight different temperature sensors.
+Most ThinkPads include six or more temperature sensors but
+only expose the CPU temperature through
+.Xr acpi_thermal 4 .
+Some ThinkPads have the below sensor layout which might vary depending on the
+specific model:
+.Pp
+.Bl -enum -compact
+.It
+CPU
+.It
+Mini PCI Module
+.It
+HDD
+.It
+GPU
+.It
+Built-in battery
+.It
+UltraBay battery
+.It
+Built-in battery
+.It
+UltraBay battery
+.El
+.El
 .Sh SEE ALSO
 .Xr acpi 4 ,
+.Xr devd 8 ,
 .Xr sysctl 8
 .Sh HISTORY
 The
@@ -79,9 +215,14 @@ The
 device driver first appeared in
 .Fx 5.5 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written by
-.An Takanori Watanabe Aq takawata@FreeBSD.org .
+.An Takanori Watanabe Aq takawata@FreeBSD.org
+and later mostly rewritten by
+.An Markus Brueffer Aq markus@FreeBSD.org .
 This manual page was written by
-.An Christian Brueffer Aq brueffer@FreeBSD.org .
+.An Christian Brueffer Aq brueffer@FreeBSD.org
+and
+.An Markus Brueffer Aq markus@FreeBSD.org .
