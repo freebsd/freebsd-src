@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050609:
+	Changes were made to kinfo_proc in sys/user.h.  Please recompile
+	userland, or commands like `fstat', `pkill', `ps', `top' and `w'
+	will not behave correctly.
+
 20050606:
 	The OpenBSD dhclient was imported in place of the ISC dhclient
 	and the network interface configuration scripts were updated
