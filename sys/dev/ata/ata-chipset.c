@@ -2933,7 +2933,7 @@ ata_promise_new_dmastart(device_t dev)
     if (atadev->flags & ATA_D_48BIT_ACTIVE) {
 	ATA_OUTB(ctlr->r_res1, 0x11,
 		 ATA_INB(ctlr->r_res1, 0x11) | (ch->unit ? 0x08 : 0x02));
-	ATA_OUTL(ctlr->r_res1, 0x20,
+	ATA_OUTL(ctlr->r_res1, ch->unit ? 0x24 : 0x20,
 		 ((ch->dma->flags & ATA_DMA_READ) ? 0x05000000 : 0x06000000) |
 		 (ch->dma->cur_iosize >> 1));
     }
@@ -2958,7 +2958,7 @@ ata_promise_new_dmastop(device_t dev)
     if (atadev->flags & ATA_D_48BIT_ACTIVE) {
 	ATA_OUTB(ctlr->r_res1, 0x11,
 		 ATA_INB(ctlr->r_res1, 0x11) & ~(ch->unit ? 0x08 : 0x02));
-	ATA_OUTL(ctlr->r_res1, 0x20, 0);
+	ATA_OUTL(ctlr->r_res1, ch->unit ? 0x24 : 0x20, 0);
     }
     error = ATA_IDX_INB(ch, ATA_BMSTAT_PORT);
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
