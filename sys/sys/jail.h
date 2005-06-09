@@ -98,10 +98,13 @@ extern struct	prisonlist allprison;
 struct ucred;
 struct mount;
 struct sockaddr;
+struct statfs;
 int jailed(struct ucred *cred);
 void getcredhostname(struct ucred *cred, char *, size_t);
 int prison_check(struct ucred *cred1, struct ucred *cred2);
-int prison_check_mount(struct ucred *cred, struct mount *mp);
+int prison_canseemount(struct ucred *cred, struct mount *mp);
+void prison_enforce_statfs(struct ucred *cred, struct mount *mp,
+    struct statfs *sp);
 void prison_free(struct prison *pr);
 u_int32_t prison_getip(struct ucred *cred);
 void prison_hold(struct prison *pr);

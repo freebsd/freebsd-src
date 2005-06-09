@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/mount.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/syscallsubr.h>
@@ -55,10 +56,10 @@ SYSCTL_INT(_security_jail, OID_AUTO, sysvipc_allowed, CTLFLAG_RW,
     &jail_sysvipc_allowed, 0,
     "Processes in jail can use System V IPC primitives");
 
-int	jail_getfsstatroot_only = 1;
-SYSCTL_INT(_security_jail, OID_AUTO, getfsstatroot_only, CTLFLAG_RW,
-    &jail_getfsstatroot_only, 0,
-    "Processes see only their root file system in getfsstat()");
+static int jail_enforce_statfs = 2;
+SYSCTL_INT(_security_jail, OID_AUTO, enforce_statfs, CTLFLAG_RW,
+    &jail_enforce_statfs, 0,
+    "Processes in jail cannot see all mounted file systems");
 
 int	jail_allow_raw_sockets = 0;
 SYSCTL_INT(_security_jail, OID_AUTO, allow_raw_sockets, CTLFLAG_RW,
@@ -435,18 +436,92 @@ getcredhostname(struct ucred *cred, char *buf, size_t size)
 }
 
 /*
- * Return 1 if the passed credential can "see" the passed mountpoint
- * when performing a getfsstat(); otherwise, 0.
+ * Determine whether the subject represented by cred can "see"
+ * status of a mount point.
+ * Returns: 0 for permitted, ENOENT otherwise.
+ * XXX: This function should be called cr_canseemount() and should be
+ *      placed in kern_prot.c.
  */
 int
-prison_check_mount(struct ucred *cred, struct mount *mp)
+prison_canseemount(struct ucred *cred, struct mount *mp)
 {
+	struct prison *pr;
+	struct statfs *sp;
+	size_t len;
 
-	if (jail_getfsstatroot_only && cred->cr_prison != NULL) {
-		if (cred->cr_prison->pr_root->v_mount != mp)
-			return (0);
+	if (!jailed(cred) || jail_enforce_statfs == 0)
+		return (0);
+	pr = cred->cr_prison;
+	if (pr->pr_root->v_mount == mp)
+		return (0);
+	if (jail_enforce_statfs == 2)
+		return (ENOENT);
+	/*
+	 * If jail's chroot directory is set to "/" we should be able to see
+	 * all mount-points from inside a jail.
+	 * This is ugly check, but this is the only situation when jail's
+	 * directory ends with '/'.
+	 */
+	if (strcmp(pr->pr_path, "/") == 0)
+		return (0);
+	len = strlen(pr->pr_path);
+	sp = &mp->mnt_stat;
+	if (strncmp(pr->pr_path, sp->f_mntonname, len) != 0)
+		return (ENOENT);
+	/*
+	 * Be sure that we don't have situation where jail's root directory
+	 * is "/some/path" and mount point is "/some/pathpath".
+	 */
+	if (sp->f_mntonname[len] != '\0' && sp->f_mntonname[len] != '/')
+		return (ENOENT);
+	return (0);
+}
+
+void
+prison_enforce_statfs(struct ucred *cred, struct mount *mp, struct statfs *sp)
+{
+	char jpath[MAXPATHLEN];
+	struct prison *pr;
+	size_t len;
+
+	if (!jailed(cred) || jail_enforce_statfs == 0)
+		return;
+	pr = cred->cr_prison;
+	if (prison_canseemount(cred, mp) != 0) {
+		/* Should never happen. */
+		bzero(sp->f_mntonname, sizeof(sp->f_mntonname));
+		strlcpy(sp->f_mntonname, "[restricted]",
+		    sizeof(sp->f_mntonname));
+		return;
 	}
-	return (1);
+	if (pr->pr_root->v_mount == mp) {
+		/*
+		 * Clear current buffer data, so we are sure nothing from
+		 * the valid path left there.
+		 */
+		bzero(sp->f_mntonname, sizeof(sp->f_mntonname));
+		*sp->f_mntonname = '/';
+		return;
+	}
+	/*
+	 * If jail's chroot directory is set to "/" we should be able to see
+	 * all mount-points from inside a jail.
+	 */
+	if (strcmp(pr->pr_path, "/") == 0)
+		return;
+	len = strlen(pr->pr_path);
+	strlcpy(jpath, sp->f_mntonname + len, sizeof(jpath));
+	/*
+	 * Clear current buffer data, so we are sure nothing from
+	 * the valid path left there.
+	 */
+	bzero(sp->f_mntonname, sizeof(sp->f_mntonname));
+	if (*jpath == '\0') {
+		/* Should never happen. */
+		*sp->f_mntonname = '/';
+	} else {
+		strlcpy(sp->f_mntonname, jpath, sizeof(sp->f_mntonname));
+	}
 }
 
 static int
