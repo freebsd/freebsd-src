@@ -201,10 +201,10 @@ kernel profiling via
 .It Dv PMC_F_LOG_PROCCSW
 This modifier is valid only for a PMC being allocated in process-private
 mode.
-When this modifier is present, at every process context switch time,
+When this modifier is present, at every context switch,
 .Nm
-will append a record containing the count of the hardware events
-seen by the process to the configured log file.
+will log a record containing the number of hardware events
+seen by the target process when it was scheduled on the CPU.
 .It Dv PMC_F_LOG_PROCEXIT
 This modifier is valid only for a PMC being allocated in process-private
 mode.
@@ -223,6 +223,11 @@ and
 may be used in combination with modifier
 .Dv PMC_F_DESCENDANTS
 to track the behaviour of complex pipelines of processes.
+PMCs with modifiers
+.Dv PMC_F_LOG_PROCEXIT
+and
+.Dv PMC_F_LOG_PROCCSW
+cannot be started until their owner process has configured a log file.
 .Ss SIGNALS
 The
 .Nm
@@ -524,6 +529,15 @@ PMC using the same hardware resources attached to it.
 An
 .Ic PMC_OP_PMCRW
 request writing a new value was issued on a PMC that was active.
+.It Bq Er EDOOFUS
+A
+.Ic PMC_OP_PMCSTART
+operation was requested without a log file being configured for a
+PMC allocated with
+.Dv PMC_F_LOG_PROCCSW
+and
+.Dv PMC_F_LOG_PROCEXIT
+modifiers.
 .It Bq Er EBUSY
 An
 .Ic PMC_OP_PMCSETCOUNT
