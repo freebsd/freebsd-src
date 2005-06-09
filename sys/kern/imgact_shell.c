@@ -36,15 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 
-#define	KEEP_OLDCODE	1
-#if BYTE_ORDER == LITTLE_ENDIAN		/* temp for OLD_CODE kludge */
-#define	DBG_MAGIC	0x2B23		/* #+ in "little-endian" */
-#define	OLD_MAGIC	0x3C23		/* #< */
-#else
-#define	DBG_MAGIC	0x232B		/* #+ in big-endian */
-#define	OLD_MAGIC	0x233C		/* #< */
-#endif
-
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define SHELLMAGIC	0x2123 /* #! */
 #else
@@ -96,14 +87,8 @@ __FBSDID("$FreeBSD$");
  * comments, etc), while the interpreter might have other rules for parsing.
  * It also meant the interpreter had no way of knowing which arguments came
  * from the first line of the shell script, and which arguments were specified
- * by the user on the command line.
- *
- * Only few things in the base system might depend on that non-standard
- * processing (mainly /bin/sh and /usr/bin/env).  And for programs which are
- * not in the base system, the "newer" behavior matches how NetBSD, OpenBSD,
- * Linux, Solaris, AIX, IRIX, and many other Unixes have set up the arg-list
- * for the interpreter.  So if a program can handle this behavior on those
- * other OS's, it should be able to handle it for FreeBSD too.
+ * by the user on the command line.  That extra processing was dropped in the
+ * 6.x branch on May 28, 2005 (matching __FreeBSD_version 600029).
  */
 int
 exec_shell_imgact(imgp)
@@ -147,115 +132,7 @@ exec_shell_imgact(imgp)
 
 	maxp = &image_header[clength];
 	ihp = &image_header[2];
-#if KEEP_OLDCODE
-	/*
-	 * XXX - Temporarily provide a quick-and-dirty way to get the
-	 * older, non-standard option-parsing behavior, just in case
-	 * someone finds themselves in an emergency where they need it.
-	 * This will not be documented.  It is only for initial testing.
-	 */
-	if (*(const short *)ihp == OLD_MAGIC)
-		ihp += 2;
-	else
-		goto new_code;
-	interpb = ihp;
 
-	/*
-	 * Figure out the number of bytes that need to be reserved in the
-	 * argument string to copy the contents of the interpreter's command
-	 * line into the argument string.
-	 */
-	ihp = interpb;
-	offset = 0;
-	while (ihp < &image_header[clength]) {
-		/* Skip any whitespace */
-		if ((*ihp == ' ') || (*ihp == '\t')) {
-			ihp++;
-			continue;
-		}
-
-		/* End of line? */
-		if ((*ihp == '\n') || (*ihp == '#') || (*ihp == '\0'))
-			break;
-
-		/* Found a token */
-		do {
-			offset++;
-			ihp++;
-		} while ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n') &&
-		    (*ihp != '#') && (*ihp != '\0') &&
-		    (ihp < &image_header[clength]));
-		/* Include terminating nulls in the offset */
-		offset++;
-	}
-
-	/* If the script gives a null line as the interpreter, we bail */
-	if (offset == 0)
-		return (ENOEXEC);
-
-	/* Check that we aren't too big */
-	if (ihp == &image_header[MAXSHELLCMDLEN])
-		return (ENAMETOOLONG);
-
-	/*
-	 * The full path name of the original script file must be tagged
-	 * onto the end, adjust the offset to deal with it.
-	 *
-	 * The original argv[0] is being replaced, set 'length' to the number
-	 * of bytes being removed.  So 'offset' is the number of bytes being
-	 * added and 'length' is the number of bytes being removed.
-	 */
-	offset += strlen(imgp->args->fname) + 1;	/* add fname */
-	length = (imgp->args->argc == 0) ? 0 :
-	    strlen(imgp->args->begin_argv) + 1;		/* bytes to delete */
-
-	if (offset - length > imgp->args->stringspace)
-		return (E2BIG);
-
-	bcopy(imgp->args->begin_argv + length, imgp->args->begin_argv + offset,
-	    imgp->args->endp - (imgp->args->begin_argv + length));
-
-	offset -= length;		/* calculate actual adjustment */
-	imgp->args->begin_envv += offset;
-	imgp->args->endp += offset;
-	imgp->args->stringspace -= offset;
-
-	/*
-	 * If there were no arguments then we've added one, otherwise
-	 * decr argc remove old argv[0], incr argc for fname add, net 0
-	 */
-	if (imgp->args->argc == 0)
-		imgp->args->argc = 1;
-
-	/*
-	 * Loop through the interpreter name yet again, copying as
-	 * we go.
-	 */
-	ihp = interpb;
-	offset = 0;
-	while (ihp < &image_header[clength]) {
-		/* Skip whitespace */
-		if ((*ihp == ' ') || (*ihp == '\t')) {
-			ihp++;
-			continue;
-		}
-
-		/* End of line? */
-		if ((*ihp == '\n') || (*ihp == '#') || (*ihp == '\0'))
-			break;
-
-		/* Found a token, copy it */
-		do {
-			imgp->args->begin_argv[offset++] = *ihp++;
-		} while ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n') &&
-		    (*ihp != '#') && (*ihp != '\0') &&
-		    (ihp < &image_header[MAXSHELLCMDLEN]));
-		imgp->args->begin_argv[offset++] = '\0';
-		imgp->args->argc++;
-	}
-	goto common_end;
-new_code:
-#endif
 	/*
 	 * Find the beginning and end of the interpreter_name.  If the
 	 * line does not include any interpreter, or if the name which
@@ -339,9 +216,6 @@ new_code:
 		imgp->args->argc++;
 	}
 
-#if KEEP_OLDCODE
-common_end:
-#endif
 	/*
 	 * Finally, add the filename onto the end for the interpreter to
 	 * use and copy the interpreter's name to imgp->interpreter_name
