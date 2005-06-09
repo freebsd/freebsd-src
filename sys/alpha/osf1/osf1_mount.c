@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
-#include <sys/jail.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -156,56 +155,39 @@ osf1_getfsstat(td, uap)
 	struct thread *td;
 	register struct osf1_getfsstat_args *uap;
 {
-	long count, error, maxcount;
-	caddr_t osf_sfsp;
-	struct mount *mp, *nmp;
-	struct statfs *sp, sb;
+	struct statfs *buf, *sp;
 	struct osf1_statfs osfs;
+	size_t count, size;
+	int error, flags;
 
 	if (uap->flags & ~OSF1_GETFSSTAT_FLAGS)
 		return (EINVAL);
+	flags = 0;
+	if (uap->flags & OSF1_MNT_WAIT)
+		flags |= MNT_WAIT;
+	if (uap->flags & OSF1_MNT_NOWAIT)
+		flags |= MNT_NOWAIT;
 
-	maxcount = uap->bufsize / sizeof(struct osf1_statfs);
-	osf_sfsp = (caddr_t)uap->buf;
-	for (count = 0, mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-		nmp = TAILQ_NEXT(mp, mnt_list);
-		if (osf_sfsp && count < maxcount) {
-			if (!prison_check_mount(td->td_ucred, mp))
-	                        continue;
-#ifdef MAC
-			if (mac_check_mount_stat(td->td_ucred, mp) != 0)
-				continue;
-#endif
-			sp = &mp->mnt_stat;
-			/*
-			 * If OSF1_MNT_NOWAIT is specified, do not refresh the
-			 * fsstat cache.  OSF1_MNT_WAIT overrides
-			 * OSF1_MNT_NOWAIT.
-			 */
-			if (((uap->flags & OSF1_MNT_NOWAIT) == 0 ||
-			    (uap->flags & OSF1_MNT_WAIT)) &&
-			    (error = VFS_STATFS(mp, sp, td)))
-				continue;
-			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-			if (suser(td)) {
-				bcopy(sp, &sb, sizeof(sb));
-				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-				sp = &sb;
-			}
-			bsd2osf_statfs(sp, &osfs);
-			if ((error = copyout(&osfs, osf_sfsp,
-			    sizeof (struct osf1_statfs))))
-				return (error);
-			osf_sfsp += sizeof (struct osf1_statfs);
-		}
-		count++;
-	}
-	if (osf_sfsp && count > maxcount)
-		td->td_retval[0] = maxcount;
+	count = uap->bufsize / sizeof(struct ostatfs);
+	size = count * sizeof(struct statfs);
+	if (size > 0)
+		buf = malloc(size, M_TEMP, M_WAITOK);
 	else
-		td->td_retval[0] = count;
-
-	return (0);
+		buf = NULL;
+	error = kern_getfsstat(td, buf, size, UIO_SYSSPACE, flags);
+	if (buf != NULL) {
+		count = td->td_retval[0];
+		sp = buf;
+		while (count > 0 && error == 0) {
+			bsd2osf_statfs(sp, &osfs);
+			error = copyout(&osfs, uap->buf, sizeof(osfs));
+			sp++;
+			uap->buf++;
+			count--;
+		}
+		free(buf, M_TEMP);
+	}
+	return (error);
 }
 
 int

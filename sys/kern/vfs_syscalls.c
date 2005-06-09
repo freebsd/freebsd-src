@@ -373,13 +373,22 @@ getfsstat(td, uap)
 		int flags;
 	} */ *uap;
 {
-	struct mount *mp, *nmp;
-	struct statfs *sp, sb;
-	caddr_t sfsp;
-	long count, maxcount, error;
 
-	maxcount = uap->bufsize / sizeof(struct statfs);
-	sfsp = (caddr_t)uap->buf;
+	return (kern_getfsstat(td, uap->buf, uap->bufsize, UIO_USERSPACE,
+	    uap->flags));
+}
+
+int
+kern_getfsstat(struct thread *td, struct statfs *buf, size_t bufsize,
+    enum uio_seg bufseg, int flags)
+{
+	struct mount *mp, *nmp;
+	struct statfs *sfsp, *sp, sb;
+	size_t count, maxcount;
+	int error;
+
+	maxcount = bufsize / sizeof(struct statfs);
+	sfsp = buf;
 	count = 0;
 	mtx_lock(&Giant);
 	mtx_lock(&mountlist_mtx);
@@ -412,8 +421,8 @@ getfsstat(td, uap)
 			 * refresh the fsstat cache. MNT_NOWAIT or MNT_LAZY
 			 * overrides MNT_WAIT.
 			 */
-			if (((uap->flags & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
-			    (uap->flags & MNT_WAIT)) &&
+			if (((flags & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
+			    (flags & MNT_WAIT)) &&
 			    (error = VFS_STATFS(mp, sp, td))) {
 				mtx_lock(&mountlist_mtx);
 				nmp = TAILQ_NEXT(mp, mnt_list);
@@ -425,13 +434,16 @@ getfsstat(td, uap)
 				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 				sp = &sb;
 			}
-			error = copyout(sp, sfsp, sizeof(*sp));
-			if (error) {
-				vfs_unbusy(mp, td);
-				mtx_unlock(&Giant);
-				return (error);
-			}
-			sfsp += sizeof(*sp);
+			if (bufseg == UIO_USERSPACE) {
+				error = copyout(sp, sfsp, sizeof(*sp));
+				if (error) {
+					vfs_unbusy(mp, td);
+					mtx_unlock(&Giant);
+					return (error);
+				}
+			} else
+				bcopy(sp, sfsp, sizeof(*sp));
+			sfsp++;
 		}
 		count++;
 		mtx_lock(&mountlist_mtx);
@@ -525,74 +537,31 @@ freebsd4_getfsstat(td, uap)
 		int flags;
 	} */ *uap;
 {
-	struct mount *mp, *nmp;
-	struct statfs *sp, sb;
+	struct statfs *buf, *sp;
 	struct ostatfs osb;
-	caddr_t sfsp;
-	long count, maxcount, error;
+	size_t count, size;
+	int error;
 
-	maxcount = uap->bufsize / sizeof(struct ostatfs);
-	sfsp = (caddr_t)uap->buf;
-	count = 0;
-	mtx_lock(&Giant);
-	mtx_lock(&mountlist_mtx);
-	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-		if (!prison_check_mount(td->td_ucred, mp)) {
-			nmp = TAILQ_NEXT(mp, mnt_list);
-			continue;
-		}
-#ifdef MAC
-		if (mac_check_mount_stat(td->td_ucred, mp) != 0) {
-			nmp = TAILQ_NEXT(mp, mnt_list);
-			continue;
-		}
-#endif
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
-			nmp = TAILQ_NEXT(mp, mnt_list);
-			continue;
-		}
-		if (sfsp && count < maxcount) {
-			sp = &mp->mnt_stat;
-			/*
-			 * If MNT_NOWAIT or MNT_LAZY is specified, do not
-			 * refresh the fsstat cache. MNT_NOWAIT or MNT_LAZY
-			 * overrides MNT_WAIT.
-			 */
-			if (((uap->flags & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
-			    (uap->flags & MNT_WAIT)) &&
-			    (error = VFS_STATFS(mp, sp, td))) {
-				mtx_lock(&mountlist_mtx);
-				nmp = TAILQ_NEXT(mp, mnt_list);
-				vfs_unbusy(mp, td);
-				continue;
-			}
-			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-			if (suser(td)) {
-				bcopy(sp, &sb, sizeof(sb));
-				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-				sp = &sb;
-			}
-			cvtstatfs(sp, &osb);
-			error = copyout(&osb, sfsp, sizeof(osb));
-			if (error) {
-				vfs_unbusy(mp, td);
-				mtx_unlock(&Giant);
-				return (error);
-			}
-			sfsp += sizeof(osb);
-		}
-		count++;
-		mtx_lock(&mountlist_mtx);
-		nmp = TAILQ_NEXT(mp, mnt_list);
-		vfs_unbusy(mp, td);
-	}
-	mtx_unlock(&mountlist_mtx);
-	mtx_unlock(&Giant);
-	if (sfsp && count > maxcount)
-		td->td_retval[0] = maxcount;
+	count = uap->bufsize / sizeof(struct ostatfs);
+	size = count * sizeof(struct statfs);
+	if (size > 0)
+		buf = malloc(size, M_TEMP, M_WAITOK);
 	else
-		td->td_retval[0] = count;
-	return (0);
+		buf = NULL;
+	error = kern_getfsstat(td, buf, size, UIO_SYSSPACE, uap->flags);
+	if (buf != NULL) {
+		count = td->td_retval[0];
+		sp = buf;
+		while (count > 0 && error == 0) {
+			cvtstatfs(sp, &osb);
+			error = copyout(&osb, uap->buf, sizeof(osb));
+			sp++;
+			uap->buf++;
+			count--;
+		}
+		free(buf, M_TEMP);
+	}
+	return (error);
 }
 
 /*
