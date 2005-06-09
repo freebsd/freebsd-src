@@ -458,6 +458,9 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 		 * beyond the current fack, they will be inserted by
 		 * way of hole splitting in the while-loop below.
 		 */
+		temp = tcp_sackhole_insert(tp, tp->snd_fack,sblkp->start,NULL);
+		if (temp == NULL)
+			return 0;
 		tcp_sackhole_insert(tp, tp->snd_fack, sblkp->start, NULL);
 		tp->snd_fack = sblkp->end;
 		/* Go to the previous sack block. */
@@ -465,6 +468,8 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 	} else if (SEQ_LT(tp->snd_fack, sblkp->end))
 		/* fack is advanced. */
 		tp->snd_fack = sblkp->end;
+	/* We must have at least one SACK hole in scoreboard */
+	KASSERT(!TAILQ_EMPTY(&tp->snd_holes), ("SACK scoreboard must not be empty"));
 	cur = TAILQ_LAST(&tp->snd_holes, sackhole_head); /* Last SACK hole */
 	/*
 	 * Since the incoming sack blocks are sorted, we can process them
