@@ -47,10 +47,10 @@
 
 #include <machine/psl.h>
 
-int arm_get_irqnb(void *);
-void arm_mask_irqs(int);
-void arm_unmask_irqs(int);
-void set_splmasks(void);
+int arm_get_next_irq(void);
+void arm_mask_irq(uintptr_t);
+void arm_unmask_irq(uintptr_t);
 void arm_setup_irqhandler(const char *, void (*)(void*), void *, int, int,
     void **);
+int arm_remove_irqhandler(void *);
 #endif	/* _MACHINE_INTR_H */

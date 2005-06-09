@@ -426,6 +426,14 @@ i80321_pci_setup_intr(device_t dev, device_t child,
 	return (BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
 	    intr, arg, cookiep));
 }
+
+static int
+i80321_pci_teardown_intr(device_t dev, device_t child, struct resource *res,
+    void *cookie)
+{
+	return (BUS_TEARDOWN_INTR(device_get_parent(dev), child, res, cookie));
+}
+
 static device_method_t i80321_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		i80321_pci_probe),
@@ -443,7 +451,7 @@ static device_method_t i80321_pci_methods[] = {
 	DEVMETHOD(bus_activate_resource, i80321_pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	i80321_pci_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_teardown_intr,	i80321_pci_teardown_intr),
 
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,	i80321_pci_maxslots),
