@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/event.h>
 #include <sys/eventhandler.h>
 #include <sys/extattr.h>
+#include <sys/file.h>
 #include <sys/fcntl.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -3304,12 +3305,14 @@ assert_vop_slocked(struct vnode *vp, const char *str)
 		vfs_badlock("is not locked shared but should be", str, vp);
 }
 #endif /* 0 */
+#endif /* DEBUG_VFS_LOCKS */
 
 void
 vop_rename_pre(void *ap)
 {
 	struct vop_rename_args *a = ap;
 
+#ifdef DEBUG_VFS_LOCKS
 	if (a->a_tvp)
 		ASSERT_VI_UNLOCKED(a->a_tvp, "VOP_RENAME");
 	ASSERT_VI_UNLOCKED(a->a_tdvp, "VOP_RENAME");
@@ -3326,11 +3329,20 @@ vop_rename_pre(void *ap)
 	if (a->a_tvp)
 		ASSERT_VOP_LOCKED(a->a_tvp, "vop_rename: tvp not locked");
 	ASSERT_VOP_LOCKED(a->a_tdvp, "vop_rename: tdvp not locked");
+#endif
+	if (a->a_tdvp != a->a_fdvp)
+		vholdl(a->a_fdvp);
+	if (a->a_tvp != a->a_fvp)
+		vhold(a->a_fvp);
+	vhold(a->a_tdvp);
+	if (a->a_tvp)
+		vhold(a->a_tvp);
 }
 
 void
 vop_strategy_pre(void *ap)
 {
+#ifdef DEBUG_VFS_LOCKS
 	struct vop_strategy_args *a;
 	struct buf *bp;
 
@@ -3350,11 +3362,13 @@ vop_strategy_pre(void *ap)
 		if (vfs_badlock_ddb)
 			kdb_enter("lock violation");
 	}
+#endif
 }
 
 void
 vop_lookup_pre(void *ap)
 {
+#ifdef DEBUG_VFS_LOCKS
 	struct vop_lookup_args *a;
 	struct vnode *dvp;
 
@@ -3362,11 +3376,13 @@ vop_lookup_pre(void *ap)
 	dvp = a->a_dvp;
 	ASSERT_VI_UNLOCKED(dvp, "VOP_LOOKUP");
 	ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP");
+#endif
 }
 
 void
 vop_lookup_post(void *ap, int rc)
 {
+#ifdef DEBUG_VFS_LOCKS
 	struct vop_lookup_args *a;
 	struct vnode *dvp;
 	struct vnode *vp;
@@ -3380,48 +3396,155 @@ vop_lookup_post(void *ap, int rc)
 
 	if (!rc)
 		ASSERT_VOP_LOCKED(vp, "VOP_LOOKUP (child)");
+#endif
 }
 
 void
 vop_lock_pre(void *ap)
 {
+#ifdef DEBUG_VFS_LOCKS
 	struct vop_lock_args *a = ap;
 
 	if ((a->a_flags & LK_INTERLOCK) == 0)
 		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
 	else
 		ASSERT_VI_LOCKED(a->a_vp, "VOP_LOCK");
+#endif
 }
 
 void
 vop_lock_post(void *ap, int rc)
 {
+#ifdef DEBUG_VFS_LOCKS
 	struct vop_lock_args *a = ap;
 
 	ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
 	if (rc == 0)
 		ASSERT_VOP_LOCKED(a->a_vp, "VOP_LOCK");
+#endif
 }
 
 void
 vop_unlock_pre(void *ap)
 {
+#ifdef DEBUG_VFS_LOCKS
 	struct vop_unlock_args *a = ap;
 
 	if (a->a_flags & LK_INTERLOCK)
 		ASSERT_VI_LOCKED(a->a_vp, "VOP_UNLOCK");
 	ASSERT_VOP_LOCKED(a->a_vp, "VOP_UNLOCK");
+#endif
 }
 
 void
 vop_unlock_post(void *ap, int rc)
 {
+#ifdef DEBUG_VFS_LOCKS
 	struct vop_unlock_args *a = ap;
 
 	if (a->a_flags & LK_INTERLOCK)
 		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_UNLOCK");
+#endif
 }
-#endif /* DEBUG_VFS_LOCKS */
+
+void
+vop_create_post(void *ap, int rc)
+{
+	struct vop_create_args *a = ap;
+
+	if (!rc)
+		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE);
+}
+
+void
+vop_link_post(void *ap, int rc)
+{
+	struct vop_link_args *a = ap;
+	
+	if (!rc) {
+		VFS_SEND_KNOTE(a->a_vp, NOTE_LINK);
+		VFS_SEND_KNOTE(a->a_tdvp, NOTE_WRITE);
+	}
+}
+
+void
+vop_mkdir_post(void *ap, int rc)
+{
+	struct vop_mkdir_args *a = ap;
+
+	if (!rc)
+		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE | NOTE_LINK);
+}
+
+void
+vop_mknod_post(void *ap, int rc)
+{
+	struct vop_mknod_args *a = ap;
+
+	if (!rc)
+		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE);
+}
+
+void
+vop_remove_post(void *ap, int rc)
+{
+	struct vop_remove_args *a = ap;
+
+	if (!rc) {
+		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE);
+		VFS_SEND_KNOTE(a->a_vp, NOTE_DELETE);
+	}
+}
+
+void
+vop_rename_post(void *ap, int rc)
+{
+	struct vop_rename_args *a = ap;
+
+	if (!rc) {
+		VFS_SEND_KNOTE(a->a_fdvp, NOTE_WRITE);
+		VFS_SEND_KNOTE(a->a_tdvp, NOTE_WRITE);
+		VFS_SEND_KNOTE(a->a_fvp, NOTE_RENAME);
+		if (a->a_tvp)
+			VFS_SEND_KNOTE(a->a_tvp, NOTE_DELETE);
+	}
+	if (a->a_tdvp != a->a_fdvp)
+		vdrop(a->a_fdvp);
+	if (a->a_tvp != a->a_fvp)
+		vdrop(a->a_fvp);
+	vdrop(a->a_tdvp);
+	if (a->a_tvp)
+		vdrop(a->a_tvp);
+}
+
+void
+vop_rmdir_post(void *ap, int rc)
+{
+	struct vop_rmdir_args *a = ap;
+
+	if (!rc) {
+		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE | NOTE_LINK);
+		VFS_SEND_KNOTE(a->a_vp, NOTE_DELETE);
+	}
+}
+
+void
+vop_setattr_post(void *ap, int rc)
+{
+	struct vop_setattr_args *a = ap;
+
+	if (!rc)
+		VFS_SEND_KNOTE(a->a_vp, NOTE_ATTRIB);
+}
+
+void
+vop_symlink_post(void *ap, int rc)
+{
+	struct vop_symlink_args *a = ap;
+	
+	if (!rc)
+		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE);
+}
 
 static struct knlist fs_knlist;
 
@@ -3509,4 +3632,112 @@ init_va_filerev(void)
 
 	getbinuptime(&bt);
 	return (((u_quad_t)bt.sec << 32LL) | (bt.frac >> 32LL));
+}
+
+static int	filt_vfsread(struct knote *kn, long hint);
+static int	filt_vfswrite(struct knote *kn, long hint);
+static int	filt_vfsvnode(struct knote *kn, long hint);
+static void	filt_vfsdetach(struct knote *kn);
+
+static struct filterops vfsread_filtops =
+	{ 1, NULL, filt_vfsdetach, filt_vfsread };
+static struct filterops vfswrite_filtops =
+	{ 1, NULL, filt_vfsdetach, filt_vfswrite };
+static struct filterops vfsvnode_filtops =
+	{ 1, NULL, filt_vfsdetach, filt_vfsvnode };
+
+int
+vfs_kqfilter(struct vop_kqfilter_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct knote *kn = ap->a_kn;
+
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		kn->kn_fop = &vfsread_filtops;
+		break;
+	case EVFILT_WRITE:
+		kn->kn_fop = &vfswrite_filtops;
+		break;
+	case EVFILT_VNODE:
+		kn->kn_fop = &vfsvnode_filtops;
+		break;
+	default:
+		return (1);
+	}
+
+	kn->kn_hook = (caddr_t)vp;
+
+	if (vp->v_pollinfo == NULL)
+		v_addpollinfo(vp);
+	if (vp->v_pollinfo == NULL)
+		return (ENOMEM);
+	knlist_add(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
+
+	return (0);
+}
+
+/*
+ * Detach knote from vnode
+ */
+static void
+filt_vfsdetach(struct knote *kn)
+{
+	struct vnode *vp = (struct vnode *)kn->kn_hook;
+
+	KASSERT(vp->v_pollinfo != NULL, ("Missing v_pollinfo"));
+	knlist_remove(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
+}
+
+/*ARGSUSED*/
+static int
+filt_vfsread(struct knote *kn, long hint)
+{
+	struct vnode *vp = (struct vnode *)kn->kn_hook;
+	struct vattr va;
+
+	/*
+	 * filesystem is gone, so set the EOF flag and schedule
+	 * the knote for deletion.
+	 */
+	if (hint == NOTE_REVOKE) {
+		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+		return (1);
+	}
+
+	vn_lock(vp, LK_SHARED | LK_RETRY, curthread);
+	if (VOP_GETATTR(vp, &va, curthread->td_ucred, curthread)) 
+		return (0);
+	if (VOP_UNLOCK(vp, 0, curthread))
+		return (0);
+
+	kn->kn_data = va.va_size - kn->kn_fp->f_offset;
+	return (kn->kn_data != 0);
+}
+
+/*ARGSUSED*/
+static int
+filt_vfswrite(struct knote *kn, long hint)
+{
+	/*
+	 * filesystem is gone, so set the EOF flag and schedule
+	 * the knote for deletion.
+	 */
+	if (hint == NOTE_REVOKE)
+		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+
+	kn->kn_data = 0;
+	return (1);
+}
+
+static int
+filt_vfsvnode(struct knote *kn, long hint)
+{
+	if (kn->kn_sfflags & hint)
+		kn->kn_fflags |= hint;
+	if (hint == NOTE_REVOKE) {
+		kn->kn_flags |= EV_EOF;
+		return (1);
+	}
+	return (kn->kn_fflags != 0);
 }

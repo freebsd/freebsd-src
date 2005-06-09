@@ -502,7 +502,6 @@ ext2_setattr(ap)
 			return (EROFS);
 		error = ext2_chmod(vp, (int)vap->va_mode, cred, td);
 	}
-	VN_KNOTE_UNLOCKED(vp, NOTE_ATTRIB);
 	return (error);
 }
 

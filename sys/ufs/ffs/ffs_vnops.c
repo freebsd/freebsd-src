@@ -572,7 +572,7 @@ ffs_write(ap)
 	ufs_lbn_t lbn;
 	off_t osize;
 	int seqcount;
-	int blkoffset, error, extended, flags, ioflag, resid, size, xfersize;
+	int blkoffset, error, flags, ioflag, resid, size, xfersize;
 
 	vp = ap->a_vp;
 	uio = ap->a_uio;
@@ -584,7 +584,6 @@ ffs_write(ap)
 		panic("ffs_write+IO_EXT");
 #endif
 
-	extended = 0;
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	ip = VTOI(vp);
 
@@ -681,7 +680,6 @@ ffs_write(ap)
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
 			DIP_SET(ip, i_size, ip->i_size);
-			extended = 1;
 		}
 
 		size = blksize(fs, ip, lbn) - bp->b_resid;
@@ -737,8 +735,6 @@ ffs_write(ap)
 		ip->i_mode &= ~(ISUID | ISGID);
 		DIP_SET(ip, i_mode, ip->i_mode);
 	}
-	if (resid > uio->uio_resid)
-		VN_KNOTE_UNLOCKED(vp, NOTE_WRITE | (extended ? NOTE_EXTEND : 0));
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)ffs_truncate(vp, osize,

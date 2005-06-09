@@ -222,9 +222,13 @@ struct xvnode {
 #define xv_dev		xv_un.xv_uns.xvu_dev
 #define xv_ino		xv_un.xv_uns.xvu_ino
 
-#define VN_KNOTE(vp, b, a)						\
+/* We don't need to lock the knlist */
+#define	VN_KNLIST_EMPTY(vp) ((vp)->v_pollinfo == NULL ||	\
+	    KNLIST_EMPTY(&(vp)->v_pollinfo->vpi_selinfo.si_note))
+
+#define VN_KNOTE(vp, b, a)					\
 	do {							\
-		if ((vp)->v_pollinfo != NULL)			\
+		if (!VN_KNLIST_EMPTY(vp))			\
 			KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b), (a)); \
 	} while (0)
 #define VN_KNOTE_LOCKED(vp, b)		VN_KNOTE(vp, b, 1)
@@ -489,16 +493,6 @@ voi0	assert_vop_slocked(struct vnode *vp, const char *str);
 #endif
 void	assert_vop_unlocked(struct vnode *vp, const char *str);
 
-/* These are called from within the actual VOPS. */
-void	vop_lock_pre(void *a);
-void	vop_lock_post(void *a, int rc);
-void	vop_lookup_post(void *a, int rc);
-void	vop_lookup_pre(void *a);
-void	vop_rename_pre(void *a);
-void	vop_strategy_pre(void *a);
-void	vop_unlock_post(void *a, int rc);
-void	vop_unlock_pre(void *a);
-
 #define	ASSERT_VI_LOCKED(vp, str)	assert_vi_locked((vp), (str))
 #define	ASSERT_VI_UNLOCKED(vp, str)	assert_vi_unlocked((vp), (str))
 #define	ASSERT_VOP_ELOCKED(vp, str)	assert_vop_elocked((vp), (str))
@@ -659,6 +653,7 @@ int	vop_stdgetwritemount(struct vop_getwritemount_args *);
 int	vop_stdgetpages(struct vop_getpages_args *);
 int	vop_stdinactive(struct vop_inactive_args *);
 int	vop_stdislocked(struct vop_islocked_args *);
+int	vop_stdkqfilter(struct vop_kqfilter_args *);
 int	vop_stdlock(struct vop_lock_args *);
 int	vop_stdputpages(struct vop_putpages_args *);
 int	vop_stdunlock(struct vop_unlock_args *);
@@ -671,6 +666,46 @@ int	vop_einval(struct vop_generic_args *ap);
 int	vop_enotty(struct vop_generic_args *ap);
 int	vop_null(struct vop_generic_args *ap);
 int	vop_panic(struct vop_generic_args *ap);
+
+/* These are called from within the actual VOPS. */
+void	vop_create_post(void *a, int rc);
+void	vop_link_post(void *a, int rc);
+void	vop_lock_pre(void *a);
+void	vop_lock_post(void *a, int rc);
+void	vop_lookup_post(void *a, int rc);
+void	vop_lookup_pre(void *a);
+void	vop_mkdir_post(void *a, int rc);
+void	vop_mknod_post(void *a, int rc);
+void	vop_remove_post(void *a, int rc);
+void	vop_rename_post(void *a, int rc);
+void	vop_rename_pre(void *a);
+void	vop_rmdir_post(void *a, int rc);
+void	vop_setattr_post(void *a, int rc);
+void	vop_strategy_pre(void *a);
+void	vop_symlink_post(void *a, int rc);
+void	vop_unlock_post(void *a, int rc);
+void	vop_unlock_pre(void *a);
+
+#define	VOP_WRITE_PRE(ap)						\
+	struct vattr va;						\
+	int error, osize, ooffset, noffset;				\
+									\
+	osize = ooffset = noffset = 0;					\
+	if (!VN_KNLIST_EMPTY((ap)->a_vp)) {				\
+		error = VOP_GETATTR((ap)->a_vp, &va, (ap)->a_cred,	\
+		    curthread);						\
+		if (error)						\
+			return (error);					\
+		ooffset = (ap)->a_uio->uio_offset;			\
+		osize = va.va_size;					\
+	}
+
+#define VOP_WRITE_POST(ap, ret)						\
+	noffset = (ap)->a_uio->uio_offset;				\
+	if (noffset > ooffset && !VN_KNLIST_EMPTY((ap)->a_vp)) {	\
+		VFS_SEND_KNOTE((ap)->a_vp, NOTE_WRITE			\
+		    | (noffset > osize ? NOTE_EXTEND : 0));		\
+	}
 
 void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
@@ -699,6 +734,8 @@ int vfs_hash_get(struct mount *mp, u_int hash, int flags, struct thread *td, str
 int vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg);
 void vfs_hash_rehash(struct vnode *vp, u_int hash);
 void vfs_hash_remove(struct vnode *vp);
+
+int vfs_kqfilter(struct vop_kqfilter_args *);
 
 #endif /* _KERNEL */
 

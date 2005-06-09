@@ -141,6 +141,8 @@ MALLOC_DECLARE(M_KQUEUE);
 #define KNOTE_LOCKED(list, hint)	knote(list, hint, 1)
 #define KNOTE_UNLOCKED(list, hint)	knote(list, hint, 0)
 
+#define	KNLIST_EMPTY(list)		SLIST_EMPTY(&(list)->kl_list)
+
 /*
  * Flag indicating hint is a signal.  Used by EVFILT_SIGNAL, and also
  * shared by EVFILT_PROC  (all knotes attached to p->p_klist)
