@@ -46,6 +46,7 @@ arm/arm/vm_machdep.c		standard
 arm/fpe-arm/armfpe_glue.S	optional	armfpe
 arm/fpe-arm/armfpe_init.c	optional	armfpe
 arm/fpe-arm/armfpe.S		optional	armfpe
+dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard

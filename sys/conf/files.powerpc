@@ -15,6 +15,7 @@ font.h                          optional        sc            \
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 
 dev/fb/fb.c			optional	sc
+dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/kbd/kbd.c			optional	sc
 dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/schistory.c		optional	sc

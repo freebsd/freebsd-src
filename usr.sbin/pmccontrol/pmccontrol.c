@@ -222,8 +222,8 @@ pmcc_do_list_state(void)
 	int c, cpu, n, npmc, ncpu;
 	unsigned int logical_cpus_mask;
 	struct pmc_info *pd;
-	struct pmc_op_getpmcinfo *pi;
-	const struct pmc_op_getcpuinfo *pc;
+	struct pmc_pmcinfo *pi;
+	const struct pmc_cpuinfo *pc;
 
 	if (pmc_cpuinfo(&pc) != 0)
 		err(EX_OSERR, "Unable to determine CPU information");
@@ -280,7 +280,7 @@ pmcc_do_list_events(void)
 	enum pmc_class c;
 	unsigned int i, j, nevents;
 	const char **eventnamelist;
-	const struct pmc_op_getcpuinfo *ci;
+	const struct pmc_cpuinfo *ci;
 
 	if (pmc_cpuinfo(&ci) != 0)
 		err(EX_OSERR, "Unable to determine CPU information");
@@ -307,7 +307,7 @@ static int
 pmcc_show_statistics(void)
 {
 
-	struct pmc_op_getdriverstats gms;
+	struct pmc_driverstats gms;
 
 	if (pmc_get_driver_stats(&gms) < 0)
 		err(EX_OSERR, "ERROR: cannot retrieve driver statistics");
@@ -316,12 +316,15 @@ pmcc_show_statistics(void)
 	 * Print statistics.
 	 */
 
-#define	PRINT(N,V)	(void) printf("%20s %d\n", (N), gms.pm_##V)
-
-	PRINT("interrupts-processed", intr_processed);
-	PRINT("interrupts-ignored", intr_ignored);
-	PRINT("system-calls", syscalls);
-	PRINT("system-calls-with-errors", syscall_errors);
+#define	PRINT(N,V)	(void) printf("%-40s %d\n", (N), gms.pm_##V)
+	PRINT("interrupts processed:", intr_processed);
+	PRINT("non-PMC interrupts:", intr_ignored);
+	PRINT("interrupts dropped due to lack of space:", intr_bufferfull);
+	PRINT("system calls:", syscalls);
+	PRINT("system calls with errors:", syscall_errors);
+	PRINT("buffer requests:", buffer_requests);
+	PRINT("buffer requests failed:", buffer_requests_failed);
+	PRINT("sampling log sweeps:", log_sweeps);
 
 	return 0;
 }

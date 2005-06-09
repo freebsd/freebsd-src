@@ -32,6 +32,39 @@
 #include <sys/pmc.h>
 
 /*
+ * Driver statistics.
+ */
+struct pmc_driverstats {
+	int	pm_intr_ignored;	/* #interrupts ignored */
+	int	pm_intr_processed;	/* #interrupts processed */
+	int	pm_intr_bufferfull;	/* #interrupts with ENOSPC */
+	int	pm_syscalls;		/* #syscalls */
+	int	pm_syscall_errors;	/* #syscalls with errors */
+	int	pm_buffer_requests;	/* #buffer requests */
+	int	pm_buffer_requests_failed; /* #failed buffer requests */
+	int	pm_log_sweeps;		/* #sample buffer processing passes */
+};
+
+/*
+ * CPU information.
+ */
+struct pmc_cpuinfo {
+	enum pmc_cputype pm_cputype;	/* the kind of CPU */
+	uint32_t	pm_ncpu;	/* number of CPUs */
+	uint32_t	pm_npmc;	/* #PMCs per CPU */
+	uint32_t	pm_nclass;	/* #classes of PMCs */
+	struct pmc_classinfo pm_classes[PMC_CLASS_MAX];
+};
+
+/*
+ * Current PMC state.
+ */
+struct pmc_pmcinfo {
+	int32_t		pm_cpu;		/* CPU number */
+	struct pmc_info	pm_pmcs[];	/* NPMC structs */
+};
+
+/*
  * Prototypes
  */
 
@@ -40,10 +73,12 @@ int	pmc_allocate(const char *_ctrspec, enum pmc_mode _mode, uint32_t _flags,
 int	pmc_attach(pmc_id_t _pmcid, pid_t _pid);
 int	pmc_capabilities(pmc_id_t _pmc, uint32_t *_caps);
 int	pmc_configure_logfile(int _fd);
+int	pmc_flush_logfile(void);
 int	pmc_detach(pmc_id_t _pmcid, pid_t _pid);
 int	pmc_disable(int _cpu, int _pmc);
 int	pmc_enable(int _cpu, int _pmc);
-int	pmc_get_driver_stats(struct pmc_op_getdriverstats *_gms);
+int	pmc_get_driver_stats(struct pmc_driverstats *_gms);
+int	pmc_get_msr(pmc_id_t _pmc, uint32_t *_msr);
 int	pmc_init(void);
 int	pmc_read(pmc_id_t _pmc, pmc_value_t *_value);
 int	pmc_release(pmc_id_t _pmc);
@@ -53,11 +88,12 @@ int	pmc_start(pmc_id_t _pmc);
 int	pmc_stop(pmc_id_t _pmc);
 int	pmc_width(pmc_id_t _pmc, uint32_t *_width);
 int	pmc_write(pmc_id_t _pmc, pmc_value_t _value);
+int	pmc_writelog(uint32_t _udata);
 
 int	pmc_ncpu(void);
 int	pmc_npmc(int _cpu);
-int	pmc_cpuinfo(const struct pmc_op_getcpuinfo **_cpu_info);
-int	pmc_pmcinfo(int _cpu, struct pmc_op_getpmcinfo **_pmc_info);
+int	pmc_cpuinfo(const struct pmc_cpuinfo **_cpu_info);
+int	pmc_pmcinfo(int _cpu, struct pmc_pmcinfo **_pmc_info);
 
 const char	*pmc_name_of_capability(uint32_t _c);
 const char	*pmc_name_of_class(enum pmc_class _pc);
@@ -69,13 +105,5 @@ const char	*pmc_name_of_state(enum pmc_state _ps);
 
 int	pmc_event_names_of_class(enum pmc_class _cl, const char ***_eventnames,
     int *_nevents);
-
-/*
- * Architecture specific extensions
- */
-
-#if __i386__ || __amd64__
-int	pmc_x86_get_msr(pmc_id_t _pmc, uint32_t *_msr);
-#endif
 
 #endif
