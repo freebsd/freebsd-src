@@ -3957,22 +3957,13 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	bzero(&udev, sizeof(udev));
 	udev.dv_handle = (uintptr_t)dev;
 	udev.dv_parent = (uintptr_t)dev->parent;
-	if (dev->nameunit == NULL)
-		udev.dv_name[0] = '\0';
-	else
+	if (dev->nameunit != NULL)
 		strlcpy(udev.dv_name, dev->nameunit, sizeof(udev.dv_name));
-
-	if (dev->desc == NULL)
-		udev.dv_desc[0] = '\0';
-	else
+	if (dev->desc != NULL)
 		strlcpy(udev.dv_desc, dev->desc, sizeof(udev.dv_desc));
-	if (dev->driver == NULL || dev->driver->name == NULL)
-		udev.dv_drivername[0] = '\0';
-	else
+	if (dev->driver != NULL && dev->driver->name != NULL)
 		strlcpy(udev.dv_drivername, dev->driver->name,
 		    sizeof(udev.dv_drivername));
-	udev.dv_pnpinfo[0] = '\0';
-	udev.dv_location[0] = '\0';
 	bus_child_pnpinfo_str(dev, udev.dv_pnpinfo, sizeof(udev.dv_pnpinfo));
 	bus_child_location_str(dev, udev.dv_location, sizeof(udev.dv_location));
 	udev.dv_devflags = dev->devflags;
