@@ -136,6 +136,8 @@ struct ieee80211_node {
 	u_int8_t		ni_fhindex;	/* FH only */
 	u_int8_t		ni_erp;		/* ERP from beacon/probe resp */
 	u_int16_t		ni_timoff;	/* byte offset to TIM ie */
+	u_int8_t		ni_dtim_period;	/* DTIM period */
+	u_int8_t		ni_dtim_count;	/* DTIM count for last bcn */
 
 	/* others */
 	int			ni_fails;	/* failure count to associate */
