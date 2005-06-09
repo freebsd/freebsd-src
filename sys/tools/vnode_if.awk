@@ -89,21 +89,17 @@ function add_debug_code(name, arg, pos, ind)
 	}
 }
 
-function add_debug_pre(name)
+function add_pre(name)
 {
 	if (lockdata[name, "pre"]) {
-		printc("#ifdef	DEBUG_VFS_LOCKS");
 		printc("\t"lockdata[name, "pre"]"(a);");
-		printc("#endif");
 	}
 }
 
-function add_debug_post(name)
+function add_post(name)
 {
 	if (lockdata[name, "post"]) {
-		printc("#ifdef	DEBUG_VFS_LOCKS");
 		printc("\t"lockdata[name, "post"]"(a, rc);");
-		printc("#endif");
 	}
 }
 
@@ -174,9 +170,10 @@ if (hfile) {
 if (cfile) {
 	printc(common_head \
 	    "#include <sys/param.h>\n" \
+	    "#include <sys/event.h>\n" \
+	    "#include <sys/mount.h>\n" \
 	    "#include <sys/systm.h>\n" \
 	    "#include <sys/vnode.h>\n" \
-	    "#include <sys/systm.h>\n" \
 	    "\n" \
 	    "struct vnodeop_desc vop_default_desc = {\n" \
 	    "	\"default\",\n" \
@@ -369,7 +366,7 @@ while ((getline < srcfile) > 0) {
 		printc("\tVNASSERT(vop != NULL, a->a_" args[0]", (\"No "name"(%p, %p)\", a->a_" args[0]", a));")
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "Entry", "\t");
-		add_debug_pre(name);
+		add_pre(name);
 		printc("\tif (vop->"name" != NULL)")
 		printc("\t\trc = vop->"name"(a);")
 		printc("\telse")
@@ -382,7 +379,7 @@ while ((getline < srcfile) > 0) {
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "Error", "\t\t");
 		printc("\t}");
-		add_debug_post(name);
+		add_post(name);
 		printc("\treturn (rc);");
 		printc("}\n");
 

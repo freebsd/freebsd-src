@@ -95,6 +95,7 @@ vop_cachedlookup {
 #
 #% create	dvp	E E E
 #% create	vpp	- L -
+#! create	post	vop_create_post
 #
 vop_create {
 	IN struct vnode *dvp;
@@ -115,6 +116,7 @@ vop_whiteout {
 #
 #% mknod	dvp	E E E
 #% mknod	vpp	- L -
+#! mknod	post	vop_mknod_post
 #
 vop_mknod {
 	IN struct vnode *dvp;
@@ -166,6 +168,7 @@ vop_getattr {
 
 #
 #% setattr	vp	E E E
+#! setattr	post	vop_setattr_post
 #
 vop_setattr {
 	IN struct vnode *vp;
@@ -186,6 +189,8 @@ vop_read {
 
 #
 #% write	vp	E E E
+#! write	pre	VOP_WRITE_PRE
+#! write	post	VOP_WRITE_POST
 #
 vop_write {
 	IN struct vnode *vp;
@@ -254,6 +259,7 @@ vop_fsync {
 #
 #% remove	dvp	E E E
 #% remove	vp	E E E
+#! remove	post	vop_remove_post
 #
 vop_remove {
 	IN struct vnode *dvp;
@@ -264,6 +270,7 @@ vop_remove {
 #
 #% link		tdvp	E E E
 #% link		vp	E E E
+#! link		post	vop_link_post
 #
 vop_link {
 	IN struct vnode *tdvp;
@@ -277,6 +284,7 @@ vop_link {
 # rename	tdvp	E U U
 # rename	tvp	X U U
 #! rename	pre	vop_rename_pre
+#! rename	post	vop_rename_post
 #
 vop_rename {
 	IN WILLRELE struct vnode *fdvp;
@@ -290,6 +298,7 @@ vop_rename {
 #
 #% mkdir	dvp	E E E
 #% mkdir	vpp	- E -
+#! mkdir	post	vop_mkdir_post
 #
 vop_mkdir {
 	IN struct vnode *dvp;
@@ -301,6 +310,7 @@ vop_mkdir {
 #
 #% rmdir	dvp	E E E
 #% rmdir	vp	E E E
+#! rmdir	post	vop_rmdir_post
 #
 vop_rmdir {
 	IN struct vnode *dvp;
@@ -311,6 +321,7 @@ vop_rmdir {
 #
 #% symlink	dvp	E E E
 #% symlink	vpp	- E -
+#! symlink	post	vop_symlink_post
 #
 vop_symlink {
 	IN struct vnode *dvp;
