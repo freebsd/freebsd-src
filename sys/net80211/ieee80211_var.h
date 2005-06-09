@@ -125,7 +125,8 @@ struct ieee80211com {
 	u_int16_t		ic_ps_pending;	/* ps sta's w/ pending frames */
 	u_int8_t		*ic_tim_bitmap;	/* power-save stations w/ data*/
 	u_int16_t		ic_tim_len;	/* ic_tim_bitmap size (bytes) */
-	u_int16_t		ic_dtim_period;	/* DTIM period */
+	u_int8_t		ic_dtim_period;	/* DTIM period */
+	u_int8_t		ic_dtim_count;	/* DTIM count for last bcn */
 	struct ifmedia		ic_media;	/* interface media config */
 	struct bpf_if		*ic_rawbpf;	/* packet filter structure */
 	struct ieee80211_node	*ic_bss;	/* information for this node */
