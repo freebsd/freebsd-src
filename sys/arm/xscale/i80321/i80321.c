@@ -259,10 +259,11 @@ i80321_iintsrc_read(void)
 }
 
 int
-arm_get_irqnb(void *clockframe)
+arm_get_next_irq()
 {
+	int irq;
 
-	return (i80321_iintsrc_read());
+	if ((irq = i80321_iintsrc_read()))
+		return (ffs(irq) - 1);
+	return (-1);
 }
-
-

@@ -263,18 +263,19 @@ iq80321_attach(device_t dev)
 }
 
 void
-arm_mask_irqs(int nb)
+arm_mask_irq(uintptr_t nb)
 {
-	intr_enabled &= ~nb;
+	intr_enabled &= ~(1 << nb);
 	i80321_set_intrmask();
 }
 
 void
-arm_unmask_irqs(int nb)
+arm_unmask_irq(uintptr_t nb)
 {
-	intr_enabled |= nb;
+	intr_enabled |= (1 << nb);
 	i80321_set_intrmask();
 }
+
 
 void
 cpu_reset()
@@ -311,12 +312,21 @@ iq80321_setup_intr(device_t dev, device_t child,
 	
 	return (0);
 }
+
+static int
+iq80321_teardown_intr(device_t dev, device_t child, struct resource *res,
+    void *cookie)
+{
+	return (BUS_TEARDOWN_INTR(device_get_parent(dev), child, res, cookie));
+}
+
 static device_method_t iq80321_methods[] = {
 	DEVMETHOD(device_probe, iq80321_probe),
 	DEVMETHOD(device_attach, iq80321_attach),
 	DEVMETHOD(device_identify, iq80321_identify),
 	DEVMETHOD(bus_alloc_resource, iq80321_alloc_resource),
 	DEVMETHOD(bus_setup_intr, iq80321_setup_intr),
+	DEVMETHOD(bus_teardown_intr, iq80321_teardown_intr),
 	{0, 0},
 };
 

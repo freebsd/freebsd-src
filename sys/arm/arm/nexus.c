@@ -83,6 +83,9 @@ static	int nexus_activate_resource(device_t, device_t, int, int,
 static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
         driver_intr_t *intr, void *arg, void **cookiep);
+static int
+nexus_teardown_intr(device_t, device_t, struct resource *, void *);
+
 static device_method_t nexus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_probe),
@@ -93,6 +96,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 	{ 0, 0 }
 };
 
@@ -129,6 +133,15 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	return (0);
 }
 
+static int
+nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
+{
+	int error;
+
+	arm_mask_irq(r->r_start);
+	error = arm_remove_irqhandler(ih);
+	return (error);
+}
 
 static int
 nexus_attach(device_t dev)

@@ -102,37 +102,35 @@ int current_intr_depth;
 extern struct sa11x0_softc *sa11x0_softc;
 
 
-/* Recalculate the interrupt masks from scratch.
- * We could code special registry and deregistry versions of this function that
- * would be faster, but the code would be nastier, and we don't expect this to
- * happen very much anyway.
- */
-int
-arm_get_irqnb(void *frame)
-{
-	struct sa11x0_softc *sc = sa11x0_softc;
-
-	return(bus_space_read_4(sc->sc_iot, sc->sc_ioh, SAIPIC_IP));
-}
-
 static uint32_t sa11x0_irq_mask = 0xfffffff;
 
 extern vm_offset_t saipic_base;
 
+int
+arm_get_next_irq()
+{
+	int irq;
+
+	if ((irq = (bus_space_read_4(sc->sc_iot, sc->sc_ioh, SAIPIC_IP) &
+	    sa11x0_irq_mask)) != 0)
+		return (ffs(irq) - 1);
+	return (-1);
+}
+
 void
-arm_mask_irqs(int irq)
+arm_mask_irq(uintptr_t irq)
 {
 
-	sa11x0_irq_mask &= ~irq;
+	sa11x0_irq_mask &= ~(1 << irq);
 	__asm __volatile("str	%0, [%1, #0x04]" /* SAIPIC_MR */
 	    : : "r" (sa11x0_irq_mask), "r" (saipic_base));
 }
 
 void
-arm_unmask_irqs(int irq)
+arm_unmask_irq(uintptr_t irq)
 {
 
-	sa11x0_irq_mask |= irq;
+	sa11x0_irq_mask |= (1 << irq);
 	__asm __volatile("str	%0, [%1, #0x04]" /* SAIPIC_MR */
 	    : : "r" (sa11x0_irq_mask), "r" (saipic_base));
 }
