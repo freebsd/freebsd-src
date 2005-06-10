@@ -2489,19 +2489,18 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		reason = le16toh(*(u_int16_t *)frm);
 		ic->ic_stats.is_rx_deauth++;
 		IEEE80211_NODE_STAT(ni, rx_deauth);
+
+		IEEE80211_DPRINTF(ic, IEEE80211_MSG_AUTH,
+		    "[%s] recv deauthenticate (reason %d)\n",
+		    ether_sprintf(ni->ni_macaddr), reason);
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_STA:
 			ieee80211_new_state(ic, IEEE80211_S_AUTH,
 			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 			break;
 		case IEEE80211_M_HOSTAP:
-			if (ni != ic->ic_bss) {
-				IEEE80211_DPRINTF(ic, IEEE80211_MSG_AUTH,
-				    "station %s deauthenticated by peer "
-				    "(reason %d)\n",
-				    ether_sprintf(ni->ni_macaddr), reason);
+			if (ni != ic->ic_bss)
 				ieee80211_node_leave(ic, ni);
-			}
 			break;
 		default:
 			ic->ic_stats.is_rx_mgtdiscard++;
@@ -2526,18 +2525,18 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		reason = le16toh(*(u_int16_t *)frm);
 		ic->ic_stats.is_rx_disassoc++;
 		IEEE80211_NODE_STAT(ni, rx_disassoc);
+
+		IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
+		    "[%s] recv disassociated (reason %d)\n",
+		    ether_sprintf(ni->ni_macaddr), reason);
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_STA:
 			ieee80211_new_state(ic, IEEE80211_S_ASSOC,
 			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 			break;
 		case IEEE80211_M_HOSTAP:
-			if (ni != ic->ic_bss) {
-				IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
-				    "[%s] sta disassociated by peer (reason %d)\n",
-				    ether_sprintf(ni->ni_macaddr), reason);
+			if (ni != ic->ic_bss)
 				ieee80211_node_leave(ic, ni);
-			}
 			break;
 		default:
 			ic->ic_stats.is_rx_mgtdiscard++;
