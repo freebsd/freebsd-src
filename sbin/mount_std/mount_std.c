@@ -59,7 +59,7 @@ static const char rcsid[] =
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
-	MOPT_NULL
+	MOPT_END
 };
 
 static char *fsname;

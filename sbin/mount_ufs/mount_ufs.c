@@ -61,7 +61,7 @@ struct mntopt mopts[] = {
 	MOPT_SYNC,
 	MOPT_UPDATE,
 	MOPT_SNAPSHOT,
-	MOPT_NULL
+	MOPT_END
 };
 
 void	usage(void);
