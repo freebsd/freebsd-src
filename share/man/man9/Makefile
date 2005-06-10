@@ -172,6 +172,7 @@ MAN=	accept_filter.9 \
 	pmap_mincore.9 \
 	pmap_object_init_pt.9 \
 	pmap_page_exists_quick.9 \
+	pmap_page_init.9 \
 	pmap_page_protect.9 \
 	pmap_pinit.9 \
 	pmap_qenter.9 \
