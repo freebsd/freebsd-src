@@ -41,11 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/kbio.h>
 #include <dev/kbd/kbdreg.h>
-#include <dev/kbd/atkbdreg.h>
-#include <dev/kbd/atkbdcreg.h>
-
-#include <isa/isareg.h>
-#include <isa/isavar.h>
+#include <dev/atkbdc/atkbdreg.h>
+#include <dev/atkbdc/atkbdcreg.h>
 
 typedef struct {
 	struct resource	*intr;
@@ -58,7 +55,7 @@ static void	atkbdidentify(driver_t *driver, device_t dev);
 static int	atkbdprobe(device_t dev);
 static int	atkbdattach(device_t dev);
 static int	atkbdresume(device_t dev);
-static void	atkbd_isa_intr(void *arg);
+static void	atkbdintr(void *arg);
 
 static device_method_t atkbd_methods[] = {
 	DEVMETHOD(device_identify,	atkbdidentify),
@@ -139,7 +136,7 @@ atkbdattach(device_t dev)
 					  RF_SHAREABLE | RF_ACTIVE);
 	if (sc->intr == NULL)
 		return ENXIO;
-	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, atkbd_isa_intr,
+	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, atkbdintr,
 			       kbd, &sc->ih);
 	if (error)
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
@@ -169,7 +166,7 @@ atkbdresume(device_t dev)
 }
 
 static void
-atkbd_isa_intr(void *arg)
+atkbdintr(void *arg)
 {
 	keyboard_t *kbd;
 

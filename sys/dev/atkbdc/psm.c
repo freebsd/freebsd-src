@@ -61,6 +61,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_isa.h"
 #include "opt_psm.h"
 
 #include <sys/param.h>
@@ -82,8 +83,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mouse.h>
 #include <machine/resource.h>
 
+#ifdef DEV_ISA
 #include <isa/isavar.h>
-#include <dev/kbd/atkbdcreg.h>
+#endif
+
+#include <dev/atkbdc/atkbdcreg.h>
+#include <dev/atkbdc/psm.h>
 
 /*
  * Driver specific options: the following options may be set by
@@ -117,7 +122,6 @@ do {				\
 
 /* end of driver specific options */
 
-#define PSM_DRIVER_NAME		"psm"
 #define PSMCPNP_DRIVER_NAME	"psmcpnp"
 
 /* input queue */
@@ -3469,6 +3473,31 @@ enable_versapad(struct psm_softc *sc)
     return TRUE;				/* PS/2 absolute mode */
 }
 
+/*
+ * Return true if 'now' is earlier than (start + (secs.usecs)).
+ * Now may be NULL and the function will fetch the current time from
+ * getmicrouptime(), or a cached 'now' can be passed in.
+ * All values should be numbers derived from getmicrouptime().
+ */
+static int
+timeelapsed(start, secs, usecs, now)
+	const struct timeval *start, *now;
+	int secs, usecs;
+{
+	struct timeval snow, tv;
+
+	/* if there is no 'now' passed in, the get it as a convience. */
+	if (now == NULL) {
+		getmicrouptime(&snow);
+		now = &snow;
+	}
+	
+	tv.tv_sec = secs;
+	tv.tv_usec = usecs;
+	timevaladd(&tv, start);
+	return (timevalcmp(&tv, now, <));
+}
+
 static int
 psmresume(device_t dev)
 {
@@ -3498,6 +3527,8 @@ psmresume(device_t dev)
 }
 
 DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass, 0, 0);
+
+#ifdef DEV_ISA
 
 /*
  * This sucks up assignments from PNPBIOS and ACPI.
@@ -3629,30 +3660,7 @@ psmcpnp_attach(device_t dev)
 	return 0;
 }
 
-/*
- * Return true if 'now' is earlier than (start + (secs.usecs)).
- * Now may be NULL and the function will fetch the current time from
- * getmicrouptime(), or a cached 'now' can be passed in.
- * All values should be numbers derived from getmicrouptime().
- */
-static int
-timeelapsed(start, secs, usecs, now)
-	const struct timeval *start, *now;
-	int secs, usecs;
-{
-	struct timeval snow, tv;
-
-	/* if there is no 'now' passed in, the get it as a convience. */
-	if (now == NULL) {
-		getmicrouptime(&snow);
-		now = &snow;
-	}
-	
-	tv.tv_sec = secs;
-	tv.tv_usec = usecs;
-	timevaladd(&tv, start);
-	return (timevalcmp(&tv, now, <));
-}
-
 DRIVER_MODULE(psmcpnp, isa, psmcpnp_driver, psmcpnp_devclass, 0, 0);
 DRIVER_MODULE(psmcpnp, acpi, psmcpnp_driver, psmcpnp_devclass, 0, 0);
+
+#endif /* DEV_ISA */
