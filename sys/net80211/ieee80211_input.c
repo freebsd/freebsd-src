@@ -2250,12 +2250,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			FREE(ni->ni_challenge, M_DEVBUF);
 			ni->ni_challenge = NULL;
 		}
-		/* XXX some stations use the privacy bit for handling APs
-		       that suport both encrypted and unencrypted traffic */
-		/* NB: PRIVACY flag bits are assumed to match */
-		if ((capinfo & IEEE80211_CAPINFO_ESS) == 0 ||
-		    (capinfo & IEEE80211_CAPINFO_PRIVACY) ^
-		    (ic->ic_flags & IEEE80211_F_PRIVACY)) {
+		/* NB: 802.11 spec says to ignore station's privacy bit */
+		if ((capinfo & IEEE80211_CAPINFO_ESS) == 0) {
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_ANY,
 			    "[%s] deny %s request, capability mismatch 0x%x\n",
 			    ether_sprintf(wh->i_addr2),
