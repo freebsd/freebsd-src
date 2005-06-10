@@ -16,7 +16,6 @@ SUBDIR=	atrun \
 	pt_chown \
 	rbootd \
 	revnetgroup \
-	${_rexecd} \
 	${_rlogind} \
 	rpc.rquotad \
 	rpc.rstatd \
@@ -47,7 +46,6 @@ _rtld-elf=	rtld-elf
 .endif
 
 .if !defined(NO_RCMDS)
-_rexecd=	rexecd
 _rlogind=	rlogind
 _rshd=		rshd
 .endif
