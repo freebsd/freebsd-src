@@ -51,7 +51,7 @@ _Qp_ ## op(u_int *c, u_int *a, u_int *b) \
 	c[0] = __fpu_ftoq(&fe, r, c); \
 }
 
-#define	_QP_TTOQ(qname, fname, ntype, atype, ...) \
+#define	_QP_TTOQ(qname, fname, ntype, signpos, atype, ...) \
 void _Qp_ ## qname ## toq(u_int *c, ntype n); \
 void \
 _Qp_ ## qname ## toq(u_int *c, ntype n) \
@@ -59,7 +59,7 @@ _Qp_ ## qname ## toq(u_int *c, ntype n) \
 	struct fpemu fe; \
 	union { atype a[2]; ntype n; } u = { .n = n }; \
 	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :); \
-	fe.fe_f1.fp_sign = u.a[0] >> 31; \
+	fe.fe_f1.fp_sign = (signpos >= 0) ? u.a[0] >> signpos : 0; \
 	fe.fe_f1.fp_sticky = 0; \
 	fe.fe_f1.fp_class = __fpu_ ## fname ## tof(&fe.fe_f1, __VA_ARGS__); \
 	c[0] = __fpu_ftoq(&fe, &fe.fe_f1, c); \
@@ -123,12 +123,12 @@ _QP_OP(div)
 _QP_OP(mul)
 _QP_OP(sub)
 
-_QP_TTOQ(d,	d,	double,	u_int,	u.a[0], u.a[1])
-_QP_TTOQ(i,	i,	int,	u_int,	u.a[0])
-_QP_TTOQ(s,	s,	float,	u_int,	u.a[0])
-_QP_TTOQ(x,	x,	long,	u_long,	u.a[0])
-_QP_TTOQ(ui,	i,	u_int,	u_int,	u.a[0])
-_QP_TTOQ(ux,	x,	u_long,	u_long,	u.a[0])
+_QP_TTOQ(d,	d,	double,	31, u_int,  u.a[0], u.a[1])
+_QP_TTOQ(i,	i,	int,	31, u_int,  u.a[0])
+_QP_TTOQ(s,	s,	float,	31, u_int,  u.a[0])
+_QP_TTOQ(x,	x,	long,	63, u_long, u.a[0])
+_QP_TTOQ(ui,	i,	u_int,	-1, u_int,  u.a[0])
+_QP_TTOQ(ux,	x,	u_long,	-1, u_long, u.a[0])
 
 _QP_QTOT(d,	d,	double,	&u.a)
 _QP_QTOT(i,	i,	int)
