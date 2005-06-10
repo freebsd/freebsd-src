@@ -149,7 +149,7 @@ sn_pccard_attach(device_t dev)
 	}
 	if (sum) {
 		sc->pccard_enaddr = 1;
-		bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+		bcopy(ether_addr, IFP2ENADDR(sc->ifp), ETHER_ADDR_LEN);
 	}
 	return (sn_attach(dev));
 }

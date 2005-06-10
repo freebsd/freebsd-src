@@ -199,7 +199,7 @@ typedef struct lnc_softc {
 	void *intrhand;
 	bus_dma_tag_t	dmat;
 	bus_dmamap_t	dmamap;
-	struct arpcom arpcom;               /* see ../../net/if_arp.h */
+	struct ifnet *ifp;
 	struct nic_info nic;                /* NIC specific info */
 	int nrdre;
 	struct host_ring_entry *recv_ring;  /* start of alloc'd mem */
@@ -255,6 +255,7 @@ struct host_ring_entry {
 extern int lance_probe(struct lnc_softc *);
 extern void lnc_release_resources(device_t);
 extern int lnc_attach_common(device_t);
+extern int lnc_detach_common(device_t);
 extern void lnc_stop(struct lnc_softc *);
 
 extern void write_csr(struct lnc_softc *, u_short, u_short);

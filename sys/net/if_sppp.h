@@ -136,8 +136,7 @@ struct spppreq {
 
 #ifdef _KERNEL
 struct sppp {
-	/* NB: pp_if _must_ be first */
-	struct  ifnet pp_if;    /* network interface data */
+	struct  ifnet *pp_ifp;    /* network interface data */
 	struct  ifqueue pp_fastq; /* fast output queue */
 	struct	ifqueue pp_cpq;	/* PPP control protocol queue */
 	struct  sppp *pp_next;  /* next interface in keepalive list */
@@ -204,6 +203,8 @@ struct sppp {
 	void	(*if_start) (struct ifnet *);
 	struct callout ifstart_callout; /* if_start () scheduler */
 };
+#define IFP2SP(ifp)	((struct sppp *)(ifp)->if_l2com)
+#define SP2IFP(sp)	((sp)->pp_ifp)
 
 /* bits for pp_flags */
 #define PP_KEEPALIVE    0x01    /* use keepalive protocol */

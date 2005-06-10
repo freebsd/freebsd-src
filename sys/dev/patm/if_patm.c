@@ -204,7 +204,7 @@ patm_initialize(struct patm_softc *sc)
 	patm_debug(sc, ATTACH, "go...");
 
 	sc->utopia.flags &= ~UTP_FL_POLL_CARRIER;
-	sc->ifatm.ifnet.if_flags |= IFF_RUNNING;
+	sc->ifp->if_flags |= IFF_RUNNING;
 
 	/* enable interrupts, Tx and Rx paths */
 	cfg |= IDT_CFG_RXPTH | IDT_CFG_RXIIMM | IDT_CFG_RAWIE | IDT_CFG_RQFIE |
@@ -216,7 +216,7 @@ patm_initialize(struct patm_softc *sc)
 		if (sc->vccs[i] != NULL)
 			patm_load_vc(sc, sc->vccs[i], 1);
 
-	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	ATMEV_SEND_IFSTATE_CHANGED(IFP2IFATM(sc->ifp),
 	    sc->utopia.carrier == UTP_CARR_OK);
 }
 
@@ -245,7 +245,7 @@ patm_stop(struct patm_softc *sc)
 	struct patm_txmap *map;
 	struct patm_scd *scd;
 
-	sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING;
+	sc->ifp->if_flags &= ~IFF_RUNNING;
 	sc->utopia.flags |= UTP_FL_POLL_CARRIER;
 
 	patm_reset(sc);
@@ -335,7 +335,7 @@ patm_stop(struct patm_softc *sc)
 	/* reset raw cell queue */
 	sc->rawh = NULL;
 
-	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	ATMEV_SEND_IFSTATE_CHANGED(IFP2IFATM(sc->ifp),
 	    sc->utopia.carrier == UTP_CARR_OK);
 }
 
@@ -397,7 +397,7 @@ patm_tst_init(struct patm_softc *sc)
 
 	sc->tst_free = sc->mmap->tst_size - 1;
 	sc->tst_reserve = sc->tst_free * PATM_TST_RESERVE / 100;
-	sc->bwrem = sc->ifatm.mib.pcr;
+	sc->bwrem = IFP2IFATM(sc->ifp)->mib.pcr;
 }
 
 /*

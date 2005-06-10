@@ -159,7 +159,7 @@ struct arp_req {
 
 /* almost every function needs these */
 #define STDDCL							\
-	struct ifnet *ifp = &sp->pp_if;				\
+	struct ifnet *ifp = SP2IFP(sp);				\
 	int debug = ifp->if_flags & IFF_DEBUG
 
 static void sppp_fr_arp (struct sppp *sp, struct arp_req *req, u_short addr);

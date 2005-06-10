@@ -81,7 +81,7 @@ ed_isa_probe_Novell(device_t dev)
 	 * believing that they really are Gateway AT.
 	 */
 	if ((ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) &&
-	    (sc->arpcom.ac_enaddr[2] == 0x86)) {
+	    (sc->enaddr[2] == 0x86)) {
 		sc->type_str = "Gateway AT";
 	}
 	

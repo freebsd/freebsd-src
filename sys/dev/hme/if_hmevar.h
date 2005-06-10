@@ -108,11 +108,12 @@ struct hme_ring {
 };
 
 struct hme_softc {
-	struct arpcom	sc_arpcom;
+	struct ifnet	*sc_ifp;
 	struct ifmedia	sc_ifmedia;
 	device_t	sc_dev;
 	device_t	sc_miibus;
 	struct mii_data	*sc_mii;	/* MII media control */
+	u_char		sc_enaddr[6];
 	struct callout	sc_tick_ch;	/* tick callout */
 
 	/* The following bus handles are to be provided by the bus front-end */

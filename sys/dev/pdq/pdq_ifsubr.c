@@ -36,10 +36,6 @@ __FBSDID("$FreeBSD$");
  *	(ie. it provides an ifnet interface to the rest of the system)
  */
 
-#ifdef __NetBSD__
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: pdq_ifsubr.c,v 1.38 2001/12/21 23:21:47 matt Exp $");
-#endif
 
 #define PDQ_OSSUPPORT
 
@@ -63,6 +59,7 @@ __KERNEL_RCSID(0, "$NetBSD: pdq_ifsubr.c,v 1.38 2001/12/21 23:21:47 matt Exp $")
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h> 
+#include <net/if_types.h> 
 #include <net/fddi.h>
 
 #include <net/bpf.h>
@@ -76,14 +73,14 @@ static void
 pdq_ifinit(
     pdq_softc_t *sc)
 {
-    if (sc->sc_if.if_flags & IFF_UP) {
-	sc->sc_if.if_flags |= IFF_RUNNING;
-	if (sc->sc_if.if_flags & IFF_PROMISC) {
+    if (PDQ_IFNET(sc)->if_flags & IFF_UP) {
+	PDQ_IFNET(sc)->if_flags |= IFF_RUNNING;
+	if (PDQ_IFNET(sc)->if_flags & IFF_PROMISC) {
 	    sc->sc_pdq->pdq_flags |= PDQ_PROMISC;
 	} else {
 	    sc->sc_pdq->pdq_flags &= ~PDQ_PROMISC;
 	}
-	if (sc->sc_if.if_flags & IFF_LINK1) {
+	if (PDQ_IFNET(sc)->if_flags & IFF_LINK1) {
 	    sc->sc_pdq->pdq_flags |= PDQ_PASS_SMT;
 	} else {
 	    sc->sc_pdq->pdq_flags &= ~PDQ_PASS_SMT;
@@ -91,7 +88,7 @@ pdq_ifinit(
 	sc->sc_pdq->pdq_flags |= PDQ_RUNNING;
 	pdq_run(sc->sc_pdq);
     } else {
-	sc->sc_if.if_flags &= ~IFF_RUNNING;
+	PDQ_IFNET(sc)->if_flags &= ~IFF_RUNNING;
 	sc->sc_pdq->pdq_flags &= ~PDQ_RUNNING;
 	pdq_stop(sc->sc_pdq);
     }
@@ -128,11 +125,11 @@ pdq_ifstart(
     if ((ifp->if_flags & IFF_RUNNING) == 0)
 	return;
 
-    if (sc->sc_if.if_timer == 0)
-	sc->sc_if.if_timer = PDQ_OS_TX_TIMEOUT;
+    if (PDQ_IFNET(sc)->if_timer == 0)
+	PDQ_IFNET(sc)->if_timer = PDQ_OS_TX_TIMEOUT;
 
     if ((sc->sc_pdq->pdq_flags & PDQ_TXOK) == 0) {
-	sc->sc_if.if_flags |= IFF_OACTIVE;
+	PDQ_IFNET(sc)->if_flags |= IFF_OACTIVE;
 	return;
     }
     sc->sc_flags |= PDQIF_DOWNCALL;
@@ -189,7 +186,7 @@ pdq_os_receive_pdu(
     int drop)
 {
     pdq_softc_t *sc = pdq->pdq_os_ctx;
-    struct ifnet *ifp = &sc->sc_if;
+    struct ifnet *ifp = PDQ_IFNET(sc);
     struct fddi_header *fh;
 
     ifp->if_ipackets++;
@@ -212,10 +209,6 @@ pdq_os_receive_pdu(
     }
 #endif
     m->m_pkthdr.len = pktlen;
-#if NBPFILTER > 0 && defined(__NetBSD__)
-    if (sc->sc_bpf != NULL)
-	PDQ_BPF_MTAP(sc, m);
-#endif
     fh = mtod(m, struct fddi_header *);
     if (drop || (fh->fddi_fc & (FDDIFC_L|FDDIFC_F)) != FDDIFC_LLC_ASYNC) {
 	ifp->if_iqdrops++;
@@ -233,13 +226,13 @@ pdq_os_restart_transmitter(
     pdq_t *pdq)
 {
     pdq_softc_t *sc = pdq->pdq_os_ctx;
-    sc->sc_if.if_flags &= ~IFF_OACTIVE;
-    if (IFQ_IS_EMPTY(&sc->sc_if.if_snd) == 0) {
-	sc->sc_if.if_timer = PDQ_OS_TX_TIMEOUT;
+    PDQ_IFNET(sc)->if_flags &= ~IFF_OACTIVE;
+    if (IFQ_IS_EMPTY(&PDQ_IFNET(sc)->if_snd) == 0) {
+	PDQ_IFNET(sc)->if_timer = PDQ_OS_TX_TIMEOUT;
 	if ((sc->sc_flags & PDQIF_DOWNCALL) == 0)
-	    pdq_ifstart(&sc->sc_if);
+	    pdq_ifstart(PDQ_IFNET(sc));
     } else {
-	sc->sc_if.if_timer = 0;
+	PDQ_IFNET(sc)->if_timer = 0;
     }
 }
 
@@ -250,11 +243,11 @@ pdq_os_transmit_done(
 {
     pdq_softc_t *sc = pdq->pdq_os_ctx;
 #if NBPFILTER > 0
-    if (sc->sc_bpf != NULL)
+    if (PQD_IFNET(sc)->if_bpf != NULL)
 	PDQ_BPF_MTAP(sc, m);
 #endif
     PDQ_OS_DATABUF_FREE(pdq, m);
-    sc->sc_if.if_opackets++;
+    PDQ_IFNET(sc)->if_opackets++;
 }
 
 void
@@ -267,7 +260,7 @@ pdq_os_addr_fill(
     struct ifnet *ifp;
     struct ifmultiaddr *ifma;
 
-    ifp = &sc->arpcom.ac_if;
+    ifp = sc->ifp;
 
     /*
      * ADDR_FILTER_SET is always issued before FILTER_SET so
@@ -277,10 +270,10 @@ pdq_os_addr_fill(
 
     pdq->pdq_flags &= ~PDQ_ALLMULTI;
 #if defined(IFF_ALLMULTI)
-    sc->sc_if.if_flags &= ~IFF_ALLMULTI;
+    PDQ_IFNET(sc)->if_flags &= ~IFF_ALLMULTI;
 #endif
 
-    for (ifma = TAILQ_FIRST(&sc->sc_if.if_multiaddrs); ifma && num_addrs > 0;
+    for (ifma = TAILQ_FIRST(&PDQ_IFNET(sc)->if_multiaddrs); ifma && num_addrs > 0;
 	 ifma = TAILQ_NEXT(ifma, ifma_link)) {
 	    char *mcaddr;
 	    if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -298,7 +291,7 @@ pdq_os_addr_fill(
     if (ifma != NULL) {
 	pdq->pdq_flags |= PDQ_ALLMULTI;
 #if defined(IFF_ALLMULTI)
-	sc->sc_if.if_flags |= IFF_ALLMULTI;
+	PDQ_IFNET(sc)->if_flags |= IFF_ALLMULTI;
 #endif
     }
 }
@@ -384,7 +377,7 @@ pdq_ifioctl(
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI: {
-	    if (sc->sc_if.if_flags & IFF_RUNNING) {
+	    if (PDQ_IFNET(sc)->if_flags & IFF_RUNNING) {
 		    pdq_run(sc->sc_pdq);
 		error = 0;
 	    }
@@ -417,7 +410,11 @@ pdq_ifioctl(
 void
 pdq_ifattach(pdq_softc_t *sc)
 {
-    struct ifnet *ifp = &sc->sc_if;
+    struct ifnet *ifp;
+
+    ifp = PDQ_IFNET(sc) = if_alloc(IFT_FDDI);
+    if (ifp == NULL)
+	panic("%s: can not if_alloc()", device_get_nameunit(sc->dev));
 
     mtx_init(&sc->mtx, device_get_nameunit(sc->dev), MTX_NETWORK_LOCK,
 	MTX_DEF | MTX_RECURSE);
@@ -427,16 +424,9 @@ pdq_ifattach(pdq_softc_t *sc)
     ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
     ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_NOTRAILERS|IFF_MULTICAST;
 
-#if (defined(__FreeBSD__) && BSD >= 199506) || defined(__NetBSD__)
     ifp->if_watchdog = pdq_ifwatchdog;
-#else
-    ifp->if_watchdog = ifwatchdog;
-#endif
 
     ifp->if_ioctl = pdq_ifioctl;
-#if !defined(__NetBSD__) && !defined(__FreeBSD__)
-    ifp->if_output = fddi_output;
-#endif
     ifp->if_start = pdq_ifstart;
 
 #if defined(IFM_FDDI)
@@ -449,12 +439,7 @@ pdq_ifattach(pdq_softc_t *sc)
     }
 #endif
   
-#if defined(__NetBSD__)
-    if_attach(ifp);
-    fddi_ifattach(ifp, (caddr_t)&sc->sc_pdq->pdq_hwaddr);
-#else
     fddi_ifattach(ifp, FDDI_BPF_SUPPORTED);
-#endif
 }
 
 void
@@ -462,9 +447,10 @@ pdq_ifdetach (pdq_softc_t *sc)
 {
     struct ifnet *ifp;
 
-    ifp = &sc->arpcom.ac_if;
+    ifp = sc->ifp;
 
     fddi_ifdetach(ifp, FDDI_BPF_SUPPORTED);
+    if_free(ifp);
     pdq_stop(sc->sc_pdq);
     pdq_free(sc->dev);
 

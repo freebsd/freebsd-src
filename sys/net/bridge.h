@@ -42,7 +42,6 @@ struct cluster_softc;	/* opaque here, defined in bridge.c */
 
 struct bdg_softc {
     struct ifnet *ifp ;
-    /* also ((struct arpcom *)ifp)->ac_enaddr is the eth. addr */
     int flags ;
 #define IFF_BDG_PROMISC 0x0001  /* set promisc mode on this if.	*/
 #define IFF_MUTE        0x0002  /* mute this if for bridging.   */

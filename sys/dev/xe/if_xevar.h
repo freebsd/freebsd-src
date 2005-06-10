@@ -33,12 +33,12 @@
  * One of these structures per allocated device
  */
 struct xe_softc {
-  struct arpcom arpcom;
   struct ifmedia ifmedia;
   struct ifmib_iso_8802_3 mibdata;
   struct callout_handle chand;
   struct ifnet *ifp;
   struct ifmedia *ifm;
+  u_char enaddr[6];
   const char *card_type;/* Card model name */
   const char *vendor;	/* Card manufacturer */
   device_t dev;		/* Device */

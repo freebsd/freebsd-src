@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 NET_NEEDS_GIANT("i4b_isppp");
 
 #define ISPPP_FMT	"isp%d: "
-#define	ISPPP_ARG(sc)	((sc)->sc_if.if_dunit)
+#define	ISPPP_ARG(sc)	(sc->sc_ifp->if_dunit)
 #define	PDEVSTATIC	static
 #define IFP2UNIT(ifp)	(ifp)->if_dunit
 		
@@ -90,18 +90,7 @@ PSEUDO_SET(i4bispppattach, i4b_isppp);
 #define PPP_HDRLEN   		4	/* 4 octetts PPP header length	*/
 
 struct i4bisppp_softc {
-	/*
-	 * struct sppp starts with a struct ifnet, but we gotta allocate
-	 * more space for it.  NB: do not relocate this union, it must
-	 * be first in isppp_softc.  The tls and tlf hooks below want to
-	 * convert a ``struct sppp *'' into a ``struct isppp_softc *''.
-	 */
-	union {
-		struct ifnet scu_if;
-		struct sppp scu_sp;
-	} sc_if_un;
-
-#define sc_if sc_if_un.scu_if
+	struct ifnet *sc_ifp;
 
 	int	sc_state;	/* state of the interface	*/
 	call_desc_t *sc_cdp;	/* ptr to call descriptor	*/
@@ -161,6 +150,7 @@ PDEVSTATIC void
 i4bispppattach(void *dummy)
 {
 	struct i4bisppp_softc *sc = i4bisppp_softc;
+	struct ifnet *ifp;
 	int i;
 
 #ifdef SPPP_VJ
@@ -171,40 +161,49 @@ i4bispppattach(void *dummy)
 
 	for(i = 0; i < NI4BISPPP; sc++, i++) {
 		i4bisppp_init_linktab(i);
+		ifp = sc->sc_ifp = if_alloc(IFT_PPP);
+		if (ifp == NULL) {
+			panic("isp%d: cannot if_alloc()", i);
+		}
 		
-		sc->sc_if.if_softc = sc;
-		if_initname(&sc->sc_if, "isp", i);
-		sc->sc_if.if_mtu = PP_MTU;
-		sc->sc_if.if_flags = IFF_SIMPLEX | IFF_POINTOPOINT;
-		sc->sc_if.if_type = IFT_ISDNBASIC;
+		ifp->if_softc = sc;
+		if_initname(sc->sc_ifp, "isp", i);
+		ifp->if_mtu = PP_MTU;
+		ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT;
+		/*
+		 * XXX: If there were a detach function this would
+		 * require that it use if_free_type().  Not sure if this
+		 * type makes sense.
+		 */
+		ifp->if_type = IFT_ISDNBASIC;
 		sc->sc_state = ST_IDLE;
 
-		sc->sc_if.if_ioctl = i4bisppp_ioctl;
+		ifp->if_ioctl = i4bisppp_ioctl;
 
 		/* actually initialized by sppp_attach() */
-		/* sc->sc_if.if_output = sppp_output; */
+		/* ifp->if_output = sppp_output; */
 
-		sc->sc_if.if_start = i4bisppp_start;
+		ifp->if_start = i4bisppp_start;
 
-		sc->sc_if.if_hdrlen = 0;
-		sc->sc_if.if_addrlen = 0;
-		sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
+		ifp->if_hdrlen = 0;
+		ifp->if_addrlen = 0;
+		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-		sc->sc_if.if_ipackets = 0;
-		sc->sc_if.if_ierrors = 0;
-		sc->sc_if.if_opackets = 0;
-		sc->sc_if.if_oerrors = 0;
-		sc->sc_if.if_collisions = 0;
-		sc->sc_if.if_ibytes = 0;
-		sc->sc_if.if_obytes = 0;
-		sc->sc_if.if_imcasts = 0;
-		sc->sc_if.if_omcasts = 0;
-		sc->sc_if.if_iqdrops = 0;
-		sc->sc_if.if_noproto = 0;
+		ifp->if_ipackets = 0;
+		ifp->if_ierrors = 0;
+		ifp->if_opackets = 0;
+		ifp->if_oerrors = 0;
+		ifp->if_collisions = 0;
+		ifp->if_ibytes = 0;
+		ifp->if_obytes = 0;
+		ifp->if_imcasts = 0;
+		ifp->if_omcasts = 0;
+		ifp->if_iqdrops = 0;
+		ifp->if_noproto = 0;
 
 #if I4BISPPPACCT
-		sc->sc_if.if_timer = 0;	
-		sc->sc_if.if_watchdog = i4bisppp_watchdog;	
+		ifp->if_timer = 0;	
+		ifp->if_watchdog = i4bisppp_watchdog;	
 		sc->sc_iinb = 0;
 		sc->sc_ioutb = 0;
 		sc->sc_inb = 0;
@@ -214,22 +213,18 @@ i4bispppattach(void *dummy)
 		sc->sc_fn = 1;
 #endif
 
-		sc->sc_if_un.scu_sp.pp_tls = i4bisppp_tls;
-		sc->sc_if_un.scu_sp.pp_tlf = i4bisppp_tlf;
-		sc->sc_if_un.scu_sp.pp_con = i4bisppp_negotiation_complete;
-		sc->sc_if_un.scu_sp.pp_chg = i4bisppp_state_changed;
+		IFP2SP(sc->sc_ifp)->pp_tls = i4bisppp_tls;
+		IFP2SP(sc->sc_ifp)->pp_tlf = i4bisppp_tlf;
+		IFP2SP(sc->sc_ifp)->pp_con = i4bisppp_negotiation_complete;
+		IFP2SP(sc->sc_ifp)->pp_chg = i4bisppp_state_changed;
 
-		sppp_attach(&sc->sc_if);
+		sppp_attach(sc->sc_ifp);
 
-#if 0 /* ??? -hm */
-		ether_ifattach(&sc->sc_if, 0);
-#else
-		if_attach(&sc->sc_if);
-#endif
+		if_attach(sc->sc_ifp);
 
 		CALLOUT_INIT(&sc->sc_ch);
 		
-		bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
+		bpfattach(sc->sc_ifp, DLT_PPP, PPP_HDRLEN);
 	}
 }
 
@@ -248,7 +243,7 @@ i4bisppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, caddr_t data)
 
 	int error;
 
-	error = sppp_ioctl(&sc->sc_if, cmd, data);
+	error = sppp_ioctl(sc->sc_ifp, cmd, data);
 	if (error)
 		return error;
 
@@ -289,7 +284,7 @@ i4bisppp_start(struct ifnet *ifp)
 	 * splx(s);
 	 */
 
-	while ((m = sppp_dequeue(&sc->sc_if)) != NULL)
+	while ((m = sppp_dequeue(sc->sc_ifp)) != NULL)
 	{
 
 		BPF_MTAP(ifp, m);
@@ -305,10 +300,10 @@ i4bisppp_start(struct ifnet *ifp)
 		else
 		{
 #if 0
-			sc->sc_if.if_obytes += m->m_pkthdr.len;
+			sc->sc_ifp->if_obytes += m->m_pkthdr.len;
 #endif
 			sc->sc_outb += m->m_pkthdr.len;
-			sc->sc_if.if_opackets++;
+			sc->sc_ifp->if_opackets++;
 
 			_IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
 		}
@@ -351,7 +346,7 @@ i4bisppp_watchdog(struct ifnet *ifp)
 		i4b_l4_accounting(BDRV_ISPPP, unit, ACCT_DURING,
 			 sc->sc_ioutb, sc->sc_iinb, ro, ri, sc->sc_outb, sc->sc_inb);
  	}
-	sc->sc_if.if_timer = I4BISPPPACCTINTVL; 	
+	sc->sc_ifp->if_timer = I4BISPPPACCTINTVL; 	
 
 #if 0 /* old stuff, keep it around */
 	printf(ISPPP_FMT "transmit timeout\n", ISPPP_ARG(sc));
@@ -385,7 +380,7 @@ static void
 i4bisppp_tls(struct sppp *sp)
 {
 	struct i4bisppp_softc *sc = (struct i4bisppp_softc *)sp;
-	struct ifnet *ifp = (struct ifnet *)sp;
+	struct ifnet *ifp = SP2IFP(sp);
 
 	if(sc->sc_state == ST_CONNECTED)
 		return;
@@ -402,7 +397,7 @@ i4bisppp_tlf(struct sppp *sp)
 {
 	struct i4bisppp_softc *sc = (struct i4bisppp_softc *)sp;
 /*	call_desc_t *cd = sc->sc_cdp;	*/
-        struct ifnet *ifp = (struct ifnet *)sp;	
+        struct ifnet *ifp = SP2IFP(sp);
 	
 	if(sc->sc_state != ST_CONNECTED)
 		return;
@@ -448,7 +443,7 @@ static void
 i4bisppp_connect(int unit, void *cdp)
 {
 	struct i4bisppp_softc *sc = &i4bisppp_softc[unit];
-	struct sppp *sp = &sc->sc_if_un.scu_sp;
+	struct sppp *sp = IFP2SP(sc->sc_ifp);
 	int s = splimp();
 
 	sc->sc_cdp = (call_desc_t *)cdp;
@@ -461,7 +456,7 @@ i4bisppp_connect(int unit, void *cdp)
 	sc->sc_outb = 0;
 	sc->sc_linb = 0;
 	sc->sc_loutb = 0;
-	sc->sc_if.if_timer = I4BISPPPACCTINTVL;
+	sc->sc_ifp->if_timer = I4BISPPPACCTINTVL;
 #endif
 	
 #if 0 /* never used ??? */
@@ -483,7 +478,7 @@ i4bisppp_disconnect(int unit, void *cdp)
 {
 	call_desc_t *cd = (call_desc_t *)cdp;
 	struct i4bisppp_softc *sc = &i4bisppp_softc[unit];
-	struct sppp *sp = &sc->sc_if_un.scu_sp;
+	struct sppp *sp = IFP2SP(sc->sc_ifp);
 
 	int s = splimp();
 
@@ -496,7 +491,7 @@ i4bisppp_disconnect(int unit, void *cdp)
 	}
 
 #if I4BISPPPACCT
-	sc->sc_if.if_timer = 0;
+	sc->sc_ifp->if_timer = 0;
 #endif
 
 	i4b_l4_accounting(BDRV_ISPPP, unit, ACCT_FINAL,
@@ -524,7 +519,7 @@ static void
 i4bisppp_dialresponse(int unit, int status, cause_t cause)
 {
 	struct i4bisppp_softc *sc = &i4bisppp_softc[unit];
-	struct sppp *sp = &sc->sc_if_un.scu_sp;
+	struct sppp *sp = IFP2SP(sc->sc_ifp);
 
 	NDBGL4(L4_ISPDBG, "isp%d: status=%d, cause=%d", unit, status, cause);
 
@@ -534,9 +529,9 @@ i4bisppp_dialresponse(int unit, int status, cause_t cause)
 		
 		NDBGL4(L4_ISPDBG, "isp%d: clearing queues", unit);
 
-		if(!(sppp_isempty(&sc->sc_if)))
+		if(!(sppp_isempty(sc->sc_ifp)))
 		{
-			while((m = sppp_dequeue(&sc->sc_if)) != NULL)
+			while((m = sppp_dequeue(sc->sc_ifp)) != NULL)
 				m_freem(m);
 		}
 
@@ -579,14 +574,14 @@ i4bisppp_rx_data_rdy(int unit)
 	if((m = *isdn_linktab[unit]->rx_mbuf) == NULL)
 		return;
 
-	m->m_pkthdr.rcvif = &sc->sc_if;
+	m->m_pkthdr.rcvif = sc->sc_ifp;
 	m->m_pkthdr.len = m->m_len;
 
-	microtime(&sc->sc_if.if_lastchange);
+	microtime(&sc->sc_ifp->if_lastchange);
 
-	sc->sc_if.if_ipackets++;
+	sc->sc_ifp->if_ipackets++;
 #if 0
-	sc->sc_if.if_ibytes += m->m_pkthdr.len;
+	sc->sc_ifp->if_ibytes += m->m_pkthdr.len;
 #endif
 
 #if I4BISPPPACCT
@@ -597,11 +592,11 @@ i4bisppp_rx_data_rdy(int unit)
 	printf("i4bisppp_rx_data_ready: received packet!\n");
 #endif
 
-	BPF_MTAP(&sc->sc_if, m);
+	BPF_MTAP(sc->sc_ifp, m);
 
 	s = splimp();
 
-	sppp_input(&sc->sc_if, m);
+	sppp_input(sc->sc_ifp, m);
 
 	splx(s);
 }
@@ -614,7 +609,7 @@ i4bisppp_rx_data_rdy(int unit)
 static void
 i4bisppp_tx_queue_empty(int unit)
 {
-	i4bisppp_start(&i4bisppp_softc[unit].sc_if);	
+	i4bisppp_start((&i4bisppp_softc[unit])->sc_ifp);	
 }
 
 /*---------------------------------------------------------------------------*

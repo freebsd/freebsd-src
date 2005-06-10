@@ -430,7 +430,7 @@ struct sis_mii_frame {
 #define SIS_TYPE_83816	4
 
 struct sis_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*sis_ifp;	/* interface info */
 	bus_space_handle_t	sis_bhandle;
 	bus_space_tag_t		sis_btag;
 	struct resource		*sis_res;

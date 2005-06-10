@@ -362,7 +362,7 @@ struct wb_mii_frame {
 #define WB_MII_TURNAROUND	0x02
 
 struct wb_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*wb_ifp;	/* interface info */
 	device_t		wb_miibus;
 	bus_space_handle_t	wb_bhandle;
 	bus_space_tag_t		wb_btag;

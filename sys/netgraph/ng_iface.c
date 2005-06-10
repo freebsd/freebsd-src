@@ -470,7 +470,7 @@ ng_iface_constructor(node_p node)
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH_IFACE, M_NOWAIT|M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
-	MALLOC(ifp, struct ifnet *, sizeof(*ifp), M_NETGRAPH_IFACE, M_NOWAIT|M_ZERO);
+	ifp = if_alloc(IFT_PROPVIRTUAL);
 	if (ifp == NULL) {
 		FREE(priv, M_NETGRAPH_IFACE);
 		return (ENOMEM);
@@ -724,7 +724,7 @@ ng_iface_shutdown(node_p node)
 
 	bpfdetach(priv->ifp);
 	if_detach(priv->ifp);
-	FREE(priv->ifp, M_NETGRAPH_IFACE);
+	if_free(priv->ifp);
 	priv->ifp = NULL;
 	free_unr(ng_iface_unit, priv->unit);
 	FREE(priv, M_NETGRAPH_IFACE);

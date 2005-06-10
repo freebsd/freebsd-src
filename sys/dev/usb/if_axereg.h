@@ -127,7 +127,7 @@ struct axe_softc {
 #elif defined(__OpenBSD__)
 #define GET_MII(sc) (&(sc)->axe_mii)
 #endif
-	struct arpcom		arpcom;
+	struct ifnet		*axe_ifp;
 	device_t		axe_miibus;
 	device_t		axe_dev;
 	usbd_device_handle	axe_udev;

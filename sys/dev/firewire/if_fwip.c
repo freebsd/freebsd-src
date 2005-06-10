@@ -55,6 +55,7 @@
 #include <net/if.h>
 #include <net/firewire.h>
 #include <net/if_arp.h>
+#include <net/if_types.h>
 #ifdef __DragonFly__
 #include <bus/firewire/firewire.h>
 #include <bus/firewire/firewirereg.h>
@@ -170,6 +171,9 @@ fwip_attach(device_t dev)
 
 	fwip = ((struct fwip_softc *)device_get_softc(dev));
 	unit = device_get_unit(dev);
+	ifp = fwip->fw_softc.fwip_ifp = if_alloc(IFT_IEEE1394);
+	if (ifp == NULL)
+		return (ENOSPC);
 
 	bzero(fwip, sizeof(struct fwip_softc));
 	/* XXX */
@@ -188,7 +192,7 @@ fwip_attach(device_t dev)
 	/*
 	 * Encode our hardware the way that arp likes it.
 	 */
-	hwaddr = &fwip->fw_softc.fwcom.fc_hwaddr;
+	hwaddr = &IFP2FWC(fwip->fw_softc.fwip_ifp)->fc_hwaddr;
 	hwaddr->sender_unique_ID_hi = htonl(fwip->fd.fc->eui.hi);
 	hwaddr->sender_unique_ID_lo = htonl(fwip->fd.fc->eui.lo);
 	hwaddr->sender_max_rec = fwip->fd.fc->maxrec;
@@ -197,7 +201,6 @@ fwip_attach(device_t dev)
 	hwaddr->sender_unicast_FIFO_lo = htonl((uint32_t)INET_FIFO);
 
 	/* fill the rest and attach interface */	
-	ifp = &fwip->fwip_if;
 	ifp->if_softc = &fwip->fw_softc;
 
 #if __FreeBSD_version >= 501113 || defined(__DragonFly__)
@@ -226,7 +229,7 @@ fwip_stop(struct fwip_softc *fwip)
 {
 	struct firewire_comm *fc;
 	struct fw_xferq *xferq;
-	struct ifnet *ifp = &fwip->fwip_if;
+	struct ifnet *ifp = fwip->fw_softc.fwip_ifp;
 	struct fw_xfer *xfer, *next;
 	int i;
 
@@ -279,7 +282,8 @@ fwip_detach(device_t dev)
 	s = splimp();
 
 	fwip_stop(fwip);
-	firewire_ifdetach(&fwip->fwip_if);
+	firewire_ifdetach(fwip->fw_softc.fwip_ifp);
+	if_free(fwip->fw_softc.fwip_ifp);
 
 	splx(s);
 	return 0;
@@ -290,7 +294,7 @@ fwip_init(void *arg)
 {
 	struct fwip_softc *fwip = ((struct fwip_eth_softc *)arg)->fwip;
 	struct firewire_comm *fc;
-	struct ifnet *ifp = &fwip->fwip_if;
+	struct ifnet *ifp = fwip->fw_softc.fwip_ifp;
 	struct fw_xferq *xferq;
 	struct fw_xfer *xfer;
 	struct mbuf *m;
@@ -473,7 +477,7 @@ fwip_post_busreset(void *arg)
 
 	fwip->last_dest.hi = 0;
 	fwip->last_dest.lo = 0;
-	firewire_busreset(&fwip->fwip_if);
+	firewire_busreset(fwip->fw_softc.fwip_ifp);
 }
 
 static void
@@ -486,7 +490,7 @@ fwip_output_callback(struct fw_xfer *xfer)
 	GIANT_REQUIRED;
 
 	fwip = (struct fwip_softc *)xfer->sc;
-	ifp = &fwip->fwip_if;
+	ifp = fwip->fw_softc.fwip_ifp;
 	/* XXX error check */
 	FWIPDEBUG(ifp, "resp = %d\n", xfer->resp);
 	if (xfer->resp != 0)
@@ -728,7 +732,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 	GIANT_REQUIRED;
 
 	fwip = (struct fwip_softc *)xferq->sc;
-	ifp = &fwip->fwip_if;
+	ifp = fwip->fw_softc.fwip_ifp;
 #if 0
 	FWIP_POLL_REGISTER(fwip_poll, fwip, ifp);
 #endif
@@ -858,7 +862,7 @@ fwip_unicast_input(struct fw_xfer *xfer)
 	GIANT_REQUIRED;
 
 	fwip = (struct fwip_softc *)xfer->sc;
-	ifp = &fwip->fwip_if;
+	ifp = fwip->fw_softc.fwip_ifp;
 	m = xfer->mbuf;
 	xfer->mbuf = 0;
 	fp = &xfer->recv.hdr;

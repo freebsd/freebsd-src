@@ -147,7 +147,11 @@ union sc_statep {
 extern int	pfsync_sync_ok;
 
 struct pfsync_softc {
+#ifdef __FreeBSD__
+	struct ifnet		*sc_ifp;
+#else
 	struct ifnet		 sc_if;
+#endif
 	struct ifnet		*sc_sync_ifp;
 
 	struct ip_moptions	 sc_imo;

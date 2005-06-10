@@ -93,7 +93,7 @@
 #define LONAME	"lo"
 
 struct lo_softc {
-	struct	ifnet sc_if;		/* network-visible interface */
+	struct	ifnet *sc_ifp;
 	LIST_ENTRY(lo_softc) sc_next;
 };
 
@@ -129,6 +129,7 @@ lo_clone_destroy(ifp)
 	mtx_unlock(&lo_mtx);
 	bpfdetach(ifp);
 	if_detach(ifp);
+	if_free(ifp);
 	free(sc, M_LO);
 }
 
@@ -137,25 +138,30 @@ lo_clone_create(ifc, unit)
 	struct if_clone *ifc;
 	int unit;
 {
+	struct ifnet *ifp;
 	struct lo_softc *sc;
 
 	MALLOC(sc, struct lo_softc *, sizeof(*sc), M_LO, M_WAITOK | M_ZERO);
+	ifp = sc->sc_ifp = if_alloc(IFT_LOOP);
+	if (ifp == NULL) {
+		free(sc, M_LO);
+		return (ENOSPC);
+	}
 
-	if_initname(&sc->sc_if, ifc->ifc_name, unit);
-	sc->sc_if.if_mtu = LOMTU;
-	sc->sc_if.if_flags = IFF_LOOPBACK | IFF_MULTICAST;
-	sc->sc_if.if_ioctl = loioctl;
-	sc->sc_if.if_output = looutput;
-	sc->sc_if.if_type = IFT_LOOP;
-	sc->sc_if.if_snd.ifq_maxlen = ifqmaxlen;
-	sc->sc_if.if_softc = sc;
-	if_attach(&sc->sc_if);
-	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
+	if_initname(ifp, ifc->ifc_name, unit);
+	ifp->if_mtu = LOMTU;
+	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
+	ifp->if_ioctl = loioctl;
+	ifp->if_output = looutput;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	ifp->if_softc = sc;
+	if_attach(ifp);
+	bpfattach(ifp, DLT_NULL, sizeof(u_int));
 	mtx_lock(&lo_mtx);
 	LIST_INSERT_HEAD(&lo_list, sc, sc_next);
 	mtx_unlock(&lo_mtx);
 	if (loif == NULL)
-		loif = &sc->sc_if;
+		loif = ifp;
 
 	return (0);
 }

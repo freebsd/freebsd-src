@@ -217,6 +217,7 @@ txp_attach(dev)
 	u_int16_t p1;
 	u_int32_t p2;
 	int unit, error = 0, rid;
+	u_char eaddr[6];
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -266,6 +267,7 @@ txp_attach(dev)
 
 	if (txp_chip_init(sc)) {
 		txp_release_resources(sc);
+		/* XXX: set error to ??? */
 		goto fail;
 	}
 
@@ -286,29 +288,32 @@ txp_attach(dev)
 
 	if (txp_alloc_rings(sc)) {
 		txp_release_resources(sc);
+		/* XXX: set error to ??? */
 		goto fail;
 	}
 
 	if (txp_command(sc, TXP_CMD_MAX_PKT_SIZE_WRITE, TXP_MAX_PKTLEN, 0, 0,
 	    NULL, NULL, NULL, 1)) {
 		txp_release_resources(sc);
+		/* XXX: set error to ??? */
 		goto fail;
 	}
 
 	if (txp_command(sc, TXP_CMD_STATION_ADDRESS_READ, 0, 0, 0,
 	    &p1, &p2, NULL, 1)) {
 		txp_release_resources(sc);
+		/* XXX: set error to ??? */
 		goto fail;
 	}
 
 	txp_set_filter(sc);
 
-	sc->sc_arpcom.ac_enaddr[0] = ((u_int8_t *)&p1)[1];
-	sc->sc_arpcom.ac_enaddr[1] = ((u_int8_t *)&p1)[0];
-	sc->sc_arpcom.ac_enaddr[2] = ((u_int8_t *)&p2)[3];
-	sc->sc_arpcom.ac_enaddr[3] = ((u_int8_t *)&p2)[2];
-	sc->sc_arpcom.ac_enaddr[4] = ((u_int8_t *)&p2)[1];
-	sc->sc_arpcom.ac_enaddr[5] = ((u_int8_t *)&p2)[0];
+	eaddr[0] = ((u_int8_t *)&p1)[1];
+	eaddr[1] = ((u_int8_t *)&p1)[0];
+	eaddr[2] = ((u_int8_t *)&p2)[3];
+	eaddr[3] = ((u_int8_t *)&p2)[2];
+	eaddr[4] = ((u_int8_t *)&p2)[1];
+	eaddr[5] = ((u_int8_t *)&p2)[0];
 
 	sc->sc_cold = 0;
 
@@ -326,7 +331,13 @@ txp_attach(dev)
 	    NULL, NULL, NULL, 0);
 	ifmedia_set(&sc->sc_ifmedia, IFM_ETHER|IFM_AUTO);
 
-	ifp = &sc->sc_arpcom.ac_if;
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		txp_release_resources(sc);
+		device_printf(dev, "couldn't set up irq\n");
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -344,7 +355,7 @@ txp_attach(dev)
 	/*
 	 * Attach us everywhere
 	 */
-	ether_ifattach(ifp, sc->sc_arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 	callout_handle_init(&sc->sc_tick);
 	return(0);
 
@@ -363,7 +374,7 @@ txp_detach(dev)
 	int i;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->sc_arpcom.ac_if;
+	ifp = sc->sc_ifp;
 
 	txp_stop(sc);
 	txp_shutdown(dev);
@@ -387,6 +398,9 @@ txp_release_resources(sc)
 	device_t dev;
 
 	dev = sc->sc_dev;
+
+	if (sc->sc_ifp)
+		if_free(sc->sc_ifp);
 
 	if (sc->sc_intrhand != NULL)
 		bus_teardown_intr(dev, sc->sc_irq, sc->sc_intrhand);
@@ -682,7 +696,7 @@ txp_intr(vsc)
 	/* unmask all interrupts */
 	WRITE_REG(sc, TXP_IMR, TXP_INT_A2H_3);
 
-	txp_start(&sc->sc_arpcom.ac_if);
+	txp_start(sc->sc_ifp);
 
 	return;
 }
@@ -692,7 +706,7 @@ txp_rx_reclaim(sc, r)
 	struct txp_softc *sc;
 	struct txp_rx_ring *r;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct txp_rx_desc *rxd;
 	struct mbuf *m;
 	struct txp_swdesc *sd = NULL;
@@ -791,7 +805,7 @@ static void
 txp_rxbuf_reclaim(sc)
 	struct txp_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct txp_hostvar *hv = sc->sc_hostvar;
 	struct txp_rxbuf_desc *rbd;
 	struct txp_swdesc *sd;
@@ -849,7 +863,7 @@ txp_tx_reclaim(sc, r)
 	struct txp_softc *sc;
 	struct txp_tx_ring *r;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	u_int32_t idx = TXP_OFFSET2IDX(*(r->r_off));
 	u_int32_t cons = r->r_cons, cnt = r->r_cnt;
 	struct txp_tx_desc *txd = r->r_desc + cons;
@@ -1099,7 +1113,7 @@ txp_rxring_fill(sc)
 	struct ifnet *ifp;
 	struct txp_swdesc *sd;
 
-	ifp = &sc->sc_arpcom.ac_if;
+	ifp = sc->sc_ifp;
 
 	for (i = 0; i < RXBUF_ENTRIES; i++) {
 		sd = sc->sc_rxbufs[i].rb_sd;
@@ -1162,7 +1176,7 @@ txp_init(xsc)
 	int s;
 
 	sc = xsc;
-	ifp = &sc->sc_arpcom.ac_if;
+	ifp = sc->sc_ifp;
 
 	if (ifp->if_flags & IFF_RUNNING)
 		return;
@@ -1175,12 +1189,12 @@ txp_init(xsc)
 	    NULL, NULL, NULL, 1);
 
 	/* Set station address. */
-	((u_int8_t *)&p1)[1] = sc->sc_arpcom.ac_enaddr[0];
-	((u_int8_t *)&p1)[0] = sc->sc_arpcom.ac_enaddr[1];
-	((u_int8_t *)&p2)[3] = sc->sc_arpcom.ac_enaddr[2];
-	((u_int8_t *)&p2)[2] = sc->sc_arpcom.ac_enaddr[3];
-	((u_int8_t *)&p2)[1] = sc->sc_arpcom.ac_enaddr[4];
-	((u_int8_t *)&p2)[0] = sc->sc_arpcom.ac_enaddr[5];
+	((u_int8_t *)&p1)[1] = IFP2ENADDR(sc->sc_ifp)[0];
+	((u_int8_t *)&p1)[0] = IFP2ENADDR(sc->sc_ifp)[1];
+	((u_int8_t *)&p2)[3] = IFP2ENADDR(sc->sc_ifp)[2];
+	((u_int8_t *)&p2)[2] = IFP2ENADDR(sc->sc_ifp)[3];
+	((u_int8_t *)&p2)[1] = IFP2ENADDR(sc->sc_ifp)[4];
+	((u_int8_t *)&p2)[0] = IFP2ENADDR(sc->sc_ifp)[5];
 	txp_command(sc, TXP_CMD_STATION_ADDRESS_WRITE, p1, p2, 0,
 	    NULL, NULL, NULL, 1);
 
@@ -1212,7 +1226,7 @@ txp_tick(vsc)
 	void *vsc;
 {
 	struct txp_softc *sc = vsc;
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct txp_rsp_desc *rsp = NULL;
 	struct txp_ext_desc *ext;
 	int s;
@@ -1564,7 +1578,7 @@ txp_stop(sc)
 {
 	struct ifnet *ifp;
 
-	ifp = &sc->sc_arpcom.ac_if;
+	ifp = sc->sc_ifp;
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
@@ -1737,7 +1751,7 @@ static void
 txp_set_filter(sc)
 	struct txp_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	u_int32_t crc, carry, hashbit, hash[2];
 	u_int16_t filter;
 	u_int8_t octet;
@@ -1803,7 +1817,7 @@ static void
 txp_capabilities(sc)
 	struct txp_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct txp_rsp_desc *rsp = NULL;
 	struct txp_ext_desc *ext;
 

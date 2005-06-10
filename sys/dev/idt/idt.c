@@ -1556,7 +1556,7 @@ idt_queue_put(CONNECTION * connection, struct mbuf * m)
 		return (1);
 	}
 	m->m_nextpkt = NULL;
-	m->m_pkthdr.rcvif = (struct ifnet *) connection;
+	m->m_pkthdr.rcvif = (void *) connection;
 
 	s = splimp();
 
@@ -1599,7 +1599,7 @@ idt_queue_flush(CONNECTION * connection)
 	m0 = &txqueue->mget;
 	m1 = *m0;
 	while (m1 != NULL) {
-		if (m1->m_pkthdr.rcvif == (struct ifnet *) connection) {
+		if (m1->m_pkthdr.rcvif == (void *) connection) {
 			*m0 = m1->m_nextpkt;
 			m_freem(m1);
 			m1 = *m0;

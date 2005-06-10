@@ -55,7 +55,7 @@ typedef enum {
 } wccp_ver_t;
 
 struct gre_softc {
-	struct ifnet sc_if;
+	struct ifnet *sc_ifp;
 	LIST_ENTRY(gre_softc) sc_list;
 	int gre_unit;
 	int gre_flags;
@@ -71,6 +71,7 @@ struct gre_softc {
 
 	wccp_ver_t wccp_ver;	/* version of the WCCP */
 };
+#define	GRE2IFP(sc)	((sc)->sc_ifp)
 
 
 struct gre_h {

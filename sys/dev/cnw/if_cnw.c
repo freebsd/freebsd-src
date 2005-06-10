@@ -288,7 +288,7 @@ int cnw_skey = CNW_SCRAMBLEKEY;			/* Scramble key */
 #endif
 
 struct cnw_softc {
-	struct arpcom	arpcom;
+	struct ifnet	*sc_ifp;
 	struct ifmedia	ifmedia;
 	device_t	dev;
 	struct cnwstats sc_stats;
@@ -510,7 +510,7 @@ cnw_init(sc)
 #if !defined(__FreeBSD__)
 	struct ifnet *ifp = &sc->sc_ethercom.ec_if;
 #else	/* FreeBSD */
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 #endif
 	const u_int8_t rxmode =
 	    CNW_RXCONF_RXENA | CNW_RXCONF_BCAST | CNW_RXCONF_AMP;
@@ -949,7 +949,7 @@ cnw_read(sc)
 #if !defined(__FreeBSD__)
 	m->m_pkthdr.rcvif = &sc->sc_ethercom.ec_if;
 #else	/* FreeBSD */
-	m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+	m->m_pkthdr.rcvif = sc->sc_ifp;
 #endif
 	m->m_pkthdr.len = totbytes;
 	mbytes = MHLEN;
@@ -1024,7 +1024,7 @@ cnw_recv(sc)
 #if !defined(__FreeBSD__)
 	struct ifnet *ifp = &sc->sc_ethercom.ec_if;
 #else
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 #endif
 	struct mbuf *m;
 
@@ -1076,7 +1076,7 @@ cnw_intr(arg)
 #if !defined(__FreeBSD__)
 	struct ifnet *ifp = &sc->sc_ethercom.ec_if;
 #else
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 #endif
 	int ret, status, rser, tser;
 
@@ -1498,7 +1498,7 @@ static void cnw_freebsd_init(xsc)
 	void	*xsc;
 {
 	struct cnw_softc	*sc = xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	int s;
 
 	if (sc->cnw_gone)
@@ -1534,7 +1534,7 @@ static void cnw_stop(sc)
 
 	cnw_reset(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sc_ifp;
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
 	return;
@@ -1571,7 +1571,7 @@ static int cnw_pccard_detach(dev)
 #endif
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sc_ifp;
 
 	if (sc->cnw_gone) {
 		device_printf(dev, "already unloaded\n");
@@ -1581,6 +1581,7 @@ static int cnw_pccard_detach(dev)
 	cnw_stop(sc);
 
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	cnw_free(dev);
 	sc->cnw_gone = 1;
 
@@ -1595,9 +1596,15 @@ static int cnw_pccard_attach(device_t dev)
 	struct cnw_softc		*sc;
 	struct ifnet		*ifp;
 	int			i, error;
+	u_char			eaddr[6];
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "if_alloc() failed\n");
+		return (ENOSPC);
+	}
+
 
 	error = cnw_alloc(dev);
 	if (error) {
@@ -1623,8 +1630,7 @@ static int cnw_pccard_attach(device_t dev)
 
 	/* Get MAC address */
 	for (i=0; i< ETHER_ADDR_LEN; i++) {
-		sc->arpcom.ac_enaddr[i] =
-			 bus_space_read_1(sc->sc_memt, sc->sc_memh,
+		eaddr[i] = bus_space_read_1(sc->sc_memt, sc->sc_memh,
 				sc->sc_memoff + CNW_EREG_PA + i);
 	}
 
@@ -1647,7 +1653,7 @@ static int cnw_pccard_attach(device_t dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 /*	callout_handle_init(&sc->cnw_stat_ch); */
 
 	return(0);

@@ -153,7 +153,7 @@ struct fxp_desc_list {
  *	 for functional grouping.
  */
 struct fxp_softc {
-	struct arpcom arpcom;		/* per-interface network data */
+	struct ifnet *ifp;		/* per-interface network data */
 	struct resource *mem;		/* resource descriptor for registers */
 	int rtp;			/* register resource type */
 	int rgd;			/* register descriptor in use */
@@ -222,5 +222,3 @@ struct fxp_softc {
 	bus_space_write_2((sc)->sc_st, (sc)->sc_sh, (reg), (val))
 #define	CSR_WRITE_4(sc, reg, val)					\
 	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
-
-#define	sc_if			arpcom.ac_if

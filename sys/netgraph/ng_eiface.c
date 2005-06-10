@@ -73,8 +73,7 @@ static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 
 /* Node private data */
 struct ng_eiface_private {
-	struct arpcom	arpcom;		/* per-interface network data */
-#define	sc_ifp		arpcom.ac_if
+	struct ifnet	*ifp;		/* per-interface network data */
 	int		unit;		/* Interface unit number */
 	node_p		node;		/* Our netgraph node */
 	hook_p		ether;		/* Hook for ethernet stream */
@@ -188,7 +187,7 @@ static void
 ng_eiface_init(void *xsc)
 {
 	priv_p sc = xsc;
-	struct ifnet *ifp = &sc->sc_ifp;
+	struct ifnet *ifp = sc->ifp;
 	int s;
 
 	s = splimp();
@@ -329,13 +328,18 @@ ng_eiface_constructor(node_p node)
 {
 	struct ifnet *ifp;
 	priv_p priv;
+	u_char eaddr[6] = {0,0,0,0,0,0};
 
 	/* Allocate node and interface private structures */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
-	ifp = &(priv->arpcom.ac_if);
+	ifp = priv->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		free(priv, M_NETGRAPH);
+		return (ENOSPC);
+	}
 
 	/* Link them together */
 	ifp->if_softc = priv;
@@ -365,7 +369,7 @@ ng_eiface_constructor(node_p node)
 #endif
 
 	/* Attach the interface */
-	ether_ifattach(ifp, priv->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 
 	/* Done */
 	return (0);
@@ -378,7 +382,7 @@ static int
 ng_eiface_newhook(node_p node, hook_p hook, const char *name)
 {
 	priv_p priv = NG_NODE_PRIVATE(node);
-	struct ifnet *ifp = &priv->sc_ifp;
+	struct ifnet *ifp = priv->ifp;
 
 	if (strcmp(name, NG_EIFACE_HOOK_ETHER))
 		return (EPFNOSUPPORT);
@@ -399,7 +403,7 @@ static int
 ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ifnet *const ifp = &priv->sc_ifp;
+	struct ifnet *const ifp = priv->ifp;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -420,13 +424,14 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			eaddr = (struct ether_addr *)(msg->data);
-			bcopy(eaddr, priv->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+			bcopy(eaddr, IFP2ENADDR(priv->ifp),
+			    ETHER_ADDR_LEN);
 
 			/* And put it in the ifaddr list */
 			TAILQ_FOREACH(ifa, &(ifp->if_addrhead), ifa_link) {
 				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 				if (sdl->sdl_type == IFT_ETHER) {
-					bcopy((IFP2AC(ifp))->ac_enaddr,
+					bcopy(IFP2ENADDR(ifp),
 						LLADDR(sdl), ifp->if_addrlen);
 					break;
 				}
@@ -512,7 +517,7 @@ static int
 ng_eiface_rcvdata(hook_p hook, item_p item)
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	struct ifnet *const ifp = &priv->sc_ifp;
+	struct ifnet *const ifp = priv->ifp;
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
@@ -549,9 +554,10 @@ static int
 ng_eiface_rmnode(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ifnet *const ifp = &priv->sc_ifp;
+	struct ifnet *const ifp = priv->ifp;
 
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	free_unr(ng_eiface_unit, priv->unit);
 	FREE(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);

@@ -1058,7 +1058,7 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	dev = block->nmb_physdeviceobj->do_devext;
 	drv = block->nmb_deviceobj->do_drvobj;
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	error = pe_get_message((vm_offset_t)drv->dro_driverstart,
 	    code, &str, &i, &flags);
@@ -1404,10 +1404,10 @@ NdisReadNetworkAddress(status, addr, addrlen, adapter)
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
-	if (bcmp(sc->arpcom.ac_enaddr, empty, ETHER_ADDR_LEN) == 0)
+	if (bcmp(IFP2ENADDR(sc->ifp), empty, ETHER_ADDR_LEN) == 0)
 		*status = NDIS_STATUS_FAILURE;
 	else {
-		*addr = sc->arpcom.ac_enaddr;
+		*addr = IFP2ENADDR(sc->ifp);
 		*addrlen = ETHER_ADDR_LEN;
 		*status = NDIS_STATUS_SUCCESS;
 	}

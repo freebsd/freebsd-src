@@ -142,7 +142,7 @@ ipatm_ipinput(inp, m)
 	/*
 	 * Save the input ifnet pointer in the packet header
 	 */
-	m->m_pkthdr.rcvif = (struct ifnet *)inp->inf_nif;
+	m->m_pkthdr.rcvif = ANIF2IFP(inp->inf_nif);
 
 	/*
 	 * Finally, hand packet off to IP.

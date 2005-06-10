@@ -254,26 +254,11 @@ lnc_isa_attach(device_t dev)
 	return (0);
 }
 
-static int
-lnc_isa_detach(device_t dev)
-{
-	lnc_softc_t *sc = device_get_softc(dev);
-	int s = splimp();
-
-	ether_ifdetach(&sc->arpcom.ac_if);
-	splx(s);
-
-	lnc_stop(sc);
-	lnc_release_resources(dev);
-
-	return (0);
-}
-
 static device_method_t lnc_isa_methods[] = {
 /*	DEVMETHOD(device_identify,	lnc_isa_identify), */
 	DEVMETHOD(device_probe,		lnc_isa_probe),
 	DEVMETHOD(device_attach,	lnc_isa_attach),
-	DEVMETHOD(device_detach,	lnc_isa_detach),
+	DEVMETHOD(device_detach,	lnc_detach_common),
 #ifdef notyet
 	DEVMETHOD(device_suspend,	lnc_isa_suspend),
 	DEVMETHOD(device_resume,	lnc_isa_resume),

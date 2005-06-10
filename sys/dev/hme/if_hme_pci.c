@@ -222,7 +222,7 @@ hme_pci_attach(device_t dev)
 	    &sc->sc_mifh);
 
 #if defined(__powerpc__) || defined(__sparc64__)
-	OF_getetheraddr(dev, sc->sc_arpcom.ac_enaddr);
+	OF_getetheraddr(dev, sc->sc_enaddr);
 #else
 	/*
 	 * Dig out VPD (vital product data) and read NA (network address).
@@ -329,7 +329,7 @@ hme_pci_attach(device_t dev)
 		error = ENXIO;
 		goto fail_rres;
 	}
-	bcopy(buf + 3 + sizeof(struct pci_vpd), sc->sc_arpcom.ac_enaddr,
+	bcopy(buf + 3 + sizeof(struct pci_vpd), sc->sc_enaddr,
 	    ETHER_ADDR_LEN);
 
 fail_rres:

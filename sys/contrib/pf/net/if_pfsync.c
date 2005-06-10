@@ -161,7 +161,7 @@ extern int hz;
 #ifdef __FreeBSD__
 static MALLOC_DEFINE(M_PFSYNC, PFSYNCNAME, "Packet Filter State Sync. Interface");
 static LIST_HEAD(pfsync_list, pfsync_softc) pfsync_list;
-#define	SCP2IFP(sc)		(&(sc)->sc_if)
+#define	SCP2IFP(sc)		((sc)->sc_ifp)
 IFC_SIMPLE_DECLARE(pfsync, 1);
 
 static void
@@ -178,6 +178,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
         bpfdetach(ifp);
 #endif
         if_detach(ifp);
+	if_free(ifp);
         LIST_REMOVE(sc, sc_next);
         free(sc, M_PFSYNC);
 }
@@ -190,6 +191,11 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 
 	MALLOC(sc, struct pfsync_softc *, sizeof(*sc), M_PFSYNC,
 	    M_WAITOK|M_ZERO);
+	ifp = sc->sc_ifp = if_alloc(IFT_PFSYNC);
+	if (ifp == NULL) {
+		free(sc, M_PFSYNC);
+		return (ENOSPC);
+	}
 
 	pfsync_sync_ok = 1;
 	sc->sc_mbuf = NULL;
@@ -206,7 +212,6 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_ioctl = pfsyncioctl;
 	ifp->if_output = pfsyncoutput;
 	ifp->if_start = pfsyncstart;
-	ifp->if_type = IFT_PFSYNC;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_hdrlen = PFSYNC_HDRLEN;
 	ifp->if_baudrate = IF_Mbps(100);

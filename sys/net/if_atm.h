@@ -176,11 +176,12 @@ struct atmio_vcctable {
  * this structure.
  */
 struct ifatm {
-	struct ifnet	ifnet;		/* required by if_var.h */
+	struct ifnet	*ifp;
 	struct ifatm_mib mib;		/* exported data */
 	void		*phy;		/* usually SUNI */
 	void		*ngpriv;	/* netgraph link */
 };
+#define	IFP2IFATM(ifp)	((struct ifatm *)(ifp)->if_l2com)
 #endif
 
 /*
@@ -304,7 +305,7 @@ void	atm_event(struct ifnet *, u_int, void *);
 		_arg.vpi = (VPI);					\
 		_arg.vci = (VCI);					\
 		_arg.busy = (BUSY);					\
-		atm_event(&(ATMIF)->ifnet, ATMEV_FLOW_CONTROL, &_arg);	\
+		atm_event((ATMIF)->ifp, ATMEV_FLOW_CONTROL, &_arg);	\
 	} while (0)
 
 #define	ATMEV_SEND_VCC_CHANGED(ATMIF, VPI, VCI, UP)			\
@@ -313,16 +314,16 @@ void	atm_event(struct ifnet *, u_int, void *);
 		_arg.vpi = (VPI);					\
 		_arg.vci = (VCI);					\
 		_arg.up = (UP);						\
-		atm_event(&(ATMIF)->ifnet, ATMEV_VCC_CHANGED, &_arg);	\
+		atm_event((ATMIF)->ifp, ATMEV_VCC_CHANGED, &_arg);	\
 	} while (0)
 
 #define	ATMEV_SEND_IFSTATE_CHANGED(ATMIF, CARRIER)			\
 	do {								\
 		struct atmev_ifstate_changed _arg;			\
-		_arg.running = (((ATMIF)->ifnet.if_flags &		\
+		_arg.running = (((ATMIF)->ifp->if_flags &		\
 		    IFF_RUNNING) != 0);					\
 		_arg.carrier = ((CARRIER) != 0);			\
-		atm_event(&(ATMIF)->ifnet, ATMEV_IFSTATE_CHANGED, &_arg); \
+		atm_event((ATMIF)->ifp, ATMEV_IFSTATE_CHANGED, &_arg); \
 	} while (0)
 
 #define	ATMEV_SEND_ACR_CHANGED(ATMIF, VPI, VCI, ACR)			\
@@ -331,6 +332,6 @@ void	atm_event(struct ifnet *, u_int, void *);
 		_arg.vpi = (VPI);					\
 		_arg.vci = (VCI);					\
 		_arg.acr= (ACR);					\
-		atm_event(&(ATMIF)->ifnet, ATMEV_ACR_CHANGED, &_arg);	\
+		atm_event((ATMIF)->ifp, ATMEV_ACR_CHANGED, &_arg);	\
 	} while (0)
 #endif

@@ -195,7 +195,7 @@ gem_pci_attach(dev)
 	sc->sc_h = rman_get_bushandle(gsc->gsc_sres);
 
 	/* All platform that this driver is used on must provide this. */
-	OF_getetheraddr(dev, sc->sc_arpcom.ac_enaddr);
+	OF_getetheraddr(dev, sc->sc_enaddr);
 
 	/*
 	 * call the main configure

@@ -193,7 +193,7 @@ hatm_queue_tpds(struct hatm_softc *sc, u_int count, struct tpd **list,
 			    sc->tpdrq.size;
 
 		if (space <= count) {
-			if_printf(&sc->ifatm.ifnet, "TPDRQ full\n");
+			if_printf(sc->ifp, "TPDRQ full\n");
 			sc->istats.tdprq_full++;
 			return (EBUSY);
 		}
@@ -262,7 +262,7 @@ hatm_load_txbuf(void *uarg, bus_dma_segment_t *segs, int nseg,
 	/* ensure, we have enough TPDs (remember, we already have one) */
 	tpds_needed = (nseg + 2) / 3;
 	if (HE_CONFIG_TPD_RESERVE + tpds_needed - 1 > arg->sc->tpd_nfree) {
-		if_printf(&arg->sc->ifatm.ifnet, "%s -- out of TPDs (need %d, "
+		if_printf(arg->sc->ifp, "%s -- out of TPDs (need %d, "
 		    "have %u)\n", __func__, tpds_needed - 1,
 		    arg->sc->tpd_nfree + 1);
 		arg->error = 1;
@@ -277,7 +277,7 @@ hatm_load_txbuf(void *uarg, bus_dma_segment_t *segs, int nseg,
 		if (arg->vcc->ntpds + tpds_needed > arg->sc->max_tpd) {
 			arg->sc->istats.flow_closed++;
 			arg->vcc->vflags |= HE_VCC_FLOW_CTRL;
-			ATMEV_SEND_FLOW_CONTROL(&arg->sc->ifatm,
+			ATMEV_SEND_FLOW_CONTROL(IFP2IFATM(arg->sc->ifp),
 			    arg->vpi, arg->vci, 1);
 			arg->error = 1;
 			return;
@@ -451,7 +451,7 @@ hatm_start(struct ifnet *ifp)
 		if ((tpd = hatm_alloc_tpd(sc, M_NOWAIT)) == NULL) {
 			hatm_free_txmbuf(sc);
 			m_freem(m);
-			sc->ifatm.ifnet.if_oerrors++;
+			sc->ifp->if_oerrors++;
 			continue;
 		}
 		tpd->cid = cid;
@@ -471,7 +471,7 @@ hatm_start(struct ifnet *ifp)
 				tpd->mbuf = NULL;
 				hatm_free_txmbuf(sc);
 				hatm_free_tpd(sc, tpd);
-				sc->ifatm.ifnet.if_oerrors++;
+				sc->ifp->if_oerrors++;
 				continue;
 			}
 			arg.mbuf = m;
@@ -480,20 +480,20 @@ hatm_start(struct ifnet *ifp)
 		}
 
 		if (error != 0) {
-			if_printf(&sc->ifatm.ifnet, "mbuf loaded error=%d\n",
+			if_printf(sc->ifp, "mbuf loaded error=%d\n",
 			    error);
 			hatm_free_tpd(sc, tpd);
-			sc->ifatm.ifnet.if_oerrors++;
+			sc->ifp->if_oerrors++;
 			continue;
 		}
 		if (arg.error) {
 			hatm_free_tpd(sc, tpd);
-			sc->ifatm.ifnet.if_oerrors++;
+			sc->ifp->if_oerrors++;
 			continue;
 		}
 		arg.vcc->opackets++;
 		arg.vcc->obytes += len;
-		sc->ifatm.ifnet.if_opackets++;
+		sc->ifp->if_opackets++;
 	}
 	mtx_unlock(&sc->mtx);
 }
@@ -528,7 +528,7 @@ hatm_tx_complete(struct hatm_softc *sc, struct tpd *tpd, uint32_t flags)
 	if ((vcc->vflags & HE_VCC_FLOW_CTRL) &&
 	    vcc->ntpds <= HE_CONFIG_TPD_FLOW_ENB) {
 		vcc->vflags &= ~HE_VCC_FLOW_CTRL;
-		ATMEV_SEND_FLOW_CONTROL(&sc->ifatm,
+		ATMEV_SEND_FLOW_CONTROL(IFP2IFATM(sc->ifp),
 		    HE_VPI(tpd->cid), HE_VCI(tpd->cid), 0);
 	}
 }
@@ -569,13 +569,13 @@ hatm_tx_vcc_can_open(struct hatm_softc *sc, u_int cid, struct hevcc *vcc)
 #if 0
 	v = READ_TSR(sc, cid, 4);
 	if(!(v & HE_REGM_TSR4_SESS_END)) {
-		if_printf(&sc->ifatm.ifnet, "cid=%#x not closed (TSR4)\n", cid);
+		if_printf(sc->ifp, "cid=%#x not closed (TSR4)\n", cid);
 		return (EBUSY);
 	}
 #endif
 	v = READ_TSR(sc, cid, 0);
 	if((v & HE_REGM_TSR0_CONN_STATE) != 0) {
-		if_printf(&sc->ifatm.ifnet, "cid=%#x not closed (TSR0=%#x)\n",
+		if_printf(sc->ifp, "cid=%#x not closed (TSR0=%#x)\n",
 		    cid, v);
 		return (EBUSY);
 	}

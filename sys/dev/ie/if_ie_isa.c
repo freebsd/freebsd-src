@@ -259,7 +259,7 @@ ie_isa_3C507_attach (device_t dev)
 		goto bad;
 	}
 
-	sl_read_ether(sc, sc->arpcom.ac_enaddr);
+	sl_read_ether(sc, sc->enaddr);
 
 	/* Clear the interrupt latch just in case. */
 	outb(PORT(sc) + IE507_ICTRL, 1);
@@ -526,14 +526,14 @@ ie_isa_ee16_attach (device_t dev)
 	 * the softc for use by the 586 setup code.
 	 */
 	eaddrtemp = ie_ee16_hw_read_eeprom(PORT(sc), IEE16_EEPROM_ENET_HIGH);
-	sc->arpcom.ac_enaddr[1] = eaddrtemp & 0xFF;
-	sc->arpcom.ac_enaddr[0] = eaddrtemp >> 8;
+	sc->enaddr[1] = eaddrtemp & 0xFF;
+	sc->enaddr[0] = eaddrtemp >> 8;
 	eaddrtemp = ie_ee16_hw_read_eeprom(PORT(sc), IEE16_EEPROM_ENET_MID);
-	sc->arpcom.ac_enaddr[3] = eaddrtemp & 0xFF;
-	sc->arpcom.ac_enaddr[2] = eaddrtemp >> 8;
+	sc->enaddr[3] = eaddrtemp & 0xFF;
+	sc->enaddr[2] = eaddrtemp >> 8;
 	eaddrtemp = ie_ee16_hw_read_eeprom(PORT(sc), IEE16_EEPROM_ENET_LOW);
-	sc->arpcom.ac_enaddr[5] = eaddrtemp & 0xFF;
-	sc->arpcom.ac_enaddr[4] = eaddrtemp >> 8;
+	sc->enaddr[5] = eaddrtemp & 0xFF;
+	sc->enaddr[4] = eaddrtemp >> 8;
 
 	/* disable the board interrupts */
 	outb(PORT(sc) + IEE16_IRQ, sc->irq_encoded);
@@ -757,7 +757,7 @@ ie_isa_sl_attach (device_t dev)
 		case IE_STARLAN10:
 		case IE_SLFIBER:
 		case IE_NI5210:
-			sl_read_ether(sc, sc->arpcom.ac_enaddr);
+			sl_read_ether(sc, sc->enaddr);
 			break;
 		default:
 			if (bootverbose)

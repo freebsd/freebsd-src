@@ -149,7 +149,7 @@ struct lmbuf {
 };
 
 #define	PATM_CID(SC, VPI, VCI)	\
-    (((VPI) << (SC)->ifatm.mib.vci_bits) | (VCI))
+    (((VPI) << IFP2IFATM((SC)->ifp)->mib.vci_bits) | (VCI))
 
 /*
  * Internal driver statistics
@@ -218,7 +218,7 @@ struct patm_vcc {
  * Per adapter data
  */
 struct patm_softc {
-	struct ifatm		ifatm;		/* common ATM stuff */
+	struct ifnet		*ifp;		/* common ATM stuff */
 	struct mtx		mtx;		/* lock */
 	struct ifmedia		media;		/* media */
 	device_t		dev;		/* device */
@@ -325,7 +325,7 @@ struct patm_softc {
 #define	TST_PENDING	0x0002		/* need update */
 #define	TST_WAIT	0x0004		/* wait fo jump */
 
-#define	patm_printf(SC, ...)	if_printf(&(SC)->ifatm.ifnet, __VA_ARGS__);
+#define	patm_printf(SC, ...)	if_printf((SC)->ifp, __VA_ARGS__);
 
 #ifdef PATM_DEBUG
 /*
@@ -348,7 +348,7 @@ enum {
 
 #define	patm_debug(SC, FLAG, ...) do {					\
 	if((SC)->debug & DBG_##FLAG) { 					\
-		if_printf(&(SC)->ifatm.ifnet, "%s: ", __func__);	\
+		if_printf((SC)->ifp, "%s: ", __func__);	\
 		printf(__VA_ARGS__);					\
 		printf("\n");						\
 	}								\
@@ -510,9 +510,9 @@ patm_sram_write4(struct patm_softc *sc, u_int addr, uint32_t v0, uint32_t v1,
 }
 
 #define	LEGAL_VPI(SC, VPI) \
-	(((VPI) & ~((1 << (SC)->ifatm.mib.vpi_bits) - 1)) == 0)
+	(((VPI) & ~((1 << IFP2IFATM((SC)->ifp)->mib.vpi_bits) - 1)) == 0)
 #define	LEGAL_VCI(SC, VCI) \
-	(((VCI) & ~((1 << (SC)->ifatm.mib.vci_bits) - 1)) == 0)
+	(((VCI) & ~((1 << IFP2IFATM((SC)->ifp)->mib.vci_bits) - 1)) == 0)
 
 extern const uint32_t patm_rtables155[];
 extern const uint32_t patm_rtables25[];

@@ -665,7 +665,7 @@ spansarp_input(clp, m)
 	 * If source IP address is from unspecified or broadcast addresses,
 	 * don't bother updating arp table, but answer possible requests
 	 */
-	if (in_broadcast(in_src, &inp->inf_nif->nif_if))
+	if (in_broadcast(in_src, ANIF2IFP(inp->inf_nif)))
 		goto chkop;
 
 	/*
@@ -1118,7 +1118,7 @@ spansarp_ioctl(code, data, arg1)
 				SATOSIN(&aar.aap_arp_addr)->sin_addr.s_addr =
 					sap->sa_dstip.s_addr;
 				strlcpy(aar.aap_intf,
-					clp->cls_ipnif->inf_nif->nif_if.if_xname,
+					ANIF2IFP(clp->cls_ipnif->inf_nif)->if_xname,
 					sizeof(aar.aap_intf));
 				aar.aap_flags = sap->sa_flags;
 				aar.aap_origin = sap->sa_origin;

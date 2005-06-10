@@ -214,7 +214,7 @@ static int
 ipw_attach(device_t dev)
 {
 	struct ipw_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->sc_arp.ac_if;
+	struct ifnet *ifp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t val;
 	int error, i;
@@ -263,7 +263,11 @@ ipw_attach(device_t dev)
 		device_printf(dev, "could not allocate DMA resources\n");
 		goto fail;
 	}
-
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -387,8 +391,11 @@ ipw_detach(device_t dev)
 
 	IPW_UNLOCK(sc);
 
-	bpfdetach(ifp);
+	if (ifp != NULL)
+		bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
+	if (ifp != NULL)
+		if_free(ifp);
 
 	ipw_release(sc);
 

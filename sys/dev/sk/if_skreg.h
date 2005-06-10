@@ -1461,7 +1461,7 @@ struct sk_softc {
 
 /* Softc for each logical interface */
 struct sk_if_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*sk_ifp;	/* interface info */
 	device_t		sk_miibus;
 	u_int8_t		sk_unit;	/* interface number */
 	u_int8_t		sk_port;	/* port # on controller */

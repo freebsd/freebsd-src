@@ -132,7 +132,7 @@ static void snstop(struct sn_softc *);
 static void snwatchdog(struct ifnet *);
 
 static void sn_setmcast(struct sn_softc *);
-static int sn_getmcf(struct arpcom *ac, u_char *mcf);
+static int sn_getmcf(struct ifnet *ifp, u_char *mcf);
 
 /* I (GB) have been unlucky getting the hardware padding
  * to work properly.
@@ -155,13 +155,20 @@ int
 sn_attach(device_t dev)
 {
 	struct sn_softc *sc = device_get_softc(dev);
-	struct ifnet    *ifp = &sc->arpcom.ac_if;
+	struct ifnet    *ifp;
 	uint16_t        i, w;
 	uint8_t         *p;
 	int             rev;
 	uint16_t        address;
 	int		j;
 	int		err;
+	u_char		eaddr[6];
+
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		return (ENOSPC);
+	}
 
 	sc->dev = dev;
 	sn_activate(dev);
@@ -182,8 +189,8 @@ sn_attach(device_t dev)
 
 	if (sc->pccard_enaddr)
 		for (j = 0; j < 3; j++) {
-			w = (uint16_t)sc->arpcom.ac_enaddr[j * 2] | 
-			    (((uint16_t)sc->arpcom.ac_enaddr[j * 2 + 1]) << 8);
+			w = (uint16_t)eaddr[j * 2] | 
+			    (((uint16_t)eaddr[j * 2 + 1]) << 8);
 			CSR_WRITE_2(sc, IAR_ADDR0_REG_W + j * 2, w);
 		}
 
@@ -192,7 +199,7 @@ sn_attach(device_t dev)
 	 * regs 4 - 9
 	 */
 	SMC_SELECT_BANK(sc, 1);
-	p = (uint8_t *) &sc->arpcom.ac_enaddr;
+	p = (uint8_t *) eaddr;
 	for (i = 0; i < 6; i += 2) {
 		address = CSR_READ_2(sc, IAR_ADDR0_REG_W + i);
 		p[i + 1] = address >> 8;
@@ -209,7 +216,7 @@ sn_attach(device_t dev)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_timer = 0;
 
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 
 	/*
 	 * Activate the interrupt so we can get card interrupts.  This
@@ -228,11 +235,13 @@ sn_attach(device_t dev)
 int
 sn_detach(device_t dev)
 {
-	struct sn_softc *sc = device_get_softc(dev);
+	struct sn_softc	*sc = device_get_softc(dev);
+	struct ifnet	*ifp = sc->ifp;
 
 	snstop(sc);
-	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
-	ether_ifdetach(&sc->arpcom.ac_if);
+	ifp->if_flags &= ~IFF_RUNNING; 
+	ether_ifdetach(ifp);
+	if_free(ifp);
 	sn_deactivate(dev);
 	SN_LOCK_DESTORY(sc);
 	return 0;
@@ -254,7 +263,7 @@ static void
 sninit_locked(void *xsc)
 {
 	struct sn_softc *sc = xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	int             flags;
 	int             mask;
 
@@ -372,7 +381,7 @@ snstart_locked(struct ifnet *ifp)
 
 	SN_ASSERT_LOCKED(sc);
 
-	if (sc->arpcom.ac_if.if_flags & IFF_OACTIVE)
+	if (sc->ifp->if_flags & IFF_OACTIVE)
 		return;
 	if (sc->pages_wanted != -1) {
 		if_printf(ifp, "snstart() while memory allocation pending\n");
@@ -383,7 +392,7 @@ startagain:
 	/*
 	 * Sneak a peek at the next packet
 	 */
-	m = sc->arpcom.ac_if.if_snd.ifq_head;
+	m = sc->ifp->if_snd.ifq_head;
 	if (m == 0)
 		return;
 	/*
@@ -401,8 +410,8 @@ startagain:
 	 */
 	if (len + pad > ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		if_printf(ifp, "large packet discarded (A)\n");
-		++sc->arpcom.ac_if.if_oerrors;
-		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
+		++sc->ifp->if_oerrors;
+		IF_DEQUEUE(&sc->ifp->if_snd, m);
 		m_freem(m);
 		goto readcheck;
 	}
@@ -459,8 +468,8 @@ startagain:
 		CSR_WRITE_1(sc, INTR_MASK_REG_B, mask);
 		sc->intr_mask = mask;
 
-		sc->arpcom.ac_if.if_timer = 1;
-		sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
+		sc->ifp->if_timer = 1;
+		sc->ifp->if_flags |= IFF_OACTIVE;
 		sc->pages_wanted = numPages;
 		return;
 	}
@@ -495,7 +504,7 @@ startagain:
 	 * Get the packet from the kernel.  This will include the Ethernet
 	 * frame header, MAC Addresses etc.
 	 */
-	IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
+	IF_DEQUEUE(&sc->ifp->if_snd, m);
 
 	/*
 	 * Push out the data to the card.
@@ -543,12 +552,12 @@ startagain:
 
 	CSR_WRITE_2(sc, MMU_CMD_REG_W, MMUCR_ENQUEUE);
 
-	sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
-	sc->arpcom.ac_if.if_timer = 1;
+	sc->ifp->if_flags |= IFF_OACTIVE;
+	sc->ifp->if_timer = 1;
 
 	BPF_MTAP(ifp, top);
 
-	sc->arpcom.ac_if.if_opackets++;
+	sc->ifp->if_opackets++;
 	m_freem(top);
 
 
@@ -597,7 +606,7 @@ snresume(struct ifnet *ifp)
 	/*
 	 * Sneak a peek at the next packet
 	 */
-	m = sc->arpcom.ac_if.if_snd.ifq_head;
+	m = sc->ifp->if_snd.ifq_head;
 	if (m == 0) {
 		if_printf(ifp, "snresume() with nothing to send\n");
 		return;
@@ -617,8 +626,8 @@ snresume(struct ifnet *ifp)
 	 */
 	if (len + pad > ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		if_printf(ifp, "large packet discarded (B)\n");
-		++sc->arpcom.ac_if.if_oerrors;
-		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
+		++sc->ifp->if_oerrors;
+		IF_DEQUEUE(&sc->ifp->if_snd, m);
 		m_freem(m);
 		return;
 	}
@@ -653,7 +662,7 @@ snresume(struct ifnet *ifp)
 	packet_no = CSR_READ_1(sc, ALLOC_RESULT_REG_B);
 	if (packet_no & ARR_FAILED) {
 		if_printf(ifp, "Memory allocation failed.  Weird.\n");
-		sc->arpcom.ac_if.if_timer = 1;
+		sc->ifp->if_timer = 1;
 		goto try_start;
 	}
 	/*
@@ -694,7 +703,7 @@ snresume(struct ifnet *ifp)
 	 * Get the packet from the kernel.  This will include the Ethernet
 	 * frame header, MAC Addresses etc.
 	 */
-	IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
+	IF_DEQUEUE(&sc->ifp->if_snd, m);
 
 	/*
 	 * Push out the data to the card.
@@ -742,7 +751,7 @@ snresume(struct ifnet *ifp)
 
 	BPF_MTAP(ifp, top);
 
-	sc->arpcom.ac_if.if_opackets++;
+	sc->ifp->if_opackets++;
 	m_freem(top);
 
 try_start:
@@ -750,15 +759,15 @@ try_start:
 	/*
 	 * Now pass control to snstart() to queue any additional packets
 	 */
-	sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_flags &= ~IFF_OACTIVE;
 	snstart(ifp);
 
 	/*
 	 * We've sent something, so we're active.  Set a watchdog in case the
 	 * TX_EMPTY interrupt is lost.
 	 */
-	sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
-	sc->arpcom.ac_if.if_timer = 1;
+	sc->ifp->if_flags |= IFF_OACTIVE;
+	sc->ifp->if_timer = 1;
 
 	return;
 }
@@ -769,7 +778,7 @@ sn_intr(void *arg)
 {
 	int             status, interrupts;
 	struct sn_softc *sc = (struct sn_softc *) arg;
-	struct ifnet   *ifp = &sc->arpcom.ac_if;
+	struct ifnet   *ifp = sc->ifp;
 
 	/*
 	 * Chip state registers
@@ -816,7 +825,7 @@ sn_intr(void *arg)
 		SMC_SELECT_BANK(sc, 2);
 		CSR_WRITE_1(sc, INTR_ACK_REG_B, IM_RX_OVRN_INT);
 
-		++sc->arpcom.ac_if.if_ierrors;
+		++sc->ifp->if_ierrors;
 	}
 	/*
 	 * Got a packet.
@@ -844,8 +853,8 @@ sn_intr(void *arg)
 		 * Disable this interrupt.
 		 */
 		mask &= ~IM_ALLOC_INT;
-		sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-		snresume(&sc->arpcom.ac_if);
+		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		snresume(sc->ifp);
 	}
 	/*
 	 * TX Completion.  Handle a transmit error message. This will only be
@@ -882,11 +891,11 @@ sn_intr(void *arg)
 			device_printf(sc->dev, 
 			    "Successful packet caused interrupt\n");
 		} else {
-			++sc->arpcom.ac_if.if_oerrors;
+			++sc->ifp->if_oerrors;
 		}
 
 		if (tx_status & EPHSR_LATCOL)
-			++sc->arpcom.ac_if.if_collisions;
+			++sc->ifp->if_collisions;
 
 		/*
 		 * Some of these errors will have disabled transmit.
@@ -911,8 +920,8 @@ sn_intr(void *arg)
 		/*
 		 * Attempt to queue more transmits.
 		 */
-		sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-		snstart_locked(&sc->arpcom.ac_if);
+		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		snstart_locked(sc->ifp);
 	}
 	/*
 	 * Transmit underrun.  We use this opportunity to update transmit
@@ -937,20 +946,20 @@ sn_intr(void *arg)
 		/*
 		 * Single collisions
 		 */
-		sc->arpcom.ac_if.if_collisions += card_stats & ECR_COLN_MASK;
+		sc->ifp->if_collisions += card_stats & ECR_COLN_MASK;
 
 		/*
 		 * Multiple collisions
 		 */
-		sc->arpcom.ac_if.if_collisions += (card_stats & ECR_MCOLN_MASK) >> 4;
+		sc->ifp->if_collisions += (card_stats & ECR_MCOLN_MASK) >> 4;
 
 		SMC_SELECT_BANK(sc, 2);
 
 		/*
 		 * Attempt to enqueue some more stuff.
 		 */
-		sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-		snstart_locked(&sc->arpcom.ac_if);
+		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		snstart_locked(sc->ifp);
 	}
 	/*
 	 * Some other error.  Try to fix it by resetting the adapter.
@@ -1028,7 +1037,7 @@ read_another:
 	 * Account for receive errors and discard.
 	 */
 	if (status & RS_ERRORS) {
-		++sc->arpcom.ac_if.if_ierrors;
+		++sc->ifp->if_ierrors;
 		goto out;
 	}
 	/*
@@ -1048,7 +1057,7 @@ read_another:
 	if (m == NULL)
 		goto out;
 
-	m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+	m->m_pkthdr.rcvif = sc->ifp;
 	m->m_pkthdr.len = m->m_len = packet_length;
 
 	/*
@@ -1061,7 +1070,7 @@ read_another:
 	 */
 	if ((m->m_flags & M_EXT) == 0) {
 		m_freem(m);
-		++sc->arpcom.ac_if.if_ierrors;
+		++sc->ifp->if_ierrors;
 		printf("sn: snread() kernel memory allocation problem\n");
 		goto out;
 	}
@@ -1076,7 +1085,7 @@ read_another:
 		data += packet_length & ~1;
 		*data = CSR_READ_1(sc, DATA_REG_B);
 	}
-	++sc->arpcom.ac_if.if_ipackets;
+	++sc->ifp->if_ipackets;
 
 	/*
 	 * Remove link layer addresses and whatnot.
@@ -1184,7 +1193,7 @@ static void
 snstop(struct sn_softc *sc)
 {
 	
-	struct ifnet   *ifp = &sc->arpcom.ac_if;
+	struct ifnet   *ifp = sc->ifp;
 
 	/*
 	 * Clear interrupt mask; disable all interrupts.
@@ -1366,7 +1375,7 @@ sn_probe(device_t dev, int pccard)
 static void
 sn_setmcast(struct sn_softc *sc)
 {
-	struct ifnet *ifp = (struct ifnet *)sc;
+	struct ifnet *ifp = sc->ifp;
 	int flags;
 	uint8_t mcf[MCFSZ];
 
@@ -1384,7 +1393,7 @@ sn_setmcast(struct sn_softc *sc)
 	} else if (ifp->if_flags & IFF_ALLMULTI) {
 		flags |= RCR_ALMUL;
 	} else {
-		if (sn_getmcf(&sc->arpcom, mcf)) {
+		if (sn_getmcf(ifp, mcf)) {
 			/* set filter */
 			SMC_SELECT_BANK(sc, 3);
 			CSR_WRITE_2(sc, MULTICAST1_REG_W,
@@ -1404,7 +1413,7 @@ sn_setmcast(struct sn_softc *sc)
 }
 
 static int
-sn_getmcf(struct arpcom *ac, uint8_t *mcf)
+sn_getmcf(struct ifnet *ifp, uint8_t *mcf)
 {
 	int i;
 	uint32_t index, index2;
@@ -1413,7 +1422,7 @@ sn_getmcf(struct arpcom *ac, uint8_t *mcf)
 
 	bzero(mcf, MCFSZ);
 
-	TAILQ_FOREACH(ifma, &ac->ac_if.if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 	    if (ifma->ifma_addr->sa_family != AF_LINK)
 		return 0;
 	    index = ether_crc32_le(LLADDR((struct sockaddr_dl *)

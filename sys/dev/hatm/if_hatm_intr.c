@@ -203,7 +203,7 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 
 	err = bus_dmamap_create(sc->mbuf_tag, 0, &pg->hdr.map);
 	if (err != 0) {
-		if_printf(&sc->ifatm.ifnet, "%s -- bus_dmamap_create: %d\n",
+		if_printf(sc->ifp, "%s -- bus_dmamap_create: %d\n",
 		    __func__, err);
 		free(pg, M_DEVBUF);
 		return;
@@ -211,7 +211,7 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 	err = bus_dmamap_load(sc->mbuf_tag, pg->hdr.map, pg, MBUF_ALLOC_SIZE,
 	    hatm_extbuf_helper, &pg->hdr.phys, BUS_DMA_NOWAIT);
 	if (err != 0) {
-		if_printf(&sc->ifatm.ifnet, "%s -- mbuf mapping failed %d\n",
+		if_printf(sc->ifp, "%s -- mbuf mapping failed %d\n",
 		    __func__, err);
 		bus_dmamap_destroy(sc->mbuf_tag, pg->hdr.map);
 		free(pg, M_DEVBUF);
@@ -329,7 +329,7 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 			/* allocate the MBUF */
 			if ((m = m_getcl(M_DONTWAIT, MT_DATA,
 			    M_PKTHDR)) == NULL) {
-				if_printf(&sc->ifatm.ifnet,
+				if_printf(sc->ifp,
 				    "no mbuf clusters\n");
 				break;
 			}
@@ -534,7 +534,7 @@ hatm_intr(void *p)
 
 	/* if we have a stray interrupt with a non-initialized card,
 	 * we cannot even lock before looking at the flag */
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING))
+	if (!(sc->ifp->if_flags & IFF_RUNNING))
 		return;
 
 	mtx_lock(&sc->mtx);
@@ -590,7 +590,7 @@ hatm_intr(void *p)
 				break;
 
 			  default:
-				if_printf(&sc->ifatm.ifnet, "bad INTR RBPS%u\n",
+				if_printf(sc->ifp, "bad INTR RBPS%u\n",
 				    status & HE_REGM_IGROUP);
 				break;
 			}
@@ -605,7 +605,7 @@ hatm_intr(void *p)
 				break;
 
 			  default:
-				if_printf(&sc->ifatm.ifnet, "bad INTR RBPL%u\n",
+				if_printf(sc->ifp, "bad INTR RBPL%u\n",
 				    status & HE_REGM_IGROUP);
 				break;
 			}
@@ -628,7 +628,7 @@ hatm_intr(void *p)
 				/* FALLTHRU */
 
 			  default:
-				if_printf(&sc->ifatm.ifnet, "bad INTR RBRQ%u\n",
+				if_printf(sc->ifp, "bad INTR RBRQ%u\n",
 				    status & HE_REGM_IGROUP);
 				break;
 			}
@@ -651,7 +651,7 @@ hatm_intr(void *p)
 				/* FALLTHRU */
 
 			  default:
-				if_printf(&sc->ifatm.ifnet, "bad INTR RBRQT%u\n",
+				if_printf(sc->ifp, "bad INTR RBRQT%u\n",
 				    status & HE_REGM_IGROUP);
 				break;
 			}
@@ -665,7 +665,7 @@ hatm_intr(void *p)
 #if HE_REGM_ITYPE_UNKNOWN != HE_REGM_ITYPE_INVALID
 		  case HE_REGM_ITYPE_UNKNOWN:
 			sc->istats.itype_unknown++;
-			if_printf(&sc->ifatm.ifnet, "bad interrupt\n");
+			if_printf(sc->ifp, "bad interrupt\n");
 			break;
 #endif
 
@@ -674,17 +674,17 @@ hatm_intr(void *p)
 			switch (status) {
 
 			  case HE_REGM_ITYPE_PERR:
-				if_printf(&sc->ifatm.ifnet, "parity error\n");
+				if_printf(sc->ifp, "parity error\n");
 				break;
 
 			  case HE_REGM_ITYPE_ABORT:
-				if_printf(&sc->ifatm.ifnet, "abort interrupt "
+				if_printf(sc->ifp, "abort interrupt "
 				    "addr=0x%08x\n",
 				    READ4(sc, HE_REGO_ABORT_ADDR));
 				break;
 
 			  default:
-				if_printf(&sc->ifatm.ifnet,
+				if_printf(sc->ifp,
 				    "bad interrupt type %08x\n", status);
 				break;
 			}
@@ -706,7 +706,7 @@ hatm_intr(void *p)
 			break;
 
 		  default:
-			if_printf(&sc->ifatm.ifnet, "bad interrupt type %08x\n",
+			if_printf(sc->ifp, "bad interrupt type %08x\n",
 			    status);
 			break;
 		}

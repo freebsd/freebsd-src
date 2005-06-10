@@ -1060,7 +1060,7 @@ f54_intr(struct mn_softc *sc)
 				if (!sc->ch[i])
 					continue;
 			        sp = &sc->ch[i]->ifsppp;
-				if (!(sp->pp_if.if_flags & IFF_UP))
+				if (!(SP2IFP(sp)->if_flags & IFF_UP))
 					continue;
 				if (s) 
 					timeout((timeout_t *)sp->pp_down, sp, 1 * hz);

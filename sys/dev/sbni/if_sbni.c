@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 #include <net/bpf.h>
+#include <net/if_types.h>
 
 #include <dev/sbni/if_sbnireg.h>
 #include <dev/sbni/if_sbnivar.h>
@@ -221,7 +222,9 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	struct ifnet *ifp;
 	u_char csr0;
    
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		panic("sbni%d: can not if_alloc()", unit);
 	sbni_outb(sc, CSR0, 0);
 	set_initial_values(sc, flags);
 
@@ -242,7 +245,7 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
 	    IFF_NEEDSGIANT;
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, sc->enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
 	if_printf(ifp, "speed %ld, rxl ", ifp->if_baudrate);
@@ -262,7 +265,7 @@ sbni_init(void *xsc)
 	int  s;
 
 	sc = (struct sbni_softc *)xsc;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	/*
 	 * kludge to avoid multiple initialization when more than once
@@ -556,7 +559,7 @@ upload_data(struct sbni_softc *sc, u_int framelen, u_int frameno,
 		} else if ((frame_ok = skip_tail(sc, framelen, crc)) != 0) {
 			sc->wait_frameno = 0;
 			sc->inppos = 0;
-			sc->arpcom.ac_if.if_ierrors++;
+			sc->ifp->if_ierrors++;
 			/* now skip all frames until is_first != 0 */
 		}
 	} else
@@ -568,7 +571,7 @@ upload_data(struct sbni_softc *sc, u_int framelen, u_int frameno,
 		 * is_first already... Drop entire packet.
 		 */
 		sc->wait_frameno = 0;
-		sc->arpcom.ac_if.if_ierrors++;
+		sc->ifp->if_ierrors++;
 	}
 
 	return (frame_ok);
@@ -582,7 +585,7 @@ send_complete(struct sbni_softc *sc)
 {
 	m_freem(sc->tx_buf_p);
 	sc->tx_buf_p = NULL;
-	sc->arpcom.ac_if.if_opackets++;
+	sc->ifp->if_opackets++;
 }
 
 
@@ -633,7 +636,7 @@ append_frame_to_pkt(struct sbni_softc *sc, u_int framelen, u_int32_t crc)
 	sc->inppos += framelen - 4;
 	if (--sc->wait_frameno == 0) {		/* last frame received */
 		indicate_pkt(sc);
-		sc->arpcom.ac_if.if_ipackets++;
+		sc->ifp->if_ipackets++;
 	}
 
 	return (1);
@@ -660,13 +663,13 @@ prepare_to_send(struct sbni_softc *sc)
 	sc->state &= ~(FL_WAIT_ACK | FL_NEED_RESEND);
 
 	for (;;) {
-		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, sc->tx_buf_p);
+		IF_DEQUEUE(&sc->ifp->if_snd, sc->tx_buf_p);
 		if (!sc->tx_buf_p) {
 			/* nothing to transmit... */
 			sc->pktlen     = 0;
 			sc->tx_frameno = 0;
 			sc->framelen   = 0;
-			sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+			sc->ifp->if_flags &= ~IFF_OACTIVE;
 			return;
 		}
 
@@ -686,8 +689,8 @@ prepare_to_send(struct sbni_softc *sc)
 	sc->framelen	= min(len, sc->maxframe);
 
 	sbni_outb(sc, CSR0, sbni_inb(sc, CSR0) | TR_REQ);
-	sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
-	BPF_MTAP(&sc->arpcom.ac_if, sc->tx_buf_p);
+	sc->ifp->if_flags |= IFF_OACTIVE;
+	BPF_MTAP(sc->ifp, sc->tx_buf_p);
 }
 
 
@@ -699,22 +702,22 @@ drop_xmit_queue(struct sbni_softc *sc)
 	if (sc->tx_buf_p) {
 		m_freem(sc->tx_buf_p);
 		sc->tx_buf_p = NULL;
-		sc->arpcom.ac_if.if_oerrors++;
+		sc->ifp->if_oerrors++;
 	}
 
 	for (;;) {
-		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
+		IF_DEQUEUE(&sc->ifp->if_snd, m);
 		if (m == NULL)
 			break;
 		m_freem(m);
-		sc->arpcom.ac_if.if_oerrors++;
+		sc->ifp->if_oerrors++;
 	}
 
 	sc->tx_frameno	= 0;
 	sc->framelen	= 0;
 	sc->outpos	= 0;
 	sc->state &= ~(FL_WAIT_ACK | FL_NEED_RESEND);
-	sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_flags &= ~IFF_OACTIVE;
 }
 
 
@@ -810,7 +813,7 @@ get_rx_buf(struct sbni_softc *sc)
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
-		if_printf(&sc->arpcom.ac_if, "cannot allocate header mbuf\n");
+		if_printf(sc->ifp, "cannot allocate header mbuf\n");
 		return (0);
 	}
 
@@ -844,7 +847,7 @@ get_rx_buf(struct sbni_softc *sc)
 static void
 indicate_pkt(struct sbni_softc *sc)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct mbuf *m;
 
 	m = sc->rx_buf_p;
@@ -953,13 +956,13 @@ set_initial_values(struct sbni_softc *sc, struct sbni_flags flags)
 	/*
 	 * generate Ethernet address (0x00ff01xxxxxx)
 	 */
-	*(u_int16_t *) sc->arpcom.ac_enaddr = htons(0x00ff);
+	*(u_int16_t *) sc->enaddr = htons(0x00ff);
 	if (flags.mac_addr) {
-		*(u_int32_t *) (sc->arpcom.ac_enaddr + 2) =
+		*(u_int32_t *) (sc->enaddr + 2) =
 		    htonl(flags.mac_addr | 0x01000000);
 	} else {
-		*(u_char *) (sc->arpcom.ac_enaddr + 2) = 0x01;
-		read_random(sc->arpcom.ac_enaddr + 3, 3);
+		*(u_char *) (sc->enaddr + 2) = 0x01;
+		read_random(sc->enaddr + 3, 3);
 	}
 }
 
@@ -1091,7 +1094,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * SBNI specific ioctl
 		 */
 	case SIOCGHWFLAGS:	/* get flags */
-		bcopy((caddr_t) sc->arpcom.ac_enaddr+3, (caddr_t) &flags, 3);
+		bcopy((caddr_t)IFP2ENADDR(sc->ifp)+3, (caddr_t) &flags, 3);
 		flags.rxl = sc->cur_rxl_index;
 		flags.rate = sc->csr1.rate;
 		flags.fixed_rxl = (sc->delta_rxl == 0);
@@ -1122,7 +1125,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		sc->csr1.rate = flags.fixed_rate ? flags.rate : DEFAULT_RATE;
 		if (flags.mac_addr)
 			bcopy((caddr_t) &flags,
-			      (caddr_t) sc->arpcom.ac_enaddr+3, 3);
+			      (caddr_t) IFP2ENADDR(sc->ifp)+3, 3);
 
 		/* Don't be afraid... */
 		sbni_outb(sc, CSR1, *(char*)(&sc->csr1) | PR_RES);

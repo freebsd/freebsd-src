@@ -186,7 +186,7 @@ pdq_eisa_attach (dev)
 	int		error;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	sc->dev = dev;
 
@@ -244,7 +244,7 @@ pdq_eisa_attach (dev)
 	}
 
 	bcopy((caddr_t) sc->sc_pdq->pdq_hwaddr.lanaddr_bytes,
-	      (caddr_t) sc->arpcom.ac_enaddr, FDDI_ADDR_LEN);
+	      (caddr_t) IFP2ENADDR(sc->ifp), FDDI_ADDR_LEN);
 	pdq_ifattach(sc);
 
 	return (0);

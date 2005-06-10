@@ -728,7 +728,7 @@ restart:
 						goto release;
 					}
 					m->m_pkthdr.len = 0;
-					m->m_pkthdr.rcvif = (struct ifnet *)0;
+					m->m_pkthdr.rcvif = NULL; 
 				} else {
 					MGET(m, M_TRYWAIT, MT_DATA);
 					if (m == NULL) {
@@ -759,7 +759,7 @@ restart:
 				if (top == NULL) {
 					m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
 					m->m_pkthdr.len = 0;
-					m->m_pkthdr.rcvif = (struct ifnet *)0;
+					m->m_pkthdr.rcvif = NULL;
 				} else
 					m = m_getcl(M_TRYWAIT, MT_DATA, 0);
 				len = min(min(MCLBYTES, resid), space);
@@ -768,7 +768,7 @@ restart:
 				if (top == NULL) {
 					m = m_gethdr(M_TRYWAIT, MT_DATA);
 					m->m_pkthdr.len = 0;
-					m->m_pkthdr.rcvif = (struct ifnet *)0;
+					m->m_pkthdr.rcvif = NULL;
 
 					len = min(min(MHLEN, resid), space);
 					/*

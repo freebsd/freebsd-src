@@ -261,9 +261,9 @@ lnc_isa_attach(device_t dev)
 	 *
 	 *       Contec uses 00 80 4c ?? ?? ??
 	 */ 
-	if (sc->arpcom.ac_enaddr[0] == (u_char)0x00 &&
-	    sc->arpcom.ac_enaddr[1] == (u_char)0x80 &&
-	    sc->arpcom.ac_enaddr[2] == (u_char)0x4c) {
+	if (IFP2ENADDR(sc->ifp)[0] == (u_char)0x00 &&
+	    IFP2ENADDR(sc->ifp)[1] == (u_char)0x80 &&
+	    IFP2ENADDR(sc->ifp)[2] == (u_char)0x4c) {
 		lnc_outw(sc->rap, MSRDA);
 		lnc_outw(CNET98S_IDP, 0x0006);
 		lnc_outw(sc->rap, MSWRA);
@@ -283,26 +283,11 @@ lnc_isa_attach(device_t dev)
 	return (0);
 }
 
-static int
-lnc_isa_detach(device_t dev)
-{
-	lnc_softc_t *sc = device_get_softc(dev);
-	int s = splimp();
-
-	ether_ifdetach(&sc->arpcom.ac_if);
-	splx(s);
-
-	lnc_stop(sc);
-	lnc_release_resources(dev);
-
-	return (0);
-}
-
 static device_method_t lnc_isa_methods[] = {
 /*	DEVMETHOD(device_identify,	lnc_isa_identify), */
 	DEVMETHOD(device_probe,		lnc_isa_probe),
 	DEVMETHOD(device_attach,	lnc_isa_attach),
-	DEVMETHOD(device_detach,	lnc_isa_detach),
+	DEVMETHOD(device_detach,	lnc_detach_common),
 #ifdef notyet
 	DEVMETHOD(device_suspend,	lnc_isa_suspend),
 	DEVMETHOD(device_resume,	lnc_isa_resume),

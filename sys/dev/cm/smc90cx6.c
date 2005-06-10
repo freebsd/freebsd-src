@@ -277,9 +277,14 @@ cm_attach(dev)
 	device_t dev;
 {
 	struct cm_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->sc_arccom.ac_if;
+	struct ifnet *ifp;
 	int s;
 	u_int8_t linkaddress;
+
+	ifp = sc->sc_ifp = if_alloc(IFT_ARCNET);
+	if (ifp == NULL) {
+		return (ENOSPC);
+	}
 
 	s = splhigh();
 
@@ -353,7 +358,7 @@ cm_init(xsc)
 	struct ifnet *ifp;
 	int s;
 
-	ifp = &sc->sc_arccom.ac_if;
+	ifp = sc->sc_ifp;
 
 	if ((ifp->if_flags & IFF_RUNNING) == 0) {
 		s = splimp();
@@ -377,7 +382,7 @@ cm_reset(sc)
 	struct ifnet *ifp;
 	int linkaddress;
 
-	ifp = &sc->sc_arccom.ac_if;
+	ifp = sc->sc_ifp;
 
 #ifdef CM_DEBUG
 	if_printf(ifp, "reset\n");
@@ -456,7 +461,7 @@ cm_stop(sc)
 	GETREG(CMRESET);
 
 	/* Stop watchdog timer */
-	sc->sc_arccom.ac_if.if_timer = 0;
+	sc->sc_ifp->if_timer = 0;
 }
 
 /*
@@ -589,7 +594,7 @@ cm_start(ifp)
 		PUTREG(CMCMD, CM_TX(buffer));
 		PUTREG(CMSTAT, sc->sc_intmask);
 
-		sc->sc_arccom.ac_if.if_timer = ARCTIMEOUT;
+		ifp->if_timer = ARCTIMEOUT;
 	}
 	splx(s);
 	m_freem(m);
@@ -619,7 +624,7 @@ cm_srint(vsc)
 	struct arc_header *ah;
 	struct ifnet *ifp;
 
-	ifp = &sc->sc_arccom.ac_if;
+	ifp = sc->sc_ifp;
 
 	s = splimp();
 	buffer = sc->sc_rx_act ^ 1;
@@ -733,7 +738,7 @@ cm_tint(sc, isr)
 	int clknow;
 #endif
 
-	ifp = &(sc->sc_arccom.ac_if);
+	ifp = sc->sc_ifp;
 	buffer = sc->sc_tx_act;
 
 	/*
@@ -744,7 +749,7 @@ cm_tint(sc, isr)
 	 */
 
 	if (isr & CM_TMA || sc->sc_broadcast[buffer])
-		sc->sc_arccom.ac_if.if_opackets++;
+		ifp->if_opackets++;
 #ifdef CMRETRANSMIT
 	else if (ifp->if_flags & IFF_LINK2 && ifp->if_timer > 0
 	    && --sc->sc_retransmits[buffer] > 0) {
@@ -814,7 +819,7 @@ cmintr(arg)
 	void *arg;
 {
 	struct cm_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_arccom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	u_char isr, maskedisr;
 	int buffer;
@@ -835,7 +840,7 @@ cmintr(arg)
 			/*
 			 * XXX We should never see this. Don't bother to store
 			 * the address.
-			 * sc->sc_arccom.ac_anaddr = GETMEM(CMMACOFF);
+			 * sc->sc_ifp->if_l2com->ac_anaddr = GETMEM(CMMACOFF);
 			 */
 			PUTREG(CMCMD, CM_CLR(CLR_POR));
 			log(LOG_WARNING,
@@ -849,7 +854,7 @@ cmintr(arg)
 			 * PUTREG(CMCMD, CM_CONF(CONF_LONG));
 			 */
 			PUTREG(CMCMD, CM_CLR(CLR_RECONFIG));
-			sc->sc_arccom.ac_if.if_collisions++;
+			ifp->if_collisions++;
 
 			/*
 			 * If less than 2 seconds per reconfig:
@@ -952,7 +957,7 @@ cm_reconwatch(arg)
 	void *arg;
 {
 	struct cm_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_arccom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	if (sc->sc_reconcount >= ARC_EXCESSIVE_RECONS) {
 		sc->sc_reconcount = 0;

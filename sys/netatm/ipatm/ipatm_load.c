@@ -438,7 +438,7 @@ ipatm_start()
 		 * Process each network interface
 		 */
 		for (nip = pip->pif_nif; nip; nip = nip->nif_pnext) {
-			struct ifnet    *ifp = (struct ifnet *)nip;
+			struct ifnet    *ifp = ANIF2IFP(nip);
 			struct in_ifaddr	*ia;
 
 			/*

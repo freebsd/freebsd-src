@@ -109,7 +109,7 @@ struct tl_chain_data {
 };
 
 struct tl_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*tl_ifp;
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	tl_bhandle;
 	bus_space_tag_t		tl_btag;

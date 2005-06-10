@@ -83,7 +83,7 @@
 #define FAITHNAME	"faith"
 
 struct faith_softc {
-	struct ifnet sc_if;	/* must be first */
+	struct ifnet *sc_ifp;
 	LIST_ENTRY(faith_softc) sc_list;
 };
 
@@ -165,24 +165,29 @@ faith_clone_create(ifc, unit)
 	struct if_clone *ifc;
 	int unit;
 {
+	struct ifnet *ifp;
 	struct faith_softc *sc;
 
 	sc = malloc(sizeof(struct faith_softc), M_FAITH, M_WAITOK | M_ZERO);
+	ifp = sc->sc_ifp = if_alloc(IFT_FAITH);
+	if (ifp == NULL) {
+		free(sc, M_FAITH);
+		return (ENOSPC);
+	}
 
-	sc->sc_if.if_softc = sc;
-	if_initname(&sc->sc_if, ifc->ifc_name, unit);
+	ifp->if_softc = sc;
+	if_initname(sc->sc_ifp, ifc->ifc_name, unit);
 
-	sc->sc_if.if_mtu = FAITHMTU;
+	ifp->if_mtu = FAITHMTU;
 	/* Change to BROADCAST experimentaly to announce its prefix. */
-	sc->sc_if.if_flags = /* IFF_LOOPBACK */ IFF_BROADCAST | IFF_MULTICAST;
-	sc->sc_if.if_ioctl = faithioctl;
-	sc->sc_if.if_output = faithoutput;
-	sc->sc_if.if_type = IFT_FAITH;
-	sc->sc_if.if_hdrlen = 0;
-	sc->sc_if.if_addrlen = 0;
-	sc->sc_if.if_snd.ifq_maxlen = ifqmaxlen;
-	if_attach(&sc->sc_if);
-	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
+	ifp->if_flags = /* IFF_LOOPBACK */ IFF_BROADCAST | IFF_MULTICAST;
+	ifp->if_ioctl = faithioctl;
+	ifp->if_output = faithoutput;
+	ifp->if_hdrlen = 0;
+	ifp->if_addrlen = 0;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	if_attach(ifp);
+	bpfattach(ifp, DLT_NULL, sizeof(u_int));
 	mtx_lock(&faith_mtx);
 	LIST_INSERT_HEAD(&faith_softc_list, sc, sc_list);
 	mtx_unlock(&faith_mtx);
@@ -193,8 +198,9 @@ static void
 faith_destroy(struct faith_softc *sc)
 {
 
-	bpfdetach(&sc->sc_if);
-	if_detach(&sc->sc_if);
+	bpfdetach(sc->sc_ifp);
+	if_detach(sc->sc_ifp);
+	if_free(sc->sc_ifp);
 	free(sc, M_FAITH);
 }
 
@@ -202,7 +208,7 @@ static void
 faith_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
-	struct faith_softc *sc = (void *) ifp;
+	struct faith_softc *sc = ifp->if_softc;
 
 	mtx_lock(&faith_mtx);
 	LIST_REMOVE(sc, sc_list);

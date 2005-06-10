@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/if_atm.h>
 #include <net/route.h>
 #ifdef INET
@@ -111,8 +112,8 @@ static const struct utopia_methods fatm_utopia_methods = {
 };
 
 #define VC_OK(SC, VPI, VCI)						\
-	(((VPI) & ~((1 << (SC)->ifatm.mib.vpi_bits) - 1)) == 0 &&	\
-	 (VCI) != 0 && ((VCI) & ~((1 << (SC)->ifatm.mib.vci_bits) - 1)) == 0)
+	(((VPI) & ~((1 << IFP2IFATM((SC)->ifp)->mib.vpi_bits) - 1)) == 0 &&	\
+	 (VCI) != 0 && ((VCI) & ~((1 << IFP2IFATM((SC)->ifp)->mib.vci_bits) - 1)) == 0)
 
 static int fatm_load_vc(struct fatm_softc *sc, struct card_vcc *vc);
 
@@ -165,9 +166,9 @@ fatm_utopia_writereg(struct ifatm *ifatm, u_int reg, u_int mask, u_int val)
 	struct cmdqueue *q;
 	struct fatm_softc *sc;
 
-	sc = ifatm->ifnet.if_softc;
+	sc = ifatm->ifp->if_softc;
 	FATM_CHECKLOCK(sc);
-	if (!(ifatm->ifnet.if_flags & IFF_RUNNING))
+	if (!(ifatm->ifp->if_flags & IFF_RUNNING))
 		return (EIO);
 
 	/* get queue element and fill it */
@@ -250,7 +251,7 @@ fatm_utopia_readregs_internal(struct fatm_softc *sc)
 
 	/* get the buffer */
 	for (;;) {
-		if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING))
+		if (!(sc->ifp->if_flags & IFF_RUNNING))
 			return (EIO);
 		if (!(sc->flags & FATM_REGS_INUSE))
 			break;
@@ -334,7 +335,7 @@ fatm_utopia_readregs(struct ifatm *ifatm, u_int reg, uint8_t *valp, u_int *np)
 		return (EINVAL);
 	if (reg + *np > FATM_NREGS)
 		*np = FATM_NREGS - reg;
-	sc = ifatm->ifnet.if_softc;
+	sc = ifatm->ifp->if_softc;
 	FATM_CHECKLOCK(sc);
 
 	err = fatm_utopia_readregs_internal(sc);
@@ -470,11 +471,11 @@ fatm_stop(struct fatm_softc *sc)
 	(void)fatm_reset(sc);
 
 	/* stop watchdog */
-	sc->ifatm.ifnet.if_timer = 0;
+	sc->ifp->if_timer = 0;
 
-	if (sc->ifatm.ifnet.if_flags & IFF_RUNNING) {
-		sc->ifatm.ifnet.if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-		ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	if (sc->ifp->if_flags & IFF_RUNNING) {
+		sc->ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+		ATMEV_SEND_IFSTATE_CHANGED(IFP2IFATM(sc->ifp),
 		    sc->utopia.carrier == UTP_CARR_OK);
 
 		/*
@@ -876,12 +877,12 @@ fatm_getprom(struct fatm_softc *sc)
 		DELAY(1000);
 	}
 	if (i == 1000) {
-		if_printf(&sc->ifatm.ifnet, "getprom timeout\n");
+		if_printf(sc->ifp, "getprom timeout\n");
 		return (EIO);
 	}
 	H_SYNCSTAT_POSTREAD(sc, q->q.statp);
 	if (H_GETSTAT(q->q.statp) & FATM_STAT_ERROR) {
-		if_printf(&sc->ifatm.ifnet, "getprom error\n");
+		if_printf(sc->ifp, "getprom error\n");
 		return (EIO);
 	}
 	H_SETSTAT(q->q.statp, FATM_STAT_FREE);
@@ -906,16 +907,16 @@ fatm_getprom(struct fatm_softc *sc)
 
 	prom = (struct prom *)sc->prom_mem.mem;
 
-	bcopy(prom->mac + 2, sc->ifatm.mib.esi, 6);
-	sc->ifatm.mib.serial = le32toh(prom->serial);
-	sc->ifatm.mib.hw_version = le32toh(prom->version);
-	sc->ifatm.mib.sw_version = READ4(sc, FATMO_FIRMWARE_RELEASE);
+	bcopy(prom->mac + 2, IFP2IFATM(sc->ifp)->mib.esi, 6);
+	IFP2IFATM(sc->ifp)->mib.serial = le32toh(prom->serial);
+	IFP2IFATM(sc->ifp)->mib.hw_version = le32toh(prom->version);
+	IFP2IFATM(sc->ifp)->mib.sw_version = READ4(sc, FATMO_FIRMWARE_RELEASE);
 
-	if_printf(&sc->ifatm.ifnet, "ESI=%02x:%02x:%02x:%02x:%02x:%02x "
-	    "serial=%u hw=0x%x sw=0x%x\n", sc->ifatm.mib.esi[0],
-	    sc->ifatm.mib.esi[1], sc->ifatm.mib.esi[2], sc->ifatm.mib.esi[3],
-	    sc->ifatm.mib.esi[4], sc->ifatm.mib.esi[5], sc->ifatm.mib.serial,
-	    sc->ifatm.mib.hw_version, sc->ifatm.mib.sw_version);
+	if_printf(sc->ifp, "ESI=%02x:%02x:%02x:%02x:%02x:%02x "
+	    "serial=%u hw=0x%x sw=0x%x\n", IFP2IFATM(sc->ifp)->mib.esi[0],
+	    IFP2IFATM(sc->ifp)->mib.esi[1], IFP2IFATM(sc->ifp)->mib.esi[2], IFP2IFATM(sc->ifp)->mib.esi[3],
+	    IFP2IFATM(sc->ifp)->mib.esi[4], IFP2IFATM(sc->ifp)->mib.esi[5], IFP2IFATM(sc->ifp)->mib.serial,
+	    IFP2IFATM(sc->ifp)->mib.hw_version, IFP2IFATM(sc->ifp)->mib.sw_version);
 
 	return (0);
 }
@@ -954,14 +955,14 @@ alloc_dma_memory(struct fatm_softc *sc, const char *nm, struct fatm_mem *mem)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, mem->size, 1, BUS_SPACE_MAXSIZE_32BIT,
 	    BUS_DMA_ALLOCNOW, NULL, NULL, &mem->dmat)) {
-		if_printf(&sc->ifatm.ifnet, "could not allocate %s DMA tag\n",
+		if_printf(sc->ifp, "could not allocate %s DMA tag\n",
 		    nm);
 		return (ENOMEM);
 	}
 
 	error = bus_dmamem_alloc(mem->dmat, &mem->mem, 0, &mem->map);
 	if (error) {
-		if_printf(&sc->ifatm.ifnet, "could not allocate %s DMA memory: "
+		if_printf(sc->ifp, "could not allocate %s DMA memory: "
 		    "%d\n", nm, error);
 		bus_dma_tag_destroy(mem->dmat);
 		mem->mem = NULL;
@@ -971,7 +972,7 @@ alloc_dma_memory(struct fatm_softc *sc, const char *nm, struct fatm_mem *mem)
 	error = bus_dmamap_load(mem->dmat, mem->map, mem->mem, mem->size,
 	    dmaload_helper, &mem->paddr, BUS_DMA_NOWAIT);
 	if (error) {
-		if_printf(&sc->ifatm.ifnet, "could not load %s DMA memory: "
+		if_printf(sc->ifp, "could not load %s DMA memory: "
 		    "%d\n", nm, error);
 		bus_dmamem_free(mem->dmat, mem->mem, mem->map);
 		bus_dma_tag_destroy(mem->dmat);
@@ -997,7 +998,7 @@ alloc_dma_memoryX(struct fatm_softc *sc, const char *nm, struct fatm_mem *mem)
 	    BUS_SPACE_MAXADDR_24BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, mem->size, 1, mem->size,
 	    BUS_DMA_ALLOCNOW, NULL, NULL, &mem->dmat)) {
-		if_printf(&sc->ifatm.ifnet, "could not allocate %s DMA tag\n",
+		if_printf(sc->ifp, "could not allocate %s DMA tag\n",
 		    nm);
 		return (ENOMEM);
 	}
@@ -1007,7 +1008,7 @@ alloc_dma_memoryX(struct fatm_softc *sc, const char *nm, struct fatm_mem *mem)
 
 	error = bus_dmamap_create(mem->dmat, 0, &mem->map);
 	if (error) {
-		if_printf(&sc->ifatm.ifnet, "could not allocate %s DMA map: "
+		if_printf(sc->ifp, "could not allocate %s DMA map: "
 		    "%d\n", nm, error);
 		contigfree(mem->mem, mem->size, M_DEVBUF);
 		bus_dma_tag_destroy(mem->dmat);
@@ -1018,7 +1019,7 @@ alloc_dma_memoryX(struct fatm_softc *sc, const char *nm, struct fatm_mem *mem)
 	error = bus_dmamap_load(mem->dmat, mem->map, mem->mem, mem->size,
 	    dmaload_helper, &mem->paddr, BUS_DMA_NOWAIT);
 	if (error) {
-		if_printf(&sc->ifatm.ifnet, "could not load %s DMA memory: "
+		if_printf(sc->ifp, "could not load %s DMA memory: "
 		    "%d\n", nm, error);
 		bus_dmamap_destroy(mem->dmat, mem->map);
 		contigfree(mem->mem, mem->size, M_DEVBUF);
@@ -1094,7 +1095,7 @@ fatm_supply_small_buffers(struct fatm_softc *sc)
 
 		for (i = 0; i < SMALL_SUPPLY_BLKSIZE; i++) {
 			if ((rb = LIST_FIRST(&sc->rbuf_free)) == NULL) {
-				if_printf(&sc->ifatm.ifnet, "out of rbufs\n");
+				if_printf(sc->ifp, "out of rbufs\n");
 				break;
 			}
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -1107,7 +1108,7 @@ fatm_supply_small_buffers(struct fatm_softc *sc)
 			    m->m_data, SMALL_BUFFER_LEN, dmaload_helper,
 			    &phys, BUS_DMA_NOWAIT);
 			if (error) {
-				if_printf(&sc->ifatm.ifnet,
+				if_printf(sc->ifp,
 				    "dmamap_load mbuf failed %d", error);
 				m_freem(m);
 				LIST_INSERT_HEAD(&sc->rbuf_free, rb, link);
@@ -1184,7 +1185,7 @@ fatm_supply_large_buffers(struct fatm_softc *sc)
 
 		for (i = 0; i < LARGE_SUPPLY_BLKSIZE; i++) {
 			if ((rb = LIST_FIRST(&sc->rbuf_free)) == NULL) {
-				if_printf(&sc->ifatm.ifnet, "out of rbufs\n");
+				if_printf(sc->ifp, "out of rbufs\n");
 				break;
 			}
 			if ((m = m_getcl(M_DONTWAIT, MT_DATA,
@@ -1198,7 +1199,7 @@ fatm_supply_large_buffers(struct fatm_softc *sc)
 			    m->m_data, LARGE_BUFFER_LEN, dmaload_helper,
 			    &phys, BUS_DMA_NOWAIT);
 			if (error) {
-				if_printf(&sc->ifatm.ifnet,
+				if_printf(sc->ifp,
 				    "dmamap_load mbuf failed %d", error);
 				m_freem(m);
 				LIST_INSERT_HEAD(&sc->rbuf_free, rb, link);
@@ -1256,7 +1257,7 @@ fatm_init_locked(struct fatm_softc *sc)
 	uint32_t start;
 
 	DBG(sc, INIT, ("initialize"));
-	if (sc->ifatm.ifnet.if_flags & IFF_RUNNING)
+	if (sc->ifp->if_flags & IFF_RUNNING)
 		fatm_stop(sc);
 
 	/*
@@ -1279,39 +1280,39 @@ fatm_init_locked(struct fatm_softc *sc)
 	switch (c) {
 
 	  case FORE_MT_TAXI_100:
-		sc->ifatm.mib.media = IFM_ATM_TAXI_100;
-		sc->ifatm.mib.pcr = 227273;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_TAXI_100;
+		IFP2IFATM(sc->ifp)->mib.pcr = 227273;
 		break;
 
 	  case FORE_MT_TAXI_140:
-		sc->ifatm.mib.media = IFM_ATM_TAXI_140;
-		sc->ifatm.mib.pcr = 318181;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_TAXI_140;
+		IFP2IFATM(sc->ifp)->mib.pcr = 318181;
 		break;
 
 	  case FORE_MT_UTP_SONET:
-		sc->ifatm.mib.media = IFM_ATM_UTP_155;
-		sc->ifatm.mib.pcr = 353207;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UTP_155;
+		IFP2IFATM(sc->ifp)->mib.pcr = 353207;
 		break;
 
 	  case FORE_MT_MM_OC3_ST:
 	  case FORE_MT_MM_OC3_SC:
-		sc->ifatm.mib.media = IFM_ATM_MM_155;
-		sc->ifatm.mib.pcr = 353207;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_MM_155;
+		IFP2IFATM(sc->ifp)->mib.pcr = 353207;
 		break;
 
 	  case FORE_MT_SM_OC3_ST:
 	  case FORE_MT_SM_OC3_SC:
-		sc->ifatm.mib.media = IFM_ATM_SM_155;
-		sc->ifatm.mib.pcr = 353207;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_SM_155;
+		IFP2IFATM(sc->ifp)->mib.pcr = 353207;
 		break;
 
 	  default:
 		log(LOG_ERR, "fatm: unknown media type %d\n", c);
-		sc->ifatm.mib.media = IFM_ATM_UNKNOWN;
-		sc->ifatm.mib.pcr = 353207;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UNKNOWN;
+		IFP2IFATM(sc->ifp)->mib.pcr = 353207;
 		break;
 	}
-	sc->ifatm.ifnet.if_baudrate = 53 * 8 * sc->ifatm.mib.pcr;
+	sc->ifp->if_baudrate = 53 * 8 * IFP2IFATM(sc->ifp)->mib.pcr;
 	utopia_init_media(&sc->utopia);
 
 	/*
@@ -1332,17 +1333,17 @@ fatm_init_locked(struct fatm_softc *sc)
 	/*
 	 * Now set flags, that we are ready
 	 */
-	sc->ifatm.ifnet.if_flags |= IFF_RUNNING;
+	sc->ifp->if_flags |= IFF_RUNNING;
 
 	/*
 	 * Start the watchdog timer
 	 */
-	sc->ifatm.ifnet.if_timer = 5;
+	sc->ifp->if_timer = 5;
 
 	/* start SUNI */
 	utopia_start(&sc->utopia);
 
-	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	ATMEV_SEND_IFSTATE_CHANGED(IFP2IFATM(sc->ifp),
 	    sc->utopia.carrier == UTP_CARR_OK);
 
 	/* start all channels */
@@ -1351,7 +1352,7 @@ fatm_init_locked(struct fatm_softc *sc)
 			sc->vccs[i]->vflags |= FATM_VCC_REOPEN;
 			error = fatm_load_vc(sc, sc->vccs[i]);
 			if (error != 0) {
-				if_printf(&sc->ifatm.ifnet, "reopening %u "
+				if_printf(sc->ifp, "reopening %u "
 				    "failed: %d\n", i, error);
 				sc->vccs[i]->vflags &= ~FATM_VCC_REOPEN;
 			}
@@ -1525,7 +1526,7 @@ fatm_intr_drain_rx(struct fatm_softc *sc)
 		}
 
 		m0->m_pkthdr.len = mlen;
-		m0->m_pkthdr.rcvif = &sc->ifatm.ifnet;
+		m0->m_pkthdr.rcvif = sc->ifp;
 
 		h = le32toh(rpd->atm_header);
 		vpi = (h >> 20) & 0xff;
@@ -1553,7 +1554,7 @@ fatm_intr_drain_rx(struct fatm_softc *sc)
 			ATM_PH_VPI(&aph) = vpi;
 			ATM_PH_SETVCI(&aph, vci);
 
-			ifp = &sc->ifatm.ifnet;
+			ifp = sc->ifp;
 			ifp->if_ipackets++;
 
 			vc->ipackets++;
@@ -1624,7 +1625,7 @@ fatm_intr(void *p)
 	}
 	WRITE4(sc, FATMO_HCR, FATM_HCR_CLRIRQ);
 
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
 		FATM_UNLOCK(sc);
 		return;
 	}
@@ -1638,8 +1639,8 @@ fatm_intr(void *p)
 
 	FATM_UNLOCK(sc);
 
-	if (sc->retry_tx && _IF_QLEN(&sc->ifatm.ifnet.if_snd))
-		(*sc->ifatm.ifnet.if_start)(&sc->ifatm.ifnet);
+	if (sc->retry_tx && _IF_QLEN(&sc->ifp->if_snd))
+		(*sc->ifp->if_start)(sc->ifp);
 }
 
 /*
@@ -1679,7 +1680,7 @@ fatm_getstat(struct fatm_softc *sc)
 	 * statistics buffer
 	 */
 	for (;;) {
-		if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING))
+		if (!(sc->ifp->if_flags & IFF_RUNNING))
 			return (EIO);
 		if (!(sc->flags & FATM_STAT_INUSE))
 			break;
@@ -1948,7 +1949,7 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 		if (H_GETSTAT(q->q.statp) != FATM_STAT_FREE) {
 			if (sc->retry_tx) {
 				sc->istats.tx_retry++;
-				IF_PREPEND(&sc->ifatm.ifnet.if_snd, m);
+				IF_PREPEND(&sc->ifp->if_snd, m);
 				return (1);
 			}
 			sc->istats.tx_queue_full++;
@@ -1967,8 +1968,8 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 	error = bus_dmamap_load_mbuf(sc->tx_tag, q->map, m,
 	    fatm_tpd_load, tpd, BUS_DMA_NOWAIT);
 	if(error) {
-		sc->ifatm.ifnet.if_oerrors++;
-		if_printf(&sc->ifatm.ifnet, "mbuf loaded error=%d\n", error);
+		sc->ifp->if_oerrors++;
+		if_printf(sc->ifp, "mbuf loaded error=%d\n", error);
 		m_freem(m);
 		return (0);
 	}
@@ -2018,7 +2019,7 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 	BARRIER_W(sc);
 
 	sc->txcnt++;
-	sc->ifatm.ifnet.if_opackets++;
+	sc->ifp->if_opackets++;
 	vc->obytes += m->m_pkthdr.len;
 	vc->opackets++;
 
@@ -2175,7 +2176,7 @@ fatm_open_finish(struct fatm_softc *sc, struct card_vcc *vc)
 	 * VCC or it's an NG PVC. */
 	if (!(vc->param.flags & ATMIO_FLAG_NG) ||
 	    (vc->param.flags & ATMIO_FLAG_PVC))
-		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vc->param.vci, 1);
+		ATMEV_SEND_VCC_CHANGED(IFP2IFATM(sc->ifp), 0, vc->param.vci, 1);
 }
 
 /*
@@ -2194,7 +2195,7 @@ fatm_open_complete(struct fatm_softc *sc, struct cmdqueue *q)
 		sc->istats.get_stat_errors++;
 		sc->vccs[vci] = NULL;
 		uma_zfree(sc->vcc_zone, vc);
-		if_printf(&sc->ifatm.ifnet, "opening VCI %u failed\n", vci);
+		if_printf(sc->ifp, "opening VCI %u failed\n", vci);
 		return;
 	}
 	fatm_open_finish(sc, vc);
@@ -2246,7 +2247,7 @@ fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op)
 	error = 0;
 
 	FATM_LOCK(sc);
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -2264,7 +2265,7 @@ fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op)
 
 	  case ATMIO_TRAFFIC_CBR:
 		if (op->param.tparam.pcr == 0 ||
-		    op->param.tparam.pcr > sc->ifatm.mib.pcr) {
+		    op->param.tparam.pcr > IFP2IFATM(sc->ifp)->mib.pcr) {
 			error = EINVAL;
 			goto done;
 		}
@@ -2340,7 +2341,7 @@ fatm_close_finish(struct fatm_softc *sc, struct card_vcc *vc)
 	 * VCC or it's an NG PVC. */
 	if (!(vc->param.flags & ATMIO_FLAG_NG) ||
 	    (vc->param.flags & ATMIO_FLAG_PVC))
-		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vc->param.vci, 0);
+		ATMEV_SEND_VCC_CHANGED(IFP2IFATM(sc->ifp), 0, vc->param.vci, 0);
 
 	sc->vccs[vc->param.vci] = NULL;
 	sc->open_vccs--;
@@ -2363,7 +2364,7 @@ fatm_close_complete(struct fatm_softc *sc, struct cmdqueue *q)
 	if (H_GETSTAT(q->q.statp) & FATM_STAT_ERROR) {
 		sc->istats.get_stat_errors++;
 		/* keep the VCC in that state */
-		if_printf(&sc->ifatm.ifnet, "closing VCI %u failed\n", vci);
+		if_printf(sc->ifp, "closing VCI %u failed\n", vci);
 		return;
 	}
 
@@ -2386,7 +2387,7 @@ fatm_close_vcc(struct fatm_softc *sc, struct atmio_closevcc *cl)
 	error = 0;
 
 	FATM_LOCK(sc);
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -2533,14 +2534,14 @@ fatm_detach(device_t dev)
 		fatm_stop(sc);
 		utopia_detach(&sc->utopia);
 		FATM_UNLOCK(sc);
-		atm_ifdetach(&sc->ifatm.ifnet);		/* XXX race */
+		atm_ifdetach(sc->ifp);		/* XXX race */
 	}
 
 	if (sc->ih != NULL)
 		bus_teardown_intr(dev, sc->irqres, sc->ih);
 
 	while ((rb = LIST_FIRST(&sc->rbuf_used)) != NULL) {
-		if_printf(&sc->ifatm.ifnet, "rbuf %p still in use!\n", rb);
+		if_printf(sc->ifp, "rbuf %p still in use!\n", rb);
 		bus_dmamap_unload(sc->rbuf_tag, rb->map);
 		m_freem(rb->m);
 		LIST_REMOVE(rb, link);
@@ -2744,16 +2745,22 @@ fatm_attach(device_t dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 
-	sc->ifatm.mib.device = ATM_DEVICE_PCA200E;
-	sc->ifatm.mib.serial = 0;
-	sc->ifatm.mib.hw_version = 0;
-	sc->ifatm.mib.sw_version = 0;
-	sc->ifatm.mib.vpi_bits = 0;
-	sc->ifatm.mib.vci_bits = FORE_VCIBITS;
-	sc->ifatm.mib.max_vpcs = 0;
-	sc->ifatm.mib.max_vccs = FORE_MAX_VCC;
-	sc->ifatm.mib.media = IFM_ATM_UNKNOWN;
-	sc->ifatm.phy = &sc->utopia;
+	ifp = sc->ifp = if_alloc(IFT_ATM);
+	if (ifp == NULL) {
+		error = ENOSPC;
+		goto fail;
+	}
+
+	IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_PCA200E;
+	IFP2IFATM(sc->ifp)->mib.serial = 0;
+	IFP2IFATM(sc->ifp)->mib.hw_version = 0;
+	IFP2IFATM(sc->ifp)->mib.sw_version = 0;
+	IFP2IFATM(sc->ifp)->mib.vpi_bits = 0;
+	IFP2IFATM(sc->ifp)->mib.vci_bits = FORE_VCIBITS;
+	IFP2IFATM(sc->ifp)->mib.max_vpcs = 0;
+	IFP2IFATM(sc->ifp)->mib.max_vccs = FORE_MAX_VCC;
+	IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UNKNOWN;
+	IFP2IFATM(sc->ifp)->phy = &sc->utopia;
 
 	LIST_INIT(&sc->rbuf_free);
 	LIST_INIT(&sc->rbuf_used);
@@ -2803,7 +2810,6 @@ fatm_attach(device_t dev)
 	/*
 	 * Network subsystem stuff
 	 */
-	ifp = &sc->ifatm.ifnet;
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_SIMPLEX;
@@ -2811,8 +2817,8 @@ fatm_attach(device_t dev)
 	ifp->if_start = fatm_start;
 	ifp->if_watchdog = fatm_watchdog;
 	ifp->if_init = fatm_init;
-	ifp->if_linkmib = &sc->ifatm.mib;
-	ifp->if_linkmiblen = sizeof(sc->ifatm.mib);
+	ifp->if_linkmib = &IFP2IFATM(sc->ifp)->mib;
+	ifp->if_linkmiblen = sizeof(IFP2IFATM(sc->ifp)->mib);
 
 	/*
 	 * Enable memory and bustmaster
@@ -2991,7 +2997,7 @@ fatm_attach(device_t dev)
 	 */
 	for (rb = sc->rbufs, i = 0; i < sc->rbuf_total; i++, rb++) {
 		if ((error = bus_dmamap_create(sc->rbuf_tag, 0, &rb->map))) {
-			if_printf(&sc->ifatm.ifnet, "creating rx map: %d\n",
+			if_printf(sc->ifp, "creating rx map: %d\n",
 			    error);
 			goto fail;
 		}
@@ -3007,7 +3013,7 @@ fatm_attach(device_t dev)
 	for (i = 0; i < FATM_TX_QLEN; i++) {
 		tx = GET_QUEUE(sc->txqueue, struct txqueue, i);
 		if ((error = bus_dmamap_create(sc->tx_tag, 0, &tx->map))) {
-			if_printf(&sc->ifatm.ifnet, "creating tx map: %d\n",
+			if_printf(sc->ifp, "creating tx map: %d\n",
 			    error);
 			while (i > 0) {
 				tx = GET_QUEUE(sc->txqueue, struct txqueue,
@@ -3019,7 +3025,7 @@ fatm_attach(device_t dev)
 		}
 	}
 
-	utopia_attach(&sc->utopia, &sc->ifatm, &sc->media, &sc->mtx,
+	utopia_attach(&sc->utopia, IFP2IFATM(sc->ifp), &sc->media, &sc->mtx,
 	    &sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    &fatm_utopia_methods);
 	sc->utopia.flags |= UTP_FL_NORESET | UTP_FL_POLL_CARRIER;

@@ -185,7 +185,7 @@ struct card_vcc {
  * Finally the softc structure
  */
 struct fatm_softc {
-	struct ifatm	ifatm;		/* common part */
+	struct ifnet	*ifp;		/* common part */
 	struct mtx	mtx;		/* lock this structure */
 	struct ifmedia	media;		/* media */
 

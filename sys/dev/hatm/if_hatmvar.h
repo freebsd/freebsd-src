@@ -363,7 +363,7 @@ struct herg {
  * Softc
  */
 struct hatm_softc {
-	struct ifatm		ifatm;		/* common ATM stuff */
+	struct ifnet		*ifp;
 	struct mtx		mtx;		/* lock */
 	struct ifmedia		media;		/* media */
 	device_t		dev;		/* device */

@@ -123,7 +123,7 @@ iso88025_ifattach(struct ifnet *ifp, int bpf)
     sdl = (struct sockaddr_dl *)ifa->ifa_addr;
     sdl->sdl_type = IFT_ISO88025;
     sdl->sdl_alen = ifp->if_addrlen;
-    bcopy(IFP2AC(ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+    bcopy(IFP2ENADDR(ifp), LLADDR(sdl), ifp->if_addrlen);
 
     if (bpf)
         bpfattach(ifp, DLT_IEEE802, ISO88025_HDR_LEN);
@@ -176,17 +176,15 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
                  */
                 case AF_IPX: {
 				struct ipx_addr *ina;
-				struct arpcom *ac;
 
 				ina = &(IA_SIPX(ifa)->sipx_addr);
-				ac = IFP2AC(ifp);
 
 				if (ipx_nullhost(*ina))
 					ina->x_host = *(union ipx_host *)
-							ac->ac_enaddr;
+							IFP2ENADDR(ifp);
 				else
 					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) ac->ac_enaddr,
+					      (caddr_t) IFP2ENADDR(ifp),
 					      ISO88025_ADDR_LEN);
 
 				/*
@@ -206,7 +204,7 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
                         struct sockaddr *sa;
 
                         sa = (struct sockaddr *) & ifr->ifr_data;
-                        bcopy(IFP2AC(ifp)->ac_enaddr,
+                        bcopy(IFP2ENADDR(ifp),
                               (caddr_t) sa->sa_data, ISO88025_ADDR_LEN);
                 }
                 break;
@@ -272,7 +270,7 @@ iso88025_output(ifp, m, dst, rt0)
 	/* Generate a generic 802.5 header for the packet */
 	gen_th.ac = TR_AC;
 	gen_th.fc = TR_LLC_FRAME;
-	(void)memcpy((caddr_t)gen_th.iso88025_shost, IFP2AC(ifp)->ac_enaddr,
+	(void)memcpy((caddr_t)gen_th.iso88025_shost, IFP2ENADDR(ifp),
 		     ISO88025_ADDR_LEN);
 	if (rif_len) {
 		gen_th.iso88025_shost[0] |= TR_RII;
@@ -517,7 +515,7 @@ iso88025_input(ifp, m)
 	 */
 	if ((ifp->if_flags & IFF_PROMISC) &&
 	    ((th->iso88025_dhost[0] & 1) == 0) &&
-	     (bcmp(IFP2AC(ifp)->ac_enaddr, (caddr_t) th->iso88025_dhost,
+	     (bcmp(IFP2ENADDR(ifp), (caddr_t) th->iso88025_dhost,
 	     ISO88025_ADDR_LEN) != 0))
 		goto dropanyway;
 
@@ -638,7 +636,6 @@ iso88025_input(ifp, m)
 			int i;
 			u_char c;
 
-			ac = IFP2AC(ifp);
 			c = l->llc_dsap;
 
 			if (th->iso88025_shost[0] & TR_RII) { /* XXX */
@@ -648,7 +645,7 @@ iso88025_input(ifp, m)
 			l->llc_dsap = l->llc_ssap;
 			l->llc_ssap = c;
 			if (m->m_flags & (M_BCAST | M_MCAST))
-				bcopy((caddr_t)ac->ac_enaddr, 
+				bcopy((caddr_t)IFP2ENADDR(ifp),
 				      (caddr_t)th->iso88025_dhost,
 					ISO88025_ADDR_LEN);
 			sa.sa_family = AF_UNSPEC;
@@ -774,9 +771,48 @@ iso88025_resolvemulti (ifp, llsa, sa)
 	return (0);
 }
 
+MALLOC_DEFINE(M_ISO88025, "arpcom", "802.5 interface internals");
+
+static void*
+iso88025_alloc(u_char type, struct ifnet *ifp)
+{
+	struct arpcom	*ac;
+ 
+        ac = malloc(sizeof(struct arpcom), M_ISO88025, M_WAITOK | M_ZERO);
+	ac->ac_ifp = ifp;
+
+	return (ac);
+} 
+
+static void
+iso88025_free(void *com, u_char type)
+{
+ 
+        free(com, M_ISO88025);
+}
+ 
+static int
+iso88025_modevent(module_t mod, int type, void *data)
+{
+  
+        switch (type) {
+        case MOD_LOAD:
+                if_register_com_alloc(IFT_ISO88025, iso88025_alloc,
+                    iso88025_free);
+                break;
+        case MOD_UNLOAD:
+                if_deregister_com_alloc(IFT_ISO88025);
+                break;
+        default:
+                return EOPNOTSUPP;
+        }
+
+        return (0);
+}
+
 static moduledata_t iso88025_mod = {
 	"iso88025",
-	NULL,
+	iso88025_modevent,
 	0
 };
 

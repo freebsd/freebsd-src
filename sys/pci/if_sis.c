@@ -740,7 +740,7 @@ sis_setmulti_ns(struct sis_softc *sc)
 	u_int32_t		h = 0, i, filtsave;
 	int			bit, index;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sis_ifp;
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		SIS_CLRBIT(sc, SIS_RXFILT_CTL, NS_RXFILTCTL_MCHASH);
@@ -789,7 +789,7 @@ sis_setmulti_sis(struct sis_softc *sc)
 	u_int32_t		h, i, n, ctl;
 	u_int16_t		hashes[16];
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sis_ifp;
 
 	/* hash table size */
 	if (sc->sis_rev >= SIS_REV_635 ||
@@ -1069,7 +1069,6 @@ sis_attach(device_t dev)
 		callout_init(&sc->sis_stat_ch, CALLOUT_MPSAFE);
 	else
 		callout_init(&sc->sis_stat_ch, 0);
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
@@ -1192,7 +1191,12 @@ sis_attach(device_t dev)
 	 * rings which we'll need later in the init routine.
 	 */
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sis_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("sis%d: can not if_alloc()\n", sc->sis_unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -1212,6 +1216,7 @@ sis_attach(device_t dev)
 	if (mii_phy_probe(dev, &sc->sis_miibus,
 	    sis_ifmedia_upd, sis_ifmedia_sts)) {
 		printf("sis%d: MII without any PHY!\n", sc->sis_unit);
+		if_free(ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1239,6 +1244,7 @@ sis_attach(device_t dev)
 	if (error) {
 		printf("sis%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -1265,13 +1271,14 @@ sis_detach(device_t dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->sis_mtx), ("sis mutex not initialized"));
 	SIS_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sis_ifp;
 
 	/* These should only be active if attach succeeded. */
 	if (device_is_attached(dev)) {
 		sis_reset(sc);
 		sis_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 	if (sc->sis_miibus)
 		device_delete_child(dev, sc->sis_miibus);
@@ -1407,7 +1414,7 @@ sis_rxeof(struct sis_softc *sc)
 
 	SIS_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sis_ifp;
 
 	for(cur_rx = sc->sis_rx_pdsc; SIS_OWNDESC(cur_rx);
 	    cur_rx = cur_rx->sis_nextdesc) {
@@ -1501,7 +1508,7 @@ sis_txeof(struct sis_softc *sc)
 	u_int32_t		idx;
 
 	SIS_LOCK_ASSERT(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sis_ifp;
 
 	/*
 	 * Go through our tx list and free mbufs for those
@@ -1558,7 +1565,7 @@ sis_tick(void *xsc)
 	sc = xsc;
 	SIS_LOCK(sc);
 	sc->in_tick = 1;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sis_ifp;
 
 	mii = device_get_softc(sc->sis_miibus);
 	mii_tick(mii);
@@ -1636,7 +1643,7 @@ sis_intr(void *arg)
 	u_int32_t		status;
 
 	sc = arg;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sis_ifp;
 
 	if (sc->sis_stopped)	/* Most likely shared interrupt */
 		return;
@@ -1853,7 +1860,7 @@ sis_init(void *xsc)
 static void
 sis_initl(struct sis_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->sis_ifp;
 	struct mii_data		*mii;
 
 	SIS_LOCK_ASSERT(sc);
@@ -1880,23 +1887,23 @@ sis_initl(struct sis_softc *sc)
 	if (sc->sis_type == SIS_TYPE_83815) {
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR0);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)sc->arpcom.ac_enaddr)[0]);
+		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[0]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR1);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)sc->arpcom.ac_enaddr)[1]);
+		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[1]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR2);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)sc->arpcom.ac_enaddr)[2]);
+		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[2]);
 	} else {
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR0);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)sc->arpcom.ac_enaddr)[0]);
+		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[0]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR1);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)sc->arpcom.ac_enaddr)[1]);
+		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[1]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR2);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)sc->arpcom.ac_enaddr)[2]);
+		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[2]);
 	}
 
 	/* Init circular TX/RX lists. */
@@ -2192,7 +2199,7 @@ sis_stop(struct sis_softc *sc)
 	if (sc->sis_stopped)
 		return;
 	SIS_LOCK_ASSERT(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sis_ifp;
 	ifp->if_timer = 0;
 
 	callout_stop(&sc->sis_stat_ch);

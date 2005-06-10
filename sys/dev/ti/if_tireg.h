@@ -987,7 +987,7 @@ typedef enum {
 
 struct ti_softc {
 	STAILQ_ENTRY(ti_softc)	ti_links;
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*ti_ifp;
 	bus_space_handle_t	ti_bhandle;
 	vm_offset_t		ti_vhandle;
 	bus_space_tag_t		ti_btag;

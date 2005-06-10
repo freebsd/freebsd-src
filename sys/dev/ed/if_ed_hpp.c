@@ -149,7 +149,7 @@ ed_probe_HP_pclanp(device_t dev, int port_rid, int flags)
 
 	ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_MAC);
 	for (n  = 0, checksum = 0; n < ETHER_ADDR_LEN; n++)
-		checksum += (sc->arpcom.ac_enaddr[n] = 
+		checksum += (sc->enaddr[n] = 
 		    ed_asic_inb(sc, ED_HPP_MAC_ADDR + n));
 	
 	checksum += ed_asic_inb(sc, ED_HPP_MAC_ADDR + ETHER_ADDR_LEN);
@@ -365,7 +365,7 @@ ed_probe_HP_pclanp(device_t dev, int port_rid, int flags)
 void
 ed_hpp_set_physical_link(struct ed_softc *sc)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	int lan_page;
 
 	ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_LAN);

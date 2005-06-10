@@ -342,7 +342,7 @@ int
 ral_attach(device_t dev)
 {
 	struct ral_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->sc_arp.ac_if;
+	struct ifnet *ifp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	int error, i;
 
@@ -393,7 +393,11 @@ ral_attach(device_t dev)
 		device_printf(sc->sc_dev, "could not allocate Rx ring\n");
 		goto fail5;
 	}
-
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(sc->sc_dev, "can not if_alloc()\n");
+		goto fail6;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -497,7 +501,7 @@ ral_attach(device_t dev)
 	    ral_intr, sc, &sc->sc_ih);
 	if (error != 0) {
 		device_printf(dev, "could not set up interrupt\n");
-		goto fail6;
+		goto fail7;
 	}
 
 	if (bootverbose)
@@ -505,8 +509,9 @@ ral_attach(device_t dev)
 
 	return 0;
 
-fail6:	bpfdetach(ifp);
+fail7:	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
+fail6:	if_free(ifp);
 
 	ral_free_rx_ring(sc, &sc->rxq);
 fail5:	ral_free_tx_ring(sc, &sc->bcnq);
@@ -530,6 +535,7 @@ ral_detach(device_t dev)
 
 	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
+	if_free(ifp);
 
 	ral_free_tx_ring(sc, &sc->txq);
 	ral_free_tx_ring(sc, &sc->atimq);

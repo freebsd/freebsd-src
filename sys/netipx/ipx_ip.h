@@ -40,7 +40,7 @@
 #define	_NETIPX_IPXIP_H_
 
 struct ifnet_en {
-	struct ifnet ifen_ifnet;
+	struct ifnet *ifen_ifp;
 	struct route ifen_route;
 	struct in_addr ifen_src;
 	struct in_addr ifen_dst;

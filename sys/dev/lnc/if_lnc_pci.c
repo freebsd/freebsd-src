@@ -190,31 +190,10 @@ lnc_pci_attach(device_t dev)
 	return (0);
 }
 
-static int
-lnc_pci_detach(device_t dev)
-{
-	lnc_softc_t *sc = device_get_softc(dev);
-	int s = splimp();
-
-	ether_ifdetach(&sc->arpcom.ac_if);
-
-	lnc_stop(sc);
-	bus_teardown_intr(dev, sc->irqres, sc->intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irqres);
-	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0), sc->portres);
-
-	bus_dmamap_unload(sc->dmat, sc->dmamap);
-	bus_dmamem_free(sc->dmat, sc->recv_ring, sc->dmamap);
-	bus_dma_tag_destroy(sc->dmat);
-
-	splx(s);
-	return (0);
-}
-
 static device_method_t lnc_pci_methods[] = {
 	DEVMETHOD(device_probe,		lnc_pci_probe),
 	DEVMETHOD(device_attach,	lnc_pci_attach),
-	DEVMETHOD(device_detach,	lnc_pci_detach),
+	DEVMETHOD(device_detach,	lnc_detach_common),
 #ifdef notyet
 	DEVMETHOD(device_suspend,	lnc_pci_suspend),
 	DEVMETHOD(device_resume,	lnc_pci_resume),

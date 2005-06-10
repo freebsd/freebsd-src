@@ -364,7 +364,7 @@ static int
 ixgb_detach(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
-	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+	struct ifnet   *ifp = adapter->ifp;
 
 	INIT_DEBUGOUT("ixgb_detach: begin");
 
@@ -375,9 +375,10 @@ ixgb_detach(device_t dev)
 	IXGB_UNLOCK(adapter);
 
 #if __FreeBSD_version < 500000
-	ether_ifdetach(&adapter->interface_data.ac_if, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(adapter->ifp, ETHER_BPF_SUPPORTED);
 #else
-	ether_ifdetach(&adapter->interface_data.ac_if);
+	ether_ifdetach(adapter->ifp);
+	if_free(adapter->ifp);
 #endif
 	ixgb_free_pci_resources(adapter);
 
@@ -631,7 +632,7 @@ ixgb_init_locked(struct adapter *adapter)
 	ixgb_stop(adapter);
 
 	/* Get the latest mac address, User can use a LAA */
-	bcopy(adapter->interface_data.ac_enaddr, adapter->hw.curr_mac_addr,
+	bcopy(IFP2ENADDR(adapter->ifp), adapter->hw.curr_mac_addr,
 	      IXGB_ETH_LENGTH_OF_ADDRESS);
 
 	/* Initialize the hardware */
@@ -666,7 +667,7 @@ ixgb_init_locked(struct adapter *adapter)
 	/* Don't loose promiscuous settings */
 	ixgb_set_promisc(adapter);
 
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
@@ -774,7 +775,7 @@ ixgb_intr(void *arg)
 
 	IXGB_LOCK(adapter);
 
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING) {
@@ -912,7 +913,7 @@ ixgb_encap(struct adapter * adapter, struct mbuf * m_head)
 	bus_dmamap_t	map;
 	struct ixgb_buffer *tx_buffer = NULL;
 	struct ixgb_tx_desc *current_tx_desc = NULL;
-	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+	struct ifnet   *ifp = adapter->ifp;
 
 	/*
 	 * Force a cleanup if number of TX descriptors available hits the
@@ -1016,7 +1017,7 @@ ixgb_set_promisc(struct adapter * adapter)
 {
 
 	u_int32_t       reg_rctl;
-	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+	struct ifnet   *ifp = adapter->ifp;
 
 	reg_rctl = IXGB_READ_REG(&adapter->hw, RCTL);
 
@@ -1060,7 +1061,7 @@ ixgb_set_multi(struct adapter * adapter)
 	u_int8_t        mta[MAX_NUM_MULTICAST_ADDRESSES * IXGB_ETH_LENGTH_OF_ADDRESS];
 	struct ifmultiaddr *ifma;
 	int             mcnt = 0;
-	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+	struct ifnet   *ifp = adapter->ifp;
 
 	IOCTL_DEBUGOUT("ixgb_set_multi: begin");
 
@@ -1100,7 +1101,7 @@ ixgb_local_timer(void *arg)
 {
 	struct ifnet   *ifp;
 	struct adapter *adapter = arg;
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 	IXGB_LOCK(adapter);
 
@@ -1151,7 +1152,7 @@ ixgb_stop(void *arg)
 {
 	struct ifnet   *ifp;
 	struct adapter *adapter = arg;
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 	IXGB_LOCK_ASSERT(adapter);
 
@@ -1303,8 +1304,6 @@ ixgb_hardware_init(struct adapter * adapter)
 		       adapter->unit);
 		return (EIO);
 	}
-	bcopy(adapter->hw.curr_mac_addr, adapter->interface_data.ac_enaddr,
-	      IXGB_ETH_LENGTH_OF_ADDRESS);
 
 	return (0);
 }
@@ -1320,7 +1319,9 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	struct ifnet   *ifp;
 	INIT_DEBUGOUT("ixgb_setup_interface: begin");
 
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		panic("%s: can not if_alloc()\n", device_get_nameunit(dev));
 #if __FreeBSD_version >= 502000
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 #else
@@ -1340,7 +1341,7 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 #if __FreeBSD_version < 500000
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 #else
-	ether_ifattach(ifp, adapter->interface_data.ac_enaddr);
+	ether_ifattach(ifp, adapter->hw.curr_mac_addr);
 #endif
 
 	ifp->if_capabilities = IFCAP_HWCSUM;
@@ -1725,7 +1726,7 @@ ixgb_clean_transmit_interrupts(struct adapter * adapter)
 	 * restart the timeout.
 	 */
 	if (num_avail > IXGB_TX_CLEANUP_THRESHOLD) {
-		struct ifnet   *ifp = &adapter->interface_data.ac_if;
+		struct ifnet   *ifp = adapter->ifp;
 
 		ifp->if_flags &= ~IFF_OACTIVE;
 		if (num_avail == adapter->num_tx_desc)
@@ -1753,7 +1754,7 @@ ixgb_get_buf(int i, struct adapter * adapter,
 	bus_addr_t      paddr;
 	int             error;
 
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 	if (mp == NULL) {
 
@@ -1902,7 +1903,7 @@ ixgb_initialize_receive_unit(struct adapter * adapter)
 	struct ifnet   *ifp;
 	u_int64_t       rdba = adapter->rxdma.dma_paddr;
 
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 	/*
 	 * Make sure receives are disabled while setting up the descriptor
@@ -2054,7 +2055,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 
 	IXGB_LOCK_ASSERT(adapter);
 
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 	i = adapter->next_rx_desc_to_check;
 	next_to_use = adapter->next_rx_desc_to_use;
 	eop_desc = adapter->next_rx_desc_to_check;
@@ -2353,7 +2354,7 @@ ixgb_update_stats_counters(struct adapter * adapter)
 	adapter->stats.pftc += IXGB_READ_REG(&adapter->hw, PFTC);
 	adapter->stats.mcfrc += IXGB_READ_REG(&adapter->hw, MCFRC);
 
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 	/* Fill out the OS statistics structure */
 	ifp->if_ipackets = adapter->stats.gprcl;

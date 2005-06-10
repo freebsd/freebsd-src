@@ -198,7 +198,7 @@ ed_probe_3Com(device_t dev, int port_rid, int flags)
 	ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_EALO | ED_3COM_CR_XSEL);
 
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		sc->arpcom.ac_enaddr[i] = ed_nic_inb(sc, i);
+		sc->enaddr[i] = ed_nic_inb(sc, i);
 
 	/*
 	 * Unmap PROM - select NIC registers. The proper setting of the

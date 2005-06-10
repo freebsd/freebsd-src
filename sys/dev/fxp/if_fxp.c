@@ -373,6 +373,7 @@ fxp_attach(device_t dev)
 	struct ifnet *ifp;
 	uint32_t val;
 	uint16_t data, myea[ETHER_ADDR_LEN / 2];
+	u_char eaddr[ETHER_ADDR_LEN];
 	int i, rid, m1, m2, prefer_iomap;
 	int error, s;
 
@@ -707,12 +708,12 @@ fxp_attach(device_t dev)
 	 * Read MAC address.
 	 */
 	fxp_read_eeprom(sc, myea, 0, 3);
-	sc->arpcom.ac_enaddr[0] = myea[0] & 0xff;
-	sc->arpcom.ac_enaddr[1] = myea[0] >> 8;
-	sc->arpcom.ac_enaddr[2] = myea[1] & 0xff;
-	sc->arpcom.ac_enaddr[3] = myea[1] >> 8;
-	sc->arpcom.ac_enaddr[4] = myea[2] & 0xff;
-	sc->arpcom.ac_enaddr[5] = myea[2] >> 8;
+	eaddr[0] = myea[0] & 0xff;
+	eaddr[1] = myea[0] >> 8;
+	eaddr[2] = myea[1] & 0xff;
+	eaddr[3] = myea[1] >> 8;
+	eaddr[4] = myea[2] & 0xff;
+	eaddr[5] = myea[2] >> 8;
 	if (bootverbose) {
 		device_printf(dev, "PCI IDs: %04x %04x %04x %04x %04x\n",
 		    pci_get_vendor(dev), pci_get_device(dev),
@@ -744,7 +745,12 @@ fxp_attach(device_t dev)
 		}
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = 100000000;
 	ifp->if_init = fxp_init;
@@ -772,7 +778,7 @@ fxp_attach(device_t dev)
 	/*
 	 * Attach the interface.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -798,14 +804,15 @@ fxp_attach(device_t dev)
 			       fxp_intr, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
-		ether_ifdetach(&sc->arpcom.ac_if);
+		ether_ifdetach(sc->ifp);
 		goto fail;
 	}
 
 fail:
 	splx(s);
-	if (error)
+	if (error) {
 		fxp_release(sc);
+	}
 	return (error);
 }
 
@@ -874,6 +881,8 @@ fxp_release(struct fxp_softc *sc)
 		bus_dma_tag_destroy(sc->cbl_tag);
 	if (sc->mcs_tag)
 		bus_dma_tag_destroy(sc->mcs_tag);
+	if (sc->ifp)
+		if_free(sc->ifp);
 
 	mtx_destroy(&sc->sc_mtx);
 }
@@ -894,7 +903,8 @@ fxp_detach(device_t dev)
 	/*
 	 * Close down routes etc.
 	 */
-	ether_ifdetach(&sc->arpcom.ac_if);
+	ether_ifdetach(sc->ifp);
+	if_free(sc->ifp);
 
 	/*
 	 * Stop DMA and drop transmit queue, but disable interrupts first.
@@ -965,7 +975,7 @@ static int
 fxp_resume(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	uint16_t pci_command;
 	int s;
 
@@ -1246,7 +1256,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
 	int chainlen, error, i, nseg;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
-	ifp = &sc->sc_if;
+	ifp = sc->ifp;
 
 	/*
 	 * Get pointer to next available tx desc.
@@ -1492,7 +1502,7 @@ static void
 fxp_intr(void *xsc)
 {
 	struct fxp_softc *sc = xsc;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	uint8_t statack;
 
 	FXP_LOCK(sc);
@@ -1735,7 +1745,7 @@ static void
 fxp_tick(void *xsc)
 {
 	struct fxp_softc *sc = xsc;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	struct fxp_stats *sp = sc->fxp_stats;
 	int s;
 
@@ -1836,7 +1846,7 @@ fxp_tick(void *xsc)
 static void
 fxp_stop(struct fxp_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	struct fxp_tx *txp;
 	int i;
 
@@ -1920,7 +1930,7 @@ fxp_init(void *xsc)
 static void
 fxp_init_body(struct fxp_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	struct fxp_cb_config *cbp;
 	struct fxp_cb_ias *cb_ias;
 	struct fxp_cb_tx *tcbp;
@@ -2101,8 +2111,8 @@ fxp_init_body(struct fxp_softc *sc)
 	cb_ias->cb_status = 0;
 	cb_ias->cb_command = htole16(FXP_CB_COMMAND_IAS | FXP_CB_COMMAND_EL);
 	cb_ias->link_addr = 0xffffffff;
-	bcopy(sc->arpcom.ac_enaddr, cb_ias->macaddr,
-	    sizeof(sc->arpcom.ac_enaddr));
+	bcopy(IFP2ENADDR(sc->ifp), cb_ias->macaddr,
+	    sizeof(IFP2ENADDR(sc->ifp)));
 
 	/*
 	 * Start the IAS (Individual Address Setup) command/DMA.
@@ -2464,7 +2474,7 @@ static int
 fxp_mc_addrs(struct fxp_softc *sc)
 {
 	struct fxp_cb_mcs *mcsp = sc->mcsp;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ifmultiaddr *ifma;
 	int nmcasts;
 
@@ -2509,7 +2519,7 @@ static void
 fxp_mc_setup(struct fxp_softc *sc)
 {
 	struct fxp_cb_mcs *mcsp = sc->mcsp;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	struct fxp_tx *txp;
 	int count;
 

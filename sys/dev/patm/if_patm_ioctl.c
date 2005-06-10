@@ -107,7 +107,7 @@ patm_open_vcc(struct patm_softc *sc, struct atmio_openvcc *arg)
 		return (ENOMEM);
 
 	mtx_lock(&sc->mtx);
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
 		/* stopped while we have analyzed the arguments */
 		error = EIO;
 		goto done;
@@ -200,7 +200,7 @@ patm_load_vc(struct patm_softc *sc, struct patm_vcc *vcc, int reload)
 		/* inform management about non-NG and NG-PVCs */
 		if (!(vcc->vcc.flags & ATMIO_FLAG_NG) ||
 		     (vcc->vcc.flags & ATMIO_FLAG_PVC))
-			ATMEV_SEND_VCC_CHANGED(&sc->ifatm, vcc->vcc.vpi,
+			ATMEV_SEND_VCC_CHANGED(IFP2IFATM(sc->ifp), vcc->vcc.vpi,
 			    vcc->vcc.vci, 1);
 	}
 
@@ -224,7 +224,7 @@ patm_close_vcc(struct patm_softc *sc, struct atmio_closevcc *arg)
 	cid = PATM_CID(sc, arg->vpi, arg->vci);
 
 	mtx_lock(&sc->mtx);
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
 		/* stopped while we have analyzed the arguments */
 		error = EIO;
 		goto done;
@@ -246,7 +246,7 @@ patm_close_vcc(struct patm_softc *sc, struct atmio_closevcc *arg)
 
 	while (vcc->vflags & (PATM_VCC_TX_CLOSING | PATM_VCC_RX_CLOSING)) {
 		cv_wait(&sc->vcc_cv, &sc->mtx);
-		if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+		if (!(sc->ifp->if_flags & IFF_RUNNING)) {
 			/* ups, has been stopped */
 			error = EIO;
 			goto done;
@@ -276,7 +276,7 @@ patm_vcc_closed(struct patm_softc *sc, struct patm_vcc *vcc)
 	/* inform management about non-NG and NG-PVCs */
 	if (!(vcc->vcc.flags & ATMIO_FLAG_NG) ||
 	    (vcc->vcc.flags & ATMIO_FLAG_PVC))
-		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, vcc->vcc.vpi,
+		ATMEV_SEND_VCC_CHANGED(IFP2IFATM(sc->ifp), vcc->vcc.vpi,
 		    vcc->vcc.vci, 0);
 
 	sc->vccs_open--;

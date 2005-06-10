@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_llc.h>
@@ -228,7 +229,7 @@ enum {
 };
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_debug & (m)) || \
-	    (sc->sc_if.if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
+	    (sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
 #define	DPRINTF(sc, m, fmt, ...) do {				\
 	if (sc->sc_debug & (m))					\
 		printf(fmt, __VA_ARGS__);			\
@@ -241,7 +242,7 @@ static	void ath_printrxbuf(struct ath_buf *bf, int);
 static	void ath_printtxbuf(struct ath_buf *bf, int);
 #else
 #define	IFF_DUMPPKTS(sc, m) \
-	((sc->sc_if.if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
+	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
 #define	DPRINTF(m, fmt, ...)
 #define	KEYPRINTF(sc, k, ix, mac)
 #endif
@@ -251,13 +252,20 @@ MALLOC_DEFINE(M_ATHDEV, "athdev", "ath driver dma buffers");
 int
 ath_attach(u_int16_t devid, struct ath_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp;
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ath_hal *ah;
+	struct ath_hal *ah = NULL;
 	HAL_STATUS status;
 	int error = 0, i;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: devid 0x%x\n", __func__, devid);
+
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(sc->sc_dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto bad;
+	}
 
 	/* set these up early for if_printf use */
 	if_initname(ifp, device_get_name(sc->sc_dev),
@@ -591,6 +599,8 @@ bad2:
 bad:
 	if (ah)
 		ath_hal_detach(ah);
+	if (ifp != NULL)
+		if_free(ifp);
 	sc->sc_invalid = 1;
 	return error;
 }
@@ -598,7 +608,7 @@ bad:
 int
 ath_detach(struct ath_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
 		__func__, ifp->if_flags);
@@ -629,7 +639,7 @@ ath_detach(struct ath_softc *sc)
 void
 ath_suspend(struct ath_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
 		__func__, ifp->if_flags);
@@ -640,13 +650,13 @@ ath_suspend(struct ath_softc *sc)
 void
 ath_resume(struct ath_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
 		__func__, ifp->if_flags);
 
 	if (ifp->if_flags & IFF_UP) {
-		ath_init(ifp);
+		ath_init(sc);
 		if (ifp->if_flags & IFF_RUNNING)
 			ath_start(ifp);
 	}
@@ -659,7 +669,7 @@ ath_resume(struct ath_softc *sc)
 void
 ath_shutdown(struct ath_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
 		__func__, ifp->if_flags);
@@ -674,7 +684,7 @@ void
 ath_intr(void *arg)
 {
 	struct ath_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_INT status;
 
@@ -772,7 +782,7 @@ static void
 ath_fatal_proc(void *arg, int pending)
 {
 	struct ath_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	if_printf(ifp, "hardware error; resetting\n");
 	ath_reset(ifp);
@@ -782,7 +792,7 @@ static void
 ath_rxorn_proc(void *arg, int pending)
 {
 	struct ath_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	if_printf(ifp, "rx FIFO overrun; resetting\n");
 	ath_reset(ifp);
@@ -836,7 +846,7 @@ ath_init(void *arg)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211_node *ni;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
@@ -1199,7 +1209,7 @@ ath_media_change(struct ifnet *ifp)
 	error = ieee80211_media_change(ifp);
 	if (error == ENETRESET) {
 		if (IS_UP(ifp))
-			ath_init(ifp);		/* XXX lose error */
+			ath_init(ifp->if_softc);	/* XXX lose error */
 		error = 0;
 	}
 	return error;
@@ -1604,7 +1614,7 @@ ath_calcrxfilter(struct ath_softc *sc, enum ieee80211_state state)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	u_int32_t rfilt;
 
 	rfilt = (ath_hal_getrxfilter(ah) & HAL_RX_FILTER_PHYERR)
@@ -1626,7 +1636,7 @@ ath_mode_init(struct ath_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	u_int32_t rfilt, mfilt[2], val;
 	u_int8_t pos;
 	struct ifmultiaddr *ifma;
@@ -1646,7 +1656,7 @@ ath_mode_init(struct ath_softc *sc)
 	 *
 	 * XXX should get from lladdr instead of arpcom but that's more work
 	 */
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IFP2AC(ifp)->ac_enaddr);
+	IEEE80211_ADDR_COPY(ic->ic_myaddr, IFP2ENADDR(ifp));
 	ath_hal_setmac(ah, ic->ic_myaddr);
 
 	/* calculate and install multicast filter */
@@ -2016,7 +2026,7 @@ static void
 ath_bstuck_proc(void *arg, int pending)
 {
 	struct ath_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	if_printf(ifp, "stuck beacon; resetting (bmiss count %u)\n",
 		sc->sc_bmisscount);
@@ -2233,7 +2243,7 @@ ath_descdma_setup(struct ath_softc *sc,
 {
 #define	DS2PHYS(_dd, _ds) \
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_desc *ds;
 	struct ath_buf *bf;
 	int i, bsize, error;
@@ -2623,7 +2633,7 @@ ath_rx_proc(void *arg, int npending)
 	struct ath_softc *sc = arg;
 	struct ath_buf *bf;
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds;
 	struct mbuf *m;
@@ -3149,7 +3159,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	    txopLimit, CTS_DURATION)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
 	int i, error, iswep, ismcast, keyix, hdrlen, pktlen, try0;
 	u_int8_t rix, txrate, ctsrate;
@@ -3730,7 +3740,7 @@ static void
 ath_tx_proc_q0(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	ath_tx_processq(sc, &sc->sc_txq[0]);
 	ath_tx_processq(sc, sc->sc_cabq);
@@ -3751,7 +3761,7 @@ static void
 ath_tx_proc_q0123(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	/*
 	 * Process each active queue.
@@ -3778,7 +3788,7 @@ static void
 ath_tx_proc(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
 	/*
@@ -3860,7 +3870,7 @@ static void
 ath_draintxq(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
 	/* XXX return value */
@@ -4084,7 +4094,7 @@ ath_calibrate(void *arg)
 		 * to load new gain values.
 		 */
 		sc->sc_stats.ast_per_rfgain++;
-		ath_reset(&sc->sc_if);
+		ath_reset(sc->sc_ifp);
 	}
 	if (!ath_hal_calibrate(ah, &sc->sc_curchan)) {
 		DPRINTF(sc, ATH_DEBUG_ANY,
@@ -4291,7 +4301,7 @@ ath_getchannels(struct ath_softc *sc, u_int cc,
 	HAL_BOOL outdoor, HAL_BOOL xchanmode)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_CHANNEL *chans;
 	int i, ix, nchan;
@@ -4680,7 +4690,7 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * probably a better way to deal with this.
 			 */
 			if (!sc->sc_invalid && ic->ic_bss != NULL)
-				ath_init(ifp);	/* XXX lose error */
+				ath_init(sc);	/* XXX lose error */
 		} else
 			ath_stop_locked(ifp);
 		break;
@@ -4716,7 +4726,7 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (error == ENETRESET) {
 			if (IS_RUNNING(ifp) && 
 			    ic->ic_roaming != IEEE80211_ROAMING_MANUAL)
-				ath_init(ifp);	/* XXX lose error */
+				ath_init(sc);	/* XXX lose error */
 			error = 0;
 		}
 		if (error == ERESTART)
@@ -4836,7 +4846,7 @@ static int
 ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	u_int32_t scale;
 	int error;
 
@@ -4929,7 +4939,7 @@ ath_sysctlattach(struct ath_softc *sc)
 static void
 ath_bpfattach(struct ath_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
 		sizeof(struct ieee80211_frame) + sizeof(sc->sc_tx_th),
@@ -4959,7 +4969,7 @@ static void
 ath_announce(struct ath_softc *sc)
 {
 #define	HAL_MODE_DUALBAND	(HAL_MODE_11A|HAL_MODE_11B)
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 	u_int modes, cc;
 

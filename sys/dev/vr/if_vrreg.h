@@ -452,7 +452,7 @@ struct vr_mii_frame {
 #define VR_FLAG_DELAYTIMEO	3	
 
 struct vr_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*vr_ifp;	/* interface info */
 	bus_space_handle_t	vr_bhandle;	/* bus space handle */
 	bus_space_tag_t		vr_btag;	/* bus space tag */
 	struct resource		*vr_res;

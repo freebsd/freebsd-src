@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/bpf.h>
 
@@ -326,7 +327,7 @@ my_setmulti(struct my_softc * sc)
 
 	MY_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp;
 
 	rxfilt = CSR_READ_4(sc, MY_TCRRCR);
 
@@ -405,7 +406,7 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 	MY_LOCK(sc);
 
 	ifm = &sc->ifmedia;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp;
 
 	ifm->ifm_media = IFM_ETHER | IFM_AUTO;
 
@@ -570,7 +571,7 @@ my_getmode_mii(struct my_softc * sc)
 	struct ifnet   *ifp;
 
 	MY_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp;
 	bmsr = my_phy_readreg(sc, PHY_BMSR);
 	if (bootverbose)
 		printf("my%d: PHY status word: %x\n", sc->my_unit, bmsr);
@@ -668,7 +669,7 @@ my_setmode_mii(struct my_softc * sc, int media)
 	struct ifnet   *ifp;
 
 	MY_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp;
 	/*
 	 * If an autoneg session is in progress, stop it.
 	 */
@@ -823,12 +824,6 @@ my_attach(device_t dev)
 	s = splimp();
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-	if (sc == NULL) {
-		printf("my%d: no memory for softc struct!\n", unit);
-		error = ENXIO;
-		goto fail;
-
-	}
 	bzero(sc, sizeof(struct my_softc));
 	mtx_init(&sc->my_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -931,7 +926,6 @@ my_attach(device_t dev)
 		eaddr[i] = CSR_READ_1(sc, MY_PAR0 + i);
 
 	sc->my_unit = unit;
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	sc->my_ldata_ptr = malloc(sizeof(struct my_list_data) + 8,
 				  M_DEVBUF, M_NOWAIT);
@@ -954,7 +948,12 @@ my_attach(device_t dev)
 	sc->my_ldata = (struct my_list_data *) roundptr;
 	bzero(sc->my_ldata, sizeof(struct my_list_data));
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -1032,6 +1031,8 @@ my_attach(device_t dev)
 fail:
 	MY_UNLOCK(sc);
 	mtx_destroy(&sc->my_mtx);
+	if (sc->my_ldata_ptr != NULL)
+		free(sc->my_ldata_ptr, M_DEVBUF);
 	splx(s);
 	return (error);
 }
@@ -1046,8 +1047,9 @@ my_detach(device_t dev)
 	s = splimp();
 	sc = device_get_softc(dev);
 	MY_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp;
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	my_stop(sc);
 
 #if 0
@@ -1180,7 +1182,7 @@ my_rxeof(struct my_softc * sc)
 	u_int32_t       rxstat;
 
 	MY_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp;
 	while (!((rxstat = sc->my_cdata.my_rx_head->my_ptr->my_status)
 	    & MY_OWNByNIC)) {
 		cur_rx = sc->my_cdata.my_rx_head;
@@ -1232,7 +1234,7 @@ my_rxeof(struct my_softc * sc)
 		if (ifp->if_bpf) {
 			BPF_MTAP(ifp, m);
 			if (ifp->if_flags & IFF_PROMISC &&
-			    (bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
+			    (bcmp(eh->ether_dhost, IFP2ENADDR(sc->my_ifp),
 				ETHER_ADDR_LEN) &&
 			     (eh->ether_dhost[0] & 1) == 0)) {
 				m_freem(m);
@@ -1260,7 +1262,7 @@ my_txeof(struct my_softc * sc)
 	struct ifnet   *ifp;
 
 	MY_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp;
 	/* Clear the timeout timer. */
 	ifp->if_timer = 0;
 	if (sc->my_cdata.my_tx_head == NULL) {
@@ -1315,7 +1317,7 @@ my_txeoc(struct my_softc * sc)
 	struct ifnet   *ifp;
 
 	MY_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp;
 	ifp->if_timer = 0;
 	if (sc->my_cdata.my_tx_head == NULL) {
 		ifp->if_flags &= ~IFF_OACTIVE;
@@ -1342,7 +1344,7 @@ my_intr(void *arg)
 
 	sc = arg;
 	MY_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp;
 	if (!(ifp->if_flags & IFF_UP)) {
 		MY_UNLOCK(sc);
 		return;
@@ -1536,7 +1538,7 @@ static void
 my_init(void *xsc)
 {
 	struct my_softc *sc = xsc;
-	struct ifnet   *ifp = &sc->arpcom.ac_if;
+	struct ifnet   *ifp = sc->my_ifp;
 	int             s;
 	u_int16_t       phy_bmcr = 0;
 
@@ -1788,7 +1790,7 @@ my_stop(struct my_softc * sc)
 	struct ifnet   *ifp;
 
 	MY_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->my_ifp;
 	ifp->if_timer = 0;
 
 	MY_CLRBIT(sc, MY_TCRRCR, (MY_RE | MY_TE));
