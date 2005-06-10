@@ -59,7 +59,7 @@ static const char rcsid[] =
 
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
-	MOPT_NULL
+	MOPT_END
 };
 
 int	subdir(const char *, const char *);
