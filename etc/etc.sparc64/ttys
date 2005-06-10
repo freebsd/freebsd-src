@@ -31,26 +31,27 @@
 # If console is marked "insecure", then init will ask for the root password
 # when going to single-user mode.
 console	none				unknown	off secure
-#
-screen	"/usr/libexec/getty Pc"		vt100	on  secure
+# ofw_console(4)
+screen	"/usr/libexec/getty Pc"		vt100	off secure
 ttya	"/usr/libexec/getty 3wire.9600"	vt100	off secure
 ttyb	"/usr/libexec/getty 3wire.9600"	vt100	off secure
+# sab(4)
 ttyz0	"/usr/libexec/getty 3wire.9600"	vt100	off secure
 ttyz1	"/usr/libexec/getty 3wire.9600"	vt100	off secure
-#
-#ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
+# syscons(4)
+ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
-#ttyv1	"/usr/libexec/getty Pc"		cons25	on  secure
-#ttyv2	"/usr/libexec/getty Pc"		cons25	on  secure
-#ttyv3	"/usr/libexec/getty Pc"		cons25	on  secure
-#ttyv4	"/usr/libexec/getty Pc"		cons25	on  secure
-#ttyv5	"/usr/libexec/getty Pc"		cons25	on  secure
-#ttyv6	"/usr/libexec/getty Pc"		cons25	on  secure
-#ttyv7	"/usr/libexec/getty Pc"		cons25	on  secure
-#ttyv8	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
+ttyv1	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv2	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv3	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv4	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv5	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv6	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv7	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv8	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.
-# Requires device 'uart' be enabled.
+# uart(4)
 ttyu0	"/usr/libexec/getty std.9600"	vt100	on  secure
 ttyu1	"/usr/libexec/getty std.9600"	vt100	on  secure
 ttyu2	"/usr/libexec/getty std.9600"	vt100	off secure
