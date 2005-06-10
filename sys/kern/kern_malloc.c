@@ -616,7 +616,7 @@ malloc_uninit(void *data)
 	} else
 		kmemstatistics = mtp->ks_next;
 	mtx_unlock(&malloc_mtx);
-	uma_zfree(mt_zone, mtp);
+	uma_zfree(mt_zone, mtip);
 }
 
 static int
