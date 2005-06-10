@@ -275,10 +275,6 @@ extern int nfsd_head_flag;
 		((o)->nd_eoff >= (n)->nd_off && \
 		 !bcmp((caddr_t)&(o)->nd_fh, (caddr_t)&(n)->nd_fh, NFSX_V3FH))
 
-#define NFSW_SAMECRED(o, n) \
-	(!bcmp((caddr_t)&(o)->nd_cr, (caddr_t)&(n)->nd_cr, \
-		sizeof (struct ucred)))
-
 /*
  * Defines for WebNFS
  */
