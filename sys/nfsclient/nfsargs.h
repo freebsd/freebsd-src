@@ -56,7 +56,7 @@ struct nfs_args {
 	int		retrans;	/* times to retry send */
 	int		maxgrouplist;	/* Max. size of group list */
 	int		readahead;	/* # of blocks to readahead */
-	int		__pad1;		/* was "leaseterm" */
+	int		wcommitsize;	/* Max. write commit size in bytes */
 	int		deadthresh;	/* Retrans threshold */
 	char		*hostname;	/* server's name */
 	int		acregmin;	/* cache attrs for reg files min time */
@@ -80,7 +80,7 @@ struct nfs_args {
 #define	NFSMNT_NFSV3		0x00000200  /* Use NFS Version 3 protocol */
 /* 0x400 free, was NFSMNT_KERB */
 #define	NFSMNT_DUMBTIMR		0x00000800  /* Don't estimate rtt dynamically */
-/* 0x1000 free, was NFSMNT_LEASETERM */
+#define	NFSMNT_WCOMMITSIZE	0x00001000  /* set max write commit size */
 #define	NFSMNT_READAHEAD	0x00002000  /* set read ahead */
 #define	NFSMNT_DEADTHRESH	0x00004000  /* set dead server retry thresh */
 #define	NFSMNT_RESVPORT		0x00008000  /* Allocate a reserved port */
