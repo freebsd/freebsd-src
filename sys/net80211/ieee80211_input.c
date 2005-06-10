@@ -908,10 +908,10 @@ ieee80211_auth_open(struct ieee80211com *ic, struct ieee80211_frame *wh,
 			if (ni != ic->ic_bss)
 				ni->ni_fails++;
 			ic->ic_stats.is_rx_auth_fail++;
-			return;
-		}
-		ieee80211_new_state(ic, IEEE80211_S_ASSOC,
-		    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
+			ieee80211_new_state(ic, IEEE80211_S_SCAN, 0);
+		} else
+			ieee80211_new_state(ic, IEEE80211_S_ASSOC,
+			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 		break;
 	}
 }
@@ -1169,6 +1169,14 @@ bad:
 		ieee80211_send_error(ic, ni, wh->i_addr2,
 		    IEEE80211_FC0_SUBTYPE_AUTH,
 		    (seq + 1) | (estatus<<16));
+	} else if (ic->ic_opmode == IEEE80211_M_STA) {
+		/*
+		 * Kick the state machine.  This short-circuits
+		 * using the mgt frame timeout to trigger the
+		 * state transition.
+		 */
+		if (ic->ic_state == IEEE80211_S_AUTH)
+			ieee80211_new_state(ic, IEEE80211_S_SCAN, 0);
 	}
 }
 
@@ -2414,6 +2422,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			if (ni != ic->ic_bss)	/* XXX never true? */
 				ni->ni_fails++;
 			ic->ic_stats.is_rx_assoc_norate++;
+			ieee80211_new_state(ic, IEEE80211_S_SCAN, 0);
 			return;
 		}
 
