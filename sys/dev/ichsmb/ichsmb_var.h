@@ -48,6 +48,7 @@ struct ichsmb_softc {
 
 	/* Device/bus stuff */
 	device_t		dev;		/* this device */
+	device_t		smb;		/* smb device */
 	struct resource		*io_res;        /* i/o port resource */
 	int			io_rid;         /* i/o port bus id */
 	bus_space_tag_t		io_bst;		/* bus space tag */
@@ -85,6 +86,7 @@ extern void	ichsmb_device_intr(void *cookie);
 extern void	ichsmb_release_resources(sc_p sc);
 extern int	ichsmb_probe(device_t dev);
 extern int	ichsmb_attach(device_t dev);
+extern int	ichsmb_detach(device_t dev);
 
 #endif /* _DEV_ICHSMB_ICHSMB_VAR_H */
 
