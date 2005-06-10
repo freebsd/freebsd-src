@@ -60,7 +60,7 @@ static	void tkip_detach(struct ieee80211_key *);
 static	int tkip_setkey(struct ieee80211_key *);
 static	int tkip_encap(struct ieee80211_key *, struct mbuf *m, u_int8_t keyid);
 static	int tkip_enmic(struct ieee80211_key *, struct mbuf *, int);
-static	int tkip_decap(struct ieee80211_key *, struct mbuf *);
+static	int tkip_decap(struct ieee80211_key *, struct mbuf *, int);
 static	int tkip_demic(struct ieee80211_key *, struct mbuf *, int);
 
 static const struct ieee80211_cipher tkip  = {
@@ -244,20 +244,18 @@ READ_6(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5)
  * the specified key.
  */
 static int
-tkip_decap(struct ieee80211_key *k, struct mbuf *m)
+tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 {
 	struct tkip_ctx *ctx = k->wk_private;
 	struct ieee80211com *ic = ctx->tc_ic;
 	struct ieee80211_frame *wh;
 	uint8_t *ivp;
-	int hdrlen;
 
 	/*
 	 * Header should have extended IV and sequence number;
 	 * verify the former and validate the latter.
 	 */
 	wh = mtod(m, struct ieee80211_frame *);
-	hdrlen = ieee80211_hdrsize(wh);
 	ivp = mtod(m, uint8_t *) + hdrlen;
 	if ((ivp[IEEE80211_WEP_IVLEN] & IEEE80211_WEP_EXTIV) == 0) {
 		/*
@@ -327,11 +325,12 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 
 	if (force || (k->wk_flags & IEEE80211_KEY_SWMIC)) {
 		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
-		int hdrlen = ieee80211_hdrsize(wh);
+		struct ieee80211com *ic = ctx->tc_ic;
+		int hdrlen = ieee80211_hdrspace(ic, wh);
 		u8 mic[IEEE80211_WEP_MICLEN];
 		u8 mic0[IEEE80211_WEP_MICLEN];
 
-		ctx->tc_ic->ic_stats.is_crypto_tkipdemic++;
+		ic->ic_stats.is_crypto_tkipdemic++;
 
 		michael_mic(ctx, k->wk_rxmic, 
 			m, hdrlen, m->m_pkthdr.len - (hdrlen + tkip.ic_miclen),
@@ -340,8 +339,7 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 			tkip.ic_miclen, mic0);
 		if (memcmp(mic, mic0, tkip.ic_miclen)) {
 			/* NB: 802.11 layer handles statistic and debug msg */
-			ieee80211_notify_michael_failure(ctx->tc_ic, wh,
-				k->wk_keyix);
+			ieee80211_notify_michael_failure(ic, wh, k->wk_keyix);
 			return 0;
 		}
 	}
