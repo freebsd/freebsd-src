@@ -209,6 +209,7 @@ MAN=	aac.4 \
 	ng_sppp.4 \
 	ng_sscfu.4 \
 	ng_sscop.4 \
+	ng_tcpmss.4 \
 	ng_tee.4 \
 	ng_tty.4 \
 	ng_ubt.4 \
