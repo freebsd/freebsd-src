@@ -2553,7 +2553,8 @@ ieee80211_node_pwrsave(struct ieee80211_node *ni, int enable)
 	 * Flush queued unicast frames.
 	 */
 	if (IEEE80211_NODE_SAVEQ_QLEN(ni) == 0) {
-		ic->ic_set_tim(ic, ni, 0);	/* just in case */
+		if (ic->ic_set_tim != NULL)
+			ic->ic_set_tim(ic, ni, 0);	/* just in case */
 		return;
 	}
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER,
@@ -2579,6 +2580,8 @@ ieee80211_node_pwrsave(struct ieee80211_node *ni, int enable)
 		/* XXX bypasses q max */
 		IF_ENQUEUE(&ic->ic_ifp->if_snd, m);
 	}
+	if (ic->ic_set_tim != NULL)
+		ic->ic_set_tim(ic, ni, 0);
 }
 
 /*
@@ -2624,7 +2627,8 @@ ieee80211_recv_pspoll(struct ieee80211com *ic,
 		    ether_sprintf(wh->i_addr2));
 		ieee80211_send_nulldata(ic, ni);
 		ic->ic_stats.is_ps_qempty++;	/* XXX node stat */
-		ic->ic_set_tim(ic, ni, 0);	/* just in case */
+		if (ic->ic_set_tim != NULL)
+			ic->ic_set_tim(ic, ni, 0);	/* just in case */
 		return;
 	}
 	/* 
@@ -2642,7 +2646,8 @@ ieee80211_recv_pspoll(struct ieee80211com *ic,
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER,
 		    "[%s] recv ps-poll, send packet, queue empty\n",
 		    ether_sprintf(ni->ni_macaddr));
-		ic->ic_set_tim(ic, ni, 0);
+		if (ic->ic_set_tim != NULL)
+			ic->ic_set_tim(ic, ni, 0);
 	}
 	m->m_flags |= M_PWR_SAV;		/* bypass PS handling */
 	IF_ENQUEUE(&ic->ic_ifp->if_snd, m);
