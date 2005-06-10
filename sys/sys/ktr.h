@@ -109,6 +109,7 @@ struct ktr_entry {
 	int	ktr_line;
 	const	char *ktr_file;
 	const	char *ktr_desc;
+	struct	thread *ktr_thread;
 	u_long	ktr_parms[KTR_PARMS];
 };
 
