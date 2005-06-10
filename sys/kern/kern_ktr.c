@@ -221,6 +221,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 #endif
 	entry->ktr_timestamp = KTR_TIME;
 	entry->ktr_cpu = cpu;
+	entry->ktr_thread = curthread;
 	if (file != NULL)
 		while (strncmp(file, "../", 3) == 0)
 			file += 3;
@@ -305,14 +306,16 @@ db_mach_vtrace(void)
 		db_printf("--- End of trace buffer ---\n");
 		return (0);
 	}
-	db_printf("%d: ", tstate.cur);
+	db_printf("%d (%p", tstate.cur, kp->ktr_thread);
 #ifdef SMP
-	db_printf("cpu%d ", kp->ktr_cpu);
+	db_printf(":cpu%d", kp->ktr_cpu);
 #endif
+	db_printf(")");
 	if (db_ktr_verbose) {
-		db_printf("%10.10lld %s.%d\t", (long long)kp->ktr_timestamp,
+		db_printf(" %10.10lld %s.%d", (long long)kp->ktr_timestamp,
 		    kp->ktr_file, kp->ktr_line);
 	}
+	db_printf(": ");
 	db_printf(kp->ktr_desc, kp->ktr_parms[0], kp->ktr_parms[1],
 	    kp->ktr_parms[2], kp->ktr_parms[3], kp->ktr_parms[4],
 	    kp->ktr_parms[5]);
