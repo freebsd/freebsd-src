@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_mib.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #ifndef ED_NO_MIIBUS
 #include <dev/mii/mii.h>
@@ -254,7 +255,13 @@ int
 ed_attach(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp;
+
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		return (ENOSPC);
+	}
 
 	callout_handle_init(&sc->tick_ch);
 	/*
@@ -304,7 +311,7 @@ ed_attach(device_t dev)
 	/*
 	 * Attach the interface
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, sc->enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
 	if (bootverbose || 1) {
@@ -341,13 +348,14 @@ int
 ed_detach(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	if (sc->gone)
 		return (0);
 	ed_stop(sc);
 	ifp->if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	sc->gone = 1;
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
@@ -451,7 +459,7 @@ static void
 ed_init(void *xsc)
 {
 	struct ed_softc *sc = xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	int     i, s;
 
 	if (sc->gone)
@@ -547,7 +555,7 @@ ed_init(void *xsc)
 	 * Copy out our station address
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		ed_nic_outb(sc, ED_P1_PAR(i), sc->arpcom.ac_enaddr[i]);
+		ed_nic_outb(sc, ED_P1_PAR(i), IFP2ENADDR(sc->ifp)[i]);
 
 	/*
 	 * Set Current Page pointer to next_packet (initialized above)
@@ -820,7 +828,7 @@ outloop:
 static __inline void
 ed_rint(struct ed_softc *sc)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	u_char  boundry;
 	u_short len;
 	struct ed_ring packet_hdr;
@@ -1329,7 +1337,7 @@ ed_ring_copy(struct ed_softc *sc, char *src, char *dst, u_short amount)
 static void
 ed_get_packet(struct ed_softc *sc, char *buf, u_short len)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ether_header *eh;
 	struct mbuf *m;
 
@@ -1770,7 +1778,7 @@ ed_ds_getmcaf(struct ed_softc *sc, uint32_t *mcaf)
 	mcaf[0] = 0;
 	mcaf[1] = 0;
 
-	TAILQ_FOREACH(ifma, &sc->arpcom.ac_if.if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		index = ether_crc32_be(LLADDR((struct sockaddr_dl *)

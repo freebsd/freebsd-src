@@ -55,9 +55,7 @@ struct fwip_softc {
 	struct crom_chunk spec6;	/* specifier description IPv6 */
 	struct crom_chunk ver6;		/* version description IPv6 */
 	struct fwip_eth_softc {
-		/* XXX this must be the first for if_fwsubr.c */
-		struct fw_com	fwcom;	/* firewire common data      */
-		#define fwip_if		fw_softc.fwcom.fc_if
+		struct ifnet *fwip_ifp;
 		struct fwip_softc *fwip;
 	} fw_softc;
 };

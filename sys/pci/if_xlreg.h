@@ -580,7 +580,7 @@ struct xl_mii_frame {
 #define XL_NO_XCVR_PWR_MAGICBITS	0x0900
 
 struct xl_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*xl_ifp;	/* interface info */
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	xl_bhandle;
 	bus_space_tag_t		xl_btag;

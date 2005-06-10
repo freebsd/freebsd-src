@@ -96,7 +96,7 @@ struct ral_node {
 };
 
 struct ral_softc {
-	struct arpcom			sc_arp;
+	struct ifnet			*sc_ifp;
 	struct ieee80211com		sc_ic;
 	int				(*sc_newstate)(struct ieee80211com *,
 					    enum ieee80211_state, int);

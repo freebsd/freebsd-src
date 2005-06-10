@@ -296,7 +296,7 @@ ex_isa_attach(device_t dev)
 	 */
 	sc->irq_no = rman_get_start(sc->irq);
 
-	ex_get_address(sc, sc->arpcom.ac_enaddr);
+	ex_get_address(sc, sc->enaddr);
 
 	temp = ex_eeprom_read(sc, EE_W0);
 	device_printf(sc->dev, "%s config, %s bus, ",

@@ -52,6 +52,7 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_types.h>
 #ifdef __DragonFly__
 #include <net/vlan/if_vlan_var.h>
 #include <bus/firewire/firewire.h>
@@ -159,7 +160,11 @@ fwe_attach(device_t dev)
 	struct fwe_softc *fwe;
 	struct ifnet *ifp;
 	int unit, s;
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 	u_char *eaddr;
+#else
+	u_char eaddr[6];
+#endif
 	struct fw_eui64 *eui;
 
 	fwe = ((struct fwe_softc *)device_get_softc(dev));
@@ -185,7 +190,10 @@ fwe_attach(device_t dev)
 	/* generate fake MAC address: first and last 3bytes from eui64 */
 #define LOCAL (0x02)
 #define GROUP (0x01)
-	eaddr = &fwe->eth_softc.arpcom.ac_enaddr[0];
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
+	eaddr = &IFP2ENADDR(fwe->eth_softc.ifp)[0];
+#endif
+
 
 	eui = &fwe->fd.fc->eui;
 	eaddr[0] = (FW_EUI64_BYTE(eui, 0) | LOCAL) & ~GROUP;
@@ -199,7 +207,11 @@ fwe_attach(device_t dev)
 		eaddr[0], eaddr[1], eaddr[2], eaddr[3], eaddr[4], eaddr[5]);
 
 	/* fill the rest and attach interface */	
-	ifp = &fwe->fwe_if;
+	ifp = fwe->eth_softc.ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		return (ENOSPC);
+	}
 	ifp->if_softc = &fwe->eth_softc;
 
 #if __FreeBSD_version >= 501113 || defined(__DragonFly__)
@@ -244,7 +256,7 @@ fwe_stop(struct fwe_softc *fwe)
 {
 	struct firewire_comm *fc;
 	struct fw_xferq *xferq;
-	struct ifnet *ifp = &fwe->fwe_if;
+	struct ifnet *ifp = fwe->eth_softc.ifp;
 	struct fw_xfer *xfer, *next;
 	int i;
 
@@ -284,16 +296,19 @@ static int
 fwe_detach(device_t dev)
 {
 	struct fwe_softc *fwe;
+	struct ifnet *ifp;
 	int s;
 
-	fwe = (struct fwe_softc *)device_get_softc(dev);
+	fwe = device_get_softc(dev);
+	ifp = fwe->eth_softc.ifp;
 	s = splimp();
 
 	fwe_stop(fwe);
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
-	ether_ifdetach(&fwe->fwe_if, 1);
+	ether_ifdetach(ifp, 1);
 #else
-	ether_ifdetach(&fwe->fwe_if);
+	ether_ifdetach(ifp);
+	if_free(ifp);
 #endif
 
 	splx(s);
@@ -305,7 +320,7 @@ fwe_init(void *arg)
 {
 	struct fwe_softc *fwe = ((struct fwe_eth_softc *)arg)->fwe;
 	struct firewire_comm *fc;
-	struct ifnet *ifp = &fwe->fwe_if;
+	struct ifnet *ifp = fwe->eth_softc.ifp;
 	struct fw_xferq *xferq;
 	struct fw_xfer *xfer;
 	struct mbuf *m;
@@ -464,7 +479,7 @@ fwe_output_callback(struct fw_xfer *xfer)
 	int s;
 
 	fwe = (struct fwe_softc *)xfer->sc;
-	ifp = &fwe->fwe_if;
+	ifp = fwe->eth_softc.ifp;
 	/* XXX error check */
 	FWEDEBUG(ifp, "resp = %d\n", xfer->resp);
 	if (xfer->resp != 0)
@@ -593,7 +608,7 @@ fwe_as_input(struct fw_xferq *xferq)
 #endif
 
 	fwe = (struct fwe_softc *)xferq->sc;
-	ifp = &fwe->fwe_if;
+	ifp = fwe->eth_softc.ifp;
 #if 0
 	FWE_POLL_REGISTER(fwe_poll, fwe, ifp);
 #endif

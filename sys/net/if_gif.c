@@ -144,9 +144,14 @@ gif_clone_create(ifc, unit)
 	struct gif_softc *sc;
 
 	sc = malloc(sizeof(struct gif_softc), M_GIF, M_WAITOK | M_ZERO);
+	GIF2IFP(sc) = if_alloc(IFT_GIF);
+	if (GIF2IFP(sc) == NULL) {
+		free(sc, M_GIF);
+		return (ENOSPC);
+	}
 
-	sc->gif_if.if_softc = sc;
-	if_initname(&sc->gif_if, ifc->ifc_name, unit);
+	GIF2IFP(sc)->if_softc = sc;
+	if_initname(GIF2IFP(sc), ifc->ifc_name, unit);
 
 	gifattach0(sc);
 
@@ -163,27 +168,26 @@ gifattach0(sc)
 
 	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
 
-	sc->gif_if.if_addrlen = 0;
-	sc->gif_if.if_mtu    = GIF_MTU;
-	sc->gif_if.if_flags  = IFF_POINTOPOINT | IFF_MULTICAST;
+	GIF2IFP(sc)->if_addrlen = 0;
+	GIF2IFP(sc)->if_mtu    = GIF_MTU;
+	GIF2IFP(sc)->if_flags  = IFF_POINTOPOINT | IFF_MULTICAST;
 #if 0
 	/* turn off ingress filter */
-	sc->gif_if.if_flags  |= IFF_LINK2;
+	GIF2IFP(sc)->if_flags  |= IFF_LINK2;
 #endif
-	sc->gif_if.if_ioctl  = gif_ioctl;
-	sc->gif_if.if_output = gif_output;
-	sc->gif_if.if_type   = IFT_GIF;
-	sc->gif_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
-	if_attach(&sc->gif_if);
-	bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
+	GIF2IFP(sc)->if_ioctl  = gif_ioctl;
+	GIF2IFP(sc)->if_output = gif_output;
+	GIF2IFP(sc)->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	if_attach(GIF2IFP(sc));
+	bpfattach(GIF2IFP(sc), DLT_NULL, sizeof(u_int));
 	if (ng_gif_attach_p != NULL)
-		(*ng_gif_attach_p)(&sc->gif_if);
+		(*ng_gif_attach_p)(GIF2IFP(sc));
 }
 
 static void
 gif_destroy(struct gif_softc *sc)
 {
-	struct ifnet *ifp = &sc->gif_if;
+	struct ifnet *ifp = GIF2IFP(sc);
 	int err;
 
 	gif_delete_tunnel(ifp);
@@ -204,6 +208,7 @@ gif_destroy(struct gif_softc *sc)
 		(*ng_gif_detach_p)(ifp);
 	bpfdetach(ifp);
 	if_detach(ifp);
+	if_free(ifp);
 
 	free(sc, M_GIF);
 }
@@ -284,7 +289,7 @@ gif_encapcheck(m, off, proto, arg)
 	if (sc == NULL)
 		return 0;
 
-	if ((sc->gif_if.if_flags & IFF_UP) == 0)
+	if ((GIF2IFP(sc)->if_flags & IFF_UP) == 0)
 		return 0;
 
 	/* no physical address */
@@ -339,7 +344,7 @@ gif_output(ifp, m, dst, rt)
 	struct sockaddr *dst;
 	struct rtentry *rt;	/* added in net2 */
 {
-	struct gif_softc *sc = (struct gif_softc*)ifp;
+	struct gif_softc *sc = ifp->if_softc;
 	struct m_tag *mtag;
 	int error = 0;
 	int gif_called;
@@ -507,7 +512,7 @@ gif_ioctl(ifp, cmd, data)
 	u_long cmd;
 	caddr_t data;
 {
-	struct gif_softc *sc  = (struct gif_softc*)ifp;
+	struct gif_softc *sc  = ifp->if_softc;
 	struct ifreq     *ifr = (struct ifreq*)data;
 	int error = 0, size;
 	struct sockaddr *dst, *src;
@@ -628,12 +633,12 @@ gif_ioctl(ifp, cmd, data)
 			break;
 		}
 
-		error = gif_set_tunnel(&sc->gif_if, src, dst);
+		error = gif_set_tunnel(GIF2IFP(sc), src, dst);
 		break;
 
 #ifdef SIOCDIFPHYADDR
 	case SIOCDIFPHYADDR:
-		gif_delete_tunnel(&sc->gif_if);
+		gif_delete_tunnel(GIF2IFP(sc));
 		break;
 #endif
 			
@@ -751,7 +756,7 @@ gif_set_tunnel(ifp, src, dst)
 	struct sockaddr *src;
 	struct sockaddr *dst;
 {
-	struct gif_softc *sc = (struct gif_softc *)ifp;
+	struct gif_softc *sc = ifp->if_softc;
 	struct gif_softc *sc2;
 	struct sockaddr *osrc, *odst, *sa;
 	int s;
@@ -860,7 +865,7 @@ void
 gif_delete_tunnel(ifp)
 	struct ifnet *ifp;
 {
-	struct gif_softc *sc = (struct gif_softc *)ifp;
+	struct gif_softc *sc = ifp->if_softc;
 	int s;
 
 	s = splnet();

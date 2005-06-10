@@ -451,7 +451,7 @@ struct pcn_type {
 };
 
 struct pcn_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*pcn_ifp;
 	bus_space_handle_t	pcn_bhandle;
 	bus_space_tag_t		pcn_btag;
 	struct resource		*pcn_res;

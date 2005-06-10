@@ -678,7 +678,7 @@ struct rl_list_data {
 };
 
 struct rl_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*rl_ifp;	/* interface info */
 	bus_space_handle_t	rl_bhandle;	/* bus space handle */
 	bus_space_tag_t		rl_btag;	/* bus space tag */
 	struct resource		*rl_res;

@@ -774,15 +774,13 @@ ed98_probe_Novell(device_t dev, int port_rid, int flags)
 	switch (sc->type) {
 	case ED_TYPE98_NC5098:
 		for (n = 0; n < ETHER_ADDR_LEN; n++)
-			sc->arpcom.ac_enaddr[n] =
-				ed_asic_inb(sc, ED_NC5098_ENADDR + n);
+			sc->enaddr[n] = ed_asic_inb(sc, ED_NC5098_ENADDR + n);
 		break;
 
 	default:
 		ed_pio_readmem(sc, 0, romdata, sizeof(romdata));
 		for (n = 0; n < ETHER_ADDR_LEN; n++)
-			sc->arpcom.ac_enaddr[n] =
-				romdata[n * (sc->isa16bit + 1)];
+			sc->enaddr[n] = romdata[n * (sc->isa16bit + 1)];
 		break;
 	}
 
@@ -843,15 +841,14 @@ ed_probe_SIC98(device_t dev, int port_rid, int flags)
 	 */
 	sum = sc->mem_start[6 * 2];
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sum ^= (sc->arpcom.ac_enaddr[i] = sc->mem_start[i * 2]);
+		sum ^= (sc->enaddr[i] = sc->mem_start[i * 2]);
 #ifdef ED_DEBUG
 	device_printf(dev, "ed_probe_sic98: got address %6D\n",
-		      sc->arpcom.ac_enaddr, ":");
+		      sc->enaddr, ":");
 #endif
 	if (sum != 0)
 		return (ENXIO);
-	if ((sc->arpcom.ac_enaddr[0] | sc->arpcom.ac_enaddr[1] |
-	     sc->arpcom.ac_enaddr[2]) == 0)
+	if ((sc->enaddr[0] | sc->enaddr[1] | sc->enaddr[2]) == 0)
 		return (ENXIO);
 
 	sc->vendor   = ED_VENDOR_SIC;
@@ -1067,7 +1064,7 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 	/*
 	 * Get station address from on-board ROM
 	 */
-	bcopy(sc->mem_start, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	bcopy(sc->mem_start, sc->enaddr, ETHER_ADDR_LEN);
 
 	sc->vendor    = ED_VENDOR_MISC;
 	sc->type_str  = "CNET98";
@@ -1226,7 +1223,7 @@ ed_probe_CNET98EL(device_t dev, int port_rid, int flags)
 	/* Get station address from on-board ROM */
 	ed_pio_readmem(sc, 16384, romdata, sizeof(romdata));
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->arpcom.ac_enaddr[i] = romdata[i * 2];
+		sc->enaddr[i] = romdata[i * 2];
 
 	/* clear any pending interrupts that might have occurred above */
 	ed_nic_outb(sc, ED_P0_ISR, 0xff);
@@ -1391,7 +1388,7 @@ ed_get_SB98(struct ed_softc *sc)
 			val |= (ed_asic_inb(sc, ED_SB98_EEP) & ED_SB98_EEP_SDA);
 			DELAY(ED_SB98_EEP_DELAY);
 	  	}
-		sc->arpcom.ac_enaddr[i] = val;
+		sc->enaddr[i] = val;
 	}
 
 	/* output Last ACK */

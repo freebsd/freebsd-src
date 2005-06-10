@@ -350,7 +350,7 @@ struct my_type {
 #define MY_FLAG_DELAYTIMEO      3
 
 struct my_softc {
-        struct arpcom           arpcom;         /* interface info */
+        struct ifnet            *my_ifp;
         struct ifmedia          ifmedia;        /* media info */
         bus_space_handle_t      my_bhandle;
         bus_space_tag_t         my_btag;

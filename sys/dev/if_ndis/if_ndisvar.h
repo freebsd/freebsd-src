@@ -69,11 +69,8 @@ TAILQ_HEAD(nch, ndis_cfglist);
 	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % (x)->ndis_maxpkts 
 
 struct ndis_softc {
-	struct arpcom		arpcom;
+	struct ifnet		*ifp;
 	struct ieee80211com	ic;		/* interface info */
-#ifdef notdef
-	struct ieee80211com	arpcom;		/* interface info */
-#endif
 	struct ifmedia		ifmedia;	/* media info */
 	u_long			ndis_hwassist;
 	uint32_t		ndis_v4tx;

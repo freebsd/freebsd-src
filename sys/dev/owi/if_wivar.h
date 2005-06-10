@@ -58,7 +58,7 @@
 #define WI_RID_CUR_TX_RATE	0xFD44 /* current TX rate */
 
 struct wi_softc	{
-	struct arpcom		arpcom;
+	struct ifnet		*ifp;
 	struct ifmedia		ifmedia;
 	device_t		dev;
 	int			wi_unit;

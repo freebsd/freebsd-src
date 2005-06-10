@@ -258,7 +258,7 @@ int
 awi_attach(struct awi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = AC2IFP(&sc->sc_arp);
 	int s, i, error, nrate;
 	int mword;
 	enum ieee80211_phymode mode;
@@ -372,7 +372,7 @@ awi_attach(struct awi_softc *sc)
 int
 awi_detach(struct awi_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = AC2IFP(&sc->sc_arp);
 	int s;
 
 	if (!sc->sc_attached)
@@ -402,7 +402,7 @@ int
 awi_activate(struct device *self, enum devact act)
 {
 	struct awi_softc *sc = (struct awi_softc *)self;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = AC2IFP(&sc->sc_arp);
 	int s, error = 0;
 
 	s = splnet();
@@ -423,7 +423,7 @@ void
 awi_power(int why, void *arg)
 {
 	struct awi_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = AC2IFP(&sc->sc_arp);
 	int s;
 	int ocansleep;
 
@@ -456,7 +456,7 @@ void
 awi_shutdown(void *arg)
 {
 	struct awi_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = AC2IFP(&sc->sc_arp);
 
 	if (sc->sc_attached)
 		awi_stop(ifp, 1);
@@ -542,7 +542,7 @@ awi_init0(void *arg)
 {
 	struct awi_softc *sc = arg;
 
-	(void)awi_init(&sc->sc_if);
+	(void)awi_init(AC2IFP(&sc->sc_arp));
 }
 #endif
 
@@ -1125,7 +1125,7 @@ awi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 static int
 awi_mode_init(struct awi_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = AC2IFP(&sc->sc_arp);
 	int n, error;
 #ifdef __FreeBSD__
 	struct ifmultiaddr *ifma;
@@ -1197,7 +1197,7 @@ static void
 awi_rx_int(struct awi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = AC2IFP(&sc->sc_arp);
 	struct ieee80211_node *ni;
 	u_int8_t state, rate, rssi;
 	u_int16_t len;
@@ -1274,7 +1274,7 @@ awi_rx_int(struct awi_softc *sc)
 static void
 awi_tx_int(struct awi_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = AC2IFP(&sc->sc_arp);
 	u_int8_t flags;
 
 	while (sc->sc_txdone != sc->sc_txnext) {
@@ -1296,7 +1296,7 @@ awi_tx_int(struct awi_softc *sc)
 static struct mbuf *
 awi_devget(struct awi_softc *sc, u_int32_t off, u_int16_t len)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = AC2IFP(&sc->sc_arp);
 	struct mbuf *m;
 	struct mbuf *top, **mp;
 	u_int tlen;
@@ -1397,7 +1397,7 @@ awi_hw_init(struct awi_softc *sc)
 			return ENXIO;
 		if (i >= AWI_SELFTEST_TIMEOUT*hz/1000) {
 			printf("%s: failed to complete selftest (timeout)\n",
-			    sc->sc_if.if_xname);
+			    AC2IFP(&sc->sc_arp)->if_xname);
 			return ENXIO;
 		}
 		status = awi_read_1(sc, AWI_SELFTEST);
@@ -1413,7 +1413,7 @@ awi_hw_init(struct awi_softc *sc)
 	}
 	if (status != AWI_SELFTEST_PASSED) {
 		printf("%s: failed to complete selftest (code %x)\n",
-		    sc->sc_if.if_xname, status);
+		    AC2IFP(&sc->sc_arp)->if_xname, status);
 		return ENXIO;
 	}
 
@@ -1421,7 +1421,7 @@ awi_hw_init(struct awi_softc *sc)
 	awi_read_bytes(sc, AWI_BANNER, sc->sc_banner, AWI_BANNER_LEN);
 	if (memcmp(sc->sc_banner, "PCnetMobile:", 12) != 0) {
 		printf("%s: failed to complete selftest (bad banner)\n",
-		    sc->sc_if.if_xname);
+		    AC2IFP(&sc->sc_arp)->if_xname);
 		for (i = 0; i < AWI_BANNER_LEN; i++)
 			printf("%s%02x", i ? ":" : "\t", sc->sc_banner[i]);
 		printf("\n");
@@ -1446,7 +1446,7 @@ awi_hw_init(struct awi_softc *sc)
 	error = awi_cmd(sc, AWI_CMD_NOP, AWI_WAIT);
 	if (error) {
 		printf("%s: failed to complete selftest",
-		    sc->sc_if.if_xname);
+		    AC2IFP(&sc->sc_arp)->if_xname);
 		if (error == ENXIO)
 			printf(" (no hardware)\n");
 		else if (error != EWOULDBLOCK)
@@ -1484,7 +1484,7 @@ awi_init_mibs(struct awi_softc *sc)
 	    (error = awi_mib(sc, AWI_CMD_GET_MIB, AWI_MIB_MGT, AWI_WAIT)) ||
 	    (error = awi_mib(sc, AWI_CMD_GET_MIB, AWI_MIB_PHY, AWI_WAIT))) {
 		printf("%s: failed to get default mib value (error %d)\n",
-		    sc->sc_if.if_xname, error);
+		    AC2IFP(&sc->sc_arp)->if_xname, error);
 		return error;
 	}
 
@@ -1492,7 +1492,7 @@ awi_init_mibs(struct awi_softc *sc)
 	for (cs = awi_chanset; ; cs++) {
 		if (cs->cs_type == 0) {
 			printf("%s: failed to set available channel\n",
-			    sc->sc_if.if_xname);
+			    AC2IFP(&sc->sc_arp)->if_xname);
 			return ENXIO;
 		}
 		if (cs->cs_type == sc->sc_mib_phy.IEEE_PHY_Type &&
@@ -1672,7 +1672,7 @@ awi_cmd(struct awi_softc *sc, u_int8_t cmd, int wflag)
 		return EINVAL;
 	default:
 		printf("%s: command %d failed %x\n",
-		    sc->sc_if.if_xname, cmd, status);
+		    AC2IFP(&sc->sc_arp)->if_xname, cmd, status);
 		return ENXIO;
 	}
 	return 0;
@@ -1689,7 +1689,7 @@ awi_cmd_wait(struct awi_softc *sc)
 			return ENXIO;
 		if (awi_read_1(sc, AWI_CMD) != sc->sc_cmd_inprog) {
 			printf("%s: failed to access hardware\n",
-			    sc->sc_if.if_xname);
+			    AC2IFP(&sc->sc_arp)->if_xname);
 			sc->sc_invalid = 1;
 			return ENXIO;
 		}
@@ -1734,7 +1734,7 @@ awi_cmd_done(struct awi_softc *sc)
 
 	if (status != AWI_STAT_OK) {
 		printf("%s: command %d failed %x\n",
-		    sc->sc_if.if_xname, cmd, status);
+		    AC2IFP(&sc->sc_arp)->if_xname, cmd, status);
 		sc->sc_substate = AWI_ST_NONE;
 		return;
 	}
@@ -1849,7 +1849,7 @@ awi_intr_lock(struct awi_softc *sc)
 	}
 	if (status != 0) {
 		printf("%s: failed to lock interrupt\n",
-		    sc->sc_if.if_xname);
+		    AC2IFP(&sc->sc_arp)->if_xname);
 		return ENXIO;
 	}
 	return 0;

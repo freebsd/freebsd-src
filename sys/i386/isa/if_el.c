@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_types.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
@@ -61,7 +62,8 @@ __FBSDID("$FreeBSD$");
 
 /* el_softc: per line info and status */
 struct el_softc {
-	struct arpcom arpcom;	/* Ethernet common */
+	struct ifnet		*el_ifp;
+	u_char			el_enaddr[6];
 	bus_space_handle_t	el_bhandle;
 	bus_space_tag_t		el_btag;
 	void			*el_intrhand;
@@ -122,7 +124,6 @@ el_probe(device_t dev)
 {
 	struct el_softc *sc;
 	u_short base; /* Just for convenience */
-	u_char station_addr[ETHER_ADDR_LEN];
 	int i, rid;
 
 	/* Grab some info for our structure */
@@ -169,7 +170,7 @@ el_probe(device_t dev)
 	/* Now read the address */
 	for(i=0;i<ETHER_ADDR_LEN;i++) {
 		CSR_WRITE_1(sc,EL_GPBL,i);
-		station_addr[i] = CSR_READ_1(sc,EL_EAW);
+		sc->el_enaddr[i] = CSR_READ_1(sc,EL_EAW);
 	}
 
 	/* Now release resources */
@@ -177,19 +178,17 @@ el_probe(device_t dev)
 	EL_UNLOCK(sc);
 	mtx_destroy(&sc->el_mtx);
 
-	dprintf(("Address is %6D\n",station_addr, ":"));
+	dprintf(("Address is %6D\n",sc->el_enaddr, ":"));
 
 	/* If the vendor code is ok, return a 1.  We'll assume that
 	 * whoever configured this system is right about the IRQ.
 	 */
-	if((station_addr[0] != 0x02) || (station_addr[1] != 0x60)
-	   || (station_addr[2] != 0x8c)) {
+	if((sc->el_enaddr[0] != 0x02) || (sc->el_enaddr[1] != 0x60)
+	   || (sc->el_enaddr[2] != 0x8c)) {
 		dprintf(("Bad vendor code.\n"));
 		return(ENXIO);
 	} else {
 		dprintf(("Vendor code ok.\n"));
-		/* Copy the station address into the arpcom structure */
-		bcopy(station_addr,sc->arpcom.ac_enaddr,ETHER_ADDR_LEN);
 	}
 
 	device_set_desc(dev, "3Com 3c501 Ethernet");
@@ -214,7 +213,7 @@ el_hardreset(xsc)
 	 * source code for this undocumented goodie...
 	 */
 	for(j=0;j<ETHER_ADDR_LEN;j++)
-		CSR_WRITE_1(sc,j,sc->arpcom.ac_enaddr[j]);
+		CSR_WRITE_1(sc,j,IFP2ENADDR(sc->el_ifp)[j]);
 }
 
 /* Attach the interface to the kernel data structures.  By the time
@@ -232,20 +231,26 @@ el_attach(device_t dev)
 
 	/* Get things pointing to the right places. */
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->el_ifp = if_alloc(IFT_ETHER);
+
+	if (ifp == NULL)
+		return (ENOSPC);
 
 	rid = 0;
 	sc->el_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 	    0, ~0, EL_IOSIZ, RF_ACTIVE);
 
-	if (sc->el_res == NULL)
+	if (sc->el_res == NULL) {
+		if_free(ifp);
 		return(ENXIO);
+	}
 
 	rid = 0;
 	sc->el_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
             RF_SHAREABLE | RF_ACTIVE);
 
         if (sc->el_irq == NULL) {
+		if_free(ifp);
                 bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->el_res);
 		return(ENXIO);
 	}
@@ -254,14 +259,11 @@ el_attach(device_t dev)
 		elintr, sc, &sc->el_intrhand);
 
 	if (error) {
+		if_free(ifp);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->el_irq);
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->el_res);
 		return(ENXIO);
 	}
-
-	/* Now reset the board */
-	dprintf(("Resetting board...\n"));
-	el_hardreset(sc);
 
 	/* Initialize ifnet structure */
 	ifp->if_softc = sc;
@@ -276,7 +278,11 @@ el_attach(device_t dev)
 
 	/* Now we can attach the interface */
 	dprintf(("Attaching interface...\n"));
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, sc->el_enaddr);
+
+	/* Now reset the board */
+	dprintf(("Resetting board...\n"));
+	el_hardreset(sc);
 
 	dprintf(("el_attach() finished.\n"));
 	return(0);
@@ -289,11 +295,12 @@ static int el_detach(dev)
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->el_ifp;
 
 	el_stop(sc);
 	EL_LOCK(sc);
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	bus_teardown_intr(dev, sc->el_irq, sc->el_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->el_irq);
 	bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->el_res);
@@ -346,7 +353,7 @@ el_init(xsc)
 	struct ifnet *ifp;
 
 	/* Set up pointers */
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->el_ifp;
 
 	/* If address not known, do nothing. */
 	if(TAILQ_EMPTY(&ifp->if_addrhead)) /* XXX unlikely */
@@ -406,20 +413,20 @@ el_start(struct ifnet *ifp)
 	EL_LOCK(sc);
 
 	/* Don't do anything if output is active */
-	if(sc->arpcom.ac_if.if_flags & IFF_OACTIVE)
+	if(sc->el_ifp->if_flags & IFF_OACTIVE)
 		return;
-	sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
+	sc->el_ifp->if_flags |= IFF_OACTIVE;
 
 	/* The main loop.  They warned me against endless loops, but
 	 * would I listen?  NOOO....
 	 */
 	while(1) {
 		/* Dequeue the next datagram */
-		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd,m0);
+		IF_DEQUEUE(&sc->el_ifp->if_snd,m0);
 
 		/* If there's nothing to send, return. */
 		if(m0 == NULL) {
-			sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+			sc->el_ifp->if_flags &= ~IFF_OACTIVE;
 			EL_UNLOCK(sc);
 			return;
 		}
@@ -441,7 +448,7 @@ el_start(struct ifnet *ifp)
 		len = max(len,ETHER_MIN_LEN);
 
 		/* Give the packet to the bpf, if any */
-		BPF_TAP(&sc->arpcom.ac_if, sc->el_pktbuf, len);
+		BPF_TAP(sc->el_ifp, sc->el_pktbuf, len);
 
 		/* Transfer datagram to board */
 		dprintf(("el: xfr pkt length=%d...\n",len));
@@ -464,7 +471,7 @@ el_start(struct ifnet *ifp)
 			dprintf(("tx status=0x%x\n",i));
 			if(!(i & EL_TXS_READY)) {
 				dprintf(("el: err txs=%x\n",i));
-				sc->arpcom.ac_if.if_oerrors++;
+				sc->el_ifp->if_oerrors++;
 				if(i & (EL_TXS_COLL|EL_TXS_COLL16)) {
 					if((!(i & EL_TXC_DCOLL16)) && retries < 15) {
 						retries++;
@@ -475,7 +482,7 @@ el_start(struct ifnet *ifp)
 					done = 1;
 			}
 			else {
-				sc->arpcom.ac_if.if_opackets++;
+				sc->el_ifp->if_opackets++;
 				done = 1;
 			}
 		}
@@ -513,7 +520,7 @@ el_xmit(struct el_softc *sc,int len)
 		i--;
 	if(i == 0) {
 		dprintf(("tx not ready\n"));
-		sc->arpcom.ac_if.if_oerrors++;
+		sc->el_ifp->if_oerrors++;
 		return(-1);
 	}
 	dprintf(("%d cycles.\n",(20000-i)));
@@ -524,7 +531,7 @@ el_xmit(struct el_softc *sc,int len)
 static __inline void
 elread(struct el_softc *sc,caddr_t buf,int len)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->el_ifp;
 	struct mbuf *m;
 
 	/*
@@ -574,7 +581,7 @@ elintr(void *xsc)
 			dprintf(("overflow.\n"));
 			el_hardreset(sc);
 			/* Put board back into receive mode */
-			if(sc->arpcom.ac_if.if_flags & IFF_PROMISC)
+			if(sc->el_ifp->if_flags & IFF_PROMISC)
 				CSR_WRITE_1(sc,EL_RXC,
 				    (EL_RXC_PROMISC|EL_RXC_ABROAD|
 		    		    EL_RXC_AMULTI|EL_RXC_AGF|EL_RXC_DSHORT|
@@ -601,7 +608,7 @@ elintr(void *xsc)
 		/* If packet too short or too long, restore rx mode and return
 		 */
 		if((len <= sizeof(struct ether_header)) || (len > ETHER_MAX_LEN)) {
-			if(sc->arpcom.ac_if.if_flags & IFF_PROMISC)
+			if(sc->el_ifp->if_flags & IFF_PROMISC)
 				CSR_WRITE_1(sc,EL_RXC,
 				    (EL_RXC_PROMISC|EL_RXC_ABROAD|
 		    		    EL_RXC_AMULTI|EL_RXC_AGF|EL_RXC_DSHORT|
@@ -619,7 +626,7 @@ elintr(void *xsc)
 			return;
 		}
 
-		sc->arpcom.ac_if.if_ipackets++;
+		sc->el_ifp->if_ipackets++;
 
 		/* Copy the data into our buffer */
 		CSR_WRITE_1(sc,EL_GPBL,0);

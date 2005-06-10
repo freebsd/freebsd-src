@@ -322,7 +322,7 @@ typedef struct _DESCRIPTOR_PAIR
 
 /* Our adapter structure */
 struct adapter {
-	struct arpcom   interface_data;
+	struct ifnet   *ifp;
 	struct adapter *next;
 	struct adapter *prev;
 	struct em_hw    hw;

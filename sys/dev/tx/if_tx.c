@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -224,6 +225,7 @@ epic_attach(dev)
 	epic_softc_t *sc;
 	int unit, error;
 	int i, s, rid, tmp;
+	u_char eaddr[6];
 
 	s = splimp();
 
@@ -235,7 +237,12 @@ epic_attach(dev)
 	sc->dev = dev;
 
 	/* Fill ifnet structure. */
-	ifp = &sc->sc_if;
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST|IFF_NEEDSGIANT;
@@ -361,7 +368,7 @@ epic_attach(dev)
 
 	/* Read MAC address from EEPROM. */
 	for (i = 0; i < ETHER_ADDR_LEN / sizeof(u_int16_t); i++)
-		((u_int16_t *)sc->sc_macaddr)[i] = epic_read_eeprom(sc,i);
+		((u_int16_t *)eaddr)[i] = epic_read_eeprom(sc,i);
 
 	/* Set Non-Volatile Control Register from EEPROM. */
 	CSR_WRITE_4(sc, NVCTL, epic_read_eeprom(sc, EEPROM_NVCTL) & 0x1F);
@@ -423,7 +430,7 @@ epic_attach(dev)
 	}
 
 	/* Attach to OS's managers. */
-	ether_ifattach(ifp, sc->sc_macaddr);
+	ether_ifattach(ifp, eaddr);
 
 	splx(s);
 	return (0);
@@ -440,6 +447,8 @@ static void
 epic_release(epic_softc_t *sc)
 {
 
+	if (sc->ifp != NULL)
+		if_free(sc->ifp);
 	if (sc->irq)
 		bus_release_resource(sc->dev, SYS_RES_IRQ, 0, sc->irq);
 	if (sc->res)
@@ -484,7 +493,7 @@ epic_detach(dev)
 	s = splimp();
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	ether_ifdetach(ifp);
 
@@ -720,7 +729,7 @@ static void
 epic_rx_done(sc)
 	epic_softc_t *sc;
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	u_int16_t len;
 	struct epic_rx_buffer *buf;
 	struct epic_rx_desc *desc;
@@ -831,10 +840,10 @@ epic_tx_done(sc)
 
 		/* Check for errors and collisions. */
 		if (status & 0x0001)
-			sc->sc_if.if_opackets++;
+			sc->ifp->if_opackets++;
 		else
-			sc->sc_if.if_oerrors++;
-		sc->sc_if.if_collisions += (status >> 8) & 0x1F;
+			sc->ifp->if_oerrors++;
+		sc->ifp->if_collisions += (status >> 8) & 0x1F;
 #ifdef EPIC_DIAG
 		if ((status & 0x1001) == 0x1001)
 			device_printf(sc->dev,
@@ -843,7 +852,7 @@ epic_tx_done(sc)
 	}
 
 	if (sc->pending_txs < TX_RING_SIZE)
-		sc->sc_if.if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_flags &= ~IFF_OACTIVE;
 	bus_dmamap_sync(sc->ttag, sc->tmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
@@ -874,14 +883,14 @@ epic_intr(arg)
 #endif
 		if ((CSR_READ_4(sc, COMMAND) & COMMAND_RXQUEUED) == 0)
 		    CSR_WRITE_4(sc, COMMAND, COMMAND_RXQUEUED);
-		sc->sc_if.if_ierrors++;
+		sc->ifp->if_ierrors++;
 	    }
 	}
 
 	if (status & (INTSTAT_TXC|INTSTAT_TCC|INTSTAT_TQE)) {
 	    epic_tx_done(sc);
-	    if (sc->sc_if.if_snd.ifq_head != NULL)
-		    epic_ifstart(&sc->sc_if);
+	    if (sc->ifp->if_snd.ifq_head != NULL)
+		    epic_ifstart(sc->ifp);
 	}
 
 	/* Check for rare errors */
@@ -904,19 +913,19 @@ epic_intr(arg)
 #ifdef EPIC_DIAG
 		device_printf(sc->dev, "CRC/Alignment error\n");
 #endif
-		sc->sc_if.if_ierrors++;
+		sc->ifp->if_ierrors++;
 	    }
 
 	    if (status & INTSTAT_TXU) {
 		epic_tx_underrun(sc);
-		sc->sc_if.if_oerrors++;
+		sc->ifp->if_oerrors++;
 	    }
 	}
     }
 
     /* If no packets are pending, then no timeouts. */
     if (sc->pending_txs == 0)
-	    sc->sc_if.if_timer = 0;
+	    sc->ifp->if_timer = 0;
 }
 
 /*
@@ -1205,9 +1214,9 @@ epic_miibus_statchg(dev)
 	/* Update baudrate. */
 	if (IFM_SUBTYPE(media) == IFM_100_TX ||
 	    IFM_SUBTYPE(media) == IFM_100_FX)
-		sc->sc_if.if_baudrate = 100000000;
+		sc->ifp->if_baudrate = 100000000;
 	else
-		sc->sc_if.if_baudrate = 10000000;
+		sc->ifp->if_baudrate = 10000000;
 
 	epic_stop_activity(sc);
 	epic_set_tx_mode(sc);
@@ -1252,7 +1261,7 @@ epic_init(xsc)
 	void *xsc;
 {
 	epic_softc_t *sc = xsc;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	int s, i;
 
 	s = splimp();
@@ -1285,9 +1294,9 @@ epic_init(xsc)
 	CSR_WRITE_4(sc, PTCDAR, sc->tx_addr);
 
 	/* Put node address to EPIC. */
-	CSR_WRITE_4(sc, LAN0, ((u_int16_t *)sc->sc_macaddr)[0]);
-	CSR_WRITE_4(sc, LAN1, ((u_int16_t *)sc->sc_macaddr)[1]);
-	CSR_WRITE_4(sc, LAN2, ((u_int16_t *)sc->sc_macaddr)[2]);
+	CSR_WRITE_4(sc, LAN0, ((u_int16_t *)IFP2ENADDR(sc->ifp))[0]);
+	CSR_WRITE_4(sc, LAN1, ((u_int16_t *)IFP2ENADDR(sc->ifp))[1]);
+	CSR_WRITE_4(sc, LAN2, ((u_int16_t *)IFP2ENADDR(sc->ifp))[2]);
 
 	/* Set tx mode, includeing transmit threshold. */
 	epic_set_tx_mode(sc);
@@ -1343,7 +1352,7 @@ epic_set_rx_mode(sc)
 	u_int32_t flags;
 	u_int32_t rxcon;
 
-	flags = sc->sc_if.if_flags;
+	flags = sc->ifp->if_flags;
 	rxcon = RXCON_DEFAULT;
 
 #ifdef EPIC_EARLY_RX
@@ -1386,7 +1395,7 @@ epic_set_mc_table(sc)
 	u_int16_t filter[4];
 	u_int8_t h;
 
-	ifp = &sc->sc_if;
+	ifp = sc->ifp;
 	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
 		CSR_WRITE_4(sc, MC0, 0xFFFF);
 		CSR_WRITE_4(sc, MC1, 0xFFFF);
@@ -1508,7 +1517,7 @@ epic_queue_last_packet(sc)
 	/* Prepare mbuf. */
 	m0->m_len = min(MHLEN, ETHER_MIN_LEN - ETHER_CRC_LEN);
 	m0->m_pkthdr.len = m0->m_len;
-	m0->m_pkthdr.rcvif = &sc->sc_if;
+	m0->m_pkthdr.rcvif = sc->ifp;
 	bzero(mtod(m0, caddr_t), m0->m_len);
 
 	/* Fill fragments list. */
@@ -1560,7 +1569,7 @@ epic_stop(sc)
 
 	s = splimp();
 
-	sc->sc_if.if_timer = 0;
+	sc->ifp->if_timer = 0;
 
 	untimeout((timeout_t *)epic_stats_update, sc, sc->stat_ch);
 
@@ -1579,7 +1588,7 @@ epic_stop(sc)
 	CSR_WRITE_4(sc, GENCTL, GENCTL_POWER_DOWN);
 
 	/* Mark as stoped */
-	sc->sc_if.if_flags &= ~IFF_RUNNING;
+	sc->ifp->if_flags &= ~IFF_RUNNING;
 
 	splx(s);
 }

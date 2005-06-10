@@ -33,7 +33,7 @@
  * ed_softc: per line info and status
  */
 struct ed_softc {
-	struct arpcom arpcom;	/* ethernet common */
+	struct ifnet *ifp;
 
 	char   *type_str;	/* pointer to type string */
 	u_char  vendor;		/* interface vendor */
@@ -43,6 +43,7 @@ struct ed_softc {
 	u_char  isa16bit;	/* width of access to card 0=8 or 1=16 */
 	u_char  mem_shared;	/* NIC memory is shared with host */
 	u_char  xmit_busy;	/* transmitter is busy */
+	u_char  enaddr[6];
 
 	int	port_rid;	/* resource id for port range */
 	int	port_used;	/* nonzero if ports used */

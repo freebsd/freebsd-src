@@ -183,10 +183,11 @@ static int
 fe_pccard_detach(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	fe_stop(sc);
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	fe_release_resource(dev);
 
@@ -241,10 +242,10 @@ fe_probe_mbh(device_t dev, const struct fe_pccard_product *pp)
 		return ENXIO;
 
 	/* Get our station address from EEPROM.  */
-	fe_inblk(sc, FE_MBH10, sc->sc_enaddr, ETHER_ADDR_LEN);
+	fe_inblk(sc, FE_MBH10, sc->enaddr, ETHER_ADDR_LEN);
 
 	/* Make sure we got a valid station address.  */
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0))
+	if (!fe_valid_Ether_p(sc->enaddr, 0))
 		return ENXIO;
 
 	/* Determine the card type.  */
@@ -299,10 +300,10 @@ fe_probe_tdk (device_t dev, const struct fe_pccard_product *pp)
 	sc->type = FE_TYPE_TDK;
         sc->typestr = "Generic MB8696x/78Q837x Ethernet (PCMCIA)";
 
-	pccard_get_ether(dev, sc->sc_enaddr);
+	pccard_get_ether(dev, sc->enaddr);
 
         /* Make sure we got a valid station address.  */
-        if (!fe_valid_Ether_p(sc->sc_enaddr, 0))
+        if (!fe_valid_Ether_p(sc->enaddr, 0))
 		return ENXIO;
 
         return 0;

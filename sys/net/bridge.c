@@ -352,7 +352,7 @@ add_cluster(u_int16_t cluster_id, struct ifnet *ifp)
     n_clusters++;
 found:
     c = clusters + i;		/* the right cluster ... */
-    ETHER_ADDR_COPY(c->my_macs[c->ports].etheraddr, IFP2AC(ifp)->ac_enaddr);
+    ETHER_ADDR_COPY(c->my_macs[c->ports].etheraddr, IFP2ENADDR(ifp));
     c->ports++;
     return c;
 bad:

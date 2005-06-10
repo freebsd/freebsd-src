@@ -43,8 +43,8 @@ struct cdce_type {
 };
 
 struct cdce_softc {
-	struct arpcom		 arpcom;
-#define GET_IFP(sc) (&(sc)->arpcom.ac_if)
+	struct ifnet		 *cdce_ifp;
+#define GET_IFP(sc) ((sc)->cdce_ifp)
 
 	usbd_device_handle	 cdce_udev;
 	usbd_interface_handle	 cdce_data_iface;

@@ -154,7 +154,7 @@ owi_generic_detach(dev)
 
 	sc = device_get_softc(dev);
 	WI_LOCK(sc, s);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (sc->wi_gone) {
 		device_printf(dev, "already unloaded\n");
@@ -191,7 +191,13 @@ owi_generic_attach(device_t dev)
 
 	/* XXX maybe we need the splimp stuff here XXX */
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		owi_free(dev);
+		return (ENOSPC);
+	}
 
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
 	    wi_intr, sc, &sc->wi_intrhand);
@@ -223,8 +229,6 @@ owi_generic_attach(device_t dev)
 		owi_free(dev);
 		return (error);
 	}
-	bcopy((char *)&mac.wi_mac_addr,
-	   (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	owi_get_id(sc);
 
@@ -379,7 +383,7 @@ owi_generic_attach(device_t dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, mac.wi_mac_addr);
 	callout_handle_init(&sc->wi_stat_ch);
 	WI_UNLOCK(sc, s);
 
@@ -448,7 +452,7 @@ wi_rxeof(sc)
 
 	WI_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	id = CSR_READ_2(sc, WI_RX_FID);
 
@@ -662,7 +666,7 @@ wi_txeof(sc, status)
 {
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	ifp->if_timer = 0;
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -684,7 +688,7 @@ wi_inquire(xsc)
 	int			s;
 
 	sc = xsc;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	sc->wi_stat_ch = timeout(wi_inquire, sc, hz * 60);
 
@@ -710,7 +714,7 @@ wi_update_stats(sc)
 	int			len, i;
 	u_int16_t		t;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	id = CSR_READ_2(sc, WI_INFO_FID);
 
@@ -763,7 +767,7 @@ wi_intr(xsc)
 
 	WI_LOCK(sc, s);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (sc->wi_gone || !(ifp->if_flags & IFF_UP)) {
 		CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
@@ -1197,7 +1201,7 @@ wi_setmulti(sc)
 	struct ifmultiaddr	*ifma;
 	struct wi_ltv_mcast	mcast;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	bzero((char *)&mcast, sizeof(mcast));
 
@@ -1237,13 +1241,13 @@ wi_setdef(sc, wreq)
 	struct ifaddr		*ifa;
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	switch(wreq->wi_type) {
 	case WI_RID_MAC_NODE:
 		ifa = ifaddr_byindex(ifp->if_index);
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-		bcopy((char *)&wreq->wi_val, (char *)&sc->arpcom.ac_enaddr,
+		bcopy((char *)&wreq->wi_val, (char *)&IFP2ENADDR(sc->ifp),
 		   ETHER_ADDR_LEN);
 		bcopy((char *)&wreq->wi_val, LLADDR(sdl), ETHER_ADDR_LEN);
 		break;
@@ -1686,7 +1690,7 @@ wi_init(xsc)
 	void			*xsc;
 {
 	struct wi_softc		*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->ifp;
 	struct wi_ltv_macaddr	mac;
 	int			id = 0;
 	int			s;
@@ -1748,7 +1752,7 @@ wi_init(xsc)
 	/* Set our MAC address. */
 	mac.wi_len = 4;
 	mac.wi_type = WI_RID_MAC_NODE;
-	bcopy((char *)&sc->arpcom.ac_enaddr,
+	bcopy((char *)&IFP2ENADDR(sc->ifp),
 	   (char *)&mac.wi_mac_addr, ETHER_ADDR_LEN);
 	wi_write_record(sc, (struct wi_ltv_gen *)&mac);
 
@@ -1909,7 +1913,7 @@ owi_stop(sc)
 		return;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	/*
 	 * If the card is gone and the memory port isn't mapped, we will
@@ -2013,6 +2017,11 @@ owi_free(dev)
 	if (sc->mem != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
 		sc->mem = NULL;
+	}
+
+	if (sc->ifp != NULL) {
+		if_free(sc->ifp);
+		sc->ifp = NULL;
 	}
 
 	return;

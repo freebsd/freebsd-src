@@ -85,11 +85,12 @@ struct tun_softc {
 	 * being slightly stale informationally.
 	 */
 	pid_t	tun_pid;		/* owning pid */
-	struct	ifnet tun_if;		/* the interface */
+	struct	ifnet *tun_ifp;		/* the interface */
 	struct  sigio *tun_sigio;	/* information for async I/O */
 	struct	selinfo	tun_rsel;	/* read select */
 	struct mtx	tun_mtx;	/* protect mutable softc fields */
 };
+#define TUN2IFP(sc)	((sc)->tun_ifp)
 
 #define TUNDEBUG	if (tundebug) if_printf
 #define	TUNNAME		"tun"
@@ -169,11 +170,12 @@ tun_destroy(struct tun_softc *tp)
 
 	/* Unlocked read. */
 	KASSERT((tp->tun_flags & TUN_OPEN) == 0,
-	    ("tununits is out of sync - unit %d", tp->tun_if.if_dunit));
+	    ("tununits is out of sync - unit %d", TUN2IFP(tp)->if_dunit));
 
 	dev = tp->tun_dev;
-	bpfdetach(&tp->tun_if);
-	if_detach(&tp->tun_if);
+	bpfdetach(TUN2IFP(tp));
+	if_detach(TUN2IFP(tp));
+	if_free(TUN2IFP(tp));
 	destroy_dev(dev);
 	mtx_destroy(&tp->tun_mtx);
 	free(tp, M_TUN);
@@ -250,6 +252,7 @@ tunstart(struct ifnet *ifp)
 	selwakeuppri(&tp->tun_rsel, PZERO + 1);
 }
 
+/* XXX: should return an error code so it can fail. */
 static void
 tuncreate(struct cdev *dev)
 {
@@ -266,14 +269,16 @@ tuncreate(struct cdev *dev)
 	TAILQ_INSERT_TAIL(&tunhead, sc, tun_list);
 	mtx_unlock(&tunmtx);
 
-	ifp = &sc->tun_if;
+	ifp = sc->tun_ifp = if_alloc(IFT_PPP);
+	if (ifp == NULL)
+		panic("%s%d: failed to if_alloc() interface.\n",
+		    TUNNAME, dev2unit(dev));
 	if_initname(ifp, TUNNAME, dev2unit(dev));
 	ifp->if_mtu = TUNMTU;
 	ifp->if_ioctl = tunifioctl;
 	ifp->if_output = tunoutput;
 	ifp->if_start = tunstart;
 	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
-	ifp->if_type = IFT_PPP;
 	ifp->if_softc = sc;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	ifp->if_snd.ifq_drv_maxlen = 0;
@@ -315,7 +320,7 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 
 	tp->tun_flags |= TUN_OPEN;
 	mtx_unlock(&tp->tun_mtx);
-	ifp = &tp->tun_if;
+	ifp = TUN2IFP(tp);
 	TUNDEBUG(ifp, "open\n");
 
 	return (0);
@@ -333,7 +338,7 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	int s;
 
 	tp = dev->si_drv1;
-	ifp = &tp->tun_if;
+	ifp = TUN2IFP(tp);
 
 	mtx_lock(&tp->tun_mtx);
 	tp->tun_flags &= ~TUN_OPEN;
@@ -568,18 +573,18 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		tunp = (struct tuninfo *)data;
 		if (tunp->mtu < IF_MINMTU)
 			return (EINVAL);
-		if (tp->tun_if.if_mtu != tunp->mtu
+		if (TUN2IFP(tp)->if_mtu != tunp->mtu
 		&& (error = suser(td)) != 0)
 			return (error);
-		tp->tun_if.if_mtu = tunp->mtu;
-		tp->tun_if.if_type = tunp->type;
-		tp->tun_if.if_baudrate = tunp->baudrate;
+		TUN2IFP(tp)->if_mtu = tunp->mtu;
+		TUN2IFP(tp)->if_type = tunp->type;
+		TUN2IFP(tp)->if_baudrate = tunp->baudrate;
 		break;
 	case TUNGIFINFO:
 		tunp = (struct tuninfo *)data;
-		tunp->mtu = tp->tun_if.if_mtu;
-		tunp->type = tp->tun_if.if_type;
-		tunp->baudrate = tp->tun_if.if_baudrate;
+		tunp->mtu = TUN2IFP(tp)->if_mtu;
+		tunp->type = TUN2IFP(tp)->if_type;
+		tunp->baudrate = TUN2IFP(tp)->if_baudrate;
 		break;
 	case TUNSDEBUG:
 		tundebug = *(int *)data;
@@ -613,15 +618,15 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		break;
 	case TUNSIFMODE:
 		/* deny this if UP */
-		if (tp->tun_if.if_flags & IFF_UP)
+		if (TUN2IFP(tp)->if_flags & IFF_UP)
 			return(EBUSY);
 
 		switch (*(int *)data & ~IFF_MULTICAST) {
 		case IFF_POINTOPOINT:
 		case IFF_BROADCAST:
-			tp->tun_if.if_flags &=
+			TUN2IFP(tp)->if_flags &=
 			    ~(IFF_BROADCAST|IFF_POINTOPOINT|IFF_MULTICAST);
-			tp->tun_if.if_flags |= *(int *)data;
+			TUN2IFP(tp)->if_flags |= *(int *)data;
 			break;
 		default:
 			return(EINVAL);
@@ -644,13 +649,13 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		break;
 	case FIONREAD:
 		s = splimp();
-		if (!IFQ_IS_EMPTY(&tp->tun_if.if_snd)) {
+		if (!IFQ_IS_EMPTY(&TUN2IFP(tp)->if_snd)) {
 			struct mbuf *mb;
-			IFQ_LOCK(&tp->tun_if.if_snd);
-			IFQ_POLL_NOLOCK(&tp->tun_if.if_snd, mb);
+			IFQ_LOCK(&TUN2IFP(tp)->if_snd);
+			IFQ_POLL_NOLOCK(&TUN2IFP(tp)->if_snd, mb);
 			for( *(int *)data = 0; mb != 0; mb = mb->m_next)
 				*(int *)data += mb->m_len;
-			IFQ_UNLOCK(&tp->tun_if.if_snd);
+			IFQ_UNLOCK(&TUN2IFP(tp)->if_snd);
 		} else
 			*(int *)data = 0;
 		splx(s);
@@ -685,7 +690,7 @@ static	int
 tunread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tun_softc *tp = dev->si_drv1;
-	struct ifnet	*ifp = &tp->tun_if;
+	struct ifnet	*ifp = TUN2IFP(tp);
 	struct mbuf	*m;
 	int		error=0, len, s;
 
@@ -741,7 +746,7 @@ static	int
 tunwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tun_softc *tp = dev->si_drv1;
-	struct ifnet	*ifp = &tp->tun_if;
+	struct ifnet	*ifp = TUN2IFP(tp);
 	struct mbuf	*m;
 	int		error = 0;
 	uint32_t	family;
@@ -831,7 +836,7 @@ tunpoll(struct cdev *dev, int events, struct thread *td)
 {
 	int		s;
 	struct tun_softc *tp = dev->si_drv1;
-	struct ifnet	*ifp = &tp->tun_if;
+	struct ifnet	*ifp = TUN2IFP(tp);
 	int		revents = 0;
 	struct mbuf	*m;
 

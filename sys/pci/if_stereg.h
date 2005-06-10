@@ -504,7 +504,7 @@ struct ste_chain_data {
 };
 
 struct ste_softc {
-	struct arpcom		arpcom;
+	struct ifnet		*ste_ifp;
 	bus_space_tag_t		ste_btag;
 	bus_space_handle_t	ste_bhandle;
 	struct resource		*ste_res;

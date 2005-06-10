@@ -669,14 +669,19 @@ an_attach(sc, unit, flags)
 	int unit;
 	int flags;
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp;
 	int			error = EIO;
 	int			i, nrate, mword;
 	u_int8_t		r;
 
 	mtx_init(&sc->an_mtx, device_get_nameunit(sc->an_dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-
+	ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("an%d: can not if_alloc()\n", sc->an_unit);
+		goto fail;
+	}
+		
 	sc->an_gone = 0;
 	sc->an_associated = 0;
 	sc->an_monitor = 0;
@@ -746,9 +751,6 @@ an_attach(sc, unit, flags)
 	}
 #endif
 
-	bcopy((char *)&sc->an_caps.an_oemaddr,
-	   (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-
 	ifp->if_softc = sc;
 	sc->an_unit = unit;
 	if_initname(ifp, device_get_name(sc->an_dev),
@@ -806,12 +808,15 @@ an_attach(sc, unit, flags)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+
+	ether_ifattach(ifp, sc->an_caps.an_oemaddr);
 	callout_handle_init(&sc->an_stat_ch);
 
 	return(0);
 fail:;
 	mtx_destroy(&sc->an_mtx);
+	if (ifp != NULL)
+		if_free(ifp);
 	return(error);
 }
 
@@ -819,7 +824,7 @@ int
 an_detach(device_t dev)
 {
 	struct an_softc		*sc = device_get_softc(dev);
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->an_ifp;
 
 	if (sc->an_gone) {
 		device_printf(dev,"already unloaded\n");
@@ -830,6 +835,7 @@ an_detach(device_t dev)
 	ifmedia_removeall(&sc->an_ifmedia);
 	ifp->if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	sc->an_gone = 1;
 	AN_UNLOCK(sc);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
@@ -857,7 +863,7 @@ an_rxeof(sc)
 
 	AN_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->an_ifp;
 
 	if (!sc->mpi350) {
 		id = CSR_READ_2(sc, AN_RX_FID);
@@ -1109,7 +1115,7 @@ an_txeof(sc, status)
 	struct ifnet		*ifp;
 	int			id, i;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->an_ifp;
 
 	ifp->if_timer = 0;
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -1162,7 +1168,7 @@ an_stats_update(xsc)
 
 	sc = xsc;
 	AN_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->an_ifp;
 
 	sc->an_status.an_type = AN_RID_STATUS;
 	sc->an_status.an_len = sizeof(struct an_ltv_status);
@@ -1207,7 +1213,7 @@ an_intr(xsc)
 		return;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->an_ifp;
 
 	/* Disable interrupts. */
 	CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), 0);
@@ -1784,7 +1790,7 @@ an_setdef(sc, areq)
 	struct an_ltv_aplist	*ap;
 	struct an_ltv_gen	*sp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->an_ifp;
 
 	switch (areq->an_type) {
 	case AN_RID_GENCONFIG:
@@ -1792,7 +1798,7 @@ an_setdef(sc, areq)
 
 		ifa = ifaddr_byindex(ifp->if_index);
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-		bcopy((char *)&cfg->an_macaddr, (char *)&sc->arpcom.ac_enaddr,
+		bcopy((char *)&cfg->an_macaddr, IFP2ENADDR(sc->an_ifp),
 		    ETHER_ADDR_LEN);
 		bcopy((char *)&cfg->an_macaddr, LLADDR(sdl), ETHER_ADDR_LEN);
 
@@ -2529,7 +2535,7 @@ an_init(xsc)
 	void			*xsc;
 {
 	struct an_softc		*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->an_ifp;
 
 	AN_LOCK(sc);
 
@@ -2557,7 +2563,7 @@ an_init(xsc)
 	}
 
 	/* Set our MAC address. */
-	bcopy((char *)&sc->arpcom.ac_enaddr,
+	bcopy((char *)IFP2ENADDR(sc->an_ifp),
 	    (char *)&sc->an_config.an_macaddr, ETHER_ADDR_LEN);
 
 	if (ifp->if_flags & IFF_BROADCAST)
@@ -2834,7 +2840,7 @@ an_stop(sc)
 		return;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->an_ifp;
 
 	an_cmd(sc, AN_CMD_FORCE_SYNCLOSS, 0);
 	CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), 0);
@@ -2907,7 +2913,7 @@ an_resume(dev)
 
 	sc = device_get_softc(dev);
 	AN_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->an_ifp;
 
 	sc->an_gone = 0;
 	an_reset(sc);

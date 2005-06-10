@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #else /* NETGRAPH */
 #include <net/if_sppp.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 #endif	/* NETGRAPH */
@@ -108,7 +109,7 @@ static int	sr_watcher = 0;
  */
 struct sr_softc {
 #ifndef NETGRAPH
-	struct	sppp ifsppp;	/* PPP service w/in system */
+	struct	ifnet *ifp;	/* PPP service w/in system */
 #endif /* NETGRAPH */
 	struct	sr_hardc *hc;	/* card-level information */
 
@@ -163,6 +164,7 @@ struct sr_softc {
 	u_long		opackets, ipackets;
 #endif /* NETGRAPH */
 };
+#define SC2IFP(sc)	sc->ifp
 
 #ifdef NETGRAPH
 #define	DOG_HOLDOFF	6	/* dog holds off for 6 secs */
@@ -409,7 +411,10 @@ sr_attach(device_t device)
 		       sc->unit, hc->cunit, sc->subunit);
 
 #ifndef NETGRAPH
-		ifp = &sc->ifsppp.pp_if;
+		ifp = SC2IFP(sc) = if_alloc(IFT_PPP);
+		if (ifp == NULL) {
+			goto errexit;
+		}
 		ifp->if_softc = sc;
 		if_initname(ifp, device_get_name(device),
 		    device_get_unit(device));
@@ -420,8 +425,8 @@ sr_attach(device_t device)
 		ifp->if_start = srstart;
 		ifp->if_watchdog = srwatchdog;
 
-		sc->ifsppp.pp_flags = PP_KEEPALIVE;
-		sppp_attach((struct ifnet *)&sc->ifsppp);
+		IFP2SP(sc->ifp)->pp_flags = PP_KEEPALIVE;
+		sppp_attach(sc->ifp);
 		if_attach(ifp);
 
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
@@ -681,7 +686,7 @@ sr_xmit(struct sr_softc *sc)
 
 	hc = sc->hc;
 #ifndef NETGRAPH
-	ifp = &sc->ifsppp.pp_if;
+	ifp = SC2IFP(sc);
 #endif /* NETGRAPH */
 	dmac = &hc->sca->dmac[DMAC_TXCH(sc->scachan)];
 
@@ -912,7 +917,7 @@ top_srstart:
 		 */
 		m_freem(mtx);
 #ifndef NETGRAPH
-		++sc->ifsppp.pp_if.if_opackets;
+		++SC2IFP(sc)->if_opackets;
 #else	/* NETGRAPH */
 		sc->opackets++;
 #endif /* NETGRAPH */
@@ -2001,7 +2006,7 @@ sr_get_packets(struct sr_softc *sc)
 
 	hc = sc->hc;
 #ifndef NETGRAPH
-	ifp = &sc->ifsppp.pp_if;
+	ifp = SC2IFP(sc);
 #endif /* NETGRAPH */
 
 	if (hc->mempages) {
@@ -2241,8 +2246,8 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				printf("sr%d: TX DMA Counter overflow, "
 				       "txpacket no %lu.\n",
 #ifndef NETGRAPH
-				       sc->unit, sc->ifsppp.pp_if.if_opackets);
-				sc->ifsppp.pp_if.if_oerrors++;
+				       sc->unit, SC2IFP(sc)->if_opackets);
+				SC2IFP(sc)->if_oerrors++;
 #else
 				       sc->unit, sc->opackets);
 				sc->oerrors++;
@@ -2256,7 +2261,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				       "txpacket no %lu, dsr %02x, "
 				       "cda %04x, eda %04x.\n",
 #ifndef NETGRAPH
-				       sc->unit, sc->ifsppp.pp_if.if_opackets,
+				       sc->unit, SC2IFP(sc)->if_opackets,
 #else
 				       sc->unit, sc->opackets,
 #endif /* NETGRAPH */
@@ -2264,7 +2269,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				       SRC_GET16(hc, dmac->cda),
 				       SRC_GET16(hc, dmac->eda));
 #ifndef NETGRAPH
-				sc->ifsppp.pp_if.if_oerrors++;
+				SC2IFP(sc)->if_oerrors++;
 #else
 				sc->oerrors++;
 #endif /* NETGRAPH */
@@ -2286,8 +2291,8 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 #endif
 				sc->xmit_busy = 0;
 #ifndef NETGRAPH
-				sc->ifsppp.pp_if.if_flags &= ~IFF_OACTIVE;
-				sc->ifsppp.pp_if.if_timer = 0;
+				SC2IFP(sc)->if_flags &= ~IFF_OACTIVE;
+				SC2IFP(sc)->if_timer = 0;
 #else
 				/* XXX may need to mark tx inactive? */
 				sc->out_deficit++;
@@ -2315,7 +2320,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				int tt, ind;
 
 #ifndef NETGRAPH
-				tt = sc->ifsppp.pp_if.if_ipackets;
+				tt = SC2IFP(sc)->if_ipackets;
 #else	/* NETGRAPH */
 				tt = sc->ipackets;
 #endif /* NETGRAPH */
@@ -2325,7 +2330,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				sr_get_packets(sc);
 #if BUGGY > 0
 #ifndef NETGRAPH
-				if (tt == sc->ifsppp.pp_if.if_ipackets)
+				if (tt == SC2IFP(sc)->if_ipackets)
 #else	/* NETGRAPH */
 				if (tt == sc->ipackets)
 #endif /* NETGRAPH */
@@ -2373,8 +2378,8 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				printf("sr%d: RX DMA Counter overflow, "
 				       "rxpkts %lu.\n",
 #ifndef NETGRAPH
-				       sc->unit, sc->ifsppp.pp_if.if_ipackets);
-				sc->ifsppp.pp_if.if_ierrors++;
+				       sc->unit, SC2IFP(sc)->if_ipackets);
+				SC2IFP(sc)->if_ierrors++;
 #else	/* NETGRAPH */
 				       sc->unit, sc->ipackets);
 				sc->ierrors[1]++;
@@ -2388,7 +2393,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				       "rxpkts %lu, rxind %d, "
 				       "cda %x, eda %x, dsr %x.\n",
 #ifndef NETGRAPH
-				       sc->unit, sc->ifsppp.pp_if.if_ipackets,
+				       sc->unit, SC2IFP(sc)->if_ipackets,
 #else	/* NETGRAPH */
 				       sc->unit, sc->ipackets,
 #endif /* NETGRAPH */
@@ -2406,7 +2411,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 
 				sr_eat_packet(sc, 0);
 #ifndef NETGRAPH
-				sc->ifsppp.pp_if.if_ierrors++;
+				SC2IFP(sc)->if_ierrors++;
 #else	/* NETGRAPH */
 				sc->ierrors[2]++;
 #endif /* NETGRAPH */
@@ -2424,7 +2429,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 #ifndef NETGRAPH
 				       sc->ipackets,
 #else	/* NETGRAPH */
-				       sc->ifsppp.pp_if.if_ipackets,
+				       SC2IFP(sc)->if_ipackets,
 #endif /* NETGRAPH */
 				       sc->rxhind,
 				       SRC_GET16(hc, dmac->cda),
@@ -2449,8 +2454,8 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				printf("sr%d: RX End of xfer, rxpkts %lu.\n",
 				       sc->unit,
 #ifndef NETGRAPH
-				       sc->ifsppp.pp_if.if_ipackets);
-				sc->ifsppp.pp_if.if_ierrors++;
+				       SC2IFP(sc)->if_ipackets);
+				SC2IFP(sc)->if_ierrors++;
 #else
 				       sc->ipackets);
 				sc->ierrors[3]++;
@@ -2469,7 +2474,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 		if (dotxstart & 0x0C) {	/* TX initiation enabled? */
 			sc = &hc->sc[mch];
 #ifndef NETGRAPH
-			srstart(&sc->ifsppp.pp_if);
+			srstart(SC2IFP(sc));
 #else
 			srstart(sc);
 #endif /* NETGRAPH */
@@ -2551,7 +2556,7 @@ sr_modemck(void *arg)
 		for (mch = 0; mch < hc->numports; mch++) {
 			sc = &hc->sc[mch];
 
-			ifp = &sc->ifsppp.pp_if;
+			ifp = SC2IFP(sc);
 
 			/*
 			 * if this channel isn't "up", skip it

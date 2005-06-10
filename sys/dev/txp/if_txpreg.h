@@ -591,7 +591,7 @@ struct txp_ldata {
 };
 
 struct txp_softc {
-	struct arpcom		sc_arpcom;	/* ethernet common */
+	struct ifnet		*sc_ifp;
 	device_t		sc_dev;
 	struct txp_hostvar	*sc_hostvar;
 	struct txp_boot_record	*sc_boot;

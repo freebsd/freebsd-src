@@ -155,8 +155,8 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 	}
 	gip = mtod(m, struct greip *);
 
-	sc->sc_if.if_ipackets++;
-	sc->sc_if.if_ibytes += m->m_pkthdr.len;
+	GRE2IFP(sc)->if_ipackets++;
+	GRE2IFP(sc)->if_ibytes += m->m_pkthdr.len;
 
 	switch (proto) {
 	case IPPROTO_GRE:
@@ -207,12 +207,12 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 	/* Unlike NetBSD, in FreeBSD m_adj() adjusts m->m_pkthdr.len as well */
 	m_adj(m, hlen);
 
-	if (sc->sc_if.if_bpf) {
+	if (GRE2IFP(sc)->if_bpf) {
 		u_int32_t af = AF_INET;
-		bpf_mtap2(sc->sc_if.if_bpf, &af, sizeof(af), m);
+		bpf_mtap2(GRE2IFP(sc)->if_bpf, &af, sizeof(af), m);
 	}
 
-	m->m_pkthdr.rcvif = &sc->sc_if;
+	m->m_pkthdr.rcvif = GRE2IFP(sc);
 
 	netisr_dispatch(isr, m);
 
@@ -260,8 +260,8 @@ gre_mobile_input(m, va_alist)
 	ip = mtod(m, struct ip *);
 	mip = mtod(m, struct mobip_h *);
 
-	sc->sc_if.if_ipackets++;
-	sc->sc_if.if_ibytes += m->m_pkthdr.len;
+	GRE2IFP(sc)->if_ipackets++;
+	GRE2IFP(sc)->if_ibytes += m->m_pkthdr.len;
 
 	if (ntohs(mip->mh.proto) & MOB_H_SBIT) {
 		msiz = MOB_H_SIZ_L;
@@ -302,12 +302,12 @@ gre_mobile_input(m, va_alist)
 	ip->ip_sum = 0;
 	ip->ip_sum = in_cksum(m, (ip->ip_hl << 2));
 
-	if (sc->sc_if.if_bpf) {
+	if (GRE2IFP(sc)->if_bpf) {
 		u_int32_t af = AF_INET;
-		bpf_mtap2(sc->sc_if.if_bpf, &af, sizeof(af), m);
+		bpf_mtap2(GRE2IFP(sc)->if_bpf, &af, sizeof(af), m);
 	}
 
-	m->m_pkthdr.rcvif = &sc->sc_if;
+	m->m_pkthdr.rcvif = GRE2IFP(sc);
 
 	netisr_dispatch(NETISR_IP, m);
 }
@@ -336,7 +336,7 @@ gre_lookup(m, proto)
 		if ((sc->g_dst.s_addr == ip->ip_src.s_addr) &&
 		    (sc->g_src.s_addr == ip->ip_dst.s_addr) &&
 		    (sc->g_proto == proto) &&
-		    ((sc->sc_if.if_flags & IFF_UP) != 0)) {
+		    ((GRE2IFP(sc)->if_flags & IFF_UP) != 0)) {
 			mtx_unlock(&gre_mtx);
 			return (sc);
 		}

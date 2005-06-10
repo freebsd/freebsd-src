@@ -137,7 +137,9 @@
 #define	 UDAV_GPR_GEPIO1	(1<<1) /* General purpose 1 */
 #define	 UDAV_GPR_GEPIO0	(1<<0) /* General purpose 0 */
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__FreeBSD__)
+#define	GET_IFP(sc)		((sc)->sc_ifp)
+#elif defined(__OpenBSD__)
 #define	GET_IFP(sc)		(&(sc)->sc_ac.ac_if)
 #elif defined(__NetBSD__)
 #define	GET_IFP(sc)		(&(sc)->sc_ec.ec_if)
@@ -160,7 +162,7 @@
 
 struct udav_softc {
 #if defined(__FreeBSD__)
-	struct arpcom		sc_ac ; /* struct ifnet must be top of softc */
+	struct ifnet		*sc_ifp;
 #endif
 	USBBASEDEVICE		sc_dev;	/* base device */
 	usbd_device_handle	sc_udev;

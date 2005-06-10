@@ -171,7 +171,7 @@ struct ng_fec_bundle {
 
 /* Node private data */
 struct ng_fec_private {
-	struct arpcom arpcom;
+	struct ifnet *ifp;
 	struct ifmedia ifmedia;
 	int	if_flags;
 	int	if_error;		/* XXX */
@@ -345,7 +345,6 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 {
 	struct ng_fec_bundle	*b;
 	struct ifnet		*ifp, *bifp;
-	struct arpcom		*ac;
 	struct ifaddr		*ifa;
 	struct sockaddr_dl	*sdl;
 	struct ng_fec_portlist	*p, *new;
@@ -354,7 +353,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 		return(EINVAL);
 
 	b = &priv->fec_bundle;
-	ifp = &priv->arpcom.ac_if;
+	ifp = priv->ifp;
 
 	/* Find the interface */
 	bifp = ifunit(iface);
@@ -400,8 +399,6 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	if (new == NULL)
 		return(ENOMEM);
 
-	ac = (struct arpcom *)bifp;
-
 	IF_AFDATA_LOCK(bifp);
 	bifp->if_afdata[AF_NETGRAPH] = priv->node;
 	IF_AFDATA_UNLOCK(bifp);
@@ -414,9 +411,9 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	if (b->fec_ifcnt == 0) {
 		ifa = ifaddr_byindex(ifp->if_index);
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-		bcopy((char *)ac->ac_enaddr,
-		    priv->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-		bcopy((char *)ac->ac_enaddr,
+		bcopy(IFP2ENADDR(bifp),
+		    IFP2ENADDR(priv->ifp), ETHER_ADDR_LEN);
+		bcopy(IFP2ENADDR(bifp),
 		    LLADDR(sdl), ETHER_ADDR_LEN);
 	}
 
@@ -425,14 +422,14 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	b->fec_ifcnt++;
 
 	/* Save the real MAC address. */
-	bcopy((char *)ac->ac_enaddr,
+	bcopy(IFP2ENADDR(bifp),
 	    (char *)&new->fec_mac, ETHER_ADDR_LEN);
 
 	/* Set up phony MAC address. */
 	ifa = ifaddr_byindex(bifp->if_index);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	bcopy(priv->arpcom.ac_enaddr, ac->ac_enaddr, ETHER_ADDR_LEN);
-	bcopy(priv->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
+	bcopy(IFP2ENADDR(priv->ifp), IFP2ENADDR(bifp), ETHER_ADDR_LEN);
+	bcopy(IFP2ENADDR(priv->ifp), LLADDR(sdl), ETHER_ADDR_LEN);
 
 	/* Save original input vector */
 	new->fec_if_input = bifp->if_input;
@@ -456,7 +453,6 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 {
 	struct ng_fec_bundle	*b;
 	struct ifnet		*ifp, *bifp;
-	struct arpcom		*ac;
 	struct ifaddr		*ifa;
 	struct sockaddr_dl	*sdl;
 	struct ng_fec_portlist	*p;
@@ -465,7 +461,7 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 		return(EINVAL);
 
 	b = &priv->fec_bundle;
-	ifp = &priv->arpcom.ac_if;
+	ifp = priv->ifp;
 
 	/* Find the interface */
 	bifp = ifunit(iface);
@@ -491,10 +487,9 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 	(*bifp->if_ioctl)(bifp, SIOCSIFFLAGS, NULL);
 
 	/* Restore MAC address. */
-	ac = (struct arpcom *)bifp;
 	ifa = ifaddr_byindex(bifp->if_index);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	bcopy((char *)&p->fec_mac, ac->ac_enaddr, ETHER_ADDR_LEN);
+	bcopy((char *)&p->fec_mac, IFP2ENADDR(bifp), ETHER_ADDR_LEN);
 	bcopy((char *)&p->fec_mac, LLADDR(sdl), ETHER_ADDR_LEN);
 
 	/* Restore input vector */
@@ -641,7 +636,7 @@ ng_fec_tick(void *arg)
 		}
 	}
 
-	ifp = &priv->arpcom.ac_if;
+	ifp = priv->ifp;
 	if (ifp->if_flags & IFF_RUNNING)
 		priv->fec_ch = timeout(ng_fec_tick, priv, hz);
 
@@ -792,7 +787,7 @@ ng_fec_input(struct ifnet *ifp, struct mbuf *m0)
 
 	priv = NG_NODE_PRIVATE(node);
 	b = &priv->fec_bundle;
-	bifp = &priv->arpcom.ac_if;
+	bifp = priv->ifp;
 
 	TAILQ_FOREACH(p, &b->ng_fec_ports, fec_list) {
 		if (p->fec_if == m0->m_pkthdr.rcvif)
@@ -1106,7 +1101,11 @@ ng_fec_constructor(node_p node)
 	if (priv == NULL)
 		return (ENOMEM);
 
-	ifp = &priv->arpcom.ac_if;
+	ifp = priv->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		FREE(priv, M_NETGRAPH);
+		return (ENOSPC);
+	}
 	b = &priv->fec_bundle;
 
 	/* Link them together */
@@ -1114,7 +1113,7 @@ ng_fec_constructor(node_p node)
 
 	/* Get an interface unit number */
 	if ((error = ng_fec_get_unit(&priv->unit)) != 0) {
-		FREE(ifp, M_NETGRAPH);
+		if_free(ifp);
 		FREE(priv, M_NETGRAPH);
 		return (error);
 	}
@@ -1145,7 +1144,7 @@ ng_fec_constructor(node_p node)
 		log(LOG_WARNING, "%s: can't acquire netgraph name\n", ifname);
 
 	/* Attach the interface */
-	ether_ifattach(ifp, priv->arpcom.ac_enaddr);
+	ether_ifattach(ifp, IFP2ENADDR(priv->ifp));
 	callout_handle_init(&priv->fec_ch);
 
 	/* Override output method with our own */
@@ -1228,14 +1227,15 @@ ng_fec_shutdown(node_p node)
 	struct ng_fec_portlist	*p;
 
 	b = &priv->fec_bundle;
-	ng_fec_stop(&priv->arpcom.ac_if);
+	ng_fec_stop(priv->ifp);
 
 	while (!TAILQ_EMPTY(&b->ng_fec_ports)) {
 		p = TAILQ_FIRST(&b->ng_fec_ports);
 		ng_fec_delport(priv, p->fec_if->if_xname);
 	}
 
-	ether_ifdetach(&priv->arpcom.ac_if);
+	ether_ifdetach(priv->ifp);
+	if_free_type(priv->ifp, IFT_ETHER);
 	ifmedia_removeall(&priv->ifmedia);
 	ng_fec_free_unit(priv->unit);
 	FREE(priv, M_NETGRAPH);

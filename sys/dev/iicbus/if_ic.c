@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #define ICMTU		1500		/* default mtu */
 
 struct ic_softc {
-	struct ifnet ic_if;
+	struct ifnet *ic_ifp;
 
 	u_char ic_addr;			/* peer I2C address */
 
@@ -129,7 +129,12 @@ static int
 icattach(device_t dev)
 {
 	struct ic_softc *sc = (struct ic_softc *)device_get_softc(dev);
-	struct ifnet *ifp = &sc->ic_if;
+	struct ifnet *ifp;
+
+	ifp = sc->ic_ifp = if_alloc(IFT_PARA);
+	if (ifp == NULL) {
+		return (ENOSPC);
+	}
 
 	sc->ic_addr = PCF_MASTER_ADDRESS;	/* XXX only PCF masters */
 
@@ -140,7 +145,6 @@ icattach(device_t dev)
 	    IFF_NEEDSGIANT;
 	ifp->if_ioctl = icioctl;
 	ifp->if_output = icoutput;
-	ifp->if_type = IFT_PARA;
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
@@ -192,14 +196,14 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	    if ((error = iicbus_request_bus(parent, icdev, IIC_WAIT|IIC_INTR)))
 		return (error);
 
-	    sc->ic_obuf = malloc(sc->ic_if.if_mtu + ICHDRLEN,
+	    sc->ic_obuf = malloc(sc->ic_ifp->if_mtu + ICHDRLEN,
 				  M_DEVBUF, M_WAITOK);
 	    if (!sc->ic_obuf) {
 		iicbus_release_bus(parent, icdev);
 		return ENOBUFS;
 	    }
 
-	    sc->ic_ifbuf = malloc(sc->ic_if.if_mtu + ICHDRLEN,
+	    sc->ic_ifbuf = malloc(sc->ic_ifp->if_mtu + ICHDRLEN,
 				  M_DEVBUF, M_WAITOK);
 	    if (!sc->ic_ifbuf) {
 		iicbus_release_bus(parent, icdev);
@@ -245,11 +249,11 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	if (optr)
 	    free(optr,M_DEVBUF);
 
-	sc->ic_if.if_mtu = ifr->ifr_mtu;
+	sc->ic_ifp->if_mtu = ifr->ifr_mtu;
 	break;
 
     case SIOCGIFMTU:
-	ifr->ifr_mtu = sc->ic_if.if_mtu;
+	ifr->ifr_mtu = sc->ic_ifp->if_mtu;
 	break;
 
     case SIOCADDMULTI:
@@ -308,12 +312,12 @@ icintr (device_t dev, int event, char *ptr)
 	    goto err;
 
 	  len -= ICHDRLEN;
-	  sc->ic_if.if_ipackets ++;
-	  sc->ic_if.if_ibytes += len;
+	  sc->ic_ifp->if_ipackets ++;
+	  sc->ic_ifp->if_ibytes += len;
 
-	  BPF_TAP(&sc->ic_if, sc->ic_ifbuf, len + ICHDRLEN);
+	  BPF_TAP(sc->ic_ifp, sc->ic_ifbuf, len + ICHDRLEN);
 
-	  top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, &sc->ic_if, 0);
+	  top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, sc->ic_ifp, 0);
 
 	  if (top)
 	    netisr_dispatch(NETISR_IP, top);
@@ -323,12 +327,12 @@ icintr (device_t dev, int event, char *ptr)
 	  printf("ic%d: errors (%d)!\n", unit, sc->ic_iferrs);
 
 	  sc->ic_iferrs = 0;			/* reset error count */
-	  sc->ic_if.if_ierrors ++;
+	  sc->ic_ifp->if_ierrors ++;
 
 	  break;
 
 	case INTR_RECEIVE:
-		if (sc->ic_xfercnt >= sc->ic_if.if_mtu+ICHDRLEN) {
+		if (sc->ic_xfercnt >= sc->ic_ifp->if_mtu+ICHDRLEN) {
 			sc->ic_iferrs ++;
 
 		} else {
@@ -389,7 +393,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m,
 	len = 0;
 	mm = m;
 	do {
-		if (len + mm->m_len > sc->ic_if.if_mtu) {
+		if (len + mm->m_len > sc->ic_ifp->if_mtu) {
 			/* packet to large */
 			ifp->if_oerrors ++;
 			goto error;

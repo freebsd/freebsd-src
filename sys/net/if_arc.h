@@ -102,7 +102,7 @@ struct	arc_header {
 #define ARC_PHDS_MAXMTU		60480
 
 struct	arccom {
-	struct	  ifnet ac_if;		/* network-visible interface */
+	struct	  ifnet *ac_ifp;	/* network-visible interface */
 
 	u_int16_t ac_seqid;		/* seq. id used by PHDS encap. */
 

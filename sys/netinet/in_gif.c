@@ -92,7 +92,7 @@ in_gif_output(ifp, family, m)
 	int		family;
 	struct mbuf	*m;
 {
-	struct gif_softc *sc = (struct gif_softc*)ifp;
+	struct gif_softc *sc = ifp->if_softc;
 	struct sockaddr_in *dst = (struct sockaddr_in *)&sc->gif_ro.ro_dst;
 	struct sockaddr_in *sin_src = (struct sockaddr_in *)sc->gif_psrc;
 	struct sockaddr_in *sin_dst = (struct sockaddr_in *)sc->gif_pdst;
@@ -186,7 +186,7 @@ in_gif_output(ifp, family, m)
 			sc->gif_ro.ro_rt = NULL;
 		}
 #if 0
-		sc->gif_if.if_mtu = GIF_MTU;
+		GIF2IFP(sc)->if_mtu = GIF_MTU;
 #endif
 	}
 
@@ -210,7 +210,7 @@ in_gif_output(ifp, family, m)
 
 	error = ip_output(m, NULL, &sc->gif_ro, 0, NULL, NULL);
 
-	if (!(sc->gif_if.if_flags & IFF_LINK0) &&
+	if (!(GIF2IFP(sc)->if_flags & IFF_LINK0) &&
 	    sc->gif_ro.ro_rt != NULL) {
 		RTFREE(sc->gif_ro.ro_rt);
 		sc->gif_ro.ro_rt = NULL;
@@ -337,7 +337,7 @@ gif_validate4(ip, sc, ifp)
 	}
 
 	/* ingress filters on outer source */
-	if ((sc->gif_if.if_flags & IFF_LINK2) == 0 && ifp) {
+	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {
 		struct sockaddr_in sin;
 		struct rtentry *rt;
 
@@ -349,7 +349,7 @@ gif_validate4(ip, sc, ifp)
 		if (!rt || rt->rt_ifp != ifp) {
 #if 0
 			log(LOG_WARNING, "%s: packet from 0x%x dropped "
-			    "due to ingress filter\n", if_name(&sc->gif_if),
+			    "due to ingress filter\n", if_name(GIF2IFP(sc)),
 			    (u_int32_t)ntohl(sin.sin_addr.s_addr));
 #endif
 			if (rt)

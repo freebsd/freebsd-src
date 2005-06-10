@@ -120,7 +120,7 @@ ep_pccard_probe(device_t dev)
 	 * Newer cards supported by this device need to have their
 	 * MAC address set.
 	 */
-	error = ep_get_macaddr(sc, (u_char *)&sc->arpcom.ac_enaddr);
+	error = ep_get_macaddr(sc, (u_char *)&IFP2ENADDR(sc->ifp));
 
 	ep_free(dev);
 	return (0);

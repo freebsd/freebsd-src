@@ -108,7 +108,7 @@ struct nve_tx_desc {
 };
 
 struct nve_softc {
-	struct arpcom arpcom;	/* interface info */
+	struct ifnet *ifp;	/* interface info */
 	struct resource *res;
 	struct resource *irq;
 
@@ -164,9 +164,6 @@ struct nve_type {
 	u_int16_t	dev_id;
 	char		*name;
 };
-
-#define sc_if arpcom.ac_if
-#define sc_macaddr arpcom.ac_enaddr
 
 #define NVE_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
 #define NVE_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)

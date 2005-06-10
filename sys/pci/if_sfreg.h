@@ -1031,7 +1031,7 @@ struct sf_list_data {
 };
 
 struct sf_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*sf_ifp;	/* interface info */
 	bus_space_handle_t	sf_bhandle;	/* bus space handle */
 	bus_space_tag_t		sf_btag;	/* bus space tag */
 	void			*sf_intrhand;	/* interrupt handler cookie */

@@ -98,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -583,7 +584,7 @@ rl_miibus_readreg(device_t dev, int phy, int reg)
 			rval = CSR_READ_1(sc, RL_MEDIASTAT);
 			return (rval);
 		default:
-			if_printf(&sc->arpcom.ac_if, "bad phy register\n");
+			if_printf(sc->rl_ifp, "bad phy register\n");
 			return (0);
 		}
 		rval = CSR_READ_2(sc, rl8139_reg);
@@ -633,7 +634,7 @@ rl_miibus_writereg(device_t dev, int phy, int reg, int data)
 			return (0);
 			break;
 		default:
-			if_printf(&sc->arpcom.ac_if, "bad phy register\n");
+			if_printf(sc->rl_ifp, "bad phy register\n");
 			return (0);
 		}
 		CSR_WRITE_2(sc, rl8139_reg, data);
@@ -660,7 +661,7 @@ rl_miibus_statchg(device_t dev)
 static void
 rl_setmulti(struct rl_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->rl_ifp;
 	int			h = 0;
 	uint32_t		hashes[2] = { 0, 0 };
 	struct ifmultiaddr	*ifma;
@@ -721,7 +722,7 @@ rl_reset(struct rl_softc *sc)
 			break;
 	}
 	if (i == RL_TIMEOUT)
-		if_printf(&sc->arpcom.ac_if, "reset never completed!\n");
+		if_printf(sc->rl_ifp, "reset never completed!\n");
 }
 
 /*
@@ -861,7 +862,6 @@ rl_attach(device_t dev)
 	}
 
 	sc->rl_unit = unit;
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
 	 * Now read the exact device type from the EEPROM to find
@@ -946,7 +946,12 @@ rl_attach(device_t dev)
 		goto fail;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -978,6 +983,7 @@ rl_attach(device_t dev)
 	if (error) {
 		if_printf(ifp, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 
 fail:
@@ -1002,13 +1008,15 @@ rl_detach(device_t dev)
 	int			attached;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp;
 
 	KASSERT(mtx_initialized(&sc->rl_mtx), ("rl mutex not initialized"));
 	attached = device_is_attached(dev);
 	/* These should only be active if attach succeeded */
-	if (attached)
+	if (attached) {
 		ether_ifdetach(ifp);
+		if_free(ifp);
+	}
 	RL_LOCK(sc);
 #if 0
 	sc->suspended = 1;
@@ -1090,7 +1098,7 @@ static void
 rl_rxeof(struct rl_softc *sc)
 {
 	struct mbuf		*m;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->rl_ifp;
 	uint8_t			*rxbufpos;
 	int			total_len = 0;
 	int			wrap = 0;
@@ -1207,7 +1215,7 @@ rl_rxeof(struct rl_softc *sc)
 static void
 rl_txeof(struct rl_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->rl_ifp;
 	uint32_t		txstat;
 
 	RL_LOCK_ASSERT(sc);
@@ -1338,7 +1346,7 @@ static void
 rl_intr(void *arg)
 {
 	struct rl_softc		*sc = arg;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->rl_ifp;
 	uint16_t		status;
 
 	RL_LOCK(sc);
@@ -1504,7 +1512,7 @@ rl_init(void *xsc)
 static void
 rl_init_locked(struct rl_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->rl_ifp;
 	struct mii_data		*mii;
 	uint32_t		rxcfg = 0;
 
@@ -1524,9 +1532,9 @@ rl_init_locked(struct rl_softc *sc)
 	 */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
 	CSR_WRITE_STREAM_4(sc, RL_IDR0,
-	    *(uint32_t *)(&sc->arpcom.ac_enaddr[0]));
+	    *(uint32_t *)(&IFP2ENADDR(sc->rl_ifp)[0]));
 	CSR_WRITE_STREAM_4(sc, RL_IDR4,
-	    *(uint32_t *)(&sc->arpcom.ac_enaddr[4]));
+	    *(uint32_t *)(&IFP2ENADDR(sc->rl_ifp)[4]));
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/* Init the RX buffer pointer register. */
@@ -1703,7 +1711,7 @@ static void
 rl_stop(struct rl_softc *sc)
 {
 	register int		i;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->rl_ifp;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -1767,7 +1775,7 @@ rl_resume(device_t dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp;
 
 	RL_LOCK(sc);
 

@@ -80,8 +80,6 @@
 #include <netipx/ipx_if.h>
 #endif
 
-MODULE_VERSION(arcnet, 1);
-
 #define ARCNET_ALLOW_BROKEN_ARP
 
 static struct mbuf *arc_defrag(struct ifnet *, struct mbuf *);
@@ -254,7 +252,7 @@ arc_frag_init(ifp)
 {
 	struct arccom *ac;
 
-	ac = (struct arccom *)ifp;
+	ac = (struct arccom *)ifp->if_l2com;
 	ac->curr_frag = 0;
 }
 
@@ -266,7 +264,7 @@ arc_frag_next(ifp)
 	struct mbuf *m;
 	struct arc_header *ah;
 
-	ac = (struct arccom *)ifp;
+	ac = (struct arccom *)ifp->if_l2com;
 	if ((m = ac->curr_frag) == 0) {
 		int tfrags;
 
@@ -367,7 +365,7 @@ arc_defrag(ifp, m)
 	int newflen;
 	u_char src,dst,typ;
 
-	ac = (struct arccom *)ifp;
+	ac = (struct arccom *)ifp->if_l2com;
 
 	if (m->m_len < ARC_HDRNEWLEN) {
 		m = m_pullup(m, ARC_HDRNEWLEN);
@@ -641,7 +639,6 @@ arc_ifattach(ifp, lla)
 	struct arccom *ac;
 
 	if_attach(ifp);
-	ifp->if_type = IFT_ARCNET;
 	ifp->if_addrlen = 1;
 	ifp->if_hdrlen = ARC_HDRLEN;
 	ifp->if_mtu = 1500;
@@ -661,7 +658,7 @@ arc_ifattach(ifp, lla)
 	if (ifp->if_flags & IFF_BROADCAST)
 		ifp->if_flags |= IFF_MULTICAST|IFF_ALLMULTI;
 
-	ac = (struct arccom *)ifp;
+	ac = (struct arccom *)ifp->if_l2com;
 	ac->ac_seqid = (time_second) & 0xFFFF; /* try to make seqid unique */
 	if (lla == 0) {
 		/* XXX this message isn't entirely clear, to me -- cgd */
@@ -846,3 +843,50 @@ arc_resolvemulti(ifp, llsa, sa)
 		return EAFNOSUPPORT;
 	}
 }
+
+MALLOC_DEFINE(M_ARCCOM, "arccom", "ARCNET interface internals");
+
+static void*
+arc_alloc(u_char type, struct ifnet *ifp)
+{
+	struct arccom	*ac;
+	
+	ac = malloc(sizeof(struct arccom), M_ARCCOM, M_WAITOK | M_ZERO);
+	ac->ac_ifp = ifp;
+
+	return (ac);
+}
+
+static void
+arc_free(void *com, u_char type)
+{
+
+	free(com, M_ARCCOM);
+}
+
+static int
+arc_modevent(module_t mod, int type, void *data)
+{
+
+	switch (type) {
+	case MOD_LOAD:
+		if_register_com_alloc(IFT_ARCNET, arc_alloc, arc_free);
+		break;
+	case MOD_UNLOAD:
+		if_deregister_com_alloc(IFT_ARCNET);
+		break;
+	default:
+		return EOPNOTSUPP;
+	}
+
+	return (0);
+}
+
+static moduledata_t arc_mod = {
+	"arcnet",
+	arc_modevent,
+	0
+};
+
+DECLARE_MODULE(arcnet, arc_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
+MODULE_VERSION(arcnet, 1);

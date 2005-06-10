@@ -93,15 +93,13 @@ enum _pdq_type_t {
 };
 
 #define	sc_ifmedia	ifmedia
-#define	sc_if		arpcom.ac_if
-#define	sc_bpf		sc_if.if_bpf
 #if 0 /* ALTQ */
 #define	IFQ_DEQUEUE	IF_DEQUEUE
 #define	IFQ_IS_EMPTY(q)	((q)->ifq_len == 0)
 #endif
 
 typedef struct _pdq_os_ctx_t {
-	struct arpcom		arpcom;
+	struct ifnet		*ifp;
 	struct ifmedia		ifmedia;
 	device_t		dev;
 	int			debug;
@@ -152,7 +150,8 @@ typedef struct _pdq_os_ctx_t {
 #define	PDQ_OS_TX_TIMEOUT		5	/* seconds */
 
 #define	PDQ_OS_IFP_TO_SOFTC(ifp)	((pdq_softc_t *) (ifp)->if_softc)
-#define	PDQ_BPF_MTAP(sc, m)		BPF_MTAP(&(sc)->arpcom.ac_if, m)
+#define	PDQ_BPF_MTAP(sc, m)		BPF_MTAP((sc)->ifp, m)
+#define PDQ_IFNET(sc)			((sc)->ifp)
 
 #endif	/* PDQ_OSSUPPORT */
 

@@ -672,7 +672,7 @@ nge_setmulti(sc)
 	int			bit, index;
 
 	NGE_LOCK_ASSERT(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->nge_ifp;
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		NGE_CLRBIT(sc, NGE_RXFILT_CTL,
@@ -834,8 +834,8 @@ nge_attach(dev)
 	nge_read_eeprom(sc, (caddr_t)&eaddr[0], NGE_EE_NODEADDR + 2, 1, 0);
 
 	sc->nge_unit = unit;
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
+	/* XXX: leaked on error */
 	sc->nge_ldata = contigmalloc(sizeof(struct nge_list_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
@@ -846,9 +846,15 @@ nge_attach(dev)
 		error = ENXIO;
 		goto fail;
 	}
-	bzero(sc->nge_ldata, sizeof(struct nge_list_data));
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->nge_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("nge%d: can not if_alloc()\n", unit);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
+		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -924,6 +930,7 @@ nge_attach(dev)
 	error = bus_setup_intr(dev, sc->nge_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    nge_intr, sc, &sc->nge_intrhand);
 	if (error) {
+		/* XXX: resource leaks */
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
 		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
 		printf("nge%d: couldn't set up irq\n", unit);
@@ -944,13 +951,14 @@ nge_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->nge_ifp;
 
 	NGE_LOCK(sc);
 	nge_reset(sc);
 	nge_stop(sc);
 	NGE_UNLOCK(sc);
 	ether_ifdetach(ifp);
+	if_free(ifp);
 
 	bus_generic_detach(dev);
 	if (!sc->nge_tbi) {
@@ -1106,7 +1114,7 @@ nge_rxeof(sc)
 	u_int32_t		rxstat;
 
 	NGE_LOCK_ASSERT(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->nge_ifp;
 	i = sc->nge_cdata.nge_rx_prod;
 
 	while(NGE_OWNDESC(&sc->nge_ldata->nge_rx_list[i])) {
@@ -1247,7 +1255,7 @@ nge_txeof(sc)
 	u_int32_t		idx;
 
 	NGE_LOCK_ASSERT(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->nge_ifp;
 
 	/*
 	 * Go through our tx list and free mbufs for those
@@ -1317,7 +1325,7 @@ nge_tick_locked(sc)
 	struct ifnet		*ifp;
 
 	NGE_LOCK_ASSERT(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->nge_ifp;
 
 	if (sc->nge_tbi) {
 		if (!sc->nge_link) {
@@ -1416,7 +1424,7 @@ nge_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->nge_ifp;
 
 	NGE_LOCK(sc);
 #ifdef DEVICE_POLLING
@@ -1563,7 +1571,7 @@ nge_encap(sc, m_head, txidx)
 			    NGE_TXEXTSTS_UDPCSUM;
 	}
 
-	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m_head);
+	mtag = VLAN_OUTPUT_TAG(sc->nge_ifp, m_head);
 	if (mtag != NULL) {
 		sc->nge_ldata->nge_tx_list[cur].nge_extsts |=
 		    (NGE_TXEXTSTS_VLANPKT|htons(VLAN_TAG_VALUE(mtag)));
@@ -1661,7 +1669,7 @@ static void
 nge_init_locked(sc)
 	struct nge_softc	*sc;
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->nge_ifp;
 	struct mii_data		*mii;
 
 	NGE_LOCK_ASSERT(sc);
@@ -1683,13 +1691,13 @@ nge_init_locked(sc)
 	/* Set MAC address */
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, NGE_FILTADDR_PAR0);
 	CSR_WRITE_4(sc, NGE_RXFILT_DATA,
-	    ((u_int16_t *)sc->arpcom.ac_enaddr)[0]);
+	    ((u_int16_t *)IFP2ENADDR(sc->nge_ifp))[0]);
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, NGE_FILTADDR_PAR1);
 	CSR_WRITE_4(sc, NGE_RXFILT_DATA,
-	    ((u_int16_t *)sc->arpcom.ac_enaddr)[1]);
+	    ((u_int16_t *)IFP2ENADDR(sc->nge_ifp))[1]);
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, NGE_FILTADDR_PAR2);
 	CSR_WRITE_4(sc, NGE_RXFILT_DATA,
-	    ((u_int16_t *)sc->arpcom.ac_enaddr)[2]);
+	    ((u_int16_t *)IFP2ENADDR(sc->nge_ifp))[2]);
 
 	/* Init circular RX list. */
 	if (nge_list_rx_init(sc) == ENOBUFS) {
@@ -2083,7 +2091,7 @@ nge_stop(sc)
 	struct mii_data		*mii;
 
 	NGE_LOCK_ASSERT(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->nge_ifp;
 	ifp->if_timer = 0;
 	if (sc->nge_tbi) {
 		mii = NULL;

@@ -127,6 +127,8 @@ struct	ifindex_entry *ifindex_table = NULL;
 int	ifqmaxlen = IFQ_MAXLEN;
 struct	ifnethead ifnet;	/* depend on static init XXX */
 struct	mtx ifnet_lock;
+static	if_com_alloc_t *if_com_alloc[256];
+static	if_com_free_t *if_com_free[256];
 
 static int	if_indexlim = 8;
 static struct	knlist ifklist;
@@ -143,6 +145,7 @@ static struct filterops netdev_filtops =
 SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_FIRST, if_init, NULL)
 SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL)
 
+MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
@@ -291,10 +294,10 @@ if_grow(void)
 
 	if_indexlim <<= 1;
 	n = if_indexlim * sizeof(*e);
-	e = malloc(n, M_IFADDR, M_WAITOK | M_ZERO);
+	e = malloc(n, M_IFNET, M_WAITOK | M_ZERO);
 	if (ifindex_table != NULL) {
 		memcpy((caddr_t)e, (caddr_t)ifindex_table, n/2);
-		free((caddr_t)ifindex_table, M_IFADDR);
+		free((caddr_t)ifindex_table, M_IFNET);
 	}
 	ifindex_table = e;
 }
@@ -325,6 +328,7 @@ if_check(void *dummy __unused)
 	if_slowtimo(0);
 }
 
+/* XXX: should be locked. */
 static int
 if_findindex(struct ifnet *ifp)
 {
@@ -339,7 +343,7 @@ if_findindex(struct ifnet *ifp)
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
 	case IFT_BRIDGE:
-		snprintf(eaddr, 18, "%6D", IFP2AC(ifp)->ac_enaddr, ":");
+		snprintf(eaddr, 18, "%6D", IFP2ENADDR(ifp), ":");
 		break;
 	default:
 		eaddr[0] = '\0';
@@ -376,6 +380,59 @@ found:
 }
 
 /*
+ * Allocate a struct ifnet and in index for an interface.
+ */
+struct ifnet*
+if_alloc(u_char type)
+{
+	struct ifnet *ifp;
+
+	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
+
+	/* XXX: This should fail it index it is too big */
+	ifp->if_index = if_findindex(ifp);
+	if (ifp->if_index > if_index)
+		if_index = ifp->if_index;
+	if (if_index >= if_indexlim)
+		if_grow();
+
+	ifnet_byindex(ifp->if_index) = ifp;
+
+	ifp->if_type = type;
+
+	if (if_com_alloc[type] != NULL) {
+		ifp->if_l2com = if_com_alloc[type](type, ifp);
+		if (ifp->if_l2com == NULL)
+			free(ifp, M_IFNET);
+	}
+
+	return (ifp);
+}
+
+void
+if_free(struct ifnet *ifp)
+{
+
+	if_free_type(ifp, ifp->if_type);
+}
+
+void
+if_free_type(struct ifnet *ifp, u_char type)
+{
+
+	if (ifp != ifnet_byindex(ifp->if_index)) {
+		if_printf(ifp, "%s: value was not if_alloced, skipping\n",
+		    __func__);
+		return;
+	}
+
+	if (if_com_free[type] != NULL)
+		if_com_free[type](ifp->if_l2com, type);
+
+	free(ifp, M_IFNET);
+};
+
+/*
  * Attach an interface to the
  * list of "active" interfaces.
  */
@@ -386,6 +443,10 @@ if_attach(struct ifnet *ifp)
 	int namelen, masklen;
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
+
+	if (ifp->if_index == 0 || ifp != ifnet_byindex(ifp->if_index))
+		panic ("%s: BUG: if_attach called without if_alloc'd input()\n",
+		    ifp->if_xname);
 
 	TASK_INIT(&ifp->if_starttask, 0, if_start_deferred, ifp);
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
@@ -407,20 +468,13 @@ if_attach(struct ifnet *ifp)
 	knlist_init(&ifp->if_klist, NULL);
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_data.ifi_epoch = time_uptime;
+	ifp->if_data.ifi_datalen = sizeof(struct if_data);
 
 #ifdef MAC
 	mac_init_ifnet(ifp);
 	mac_create_ifnet(ifp);
 #endif
 
-	ifp->if_index = if_findindex(ifp);
-	if (ifp->if_index > if_index)
-		if_index = ifp->if_index;
-	if (if_index >= if_indexlim)
-		if_grow();
-	ifp->if_data.ifi_datalen = sizeof(struct if_data);
-
-	ifnet_byindex(ifp->if_index) = ifp;
 	ifdev_byindex(ifp->if_index) = make_dev(&net_cdevsw,
 	    unit2minor(ifp->if_index),
 	    UID_ROOT, GID_WHEEL, 0600, "%s/%s",
@@ -572,7 +626,7 @@ if_purgeaddrs(struct ifnet *ifp)
 
 /*
  * Detach an interface, removing it from the
- * list of "active" interfaces.
+ * list of "active" interfaces and freeing the struct ifnet.
  */
 void
 if_detach(struct ifnet *ifp)
@@ -1942,7 +1996,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
 	case IFT_BRIDGE:
-		bcopy(lladdr, IFP2AC(ifp)->ac_enaddr, len);
+		bcopy(lladdr, IFP2ENADDR(ifp), len);
 		/*
 		 * XXX We also need to store the lladdr in LLADDR(sdl),
 		 * which is done below. This is a pain because we must
@@ -2066,7 +2120,7 @@ if_start_deferred(void *context, int pending)
 	KASSERT(debug_mpsafenet != 0, ("if_start_deferred: debug.mpsafenet"));
 	GIANT_REQUIRED;
 
-	ifp = (struct ifnet *)context;
+	ifp = context;
 	(ifp->if_start)(ifp);
 }
 
@@ -2093,4 +2147,30 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 	if (ifp != NULL && !active)
 		if_start(ifp);
 	return (1);
+}
+
+void
+if_register_com_alloc(u_char type,
+    if_com_alloc_t *a, if_com_free_t *f)
+{
+	
+	KASSERT(if_com_alloc[type] == NULL,
+	    ("if_register_com_alloc: %d already registered", type));
+	KASSERT(if_com_free[type] == NULL,
+	    ("if_register_com_alloc: %d free already registered", type));
+
+	if_com_alloc[type] = a;
+	if_com_free[type] = f;
+}
+
+void
+if_deregister_com_alloc(u_char type)
+{
+	
+	KASSERT(if_com_alloc[type] == NULL,
+	    ("if_deregister_com_alloc: %d not registered", type));
+	KASSERT(if_com_free[type] == NULL,
+	    ("if_deregister_com_alloc: %d free not registered", type));
+	if_com_alloc[type] = NULL;
+	if_com_free[type] = NULL;
 }

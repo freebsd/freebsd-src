@@ -36,13 +36,15 @@
  */
 struct cs_softc {
 	/* Ethernet common code */
-	struct arpcom arpcom;
+	struct ifnet *ifp;
 
 	/* Configuration words from EEPROM */
 	int auto_neg_cnf;               /* AutoNegotitation configuration */
 	int adapter_cnf;                /* Adapter configuration */
 	int isa_config;                 /* ISA configuration */
 	int chip_type;			/* Type of chip */
+
+	u_char	enaddr[6];
 
 	struct ifmedia media;		/* Media information */
 

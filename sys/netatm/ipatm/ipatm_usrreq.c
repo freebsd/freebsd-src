@@ -325,7 +325,7 @@ ipatm_ioctl(code, data, arg1)
 		}
 
 		if ((ip.s_addr == INADDR_ANY) ||
-		    in_broadcast(ip, &inp->inf_nif->nif_if) ||
+		    in_broadcast(ip, ANIF2IFP(inp->inf_nif)) ||
 		    IN_MULTICAST(ntohl(ip.s_addr))) {
 			err = EADDRNOTAVAIL;
 			break;
@@ -391,7 +391,7 @@ ipatm_ioctl(code, data, arg1)
 		}
 
 		if ((ip.s_addr == INADDR_ANY) ||
-		    in_broadcast(ip, &inp->inf_nif->nif_if) ||
+		    in_broadcast(ip, ANIF2IFP(inp->inf_nif)) ||
 		    IN_MULTICAST(ntohl(ip.s_addr))) {
 			err = EADDRNOTAVAIL;
 			break;
@@ -447,7 +447,7 @@ ipatm_ioctl(code, data, arg1)
 				SATOSIN(&aivr.aip_dst_addr)->sin_addr.s_addr = 
 					ivp->iv_dst.s_addr;
 				strlcpy(aivr.aip_intf,
-				    inp->inf_nif->nif_if.if_xname,
+				    ANIF2IFP(inp->inf_nif)->if_xname,
 				    sizeof(aivr.aip_intf));
 				if ((ivp->iv_conn) &&
 				    (ivp->iv_conn->co_connvc) &&

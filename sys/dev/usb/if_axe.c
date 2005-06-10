@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -324,7 +325,7 @@ axe_setmulti(struct axe_softc *sc)
 	u_int16_t		rxmode;
 	u_int8_t		hashtbl[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->axe_ifp;
 
 	AXE_LOCK(sc);
 	axe_cmd(sc, AXE_CMD_RXCTL_READ, 0, 0, (void *)&rxmode);
@@ -479,9 +480,11 @@ USB_ATTACH(axe)
 	 */
 	sc->axe_phyaddrs[0] = sc->axe_phyaddrs[1] = 0xFF;
 
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->axe_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("axe%d: can not if_alloc()\n", sc->axe_unit);
+		USB_ATTACH_ERROR_RETURN;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "axe", sc->axe_unit);
 	ifp->if_mtu = ETHERMTU;
@@ -534,7 +537,7 @@ axe_detach(device_ptr_t dev)
 
 	sc = device_get_softc(dev);
 	AXE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->axe_ifp;
 
 	sc->axe_dying = 1;
 	untimeout(axe_tick, sc, sc->axe_stat_ch);
@@ -542,6 +545,7 @@ axe_detach(device_ptr_t dev)
 	ether_ifdetach(ifp);
 #else
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	if_free(ifp);
 #endif
 
 	if (sc->axe_ep[AXE_ENDPT_TX] != NULL)
@@ -604,7 +608,7 @@ axe_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	c = priv;
 	sc = c->ue_sc;
 	AXE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->axe_ifp;
 
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		AXE_UNLOCK(sc);
@@ -634,7 +638,7 @@ axe_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	}
 
 	ifp->if_ipackets++;
-	m->m_pkthdr.rcvif = (struct ifnet *)&sc->axe_qdat;
+	m->m_pkthdr.rcvif = (void *)&sc->axe_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
 
 	/* Put the packet on the special USB input queue. */
@@ -669,7 +673,7 @@ axe_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	c = priv;
 	sc = c->ue_sc;
 	AXE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->axe_ifp;
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
@@ -718,7 +722,7 @@ axe_tick(void *xsc)
 
 	AXE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->axe_ifp;
 	mii = GET_MII(sc);
 	if (mii == NULL) {
 		AXE_UNLOCK(sc);
@@ -824,7 +828,7 @@ Static void
 axe_init(void *xsc)
 {
 	struct axe_softc	*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->axe_ifp;
 	struct ue_chain	*c;
 	usbd_status		err;
 	int			i;
@@ -843,7 +847,7 @@ axe_init(void *xsc)
 
 #ifdef notdef
 	/* Set MAC address */
-	axe_mac(sc, sc->arpcom.ac_enaddr, 1);
+	axe_mac(sc, IFP2ENADDR(sc->axe_ifp), 1);
 #endif
 
 	/* Enable RX logic. */
@@ -1023,7 +1027,7 @@ axe_stop(struct axe_softc *sc)
 
 	AXE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->axe_ifp;
 	ifp->if_timer = 0;
 
 	untimeout(axe_tick, sc, sc->axe_stat_ch);

@@ -172,7 +172,7 @@ struct ath_txq {
 } while (0)
 
 struct ath_softc {
-	struct arpcom		sc_arp;		/* interface common */
+	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
 	struct ieee80211com	sc_ic;		/* IEEE 802.11 common */
 	int			sc_regdomain;
@@ -286,7 +286,6 @@ struct ath_softc {
 	struct callout		sc_cal_ch;	/* callout handle for cals */
 	struct callout		sc_scan_ch;	/* callout handle for scan */
 };
-#define	sc_if			sc_arp.ac_if
 #define	sc_tx_th		u_tx_rt.th
 #define	sc_rx_th		u_rx_rt.th
 

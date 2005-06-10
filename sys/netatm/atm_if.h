@@ -224,7 +224,7 @@ struct	atm_pif {
  * each physical ATM interface.
  */
 struct	atm_nif {
-	struct ifnet	nif_if;		/* Network interface */
+	struct ifnet	*nif_ifp;	/* Network interface */
 	struct atm_pif	*nif_pif;	/* Our physical interface */
 	char		nif_name[IFNAMSIZ];/* Network interface name */
 	u_char		nif_sel;	/* Interface's address selector */
@@ -234,7 +234,8 @@ struct	atm_nif {
 	long		nif_ibytes;	/* Bytes received from interface */
 	long		nif_obytes;	/* Bytes sent to interface */
 };
-
+#define ANIF2IFP(an)	((an)->nif_ifp)
+#define IFP2ANIF(ifp)	((struct atm_nif *)(ifp)->if_softc)
 
 /*
  * Common Device VCC Entry

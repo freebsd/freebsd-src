@@ -62,7 +62,7 @@
 #define DISCNAME	"disc"
 
 struct disc_softc {
-	struct ifnet sc_if;	/* must be first */
+	struct ifnet *sc_ifp;	/* must be first */
 	LIST_ENTRY(disc_softc) sc_list;
 };
 
@@ -86,8 +86,11 @@ disc_clone_create(struct if_clone *ifc, int unit)
 	struct disc_softc	*sc;
 
 	sc = malloc(sizeof(struct disc_softc), M_DISC, M_WAITOK | M_ZERO);
-
-	ifp = &sc->sc_if;
+	ifp = sc->sc_ifp = if_alloc(IFT_LOOP);
+	if (ifp == NULL) {
+		free(sc, M_DISC);
+		return (ENOSPC);
+	}
 
 	ifp->if_softc = sc;
 	if_initname(ifp, ifc->ifc_name, unit);
@@ -95,7 +98,6 @@ disc_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
 	ifp->if_ioctl = discioctl;
 	ifp->if_output = discoutput;
-	ifp->if_type = IFT_LOOP;
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
 	ifp->if_snd.ifq_maxlen = 20;
@@ -112,8 +114,9 @@ static void
 disc_destroy(struct disc_softc *sc)
 {
 
-	bpfdetach(&sc->sc_if);
-	if_detach(&sc->sc_if);
+	bpfdetach(sc->sc_ifp);
+	if_detach(sc->sc_ifp);
+	if_free(sc->sc_ifp);
 
 	free(sc, M_DISC);
 }

@@ -440,7 +440,7 @@ struct an_tx_ring_data {
 };
 
 struct an_softc	{
-	struct arpcom		arpcom;
+	struct ifnet		*an_ifp;
 
         int                     an_unit;
 

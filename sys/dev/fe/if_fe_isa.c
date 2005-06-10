@@ -251,8 +251,8 @@ fe_probe_fmv(device_t dev)
 
 	/* Get our station address from EEPROM, and make sure it is
            Fujitsu's.  */
-	fe_inblk(sc, FE_FMV4, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00000E))
+	fe_inblk(sc, FE_FMV4, sc->enaddr, ETHER_ADDR_LEN);
+	if (!fe_valid_Ether_p(sc->enaddr, 0x00000E))
 		return ENXIO;
 
 	/* Find the supported media and "hardware revision" to know
@@ -386,8 +386,8 @@ fe_probe_jli_ati(struct fe_softc * sc, u_char const * eeprom)
 
 	/* Get our station address from EEPROM, and make sure the
            EEPROM contains ATI's address.  */
-	bcopy(eeprom + 8, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x0000F4))
+	bcopy(eeprom + 8, sc->enaddr, ETHER_ADDR_LEN);
+	if (!fe_valid_Ether_p(sc->enaddr, 0x0000F4))
 		return NULL;
 
 	/*
@@ -515,10 +515,10 @@ fe_probe_jli_icl(struct fe_softc * sc, u_char const * eeprom)
 	   valid.  Use it if it is, or use the "permanent" address instead.  */
 	if (fe_valid_Ether_p(eeprom+4, 0x020000)) {
 		/* The configured address is valid.  Use it.  */
-		bcopy(eeprom+4, sc->sc_enaddr, ETHER_ADDR_LEN);
+		bcopy(eeprom+4, sc->enaddr, ETHER_ADDR_LEN);
 	} else {
 		/* The configured address is invalid.  Use permanent.  */
-		bcopy(eeprom+122, sc->sc_enaddr, ETHER_ADDR_LEN);
+		bcopy(eeprom+122, sc->enaddr, ETHER_ADDR_LEN);
 	}
 
 	/* Determine model and supported media.  */
@@ -613,15 +613,15 @@ fe_probe_jli_rex(struct fe_softc * sc, u_char const * eeprom)
 	/* Get our station address from EEPROM.  Note that RATOC
 	   stores it "byte-swapped" in each word.  (I don't know why.)
 	   So, we just can't use bcopy().*/
-	sc->sc_enaddr[0] = eeprom[3];
-	sc->sc_enaddr[1] = eeprom[2];
-	sc->sc_enaddr[2] = eeprom[5];
-	sc->sc_enaddr[3] = eeprom[4];
-	sc->sc_enaddr[4] = eeprom[7];
-	sc->sc_enaddr[5] = eeprom[6];
+	sc->enaddr[0] = eeprom[3];
+	sc->enaddr[1] = eeprom[2];
+	sc->enaddr[2] = eeprom[5];
+	sc->enaddr[3] = eeprom[4];
+	sc->enaddr[4] = eeprom[7];
+	sc->enaddr[5] = eeprom[6];
 
 	/* Make sure the EEPROM contains RATOC's station address.  */
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00C0D0))
+	if (!fe_valid_Ether_p(sc->enaddr, 0x00C0D0))
 		return NULL;
 
 	/* I don't know any sub-model identification.  */
@@ -667,7 +667,7 @@ fe_probe_jli_unk(struct fe_softc * sc, u_char const * eeprom)
 		return NULL;
 
 	/* Extract our (guessed) station address.  */
-	bcopy(eeprom+n, sc->sc_enaddr, ETHER_ADDR_LEN);
+	bcopy(eeprom+n, sc->enaddr, ETHER_ADDR_LEN);
 
 	/* We are not sure what type of board it is... */
 	sc->type = FE_TYPE_JLI;
@@ -841,7 +841,7 @@ fe_probe_ssi(device_t dev)
 	/* Make sure the Ethernet (MAC) station address is of TDK's.  */
 	if (!fe_valid_Ether_p(eeprom+FE_SSI_EEP_ADDR, 0x008098))
 		return ENXIO;
-	bcopy(eeprom + FE_SSI_EEP_ADDR, sc->sc_enaddr, ETHER_ADDR_LEN);
+	bcopy(eeprom + FE_SSI_EEP_ADDR, sc->enaddr, ETHER_ADDR_LEN);
 
 	/* This looks like a TDK-AX031 board.  It requires an explicit
 	   IRQ setting in config, since we currently don't know how we
@@ -902,7 +902,7 @@ fe_probe_lnx(device_t dev)
 	/* Make sure the Ethernet (MAC) station address is of TDK/LANX's.  */
 	if (!fe_valid_Ether_p(eeprom, 0x008098))
 		return ENXIO;
-	bcopy(eeprom, sc->sc_enaddr, ETHER_ADDR_LEN);
+	bcopy(eeprom, sc->enaddr, ETHER_ADDR_LEN);
 
 	/* This looks like a TDK/LANX board.  It requires an
 	   explicit IRQ setting in config.  Make sure we have one,
@@ -962,10 +962,10 @@ fe_probe_gwy(device_t dev)
 		return ENXIO;
 
 	/* Get our station address from EEPROM. */
-	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
+	fe_inblk(sc, 0x18, sc->enaddr, ETHER_ADDR_LEN);
 
 	/* Make sure it is Gateway Communication's.  */
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x000061))
+	if (!fe_valid_Ether_p(sc->enaddr, 0x000061))
 		return ENXIO;
 
 	/* Gateway's board requires an explicit IRQ to work, since it
@@ -1016,14 +1016,14 @@ fe_probe_ubn(device_t dev)
 		return ENXIO;
 
 	/* Get our station address form ID ROM and make sure it is UBN's.  */
-	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00DD01))
+	fe_inblk(sc, 0x18, sc->enaddr, ETHER_ADDR_LEN);
+	if (!fe_valid_Ether_p(sc->enaddr, 0x00DD01))
 		return ENXIO;
 #if 0
 	/* Calculate checksum.  */
 	sum = fe_inb(sc, 0x1e);
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		sum ^= sc->sc_enaddr[i];
+		sum ^= sc->enaddr[i];
 	}
 	if (sum != 0)
 		return ENXIO;

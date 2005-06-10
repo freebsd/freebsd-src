@@ -238,7 +238,7 @@ wi_attach(device_t dev)
 {
 	struct wi_softc	*sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp;
 	int i, nrates, buflen;
 	u_int16_t val;
 	u_int8_t ratebuf[2 + IEEE80211_RATE_SIZE];
@@ -247,6 +247,13 @@ wi_attach(device_t dev)
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 	int error;
+
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc\n");
+		wi_free(dev);
+		return (ENOSPC);
+	}
 
 	/*
 	 * NB: no locking is needed here; don't put it here
@@ -511,7 +518,7 @@ int
 wi_detach(device_t dev)
 {
 	struct wi_softc	*sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
@@ -525,6 +532,7 @@ wi_detach(device_t dev)
 	bpfdetach(ifp);
 #endif
 	ieee80211_ifdetach(&sc->sc_ic);
+	if_free(sc->sc_ifp);
 	WI_UNLOCK(sc);
 	bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
 	wi_free(dev);
@@ -548,7 +556,7 @@ wi_activate(struct device *self, enum devact act)
 		break;
 
 	case DVACT_DEACTIVATE:
-		if_deactivate(&sc->sc_if);
+		if_deactivate(sc->sc_ifp);
 		break;
 	}
 	splx(s);
@@ -558,7 +566,7 @@ wi_activate(struct device *self, enum devact act)
 void
 wi_power(struct wi_softc *sc, int why)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	int s;
 
 	s = splnet();
@@ -587,14 +595,14 @@ wi_shutdown(device_t dev)
 {
 	struct wi_softc *sc = device_get_softc(dev);
 
-	wi_stop(&sc->sc_if, 1);
+	wi_stop(sc->sc_ifp, 1);
 }
 
 void
 wi_intr(void *arg)
 {
 	struct wi_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	u_int16_t status;
 	WI_LOCK_DECL();
 
@@ -636,7 +644,7 @@ void
 wi_init(void *arg)
 {
 	struct wi_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct wi_joinreq join;
 	int i;
@@ -1012,7 +1020,7 @@ wi_start(struct ifnet *ifp)
 static int
 wi_reset(struct wi_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 #define WI_INIT_TRIES 3
 	int i;
 	int error = 0;
@@ -1301,7 +1309,7 @@ wi_sync_bssid(struct wi_softc *sc, u_int8_t new_bssid[IEEE80211_ADDR_LEN])
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni = ic->ic_bss;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	if (IEEE80211_ADDR_EQ(new_bssid, ni->ni_bssid))
 		return;
@@ -1332,7 +1340,7 @@ wi_sync_bssid(struct wi_softc *sc, u_int8_t new_bssid[IEEE80211_ADDR_LEN])
 static void
 wi_rx_monitor(struct wi_softc *sc, int fid)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct wi_frame *rx_frame;
 	struct mbuf *m;
 	int datlen, hdrlen;
@@ -1415,7 +1423,7 @@ static void
 wi_rx_intr(struct wi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct wi_frame frmhdr;
 	struct mbuf *m;
 	struct ieee80211_frame *wh;
@@ -1558,7 +1566,7 @@ wi_rx_intr(struct wi_softc *sc)
 static void
 wi_tx_ex_intr(struct wi_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct wi_frame frmhdr;
 	int fid;
 
@@ -1602,7 +1610,7 @@ wi_tx_ex_intr(struct wi_softc *sc)
 static void
 wi_tx_intr(struct wi_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	int fid, cur;
 
 	if (sc->wi_gone)
@@ -1638,7 +1646,7 @@ static void
 wi_info_intr(struct wi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	int i, fid, len, off;
 	u_int16_t ltbuf[2];
 	u_int16_t stat;
@@ -1718,7 +1726,7 @@ wi_info_intr(struct wi_softc *sc)
 static int
 wi_write_multi(struct wi_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	int n;
 	struct ifmultiaddr *ifma;
 	struct wi_mcast mlist;
@@ -2785,7 +2793,7 @@ wi_scan_ap(struct wi_softc *sc, u_int16_t chanmask, u_int16_t txrate)
 	}
 	if (error == 0) {
 		sc->sc_scan_timer = WI_SCAN_WAIT;
-		sc->sc_if.if_timer = 1;
+		sc->sc_ifp->if_timer = 1;
 		DPRINTF(("wi_scan_ap: start scanning, "
 			"chamask 0x%x txrate 0x%x\n", chanmask, txrate));
 	}

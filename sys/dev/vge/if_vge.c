@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
 #include <net/bpf.h>
@@ -575,7 +576,7 @@ vge_setmulti(sc)
 	struct ifmultiaddr	*ifma;
 	u_int32_t		h, hashes[2] = { 0, 0 };
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vge_ifp;
 
 	/* First, zot all the multicast entries. */
 	vge_cam_clear(sc);
@@ -997,7 +998,6 @@ vge_attach(dev)
 	vge_read_eeprom(sc, (caddr_t)eaddr, VGE_EE_EADDR, 3, 0);
 
 	sc->vge_unit = unit;
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 #if __FreeBSD_version < 502113
 	printf("vge%d: Ethernet address: %6D\n", unit, eaddr, ":");
@@ -1033,7 +1033,12 @@ vge_attach(dev)
 		goto fail;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vge_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("vge%d: can not if_alloc()\n", sc->vge_unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -1095,7 +1100,7 @@ vge_detach(dev)
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->vge_mtx), ("vge mutex not initialized"));
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vge_ifp;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
@@ -1114,6 +1119,7 @@ vge_detach(dev)
 		 */
 		ifp->if_flags &= ~IFF_UP;
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 	if (sc->vge_miibus)
 		device_delete_child(dev, sc->vge_miibus);
@@ -1329,7 +1335,7 @@ vge_rxeof(sc)
 	u_int32_t		rxstat, rxctl;
 
 	VGE_LOCK_ASSERT(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vge_ifp;
 	i = sc->vge_ldata.vge_rx_prodidx;
 
 	/* Invalidate the descriptor memory */
@@ -1508,7 +1514,7 @@ vge_txeof(sc)
 	u_int32_t		txstat;
 	int			idx;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vge_ifp;
 	idx = sc->vge_ldata.vge_tx_considx;
 
 	/* Invalidate the TX descriptor list */
@@ -1568,7 +1574,7 @@ vge_tick(xsc)
 	struct mii_data		*mii;
 
 	sc = xsc;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vge_ifp;
 	VGE_LOCK(sc);
 	mii = device_get_softc(sc->vge_miibus);
 
@@ -1576,14 +1582,14 @@ vge_tick(xsc)
 	if (sc->vge_link) {
 		if (!(mii->mii_media_status & IFM_ACTIVE)) {
 			sc->vge_link = 0;
-			if_link_state_change(&sc->arpcom.ac_if,
+			if_link_state_change(sc->vge_ifp,
 			    LINK_STATE_DOWN);
 		}
 	} else {
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 			sc->vge_link = 1;
-			if_link_state_change(&sc->arpcom.ac_if,
+			if_link_state_change(sc->vge_ifp,
 			    LINK_STATE_UP);
 #if __FreeBSD_version < 502114
 			if (ifp->if_snd.ifq_head != NULL)
@@ -1674,7 +1680,7 @@ vge_intr(arg)
 	}
 
 	VGE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vge_ifp;
 
 	if (!(ifp->if_flags & IFF_UP)) {
 		VGE_UNLOCK(sc);
@@ -1819,7 +1825,7 @@ vge_encap(sc, m_head, idx)
 	 * Set up hardware VLAN tagging.
 	 */
 
-	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m_head);
+	mtag = VLAN_OUTPUT_TAG(sc->vge_ifp, m_head);
 	if (mtag != NULL)
 		sc->vge_ldata.vge_tx_list[idx].vge_ctl |=
 		    htole32(htons(VLAN_TAG_VALUE(mtag)) | VGE_TDCTL_VTAG);
@@ -1952,7 +1958,7 @@ vge_init(xsc)
 	void			*xsc;
 {
 	struct vge_softc	*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->vge_ifp;
 	struct mii_data		*mii;
 	int			i;
 
@@ -1974,7 +1980,7 @@ vge_init(xsc)
 
 	/* Set our station address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		CSR_WRITE_1(sc, VGE_PAR0 + i, sc->arpcom.ac_enaddr[i]);
+		CSR_WRITE_1(sc, VGE_PAR0 + i, IFP2ENADDR(sc->vge_ifp)[i]);
 
 	/*
 	 * Set receive FIFO threshold. Also allow transmission and
@@ -2317,7 +2323,7 @@ vge_stop(sc)
 	struct ifnet		*ifp;
 
 	VGE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vge_ifp;
 	ifp->if_timer = 0;
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
@@ -2397,7 +2403,7 @@ vge_resume(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vge_ifp;
 
 	/* reenable busmastering */
 	pci_enable_busmaster(dev);

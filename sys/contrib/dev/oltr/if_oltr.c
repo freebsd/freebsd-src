@@ -44,6 +44,7 @@
 #include <net/if_arp.h>
 #include <net/iso88025.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/bpf.h>
 
 #ifndef BPF_MTAP
@@ -131,9 +132,15 @@ oltr_attach(device_t dev)
 {
 
 	struct oltr_softc		*sc = device_get_softc(dev);
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp;
 	int		rc = 0;
 	int		media = IFM_TOKEN|IFM_TOK_UTP16;
+
+	ifp = sc->ifp = if_alloc(IFT_ISO88025);
+	if (ifp == NULL) {
+		device_printf(dev, "couldn't if_alloc()");
+		return (-1);
+	}
 	
 	/*
 	 * Allocate interrupt and DMA channel
@@ -164,7 +171,7 @@ oltr_attach(device_t dev)
 	ifp->if_ioctl	= oltr_ioctl;
 	ifp->if_flags	= IFF_BROADCAST | IFF_NEEDSGIANT;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-	bcopy(sc->config.macaddress, sc->arpcom.ac_enaddr, sizeof(sc->config.macaddress));
+	bcopy(sc->config.macaddress, IFP2ENADDR(sc->ifp), sizeof(sc->config.macaddress));
 
 	/*
 	 * Do ifmedia setup.
@@ -312,7 +319,7 @@ oltr_close(struct oltr_softc *sc)
 void
 oltr_stop(struct oltr_softc *sc)
 {
-	struct ifnet 		*ifp = &sc->arpcom.ac_if;
+	struct ifnet 		*ifp = sc->ifp;
 
 	/*printf("oltr%d: oltr_stop\n", sc->unit);*/
 
@@ -325,7 +332,7 @@ static void
 oltr_init(void * xsc)
 {
 	struct oltr_softc 	*sc = (struct oltr_softc *)xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->ifp;
 	struct ifmedia		*ifm = &sc->ifmedia;
 	int			poll = 0, i, rc = 0, s;
 	int			work_size;
@@ -480,7 +487,7 @@ oltr_init(void * xsc)
 	/*
 	 * Open the adapter
 	 */
-	rc = TRlldOpen(sc->TRlldAdapter, sc->arpcom.ac_enaddr, sc->GroupAddress,
+	rc = TRlldOpen(sc->TRlldAdapter, IFP2ENADDR(sc->ifp), sc->GroupAddress,
 		sc->FunctionalAddress, 1552, sc->AdapterMode);
 	switch(rc) {
 		case TRLLD_OPEN_OK:
@@ -739,7 +746,7 @@ static void
 DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 {
 	struct oltr_softc	*sc = (struct oltr_softc *)DriverHandle;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->ifp;
 
 	char *Protocol[] = { /* 0 */ "Unknown",
 			     /* 1 */ "TKP",
@@ -881,7 +888,7 @@ static void
 DriverTransmitFrameCompleted(void *DriverHandle, void *FrameHandle, int TransmitStatus)
 {
 	struct oltr_softc	*sc = (struct oltr_softc *)DriverHandle;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->ifp;
 	TRlldTransmit_t		*frame = (TRlldTransmit_t *)FrameHandle;
 	
 	/*printf("oltr%d: DriverTransmitFrameCompleted\n", sc->unit);*/
@@ -908,7 +915,7 @@ static void
 DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount, void *FragmentHandle, int ReceiveStatus)
 {
 	struct oltr_softc 	*sc = (struct oltr_softc *)DriverHandle;
-	struct ifnet		*ifp = (struct ifnet *)&sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->ifp;
 	struct mbuf		*m0, *m1, *m;
 	int			frame_len = ByteCount, i = (int)FragmentHandle, rc, s;
 	int			mbuf_offset, mbuf_size, frag_offset, copy_length;

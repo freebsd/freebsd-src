@@ -130,8 +130,7 @@ typedef struct mtd {
  * The snc_softc for PC-98 if_snc.
  */
 typedef struct snc_softc {
-	struct arpcom	sc_ethercom;
-#define	sc_if		sc_ethercom.ac_if	/* network visible interface */
+	struct ifnet	*	sc_ifp;
 
 	device_t	sc_dev;
 

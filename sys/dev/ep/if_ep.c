@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/ethernet.h>
 #include <net/bpf.h>
 
@@ -262,14 +263,14 @@ ep_attach(struct ep_softc *sc)
 {
 	struct ifnet *ifp = NULL;
 	struct ifmedia *ifm = NULL;
+	u_char eaddr[6];
 	u_short *p;
 	int i;
-	int attached;
 	int error;
 
 	sc->gone = 0;
 	EP_LOCK_INIT(sc);
-	error = ep_get_macaddr(sc, (u_char *)&sc->arpcom.ac_enaddr);
+	error = ep_get_macaddr(sc, eaddr);
 	if (error) {
 		device_printf(sc->dev, "Unable to get Ethernet address!\n");
 		EP_LOCK_DESTORY(sc);
@@ -278,13 +279,17 @@ ep_attach(struct ep_softc *sc)
 	/*
 	 * Setup the station address
 	 */
-	p = (u_short *)&sc->arpcom.ac_enaddr;
+	p = (u_short *)eaddr;
 	GO_WINDOW(sc, 2);
 	for (i = 0; i < 3; i++)
 		CSR_WRITE_2(sc, EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
 
-	ifp = &sc->arpcom.ac_if;
-	attached = (ifp->if_softc != 0);
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(sc->dev, "can not if_alloc()\n");
+		EP_LOCK_DESTORY(sc);
+		return (ENOSPC);
+	}
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
@@ -319,8 +324,7 @@ ep_attach(struct ep_softc *sc)
 		ifm->ifm_media = ifm->ifm_cur->ifm_media;
 		ep_ifmedia_upd(ifp);
 	}
-	if (!attached)
-		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 
 #ifdef EP_LOCAL_STATS
 	sc->rx_no_first = sc->rx_no_mbuf = sc->rx_bpf_disc =
@@ -342,7 +346,7 @@ ep_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 	EP_ASSERT_UNLOCKED(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (sc->gone) {
 		device_printf(dev, "already unloaded\n");
@@ -353,6 +357,7 @@ ep_detach(device_t dev)
 
 	ifp->if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(ifp);
+	if_free(ifp);
 
 	sc->gone = 1;
 	ep_free(dev);
@@ -377,7 +382,7 @@ epinit(void *xsc)
 static void
 epinit_locked(struct ep_softc *sc)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	int i;
 
 	if (sc->gone)
@@ -402,7 +407,7 @@ epinit_locked(struct ep_softc *sc)
 
 	/* Reload the ether_addr. */
 	for (i = 0; i < 6; i++)
-		CSR_WRITE_1(sc, EP_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
+		CSR_WRITE_1(sc, EP_W2_ADDR_0 + i, IFP2ENADDR(sc->ifp)[i]);
 
 	CSR_WRITE_2(sc, EP_COMMAND, RX_RESET);
 	CSR_WRITE_2(sc, EP_COMMAND, TX_RESET);
@@ -592,7 +597,7 @@ ep_intr(void *arg)
 		EP_UNLOCK(sc);
 		return;
 	}
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
 
@@ -710,7 +715,7 @@ epread(struct ep_softc *sc)
 
 /* XXX Must be called with sc locked */
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 	status = CSR_READ_2(sc, EP_W1_RX_STATUS);
 
 read_again:
@@ -816,7 +821,7 @@ read_again:
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
 	++ifp->if_ipackets;
 	EP_FSET(sc, F_RX_FIRST);
-	top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+	top->m_pkthdr.rcvif = sc->ifp;
 	top->m_pkthdr.len = sc->cur_len;
 
 	/*

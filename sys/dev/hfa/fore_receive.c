@@ -299,7 +299,7 @@ retry:
 				vcp = fvp->fv_connvc->cvc_vcc;
 				vcp->vc_ierrors++;
 				if (vcp->vc_nif)
-					vcp->vc_nif->nif_if.if_ierrors++;
+					ANIF2IFP(vcp->vc_nif)->if_ierrors++;
 			}
 			ATM_DEBUG1("fore receive error: hdr=0x%lx\n", hdr);
 			error = 1;
@@ -451,9 +451,9 @@ retry:
 		vcp->vc_ibytes += pdulen;
 		if (vcp->vc_nif) {
 			vcp->vc_nif->nif_ibytes += pdulen;
-			vcp->vc_nif->nif_if.if_ipackets++;
+			ANIF2IFP(vcp->vc_nif)->if_ipackets++;
 #if (defined(BSD) && (BSD >= 199103))
-			vcp->vc_nif->nif_if.if_ibytes += pdulen;
+			ANIF2IFP(vcp->vc_nif)->if_ibytes += pdulen;
 #endif
 		}
 

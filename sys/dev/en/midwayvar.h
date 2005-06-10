@@ -153,8 +153,7 @@ struct en_vcc {
  * softc
  */
 struct en_softc {
-	/* bsd glue */
-	struct ifatm	ifatm;		/* ATM network ifnet handle */
+	struct ifnet	*ifp;
 	device_t dev;
 
 	/* bus glue */

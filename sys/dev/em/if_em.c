@@ -464,9 +464,6 @@ em_attach(device_t dev)
                 goto err_mac_addr;
         }
 
-	bcopy(adapter->hw.mac_addr, adapter->interface_data.ac_enaddr,
-	      ETHER_ADDR_LEN);
-
 	/* Setup OS specific network interface */
 	em_setup_interface(dev, adapter);
 
@@ -525,7 +522,7 @@ static int
 em_detach(device_t dev)
 {
 	struct adapter * adapter = device_get_softc(dev);
-	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+	struct ifnet   *ifp = adapter->ifp;
 
 	INIT_DEBUGOUT("em_detach: begin");
 
@@ -535,9 +532,10 @@ em_detach(device_t dev)
 	em_phy_hw_reset(&adapter->hw);
 	EM_UNLOCK(adapter);
 #if __FreeBSD_version < 500000
-        ether_ifdetach(&adapter->interface_data.ac_if, ETHER_BPF_SUPPORTED);
+        ether_ifdetach(adapter->ifp, ETHER_BPF_SUPPORTED);
 #else
-        ether_ifdetach(&adapter->interface_data.ac_if);
+        ether_ifdetach(adapter->ifp);
+	if_free(ifp);
 #endif
 	em_free_pci_resources(adapter);
 	bus_generic_detach(dev);
@@ -804,7 +802,7 @@ em_init_locked(struct adapter * adapter)
 	struct ifnet   *ifp;
 
 	uint32_t	pba;
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 	INIT_DEBUGOUT("em_init: begin");
 
@@ -843,7 +841,7 @@ em_init_locked(struct adapter * adapter)
 	E1000_WRITE_REG(&adapter->hw, PBA, pba);
 	
 	/* Get the latest mac address, User can use a LAA */
-        bcopy(adapter->interface_data.ac_enaddr, adapter->hw.mac_addr,
+        bcopy(IFP2ENADDR(adapter->ifp), adapter->hw.mac_addr,
               ETHER_ADDR_LEN);
 
 	/* Initialize the hardware */
@@ -985,7 +983,7 @@ em_intr(void *arg)
 
 	EM_LOCK(adapter);
 
-        ifp = &adapter->interface_data.ac_if;  
+        ifp = adapter->ifp;  
 
 #ifdef DEVICE_POLLING
         if (ifp->if_flags & IFF_POLLING) {
@@ -1193,7 +1191,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	int			nsegs;
         struct em_buffer   *tx_buffer = NULL;
         struct em_tx_desc *current_tx_desc = NULL;
-        struct ifnet   *ifp = &adapter->interface_data.ac_if;
+        struct ifnet   *ifp = adapter->ifp;
 
 	m_head = *m_headp;
 
@@ -1526,7 +1524,7 @@ em_set_promisc(struct adapter * adapter)
 {
 
 	u_int32_t       reg_rctl;
-	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+	struct ifnet   *ifp = adapter->ifp;
 
 	reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
 
@@ -1555,7 +1553,7 @@ static void
 em_disable_promisc(struct adapter * adapter)
 {
 	u_int32_t       reg_rctl;
-	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+	struct ifnet   *ifp = adapter->ifp;
 
 	reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
 
@@ -1585,7 +1583,7 @@ em_set_multi(struct adapter * adapter)
         u_int8_t  mta[MAX_NUM_MULTICAST_ADDRESSES * ETH_LENGTH_OF_ADDRESS];
         struct ifmultiaddr  *ifma;
         int mcnt = 0;
-        struct ifnet   *ifp = &adapter->interface_data.ac_if;
+        struct ifnet   *ifp = adapter->ifp;
     
         IOCTL_DEBUGOUT("em_set_multi: begin");
  
@@ -1647,7 +1645,7 @@ em_local_timer(void *arg)
 {
 	struct ifnet   *ifp;
 	struct adapter * adapter = arg;
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 	EM_LOCK(adapter);
 
@@ -1668,7 +1666,7 @@ em_local_timer(void *arg)
 static void
 em_print_link_status(struct adapter * adapter)
 {
-	struct ifnet *ifp = &adapter->interface_data.ac_if;
+	struct ifnet *ifp = adapter->ifp;
 
 	if (E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_LU) {
 		if (adapter->link_active == 0) {
@@ -1711,7 +1709,7 @@ em_stop(void *arg)
 {
 	struct ifnet   *ifp;
 	struct adapter * adapter = arg;
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 	mtx_assert(&adapter->mtx, MA_OWNED);
 
@@ -1931,7 +1929,9 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	struct ifnet   *ifp;
 	INIT_DEBUGOUT("em_setup_interface: begin");
 
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		panic("%s: can not if_alloc()", device_get_nameunit(dev));
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = 1000000000;
@@ -1948,7 +1948,7 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 #if __FreeBSD_version < 500000
         ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 #else
-        ether_ifattach(ifp, adapter->interface_data.ac_enaddr);
+        ether_ifattach(ifp, adapter->hw.mac_addr);
 #endif
 
 	ifp->if_capabilities = ifp->if_capenable = 0;
@@ -2425,7 +2425,7 @@ em_clean_transmit_interrupts(struct adapter * adapter)
         int i, num_avail;
         struct em_buffer *tx_buffer;
         struct em_tx_desc   *tx_desc;
-	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+	struct ifnet   *ifp = adapter->ifp;
 
 	mtx_assert(&adapter->mtx, MA_OWNED);
 
@@ -2497,7 +2497,7 @@ em_get_buf(int i, struct adapter *adapter,
         bus_addr_t paddr;
         int error;
 
-        ifp = &adapter->interface_data.ac_if;
+        ifp = adapter->ifp;
 
         if (mp == NULL) {
                 mp = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
@@ -2648,7 +2648,7 @@ em_initialize_receive_unit(struct adapter * adapter)
 	u_int64_t	bus_addr;
 
         INIT_DEBUGOUT("em_initialize_receive_unit: begin");
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 	/* Make sure receives are disabled while setting up the descriptor ring */
 	E1000_WRITE_REG(&adapter->hw, RCTL, 0);
@@ -2785,7 +2785,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 
 	mtx_assert(&adapter->mtx, MA_OWNED);
 
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 	i = adapter->next_rx_desc_to_check;
         current_desc = &adapter->rx_desc_base[i];
 	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
@@ -3237,7 +3237,7 @@ em_update_stats_counters(struct adapter *adapter)
 		adapter->stats.tsctfc += 
 		E1000_READ_REG(&adapter->hw, TSCTFC);
 	}
-	ifp = &adapter->interface_data.ac_if;
+	ifp = adapter->ifp;
 
 	/* Fill out the OS statistics structure */
 	ifp->if_ibytes = adapter->stats.gorcl;

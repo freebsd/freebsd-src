@@ -130,7 +130,7 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 		vcc->chain = vcc->last = m0;
 		vcc->last->m_next = NULL;
 		vcc->chain->m_pkthdr.len = m0->m_len;
-		vcc->chain->m_pkthdr.rcvif = &sc->ifatm.ifnet;
+		vcc->chain->m_pkthdr.rcvif = sc->ifp;
 
 	} else {
 		sc->istats.rx_seg++;
@@ -148,7 +148,7 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 			m_freem(vcc->chain);
 		vcc->chain = vcc->last = NULL;
 		sc->istats.crc_error++;
-		sc->ifatm.ifnet.if_ierrors++;
+		sc->ifp->if_ierrors++;
 		return;
 	}
 	if (flags & HE_REGM_RBRQ_LEN_ERROR) {
@@ -156,7 +156,7 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 			m_freem(vcc->chain);
 		vcc->chain = vcc->last = NULL;
 		sc->istats.len_error++;
-		sc->ifatm.ifnet.if_ierrors++;
+		sc->ifp->if_ierrors++;
 		return;
 	}
 
@@ -229,7 +229,7 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 	if (!(vcc->param.flags & ATMIO_FLAG_NG) &&
 	    (vcc->param.aal == ATMIO_AAL_5) &&
 	    (vcc->param.flags & ATM_PH_LLCSNAP))
-		BPF_MTAP(&sc->ifatm.ifnet, m);
+		BPF_MTAP(sc->ifp, m);
 #endif
 
 	vpi = HE_VPI(cid);
@@ -239,9 +239,9 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 	ATM_PH_VPI(&aph) = vpi;
 	ATM_PH_SETVCI(&aph, vci);
 
-	sc->ifatm.ifnet.if_ipackets++;
+	sc->ifp->if_ipackets++;
 	/* this is in if_atmsubr.c */
-	/* sc->ifatm.ifnet.if_ibytes += len; */
+	/* sc->ifp->if_ibytes += len; */
 
 	vcc->ibytes += len;
 	vcc->ipackets++;
@@ -260,7 +260,7 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 	}
 #endif
 
-	atm_input(&sc->ifatm.ifnet, &aph, m, vcc->rxhand);
+	atm_input(sc->ifp, &aph, m, vcc->rxhand);
 
 	return;
 
@@ -316,11 +316,11 @@ hatm_rx_vcc_close(struct hatm_softc *sc, u_int cid)
 	WRITE_RSR(sc, cid, 0, 0xf, 0);
 
 	v = READ4(sc, HE_REGO_RCCSTAT);
-	while ((sc->ifatm.ifnet.if_flags & IFF_RUNNING) &&
+	while ((sc->ifp->if_flags & IFF_RUNNING) &&
 	       (READ4(sc, HE_REGO_RCCSTAT) & HE_REGM_RCCSTAT_PROG))
 		cv_timedwait(&sc->cv_rcclose, &sc->mtx, 1);
 
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING))
+	if (!(sc->ifp->if_flags & IFF_RUNNING))
 		return;
 
 	WRITE_MBOX4(sc, HE_REGO_RCON_CLOSE, cid);

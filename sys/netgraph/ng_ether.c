@@ -68,8 +68,8 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_ether.h>
 
-#define IFP2NG(ifp)  ((struct ng_node *)((struct arpcom *)(ifp))->ac_netgraph)
-#define IFP2NG_SET(ifp, val)	(((struct arpcom *)(ifp))->ac_netgraph = (val))
+#define IFP2NG(ifp)  ((struct ng_node *)IFP2AC((ifp))->ac_netgraph)
+#define IFP2NG_SET(ifp, val)	(IFP2AC((ifp))->ac_netgraph = (val))
 
 /* Per-node private data */
 struct private {
@@ -462,7 +462,7 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			bcopy((IFP2AC(priv->ifp))->ac_enaddr,
+			bcopy(IFP2ENADDR(priv->ifp),
 			    resp->data, ETHER_ADDR_LEN);
 			break;
 		case NGM_ETHER_SET_ENADDR:
@@ -624,7 +624,7 @@ ng_ether_rcv_lower(node_p node, struct mbuf *m)
 			return (ENOBUFS);
 
 		/* Overwrite source MAC address */
-		bcopy((IFP2AC(ifp))->ac_enaddr,
+		bcopy(IFP2ENADDR(ifp),
 		    mtod(m, struct ether_header *)->ether_shost,
 		    ETHER_ADDR_LEN);
 	}

@@ -131,7 +131,7 @@
 #define GET_V4(x)	((caddr_t)(&(x)->s6_addr16[1]))
 
 struct stf_softc {
-	struct ifnet	sc_if;	   /* common area */
+	struct ifnet	*sc_ifp;
 	union {
 		struct route  __sc_ro4;
 		struct route_in6 __sc_ro6; /* just for safety */
@@ -140,6 +140,7 @@ struct stf_softc {
 	const struct encaptab *encap_cookie;
 	LIST_ENTRY(stf_softc) sc_list;	/* all stf's are linked */
 };
+#define STF2IFP(sc)	((sc)->sc_ifp)
 
 /*
  * All mutable global variables in if_stf.c are protected by stf_mtx.
@@ -214,7 +215,12 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len)
 		return (err);
 
 	sc = malloc(sizeof(struct stf_softc), M_STF, M_WAITOK | M_ZERO);
-	ifp = &sc->sc_if;
+	ifp = sc->sc_ifp = if_alloc(IFT_STF);
+	if (ifp == NULL) {
+		free(sc, M_STF);
+		ifc_free_unit(ifc, unit);
+		return (ENOSPC);
+	}
 	/*
 	 * Set the name manually rather then using if_initname because
 	 * we don't conform to the default naming convention for interfaces.
@@ -235,7 +241,6 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len)
 	ifp->if_mtu    = IPV6_MMTU;
 	ifp->if_ioctl  = stf_ioctl;
 	ifp->if_output = stf_output;
-	ifp->if_type   = IFT_STF;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int));
@@ -252,8 +257,9 @@ stf_destroy(struct stf_softc *sc)
 
 	err = encap_detach(sc->encap_cookie);
 	KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
-	bpfdetach(&sc->sc_if);
-	if_detach(&sc->sc_if);
+	bpfdetach(STF2IFP(sc));
+	if_detach(STF2IFP(sc));
+	if_free(STF2IFP(sc));
 
 	free(sc, M_STF);
 }
@@ -261,7 +267,7 @@ stf_destroy(struct stf_softc *sc)
 static int
 stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
-	struct stf_softc *sc = (void *) ifp;
+	struct stf_softc *sc = ifp->if_softc;
 
 	mtx_lock(&stf_mtx);
 	LIST_REMOVE(sc, sc_list);
@@ -332,11 +338,11 @@ stf_encapcheck(m, off, proto, arg)
 	if (sc == NULL)
 		return 0;
 
-	if ((sc->sc_if.if_flags & IFF_UP) == 0)
+	if ((STF2IFP(sc)->if_flags & IFF_UP) == 0)
 		return 0;
 
 	/* IFF_LINK0 means "no decapsulation" */
-	if ((sc->sc_if.if_flags & IFF_LINK0) != 0)
+	if ((STF2IFP(sc)->if_flags & IFF_LINK0) != 0)
 		return 0;
 
 	if (proto != IPPROTO_IPV6)
@@ -348,7 +354,7 @@ stf_encapcheck(m, off, proto, arg)
 	if (ip.ip_v != 4)
 		return 0;
 
-	ia6 = stf_getsrcifa6(&sc->sc_if);
+	ia6 = stf_getsrcifa6(STF2IFP(sc));
 	if (ia6 == NULL)
 		return 0;
 
@@ -440,7 +446,7 @@ stf_output(ifp, m, dst, rt)
 	}
 #endif
 
-	sc = (struct stf_softc*)ifp;
+	sc = ifp->if_softc;
 	dst6 = (struct sockaddr_in6 *)dst;
 
 	/* just in case */
@@ -609,7 +615,7 @@ stf_checkaddr4(sc, in, inifp)
 	/*
 	 * perform ingress filter
 	 */
-	if (sc && (sc->sc_if.if_flags & IFF_LINK2) == 0 && inifp) {
+	if (sc && (STF2IFP(sc)->if_flags & IFF_LINK2) == 0 && inifp) {
 		struct sockaddr_in sin;
 		struct rtentry *rt;
 
@@ -621,7 +627,7 @@ stf_checkaddr4(sc, in, inifp)
 		if (!rt || rt->rt_ifp != inifp) {
 #if 0
 			log(LOG_WARNING, "%s: packet from 0x%x dropped "
-			    "due to ingress filter\n", if_name(&sc->sc_if),
+			    "due to ingress filter\n", if_name(STF2IFP(sc)),
 			    (u_int32_t)ntohl(sin.sin_addr.s_addr));
 #endif
 			if (rt)
@@ -684,12 +690,12 @@ in_stf_input(m, off)
 
 	sc = (struct stf_softc *)encap_getarg(m);
 
-	if (sc == NULL || (sc->sc_if.if_flags & IFF_UP) == 0) {
+	if (sc == NULL || (STF2IFP(sc)->if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		return;
 	}
 
-	ifp = &sc->sc_if;
+	ifp = STF2IFP(sc);
 
 #ifdef MAC
 	mac_create_mbuf_from_ifnet(ifp, m);

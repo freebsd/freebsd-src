@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -373,7 +374,7 @@ lge_setmulti(sc)
 	struct ifmultiaddr	*ifma;
 	u_int32_t		h = 0, hashes[2] = { 0, 0 };
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->lge_ifp;
 
 	/* Make sure multicast hash table is enabled. */
 	CSR_WRITE_4(sc, LGE_MODE1, LGE_MODE1_SETRST_CTL1|LGE_MODE1_RX_MCAST);
@@ -522,7 +523,6 @@ lge_attach(dev)
 
 	sc->lge_unit = unit;
 	callout_handle_init(&sc->lge_stat_ch);
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	sc->lge_ldata = contigmalloc(sizeof(struct lge_list_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
@@ -550,7 +550,18 @@ lge_attach(dev)
 		goto fail;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->lge_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("lge%d: can not if_alloc()\n", sc->lge_unit);
+		contigfree(sc->lge_ldata,
+		    sizeof(struct lge_list_data), M_DEVBUF);
+		lge_free_jumbo_mem(sc);
+		bus_teardown_intr(dev, sc->lge_irq, sc->lge_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);
+		bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -582,6 +593,7 @@ lge_attach(dev)
 		bus_teardown_intr(dev, sc->lge_irq, sc->lge_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);
 		bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
+		if_free(ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -608,11 +620,12 @@ lge_detach(dev)
 	s = splimp();
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->lge_ifp;
 
 	lge_reset(sc);
 	lge_stop(sc);
 	ether_ifdetach(ifp);
+	if_free(ifp);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->lge_miibus);
@@ -892,7 +905,7 @@ lge_rxeof(sc, cnt)
 	int			c, i, total_len = 0;
 	u_int32_t		rxsts, rxctl;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->lge_ifp;
 
 	/* Find out how many frames were processed. */
 	c = cnt;
@@ -970,7 +983,7 @@ lge_rxeoc(sc)
 {
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->lge_ifp;
 	ifp->if_flags &= ~IFF_RUNNING;
 	lge_init(sc);
 	return;
@@ -989,7 +1002,7 @@ lge_txeof(sc)
 	struct ifnet		*ifp;
 	u_int32_t		idx, txdone;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->lge_ifp;
 
 	/* Clear the timeout timer. */
 	ifp->if_timer = 0;
@@ -1036,7 +1049,7 @@ lge_tick(xsc)
 	s = splimp();
 
 	sc = xsc;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->lge_ifp;
 
 	CSR_WRITE_4(sc, LGE_STATSIDX, LGE_STATS_SINGLE_COLL_PKTS);
 	ifp->if_collisions += CSR_READ_4(sc, LGE_STATSVAL);
@@ -1075,7 +1088,7 @@ lge_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->lge_ifp;
 
 	/* Supress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
@@ -1228,7 +1241,7 @@ lge_init(xsc)
 	void			*xsc;
 {
 	struct lge_softc	*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->lge_ifp;
 	struct mii_data		*mii;
 	int			s;
 
@@ -1246,8 +1259,8 @@ lge_init(xsc)
 	mii = device_get_softc(sc->lge_miibus);
 
 	/* Set MAC address */
-	CSR_WRITE_4(sc, LGE_PAR0, *(u_int32_t *)(&sc->arpcom.ac_enaddr[0]));
-	CSR_WRITE_4(sc, LGE_PAR1, *(u_int32_t *)(&sc->arpcom.ac_enaddr[4]));
+	CSR_WRITE_4(sc, LGE_PAR0, *(u_int32_t *)(&IFP2ENADDR(sc->lge_ifp)[0]));
+	CSR_WRITE_4(sc, LGE_PAR1, *(u_int32_t *)(&IFP2ENADDR(sc->lge_ifp)[4]));
 
 	/* Init circular RX list. */
 	if (lge_list_rx_init(sc) == ENOBUFS) {
@@ -1501,7 +1514,7 @@ lge_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->lge_ifp;
 	ifp->if_timer = 0;
 	untimeout(lge_tick, sc, sc->lge_stat_ch);
 	CSR_WRITE_4(sc, LGE_IMR, LGE_IMR_INTR_ENB);

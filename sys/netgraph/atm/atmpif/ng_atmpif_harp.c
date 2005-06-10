@@ -677,7 +677,7 @@ vatmpif_harp_output(Cmn_unit *cup, Cmn_vcc *cvp, KBuffer *m)
 		vup->vu_pif.pif_oerrors++;
 		vcp->vc_oerrors++;
 		if (vcp->vc_nif)
-			vcp->vc_nif->nif_if.if_oerrors++;
+			ANIF2IFP(vcp->vc_nif)->if_oerrors++;
 	} else {
 		/*   
 		 * Good transmission
@@ -709,8 +709,8 @@ vatmpif_harp_output(Cmn_unit *cup, Cmn_vcc *cvp, KBuffer *m)
 			vcp->vc_obytes += pdulen;
 			if (vcp->vc_nif) {
 				vcp->vc_nif->nif_obytes += pdulen;
-				vcp->vc_nif->nif_if.if_opackets++;
-				vcp->vc_nif->nif_if.if_obytes += pdulen;
+				ANIF2IFP(vcp->vc_nif)->if_opackets++;
+				ANIF2IFP(vcp->vc_nif)->if_obytes += pdulen;
 			}
 		}
 	}
@@ -888,8 +888,8 @@ vatmpif_harp_recv_drain(Vatmpif_unit *vup, KBuffer *m,
 		 */
 		if (vcp->vc_nif) {
 			vcp->vc_nif->nif_ibytes += pdulen;
-			vcp->vc_nif->nif_if.if_ipackets++;
-			vcp->vc_nif->nif_if.if_ibytes += pdulen;
+			ANIF2IFP(vcp->vc_nif)->if_ipackets++;
+			ANIF2IFP(vcp->vc_nif)->if_ibytes += pdulen;
 		}
 	}
 

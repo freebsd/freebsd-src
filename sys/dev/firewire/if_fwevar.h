@@ -45,9 +45,7 @@ struct fwe_softc {
 	struct fw_pkt pkt_hdr;
 	STAILQ_HEAD(, fw_xfer) xferlist;
 	struct fwe_eth_softc {
-		/* XXX this must be the first for if_ethersub.c */
-		struct arpcom	arpcom;	/* ethernet common data      */
-		#define fwe_if		eth_softc.arpcom.ac_if
+		struct ifnet *ifp;
 		struct fwe_softc *fwe;
 	} eth_softc;
 };

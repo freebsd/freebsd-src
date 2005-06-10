@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_mib.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
@@ -427,8 +428,8 @@ fe_read_eeprom_jli (struct fe_softc * sc, u_char * data)
 		int i;
 		data -= JLI_EEPROM_SIZE;
 		for (i = 0; i < JLI_EEPROM_SIZE; i += 16) {
-			printf("%s: EEPROM(JLI):%3x: %16D\n",
-			       sc->sc_xname, i, data + i, " ");
+			if_printf(sc->ifp,
+			    "EEPROM(JLI):%3x: %16D\n", i, data + i, " ");
 		}
 	}
 #endif
@@ -543,8 +544,8 @@ fe_read_eeprom_ssi (struct fe_softc *sc, u_char *data)
 		int i;
 		data -= SSI_EEPROM_SIZE;
 		for (i = 0; i < SSI_EEPROM_SIZE; i += 16) {
-			printf("%s: EEPROM(SSI):%3x: %16D\n",
-			       sc->sc_xname, i, data + i, " ");
+			if_printf(sc->ifp,
+			    "EEPROM(SSI):%3x: %16D\n", i, data + i, " ");
 		}
 	}
 #endif
@@ -645,8 +646,8 @@ fe_read_eeprom_lnx (struct fe_softc *sc, u_char *data)
 		   this board was not a TDK/LANX) or not working
 		   properly.  */
 		if (bootverbose) {
-			printf("%s: no ACK received from EEPROM(LNX)\n",
-			       sc->sc_xname);
+			if_printf(sc->ifp,
+			    "no ACK received from EEPROM(LNX)\n");
 		}
 		/* Clear the given buffer to indicate we could not get
                    any info. and return.  */
@@ -684,8 +685,8 @@ fe_read_eeprom_lnx (struct fe_softc *sc, u_char *data)
 	if (bootverbose) {
 		data -= LNX_EEPROM_SIZE;
 		for (i = 0; i < LNX_EEPROM_SIZE; i += 16) {
-			printf("%s: EEPROM(LNX):%3x: %16D\n",
-			       sc->sc_xname, i, data + i, " ");
+			if_printf(sc->ifp,
+			     "EEPROM(LNX):%3x: %16D\n", i, data + i, " ");
 		}
 	}
 #endif
@@ -729,8 +730,15 @@ int
 fe_attach (device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
+	struct ifnet *ifp;
 	int flags = device_get_flags(dev);
 	int b, error;
+	
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not ifalloc\n");
+		return (ENOSPC);
+	}
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 			       fe_intr, sc, &sc->irq_handle);
@@ -742,14 +750,14 @@ fe_attach (device_t dev)
 	/*
 	 * Initialize ifnet structure
 	 */
- 	sc->sc_if.if_softc    = sc;
-	if_initname(&sc->sc_if, device_get_name(dev), device_get_unit(dev));
-	sc->sc_if.if_start    = fe_start;
-	sc->sc_if.if_ioctl    = fe_ioctl;
-	sc->sc_if.if_watchdog = fe_watchdog;
-	sc->sc_if.if_init     = fe_init;
-	sc->sc_if.if_linkmib  = &sc->mibdata;
-	sc->sc_if.if_linkmiblen = sizeof (sc->mibdata);
+ 	ifp->if_softc    = sc;
+	if_initname(sc->ifp, device_get_name(dev), device_get_unit(dev));
+	ifp->if_start    = fe_start;
+	ifp->if_ioctl    = fe_ioctl;
+	ifp->if_watchdog = fe_watchdog;
+	ifp->if_init     = fe_init;
+	ifp->if_linkmib  = &sc->mibdata;
+	ifp->if_linkmiblen = sizeof (sc->mibdata);
 
 #if 0 /* I'm not sure... */
 	sc->mibdata.dot3Compliance = DOT3COMPLIANCE_COLLS;
@@ -758,7 +766,7 @@ fe_attach (device_t dev)
 	/*
 	 * Set fixed interface flags.
 	 */
- 	sc->sc_if.if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+ 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
 	    IFF_NEEDSGIANT;
 
 #if 1
@@ -772,8 +780,8 @@ fe_attach (device_t dev)
 	 * since it must be a common workaround for all network drivers.
 	 * FIXME.
 	 */
-	if (sc->sc_if.if_snd.ifq_maxlen == 0)
-		sc->sc_if.if_snd.ifq_maxlen = ifqmaxlen;
+	if (ifp->if_snd.ifq_maxlen == 0)
+		ifp->if_snd.ifq_maxlen = ifqmaxlen;
 #endif
 
 #if FE_SINGLE_TRANSMISSION
@@ -794,8 +802,8 @@ fe_attach (device_t dev)
 	  default:
 		/* Oops, we can't work with single buffer configuration.  */
 		if (bootverbose) {
-			printf("%s: strange TXBSIZ config; fixing\n",
-			       sc->sc_xname);
+			if_printf(sc->ifp,
+			     "strange TXBSIZ config; fixing\n");
 		}
 		sc->proto_dlcr6 &= ~FE_D6_TXBSIZ;
 		sc->proto_dlcr6 |=  FE_D6_TXBSIZ_2x2KB;
@@ -821,7 +829,7 @@ fe_attach (device_t dev)
 #endif
 
 	/* Attach and stop the interface. */
-	ether_ifattach(&sc->sc_if, sc->arpcom.ac_enaddr);
+	ether_ifattach(sc->ifp, sc->enaddr);
 	fe_stop(sc);
   
   	/* Print additional info when attached.  */
@@ -927,12 +935,12 @@ static void
 fe_reset (struct fe_softc *sc)
 {
 	/* Record how many packets are lost by this accident.  */
-	sc->sc_if.if_oerrors += sc->txb_sched + sc->txb_count;
+	sc->ifp->if_oerrors += sc->txb_sched + sc->txb_count;
 	sc->mibdata.dot3StatsInternalMacTransmitErrors++;
 
 	/* Put the interface into known initial state.  */
 	fe_stop(sc);
-	if (sc->sc_if.if_flags & IFF_UP)
+	if (sc->ifp->if_flags & IFF_UP)
 		fe_init(sc);
 }
 
@@ -968,8 +976,8 @@ fe_stop (struct fe_softc *sc)
 	DELAY(200);
 
 	/* Reset transmitter variables and interface flags.  */
-	sc->sc_if.if_flags &= ~(IFF_OACTIVE | IFF_RUNNING);
-	sc->sc_if.if_timer = 0;
+	sc->ifp->if_flags &= ~(IFF_OACTIVE | IFF_RUNNING);
+	sc->ifp->if_timer = 0;
 	sc->txb_free = sc->txb_size;
 	sc->txb_count = 0;
 	sc->txb_sched = 0;
@@ -991,13 +999,13 @@ fe_stop (struct fe_softc *sc)
 static void
 fe_watchdog ( struct ifnet *ifp )
 {
-	struct fe_softc *sc = (struct fe_softc *)ifp;
+	struct fe_softc *sc = ifp->if_softc;
 
 	/* A "debug" message.  */
 	if_printf(ifp, "transmission timeout (%d+%d)%s\n",
 	       sc->txb_sched, sc->txb_count,
 	       (ifp->if_flags & IFF_UP) ? "" : " when down");
-	if (sc->sc_if.if_opackets == 0 && sc->sc_if.if_ipackets == 0)
+	if (sc->ifp->if_opackets == 0 && sc->ifp->if_ipackets == 0)
 		if_printf(ifp, "wrong IRQ setting in config?\n");
 	fe_reset(sc);
 }
@@ -1034,7 +1042,7 @@ fe_init (void * xsc)
 	DELAY(200);
 
 	/* Feed the station address.  */
-	fe_outblk(sc, FE_DLCR8, sc->sc_enaddr, ETHER_ADDR_LEN);
+	fe_outblk(sc, FE_DLCR8, IFP2ENADDR(sc->ifp), ETHER_ADDR_LEN);
 
 	/* Clear multicast address filter to receive nothing.  */
 	fe_outb(sc, FE_DLCR7,
@@ -1091,8 +1099,8 @@ fe_init (void * xsc)
 	 * The following message helps discovering the fact.  FIXME.
 	 */
 	if (!(fe_inb(sc, FE_DLCR5) & FE_D5_BUFEMP)) {
-		printf("%s: receive buffer has some data after reset\n",
-		       sc->sc_xname);
+		if_printf(sc->ifp,
+		    "receive buffer has some data after reset\n");
 		fe_emptybuffer(sc);
 	}
 
@@ -1102,7 +1110,7 @@ fe_init (void * xsc)
 #endif
 
 	/* Set 'running' flag, because we are now running.   */
-	sc->sc_if.if_flags |= IFF_RUNNING;
+	sc->ifp->if_flags |= IFF_RUNNING;
 
 	/*
 	 * At this point, the interface is running properly,
@@ -1119,7 +1127,7 @@ fe_init (void * xsc)
            the interface keeping it idle.  The upper layer will soon
            start the interface anyway, and there are no significant
            delay.  */
-	fe_start(&sc->sc_if);
+	fe_start(sc->ifp);
 #endif
 
 	(void) splx(s);
@@ -1136,7 +1144,7 @@ fe_xmit (struct fe_softc *sc)
 	 * We use longer timeout for multiple packet transmission.
 	 * I'm not sure this timer value is appropriate.  FIXME.
 	 */
-	sc->sc_if.if_timer = 1 + sc->txb_count;
+	sc->ifp->if_timer = 1 + sc->txb_count;
 
 	/* Update txb variables.  */
 	sc->txb_sched = sc->txb_count;
@@ -1253,7 +1261,7 @@ fe_start (struct ifnet *ifp)
 		/*
 		 * Get the next mbuf chain for a packet to send.
 		 */
-		IF_DEQUEUE(&sc->sc_if.if_snd, m);
+		IF_DEQUEUE(&sc->ifp->if_snd, m);
 		if (m == NULL) {
 			/* No more packets to send.  */
 			goto indicate_inactive;
@@ -1276,8 +1284,8 @@ fe_start (struct ifnet *ifp)
 		 * and only if it is in "receive everything"
 		 * mode.)
 		 */
-		if (!(sc->sc_if.if_flags & IFF_PROMISC))
-			BPF_MTAP(&sc->sc_if, m);
+		if (!(sc->ifp->if_flags & IFF_PROMISC))
+			BPF_MTAP(sc->ifp, m);
 
 		m_freem(m);
 	}
@@ -1292,7 +1300,7 @@ fe_start (struct ifnet *ifp)
 	 * filled all the buffers with data then we still
 	 * want to accept more.
 	 */
-	sc->sc_if.if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_flags &= ~IFF_OACTIVE;
 	return;
 
   indicate_active:
@@ -1300,7 +1308,7 @@ fe_start (struct ifnet *ifp)
 	 * The transmitter is active, and there are no room for
 	 * more outgoing packets in the transmission buffer.
 	 */
-	sc->sc_if.if_flags |= IFF_OACTIVE;
+	sc->ifp->if_flags |= IFF_OACTIVE;
 	return;
 }
 
@@ -1359,7 +1367,7 @@ fe_emptybuffer (struct fe_softc * sc)
 	u_char saved_dlcr5;
 
 #ifdef FE_DEBUG
-	printf("%s: emptying receive buffer\n", sc->sc_xname);
+	if_printf(sc->ifp, "emptying receive buffer\n");
 #endif
 
 	/*
@@ -1395,7 +1403,8 @@ fe_emptybuffer (struct fe_softc * sc)
 	 * Double check.
 	 */
 	if (fe_inb(sc, FE_DLCR5) & FE_D5_BUFEMP) {
-		printf("%s: could not empty receive buffer\n", sc->sc_xname);
+		if_printf(sc->ifp,
+		    "could not empty receive buffer\n");
 		/* Hmm.  What should I do if this happens?  FIXME.  */
 	}
 
@@ -1426,8 +1435,8 @@ fe_tint (struct fe_softc * sc, u_char tstat)
 		 * are left unsent in transmission buffer.
 		 */
 		left = fe_inb(sc, FE_BMPR10);
-		printf("%s: excessive collision (%d/%d)\n",
-		       sc->sc_xname, left, sc->txb_sched);
+		if_printf(sc->ifp, "excessive collision (%d/%d)\n",
+		       left, sc->txb_sched);
 
 		/*
 		 * Clear the collision flag (in 86960) here
@@ -1499,7 +1508,7 @@ fe_tint (struct fe_softc * sc, u_char tstat)
 				 */
 				col = 1;
 			}
-			sc->sc_if.if_collisions += col;
+			sc->ifp->if_collisions += col;
 			if (col == 1)
 				sc->mibdata.dot3StatsSingleCollisionFrames++;
 			else
@@ -1512,9 +1521,9 @@ fe_tint (struct fe_softc * sc, u_char tstat)
 		 * Be sure to reflect number of excessive collisions.
 		 */
 		col = sc->tx_excolls;
-		sc->sc_if.if_opackets += sc->txb_sched - col;
-		sc->sc_if.if_oerrors += col;
-		sc->sc_if.if_collisions += col * 16;
+		sc->ifp->if_opackets += sc->txb_sched - col;
+		sc->ifp->if_oerrors += col;
+		sc->ifp->if_collisions += col * 16;
 		sc->mibdata.dot3StatsExcessiveCollisions += col;
 		sc->mibdata.dot3StatsCollFrequencies[15] += col;
 		sc->txb_sched = 0;
@@ -1523,8 +1532,8 @@ fe_tint (struct fe_softc * sc, u_char tstat)
 		 * The transmitter is no more active.
 		 * Reset output active flag and watchdog timer.
 		 */
-		sc->sc_if.if_flags &= ~IFF_OACTIVE;
-		sc->sc_if.if_timer = 0;
+		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_timer = 0;
 
 		/*
 		 * If more data is ready to transmit in the buffer, start
@@ -1571,7 +1580,7 @@ fe_rint (struct fe_softc * sc, u_char rstat)
 		if (rstat & FE_D1_SRTPKT)
 			sc->mibdata.dot3StatsFrameTooShorts++; /* :-) */
 #endif
-		sc->sc_if.if_ierrors++;
+		sc->ifp->if_ierrors++;
 	}
 
 	/*
@@ -1629,8 +1638,9 @@ fe_rint (struct fe_softc * sc, u_char rstat)
 		if ((status & 0xF0) != 0x20 ||
 		    len > ETHER_MAX_LEN - ETHER_CRC_LEN ||
 		    len < ETHER_MIN_LEN - ETHER_CRC_LEN) {
-			printf("%s: RX buffer out-of-sync\n", sc->sc_xname);
-			sc->sc_if.if_ierrors++;
+			if_printf(sc->ifp,
+			    "RX buffer out-of-sync\n");
+			sc->ifp->if_ierrors++;
 			sc->mibdata.dot3StatsInternalMacReceiveErrors++;
 			fe_reset(sc);
 			return;
@@ -1647,19 +1657,19 @@ fe_rint (struct fe_softc * sc, u_char rstat)
 			 * in the buffer.  We hope we can get more
 			 * mbuf next time.
 			 */
-			sc->sc_if.if_ierrors++;
+			sc->ifp->if_ierrors++;
 			sc->mibdata.dot3StatsMissedFrames++;
 			fe_droppacket(sc, len);
 			return;
 		}
 
 		/* Successfully received a packet.  Update stat.  */
-		sc->sc_if.if_ipackets++;
+		sc->ifp->if_ipackets++;
 	}
 
 	/* Maximum number of frames has been received.  Something
            strange is happening here... */
-	printf("%s: unusual receive flood\n", sc->sc_xname);
+	if_printf(sc->ifp, "unusual receive flood\n");
 	sc->mibdata.dot3StatsInternalMacReceiveErrors++;
 	fe_reset(sc);
 }
@@ -1713,7 +1723,7 @@ fe_intr (void *arg)
 		if (sc->filter_change &&
 		    sc->txb_count == 0 && sc->txb_sched == 0) {
 			fe_loadmar(sc);
-			sc->sc_if.if_flags &= ~IFF_OACTIVE;
+			sc->ifp->if_flags &= ~IFF_OACTIVE;
 		}
 
 		/*
@@ -1729,11 +1739,11 @@ fe_intr (void *arg)
 		 * receiver interrupts.  86960 can raise a receiver
 		 * interrupt when the transmission buffer is full.
 		 */
-		if ((sc->sc_if.if_flags & IFF_OACTIVE) == 0)
-			fe_start(&sc->sc_if);
+		if ((sc->ifp->if_flags & IFF_OACTIVE) == 0)
+			fe_start(sc->ifp);
 	}
 
-	printf("%s: too many loops\n", sc->sc_xname);
+	if_printf(sc->ifp, "too many loops\n");
 }
 
 /*
@@ -1756,11 +1766,11 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 		 * Switch interface state between "running" and
 		 * "stopped", reflecting the UP flag.
 		 */
-		if (sc->sc_if.if_flags & IFF_UP) {
-			if ((sc->sc_if.if_flags & IFF_RUNNING) == 0)
+		if (sc->ifp->if_flags & IFF_UP) {
+			if ((sc->ifp->if_flags & IFF_RUNNING) == 0)
 				fe_init(sc);
 		} else {
-			if ((sc->sc_if.if_flags & IFF_RUNNING) != 0)
+			if ((sc->ifp->if_flags & IFF_RUNNING) != 0)
 				fe_stop(sc);
 		}
 
@@ -1806,7 +1816,7 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 static int
 fe_get_packet (struct fe_softc * sc, u_short len)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ether_header *eh;
 	struct mbuf *m;
 
@@ -1911,8 +1921,9 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 
 	/* Check if this matches the one in the packet header.  */
 	if (length != m->m_pkthdr.len) {
-		printf("%s: packet length mismatch? (%d/%d)\n", sc->sc_xname,
-		       length, m->m_pkthdr.len);
+		if_printf(sc->ifp,
+		    "packet length mismatch? (%d/%d)\n",
+		    length, m->m_pkthdr.len);
 	}
 #else
 	/* Just use the length value in the packet header.  */
@@ -1927,9 +1938,9 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 	 */
 	if (length < ETHER_HDR_LEN ||
 	    length > ETHER_MAX_LEN - ETHER_CRC_LEN) {
-		printf("%s: got an out-of-spec packet (%u bytes) to send\n",
-			sc->sc_xname, length);
-		sc->sc_if.if_oerrors++;
+		if_printf(sc->ifp,
+		    "got an out-of-spec packet (%u bytes) to send\n", length);
+		sc->ifp->if_oerrors++;
 		sc->mibdata.dot3StatsInternalMacTransmitErrors++;
 		return;
 	}
@@ -2049,14 +2060,14 @@ fe_mcaf ( struct fe_softc *sc )
 	struct ifmultiaddr *ifma;
 
 	filter = fe_filter_nothing;
-	TAILQ_FOREACH(ifma, &sc->arpcom.ac_if.if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		index = ether_crc32_le(LLADDR((struct sockaddr_dl *)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 #ifdef FE_DEBUG
-		printf("%s: hash(%6D) == %d\n",
-			sc->sc_xname, enm->enm_addrlo , ":", index);
+		if_printf(sc->ifp, "hash(%6D) == %d\n",
+			enm->enm_addrlo , ":", index);
 #endif
 
 		filter.data[index >> 3] |= 1 << (index & 7);
@@ -2071,7 +2082,7 @@ fe_mcaf ( struct fe_softc *sc )
 static void
 fe_setmode (struct fe_softc *sc)
 {
-	int flags = sc->sc_if.if_flags;
+	int flags = sc->ifp->if_flags;
 
 	/*
 	 * If the interface is not running, we postpone the update
@@ -2198,8 +2209,9 @@ fe_medchange (struct ifnet *ifp)
 		if (bit2media[b] == sc->media.ifm_media) break;
 	}
 	if (((1 << b) & sc->mbitmap) == 0) {
-		printf("%s: got an unsupported media request (0x%x)\n",
-		       sc->sc_xname, sc->media.ifm_media);
+		if_printf(sc->ifp,
+		    "got an unsupported media request (0x%x)\n",
+		    sc->media.ifm_media);
 		return EINVAL;
 	}
 #endif
@@ -2209,7 +2221,7 @@ fe_medchange (struct ifnet *ifp)
 	   until the transmission buffer being empty?  Changing the
 	   media when we are sending a frame will cause two garbages
 	   on wires, one on old media and another on new.  FIXME */
-	if (sc->sc_if.if_flags & IFF_UP) {
+	if (sc->ifp->if_flags & IFF_UP) {
 		if (sc->msel) sc->msel(sc);
 	}
 

@@ -244,7 +244,7 @@ patm_rx(struct patm_softc *sc, struct idt_rsqe *rsqe)
 
 		m->m_len = cells * 48;
 		m->m_pkthdr.len = m->m_len;
-		m->m_pkthdr.rcvif = &sc->ifatm.ifnet;
+		m->m_pkthdr.rcvif = sc->ifp;
 
 	} else if (vcc->vcc.aal == ATMIO_AAL_34) {
 		/* XXX AAL3/4 */
@@ -253,7 +253,7 @@ patm_rx(struct patm_softc *sc, struct idt_rsqe *rsqe)
 
 	} else if (vcc->vcc.aal == ATMIO_AAL_5) {
 		if (stat & IDT_RSQE_CRC) {
-			sc->ifatm.ifnet.if_ierrors++;
+			sc->ifp->if_ierrors++;
 			if (vcc->chain != NULL) {
 				m_freem(vcc->chain);
 				vcc->chain = vcc->last = NULL;
@@ -267,7 +267,7 @@ patm_rx(struct patm_softc *sc, struct idt_rsqe *rsqe)
 				return;
 			m->m_len = cells * 48;
 			m->m_pkthdr.len = m->m_len;
-			m->m_pkthdr.rcvif = &sc->ifatm.ifnet;
+			m->m_pkthdr.rcvif = sc->ifp;
 			vcc->chain = vcc->last = m;
 		} else {
 			if ((m = patm_rcv_mbuf(sc, buf, h, 0)) == NULL)
@@ -311,9 +311,9 @@ patm_rx(struct patm_softc *sc, struct idt_rsqe *rsqe)
 	}
 #endif
 
-	sc->ifatm.ifnet.if_ipackets++;
+	sc->ifp->if_ipackets++;
 	/* this is in if_atmsubr.c */
-	/* sc->ifatm.ifnet.if_ibytes += m->m_pkthdr.len; */
+	/* sc->ifp->if_ibytes += m->m_pkthdr.len; */
 
 	vcc->ibytes += m->m_pkthdr.len;
 	vcc->ipackets++;
@@ -326,10 +326,10 @@ patm_rx(struct patm_softc *sc, struct idt_rsqe *rsqe)
 	if (!(vcc->vcc.flags & ATMIO_FLAG_NG) &&
 	    (vcc->vcc.aal == ATMIO_AAL_5) &&
 	    (vcc->vcc.flags & ATM_PH_LLCSNAP))
-		BPF_MTAP(&sc->ifatm.ifnet, m);
+		BPF_MTAP(sc->ifp, m);
 #endif
 
-	atm_input(&sc->ifatm.ifnet, &aph, m, vcc->rxhand);
+	atm_input(sc->ifp, &aph, m, vcc->rxhand);
 }
 
 /*
@@ -463,7 +463,7 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 		sc->stats.raw_no_buf++;
 		return;
 	}
-	m->m_pkthdr.rcvif = &sc->ifatm.ifnet;
+	m->m_pkthdr.rcvif = sc->ifp;
 
 	switch (vcc->vflags & PATM_RAW_FORMAT) {
 
@@ -510,9 +510,9 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 		break;
 	}
 
-	sc->ifatm.ifnet.if_ipackets++;
+	sc->ifp->if_ipackets++;
 	/* this is in if_atmsubr.c */
-	/* sc->ifatm.ifnet.if_ibytes += m->m_pkthdr.len; */
+	/* sc->ifp->if_ibytes += m->m_pkthdr.len; */
 
 	vcc->ibytes += m->m_pkthdr.len;
 	vcc->ipackets++;
@@ -521,5 +521,5 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 	ATM_PH_VPI(&aph) = vcc->vcc.vpi;
 	ATM_PH_SETVCI(&aph, vcc->vcc.vci);
 
-	atm_input(&sc->ifatm.ifnet, &aph, m, vcc->rxhand);
+	atm_input(sc->ifp, &aph, m, vcc->rxhand);
 }

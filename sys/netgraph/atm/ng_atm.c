@@ -346,8 +346,8 @@ static const struct {
 } atmmedia[] = IFM_SUBTYPE_ATM_DESCRIPTIONS;
 
 
-#define	IFP2NG(IFP)	((node_p)((struct ifatm *)(IFP))->ngpriv)
-#define	IFP2NG_SET(IFP, val)	(((struct ifatm *)(IFP))->ngpriv = (val))
+#define	IFP2NG(IFP)	((node_p)((struct ifatm *)(IFP)->if_softc)->ngpriv)
+#define	IFP2NG_SET(IFP, val)	(((struct ifatm *)(IFP)->if_softc)->ngpriv = (val))
 
 #define	IFFLAGS "\020\001UP\002BROADCAST\003DEBUG\004LOOPBACK" \
 		 "\005POINTOPOINT\006SMART\007RUNNING\010NOARP" \

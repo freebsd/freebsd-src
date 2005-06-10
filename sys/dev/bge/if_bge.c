@@ -1156,7 +1156,7 @@ bge_setmulti(sc)
 
 	BGE_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		for (i = 0; i < 4; i++)
@@ -1544,9 +1544,9 @@ bge_blockinit(sc)
 
 	/* Set random backoff seed for TX */
 	CSR_WRITE_4(sc, BGE_TX_RANDOM_BACKOFF,
-	    sc->arpcom.ac_enaddr[0] + sc->arpcom.ac_enaddr[1] +
-	    sc->arpcom.ac_enaddr[2] + sc->arpcom.ac_enaddr[3] +
-	    sc->arpcom.ac_enaddr[4] + sc->arpcom.ac_enaddr[5] +
+	    IFP2ENADDR(sc->bge_ifp)[0] + IFP2ENADDR(sc->bge_ifp)[1] +
+	    IFP2ENADDR(sc->bge_ifp)[2] + IFP2ENADDR(sc->bge_ifp)[3] +
+	    IFP2ENADDR(sc->bge_ifp)[4] + IFP2ENADDR(sc->bge_ifp)[5] +
 	    BGE_TX_BACKOFF_SEED_MASK);
 
 	/* Set inter-packet gap */
@@ -2248,7 +2248,8 @@ bge_attach(dev)
 	struct ifnet *ifp;
 	struct bge_softc *sc;
 	u_int32_t hwcfg = 0;
-	u_int32_t mac_addr = 0;
+	u_int32_t mac_tmp = 0;
+	u_char eaddr[6];
 	int unit, error = 0, rid;
 
 	sc = device_get_softc(dev);
@@ -2334,16 +2335,16 @@ bge_attach(dev)
 	/*
 	 * Get station address from the EEPROM.
 	 */
-	mac_addr = bge_readmem_ind(sc, 0x0c14);
-	if ((mac_addr >> 16) == 0x484b) {
-		sc->arpcom.ac_enaddr[0] = (u_char)(mac_addr >> 8);
-		sc->arpcom.ac_enaddr[1] = (u_char)mac_addr;
-		mac_addr = bge_readmem_ind(sc, 0x0c18);
-		sc->arpcom.ac_enaddr[2] = (u_char)(mac_addr >> 24);
-		sc->arpcom.ac_enaddr[3] = (u_char)(mac_addr >> 16);
-		sc->arpcom.ac_enaddr[4] = (u_char)(mac_addr >> 8);
-		sc->arpcom.ac_enaddr[5] = (u_char)mac_addr;
-	} else if (bge_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
+	mac_tmp = bge_readmem_ind(sc, 0x0c14);
+	if ((mac_tmp >> 16) == 0x484b) {
+		eaddr[0] = (u_char)(mac_tmp >> 8);
+		eaddr[1] = (u_char)mac_tmp;
+		mac_tmp = bge_readmem_ind(sc, 0x0c18);
+		eaddr[2] = (u_char)(mac_tmp >> 24);
+		eaddr[3] = (u_char)(mac_tmp >> 16);
+		eaddr[4] = (u_char)(mac_tmp >> 8);
+		eaddr[5] = (u_char)mac_tmp;
+	} else if (bge_read_eeprom(sc, eaddr,
 	    BGE_EE_MAC_OFFSET + 2, ETHER_ADDR_LEN)) {
 		printf("bge%d: failed to read station address\n", unit);
 		bge_release_resources(sc);
@@ -2389,7 +2390,13 @@ bge_attach(dev)
 	sc->bge_tx_max_coal_bds = 128;
 
 	/* Set up ifnet structure */
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("bge%d: failed to if_alloc()\n", sc->bge_unit);
+		bge_release_resources(sc);
+		error = ENXIO;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -2449,6 +2456,7 @@ bge_attach(dev)
 			printf("bge%d: MII without any PHY!\n", sc->bge_unit);
 			bge_release_resources(sc);
 			bge_free_jumbo_mem(sc);
+			if_free(ifp);
 			error = ENXIO;
 			goto fail;
 		}
@@ -2478,7 +2486,7 @@ bge_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 	callout_init(&sc->bge_stat_ch, CALLOUT_MPSAFE);
 
 	/*
@@ -2488,7 +2496,7 @@ bge_attach(dev)
 	   bge_intr, sc, &sc->bge_intrhand);
 
 	if (error) {
-		bge_release_resources(sc);
+		bge_detach(dev);
 		printf("bge%d: couldn't set up irq\n", unit);
 	}
 
@@ -2504,7 +2512,7 @@ bge_detach(dev)
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	BGE_LOCK(sc);
 	bge_stop(sc);
@@ -2512,6 +2520,7 @@ bge_detach(dev)
 	BGE_UNLOCK(sc);
 
 	ether_ifdetach(ifp);
+	if_free(ifp);
 
 	if (sc->bge_tbi) {
 		ifmedia_removeall(&sc->bge_ifmedia);
@@ -2708,7 +2717,7 @@ bge_rxeof(sc)
 
 	BGE_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_return_ring_tag,
 	    sc->bge_cdata.bge_rx_return_ring_map, BUS_DMASYNC_POSTWRITE);
@@ -2856,7 +2865,7 @@ bge_txeof(sc)
 
 	BGE_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	/*
 	 * Go through our tx ring and free mbufs for those
@@ -2897,7 +2906,7 @@ bge_intr(xsc)
 	u_int32_t status, mimode;
 
 	sc = xsc;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	BGE_LOCK(sc);
 
@@ -3014,7 +3023,7 @@ bge_tick_locked(sc)
 	struct ifmedia *ifm = NULL;
 	struct ifnet *ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	BGE_LOCK_ASSERT(sc);
 
@@ -3084,7 +3093,7 @@ bge_stats_update_regs(sc)
 	u_int32_t *s;
 	int i;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	s = (u_int32_t *)&stats;
 	for (i = 0; i < sizeof(struct bge_mac_stats_regs); i += 4) {
@@ -3109,7 +3118,7 @@ bge_stats_update(sc)
 	struct ifnet *ifp;
 	struct bge_stats *stats;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	stats = (struct bge_stats *)(sc->bge_vhandle +
 	    BGE_MEMWIN_START + BGE_STATS_BLOCK);
@@ -3162,7 +3171,7 @@ bge_encap(sc, m_head, txidx)
 			csum_flags |= BGE_TXBDFLAG_IP_FRAG;
 	}
 
-	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m_head);
+	mtag = VLAN_OUTPUT_TAG(sc->bge_ifp, m_head);
 
 	ctx.sc = sc;
 	ctx.bge_idx = *txidx;
@@ -3317,7 +3326,7 @@ bge_init_locked(sc)
 
 	BGE_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	if (ifp->if_flags & IFF_RUNNING)
 		return;
@@ -3336,14 +3345,14 @@ bge_init_locked(sc)
 		return;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	/* Specify MTU. */
 	CSR_WRITE_4(sc, BGE_RX_MTU, ifp->if_mtu +
 	    ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN);
 
 	/* Load our MAC address. */
-	m = (u_int16_t *)&sc->arpcom.ac_enaddr[0];
+	m = (u_int16_t *)&IFP2ENADDR(sc->bge_ifp)[0];
 	CSR_WRITE_4(sc, BGE_MAC_ADDR1_LO, htons(m[0]));
 	CSR_WRITE_4(sc, BGE_MAC_ADDR1_HI, (htons(m[1]) << 16) | htons(m[2]));
 
@@ -3638,7 +3647,7 @@ bge_stop(sc)
 
 	BGE_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bge_ifp;
 
 	if (!sc->bge_tbi)
 		mii = device_get_softc(sc->bge_miibus);

@@ -109,27 +109,9 @@ struct	ifqueue {
  * (Would like to call this struct ``if'', but C isn't PL/1.)
  */
 
-/*
- * NB: For FreeBSD, it is assumed that each NIC driver's softc starts with
- * one of these structures, typically held within an arpcom structure.
- *
- *	struct <foo>_softc {
- *		struct arpcom {
- *			struct  ifnet ac_if;
- *			...
- *		} <arpcom> ;
- *		...
- *	};
- *
- * The assumption is used in a number of places, including many
- * files in sys/net, device drivers, and sys/dev/mii.c:miibus_attach().
- *
- * Unfortunately devices' softc are opaque, so we depend on this layout
- * to locate the struct ifnet from the softc in the generic code.
- * 
- */
 struct ifnet {
 	void	*if_softc;		/* pointer to driver state */
+	void	*if_l2com;		/* pointer to protocol bits */
 	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
 	char	if_xname[IFNAMSIZ];	/* external name (name + unit) */
 	const char *if_dname;		/* driver name */
@@ -628,11 +610,14 @@ extern	int if_index;
 
 int	if_addmulti(struct ifnet *, struct sockaddr *, struct ifmultiaddr **);
 int	if_allmulti(struct ifnet *, int);
+struct	ifnet* if_alloc(u_char);
 void	if_attach(struct ifnet *);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_detach(struct ifnet *);
 void	if_purgeaddrs(struct ifnet *);
 void	if_down(struct ifnet *);
+void	if_free(struct ifnet *);
+void	if_free_type(struct ifnet *, u_char);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
@@ -651,6 +636,11 @@ struct	ifaddr *ifaof_ifpforaddr(struct sockaddr *, struct ifnet *);
 
 struct	ifmultiaddr *ifmaof_ifpforaddr(struct sockaddr *, struct ifnet *);
 int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);
+
+typedef	void *if_com_alloc_t(u_char type, struct ifnet *ifp);
+typedef	void if_com_free_t(void *com, u_char type);
+void	if_register_com_alloc(u_char type, if_com_alloc_t *a, if_com_free_t *f);
+void	if_deregister_com_alloc(u_char type);
 
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *) ifaddr_byindex((ifp)->if_index)->ifa_addr)

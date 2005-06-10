@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -282,9 +283,11 @@ USB_ATTACH(cdce)
 		}
 	}
 
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-
-	ifp = GET_IFP(sc);
+	ifp = GET_IFP(sc) = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("%s: can not if_alloc()\n", USBDEVNAME(sc->cdce_dev));
+		USB_ATTACH_ERROR_RETURN;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "cdce", sc->cdce_unit);
 	ifp->if_mtu = ETHERMTU;
@@ -323,6 +326,7 @@ USB_DETACH(cdce)
 		cdce_shutdown(sc->cdce_dev);
 
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	CDCE_UNLOCK(sc);
 	mtx_destroy(&sc->cdce_mtx);
 
