@@ -422,7 +422,11 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
 	BRIDGE_LOCK_INIT(sc);
-	ifp = sc->sc_ifp;
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		free(sc, M_DEVBUF);
+		return (ENOSPC);
+	}
 
 	sc->sc_brtmax = BRIDGE_RTABLE_MAX;
 	sc->sc_brttimeout = BRIDGE_RTABLE_TIMEOUT;
@@ -499,6 +503,7 @@ bridge_clone_destroy(struct ifnet *ifp)
 	mtx_unlock(&bridge_list_mtx);
 
 	ether_ifdetach(ifp);
+	if_free_type(ifp, IFT_ETHER);
 
 	/* Tear down the routing table. */
 	bridge_rtable_fini(sc);
