@@ -423,6 +423,7 @@ NETGRAPH_RFC1490	opt_netgraph.h
 NETGRAPH_SOCKET		opt_netgraph.h
 NETGRAPH_SPLIT		opt_netgraph.h
 NETGRAPH_SPPP		opt_netgraph.h
+NETGRAPH_TCPMSS		opt_netgraph.h
 NETGRAPH_TEE		opt_netgraph.h
 NETGRAPH_TTY		opt_netgraph.h
 NETGRAPH_UI		opt_netgraph.h

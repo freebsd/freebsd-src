@@ -1542,6 +1542,7 @@ netgraph/ng_rfc1490.c		optional netgraph_rfc1490
 netgraph/ng_socket.c		optional netgraph_socket
 netgraph/ng_split.c		optional netgraph_split
 netgraph/ng_sppp.c		optional netgraph_sppp
+netgraph/ng_tcpmss.c		optional netgraph_tcpmss
 netgraph/ng_tee.c		optional netgraph_tee
 netgraph/ng_tty.c		optional netgraph_tty
 netgraph/ng_vjc.c		optional netgraph_vjc
