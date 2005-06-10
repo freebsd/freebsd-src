@@ -63,10 +63,6 @@ device		sab		# Siemens SAB82532 based serial ports
 #####################################################################
 # Devices we don't want to deal with
 
-nodevice	ukbd
-nodevice	atkbdc
-nodevice	atkbd
-nodevice	psm
 nodevice	vga
 nodevice	daemon_saver
 nodevice	snake_saver
