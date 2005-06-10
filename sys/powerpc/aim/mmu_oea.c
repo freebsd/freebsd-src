@@ -1136,6 +1136,14 @@ pmap_growkernel(vm_offset_t addr)
 {
 }
 
+/*
+ *	Initialize a vm_page's machine-dependent fields.
+ */
+void
+pmap_page_init(vm_page_t m)
+{
+}
+
 void
 pmap_init(void)
 {

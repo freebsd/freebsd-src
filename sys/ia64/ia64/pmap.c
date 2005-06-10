@@ -154,7 +154,6 @@ struct pmap kernel_pmap_store;
 
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
-static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 
 vm_offset_t vhpt_base, vhpt_size;
 struct mtx pmap_vhptmutex;
@@ -444,29 +443,24 @@ pmap_bootstrap()
 }
 
 /*
+ *	Initialize a vm_page's machine-dependent fields.
+ */
+void
+pmap_page_init(vm_page_t m)
+{
+
+	TAILQ_INIT(&m->md.pv_list);
+	m->md.pv_list_count = 0;
+}
+
+/*
  *	Initialize the pmap module.
  *	Called by vm_init, to initialize any structures that the pmap
  *	system needs to map virtual memory.
- *	pmap_init has been enhanced to support in a fairly consistant
- *	way, discontiguous physical memory.
  */
 void
 pmap_init(void)
 {
-	int i;
-
-	/*
-	 * Allocate memory for random pmap data structures.  Includes the
-	 * pv_head_table.
-	 */
-
-	for(i = 0; i < vm_page_array_size; i++) {
-		vm_page_t m;
-
-		m = &vm_page_array[i];
-		TAILQ_INIT(&m->md.pv_list);
-		m->md.pv_list_count = 0;
- 	}
 
 	/*
 	 * Init the pv free list and the PTE free list.
@@ -478,11 +472,6 @@ pmap_init(void)
 	ptezone = uma_zcreate("PT ENTRY", sizeof (struct ia64_lpte), 
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM|UMA_ZONE_NOFREE);
 	uma_prealloc(ptezone, MINPV);
-
-	/*
-	 * Now it is safe to enable pv_table recording.
-	 */
-	pmap_initialized = TRUE;
 }
 
 /*
@@ -1391,7 +1380,7 @@ pmap_remove_all(vm_page_t m)
 	 * XXX this makes pmap_page_protect(NONE) illegal for non-managed
 	 * pages!
 	 */
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS)) {
+	if (m->flags & PG_FICTITIOUS) {
 		panic("pmap_page_protect: illegal for unmanaged page, va: 0x%lx", VM_PAGE_TO_PHYS(m));
 	}
 #endif
@@ -1572,8 +1561,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if (pmap_initialized &&
-	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
 		pmap_insert_entry(pmap, va, m);
 		managed = TRUE;
 	}
@@ -1648,8 +1636,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	/*
 	 * Enter on the PV list since its part of our managed memory.
 	 */
-	if (pmap_initialized &&
-	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
 		pmap_insert_entry(pmap, va, m);
 		managed = TRUE;
 	}
@@ -1809,7 +1796,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	int loops = 0;
 	int s;
 
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (m->flags & PG_FICTITIOUS)
 		return FALSE;
 
 	s = splvm();
@@ -1932,7 +1919,7 @@ pmap_ts_referenced(vm_page_t m)
 	pv_entry_t pv;
 	int count = 0;
 
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (m->flags & PG_FICTITIOUS)
 		return 0;
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -1965,7 +1952,7 @@ pmap_is_referenced(vm_page_t m)
 {
 	pv_entry_t pv;
 
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (m->flags & PG_FICTITIOUS)
 		return FALSE;
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -1996,7 +1983,7 @@ pmap_is_modified(vm_page_t m)
 	boolean_t rv;
 
 	rv = FALSE;
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (m->flags & PG_FICTITIOUS)
 		return (rv);
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2041,7 +2028,7 @@ pmap_clear_modify(vm_page_t m)
 	pmap_t oldpmap;
 	pv_entry_t pv;
 
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (m->flags & PG_FICTITIOUS)
 		return;
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2071,7 +2058,7 @@ pmap_clear_reference(vm_page_t m)
 	pmap_t oldpmap;
 	pv_entry_t pv;
 
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (m->flags & PG_FICTITIOUS)
 		return;
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
