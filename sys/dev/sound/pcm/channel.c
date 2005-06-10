@@ -25,6 +25,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_isa.h"
+
 #include <dev/sound/pcm/sound.h>
 
 #include "feeder_if.h"
@@ -864,14 +866,18 @@ chn_kill(struct pcm_channel *c)
 int
 chn_setdir(struct pcm_channel *c, int dir)
 {
+#ifdef DEV_ISA
     	struct snd_dbuf *b = c->bufhard;
+#endif
 	int r;
 
 	CHN_LOCKASSERT(c);
 	c->direction = dir;
 	r = CHANNEL_SETDIR(c->methods, c->devinfo, c->direction);
+#ifdef DEV_ISA
 	if (!r && SND_DMA(b))
 		sndbuf_dmasetdir(b, c->direction);
+#endif
 	return r;
 }
 
@@ -1119,12 +1125,16 @@ out:
 int
 chn_trigger(struct pcm_channel *c, int go)
 {
+#ifdef DEV_ISA
     	struct snd_dbuf *b = c->bufhard;
+#endif
 	int ret;
 
 	CHN_LOCKASSERT(c);
+#ifdef DEV_ISA
 	if (SND_DMA(b) && (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD))
 		sndbuf_dmabounce(b);
+#endif
 	ret = CHANNEL_TRIGGER(c->methods, c->devinfo, go);
 
 	return ret;
