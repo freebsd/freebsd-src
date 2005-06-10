@@ -55,7 +55,7 @@ static	void *wep_attach(struct ieee80211com *, struct ieee80211_key *);
 static	void wep_detach(struct ieee80211_key *);
 static	int wep_setkey(struct ieee80211_key *);
 static	int wep_encap(struct ieee80211_key *, struct mbuf *, u_int8_t keyid);
-static	int wep_decap(struct ieee80211_key *, struct mbuf *);
+static	int wep_decap(struct ieee80211_key *, struct mbuf *, int hdrlen);
 static	int wep_enmic(struct ieee80211_key *, struct mbuf *, int);
 static	int wep_demic(struct ieee80211_key *, struct mbuf *, int);
 
@@ -205,14 +205,12 @@ wep_enmic(struct ieee80211_key *k, struct mbuf *m, int force)
  * the specified key.
  */
 static int
-wep_decap(struct ieee80211_key *k, struct mbuf *m)
+wep_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 {
 	struct wep_ctx *ctx = k->wk_private;
 	struct ieee80211_frame *wh;
-	int hdrlen;
 
 	wh = mtod(m, struct ieee80211_frame *);
-	hdrlen = ieee80211_hdrsize(wh);
 
 	/*
 	 * Check if the device handled the decrypt in hardware.

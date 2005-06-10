@@ -108,8 +108,8 @@ static void ieee80211_discard_mac(struct ieee80211com *,
 #endif /* IEEE80211_DEBUG */
 
 static struct mbuf *ieee80211_defrag(struct ieee80211com *,
-	struct ieee80211_node *, struct mbuf *);
-static struct mbuf *ieee80211_decap(struct ieee80211com *, struct mbuf *);
+	struct ieee80211_node *, struct mbuf *, int);
+static struct mbuf *ieee80211_decap(struct ieee80211com *, struct mbuf *, int);
 static void ieee80211_send_error(struct ieee80211com *, struct ieee80211_node *,
 		const u_int8_t *mac, int subtype, int arg);
 static void ieee80211_node_pwrsave(struct ieee80211_node *, int enable);
@@ -136,7 +136,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *key;
 	struct ether_header *eh;
-	int len, hdrsize, off;
+	int len, hdrspace;
 	u_int8_t dir, type, subtype;
 	u_int8_t *bssid;
 	u_int16_t rxseq;
@@ -286,32 +286,14 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 
 	switch (type) {
 	case IEEE80211_FC0_TYPE_DATA:
-		hdrsize = ieee80211_hdrsize(wh);
-		if (ic->ic_flags & IEEE80211_F_DATAPAD)
-			hdrsize = roundup(hdrsize, sizeof(u_int32_t));
-		if (m->m_len < hdrsize &&
-		    (m = m_pullup(m, hdrsize)) == NULL) {
+		hdrspace = ieee80211_hdrspace(ic, wh);
+		if (m->m_len < hdrspace &&
+		    (m = m_pullup(m, hdrspace)) == NULL) {
 			IEEE80211_DISCARD_MAC(ic, IEEE80211_MSG_ANY,
 			    ni->ni_macaddr, NULL,
-			    "data too short: expecting %u", hdrsize);
+			    "data too short: expecting %u", hdrspace);
 			ic->ic_stats.is_rx_tooshort++;
 			goto out;		/* XXX */
-		}
-		if (subtype & IEEE80211_FC0_SUBTYPE_QOS) {
-			/* XXX discard if node w/o IEEE80211_NODE_QOS? */
-			/*
-			 * Strip QoS control and any padding so only a
-			 * stock 802.11 header is at the front.
-			 */
-			/* XXX 4-address QoS frame */
-			off = hdrsize - sizeof(struct ieee80211_frame);
-			ovbcopy(mtod(m, u_int8_t *), mtod(m, u_int8_t *) + off,
-				hdrsize - off);
-			m_adj(m, off);
-			wh = mtod(m, struct ieee80211_frame *);
-			wh->i_fc[0] &= ~IEEE80211_FC0_SUBTYPE_QOS;
-		} else {
-			/* XXX copy up for 4-address frames w/ padding */
 		}
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_STA:
@@ -399,7 +381,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				IEEE80211_NODE_STAT(ni, rx_noprivacy);
 				goto out;
 			}
-			key = ieee80211_crypto_decap(ic, ni, m);
+			key = ieee80211_crypto_decap(ic, ni, m, hdrspace);
 			if (key == NULL) {
 				/* NB: stats+msgs handled in crypto_decap */
 				IEEE80211_NODE_STAT(ni, rx_wepfail);
@@ -415,7 +397,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 		 * Next up, any fragmentation.
 		 */
 		if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-			m = ieee80211_defrag(ic, ni, m);
+			m = ieee80211_defrag(ic, ni, m, hdrspace);
 			if (m == NULL) {
 				/* Fragment dropped or frame not complete yet */
 				goto out;
@@ -440,7 +422,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 		/*
 		 * Finally, strip the 802.11 header.
 		 */
-		m = ieee80211_decap(ic, m);
+		m = ieee80211_decap(ic, m, hdrspace);
 		if (m == NULL) {
 			/* don't count Null data frames as errors */
 			if (subtype == IEEE80211_FC0_SUBTYPE_NODATA)
@@ -579,7 +561,8 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				ic->ic_stats.is_rx_noprivacy++;
 				goto out;
 			}
-			key = ieee80211_crypto_decap(ic, ni, m);
+			hdrspace = ieee80211_hdrspace(ic, wh);
+			key = ieee80211_crypto_decap(ic, ni, m, hdrspace);
 			if (key == NULL) {
 				/* NB: stats+msgs handled in crypto_decap */
 				goto out;
@@ -627,7 +610,7 @@ out:
  */
 static struct mbuf *
 ieee80211_defrag(struct ieee80211com *ic, struct ieee80211_node *ni,
-	struct mbuf *m)
+	struct mbuf *m, int hdrspace)
 {
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 	struct ieee80211_frame *lwh;
@@ -696,6 +679,7 @@ ieee80211_defrag(struct ieee80211com *ic, struct ieee80211_node *ni,
 		}
 		mfrag = m;
 	} else {				/* concatenate */
+		m_adj(m, hdrspace);		/* strip header */
 		m_cat(mfrag, m);
 		/* NB: m_cat doesn't update the packet header */
 		mfrag->m_pkthdr.len += m->m_pkthdr.len;
@@ -712,26 +696,26 @@ ieee80211_defrag(struct ieee80211com *ic, struct ieee80211_node *ni,
 }
 
 static struct mbuf *
-ieee80211_decap(struct ieee80211com *ic, struct mbuf *m)
+ieee80211_decap(struct ieee80211com *ic, struct mbuf *m, int hdrlen)
 {
-	struct ieee80211_frame wh;	/* NB: QoS stripped above */
+	struct ieee80211_qosframe_addr4 wh;	/* Max size address frames */
 	struct ether_header *eh;
 	struct llc *llc;
 
-	if (m->m_len < sizeof(wh) + sizeof(*llc) &&
-	    (m = m_pullup(m, sizeof(wh) + sizeof(*llc))) == NULL) {
+	if (m->m_len < hdrlen + sizeof(*llc) &&
+	    (m = m_pullup(m, hdrlen + sizeof(*llc))) == NULL) {
 		/* XXX stat, msg */
 		return NULL;
 	}
-	memcpy(&wh, mtod(m, caddr_t), sizeof(wh));
-	llc = (struct llc *)(mtod(m, caddr_t) + sizeof(wh));
+	memcpy(&wh, mtod(m, caddr_t), hdrlen);
+	llc = (struct llc *)(mtod(m, caddr_t) + hdrlen);
 	if (llc->llc_dsap == LLC_SNAP_LSAP && llc->llc_ssap == LLC_SNAP_LSAP &&
 	    llc->llc_control == LLC_UI && llc->llc_snap.org_code[0] == 0 &&
 	    llc->llc_snap.org_code[1] == 0 && llc->llc_snap.org_code[2] == 0) {
-		m_adj(m, sizeof(wh) + sizeof(struct llc) - sizeof(*eh));
+		m_adj(m, hdrlen + sizeof(struct llc) - sizeof(*eh));
 		llc = NULL;
 	} else {
-		m_adj(m, sizeof(wh) - sizeof(*eh));
+		m_adj(m, hdrlen - sizeof(*eh));
 	}
 	eh = mtod(m, struct ether_header *);
 	switch (wh.i_fc[1] & IEEE80211_FC1_DIR_MASK) {
@@ -748,11 +732,9 @@ ieee80211_decap(struct ieee80211com *ic, struct mbuf *m)
 		IEEE80211_ADDR_COPY(eh->ether_shost, wh.i_addr3);
 		break;
 	case IEEE80211_FC1_DIR_DSTODS:
-		/* not yet supported */
-		IEEE80211_DISCARD(ic, IEEE80211_MSG_ANY,
-		    &wh, "data", "%s", "DS to DS not supported");
-		m_freem(m);
-		return NULL;
+		IEEE80211_ADDR_COPY(eh->ether_dhost, wh.i_addr3);
+		IEEE80211_ADDR_COPY(eh->ether_shost, wh.i_addr4);
+		break;
 	}
 #ifdef ALIGNED_POINTER
 	if (!ALIGNED_POINTER(mtod(m, caddr_t) + sizeof(*eh), u_int32_t)) {
