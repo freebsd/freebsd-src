@@ -376,7 +376,8 @@ acpi_ibm_attach(device_t dev)
 	    acpi_ibm_notify, dev);
 
 	/* Hook up light to led(4) */
-	sc->led_dev = led_create(ibm_led, sc, "thinklight");
+	if (sc->light_set_supported)
+		sc->led_dev = led_create(ibm_led, sc, "thinklight");
 
 	return (0);
 }
@@ -396,7 +397,9 @@ acpi_ibm_detach(device_t dev)
 
 	AcpiRemoveNotifyHandler(sc->handle, ACPI_DEVICE_NOTIFY, acpi_ibm_notify);
 
-	led_destroy(sc->led_dev);
+	if (sc->led_dev != NULL)
+		led_destroy(sc->led_dev);
+
 	return (0);
 }
 
@@ -522,7 +525,7 @@ acpi_ibm_sysctl_get(struct acpi_ibm_softc *sc, int method)
 
 	case ACPI_IBM_METHOD_VOLUME:
 		ACPI_EC_READ(sc->ec_dev, IBM_EC_VOLUME, &val_ec, 1);
-		val = val_ec &IBM_EC_MASK_VOL;
+		val = val_ec & IBM_EC_MASK_VOL;
 		break;
 
 	case ACPI_IBM_METHOD_MUTE:
@@ -632,10 +635,11 @@ acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 		if (arg < 0 || arg > 14)
 			return (EINVAL);
 
+		status = ACPI_EC_READ(sc->ec_dev, IBM_EC_VOLUME, &val_ec, 1);
+		if (ACPI_FAILURE(status))
+			return (status);
+
 		if (sc->cmos_handle) {
-			status = ACPI_EC_READ(sc->ec_dev, IBM_EC_VOLUME, &val_ec, 1);
-			if (ACPI_FAILURE(status))
-				return (status);
 			val = val_ec & IBM_EC_MASK_VOL;
 
 			Args.Count = 1;
@@ -657,10 +661,11 @@ acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 		if (arg < 0 || arg > 1)
 			return (EINVAL);
 
+		status = ACPI_EC_READ(sc->ec_dev, IBM_EC_VOLUME, &val_ec, 1);
+		if (ACPI_FAILURE(status))
+			return (status);
+
 		if (sc->cmos_handle) {
-			status = ACPI_EC_READ(sc->ec_dev, IBM_EC_VOLUME, &val_ec, 1);
-			if (ACPI_FAILURE(status))
-				return (status);
 			val = val_ec & IBM_EC_MASK_VOL;
 
 			Args.Count = 1;
