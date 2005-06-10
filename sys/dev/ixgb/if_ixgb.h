@@ -51,6 +51,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 #include <net/if_types.h>
@@ -270,7 +271,7 @@ typedef enum _XSUM_CONTEXT_T {
 
 /* Our adapter structure */
 struct adapter {
-	struct arpcom   interface_data;
+	struct ifnet   *ifp;
 	struct adapter *next;
 	struct adapter *prev;
 	struct ixgb_hw  hw;

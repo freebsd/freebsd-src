@@ -393,7 +393,7 @@ atm_dgram_control(so, cmd, data, ifp, td)
 					 */
 					for (nip = pip->pif_nif; nip;
 							nip = nip->nif_pnext) {
-						if (&nip->nif_if == ifp2)
+						if (ANIF2IFP(nip) == ifp2)
 							break;
 					}
 					if (nip)

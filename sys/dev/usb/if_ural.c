@@ -345,7 +345,7 @@ USB_MATCH(ural)
 USB_ATTACH(ural)
 {
 	USB_ATTACH_START(ural, sc, uaa);
-	struct ifnet *ifp = &sc->sc_arp.ac_if;
+	struct ifnet *ifp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
@@ -408,7 +408,8 @@ USB_ATTACH(ural)
 
 	printf("%s: MAC/BBP RT2570 (rev 0x%02x), RF %s\n",
 	    USBDEVNAME(sc->sc_dev), sc->asic_rev, ural_get_rf(sc->rf_rev));
-
+	
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
 	if_initname(ifp, "ural", USBDEVUNIT(sc->sc_dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |

@@ -169,24 +169,24 @@ gre_clone_create(ifc, unit)
 
 	sc = malloc(sizeof(struct gre_softc), M_GRE, M_WAITOK | M_ZERO);
 
-	if_initname(&sc->sc_if, ifc->ifc_name, unit);
-	sc->sc_if.if_softc = sc;
-	sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
-	sc->sc_if.if_type = IFT_TUNNEL;
-	sc->sc_if.if_addrlen = 0;
-	sc->sc_if.if_hdrlen = 24; /* IP + GRE */
-	sc->sc_if.if_mtu = GREMTU;
-	sc->sc_if.if_flags = IFF_POINTOPOINT|IFF_MULTICAST;
-	sc->sc_if.if_output = gre_output;
-	sc->sc_if.if_ioctl = gre_ioctl;
+	if_initname(GRE2IFP(sc), ifc->ifc_name, unit);
+	GRE2IFP(sc)->if_softc = sc;
+	GRE2IFP(sc)->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	GRE2IFP(sc)->if_type = IFT_TUNNEL;
+	GRE2IFP(sc)->if_addrlen = 0;
+	GRE2IFP(sc)->if_hdrlen = 24; /* IP + GRE */
+	GRE2IFP(sc)->if_mtu = GREMTU;
+	GRE2IFP(sc)->if_flags = IFF_POINTOPOINT|IFF_MULTICAST;
+	GRE2IFP(sc)->if_output = gre_output;
+	GRE2IFP(sc)->if_ioctl = gre_ioctl;
 	sc->g_dst.s_addr = sc->g_src.s_addr = INADDR_ANY;
 	sc->g_proto = IPPROTO_GRE;
-	sc->sc_if.if_flags |= IFF_LINK0;
+	GRE2IFP(sc)->if_flags |= IFF_LINK0;
 	sc->encap = NULL;
 	sc->called = 0;
 	sc->wccp_ver = WCCP_V1;
-	if_attach(&sc->sc_if);
-	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int32_t));
+	if_attach(GRE2IFP(sc));
+	bpfattach(GRE2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	mtx_lock(&gre_mtx);
 	LIST_INSERT_HEAD(&gre_softc_list, sc, sc_list);
 	mtx_unlock(&gre_mtx);
@@ -201,8 +201,9 @@ gre_destroy(struct gre_softc *sc)
 	if (sc->encap != NULL)
 		encap_detach(sc->encap);
 #endif
-	bpfdetach(&sc->sc_if);
-	if_detach(&sc->sc_if);
+	bpfdetach(GRE2IFP(sc));
+	if_detach(GRE2IFP(sc));
+	if_free(GRE2IFP(sc));
 	free(sc, M_GRE);
 }
 
@@ -239,7 +240,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	 */
 	if (++(sc->called) > max_gre_nesting) {
 		printf("%s: gre_output: recursively called too many "
-		       "times(%d)\n", if_name(&sc->sc_if), sc->called);
+		       "times(%d)\n", if_name(GRE2IFP(sc)), sc->called);
 		m_freem(m);
 		error = EIO;    /* is there better errno? */
 		goto end;
@@ -444,7 +445,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifp->if_mtu = ifr->ifr_mtu;
 		break;
 	case SIOCGIFMTU:
-		ifr->ifr_mtu = sc->sc_if.if_mtu;
+		ifr->ifr_mtu = GRE2IFP(sc)->if_mtu;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -524,7 +525,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				&in_gre_protosw : &in_mobile_protosw, sc);
 			if (sc->encap == NULL)
 				printf("%s: unable to attach encap\n",
-				    if_name(&sc->sc_if));
+				    if_name(GRE2IFP(sc)));
 #endif
 			if (sc->route.ro_rt != 0) /* free old route */
 				RTFREE(sc->route.ro_rt);
@@ -670,7 +671,7 @@ gre_compute_route(struct gre_softc *sc)
 	 * but this is not possible. Should work though. XXX
 	 * there is a simpler way ...
 	 */
-	if ((sc->sc_if.if_flags & IFF_LINK1) == 0) {
+	if ((GRE2IFP(sc)->if_flags & IFF_LINK1) == 0) {
 		a = ntohl(sc->g_dst.s_addr);
 		b = a & 0x01;
 		c = a & 0xfffffffe;
@@ -681,7 +682,7 @@ gre_compute_route(struct gre_softc *sc)
 	}
 
 #ifdef DIAGNOSTIC
-	printf("%s: searching for a route to %s", if_name(&sc->sc_if),
+	printf("%s: searching for a route to %s", if_name(GRE2IFP(sc)),
 	    inet_ntoa(((struct sockaddr_in *)&ro->ro_dst)->sin_addr));
 #endif
 
@@ -705,7 +706,7 @@ gre_compute_route(struct gre_softc *sc)
 	 * now change it back - else ip_output will just drop
 	 * the route and search one to this interface ...
 	 */
-	if ((sc->sc_if.if_flags & IFF_LINK1) == 0)
+	if ((GRE2IFP(sc)->if_flags & IFF_LINK1) == 0)
 		((struct sockaddr_in *)&ro->ro_dst)->sin_addr = sc->g_dst;
 
 #ifdef DIAGNOSTIC

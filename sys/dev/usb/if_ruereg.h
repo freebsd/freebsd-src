@@ -187,7 +187,7 @@ struct rue_type {
 };
 
 struct rue_softc {
-	struct arpcom		arpcom;
+	struct ifnet		*rue_ifp;
 	device_t		rue_dev;
 	device_t		rue_miibus;
 	usbd_device_handle	rue_udev;

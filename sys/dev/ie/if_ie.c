@@ -266,7 +266,11 @@ ie_attach(device_t dev)
 	int                     factor;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(sc->dev, "can not if_alloc()\n");
+		return (ENOSPC);
+	}
 
 	sc->dev = dev;
 	sc->unit = device_get_unit(dev);
@@ -290,8 +294,10 @@ ie_attach(device_t dev)
 	sc->rframes = (volatile struct ie_recv_frame_desc **) malloc(allocsize,
 								     M_DEVBUF,
 								   M_NOWAIT);
-	if (sc->rframes == NULL)
+	if (sc->rframes == NULL) {
+		if_free(ifp);
 		return (ENXIO);
+	}
 	sc->rbuffs =
 	    (volatile struct ie_recv_buf_desc **)&sc->rframes[sc->nframes];
 	sc->cbuffs = (volatile u_char **)&sc->rbuffs[sc->nrxbufs];
@@ -319,7 +325,7 @@ ie_attach(device_t dev)
 		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
 				      sc, SHUTDOWN_PRI_DEFAULT);
 
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, sc->enaddr);
 	return (0);
 }
 
@@ -417,9 +423,9 @@ ierint(struct ie_softc *sc)
 		status = sc->rframes[i]->ie_fd_status;
 
 		if ((status & IE_FD_COMPLETE) && (status & IE_FD_OK)) {
-			sc->arpcom.ac_if.if_ipackets++;
+			sc->ifp->if_ipackets++;
 			if (!--timesthru) {
-				sc->arpcom.ac_if.if_ierrors +=
+				sc->ifp->if_ierrors +=
 				    sc->scb->ie_err_crc +
 				    sc->scb->ie_err_align +
 				    sc->scb->ie_err_resource +
@@ -459,32 +465,32 @@ ietint(struct ie_softc *sc)
 	int	status;
 	int	i;
 
-	sc->arpcom.ac_if.if_timer = 0;
-	sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_timer = 0;
+	sc->ifp->if_flags &= ~IFF_OACTIVE;
 
 	for (i = 0; i < sc->xmit_count; i++) {
 		status = sc->xmit_cmds[i]->ie_xmit_status;
 
 		if (status & IE_XS_LATECOLL) {
 			printf("ie%d: late collision\n", sc->unit);
-			sc->arpcom.ac_if.if_collisions++;
-			sc->arpcom.ac_if.if_oerrors++;
+			sc->ifp->if_collisions++;
+			sc->ifp->if_oerrors++;
 		} else if (status & IE_XS_NOCARRIER) {
 			printf("ie%d: no carrier\n", sc->unit);
-			sc->arpcom.ac_if.if_oerrors++;
+			sc->ifp->if_oerrors++;
 		} else if (status & IE_XS_LOSTCTS) {
 			printf("ie%d: lost CTS\n", sc->unit);
-			sc->arpcom.ac_if.if_oerrors++;
+			sc->ifp->if_oerrors++;
 		} else if (status & IE_XS_UNDERRUN) {
 			printf("ie%d: DMA underrun\n", sc->unit);
-			sc->arpcom.ac_if.if_oerrors++;
+			sc->ifp->if_oerrors++;
 		} else if (status & IE_XS_EXCMAX) {
 			printf("ie%d: too many collisions\n", sc->unit);
-			sc->arpcom.ac_if.if_collisions += 16;
-			sc->arpcom.ac_if.if_oerrors++;
+			sc->ifp->if_collisions += 16;
+			sc->ifp->if_oerrors++;
 		} else {
-			sc->arpcom.ac_if.if_opackets++;
-			sc->arpcom.ac_if.if_collisions += status & IE_XS_MAXCOLL;
+			sc->ifp->if_opackets++;
+			sc->ifp->if_collisions += status & IE_XS_MAXCOLL;
 		}
 	}
 	sc->xmit_count = 0;
@@ -501,7 +507,7 @@ ietint(struct ie_softc *sc)
 	/* Wish I knew why this seems to be necessary... */
 	sc->xmit_cmds[0]->ie_xmit_status |= IE_STAT_COMPL;
 
-	iestart(&sc->arpcom.ac_if);
+	iestart(sc->ifp);
 	return (0);		/* shouldn't be necessary */
 }
 
@@ -529,7 +535,7 @@ iernr(struct ie_softc *sc)
 #endif
 	ie_ack(sc, IE_ST_WHENCE);
 
-	sc->arpcom.ac_if.if_ierrors++;
+	sc->ifp->if_ierrors++;
 	return (0);
 }
 
@@ -593,7 +599,7 @@ check_eh(struct ie_softc *sc, struct ether_header *eh)
 		return (1);
 
 	/* Always accept packets directed at us */
-	if (ether_equal(eh->ether_dhost, sc->arpcom.ac_enaddr))
+	if (ether_equal(eh->ether_dhost, IFP2ENADDR(sc->ifp)))
 		return (1);
 
 	/* Must have IFF_ALLMULTI but not IFF_PROMISC set. The chip is
@@ -678,7 +684,7 @@ ieget(struct ie_softc *sc, struct mbuf **mp)
 	 */
 	if (!check_eh(sc, &eh)) {
 		ie_drop_packet_buffer(sc);
-		sc->arpcom.ac_if.if_ierrors--;	/* just this case, it's not an
+		sc->ifp->if_ierrors--;	/* just this case, it's not an
 						 * error
 						 */
 		return (-1);
@@ -692,7 +698,7 @@ ieget(struct ie_softc *sc, struct mbuf **mp)
 	}
 
 	*mp = m;
-	m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+	m->m_pkthdr.rcvif = sc->ifp;
 	m->m_len = MHLEN;
 	resid = m->m_pkthdr.len = totlen;
 	top = 0;
@@ -827,7 +833,7 @@ nextbuf:
 static void
 ie_readframe(struct ie_softc *sc, int	num/* frame number to read */)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ie_recv_frame_desc rfd;
 	struct mbuf *m = 0;
 #ifdef DEBUG
@@ -849,7 +855,7 @@ ie_readframe(struct ie_softc *sc, int	num/* frame number to read */)
 
 	if (rfd.ie_fd_status & IE_FD_OK) {
 		if (ieget(sc, &m)) {
-			sc->arpcom.ac_if.if_ierrors++;	/* this counts as an
+			sc->ifp->if_ierrors++;	/* this counts as an
 							 * error */
 			return;
 		}
@@ -927,7 +933,7 @@ iestart(struct ifnet *ifp)
 		return;
 
 	do {
-		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
+		IF_DEQUEUE(&sc->ifp->if_snd, m);
 		if (!m)
 			break;
 
@@ -947,7 +953,7 @@ iestart(struct ifnet *ifp)
 		 * See if bpf is listening on this interface, let it see the
 		 * packet before we commit it to the wire.
 		 */
-		BPF_TAP(&sc->arpcom.ac_if,
+		BPF_TAP(sc->ifp,
 			(void *)sc->xmit_cbuffs[sc->xmit_count], len);
 
 		sc->xmit_buffs[sc->xmit_count]->ie_xmit_flags =
@@ -1231,8 +1237,8 @@ iereset(struct ie_softc *sc)
 	int	s = splimp();
 
 	printf("ie%d: reset\n", sc->unit);
-	sc->arpcom.ac_if.if_flags &= ~IFF_UP;
-	ieioctl(&sc->arpcom.ac_if, SIOCSIFFLAGS, 0);
+	sc->ifp->if_flags &= ~IFF_UP;
+	ieioctl(sc->ifp, SIOCSIFFLAGS, 0);
 
 	/*
 	 * Stop i82586 dead in its tracks.
@@ -1248,8 +1254,8 @@ iereset(struct ie_softc *sc)
 		panic("ie disappeared!");
 #endif
 
-	sc->arpcom.ac_if.if_flags |= IFF_UP;
-	ieioctl(&sc->arpcom.ac_if, SIOCSIFFLAGS, 0);
+	sc->ifp->if_flags |= IFF_UP;
+	ieioctl(sc->ifp, SIOCSIFFLAGS, 0);
 
 	splx(s);
 	return;
@@ -1524,7 +1530,7 @@ ieinit(xsc)
 		cmd->com.ie_cmd_cmd = IE_CMD_IASETUP | IE_CMD_LAST;
 		cmd->com.ie_cmd_link = 0xffff;
 
-		bcopy((volatile char *)sc->arpcom.ac_enaddr,
+		bcopy((volatile char *)IFP2ENADDR(sc->ifp),
 		      (volatile char *)&cmd->ie_address, sizeof cmd->ie_address);
 		scb->ie_command_list = MK_16(MEM(sc), cmd);
 		if (command_and_wait(sc, IE_CU_START, cmd, IE_STAT_COMPL)
@@ -1595,9 +1601,9 @@ ieinit(xsc)
 		ee16_interrupt_enable(sc);
 		ee16_chan_attn(sc);
 	}
-	sc->arpcom.ac_if.if_flags |= IFF_RUNNING;	/* tell higher levels
+	sc->ifp->if_flags |= IFF_RUNNING;	/* tell higher levels
 							 * we're here */
-	sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_flags &= ~IFF_OACTIVE;
 
 	start_receiver(sc);
 
@@ -1670,14 +1676,14 @@ ie_mc_reset(struct ie_softc *sc)
 	 * Step through the list of addresses.
 	 */
 	sc->mcast_count = 0;
-	TAILQ_FOREACH(ifma, &sc->arpcom.ac_if.if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 
 		/* XXX - this is broken... */
 		if (sc->mcast_count >= MAXMCAST) {
-			sc->arpcom.ac_if.if_flags |= IFF_ALLMULTI;
-			ieioctl(&sc->arpcom.ac_if, SIOCSIFFLAGS, (void *) 0);
+			sc->ifp->if_flags |= IFF_ALLMULTI;
+			ieioctl(sc->ifp, SIOCSIFFLAGS, (void *) 0);
 			goto setflag;
 		}
 		bcopy(LLADDR((struct sockaddr_dl *) ifma->ifma_addr),
@@ -1780,7 +1786,7 @@ ie_detach (device_t dev)
 	struct ifnet *		ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (sc->hard_type == IE_EE16)
 		ee16_shutdown(sc, 0);
@@ -1788,6 +1794,7 @@ ie_detach (device_t dev)
 	ie_stop(sc);
 	ifp->if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	ie_release_resources(dev);
 
 	return (0);

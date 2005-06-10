@@ -198,6 +198,8 @@
 #define STATE_ACK_SENT	8
 #define STATE_OPENED	9
 
+MALLOC_DEFINE(M_SPPP, "sppp", "synchronous PPP interface internals");
+
 struct ppp_header {
 	u_char address;
 	u_char control;
@@ -264,22 +266,22 @@ struct cp {
 
 #define SPPP_LOCK(sp) \
 		do { \
-		    if (!((sp)->pp_if.if_flags & IFF_NEEDSGIANT)) \
+		    if (!(SP2IFP(sp)->if_flags & IFF_NEEDSGIANT)) \
 			mtx_lock (&(sp)->mtx); \
 		} while (0)
 #define SPPP_UNLOCK(sp) \
 		do { \
-		    if (!((sp)->pp_if.if_flags & IFF_NEEDSGIANT)) \
+		    if (!(SP2IFP(sp)->if_flags & IFF_NEEDSGIANT)) \
 			mtx_unlock (&(sp)->mtx); \
 		} while (0)
 
 #define SPPP_LOCK_ASSERT(sp) \
 		do { \
-		    if (!((sp)->pp_if.if_flags & IFF_NEEDSGIANT)) \
+		    if (!(SP2IFP(sp)->if_flags & IFF_NEEDSGIANT)) \
 			mtx_assert (&(sp)->mtx, MA_OWNED); \
 		} while (0)
 #define SPPP_LOCK_OWNED(sp) \
-		(!((sp)->pp_if.if_flags & IFF_NEEDSGIANT) && \
+		(!(SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) && \
 		 mtx_owned (&sp->mtx))
 
 #ifdef INET
@@ -300,7 +302,7 @@ static const u_short interactive_ports[8] = {
 
 /* almost every function needs these */
 #define STDDCL							\
-	struct ifnet *ifp = &sp->pp_if;				\
+	struct ifnet *ifp = SP2IFP(sp);				\
 	int debug = ifp->if_flags & IFF_DEBUG
 
 static int sppp_output(struct ifnet *ifp, struct mbuf *m,
@@ -490,13 +492,39 @@ static const struct cp *cps[IDX_COUNT] = {
 	&chap,			/* IDX_CHAP */
 };
 
+static void*
+sppp_alloc(u_char type, struct ifnet *ifp)
+{
+	struct sppp	*sp;
+
+        sp = malloc(sizeof(struct sppp), M_SPPP, M_WAITOK | M_ZERO);
+	sp->pp_ifp = ifp;
+
+	return (sp);
+}
+
+static void
+sppp_free(void *com, u_char type)
+{
+
+	free(com, M_SPPP);
+}
+
 static int
 sppp_modevent(module_t mod, int type, void *unused)
 {
 	switch (type) {
 	case MOD_LOAD:
+		/*
+		 * XXX: should probably be IFT_SPPP, but it's fairly
+		 * harmless to allocate struct sppp's for non-sppp
+		 * interfaces.
+		 */
+
+		if_register_com_alloc(IFT_PPP, sppp_alloc, sppp_free);
 		break;
 	case MOD_UNLOAD:
+		/* if_deregister_com_alloc(IFT_PPP); */
 		return EACCES;
 	default:
 		return EOPNOTSUPP;
@@ -523,7 +551,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ppp_header *h;
 	int isr = -1;
-	struct sppp *sp = (struct sppp *)ifp;
+	struct sppp *sp = IFP2SP(ifp);
 	u_char *iphdr;
 	int hlen, vjlen, do_account = 0;
 	int debug;
@@ -708,7 +736,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			++ifp->if_noproto;
 			goto invalid;
 		case CISCO_KEEPALIVE:
-			sppp_cisco_input ((struct sppp*) ifp, m);
+			sppp_cisco_input (sp, m);
 			m_freem (m);
 			SPPP_UNLOCK(sp);
 			return;
@@ -769,7 +797,7 @@ sppp_ifstart_sched(void *dummy)
 {
 	struct sppp *sp = dummy;
 	
-	sp->if_start(&sp->pp_if);
+	sp->if_start(SP2IFP(sp));
 }
 
 /* if_start () wrapper function. We use it to schedule real if_start () for
@@ -778,7 +806,7 @@ sppp_ifstart_sched(void *dummy)
 static void
 sppp_ifstart(struct ifnet *ifp)
 {
-	struct sppp *sp = (struct sppp*) ifp;
+	struct sppp *sp = IFP2SP(ifp);
 
 	if (SPPP_LOCK_OWNED(sp)) {
 		if (callout_pending(&sp->ifstart_callout))
@@ -797,7 +825,7 @@ static int
 sppp_output(struct ifnet *ifp, struct mbuf *m,
 	    struct sockaddr *dst, struct rtentry *rt)
 {
-	struct sppp *sp = (struct sppp*) ifp;
+	struct sppp *sp = IFP2SP(ifp);
 	struct ppp_header *h;
 	struct ifqueue *ifq = NULL;
 	int s, error, rv = 0;
@@ -1039,7 +1067,7 @@ out:
 void
 sppp_attach(struct ifnet *ifp)
 {
-	struct sppp *sp = (struct sppp*) ifp;
+	struct sppp *sp = IFP2SP(ifp);
 
 	/* Initialize mtx lock */
 	mtx_init(&sp->mtx, "sppp", MTX_NETWORK_LOCK, MTX_DEF | MTX_RECURSE);
@@ -1050,14 +1078,13 @@ sppp_attach(struct ifnet *ifp)
 	callout_reset(&sp->keepalive_callout, hz * 10, sppp_keepalive,
  		    (void *)sp); 
 
-	sp->pp_if.if_mtu = PP_MTU;
-	sp->pp_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
-	sp->pp_if.if_type = IFT_PPP;
-	sp->pp_if.if_output = sppp_output;
+	ifp->if_mtu = PP_MTU;
+	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
+	ifp->if_output = sppp_output;
 #if 0
 	sp->pp_flags = PP_KEEPALIVE;
 #endif
- 	sp->pp_if.if_snd.ifq_maxlen = 32;
+ 	ifp->if_snd.ifq_maxlen = 32;
  	sp->pp_fastq.ifq_maxlen = 32;
  	sp->pp_cpq.ifq_maxlen = 20;
 	sp->pp_loopcnt = 0;
@@ -1095,7 +1122,7 @@ sppp_attach(struct ifnet *ifp)
 void
 sppp_detach(struct ifnet *ifp)
 {
-	struct sppp *sp = (struct sppp*) ifp;
+	struct sppp *sp = IFP2SP(ifp);
 	int i;
 
 	KASSERT(mtx_initialized(&sp->mtx), ("sppp mutex is not initialized"));
@@ -1121,9 +1148,9 @@ sppp_detach(struct ifnet *ifp)
 static void
 sppp_flush_unlocked(struct ifnet *ifp)
 {
-	struct sppp *sp = (struct sppp*) ifp;
+	struct sppp *sp = IFP2SP(ifp);
 
-	sppp_qflush ((struct ifqueue *)&sp->pp_if.if_snd);
+	sppp_qflush ((struct ifqueue *)&SP2IFP(sp)->if_snd);
 	sppp_qflush (&sp->pp_fastq);
 	sppp_qflush (&sp->pp_cpq);
 }
@@ -1131,7 +1158,7 @@ sppp_flush_unlocked(struct ifnet *ifp)
 void
 sppp_flush(struct ifnet *ifp)
 {
-	struct sppp *sp = (struct sppp*) ifp;
+	struct sppp *sp = IFP2SP(ifp);
 
 	SPPP_LOCK(sp);
 	sppp_flush_unlocked (ifp);
@@ -1144,13 +1171,13 @@ sppp_flush(struct ifnet *ifp)
 int
 sppp_isempty(struct ifnet *ifp)
 {
-	struct sppp *sp = (struct sppp*) ifp;
+	struct sppp *sp = IFP2SP(ifp);
 	int empty, s;
 
 	s = splimp();
 	SPPP_LOCK(sp);
 	empty = !sp->pp_fastq.ifq_head && !sp->pp_cpq.ifq_head &&
-		!sp->pp_if.if_snd.ifq_head;
+		!SP2IFP(sp)->if_snd.ifq_head;
 	SPPP_UNLOCK(sp);
 	splx(s);
 	return (empty);
@@ -1162,7 +1189,7 @@ sppp_isempty(struct ifnet *ifp)
 struct mbuf *
 sppp_dequeue(struct ifnet *ifp)
 {
-	struct sppp *sp = (struct sppp*) ifp;
+	struct sppp *sp = IFP2SP(ifp);
 	struct mbuf *m;
 	int s;
 
@@ -1180,7 +1207,7 @@ sppp_dequeue(struct ifnet *ifp)
 	     sp->pp_mode == PP_FR)) {
 		IF_DEQUEUE(&sp->pp_fastq, m);
 		if (m == NULL)
-			IF_DEQUEUE (&sp->pp_if.if_snd, m);
+			IF_DEQUEUE (&SP2IFP(sp)->if_snd, m);
 	}
 	SPPP_UNLOCK(sp);
 	splx(s);
@@ -1193,7 +1220,7 @@ sppp_dequeue(struct ifnet *ifp)
 struct mbuf *
 sppp_pick(struct ifnet *ifp)
 {
-	struct sppp *sp = (struct sppp*)ifp;
+	struct sppp *sp = IFP2SP(ifp);
 	struct mbuf *m;
 	int s;
 
@@ -1206,7 +1233,7 @@ sppp_pick(struct ifnet *ifp)
 	     sp->pp_mode == IFF_CISCO ||
 	     sp->pp_mode == PP_FR))
 		if ((m = sp->pp_fastq.ifq_head) == NULL)
-			m = sp->pp_if.if_snd.ifq_head;
+			m = SP2IFP(sp)->if_snd.ifq_head;
 	SPPP_UNLOCK(sp);
 	splx (s);
 	return (m);
@@ -1219,7 +1246,7 @@ int
 sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 {
 	struct ifreq *ifr = (struct ifreq*) data;
-	struct sppp *sp = (struct sppp*) ifp;
+	struct sppp *sp = IFP2SP(ifp);
 	int s, rv, going_up, going_down, newmode;
 
 	s = splimp();
@@ -2207,7 +2234,7 @@ sppp_lcp_init(struct sppp *sp)
 	sp->lcp.max_configure = 10;
 	sp->lcp.max_failure = 10;
  	callout_init(&sp->ch[IDX_LCP],
-		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
 }
 
 static void
@@ -2902,7 +2929,7 @@ sppp_ipcp_init(struct sppp *sp)
 	sp->pp_seq[IDX_IPCP] = 0;
 	sp->pp_rseq[IDX_IPCP] = 0;
  	callout_init(&sp->ch[IDX_IPCP],
-		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
 }
 
 static void
@@ -2985,7 +3012,7 @@ static int
 sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 {
 	u_char *buf, *r, *p;
-	struct ifnet *ifp = &sp->pp_if;
+	struct ifnet *ifp = SP2IFP(sp);
 	int rlen, origlen, debug = ifp->if_flags & IFF_DEBUG;
 	u_long hisaddr, desiredaddr;
 	int gotmyaddr = 0;
@@ -3193,7 +3220,7 @@ static void
 sppp_ipcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 {
 	u_char *buf, *p;
-	struct ifnet *ifp = &sp->pp_if;
+	struct ifnet *ifp = SP2IFP(sp);
 	int debug = ifp->if_flags & IFF_DEBUG;
 
 	len -= 4;
@@ -3237,7 +3264,7 @@ static void
 sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 {
 	u_char *buf, *p;
-	struct ifnet *ifp = &sp->pp_if;
+	struct ifnet *ifp = SP2IFP(sp);
 	int debug = ifp->if_flags & IFF_DEBUG;
 	int desiredcomp;
 	u_long wantaddr;
@@ -3386,7 +3413,7 @@ sppp_ipv6cp_init(struct sppp *sp)
 	sp->pp_seq[IDX_IPV6CP] = 0;
 	sp->pp_rseq[IDX_IPV6CP] = 0;
  	callout_init(&sp->ch[IDX_IPV6CP],
-		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
 }
 
 static void
@@ -3455,7 +3482,7 @@ static int
 sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 {
 	u_char *buf, *r, *p;
-	struct ifnet *ifp = &sp->pp_if;
+	struct ifnet *ifp = SP2IFP(sp);
 	int rlen, origlen, debug = ifp->if_flags & IFF_DEBUG;
 	struct in6_addr myaddr, desiredaddr, suggestaddr;
 	int ifidcount;
@@ -3544,7 +3571,7 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			nohisaddr = IN6_IS_ADDR_UNSPECIFIED(&desiredaddr);
 
 			desiredaddr.s6_addr16[0] = htons(0xfe80);
-			desiredaddr.s6_addr16[1] = htons(sp->pp_if.if_index);
+			desiredaddr.s6_addr16[1] = htons(SP2IFP(sp)->if_index);
 
 			if (!collision && !nohisaddr) {
 				/* no collision, hisaddr known - Conf-Ack */
@@ -3614,7 +3641,7 @@ static void
 sppp_ipv6cp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 {
 	u_char *buf, *p;
-	struct ifnet *ifp = &sp->pp_if;
+	struct ifnet *ifp = SP2IFP(sp);
 	int debug = ifp->if_flags & IFF_DEBUG;
 
 	len -= 4;
@@ -3659,7 +3686,7 @@ static void
 sppp_ipv6cp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 {
 	u_char *buf, *p;
-	struct ifnet *ifp = &sp->pp_if;
+	struct ifnet *ifp = SP2IFP(sp);
 	int debug = ifp->if_flags & IFF_DEBUG;
 	struct in6_addr suggestaddr;
 
@@ -3687,7 +3714,7 @@ sppp_ipv6cp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				break;
 			bzero(&suggestaddr, sizeof(suggestaddr));
 			suggestaddr.s6_addr16[0] = htons(0xfe80);
-			suggestaddr.s6_addr16[1] = htons(sp->pp_if.if_index);
+			suggestaddr.s6_addr16[1] = htons(SP2IFP(sp)->if_index);
 			bcopy(&p[2], &suggestaddr.s6_addr[8], 8);
 
 			sp->ipv6cp.opts |= (1 << IPV6CP_OPT_IFID);
@@ -4187,7 +4214,7 @@ sppp_chap_init(struct sppp *sp)
 	sp->pp_seq[IDX_CHAP] = 0;
 	sp->pp_rseq[IDX_CHAP] = 0;
  	callout_init(&sp->ch[IDX_CHAP],
-		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
 }
 
 static void
@@ -4527,9 +4554,9 @@ sppp_pap_init(struct sppp *sp)
 	sp->pp_seq[IDX_PAP] = 0;
 	sp->pp_rseq[IDX_PAP] = 0;
  	callout_init(&sp->ch[IDX_PAP],
-		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
  	callout_init(&sp->pap_my_to_ch,
-		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
 }
 
 static void
@@ -4781,7 +4808,7 @@ static void
 sppp_keepalive(void *dummy)
 {
 	struct sppp *sp = (struct sppp*)dummy;
-	struct ifnet *ifp = &sp->pp_if;
+	struct ifnet *ifp = SP2IFP(sp);
 	int s;
 
 	s = splimp();
@@ -4838,7 +4865,7 @@ out:
 void
 sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 {
-	struct ifnet *ifp = &sp->pp_if;
+	struct ifnet *ifp = SP2IFP(sp);
 	struct ifaddr *ifa;
 	struct sockaddr_in *si, *sm;
 	u_long ssrc, ddst;
@@ -4966,7 +4993,7 @@ static void
 sppp_get_ip6_addrs(struct sppp *sp, struct in6_addr *src, struct in6_addr *dst,
 		   struct in6_addr *srcmask)
 {
-	struct ifnet *ifp = &sp->pp_if;
+	struct ifnet *ifp = SP2IFP(sp);
 	struct ifaddr *ifa;
 	struct sockaddr_in6 *si, *sm;
 	struct in6_addr ssrc, ddst;

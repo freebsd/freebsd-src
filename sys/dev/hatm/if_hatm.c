@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
+#include <net/if_types.h>
 #include <net/route.h>
 #ifdef ENABLE_BPF
 #include <net/bpf.h>
@@ -217,13 +218,13 @@ hatm_alloc_dmamem(struct hatm_softc *sc, const char *what, struct dmamem *mem)
 	    BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW,
 	    NULL, NULL, &mem->tag);
 	if (error) {
-		if_printf(&sc->ifatm.ifnet, "DMA tag create (%s)\n", what);
+		if_printf(sc->ifp, "DMA tag create (%s)\n", what);
 		return (error);
 	}
 
 	error = bus_dmamem_alloc(mem->tag, &mem->base, 0, &mem->map);
 	if (error) {
-		if_printf(&sc->ifatm.ifnet, "DMA mem alloc (%s): %d\n",
+		if_printf(sc->ifp, "DMA mem alloc (%s): %d\n",
 		    what, error);
 		bus_dma_tag_destroy(mem->tag);
 		mem->base = NULL;
@@ -233,7 +234,7 @@ hatm_alloc_dmamem(struct hatm_softc *sc, const char *what, struct dmamem *mem)
 	error = bus_dmamap_load(mem->tag, mem->map, mem->base, mem->size,
 	    dmaload_helper, &mem->paddr, BUS_DMA_NOWAIT);
 	if (error) {
-		if_printf(&sc->ifatm.ifnet, "DMA map load (%s): %d\n",
+		if_printf(sc->ifp, "DMA map load (%s): %d\n",
 		    what, error);
 		bus_dmamem_free(mem->tag, mem->base, mem->map);
 		bus_dma_tag_destroy(mem->tag);
@@ -316,11 +317,11 @@ hatm_destroy_smbufs(struct hatm_softc *sc)
 				h = (struct mbuf_chunk_hdr *) ((char *)pg +
 				    b * pg->hdr.chunksize + pg->hdr.hdroff);
 				if (h->flags & MBUF_CARD)
-					if_printf(&sc->ifatm.ifnet,
+					if_printf(sc->ifp,
 					    "%s -- mbuf page=%u card buf %u\n",
 					    __func__, i, b);
 				if (h->flags & MBUF_USED)
-					if_printf(&sc->ifatm.ifnet,
+					if_printf(sc->ifp,
 					    "%s -- mbuf page=%u used buf %u\n",
 					    __func__, i, b);
 			}
@@ -353,7 +354,7 @@ hatm_destroy_tpds(struct hatm_softc *sc)
 
 	DBG(sc, ATTACH, ("releasing TPDs ..."));
 	if (sc->tpd_nfree != sc->tpd_total)
-		if_printf(&sc->ifatm.ifnet, "%u tpds still in use from %u\n",
+		if_printf(sc->ifp, "%u tpds still in use from %u\n",
 		    sc->tpd_total - sc->tpd_nfree, sc->tpd_total);
 	while ((t = SLIST_FIRST(&sc->tpd_free)) != NULL) {
 		SLIST_REMOVE_HEAD(&sc->tpd_free, link);
@@ -477,15 +478,15 @@ hatm_destroy(struct hatm_softc *sc)
 
 	if (sc->tx_tag != NULL)
 		if (bus_dma_tag_destroy(sc->tx_tag))
-			if_printf(&sc->ifatm.ifnet, "mbuf DMA tag busy\n");
+			if_printf(sc->ifp, "mbuf DMA tag busy\n");
 
 	if (sc->mbuf_tag != NULL)
 		if (bus_dma_tag_destroy(sc->mbuf_tag))
-			if_printf(&sc->ifatm.ifnet, "mbuf DMA tag busy\n");
+			if_printf(sc->ifp, "mbuf DMA tag busy\n");
 
 	if (sc->parent_tag != NULL)
 		if (bus_dma_tag_destroy(sc->parent_tag))
-			if_printf(&sc->ifatm.ifnet, "parent DMA tag busy\n");
+			if_printf(sc->ifp, "parent DMA tag busy\n");
 
 	if (sc->memres != NULL)
 		bus_release_resource(sc->dev, SYS_RES_MEMORY,
@@ -514,7 +515,7 @@ hatm_reset(struct hatm_softc *sc)
 	while (((v = READ4(sc, HE_REGO_RESET_CNTL)) & HE_REGM_RESET_STATE) == 0) {
 		BARRIER_R(sc);
 		if (++count == 100) {
-			if_printf(&sc->ifatm.ifnet, "reset failed\n");
+			if_printf(sc->ifp, "reset failed\n");
 			return (ENXIO);
 		}
 		DELAY(1000);
@@ -669,12 +670,12 @@ hatm_init_read_eeprom(struct hatm_softc *sc)
 	while (n > 0 && sc->rev[n-1] == ' ')
 		n--;
 	sc->rev[n] = '\0';
-	sc->ifatm.mib.hw_version = sc->rev[0];
+	IFP2IFATM(sc->ifp)->mib.hw_version = sc->rev[0];
 
-	sc->ifatm.mib.serial =  hatm_read_prom_byte(sc, HE_EEPROM_M_SN + 0) << 0;
-	sc->ifatm.mib.serial |= hatm_read_prom_byte(sc, HE_EEPROM_M_SN + 1) << 8;
-	sc->ifatm.mib.serial |= hatm_read_prom_byte(sc, HE_EEPROM_M_SN + 2) << 16;
-	sc->ifatm.mib.serial |= hatm_read_prom_byte(sc, HE_EEPROM_M_SN + 3) << 24;
+	IFP2IFATM(sc->ifp)->mib.serial =  hatm_read_prom_byte(sc, HE_EEPROM_M_SN + 0) << 0;
+	IFP2IFATM(sc->ifp)->mib.serial |= hatm_read_prom_byte(sc, HE_EEPROM_M_SN + 1) << 8;
+	IFP2IFATM(sc->ifp)->mib.serial |= hatm_read_prom_byte(sc, HE_EEPROM_M_SN + 2) << 16;
+	IFP2IFATM(sc->ifp)->mib.serial |= hatm_read_prom_byte(sc, HE_EEPROM_M_SN + 3) << 24;
 
 	v =  hatm_read_prom_byte(sc, HE_EEPROM_MEDIA + 0) << 0;
 	v |= hatm_read_prom_byte(sc, HE_EEPROM_MEDIA + 1) << 8;
@@ -683,41 +684,41 @@ hatm_init_read_eeprom(struct hatm_softc *sc)
 
 	switch (v) {
 	  case HE_MEDIA_UTP155:
-		sc->ifatm.mib.media = IFM_ATM_UTP_155;
-		sc->ifatm.mib.pcr = ATM_RATE_155M;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UTP_155;
+		IFP2IFATM(sc->ifp)->mib.pcr = ATM_RATE_155M;
 		break;
 
 	  case HE_MEDIA_MMF155:
-		sc->ifatm.mib.media = IFM_ATM_MM_155;
-		sc->ifatm.mib.pcr = ATM_RATE_155M;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_MM_155;
+		IFP2IFATM(sc->ifp)->mib.pcr = ATM_RATE_155M;
 		break;
 
 	  case HE_MEDIA_MMF622:
-		sc->ifatm.mib.media = IFM_ATM_MM_622;
-		sc->ifatm.mib.device = ATM_DEVICE_HE622;
-		sc->ifatm.mib.pcr = ATM_RATE_622M;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_MM_622;
+		IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_HE622;
+		IFP2IFATM(sc->ifp)->mib.pcr = ATM_RATE_622M;
 		sc->he622 = 1;
 		break;
 
 	  case HE_MEDIA_SMF155:
-		sc->ifatm.mib.media = IFM_ATM_SM_155;
-		sc->ifatm.mib.pcr = ATM_RATE_155M;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_SM_155;
+		IFP2IFATM(sc->ifp)->mib.pcr = ATM_RATE_155M;
 		break;
 
 	  case HE_MEDIA_SMF622:
-		sc->ifatm.mib.media = IFM_ATM_SM_622;
-		sc->ifatm.mib.device = ATM_DEVICE_HE622;
-		sc->ifatm.mib.pcr = ATM_RATE_622M;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_SM_622;
+		IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_HE622;
+		IFP2IFATM(sc->ifp)->mib.pcr = ATM_RATE_622M;
 		sc->he622 = 1;
 		break;
 	}
 
-	sc->ifatm.mib.esi[0] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 0);
-	sc->ifatm.mib.esi[1] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 1);
-	sc->ifatm.mib.esi[2] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 2);
-	sc->ifatm.mib.esi[3] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 3);
-	sc->ifatm.mib.esi[4] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 4);
-	sc->ifatm.mib.esi[5] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 5);
+	IFP2IFATM(sc->ifp)->mib.esi[0] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 0);
+	IFP2IFATM(sc->ifp)->mib.esi[1] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 1);
+	IFP2IFATM(sc->ifp)->mib.esi[2] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 2);
+	IFP2IFATM(sc->ifp)->mib.esi[3] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 3);
+	IFP2IFATM(sc->ifp)->mib.esi[4] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 4);
+	IFP2IFATM(sc->ifp)->mib.esi[5] = hatm_read_prom_byte(sc, HE_EEPROM_MAC + 5);
 }
 
 /*
@@ -781,18 +782,18 @@ hatm_init_cm(struct hatm_softc *sc)
 	numbuffs = sc->r0_numbuffs + sc->r1_numbuffs + sc->tx_numbuffs;
 
 	rsra = 0;
-	mlbm = ((rsra + sc->ifatm.mib.max_vccs * 8) + 0x7ff) & ~0x7ff;
+	mlbm = ((rsra + IFP2IFATM(sc->ifp)->mib.max_vccs * 8) + 0x7ff) & ~0x7ff;
 	rabr = ((mlbm + numbuffs * 2) + 0x7ff) & ~0x7ff;
-	sc->rsrb = ((rabr + 2048) + (2 * sc->ifatm.mib.max_vccs - 1)) &
-	    ~(2 * sc->ifatm.mib.max_vccs - 1);
+	sc->rsrb = ((rabr + 2048) + (2 * IFP2IFATM(sc->ifp)->mib.max_vccs - 1)) &
+	    ~(2 * IFP2IFATM(sc->ifp)->mib.max_vccs - 1);
 
 	tsra = 0;
-	sc->tsrb = tsra + sc->ifatm.mib.max_vccs * 8;
-	sc->tsrc = sc->tsrb + sc->ifatm.mib.max_vccs * 4;
-	sc->tsrd = sc->tsrc + sc->ifatm.mib.max_vccs * 2;
-	tabr = sc->tsrd + sc->ifatm.mib.max_vccs * 1;
-	mtpd = ((tabr + 1024) + (16 * sc->ifatm.mib.max_vccs - 1)) &
-	    ~(16 * sc->ifatm.mib.max_vccs - 1);
+	sc->tsrb = tsra + IFP2IFATM(sc->ifp)->mib.max_vccs * 8;
+	sc->tsrc = sc->tsrb + IFP2IFATM(sc->ifp)->mib.max_vccs * 4;
+	sc->tsrd = sc->tsrc + IFP2IFATM(sc->ifp)->mib.max_vccs * 2;
+	tabr = sc->tsrd + IFP2IFATM(sc->ifp)->mib.max_vccs * 1;
+	mtpd = ((tabr + 1024) + (16 * IFP2IFATM(sc->ifp)->mib.max_vccs - 1)) &
+	    ~(16 * IFP2IFATM(sc->ifp)->mib.max_vccs - 1);
 
 	DBG(sc, ATTACH, ("rsra=%x mlbm=%x rabr=%x rsrb=%x",
 	    rsra, mlbm, rabr, sc->rsrb));
@@ -1322,7 +1323,7 @@ kenv_getuint(struct hatm_softc *sc, const char *var,
 		return (EINVAL);
 	}
 	if (bootverbose)
-		if_printf(&sc->ifatm.ifnet, "%s=%u\n", full, u);
+		if_printf(sc->ifp, "%s=%u\n", full, u);
 	*ptr = u;
 	return (0);
 }
@@ -1629,7 +1630,8 @@ hatm_detach(device_t dev)
 	}
 	mtx_unlock(&sc->mtx);
 
-	atm_ifdetach(&sc->ifatm.ifnet);
+	atm_ifdetach(sc->ifp);
+	if_free(sc->ifp);
 
 	hatm_destroy(sc);
 
@@ -1650,18 +1652,25 @@ hatm_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	ifp = sc->ifp = if_alloc(IFT_ATM);
+	if (ifp == NULL) {
+		device_printf(dev, "could not if_alloc()\n");
+		error = ENOSPC;
+		goto failed;
+	}
+
 	sc->dev = dev;
-	sc->ifatm.mib.device = ATM_DEVICE_HE155;
-	sc->ifatm.mib.serial = 0;
-	sc->ifatm.mib.hw_version = 0;
-	sc->ifatm.mib.sw_version = 0;
-	sc->ifatm.mib.vpi_bits = HE_CONFIG_VPI_BITS;
-	sc->ifatm.mib.vci_bits = HE_CONFIG_VCI_BITS;
-	sc->ifatm.mib.max_vpcs = 0;
-	sc->ifatm.mib.max_vccs = HE_MAX_VCCS;
-	sc->ifatm.mib.media = IFM_ATM_UNKNOWN;
+	IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_HE155;
+	IFP2IFATM(sc->ifp)->mib.serial = 0;
+	IFP2IFATM(sc->ifp)->mib.hw_version = 0;
+	IFP2IFATM(sc->ifp)->mib.sw_version = 0;
+	IFP2IFATM(sc->ifp)->mib.vpi_bits = HE_CONFIG_VPI_BITS;
+	IFP2IFATM(sc->ifp)->mib.vci_bits = HE_CONFIG_VCI_BITS;
+	IFP2IFATM(sc->ifp)->mib.max_vpcs = 0;
+	IFP2IFATM(sc->ifp)->mib.max_vccs = HE_MAX_VCCS;
+	IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UNKNOWN;
 	sc->he622 = 0;
-	sc->ifatm.phy = &sc->utopia;
+	IFP2IFATM(sc->ifp)->phy = &sc->utopia;
 
 	SLIST_INIT(&sc->tpd_free);
 
@@ -1761,7 +1770,6 @@ hatm_attach(device_t dev)
 		goto failed;
 	}
 
-	ifp = &sc->ifatm.ifnet;
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
@@ -1922,7 +1930,7 @@ hatm_attach(device_t dev)
 	ifp->if_watchdog = NULL;
 	ifp->if_init = hatm_init;
 
-	utopia_attach(&sc->utopia, &sc->ifatm, &sc->media, &sc->mtx,
+	utopia_attach(&sc->utopia, IFP2IFATM(sc->ifp), &sc->media, &sc->mtx,
 	    &sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    &hatm_utopia_methods);
 	utopia_init_media(&sc->utopia);
@@ -1966,17 +1974,17 @@ hatm_initialize(struct hatm_softc *sc)
 	u_int cid;
 	static const u_int layout[2][7] = HE_CONFIG_MEM_LAYOUT;
 
-	if (sc->ifatm.ifnet.if_flags & IFF_RUNNING)
+	if (sc->ifp->if_flags & IFF_RUNNING)
 		return;
 
 	hatm_init_bus_width(sc);
 	hatm_init_endianess(sc);
 
-	if_printf(&sc->ifatm.ifnet, "%s, Rev. %s, S/N %u, "
+	if_printf(sc->ifp, "%s, Rev. %s, S/N %u, "
 	    "MAC=%02x:%02x:%02x:%02x:%02x:%02x (%ubit PCI)\n",
-	    sc->prod_id, sc->rev, sc->ifatm.mib.serial,
-	    sc->ifatm.mib.esi[0], sc->ifatm.mib.esi[1], sc->ifatm.mib.esi[2],
-	    sc->ifatm.mib.esi[3], sc->ifatm.mib.esi[4], sc->ifatm.mib.esi[5],
+	    sc->prod_id, sc->rev, IFP2IFATM(sc->ifp)->mib.serial,
+	    IFP2IFATM(sc->ifp)->mib.esi[0], IFP2IFATM(sc->ifp)->mib.esi[1], IFP2IFATM(sc->ifp)->mib.esi[2],
+	    IFP2IFATM(sc->ifp)->mib.esi[3], IFP2IFATM(sc->ifp)->mib.esi[4], IFP2IFATM(sc->ifp)->mib.esi[5],
 	    sc->pci64 ? 64 : 32);
 
 	/*
@@ -2119,22 +2127,22 @@ hatm_initialize(struct hatm_softc *sc)
 	if (sc->he622) {
 		WRITE4(sc, HE_REGO_RCCONFIG,
 		    (8 << HE_REGS_RCCONFIG_UTDELAY) |
-		    (sc->ifatm.mib.vpi_bits << HE_REGS_RCCONFIG_VP) |
-		    (sc->ifatm.mib.vci_bits << HE_REGS_RCCONFIG_VC));
+		    (IFP2IFATM(sc->ifp)->mib.vpi_bits << HE_REGS_RCCONFIG_VP) |
+		    (IFP2IFATM(sc->ifp)->mib.vci_bits << HE_REGS_RCCONFIG_VC));
 		WRITE4(sc, HE_REGO_TXCONFIG,
 		    (32 << HE_REGS_TXCONFIG_THRESH) |
-		    (sc->ifatm.mib.vci_bits << HE_REGS_TXCONFIG_VCI_MASK) |
+		    (IFP2IFATM(sc->ifp)->mib.vci_bits << HE_REGS_TXCONFIG_VCI_MASK) |
 		    (sc->tx_numbuffs << HE_REGS_TXCONFIG_LBFREE));
 	} else {
 		WRITE4(sc, HE_REGO_RCCONFIG,
 		    (0 << HE_REGS_RCCONFIG_UTDELAY) |
 		    HE_REGM_RCCONFIG_UT_MODE |
-		    (sc->ifatm.mib.vpi_bits << HE_REGS_RCCONFIG_VP) |
-		    (sc->ifatm.mib.vci_bits << HE_REGS_RCCONFIG_VC));
+		    (IFP2IFATM(sc->ifp)->mib.vpi_bits << HE_REGS_RCCONFIG_VP) |
+		    (IFP2IFATM(sc->ifp)->mib.vci_bits << HE_REGS_RCCONFIG_VC));
 		WRITE4(sc, HE_REGO_TXCONFIG,
 		    (32 << HE_REGS_TXCONFIG_THRESH) |
 		    HE_REGM_TXCONFIG_UTMODE |
-		    (sc->ifatm.mib.vci_bits << HE_REGS_TXCONFIG_VCI_MASK) |
+		    (IFP2IFATM(sc->ifp)->mib.vci_bits << HE_REGS_TXCONFIG_VCI_MASK) |
 		    (sc->tx_numbuffs << HE_REGS_TXCONFIG_LBFREE));
 	}
 
@@ -2236,8 +2244,8 @@ hatm_initialize(struct hatm_softc *sc)
 	v |= HE_PCIM_CTL0_INIT_ENB | HE_PCIM_CTL0_INT_PROC_ENB;
 	pci_write_config(sc->dev, HE_PCIR_GEN_CNTL_0, v, 4);
 
-	sc->ifatm.ifnet.if_flags |= IFF_RUNNING;
-	sc->ifatm.ifnet.if_baudrate = 53 * 8 * sc->ifatm.mib.pcr;
+	sc->ifp->if_flags |= IFF_RUNNING;
+	sc->ifp->if_baudrate = 53 * 8 * IFP2IFATM(sc->ifp)->mib.pcr;
 
 	sc->utopia.flags &= ~UTP_FL_POLL_CARRIER;
 
@@ -2246,7 +2254,7 @@ hatm_initialize(struct hatm_softc *sc)
 		if (sc->vccs[cid] != NULL)
 			hatm_load_vc(sc, cid, 1);
 
-	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	ATMEV_SEND_IFSTATE_CHANGED(IFP2IFATM(sc->ifp),
 	    sc->utopia.carrier == UTP_CARR_OK);
 }
 
@@ -2264,11 +2272,11 @@ hatm_stop(struct hatm_softc *sc)
 
 	mtx_assert(&sc->mtx, MA_OWNED);
 
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING))
+	if (!(sc->ifp->if_flags & IFF_RUNNING))
 		return;
-	sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING;
+	sc->ifp->if_flags &= ~IFF_RUNNING;
 
-	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	ATMEV_SEND_IFSTATE_CHANGED(IFP2IFATM(sc->ifp),
 	    sc->utopia.carrier == UTP_CARR_OK);
 
 	sc->utopia.flags |= UTP_FL_POLL_CARRIER;

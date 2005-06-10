@@ -367,7 +367,7 @@ ipatm_openpvc(pvp, sivp)
 	 * Validate fixed destination IP address
 	 */
 	if (pvp->ipp_dst.sin_addr.s_addr != INADDR_ANY) {
-		if (in_broadcast(pvp->ipp_dst.sin_addr, &nip->nif_if) ||
+		if (in_broadcast(pvp->ipp_dst.sin_addr, ANIF2IFP(nip)) ||
 		    IN_MULTICAST(ntohl(pvp->ipp_dst.sin_addr.s_addr)) ||
 		    ipatm_chknif(pvp->ipp_dst.sin_addr, inp)) {
 			err = EINVAL;
@@ -606,7 +606,7 @@ ipatm_createsvc(ifp, daf, dst, sivp)
 	caddr_t			dst;
 	struct ipvcc		**sivp;
 {
-	struct atm_nif	*nip = (struct atm_nif *)ifp;
+	struct atm_nif	*nip = IFP2ANIF(ifp);
 	struct ip_nif	*inp;
 	struct ipvcc	*ivp = NULL;	/* XXX pacify gcc-3.1 */
 	struct in_addr	*ip;

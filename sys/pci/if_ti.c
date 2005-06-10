@@ -1111,7 +1111,7 @@ ti_newbuf_std(sc, i, m)
 	TI_HOSTADDR(r->ti_addr) = vtophys(mtod(m_new, caddr_t));
 	r->ti_type = TI_BDTYPE_RECV_BD;
 	r->ti_flags = 0;
-	if (sc->arpcom.ac_if.if_hwassist)
+	if (sc->ti_ifp->if_hwassist)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
@@ -1150,7 +1150,7 @@ ti_newbuf_mini(sc, i, m)
 	TI_HOSTADDR(r->ti_addr) = vtophys(mtod(m_new, caddr_t));
 	r->ti_type = TI_BDTYPE_RECV_BD;
 	r->ti_flags = TI_BDFLAG_MINI_RING;
-	if (sc->arpcom.ac_if.if_hwassist)
+	if (sc->ti_ifp->if_hwassist)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
@@ -1209,7 +1209,7 @@ ti_newbuf_jumbo(sc, i, m)
 	TI_HOSTADDR(r->ti_addr) = vtophys(mtod(m_new, caddr_t));
 	r->ti_type = TI_BDTYPE_RECV_JUMBO_BD;
 	r->ti_flags = TI_BDFLAG_JUMBO_RING;
-	if (sc->arpcom.ac_if.if_hwassist)
+	if (sc->ti_ifp->if_hwassist)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
@@ -1348,7 +1348,7 @@ ti_newbuf_jumbo(sc, idx, m_old)
 
 	r->ti_flags = TI_BDFLAG_JUMBO_RING|TI_RCB_FLAG_USE_EXT_RX_BD;
 
-	if (sc->arpcom.ac_if.if_hwassist)
+	if (sc->ti_ifp->if_hwassist)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM|TI_BDFLAG_IP_CKSUM;
 
 	r->ti_idx = idx;
@@ -1599,7 +1599,7 @@ ti_setmulti(sc)
 	struct ti_mc_entry	*mc;
 	u_int32_t		intrs;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ti_ifp;
 
 	if (ifp->if_flags & IFF_ALLMULTI) {
 		TI_DO_CMD(TI_CMD_SET_ALLMULTI, TI_CMD_CODE_ALLMULTI_ENB, 0);
@@ -1681,10 +1681,10 @@ ti_chipinit(sc)
 	/* Initialize link to down state. */
 	sc->ti_linkstat = TI_EV_CODE_LINK_DOWN;
 
-	if (sc->arpcom.ac_if.if_capenable & IFCAP_HWCSUM)
-		sc->arpcom.ac_if.if_hwassist = TI_CSUM_FEATURES;
+	if (sc->ti_ifp->if_capenable & IFCAP_HWCSUM)
+		sc->ti_ifp->if_hwassist = TI_CSUM_FEATURES;
 	else
-		sc->arpcom.ac_if.if_hwassist = 0;
+		sc->ti_ifp->if_hwassist = 0;
 
 	/* Set endianness before we access any non-PCI registers. */
 #if BYTE_ORDER == BIG_ENDIAN
@@ -1815,7 +1815,7 @@ ti_chipinit(sc)
 	 * the firmware racks up lots of nicDmaReadRingFull
 	 * errors.  This is not compatible with hardware checksums.
 	 */
-	if (sc->arpcom.ac_if.if_hwassist == 0)
+	if (sc->ti_ifp->if_hwassist == 0)
 		TI_SETBIT(sc, TI_GCR_OPMODE, TI_OPMODE_1_DMA_ACTIVE);
 
 	/* Recommended settings from Tigon manual. */
@@ -1846,7 +1846,7 @@ ti_gibinit(sc)
 	struct ifnet		*ifp;
 	uint32_t		rdphys;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ti_ifp;
 	rdphys = sc->ti_rdata_phys;
 
 	/* Disable interrupts for now. */
@@ -1905,7 +1905,7 @@ ti_gibinit(sc)
 	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_std_ring);
 	rcb->ti_max_len = TI_FRAMELEN;
 	rcb->ti_flags = 0;
-	if (sc->arpcom.ac_if.if_hwassist)
+	if (sc->ti_ifp->if_hwassist)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
@@ -1921,7 +1921,7 @@ ti_gibinit(sc)
 	rcb->ti_max_len = PAGE_SIZE;
 	rcb->ti_flags = TI_RCB_FLAG_USE_EXT_RX_BD;
 #endif
-	if (sc->arpcom.ac_if.if_hwassist)
+	if (sc->ti_ifp->if_hwassist)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
@@ -1938,7 +1938,7 @@ ti_gibinit(sc)
 		rcb->ti_flags = TI_RCB_FLAG_RING_DISABLED;
 	else
 		rcb->ti_flags = 0;
-	if (sc->arpcom.ac_if.if_hwassist)
+	if (sc->ti_ifp->if_hwassist)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
@@ -1975,7 +1975,7 @@ ti_gibinit(sc)
 	else
 		rcb->ti_flags = TI_RCB_FLAG_HOST_RING;
 	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
-	if (sc->arpcom.ac_if.if_hwassist)
+	if (sc->ti_ifp->if_hwassist)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 	rcb->ti_max_len = TI_TX_RING_CNT;
@@ -2058,6 +2058,7 @@ ti_attach(dev)
 	struct ifnet		*ifp;
 	struct ti_softc		*sc;
 	int			unit, error = 0, rid;
+	u_char			eaddr[6];
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -2065,9 +2066,9 @@ ti_attach(dev)
 	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 	ifmedia_init(&sc->ifmedia, IFM_IMASK, ti_ifmedia_upd, ti_ifmedia_sts);
-	sc->arpcom.ac_if.if_capabilities = IFCAP_HWCSUM |
+	sc->ti_ifp->if_capabilities = IFCAP_HWCSUM |
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-	sc->arpcom.ac_if.if_capenable = sc->arpcom.ac_if.if_capabilities;
+	sc->ti_ifp->if_capenable = sc->ti_ifp->if_capabilities;
 
 	/*
 	 * Map control/status registers.
@@ -2125,7 +2126,7 @@ ti_attach(dev)
 	 * the NIC). This means the MAC address is actually preceded
 	 * by two zero bytes. We need to skip over those.
 	 */
-	if (ti_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
+	if (ti_read_eeprom(sc, eaddr,
 				TI_EE_MAC_OFFSET + 2, ETHER_ADDR_LEN)) {
 		printf("ti%d: failed to read station address\n", unit);
 		error = ENXIO;
@@ -2221,7 +2222,12 @@ ti_attach(dev)
 	sc->ti_tx_buf_ratio = 21;
 
 	/* Set up ifnet structure */
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ti_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("ti%d: can not if_alloc()\n", sc->ti_unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
@@ -2276,7 +2282,7 @@ ti_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->ti_irq, INTR_TYPE_NET,
@@ -2285,6 +2291,7 @@ ti_attach(dev)
 	if (error) {
 		printf("ti%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -2314,12 +2321,13 @@ ti_detach(dev)
 		destroy_dev(sc->dev);
 	KASSERT(mtx_initialized(&sc->ti_mtx), ("ti mutex not initialized"));
 	TI_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ti_ifp;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		ti_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		bus_generic_detach(dev);
 	}
 	ifmedia_removeall(&sc->ifmedia);
@@ -2430,7 +2438,7 @@ ti_rxeof(sc)
 
 	TI_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ti_ifp;
 
 	while (sc->ti_rx_saved_considx != sc->ti_return_prodidx.ti_idx) {
 		struct ti_rx_desc	*cur_rx;
@@ -2547,7 +2555,7 @@ ti_txeof(sc)
 	struct ti_tx_desc	*cur_tx = NULL;
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ti_ifp;
 
 	/*
 	 * Go through our tx ring and free mbufs for those
@@ -2597,7 +2605,7 @@ ti_intr(xsc)
 
 	sc = xsc;
 	TI_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ti_ifp;
 
 /*#ifdef notdef*/
 	/* Avoid this for now -- checking this register is expensive. */
@@ -2636,7 +2644,7 @@ ti_stats_update(sc)
 {
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ti_ifp;
 
 	ifp->if_collisions +=
 	   (sc->ti_rdata->ti_info.ti_stats.dot3StatsSingleCollisionFrames +
@@ -2676,7 +2684,7 @@ ti_encap(sc, m_head, txidx)
 			csum_flags |= TI_BDFLAG_IP_FRAG;
 	}
 
-	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m);
+	mtag = VLAN_OUTPUT_TAG(sc->ti_ifp, m);
 
 	/*
 	 * Start packing the mbufs in this chain into
@@ -2842,7 +2850,7 @@ static void ti_init2(sc)
 	struct ifmedia		*ifm;
 	int			tmp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ti_ifp;
 
 	/* Specify MTU and interface index. */
 	CSR_WRITE_4(sc, TI_GCR_IFINDEX, sc->ti_unit);
@@ -2851,7 +2859,7 @@ static void ti_init2(sc)
 	TI_DO_CMD(TI_CMD_UPDATE_GENCOM, 0, 0);
 
 	/* Load our MAC address. */
-	m = (u_int16_t *)&sc->arpcom.ac_enaddr[0];
+	m = (u_int16_t *)&IFP2ENADDR(sc->ti_ifp)[0];
 	CSR_WRITE_4(sc, TI_GCR_PAR0, htons(m[0]));
 	CSR_WRITE_4(sc, TI_GCR_PAR1, (htons(m[1]) << 16) | htons(m[2]));
 	TI_DO_CMD(TI_CMD_SET_MAC_ADDR, 0, 0);
@@ -3489,7 +3497,7 @@ ti_stop(sc)
 
 	TI_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ti_ifp;
 
 	/* Disable host interrupts. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 1);

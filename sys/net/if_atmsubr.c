@@ -98,6 +98,8 @@ void	(*atm_harp_event_p)(struct ifnet *, uint32_t, void *);
 
 SYSCTL_NODE(_hw, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM hardware");
 
+MALLOC_DEFINE(M_IFATM, "ifatm", "atm interface internals");
+
 #ifndef ETHERTYPE_IPV6
 #define	ETHERTYPE_IPV6	0x86dd
 #endif
@@ -359,9 +361,8 @@ atm_ifattach(struct ifnet *ifp)
 {
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
-	struct ifatm *ifatm = ifp->if_softc;
+	struct ifatm *ifatm = ifp->if_l2com;
 
-	ifp->if_type = IFT_ATM;
 	ifp->if_addrlen = 0;
 	ifp->if_hdrlen = 0;
 	if_attach(ifp);
@@ -481,11 +482,46 @@ atm_event(struct ifnet *ifp, u_int event, void *arg)
 		(*atm_harp_event_p)(ifp, event, arg);
 }
 
+static void *
+atm_alloc(u_char type, struct ifnet *ifp)
+{
+	struct ifatm	*ifatm;
+
+	ifatm = malloc(sizeof(struct ifatm), M_IFATM, M_WAITOK | M_ZERO);
+	ifatm->ifp = ifp;
+
+	return (ifatm);
+}
+
+static void
+atm_free(void *com, u_char type)
+{
+
+	free(com, M_IFATM);
+}
+
+static int
+atm_modevent(module_t mod, int type, void *data)
+{
+	switch (type) {
+	case MOD_LOAD:
+		if_register_com_alloc(IFT_ATM, atm_alloc, atm_free);
+		break;
+	case MOD_UNLOAD:
+		if_deregister_com_alloc(IFT_ATM);
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	return (0);
+}
+
 static moduledata_t atm_mod = {
         "atm",
-        NULL,
+        atm_modevent,
         0
 };
                 
-DECLARE_MODULE(atm, atm_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(atm, atm_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
 MODULE_VERSION(atm, 1);

@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
+#include <net/if_types.h>
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
@@ -384,12 +385,17 @@ USB_ATTACH(udav)
 	/* Print Ethernet Address */
 	printf("%s: Ethernet address %s\n", devname, ether_sprintf(eaddr));
 
-#if defined(__FreeBSD__)
-	bcopy(eaddr, (char *)&sc->sc_ac.ac_enaddr, ETHER_ADDR_LEN);
-#endif
-
 	/* initialize interface infomation */
+#if defined(__FreeBSD__)
+	ifp = GET_IFP(sc) = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("%s: can not if_alloc\n", devname);
+                UDAV_UNLOCK(sc);
+		goto bad;
+	}
+#else
 	ifp = GET_IFP(sc);
+#endif
 	ifp->if_softc = sc;
 	ifp->if_mtu = ETHERMTU;
 #if defined(__NetBSD__)
@@ -526,6 +532,9 @@ USB_DETACH(udav)
 	ether_ifdetach(ifp);
 #if defined(__NetBSD__)
 	if_detach(ifp);
+#endif
+#if defined(__FreeBSD__)
+	if_free(ifp);
 #endif
 
 #ifdef DIAGNOSTIC
@@ -836,7 +845,7 @@ udav_init(void *xsc)
 #if defined(__NetBSD__)
 	eaddr = LLADDR(ifp->if_sadl);
 #elif defined(__FreeBSD__)
-	eaddr = sc->sc_ac.ac_enaddr ;
+	eaddr = IFP2ENADDR(ifp);
 #endif
 	udav_csr_write(sc, UDAV_PAR, eaddr, ETHER_ADDR_LEN);
 

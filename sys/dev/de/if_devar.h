@@ -521,7 +521,8 @@ struct tulip_softc {
 	unsigned int		tulip_rxmaps_free;
 #endif
 #endif
-	struct arpcom		tulip_ac;	/* XXX should be at start */
+	struct ifnet		*tulip_ifp;
+	u_char			tulip_enaddr[6];
 	bus_space_tag_t		tulip_csrs_bst;
 	bus_space_handle_t	tulip_csrs_bsh;
 	tulip_regfile_t		tulip_csrs;
@@ -584,9 +585,6 @@ struct tulip_softc {
 	tulip_desc_t		*tulip_rxdescs;
 	tulip_desc_t		*tulip_txdescs;
 };
-#define	tulip_if	tulip_ac.ac_if
-#define	tulip_xname	tulip_if.if_xname
-#define	tulip_enaddr	tulip_ac.ac_enaddr
 
 #define	tulip_curperfstats	tulip_perfstats[TULIP_PERF_CURRENT]
 #define	tulip_probe_count	tulip_probe.probe_count

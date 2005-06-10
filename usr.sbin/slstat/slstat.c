@@ -192,31 +192,31 @@ intpr()
 			putchar('\n');
 		}
 		printf("%8lu %6ld %6u %6u %6u",
-		        V(sc_if.if_ibytes),
-			V(sc_if.if_ipackets),
+		        V(sc_ifp->if_ibytes),
+			V(sc_ifp->if_ipackets),
 			V(sc_comp.sls_compressedin),
 			V(sc_comp.sls_uncompressedin),
 			V(sc_comp.sls_errorin));
 		if (vflag)
 			printf(" %6u %6lu %6lu",
 				V(sc_comp.sls_tossed),
-				V(sc_if.if_ipackets) -
+				V(sc_ifp->if_ipackets) -
 				  V(sc_comp.sls_compressedin) -
 				  V(sc_comp.sls_uncompressedin) -
 				  V(sc_comp.sls_errorin),
-			       V(sc_if.if_ierrors));
+			       V(sc_ifp->if_ierrors));
 		printf(" | %8lu %6ld %6u %6u %6lu",
-			V(sc_if.if_obytes) / (rflag ? interval : 1),
-			V(sc_if.if_opackets),
+			V(sc_ifp->if_obytes) / (rflag ? interval : 1),
+			V(sc_ifp->if_opackets),
 			V(sc_comp.sls_compressed),
 			V(sc_comp.sls_packets) - V(sc_comp.sls_compressed),
-			V(sc_if.if_opackets) - V(sc_comp.sls_packets));
+			V(sc_ifp->if_opackets) - V(sc_comp.sls_packets));
 		if (vflag)
 			printf(" %6u %6u %6lu %6lu",
 				V(sc_comp.sls_searches),
 				V(sc_comp.sls_misses),
-				V(sc_if.if_oerrors),
-				V(sc_if.if_collisions));
+				V(sc_ifp->if_oerrors),
+				V(sc_ifp->if_collisions));
 		putchar('\n');
 		fflush(stdout);
 		line++;

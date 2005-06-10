@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -481,7 +482,7 @@ rue_setmulti(struct rue_softc *sc)
 	u_int32_t		rxcfg;
 	int			mcnt = 0;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rue_ifp;
 
 	rxcfg = rue_csr_read_2(sc, RUE_RCR);
 
@@ -664,9 +665,11 @@ USB_ATTACH(rue)
 		goto error1;
 	}
 
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rue_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("rue%d: can not if_alloc()\n", sc->rue_unit);
+		goto error1;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "rue", sc->rue_unit);
 	ifp->if_mtu = ETHERMTU;
@@ -683,7 +686,7 @@ USB_ATTACH(rue)
 	if (mii_phy_probe(self, &sc->rue_miibus,
 			  rue_ifmedia_upd, rue_ifmedia_sts)) {
 		printf("rue%d: MII without any PHY!\n", sc->rue_unit);
-		goto error1;
+		goto error2;
 	}
 
 	sc->rue_qdat.ifp = ifp;
@@ -703,6 +706,8 @@ USB_ATTACH(rue)
 	free(devinfo, M_USBDEV);
 	USB_ATTACH_SUCCESS_RETURN;
 
+    error2:
+	if_free(ifp);
     error1:
 	RUE_UNLOCK(sc);
 #if __FreeBSD_version >= 500000
@@ -721,7 +726,7 @@ rue_detach(device_ptr_t dev)
 
 	sc = device_get_softc(dev);
 	RUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rue_ifp;
 
 	sc->rue_dying = 1;
 	untimeout(rue_tick, sc, sc->rue_stat_ch);
@@ -757,7 +762,7 @@ rue_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct rue_intrpkt	*p;
 
 	RUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rue_ifp;
 
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		RUE_UNLOCK(sc);
@@ -833,7 +838,7 @@ rue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	if (sc->rue_dying)
 		return;
 	RUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rue_ifp;
 
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		RUE_UNLOCK(sc);
@@ -873,7 +878,7 @@ rue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	total_len -= ETHER_CRC_LEN;
 
 	ifp->if_ipackets++;
-	m->m_pkthdr.rcvif = (struct ifnet *)&sc->rue_qdat;
+	m->m_pkthdr.rcvif = (void *)&sc->rue_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
 
 	/* Put the packet on the special USB input queue. */
@@ -906,7 +911,7 @@ rue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 	RUE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rue_ifp;
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
@@ -951,7 +956,7 @@ rue_tick(void *xsc)
 
 	RUE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rue_ifp;
 	mii = GET_MII(sc);
 	if (mii == NULL) {
 		RUE_UNLOCK(sc);
@@ -1063,7 +1068,7 @@ Static void
 rue_init(void *xsc)
 {
 	struct rue_softc	*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->rue_ifp;
 	struct mii_data		*mii = GET_MII(sc);
 	struct ue_chain	*c;
 	usbd_status		err;
@@ -1083,7 +1088,8 @@ rue_init(void *xsc)
 	rue_reset(sc);
 
 	/* Set MAC address */
-	rue_write_mem(sc, RUE_IDR0, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	rue_write_mem(sc, RUE_IDR0, IFP2ENADDR(sc->rue_ifp),
+	    ETHER_ADDR_LEN);
 
 	/* Init TX ring. */
 	if (usb_ether_tx_list_init(sc, &sc->rue_cdata,
@@ -1308,7 +1314,7 @@ rue_stop(struct rue_softc *sc)
 
 	RUE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rue_ifp;
 	ifp->if_timer = 0;
 
 	rue_csr_write_1(sc, RUE_CR, 0x00);

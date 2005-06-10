@@ -322,7 +322,7 @@ bfe_dma_alloc(device_t dev)
 static int
 bfe_attach(device_t dev)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = NULL;
 	struct bfe_softc *sc;
 	int unit, error = 0, rid;
 
@@ -372,7 +372,12 @@ bfe_attach(device_t dev)
 	}
 
 	/* Set up ifnet structure */
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bfe_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("bfe%d: failed to if_alloc()\n", sc->bfe_unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -400,7 +405,7 @@ bfe_attach(device_t dev)
 		goto fail;
 	}
 
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, sc->bfe_enaddr);
 	callout_handle_init(&sc->bfe_stat_ch);
 
 	/*
@@ -422,8 +427,11 @@ bfe_attach(device_t dev)
 		goto fail;
 	}
 fail:
-	if(error)
+	if(error) {
 		bfe_release_resources(sc);
+		if (ifp != NULL)
+			if_free(ifp);
+	}
 	return (error);
 }
 
@@ -438,11 +446,12 @@ bfe_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->bfe_mtx), ("bfe mutex not initialized"));
 	BFE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bfe_ifp;
 
 	if (device_is_attached(dev)) {
 		bfe_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 
 	bfe_chip_reset(sc);
@@ -610,12 +619,12 @@ bfe_get_config(struct bfe_softc *sc)
 
 	bfe_read_eeprom(sc, eeprom);
 
-	sc->arpcom.ac_enaddr[0] = eeprom[79];
-	sc->arpcom.ac_enaddr[1] = eeprom[78];
-	sc->arpcom.ac_enaddr[2] = eeprom[81];
-	sc->arpcom.ac_enaddr[3] = eeprom[80];
-	sc->arpcom.ac_enaddr[4] = eeprom[83];
-	sc->arpcom.ac_enaddr[5] = eeprom[82];
+	sc->bfe_enaddr[0] = eeprom[79];
+	sc->bfe_enaddr[1] = eeprom[78];
+	sc->bfe_enaddr[2] = eeprom[81];
+	sc->bfe_enaddr[3] = eeprom[80];
+	sc->bfe_enaddr[4] = eeprom[83];
+	sc->bfe_enaddr[5] = eeprom[82];
 
 	sc->bfe_phyaddr = eeprom[90] & 0x1f;
 	sc->bfe_mdc_port = (eeprom[90] >> 14) & 0x1;
@@ -849,7 +858,7 @@ bfe_cam_write(struct bfe_softc *sc, u_char *data, int index)
 static void
 bfe_set_rx_mode(struct bfe_softc *sc)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->bfe_ifp;
 	struct ifmultiaddr  *ifma;
 	u_int32_t val;
 	int i = 0;
@@ -868,7 +877,7 @@ bfe_set_rx_mode(struct bfe_softc *sc)
 
 
 	CSR_WRITE_4(sc, BFE_CAM_CTRL, 0);
-	bfe_cam_write(sc, sc->arpcom.ac_enaddr, i++);
+	bfe_cam_write(sc, IFP2ENADDR(sc->bfe_ifp), i++);
 
 	if (ifp->if_flags & IFF_ALLMULTI)
 		val |= BFE_RXCONF_ALLMULTI;
@@ -1077,7 +1086,7 @@ bfe_txeof(struct bfe_softc *sc)
 
 	BFE_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bfe_ifp;
 
 	chipidx = CSR_READ_4(sc, BFE_DMATX_STAT) & BFE_STAT_CDMASK;
 	chipidx /= sizeof(struct bfe_desc);
@@ -1123,7 +1132,7 @@ bfe_rxeof(struct bfe_softc *sc)
 	status = CSR_READ_4(sc, BFE_DMARX_STAT);
 	current = (status & BFE_STAT_CDMASK) / sizeof(struct bfe_desc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bfe_ifp;
 
 	while(current != cons) {
 		r = &sc->bfe_rx_ring[cons];
@@ -1177,7 +1186,7 @@ bfe_intr(void *xsc)
 	struct ifnet *ifp;
 	u_int32_t istat, imask, flag;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bfe_ifp;
 
 	BFE_LOCK(sc);
 
@@ -1395,7 +1404,7 @@ static void
 bfe_init_locked(void *xsc)
 {
 	struct bfe_softc *sc = (struct bfe_softc*)xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->bfe_ifp;
 
 	BFE_LOCK_ASSERT(sc);
 
@@ -1567,7 +1576,7 @@ bfe_stop(struct bfe_softc *sc)
 
 	untimeout(bfe_tick, sc, sc->bfe_stat_ch);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->bfe_ifp;
 
 	bfe_chip_halt(sc);
 	bfe_tx_ring_free(sc);

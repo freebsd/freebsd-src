@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <machine/bus.h>
 
@@ -124,10 +125,14 @@ int
 gem_attach(sc)
 	struct gem_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp;
 	struct mii_softc *child;
 	int i, error;
 	u_int32_t v;
+
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		return (ENOSPC);
 
 	/* Make sure the chip is stopped. */
 	ifp->if_softc = sc;
@@ -137,7 +142,7 @@ gem_attach(sc)
 	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, GEM_NSEGS,
 	    BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL, &sc->sc_pdmatag);
 	if (error)
-		return (error);
+		goto fail_ifnet;
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MAXBSIZE,
@@ -301,7 +306,7 @@ gem_attach(sc)
 	bus_space_write_4(sc->sc_bustag, sc->sc_h, GEM_MIF_CONFIG,
 	    sc->sc_mif_config);
 	/* Attach the interface. */
-	ether_ifattach(ifp, sc->sc_arpcom.ac_enaddr);
+	ether_ifattach(ifp, sc->sc_enaddr);
 
 #if notyet
 	/*
@@ -346,6 +351,8 @@ fail_rtag:
 	bus_dma_tag_destroy(sc->sc_rdmatag);
 fail_ptag:
 	bus_dma_tag_destroy(sc->sc_pdmatag);
+fail_ifnet:
+	if_free(ifp);
 	return (error);
 }
 
@@ -353,10 +360,11 @@ void
 gem_detach(sc)
 	struct gem_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	gem_stop(ifp, 1);
 	device_delete_child(sc->sc_dev, sc->sc_miibus);
 
@@ -385,7 +393,7 @@ void
 gem_suspend(sc)
 	struct gem_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	gem_stop(ifp, 0);
 }
@@ -394,7 +402,7 @@ void
 gem_resume(sc)
 	struct gem_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	if (ifp->if_flags & IFF_UP)
 		gem_init(ifp);
@@ -847,7 +855,7 @@ gem_init(xsc)
 	void *xsc;
 {
 	struct gem_softc *sc = (struct gem_softc *)xsc;
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t h = sc->sc_h;
 	int s;
@@ -866,7 +874,7 @@ gem_init(xsc)
 	 */
 
 	/* step 1 & 2. Reset the Ethernet Channel */
-	gem_stop(&sc->sc_arpcom.ac_if, 0);
+	gem_stop(sc->sc_ifp, 0);
 	gem_reset(sc);
 #ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_init: restarting", device_get_name(sc->sc_dev));
@@ -1019,7 +1027,7 @@ gem_init_regs(sc)
 {
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t h = sc->sc_h;
-	const u_char *laddr = sc->sc_arpcom.ac_enaddr;
+	const u_char *laddr = IFP2ENADDR(sc->sc_ifp);
 	u_int32_t v;
 
 	/* These regs are not cleared on reset */
@@ -1198,7 +1206,7 @@ static void
 gem_tint(sc)
 	struct gem_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t mac = sc->sc_h;
 	struct gem_txsoft *txs;
@@ -1342,7 +1350,7 @@ static void
 gem_rint(sc)
 	struct gem_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t h = sc->sc_h;
 	struct gem_rxsoft *rxs;
@@ -1843,7 +1851,7 @@ static void
 gem_setladrf(sc)
 	struct gem_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ifmultiaddr *inm;
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t h = sc->sc_h;
@@ -1886,7 +1894,7 @@ gem_setladrf(sc)
 	/* Clear hash table */
 	memset(hash, 0, sizeof(hash));
 
-	TAILQ_FOREACH(inm, &sc->sc_arpcom.ac_if.if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)

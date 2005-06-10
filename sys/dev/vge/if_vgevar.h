@@ -98,7 +98,7 @@ struct vge_list_data {
 };
 
 struct vge_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*vge_ifp;	/* interface info */
 	device_t		vge_dev;
 	bus_space_handle_t	vge_bhandle;	/* bus space handle */
 	bus_space_tag_t		vge_btag;	/* bus space tag */

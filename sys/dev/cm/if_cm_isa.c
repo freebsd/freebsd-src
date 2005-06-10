@@ -103,14 +103,15 @@ static int
 cm_isa_detach(device_t dev)
 {
 	struct cm_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->sc_arccom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	int s;
 
 	cm_stop(sc);
 	ifp->if_flags &= ~IFF_RUNNING;
 
 	s = splimp();
-	arc_ifdetach(&sc->sc_arccom.ac_if);
+	arc_ifdetach(ifp);
+	if_free(ifp);
 	splx(s);
 
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);

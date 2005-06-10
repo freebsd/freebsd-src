@@ -30,8 +30,9 @@
  */
 
 struct ex_softc {
-  	struct arpcom	arpcom;		/* Ethernet common data */
+  	struct ifnet	*ifp;
 	struct ifmedia	ifmedia;
+	u_char		enaddr[6];
 
 	device_t	dev;
 	struct resource *ioport;

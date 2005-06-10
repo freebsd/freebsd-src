@@ -46,8 +46,16 @@
 .In net/if_types.h
 .\"
 .Ss "Interface Manipulation Functions"
+.Ft "struct ifnet *"
+.Fn if_alloc "u_char type"
 .Ft void
 .Fn if_attach "struct ifnet *ifp"
+.Ft void
+.Fn if_detach "struct ifnet *ifp"
+.Ft void
+.Fn if_free "struct ifnet *ifp"
+.Ft void
+.Fn if_free_type "struct ifnet *ifp" "u_char type"
 .Ft void
 .Fn if_down "struct ifnet *ifp"
 .Ft int
@@ -219,6 +227,11 @@ are as follows:
 .Pq Vt "void *"
 A pointer to the driver's private state block.
 (Initialized by driver.)
+.It Va if_l2com
+.Pq Vt "void *"
+A pointer to the common data for the interface's layer 2 protocol.
+(Initialized by
+.Fn if_alloc . )
 .It Va if_link
 .Pq Fn TAILQ_ENTRY ifnet
 .Xr queue 3
@@ -270,6 +283,8 @@ This number can be used in a
 to refer to a particular interface by index
 (see
 .Xr link_addr 3 ) .
+(Initialized by
+.Fn if_alloc . )
 .It Va if_timer
 .Pq Vt short
 Number of seconds until the watchdog timer
@@ -988,6 +1003,14 @@ A reference count of requests for this particular membership.
 .El
 .Ss Interface Manipulation Functions
 .Bl -ohang -offset indent
+.It Fn if_alloc
+Allocate and initialize an
+.Fa ifp .
+Initalization includes the allocation of an interface index and may
+include the allocation of a
+.Fa type
+specific structure in
+.Va if_l2com .
 .It Fn if_attach
 Link the specified interface
 .Fa ifp
@@ -999,6 +1022,29 @@ structure to be the first element in that list.
 (A pointer to
 this address structure is saved in the global array
 .Va ifnet_addrs . )
+The
+.Fa ifp
+must have been allocted by
+.Fn if_alloc .
+.It Fn if_detach
+Shut down and unlink the specified
+.Fa ifp
+from the interface list.
+.It Fn if_free
+Free the given
+.Fa ifp
+back to the system.
+The interface must have been previously detached if it was ever attached.
+.It Fn if_free_type
+Identical to
+.Fn if_free
+except that the given
+.Fa type
+is used to free 
+.Va if_l2com
+instead of the type in
+.Va if_type .
+This is intended for use with drivers that change their interface type.
 .It Fn if_down
 Mark the interface
 .Fa ifp

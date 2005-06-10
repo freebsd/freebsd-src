@@ -135,7 +135,7 @@ struct kue_type {
 #define KUE_INC(x, y)		(x) = (x + 1) % y
 
 struct kue_softc {
-	struct arpcom		arpcom;
+	struct ifnet		*kue_ifp;
 	device_t		kue_dev;
 	usbd_device_handle	kue_udev;
 	usbd_interface_handle	kue_iface;

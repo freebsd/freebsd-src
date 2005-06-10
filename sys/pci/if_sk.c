@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -790,7 +791,7 @@ sk_setmulti(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_softc		*sc = sc_if->sk_softc;
-	struct ifnet		*ifp = &sc_if->arpcom.ac_if;
+	struct ifnet		*ifp = sc_if->sk_ifp;
 	u_int32_t		hashes[2] = { 0, 0 };
 	int			h = 0, i;
 	struct ifmultiaddr	*ifma;
@@ -881,7 +882,7 @@ sk_setpromisc(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_softc		*sc = sc_if->sk_softc;
-	struct ifnet		*ifp = &sc_if->arpcom.ac_if;
+	struct ifnet		*ifp = sc_if->sk_ifp;
 
 	switch(sc->sk_type) {
 	case SK_GENESIS:
@@ -1400,6 +1401,7 @@ sk_attach(dev)
 	struct sk_if_softc	*sc_if;
 	struct ifnet		*ifp;
 	int			i, port, error;
+	u_char			eaddr[6];
 
 	if (dev == NULL)
 		return(EINVAL);
@@ -1437,7 +1439,12 @@ sk_attach(dev)
 		goto fail;
 	}
 
-	ifp = &sc_if->arpcom.ac_if;
+	ifp = sc_if->sk_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("sk%d: can not if_alloc()\n", sc_if->sk_unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc_if;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -1464,7 +1471,7 @@ sk_attach(dev)
 	 */
 	SK_LOCK(sc);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc_if->arpcom.ac_enaddr[i] =
+		eaddr[i] =
 		    sk_win_read_1(sc, SK_MAC0_0 + (port * 8) + i);
 
 	/*
@@ -1517,6 +1524,7 @@ sk_attach(dev)
 		    sc->sk_unit, sc_if->sk_phytype);
 		error = ENODEV;
 		SK_UNLOCK(sc);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -1525,7 +1533,7 @@ sk_attach(dev)
 	 * Call MI attach routine.  Can't hold locks when calling into ether_*.
 	 */
 	SK_UNLOCK(sc);
-	ether_ifattach(ifp, sc_if->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 	SK_LOCK(sc);
 
 	/*
@@ -1547,6 +1555,7 @@ sk_attach(dev)
 	    sk_ifmedia_upd, sk_ifmedia_sts)) {
 		printf("skc%d: no PHY found!\n", sc_if->sk_unit);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1892,13 +1901,14 @@ sk_detach(dev)
 	    ("sk mutex not initialized in sk_detach"));
 	SK_IF_LOCK(sc_if);
 
-	ifp = &sc_if->arpcom.ac_if;
+	ifp = sc_if->sk_ifp;
 	/* These should only be active if attach_xmac succeeded */
 	if (device_is_attached(dev)) {
 		sk_stop(sc_if);
 		/* Can't hold locks while calling detach */
 		SK_IF_UNLOCK(sc_if);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		SK_IF_LOCK(sc_if);
 	}
 	/*
@@ -2115,7 +2125,7 @@ sk_rxeof(sc_if)
 	u_int32_t		rxstat;
 
 	sc = sc_if->sk_softc;
-	ifp = &sc_if->arpcom.ac_if;
+	ifp = sc_if->sk_ifp;
 	i = sc_if->sk_cdata.sk_rx_prod;
 	cur_rx = &sc_if->sk_cdata.sk_rx_chain[i];
 
@@ -2182,7 +2192,7 @@ sk_txeof(sc_if)
 	u_int32_t		idx;
 
 	sc = sc_if->sk_softc;
-	ifp = &sc_if->arpcom.ac_if;
+	ifp = sc_if->sk_ifp;
 
 	/*
 	 * Go through our tx ring and free mbufs for those
@@ -2225,7 +2235,7 @@ sk_tick(xsc_if)
 
 	sc_if = xsc_if;
 	SK_IF_LOCK(sc_if);
-	ifp = &sc_if->arpcom.ac_if;
+	ifp = sc_if->sk_ifp;
 	mii = device_get_softc(sc_if->sk_miibus);
 
 	if (!(ifp->if_flags & IFF_UP)) {
@@ -2275,7 +2285,7 @@ sk_intr_bcom(sc_if)
 	struct ifnet		*ifp;
 	int			status;
 	mii = device_get_softc(sc_if->sk_miibus);
-	ifp = &sc_if->arpcom.ac_if;
+	ifp = sc_if->sk_ifp;
 
 	SK_XM_CLRBIT_2(sc_if, XM_MMUCMD, XM_MMUCMD_TX_ENB|XM_MMUCMD_RX_ENB);
 
@@ -2383,9 +2393,9 @@ sk_intr(xsc)
 	sc_if1 = sc->sk_if[SK_PORT_B];
 
 	if (sc_if0 != NULL)
-		ifp0 = &sc_if0->arpcom.ac_if;
+		ifp0 = sc_if0->sk_ifp;
 	if (sc_if1 != NULL)
-		ifp1 = &sc_if1->arpcom.ac_if;
+		ifp1 = sc_if1->sk_ifp;
 
 	for (;;) {
 		status = CSR_READ_4(sc, SK_ISSR);
@@ -2466,7 +2476,7 @@ sk_init_xmac(sc_if)
 	{ 0, 0 } };
 
 	sc = sc_if->sk_softc;
-	ifp = &sc_if->arpcom.ac_if;
+	ifp = sc_if->sk_ifp;
 
 	/* Unreset the XMAC. */
 	SK_IF_WRITE_2(sc_if, 0, SK_TXF1_MACCTL, SK_TXMACCTL_XMAC_UNRESET);
@@ -2522,11 +2532,11 @@ sk_init_xmac(sc_if)
 
 	/* Set station address */
 	SK_XM_WRITE_2(sc_if, XM_PAR0,
-	    *(u_int16_t *)(&sc_if->arpcom.ac_enaddr[0]));
+	    *(u_int16_t *)(&IFP2ENADDR(sc_if->sk_ifp)[0]));
 	SK_XM_WRITE_2(sc_if, XM_PAR1,
-	    *(u_int16_t *)(&sc_if->arpcom.ac_enaddr[2]));
+	    *(u_int16_t *)(&IFP2ENADDR(sc_if->sk_ifp)[2]));
 	SK_XM_WRITE_2(sc_if, XM_PAR2,
-	    *(u_int16_t *)(&sc_if->arpcom.ac_enaddr[4]));
+	    *(u_int16_t *)(&IFP2ENADDR(sc_if->sk_ifp)[4]));
 	SK_XM_SETBIT_4(sc_if, XM_MODE, XM_MODE_RX_USE_STATION);
 
 	if (ifp->if_flags & IFF_BROADCAST) {
@@ -2629,7 +2639,7 @@ sk_init_yukon(sc_if)
 	int			i;
 
 	sc = sc_if->sk_softc;
-	ifp = &sc_if->arpcom.ac_if;
+	ifp = sc_if->sk_ifp;
 
 	if (sc->sk_type == SK_YUKON_LITE &&
 	    sc->sk_rev == SK_YUKON_LITE_REV_A3) {
@@ -2697,8 +2707,8 @@ sk_init_yukon(sc_if)
 	for (i = 0; i < 3; i++) {
 		/* Write Source Address 1 (unicast filter) */
 		SK_YU_WRITE_2(sc_if, YUKON_SAL1 + i * 4, 
-			      sc_if->arpcom.ac_enaddr[i * 2] |
-			      sc_if->arpcom.ac_enaddr[i * 2 + 1] << 8);
+			      IFP2ENADDR(sc_if->sk_ifp)[i * 2] |
+			      IFP2ENADDR(sc_if->sk_ifp)[i * 2 + 1] << 8);
 	}
 
 	for (i = 0; i < 3; i++) {
@@ -2744,7 +2754,7 @@ sk_init(xsc)
 
 	SK_IF_LOCK(sc_if);
 
-	ifp = &sc_if->arpcom.ac_if;
+	ifp = sc_if->sk_ifp;
 	sc = sc_if->sk_softc;
 	mii = device_get_softc(sc_if->sk_miibus);
 
@@ -2895,7 +2905,7 @@ sk_stop(sc_if)
 
 	SK_IF_LOCK(sc_if);
 	sc = sc_if->sk_softc;
-	ifp = &sc_if->arpcom.ac_if;
+	ifp = sc_if->sk_ifp;
 
 	untimeout(sk_tick, sc_if, sc_if->sk_tick_ch);
 

@@ -142,7 +142,7 @@ struct cue_type {
 #define CUE_INC(x, y)		(x) = (x + 1) % y
 
 struct cue_softc {
-	struct arpcom		arpcom;
+	struct ifnet		*cue_ifp;
 	device_t		cue_dev;
 	usbd_device_handle	cue_udev;
 	usbd_interface_handle	cue_iface;

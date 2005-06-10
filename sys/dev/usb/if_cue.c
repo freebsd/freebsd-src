@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -340,7 +341,7 @@ cue_setmulti(struct cue_softc *sc)
 	struct ifmultiaddr	*ifma;
 	u_int32_t		h = 0, i;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->cue_ifp;
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		for (i = 0; i < CUE_MCAST_TABLE_LEN; i++)
@@ -499,9 +500,11 @@ USB_ATTACH(cue)
 	 */
 	cue_getmac(sc, &eaddr);
 
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->cue_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("cue%d: can not if_alloc()\n", sc->cue_unit);
+		USB_ATTACH_ERROR_RETURN;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "cue", sc->cue_unit);
 	ifp->if_mtu = ETHERMTU;
@@ -541,7 +544,7 @@ cue_detach(device_ptr_t dev)
 
 	sc = device_get_softc(dev);
 	CUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->cue_ifp;
 
 	sc->cue_dying = 1;
 	untimeout(cue_tick, sc, sc->cue_stat_ch);
@@ -549,6 +552,7 @@ cue_detach(device_ptr_t dev)
 	ether_ifdetach(ifp);
 #else
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	if_free(ifp);
 #endif
 
 	if (sc->cue_ep[CUE_ENDPT_TX] != NULL)
@@ -612,7 +616,7 @@ cue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	c = priv;
 	sc = c->ue_sc;
 	CUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->cue_ifp;
 
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		CUE_UNLOCK(sc);
@@ -647,7 +651,7 @@ cue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 	ifp->if_ipackets++;
 	m_adj(m, sizeof(u_int16_t));
-	m->m_pkthdr.rcvif = (struct ifnet *)&sc->cue_qdat;
+	m->m_pkthdr.rcvif = (void *)&sc->cue_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
 
 	/* Put the packet on the special USB input queue. */
@@ -682,7 +686,7 @@ cue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	c = priv;
 	sc = c->ue_sc;
 	CUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->cue_ifp;
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
@@ -730,7 +734,7 @@ cue_tick(void *xsc)
 
 	CUE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->cue_ifp;
 
 	ifp->if_collisions += cue_csr_read_2(sc, CUE_TX_SINGLECOLL);
 	ifp->if_collisions += cue_csr_read_2(sc, CUE_TX_MULTICOLL);
@@ -831,7 +835,7 @@ Static void
 cue_init(void *xsc)
 {
 	struct cue_softc	*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->cue_ifp;
 	struct ue_chain	*c;
 	usbd_status		err;
 	int			i;
@@ -850,7 +854,7 @@ cue_init(void *xsc)
 
 	/* Set MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		cue_csr_write_1(sc, CUE_PAR0 - i, sc->arpcom.ac_enaddr[i]);
+		cue_csr_write_1(sc, CUE_PAR0 - i, IFP2ENADDR(sc->cue_ifp)[i]);
 
 	/* Enable RX logic. */
 	cue_csr_write_1(sc, CUE_ETHCTL, CUE_ETHCTL_RX_ON|CUE_ETHCTL_MCAST_ON);
@@ -1013,7 +1017,7 @@ cue_stop(struct cue_softc *sc)
 
 	CUE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->cue_ifp;
 	ifp->if_timer = 0;
 
 	cue_csr_write_1(sc, CUE_ETHCTL, 0);

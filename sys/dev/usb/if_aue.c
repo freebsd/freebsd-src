@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -524,7 +525,7 @@ aue_setmulti(struct aue_softc *sc)
 	struct ifmultiaddr	*ifma;
 	u_int32_t		h = 0, i;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->aue_ifp;
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		AUE_SETBIT(sc, AUE_CTL0, AUE_CTL0_ALLMULTI);
@@ -709,9 +710,11 @@ USB_ATTACH(aue)
 	 */
 	aue_read_eeprom(sc, (caddr_t)&eaddr, 0, 3, 0);
 
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->aue_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("aue%d: can not if_alloc()\n", sc->aue_unit);
+		USB_ATTACH_ERROR_RETURN;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "aue", sc->aue_unit);
 	ifp->if_mtu = ETHERMTU;
@@ -774,7 +777,7 @@ aue_detach(device_ptr_t dev)
 
 	sc = device_get_softc(dev);
 	AUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->aue_ifp;
 
 	sc->aue_dying = 1;
 	untimeout(aue_tick, sc, sc->aue_stat_ch);
@@ -782,6 +785,7 @@ aue_detach(device_ptr_t dev)
 	ether_ifdetach(ifp);
 #else
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	if_free(ifp);
 #endif
 
 	if (sc->aue_ep[AUE_ENDPT_TX] != NULL)
@@ -810,7 +814,7 @@ aue_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct aue_intrpkt	*p;
 
 	AUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->aue_ifp;
 
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		AUE_UNLOCK(sc);
@@ -889,7 +893,7 @@ aue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	if (sc->aue_dying)
 		return;
 	AUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->aue_ifp;
 
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		AUE_UNLOCK(sc);
@@ -931,7 +935,7 @@ aue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	total_len -= (4 + ETHER_CRC_LEN);
 
 	ifp->if_ipackets++;
-	m->m_pkthdr.rcvif = (struct ifnet *)&sc->aue_qdat;
+	m->m_pkthdr.rcvif = (void *)&sc->aue_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
 
 	/* Put the packet on the special USB input queue. */
@@ -964,7 +968,7 @@ aue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	usbd_status		err;
 
 	AUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->aue_ifp;
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
@@ -1011,7 +1015,7 @@ aue_tick(void *xsc)
 
 	AUE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->aue_ifp;
 	mii = GET_MII(sc);
 	if (mii == NULL) {
 		AUE_UNLOCK(sc);
@@ -1128,7 +1132,7 @@ Static void
 aue_init(void *xsc)
 {
 	struct aue_softc	*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->aue_ifp;
 	struct mii_data		*mii = GET_MII(sc);
 	struct ue_chain	*c;
 	usbd_status		err;
@@ -1148,7 +1152,7 @@ aue_init(void *xsc)
 
 	/* Set MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		aue_csr_write_1(sc, AUE_PAR0 + i, sc->arpcom.ac_enaddr[i]);
+		aue_csr_write_1(sc, AUE_PAR0 + i, IFP2ENADDR(sc->aue_ifp)[i]);
 
 	 /* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1355,7 +1359,7 @@ aue_stop(struct aue_softc *sc)
 	struct ifnet		*ifp;
 
 	AUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->aue_ifp;
 	ifp->if_timer = 0;
 
 	aue_csr_write_1(sc, AUE_CTL0, 0);

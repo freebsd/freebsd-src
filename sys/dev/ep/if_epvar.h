@@ -33,7 +33,7 @@ struct ep_board {
  * Ethernet software status per interface.
  */
 struct ep_softc {
-	struct arpcom arpcom;	/* Ethernet common part	 */
+	struct ifnet *ifp;
 	struct ifmedia ifmedia;	/* media info		 */
 
 	device_t dev;

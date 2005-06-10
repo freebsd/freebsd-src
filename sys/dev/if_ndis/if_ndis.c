@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/route.h>
 
 #include <net/bpf.h>
@@ -232,7 +233,7 @@ ndis_setmulti(sc)
 	int			len, mclistsz, error;
 	uint8_t			*mclist;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (!NDIS_INITIALIZED(sc))
 		return;
@@ -307,7 +308,7 @@ ndis_set_offload(sc)
 	struct ifnet		*ifp;
 	int			len, error;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (!NDIS_INITIALIZED(sc))
 		return(EINVAL);
@@ -369,7 +370,7 @@ ndis_probe_offload(sc)
 	struct ifnet		*ifp;
 	int			len, error, dummy;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	len = sizeof(dummy);
 	error = ndis_get_info(sc, OID_TCP_TASK_OFFLOAD, &dummy, &len);
@@ -557,8 +558,6 @@ ndis_attach(dev)
 	len = sizeof(eaddr);
 	ndis_get_info(sc, OID_802_3_CURRENT_ADDRESS, &eaddr, &len);
 
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-
 	/*
 	 * Figure out if we're allowed to use multipacket sends
 	 * with this driver, and if so, how many.
@@ -613,7 +612,11 @@ ndis_attach(dev)
 	/* Check for task offload support. */
 	ndis_probe_offload(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -867,7 +870,7 @@ ndis_detach(dev)
 	KASSERT(mtx_initialized(&sc->ndis_mtx),
 	    ("ndis mutex not initialized"));
 	NDIS_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 	ifp->if_flags &= ~IFF_UP;
 
 	if (device_is_attached(dev)) {
@@ -879,6 +882,8 @@ ndis_detach(dev)
 			ether_ifdetach(ifp);
 	} else
 		NDIS_UNLOCK(sc);
+	if (ifp != NULL)
+		if_free(ifp);
 
 	bus_generic_detach(dev);
 
@@ -945,7 +950,7 @@ ndis_suspend(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 #ifdef notdef
 	if (NDIS_INITIALIZED(sc))
@@ -963,7 +968,7 @@ ndis_resume(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (NDIS_INITIALIZED(sc))
         	ndis_init(sc);
@@ -1087,7 +1092,7 @@ ndis_rxeof_xfr(dpc, adapter, sysarg1, sysarg2)
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	KeAcquireSpinLockAtDpcLevel(&block->nmb_lock);
 
@@ -1152,7 +1157,7 @@ ndis_rxeof_xfr_done(adapter, packet, status, len)
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	m = packet->np_m0;
 	IoFreeMdl(packet->np_private.npp_head);
@@ -1205,7 +1210,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	for (i = 0; i < pktcnt; i++) {
 		p = packets[i];
@@ -1283,7 +1288,7 @@ ndis_txeof(adapter, packet, status)
 
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	m = packet->np_m0;
 	idx = packet->np_txidx;
@@ -1339,7 +1344,7 @@ ndis_linksts_done(adapter)
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (!NDIS_INITIALIZED(sc))
 		return;
@@ -1372,7 +1377,7 @@ ndis_intr(arg)
 	ndis_miniport_interrupt	*intr;
 
 	sc = arg;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 	intr = sc->ndis_block->nmb_interrupt;
 
 	if (intr == NULL || sc->ndis_block->nmb_miniportadapterctx == NULL)
@@ -1450,8 +1455,8 @@ ndis_ticktask(w, xsc)
 			ndis_getstate_80211(sc);
 		NDIS_LOCK(sc);
 #ifdef LINK_STATE_UP
-		sc->arpcom.ac_if.if_link_state = LINK_STATE_UP;
-		rt_ifmsg(&(sc->arpcom.ac_if));
+		sc->ifp->if_link_state = LINK_STATE_UP;
+		rt_ifmsg(sc->ifp);
 #endif /* LINK_STATE_UP */
 	}
 
@@ -1459,8 +1464,8 @@ ndis_ticktask(w, xsc)
 		device_printf(sc->ndis_dev, "link down\n");
 		sc->ndis_link = 0;
 #ifdef LINK_STATE_DOWN
-		sc->arpcom.ac_if.if_link_state = LINK_STATE_DOWN;
-		rt_ifmsg(&(sc->arpcom.ac_if));
+		sc->ifp->if_link_state = LINK_STATE_DOWN;
+		rt_ifmsg(sc->ifp);
 #endif /* LINK_STATE_DOWN */
 	}
 
@@ -1665,7 +1670,7 @@ ndis_init(xsc)
 	void			*xsc;
 {
 	struct ndis_softc	*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->ifp;
 	int			i, error;
 
 	/*
@@ -1824,7 +1829,7 @@ ndis_setstate_80211(sc)
 	struct ifnet		*ifp;
 
 	ic = &sc->ic;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (!NDIS_INITIALIZED(sc))
 		return;
@@ -2125,7 +2130,7 @@ ndis_getstate_80211(sc)
 	struct ifnet		*ifp;
 
 	ic = &sc->ic;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (!NDIS_INITIALIZED(sc))
 		return;
@@ -2986,7 +2991,7 @@ ndis_stop(sc)
 {
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 	untimeout(ndis_tick, sc, sc->ndis_stat_ch);
 
 	NDIS_LOCK(sc);

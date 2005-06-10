@@ -233,7 +233,7 @@ static int
 oltr_pci_detach(device_t dev)
 {
 	struct oltr_softc	*sc = device_get_softc(dev);
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->ifp;
 	int s, i;
 
 	device_printf(dev, "driver unloading\n");
@@ -241,6 +241,7 @@ oltr_pci_detach(device_t dev)
 	s = splimp();
 
 	iso88025_ifdetach(ifp, ISO88025_BPF_SUPPORTED);
+	if_free(ifp);
 	if (sc->state > OL_CLOSED)
 		oltr_stop(sc);
 

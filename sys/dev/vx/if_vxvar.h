@@ -35,7 +35,7 @@
  * Ethernet software status per interface.
  */
 struct vx_softc {
-	struct arpcom arpcom;		/* Ethernet common part		 */
+	struct ifnet *ifp;
 	int unit;			/* unit number                   */
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;

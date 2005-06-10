@@ -68,7 +68,7 @@ struct oltr_tx_buf {
 #define TX_BUFFER_LEN		2048
 
 struct oltr_softc {
-	struct arpcom		arpcom;
+	struct ifnet		*ifp;
 	struct ifmedia		ifmedia;
 	bus_space_handle_t	oltr_bhandle;
 	bus_space_tag_t		oltr_btag;

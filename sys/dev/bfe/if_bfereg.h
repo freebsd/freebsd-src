@@ -491,7 +491,7 @@ struct bfe_hw_stats {
 
 struct bfe_softc
 {
-    struct arpcom           arpcom;     /* interface info */
+    struct ifnet            *bfe_ifp;     /* interface info */
     device_t                bfe_dev;
     device_t                bfe_miibus;
     bus_space_handle_t      bfe_bhandle;
@@ -522,6 +522,7 @@ struct bfe_softc
     u_int8_t                bfe_unit;   /* interface number */
     u_int8_t                bfe_core_unit;
     u_int8_t                bfe_up;
+    u_char                  bfe_enaddr[6];
     int                     bfe_if_flags;
     char                    *bfe_vpd_prodname;
     char                    *bfe_vpd_readonly;

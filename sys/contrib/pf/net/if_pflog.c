@@ -127,7 +127,7 @@ extern int ifqmaxlen;
 #ifdef __FreeBSD__
 static MALLOC_DEFINE(M_PFLOG, PFLOGNAME, "Packet Filter Logging Interface");
 static LIST_HEAD(pflog_list, pflog_softc) pflog_list;
-#define	SCP2IFP(sc)		(&(sc)->sc_if)
+#define	SCP2IFP(sc)		((sc)->sc_ifp)
 IFC_SIMPLE_DECLARE(pflog, 1);
 
 static void
@@ -144,6 +144,7 @@ pflog_clone_destroy(struct ifnet *ifp)
 
 	bpfdetach(ifp);
 	if_detach(ifp);
+	if_free(ifp);
 	LIST_REMOVE(sc, sc_next);
 	free(sc, M_PFLOG);
 }
@@ -155,14 +156,17 @@ pflog_clone_create(struct if_clone *ifc, int unit)
 	struct ifnet *ifp;
 
 	MALLOC(sc, struct pflog_softc *, sizeof(*sc), M_PFLOG, M_WAITOK|M_ZERO);
+	ifp = sc->sc_ifp = if_alloc(IFT_PFLOG);
+	if (ifp == NULL) {
+		free(sc, M_PFLOG);
+		return (ENOSPC);
+	}
 
-	ifp = SCP2IFP(sc);
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_mtu = PFLOGMTU;
 	ifp->if_ioctl = pflogioctl;
 	ifp->if_output = pflogoutput;
 	ifp->if_start = pflogstart;
-	ifp->if_type = IFT_PFLOG;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_hdrlen = PFLOG_HDRLEN;
 	ifp->if_softc = sc;

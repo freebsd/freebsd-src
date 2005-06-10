@@ -79,6 +79,7 @@
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -154,7 +155,7 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 	int *media, nmedia, defmedia;
 	u_int8_t *myea;
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp;
 	int i;
 
 #ifdef SNCDEBUG
@@ -162,6 +163,10 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 		camdump(sc);
 	}
 #endif
+
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		panic("%s: can not if_alloc()\n", device_get_nameunit(dev));
 
 #ifdef SNCDEBUG
 	device_printf(sc->sc_dev,
@@ -181,7 +186,6 @@ sncconfig(sc, media, nmedia, defmedia, myea)
         ifp->if_init = sncinit;
         ifp->if_mtu = ETHERMTU;
         ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-	bcopy(myea, sc->sc_ethercom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/* Initialize media goo. */
 	ifmedia_init(&sc->sc_media, 0, snc_mediachange,
@@ -394,7 +398,7 @@ sncinit(xsc)
 	u_long	s_rcr;
 	int	s;
 
-	if (sc->sc_if.if_flags & IFF_RUNNING)
+	if (sc->sc_ifp->if_flags & IFF_RUNNING)
 		/* already running */
 		return;
 
@@ -408,9 +412,9 @@ sncinit(xsc)
 	NIC_PUT(sc, SNCR_DCR2, sc->sncr_dcr2);
 
 	s_rcr = RCR_BRD | RCR_LBNONE;
-	if (sc->sc_if.if_flags & IFF_PROMISC)
+	if (sc->sc_ifp->if_flags & IFF_PROMISC)
 		s_rcr |= RCR_PRO;
-	if (sc->sc_if.if_flags & IFF_ALLMULTI)
+	if (sc->sc_ifp->if_flags & IFF_ALLMULTI)
 		s_rcr |= RCR_AMC;
 	NIC_PUT(sc, SNCR_RCR, s_rcr);
 
@@ -446,8 +450,8 @@ sncinit(xsc)
 	wbflush();
 
 	/* flag interface as "running" */
-	sc->sc_if.if_flags |= IFF_RUNNING;
-	sc->sc_if.if_flags &= ~IFF_OACTIVE;
+	sc->sc_ifp->if_flags |= IFF_RUNNING;
+	sc->sc_ifp->if_flags &= ~IFF_OACTIVE;
 
 	splx(s);
 	return;
@@ -479,8 +483,8 @@ sncstop(sc)
 		if (++sc->mtd_hw == NTDA) sc->mtd_hw = 0;
 	}
 
-	sc->sc_if.if_timer = 0;
-	sc->sc_if.if_flags &= ~(IFF_RUNNING | IFF_UP);
+	sc->sc_ifp->if_timer = 0;
+	sc->sc_ifp->if_flags &= ~(IFF_RUNNING | IFF_UP);
 
 	splx(s);
 	return (0);
@@ -596,7 +600,7 @@ sonicput(sc, m0, mtd_next)
 	wbflush();
 	NIC_PUT(sc, SNCR_CR, CR_TXP);
 	wbflush();
-	sc->sc_if.if_timer = 5;	/* 5 seconds to watch for failing to transmit */
+	sc->sc_ifp->if_timer = 5;	/* 5 seconds to watch for failing to transmit */
 
 	return (totlen);
 }
@@ -660,10 +664,10 @@ camprogram(sc)
 
 	caminitialise(sc);
 
-	ifp = &sc->sc_if;
+	ifp = sc->sc_ifp;
 
 	/* Always load our own address first. */
-	camentry (sc, mcount, sc->sc_ethercom.ac_enaddr);
+	camentry (sc, mcount, IFP2ENADDR(sc->sc_ifp));
 	mcount++;
 
 	/* Assume we won't need allmulti bit. */
@@ -879,7 +883,7 @@ sncintr(arg)
 				sc->sc_mptally++;
 #endif
 		}
-		sncstart(&sc->sc_if);
+		sncstart(sc->sc_ifp);
 
 #if NRND > 0
 		if (isr)
@@ -900,7 +904,7 @@ sonictxint(sc)
 	u_int32_t	txp;
 	unsigned short	txp_status;
 	int		mtd_hw;
-	struct ifnet	*ifp = &sc->sc_if;
+	struct ifnet	*ifp = sc->sc_ifp;
 
 	mtd_hw = sc->mtd_hw;
 
@@ -997,11 +1001,11 @@ sonicrxint(sc)
 			u_int32_t pkt =
 			    sc->rbuf[orra & RBAMASK] + (rxpkt_ptr & PGOFSET);
 			if (sonic_read(sc, pkt, len))
-				sc->sc_if.if_ipackets++;
+				sc->sc_ifp->if_ipackets++;
 			else
-				sc->sc_if.if_ierrors++;
+				sc->sc_ifp->if_ierrors++;
 		} else
-			sc->sc_if.if_ierrors++;
+			sc->sc_ifp->if_ierrors++;
 
 		/*
 		 * give receive buffer area back to chip.
@@ -1069,7 +1073,7 @@ sonic_read(sc, pkt, len)
 	u_int32_t pkt;
 	int len;
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ether_header *et;
 	struct mbuf *m;
 
@@ -1124,7 +1128,7 @@ sonic_get(sc, pkt, datalen)
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == 0)
 		return (0);
-	m->m_pkthdr.rcvif = &sc->sc_if;
+	m->m_pkthdr.rcvif = sc->sc_ifp;
 	m->m_pkthdr.len = datalen;
 	len = MHLEN;
 	top = 0;

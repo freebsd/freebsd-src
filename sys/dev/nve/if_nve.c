@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/if_vlan_var.h>
 
@@ -487,10 +488,9 @@ nve_attach(device_t dev)
 		eaddr[i] = sc->original_mac_addr[5 - i];
 	}
 	sc->hwapi->pfnSetNodeAddress(sc->hwapi->pADCX, eaddr);
-	bcopy(eaddr, (char *)&sc->sc_macaddr, ETHER_ADDR_LEN);
 
 	/* Display ethernet address ,... */
-	device_printf(dev, "Ethernet address %6D\n", sc->sc_macaddr, ":");
+	device_printf(dev, "Ethernet address %6D\n", eaddr, ":");
 
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: do mii_phy_probe\n");
 
@@ -501,7 +501,12 @@ nve_attach(device_t dev)
 		goto fail;
 	}
 	/* Setup interface parameters */
-	ifp = &sc->sc_if;
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "nve", unit);
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -517,7 +522,7 @@ nve_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	/* Attach to OS's managers. */
-	ether_ifattach(ifp, sc->sc_macaddr);
+	ether_ifattach(ifp, eaddr);
 	callout_handle_init(&sc->stat_ch);
 
 	/* Activate our interrupt handler. - attach last to avoid lock */
@@ -548,11 +553,12 @@ nve_detach(device_t dev)
 
 	DEBUGOUT(NVE_DEBUG_DEINIT, "nve: nve_detach - entry\n");
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (device_is_attached(dev)) {
 		nve_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 
 	if (sc->miibus)
@@ -610,7 +616,7 @@ nve_init(void *xsc)
 	NVE_LOCK(sc);
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: nve_init - entry (%d)\n", sc->linkup);
 
-	ifp = &sc->sc_if;
+	ifp = sc->ifp;
 
 	/* Do nothing if already running */
 	if (ifp->if_flags & IFF_RUNNING)
@@ -633,7 +639,7 @@ nve_init(void *xsc)
 		goto fail;
 	}
 	/* Set the MAC address */
-	sc->hwapi->pfnSetNodeAddress(sc->hwapi->pADCX, sc->sc_macaddr);
+	sc->hwapi->pfnSetNodeAddress(sc->hwapi->pADCX, IFP2ENADDR(sc->ifp));
 	sc->hwapi->pfnEnableInterrupts(sc->hwapi->pADCX);
 	sc->hwapi->pfnStart(sc->hwapi->pADCX);
 
@@ -665,7 +671,7 @@ nve_stop(struct nve_softc *sc)
 
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_stop - entry\n");
 
-	ifp = &sc->sc_if;
+	ifp = sc->ifp;
 	ifp->if_timer = 0;
 
 	/* Cancel tick timer */
@@ -1010,7 +1016,7 @@ static void
 nve_intr(void *arg)
 {
 	struct nve_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 
 	DEBUGOUT(NVE_DEBUG_INTERRUPT, "nve: nve_intr - entry\n");
 
@@ -1028,7 +1034,7 @@ nve_intr(void *arg)
 
 	/* If no pending packets we don't need a timeout */
 	if (sc->pending_txs == 0)
-		sc->sc_if.if_timer = 0;
+		sc->ifp->if_timer = 0;
 
 	DEBUGOUT(NVE_DEBUG_INTERRUPT, "nve: nve_intr - exit\n");
 
@@ -1049,7 +1055,7 @@ nve_setmulti(struct nve_softc *sc)
 
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_setmulti - entry\n");
 
-	ifp = &sc->sc_if;
+	ifp = sc->ifp;
 
 	/* Initialize filter */
 	hwfilter.ulFilterFlags = 0;
@@ -1146,7 +1152,7 @@ nve_tick(void *xsc)
 
 	NVE_LOCK(sc);
 
-	ifp = &sc->sc_if;
+	ifp = sc->ifp;
 	nve_update_stats(sc);
 
 	mii = device_get_softc(sc->miibus);
@@ -1168,7 +1174,7 @@ nve_tick(void *xsc)
 static void
 nve_update_stats(struct nve_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->ifp;
 	ADAPTER_STATS stats;
 
 	NVE_LOCK(sc);
@@ -1466,7 +1472,7 @@ nve_ospackettx(PNV_VOID ctx, PNV_VOID id, NV_UINT32 success)
 
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_ospackettx\n");
 
-	ifp = &sc->sc_if;
+	ifp = sc->ifp;
 	buf = &desc->buf;
 	sc->pending_txs--;
 
@@ -1481,7 +1487,7 @@ nve_ospackettx(PNV_VOID ctx, PNV_VOID id, NV_UINT32 success)
 
 	/* Send more packets if we have them */
 	if (sc->pending_txs < TX_RING_SIZE)
-		sc->sc_if.if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_flags &= ~IFF_OACTIVE;
 
 	if (ifp->if_snd.ifq_head != NULL && sc->pending_txs < TX_RING_SIZE)
 		nve_ifstart(ifp);
@@ -1508,7 +1514,7 @@ nve_ospacketrx(PNV_VOID ctx, PNV_VOID data, NV_UINT32 success, NV_UINT8 *newbuf,
 
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_ospacketrx\n");
 
-	ifp = &sc->sc_if;
+	ifp = sc->ifp;
 
 	readdata = (ADAPTER_READ_DATA *) data;
 	desc = readdata->pvID;
@@ -1557,7 +1563,7 @@ nve_oslinkchg(PNV_VOID ctx, NV_SINT32 enabled)
 
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_oslinkchg\n");
 
-	ifp = &sc->sc_if;
+	ifp = sc->ifp;
 
 	if (enabled)
 		ifp->if_flags |= IFF_UP;

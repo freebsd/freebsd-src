@@ -266,6 +266,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net80211/ieee80211.h>
 #include <net/if_llc.h>
+#include <net/if_types.h>
 
 #include <dev/pccard/pccardvar.h>
 #include "card_if.h"
@@ -442,28 +443,38 @@ ray_attach(device_t dev)
 {
 	struct ray_softc *sc = device_get_softc(dev);
 	struct ray_ecf_startup_v5 *ep = &sc->sc_ecf_startup;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp;
 	size_t ccs;
 	int i, error;
 
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		return (ENOSPC);
+
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
-	if ((sc == NULL) || (sc->sc_gone))
+	if ((sc == NULL) || (sc->sc_gone)) {
+		if_free(ifp);
 		return (ENXIO);
+	}
 
 	/*
 	 * Grab the resources I need
 	 */
 	error = ray_res_alloc_cm(sc);
-	if (error)
+	if (error) {
+		if_free(ifp);
 		return (error);
+	}
 	error = ray_res_alloc_am(sc);
 	if (error) {
+		if_free(ifp);
 		ray_res_release(sc);
 		return (error);
 	}
 	error = ray_res_alloc_irq(sc);
 	if (error) {
+		if_free(ifp);
 		ray_res_release(sc);
 		return (error);
 	}
@@ -502,8 +513,6 @@ ray_attach(device_t dev)
 	/*
 	 * Initialise the network interface structure
 	 */
-	bcopy((char *)&ep->e_station_addr,
-	    (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_timer = 0;
@@ -574,7 +583,7 @@ static int
 ray_detach(device_t dev)
 {
 	struct ray_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ray_comq_entry *com;
 	int s;
 
@@ -595,6 +604,7 @@ ray_detach(device_t dev)
 	sc->sc_c.np_havenet = 0;
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	ether_ifdetach(ifp);
+	if_free(ifp);
 
 	/*
 	 * Stop the runq and wake up anyone sleeping for us.
@@ -816,7 +826,7 @@ ray_init_user(struct ray_softc *sc)
 static void
 ray_init_download(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 
@@ -1034,7 +1044,7 @@ ray_init_download_done(struct ray_softc *sc, u_int8_t status, size_t ccs)
 static void
 ray_init_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
@@ -1057,7 +1067,7 @@ ray_init_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 static void
 ray_init_sj(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ray_net_params np;
 	int update;
 
@@ -1112,7 +1122,7 @@ ray_init_sj(struct ray_softc *sc, struct ray_comq_entry *com)
 static void
 ray_init_sj_done(struct ray_softc *sc, u_int8_t status, size_t ccs)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
@@ -1166,7 +1176,7 @@ ray_init_sj_done(struct ray_softc *sc, u_int8_t status, size_t ccs)
 static void
 ray_init_auth(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN | RAY_DBG_AUTH, "");
 
@@ -1220,7 +1230,7 @@ ray_init_auth_send(struct ray_softc *sc, u_int8_t *dst, int sequence)
 	    IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_AUTH,
 	    IEEE80211_FC1_DIR_NODS,
 	    dst,
-	    sc->arpcom.ac_enaddr,
+	    IFP2ENADDR(sc->ifp),
 	    sc->sc_c.np_bss_id);
 
 	/* Add algorithm number */
@@ -1265,7 +1275,7 @@ ray_init_auth_done(struct ray_softc *sc, u_int8_t status)
 static void
 ray_init_assoc(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 
@@ -1293,7 +1303,7 @@ ray_init_assoc(struct ray_softc *sc, struct ray_comq_entry *com)
 static void
 ray_init_assoc_done(struct ray_softc *sc, u_int8_t status, size_t ccs)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_COM_CHECK(sc, ccs);
@@ -1353,7 +1363,7 @@ ray_stop_user(struct ray_softc *sc)
 static void
 ray_stop(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct mbuf *m;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STOP, "");
@@ -1613,7 +1623,7 @@ static void
 ray_tx_timo(void *xsc)
 {
 	struct ray_softc *sc = (struct ray_softc *)xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	int s;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
@@ -1728,7 +1738,7 @@ found:
 static void
 ray_tx_done(struct ray_softc *sc, u_int8_t status, size_t ccs)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_TX, "");
 
@@ -1751,7 +1761,7 @@ static void
 ray_rx(struct ray_softc *sc, size_t rcs)
 {
 	struct ieee80211_frame *header;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct mbuf *m0;
 	size_t pktlen, fraglen, readlen, tmplen;
 	size_t bufp, ebufp;
@@ -1901,7 +1911,7 @@ skip_read:
 static void
 ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t antenna)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ieee80211_frame *header = mtod(m0, struct ieee80211_frame *);
 	struct llc *llc;
 	u_int8_t *sa = NULL, *da = NULL, *ra = NULL, *ta = NULL;
@@ -2081,7 +2091,7 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 static void
 ray_rx_mgt(struct ray_softc *sc, struct mbuf *m0)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ieee80211_frame *header = mtod(m0, struct ieee80211_frame *);
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_MGT, "");
@@ -2206,7 +2216,7 @@ RAY_DPRINTF(sc, RAY_DBG_MGT, "capability\t0x%x", IEEE80211_BEACON_CAPABILITY(bea
 static void
 ray_rx_mgt_info(struct ray_softc *sc, struct mbuf *m0, union ieee80211_information *elements)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ieee80211_frame *header = mtod(m0, struct ieee80211_frame *);
 	ieee80211_mgt_beacon_t beacon = (u_int8_t *)(header+1);
 	ieee80211_mgt_beacon_t bp, be;
@@ -2346,7 +2356,7 @@ ray_rx_mgt_auth(struct ray_softc *sc, struct mbuf *m0)
 static void
 ray_rx_ctl(struct ray_softc *sc, struct mbuf *m0)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ieee80211_frame *header = mtod(m0, struct ieee80211_frame *);
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CTL, "");
@@ -2450,7 +2460,7 @@ static void
 ray_intr(void *xsc)
 {
 	struct ray_softc *sc = (struct ray_softc *)xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	size_t ccs;
 	u_int8_t cmd, status;
 	int ccsi;
@@ -2673,7 +2683,7 @@ ray_mcast_user(struct ray_softc *sc)
 static void
 ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ifmultiaddr *ifma;
 	size_t bufp;
 	int count = 0;
@@ -2746,7 +2756,7 @@ ray_mcast_done(struct ray_softc *sc, u_int8_t status, size_t ccs)
 static void
 ray_promisc(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);

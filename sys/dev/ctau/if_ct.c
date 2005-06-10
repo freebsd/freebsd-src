@@ -137,7 +137,7 @@ typedef struct _drv_t {
 	struct	callout timeout_handle;
 #else
 	struct	ifqueue queue;
-	struct	sppp pp;
+	struct	ifnet *ifp;
 #endif
 	struct	cdev *devt;
 } drv_t;
@@ -291,7 +291,7 @@ static void ct_intr (void *arg)
 			IF_DEQUEUE (&d->queue,m);
 			if (!m)
 				continue;
-			sppp_input (&d->pp.pp_if, m);	
+			sppp_input (d->ifp, m);	
 		}
 	}
 #endif
@@ -732,25 +732,34 @@ static int ct_attach (device_t dev)
 		callout_init (&d->timeout_handle,
 			     ct_mpsafenet ? CALLOUT_MPSAFE : 0);
 #else /*NETGRAPH*/
-		d->pp.pp_if.if_softc    = d;
-		if_initname (&d->pp.pp_if, "ct", b->num * NCHAN + c->num);
-		d->pp.pp_if.if_mtu	= PP_MTU;
-		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
+		d->ifp = if_alloc(IFT_PPP);
+		if (d->ifp == NULL) {
+			printf ("%s: cannot if_alloc common interface\n",
+			    d->name);
+			channel [b->num*NCHAN + c->num] = 0;
+			c->sys = 0;		
+			ct_bus_dma_mem_free (&d->dmamem);
+			continue;
+		}
+		d->ifp->if_softc    = d;
+		if_initname (d->ifp, "ct", b->num * NCHAN + c->num);
+		d->ifp->if_mtu	= PP_MTU;
+		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
 		if (!ct_mpsafenet)
-			d->pp.pp_if.if_flags |= IFF_NEEDSGIANT;
-		d->pp.pp_if.if_ioctl	= ct_sioctl;
-		d->pp.pp_if.if_start	= ct_ifstart;
-		d->pp.pp_if.if_watchdog	= ct_ifwatchdog;
-		d->pp.pp_if.if_init	= ct_initialize;
+			d->ifp->if_flags |= IFF_NEEDSGIANT;
+		d->ifp->if_ioctl	= ct_sioctl;
+		d->ifp->if_start	= ct_ifstart;
+		d->ifp->if_watchdog	= ct_ifwatchdog;
+		d->ifp->if_init	= ct_initialize;
 		d->queue.ifq_maxlen	= NBUF;
 		mtx_init (&d->queue.ifq_mtx, "ct_queue", NULL, MTX_DEF);
-		sppp_attach (&d->pp.pp_if);
-		if_attach (&d->pp.pp_if);
-		d->pp.pp_tlf		= ct_tlf;
-		d->pp.pp_tls		= ct_tls;
+		sppp_attach (d->ifp);
+		if_attach (d->ifp);
+		IFP2SP(d->ifp)->pp_tlf		= ct_tlf;
+		IFP2SP(d->ifp)->pp_tls		= ct_tls;
 		/* If BPF is in the kernel, call the attach for it.
 		 * Header size is 4 bytes. */
-		bpfattach (&d->pp.pp_if, DLT_PPP, 4);
+		bpfattach (d->ifp, DLT_PPP, 4);
 #endif /*NETGRAPH*/
 		CT_LOCK (bd);
 		ct_start_chan (c, d->dmamem.virt, d->dmamem.phys);
@@ -827,12 +836,13 @@ static int ct_detach (device_t dev)
 		mtx_destroy (&d->hi_queue.ifq_mtx);
 #else
 		/* Detach from the packet filter list of interfaces. */
-		bpfdetach (&d->pp.pp_if);
+		bpfdetach (d->ifp);
 
 		/* Detach from the sync PPP list. */
-		sppp_detach (&d->pp.pp_if);
+		sppp_detach (d->ifp);
 
-		if_detach (&d->pp.pp_if);
+		if_detach (d->ifp);
+		if_free (d->ifp);
 		IF_DRAIN (&d->queue);
 		mtx_destroy (&d->queue.ifq_mtx);
 #endif		
@@ -885,21 +895,21 @@ static void ct_ifwatchdog (struct ifnet *ifp)
 
 static void ct_tlf (struct sppp *sp)
 {
-	drv_t *d = sp->pp_if.if_softc;
+	drv_t *d = SP2IFP(sp)->if_softc;
 
 	CT_DEBUG (d, ("ct_tlf\n"));
 /*	ct_set_dtr (d->chan, 0);*/
 /*	ct_set_rts (d->chan, 0);*/
-	if (!(d->pp.pp_flags & PP_FR) && !(d->pp.pp_if.if_flags & PP_CISCO))
+	if (!(sp->pp_flags & PP_FR) && !(d->ifp->if_flags & PP_CISCO))
 		sp->pp_down (sp);
 }
 
 static void ct_tls (struct sppp *sp)
 {
-	drv_t *d = sp->pp_if.if_softc;
+	drv_t *d = SP2IFP(sp)->if_softc;
 
 	CT_DEBUG (d, ("ct_tls\n"));
-	if (!(d->pp.pp_flags & PP_FR) && !(d->pp.pp_if.if_flags & PP_CISCO))
+	if (!(sp->pp_flags & PP_FR) && !(d->ifp->if_flags & PP_CISCO))
 		sp->pp_up (sp);
 }
 
@@ -951,7 +961,7 @@ static int ct_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 		ct_start (d);
 	} else if (was_up && ! should_be_up) {
 		/* Interface is going down -- stop it. */
-		/* if ((d->pp.pp_flags & PP_FR) || (ifp->if_flags & PP_CISCO))*/
+		/* if ((IFP2SP(d->ifp)->pp_flags & PP_FR) || (ifp->if_flags & PP_CISCO))*/
 		ct_down (d);
 	}
 	CT_UNLOCK (bd);
@@ -1013,13 +1023,13 @@ static void ct_send (drv_t *d)
 		if (! m)
 			IF_DEQUEUE (&d->queue, m);
 #else
-		m = sppp_dequeue (&d->pp.pp_if);
+		m = sppp_dequeue (d->ifp);
 #endif
 		if (! m)
 			return;
 #ifndef NETGRAPH
-		if (d->pp.pp_if.if_bpf)
-			BPF_MTAP (&d->pp.pp_if, m);
+		if (d->ifp->if_bpf)
+			BPF_MTAP (d->ifp, m);
 #endif
 		len = m->m_pkthdr.len;
 		if (! m->m_next)
@@ -1037,11 +1047,11 @@ static void ct_send (drv_t *d)
 #ifdef NETGRAPH
 		d->timeout = 10;
 #else
-		d->pp.pp_if.if_timer = 10;
+		d->ifp->if_timer = 10;
 #endif
 	}
 #ifndef NETGRAPH
-	d->pp.pp_if.if_flags |= IFF_OACTIVE;
+	d->ifp->if_flags |= IFF_OACTIVE;
 #endif
 }
 
@@ -1100,9 +1110,9 @@ static void ct_transmit (ct_chan_t *c, void *attachment, int len)
 #ifdef NETGRAPH
 	d->timeout = 0;
 #else
-	++d->pp.pp_if.if_opackets;
-	d->pp.pp_if.if_flags &= ~IFF_OACTIVE;
-	d->pp.pp_if.if_timer = 0;
+	++d->ifp->if_opackets;
+	d->ifp->if_flags &= ~IFF_OACTIVE;
+	d->ifp->if_timer = 0;
 #endif
 	ct_start (d);
 }
@@ -1125,7 +1135,7 @@ static void ct_receive (ct_chan_t *c, char *data, int len)
 	if (! m) {
 		CT_DEBUG (d, ("no memory for packet\n"));
 #ifndef NETGRAPH
-		++d->pp.pp_if.if_iqdrops;
+		++d->ifp->if_iqdrops;
 #endif
 		return;
 	}
@@ -1135,12 +1145,12 @@ static void ct_receive (ct_chan_t *c, char *data, int len)
 	m->m_pkthdr.rcvif = 0;
 	NG_SEND_DATA_ONLY (error, d->hook, m);
 #else
-	++d->pp.pp_if.if_ipackets;
-	m->m_pkthdr.rcvif = &d->pp.pp_if;
+	++d->ifp->if_ipackets;
+	m->m_pkthdr.rcvif = d->ifp;
 	/* Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf. */
-	if (d->pp.pp_if.if_bpf)
-		BPF_TAP (&d->pp.pp_if, data, len);
+	if (d->ifp->if_bpf)
+		BPF_TAP (d->ifp, data, len);
 	IF_ENQUEUE (&d->queue, m);
 #endif
 }
@@ -1159,26 +1169,26 @@ static void ct_error (ct_chan_t *c, int data)
 	case CT_FRAME:
 		CT_DEBUG (d, ("frame error\n"));
 #ifndef NETGRAPH
-		++d->pp.pp_if.if_ierrors;
+		++d->ifp->if_ierrors;
 #endif
 		break;
 	case CT_CRC:
 		CT_DEBUG (d, ("crc error\n"));
 #ifndef NETGRAPH
-		++d->pp.pp_if.if_ierrors;
+		++d->ifp->if_ierrors;
 #endif
 		break;
 	case CT_OVERRUN:
 		CT_DEBUG (d, ("overrun error\n"));
 #ifndef NETGRAPH
-		++d->pp.pp_if.if_collisions;
-		++d->pp.pp_if.if_ierrors;
+		++d->ifp->if_collisions;
+		++d->ifp->if_ierrors;
 #endif
 		break;
 	case CT_OVERFLOW:
 		CT_DEBUG (d, ("overflow error\n"));
 #ifndef NETGRAPH
-		++d->pp.pp_if.if_ierrors;
+		++d->ifp->if_ierrors;
 #endif
 		break;
 	case CT_UNDERRUN:
@@ -1186,9 +1196,9 @@ static void ct_error (ct_chan_t *c, int data)
 #ifdef NETGRAPH
 		d->timeout = 0;
 #else
-		++d->pp.pp_if.if_oerrors;
-		d->pp.pp_if.if_flags &= ~IFF_OACTIVE;
-		d->pp.pp_if.if_timer = 0;
+		++d->ifp->if_oerrors;
+		d->ifp->if_flags &= ~IFF_OACTIVE;
+		d->ifp->if_timer = 0;
 #endif
 		ct_start (d);
 		break;
@@ -1273,8 +1283,8 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 #ifndef NETGRAPH
 	case SERIAL_GETPROTO:
-		strcpy ((char*)data, (d->pp.pp_flags & PP_FR) ? "fr" :
-			(d->pp.pp_if.if_flags & PP_CISCO) ? "cisco" : "ppp");
+		strcpy ((char*)data, (IFP2SP(d->ifp)->pp_flags & PP_FR) ? "fr" :
+			(d->ifp->if_flags & PP_CISCO) ? "cisco" : "ppp");
 		return 0;
 
 	case SERIAL_SETPROTO:
@@ -1282,27 +1292,27 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		error = suser (td);
 		if (error)
 			return error;
-		if (d->pp.pp_if.if_flags & IFF_RUNNING)
+		if (d->ifp->if_flags & IFF_RUNNING)
 			return EBUSY;
 		if (! strcmp ("cisco", (char*)data)) {
-			d->pp.pp_flags &= ~(PP_FR);
-			d->pp.pp_flags |= PP_KEEPALIVE;
-			d->pp.pp_if.if_flags |= PP_CISCO;
+			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);
+			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
+			d->ifp->if_flags |= PP_CISCO;
 		} else if (! strcmp ("fr", (char*)data)) {
-			d->pp.pp_if.if_flags &= ~(PP_CISCO);
-			d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;
+			d->ifp->if_flags &= ~(PP_CISCO);
+			IFP2SP(d->ifp)->pp_flags |= PP_FR | PP_KEEPALIVE;
 		} else if (! strcmp ("ppp", (char*)data)) {
-			d->pp.pp_flags &= ~(PP_FR | PP_KEEPALIVE);
-			d->pp.pp_if.if_flags &= ~(PP_CISCO);
+			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR | PP_KEEPALIVE);
+			d->ifp->if_flags &= ~(PP_CISCO);
 		} else
 			return EINVAL;
 		return 0;
 
 	case SERIAL_GETKEEPALIVE:
-		if ((d->pp.pp_flags & PP_FR) ||
-			(d->pp.pp_if.if_flags & PP_CISCO))
+		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
+			(d->ifp->if_flags & PP_CISCO))
 			return EINVAL;
-		*(int*)data = (d->pp.pp_flags & PP_KEEPALIVE) ? 1 : 0;
+		*(int*)data = (IFP2SP(d->ifp)->pp_flags & PP_KEEPALIVE) ? 1 : 0;
 		return 0;
 
 	case SERIAL_SETKEEPALIVE:
@@ -1310,13 +1320,13 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		error = suser (td);
 		if (error)
 			return error;
-		if ((d->pp.pp_flags & PP_FR) ||
-			(d->pp.pp_if.if_flags & PP_CISCO))
+		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
+			(d->ifp->if_flags & PP_CISCO))
 			return EINVAL;
 		if (*(int*)data)
-			d->pp.pp_flags |= PP_KEEPALIVE;
+			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
 		else
-			d->pp.pp_flags &= ~PP_KEEPALIVE;
+			IFP2SP(d->ifp)->pp_flags &= ~PP_KEEPALIVE;
 		return 0;
 #endif /*NETGRAPH*/
 
@@ -1515,9 +1525,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		c->debug = *(int*)data;
 #ifndef	NETGRAPH
 		if (d->chan->debug)
-			d->pp.pp_if.if_flags |= IFF_DEBUG;
+			d->ifp->if_flags |= IFF_DEBUG;
 		else
-			d->pp.pp_if.if_flags &= (~IFF_DEBUG);
+			d->ifp->if_flags &= (~IFF_DEBUG);
 #endif
 		return 0;
 

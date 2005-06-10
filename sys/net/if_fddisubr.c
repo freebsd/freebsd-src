@@ -308,7 +308,7 @@ fddi_output(ifp, m, dst, rt0)
 	if (hdrcmplt)
 		bcopy((caddr_t)esrc, (caddr_t)fh->fddi_shost, FDDI_ADDR_LEN);
 	else
-		bcopy(IFP2AC(ifp)->ac_enaddr, (caddr_t)fh->fddi_shost,
+		bcopy(IFP2ENADDR(ifp), (caddr_t)fh->fddi_shost,
 			FDDI_ADDR_LEN);
 
 	/*
@@ -418,7 +418,7 @@ fddi_input(ifp, m)
 	 * is in promiscuous mode.
 	 */
 	if ((ifp->if_flags & IFF_PROMISC) && ((fh->fddi_dhost[0] & 1) == 0) &&
-	    (bcmp(IFP2AC(ifp)->ac_enaddr, (caddr_t)fh->fddi_dhost,
+	    (bcmp(IFP2ENADDR(ifp), (caddr_t)fh->fddi_dhost,
 	     FDDI_ADDR_LEN) != 0))
 		goto dropanyway;
 
@@ -585,7 +585,7 @@ fddi_ifattach(ifp, bpf)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_FDDI;
 	sdl->sdl_alen = ifp->if_addrlen;
-	bcopy(IFP2AC(ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+	bcopy(IFP2ENADDR(ifp), LLADDR(sdl), ifp->if_addrlen);
 
 	if (bpf)
 		bpfattach(ifp, DLT_FDDI, FDDI_HDR_LEN);
@@ -638,18 +638,16 @@ fddi_ioctl (ifp, command, data)
 		 */
 		case AF_IPX: {
 				struct ipx_addr *ina;
-				struct arpcom *ac;
 
 				ina = &(IA_SIPX(ifa)->sipx_addr);
-				ac = IFP2AC(ifp);
 
 				if (ipx_nullhost(*ina)) {
 					ina->x_host = *(union ipx_host *)
-							ac->ac_enaddr;
+							IFP2ENADDR(ifp);
 				} else {
 					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) ac->ac_enaddr,
-					      sizeof(ac->ac_enaddr));
+					      (caddr_t) IFP2ENADDR(ifp),
+					      ETHER_ADDR_LEN);
 				}
 	
 				/*
@@ -668,7 +666,7 @@ fddi_ioctl (ifp, command, data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy(IFP2AC(ifp)->ac_enaddr,
+			bcopy(IFP2ENADDR(ifp),
 			      (caddr_t) sa->sa_data, FDDI_ADDR_LEN);
 
 		}

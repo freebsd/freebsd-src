@@ -2313,7 +2313,7 @@ struct bge_bcom_hack {
 };
 
 struct bge_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ifnet		*bge_ifp;	/* interface info */
 	device_t		bge_dev;
 	struct mtx		bge_mtx;
 	device_t		bge_miibus;

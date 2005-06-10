@@ -42,23 +42,14 @@ __FBSDID("$FreeBSD$");
  * flushing of the write buffers.
  */
 
-#ifdef __NetBSD__
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: pdq.c,v 1.33 2001/11/13 13:14:43 lukem Exp $");
-#endif
 
 #define	PDQ_HWSUPPORT	/* for pdq.h */
 
-#if defined(__FreeBSD__)
 /*
  * What a botch having to specific includes for FreeBSD!
  */
 #include <dev/pdq/pdq_freebsd.h>
 #include <dev/pdq/pdqreg.h>
-#else
-#include "pdqvar.h"
-#include "pdqreg.h"
-#endif
 
 #define	PDQ_ROUNDUP(n, x)	(((n) + ((x) - 1)) & ~((x) - 1))
 #define	PDQ_CMD_RX_ALIGNMENT	16
@@ -186,15 +177,9 @@ pdq_print_fddi_chars(
     const char hexchars[] = "0123456789abcdef";
 
     printf(
-#if !defined(__bsdi__) && !defined(__NetBSD__)
 	   PDQ_OS_PREFIX
-#else
-	   ": "
-#endif
 	   "DEC %s FDDI %s Controller\n",
-#if !defined(__bsdi__) && !defined(__NetBSD__)
 	   PDQ_OS_PREFIX_ARGS,
-#endif
 	   pdq_descriptions[pdq->pdq_type],
 	   pdq_station_types[rsp->status_chars_get.station_type]);
 

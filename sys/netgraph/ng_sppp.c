@@ -51,7 +51,7 @@ MALLOC_DEFINE(M_NETGRAPH_SPPP, "netgraph_sppp", "netgraph sppp node ");
 
 /* Node private data */
 struct ng_sppp_private {
-	struct	sppp *pp;		/* Our interface */
+	struct	ifnet *ifp;		/* Our interface */
 	int	unit;			/* Interface unit number */
 	node_p	node;			/* Our netgraph node */
 	hook_p	hook;			/* Hook */
@@ -243,6 +243,7 @@ static int
 ng_sppp_constructor (node_p node)
 {
 	struct sppp *pp;
+	struct ifnet *ifp;
 	priv_p priv;
 	int error = 0;
 
@@ -250,15 +251,16 @@ ng_sppp_constructor (node_p node)
 	MALLOC (priv, priv_p, sizeof(*priv), M_NETGRAPH_SPPP, M_NOWAIT|M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
-	MALLOC (pp, struct sppp *, sizeof(*pp), M_NETGRAPH_SPPP, M_NOWAIT|M_ZERO);
-	if (pp == NULL) {
+
+	ifp = if_alloc(IFT_PPP);
+	if (ifp == NULL) {
 		FREE (priv, M_NETGRAPH_SPPP);
-		return (ENOMEM);
+		return (ENOSPC);
 	}
+	pp = IFP2SP(ifp);
 
 	/* Link them together */
-	pp->pp_if.if_softc = priv;
-	priv->pp = pp;
+	ifp->if_softc = priv;
 
 	/* Get an interface unit number */
 	if ((error = ng_sppp_get_unit(&priv->unit)) != 0) {
@@ -273,21 +275,21 @@ ng_sppp_constructor (node_p node)
 	priv->node = node;
 
 	/* Initialize interface structure */
-	if_initname (&pp->pp_if, NG_SPPP_IFACE_NAME, priv->unit);
-	pp->pp_if.if_start = ng_sppp_start;
-	pp->pp_if.if_ioctl = ng_sppp_ioctl;
-	pp->pp_if.if_watchdog = NULL;
-	pp->pp_if.if_flags = (IFF_POINTOPOINT|IFF_MULTICAST);
+	if_initname (SP2IFP(pp), NG_SPPP_IFACE_NAME, priv->unit);
+	ifp->if_start = ng_sppp_start;
+	ifp->if_ioctl = ng_sppp_ioctl;
+	ifp->if_watchdog = NULL;
+	ifp->if_flags = (IFF_POINTOPOINT|IFF_MULTICAST);
 
 	/* Give this node the same name as the interface (if possible) */
-	if (ng_name_node(node, pp->pp_if.if_xname) != 0)
+	if (ng_name_node(node, SP2IFP(pp)->if_xname) != 0)
 		log (LOG_WARNING, "%s: can't acquire netgraph name\n",
-		    pp->pp_if.if_xname);
+		    SP2IFP(pp)->if_xname);
 
 	/* Attach the interface */
-	sppp_attach (&pp->pp_if);
-	if_attach (&pp->pp_if);
-	bpfattach (&pp->pp_if, DLT_NULL, sizeof(u_int));
+	sppp_attach (ifp);
+	if_attach (ifp);
+	bpfattach (ifp, DLT_NULL, sizeof(u_int));
 
 	/* Done */
 	return (0);
@@ -322,7 +324,7 @@ ng_sppp_rcvmsg (node_p node, item_p item, hook_p lasthook)
 	const priv_p priv = NG_NODE_PRIVATE (node);
 	struct ng_mesg *msg = NULL;
 	struct ng_mesg *resp = NULL;
-	struct sppp *const pp = priv->pp;
+	struct sppp *const pp = IFP2SP(priv->ifp);
 	int error = 0;
 
 	NGI_GET_MSG (item, msg);
@@ -335,7 +337,7 @@ ng_sppp_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			strlcpy(resp->data, pp->pp_if.if_xname, IFNAMSIZ);
+			strlcpy(resp->data, SP2IFP(pp)->if_xname, IFNAMSIZ);
 			break;
 
 		default:
@@ -360,29 +362,29 @@ ng_sppp_rcvdata (hook_p hook, item_p item)
 {
 	struct mbuf *m;
 	const priv_p priv = NG_NODE_PRIVATE (NG_HOOK_NODE (hook));
-	struct sppp *const pp = priv->pp;
+	struct sppp *const pp = IFP2SP(priv->ifp);
 
 	NGI_GET_M (item, m);
 	NG_FREE_ITEM (item);
 	/* Sanity checks */
 	KASSERT (m->m_flags & M_PKTHDR, ("%s: not pkthdr", __func__));
-	if ((pp->pp_if.if_flags & IFF_UP) == 0) {
+	if ((SP2IFP(pp)->if_flags & IFF_UP) == 0) {
 		NG_FREE_M (m);
 		return (ENETDOWN);
 	}
 
 	/* Update interface stats */
-	pp->pp_if.if_ipackets++;
+	SP2IFP(pp)->if_ipackets++;
 
 	/* Note receiving interface */
-	m->m_pkthdr.rcvif = &pp->pp_if;
+	m->m_pkthdr.rcvif = SP2IFP(pp);
 
 	/* Berkeley packet filter */
-	if (pp->pp_if.if_bpf)
-		BPF_MTAP (&pp->pp_if, m);
+	if (SP2IFP(pp)->if_bpf)
+		BPF_MTAP (SP2IFP(pp), m);
 
 	/* Send packet */
-	sppp_input (&pp->pp_if, m);
+	sppp_input (SP2IFP(pp), m);
 	return 0;
 }
 
@@ -394,11 +396,10 @@ ng_sppp_shutdown (node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	/* Detach from the packet filter list of interfaces. */
-	bpfdetach (&priv->pp->pp_if);
-	sppp_detach (&priv->pp->pp_if);
-	if_detach (&priv->pp->pp_if);
-	FREE (priv->pp, M_NETGRAPH_SPPP);
-	priv->pp = NULL;
+	bpfdetach (priv->ifp);
+	sppp_detach (priv->ifp);
+	if_detach (priv->ifp);
+	if_free(priv->ifp);
 	ng_sppp_free_unit (priv->unit);
 	FREE (priv, M_NETGRAPH_SPPP);
 	NG_NODE_SET_PRIVATE (node, NULL);

@@ -146,7 +146,7 @@ static int volatile lptflag = 0;
 #endif
 
 struct lp_data {
-	struct  ifnet	sc_if;
+	struct  ifnet	*sc_ifp;
 	u_char		*sc_ifbuf;
 	int		sc_iferrs;
 
@@ -232,7 +232,12 @@ static int
 lp_attach (device_t dev)
 {
 	struct lp_data *lp = DEVTOSOFTC(dev);
-	struct ifnet *ifp = &lp->sc_if;
+	struct ifnet *ifp;
+
+	ifp = lp->sc_ifp = if_alloc(IFT_PARA);
+	if (ifp == NULL) {
+		return (ENOSPC);
+	}
 
 	ifp->if_softc = lp;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -241,7 +246,6 @@ lp_attach (device_t dev)
 	    IFF_NEEDSGIANT;
 	ifp->if_ioctl = lpioctl;
 	ifp->if_output = lpoutput;
-	ifp->if_type = IFT_PARA;
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
@@ -343,7 +347,7 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 		return ENOBUFS;
 	    }
 
-	    sc->sc_ifbuf = malloc(sc->sc_if.if_mtu + MLPIPHDRLEN,
+	    sc->sc_ifbuf = malloc(sc->sc_ifp->if_mtu + MLPIPHDRLEN,
 				  M_DEVBUF, M_WAITOK);
 	    if (!sc->sc_ifbuf) {
 		ppb_release_bus(ppbus, dev);
@@ -371,11 +375,11 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 	if (ptr)
 	    free(ptr,M_DEVBUF);
-	sc->sc_if.if_mtu = ifr->ifr_mtu;
+	sc->sc_ifp->if_mtu = ifr->ifr_mtu;
 	break;
 
     case SIOCGIFMTU:
-	ifr->ifr_mtu = sc->sc_if.if_mtu;
+	ifr->ifr_mtu = sc->sc_ifp->if_mtu;
 	break;
 
     case SIOCADDMULTI:
@@ -465,7 +469,7 @@ lp_intr (void *arg)
 
 	s = splhigh();
 
-	if (sc->sc_if.if_flags & IFF_LINK0) {
+	if (sc->sc_ifp->if_flags & IFF_LINK0) {
 
 	    /* Ack. the request */
 	    ppb_wdtr(ppbus, 0x01);
@@ -479,7 +483,7 @@ lp_intr (void *arg)
 	    if (j == -1)
 		goto err;
 	    len = len + (j << 8);
-	    if (len > sc->sc_if.if_mtu + MLPIPHDRLEN)
+	    if (len > sc->sc_ifp->if_mtu + MLPIPHDRLEN)
 		goto err;
 
 	    bp  = sc->sc_ifbuf;
@@ -504,18 +508,18 @@ lp_intr (void *arg)
 	    sc->sc_iferrs = 0;
 
 	    len -= CLPIPHDRLEN;
-	    sc->sc_if.if_ipackets++;
-	    sc->sc_if.if_ibytes += len;
-	    top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, &sc->sc_if, 0);
+	    sc->sc_ifp->if_ipackets++;
+	    sc->sc_ifp->if_ibytes += len;
+	    top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, sc->sc_ifp, 0);
 	    if (top) {
-		if (sc->sc_if.if_bpf)
-		    lptap(&sc->sc_if, top);
+		if (sc->sc_ifp->if_bpf)
+		    lptap(sc->sc_ifp, top);
 		netisr_queue(NETISR_IP, top);	/* mbuf is free'd on failure. */
 	    }
 	    goto done;
 	}
 	while ((ppb_rstr(ppbus) & LPIP_SHAKE)) {
-	    len = sc->sc_if.if_mtu + LPIPHDRLEN;
+	    len = sc->sc_ifp->if_mtu + LPIPHDRLEN;
 	    bp  = sc->sc_ifbuf;
 	    while (len--) {
 
@@ -549,12 +553,12 @@ lp_intr (void *arg)
 	    sc->sc_iferrs = 0;
 
 	    len -= LPIPHDRLEN;
-	    sc->sc_if.if_ipackets++;
-	    sc->sc_if.if_ibytes += len;
-	    top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, &sc->sc_if, 0);
+	    sc->sc_ifp->if_ipackets++;
+	    sc->sc_ifp->if_ibytes += len;
+	    top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, sc->sc_ifp, 0);
 	    if (top) {
-		if (sc->sc_if.if_bpf)
-		    lptap(&sc->sc_if, top);
+		if (sc->sc_ifp->if_bpf)
+		    lptap(sc->sc_ifp, top);
 		netisr_queue(NETISR_IP, top);	/* mbuf is free'd on failure. */
 	    }
 	}
@@ -563,7 +567,7 @@ lp_intr (void *arg)
     err:
 	ppb_wdtr(ppbus, 0);
 	lprintf("R");
-	sc->sc_if.if_ierrors++;
+	sc->sc_ifp->if_ierrors++;
 	sc->sc_iferrs++;
 
 	/*
@@ -573,7 +577,7 @@ lp_intr (void *arg)
 	if (sc->sc_iferrs > LPMAXERRS) {
 	    printf("lp%d: Too many errors, Going off-line.\n", device_get_unit(dev));
 	    ppb_wctr(ppbus, 0x00);
-	    sc->sc_if.if_flags &= ~IFF_RUNNING;
+	    sc->sc_ifp->if_flags &= ~IFF_RUNNING;
 	    sc->sc_iferrs=0;
 	}
 

@@ -229,7 +229,7 @@ static int
 iwi_attach(device_t dev)
 {
 	struct iwi_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->sc_arp.ac_if;
+	struct ifnet *ifp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t val;
 	int error, i;
@@ -292,6 +292,12 @@ iwi_attach(device_t dev)
 		goto fail;
 	}
 
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		goto fail;
+		return (ENOSPC);
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -435,8 +441,11 @@ iwi_detach(device_t dev)
 
 	iwi_free_firmware(sc);
 
-	bpfdetach(ifp);
+	if (ifp != NULL)
+		bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
+	if (ifp != NULL)
+		if_free(ifp);
 
 	iwi_free_cmd_ring(sc, &sc->cmdq);
 	iwi_free_tx_ring(sc, &sc->txq);

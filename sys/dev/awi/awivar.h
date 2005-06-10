@@ -79,7 +79,6 @@ struct awi_softc {
 #endif
 #ifdef __FreeBSD__
 	struct arpcom		sc_arp;
-#define	sc_if			sc_arp.ac_if
 	device_t		sc_dev;
 #endif
 	struct am79c930_softc 	sc_chip;

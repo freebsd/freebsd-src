@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -96,7 +97,7 @@ struct cx28975_cmdarea {
 #define RQLEN	8
 
 struct sbsh_softc {
-	struct arpcom	arpcom;		/* ethernet common */
+	struct ifnet	*ifp;
 
 	struct resource	*mem_res;
 	struct resource	*irq_res;
@@ -222,6 +223,7 @@ sbsh_attach(device_t dev)
 	struct sbsh_softc	*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid, s;
+	u_char			eaddr[6];
 
 	s = splimp();
 
@@ -264,10 +266,18 @@ sbsh_attach(device_t dev)
 	}
 
 	/* generate ethernet MAC address */
-	*(u_int32_t *)sc->arpcom.ac_enaddr = htonl(0x00ff0192);
-	read_random(sc->arpcom.ac_enaddr + 4, 2);
+	*(u_int32_t *)eaddr = htonl(0x00ff0192);
+	read_random(eaddr + 4, 2);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+					PCIR_BAR(1), sc->mem_res);
+		bus_teardown_intr(dev, sc->irq_res, sc->intr_hand);
+		printf("sbsh%d: can not if_alloc()\n", unit);
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -279,7 +289,7 @@ sbsh_attach(device_t dev)
 	ifp->if_baudrate = 4600000;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 
 fail:
 	splx(s);
@@ -296,10 +306,11 @@ sbsh_detach(device_t dev)
 	s = splimp();
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	sbsh_stop(sc);
 	ether_ifdetach(ifp);
+	if_free(ifp);
 
 	bus_teardown_intr(dev, sc->irq_res, sc->intr_hand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
@@ -329,7 +340,7 @@ static void
 sbsh_init(void *xsc)
 {
 	struct sbsh_softc	*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->ifp;
 	int			s;
 	u_int8_t		t;
 
@@ -421,11 +432,11 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 		if (start_cx28975(sc, cfg) == 0) {
 			static char  *modstr[] = {
 				"TCPAM32", "TCPAM16", "TCPAM8", "TCPAM4" };
-			if_printf(&sc->arpcom.ac_if, "%s, rate %d, %s\n",
+			if_printf(sc->ifp, "%s, rate %d, %s\n",
 				cfg.master ? "master" : "slave",
 				cfg.lrate << 3, modstr[cfg.mod]);
 		} else {
-			if_printf(&sc->arpcom.ac_if,
+			if_printf(sc->ifp,
 				"unable to load firmware\n");
 			error = EIO;
 		}
@@ -535,7 +546,7 @@ sbsh_resume(device_t dev)
 	int			s;
 
 	s = splimp();
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (ifp->if_flags & IFF_UP)
 		sbsh_init(sc);
@@ -579,7 +590,7 @@ sbsh_intr(void *arg)
 		resume_tx(sc);
 		sc->regs->SR = UFL;
 		++sc->in_stats.ufl_errs;
-		++sc->arpcom.ac_if.if_oerrors;
+		++sc->ifp->if_oerrors;
 	}
 
 	if (status & RXS) {
@@ -595,13 +606,13 @@ sbsh_intr(void *arg)
 
 	if (status & CRC) {
 		++sc->in_stats.crc_errs;
-		++sc->arpcom.ac_if.if_ierrors;
+		++sc->ifp->if_ierrors;
 		sc->regs->SR = CRC;
 	}
 
 	if (status & OFL) {
 		++sc->in_stats.ofl_errs;
-		++sc->arpcom.ac_if.if_ierrors;
+		++sc->ifp->if_ierrors;
 		sc->regs->SR = OFL;
 	}
 }
@@ -625,7 +636,7 @@ resume_tx(struct sbsh_softc *sc)
 static void
 start_xmit_frames(struct sbsh_softc *sc)
 {
-	struct ifnet	*ifp = &sc->arpcom.ac_if;
+	struct ifnet	*ifp = sc->ifp;
 	struct mbuf	*m;
 
 	/*
@@ -697,7 +708,7 @@ look_for_nonzero:
 
 	sc->regs->LTDR = cur_tbd;
 	++sc->in_stats.sent_pkts;
-	++sc->arpcom.ac_if.if_opackets;
+	++sc->ifp->if_opackets;
 }
 
 static struct mbuf *
@@ -707,7 +718,7 @@ repack(struct sbsh_softc *sc, struct mbuf *m)
 
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (!m_new) {
-		if_printf (&sc->arpcom.ac_if,
+		if_printf (sc->ifp,
 			   "unable to get mbuf.\n");
 		return (NULL);
 	}
@@ -716,7 +727,7 @@ repack(struct sbsh_softc *sc, struct mbuf *m)
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
-			if_printf (&sc->arpcom.ac_if,
+			if_printf (sc->ifp,
 				   "unable to get mbuf cluster.\n");
 			return (NULL);
 		}
@@ -764,7 +775,7 @@ alloc_rx_buffers(struct sbsh_softc *sc)
 	while (sc->tail_rq != ((sc->head_rq - 1) & (RQLEN - 1))) {
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (!m) {
-			if_printf (&sc->arpcom.ac_if,
+			if_printf (sc->ifp,
 				   "unable to get mbuf.\n");
 			return;
 		}
@@ -773,7 +784,7 @@ alloc_rx_buffers(struct sbsh_softc *sc)
 			MCLGET(m, M_DONTWAIT);
 			if (!(m->m_flags & M_EXT)) {
 				m_freem(m);
-				if_printf (&sc->arpcom.ac_if,
+				if_printf (sc->ifp,
 					   "unable to get mbuf cluster.\n");
 				return;
 			}
@@ -802,11 +813,11 @@ indicate_frames(struct sbsh_softc *sc)
 
 		m->m_pkthdr.len = m->m_len =
 				sc->rbd[sc->head_rdesc].length & 0x7ff;
-		m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+		m->m_pkthdr.rcvif = sc->ifp;
 
-		(*sc->arpcom.ac_if.if_input)(&sc->arpcom.ac_if, m);
+		(*sc->ifp->if_input)(sc->ifp, m);
 		++sc->in_stats.rcvd_pkts;
-		++sc->arpcom.ac_if.if_ipackets;
+		++sc->ifp->if_ipackets;
 
 		sc->head_rdesc = (sc->head_rdesc + 1) & 0x7f;
 	}
@@ -879,11 +890,11 @@ cx28975_interrupt(struct sbsh_softc *sc)
 			if (sc->state != ACTIVE
 			    && (*((volatile u_int8_t *)p + 0x3c0) & 0xc0) == 0x40) {
 				activate(sc);
-				if_printf(&sc->arpcom.ac_if, "connected to peer\n");
+				if_printf(sc->ifp, "connected to peer\n");
 			} else if (sc->state == ACTIVE
 				 && (*((volatile u_int8_t *)p + 0x3c0) & 0xc0) != 0x40) {
 				deactivate(sc);
-				if_printf(&sc->arpcom.ac_if, "carrier lost\n");
+				if_printf(sc->ifp, "carrier lost\n");
 			}
 		}
 

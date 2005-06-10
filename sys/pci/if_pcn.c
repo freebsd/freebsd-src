@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -334,7 +335,7 @@ pcn_setmulti(sc)
 	u_int32_t		h, i;
 	u_int16_t		hashes[4] = { 0, 0, 0, 0 };
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->pcn_ifp;
 
 	PCN_CSR_SETBIT(sc, PCN_CSR_EXTCTL1, PCN_EXTCTL1_SPND);
 
@@ -581,7 +582,6 @@ pcn_attach(dev)
 	 */
 	eaddr[0] = CSR_READ_4(sc, PCN_IO32_APROM00);
 	eaddr[1] = CSR_READ_4(sc, PCN_IO32_APROM01);
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	sc->pcn_unit = unit;
 	callout_handle_init(&sc->pcn_stat_ch);
@@ -596,7 +596,12 @@ pcn_attach(dev)
 	}
 	bzero(sc->pcn_ldata, sizeof(struct pcn_list_data));
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->pcn_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("pcn%d: can not if_alloc()\n", unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -615,6 +620,7 @@ pcn_attach(dev)
 	if (mii_phy_probe(dev, &sc->pcn_miibus,
 	    pcn_ifmedia_upd, pcn_ifmedia_sts)) {
 		printf("pcn%d: MII without any PHY!\n", sc->pcn_unit);
+		if_free(ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -656,7 +662,7 @@ pcn_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->pcn_ifp;
 
 	KASSERT(mtx_initialized(&sc->pcn_mtx), ("pcn mutex not initialized"));
 	PCN_LOCK(sc);
@@ -666,6 +672,7 @@ pcn_detach(dev)
 		pcn_reset(sc);
 		pcn_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 	if (sc->pcn_miibus)
 		device_delete_child(dev, sc->pcn_miibus);
@@ -795,7 +802,7 @@ pcn_rxeof(sc)
 
 	PCN_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->pcn_ifp;
 	i = sc->pcn_cdata.pcn_rx_prod;
 
 	while(PCN_OWN_RXDESC(&sc->pcn_ldata->pcn_rx_list[i])) {
@@ -855,7 +862,7 @@ pcn_txeof(sc)
 	struct ifnet		*ifp;
 	u_int32_t		idx;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->pcn_ifp;
 
 	/*
 	 * Go through our tx list and free mbufs for those
@@ -914,7 +921,7 @@ pcn_tick(xsc)
 	struct ifnet		*ifp;
 
 	sc = xsc;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->pcn_ifp;
 	PCN_LOCK(sc);
 
 	mii = device_get_softc(sc->pcn_miibus);
@@ -948,7 +955,7 @@ pcn_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->pcn_ifp;
 
 	/* Suppress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
@@ -1129,7 +1136,7 @@ pcn_init(xsc)
 	void			*xsc;
 {
 	struct pcn_softc	*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->pcn_ifp;
 	struct mii_data		*mii = NULL;
 
 	PCN_LOCK(sc);
@@ -1144,11 +1151,11 @@ pcn_init(xsc)
 
 	/* Set MAC address */
 	pcn_csr_write(sc, PCN_CSR_PAR0,
-	    ((u_int16_t *)sc->arpcom.ac_enaddr)[0]);
+	    ((u_int16_t *)IFP2ENADDR(sc->pcn_ifp))[0]);
 	pcn_csr_write(sc, PCN_CSR_PAR1,
-	    ((u_int16_t *)sc->arpcom.ac_enaddr)[1]);
+	    ((u_int16_t *)IFP2ENADDR(sc->pcn_ifp))[1]);
 	pcn_csr_write(sc, PCN_CSR_PAR2,
-	    ((u_int16_t *)sc->arpcom.ac_enaddr)[2]);
+	    ((u_int16_t *)IFP2ENADDR(sc->pcn_ifp))[2]);
 
 	/* Init circular RX list. */
 	if (pcn_list_rx_init(sc) == ENOBUFS) {
@@ -1378,7 +1385,7 @@ pcn_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->pcn_ifp;
 	PCN_LOCK(sc);
 	ifp->if_timer = 0;
 

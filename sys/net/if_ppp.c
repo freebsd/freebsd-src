@@ -223,26 +223,32 @@ static struct compressor *ppp_compressors[8] = {
 static int
 ppp_clone_create(struct if_clone *ifc, int unit)
 {
+	struct ifnet		*ifp;
 	struct ppp_softc	*sc;
 
 	sc = malloc(sizeof(struct ppp_softc), M_PPP, M_WAITOK | M_ZERO);
-	sc->sc_if.if_softc = sc;
-	if_initname(&sc->sc_if, ifc->ifc_name, unit);
-	sc->sc_if.if_mtu = PPP_MTU;
-	sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
-	sc->sc_if.if_type = IFT_PPP;
-	sc->sc_if.if_hdrlen = PPP_HDRLEN;
-	sc->sc_if.if_ioctl = pppsioctl;
-	sc->sc_if.if_output = pppoutput;
-	sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp = sc->sc_ifp = if_alloc(IFT_PPP);
+	if (ifp == NULL) {
+		free(sc, M_PPP);
+		return (ENOSPC);
+	}
+
+	ifp->if_softc = sc;
+	if_initname(ifp, ifc->ifc_name, unit);
+	ifp->if_mtu = PPP_MTU;
+	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
+	ifp->if_hdrlen = PPP_HDRLEN;
+	ifp->if_ioctl = pppsioctl;
+	ifp->if_output = pppoutput;
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_inq.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_fastq.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_rawq.ifq_maxlen = IFQ_MAXLEN;
 	mtx_init(&sc->sc_inq.ifq_mtx, "ppp_inq", NULL, MTX_DEF);
 	mtx_init(&sc->sc_fastq.ifq_mtx, "ppp_fastq", NULL, MTX_DEF);
 	mtx_init(&sc->sc_rawq.ifq_mtx, "ppp_rawq", NULL, MTX_DEF);
-	if_attach(&sc->sc_if);
-	bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
+	if_attach(ifp);
+	bpfattach(ifp, DLT_PPP, PPP_HDRLEN);
 
 	PPP_LIST_LOCK();
 	LIST_INSERT_HEAD(&ppp_softc_list, sc, sc_list);
@@ -256,9 +262,10 @@ ppp_destroy(struct ppp_softc *sc)
 {
 	struct ifnet *ifp;
 
-	ifp = &sc->sc_if;
+	ifp = PPP2IFP(sc);
 	bpfdetach(ifp);
 	if_detach(ifp);
+	if_free(ifp);
 	mtx_destroy(&sc->sc_rawq.ifq_mtx);
 	mtx_destroy(&sc->sc_fastq.ifq_mtx);
 	mtx_destroy(&sc->sc_inq.ifq_mtx);
@@ -396,9 +403,9 @@ pppdealloc(sc)
 {
     struct mbuf *m;
 
-    if_down(&sc->sc_if);
-    sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
-    getmicrotime(&sc->sc_if.if_lastchange);
+    if_down(PPP2IFP(sc));
+    PPP2IFP(sc)->if_flags &= ~(IFF_UP|IFF_RUNNING);
+    getmicrotime(&PPP2IFP(sc)->if_lastchange);
     sc->sc_devp = NULL;
     sc->sc_xfer = 0;
     IF_DRAIN(&sc->sc_rawq);
@@ -467,7 +474,7 @@ pppioctl(sc, cmd, data, flag, td)
 	break;
 
     case PPPIOCGUNIT:
-	*(int *)data = sc->sc_if.if_dunit;
+	*(int *)data = PPP2IFP(sc)->if_dunit;
 	break;
 
     case PPPIOCGFLAGS:
@@ -547,7 +554,7 @@ pppioctl(sc, cmd, data, flag, td)
 		    sc->sc_xc_state = (*cp)->comp_alloc(ccp_option, nb);
 		    if (sc->sc_xc_state == NULL) {
 			if (sc->sc_flags & SC_DEBUG)
-			    if_printf(&sc->sc_if, "comp_alloc failed\n");
+			    if_printf(PPP2IFP(sc), "comp_alloc failed\n");
 			error = ENOBUFS;
 		    }
 		    splimp();
@@ -561,7 +568,7 @@ pppioctl(sc, cmd, data, flag, td)
 		    sc->sc_rc_state = (*cp)->decomp_alloc(ccp_option, nb);
 		    if (sc->sc_rc_state == NULL) {
 			if (sc->sc_flags & SC_DEBUG)
-			    if_printf(&sc->sc_if, "decomp_alloc failed\n");
+			    if_printf(PPP2IFP(sc), "decomp_alloc failed\n");
 			error = ENOBUFS;
 		    }
 		    splimp();
@@ -571,7 +578,7 @@ pppioctl(sc, cmd, data, flag, td)
 		break;
 	    }
 	if (sc->sc_flags & SC_DEBUG)
-	    if_printf(&sc->sc_if, "no compressor for [%x %x %x], %x\n",
+	    if_printf(PPP2IFP(sc), "no compressor for [%x %x %x], %x\n",
 		   ccp_option[0], ccp_option[1], ccp_option[2], nb);
 	error = EINVAL;		/* no handler found */
         break;
@@ -724,14 +731,14 @@ pppsioctl(ifp, cmd, data)
 	if (ifr->ifr_mtu > PPP_MAXMTU)
 	    error = EINVAL;
 	else {
-	    sc->sc_if.if_mtu = ifr->ifr_mtu;
+	    PPP2IFP(sc)->if_mtu = ifr->ifr_mtu;
 	    if (sc->sc_setmtu)
 		    (*sc->sc_setmtu)(sc);
 	}
 	break;
 
     case SIOCGIFMTU:
-	ifr->ifr_mtu = sc->sc_if.if_mtu;
+	ifr->ifr_mtu = PPP2IFP(sc)->if_mtu;
 	break;
 
     case SIOCADDMULTI:
@@ -959,7 +966,7 @@ pppoutput(ifp, m0, dst, rtp)
 	if (_IF_QFULL(ifq) && dst->sa_family != AF_UNSPEC) {
 	    _IF_DROP(ifq);
 	    IF_UNLOCK(ifq);
-	    sc->sc_if.if_oerrors++;
+	    PPP2IFP(sc)->if_oerrors++;
 	    sc->sc_stats.ppp_oerrors++;
 	    error = ENOBUFS;
 	    goto bad;
@@ -1010,9 +1017,9 @@ ppp_requeue(sc)
 	    *mpp = m->m_nextpkt;
 	    m->m_nextpkt = NULL;
 	    ifq = (m->m_flags & M_HIGHPRI)? &sc->sc_fastq:
-	        (struct ifqueue *)&sc->sc_if.if_snd;
+	        (struct ifqueue *)&PPP2IFP(sc)->if_snd;
             if (! IF_HANDOFF(ifq, m, NULL)) {
-		sc->sc_if.if_oerrors++;
+		PPP2IFP(sc)->if_oerrors++;
 		sc->sc_stats.ppp_oerrors++;
 	    }
 	    break;
@@ -1067,7 +1074,7 @@ ppp_dequeue(sc)
      */
     IF_DEQUEUE(&sc->sc_fastq, m);
     if (m == NULL)
-	IF_DEQUEUE(&sc->sc_if.if_snd, m);
+	IF_DEQUEUE(&PPP2IFP(sc)->if_snd, m);
     if (m == NULL)
 	return NULL;
 
@@ -1137,7 +1144,7 @@ ppp_dequeue(sc)
 
 	slen = m_length(m, NULL);
 	clen = (*sc->sc_xcomp->compress)
-	    (sc->sc_xc_state, &mcomp, m, slen, sc->sc_if.if_mtu + PPP_HDRLEN);
+	    (sc->sc_xc_state, &mcomp, m, slen, PPP2IFP(sc)->if_mtu + PPP_HDRLEN);
 	if (mcomp != NULL) {
 	    if (sc->sc_flags & SC_CCP_UP) {
 		/* Send the compressed packet instead of the original. */
@@ -1192,7 +1199,7 @@ pppintr()
     LIST_FOREACH(sc, &ppp_softc_list, sc_list) {
 	s = splimp();
 	if (!(sc->sc_flags & SC_TBUSY)
-	    && (sc->sc_if.if_snd.ifq_head || sc->sc_fastq.ifq_head)) {
+	    && (PPP2IFP(sc)->if_snd.ifq_head || sc->sc_fastq.ifq_head)) {
 	    sc->sc_flags |= SC_TBUSY;
 	    splx(s);
 	    (*sc->sc_start)(sc);
@@ -1205,7 +1212,7 @@ pppintr()
 	    if (m == NULL)
 		break;
 #ifdef MAC
-	    mac_create_mbuf_from_ifnet(&sc->sc_if, m);
+	    mac_create_mbuf_from_ifnet(PPP2IFP(sc), m);
 #endif
 	    ppp_inproc(sc, m);
 	}
@@ -1273,7 +1280,7 @@ ppp_ccp(sc, m, rcvd)
 		if (sc->sc_xc_state != NULL
 		    && (*sc->sc_xcomp->comp_init)
 			(sc->sc_xc_state, dp + CCP_HDRLEN, slen - CCP_HDRLEN,
-			 sc->sc_if.if_dunit, 0, sc->sc_flags & SC_DEBUG)) {
+			 PPP2IFP(sc)->if_dunit, 0, sc->sc_flags & SC_DEBUG)) {
 		    s = splimp();
 		    sc->sc_flags |= SC_COMP_RUN;
 		    splx(s);
@@ -1283,7 +1290,7 @@ ppp_ccp(sc, m, rcvd)
 		if (sc->sc_rc_state != NULL
 		    && (*sc->sc_rcomp->decomp_init)
 			(sc->sc_rc_state, dp + CCP_HDRLEN, slen - CCP_HDRLEN,
-			 sc->sc_if.if_dunit, 0, sc->sc_mru,
+			 PPP2IFP(sc)->if_dunit, 0, sc->sc_mru,
 			 sc->sc_flags & SC_DEBUG)) {
 		    s = splimp();
 		    sc->sc_flags |= SC_DECOMP_RUN;
@@ -1363,7 +1370,7 @@ ppp_inproc(sc, m)
     struct ppp_softc *sc;
     struct mbuf *m;
 {
-    struct ifnet *ifp = &sc->sc_if;
+    struct ifnet *ifp = PPP2IFP(sc);
     int isr;
     int s, ilen = 0, xlen, proto, rv;
     u_char *cp, adrs, ctrl;
@@ -1577,7 +1584,7 @@ ppp_inproc(sc, m)
     }
 
     /* See if bpf wants to look at the packet. */
-    BPF_MTAP(&sc->sc_if, m);
+    BPF_MTAP(PPP2IFP(sc), m);
 
     isr = -1;
     switch (proto) {
@@ -1605,7 +1612,7 @@ ppp_inproc(sc, m)
 	/*
 	 * IPX packet - take off the ppp header and pass it up to IPX.
 	 */
-	if ((sc->sc_if.if_flags & IFF_UP) == 0
+	if ((PPP2IFP(sc)->if_flags & IFF_UP) == 0
 	    /* XXX: || sc->sc_npmode[NP_IPX] != NPMODE_PASS*/) {
 	    /* interface is down - drop the packet. */
 	    m_freem(m);
@@ -1649,7 +1656,7 @@ ppp_inproc(sc, m)
  bad:
     if (m)
         m_freem(m);
-    sc->sc_if.if_ierrors++;
+    PPP2IFP(sc)->if_ierrors++;
     sc->sc_stats.ppp_ierrors++;
 }
 

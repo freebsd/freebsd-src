@@ -154,14 +154,14 @@ utopia_check_carrier(struct utopia *utp, u_int carr_ok)
 		/* carrier */
 		utp->carrier = UTP_CARR_OK;
 		if (old != UTP_CARR_OK) {
-			if_printf(&utp->ifatm->ifnet, "carrier detected\n");
+			if_printf(utp->ifatm->ifp, "carrier detected\n");
 			ATMEV_SEND_IFSTATE_CHANGED(utp->ifatm, 1);
 		}
 	} else {
 		/* no carrier */
 		utp->carrier = UTP_CARR_LOST;
 		if (old == UTP_CARR_OK) {
-			if_printf(&utp->ifatm->ifnet, "carrier lost\n");
+			if_printf(utp->ifatm->ifp, "carrier lost\n");
 			ATMEV_SEND_IFSTATE_CHANGED(utp->ifatm, 0);
 		}
 	}
@@ -367,7 +367,7 @@ utopia_start(struct utopia *utp)
 		if (reg == (IDTPHY_REGM_MCR_DRIC | IDTPHY_REGM_MCR_EI))
 			utp->chip = &utopia_chip_idt77105;
 		else {
-			if_printf(&utp->ifatm->ifnet,
+			if_printf(utp->ifatm->ifp,
 			    "unknown ATM-PHY chip %#x\n", reg);
 			utp->chip = &utopia_chip_unknown;
 		}

@@ -337,7 +337,7 @@ ed_pccard_attach(device_t dev)
 			ed_release_resources(dev);
 			return (ENXIO);
 		}
-		bcopy(enaddr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+		bcopy(enaddr, sc->enaddr, ETHER_ADDR_LEN);
 	}
 
 	error = ed_attach(dev);
@@ -392,12 +392,12 @@ ax88x90_geteprom(struct ed_softc *sc)
 	/* Get Data */
 	for (i = 0; i < 16; i++)
 		prom[i] = ed_asic_inb(sc, 0);
-	sc->arpcom.ac_enaddr[0] = prom[0] & 0xff;
-	sc->arpcom.ac_enaddr[1] = prom[0] >> 8;
-	sc->arpcom.ac_enaddr[2] = prom[1] & 0xff;
-	sc->arpcom.ac_enaddr[3] = prom[1] >> 8;
-	sc->arpcom.ac_enaddr[4] = prom[2] & 0xff;
-	sc->arpcom.ac_enaddr[5] = prom[2] >> 8;
+	sc->enaddr[0] = prom[0] & 0xff;
+	sc->enaddr[1] = prom[0] >> 8;
+	sc->enaddr[2] = prom[1] & 0xff;
+	sc->enaddr[3] = prom[1] >> 8;
+	sc->enaddr[4] = prom[2] & 0xff;
+	sc->enaddr[5] = prom[2] >> 8;
 }
 
 static int
@@ -474,7 +474,7 @@ ed_pccard_Linksys(device_t dev)
 	if (sum != 0xff)
 		return (ENXIO);		/* invalid DL10019C */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->arpcom.ac_enaddr[i] = ed_asic_inb(sc, 0x04 + i);
+		sc->enaddr[i] = ed_asic_inb(sc, 0x04 + i);
 	ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
 	id = ed_asic_inb(sc, 0xf);
 	sc->isa16bit = 1;

@@ -231,10 +231,10 @@ static size_t st_unit_max = 0;
 static int
 slisunitfree(int unit)
 {
-	struct sl_softc *nc;
+	struct sl_softc *sc;
 
-	LIST_FOREACH(nc, &sl_list, sl_next) {
-		if (nc->sc_if.if_dunit == unit)
+	LIST_FOREACH(sc, &sl_list, sl_next) {
+		if (SL2IFP(sc)->if_dunit == unit)
 			return (0);
 	}
 	return (1);
@@ -291,6 +291,11 @@ slcreate(void)
 	struct mbuf *m;
 
 	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_WAITOK | M_ZERO);
+	sc->sc_ifp = if_alloc(IFT_SLIP);
+	if (sc->sc_ifp == NULL) {
+		free(sc, M_SL);
+		return (NULL);
+	}
 
 	m = m_gethdr(M_TRYWAIT, MT_DATA);
 	if (m != NULL) {
@@ -313,22 +318,21 @@ slcreate(void)
 	sc->sc_mp = sc->sc_buf;
 	sl_compress_init(&sc->sc_comp, -1);
 
-	sc->sc_if.if_softc = sc;
-	sc->sc_if.if_mtu = SLMTU;
-	sc->sc_if.if_flags =
+	SL2IFP(sc)->if_softc = sc;
+	SL2IFP(sc)->if_mtu = SLMTU;
+	SL2IFP(sc)->if_flags =
 #ifdef SLIP_IFF_OPTS
 	    SLIP_IFF_OPTS;
 #else
 	    IFF_POINTOPOINT | SC_AUTOCOMP | IFF_MULTICAST | IFF_NEEDSGIANT;
 #endif
-	sc->sc_if.if_type = IFT_SLIP;
-	sc->sc_if.if_ioctl = slioctl;
-	sc->sc_if.if_output = sloutput;
-	sc->sc_if.if_start = slstart;
-	sc->sc_if.if_snd.ifq_maxlen = 50;
+	SL2IFP(sc)->if_ioctl = slioctl;
+	SL2IFP(sc)->if_output = sloutput;
+	SL2IFP(sc)->if_start = slstart;
+	SL2IFP(sc)->if_snd.ifq_maxlen = 50;
 	sc->sc_fastq.ifq_maxlen = 32;
-	sc->sc_if.if_linkmib = sc;
-	sc->sc_if.if_linkmiblen = sizeof *sc;
+	SL2IFP(sc)->if_linkmib = sc;
+	SL2IFP(sc)->if_linkmiblen = sizeof *sc;
 	mtx_init(&sc->sc_fastq.ifq_mtx, "sl_fastq", NULL, MTX_DEF);
 
 	/*
@@ -341,11 +345,11 @@ slcreate(void)
 			continue;
 		break;
 	}
-	if_initname(&sc->sc_if, "sl", unit);
+	if_initname(SL2IFP(sc), "sl", unit);
 	LIST_INSERT_HEAD(&sl_list, sc, sl_next);
 
-	if_attach(&sc->sc_if);
-	bpfattach(&sc->sc_if, DLT_SLIP, SLIP_HDRLEN);
+	if_attach(SL2IFP(sc));
+	bpfattach(SL2IFP(sc), DLT_SLIP, SLIP_HDRLEN);
 
 	return sc;
 }
@@ -371,7 +375,7 @@ slopen(struct cdev *dev, register struct tty *tp)
 
 	tp->t_hotchar = FRAME_END;
 	sc->sc_ttyp = tp;
-	sc->sc_if.if_baudrate = tp->t_ospeed;
+	SL2IFP(sc)->if_baudrate = tp->t_ospeed;
 	ttyflush(tp, FREAD | FWRITE);
 
 	/*
@@ -386,12 +390,12 @@ slopen(struct cdev *dev, register struct tty *tp)
 	 */
 	clist_alloc_cblocks(&tp->t_canq, 0, 0);
 	clist_alloc_cblocks(&tp->t_outq,
-	    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1,
-	    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1);
+	    SLIP_HIWAT + 2 * SL2IFP(sc)->if_mtu + 1,
+	    SLIP_HIWAT + 2 * SL2IFP(sc)->if_mtu + 1);
 	clist_alloc_cblocks(&tp->t_rawq, 0, 0);
 
 	s = splnet();
-	if_up(&sc->sc_if);
+	if_up(SL2IFP(sc));
 	splx(s);
 	return (0);
 }
@@ -399,8 +403,9 @@ slopen(struct cdev *dev, register struct tty *tp)
 static void
 sldestroy(struct sl_softc *sc)
 {
-	bpfdetach(&sc->sc_if);
-	if_detach(&sc->sc_if);
+	bpfdetach(SL2IFP(sc));
+	if_detach(SL2IFP(sc));
+	if_free(SL2IFP(sc));
 	LIST_REMOVE(sc, sl_next);
 	m_free(sc->sc_mbuf);
 	mtx_destroy(&sc->sc_fastq.ifq_mtx);
@@ -437,7 +442,7 @@ slclose(struct tty *tp, int flag)
 			sc->sc_keepalive = 0;
 			untimeout(sl_keepalive, sc, sc->sc_kahandle);
 		}
-		if_down(&sc->sc_if);
+		if_down(SL2IFP(sc));
 		sc->sc_ttyp = NULL;
 		sldestroy(sc);
 	}
@@ -460,7 +465,7 @@ sltioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	s = splimp();
 	switch (cmd) {
 	case SLIOCGUNIT:
-		*(int *)data = sc->sc_if.if_dunit;
+		*(int *)data = SL2IFP(sc)->if_dunit;
 		break;
 
 	case SLIOCSUNIT:
@@ -469,27 +474,27 @@ sltioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 			splx(s);
 			return (ENXIO);
 		}
-		if (sc->sc_if.if_dunit != unit) {
+		if (SL2IFP(sc)->if_dunit != unit) {
 			if (!slisunitfree(unit)) {
 				splx(s);
 				return (ENXIO);
 			}
 
-			wasup = sc->sc_if.if_flags & IFF_UP;
-			bpfdetach(&sc->sc_if);
-			if_detach(&sc->sc_if);
+			wasup = SL2IFP(sc)->if_flags & IFF_UP;
+			bpfdetach(SL2IFP(sc));
+			if_detach(SL2IFP(sc));
 			LIST_REMOVE(sc, sl_next);
-			if_initname(&sc->sc_if, "sl", unit);
+			if_initname(SL2IFP(sc), "sl", unit);
 			LIST_INSERT_HEAD(&sl_list, sc, sl_next);
-			if_attach(&sc->sc_if);
-			bpfattach(&sc->sc_if, DLT_SLIP, SLIP_HDRLEN);
+			if_attach(SL2IFP(sc));
+			bpfattach(SL2IFP(sc), DLT_SLIP, SLIP_HDRLEN);
 			if (wasup)
-				if_up(&sc->sc_if);
+				if_up(SL2IFP(sc));
 			else
-				if_down(&sc->sc_if);
+				if_down(SL2IFP(sc));
 			clist_alloc_cblocks(&tp->t_outq,
-			    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1,
-			    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1);
+			    SLIP_HIWAT + 2 * SL2IFP(sc)->if_mtu + 1,
+			    SLIP_HIWAT + 2 * SL2IFP(sc)->if_mtu + 1);
 		}
 		slmarkstatic(unit);
 		break;
@@ -559,7 +564,7 @@ sloutput(struct ifnet *ifp, register struct mbuf *m, struct sockaddr *dst,
 	if (dst->sa_family != AF_INET) {
 		if_printf(ifp, "af%d not supported\n", dst->sa_family);
 		m_freem(m);
-		sc->sc_if.if_noproto++;
+		SL2IFP(sc)->if_noproto++;
 		return (EAFNOSUPPORT);
 	}
 
@@ -572,17 +577,17 @@ sloutput(struct ifnet *ifp, register struct mbuf *m, struct sockaddr *dst,
 		return (EHOSTUNREACH);
 	}
 	ip = mtod(m, struct ip *);
-	if (sc->sc_if.if_flags & SC_NOICMP && ip->ip_p == IPPROTO_ICMP) {
+	if (SL2IFP(sc)->if_flags & SC_NOICMP && ip->ip_p == IPPROTO_ICMP) {
 		m_freem(m);
 		return (ENETRESET);		/* XXX ? */
 	}
 	if (ip->ip_tos & IPTOS_LOWDELAY &&
-	    !ALTQ_IS_ENABLED(&sc->sc_if.if_snd))
-		error = !(IF_HANDOFF(&sc->sc_fastq, m, &sc->sc_if));
+	    !ALTQ_IS_ENABLED(&SL2IFP(sc)->if_snd))
+		error = !(IF_HANDOFF(&sc->sc_fastq, m, SL2IFP(sc)));
 	else
-		IFQ_HANDOFF(&sc->sc_if, m, error);
+		IFQ_HANDOFF(SL2IFP(sc), m, error);
 	if (error) {
-		sc->sc_if.if_oerrors++;
+		SL2IFP(sc)->if_oerrors++;
 		return (ENOBUFS);
 	}
 	return (0);
@@ -644,9 +649,9 @@ sltstart(struct tty *tp)
 		s = splimp();
 		IF_DEQUEUE(&sc->sc_fastq, m);
 		if (m)
-			sc->sc_if.if_omcasts++;		/* XXX */
+			SL2IFP(sc)->if_omcasts++;		/* XXX */
 		else
-			IF_DEQUEUE(&sc->sc_if.if_snd, m);
+			IF_DEQUEUE(&SL2IFP(sc)->if_snd, m);
 		splx(s);
 		if (m == NULL)
 			return 0;
@@ -657,7 +662,7 @@ sltstart(struct tty *tp)
 		 * queueing, and the connection id compression will get
 		 * munged when this happens.
 		 */
-		if (sc->sc_if.if_bpf) {
+		if (SL2IFP(sc)->if_bpf) {
 			/*
 			 * We need to save the TCP/IP header before it's
 			 * compressed.  To avoid complicated code, we just
@@ -687,11 +692,11 @@ sltstart(struct tty *tp)
 		}
 		ip = mtod(m, struct ip *);
 		if (ip->ip_v == IPVERSION && ip->ip_p == IPPROTO_TCP) {
-			if (sc->sc_if.if_flags & SC_COMPRESS)
+			if (SL2IFP(sc)->if_flags & SC_COMPRESS)
 				*mtod(m, u_char *) |= sl_compress_tcp(m, ip,
 				    &sc->sc_comp, 1);
 		}
-		if (sc->sc_if.if_bpf && sc->bpfbuf) {
+		if (SL2IFP(sc)->if_bpf && sc->bpfbuf) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.  The
 			 * compressed header is now at the beginning of the
@@ -699,7 +704,7 @@ sltstart(struct tty *tp)
 			 */
 			sc->bpfbuf[SLX_DIR] = SLIPDIR_OUT;
 			bcopy(mtod(m, caddr_t), &sc->bpfbuf[SLX_CHDR], CHDR_LEN);
-			BPF_TAP(&sc->sc_if, sc->bpfbuf, len + SLIP_HDRLEN);
+			BPF_TAP(SL2IFP(sc), sc->bpfbuf, len + SLIP_HDRLEN);
 		}
 
 		/*
@@ -712,7 +717,7 @@ sltstart(struct tty *tp)
 		 */
 		if (cfreecount < CLISTRESERVE + SLTMAX) {
 			m_freem(m);
-			sc->sc_if.if_collisions++;
+			SL2IFP(sc)->if_collisions++;
 			continue;
 		}
 
@@ -723,7 +728,7 @@ sltstart(struct tty *tp)
 		 * the line may have been idle for some time.
 		 */
 		if (tp->t_outq.c_cc == 0) {
-			++sc->sc_if.if_obytes;
+			++SL2IFP(sc)->if_obytes;
 			(void) putc(FRAME_END, &tp->t_outq);
 		}
 
@@ -755,7 +760,7 @@ sltstart(struct tty *tp)
 					if (b_to_q((char *)bp, cp - bp,
 					    &tp->t_outq))
 						break;
-					sc->sc_if.if_obytes += cp - bp;
+					SL2IFP(sc)->if_obytes += cp - bp;
 				}
 				/*
 				 * If there are characters left in the mbuf,
@@ -771,7 +776,7 @@ sltstart(struct tty *tp)
 						(void) unputc(&tp->t_outq);
 						break;
 					}
-					sc->sc_if.if_obytes += 2;
+					SL2IFP(sc)->if_obytes += 2;
 				}
 			}
 			m = m_free(m);
@@ -787,10 +792,10 @@ sltstart(struct tty *tp)
 			 */
 			(void) unputc(&tp->t_outq);
 			(void) putc(FRAME_END, &tp->t_outq);
-			sc->sc_if.if_collisions++;
+			SL2IFP(sc)->if_collisions++;
 		} else {
-			++sc->sc_if.if_obytes;
-			sc->sc_if.if_opackets++;
+			++SL2IFP(sc)->if_obytes;
+			SL2IFP(sc)->if_opackets++;
 		}
 	}
 	return 0;
@@ -837,7 +842,7 @@ sl_btom(struct sl_softc *sc, register int len)
 
 	m->m_len = len;
 	m->m_pkthdr.len = len;
-	m->m_pkthdr.rcvif = &sc->sc_if;
+	m->m_pkthdr.rcvif = SL2IFP(sc);
 	return (m);
 }
 
@@ -862,9 +867,9 @@ slinput(int c, struct tty *tp)
 	}
 	c &= TTY_CHARMASK;
 
-	++sc->sc_if.if_ibytes;
+	++SL2IFP(sc)->if_ibytes;
 
-	if (sc->sc_if.if_flags & IFF_DEBUG) {
+	if (SL2IFP(sc)->if_flags & IFF_DEBUG) {
 		if (c == ABT_ESC) {
 			/*
 			 * If we have a previous abort, see whether
@@ -917,7 +922,7 @@ slinput(int c, struct tty *tp)
 			/* less than min length packet - ignore */
 			goto newpack;
 
-		if (sc->sc_if.if_bpf) {
+		if (SL2IFP(sc)->if_bpf) {
 			/*
 			 * Save the compressed header, so we
 			 * can tack it on later.  Note that we
@@ -941,22 +946,22 @@ slinput(int c, struct tty *tp)
 			 * it's a reasonable packet, decompress it and then
 			 * enable compression.  Otherwise, drop it.
 			 */
-			if (sc->sc_if.if_flags & SC_COMPRESS) {
+			if (SL2IFP(sc)->if_flags & SC_COMPRESS) {
 				len = sl_uncompress_tcp(&sc->sc_buf, len,
 							(u_int)c, &sc->sc_comp);
 				if (len <= 0)
 					goto error;
-			} else if ((sc->sc_if.if_flags & SC_AUTOCOMP) &&
+			} else if ((SL2IFP(sc)->if_flags & SC_AUTOCOMP) &&
 			    c == TYPE_UNCOMPRESSED_TCP && len >= 40) {
 				len = sl_uncompress_tcp(&sc->sc_buf, len,
 							(u_int)c, &sc->sc_comp);
 				if (len <= 0)
 					goto error;
-				sc->sc_if.if_flags |= SC_COMPRESS;
+				SL2IFP(sc)->if_flags |= SC_COMPRESS;
 			} else
 				goto error;
 		}
-		if (sc->sc_if.if_bpf) {
+		if (SL2IFP(sc)->if_bpf) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.
 			 * We couldn't do this any earlier since
@@ -967,21 +972,21 @@ slinput(int c, struct tty *tp)
 
 			hp[SLX_DIR] = SLIPDIR_IN;
 			bcopy(chdr, &hp[SLX_CHDR], CHDR_LEN);
-			BPF_TAP(&sc->sc_if, hp, len + SLIP_HDRLEN);
+			BPF_TAP(SL2IFP(sc), hp, len + SLIP_HDRLEN);
 		}
 		m = sl_btom(sc, len);
 		if (m == NULL)
 			goto error;
 
-		sc->sc_if.if_ipackets++;
+		SL2IFP(sc)->if_ipackets++;
 
-		if ((sc->sc_if.if_flags & IFF_UP) == 0) {
+		if ((SL2IFP(sc)->if_flags & IFF_UP) == 0) {
 			m_freem(m);
 			goto newpack;
 		}
 		if (netisr_queue(NETISR_IP, m)) {	/* (0) on success. */
-			sc->sc_if.if_ierrors++;
-			sc->sc_if.if_iqdrops++;
+			SL2IFP(sc)->if_ierrors++;
+			SL2IFP(sc)->if_iqdrops++;
 		}
 		goto newpack;
 	}
@@ -995,7 +1000,7 @@ slinput(int c, struct tty *tp)
 	sc->sc_flags |= SC_ERROR;
 
 error:
-	sc->sc_if.if_ierrors++;
+	SL2IFP(sc)->if_ierrors++;
 newpack:
 	sc->sc_mp = sc->sc_buf = sc->sc_ep - SLRMAX;
 	sc->sc_escape = 0;
@@ -1103,7 +1108,7 @@ sl_outfill(void *chan)
 	if (sc->sc_outfill && tp != NULL) {
 		if (sc->sc_flags & SC_OUTWAIT) {
 			s = splimp ();
-			++sc->sc_if.if_obytes;
+			++SL2IFP(sc)->if_obytes;
 			(void) putc(FRAME_END, &tp->t_outq);
 			(*tp->t_oproc)(tp);
 			splx (s);

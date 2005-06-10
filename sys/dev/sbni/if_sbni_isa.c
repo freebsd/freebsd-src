@@ -157,7 +157,7 @@ sbni_attach_isa(device_t dev)
 			return (ENXIO);
 		} else {
 			printf(" shared irq with %s\n",
-			       master->arpcom.ac_if.if_xname);
+			       master->ifp->if_xname);
 		}
 	} 
 #endif	/* SBNI_DUAL_COMPOUND */

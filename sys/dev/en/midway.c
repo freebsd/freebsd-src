@@ -90,7 +90,7 @@ __FBSDID("$FreeBSD$");
  */
 #define DBG(SC, FL, PRINT) do {						\
 	if ((SC)->debug & DBG_##FL) {					\
-		if_printf(&(SC)->ifatm.ifnet, "%s: "#FL": ", __func__);	\
+		if_printf((SC)->ifp, "%s: "#FL": ", __func__);	\
 		printf PRINT;						\
 		printf("\n");						\
 	}								\
@@ -395,7 +395,7 @@ en_dump_packet(struct en_softc *sc, struct mbuf *m)
 	int len;
 	u_char *ptr;
 
-	if_printf(&sc->ifatm.ifnet, "packet len=%d", plen);
+	if_printf(sc->ifp, "packet len=%d", plen);
 	while (m != NULL) {
 		totlen += m->m_len;
 		ptr = mtod(m, u_char *);
@@ -445,7 +445,7 @@ en_map_ctor(void *mem, int size, void *arg, int flags)
 
 	err = bus_dmamap_create(sc->txtag, 0, &map->map);
 	if (err != 0) {
-		if_printf(&sc->ifatm.ifnet, "cannot create DMA map %d\n", err);
+		if_printf(sc->ifp, "cannot create DMA map %d\n", err);
 		return (err);
 	}
 	map->flags = ENMAP_ALLOC;
@@ -754,7 +754,7 @@ en_txdma(struct en_softc *sc, struct en_txslot *slot)
 		lastm->m_next = NULL;
 
 	if (error != 0) {
-		if_printf(&sc->ifatm.ifnet, "loading TX map failed %d\n",
+		if_printf(sc->ifp, "loading TX map failed %d\n",
 		    error);
 		goto dequeue_drop;
 	}
@@ -770,13 +770,13 @@ en_txdma(struct en_softc *sc, struct en_txslot *slot)
 	}
 
 	EN_COUNT(sc->stats.launch);
-	sc->ifatm.ifnet.if_opackets++;
+	sc->ifp->if_opackets++;
 
 	sc->vccs[tx.vci]->opackets++;
 	sc->vccs[tx.vci]->obytes += tx.datalen;
 
 #ifdef ENABLE_BPF
-	if (sc->ifatm.ifnet.if_bpf != NULL) {
+	if (sc->ifp->if_bpf != NULL) {
 		/*
 		 * adjust the top of the mbuf to skip the TBD if present
 		 * before passing the packet to bpf.
@@ -794,7 +794,7 @@ en_txdma(struct en_softc *sc, struct en_txslot *slot)
 			tx.m->m_pkthdr.len = tx.datalen;
 		}
 
-		BPF_MTAP(&sc->ifatm.ifnet, tx.m);
+		BPF_MTAP(sc->ifp, tx.m);
 	}
 #endif
 
@@ -1314,12 +1314,12 @@ en_close_vcc(struct en_softc *sc, struct atmio_closevcc *cl)
 		goto done;
 
 	vc->vflags |= VCC_CLOSE_RX;
-	while ((sc->ifatm.ifnet.if_flags & IFF_RUNNING) &&
+	while ((sc->ifp->if_flags & IFF_RUNNING) &&
 	    (vc->vflags & VCC_DRAIN))
 		cv_wait(&sc->cv_close, &sc->en_mtx);
 
 	en_close_finish(sc, vc);
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -1349,8 +1349,8 @@ en_reset_ul(struct en_softc *sc)
 	struct en_rxslot *rx;
 	int lcv;
 
-	if_printf(&sc->ifatm.ifnet, "reset\n");
-	sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING;
+	if_printf(sc->ifp, "reset\n");
+	sc->ifp->if_flags &= ~IFF_RUNNING;
 
 	if (sc->en_busreset)
 		sc->en_busreset(sc);
@@ -1439,14 +1439,14 @@ en_init(struct en_softc *sc)
 	int vc, slot;
 	uint32_t loc;
 
-	if ((sc->ifatm.ifnet.if_flags & IFF_UP) == 0) {
+	if ((sc->ifp->if_flags & IFF_UP) == 0) {
 		DBG(sc, INIT, ("going down"));
 		en_reset(sc);				/* to be safe */
 		return;
 	}
 
 	DBG(sc, INIT, ("going up"));
-	sc->ifatm.ifnet.if_flags |= IFF_RUNNING;	/* enable */
+	sc->ifp->if_flags |= IFF_RUNNING;	/* enable */
 
 	if (sc->en_busreset)
 		sc->en_busreset(sc);
@@ -1820,7 +1820,7 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 	if (EN_DQ_LEN(drq) != 0) {
 		_IF_DEQUEUE(&slot->indma, m);
 		KASSERT(m != NULL, ("drqsync: %s: lost mbuf in slot %zu!",
-		    sc->ifatm.ifnet.if_xname, slot - sc->rxslot));
+		    sc->ifp->if_xname, slot - sc->rxslot));
 		uma_zfree(sc->map_zone, (struct en_map *)m->m_pkthdr.rcvif);
 	}
 	if ((vc = slot->vcc) == NULL) {
@@ -1856,8 +1856,8 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 		    "hand %p", slot - sc->rxslot, vc->vcc.vci, m,
 		    EN_DQ_LEN(drq), vc->rxhand));
 
-		m->m_pkthdr.rcvif = &sc->ifatm.ifnet;
-		sc->ifatm.ifnet.if_ipackets++;
+		m->m_pkthdr.rcvif = sc->ifp;
+		sc->ifp->if_ipackets++;
 
 		vc->ipackets++;
 		vc->ibytes += m->m_pkthdr.len;
@@ -1867,9 +1867,9 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 			en_dump_packet(sc, m);
 #endif
 #ifdef ENABLE_BPF
-		BPF_MTAP(&sc->ifatm.ifnet, m);
+		BPF_MTAP(sc->ifp, m);
 #endif
-		atm_input(&sc->ifatm.ifnet, &ah, m, vc->rxhand);
+		atm_input(sc->ifp, &ah, m, vc->rxhand);
 	}
 }
 
@@ -2250,16 +2250,16 @@ en_service(struct en_softc *sc)
 
 		if (MID_RBD_CNT(rbd) * MID_ATMDATASZ <
 		    MID_PDU_LEN(pdu)) {
-			if_printf(&sc->ifatm.ifnet, "invalid AAL5 length\n");
+			if_printf(sc->ifp, "invalid AAL5 length\n");
 			rx.post_skip = MID_RBD_CNT(rbd) * MID_ATMDATASZ;
 			mlen = 0;
-			sc->ifatm.ifnet.if_ierrors++;
+			sc->ifp->if_ierrors++;
 
 		} else if (rbd & MID_RBD_CRCERR) {
-			if_printf(&sc->ifatm.ifnet, "CRC error\n");
+			if_printf(sc->ifp, "CRC error\n");
 			rx.post_skip = MID_RBD_CNT(rbd) * MID_ATMDATASZ;
 			mlen = 0;
-			sc->ifatm.ifnet.if_ierrors++;
+			sc->ifp->if_ierrors++;
 
 		} else {
 			mlen = MID_PDU_LEN(pdu);
@@ -2334,7 +2334,7 @@ en_service(struct en_softc *sc)
 		    en_rxdma_load, &rx, BUS_DMA_NOWAIT);
 
 		if (error != 0) {
-			if_printf(&sc->ifatm.ifnet, "loading RX map failed "
+			if_printf(sc->ifp, "loading RX map failed "
 			    "%d\n", error);
 			uma_zfree(sc->map_zone, map);
 			m_freem(m);
@@ -2430,11 +2430,11 @@ en_intr(void *arg)
 	 * unexpected errors that need a reset
 	 */
 	if ((reg & (MID_INT_IDENT | MID_INT_LERR | MID_INT_DMA_ERR)) != 0) {
-		if_printf(&sc->ifatm.ifnet, "unexpected interrupt=0x%b, "
+		if_printf(sc->ifp, "unexpected interrupt=0x%b, "
 		    "resetting\n", reg, MID_INTBITS);
 #ifdef EN_DEBUG
 		kdb_enter("en: unexpected error");
-		sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING; /* FREEZE! */
+		sc->ifp->if_flags &= ~IFF_RUNNING; /* FREEZE! */
 #else
 		en_reset_ul(sc);
 		en_init(sc);
@@ -2493,7 +2493,7 @@ en_intr(void *arg)
 static int
 en_utopia_readregs(struct ifatm *ifatm, u_int reg, uint8_t *val, u_int *n)
 {
-	struct en_softc *sc = ifatm->ifnet.if_softc;
+	struct en_softc *sc = ifatm->ifp->if_softc;
 	u_int i;
 
 	EN_CHECKLOCK(sc);
@@ -2514,7 +2514,7 @@ en_utopia_readregs(struct ifatm *ifatm, u_int reg, uint8_t *val, u_int *n)
 static int
 en_utopia_writereg(struct ifatm *ifatm, u_int reg, u_int mask, u_int val)
 {
-	struct en_softc *sc = ifatm->ifnet.if_softc;
+	struct en_softc *sc = ifatm->ifp->if_softc;
 	uint32_t regval;
 
 	EN_CHECKLOCK(sc);
@@ -2797,13 +2797,14 @@ en_dmaprobe(struct en_softc *sc)
 int
 en_attach(struct en_softc *sc)
 {
-	struct ifnet *ifp = &sc->ifatm.ifnet;
+	struct ifnet *ifp = sc->ifp;
 	int sz;
 	uint32_t reg, lcv, check, ptr, sav, midvloc;
 
 #ifdef EN_DEBUG
 	sc->debug = EN_DEBUG;
 #endif
+
 	/*
 	 * Probe card to determine memory size.
 	 *
@@ -2852,7 +2853,7 @@ en_attach(struct en_softc *sc)
 
 	reg = en_read(sc, MID_RESID);
 
-	if_printf(&sc->ifatm.ifnet, "ATM midway v%d, board IDs %d.%d, %s%s%s, "
+	if_printf(sc->ifp, "ATM midway v%d, board IDs %d.%d, %s%s%s, "
 	    "%ldKB on-board RAM\n", MID_VER(reg), MID_MID(reg), MID_DID(reg), 
 	    (MID_IS_SABRE(reg)) ? "sabre controller, " : "",
 	    (MID_IS_SUNI(reg)) ? "SUNI" : "Utopia",
@@ -2862,31 +2863,31 @@ en_attach(struct en_softc *sc)
 	/*
 	 * fill in common ATM interface stuff
 	 */
-	sc->ifatm.mib.hw_version = (MID_VER(reg) << 16) |
+	IFP2IFATM(sc->ifp)->mib.hw_version = (MID_VER(reg) << 16) |
 	    (MID_MID(reg) << 8) | MID_DID(reg);
 	if (MID_DID(reg) & 0x4)
-		sc->ifatm.mib.media = IFM_ATM_UTP_155;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UTP_155;
 	else
-		sc->ifatm.mib.media = IFM_ATM_MM_155;
+		IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_MM_155;
 
-	sc->ifatm.mib.pcr = ATM_RATE_155M;
-	sc->ifatm.mib.vpi_bits = 0;
-	sc->ifatm.mib.vci_bits = MID_VCI_BITS;
-	sc->ifatm.mib.max_vccs = MID_N_VC;
-	sc->ifatm.mib.max_vpcs = 0;
+	IFP2IFATM(sc->ifp)->mib.pcr = ATM_RATE_155M;
+	IFP2IFATM(sc->ifp)->mib.vpi_bits = 0;
+	IFP2IFATM(sc->ifp)->mib.vci_bits = MID_VCI_BITS;
+	IFP2IFATM(sc->ifp)->mib.max_vccs = MID_N_VC;
+	IFP2IFATM(sc->ifp)->mib.max_vpcs = 0;
 
 	if (sc->is_adaptec) {
-		sc->ifatm.mib.device = ATM_DEVICE_ADP155P;
+		IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_ADP155P;
 		if (sc->bestburstlen == 64 && sc->alburst == 0)
-			if_printf(&sc->ifatm.ifnet,
+			if_printf(sc->ifp,
 			    "passed 64 byte DMA test\n");
 		else
-			if_printf(&sc->ifatm.ifnet, "FAILED DMA TEST: "
+			if_printf(sc->ifp, "FAILED DMA TEST: "
 			    "burst=%d, alburst=%d\n", sc->bestburstlen,
 			    sc->alburst);
 	} else {
-		sc->ifatm.mib.device = ATM_DEVICE_ENI155P;
-		if_printf(&sc->ifatm.ifnet, "maximum DMA burst length = %d "
+		IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_ENI155P;
+		if_printf(sc->ifp, "maximum DMA burst length = %d "
 		    "bytes%s\n", sc->bestburstlen, sc->alburst ?
 		    sc->noalbursts ?  " (no large bursts)" : " (must align)" :
 		    "");
@@ -2895,7 +2896,7 @@ en_attach(struct en_softc *sc)
 	/*
 	 * link into network subsystem and prepare card
 	 */
-	sc->ifatm.ifnet.if_softc = sc;
+	sc->ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX;
 	ifp->if_ioctl = en_ioctl;
 	ifp->if_start = en_start;
@@ -2925,8 +2926,8 @@ en_attach(struct en_softc *sc)
 		goto fail;
 #endif
 
-	sc->ifatm.phy = &sc->utopia;
-	utopia_attach(&sc->utopia, &sc->ifatm, &sc->media, &sc->en_mtx,
+	IFP2IFATM(sc->ifp)->phy = &sc->utopia;
+	utopia_attach(&sc->utopia, IFP2IFATM(sc->ifp), &sc->media, &sc->en_mtx,
 	    &sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    &en_utopia_methods);
 	utopia_init_media(&sc->utopia);
@@ -2960,7 +2961,7 @@ en_attach(struct en_softc *sc)
 	ptr = roundup(ptr, EN_TXSZ * 1024);	/* align */
 	sz = sz - (ptr - sav);
 	if (EN_TXSZ*1024 * EN_NTX > sz) {
-		if_printf(&sc->ifatm.ifnet, "EN_NTX/EN_TXSZ too big\n");
+		if_printf(sc->ifp, "EN_NTX/EN_TXSZ too big\n");
 		goto fail;
 	}
 	for (lcv = 0 ;lcv < EN_NTX ;lcv++) {
@@ -2979,7 +2980,7 @@ en_attach(struct en_softc *sc)
 	sz = sz - (ptr - sav);
 	sc->en_nrx = sz / (EN_RXSZ * 1024);
 	if (sc->en_nrx <= 0) {
-		if_printf(&sc->ifatm.ifnet, "EN_NTX/EN_TXSZ/EN_RXSZ too big\n");
+		if_printf(sc->ifp, "EN_NTX/EN_TXSZ/EN_RXSZ too big\n");
 		goto fail;
 	}
 
@@ -3010,10 +3011,10 @@ en_attach(struct en_softc *sc)
 		    sc->rxslot[lcv].mode));
 	}
 
-	if_printf(&sc->ifatm.ifnet, "%d %dKB receive buffers, %d %dKB transmit "
+	if_printf(sc->ifp, "%d %dKB receive buffers, %d %dKB transmit "
 	    "buffers\n", sc->en_nrx, EN_RXSZ, EN_NTX, EN_TXSZ);
-	if_printf(&sc->ifatm.ifnet, "end station identifier (mac address) "
-	    "%6D\n", sc->ifatm.mib.esi, ":");
+	if_printf(sc->ifp, "end station identifier (mac address) "
+	    "%6D\n", IFP2IFATM(sc->ifp)->mib.esi, ":");
 
 	/*
 	 * Start SUNI stuff. This will call our readregs/writeregs
@@ -3302,7 +3303,7 @@ en_dump(int unit, int level)
 		if (unit != -1 && unit != lcv)
 			continue;
 
-		if_printf(&sc->ifatm.ifnet, "dumping device at level 0x%b\n",
+		if_printf(sc->ifp, "dumping device at level 0x%b\n",
 		    level, END_BITS);
 
 		if (sc->dtq_us == 0) {

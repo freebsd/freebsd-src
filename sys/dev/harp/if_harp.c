@@ -354,7 +354,7 @@ harp_output(Cmn_unit *cu, Cmn_vcc *cv, KBuffer *m)
 		sc->cmn.cu_pif.pif_oerrors++;
 		cv->cv_connvc->cvc_vcc->vc_oerrors++;
 		if (cv->cv_connvc->cvc_vcc->vc_nif)
-			cv->cv_connvc->cvc_vcc->vc_nif->nif_if.if_oerrors++;
+			ANIF2IFP(cv->cv_connvc->cvc_vcc->vc_nif)->if_oerrors++;
 		return;
 	}
 
@@ -365,8 +365,8 @@ harp_output(Cmn_unit *cu, Cmn_vcc *cv, KBuffer *m)
 	cv->cv_connvc->cvc_vcc->vc_obytes += mlen;
 	if (cv->cv_connvc->cvc_vcc->vc_nif) {
 		cv->cv_connvc->cvc_vcc->vc_nif->nif_obytes += mlen;
-		cv->cv_connvc->cvc_vcc->vc_nif->nif_if.if_obytes += mlen;
-		cv->cv_connvc->cvc_vcc->vc_nif->nif_if.if_opackets++;
+		ANIF2IFP(cv->cv_connvc->cvc_vcc->vc_nif)->if_obytes += mlen;
+		ANIF2IFP(cv->cv_connvc->cvc_vcc->vc_nif)->if_opackets++;
 	}
 }
 
@@ -592,8 +592,8 @@ harp_input(struct ifnet *ifp, struct mbuf **mp, struct atm_pseudohdr *ah,
 	vcc->cv_connvc->cvc_vcc->vc_ibytes += mlen;
 	if (vcc->cv_connvc->cvc_vcc->vc_nif) {
 		vcc->cv_connvc->cvc_vcc->vc_nif->nif_ibytes += mlen;
-		vcc->cv_connvc->cvc_vcc->vc_nif->nif_if.if_ipackets++;
-		vcc->cv_connvc->cvc_vcc->vc_nif->nif_if.if_ibytes += mlen;
+		ANIF2IFP(vcc->cv_connvc->cvc_vcc->vc_nif)->if_ipackets++;
+		ANIF2IFP(vcc->cv_connvc->cvc_vcc->vc_nif)->if_ibytes += mlen;
 	}
 
 	/* hand it off */

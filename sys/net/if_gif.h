@@ -56,7 +56,7 @@ extern	void (*ng_gif_attach_p)(struct ifnet *ifp);
 extern	void (*ng_gif_detach_p)(struct ifnet *ifp);
 
 struct gif_softc {
-	struct ifnet	gif_if;	   /* common area - must be at the top */
+	struct ifnet	*gif_ifp;
 	struct sockaddr	*gif_psrc; /* Physical src addr */
 	struct sockaddr	*gif_pdst; /* Physical dst addr */
 	union {
@@ -71,6 +71,7 @@ struct gif_softc {
 	void		*gif_netgraph;	/* ng_gif(4) netgraph node info */
 	LIST_ENTRY(gif_softc) gif_list; /* all gif's are linked */
 };
+#define	GIF2IFP(sc)	((sc)->gif_ifp)
 
 #define gif_ro gifsc_gifscr.gifscr_ro
 #ifdef INET6

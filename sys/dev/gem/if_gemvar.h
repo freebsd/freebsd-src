@@ -123,10 +123,11 @@ struct gem_rxsoft {
  * Software state per device.
  */
 struct gem_softc {
-	struct arpcom	sc_arpcom;	/* arp common data */
+	struct ifnet	*sc_ifp;
 	device_t	sc_miibus;
 	struct mii_data	*sc_mii;	/* MII media control */
 	device_t	sc_dev;		/* generic device information */
+	u_char		sc_enaddr[6];
 	struct callout	sc_tick_ch;	/* tick callout */
 	struct callout	sc_rx_ch;	/* delayed rx callout */
 

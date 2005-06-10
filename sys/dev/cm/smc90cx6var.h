@@ -56,7 +56,7 @@
 #include <sys/callout.h>
 
 struct cm_softc {
-	struct	arccom	sc_arccom;	/* Common arcnet structures */
+	struct	ifnet	*sc_ifp;	/* Common arcnet structures */
 
 	int	port_rid;		/* resource id for port range */
 	struct resource *port_res;	/* resource for port range */

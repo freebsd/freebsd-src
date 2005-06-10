@@ -275,8 +275,6 @@ arl_isa_probe (device_t dev)
 	}
 
 	if (ar->diagnosticInfo == 0xFF) {
-		/* Copy arp to arpcom struct */
-		bcopy(ar->lanCardNodeId, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 		device_set_desc_copy(dev, arl_make_desc(ar->hardwareType,
 			ar->radioModule));
 		error = 0;
@@ -313,7 +311,7 @@ arl_isa_attach (device_t dev)
 	}
 
 #if __FreeBSD_version < 502108
-	device_printf(dev, "Ethernet address %6D\n", sc->arpcom.ac_enaddr, ":");
+	device_printf(dev, "Ethernet address %6D\n", IFP2ENADDR(sc->arl_ifp), ":");
 #endif
 
 	return arl_attach(dev);
@@ -327,9 +325,10 @@ arl_isa_detach(device_t dev)
 	arl_stop(sc);
 	ifmedia_removeall(&sc->arl_ifmedia);
 #if __FreeBSD_version < 500100
-	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(sc->arl_ifp, ETHER_BPF_SUPPORTED);
 #else
-	ether_ifdetach(&sc->arpcom.ac_if);
+	ether_ifdetach(sc->arl_ifp);
+	if_free(sc->arl_ifp);
 #endif
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	arl_release_resources(dev);

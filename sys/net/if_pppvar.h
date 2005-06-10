@@ -54,7 +54,7 @@
  * Structure describing each ppp unit.
  */
 struct ppp_softc {
-	struct	ifnet sc_if;		/* network-visible interface */
+	struct	ifnet *sc_ifp;		/* network-visible interface */
 /*hi*/	u_int	sc_flags;		/* control/status bits; see if_ppp.h */
 	struct	callout_handle sc_ch;	/* Used for scheduling timeouts */
 	void	*sc_devp;		/* pointer to device-dep structure */
@@ -99,6 +99,7 @@ struct ppp_softc {
 	int	sc_rawin_count;		/* # in sc_rawin */
 	LIST_ENTRY(ppp_softc) sc_list;
 };
+#define	PPP2IFP(sc)	((sc)->sc_ifp)
 
 struct	ppp_softc *pppalloc(pid_t pid);
 void	pppdealloc(struct ppp_softc *sc);

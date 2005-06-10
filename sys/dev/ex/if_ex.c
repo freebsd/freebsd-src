@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h> 
+#include <net/if_types.h> 
 #include <net/ethernet.h>
 #include <net/bpf.h>
 
@@ -202,12 +203,17 @@ int
 ex_attach(device_t dev)
 {
 	struct ex_softc *	sc = device_get_softc(dev);
-	struct ifnet *		ifp = &sc->arpcom.ac_if;
+	struct ifnet *		ifp;
 	struct ifmedia *	ifm;
 	uint16_t		temp;
 
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		return (ENOSPC);
+	}
 	/* work out which set of irq <-> internal tables to use */
-	if (ex_card_type(sc->arpcom.ac_enaddr) == CARD_TYPE_EX_10_PLUS) {
+	if (ex_card_type(sc->enaddr) == CARD_TYPE_EX_10_PLUS) {
 		sc->irq2ee = plus_irq2eemap;
 		sc->ee2irq = plus_ee2irqmap;
 	} else {
@@ -252,7 +258,7 @@ ex_attach(device_t dev)
 	/*
 	 * Attach the interface.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, sc->enaddr);
 
 	return(0);
 }
@@ -264,12 +270,13 @@ ex_detach(device_t dev)
 	struct ifnet	*ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
         ex_stop(sc);
 
         ifp->if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(ifp);
+	if_free(ifp);
 
 	ex_release_resources(dev);
 
@@ -280,7 +287,7 @@ static void
 ex_init(void *xsc)
 {
 	struct ex_softc *	sc = (struct ex_softc *) xsc;
-	struct ifnet *		ifp = &sc->arpcom.ac_if;
+	struct ifnet *		ifp = sc->ifp;
 	int			s;
 	int			i;
 	unsigned short		temp_reg;
@@ -299,7 +306,7 @@ ex_init(void *xsc)
 		CSR_WRITE_1(sc, EEPROM_REG, temp_reg & ~Trnoff_Enable);
 	}
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		CSR_WRITE_1(sc, I_ADDR_REG0 + i, sc->arpcom.ac_enaddr[i]);
+		CSR_WRITE_1(sc, I_ADDR_REG0 + i, IFP2ENADDR(sc->ifp)[i]);
 	}
 	/*
 	 * - Setup transmit chaining and discard bad received frames.
@@ -574,7 +581,7 @@ void
 ex_intr(void *arg)
 {
 	struct ex_softc *sc = (struct ex_softc *)arg;
-	struct ifnet 	*ifp = &sc->arpcom.ac_if;
+	struct ifnet 	*ifp = sc->ifp;
 	int		int_status, send_pkts;
 	int		loops = 100;
 
@@ -613,7 +620,7 @@ ex_intr(void *arg)
 static void
 ex_tx_intr(struct ex_softc *sc)
 {
-	struct ifnet *	ifp = &sc->arpcom.ac_if;
+	struct ifnet *	ifp = sc->ifp;
 	int		tx_status;
 
 	DODEBUG(Start_End, printf("ex_tx_intr%d: start\n", unit););
@@ -660,7 +667,7 @@ ex_tx_intr(struct ex_softc *sc)
 static void
 ex_rx_intr(struct ex_softc *sc)
 {
-	struct ifnet *		ifp = &sc->arpcom.ac_if;
+	struct ifnet *		ifp = sc->ifp;
 	int			rx_status;
 	int			pkt_len;
 	int			QQQ;
@@ -830,7 +837,7 @@ ex_setmulti(struct ex_softc *sc)
 	int count;
 	int timeout, status;
 	
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	count = 0;
 	TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
@@ -879,7 +886,7 @@ ex_setmulti(struct ex_softc *sc)
 		/* Program our MAC address as well */
 		/* XXX: Is this necessary?  The Linux driver does this
 		 * but the NetBSD driver does not */
-		addr = (uint16_t*)(&sc->arpcom.ac_enaddr);
+		addr = (uint16_t*)(&IFP2ENADDR(sc->ifp));
 		CSR_WRITE_2(sc, IO_PORT_REG, *addr++);
 		CSR_WRITE_2(sc, IO_PORT_REG, *addr++);
 		CSR_WRITE_2(sc, IO_PORT_REG, *addr++);

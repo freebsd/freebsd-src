@@ -281,7 +281,7 @@ struct arl_sigcache {
 
 #ifdef _KERNEL
 struct arl_softc {
-	struct arpcom		arpcom;		/* Ethernet common */
+	struct ifnet		*arl_ifp;
 
 	int			arl_unit;
 	struct arl_private *	arl_mem;	/* arlan data */
