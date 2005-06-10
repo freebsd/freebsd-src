@@ -409,11 +409,8 @@ onalrm(signo)
 		utmptime = stb.st_mtime;
 		if (stb.st_size > utmpsize) {
 			utmpsize = stb.st_size + 10 * sizeof(struct utmp);
-			if (utmp)
-				utmp = (struct utmp *)realloc(utmp, utmpsize);
-			else
-				utmp = (struct utmp *)malloc(utmpsize);
-			if (! utmp) {
+			utmp = (struct utmp *)reallocf(utmp, utmpsize);
+			if (utmp == NULL) {
 				syslog(LOG_WARNING, "malloc failed");
 				utmpsize = 0;
 				goto done;
