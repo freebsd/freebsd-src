@@ -186,6 +186,17 @@ exit_with_hooks() {
 # Start of active code.
 #
 
+# Invoke the local dhcp client enter hooks, if they exist.
+if [ -f /etc/dhclient-enter-hooks ]; then
+	exit_status=0
+	. /etc/dhclient-enter-hooks
+	# allow the local script to abort processing of this state
+	# local script must set exit_status variable to nonzero.
+	if [ $exit_status -ne 0 ]; then
+		exit $exit_status
+	fi
+fi
+
 if [ -x $NETSTAT ]; then
 	if_defaulroute=`$NETSTAT -rn | $GREP "^default" | $AWK '{print $6}'`
 else
