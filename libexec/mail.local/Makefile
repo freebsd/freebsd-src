@@ -10,12 +10,8 @@ MAN=	mail.local.8
 CFLAGS+=-I${SENDMAIL_DIR}/include -I.
 WFORMAT=0
 
-.if exists(${.OBJDIR}/../../lib/libsm)
-LIBSMDIR:=	${.OBJDIR}/../../lib/libsm
-.else
-LIBSMDIR!=	cd ${.CURDIR}/../../lib/libsm; make -V .OBJDIR
-.endif
-LIBSM:=		${LIBSMDIR}/libsm.a
+LIBSMDIR=	${.OBJDIR}/../../lib/libsm
+LIBSM=		${LIBSMDIR}/libsm.a
 
 DPADD=	${LIBSM}
 LDADD=	${LIBSM}

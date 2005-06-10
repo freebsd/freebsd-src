@@ -43,19 +43,11 @@ CFLAGS+= -DNETINET6
 DPADD=	${LIBUTIL} ${LIBWRAP}
 LDADD=	-lutil -lwrap
 
-.if exists(${.OBJDIR}/../../lib/libsm)
-LIBSMDIR:=	${.OBJDIR}/../../lib/libsm
-.else
-LIBSMDIR!=	cd ${.CURDIR}/../../lib/libsm; make -V .OBJDIR
-.endif
-LIBSM:=		${LIBSMDIR}/libsm.a
+LIBSMDIR=	${.OBJDIR}/../../lib/libsm
+LIBSM=		${LIBSMDIR}/libsm.a
 
-.if exists(${.OBJDIR}/../../lib/libsmutil)
-LIBSMUTILDIR:=	${.OBJDIR}/../../lib/libsmutil
-.else
-LIBSMUTILDIR!=	cd ${.CURDIR}/../../lib/libsmutil; make -V .OBJDIR
-.endif
-LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
+LIBSMUTILDIR=	${.OBJDIR}/../../lib/libsmutil
+LIBSMUTIL=	${LIBSMUTILDIR}/libsmutil.a
 
 DPADD+=	${LIBSMUTIL} ${LIBSM}
 LDADD+=	${LIBSMUTIL} ${LIBSM}

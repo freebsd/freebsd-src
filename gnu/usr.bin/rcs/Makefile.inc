@@ -1,7 +1,3 @@
-# Location of librcs
+# $FreeBSD$
 
-.if exists(${.OBJDIR}/../lib)
 LIBRCS=	${.OBJDIR}/../lib/librcs.a
-.else
-LIBRCS=	${.CURDIR}/../lib/librcs.a
-.endif

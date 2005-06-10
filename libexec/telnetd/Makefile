@@ -19,11 +19,7 @@ CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 WARNS?=		2
 WFORMAT?=	0
 
-.if exists(${.OBJDIR}/../../lib/libtelnet)
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
-.else
-LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
-.endif
 
 DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
 LDADD=		-lutil -ltermcap ${LIBTELNET}
