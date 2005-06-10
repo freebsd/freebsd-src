@@ -342,6 +342,7 @@ void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
 int	bridge_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 	    struct rtentry *);
+void	bridge_dummynet(struct mbuf *, struct ifnet *);
 struct mbuf *bridge_input(struct ifnet *, struct mbuf *);
 
 extern	void	(*bstp_linkstate_p)(struct ifnet *ifp, int state);

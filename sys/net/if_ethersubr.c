@@ -115,8 +115,9 @@ bdgtakeifaces_t *bdgtakeifaces_ptr;
 struct bdg_softc *ifp2sc;
 
 struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *); 
-int     (*bridge_output_p)(struct ifnet *, struct mbuf *, 
+int	(*bridge_output_p)(struct ifnet *, struct mbuf *, 
 		struct sockaddr *, struct rtentry *);
+void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
