@@ -65,7 +65,6 @@ indexname=Ind
 ########################################################################
 # Libraries
 
-# Bad assumption, if one exists they all exist
 LIBGROFF=	${.OBJDIR}/${TOPREL}/src/libs/libgroff/libgroff.a
 LIBDRIVER=	${.OBJDIR}/${TOPREL}/src/libs/libdriver/libdriver.a
 LIBBIB=		${.OBJDIR}/${TOPREL}/src/libs/libbib/libbib.a
