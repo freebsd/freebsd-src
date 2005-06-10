@@ -2513,6 +2513,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		u_int16_t reason;
 
 		if (ic->ic_state != IEEE80211_S_RUN &&
+		    ic->ic_state != IEEE80211_S_ASSOC &&
 		    ic->ic_state != IEEE80211_S_AUTH) {
 			ic->ic_stats.is_rx_mgtdiscard++;
 			return;
