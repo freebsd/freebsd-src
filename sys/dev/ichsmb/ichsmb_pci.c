@@ -80,12 +80,17 @@ __FBSDID("$FreeBSD$");
 /* Internal functions */
 static int	ichsmb_pci_probe(device_t dev);
 static int	ichsmb_pci_attach(device_t dev);
+/*Use generic one for now*/
+#if 0
+static int	ichsmb_pci_detach(device_t dev);
+#endif
 
 /* Device methods */
 static device_method_t ichsmb_pci_methods[] = {
 	/* Device interface */
         DEVMETHOD(device_probe, ichsmb_pci_probe),
         DEVMETHOD(device_attach, ichsmb_pci_attach),
+        DEVMETHOD(device_detach, ichsmb_detach),
 
 	/* Bus methods */
         DEVMETHOD(bus_print_child, bus_generic_print_child),
@@ -224,6 +229,8 @@ fail:
 	return (error);
 }
 
+
 MODULE_DEPEND(ichsmb, pci, 1, 1, 1);
 MODULE_DEPEND(ichsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(ichsmb, 1);
+;
