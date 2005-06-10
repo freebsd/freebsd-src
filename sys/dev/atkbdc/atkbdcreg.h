@@ -31,8 +31,8 @@
  * from kbdio.h,v 1.8 1998/09/25 11:55:46 yokota Exp
  */
 
-#ifndef _DEV_KBD_ATKBDCREG_H_
-#define	_DEV_KBD_ATKBDCREG_H_
+#ifndef _DEV_ATKBDC_ATKBDCREG_H_
+#define	_DEV_ATKBDC_ATKBDCREG_H_
 
 #include "opt_kbd.h"	/* Structures depend on the value if KBDIO_DEBUG */
 
@@ -261,4 +261,4 @@ int set_controller_command_byte(KBDC kbdc, int command, int flag);
 
 #endif /* _KERNEL */
 
-#endif /* !_DEV_KBD_ATKBDCREG_H_ */
+#endif /* !_DEV_ATKBDC_ATKBDCREG_H_ */

@@ -132,6 +132,12 @@ crypto/des/des_enc.c		optional	netsmbcrypto
 crypto/des/des_setkey.c		optional	netsmbcrypto
 dev/acpica/acpi_if.m		standard
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
+dev/atkbdc/atkbd.c		optional	atkbd atkbdc
+dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
+dev/atkbdc/atkbdc.c		optional	atkbdc
+dev/atkbdc/atkbdc_isa.c		optional	atkbdc isa
+dev/atkbdc/atkbdc_subr.c	optional	atkbdc
+dev/atkbdc/psm.c		optional	psm atkbdc
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
@@ -149,8 +155,6 @@ dev/fdc/fdc_pccard.c		optional	fdc pccard
 dev/hwpmc/hwpmc_amd.c		optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
-dev/kbd/atkbd.c			optional	atkbd
-dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
@@ -175,9 +179,6 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
-isa/atkbd_isa.c			optional	atkbd
-isa/atkbdc_isa.c		optional	atkbdc
-isa/psm.c			optional	psm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/link_elf_obj.c		standard
