@@ -97,8 +97,10 @@ The
 system call deletes the extended attribute specified.
 The
 .Fn extattr_list_file
-returns a list of attributes present in the requested namespace, separated
-by ASCII 0 (nul) characters.
+returns a list of attributes present in the requested namespace.
+Each list entry consists of a single byte containing the length
+of the attribute name, followed by the attribute name.
+The attribute name is not terminated by ASCII 0 (nul).
 The
 .Fn extattr_get_file ,
 and
