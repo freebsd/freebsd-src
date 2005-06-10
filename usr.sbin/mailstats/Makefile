@@ -11,19 +11,11 @@ MAN=	mailstats.8
 CFLAGS+= -I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
 CFLAGS+= -DNOT_SENDMAIL
 
-.if exists(${.OBJDIR}/../../lib/libsm)
-LIBSMDIR:=	${.OBJDIR}/../../lib/libsm
-.else
-LIBSMDIR!=	cd ${.CURDIR}/../../lib/libsm; make -V .OBJDIR
-.endif
-LIBSM:=		${LIBSMDIR}/libsm.a
+LIBSMDIR=	${.OBJDIR}/../../lib/libsm
+LIBSM=		${LIBSMDIR}/libsm.a
 
-.if exists(${.OBJDIR}/../../lib/libsmutil)
-LIBSMUTILDIR:=	${.OBJDIR}/../../lib/libsmutil
-.else
-LIBSMUTILDIR!=	cd ${.CURDIR}/../../lib/libsmutil; make -V .OBJDIR
-.endif
-LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
+LIBSMUTILDIR=	${.OBJDIR}/../../lib/libsmutil
+LIBSMUTIL=	${LIBSMUTILDIR}/libsmutil.a
 
 DPADD=	${LIBSMUTIL} ${LIBSM}
 LDADD=	${LIBSMUTIL} ${LIBSM}
