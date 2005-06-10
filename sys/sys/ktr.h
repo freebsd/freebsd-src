@@ -97,7 +97,7 @@
  * Version number for ktr_entry struct.  Increment this when you break binary
  * compatibility.
  */
-#define	KTR_VERSION	1
+#define	KTR_VERSION	2
 
 #define	KTR_PARMS	6
 
