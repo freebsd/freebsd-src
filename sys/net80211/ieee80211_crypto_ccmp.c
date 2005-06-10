@@ -67,7 +67,7 @@ static	void *ccmp_attach(struct ieee80211com *, struct ieee80211_key *);
 static	void ccmp_detach(struct ieee80211_key *);
 static	int ccmp_setkey(struct ieee80211_key *);
 static	int ccmp_encap(struct ieee80211_key *k, struct mbuf *, u_int8_t keyid);
-static	int ccmp_decap(struct ieee80211_key *, struct mbuf *);
+static	int ccmp_decap(struct ieee80211_key *, struct mbuf *, int);
 static	int ccmp_enmic(struct ieee80211_key *, struct mbuf *, int);
 static	int ccmp_demic(struct ieee80211_key *, struct mbuf *, int);
 
@@ -197,20 +197,18 @@ READ_6(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5)
  * is also verified.
  */
 static int
-ccmp_decap(struct ieee80211_key *k, struct mbuf *m)
+ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 {
 	struct ccmp_ctx *ctx = k->wk_private;
 	struct ieee80211_frame *wh;
 	uint8_t *ivp;
 	uint64_t pn;
-	int hdrlen;
 
 	/*
 	 * Header should have extended IV and sequence number;
 	 * verify the former and validate the latter.
 	 */
 	wh = mtod(m, struct ieee80211_frame *);
-	hdrlen = ieee80211_hdrsize(wh);
 	ivp = mtod(m, uint8_t *) + hdrlen;
 	if ((ivp[IEEE80211_WEP_IVLEN] & IEEE80211_WEP_EXTIV) == 0) {
 		/*
