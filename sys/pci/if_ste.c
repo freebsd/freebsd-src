@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
 #include <net/bpf.h>
@@ -564,7 +565,7 @@ ste_setmulti(sc)
 	u_int32_t		hashes[2] = { 0, 0 };
 	struct ifmultiaddr	*ifma;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ste_ifp;
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_ALLMULTI);
 		STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_MULTIHASH);
@@ -661,7 +662,7 @@ ste_intr(xsc)
 
 	sc = xsc;
 	STE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ste_ifp;
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING)
@@ -765,7 +766,7 @@ ste_rxeof(sc)
 
 	STE_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ste_ifp;
 
 	while((rxstat = sc->ste_cdata.ste_rx_head->ste_ptr->ste_status)
 	      & STE_RXSTAT_DMADONE) {
@@ -847,7 +848,7 @@ ste_txeoc(sc)
 	u_int8_t		txstat;
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ste_ifp;
 
 	while ((txstat = CSR_READ_1(sc, STE_TX_STATUS)) &
 	    STE_TXSTATUS_TXDONE) {
@@ -887,7 +888,7 @@ ste_txeof(sc)
 	struct ifnet		*ifp;
 	int			idx;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ste_ifp;
 
 	idx = sc->ste_cdata.ste_tx_cons;
 	while(idx != sc->ste_cdata.ste_tx_prod) {
@@ -920,7 +921,7 @@ ste_stats_update(xsc)
 	sc = xsc;
 	STE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ste_ifp;
 	mii = device_get_softc(sc->ste_miibus);
 
 	ifp->if_collisions += CSR_READ_1(sc, STE_LATE_COLLS)
@@ -984,6 +985,7 @@ ste_attach(dev)
 	struct ste_softc	*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
+	u_char			eaddr[6];
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -1037,7 +1039,7 @@ ste_attach(dev)
 	/*
 	 * Get station address from the EEPROM.
 	 */
-	if (ste_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
+	if (ste_read_eeprom(sc, eaddr,
 	    STE_EEADDR_NODE0, 3, 0)) {
 		printf("ste%d: failed to read station address\n", unit);
 		error = ENXIO;;
@@ -1066,7 +1068,12 @@ ste_attach(dev)
 		goto fail;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ste_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("ste%d: can not if_alloc()\n", sc->ste_unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -1084,7 +1091,7 @@ ste_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -1103,6 +1110,7 @@ ste_attach(dev)
 	if (error) {
 		printf("ste%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -1130,12 +1138,13 @@ ste_detach(dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->ste_mtx), ("ste mutex not initialized"));
 	STE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ste_ifp;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		ste_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 	if (sc->ste_miibus)
 		device_delete_child(dev, sc->ste_miibus);
@@ -1266,13 +1275,13 @@ ste_init(xsc)
 
 	sc = xsc;
 	STE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ste_ifp;
 
 	ste_stop(sc);
 
 	/* Init our MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		CSR_WRITE_1(sc, STE_PAR0 + i, sc->arpcom.ac_enaddr[i]);
+		CSR_WRITE_1(sc, STE_PAR0 + i, IFP2ENADDR(sc->ste_ifp)[i]);
 	}
 
 	/* Init RX list */
@@ -1379,7 +1388,7 @@ ste_stop(sc)
 	struct ifnet		*ifp;
 
 	STE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ste_ifp;
 
 	untimeout(ste_stats_update, sc, sc->ste_stat_ch);
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);

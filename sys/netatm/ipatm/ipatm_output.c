@@ -92,7 +92,7 @@ ipatm_ifoutput(ifp, m, dst)
 	/*
 	 * See if we've already got an appropriate VCC
 	 */
-	ivp = ipatm_iptovc((struct sockaddr_in *)dst, (struct atm_nif *)ifp);
+	ivp = ipatm_iptovc((struct sockaddr_in *)dst, IFP2ANIF(ifp));
 	if (ivp) {
 
 		/*
@@ -164,7 +164,7 @@ ipatm_ifoutput(ifp, m, dst)
 			 */
 			s = splnet();
 			for (inp = ipatm_nif_head; inp; inp = inp->inf_next) {
-				if (inp->inf_nif == (struct atm_nif *)ifp)
+				if (inp->inf_nif == IFP2ANIF(ifp))
 					break;
 			}
 			(void) splx(s);

@@ -62,7 +62,7 @@
 #define	WI_MAX_AID		256	/* max stations for ap operation */
 
 struct wi_softc	{
-	struct arpcom		sc_arp;
+	struct ifnet		*sc_ifp;
 	struct ieee80211com	sc_ic;
 	int			(*sc_newstate)(struct ieee80211com *,
 					enum ieee80211_state, int);
@@ -178,7 +178,6 @@ struct wi_softc	{
 	} u_rx_rt;
 	int			sc_rx_th_len;
 };
-#define	sc_if			sc_arp.ac_if
 #define	sc_tx_th		u_tx_rt.th
 #define	sc_rx_th		u_rx_rt.th
 

@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/ethernet.h>
 #include <net/bpf.h>
 
@@ -196,7 +197,7 @@ cs_duplex_auto(struct cs_softc *sc)
 	    RE_NEG_NOW | ALLOW_FDX | AUTO_NEG_ENABLE);
 	for (i=0; cs_readreg(sc, PP_AutoNegST) & AUTO_NEG_BUSY; i++) {
 		if (i > 40000) {
-			if_printf(&sc->arpcom.ac_if,
+			if_printf(sc->ifp,
 			    "full/half duplex auto negotiation timeout\n");
 			error = ETIMEDOUT;
 			break;
@@ -216,7 +217,7 @@ enable_tp(struct cs_softc *sc)
 	DELAY( 150000 );
 
 	if ((cs_readreg(sc, PP_LineST) & LINK_OK)==0) {
-		if_printf(&sc->arpcom.ac_if, "failed to enable TP\n");
+		if_printf(sc->ifp, "failed to enable TP\n");
 		return (EINVAL);
 	}
 
@@ -237,12 +238,12 @@ send_test_pkt(struct cs_softc *sc)
 	u_char ether_address_backup[ETHER_ADDR_LEN];
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		ether_address_backup[i] = sc->arpcom.ac_enaddr[i];
+		ether_address_backup[i] = sc->enaddr[i];
 
 	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) | SERIAL_TX_ON);
-	bcopy(test_packet, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	bcopy(test_packet, sc->enaddr, ETHER_ADDR_LEN);
 	bcopy(test_packet+ETHER_ADDR_LEN, 
-	    sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	    sc->enaddr, ETHER_ADDR_LEN);
 	cs_outw(sc, TX_CMD_PORT, sc->send_cmd);
 	cs_outw(sc, TX_LEN_PORT, sizeof(test_packet));
 
@@ -250,7 +251,7 @@ send_test_pkt(struct cs_softc *sc)
 	DELAY(50000);
 	if (!(cs_readreg(sc, PP_BusST) & READY_FOR_TX_NOW)) {
 		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
+			sc->enaddr[i] = ether_address_backup[i];
 		return (0);
 	}
 
@@ -259,7 +260,7 @@ send_test_pkt(struct cs_softc *sc)
 	DELAY(30000);
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
+		sc->enaddr[i] = ether_address_backup[i];
 	if ((cs_readreg(sc, PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK)
 		return (1);
 	return (0);
@@ -277,7 +278,7 @@ enable_aui(struct cs_softc *sc)
 	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
 
 	if (!send_test_pkt(sc)) {
-		if_printf(&sc->arpcom.ac_if, "failed to enable AUI\n");
+		if_printf(sc->ifp, "failed to enable AUI\n");
 		return (EINVAL);
 	}
 	return (0);
@@ -295,7 +296,7 @@ enable_bnc(struct cs_softc *sc)
 	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
 
 	if (!send_test_pkt(sc)) {
-		if_printf(&sc->arpcom.ac_if, "failed to enable BNC\n");
+		if_printf(sc->ifp, "failed to enable BNC\n");
 		return (EINVAL);
 	}
 	return (0);
@@ -390,9 +391,9 @@ cs_cs89x0_probe(device_t dev)
 				    eeprom_buff[ISA_CNF_OFFSET/2];
     
 				for (i=0; i<ETHER_ADDR_LEN/2; i++) {
-					sc->arpcom.ac_enaddr[i*2]=
+					sc->enaddr[i*2]=
 					    eeprom_buff[i];
-					sc->arpcom.ac_enaddr[i*2+1]=
+					sc->enaddr[i*2+1]=
 					    eeprom_buff[i] >> 8;
 				}
 
@@ -582,7 +583,13 @@ cs_attach(device_t dev)
 {
 	int media=0;
 	struct cs_softc *sc = device_get_softc(dev);;
-	struct ifnet *ifp = &(sc->arpcom.ac_if);
+	struct ifnet *ifp;
+
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		return (0);
+	}
 
 	cs_stop( sc );
 
@@ -672,7 +679,7 @@ cs_attach(device_t dev)
 	ifmedia_set(&sc->media, media);
 	cs_mediaset(sc, media);
 
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, sc->enaddr);
 
 	return (0);
 }
@@ -684,11 +691,12 @@ cs_detach(device_t dev)
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	cs_stop(sc);
 	ifp->if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	cs_release_resources(dev);
 	return (0);
 }
@@ -700,7 +708,7 @@ static void
 cs_init(void *xsc)
 {
 	struct cs_softc *sc=(struct cs_softc *)xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	int i, s, rx_cfg;
 
 	/*
@@ -742,8 +750,8 @@ cs_init(void *xsc)
 	/* Write MAC address into IA filter */
 	for (i=0; i<ETHER_ADDR_LEN/2; i++)
 		cs_writereg(sc, PP_IA + i * 2,
-		    sc->arpcom.ac_enaddr[i * 2] |
-		    (sc->arpcom.ac_enaddr[i * 2 + 1] << 8) );
+		    sc->enaddr[i * 2] |
+		    (sc->enaddr[i * 2 + 1] << 8) );
 
 	/*
 	 * Now enable everything
@@ -760,8 +768,8 @@ cs_init(void *xsc)
 	/*
 	 * Set running and clear output active flags
 	 */
-	sc->arpcom.ac_if.if_flags |= IFF_RUNNING;
-	sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_flags |= IFF_RUNNING;
+	sc->ifp->if_flags &= ~IFF_OACTIVE;
 
 	/*
 	 * Start sending process
@@ -777,7 +785,7 @@ cs_init(void *xsc)
 static int
 cs_get_packet(struct cs_softc *sc)
 {
-	struct ifnet *ifp = &(sc->arpcom.ac_if);
+	struct ifnet *ifp = sc->ifp;
 	int iobase = sc->nic_addr, status, length;
 	struct ether_header *eh;
 	struct mbuf *m;
@@ -851,7 +859,7 @@ void
 csintr(void *arg)
 {
 	struct cs_softc *sc = (struct cs_softc*) arg;
-	struct ifnet *ifp = &(sc->arpcom.ac_if);
+	struct ifnet *ifp = sc->ifp;
 	int status;
 
 #ifdef CS_DEBUG
@@ -1027,8 +1035,8 @@ cs_stop(struct cs_softc *sc)
 	cs_writereg(sc, PP_BufCFG, 0);
 	cs_writereg(sc, PP_BusCTL, 0);
 
-	sc->arpcom.ac_if.if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-	sc->arpcom.ac_if.if_timer = 0;
+	sc->ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	sc->ifp->if_timer = 0;
 
 	(void) splx(s);
 }
@@ -1046,7 +1054,7 @@ cs_reset(struct cs_softc *sc)
 static void
 cs_setmode(struct cs_softc *sc)
 {
-	struct ifnet *ifp = &(sc->arpcom.ac_if);
+	struct ifnet *ifp = sc->ifp;
 	int rx_ctl;
 
 	/* Stop the receiver while changing filters */
@@ -1103,12 +1111,12 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 		 * Switch interface state between "running" and
 		 * "stopped", reflecting the UP flag.
 		 */
-		if (sc->arpcom.ac_if.if_flags & IFF_UP) {
-			if ((sc->arpcom.ac_if.if_flags & IFF_RUNNING)==0) {
+		if (sc->ifp->if_flags & IFF_UP) {
+			if ((sc->ifp->if_flags & IFF_RUNNING)==0) {
 				cs_init(sc);
 			}
 		} else {
-			if ((sc->arpcom.ac_if.if_flags & IFF_RUNNING)!=0) {
+			if ((sc->ifp->if_flags & IFF_RUNNING)!=0) {
 				cs_stop(sc);
 			}
 		}
@@ -1220,7 +1228,7 @@ cs_mediaset(struct cs_softc *sc, int media)
 	    ~(SERIAL_RX_ON | SERIAL_TX_ON));
 
 #ifdef CS_DEBUG
-	if_printf(&sc->arpcom.ac_if, "cs_setmedia(%x)\n", media);
+	if_printf(sc->ifp, "cs_setmedia(%x)\n", media);
 #endif
 
 	switch (IFM_SUBTYPE(media)) {

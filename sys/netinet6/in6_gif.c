@@ -88,7 +88,7 @@ in6_gif_output(ifp, family, m)
 	int family; /* family of the packet to be encapsulate. */
 	struct mbuf *m;
 {
-	struct gif_softc *sc = (struct gif_softc*)ifp;
+	struct gif_softc *sc = ifp->if_softc;
 	struct sockaddr_in6 *dst = (struct sockaddr_in6 *)&sc->gif_ro6.ro_dst;
 	struct sockaddr_in6 *sin6_src = (struct sockaddr_in6 *)sc->gif_psrc;
 	struct sockaddr_in6 *sin6_dst = (struct sockaddr_in6 *)sc->gif_pdst;
@@ -185,7 +185,7 @@ in6_gif_output(ifp, family, m)
 			sc->gif_ro6.ro_rt = NULL;
 		}
 #if 0
-		sc->gif_if.if_mtu = GIF_MTU;
+		GIF2IFP(sc)->if_mtu = GIF_MTU;
 #endif
 	}
 
@@ -218,7 +218,7 @@ in6_gif_output(ifp, family, m)
 	error = ip6_output(m, 0, &sc->gif_ro6, 0, 0, NULL, NULL);
 #endif
 
-	if (!(sc->gif_if.if_flags & IFF_LINK0) &&
+	if (!(GIF2IFP(sc)->if_flags & IFF_LINK0) &&
 	    sc->gif_ro6.ro_rt != NULL) {
 		RTFREE(sc->gif_ro6.ro_rt);
 		sc->gif_ro6.ro_rt = NULL;
@@ -330,7 +330,7 @@ gif_validate6(ip6, sc, ifp)
 	/* martian filters on outer source - done in ip6_input */
 
 	/* ingress filters on outer source */
-	if ((sc->gif_if.if_flags & IFF_LINK2) == 0 && ifp) {
+	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {
 		struct sockaddr_in6 sin6;
 		struct rtentry *rt;
 
@@ -344,7 +344,7 @@ gif_validate6(ip6, sc, ifp)
 		if (!rt || rt->rt_ifp != ifp) {
 #if 0
 			log(LOG_WARNING, "%s: packet from %s dropped "
-			    "due to ingress filter\n", if_name(&sc->gif_if),
+			    "due to ingress filter\n", if_name(GIF2IFP(sc)),
 			    ip6_sprintf(&sin6.sin6_addr));
 #endif
 			if (rt)

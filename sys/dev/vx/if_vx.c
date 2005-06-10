@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if_arp.h>
+#include <net/if_types.h>
 
 #include <machine/bus.h>
 
@@ -140,8 +141,15 @@ int
 vxattach(device_t dev)
 {
 	struct vx_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp;
 	int i;
+	u_char eaddr[6];
+
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		return 0;
+	}
 
 	callout_handle_init(&sc->ch);
 	GO_WINDOW(0);
@@ -164,8 +172,8 @@ vxattach(device_t dev)
 		if (vxbusyeeprom(sc))
 			return 0;
 		x = CSR_READ_2(sc, VX_W0_EEPROM_DATA);
-		sc->arpcom.ac_enaddr[(i << 1)] = x >> 8;
-		sc->arpcom.ac_enaddr[(i << 1) + 1] = x;
+		eaddr[(i << 1)] = x >> 8;
+		eaddr[(i << 1) + 1] = x;
 	}
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -179,7 +187,7 @@ vxattach(device_t dev)
 	ifp->if_watchdog = vxwatchdog;
 	ifp->if_softc = sc;
 
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 
 	sc->tx_start_thresh = 20;	/* probably a good starting point. */
 
@@ -196,7 +204,7 @@ static void
 vxinit(void *xsc)
 {
 	struct vx_softc *sc = (struct vx_softc *)xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	int i;
 
 	VX_BUSY_WAIT;
@@ -204,7 +212,7 @@ vxinit(void *xsc)
 	GO_WINDOW(2);
 
 	for (i = 0; i < 6; i++)	/* Reload the ether_addr. */
-		CSR_WRITE_1(sc, VX_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
+		CSR_WRITE_1(sc, VX_W2_ADDR_0 + i, IFP2ENADDR(sc->ifp)[i]);
 
 	CSR_WRITE_2(sc, VX_COMMAND, RX_RESET);
 	VX_BUSY_WAIT;
@@ -247,7 +255,7 @@ vxinit(void *xsc)
 static void
 vxsetfilter(struct vx_softc *sc)
 {
-	register struct ifnet *ifp = &sc->arpcom.ac_if;
+	register struct ifnet *ifp = sc->ifp;
 
 	GO_WINDOW(1);		/* Window 1 is operating window */
 	CSR_WRITE_2(sc, VX_COMMAND, SET_RX_FILTER |
@@ -290,7 +298,7 @@ vxgetlink(struct vx_softc *sc)
 static void
 vxsetlink(struct vx_softc *sc)
 {
-	register struct ifnet *ifp = &sc->arpcom.ac_if;
+	register struct ifnet *ifp = sc->ifp;
 	int i, j, k;
 	char *reason, *warning;
 	static int prev_flags;
@@ -397,7 +405,7 @@ vxstart(struct ifnet *ifp)
 	int sh, len, pad;
 
 	/* Don't transmit if interface is busy or not running */
-	if ((sc->arpcom.ac_if.if_flags &
+	if ((sc->ifp->if_flags &
 	    (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING)
 		return;
 
@@ -445,7 +453,7 @@ startagain:
 	CSR_WRITE_2(sc, VX_COMMAND, SET_TX_START_THRESH |
 	    ((len / 4 + sc->tx_start_thresh) >> 2));
 
-	BPF_MTAP(&sc->arpcom.ac_if, m);
+	BPF_MTAP(sc->ifp, m);
 
 	/*
          * Do the output at splhigh() so that an interrupt from another device
@@ -523,23 +531,23 @@ vxstatus(struct vx_softc *sc)
 	GO_WINDOW(1);
 
 	if (fifost & FIFOS_RX_UNDERRUN) {
-		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
+		if (sc->ifp->if_flags & IFF_DEBUG)
 			printf("vx%d: RX underrun\n", sc->unit);
 		vxreset(sc);
 		return 0;
 	}
 	if (fifost & FIFOS_RX_STATUS_OVERRUN) {
-		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
+		if (sc->ifp->if_flags & IFF_DEBUG)
 			printf("vx%d: RX Status overrun\n", sc->unit);
 		return 1;
 	}
 	if (fifost & FIFOS_RX_OVERRUN) {
-		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
+		if (sc->ifp->if_flags & IFF_DEBUG)
 			printf("vx%d: RX overrun\n", sc->unit);
 		return 1;
 	}
 	if (fifost & FIFOS_TX_OVERRUN) {
-		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
+		if (sc->ifp->if_flags & IFF_DEBUG)
 			printf("vx%d: TX overrun\n", sc->unit);
 		vxreset(sc);
 		return 0;
@@ -560,13 +568,13 @@ vxtxstat(struct vx_softc *sc)
 		CSR_WRITE_1(sc, VX_W1_TX_STATUS, 0x0);
 
 		if (i & TXS_JABBER) {
-			++sc->arpcom.ac_if.if_oerrors;
-			if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
+			++sc->ifp->if_oerrors;
+			if (sc->ifp->if_flags & IFF_DEBUG)
 				printf("vx%d: jabber (%x)\n", sc->unit, i);
 			vxreset(sc);
 		} else if (i & TXS_UNDERRUN) {
-			++sc->arpcom.ac_if.if_oerrors;
-			if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
+			++sc->ifp->if_oerrors;
+			if (sc->ifp->if_flags & IFF_DEBUG)
 				printf("vx%d: fifo underrun (%x) @%d\n",
 				    sc->unit, i, sc->tx_start_thresh);
 			if (sc->tx_succ_ok < 100)
@@ -575,9 +583,9 @@ vxtxstat(struct vx_softc *sc)
 			sc->tx_succ_ok = 0;
 			vxreset(sc);
 		} else if (i & TXS_MAX_COLLISION) {
-			++sc->arpcom.ac_if.if_collisions;
+			++sc->ifp->if_collisions;
 			CSR_WRITE_2(sc, VX_COMMAND, TX_ENABLE);
-			sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+			sc->ifp->if_flags &= ~IFF_OACTIVE;
 		} else
 			sc->tx_succ_ok = (sc->tx_succ_ok + 1) & 127;
 	}
@@ -588,7 +596,7 @@ vxintr(void *voidsc)
 {
 	register short status;
 	struct vx_softc *sc = voidsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	for (;;) {
 		CSR_WRITE_2(sc, VX_COMMAND, C_INTR_LATCH);
@@ -611,8 +619,8 @@ vxintr(void *voidsc)
 			vxread(sc);
 		if (status & S_TX_AVAIL) {
 			ifp->if_timer = 0;
-			sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-			vxstart(&sc->arpcom.ac_if);
+			sc->ifp->if_flags &= ~IFF_OACTIVE;
+			vxstart(sc->ifp);
 		}
 		if (status & S_CARD_FAILURE) {
 			printf("vx%d: adapter failure (%x)\n",
@@ -635,7 +643,7 @@ vxintr(void *voidsc)
 static void
 vxread(struct vx_softc *sc)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct mbuf *m;
 	struct ether_header *eh;
 	u_int len;
@@ -705,7 +713,7 @@ again:
          */
 
 	if ((eh->ether_dhost[0] & 1) == 0	/* !mcast and !bcast */
-	    && bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN)!=0) {
+	    && bcmp(eh->ether_dhost, IFP2ENADDR(sc->ifp), ETHER_ADDR_LEN)!=0) {
 		m_freem(m);
 		return;
 	}
@@ -747,7 +755,7 @@ abort:
 static struct mbuf *
 vxget(struct vx_softc *sc, u_int totlen)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct mbuf *top, **mp, *m;
 	int len;
 	int sh;
@@ -929,7 +937,7 @@ vxwatchdog(struct ifnet *ifp)
 void
 vxstop(struct vx_softc *sc)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 
 	ifp->if_timer = 0;
 

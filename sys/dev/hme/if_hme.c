@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
 #include <netinet/in.h>
@@ -105,7 +106,7 @@ static int	hme_ioctl(struct ifnet *, u_long, caddr_t);
 static void	hme_tick(void *);
 static void	hme_watchdog(struct ifnet *);
 static void	hme_init(void *);
-static void	hme_init_locked(void *);
+static void	hme_init_locked(struct hme_softc *);
 static int	hme_add_rxbuf(struct hme_softc *, unsigned int, int);
 static int	hme_meminit(struct hme_softc *);
 static int	hme_mac_bitflip(struct hme_softc *, u_int32_t, u_int32_t,
@@ -170,10 +171,14 @@ MODULE_DEPEND(hme, miibus, 1, 1, 1);
 int
 hme_config(struct hme_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp;
 	struct mii_softc *child;
 	bus_size_t size;
 	int error, rdesc, tdesc, i;
+
+	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		return (ENOSPC);
 
 	/*
 	 * HME common initialization.
@@ -214,7 +219,7 @@ hme_config(struct hme_softc *sc)
 	    BUS_SPACE_MAXADDR, NULL, NULL, size, HME_NTXDESC + HME_NRXDESC + 1,
 	    BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL, &sc->sc_pdmatag);
 	if (error)
-		return (error);
+		goto fail_ifnet;
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, 2048, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
@@ -333,7 +338,7 @@ hme_config(struct hme_softc *sc)
 	}
 
 	/* Attach the interface. */
-	ether_ifattach(ifp, sc->sc_arpcom.ac_enaddr);
+	ether_ifattach(ifp, sc->sc_enaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames/checksum offloads.
@@ -368,18 +373,21 @@ fail_ctag:
 	bus_dma_tag_destroy(sc->sc_cdmatag);
 fail_ptag:
 	bus_dma_tag_destroy(sc->sc_pdmatag);
+fail_ifnet:
+	if_free(ifp);
 	return (error);
 }
 
 void
 hme_detach(struct hme_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
 	HME_LOCK_ASSERT(sc, MA_NOTOWNED);
 
 	ether_ifdetach(ifp);
+	if_free(ifp);
 	HME_LOCK(sc);
 	hme_stop(sc);
 	HME_UNLOCK(sc);
@@ -416,11 +424,11 @@ hme_suspend(struct hme_softc *sc)
 void
 hme_resume(struct hme_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	HME_LOCK(sc);
 	if ((ifp->if_flags & IFF_UP) != 0)
-		hme_init_locked(ifp);
+		hme_init_locked(sc);
 	HME_UNLOCK(sc);
 }
 
@@ -682,10 +690,9 @@ hme_init(void *xsc)
 }
 
 static void
-hme_init_locked(void *xsc)
+hme_init_locked(struct hme_softc *sc)
 {
-	struct hme_softc *sc = (struct hme_softc *)xsc;
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	u_int8_t *ea;
 	u_int32_t n, v;
 
@@ -722,7 +729,7 @@ hme_init_locked(void *xsc)
 	HME_MAC_WRITE_4(sc, HME_MACI_TXSIZE, HME_MAX_FRAMESIZE);
 
 	/* Load station MAC address */
-	ea = sc->sc_arpcom.ac_enaddr;
+	ea = IFP2ENADDR(sc->sc_ifp);
 	HME_MAC_WRITE_4(sc, HME_MACI_MACADDR0, (ea[0] << 8) | ea[1]);
 	HME_MAC_WRITE_4(sc, HME_MACI_MACADDR1, (ea[2] << 8) | ea[3]);
 	HME_MAC_WRITE_4(sc, HME_MACI_MACADDR2, (ea[4] << 8) | ea[5]);
@@ -1041,7 +1048,7 @@ fail:
 static void
 hme_read(struct hme_softc *sc, int ix, int len, u_int32_t flags)
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct mbuf *m;
 
 	if (len <= sizeof(struct ether_header) ||
@@ -1139,7 +1146,7 @@ hme_start_locked(struct ifnet *ifp)
 static void
 hme_tint(struct hme_softc *sc)
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct hme_txdesc *htx;
 	unsigned int ri, txflags;
 
@@ -1282,7 +1289,7 @@ static void
 hme_rint(struct hme_softc *sc)
 {
 	caddr_t xdr = sc->sc_rb.rb_rxd;
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	unsigned int ri, len;
 	int progress = 0;
 	u_int32_t flags;
@@ -1619,7 +1626,7 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 hme_setladrf(struct hme_softc *sc, int reenable)
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ifmultiaddr *inm;
 	u_int32_t crc;
 	u_int32_t hash[4];
@@ -1672,7 +1679,7 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 	 * the word.
 	 */
 
-	TAILQ_FOREACH(inm, &sc->sc_arpcom.ac_if.if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(inm, &sc->sc_ifp->if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)

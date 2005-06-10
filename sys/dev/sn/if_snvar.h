@@ -30,14 +30,8 @@
 
 #include <net/if_arp.h>
 
-/*
- * Ethernet software status per interface.  The first element MUST
- * be the arpcom struct since the address of the arpcom struct is
- * used as a backdoor to obtain the address of this whole structure
- * in many cases.
- */
 struct sn_softc {
-	struct arpcom   arpcom;	/* Ethernet common part */
+	struct ifnet    *ifp;
 	bus_space_tag_t	bst;
 	bus_space_handle_t bsh;
 	struct mtx sc_mtx;

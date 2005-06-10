@@ -293,5 +293,5 @@ ed_Novell_read_mac(struct ed_softc *sc)
 	 */
 	ed_pio_readmem(sc, 0, romdata, 16);
 	for (n = 0; n < ETHER_ADDR_LEN; n++)
-		sc->arpcom.ac_enaddr[n] = romdata[n * (sc->isa16bit + 1)];
+		sc->enaddr[n] = romdata[n * (sc->isa16bit + 1)];
 }

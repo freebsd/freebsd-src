@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/if_atm.h>
 #include <net/route.h>
 #ifdef ENABLE_BPF
@@ -177,18 +178,22 @@ patm_attach(device_t dev)
 #ifdef IATM_DEBUG
 	sc->debug = IATM_DEBUG;
 #endif
-	sc->ifatm.mib.device = ATM_DEVICE_IDTABR25;
-	sc->ifatm.mib.serial = 0;
-	sc->ifatm.mib.hw_version = 0;
-	sc->ifatm.mib.sw_version = 0;
-	sc->ifatm.mib.vpi_bits = PATM_VPI_BITS;
-	sc->ifatm.mib.vci_bits = 0;	/* set below */;
-	sc->ifatm.mib.max_vpcs = 0;
-	sc->ifatm.mib.max_vccs = 0;	/* set below */
-	sc->ifatm.mib.media = IFM_ATM_UNKNOWN;
-	sc->ifatm.phy = &sc->utopia;
+	ifp = sc->ifp = if_alloc(IFT_ATM);
+	if (ifp == NULL) {
+		return (ENOSPC);
+	}
 
-	ifp = &sc->ifatm.ifnet;
+	IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_IDTABR25;
+	IFP2IFATM(sc->ifp)->mib.serial = 0;
+	IFP2IFATM(sc->ifp)->mib.hw_version = 0;
+	IFP2IFATM(sc->ifp)->mib.sw_version = 0;
+	IFP2IFATM(sc->ifp)->mib.vpi_bits = PATM_VPI_BITS;
+	IFP2IFATM(sc->ifp)->mib.vci_bits = 0;	/* set below */;
+	IFP2IFATM(sc->ifp)->mib.max_vpcs = 0;
+	IFP2IFATM(sc->ifp)->mib.max_vccs = 0;	/* set below */
+	IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UNKNOWN;
+	IFP2IFATM(sc->ifp)->phy = &sc->utopia;
+
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_SIMPLEX;
@@ -297,8 +302,8 @@ patm_attach(device_t dev)
 	 * Detect and attach the phy.
 	 */
 	patm_debug(sc, ATTACH, "attaching utopia");
-	sc->ifatm.phy = &sc->utopia;
-	utopia_attach(&sc->utopia, &sc->ifatm, &sc->media, &sc->mtx,
+	IFP2IFATM(sc->ifp)->phy = &sc->utopia;
+	utopia_attach(&sc->utopia, IFP2IFATM(sc->ifp), &sc->media, &sc->mtx,
 	    &sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    &patm_utopia_methods);
 
@@ -318,41 +323,41 @@ patm_attach(device_t dev)
 	if (strncmp(sc->eeprom + PATM_PROATM_NAME_OFFSET, PATM_PROATM_NAME,
 	    strlen(PATM_PROATM_NAME)) == 0) {
 		if (sc->utopia.chip->type == UTP_TYPE_IDT77105) {
-			sc->ifatm.mib.device = ATM_DEVICE_PROATM25;
-			sc->ifatm.mib.pcr = ATM_RATE_25_6M;
-			sc->ifatm.mib.media = IFM_ATM_UTP_25;
+			IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_PROATM25;
+			IFP2IFATM(sc->ifp)->mib.pcr = ATM_RATE_25_6M;
+			IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UTP_25;
 			sc->flags |= PATM_25M;
 			patm_printf(sc, "ProATM 25 interface; ");
 
 		} else {
 			/* cannot really know which media */
-			sc->ifatm.mib.device = ATM_DEVICE_PROATM155;
-			sc->ifatm.mib.pcr = ATM_RATE_155M;
-			sc->ifatm.mib.media = IFM_ATM_MM_155;
+			IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_PROATM155;
+			IFP2IFATM(sc->ifp)->mib.pcr = ATM_RATE_155M;
+			IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_MM_155;
 			patm_printf(sc, "ProATM 155 interface; ");
 		}
 
-		bcopy(sc->eeprom + PATM_PROATM_MAC_OFFSET, sc->ifatm.mib.esi,
-		    sizeof(sc->ifatm.mib.esi));
+		bcopy(sc->eeprom + PATM_PROATM_MAC_OFFSET, IFP2IFATM(sc->ifp)->mib.esi,
+		    sizeof(IFP2IFATM(sc->ifp)->mib.esi));
 
 	} else {
 		if (sc->utopia.chip->type == UTP_TYPE_IDT77105) {
-			sc->ifatm.mib.device = ATM_DEVICE_IDTABR25;
-			sc->ifatm.mib.pcr = ATM_RATE_25_6M;
-			sc->ifatm.mib.media = IFM_ATM_UTP_25;
+			IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_IDTABR25;
+			IFP2IFATM(sc->ifp)->mib.pcr = ATM_RATE_25_6M;
+			IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UTP_25;
 			sc->flags |= PATM_25M;
 			patm_printf(sc, "IDT77252 25MBit interface; ");
 
 		} else {
 			/* cannot really know which media */
-			sc->ifatm.mib.device = ATM_DEVICE_IDTABR155;
-			sc->ifatm.mib.pcr = ATM_RATE_155M;
-			sc->ifatm.mib.media = IFM_ATM_MM_155;
+			IFP2IFATM(sc->ifp)->mib.device = ATM_DEVICE_IDTABR155;
+			IFP2IFATM(sc->ifp)->mib.pcr = ATM_RATE_155M;
+			IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_MM_155;
 			patm_printf(sc, "IDT77252 155MBit interface; ");
 		}
 
-		bcopy(sc->eeprom + PATM_IDT_MAC_OFFSET, sc->ifatm.mib.esi,
-		    sizeof(sc->ifatm.mib.esi));
+		bcopy(sc->eeprom + PATM_IDT_MAC_OFFSET, IFP2IFATM(sc->ifp)->mib.esi,
+		    sizeof(IFP2IFATM(sc->ifp)->mib.esi));
 	}
 	printf("idt77252 Rev. %c; %s PHY\n", 'A' + sc->revision,
 	    sc->utopia.chip->name);
@@ -375,8 +380,8 @@ patm_attach(device_t dev)
 	else
 		sc->mmap = &idt_mmap[3];
 
-	sc->ifatm.mib.vci_bits = sc->mmap->vcbits - sc->ifatm.mib.vpi_bits;
-	sc->ifatm.mib.max_vccs = sc->mmap->max_conn;
+	IFP2IFATM(sc->ifp)->mib.vci_bits = sc->mmap->vcbits - IFP2IFATM(sc->ifp)->mib.vpi_bits;
+	IFP2IFATM(sc->ifp)->mib.max_vccs = sc->mmap->max_conn;
 	patm_sram_write(sc, 0, 0);
 	patm_printf(sc, "%uK x 32 SRAM; %u connections\n", sc->mmap->sram,
 	    sc->mmap->max_conn);
@@ -440,7 +445,8 @@ patm_attach(device_t dev)
 	    sc, &sc->ih);
 	if (error != 0) {
 		patm_printf(sc, "could not setup interrupt\n");
-		atm_ifdetach(&sc->ifatm.ifnet);
+		atm_ifdetach(sc->ifp);
+		if_free(sc->ifp);
 		goto fail;
 	}
 
@@ -470,7 +476,8 @@ patm_detach(device_t dev)
 	}
 	mtx_unlock(&sc->mtx);
 
-	atm_ifdetach(&sc->ifatm.ifnet);
+	atm_ifdetach(sc->ifp);
+	if_free(sc->ifp);
 
 	patm_destroy(sc);
 
@@ -696,7 +703,7 @@ patm_read_eeprom(struct patm_softc *sc)
 static int
 patm_phy_readregs(struct ifatm *ifatm, u_int reg, uint8_t *val, u_int *n)
 {
-	struct patm_softc *sc = ifatm->ifnet.if_softc;
+	struct patm_softc *sc = ifatm->ifp->if_softc;
 	u_int cnt = *n;
 
 	if (reg >= 0x100)
@@ -722,7 +729,7 @@ patm_phy_readregs(struct ifatm *ifatm, u_int reg, uint8_t *val, u_int *n)
 static int
 patm_phy_writereg(struct ifatm *ifatm, u_int reg, u_int mask, u_int val)
 {
-	struct patm_softc *sc = ifatm->ifnet.if_softc;
+	struct patm_softc *sc = ifatm->ifp->if_softc;
 	u_int old, new;
 
 	if (reg >= 0x100)

@@ -220,7 +220,7 @@ lnc_release_resources(device_t dev)
 static __inline void
 lnc_setladrf(struct lnc_softc *sc)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct ifmultiaddr *ifma;
 	u_long index;
 	int i;
@@ -429,7 +429,7 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 static void
 lnc_rint(struct lnc_softc *sc)
 {
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->ifp;
 	struct host_ring_entry *next, *start;
 	int start_of_packet;
 	struct mbuf *head;
@@ -578,7 +578,7 @@ lnc_rint(struct lnc_softc *sc)
 				 * drop it if it is from myself.
 				*/
 				if (bcmp(eh->ether_shost,
-				      sc->arpcom.ac_enaddr, ETHER_ADDR_LEN) == 0) {
+				      IFP2ENADDR(sc->ifp), ETHER_ADDR_LEN) == 0) {
 				    m_freem(head);
 				} else {
 				    (*ifp->if_input)(ifp, head);
@@ -625,7 +625,7 @@ lnc_tint(struct lnc_softc *sc)
 
 #ifdef DIAGNOSTIC
 	if ((sc->trans_ring + sc->trans_next)->md->md1 & OWN) {
-		log(LOG_ERR, "%s: Transmit interrupt with buffer still owned by controller -- Resetting\n", sc->arpcom.ac_if.if_xname);
+		log(LOG_ERR, "%s: Transmit interrupt with buffer still owned by controller -- Resetting\n", sc->ifp->if_xname);
 		lnc_reset(sc);
 		return;
 	}
@@ -654,7 +654,7 @@ lnc_tint(struct lnc_softc *sc)
 
 #ifdef DIAGNOSTIC
 	if (!(next->md->md1 & STP)) {
-		log(LOG_ERR, "%s: Transmit interrupt but not start of packet -- Resetting\n", sc->arpcom.ac_if.if_xname);
+		log(LOG_ERR, "%s: Transmit interrupt but not start of packet -- Resetting\n", sc->ifp->if_xname);
 		lnc_reset(sc);
 		return;
 	}
@@ -671,7 +671,7 @@ lnc_tint(struct lnc_softc *sc)
 			} while (!(next->md->md1 & (STP | OWN | ENP | MDERR)));
 
 			if (next->md->md1 & STP) {
-				log(LOG_ERR, "%s: Start of packet found before end of previous in transmit ring -- Resetting\n", sc->arpcom.ac_if.if_xname);
+				log(LOG_ERR, "%s: Start of packet found before end of previous in transmit ring -- Resetting\n", sc->ifp->if_xname);
 				lnc_reset(sc);
 				return;
 			}
@@ -684,7 +684,7 @@ lnc_tint(struct lnc_softc *sc)
 					sc->trans_next = start_of_packet;
 					break;
 				} else {
-					log(LOG_ERR, "%s: End of transmitted packet not found -- Resetting\n", sc->arpcom.ac_if.if_xname);
+					log(LOG_ERR, "%s: End of transmitted packet not found -- Resetting\n", sc->ifp->if_xname);
 					lnc_reset(sc);
 					return;
 				}
@@ -697,12 +697,12 @@ lnc_tint(struct lnc_softc *sc)
 		if (next->md->md1 & MDERR) {
 
 			LNCSTATS(terr)
-				sc->arpcom.ac_if.if_oerrors++;
+				sc->ifp->if_oerrors++;
 
 			if (next->md->md3 & LCOL) {
 				LNCSTATS(lcol)
-				log(LOG_ERR, "%s: Transmit late collision  -- Net error?\n", sc->arpcom.ac_if.if_xname);
-				sc->arpcom.ac_if.if_collisions++;
+				log(LOG_ERR, "%s: Transmit late collision  -- Net error?\n", sc->ifp->if_xname);
+				sc->ifp->if_collisions++;
 				/*
 				 * Clear TBUFF since it's not valid when LCOL
 				 * set
@@ -711,12 +711,12 @@ lnc_tint(struct lnc_softc *sc)
 			}
 			if (next->md->md3 & LCAR) {
 				LNCSTATS(lcar)
-				log(LOG_ERR, "%s: Loss of carrier during transmit -- Net error?\n", sc->arpcom.ac_if.if_xname);
+				log(LOG_ERR, "%s: Loss of carrier during transmit -- Net error?\n", sc->ifp->if_xname);
 			}
 			if (next->md->md3 & RTRY) {
 				LNCSTATS(rtry)
-				log(LOG_ERR, "%s: Transmit of packet failed after 16 attempts -- TDR = %d\n", sc->arpcom.ac_if.if_xname, ((sc->trans_ring + sc->trans_next)->md->md3 & TDR));
-				sc->arpcom.ac_if.if_collisions += 16;
+				log(LOG_ERR, "%s: Transmit of packet failed after 16 attempts -- TDR = %d\n", sc->ifp->if_xname, ((sc->trans_ring + sc->trans_next)->md->md3 & TDR));
+				sc->ifp->if_collisions += 16;
 				/*
 				 * Clear TBUFF since it's not valid when RTRY
 				 * set
@@ -741,9 +741,9 @@ lnc_tint(struct lnc_softc *sc)
 				 */
 				if (next->md->md3 & TBUFF) {
 					LNCSTATS(tbuff)
-					log(LOG_ERR, "%s: Transmit buffer error -- Resetting\n", sc->arpcom.ac_if.if_xname);
+					log(LOG_ERR, "%s: Transmit buffer error -- Resetting\n", sc->ifp->if_xname);
 				} else
-					log(LOG_ERR, "%s: Transmit underflow error -- Resetting\n", sc->arpcom.ac_if.if_xname);
+					log(LOG_ERR, "%s: Transmit underflow error -- Resetting\n", sc->ifp->if_xname);
 				lnc_reset(sc);
 				return;
 			}
@@ -760,11 +760,11 @@ lnc_tint(struct lnc_softc *sc)
 			 * Don't bother checking for DEF, waste of time.
 			 */
 
-			sc->arpcom.ac_if.if_opackets++;
+			sc->ifp->if_opackets++;
 
 			if (next->md->md1 & MORE) {
 				LNCSTATS(more)
-				sc->arpcom.ac_if.if_collisions += 2;
+				sc->ifp->if_collisions += 2;
 			}
 
 			/*
@@ -777,7 +777,7 @@ lnc_tint(struct lnc_softc *sc)
 
 			if (next->md->md1 & ONE) {
 				LNCSTATS(one)
-				sc->arpcom.ac_if.if_collisions++;
+				sc->ifp->if_collisions++;
 			}
 			INC_MD_PTR(sc->trans_next, sc->ntdre)
 			next = sc->trans_ring + sc->trans_next;
@@ -818,7 +818,7 @@ lnc_tint(struct lnc_softc *sc)
 		 * more packets again.
 		 */
 
-		sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_flags &= ~IFF_OACTIVE;
 
 		lookahead++;
 
@@ -838,6 +838,7 @@ lnc_attach_common(device_t dev)
 	lnc_softc_t *sc = device_get_softc(dev);
 	int i;
 	int skip;
+	u_char eaddr[6];
 
 	switch (sc->nic.ident) {
 	case BICC:
@@ -854,37 +855,52 @@ lnc_attach_common(device_t dev)
 
 	/* Fill in arpcom structure entries */
 
-	sc->arpcom.ac_if.if_softc = sc;
-	if_initname(&sc->arpcom.ac_if, device_get_name(dev),
+	sc->ifp = if_alloc(IFT_ETHER);
+	if (sc->ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		return (0);
+	}
+	sc->ifp->if_softc = sc;
+	if_initname(sc->ifp, device_get_name(dev),
 	    device_get_unit(dev));
-	sc->arpcom.ac_if.if_flags = IFF_BROADCAST | IFF_SIMPLEX |
+	sc->ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX |
 	    IFF_MULTICAST | IFF_NEEDSGIANT;
-	sc->arpcom.ac_if.if_timer = 0;
-	sc->arpcom.ac_if.if_start = lnc_start;
-	sc->arpcom.ac_if.if_ioctl = lnc_ioctl;
-	sc->arpcom.ac_if.if_watchdog = lnc_watchdog;
-	sc->arpcom.ac_if.if_init = lnc_init;
-	IFQ_SET_MAXLEN(&sc->arpcom.ac_if.if_snd, IFQ_MAXLEN);
-	sc->arpcom.ac_if.if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
-	IFQ_SET_READY(&sc->arpcom.ac_if.if_snd);
+	sc->ifp->if_timer = 0;
+	sc->ifp->if_start = lnc_start;
+	sc->ifp->if_ioctl = lnc_ioctl;
+	sc->ifp->if_watchdog = lnc_watchdog;
+	sc->ifp->if_init = lnc_init;
+	IFQ_SET_MAXLEN(&sc->ifp->if_snd, IFQ_MAXLEN);
+	sc->ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_READY(&sc->ifp->if_snd);
 
 	/* Extract MAC address from PROM */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->arpcom.ac_enaddr[i] = lnc_inb(i * skip);
+		eaddr[i] = lnc_inb(i * skip);
 
-	/*
-	 * XXX -- should check return status of if_attach
-	 */
-
-	ether_ifattach(&sc->arpcom.ac_if, sc->arpcom.ac_enaddr);
+	ether_ifattach(sc->ifp, eaddr);
 
 	if (sc->nic.ic == LANCE || sc->nic.ic == C_LANCE)
-		if_printf(&sc->arpcom.ac_if, "%s (%s)\n",
+		if_printf(sc->ifp, "%s (%s)\n",
 		       nic_ident[sc->nic.ident], ic_ident[sc->nic.ic]);
 	else
-		if_printf(&sc->arpcom.ac_if, "%s\n", ic_ident[sc->nic.ic]);
+		if_printf(sc->ifp, "%s\n", ic_ident[sc->nic.ic]);
 
 	return (1);
+}
+
+int
+lnc_detach_common(device_t dev) {
+	lnc_softc_t *sc = device_get_softc(dev);
+	int s = splimp();
+
+	ether_ifdetach(sc->ifp);
+	if_free(sc->ifp);
+	lnc_stop(sc);
+	lnc_release_resources(dev);
+
+	splx(s);
+	return (0);
 }
 
 static void
@@ -899,7 +915,7 @@ lnc_init(xsc)
 
 	s = splimp();
 	lnc_stop(sc);
-	sc->arpcom.ac_if.if_flags |= IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST; /* XXX??? */
+	sc->ifp->if_flags |= IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST; /* XXX??? */
 
 	/*
 	 * This sets up the memory area for the controller. Memory is set up for
@@ -988,7 +1004,7 @@ lnc_init(xsc)
 	sc->init_block->mode = sc->nic.mode;
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->init_block->padr[i] = sc->arpcom.ac_enaddr[i];
+		sc->init_block->padr[i] = IFP2ENADDR(sc->ifp)[i];
 
 	lnc_setladrf(sc);
 
@@ -1030,7 +1046,7 @@ lnc_init(xsc)
 	/* Let's see if it starts */
 /*
 printf("Enabling lnc interrupts\n");
-	sc->arpcom.ac_if.if_timer = 10;
+	sc->ifp->if_timer = 10;
 	write_csr(sc, CSR0, INIT|INEA);
 */
 
@@ -1052,12 +1068,12 @@ printf("Enabling lnc interrupts\n");
 		 * running and transmit any pending packets.
 		 */
 		write_csr(sc, CSR0, STRT | INEA);
-		sc->arpcom.ac_if.if_flags |= IFF_RUNNING;
-		sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-		lnc_start(&sc->arpcom.ac_if);
+		sc->ifp->if_flags |= IFF_RUNNING;
+		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		lnc_start(sc->ifp);
 	} else
 		log(LOG_ERR, "%s: Initialisation failed\n", 
-		    sc->arpcom.ac_if.if_xname);
+		    sc->ifp->if_xname);
 
 	splx(s);
 }
@@ -1110,32 +1126,32 @@ lncintr(void *arg)
 #ifdef notyet
 		if (csr0 & IDON) {
 printf("IDON\n");
-			sc->arpcom.ac_if.if_timer = 0;
+			sc->ifp->if_timer = 0;
 			write_csr(sc, CSR0, STRT | INEA);
-			sc->arpcom.ac_if.if_flags |= IFF_RUNNING;
-			sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-			lnc_start(&sc->arpcom.ac_if);
+			sc->ifp->if_flags |= IFF_RUNNING;
+			sc->ifp->if_flags &= ~IFF_OACTIVE;
+			lnc_start(sc->ifp);
 			continue;
 		}
 #endif
 
 		if (csr0 & ERR) {
 			if (csr0 & CERR) {
-				log(LOG_ERR, "%s: Heartbeat error -- SQE test failed\n", sc->arpcom.ac_if.if_xname);
+				log(LOG_ERR, "%s: Heartbeat error -- SQE test failed\n", sc->ifp->if_xname);
 				LNCSTATS(cerr)
 			}
 			if (csr0 & BABL) {
-				log(LOG_ERR, "%s: Babble error - more than 1519 bytes transmitted\n", sc->arpcom.ac_if.if_xname);
+				log(LOG_ERR, "%s: Babble error - more than 1519 bytes transmitted\n", sc->ifp->if_xname);
 				LNCSTATS(babl)
-				sc->arpcom.ac_if.if_oerrors++;
+				sc->ifp->if_oerrors++;
 			}
 			if (csr0 & MISS) {
-				log(LOG_ERR, "%s: Missed packet -- no receive buffer\n", sc->arpcom.ac_if.if_xname);
+				log(LOG_ERR, "%s: Missed packet -- no receive buffer\n", sc->ifp->if_xname);
 				LNCSTATS(miss)
-				sc->arpcom.ac_if.if_ierrors++;
+				sc->ifp->if_ierrors++;
 			}
 			if (csr0 & MERR) {
-				log(LOG_ERR, "%s: Memory error  -- Resetting\n", sc->arpcom.ac_if.if_xname);
+				log(LOG_ERR, "%s: Memory error  -- Resetting\n", sc->ifp->if_xname);
 				LNCSTATS(merr)
 				lnc_reset(sc);
 				continue;
@@ -1147,7 +1163,7 @@ printf("IDON\n");
 		}
 		if (csr0 & TINT) {
 			LNCSTATS(tint)
-			sc->arpcom.ac_if.if_timer = 0;
+			sc->ifp->if_timer = 0;
 			lnc_tint(sc);
 		}
 
@@ -1156,8 +1172,8 @@ printf("IDON\n");
 		 * some more transmit packets.
 		 */
 
-		if (!(sc->arpcom.ac_if.if_flags & IFF_OACTIVE))
-			lnc_start(&sc->arpcom.ac_if);
+		if (!(sc->ifp->if_flags & IFF_OACTIVE))
+			lnc_start(sc->ifp);
 	}
 }
 
@@ -1216,7 +1232,7 @@ lnc_start(struct ifnet *ifp)
 
 	do {
 
-		IFQ_DRV_DEQUEUE(&sc->arpcom.ac_if.if_snd, head);
+		IFQ_DRV_DEQUEUE(&sc->ifp->if_snd, head);
 		if (!head)
 			return;
 
@@ -1340,7 +1356,7 @@ lnc_start(struct ifnet *ifp)
 
 		ifp->if_timer = 2;
 
-		BPF_MTAP(&sc->arpcom.ac_if, head);
+		BPF_MTAP(sc->ifp, head);
 
 		if (sc->nic.mem_mode != DMA_MBUF)
 			m_freem(head);
@@ -1352,7 +1368,7 @@ lnc_start(struct ifnet *ifp)
 	 * since we can't buffer any more packets.
 	 */
 
-	sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
+	sc->ifp->if_flags |= IFF_OACTIVE;
 	LNCSTATS(trans_ring_full)
 }
 
@@ -1437,7 +1453,7 @@ lnc_dump_state(struct lnc_softc *sc)
 {
 	int             i;
 
-	printf("\nDriver/NIC [%s] state dump\n", sc->arpcom.ac_if.if_xname);
+	printf("\nDriver/NIC [%s] state dump\n", sc->ifp->if_xname);
 	printf("Memory access mode: %b\n", sc->nic.mem_mode, MEM_MODES);
 	printf("Host memory\n");
 	printf("-----------\n");

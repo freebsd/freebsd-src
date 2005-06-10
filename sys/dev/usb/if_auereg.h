@@ -206,7 +206,7 @@ struct aue_softc {
 #elif defined(__OpenBSD__)
 #define GET_MII(sc) (&(sc)->aue_mii)
 #endif
-	struct arpcom		arpcom;
+	struct ifnet		*aue_ifp;
 	device_t		aue_dev;
 	device_t		aue_miibus;
 	usbd_device_handle	aue_udev;

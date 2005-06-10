@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ar/if_ar.h>
 #else /* NETGRAPH */
 #include <net/if_sppp.h>
+#include <net/if_types.h>
 #include <net/bpf.h>
 #endif /* NETGRAPH */
 
@@ -90,7 +91,7 @@ devclass_t ar_devclass;
 
 struct ar_softc {
 #ifndef	NETGRAPH
-	struct sppp ifsppp;
+	struct ifnet *ifp;
 #endif /* NETGRAPH */
 	int unit;            /* With regards to all ar devices */
 	int subunit;         /* With regards to this card */
@@ -144,6 +145,7 @@ struct ar_softc {
 	u_long		opackets, ipackets;
 #endif /* NETGRAPH */
 };
+#define SC2IFP(sc)	(sc)->ifp
 
 static int	next_ar_unit = 0;
 
@@ -281,7 +283,14 @@ ar_attach(device_t device)
 		ar_init_msci(sc);
 
 #ifndef	NETGRAPH
-		ifp = &sc->ifsppp.pp_if;
+		ifp = SC2IFP(sc) = if_alloc(IFT_PPP);
+		if (ifp == NULL) {
+			if (BUS_TEARDOWN_INTR(device_get_parent(device), device,
+			    hc->res_irq, hc->intr_cookie) != 0) {
+				printf("intr teardown failed.. continuing\n");
+			}
+			return (1);
+		}
 
 		ifp->if_softc = sc;
 		if_initname(ifp, device_get_name(device),
@@ -293,7 +302,7 @@ ar_attach(device_t device)
 		ifp->if_start = arstart;
 		ifp->if_watchdog = arwatchdog;
 
-		sc->ifsppp.pp_flags = PP_KEEPALIVE;
+		IFP2SP(sc->ifp)->pp_flags = PP_KEEPALIVE;
 
 		switch(hc->interface[unit]) {
 		default: iface = "UNKNOWN"; break;
@@ -310,7 +319,7 @@ ar_attach(device_t device)
 			sc->subunit,
 			iface);
 
-		sppp_attach((struct ifnet *)&sc->ifsppp);
+		sppp_attach(SC2IFP(sc));
 		if_attach(ifp);
 
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
@@ -562,7 +571,7 @@ ar_xmit(struct ar_softc *sc)
 	dmac_channel *dmac;
 
 #ifndef NETGRAPH
-	ifp = &sc->ifsppp.pp_if;
+	ifp = SC2IFP(sc);
 #endif /* NETGRAPH */
 	dmac = &sc->sca->dmac[DMAC_TXCH(sc->scachan)];
 
@@ -695,7 +704,7 @@ top_arstart:
 #ifndef NETGRAPH
 		BPF_MTAP(ifp, mtx);
 		m_freem(mtx);
-		++sc->ifsppp.pp_if.if_opackets;
+		++SC2IFP(sc)->if_opackets;
 #else	/* NETGRAPH */
 		m_freem(mtx);
 		sc->outbytes += len;
@@ -822,7 +831,7 @@ arwatchdog(struct ar_softc *sc)
 	if(sc->hc->bustype == AR_BUS_ISA)
 		ARC_SET_SCA(sc->hc, sc->scano);
 
-	/* XXX if(sc->ifsppp.pp_if.if_flags & IFF_DEBUG) */
+	/* XXX if(SC2IFP(sc)->if_flags & IFF_DEBUG) */
 		printf("ar%d: transmit failed, "
 			"ST0 %x, ST1 %x, ST3 %x, DSR %x.\n",
 			sc->unit,
@@ -1680,7 +1689,7 @@ ar_get_packets(struct ar_softc *sc)
 				continue;
 			}
 #ifndef NETGRAPH
-			m->m_pkthdr.rcvif = &sc->ifsppp.pp_if;
+			m->m_pkthdr.rcvif = SC2IFP(sc);
 #else	/* NETGRAPH */
 			m->m_pkthdr.rcvif = NULL;
 			sc->inbytes += len;
@@ -1697,9 +1706,9 @@ ar_get_packets(struct ar_softc *sc)
 			}
 			ar_copy_rxbuf(m, sc, len);
 #ifndef NETGRAPH
-			BPF_MTAP(&sc->ifsppp.pp_if, m);
-			sppp_input(&sc->ifsppp.pp_if, m);
-			sc->ifsppp.pp_if.if_ipackets++;
+			BPF_MTAP(SC2IFP(sc), m);
+			sppp_input(SC2IFP(sc), m);
+			SC2IFP(sc)->if_ipackets++;
 #else	/* NETGRAPH */
 			NG_SEND_DATA_ONLY(error, sc->hook, m);
 			sc->ipackets++;
@@ -1737,7 +1746,7 @@ ar_get_packets(struct ar_softc *sc)
 			ar_eat_packet(sc, 1);
 
 #ifndef	NETGRAPH
-			sc->ifsppp.pp_if.if_ierrors++;
+			SC2IFP(sc)->if_ierrors++;
 #else	/* NETGRAPH */
 			sc->ierrors[0]++;
 #endif	/* NETGRAPH */
@@ -1810,8 +1819,8 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 					"txpacket no %lu.\n",
 					sc->unit,
 #ifndef	NETGRAPH
-					sc->ifsppp.pp_if.if_opackets);
-				sc->ifsppp.pp_if.if_oerrors++;
+					SC2IFP(sc)->if_opackets);
+				SC2IFP(sc)->if_oerrors++;
 #else	/* NETGRAPH */
 					sc->opackets);
 				sc->oerrors++;
@@ -1825,7 +1834,7 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 					"cda %04x, eda %04x.\n",
 					sc->unit,
 #ifndef	NETGRAPH
-					sc->ifsppp.pp_if.if_opackets,
+					SC2IFP(sc)->if_opackets,
 #else	/* NETGRAPH */
 					sc->opackets,
 #endif	/* NETGRAPH */
@@ -1833,7 +1842,7 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 					dmac->cda,
 					dmac->eda);
 #ifndef	NETGRAPH
-				sc->ifsppp.pp_if.if_oerrors++;
+				SC2IFP(sc)->if_oerrors++;
 #else	/* NETGRAPH */
 				sc->oerrors++;
 #endif	/* NETGRAPH */
@@ -1851,10 +1860,10 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 				 */
 				sc->xmit_busy = 0;
 #ifndef	NETGRAPH
-				sc->ifsppp.pp_if.if_flags &= ~IFF_OACTIVE;
-				sc->ifsppp.pp_if.if_timer = 0;
+				SC2IFP(sc)->if_flags &= ~IFF_OACTIVE;
+				SC2IFP(sc)->if_timer = 0;
 #else	/* NETGRAPH */
-			/* XXX 	c->ifsppp.pp_if.if_flags &= ~IFF_OACTIVE; */
+			/* XXX 	SC2IFP(sc)->if_flags &= ~IFF_OACTIVE; */
 				sc->out_dog = 0; /* XXX */
 #endif	/* NETGRAPH */
 
@@ -1879,12 +1888,12 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 
 			/* End of frame */
 			if(dsr & SCA_DSR_EOM) {
-				TRC(int tt = sc->ifsppp.pp_if.if_ipackets;)
+				TRC(int tt = SC2IFP(sc)->if_ipackets;)
 				TRC(int ind = sc->rxhind;)
 
 				ar_get_packets(sc);
 #ifndef	NETGRAPH
-#define	IPACKETS sc->ifsppp.pp_if.if_ipackets
+#define	IPACKETS SC2IFP(sc)->if_ipackets
 #else	/* NETGRAPH */
 #define	IPACKETS sc->ipackets
 #endif	/* NETGRAPH */
@@ -1933,8 +1942,8 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 					"rxpkts %lu.\n",
 					sc->unit,
 #ifndef	NETGRAPH
-					sc->ifsppp.pp_if.if_ipackets);
-				sc->ifsppp.pp_if.if_ierrors++;
+					SC2IFP(sc)->if_ipackets);
+				SC2IFP(sc)->if_ierrors++;
 #else	/* NETGRAPH */
 					sc->ipackets);
 				sc->ierrors[1]++;
@@ -1950,7 +1959,7 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 					"cda %x, eda %x, dsr %x.\n",
 					sc->unit,
 #ifndef	NETGRAPH
-					sc->ifsppp.pp_if.if_ipackets,
+					SC2IFP(sc)->if_ipackets,
 #else	/* NETGRAPH */
 					sc->ipackets,
 #endif	/* NETGRAPH */
@@ -1964,7 +1973,7 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 				 */
 				ar_eat_packet(sc, 0);
 #ifndef	NETGRAPH
-				sc->ifsppp.pp_if.if_ierrors++;
+				SC2IFP(sc)->if_ierrors++;
 #else	/* NETGRAPH */
 				sc->ierrors[2]++;
 #endif	/* NETGRAPH */
@@ -1977,7 +1986,7 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 					"rxpkts %lu, rxind %d, "
 					"cda %x, eda %x, dsr %x. After\n",
 					sc->unit,
-					sc->ifsppp.pp_if.if_ipackets,
+					SC2IFP(sc)->if_ipackets,
 					sc->rxhind,
 					dmac->cda,
 					dmac->eda,
@@ -1996,8 +2005,8 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 				printf("ar%d: RX End of transfer, rxpkts %lu.\n",
 					sc->unit,
 #ifndef	NETGRAPH
-					sc->ifsppp.pp_if.if_ipackets);
-				sc->ifsppp.pp_if.if_ierrors++;
+					SC2IFP(sc)->if_ipackets);
+				SC2IFP(sc)->if_ierrors++;
 #else	/* NETGRAPH */
 					sc->ipackets);
 				sc->ierrors[3]++;
@@ -2018,7 +2027,7 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 		if(dotxstart & 0x0C) {
 			sc = &hc->sc[mch + (NCHAN * scano)];
 #ifndef	NETGRAPH
-			arstart(&sc->ifsppp.pp_if);
+			arstart(SC2IFP(sc));
 #else	/* NETGRAPH */
 			arstart(sc);
 #endif	/* NETGRAPH */

@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
@@ -109,7 +110,7 @@ __FBSDID("$FreeBSD$");
 #define BROADCASTADDR	(etherbroadcastaddr)
 #define _ARL_CURPROC	(curproc)
 #else
-#define BROADCASTADDR	(sc->arpcom.ac_if.if_broadcastaddr)
+#define BROADCASTADDR	(sc->arl_ifp->if_broadcastaddr)
 #define _ARL_CURPROC	(curthread)
 #endif
 
@@ -188,10 +189,14 @@ arl_attach(dev)
 	device_t	dev;
 {
 	struct arl_softc* sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp;
 	int		attached, configured = 0;
 
 	D(("attach\n"));
+
+	ifp = sc->arl_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		return (ENOSPC);
 
 	configured = ar->configuredStatusFlag;
 	attached = (ifp->if_softc != 0);
@@ -248,7 +253,7 @@ arl_attach(dev)
 #if __FreeBSD_version < 500100
 		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 #else
-		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+		ether_ifattach(ifp, ar->lanCardNodeId);
 #endif
 	}
 
@@ -734,7 +739,7 @@ arl_init(xsc)
 	void *xsc;
 {
 	struct arl_softc *sc = xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->arl_ifp;
 	int s;
 
 	D(("init\n"));
@@ -768,7 +773,7 @@ arl_put(sc)
 	int i;
 
 	if (ARL_CHECKREG(sc))
-		sc->arpcom.ac_if.if_oerrors++;
+		sc->arl_ifp->if_oerrors++;
 
 	/* copy dst adr */
 	for(i = 0; i < 6; i++)
@@ -802,7 +807,7 @@ arl_put(sc)
 	ar->commandByte = 0x85;       /* send command */
 	ARL_CHANNEL(sc);
 	if (arl_command(sc))
-		sc->arpcom.ac_if.if_oerrors++;
+		sc->arl_ifp->if_oerrors++;
 }
 
 /*
@@ -873,7 +878,7 @@ arl_stop(sc)
 
 	s = splimp();
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->arl_ifp;
 
 	ifp->if_timer = 0;        /* disable timer */
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
@@ -967,7 +972,7 @@ arl_read(sc, buf, len)
 	int			len;
 {
 	register struct ether_header *eh;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->arl_ifp;
 	struct mbuf *m;
 
 	eh = (struct ether_header *)buf;
@@ -984,7 +989,7 @@ arl_read(sc, buf, len)
 		 * This test does not support multicasts.
 		 */
 		if ((ifp->if_flags & IFF_PROMISC)
-		   && bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
+		   && bcmp(eh->ether_dhost, IFP2ENADDR(sc->arl_ifp),
 			   sizeof(eh->ether_dhost)) != 0
 		   && bcmp(eh->ether_dhost, BROADCASTADDR,
 			   sizeof(eh->ether_dhost)) != 0)
@@ -1049,7 +1054,7 @@ arl_intr(arg)
 	void *arg;
 {
 	register struct arl_softc *sc = (struct arl_softc *) arg;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->arl_ifp;
 
 	/* enable interrupt */
 	ar->controlRegister = (sc->arl_control & ~ARL_CLEAR_INTERRUPT);
@@ -1057,7 +1062,7 @@ arl_intr(arg)
 
 	if (ar->txStatusVector) {
 		if (ar->txStatusVector != 1)
-			sc->arpcom.ac_if.if_collisions++;
+			sc->arl_ifp->if_collisions++;
 		ifp->if_timer = 0;     /* disable timer */
 		ifp->if_flags &= ~IFF_OACTIVE;
 		arl_start(ifp);

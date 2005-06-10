@@ -17,12 +17,13 @@ enum ie_hardware {
  * Ethernet status, per interface.
  */
 struct ie_softc {
-	struct	 arpcom arpcom;
+	struct	 ifnet *ifp;
 	void	 (*ie_reset_586) (struct ie_softc *);
 	void	 (*ie_chan_attn) (struct ie_softc *);
 	enum	 ie_hardware hard_type;
 	int	 hard_vers;
 	int	 unit;
+	u_char	 enaddr[6];
 
 	device_t		dev;
 

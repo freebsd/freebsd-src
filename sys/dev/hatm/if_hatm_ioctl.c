@@ -116,7 +116,7 @@ hatm_open_vcc(struct hatm_softc *sc, struct atmio_openvcc *arg)
 		return (ENOMEM);
 
 	mtx_lock(&sc->mtx);
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -188,7 +188,7 @@ hatm_load_vc(struct hatm_softc *sc, u_int cid, int reopen)
 	/* inform management about non-NG and NG-PVCs */
 	if (!(vcc->param.flags & ATMIO_FLAG_NG) ||
 	     (vcc->param.flags & ATMIO_FLAG_PVC))
-		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, vcc->param.vpi,
+		ATMEV_SEND_VCC_CHANGED(IFP2IFATM(sc->ifp), vcc->param.vpi,
 		    vcc->param.vci, 1);
 }
 
@@ -203,7 +203,7 @@ hatm_vcc_closed(struct hatm_softc *sc, u_int cid)
 	/* inform management about non-NG and NG-PVCs */
 	if (!(vcc->param.flags & ATMIO_FLAG_NG) ||
 	    (vcc->param.flags & ATMIO_FLAG_PVC))
-		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, HE_VPI(cid), HE_VCI(cid), 0);
+		ATMEV_SEND_VCC_CHANGED(IFP2IFATM(sc->ifp), HE_VPI(cid), HE_VCI(cid), 0);
 
 	sc->open_vccs--;
 	uma_zfree(sc->vcc_zone, vcc);
@@ -230,7 +230,7 @@ hatm_close_vcc(struct hatm_softc *sc, struct atmio_closevcc *arg)
 
 	mtx_lock(&sc->mtx);
 	vcc = sc->vccs[cid];
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -248,11 +248,11 @@ hatm_close_vcc(struct hatm_softc *sc, struct atmio_closevcc *arg)
 	if (vcc->param.flags & ATMIO_FLAG_ASYNC)
 		goto done;
 
-	while ((sc->ifatm.ifnet.if_flags & IFF_RUNNING) &&
+	while ((sc->ifp->if_flags & IFF_RUNNING) &&
 	       (vcc->vflags & (HE_VCC_TX_CLOSING | HE_VCC_RX_CLOSING)))
 		cv_wait(&sc->vcc_cv, &sc->mtx);
 
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
 		error = EIO;
 		goto done;
 	}

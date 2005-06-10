@@ -722,7 +722,7 @@ uniarp_client_mode(uip, aap)
 	/*
 	 * Next, initiate an SVC to the server
 	 */
-	if ((*inp->inf_createsvc)(&inp->inf_nif->nif_if, AF_ATM,
+	if ((*inp->inf_createsvc)(ANIF2IFP(inp->inf_nif), AF_ATM,
 			(caddr_t)&uip->uip_arpsvratm, &ivp)) {
 		uma_zfree(uniarp_zone, uap);
 		UNIIP_ARP_TIMER(uip, 1 * ATM_HZ);
@@ -1054,7 +1054,7 @@ uniarp_ioctl(code, data, arg1)
 					AF_INET;
 				SATOSIN(&aar.aap_arp_addr)->sin_addr.s_addr =
 					uap->ua_dstip.s_addr;
-				strlcpy(aar.aap_intf, nip->nif_if.if_xname,
+				strlcpy(aar.aap_intf, ANIF2IFP(nip)->if_xname,
 				    sizeof(aar.aap_intf));
 				aar.aap_flags = uap->ua_flags;
 				aar.aap_origin = uap->ua_origin;
@@ -1107,7 +1107,7 @@ uniarp_ioctl(code, data, arg1)
 			 */
 			SATOSIN(&aar.aap_arp_addr)->sin_family = AF_INET;
 			SATOSIN(&aar.aap_arp_addr)->sin_addr.s_addr = 0;
-			strlcpy(aar.aap_intf, nip->nif_if.if_xname,
+			strlcpy(aar.aap_intf, ANIF2IFP(nip)->if_xname,
 				sizeof(aar.aap_intf));
 			aar.aap_flags = 0;
 			aar.aap_origin = uap->ua_origin;
@@ -1187,7 +1187,7 @@ updbuf:
 			/*
 			 * Fill in info to be returned
 			 */
-			strlcpy(asr.asp_intf, nip->nif_if.if_xname,
+			strlcpy(asr.asp_intf, ANIF2IFP(nip)->if_xname,
 				sizeof(asr.asp_intf));
 			asr.asp_state = uip->uip_arpstate;
 			if (uip->uip_arpstate == UIAS_SERVER_ACTIVE) {

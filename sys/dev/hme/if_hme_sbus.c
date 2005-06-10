@@ -247,7 +247,7 @@ hme_sbus_attach(device_t dev)
 		goto fail_mif_res;
 	}
 
-	OF_getetheraddr(dev, sc->sc_arpcom.ac_enaddr);
+	OF_getetheraddr(dev, sc->sc_enaddr);
 
 	burst = sbus_get_burstsz(dev);
 	/* Translate into plain numerical format */

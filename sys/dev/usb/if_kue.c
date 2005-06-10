@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -315,7 +316,7 @@ kue_setmulti(struct kue_softc *sc)
 	struct ifmultiaddr	*ifma;
 	int			i = 0;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->kue_ifp;
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		sc->kue_rxfilt |= KUE_RXFILT_ALLMULTI;
@@ -472,10 +473,11 @@ USB_ATTACH(kue)
 	sc->kue_mcfilters = malloc(KUE_MCFILTCNT(sc) * ETHER_ADDR_LEN,
 	    M_USBDEV, M_NOWAIT);
 
-	bcopy(sc->kue_desc.kue_macaddr,
-	    (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->kue_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("kue%d: can not if_alloc()\n", sc->kue_unit);
+		USB_ATTACH_ERROR_RETURN;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, "kue", sc->kue_unit);
 	ifp->if_mtu = ETHERMTU;
@@ -515,7 +517,7 @@ kue_detach(device_ptr_t dev)
 
 	sc = device_get_softc(dev);
 	KUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->kue_ifp;
 
 	sc->kue_dying = 1;
 
@@ -524,6 +526,7 @@ kue_detach(device_ptr_t dev)
 		ether_ifdetach(ifp);
 #else
 		ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+		if_free(ifp);
 #endif
 
 	if (sc->kue_ep[KUE_ENDPT_TX] != NULL)
@@ -591,7 +594,7 @@ Static void kue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv,
 	c = priv;
 	sc = c->ue_sc;
 	KUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->kue_ifp;
 
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		KUE_UNLOCK(sc);
@@ -628,7 +631,7 @@ Static void kue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv,
 	}
 
 	ifp->if_ipackets++;
-	m->m_pkthdr.rcvif = (struct ifnet *)&sc->kue_qdat;
+	m->m_pkthdr.rcvif = (void *)&sc->kue_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
 
 	/* Put the packet on the special USB input queue. */
@@ -665,7 +668,7 @@ kue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	sc = c->ue_sc;
 	KUE_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->kue_ifp;
 	ifp->if_timer = 0;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
@@ -786,7 +789,7 @@ Static void
 kue_init(void *xsc)
 {
 	struct kue_softc	*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->kue_ifp;
 	struct ue_chain	*c;
 	usbd_status		err;
 	int			i;
@@ -800,7 +803,7 @@ kue_init(void *xsc)
 
 	/* Set MAC address */
 	kue_ctl(sc, KUE_CTL_WRITE, KUE_CMD_SET_MAC,
-	    0, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	    0, IFP2ENADDR(sc->kue_ifp), ETHER_ADDR_LEN);
 
 	sc->kue_rxfilt = KUE_RXFILT_UNICAST|KUE_RXFILT_BROADCAST;
 
@@ -956,7 +959,7 @@ kue_stop(struct kue_softc *sc)
 	struct ifnet		*ifp;
 
 	KUE_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->kue_ifp;
 	ifp->if_timer = 0;
 
 	/* Stop transfers. */

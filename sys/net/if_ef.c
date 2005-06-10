@@ -86,8 +86,8 @@
 #define EFERROR(format, args...) printf("%s: "format, __func__ ,## args)
 
 struct efnet {
-	struct arpcom	ef_ac;
-	struct ifnet *  ef_ifp;
+	struct ifnet	*ef_ifp;
+	struct ifnet	*ef_pifp;
 	int		ef_frametype;
 };
 
@@ -125,7 +125,7 @@ static int ef_unload(void);
 static int
 ef_attach(struct efnet *sc)
 {
-	struct ifnet *ifp = (struct ifnet*)&sc->ef_ac.ac_if;
+	struct ifnet *ifp = sc->ef_ifp;
 	struct ifaddr *ifa2;
 	struct sockaddr_dl *sdl2;
 
@@ -137,15 +137,13 @@ ef_attach(struct efnet *sc)
 	/*
 	 * Attach the interface
 	 */
-	ifa2 = ifaddr_byindex(sc->ef_ifp->if_index);
+	ifa2 = ifaddr_byindex(sc->ef_pifp->if_index);
 	sdl2 = (struct sockaddr_dl *)ifa2->ifa_addr;
 	ether_ifattach(ifp, LLADDR(sdl2));
 
 	ifp->if_resolvemulti = 0;
 	ifp->if_type = IFT_XETHER;
 	ifp->if_flags |= IFF_RUNNING;
-
-	bcopy(LLADDR(sdl2), sc->ef_ac.ac_enaddr, ETHER_ADDR_LEN);
 
 	EFDEBUG("%s: attached\n", ifp->if_xname);
 	return 1;
@@ -157,24 +155,14 @@ ef_attach(struct efnet *sc)
 static int
 ef_detach(struct efnet *sc)
 {
-	struct ifnet *ifp = (struct ifnet*)&sc->ef_ac.ac_if;
+	struct ifnet *ifp = sc->ef_ifp;
 	int s;
 
 	s = splimp();
 
-	if (ifp->if_flags & IFF_UP) {
-		if_down(ifp);
-		if (ifp->if_flags & IFF_RUNNING) {
-		    /* find internet addresses and delete routes */
-		    register struct ifaddr *ifa;
-		    TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			    rtinit(ifa, (int)RTM_DELETE, 0);
-		    }
-		}
-	}
-	IFNET_WLOCK();
-	TAILQ_REMOVE(&ifnet, ifp, if_link);
-	IFNET_WUNLOCK();
+	ether_ifdetach(ifp);
+	if_free(ifp);
+
 	splx(s);
 	return 0;
 }
@@ -227,7 +215,7 @@ ef_start(struct ifnet *ifp)
 	int error;
 
 	ifp->if_flags |= IFF_OACTIVE;
-	p = sc->ef_ifp;
+	p = sc->ef_pifp;
 
 	EFDEBUG("\n");
 	for (;;) {
@@ -377,7 +365,7 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 		EFDEBUG("Can't find if for %d\n", ft);
 		return EPROTONOSUPPORT;
 	}
-	eifp = &efp->ef_ac.ac_if;
+	eifp = efp->ef_ifp;
 	if ((eifp->if_flags & IFF_UP) == 0)
 		return EPROTONOSUPPORT;
 	eifp->if_ibytes += m->m_pkthdr.len + sizeof (*eh);
@@ -486,9 +474,11 @@ ef_clone(struct ef_link *efl, int ft)
 	    M_WAITOK | M_ZERO);
 	if (efp == NULL)
 		return ENOMEM;
-	efp->ef_ifp = ifp;
+	efp->ef_pifp = ifp;
 	efp->ef_frametype = ft;
-	eifp = &efp->ef_ac.ac_if;
+	eifp = efp->ef_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		return (ENOSPC);
 	snprintf(eifp->if_xname, IFNAMSIZ,
 	    "%sf%d", ifp->if_xname, efp->ef_frametype);
 	eifp->if_dname = "ef";
@@ -545,8 +535,11 @@ ef_load(void)
 			SLIST_INSERT_HEAD(&efdev, efl, el_next);
 		SLIST_FOREACH(efl, &efdev, el_next) {
 			for (d = 0; d < EF_NFT; d++)
-				if (efl->el_units[d])
+				if (efl->el_units[d]) {
+					if (efl->el_units[d]->ef_pifp != NULL)
+						if_free(efl->el_units[d]->ef_pifp);
 					free(efl->el_units[d], M_IFADDR);
+				}
 			free(efl, M_IFADDR);
 		}
 		return error;

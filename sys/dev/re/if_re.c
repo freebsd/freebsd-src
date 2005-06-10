@@ -123,6 +123,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
 #include <net/bpf.h>
@@ -583,7 +584,7 @@ re_setmulti(sc)
 
 	RL_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp;
 
 	rxfilt = CSR_READ_4(sc, RL_RXCFG);
 
@@ -667,7 +668,7 @@ static int
 re_diag(sc)
 	struct rl_softc		*sc;
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->rl_ifp;
 	struct mbuf		*m0;
 	struct ether_header	*eh;
 	struct rl_desc		*cur_rx;
@@ -1154,7 +1155,6 @@ re_attach(dev)
 	}
 
 	sc->rl_unit = unit;
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
@@ -1186,7 +1186,12 @@ re_attach(dev)
 		goto fail;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("re%d: can not if_alloc()\n", sc->rl_unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -1224,6 +1229,7 @@ re_attach(dev)
 		printf("re%d: attach aborted due to hardware diag failure\n",
 		    unit);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -1233,6 +1239,7 @@ re_attach(dev)
 	if (error) {
 		printf("re%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 
 fail:
@@ -1259,13 +1266,15 @@ re_detach(dev)
 	int			attached;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp;
 	KASSERT(mtx_initialized(&sc->rl_mtx), ("re mutex not initialized"));
 
 	attached = device_is_attached(dev);
 	/* These should only be active if attach succeeded */
 	if (attached)
 		ether_ifdetach(ifp);
+	if (ifp == NULL)
+		if_free(ifp);
 
 	RL_LOCK(sc);
 #if 0
@@ -1501,7 +1510,7 @@ re_rxeof(sc)
 
 	RL_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp;
 	i = sc->rl_ldata.rl_rx_prodidx;
 
 	/* Invalidate the descriptor memory */
@@ -1674,7 +1683,7 @@ re_txeof(sc)
 	u_int32_t		txstat;
 	int			idx;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp;
 	idx = sc->rl_ldata.rl_tx_considx;
 
 	/* Invalidate the TX descriptor list */
@@ -1825,7 +1834,7 @@ re_intr(arg)
 
 	RL_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp;
 
 	if (sc->suspended || !(ifp->if_flags & IFF_UP))
 		goto done_locked;
@@ -1970,7 +1979,7 @@ re_encap(sc, m_head, idx)
 	 * transmission attempt.
 	 */
 
-	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, *m_head);
+	mtag = VLAN_OUTPUT_TAG(sc->rl_ifp, *m_head);
 	if (mtag != NULL)
 		sc->rl_ldata.rl_tx_list[*idx].rl_vlanctl =
 		    htole32(htons(VLAN_TAG_VALUE(mtag)) | RL_TDESC_VLANCTL_TAG);
@@ -2090,7 +2099,7 @@ static void
 re_init_locked(sc)
 	struct rl_softc		*sc;
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->rl_ifp;
 	struct mii_data		*mii;
 	u_int32_t		rxcfg = 0;
 
@@ -2121,9 +2130,9 @@ re_init_locked(sc)
 	 */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
 	CSR_WRITE_STREAM_4(sc, RL_IDR0,
-	    *(u_int32_t *)(&sc->arpcom.ac_enaddr[0]));
+	    *(u_int32_t *)(&IFP2ENADDR(sc->rl_ifp)[0]));
 	CSR_WRITE_STREAM_4(sc, RL_IDR4,
-	    *(u_int32_t *)(&sc->arpcom.ac_enaddr[4]));
+	    *(u_int32_t *)(&IFP2ENADDR(sc->rl_ifp)[4]));
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/*
@@ -2373,7 +2382,7 @@ re_stop(sc)
 
 	RL_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp;
 	ifp->if_timer = 0;
 
 	untimeout(re_tick, sc, sc->rl_stat_ch);
@@ -2450,7 +2459,7 @@ re_resume(dev)
 
 	RL_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->rl_ifp;
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)

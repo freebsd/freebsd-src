@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -508,7 +509,7 @@ vr_miibus_statchg(device_t dev)
 static void
 vr_setmulti(struct vr_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->vr_ifp;
 	int			h = 0;
 	uint32_t		hashes[2] = { 0, 0 };
 	struct ifmultiaddr	*ifma;
@@ -709,7 +710,6 @@ vr_attach(dev)
 		eaddr[i] = CSR_READ_1(sc, VR_PAR0 + i);
 
 	sc->vr_unit = unit;
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	sc->vr_ldata = contigmalloc(sizeof(struct vr_list_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
@@ -722,7 +722,12 @@ vr_attach(dev)
 
 	bzero(sc->vr_ldata, sizeof(struct vr_list_data));
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vr_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("vr%d: can not if_alloc()\n", unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -762,6 +767,7 @@ vr_attach(dev)
 	if (error) {
 		printf("vr%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -783,7 +789,7 @@ static int
 vr_detach(device_t dev)
 {
 	struct vr_softc		*sc = device_get_softc(dev);
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->vr_ifp;
 
 	KASSERT(mtx_initialized(&sc->vr_mtx), ("vr mutex not initialized"));
 
@@ -796,6 +802,7 @@ vr_detach(device_t dev)
 		vr_stop(sc);
 		VR_UNLOCK(sc);		/* XXX: Avoid recursive acquire. */
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		VR_LOCK(sc);
 	}
 	if (sc->vr_miibus)
@@ -938,7 +945,7 @@ vr_rxeof(struct vr_softc *sc)
 	uint32_t		rxstat;
 
 	VR_LOCK_ASSERT(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vr_ifp;
 
 	while (!((rxstat = sc->vr_cdata.vr_rx_head->vr_ptr->vr_status) &
 	    VR_RXSTAT_OWN)) {
@@ -1014,7 +1021,7 @@ vr_rxeof(struct vr_softc *sc)
 static void
 vr_rxeoc(struct vr_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->vr_ifp;
 	int			i;
 
 	VR_LOCK_ASSERT(sc);
@@ -1052,7 +1059,7 @@ static void
 vr_txeof(struct vr_softc *sc)
 {
 	struct vr_chain		*cur_tx;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->vr_ifp;
 
 	VR_LOCK_ASSERT(sc);
 
@@ -1224,7 +1231,7 @@ static void
 vr_intr(void *arg)
 {
 	struct vr_softc		*sc = arg;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->vr_ifp;
 	uint16_t		status;
 
 	VR_LOCK(sc);
@@ -1444,7 +1451,7 @@ vr_init(void *xsc)
 static void
 vr_init_locked(struct vr_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->vr_ifp;
 	struct mii_data		*mii;
 	int			i;
 
@@ -1458,7 +1465,7 @@ vr_init_locked(struct vr_softc *sc)
 
 	/* Set our station address. */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		CSR_WRITE_1(sc, VR_PAR0 + i, sc->arpcom.ac_enaddr[i]);
+		CSR_WRITE_1(sc, VR_PAR0 + i, IFP2ENADDR(sc->vr_ifp)[i]);
 
 	/* Set DMA size. */
 	VR_CLRBIT(sc, VR_BCR0, VR_BCR0_DMA_LENGTH);
@@ -1648,7 +1655,7 @@ vr_stop(struct vr_softc *sc)
 
 	VR_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->vr_ifp;
 	ifp->if_timer = 0;
 
 	untimeout(vr_tick, sc, sc->vr_stat_ch);

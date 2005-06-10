@@ -1218,7 +1218,7 @@ atm_sock_getopt(so, sopt, atp)
 			struct t_atm_net_intf	netif;
 			struct ifnet		*ifp;
 
-			ifp = &ap->nif->nif_if;
+			ifp = ANIF2IFP(ap->nif);
 			(void) snprintf(netif.net_intf, sizeof(netif.net_intf),
 			    "%s", ifp->if_xname);
 			return (sooptcopyout(sopt, &netif,

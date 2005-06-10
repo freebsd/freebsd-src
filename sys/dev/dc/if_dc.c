@@ -1084,7 +1084,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 	struct ifnet *ifp;
 	int i;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 
 	i = sc->dc_cdata.dc_tx_prod;
 	DC_INC(sc->dc_cdata.dc_tx_prod, DC_TX_LIST_CNT);
@@ -1124,9 +1124,9 @@ dc_setfilt_21143(struct dc_softc *sc)
 	}
 
 	/* Set our MAC address */
-	sp[39] = DC_SP_MAC(((u_int16_t *)sc->arpcom.ac_enaddr)[0]);
-	sp[40] = DC_SP_MAC(((u_int16_t *)sc->arpcom.ac_enaddr)[1]);
-	sp[41] = DC_SP_MAC(((u_int16_t *)sc->arpcom.ac_enaddr)[2]);
+	sp[39] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[0]);
+	sp[40] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[1]);
+	sp[41] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[2]);
 
 	sframe->dc_status = htole32(DC_TXSTAT_OWN);
 	CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
@@ -1150,11 +1150,11 @@ dc_setfilt_admtek(struct dc_softc *sc)
 	int h = 0;
 	u_int32_t hashes[2] = { 0, 0 };
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 
 	/* Init our MAC address. */
-	CSR_WRITE_4(sc, DC_AL_PAR0, *(u_int32_t *)(&sc->arpcom.ac_enaddr[0]));
-	CSR_WRITE_4(sc, DC_AL_PAR1, *(u_int32_t *)(&sc->arpcom.ac_enaddr[4]));
+	CSR_WRITE_4(sc, DC_AL_PAR0, *(u_int32_t *)(&IFP2ENADDR(sc->dc_ifp)[0]));
+	CSR_WRITE_4(sc, DC_AL_PAR1, *(u_int32_t *)(&IFP2ENADDR(sc->dc_ifp)[4]));
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1206,15 +1206,15 @@ dc_setfilt_asix(struct dc_softc *sc)
 	int h = 0;
 	u_int32_t hashes[2] = { 0, 0 };
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 
 	/* Init our MAC address */
 	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR0);
 	CSR_WRITE_4(sc, DC_AX_FILTDATA,
-	    *(u_int32_t *)(&sc->arpcom.ac_enaddr[0]));
+	    *(u_int32_t *)(&IFP2ENADDR(sc->dc_ifp)[0]));
 	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR1);
 	CSR_WRITE_4(sc, DC_AX_FILTDATA,
-	    *(u_int32_t *)(&sc->arpcom.ac_enaddr[4]));
+	    *(u_int32_t *)(&IFP2ENADDR(sc->dc_ifp)[4]));
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1275,7 +1275,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	u_int32_t h, *sp;
 	int i;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 	DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_TX_ON | DC_NETCFG_RX_ON));
 
 	i = sc->dc_cdata.dc_tx_prod;
@@ -1316,9 +1316,9 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	}
 
 	/* Set our MAC address */
-	sp[0] = DC_SP_MAC(((u_int16_t *)sc->arpcom.ac_enaddr)[0]);
-	sp[1] = DC_SP_MAC(((u_int16_t *)sc->arpcom.ac_enaddr)[1]);
-	sp[2] = DC_SP_MAC(((u_int16_t *)sc->arpcom.ac_enaddr)[2]);
+	sp[0] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[0]);
+	sp[1] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[1]);
+	sp[2] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[2]);
 
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);
@@ -2090,7 +2090,6 @@ dc_attach(device_t dev)
 	}
 
 	sc->dc_unit = unit;
-	bcopy(eaddr, &sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
 	error = bus_dma_tag_create(NULL, PAGE_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
@@ -2180,7 +2179,12 @@ dc_attach(device_t dev)
 		goto fail;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("dc%d: can not if_alloc()\n", unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	/* XXX: bleah, MTU gets overwritten in ether_ifattach() */
@@ -2309,6 +2313,7 @@ dc_attach(device_t dev)
 	if (error) {
 		printf("dc%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -2337,12 +2342,13 @@ dc_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->dc_mtx), ("dc mutex not initialized"));
 	DC_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		dc_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 	if (sc->dc_miibus)
 		device_delete_child(dev, sc->dc_miibus);
@@ -2687,7 +2693,7 @@ dc_rxeof(struct dc_softc *sc)
 
 	DC_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 	i = sc->dc_cdata.dc_rx_prod;
 
 	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap, BUS_DMASYNC_POSTREAD);
@@ -2801,7 +2807,7 @@ dc_txeof(struct dc_softc *sc)
 	int idx;
 	u_int32_t ctl, txstat;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 
 	/*
 	 * Go through our tx list and free mbufs for those
@@ -2909,7 +2915,7 @@ dc_tick(void *xsc)
 
 	sc = xsc;
 	DC_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 	mii = device_get_softc(sc->dc_miibus);
 
 	if (sc->dc_flags & DC_REDUCED_MII_POLL) {
@@ -3100,7 +3106,7 @@ dc_intr(void *arg)
 		return;
 
 	DC_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING)
 		goto done;
@@ -3377,7 +3383,7 @@ static void
 dc_init(void *xsc)
 {
 	struct dc_softc *sc = xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ifnet *ifp = sc->dc_ifp;
 	struct mii_data *mii;
 
 	DC_LOCK(sc);
@@ -3705,7 +3711,7 @@ dc_stop(struct dc_softc *sc)
 
 	DC_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 	ifp->if_timer = 0;
 	ld = sc->dc_ldata;
 	cd = &sc->dc_cdata;
@@ -3791,7 +3797,7 @@ dc_resume(device_t dev)
 	s = splimp();
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->dc_ifp;
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)

@@ -125,6 +125,9 @@ static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 		struct sockaddr *);
 
+/* XXX: should be in an arp support file, not here */
+MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
+
 #define senderr(e) do { error = (e); goto bad;} while (0)
 
 #if defined(INET) || defined(INET6)
@@ -285,7 +288,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		(void)memcpy(eh->ether_shost, esrc,
 			sizeof(eh->ether_shost));
 	else
-		(void)memcpy(eh->ether_shost, IFP2AC(ifp)->ac_enaddr,
+		(void)memcpy(eh->ether_shost, IFP2ENADDR(ifp),
 			sizeof(eh->ether_shost));
 
        /*
@@ -670,7 +673,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		/*
 		 * XXX: Okay, we need to call carp_forus() and - if it is for
 		 * us jump over code that does the normal check
-		 * "ac_enaddr == ether_dhost". The check sequence is a bit
+		 * "IFP2ENADDR(ifp) == ether_dhost". The check sequence is a bit
 		 * different from OpenBSD, so we jump over as few code as
 		 * possible, to catch _all_ sanity checks. This needs
 		 * evaluation, to see if the carp ether_dhost values break any
@@ -694,7 +697,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		if ((ifp->if_flags & IFF_PROMISC) != 0
 		    && !ETHER_IS_MULTICAST(eh->ether_dhost)
 		    && bcmp(eh->ether_dhost,
-		      IFP2AC(ifp)->ac_enaddr, ETHER_ADDR_LEN) != 0
+		      IFP2ENADDR(ifp), ETHER_ADDR_LEN) != 0
 		    && (ifp->if_flags & IFF_PPROMISC) == 0) {
 			    m_freem(m);
 			    return;
@@ -891,7 +894,6 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 
-	ifp->if_type = IFT_ETHER;
 	ifp->if_addrlen = ETHER_ADDR_LEN;
 	ifp->if_hdrlen = ETHER_HDR_LEN;
 	if_attach(ifp);
@@ -913,8 +915,8 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 	 * XXX: This doesn't belong here; we do it until
 	 * XXX:  all drivers are cleaned up
 	 */
-	if (llc != IFP2AC(ifp)->ac_enaddr)
-		bcopy(llc, IFP2AC(ifp)->ac_enaddr, ifp->if_addrlen);
+	if (llc != IFP2ENADDR(ifp))
+		bcopy(llc, IFP2ENADDR(ifp), ifp->if_addrlen);
 
 	bpfattach(ifp, DLT_EN10MB, ETHER_HDR_LEN);
 	if (ng_ether_attach_p != NULL)
@@ -1051,16 +1053,15 @@ ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 		case AF_IPX:
 			{
 			struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-			struct arpcom *ac = IFP2AC(ifp);
 
 			if (ipx_nullhost(*ina))
 				ina->x_host =
 				    *(union ipx_host *)
-				    ac->ac_enaddr;
+				    IFP2ENADDR(ifp);
 			else {
 				bcopy((caddr_t) ina->x_host.c_host,
-				      (caddr_t) ac->ac_enaddr,
-				      sizeof(ac->ac_enaddr));
+				      (caddr_t) IFP2ENADDR(ifp),
+				      ETHER_ADDR_LEN);
 			}
 
 			/*
@@ -1081,7 +1082,7 @@ ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy(IFP2AC(ifp)->ac_enaddr,
+			bcopy(IFP2ENADDR(ifp),
 			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
 		}
 		break;
@@ -1182,11 +1183,47 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 	}
 }
 
+static void*
+ether_alloc(u_char type, struct ifnet *ifp)
+{
+	struct arpcom	*ac;
+	
+	ac = malloc(sizeof(struct arpcom), M_ARPCOM, M_WAITOK | M_ZERO);
+	ac->ac_ifp = ifp;
+
+	return (ac);
+}
+
+static void
+ether_free(void *com, u_char type)
+{
+
+	free(com, M_ARPCOM);
+}
+
+static int
+ether_modevent(module_t mod, int type, void *data)
+{
+
+	switch (type) {
+	case MOD_LOAD:
+		if_register_com_alloc(IFT_ETHER, ether_alloc, ether_free);
+		break;
+	case MOD_UNLOAD:
+		if_deregister_com_alloc(IFT_ETHER);
+		break;
+	default:
+		return EOPNOTSUPP;
+	}
+
+	return (0);
+}
+
 static moduledata_t ether_mod = {
 	"ether",
-	NULL,
+	ether_modevent,
 	0
 };
 
-DECLARE_MODULE(ether, ether_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(ether, ether_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
 MODULE_VERSION(ether, 1);

@@ -40,6 +40,7 @@
 #include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 
@@ -63,6 +64,8 @@
 
 #define IFP2FC(IFP) ((struct fw_com *)IFP)
 
+MALLOC_DEFINE(M_FWCOM, "fw_com", "firewire interface internals");
+
 struct fw_hwaddr firewire_broadcastaddr = {
 	0xffffffff,
 	0xffffffff,
@@ -76,7 +79,7 @@ static int
 firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
     struct rtentry *rt0)
 {
-	struct fw_com *fc = (struct fw_com *) ifp;
+	struct fw_com *fc = IFP2FC(ifp);
 	int error, type;
 	struct rtentry *rt;
 	struct m_tag *mtag;
@@ -167,7 +170,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #ifdef INET6
 	case AF_INET6:
 		if (unicast) {
-			error = nd6_storelladdr(&fc->fc_if, rt, m, dst,
+			error = nd6_storelladdr(fc->fc_ifp, rt, m, dst,
 			    (u_char *) destfw);
 			if (error)
 				return (error);
@@ -492,7 +495,7 @@ bad:
 void
 firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 {
-	struct fw_com *fc = (struct fw_com *) ifp;
+	struct fw_com *fc = IFP2FC(ifp);
 	union fw_encap *enc;
 	int type, isr;
 
@@ -740,7 +743,7 @@ firewire_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 void
 firewire_ifattach(struct ifnet *ifp, struct fw_hwaddr *llc)
 {
-	struct fw_com *fc = (struct fw_com *) ifp;
+	struct fw_com *fc = IFP2FC(ifp);
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 	static const char* speeds[] = {
@@ -751,7 +754,6 @@ firewire_ifattach(struct ifnet *ifp, struct fw_hwaddr *llc)
 	fc->fc_speed = llc->sspd;
 	STAILQ_INIT(&fc->fc_frags);
 
-	ifp->if_type = IFT_IEEE1394;
 	ifp->if_addrlen = sizeof(struct fw_hwaddr);
 	ifp->if_hdrlen = 0;
 	if_attach(ifp);
@@ -788,7 +790,7 @@ firewire_ifdetach(struct ifnet *ifp)
 void
 firewire_busreset(struct ifnet *ifp)
 {
-	struct fw_com *fc = (struct fw_com *) ifp;
+	struct fw_com *fc = IFP2FC(ifp);
 	struct fw_reass *r;
 	struct mbuf *m;
 
@@ -805,3 +807,49 @@ firewire_busreset(struct ifnet *ifp)
 		free(r, M_TEMP);
 	}
 }
+
+static void *
+firewire_alloc(u_char type, struct ifnet *ifp)
+{
+	struct fw_com	*fc;
+
+	fc = malloc(sizeof(struct fw_com), M_FWCOM, M_WAITOK | M_ZERO);
+	fc->fc_ifp = ifp;
+
+	return (fc);
+}
+
+static void
+firewire_free(void *com, u_char type)
+{
+
+	free(com, M_FWCOM);
+}
+
+static int
+firewire_modevent(module_t mod, int type, void *data)
+{
+
+	switch (type) {
+	case MOD_LOAD:
+		if_register_com_alloc(IFT_IEEE1394,
+		    firewire_alloc, firewire_free);
+		break;
+	case MOD_UNLOAD:
+		if_deregister_com_alloc(IFT_IEEE1394);
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	return (0);
+}
+
+static moduledata_t firewire_mod = {
+	"firewire",
+	firewire_modevent,
+	0
+};
+
+DECLARE_MODULE(firewire, firewire_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
+MODULE_VERSION(firewire, 1);

@@ -2387,14 +2387,14 @@ ieee80211_ioctl(struct ieee80211com *ic, u_long cmd, caddr_t data)
 		 */
 		case AF_IPX: {
 			struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-			struct arpcom *ac = (struct arpcom *)ifp;
 
 			if (ipx_nullhost(*ina))
-				ina->x_host = *(union ipx_host *) ac->ac_enaddr;
+				ina->x_host = *(union ipx_host *)
+				    IFP2ENADDR(ifp);
 			else
 				bcopy((caddr_t) ina->x_host.c_host,
-				      (caddr_t) ac->ac_enaddr,
-				      sizeof(ac->ac_enaddr));
+				      (caddr_t) IFP2ENADDR(ifp),
+				      ETHER_ADDR_LEN);
 			/* fall thru... */
 		}
 #endif

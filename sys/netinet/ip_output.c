@@ -974,7 +974,7 @@ smart_frag_failure:
 			goto done;
 		}
 		m->m_pkthdr.len = mhlen + len;
-		m->m_pkthdr.rcvif = (struct ifnet *)0;
+		m->m_pkthdr.rcvif = NULL;
 #ifdef MAC
 		mac_create_fragment(m0, m);
 #endif
@@ -1069,7 +1069,7 @@ ip_insertoptions(m, opt, phlen)
 			return (m);
 		}
 		M_MOVE_PKTHDR(n, m);
-		n->m_pkthdr.rcvif = (struct ifnet *)0;
+		n->m_pkthdr.rcvif = NULL;
 #ifdef MAC
 		mac_create_mbuf_from_mbuf(m, n);
 #endif

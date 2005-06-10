@@ -231,7 +231,7 @@ ex_pccard_attach(device_t dev)
 		error = ENXIO;
 		goto bad;
 	}
-	bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	bcopy(ether_addr, sc->enaddr, ETHER_ADDR_LEN);
 
 	if ((error = ex_attach(dev)) != 0) {
 		device_printf(dev, "ex_attach() failed!\n");

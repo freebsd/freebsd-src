@@ -1018,7 +1018,7 @@ bpf_setif(d, ifr)
 		if (ifp == NULL || ifp != theywant)
 			continue;
 		/* skip additional entry */
-		if (bp->bif_driverp != (struct bpf_if **)&ifp->if_bpf)
+		if (bp->bif_driverp != &ifp->if_bpf)
 			continue;
 
 		mtx_unlock(&bpf_mtx);

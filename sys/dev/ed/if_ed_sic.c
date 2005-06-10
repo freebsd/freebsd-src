@@ -107,15 +107,14 @@ ed_probe_SIC(device_t dev, int port_rid, int flags)
 
 	sum = sc->mem_start[6];
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sum ^= (sc->arpcom.ac_enaddr[i] = sc->mem_start[i]);
+		sum ^= (sc->enaddr[i] = sc->mem_start[i]);
 #ifdef ED_DEBUG
 	device_printf(dev, "ed_probe_sic: got address %6D\n",
-	    sc->arpcom.ac_enaddr, ":");
+	    sc->enaddr, ":");
 #endif
 	if (sum != 0)
 		return (ENXIO);
-	if ((sc->arpcom.ac_enaddr[0] | sc->arpcom.ac_enaddr[1] |
-	     sc->arpcom.ac_enaddr[2]) == 0)
+	if ((sc->enaddr[0] | sc->enaddr[1] | sc->enaddr[2]) == 0)
 		return (ENXIO);
 
 	sc->vendor   = ED_VENDOR_SIC;

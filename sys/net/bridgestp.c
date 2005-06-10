@@ -66,8 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 #include <net/if_bridgevar.h>
 
-#define sc_if ifb_ac.ac_if
-
 /* BPDU message types */
 #define	BSTP_MSGTYPE_CFG	0x00		/* Configuration */
 #define	BSTP_MSGTYPE_TCN	0x80		/* Topology chg notification */
@@ -1139,7 +1137,7 @@ bstp_tick(void *arg)
 			bstp_hold_timer_expiry(sc, bif);
 	}
 
-	if (sc->sc_if.if_flags & IFF_RUNNING)
+	if (sc->sc_ifp->if_flags & IFF_RUNNING)
 		callout_reset(&sc->sc_bstpcallout, hz, bstp_tick, sc);
 
 	BRIDGE_UNLOCK(sc);

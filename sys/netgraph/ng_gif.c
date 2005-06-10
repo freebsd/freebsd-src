@@ -89,8 +89,8 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_gif.h>
 
-#define IFP2NG(ifp)  ((struct ng_node *)((struct gif_softc *)(ifp))->gif_netgraph)
-#define IFP2NG_SET(ifp, val)  (((struct gif_softc *)(ifp))->gif_netgraph = (val))
+#define IFP2NG(ifp)  ((struct ng_node *)((struct gif_softc *)(ifp->if_softc))->gif_netgraph)
+#define IFP2NG_SET(ifp, val)  (((struct gif_softc *)(ifp->if_softc))->gif_netgraph = (val))
 
 /* Per-node private data */
 struct private {

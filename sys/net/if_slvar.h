@@ -43,7 +43,7 @@
  *  of sl_softc.)
  */
 struct sl_softc {
-	struct	ifnet sc_if;		/* network-visible interface */
+	struct	ifnet *sc_ifp;		/* network-visible interface */
 	struct	ifqueue sc_fastq;	/* interactive output queue */
 	struct	tty *sc_ttyp;		/* pointer to tty structure */
 	struct	mbuf *sc_mbuf;		/* pointer to mbuf containing buffer */
@@ -67,6 +67,7 @@ struct sl_softc {
 	LIST_ENTRY(sl_softc) sl_next;
 	u_char	*bpfbuf;		/* hang buffer for bpf here */
 };
+#define	SL2IFP(sc)	((sc)->sc_ifp)
 
 /* internal flags */
 #define	SC_ERROR	0x0001		/* had an input error */

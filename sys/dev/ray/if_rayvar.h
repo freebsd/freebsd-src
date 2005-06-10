@@ -65,7 +65,7 @@ struct ray_nw_param {
 struct ray_softc {
 
     device_t dev;			/* Device */
-    struct arpcom	arpcom;		/* Ethernet common 		*/
+    struct ifnet	*ifp;		/* Ethernet common 		*/
     struct callout_handle
     			tx_timerh;	/* Handle for tx timer	*/
     struct callout_handle
@@ -298,7 +298,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 
 #ifndef RAY_RECERR
 #define RAY_RECERR(sc, fmt, args...) do {				\
-    struct ifnet *ifp = &(sc)->arpcom.ac_if;				\
+    struct ifnet *ifp = (sc)->ifp;				\
     if (ifp->if_flags & IFF_DEBUG) {					\
 	    device_printf((sc)->dev, "%s(%d) " fmt "\n",		\
 		__func__ , __LINE__ , ##args);				\
@@ -308,7 +308,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 /* XXX this should be in CCSERR but don't work - probably need to use ##ifp->(iferrcounter)++;						\*/
 #ifndef RAY_CCSERR
 #define RAY_CCSERR(sc, status, iferrcounter) do {			\
-    struct ifnet *ifp = &(sc)->arpcom.ac_if;				\
+    struct ifnet *ifp = (sc)->ifp;				\
     char *ss[] = RAY_CCS_STATUS_STRINGS;				\
     if ((status) != RAY_CCS_STATUS_COMPLETE) {				\
 	if (ifp->if_flags & IFF_DEBUG) {				\

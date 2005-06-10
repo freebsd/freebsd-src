@@ -243,7 +243,7 @@ xe_macfix(device_t dev, int offset)
 	}
 	
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		sc->arpcom.ac_enaddr[i] = cisdata[i + 3];
+		sc->enaddr[i] = cisdata[i + 3];
 	}
 	    
 	bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
@@ -331,14 +331,14 @@ xe_pccard_probe(device_t dev)
 		scp->modem = 1;
 
 	/* Get MAC address */
-	pccard_get_ether(dev, scp->arpcom.ac_enaddr);
+	pccard_get_ether(dev, scp->enaddr);
 
 	/* Deal with bogus MAC address */
 	if (xpp->product.pp_vendor == PCMCIA_VENDOR_XIRCOM
 	    && scp->ce2
-	    && (scp->arpcom.ac_enaddr[0] != XE_MAC_ADDR_0
-		|| scp->arpcom.ac_enaddr[1] != XE_MAC_ADDR_1
-		|| scp->arpcom.ac_enaddr[2] != XE_MAC_ADDR_2)
+	    && (scp->enaddr[0] != XE_MAC_ADDR_0
+		|| scp->enaddr[1] != XE_MAC_ADDR_1
+		|| scp->enaddr[2] != XE_MAC_ADDR_2)
 	    && xe_macfix(dev, XE_BOGUS_MAC_OFFSET) < 0) {
 		device_printf(dev,
 			      "Unable to find MAC address for your %s card\n",
@@ -391,8 +391,9 @@ xe_pccard_detach(device_t dev)
 
 	DEVPRINTF(2, (dev, "pccard_detach\n"));
 
-	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING;
-	ether_ifdetach(&sc->arpcom.ac_if);
+	sc->ifp->if_flags &= ~IFF_RUNNING;
+	ether_ifdetach(sc->ifp);
+	if_free(sc->ifp);
 	xe_deactivate(dev);
 	return (0);
 }

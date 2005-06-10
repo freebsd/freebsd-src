@@ -117,6 +117,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_mib.h>
 #include <net/bpf.h>
+#include <net/if_types.h>
 
 #include <dev/xe/if_xereg.h>
 #include <dev/xe/if_xevar.h>
@@ -225,7 +226,9 @@ xe_attach (device_t dev)
 
   /* Initialise stuff... */
   scp->dev = dev;
-  scp->ifp = &scp->arpcom.ac_if;
+  scp->ifp = scp->ifp = if_alloc(IFT_ETHER);
+  if (scp->ifp == NULL)
+    return ENOSPC;
   scp->ifm = &scp->ifmedia;
   scp->autoneg_status = XE_AUTONEG_NONE;
 
@@ -294,7 +297,7 @@ xe_attach (device_t dev)
   }
 
   /* Attach the interface */
-  ether_ifattach(scp->ifp, scp->arpcom.ac_enaddr);
+  ether_ifattach(scp->ifp, scp->enaddr);
 
   /* Done */
   return 0;
@@ -374,7 +377,7 @@ xe_init(void *xscp) {
   /* Put MAC address in first 'individual address' register */
   XE_SELECT_PAGE(0x50);
   for (i = 0; i < 6; i++)
-    XE_OUTB(0x08 + i, scp->arpcom.ac_enaddr[scp->mohawk ? 5 - i : i]);
+    XE_OUTB(0x08 + i, IFP2ENADDR(scp->ifp)[scp->mohawk ? 5 - i : i]);
 
   /* Set up multicast addresses */
   xe_set_multicast(scp);
@@ -564,7 +567,7 @@ xe_intr(void *xscp)
   struct ifnet *ifp;
   u_int8_t psr, isr, esr, rsr, rst0, txst0, txst1, coll;
 
-  ifp = &scp->arpcom.ac_if;
+  ifp = scp->ifp;
 
   /* Disable interrupts */
   if (scp->mohawk)
@@ -936,7 +939,7 @@ static void xe_setmedia(void *xscp) {
 
     case XE_AUTONEG_NONE:
       DEVPRINTF(2, (scp->dev, "Waiting for idle transmitter\n"));
-      scp->arpcom.ac_if.if_flags |= IFF_OACTIVE;
+      scp->ifp->if_flags |= IFF_OACTIVE;
       scp->autoneg_status = XE_AUTONEG_WAITING;
       /* FALL THROUGH */
 
@@ -1254,7 +1257,7 @@ xe_set_multicast(struct xe_softc *scp) {
 
   DEVPRINTF(2, (scp->dev, "set_multicast\n"));
 
-  ifp = &scp->arpcom.ac_if;
+  ifp = scp->ifp;
   XE_SELECT_PAGE(0x42);
 
   /* Handle PROMISC flag */
@@ -1312,7 +1315,7 @@ xe_set_multicast(struct xe_softc *scp) {
   else if (count < 10) {
     /* Full in any unused Individual Addresses with our MAC address */
     for (i = count + 1; i < 10; i++)
-      xe_set_addr(scp, (u_int8_t *)(&scp->arpcom.ac_enaddr), i);
+      xe_set_addr(scp, (u_int8_t *)(&IFP2ENADDR(scp->ifp)), i);
     /* Enable Individual Address matching only */
     XE_SELECT_PAGE(0x42);
     XE_OUTB(XE_SWC1, (XE_INB(XE_SWC1) & ~XE_SWC1_ALLMULTI) | XE_SWC1_IA_ENABLE);

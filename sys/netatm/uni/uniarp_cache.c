@@ -413,7 +413,7 @@ uniarp_validate_ip(uip, ip, origin)
 	 * Can't be multicast or broadcast address
 	 */
 	if (IN_MULTICAST(ntohl(ip->s_addr)) ||
-	    in_broadcast(*ip, &uip->uip_ipnif->inf_nif->nif_if))
+	    in_broadcast(*ip, ANIF2IFP(uip->uip_ipnif->inf_nif)))
 		return (1);
 
 	/*

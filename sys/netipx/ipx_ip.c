@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 
 #include <net/if.h>
+#include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
 
@@ -108,7 +109,11 @@ ipxipattach()
 		return (NULL);
 	m->ifen_next = ipxip_list;
 	ipxip_list = m;
-	ifp = &m->ifen_ifnet;
+	ifp = m->ifen_ifp = if_alloc(IFT_IPXIP);
+	if (ifp == NULL) {
+		FREE(m, M_PCB);
+		return (NULL);
+	}
 
 	if_initname(ifp, "ipxip", ipxipif_units++);
 	ifp->if_mtu = LOMTU;
@@ -116,6 +121,7 @@ ipxipattach()
 	ifp->if_output = ipxipoutput;
 	ifp->if_start = ipxipstart;
 	ifp->if_flags = IFF_POINTOPOINT;
+	ifp->if_softc = m;
 	if_attach(ifp);
 
 	return (m);
@@ -234,14 +240,14 @@ ipxipoutput(ifp, m, dst, rt)
 	struct sockaddr *dst;
 	struct rtentry *rt;
 {
-	register struct ifnet_en *ifn = (struct ifnet_en *)ifp;
+	register struct ifnet_en *ifn = (struct ifnet_en *)ifp->if_softc;
 	register struct ip *ip;
 	register struct route *ro = &(ifn->ifen_route);
 	register int len = 0;
 	register struct ipx *ipx = mtod(m, struct ipx *);
 	int error;
 
-	ifn->ifen_ifnet.if_opackets++;
+	ifn->ifen_ifp->if_opackets++;
 	ipxipif.if_opackets++;
 
 	/*
@@ -287,8 +293,8 @@ ipxipoutput(ifp, m, dst, rt)
 	 */
 	error =  (ip_output(m, (struct mbuf *)NULL, ro, SO_BROADCAST, NULL, NULL));
 	if (error) {
-		ifn->ifen_ifnet.if_oerrors++;
-		ifn->ifen_ifnet.if_ierrors = error;
+		ifn->ifen_ifp->if_oerrors++;
+		ifn->ifen_ifp->if_ierrors = error;
 	}
 	return (error);
 	m_freem(m);
@@ -363,7 +369,7 @@ ipxip_route(so, sopt)
 	 * Is there a free (pseudo-)interface or space?
 	 */
 	for (ifn = ipxip_list; ifn != NULL; ifn = ifn->ifen_next) {
-		if ((ifn->ifen_ifnet.if_flags & IFF_UP) == 0)
+		if ((ifn->ifen_ifp->if_flags & IFF_UP) == 0)
 			break;
 	}
 	if (ifn == NULL)
@@ -396,7 +402,7 @@ static int
 ipxip_free(ifp)
 struct ifnet *ifp;
 {
-	register struct ifnet_en *ifn = (struct ifnet_en *)ifp;
+	register struct ifnet_en *ifn = (struct ifnet_en *)ifp->if_softc;
 	struct route *ro = & ifn->ifen_route;
 
 	if (ro->ro_rt != NULL) {

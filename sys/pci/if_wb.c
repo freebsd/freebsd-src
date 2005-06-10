@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -596,7 +597,7 @@ wb_setmulti(sc)
 	u_int32_t		rxfilt;
 	int			mcnt = 0;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->wb_ifp;
 
 	rxfilt = CSR_READ_4(sc, WB_NETCFG);
 
@@ -735,7 +736,7 @@ wb_fixmedia(sc)
 		return;
 
 	mii = device_get_softc(sc->wb_miibus);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->wb_ifp;
 
 	mii_pollstat(mii);
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T) {
@@ -834,7 +835,6 @@ wb_attach(dev)
 	wb_read_eeprom(sc, (caddr_t)&eaddr, 0, 3, 0);
 
 	sc->wb_unit = unit;
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	sc->wb_ldata = contigmalloc(sizeof(struct wb_list_data) + 8, M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
@@ -847,7 +847,12 @@ wb_attach(dev)
 
 	bzero(sc->wb_ldata, sizeof(struct wb_list_data));
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->wb_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("wb%d: can not if_alloc()\n", unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -881,6 +886,7 @@ wb_attach(dev)
 	if (error) {
 		printf("wb%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -908,7 +914,7 @@ wb_detach(dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->wb_mtx), ("wb mutex not initialized"));
 	WB_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->wb_ifp;
 
 	/* 
 	 * Delete any miibus and phy devices attached to this interface.
@@ -917,6 +923,7 @@ wb_detach(dev)
 	if (device_is_attached(dev)) {
 		wb_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 	if (sc->wb_miibus)
 		device_delete_child(dev, sc->wb_miibus);
@@ -1070,7 +1077,7 @@ wb_rxeof(sc)
 
 	WB_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->wb_ifp;
 
 	while(!((rxstat = sc->wb_cdata.wb_rx_head->wb_ptr->wb_status) &
 							WB_RXSTAT_OWN)) {
@@ -1156,7 +1163,7 @@ wb_txeof(sc)
 	struct wb_chain		*cur_tx;
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->wb_ifp;
 
 	/* Clear the timeout timer. */
 	ifp->if_timer = 0;
@@ -1212,7 +1219,7 @@ wb_txeoc(sc)
 {
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->wb_ifp;
 
 	ifp->if_timer = 0;
 
@@ -1240,7 +1247,7 @@ wb_intr(arg)
 
 	sc = arg;
 	WB_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->wb_ifp;
 
 	if (!(ifp->if_flags & IFF_UP)) {
 		WB_UNLOCK(sc);
@@ -1535,7 +1542,7 @@ wb_init(xsc)
 	void			*xsc;
 {
 	struct wb_softc		*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->wb_ifp;
 	int			i;
 	struct mii_data		*mii;
 
@@ -1582,7 +1589,7 @@ wb_init(xsc)
 
 	/* Init our MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		CSR_WRITE_1(sc, WB_NODE0 + i, sc->arpcom.ac_enaddr[i]);
+		CSR_WRITE_1(sc, WB_NODE0 + i, IFP2ENADDR(sc->wb_ifp)[i]);
 	}
 
 	/* Init circular RX list. */
@@ -1770,7 +1777,7 @@ wb_stop(sc)
 	struct ifnet		*ifp;
 
 	WB_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->wb_ifp;
 	ifp->if_timer = 0;
 
 	untimeout(wb_tick, sc, sc->wb_stat_ch);

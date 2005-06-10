@@ -231,7 +231,7 @@ ndis_status_func(adapter, status, sbuf, slen)
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 	if (ifp->if_flags & IFF_DEBUG)
 		device_printf (sc->ndis_dev, "status: %x\n", status);
 	return;
@@ -247,7 +247,7 @@ ndis_statusdone_func(adapter)
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 	if (ifp->if_flags & IFF_DEBUG)
 		device_printf (sc->ndis_dev, "status complete\n");
 	return;
@@ -291,7 +291,7 @@ ndis_resetdone_func(adapter, status, addressingreset)
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->ifp;
 
 	if (ifp->if_flags & IFF_DEBUG)
 		device_printf (sc->ndis_dev, "reset done...\n");

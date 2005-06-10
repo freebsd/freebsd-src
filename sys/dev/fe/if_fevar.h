@@ -68,8 +68,9 @@ struct fe_filter {
 struct fe_softc {
 
 	/* Used by "common" codes.  */
-	struct arpcom arpcom;	/* Ethernet common */
+	struct ifnet		*ifp;
 	int			sc_unit;
+	u_char			enaddr[6];
 
 	/* Used by config codes.  */
 	int			type;
@@ -117,11 +118,6 @@ struct fe_softc {
 	void (* msel)(struct fe_softc *); /* media selector.  */
 
 };
-
-#define sc_if		arpcom.ac_if
-#define sc_xname	arpcom.ac_if.if_xname
-#define sc_enaddr	arpcom.ac_enaddr
-
 
 struct fe_simple_probe_struct {
 	u_char port;	/* Offset from the base I/O address.  */

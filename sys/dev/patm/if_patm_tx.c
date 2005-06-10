@@ -119,13 +119,13 @@ cbr2slots(struct patm_softc *sc, struct patm_vcc *vcc)
 	/* compute the number of slots we need, make sure to get at least
 	 * the specified PCR */
 	return ((u_int)(((uint64_t)(sc->mmap->tst_size - 1) *
-	    vcc->vcc.tparam.pcr + sc->ifatm.mib.pcr - 1) / sc->ifatm.mib.pcr));
+	    vcc->vcc.tparam.pcr + IFP2IFATM(sc->ifp)->mib.pcr - 1) / IFP2IFATM(sc->ifp)->mib.pcr));
 }
 
 static __inline u_int
 slots2cr(struct patm_softc *sc, u_int slots)
 {
-	return ((slots * sc->ifatm.mib.pcr + sc->mmap->tst_size - 2) /
+	return ((slots * IFP2IFATM(sc->ifp)->mib.pcr + sc->mmap->tst_size - 2) /
 	    (sc->mmap->tst_size - 1));
 }
 
@@ -149,7 +149,7 @@ patm_tx_vcc_can_open(struct patm_softc *sc, struct patm_vcc *vcc)
 	  case ATMIO_TRAFFIC_VBR:
 		if (vcc->vcc.tparam.scr > sc->bwrem)
 			return (EINVAL);
-		if (vcc->vcc.tparam.pcr > sc->ifatm.mib.pcr)
+		if (vcc->vcc.tparam.pcr > IFP2IFATM(sc->ifp)->mib.pcr)
 			return (EINVAL);
 		if (vcc->vcc.tparam.scr > vcc->vcc.tparam.pcr ||
 		    vcc->vcc.tparam.mbs == 0)
@@ -161,7 +161,7 @@ patm_tx_vcc_can_open(struct patm_softc *sc, struct patm_vcc *vcc)
 		    vcc->vcc.tparam.nrm == 0)
 			/* needed to compute CRM */
 			return (EINVAL);
-		if (vcc->vcc.tparam.pcr > sc->ifatm.mib.pcr ||
+		if (vcc->vcc.tparam.pcr > IFP2IFATM(sc->ifp)->mib.pcr ||
 		    vcc->vcc.tparam.icr > vcc->vcc.tparam.pcr ||
 		    vcc->vcc.tparam.mcr > vcc->vcc.tparam.icr)
 			return (EINVAL);
@@ -303,7 +303,7 @@ patm_start(struct ifnet *ifp)
 		/* split of pseudo header */
 		if (m->m_len < sizeof(*aph) &&
 		    (m = m_pullup(m, sizeof(*aph))) == NULL) {
-			sc->ifatm.ifnet.if_oerrors++;
+			sc->ifp->if_oerrors++;
 			continue;
 		}
 
@@ -315,21 +315,21 @@ patm_start(struct ifnet *ifp)
 		/* reject empty packets */
 		if (m->m_pkthdr.len == 0) {
 			m_freem(m);
-			sc->ifatm.ifnet.if_oerrors++;
+			sc->ifp->if_oerrors++;
 			continue;
 		}
 
 		/* check whether this is a legal vcc */
 		if (!LEGAL_VPI(sc, vpi) || !LEGAL_VCI(sc, vci) || vci == 0) {
 			m_freem(m);
-			sc->ifatm.ifnet.if_oerrors++;
+			sc->ifp->if_oerrors++;
 			continue;
 		}
 		cid = PATM_CID(sc, vpi, vci);
 		vcc = sc->vccs[cid];
 		if (vcc == NULL) {
 			m_freem(m);
-			sc->ifatm.ifnet.if_oerrors++;
+			sc->ifp->if_oerrors++;
 			continue;
 		}
 
@@ -339,7 +339,7 @@ patm_start(struct ifnet *ifp)
 			/* XXX AAL3/4 format? */
 			if (m->m_pkthdr.len % 48 != 0 &&
 			    (m = patm_tx_pad(sc, m)) == NULL) {
-				sc->ifatm.ifnet.if_oerrors++;
+				sc->ifp->if_oerrors++;
 				continue;
 			}
 		} else if (vcc->vcc.aal == ATMIO_AAL_RAW) {
@@ -348,7 +348,7 @@ patm_start(struct ifnet *ifp)
 			  default:
 			  case PATM_RAW_CELL:
 				if (m->m_pkthdr.len != 53) {
-					sc->ifatm.ifnet.if_oerrors++;
+					sc->ifp->if_oerrors++;
 					m_freem(m);
 					continue;
 				}
@@ -356,7 +356,7 @@ patm_start(struct ifnet *ifp)
 
 			  case PATM_RAW_NOHEC:
 				if (m->m_pkthdr.len != 52) {
-					sc->ifatm.ifnet.if_oerrors++;
+					sc->ifp->if_oerrors++;
 					m_freem(m);
 					continue;
 				}
@@ -364,7 +364,7 @@ patm_start(struct ifnet *ifp)
 
 			  case PATM_RAW_CS:
 				if (m->m_pkthdr.len != 64) {
-					sc->ifatm.ifnet.if_oerrors++;
+					sc->ifp->if_oerrors++;
 					m_freem(m);
 					continue;
 				}
@@ -377,7 +377,7 @@ patm_start(struct ifnet *ifp)
 
 		/* try to put it on the channels queue */
 		if (_IF_QFULL(&vcc->scd->q)) {
-			sc->ifatm.ifnet.if_oerrors++;
+			sc->ifp->if_oerrors++;
 			sc->stats.tx_qfull++;
 			m_freem(m);
 			continue;
@@ -415,7 +415,7 @@ patm_tx_pad(struct patm_softc *sc, struct mbuf *m0)
 		m0->m_pkthdr.len = plen;
 		if (plen == 0) {
 			m_freem(m0);
-			sc->ifatm.ifnet.if_oerrors++;
+			sc->ifp->if_oerrors++;
 			return (NULL);
 		}
 		if (plen % 48 == 0)
@@ -441,7 +441,7 @@ patm_tx_pad(struct patm_softc *sc, struct mbuf *m0)
 	MGET(m, M_DONTWAIT, MT_DATA);
 	if (m == 0) {
 		m_freem(m0);
-		sc->ifatm.ifnet.if_oerrors++;
+		sc->ifp->if_oerrors++;
 		return (NULL);
 	}
 	bzero(mtod(m, u_char *), pad);
@@ -533,7 +533,7 @@ patm_launch(struct patm_softc *sc, struct patm_scd *scd)
 		    patm_load_txbuf, &a, BUS_DMA_NOWAIT);
 		if (error == EFBIG) {
 			if ((m = m_defrag(m, M_DONTWAIT)) == NULL) {
-				sc->ifatm.ifnet.if_oerrors++;
+				sc->ifp->if_oerrors++;
 				continue;
 			}
 			error = bus_dmamap_load_mbuf(sc->tx_tag, map->map, m,
@@ -541,13 +541,13 @@ patm_launch(struct patm_softc *sc, struct patm_scd *scd)
 		}
 		if (error != 0) {
 			sc->stats.tx_load_err++;
-			sc->ifatm.ifnet.if_oerrors++;
+			sc->ifp->if_oerrors++;
 			SLIST_INSERT_HEAD(&sc->tx_maps_free, map, link);
 			m_freem(m);
 			continue;
 		}
 
-		sc->ifatm.ifnet.if_opackets++;
+		sc->ifp->if_opackets++;
 	}
 }
 
@@ -741,12 +741,12 @@ patm_tx(struct patm_softc *sc, u_int stamp, u_int status)
 
 		acri = (patm_sram_read(sc, 8 * cid + 2) >> IDT_TCT_ACRI_SHIFT)
 		    & 0x3fff;
-		cps = sc->ifatm.mib.pcr * 32 /
+		cps = IFP2IFATM(sc->ifp)->mib.pcr * 32 /
 		    ((1 << (acri >> 10)) * (acri & 0x3ff));
 
 		if (cps != vcc->cps) {
 			patm_debug(sc, VCC, "ACRI=%04x CPS=%u", acri, cps);
-			ATMEV_SEND_ACR_CHANGED(&sc->ifatm, vcc->vcc.vpi,
+			ATMEV_SEND_ACR_CHANGED(IFP2IFATM(sc->ifp), vcc->vcc.vpi,
 			    vcc->vcc.vci, cps);
 			vcc->cps = cps;
 		}
@@ -1126,7 +1126,7 @@ patm_tst_alloc(struct patm_softc *sc, struct patm_vcc *vcc)
 	sc->bwrem -= slots2cr(sc, slots);
 
 	patm_debug(sc, TST, "tst_alloc: cbr=%u link=%u tst=%u slots=%u",
-	    vcc->vcc.tparam.pcr, sc->ifatm.mib.pcr, sc->mmap->tst_size, slots);
+	    vcc->vcc.tparam.pcr, IFP2IFATM(sc->ifp)->mib.pcr, sc->mmap->tst_size, slots);
 
 	qmax = sc->mmap->tst_size - 1;
 	pmax = qmax << 8;

@@ -272,7 +272,7 @@ fore_xmit_drain(fup)
 				vcp = fvp->fv_connvc->cvc_vcc;
 				vcp->vc_oerrors++;
 				if (vcp->vc_nif)
-					vcp->vc_nif->nif_if.if_oerrors++;
+					ANIF2IFP(vcp->vc_nif)->if_oerrors++;
 			}
 		} else {
 			/*
@@ -288,9 +288,9 @@ fore_xmit_drain(fup)
 				vcp->vc_obytes += len;
 				if (vcp->vc_nif) {
 					vcp->vc_nif->nif_obytes += len;
-					vcp->vc_nif->nif_if.if_opackets++;
+					ANIF2IFP(vcp->vc_nif)->if_opackets++;
 #if (defined(BSD) && (BSD >= 199103))
-					vcp->vc_nif->nif_if.if_obytes += len;
+					ANIF2IFP(vcp->vc_nif)->if_obytes += len;
 #endif
 				}
 			}

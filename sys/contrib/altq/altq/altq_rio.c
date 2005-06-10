@@ -331,7 +331,7 @@ dscp2index(u_int8_t dscp)
  * use m_pkthdr.rcvif to pass this info.
  */
 #define	RIOM_SET_PRECINDEX(m, idx)	\
-	do { (m)->m_pkthdr.rcvif = (struct ifnet *)((long)(idx)); } while (0)
+	do { (m)->m_pkthdr.rcvif = (void *)((long)(idx)); } while (0)
 #define	RIOM_GET_PRECINDEX(m)	\
 	({ long idx; idx = (long)((m)->m_pkthdr.rcvif); \
 	(m)->m_pkthdr.rcvif = NULL; idx; })

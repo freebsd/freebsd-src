@@ -116,6 +116,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -386,7 +387,7 @@ xl_wait(struct xl_softc *sc)
 	}
 
 	if (i == XL_TIMEOUT)
-		if_printf(&sc->arpcom.ac_if, "command never completed!\n");
+		if_printf(sc->xl_ifp, "command never completed!\n");
 }
 
 /*
@@ -659,7 +660,7 @@ xl_miibus_mediainit(device_t dev)
 		if (sc->xl_type == XL_TYPE_905B &&
 		    sc->xl_media == XL_MEDIAOPT_10FL) {
 			if (bootverbose)
-				if_printf(&sc->arpcom.ac_if,
+				if_printf(sc->xl_ifp,
 				    "found 10baseFL\n");
 			ifmedia_add(ifm, IFM_ETHER | IFM_10_FL, 0, NULL);
 			ifmedia_add(ifm, IFM_ETHER | IFM_10_FL|IFM_HDX, 0,
@@ -669,14 +670,14 @@ xl_miibus_mediainit(device_t dev)
 				    IFM_ETHER | IFM_10_FL | IFM_FDX, 0, NULL);
 		} else {
 			if (bootverbose)
-				if_printf(&sc->arpcom.ac_if, "found AUI\n");
+				if_printf(sc->xl_ifp, "found AUI\n");
 			ifmedia_add(ifm, IFM_ETHER | IFM_10_5, 0, NULL);
 		}
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_BNC) {
 		if (bootverbose)
-			if_printf(&sc->arpcom.ac_if, "found BNC\n");
+			if_printf(sc->xl_ifp, "found BNC\n");
 		ifmedia_add(ifm, IFM_ETHER | IFM_10_2, 0, NULL);
 	}
 }
@@ -698,7 +699,7 @@ xl_eeprom_wait(struct xl_softc *sc)
 	}
 
 	if (i == 100) {
-		if_printf(&sc->arpcom.ac_if, "eeprom failed to come ready\n");
+		if_printf(sc->xl_ifp, "eeprom failed to come ready\n");
 		return (1);
 	}
 
@@ -760,7 +761,7 @@ xl_read_eeprom(struct xl_softc *sc, caddr_t dest, int off, int cnt, int swap)
 static void
 xl_setmulti(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 	struct ifmultiaddr	*ifma;
 	u_int8_t		rxfilt;
 	int			mcnt = 0;
@@ -793,7 +794,7 @@ xl_setmulti(struct xl_softc *sc)
 static void
 xl_setmulti_hash(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 	int			h = 0, i;
 	struct ifmultiaddr	*ifma;
 	u_int8_t		rxfilt;
@@ -851,16 +852,16 @@ static void
 xl_testpacket(struct xl_softc *sc)
 {
 	struct mbuf		*m;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 
 	if (m == NULL)
 		return;
 
-	bcopy(&sc->arpcom.ac_enaddr,
+	bcopy(&IFP2ENADDR(sc->xl_ifp),
 		mtod(m, struct ether_header *)->ether_dhost, ETHER_ADDR_LEN);
-	bcopy(&sc->arpcom.ac_enaddr,
+	bcopy(&IFP2ENADDR(sc->xl_ifp),
 		mtod(m, struct ether_header *)->ether_shost, ETHER_ADDR_LEN);
 	mtod(m, struct ether_header *)->ether_type = htons(3);
 	mtod(m, unsigned char *)[14] = 0;
@@ -985,7 +986,7 @@ xl_setmode(struct xl_softc *sc, int media)
 	DELAY(800);
 	XL_SEL_WIN(7);
 
-	if_printf(&sc->arpcom.ac_if, "selecting %s, %s duplex\n", pmsg, dmsg);
+	if_printf(sc->xl_ifp, "selecting %s, %s duplex\n", pmsg, dmsg);
 }
 
 static void
@@ -1017,7 +1018,7 @@ xl_reset(struct xl_softc *sc)
 	}
 
 	if (i == XL_TIMEOUT)
-		if_printf(&sc->arpcom.ac_if, "reset didn't complete\n");
+		if_printf(sc->xl_ifp, "reset didn't complete\n");
 
 	/* Reset TX and RX. */
 	/* Note: the RX reset takes an absurd amount of time
@@ -1102,20 +1103,20 @@ xl_mediacheck(struct xl_softc *sc)
 		if (sc->xl_xcvr <= XL_XCVR_AUTO)
 			return;
 		else {
-			if_printf(&sc->arpcom.ac_if,
+			if_printf(sc->xl_ifp,
 			    "bogus xcvr value in EEPROM (%x)\n", sc->xl_xcvr);
-			if_printf(&sc->arpcom.ac_if,
+			if_printf(sc->xl_ifp,
 			    "choosing new default based on card type\n");
 		}
 	} else {
 		if (sc->xl_type == XL_TYPE_905B &&
 		    sc->xl_media & XL_MEDIAOPT_10FL)
 			return;
-		if_printf(&sc->arpcom.ac_if,
+		if_printf(sc->xl_ifp,
 "WARNING: no media options bits set in the media options register!!\n");
-		if_printf(&sc->arpcom.ac_if,
+		if_printf(sc->xl_ifp,
 "this could be a manufacturing defect in your adapter or system\n");
-		if_printf(&sc->arpcom.ac_if,
+		if_printf(sc->xl_ifp,
 "attempting to guess media type; you should probably consult your vendor\n");
 	}
 
@@ -1140,7 +1141,7 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_BT;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		if (verbose)
-			if_printf(&sc->arpcom.ac_if,
+			if_printf(sc->xl_ifp,
 			    "guessing 10BaseT transceiver\n");
 		break;
 	case TC_DEVICEID_BOOMERANG_10BT_COMBO:	/* 3c900-COMBO */
@@ -1148,20 +1149,20 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		if (verbose)
-			if_printf(&sc->arpcom.ac_if,
+			if_printf(sc->xl_ifp,
 			    "guessing COMBO (AUI/BNC/TP)\n");
 		break;
 	case TC_DEVICEID_KRAKATOA_10BT_TPC:	/* 3c900B-TPC */
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		if (verbose)
-			if_printf(&sc->arpcom.ac_if, "guessing TPC (BNC/TP)\n");
+			if_printf(sc->xl_ifp, "guessing TPC (BNC/TP)\n");
 		break;
 	case TC_DEVICEID_CYCLONE_10FL:		/* 3c900B-FL */
 		sc->xl_media = XL_MEDIAOPT_10FL;
 		sc->xl_xcvr = XL_XCVR_AUI;
 		if (verbose)
-			if_printf(&sc->arpcom.ac_if, "guessing 10baseFL\n");
+			if_printf(sc->xl_ifp, "guessing 10baseFL\n");
 		break;
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
 	case TC_DEVICEID_HURRICANE_555:		/* 3c555 */
@@ -1178,14 +1179,14 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_MII;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
-			if_printf(&sc->arpcom.ac_if, "guessing MII\n");
+			if_printf(sc->xl_ifp, "guessing MII\n");
 		break;
 	case TC_DEVICEID_BOOMERANG_100BT4:	/* 3c905-T4 */
 	case TC_DEVICEID_CYCLONE_10_100BT4:	/* 3c905B-T4 */
 		sc->xl_media = XL_MEDIAOPT_BT4;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
-			if_printf(&sc->arpcom.ac_if,
+			if_printf(sc->xl_ifp,
 			    "guessing 100baseT4/MII\n");
 		break;
 	case TC_DEVICEID_HURRICANE_10_100BT:	/* 3c905B-TX */
@@ -1197,18 +1198,18 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_BTX;
 		sc->xl_xcvr = XL_XCVR_AUTO;
 		if (verbose)
-			if_printf(&sc->arpcom.ac_if,
+			if_printf(sc->xl_ifp,
 			    "guessing 10/100 internal\n");
 		break;
 	case TC_DEVICEID_CYCLONE_10_100_COMBO:	/* 3c905B-COMBO */
 		sc->xl_media = XL_MEDIAOPT_BTX|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
 		sc->xl_xcvr = XL_XCVR_AUTO;
 		if (verbose)
-			if_printf(&sc->arpcom.ac_if,
+			if_printf(sc->xl_ifp,
 			    "guessing 10/100 plus BNC/AUI\n");
 		break;
 	default:
-		if_printf(&sc->arpcom.ac_if,
+		if_printf(sc->xl_ifp,
 		    "unknown device ID: %x -- defaulting to 10baseT\n", devid);
 		sc->xl_media = XL_MEDIAOPT_BT;
 		break;
@@ -1345,7 +1346,12 @@ xl_attach(device_t dev)
 	}
 
 	/* Initialize interface name. */
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->xl_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
@@ -1369,7 +1375,6 @@ xl_attach(device_t dev)
 	sc->xl_unit = unit;
 	callout_handle_init(&sc->xl_stat_ch);
 	TASK_INIT(&sc->xl_task, 0, xl_rxeof_task, sc);
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
 	 * Now allocate a tag for the DMA descriptor lists and a chunk
@@ -1620,6 +1625,7 @@ done:
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -1669,7 +1675,7 @@ xl_choose_media(struct xl_softc *sc, int *media)
 		*media = IFM_ETHER|IFM_100_FX;
 		break;
 	default:
-		if_printf(&sc->arpcom.ac_if, "unknown XCVR type: %d\n",
+		if_printf(sc->xl_ifp, "unknown XCVR type: %d\n",
 		    sc->xl_xcvr);
 		/*
 		 * This will probably be wrong, but it prevents
@@ -1697,7 +1703,7 @@ xl_detach(device_t dev)
 	int			rid, res;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->xl_ifp;
 
 	KASSERT(mtx_initialized(&sc->xl_mtx), ("xl mutex not initialized"));
 	XL_LOCK(sc);
@@ -1715,6 +1721,7 @@ xl_detach(device_t dev)
 		xl_reset(sc);
 		xl_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 	if (sc->xl_miibus)
 		device_delete_child(dev, sc->xl_miibus);
@@ -1907,7 +1914,7 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 	    xl_dma_map_rxbuf, &baddr, BUS_DMA_NOWAIT);
 	if (error) {
 		m_freem(m_new);
-		if_printf(&sc->arpcom.ac_if, "can't map mbuf (error %d)\n",
+		if_printf(sc->xl_ifp, "can't map mbuf (error %d)\n",
 		    error);
 		return (error);
 	}
@@ -1956,7 +1963,7 @@ static void
 xl_rxeof(struct xl_softc *sc)
 {
 	struct mbuf		*m;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_chain_onefrag	*cur_rx;
 	int			total_len = 0;
 	u_int32_t		rxstat;
@@ -2106,7 +2113,7 @@ static void
 xl_txeof(struct xl_softc *sc)
 {
 	struct xl_chain		*cur_tx;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 
 	XL_LOCK_ASSERT(sc);
 
@@ -2157,7 +2164,7 @@ static void
 xl_txeof_90xB(struct xl_softc *sc)
 {
 	struct xl_chain		*cur_tx = NULL;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 	int			idx;
 
 	XL_LOCK_ASSERT(sc);
@@ -2210,7 +2217,7 @@ xl_txeoc(struct xl_softc *sc)
 		if (txstat & XL_TXSTATUS_UNDERRUN ||
 			txstat & XL_TXSTATUS_JABBER ||
 			txstat & XL_TXSTATUS_RECLAIM) {
-			if_printf(&sc->arpcom.ac_if,
+			if_printf(sc->xl_ifp,
 			    "transmission error: %x\n", txstat);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 			xl_wait(sc);
@@ -2238,7 +2245,7 @@ xl_txeoc(struct xl_softc *sc)
 			if (txstat & XL_TXSTATUS_UNDERRUN &&
 			    sc->xl_tx_thresh < XL_PACKET_SIZE) {
 				sc->xl_tx_thresh += XL_MIN_FRAMELEN;
-				if_printf(&sc->arpcom.ac_if,
+				if_printf(sc->xl_ifp,
 "tx underrun, increasing tx start threshold to %d bytes\n", sc->xl_tx_thresh);
 			}
 			CSR_WRITE_2(sc, XL_COMMAND,
@@ -2265,7 +2272,7 @@ static void
 xl_intr(void *arg)
 {
 	struct xl_softc		*sc = arg;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 	u_int16_t		status;
 
 	XL_LOCK(sc);
@@ -2431,7 +2438,7 @@ xl_stats_update(void *xsc)
 static void
 xl_stats_update_locked(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_stats		xl_stats;
 	u_int8_t		*p;
 	int			i;
@@ -2484,7 +2491,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf *m_head)
 {
 	int			error;
 	u_int32_t		status;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 
 	XL_LOCK_ASSERT(sc);
 
@@ -2794,7 +2801,7 @@ xl_init(void *xsc)
 static void
 xl_init_locked(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 	int			error, i;
 	u_int16_t		rxfilt = 0;
 	struct mii_data		*mii = NULL;
@@ -2821,7 +2828,7 @@ xl_init_locked(struct xl_softc *sc)
 	XL_SEL_WIN(2);
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		CSR_WRITE_1(sc, XL_W2_STATION_ADDR_LO + i,
-				sc->arpcom.ac_enaddr[i]);
+				IFP2ENADDR(sc->xl_ifp)[i]);
 	}
 
 	/* Clear the station mask. */
@@ -3259,7 +3266,7 @@ static void
 xl_stop(struct xl_softc *sc)
 {
 	register int		i;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->xl_ifp;
 
 	XL_LOCK_ASSERT(sc);
 
@@ -3367,7 +3374,7 @@ xl_resume(device_t dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->xl_ifp;
 
 	XL_LOCK(sc);
 

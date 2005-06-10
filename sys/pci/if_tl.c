@@ -191,6 +191,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -523,7 +524,7 @@ static u_int8_t tl_eeprom_getbyte(sc, addr, dest)
 {
 	register int		i;
 	u_int8_t		byte = 0;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->tl_ifp;
 
 	tl_dio_write8(sc, TL_NETSIO, 0);
 
@@ -945,7 +946,7 @@ tl_setmulti(sc)
 	int			h, i;
 	struct ifmultiaddr	*ifma;
 	u_int8_t		dummy[] = { 0, 0, 0, 0, 0 ,0 };
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->tl_ifp;
 
 	/* First, zot all the existing filters. */
 	for (i = 1; i < 4; i++)
@@ -1115,6 +1116,7 @@ tl_attach(dev)
 	struct ifnet		*ifp;
 	struct tl_softc		*sc;
 	int			unit, error = 0, rid;
+	u_char			eaddr[6];
 
 	vid = pci_get_vendor(dev);
 	did = pci_get_device(dev);
@@ -1227,8 +1229,7 @@ tl_attach(dev)
 	/*
 	 * Get station address from the EEPROM.
 	 */
-	if (tl_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
-				sc->tl_eeaddr, ETHER_ADDR_LEN)) {
+	if (tl_read_eeprom(sc, eaddr, sc->tl_eeaddr, ETHER_ADDR_LEN)) {
 		device_printf(dev, "failed to read station address\n");
 		error = ENXIO;
 		goto fail;
@@ -1251,12 +1252,17 @@ tl_attach(dev)
         if (sc->tl_dinfo->tl_vid == OLICOM_VENDORID) {
                 for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
                         u_int16_t               *p;
-                        p = (u_int16_t *)&sc->arpcom.ac_enaddr[i];
+                        p = (u_int16_t *)&eaddr[i];
                         *p = ntohs(*p);
                 }
         }
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->tl_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
@@ -1299,7 +1305,7 @@ tl_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->tl_irq, INTR_TYPE_NET,
@@ -1308,6 +1314,7 @@ tl_attach(dev)
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -1335,12 +1342,13 @@ tl_detach(dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->tl_mtx), ("tl mutex not initialized"));
 	TL_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->tl_ifp;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		tl_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 	if (sc->tl_miibus)
 		device_delete_child(dev, sc->tl_miibus);
@@ -1494,7 +1502,7 @@ tl_intvec_rxeof(xsc, type)
 	struct tl_chain_onefrag	*cur_rx;
 
 	sc = xsc;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->tl_ifp;
 
 	TL_LOCK_ASSERT(sc);
 
@@ -1528,7 +1536,7 @@ tl_intvec_rxeof(xsc, type)
 		 */
 		eh = mtod(m, struct ether_header *);
 		/*if (ifp->if_flags & IFF_PROMISC && */
-		if (!bcmp(eh->ether_shost, sc->arpcom.ac_enaddr,
+		if (!bcmp(eh->ether_shost, IFP2ENADDR(sc->tl_ifp),
 		 					ETHER_ADDR_LEN)) {
 				m_freem(m);
 				continue;
@@ -1639,7 +1647,7 @@ tl_intvec_txeoc(xsc, type)
 	u_int32_t		cmd;
 
 	sc = xsc;
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->tl_ifp;
 
 	/* Clear the timeout timer. */
 	ifp->if_timer = 0;
@@ -1676,7 +1684,7 @@ tl_intvec_adchk(xsc, type)
 	sc = xsc;
 
 	if (type)
-		if_printf(&sc->arpcom.ac_if, "adapter check: %x\n",
+		if_printf(sc->tl_ifp, "adapter check: %x\n",
 			(unsigned int)CSR_READ_4(sc, TL_CH_PARM));
 
 	tl_softreset(sc, 1);
@@ -1700,7 +1708,7 @@ tl_intvec_netsts(xsc, type)
 	netsts = tl_dio_read16(sc, TL_NETSTS);
 	tl_dio_write16(sc, TL_NETSTS, netsts);
 
-	if_printf(&sc->arpcom.ac_if, "network status: %x\n", netsts);
+	if_printf(sc->tl_ifp, "network status: %x\n", netsts);
 
 	return(1);
 }
@@ -1726,7 +1734,7 @@ tl_intr(xsc)
 	ivec = (ints & TL_VEC_MASK) >> 5;
 	ints = (ints & TL_INT_MASK) >> 2;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->tl_ifp;
 
 	switch(ints) {
 	case (TL_INTR_INVALID):
@@ -1795,7 +1803,7 @@ tl_stats_update(xsc)
 
 	sc = xsc;
 	TL_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->tl_ifp;
 
 	p = (u_int32_t *)&tl_stats;
 
@@ -1854,7 +1862,7 @@ tl_encap(sc, c, m_head)
 	struct tl_frag		*f = NULL;
 	int			total_len;
 	struct mbuf		*m;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->tl_ifp;
 
 	/*
  	 * Start packing the mbufs in this chain into
@@ -2040,12 +2048,12 @@ tl_init(xsc)
 	void			*xsc;
 {
 	struct tl_softc		*sc = xsc;
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct ifnet		*ifp = sc->tl_ifp;
 	struct mii_data		*mii;
 
 	TL_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->tl_ifp;
 
 	/*
 	 * Cancel pending I/O.
@@ -2078,7 +2086,7 @@ tl_init(xsc)
 	tl_dio_write16(sc, TL_MAXRX, MCLBYTES);
 
 	/* Init our MAC address */
-	tl_setfilt(sc, (caddr_t)&sc->arpcom.ac_enaddr, 0);
+	tl_setfilt(sc, (caddr_t)&IFP2ENADDR(sc->tl_ifp), 0);
 
 	/* Init multicast filter, if needed. */
 	tl_setmulti(sc);
@@ -2273,7 +2281,7 @@ tl_stop(sc)
 
 	TL_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->tl_ifp;
 
 	/* Stop the stats updater. */
 	untimeout(tl_stats_update, sc, sc->tl_stat_ch);

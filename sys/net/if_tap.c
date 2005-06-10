@@ -62,6 +62,7 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/route.h>
+#include <net/if_types.h>
 
 #include <netinet/in.h>
 
@@ -191,7 +192,7 @@ tapmodevent(mod, type, data)
 			SLIST_REMOVE_HEAD(&taphead, tap_next);
 			mtx_unlock(&tapmtx);
 
-			ifp = &tp->tap_if;
+			ifp = tp->tap_ifp;
 
 			TAPDEBUG("detaching %s\n", ifp->if_xname);
 
@@ -202,6 +203,7 @@ tapmodevent(mod, type, data)
 			destroy_dev(tp->tap_dev);
 			s = splimp();
 			ether_ifdetach(ifp);
+			if_free_type(ifp, IFT_ETHER);
 			splx(s);
 
 			mtx_destroy(&tp->tap_mtx);
@@ -284,6 +286,7 @@ tapcreate(dev)
 	unsigned short		 macaddr_hi;
 	int			 unit, s;
 	char			*name = NULL;
+	u_char			eaddr[6];
 
 	dev->si_flags &= ~SI_CHEAPCLONE;
 
@@ -309,12 +312,14 @@ tapcreate(dev)
 
 	/* generate fake MAC address: 00 bd xx xx xx unit_no */
 	macaddr_hi = htons(0x00bd);
-	bcopy(&macaddr_hi, &tp->arpcom.ac_enaddr[0], sizeof(short));
-	bcopy(&ticks, &tp->arpcom.ac_enaddr[2], sizeof(long));
-	tp->arpcom.ac_enaddr[5] = (u_char)unit;
+	bcopy(&macaddr_hi, eaddr, sizeof(short));
+	bcopy(&ticks, &eaddr[2], sizeof(long));
+	eaddr[5] = (u_char)unit;
 
 	/* fill the rest and attach interface */
-	ifp = &tp->tap_if;
+	ifp = tp->tap_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		panic("%s%d: can not if_alloc()", name, unit);
 	ifp->if_softc = tp;
 	if_initname(ifp, name, unit);
 	ifp->if_init = tapifinit;
@@ -328,7 +333,7 @@ tapcreate(dev)
 	tp->tap_dev = dev;
 
 	s = splimp();
-	ether_ifattach(ifp, tp->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 	splx(s);
 
 	mtx_lock(&tp->tap_mtx);
@@ -379,10 +384,10 @@ tapopen(dev, flag, mode, td)
 		return (EBUSY);
 	}
 
-	bcopy(tp->arpcom.ac_enaddr, tp->ether_addr, sizeof(tp->ether_addr));
+	bcopy(IFP2ENADDR(tp->tap_ifp), tp->ether_addr, sizeof(tp->ether_addr));
 	tp->tap_pid = td->td_proc->p_pid;
 	tp->tap_flags |= TAP_OPEN;
-	ifp = &tp->tap_if;
+	ifp = tp->tap_ifp;
 	mtx_unlock(&tp->tap_mtx);
 
 	s = splimp();
@@ -410,7 +415,7 @@ tapclose(dev, foo, bar, td)
 {
 	struct ifaddr *ifa;
 	struct tap_softc	*tp = dev->si_drv1;
-	struct ifnet		*ifp = &tp->tap_if;
+	struct ifnet		*ifp = tp->tap_ifp;
 	int			s;
 
 	/* junk all pending output */
@@ -462,7 +467,7 @@ tapifinit(xtp)
 	void	*xtp;
 {
 	struct tap_softc	*tp = (struct tap_softc *)xtp;
-	struct ifnet		*ifp = &tp->tap_if;
+	struct ifnet		*ifp = tp->tap_ifp;
 
 	TAPDEBUG("initializing %s\n", ifp->if_xname);
 
@@ -601,7 +606,7 @@ tapioctl(dev, cmd, data, flag, td)
 	struct thread	*td;
 {
 	struct tap_softc	*tp = dev->si_drv1;
-	struct ifnet		*ifp = &tp->tap_if;
+	struct ifnet		*ifp = tp->tap_ifp;
 	struct tapinfo		*tapp = NULL;
 	int			 s;
 	int			 f;
@@ -723,7 +728,7 @@ tapread(dev, uio, flag)
 	int		 flag;
 {
 	struct tap_softc	*tp = dev->si_drv1;
-	struct ifnet		*ifp = &tp->tap_if;
+	struct ifnet		*ifp = tp->tap_ifp;
 	struct mbuf		*m = NULL;
 	int			 error = 0, len, s;
 
@@ -797,7 +802,7 @@ tapwrite(dev, uio, flag)
 	int		 flag;
 {
 	struct tap_softc	*tp = dev->si_drv1;
-	struct ifnet		*ifp = &tp->tap_if;
+	struct ifnet		*ifp = tp->tap_ifp;
 	struct mbuf		*m;
 	int			 error = 0;
 
@@ -843,7 +848,7 @@ tappoll(dev, events, td)
 	struct thread	*td;
 {
 	struct tap_softc	*tp = dev->si_drv1;
-	struct ifnet		*ifp = &tp->tap_if;
+	struct ifnet		*ifp = tp->tap_ifp;
 	int			 s, revents = 0;
 
 	TAPDEBUG("%s polling, minor = %#x\n", 

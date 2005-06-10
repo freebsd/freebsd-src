@@ -131,7 +131,7 @@ fore_output(cup, cvp, m)
 			fup->fu_stats->st_drv.drv_xm_notact++;
 			vcp->vc_oerrors++;
 			if (vcp->vc_nif)
-				vcp->vc_nif->nif_if.if_oerrors++;
+				ANIF2IFP(vcp->vc_nif)->if_oerrors++;
 			KB_FREEALL(m);
 			return;
 		}
@@ -164,7 +164,7 @@ fore_output(cup, cvp, m)
 			fup->fu_pif.pif_oerrors++;
 			vcp->vc_oerrors++;
 			if (vcp->vc_nif)
-				vcp->vc_nif->nif_if.if_oerrors++;
+				ANIF2IFP(vcp->vc_nif)->if_oerrors++;
 			KB_FREEALL(m);
 			(void) splx(s);
 			return;
@@ -185,7 +185,7 @@ fore_output(cup, cvp, m)
 		 */
 		vcp->vc_oerrors++;
 		if (vcp->vc_nif)
-			vcp->vc_nif->nif_if.if_oerrors++;
+			ANIF2IFP(vcp->vc_nif)->if_oerrors++;
 		(void) splx(s);
 		return;
 	}

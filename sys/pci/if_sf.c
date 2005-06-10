@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <net/bpf.h>
 
@@ -415,7 +416,7 @@ sf_setmulti(sc)
 	struct ifmultiaddr	*ifma;
 	u_int8_t		dummy[] = { 0, 0, 0, 0, 0, 0 };
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sf_ifp;
 
 	/* First zot all the existing filters. */
 	for (i = 1; i < SF_RXFILT_PERFECT_CNT; i++)
@@ -641,6 +642,7 @@ sf_attach(dev)
 	struct sf_softc		*sc;
 	struct ifnet		*ifp;
 	int			unit, rid, error = 0;
+	u_char			eaddr[6];
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -683,7 +685,7 @@ sf_attach(dev)
 	 * Get station address from the EEPROM.
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->arpcom.ac_enaddr[i] =
+		eaddr[i] =
 		    sf_read_eeprom(sc, SF_EE_NODEADDR + ETHER_ADDR_LEN - i);
 
 	sc->sf_unit = unit;
@@ -708,7 +710,12 @@ sf_attach(dev)
 		goto fail;
 	}
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sf_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("sf%d: can not if_alloc()\n", sc->sf_unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -730,7 +737,7 @@ sf_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sf_irq, INTR_TYPE_NET,
@@ -739,6 +746,7 @@ sf_attach(dev)
 	if (error) {
 		printf("sf%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 		goto fail;
 	}
 
@@ -766,12 +774,13 @@ sf_detach(dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->sf_mtx), ("sf mutex not initialized"));
 	SF_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sf_ifp;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		sf_stop(sc);
 		ether_ifdetach(ifp);
+		if_free(ifp);
 	}
 	if (sc->sf_miibus)
 		device_delete_child(dev, sc->sf_miibus);
@@ -904,7 +913,7 @@ sf_rxeof(sc)
 
 	SF_LOCK_ASSERT(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sf_ifp;
 
 	rxcons = csr_read_4(sc, SF_CQ_CONSIDX);
 	rxprod = csr_read_4(sc, SF_RXDQ_PTR_Q1);
@@ -973,7 +982,7 @@ sf_txeof(sc)
 	struct sf_tx_bufdesc_type0 *cur_tx;
 	struct ifnet		*ifp;
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sf_ifp;
 
 	txcons = csr_read_4(sc, SF_CQ_CONSIDX);
 	cmpprodidx = SF_IDX_HI(csr_read_4(sc, SF_CQ_PRODIDX));
@@ -1098,7 +1107,7 @@ sf_intr(arg)
 	sc = arg;
 	SF_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sf_ifp;
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING)
@@ -1173,7 +1182,7 @@ sf_init(xsc)
 
 	sc = xsc;
 	SF_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sf_ifp;
 	mii = device_get_softc(sc->sf_miibus);
 
 	sf_stop(sc);
@@ -1190,9 +1199,9 @@ sf_init(xsc)
 		    (i + sizeof(u_int32_t)), 0);
 
 	/* Init our MAC address */
-	csr_write_4(sc, SF_PAR0, *(u_int32_t *)(&sc->arpcom.ac_enaddr[0]));
-	csr_write_4(sc, SF_PAR1, *(u_int32_t *)(&sc->arpcom.ac_enaddr[4]));
-	sf_setperf(sc, 0, (caddr_t)&sc->arpcom.ac_enaddr);
+	csr_write_4(sc, SF_PAR0, *(u_int32_t *)(&IFP2ENADDR(sc->sf_ifp)[0]));
+	csr_write_4(sc, SF_PAR1, *(u_int32_t *)(&IFP2ENADDR(sc->sf_ifp)[4]));
+	sf_setperf(sc, 0, (caddr_t)&IFP2ENADDR(sc->sf_ifp));
 
 	if (sf_init_rx_ring(sc) == ENOBUFS) {
 		printf("sf%d: initialization failed: no "
@@ -1435,7 +1444,7 @@ sf_stop(sc)
 
 	SF_LOCK(sc);
 
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sf_ifp;
 
 	untimeout(sf_stats_update, sc, sc->sf_stat_ch);
 
@@ -1494,7 +1503,7 @@ sf_stats_update(xsc)
 
 	sc = xsc;
 	SF_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
+	ifp = sc->sf_ifp;
 	mii = device_get_softc(sc->sf_miibus);
 
 	ptr = (u_int32_t *)&stats;

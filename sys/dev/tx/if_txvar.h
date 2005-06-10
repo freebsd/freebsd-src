@@ -70,7 +70,7 @@ struct epic_tx_buffer {
 
 /* Driver status structure */
 typedef struct {
-	struct arpcom		arpcom;
+	struct ifnet		*ifp;
 	struct resource		*res;
 	struct resource		*irq;
 
@@ -123,9 +123,6 @@ struct epic_type {
 	u_int16_t	dev_id;
 	char		*name;
 };
-
-#define sc_if arpcom.ac_if
-#define sc_macaddr arpcom.ac_enaddr
 
 #define CSR_WRITE_4(sc, reg, val) 					\
 	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))

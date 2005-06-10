@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_atm.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -149,7 +150,7 @@ adp_busreset(void *v)
 	dummy = bus_space_read_4(sc->en_memt, sc->en_base, ADP_PCIREG);
 	if ((dummy & (ADP_PCIREG_SWAP_WORD | ADP_PCIREG_SWAP_DMA)) !=
 	    ADP_PCIREG_SWAP_DMA)
-		if_printf(&sc->ifatm.ifnet, "adp_busreset: Adaptec ATM did "
+		if_printf(sc->ifp, "adp_busreset: Adaptec ATM did "
 		    "NOT reset!\n");
 }
 
@@ -197,8 +198,11 @@ en_pci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	scp = (struct en_pci_softc *)sc;
+	sc->ifp = if_alloc(IFT_ATM);
+	if (sc->ifp == NULL)
+		return (ENOSPC);
 
-	if_initname(&(sc->ifatm.ifnet), device_get_name(dev),
+	if_initname(sc->ifp, device_get_name(dev),
 	    device_get_unit(dev));
 
 	/*
@@ -273,7 +277,8 @@ en_pci_attach(device_t dev)
 	    en_intr, sc, &scp->ih);
 	if (error) {
 		en_reset(sc);
-		atm_ifdetach(&sc->ifatm.ifnet);
+		atm_ifdetach(sc->ifp);
+		if_free(sc->ifp);
 		device_printf(dev, "could not setup irq\n");
 		bus_release_resource(dev, SYS_RES_IRQ, 0, scp->irq);
 		bus_release_resource(dev, SYS_RES_MEMORY, PCI_CBMA, scp->res);
@@ -299,16 +304,17 @@ en_pci_detach(device_t dev)
 	/*
 	 * Stop DMA and drop transmit queue.
 	 */
-	if ((sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
-		if_printf(&sc->ifatm.ifnet, "still running\n");
-		sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING;
+	if ((sc->ifp->if_flags & IFF_RUNNING)) {
+		if_printf(sc->ifp, "still running\n");
+		sc->ifp->if_flags &= ~IFF_RUNNING;
 	}
 
 	/*
 	 * Close down routes etc.
 	 */
 	en_reset(sc);
-	atm_ifdetach(&sc->ifatm.ifnet);
+	atm_ifdetach(sc->ifp);
+	if_free(sc->ifp);
 
 	/*
 	 * Deallocate resources.
@@ -347,8 +353,8 @@ adp_get_macaddr(struct en_pci_softc *scp)
 	struct en_softc * sc = (struct en_softc *)scp;
 	int lcv;
 
-	for (lcv = 0; lcv < sizeof(sc->ifatm.mib.esi); lcv++)
-		sc->ifatm.mib.esi[lcv] = bus_space_read_1(sc->en_memt,
+	for (lcv = 0; lcv < sizeof(IFP2IFATM(sc->ifp)->mib.esi); lcv++)
+		IFP2IFATM(sc->ifp)->mib.esi[lcv] = bus_space_read_1(sc->en_memt,
 		    sc->en_base, MID_ADPMACOFF + lcv);
 }
 
@@ -447,13 +453,13 @@ eni_get_macaddr(device_t dev, struct en_pci_softc *scp)
 	data =  EN_PROM_MAGIC | EN_PROM_DATA | EN_PROM_CLK;
 	pci_write_config(dev, EN_TONGA, data, 4);
 
-	for (i = 0; i < sizeof(sc->ifatm.mib.esi); i ++)
-		sc->ifatm.mib.esi[i] = eni_get_byte(dev, &data, i + EN_ESI);
+	for (i = 0; i < sizeof(IFP2IFATM(sc->ifp)->mib.esi); i ++)
+		IFP2IFATM(sc->ifp)->mib.esi[i] = eni_get_byte(dev, &data, i + EN_ESI);
 
-	sc->ifatm.mib.serial = 0;
+	IFP2IFATM(sc->ifp)->mib.serial = 0;
 	for (i = 0; i < 4; i++) {
-		sc->ifatm.mib.serial <<= 8;
-		sc->ifatm.mib.serial |= eni_get_byte(dev, &data, i + EN_SERIAL);
+		IFP2IFATM(sc->ifp)->mib.serial <<= 8;
+		IFP2IFATM(sc->ifp)->mib.serial |= eni_get_byte(dev, &data, i + EN_SERIAL);
 	}
 	/* stop operation */
 	data &=  ~EN_PROM_DATA;

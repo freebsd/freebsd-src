@@ -67,7 +67,8 @@ struct sbni_flags {
 #ifdef _KERNEL	/* to avoid compile this decls with sbniconfig */
 
 struct sbni_softc {
-	struct	arpcom arpcom;		/* ethernet common */
+	struct	ifnet *ifp;
+	u_char	enaddr[6];
 
 	int	io_rid;
 	struct	resource *io_res;

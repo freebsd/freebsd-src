@@ -363,7 +363,7 @@ ed_probe_WD80x3_generic(device_t dev, int flags, uint16_t *intr_vals[])
 	 * Get station address from on-board ROM
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		sc->arpcom.ac_enaddr[i] = ed_asic_inb(sc, ED_WD_PROM + i);
+		sc->enaddr[i] = ed_asic_inb(sc, ED_WD_PROM + i);
 
 	/*
 	 * Set upper address bits and 8/16 bit access to shared memory.

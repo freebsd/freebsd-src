@@ -341,7 +341,7 @@ atm_physif_ioctl(code, data, arg)
 			"%s%d", pip->pif_name, pip->pif_unit );
 		if ( pip->pif_nif )
 		{
-			strcpy(apr.anp_nif_pref, pip->pif_nif->nif_if.if_dname);
+			strcpy(apr.anp_nif_pref, pip->pif_nif->nif_ifp->if_dname);
 
 			nip = pip->pif_nif;
 			while ( nip ) {
@@ -376,7 +376,7 @@ atm_physif_ioctl(code, data, arg)
 		 */
 		aip = (struct atminfreq *)data;
 		nip = (struct atm_nif *)arg;
-		ifp = &nip->nif_if;
+		ifp = nip->nif_ifp;
 		pip = nip->nif_pif;
 
 		/*
@@ -503,7 +503,15 @@ atm_physif_ioctl(code, data, arg)
 			}
 
 			nip->nif_pif = pip;
-			ifp = &nip->nif_if;
+			ifp = nip->nif_ifp = if_alloc(IFT_IPOVERATM);
+			if (ifp == NULL) {
+				uma_zfree(cup->cu_nif_zone, nip);
+				/*
+				 * Destroy any successful nifs
+				 */
+				atm_physif_freenifs(pip, cup->cu_nif_zone);
+				break;
+			}
 
 			strcpy ( nip->nif_name, asr->asr_nif_pref );
 			nip->nif_sel = count;
@@ -514,10 +522,6 @@ atm_physif_ioctl(code, data, arg)
 			ifp->if_output = atm_ifoutput;
 			ifp->if_ioctl = atm_if_ioctl;
 			ifp->if_snd.ifq_maxlen = ifqmaxlen;
-			/*
-			 * Set if_type and if_baudrate
-			 */
-			ifp->if_type = IFT_IPOVERATM;
 			switch ( cup->cu_config.ac_media ) {
 			case MEDIA_TAXI_100:
 				ifp->if_baudrate = 100000000;
@@ -544,6 +548,7 @@ atm_physif_ioctl(code, data, arg)
 				break;
 			}
 			if ((err = atm_nif_attach(nip)) != 0) {
+				if_free(nip->nif_ifp);
 				uma_zfree(cup->cu_nif_zone, nip);
 				/*
 				 * Destroy any successful nifs
@@ -755,7 +760,9 @@ atm_nif_attach(nip)
 	struct atm_ncm	*ncp;
 	int		s;
 
-	ifp = &nip->nif_if;
+	ifp = nip->nif_ifp;
+	if (ifp == NULL)
+		return (ENOSPC);
 	pip = nip->nif_pif;
 
 	s = splimp();
@@ -831,7 +838,7 @@ atm_nif_detach(nip)
 {
 	struct atm_ncm	*ncp;
 	int		s;
-	struct ifnet	*ifp = &nip->nif_if;
+	struct ifnet	*ifp = nip->nif_ifp;
 
 	s = splimp();
 
@@ -853,6 +860,7 @@ atm_nif_detach(nip)
 	 * then remove from the system interface list
 	 */
 	if_detach(ifp);
+	if_free(ifp);
 
 	/*
 	 * Remove from physical interface list
@@ -970,7 +978,7 @@ atm_if_ioctl(ifp, cmd, data)
 	caddr_t data;
 {
 	register struct ifreq *ifr = (struct ifreq *)data;
-	struct atm_nif	*nip = (struct atm_nif *)ifp;
+	struct atm_nif	*nip = IFP2ANIF(ifp);
 	int	error = 0;
 	int	s = splnet();
 
