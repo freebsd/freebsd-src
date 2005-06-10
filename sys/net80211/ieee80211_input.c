@@ -1902,6 +1902,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				/* XXX statistic */
 			}
 			if (wme != NULL &&
+			    (ni->ni_flags & IEEE80211_NODE_QOS) &&
 			    ieee80211_parse_wmeparams(ic, wme, wh) > 0)
 				ieee80211_wme_updateparams(ic);
 			if (tim != NULL) {
