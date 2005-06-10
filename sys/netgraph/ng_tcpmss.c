@@ -289,10 +289,10 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 
 #define	M_CHECK(length) do {					\
 	pullup_len += length;					\
-	if ((m)->m_pkthdr.len < (pullup_len))			\
+	if ((m)->m_pkthdr.len < pullup_len)			\
 		goto send;					\
-	if ((m)->m_len < (pullup_len) &&			\
-	   (((m) = m_pullup((m),(pullup_len))) == NULL))	\
+	if ((m)->m_len < pullup_len &&				\
+	   (((m) = m_pullup((m), pullup_len)) == NULL))		\
 		ERROUT(ENOBUFS);				\
 	} while (0)
 
@@ -308,21 +308,19 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 	iphlen = ip->ip_hl << 2;
 	if (iphlen < sizeof(struct ip) || iphlen > pktlen )
 		ERROUT(EINVAL);
-	pullup_len += iphlen - sizeof(struct ip);
 
         /* Check if it is TCP. */
 	if (!(ip->ip_p == IPPROTO_TCP))
 		goto send;
 
 	/* Check mbuf packet size and arrange for IP+TCP header */
-	M_CHECK(sizeof(struct tcphdr));
+	M_CHECK(iphlen - sizeof(struct ip) + sizeof(struct tcphdr));
 	tcp = (struct tcphdr *)((caddr_t )ip + iphlen);
 
 	/* Check TCP header length. */
 	tcphlen = tcp->th_off << 2;
 	if (tcphlen < sizeof(struct tcphdr) || tcphlen > pktlen - iphlen)
 		ERROUT(EINVAL);
-	pullup_len += tcphlen - sizeof(struct tcphdr);
 
 	/* Check SYN packet and has options. */
 	if (!(tcp->th_flags & TH_SYN) || tcphlen == sizeof(struct tcphdr))
@@ -331,7 +329,7 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 	/* Update SYN stats. */
 	priv->stats.SYNPkts++;
 
-	M_CHECK(0);
+	M_CHECK(tcphlen - sizeof(struct tcphdr));
 
 #undef	M_CHECK
 
@@ -342,15 +340,12 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 
 send:
 	/* Deliver frame out destination hook. */
-	NGI_M(item) = m;
-	NG_FWD_ITEM_HOOK(error, item, priv->outHook);
-	
+	NG_FWD_NEW_DATA(error, item, priv->outHook, m);
+
 	return (error);
 
 done:
-	/* Free mbuf if unfreed left. */
-	if (item)
-		NG_FREE_ITEM(item);
+	NG_FREE_ITEM(item);
 	NG_FREE_M(m);
 
 	return (error);
