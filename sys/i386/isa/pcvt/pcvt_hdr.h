@@ -79,7 +79,7 @@
 #include <machine/stdarg.h>
 
 #include <dev/kbd/kbdreg.h>
-#include <dev/kbd/atkbdcreg.h>
+#include <dev/atkbdc/atkbdcreg.h>
 
 #include <i386/isa/pcvt/pcvt_conf.h>
 

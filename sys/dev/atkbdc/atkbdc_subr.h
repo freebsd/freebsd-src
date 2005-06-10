@@ -23,26 +23,31 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ *	from: FreeBSD: src/sys/isa/atkbdc_isa.c,v 1.31 2005/05/29 04:42:28 nyan Exp
  * $FreeBSD$
  */
 
-#ifndef _DEV_KBD_ATKBDREG_H_
-#define _DEV_KBD_ATKBDREG_H_
+#ifndef _DEV_ATKBDC_ATKBDC_SUBR_H_
+#define	_DEV_ATKBDC_ATKBDC_SUBR_H_
 
-#define ATKBD_DRIVER_NAME	"atkbd"
+MALLOC_DECLARE(M_ATKBDDEV);
 
-/* device configuration flags (atkbdprobe, atkbdattach) */
-#define KB_CONF_FAIL_IF_NO_KBD	(1 << 0) /* don't install if no kbd is found */
-#define KB_CONF_NO_RESET	(1 << 1) /* don't reset the keyboard */
-#define KB_CONF_ALT_SCANCODESET	(1 << 2) /* assume the XT type keyboard */
-#define	KB_CONF_NO_PROBE_TEST	(1 << 3) /* don't test keyboard during probe */
+extern devclass_t atkbdc_devclass;
 
-#ifdef _KERNEL
+/* children */
+typedef struct atkbdc_device {
+	struct resource_list resources;
+	int rid;
+	u_int32_t vendorid;
+	u_int32_t serial;
+	u_int32_t logicalid;
+	u_int32_t compatid;
+} atkbdc_device_t;
 
-int		atkbd_probe_unit(int unit, int ctlr, int irq, int flags);
-int		atkbd_attach_unit(int unit, keyboard_t **kbd,
-				 int ctlr, int irq, int flags);
+/* kbdc */
+int atkbdc_print_child(device_t bus, device_t dev);
+int atkbdc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val);
+int atkbdc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val);
+struct resource_list *atkbdc_get_resource_list(device_t bus, device_t dev);
 
-#endif
-
-#endif /* !_DEV_KBD_ATKBDREG_H_ */
+#endif /* !_DEV_ATKBDC_ATKBDC_SUBR_H_ */

@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _DEV_KBD_ATKBDREG_H_
-#define _DEV_KBD_ATKBDREG_H_
+#ifndef _DEV_ATKBDC_ATKBDREG_H_
+#define _DEV_ATKBDC_ATKBDREG_H_
 
 #define ATKBD_DRIVER_NAME	"atkbd"
 
@@ -45,4 +45,4 @@ int		atkbd_attach_unit(int unit, keyboard_t **kbd,
 
 #endif
 
-#endif /* !_DEV_KBD_ATKBDREG_H_ */
+#endif /* !_DEV_ATKBDC_ATKBDREG_H_ */

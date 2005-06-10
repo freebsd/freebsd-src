@@ -38,57 +38,30 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <dev/kbd/atkbdcreg.h>
+#include <dev/atkbdc/atkbdc_subr.h>
+#include <dev/atkbdc/atkbdcreg.h>
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 
-static MALLOC_DEFINE(M_ATKBDDEV, "atkbddev", "AT Keyboard device");
-
-/* children */
-typedef struct atkbdc_device {
-	struct resource_list resources;
-	int rid;
-	u_int32_t vendorid;
-	u_int32_t serial;
-	u_int32_t logicalid;
-	u_int32_t compatid;
-} atkbdc_device_t;
-
-/* kbdc */
-static devclass_t atkbdc_devclass;
-
-static int	atkbdc_probe(device_t dev);
-static int	atkbdc_attach(device_t dev);
-static device_t	atkbdc_add_child(device_t bus, int order, char *name,
+static int	atkbdc_isa_probe(device_t dev);
+static int	atkbdc_isa_attach(device_t dev);
+static device_t	atkbdc_isa_add_child(device_t bus, int order, char *name,
 				 int unit);
-static int	atkbdc_print_child(device_t bus, device_t dev);
-static int	atkbdc_read_ivar(device_t bus, device_t dev, int index,
-				 uintptr_t *val);
-static int	atkbdc_write_ivar(device_t bus, device_t dev, int index,
-				  uintptr_t val);
-static struct resource_list
-		*atkbdc_get_resource_list (device_t bus, device_t dev);
-static struct resource
-		*atkbdc_alloc_resource(device_t bus, device_t dev, int type,
-				       int *rid, u_long start, u_long end,
-				       u_long count, u_int flags);
-static int	atkbdc_release_resource(device_t bus, device_t dev, int type,
-					int rid, struct resource *res);
 
-static device_method_t atkbdc_methods[] = {
-	DEVMETHOD(device_probe,		atkbdc_probe),
-	DEVMETHOD(device_attach,	atkbdc_attach),
+static device_method_t atkbdc_isa_methods[] = {
+	DEVMETHOD(device_probe,		atkbdc_isa_probe),
+	DEVMETHOD(device_attach,	atkbdc_isa_attach),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
-	DEVMETHOD(bus_add_child,	atkbdc_add_child),
+	DEVMETHOD(bus_add_child,	atkbdc_isa_add_child),
 	DEVMETHOD(bus_print_child,	atkbdc_print_child),
 	DEVMETHOD(bus_read_ivar,	atkbdc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	atkbdc_write_ivar),
 	DEVMETHOD(bus_get_resource_list,atkbdc_get_resource_list),
-	DEVMETHOD(bus_alloc_resource,	atkbdc_alloc_resource),
-	DEVMETHOD(bus_release_resource,	atkbdc_release_resource),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
@@ -100,9 +73,9 @@ static device_method_t atkbdc_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t atkbdc_driver = {
+static driver_t atkbdc_isa_driver = {
 	ATKBDC_DRIVER_NAME,
-	atkbdc_methods,
+	atkbdc_isa_methods,
 	sizeof(atkbdc_softc_t *),
 };
 
@@ -112,7 +85,7 @@ static struct isa_pnp_id atkbdc_ids[] = {
 };
 
 static int
-atkbdc_probe(device_t dev)
+atkbdc_isa_probe(device_t dev)
 {
 	struct resource	*port0;
 	struct resource	*port1;
@@ -167,7 +140,7 @@ atkbdc_probe(device_t dev)
 }
 
 static int
-atkbdc_attach(device_t dev)
+atkbdc_isa_attach(device_t dev)
 {
 	atkbdc_softc_t	*sc;
 	int		unit;
@@ -180,7 +153,7 @@ atkbdc_attach(device_t dev)
 		/*
 		 * We have to maintain two copies of the kbdc_softc struct,
 		 * as the low-level console needs to have access to the
-		 * keyboard controller before kbdc is probed and attached. 
+		 * keyboard controller before kbdc is probed and attached.
 		 * kbdc_soft[] contains the default entry for that purpose.
 		 * See atkbdc.c. XXX
 		 */
@@ -216,7 +189,7 @@ atkbdc_attach(device_t dev)
 }
 
 static device_t
-atkbdc_add_child(device_t bus, int order, char *name, int unit)
+atkbdc_isa_add_child(device_t bus, int order, char *name, int unit)
 {
 	atkbdc_device_t	*ivar;
 	device_t	child;
@@ -258,108 +231,5 @@ atkbdc_add_child(device_t bus, int order, char *name, int unit)
 	return child;
 }
 
-static int
-atkbdc_print_child(device_t bus, device_t dev)
-{
-	atkbdc_device_t *kbdcdev;
-	u_long irq;
-	int flags;
-	int retval = 0;
-
-	kbdcdev = (atkbdc_device_t *)device_get_ivars(dev);
-
-	retval += bus_print_child_header(bus, dev);
-	flags = device_get_flags(dev);
-	if (flags != 0)
-		retval += printf(" flags 0x%x", flags);
-	irq = bus_get_resource_start(dev, SYS_RES_IRQ, kbdcdev->rid);
-	if (irq != 0)
-		retval += printf(" irq %ld", irq);
-	retval += bus_print_child_footer(bus, dev);
-
-	return (retval);
-}
-
-static int
-atkbdc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
-{
-	atkbdc_device_t *ivar;
-
-	ivar = (atkbdc_device_t *)device_get_ivars(dev);
-	switch (index) {
-	case KBDC_IVAR_VENDORID:
-		*val = (u_long)ivar->vendorid;
-		break;
-	case KBDC_IVAR_SERIAL:
-		*val = (u_long)ivar->serial;
-		break;
-	case KBDC_IVAR_LOGICALID:
-		*val = (u_long)ivar->logicalid;
-		break;
-	case KBDC_IVAR_COMPATID:
-		*val = (u_long)ivar->compatid;
-		break;
-	default:
-		return ENOENT;
-	}
-	return 0;
-}
-
-static int
-atkbdc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val)
-{
-	atkbdc_device_t *ivar;
-
-	ivar = (atkbdc_device_t *)device_get_ivars(dev);
-	switch (index) {
-	case KBDC_IVAR_VENDORID:
-		ivar->vendorid = (u_int32_t)val;
-		break;
-	case KBDC_IVAR_SERIAL:
-		ivar->serial = (u_int32_t)val;
-		break;
-	case KBDC_IVAR_LOGICALID:
-		ivar->logicalid = (u_int32_t)val;
-		break;
-	case KBDC_IVAR_COMPATID:
-		ivar->compatid = (u_int32_t)val;
-		break;
-	default:
-		return ENOENT;
-	}
-	return 0;
-}
-
-static struct resource_list
-*atkbdc_get_resource_list (device_t bus, device_t dev)
-{
-	atkbdc_device_t *ivar;
-
-	ivar = (atkbdc_device_t *)device_get_ivars(dev);
-	return &ivar->resources;
-}
-
-static struct resource
-*atkbdc_alloc_resource(device_t bus, device_t dev, int type, int *rid,
-		       u_long start, u_long end, u_long count, u_int flags)
-{
-	atkbdc_device_t *ivar;
-
-	ivar = (atkbdc_device_t *)device_get_ivars(dev);
-	return resource_list_alloc(&ivar->resources, bus, dev, type, rid,
-				   start, end, count, flags);
-}
-
-static int
-atkbdc_release_resource(device_t bus, device_t dev, int type, int rid,
-			struct resource *res)
-{
-	atkbdc_device_t *ivar;
-
-	ivar = (atkbdc_device_t *)device_get_ivars(dev);
-	return resource_list_release(&ivar->resources, bus, dev, type, rid,
-				     res);
-}
-
-DRIVER_MODULE(atkbdc, isa, atkbdc_driver, atkbdc_devclass, 0, 0);
-DRIVER_MODULE(atkbdc, acpi, atkbdc_driver, atkbdc_devclass, 0, 0);
+DRIVER_MODULE(atkbdc, isa, atkbdc_isa_driver, atkbdc_devclass, 0, 0);
+DRIVER_MODULE(atkbdc, acpi, atkbdc_isa_driver, atkbdc_devclass, 0, 0);
