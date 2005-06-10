@@ -168,6 +168,10 @@ struct pfsync_softc {
 	struct in_addr		 sc_sendaddr;
 	struct mbuf		*sc_mbuf;	/* current cumulative mbuf */
 	struct mbuf		*sc_mbuf_net;	/* current cumulative mbuf */
+#ifdef __FreeBSD__
+	struct ifqueue		 sc_ifq;
+	struct callout		 sc_send_tmo;
+#endif
 	union sc_statep		 sc_statep;
 	union sc_statep		 sc_statep_net;
 	u_int32_t		 sc_ureq_received;
