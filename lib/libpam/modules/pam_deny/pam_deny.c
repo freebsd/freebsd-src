@@ -55,7 +55,7 @@ pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
 
-	return (PAM_AUTH_ERR);
+	return (PAM_CRED_ERR);
 }
 
 PAM_EXTERN int
@@ -71,7 +71,7 @@ pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
 
-	return (PAM_AUTH_ERR);
+	return (PAM_AUTHTOK_ERR);
 }
 
 PAM_EXTERN int
@@ -79,7 +79,7 @@ pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
 
-	return (PAM_AUTH_ERR);
+	return (PAM_SESSION_ERR);
 }
 
 PAM_EXTERN int
@@ -87,7 +87,7 @@ pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
 
-	return (PAM_AUTH_ERR);
+	return (PAM_SESSION_ERR);
 }
 
 PAM_MODULE_ENTRY("pam_deny");
