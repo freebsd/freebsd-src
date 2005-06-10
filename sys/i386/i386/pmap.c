@@ -190,7 +190,6 @@ static struct mtx allpmaps_lock;
 vm_paddr_t avail_end;	/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
-static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 int pgeflag = 0;		/* PG_G or-in */
 int pseflag = 0;		/* PG_PS or-in */
 
@@ -443,6 +442,17 @@ pmap_set_pg(void)
 	}
 }
 
+/*
+ * Initialize a vm_page's machine-dependent fields.
+ */
+void
+pmap_page_init(vm_page_t m)
+{
+
+	TAILQ_INIT(&m->md.pv_list);
+	m->md.pv_list_count = 0;
+}
+
 #ifdef PAE
 
 static MALLOC_DEFINE(M_PMAPPDPT, "pmap", "pmap pdpt");
@@ -460,26 +470,10 @@ pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
  *	Initialize the pmap module.
  *	Called by vm_init, to initialize any structures that the pmap
  *	system needs to map virtual memory.
- *	pmap_init has been enhanced to support in a fairly consistant
- *	way, discontiguous physical memory.
  */
 void
 pmap_init(void)
 {
-	int i;
-
-	/*
-	 * Allocate memory for random pmap data structures.  Includes the
-	 * pv_head_table.
-	 */
-
-	for(i = 0; i < vm_page_array_size; i++) {
-		vm_page_t m;
-
-		m = &vm_page_array[i];
-		TAILQ_INIT(&m->md.pv_list);
-		m->md.pv_list_count = 0;
-	}
 
 	/*
 	 * init the pv free list
@@ -494,11 +488,6 @@ pmap_init(void)
 	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	uma_zone_set_allocf(pdptzone, pmap_pdpt_allocf);
 #endif
-
-	/*
-	 * Now it is safe to enable pv_table recording.
-	 */
-	pmap_initialized = TRUE;
 }
 
 /*
@@ -1714,7 +1703,7 @@ pmap_remove_all(vm_page_t m)
 	/*
 	 * XXX This makes pmap_remove_all() illegal for non-managed pages!
 	 */
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS)) {
+	if (m->flags & PG_FICTITIOUS) {
 		panic("pmap_remove_all: illegal for unmanaged page, va: 0x%x",
 		    VM_PAGE_TO_PHYS(m));
 	}
@@ -1997,8 +1986,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * raise IPL while manipulating pv_table since pmap_enter can be
 	 * called at interrupt time.
 	 */
-	if (pmap_initialized && 
-	    (m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0) {
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
 		pmap_insert_entry(pmap, va, m);
 		pa |= PG_MANAGED;
 	}
@@ -2525,7 +2513,7 @@ pmap_page_exists_quick(pmap, m)
 	pv_entry_t pv;
 	int loops = 0;
 
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (m->flags & PG_FICTITIOUS)
 		return FALSE;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
@@ -2645,7 +2633,7 @@ pmap_is_modified(vm_page_t m)
 	boolean_t rv;
 
 	rv = FALSE;
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (m->flags & PG_FICTITIOUS)
 		return (rv);
 
 	sched_pin();
@@ -2708,7 +2696,7 @@ pmap_clear_ptes(vm_page_t m, int bit)
 	register pv_entry_t pv;
 	pt_entry_t pbits, *pte;
 
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS) ||
+	if ((m->flags & PG_FICTITIOUS) ||
 	    (bit == PG_RW && (m->flags & PG_WRITEABLE) == 0))
 		return;
 
@@ -2800,7 +2788,7 @@ pmap_ts_referenced(vm_page_t m)
 	pt_entry_t v;
 	int rtval = 0;
 
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (m->flags & PG_FICTITIOUS)
 		return (rtval);
 
 	sched_pin();

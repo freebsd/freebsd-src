@@ -143,6 +143,7 @@ vm_pageq_add_new_page(vm_paddr_t pa)
 	m->phys_addr = pa;
 	m->flags = 0;
 	m->pc = (pa >> PAGE_SHIFT) & PQ_L2_MASK;
+	pmap_page_init(m);
 	vm_pageq_enqueue(m->pc + PQ_FREE, m);
 	return (m);
 }
