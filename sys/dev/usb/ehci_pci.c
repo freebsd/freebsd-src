@@ -94,6 +94,9 @@ static const char *ehci_device_nec = "NEC uPD 720100 USB 2.0 controller";
 #define PCI_EHCI_DEVICEID_VIA		0x31041106
 static const char *ehci_device_via = "VIA VT6202 USB 2.0 controller";
 
+#define	PCI_EHCI_DEVICEID_ICH4		0x24cd8086
+static const char *ehci_device_ich4 = "Intel 82801DB/DBL/DBM (ICH4) USB 2.0 controller";
+
 static const char *ehci_device_generic = "EHCI (generic) USB 2.0 controller";
 
 #define PCI_EHCI_BASE_REG	0x10
@@ -165,6 +168,8 @@ ehci_pci_match(device_t self)
 		return (ehci_device_nec);
 	case PCI_EHCI_DEVICEID_VIA:
 		return (ehci_device_via);
+	case PCI_EHCI_DEVICEID_ICH4:
+		return (ehci_device_ich4);
 	default:
 		if (pci_get_class(self) == PCIC_SERIALBUS
 		    && pci_get_subclass(self) == PCIS_SERIALBUS_USB
