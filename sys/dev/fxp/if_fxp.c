@@ -810,9 +810,8 @@ fxp_attach(device_t dev)
 
 fail:
 	splx(s);
-	if (error) {
+	if (error)
 		fxp_release(sc);
-	}
 	return (error);
 }
 
@@ -904,7 +903,6 @@ fxp_detach(device_t dev)
 	 * Close down routes etc.
 	 */
 	ether_ifdetach(sc->ifp);
-	if_free(sc->ifp);
 
 	/*
 	 * Stop DMA and drop transmit queue, but disable interrupts first.
