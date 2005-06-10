@@ -139,7 +139,8 @@ static const char * pmc_state_names[] = {
 
 static int pmc_syscall = -1;		/* filled in by pmc_init() */
 
-struct pmc_op_getcpuinfo cpu_info;	/* filled in by pmc_init() */
+static struct pmc_cpuinfo cpu_info;	/* filled in by pmc_init() */
+
 
 /* Architecture dependent event parsing */
 static int (*pmc_mdep_allocate_pmc)(enum pmc_event _pe, char *_ctrspec,
@@ -1752,8 +1753,7 @@ pmc_cpuinfo(const struct pmc_cpuinfo **pci)
 		return -1;
 	}
 
-	/* kernel<->library, library<->userland interfaces are identical */
-	*pci = (struct pmc_cpuinfo *) &cpu_info;
+	*pci = &cpu_info;
 	return 0;
 }
 
@@ -1893,8 +1893,10 @@ int
 pmc_init(void)
 {
 	int error, pmc_mod_id;
+	unsigned int n;
 	uint32_t abi_version;
 	struct module_stat pmc_modstat;
+	struct pmc_op_getcpuinfo op_cpu_info;
 
 	if (pmc_syscall != -1) /* already inited */
 		return 0;
@@ -1920,8 +1922,15 @@ pmc_init(void)
 		return (pmc_syscall = -1);
 	}
 
-	if (PMC_CALL(GETCPUINFO, &cpu_info) < 0)
+	if (PMC_CALL(GETCPUINFO, &op_cpu_info) < 0)
 		return (pmc_syscall = -1);
+
+	cpu_info.pm_cputype = op_cpu_info.pm_cputype;
+	cpu_info.pm_ncpu    = op_cpu_info.pm_ncpu;
+	cpu_info.pm_npmc    = op_cpu_info.pm_npmc;
+	cpu_info.pm_nclass  = op_cpu_info.pm_nclass;
+	for (n = 0; n < cpu_info.pm_nclass; n++)
+		cpu_info.pm_classes[n] = op_cpu_info.pm_classes[n];
 
 	/* set parser pointer */
 	switch (cpu_info.pm_cputype) {
