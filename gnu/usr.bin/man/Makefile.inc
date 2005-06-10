@@ -25,12 +25,7 @@ zcat=			/usr/bin/zcat
 compress=		/usr/bin/gzip -c
 compext=		.gz
 
-.if exists(${.OBJDIR}/../lib)
 LIBDESTDIR=		${.OBJDIR}/../lib
-.else
-LIBDESTDIR=		${.CURDIR}/../lib
-.endif
-
-LIBMAN=	${LIBDESTDIR}/libman.a
+LIBMAN=			${LIBDESTDIR}/libman.a
 
 .include "../Makefile.inc"

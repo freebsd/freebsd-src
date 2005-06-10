@@ -66,15 +66,9 @@ indexname=Ind
 # Libraries
 
 # Bad assumption, if one exists they all exist
-.if exists(${.OBJDIR}/${TOPREL}/src/libs/libgroff)
 LIBGROFF=	${.OBJDIR}/${TOPREL}/src/libs/libgroff/libgroff.a
 LIBDRIVER=	${.OBJDIR}/${TOPREL}/src/libs/libdriver/libdriver.a
 LIBBIB=		${.OBJDIR}/${TOPREL}/src/libs/libbib/libbib.a
-.else
-LIBGROFF=	${.CURDIR}/${TOPREL}/src/libs/libgroff/libgroff.a
-LIBDRIVER=	${.CURDIR}/${TOPREL}/src/libs/libdriver/libdriver.a
-LIBBIB=		${.CURDIR}/${TOPREL}/src/libs/libbib/libbib.a
-.endif
 
 CFLAGS+=	-DHAVE_CONFIG_H
 CFLAGS+=	-I${GROFF_DIST}/src/include -I${.CURDIR}/${TOPREL}/src/include

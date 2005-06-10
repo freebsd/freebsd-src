@@ -14,12 +14,8 @@ MAN=	rmail.8
 WARNS?=	0
 CFLAGS+=-I${SENDMAIL_DIR}/include -I.
 
-.if exists(${.OBJDIR}/../../lib/libsm)
-LIBSMDIR:=	${.OBJDIR}/../../lib/libsm
-.else
-LIBSMDIR!=	cd ${.CURDIR}/../../lib/libsm; make -V .OBJDIR
-.endif
-LIBSM:=		${LIBSMDIR}/libsm.a
+LIBSMDIR=	${.OBJDIR}/../../lib/libsm
+LIBSM=		${LIBSMDIR}/libsm.a
 
 DPADD=	${LIBSM}
 LDADD=	${LIBSM}

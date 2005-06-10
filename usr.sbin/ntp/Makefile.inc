@@ -12,16 +12,7 @@ CFLAGS+= ${NTPDEFS} ${DEFS_LOCAL} ${CLOCKDEFS}
 CFLAGS+= -DOPENSSL
 .endif
 
-.if exists(${.OBJDIR}/../libparse)
 LIBPARSE=	${.OBJDIR}/../libparse/libparse.a
-.else
-LIBPARSE=	${.CURDIR}/../libparse/libparse.a
-.endif
-
-.if exists(${.OBJDIR}/../libntp)
 LIBNTP=	${.OBJDIR}/../libntp/libntp.a
-.else
-LIBNTP=	${.CURDIR}/../libntp/libntp.a
-.endif
 
 .include "../Makefile.inc"
