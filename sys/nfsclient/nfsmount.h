@@ -74,6 +74,7 @@ struct	nfsmount {
 	int	nm_wsize;		/* Max size of write rpc */
 	int	nm_readdirsize;		/* Size of a readdir rpc */
 	int	nm_readahead;		/* Num. of blocks to readahead */
+	int	nm_wcommitsize;		/* Max size of commit for write */
 	int	nm_acdirmin;		/* Directory attr cache min lifetime */
 	int	nm_acdirmax;		/* Directory attr cache max lifetime */
 	int	nm_acregmin;		/* Reg file attr cache min lifetime */

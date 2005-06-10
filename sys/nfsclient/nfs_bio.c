@@ -873,6 +873,14 @@ nfs_write(struct vop_write_args *ap)
 	 */
 	if (ioflag & (IO_APPEND | IO_SYNC)) {
 		if (np->n_flag & NMODIFIED) {
+			/*
+			 * Require non-blocking, synchronous writes to
+			 * dirty files to inform the program it needs
+			 * to fsync(2) explicitly.
+			 */
+			if (ioflag & IO_NDELAY)
+				return (EAGAIN);
+flush_and_restart:
 			np->n_attrstamp = 0;
 			error = nfs_vinvalbuf(vp, V_SAVE, td, 1);
 			if (error)
@@ -953,6 +961,63 @@ restart:
 	}
 
 	biosize = vp->v_mount->mnt_stat.f_iosize;
+	/*
+	 * Find all of this file's B_NEEDCOMMIT buffers.  If our writes
+	 * would exceed the local maximum per-file write commit size when
+	 * combined with those, we must decide whether to flush,
+	 * go synchronous, or return error.  We don't bother checking
+	 * IO_UNIT -- we just make all writes atomic anyway, as there's
+	 * no point optimizing for something that really won't ever happen.
+	 */
+	if (!(ioflag & IO_SYNC)) {
+		int needrestart = 0;
+		if (nmp->nm_wcommitsize < uio->uio_resid) {
+			/*
+			 * If this request could not possibly be completed
+			 * without exceeding the maximum outstanding write
+			 * commit size, see if we can convert it into a
+			 * synchronous write operation.
+			 */
+			if (ioflag & IO_NDELAY)
+				return (EAGAIN);
+			ioflag |= IO_SYNC;
+			if (np->n_flag & NMODIFIED)
+				needrestart = 1;
+		} else if (np->n_flag & NMODIFIED) {
+			int wouldcommit = 0;
+			BO_LOCK(&vp->v_bufobj);
+			if (vp->v_bufobj.bo_dirty.bv_cnt != 0) {
+				TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd,
+				    b_bobufs) {
+					if (bp->b_flags & B_NEEDCOMMIT)
+						wouldcommit += bp->b_bcount;
+				}
+			}
+			BO_UNLOCK(&vp->v_bufobj);
+			/*
+			 * Since we're not operating synchronously and
+			 * bypassing the buffer cache, we are in a commit
+			 * and holding all of these buffers whether
+			 * transmitted or not.  If not limited, this
+			 * will lead to the buffer cache deadlocking,
+			 * as no one else can flush our uncommitted buffers.
+			 */
+			wouldcommit += uio->uio_resid;
+			/*
+			 * If we would initially exceed the maximum
+			 * outstanding write commit size, flush and restart.
+			 */
+			if (wouldcommit > nmp->nm_wcommitsize)
+				needrestart = 1;
+		}
+		if (needrestart) {
+			if (haverslock) {
+				nfs_rsunlock(np, td);
+				haverslock = 0;
+			}
+			goto flush_and_restart;
+		}
+	}
 
 	do {
 		nfsstats.biocache_writes++;
