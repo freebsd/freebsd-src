@@ -216,8 +216,6 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				}
 				bssid = wh->i_addr3;
 			}
-			if (type != IEEE80211_FC0_TYPE_DATA)
-				break;
 			/*
 			 * Data frame, validate the bssid.
 			 */
@@ -229,6 +227,8 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				ic->ic_stats.is_rx_wrongbss++;
 				goto out;
 			}
+			if (type != IEEE80211_FC0_TYPE_DATA)
+				break;
 			/*
 			 * For adhoc mode we cons up a node when it doesn't
 			 * exist. This should probably done after an ACL check.
