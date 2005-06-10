@@ -196,6 +196,9 @@ ng_mppc_constructor(node_p node)
 
 	NG_NODE_SET_PRIVATE(node, priv);
 
+	/* This node is not thread safe. */
+	NG_NODE_FORCE_WRITER(node);
+
 	/* Done */
 	return (0);
 }
