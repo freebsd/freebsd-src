@@ -1372,12 +1372,12 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 }
 
 /*
- * Transmit a TCP packet, containing either a RST or a keepalive.
+ * Generate a TCP packet, containing either a RST or a keepalive.
  * When flags & TH_RST, we are sending a RST packet, because of a
  * "reset" action matched the packet.
  * Otherwise we are sending a keepalive, and flags & TH_
  */
-static void
+static struct mbuf *
 send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 {
 	struct mbuf *m;
@@ -1386,7 +1386,7 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 
 	MGETHDR(m, M_DONTWAIT, MT_HEADER);
 	if (m == 0)
-		return;
+		return (NULL);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 	m->m_pkthdr.len = m->m_len = sizeof(struct ip) + sizeof(struct tcphdr);
 	m->m_data += max_linkhdr;
@@ -1449,7 +1449,7 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 	ip->ip_ttl = ip_defttl;
 	ip->ip_len = m->m_pkthdr.len;
 	m->m_flags |= M_SKIP_FIREWALL;
-	ip_output(m, NULL, NULL, 0, NULL, NULL);
+	return (m);
 }
 
 /*
@@ -1470,10 +1470,14 @@ send_reject(struct ip_fw_args *args, int code, int offset, int ip_len)
 	} else if (offset == 0 && args->f_id.proto == IPPROTO_TCP) {
 		struct tcphdr *const tcp =
 		    L3HDR(struct tcphdr, mtod(args->m, struct ip *));
-		if ( (tcp->th_flags & TH_RST) == 0)
-			send_pkt(&(args->f_id), ntohl(tcp->th_seq),
+		if ( (tcp->th_flags & TH_RST) == 0) {
+			struct mbuf *m;
+			m = send_pkt(&(args->f_id), ntohl(tcp->th_seq),
 				ntohl(tcp->th_ack),
 				tcp->th_flags | TH_RST);
+			if (m != NULL)
+				ip_output(m, NULL, NULL, 0, NULL, NULL);
+		}
 		m_freem(args->m);
 	} else
 		m_freem(args->m);
@@ -3831,12 +3835,21 @@ struct ip_fw *ip_fw_default_rule;
 static void
 ipfw_tick(void * __unused unused)
 {
+	struct mbuf *m0, *m, *mnext, **mtailp;
 	int i;
 	ipfw_dyn_rule *q;
 
 	if (dyn_keepalive == 0 || ipfw_dyn_v == NULL || dyn_count == 0)
 		goto done;
 
+	/*
+	 * We make a chain of packets to go out here -- not deferring
+	 * until after we drop the IPFW dynamic rule lock would result
+	 * in a lock order reversal with the normal packet input -> ipfw
+	 * call stack.
+	 */
+	m0 = NULL;
+	mtailp = &m0;
 	IPFW_DYN_LOCK();
 	for (i = 0 ; i < curr_dyn_buckets ; i++) {
 		for (q = ipfw_dyn_v[i] ; q ; q = q->next ) {
@@ -3852,11 +3865,22 @@ ipfw_tick(void * __unused unused)
 			if (TIME_LEQ(q->expire, time_second))
 				continue;	/* too late, rule expired */
 
-			send_pkt(&(q->id), q->ack_rev - 1, q->ack_fwd, TH_SYN);
-			send_pkt(&(q->id), q->ack_fwd - 1, q->ack_rev, 0);
+			*mtailp = send_pkt(&(q->id), q->ack_rev - 1,
+				q->ack_fwd, TH_SYN);
+			if (*mtailp != NULL)
+				mtailp = &(*mtailp)->m_nextpkt;
+			*mtailp = send_pkt(&(q->id), q->ack_fwd - 1,
+				q->ack_rev, 0);
+			if (*mtailp != NULL)
+				mtailp = &(*mtailp)->m_nextpkt;
 		}
 	}
 	IPFW_DYN_UNLOCK();
+	for (m = mnext = m0; m != NULL; m = mnext) {
+		mnext = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		ip_output(m, NULL, NULL, 0, NULL, NULL);
+	}
 done:
 	callout_reset(&ipfw_timeout, dyn_keepalive_period*hz, ipfw_tick, NULL);
 }
