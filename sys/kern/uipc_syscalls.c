@@ -501,7 +501,7 @@ kern_connect(td, fd, sa)
 {
 	struct socket *so;
 	struct file *fp;
-	int error, s;
+	int error;
 	int interrupted = 0;
 
 	NET_LOCK_GIANT();
@@ -527,7 +527,6 @@ kern_connect(td, fd, sa)
 		error = EINPROGRESS;
 		goto done1;
 	}
-	s = splnet();
 	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		error = msleep(&so->so_timeo, SOCK_MTX(so), PSOCK | PCATCH,
@@ -543,7 +542,6 @@ kern_connect(td, fd, sa)
 		so->so_error = 0;
 	}
 	SOCK_UNLOCK(so);
-	splx(s);
 bad:
 	if (!interrupted)
 		so->so_state &= ~SS_ISCONNECTING;
