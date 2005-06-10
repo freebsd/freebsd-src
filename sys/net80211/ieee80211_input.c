@@ -1850,7 +1850,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				    "[%s] erp change: was 0x%x, now 0x%x\n",
 				    ether_sprintf(wh->i_addr2),
 				    ni->ni_erp, erp);
-				if (erp & IEEE80211_ERP_USE_PROTECTION)
+				if (ic->ic_curmode == IEEE80211_MODE_11G &&
+				    (ni->ni_erp & IEEE80211_ERP_USE_PROTECTION))
 					ic->ic_flags |= IEEE80211_F_USEPROT;
 				else
 					ic->ic_flags &= ~IEEE80211_F_USEPROT;
@@ -2420,7 +2421,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		 * NB: ni_erp should zero for non-11g operation.
 		 * XXX check ic_curmode anyway?
 		 */
-		if (ni->ni_erp & IEEE80211_ERP_USE_PROTECTION)
+		if (ic->ic_curmode == IEEE80211_MODE_11G &&
+		    (ni->ni_erp & IEEE80211_ERP_USE_PROTECTION))
 			ic->ic_flags |= IEEE80211_F_USEPROT;
 		else
 			ic->ic_flags &= ~IEEE80211_F_USEPROT;
