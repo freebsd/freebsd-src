@@ -270,8 +270,6 @@ union pmap_cache_state *pmap_cache_state;
 LIST_HEAD(pmaplist, pmap);
 struct pmaplist allpmaps;
 
-static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
-
 /* static pt_entry_t *msgbufmap;*/
 struct msgbuf *msgbufp = 0;
 
@@ -446,7 +444,7 @@ pmap_init_l1(struct l1_ttable *l1, pd_entry_t *l1pt)
 	/*
 	 * Copy the kernel's L1 entries to each new L1.
 	 */
-	if (pmap_initialized)
+	if (l1pt != pmap_kernel()->pm_l1->l1_kva)
 		memcpy(l1pt, pmap_kernel()->pm_l1->l1_kva, L1_TABLE_SIZE);
 
 	if ((l1->l1_physaddr = pmap_extract(pmap_kernel(), (vm_offset_t)l1pt)) == 0)
@@ -1958,7 +1956,6 @@ pmap_init(void)
 	/*
 	 * Now it is safe to enable pv_table recording.
 	 */
-	pmap_initialized = TRUE;
 	PDEBUG(1, printf("pmap_init: done!\n"));
 
 }
