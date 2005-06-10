@@ -865,17 +865,12 @@ ieee80211_auth_open(struct ieee80211com *ic, struct ieee80211_frame *wh,
 	}
 	switch (ic->ic_opmode) {
 	case IEEE80211_M_IBSS:
-		if (ic->ic_state != IEEE80211_S_RUN ||
-		    seq != IEEE80211_AUTH_OPEN_REQUEST) {
-			ic->ic_stats.is_rx_bad_auth++;
-			return;
-		}
-		ieee80211_new_state(ic, IEEE80211_S_AUTH,
-		    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
-		break;
-
 	case IEEE80211_M_AHDEMO:
+	case IEEE80211_M_MONITOR:
 		/* should not come here */
+		IEEE80211_DISCARD_MAC(ic, IEEE80211_MSG_AUTH,
+		    ni->ni_macaddr, "open auth",
+		    "bad operating mode %u", ic->ic_opmode);
 		break;
 
 	case IEEE80211_M_HOSTAP:
@@ -917,8 +912,6 @@ ieee80211_auth_open(struct ieee80211com *ic, struct ieee80211_frame *wh,
 		}
 		ieee80211_new_state(ic, IEEE80211_S_ASSOC,
 		    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
-		break;
-	case IEEE80211_M_MONITOR:
 		break;
 	}
 }
