@@ -7,6 +7,11 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
+atkbdmap.h			optional	atkbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"atkbdmap.h"
+#
 ukbdmap.h			optional	ukbd_dflt_keymap	\
 	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
@@ -17,6 +22,13 @@ crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
 crypto/blowfish/bf_enc.c	optional	crypto
 crypto/des/des_enc.c		optional	crypto
+dev/atkbdc/atkbd.c		optional	atkbd atkbdc
+dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
+dev/atkbdc/atkbdc.c		optional	atkbdc
+dev/atkbdc/atkbdc_ebus.c	optional	atkbdc ebus
+dev/atkbdc/atkbdc_isa.c		optional	atkbdc isa
+dev/atkbdc/atkbdc_subr.c	optional	atkbdc
+dev/atkbdc/psm.c		optional	psm atkbdc
 dev/auxio/auxio.c		optional	auxio sbus
 dev/auxio/auxio.c		optional	auxio ebus
 dev/esp/esp_sbus.c		optional	esp sbus
@@ -25,6 +37,7 @@ dev/fb/fb.c			optional	sc
 dev/fb/machfb.c			optional	machfb sc
 dev/fb/splash.c			optional	splash
 dev/hwpmc/hwpmc_sparc64.c	optional	hwpmc
+dev/kbd/kbd.c			optional	atkbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/ofw/ofw_bus_if.m		standard
