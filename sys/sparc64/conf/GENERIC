@@ -117,16 +117,16 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 #device		mlx		# Mylex DAC960 family
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-#device		atkbdc		# AT keyboard controller
-#device		atkbd		# AT keyboard
-#device		psm		# PS/2 mouse
+device		atkbdc		# AT keyboard controller
+device		atkbd		# AT keyboard
+device		psm		# PS/2 mouse
 
 # syscons is the default console driver, resembling an SCO console
-#device		sc
-#device		creator		# Creator, Creator3D and Elite3D framebuffers
-#device		machfb		# ATI Mach64 framebuffers
+device		sc
+device		creator		# Creator, Creator3D and Elite3D framebuffers
+device		machfb		# ATI Mach64 framebuffers
 #device		splash		# Splash screen and screen saver support
-#options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
+options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 
 #device		ofw_console	# Open Firmware console device
 
@@ -203,15 +203,15 @@ device		bpf		# Berkeley packet filter
 
 # USB support
 #device		uhci		# UHCI PCI->USB interface
-#device		ohci		# OHCI PCI->USB interface
-#device		usb		# USB Bus (required)
+device		ohci		# OHCI PCI->USB interface
+device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
 #device		ugen		# Generic
 #device		uhid		# "Human Interface Devices"
-#device		ukbd		# Keyboard
+device		ukbd		# Keyboard
 #device		ulpt		# Printer
 #device		umass		# Disks/Mass storage - Requires scbus and da
-#device		ums		# Mouse
+device		ums		# Mouse
 #device		urio		# Diamond Rio 500 MP3 player
 #device		uscanner	# Scanners
 # USB Ethernet, requires mii
