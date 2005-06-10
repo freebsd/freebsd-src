@@ -283,6 +283,10 @@ dev_pager_haspage(object, pindex, before, after)
 	return (TRUE);
 }
 
+/*
+ * Instantiate a fictitious page.  Unlike physical memory pages, only
+ * the machine-independent fields must be initialized.
+ */
 static vm_page_t
 dev_pager_getfake(paddr)
 	vm_paddr_t paddr;
