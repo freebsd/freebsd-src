@@ -60,7 +60,7 @@ struct mntopt mopts[] = {
 	MOPT_FORCE,
 	MOPT_SYNC,
 	MOPT_UPDATE,
-	MOPT_NULL
+	MOPT_END
 };
 
 static void	usage(void) __dead2;

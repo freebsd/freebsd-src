@@ -64,7 +64,7 @@
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_UPDATE,
-	MOPT_NULL
+	MOPT_END
 };
 
 int	set_charset(char **, char **, const char *);

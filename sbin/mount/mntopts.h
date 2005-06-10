@@ -65,8 +65,8 @@ struct mntopt {
 /* This is parsed by mount(8), but is ignored by specific mount_*(8)s. */
 #define MOPT_AUTO		{ "auto",	0, 0, 0 }
 
-/* A handy macro as terminator of MNT_ array */
-#define MOPT_NULL		{ NULL,		0, 0, 0 }
+/* A handy macro as terminator of MNT_ array. */
+#define MOPT_END		{ NULL,		0, 0, 0 }
 
 #define MOPT_FSTAB_COMPAT						\
 	MOPT_RO,							\
