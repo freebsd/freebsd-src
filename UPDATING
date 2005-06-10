@@ -31,6 +31,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	userland, or commands like `fstat', `pkill', `ps', `top' and `w'
 	will not behave correctly.
 
+	The API and ABI for hwpmc(4) have changed with the addition
+	of sampling support.  Please recompile lib/libpmc(3) and
+	usr.sbin/{pmcstat,pmccontrol}.
+
 20050606:
 	The OpenBSD dhclient was imported in place of the ISC dhclient
 	and the network interface configuration scripts were updated
