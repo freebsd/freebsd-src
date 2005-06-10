@@ -81,6 +81,7 @@ SLIST_HEAD(cpuhead, pcpu);
 extern struct cpuhead cpuhead;
 
 #define	CURPROC		(curthread->td_proc)
+#define	curcpu		PCPU_GET(cpuid)
 #define	curkse		(curthread->td_kse)
 #define	curksegrp	(curthread->td_ksegrp)
 #define	curproc		(curthread->td_proc)
