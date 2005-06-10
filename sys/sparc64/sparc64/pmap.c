@@ -555,6 +555,19 @@ pmap_bootstrap_alloc(vm_size_t size)
 }
 
 /*
+ * Initialize a vm_page's machine-dependent fields.
+ */
+void
+pmap_page_init(vm_page_t m)
+{
+
+	TAILQ_INIT(&m->md.tte_list);
+	m->md.color = DCACHE_COLOR(VM_PAGE_TO_PHYS(m));
+	m->md.flags = 0;
+	m->md.pmap = NULL;
+}
+
+/*
  * Initialize the pmap module.
  */
 void
@@ -564,16 +577,6 @@ pmap_init(void)
 	vm_size_t size;
 	int result;
 	int i;
-
-	for (i = 0; i < vm_page_array_size; i++) {
-		vm_page_t m;
-
-		m = &vm_page_array[i];
-		TAILQ_INIT(&m->md.tte_list);
-		m->md.color = DCACHE_COLOR(VM_PAGE_TO_PHYS(m));
-		m->md.flags = 0;
-		m->md.pmap = NULL;
-	}
 
 	for (i = 0; i < translations_size; i++) {
 		addr = translations[i].om_start;
