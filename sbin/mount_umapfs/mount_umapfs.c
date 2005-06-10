@@ -79,7 +79,7 @@ static const char rcsid[] =
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
-	MOPT_NULL
+	MOPT_END
 };
 
 static void	usage(void) __dead2;
