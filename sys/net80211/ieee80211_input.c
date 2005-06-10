@@ -1841,6 +1841,9 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		    ni->ni_associd != 0 &&
 		    ((ic->ic_flags & IEEE80211_F_SCAN) == 0 ||
 		     IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_bssid))) {
+			/* record tsf of last beacon */
+			memcpy(ni->ni_tstamp.data, tstamp,
+				sizeof(ni->ni_tstamp));
 			if (ni->ni_erp != erp) {
 				IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
 				    "[%s] erp change: was 0x%x, now 0x%x\n",
