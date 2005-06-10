@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2003
+.Dd June 10, 2005
 .Dt PMAP_INIT 9
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .In vm/vm.h
 .In vm/pmap.h
 .Ft void
-.Fn pmap_init "vm_paddr_t phys_start" "vm_paddr_t phys_end"
+.Fn pmap_init "void"
 .Ft void
 .Fn pmap_init2 "void"
 .Sh DESCRIPTION
@@ -51,14 +51,6 @@ It is called during system initialization by
 to initialize any structures that the
 .Nm
 system needs in order to map between physical and virtual memory.
-.Pp
-The
-.Fn pmap_init
-supports discontiguous physical memory in a fairly consistent way.
-The module will manage the range of physical pages between
-.Fa phys_start
-and
-.Fa phys_end .
 .Pp
 The
 .Fn pmap_init2
