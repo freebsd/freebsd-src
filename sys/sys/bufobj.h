@@ -109,13 +109,13 @@ struct bufobj {
 
 #define	BO_LOCK(bo) \
 	do { \
-		KASSERT (bo->bo_mtx != NULL, ("No lock in bufobj")); \
+		KASSERT((bo)->bo_mtx != NULL, ("No lock in bufobj")); \
 		mtx_lock((bo)->bo_mtx); \
 	} while (0)
 
 #define BO_UNLOCK(bo) \
 	do { \
-		KASSERT (bo->bo_mtx != NULL, ("No lock in bufobj")); \
+		KASSERT((bo)->bo_mtx != NULL, ("No lock in bufobj")); \
 		mtx_unlock((bo)->bo_mtx); \
 	} while (0)
 
