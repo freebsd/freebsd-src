@@ -850,6 +850,19 @@ ieee80211_auth_open(struct ieee80211com *ic, struct ieee80211_frame *wh,
     u_int16_t status)
 {
 
+	if (ni->ni_authmode == IEEE80211_AUTH_SHARED) {
+		IEEE80211_DISCARD_MAC(ic, IEEE80211_MSG_AUTH,
+		    ni->ni_macaddr, "open auth",
+		    "bad sta auth mode %u", ni->ni_authmode);
+		ic->ic_stats.is_rx_bad_auth++;	/* XXX */
+		if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
+			/* XXX hack to workaround calling convention */
+			ieee80211_send_error(ic, ni, wh->i_addr2, 
+			    IEEE80211_FC0_SUBTYPE_AUTH,
+			    (seq + 1) | (IEEE80211_STATUS_ALG<<16));
+		}
+		return;
+	}
 	switch (ic->ic_opmode) {
 	case IEEE80211_M_IBSS:
 		if (ic->ic_state != IEEE80211_S_RUN ||
