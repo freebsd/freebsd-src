@@ -1576,6 +1576,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 	struct fxp_rx *rxp;
 	struct fxp_rfa *rfa;
 	int rnr = (statack & FXP_SCB_STATACK_RNR) ? 1 : 0;
+	int fxp_rc = 0;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
 	if (rnr)
@@ -1666,7 +1667,8 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 		 * If this fails, the old buffer is recycled
 		 * instead.
 		 */
-		if (fxp_add_rfabuf(sc, rxp) == 0) {
+		fxp_rc = fxp_add_rfabuf(sc, rxp);
+		if (fxp_rc == 0) {
 			int total_len;
 
 			/*
@@ -1718,6 +1720,9 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 			FXP_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
 			FXP_LOCK(sc);
+		} else if (fxp_rc == ENOBUFS) {
+			rnr = 0;
+			break;
 		}
 	}
 	if (rnr) {
