@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050610:
+	Major changes to network interface API.  All drivers must be
+	recompiled.  Drivers not in the base system will need to be
+	updated to the new APIs.
+
 20050609:
 	Changes were made to kinfo_proc in sys/user.h.  Please recompile
 	userland, or commands like `fstat', `pkill', `ps', `top' and `w'
