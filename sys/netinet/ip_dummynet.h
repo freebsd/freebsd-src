@@ -126,6 +126,7 @@ struct dn_pkt_tag {
 #define DN_TO_ETH_OUT	5
 #define DN_TO_IP6_IN	6
 #define DN_TO_IP6_OUT	7
+#define DN_TO_IFB_FWD	8
 
     dn_key output_time;		/* when the pkt is due for delivery	*/
     struct ifnet *ifp;		/* interface, for ip_output		*/

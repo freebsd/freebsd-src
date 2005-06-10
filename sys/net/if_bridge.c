@@ -129,7 +129,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
-#include <net/bridge.h>
 
 #define sc_if ifb_ac.ac_if
 /*
@@ -178,6 +177,7 @@ static struct mtx bridge_list_mtx;
 extern	struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
 extern	int (*bridge_output_p)(struct ifnet *, struct mbuf *,
 		struct sockaddr *, struct rtentry *);
+extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
 int	bridge_rtable_prune_period = BRIDGE_RTABLE_PRUNE_PERIOD;
 
@@ -351,6 +351,7 @@ bridge_modevent(module_t mod, int type, void *data)
 		LIST_INIT(&bridge_list);
 		bridge_input_p = bridge_input;
 		bridge_output_p = bridge_output;
+		bridge_dn_p = bridge_dummynet;
 		bstp_linkstate_p = bstp_linkstate;
 		break;
 	case MOD_UNLOAD:
@@ -360,6 +361,7 @@ bridge_modevent(module_t mod, int type, void *data)
 		uma_zdestroy(bridge_rtnode_zone);
 		bridge_input_p = NULL;
 		bridge_output_p = NULL;
+		bridge_dn_p = NULL;
 		bstp_linkstate_p = NULL;
 		mtx_destroy(&bridge_list_mtx);
 		break;
@@ -1268,6 +1270,33 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m,
 
 	if ((dst_ifp->if_flags & IFF_OACTIVE) == 0)
 		(*dst_ifp->if_start)(dst_ifp);
+}
+
+/*
+ * bridge_dummynet:
+ *
+ * 	Receive a queued packet from dummynet and pass it on to the output
+ * 	interface.
+ *
+ *	The mbuf has the Ethernet header already attached.
+ */
+void
+bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
+{
+	struct bridge_softc *sc;
+
+	sc = ifp->if_bridge;
+
+	/*
+	 * The packet didnt originate from a member interface. This should only
+	 * ever happen if a member interface is removed while packets are
+	 * queued for it.
+	 */
+	if (sc == NULL)
+		m_freem(m);
+		return;
+
+	bridge_enqueue(sc, ifp, m, 1);
 }
 
 /*
@@ -2195,7 +2224,7 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 # endif /* INET6 */
 			break;
 		default:
-			/* 
+			/*
 			 * ipfw allows layer2 protocol filtering using
 			 * 'mac-type' so we will let the packet past, if
 			 * ipfw is disabled then drop it.
@@ -2214,6 +2243,43 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 		m_adj(*mp, sizeof(struct llc));
 	}
 
+	if (IPFW_LOADED && pfil_ipfw != 0 && dir == PFIL_OUT) {
+		args.rule = ip_dn_claim_rule(*mp);
+		if (args.rule != NULL && fw_one_pass)
+			goto ipfwpass; /* packet already partially processed */
+
+		args.m = *mp;
+		args.oif = ifp;
+		args.next_hop = NULL;
+		args.eh = &eh2;
+		i = ip_fw_chk_ptr(&args);
+		*mp = args.m;
+
+		if (*mp == NULL)
+			return error;
+
+		if (DUMMYNET_LOADED && (i == IP_FW_DUMMYNET)) {
+
+			/* put the Ethernet header back on */
+			M_PREPEND(*mp, ETHER_HDR_LEN, M_DONTWAIT);
+			if (*mp == NULL)
+				return error;
+			bcopy(&eh2, mtod(*mp, caddr_t), ETHER_HDR_LEN);
+
+			/*
+			 * Pass the pkt to dummynet, which consumes it. The
+			 * packet will return to us via bridge_dummynet().
+			 */
+			args.oif = ifp;
+			ip_dn_io_ptr(*mp, DN_TO_IFB_FWD, &args);
+			return error;
+		}
+
+		if (i != IP_FW_PASS) /* drop */
+			goto bad;
+	}
+
+ipfwpass:
 	/*
 	 * Check basic packet sanity and run pfil through pfil.
 	 */
@@ -2246,9 +2312,15 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
 					dir, NULL);
 
+		if (*mp == NULL) /* filter may consume */
+			break;
+
 		if (error == 0 && pfil_member)
 			error = pfil_run_hooks(&inet_pfil_hook, mp, ifp,
 					dir, NULL);
+
+		if (*mp == NULL) /* filter may consume */
+			break;
 
 		if (error == 0 && pfil_bridge && dir == PFIL_IN)
 			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
@@ -2270,9 +2342,15 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 
+		if (*mp == NULL) /* filter may consume */
+			break;
+
 		if (error == 0 && pfil_member)
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, ifp,
 					dir, NULL);
+
+		if (*mp == NULL) /* filter may consume */
+			break;
 
 		if (error == 0 && pfil_bridge && dir == PFIL_IN)
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
@@ -2290,22 +2368,6 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 		goto bad;
 
 	error = -1;
-
-	if (IPFW_LOADED && pfil_ipfw != 0) {
-		args.m = *mp;
-		args.oif = NULL;
-		args.next_hop = NULL;
-		args.rule = NULL;
-		args.eh = &eh2;
-		i = ip_fw_chk_ptr(&args);
-		*mp = args.m;
-
-		if (*mp == NULL)
-			return error;
-
-		if (i == IP_FW_DENY) /* drop */
-			goto bad;
-	}
 
 	/*
 	 * Finally, put everything back the way it was and return

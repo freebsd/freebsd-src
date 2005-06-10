@@ -107,6 +107,9 @@ to enable enable layer2 filtering with
 , set to 
 .Li 0
 to disable it.
+This needs to be enabled for
+.Xr dummynet 4
+support.
 When ipfw is enabled pfil_bridge and pfil_member will be disabled so that IPFW
 is not run twice, these can be re-enabled if desired.
 .El
