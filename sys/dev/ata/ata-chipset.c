@@ -1540,6 +1540,10 @@ ata_intel_31244_allocate(device_t dev)
     ch->flags |= ATA_NO_SLAVE;
     ata_generic_hw(dev);
     ch->hw.command = ata_intel_31244_command;
+
+    /* enable PHY state change interrupt */
+    ATA_OUTL(ctlr->r_res2, 0x4,
+	     ATA_INL(ctlr->r_res2, 0x04) | (0x01 << (ch->unit << 3)));
     return 0;
 }
 
