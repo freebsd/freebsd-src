@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/proc.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -51,16 +52,17 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
+
+#include <isa/isareg.h>
 #endif /* __i386__ */
 
 #include <sys/kbio.h>
 #include <dev/kbd/kbdreg.h>
-#include <dev/kbd/atkbdreg.h>
-#include <dev/kbd/atkbdcreg.h>
-
-#include <isa/isareg.h>
+#include <dev/atkbdc/atkbdreg.h>
+#include <dev/atkbdc/atkbdcreg.h>
 
 static timeout_t	atkbd_timeout;
+static void		atkbd_shutdown_final(void *v);
 
 int
 atkbd_probe_unit(int unit, int ctlr, int irq, int flags)
@@ -119,6 +121,10 @@ atkbd_attach_unit(int unit, keyboard_t **kbd, int ctlr, int irq, int flags)
 
 	if (bootverbose)
 		(*sw->diag)(*kbd, bootverbose);
+
+	EVENTHANDLER_REGISTER(shutdown_final, atkbd_shutdown_final, *kbd,
+	    SHUTDOWN_PRI_DEFAULT);
+
 	return 0;
 }
 
@@ -839,7 +845,7 @@ atkbd_check_char(keyboard_t *kbd)
 static int
 atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 {
-	/* trasnlate LED_XXX bits into the device specific bits */
+	/* translate LED_XXX bits into the device specific bits */
 	static u_char ledmap[8] = {
 		0, 4, 2, 6, 1, 5, 3, 7,
 	};
@@ -1019,6 +1025,30 @@ atkbd_poll(keyboard_t *kbd, int on)
 		--state->ks_polling;
 	splx(s);
 	return 0;
+}
+
+static void
+atkbd_shutdown_final(void *v)
+{
+#ifdef __sparc64__
+	keyboard_t *kbd = v;
+	KBDC kbdc = ((atkbd_state_t *)kbd->kb_data)->kbdc;
+
+	/*
+	 * Turn off the translation in preparation for handing the keyboard
+	 * over to the OFW as the OBP driver doesn't use translation and
+	 * also doesn't disable it itself resulting in a broken keymap at
+	 * the boot prompt. Also disable the aux port and the interrupts as
+	 * the OBP driver doesn't use them, i.e. polls the keyboard. Not
+	 * disabling the interrupts doesn't cause real problems but the
+	 * responsiveness is a bit better when they are turned off.
+	 */
+	send_kbd_command(kbdc, KBDC_DISABLE_KBD);
+	set_controller_command_byte(kbdc,
+	    KBD_AUX_CONTROL_BITS | KBD_KBD_CONTROL_BITS | KBD_TRANSLATION,
+	    KBD_DISABLE_AUX_PORT | KBD_DISABLE_KBD_INT | KBD_ENABLE_KBD_PORT);
+	send_kbd_command(kbdc, KBDC_ENABLE_KBD);
+#endif
 }
 
 /* local functions */
@@ -1299,11 +1329,10 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 		}
 	}
 
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__sparc64__)
 	if (send_kbd_command_and_data(
 		kbdc, KBDC_SET_SCANCODE_SET, 2) != KBD_ACK) {
 		printf("atkbd: can't set translation.\n");
-		
 	}
 	c |= KBD_TRANSLATION;
 #endif
