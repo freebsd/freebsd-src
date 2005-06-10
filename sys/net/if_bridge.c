@@ -1292,9 +1292,10 @@ bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
 	 * ever happen if a member interface is removed while packets are
 	 * queued for it.
 	 */
-	if (sc == NULL)
+	if (sc == NULL) {
 		m_freem(m);
 		return;
+	}
 
 	bridge_enqueue(sc, ifp, m, 1);
 }
