@@ -50,6 +50,8 @@ static char rcsid[] = "$FreeBSD$";
 } while (0)
 #endif
 
+static const long double huge = 1.0e300;
+
 long double
 floorl(long double x)
 {
@@ -58,13 +60,14 @@ floorl(long double x)
 
 	if (e < MANH_SIZE - 1) {
 		if (e < 0) {			/* raise inexact if x != 0 */
-			if (u.bits.exp > 0 || (u.bits.manh | u.bits.manl) != 0)
-				u.e = u.bits.sign ? -1.0 : 0.0;
+			if (huge + x > 0.0)
+				if (u.bits.exp > 0 ||
+				    (u.bits.manh | u.bits.manl) != 0)
+					u.e = u.bits.sign ? -1.0 : 0.0;
 		} else {
 			uint64_t m = ((1llu << MANH_SIZE) - 1) >> (e + 1);
 			if (((u.bits.manh & m) | u.bits.manl) == 0)
 				return (x);	/* x is integral */
-			/* raise inexact flag */
 			if (u.bits.sign) {
 #ifdef LDBL_IMPLICIT_NBIT
 				if (e == 0)
@@ -73,14 +76,15 @@ floorl(long double x)
 #endif
 				INC_MANH(u, 1llu << (MANH_SIZE - e - 1));
 			}
-			u.bits.manh &= ~m;
-			u.bits.manl = 0;
+			if (huge + x > 0.0) {	/* raise inexact flag */
+				u.bits.manh &= ~m;
+				u.bits.manl = 0;
+			}
 		}
 	} else if (e < LDBL_MANT_DIG - 1) {
 		uint64_t m = (uint64_t)-1 >> (64 - LDBL_MANT_DIG + e + 1);
 		if ((u.bits.manl & m) == 0)
 			return (x);	/* x is integral */
-		/* raise inexact flag */
 		if (u.bits.sign) {
 			if (e == MANH_SIZE - 1)
 				INC_MANH(u, 1);
@@ -91,7 +95,8 @@ floorl(long double x)
 					INC_MANH(u, 1);
 			}
 		}
-		u.bits.manl &= ~m;
+		if (huge + x > 0.0)		/* raise inexact flag */
+			u.bits.manl &= ~m;
 	}
 	return (u.e);
 }
