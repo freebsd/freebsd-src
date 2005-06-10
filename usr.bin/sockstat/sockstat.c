@@ -279,7 +279,6 @@ gather_inet(int proto)
 		} else {
 			if (opt_v)
 				warnx("invalid vflag 0x%x", inp->inp_vflag);
-			free(sock);
 			continue;
 		}
 		if ((sock = calloc(1, sizeof *sock)) == NULL)
