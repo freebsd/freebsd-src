@@ -15,17 +15,8 @@ LDAPCFLAGS=	-I${OPENLDAPBASE}/include -DOPENLDAP=1
 LDAPLDFLAGS=	-L${OPENLDAPBASE}/lib -Wl,-rpath,${OPENLDAPBASE}/lib
 .endif
 
-.if exists(${.OBJDIR}/../../lib/libvers)
 LIBVERS=	${.OBJDIR}/../../lib/libvers/libvers.a
-.else
-LIBVERS=	${.CURDIR}/../../lib/libvers/libvers.a
-.endif
-
-.if exists(${.OBJDIR}/../../lib/libsl)
 LIBSL=		${.OBJDIR}/../../lib/libsl/libsl.a
-.else
-LIBSL=		${.CURDIR}/../../lib/libsl/libsl.a
-.endif
 
 .if defined(SRCS)
 
