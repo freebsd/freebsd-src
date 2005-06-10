@@ -675,11 +675,9 @@ maybe_preempt(struct thread *td)
 	    TD_IS_INHIBITED(ctd) || td->td_kse->ke_state != KES_THREAD)
 		return (0);
 #ifndef FULL_PREEMPTION
-	if (pri > PRI_MAX_ITHD)
+	if (pri > PRI_MAX_ITHD && cpri < PRI_MIN_IDLE)
 		return (0);
 #endif
-	if (cpri >= PRI_MIN_IDLE)
-		return (0);
 
 	if (ctd->td_critnest > 1) {
 		CTR1(KTR_PROC, "maybe_preempt: in critical section %d",
