@@ -189,6 +189,7 @@ tw_osli_cam_detach(struct twa_softc *sc)
 {
 	tw_osli_dbg_dprintf(3, sc, "entered");
 
+	mtx_lock(&Giant);
 	if (sc->path)
 		xpt_free_path(sc->path);
 	if (sc->sim) {
@@ -196,6 +197,7 @@ tw_osli_cam_detach(struct twa_softc *sc)
 		/* Passing TRUE to cam_sim_free will free the devq as well. */
 		cam_sim_free(sc->sim, TRUE);
 	}
+	mtx_unlock(&Giant);
 }
 
 
@@ -571,6 +573,7 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 	if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK)) == NULL)
 		return(ENOMEM);
 	bzero(ccb, sizeof(union ccb));
+	mtx_lock(&Giant);
 	if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->sim),
 		CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)
 		return(EIO);
@@ -580,6 +583,7 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 	ccb->ccb_h.cbfcnp = twa_bus_scan_cb;
 	ccb->crcn.flags = CAM_FLAG_NONE;
 	xpt_action(ccb);
+	mtx_unlock(&Giant);
 	return(0);
 }
 
