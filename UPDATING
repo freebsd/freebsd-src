@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20050513:
+	Intel Hyper-Threading is now disabled by default due to a
+	security issue, but can be re-enabled by setting the
+	machdep.hyperthreading_allowed tunable in /boot/loader.conf.
+
 20050509:
 	FreeBSD 5.4-RELEASE
 
