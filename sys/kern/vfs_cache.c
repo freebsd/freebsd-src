@@ -474,6 +474,9 @@ cache_enter(dvp, vp, cnp)
 	int zap;
 	int len;
 
+	VNASSERT(vp == NULL || (vp->v_iflag & VI_DOOMED) == 0, vp,
+	    ("cahe_enter: Adding a doomed vnode"));
+
 	if (!doingcache)
 		return;
 
