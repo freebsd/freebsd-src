@@ -57,8 +57,8 @@
 #define KTR_KGDB	0x00008000		/* Trace kgdb internals */
 #define	KTR_IO		0x00010000		/* Upper I/O  */
 #define	KTR_EVH		0x00020000		/* Eventhandler */
-#define KTR_NFS		0x00040000		/* The obvious */
-#define KTR_VOP		0x00080000		/* The obvious */
+#define KTR_VFS		0x00040000		/* VFS events */
+#define KTR_VOP		0x00080000		/* Auto-generated vop events */
 #define KTR_VM		0x00100000		/* The virtual memory system */
 #define KTR_WITNESS	0x00200000
 #define	KTR_RUNQ	0x00400000		/* Run queue */
