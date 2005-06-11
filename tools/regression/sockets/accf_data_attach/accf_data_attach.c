@@ -54,6 +54,8 @@
  *   state.
  * - That once an accept filter is attached, we can query to make sure it is
  *   attached.
+ * - That once an accept filter is attached, we can remove it and query to
+ *   make sure it is removed.
  */
 int
 main(int argc, char *argv[])
@@ -63,7 +65,7 @@ main(int argc, char *argv[])
 	socklen_t len;
 	int lso, ret;
 
-	printf("1..9\n");
+	printf("1..11\n");
 
 	/*
 	 * Step 0. Open socket().
@@ -145,38 +147,72 @@ main(int argc, char *argv[])
 	printf("ok 7 - listen\n");
 
 	/*
-	 * Step 7: After listen().  This call to setsockopt() should succeed.
+	 * Step 7: Getsockopt() after listen().  Should fail with EINVAL,
+	 * since we have not installed accept filter yet.
+	 */
+	len = sizeof(afa);
+	ret = getsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, &afa, &len);
+	if (ret == 0)
+		errx(-1, "not ok 8 - getsockopt() after listen() but before "
+		    "setsockopt() succeeded");
+	if (errno != EINVAL)
+		errx(-1, "not ok 8 - getsockopt() after listen() but before "
+		    "setsockopt() failed with %d (%s)", errno, strerror(errno));
+	printf("ok 8 - getsockopt\n");
+
+	/*
+	 * Step 8: After listen().  This call to setsockopt() should succeed.
 	 */
 	bzero(&afa, sizeof(afa));
 	strcpy(afa.af_name, ACCF_NAME);
 	ret = setsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, &afa, sizeof(afa));
 	if (ret != 0)
-		errx(-1, "not ok 8 - setsockopt() after listen() failed with %d "
+		errx(-1, "not ok 9 - setsockopt() after listen() failed with %d "
 		    "(%s)", errno, strerror(errno));
 	if (len != sizeof(afa))
-		errx(-1, "not ok 8 - setsockopt() after listen() returned wrong "
+		errx(-1, "not ok 9 - setsockopt() after listen() returned wrong "
 		    "size (%d vs expected %d)", len, sizeof(afa));
-	printf("ok 8 - setsockopt\n");
+	printf("ok 9 - setsockopt\n");
 
 	/*
-	 * Step 8: After setsockopt().  Should succeed and identify
+	 * Step 9: After setsockopt().  Should succeed and identify
 	 * ACCF_NAME.
 	 */
 	bzero(&afa, sizeof(afa));
 	len = sizeof(afa);
 	ret = getsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, &afa, &len);
 	if (ret != 0)
-		errx(-1, "not ok 9 - getsockopt() after listen() setsockopt() "
+		errx(-1, "not ok 10 - getsockopt() after listen() setsockopt() "
 		    "failed with %d (%s)", errno, strerror(errno));
 	if (len != sizeof(afa))
-		errx(-1, "not ok 9 - getsockopt() after setsockopet()  after "
+		errx(-1, "not ok 10 - getsockopt() after setsockopet()  after "
 		    "listen() returned wrong size (got %d expected %d)", len,
 		    sizeof(afa));
 	if (strcmp(afa.af_name, ACCF_NAME) != 0)
-		errx(-1, "not ok 9 - getsockopt() after setsockopt() after "
+		errx(-1, "not ok 10 - getsockopt() after setsockopt() after "
 		    "listen() mismatch (got %s expected %s)", afa.af_name,
 		    ACCF_NAME);
-	printf("ok 9 - getsockopt\n");
+	printf("ok 10 - getsockopt\n");
+
+	/*
+	 * Step 10: Remove accept filter.  After removing the accept filter
+	 * getsockopt() should fail with EINVAL.
+	 */
+	ret = setsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, NULL, 0);
+	if (ret != 0)
+		errx(-1, "not ok 11 - setsockopt() after listen() "
+		    "failed with %d (%s)", errno, strerror(errno));
+	bzero(&afa, sizeof(afa));
+	len = sizeof(afa);
+	ret = getsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, &afa, &len);
+	if (ret == 0)
+		errx(-1, "not ok 11 - getsockopt() after removing "
+		    "the accept filter returns valid accept filter %s",
+		    afa.af_name);
+	if (errno != EINVAL)
+		errx(-1, "not ok 11 - getsockopt() after removing the accept"
+		    "filter failed with %d (%s)", errno, strerror(errno));
+	printf("ok 11 - setsockopt\n");
 
 	close(lso);
 	return (0);
