@@ -393,7 +393,7 @@ vm_page_alloc_contig(vm_pindex_t npages, vm_paddr_t low, vm_paddr_t high,
 		panic("vm_page_alloc_contig: boundary must be a power of 2");
 
 	for (pass = 0; pass < 2; pass++) {
-		start = vm_page_array_size;
+		start = vm_page_array_size - npages + 1;
 		vm_page_lock_queues();
 retry:
 		start--;
@@ -414,7 +414,7 @@ retry:
 			if (phys >= low && phys + size <= high &&
 			    ((phys & (alignment - 1)) == 0) &&
 			    ((phys ^ (phys + size - 1)) & ~(boundary - 1)) == 0)
-			break;
+				break;
 		}
 		/* There are no candidates at all. */
 		if (i == -1) {
@@ -425,20 +425,26 @@ retry:
 		/*
 		 * Check successive pages for contiguous and free.
 		 */
-		for (i = start + 1; i < start + npages; i++) {
+		for (i = start + npages - 1; i > start; i--) {
 			pqtype = pga[i].queue - pga[i].pc;
 			if (VM_PAGE_TO_PHYS(&pga[i]) !=
-			    VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)
+			    VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE) {
+				start = i - npages + 1;
 				goto retry;
+			}
 			if (pass == 0) {
-				if (pqtype != PQ_FREE && pqtype != PQ_CACHE)
+				if (pqtype != PQ_FREE && pqtype != PQ_CACHE) {
+					start = i - npages + 1;
 					goto retry;
+				}
 			} else if (pqtype != PQ_FREE && pqtype != PQ_CACHE &&
 				    pga[i].queue != PQ_ACTIVE &&
-				    pga[i].queue != PQ_INACTIVE)
+				    pga[i].queue != PQ_INACTIVE) {
+				start = i - npages + 1;
 				goto retry;
+			}
 		}
-		for (i = start; i < start + npages; i++) {
+		for (i = start + npages - 1; i >= start; i--) {
 			vm_page_t m = &pga[i];
 
 retry_page:
@@ -456,19 +462,25 @@ retry_page:
 						break;
 				default:
 cleanup_freed:
-					vm_page_release_contigl(&pga[start],
-					    i - start);
+					vm_page_release_contigl(&pga[i + 1],
+					    start + npages - 1 - i);
+					start = i - npages + 1;
 					goto retry;
 				}
 			}
 			if (pqtype == PQ_CACHE) {
-				if (m->hold_count != 0)
+				if (m->hold_count != 0) {
+					start = i - npages + 1;
 					goto retry;
+				}
 				object = m->object;
-				if (!VM_OBJECT_TRYLOCK(object))
+				if (!VM_OBJECT_TRYLOCK(object)) {
+					start = i - npages + 1;
 					goto retry;
+				}
 				if ((m->flags & PG_BUSY) || m->busy != 0) {
 					VM_OBJECT_UNLOCK(object);
+					start = i - npages + 1;
 					goto retry;
 				}
 				vm_page_free(m);
