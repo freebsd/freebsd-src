@@ -23,6 +23,8 @@ CFLAGS+=-Winline
 
 LDFLAGS= -Wl,--version-script=${.CURDIR}/pthread.map
 
+MAN=	libthr.3
+
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
 CFLAGS+=-g
