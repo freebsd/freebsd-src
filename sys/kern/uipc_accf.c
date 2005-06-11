@@ -176,8 +176,10 @@ do_getopt_accept_filter(struct socket *so, struct sockopt *sopt)
 		error = EINVAL;
 		goto out;
 	}
-	if ((so->so_options & SO_ACCEPTFILTER) == 0)
+	if ((so->so_options & SO_ACCEPTFILTER) == 0) {
+		error = EINVAL;
 		goto out;
+	}
 	strcpy(afap->af_name, so->so_accf->so_accept_filter->accf_name);
 	if (so->so_accf->so_accept_filter_str != NULL)
 		strcpy(afap->af_arg, so->so_accf->so_accept_filter_str);
@@ -200,7 +202,7 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	/*
 	 * Handle the simple delete case first.
 	 */
-	if (sopt == NULL) {
+	if (sopt == NULL || sopt->sopt_val == NULL) {
 		SOCK_LOCK(so);
 		if ((so->so_options & SO_ACCEPTCONN) == 0) {
 			SOCK_UNLOCK(so);
