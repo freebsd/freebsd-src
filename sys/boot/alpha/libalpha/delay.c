@@ -33,9 +33,12 @@ __FBSDID("$FreeBSD$");
 void
 delay(int usecs)
 {
-    struct rpb *hwrpb = (struct rpb *)HWRPB_ADDR;
-    unsigned long start = alpha_rpcc();
-    unsigned long end = start + (hwrpb->rpb_cc_freq * usecs) / 1000000;
-    while (alpha_rpcc() < end)
-	;
+	struct rpb *hwrpb = (struct rpb *)HWRPB_ADDR;
+	unsigned long end, now, start;
+
+	start = alpha_rpcc() & 0xfffffffful;
+	end = start + (hwrpb->rpb_cc_freq * usecs) / 1000000;
+	do {
+		now = alpha_rpcc() & 0xfffffffful;
+	} while (now < end || (now > start && end < start));
 }
