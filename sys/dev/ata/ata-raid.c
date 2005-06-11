@@ -113,9 +113,10 @@ static disk_strategy_t ata_raid_strategy;
 static void
 ata_raid_attach(struct ar_softc *rdp, int writeback)
 {
-    char buffer[32] = {""};;
+    char buffer[32];
     int disk;
 
+    buffer[0] = '\0';
     mtx_init(&rdp->lock, "ATA PseudoRAID metadata lock", NULL, MTX_DEF);
     ata_raid_config_changed(rdp, writeback);
 
