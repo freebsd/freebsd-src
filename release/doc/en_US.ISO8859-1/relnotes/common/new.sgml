@@ -195,8 +195,27 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>.
       &merged;</para>
 
-   <para>
+    <para>A bug in the &man.tcpdump.1; utility which allows
+      a malicious remote user to cause a denial-of-service
+      by using specially crafted packets, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:10.tcpdump.asc">FreeBSD-SA-05:10.tcpdump</ulink>.
+      &merged;</para>
 
+    <para>Two problems in the &man.gzip.1; utility have been fixed.
+      These may allow a local user to modify permissions
+      of arbitrary files and overwrite arbitrary local
+      files when uncompressing a file.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc">FreeBSD-SA-05:11.gzip</ulink>.
+      &merged;</para>
+
+    <para>A bug in <application>BIND 9</application> DNSSEC has been fixed.
+      When DNSSEC is enabled, this bug may allow a remote attacker to inject
+      a specially crafted packet which will cause &man.named.8; to terminate.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:12.bind9.asc">FreeBSD-SA-05:12.bind9</ulink>.
+      &merged;</para>
   </sect2>
 
   <sect2 id="kernel">
