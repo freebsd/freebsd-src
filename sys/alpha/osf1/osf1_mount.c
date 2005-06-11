@@ -170,12 +170,8 @@ osf1_getfsstat(td, uap)
 
 	count = uap->bufsize / sizeof(struct osf1_statfs);
 	size = count * sizeof(struct statfs);
-	if (size > 0)
-		buf = malloc(size, M_TEMP, M_WAITOK);
-	else
-		buf = NULL;
-	error = kern_getfsstat(td, buf, size, UIO_SYSSPACE, flags);
-	if (buf != NULL) {
+	error = kern_getfsstat(td, &buf, size, UIO_SYSSPACE, flags);
+	if (size > 0) {
 		count = td->td_retval[0];
 		sp = buf;
 		while (count > 0 && error == 0) {
