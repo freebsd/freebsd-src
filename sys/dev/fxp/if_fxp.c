@@ -388,6 +388,13 @@ fxp_attach(device_t dev)
 
 	s = splimp();
 
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
+
 	/*
 	 * Enable bus mastering.
 	 */
@@ -745,12 +752,6 @@ fxp_attach(device_t dev)
 		}
 	}
 
-	ifp = sc->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		error = ENOSPC;
-		goto fail;
-	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = 100000000;
 	ifp->if_init = fxp_init;
