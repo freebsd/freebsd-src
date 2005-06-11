@@ -390,12 +390,17 @@ getfsstat(td, uap)
 	} */ *uap;
 {
 
-	return (kern_getfsstat(td, uap->buf, uap->bufsize, UIO_USERSPACE,
+	return (kern_getfsstat(td, &uap->buf, uap->bufsize, UIO_USERSPACE,
 	    uap->flags));
 }
 
+/*
+ * If (bufsize > 0 && bufseg == UIO_SYSSPACE)
+ * 	The caller is responsible for freeing memory which will be allocated
+ *	in '*buf'.
+ */
 int
-kern_getfsstat(struct thread *td, struct statfs *buf, size_t bufsize,
+kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
     enum uio_seg bufseg, int flags)
 {
 	struct mount *mp, *nmp;
@@ -404,10 +409,23 @@ kern_getfsstat(struct thread *td, struct statfs *buf, size_t bufsize,
 	int error;
 
 	maxcount = bufsize / sizeof(struct statfs);
-	sfsp = buf;
-	count = 0;
 	mtx_lock(&Giant);
 	mtx_lock(&mountlist_mtx);
+	if (bufsize == 0)
+		sfsp = NULL;
+	else if (bufseg == UIO_USERSPACE)
+		sfsp = *buf;
+	else /* if (bufseg == UIO_SYSSPACE) */ {
+		count = 0;
+		TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+			count++;
+		}
+		if (maxcount > count)
+			maxcount = count;
+		sfsp = *buf = malloc(maxcount * sizeof(struct statfs), M_TEMP,
+		    M_WAITOK);
+	}
+	count = 0;
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (prison_canseemount(td->td_ucred, mp) != 0) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
@@ -451,15 +469,16 @@ kern_getfsstat(struct thread *td, struct statfs *buf, size_t bufsize,
 				prison_enforce_statfs(td->td_ucred, mp, &sb);
 				sp = &sb;
 			}
-			if (bufseg == UIO_USERSPACE) {
+			if (bufseg == UIO_SYSSPACE)
+				bcopy(sp, sfsp, sizeof(*sp));
+			else /* if (bufseg == UIO_USERSPACE) */ {
 				error = copyout(sp, sfsp, sizeof(*sp));
 				if (error) {
 					vfs_unbusy(mp, td);
 					mtx_unlock(&Giant);
 					return (error);
 				}
-			} else
-				bcopy(sp, sfsp, sizeof(*sp));
+			}
 			sfsp++;
 		}
 		count++;
@@ -561,12 +580,8 @@ freebsd4_getfsstat(td, uap)
 
 	count = uap->bufsize / sizeof(struct ostatfs);
 	size = count * sizeof(struct statfs);
-	if (size > 0)
-		buf = malloc(size, M_TEMP, M_WAITOK);
-	else
-		buf = NULL;
-	error = kern_getfsstat(td, buf, size, UIO_SYSSPACE, uap->flags);
-	if (buf != NULL) {
+	error = kern_getfsstat(td, &buf, size, UIO_SYSSPACE, uap->flags);
+	if (size > 0) {
 		count = td->td_retval[0];
 		sp = buf;
 		while (count > 0 && error == 0) {
