@@ -37,7 +37,6 @@
 #define FUNCTION_ALIGNMENT 16
 
 typedef u_int	fptrdiff_t;
-typedef u_int	uintfptr_t;
 
 #define	MCOUNT \
 void \
@@ -63,6 +62,11 @@ void user(void);
 	    ((pc >= (uintfptr_t)bintr) ? (uintfptr_t)bintr :	\
 		(uintfptr_t)btrap) : ~0U)
 
-#endif
+
+#else	/* !_KERNEL */
+
+typedef u_int	uintfptr_t;
+
+#endif	/* _KERNEL */
 
 #endif /* !_MACHINE_PROFILE_H_ */
