@@ -119,12 +119,14 @@ pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
 	struct mbuf *m = *mp;
 	int rv = 0;
 
+	if (ph->ph_busy_count == -1)
+		return (0);
 	/*
 	 * Prevent packet filtering from starving the modification of
 	 * the packet filters. We would prefer a reader/writer locking
 	 * mechanism with guaranteed ordering, though.
 	 */
-	if (ph->ph_busy_count == -1 || ph->ph_want_write) {
+	if (ph->ph_want_write) {
 		m_freem(*mp);
 		*mp = NULL;
 		return (ENOBUFS);
