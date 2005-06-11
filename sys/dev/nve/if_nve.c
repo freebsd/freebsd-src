@@ -492,21 +492,23 @@ nve_attach(device_t dev)
 	/* Display ethernet address ,... */
 	device_printf(dev, "Ethernet address %6D\n", eaddr, ":");
 
-	DEBUGOUT(NVE_DEBUG_INIT, "nve: do mii_phy_probe\n");
-
-	/* Probe device for MII interface to PHY */
-	if (mii_phy_probe(dev, &sc->miibus, nve_ifmedia_upd, nve_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
-		goto fail;
-	}
-	/* Setup interface parameters */
+	/* Allocate interface structures */
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
+
+	/* Probe device for MII interface to PHY */
+	DEBUGOUT(NVE_DEBUG_INIT, "nve: do mii_phy_probe\n");
+	if (mii_phy_probe(dev, &sc->miibus, nve_ifmedia_upd, nve_ifmedia_sts)) {
+		device_printf(dev, "MII without any phy!\n");
+		error = ENXIO;
+		goto fail;
+	}
+
+	/* Setup interface parameters */
 	ifp->if_softc = sc;
 	if_initname(ifp, "nve", unit);
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
