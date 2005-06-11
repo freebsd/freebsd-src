@@ -1060,6 +1060,13 @@ ste_attach(dev)
 
 	bzero(sc->ste_ldata, sizeof(struct ste_list_data));
 
+	ifp = sc->ste_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("ste%d: can not if_alloc()\n", sc->ste_unit);
+		error = ENOSPC;
+		goto fail;
+	}
+
 	/* Do MII setup. */
 	if (mii_phy_probe(dev, &sc->ste_miibus,
 	    ste_ifmedia_upd, ste_ifmedia_sts)) {
@@ -1068,12 +1075,6 @@ ste_attach(dev)
 		goto fail;
 	}
 
-	ifp = sc->ste_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		printf("ste%d: can not if_alloc()\n", sc->ste_unit);
-		error = ENOSPC;
-		goto fail;
-	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;

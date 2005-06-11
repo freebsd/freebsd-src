@@ -702,6 +702,13 @@ sf_attach(dev)
 
 	bzero(sc->sf_ldata, sizeof(struct sf_list_data));
 
+	ifp = sc->sf_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("sf%d: can not if_alloc()\n", sc->sf_unit);
+		error = ENOSPC;
+		goto fail;
+	}
+
 	/* Do MII setup. */
 	if (mii_phy_probe(dev, &sc->sf_miibus,
 	    sf_ifmedia_upd, sf_ifmedia_sts)) {
@@ -710,12 +717,6 @@ sf_attach(dev)
 		goto fail;
 	}
 
-	ifp = sc->sf_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		printf("sf%d: can not if_alloc()\n", sc->sf_unit);
-		error = ENOSPC;
-		goto fail;
-	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
