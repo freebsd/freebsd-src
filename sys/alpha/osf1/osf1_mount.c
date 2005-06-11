@@ -168,7 +168,7 @@ osf1_getfsstat(td, uap)
 	if (uap->flags & OSF1_MNT_NOWAIT)
 		flags |= MNT_NOWAIT;
 
-	count = uap->bufsize / sizeof(struct ostatfs);
+	count = uap->bufsize / sizeof(struct osf1_statfs);
 	size = count * sizeof(struct statfs);
 	if (size > 0)
 		buf = malloc(size, M_TEMP, M_WAITOK);
