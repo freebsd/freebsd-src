@@ -317,16 +317,16 @@ fe_probe_re1000(device_t dev)
 		return ENXIO;
 
 	/* Get our station address from EEPROM.  */
-	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
+	fe_inblk(sc, 0x18, sc->enaddr, ETHER_ADDR_LEN);
 
 	/* Make sure it is Allied-Telesis's.  */
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x0000F4))
+	if (!fe_valid_Ether_p(sc->enaddr, 0x0000F4))
 		return ENXIO;
 #if 1
 	/* Calculate checksum.  */
 	sum = fe_inb(sc, 0x1e);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sum ^= sc->sc_enaddr[i];
+		sum ^= sc->enaddr[i];
 	if (sum != 0)
 		return ENXIO;
 #endif
@@ -370,8 +370,8 @@ fe_probe_jli_re1000p(struct fe_softc * sc, u_char const * eeprom)
 
 	/* Get our station address from EEPROM, and make sure the
            EEPROM contains Allied-Telesis's address.  */
-	bcopy(eeprom + 8, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x0000F4))
+	bcopy(eeprom + 8, sc->enaddr, ETHER_ADDR_LEN);
+	if (!fe_valid_Ether_p(sc->enaddr, 0x0000F4))
 		return NULL;
 
 	/* I don't know any sub-model identification.  */
@@ -541,14 +541,14 @@ fe_probe_cnet9ne (device_t dev)
 		return ENXIO;
 
 	/* Get our station address from EEPROM.  */
-	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
+	fe_inblk(sc, 0x18, sc->enaddr, ETHER_ADDR_LEN);
 
 	/* Make sure it is Contec's.  */
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00804C))
+	if (!fe_valid_Ether_p(sc->enaddr, 0x00804C))
 		return ENXIO;
 
 	/* Determine the card type.  */
-	if (sc->sc_enaddr[3] == 0x06) {
+	if (sc->enaddr[3] == 0x06) {
 		sc->typestr = "C-NET(9N)C";
 
 		/* We seems to need our own IDENT bits...  FIXME.  */
@@ -632,7 +632,7 @@ fe_probe_ssi(device_t dev)
 	/* Make sure the Ethernet (MAC) station address is of Contec's.  */
 	if (!fe_valid_Ether_p(eeprom + FE_SSI_EEP_ADDR, 0x00804C))
 		return ENXIO;
-	bcopy(eeprom + FE_SSI_EEP_ADDR, sc->sc_enaddr, ETHER_ADDR_LEN);
+	bcopy(eeprom + FE_SSI_EEP_ADDR, sc->enaddr, ETHER_ADDR_LEN);
 
 	/* Setup the board type.  */
         sc->typestr = "C-NET(98)P2";
@@ -702,7 +702,7 @@ fe_probe_lnx(device_t dev)
 	/* Make sure the Ethernet (MAC) station address is of TDK/LANX's.  */
 	if (!fe_valid_Ether_p(eeprom, 0x008098))
 		return ENXIO;
-	bcopy(eeprom, sc->sc_enaddr, ETHER_ADDR_LEN);
+	bcopy(eeprom, sc->enaddr, ETHER_ADDR_LEN);
 
 	/* Setup the board type.  */
 	sc->typestr = "LAC-98012/98013";
@@ -767,13 +767,13 @@ fe_probe_gwy(device_t dev)
 		return ENXIO;
 
 	/* Get our station address from EEPROM. */
-	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x000000))
+	fe_inblk(sc, 0x18, sc->enaddr, ETHER_ADDR_LEN);
+	if (!fe_valid_Ether_p(sc->enaddr, 0x000000))
 		return ENXIO;
 
 	/* Determine the card type.  */
 	sc->typestr = "Generic MB86960 Ethernet";
-	if (fe_valid_Ether_p(sc->sc_enaddr, 0x000061))
+	if (fe_valid_Ether_p(sc->enaddr, 0x000061))
 		sc->typestr = "Gateway Ethernet (Fujitsu chipset)";
 
 	/* Gateway's board requires an explicit IRQ to work, since it
@@ -833,14 +833,14 @@ fe_probe_ubn(device_t dev)
 		sc->proto_dlcr7 | FE_D7_RBS_BMPR | FE_D7_POWER_UP);
 
 	/* Get our station address form ID ROM and make sure it is UBN's.  */
-	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00DD01))
+	fe_inblk(sc, 0x18, sc->enaddr, ETHER_ADDR_LEN);
+	if (!fe_valid_Ether_p(sc->enaddr, 0x00DD01))
 		goto fail_ubn;
 #if 1
 	/* Calculate checksum.  */
 	sum = fe_inb(sc, 0x1e);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sum ^= sc->sc_enaddr[i];
+		sum ^= sc->enaddr[i];
 	if (sum != 0)
 		goto fail_ubn;
 #endif
@@ -972,11 +972,11 @@ fe_probe_rex(device_t dev)
            are not yet sure we have a REX-9880 board here.)  */
 	fe_read_eeprom_rex(sc, eeprom);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->sc_enaddr[i] = eeprom[7 - i];
+		sc->enaddr[i] = eeprom[7 - i];
 
 	/* Make sure it is RATOC's.  */
-	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00C0D0) &&
-	    !fe_valid_Ether_p(sc->sc_enaddr, 0x00803D))
+	if (!fe_valid_Ether_p(sc->enaddr, 0x00C0D0) &&
+	    !fe_valid_Ether_p(sc->enaddr, 0x00803D))
 		return 0;
 
 	/* Setup the board type.  */
