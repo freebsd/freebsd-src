@@ -607,6 +607,8 @@ vnlru_free(int count)
 		 */
 		if (!vp)
 			break;
+		VNASSERT(vp->v_op != NULL, vp,
+		    ("vnlru_free: vnode already reclaimed."));
 		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 		/*
 		 * Don't recycle if we can't get the interlock.
@@ -710,7 +712,10 @@ vdestroy(struct vnode *vp)
 	struct bufobj *bo;
 
 	bo = &vp->v_bufobj;
+	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
+	    ("cleaned vnode still on the free list."));
 	VNASSERT(vp->v_data == NULL, vp, ("cleaned vnode isn't"));
+	VNASSERT(vp->v_holdcnt == 0, vp, ("Non-zero hold count"));
 	VNASSERT(vp->v_usecount == 0, vp, ("Non-zero use count"));
 	VNASSERT(vp->v_writecount == 0, vp, ("Non-zero write count"));
 	VNASSERT(bo->bo_numoutput == 0, vp, ("Clean vnode has pending I/O's"));
@@ -726,6 +731,10 @@ vdestroy(struct vnode *vp)
 		mtx_destroy(&vp->v_pollinfo->vpi_lock);
 		uma_zfree(vnodepoll_zone, vp->v_pollinfo);
 	}
+#ifdef INVARIANTS
+	/* XXX Elsewhere we can detect an already freed vnode via NULL v_op. */
+	vp->v_op = NULL;
+#endif
 	lockdestroy(vp->v_vnlock);
 	mtx_destroy(&vp->v_interlock);
 	uma_zfree(vnode_zone, vp);
@@ -742,6 +751,7 @@ vtryrecycle(struct vnode *vp)
 	struct mount *vnmp;
 	int error;
 
+	CTR1(KTR_VFS, "vtryrecycle: trying vp %p", vp);
 	ASSERT_VI_LOCKED(vp, "vtryrecycle");
 	error = 0;
 	vnmp = NULL;
@@ -794,6 +804,7 @@ vtryrecycle(struct vnode *vp)
 	VI_UNLOCK(vp);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(vnmp);
+	CTR1(KTR_VFS, "vtryrecycle: recycled vp %p", vp);
 	return (0);
 err:
 	if (VSHOULDFREE(vp))
@@ -890,6 +901,7 @@ getnewvnode(tag, mp, vops, vpp)
 		bo->bo_bsize = mp->mnt_stat.f_iosize;
 	}
 
+	CTR2(KTR_VFS, "getnewvnode: mp %p vp %p", mp, vp);
 	*vpp = vp;
 	return (0);
 }
@@ -1772,6 +1784,8 @@ v_incr_usecount(struct vnode *vp, int delta)
 		vp->v_rdev->si_usecount += delta;
 		dev_unlock();
 	}
+	CTR3(KTR_VFS, "v_incr_usecount: vp %p delta %d holdcnt %d\n",
+	    vp, delta, vp->v_holdcnt);
 }
 
 /*
@@ -2079,6 +2093,7 @@ vflush(mp, rootrefs, flags, td)
 	struct vattr vattr;
 	int busy = 0, error;
 
+	CTR1(KTR_VFS, "vflush: mp %p", mp);
 	if (rootrefs > 0) {
 		KASSERT((flags & (SKIPSYSTEM | WRITECLOSE)) == 0,
 		    ("vflush: bad args"));
@@ -2256,6 +2271,7 @@ vgonel(struct vnode *vp, struct thread *td)
 	int active;
 	int doomed;
 
+	CTR1(KTR_VFS, "vgonel: vp %p", vp);
 	ASSERT_VOP_LOCKED(vp, "vgonel");
 	ASSERT_VI_LOCKED(vp, "vgonel");
 
@@ -2749,8 +2765,10 @@ static void
 vfree(struct vnode *vp)
 {
 
+	CTR1(KTR_VFS, "vfree vp %p", vp);
 	ASSERT_VI_LOCKED(vp, "vfree");
 	mtx_lock(&vnode_free_list_mtx);
+	VNASSERT(vp->v_op != NULL, vp, ("vfree: vnode already reclaimed."));
 	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp, ("vnode already free"));
 	VNASSERT(VSHOULDFREE(vp), vp, ("vfree: freeing when we shouldn't"));
 	if (vp->v_iflag & (VI_AGE|VI_DOOMED)) {
@@ -2787,9 +2805,10 @@ vfreehead(struct vnode *vp)
 static void
 vbusy(struct vnode *vp)
 {
-
+	CTR1(KTR_VFS, "vbusy vp %p", vp);
 	ASSERT_VI_LOCKED(vp, "vbusy");
 	VNASSERT((vp->v_iflag & VI_FREE) != 0, vp, ("vnode not free"));
+	VNASSERT(vp->v_op != NULL, vp, ("vbusy: vnode already reclaimed."));
 
 	mtx_lock(&vnode_free_list_mtx);
 	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
