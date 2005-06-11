@@ -938,6 +938,13 @@ rl_attach(device_t dev)
 	sc->rl_cdata.rl_rx_buf_ptr = sc->rl_cdata.rl_rx_buf;
 	sc->rl_cdata.rl_rx_buf += sizeof(uint64_t);
 
+	ifp = sc->rl_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
+
 	/* Do MII setup */
 	if (mii_phy_probe(dev, &sc->rl_miibus,
 	    rl_ifmedia_upd, rl_ifmedia_sts)) {
@@ -946,12 +953,6 @@ rl_attach(device_t dev)
 		goto fail;
 	}
 
-	ifp = sc->rl_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		error = ENOSPC;
-		goto fail;
-	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
