@@ -166,7 +166,8 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL)
-		panic("%s: can not if_alloc()\n", device_get_nameunit(dev));
+		panic("%s: can not if_alloc()\n",
+		    device_get_nameunit(sc->sc_dev));
 
 #ifdef SNCDEBUG
 	device_printf(sc->sc_dev,
