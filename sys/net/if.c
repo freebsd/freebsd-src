@@ -402,8 +402,10 @@ if_alloc(u_char type)
 
 	if (if_com_alloc[type] != NULL) {
 		ifp->if_l2com = if_com_alloc[type](type, ifp);
-		if (ifp->if_l2com == NULL)
+		if (ifp->if_l2com == NULL) {
 			free(ifp, M_IFNET);
+			return (NULL);
+		}
 	}
 
 	return (ifp);
@@ -425,6 +427,12 @@ if_free_type(struct ifnet *ifp, u_char type)
 		    __func__);
 		return;
 	}
+
+	ifnet_byindex(ifp->if_index) = NULL;
+
+	/* XXX: should be locked with if_findindex() */
+	while (if_index > 0 && ifaddr_byindex(if_index) == NULL)
+		if_index--;
 
 	if (if_com_free[type] != NULL)
 		if_com_free[type](ifp->if_l2com, type);
@@ -678,14 +686,9 @@ if_detach(struct ifnet *ifp)
 	 * Remove address from ifindex_table[] and maybe decrement if_index.
 	 * Clean up all addresses.
 	 */
-	ifnet_byindex(ifp->if_index) = NULL;
 	ifaddr_byindex(ifp->if_index) = NULL;
 	destroy_dev(ifdev_byindex(ifp->if_index));
 	ifdev_byindex(ifp->if_index) = NULL;
-
-	while (if_index > 0 && ifaddr_byindex(if_index) == NULL)
-		if_index--;
-
 
 	/* We can now free link ifaddr. */
 	if (!TAILQ_EMPTY(&ifp->if_addrhead)) {
