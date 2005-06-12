@@ -363,9 +363,9 @@ gem_detach(sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
+	gem_stop(ifp, 1);
 	ether_ifdetach(ifp);
 	if_free(ifp);
-	gem_stop(ifp, 1);
 	device_delete_child(sc->sc_dev, sc->sc_miibus);
 
 	for (i = 0; i < GEM_NRXDESC; i++) {
