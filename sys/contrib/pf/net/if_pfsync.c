@@ -220,15 +220,10 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_baudrate = IF_Mbps(100);
 	ifp->if_softc = sc;
 	pfsync_setmtu(sc, MCLBYTES);
-	/*
-	 * XXX
-	 *  The 2nd arg. 0 to callout_init(9) shoule be set to CALLOUT_MPSAFE
-	 * if Gaint lock is removed from the network stack.
-	 */
-	callout_init(&sc->sc_tmo, 0);
-	callout_init(&sc->sc_bulk_tmo, 0);
-	callout_init(&sc->sc_bulkfail_tmo, 0);
-	callout_init(&sc->sc_send_tmo, 0);
+	callout_init(&sc->sc_tmo, NET_CALLOUT_MPSAFE);
+	callout_init(&sc->sc_bulk_tmo, NET_CALLOUT_MPSAFE);
+	callout_init(&sc->sc_bulkfail_tmo, NET_CALLOUT_MPSAFE);
+	callout_init(&sc->sc_send_tmo, NET_CALLOUT_MPSAFE);
 	mtx_init(&sc->sc_ifq.ifq_mtx, ifp->if_xname, "pfsync send queue",
 	    MTX_DEF);
 	if_attach(ifp);
