@@ -70,23 +70,20 @@ bioq_init(struct bio_queue_head *head)
 	TAILQ_INIT(&head->queue);
 	head->last_offset = 0;
 	head->insert_point = NULL;
-	head->switch_point = NULL;
 }
 
 void
 bioq_remove(struct bio_queue_head *head, struct bio *bp)
 {
-	if (bp == head->switch_point)
-		head->switch_point = TAILQ_NEXT(bp, bio_queue);
 	if (bp == head->insert_point) {
-		head->insert_point = TAILQ_PREV(bp, bio_queue, bio_queue);
-		if (head->insert_point == NULL)
-			head->last_offset = 0;
-	} else if (bp == TAILQ_FIRST(&head->queue))
 		head->last_offset = bp->bio_offset;
+		head->insert_point = TAILQ_NEXT(bp, bio_queue);
+		if (head->insert_point == NULL) {
+			head->last_offset = 0;
+			head->insert_point = TAILQ_FIRST(&head->queue);
+		}
+	}
 	TAILQ_REMOVE(&head->queue, bp, bio_queue);
-	if (TAILQ_FIRST(&head->queue) == head->switch_point)
-		head->switch_point = NULL;
 }
 
 void
@@ -102,6 +99,8 @@ void
 bioq_insert_head(struct bio_queue_head *head, struct bio *bp)
 {
 
+	if (TAILQ_FIRST(&head->queue) == NULL)
+		head->insert_point = bp;
 	TAILQ_INSERT_HEAD(&head->queue, bp, bio_queue);
 }
 
@@ -109,6 +108,8 @@ void
 bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
 {
 
+	if (TAILQ_FIRST(&head->queue) == NULL)
+		head->insert_point = bp;
 	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
 }
 
@@ -133,18 +134,14 @@ bioq_takefirst(struct bio_queue_head *head)
 /*
  * Seek sort for disks.
  *
- * The buf_queue keep two queues, sorted in ascending block order.  The first
- * queue holds those requests which are positioned after the current block
- * (in the first request); the second, which starts at queue->switch_point,
- * holds requests which came in after their block number was passed.  Thus
- * we implement a one way scan, retracting after reaching the end of the drive
- * to the first request on the second queue, at which time it becomes the
- * first queue.
- *
- * A one-way scan is natural because of the way UNIX read-ahead blocks are
- * allocated.
+ * The disksort algorithm sorts all requests in a single queue while keeping
+ * track of the current position of the disk with insert_point and
+ * last_offset.  last_offset is the offset of the last block sent to disk, or
+ * 0 once we reach the end.  insert_point points to the first buf after
+ * last_offset, and is used to slightly speed up insertions.  Blocks are
+ * always sorted in ascending order and the queue always restarts at 0.
+ * This implements the one-way scan which optimizes disk seek times.
  */
-
 void
 bioq_disksort(bioq, bp)
 	struct bio_queue_head *bioq;
@@ -152,80 +149,41 @@ bioq_disksort(bioq, bp)
 {
 	struct bio *bq;
 	struct bio *bn;
-	struct bio *be;
 
-	be = TAILQ_LAST(&bioq->queue, bio_queue);
 	/*
-	 * If the queue is empty or we are an
-	 * ordered transaction, then it's easy.
+	 * If the queue is empty then it's easy.
 	 */
 	if ((bq = bioq_first(bioq)) == NULL) {
 		bioq_insert_tail(bioq, bp);
 		return;
-	} else if (bioq->insert_point != NULL) {
-
-		/*
-		 * A certain portion of the list is
-		 * "locked" to preserve ordering, so
-		 * we can only insert after the insert
-		 * point.
-		 */
-		bq = bioq->insert_point;
-	} else {
-
-		/*
-		 * If we lie before the last removed (currently active)
-		 * request, and are not inserting ourselves into the
-		 * "locked" portion of the list, then we must add ourselves
-		 * to the second request list.
-		 */
-		if (bp->bio_offset < bioq->last_offset) {
-
-			bq = bioq->switch_point;
-			/*
-			 * If we are starting a new secondary list,
-			 * then it's easy.
-			 */
-			if (bq == NULL) {
-				bioq->switch_point = bp;
-				bioq_insert_tail(bioq, bp);
-				return;
-			}
-			/*
-			 * If we lie ahead of the current switch point,
-			 * insert us before the switch point and move
-			 * the switch point.
-			 */
-			if (bp->bio_offset < bq->bio_offset) {
-				bioq->switch_point = bp;
-				TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
-				return;
-			}
-		} else {
-			if (bioq->switch_point != NULL)
-				be = TAILQ_PREV(bioq->switch_point,
-						bio_queue, bio_queue);
-			/*
-			 * If we lie between last_offset and bq,
-			 * insert before bq.
-			 */
-			if (bp->bio_offset < bq->bio_offset) {
-				TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
-				return;
-			}
-		}
 	}
-
 	/*
-	 * Request is at/after our current position in the list.
 	 * Optimize for sequential I/O by seeing if we go at the tail.
 	 */
-	if (bp->bio_offset > be->bio_offset) {
-		TAILQ_INSERT_AFTER(&bioq->queue, be, bp, bio_queue);
+	bq = TAILQ_LAST(&bioq->queue, bio_queue);
+	if (bp->bio_offset > bq->bio_offset) {
+		TAILQ_INSERT_AFTER(&bioq->queue, bq, bp, bio_queue);
 		return;
 	}
+	/*
+	 * Pick our scan start based on the last request.  A poor man's
+	 * binary search.
+	 */
+	if (bp->bio_offset >= bioq->last_offset) { 
+		bq = bioq->insert_point;
+		/*
+		 * If we're before the next bio and after the last offset,
+		 * update insert_point;
+		 */
+		if (bp->bio_offset < bq->bio_offset) {
+			bioq->insert_point = bp;
+			TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
+			return;
+		}
+	} else
+		bq = TAILQ_FIRST(&bioq->queue);
 
-	/* Otherwise, insertion sort */
+	/* Insertion sort */
 	while ((bn = TAILQ_NEXT(bq, bio_queue)) != NULL) {
 		
 		/*
@@ -233,12 +191,9 @@ bioq_disksort(bioq, bp)
 		 * of the first request list, or if the next request is a
 		 * larger cylinder than our request.
 		 */
-		if (bn == bioq->switch_point
-		 || bp->bio_offset < bn->bio_offset)
+		if (bp->bio_offset < bn->bio_offset)
 			break;
 		bq = bn;
 	}
 	TAILQ_INSERT_AFTER(&bioq->queue, bq, bp, bio_queue);
 }
-
-
