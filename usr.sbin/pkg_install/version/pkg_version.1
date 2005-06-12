@@ -32,7 +32,7 @@
 .Nd summarize installed versions of packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl hv
+.Op Fl hIv
 .Op Fl l Ar limchar
 .Op Fl L Ar limchar
 .Oo
@@ -118,6 +118,11 @@ utility supports several command-line arguments:
 .Bl -tag -width indent
 .It Fl h
 Print help message.
+.It Fl I
+Use only the index file for determining if a package is out of date.  
+This is much faster than using the version number from a port's 
+Makefile, at the expense of potentially giving an incorrect result if
+the index file is out of date.
 .It Fl l
 Limit the output to those packages whose status flag matches the
 character(s) in

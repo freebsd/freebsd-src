@@ -25,12 +25,13 @@ __FBSDID("$FreeBSD$");
 #include "version.h"
 #include <err.h>
 
-static char Options[] = "dhl:L:s:XtTv";
+static char Options[] = "dhIl:L:s:XtTv";
 
 char	*LimitChars = NULL;
 char	*PreventChars = NULL;
 char	*MatchName = NULL;
 Boolean RegexExtended = FALSE;
+Boolean UseINDEXOnly = FALSE;
 
 static void usage __P((void));
 
@@ -52,6 +53,10 @@ main(int argc, char **argv)
 	switch(ch) {
 	case 'v':
 	    Verbose = TRUE;
+	    break;
+
+	case 'I':
+	    UseINDEXOnly = TRUE;
 	    break;
 
 	case 'l':
@@ -96,7 +101,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: pkg_version [-hv] [-l limchar] [-L limchar] [[-X] -s string] index",
+	"usage: pkg_version [-hIv] [-l limchar] [-L limchar] [[-X] -s string] index",
 	"       pkg_version -t v1 v2",
 	"       pkg_version -T name pattern");
     exit(1);
