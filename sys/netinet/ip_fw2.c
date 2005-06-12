@@ -2332,14 +2332,14 @@ check_body:
 				break;
 
 			case O_IP_SRC:
-				match = (hlen > 0 &&
+				match = is_ipv4 && (hlen > 0 &&
 				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
 				    src_ip.s_addr);
 				break;
 
 			case O_IP_SRC_LOOKUP:
 			case O_IP_DST_LOOKUP:
-				if (hlen > 0) {
+				if (hlen > 0 && is_ipv4) {
 				    uint32_t a =
 					(cmd->opcode == O_IP_DST_LOOKUP) ?
 					    dst_ip.s_addr : src_ip.s_addr;
@@ -2356,7 +2356,7 @@ check_body:
 
 			case O_IP_SRC_MASK:
 			case O_IP_DST_MASK:
-				if (hlen > 0) {
+				if (hlen > 0 && is_ipv4) {
 				    uint32_t a =
 					(cmd->opcode == O_IP_DST_MASK) ?
 					    dst_ip.s_addr : src_ip.s_addr;
@@ -2369,7 +2369,7 @@ check_body:
 				break;
 
 			case O_IP_SRC_ME:
-				if (hlen > 0) {
+				if (hlen > 0 && is_ipv4) {
 					struct ifnet *tif;
 
 					INADDR_TO_IFP(src_ip, tif);
@@ -2379,7 +2379,7 @@ check_body:
 
 			case O_IP_DST_SET:
 			case O_IP_SRC_SET:
-				if (hlen > 0) {
+				if (hlen > 0 && is_ipv4) {
 					u_int32_t *d = (u_int32_t *)(cmd+1);
 					u_int32_t addr =
 					    cmd->opcode == O_IP_DST_SET ?
@@ -2396,13 +2396,13 @@ check_body:
 				break;
 
 			case O_IP_DST:
-				match = (hlen > 0 &&
+				match = is_ipv4 && (hlen > 0 &&
 				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
 				    dst_ip.s_addr);
 				break;
 
 			case O_IP_DST_ME:
-				if (hlen > 0) {
+				if (hlen > 0 && is_ipv4) {
 					struct ifnet *tif;
 
 					INADDR_TO_IFP(dst_ip, tif);
@@ -2605,14 +2605,16 @@ check_body:
 
 			case O_VERSRCREACH:
 				/* Outgoing packets automatically pass/match */
+				/* XXX: IPv6 missing!?! */
 				match = (hlen > 0 && ((oif != NULL) ||
-				     verify_path(src_ip, NULL)));
+				     (is_ipv4 && verify_path(src_ip, NULL))));
 				break;
 
 			case O_ANTISPOOF:
 				/* Outgoing packets automatically pass/match */
+				/* XXX: IPv6 missing!?! */
 				if (oif == NULL && hlen > 0 &&
-				    in_localaddr(src_ip))
+				    (is_ipv4 && in_localaddr(src_ip)))
 					match = verify_path(src_ip,
 							m->m_pkthdr.rcvif);
 				else
@@ -2834,7 +2836,8 @@ check_body:
 				 * if the packet is not ICMP (or is an ICMP
 				 * query), and it is not multicast/broadcast.
 				 */
-				if (hlen > 0 &&
+				/* XXX: IPv6 missing!?! */
+				if (hlen > 0 && is_ipv4 &&
 				    (proto != IPPROTO_ICMP ||
 				     is_icmp_query(ICMP(ulp))) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
