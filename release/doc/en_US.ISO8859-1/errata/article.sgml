@@ -94,14 +94,50 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-    <para>(22 May 2005) An information disclosure vulnerability has
-      been discovered in processors using Hyper-Threading Technology
-      (HTT).  For more information, as well as a patch that adds a
-      boot-time tunable variable that disables the use of HTT by
-      default, consult security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>.
-      </para>
+    <para>The following security advisories pertain to &os; &release.bugfix;.
+      For more information, consult the individual advisories.</para>
 
+    <informaltable frame="none">
+      <tgroup cols="2">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc"
+		>SA-05:09.htt</ulink></entry>
+	    <entry>22&nbsp;May&nbsp;2005</entry>
+	    <entry><para>information disclosure when using HTT</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:10.tcpdump.asc"
+		>SA-05:10.tcpdump</ulink></entry>
+	    <entry>9&nbsp;Jun&nbsp;2005</entry>
+	    <entry><para>Infinite loops in tcpdump protocol decoding</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc"
+		>SA-05:11.gzip</ulink></entry>
+	    <entry>9&nbsp;Jun&nbsp;2005</entry>
+	    <entry><para>gzip directory traversal and permission race vulnerabilities</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:12.bind9.asc"
+		>SA-05:12.bind9</ulink></entry>
+	    <entry>9&nbsp;Jun&nbsp;2005</entry>
+	    <entry><para>BIND 9 DNSSEC remote denial of service vulnerability</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
   </sect1>
 
   <sect1 id="open-issues">
