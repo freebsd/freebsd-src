@@ -241,6 +241,43 @@
       treated as an unprivileged user; if set to <literal>1</literal>, then
       a jailed root user is treated the same as an unjailed <username>root</username> user.  &merged;</para>
 
+    <para>A sysctl <varname>security.jail.getfsstatroot_only</varname> has been
+      renamed to <varname>security.jail.enforce_statfs</varname> and
+      now supports the following policies:</para>
+
+    <informaltable frame="none">
+      <tgroup cols="2">
+	<thead>
+	  <row>
+	    <entry>Value</entry>
+	    <entry>Policy</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry>0</entry>
+	    <entry>show all mount-points without any restrictions</entry>
+	  </row>
+
+	  <row>
+	    <entry>1</entry>
+	    <entry>show only mount-points below jail's chroot and show only part of the
+	      mount-point's path (if jail's chroot directory is
+	      <filename>/jails/foo</filename> and
+	      mount-point is
+	      <filename>/jails/foo/usr/home</filename>
+	      only <filename>/usr/home</filename> will be shown)</entry>
+	  </row>
+
+	  <row>
+	    <entry>2</entry>
+	    <entry>show only mount-point where jail's chroot directory is placed.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
+
     <para arch="alpha,amd64,i386,sparc64">The loader tunable <varname>debug.mpsafevm</varname>
       has been enabled by default.  &merged;</para>
 
@@ -249,6 +286,11 @@
       This must be explicitly enabled via <literal>options
       DEBUG_MEMGUARD</literal>, plus small kernel modifications.  It
       is generally intended for use by kernel developers.</para>
+
+    <para><varname>struct ifnet</varname> and network interface API
+      have been changed.  Due to ABI incompatibility, all drivers
+      not in the &os; base system need to be updated to use
+      the new API and recompiled.</para>
 
     <para>A number of bugs have been fixed in the ULE
       scheduler. &merged;</para>
@@ -376,12 +418,33 @@
       <para arch="i386,amd64">The &man.acpi.ibm.4; driver for IBM laptops
 	has been added.</para>
 
+      <para arch="i386,amd64">The &man.acpi.ibm.4; driver has been
+	improved to support hotkeys and reading fan status and thermal
+	sensors.</para>
+
       <para arch="i386,amd64">The &man.acpi.fujitsu.4; driver for handling
         &man.acpi.4;-controlled buttons Fujitsu laptops has been added.</para>
 
       <para arch="i386,amd64">The acpi_sony driver,
 	which supports the Sony Notebook Controller on various
 	Sony laptops has been added.</para>
+
+      <para>The &man.atkbdc.4;, &man.atkbd.4;, and &man.psm.4;
+	drivers have been rewritten in more bus-independent way,
+	and now support EBus found on sparc64 platform.</para>
+
+      <para arch="sparc64">The following device drivers have been
+	added and enabled by default:
+	&man.atkbdc.4;,
+	&man.atkbd.4;,
+	creator(4),
+	machfb(4),
+	&man.syscons.4;,
+	&man.ohci.4;,
+	&man.psm.4;,
+	&man.ukbd.4;,
+	&man.ums.4;,
+	and &man.usb.4;.</para>
 
       <para arch="sparc64">The &man.auxio.4; driver has been to drive
 	some auxiliary I/O functions found on various SBus/EBus
@@ -401,7 +464,7 @@
 	in the &man.acpi.4; driver.  These can individually be disabled by setting device
 	hints such as <varname>hint.<replaceable>ichss</replaceable>.0.disabled="1"</varname>.</para>
 
-      <para arch="amd64,i386">The &man.hwpmc.4; hardware performance
+      <para>The &man.hwpmc.4; hardware performance
 	monitoring counter driver has been added.
 	This driver virtualizes the hardware performance monitoring
 	facilities in modern CPUs and provides support for using
@@ -653,6 +716,9 @@
 
       <para>A new &man.ng.netflow.4; NetGraph node allows a router
 	running &os; to do NetFlow version 5 exports. &merged;</para>
+
+      <para>A new &man.ng.tcpmss.4; NetGraph node has been added.
+	This supports altering MSS options of TCP packets.</para>
 
       <para>The &man.sppp.4; driver now includes Frame Relay
 	support. &merged;</para>
@@ -1088,6 +1154,11 @@
     <para>A bug of the &man.rexecd.8; utility which results in
       it behaving as if the <option>-i</option> option is always
       specified has been fixed.  &merged;</para>
+
+    <para>The &man.rexecd.8; utility has been removed.
+      There are no rexec clients in the &os; tree, and the client
+      function &man.rexec.3; is present only in
+      <application>libcompat</application>.</para>
 
     <para>The &man.rm.1; utility now supports an <option>-I</option>
       option that asks for confirmation (once) if recursively
