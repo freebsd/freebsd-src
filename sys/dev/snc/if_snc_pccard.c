@@ -88,7 +88,7 @@ static int
 snc_pccard_detach(device_t dev)
 {
 	struct snc_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	if (sc->gone) {
 		device_printf(dev, "already unloaded\n");
