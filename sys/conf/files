@@ -291,8 +291,10 @@ crypto/blowfish/bf_skey.c	optional crypto
 crypto/blowfish/bf_skey.c	optional ipsec ipsec_esp
 crypto/des/des_ecb.c		optional crypto
 crypto/des/des_ecb.c		optional ipsec ipsec_esp
+crypto/des/des_ecb.c		optional netsmbcrypto
 crypto/des/des_setkey.c		optional crypto
 crypto/des/des_setkey.c		optional ipsec ipsec_esp
+crypto/des/des_setkey.c		optional netsmbcrypto
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption
 crypto/rijndael/rijndael-alg-fst.c optional crypto
 crypto/rijndael/rijndael-alg-fst.c optional geom_bde
