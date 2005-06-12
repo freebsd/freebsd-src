@@ -106,7 +106,6 @@ struct bio_queue_head {
 	TAILQ_HEAD(bio_queue, bio) queue;
 	off_t last_offset;
 	struct	bio *insert_point;
-	struct	bio *switch_point;
 };
 
 void biodone(struct bio *bp);
