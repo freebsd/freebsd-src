@@ -147,7 +147,7 @@ pkg_do(char *pkg)
      * latest version from there. If we fail, we start looking in the
      * INDEX, first matching the origin and then the package name.
      */
-    if (plist.origin != NULL) {
+    if (plist.origin != NULL && !UseINDEXOnly) {
 	snprintf(tmp, PATH_MAX, "%s/%s", PORTS_DIR, plist.origin);
 	if (isdir(tmp) && chdir(tmp) != FAIL && isfile("Makefile")) {
 	    if ((latest = vpipe("/usr/bin/make -V PKGNAME", tmp)) == NULL)

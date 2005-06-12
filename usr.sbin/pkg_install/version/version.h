@@ -41,6 +41,7 @@ extern char	*LimitChars;
 extern char	*PreventChars;
 extern char	*MatchName;
 extern Boolean	RegexExtended;
+extern Boolean	UseINDEXOnly;
 
 extern int	version_match(char *, const char *);
 
