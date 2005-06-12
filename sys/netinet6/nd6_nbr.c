@@ -51,6 +51,7 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
@@ -967,7 +968,7 @@ nd6_ifptomac(ifp)
 	case IFT_CARP:
 #endif
 	case IFT_ISO88025:
-		return ((caddr_t)(ifp + 1));
+		return IF_LLADDR(ifp);
 	default:
 		return NULL;
 	}
