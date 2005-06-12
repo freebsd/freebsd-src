@@ -409,23 +409,25 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	int error;
 
 	maxcount = bufsize / sizeof(struct statfs);
-	mtx_lock(&Giant);
-	mtx_lock(&mountlist_mtx);
 	if (bufsize == 0)
 		sfsp = NULL;
 	else if (bufseg == UIO_USERSPACE)
 		sfsp = *buf;
 	else /* if (bufseg == UIO_SYSSPACE) */ {
 		count = 0;
+		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH(mp, &mountlist, mnt_list) {
 			count++;
 		}
+		mtx_unlock(&mountlist_mtx);
 		if (maxcount > count)
 			maxcount = count;
 		sfsp = *buf = malloc(maxcount * sizeof(struct statfs), M_TEMP,
 		    M_WAITOK);
 	}
 	count = 0;
+	mtx_lock(&Giant);
+	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (prison_canseemount(td->td_ucred, mp) != 0) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
