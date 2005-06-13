@@ -599,7 +599,6 @@ void	vfs_rm_vnodeops(const void *);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
 int	vget(struct vnode *vp, int lockflag, struct thread *td);
 void	vgone(struct vnode *vp);
-void	vgonel(struct vnode *vp, struct thread *td);
 void	vhold(struct vnode *);
 void	vholdl(struct vnode *);
 int	vinvalbuf(struct vnode *vp, int save,
