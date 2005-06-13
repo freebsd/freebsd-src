@@ -271,6 +271,7 @@ cache_zap(ncp)
 	struct vnode *vp;
 
 	mtx_assert(&cache_lock, MA_OWNED);
+	CTR2(KTR_VFS, "cache_zap(%p) vp %p", ncp, ncp->nc_vp);
 	vp = NULL;
 	LIST_REMOVE(ncp, nc_hash);
 	LIST_REMOVE(ncp, nc_src);
@@ -357,6 +358,8 @@ retry:
 	if (cnp->cn_nameptr[0] == '.') {
 		if (cnp->cn_namelen == 1) {
 			*vpp = dvp;
+			CTR2(KTR_VFS, "cache_lookup(%p, %s) found via .",
+			    dvp, cnp->cn_nameptr);
 			dothits++;
 			goto success;
 		}
@@ -368,6 +371,8 @@ retry:
 				return (0);
 			}
 			*vpp = dvp->v_dd;
+			CTR3(KTR_VFS, "cache_lookup(%p, %s) found %p via ..",
+			    dvp, cnp->cn_nameptr, *vpp);
 			goto success;
 		}
 	}
@@ -407,6 +412,8 @@ retry:
 		numposhits++;
 		nchstats.ncs_goodhits++;
 		*vpp = ncp->nc_vp;
+		CTR4(KTR_VFS, "cache_lookup(%p, %s) found %p via ncp %p",
+		    dvp, cnp->cn_nameptr, *vpp, ncp);
 		goto success;
 	}
 
@@ -474,6 +481,7 @@ cache_enter(dvp, vp, cnp)
 	int zap;
 	int len;
 
+	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
 	VNASSERT(vp == NULL || (vp->v_iflag & VI_DOOMED) == 0, vp,
 	    ("cahe_enter: Adding a doomed vnode"));
 
@@ -571,6 +579,7 @@ cache_purge(vp)
 {
 	struct namecache *ncp;
 
+	CTR1(KTR_VFS, "cache_purge(%p)", vp);
 	CACHE_LOCK();
 	while (!LIST_EMPTY(&vp->v_cache_src)) {
 		struct vnode *cvp;
