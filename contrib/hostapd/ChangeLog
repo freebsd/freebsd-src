@@ -1,5 +1,19 @@
 ChangeLog for hostapd
 
+2005-06-10 - v0.3.9
+	* fixed a bug which caused some RSN pre-authentication cases to use
+	  freed memory and potentially crash hostapd
+	* fixed private key loading for cases where passphrase is not set
+	* fixed WPA2 to add PMKSA cache entry when using integrated EAP
+	  authenticator
+	* driver_madwifi: fixed pairwise key removal to allow WPA reauth
+	  without disassociation
+	* fixed RADIUS attribute Class processing to only use Access-Accept
+	  packets to update Class; previously, other RADIUS authentication
+	  packets could have cleared Class attribute
+	* fixed PMKSA caching (EAP authentication was not skipped correctly
+	  with the new state machine changes from IEEE 802.1X draft)
+
 2005-02-12 - v0.3.7 (beginning of 0.3.x stable releases)
 
 2005-01-23 - v0.3.5
