@@ -160,6 +160,17 @@ int eap_tls_data_reassemble(struct eap_sm *sm, struct eap_ssl_data *data,
 	u8 *buf;
 
 	if (data->tls_in_left > *in_len || data->tls_in) {
+		if (data->tls_in_len + *in_len == 0) {
+			free(data->tls_in);
+			data->tls_in = NULL;
+			data->tls_in_len = 0;
+			wpa_printf(MSG_WARNING, "SSL: Invalid reassembly "
+				   "state: tls_in_left=%d tls_in_len=%d "
+				   "*in_len=%d",
+				   data->tls_in_left, data->tls_in_len,
+				   *in_len);
+			return -1;
+		}
 		buf = realloc(data->tls_in, data->tls_in_len + *in_len);
 		if (buf == NULL) {
 			free(data->tls_in);

@@ -245,7 +245,7 @@ static int wpa_config_parse_proto(struct parse_data *data, int line,
 		return -1;
 	start = buf;
 
-	while (start != '\0') {
+	while (*start != '\0') {
 		while (*start == ' ' || *start == '\t')
 			start++;
 		if (*start == '\0')
@@ -295,7 +295,7 @@ static int wpa_config_parse_key_mgmt(struct parse_data *data, int line,
 		return -1;
 	start = buf;
 
-	while (start != '\0') {
+	while (*start != '\0') {
 		while (*start == ' ' || *start == '\t')
 			start++;
 		if (*start == '\0')
@@ -349,7 +349,7 @@ static int wpa_config_parse_cipher(int line, const char *value)
 		return -1;
 	start = buf;
 
-	while (start != '\0') {
+	while (*start != '\0') {
 		while (*start == ' ' || *start == '\t')
 			start++;
 		if (*start == '\0')
@@ -441,7 +441,7 @@ static int wpa_config_parse_auth_alg(struct parse_data *data, int line,
 		return -1;
 	start = buf;
 
-	while (start != '\0') {
+	while (*start != '\0') {
 		while (*start == ' ' || *start == '\t')
 			start++;
 		if (*start == '\0')
@@ -494,7 +494,7 @@ static int wpa_config_parse_eap(struct parse_data *data, int line,
 		return -1;
 	start = buf;
 
-	while (start != '\0') {
+	while (*start != '\0') {
 		while (*start == ' ' || *start == '\t')
 			start++;
 		if (*start == '\0')
