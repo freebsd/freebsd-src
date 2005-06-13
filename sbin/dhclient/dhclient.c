@@ -257,12 +257,15 @@ routehandler(struct protocol *p)
 			 * state and then wait for either a link down
 			 * notification or an associate event.
 			 */
-			script_init("EXPIRE", NULL);
-			script_write_params("old_", ifi->client->active);
-			if (ifi->client->alias)
-				script_write_params("alias_",
-					ifi->client->alias);
-			script_go();
+			if (ifi->client->active != NULL) {
+				script_init("EXPIRE", NULL);
+				script_write_params("old_",
+				    ifi->client->active);
+				if (ifi->client->alias)
+					script_write_params("alias_",
+						ifi->client->alias);
+				script_go();
+			}
 			ifi->client->state = S_INIT;
 			break;
 		}
