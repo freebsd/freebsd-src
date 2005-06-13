@@ -124,6 +124,8 @@ SM_STATE(AUTH_PAE, DISCONNECTED)
 	if (!from_initialize) {
 		if (sm->flags & EAPOL_SM_PREAUTH)
 			rsn_preauth_finished(sm->hapd, sm->sta, 0);
+		else
+			ieee802_1x_finished(sm->hapd, sm->sta, 0);
 	}
 }
 
@@ -174,6 +176,8 @@ SM_STATE(AUTH_PAE, HELD)
 		       HOSTAPD_LEVEL_WARNING, "authentication failed");
 	if (sm->flags & EAPOL_SM_PREAUTH)
 		rsn_preauth_finished(sm->hapd, sm->sta, 0);
+	else
+		ieee802_1x_finished(sm->hapd, sm->sta, 0);
 }
 
 
@@ -191,6 +195,8 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
 		       HOSTAPD_LEVEL_INFO, "authenticated");
 	if (sm->flags & EAPOL_SM_PREAUTH)
 		rsn_preauth_finished(sm->hapd, sm->sta, 1);
+	else
+		ieee802_1x_finished(sm->hapd, sm->sta, 1);
 }
 
 
@@ -759,22 +765,22 @@ restart:
 		prev_ctrl_dir = sm->ctrl_dir.state;
 
 		SM_STEP_RUN(AUTH_PAE);
-		if (!eapol_sm_sta_entry_alive(hapd, addr))
+		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
 			break;
 		SM_STEP_RUN(BE_AUTH);
-		if (!eapol_sm_sta_entry_alive(hapd, addr))
+		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
 			break;
 		SM_STEP_RUN(REAUTH_TIMER);
-		if (!eapol_sm_sta_entry_alive(hapd, addr))
+		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
 			break;
 		SM_STEP_RUN(AUTH_KEY_TX);
-		if (!eapol_sm_sta_entry_alive(hapd, addr))
+		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
 			break;
 		SM_STEP_RUN(KEY_RX);
-		if (!eapol_sm_sta_entry_alive(hapd, addr))
+		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
 			break;
 		SM_STEP_RUN(CTRL_DIR);
-		if (!eapol_sm_sta_entry_alive(hapd, addr))
+		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
 			break;
 	} while (prev_auth_pae != sm->auth_pae.state ||
 		 prev_be_auth != sm->be_auth.state ||
@@ -795,12 +801,14 @@ restart:
 
 void eapol_sm_initialize(struct eapol_state_machine *sm)
 {
+	sm->initializing = TRUE;
 	/* Initialize the state machines by asserting initialize and then
 	 * deasserting it after one step */
 	sm->initialize = TRUE;
 	eapol_sm_step(sm);
 	sm->initialize = FALSE;
 	eapol_sm_step(sm);
+	sm->initializing = FALSE;
 
 	/* Start one second tick for port timers state machine */
 	eloop_cancel_timeout(eapol_port_timers_tick, sm->hapd, sm);
