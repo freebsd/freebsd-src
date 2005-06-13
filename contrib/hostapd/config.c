@@ -597,7 +597,8 @@ static int hostapd_config_check(struct hostapd_config *conf)
 	}
 
 	if (conf->wpa && (conf->wpa_key_mgmt & WPA_KEY_MGMT_PSK) &&
-	    conf->wpa_psk == NULL && conf->wpa_passphrase == NULL) {
+	    conf->wpa_psk == NULL && conf->wpa_passphrase == NULL &&
+	    conf->wpa_psk_file == NULL) {
 		printf("WPA-PSK enabled, but PSK or passphrase is not "
 		       "configured.\n");
 		return -1;

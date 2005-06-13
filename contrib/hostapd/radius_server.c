@@ -325,6 +325,7 @@ static int radius_server_reject(struct radius_server_data *data,
 {
 	struct radius_msg *msg;
 	int ret = 0;
+	struct eap_hdr eapfail;
 
 	RADIUS_DEBUG("Reject invalid request from %s:%d",
 		     inet_ntoa(from->sin_addr), ntohs(from->sin_port));
@@ -334,6 +335,16 @@ static int radius_server_reject(struct radius_server_data *data,
 	if (msg == NULL) {
 		return -1;
 	}
+
+	memset(&eapfail, 0, sizeof(eapfail));
+	eapfail.code = EAP_CODE_FAILURE;
+	eapfail.identifier = 0;
+	eapfail.length = htons(sizeof(eapfail));
+
+	if (!radius_msg_add_eap(msg, (u8 *) &eapfail, sizeof(eapfail))) {
+		RADIUS_DEBUG("Failed to add EAP-Message attribute");
+	}
+
 
 	if (radius_msg_finish_srv(msg, (u8 *) client->shared_secret,
 				  client->shared_secret_len,
@@ -395,6 +406,7 @@ static int radius_server_request(struct radius_server_data *data,
 		sess = radius_server_get_new_session(data, client, msg);
 		if (sess == NULL) {
 			RADIUS_DEBUG("Could not create a new session");
+			radius_server_reject(data, client, msg, from);
 			return -1;
 		}
 	}

@@ -506,7 +506,7 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		rconf = hapd->conf->auth_server;
 	}
 
-	len = recv(sock, buf, sizeof(buf), 0);
+	len = recv(sock, buf, sizeof(buf), MSG_DONTWAIT);
 	if (len < 0) {
 		perror("recv[RADIUS]");
 		return;
