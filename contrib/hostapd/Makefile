@@ -228,6 +228,6 @@ hostapd_cli: hostapd_cli.o hostapd_ctrl.o
 	$(CC) -o hostapd_cli hostapd_cli.o hostapd_ctrl.o
 
 clean:
-	rm -f core *~ *.o hostapd *.d driver_conf.c
+	rm -f core *~ *.o hostapd hostapd_cli *.d driver_conf.c
 
 -include $(OBJS:%.o=%.d)

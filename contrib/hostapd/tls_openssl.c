@@ -489,9 +489,12 @@ int tls_global_private_key(void *_ssl_ctx, const char *private_key,
 	if (private_key == NULL)
 		return 0;
 
-	passwd = strdup(private_key_passwd);
-	if (passwd == NULL)
-		return -1;
+	if (private_key_passwd) {
+		passwd = strdup(private_key_passwd);
+		if (passwd == NULL)
+			return -1;
+	} else
+		passwd = NULL;
 
 	SSL_CTX_set_default_passwd_cb(ssl_ctx, tls_passwd_cb);
 	SSL_CTX_set_default_passwd_cb_userdata(ssl_ctx, passwd);
