@@ -1416,6 +1416,14 @@ void wpa_receive(struct hostapd_data *hapd, struct sta_info *sta,
 	key = (struct wpa_eapol_key *) (hdr + 1);
 	key_info = ntohs(key->key_info);
 	key_data_length = ntohs(key->key_data_length);
+	if (key_data_length > data_len - sizeof(*hdr) - sizeof(*key)) {
+		wpa_printf(MSG_INFO, "WPA: Invalid EAPOL-Key frame - "
+			   "key_data overflow (%d > %lu)",
+			   key_data_length,
+			   (unsigned long) (data_len - sizeof(*hdr) -
+					    sizeof(*key)));
+		return;
+	}
 
 	/* FIX: verify that the EAPOL-Key frame was encrypted if pairwise keys
 	 * are set */
