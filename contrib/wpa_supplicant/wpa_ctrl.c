@@ -93,8 +93,7 @@ struct wpa_ctrl * wpa_ctrl_open(const char *ctrl_path)
 	snprintf(ctrl->local.sun_path, sizeof(ctrl->local.sun_path) - 1,
 		 "/tmp/wpa_ctrl_%d-%d", getpid(), counter++);
 	if (bind(ctrl->s, (struct sockaddr *) &ctrl->local,
-		    sizeof(ctrl->local.sun_family) +
-		 strlen(ctrl->local.sun_path)) < 0) {
+		    sizeof(ctrl->local)) < 0) {
 		close(ctrl->s);
 		free(ctrl);
 		return NULL;
