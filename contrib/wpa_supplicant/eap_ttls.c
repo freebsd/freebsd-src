@@ -194,7 +194,7 @@ static int eap_ttls_encrypt(struct eap_sm *sm, struct eap_ttls_data *data,
 	 * add TLS Message Length field, if the frame is fragmented. */
 	resp = malloc(sizeof(struct eap_hdr) + 2 + data->ssl.tls_out_limit);
 	if (resp == NULL)
-		return 0;
+		return -1;
 
 	resp->code = EAP_CODE_RESPONSE;
 	resp->identifier = id;
@@ -210,7 +210,7 @@ static int eap_ttls_encrypt(struct eap_sm *sm, struct eap_ttls_data *data,
 		wpa_printf(MSG_INFO, "EAP-TTLS: Failed to encrypt Phase 2 "
 			   "data");
 		free(resp);
-		return 0;
+		return -1;
 	}
 
 	*out_len = sizeof(struct eap_hdr) + 2 + res;
@@ -265,6 +265,7 @@ static int eap_ttls_avp_encapsulate(u8 **resp, size_t *resp_len, u32 avp_code,
 	avp = malloc(sizeof(struct ttls_avp) + *resp_len + 4);
 	if (avp == NULL) {
 		free(*resp);
+		*resp = NULL;
 		*resp_len = 0;
 		return -1;
 	}
@@ -782,6 +783,13 @@ static int eap_ttls_decrypt(struct eap_sm *sm, struct eap_ttls_data *data,
 	if (data->pending_phase2_req) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS: Pending Phase 2 request - "
 			   "skip decryption and use old data");
+		/* Clear TLS reassembly state. */
+		free(data->ssl.tls_in);
+		data->ssl.tls_in = NULL;
+		data->ssl.tls_in_len = 0;
+		data->ssl.tls_in_left = 0;
+		data->ssl.tls_in_total = 0;
+
 		in_decrypted = data->pending_phase2_req;
 		data->pending_phase2_req = NULL;
 		len_decrypted = data->pending_phase2_req_len;
