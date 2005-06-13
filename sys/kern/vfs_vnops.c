@@ -821,6 +821,8 @@ debug_vn_lock(vp, flags, td, filename, line)
 		 */
 		error = VOP_LOCK(vp, flags | LK_INTERLOCK, td);
 		flags &= ~LK_INTERLOCK;
+		KASSERT((flags & LK_RETRY) == 0 || error == 0,
+		    ("LK_RETRY set with incompatible flags %d\n", flags));
 		/*
 		 * Callers specify LK_RETRY if they wish to get dead vnodes.
 		 * If RETRY is not set, we return ENOENT instead.
