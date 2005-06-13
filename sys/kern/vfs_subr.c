@@ -711,6 +711,7 @@ vdestroy(struct vnode *vp)
 {
 	struct bufobj *bo;
 
+	CTR1(KTR_VFS, "vdestroy vp %p", vp);
 	bo = &vp->v_bufobj;
 	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
 	    ("cleaned vnode still on the free list."));
@@ -1034,6 +1035,7 @@ int
 vinvalbuf(struct vnode *vp, int flags, struct thread *td, int slpflag, int slptimeo)
 {
 
+	CTR2(KTR_VFS, "vinvalbuf vp %p flags %d", vp, flags);
 	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
 	return (bufobj_invalbuf(&vp->v_bufobj, flags, td, slpflag, slptimeo));
 }
@@ -1111,6 +1113,7 @@ vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td, off_t length,
 	int trunclbn;
 	struct bufobj *bo;
 
+	CTR2(KTR_VFS, "vtruncbuf vp %p length %jd", vp, length);
 	/*
 	 * Round up to the *next* lbn.
 	 */
@@ -2790,6 +2793,7 @@ vfree(struct vnode *vp)
 static void
 vfreehead(struct vnode *vp)
 {
+	CTR1(KTR_VFS, "vfreehead vp %p", vp);
 	mtx_lock(&vnode_free_list_mtx);
 	if (vp->v_iflag & VI_FREE) {
 		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
