@@ -107,6 +107,22 @@
 ; Put URLs in footnotes, and put footnotes at the bottom of each page.
       (define bop-footnotes #t)
       (define %footnote-ulinks% #t)
+
+; disable (make page-footnote) in tgroup element temporarily.
+      (element ulink 
+	(make sequence
+	  (if (node-list-empty? (children (current-node)))
+	      (literal (attribute-string (normalize "url")))
+	      (make sequence
+		($charseq$)
+		(if %footnote-ulinks%
+		    (if (node-list-empty?
+			 (ancestor-member (current-node)
+					  (list (normalize "tgroup"))))
+			(next-match)
+			(make sequence
+			  (empty-sosofo)))
+		    (empty-sosofo))))))
     ]]>
 
     <![ %output.html; [
