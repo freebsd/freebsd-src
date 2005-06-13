@@ -644,7 +644,9 @@ bremfree(struct buf *bp)
 
 	CTR3(KTR_BUF, "bremfree(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	KASSERT(BUF_REFCNT(bp), ("bremfree: buf must be locked."));
-	KASSERT((bp->b_flags & B_REMFREE) == 0 && bp->b_qindex != QUEUE_NONE,
+	KASSERT((bp->b_flags & B_REMFREE) == 0,
+	    ("bremfree: buffer %p already marked for delayed removal.", bp));
+	KASSERT(bp->b_qindex != QUEUE_NONE,
 	    ("bremfree: buffer %p not on a queue.", bp));
 
 	bp->b_flags |= B_REMFREE;
