@@ -281,6 +281,7 @@ cache_zap(ncp)
 	}
 	if (ncp->nc_vp) {
 		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
+		ncp->nc_vp->v_dd = NULL;
 	} else {
 		TAILQ_REMOVE(&ncneg, ncp, nc_dst);
 		numneg--;
@@ -577,22 +578,11 @@ void
 cache_purge(vp)
 	struct vnode *vp;
 {
-	struct namecache *ncp;
 
 	CTR1(KTR_VFS, "cache_purge(%p)", vp);
 	CACHE_LOCK();
-	while (!LIST_EMPTY(&vp->v_cache_src)) {
-		struct vnode *cvp;
-
-		ncp = LIST_FIRST(&vp->v_cache_src);
-		/*
-		 * We must reset v_dd of any children so they don't
-		 * continue to point to us.
-		 */
-		if ((cvp = ncp->nc_vp) && cvp->v_dd == vp)
-			cvp->v_dd = NULL;
-		cache_zap(ncp);
-	}
+	while (!LIST_EMPTY(&vp->v_cache_src))
+		cache_zap(LIST_FIRST(&vp->v_cache_src));
 	while (!TAILQ_EMPTY(&vp->v_cache_dst))
 		cache_zap(TAILQ_FIRST(&vp->v_cache_dst));
 	vp->v_dd = NULL;
