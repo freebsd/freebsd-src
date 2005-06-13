@@ -309,6 +309,8 @@ BUF_UNLOCK(struct buf *bp)
 	int s;
 
 	s = splbio();
+	KASSERT((bp->b_flags & B_REMFREE) == 0,
+	    ("BUF_UNLOCK %p while B_REMFREE is still set.", bp));
 	lockmgr(&(bp)->b_lock, LK_RELEASE, NULL, curthread);
 	splx(s);
 }
