@@ -158,12 +158,14 @@ void get_master_key(const u8 *password_hash_hash, const u8 *nt_response,
 	};
 	const unsigned char *addr[3];
 	const size_t len[3] = { 16, 24, sizeof(magic1) };
+	u8 hash[SHA1_MAC_LEN];
 
 	addr[0] = password_hash_hash;
 	addr[1] = nt_response;
 	addr[2] = magic1;
 
-	sha1_vector(3, addr, len, master_key);
+	sha1_vector(3, addr, len, hash);
+	memcpy(master_key, hash, 16);
 }
 
 
