@@ -195,6 +195,8 @@ struct eapol_state_machine {
 	 */
 	u8 currentId;
 
+	Boolean initializing; /* in process of initializing state machines */
+
 	/* Somewhat nasty pointers to global hostapd and STA data to avoid
 	 * passing these to every function */
 	struct hostapd_data *hapd;
