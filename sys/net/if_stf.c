@@ -215,12 +215,14 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len)
 		return (err);
 
 	sc = malloc(sizeof(struct stf_softc), M_STF, M_WAITOK | M_ZERO);
-	ifp = sc->sc_ifp = if_alloc(IFT_STF);
+	ifp = STF2IFP(sc) = if_alloc(IFT_STF);
 	if (ifp == NULL) {
 		free(sc, M_STF);
 		ifc_free_unit(ifc, unit);
 		return (ENOSPC);
 	}
+	ifp->if_softc = sc;
+
 	/*
 	 * Set the name manually rather then using if_initname because
 	 * we don't conform to the default naming convention for interfaces.
