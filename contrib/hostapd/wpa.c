@@ -1414,6 +1414,14 @@ void wpa_receive(struct hostapd_data *hapd, struct sta_info *sta,
 	key = (struct wpa_eapol_key *) (hdr + 1);
 	key_info = ntohs(key->key_info);
 	key_data_length = ntohs(key->key_data_length);
+	if (key_data_length > data_len - sizeof(*hdr) - sizeof(*key)) {
+		wpa_printf(MSG_INFO, "WPA: Invalid EAPOL-Key frame - "
+			   "key_data overflow (%d > %lu)",
+			   key_data_length,
+			   (unsigned long) (data_len - sizeof(*hdr) -
+					    sizeof(*key)));
+		return;
+	}
 
 	/* FIX: verify that the EAPOL-Key frame was encrypted if pairwise keys
 	 * are set */
@@ -1943,20 +1951,6 @@ void wpa_sm_event(struct hostapd_data *hapd, struct sta_info *sta,
 	case WPA_REAUTH_EAPOL:
 		sm->ReAuthenticationRequest = TRUE;
 		break;
-	}
-
-	if ((event == WPA_ASSOC || event == WPA_REAUTH) &&
-	    sta->eapol_sm && sta->pmksa) {
-		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_WPA,
-			       HOSTAPD_LEVEL_DEBUG,
-			       "PMK from PMKSA cache - skip IEEE 802.1X/EAP");
-		/* Setup EAPOL state machines to already authenticated state
-		 * because of existing PMKSA information in the cache. */
-		sta->eapol_sm->keyRun = TRUE;
-		sta->eapol_sm->keyAvailable = TRUE;
-		sta->eapol_sm->auth_pae.state = AUTH_PAE_AUTHENTICATING;
-		sta->eapol_sm->be_auth.state = BE_AUTH_SUCCESS;
-		sta->eapol_sm->authSuccess = TRUE;
 	}
 
 	sm->PTK_valid = FALSE;

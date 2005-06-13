@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/uio.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -383,7 +384,8 @@ void hostapd_ctrl_iface_deinit(struct hostapd_data *hapd)
 			unlink(fname);
 		free(fname);
 
-		if (rmdir(hapd->conf->ctrl_interface) < 0) {
+		if (hapd->conf->ctrl_interface &&
+		    rmdir(hapd->conf->ctrl_interface) < 0) {
 			if (errno == ENOTEMPTY) {
 				wpa_printf(MSG_DEBUG, "Control interface "
 					   "directory not empty - leaving it "

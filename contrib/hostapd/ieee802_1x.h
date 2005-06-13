@@ -80,5 +80,7 @@ int ieee802_1x_get_mib(struct hostapd_data *hapd, char *buf, size_t buflen);
 int ieee802_1x_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
 			   char *buf, size_t buflen);
 void hostapd_get_ntp_timestamp(u8 *buf);
+void ieee802_1x_finished(struct hostapd_data *hapd, struct sta_info *sta,
+			 int success);
 
 #endif /* IEEE802_1X_H */
