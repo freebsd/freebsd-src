@@ -49,6 +49,7 @@ struct wpa_ptk {
 struct wpa_blacklist {
 	struct wpa_blacklist *next;
 	u8 bssid[ETH_ALEN];
+	int count;
 };
 
 
@@ -326,7 +327,7 @@ static inline int wpa_drv_set_wpa(struct wpa_supplicant *wpa_s, int enabled)
 	if (wpa_s->driver->set_wpa) {
 		return wpa_s->driver->set_wpa(wpa_s->drv_priv, enabled);
 	}
-	return -1;
+	return 0;
 }
 
 static inline int wpa_drv_associate(struct wpa_supplicant *wpa_s,

@@ -1035,6 +1035,7 @@ static void wpa_supplicant_process_1_of_4(struct wpa_supplicant *wpa_s,
 		if (hostapd_get_rand(wpa_s->snonce, WPA_NONCE_LEN)) {
 			wpa_msg(wpa_s, MSG_WARNING, "WPA: Failed to get "
 				"random data for SNonce");
+			free(rbuf);
 			return;
 		}
 		wpa_s->renew_snonce = 0;
@@ -1100,6 +1101,7 @@ static void wpa_supplicant_process_1_of_4(struct wpa_supplicant *wpa_s,
 				wpa_s->cur_pmksa = NULL;
 				abort_cached = 1;
 			} else {
+				free(rbuf);
 				return;
 			}
 		}
@@ -1110,6 +1112,7 @@ static void wpa_supplicant_process_1_of_4(struct wpa_supplicant *wpa_s,
 			   "been received from the external IEEE "
 			   "802.1X Supplicant - ignoring WPA "
 			   "EAPOL-Key frame");
+		free(rbuf);
 		return;
 #endif /* CONFIG_XSUPPLICANT_IFACE */
 	}
@@ -1120,6 +1123,7 @@ static void wpa_supplicant_process_1_of_4(struct wpa_supplicant *wpa_s,
 			   "full EAP authenication");
 		wpa_eapol_send(wpa_s, IEEE802_1X_TYPE_EAPOL_START,
 			       (u8 *) "", 0);
+		free(rbuf);
 		return;
 	}
 
@@ -1963,8 +1967,9 @@ static void wpa_sm_rx_eapol(struct wpa_supplicant *wpa_s,
 
 	if (be_to_host16(key->key_data_length) > extra_len) {
 		wpa_msg(wpa_s, MSG_INFO, "WPA: Invalid EAPOL-Key frame - "
-			"key_data overflow (%d > %d)",
-			be_to_host16(key->key_data_length), extra_len);
+			"key_data overflow (%d > %lu)",
+			be_to_host16(key->key_data_length),
+			(unsigned long) extra_len);
 		return;
 	}
 
@@ -2008,6 +2013,12 @@ void wpa_supplicant_rx_eapol(void *ctx, unsigned char *src_addr,
 
 	wpa_printf(MSG_DEBUG, "RX EAPOL from " MACSTR, MAC2STR(src_addr));
 	wpa_hexdump(MSG_MSGDUMP, "RX EAPOL", buf, len);
+
+	if (wpa_s->key_mgmt == WPA_KEY_MGMT_NONE) {
+		wpa_printf(MSG_DEBUG, "Ignored received EAPOL frame since "
+			   "no key management is configured");
+		return;
+	}
 
 	if (wpa_s->eapol_received == 0) {
 		/* Timeout for completing IEEE 802.1X and WPA authentication */
@@ -2252,6 +2263,7 @@ int rsn_preauth_init(struct wpa_supplicant *wpa_s, u8 *dst)
 	}
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->ctx = wpa_s;
+	ctx->msg_ctx = wpa_s;
 	ctx->preauth = 1;
 	ctx->cb = rsn_preauth_eapol_cb;
 	ctx->cb_ctx = wpa_s;

@@ -248,8 +248,9 @@ static int wpa_supplicant_ctrl_iface_ctrl_rsp(struct wpa_supplicant *wpa_s,
 		return -1;
 	*pos++ = '\0';
 	id = atoi(id_pos);
-	wpa_printf(MSG_DEBUG, "CTRL_IFACE: field=%s id=%d value='%s'",
-		   rsp, id, pos);
+	wpa_printf(MSG_DEBUG, "CTRL_IFACE: field=%s id=%d", rsp, id);
+	wpa_hexdump_ascii_key(MSG_DEBUG, "CTRL_IFACE: value",
+			      (u8 *) pos, strlen(pos));
 
 	ssid = wpa_s->conf->ssid;
 	while (ssid) {
@@ -606,6 +607,16 @@ void wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s)
 	if (wpa_s->ctrl_sock > -1) {
 		char *fname;
 		eloop_unregister_read_sock(wpa_s->ctrl_sock);
+		if (wpa_s->ctrl_dst) {
+			/*
+			 * Wait a second before closing the control socket if
+			 * there are any attached monitors in order to allow
+			 * them to receive any pending messages.
+			 */
+			wpa_printf(MSG_DEBUG, "CTRL_IFACE wait for attached "
+				   "monitors to receive messages");
+			sleep(1);
+		}
 		close(wpa_s->ctrl_sock);
 		wpa_s->ctrl_sock = -1;
 		fname = wpa_supplicant_ctrl_iface_path(wpa_s);

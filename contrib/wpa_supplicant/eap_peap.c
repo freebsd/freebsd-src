@@ -380,6 +380,12 @@ static int eap_peap_decrypt(struct eap_sm *sm,
 	if (data->pending_phase2_req) {
 		wpa_printf(MSG_DEBUG, "EAP-PEAP: Pending Phase 2 request - "
 			   "skip decryption and use old data");
+		/* Clear TLS reassembly state. */
+		free(data->ssl.tls_in);
+		data->ssl.tls_in = NULL;
+		data->ssl.tls_in_len = 0;
+		data->ssl.tls_in_left = 0;
+		data->ssl.tls_in_total = 0;
 		in_decrypted = data->pending_phase2_req;
 		data->pending_phase2_req = NULL;
 		len_decrypted = data->pending_phase2_req_len;
@@ -390,6 +396,19 @@ static int eap_peap_decrypt(struct eap_sm *sm,
 	res = eap_tls_data_reassemble(sm, &data->ssl, &in_data, &in_len);
 	if (res < 0 || res == 1)
 		return res;
+
+	if (in_len == 0 && sm->workaround && data->phase2_success) {
+		/*
+		 * Cisco ACS seems to be using TLS ACK to terminate
+		 * EAP-PEAPv0/GTC. Try to reply with TLS ACK.
+		 */
+		wpa_printf(MSG_DEBUG, "EAP-PEAP: Received TLS ACK, but "
+			   "expected data - acknowledge with TLS ACK since "
+			   "Phase 2 has been completed");
+		ret->decision = DECISION_COND_SUCC;
+		ret->methodState = METHOD_DONE;
+		return 1;
+	}
 
 	buf_len = in_len;
 	if (data->ssl.tls_in_total > buf_len)
@@ -713,6 +732,25 @@ static u8 * eap_peap_process(struct eap_sm *sm, void *priv,
 				wpa_printf(MSG_DEBUG, "EAP-PEAP: Failed to "
 					   "derive key");
 			}
+
+			if (sm->workaround && data->peap_version == 1 &&
+			    data->resuming) {
+				/*
+				 * At least one RADIUS server (Aegis v1.1.6;
+				 * but not v1.1.4) seems to be terminating
+				 * PEAPv1 session resumption with outer
+				 * EAP-Success. This does not seem to follow
+				 * draft-josefsson-pppext-eap-tls-eap-05.txt
+				 * section 4.2, so only allow this if EAP
+				 * workarounds are enabled.
+				 */
+				wpa_printf(MSG_DEBUG, "EAP-PEAP: Workaround - "
+					   "allow outer EAP-Success to "
+					   "terminate PEAPv1 resumption");
+				ret->decision = DECISION_COND_SUCC;
+				data->phase2_success = 1;
+			}
+
 			data->resuming = 0;
 		}
 	}
