@@ -97,6 +97,7 @@ static void	vfree(struct vnode *);
 static void	vfreehead(struct vnode *);
 static void	vnlru_free(int);
 static void	vdestroy(struct vnode *);
+static void	vgonel(struct vnode *, int);
 
 /*
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
@@ -790,8 +791,7 @@ vtryrecycle(struct vnode *vp)
 		goto err;
 	}
 	if ((vp->v_iflag & VI_DOOMED) == 0) {
-		vp->v_iflag |= VI_DOOMED;
-		vgonel(vp, td);
+		vgonel(vp, 0);
 		VI_LOCK(vp);
 	}
 	/*
@@ -2148,12 +2148,14 @@ loop:
 			}
 		} else
 			VI_LOCK(vp);
+		KASSERT((vp->v_iflag & VI_DOOMED) == 0,
+		    ("vflush: Found doomed vnode %p on the mount list.", vp));
 		/*
 		 * With v_usecount == 0, all we need to do is clear out the
 		 * vnode data structures and we are done.
 		 */
 		if (vp->v_usecount == 0) {
-			vgonel(vp, td);
+			vgonel(vp, 1);
 			VOP_UNLOCK(vp, 0, td);
 			MNT_ILOCK(mp);
 			continue;
@@ -2166,7 +2168,7 @@ loop:
 		if (flags & FORCECLOSE) {
 			VNASSERT(vp->v_type != VCHR && vp->v_type != VBLK, vp,
 			    ("device VNODE %p is FORCECLOSED", vp));
-			vgonel(vp, td);
+			vgonel(vp, 1);
 			VOP_UNLOCK(vp, 0, td);
 			MNT_ILOCK(mp);
 			continue;
@@ -2238,7 +2240,7 @@ vrecycle(struct vnode *vp, struct thread *td)
 	ASSERT_VOP_LOCKED(vp, "vrecycle");
 	VI_LOCK(vp);
 	if (vp->v_usecount == 0 && (vp->v_iflag & VI_DOOMED) == 0) {
-		vgonel(vp, td);
+		vgonel(vp, 1);
 		return (1);
 	}
 	VI_UNLOCK(vp);
@@ -2252,34 +2254,31 @@ vrecycle(struct vnode *vp, struct thread *td)
 void
 vgone(struct vnode *vp)
 {
-	struct thread *td = curthread;	/* XXX */
-	ASSERT_VOP_LOCKED(vp, "vgone");
-
-	/*
-	 * Don't vgonel if we're already doomed.
-	 */
 	VI_LOCK(vp);
-	if (vp->v_iflag & VI_DOOMED) {
-		VI_UNLOCK(vp);
-		return;
-	}
-	vgonel(vp, td);
+	vgonel(vp, 1);
 }
 
 /*
  * vgone, with the vp interlock held.
  */
 void
-vgonel(struct vnode *vp, struct thread *td)
+vgonel(struct vnode *vp, int shouldfree)
 {
+	struct thread *td;
 	int oweinact;
 	int active;
-	int doomed;
 
 	CTR1(KTR_VFS, "vgonel: vp %p", vp);
 	ASSERT_VOP_LOCKED(vp, "vgonel");
 	ASSERT_VI_LOCKED(vp, "vgonel");
 
+	/*
+	 * Don't vgonel if we're already doomed.
+	 */
+	if (vp->v_iflag & VI_DOOMED) {
+		VI_UNLOCK(vp);
+		return;
+	}
 	/*
 	 * Check to see if the vnode is in use. If so we have to reference it
 	 * before we clean it out so that its count cannot fall to zero and
@@ -2287,14 +2286,9 @@ vgonel(struct vnode *vp, struct thread *td)
 	 */
 	if ((active = vp->v_usecount))
 		v_incr_usecount(vp, 1);
-
-	/*
-	 * See if we're already doomed, if so, this is coming from a
-	 * successful vtryrecycle();
-	 */
-	doomed = (vp->v_iflag & VI_DOOMED);
 	vp->v_iflag |= VI_DOOMED;
 	oweinact = (vp->v_iflag & VI_OWEINACT);
+	td = curthread;
 	VI_UNLOCK(vp);
 
 	/*
@@ -2345,18 +2339,7 @@ vgonel(struct vnode *vp, struct thread *td)
 	vp->v_op = &dead_vnodeops;
 	vp->v_tag = "none";
 	vp->v_type = VBAD;
-
-	/*
-	 * If it is on the freelist and not already at the head,
-	 * move it to the head of the list. The test of the
-	 * VDOOMED flag and the reference count of zero is because
-	 * it will be removed from the free list by vnlru_free,
-	 * but will not have its reference count incremented until
-	 * after calling vgone. If the reference count were
-	 * incremented first, vgone would (incorrectly) try to
-	 * close the previous instance of the underlying object.
-	 */
-	if (vp->v_holdcnt == 0 && !doomed)
+	if (vp->v_holdcnt == 0 && shouldfree)
 		vfreehead(vp);
 	VI_UNLOCK(vp);
 }
