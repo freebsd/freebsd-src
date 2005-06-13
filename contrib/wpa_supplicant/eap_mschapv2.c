@@ -126,8 +126,8 @@ static u8 * eap_mschapv2_challenge(struct eap_sm *sm,
 {
 	struct wpa_ssid *config = eap_get_config(sm);
 	u8 *challenge, *peer_challenge, *username, *pos;
-	int challenge_len, i, ms_len;
-	size_t len, username_len;
+	int i, ms_len;
+	size_t len, challenge_len, username_len;
 	struct eap_mschapv2_hdr *resp;
 	u8 password_hash[16], password_hash_hash[16];
 
@@ -155,10 +155,12 @@ static u8 * eap_mschapv2_challenge(struct eap_sm *sm,
 		return NULL;
 	}
 
-	if (len - challenge_len - 10 < 0) {
+	if (len < 10 || len - 10 < challenge_len) {
 		wpa_printf(MSG_INFO, "EAP-MSCHAPV2: Too short challenge"
 			   " packet: len=%lu challenge_len=%d",
 			   (unsigned long) len, challenge_len);
+		ret->ignore = TRUE;
+		return NULL;
 	}
 
 	challenge = pos;
@@ -469,7 +471,8 @@ static u8 * eap_mschapv2_process(struct eap_sm *sm, void *priv,
 
 	req = (struct eap_mschapv2_hdr *) reqData;
 	len = be_to_host16(req->length);
-	if (len < sizeof(*req) + 2 || req->type != EAP_TYPE_MSCHAPV2) {
+	if (len < sizeof(*req) + 2 || req->type != EAP_TYPE_MSCHAPV2 ||
+	    len > reqDataLen) {
 		wpa_printf(MSG_INFO, "EAP-MSCHAPV2: Invalid frame");
 		ret->ignore = TRUE;
 		return NULL;
