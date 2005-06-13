@@ -1157,6 +1157,7 @@ ieee802_1x_receive_auth(struct radius_msg *msg, struct radius_msg *req,
 					session_timeout_set ?
 					session_timeout : -1);
 		}
+		ieee802_1x_store_radius_class(hapd, sta, msg);
 		break;
 	case RADIUS_CODE_ACCESS_REJECT:
 		sm->eapFail = TRUE;
@@ -1180,7 +1181,6 @@ ieee802_1x_receive_auth(struct radius_msg *msg, struct radius_msg *req,
 		break;
 	}
 
-	ieee802_1x_store_radius_class(hapd, sta, msg);
 	ieee802_1x_decapsulate_radius(hapd, sta);
 	if (override_eapReq)
 		sm->be_auth.eapReq = FALSE;
@@ -1669,6 +1669,7 @@ int ieee802_1x_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
 	return len;
 }
 
+
 void ieee802_1x_finished(struct hostapd_data *hapd, struct sta_info *sta,
 			 int success)
 {
@@ -1682,4 +1683,3 @@ void ieee802_1x_finished(struct hostapd_data *hapd, struct sta_info *sta,
 		pmksa_cache_add(hapd, sta, key, dot11RSNAConfigPMKLifetime);
 	}
 }
-
