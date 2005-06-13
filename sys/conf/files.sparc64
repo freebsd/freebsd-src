@@ -8,10 +8,11 @@
 # dependency lines other than the first are silently ignored.
 #
 
-crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
-crypto/des/des_enc.c		optional	ipsec ipsec_esp
 crypto/blowfish/bf_enc.c	optional	crypto
+crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	crypto
+crypto/des/des_enc.c		optional	ipsec ipsec_esp
+crypto/des/des_enc.c		optional	netsmbcrypto
 dev/auxio/auxio.c		optional	auxio sbus
 dev/auxio/auxio.c		optional	auxio ebus
 dev/esp/esp_sbus.c		optional	esp sbus

@@ -106,11 +106,9 @@ amd64/pci/pci_bus.c		optional	pci
 amd64/pci/pci_cfgreg.c		optional	pci
 crypto/blowfish/bf_enc.c	optional	crypto
 crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
-crypto/des/des_ecb.c		optional	netsmbcrypto
 crypto/des/des_enc.c		optional	crypto
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	netsmbcrypto
-crypto/des/des_setkey.c		optional	netsmbcrypto
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga

@@ -70,6 +70,7 @@ powerpc/powerpc/db_trace.c	optional	ddb
 
 crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
+crypto/des/des_enc.c		optional	netsmbcrypto
 
 dev/ofw/openfirm.c		standard
 dev/ofw/ofw_bus_if.m		standard

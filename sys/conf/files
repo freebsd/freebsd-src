@@ -244,7 +244,9 @@ crypto/blowfish/bf_ecb.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_skey.c	optional ipsec ipsec_esp
 crypto/cast128/cast128.c	optional ipsec ipsec_esp
 crypto/des/des_ecb.c	optional ipsec ipsec_esp
+crypto/des/des_ecb.c		optional netsmbcrypto
 crypto/des/des_setkey.c	optional ipsec ipsec_esp
+crypto/des/des_setkey.c		optional netsmbcrypto
 crypto/rijndael/rijndael-alg-fst.c	optional ipsec
 crypto/rijndael/rijndael-api.c	optional ipsec
 opencrypto/rmd160.c	optional ipsec
