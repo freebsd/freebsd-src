@@ -360,18 +360,19 @@ void wpa_supplicant_notify_eapol_done(void *ctx)
 }
 
 
-static int wpa_blacklisted(struct wpa_supplicant *wpa_s, const u8 *bssid)
+static struct wpa_blacklist *
+wpa_blacklist_get(struct wpa_supplicant *wpa_s, const u8 *bssid)
 {
 	struct wpa_blacklist *e;
 
 	e = wpa_s->blacklist;
 	while (e) {
 		if (memcmp(e->bssid, bssid, ETH_ALEN) == 0)
-		    return 1;
+			return e;
 		e = e->next;
 	}
 
-	return 0;
+	return NULL;
 }
 
 
@@ -379,14 +380,21 @@ static int wpa_blacklist_add(struct wpa_supplicant *wpa_s, const u8 *bssid)
 {
 	struct wpa_blacklist *e;
 
-	if (wpa_blacklisted(wpa_s, bssid))
+	e = wpa_blacklist_get(wpa_s, bssid);
+	if (e) {
+		e->count++;
+		wpa_printf(MSG_DEBUG, "BSSID " MACSTR " blacklist count "
+			   "incremented to %d",
+			   MAC2STR(bssid), e->count);
 		return 0;
+	}
 
 	e = malloc(sizeof(*e));
 	if (e == NULL)
 		return -1;
 	memset(e, 0, sizeof(*e));
 	memcpy(e->bssid, bssid, ETH_ALEN);
+	e->count = 1;
 	e->next = wpa_s->blacklist;
 	wpa_s->blacklist = e;
 	wpa_printf(MSG_DEBUG, "Added BSSID " MACSTR " into blacklist",
@@ -1341,6 +1349,18 @@ static int wpa_supplicant_set_suites(struct wpa_supplicant *wpa_s,
 		return -1;
 	}
 	wpa_hexdump(MSG_DEBUG, "WPA: Own WPA IE", wpa_ie, *wpa_ie_len);
+	if (wpa_s->assoc_wpa_ie == NULL) {
+		/*
+		 * Make a copy of the WPA/RSN IE so that 4-Way Handshake gets
+		 * the correct version of the IE even if PMKSA caching is
+		 * aborted (which would remove PMKID from IE generation).
+		 */
+		wpa_s->assoc_wpa_ie = malloc(*wpa_ie_len);
+		if (wpa_s->assoc_wpa_ie) {
+			memcpy(wpa_s->assoc_wpa_ie, wpa_ie, *wpa_ie_len);
+			wpa_s->assoc_wpa_ie_len = *wpa_ie_len;
+		}
+	}
 
 	if (ssid->key_mgmt & WPA_KEY_MGMT_PSK) {
 		wpa_s->pmk_len = PMK_LEN;
@@ -1651,6 +1671,7 @@ wpa_supplicant_select_bss(struct wpa_supplicant *wpa_s, struct wpa_ssid *group,
 	struct wpa_ssid *ssid;
 	struct wpa_scan_result *bss, *selected = NULL;
 	int i;
+	struct wpa_blacklist *e;
 
 	wpa_printf(MSG_DEBUG, "Selecting BSS from priority group %d",
 		   group->priority);
@@ -1666,7 +1687,8 @@ wpa_supplicant_select_bss(struct wpa_supplicant *wpa_s, struct wpa_ssid *group,
 			   wpa_ssid_txt(bss->ssid, bss->ssid_len),
 			   (unsigned long) bss->wpa_ie_len,
 			   (unsigned long) bss->rsn_ie_len);
-		if (wpa_blacklisted(wpa_s, bss->bssid)) {
+		if ((e = wpa_blacklist_get(wpa_s, bss->bssid)) &&
+		    e->count > 1) {
 			wpa_printf(MSG_DEBUG, "   skip - blacklisted");
 			continue;
 		}
@@ -1733,7 +1755,8 @@ wpa_supplicant_select_bss(struct wpa_supplicant *wpa_s, struct wpa_ssid *group,
 	 * allows this. */
 	for (i = 0; i < num && !selected; i++) {
 		bss = &results[i];
-		if (wpa_blacklisted(wpa_s, bss->bssid)) {
+		if ((e = wpa_blacklist_get(wpa_s, bss->bssid)) &&
+		    e->count > 1) {
 			continue;
 		}
 		for (ssid = group; ssid; ssid = ssid->pnext) {
@@ -2088,7 +2111,8 @@ static void usage(void)
 	       "usage:\n"
 	       "  wpa_supplicant [-BddehLqqvw] -i<ifname> -c<config file> "
 	       "[-D<driver>] \\\n"
-	       "      [-N -i<ifname> -c<conf> [-D<driver>] ...]\n"
+	       "      [-P<pid file>] "
+	       "[-N -i<ifname> -c<conf> [-D<driver>] ...]\n"
 	       "\n"
 	       "drivers:\n",
 	       wpa_supplicant_version, wpa_supplicant_license);
@@ -2135,6 +2159,7 @@ static struct wpa_supplicant * wpa_supplicant_alloc(void)
 	if (wpa_s == NULL)
 		return NULL;
 	memset(wpa_s, 0, sizeof(*wpa_s));
+	wpa_s->ctrl_sock = -1;
 #ifdef CONFIG_XSUPPLICANT_IFACE
 	wpa_s->dot1x_s = -1;
 #endif /* CONFIG_XSUPPLICANT_IFACE */
@@ -2279,6 +2304,7 @@ static void wpa_supplicant_deinit(struct wpa_supplicant *wpa_s)
 
 		wpa_drv_set_drop_unencrypted(wpa_s, 0);
 		wpa_drv_set_countermeasures(wpa_s, 0);
+		wpa_clear_keys(wpa_s, NULL);
 
 		wpa_drv_deinit(wpa_s);
 	}
@@ -2291,6 +2317,7 @@ int main(int argc, char *argv[])
 	struct wpa_supplicant *head, *wpa_s;
 	int c;
 	const char *confname, *driver, *ifname;
+	char *pid_file = NULL;
 	int daemonize = 0, wait_for_interface = 0, disable_eapol = 0, exitcode;
 
 #ifdef CONFIG_NATIVE_WINDOWS
@@ -2312,7 +2339,7 @@ int main(int argc, char *argv[])
 	ifname = confname = driver = NULL;
 
 	for (;;) {
-		c = getopt(argc, argv, "Bc:D:dehi:KLNqtvw");
+		c = getopt(argc, argv, "Bc:D:dehi:KLNP:qtvw");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -2347,6 +2374,9 @@ int main(int argc, char *argv[])
 		case 'L':
 			license();
 			return -1;
+		case 'P':
+			pid_file = rel2abs_path(optarg);
+			break;
 		case 'q':
 			wpa_debug_level++;
 			break;
@@ -2407,6 +2437,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (pid_file) {
+		FILE *f = fopen(pid_file, "w");
+		if (f) {
+			fprintf(f, "%u\n", getpid());
+			fclose(f);
+		}
+	}
+
 	eloop_register_signal(SIGINT, wpa_supplicant_terminate, NULL);
 	eloop_register_signal(SIGTERM, wpa_supplicant_terminate, NULL);
 #ifndef CONFIG_NATIVE_WINDOWS
@@ -2430,6 +2468,11 @@ cleanup:
 	}
 
 	eloop_destroy();
+
+	if (pid_file) {
+		unlink(pid_file);
+		free(pid_file);
+	}
 
 #ifdef CONFIG_NATIVE_WINDOWS
 	WSACleanup();

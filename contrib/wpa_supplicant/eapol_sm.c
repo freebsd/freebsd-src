@@ -194,9 +194,8 @@ static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
 		   "heldWhile=%d startWhen=%d idleWhile=%d",
 		   sm->authWhile, sm->heldWhile, sm->startWhen, sm->idleWhile);
 
-	eapol_sm_step(sm);
-
 	eloop_register_timeout(1, 0, eapol_port_timers_tick, eloop_ctx, sm);
+	eapol_sm_step(sm);
 }
 
 
