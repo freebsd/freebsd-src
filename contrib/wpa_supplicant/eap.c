@@ -458,19 +458,27 @@ SM_STATE(EAP, FAILURE)
 
 static int eap_success_workaround(struct eap_sm *sm, int reqId, int lastId)
 {
-	/* At least Microsoft IAS and Meetinghouse Aegis seem to be sending
+	/*
+	 * At least Microsoft IAS and Meetinghouse Aegis seem to be sending
 	 * EAP-Success/Failure with lastId + 1 even though RFC 3748 and
 	 * draft-ietf-eap-statemachine-05.pdf require that reqId == lastId.
+	 * In addition, it looks like Ringmaster v2.1.2.0 would be using
+	 * lastId + 2 in EAP-Success.
+	 *
 	 * Accept this kind of Id if EAP workarounds are enabled. These are
 	 * unauthenticated plaintext messages, so this should have minimal
-	 * security implications (bit easier to fake EAP-Success/Failure). */
-	if (sm->workaround && reqId == ((lastId + 1) & 0xff)) {
+	 * security implications (bit easier to fake EAP-Success/Failure).
+	 */
+	if (sm->workaround && (reqId == ((lastId + 1) & 0xff) ||
+			       reqId == ((lastId + 2) & 0xff))) {
 		wpa_printf(MSG_DEBUG, "EAP: Workaround for unexpected "
 			   "identifier field in EAP Success: "
 			   "reqId=%d lastId=%d (these are supposed to be "
 			   "same)", reqId, lastId);
 		return 1;
 	}
+	wpa_printf(MSG_DEBUG, "EAP: EAP-Success Id mismatch - reqId=%d "
+		   "lastId=%d", reqId, lastId);
 	return 0;
 }
 

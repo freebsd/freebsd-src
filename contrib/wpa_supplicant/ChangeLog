@@ -1,5 +1,28 @@
 ChangeLog for wpa_supplicant
 
+2005-06-10 - v0.3.9
+	* modified the EAP workaround that accepts EAP-Success with incorrect
+	  Identifier to be even less strict about verification in order to
+	  interoperate with some authentication servers
+	* fixed RSN IE in 4-Way Handshake message 2/4 for the case where
+	  Authenticator rejects PMKSA caching attempt and the driver is not
+	  using assoc_info events
+	* fixed a possible double free in EAP-TTLS fast-reauthentication when
+	  identity or password is entered through control interface
+	* added -P<pid file> argument for wpa_supplicant to write the current
+	  process id into a file
+	* driver_madwifi: fixed association in plaintext mode
+	* driver_madwifi: added preliminary support for compiling against 'BSD'
+	  branch of madwifi CVS tree
+	* added EAP workaround for PEAPv1 session resumption: allow outer,
+	  i.e., not tunneled, EAP-Success to terminate session since; this can
+	  be disabled with eap_workaround=0
+	* driver_ipw: updated driver structures to match with ipw2200-1.0.4
+	  (note: ipw2100-1.1.0 is likely to require an update to work with
+	  this)
+	* driver_broadcom: fixed couple of memory leaks in scan result
+	  processing
+
 2005-02-13 - v0.3.8
 	* fixed EAPOL-Key validation to drop packets with invalid Key Data
 	  Length; such frames could have crashed wpa_supplicant due to buffer
