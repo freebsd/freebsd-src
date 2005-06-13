@@ -108,10 +108,10 @@ build_access_request(struct rad_handle *radh, const char *user,
 	}
 	if (nas_ipaddr != NULL) {
 		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = PF_INET;
+		hints.ai_family = AF_INET;
 		if (getaddrinfo(nas_ipaddr, NULL, &hints, &res) == 0 &&
-		    res != NULL) {
-			(struct sockaddr *)haddr = res->ai_addr;
+		    res != NULL && res->ai_family == AF_INET) {
+			haddr = (struct sockaddr_in *)res->ai_addr;
 			error = rad_put_addr(radh, RAD_NAS_IP_ADDRESS,
 			    haddr->sin_addr);
 			freeaddrinfo(res);
