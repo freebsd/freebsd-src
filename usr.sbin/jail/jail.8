@@ -413,21 +413,18 @@ Just add the following line to
 .Dl security.jail.set_hostname_allowed=0
 .Pp
 You can also list/kill processes based on their jail ID.
-To show processes and their jail ID use the following command:
+To show processes and their jail ID, use the following command:
 .Pp
-.Bd -literal -offset indent
-ps ax -o pid,jid,args
-.Ed
+.Dl "ps ax -o pid,jid,args"
 .Pp
 To show and then kill processes in jail number 3 use the following commands:
-.Pp
 .Bd -literal -offset indent
 pgrep -lfj 3
 pkill -j 3
-or:
-killall -j 3
 .Ed
+or:
 .Pp
+.Dl "killall -j 3"
 .Ss "Sysctl MIB Entries"
 Certain aspects of the jail containments environment may be modified from
 the host environment using
@@ -511,11 +508,11 @@ with) processes outside of the jail, and in other jails.
 As such, this functionality is disabled by default, but can be enabled
 by setting this MIB entry to 1.
 .It Va security.jail.chflags_allowed
-This MIB entry determines how a privileged user inside a jail will be 
+This MIB entry determines how a privileged user inside a jail will be
 treated by
 .Xr chflags 2 .
 If zero, such users are treated as unprivileged, and are unable to set
-or clear system file flags; if non-zero, such users are treated as 
+or clear system file flags; if non-zero, such users are treated as
 privileged, and may manipulate system file flags subject to the usual
 constraints on
 .Va kern.securelevel .
