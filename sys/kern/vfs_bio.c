@@ -2544,7 +2544,7 @@ loop:
 	CTR4(KTR_BUF, "getblk(%p, %ld, %d) = %p", vp, (long)blkno, size, bp);
 	KASSERT(BUF_REFCNT(bp) == 1, ("getblk: bp %p not locked",bp));
 	KASSERT(bp->b_bufobj == bo,
-	    ("wrong b_bufobj %p should be %p", bp->b_bufobj, bo));
+	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
 	return (bp);
 }
 
