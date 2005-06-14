@@ -135,12 +135,7 @@ and
 .Cm windows
 as aliases for the most commonly used partition types.
 .\" ==== create ====
-.It Xo
-.Nm
-.Ic create
-.Op Fl fp
-.Ar device ...
-.Xc
+.It Nm Ic create Oo Fl fp Oc Ar device ...
 The
 .Ic create
 command allows the user to create a new (empty) GPT.
@@ -160,12 +155,7 @@ option tells
 to create only the primary table and not the backup table.
 This option is only useful for debugging and should not be used otherwise.
 .\" ==== destroy ====
-.It Xo
-.Nm
-.Ic destroy
-.Op Fl r
-.Ar device ...
-.Xc
+.It Nm Ic destroy Oo Fl r Oc Ar device ...
 The
 .Ic destroy
 command allows the user to destroy an existing, possibly not empty GPT.
@@ -176,12 +166,7 @@ option instructs
 .Nm
 to destroy the table in a way that it can be recovered.
 .\" ==== migrate ====
-.It Xo
-.Nm
-.Ic migrate
-.Op Fl fs
-.Ar device ...
-.Xc
+.It Nm Ic migrate Oo Fl fs Oc Ar device ...
 The
 .Ic migrate
 command allows the user to migrate an MBR-based disk partitioning into a
@@ -203,11 +188,7 @@ option prevents migrating
 disk labels into GPT partitions by creating
 the GPT equivalent of a slice.
 .\" ==== remove ====
-.It Xo
-.Nm
-.Ic remove
-.Op Fl a
-.Xc
+.It Nm Ic remove Oo Fl a Oc
 .It Xo
 .Nm
 .Ic remove
@@ -248,11 +229,7 @@ The type is given as an UUID or by the aliases that the
 command accepts.
 This can cause multiple partitions to be removed.
 .\" ==== show ====
-.It Xo
-.Nm
-.Ic show
-.Ar device ...
-.Xc
+.It Nm Ic show Ar device ...
 The
 .Ic show
 command displays the current partitioning on the listed devices and gives
