@@ -92,7 +92,7 @@ static vr_draw_mouse_t		vga_pxlmouse_planar;
 static vr_draw_border_t		vga_grborder;
 #endif
 
-static void			vga_nop(scr_stat *scp, ...);
+static void			vga_nop(scr_stat *scp);
 
 static sc_rndr_sw_t txtrndrsw = {
 	(vr_init_t *)vga_nop,
@@ -219,7 +219,7 @@ static uint16_t mouse_buf16[256];
 #endif
 
 static void
-vga_nop(scr_stat *scp, ...)
+vga_nop(scr_stat *scp)
 {
 }
 

@@ -62,7 +62,7 @@ static vr_draw_mouse_t		gfb_mouse;
 #define gfb_mouse		(vr_draw_mouse_t *)gfb_nop
 #endif
 
-static void			gfb_nop(scr_stat *scp, ...);
+static void			gfb_nop(scr_stat *scp);
 
 sc_rndr_sw_t txtrndrsw = {
 	(vr_init_t *)gfb_nop,
@@ -113,7 +113,7 @@ static u_char mouse_pointer[16] = {
 #endif
 
 static void
-gfb_nop(scr_stat *scp, ...)
+gfb_nop(scr_stat *scp)
 {
 }
 
