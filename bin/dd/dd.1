@@ -392,14 +392,6 @@ Remove parity bit from a file:
 Check for (even) parity errors on a file:
 .Pp
 .Dl "dd if=file conv=pareven | cmp -x - file"
-.Sh BUGS
-Protection mechanisms in the
-.Xr geom 4
-subsystem might prevent the super-user from writing blocks to a disk.
-Instructions for temporarily disabling these protectsion mechanisms can be
-found in the
-.Xr geom 4
-manpage.
 .Sh SEE ALSO
 .Xr cp 1 ,
 .Xr mt 1 ,
@@ -424,3 +416,11 @@ and
 values are extensions to the
 .Tn POSIX
 standard.
+.Sh BUGS
+Protection mechanisms in the
+.Xr geom 4
+subsystem might prevent the super-user from writing blocks to a disk.
+Instructions for temporarily disabling these protectsion mechanisms can be
+found in the
+.Xr geom 4
+manpage.
