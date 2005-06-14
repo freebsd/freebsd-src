@@ -39,12 +39,15 @@ profile         2
 # MPTABLE_FORCE_HTT option.  Do NOT use this option if you have HTT
 # disabled in your BIOS.
 #
+# IPI_PREEMPTION instructs the kernel to preempt threads running on other
+# CPUS if needed.  Relies on the PREEMPTION option
 
 # Mandatory:
 device		apic			# I/O apic
 
 # Optional:
 options 	MPTABLE_FORCE_HTT	# Enable HTT CPUs with the MP Table
+options 	IPI_PREEMPTION
 
 #
 # Watchdog routines.
