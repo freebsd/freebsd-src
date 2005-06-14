@@ -102,6 +102,8 @@ struct syscall syscalls[] = {
 	  { { String, 0 }}},
 	{ "chdir", 0, 1,
 	  { { String, 0 }}},
+	{ "chroot", 0, 1,
+	  { { String, 0 }}},
 	{ "mknod", 0, 3,
 	  { { String, 0 }, { Octal, 1 }, { Int, 3 }}},
 	{ "chmod", 0, 2,
