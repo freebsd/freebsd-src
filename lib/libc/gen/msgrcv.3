@@ -31,7 +31,7 @@
 .\" $FreeBSD$
 .\"
 .\"/
-.Dd November 24, 1997
+.Dd June 15, 2005
 .Dt MSGRCV 3
 .Os
 .Sh NAME
@@ -122,7 +122,7 @@ is set,
 will immediately return a value of -1, and set
 .Va errno
 to
-.Er EAGAIN .
+.Er ENOMSG .
 If
 .Dv IPC_NOWAIT
 is not set, the calling process will be blocked
@@ -206,7 +206,7 @@ argument
 points to an invalid address.
 .It Bq Er EINTR
 The system call was interrupted by the delivery of a signal.
-.It Bq Er EAGAIN
+.It Bq Er ENOMSG
 There is no message of the requested type available on the message queue,
 and
 .Dv IPC_NOWAIT
