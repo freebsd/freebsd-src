@@ -34,6 +34,7 @@ MAN=	accept_filter.9 \
 	bus_release_resource.9 \
 	bus_set_resource.9 \
 	BUS_SETUP_INTR.9 \
+	bus_space.9 \
 	byteorder.9 \
 	cd.9 \
 	condvar.9 \
