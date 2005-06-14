@@ -85,7 +85,9 @@ and makefiles, please refer to
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl A
-Make archive errors non-fatal, causing make just to skip the remainder
+Make archive errors non-fatal, causing
+.Nm
+to just skip the remainder
 or all of the archive and continue after printing a message.
 .It Fl B
 Try to be backwards compatible by executing a single shell per command and
@@ -251,10 +253,12 @@ Specify extended warning options.
 This option may be specified several times.
 A
 .Ar warning_option
-can be prefixed with 'no' in which case the warning is switched off.
+can be prefixed with
+.Dq Li no
+in which case the warning is switched off.
 The currently available options are:
-.Bl -tag -width Ds
-.It Ar dirsyntax
+.Bl -tag -width indent
+.It Li dirsyntax
 Warn if anything except blanks and comments follows an
 .Ic .endif
 or
@@ -1321,15 +1325,16 @@ and
 .Va builtins
 strings are used in compat mode.
 When a command line contains neither a meta
-character not starts with a shell builtin it is executed directly without
+character nor starts with a shell builtin, it is executed directly without
 invoking a shell.
 When one of these strings (or both) is empty all commands are executed
 through a shell.
 .It Va unsetenv
-If true remove the
+If true, remove the
 .Ev ENV
 environment variable before executing any command.
-This is useful for the Korn-shell ksh.
+This is useful for the Korn-shell
+.Pq Nm ksh .
 .El
 .Pp
 Values that are strings must be surrounded by double quotes.
@@ -1405,8 +1410,8 @@ Each source specifies a warning flag as previously described for the
 .Fl x
 command line option.
 Warning flags specified on the command line take precedence over flags
-specified in the Makefile.
-Also command line warning flags are pushed to sub-makes through the
+specified in the makefile.
+Also, command line warning flags are pushed to sub-makes through the
 .Ev MAKEFLAGS
 environment variables so that a warning flag specified on the command
 line will influence all sub-makes.
