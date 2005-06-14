@@ -159,8 +159,6 @@ restart:
 				NDFREE(ndp, NDF_ONLY_PNBUF);
 				return (error);
 			}
-			ASSERT_VOP_UNLOCKED(ndp->ni_dvp, "create");
-			ASSERT_VOP_LOCKED(ndp->ni_vp, "create");
 			fmode &= ~O_TRUNC;
 			vp = ndp->ni_vp;
 		} else {
