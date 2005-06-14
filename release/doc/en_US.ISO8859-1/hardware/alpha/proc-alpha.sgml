@@ -90,6 +90,12 @@
     boxes are sold on the second hand market. They have little or no
     trade-in value when they are NT-only from the console firmware
     perspective. So, be suspicious if the price appears too good.</para>
+    
+    <para>In case you have problems making your selection of SRM
+    'stick', in other words if the system falls back to AlphaBIOS
+    after you selected the SRM console, it is time to check if the
+    battery of your CMOS clock/parameter RAM is empty.  If so,
+    a replacement battery most likely fixes the issue.</para>
 
     <para>Known non-SRM machines are:</para>
       <itemizedlist>
