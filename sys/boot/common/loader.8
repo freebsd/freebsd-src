@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 15, 2004
+.Dd May 27, 2005
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -63,7 +63,7 @@ During initialization,
 will probe for a console and set the
 .Va console
 variable, or set it to serial console
-.Pq Dq comconsole
+.Pq Dq Li comconsole
 if the previous boot stage used that.
 If multiple consoles are selected, they will be listed separated by spaces.
 Then, devices are probed,
@@ -103,7 +103,7 @@ At this point, if an
 has not been tried, and if
 .Va autoboot_delay
 is not set to
-.Dq NO
+.Dq Li NO
 (not case sensitive), then an
 .Ic autoboot
 will be tried.
@@ -115,13 +115,14 @@ will engage interactive mode.
 Please note that historically even when
 .Va autoboot_delay
 is set to
-.Dq 0
+.Dq Li 0
 user will be able to interrupt autoboot process by pressing some key
-on the console while kernel and modules are being loaded.  In some
+on the console while kernel and modules are being loaded.
+In some
 cases such behaviour may be undesirable, to prevent it set
 .Va autoboot_delay
 to
-.Dq -1 ,
+.Dq Li -1 ,
 in this case
 .Nm
 will engage interactive mode only if
@@ -337,7 +338,7 @@ If this variable is not defined,
 will default to 10 seconds.
 .Pp
 If set to
-.Dq NO ,
+.Dq Li NO ,
 no
 .Ic autoboot
 will be automatically attempted after processing
@@ -347,18 +348,18 @@ though explicit
 will be processed normally, defaulting to 10 seconds delay.
 .Pp
 If set to
-.Dq 0
-no delay will inserted, but user still will be able to interrupt
+.Dq Li 0 ,
+no delay will be inserted, but user still will be able to interrupt
 .Ic autoboot
 process and escape into the interactive mode by pressing some key
 on the console while kernel and
 modules are being loaded.
 .Pp
 If set to
-.Dq -1
-no delay will inserted and
+.Dq Li -1 ,
+no delay will be inserted and
 .Nm
-will engange interactive mode only if
+will engage interactive mode only if
 .Ic autoboot
 has failed for some reason.
 .It Va boot_askname
