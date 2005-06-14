@@ -226,7 +226,7 @@ xe_attach (device_t dev)
 
   /* Initialise stuff... */
   scp->dev = dev;
-  scp->ifp = scp->ifp = if_alloc(IFT_ETHER);
+  scp->ifp = if_alloc(IFT_ETHER);
   if (scp->ifp == NULL)
     return ENOSPC;
   scp->ifm = &scp->ifmedia;
