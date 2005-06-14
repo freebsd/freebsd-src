@@ -45,7 +45,7 @@ divert(-1)
 
 divert(0)
 VERSIONID(`$FreeBSD$')
-OSTYPE(freebsd5)
+OSTYPE(freebsd6)
 DOMAIN(generic)
 
 FEATURE(access_db, `hash -o -T<TMPF> /etc/mail/access')
