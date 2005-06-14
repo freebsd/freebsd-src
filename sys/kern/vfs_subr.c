@@ -1071,7 +1071,8 @@ flushbuflist(bufv, flags, bo, slpflag, slptimeo)
 			return (error != ENOLCK ? error : EAGAIN);
 		}
 		KASSERT(bp->b_bufobj == bo,
-	            ("wrong b_bufobj %p should be %p", bp->b_bufobj, bo));
+	            ("bp %p wrong b_bufobj %p should be %p",
+		    bp, bp->b_bufobj, bo));
 		if (bp->b_bufobj != bo) {	/* XXX: necessary ? */
 			BUF_UNLOCK(bp);
 			BO_LOCK(bo);
@@ -1723,6 +1724,9 @@ reassignbuf(struct buf *bp)
 	struct vnode *vp;
 	struct bufobj *bo;
 	int delay;
+#ifdef INVARIANTS
+	struct bufv *bv;
+#endif
 
 	vp = bp->b_vp;
 	bo = bp->b_bufobj;
@@ -1776,6 +1780,22 @@ reassignbuf(struct buf *bp)
 		}
 	}
 	VI_UNLOCK(vp);
+#ifdef INVARIANTS
+	bv = &bo->bo_clean;
+	bp = TAILQ_FIRST(&bv->bv_hd);
+	KASSERT(bp == NULL || bp->b_bufobj == bo,
+	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
+	bp = TAILQ_LAST(&bv->bv_hd, buflists);
+	KASSERT(bp == NULL || bp->b_bufobj == bo,
+	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
+	bv = &bo->bo_dirty;
+	bp = TAILQ_FIRST(&bv->bv_hd);
+	KASSERT(bp == NULL || bp->b_bufobj == bo,
+	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
+	bp = TAILQ_LAST(&bv->bv_hd, buflists);
+	KASSERT(bp == NULL || bp->b_bufobj == bo,
+	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
+#endif
 }
 
 static void
@@ -2271,6 +2291,7 @@ vgonel(struct vnode *vp, int shouldfree)
 	CTR1(KTR_VFS, "vgonel: vp %p", vp);
 	ASSERT_VOP_LOCKED(vp, "vgonel");
 	ASSERT_VI_LOCKED(vp, "vgonel");
+	td = curthread;
 
 	/*
 	 * Don't vgonel if we're already doomed.
@@ -2279,18 +2300,14 @@ vgonel(struct vnode *vp, int shouldfree)
 		VI_UNLOCK(vp);
 		return;
 	}
-	/*
-	 * Check to see if the vnode is in use. If so we have to reference it
-	 * before we clean it out so that its count cannot fall to zero and
-	 * generate a race against ourselves to recycle it.
-	 */
-	if ((active = vp->v_usecount))
-		v_incr_usecount(vp, 1);
 	vp->v_iflag |= VI_DOOMED;
+	/*
+	 * Check to see if the vnode is in use.  If so, we have to call
+	 * VOP_CLOSE() and VOP_INACTIVE().
+	 */
+	active = vp->v_usecount;
 	oweinact = (vp->v_iflag & VI_OWEINACT);
-	td = curthread;
 	VI_UNLOCK(vp);
-
 	/*
 	 * Clean out any buffers associated with the vnode.
 	 * If the flush fails, just toss the buffers.
@@ -2317,24 +2334,18 @@ vgonel(struct vnode *vp, int shouldfree)
 	 */
 	if (VOP_RECLAIM(vp, td))
 		panic("vgone: cannot reclaim");
-
 	VNASSERT(vp->v_object == NULL, vp,
 	    ("vop_reclaim left v_object vp=%p, tag=%s", vp, vp->v_tag));
-
 	/*
 	 * Delete from old mount point vnode list.
 	 */
 	delmntque(vp);
 	cache_purge(vp);
-	VI_LOCK(vp);
-	if (active) {
-		v_incr_usecount(vp, -1);
-		VNASSERT(vp->v_usecount >= 0, vp, ("vgone: bad ref count"));
-	}
 	/*
-	 * Done with purge, reset to the standard lock and
-	 * notify sleepers of the grim news.
+	 * Done with purge, reset to the standard lock and invalidate
+	 * the vnode.
 	 */
+	VI_LOCK(vp);
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;
 	vp->v_tag = "none";
