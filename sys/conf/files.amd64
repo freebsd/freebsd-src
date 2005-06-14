@@ -159,6 +159,7 @@ dev/kbd/kbd.c			optional	ukbd
 dev/mem/memutil.c		optional	mem
 dev/nve/if_nve.c		optional	nve pci
 dev/ppc/ppc.c			optional	ppc
+dev/ppc/ppc_puc.c		optional	ppc puc
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
