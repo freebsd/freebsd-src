@@ -472,6 +472,16 @@ Imbed a comment in the packing list.
 Useful in
 trying to document some particularly hairy sequence that
 may trip someone up later.
+.It Cm @noinst Ar option Ar file
+Specify that the package would have installed
+.Pa file
+if
+.Pa option
+had been specified at build time. The action of
+.Cm @noinst
+is the same that
+.Cm @comment
+(which is doing nothing, it is just additional information).
 .It Cm @ignore
 Used internally to tell extraction to ignore the next file (do not
 copy it anywhere), as it is used for some special purpose.
