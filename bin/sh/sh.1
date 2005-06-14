@@ -196,12 +196,6 @@ Flag variables for export when assignments are made to them.
 Enable asynchronous notification of background job
 completion.
 (UNIMPLEMENTED)
-.It Fl c Li string
-Read commands from the
-.Ar string
-operand instead of from the standard input.
-Keep in mind that this option only accepts a single string as its
-argument, hence multi-word strings must be quoted.
 .It Fl C Li noclobber
 Do not overwrite existing files with
 .Dq Li > .
@@ -307,6 +301,14 @@ Write each command
 to standard error before it is executed.
 Useful for debugging.
 .El
+.Pp
+The
+.Fl c
+option causes the commands to be read from the
+.Ar string
+operand instead of from the standard input.
+Keep in mind that this option only accepts a single string as its
+argument, hence multi-word strings must be quoted.
 .Pp
 The
 .Fl /+o
@@ -2125,10 +2127,10 @@ editing modes.
 .Xr getopt 1 ,
 .Xr pwd 1 ,
 .Xr test 1 ,
-.Xr umask 2 ,
 .Xr vi 1 ,
 .Xr execve 2 ,
 .Xr getrlimit 2 ,
+.Xr umask 2 ,
 .Xr editrc 5
 .Sh HISTORY
 A
