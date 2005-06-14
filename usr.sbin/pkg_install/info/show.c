@@ -140,6 +140,10 @@ show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
 	    printf(Quiet ? "@comment %s\n" : "\tComment: %s\n", p->name);
 	    break;
 
+	case PLIST_NOINST:
+	    printf(Quiet ? "@noinst %s\n" : "\tNot installed: %s\n", p->name);
+	    break;
+
 	case PLIST_IGNORE:
 	    ign = TRUE;
 	    break;
