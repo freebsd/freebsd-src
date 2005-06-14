@@ -43,7 +43,9 @@ The
 utility acquires an exclusive lock on a
 .Ar file ,
 creating it if necessary,
-.Em "and removing the file on exit unless explictly told not to."
+.Bf Em
+and removing the file on exit unless explictly told not to.
+.Ef
 While holding the lock, it executes a
 .Ar command
 with optional
