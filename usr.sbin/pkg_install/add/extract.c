@@ -261,7 +261,8 @@ extract_plist(const char *home, Package *pkg)
 	    Group = p->name;
 	    break;
 
-	case PLIST_COMMENT:
+	case PLIST_COMMENT: /* FALLTHROUGH */
+	case PLIST_NOINST:
 	    break;
 
 	case PLIST_IGNORE:
