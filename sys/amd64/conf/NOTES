@@ -23,8 +23,11 @@ machine		amd64
 #
 # Notes:
 #
+# IPI_PREEMPTION instructs the kernel to preempt threads running on other
+#	  CPUS if needed.  Relies on the PREEMPTION option
 
 # Optional:
+options 	IPI_PREEMPTION
 device		atpic			# Optional legacy pic support
 device		mptable			# Optional MPSPEC mptable support
 
