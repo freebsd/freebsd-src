@@ -53,6 +53,7 @@
 #	mlxd*	Mylex DAC960 RAID disk volumes
 #	pst*	Promise SuperTrak RAID disks
 #	scd*	Sony CD-ROM disks
+#	twa*	3ware 9000 series RAID controller
 #	vn*	vnode disks
 #
 # Console ports:
@@ -1916,6 +1917,11 @@ ciss*)
 
 agpgart)
 	mknod agpgart c 148 0
+	;;
+
+twa*)
+	unit=`expr $i : 'twa\(.*\)'`
+	mknod twa$unit c 187 `unit2minor $unit`
 	;;
 
 twe*)
