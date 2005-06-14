@@ -442,21 +442,26 @@ struct uio *uio;
 
 		l = get_sleep_lock(&sl_tail);
 		err = sleep(&sl_tail, PZERO+1);
+		if (err) {
+			MUTEX_EXIT(&ipsl_mutex);
+			return EINTR;
+		}
 		spinunlock(l);
 		}
 #   else /* __hpux */
 #    ifdef __osf__
 		err = mpsleep(&sl_tail, PSUSP|PCATCH,  "ipl sleep", 0,
 			      &ipsl_mutex, MS_LOCK_SIMPLE);
+		if (err)
+			return EINTR;
 #    else
 		MUTEX_EXIT(&ipsl_mutex);
 		err = SLEEP(&sl_tail, "ipl sleep");
+		if (err)
+			return EINTR;
+		MUTEX_ENTER(&ipsl_mutex);
 #    endif /* __osf__ */
 #   endif /* __hpux */
-		if (err) {
-			MUTEX_EXIT(&ipsl_mutex);
-			return err;
-		}
 #  endif /* SOLARIS */
 	}
 	MUTEX_EXIT(&ipsl_mutex);
