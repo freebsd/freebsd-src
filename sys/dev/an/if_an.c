@@ -676,7 +676,7 @@ an_attach(sc, unit, flags)
 
 	mtx_init(&sc->an_mtx, device_get_nameunit(sc->an_dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	ifp = if_alloc(IFT_ETHER);
+	ifp = sc->an_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		printf("an%d: can not if_alloc()\n", sc->an_unit);
 		goto fail;
