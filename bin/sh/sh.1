@@ -2044,14 +2044,6 @@ Similarly, the
 .Dq Li set -E )
 command can be used to enable a subset of
 emacs-style command line editing features.
-.Sh EXIT STATUS
-Errors that are detected by the shell, such as a syntax error, will
-cause the shell to exit with a non-zero exit status.
-If the shell is not an interactive shell, the execution of the shell
-file will be aborted.
-Otherwise the shell will return the exit status of the last command
-executed, or if the exit builtin is used with a numeric argument, it
-will return the argument.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
@@ -2106,17 +2098,25 @@ See the
 section for details.
 .It Ev PS1
 The primary prompt string, which defaults to
-.Dq $ \  ,
+.Dq Li "$ " ,
 unless you are the superuser, in which case it defaults to
-.Dq # \  .
+.Dq Li "# " .
 .It Ev PS2
 The secondary prompt string, which defaults to
-.Dq \*[Gt] \  .
+.Dq Li "> " .
 .It Ev TERM
 The default terminal setting for the shell.
 This is inherited by children of the shell, and is used in the history
 editing modes.
 .El
+.Sh EXIT STATUS
+Errors that are detected by the shell, such as a syntax error, will
+cause the shell to exit with a non-zero exit status.
+If the shell is not an interactive shell, the execution of the shell
+file will be aborted.
+Otherwise the shell will return the exit status of the last command
+executed, or if the exit builtin is used with a numeric argument, it
+will return the argument.
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr chsh 1 ,
