@@ -351,7 +351,7 @@ is invoked from
 but the same packets will have the MAC header stripped off when
 .Nm
 is invoked from
-.Cm ip_input() 
+.Cm ip_input()
 or
 .Cm ip6_input() .
 .Pp
@@ -816,14 +816,14 @@ Rule fields have the following meaning:
 .It Ar protocol : Oo Cm not Oc Ar protocol-name | protocol-number
 An IP protocol specified by number or name
 (for a complete list see
-.Pa /etc/protocols ) , 
+.Pa /etc/protocols ) ,
 or one of the following keywords:
-.Bl -tag -width indent 
+.Bl -tag -width indent
 .It Cm ip4 | ipv4
 Matches IPv4 packets.
 .It Cm ip6 | ipv6
 Matches IPv6 packets.
-.It Cm ip | all 
+.It Cm ip | all
 Matches any packet.
 .El
 .Pp
