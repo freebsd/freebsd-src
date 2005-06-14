@@ -111,7 +111,7 @@ to the command's standard input.
 .Pp
 The
 .Pa tcp
-namespace takes a slash separated hostname and a port  and
+namespace takes a slash separated hostname and a port and
 creates an open TCP/IP connection.
 .Pp
 The
@@ -160,7 +160,6 @@ server.
 .Dl "head -1 /p/tcp/mx1.freebsd.org/smtp"
 .Pp
 Implement a (single-threaded) echo server:
-.Pp
 .Bd -literal -offset indent
 while :
 do
@@ -170,7 +169,6 @@ done
 .Pp
 Gather data from two sources.
 Verify that two remote files are identical:
-.Pp
 .Bd -literal -offset indent
 diff -q '/p/pipe/usr/bin/fetch -o - \\
         ftp://ftp1.freebsd.org/pub/FreeBSD/README.TXT' \\
@@ -183,7 +181,6 @@ Record a remote
 .Tn CD
 .Tn ISO
 image and calculate its checksum:
-.Pp
 .Bd -literal -offset indent
 fetch -o - ftp://ftp5.freebsd.org/.../disc.iso |
 tee '/p/pipe/usr/local/bin/cdrecord -' |
@@ -193,7 +190,6 @@ md5
 Create an
 .Tn XML
 view of the password file:
-.Pp
 .Bd -literal -offset indent
 ln -s '/p/pipe/usr/local/bin/passwd2xml /etc/passwd' \\
     /etc/passwd.xml"
@@ -208,8 +204,8 @@ ln -s '/p/pipe/usr/local/bin/passwd2xml /etc/passwd' \\
 .%A "Jan-Simon Pendry"
 .%T "Portals in 4.4BSD"
 .%B "USENIX 1995 Technical Conference Proceedings"
-.%C "Berkeley, CA"
-.%E "Peter Honeyman"
+.%O "Berkeley, CA"
+.%I "Peter Honeyman"
 .Re
 .Sh CAVEATS
 This file system may not be NFS-exported.
