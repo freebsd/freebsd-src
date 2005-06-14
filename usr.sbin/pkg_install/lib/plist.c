@@ -222,6 +222,8 @@ plist_cmd(const char *s, char **arg)
 	return PLIST_CHOWN;
     else if (!strcmp(cmd, "group"))
 	return PLIST_CHGRP;
+    else if (!strcmp(cmd, "noinst"))
+	return PLIST_NOINST;
     else if (!strcmp(cmd, "comment")) {
 	if (!strncmp(*arg, "ORIGIN:", 7)) {
 	    *arg += 7;
@@ -347,6 +349,10 @@ write_plist(Package *pkg, FILE *fp)
 
 	case PLIST_COMMENT:
 	    fprintf(fp, "%ccomment %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_NOINST:
+	    fprintf(fp, "%cnoinst %s\n", CMD_CHAR, plist->name);
 	    break;
 
 	case PLIST_IGNORE:
