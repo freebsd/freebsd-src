@@ -234,6 +234,11 @@ will return the same information regardless of the mount-point specified with
 .Fl m .
 The mount-point is only relevant when changing what its current ruleset is
 or when using one of the apply commands.
+.Sh FILES
+.Bl -tag -compact
+.It Pa /etc/defaults/devfs.rules
+.It Pa /etc/devfs.rules
+.El
 .Sh EXAMPLES
 When the system boots,
 the only ruleset that exists is ruleset number 0;
@@ -338,9 +343,6 @@ The above copies all the rules from ruleset 20 into ruleset 10.
 The rule numbers are preserved,
 but ruleset 10 may already have rules with non-conflicting numbers
 (these will be preserved).
-.Sh FILES
-.Pa /etc/defaults/devfs.rules ,
-.Pa /etc/devfs.rules
 .Sh SEE ALSO
 .Xr chmod 1 ,
 .Xr jail 2 ,
