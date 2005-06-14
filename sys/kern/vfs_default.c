@@ -408,6 +408,9 @@ loop2:
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 			continue;
 		VI_UNLOCK(vp);
+		KASSERT(bp->b_bufobj == &vp->v_bufobj,
+		    ("bp %p wrong b_bufobj %p should be %p",
+		    bp, bp->b_bufobj, &vp->v_bufobj));
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("fsync: not dirty");
 		if ((vp->v_object != NULL) && (bp->b_flags & B_CLUSTEROK)) {
