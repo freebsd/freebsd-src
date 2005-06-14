@@ -1258,8 +1258,6 @@ restart:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	vn_finished_write(mp);
-	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "mknod");
-	ASSERT_VOP_UNLOCKED(nd.ni_vp, "mknod");
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -1466,8 +1464,6 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 	vrele(vp);
 	vn_finished_write(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "link");
-	ASSERT_VOP_UNLOCKED(nd.ni_vp, "link");
 	return (error);
 }
 
@@ -1557,8 +1553,6 @@ out2:
 	vput(nd.ni_dvp);
 	vn_finished_write(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "symlink");
-	ASSERT_VOP_UNLOCKED(nd.ni_vp, "symlink");
 out:
 	if (segflg != UIO_SYSSPACE)
 		uma_zfree(namei_zone, syspath);
@@ -1614,8 +1608,6 @@ restart:
 	vput(nd.ni_dvp);
 	vn_finished_write(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "undelete");
-	ASSERT_VOP_UNLOCKED(nd.ni_vp, "undelete");
 	return (error);
 }
 
@@ -1701,8 +1693,6 @@ out:
 		vput(vp);
 	vput(nd.ni_dvp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "unlink");
-	ASSERT_VOP_UNLOCKED(nd.ni_vp, "unlink");
 	return (error);
 }
 
@@ -3288,10 +3278,6 @@ out:
 		vrele(fvp);
 	}
 	vrele(tond.ni_startdir);
-	ASSERT_VOP_UNLOCKED(fromnd.ni_dvp, "rename");
-	ASSERT_VOP_UNLOCKED(fromnd.ni_vp, "rename");
-	ASSERT_VOP_UNLOCKED(tond.ni_dvp, "rename");
-	ASSERT_VOP_UNLOCKED(tond.ni_vp, "rename");
 out1:
 	vn_finished_write(mp);
 	if (fromnd.ni_startdir)
@@ -3387,8 +3373,6 @@ out:
 		vput(nd.ni_vp);
 	vn_finished_write(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "mkdir");
-	ASSERT_VOP_UNLOCKED(nd.ni_vp, "mkdir");
 	return (error);
 }
 
@@ -3475,8 +3459,6 @@ out:
 		vput(nd.ni_dvp);
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "rmdir");
-	ASSERT_VOP_UNLOCKED(nd.ni_vp, "rmdir");
 	return (error);
 }
 
