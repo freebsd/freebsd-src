@@ -48,20 +48,20 @@ looks up or creates a vnode from a (mount, inode#) tupple.
 Its arguments are:
 .Bl -tag -width ".Fa flags"
 .It Fa mp
-The mountpoint.
+The mount point.
 .It Fa ino
 The inode representing the file.
-This is a unique number assigned by the filesystem when vnodes are first
+This is a unique number assigned by the file system when vnodes are first
 created.
 .It Fa flags
 Additional locking flags to pass through to
-.Xr vget 9
+.Xr vget 9 .
 .It Fa vpp
 Return parameter for the vnode.
 .El
 .Pp
 This is an optional file system entry-point for file systems mainly
-intended for NFS server use, but many filesystems
+intended for NFS server use, but many file systems
 use it internally in
 .Xr VOP_LOOKUP 9
 and similar.
@@ -69,7 +69,11 @@ and similar.
 If the file system does not support this call, then it should return
 .Er EOPNOTSUPP .
 .Pp
-Please see sys/ufs/ffs/ffs_vfsops.c::ffs_vget() for the canonical example.
+Please see
+.Fn ffs_vget
+in
+.Pa sys/ufs/ffs/ffs_vfsops.c
+for the canonical example.
 .Sh SEE ALSO
 .Xr VFS 9 ,
 .Xr vget 9 ,
