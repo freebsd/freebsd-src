@@ -62,7 +62,7 @@ interface of all possible levels.
 Users can access this interface directly via
 .Xr sysctl 8
 or by indicating to
-.Pa power_profile
+.Pa /etc/rc.d/power_profile
 that it should switch settings when the AC line state changes via
 .Xr rc.conf 5 .
 .Sh SYSCTLS
@@ -106,7 +106,7 @@ Intel Enhanced SpeedStep
 .It Pa ichss
 Intel SpeedStep for ICH
 .It Pa powernow
-AMD PowerNow! for K7 and K8
+AMD PowerNow!\& for K7 and K8
 .It Pa smist
 Intel SMI-based SpeedStep for PIIX4
 .El

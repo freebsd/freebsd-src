@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2004
+.Dd May 17, 2005
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -166,12 +166,12 @@ staging directory.
 Sets up a suitable area for FTP installations in
 .Pa ${CHROOTDIR}/R/ftp .
 .It Cm cdrom.1
-Create the layout for the live filesystem CD-ROM image in
+Create the layout for the live file system CD-ROM image in
 .Pa ${CHROOTDIR}/R/cdrom .
 .It Cm cdrom.2
 Create the layout for the first and second CD-ROM images.
 .It Cm cdrom.3
-Create the layout for the boot only CD-ROM image and the boot only UFS
+Create the layout for the boot-only CD-ROM image and the boot-only UFS
 miniroot image.
 .It Cm iso.1
 Builds ISO images (installation and
@@ -373,7 +373,7 @@ of the CVS tree
 (a
 .Dq "-CURRENT snapshot" ) .
 .It Va SEPARATE_LIVEFS
-Store the live filesystem on its own CD-ROM image rather than placing it on
+Store the live file system on its own CD-ROM image rather than placing it on
 the first disc.
 .It Va TARGET_ARCH
 The target machine processor architecture.

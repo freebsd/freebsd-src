@@ -237,7 +237,11 @@ Supports system cooling and heat management.
 Implements a timecounter using the ACPI fixed-frequency timer.
 .It Li video
 .Pq Vt device
-Supports acpi_video which may conflict with agp device.
+Supports
+.Xr acpi_video 4
+which may conflict with
+.Xr agp 4
+device.
 .El
 .Pp
 It is also possible to avoid portions of the ACPI namespace which

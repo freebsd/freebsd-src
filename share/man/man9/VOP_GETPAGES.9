@@ -108,7 +108,7 @@ in addition to calling
 .Xr vm_page_undirty 9 .
 .It Dv VM_PAGER_BAD
 The page was entirely beyond the end of the backing file.
-This condition should not be possible if the vnode's filesystem
+This condition should not be possible if the vnode's file system
 is correctly implemented.
 .It Dv VM_PAGER_ERROR
 The page could not be written because of an error on the underlying storage

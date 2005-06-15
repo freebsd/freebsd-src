@@ -64,32 +64,34 @@ The operation of the node is as follows.
 Packets received on the
 .Va input
 hook are queued internally.
-When 
+When
 .Va output
 hook is connected,
 .Nm
 node assumes that its neighbour node is of
-.Xr ng_ether
+.Xr ng_ether 4
 node type.
-The neighbor is queried for its interface name.
+The neighbour is queried for its interface name.
+The
 .Nm
 node then uses queue of the interface for its evil purposes.
+The
 .Nm
 node also disables
 .Va autosrc
 option on neighbour
-.Xr ng_ether
+.Xr ng_ether 4
 node.
-If interface name can't be obtained automatically, it should
-be configured explicitly with help of
-.Dv NGM_SOURCE_SETIFACE 
+If interface name cannot be obtained automatically, it should
+be configured explicitly with the
+.Dv NGM_SOURCE_SETIFACE
 control message, and
 .Va autosrc
 should be turned off on
-.Xr ng_ether
+.Xr ng_ether 4
 node manually.
 .Pp
-Once interface is configured, upon receival of
+Once interface is configured, upon receipt of a
 .Dv NGM_SOURCE_START
 control message the node starts sending
 the previously queued packets out the
@@ -100,8 +102,10 @@ While active, on every clock tick the node checks the available space
 in the interface queue and sends that many packets out its
 .Va output
 hook.
-Once the number of packets indicated in the start message have been
-sent, or upon reception of a stop message, the node stops sending data.
+Once the number of packets indicated in the start message has been
+sent, or upon receipt of a
+.Dv NGM_SOURCE_STOP
+message, the node stops sending data.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages as well as the following,
 which must be sent with the
@@ -113,19 +117,19 @@ Returns a structure containing the following fields:
 .Bl -tag -width indent
 .It Va outOctets
 The number of octets/bytes sent out the
-.Dv output
+.Va output
 hook.
 .It Va outFrames
 The number of frames/packets sent out the
-.Dv output
+.Va output
 hook.
 .It Va queueOctets
 The number of octets queued from the
-.Dv input
+.Va input
 hook.
 .It Va queueFrames
 The number of frames queued from the
-.Dv input
+.Va input
 hook.
 .It Va startTime
 The time the last start message was received.
@@ -155,23 +159,27 @@ This message requires a single
 .Vt uint64_t
 parameter which is the number of packets to
 send before stopping.
-Node starts sending the queued packets out the output hook.
-The output hook must be connected and node must have
+Node starts sending the queued packets out the
+.Va output
+hook.
+The
+.Va output
+hook must be connected and node must have
 interface configured.
 .It Dv NGM_SOURCE_STOP Pq Ic stop
 Stops the node if it is active.
 .It Dv NGM_SOURCE_CLR_DATA Pq Ic clrdata
 Clears the packets queued from the
-.Dv input
+.Va input
 hook.
 .It Dv NGM_SOURCE_SETIFACE Pq Ic setiface
-This message requires a string argument - name of the interface
-to be configured.
+This message requires the name of the interface
+to be configured as an argument.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
-control message, when all hooks has been disconnected, or when the
+control message, when all hooks have been disconnected, or when the
 .Va output
 hook has been disconnected.
 .Sh EXAMPLES
@@ -186,11 +194,11 @@ For example, these commands
 load the
 .Nm ng_ether
 module and attach the
-.Dv output
+.Va output
 hook of a new
 .Nm source
 node to
-.Dv orphans
+.Va orphans
 hook of the
 .Li bge0:
 .Nm ng_ether
@@ -218,7 +226,7 @@ can be used to generate these packets:
 To feed the output of the above TCL script to the
 .Nm source
 node's
-.Dv input
+.Va input
 hook via
 .Xr nghook 8 :
 .Pp
@@ -232,7 +240,7 @@ Args:   { queueOctets=64 queueFrames=1 }
 .Ed
 .Pp
 Send as many packets as required out the
-.Dv output
+.Va output
 hook:
 .Pp
 .Dl "ngctl msg bge0:orphans start 16"

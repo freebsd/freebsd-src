@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2004
+.Dd June 10, 2005
 .Os
 .Dt IFNET 9
 .Sh NAME
@@ -1004,8 +1004,8 @@ A reference count of requests for this particular membership.
 .Ss Interface Manipulation Functions
 .Bl -ohang -offset indent
 .It Fn if_alloc
-Allocate and initialize an
-.Fa ifp .
+Allocate and initialize
+.Vt "struct ifnet" .
 Initalization includes the allocation of an interface index and may
 include the allocation of a
 .Fa type
@@ -1040,7 +1040,7 @@ Identical to
 .Fn if_free
 except that the given
 .Fa type
-is used to free 
+is used to free
 .Va if_l2com
 instead of the type in
 .Va if_type .

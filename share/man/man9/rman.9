@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2003
+.Dd March 15, 2005
 .Dt RMAN 9
 .Os
 .Sh NAME
@@ -187,15 +187,15 @@ and
 .Fa end
 of an acceptable range, as well as
 alignment, and the code will attempt to find a free segment which fits.
-The 
+The
 .Fa start
 argument is the lowest acceptable starting value of the resource.
 The
 .Fa end
 argument is the highest acceptable ending value of the resource.
 Therefore,
-.Fa start + count - 1
-must be <=
+.Fa start No + Fa count No \- 1
+must be \[<=]
 .Fa end
 for any allocation to happen.
 The default behavior is to allocate an exclusive segment, unless the
