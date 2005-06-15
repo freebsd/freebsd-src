@@ -1366,7 +1366,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       0.6.1 to 0.6.3. &merged;</para>
 
     <para>The <application>hostapd</application>
-      v0.3.7 has been imported.  This is a user space IEEE
+      v0.3.9 has been imported.  This is a user space IEEE
       802.11 AP and IEEE 802.1X/WPA/WPA2/EAP
       Authenticator and RADIUS authentication server.
       For more details, see &man.hostapd.8;.</para>
@@ -1411,7 +1411,8 @@ moused_ums0_port="/dev/ums0"</programlisting>
       version 8.13.1 to version 8.13.3. &merged;</para>
 
     <para><application>sendmail</application> has been updated from
-      version 8.13.3 to version 8.13.4.</para>
+      version 8.13.3 to version 8.13.4.  It now supports
+      <literal>OSTYPE(freebsd6)</literal>.</para>
 
     <para><application>TCPDUMP</application> has been updated from
       v3.8.3 to v3.9.1 (alpha 096).</para>
@@ -1427,7 +1428,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       <application>tzdata2004g</application> release. &merged;</para>
 
     <para>The <application>WPA Supplicant</application>
-      v0.3.8 has been imported.  This provides WPA Supplicant
+      v0.3.9 has been imported.  This provides WPA Supplicant
       component of WPA/IEEE 802.11i features.
       For more details, see &man.wpa.supplicant.8;.</para>
 
@@ -1549,8 +1550,10 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para>Documentation of existing functionality has been improved by
       the addition of the following manual pages: &man.ataraid.4;,
+      &man.bus.space.9;,
       &man.devfs.conf.5, &man.devfs.rules.5,
-      &man.pthread.atfork.3;
+      &man.pmap.page.init.9;,
+      &man.pthread.atfork.3;,
       &man.sched.4bsd.4;, &man.sched.ule.4;, &man.snd.fm801.4;,
       &man.snd.neomagic.4;, &man.snd.via8233.4;, &man.snd.via82c686.4;,
       and &man.snd.vibes.4;.</para>
