@@ -36,18 +36,18 @@
 #include <sys/mount.h>
 #include <sys/vnode.h>
 
-#include <gnu/ext2fs/inode.h>
-#include <gnu/ext2fs/ext2_mount.h>
-#include <gnu/ext2fs/ext2_extern.h>
-#include <gnu/ext2fs/ext2_fs.h>
-#include <gnu/ext2fs/ext2_fs_sb.h>
-#include <gnu/ext2fs/fs.h>
+#include <gnu/fs/ext2fs/inode.h>
+#include <gnu/fs/ext2fs/ext2_mount.h>
+#include <gnu/fs/ext2fs/ext2_extern.h>
+#include <gnu/fs/ext2fs/ext2_fs.h>
+#include <gnu/fs/ext2fs/ext2_fs_sb.h>
+#include <gnu/fs/ext2fs/fs.h>
 #include <sys/stat.h>
 
 #ifdef __i386__
-#include <gnu/ext2fs/i386-bitops.h>
+#include <gnu/fs/ext2fs/i386-bitops.h>
 #else
-#include <gnu/ext2fs/ext2_bitops.h>
+#include <gnu/fs/ext2fs/ext2_bitops.h>
 #endif
 
 /* this is supposed to mark a buffer dirty on ready for delayed writing

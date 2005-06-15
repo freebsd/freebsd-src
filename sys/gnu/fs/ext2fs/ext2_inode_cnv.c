@@ -31,9 +31,9 @@
 #include <sys/stat.h>
 #include <sys/vnode.h>
 
-#include <gnu/ext2fs/inode.h>
-#include <gnu/ext2fs/ext2_fs.h>
-#include <gnu/ext2fs/ext2_extern.h>
+#include <gnu/fs/ext2fs/inode.h>
+#include <gnu/fs/ext2fs/ext2_fs.h>
+#include <gnu/fs/ext2fs/ext2_extern.h>
 
 void
 ext2_print_inode( in )
