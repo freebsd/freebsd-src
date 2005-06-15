@@ -44,11 +44,11 @@
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
-#include <gnu/ext2fs/inode.h>
-#include <gnu/ext2fs/ext2_fs.h>
-#include <gnu/ext2fs/ext2_fs_sb.h>
-#include <gnu/ext2fs/fs.h>
-#include <gnu/ext2fs/ext2_extern.h>
+#include <gnu/fs/ext2fs/inode.h>
+#include <gnu/fs/ext2fs/ext2_fs.h>
+#include <gnu/fs/ext2fs/ext2_fs_sb.h>
+#include <gnu/fs/ext2fs/fs.h>
+#include <gnu/fs/ext2fs/ext2_extern.h>
 
 /*
  * Balloc defines the structure of file system storage
