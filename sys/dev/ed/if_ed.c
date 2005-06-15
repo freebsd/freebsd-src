@@ -616,7 +616,7 @@ ed_init(void *xsc)
 static __inline void
 ed_xmit(struct ed_softc *sc)
 {
-	struct ifnet *ifp = (struct ifnet *)sc;
+	struct ifnet *ifp = sc->ifp;
 	unsigned short len;
 
 	if (sc->gone)
@@ -964,7 +964,7 @@ void
 edintr(void *arg)
 {
 	struct ed_softc *sc = (struct ed_softc*) arg;
-	struct ifnet *ifp = (struct ifnet *)sc;
+	struct ifnet *ifp = sc->ifp;
 	u_char  isr;
 	int	count;
 
@@ -1479,7 +1479,7 @@ ed_pio_writemem(struct ed_softc *sc, uint8_t *src, uint16_t dst, uint16_t len)
 static u_short
 ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, long dst)
 {
-	struct ifnet *ifp = (struct ifnet *)sc;
+	struct ifnet *ifp = sc->ifp;
 	unsigned short total_len, dma_len;
 	struct mbuf *mp;
 	int     maxwait = 200;	/* about 240us */
@@ -1691,7 +1691,7 @@ ed_child_detached(device_t dev, device_t child)
 static void
 ed_setrcr(struct ed_softc *sc)
 {
-	struct ifnet *ifp = (struct ifnet *)sc;
+	struct ifnet *ifp = sc->ifp;
 	int     i;
 	u_char	reg1;
 
