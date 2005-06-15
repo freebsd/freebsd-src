@@ -108,21 +108,76 @@
       (define bop-footnotes #t)
       (define %footnote-ulinks% #t)
 
-; disable (make page-footnote) in tgroup element temporarily.
+      (define (make-table-endnotes)
+	(let* ((footnotes (node-list (select-elements (descendants (current-node))
+						      (normalize "footnote"))
+				     (select-elements (descendants (current-node))
+						      (normalize "ulink"))))
+	       (headsize (HSIZE 3))
+	       (tgroup (ancestor-member (current-node) (list (normalize "tgroup"))))
+	       (cols   (string->number (attribute-string (normalize "cols") tgroup))))
+	  (if (node-list-empty? footnotes)
+	      (empty-sosofo)
+	      (make sequence
+		(with-mode table-footnote-mode
+		  (process-node-list footnotes))))))
+
+      ;; disable (make page-footnote) in tgroup element temporarily.
       (element ulink 
 	(make sequence
 	  (if (node-list-empty? (children (current-node)))
 	      (literal (attribute-string (normalize "url")))
 	      (make sequence
-		($charseq$)
 		(if %footnote-ulinks%
 		    (if (node-list-empty?
 			 (ancestor-member (current-node)
 					  (list (normalize "tgroup"))))
 			(next-match)
 			(make sequence
+			  ($charseq$)
+			  (make line-field
+			    font-family-name: %body-font-family%
+			    ($ss-seq$ +
+				      (literal "("
+					       (table-footnote-number (current-node))
+					       ")")))
 			  (empty-sosofo)))
 		    (empty-sosofo))))))
+
+      (define %table-footnote-size-factor% (* 0.8 %footnote-size-factor%))
+      (define %table-footnote-row-margin% 0pt)
+
+      ;; XXX: ss-seq does not work properly...
+      (mode table-footnote-mode
+	(element ulink
+	  (let* ((tgroup (ancestor-member (current-node) (list (normalize "tgroup"))))
+		 (cols   (string->number (attribute-string (normalize "cols") tgroup))))
+	    (make table-row
+	      (make table-cell
+		n-columns-spanned: cols
+		cell-before-row-margin: %table-footnote-row-margin%
+		cell-after-row-margin: %table-footnote-row-margin%
+		cell-before-column-margin: %cals-cell-before-column-margin%
+		cell-after-column-margin: %cals-cell-after-column-margin%
+		start-indent: %cals-cell-content-start-indent%
+		end-indent: %cals-cell-content-end-indent%
+		(make sequence
+		  ($ss-seq$ + (literal (table-footnote-number (current-node))))
+		  (literal (gentext-label-title-sep (normalize "footnote")))
+		  (make paragraph
+		    font-family-name: %body-font-family%
+		    font-size: (* %table-footnote-size-factor% %bf-size%)
+		    font-posture: 'upright
+		    quadding: %default-quadding%
+		    line-spacing: (* (* %table-footnote-size-factor% %bf-size%)
+				     %line-spacing-factor%)
+		    space-before: %para-sep%
+		    space-after: %para-sep%
+		    start-indent: %footnote-field-width%
+		    first-line-start-indent: (- %footnote-field-width%)
+		    (make line-field
+		      field-width: %footnote-field-width%
+		      (literal (attribute-string (normalize "url")))))))))))
     ]]>
 
     <![ %output.html; [
