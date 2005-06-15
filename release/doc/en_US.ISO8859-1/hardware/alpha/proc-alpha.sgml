@@ -256,13 +256,15 @@
     improved FPU and 16 kByte on-chip separate I &amp; D caches compared
     to the EV4 on which it is based. Rule of thumb: the higher the
     digit immediately following <quote>EV</quote> the more desirable
-    (read: faster / more modern).</para>
+    (read: faster / more modern).  Spending money on anything less than
+    an EV5 is not recommended.  Hardware available for free is a different 
+    matter of course.</para>
 
     <para>For memory you want at least 32 Mbytes. I have had
-    &os; run on a 16 Mbyte system but you will not enjoy
+    &os; run on a 16 Mbyte system years ago but you will not enjoy
     that. Kernel build times halved when I went to 32 Mbytes. Note that
     the SRM console steals 2Mbyte from the total system memory (and keeps
-    it). For more serious work 64 Mbytes or more are recommended.
+    it). For more serious work 128 Mbytes or more are recommended.
     Although Alpha machines typically can accomodate large to very large
     physical memory sizes, &os; is limited to 1 or 2 Gbytes (dependent
     on the core chipset) of RAM. This restriction is due to the
@@ -2608,8 +2610,6 @@ cpu     EV5</programlisting>
     beware: the &man.fxp.4; driver is reported not to work correctly
     with &os; (although it works excellently on &os;/x86).</para>
 
-    <para>DEC DEFPA PCI FDDI network adapters are supported on alpha.</para>
-
     <para>In general the SRM console emulates a VGA-compatibility mode
     on PCI VGA cards. This is, however, not guaranteed to work by
     Compaq/DEC for each and every card type out there. When the SRM
@@ -2619,9 +2619,9 @@ cpu     EV5</programlisting>
     so that leaves you with 80x25 consoles.</para>
 
     <para>In some Alpha machines you will find video adapters based
-    on TGA chips. The plain TGA adapter does not emulate VGA and is
-    therefore not usable for a &os; console. TGA2 cards have a basic
-    VGA compatibility mode and work fine as &os; consoles.</para>
+    on TGA chips.  TGA support in &os; is not as robust as it should
+    be.  In case of problems it is advisable to try either a 
+    serial console or a plain VGA card.</para>
 
     <para>The <quote>PC standard</quote> serial ports found on most
     Alphas are supported.</para>
