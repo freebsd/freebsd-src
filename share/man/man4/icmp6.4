@@ -196,24 +196,32 @@ is modified to allow all message types.
 Ignore all incoming messages.
 .Va filterp
 is modified to ignore all message types.
-.It Fn "void ICMP6_FILTER_SETPASS" "int type" \
-    "struct icmp6_filter *filterp"
+.It Xo
+.Ft void
+.Fn ICMP6_FILTER_SETPASS "int type" "struct icmp6_filter *filterp"
+.Xc
 Allow ICMPv6 messages with the given
 .Fa type .
 .Va filterp
 is modified to allow such messages.
-.It Fn "void ICMP6_FILTER_SETBLOCK" "int type" \
-    "struct icmp6_filter *filterp"
+.It Xo
+.Ft void
+.Fn ICMP6_FILTER_SETBLOCK" "int type" "struct icmp6_filter *filterp"
+.Xc
 Ignore ICMPv6 messages with the given
 .Fa type .
 .Va filterp
 is modified to ignore such messages.
-.It Fn "int ICMP6_FILTER_WILLPASS" "int type" \
-    "const struct icmp6_filter *filterp"
+.It Xo
+.Ft int
+.Fn ICMP6_FILTER_WILLPASS" "int type" "const struct icmp6_filter *filterp"
+.Xc
 Determine if the given filter will allow an ICMPv6 message of the given
 type.
-.It Fn "int ICMP6_FILTER_WILLBLOCK" "int type" \
-    "const struct icmp6_filter *filterp"
+.It Xo
+.Ft int
+.Fn ICMP6_FILTER_WILLBLOCK" "int type" "const struct icmp6_filter *filterp"
+.Xc
 Determine if the given filter will ignore an ICMPv6 message of the given
 type.
 .El
