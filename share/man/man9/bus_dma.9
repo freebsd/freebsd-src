@@ -563,8 +563,8 @@ DMA tag.
 .It Fn bus_dmamap_load_mbuf_sg "dmat" "map" "mbuf" "segs" "nsegs" "flags"
 This is just like
 .Fn bus_dmamap_load_mbuf
-except that it returns immediately without calling a callback function.  It is
-provided for efficiency.
+except that it returns immediately without calling a callback function.
+It is provided for efficiency.
 The scatter/gather segment array
 .Va segs
 is provided by the caller and filled in directly by the function.
