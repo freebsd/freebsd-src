@@ -45,11 +45,11 @@
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 
-#include <gnu/ext2fs/inode.h>
-#include <gnu/ext2fs/ext2_fs.h>
-#include <gnu/ext2fs/ext2_fs_sb.h>
-#include <gnu/ext2fs/ext2_mount.h>
-#include <gnu/ext2fs/ext2_extern.h>
+#include <gnu/fs/ext2fs/inode.h>
+#include <gnu/fs/ext2fs/ext2_fs.h>
+#include <gnu/fs/ext2fs/ext2_fs_sb.h>
+#include <gnu/fs/ext2fs/ext2_mount.h>
+#include <gnu/fs/ext2fs/ext2_extern.h>
 
 /*
  * Bmap converts a the logical block number of a file to its physical block

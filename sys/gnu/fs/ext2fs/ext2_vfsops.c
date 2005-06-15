@@ -54,13 +54,13 @@
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
 
-#include <gnu/ext2fs/ext2_mount.h>
-#include <gnu/ext2fs/inode.h>
+#include <gnu/fs/ext2fs/ext2_mount.h>
+#include <gnu/fs/ext2fs/inode.h>
 
-#include <gnu/ext2fs/fs.h>
-#include <gnu/ext2fs/ext2_extern.h>
-#include <gnu/ext2fs/ext2_fs.h>
-#include <gnu/ext2fs/ext2_fs_sb.h>
+#include <gnu/fs/ext2fs/fs.h>
+#include <gnu/fs/ext2fs/ext2_extern.h>
+#include <gnu/fs/ext2fs/ext2_fs.h>
+#include <gnu/fs/ext2fs/ext2_fs_sb.h>
 
 static int ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
 static int ext2_mountfs(struct vnode *, struct mount *, struct thread *);

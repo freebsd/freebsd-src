@@ -40,9 +40,9 @@
 #include <geom/geom_vfs.h>
 
 #ifdef __i386__
-# include <gnu/ext2fs/i386-bitops.h>
+# include <gnu/fs/ext2fs/i386-bitops.h>
 #else
-# include <gnu/ext2fs/ext2_bitops.h>
+# include <gnu/fs/ext2fs/ext2_bitops.h>
 #endif
 
 #include <gnu/reiserfs/reiserfs_mount.h>
@@ -733,7 +733,7 @@ struct stat_data_v1 {
  * We want common flags to have the same values as in ext2,
  * so chattr(1) will work without problems
  */
-#include <gnu/ext2fs/ext2_fs.h>
+#include <gnu/fs/ext2fs/ext2_fs.h>
 #define	REISERFS_IMMUTABLE_FL	EXT2_IMMUTABLE_FL
 #define	REISERFS_APPEND_FL	EXT2_APPEND_FL
 #define	REISERFS_SYNC_FL	EXT2_SYNC_FL

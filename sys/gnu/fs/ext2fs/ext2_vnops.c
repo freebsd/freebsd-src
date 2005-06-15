@@ -72,12 +72,12 @@
 #include <sys/signalvar.h>
 #include <ufs/ufs/dir.h>
 
-#include <gnu/ext2fs/inode.h>
-#include <gnu/ext2fs/ext2_mount.h>
-#include <gnu/ext2fs/ext2_fs_sb.h>
-#include <gnu/ext2fs/fs.h>
-#include <gnu/ext2fs/ext2_extern.h>
-#include <gnu/ext2fs/ext2_fs.h>
+#include <gnu/fs/ext2fs/inode.h>
+#include <gnu/fs/ext2fs/ext2_mount.h>
+#include <gnu/fs/ext2fs/ext2_fs_sb.h>
+#include <gnu/fs/ext2fs/fs.h>
+#include <gnu/fs/ext2fs/ext2_extern.h>
+#include <gnu/fs/ext2fs/ext2_fs.h>
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 
@@ -163,7 +163,7 @@ struct vop_vector ext2_fifoops = {
 	.vop_write =		VOP_PANIC,
 };
 
-#include <gnu/ext2fs/ext2_readwrite.c>
+#include <gnu/fs/ext2fs/ext2_readwrite.c>
 
 /*
  * A virgin directory (no blushing please).

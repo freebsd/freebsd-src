@@ -44,12 +44,12 @@
 #include <sys/mount.h>
 #include <sys/syslog.h>
 
-#include <gnu/ext2fs/inode.h>
-#include <gnu/ext2fs/ext2_mount.h>
-#include <gnu/ext2fs/ext2_fs.h>
-#include <gnu/ext2fs/ext2_fs_sb.h>
-#include <gnu/ext2fs/fs.h>
-#include <gnu/ext2fs/ext2_extern.h>
+#include <gnu/fs/ext2fs/inode.h>
+#include <gnu/fs/ext2fs/ext2_mount.h>
+#include <gnu/fs/ext2fs/ext2_fs.h>
+#include <gnu/fs/ext2fs/ext2_fs_sb.h>
+#include <gnu/fs/ext2fs/fs.h>
+#include <gnu/fs/ext2fs/ext2_extern.h>
 
 static void	ext2_fserr(struct ext2_sb_info *, u_int, char *);
 
