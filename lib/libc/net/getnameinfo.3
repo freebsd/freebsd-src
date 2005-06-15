@@ -29,8 +29,10 @@
 .Fd #include <sys/socket.h>
 .Fd #include <netdb.h>
 .Ft int
-.Fn getnameinfo "const struct sockaddr *sa" "socklen_t salen" "char *host" \
-    "size_t hostlen" "char *serv" "size_t servlen" "int flags"
+.Fo getnameinfo
+.Fa "const struct sockaddr *sa" "socklen_t salen" "char *host"
+.Fa "size_t hostlen" "char *serv" "size_t servlen" "int flags"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn getnameinfo

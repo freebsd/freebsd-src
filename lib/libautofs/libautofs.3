@@ -180,7 +180,8 @@ return the offset request associated with the request
 (used for readdir request)
 .It Fn autoreq_getxid
 return the transaction id associated with an autofs request, these
-are unique per mount point, but not system wide.  They can be used
+are unique per mount point, but not system wide.
+They can be used
 for debugging to ensure requests are being accepted by the kernel.
 .El
 .Pp
@@ -197,11 +198,14 @@ this is typically unused.
 .It Fn autoreq_seterrno
 set the error returned to the application sending the request, typically
 this is left alone, or set to ENOENT if the request is for a non-existant
-name.  The default error is no error.  Meaning the application will see
+name.
+The default error is no error.
+Meaning the application will see
 a successful return.
 .It Fn autoreq_setaux
 used to set the auxilliray data for a request, currently used to set
-the dirent structures for serving a readdir request.  Default is no
+the dirent structures for serving a readdir request.
+Default is no
 auxilliary data.
 .It Fn autoreq_seteof
 used to set the eof flag for readdir requests (default is not eof.)
@@ -217,11 +221,13 @@ directory via
 .Fa path
 and
 .Fa fd
-respectively.  The
+respectively.
+The
 .Fa pid
 argument should be set to the pid of the process serving
 .Xr autofs 9
-requests, or -1 to disable the option.  The options are
+requests, or -1 to disable the option.
+The options are
 .Bl -tag -width AUTO_INDIRECT
 .It Fa AUTO_MOUNTER
 set this process as the one responsible for the
@@ -237,11 +243,13 @@ and
 will be routed to userland after the current actual directory contents
 are read into userland.
 .It Fa AUTO_DIRECT
-Set the directory as a mount trigger.  Any request to enter the directory
+Set the directory as a mount trigger.
+Any request to enter the directory
 will trigger a callback into the process
 .Fa pid .
 .It Fa AUTO_INDIRECT
-Set the directory as an indirect trigger.  Any request for an entry inside
+Set the directory as an indirect trigger.
+Any request for an entry inside
 the directory will be routed to the process identified by
 .Fa pid .
 .El
