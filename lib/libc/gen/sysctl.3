@@ -454,20 +454,26 @@ whose size depends on the current number of such objects in the system.
 .It "KERN_PROC_RUID	A real user ID"
 .El
 .Pp
-If the third level name is KERN_PROC_ARGS then the command line argument
+If the third level name is
+.Dv KERN_PROC_ARGS
+then the command line argument
 array is returned in a flattened form, i.e., zero-terminated arguments
 follow each other.
 The total size of array is returned.
 It is also possible for a process to set its own process title this way.
-If the third level name is KERN_PROC_PATHNAME, the path of the
+If the third level name is
+.Dv KERN_PROC_PATHNAME ,
+the path of the
 process' text file is stored.
-For KERN_PROC_PATHNAME, a process ID of
-.Li -1
+For
+.Dv KERN_PROC_PATHNAME ,
+a process ID of
+.Li \-1
 implies the current process.
 .Bl -column "Third level nameXXXXXX" "Fourth level is:XXXXXX" -offset indent
 .It Sy "Third level name	Fourth level is:"
-.It "KERN_PROC_ARGS	A process ID"
-.It "KERN_PROC_PATHNAME	A process ID"
+.It Dv KERN_PROC_ARGS Ta "A process ID"
+.It Dv KERN_PROC_PATHNAME Ta "A process ID"
 .El
 .It Li KERN_PROF
 Return profiling information about the kernel.

@@ -30,8 +30,10 @@
 .Fd #include <sys/socket.h>
 .Fd #include <netdb.h>
 .Ft int
-.Fn getaddrinfo "const char *hostname" "const char *servname" \
-    "const struct addrinfo *hints" "struct addrinfo **res"
+.Fo getaddrinfo
+.Fa "const char *hostname" "const char *servname"
+.Fa "const struct addrinfo *hints" "struct addrinfo **res"
+.Fc
 .Ft void
 .Fn freeaddrinfo "struct addrinfo *ai"
 .Sh DESCRIPTION
