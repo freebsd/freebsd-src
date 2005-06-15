@@ -631,12 +631,14 @@ main(int argc, char *argv[])
 }
 
 int
-scan(FILE * fp, struct passwd *pw)
+scan(FILE *fp, struct passwd *pw)
 {
 	static int lcnt;
+	size_t len;
 	char *p;
 
-	if (!fgets(line, sizeof(line), fp))
+	p = fgetln(fp, &len);
+	if (p == NULL)
 		return (0);
 	++lcnt;
 	/*
@@ -644,16 +646,14 @@ scan(FILE * fp, struct passwd *pw)
 	 * throat...''
 	 *	-- The Who
 	 */
-	if (!(p = strchr(line, '\n'))) {
-		/*
-		 * XXX: This may also happen if the last line in a
-		 * file does not have a trailing newline.
-		 */
+	if (len > 0 && p[len - 1] == '\n')
+		len--;
+	if (len >= sizeof(line) - 1) {
 		warnx("line #%d too long", lcnt);
 		goto fmt;
-
 	}
-	*p = '\0';
+	memcpy(line, p, len);
+	line[len] = '\0';
 
 	/* 
 	 * Ignore comments: ^[ \t]*#
