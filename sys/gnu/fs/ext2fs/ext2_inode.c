@@ -47,12 +47,12 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#include <gnu/ext2fs/inode.h>
-#include <gnu/ext2fs/ext2_mount.h>
-#include <gnu/ext2fs/ext2_fs.h>
-#include <gnu/ext2fs/ext2_fs_sb.h>
-#include <gnu/ext2fs/fs.h>
-#include <gnu/ext2fs/ext2_extern.h>
+#include <gnu/fs/ext2fs/inode.h>
+#include <gnu/fs/ext2fs/ext2_mount.h>
+#include <gnu/fs/ext2fs/ext2_fs.h>
+#include <gnu/fs/ext2fs/ext2_fs_sb.h>
+#include <gnu/fs/ext2fs/fs.h>
+#include <gnu/fs/ext2fs/ext2_extern.h>
 
 static int ext2_indirtrunc(struct inode *, int32_t, int32_t, int32_t, int,
 	    long *);
