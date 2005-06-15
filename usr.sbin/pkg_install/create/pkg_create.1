@@ -52,7 +52,7 @@
 .Fl f Ar packlist
 .Ar pkg-filename
 .Nm
-.Op Fl YNhvy
+.Op Fl YNRhvy
 .Fl b Ar pkg-name
 .Op Ar pkg-filename
 .Sh DESCRIPTION
@@ -335,6 +335,13 @@ is not specified, then resulting archive will be created in the
 current directory and named
 .Ar pkg-name
 with an appropriate extraction suffix applied.
+.It Fl R
+When creating package file from a locally installed package
+also create package files for all packages required by
+.Ar pkg-name .
+Resulting archive(s) will be created in the current directory
+and named using name of the respective package with appropriate
+extraction suffix applied.
 .El
 .Sh PACKING LIST DETAILS
 The
