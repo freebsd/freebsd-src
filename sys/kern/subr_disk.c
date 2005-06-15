@@ -182,15 +182,12 @@ bioq_disksort(bioq, bp)
 		}
 	} else
 		bq = TAILQ_FIRST(&bioq->queue);
-
+	if (bp->bio_offset < bq->bio_offset) {
+		TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
+		return;
+	}
 	/* Insertion sort */
 	while ((bn = TAILQ_NEXT(bq, bio_queue)) != NULL) {
-		
-		/*
-		 * We want to go after the current request if it is the end
-		 * of the first request list, or if the next request is a
-		 * larger cylinder than our request.
-		 */
 		if (bp->bio_offset < bn->bio_offset)
 			break;
 		bq = bn;
