@@ -153,10 +153,14 @@ in_status_tunnel(int s)
 
 	if (ioctl(s, SIOCGIFPSRCADDR, (caddr_t)&ifr) < 0)
 		return;
+	if (sa->sa_family != AF_INET)
+		return;
 	if (getnameinfo(sa, sa->sa_len, src, sizeof(src), 0, 0, NI_NUMERICHOST) != 0)
 		src[0] = '\0';
 
 	if (ioctl(s, SIOCGIFPDSTADDR, (caddr_t)&ifr) < 0)
+		return;
+	if (sa->sa_family != AF_INET)
 		return;
 	if (getnameinfo(sa, sa->sa_len, dst, sizeof(dst), 0, 0, NI_NUMERICHOST) != 0)
 		dst[0] = '\0';
