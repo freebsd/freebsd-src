@@ -59,9 +59,9 @@ in the context of the thread that called
 .Xr fork 2 .
 .Pp
 The handlers registered with
-.Nm
+.Fn pthread_atfork
 are called at the moments in time described below:
-.Bl -tag -width "prepare"
+.Bl -tag -width ".Fa prepare"
 .It Fa prepare
 Before
 .Xr fork 2
@@ -86,7 +86,7 @@ If more than one
 .Fa child
 handler is registered they will be called in the same order
 they were registered.
-.El.
+.El
 .Pp
 If no handling is desired at one or more of these three points,
 a null pointer may be passed as the corresponding fork handler.
@@ -102,6 +102,7 @@ function will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 Insufficient table space exists to record the fork handler addresses.
+.El
 .Sh SEE ALSO
 .Xr fork 2 ,
 .Xr pthread 3
