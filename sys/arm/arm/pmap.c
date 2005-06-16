@@ -1089,6 +1089,9 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 #ifndef PMAP_INCLUDE_PTE_SYNC
 	struct l2_bucket *l2b;
 	pt_entry_t *ptep, pte;
+#ifdef ARM_USE_SMALL_ALLOC
+	pd_entry_t *pde;
+#endif
 	vm_offset_t va = (vm_offset_t)mem & ~PAGE_MASK;
 
 	/*
@@ -1100,7 +1103,8 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 	 * correct.
 	 */
 #ifdef ARM_USE_SMALL_ALLOC
-	if (flags & UMA_SLAB_KMEM) {
+	pde = &kernel_pmap->pm_l1->l1_kva[L1_IDX(va)];
+	if (!l1pte_section_p(*pde)) {
 #endif
 		l2b = pmap_get_l2_bucket(pmap_kernel(), va);
 		ptep = &l2b->l2b_kva[l2pte_index(va)];
