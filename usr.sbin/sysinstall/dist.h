@@ -16,6 +16,9 @@
 #define DIST_CATPAGES		0x00200
 #define DIST_PORTS		0x00400
 #define DIST_LOCAL		0x00800
+#ifdef __amd64__
+#define DIST_LIB32		0x01000
+#endif
 #define DIST_ALL		0xFFFFF
 
 /* Subtypes for SRC distribution */

@@ -969,6 +969,10 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_GAMES },
       { " info",	"GNU info files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_INFO },
+#ifdef __amd64__
+      { " lib32",	"32-bit runtime compatibility libraries",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LIB32 },
+#endif
       { " man",		"System manual pages - recommended",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_MANPAGES },
       { " catman",	"Preformatted system manual pages",
