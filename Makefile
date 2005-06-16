@@ -71,7 +71,7 @@ TGTS=	all all-man buildenv buildkernel buildworld checkdpadd clean \
 	obj objlink regress rerelease tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
-	build32 install32
+	build32 distribute32 install32
 
 BITGTS=	files includes
 BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
