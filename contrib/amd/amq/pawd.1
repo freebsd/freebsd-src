@@ -54,17 +54,20 @@
 .Nm
 is used to print the current working directory, adjusted to reflect proper
 paths that can be reused to go through the automounter for the shortest
-possible path.  In particular, the path printed back does not include any
+possible path.
+In particular, the path printed back does not include any
 of
 .Nm Amd Ns \'s
-local mount points.  Using them is unsafe, because
+local mount points.
+Using them is unsafe, because
 .Nm Amd
 may unmount managed file systems from the mount points, and thus including
 them in paths may not always find the files within.
 .Pp
 Without any arguments,
 .Nm
-will print the automounter adjusted current working directory.  With any
+will print the automounter adjusted current working directory.
+With any
 number of arguments, it will print the adjusted
 .Ar path
 of each one of the
@@ -72,7 +75,7 @@ arguments.
 .Sh SEE ALSO
 .Xr pwd 1 ,
 .Xr amd 8 ,
-.Xr amq 8 
+.Xr amq 8
 .Sh HISTORY
 The
 .Nm
