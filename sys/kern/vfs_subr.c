@@ -84,7 +84,6 @@ static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
 static void	delmntque(struct vnode *vp);
 static void	insmntque(struct vnode *vp, struct mount *mp);
-static void	vlruvp(struct vnode *vp);
 static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 		    int slpflag, int slptimeo);
 static void	syncer_shutdown(void *arg, int howto);
@@ -92,12 +91,13 @@ static int	vtryrecycle(struct vnode *vp);
 static void	vbusy(struct vnode *vp);
 static void	vdropl(struct vnode *vp);
 static void	vinactive(struct vnode *, struct thread *);
-static void	v_incr_usecount(struct vnode *, int);
+static void	v_incr_usecount(struct vnode *);
+static void	v_decr_usecount(struct vnode *);
+static void	v_decr_useonly(struct vnode *);
 static void	vfree(struct vnode *);
-static void	vfreehead(struct vnode *);
 static void	vnlru_free(int);
 static void	vdestroy(struct vnode *);
-static void	vgonel(struct vnode *, int);
+static void	vgonel(struct vnode *);
 
 /*
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
@@ -537,6 +537,7 @@ vattr_null(vap)
 static int
 vlrureclaim(struct mount *mp)
 {
+	struct thread *td;
 	struct vnode *vp;
 	int done;
 	int trigger;
@@ -554,37 +555,40 @@ vlrureclaim(struct mount *mp)
 	if (usevnodes <= 0)
 		usevnodes = 1;
 	trigger = cnt.v_page_count * 2 / usevnodes;
-
 	done = 0;
+	td = curthread;
 	vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
 	count = mp->mnt_nvnodelistsize / 10 + 1;
 	while (count && (vp = TAILQ_FIRST(&mp->mnt_nvnodelist)) != NULL) {
 		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
-
-		if (vp->v_type != VNON &&
-		    vp->v_type != VBAD &&
-		    VI_TRYLOCK(vp)) {
-			/* critical path opt */
-			if (LIST_EMPTY(&(vp)->v_cache_src) &&
-			    !(vp)->v_usecount &&
-			    (vp->v_object == NULL ||
-			    vp->v_object->resident_page_count < trigger)) {
-				struct thread *td;
-
-				td = curthread;
-				MNT_IUNLOCK(mp);
-				VOP_LOCK(vp, LK_INTERLOCK|LK_EXCLUSIVE, td);
-				if ((vp->v_iflag & VI_DOOMED) == 0)
-					vgone(vp);
-				VOP_UNLOCK(vp, 0, td);
-				done++;
-				MNT_ILOCK(mp);
-			} else
-				VI_UNLOCK(vp);
-		}
 		--count;
+		if (!VI_TRYLOCK(vp))
+			continue;
+		/*
+		 * If it's been deconstructed already, it's still
+		 * referenced, or it exceeds the trigger, skip it.
+		 */
+		if ((vp->v_iflag & VI_DOOMED) != 0 || vp->v_usecount ||
+		    !LIST_EMPTY(&(vp)->v_cache_src) || (vp->v_object != NULL && 
+		    vp->v_object->resident_page_count > trigger)) {
+			VI_UNLOCK(vp);
+			continue;
+		}
+		MNT_IUNLOCK(mp);
+		vholdl(vp);
+		if (VOP_LOCK(vp, LK_INTERLOCK|LK_EXCLUSIVE|LK_NOWAIT, td)) {
+			vdrop(vp);
+			MNT_ILOCK(mp);
+			continue;
+		}
+		VI_LOCK(vp);
+		vgonel(vp);
+		VOP_UNLOCK(vp, 0, td);
+		vdropl(vp);
+		done++;
+		MNT_ILOCK(mp);
 	}
 	MNT_IUNLOCK(mp);
 	vn_finished_write(mp);
@@ -618,21 +622,21 @@ vnlru_free(int count)
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 			continue;
 		}
-		if (!VCANRECYCLE(vp)) {
-			VI_UNLOCK(vp);
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-			continue;
-		}
+		VNASSERT(VCANRECYCLE(vp), vp,
+		    ("vp inconsistent on freelist"));
 		freevnodes--;
 		vp->v_iflag &= ~VI_FREE;
+		vholdl(vp);
 		mtx_unlock(&vnode_free_list_mtx);
-		if (vtryrecycle(vp) != 0) {
-			mtx_lock(&vnode_free_list_mtx);
-			continue;
-		}
-		vdestroy(vp);
+		VI_UNLOCK(vp);
+		vtryrecycle(vp);
+		/*
+		 * If the recycled succeeded this vdrop will actually free
+		 * the vnode.  If not it will simply place it back on
+		 * the free list.
+		 */
+		vdrop(vp);
 		mtx_lock(&vnode_free_list_mtx);
-		numvnodes--;
 	}
 }
 /*
@@ -713,6 +717,9 @@ vdestroy(struct vnode *vp)
 	struct bufobj *bo;
 
 	CTR1(KTR_VFS, "vdestroy vp %p", vp);
+	mtx_lock(&vnode_free_list_mtx);
+	numvnodes--;
+	mtx_unlock(&vnode_free_list_mtx);
 	bo = &vp->v_bufobj;
 	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
 	    ("cleaned vnode still on the free list."));
@@ -745,39 +752,32 @@ vdestroy(struct vnode *vp)
 }
 
 /*
- * Check to see if a free vnode can be recycled. If it can,
- * recycle it and return it with the vnode interlock held.
+ * Try to recycle a freed vnode.  We abort if anyone picks up a reference
+ * before we actually vgone().  This function must be called with the vnode
+ * held to prevent the vnode from being returned to the free list midway
+ * through vgone().
  */
 static int
 vtryrecycle(struct vnode *vp)
 {
 	struct thread *td = curthread;
 	struct mount *vnmp;
-	int error;
 
 	CTR1(KTR_VFS, "vtryrecycle: trying vp %p", vp);
-	ASSERT_VI_LOCKED(vp, "vtryrecycle");
-	error = 0;
-	vnmp = NULL;
+	VNASSERT(vp->v_holdcnt, vp,
+	    ("vtryrecycle: Recycling vp %p without a reference.", vp));
 	/*
 	 * This vnode may found and locked via some other list, if so we
 	 * can't recycle it yet.
 	 */
-	if (VOP_LOCK(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_NOWAIT, td) != 0) {
-		VI_LOCK(vp);
-		if (VSHOULDFREE(vp))
-			vfree(vp);
-		VI_UNLOCK(vp);
+	if (VOP_LOCK(vp, LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
 		return (EWOULDBLOCK);
-	}
 	/*
 	 * Don't recycle if its filesystem is being suspended.
 	 */
 	if (vn_start_write(vp, &vnmp, V_NOWAIT) != 0) {
-		vnmp = NULL;
-		error = EBUSY;
-		VI_LOCK(vp);
-		goto err;
+		VOP_UNLOCK(vp, 0, td);
+		return (EBUSY);
 	}
 	/*
 	 * If we got this far, we need to acquire the interlock and see if
@@ -786,37 +786,17 @@ vtryrecycle(struct vnode *vp)
 	 * will skip over it.
 	 */
 	VI_LOCK(vp);
-	if (vp->v_holdcnt) {
-		error = EBUSY;
-		goto err;
+	if (vp->v_usecount) {
+		VOP_UNLOCK(vp, LK_INTERLOCK, td);
+		vn_finished_write(vnmp);
+		return (EBUSY);
 	}
-	if ((vp->v_iflag & VI_DOOMED) == 0) {
-		vgonel(vp, 0);
-		VI_LOCK(vp);
-	}
-	/*
-	 * If someone ref'd the vnode while we were cleaning, we have to
-	 * free it once the last ref is dropped.
-	 */
-	if (vp->v_holdcnt) {
-		error = EBUSY;
-		goto err;
-	}
-	if (vp->v_iflag & VI_FREE)
-		vbusy(vp);
-	VI_UNLOCK(vp);
-	VOP_UNLOCK(vp, 0, td);
+	if ((vp->v_iflag & VI_DOOMED) == 0)
+		vgonel(vp);
+	VOP_UNLOCK(vp, LK_INTERLOCK, td);
 	vn_finished_write(vnmp);
 	CTR1(KTR_VFS, "vtryrecycle: recycled vp %p", vp);
 	return (0);
-err:
-	if (VSHOULDFREE(vp))
-		vfree(vp);
-	VI_UNLOCK(vp);
-	VOP_UNLOCK(vp, 0, td);
-	if (vnmp != NULL)
-		vn_finished_write(vnmp);
-	return (error);
 }
 
 /*
@@ -889,7 +869,7 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
-	v_incr_usecount(vp, 1);
+	v_incr_usecount(vp);
 	vp->v_data = 0;
 #ifdef MAC
 	mac_init_vnode(vp);
@@ -1430,10 +1410,9 @@ brelvp(struct buf *bp)
  		syncer_worklist_len--;
 		mtx_unlock(&sync_mtx);
 	}
-	vdropl(vp);
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
-	BO_UNLOCK(bo);
+	vdropl(vp);
 }
 
 /*
@@ -1526,7 +1505,6 @@ sync_vnode(struct bufobj *bo, struct thread *td)
 		vn_syncer_add_to_worklist(bo, syncdelay);
 	}
 	vdropl(vp);
-	VI_UNLOCK(vp);
 	mtx_lock(&sync_mtx);
 	return (0);
 }
@@ -1798,19 +1776,71 @@ reassignbuf(struct buf *bp)
 #endif
 }
 
+/*
+ * Increment the use and hold counts on the vnode, taking care to reference
+ * the driver's usecount if this is a chardev.  The vholdl() will remove
+ * the vnode from the free list if it is presently free.  Requires the
+ * vnode interlock and returns with it held.
+ */
 static void
-v_incr_usecount(struct vnode *vp, int delta)
+v_incr_usecount(struct vnode *vp)
 {
 
-	vp->v_usecount += delta;
-	vp->v_holdcnt += delta;
+	CTR3(KTR_VFS, "v_incr_usecount: vp %p holdcnt %d usecount %d\n",
+	    vp, vp->v_holdcnt, vp->v_usecount);
+	vp->v_usecount++;
 	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
 		dev_lock();
-		vp->v_rdev->si_usecount += delta;
+		vp->v_rdev->si_usecount++;
 		dev_unlock();
 	}
-	CTR3(KTR_VFS, "v_incr_usecount: vp %p delta %d holdcnt %d\n",
-	    vp, delta, vp->v_holdcnt);
+	vholdl(vp);
+}
+
+/*
+ * Decrement the vnode use and hold count along with the driver's usecount
+ * if this is a chardev.  The vdropl() below releases the vnode interlock
+ * as it may free the vnode.
+ */
+static void
+v_decr_usecount(struct vnode *vp)
+{
+
+	CTR3(KTR_VFS, "v_decr_usecount: vp %p holdcnt %d usecount %d\n",
+	    vp, vp->v_holdcnt, vp->v_usecount);
+	ASSERT_VI_LOCKED(vp, __FUNCTION__);
+	VNASSERT(vp->v_usecount > 0, vp,
+	    ("v_decr_usecount: negative usecount"));
+	vp->v_usecount--;
+	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
+		dev_lock();
+		vp->v_rdev->si_usecount--;
+		dev_unlock();
+	}
+	vdropl(vp);
+}
+
+/*
+ * Decrement only the use count and driver use count.  This is intended to
+ * be paired with a follow on vdropl() to release the remaining hold count.
+ * In this way we may vgone() a vnode with a 0 usecount without risk of
+ * having it end up on a free list because the hold count is kept above 0.
+ */
+static void
+v_decr_useonly(struct vnode *vp)
+{
+
+	CTR3(KTR_VFS, "v_decr_useonly: vp %p holdcnt %d usecount %d\n",
+	    vp, vp->v_holdcnt, vp->v_usecount);
+	ASSERT_VI_LOCKED(vp, __FUNCTION__);
+	VNASSERT(vp->v_usecount > 0, vp,
+	    ("v_decr_useonly: negative usecount"));
+	vp->v_usecount--;
+	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
+		dev_lock();
+		vp->v_rdev->si_usecount--;
+		dev_unlock();
+	}
 }
 
 /*
@@ -1850,9 +1880,7 @@ vget(vp, flags, td)
 		flags |= LK_EXCLUSIVE;
 		oweinact = 1;
 	}
-	v_incr_usecount(vp, 1);
-	if (VSHOULDBUSY(vp))
-		vbusy(vp);
+	v_incr_usecount(vp);
 	if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0) {
 		VI_LOCK(vp);
 		/*
@@ -1861,12 +1889,7 @@ vget(vp, flags, td)
 		 * drops back to zero since it was never really
 		 * active.
 		 */
-		v_incr_usecount(vp, -1);
-		if (VSHOULDFREE(vp))
-			vfree(vp);
-		else
-			vlruvp(vp);
-		VI_UNLOCK(vp);
+		v_decr_usecount(vp);
 		return (error);
 	}
 	if (vp->v_iflag & VI_DOOMED && (flags & LK_RETRY) == 0)
@@ -1890,7 +1913,7 @@ vref(struct vnode *vp)
 {
 
 	VI_LOCK(vp);
-	v_incr_usecount(vp, 1);
+	v_incr_usecount(vp);
 	VI_UNLOCK(vp);
 }
 
@@ -1936,9 +1959,7 @@ vrele(vp)
 
 	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
 	    vp->v_usecount == 1)) {
-		v_incr_usecount(vp, -1);
-		VI_UNLOCK(vp);
-
+		v_decr_usecount(vp);
 		return;
 	}
 	if (vp->v_usecount != 1) {
@@ -1948,7 +1969,12 @@ vrele(vp)
 		VI_UNLOCK(vp);
 		panic("vrele: negative ref cnt");
 	}
-	v_incr_usecount(vp, -1);
+	/*
+	 * We want to hold the vnode until the inactive finishes to
+	 * prevent vgone() races.  We drop the use count here and the
+	 * hold count below when we're done.
+	 */
+	v_decr_useonly(vp);
 	/*
 	 * We must call VOP_INACTIVE with the node locked. Mark
 	 * as VI_DOINGINACT to avoid recursion.
@@ -1959,11 +1985,7 @@ vrele(vp)
 		VOP_UNLOCK(vp, 0, td);
 	} else
 		VI_LOCK(vp);
-	if (VSHOULDFREE(vp))
-		vfree(vp);
-	else
-		vlruvp(vp);
-	VI_UNLOCK(vp);
+	vdropl(vp);
 }
 
 /*
@@ -1988,8 +2010,8 @@ vput(vp)
 
 	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
 	    vp->v_usecount == 1)) {
-		v_incr_usecount(vp, -1);
-		VOP_UNLOCK(vp, LK_INTERLOCK, td);
+		VOP_UNLOCK(vp, 0, td);
+		v_decr_usecount(vp);
 		return;
 	}
 
@@ -1999,7 +2021,12 @@ vput(vp)
 #endif
 		panic("vput: negative ref cnt");
 	}
-	v_incr_usecount(vp, -1);
+	/*
+	 * We want to hold the vnode until the inactive finishes to
+	 * prevent vgone() races.  We drop the use count here and the
+	 * hold count below when we're done.
+	 */
+	v_decr_useonly(vp);
 	vp->v_iflag |= VI_OWEINACT;
 	if (VOP_ISLOCKED(vp, NULL) != LK_EXCLUSIVE) {
 		error = VOP_LOCK(vp, LK_EXCLUPGRADE|LK_INTERLOCK|LK_NOWAIT, td);
@@ -2011,11 +2038,7 @@ vput(vp)
 		vinactive(vp, td);
 	VOP_UNLOCK(vp, 0, td);
 done:
-	if (VSHOULDFREE(vp))
-		vfree(vp);
-	else
-		vlruvp(vp);
-	VI_UNLOCK(vp);
+	vdropl(vp);
 }
 
 /*
@@ -2049,9 +2072,13 @@ vdrop(struct vnode *vp)
 
 	VI_LOCK(vp);
 	vdropl(vp);
-	VI_UNLOCK(vp);
 }
 
+/*
+ * Drop the hold count of the vnode.  If this is the last reference to
+ * the vnode we will free it if it has been vgone'd otherwise it is
+ * placed on the free list.
+ */
 static void
 vdropl(struct vnode *vp)
 {
@@ -2059,15 +2086,26 @@ vdropl(struct vnode *vp)
 	if (vp->v_holdcnt <= 0)
 		panic("vdrop: holdcnt %d", vp->v_holdcnt);
 	vp->v_holdcnt--;
-	if (VSHOULDFREE(vp))
-		vfree(vp);
-	else
-		vlruvp(vp);
+	if (vp->v_holdcnt == 0) {
+		if (vp->v_iflag & VI_DOOMED) {
+			vdestroy(vp);
+			return;
+		} else
+			vfree(vp);
+	}
+	VI_UNLOCK(vp);
 }
 
+/*
+ * Call VOP_INACTIVE on the vnode and manage the DOINGINACT and OWEINACT
+ * flags.  DOINGINACT prevents us from recursing in calls to vinactive.
+ * OWEINACT tracks whether a vnode missed a call to inactive due to a
+ * failed lock upgrade.
+ */
 static void
 vinactive(struct vnode *vp, struct thread *td)
 {
+
 	ASSERT_VOP_LOCKED(vp, "vinactive");
 	ASSERT_VI_LOCKED(vp, "vinactive");
 	VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
@@ -2136,9 +2174,11 @@ loop:
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
 
 		VI_LOCK(vp);
+		vholdl(vp);
 		MNT_IUNLOCK(mp);
 		error = vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td);
 		if (error) {
+			vdrop(vp);
 			MNT_ILOCK(mp);
 			goto loop;
 		}
@@ -2147,6 +2187,7 @@ loop:
 		 */
 		if ((flags & SKIPSYSTEM) && (vp->v_vflag & VV_SYSTEM)) {
 			VOP_UNLOCK(vp, 0, td);
+			vdrop(vp);
 			MNT_ILOCK(mp);
 			continue;
 		}
@@ -2162,45 +2203,34 @@ loop:
 			if ((vp->v_type == VNON ||
 			    (error == 0 && vattr.va_nlink > 0)) &&
 			    (vp->v_writecount == 0 || vp->v_type != VREG)) {
-				VOP_UNLOCK(vp, LK_INTERLOCK, td);
+				VOP_UNLOCK(vp, 0, td);
+				vdropl(vp);
 				MNT_ILOCK(mp);
 				continue;
 			}
 		} else
 			VI_LOCK(vp);
-		KASSERT((vp->v_iflag & VI_DOOMED) == 0,
-		    ("vflush: Found doomed vnode %p on the mount list.", vp));
 		/*
 		 * With v_usecount == 0, all we need to do is clear out the
 		 * vnode data structures and we are done.
+		 *
+		 * If FORCECLOSE is set, forcibly close the vnode.
 		 */
-		if (vp->v_usecount == 0) {
-			vgonel(vp, 1);
-			VOP_UNLOCK(vp, 0, td);
-			MNT_ILOCK(mp);
-			continue;
-		}
-		/*
-		 * If FORCECLOSE is set, forcibly close the vnode. For block
-		 * or character devices, revert to an anonymous device. For
-		 * all other files, just kill them.
-		 */
-		if (flags & FORCECLOSE) {
-			VNASSERT(vp->v_type != VCHR && vp->v_type != VBLK, vp,
+		if (vp->v_usecount == 0 || (flags & FORCECLOSE)) {
+			VNASSERT(vp->v_usecount == 0 ||
+			    (vp->v_type != VCHR && vp->v_type != VBLK), vp,
 			    ("device VNODE %p is FORCECLOSED", vp));
-			vgonel(vp, 1);
-			VOP_UNLOCK(vp, 0, td);
-			MNT_ILOCK(mp);
-			continue;
+			vgonel(vp);
+		} else {
+			busy++;
+#ifdef DIAGNOSTIC
+			if (busyprt)
+				vprint("vflush: busy vnode", vp);
+#endif
 		}
 		VOP_UNLOCK(vp, 0, td);
-#ifdef DIAGNOSTIC
-		if (busyprt)
-			vprint("vflush: busy vnode", vp);
-#endif
-		VI_UNLOCK(vp);
+		vdropl(vp);
 		MNT_ILOCK(mp);
-		busy++;
 	}
 	MNT_IUNLOCK(mp);
 	if (rootrefs > 0 && (flags & FORCECLOSE) == 0) {
@@ -2229,42 +2259,22 @@ loop:
 }
 
 /*
- * This moves a now (likely recyclable) vnode to the end of the
- * mountlist.  XXX However, it is temporarily disabled until we
- * can clean up ffs_sync() and friends, which have loop restart
- * conditions which this code causes to operate O(N^2).
- */
-static void
-vlruvp(struct vnode *vp)
-{
-#if 0
-	struct mount *mp;
-
-	if ((mp = vp->v_mount) != NULL) {
-		MNT_ILOCK(mp);
-		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
-		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
-		MNT_IUNLOCK(mp);
-	}
-#endif
-}
-
-/*
  * Recycle an unused vnode to the front of the free list.
- * Release the passed interlock if the vnode will be recycled.
  */
 int
 vrecycle(struct vnode *vp, struct thread *td)
 {
+	int recycled;
 
 	ASSERT_VOP_LOCKED(vp, "vrecycle");
+	recycled = 0;
 	VI_LOCK(vp);
-	if (vp->v_usecount == 0 && (vp->v_iflag & VI_DOOMED) == 0) {
-		vgonel(vp, 1);
-		return (1);
+	if (vp->v_usecount == 0) {
+		recycled = 1;
+		vgonel(vp);
 	}
 	VI_UNLOCK(vp);
-	return (0);
+	return (recycled);
 }
 
 /*
@@ -2275,14 +2285,15 @@ void
 vgone(struct vnode *vp)
 {
 	VI_LOCK(vp);
-	vgonel(vp, 1);
+	vgonel(vp);
+	VI_UNLOCK(vp);
 }
 
 /*
  * vgone, with the vp interlock held.
  */
 void
-vgonel(struct vnode *vp, int shouldfree)
+vgonel(struct vnode *vp)
 {
 	struct thread *td;
 	int oweinact;
@@ -2291,6 +2302,11 @@ vgonel(struct vnode *vp, int shouldfree)
 	CTR1(KTR_VFS, "vgonel: vp %p", vp);
 	ASSERT_VOP_LOCKED(vp, "vgonel");
 	ASSERT_VI_LOCKED(vp, "vgonel");
+#if 0
+	/* XXX Need to fix ttyvp before I enable this. */
+	VNASSERT(vp->v_holdcnt, vp,
+	    ("vgonel: vp %p has no reference.", vp));
+#endif
 	td = curthread;
 
 	/*
@@ -2350,9 +2366,6 @@ vgonel(struct vnode *vp, int shouldfree)
 	vp->v_op = &dead_vnodeops;
 	vp->v_tag = "none";
 	vp->v_type = VBAD;
-	if (vp->v_holdcnt == 0 && shouldfree)
-		vfreehead(vp);
-	VI_UNLOCK(vp);
 }
 
 /*
@@ -2770,32 +2783,16 @@ vfree(struct vnode *vp)
 	VNASSERT(vp->v_op != NULL, vp, ("vfree: vnode already reclaimed."));
 	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp, ("vnode already free"));
 	VNASSERT(VSHOULDFREE(vp), vp, ("vfree: freeing when we shouldn't"));
-	if (vp->v_iflag & (VI_AGE|VI_DOOMED)) {
+	VNASSERT((vp->v_iflag & VI_DOOMED) == 0, vp,
+	    ("vfree: Freeing doomed vnode"));
+	if (vp->v_iflag & VI_AGE) {
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 	} else {
 		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 	}
 	freevnodes++;
-	mtx_unlock(&vnode_free_list_mtx);
-	vp->v_iflag &= ~(VI_AGE|VI_DOOMED);
+	vp->v_iflag &= ~VI_AGE;
 	vp->v_iflag |= VI_FREE;
-}
-
-/*
- * Move a vnode to the head of the free list.
- */
-static void
-vfreehead(struct vnode *vp)
-{
-	CTR1(KTR_VFS, "vfreehead vp %p", vp);
-	mtx_lock(&vnode_free_list_mtx);
-	if (vp->v_iflag & VI_FREE) {
-		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-	} else {
-		vp->v_iflag |= VI_FREE;
-		freevnodes++;
-	}
-	TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 	mtx_unlock(&vnode_free_list_mtx);
 }
 
@@ -2813,9 +2810,8 @@ vbusy(struct vnode *vp)
 	mtx_lock(&vnode_free_list_mtx);
 	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 	freevnodes--;
-	mtx_unlock(&vnode_free_list_mtx);
-
 	vp->v_iflag &= ~(VI_FREE|VI_AGE);
+	mtx_unlock(&vnode_free_list_mtx);
 }
 
 /*
