@@ -605,24 +605,45 @@ search_ip6_addr_net (struct in6_addr * ip6_addr)
 }
 
 static int
-verify_rev_path6(struct in6_addr *src, struct ifnet *ifp)
+verify_path6(struct in6_addr *src, struct ifnet *ifp)
 {
-	static struct route_in6 ro;
+	struct route_in6 ro;
 	struct sockaddr_in6 *dst;
 
-	dst = (struct sockaddr_in6 * )&(ro.ro_dst);
+	bzero(&ro, sizeof(ro));
 
-	if ( !(IN6_ARE_ADDR_EQUAL (src, &dst->sin6_addr) )) {
-		bzero(dst, sizeof(*dst));
-		dst->sin6_family = AF_INET6;
-		dst->sin6_len = sizeof(*dst);
-		dst->sin6_addr = *src;
-		rtalloc_ign((struct route *)&ro, RTF_CLONING);
-	}
-	if ((ro.ro_rt == NULL) || (ifp == NULL) ||
-	    (ro.ro_rt->rt_ifp->if_index != ifp->if_index))
+	dst = (struct sockaddr_in6 * )&(ro.ro_dst);
+	dst->sin6_family = AF_INET6;
+	dst->sin6_len = sizeof(*dst);
+	dst->sin6_addr = *src;
+	rtalloc_ign((struct route *)&ro, RTF_CLONING);
+
+	if (ro.ro_rt == NULL)
 		return 0;
+
+	/* if ifp is provided, check for equality with rtentry */
+	if (ifp != NULL && ro.ro_rt->rt_ifp != ifp) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
+
+	/* if no ifp provided, check if rtentry is not default route */
+	if (ifp == NULL &&
+	    IN6_IS_ADDR_UNSPECIFIED(&satosin6(rt_key(ro.ro_rt))->sin6_addr)) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
+
+	/* or if this is a blackhole/reject route */
+	if (ifp == NULL && ro.ro_rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
+
+	/* found valid route */
+	RTFREE(ro.ro_rt);
 	return 1;
+
 }
 static __inline int
 hash_packet6(struct ipfw_flow_id *id)
@@ -2591,13 +2612,12 @@ check_body:
 
 			case O_VERREVPATH:
 				/* Outgoing packets automatically pass/match */
-				/* XXX BED: verify_path was verify_rev_path in the diff... */
 				match = ((oif != NULL) ||
 				    (m->m_pkthdr.rcvif == NULL) ||
 				    (
 #ifdef INET6
 				    is_ipv6 ?
-					verify_rev_path6(&(args->f_id.src_ip6),
+					verify_path6(&(args->f_id.src_ip6),
 					    m->m_pkthdr.rcvif) :
 #endif
 				    verify_path(src_ip, m->m_pkthdr.rcvif)));
@@ -2605,18 +2625,32 @@ check_body:
 
 			case O_VERSRCREACH:
 				/* Outgoing packets automatically pass/match */
-				/* XXX: IPv6 missing!?! */
 				match = (hlen > 0 && ((oif != NULL) ||
-				     (is_ipv4 && verify_path(src_ip, NULL))));
+#ifdef INET6
+				    is_ipv6 ?
+				        verify_path6(&(args->f_id.src_ip6),
+				            NULL) :
+#endif
+				    verify_path(src_ip, NULL)));
 				break;
 
 			case O_ANTISPOOF:
 				/* Outgoing packets automatically pass/match */
-				/* XXX: IPv6 missing!?! */
 				if (oif == NULL && hlen > 0 &&
-				    (is_ipv4 && in_localaddr(src_ip)))
-					match = verify_path(src_ip,
-							m->m_pkthdr.rcvif);
+				    (  (is_ipv4 && in_localaddr(src_ip))
+#ifdef INET6
+				    || (is_ipv6 &&
+				        in6_localaddr(&(args->f_id.src_ip6)))
+#endif
+				    ))
+					match =
+#ifdef INET6
+					    is_ipv6 ? verify_path6(
+					        &(args->f_id.src_ip6),
+					        m->m_pkthdr.rcvif) :
+#endif
+					    verify_path(src_ip,
+					        m->m_pkthdr.rcvif);
 				else
 					match = 1;
 				break;
