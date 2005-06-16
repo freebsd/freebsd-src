@@ -29,8 +29,9 @@
 .Os
 .Sh NAME
 .Nm ng_tcpmss
-.Nd netgraph node to adjust TCP MSS option
+.Nd "netgraph node to adjust TCP MSS option"
 .Sh SYNOPSIS
+.In netgraph.h
 .In netgraph/ng_tcpmss.h
 .Sh DESCRIPTION
 The
@@ -39,18 +40,18 @@ node type is designed to alter the Maximum Segment Size option
 of TCP packets.
 This node accepts an arbitrary number of hooks.
 Initially a new hook is considered unconfigured.
-To configure a hook, user should send
+The
 .Dv NG_TCPMSS_CONFIG
-control message to node.
+control message is used to configure a hook.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following.
-.Bl -tag -width foo
-.It Dv NGM_TCPMSS_CONFIG Pq Ic config
+.Bl -tag -width indent
+.It Dv NGM_TCPMSS_CONFIG Pq Li config
 This control message configures node to do given MSS adjusting on
-particular hook.
+a particular hook.
 It requires the
 .Vt "struct ng_tcpmss_config"
-to be supplied as argument:
+to be supplied as an argument:
 .Bd -literal
 struct ng_tcpmss_config {
 	char		inHook[NG_HOOKSIZ];
@@ -60,16 +61,16 @@ struct ng_tcpmss_config {
 .Ed
 .Pp
 This means: packets received on
-.Qq inHook
+.Va inHook
 would be checked for TCP MSS option and the latter would be
 reduced down to
-.Qq maxMSS ,
+.Va maxMSS
 if it exceeds
-.Qq maxMSS .
-After that packets would be sent to hook
-.Qq outHook .
-.It Dv NGM_TCPMSS_GET_STATS Pq Ic getstats
-This control message obtains statistics for the given hook.
+.Va maxMSS .
+After that, packets would be sent to hook
+.Va outHook .
+.It Dv NGM_TCPMSS_GET_STATS Pq Li getstats
+This control message obtains statistics for a given hook.
 The statistics are returned in
 .Vt "struct ng_tcpmss_hookstat" :
 .Bd -literal
@@ -81,23 +82,22 @@ struct ng_tcpmss_hookstat {
 	uint64_t	FixedPkts;	/* changed packets */
 };
 .Ed
-.Pp
-.It Dv NGM_TCPMSS_CLR_STATS Pq Ic clrstats
-This control message clears statistics for the given hook.
-.It Dv NGM_TCPMSS_GETCLR_STATS Pq Ic getclrstats
-This control message obtains and clears statistics for the given hook.
+.It Dv NGM_TCPMSS_CLR_STATS Pq Li clrstats
+This control message clears statistics for a given hook.
+.It Dv NGM_TCPMSS_GETCLR_STATS Pq Li getclrstats
+This control message obtains and clears statistics for a given hook.
 .El
 .Sh EXAMPLES
-In the following example packets are injected into
-.Nm
-node with help of
+In the following example, packets are injected into the
+.Nm tcpmss
+node using the
 .Xr ng_ipfw 4
 node.
 .Bd -literal -offset indent
 # Create tcpmss node and connect it to ng_ipfw node
 ngctl mkpeer ipfw: tcpmss 100 qqq
 
-# Adjust MSS to 1452 
+# Adjust MSS to 1452
 ngctl msg ipfw:100 config '{ inHook="qqq" outHook="qqq" maxMSS=1452 }'
 
 # Divert traffic into tcpmss node
@@ -120,7 +120,6 @@ node type was implemented in
 .Fx 6.0 .
 .Sh AUTHORS
 .An Alexey Popov Aq lollypop@flexuser.ru
-and
 .An Gleb Smirnoff Aq glebius@FreeBSD.org
 .Sh BUGS
-When running on SMP system statistics may be broken.
+When running on SMP, system statistics may be broken.

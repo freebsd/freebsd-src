@@ -62,11 +62,10 @@ Defaults for these sysctls can be set in
 .Xr sysctl.conf 5 .
 .Sh EXAMPLES
 The following can be added to
-.Xr devd.conf 5 
+.Xr devd.conf 5
 in order to pass button events to a
 .Pa /usr/local/sbin/acpi_oem_exec.sh
 script:
-.Pp
 .Bd -literal -offset indent
 notify 10 {
         match "system"		"ACPI";

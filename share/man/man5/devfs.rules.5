@@ -51,7 +51,7 @@ separated by an equal sign.
 Other lines are rule specifications as documented in
 .Xr devfs 8 ,
 in the section
-.Dq "Rule Specification" .
+.Sx "Rule Specification" .
 These lines are prepended with
 .Dq Li rule
 and are passed to
@@ -60,33 +60,32 @@ by the startup scripts of the system.
 It is important to put path elements that contain
 .Xr glob 3
 special characters between quotes.
+.Sh FILES
+.Bl -tag -compact
+.It Pa /etc/devfs.rules
+.It Pa /etc/defaults/devfs.rules
+.El
 .Sh EXAMPLES
 To make all the partitions of
 .Xr da 4
 devices readable and writable by their owner and the
 .Dq Li usb
 group, the following rule may be used:
-.Bd -literal -offset indent
-add path 'da*s*' mode 0660 group usb
-.Ed
+.Pp
+.Dl "add path 'da*s*' mode 0660 group usb"
 .Pp
 To make all the
 .Xr uscanner 4
 devices accessible to their owner and the
 .Dq Li usb
 group, a similar rule may be used:
-.Bd -literal -offset indent
-add path 'uscanner*' mode 0660 group usb
-.Ed
-.Sh FILES
-.Bl -tag -compact
-.It Pa /etc/devfs.rules
-.It Pa /etc/defaults/devfs.rules
-.El
+.Pp
+.Dl "add path 'uscanner*' mode 0660 group usb"
 .Sh SEE ALSO
 .Xr glob 3 ,
 .Xr devfs 5 ,
 .Xr devfs.conf 5 ,
 .Xr devfs 8
 .Sh AUTHORS
-.An "Roland Smith" Aq rsmith@xs4all.nl
+This manual page was written by
+.An "Roland Smith" Aq rsmith@xs4all.nl .
