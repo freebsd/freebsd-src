@@ -1,5 +1,3 @@
-.\" $FreeBSD$
-.\"
 .\" Copyright (c) 2004
 .\"	Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
 .\"
@@ -25,12 +23,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 02, 2005
+.\" $FreeBSD$
+.\"
+.Dd May 2, 2005
 .Os
 .Dt IPW 4
 .Sh NAME
 .Nm ipw
-.Nd Intel PRO/Wireless 2100 IEEE 802.11 driver
+.Nd "Intel PRO/Wireless 2100 IEEE 802.11 driver"
 .Sh SYNOPSIS
 .Cd "device ipw"
 .Cd "device pci"
@@ -54,11 +54,11 @@ This driver requires firmware to be loaded before it will work.
 You need to obtain
 .Xr ipwcontrol 8
 from the IPW web page listed below to accomplish loading the firmware
-before 
-.Xr ifconfig 8 
+before
+.Xr ifconfig 8
 will work.
 .Sh EXAMPLES
-Join an existing BSS network (ie: connect to an access point):
+Join an existing BSS network (i.e., connect to an access point):
 .Pp
 .Dl "ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00"
 .Pp
@@ -67,35 +67,39 @@ Join a specific BSS network with network name
 .Pp
 .Dl "ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
 .Pp
-Join a specific BSS network with 40bit WEP encryption:
+Join a specific BSS network with 40-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-        wepmode on wepkey 0x1234567890
+    wepmode on wepkey 0x1234567890
 .Ed
 .Pp
-Join a specific BSS network with 104bit WEP encryption:
+Join a specific BSS network with 104-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-        wepmode on wepkey 0x01020304050607080910111213
+    wepmode on wepkey 0x01020304050607080910111213
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ipw%d: device timeout"
-The driver will reset the hardware. This should not happen.
+The driver will reset the hardware.
+This should not happen.
 .It "ipw%d: Please load firmware"
-The required firmeware has not been loaded into the card, and therefore
-the card cannot operate.  Load the firmware with
+The required firmware has not been loaded into the card, and therefore
+the card cannot operate.
+Load the firmware with
 .Xr ipwcontrol 8
 before proceeding.
 .El
 .Sh SEE ALSO
 .Xr an 4 ,
 .Xr ath 4 ,
+.Xr iwi 4 ,
 .Xr pci 4 ,
 .Xr wi 4 ,
 .Xr wlan 4 ,
 .Xr ifconfig 8 ,
-.Xr ipwcontrol 8
+.Xr ipwcontrol 8 ,
+.Xr wicontrol 8
 .Rs
 .%T The IPW Web Page
 .%O http://damien.bergamini.free.fr/ipw/
@@ -104,4 +108,4 @@ before proceeding.
 The
 .Nm
 driver was written by
-.An Damien Bergamini Aq damien@freebsd.org .
+.An Damien Bergamini Aq damien@FreeBSD.org .
