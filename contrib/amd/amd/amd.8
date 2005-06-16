@@ -50,7 +50,7 @@
 .Sh SYNOPSIS
 .Nm amd
 .Fl H
-.Nm amd 
+.Nm amd
 .Op Fl F Ar conf_file
 .Nm amd
 .Op Fl nprvHS
@@ -83,7 +83,8 @@
 .Sh DESCRIPTION
 .Nm Amd
 is a daemon that automatically mounts file systems whenever a file or directory
-within that file system is accessed.  File systems are automatically unmounted
+within that file system is accessed.
+File systems are automatically unmounted
 when they appear to be quiescent.
 .Pp
 .Nm Amd
@@ -96,17 +97,19 @@ are handled by
 .Nm amd ,
 which uses the map defined by
 .Ar mapname
-to determine how to resolve the lookup.  Generally, this will be a host name,
+to determine how to resolve the lookup.
+Generally, this will be a host name,
 some file system information and some mount options for the given file system.
 .Pp
 In the first form depicted above,
 .Nm amd
-will print a short help string.  In the second form, if no options are
+will print a short help string.
+In the second form, if no options are
 specified, or if the
 .Fl F
-is used, 
-.Nm amd 
-will read configuration parameters from the file 
+is used,
+.Nm amd
+will read configuration parameters from the file
 .Ar conf_file
 which defaults to
 .Pa /etc/amd.conf .
@@ -121,12 +124,15 @@ The default is
 Specify a
 .Ar duration ,
 in seconds, that a looked up name remains
-cached when not in use.  The default is 5 minutes.
+cached when not in use.
+The default is 5 minutes.
 .It Fl d Ar domain
-Specify the local domain name.  If this option is not
+Specify the local domain name.
+If this option is not
 given the domain name is determined from the hostname.
 .It Fl k Ar kernel-arch
-Specifies the kernel architecture.  This is used solely
+Specifies the kernel architecture.
+This is used solely
 to set the ${karch} selector.
 .It Fl l Ar logfile
 Specify a logfile in which to record mount and unmount events.
@@ -136,31 +142,32 @@ is the string
 .Em syslog ,
 the log messages will be sent to the system log daemon by
 .Xr syslog 3 .
-The default syslog facility used is LOG_DAEMON.  
+The default syslog facility used is LOG_DAEMON.
 If you wish to change it, append its name to the log file name,
 delimited by a single colon.
-For example, if 
+For example, if
 .Ar logfile
 is the string
 .Dq Li syslog:local7
 then
 .Nm amd
-will log messages via 
+will log messages via
 .Xr syslog 3
 using the LOG_LOCAL7 facility (if it exists on the system).
 .It Fl n
 Normalize hostnames.
 The name referred to by ${rhost} is normalized relative to the
-host database before being used.  The effect is to translate
+host database before being used.
+The effect is to translate
 aliases into ``official'' names.
 .It Fl o Ar op_sys_ver
 Override the compiled-in version number of the operating system.
-Useful when the built in version is not desired for backward 
+Useful when the built in version is not desired for backward
 compatibility reasons.
-For example, if the build in version is 
-.Dq 2.5.1 , 
+For example, if the build in version is
+.Dq 2.5.1 ,
 you can override it to
-.Dq 5.5.1 , 
+.Dq 5.5.1 ,
 and use older maps that were written with the latter in mind.
 .It Fl p
 Print
@@ -172,7 +179,8 @@ to standard output where it can be saved into a file.
 Restart existing mounts.
 .Nm Amd
 will scan the mount file table to determine which file systems
-are currently mounted.  Whenever one of these would have
+are currently mounted.
+Whenever one of these would have
 been auto-mounted,
 .Nm amd
 .Em inherits
@@ -182,25 +190,33 @@ Specify the NFS timeout
 .Ar interval ,
 in tenths of a second, between
 .Tn NFS/RPC
-retries (for UDP only).  The default
-is 0.8 seconds.  The second value alters the retransmit counter, which
-defaults to 11 retransmissions.  Both of these values are used by the kernel
-to communicate with amd.  Useful defaults are supplied if either or both
+retries (for UDP only).
+The default
+is 0.8 seconds.
+The second value alters the retransmit counter, which
+defaults to 11 retransmissions.
+Both of these values are used by the kernel
+to communicate with amd.
+Useful defaults are supplied if either or both
 values are missing.
 .Pp
 Amd relies on the kernel RPC retransmit mechanism to trigger mount retries.
-The values of these parameters change the overall retry interval.  Too long
+The values of these parameters change the overall retry interval.
+Too long
 an interval gives poor interactive response; too short an interval causes
 excessive retries.
 .It Fl v
-Version.  Displays version and configuration information on standard error.
+Version.
+Displays version and configuration information on standard error.
 .It Fl w Ar interval
 Specify an
 .Ar interval ,
 in seconds, between attempts to dismount file systems that have exceeded their
-cached times.  The default is 2 minutes.
+cached times.
+The default is 2 minutes.
 .It Fl x Ar options
-Specify run-time logging options.  The options are a comma separated list
+Specify run-time logging options.
+The options are a comma separated list
 chosen from: fatal, error, user, warn, info, map, stats, all.
 .It Fl y Ar domain
 Specify an alternative
@@ -215,10 +231,12 @@ support is not available.
 .It Fl C Ar cluster-name
 Specify an alternative HP-UX cluster name to use.
 .It Fl D Ar option
-Select from a variety of debug options.  Prefixing an
+Select from a variety of debug options.
+Prefixing an
 option with the string
 .Em no
-reverses the effect of that option.  Options are cumulative.
+reverses the effect of that option.
+Options are cumulative.
 The most useful option is
 .Ar all .
 .Pp
@@ -232,40 +250,47 @@ and a fuller description is available in the program source.
 .It Fl F Ar conf_file
 Specify an
 .Nm amd
-configuration file to use.  See
+configuration file to use.
+See
 .Xr amd.conf 5
-for description of this file's format.  This configuration file is used to
-specify any options in lieu of typing many of them on the command line.  The
+for description of this file's format.
+This configuration file is used to
+specify any options in lieu of typing many of them on the command line.
+The
 .Nm amd.conf
 file includes directives for every command line option amd has,
 and many more that are only available via the configuration file
-facility.  The configuration file specified by this option is 
+facility.
+The configuration file specified by this option is
 processed after all other options have been processed, regardless
 of the actual location of this option on the command line.
 .It Fl H
 Print help and usage string.
 .It Fl O Ar op_sys_name
-Override the compiled-in name of the operating system.  
+Override the compiled-in name of the operating system.
 Useful when the built in name is not desired for backward
 compatibility reasons.
 For example, if the build in name is
-.Dq sunos5 , 
+.Dq sunos5 ,
 you can override it to
 .Dq sos5
 and use older maps which were written with the latter in mind.
 .It Fl S
 Do not lock the running executable pages of
 .Nm amd
-into memory.  To improve
+into memory.
+To improve
 .Nm amd's
-performance, systems that support the 
+performance, systems that support the
 .Xr plock 3
 call, could lock the
 .Nm amd
-process into memory.  This way there is less chance the operating system will
+process into memory.
+This way there is less chance the operating system will
 schedule, page out, and swap the
 .Nm amd
-process as needed.  This tends to improve
+process as needed.
+This tends to improve
 .Nm amd's
 performance, at the cost of reserving the memory used by the
 .Nm amd
@@ -277,7 +302,7 @@ option.
 .It Fl T Ar tag
 Specify a tag to use with
 .Xr amd.conf 5 .
-All Map entries tagged with tag will be processed.   
+All Map entries tagged with tag will be processed.
 Map entries that are not tagged are always processed.
 Map entries that are tagged with a tag other than
 .Ar tag
@@ -331,6 +356,11 @@ the features.
 .Re
 .Pp
 .Pa http://www.cs.columbia.edu/~ezk/am-utils/
+.Sh HISTORY
+The
+.Nm amd
+utility first appeared in
+.Bx 4.4 .
 .Sh AUTHORS
 .An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
 Department of Computing, Imperial College, London, UK.
@@ -340,10 +370,5 @@ Department of Computer Science, Columbia University,
 New York, USA.
 .Pp
 Other authors and contributors to am-utils are listed in the
-.Pa AUTHORS 
+.Pa AUTHORS
 file distributed with am-utils.
-.Sh HISTORY
-The
-.Nm amd
-utility first appeared in
-.Bx 4.4 .
