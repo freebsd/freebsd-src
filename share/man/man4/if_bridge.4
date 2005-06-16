@@ -34,20 +34,21 @@
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 4, 2004
+.\"
+.Dd June 10, 2005
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
 .Nm if_bridge
 .Nd network bridge device
 .Sh SYNOPSIS
-.Cd device if_bridge
+.Cd "device if_bridge"
 .Sh DESCRIPTION
 The
 .Nm
 driver creates a logical link between two or more IEEE 802 networks
 that use the same (or
-.Dq similar enough )
+.Dq "similar enough" )
 framing format.
 For example, it is possible to bridge Ethernet and 802.11 networks together,
 but it is not possible to bridge Ethernet and Token Ring together.
@@ -82,57 +83,65 @@ Spanning Tree is used to detect and remove loops in a network topology.
 When filtering is enabled, bridged packets will pass through the filter
 inbound on the originating interface, on the bridge interface and outbound on
 the appropriate interfaces.
-Either stage can be disabled, this behaviour can be controlled using 
+Either stage can be disabled, this behaviour can be controlled using
 .Xr sysctl 8 :
 .Bl -tag -width ".Va net.link.bridge.pfil_member"
 .It Va net.link.bridge.pfil_member
 Set to
 .Li 1
-to enable enable filtering on the incoming and outgoing member interfaces, set
-to 
+to enable filtering on the incoming and outgoing member interfaces, set
+to
 .Li 0
 to disable it.
 .It Va net.link.bridge.pfil_bridge
 Set to
 .Li 1
-to enable enable filtering on the bridge interface, set
-to 
+to enable filtering on the bridge interface, set
+to
 .Li 0
 to disable it.
 .It Va net.link.bridge.ipfw
 Set to
 .Li 1
-to enable enable layer2 filtering with
-.Xr ipfirewall 4
-, set to 
+to enable layer2 filtering with
+.Xr ipfirewall 4 ,
+set to
 .Li 0
 to disable it.
 This needs to be enabled for
 .Xr dummynet 4
 support.
-When ipfw is enabled pfil_bridge and pfil_member will be disabled so that IPFW
-is not run twice, these can be re-enabled if desired.
+When
+.Va ipfw
+is enabled,
+.Va pfil_bridge
+and
+.Va pfil_member
+will be disabled so that IPFW
+is not run twice; these can be re-enabled if desired.
 .El
 .Pp
 ARP and REVARP packets are forwarded without being filtered and others
-that are not IP nor IPv6 packets are not forwarded when 
+that are not IP nor IPv6 packets are not forwarded when
 .Xr pfil 9
 filtering is enabled.
-IPFW can filter Ethernet types using 'mac-type' so all packets are passed to
+IPFW can filter Ethernet types using
+.Cm mac-type
+so all packets are passed to
 the filter for processing.
 .Pp
 Note that packets to and from the bridging host will be seen by the
 filter on the interface with the appropriate address configured as well
 as on the interface on which the packet arrives or departs.
 .Sh EXAMPLES
-The following then placed in the file
+The following when placed in the file
 .Pa /etc/rc.conf
-will cause the a bridge called
-.Sq bridge0
+will cause a bridge called
+.Dq Li bridge0
 to be created, and will add the interfaces
-.Sq wi0
+.Dq Li wi0
 and
-.Sq fxp0
+.Dq Li fxp0
 to the bridge, and then enable packet forwarding.
 Such a configuration could be used to implement a simple
 802.11-to-Ethernet bridge (assuming the 802.11 interface is
@@ -182,5 +191,5 @@ driver has been heavily modified from the original version by
 .Sh BUGS
 The
 .Nm
-driver currently supports only Ethernet and Ethernet-like (e.g. 802.11)
+driver currently supports only Ethernet and Ethernet-like (e.g., 802.11)
 network devices, with exactly the same interface MTU size as the bridge device.
