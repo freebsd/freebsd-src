@@ -1,5 +1,3 @@
-.\" $FreeBSD$
-.\"
 .\" Copyright (c) 2004, 2005
 .\"	Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
 .\"
@@ -25,12 +23,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 02, 2005
+.\" $FreeBSD$
+.\"
+.Dd May 2, 2005
 .Os
 .Dt IWI 4
 .Sh NAME
 .Nm iwi
-.Nd Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 driver
+.Nd "Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 driver"
 .Sh SYNOPSIS
 .Cd "device iwi"
 .Cd "device pci"
@@ -54,11 +54,11 @@ This driver requires firmware to be loaded before it will work.
 You need to obtain
 .Xr iwicontrol 8
 from the IWI web page listed below to accomplish loading the firmware
-before 
-.Xr ifconfig 8 
+before
+.Xr ifconfig 8
 will work.
 .Sh EXAMPLES
-Join an existing BSS network (ie: connect to an access point):
+Join an existing BSS network (i.e., connect to an access point):
 .Pp
 .Dl "ifconfig iwi0 inet 192.168.0.20 netmask 0xffffff00"
 .Pp
@@ -67,24 +67,26 @@ Join a specific BSS network with network name
 .Pp
 .Dl "ifconfig iwi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
 .Pp
-Join a specific BSS network with 64 bits WEP encryption:
+Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig iwi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-        wepmode on wepkey 0x1234567890
+    wepmode on wepkey 0x1234567890
 .Ed
 .Pp
-Join a specific BSS network with 128bits WEP encryption:
+Join a specific BSS network with 128-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig iwi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-        wepmode on wepkey 0x01020304050607080910111213
+    wepmode on wepkey 0x01020304050607080910111213
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "iwi%d: device timeout"
-The driver will reset the hardware. This should not happen.
+The driver will reset the hardware.
+This should not happen.
 .It "iwi%d: Please load firmware"
-The required firmeware has not been loaded into the card, and therefore
-the card cannot operate.  Load the firmware with
+The required firmware has not been loaded into the card, and therefore
+the card cannot operate.
+Load the firmware with
 .Xr iwicontrol 8
 before proceeding.
 .El
@@ -106,4 +108,4 @@ before proceeding.
 The
 .Nm
 driver was written by
-.An Damien Bergamini Aq damien@freebsd.org .
+.An Damien Bergamini Aq damien@FreeBSD.org .

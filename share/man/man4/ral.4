@@ -15,12 +15,12 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd May 02, 2005
+.Dd May 2, 2005
 .Os
 .Dt RAL 4
 .Sh NAME
 .Nm ral
-.Nd Ralink Technology RT2500 IEEE 802.11 driver
+.Nd "Ralink Technology RT2500 IEEE 802.11 driver"
 .Sh SYNOPSIS
 .Cd "device ral"
 .Cd "device wlan"
@@ -42,8 +42,8 @@ driver depending on the received-signal strength.
 .Sh HARDWARE
 The following adapters should work:
 .Pp
-.Bl -column -compact "Atlantis Land A02-PCM-W54" "Bus"
-.It Em "Card                         Bus"
+.Bl -column -compact ".Li Atlantis Land A02-PCM-W54" "Bus"
+.It Em Card Ta Em Bus
 .It Li "A-Link WL54H" Ta PCI
 .It Li "A-Link WL54PC" Ta CardBus
 .It Li "Amigo AWI-914W" Ta CardBus
@@ -126,9 +126,9 @@ The following adapters should work:
 .El
 .Pp
 An up to date list can be found at
-.Pa http://damien.bergamini.free.fr/ral/list.html
+.Pa http://damien.bergamini.free.fr/ral/list.html .
 .Sh EXAMPLES
-Join an existing BSS network (ie: connect to an access point):
+Join an existing BSS network (i.e., connect to an access point):
 .Pp
 .Dl "ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00"
 .Pp
@@ -137,16 +137,16 @@ Join a specific BSS network with network name
 .Pp
 .Dl "ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
 .Pp
-Join a specific BSS network with 40bit WEP encryption:
+Join a specific BSS network with 40-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-        wepmode on wepkey 0x1234567890
+    wepmode on wepkey 0x1234567890
 .Ed
 .Pp
-Join a specific BSS network with 104bit WEP encryption:
+Join a specific BSS network with 104-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-        wepmode on wepkey 0x01020304050607080910111213
+    wepmode on wepkey 0x01020304050607080910111213
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -162,14 +162,9 @@ This should not happen.
 .Xr wlan 4 ,
 .Xr ifconfig 8
 .Rs
-.%T Ralink Technology
-.%O http://www.ralinktech.com
+.%T "Ralink Technology"
+.%O http://www.ralinktech.com/
 .Re
-.Sh AUTHORS
-The
-.Nm
-driver was written by
-.An Damien Bergamini Aq damien@freebsd.org .
 .Sh HISTORY
 The
 .Nm
@@ -180,3 +175,8 @@ PCI
 .Nm
 adapters seem to require a PCI 2.2 compliant motherboard and will likely not
 work with PCI 2.1 only motherboard.
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq damien@FreeBSD.org .
