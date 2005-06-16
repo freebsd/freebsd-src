@@ -565,75 +565,75 @@ verify_path(struct in_addr src, struct ifnet *ifp)
 static __inline int
 icmp6type_match (int type, ipfw_insn_u32 *cmd)
 {
-       return (type <= ICMP6_MAXTYPE && (cmd->d[type/32] & (1<<(type%32)) ) );
+	return (type <= ICMP6_MAXTYPE && (cmd->d[type/32] & (1<<(type%32)) ) );
 }
 
 static int
 flow6id_match( int curr_flow, ipfw_insn_u32 *cmd )
 {
-       int i;
-       for (i=0; i <= cmd->o.arg1; ++i )
-               if (curr_flow == cmd->d[i] )
-                       return 1;
-       return 0;
+	int i;
+	for (i=0; i <= cmd->o.arg1; ++i )
+		if (curr_flow == cmd->d[i] )
+			return 1;
+	return 0;
 }
 
 /* support for IP6_*_ME opcodes */
 static int
 search_ip6_addr_net (struct in6_addr * ip6_addr)
 {
-       struct ifnet *mdc;
-       struct ifaddr *mdc2;
-       struct in6_ifaddr *fdm;
-       struct in6_addr copia;
+	struct ifnet *mdc;
+	struct ifaddr *mdc2;
+	struct in6_ifaddr *fdm;
+	struct in6_addr copia;
 
-       TAILQ_FOREACH(mdc, &ifnet, if_link)
-               for (mdc2 = mdc->if_addrlist.tqh_first; mdc2;
-                   mdc2 = mdc2->ifa_list.tqe_next) {
-                       if (!mdc2->ifa_addr)
-                               continue;
-                       if (mdc2->ifa_addr->sa_family == AF_INET6) {
-                               fdm = (struct in6_ifaddr *)mdc2;
-                               copia = fdm->ia_addr.sin6_addr;
-                               /* need for leaving scope_id in the sock_addr */
-                               in6_clearscope(&copia);
-                               if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia))
-                                       return 1;
-                       }
-               }
-       return 0;
+	TAILQ_FOREACH(mdc, &ifnet, if_link)
+		for (mdc2 = mdc->if_addrlist.tqh_first; mdc2;
+		    mdc2 = mdc2->ifa_list.tqe_next) {
+			if (!mdc2->ifa_addr)
+				continue;
+			if (mdc2->ifa_addr->sa_family == AF_INET6) {
+				fdm = (struct in6_ifaddr *)mdc2;
+				copia = fdm->ia_addr.sin6_addr;
+				/* need for leaving scope_id in the sock_addr */
+				in6_clearscope(&copia);
+				if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia))
+					return 1;
+			}
+		}
+	return 0;
 }
 
 static int
 verify_rev_path6(struct in6_addr *src, struct ifnet *ifp)
 {
-       static struct route_in6 ro;
-       struct sockaddr_in6 *dst;
+	static struct route_in6 ro;
+	struct sockaddr_in6 *dst;
 
-       dst = (struct sockaddr_in6 * )&(ro.ro_dst);
+	dst = (struct sockaddr_in6 * )&(ro.ro_dst);
 
-       if ( !(IN6_ARE_ADDR_EQUAL (src, &dst->sin6_addr) )) {
-               bzero(dst, sizeof(*dst));
-               dst->sin6_family = AF_INET6;
-               dst->sin6_len = sizeof(*dst);
-               dst->sin6_addr = *src;
-               rtalloc_ign((struct route *)&ro, RTF_CLONING);
-       }
-       if ((ro.ro_rt == NULL) || (ifp == NULL) ||
-           (ro.ro_rt->rt_ifp->if_index != ifp->if_index))
-               return 0;
-       return 1;
+	if ( !(IN6_ARE_ADDR_EQUAL (src, &dst->sin6_addr) )) {
+		bzero(dst, sizeof(*dst));
+		dst->sin6_family = AF_INET6;
+		dst->sin6_len = sizeof(*dst);
+		dst->sin6_addr = *src;
+		rtalloc_ign((struct route *)&ro, RTF_CLONING);
+	}
+	if ((ro.ro_rt == NULL) || (ifp == NULL) ||
+	    (ro.ro_rt->rt_ifp->if_index != ifp->if_index))
+		return 0;
+	return 1;
 }
 static __inline int
 hash_packet6(struct ipfw_flow_id *id)
 {
-       u_int32_t i;
-       i= (id->dst_ip6.__u6_addr.__u6_addr32[0]) ^
-       (id->dst_ip6.__u6_addr.__u6_addr32[1]) ^
-       (id->dst_ip6.__u6_addr.__u6_addr32[2]) ^
-       (id->dst_ip6.__u6_addr.__u6_addr32[3]) ^
-       (id->dst_port) ^ (id->src_port) ^ (id->flow_id6);
-       return i;
+	u_int32_t i;
+	i = (id->dst_ip6.__u6_addr.__u6_addr32[0]) ^
+	    (id->dst_ip6.__u6_addr.__u6_addr32[1]) ^
+	    (id->dst_ip6.__u6_addr.__u6_addr32[2]) ^
+	    (id->dst_ip6.__u6_addr.__u6_addr32[3]) ^
+	    (id->dst_port) ^ (id->src_port) ^ (id->flow_id6);
+	return i;
 }
 /* end of ipv6 opcodes */
 
