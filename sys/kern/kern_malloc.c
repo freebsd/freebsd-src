@@ -738,7 +738,6 @@ sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 	char *buf;
 	int rsize;
 	int size;
-	int len;
 	int i;
 
 	bufsize = linesize * (KMEM_ZSIZE + 1);
