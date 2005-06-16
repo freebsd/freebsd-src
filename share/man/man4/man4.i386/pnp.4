@@ -1,6 +1,3 @@
-.\" pnp(4) - manual page for PnP device support
-.\"
-.\"
 .\" Copyright (c) 1997 Luigi Rizzo
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -35,13 +32,15 @@
 .Os
 .Sh NAME
 .Nm pnp
-.Nd support for ``Plug and Play'' (PnP) ISA devices
-.\" .Sh SYNOPSIS
+.Nd support for
+.Dq "Plug and Play"
+(PnP) ISA devices
 .Sh DESCRIPTION
 The
 .Nm
 driver enumerates ISA devices which support
-``Plug and Play ISA Specification'' in the system.
+.Dq "Plug and Play ISA Specification"
+in the system.
 It assigns ISA bus resources (interrupt line, DMA channel, I/O ports,
 and memory region) to each device and activates it.
 .Pp
@@ -49,7 +48,6 @@ If it cannot assign necessary resources to a PnP ISA device without
 causing conflict with other devices in the system,
 the device will not be activated and will be unavailable
 to programs.
-.Pp
 .Sh CAVEAT
 It is not possible to disable individual PnP ISA devices.
 The
@@ -63,18 +61,17 @@ The resource assignment is fully automatic and there is
 no provision for manual override.
 .Sh SEE ALSO
 .Xr pnpbios 4
-.Pp
 .Sh STANDARDS
 .Rs
 .%A Intel
 .%A Microsoft
-.%T ``Plug and Play ISA Specification, Version 1.0a''
-.%D May 5, 1994
+.%T "Plug and Play ISA Specification, Version 1.0a"
+.%D "May 5, 1994"
 .Re
 .Pp
 .Rs
-.%T ``Clarifications to the Plug and Play ISA Specification, Version 1.0a''
-.%D December 10, 1994
+.%T "Clarifications to the Plug and Play ISA Specification, Version 1.0a"
+.%D "December 10, 1994"
 .Re
 .Sh HISTORY
 The
