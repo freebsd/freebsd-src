@@ -583,6 +583,8 @@ dev/hifn/hifn7751.c		optional hifn
 dev/hme/if_hme.c		optional hme
 dev/hme/if_hme_pci.c		optional hme pci
 dev/hme/if_hme_sbus.c		optional hme sbus
+dev/hwpmc/hwpmc_logging.c	optional hwpmc
+dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
@@ -1068,11 +1070,6 @@ gnu/fs/ext2fs/ext2_lookup.c	optional ext2fs
 gnu/fs/ext2fs/ext2_subr.c		optional ext2fs
 gnu/fs/ext2fs/ext2_vfsops.c	optional ext2fs
 gnu/fs/ext2fs/ext2_vnops.c		optional ext2fs
-#
-# Support for hardware performance monitoring counters
-#
-dev/hwpmc/hwpmc_mod.c		optional hwpmc
-dev/hwpmc/hwpmc_logging.c	optional hwpmc
 #
 # isdn4bsd device drivers
 #
