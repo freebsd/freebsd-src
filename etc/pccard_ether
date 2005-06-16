@@ -15,18 +15,6 @@ usage()
 	err 3 'USAGE: $0 interface (start|stop)'
 }
 
-ifn=$1
-shift
-startstop=$1
-shift
-
-# Ignore interfaces not in removable_interfaces
-expr "${removable_interfaces}" : ".*${ifn}" > /dev/null || exit 0
-
-if [ -n "$1" ]; then
-	usage
-fi
-
 setup_routes()
 {
 	# Add default route into $static_routes
@@ -66,7 +54,19 @@ remove_routes()
 	fi
 }
 
+ifn=$1
+shift
+startstop=$1
+shift
+
 load_rc_config pccard_ether
+
+# Ignore interfaces not in removable_interfaces
+expr "${removable_interfaces}" : ".*${ifn}" > /dev/null || exit 0
+
+if [ -n "$1" ]; then
+	usage
+fi
 
 case ${startstop} in
 [Ss][Tt][Aa][Rr][Tt] | '')
