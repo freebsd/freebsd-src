@@ -406,8 +406,8 @@ data_abort_handler(trapframe_t *tf)
 #ifdef DEBUG
 	last_fault_code = fsr;
 #endif
-	if (pmap_fault_fixup(user ? vmspace_pmap(td->td_proc->p_vmspace) :
-	    kernel_pmap, va, ftype, user)) {
+	if (pmap_fault_fixup(vmspace_pmap(td->td_proc->p_vmspace), va, ftype,
+	    user)) {
 		goto out;
 	}
 
