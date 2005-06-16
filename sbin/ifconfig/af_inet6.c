@@ -456,16 +456,18 @@ in6_status_tunnel(int s)
 
 	if (ioctl(s, SIOCGIFPSRCADDR_IN6, (caddr_t)&in6_ifr) < 0)
 		return;
-	if (sa->sa_family == AF_INET6)
-		in6_fillscopeid(&in6_ifr.ifr_addr);
+	if (sa->sa_family != AF_INET6)
+		return;
+	in6_fillscopeid(&in6_ifr.ifr_addr);
 	if (getnameinfo(sa, sa->sa_len, src, sizeof(src), 0, 0,
 	    NI_NUMERICHOST) != 0)
 		src[0] = '\0';
 
 	if (ioctl(s, SIOCGIFPDSTADDR_IN6, (caddr_t)&in6_ifr) < 0)
 		return;
-	if (sa->sa_family == AF_INET6)
-		in6_fillscopeid(&in6_ifr.ifr_addr);
+	if (sa->sa_family != AF_INET6)
+		return;
+	in6_fillscopeid(&in6_ifr.ifr_addr);
 	if (getnameinfo(sa, sa->sa_len, dst, sizeof(dst), 0, 0,
 	    NI_NUMERICHOST) != 0)
 		dst[0] = '\0';
