@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm ng_nat
-.Nd NAT netgraph node type
+.Nd "NAT netgraph node type"
 .Sh SYNOPSIS
 .In netgraph/ng_nat.h
 .Sh DESCRIPTION
@@ -37,39 +37,38 @@ An
 .Nm
 node performs network address translation (NAT) of packets
 passing through it.
-An
-.Nm
+A
+.Nm nat
 node uses
 .Xr libalias 3
 engine for packet aliasing.
-At this moment it supports the basic functionality of the library.
+At this moment it supports only the basic functionality of the library.
 .Sh HOOKS
 This node type has two hooks:
-.Pp
-.Bl -tag -width foobar
-.It Dv out
-Packets received on this hook are considered outgoing and would be
-masqueraded to configured address.
-.It Dv in
-Packets coming on this hook are considered incoming and would be
+.Bl -tag -width indent
+.It Va out
+Packets received on this hook are considered outgoing and will be
+masqueraded to a configured address.
+.It Va in
+Packets coming on this hook are considered incoming and will be
 dealiased.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width foo
+.Bl -tag -width indent
 .It Dv NGM_NAT_SET_IPADDR Pq Li setaliasaddr
-Configure aliasing address for node.
-After both hooks are connected and aliasing address configured,
-node is ready for aliasing operation.
+Configure aliasing address for a node.
+After both hooks have been connected and aliasing address was configured,
+a node is ready for aliasing operation.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when both hooks are disconnected.
 .Sh EXAMPLES
-In the following example packets are injected into
-.Nm
-node with help of
+In the following example, the packets are injected into a
+.Nm nat
+node using the
 .Xr ng_ipfw 4
 node.
 .Bd -literal -offset indent
@@ -87,11 +86,12 @@ ipfw add 400 netgraph 60 all from any to any out via fxp0
 sysctl net.inet.ip.fw.one_pass=0
 .Ed
 .Pp
+The
 .Nm
-node can simply be inserted right after
-.Xr ng_iface
-node.
-In the following example we perform masquerading on a
+node can be inserted right after the
+.Xr ng_iface 4
+node in the graph.
+In the following example, we perform masquerading on a
 serial line with HDLC encapsulation.
 .Bd -literal -offset indent
 /usr/sbin/ngctl -f- <<-SEQ
@@ -106,8 +106,8 @@ ifconfig ng0 x.y.8.35 x.y.8.1
 .Ed
 .Sh SEE ALSO
 .Xr libalias 3 ,
-.Xr natd 8 ,
 .Xr ng_ipfw 4 ,
+.Xr natd 8 ,
 .Xr ngctl 8
 .Sh HISTORY
 The

@@ -33,7 +33,7 @@
 .Os
 .Sh NAME
 .Nm devclass_get_drivers
-.Nd get a list of drivers in a devclass
+.Nd "get a list of drivers in a devclass"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/bus.h
@@ -46,8 +46,8 @@ devclass and return the list in
 and the number of drivers in the list in
 .Fa *countp .
 The memory allocated for the list should be freed using
-.Fn free "*listp" "M_TEMP" .
-even if    
+.Fn free *listp M_TEMP ,
+even if
 .Fa *countp
 is 0.
 .Sh RETURN VALUES

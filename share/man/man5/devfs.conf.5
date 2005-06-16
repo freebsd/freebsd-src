@@ -51,44 +51,49 @@ The lines that specify
 .Nm
 rules consist of three parameters separated by whitespace:
 .Bl -tag -width indent
-.It Li action
+.It Ar action
 The action to take for the device.
 The action names are only significant to the first unique character.
-.It Li devname
+.It Ar devname
 The name of the device created by
-.Xr devfs 5
-.It Li arg
+.Xr devfs 5 .
+.It Ar arg
 The argument of the
-.Dq Li action
+.Ar action .
 .El
 .Pp
 The actions currently supported are:
 .Bl -tag -width indent
-.It Li link
+.It Ic link
 This action creates a symbolic link named
-.Dq Li arg
+.Ar arg
 that points to
-Dq Li devname ,
+.Ar devname ,
 the name of the device created by
 .Xr devfs 5 .
-.It Li own
+.It Ic own
 This action changes the ownership of
-.Dq Li devname .
+.Ar devname .
 The
-.Dq Li arg
+.Ar arg
 parameter must be in the form of an
-.Li "owner:group"
+.Ar owner Ns : Ns Ar group
 pair, in the same format used by
 .Xr chown 8 .
-.It Li perm
+.It Ic perm
 This action changes the permissions of
-.Dq Li devname .
+.Ar devname .
 The
-.Dq Li arg
+.Ar arg
 paramater must be a
-.Pa mode
+.Ar mode
 as explained in
 .Xr chmod 1 .
+.El
+.Sh FILES
+.Bl -tag -compact
+.It Pa /etc/devfs.conf
+.It Pa /usr/share/examples/etc/devfs.conf
 .El
 .Sh EXAMPLES
 To create a
@@ -112,23 +117,18 @@ link	acd0	cdrom
 .Ed
 .Pp
 To set the owner of a device, the
-.Dq Li own
+.Ic own
 action may be specified:
 .Bd -literal -offset indent
 own	cd0	root:cdrom
 .Ed
 .Pp
 To set the permissions of a device, a
-.Dq Li perm
+.Ic perm
 action should be used:
 .Bd -literal -offset indent
 perm	cd0	0660
 .Ed
-.Sh FILES
-.Bl -tag -compact
-.It Pa /etc/devfs.conf
-.It Pa /usr/share/examples/etc/devfs.conf
-.El
 .Sh SEE ALSO
 .Xr chmod 1 ,
 .Xr devfs 5 ,
@@ -136,4 +136,5 @@ perm	cd0	0660
 .Xr usbd.conf 5 ,
 .Xr chown 8
 .Sh AUTHORS
-.An "Roland Smith" Aq rsmith@xs4all.nl
+This manual page was written by
+.An "Roland Smith" Aq rsmith@xs4all.nl .

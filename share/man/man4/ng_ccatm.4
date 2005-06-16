@@ -32,49 +32,51 @@
 .\" $FreeBSD$
 .\"
 .Dd March 10, 2005
-.Dt ng_ccatm 4
-.Os FreeBSD
+.Dt NG_CCATM 4
+.Os
 .Sh NAME
 .Nm ng_ccatm
-.Nd netgraph ATM Call Control node type
+.Nd "ATM Call Control netgraph node type"
 .Sh SYNOPSIS
-.Fd #include <netnatm/unimsg.h>
-.Fd #include <netnatm/msg/unistruct.h>
-.Fd #include <netnatm/sig/unidef.h>
-.Fd #include <netnatm/api/unisap.h>
-.Fd #include <netnatm/api/atmapi.h>
-.Fd #include <netnatm/api/ccatm.h>
-.Fd #include <netgraph.h>
-.Fd #include <netgraph/ng_uni.h>
-.Fd #include <netgraph/ng_ccatm.h>
+.In netnatm/unimsg.h
+.In netnatm/msg/unistruct.h
+.In netnatm/sig/unidef.h
+.In netnatm/api/unisap.h
+.In netnatm/api/atmapi.h
+.In netnatm/api/ccatm.h
+.In netgraph.h
+.In netgraph/ng_uni.h
+.In netgraph/ng_ccatm.h
 .Sh DESCIPTION
 The
 .Nm
 node implements the API specified by the ATM Forum for access to ATM services
-(see ATM-Forum document af-saa-0108).
+(see ATM-Forum document
+.Pa af-saa-0108 ) .
 This document specifies the semantics
 of the API, not the exact language binding.
-For this reason it is expected, that
+For this reason, it is expected that
 this implementation is neither compile-time nor binary compatible with
 other implementations of this API.
 It should, however, be fairly straightforward
 to convert between different API implementations.
 .Pp
 This node is usually stacked on top of one or more UNI nodes (see
-.Xr ng_uni 4 ).
+.Xr ng_uni 4 ) .
 Each of these hooks appears as a
-.Ql port
+.Dq port
 to the user of the node.
-It has also one hook connected to the ILMI daemon for management purposes.
+It also has one hook connected to the ILMI daemon for management purposes.
 .Pp
 The node is removed when it receives a
 .Dv NGM_SHUTDOWN
-messages or all hooks are disconnected.
+messages or when all hooks are disconnected.
 .Sh HOOKS
 The node understands a number of hooks with predefined names and an
-unlimited number of hooks for user connections. The predefined names are:
-.Bl -tag -width orphans
-.It Dv uniNNN
+unlimited number of hooks for user connections.
+The predefined names are:
+.Bl -tag -width ".Va orphans"
+.It Va uni Ns Ar NNN
 These hooks stack the
 .Nm
 node on top of a UNI stack.
@@ -84,27 +86,27 @@ to conform to the upper interface specified in
 These hooks are forced into queuing mode, so that there are no circular
 calls from call control to UNI and UNI back to call control.
 The
-.Dv NNN
+.Ar NNN
 in the hook name is the decimal port number and should not be zero.
 The port number is a 32-bit unsigned integer.
-.It Dv manage
+.It Va manage
 This hook should be connected to the ILMI daemon.
 No data is ever sent on this hook and all received data is discarded.
 The hook is used to send control messages along.
-.It Dv dump
+.It Va dump
 On receipt of a
-.Dv
-NGM_DUMP command a textual description of the current state of the node is sent
+.Dv NGM_CCATM_DUMP
+command a textual description of the current state of the node is sent
 out of this hook.
 This text is sent as one large message consisting of more
 than one
-.Fa mbuf .
+.Vt mbuf .
 .El
 .Pp
 All other hook names are taken to be user hooks and correspond to an
-ATM endpoint as specified in the ATM Forum document. The interface on these
-hooks is defined in
-.Pa atmapi.h
+ATM endpoint as specified in the ATM Forum document.
+The interface on these hooks is defined in
+.In atmapi.h
 and uses a structure
 .Bd -literal
 struct ccatm_op {
@@ -144,14 +146,14 @@ enum atmop {
 .Pp
 These codes correspond directly to the operations specified in the ATM
 Forum document with the following exceptions:
-.Bl -tag -width xxx
+.Bl -tag -width indent
 .It Dv ATMOP_RESP
 As discussed in
-.Xr ng_uni 4
+.Xr ng_uni 4 ,
 this is used to
-.Ql synchronify
+.Dq synchronify
 the interface.
-The argument is a struct
+The argument is a
 .Bd -literal
 struct atm_resp {
 	int32_t		resp;
@@ -160,14 +162,14 @@ struct atm_resp {
 .Ed
 .Pp
 If the response code
-.Fa resp
+.Va resp
 is zero, the node has accepted the user request.
 If something goes wrong,
-.Fa resp
+.Va resp
 contains an error code.
 For requests that return data,
-.Fa data
-contains a code describing the type of data and the data itseld
+.Va data
+contains a code describing the type of data and the data itself
 starts immediately after the structure.
 .It Dv ATMOP_QUERY_CONNECTION_ATTRIBUTES_X
 This is the same as
@@ -183,19 +185,19 @@ The list of attributes is followed directly by the attributes in the same
 order as they appear in the list.
 .El
 .Pp
-If a user hook is disconnected an active connection on that hook is released.
+If a user hook is disconnected, an active connection on that hook is released.
 Incoming connections waiting to be accepted are reoffered to other
-listeing hooks or rejected.
+listening hooks or rejected.
 .Sh CONTROL MESSAGES
 Besides the generic messages the node understands the following special
 messages:
-.Bl -tag -width xxx
+.Bl -tag -width indent
 .It Dv NGM_CCATM_DUMP
 This causes the internal state of the node to be dumped in ASCII to the
-.Dv dump
+.Va dump
 hook.
 .It Dv NGM_CCATM_STOP
-This message causes all connections on that port to be aborted (not released!)
+This message causes all connections on that port to be aborted (not released!\&)
 and all ATM endpoints which are bound to that port to be closed.
 It stops processing of all messages from the UNI stack on that port UNI stack.
 The argument is a
@@ -208,19 +210,19 @@ struct ngm_ccatm_port {
 .It Dv NGM_CCATM_START
 Start processing on the port.
 The argument is a
-.Fa ngm_ccatm_port
+.Vt ngm_ccatm_port
 structure.
 .It Dv NGM_CCATM_CLEAR
 This message takes a
-.Fa ngm_ccatm_port
+.Vt ngm_ccatm_port
 structure and clears all prefixes and addresses on that port.
 If the port number is zero, all ports are cleared.
 .It Dv NGM_CCATM_GET_ADDRESSES
 Get the list of all registered addresses on the given port.
 The argument is a
-.Fa ngm_ccatm_port
+.Vt ngm_ccatm_port
 structure and the result is a
-.Fa ngm_ccatm_get_addresses
+.Vt ngm_ccatm_get_addresses
 structure:
 .Bd -literal
 struct ngm_ccatm_get_addresses {
@@ -234,27 +236,28 @@ struct ngm_ccatm_address_req {
 .Ed
 .Pp
 If the
-.Fa port
+.Va port
 field is zero in the request, all addresses on all ports
-are returned, if it is not zero only the addresses on that port are reported.
+are returned.
+If it is not zero, only the addresses on that port are reported.
 The number of addresses is returned in the
-.Fa count
+.Va count
 field.
 .It Dv NGM_CCATM_ADDRESS_REGISTERED
 This message is used by ILMI to inform the
 .Nm
-node, that a previous address registration request was successful.
+node that a previous address registration request was successful.
 This causes the node to activate that address.
 The argument to the message is a
-.Fa ngm_ccatm_address_req
+.Vt ngm_ccatm_address_req
 structure.
 .It Dv NGM_CCATM_ADDRESS_UNREGISTERED
 This message is used by ILMI to inform the
 .Nm
-node, that an address has been unregistered.
+node that an address has been unregistered.
 The node clears that address from its tables.
 The argument is a
-.Fa ngm_ccatm_address_req
+.Vt ngm_ccatm_address_req
 structure.
 .It Dv NGM_CCATM_SET_PORT_PARAM
 This request sets the parameters on the given port.
@@ -276,14 +279,14 @@ struct ngm_ccatm_atm_port {
 This should be used only by ILMI and when that port is stopped and the
 address and prefix tables of that port are empty.
 The
-.Fa num_addr
+.Va num_addr
 field is ignored.
 .It Dv NGM_CCATM_GET_PORT_PARAM
 Retrieve the parameters of the given port.
 The argument is a
-.Fa ngm_ccatm_port
+.Vt ngm_ccatm_port
 and the result a
-.Fa ngm_ccatm_atm_port .
+.Vt ngm_ccatm_atm_port .
 .It Dv NGM_CCATM_GET_PORTLIST
 Get a list of all available ports on that node.
 This is returned as a
@@ -296,16 +299,16 @@ struct ngm_ccatm_portlist {
 .It Dv NGM_CCATM_GETSTATE
 Return the state of a port.
 The argument is a
-.Fa struct ngm_ccatm_port
+.Vt "struct ngm_ccatm_port"
 and the return values as a
-.Ft uint32_t .
+.Vt uint32_t .
 .It Dv NGM_CCATM_SETLOG
 This requests sets a new logging level and returns the previous one.
 The argument is either a
-.Ft uint32_t
+.Vt uint32_t
 in which case it specifies the new logging level, or may be empty
 in which case just the old level is returned as a
-.Ft uint32_t .
+.Vt uint32_t .
 .It Dv NGM_CCATM_RESET
 Reset the node.
 This is allowed only if the number of user hooks and connected UNI stacks is
@@ -317,5 +320,5 @@ Return extended status information from the node.
 .Xr netgraph 4 ,
 .Xr ng_uni 4 ,
 .Xr ngctl 8
-.Sh AUTHOR
+.Sh AUTHORS
 .An Harti Brandt Aq harti@FreeBSD.org
