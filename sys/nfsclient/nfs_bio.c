@@ -873,6 +873,7 @@ nfs_write(struct vop_write_args *ap)
 	 */
 	if (ioflag & (IO_APPEND | IO_SYNC)) {
 		if (np->n_flag & NMODIFIED) {
+#ifdef notyet /* Needs matching nonblock semantics elsewhere, too. */
 			/*
 			 * Require non-blocking, synchronous writes to
 			 * dirty files to inform the program it needs
@@ -880,6 +881,7 @@ nfs_write(struct vop_write_args *ap)
 			 */
 			if (ioflag & IO_NDELAY)
 				return (EAGAIN);
+#endif
 flush_and_restart:
 			np->n_attrstamp = 0;
 			error = nfs_vinvalbuf(vp, V_SAVE, td, 1);
