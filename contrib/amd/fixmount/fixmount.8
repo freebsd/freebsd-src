@@ -55,12 +55,13 @@
 \&...
 .Sh DESCRIPTION
 .Nm
-is a variant of 
+is a variant of
 .Xr showmount 8
 that can delete bogus mount entries in remote
 .Xr mountd 8
-daemons.  The actions specified by the options are performed for each
-.Ar host 
+daemons.
+The actions specified by the options are performed for each
+.Ar host
 in turn.
 .Sh OPTIONS
 .Bl -tag -width Ds
@@ -76,18 +77,22 @@ from a crash or are the result of improper mount protocol.
 The actuality of mounts is verified using the entries in
 .Pa /etc/mtab .
 .It Fl v
-Verify remote mounts.  Similar to
+Verify remote mounts.
+Similar to
 .Fl r
 except that only a notification message is printed for each bogus entry
-found.  The remote mount table is not changed.
+found.
+The remote mount table is not changed.
 .It Fl A
 Issues a command to the remote mountd declaring that
 .Em all
-of its file systems have been unmounted.  This should be used with caution, as
+of its file systems have been unmounted.
+This should be used with caution, as
 it removes all remote mount entries pertaining to the local system, whether or
 not any file systems are still mounted locally.
 .It Fl v
-Be quiet.  Suppresses error messages due to timeouts and
+Be quiet.
+Suppresses error messages due to timeouts and
 .Dq Program not Registered ,
 i.e., due to remote hosts not supporting RPC or not running
 .Nm mountd .
@@ -118,6 +123,24 @@ server.
 .Xr rmtab 5 ,
 .Xr mountd 8 ,
 .Xr showmount 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.Pp
+.An Erez Zadok Aq ezk@cs.columbia.edu ,
+Department of Computer Science, Columbia University, New York, USA.
+.Pp
+.An Other authors and contributors to
+.Nm am-utils
+are listed in the
+.Nm AUTHORS
+file distributed with
+.Nm am-utils .
 .Sh BUGS
 No attempt is made to verify the information in
 .Pa /etc/mtab
@@ -126,14 +149,14 @@ itself.
 Since swap file mounts are not recorded in
 .Pa /etc/mtab ,
 a heuristic specific to SunOS is used to determine whether such a mount
-is actual (replacing the string 
-.Ql swap 
-with 
+is actual (replacing the string
+.Ql swap
+with
 .Ql root
 and verifying the resulting path).
 .Pp
 Symbolic links on the server will cause the path in the remote entry to differ
-from the one in 
+from the one in
 .Pa /etc/mtab .
 To catch those cases, a file system is also deemed mounted if its
 .Em local
@@ -146,10 +169,11 @@ Since the local mount point is
 .Pa /usr/share
 as well this will be handled correctly.
 .Pp
-There is no way to clear a stale entry in a remote 
-.Nm mountd 
-after the local hostname (or whatever reverse name resolution 
-returns for it) has been changed.  To take care of these cases,
+There is no way to clear a stale entry in a remote
+.Nm mountd
+after the local hostname (or whatever reverse name resolution
+returns for it) has been changed.
+To take care of these cases,
 the remote
 .Pa /etc/rmtab
 file has to be edited and
@@ -158,23 +182,6 @@ restarted.
 .Pp
 The RPC timeouts for
 .Nm mountd
-calls can only be changed by recompiling. The defaults are 2 seconds 
+calls can only be changed by recompiling.
+The defaults are 2 seconds
 for client handle creation and 5 seconds for RPC calls.
-.Sh AUTHORS
-.An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
-Department of Computing, Imperial College, London, UK.
-.Pp
-.An Erez Zadok Aq ezk@cs.columbia.edu ,
-Department of Computer Science, Columbia University, New York, USA.
-.Pp
-.An Other authors and contributors to 
-.Nm am-utils
-are listed in the
-.Nm AUTHORS 
-file distributed with
-.Nm am-utils .
-.Sh HISTORY
-The
-.Nm
-utility appeared in
-.Fx 3.0 .

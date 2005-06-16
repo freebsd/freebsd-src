@@ -81,17 +81,19 @@ Request automounter to flush the internal caches.
 .It Fl h Ar hostname
 Query alternate host
 .Ar hostname .
-By default the local host is used.  In an
+By default the local host is used.
+In an
 .Tn HP-UX
 cluster, the root server is queried by default, since
 that is the system on which the automounter is normally run.
 .It Fl l Ar log_file
 Tell amd to use
 .Ar log_file
-as the log file name. 
+as the log file name.
 For security reasons, this must be the same log file which
 .Nm amd
-used when started.  This option is therefore only useful to 
+used when started.
+This option is therefore only useful to
 refresh
 .Nm amd Ns \'s
 open file handle on the log file, so that it can be rotated and compressed via
@@ -102,10 +104,11 @@ including the number of references to each file system and any error
 which occurred while mounting.
 .It Fl p
 Return the process ID of the remote or locally running
-.Nm amd .  
+.Nm amd .
 Useful when you need to send a signal to the local
 .Nm amd
-process, and would rather not have to search through the process table.  This
+process, and would rather not have to search through the process table.
+This
 option is used in the
 .Pa ctl-amd
 script.
@@ -113,51 +116,54 @@ script.
 Request the automounter to provide system-wide mount statistics.
 .It Fl u
 Request the automounter to unmount the named file systems
-instead of providing information about them.  Unmounts are requested,
-not forced.  They merely cause the mounted file system to timeout,
+instead of providing information about them.
+Unmounts are requested,
+not forced.
+They merely cause the mounted file system to timeout,
 which will be picked up by
 .Nm amd Ns \'s
 main scheduler thus causing the normal timeout action to be taken.
 .It Fl v
-Request the automounter to provide version information.  This is a subset
+Request the automounter to provide version information.
+This is a subset
 of the information provided by
 .Nm amd Ns \'s Fl v
 option.
 .It Fl x Ar log_options
-Ask the automounter to use the logging options specified in 
+Ask the automounter to use the logging options specified in
 .Ar log_options
 from now on.
 .It Fl D Ar log_options
-Ask the automounter to use the debugging options specified in 
+Ask the automounter to use the debugging options specified in
 .Ar debug_options
 from now on.
 .It Fl M
-Pass a mount map entry to 
+Pass a mount map entry to
 .Nm amd
 and wait for it to be evaluated, possibly causing a mount.
-This option is highly insecure.  
+This option is highly insecure.
 By default,
 .Nm amd
-and 
+and
 .Nm amq
 do not support it.
 It is necessary to configure
 .Nm am-utils
-with 
+with
 .Ar --enable-amq-mount
 to enable this option.
 .It Fl P Ar program_number
-Contact an alternate running 
-.Nm amd 
+Contact an alternate running
+.Nm amd
 that had registered itself on a different RPC
-.Ar program_number 
-and apply all other operations to that instance of the automounter.  
-This is useful when running multiple copies of 
-.Nm amd , 
-and need to manage each one separately.  
-If not specified, 
+.Ar program_number
+and apply all other operations to that instance of the automounter.
+This is useful when running multiple copies of
+.Nm amd ,
+and need to manage each one separately.
+If not specified,
 .Nm amq
-will use the default program number for 
+will use the default program number for
 .Nm amd ,
 300019.
 For security reasons, the only alternate program numbers
@@ -166,14 +172,14 @@ can use range from 300019 to 300029, inclusive.
 .It Fl T
 Contact
 .Nm amd
-using the TCP transport only.  
-Normally 
+using the TCP transport only.
+Normally
 .Nm amq
 will try TCP, and if that fails, will try UDP.
 .It Fl U
-Contact 
+Contact
 .Nm amd
-using UDP (connectionless) transport only. 
+using UDP (connectionless) transport only.
 Normally
 .Nm amq
 will try TCP, and if that fails, will try UDP.
@@ -195,6 +201,10 @@ database.
 .Sh SEE ALSO
 .Xr amd.conf 5 ,
 .Xr amd 8
+.Sh HISTORY
+.Nm Amq
+first appeared in
+.Bx 4.4 .
 .Sh AUTHORS
 .An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
 Department of Computing, Imperial College, London, UK.
@@ -202,13 +212,9 @@ Department of Computing, Imperial College, London, UK.
 .An Erez Zadok Aq ezk@cs.columbia.edu ,
 Department of Computer Science, Columbia University, New York, USA.
 .Pp
-.An Other authors and contributors to 
+.An Other authors and contributors to
 .Nm am-utils
 are listed in the
-.Nm AUTHORS 
+.Nm AUTHORS
 file distributed with
 .Nm am-utils .
-.Sh HISTORY
-.Nm Amq
-first appeared in
-.Bx 4.4 .
