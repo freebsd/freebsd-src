@@ -38,7 +38,6 @@
 .Nd generate a FreeBSD driver module from a
 .Tn Windows\[rg]
 NDIS driver distribution
-.Fx
 .Sh SYNOPSIS
 .Nm
 .Sh DESCRIPTION
@@ -46,7 +45,9 @@ The
 .Nm
 script uses the
 .Xr ndiscvt 8
-utility and other tools to generate a FreeBSD loadable driver module
+utility and other tools to generate a
+.Fx
+loadable driver module
 and a static ELF object module from a
 .Tn Windows\[rg]
 NDIS driver, for use with the
@@ -55,13 +56,14 @@ compatibility module.
 .Pp
 The
 .Nm
-script is interactive and contains its own help section. The script
-will prompt the user for the
+script is interactive and contains its own help section.
+The script will prompt the user for the
 .Pa .INF
 and
 .Pa .SYS
-files (and any firmware or other external files) needed to generate
-the FreeBSD driver module.
+files (and any firmware or other external files) needed to generate the
+.Fx
+driver module.
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr objcopy 1 ,
@@ -75,7 +77,6 @@ The
 utility first appeared in
 .Fx 6.0 .
 .Sh AUTHORS
-.An -nosplit
 The
 .Nm
 utility was written by
