@@ -162,8 +162,11 @@ DIST_DOCS_ARCH_DEP=	installation relnotes hardware
 # Things which without too much trouble can be considered variables
 # BASE_DISTS are special in that they get full /etc installation sets.
 #
-OTHER_DISTS?=	catpages manpages games proflibs dict info doc
+OTHER_DISTS?=	catpages manpages games proflibs dict info doc ${ARCH_DISTS}
 BASE_DISTS?=	base
+.if ${TARGET_ARCH} == "amd64"
+ARCH_DISTS?=	lib32
+.endif
 DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS}
 
 # mountpoint for filesystems.
@@ -351,8 +354,9 @@ release rerelease:
 .endif
 	mkdir -p ${CHROOTDIR}
 	@echo ">>> make release for ${TARGET} started on `LC_ALL=C TZ=GMT date`"
-	cd ${WORLDDIR} && ${NATIVEMAKE} -DNO_GAMES -DNO_HTML -DNO_INFO -DNO_MAN \
-	    -DNO_NLS -DNO_PROFILE installworld DESTDIR=${CHROOTDIR}
+	cd ${WORLDDIR} && ${NATIVEMAKE} -DNO_GAMES -DNO_HTML -DNO_INFO \
+	    -DNO_LIB32 -DNO_MAN -DNO_NLS -DNO_PROFILE installworld \
+	    DESTDIR=${CHROOTDIR}
 	cd ${WORLDDIR} && ${NATIVEMAKE} distribution DESTDIR=${CHROOTDIR}
 	if [ -f /etc/resolv.conf ]; then \
 		cp -p /etc/resolv.conf ${CHROOTDIR}/etc; \
@@ -623,7 +627,8 @@ release.5:
 
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
-		find ${OTHER_DISTS} -depth -type d -print | xargs rmdir
+		(find ${OTHER_DISTS} -path '*/var/empty' | xargs chflags noschg; \
+		find ${OTHER_DISTS} -depth -type d -print | xargs rmdir)
 	touch ${.TARGET}
 
 #

@@ -435,14 +435,18 @@ build32:
 	    PROG=ld-elf32.so.1 ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 .endfor
 
-install32:
-	mkdir -p ${DESTDIR}/usr/lib32	# XXX add to mtree
-	cd ${.CURDIR}/lib; ${LIB32MAKE} install
-	cd ${.CURDIR}/gnu/lib; ${LIB32MAKE} install
-.if !defined(NO_CRYPT)
-	cd ${.CURDIR}/secure/lib; ${LIB32MAKE} install
+distribute32 install32:
+.if make(distribute32)
+	mkdir -p ${DISTDIR}/${DISTRIBUTION}/usr/lib32	# XXX add to mtree
+.else
+	mkdir -p ${DESTDIR}/usr/lib32			# XXX add to mtree
 .endif
-	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32MAKE} install
+	cd ${.CURDIR}/lib; ${LIB32MAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/gnu/lib; ${LIB32MAKE} ${.TARGET:S/32$//}
+.if !defined(NO_CRYPT)
+	cd ${.CURDIR}/secure/lib; ${LIB32MAKE} ${.TARGET:S/32$//}
+.endif
+	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32MAKE} ${.TARGET:S/32$//}
 .endif
 
 
@@ -550,6 +554,9 @@ redistribute:
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
+.if ${TARGET_ARCH} == "amd64" && !defined(NO_LIB32)
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 DISTRIBUTION=lib32
+.endif
 
 distribution:
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} distribution
