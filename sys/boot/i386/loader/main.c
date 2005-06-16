@@ -98,12 +98,16 @@ main(void)
      * We can use printf() etc. once this is done.
      * If the previous boot stage has requested a serial console, prefer that.
      */
-    if (initial_howto & RB_SERIAL)
-	setenv("console", "comconsole", 1);
-    if (initial_howto & RB_MUTE)
-	setenv("console", "nullconsole", 1);
-    if (initial_howto & RB_MULTIPLE)
+    if (initial_howto & RB_MULTIPLE) {
 	setenv("boot_multicons", "YES", 1);
+	if (initial_howto & RB_SERIAL)
+	    setenv("console", "comconsole vidconsole", 1);
+	else
+	    setenv("console", "vidconsole comconsole", 1);
+    } else if (initial_howto & RB_SERIAL)
+	setenv("console", "comconsole", 1);
+    else if (initial_howto & RB_MUTE)
+	setenv("console", "nullconsole", 1);
     cons_probe();
 
     /*

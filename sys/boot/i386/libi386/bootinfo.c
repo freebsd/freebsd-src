@@ -59,10 +59,12 @@ int
 bi_getboothowto(char *kargs)
 {
     char	*cp;
+    char	*curpos, *next, *string;
     int		howto;
     int		active;
     int		i;
-    
+    int		vidconsole;
+
     /* Parse kargs */
     howto = 0;
     if (kargs  != NULL) {
@@ -117,10 +119,34 @@ bi_getboothowto(char *kargs)
     for (i = 0; howto_names[i].ev != NULL; i++)
 	if (getenv(howto_names[i].ev) != NULL)
 	    howto |= howto_names[i].mask;
-    if (!strcmp(getenv("console"), "comconsole"))
-	howto |= RB_SERIAL;
-    if (!strcmp(getenv("console"), "nullconsole"))
-	howto |= RB_MUTE;
+
+    /* Enable selected consoles */
+    string = next = strdup(getenv("console"));
+    vidconsole = 0;
+    while (next != NULL) {
+	curpos = strsep(&next, " ,");
+	if (*curpos == '\0')
+		continue;
+	if (!strcmp(curpos, "vidconsole"))
+	    vidconsole = 1;
+	else if (!strcmp(curpos, "comconsole"))
+	    howto |= RB_SERIAL;
+	else if (!strcmp(curpos, "nullconsole"))
+	    howto |= RB_MUTE;
+    }
+
+    if (vidconsole && (howto & RB_SERIAL))
+	howto |= RB_MULTIPLE;
+
+    /*
+     * XXX: Note that until the kernel is ready to respect multiple consoles
+     * for the boot messages, the first named console is the primary console
+     */
+    if (!strcmp(string, "vidconsole"))
+	howto &= ~RB_SERIAL;
+
+    free(string);
+
     return(howto);
 }
 

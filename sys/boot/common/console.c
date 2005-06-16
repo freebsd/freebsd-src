@@ -35,14 +35,15 @@ __FBSDID("$FreeBSD$");
  * Core console support
  */
 
-static int	cons_set(struct env_var *ev, int flags, void *value);
-static int	cons_find(char *name);
+static int	cons_set(struct env_var *ev, int flags, const void *value);
+static int	cons_find(const char *name);
+static int	cons_check(const char *string);
+static void	cons_change(const char *string);
 
 /*
- * Detect possible console(s) to use.  The first probed console
- * is marked active.  Also create the console variable.
- *	
- * XXX Add logic for multiple console support.
+ * Detect possible console(s) to use.  If preferred console(s) have been
+ * specified, mark them as active. Else, mark the first probed console
+ * as active.  Also create the console variable.
  */
 void
 cons_probe(void) 
@@ -64,6 +65,9 @@ cons_probe(void)
 	if (consoles[cons]->c_flags == (C_PRESENTIN | C_PRESENTOUT))
 	    active = cons;
     }
+    /* Force a console even if all probes failed */
+    if (active == -1)
+	active = 0;
 
     /* Check to see if a console preference has already been registered */
     prefconsole = getenv("console");
@@ -71,21 +75,24 @@ cons_probe(void)
 	prefconsole = strdup(prefconsole);
     if (prefconsole != NULL) {
 	unsetenv("console");		/* we want to replace this */
-	for (cons = 0; consoles[cons] != NULL; cons++)
-	    /* look for the nominated console, use it if it's functional */
-	    if (!strcmp(prefconsole, consoles[cons]->c_name) &&
-		(consoles[cons]->c_flags == (C_PRESENTIN | C_PRESENTOUT)))
-		active = cons;
+	cons_change(prefconsole);
+    } else {
+	consoles[active]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
+	consoles[active]->c_init(0);
+	prefconsole = strdup(consoles[active]->c_name);
+    }
+
+    printf("Consoles: ");
+    for (cons = 0; consoles[cons] != NULL; cons++)
+	if (consoles[cons]->c_flags & (C_ACTIVEIN | C_ACTIVEOUT))
+	    printf("%s  ", consoles[cons]->c_desc);
+    printf("\n");
+
+    if (prefconsole != NULL) {
+	env_setenv("console", EV_VOLATILE, prefconsole, cons_set,
+	    env_nounset);
 	free(prefconsole);
     }
-    if (active == -1)
-	active = 0;
-    consoles[active]->c_flags |= (C_ACTIVEIN | C_ACTIVEOUT);
-    consoles[active]->c_init(0);
-
-    printf("Console: %s\n", consoles[active]->c_desc);
-    env_setenv("console", EV_VOLATILE, consoles[active]->c_name, cons_set,
-	env_nounset);
 }
 
 int
@@ -128,46 +135,93 @@ putchar(int c)
 	    consoles[cons]->c_out(c);
 }
 
-static int
-cons_find(char *name)
-{
-    int		cons;
-    
-    for (cons = 0; consoles[cons] != NULL; cons++)
-	if (!strcmp(consoles[cons]->c_name, name))
-	    return(cons);
-    return(-1);
-}
-    
-
 /*
- * Select a console.
- *
- * XXX Note that the console system design allows for some extension
- *     here (eg. multiple consoles, input/output only, etc.)
+ * Find the console with the specified name.
  */
 static int
-cons_set(struct env_var *ev, int flags, void *value)
+cons_find(const char *name)
 {
-    int		cons, active;
+    int		cons;
 
-    if ((value == NULL) || ((active = cons_find(value)) == -1)) {
+    for (cons = 0; consoles[cons] != NULL; cons++)
+	if (!strcmp(consoles[cons]->c_name, name))
+	    return (cons);
+    return (-1);
+}
+
+/*
+ * Select one or more consoles.
+ */
+static int
+cons_set(struct env_var *ev, int flags, const void *value)
+{
+    int		cons;
+
+    if ((value == NULL) || (cons_check(value) == -1)) {
 	if (value != NULL) 
-	    printf("no such console '%s'\n", (char *)value);
+	    printf("no such console!\n");
 	printf("Available consoles:\n");
 	for (cons = 0; consoles[cons] != NULL; cons++)
 	    printf("    %s\n", consoles[cons]->c_name);
 	return(CMD_ERROR);
     }
 
-    /* disable all current consoles */
-    for (cons = 0; consoles[cons] != NULL; cons++)
-	consoles[cons]->c_flags &= ~(C_ACTIVEIN | C_ACTIVEOUT);
-    
-    /* enable selected console */
-    consoles[active]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
-    consoles[active]->c_init(0);
+    cons_change(value);
 
     env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
     return(CMD_OK);
+}
+
+/*
+ * Check that all of the consoles listed in *string are valid consoles
+ */
+static int
+cons_check(const char *string)
+{
+    int		cons;
+    char	*curpos, *dup, *next;
+
+    dup = next = strdup(string);
+    cons = -1;
+    while (next != NULL) {
+	curpos = strsep(&next, " ,");
+	if (*curpos != '\0') {
+	    cons = cons_find(curpos);
+	    if (cons == -1)
+		break;
+	}
+    }
+
+    free(dup);
+    return (cons);
+}
+
+/*
+ * Activate all of the consoles listed in *string and disable all the others.
+ */
+static void
+cons_change(const char *string)
+{
+    int		cons;
+    char	*curpos, *dup, *next;
+
+    /* Disable all consoles */
+    for (cons = 0; consoles[cons] != NULL; cons++) {
+	consoles[cons]->c_flags &= ~(C_ACTIVEIN | C_ACTIVEOUT);
+    }
+
+    /* Enable selected consoles */
+    dup = next = strdup(string);
+    while (next != NULL) {
+	curpos = strsep(&next, " ,");
+	if (*curpos == '\0')
+		continue;
+	cons = cons_find(curpos);
+	if (cons > 0) {
+	    consoles[cons]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
+	    consoles[cons]->c_init(0);
+	}
+    }
+
+    free(dup);
 }
