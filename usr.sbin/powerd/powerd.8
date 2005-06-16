@@ -24,20 +24,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2005
+.Dd April 10, 2005
 .Dt POWERD 8
 .Os
 .Sh NAME
 .Nm powerd
-.Nd system power control utility
+.Nd "system power control utility"
 .Sh SYNOPSIS
 .Nm
-.Op Fl a mode
-.Op Fl b mode
-.Op Fl i percent
-.Op Fl n mode
-.Op Fl p ival
-.Op Fl r percent
+.Op Fl a Ar mode
+.Op Fl b Ar mode
+.Op Fl i Ar percent
+.Op Fl n Ar mode
+.Op Fl p Ar ival
+.Op Fl r Ar percent
 .Op Fl v
 .Sh DESCRIPTION
 The
@@ -60,7 +60,7 @@ adaptive.
 The
 .Nm
 utility recognizes the following runtime options:
-.Bl -tag -width -i_percent
+.Bl -tag -width ".Fl r Ar percent"
 .It Fl a Ar mode
 Selects the
 .Ar mode
@@ -103,9 +103,10 @@ The
 utility first appeared in
 .Fx 5.5 .
 .Sh AUTHORS
+.An -nosplit
 .An Colin Percival
 first wrote
-.Pa estctrl ,
+.Nm estctrl ,
 the utility that
 .Nm
 is based on.
@@ -120,9 +121,13 @@ utility should also power down idle disks and other components besides the CPU.
 .Pp
 If
 .Nm
-is used with power_profile, they may override each other.
+is used with
+.Pa power_profile ,
+they may override each other.
 .Pp
+The
 .Nm
+utility
 should probably use the
 .Xr devctl 4
 interface instead of polling for AC line state.
