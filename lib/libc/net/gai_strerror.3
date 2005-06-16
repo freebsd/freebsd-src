@@ -1,6 +1,5 @@
 .\"	$KAME: gai_strerror.3,v 1.1 2005/01/05 03:04:47 itojun Exp $
 .\"	$OpenBSD: gai_strerror.3,v 1.4 2004/12/20 23:04:53 millert Exp $
-.\"	$FreeBSD$
 .\"
 .\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001  Internet Software Consortium.
@@ -17,6 +16,8 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd December 20, 2004
 .Dt GAI_STRERROR 3
 .Os
@@ -24,9 +25,9 @@
 .Nm gai_strerror
 .Nd get error message string from EAI_xxx error code
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
-.Fd #include <netdb.h>
+.In sys/types.h
+.In sys/socket.h
+.In netdb.h
 .Ft "const char *"
 .Fn gai_strerror "int ecode"
 .Sh DESCRIPTION
@@ -39,9 +40,9 @@ or
 .Xr getnameinfo 3 .
 .Pp
 The following error codes and their meaning are defined in
-.Aq Pa netdb.h :
+.In netdb.h :
 .Pp
-.Bl -tag -width "EAI_ADDRFAMILYXX" -offset indent -compact
+.Bl -tag -width ".Dv EAI_BADFLAGS" -offset indent -compact
 .It Dv EAI_AGAIN
 temporary failure in name resolution
 .It Dv EAI_BADFLAGS
@@ -54,7 +55,7 @@ invalid value for
 non-recoverable failure in name resolution
 .It Dv EAI_FAMILY
 .Fa ai_family
-not supported.
+not supported
 .It Dv EAI_MEMORY
 memory allocation failure
 .It Dv EAI_NONAME
@@ -76,7 +77,9 @@ system error returned in
 .Va errno
 .El
 .Sh RETURN VALUES
+The
 .Fn gai_strerror
+function
 returns a pointer to the error message string corresponding to
 .Fa ecode .
 If
