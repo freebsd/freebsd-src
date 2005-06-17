@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2005
+.Dd June 16, 2005
 .Dt WPA_SUPPLICANT.CONF 5
 .Os
 .Sh NAME
@@ -40,12 +40,286 @@ implements WPA key negotiation with a WPA Authenticator
 and EAP authentication with Authentication Server using
 configuration information stored in a text file.
 .Pp
-The configuration file consists of one or more network blocks, e.g.
+The configuration file consists of optional global parameter
+settings and one or more network blocks, e.g.
 one for each used SSID.
 .Nm wpa_supplicant
 will automatically select the best network based on the order of
 the network blocks in the configuration file, network security level
 (WPA/WPA2 is preferred), and signal strength.
+Comments are indicated with the ``#'' character; all text to the
+end of the line will be ignored.
+.Sh GLOBAL PARAMETERS
+.Nm wpa_supplicant's
+default parameters may be overridden by specifying
+.Bd -literal
+parameter=value
+.Ed
+.Pp
+in the configuration file (note no spaces are allowed).
+Values with embedded spaces must enclosed in quote marks.
+.Pp
+The following parameters are recognized:
+.Bl -tag -width indent
+.It ctrl_interface
+The pathname of the directory in which
+.Nm wpa_supplicant
+creates UNIX domain socket files for communication
+with frontend programs such as
+.Xr wpa_cli 8 .
+.It ctrl_interface_group
+A group name or group ID to use in setting protection on the
+control interface file.
+This can be set to allow non-root users to access the
+control interface files.
+If no group is specified the group ID of the control interface
+is not modified and will, typically, be the
+group ID of the directory in which the socket is created.
+.It eapol_version
+The IEEE 802.1x/EAPOL protocol version to use; either 1 (default) or 2.
+.Nm wpa_supplicant
+is implemented according to IEEE 802-1X-REV-d8 which defines
+EAPOL version to be 2.
+However some access points do not work when presented with
+this version so by default
+.Nm wpa_supplicant
+will announce that it is using EAPOL version 1.
+If version 2 must be announced for correct operation with an
+access point this value may be set to 2.
+.It ap_scan
+Access point scanning and selection control; one of 0, 1 (default), or 2.
+Only setting 1 should be used with the
+.Xr wlan 4
+module; the other settings are for use on other operating systems.
+.It fast_reauth
+EAP fast re-authentication; either 1 (default) or 0.
+Control fast re-authentication support in EAP methods that support it.
+.El
+.Sh NETWORK BLOCKS
+Each potential network/access point should have a ``network block''
+that describes how to identify it and how to setup security.
+When multiple network blocks are listed in a configuration file
+the highest priority one is selected for use or, if multiple networks
+with the same priority are identified, the first one listed in the
+configuration file is used.
+.Pp
+A network block description is of the form:
+.Bd -literal
+network={
+	parameter=value
+	...
+}
+.Ed
+.Pp
+(note the leading "network={" may have no spaces).
+The block specification contains one or more parameters
+from the following list:
+.Bl -tag -width indent
+.It ssid (required)
+Network name (as announced by the access point).
+An ASCII or hex string enclosed in quotation marks.
+.It scan_ssid
+SSID scan technique; 0 (default) or 1.
+Technique 0 scans for the SSID using a broadcast Probe Request
+frame while 1 uses a directed Probe Request frame.
+Access points that cloak themself by not braodcasting their SSID
+require technique 1, but beware that this scheme can cause scanning
+to take longer to complete.
+.It bssid
+Network BSSID (typically the MAC address of the access point).
+.It priority
+The priority of a network when selecting among multiple networks;
+a higher value means a network is more desirable.
+By default networks have priority 0.
+When multiple networks with the same priority are considered
+for selection other information such as security policy and
+signal strength are used to select one.
+.It mode
+IEEE 802.11 operation mode; either 0 (infrastructure, default) or 1 (IBSS).
+Note that IBSS (adhoc) mode can only be used with
+key_mgmt
+set to
+NONE (plaintext and static WEP).
+.It proto
+List of acceptable protocols; one or more of:
+WPA (IEEE 802.11i/D3.0)
+and
+RSN (IEEE 802.11i).
+WPA2 is another name for RSN.
+If not set this defaults to "WPA RSN".
+.It key_mgmt
+List of acceptable key management protocols; one or more of:
+WPA-PSK (WPA pre-shared key),
+WPA-EAP (WPA using EAP authentication),
+IEEE8021X (IEEE 802.1x using EAP authentication and,
+optionally, dynamically generated WEP keys),
+NONE (plaintext or static WEP keys).
+If not set this defaults to "WPA-PSK WPA-EAP".
+.It auth_alg
+List of allowed IEEE 802.11 authentication algorithms; one or more of:
+OPEN (Open System authentication, required for WPA/WPA2),
+SHARED (Shared Key authentication),
+LEAP (LEAP/Network EAP).
+If not set automatic selection is used (Open System with LEAP
+enabled if LEAP is allowed as one of the EAP methods).
+.It pairwise
+List of acceptable pairwise (unicast) ciphers for WPA; one or more of:
+CCMP (AES in Counter mode with CBC-MAC, RFC 3610, IEEE 802.11i/D7.0),
+TKIP (Temporal Key Integrity Protocol, IEE 802.11i/D7.0),
+NONE (deprecated).
+If not set this defaults to "CCMP TKIP".
+.It group
+List of acceptable group (multicast) ciphers for WPA; one or more of:
+CCMP (AES in Counter mode with CBC-MAC, RFC 3610, IEEE 802.11i/D7.0),
+TKIP (Temporal Key Integrity Protocol, IEE 802.11i/D7.0),
+WEP104 (WEP with 104-bit key),
+WEP40 (WEP with 40-bit key).
+If not set this defaults to "CCMP TKIP WEP104 WEP40".
+.It psk
+WPA preshared key used in WPA-PSK mode.
+The key is specified as 64 hex digits or as
+an 8-63 character ASCII passphrase.
+ASCII passphrases are converted to a 256-bit key using the network SSID.
+.It eapol_flags
+Dynamic WEP key usage for non-WPA mode, specified as a bit field.
+Bit 0 (1) forces dynamically generated unicast WEP keys to be used.
+Bit 1 (2) forces dynamically generated broadcast WEP keys to be used.
+By default this is set to 3 (use both).
+.It eap
+List of acceptable EAP methods; one or more of:
+MD5 (EAP-MD5, cannot be used with WPA, used only as a Phase 2 method with EAP-PEAP or EAP-TTLS)),
+MSCHAPV2 (EAP-MSCHAPV2, cannot be used with WPA; used only as a Phase 2 method with EAP-PEAP or EAP-TTLS),
+OTP (EAP-OTP, cannot be used with WPA; used only as a Phase 2 metod with EAP-PEAP or EAP-TTLS),
+GTC (EAP-GTC, cannot be used with WPA; used only as a Phase 2 metod with EAP-PEAP or EAP-TTLS),
+TLS (EAP-TLS, client and server certificate),
+PEAP (EAP-PEAP, with tunnelled EAP authentication),
+TTLS (EAP-TTLS, with tunnelled EAP or PAP/CHAP/MSCHAP/MSCHAPV2 authentication).
+If not set this defaults to all available methods compiled in to
+.Nm wpa_supplicant .
+Note that by default
+.Nm wpa_supplicant
+is not compiled with EAP support; see
+.Xr make.conf 5 
+for the
+ENABLE_WPA_SUPPLICANT_EAPOL
+configuration variable.
+.It identity
+Identity string for EAP.
+.It anonymous_identity
+Anonymous identity string for EAP (to be used as the unencrypted identity
+with EAP types that support different tunnnelled identity; e.g. EAP-TTLS).
+.It password
+Password string for EAP.
+.It ca_cert
+Pathname to CA certificate file.
+This file can have one or more trusted CA certificates.
+If
+ca_cert
+is not included, server certificates will not be verified (not recommended).
+.It client_cert
+Pathname to client certificate file (PEM/DER).
+.It private_key
+Pathname to a client private key file (PEM/DER/PFX).
+When a PKCS#12/PFX file is used, then
+client_cert
+should not be specified as both the private key and certificate will be
+read from PKCS#12 file.
+.It private_key_passwd
+Password for any private key file.
+.It dh_file
+Pathname to a file holding DH/DSA parameters (in PEM format).
+This file holds parameters for an ephemeral DH key exchange.
+In most cases, the default RSA authentication does not use this configuration.
+However, it is possible to setup RSA to use an ephemeral DH key exchange.
+In addition, ciphers with
+DSA keys always use ephemeral DH keys.
+This can be used to achieve forward secrecy.
+If the
+dh_file
+is in DSA parameters format, it will be automatically converted
+into DH params.
+.It subject_match
+Substring to be matched against the subject of the
+authentication server certificate.
+If this string is set, the server
+sertificate is only accepted if it contains this string in the subject.
+The subject string is in following format:
+.Bd -literal
+/C=US/ST=CA/L=San Francisco/CN=Test AS/emailAddress=as@example.com
+.Ed
+.It phase1
+Phase1 (outer authentication, i.e., TLS tunnel) parameters
+(string with field-value pairs, e.g., "peapver=0" or "peapver=1 peaplabel=1").
+.Pp
+peapver can be used to force which PEAP version (0 or 1) is used.
+.Pp
+peaplabel=1 can be used to force new label, "client PEAP encryption",
+to be used during key derivation when PEAPv1 or newer.
+Most existing PEAPv1 implementation seem to be using the old label,
+"client EAP encryption", and wpa_supplicant is now using that as the
+default value.
+Some servers, e.g., Radiator, may require peaplabel=1 configuration to
+interoperate with PEAPv1; see eap_testing.txt for more details.
+.Pp
+peap_outer_success=0 can be used to terminate PEAP authentication on
+tunneled EAP-Success.
+This is required with some RADIUS servers that
+implement draft-josefsson-pppext-eap-tls-eap-05.txt (e.g.,
+Lucent NavisRadius v4.4.0 with PEAP in "IETF Draft 5" mode)
+include_tls_length=1 can be used to force wpa_supplicant to include
+TLS Message Length field in all TLS messages even if they are not
+fragmented.
+.Pp
+sim_min_num_chal=3 can be used to configure EAP-SIM to require three
+challenges (by default, it accepts 2 or 3)
+.Pp
+fast_provisioning=1 option enables in-line provisioning of EAP-FAST
+credentials (PAC).
+.It phase2
+phase2: Phase2 (inner authentication with TLS tunnel) parameters
+(string with field-value pairs, e.g., "auth=MSCHAPV2" for EAP-PEAP or
+"autheap=MSCHAPV2 autheap=MD5" for EAP-TTLS).
+.It ca_cert2
+Like
+.Nm ca_cert
+but for EAP inner Phase 2.
+.It client_cert2
+Like
+.Nm client_cert
+but for EAP inner Phase 2.
+.It private_key2
+Like
+.Nm private_key
+but for EAP inner Phase 2.
+.It private_key2_passwd
+Like
+.Nm private_key_passwd
+but for EAP inner Phase 2.
+.It dh_file2
+Like
+.Nm dh_file
+but for EAP inner Phase 2.
+.It subject_match2
+Like
+.Nm subject_match
+but for EAP inner Phase 2.
+.It eappsk
+16-byte pre-shared key in hext format for use with EAP-PSK.
+.It nai
+User NAI for use with EAP-PSK.
+.It server_nai
+Authentication Server NAI for use with EAP-PSK.
+.It pac_file
+Pathname to the file to use for PAC entries with EAP-FAST.
+.Nm wpa_supplicant
+must be able to create this file and write updates to it when
+PAC is being provisioned or refreshed.
+.It eap_workaround
+Enable/disable EAP workarounds for various interoperability issues
+with misbehaving authentication servers.
+By default these workarounds are enabled.
+String EAP conformance can be configured by setting this to 0.
+.El
 .Sh CERTIFICATES
 .Pp
 Some EAP authentication methods require use of certificates.
@@ -72,7 +346,7 @@ program, e.g. with following commands:
 openssl pkcs12 -in example.pfx -out user.pem -clcerts
 # convert CA certificate (if included in PFX file) to PEM format
 openssl pkcs12 -in example.pfx -out ca.pem -cacerts -nokeys
-.Be
+.Ed
 .Sh EXAMPLES
 .Pp
 WPA-Personal (PSK) as a home network and WPA-Enterprise with EAP-TLS
@@ -142,7 +416,8 @@ network={
 }
 .Ed
 .Sh SEE ALSO
-.Xr wpa_supplicant 1
+.Xr wpa_supplicant 8 ,
+.Xr wpa_cli 8 .
 .Sh HISTORY
 The
 .Nm
@@ -151,7 +426,8 @@ manual page and
 functionality first appeared in
 .Fx 6.0 .
 .Sh AUTHORS
-This manual page is derived from the README file in the
+This manual page is derived from the README and wpa_supplicant.conf
+files in the
 .Nm wpa_supplicant
 distribution provided by
 .An Jouni Malinen  Aq jkmaline@cc.hut.fi .

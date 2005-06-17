@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2005
+.Dd June 16, 2005
 .Dt WPA_SUPPLICANT 8
 .Os
 .Sh NAME
@@ -40,10 +40,16 @@
 .Nm
 is an implementation of the WPA Supplicant component,
 i.e., the part that runs in the client stations.
-It implements WPA key negotiation with a WPA Authenticator
-and EAP authentication with Authentication Server.
-In addition, it controls the roaming and IEEE 802.11
-authentication/association of the wlan driver.
+.Nm
+implements WPA key negotiation with a WPA Authenticator
+and EAP authentication with an Authentication Server.
+In addition, 
+.Nm
+controls the roaming and IEEE 802.11
+authentication/association support of the
+.Xr wlan 4
+module and can be used to configure static WEP keys 
+based on identified networks.
 .Pp
 .Nm
 is designed to be a "daemon" program that runs in the
@@ -51,8 +57,9 @@ background and acts as the backend component controlling
 the wireless connection.
 .Nm
 supports separate frontend programs such as the
-text-based frontend,
+text-based
 .Xr wpa_cli 8
+program.
 .Pp
 The following arguments must be specified on the command line:
 .Bl -tag -width indent
@@ -60,21 +67,21 @@ The following arguments must be specified on the command line:
 Use the specified wireless interface.
 .It Fl c Ar config-file
 Use the settings in the specified configuration file when managing 
-the specified wireless interface.
+the wireless interface.
 See 
 .Xr wpa_supplicant.conf 5
-for a description of the configuration file syntax.
+for a description of the configuration file syntax and contents.
 .Pp
 Changes to the configuration file can be reloaded by sending a 
 .Nm SIGHUP
 to the
 .Nm
-processor or with the
-.Xr wpa_cli
+process or with the
+.Nm wpa_cli
 utility, using ``wpa_cli reconfigure''.
 .El
 .Sh OPTIONS
-The options are as follows:
+The following options are available:
 .Bl -tag -width indent
 .It Fl d
 Enable debugging messages.
@@ -94,6 +101,11 @@ Display version information on the terminal and exit.
 .It Fl w
 If the specified interface is not present, wait for it to be
 added; e.g. a cardbus device to be inserted.
+This option is not normally used; instead
+.Xr devd 8
+should be configured to launch
+.Nm
+when a device is created.
 .It Fl B
 Detach from the controlling terminal and run as a daemon process
 in the background.
@@ -114,8 +126,11 @@ will manage them all with a single process.
 .Xr ral 4 ,
 .Xr ural 4 ,
 .Xr wi 4 ,
+.Xr wlan 4 ,
 .Xr wpa_supplicant.conf 5 ,
-.Xr ifconfig 8
+.Xr devd 8 ,
+.Xr wpa_cli 8 ,
+.Xr ifconfig 8 .
 .Sh HISTORY
 The
 .Nm
