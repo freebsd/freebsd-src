@@ -1,3 +1,5 @@
+# $P4: //depot/projects/openpam/bin/su/Makefile.am#2 $
+
 INCLUDES = -I$(top_srcdir)/include
 
 if WITH_PAM_SU

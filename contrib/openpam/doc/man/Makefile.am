@@ -1,3 +1,5 @@
+# $P4: //depot/projects/openpam/doc/man/Makefile.am#3 $
+
 NULL =
 
 # Standard PAM API
@@ -57,6 +59,8 @@ ALLCMAN = $(PMAN) $(MMAN) $(OMAN)
 LINKS= $(ALLCMAN:.3=.c)
 
 man3_MANS = $(ALLCMAN) openpam.3 pam.3 pam_conv.3
+
+man5_MANS = pam.conf.5
 
 CLEANFILES = $(ALLCMAN) $(LINKS) openpam.3 pam.3 symlink-stamp
 

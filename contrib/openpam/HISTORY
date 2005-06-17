@@ -1,3 +1,16 @@
+OpenPAM Figwort							2005-06-16
+
+ - BUGFIX: Correct several small signedness and initialization bugs
+   discovered during review by the NetBSD team.
+
+ - BUGFIX: Modify gendoc.pl to sort cross-references in dictionary
+   order within each section.
+
+ - ENHANCE: if a policy specifies a relative module path, prepend the
+   module directory so we never call dlopen(3) with a relative path.
+
+ - ENHANCE: add a pam.conf(5) manual page.
+============================================================================
 OpenPAM Feterita						2005-02-01
 
  - BUGFIX: Correct numerous markup errors, invalid cross-references,
@@ -16,7 +29,6 @@ OpenPAM Feterita						2005-02-01
  - ENHANCE: Minor overhaul of the autoconf / build system.
 
  - ENHANCE: Add openpam_free_envlist(3).
-
 ============================================================================
 OpenPAM Eelgrass						2004-02-10
 
@@ -292,4 +304,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#23 $
+$P4: //depot/projects/openpam/HISTORY#24 $
