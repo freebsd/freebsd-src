@@ -204,7 +204,7 @@ i4biprattach(void *dummy)
 
 		sc->sc_ifp = if_alloc(IFT_ISDNBASIC);
 		if (sc->sc_ifp == NULL)
-			panic("if_ipr.c, ipr_attach: cannot if_alloc()");
+			panic("i4b_ipr.c, i4biprattach: cannot if_alloc()");
 
 		sc->sc_ifp->if_softc = sc;
 		sc->sc_state = ST_IDLE;
@@ -262,7 +262,7 @@ i4biprattach(void *dummy)
 		if(!((sc->sc_cbuf =
 		   (u_char *)malloc(I4BIPRMAXMTU+128, M_DEVBUF, M_WAITOK))))
 		{
-			panic("if_ipr.c, ipr_attach: VJ malloc failed");
+			panic("i4b_ipr.c, i4biprattach: VJ malloc failed");
 		}
 #endif
 #endif
