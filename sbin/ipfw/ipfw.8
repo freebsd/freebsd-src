@@ -578,7 +578,18 @@ processed, it will not be tagged, so it is wise to make your ALTQ
 "default" queue policy account for this.
 If multiple
 .Cm altq
-rules match a single packet, subsequent tags are ignored by ALTQ.
+rules match a single packet, only the first one adds the ALTQ classification
+tag.
+In doing so, traffic may be shaped by using
+.Cm count Cm altq Ar queue
+rules for classification early in the ruleset, then later applying
+the filtering decision.
+For example,
+.Cm check-state
+and
+.Cm keep-state
+rules may come later and provide the actual filtering decisions in
+addition to the fallback ALTQ tag.
 .Pp
 You must run
 .Xr pfctl 8
@@ -586,7 +597,7 @@ to set up the queues before IPFW will be able to look them up by name,
 and if the ALTQ disciplines are rearranged, the rules in containing the
 queue identifiers in the kernel will likely have gone stale and need
 to be reloaded.
-Stale queue identifiers will probably misclassify
+Stale queue identifiers will probably result in misclassification.
 .Pp
 All system ALTQ processing can be turned on or off via
 .Nm

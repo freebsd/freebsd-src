@@ -2305,6 +2305,9 @@ check_body:
 				ipfw_insn_altq *altq = (ipfw_insn_altq *)cmd;
 
 				match = 1;
+				mtag = m_tag_find(m, PACKET_TAG_PF_QID, NULL);
+				if (mtag != NULL)
+					break;
 				mtag = m_tag_get(PACKET_TAG_PF_QID,
 						sizeof(struct altq_tag),
 						M_NOWAIT);
