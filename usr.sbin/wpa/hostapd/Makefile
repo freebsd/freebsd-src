@@ -10,6 +10,8 @@ SRCS=	hostapd.c eloop.c ieee802_1x.c eapol_sm.c radius.c md5.c rc4.c \
 	ctrl_iface.c driver_conf.c l2_packet.c driver_freebsd.c
 CLEANFILES=driver_conf.c
 
+MAN=	hostapd.8 hostapd.conf.5
+
 CFLAGS+= -I${.CURDIR} -I${HOSTAPD_DISTDIR}
 CFLAGS+= -DCONFIG_DRIVER_BSD
 DPADD+=	${LIBPCAP}
