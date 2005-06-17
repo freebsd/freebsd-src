@@ -24,8 +24,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2005
-.Dt WPA_CLI 1
+.Dd June 16, 2005
+.Dt WPA_CLI 8
 .Os
 .Sh NAME
 .Nm wpa_cli
@@ -36,7 +36,7 @@
 .Sh DESCRIPTION
 .Nm
 is a text-based frontend program for interacting with
-.Xr wpa_supplicant 1.
+.Xr wpa_supplicant 1 .
 .Nm
 is used to query current status,
 change configuration,
@@ -52,25 +52,19 @@ mode, dot11 and dot1x MIBs, etc.
 In addition, 
 .Nm
 can configure EAPOL state machine
-parameters and trigger events like reassociation
+parameters and trigger events such as reassociation
 and IEEE 802.1X logoff/logon.
+.Pp
 .Nm
-provides a user interface to request authentication information,
-like username and password, if these are not included in the
-configuration.
-This can be used to implement,
-e.g., one-time-passwords or generic token card
+provides an interface to supply authentication information
+such as username and password when it is not provided in 
+.Nm wpa_supplicant's
+configuration file.
+This can be used, for example, to implement
+one-time-passwords or generic token card
 authentication where the authentication is based on a
 challenge-response that uses an external device for generating the
 response.
-.Pp
-The control interface of
-.Nm wpa_supplicant
-can be configured to allow
-non-root user access (ctrl_interface_group in the configuration file).
-This makes it possible to run 
-.Nm
-with a normal user account.
 .Pp
 .Nm
 supports two modes: interactive and command line.
@@ -87,6 +81,18 @@ response to the
 prompt.
 In command line mode, the same commands are
 entered as command line arguments.
+.Pp
+The control interface of
+.Nm wpa_supplicant
+can be configured to allow
+non-root user access by using the
+ctrl_interface_group parameter
+in the
+.Nm wpa_supplicant
+configuration file.
+This makes it possible to run 
+.Nm
+with a normal user account.
 .Sh AUTHENTICATION PARAMETERS
 .Pp
 When
@@ -97,13 +103,13 @@ request message to all attached frontend programs, e.g.,
 .Nm
 in interactive mode.
 .Nm
-shows these requests with
+shows these requests with a
 "CTRL-REQ-<type>-<id>:<text>" prefix.
 <type> is IDENTITY, PASSWORD, or OTP (one-time-password).
 <id> is a unique identifier for the current network.
 <text> is description of the request.
-In case of OTP request, it includes the challenge from
-the authentication server.
+In the case of a OTP (One Time Password) request, 
+it includes the challenge from the authentication server.
 .Pp
 A user must supply 
 .Nm wpa_supplicant
@@ -174,7 +180,7 @@ Exit
 .Nm .
 .El
 .Sh SEE ALSO
-.Xr wpa_supplicant 1 ,
+.Xr wpa_supplicant 8 ,
 .Xr wpa_supplicant.conf 5
 .Sh HISTORY
 The
