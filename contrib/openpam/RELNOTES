@@ -1,6 +1,6 @@
 
-		  Release notes for OpenPAM Feterita
-		  ==================================
+		  Release notes for OpenPAM Figwort
+		  =================================
 
 This release corresponds to the code used in FreeBSD-CURRENT as of the
 release date.  It has also been tested on several other platforms, and
@@ -26,4 +26,4 @@ proper credit for your contribution.
 
 Please direct bug reports and inquiries to <des@freebsd.org>.
 
-$P4: //depot/projects/openpam/RELNOTES#21 $
+$P4: //depot/projects/openpam/RELNOTES#22 $
