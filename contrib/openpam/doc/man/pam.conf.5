@@ -28,7 +28,7 @@
 .\"
 .\" $P4: //depot/projects/openpam/doc/man/pam.conf.5#2 $
 .\"
-.Dd June 9, 2005
+.Dd June 16, 2005
 .Dt PAM.CONF 5
 .Os
 .Sh NAME
@@ -56,7 +56,7 @@ policy is used instead, if it exists.
 Entries in per-service policy files must be of one of the two forms
 below:
 .Bd -unfilled -offset indent
-.Ar function-class Ar control-flag Ar module-path Op Ar arguments ...
+.Ar function-class control-flag module-path Op Ar arguments ...
 .Ar function-class Cm include Ar other-service-name
 .Ed
 .Pp
@@ -66,13 +66,15 @@ policy files are of the same form, but are prefixed by an additional
 field specifying the name of the service they apply to.
 .Pp
 In both types of policy files, blank lines are ignored, as is anything
-to the right of a `#' sign.
+to the right of a
+.Ql #
+sign.
 .Pp
 The
 .Ar function-class
 field specifies the class of functions the entry applies to, and is
 one of:
-.Bl -tag -width "password"
+.Bl -tag -width ".Cm password"
 .It Cm auth
 Authentication functions
 .Po
@@ -98,7 +100,7 @@ The
 field determines how the result returned by the module affects the
 flow of control through (and the final result of) the rest of the
 chain, and is one of:
-.Bl -tag -width "sufficient"
+.Bl -tag -width ".Cm sufficient"
 .It Cm required
 If this module succeeds, the result of the chain will be success
 unless a later module fails.
@@ -163,9 +165,11 @@ modify each and every service-specific policy.
 .%D "June 1997"
 .Re
 .Sh AUTHORS
-The OpenPAM library was developed for the FreeBSD Project by ThinkSec
+The OpenPAM library was developed for the
+.Fx
+Project by ThinkSec
 AS and Network Associates Laboratories, the Security Research Division
-of Network Associates, Inc. under DARPA/SPAWAR contract
+of Network Associates, Inc.\& under DARPA/SPAWAR contract
 N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
