@@ -1,3 +1,5 @@
+# $P4: //depot/projects/openpam/lib/Makefile.am#5 $
+
 NULL =
 
 INCLUDES = -I$(top_srcdir)/include
@@ -47,6 +49,8 @@ libpam_la_SOURCES = \
 	pam_vinfo.c \
 	pam_vprompt.c \
 	$(NULL)
+
+libpam_la_CFLAGS = -DOPENPAM_MODULES_DIR='"@OPENPAM_MODULES_DIR@/"'
 
 libpam_la_LDFLAGS = -no-undefined -version-info @LIB_MAJ@ @DL_LIBS@
 

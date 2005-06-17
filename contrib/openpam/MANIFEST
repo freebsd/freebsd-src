@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/openpam/MANIFEST#20 $
+# $P4: //depot/projects/openpam/MANIFEST#21 $
 #
 CREDITS
 HISTORY
@@ -47,6 +47,7 @@ doc/man/openpam_restore_cred.3
 doc/man/openpam_set_option.3
 doc/man/openpam_ttyconv.3
 doc/man/pam.3
+doc/man/pam.conf.5
 doc/man/pam.man
 doc/man/pam_acct_mgmt.3
 doc/man/pam_authenticate.3

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#25 $
+ * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#26 $
  */
 
 #include <sys/types.h>
@@ -66,7 +66,7 @@ prompt(const char *msg)
 	struct sigaction action, saved_action;
 	sigset_t saved_sigset, sigset;
 	unsigned int saved_alarm;
-	int eof, error, fd, timed_out;
+	int eof, error, fd;
 	size_t len;
 	char *retval;
 	char ch;
@@ -86,9 +86,9 @@ prompt(const char *msg)
 #endif
 	fd = fileno(stdin);
 	buf[0] = '\0';
-	timed_out = 0;
-	eof = error = timed_out = 0;
-	saved_alarm = alarm(openpam_ttyconv_timeout);
+	eof = error = 0;
+	if (openpam_ttyconv_timeout >= 0)
+		saved_alarm = alarm(openpam_ttyconv_timeout);
 	ch = '\0';
 	for (len = 0; ch != '\n' && !eof && !error; ++len) {
 		switch (read(fd, &ch, 1)) {
@@ -106,10 +106,12 @@ prompt(const char *msg)
 			break;
 		}
 	}
-	alarm(0);
+	if (openpam_ttyconv_timeout >= 0)
+		alarm(0);
 	sigaction(SIGALRM, &saved_action, NULL);
 	sigprocmask(SIG_SETMASK, &saved_sigset, NULL);
-	alarm(saved_alarm);
+	if (openpam_ttyconv_timeout >= 0)
+		alarm(saved_alarm);
 	if (error == EINTR)
 		fputs(" timeout!", stderr);
 	if (error || eof) {
