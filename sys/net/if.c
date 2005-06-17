@@ -389,7 +389,7 @@ if_alloc(u_char type)
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
 
-	/* XXX: This should fail it index it is too big */
+	/* XXX: This should fail if if_index is too big */
 	ifp->if_index = if_findindex(ifp);
 	if (ifp->if_index > if_index)
 		if_index = ifp->if_index;
