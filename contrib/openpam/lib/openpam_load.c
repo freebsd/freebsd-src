@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_load.c#20 $
+ * $P4: //depot/projects/openpam/lib/openpam_load.c#21 $
  */
 
 #include <dlfcn.h>
@@ -173,8 +173,10 @@ openpam_clear_chains(pam_chain_t *policy[])
 {
 	int i;
 
-	for (i = 0; i < PAM_NUM_FACILITIES; ++i)
+	for (i = 0; i < PAM_NUM_FACILITIES; ++i) {
 		openpam_destroy_chain(policy[i]);
+		policy[i] = NULL;
+	}
 }
 
 /*

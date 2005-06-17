@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/modules/pam_deny/pam_deny.c#9 $
+ * $P4: //depot/projects/openpam/modules/pam_deny/pam_deny.c#10 $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -55,7 +55,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	int argc, const char *argv[])
 {
 
-	return (PAM_PERM_DENIED);
+	return (PAM_CRED_ERR);
 }
 
 PAM_EXTERN int
@@ -87,7 +87,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	int argc, const char *argv[])
 {
 
-	return (PAM_PERM_DENIED);
+	return (PAM_AUTHTOK_ERR);
 }
 
 PAM_MODULE_ENTRY("pam_deny");
