@@ -236,7 +236,7 @@ i4bisppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, caddr_t data)
 {
 	struct i4bisppp_softc *sc = ifp->if_softc;
 #if 0
-	struct sppp *sp = (struct sppp *)sc;
+	struct sppp *sp = IFP2SP(sc->sc_ifp);
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;
 #endif
@@ -379,8 +379,8 @@ i4bisppp_timeout(void *cookie)
 static void
 i4bisppp_tls(struct sppp *sp)
 {
-	struct i4bisppp_softc *sc = (struct i4bisppp_softc *)sp;
 	struct ifnet *ifp = SP2IFP(sp);
+	struct i4bisppp_softc *sc = ifp->if_softc;
 
 	if(sc->sc_state == ST_CONNECTED)
 		return;
@@ -395,9 +395,9 @@ i4bisppp_tls(struct sppp *sp)
 static void
 i4bisppp_tlf(struct sppp *sp)
 {
-	struct i4bisppp_softc *sc = (struct i4bisppp_softc *)sp;
-/*	call_desc_t *cd = sc->sc_cdp;	*/
         struct ifnet *ifp = SP2IFP(sp);
+	struct i4bisppp_softc *sc = ifp->if_softc;
+/*	call_desc_t *cd = sc->sc_cdp;	*/
 	
 	if(sc->sc_state != ST_CONNECTED)
 		return;
@@ -415,7 +415,7 @@ i4bisppp_tlf(struct sppp *sp)
 static void
 i4bisppp_state_changed(struct sppp *sp, int new_state)
 {
-	struct i4bisppp_softc *sc = (struct i4bisppp_softc *)sp;
+	struct i4bisppp_softc *sc = SP2IFP(sp)->if_softc;
 	
 	i4b_l4_ifstate_changed(sc->sc_cdp, new_state);
 }
@@ -427,7 +427,7 @@ i4bisppp_state_changed(struct sppp *sp, int new_state)
 static void
 i4bisppp_negotiation_complete(struct sppp *sp)
 {
-	struct i4bisppp_softc *sc = (struct i4bisppp_softc *)sp;
+	struct i4bisppp_softc *sc = SP2IFP(sp)->if_softc;
 	
 	i4b_l4_negcomplete(sc->sc_cdp);
 }
@@ -623,8 +623,7 @@ i4bisppp_tx_queue_empty(int unit)
 time_t
 i4bisppp_idletime(int unit)
 {
-	struct sppp *sp;
-	sp = (struct sppp *) &i4bisppp_softc[unit];
+	struct sppp *sp = IFP2SP((&i4bisppp_softc[unit])->sc_ifp);
 
 	return((sp->pp_last_recv < sp->pp_last_sent) ?
 			sp->pp_last_sent : sp->pp_last_recv);
