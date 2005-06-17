@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#13 $
+ * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#14 $
  */
 
 #include <dlfcn.h>
@@ -57,6 +57,7 @@ pam_module_t *
 openpam_dynamic(const char *path)
 {
 	pam_module_t *module;
+	const char *prefix;
 	char *vpath;
 	void *dlh;
 	int i;
@@ -65,8 +66,14 @@ openpam_dynamic(const char *path)
 	if ((module = calloc(1, sizeof *module)) == NULL)
 		goto buf_err;
 
+	/* Prepend the standard prefix if not an absolute pathname. */
+	if (path[0] != '/')
+		prefix = OPENPAM_MODULES_DIR;
+	else
+		prefix = "";
+
 	/* try versioned module first, then unversioned module */
-	if (asprintf(&vpath, "%s.%d", path, LIB_MAJ) < 0)
+	if (asprintf(&vpath, "%s%s.%d", prefix, path, LIB_MAJ) < 0)
 		goto buf_err;
 	if ((dlh = dlopen(vpath, RTLD_NOW)) == NULL) {
 		openpam_log(PAM_LOG_DEBUG, "%s: %s", vpath, dlerror());

@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/misc/gendoc.pl#29 $
+# $P4: //depot/projects/openpam/misc/gendoc.pl#30 $
 #
 
 use strict;
@@ -341,13 +341,21 @@ sub expand_errors($) {
     $func->{'errors'} = [ sort(keys(%errors)) ];
 }
 
+sub dictionary_order($$) {
+    my ($a, $b) = @_;
+
+    $a =~ s/[^[:alpha:]]//g;
+    $b =~ s/[^[:alpha:]]//g;
+    $a cmp $b;
+}
+
 sub genxref($) {
     my $xref = shift;		# References
 
     my $mdoc = '';
     my @refs = ();
     foreach my $sect (sort(keys(%{$xref}))) {
-	foreach my $page (sort(keys(%{$xref->{$sect}}))) {
+	foreach my $page (sort(dictionary_order keys(%{$xref->{$sect}}))) {
 	    push(@refs, "$page $sect");
 	}
     }
