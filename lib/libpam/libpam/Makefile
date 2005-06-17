@@ -127,12 +127,16 @@ MAN=	openpam.3 \
 	pam_strerror.3 \
 	pam_verror.3 \
 	pam_vinfo.3 \
-	pam_vprompt.3
+	pam_vprompt.3 \
+	pam.conf.5
+
+MLINKS=	pam.conf.5 pam.d.5
 
 CSTD?= c99
 WARNS?=	3
 CFLAGS+= -I${.CURDIR} -I${OPENPAM}/include
 CFLAGS+= -DLIB_MAJ=${SHLIB_MAJOR}
+CFLAGS+= -DOPENPAM_MODULES_DIR='"${PAM_MOD_DIR:C/\/*$//}/"'
 
 HEADERS=	security/openpam.h \
 		security/openpam_version.h \
