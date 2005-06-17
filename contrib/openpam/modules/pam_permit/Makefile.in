@@ -14,6 +14,8 @@
 
 @SET_MAKE@
 
+# $P4: //depot/projects/openpam/modules/pam_permit/Makefile.am#2 $
+
 SOURCES = $(pam_permit_la_SOURCES)
 
 srcdir = @srcdir@
