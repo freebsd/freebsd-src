@@ -1260,6 +1260,9 @@ buf_vlist_remove(struct buf *bp)
 
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
 	ASSERT_BO_LOCKED(bp->b_bufobj);
+	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) !=
+	    (BX_VNDIRTY|BX_VNCLEAN),
+	    ("buf_vlist_remove: Buf %p is on two lists", bp));
 	if (bp->b_xflags & BX_VNDIRTY) 
 		bv = &bp->b_bufobj->bo_dirty;
 	else
@@ -1293,6 +1296,8 @@ buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 	struct bufv *bv;
 
 	ASSERT_BO_LOCKED(bo);
+	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0,
+	    ("buf_vlist_add: Buf %p has existing xflags %d", bp, bp->b_xflags));
 	bp->b_xflags |= xflags;
 	if (xflags & BX_VNDIRTY)
 		bv = &bo->bo_dirty;
