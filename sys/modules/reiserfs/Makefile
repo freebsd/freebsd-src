@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../gnu/reiserfs
+.PATH: ${.CURDIR}/../../gnu/fs/reiserfs
 KMOD=	reiserfs
 SRCS=	vnode_if.h \
 	reiserfs_fs.h reiserfs_fs_i.h reiserfs_fs_sb.h reiserfs_hashes.c \
