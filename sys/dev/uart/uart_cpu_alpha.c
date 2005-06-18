@@ -46,17 +46,34 @@ int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
 
-	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
+	if (b1->bsh != b2->bsh)
+		return (0);
+	if (b1->bst == b2->bst)
+		return (1);
+
+	/* Chipset drivers can have redefined the ISA tags. Deal with it. */
+	if ((b1->bst == uart_bus_space_io && b2->bst == busspace_isa_io) ||
+	    (b1->bst == busspace_isa_io && b2->bst == uart_bus_space_io))
+		return (1);
+	if ((b1->bst == uart_bus_space_mem && b2->bst == busspace_isa_mem) ||
+	    (b1->bst == busspace_isa_mem && b2->bst == uart_bus_space_mem))
+                return (1);
+
+	return (0);
 }
 
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
+	static int init = 0;
 	struct ctb *ctb;
 	unsigned int i, ivar;
 
-	uart_bus_space_io = busspace_isa_io;
-	uart_bus_space_mem = busspace_isa_mem;
+	if (!init) {
+		uart_bus_space_io = busspace_isa_io;
+		uart_bus_space_mem = busspace_isa_mem;
+		init = 1;
+	}
 
 	if (devtype == UART_DEV_CONSOLE) {
 		ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
