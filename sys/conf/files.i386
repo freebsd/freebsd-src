@@ -224,15 +224,15 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
-gnu/reiserfs/reiserfs_hashes.c	optional reiserfs \
+gnu/fs/reiserfs/reiserfs_hashes.c	optional reiserfs \
 	warning "kernel contains GPL contaminated ReiserFS filesystem"
-gnu/reiserfs/reiserfs_inode.c	optional reiserfs
-gnu/reiserfs/reiserfs_item_ops.c optional reiserfs
-gnu/reiserfs/reiserfs_namei.c	optional reiserfs
-gnu/reiserfs/reiserfs_prints.c	optional reiserfs
-gnu/reiserfs/reiserfs_stree.c	optional reiserfs
-gnu/reiserfs/reiserfs_vfsops.c	optional reiserfs
-gnu/reiserfs/reiserfs_vnops.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_inode.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_item_ops.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_namei.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_prints.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_stree.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_vfsops.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_vnops.c	optional reiserfs
 dev/acpica/acpi_if.m		standard
 i386/acpica/OsdEnvironment.c	optional acpi
 i386/acpica/acpi_machdep.c	optional acpi
