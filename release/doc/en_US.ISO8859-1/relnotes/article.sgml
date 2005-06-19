@@ -1396,6 +1396,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para><application>OpenPAM</application> has been updated from the
       Eelgrass release to the Feterita release.</para>
 
+    <para><application>OpenPAM</application> has been updated from the
+      Feterita release to the Figwort release.</para>
+
     <para><application>OpenSSH</application> has been updated from 3.8p1
       to 4.1p1.</para>
 
