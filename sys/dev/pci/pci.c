@@ -1626,8 +1626,8 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	map = pci_read_config(child, *rid, 4);
 	pci_write_config(child, *rid, 0xffffffff, 4);
 	testval = pci_read_config(child, *rid, 4);
-	if (testval == 0)
-		return (NULL);
+	if (pci_mapbase(testval) == 0)
+		goto out;
 	if (pci_maptype(testval) & PCI_MAPMEM) {
 		if (type != SYS_RES_MEMORY) {
 			device_printf(child,
