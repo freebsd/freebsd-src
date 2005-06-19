@@ -161,7 +161,7 @@ exec_shell_imgact(imgp)
 	while (ihp < maxp && ((*ihp != '\n') && (*ihp != '\0')))
 		ihp++;
 	opte = ihp;
-	while (--ihp > interpe && ((*ihp == ' ') || (*ihp == '\t')))
+	while (--ihp > optb && ((*ihp == ' ') || (*ihp == '\t')))
 		opte = ihp;
 
 	/*
@@ -173,7 +173,7 @@ exec_shell_imgact(imgp)
 	 * area, and 'length' as the number of bytes being removed.
 	 */
 	offset = interpe - interpb + 1;			/* interpreter */
-	if (opte != optb)				/* options (if any) */
+	if (opte > optb)				/* options (if any) */
 		offset += opte - optb + 1;
 	offset += strlen(imgp->args->fname) + 1;	/* fname of script */
 	length = (imgp->args->argc == 0) ? 0 :
@@ -208,7 +208,7 @@ exec_shell_imgact(imgp)
 	bcopy(interpb, imgp->args->buf, length);
 	*(imgp->args->buf + length) = '\0';
 	offset = length + 1;
-	if (opte != optb) {
+	if (opte > optb) {
 		length = opte - optb;
 		bcopy(optb, imgp->args->buf + offset, length);
 		*(imgp->args->buf + offset + length) = '\0';
