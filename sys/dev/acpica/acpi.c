@@ -978,7 +978,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
      * we know what the resources for this device are (i.e., they're on the
      * child's resource list), use those start/end values.
      */
-    if (start == 0UL && end == ~0UL) {
+    if (bus == device_get_parent(child) && start == 0UL && end == ~0UL) {
 	rle = resource_list_find(rl, type, *rid);
 	if (rle == NULL)
 	    goto out;
