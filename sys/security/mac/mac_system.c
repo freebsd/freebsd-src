@@ -256,7 +256,7 @@ mac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp, void *arg1,
 	int error;
 
 	/*
-	 * XXXMAC: We're very much like to assert the SYSCTL_LOCK here,
+	 * XXXMAC: We would very much like to assert the SYSCTL_LOCK here,
 	 * but since it's not exported from kern_sysctl.c, we can't.
 	 */
 	if (!mac_enforce_system)
