@@ -687,7 +687,8 @@ linux_newuname(struct proc *p, struct linux_newuname_args *args)
 	struct l_new_utsname utsname;
 	char *osrelease, *osname;
 	int name[2];
-	int error, plen, olen;
+	int error;
+	size_t plen, olen;
 
 #ifdef DEBUG
 	if (ldebug(newuname))
