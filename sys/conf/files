@@ -1588,7 +1588,6 @@ netinet/libalias/alias_db.c	optional libalias
 netinet/libalias/alias_ftp.c	optional libalias
 netinet/libalias/alias_irc.c	optional libalias
 netinet/libalias/alias_nbt.c	optional libalias
-netinet/libalias/alias_old.c	optional libalias
 netinet/libalias/alias_pptp.c	optional libalias
 netinet/libalias/alias_proxy.c	optional libalias
 netinet/libalias/alias_skinny.c	optional libalias
