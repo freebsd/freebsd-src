@@ -225,6 +225,7 @@ in_gif_input(m, off)
 	int off;
 {
 	struct ifnet *gifp = NULL;
+	struct gif_softc *sc;
 	struct ip *ip;
 	int af;
 	u_int8_t otos;
@@ -233,8 +234,14 @@ in_gif_input(m, off)
 	ip = mtod(m, struct ip *);
 	proto = ip->ip_p;
 
-	gifp = (struct ifnet *)encap_getarg(m);
+	sc = (struct gif_softc *)encap_getarg(m);
+	if (sc == NULL) {
+		m_freem(m);
+		ipstat.ips_nogif++;
+		return;
+	}
 
+	gifp = GIF2IFP(sc);
 	if (gifp == NULL || (gifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		ipstat.ips_nogif++;
