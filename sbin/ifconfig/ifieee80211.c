@@ -712,15 +712,16 @@ copy_essid(char buf[], size_t bufsize, const u_int8_t *essid, size_t essid_len)
 		bufsize -= 2;
 		p = essid;
 		for (i = 0; i < maxlen && bufsize >= 2; i++) {
-			sprintf(&buf[2+2*i], "%02x", *p++);
+			sprintf(&buf[2+2*i], "%02x", p[i]);
 			bufsize -= 2;
 		}
-		maxlen = 2+2*i;
+		if (i != essid_len)
+			memcpy(&buf[2+2*i-3], "...", 3);
 	} else {			/* printable, truncate as needed */
 		memcpy(buf, essid, maxlen);
+		if (maxlen != essid_len)
+			memcpy(&buf[maxlen-3], "...", 3);
 	}
-	if (maxlen != essid_len)
-		memcpy(buf+maxlen-3, "...", 3);
 	return maxlen;
 }
 
