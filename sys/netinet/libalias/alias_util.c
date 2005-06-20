@@ -71,11 +71,10 @@ purposes);
 #endif
 
 u_short
-LibAliasInternetChecksum(struct libalias *la, u_short * ptr, int nbytes)
+LibAliasInternetChecksum(struct libalias *la __unused, u_short * ptr,
+	int nbytes)
 {
 	int sum, oddbyte;
-
-	(void)la;
 
 	sum = 0;
 	while (nbytes > 1) {
@@ -96,7 +95,7 @@ LibAliasInternetChecksum(struct libalias *la, u_short * ptr, int nbytes)
 u_short
 IpChecksum(struct ip *pip)
 {
-	return (PacketAliasInternetChecksum((u_short *) pip,
+	return (LibAliasInternetChecksum(NULL, (u_short *) pip,
 	    (pip->ip_hl << 2)));
 
 }
