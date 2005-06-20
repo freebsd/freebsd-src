@@ -36,6 +36,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
@@ -71,6 +72,8 @@
 #include <machine/tss.h>
 #include <machine/specialreg.h>
 #include <machine/globaldata.h>
+
+#include <pci/pcivar.h>
 
 #if defined(APIC_IO)
 #include <machine/md_var.h>		/* setidt() */
@@ -1663,8 +1666,8 @@ isa_apic_irq(int isa_irq)
 #define SRCBUSID(I)	(io_apic_ints[(I)].src_bus_id)
 #define SRCBUSDEVICE(I)	((io_apic_ints[(I)].src_bus_irq >> 2) & 0x1f)
 #define SRCBUSLINE(I)	(io_apic_ints[(I)].src_bus_irq & 0x03)
-int
-pci_apic_irq(int pciBus, int pciDevice, int pciInt)
+static int
+pci_apic_irq_raw(int pciBus, int pciDevice, int pciInt)
 {
 	int     intr;
 
@@ -1684,6 +1687,80 @@ pci_apic_irq(int pciBus, int pciDevice, int pciInt)
 			}
 
 	return -1;					/* NOT found */
+}
+
+static int
+pci_apic_bus_present(int bus)
+{
+	int intr;
+
+	for (intr = 0; intr < nintrs; ++intr)
+		if ((INTTYPE(intr) == 0) && (SRCBUSID(intr) == bus))
+			return (1);
+	return (0);
+}
+
+int
+pci_apic_irq(int bus, int device, int pin, void *arg)
+{
+	device_t dev, bus_dev, pcib, parent;
+	int irq;
+
+	parent = (device_t)arg;
+	pcib = NULL;
+loop:
+	/* See if there is an exact match first. */
+	if (bootverbose) {
+		printf("APIC_IO: trying to route %d:%d INT%c\n", bus, device,
+		    pin + 'A' - 1);
+	}
+	irq = pci_apic_irq_raw(bus, device, pin);
+	if (irq != -1)
+		return (irq);
+
+	/* If this bus has other entries but not this one, punt. */
+	if (pci_apic_bus_present(bus))
+		return (-1);
+
+	/* Safety net, don't try to walk past bus 0. */
+	if (bus == 0)
+		return (-1);
+
+	/*
+	 * Try to find our parent bus and the bridge it hangs off of.  If
+	 * we are recursing up the chain, we need to find the previous bridge's
+	 * parent bus.  If we have a valid parent device, then that is our
+	 * parent bus.  Otherwise, try to find ourself so that we can find
+	 * our parent bus.  Every device has a function of 0 and we are
+	 * really just trying to find our parent, so assume a function of 0
+	 * to find either ourself or one of our siblings.
+	 */
+	if (pcib != NULL)
+		bus_dev = device_get_parent(pcib);
+	else if (parent != NULL)
+		bus_dev = parent;
+	else {
+		dev = pci_find_bsf(bus, device, 0);
+		if (dev == NULL)
+			return (-1);
+		bus_dev = device_get_parent(dev);
+	}
+	if (bus_dev == NULL)
+		return (-1);
+	pcib = device_get_parent(bus_dev);
+	if (pcib == NULL)
+		return (-1);
+
+	/*
+	 * Do the swizzle thing.
+	 *
+	 * XXX: no error checking for the bus number here
+	 * (valid, does it exist, etc.).
+	 */
+	bus = pci_get_bus(pcib);
+	pin = (pci_get_slot(pcib) + (pin - 1)) % 4 + 1;
+	device = pci_get_slot(pcib);
+	goto loop;
 }
 
 int

@@ -156,7 +156,7 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 	if (pin != 0) {
 	    int airq;
 
-	    airq = pci_apic_irq(bus, slot, pin);
+	    airq = pci_apic_irq(bus, slot, pin, NULL);
 	    if (airq >= 0) {
 		/* PCI specific entry found in MP table */
 		if (airq != line)

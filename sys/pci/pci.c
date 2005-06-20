@@ -322,7 +322,7 @@ pci_hdrtypedata(pcicfgregs *cfg)
 /* read configuration header into pcicfgrect structure */
 
 static struct pci_devinfo *
-pci_readcfg(pcicfgregs *probe)
+pci_readcfg(pcicfgregs *probe, device_t bus)
 {
 #define REG(n, w)	pci_cfgread(probe, n, w)
 
@@ -360,6 +360,11 @@ pci_readcfg(pcicfgregs *probe)
 		cfg->cachelnsz		= pci_cfgread(cfg, PCIR_CACHELNSZ, 1);
 		cfg->lattimer		= pci_cfgread(cfg, PCIR_LATTIMER, 1);
 		cfg->intpin		= pci_cfgread(cfg, PCIR_INTPIN, 1);
+		/*
+		 * XXX: This actually ends up trying to route the IRQ
+		 * even though the code below assumes it returns the raw
+		 * value.  This is why 4.x is poo.
+		 */
 		cfg->intline		= pci_cfgread(cfg, PCIR_INTLINE, 1);
 #ifdef __alpha__
 		alpha_platform_assign_pciintr(cfg);
@@ -369,7 +374,7 @@ pci_readcfg(pcicfgregs *probe)
 		if (cfg->intpin != 0) {
 			int airq;
 
-			airq = pci_apic_irq(cfg->bus, cfg->slot, cfg->intpin);
+			airq = pci_apic_irq(cfg->bus, cfg->slot, cfg->intpin, bus);
 			if (airq >= 0) {
 				/* PCI specific entry found in MP table */
 				if (airq != cfg->intline) {
@@ -1397,7 +1402,7 @@ pci_add_children(device_t dev, int busno)
 	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
 		int pcifunchigh = 0;
 		for (probe.func = 0; probe.func <= pcifunchigh; probe.func++) {
-			struct pci_devinfo *dinfo = pci_readcfg(&probe);
+			struct pci_devinfo *dinfo = pci_readcfg(&probe, dev);
 			if (dinfo != NULL) {
 				if (dinfo->cfg.mfdev)
 					pcifunchigh = 7;

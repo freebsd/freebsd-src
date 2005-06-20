@@ -110,7 +110,7 @@ void	mp_start		__P((void));
 void	mp_announce		__P((void));
 u_int	isa_apic_mask		__P((u_int));
 int	isa_apic_irq		__P((int));
-int	pci_apic_irq		__P((int, int, int));
+int	pci_apic_irq		__P((int, int, int, void *));
 int	apic_irq		__P((int, int));
 int	next_apic_irq		__P((int));
 int	undirect_isa_irq	__P((int));
