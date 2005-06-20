@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "envopts.h"
+
 extern char **environ;
 
 int	 env_verbosity;
@@ -62,16 +64,27 @@ static void usage(void);
 int
 main(int argc, char **argv)
 {
-	char **ep, *p, **parg;
+	char *altpath, **ep, *p, **parg;
 	char *cleanenv[1];
 	int ch, want_clear;
 
+	altpath = NULL;
 	want_clear = 0;
-	while ((ch = getopt(argc, argv, "-iv")) != -1)
+	while ((ch = getopt(argc, argv, "-iP:S:v")) != -1)
 		switch(ch) {
 		case '-':
 		case 'i':
 			want_clear = 1;
+			break;
+		case 'P':
+			altpath = strdup(optarg);
+			break;
+		case 'S':
+			/*
+			 * The -S option, for "split string on spaces, with
+			 * support for some simple substitutions"...
+			 */
+			split_spaces(optarg, &optind, &argc, &argv);
 			break;
 		case 'v':
 			env_verbosity++;
@@ -96,6 +109,8 @@ main(int argc, char **argv)
 		(void)setenv(*argv, ++p, 1);
 	}
 	if (*argv) {
+		if (altpath)
+			search_paths(altpath, argv);
 		if (env_verbosity) {
 			fprintf(stderr, "#env executing:\t%s\n", *argv);
 			for (parg = argv, argc = 0; *parg; parg++, argc++)
@@ -116,6 +131,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: env [-iv] [name=value ...] [utility [argument ...]]\n");
+	    "usage: env [-iv] [-P utilpath] [-S string] [name=value ...]"
+	    " [utility [argument ...]]\n");
 	exit(1);
 }
