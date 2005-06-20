@@ -64,16 +64,14 @@ main(int argc, char **argv)
 {
 	char **ep, *p, **parg;
 	char *cleanenv[1];
-	int ch;
+	int ch, want_clear;
 
+	want_clear = 0;
 	while ((ch = getopt(argc, argv, "-iv")) != -1)
 		switch(ch) {
 		case '-':
 		case 'i':
-			environ = cleanenv;
-			cleanenv[0] = NULL;
-			if (env_verbosity)
-				fprintf(stderr, "#env clearing environ\n");
+			want_clear = 1;
 			break;
 		case 'v':
 			env_verbosity++;
@@ -85,6 +83,12 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
+	if (want_clear) {
+		environ = cleanenv;
+		cleanenv[0] = NULL;
+		if (env_verbosity)
+			fprintf(stderr, "#env clearing environ\n");
+	}
 	for (argv += optind; *argv && (p = strchr(*argv, '=')); ++argv) {
 		if (env_verbosity)
 			fprintf(stderr, "#env setenv:\t%s\n", *argv);
