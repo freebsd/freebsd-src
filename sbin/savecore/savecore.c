@@ -145,35 +145,36 @@ getbounds(void) {
 
 	if ((fp = fopen("bounds", "r")) == NULL) {
 		syslog(LOG_WARNING, "unable to open bounds file, using 0");
-		goto newfile;
+		return (ret);
 	}
 
 	if (fgets(buf, sizeof buf, fp) == NULL) {
 		syslog(LOG_WARNING, "unable to read from bounds, using 0");
 		fclose(fp);
-		goto newfile;
+		return (ret);
 	}
 
 	errno = 0;
 	ret = (int)strtol(buf, NULL, 10);
 	if (ret == 0 && (errno == EINVAL || errno == ERANGE))
 		syslog(LOG_WARNING, "invalid value found in bounds, using 0");
+	return (ret);
+}
 
-newfile:
+static void
+writebounds(int bounds) {
+	FILE *fp;
 
 	if ((fp = fopen("bounds", "w")) == NULL) {
 		syslog(LOG_WARNING, "unable to write to bounds file: %m");
-		goto done;
+		return;
 	}
 
 	if (verbose)
-		printf("bounds number: %d\n", ret);
+		printf("bounds number: %d\n", bounds);
 
-	fprintf(fp, "%d\n", (ret + 1));
+	fprintf(fp, "%d\n", bounds);
 	fclose(fp);
-
-done:
-	return (ret);
 }
 
 /*
@@ -372,6 +373,8 @@ DoFile(const char *savedir, const char *device)
 		nerr++;
 		goto closefd;
 	}
+
+	writebounds(bounds + 1);
 
 	sprintf(buf, "info.%d", bounds);
 
