@@ -484,7 +484,7 @@ ithread_loop(void *arg)
 	struct intrhand *ih;		/* and our interrupt handler chain */
 	struct thread *td;
 	struct proc *p;
-	int count, warned, storming;
+	int count, warned;
 	
 	td = curthread;
 	p = td->td_proc;
@@ -493,7 +493,6 @@ ithread_loop(void *arg)
 	    ("%s: ithread and proc linkage out of sync", __func__));
 	count = 0;
 	warned = 0;
-	storming = 0;
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -560,7 +559,7 @@ restart:
 			 * interrupts exceeds the storm threshold, then
 			 * enter storming mode.
 			 */
-			if (!storming && intr_storm_threshold != 0 &&
+			if (intr_storm_threshold != 0 &&
 			    count >= intr_storm_threshold) {
 				if (!warned) {
 					printf(
@@ -568,11 +567,8 @@ restart:
 					    p->p_comm);
 					warned = 1;
 				}
-				storming = 1;
-			}
-			if (storming)
 				tsleep(&count, td->td_priority, "istorm", 1);
-			else
+			} else
 				count++;
 
 			if (ithd->it_enable != NULL)
@@ -590,7 +586,6 @@ restart:
 		if (!ithd->it_need) {
 			TD_SET_IWAIT(td);
 			count = 0;
-			storming = 0;
 			CTR2(KTR_INTR, "%s: pid %d: done", __func__, p->p_pid);
 			mi_switch(SW_VOL, NULL);
 			CTR2(KTR_INTR, "%s: pid %d: resumed", __func__, p->p_pid);
