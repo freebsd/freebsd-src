@@ -234,14 +234,21 @@ in6_gif_input(mp, offp, proto)
 {
 	struct mbuf *m = *mp;
 	struct ifnet *gifp = NULL;
+	struct gif_softc *sc;
 	struct ip6_hdr *ip6;
 	int af = 0;
 	u_int32_t otos;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	gifp = (struct ifnet *)encap_getarg(m);
+	sc = (struct gif_softc *)encap_getarg(m);
+	if (sc == NULL) {
+		m_freem(m);
+		ip6stat.ip6s_nogif++;
+		return IPPROTO_DONE;
+	}
 
+	gifp = GIF2IFP(sc);
 	if (gifp == NULL || (gifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		ip6stat.ip6s_nogif++;
