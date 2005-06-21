@@ -217,12 +217,15 @@ gblenv=OUTSIDEVAR=OutsideValue
    stderr:[%-testpgm.basename-%]: Only ${VARNAME} expansion is supported, error at: $PATH /bin/sh
 [run]
 
-# Recognize that 'something=value' is a valid utility name if 'something'
-# begins with a '/', since '/' is not allowed in valid environment variables.
+#  For a short time `env' was changed to recognize 'something=value' as a
+#  valid utility name if 'something' begins with a '/'.  However, that was
+#  a bad idea, since variable-names with a '/' -- while rare -- are still
+#  more blessed by standards than a filename with an '=' in it.  So, this
+#  test goes back to expecting an error...
 [test]
    symlink:/bin/echo /tmp/envtest=echo
    sb_args:-S/tmp/envtest=echo false
-   stdout:false [%-script.pathname-%]
+   $?:1
 [run]
 
 # Show interactions between -i (clear environment), and ${VAR} substitution,
@@ -241,4 +244,76 @@ gblenv=OUTSIDEVAR=OutsideValue
    stdout:WASOUT=OutsideValue
    stdout:WASPATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
    stdout:WASTEST=Global-TV-Value
+[run]
+
+# Had a bug with ${VAR} expansion if the character before the $ was
+# one of the argument-separator characters.  So the first of the
+# following worked, but the second one failed:
+[test]
+   sb_args:-Secho Testv:${TESTV} Scriptname:
+   setenv:TESTV=ab/ba
+   stdout:Testv:ab/ba Scriptname: [%-script.pathname-%]
+[run]
+[test]
+   sb_args:-Secho testV: ${TESTV} scriptname:
+   setenv:TESTV=cd/dc
+   stdout:testV: cd/dc scriptname: [%-script.pathname-%]
+[run]
+
+#  A "nothing variable" inside a quoted string should produce a zero-length
+#  argument, but if it's outside of quotes then it should result in, well,
+#  nothing.  Note the tricks we play with [%-script.pathname-%] so that we
+#  can supply parameters *to* the script, even though the kernel is always
+#  going to stick the script name on as ARG[2] when invoking `env'.
+[test]
+   sb_args:-S/bin/sh [%-script.pathname-%] userDQ: "" SQ: '' scriptname:
+   setenv:TNADA=
+   script:printf "list_args.sh with \$# = $#\n"
+   script:# Process all parameters.
+   script:N=0
+   script:while test $# != 0 ; do
+   script:    N=$(($N+1))
+   script:    printf "....\$$N = [%3d] '$1'\n" ${#1}
+   script:    shift
+   script:done
+   stdout:list_args.sh with $# = 6
+   stdout:....$1 = [  7] 'userDQ:'
+   stdout:....$2 = [  0] ''
+   stdout:....$3 = [  3] 'SQ:'
+   stdout:....$4 = [  0] ''
+   stdout:....$5 = [ 11] 'scriptname:'
+   stdout:....$6 = [ 16] '/tmp/env-regress'
+[run]
+[test]
+   sb_args:-S/bin/sh [%-script.pathname-%] userB "${TNADA}" scriptname:
+   setenv:TNADA=
+   script:printf "list_args.sh with \$# = $#\n"
+   script:# Process all parameters.
+   script:N=0
+   script:while test $# != 0 ; do
+   script:    N=$(($N+1))
+   script:    printf "....\$$N = [%3d] '$1'\n" ${#1}
+   script:    shift
+   script:done
+   stdout:list_args.sh with $# = 4
+   stdout:....$1 = [  5] 'userB'
+   stdout:....$2 = [  0] ''
+   stdout:....$3 = [ 11] 'scriptname:'
+   stdout:....$4 = [ 16] '/tmp/env-regress'
+[run]
+[test]
+   sb_args:-S/bin/sh [%-script.pathname-%] userA ${TNADA} scriptname:
+   setenv:TNADA=
+   script:printf "list_args.sh with \$# = $#\n"
+   script:# Process all parameters.
+   script:N=0
+   script:while test $# != 0 ; do
+   script:    N=$(($N+1))
+   script:    printf "....\$$N = [%3d] '$1'\n" ${#1}
+   script:    shift
+   script:done
+   stdout:list_args.sh with $# = 3
+   stdout:....$1 = [  5] 'userA'
+   stdout:....$2 = [ 12] ' scriptname:'
+   stdout:....$3 = [ 16] '[%-script.pathname-%]'
 [run]
