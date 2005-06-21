@@ -43,8 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include "envopts.h"
 
-static void	 expand_vars(char **thisarg_p, char **dest_p, const char
-		    **src_p);
+static const char *
+		 expand_vars(char **thisarg_p, char **dest_p, const char
+		     **src_p);
 static int	 is_there(char *candidate);
 
 /*
@@ -161,7 +162,8 @@ search_paths(char *path, char **argv)
 void
 split_spaces(const char *str, int *origind, int *origc, char ***origv)
 {
-	const char *bq_src, *src;
+	static const char *nullarg = "";
+	const char *bq_src, *copystr, *src;
 	char *dest, **newargv, *newstr, **nextarg, **oldarg;
 	int addcount, bq_destlen, copychar, found_sep, in_arg, in_dq, in_sq;
 
@@ -190,7 +192,14 @@ split_spaces(const char *str, int *origind, int *origc, char ***origv)
 	bq_destlen = in_arg = in_dq = in_sq = 0;
 	bq_src = NULL;
 	for (src = str, dest = newstr; *src != '\0'; src++) {
+		/*
+		 * This switch will look at a character in *src, and decide
+		 * what should be copied to *dest.  It only decides what
+		 * character(s) to copy, it should not modify *dest.  In some
+		 * cases, it will look at multiple characters from *src.
+		 */
 		copychar = found_sep = 0;
+		copystr = NULL;
 		switch (*src) {
 		case '"':
 			if (in_sq)
@@ -198,6 +207,12 @@ split_spaces(const char *str, int *origind, int *origc, char ***origv)
 			else if (in_dq)
 				in_dq = 0;
 			else {
+				/*
+				 * Referencing nullarg ensures that a new
+				 * argument is created, even if this quoted
+				 * string ends up with zero characters.
+				 */
+				copystr = nullarg;
 				in_dq = 1;
 				bq_destlen = dest - *(nextarg - 1);
 				bq_src = src;
@@ -207,7 +222,8 @@ split_spaces(const char *str, int *origind, int *origc, char ***origv)
 			if (in_sq)
 				copychar = *src;
 			else {
-				expand_vars((nextarg - 1), &dest, &src);
+				copystr = expand_vars((nextarg - 1), &dest,
+				    &src);
 			}
 			break;
 		case '\'':
@@ -216,6 +232,12 @@ split_spaces(const char *str, int *origind, int *origc, char ***origv)
 			else if (in_sq)
 				in_sq = 0;
 			else {
+				/*
+				 * Referencing nullarg ensures that a new
+				 * argument is created, even if this quoted
+				 * string ends up with zero characters.
+				 */
+				copystr = nullarg;
 				in_sq = 1;
 				bq_destlen = dest - *(nextarg - 1);
 				bq_src = src;
@@ -305,14 +327,22 @@ split_spaces(const char *str, int *origind, int *origc, char ***origv)
 				copychar = *src;
 			}
 		}
-		if (copychar) {
+		/*
+		 * Now that the switch has determined what (if anything)
+		 * needs to be copied, copy whatever that is to *dest.
+		 */
+		if (copychar || copystr != NULL) {
 			if (!in_arg) {
 				/* This is the first byte of a new argument */
 				*nextarg++ = dest;
 				addcount++;
 				in_arg = 1;
 			}
-			*dest++ = (char)copychar;
+			if (copychar)
+				*dest++ = (char)copychar;
+			else if (copystr != NULL)
+				while (*copystr != '\0')
+					*dest++ = *copystr++;
 		} else if (found_sep) {
 			*dest++ = '\0';
 			while (isspacech(*src))
@@ -355,11 +385,11 @@ str_done:
  * at the initial '$', and if successful it will update *src_p, *dest_p, and
  * possibly *thisarg_p in the calling routine.
  */
-void
+static const char *
 expand_vars(char **thisarg_p, char **dest_p, const char **src_p)
 {
 	const char *vbegin, *vend, *vvalue;
-	char *edest, *newstr, *vname;
+	char *newstr, *vname;
 	int bad_reference;
 	size_t namelen, newlen;
 
@@ -393,7 +423,7 @@ expand_vars(char **thisarg_p, char **dest_p, const char **src_p)
 			fprintf(stderr,
 			    "#env  replacing ${%s} with null string\n",
 			    vname);
-		return;
+		return (NULL);
 	}
 
 	if (env_verbosity > 2)
@@ -402,29 +432,24 @@ expand_vars(char **thisarg_p, char **dest_p, const char **src_p)
 
 	/*
 	 * There is some value to copy to the destination.  If the value is
-	 * shorter than the ${VARNAME} reference that it replaces, then we
-	 * can just copy the value to the existing destination.
+	 * shorter than the ${VARNAME} reference that it replaces, then our
+	 * caller can just copy the value to the existing destination.
 	 */
-	edest = *dest_p;
-	if (strlen(vname) + 3 >= strlen(vvalue)) {
-		while (*vvalue != '\0')
-		    *edest++ = *vvalue++;
-		*dest_p = edest;
-		return;
-	}
+	if (strlen(vname) + 3 >= strlen(vvalue))
+		return (vvalue);
 
 	/*
 	 * The value is longer than the string it replaces, which means the
 	 * present destination area is too small to hold it.  Create a new
-	 * destination area, copy the present 'thisarg' value and the value
-	 * of the referenced-variable to it, and then update the caller's
-	 * 'thisarg' and 'dest' variables to match.
+	 * destination area, copy the present 'thisarg' value to it, and
+	 * update the caller's 'thisarg' and 'dest' variables to match.
+	 * Note that it is still the caller which will copy vvalue to *dest.
 	 */
-	*edest = '\0';			/* Provide terminator for 'thisarg' */
+	**dest_p = '\0';		/* Provide terminator for 'thisarg' */
 	newlen = strlen(*thisarg_p) + strlen(vvalue) + strlen(*src_p) + 1;
 	newstr = malloc(newlen);
 	strcpy(newstr, *thisarg_p);
-	strcat(newstr, vvalue);
 	*thisarg_p = newstr;
 	*dest_p = strchr(newstr, '\0');
+	return (vvalue);
 }
