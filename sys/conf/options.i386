@@ -120,9 +120,6 @@ SPIGOT_UNSECURE		opt_spigot.h
 # Enables NETGRAPH support for Cronyx adapters
 NETGRAPH_CRONYX		opt_ng_cronyx.h
 
-# ReiserFS
-REISERFS		opt_dontuse.h
-
 # -------------------------------
 # isdn4bsd: passive ISA cards
 # -------------------------------
