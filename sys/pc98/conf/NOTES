@@ -224,12 +224,6 @@ options 	CLK_USE_I8254_CALIBRATION
 #####################################################################
 # MISCELLANEOUS DEVICES AND OPTIONS
 
-#
-# Add support for the ReiserFS filesystem (used in Linux). Currently,
-# this is limited to read-only access.
-#
-options 	REISERFS
-
 device		speaker		#Play IBM BASIC-style noises out your speaker
 hint.speaker.0.at="isa"
 hint.speaker.0.port="0x35"
