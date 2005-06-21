@@ -39,12 +39,6 @@
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
 
-#ifdef __i386__
-# include <gnu/fs/ext2fs/i386-bitops.h>
-#else
-# include <gnu/fs/ext2fs/ext2_bitops.h>
-#endif
-
 #include <gnu/fs/reiserfs/reiserfs_mount.h>
 #include <gnu/fs/reiserfs/reiserfs_fs_sb.h>
 #include <gnu/fs/reiserfs/reiserfs_fs_i.h>
@@ -858,28 +852,14 @@ struct reiserfs_de_head {
 #define	DEH_Statdata	0 /* Not used now */
 #define	DEH_Visible	2
 
-/* 64 bit systems (and the S/390) need to be aligned explicitly -jdm */
-#if BITS_PER_LONG == 64 || defined(__sparc64__)
-#define	ADDR_UNALIGNED_BITS  (3)
-#endif
+/* Macro to map Linux' *_bit function to bitstring.h macros */
+#define	set_bit(bit, name)		bit_set((bitstr_t *)name, bit)
+#define	clear_bit(bit, name)		bit_clear((bitstr_t *)name, bit)
+#define	test_bit(bit, name)		bit_test((bitstr_t *)name, bit)
 
-#ifdef ADDR_UNALIGNED_BITS
-#define	aligned_address(addr)						\
-    ((void *)((long)(addr) & ~((1UL << ADDR_UNALIGNED_BITS) - 1)))
-#define	unaligned_offset(addr)						\
-    (((int)((long)(addr) & ((1 << ADDR_UNALIGNED_BITS) - 1))) << 3)
-
-#define	set_bit_unaligned(nr, addr)					\
-    set_bit((nr) + unaligned_offset(addr), aligned_address(addr))
-#define	clear_bit_unaligned(nr, addr)					\
-    clear_bit((nr) + unaligned_offset(addr), aligned_address(addr))
-#define	test_bit_unaligned(nr, addr)					\
-    test_bit((nr) + unaligned_offset(addr), aligned_address(addr))
-#else /* !defined ADDR_UNALIGNED_BITS */
-#define	set_bit_unaligned(nr, addr)	set_bit(nr, addr)
-#define	clear_bit_unaligned(nr, addr)	clear_bit(nr, addr)
-#define	test_bit_unaligned(nr, addr)	test_bit(nr, addr)
-#endif /* defined ADDR_UNALIGNED_BITS */
+#define	set_bit_unaligned(bit, name)	set_bit(bit, name)
+#define	clear_bit_unaligned(bit, name)	clear_bit(bit, name)
+#define	test_bit_unaligned(bit, name)	test_bit(bit, name)
 
 #define	mark_de_with_sd(deh)						\
     set_bit_unaligned(DEH_Statdata, &((deh)->deh_state))
@@ -1035,8 +1015,17 @@ struct path {
 
 #define	pos_in_item(path)	((path)->pos_in_item)
 
+#if (_MACHINE_ARCH == amd64)
+/* To workaround a bug in gcc. He generates a call to memset() which
+ * is a inline function; this causes a compile time error. */
+#define	INITIALIZE_PATH(var)						\
+    struct path var;							\
+    bzero(&var, sizeof(var));						\
+    var.path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
+#else
 #define	INITIALIZE_PATH(var)						\
     struct path var = { ILLEGAL_PATH_ELEMENT_OFFSET, }
+#endif
 
 /* Get path element by path and path position. */
 #define	PATH_OFFSET_PELEMENT(p_s_path, n_offset)			\
