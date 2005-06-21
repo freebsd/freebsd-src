@@ -58,7 +58,7 @@ SUBDIR=	adjkerntz \
 	mount_nfs4 \
 	mount_ntfs \
 	mount_nullfs \
-	${_mount_reiserfs} \
+	mount_reiserfs \
 	mount_std \
 	mount_udf \
 	mount_umapfs \
@@ -119,7 +119,6 @@ _fdisk=		fdisk
 .elif ${MACHINE} == "pc98"
 _fdisk_pc98=	fdisk_pc98
 .endif
-_mount_reiserfs= mount_reiserfs
 _sconfig=	sconfig
 .endif
 
