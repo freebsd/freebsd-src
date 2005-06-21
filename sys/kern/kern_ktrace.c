@@ -613,8 +613,10 @@ ktrace(td, uap)
 		 * from going away, so unlocking the proc here is ok.
 		 */
 		PROC_UNLOCK(p);
-		if (error)
+		if (error) {
+			sx_sunlock(&proctree_lock);
 			goto done;
+		}
 		if (descend)
 			ret |= ktrsetchildren(td, p, ops, facs, vp);
 		else
