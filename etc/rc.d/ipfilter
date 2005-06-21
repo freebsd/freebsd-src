@@ -29,7 +29,7 @@ extra_commands="reload resync status"
 
 ipfilter_loaded()
 {
-	if ! kldstat -v | grep "IP Filter" > /dev/null 2>&1; then
+	if ! kldstat -v | grep "ipfilter$" > /dev/null 2>&1; then
 		return 1
 	else
 		return 0
