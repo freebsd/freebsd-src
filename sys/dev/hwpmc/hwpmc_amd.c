@@ -921,7 +921,8 @@ pmc_amd_initialize(void)
 	 * field returned by CPUID for instruction family >= 6.
 	 */
 
-	cputype = -1;
+	class = cputype = -1;
+	name = NULL;
 	switch (cpu_id & 0xF00) {
 	case 0x600:		/* Athlon(tm) processor */
 		cputype = PMC_CPU_AMD_K7;
