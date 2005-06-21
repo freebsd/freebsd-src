@@ -177,6 +177,7 @@ NWFS		opt_dontuse.h
 PORTALFS	opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
+REISERFS	opt_dontuse.h
 SMBFS		opt_dontuse.h
 UDF		opt_dontuse.h
 UMAPFS		opt_dontuse.h
