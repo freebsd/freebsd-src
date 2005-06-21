@@ -86,11 +86,12 @@ _Qp_qto ## qname(u_int *c) \
 #define	FCC_LE(fcc)	((fcc) == FSR_CC_EQ || (fcc) == FSR_CC_LT)
 #define	FCC_LT(fcc)	((fcc) == FSR_CC_LT)
 #define	FCC_NE(fcc)	((fcc) != FSR_CC_EQ)
+#define	FCC_ID(fcc)	(fcc)
 
 #define	_QP_CMP(name, cmpe, test) \
-int _Qp_f ## name(u_int *a, u_int *b) ; \
+int _Qp_ ## name(u_int *a, u_int *b) ; \
 int \
-_Qp_f ## name(u_int *a, u_int *b) \
+_Qp_ ## name(u_int *a, u_int *b) \
 { \
 	struct fpemu fe; \
 	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :); \
@@ -137,9 +138,11 @@ _QP_QTOT(x,	x,	long,	&u.a)
 _QP_QTOT(ui,	i,	u_int)
 _QP_QTOT(ux,	x,	u_long,	&u.a)
 
-_QP_CMP(eq,	0,	FCC_EQ)
-_QP_CMP(ge,	0,	FCC_GE)
-_QP_CMP(gt,	0,	FCC_GT)
-_QP_CMP(le,	0,	FCC_LE)
-_QP_CMP(lt,	0,	FCC_LT)
-_QP_CMP(ne,	0, 	FCC_NE)
+_QP_CMP(feq,	0,	FCC_EQ)
+_QP_CMP(fge,	0,	FCC_GE)
+_QP_CMP(fgt,	0,	FCC_GT)
+_QP_CMP(fle,	0,	FCC_LE)
+_QP_CMP(flt,	0,	FCC_LT)
+_QP_CMP(fne,	0, 	FCC_NE)
+_QP_CMP(cmp,	0, 	FCC_ID)
+_QP_CMP(cmpe,	1, 	FCC_ID)
