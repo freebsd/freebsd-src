@@ -60,6 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_atm.h>
 #include <net/route.h>
+#ifdef ENABLE_BPF
+#include <net/bpf.h>
+#endif
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/if_atm.h>
@@ -1550,6 +1553,13 @@ fatm_intr_drain_rx(struct fatm_softc *sc)
 		if (vc == NULL) {
 			m_freem(m0);
 		} else {
+#ifdef ENABLE_BPF
+			if (!(vc->param.flags & ATMIO_FLAG_NG) &&
+			    vc->param.aal == ATMIO_AAL_5 &&
+			    (vc->param.flags & ATM_PH_LLCSNAP))
+				BPF_MTAP(sc->ifp, m0);
+#endif
+
 			ATM_PH_FLAGS(&aph) = vc->param.flags;
 			ATM_PH_VPI(&aph) = vpi;
 			ATM_PH_SETVCI(&aph, vci);
@@ -1963,6 +1973,13 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 
 	m->m_data += sizeof(struct atm_pseudohdr);
 	m->m_len -= sizeof(struct atm_pseudohdr);
+
+#ifdef ENABLE_BPF
+	if (!(vc->param.flags & ATMIO_FLAG_NG) &&
+	    vc->param.aal == ATMIO_AAL_5 &&
+	    (vc->param.flags & ATM_PH_LLCSNAP))
+		BPF_MTAP(sc->ifp, m);
+#endif
 
 	/* map the mbuf */
 	error = bus_dmamap_load_mbuf(sc->tx_tag, q->map, m,
@@ -2621,6 +2638,8 @@ fatm_detach(device_t dev)
 
 	mtx_destroy(&sc->mtx);
 
+	if_free(sc->ifp);
+
 	return (0);
 }
 
@@ -3035,6 +3054,10 @@ fatm_attach(device_t dev)
 	 */
 	atm_ifattach(ifp);
 	ifp->if_snd.ifq_maxlen = 512;
+
+#ifdef ENABLE_BPF
+	bpfattach(ifp, DLT_ATM_RFC1483, sizeof(struct atmllc));
+#endif
 
 	error = bus_setup_intr(dev, sc->irqres, INTR_TYPE_NET,
 	    fatm_intr, sc, &sc->ih);
