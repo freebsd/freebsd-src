@@ -36,6 +36,8 @@
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd January 1, 1997
 .Dt DHCLIENT.LEASES 5
 .Os
@@ -52,33 +54,39 @@ the last one in the file is used.
 The file is written as a log, so this is not an unusual occurrence.
 .Pp
 The lease file is named
-.Qq dhclient.leases.IFNAME ,
+.Pa dhclient.leases. Ns Ar IFNAME ,
 where
-.Qq IFNAME
+.Ar IFNAME
 represents the network interface the DHCP client acquired the lease on.
 For example, if
 .Xr dhclient 8
-is configured for the em0 network device,
+is configured for the
+.Li em0
+network device,
 the lease file will be named
-.Qq dhclient.leases.em0 .
+.Pa dhclient.leases.em0 .
 .Pp
 The format of the lease declarations is described in
 .Xr dhclient.conf 5 .
 .Sh FILES
-.Bl -tag -width "/var/db/dhclient.leases.IFNAME   "
-.It /var/db/dhclient.leases.IFNAME
+.Bl -tag -width ".Pa /var/db/dhclient.leases. Ns Ar IFNAME"
+.It Pa /var/db/dhclient.leases. Ns Ar IFNAME
 Current lease file.
 .El
 .Sh SEE ALSO
 .Xr dhclient.conf 5 ,
-.Xr dhcp-options 5 ,
 .Xr dhcpd.conf 5 ,
+.Xr dhcp-options 5 ,
 .Xr dhclient 8 ,
 .Xr dhcpd 8
-.Pp
-RFC 2132, RFC 2131.
+.Rs
+.%R "RFC 2132, RFC 2131"
+.Re
 .Sh AUTHORS
+.An -nosplit
+The
 .Xr dhclient 8
+utility
 was written by
 .An Ted Lemon Aq mellon@vix.com
 under a contract with Vixie Labs.
