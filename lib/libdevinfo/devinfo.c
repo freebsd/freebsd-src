@@ -367,6 +367,7 @@ devinfo_free(void)
 		free(dr);
 	}
 	devinfo_initted = 0;
+	devinfo_generation = 0;
 }
 
 /*
