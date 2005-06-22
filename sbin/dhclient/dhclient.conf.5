@@ -36,6 +36,8 @@
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd January 1, 1997
 .Dt DHCLIENT.CONF 5
 .Os
@@ -58,7 +60,7 @@ The file may contain extra tabs and newlines for formatting purposes.
 Keywords in the file are case-insensitive.
 Comments may be placed anywhere within the file (except within quotes).
 Comments begin with the
-.Sq #
+.Ql #
 character and end at the end of the line.
 .Pp
 The
@@ -70,23 +72,23 @@ certain information, values with which to override information provided by
 the server, or values to prepend or append to information provided by the
 server.
 The configuration file can also be preinitialized with addresses to
-use on networks that don't have DHCP servers.
+use on networks that do not have DHCP servers.
 .Sh PROTOCOL TIMING
 The timing behaviour of the client need not be configured by the user.
 If no timing configuration is provided by the user, a fairly
-reasonable timing behaviour will be used by default \- one which
+reasonable timing behaviour will be used by default - one which
 results in fairly timely updates without placing an inordinate load on
 the server.
 .Pp
 The following statements can be used to adjust the timing behaviour of
 the DHCP client if required, however:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ic timeout Ar time ;
 The
 .Ic timeout
 statement determines the amount of time that must pass between the
 time that the client begins to try to determine its address and the
-time that it decides that it's not going to be able to contact a server.
+time that it decides that it is not going to be able to contact a server.
 By default, this timeout is sixty seconds.
 After the timeout has passed, if there are any static leases defined in the
 configuration file, or any leases remaining in the lease database that
@@ -122,7 +124,7 @@ has expired, the client will accept the first offer that arrives.
 .Pp
 By default, the
 .Ic select-timeout
-is zero seconds \- that is, the client will take the first offer it sees.
+is zero seconds - that is, the client will take the first offer it sees.
 .It Ic reboot Ar time ;
 When the client is restarted, it first tries to reacquire the last
 address it had.
@@ -151,7 +153,9 @@ statement sets the amount of time between the first attempt to reach a
 server and the second attempt to reach a server.
 Each time a message is sent, the interval between messages is incremented by
 twice the current interval multiplied by a random number between zero and one.
-If it is greater than the backoff-cutoff amount, it is set to that
+If it is greater than the
+.Ic backoff-cutoff
+amount, it is set to that
 amount.
 It defaults to ten seconds.
 .El
@@ -160,7 +164,7 @@ The DHCP protocol allows the client to request that the server send it
 specific information, and not send it other information that it is not
 prepared to accept.
 The protocol also allows the client to reject offers from servers if they
-don't contain information the client needs, or if the information provided
+do not contain information the client needs, or if the information provided
 is not satisfactory.
 .Pp
 There is a variety of data contained in offers that DHCP servers send
@@ -169,29 +173,20 @@ The data that can be specifically requested is what are called
 .Em DHCP Options .
 DHCP Options are defined in
 .Xr dhcp-options 5 .
-.Bl -tag -width Ds
-.It Xo
-.Ic request Op Ar option
-.Oo , Ar ... option Oc ;
-.Xc
+.Bl -tag -width indent
+.It Ic request Oo Ar option Oc Oo , Ar ... option Oc ;
 The
 .Ic request
 statement causes the client to request that any server responding to the
 client send the client its values for the specified options.
-Only the option names should be specified in the request statement \- not
+Only the option names should be specified in the request statement - not
 option parameters.
-.It Xo
-.Ic require Op Ar option
-.Oo , Ar ... option Oc ;
-.Xc
+.It Ic require Oo Ar option Oc Oo , Ar ... option Oc ;
 The
 .Ic require
 statement lists options that must be sent in order for an offer to be accepted.
 Offers that do not contain all the listed options will be ignored.
-.It Xo
-.Ic send No { Op Ar option declaration
-.Oo , Ar ... option declaration Oc }
-.Xc
+.It Ic send No { Oo Ar option declaration Oc Oo , Ar ... option declaration Oc }
 The
 .Ic send
 statement causes the client to send the specified options to the server with
@@ -213,7 +208,7 @@ information that it needs, and for which a useful default value exists.
 It may also receive information which is useful, but which needs to be
 supplemented with local information.
 To handle these needs, several option modifiers are available.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Xo
 .Ic default No { Op Ar option declaration
 .Oo , Ar ... option declaration Oc }
@@ -245,7 +240,7 @@ The
 .Ic prepend
 statement can only be used for options which allow more than one value to
 be given.
-This restriction is not enforced \- if violated, the results are unpredictable.
+This restriction is not enforced - if violated, the results are unpredictable.
 .It Xo
 .Ic append No { Op Ar option declaration
 .Oo , Ar ... option declaration Oc }
@@ -259,16 +254,13 @@ The
 .Ic append
 statement can only be used for options which allow more than one value to
 be given.
-This restriction is not enforced \- if you ignore it,
+This restriction is not enforced - if you ignore it,
 the behaviour will be unpredictable.
 .El
 .Sh LEASE DECLARATIONS
 The lease declaration:
 .Pp
-.Xo
-.Ic \	\& lease No { Ar lease-declaration
-.Oo Ar ... lease-declaration Oc }
-.Xc
+.D1 Ic lease No { Ar lease-declaration Oo Ar ... lease-declaration Oc }
 .Pp
 The DHCP client may decide after some period of time (see
 .Sx PROTOCOL TIMING )
@@ -293,11 +285,13 @@ Some of the syntax for leases as described below is only needed in the
 file.
 Such syntax is documented here for completeness.
 .Pp
-A lease statement consists of the lease keyword, followed by a left
+A lease statement consists of the
+.Ic lease
+keyword, followed by a left
 curly brace, followed by one or more lease declaration statements,
 followed by a right curly brace.
 The following lease declarations are possible:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ic bootp ;
 The
 .Ic bootp
@@ -305,7 +299,7 @@ statement is used to indicate that the lease was acquired using the
 BOOTP protocol rather than the DHCP protocol.
 It is never necessary to specify this in the client configuration file.
 The client uses this syntax in its lease database file.
-.It Ic interface Ar \&"string\&" ;
+.It Ic interface Qq Ar string ;
 The
 .Ic interface
 lease statement is used to indicate the interface on which the lease is valid.
@@ -320,14 +314,15 @@ The
 .Ic fixed-address
 statement is used to set the IP address of a particular lease.
 This is required for all lease statements.
-The IP address must be specified as a dotted quad (e.g., 12.34.56.78).
-.It Ic filename Ar \&"string\&" ;
+The IP address must be specified as a dotted quad (e.g.,
+.Li 12.34.56.78 ) .
+.It Ic filename Qq Ar string ;
 The
 .Ic filename
 statement specifies the name of the boot filename to use.
 This is not used by the standard client configuration script, but is
 included for completeness.
-.It Ic server-name Ar \&"string\&" ;
+.It Ic server-name Qq Ar string ;
 The
 .Ic server-name
 statement specifies the name of the boot server name to use.
@@ -337,10 +332,10 @@ The
 .Ic option
 statement is used to specify the value of an option supplied by the server,
 or, in the case of predefined leases declared in
-.Nm dhclient.conf ,
+.Nm ,
 the value that the user wishes the client configuration script to use if the
 predefined lease is used.
-.It Ic script Ar \&"script-name\&" ;
+.It Ic script Qq Ar script-name ;
 The
 .Ic script
 statement is used to specify the pathname of the DHCP client configuration
@@ -353,16 +348,22 @@ If no lease is acquired, the script is used to test predefined leases, if
 any, and also called once if no valid lease can be identified.
 For more information, see
 .Xr dhclient.leases 5 .
-.It Ic medium Ar \&"media setup\&" ;
+.It Ic medium Qq Ar "media setup" ;
 The
 .Ic medium
 statement can be used on systems where network interfaces cannot
 automatically determine the type of network to which they are connected.
-The media setup string is a system-dependent parameter which is passed
+The
+.Ar "media setup"
+string is a system-dependent parameter which is passed
 to the DHCP client configuration script when initializing the interface.
 On
 .Ux
-and UNIX-like systems, the argument is passed on the ifconfig command line
+and
+.Ux Ns -like
+systems, the argument is passed on the
+.Xr ifconfig 8
+command line
 when configuring the interface.
 .Pp
 The DHCP client automatically declares this parameter if it used a
@@ -391,20 +392,21 @@ if it has not been able to contact a server in order to renew it.
 .El
 .Pp
 These declarations are automatically set in leases acquired by the
-DHCP client, but must also be configured in predefined leases \- a
+DHCP client, but must also be configured in predefined leases - a
 predefined lease whose expiry time has passed will not be used by the
 DHCP client.
 .Pp
 Dates are specified as follows:
-.Pp
-.Ar \	\&<weekday>
+.Bd -ragged -offset indent
+.Ar <weekday>
 .Sm off
 .Ar <year> No / Ar <month> No / Ar <day>
 .Ar <hour> : <minute> : <second>
 .Sm on
+.Ed
 .Pp
 The weekday is present to make it easy for a human to tell when a
-lease expires \- it's specified as a number from zero to six, with zero
+lease expires - it is specified as a number from zero to six, with zero
 being Sunday.
 When declaring a predefined lease, it can always be specified as zero.
 The year is specified with the century, so it should generally be four
@@ -421,7 +423,7 @@ Some DHCP clients running TCP/IP roaming protocols may require that in
 addition to the lease they may acquire via DHCP, their interface also
 be configured with a predefined IP alias so that they can have a
 permanent IP address even while roaming.
-The Internet Software Consortium DHCP client doesn't support roaming with
+The Internet Software Consortium DHCP client does not support roaming with
 fixed addresses directly, but in order to facilitate such experimentation,
 the DHCP client can be set up to configure an IP alias using the
 .Ic alias
@@ -436,19 +438,16 @@ A typical alias declaration includes an interface declaration, a fixed-address
 declaration for the IP alias address, and a subnet-mask option declaration.
 A medium statement should never be included in an alias declaration.
 .Sh OTHER DECLARATIONS
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ic reject Ar ip-address ;
 The
 .Ic reject
 statement causes the DHCP client to reject offers from servers who use
 the specified address as a server identifier.
 This can be used to avoid being configured by rogue or misconfigured DHCP
-servers, although it should be a last resort \- better to track down
+servers, although it should be a last resort - better to track down
 the bad DHCP server and fix it.
-.It Xo
-.Ic interface Ar \&"name\&" No { Ar declarations
-.Ar ... No }
-.Xc
+.It Ic interface Qo Ar name Qc { Ar declarations ... No }
 A client with more than one network interface may require different
 behaviour depending on which interface is being configured.
 All timing parameters and declarations other than lease and alias
@@ -458,10 +457,7 @@ specified name.
 Interfaces for which there is no interface declaration will use the
 parameters declared outside of any interface declaration,
 or the default settings.
-.It Xo
-.Ic media Ar \&"media setup\&"
-.Oo , Ar \&"media setup\&" , ... Oc ;
-.Xc
+.It Ic media Qo Ar "media setup" Qc Oo , Qo Ar "media setup" Qc , Ar ... Oc ;
 The
 .Ic media
 statement defines one or more media configuration parameters which may
@@ -469,8 +465,8 @@ be tried while attempting to acquire an IP address.
 The DHCP client will cycle through each media setup string on the list,
 configuring the interface using that setup and attempting to boot,
 and then trying the next one.
-This can be used for network interfaces which aren't capable of sensing
-the media type unaided \- whichever media type succeeds in getting a request
+This can be used for network interfaces which are not capable of sensing
+the media type unaided - whichever media type succeeds in getting a request
 to the server and hearing the reply is probably right (no guarantees).
 .Pp
 The media setup is only used for the initial phase of address
@@ -483,8 +479,11 @@ types.
 .El
 .Sh EXAMPLES
 The following configuration file is used on a laptop
-which has an IP alias of 192.5.5.213, and has one interface,
-ep0 (a 3Com 3C589C).
+which has an IP alias of
+.Li 192.5.5.213 ,
+and has one interface,
+.Li ep0
+(a 3Com 3C589C).
 Booting intervals have been shortened somewhat from the default, because
 the client is known to spend most of its time on networks with little DHCP
 activity.
@@ -519,20 +518,24 @@ alias {
 .Pp
 This is a very complicated
 .Nm
-file \- in general, yours should be much simpler.
-In many cases, it's sufficient to just create an empty
+file - in general, yours should be much simpler.
+In many cases, it is sufficient to just create an empty
 .Nm
-file \- the defaults are usually fine.
+file - the defaults are usually fine.
 .Sh SEE ALSO
 .Xr dhclient.leases 5 ,
-.Xr dhcp-options 5 ,
 .Xr dhcpd.conf 5 ,
+.Xr dhcp-options 5 ,
 .Xr dhclient 8 ,
 .Xr dhcpd 8
-.Pp
-RFC 2132, RFC 2131.
+.Rs
+.%R "RFC 2132, RFC 2131"
+.Re
 .Sh AUTHORS
+.An -nosplit
+The
 .Xr dhclient 8
+utility
 was written by
 .An Ted Lemon Aq mellon@vix.com
 under a contract with Vixie Labs.
