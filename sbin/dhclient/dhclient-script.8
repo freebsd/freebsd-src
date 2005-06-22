@@ -36,6 +36,8 @@
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd January 1, 1997
 .Dt DHCLIENT-SCRIPT 8
 .Os
@@ -65,21 +67,23 @@ When
 .Xr dhclient 8
 needs to invoke the client configuration script, it sets up a number of
 environment variables and runs
-.Nm dhclient-script .
+.Nm .
 In all cases,
 .Va $reason
 is set to the name of the reason why the script has been invoked.
 The following reasons are currently defined:
-MEDIUM, PREINIT, ARPCHECK, ARPSEND, BOUND, RENEW, REBIND, REBOOT,
-EXPIRE, FAIL and TIMEOUT.
-.Bl -tag -width "ARPCHECK"
-.It MEDIUM
+.Li MEDIUM , PREINIT , ARPCHECK , ARPSEND , BOUND , RENEW , REBIND , REBOOT ,
+.Li EXPIRE , FAIL
+and
+.Li TIMEOUT .
+.Bl -tag -width ".Li ARPCHECK"
+.It Li MEDIUM
 The DHCP client is requesting that an interface's media type be set.
 The interface name is passed in
 .Va $interface ,
 and the media type is passed in
 .Va $medium .
-.It PREINIT
+.It Li PREINIT
 The DHCP client is requesting that an interface be configured as
 required in order to send packets prior to receiving an actual address.
 .\" For clients which use the BSD socket library,
@@ -98,25 +102,29 @@ its address will be passed in
 .Va $alias_ip_address ,
 and that IP alias should be deleted from the interface,
 along with any routes to it.
-.It ARPSEND
+.It Li ARPSEND
 The DHCP client is requesting that an address that has been offered to
 it be checked to see if somebody else is using it, by sending an ARP
 request for that address.
-It's not clear how to implement this, so no examples exist yet.
+It is not clear how to implement this, so no examples exist yet.
 The IP address to check is passed in
 .Va $new_ip_address ,
 and the interface name is passed in
 .Va $interface .
-.It ARPCHECK
+.It Li ARPCHECK
 The DHCP client wants to know if a response to the ARP request sent
-using ARPSEND has been received.
+using
+.Li ARPSEND
+has been received.
 If one has, the script should exit with a nonzero status, indicating that
 the offered address has already been requested and should be declined.
+The
 .Va $new_ip_address
 and
 .Va $interface
-are set as with ARPSEND.
-.It BOUND
+variables are set as with
+.Li ARPSEND .
+.It Li BOUND
 The DHCP client has done an initial binding to a new address.
 The new IP address is passed in
 .Va $new_ip_address ,
@@ -128,10 +136,11 @@ Any options acquired from the server are passed using the option name
 described in
 .Xr dhcp-options 5 ,
 except that dashes
-.Pq Sq -
+.Pq Ql -
 are replaced by underscores
-.Pq Sq _
-in order to make valid shell variables, and the variable names start with new_.
+.Pq Ql _
+in order to make valid shell variables, and the variable names start with
+.Dq Li new_ .
 So for example, the new subnet mask would be passed in
 .Va $new_subnet_mask .
 .Pp
@@ -154,48 +163,63 @@ The alias IP address will be written as
 .Va $alias_ip_address ,
 and other DHCP options that are set for the alias (e.g., subnet mask)
 will be passed in variables named as described previously except starting with
-$alias_ instead of $new_.
+.Dq Li $alias_
+instead of
+.Dq Li $new_ .
 Care should be taken that the alias IP address not be used if it is identical
 to the bound IP address
 .Pq Va $new_ip_address ,
 since the other alias parameters may be incorrect in this case.
-.It RENEW
-When a binding has been renewed, the script is called as in BOUND,
-except that in addition to all the variables starting with $new_,
-there is another set of variables starting with $old_.
-Persistent settings that may have changed need to be deleted \- for example,
+.It Li RENEW
+When a binding has been renewed, the script is called as in
+.Li BOUND ,
+except that in addition to all the variables starting with
+.Dq Li $new_ ,
+there is another set of variables starting with
+.Dq Li $old_ .
+Persistent settings that may have changed need to be deleted - for example,
 if a local route to the bound address is being configured, the old local
 route should be deleted.
 If the default route has changed, the old default route should be deleted.
 If the static routes have changed, the old ones should be deleted.
-Otherwise, processing can be done as with BOUND.
-.It REBIND
+Otherwise, processing can be done as with
+.Li BOUND .
+.It Li REBIND
 The DHCP client has rebound to a new DHCP server.
-This can be handled as with RENEW, except that if the IP address has changed,
+This can be handled as with
+.Li RENEW ,
+except that if the IP address has changed,
 the ARP table should be cleared.
-.It REBOOT
+.It Li REBOOT
 The DHCP client has successfully reacquired its old address after a reboot.
-This can be processed as with BOUND.
-.It EXPIRE
+This can be processed as with
+.Li BOUND .
+.It Li EXPIRE
 The DHCP client has failed to renew its lease or acquire a new one,
 and the lease has expired.
 The IP address must be relinquished, and all related parameters should be
-deleted, as in RENEW and REBIND.
-.It FAIL
+deleted, as in
+.Li RENEW
+and
+.Li REBIND .
+.It Li FAIL
 The DHCP client has been unable to contact any DHCP servers, and any
 leases that have been tested have not proved to be valid.
 The parameters from the last lease tested should be deconfigured.
-This can be handled in the same way as EXPIRE.
-.It TIMEOUT
+This can be handled in the same way as
+.Li EXPIRE .
+.It Li TIMEOUT
 The DHCP client has been unable to contact any DHCP servers.
 However, an old lease has been identified, and its parameters have
-been passed in as with BOUND.
+been passed in as with
+.Li BOUND .
 The client configuration script should test these parameters and,
 if it has reason to believe they are valid, should exit with a value of zero.
 If not, it should exit with a nonzero value.
 .El
 .Pp
-The usual way to test a lease is to set up the network as with REBIND
+The usual way to test a lease is to set up the network as with
+.Li REBIND
 (since this may be called to test more than one lease) and then ping
 the first router defined in
 .Va $routers .
@@ -221,6 +245,7 @@ but current scripts do not do this.
 .Xr dhcpd 8 ,
 .Xr dhcrelay 8
 .Sh AUTHORS
+.An -nosplit
 The original version of
 .Nm
 was written for the Internet Software Consortium by
@@ -234,13 +259,15 @@ implementation of
 was written by
 .An Kenneth R. Westerback Aq krw@openbsd.org .
 .Sh BUGS
-If more than one interface is being used, there's no obvious way to
-avoid clashes between server-supplied configuration parameters \- for
-example, the stock dhclient-script rewrites
+If more than one interface is being used, there is no obvious way to
+avoid clashes between server-supplied configuration parameters - for
+example, the stock
+.Nm
+rewrites
 .Pa /etc/resolv.conf .
 If more than one interface is being configured,
 .Pa /etc/resolv.conf
 will be repeatedly initialized to the values provided by one server, and then
 the other.
-Assuming the information provided by both servers is valid, this shouldn't
+Assuming the information provided by both servers is valid, this should not
 cause any real problems, but it could be confusing.

@@ -36,6 +36,8 @@
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd January 1, 1995
 .Dt DHCP-OPTIONS 5
 .Os
@@ -61,7 +63,7 @@ statements always start with the
 .Ic option
 keyword, followed by an option name, followed by option data.
 The option names and data formats are described below.
-It is not necessary to exhaustively specify all DHCP options \-
+It is not necessary to exhaustively specify all DHCP options -
 only those options which are needed by clients must be specified.
 .Pp
 Option data comes in a variety of formats, as defined below:
@@ -69,7 +71,10 @@ Option data comes in a variety of formats, as defined below:
 The
 .Ar ip-address
 data type can be entered either as an explicit IP address
-(e.g., 239.254.197.10) or as a domain name (e.g., haagen.isc.org).
+(e.g.,
+.Li 239.254.197.10 )
+or as a domain name (e.g.,
+.Li haagen.isc.org ) .
 A domain name must resolve to a single IP address.
 .Pp
 The
@@ -96,16 +101,23 @@ data type specifies an
 .Tn NVT
 .Pq Network Virtual Terminal
 .Tn ASCII
-string, which must be enclosed in double quotes \- for example,
+string, which must be enclosed in double quotes - for example,
 to specify a domain-name option, the syntax would be
 .Pp
-.Dl option domain-name \&"isc.org\&";
+.Dl option domain-name \&"isc.org";
 .Pp
 The
 .Ar flag
 data type specifies a boolean value.
-Booleans can be either true or false
-(or on or off, if that makes more sense to you).
+Booleans can be either
+.Li true
+or
+.Li false
+(or
+.Li on
+or
+.Li off ,
+if that makes more sense to you).
 .Pp
 The
 .Ar data-string
@@ -115,14 +127,14 @@ string enclosed in double quotes, or a series of octets specified in
 hexadecimal, separated by colons.
 For example:
 .Pp
-.Dl option dhcp-client-identifier \&"CLIENT-FOO\&";
+.Dl option dhcp-client-identifier \&"CLIENT-FOO";
 or
 .Dl option dhcp-client-identifier 43:4c:49:45:54:2d:46:4f:4f;
 .Pp
 The documentation for the various options mentioned below is taken
 from the IETF draft document on DHCP options, RFC 2132.
 Options which are not listed by name may be defined by the name
-.Pf option\- Ns Ar nnn ,
+.Li option- Ns Ar nnn ,
 where
 .Ar nnn
 is the decimal number of the option code.
@@ -142,7 +154,7 @@ no checking is done to ensure the correctness of the entered data.
 .Pp
 The standard options are:
 .Ss RFC 1497 Vendor Extensions
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ic option subnet-mask Ar ip-address ;
 The
 .Ic subnet-mask
@@ -263,7 +275,7 @@ the
 character set.
 .El
 .Ss IP Layer Parameters per Host
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ic option ip-forwarding Ar flag ;
 This option specifies whether the client should configure its IP layer
 for packet forwarding.
@@ -308,7 +320,7 @@ ordered from smallest to largest.
 The minimum MTU value cannot be smaller than 68.
 .El
 .Ss IP Layer Parameters per Interface
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ic option interface-mtu Ar uint16 ;
 This option specifies the MTU to use on this interface.
 The minimum legal value for the MTU is 68.
@@ -360,7 +372,7 @@ To specify the default route, use the
 option.
 .El
 .Ss Link Layer Parameters per Interface
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ic option trailer-encapsulation Ar flag ;
 This option specifies whether or not the client should negotiate the
 use of trailers (RFC 893 [14]) when using the ARP protocol.
@@ -376,7 +388,7 @@ A value of 0 indicates that the client should use RFC 894 encapsulation.
 A value of 1 means that the client should use RFC 1042 encapsulation.
 .El
 .Ss TCP Parameters
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ic option default-tcp-ttl Ar uint8 ;
 This option specifies the default TTL that the client should use when
 sending TCP segments.
@@ -394,7 +406,7 @@ A value of 0 indicates that a garbage octet should not be sent.
 A value of 1 indicates that a garbage octet should be sent.
 .El
 .Ss Application and Service Parameters
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ic option nis-domain Ar string ;
 This option specifies the name of the client's NIS (Sun Network Information
 Services) domain.
@@ -438,7 +450,7 @@ are configurable to be configured as described in RFC 1001/1002.
 The value is specified as a single octet which identifies the client type.
 .Pp
 Possible node types are:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It 1
 B-node: Broadcast - no WINS
 .It 2
@@ -578,10 +590,14 @@ Servers should be listed in order of preference.
 .Xr dhcpd.leases 5 ,
 .Xr dhclient 8 ,
 .Xr dhcpd 8
-.Pp
-RFC 2131, RFC 2132.
+.Rs
+.%R "RFC 2131, RFC 2132"
+.Re
 .Sh AUTHORS
+.An -nosplit
+The
 .Xr dhcpd 8
+utility
 was written by
 .An Ted Lemon Aq mellon@vix.com
 under a contract with Vixie Labs.

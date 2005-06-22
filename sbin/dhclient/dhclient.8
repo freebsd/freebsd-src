@@ -35,12 +35,15 @@
 .\" Enterprises.  To learn more about the Internet Software Consortium,
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" $FreeBSD$
+.\"
 .Dd April 7, 2004
 .Dt DHCLIENT 8
 .Os
 .Sh NAME
 .Nm dhclient
-.Nd Dynamic Host Configuration Protocol (DHCP) Client
+.Nd "Dynamic Host Configuration Protocol (DHCP) client"
 .Sh SYNOPSIS
 .Nm
 .Op Fl dqu
@@ -59,7 +62,7 @@ should attempt to
 configure must be specified on the command line.
 .Pp
 The options are as follows:
-.Bl -tag -width "-p port"
+.Bl -tag -width ".Fl c Ar file"
 .It Fl c Ar file
 Specify an alternate location,
 .Ar file ,
@@ -110,11 +113,12 @@ In order to keep track of leases across system reboots and server
 restarts,
 .Nm
 keeps a list of leases it has been assigned in the
-.Pa /var/db/dhclient.leases.IFNAME
+.Pa /var/db/dhclient.leases. Ns Ar IFNAME
 file.
-.Qq IFNAME
+.Ar IFNAME
 represents the network interface of the DHCP client
-.Pq e.g. em0 ,
+(e.g.,
+.Li em0 ) ,
 one for each interface.
 On startup, after reading the
 .Xr dhclient.conf 5
@@ -128,7 +132,7 @@ Old leases are kept around in case the DHCP server is unavailable when
 is first invoked (generally during the initial system boot
 process).
 In that event, old leases from the
-.Pa dhclient.leases.IFNAME
+.Pa dhclient.leases. Ns Ar IFNAME
 file which have not yet expired are tested, and if they are determined to
 be valid, they are used until either they expire or the DHCP server
 becomes available.
@@ -149,18 +153,20 @@ database, so that the host can boot quickly on that network rather
 than cycling through the list of old leases.
 .Sh NOTES
 You must have the Berkeley Packet Filter (BPF) configured in your kernel.
+The
 .Nm
+utility
 requires at least one
 .Pa /dev/bpf*
-file for each broadcast network interface that is attached to your system.
+device for each broadcast network interface that is attached to your system.
 See
 .Xr bpf 4
 for more information.
 .Sh FILES
-.Bl -tag -width /var/db/dhclient.leases.IFNAME~ -compact
+.Bl -tag -width ".Pa /var/db/dhclient.leases. Ns Ar IFNAME" -compact
 .It Pa /etc/dhclient.conf
 DHCP client configuration file
-.It Pa /var/db/dhclient.leases.IFNAME
+.It Pa /var/db/dhclient.leases. Ns Ar IFNAME
 database of acquired leases
 .El
 .Sh SEE ALSO
@@ -171,7 +177,10 @@ database of acquired leases
 .Xr dhcpd 8 ,
 .Xr dhcrelay 8
 .Sh AUTHORS
+.An -nosplit
+The
 .Nm
+utility
 was written by
 .An Ted Lemon Aq mellon@fugue.com
 and
