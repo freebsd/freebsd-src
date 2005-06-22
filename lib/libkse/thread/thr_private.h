@@ -106,7 +106,7 @@
 	do { 							\
 		(dst)->tv_sec = (src)->tv_sec + (val)->tv_sec;	\
 		(dst)->tv_nsec = (src)->tv_nsec + (val)->tv_nsec; \
-		if ((dst)->tv_nsec > 1000000000) {		\
+		if ((dst)->tv_nsec >= 1000000000) {		\
 			(dst)->tv_sec++;			\
 			(dst)->tv_nsec -= 1000000000;		\
 		}						\
