@@ -590,7 +590,7 @@ struct hatm_softc {
 #ifdef HATM_DEBUG
 #define DBG(SC, FL, PRINT) do {						\
 	if((SC)->debug & DBG_##FL) { 					\
-		if_printf(&(SC)->ifatm.ifnet, "%s: ", __func__);	\
+		if_printf((SC)->ifp, "%s: ", __func__);			\
 		printf PRINT;						\
 		printf("\n");						\
 	}								\
