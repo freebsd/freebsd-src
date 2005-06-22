@@ -223,7 +223,7 @@ static const struct utopia_chip utopia_chip_unknown = {
 static int
 utopia_media_change(struct ifnet *ifp)
 {
-	struct ifatm *ifatm = (struct ifatm *)ifp->if_softc;
+	struct ifatm *ifatm = IFP2IFATM(ifp);
 	struct utopia *utp = ifatm->phy;
 	int error = 0;
 
@@ -262,7 +262,7 @@ utopia_media_change(struct ifnet *ifp)
 static void
 utopia_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct utopia *utp = ((struct ifatm *)ifp->if_softc)->phy;
+	struct utopia *utp = IFP2IFATM(ifp)->phy;
 
 	UTP_LOCK(utp);
 	if (utp->chip->type != UTP_TYPE_UNKNOWN && utp->state & UTP_ST_ACTIVE) {
