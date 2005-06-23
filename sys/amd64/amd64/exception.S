@@ -119,7 +119,7 @@ IDTVEC(xmm)
 	subq $TF_ERR,%rsp; \
 	movq $(a),TF_TRAPNO(%rsp) ; \
 	movq $0,TF_ADDR(%rsp) ; \
-	jmp alltraps_noen
+	jmp alltraps
 IDTVEC(tss)
 	TRAP_ERR(T_TSSFLT)
 IDTVEC(missing)
