@@ -257,11 +257,6 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	sp = &mp->mnt_stat;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
-	error = prison_canseemount(td->td_ucred, mp);
-	if (error) {
-		mtx_unlock(&Giant);
-		return (error);
-	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
@@ -334,11 +329,6 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	if (mp == NULL) {
 		mtx_unlock(&Giant);
 		return (EBADF);
-	}
-	error = prison_canseemount(td->td_ucred, mp);
-	if (error) {
-		mtx_unlock(&Giant);
-		return (error);
 	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
