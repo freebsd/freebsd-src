@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/uma.h>
+#include <vm/uma_int.h>
+#include <vm/uma_dbg.h>
 
 /*
  * In FreeBSD, Mbufs and Mbuf Clusters are allocated from UMA
@@ -134,9 +136,17 @@ mbuf_init(void *dummy)
 	 * Configure UMA zones for Mbufs, Clusters, and Packets.
 	 */
 	zone_mbuf = uma_zcreate("Mbuf", MSIZE, mb_ctor_mbuf, mb_dtor_mbuf,
+#ifdef INVARIANTS
+	    trash_init, trash_fini, MSIZE - 1, UMA_ZONE_MAXBUCKET);
+#else
 	    NULL, NULL, MSIZE - 1, UMA_ZONE_MAXBUCKET);
+#endif
 	zone_clust = uma_zcreate("MbufClust", MCLBYTES, mb_ctor_clust,
+#ifdef INVARIANTS
+	    mb_dtor_clust, trash_init, trash_fini, UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+#else
 	    mb_dtor_clust, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+#endif
 	if (nmbclusters > 0)
 		uma_zone_set_max(zone_clust, nmbclusters);
 	zone_pack = uma_zsecond_create("Packet", mb_ctor_pack, mb_dtor_pack,
@@ -190,6 +200,9 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 	int flags;
 	short type;
 
+#ifdef INVARIANTS
+	trash_ctor(mem, size, arg, how);
+#endif
 	m = (struct mbuf *)mem;
 	args = (struct mb_args *)arg;
 	flags = args->flags;
@@ -227,6 +240,9 @@ mb_dtor_mbuf(void *mem, int size, void *arg)
 	m = (struct mbuf *)mem;
 	if ((m->m_flags & M_PKTHDR) != 0)
 		m_tag_delete_chain(m, NULL);
+#ifdef INVARIANTS
+	trash_dtor(mem, size, arg);
+#endif
 	mbstat.m_mbufs -= 1;	/* XXX */
 }
 
@@ -239,6 +255,9 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	m = (struct mbuf *)mem;
 	if ((m->m_flags & M_PKTHDR) != 0)
 		m_tag_delete_chain(m, NULL);
+#ifdef INVARIANTS
+	trash_dtor(m->m_ext.ext_buf, MCLBYTES, arg);
+#endif
 	mbstat.m_mbufs -= 1;	/* XXX */
 	mbstat.m_mclusts -= 1;	/* XXX */
 }
@@ -254,6 +273,9 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 {
 	struct mbuf *m;
 
+#ifdef INVARIANTS
+	trash_ctor(mem, size, arg, how);
+#endif
 	m = (struct mbuf *)arg;
 	m->m_ext.ext_buf = (caddr_t)mem;
 	m->m_data = m->m_ext.ext_buf;
@@ -271,6 +293,9 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 static void
 mb_dtor_clust(void *mem, int size, void *arg)
 {
+#ifdef INVARIANTS
+	trash_dtor(mem, size, arg);
+#endif
 	mbstat.m_mclusts -= 1;	/* XXX */
 }
 
@@ -288,6 +313,9 @@ mb_init_pack(void *mem, int size, int how)
 	uma_zalloc_arg(zone_clust, m, how);
 	if (m->m_ext.ext_buf == NULL)
 		return (ENOMEM);
+#ifdef INVARIANTS
+	trash_init(m->m_ext.ext_buf, MCLBYTES, how);
+#endif
 	mbstat.m_mclusts -= 1;	/* XXX */
 	return (0);
 }
@@ -302,6 +330,9 @@ mb_fini_pack(void *mem, int size)
 	struct mbuf *m;
 
 	m = (struct mbuf *)mem;
+#ifdef INVARIANTS
+	trash_fini(m->m_ext.ext_buf, MCLBYTES);
+#endif
 	uma_zfree_arg(zone_clust, m->m_ext.ext_buf, NULL);
 	m->m_ext.ext_buf = NULL;
 	mbstat.m_mclusts += 1;	/* XXX */
@@ -326,6 +357,9 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	flags = args->flags;
 	type = args->type;
 
+#ifdef INVARIANTS
+	trash_ctor(m->m_ext.ext_buf, MCLBYTES, arg, how);
+#endif
 	m->m_type = type;
 	m->m_next = NULL;
 	m->m_nextpkt = NULL;
