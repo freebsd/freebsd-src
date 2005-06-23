@@ -1344,7 +1344,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 {
 	struct iwi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
+	struct ieee80211_frame wh;
 	struct ieee80211_key *k;
 	struct iwi_tx_data *data;
 	struct iwi_tx_desc *desc;
@@ -1352,14 +1352,11 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 	bus_dma_segment_t segs[IWI_MAX_NSEG];
 	int nsegs, error, i;
 
-	wh = mtod(m0, struct ieee80211_frame *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	bcopy(mtod(m0, struct ieee80211_frame *), &wh, sizeof (struct ieee80211_frame));
+	if (wh.i_fc[1] & IEEE80211_FC1_WEP) {
 		k = ieee80211_crypto_encap(ic, ni, m0);
 		if (k == NULL)
 			return ENOBUFS;
-
-		/* packet header may have moved, reset our local pointer */
-		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
 	if (sc->sc_drvbpf != NULL) {
@@ -1413,15 +1410,15 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 	desc->hdr.flags = IWI_HDR_FLAG_IRQ;
 	desc->cmd = IWI_DATA_CMD_TX;
 	desc->len = htole16(m0->m_pkthdr.len);
-	memcpy(&desc->wh, wh, sizeof (struct ieee80211_frame));
+	memcpy(&desc->wh, &wh, sizeof (struct ieee80211_frame));
 	desc->flags = 0;
 
-	if (!IEEE80211_IS_MULTICAST(wh->i_addr1))
+	if (!IEEE80211_IS_MULTICAST(wh.i_addr1))
 		desc->flags |= IWI_DATA_FLAG_NEED_ACK;
 
 #if 0
 	if (ic->ic_flags & IEEE80211_F_PRIVACY) {
-		wh->i_fc[1] |= IEEE80211_FC1_WEP;
+		wh.i_fc[1] |= IEEE80211_FC1_WEP;
 		desc->wep_txkey = ic->ic_crypto.cs_def_txkey;
 	} else
 #endif
