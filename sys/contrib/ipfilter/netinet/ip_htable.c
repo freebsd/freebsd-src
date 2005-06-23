@@ -104,8 +104,10 @@ iplookupop_t *op;
 	int err, i, unit;
 
 	KMALLOC(iph, iphtable_t *);
-	if (iph == NULL)
+	if (iph == NULL) {
+		ipht_nomem[op->iplo_unit]++;
 		return ENOMEM;
+	}
 
 	err = COPYIN(op->iplo_struct, iph, sizeof(*iph));
 	if (err != 0) {
