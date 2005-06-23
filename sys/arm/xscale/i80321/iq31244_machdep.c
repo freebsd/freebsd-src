@@ -101,8 +101,7 @@ __FBSDID("$FreeBSD$");
 #define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
 #define	KERNEL_PT_IOPXS		1
 #define KERNEL_PT_BEFOREKERN	2
-#define KERNEL_PT_PHYS		3
-#define KERNEL_PT_AFKERNEL	4	/* L2 table for mapping after kernel */
+#define KERNEL_PT_AFKERNEL	3	/* L2 table for mapping after kernel */
 #define	KERNEL_PT_AFKERNEL_NUM	9
 
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
@@ -319,17 +318,12 @@ initarm(void *arg, void *arg2)
 	                &kernel_pt_table[KERNEL_PT_IOPXS]);
 	pmap_link_l2pt(l1pagetable, KERNBASE,
 	    &kernel_pt_table[KERNEL_PT_BEFOREKERN]);
-	pmap_link_l2pt(l1pagetable, SDRAM_START,
-	    &kernel_pt_table[KERNEL_PT_PHYS]);
-	pmap_map_chunk(l1pagetable, KERNBASE, SDRAM_START,
-	    0x100000,
+	pmap_map_chunk(l1pagetable, KERNBASE, SDRAM_START, 0x100000,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x100000, SDRAM_START + 0x100000,
 	    0x100000, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
 	   (((uint32_t)(&end) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_map_entry(l1pagetable, minidataclean.pv_pa, minidataclean.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	freemem_after = ((int)&end + PAGE_SIZE) & ~(PAGE_SIZE - 1);
 	afterkern = round_page(((vm_offset_t)&end + L1_S_SIZE) & ~(L1_S_SIZE 
@@ -338,6 +332,9 @@ initarm(void *arg, void *arg2)
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
 	}
+	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa, 
+	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	
 
 #ifdef ARM_USE_SMALL_ALLOC
 	if ((freemem_after + 2 * PAGE_SIZE) <= afterkern) {
@@ -349,7 +346,7 @@ initarm(void *arg, void *arg2)
 #endif
 
 	/* Map the Mini-Data cache clean area. */
-	xscale_setup_minidata(l1pagetable, minidataclean.pv_pa,
+	xscale_setup_minidata(l1pagetable, afterkern,
 	    minidataclean.pv_pa);
 
 	/* Map the vector page. */
@@ -428,7 +425,7 @@ initarm(void *arg, void *arg2)
 
 
 
-	pmap_curmaxkvaddr = afterkern;
+	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
 	pmap_bootstrap(pmap_curmaxkvaddr, 
 	    0xd0000000, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
