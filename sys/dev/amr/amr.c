@@ -1021,7 +1021,14 @@ amr_setup_polled_dmamap(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
     struct amr_softc *sc = ac->ac_sc;
 
     amr_setup_dmamap(arg, segs, nsegs, err);
-    bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap,BUS_DMASYNC_PREREAD);
+    if (ac->ac_flags & AMR_CMD_DATAIN) {
+	bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap,
+	    BUS_DMASYNC_PREREAD);
+    }
+    if (ac->ac_flags & AMR_CMD_DATAOUT) {
+	bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap,
+	    BUS_DMASYNC_PREWRITE);
+    }
     sc->amr_poll_command1(sc, ac);
 }
 
@@ -1102,7 +1109,14 @@ amr_quartz_poll_command1(struct amr_softc *sc, struct amr_command *ac)
     while(AMR_QGET_IDB(sc) & AMR_QIDB_ACK);
 
     /* unmap the command's data buffer */
-    bus_dmamap_sync(sc->amr_buffer_dmat, ac->ac_dmamap, BUS_DMASYNC_POSTREAD);
+    if (ac->ac_flags & AMR_CMD_DATAIN) {
+	bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap,
+	    BUS_DMASYNC_POSTREAD);
+    }
+    if (ac->ac_flags & AMR_CMD_DATAOUT) {
+	bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap,
+	    BUS_DMASYNC_POSTWRITE);
+    }
     bus_dmamap_unload(sc->amr_buffer_dmat, ac->ac_dmamap);
 
     return(error);
