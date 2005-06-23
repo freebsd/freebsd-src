@@ -118,10 +118,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/proc.h>
 #include <machine/swi.h>
-#if !defined(DDB)
-#define kdb_trap	kgdb_trap
-#endif
 
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
 
 
 void swi_handler(trapframe_t *);
@@ -512,8 +512,8 @@ dab_fatal(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig 
 		    tf->tf_svc_sp, tf->tf_svc_lr);
 	printf(", pc =%08x\n\n", tf->tf_pc);
 
-#if defined(DDB) || defined(KGDB)
-	kdb_trap(T_FAULT, tf);
+#ifdef KDB
+	kdb_trap(fsr, 0, tf);
 #endif
 	panic("Fatal abort");
 	/*NOTREACHED*/
