@@ -1689,34 +1689,25 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 	}
 
 	/*
-	 * If proc is traced, always give parent a chance;
-	 * if signal event is tracked by procfs, give *that*
-	 * a chance, as well.
+	 * If the signal is being ignored,
+	 * then we forget about it immediately.
+	 * (Note: we don't set SIGCONT in ps_sigignore,
+	 * and if it is set to SIG_IGN,
+	 * action will be SIG_DFL here.)
 	 */
-	if ((p->p_flag & P_TRACED) || (p->p_stops & S_SIG)) {
-		action = SIG_DFL;
-	} else {
-		/*
-		 * If the signal is being ignored,
-		 * then we forget about it immediately.
-		 * (Note: we don't set SIGCONT in ps_sigignore,
-		 * and if it is set to SIG_IGN,
-		 * action will be SIG_DFL here.)
-		 */
-		mtx_lock(&ps->ps_mtx);
-		if (SIGISMEMBER(ps->ps_sigignore, sig) ||
-		    (p->p_flag & P_WEXIT)) {
-			mtx_unlock(&ps->ps_mtx);
-			return;
-		}
-		if (SIGISMEMBER(td->td_sigmask, sig))
-			action = SIG_HOLD;
-		else if (SIGISMEMBER(ps->ps_sigcatch, sig))
-			action = SIG_CATCH;
-		else
-			action = SIG_DFL;
+	mtx_lock(&ps->ps_mtx);
+	if (SIGISMEMBER(ps->ps_sigignore, sig) ||
+	    (p->p_flag & P_WEXIT)) {
 		mtx_unlock(&ps->ps_mtx);
+		return;
 	}
+	if (SIGISMEMBER(td->td_sigmask, sig))
+		action = SIG_HOLD;
+	else if (SIGISMEMBER(ps->ps_sigcatch, sig))
+		action = SIG_CATCH;
+	else
+		action = SIG_DFL;
+	mtx_unlock(&ps->ps_mtx);
 
 	if (prop & SA_CONT) {
 		SIG_STOPSIGMASK(p->p_siglist);
@@ -1865,14 +1856,16 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 		 * Mutexes are short lived. Threads waiting on them will
 		 * hit thread_suspend_check() soon.
 		 */
-	}  else if (p->p_state == PRS_NORMAL) {
-		if ((p->p_flag & P_TRACED) || (action != SIG_DFL) ||
-			!(prop & SA_STOP)) {
+	} else if (p->p_state == PRS_NORMAL) {
+		if (p->p_flag & P_TRACED || action == SIG_CATCH) {
 			mtx_lock_spin(&sched_lock);
 			tdsigwakeup(td, sig, action);
 			mtx_unlock_spin(&sched_lock);
 			goto out;
 		}
+
+		MPASS(action == SIG_DFL);
+
 		if (prop & SA_STOP) {
 			if (p->p_flag & P_PPWAIT)
 				goto out;
@@ -1956,34 +1949,26 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 		if ((td->td_flags & TDF_SINTR) == 0)
 			return;
 		/*
-		 * Process is sleeping and traced.  Make it runnable
-		 * so it can discover the signal in issignal() and stop
-		 * for its parent.
+		 * If SIGCONT is default (or ignored) and process is
+		 * asleep, we are finished; the process should not
+		 * be awakened.
 		 */
-		if (p->p_flag & P_TRACED) {
-			p->p_flag &= ~P_STOPPED_TRACE;
-		} else {
+		if ((prop & SA_CONT) && action == SIG_DFL) {
+			SIGDELSET(p->p_siglist, sig);
 			/*
-			 * If SIGCONT is default (or ignored) and process is
-			 * asleep, we are finished; the process should not
-			 * be awakened.
+			 * It may be on either list in this state.
+			 * Remove from both for now.
 			 */
-			if ((prop & SA_CONT) && action == SIG_DFL) {
-				SIGDELSET(p->p_siglist, sig);
-				/*
-				 * It may be on either list in this state.
-				 * Remove from both for now.
-				 */
-				SIGDELSET(td->td_siglist, sig);
-				return;
-			}
-
-			/*
-			 * Give low priority threads a better chance to run.
-			 */
-			if (td->td_priority > PUSER)
-				td->td_priority = PUSER;
+			SIGDELSET(td->td_siglist, sig);
+			return;
 		}
+
+		/*
+		 * Give low priority threads a better chance to run.
+		 */
+		if (td->td_priority > PUSER)
+			td->td_priority = PUSER;
+
 		sleepq_abort(td);
 	} else {
 		/*
