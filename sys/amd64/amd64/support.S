@@ -595,7 +595,7 @@ ENTRY(copystr)
 	ret
 
 /*
- * Handling of special 386 registers and descriptor tables etc
+ * Handling of special amd64 registers and descriptor tables etc
  * %rdi
  */
 /* void lgdt(struct region_descriptor *rdp); */

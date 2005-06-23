@@ -663,7 +663,7 @@ SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_SECOND, apic_setup_io, NULL)
 #ifdef SMP
 /*
  * Inter Processor Interrupt functions.  The lapic_ipi_*() functions are
- * private to the sys/i386 code.  The public interface for the rest of the
+ * private to the sys/amd64 code.  The public interface for the rest of the
  * kernel is defined in mp_machdep.c.
  */
 int
