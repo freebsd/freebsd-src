@@ -66,7 +66,7 @@ dumpsys(struct dumperinfo *di)
 	strcpy(kdh.magic, KERNELDUMPMAGIC);
 	strcpy(kdh.architecture, "amd64");
 	kdh.version = htod32(KERNELDUMPVERSION);
-	kdh.architectureversion = htod32(KERNELDUMP_I386_VERSION);
+	kdh.architectureversion = htod32(KERNELDUMP_AMD64_VERSION);
 	kdh.dumplength = htod64(Maxmem * (off_t)PAGE_SIZE);
 	kdh.dumptime = htod64(time_second);
 	kdh.blocksize = htod32(di->blocksize);
