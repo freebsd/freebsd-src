@@ -71,27 +71,29 @@ int db_access_und_sp (struct db_variable *, db_expr_t *, int);
 int db_access_abt_sp (struct db_variable *, db_expr_t *, int);
 int db_access_irq_sp (struct db_variable *, db_expr_t *, int);
 
+static db_varfcn_t db_frame;
+
 #define DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	{ "spsr", DB_OFFSET(tf_spsr),	FCN_NULL, },
-	{ "r0", DB_OFFSET(tf_r0),	FCN_NULL, },
-	{ "r1", DB_OFFSET(tf_r1),	FCN_NULL, },
-	{ "r2", DB_OFFSET(tf_r2),	FCN_NULL, },
-	{ "r3", DB_OFFSET(tf_r3),	FCN_NULL, },
-	{ "r4", DB_OFFSET(tf_r4),	FCN_NULL, },
-	{ "r5", DB_OFFSET(tf_r5),	FCN_NULL, },
-	{ "r6", DB_OFFSET(tf_r6),	FCN_NULL, },
-	{ "r7", DB_OFFSET(tf_r7),	FCN_NULL, },
-	{ "r8", DB_OFFSET(tf_r8),	FCN_NULL, },
-	{ "r9", DB_OFFSET(tf_r9),	FCN_NULL, },
-	{ "r10", DB_OFFSET(tf_r10),	FCN_NULL, },
-	{ "r11", DB_OFFSET(tf_r11),	FCN_NULL, },
-	{ "r12", DB_OFFSET(tf_r12),	FCN_NULL, },
-	{ "usr_sp", DB_OFFSET(tf_usr_sp), FCN_NULL, },
-	{ "usr_lr", DB_OFFSET(tf_usr_lr), FCN_NULL, },
-	{ "svc_sp", DB_OFFSET(tf_svc_sp), FCN_NULL, },
-	{ "svc_lr", DB_OFFSET(tf_svc_lr), FCN_NULL, },
-	{ "pc", DB_OFFSET(tf_pc), 	FCN_NULL, },
+	{ "spsr", DB_OFFSET(tf_spsr),	db_frame },
+	{ "r0", DB_OFFSET(tf_r0),	db_frame },
+	{ "r1", DB_OFFSET(tf_r1),	db_frame },
+	{ "r2", DB_OFFSET(tf_r2),	db_frame },
+	{ "r3", DB_OFFSET(tf_r3),	db_frame },
+	{ "r4", DB_OFFSET(tf_r4),	db_frame },
+	{ "r5", DB_OFFSET(tf_r5),	db_frame },
+	{ "r6", DB_OFFSET(tf_r6),	db_frame },
+	{ "r7", DB_OFFSET(tf_r7),	db_frame },
+	{ "r8", DB_OFFSET(tf_r8),	db_frame },
+	{ "r9", DB_OFFSET(tf_r9),	db_frame },
+	{ "r10", DB_OFFSET(tf_r10),	db_frame },
+	{ "r11", DB_OFFSET(tf_r11),	db_frame },
+	{ "r12", DB_OFFSET(tf_r12),	db_frame },
+	{ "usr_sp", DB_OFFSET(tf_usr_sp), db_frame },
+	{ "usr_lr", DB_OFFSET(tf_usr_lr), db_frame },
+	{ "svc_sp", DB_OFFSET(tf_svc_sp), db_frame },
+	{ "svc_lr", DB_OFFSET(tf_svc_lr), db_frame },
+	{ "pc", DB_OFFSET(tf_pc), 	db_frame },
 	{ "und_sp", &nil, db_access_und_sp, },
 	{ "abt_sp", &nil, db_access_abt_sp, },
 	{ "irq_sp", &nil, db_access_irq_sp, },
@@ -103,8 +105,10 @@ int
 db_access_und_sp(struct db_variable *vp, db_expr_t *valp, int rw)
 {
 
-	if (rw == DB_VAR_GET)
+	if (rw == DB_VAR_GET) {
 		*valp = get_stackptr(PSR_UND32_MODE);
+		return (1);
+	}
 	return(0);
 }
 
@@ -112,8 +116,10 @@ int
 db_access_abt_sp(struct db_variable *vp, db_expr_t *valp, int rw)
 {
 
-	if (rw == DB_VAR_GET)
+	if (rw == DB_VAR_GET) {
 		*valp = get_stackptr(PSR_ABT32_MODE);
+		return (1);
+	}
 	return(0);
 }
 
@@ -121,9 +127,26 @@ int
 db_access_irq_sp(struct db_variable *vp, db_expr_t *valp, int rw)
 {
 
-	if (rw == DB_VAR_GET)
+	if (rw == DB_VAR_GET) {
 		*valp = get_stackptr(PSR_IRQ32_MODE);
+		return (1);
+	}
 	return(0);
+}
+
+int db_frame(struct db_variable *vp, db_expr_t *valp, int rw)
+{
+	int *reg;
+
+	if (kdb_frame == NULL)
+		return (0);
+
+	reg = (int *)((uintptr_t)kdb_frame + (db_expr_t)vp->valuep);
+	if (rw == DB_VAR_GET)
+		*valp = *reg;
+	else
+		*reg = *valp;
+	return(1);
 }
 
 void
