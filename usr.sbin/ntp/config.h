@@ -84,7 +84,7 @@
 #define CLOCK_LOCAL 1
 
 /* Meinberg clocks */
-/* #undef CLOCK_MEINBERG */
+#define CLOCK_MEINBERG 1
 
 /* EES M201 MSF receiver */
 /* #undef CLOCK_MSFEES */
