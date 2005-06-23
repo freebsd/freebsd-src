@@ -998,14 +998,6 @@ thread_suspend_one(struct thread *td)
 	p->p_suspcount++;
 	TD_SET_SUSPENDED(td);
 	TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
-	/*
-	 * Hack: If we are suspending but are on the sleep queue
-	 * then we are in msleep or the cv equivalent. We
-	 * want to look like we have two Inhibitors.
-	 * May already be set.. doesn't matter.
-	 */
-	if (TD_ON_SLEEPQ(td))
-		TD_SET_SLEEPING(td);
 }
 
 void
