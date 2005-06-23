@@ -3998,10 +3998,15 @@ caddr_t data;
 		fprev = &fg->fg_start;
 	}
 
-	for (f = *fprev; (f = *fprev) != NULL; fprev = &f->fr_next)
-		if (fp->fr_collect <= f->fr_collect)
-			break;
 	ftail = fprev;
+	for (f = *ftail; (f = *ftail) != NULL; ftail = &f->fr_next) {
+		if (fp->fr_collect <= f->fr_collect) {
+			ftail = fprev;
+			f = NULL;
+			break;
+		}
+		fprev = ftail;
+	}
 
 	/*
 	 * Copy in extra data for the rule.
@@ -4140,14 +4145,17 @@ caddr_t data;
 	WRITE_ENTER(&ipf_mutex);
 	bzero((char *)frcache, sizeof(frcache));
 
-	for (; (f = *ftail) != NULL; ftail = &f->fr_next)
-		if ((fp->fr_cksum == f->fr_cksum) &&
-		    (f->fr_dsize == fp->fr_dsize) &&
-		    !bcmp((char *)&f->fr_func,
-			  (char *)&fp->fr_func, FR_CMPSIZ) &&
-		    (!ptr || !f->fr_data ||
+	for (; (f = *ftail) != NULL; ftail = &f->fr_next) {
+		if ((fp->fr_cksum != f->fr_cksum) ||
+		    (f->fr_dsize != fp->fr_dsize))
+			continue;
+		if (bcmp((char *)&f->fr_func, (char *)&fp->fr_func, FR_CMPSIZ))
+			continue;
+		if ((!ptr && !f->fr_data) ||
+		    (ptr && f->fr_data &&
 		     !bcmp((char *)ptr, (char *)f->fr_data, f->fr_dsize)))
 			break;
+	}
 
 	/*
 	 * If zero'ing statistics, copy current to caller and zero.
@@ -4193,12 +4201,40 @@ caddr_t data;
 	}
 
 	if (!f) {
-		if (req == (ioctlcmd_t)SIOCINAFR ||
-		    req == (ioctlcmd_t)SIOCINIFR) {
+		/*
+		 * At the end of this, ftail must point to the place where the
+		 * new rule is to be saved/inserted/added.
+		 * For SIOCAD*FR, this should be the last rule in the group of
+		 * rules that have equal fr_collect fields.
+		 * For SIOCIN*FR, ...
+		 */
+		if (req == (ioctlcmd_t)SIOCADAFR ||
+		    req == (ioctlcmd_t)SIOCADIFR) {
+
+			for (ftail = fprev; (f = *ftail) != NULL; ) {
+				if (f->fr_collect > fp->fr_collect)
+					break;
+				ftail = &f->fr_next;
+			}
+			f = NULL;
+			ptr = NULL;
+			error = 0;
+		} else if (req == (ioctlcmd_t)SIOCINAFR ||
+			   req == (ioctlcmd_t)SIOCINIFR) {
+			while ((f = *fprev) != NULL) {
+				if (f->fr_collect >= fp->fr_collect)
+					break;
+				fprev = &f->fr_next;
+			}
 			ftail = fprev;
 			if (fp->fr_hits != 0) {
-				while (--fp->fr_hits && (f = *ftail))
+				while (fp->fr_hits && (f = *ftail)) {
+					if (f->fr_collect != fp->fr_collect)
+						break;
+					fprev = ftail;
 					ftail = &f->fr_next;
+					fp->fr_hits--;
+				}
 			}
 			f = NULL;
 			ptr = NULL;
@@ -4243,7 +4279,7 @@ caddr_t data;
 			}
 			if (*f->fr_grhead != '\0')
 				fr_delgroup(f->fr_grhead, unit, set);
-			fr_fixskip(fprev, f, -1);
+			fr_fixskip(ftail, f, -1);
 			*ftail = f->fr_next;
 			f->fr_next = NULL;
 			(void)fr_derefrule(&f);
@@ -4283,7 +4319,7 @@ caddr_t data;
 				*ftail = f;
 				if (req == (ioctlcmd_t)SIOCINIFR ||
 				    req == (ioctlcmd_t)SIOCINAFR)
-					fr_fixskip(fprev, f, 1);
+					fr_fixskip(ftail, f, 1);
 				f->fr_grp = NULL;
 				group = f->fr_grhead;
 				if (*group != '\0') {
@@ -5933,6 +5969,7 @@ void *data;
 				tu.ipft_vshort = *ta->ipft_pshort;
 			else if (ta->ipft_sz == sizeof(u_char))
 				tu.ipft_vchar = *ta->ipft_pchar;
+			tu.ipft_cookie = ta;
 			tu.ipft_sz = ta->ipft_sz;
 			tu.ipft_min = ta->ipft_min;
 			tu.ipft_max = ta->ipft_max;
