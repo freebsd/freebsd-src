@@ -2410,6 +2410,7 @@ pmap_alloc_specials(vm_offset_t *availp, int pages, vm_offset_t *vap,
 #ifdef ARM_USE_SMALL_ALLOC
 extern struct mtx smallalloc_mtx;
 extern vm_offset_t alloc_curaddr;
+extern vm_offset_t alloc_firstaddr;
 #endif
 
 void
@@ -2565,7 +2566,7 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	kernel_vm_end = pmap_curmaxkvaddr;
 #ifdef ARM_USE_SMALL_ALLOC
 	mtx_init(&smallalloc_mtx, "Small alloc page list", NULL, MTX_DEF);
-	alloc_curaddr = lastaddr;
+	alloc_firstaddr = alloc_curaddr = lastaddr;
 #endif
 }
 

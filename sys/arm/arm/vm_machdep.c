@@ -380,6 +380,7 @@ struct mtx smallalloc_mtx;
 MALLOC_DEFINE(M_VMSMALLALLOC, "VM Small alloc", "VM Small alloc data");
 
 vm_offset_t alloc_curaddr;
+vm_offset_t alloc_firstaddr;
 
 extern int doverbose;
 
@@ -463,15 +464,12 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		/* No more free pages, need to alloc more. */
 		mtx_unlock(&smallalloc_mtx);
 		if (!(wait & M_WAITOK)) {
-			*flags = UMA_SLAB_KMEM;
 			ret = (void *)kmem_malloc(kmem_map, bytes, wait);
 			return (ret);
 		}
 		/* Try to alloc 1MB of contiguous memory. */
 		ret = arm_uma_do_alloc(&sp, bytes, zone == l2zone ?
 		    SECTION_PT : SECTION_CACHE);
-		if (!sp) 
-			*flags = UMA_SLAB_KMEM;
 		mtx_lock(&smallalloc_mtx);
 		if (sp) {
 			for (int i = 0; i < (0x100000 / PAGE_SIZE) - 1;
@@ -490,10 +488,6 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		TAILQ_REMOVE(head, sp, pg_list);
 		TAILQ_INSERT_HEAD(&free_pgdesc, sp, pg_list);
 		ret = sp->addr;
-		if (ret == NULL)
-			panic("NULL");
-		if (ret < (void *)0xa0000000)
-			panic("BLA %p", ret);
 	}
 	mtx_unlock(&smallalloc_mtx);
 	if ((wait & M_ZERO))
@@ -507,7 +501,7 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	pd_entry_t *pd;
 	pt_entry_t *pt;
 
-	if (flags & UMA_SLAB_KMEM)
+	if (mem < (void *)alloc_firstaddr)
 		kmem_free(kmem_map, (vm_offset_t)mem, size);
 	else {
 		struct arm_small_page *sp;
