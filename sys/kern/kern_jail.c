@@ -488,7 +488,6 @@ prison_enforce_statfs(struct ucred *cred, struct mount *mp, struct statfs *sp)
 		return;
 	pr = cred->cr_prison;
 	if (prison_canseemount(cred, mp) != 0) {
-		/* Should never happen. */
 		bzero(sp->f_mntonname, sizeof(sp->f_mntonname));
 		strlcpy(sp->f_mntonname, "[restricted]",
 		    sizeof(sp->f_mntonname));
