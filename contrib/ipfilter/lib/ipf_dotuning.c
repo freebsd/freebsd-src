@@ -33,6 +33,7 @@ ioctlfunc_t iocfn;
 				printtunable(&tu);
 			}
 		} else if ((t = strchr(s, '=')) != NULL) {
+			tu.ipft_cookie = NULL;
 			*t++ = '\0';
 			strncpy(tu.ipft_name, s, sizeof(tu.ipft_name));
 			if (sscanf(t, "%lu", &tu.ipft_vlong) == 1) {
@@ -45,13 +46,16 @@ ioctlfunc_t iocfn;
 				return;
 			}
 		} else {
+			tu.ipft_cookie = NULL;
 			strncpy(tu.ipft_name, s, sizeof(tu.ipft_name));
 			if ((*iocfn)(fd, SIOCIPFGET, &obj) == -1) {
 				perror("ioctl(SIOCIPFGET)");
 				return;
 			}
-			if (tu.ipft_cookie == NULL)
+			if (tu.ipft_cookie == NULL) {
+				fprintf(stderr, "Null cookie for %s\n", s);
 				return;
+			}
 
 			tu.ipft_name[sizeof(tu.ipft_name) - 1] = '\0';
 			printtunable(&tu);
