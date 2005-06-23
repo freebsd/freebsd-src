@@ -510,7 +510,7 @@ i386_set_ldt(td, uap, descs)
 	int error = 0, i;
 	int largest_ld;
 	struct mdproc *mdp = &td->td_proc->p_md;
-	struct proc_ldt *pldt = NULL;
+	struct proc_ldt *pldt;
 	union descriptor *dp;
 
 #ifdef	DEBUG
@@ -697,14 +697,18 @@ i386_ldt_grow(struct thread *td, int len)
 		return (ENOMEM);
 	if (len < NLDT + 1)
 		len = NLDT + 1;
+
+	/* Allocate a user ldt. */
 	pldt = mdp->md_ldt;
-	/* allocate user ldt */
 	if (!pldt || len > pldt->ldt_len) {
-		struct proc_ldt *new_ldt = user_ldt_alloc(mdp, len);
+		struct proc_ldt *new_ldt;
+
+		new_ldt = user_ldt_alloc(mdp, len);
 		if (new_ldt == NULL)
 			return (ENOMEM);
 		pldt = mdp->md_ldt;
-		/* sched_lock was held by user_ldt_alloc */
+
+		/* sched_lock was acquired by user_ldt_alloc. */
 		if (pldt) {
 			if (new_ldt->ldt_len > pldt->ldt_len) {
 				old_ldt_base = pldt->ldt_base;
@@ -720,7 +724,7 @@ i386_ldt_grow(struct thread *td, int len)
 			} else {
 				/*
 				 * If other threads already did the work,
-				 * do nothing
+				 * do nothing.
 				 */
 				mtx_unlock_spin(&sched_lock);
 				kmem_free(kernel_map,

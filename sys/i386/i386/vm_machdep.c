@@ -153,7 +153,9 @@ cpu_fork(td1, p2, td2, flags)
 		if ((flags & RFMEM) == 0) {
 			/* unshare user LDT */
 			struct mdproc *mdp1 = &p1->p_md;
-			struct proc_ldt *pldt = mdp1->md_ldt;
+			struct proc_ldt *pldt;
+
+			pldt = mdp1->md_ldt;
 			if (pldt && pldt->ldt_refcnt > 1) {
 				pldt = user_ldt_alloc(mdp1, pldt->ldt_len);
 				if (pldt == NULL)
@@ -295,11 +297,12 @@ cpu_set_fork_handler(td, func, arg)
 void
 cpu_exit(struct thread *td)
 {
-	struct mdproc *mdp;
 
-	/* Reset pc->pcb_gs and %gs before possibly invalidating it. */
-	mdp = &td->td_proc->p_md;
-	if (mdp->md_ldt) {
+	/*
+	 * If this process has a custom LDT, release it.  Reset pc->pcb_gs
+	 * and %gs before we free it in case they refer to an LDT entry.
+	 */
+	if (td->td_proc->p_md.md_ldt) {
 		td->td_pcb->pcb_gs = _udatasel;
 		load_gs(_udatasel);
 		user_ldt_free(td);
@@ -309,16 +312,16 @@ cpu_exit(struct thread *td)
 void
 cpu_thread_exit(struct thread *td)
 {
-	struct pcb *pcb = td->td_pcb; 
 
 #ifdef DEV_NPX
 	if (td == PCPU_GET(fpcurthread))
 		npxdrop();
 #endif
-	if (pcb->pcb_flags & PCB_DBREGS) {
-		/* disable all hardware breakpoints */
+
+	/* Disable any hardware breakpoints. */
+	if (td->td_pcb->pcb_flags & PCB_DBREGS) {
 		reset_dbregs();
-		pcb->pcb_flags &= ~PCB_DBREGS;
+		td->td_pcb->pcb_flags &= ~PCB_DBREGS;
 	}
 }
 
