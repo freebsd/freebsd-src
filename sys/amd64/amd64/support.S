@@ -204,14 +204,8 @@ ENTRY(fillw)
 /* copyout and fubyte family                                                 */
 /*****************************************************************************/
 /*
- * Access user memory from inside the kernel. These routines and possibly
- * the math- and DOS emulators should be the only places that do this.
- *
- * We have to access the memory with user's permissions, so use a segment
- * selector with RPL 3. For writes to user space we have to additionally
- * check the PTE for write permission, because the 386 does not check
- * write permissions when we are executing with EPL 0. The 486 does check
- * this if the WP bit is set in CR0, so we can use a simpler version here.
+ * Access user memory from inside the kernel. These routines should be
+ * the only places that do this.
  *
  * These routines set curpcb->onfault for the time they execute. When a
  * protection violation occurs inside the functions, the trap handler
