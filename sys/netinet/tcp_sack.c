@@ -474,8 +474,7 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 	 * Since the incoming sack blocks are sorted, we can process them
 	 * making one sweep of the scoreboard.
 	 */
-	while (sblkp - sack_blocks >= 0) {
-		KASSERT(cur != NULL, ("cur != NULL"));
+	while (sblkp - sack_blocks >= 0 && cur != NULL) {
 		if (SEQ_GEQ(sblkp->start, cur->end)) {
 			/*
 			 * SACKs data beyond the current hole.
