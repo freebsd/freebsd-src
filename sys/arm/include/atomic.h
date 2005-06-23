@@ -283,7 +283,7 @@ atomic_readandclear_32(volatile u_int32_t *p)
 #define atomic_store_rel_ptr		atomic_store_ptr
 #define atomic_store_rel_int		atomic_store_32
 #define atomic_cmpset_rel_32		atomic_cmpset_32
-#define atomic_smpset_rel_ptr		atomic_cmpset_ptr
+#define atomic_cmpset_rel_ptr		atomic_cmpset_ptr
 #define atomic_load_acq_int		atomic_load_32
 #define atomic_clear_ptr(ptr, bit)	atomic_clear_32( \
     (volatile uint32_t *)ptr, (uint32_t)bit)
