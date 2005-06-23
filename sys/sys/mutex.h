@@ -124,19 +124,19 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  * here, if they are not already defined in the machine-dependent mutex.h 
  */
 
-/* Actually obtain mtx_lock */
+/* Try to obtain mtx_lock once. */
 #ifndef _obtain_lock
 #define _obtain_lock(mp, tid)						\
 	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, (void *)MTX_UNOWNED, (tid))
 #endif
 
-/* Actually release mtx_lock */
+/* Try to release mtx_lock if it is unrecursed and uncontested. */
 #ifndef _release_lock
 #define _release_lock(mp, tid)						\
 	atomic_cmpset_rel_ptr(&(mp)->mtx_lock, (tid), (void *)MTX_UNOWNED)
 #endif
 
-/* Actually release mtx_lock quickly, assuming we own it. */
+/* Release mtx_lock quickly, assuming we own it. */
 #ifndef _release_lock_quick
 #define _release_lock_quick(mp)						\
 	atomic_store_rel_ptr(&(mp)->mtx_lock, (void *)MTX_UNOWNED)
