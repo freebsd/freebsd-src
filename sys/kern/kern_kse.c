@@ -1304,7 +1304,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		thread_export_context(td, 0);
 		/*
 		 * There is something to report, and we own an upcall
-		 * strucuture, we can go to userland.
+		 * structure, we can go to userland.
 		 * Turn ourself into an upcall thread.
 		 */
 		td->td_pflags |= TDP_UPCALLING;
