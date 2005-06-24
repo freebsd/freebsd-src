@@ -206,14 +206,14 @@ cpu_exit(struct thread *td)
 void
 cpu_thread_exit(struct thread *td)
 {
-	struct pcb *pcb = td->td_pcb;
 
 	if (td == PCPU_GET(fpcurthread))
 		fpudrop();
-	if (pcb->pcb_flags & PCB_DBREGS) {
-		/* disable all hardware breakpoints */
+
+	/* Disable any hardware breakpoints. */
+	if (td->td_pcb->pcb_flags & PCB_DBREGS) {
 		reset_dbregs();
-		pcb->pcb_flags &= ~PCB_DBREGS;
+		td->td_pcb->pcb_flags &= ~PCB_DBREGS;
 	}
 }
 
