@@ -33,6 +33,18 @@
 extern int	pccard_verbose;
 
 /*
+ * PCCARD_API_LEVEL.  When set to 5, we provide a 5.x compatable API
+ * for driver writers that have to share their code between 5.x and 6.x.
+ * The 5.x compatibility interfaces will be unsupported in 7.0, at which
+ * point we'll only support 6 and newer, etc.
+ */
+#ifndef PCCARD_API_LEVEL
+#define PCCARD_API_LEVEL 6
+#elif PCCARD_API_LEVEL < 5
+#error "pccard API less than 5 unsupported"
+#endif
+
+/*
  * Contains information about mapped/allocated i/o spaces.
  */
 struct pccard_io_handle {
@@ -215,7 +227,6 @@ struct pccard_product {
 	uint32_t	pp_vendor;
 #define PCCARD_PRODUCT_ANY (0xffffffff)
 	uint32_t	pp_product;
-	int		pp_expfunc;
 	const char	*pp_cis[4];
 };
 
@@ -357,13 +368,26 @@ enum {
 #define PCCARD_S(a, b) PCMCIA_STR_ ## a ## _ ## b
 #define PCCARD_P(a, b) PCMCIA_PRODUCT_ ## a ## _ ## b
 #define PCCARD_C(a, b) PCMCIA_CIS_ ## a ## _ ## b
+#if PCCARD_API_LEVEL >= 6
+#define PCMCIA_CARD_D(v, p) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
+		PCCARD_P(v, p), PCCARD_C(v, p) }
+#define PCMCIA_CARD2_D(v1, p1, p2) \
+		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
+		  PCMCIA_CIS_ ## p2}
+#define PCMCIA_CARD(v, p) { NULL, PCMCIA_VENDOR_ ## v, \
+		PCCARD_P(v, p), PCCARD_C(v, p) }
+#define PCMCIA_CARD2(v1, p1, p2) \
+		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
+		  PCMCIA_CIS_ ## p2}
+#else
 #define PCMCIA_CARD_D(v, p, f) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
-		PCCARD_P(v, p), f, PCCARD_C(v, p) }
+		PCCARD_P(v, p), PCCARD_C(v, p) }
 #define PCMCIA_CARD2_D(v1, p1, p2, f) \
 		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  f, PCMCIA_CIS_ ## p2}
+		  PCMCIA_CIS_ ## p2}
 #define PCMCIA_CARD(v, p, f) { NULL, PCMCIA_VENDOR_ ## v, \
-		PCCARD_P(v, p), f, PCCARD_C(v, p) }
+		PCCARD_P(v, p), PCCARD_C(v, p) }
 #define PCMCIA_CARD2(v1, p1, p2, f) \
 		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  f, PCMCIA_CIS_ ## p2}
+		  PCMCIA_CIS_ ## p2}
+#endif
