@@ -409,7 +409,6 @@ main(int argc, char *argv[])
 		kvm = kvm_openfiles(kernel, vmcore, NULL, O_RDONLY, s);
 		if (kvm == NULL)
 			errx(1, s);
-		free(s);
 		kgdb_thr_init();
 	}
 
