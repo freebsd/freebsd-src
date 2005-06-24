@@ -300,7 +300,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 #if 0
 				kp->ki_tdev = t_cdev.si_udev;
 #else
-				kp->ki_tdev = NULL;
+				kp->ki_tdev = NODEV;
 #endif
 			}
 			if (tty.t_pgrp != NULL) {
