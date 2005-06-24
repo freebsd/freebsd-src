@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jun 1, 2005
+.Dd June 1, 2005
 .Os
 .Dt PMCLOG 3
 .Sh NAME
@@ -98,16 +98,16 @@ struct pmclog_ev {
 The current state of the parser is recorded in
 .Va pl_state .
 This field can take on the following values:
-.Bl -tag -width "PMCLOG_REQUIRE_DATA" -compact
+.Bl -tag -width ".Dv PMCLOG_REQUIRE_DATA"
 .It Dv PMCLOG_EOF
-.Pq For file based parsers only
+(For file based parsers only)
 An end-of-file condition was encountered on the configured file
 descriptor.
 .It Dv PMCLOG_ERROR
 An error occurred during parsing.
 .It Dv PMCLOG_OK
 A complete event record was read into
-.Fa "*ev" .
+.Fa *ev .
 .It Dv PMCLOG_REQUIRE_DATA
 There was insufficient data in the event stream to assemble a complete
 event record.
@@ -138,7 +138,7 @@ Field
 denotes the kind of the event returned in argument
 .Fa *ev
 and is one of the following:
-.Bl -tag -width XXXXXXXXXXXXXXXXXXXXXXX -compact
+.Bl -tag -width ".Dv PMCLOG_TYPE_PMCALLOCATE"
 .It Dv PMCLOG_TYPE_DROPNOTIFY
 a marker indicating that
 .Xr hwpmc 4
@@ -181,9 +181,9 @@ Argument
 points to the start of a memory buffer containing fresh event data.
 Argument
 .Fa len
-indicates the number of bytes of data available.
+indicates the number of data bytes available.
 The memory range
-.Bq data , data+len
+.Bq Fa data , Fa data No + Fa len
 must remain valid till the next time
 .Fn pmclog_read
 returns an error.
@@ -199,20 +199,24 @@ to
 .Sh RETURN VALUES
 Function
 .Fn pmclog_open
-will return a non-NULL value if successful or NULL otherwise.
+will return a
+.No non- Ns Dv NULL
+value if successful or
+.Dv NULL
+otherwise.
 .Pp
 Function
 .Fn pmclog_read
 will return 0 in case a complete event record was successfully read,
-or will return -1 and will set the
+or will return \-1 and will set the
 .Va pl_state
 field of the event record to the appropriate code in case of an error.
 .Pp
 Function
 .Fn pmclog_feed
-will return 0 on success or -1 in case of failure.
+will return 0 on success or \-1 in case of failure.
 .Sh EXAMPLES
-A template for using the log file parsing API is shown below in psuedocode:
+A template for using the log file parsing API is shown below in pseudocode:
 .Bd -literal
 void *parser;			/* cookie */
 struct pmclog_ev ev;		/* parsed event */
@@ -273,4 +277,5 @@ for a file based parser may fail with any of the errors returned by
 .Xr read 2 ,
 .Xr malloc 3 ,
 .Xr pmc 3 ,
-.Xr hwpmc 4
+.Xr hwpmc 4 ,
+.Xr pmcstat 8
