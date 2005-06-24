@@ -179,6 +179,96 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:08.kmem.asc">FreeBSD-SA-05:08.kmem</ulink>.
       </para>
 
-  </sect1>
+    <para>(24 Jun 2005) The &os;/sparc64 &release.bugfix; should
+      have stated that the &os;/sparc64 GENERIC kernel prior
+      to the upcoming 6.0-RELEASE officially only supports serial consoles.
+      This is especially true for the &os;/sparc64 &release.bugfix;
+      GENERIC kernel because the ofw_console(4) driver which also provides
+      limited indirect support for graphical consoles has been replaced
+      with the &man.uart.4; driver in favor better serial support.</para>
 
+    <para>Due to this limitation to serial consoles the screen will
+      stop working after the message <quote><computeroutput>jumping to kernel entry
+	  at...</computeroutput></quote> is
+      displayed when trying to use the &os;/sparc64 &release.bugfix;
+      GENERIC kernel with a graphical console, while &os; itself continues
+      working actually.</para>
+
+    <para>If you want to use &os;/sparc64 with a graphical console anyway
+      you can do one of the following:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>In case your machine is equipped with a Sun Creator,
+	  Sun Creator3D, or Sun Elite3D frame buffer card
+	  and a Sun RS232 keyboard you can install &os;/sparc64
+	  &release.bugfix; with a serial console and afterwards
+	  compile a custom kernel with the following additional
+	  options:</para>
+
+	<programlisting>device          sc
+device          creator
+options         KBD_INSTALL_CDEV</programlisting>
+
+	<para>Additionally you have to enable the <filename>tty[1-7]</filename>
+	  entries in <filename>/etc/ttys</filename>
+	  like so:</para>
+
+	<programlisting>ttyv0   "/usr/libexec/getty Pc"         cons25  on  secure
+# Virtual terminals
+ttyv1   "/usr/libexec/getty Pc"         cons25  on  secure
+ttyv2   "/usr/libexec/getty Pc"         cons25  on  secure
+ttyv3   "/usr/libexec/getty Pc"         cons25  on  secure
+ttyv4   "/usr/libexec/getty Pc"         cons25  on  secure
+ttyv5   "/usr/libexec/getty Pc"         cons25  on  secure
+ttyv6   "/usr/libexec/getty Pc"         cons25  on  secure
+ttyv7   "/usr/libexec/getty Pc"         cons25  on  secure</programlisting>
+
+	<para>This will yield native support for these keyboards
+	  and frame buffers including VTY switching and X Window System.
+	  Note that this really requires at least &os;/sparc64
+	  &release.bugfix; otherwise it will not work on
+	  most of the UltraSPARC models.</para>
+      </listitem>
+
+      <listitem>
+	<para>In case your machine is equipped with a ATI Mach64
+	  frame buffer (found on-board in e.g. Sun Blade 100/150
+	  and Sun Ultra 5/10 as well as on Sun PGX8 and Sun PGX64
+	  add-on cards) or a PS/2 or a USB keyboard update to a
+	  &os;/sparc64 6.0 from June 10 2005 or later.
+	  If you use the stock GENERIC kernel and <filename>/etc/ttys</filename>
+	  from there no further action is required.</para>
+
+	<para>This will yield native support for these keyboards and frame buffers
+	  including VTY switching and X Window System.</para>
+      </listitem>
+
+      <listitem>
+	<para>In case your machine is equipped with hardware other than those
+	  mentioned above or you refuse to update to &os;/sparc64 6.0
+	  you can re-enable the ofw_console(4) driver as a last resort.
+	  To do so build a custom kernel with the following additional
+	  options:</para>
+
+	<programlisting>device          ofw_console
+device          sab
+device          zs</programlisting>
+
+	<para>and make sure to comment out the following kernel option:</para>
+
+	<programlisting>device          uart</programlisting>
+
+	<para>This will yield limited indirect support for
+	  any graphical console hardware, however with poor performance,
+	  and VTY switching as well as X Window System do not work with this.
+	  Note that ofw_console(4) is not really MPSAFE and therefore
+	  can result in panics under certain conditions.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>For more details of how to recompile your kernel or
+      update to &os; 6.0, see
+      <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html">Configuring the &os; Kernel</ulink> and
+      <ulink url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/cutting-edge.html">The Cutting Edge</ulink> sections in the &os; Handbook, respectively.</para>
 </article>
