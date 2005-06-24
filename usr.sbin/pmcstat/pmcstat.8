@@ -23,12 +23,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Dec 15, 2003
+.Dd June 24, 2005
 .Os
 .Dt PMCSTAT 8
 .Sh NAME
 .Nm pmcstat
-.Nd performance measurement with performance monitoring hardware
+.Nd "performance measurement with performance monitoring hardware"
 .Sh SYNOPSIS
 .Nm
 .Op Fl D Ar pathname
@@ -42,14 +42,13 @@
 .Op Fl c Ar cpu
 .Op Fl d
 .Op Fl g
-.Op Fl m
-.Op Fl n Ar count
+.Op Fl n Ar rate
 .Op Fl o Ar outputfile
 .Op Fl p Ar event-spec
 .Op Fl s Ar event-spec
 .Op Fl t Ar pid
-.Op Fl w Ar interval
-.Op command Op args
+.Op Fl w Ar secs
+.Op Ar command Op Ar args
 .Sh DESCRIPTION
 The
 .Nm
@@ -84,7 +83,7 @@ at regular intervals by
 .Nm .
 The output of sampling PMCs may be configured to go to a log file for
 subsequent offline analysis, or, at the expense of greater
-overhead, may be configured to be processed on the fly.
+overhead, may be configured to be printed in text form on the fly.
 .Pp
 Hardware events to measure are specified to
 .Nm
@@ -117,12 +116,12 @@ complex pipeline of processes when used in conjunction with the
 option.
 The default is to not to enable per-process tracking.
 .It Fl O Ar logfilename
-Send the output of sampling mode PMCs to
+Send logging output to file
 .Ar logfilename .
 If this option is not specified and one of the logging options
 is requested, then
 .Nm
-will print a human-readable version of the log to the configured
+will print a textual form of the logged events to the configured
 output file.
 .It Fl P Ar event-spec
 Allocate a process mode sampling PMC measuring hardware events
@@ -155,18 +154,13 @@ The default is to measure events for the target process alone.
 .It Fl g
 Produce execution profiles in a format compatible with
 .Xr gprof 1 .
-.It Fl m
-When producing
-.Xr gprof 1
-compatible execution profiles, merge profiles across multiple
-invocations of the same executable.
 .It Fl n Ar rate
 Set the default sampling rate for subsequent sampling mode
 PMCs specified on the command line.
 The default is to configure PMCs to sample the CPU's instruction
 pointer every 65536 events.
 .It Fl o Ar outputfile
-Send counter readings and printed representations of logged data
+Send counter readings and textual representations of logged data
 to file
 .Ar outputfile .
 The default is to send output to
@@ -203,32 +197,29 @@ is specified, it is executed using
 To perform system-wide statistical sampling on an AMD Athlon CPU with
 samples taken every 32768 instruction retirals and data being sampled
 to file
-.Dq sample.stat ,
+.Pa sample.stat ,
 use:
-.Dl pmccstat -O sample.stat -n 32768 -S k7-retired-instructions
+.Dl "pmccstat -O sample.stat -n 32768 -S k7-retired-instructions"
 .Pp
 To execute
-.Dq mozilla
+.Nm mozilla
 and measure the number of data cache misses suffered
 by it and its children every 12 seconds on an AMD Athlon, use:
-.Dl pmcstat -d -w 12 -p k7-dc-misses mozilla
+.Dl "pmcstat -d -w 12 -p k7-dc-misses mozilla"
 .Sh DIAGNOSTICS
-.Ex -std pmcstat
-.Sh HISTORY
-The
-.Nm
-utility is proposed to be integrated into
-.Fx
-sometime after
-.Fx 5.2 .
-.Nm
-.Bt
-.Sh AUTHORS
-.An Joseph Koshy Aq jkoshy@FreeBSD.org
+.Ex -std
 .Sh SEE ALSO
 .Xr gprof 1 ,
 .Xr execvp 3 ,
 .Xr pmc 3 ,
+.Xr pmclog 3 ,
 .Xr hwpmc 4 ,
 .Xr pmccontrol 8 ,
 .Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An Joseph Koshy Aq jkoshy@FreeBSD.org
