@@ -72,12 +72,12 @@
         </question>
         <answer>
           <para>&os; 5.0 and above makes extensive use of the system ACPI
-            service on the i386, amd64 and ia64 platforms to aid in system configuration if it's
-            detected during boot.  Unfortunately, some bugs still exist in both
-            the ACPI driver and within system motherboards and BIOS.  The use
-            of ACPI can be disabled by setting the
-            <quote>hint.acpi.0.disabled</quote> hint in the third stage boot
-            loader:</para>
+            service on the i386, amd64 and ia64 platforms to aid in system
+	    configuration if it's detected during boot.  Unfortunately,
+	    some bugs still exist in both the ACPI driver and within system
+	    motherboards and BIOS.  The use of ACPI can be disabled by setting
+	    the <quote>hint.acpi.0.disabled</quote> hint in the third stage
+	    boot loader:</para>
 
           <screen>set hint.acpi.0.disabled="1"</screen>
 
