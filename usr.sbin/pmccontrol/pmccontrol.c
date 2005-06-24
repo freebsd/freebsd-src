@@ -87,6 +87,7 @@ static int	pmcc_do_list_events(void);
 
 static char usage_message[] =
 	"Usage:\n"
+	"       " PMCC_PROGRAM_NAME " -L\n"
 	"       " PMCC_PROGRAM_NAME " -l\n"
 	"       " PMCC_PROGRAM_NAME " -s\n"
 	"       " PMCC_PROGRAM_NAME " [-e pmc | -d pmc | -c cpu] ...";
