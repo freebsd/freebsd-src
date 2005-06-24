@@ -2032,7 +2032,8 @@ int radeon_preinit(struct drm_device *dev, unsigned long flags)
 	}
 
 	ret = drm_initmap(dev, drm_get_resource_start(dev, 2),
-			  drm_get_resource_len(dev, 2), 2, _DRM_REGISTERS, 0);
+			  drm_get_resource_len(dev, 2), 2, _DRM_REGISTERS,
+			  _DRM_READ_ONLY);
 	if (ret != 0)
 		return ret;
 
