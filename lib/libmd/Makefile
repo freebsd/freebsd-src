@@ -4,10 +4,11 @@ LIB=	md
 SHLIBDIR?= /lib
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c \
 	rmd160c.c rmd160hl.c \
-	sha0c.c sha0hl.c sha1c.c sha1hl.c
-INCS=	md2.h md4.h md5.h ripemd.h sha.h
+	sha0c.c sha0hl.c sha1c.c sha1hl.c \
+	sha256c.c sha256hl.c
+INCS=	md2.h md4.h md5.h ripemd.h sha.h sha256.h
 
-MAN+=	md2.3 md4.3 md5.3 ripemd.3 sha.3
+MAN+=	md2.3 md4.3 md5.3 ripemd.3 sha.3 sha256.3
 MLINKS+=md2.3 MD2Init.3 md2.3 MD2Update.3 md2.3 MD2Final.3
 MLINKS+=md2.3 MD2End.3  md2.3 MD2File.3   md2.3 MD2FileChunk.3
 MLINKS+=md2.3 MD2Data.3
@@ -27,9 +28,14 @@ MLINKS+=sha.3 SHA_Data.3
 MLINKS+=sha.3 SHA1_Init.3 sha.3 SHA1_Update.3 sha.3 SHA1_Final.3
 MLINKS+=sha.3 SHA1_End.3  sha.3 SHA1_File.3   sha.3 SHA1_FileChunk.3
 MLINKS+=sha.3 SHA1_Data.3
+MLINKS+=sha256.3 SHA256_Init.3  sha256.3 SHA256_Update.3
+MLINKS+=sha256.3 SHA256_Final.3 sha256.3 SHA256_End.3
+MLINKS+=sha256.3 SHA256_File.3  sha256.3 SHA256_FileChunk.3
+MLINKS+=sha256.3 SHA256_Data.3
 CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver \
 		rmd160.ref rmd160hl.c rmddriver \
-		sha0.ref sha0hl.c sha1.ref sha1hl.c shadriver
+		sha0.ref sha0hl.c sha1.ref sha1hl.c shadriver \
+		sha256.ref sha256hl.c
 CFLAGS+= -I${.CURDIR}
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
@@ -62,6 +68,12 @@ sha0hl.c: mdXhl.c
 sha1hl.c: mdXhl.c
 	(echo '#define LENGTH 20'; \
 		sed -e 's/mdX/sha/g' -e 's/MDX/SHA1_/g' -e 's/SHA1__/SHA1_/g' \
+		${.ALLSRC}) > ${.TARGET}
+
+sha256hl.c: mdXhl.c
+	(echo '#define LENGTH 32'; \
+		sed -e 's/mdX/sha256/g' -e 's/MDX/SHA256_/g'	\
+			-e  's/SHA256__/SHA256_/g' \
 		${.ALLSRC}) > ${.TARGET}
 
 rmd160hl.c: mdXhl.c
@@ -132,6 +144,15 @@ sha1.ref:
 	echo 'SHA-1 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
 		'50abf5706a150990a08b2c5ea40fa0e585554732' ) > ${.TARGET}
 
+sha256.ref:
+	echo 'SHA-256 test suite:' > ${.TARGET}
+	@echo 'SHA-256 ("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' >> ${.TARGET}
+	@echo 'SHA-256 ("abc") = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad' >> ${.TARGET}
+	@echo 'SHA-256 ("message digest") = f7846f55cf23e14eebeab5b4e1550cad5b509e3348fbc4efa3a1413d393cb650' >> ${.TARGET}
+	@echo 'SHA-256 ("abcdefghijklmnopqrstuvwxyz") = 71c480df93d6ae2f1efad1447c66c9525e316218cf51fc8d9ed832f2daf18b73' >> ${.TARGET}
+	@echo 'SHA-256 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") = db4bfcbd4da0cd85a60c3c37d3fbd8805c77f15fc6b1fdfe614ee0a7c8fdb4c0' >> ${.TARGET}
+	@echo 'SHA-256 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") = f371bc4a311f2b009eef952dd83ca80e2b60026c8e935592d0f9c308453c813e' >> ${.TARGET}
+
 rmd160.ref:
 	(echo 'RIPEMD160 test suite:'; \
 	echo 'RIPEMD160 ("") = 9c1185a5c5e9fc54612808977ee8f548b2258d31'; \
@@ -145,7 +166,7 @@ rmd160.ref:
 	echo 'RIPEMD160 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
 		'9b752e45573d4b39f4dbd3323cab82bf63326bfb' ) > ${.TARGET}
 
-test:	md2.ref md4.ref md5.ref sha0.ref rmd160.ref sha1.ref
+test:	md2.ref md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref
 	@${ECHO} if any of these test fail, the code produces wrong results
 	@${ECHO} and should NOT be used.
 	${CC} ${CFLAGS} ${LDFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
@@ -168,6 +189,9 @@ test:	md2.ref md4.ref md5.ref sha0.ref rmd160.ref sha1.ref
 	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=1 -o shadriver ${.CURDIR}/shadriver.c -L. -lmd
 	./shadriver | cmp sha1.ref -
 	@${ECHO} SHA-1 passed test
+	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=256 -o shadriver ${.CURDIR}/shadriver.c -L. -lmd
+	./shadriver | cmp sha256.ref -
+	@${ECHO} SHA-256 passed test
 	-rm -f shadriver
 
 .include <bsd.lib.mk>
