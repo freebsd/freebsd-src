@@ -218,7 +218,7 @@ from {alpha,i386}/INSTALL.TXT.
   environment (different versions of UNIX have different names
   for the floppy drive).</para>
 
-  <para arch="amd64">Floppy disk based install is not supported
+  <para arch="amd64,sparc64">Floppy disk based install is not supported
   on &os;/&arch;.</para>
   </sect2>
 
