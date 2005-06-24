@@ -108,10 +108,10 @@ DRIVER_MODULE(an, pccard, an_pccard_driver, an_pccard_devclass, 0, 0);
 MODULE_DEPEND(an, wlan, 1, 1, 1);
 
 static const struct pccard_product an_pccard_products[] = {
-	PCMCIA_CARD(AIRONET, PC4800, 0),
-	PCMCIA_CARD(AIRONET, PC4500, 0),
-	PCMCIA_CARD(AIRONET, 350, 0),
-	PCMCIA_CARD(XIRCOM, CWE1130, 0), 
+	PCMCIA_CARD(AIRONET, PC4800),
+	PCMCIA_CARD(AIRONET, PC4500),
+	PCMCIA_CARD(AIRONET, 350),
+	PCMCIA_CARD(XIRCOM, CWE1130), 
 	{ NULL }
 };
 
