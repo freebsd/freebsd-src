@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 #include "pccarddevs.h"
 
 static const struct pccard_product ex_pccard_products[] = {
-	PCMCIA_CARD(OLICOM, OC2220, 0),
-	PCMCIA_CARD(INTEL, ETHEREXPPRO, 0),
+	PCMCIA_CARD(OLICOM, OC2220),
+	PCMCIA_CARD(INTEL, ETHEREXPPRO),
 	{ NULL }
 };
 

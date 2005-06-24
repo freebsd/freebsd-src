@@ -590,7 +590,7 @@ static int
 bt3c_pccard_match(device_t dev)
 {
 	static struct pccard_product const	bt3c_pccard_products[] = {
-		PCMCIA_CARD(3COM, 3CRWB609, 0),
+		PCMCIA_CARD(3COM, 3CRWB609),
 		{ NULL, }
 	};
 

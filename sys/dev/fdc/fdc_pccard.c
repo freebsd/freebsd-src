@@ -48,7 +48,7 @@ static int fdc_pccard_probe(device_t);
 static int fdc_pccard_attach(device_t);
 
 static const struct pccard_product fdc_pccard_products[] = {
-	PCMCIA_CARD(YEDATA, EXTERNAL_FDD, 0),
+	PCMCIA_CARD(YEDATA, EXTERNAL_FDD),
 };
 	
 static int
