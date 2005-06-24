@@ -27,7 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <opt_sched.h>
+#include "opt_hwpmc_hooks.h"
+#include "opt_sched.h"
 
 #define kse td_sched
 
