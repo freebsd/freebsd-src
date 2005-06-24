@@ -661,7 +661,7 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
 
 /*
- * Initialize 386 and configure to run kernel
+ * Initialize amd64 and configure to run kernel
  */
 
 /*
