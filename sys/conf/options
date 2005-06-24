@@ -624,6 +624,9 @@ ED_HPP			opt_ed.h
 ED_3C503		opt_ed.h
 ED_SIC			opt_ed.h
 
+# bge driver
+BGE_FAKE_AUTONEG	opt_bge.h
+
 # wi driver
 WI_SYMBOL_FIRMWARE	opt_wi.h
 
