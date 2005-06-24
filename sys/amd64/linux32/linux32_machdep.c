@@ -113,7 +113,8 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 	 * Allocate temporary demand zeroed space for argument and
 	 *	environment strings
 	 */
-	args->buf = (char *) kmem_alloc_wait(exec_map, PATH_MAX + ARG_MAX);
+	args->buf = (char *) kmem_alloc_wait(exec_map,
+	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
 	if (args->buf == NULL)
 		return (ENOMEM);
 	args->begin_argv = args->buf;
