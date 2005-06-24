@@ -36,19 +36,19 @@
 .Os
 .Sh NAME
 .Nm mount_reiserfs
-.Nd mount a ReiserFS file system
+.Nd "mount a ReiserFS file system"
 .Sh SYNOPSIS
 .Nm
-.Pa special
-.Pa node
+.Ar special
+.Ar node
 .Sh DESCRIPTION
 The
 .Nm
 utility attaches the ReiserFS file system residing on the device
-.Pa special
+.Ar special
 to the global file system namespace at the location
 indicated by
-.Pa node .
+.Ar node .
 .Pp
 This command is normally executed by
 .Xr mount 8
@@ -75,14 +75,16 @@ The
 utility first appeared in
 .Fx 6.0 .
 .Sh AUTHORS
+.An -nosplit
 The ReiserFS kernel implementation was written by
-.An Hans Reiser (http://www.namesys.com/) ,
+.An Hans Reiser
+.Pq Pa http://www.namesys.com/ ,
 and ported to
 .Fx
 by
-.An Jean-Sébastien Pédron <dumbbell@FreeBSD.org> .
+.An Jean-S\['e]bastien P\['e]dron Aq dumbbell@FreeBSD.org .
 .Pp
 The
 .Nm
 utility and manual were written by
-.An Jean-Sébastien Pédron <dumbbell@FreeBSD.org> .
+.An Jean-S\['e]bastien P\['e]dron Aq dumbbell@FreeBSD.org .
