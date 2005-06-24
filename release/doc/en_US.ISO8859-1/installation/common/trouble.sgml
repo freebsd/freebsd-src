@@ -72,7 +72,7 @@
         </question>
         <answer>
           <para>&os; 5.0 and above makes extensive use of the system ACPI
-            service on the i386 platform to aid in system configuration if it's
+            service on the i386, amd64 and ia64 platforms to aid in system configuration if it's
             detected during boot.  Unfortunately, some bugs still exist in both
             the ACPI driver and within system motherboards and BIOS.  The use
             of ACPI can be disabled by setting the
@@ -103,7 +103,7 @@
 	  </para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386,pc98,alpha,sparc64">
         <question>
           <para>My legacy ISA device used to be recognized in previous versions
             of &os;, but now it's not.  What happened?</para>
@@ -228,7 +228,7 @@
 	  </blockquote>
  	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>The &man.mcd.4; driver keeps thinking that it has
 	  found a device and this stops my Intel EtherExpress card
@@ -268,7 +268,7 @@
           should not use IRQ 2 or 9 if at all possible.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>I booted the install floppy on my IBM ThinkPad (tm)
           laptop, and the keyboard is all messed up.</para>
@@ -281,7 +281,7 @@
           fine.  (Look in the Input Menu for 'Keyboard'.)</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386,pc98,alpha,sparc64">
         <question>
 	  <para>My system can not find my Intel EtherExpress 16 card.</para>
         </question>
@@ -292,7 +292,7 @@
           <filename>softset.exe</filename> program.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>When installing on an EISA HP Netserver, my on-board
 	  AIC-7xxx SCSI controller isn't detected.</para>
@@ -319,7 +319,7 @@
           provided you have installed the `doc' distribution.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>I have a Panasonic AL-N1 or Rios Chandler Pentium
           machine and I find that the system hangs before ever getting
@@ -350,7 +350,7 @@
 	  <para>&os; does not support this controller.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>On a Compaq Aero notebook, I get the message <quote>No
           floppy devices found!  Please check ...</quote> when trying to
@@ -367,7 +367,7 @@
           all.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>When installing on a Dell Poweredge XE, Dell
           proprietary RAID controller DSA (Dell SCSI Array) isn't
@@ -397,7 +397,7 @@
           different Ethernet adapter.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>When I configure the network during installation on an
           IBM Netfinity 3500, the system freezes.</para>
