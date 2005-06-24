@@ -23,23 +23,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Dec 15, 2003
+.Dd December 15, 2003
 .Os
 .Dt PMCCONTROL 8
 .Sh NAME
 .Nm pmccontrol
-.Nd control hardware performance monitoring counters
+.Nd "control hardware performance monitoring counters"
 .Sh SYNOPSIS
 .Nm
-.Oo
-.Op Fl c Ar cpu
-.Op Fl e Ar pmc
-.Op Fl d Ar pmc
-.Oc Ns ...
+.Oo Fl c Ar cpu | Fl d Ar pmc | Fl e Ar pmc Oc ...
 .Nm
-.Op Fl lL
+.Fl l
 .Nm
-.Op Fl s
+.Fl L
+.Nm
+.Fl s
 .Sh DESCRIPTION
 The
 .Nm
@@ -59,7 +57,7 @@ denoted by
 The argument
 .Ar cpu
 is either a number denoting a CPU number in the system, or the string
-.Dq Li \&* ,
+.Dq Li * ,
 denoting all CPUs in the system.
 .It Fl d Ar pmc
 Disable PMC number
@@ -70,7 +68,7 @@ preventing it from being used till subsequently re-enabled.
 The argument
 .Ar pmc
 is either a number denoting a specified PMC, or the string
-.Dq Li \&*
+.Dq Li *
 denoting all the PMCs on the specified CPU.
 .Pp
 Only idle PMCs may be disabled.
@@ -84,7 +82,7 @@ allowing it to be used in the future.
 The argument
 .Ar pmc
 is either a number denoting a specified PMC, or the string
-.Dq Li \&*
+.Dq Li *
 denoting all the PMCs on the specified CPU.
 If PMC
 .Ar pmc
@@ -101,32 +99,29 @@ Print driver statistics maintained by
 .El
 .Sh EXAMPLES
 To disable all PMCs on all CPUs, use the command:
-.Dl pmccontrol -d\&*
+.Dl "pmccontrol -d*"
 .Pp
 To enable all PMCs on all CPUs, use:
-.Dl pmccontrol -e\&*
+.Dl "pmccontrol -e*"
 .Pp
 To disable PMCs 0 and 1 on CPU 2, use:
-.Dl pmccontrol -c2 -d0 -d1
+.Dl "pmccontrol -c2 -d0 -d1"
 .Pp
 To disable PMC 0 of CPU 0 only, and enable all other PMCS on all other
 CPUs, use:
-.Dl pmccontrol -c\&* -e\&* -c0 -d0
+.Dl "pmccontrol -c* -e* -c0 -d0"
 .Sh DIAGNOSTICS
-.Ex -std pmccontrol
-.Sh HISTORY
-The
-.Nm
-utility is proposed to be integrated into
-.Fx
-sometime after
-.Fx 5.2 .
-.Nm
-.Bt
-.Sh AUTHORS
-.An Joseph Koshy Aq jkoshy@FreeBSD.org
+.Ex -std
 .Sh SEE ALSO
 .Xr pmc 3 ,
+.Xr pmclog 3 ,
 .Xr hwpmc 4 ,
 .Xr pmcstat 8 ,
 .Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An Joseph Koshy Aq jkoshy@FreeBSD.org
