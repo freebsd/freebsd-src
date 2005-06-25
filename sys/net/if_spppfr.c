@@ -8,7 +8,7 @@
  * Copyright (C) 1994-2000 Cronyx Engineering.
  * Author: Serge Vakulenko, <vak@cronyx.ru>
  *
- * Copyright (C) 1999-2004 Cronyx Engineering.
+ * Copyright (C) 1999-2005 Cronyx Engineering.
  * Author: Kurakin Roman, <rik@cronyx.ru>
  *
  * This software is distributed with NO WARRANTIES, not even the implied
@@ -19,7 +19,7 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
- * $Cronyx Id: if_spppfr.c,v 1.1.2.10 2004/06/29 09:02:30 rik Exp $
+ * $Cronyx Id: if_spppfr.c,v 1.2 2005/04/23 20:10:22 rik Exp $
  * $FreeBSD$
  */
 
@@ -27,7 +27,9 @@
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include "opt_inet.h"
-#include "opt_inet6.h"
+#if __FreeBSD_version >= 420000
+#  include "opt_inet6.h"
+#endif
 #include "opt_ipx.h"
 #endif
 
@@ -46,7 +48,11 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if __FreeBSD_version >= 410000
 #include <sys/random.h>
+#else
+#include <machine/random.h>
+#endif
 #endif
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -87,6 +93,13 @@
 #ifdef IPX
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
+#endif
+
+#if __FreeBSD_version < 501000
+#   ifdef NS
+#       include <netns/ns.h>
+#       include <netns/ns_if.h>
+#   endif
 #endif
 
 #include <net/if_sppp.h>
@@ -147,7 +160,11 @@ struct arp_req {
 	unsigned short  htarget;        /* hardware target address */
 	unsigned short  ptarget1;       /* protocol target */
 	unsigned short  ptarget2;
+#if __FreeBSD_version >= 500000
 } __packed;
+#else
+} __attribute__((__packed__));
+#endif
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3 && __FreeBSD_version < 501113
 #define	SPP_FMT		"%s%d: "
@@ -159,7 +176,7 @@ struct arp_req {
 
 /* almost every function needs these */
 #define STDDCL							\
-	struct ifnet *ifp = SP2IFP(sp);				\
+	struct ifnet *ifp = &sp->pp_if;				\
 	int debug = ifp->if_flags & IFF_DEBUG
 
 static void sppp_fr_arp (struct sppp *sp, struct arp_req *req, u_short addr);
@@ -169,9 +186,15 @@ void sppp_fr_input (struct sppp *sp, struct mbuf *m)
 {
 	STDDCL;
 	u_char *h = mtod (m, u_char*);
+#if __FreeBSD_version >= 501000
 	int isr = -1;
+#else
+	struct ifqueue *inq = 0;
+#endif
 	int dlci, hlen, proto;
-
+#if __FreeBSD_version < 500000
+	int s;
+#endif
 	/* Get the DLCI number. */
 	if (m->m_pkthdr.len < 10) {
 bad:            m_freem (m);
@@ -262,17 +285,40 @@ drop:		++ifp->if_ierrors;
 		return;
 #ifdef INET
 	case ETHERTYPE_IP:
+#if __FreeBSD_version >= 501000
 		isr = NETISR_IP;
+#else
+		schednetisr (NETISR_IP);
+		inq = &ipintrq;
+#endif
 		break;
 #endif
 #ifdef IPX
 	case ETHERTYPE_IPX:
+#if __FreeBSD_version >= 501000
 		isr = NETISR_IPX;
+#else
+		schednetisr (NETISR_IPX);
+		inq = &ipxintrq;
+#endif
 		break;
+#endif
+#if __FreeBSD_version < 501000
+#ifdef NS
+	case 0x8137: /* Novell Ethernet_II Ethernet TYPE II */
+		schednetisr (NETISR_NS);
+		inq = &nsintrq;
+		break;
+#endif
 #endif
 #ifdef NETATALK
         case ETHERTYPE_AT:
+#if __FreeBSD_version >= 501000
 		isr = NETISR_ATALK;
+#else
+		schednetisr (NETISR_ATALK);
+		inq = &atintrq1;
+#endif
                 break;
 #endif
 	}
@@ -281,11 +327,30 @@ drop:		++ifp->if_ierrors;
 		goto drop;
 
 	/* Check queue. */
-	if (netisr_queue(isr, m)) {	/* (0) on success. */
+#if __FreeBSD_version >= 500000
+#if __FreeBSD_version >= 501000
+	if (! netisr_queue(isr, m)) {
+#else
+	if (! IF_HANDOFF(inq, m, NULL)) {
+#endif
 		if (debug)
 			log(LOG_DEBUG, SPP_FMT "protocol queue overflow\n",
 				SPP_ARGS(ifp));
 	}
+#else
+	s = splimp();
+	if (IF_QFULL (inq)) {
+		/* Queue overflow. */
+		IF_DROP(inq);
+		splx(s);
+		if (debug)
+			log(LOG_DEBUG, SPP_FMT "protocol queue overflow\n",
+				SPP_ARGS(ifp));
+		goto drop;
+	}
+	IF_ENQUEUE(inq, m);
+	splx(s);
+#endif
 }
 
 /*
@@ -416,8 +481,20 @@ void sppp_fr_keepalive (struct sppp *sp)
 			SPP_ARGS(ifp), (u_char) sp->pp_seq[IDX_LCP],
 			(u_char) sp->pp_rseq[IDX_LCP]);
 
+#if __FreeBSD_version >= 500000
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
 		++ifp->if_oerrors;
+#else
+	if (IF_QFULL (&sp->pp_cpq)) {
+		IF_DROP (&ifp->if_snd);
+		m_freem (m);
+		return;
+	} else
+		IF_ENQUEUE (&sp->pp_cpq, m);
+	if (! (ifp->if_flags & IFF_OACTIVE))
+		(*ifp->if_start) (ifp);
+	ifp->if_obytes += m->m_pkthdr.len + 3;
+#endif
 }
 
 /*
@@ -530,8 +607,20 @@ static void sppp_fr_arp (struct sppp *sp, struct arp_req *req,
 	reply->ptarget1 = htonl (his_ip_address);
 	reply->ptarget2 = htonl (his_ip_address) >> 16;
 
+#if __FreeBSD_version >= 500000
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
 		++ifp->if_oerrors;
+#else
+	if (IF_QFULL (&sp->pp_cpq)) {
+		IF_DROP (&ifp->if_snd);
+		m_freem (m);
+		return;
+	} else
+		IF_ENQUEUE (&sp->pp_cpq, m);
+	if (! (ifp->if_flags & IFF_OACTIVE))
+		(*ifp->if_start) (ifp);
+	ifp->if_obytes += m->m_pkthdr.len + 3;
+#endif
 }
 
 /*
