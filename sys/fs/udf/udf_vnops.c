@@ -441,7 +441,8 @@ udf_transname(char *cs0string, char *destname, int len, struct udf_mnt *udfmp)
 {
 	unicode_t *transname;
 	char *unibuf, *unip;
-	int i, unilen = 0, destlen;
+	int i, destlen;
+	ssize_t unilen = 0;
 	size_t destleft = MAXNAMLEN;
 
 	/* Convert 16-bit Unicode to destname */
@@ -449,7 +450,7 @@ udf_transname(char *cs0string, char *destname, int len, struct udf_mnt *udfmp)
 		/* allocate a buffer big enough to hold an 8->16 bit expansion */
 		unibuf = uma_zalloc(udf_zone_trans, M_WAITOK);
 		unip = unibuf;
-		if ((unilen = udf_UncompressUnicodeByte(len, cs0string, unibuf)) == -1) {
+		if ((unilen = (ssize_t)udf_UncompressUnicodeByte(len, cs0string, unibuf)) == -1) {
 			printf("udf: Unicode translation failed\n");
 			uma_zfree(udf_zone_trans, unibuf);
 			return 0;
@@ -473,7 +474,7 @@ udf_transname(char *cs0string, char *destname, int len, struct udf_mnt *udfmp)
 		/* allocate a buffer big enough to hold an 8->16 bit expansion */
 		transname = uma_zalloc(udf_zone_trans, M_WAITOK);
 
-		if ((unilen = udf_UncompressUnicode(len, cs0string, transname)) == -1) {
+		if ((unilen = (ssize_t)udf_UncompressUnicode(len, cs0string, transname)) == -1) {
 			printf("udf: Unicode translation failed\n");
 			uma_zfree(udf_zone_trans, transname);
 			return 0;
@@ -488,7 +489,7 @@ udf_transname(char *cs0string, char *destname, int len, struct udf_mnt *udfmp)
 		}
 		uma_zfree(udf_zone_trans, transname);
 		destname[unilen] = 0;
-		destlen = unilen;
+		destlen = (int)unilen;
 	}
 
 	return (destlen);
