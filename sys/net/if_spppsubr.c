@@ -1,8 +1,9 @@
 /*
- * Synchronous PPP/Cisco link level subroutines.
+ * Synchronous PPP/Cisco/Frame Relay link level subroutines.
  * Keepalive protocol implemented in both Cisco and PPP modes.
- *
- * Copyright (C) 1994-1996 Cronyx Engineering Ltd.
+ */
+/*-
+ * Copyright (C) 1994-2000 Cronyx Engineering.
  * Author: Serge Vakulenko, <vak@cronyx.ru>
  *
  * Heavily revamped to conform to RFC 1661.
@@ -69,8 +70,6 @@
 
 #include <machine/stdarg.h>
 
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 
 #ifdef INET
@@ -402,8 +401,6 @@ static const char *sppp_proto_name(u_short proto);
 static const char *sppp_state_name(int state);
 static int sppp_params(struct sppp *sp, u_long cmd, void *data);
 static int sppp_strnlen(u_char *p, int max);
-static void sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst,
-			      u_long *srcmask);
 static void sppp_keepalive(void *dummy);
 static void sppp_phase_network(struct sppp *sp);
 static void sppp_print_bytes(const u_char *p, u_short len);
@@ -530,6 +527,11 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	  drop2:
 		++ifp->if_ierrors;
 		++ifp->if_iqdrops;
+		return;
+	}
+
+	if (sp->pp_mode == PP_FR) {
+		sppp_fr_input (sp, m);
 		return;
 	}
 
@@ -863,8 +865,8 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		/*
 		 * Do IP Header compression
 		 */
-		if (sp->pp_mode != IFF_CISCO && (sp->ipcp.flags & IPCP_VJ) &&
-		    ip->ip_p == IPPROTO_TCP)
+		if (sp->pp_mode != IFF_CISCO && sp->pp_mode != PP_FR &&
+		    (sp->ipcp.flags & IPCP_VJ) && ip->ip_p == IPPROTO_TCP)
 			switch (sl_compress_tcp(m, ip, sp->pp_comp,
 						sp->ipcp.compress_cid)) {
 			case TYPE_COMPRESSED_TCP:
@@ -890,12 +892,20 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	}
 #endif
 
+	if (sp->pp_mode == PP_FR) {
+		/* Add frame relay header. */
+		m = sppp_fr_header (sp, m, dst->sa_family);
+		if (! m)
+			goto nobufs;
+		goto out;
+	}
+
 	/*
 	 * Prepend general data packet PPP header. For now, IP only.
 	 */
 	M_PREPEND (m, PPP_HEADER_LEN, M_DONTWAIT);
 	if (! m) {
-		if (debug)
+nobufs:		if (debug)
 			log(LOG_DEBUG, SPP_FMT "no memory for transmit header\n",
 				SPP_ARGS(ifp));
 		++ifp->if_oerrors;
@@ -979,6 +989,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	 * Queue message on interface, and start output if interface
 	 * not yet active.
 	 */
+out:
 	if (IF_QFULL (ifq)) {
 		IF_DROP (&ifp->if_snd);
 		m_freem (m);
@@ -1013,7 +1024,7 @@ sppp_attach(struct ifnet *ifp)
 	struct sppp *sp = (struct sppp*) ifp;
 
 	/* Initialize keepalive handler. */
-	if (! spppq)
+	if (spppq == NULL)
 		TIMEOUT(sppp_keepalive, 0, hz * 10, keepalive_ch);
 
 	/* Insert new entry into the keepalive list. */
@@ -1068,7 +1079,7 @@ sppp_detach(struct ifnet *ifp)
 		}
 
 	/* Stop keepalive handler. */
-	if (! spppq)
+	if (spppq == NULL)
 		UNTIMEOUT(sppp_keepalive, 0, keepalive_ch);
 
 	for (i = 0; i < IDX_COUNT; i++)
@@ -1124,7 +1135,8 @@ sppp_dequeue(struct ifnet *ifp)
 	 */
 	IF_DEQUEUE(&sp->pp_cpq, m);
 	if (m == NULL &&
-	    (sppp_ncp_check(sp) || sp->pp_mode == IFF_CISCO)) {
+	    (sppp_ncp_check(sp) || sp->pp_mode == IFF_CISCO ||
+	     sp->pp_mode == PP_FR)) {
 		IF_DEQUEUE(&sp->pp_fastq, m);
 		if (m == NULL)
 			IF_DEQUEUE (&sp->pp_if.if_snd, m);
@@ -1147,7 +1159,9 @@ sppp_pick(struct ifnet *ifp)
 
 	m = sp->pp_cpq.ifq_head;
 	if (m == NULL &&
-	    (sp->pp_phase == PHASE_NETWORK || sp->pp_mode == IFF_CISCO))
+	    (sp->pp_phase == PHASE_NETWORK ||
+	     sp->pp_mode == IFF_CISCO ||
+	     sp->pp_mode == PP_FR))
 		if ((m = sp->pp_fastq.ifq_head) == NULL)
 			m = sp->pp_if.if_snd.ifq_head;
 	splx (s);
@@ -1190,6 +1204,9 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 		ifp->if_flags &= ~(IFF_PASSIVE | IFF_AUTO | IFF_CISCO);
 		ifp->if_flags |= newmode;
 
+		if (!newmode)
+			newmode = sp->pp_flags & PP_FR;
+
 		if (newmode != sp->pp_mode) {
 			going_down = 1;
 			if (!going_up)
@@ -1197,7 +1214,8 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 		}
 
 		if (going_down) {
-			if (sp->pp_mode != IFF_CISCO)
+			if (sp->pp_mode != IFF_CISCO &&
+			    sp->pp_mode != PP_FR)
 				lcp.Close(sp);
 			else if (sp->pp_tlf)
 				(sp->pp_tlf)(sp);
@@ -1207,14 +1225,16 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 		}
 
 		if (going_up) {
-			if (sp->pp_mode != IFF_CISCO)
+			if (sp->pp_mode != IFF_CISCO &&
+			    sp->pp_mode != PP_FR)
 				lcp.Close(sp);
 			sp->pp_mode = newmode;
 			if (sp->pp_mode == 0) {
 				ifp->if_flags |= IFF_RUNNING;
 				lcp.Open(sp);
 			}
-			if (sp->pp_mode == IFF_CISCO) {
+			if ((sp->pp_mode == IFF_CISCO) ||
+			    (sp->pp_mode == PP_FR)) {
 				if (sp->pp_tls)
 					(sp->pp_tls)(sp);
 				ifp->if_flags |= IFF_RUNNING;
@@ -2448,7 +2468,8 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				lcp.Down(sp);
 				lcp.Up(sp);
 			}
-		} else if (++sp->fail_counter[IDX_LCP] >= sp->lcp.max_failure) {
+		} else if (!sp->pp_loopcnt &&
+			   ++sp->fail_counter[IDX_LCP] >= sp->lcp.max_failure) {
 			if (debug)
 				addlog(" max_failure (%d) exceeded, "
 				       "send conf-rej\n",
@@ -4727,6 +4748,11 @@ sppp_keepalive(void *dummy)
 		    ! (ifp->if_flags & IFF_RUNNING))
 			continue;
 
+		if (sp->pp_mode == PP_FR) {
+			sppp_fr_keepalive (sp);
+			continue;
+		}
+
 		/* No keepalive in PPP mode if LCP not opened yet. */
 		if (sp->pp_mode != IFF_CISCO &&
 		    sp->pp_phase < PHASE_AUTHENTICATE)
@@ -4764,7 +4790,7 @@ sppp_keepalive(void *dummy)
 /*
  * Get both IP addresses.
  */
-static void
+void
 sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 {
 	struct ifnet *ifp = &sp->pp_if;
