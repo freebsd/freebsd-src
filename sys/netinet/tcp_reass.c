@@ -1039,7 +1039,7 @@ after_listen:
 	 */
 	if (tcp_minmss && tcp_minmssoverload &&
 	    tp->t_state == TCPS_ESTABLISHED && tlen > 0) {
-		if (tp->rcv_second > ticks) {
+		if ((unsigned int)(tp->rcv_second - ticks) < hz) {
 			tp->rcv_pps++;
 			tp->rcv_byps += tlen + off;
 			if (tp->rcv_pps > tcp_minmssoverload) {
