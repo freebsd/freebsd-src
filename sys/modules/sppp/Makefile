@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../net
 
 KMOD=	sppp
-SRCS=	if_spppsubr.c slcompress.c
+SRCS=	if_spppfr.c if_spppsubr.c slcompress.c
 SRCS+=	opt_inet.h opt_inet6.h opt_ipx.h
 
 EXPORT_SYMS=	sppp_attach	\
