@@ -1803,7 +1803,7 @@ fdcheckstd(struct thread *td)
 			NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE,
 			    "/dev/null", td);
 			flags = FREAD | FWRITE;
-			error = vn_open(&nd, &flags, 0, -1);
+			error = vn_open(&nd, &flags, 0, fd);
 			if (error != 0) {
 				/*
 				 * Someone may have closed the entry in the
