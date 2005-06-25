@@ -36,7 +36,8 @@
 
 #define	ICONV_CSNMAXLEN		31	/* maximum length of charset name */
 #define	ICONV_CNVNMAXLEN	31	/* maximum length of converter name */
-#define	ICONV_CSMAXDATALEN	(2048+262144)	/* maximum size of data associated with cs pair */
+/* maximum size of data associated with cs pair */
+#define	ICONV_CSMAXDATALEN	(sizeof(caddr_t) * 0x200 + sizeof(uint32_t) * 0x200 * 0x80)
 
 #define	XLAT16_ACCEPT_NULL_OUT		0x01000000
 #define	XLAT16_ACCEPT_NULL_IN		0x02000000
