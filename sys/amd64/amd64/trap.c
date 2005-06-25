@@ -648,8 +648,15 @@ trap_fatal(frame, eva)
 	}
 
 #ifdef KDB
-	if ((debugger_on_panic || kdb_active) && kdb_trap(type, 0, frame))
-		return;
+	if (debugger_on_panic || kdb_active) {
+		register_t rflags;
+		rflags = intr_disable();
+		if (kdb_trap(type, 0, frame)) {
+			intr_restore(rflags);
+			return;
+		}
+		intr_restore(rflags);
+	}
 #endif
 	printf("trap number		= %d\n", type);
 	if (type <= MAX_TRAP_MSG)
