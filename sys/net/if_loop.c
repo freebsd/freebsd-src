@@ -156,7 +156,7 @@ lo_clone_create(ifc, unit)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_softc = sc;
 	if_attach(ifp);
-	bpfattach(ifp, DLT_NULL, sizeof(u_int));
+	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 	mtx_lock(&lo_mtx);
 	LIST_INSERT_HEAD(&lo_list, sc, sc_next);
 	mtx_unlock(&lo_mtx);
@@ -199,6 +199,8 @@ looutput(ifp, m, dst, rt)
 	struct sockaddr *dst;
 	register struct rtentry *rt;
 {
+	u_int32_t af;
+
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
 	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
@@ -209,6 +211,13 @@ looutput(ifp, m, dst, rt)
 
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
+
+	/* BPF writes need to be handled specially. */
+	if (dst->sa_family == AF_UNSPEC) {
+		bcopy(dst->sa_data, &af, sizeof(af));
+		dst->sa_family = af;
+	}
+
 #if 1	/* XXX */
 	switch (dst->sa_family) {
 	case AF_INET:
@@ -248,15 +257,6 @@ if_simloop(ifp, m, af, hlen)
 	M_ASSERTPKTHDR(m);
 	m_tag_delete_nonpersistent(m);
 	m->m_pkthdr.rcvif = ifp;
-
-	/* BPF write needs to be handled specially */
-	if (af == AF_UNSPEC) {
-		KASSERT(m->m_len >= sizeof(int), ("if_simloop: m_len"));
-		af = *(mtod(m, int *));
-		m->m_len -= sizeof(int);
-		m->m_pkthdr.len -= sizeof(int);
-		m->m_data += sizeof(int);
-	}
 
 	/* Let BPF see incoming packet */
 	if (ifp->if_bpf) {

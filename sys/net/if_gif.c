@@ -179,7 +179,7 @@ gifattach0(sc)
 	GIF2IFP(sc)->if_output = gif_output;
 	GIF2IFP(sc)->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(GIF2IFP(sc));
-	bpfattach(GIF2IFP(sc), DLT_NULL, sizeof(u_int));
+	bpfattach(GIF2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	if (ng_gif_attach_p != NULL)
 		(*ng_gif_attach_p)(GIF2IFP(sc));
 }
@@ -348,6 +348,7 @@ gif_output(ifp, m, dst, rt)
 	struct m_tag *mtag;
 	int error = 0;
 	int gif_called;
+	u_int32_t af;
 
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
@@ -404,8 +405,14 @@ gif_output(ifp, m, dst, rt)
 		goto end;
 	}
 
+	/* BPF writes need to be handled specially. */
+	if (dst->sa_family == AF_UNSPEC) {
+		bcopy(dst->sa_data, &af, sizeof(af));
+		dst->sa_family = af;
+	}
+
 	if (ifp->if_bpf) {
-		u_int32_t af = dst->sa_family;
+		af = dst->sa_family;
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 	ifp->if_opackets++;	

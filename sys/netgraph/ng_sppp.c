@@ -289,7 +289,7 @@ ng_sppp_constructor (node_p node)
 	/* Attach the interface */
 	sppp_attach (ifp);
 	if_attach (ifp);
-	bpfattach (ifp, DLT_NULL, sizeof(u_int));
+	bpfattach (ifp, DLT_NULL, sizeof(u_int32_t));
 
 	/* Done */
 	return (0);

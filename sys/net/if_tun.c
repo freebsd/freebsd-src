@@ -285,7 +285,7 @@ tuncreate(struct cdev *dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	if_attach(ifp);
-	bpfattach(ifp, DLT_NULL, sizeof(u_int));
+	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 	dev->si_drv1 = sc;
 }
 
@@ -473,6 +473,7 @@ tunoutput(
 	struct tun_softc *tp = ifp->if_softc;
 	u_short cached_tun_flags;
 	int error;
+	u_int32_t af;
 
 	TUNDEBUG (ifp, "tunoutput\n");
 
@@ -499,16 +500,14 @@ tunoutput(
 		return (EHOSTDOWN);
 	}
 
-	/* BPF write needs to be handled specially */
+	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC) {
-		dst->sa_family = *(mtod(m0, int *));
-		m0->m_len -= sizeof(int);
-		m0->m_pkthdr.len -= sizeof(int);
-		m0->m_data += sizeof(int);
+		bcopy(dst->sa_data, &af, sizeof(af));
+		dst->sa_family = af; 
 	}
 
 	if (ifp->if_bpf) {
-		uint32_t af = dst->sa_family;
+		af = dst->sa_family;
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m0);
 	}
 
