@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -624,6 +626,12 @@ nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp)
 		else
 			nmp->nm_readahead = NFS_MAXRAHEAD;
 	}
+	if ((argp->flags & NFSMNT_WCOMMITSIZE) && argp->wcommitsize >= 0) {
+		if (argp->wcommitsize < nmp->nm_wsize)
+			nmp->nm_wcommitsize = nmp->nm_wsize;
+		else
+			nmp->nm_wcommitsize = argp->wcommitsize;
+	}
 	if ((argp->flags & NFSMNT_DEADTHRESH) && argp->deadthresh >= 0) {
 		if (argp->deadthresh <= NFS_MAXDEADTHRESH)
 			nmp->nm_deadthresh = argp->deadthresh;
@@ -784,6 +792,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		nmp->nm_wsize = NFS_WSIZE;
 		nmp->nm_rsize = NFS_RSIZE;
 	}
+	nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
 	nmp->nm_readdirsize = NFS_READDIRSIZE;
 	nmp->nm_numgrps = NFS_MAXGRPS;
 	nmp->nm_readahead = NFS_DEFRAHEAD;

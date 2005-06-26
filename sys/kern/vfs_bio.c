@@ -113,7 +113,7 @@ SYSCTL_INT(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW, &maxbufmallocspace, 0,
 static int lobufspace;
 SYSCTL_INT(_vfs, OID_AUTO, lobufspace, CTLFLAG_RD, &lobufspace, 0,
     "Minimum amount of buffers we want to have");
-static int hibufspace;
+int hibufspace;
 SYSCTL_INT(_vfs, OID_AUTO, hibufspace, CTLFLAG_RD, &hibufspace, 0,
     "Maximum allowed value of bufspace (excluding buf_daemon)");
 static int bufreusecnt;
