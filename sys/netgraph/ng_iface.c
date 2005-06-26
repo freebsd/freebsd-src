@@ -352,6 +352,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	const priv_p priv = (priv_p) ifp->if_softc;
 	const iffam_p iffam = get_iffam_from_af(dst->sa_family);
 	int len, error = 0;
+	u_int32_t af;
 
 	/* Check interface flags */
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
@@ -359,14 +360,10 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 		return (ENETDOWN);
 	}
 
-	/* BPF writes need to be handled specially */
+	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC) {
-		if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL)
-			return (ENOBUFS);
-		dst->sa_family = (sa_family_t)*mtod(m, int32_t *);
-		m->m_data += 4;
-		m->m_len -= 4;
-		m->m_pkthdr.len -= 4;
+		bcopy(dst->sa_data, &af, sizeof(af));
+		dst->sa_family = af;
 	}
 
 	/* Berkeley packet filter */
@@ -508,7 +505,7 @@ ng_iface_constructor(node_p node)
 
 	/* Attach the interface */
 	if_attach(ifp);
-	bpfattach(ifp, DLT_NULL, sizeof(u_int));
+	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 
 	/* Done */
 	return (0);
