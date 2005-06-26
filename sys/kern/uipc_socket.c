@@ -1768,6 +1768,8 @@ sogetopt(so, sopt)
 			/* Unlocked read. */
 			if ((so->so_options & SO_ACCEPTCONN) == 0)
 				return (EINVAL);
+			if ((so->so_options & SO_ACCEPTFILTER) == 0)
+				return (EINVAL);
 			MALLOC(afap, struct accept_filter_arg *, sizeof(*afap),
 				M_TEMP, M_WAITOK | M_ZERO);
 			SOCK_LOCK(so);

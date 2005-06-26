@@ -186,7 +186,7 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	}
 
 	/* removing the filter */
-	if (sopt == NULL) {
+	if (sopt == NULL || sopt->sopt_val == NULL) {
 		if (so->so_accf != NULL) {
 			struct so_accf *af = so->so_accf;
 			if (af->so_accept_filter != NULL &&
