@@ -245,7 +245,7 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len)
 	ifp->if_output = stf_output;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(ifp);
-	bpfattach(ifp, DLT_NULL, sizeof(u_int));
+	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 	mtx_lock(&stf_mtx);
 	LIST_INSERT_HEAD(&stf_softc_list, sc, sc_list);
 	mtx_unlock(&stf_mtx);
@@ -438,6 +438,7 @@ stf_output(ifp, m, dst, rt)
 	struct ip *ip;
 	struct ip6_hdr *ip6;
 	struct in6_ifaddr *ia6;
+	u_int32_t af;
 #ifdef MAC
 	int error;
 
@@ -481,6 +482,15 @@ stf_output(ifp, m, dst, rt)
 	tos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 
 	/*
+	 * BPF writes need to be handled specially.
+	 * This is a null operation, nothing here checks dst->sa_family.
+	 */
+	if (dst->sa_family == AF_UNSPEC) {
+		bcopy(dst->sa_data, &af, sizeof(af));
+		dst->sa_family = af;
+	}
+
+	/*
 	 * Pickup the right outer dst addr from the list of candidates.
 	 * ip6_dst has priority as it may be able to give us shorter IPv4 hops.
 	 */
@@ -504,7 +514,7 @@ stf_output(ifp, m, dst, rt)
 		 * will only read from the mbuf (i.e., it won't
 		 * try to free it or keep a pointer a to it).
 		 */
-		u_int32_t af = AF_INET6;
+		af = AF_INET6;
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 

@@ -272,7 +272,7 @@ i4biprattach(void *dummy)
 		
 		if_attach(sc->sc_ifp);
 
-		bpfattach(sc->sc_ifp, DLT_NULL, sizeof(u_int));
+		bpfattach(sc->sc_ifp, DLT_NULL, sizeof(u_int32_t));
 	}
 }
 
@@ -288,11 +288,19 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	int s;
 	struct ifqueue *ifq;
 	struct ip *ip;
+	u_int32_t af;
 	
 	s = SPLI4B();
 
 	sc = ifp->if_softc;
 	unit = ifp->if_dunit;
+
+	/* BPF writes need to be handled specially. */
+	if(dst->sa_family == AF_UNSPEC)
+	{
+		bcopy(dst->sa_data, &af, sizeof(af));
+		dst->sa_family = af;
+	}
 
 	/* check for IP */
 	

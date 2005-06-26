@@ -233,6 +233,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct ip *ip;
 	u_int16_t etype = 0;
 	struct mobile_h mob_h;
+	u_int32_t af;
 
 	/*
 	 * gre may cause infinite recursion calls when misconfigured.
@@ -256,8 +257,14 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	gh = NULL;
 	ip = NULL;
 
+	/* BPF writes need to be handled specially. */
+	if (dst->sa_family == AF_UNSPEC) {
+		bcopy(dst->sa_data, &af, sizeof(af));
+		dst->sa_family = af;
+	}
+
 	if (ifp->if_bpf) {
-		u_int32_t af = dst->sa_family;
+		af = dst->sa_family;
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 

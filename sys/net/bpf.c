@@ -106,8 +106,8 @@ static void	bpf_attachd(struct bpf_d *d, struct bpf_if *bp);
 static void	bpf_detachd(struct bpf_d *d);
 static void	bpf_freed(struct bpf_d *);
 static void	bpf_mcopy(const void *, void *, size_t);
-static int	bpf_movein(struct uio *, int,
-		    struct mbuf **, struct sockaddr *, int *);
+static int	bpf_movein(struct uio *, int, int,
+		    struct mbuf **, struct sockaddr *);
 static int	bpf_setif(struct bpf_d *, struct ifreq *);
 static void	bpf_timed_out(void *);
 static __inline void
@@ -148,9 +148,10 @@ static struct filterops bpfread_filtops =
 	{ 1, NULL, filt_bpfdetach, filt_bpfread };
 
 static int
-bpf_movein(uio, linktype, mp, sockp, datlen)
+bpf_movein(uio, linktype, mtu, mp, sockp)
 	struct uio *uio;
-	int linktype, *datlen;
+	int linktype;
+	int mtu;
 	struct mbuf **mp;
 	struct sockaddr *sockp;
 {
@@ -187,9 +188,17 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 		break;
 
 	case DLT_RAW:
-	case DLT_NULL:
 		sockp->sa_family = AF_UNSPEC;
 		hlen = 0;
+		break;
+
+	case DLT_NULL:
+		/*
+		 * null interface types require a 4 byte pseudo header which
+		 * corresponds to the address family of the packet.
+		 */
+		sockp->sa_family = AF_UNSPEC;
+		hlen = 4;
 		break;
 
 	case DLT_ATM_RFC1483:
@@ -212,7 +221,10 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 	}
 
 	len = uio->uio_resid;
-	*datlen = len - hlen;
+
+	if (len - hlen > mtu)
+		return (EMSGSIZE);
+
 	if ((unsigned)len > MCLBYTES)
 		return (EIO);
 
@@ -569,7 +581,6 @@ bpfwrite(dev, uio, ioflag)
 	struct mbuf *m;
 	int error;
 	struct sockaddr dst;
-	int datlen;
 
 	if (d->bd_bif == NULL)
 		return (ENXIO);
@@ -583,14 +594,9 @@ bpfwrite(dev, uio, ioflag)
 		return (0);
 
 	bzero(&dst, sizeof(dst));
-	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, &m, &dst, &datlen);
+	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, ifp->if_mtu, &m, &dst);
 	if (error)
 		return (error);
-
-	if (datlen > ifp->if_mtu) {
-		m_freem(m);
-		return (EMSGSIZE);
-	}
 
 	if (d->bd_hdrcmplt)
 		dst.sa_family = pseudo_AF_HDRCMPLT;

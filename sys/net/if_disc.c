@@ -102,7 +102,7 @@ disc_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_addrlen = 0;
 	ifp->if_snd.ifq_maxlen = 20;
 	if_attach(ifp);
-	bpfattach(ifp, DLT_NULL, sizeof(u_int));
+	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 	mtx_lock(&disc_mtx);
 	LIST_INSERT_HEAD(&disc_softc_list, sc, sc_list);
 	mtx_unlock(&disc_mtx);
@@ -176,15 +176,14 @@ static int
 discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
     struct rtentry *rt)
 {
+	u_int32_t af;
 
 	M_ASSERTPKTHDR(m);
 
-	/* BPF write needs to be handled specially */
+	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC) {
-		dst->sa_family = *(mtod(m, int *));
-		m->m_len -= sizeof(int);
-		m->m_pkthdr.len -= sizeof(int);
-		m->m_data += sizeof(int);
+		bcopy(dst->sa_data, &af, sizeof(af));
+		dst->sa_family = af;
 	}
 
 	if (ifp->if_bpf) {
