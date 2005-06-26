@@ -260,6 +260,14 @@ oem:		FADT "GBT" "AWRDACPI"
 oem_rev:	FADT = 0
 quirks:		ACPI_Q_BROKEN
 
+# GA-5AX (Rev 4)
+# Testing indicates that the ACPI timer runs twice as fast but otherwise
+# this system works normally.
+name:		GBT_AWRDACPI
+oem:		FADT "GBT   " "AWRDACPI"
+oem_rev:	FADT <= 0x42302e31
+quirks:		ACPI_Q_TIMER
+
 # Hitachi Flora 220CX
 name:		Hitachi_Flora_220CX
 oem:		FADT "HTCLTD" "HTC2041 "
