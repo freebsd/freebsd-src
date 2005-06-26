@@ -187,7 +187,7 @@ faith_clone_create(ifc, unit)
 	ifp->if_addrlen = 0;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	if_attach(ifp);
-	bpfattach(ifp, DLT_NULL, sizeof(u_int));
+	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 	mtx_lock(&faith_mtx);
 	LIST_INSERT_HEAD(&faith_softc_list, sc, sc_list);
 	mtx_unlock(&faith_mtx);
@@ -225,19 +225,18 @@ faithoutput(ifp, m, dst, rt)
 	struct rtentry *rt;
 {
 	int isr;
+	u_int32_t af;
 
 	M_ASSERTPKTHDR(m);
 
-	/* BPF write needs to be handled specially */
+	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC) {
-		dst->sa_family = *(mtod(m, int *));
-		m->m_len -= sizeof(int);
-		m->m_pkthdr.len -= sizeof(int);
-		m->m_data += sizeof(int);
+		bcopy(dst->sa_data, &af, sizeof(af));
+		dst->sa_family = af;
 	}
 
 	if (ifp->if_bpf) {
-		u_int32_t af = dst->sa_family;
+		af = dst->sa_family;
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 

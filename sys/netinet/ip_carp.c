@@ -1920,6 +1920,8 @@ static int
 carp_looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
     struct rtentry *rt)
 {
+	u_int32_t af;
+
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
 	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
@@ -1930,6 +1932,13 @@ carp_looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
+
+	/* BPF writes need to be handled specially. */
+	if (dst->sa_family == AF_UNSPEC) {
+		bcopy(dst->sa_data, &af, sizeof(af));
+		dst->sa_family = af;
+	}
+
 #if 1	/* XXX */
 	switch (dst->sa_family) {
 	case AF_INET:
