@@ -701,49 +701,11 @@ fm801_pci_detach(device_t dev)
 static int
 fm801_pci_probe( device_t dev )
 {
-	u_int32_t data;
-	int id, regtype, regid, result;
-	struct resource *reg;
-	bus_space_tag_t st;
-	bus_space_handle_t sh;
+	int id;
 
-	result = ENXIO;
-	
 	if ((id = pci_get_devid(dev)) == PCI_DEVICE_FORTEMEDIA1 ) {
-		data = pci_read_config(dev, PCIR_COMMAND, 2);
-		data |= (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN);
-		pci_write_config(dev, PCIR_COMMAND, data, 2);
-		data = pci_read_config(dev, PCIR_COMMAND, 2);
-
-		regid = PCIR_BAR(0);
-		regtype = SYS_RES_IOPORT;
-		reg = bus_alloc_resource_any(dev, regtype, &regid, RF_ACTIVE);
-
-		if (reg == NULL)
-			return ENXIO;
-
-		st = rman_get_bustag(reg);
-		sh = rman_get_bushandle(reg);
-		/*
-		 * XXX: quick check that device actually has sound capabilities.
-		 * The problem is that some cards built around FM801 chip only
-		 * have radio tuner onboard, but no sound capabilities. There
-		 * is no "official" way to quickly check this, because all
-		 * IDs are exactly the same. The only difference is 0x28
-		 * device control register, described in FM801 specification
-		 * as "SRC/Mixer Test Control/DFC Status", but without
-		 * any more detailed explanation. According to specs, and
-		 * available sample cards (SF256-PCP-R and SF256-PCS-R) its
-		 * power-on value should be `0', while on AC97-less tuner
-		 * card (SF64-PCR) it was 0x80.
-		 */
-		if (bus_space_read_1(st, sh, 0x28) == 0) {
-			device_set_desc(dev,
-			    "Forte Media FM801 Audio Controller");
-			result = 0;
-		}
-
-		bus_release_resource(dev, regtype, regid, reg);
+		device_set_desc(dev, "Forte Media FM801 Audio Controller");
+		return 0;
 	}
 /*
 	if ((id = pci_get_devid(dev)) == PCI_DEVICE_FORTEMEDIA2 ) {
@@ -751,7 +713,7 @@ fm801_pci_probe( device_t dev )
 		return ENXIO;
 	}
 */
-	return (result);
+	return ENXIO;
 }
 
 static struct resource *
