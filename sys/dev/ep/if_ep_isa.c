@@ -361,13 +361,13 @@ ep_eeprom_cksum(struct ep_softc *sc)
 	uint8_t cksum_high = 0;
 	uint8_t cksum_low = 0;
 
-	error = get_e(sc, 0x0f, &val);
+	error = ep_get_e(sc, 0x0f, &val);
 	if (error)
 		return (ENXIO);
 	cksum = val;
 
 	for (i = 0; i < 0x0f; i++) {
-		error = get_e(sc, i, &val);
+		error = ep_get_e(sc, i, &val);
 		if (error)
 			return (ENXIO);
 		switch (i) {
