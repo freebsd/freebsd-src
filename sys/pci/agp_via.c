@@ -211,11 +211,22 @@ agp_via_attach(device_t dev)
 	}
 	sc->gatt = gatt;
 
-	/* Install the gatt. */
-	pci_write_config(dev, sc->regs[REG_ATTBASE], gatt->ag_physical | 3, 4);
-	
-	/* Enable the aperture. */
-	pci_write_config(dev, sc->regs[REG_GARTCTRL], 0x0f, 4);
+	if (sc->regs == via_v2_regs) {
+		/* Install the gatt. */
+		pci_write_config(dev, sc->regs[REG_ATTBASE], gatt->ag_physical | 3, 4);
+		
+		/* Enable the aperture. */
+		pci_write_config(dev, sc->regs[REG_GARTCTRL], 0x0f, 4);
+	} else {
+		u_int32_t gartctrl;
+
+		/* Install the gatt. */
+		pci_write_config(dev, sc->regs[REG_ATTBASE], gatt->ag_physical, 4);
+		
+		/* Enable the aperture. */
+		gartctrl = pci_read_config(dev, sc->regs[REG_ATTBASE], 4);
+		pci_write_config(dev, sc->regs[REG_GARTCTRL], gartctrl | (3 << 7), 4);
+	}
 
 	return 0;
 }
@@ -306,9 +317,18 @@ static void
 agp_via_flush_tlb(device_t dev)
 {
 	struct agp_via_softc *sc = device_get_softc(dev);
+	u_int32_t gartctrl;
 
-	pci_write_config(dev, sc->regs[REG_GARTCTRL], 0x8f, 4);
-	pci_write_config(dev, sc->regs[REG_GARTCTRL], 0x0f, 4);
+	if (sc->regs == via_v2_regs) {
+		pci_write_config(dev, sc->regs[REG_GARTCTRL], 0x8f, 4);
+		pci_write_config(dev, sc->regs[REG_GARTCTRL], 0x0f, 4);
+	} else {
+		gartctrl = pci_read_config(dev, sc->regs[REG_GARTCTRL], 4);
+		pci_write_config(dev, sc->regs[REG_GARTCTRL], gartctrl &
+		    ~(1 << 7), 4);
+		pci_write_config(dev, sc->regs[REG_GARTCTRL], gartctrl, 4);
+	}
+	
 }
 
 static device_method_t agp_via_methods[] = {
