@@ -73,6 +73,7 @@ ep_pccard_probe(device_t dev)
 	struct ep_board *epb = &sc->epb;
 	const char *desc;
 	uint16_t result;
+	uint8_t enaddr[6];
 	int error;
 
 	error = ep_alloc(dev);
@@ -96,7 +97,7 @@ ep_pccard_probe(device_t dev)
 	epb->cmd_off = 0;
 
 	/* XXX check return */
-	error = get_e(sc, EEPROM_PROD_ID, &result);
+	error = ep_get_e(sc, EEPROM_PROD_ID, &result);
 	epb->prod_id = result;
 
 	if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
@@ -105,7 +106,7 @@ ep_pccard_probe(device_t dev)
 			    "failed (nonfatal) id 0x%x\n", epb->prod_id);
 		epb->cmd_off = 2;
 		/* XXX check return */
-		error = get_e(sc, EEPROM_PROD_ID, &result);
+		error = ep_get_e(sc, EEPROM_PROD_ID, &result);
 		epb->prod_id = result;
 		if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
 			device_printf(dev, "Unit failed to come ready or "
@@ -114,14 +115,16 @@ ep_pccard_probe(device_t dev)
 			return (ENXIO);
 		}
 	}
-	device_set_desc(dev, desc);
-
 	/*
-	 * Newer cards supported by this device need to have their
-	 * MAC address set.
+	 * For reasons unknown, getting the MAC address here makes the
+	 * 3C574 and 3C556 families get the right MAC address later.
+	 * otherwise, the ID field is used for each of the words of the
+	 * MAC address instead of the proper one.  It is unclear why
+	 * ep_get_macaddr would have this side effect, or even what
+	 * that side effect really is.
 	 */
-	error = ep_get_macaddr(sc, (u_char *)&IFP2ENADDR(sc->ifp));
-
+	ep_get_macaddr(sc, enaddr);
+	device_set_desc(dev, desc);
 	ep_free(dev);
 	return (0);
 }
@@ -189,14 +192,14 @@ ep_pccard_attach(device_t dev)
 	sc->epb.cmd_off = 0;
 
 	/* XXX check return */
-	error = get_e(sc, EEPROM_PROD_ID, &result);
+	error = ep_get_e(sc, EEPROM_PROD_ID, &result);
 	sc->epb.prod_id = result;
 
 	if (!ep_pccard_card_attach(&sc->epb)) {
 		sc->epb.cmd_off = 2;
-		error = get_e(sc, EEPROM_PROD_ID, &result);
+		error = ep_get_e(sc, EEPROM_PROD_ID, &result);
 		sc->epb.prod_id = result;
-		error = get_e(sc, EEPROM_RESOURCE_CFG, &result);
+		error = ep_get_e(sc, EEPROM_RESOURCE_CFG, &result);
 		sc->epb.res_cfg = result;
 		if (!ep_pccard_card_attach(&sc->epb)) {
 			device_printf(dev,
@@ -205,7 +208,7 @@ ep_pccard_attach(device_t dev)
 			goto bad;
 		}
 	}
-	error = get_e(sc, EEPROM_ADDR_CFG, &result);
+	error = ep_get_e(sc, EEPROM_ADDR_CFG, &result);
 
 	/* ROM size = 0, ROM base = 0 */
 	/* For now, ignore AUTO SELECT feature of 3C589B and later. */
