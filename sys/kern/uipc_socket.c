@@ -1067,7 +1067,7 @@ do_setopt_accept_filter(so, sopt)
 	}
 
 	/* removing the filter */
-	if (sopt == NULL) {
+	if (sopt == NULL || sopt->sopt_val == NULL) {
 		if (af != NULL) {
 			if (af->so_accept_filter != NULL && 
 				af->so_accept_filter->accf_destroy != NULL) {
@@ -1360,6 +1360,8 @@ sogetopt(so, sopt)
 #ifdef INET
 		case SO_ACCEPTFILTER:
 			if ((so->so_options & SO_ACCEPTCONN) == 0)
+				return (EINVAL);
+			if ((so->so_options & SO_ACCEPTFILTER) == 0)
 				return (EINVAL);
 			MALLOC(afap, struct accept_filter_arg *, sizeof(*afap),
 				M_TEMP, M_WAITOK);
