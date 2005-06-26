@@ -129,7 +129,7 @@ eeprom_rdy(struct ep_softc *sc)
  * before
  */
 int
-get_e(struct ep_softc *sc, uint16_t offset, uint16_t *result)
+ep_get_e(struct ep_softc *sc, uint16_t offset, uint16_t *result)
 {
 
 	if (eeprom_rdy(sc))
@@ -158,7 +158,7 @@ ep_get_macaddr(struct ep_softc *sc, u_char *addr)
 
 	GO_WINDOW(sc, 0);
 	for (i = EEPROM_NODE_ADDR_0; i <= EEPROM_NODE_ADDR_2; i++) {
-		error = get_e(sc, i, &result);
+		error = ep_get_e(sc, i, &result);
 		if (error)
 			return (error);
 		macaddr[i] = htons(result);
@@ -203,12 +203,12 @@ ep_alloc(device_t dev)
 	GO_WINDOW(sc, 0);
 	sc->epb.cmd_off = 0;
 
-	error = get_e(sc, EEPROM_PROD_ID, &result);
+	error = ep_get_e(sc, EEPROM_PROD_ID, &result);
 	if (error)
 		goto bad;
 	sc->epb.prod_id = result;
 
-	error = get_e(sc, EEPROM_RESOURCE_CFG, &result);
+	error = ep_get_e(sc, EEPROM_RESOURCE_CFG, &result);
 	if (error)
 		goto bad;
 	sc->epb.res_cfg = result;
