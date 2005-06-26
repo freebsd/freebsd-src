@@ -224,6 +224,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	callout_init(&sc->sc_bulk_tmo, NET_CALLOUT_MPSAFE);
 	callout_init(&sc->sc_bulkfail_tmo, NET_CALLOUT_MPSAFE);
 	callout_init(&sc->sc_send_tmo, NET_CALLOUT_MPSAFE);
+	sc->sc_ifq.ifq_maxlen = ifqmaxlen;
 	mtx_init(&sc->sc_ifq.ifq_mtx, ifp->if_xname, "pfsync send queue",
 	    MTX_DEF);
 	if_attach(ifp);
@@ -1797,7 +1798,7 @@ pfsync_sendout(sc)
 
 		pfsyncstats.pfsyncs_opackets++;
 #ifdef __FreeBSD__
-		if (IF_HANDOFF(&sc->sc_ifq, m, NULL))
+		if (!IF_HANDOFF(&sc->sc_ifq, m, NULL))
 			pfsyncstats.pfsyncs_oerrors++;
 		callout_reset(&sc->sc_send_tmo, 1, pfsync_senddef, sc);
 #else
