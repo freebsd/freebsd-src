@@ -164,8 +164,7 @@ struct inpcbhead tcb;
 struct inpcbinfo tcbinfo;
 struct mtx	*tcbinfo_mtx;
 
-static void	 tcp_dooptions(struct tcpcb *, struct tcpopt *, u_char *,
-		     int, int, struct tcphdr *);
+static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
 
 static void	 tcp_pulloutofband(struct socket *,
 		     struct tcphdr *, struct mbuf *, int);
@@ -747,7 +746,7 @@ findpcb:
 		 * present in a SYN segment.  See tcp_timewait().
 		 */
 		if (thflags & TH_SYN)
-			tcp_dooptions((struct tcpcb *)NULL, &to, optp, optlen, 1, th);
+			tcp_dooptions(&to, optp, optlen, 1);
 		if (tcp_timewait((struct tcptw *)inp->inp_ppcb,
 		    &to, th, m, tlen))
 			goto findpcb;
@@ -961,7 +960,7 @@ findpcb:
 				tcp_trace(TA_INPUT, ostate, tp,
 				    (void *)tcp_saveipgen, &tcp_savetcp, 0);
 #endif
-			tcp_dooptions(tp, &to, optp, optlen, 1, th);
+			tcp_dooptions(&to, optp, optlen, 1);
 			if (!syncache_add(&inc, &to, th, &so, m))
 				goto drop;
 			if (so == NULL) {
@@ -1082,7 +1081,7 @@ after_listen:
 	 * for incoming connections is handled in tcp_syncache.
 	 * XXX this is traditional behavior, may need to be cleaned up.
 	 */
-	tcp_dooptions(tp, &to, optp, optlen, thflags & TH_SYN, th);
+	tcp_dooptions(&to, optp, optlen, thflags & TH_SYN);
 	if (thflags & TH_SYN) {
 		if (to.to_flags & TOF_SCALE) {
 			tp->t_flags |= TF_RCVD_SCALE;
@@ -1102,11 +1101,6 @@ after_listen:
 				tp->t_flags |= TF_SACK_PERMIT;
 		}
 
-	}
-
-	if (tp->sack_enable) {
-		/* Delete stale (cumulatively acked) SACK holes */
-		tcp_del_sackholes(tp, th);
 	}
 
 	/*
@@ -1153,7 +1147,7 @@ after_listen:
 			    ((!tcp_do_newreno && !tp->sack_enable &&
 			      tp->t_dupacks < tcprexmtthresh) ||
 			     ((tcp_do_newreno || tp->sack_enable) &&
-			      !IN_FASTRECOVERY(tp)))) {
+			      !IN_FASTRECOVERY(tp) && to.to_nsacks == 0))) {
 				KASSERT(headlocked, ("headlocked"));
 				INP_INFO_WUNLOCK(&tcbinfo);
 				headlocked = 0;
@@ -1824,6 +1818,12 @@ trimthenstep6:
 	case TCPS_LAST_ACK:
 	case TCPS_TIME_WAIT:
 		KASSERT(tp->t_state != TCPS_TIME_WAIT, ("timewait"));
+		if (SEQ_GT(th->th_ack, tp->snd_max)) {
+			tcpstat.tcps_rcvacktoomuch++;
+			goto dropafterack;
+		}
+		if (tp->sack_enable)
+			tcp_sack_doack(tp, &to, th->th_ack);
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			if (tlen == 0 && tiwin == tp->snd_wnd) {
 				tcpstat.tcps_rcvdupack++;
@@ -2002,10 +2002,6 @@ trimthenstep6:
 				tp->snd_cwnd = tp->snd_ssthresh;
 		}
 		tp->t_dupacks = 0;
-		if (SEQ_GT(th->th_ack, tp->snd_max)) {
-			tcpstat.tcps_rcvacktoomuch++;
-			goto dropafterack;
-		}
 		/*
 		 * If we reach this point, ACK is not a duplicate,
 		 *     i.e., it ACKs something we sent.
@@ -2560,13 +2556,11 @@ drop:
  * Parse TCP options and place in tcpopt.
  */
 static void
-tcp_dooptions(tp, to, cp, cnt, is_syn, th)
-	struct tcpcb *tp;
+tcp_dooptions(to, cp, cnt, is_syn)
 	struct tcpopt *to;
 	u_char *cp;
 	int cnt;
 	int is_syn;
-	struct tcphdr *th;
 {
 	int opt, optlen;
 
@@ -2642,10 +2636,12 @@ tcp_dooptions(tp, to, cp, cnt, is_syn, th)
 				to->to_flags |= TOF_SACK;
 			}
 			break;
-
 		case TCPOPT_SACK:
-			if (!tp || tcp_sack_option(tp, th, cp, optlen))
+			if (optlen <= 2 || (optlen - 2) % TCPOLEN_SACK != 0)
 				continue;
+			to->to_nsacks = (optlen - 2) / TCPOLEN_SACK;
+			to->to_sacks = cp + 2;
+			tcpstat.tcps_sack_rcv_blocks++;
 			break;
 		default:
 			continue;
