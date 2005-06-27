@@ -108,8 +108,19 @@ char	*strtok_r(char *, const char *, char **);
 #endif
 size_t	 strxfrm(char * __restrict, const char * __restrict, size_t);
 #if __BSD_VISIBLE
-void	 swab(const void *, void *, size_t);
-#endif
+
+#ifndef _SWAB_DECLARED
+#define _SWAB_DECLARED
+
+#ifndef _SSIZE_T_DECLARED
+typedef	__ssize_t	ssize_t;
+#define	_SSIZE_T_DECLARED
+#endif /* _SIZE_T_DECLARED */
+
+void	 swab(const void * __restrict, void * __restrict, ssize_t);
+#endif /* _SWAB_DECLARED */
+
+#endif /* __BSD_VISIBLE */
 __END_DECLS
 
 #endif /* _STRING_H_ */

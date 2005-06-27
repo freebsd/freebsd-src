@@ -32,7 +32,7 @@
 .\"     @(#)swab.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd June 26, 2005
 .Dt SWAB 3
 .Os
 .Sh NAME
@@ -41,9 +41,9 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In string.h
+.In unistd.h
 .Ft void
-.Fn swab "const void * restrict src" "void * restrict dst" "size_t len"
+.Fn swab "const void * restrict src" "void * restrict dst" "ssize_t len"
 .Sh DESCRIPTION
 The function
 .Fn swab

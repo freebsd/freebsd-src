@@ -40,10 +40,10 @@ static char sccsid[] = "@(#)swab.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <string.h>
+#include <unistd.h>
 
 void
-swab(const void * __restrict from, void * __restrict to, size_t len)
+swab(const void * __restrict from, void * __restrict to, ssize_t len)
 {
 	unsigned long temp;
 	int n;
