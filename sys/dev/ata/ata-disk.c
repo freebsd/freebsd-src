@@ -203,8 +203,7 @@ ad_reinit(device_t dev)
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_device *atadev = device_get_softc(dev);
 
-    /* if detach pending flag set, return error */
-
+    /* if detach pending, return error */
     if (((atadev->unit == ATA_MASTER) && !(ch->devices & ATA_ATA_MASTER)) ||
 	((atadev->unit == ATA_SLAVE) && !(ch->devices & ATA_ATA_SLAVE))) {
 	return 1;
@@ -327,7 +326,6 @@ ad_dump(void *arg, void *virtual, vm_offset_t physical,
 	do {
 	    DELAY(20);
 	} while (ch->hw.end_transaction(&request) == ATA_OP_CONTINUES);
-	ata_finish(&request);
     }
     if (request.status & ATA_S_ERROR)
 	return EIO;
@@ -341,14 +339,17 @@ ad_init(device_t dev)
 
     ATA_SETMODE(device_get_parent(dev), dev);
 
-    /* enable read caching */
-    ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_ENAB_RCACHE, 0, 0);
+    /* enable readahead caching */
+    if (atadev->param.support.command1 & ATA_SUPPORT_LOOKAHEAD)
+	ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_ENAB_RCACHE, 0, 0);
 
-    /* enable write caching if enabled */
-    if (ata_wc)
-	ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_ENAB_WCACHE, 0, 0);
-    else
-	ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_DIS_WCACHE, 0, 0);
+    /* enable write caching if supported and configured */
+    if (atadev->param.support.command1 & ATA_SUPPORT_WRITECACHE) {
+	if (ata_wc)
+	    ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_ENAB_WCACHE, 0, 0);
+	else
+	    ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_DIS_WCACHE, 0, 0);
+    }
 
     /* use multiple sectors/interrupt if device supports it */
     if (ad_version(atadev->param.version_major)) {
