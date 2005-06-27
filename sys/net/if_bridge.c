@@ -595,7 +595,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * If interface is marked up and it is stopped, then
 			 * start it.
 			 */
-			(*ifp->if_init)(ifp);
+			(*ifp->if_init)(sc);
 		}
 		break;
 
