@@ -373,54 +373,54 @@ tcp_sackhole_remove(struct tcpcb *tp, struct sackhole *hole)
 }
 
 /*
- * Process the TCP SACK option.  Returns 1 if tcp_dooptions() should continue,
- * and 0 otherwise, if the option was fine.  tp->snd_holes is an ordered list
- * of holes (oldest to newest, in terms of the sequence space).
+ * Process cumulative ACK and the TCP SACK option to update the scoreboard.
+ * tp->snd_holes is an ordered list of holes (oldest to newest, in terms of
+ * the sequence space).
  */
-int
-tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
+void
+tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 {
-	int tmp_olen;
-	u_char *tmp_cp;
 	struct sackhole *cur, *temp;
-	struct sackblk sack, sack_blocks[TCP_MAX_SACK], *sblkp;
+	struct sackblk sack, sack_blocks[TCP_MAX_SACK + 1], *sblkp;
 	int i, j, num_sack_blks;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
-	if (!tp->sack_enable)
-		return (1);
-	if ((th->th_flags & TH_ACK) == 0)
-		return (1);
-	/* Note: TCPOLEN_SACK must be 2*sizeof(tcp_seq) */
-	if (optlen <= 2 || (optlen - 2) % TCPOLEN_SACK != 0)
-		return (1);
-	/* If ack is outside [snd_una, snd_max], ignore the SACK options */
-	if (SEQ_LT(th->th_ack, tp->snd_una) || SEQ_GT(th->th_ack, tp->snd_max))
-		return (1);
-	tmp_cp = cp + 2;
-	tmp_olen = optlen - 2;
-	tcpstat.tcps_sack_rcv_blocks++;
-	/*
-	 * Sort the SACK blocks so we can update the scoreboard
-	 * with just one pass. The overhead of sorting upto 4 elements
-	 * is less than making upto 4 passes over the scoreboard.
-	 */
+
 	num_sack_blks = 0;
-	while (tmp_olen > 0) {
-		bcopy(tmp_cp, &sack, sizeof(sack));
+	/*
+	 * If SND.UNA will be advanced by SEG.ACK, and if SACK holes exist,
+	 * treat [SND.UNA, SEG.ACK) as if it is a SACK block.
+	 */
+	if (SEQ_LT(tp->snd_una, th_ack) && !TAILQ_EMPTY(&tp->snd_holes)) {
+		sack_blocks[num_sack_blks].start = tp->snd_una;
+		sack_blocks[num_sack_blks++].end = th_ack;
+	}
+	/*
+	 * Append received valid SACK blocks to sack_blocks[].
+	 */
+	for (i = 0; i < to->to_nsacks; i++) {
+		bcopy((to->to_sacks + i * TCPOLEN_SACK), &sack, sizeof(sack));
 		sack.start = ntohl(sack.start);
 		sack.end = ntohl(sack.end);
 		if (SEQ_GT(sack.end, sack.start) &&
 		    SEQ_GT(sack.start, tp->snd_una) &&
-		    SEQ_GT(sack.start, th->th_ack) &&
+		    SEQ_GT(sack.start, th_ack) &&
 		    SEQ_LEQ(sack.end, tp->snd_max))
 			sack_blocks[num_sack_blks++] = sack;
-		tmp_olen -= TCPOLEN_SACK;
-		tmp_cp += TCPOLEN_SACK;
 	}
+
+	/*
+	 * Return if SND.UNA is not advanced and no valid SACK block
+	 * is received.
+	 */
 	if (num_sack_blks == 0)
-		return 0;
-	/* Bubble sort */
+		return;
+
+	/*
+	 * Sort the SACK blocks so we can update the scoreboard
+	 * with just one pass. The overhead of sorting upto 4+1 elements
+	 * is less than making upto 4+1 passes over the scoreboard.
+	 */
 	for (i = 0; i < num_sack_blks; i++) {
 		for (j = i + 1; j < num_sack_blks; j++) {
 			if (SEQ_GT(sack_blocks[i].end, sack_blocks[j].end)) {
@@ -437,7 +437,7 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 		 * (from the sack blocks received) are created later below (in
 		 * the logic that adds holes to the tail of the scoreboard).
 		 */
-		tp->snd_fack = tp->snd_una;
+		tp->snd_fack = SEQ_MAX(tp->snd_una, th_ack);
 	/*
 	 * In the while-loop below, incoming SACK blocks (sack_blocks[])
 	 * and SACK holes (snd_holes) are traversed from their tails with
@@ -460,7 +460,7 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 		 */
 		temp = tcp_sackhole_insert(tp, tp->snd_fack,sblkp->start,NULL);
 		if (temp == NULL)
-			return 0;
+			return;
 		tp->snd_fack = sblkp->end;
 		/* Go to the previous sack block. */
 		sblkp--;
@@ -548,48 +548,11 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 		else
 			sblkp--;
 	}
-	return (0);
 }
 
 /*
- * Delete stale (i.e, cumulatively ack'd) holes.  Hole is deleted only if
- * it is completely acked; otherwise, tcp_sack_option(), called from
- * tcp_dooptions(), will fix up the hole.
+ * Free all SACK holes to clear the scoreboard.
  */
-void
-tcp_del_sackholes(tp, th)
-	struct tcpcb *tp;
-	struct tcphdr *th;
-{
-	INP_LOCK_ASSERT(tp->t_inpcb);
-	if (tp->sack_enable && tp->t_state != TCPS_LISTEN) {
-		/* max because this could be an older ack just arrived */
-		tcp_seq lastack = SEQ_GT(th->th_ack, tp->snd_una) ?
-			th->th_ack : tp->snd_una;
-		struct sackhole *cur = TAILQ_FIRST(&tp->snd_holes);
-		struct sackhole *prev;
-		while (cur)
-			if (SEQ_LEQ(cur->end, lastack)) {
-				prev = cur;
-				cur = TAILQ_NEXT(cur, scblink);
-				tp->sackhint.sack_bytes_rexmit -=
-					(prev->rxmit - prev->start);
-				tcp_sackhole_remove(tp, prev);
-			} else if (SEQ_LT(cur->start, lastack)) {
-				if (SEQ_LT(cur->rxmit, lastack)) {
-					tp->sackhint.sack_bytes_rexmit -=
-					    (cur->rxmit - cur->start);
-					cur->rxmit = lastack;
-				} else
-					tp->sackhint.sack_bytes_rexmit -=
-					    (lastack - cur->start);
-				cur->start = lastack;
-				break;
-			} else
-				break;
-	}
-}
-
 void
 tcp_free_sackholes(struct tcpcb *tp)
 {
