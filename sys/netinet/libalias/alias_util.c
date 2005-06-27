@@ -43,13 +43,6 @@ __FBSDID("$FreeBSD$");
 	 Added differential checksum update function.
 */
 
-/*
-Note: the checksum routines assume that the actual checksum word has
-been zeroed out.  If the checksum word is filled with the proper value,
-then these routines will give a result of zero (useful for testing
-purposes);
-*/
-
 #ifdef _KERNEL
 #include <sys/param.h>
 #else
@@ -70,6 +63,12 @@ purposes);
 #include "alias_local.h"
 #endif
 
+/*
+ * Note: the checksum routines assume that the actual checksum word has
+ * been zeroed out.  If the checksum word is filled with the proper value,
+ * then these routines will give a result of zero (useful for testing
+ * purposes);
+ */
 u_short
 LibAliasInternetChecksum(struct libalias *la __unused, u_short * ptr,
 	int nbytes)
@@ -92,6 +91,7 @@ LibAliasInternetChecksum(struct libalias *la __unused, u_short * ptr,
 	return (~sum);
 }
 
+#ifndef	_KERNEL
 u_short
 IpChecksum(struct ip *pip)
 {
@@ -144,7 +144,7 @@ TcpChecksum(struct ip *pip)
 /* Return checksum */
 	return ((u_short) ~ sum);
 }
-
+#endif	/* not _KERNEL */
 
 void
 DifferentialChecksum(u_short * cksum, void *newp, void *oldp, int n)
