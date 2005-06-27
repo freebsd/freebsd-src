@@ -155,7 +155,7 @@ Consider a system with two 4-port Ethernet boards.
 The following will cause a bridge consisting of all 8 ports with Spanning Tree
 enabled to be created:
 .Bd -literal -offset indent
-iconfig bridge0 create
+ifconfig bridge0 create
 ifconfig bridge0 \e
     addm fxp0 stp fxp0 \e
     addm fxp1 stp fxp1 \e
