@@ -32,56 +32,65 @@
 .Nd "authenticator for IEEE 802.11 networks"
 .Sh SYNOPSIS
 .Nm
-.Op Fl BddhKtv
+.Op Fl BdhKtv
 .Ar config-file ...
 .Sh DESCRIPTION
+The
 .Nm
+utility
 is an authenticator for IEEE 802.11 networks.
 It provides full support for WPA/IEEE 802.11i and
 can also act as an IEEE 802.1X Authenticator with a suitable
-backend Authentication Server (typically FreeRADIUS).
+backend Authentication Server (typically
+.Tn FreeRADIUS ) .
+The
 .Nm
+utility
 implements the authentication protocols that piggyback on top
 of the normal IEEE 802.11 protocol mechanisms.
 To use
 .Nm
-as an authenticator the underlying device must support some
+as an authenticator, the underlying device must support some
 basic functionality such as the ability to set security information
 in the 802.11 management frames.
 Beware that not all devices have this support.
 .Pp
+The
 .Nm
-is designed to be a "daemon" program that runs in the
+utility
+is designed to be a
+.Dq daemon
+program that runs in the
 background and acts as the backend component controlling
 the wireless connection.
-.Nm
-supports separate frontend programs such as the
+It supports separate frontend programs such as the
 text-based frontend,
-.Xr hostapd_cli 8
+.Xr hostapd_cli 8 .
 .Pp
 The following arguments must be specified on the command line:
 .Bl -tag -width indent
-.It Fl c Ar config-file
+.It Ar config-file
 Use the settings in the specified configuration file; the name of
 the specified wireless interface is contained in this file.
-See 
+See
 .Xr hostapd.conf 5
 for a description of the configuration file syntax.
 .Pp
-Changes to the configuration file can be reloaded by sending a 
-.Nm SIGHUP
+Changes to the configuration file can be reloaded by sending a
+.Dv SIGHUP
 to the
 .Nm
 processor or with the
-.Xr hostapd_cli
-utility, using ``hostapd_cli reconfigure''.
+.Xr hostapd_cli 8
+utility, using
+.Dq Li "hostapd_cli reconfigure" .
 .El
 .Sh OPTIONS
 The options are as follows:
 .Bl -tag -width indent
 .It Fl d
 Enable debugging messages.
-If this option is supplied twice more verbose messages are displayed.
+If this option is supplied twice, more verbose messages are displayed.
 .It Fl h
 Show help text.
 .It Fl t
@@ -96,13 +105,13 @@ Include key information in debugging output.
 .El
 .Sh SEE ALSO
 .Xr ath 4 ,
-.Xr iwi 4 ,
 .Xr ipw 4 ,
+.Xr iwi 4 ,
 .Xr ral 4 ,
 .Xr ural 4 ,
 .Xr wi 4 ,
-.Xr hostapd_cli 8 ,
 .Xr hostapd.conf 5 ,
+.Xr hostapd_cli 8 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The
@@ -114,7 +123,8 @@ The
 .Nm
 utility was written by
 .An Jouni Malinen Aq jkmaline@cc.hut.fi .
-This manual page is derived from the README file included in the
+This manual page is derived from the
+.Pa README
+file included in the
 .Nm
 distribution.
-.Sh BUGS
