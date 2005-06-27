@@ -178,9 +178,18 @@ struct libalias {
 
 /* Prototypes */
 
-/* General utilities */
+/*
+ * We do not calculate TCP checksums when libalias is a kernel
+ * module, since it has no idea about checksum offloading.
+ * If TCP data has changed, then we just set checksum to zero,
+ * and caller must recalculate it himself.
+ * In case if libalias will edit UDP data, the same approach
+ * should be used.
+ */
+#ifndef _KERNEL
 u_short		IpChecksum(struct ip *_pip);
 u_short		TcpChecksum(struct ip *_pip);
+#endif
 void
 DifferentialChecksum(u_short * _cksum, void * _new, void * _old, int _n);
 

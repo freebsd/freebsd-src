@@ -331,8 +331,11 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	pip->ip_len = new_len;
 
 	tc->th_sum = 0;
+#ifdef _KERNEL
+	tc->th_x2 = 1;
+#else
 	tc->th_sum = TcpChecksum(pip);
-
+#endif
 	return (0);
 }
 
@@ -376,7 +379,11 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 
 				/* Compute TCP checksum for revised packet */
 				tc->th_sum = 0;
+#ifdef _KERNEL
+				tc->th_x2 = 1;
+#else
 				tc->th_sum = TcpChecksum(pip);
+#endif
 			}
 		}
 		work += ntohs(msg_len);
