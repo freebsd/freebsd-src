@@ -70,6 +70,9 @@ struct csa_info {
 	u_long		pctl;
 	u_long		cctl;
 	struct csa_chinfo pch, rch;
+	u_int32_t	ac97[CS461x_AC97_NUMBER_RESTORE_REGS];
+	u_int32_t	ac97_powerdown;
+	u_int32_t	ac97_general_purpose;
 };
 
 /* -------------------------------------------------------------------- */
@@ -84,8 +87,11 @@ static void	csa_startcapturedma(struct csa_info *csa);
 static void	csa_stopplaydma(struct csa_info *csa);
 static void	csa_stopcapturedma(struct csa_info *csa);
 static int	csa_startdsp(csa_res *resp);
+static int	csa_stopdsp(csa_res *resp);
 static int	csa_allocres(struct csa_info *scp, device_t dev);
 static void	csa_releaseres(struct csa_info *scp, device_t dev);
+static void	csa_ac97_suspend(struct csa_info *csa);
+static void	csa_ac97_resume(struct csa_info *csa);
 
 static u_int32_t csa_playfmt[] = {
 	AFMT_U8,
@@ -112,16 +118,16 @@ static struct pcmchan_caps csa_reccaps = {11025, 48000, csa_recfmt, 0};
 static int
 csa_active(struct csa_info *csa, int run)
 {
-	int old, go;
+	int old;
 
 	old = csa->active;
 	csa->active += run;
 
-	if ((csa->active == 0 && old == 1) || (csa->active == 1 && old == 0)) {
-		go = csa->active;
-		if (csa->card->active)
-			return csa->card->active(go);
-	}
+	if ((csa->active > 1) || (csa->active < -1))
+		csa->active = 0;
+	if (csa->card->active)
+		return (csa->card->active(!(csa->active && old)));
+
 	return 0;
 }
 
@@ -450,6 +456,18 @@ csa_startdsp(csa_res *resp)
 	 */
 	if((ul & SPCR_RUNFR) != 0)
 		return (EAGAIN);
+
+	return (0);
+}
+
+static int
+csa_stopdsp(csa_res *resp)
+{
+	/*
+	 * Turn off the run, run at frame, and DMA enable bits in
+	 * the local copy of the SP control register.
+	 */
+	csa_writemem(resp, BA1_SPCR, 0);
 
 	return (0);
 }
@@ -833,11 +851,169 @@ pcmcsa_detach(device_t dev)
 	return 0;
 }
 
+static void
+csa_ac97_suspend(struct csa_info *csa)
+{
+	int count, i;
+	uint32_t tmp;
+
+	for (count = 0x2, i=0;
+	    (count <= CS461x_AC97_HIGHESTREGTORESTORE) &&
+	    (i < CS461x_AC97_NUMBER_RESTORE_REGS);
+	    count += 2, i++)
+		csa_readcodec(&csa->res, BA0_AC97_RESET + count, &csa->ac97[i]);
+
+	/* mute the outputs */
+	csa_writecodec(&csa->res, BA0_AC97_MASTER_VOLUME, 0x8000);
+	csa_writecodec(&csa->res, BA0_AC97_HEADPHONE_VOLUME, 0x8000);
+	csa_writecodec(&csa->res, BA0_AC97_MASTER_VOLUME_MONO, 0x8000);
+	csa_writecodec(&csa->res, BA0_AC97_PCM_OUT_VOLUME, 0x8000);
+	/* save the registers that cause pops */
+	csa_readcodec(&csa->res, BA0_AC97_POWERDOWN, &csa->ac97_powerdown);
+	csa_readcodec(&csa->res, BA0_AC97_GENERAL_PURPOSE,
+	    &csa->ac97_general_purpose);
+
+	/*
+	 * And power down everything on the AC97 codec. Well, for now,
+	 * only power down the DAC/ADC and MIXER VREFON components.
+	 * trouble with removing VREF.
+	 */
+
+	/* MIXVON */
+	csa_readcodec(&csa->res, BA0_AC97_POWERDOWN, &tmp);
+	csa_writecodec(&csa->res, BA0_AC97_POWERDOWN,
+	    tmp | CS_AC97_POWER_CONTROL_MIXVON);
+	/* ADC */
+	csa_readcodec(&csa->res, BA0_AC97_POWERDOWN, &tmp);
+	csa_writecodec(&csa->res, BA0_AC97_POWERDOWN,
+	    tmp | CS_AC97_POWER_CONTROL_ADC);
+	/* DAC */
+	csa_readcodec(&csa->res, BA0_AC97_POWERDOWN, &tmp);
+	csa_writecodec(&csa->res, BA0_AC97_POWERDOWN,
+	    tmp | CS_AC97_POWER_CONTROL_DAC);
+}
+
+static void
+csa_ac97_resume(struct csa_info *csa)
+{
+	int count, i;
+
+	/*
+	 * First, we restore the state of the general purpose register.  This
+	 * contains the mic select (mic1 or mic2) and if we restore this after
+	 * we restore the mic volume/boost state and mic2 was selected at
+	 * suspend time, we will end up with a brief period of time where mic1
+	 * is selected with the volume/boost settings for mic2, causing
+	 * acoustic feedback.  So we restore the general purpose register
+	 * first, thereby getting the correct mic selected before we restore
+	 * the mic volume/boost.
+	 */
+	csa_writecodec(&csa->res, BA0_AC97_GENERAL_PURPOSE,
+	    csa->ac97_general_purpose);
+	/*
+	 * Now, while the outputs are still muted, restore the state of power
+	 * on the AC97 part.
+	 */
+	csa_writecodec(&csa->res, BA0_AC97_POWERDOWN, csa->ac97_powerdown);
+	/*
+	 * Restore just the first set of registers, from register number
+	 * 0x02 to the register number that ulHighestRegToRestore specifies.
+	 */
+	for (count = 0x2, i=0;
+	    (count <= CS461x_AC97_HIGHESTREGTORESTORE) &&
+	    (i < CS461x_AC97_NUMBER_RESTORE_REGS);
+	    count += 2, i++)
+		csa_writecodec(&csa->res, BA0_AC97_RESET + count, csa->ac97[i]);
+}
+
+static int
+pcmcsa_suspend(device_t dev)
+{
+	struct csa_info *csa;
+	csa_res *resp;
+
+	csa = pcm_getdevinfo(dev);
+	resp = &csa->res;
+
+	csa_active(csa, 1);
+
+	/* playback interrupt disable */
+	csa_writemem(resp, BA1_PFIE,
+	    (csa_readmem(resp, BA1_PFIE) & ~0x0000f03f) | 0x00000010);
+	/* capture interrupt disable */
+	csa_writemem(resp, BA1_CIE,
+	    (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000011);
+	csa_stopplaydma(csa);
+	csa_stopcapturedma(csa);
+
+	csa_ac97_suspend(csa);
+
+	csa_resetdsp(resp);
+
+	csa_stopdsp(resp);
+	/*
+	 *  Power down the DAC and ADC.  For now leave the other areas on.
+	 */
+	csa_writecodec(&csa->res, BA0_AC97_POWERDOWN, 0x300);
+	/*
+	 *  Power down the PLL.
+	 */
+	csa_writemem(resp, BA0_CLKCR1, 0);
+	/*
+	 * Turn off the Processor by turning off the software clock
+	 * enable flag in the clock control register.
+	 */
+	csa_writemem(resp, BA0_CLKCR1,
+	    csa_readmem(resp, BA0_CLKCR1) & ~CLKCR1_SWCE);
+
+	csa_active(csa, -1);
+
+	return 0;
+}
+
+static int
+pcmcsa_resume(device_t dev)
+{
+	struct csa_info *csa;
+	csa_res *resp;
+
+	csa = pcm_getdevinfo(dev);
+	resp = &csa->res;
+
+	csa_active(csa, 1);
+
+	/* cs_hardware_init */
+	csa_stopplaydma(csa);
+	csa_stopcapturedma(csa);
+	csa_ac97_resume(csa);
+	if (csa_startdsp(resp))
+		return (ENXIO);
+	/* Enable interrupts on the part. */
+	if ((csa_readio(resp, BA0_HISR) & HISR_INTENA) == 0)
+		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
+	/* playback interrupt enable */
+	csa_writemem(resp, BA1_PFIE, csa_readmem(resp, BA1_PFIE) & ~0x0000f03f);
+	/* capture interrupt enable */
+	csa_writemem(resp, BA1_CIE,
+	    (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
+	/* cs_restart_part */
+	csa_setupchan(&csa->pch);
+	csa_startplaydma(csa);
+	csa_setupchan(&csa->rch);
+	csa_startcapturedma(csa);
+
+	csa_active(csa, -1);
+
+	return 0;
+}
+
 static device_method_t pcmcsa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe , pcmcsa_probe ),
 	DEVMETHOD(device_attach, pcmcsa_attach),
 	DEVMETHOD(device_detach, pcmcsa_detach),
+	DEVMETHOD(device_suspend, pcmcsa_suspend),
+	DEVMETHOD(device_resume, pcmcsa_resume),
 
 	{ 0, 0 },
 };
