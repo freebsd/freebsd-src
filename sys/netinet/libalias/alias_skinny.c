@@ -150,7 +150,11 @@ alias_skinny_reg_msg(struct RegisterMessage *reg_msg, struct ip *pip,
 	reg_msg->ipAddr = (u_int32_t) GetAliasAddress(lnk).s_addr;
 
 	tc->th_sum = 0;
+#ifdef _KERNEL
+	tc->th_x2 = 1;
+#else
 	tc->th_sum = TcpChecksum(pip);
+#endif
 
 	return (0);
 }
@@ -189,8 +193,11 @@ alias_skinny_port_msg(struct IpPortMessage *port_msg, struct ip *pip,
 	port_msg->stationIpPort = (u_int32_t) ntohs(GetAliasPort(lnk));
 
 	tc->th_sum = 0;
+#ifdef _KERNEL
+	tc->th_x2 = 1;
+#else
 	tc->th_sum = TcpChecksum(pip);
-
+#endif
 	return (0);
 }
 
@@ -218,8 +225,11 @@ alias_skinny_opnrcvch_ack(struct libalias *la, struct OpenReceiveChannelAck *opn
 	opnrcvch_ack->port = (u_int32_t) ntohs(GetAliasPort(opnrcv_lnk));
 
 	tc->th_sum = 0;
+#ifdef _KERNEL
+	tc->th_x2 = 1;
+#else
 	tc->th_sum = TcpChecksum(pip);
-
+#endif
 	return (0);
 }
 
