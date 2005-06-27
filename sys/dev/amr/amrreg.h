@@ -81,7 +81,7 @@
 #define AMR_LIMITCMD		120		/* maximum count of outstanding commands */
 #define AMR_MAXLD      		40
 
-#define AMR_MAX_CHANNELS	4
+#define AMR_MAX_CHANNELS	8
 #define AMR_MAX_TARGETS		15
 #define AMR_MAX_LUNS		7
 #define AMR_MAX_SCSI_CMDS	(15 * AMR_MAX_CHANNELS)	/* one for every target? */
@@ -118,6 +118,9 @@
 #define AMR_CMD_GET_MACHINEID	0x36
 #define AMR_CMD_GET_INITIATOR	0x7d	/* returns one byte */
 #define AMR_CMD_CONFIG		0xa1
+#define AMR_CONFIG_READ_NVRAM_CONFIG	0x01
+#define AMR_CONFIG_WRITE_NVRAM_CONFIG	0x0d
+#define AMR_CONFIG_ENQ3_SOLICITED_NOTIFY	0x01
 #define AMR_CONFIG_PRODUCT_INFO		0x0e
 #define AMR_CONFIG_ENQ3			0x0f
 #define AMR_CONFIG_ENQ3_SOLICITED_NOTIFY	0x01

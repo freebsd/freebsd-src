@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  * Copyright (c) 2002 Eric Moore
- * Copyright (c) 2002 LSI Logic Corporation
+ * Copyright (c) 2002, 2004 LSI Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,6 +127,8 @@ static struct
     {0x101e, 0x1960, 0},
     {0x1000, 0x1960, PROBE_SIGNATURE},
     {0x1000, 0x0407, 0},
+    {0x1000, 0x0408, 0},
+    {0x1000, 0x0409, 0},
     {0x1028, 0x000e, PROBE_SIGNATURE}, /* perc4/di i960 */
     {0x1028, 0x000f, 0}, /* perc4/di Verde*/
     {0x1028, 0x0013, 0}, /* perc4/di */
@@ -150,7 +152,7 @@ amr_pci_probe(device_t dev)
 		if ((sig != AMR_SIGNATURE_1) && (sig != AMR_SIGNATURE_2))
 		    continue;
 	    }
-	    device_set_desc(dev, "LSILogic MegaRAID");
+	    device_set_desc(dev, LSI_DESC_PCI);
 	    return(-10);	/* allow room to be overridden */
 	}
     }
@@ -181,6 +183,7 @@ amr_pci_attach(device_t dev)
      */
     command = pci_read_config(dev, PCIR_COMMAND, 1);
     if ((pci_get_device(dev) == 0x1960) || (pci_get_device(dev) == 0x0407) ||
+	(pci_get_device(dev) == 0x0408) || (pci_get_device(dev) == 0x0409) ||
 	(pci_get_device(dev) == 0x000e) || (pci_get_device(dev) == 0x000f) ||
 	(pci_get_device(dev) == 0x0013)) {
 	/*
@@ -251,7 +254,7 @@ amr_pci_attach(device_t dev)
 			   NULL, NULL, 			/* filter, filterarg */
 			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			   BUS_DMA_ALLOCNOW,		/* flags */
+			   0,				/* flags */
 			   &sc->amr_parent_dmat)) {
 	device_printf(dev, "can't allocate parent DMA tag\n");
 	goto out;
@@ -262,12 +265,12 @@ amr_pci_attach(device_t dev)
      */
     if (bus_dma_tag_create(sc->amr_parent_dmat,		/* parent */
 			   1, 0,			/* alignment, boundary */
-			   BUS_SPACE_MAXADDR,		/* lowaddr */
+			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR,		/* highaddr */
 			   NULL, NULL,			/* filter, filterarg */
 			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
-			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			   0,				/* flags */
+			   MAXBSIZE,			/* maxsegsize */
+			   BUS_DMA_ALLOCNOW,		/* flags */
 			   &sc->amr_buffer_dmat)) {
         device_printf(sc->amr_dev, "can't allocate buffer DMA tag\n");
 	goto out;
@@ -502,7 +505,7 @@ amr_sglist_map(struct amr_softc *sc)
     segsize = sizeof(struct amr_sgentry) * AMR_NSEG * AMR_MAXCMD;
     error = bus_dma_tag_create(sc->amr_parent_dmat, 	/* parent */
 			       1, 0, 			/* alignment, boundary */
-			       BUS_SPACE_MAXADDR,	/* lowaddr */
+			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
 			       segsize, 1,		/* maxsize, nsegments */
@@ -572,7 +575,7 @@ amr_setup_mbox(struct amr_softc *sc)
      */
     error = bus_dma_tag_create(sc->amr_parent_dmat,	/* parent */
 			       16, 0,			/* alignment, boundary */
-			       BUS_SPACE_MAXADDR,	/* lowaddr */
+			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
 			       sizeof(struct amr_mailbox) + 16, 1, /* maxsize, nsegments */

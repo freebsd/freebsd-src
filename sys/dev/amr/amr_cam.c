@@ -139,10 +139,12 @@ amr_cam_attach(struct amr_softc *sc)
     /*
      * Allocate a devq for all our channels combined.  This should
      * allow for the maximum number of SCSI commands we will accept
-     * at one time.
+     * at one time. Save the pointer in the softc so we can find it later
+     * during detach.
      */
     if ((devq = cam_simq_alloc(AMR_MAX_SCSI_CMDS)) == NULL)
 	return(ENOMEM);
+    sc->amr_cam_devq = devq;
 
     /*
      * Iterate over our channels, registering them with CAM
@@ -182,19 +184,22 @@ amr_cam_attach(struct amr_softc *sc)
 void
 amr_cam_detach(struct amr_softc *sc)
 {
-    int		chn, first;
+    int		chn;
 
-    for (chn = 0, first = 1; chn < sc->amr_maxchan; chn++) {
+    for (chn = 0; chn < sc->amr_maxchan; chn++) {
 
 	/*
 	 * If a sim was allocated for this channel, free it
 	 */
 	if (sc->amr_cam_sim[chn] != NULL) {
 	    xpt_bus_deregister(cam_sim_path(sc->amr_cam_sim[chn]));
-	    cam_sim_free(sc->amr_cam_sim[chn], first ? TRUE : FALSE);
-	    first = 0;
+	    cam_sim_free(sc->amr_cam_sim[chn], FALSE);
 	}
     }
+
+    /* Now free the devq */
+    if (sc->amr_cam_devq != NULL)
+	cam_simq_free(sc->amr_cam_devq);
 }
 
 /********************************************************************************
@@ -458,7 +463,7 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 	goto out;
     }
 
-    ac->ac_flags |= AMR_CMD_DATAOUT;
+    ac->ac_flags |= AMR_CMD_DATAOUT | AMR_CMD_DATAIN;
 
     ac->ac_ccb_data = csio->data_ptr;
     ac->ac_ccb_length = csio->dxfer_len;
@@ -516,7 +521,7 @@ amr_cam_complete(struct amr_command *ac)
 
     /* XXX note that we're ignoring ac->ac_status - good idea? */
 
-    debug(1, "status 0x%x  scsi_status 0x%x", ac->ac_status, ap->ap_scsi_status);
+    debug(1, "status 0x%x  AP scsi_status 0x%x", ac->ac_status, ap->ap_scsi_status);
 
     /*
      * Hide disks from CAM so that they're not picked up and treated as 'normal' disks.
@@ -579,7 +584,7 @@ amr_cam_complete_extcdb(struct amr_command *ac)
 
     /* XXX note that we're ignoring ac->ac_status - good idea? */
 
-    debug(1, "status 0x%x  scsi_status 0x%x", ac->ac_status, aep->ap_scsi_status);
+    debug(1, "status 0x%x  AEP scsi_status 0x%x", ac->ac_status, aep->ap_scsi_status);
 
     /*
      * Hide disks from CAM so that they're not picked up and treated as 'normal' disks.

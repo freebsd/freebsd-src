@@ -59,6 +59,8 @@
 # include <sys/taskqueue.h>
 #endif
 
+#define LSI_DESC_PCI "LSILogic MegaRAID 1.51"
+
 #ifdef AMR_DEBUG
 # define debug(level, fmt, args...)	do {if (level <= AMR_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);} while(0)
 # define debug_called(level)		do {if (level <= AMR_DEBUG) printf("%s: called\n", __func__);} while(0)
@@ -172,6 +174,7 @@ struct amr_softc
     bus_dmamap_t		amr_sg_dmamap;		/* map for s/g buffers */
 
     /* controller limits and features */
+    int				amr_nextslot;		/* Next slot to use for newly allocated commands */
     int				amr_maxio;		/* maximum number of I/O transactions */
     int				amr_maxdrives;		/* max number of logical drives */
     int				amr_maxchan;		/* count of SCSI channels */
@@ -186,6 +189,7 @@ struct amr_softc
 #define AMR_STATE_INTEN		(1<<2)
 #define AMR_STATE_SHUTDOWN	(1<<3)
 #define AMR_STATE_CRASHDUMP	(1<<4)
+#define AMR_STATE_QUEUE_FRZN	(1<<5)
 
     /* per-controller queues */
     struct bio_queue_head 	amr_bioq;		/* pending I/O with no commands */
@@ -199,6 +203,7 @@ struct amr_softc
     /* CAM attachments for passthrough */
     struct cam_sim		*amr_cam_sim[AMR_MAX_CHANNELS];
     TAILQ_HEAD(, ccb_hdr)	amr_cam_ccbq;
+    struct cam_devq		*amr_cam_devq;
 
     /* control device */
     dev_t			amr_dev_t;
@@ -212,6 +217,7 @@ struct amr_softc
     int				(* amr_submit_command)(struct amr_softc *sc);
     int				(* amr_get_work)(struct amr_softc *sc, struct amr_mailbox *mbsave);
     int				(*amr_poll_command)(struct amr_command *ac);
+    int				(*amr_poll_command1)(struct amr_softc *sc, struct amr_command *ac);
     int 			support_ext_cdb;	/* greater than 10 byte cdb support */
 
     /* misc glue */

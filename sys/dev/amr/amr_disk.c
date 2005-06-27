@@ -215,10 +215,9 @@ amrd_dump(dev_t dev)
     if ((error = disk_dumpcheck(dev, &count, &blkno, &secsize)))
         return(error);
 
-    amr_sc  = (struct amr_softc *)amrd_sc->amrd_controller;
-
-    if (!amrd_sc || !amr_sc)
+    if (amrd_sc == NULL)
 	return(ENXIO);
+    amr_sc  = (struct amr_softc *)amrd_sc->amrd_controller;
 
     blkcnt = howmany(PAGE_SIZE, secsize);
 
