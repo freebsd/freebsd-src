@@ -41,6 +41,9 @@ CC += -mbig-endian
 SYSTEM_LD += -EB
 .endif
 
+.if !defined(DEBUG)
+CFLAGS += -mno-apcs-frame
+.endif
 %BEFORE_DEPEND
 
 %OBJS
