@@ -38,9 +38,9 @@
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
+#include <netinet/ip_var.h>
 #include <netinet/tcp.h>
-#include <netinet/udp.h>
+#include <machine/in_cksum.h>
 
 #include <netinet/libalias/alias.h>
 
@@ -232,23 +232,66 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 	if (hook == priv->in) {
 		rval = LibAliasIn(priv->lib, c, MCLBYTES);
 		if (rval != PKT_ALIAS_OK) {
-			printf("in %u\n", rval);
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
-		m->m_pkthdr.len = m->m_len = ntohs(ip->ip_len);
-		NG_FWD_ITEM_HOOK(error, item, priv->out);
 	} else if (hook == priv->out) {
 		rval = LibAliasOut(priv->lib, c, MCLBYTES);
 		if (rval != PKT_ALIAS_OK) {
-			printf("out %u\n", rval);
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
-		m->m_pkthdr.len = m->m_len = ntohs(ip->ip_len);
-		NG_FWD_ITEM_HOOK(error, item, priv->in);
 	} else
 		panic("ng_nat: unknown hook!\n");
+
+	m->m_pkthdr.len = m->m_len = ntohs(ip->ip_len);
+
+	if ((ip->ip_off & htons(IP_OFFMASK)) == 0 &&
+	    ip->ip_p == IPPROTO_TCP) {
+		struct tcphdr 	*th = (struct tcphdr *)(ip + 1);
+
+		/*
+		 * Here is our terrible HACK.
+		 *
+		 * Sometimes LibAlias edits contents of TCP packet.
+		 * In this case it needs to recompute full TCP
+		 * checksum. However, the problem is that LibAlias
+		 * doesn't have any idea about checksum offloading
+		 * in kernel. To workaround this, we do not do
+		 * checksumming in LibAlias, but only mark the
+		 * packets in th_x2 field. If we receive a marked
+		 * packet, we calculate correct checksum for it
+		 * aware of offloading.
+		 *
+		 * Why do I do such a terrible hack instead of
+		 * recalculating checksum for each packet?
+		 * Because the previous checksum was not checked!
+		 * Recalculating checksums for EVERY packet will
+		 * hide ALL transmission errors. Yes, marked packets
+		 * still suffer from this problem. But, sigh, natd(8)
+		 * has this problem, too.
+		 */
+
+		if (th->th_x2) {
+			th->th_x2 = 0;
+			ip->ip_len = ntohs(ip->ip_len);
+			th->th_sum = in_pseudo(ip->ip_src.s_addr,
+			    ip->ip_dst.s_addr, htons(IPPROTO_TCP +
+			    ip->ip_len - (ip->ip_hl << 2)));
+	
+			if ((m->m_pkthdr.csum_flags & CSUM_TCP) == 0) {
+				m->m_pkthdr.csum_data = offsetof(struct tcphdr,
+				    th_sum);
+				in_delayed_cksum(m);
+			}
+			ip->ip_len = htons(ip->ip_len);
+		}
+	}
+
+	if (hook == priv->in)
+		NG_FWD_ITEM_HOOK(error, item, priv->out);
+	else
+		NG_FWD_ITEM_HOOK(error, item, priv->in);
 
 	return (error);
 }
