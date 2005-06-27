@@ -87,7 +87,6 @@ static int csa_teardown_intr(device_t bus, device_t child,
 			     struct resource *irq, void *cookie);
 static driver_intr_t csa_intr;
 static int csa_initialize(sc_p scp);
-static void csa_resetdsp(csa_res *resp);
 static int csa_downloadimage(csa_res *resp);
 
 static devclass_t csa_devclass;
@@ -366,15 +365,24 @@ csa_detach(device_t dev)
 static int
 csa_resume(device_t dev)
 {
-#if 0
-	/*
-	 * XXX: this cannot possibly work
-	 * needs to be properly implemented
-	 */
-	csa_detach(dev);
-	csa_attach(dev);
-#endif
-	return 0;
+	csa_res *resp;
+	sc_p scp;
+
+	scp = device_get_softc(dev);
+	resp = &scp->res;
+
+	/* Initialize the chip. */
+	if (csa_initialize(scp))
+		return (ENXIO);
+
+	/* Reset the Processor. */
+	csa_resetdsp(resp);
+
+	/* Download the Processor Image to the processor. */
+	if (csa_downloadimage(resp))
+		return (ENXIO);
+
+	return (bus_generic_resume(dev));
 }
 
 static struct resource *
@@ -794,7 +802,7 @@ csa_clearserialfifos(csa_res *resp)
 		csa_writeio(resp, BA0_CLKCR1, clkcr1);
 }
 
-static void
+void
 csa_resetdsp(csa_res *resp)
 {
 	int i;
