@@ -37,7 +37,7 @@
 .Nm nc
 .Bk -words
 .Op Fl 46DEdhklnorStUuvz
-.Op Fl e Ar IPsec policy
+.Op Fl e Ar IPsec_policy
 .Op Fl i Ar interval
 .Op Fl p Ar source_port
 .Op Fl s Ar source_ip_address
@@ -103,8 +103,12 @@ Prints out
 .Nm
 help.
 .It Fl E
-Shortcut for "-e 'in ipsec esp/transport//require' -e 'out ipsec
-esp/transport//require'", which enables IPsec ESP transport mode in both
+Shortcut for
+.Qo
+.Li "-e 'in ipsec esp/transport//require'"
+.Li "-e 'out ipsec esp/transport//require'" 
+.Qc ,
+which enables IPsec ESP transport mode in both
 directions.
 .It Fl e
 If IPsec support is available, then one can specify the IPsec policies
@@ -384,10 +388,14 @@ Open a UDP connection to port 53 of hostname:
 .Pp
 Open a TCP connection to port 42 of example.host using 10.1.2.3 as the
 IP for the local end of the connection:
-.It Li "nc -E example.host 42"
+.Pp
+.Dl "nc -E example.host 42"
+.Pp
 Open a TCP connection to port 42 of example.host using IPsec ESP for
 incoming and outgoing traffic.
-.It Li "nc -e 'out ipsec esp/transport//require' example.host 42"
+.Pp
+.Dl "nc -e 'out ipsec esp/transport//require' example.host 42"
+.Pp
 Open a TCP connection to port 42 of example.host using IPsec ESP for
 outgoing traffic only.
 .Pp
