@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2004
+.Dd June 26, 2005
 .Dt LOGIN.CONF 5
 .Os
 .Sh NAME
@@ -74,6 +74,21 @@ All names but the last should be in lower case and contain no blanks;
 the last name may contain upper case characters and blanks for
 readability.
 .Pp
+The default
+.Pa /etc/login.conf
+shipped with
+.Fx
+is an out of the box configuration.
+Whenever changes to this, or
+the user's
+.Pa ~/.login_conf ,
+file are made, the modifications will not be picked up until
+.Xr cap_mkdb 1
+is used to compile the file into a database.
+This database file will have a
+.Pa .db
+extension and is accessed through
+.Xr cgetent 3 .
 See
 .Xr getcap 3
 for a more in-depth description of the format of a capability database.
