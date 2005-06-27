@@ -546,7 +546,7 @@ delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
     cp1 = cp2 = strdup(dir);
     if (!fexists(dir)) {
 	if (!ign_err)
-	    warnx("%s '%s' doesn't really exist",
+	    warnx("%s '%s' doesn't exist",
 		isdir(dir) ? "directory" : "file", dir);
 	return !ign_err;
     }
@@ -572,7 +572,7 @@ delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
 	    return 0;
 	if (RMDIR(dir) && !ign_err) {
 	    if (!fexists(dir))
-		warnx("directory '%s' doesn't really exist", dir);
+		warnx("directory '%s' doesn't exist", dir);
 	    else
 		return 1;
 	}
