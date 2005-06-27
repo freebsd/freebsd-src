@@ -936,7 +936,11 @@ TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 
 	tc = (struct tcphdr *)ip_next(pip);
 
-	proxy_type = ProxyCheck(la, pip, &proxy_server_address, &proxy_server_port);
+	if (create)
+		proxy_type =
+		    ProxyCheck(la, pip, &proxy_server_address, &proxy_server_port);
+	else
+		proxy_type = 0;
 
 	if (proxy_type == 0 && (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY))
 		return (PKT_ALIAS_OK);
