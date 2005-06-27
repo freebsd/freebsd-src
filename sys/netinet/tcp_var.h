@@ -238,7 +238,8 @@ struct tcpopt {
 	u_int32_t	to_tsecr;
 	u_int16_t	to_mss;
 	u_int8_t	to_requested_s_scale;
-	u_int8_t	to_pad;
+	u_int8_t	to_nsacks;	/* number of SACK blocks */
+	u_char		*to_sacks;	/* pointer to the first SACK blocks */
 };
 
 #ifdef _NETINET_IN_PCB_H_
@@ -578,9 +579,8 @@ extern	u_long tcp_sendspace;
 extern	u_long tcp_recvspace;
 tcp_seq tcp_new_isn(struct tcpcb *);
 
-int	 tcp_sack_option(struct tcpcb *,struct tcphdr *,u_char *,int);
+void	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
 void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart, tcp_seq rcv_lastend);
-void	 tcp_del_sackholes(struct tcpcb *, struct tcphdr *);
 void	 tcp_clean_sackreport(struct tcpcb *tp);
 void	 tcp_sack_adjust(struct tcpcb *tp);
 struct sackhole *tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt);
