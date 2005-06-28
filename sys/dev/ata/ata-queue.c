@@ -355,6 +355,7 @@ ata_completed(void *context, int dummy)
 	    bcopy(ccb, request->u.atapi.ccb, 16);
 	    request->data = (caddr_t)&request->u.atapi.sense_data;
 	    request->bytecount = sizeof(struct atapi_sense);
+	    request->donecount = 0;
 	    request->transfersize = sizeof(struct atapi_sense);
 	    request->timeout = 5;
 	    request->flags &= (ATA_R_ATAPI | ATA_R_QUIET);
