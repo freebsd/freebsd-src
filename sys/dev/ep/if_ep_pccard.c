@@ -58,124 +58,57 @@ __FBSDID("$FreeBSD$");
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccard_cis.h>
 
-#include "card_if.h"
 #include "pccarddevs.h"
 
-static const char *ep_pccard_identify(u_short id);
+struct ep_pccard_product
+{
+	struct pccard_product prod;
+	int chipset;
+};
 
-/*
- * Initialize the device - called from Slot manager.
- */
+#define EP_CHIP_589	1	/* Classic 3c5x9 chipset */
+#define EP_CHIP_574	2	/* Roadrunner */
+
+static const struct ep_pccard_product ep_pccard_products[] = {
+	{ PCMCIA_CARD(3COM, 3C1),		EP_CHIP_589 },
+	{ PCMCIA_CARD(3COM, 3C562),		EP_CHIP_589 },
+	{ PCMCIA_CARD(3COM, 3C589),		EP_CHIP_589 },
+	{ PCMCIA_CARD(3COM, 3CXEM556),		EP_CHIP_589 },
+	{ PCMCIA_CARD(3COM, 3CXEM556INT),	EP_CHIP_589 },
+	{ PCMCIA_CARD(3COM, 3C574),		EP_CHIP_574 },
+	{ PCMCIA_CARD(3COM, 3CCFEM556BI),	EP_CHIP_574 },
+	{ { NULL } }
+};
+
+static const struct ep_pccard_product *
+ep_pccard_lookup(device_t dev)
+{
+	return ((const struct ep_pccard_product *)pccard_product_lookup(dev,
+	    (const struct pccard_product *)ep_pccard_products,
+	    sizeof(ep_pccard_products[0]), NULL));
+}
+
 static int
 ep_pccard_probe(device_t dev)
 {
-	struct ep_softc *sc = device_get_softc(dev);
-	struct ep_board *epb = &sc->epb;
-	const char *desc;
-	uint16_t result;
-	uint8_t enaddr[6];
-	int error;
+	const struct ep_pccard_product *pp;
+	int		error;
+	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
 
-	error = ep_alloc(dev);
-	if (error)
+	/* Make sure we're a network function */
+	error = pccard_get_function(dev, &fcn);
+	if (error != 0)
 		return (error);
+	if (fcn != PCCARD_FUNCTION_NETWORK)
+		return (ENXIO);
 
-	/*
-	 * It appears that the eeprom comes in two sizes.  There's
-	 * a 512 byte eeprom and a 2k eeprom.  Bit 13 of the eeprom
-	 * command register is supposed to contain the size of the
-	 * eeprom.
-	 */
-	/*
-	 * XXX - Certain (newer?) 3Com cards need epb->cmd_off ==
-	 * 2. Sadly, you need to have a correct cmd_off in order to
-	 * identify the card.  So we have to hit it with both and
-	 * cross our virtual fingers.  There's got to be a better way
-	 * to do this.  jyoung@accessus.net 09/11/1999
-	 */
+	/* Check to see if we know about this card */
+	if ((pp = ep_pccard_lookup(dev)) == NULL)
+		return EIO;
+	if (pp->prod.pp_name != NULL)
+		device_set_desc(dev, pp->prod.pp_name);
 
-	epb->cmd_off = 0;
-
-	/* XXX check return */
-	error = ep_get_e(sc, EEPROM_PROD_ID, &result);
-	epb->prod_id = result;
-
-	if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
-		if (bootverbose)
-			device_printf(dev, "Pass 1 of 2 detection "
-			    "failed (nonfatal) id 0x%x\n", epb->prod_id);
-		epb->cmd_off = 2;
-		/* XXX check return */
-		error = ep_get_e(sc, EEPROM_PROD_ID, &result);
-		epb->prod_id = result;
-		if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
-			device_printf(dev, "Unit failed to come ready or "
-			    "product ID unknown! (id 0x%x)\n", epb->prod_id);
-			ep_free(dev);
-			return (ENXIO);
-		}
-	}
-	/*
-	 * For reasons unknown, getting the MAC address here makes the
-	 * 3C574 and 3C556 families get the right MAC address later.
-	 * otherwise, the ID field is used for each of the words of the
-	 * MAC address instead of the proper one.  It is unclear why
-	 * ep_get_macaddr would have this side effect, or even what
-	 * that side effect really is.
-	 */
-	ep_get_macaddr(sc, enaddr);
-	device_set_desc(dev, desc);
-	ep_free(dev);
-	return (0);
-}
-
-static const char *
-ep_pccard_identify(u_short id)
-{
-	/* Determine device type and associated MII capabilities  */
-	switch (id) {
-	case 0x6055:	/* 3C556 */
-		return ("3Com 3C556");
-	case 0x4057:		/* 3C574 */
-		return ("3Com 3C574");
-	case 0x4b57:		/* 3C574B */
-		return ("3Com 3C574B, Megahertz 3CCFE574BT or "
-		    "Fast Etherlink 3C574-TX");
-	case 0x2b57:		/* 3CXSH572BT */
-		return ("3Com OfficeConnect 572BT");
-	case 0x9058:		/* 3C589 */
-		return ("3Com Etherlink III 3C589");
-	case 0x2056:		/* 3C562/3C563 */
-		return ("3Com 3C562D/3C563D");
-	case 0x0010:		/* 3C1 */
-		return ("3Com Megahertz C1");
-	case 0x0035:
-		return ("3Com 3CCEM556");
-	default:
-		return (NULL);
-	}
-}
-
-static int
-ep_pccard_card_attach(struct ep_board * epb)
-{
-	/* Determine device type and associated MII capabilities  */
-	switch (epb->prod_id) {
-	case 0x6055:		/* 3C556 */
-	case 0x2b57:		/* 3C572BT */
-	case 0x4057:		/* 3C574, 3C574-TX */
-	case 0x4b57:		/* 3C574B */
-		epb->mii_trans = 1;
-		return (1);
-	case 0x2056:		/* 3C562D/3C563D */
-	case 0x9058:		/* 3C589 */
-	case 0x0010:		/* 3C1 */
-	case 0x0035:		/* 3C[XC]EM556 */
-		epb->mii_trans = 0;
-		return (1);
-	default:
-		return (0);
-	}
+	return 0;
 }
 
 static int
@@ -184,34 +117,30 @@ ep_pccard_attach(device_t dev)
 	struct ep_softc *sc = device_get_softc(dev);
 	uint16_t result;
 	int error = 0;
+	const struct ep_pccard_product *pp;
+
+	if ((pp = ep_pccard_lookup(dev)) == NULL)
+		panic("ep_pccard_attach: can't find product in attach.");
 
 	if ((error = ep_alloc(dev))) {
 		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
 		goto bad;
 	}
-	sc->epb.cmd_off = 0;
 
-	/* XXX check return */
+	if (pp->chipset == EP_CHIP_589) {
+		sc->epb.mii_trans = 0;
+		sc->epb.cmd_off = 0;
+	} else {
+		sc->epb.mii_trans = 1;
+		sc->epb.cmd_off = 2;
+	}
+
 	error = ep_get_e(sc, EEPROM_PROD_ID, &result);
 	sc->epb.prod_id = result;
 
-	if (!ep_pccard_card_attach(&sc->epb)) {
-		sc->epb.cmd_off = 2;
-		error = ep_get_e(sc, EEPROM_PROD_ID, &result);
-		sc->epb.prod_id = result;
-		error = ep_get_e(sc, EEPROM_RESOURCE_CFG, &result);
-		sc->epb.res_cfg = result;
-		if (!ep_pccard_card_attach(&sc->epb)) {
-			device_printf(dev,
-			    "Probe found ID, attach failed so ignore card!\n");
-			error = ENXIO;
-			goto bad;
-		}
-	}
-	error = ep_get_e(sc, EEPROM_ADDR_CFG, &result);
-
 	/* ROM size = 0, ROM base = 0 */
 	/* For now, ignore AUTO SELECT feature of 3C589B and later. */
+	error = ep_get_e(sc, EEPROM_ADDR_CFG, &result);
 	CSR_WRITE_2(sc, EP_W0_ADDRESS_CFG, result & 0xc000);
 
 	/* 
@@ -243,8 +172,8 @@ ep_pccard_attach(device_t dev)
 		device_printf(dev, "ep_attach() failed! (%d)\n", error);
 		goto bad;
 	}
-	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE, ep_intr,
-		    sc, &sc->ep_intrhand))) {
+	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
+	    ep_intr, sc, &sc->ep_intrhand))) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
 		goto bad;
 	}
@@ -254,50 +183,11 @@ bad:
 	return (error);
 }
 
-static const struct pccard_product ep_pccard_products[] = {
-	PCMCIA_CARD(3COM, 3C1),
-	PCMCIA_CARD(3COM, 3C562),
-	PCMCIA_CARD(3COM, 3C574),	/* ROADRUNNER */
-	PCMCIA_CARD(3COM, 3C589),
-	PCMCIA_CARD(3COM, 3CCFEM556BI),	/* ROADRUNNER */
-	PCMCIA_CARD(3COM, 3CXEM556),
-	PCMCIA_CARD(3COM, 3CXEM556INT),
-	{NULL}
-};
-
-static int
-ep_pccard_match(device_t dev)
-{
-	const struct pccard_product *pp;
-	int		error;
-	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
-
-	/* Make sure we're a network function */
-	error = pccard_get_function(dev, &fcn);
-	if (error != 0)
-		return (error);
-	if (fcn != PCCARD_FUNCTION_NETWORK)
-		return (ENXIO);
-
-	if ((pp = pccard_product_lookup(dev, ep_pccard_products,
-		    sizeof(ep_pccard_products[0]), NULL)) != NULL) {
-		if (pp->pp_name != NULL)
-			device_set_desc(dev, pp->pp_name);
-		return 0;
-	}
-	return EIO;
-}
-
 static device_method_t ep_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe, pccard_compat_probe),
-	DEVMETHOD(device_attach, pccard_compat_attach),
+	DEVMETHOD(device_probe, ep_pccard_probe),
+	DEVMETHOD(device_attach, ep_pccard_attach),
 	DEVMETHOD(device_detach, ep_detach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match, ep_pccard_match),
-	DEVMETHOD(card_compat_probe, ep_pccard_probe),
-	DEVMETHOD(card_compat_attach, ep_pccard_attach),
 
 	{0, 0}
 };
