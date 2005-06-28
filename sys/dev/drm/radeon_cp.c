@@ -2031,6 +2031,11 @@ int radeon_preinit(struct drm_device *dev, unsigned long flags)
 		break;
 	}
 
+	/* Disable initmaps because it is broken on FreeBSD, and results in
+	 * crashes on startup for some.  The proper fix will involve being
+	 * smarter about allocating PCI resources.
+	 */
+	/*
 	ret = drm_initmap(dev, drm_get_resource_start(dev, 2),
 			  drm_get_resource_len(dev, 2), 2, _DRM_REGISTERS,
 			  _DRM_READ_ONLY);
@@ -2042,6 +2047,7 @@ int radeon_preinit(struct drm_device *dev, unsigned long flags)
 			  _DRM_WRITE_COMBINING);
 	if (ret != 0)
 		return ret;
+	*/
 
 	/* The original method of detecting AGP is known to not work correctly,
 	 * according to Mike Harris.  The solution is to walk the capabilities
