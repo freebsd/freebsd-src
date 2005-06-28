@@ -169,10 +169,16 @@ gre_clone_create(ifc, unit)
 
 	sc = malloc(sizeof(struct gre_softc), M_GRE, M_WAITOK | M_ZERO);
 
-	if_initname(GRE2IFP(sc), ifc->ifc_name, unit);
+	GRE2IFP(sc) = if_alloc(IFT_TUNNEL);
+	if (GRE2IFP(sc) == NULL) {
+		free(sc, M_GRE);
+		return (ENOSPC);
+	}
+
 	GRE2IFP(sc)->if_softc = sc;
+	if_initname(GRE2IFP(sc), ifc->ifc_name, unit);
+
 	GRE2IFP(sc)->if_snd.ifq_maxlen = IFQ_MAXLEN;
-	GRE2IFP(sc)->if_type = IFT_TUNNEL;
 	GRE2IFP(sc)->if_addrlen = 0;
 	GRE2IFP(sc)->if_hdrlen = 24; /* IP + GRE */
 	GRE2IFP(sc)->if_mtu = GREMTU;
