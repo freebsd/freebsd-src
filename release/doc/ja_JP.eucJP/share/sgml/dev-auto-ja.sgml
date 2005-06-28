@@ -64,6 +64,7 @@
 <!ENTITY hwlist.1626a467342e2a1f87355565ce2846c8 '主要なリビジョン&#40;2&#46;x&#44; 3&#46;x&#44; 4&#46;x および 5&#46;x&#41; のファームウェアすべてに対応していますが、コントローラで利用可能な最新のファームウェアに更新することをおすすめします。ここに書かれていない Mylex コントローラの互換品もおそらく動作すると思われますが、試験はされていません。'>
 <!ENTITY hwlist.b2d78d641e881d4993824d51db88272b '&man.mly.4; ドライバが対応しているコントローラは以下のとおりです。'>
 <!ENTITY hwlist.a5109377f7126bd130f0b7dde68a3665 'ここに書かれていない Mylex コントローラの互換品もおそらく動作すると思われますが、試験されていません。'>
+<!ENTITY hwlist.0fecf03242b8c2b439f69e438051ac74 '&man.mn.4; ドライバは Siemens Easy321&#45;R1 E1&#47;T1 リファレンス設計カードに対応しています。'>
 <!ENTITY hwlist.2aba100fbd3734b5402a30fc860ded2c '&man.mpt.4; ドライバが対応しているコントローラは以下のとおりです。'>
 <!ENTITY hwlist.8d40cd179c0ba2baab86acc5651afd2a '&man.mpt.4; ドライバは多くのシステムが内蔵している SCSI コントローラチップに対応しています。'>
 <!ENTITY hwlist.0a0d6824695fb31496685bb3c197f660 '&man.my.4; ドライバは Myson チップセットベースのさまざまな NIC に対応しています。対応しているモデルは以下のとおりです。'>
@@ -75,6 +76,7 @@
 <!ENTITY hwlist.768431e3e056920765911205a692d4f6 '&man.nge.4; ドライバは National Semiconductor DP83820 および DP83821 ベースの Gigabit Ethernet アダプタに対応しています。'>
 <!ENTITY hwlist.3f1863e7149bd75205c4c470508849ab '&man.nsp.4; ドライバが対応しているコントローラは以下のとおりです。'>
 <!ENTITY hwlist.54163214a88d94b4fbb628765a6d15e9 '&man.ohci.4; ドライバは OHCI v1&#46;0 準拠のすべてのコントローラに対応しています。'>
+<!ENTITY hwlist.2a4b7e254ff87dc83da1876043a7c007 '&man.sound.4; ドライバは以下のサウンドカードに対応しています。'>
 <!ENTITY hwlist.532133face40ce3dfa3792b6090bf113 '&man.pcn.4; ドライバは AMD PCnet&#47;FAST&#44; PCnet&#47;FAST&#43;&#44; PCnet&#47;FAST III&#44; PCnet&#47;PRO および PCnet&#47;Home Fast Ethernet チップベースのアダプタおよび組み込みコントローラに対応しています。'>
 <!ENTITY hwlist.b89a4fb9f0c2a59c991af44d778596e1 '&man.pst.4; ドライバは Promise Supertrak SX6000 ATA ハードウェア RAID コントローラに対応しています。'>
 <!ENTITY hwlist.c2875a10d870ef5948a306802a3eb27c '&man.rc.4; ドライバは SDL Communications RISCom&#47;8 ボードに対応しています。'>
@@ -86,27 +88,27 @@
 <!ENTITY hwlist.97e48240aa7ee522f8168bb0ad1fe6d1 '&man.sis.4; ドライバは Silicon Integrated Systems SiS 900 および SiS 7016 ベースの Fast Ethernet アダプタおよび組み込みコントローラ、National Semiconductor DP83815 &#40;MacPhyter&#41; チップベースの Fast Ethernet アダプタに対応しています。対応しているアダプタは以下のとおりです。'>
 <!ENTITY hwlist.e0988c23826ec248e8efc038dfbf111f '&man.sk.4; ドライバが対応しているアダプタは以下のとおりです。'>
 <!ENTITY hwlist.ee021ce8a0d8bd78a6e9e7200851181a '&man.sn.4; ドライバは SMC9xxx ベースの ISA および PCMCIA カードに対応しています。'>
-<!ENTITY hwlist.23329d3c1cef6e53f40bcc656f94a6b9 '&man.snd.ad1816.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
-<!ENTITY hwlist.fe73d6ddaab51bcc8cb7f9e829113a73 '&man.snd.als4000.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
-<!ENTITY hwlist.ae0e3e32462badacd47736e322f92b48 '&man.snd.cmi.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
-<!ENTITY hwlist.f694c5b8f37f6a18b7f8261ac68871da '&man.snd.cs4281.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
-<!ENTITY hwlist.e690e006a7215ae8c14b686364272b6a '&man.snd.csa.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.ad34498f56b94bcff7dc9243db266e4c '&man.snd.ad1816.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.7b418bf21d9b6039934a1b926b093195 '&man.snd.als4000.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.5f7f9afb4483ff1bdff1219214a9073c '&man.snd.cmi.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.b4e3a832b1a55045a38edc20e6b4df3a '&man.snd.cs4281.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.9b49445e7dfa4e5f3e95a24a2a9bbf5c '&man.snd.csa.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
 <!ENTITY hwlist.e2a200b134158f3d54346eddf3e05244 'いくつかのオンボードの CS4610 チップは CS4297 AC97 ではなく CS423x ISA コーデックとともに搭載されています。&man.snd.csa.4; ドライバはこのような構成にまだ対応していません。'>
-<!ENTITY hwlist.6acf6633674229b843e9f9f8adc0ed30 '&man.snd.ds1.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
-<!ENTITY hwlist.047130f4ab914f933c5e55ff5247f697 '&man.snd.emu10k1.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
-<!ENTITY hwlist.4761928e208651a00bb75cb4e5b4ae5b '&man.snd.es137x.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.f1b7c2bba461df0c26bd84552c3741a8 '&man.snd.ds1.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.07cc6d1fc2e38416cea9200af6b1dba0 '&man.snd.emu10k1.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.07a14d75c09e9c0922d984454e495dd4 '&man.snd.es137x.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
 <!ENTITY hwlist.fff1deab29df8dc27eb9338f645fd40a 'ES1370&#47;1371 チップセットを搭載したすべてのカード &#40;SoundBlaster PCI128 を含む&#41;'>
-<!ENTITY hwlist.394c7272b9c9770e7f705772b41ff3cb '&man.snd.ess.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.056d674fe1950d6be72d83c3ebbefdf5 '&man.snd.ess.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
 <!ENTITY hwlist.9f2626b70240b74e01ca238a12691123 '&man.snd.fm801.4; ドライバは以下のチップセットベースのオーディオデバイスに対応しています。'>
-<!ENTITY hwlist.607f17c8d900df1b30109708e63ccb54 '&man.snd.gusc.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.ce48e0b855b3c5375c1edbe1ddb7051e '&man.snd.gusc.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
 <!ENTITY hwlist.f6d273d0d630af06cc5ddfe89dfb7a7b '&man.snd.ich.4; ドライバが対応しているオーディオデバイスは以下のとおりです。'>
 <!ENTITY hwlist.5f5766c47253be04b5ab28afce3cd619 '&man.snd.maestro.4; ドライバが対応している PCI サウンドカードは以下のとおりです。'>
 <!ENTITY hwlist.6954a1334ef0d843ba16839865201a5d '&man.snd.maestro3.4; ドライバが対応しているオーディオデバイスは以下のとおりです。'>
 <!ENTITY hwlist.859d83a93125cf7c4dd8b14c5a62eb69 '&man.snd.neomagic.4; ドライバが対応しているオーディオデバイスは以下のとおりです。'>
-<!ENTITY hwlist.91f876a63aab71c48e42eae223bcc943 '&man.snd.sbc.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
-<!ENTITY hwlist.3afa5dfff8edecfa593432eaa480848a '&man.snd.solo.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.b7b5ac30bf408e9efa9eae4c307a3564 '&man.snd.sbc.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
+<!ENTITY hwlist.5c8a068e76981ba8293f414b9f43c29a '&man.snd.solo.4; ドライバが対応しているサウンドカードは以下のとおりです。'>
 <!ENTITY hwlist.8ac14722508211127d79a2e3b6d109ac 'ES18xx チップセットを搭載した古い ESS ISA カードについては snd&#95;ess&#40;4&#41; もしくは snd&#95;sbc&#40;4&#41; ドライバが対応していることに注意してください。'>
-<!ENTITY hwlist.5a5c5b85e01adc2f0accbf531676d0b3 'The &man.snd.via8233.4; ドライバが対応しているオーディオチップセットは以下のとおりです。'>
+<!ENTITY hwlist.5a5c5b85e01adc2f0accbf531676d0b3 '&man.snd.via8233.4; ドライバが対応しているオーディオチップセットは以下のとおりです。'>
 <!ENTITY hwlist.38ac33fe29d9215e56f0c4e8f42b2d6d '&man.snd.via82c686.4; ドライバは以下のチップセットベースのオーディオデバイスに対応しています。'>
 <!ENTITY hwlist.e688a5843719661e200e677735d50993 '&man.snd.vibes.4; ドライバは以下のチップセットベースのオーディオデバイスに対応しています。'>
 <!ENTITY hwlist.ccdfcc794c876cba45c1a81a7ea2e3fe '&man.ste.4; ドライバは Sundance Technologies ST201 ベースの Fast Ethernet アダプタおよび組み込みコントローラに対応しています。'>
@@ -145,7 +147,6 @@
 <!ENTITY hwlist.0b207852263019bee046e75a21f299e4 '&man.wb.4; ドライバは Winbond W89C840F ベースの Fast Ethernet アダプタおよび組み込みコントローラに対応しています。'>
 <!ENTITY hwlist.ff13412c53303e70619678cebf8b381c '&man.xe.4; ドライバが対応しているカードは以下のとおりです。'>
 <!ENTITY hwlist.06f2eb1583547b1e0e64977e01142ca4 '同じハードウェアを使った類似のデバイスも動作する可能性があります。'>
-
 <!ENTITY hwlist.e31f309a17441e7733a3b69a99629bbc '&man.xl.4; ドライバが対応しているハードウェアは以下のとおりです。'>
 <!ENTITY hwlist.2f35a085828ff272e076d366b406aacb '3C656 ファミリ CardBus カードおよび 3C556 ファミリ MiniPCI カードはプロプライエタリなモデムを内蔵しています。&man.xl.4; ドライバおよび他のドライバはこのモデムに対応していません。'>
 <!ENTITY hwlist.2832c80059358727b41e0b81dbc74776 '&man.aic.4; ドライバが対応しているアダプタは以下のとおりです。'>

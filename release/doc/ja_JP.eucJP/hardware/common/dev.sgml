@@ -27,7 +27,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.227.2.26.2.2
+        Original revision: 1.227.2.31
 -->
 
 <sect1 id="support">
@@ -719,57 +719,52 @@
 
   </sect2>
 
-  <sect2 id="audio">
-    <title>オーディオデバイス</title>
+  <sect2 id="sound">
+    <title>サウンドデバイス</title>
+
+    &hwlist.sound;
 
     &hwlist.snd.ad1816;
 
-    &hwlist.snd.cs4281;
+    &hwlist.snd.als4000;
 
-    &hwlist.snd.solo;
-
-    &hwlist.snd.sbc;
+    &hwlist.snd.audiocs;
 
     &hwlist.snd.cmi;
 
+    &hwlist.snd.cs4281;
+
     &hwlist.snd.csa;
+
+    &hwlist.snd.ds1;
+
+    &hwlist.snd.emu10k1;
 
     &hwlist.snd.es137x;
 
     &hwlist.snd.ess;
 
-    &hwlist.snd.maestro;
-
-    &hwlist.snd.maestro3;
-
-    &hwlist.snd.als4000;
-
     &hwlist.snd.fm801;
 
     &hwlist.snd.gusc;
 
-    <para arch="i386,amd64">Intel 443MX, 810, 815, 815E 内蔵のサウンドデバイス
-      (&man.pcm.4; ドライバ)</para>
+    &hwlist.snd.ich;
 
-    <para arch="i386,alpha,amd64">MSS/WSS 互換 DSP (&man.pcm.4; ドライバ)</para>
+    &hwlist.snd.maestro;
+
+    &hwlist.snd.maestro3;
 
     &hwlist.snd.neomagic;
 
-    <para arch="i386,amd64">OPTi 931/82C931 (&man.pcm.4; ドライバ)</para>
+    &hwlist.snd.sbc;
 
-    &hwlist.snd.vibes;
-
-    &hwlist.snd.emu10k1;
-
-    <para arch="i386,amd64">Trident 4DWave DX/NX (&man.pcm.4; ドライバ)</para>
+    &hwlist.snd.solo;
 
     &hwlist.snd.via8233;
 
     &hwlist.snd.via82c686;
 
-    &hwlist.snd.ds1;
-
-    &hwlist.snd.ich;
+    &hwlist.snd.vibes;
 
     <para arch="pc98">NEC PC-9801-73, 86 およびその互換品 (nss ドライバ)
       <itemizedlist>
