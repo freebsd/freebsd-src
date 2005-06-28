@@ -49,7 +49,7 @@ struct ucred {
 	short	cr_ngroups;		/* number of groups */
 	gid_t	cr_groups[NGROUPS];	/* groups */
 	gid_t	cr_rgid;		/* real group id */
-	gid_t	cr_svgid;		/* saved user id */
+	gid_t	cr_svgid;		/* saved group id */
 	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
 	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
 	struct prison	*cr_prison;	/* jail(2) */
