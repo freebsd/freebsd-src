@@ -216,7 +216,7 @@ int
 _kvm_kvatop(kd, va, pa)
 	kvm_t *kd;
 	u_long va;
-	u_long *pa;
+	uint64_t *pa;
 {
 	struct vmstate *vm;
 	int s;
