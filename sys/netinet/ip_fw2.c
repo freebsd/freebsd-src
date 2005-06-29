@@ -189,9 +189,12 @@ struct table_entry {
 };
 
 #define	IPFW_TABLES_MAX		128
-static struct {
+static struct ip_fw_table {
 	struct radix_node_head	*rnh;
 	int			modified;
+	in_addr_t		last_addr;
+	int			last_match;
+	u_int32_t		last_value;
 } ipfw_tables[IPFW_TABLES_MAX];
 
 static int fw_debug = 1;
@@ -1647,36 +1650,36 @@ static int
 lookup_table(u_int16_t tbl, in_addr_t addr, u_int32_t *val)
 {
 	struct radix_node_head *rnh;
+	struct ip_fw_table *table;
 	struct table_entry *ent;
 	struct sockaddr_in sa;
-	static in_addr_t last_addr;
-	static int last_tbl;
-	static int last_match;
-	static u_int32_t last_value;
+	int last_match;
 
 	if (tbl >= IPFW_TABLES_MAX)
 		return (0);
-	if (tbl == last_tbl && addr == last_addr &&
-	    !ipfw_tables[tbl].modified) {
+	table = &ipfw_tables[tbl];
+	rnh = table->rnh;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	if (addr == table->last_addr && !table->modified) {
+		last_match = table->last_match;
 		if (last_match)
-			*val = last_value;
+			*val = table->last_value;
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 		return (last_match);
 	}
-	rnh = ipfw_tables[tbl].rnh;
+	table->modified = 0;
 	sa.sin_len = 8;
 	sa.sin_addr.s_addr = addr;
-	RADIX_NODE_HEAD_LOCK(rnh);
-	ipfw_tables[tbl].modified = 0;
 	ent = (struct table_entry *)(rnh->rnh_lookup(&sa, NULL, rnh));
-	RADIX_NODE_HEAD_UNLOCK(rnh);
-	last_addr = addr;
-	last_tbl = tbl;
+	table->last_addr = addr;
 	if (ent != NULL) {
-		last_value = *val = ent->value;
-		last_match = 1;
+		table->last_value = *val = ent->value;
+		table->last_match = 1;
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 		return (1);
 	}
-	last_match = 0;
+	table->last_match = 0;
+	RADIX_NODE_HEAD_UNLOCK(rnh);
 	return (0);
 }
 
