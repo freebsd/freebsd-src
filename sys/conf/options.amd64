@@ -57,4 +57,4 @@ PSM_DEBUG		opt_psm.h
 DEV_ATPIC		opt_atpic.h
 
 # Debugging
-KDB_STOP_NMI		opt_global.h
+KDB_STOP_NMI		opt_kdb.h

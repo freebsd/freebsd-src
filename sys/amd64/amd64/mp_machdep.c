@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_cpu.h"
+#include "opt_kdb.h"
 #include "opt_kstack_pages.h"
 #include "opt_mp_watchdog.h"
 #include "opt_sched.h"
