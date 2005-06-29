@@ -8,6 +8,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050629:	p3	FreeBSD-SA-05:13.ipfw, FreeBSD-SA-05:14.bzip2,
+			FreeBSD-SA-05:15.tcp
+	Correct ipfw packet matching errors with address tables.
+
+	Correct bzip2 denial of service and permission race vulnerabilities.
+
+	Correct TCP connection stall denial of service vulnerabilities.
+
 20050608:	p2	FreeBSD-SA-05:10.tcpdump, FreeBSD-SA-05:11.gzip
 	Correct several denial-of-service vulnerabilities in tcpdump.
 
