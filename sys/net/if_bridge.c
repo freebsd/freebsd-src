@@ -1,4 +1,4 @@
-/*	$NetBSD: if_bridge.c,v 1.24 2004/04/21 19:10:31 itojun Exp $	*/
+/*	$NetBSD: if_bridge.c,v 1.31 2005/06/01 19:45:34 jdc Exp $	*/
 
 /*
  * Copyright 2001 Wasabi Systems, Inc.
@@ -2178,7 +2178,7 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 	struct ether_header *eh1, eh2;
 	struct ip_fw_args args;
 	struct ip *ip;
-	struct llc llc;
+	struct llc llc1;
 	u_int16_t ether_type;
 
 	snap = 0;
@@ -2200,13 +2200,13 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 	 * Check for SNAP/LLC.
 	 */
 	if (ether_type < ETHERMTU) {
-		struct llc *llc = (struct llc *)(eh1 + 1);
+		struct llc *llc2 = (struct llc *)(eh1 + 1);
 
 		if ((*mp)->m_len >= ETHER_HDR_LEN + 8 &&
-		    llc->llc_dsap == LLC_SNAP_LSAP &&
-		    llc->llc_ssap == LLC_SNAP_LSAP &&
-		    llc->llc_control == LLC_UI) {
-			ether_type = htons(llc->llc_un.type_snap.ether_type);
+		    llc2->llc_dsap == LLC_SNAP_LSAP &&
+		    llc2->llc_ssap == LLC_SNAP_LSAP &&
+		    llc2->llc_control == LLC_UI) {
+			ether_type = htons(llc2->llc_un.type_snap.ether_type);
 			snap = 1;
 		}
 	}
@@ -2245,7 +2245,7 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 
 	/* Strip off snap header, if present */
 	if (snap) {
-		m_copydata(*mp, 0, sizeof(struct llc), (caddr_t) &llc);
+		m_copydata(*mp, 0, sizeof(struct llc), (caddr_t) &llc1);
 		m_adj(*mp, sizeof(struct llc));
 	}
 
@@ -2382,7 +2382,7 @@ ipfwpass:
 		M_PREPEND(*mp, sizeof(struct llc), M_DONTWAIT);
 		if (*mp == NULL)
 			return error;
-		bcopy(&llc, mtod(*mp, caddr_t), sizeof(struct llc));
+		bcopy(&llc1, mtod(*mp, caddr_t), sizeof(struct llc));
 	}
 
 	M_PREPEND(*mp, ETHER_HDR_LEN, M_DONTWAIT);
