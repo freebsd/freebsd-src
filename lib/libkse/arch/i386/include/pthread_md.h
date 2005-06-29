@@ -40,8 +40,6 @@
 extern int _thr_setcontext(mcontext_t *, intptr_t, intptr_t *);
 extern int _thr_getcontext(mcontext_t *);
 
-extern int _thr_using_setbase;
-
 #define	KSE_STACKSIZE		16384
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
@@ -60,7 +58,6 @@ struct pthread;
 struct kcb {
 	struct tcb		*kcb_curtcb;
 	struct kcb		*kcb_self;	/* self reference */
-	int			kcb_ldt;
 	struct kse		*kcb_kse;
 	struct kse_mailbox	kcb_kmbx;
 };
@@ -154,15 +151,7 @@ void		_kcb_dtor(struct kcb *);
 static __inline void
 _kcb_set(struct kcb *kcb)
 {
-	int val;
-
-	if (_thr_using_setbase == 1) {
-		i386_set_gsbase(kcb);
-	} else {
-		val = (kcb->kcb_ldt << 3) | 7;
-		__asm __volatile("movl %0, %%gs" : : "r" (val));
-	}
-
+	i386_set_gsbase(kcb);
 }
 
 /* Get the current kcb. */

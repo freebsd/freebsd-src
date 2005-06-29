@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <machine/cpufunc.h>
-#include <machine/segments.h>
 #include <machine/sysarch.h>
 
 #include <unistd.h>
@@ -41,8 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include "rtld_tls.h"
 #include "pthread_md.h"
-
-int _thr_using_setbase;
 
 struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
@@ -78,46 +75,14 @@ _tcb_dtor(struct tcb *tcb)
 struct kcb *
 _kcb_ctor(struct kse *kse)
 {
-	union descriptor ldt;
 	void *base;
 	struct kcb *kcb;
-	int error;
 
 	kcb = malloc(sizeof(struct kcb));
 	if (kcb != NULL) {
 		bzero(kcb, sizeof(struct kcb));
 		kcb->kcb_self = kcb;
 		kcb->kcb_kse = kse;
-		switch (_thr_using_setbase) {
-		case 1:	/* use i386_set_gsbase() in _kcb_set */
-			kcb->kcb_ldt = -1;
-			break;
-		case 0:	/* Untested, try the get/set_gsbase routines once */
-			error = i386_get_gsbase(&base);
-			if (error == 0) {
-				_thr_using_setbase = 1;
-				break;
-			}
-			/* fall through */
-		case 2:	/* Use the user_ldt code, we must have an old kernel */
-			_thr_using_setbase = 2;
-			ldt.sd.sd_hibase = (unsigned int)kcb >> 24;
-			ldt.sd.sd_lobase = (unsigned int)kcb & 0xFFFFFF;
-			ldt.sd.sd_hilimit = (sizeof(struct kcb) >> 16) & 0xF;
-			ldt.sd.sd_lolimit = sizeof(struct kcb) & 0xFFFF;
-			ldt.sd.sd_type = SDT_MEMRWA;
-			ldt.sd.sd_dpl = SEL_UPL;
-			ldt.sd.sd_p = 1;
-			ldt.sd.sd_xx = 0;
-			ldt.sd.sd_def32 = 1;
-			ldt.sd.sd_gran = 0;	/* no more than 1M */
-			kcb->kcb_ldt = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
-			if (kcb->kcb_ldt < 0) {
-				free(kcb);
-				return (NULL);
-			}
-			break;
-		}
 	}
 	return (kcb);
 }
@@ -125,9 +90,12 @@ _kcb_ctor(struct kse *kse)
 void
 _kcb_dtor(struct kcb *kcb)
 {
-	if (kcb->kcb_ldt >= 0) {
-		i386_set_ldt(kcb->kcb_ldt, NULL, 1);
-		kcb->kcb_ldt = -1;	/* just in case */
-	}
 	free(kcb);
+}
+
+int
+i386_set_gsbase(void *addr)
+{
+
+	return (sysarch(I386_SET_GSBASE, &addr));
 }
