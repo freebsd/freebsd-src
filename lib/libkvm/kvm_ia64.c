@@ -85,7 +85,7 @@ _kvm_maphdrs(kvm_t *kd, size_t sz)
  * Translate a physical memory address to a file-offset in the crash-dump.
  */
 static size_t
-_kvm_pa2off(kvm_t *kd, uint64_t pa, u_long *ofs, size_t pgsz)
+_kvm_pa2off(kvm_t *kd, uint64_t pa, off_t *ofs, size_t pgsz)
 {
 	Elf64_Ehdr *e = kd->vmst->mmapbase;
 	Elf64_Phdr *p = (Elf64_Phdr*)((char*)e + e->e_phoff);
@@ -171,7 +171,7 @@ _kvm_initvtop(kvm_t *kd)
 }
 
 int
-_kvm_kvatop(kvm_t *kd, u_long va, u_long *pa)
+_kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 {
 	struct ia64_lpte pte;
 	uint64_t pgaddr, ptaddr;

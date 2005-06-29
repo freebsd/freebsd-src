@@ -68,7 +68,7 @@ int
 _kvm_kvatop(kd, va, pa)
 	kvm_t *kd;
 	u_long va;
-	u_long *pa;
+	off_t *pa;
 {
 	_kvm_err(kd, 0, "vatop not yet implemented!");
 	return 0;
