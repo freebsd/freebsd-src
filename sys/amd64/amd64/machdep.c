@@ -159,9 +159,11 @@ long Maxmem = 0;
 long realmem = 0;
 
 vm_paddr_t phys_avail[20];
+vm_paddr_t dump_avail[20];
 
 /* must be 2 less so 0 0 can signal end of chunks */
-#define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
+#define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(phys_avail[0])) - 2)
+#define DUMP_AVAIL_ARRAY_END ((sizeof(dump_avail) / sizeof(dump_avail[0])) - 2)
 
 struct kva_md_info kmi;
 
@@ -864,7 +866,7 @@ u_int basemem;
 static void
 getmemsize(caddr_t kmdp, u_int64_t first)
 {
-	int i, physmap_idx, pa_indx;
+	int i, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	u_long physmem_tunable;
 	pt_entry_t *pte;
@@ -978,8 +980,10 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 */
 	physmap[0] = PAGE_SIZE;		/* mask off page 0 */
 	pa_indx = 0;
+	da_indx = 1;
 	phys_avail[pa_indx++] = physmap[0];
 	phys_avail[pa_indx] = physmap[0];
+	dump_avail[da_indx] = physmap[0];
 	pte = CMAP1;
 
 	/*
@@ -1000,22 +1004,23 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 		if (physmap[i + 1] < end)
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
-			int tmp, page_bad;
+			int tmp, page_bad, full;
 			int *ptr = (int *)CADDR1;
 
+			full = FALSE;
 			/*
 			 * block out kernel memory as not available.
 			 */
 			if (pa >= 0x100000 && pa < first)
-				continue;
+				goto do_dump_avail;
 
- 			/*
- 			 * block out dcons buffer
- 			 */
- 			if (dcons_addr > 0
- 			    && pa >= trunc_page(dcons_addr)
- 			    && pa < dcons_addr + dcons_size)
- 				continue;
+			/*
+			 * block out dcons buffer
+			 */
+			if (dcons_addr > 0
+			    && pa >= trunc_page(dcons_addr)
+			    && pa < dcons_addr + dcons_size)
+				goto do_dump_avail;
 
 			page_bad = FALSE;
 
@@ -1079,12 +1084,28 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 					printf(
 		"Too many holes in the physical address space, giving up\n");
 					pa_indx--;
-					break;
+					full = TRUE;
+					goto do_dump_avail;
 				}
 				phys_avail[pa_indx++] = pa;	/* start */
 				phys_avail[pa_indx] = pa + PAGE_SIZE; /* end */
 			}
 			physmem++;
+do_dump_avail:
+			if (dump_avail[da_indx] == pa) {
+				dump_avail[da_indx] += PAGE_SIZE;
+			} else {
+				da_indx++;
+				if (da_indx == DUMP_AVAIL_ARRAY_END) {
+					da_indx--;
+					goto do_next;
+				}
+				dump_avail[da_indx++] = pa; /* start */
+				dump_avail[da_indx] = pa + PAGE_SIZE; /* end */
+			}
+do_next:
+			if (full)
+				break;
 		}
 	}
 	*pte = 0;
