@@ -99,6 +99,7 @@
       give any guarantee of the above statement.
 --*/
 
+/* $FreeBSD$ */
 
 
 /*----------------------------------------------------*/
@@ -312,6 +313,7 @@ static void    compressedStreamEOF   ( void )    NORETURN;
 
 static void    copyFileName ( Char*, Char* );
 static void*   myMalloc     ( Int32 );
+static int     applySavedFileAttrToOutputFile ( int fd );
 
 
 
@@ -457,6 +459,10 @@ void compressStream ( FILE *stream, FILE *zStream )
    ret = fflush ( zStream );
    if (ret == EOF) goto errhandler_io;
    if (zStream != stdout) {
+      int fd = fileno ( zStream );
+      if (fd < 0) goto errhandler_io;
+      ret = applySavedFileAttrToOutputFile ( fd );
+      if (ret != 0) goto errhandler_io;
       ret = fclose ( zStream );
       outputHandleJustInCase = NULL;
       if (ret == EOF) goto errhandler_io;
@@ -569,6 +575,12 @@ Bool uncompressStream ( FILE *zStream, FILE *stream )
 
    closeok:
    if (ferror(zStream)) goto errhandler_io;
+   if ( stream != stdout) {
+      int fd = fileno ( stream );
+      if (fd < 0) goto errhandler_io;
+      ret = applySavedFileAttrToOutputFile ( fd );
+      if (ret != 0) goto errhandler_io;
+   }
    ret = fclose ( zStream );
    if (ret == EOF) goto errhandler_io;
 
@@ -1129,7 +1141,7 @@ void saveInputFileMetaInfo ( Char *srcName )
 
 
 static 
-void applySavedMetaInfoToOutputFile ( Char *dstName )
+void applySavedTimeInfoToOutputFile ( Char *dstName )
 {
 #  if BZ_UNIX
    IntNative      retVal;
@@ -1138,16 +1150,26 @@ void applySavedMetaInfoToOutputFile ( Char *dstName )
    uTimBuf.actime = fileMetaInfo.st_atime;
    uTimBuf.modtime = fileMetaInfo.st_mtime;
 
-   retVal = chmod ( dstName, fileMetaInfo.st_mode );
-   ERROR_IF_NOT_ZERO ( retVal );
-
    retVal = utime ( dstName, &uTimBuf );
    ERROR_IF_NOT_ZERO ( retVal );
+#  endif
+}
 
-   retVal = chown ( dstName, fileMetaInfo.st_uid, fileMetaInfo.st_gid );
+static 
+int applySavedFileAttrToOutputFile ( int fd )
+{
+#  if BZ_UNIX
+   IntNative      retVal;
+
+   retVal = fchmod ( fd, fileMetaInfo.st_mode );
+   if (retVal != 0)
+       return retVal;
+
+   (void) fchown ( fd, fileMetaInfo.st_uid, fileMetaInfo.st_gid );
    /* chown() will in many cases return with EPERM, which can
       be safely ignored.
    */
+   return 0;
 #  endif
 }
 
@@ -1370,7 +1392,7 @@ void compress ( Char *name )
 
    /*--- If there was an I/O error, we won't get here. ---*/
    if ( srcMode == SM_F2F ) {
-      applySavedMetaInfoToOutputFile ( outName );
+      applySavedTimeInfoToOutputFile ( outName );
       deleteOutputOnInterrupt = False;
       if ( !keepInputFiles ) {
          IntNative retVal = remove ( inName );
@@ -1548,7 +1570,7 @@ void uncompress ( Char *name )
    /*--- If there was an I/O error, we won't get here. ---*/
    if ( magicNumberOK ) {
       if ( srcMode == SM_F2F ) {
-         applySavedMetaInfoToOutputFile ( outName );
+         applySavedTimeInfoToOutputFile ( outName );
          deleteOutputOnInterrupt = False;
          if ( !keepInputFiles ) {
             IntNative retVal = remove ( inName );
