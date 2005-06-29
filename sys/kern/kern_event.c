@@ -80,17 +80,17 @@ MTX_SYSINIT(kq_global, &kq_global, "kqueue order", MTX_DEF);
 
 TASKQUEUE_DEFINE_THREAD(kqueue);
 
-static int	kevent_copyout(struct kevent **eventlist, enum uio_seg eventseg,
-		    struct kevent *kevp, int count);
+static int	kevent_copyout(void *arg, struct kevent *kevp, int count);
+static int	kevent_copyin(void *arg, struct kevent *kevp, int count);
 static int	kqueue_aquire(struct file *fp, struct kqueue **kqp);
 static void	kqueue_release(struct kqueue *kq, int locked);
 static int	kqueue_expand(struct kqueue *kq, struct filterops *fops,
 		    uintptr_t ident, int waitok);
 static void	kqueue_task(void *arg, int pending);
 static int	kqueue_scan(struct kqueue *kq, int maxevents,
-		    struct kevent *eventlist, enum uio_seg eventseg,
-		    const struct timespec *timeout, struct kevent *keva,
-		    struct thread *td);
+		    struct kevent_copyops *k_ops,
+		    const struct timespec *timeout,
+		    struct kevent *keva, struct thread *td);
 static void 	kqueue_wakeup(struct kqueue *kq);
 static struct filterops *kqueue_fo_find(int filt);
 static void	kqueue_fo_release(int filt);
@@ -535,6 +535,9 @@ int
 kevent(struct thread *td, struct kevent_args *uap)
 {
 	struct timespec ts, *tsp;
+	struct kevent_copyops k_ops = { uap,
+					kevent_copyout,
+					kevent_copyin};
 	int error;
 
 	if (uap->timeout != NULL) {
@@ -545,36 +548,49 @@ kevent(struct thread *td, struct kevent_args *uap)
 	} else
 		tsp = NULL;
 
-	return (kern_kevent(td, uap->fd, uap->changelist, uap->nchanges,
-	    UIO_USERSPACE, uap->eventlist, uap->nevents, UIO_USERSPACE, tsp));
+	return (kern_kevent(td, uap->fd, uap->nchanges, uap->nevents,
+	    &k_ops, tsp));
 }
 
 /*
- * Copy 'count' items into the destination list pointd to by *eventlist.  The
- * eventlist and nevents values are updated to point after the copied out
- * item(s) upon return.
+ * Copy 'count' items into the destination list pointed to by uap->eventlist.
  */
 static int
-kevent_copyout(struct kevent **eventlist, enum uio_seg eventseg,
-    struct kevent *kevp, int count)
+kevent_copyout(void *arg, struct kevent *kevp, int count)
 {
+	struct kevent_args *uap;
 	int error;
 
-	if (eventseg == UIO_USERSPACE)
-		error = copyout(kevp, *eventlist,
-		    sizeof(struct kevent) * count);
-	else {
-		bcopy(kevp, *eventlist, sizeof(struct kevent) * count);
-		error = 0;
-	}
-	*eventlist += count;
+	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
+	uap = (struct kevent_args *)arg;
+
+	error = copyout(kevp, uap->eventlist, count * sizeof *kevp);
+	if (error == 0)
+		uap->eventlist += count;
+	return (error);
+}
+
+/*
+ * Copy 'count' items from the list pointed to by uap->changelist.
+ */
+static int
+kevent_copyin(void *arg, struct kevent *kevp, int count)
+{
+	struct kevent_args *uap;
+	int error;
+
+	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
+	uap = (struct kevent_args *)arg;
+
+	error = copyin(uap->changelist, kevp, count * sizeof *kevp);
+	if (error == 0)
+		uap->changelist += count;
 	return (error);
 }
 
 int
-kern_kevent(struct thread *td, int fd, struct kevent *changelist, int nchanges,
-    enum uio_seg changeseg, struct kevent *eventlist, int nevents,
-    enum uio_seg eventseg, const struct timespec *timeout)
+kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
+    struct kevent_copyops *k_ops, const struct timespec *timeout)
 {
 	struct kevent keva[KQ_NEVENTS];
 	struct kevent *kevp, *changes;
@@ -590,16 +606,11 @@ kern_kevent(struct thread *td, int fd, struct kevent *changelist, int nchanges,
 	nerrors = 0;
 
 	while (nchanges > 0) {
-		if (changeseg == UIO_USERSPACE) {
-			n = nchanges > KQ_NEVENTS ? KQ_NEVENTS : nchanges;
-			error = copyin(changelist, keva, n * sizeof *keva);
-			if (error)
-				goto done;
-			changes = keva;
-		} else {
-			changes = changelist;
-			n = nchanges;
-		}
+		n = nchanges > KQ_NEVENTS ? KQ_NEVENTS : nchanges;
+		error = k_ops->k_copyin(k_ops->arg, keva, n);
+		if (error)
+			goto done;
+		changes = keva;
 		for (i = 0; i < n; i++) {
 			kevp = &changes[i];
 			kevp->flags &= ~EV_SYSFLAGS;
@@ -608,8 +619,8 @@ kern_kevent(struct thread *td, int fd, struct kevent *changelist, int nchanges,
 				if (nevents != 0) {
 					kevp->flags = EV_ERROR;
 					kevp->data = error;
-					(void) kevent_copyout(&eventlist,
-					    eventseg, kevp, 1);
+					(void) k_ops->k_copyout(k_ops->arg,
+					    kevp, 1);
 					nevents--;
 					nerrors++;
 				} else {
@@ -618,7 +629,6 @@ kern_kevent(struct thread *td, int fd, struct kevent *changelist, int nchanges,
 			}
 		}
 		nchanges -= n;
-		changelist += n;
 	}
 	if (nerrors) {
 		td->td_retval[0] = nerrors;
@@ -626,8 +636,7 @@ kern_kevent(struct thread *td, int fd, struct kevent *changelist, int nchanges,
 		goto done;
 	}
 
-	error = kqueue_scan(kq, nevents, eventlist, eventseg, timeout,
-	    keva, td);
+	error = kqueue_scan(kq, nevents, k_ops, timeout, keva, td);
 done:
 	kqueue_release(kq, 0);
 done_norel:
@@ -1086,9 +1095,8 @@ kqueue_task(void *arg, int pending)
  * We treat KN_MARKER knotes as if they are INFLUX.
  */
 static int
-kqueue_scan(struct kqueue *kq, int maxevents, struct kevent *eventlist,
-    enum uio_seg eventseg, const struct timespec *tsp, struct kevent *keva,
-    struct thread *td)
+kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
+    const struct timespec *tsp, struct kevent *keva, struct thread *td)
 {
 	struct kevent *kevp;
 	struct timeval atv, rtv, ttv;
@@ -1241,8 +1249,7 @@ start:
 
 		if (nkev == KQ_NEVENTS) {
 			KQ_UNLOCK_FLUX(kq);
-			error = kevent_copyout(&eventlist, eventseg, keva,
-			    nkev);
+			error = k_ops->k_copyout(k_ops->arg, keva, nkev);
 			nkev = 0;
 			kevp = keva;
 			KQ_LOCK(kq);
@@ -1259,7 +1266,7 @@ done:
 done_nl:
 	KQ_NOTOWNED(kq);
 	if (nkev != 0)
-		error = kevent_copyout(&eventlist, eventseg, keva, nkev);
+		error = k_ops->k_copyout(k_ops->arg, keva, nkev);
 	td->td_retval[0] = maxevents - count;
 	return (error);
 }

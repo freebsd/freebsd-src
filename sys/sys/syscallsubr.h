@@ -43,6 +43,7 @@ struct rusage;
 struct sockaddr;
 struct stat;
 struct kevent;
+struct kevent_copyops;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
@@ -68,9 +69,8 @@ int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
 int	kern_getsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t *valsize);
-int	kern_kevent(struct thread *td, int fd, struct kevent *changelist,
-	    int nchanges, enum uio_seg changeseg, struct kevent *eventlist,
-	    int nevents, enum uio_seg eventseg, const struct timespec *timeout);
+int	kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
+	    struct kevent_copyops *k_ops, const struct timespec *timeout);
 int	kern_lchown(struct thread *td, char *path, enum uio_seg pathseg,
 	    int uid, int gid);
 int	kern_link(struct thread *td, char *path, char *link,
