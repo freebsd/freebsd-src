@@ -1971,21 +1971,35 @@ ral_tx_data(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	data = &sc->txq.data[sc->txq.cur_encrypt];
 	desc = &sc->txq.desc[sc->txq.cur_encrypt];
 
-	mnew = m_defrag(m0, M_DONTWAIT);
-	if (mnew == NULL) {
-		device_printf(sc->sc_dev, "could not defragment mbuf\n");
-		m_freem(m0);
-		return ENOMEM;
-	}
-	m0 = mnew;
-
 	error = bus_dmamap_load_mbuf_sg(sc->txq.data_dmat, data->map, m0,
 	    segs, &nsegs, 0);
-	if (error != 0) {
+	if (error != 0 && error != EFBIG) {
 		device_printf(sc->sc_dev, "could not map mbuf (error %d)\n",
 		    error);
 		m_freem(m0);
 		return error;
+	}
+	if (error != 0) {
+		mnew = m_defrag(m0, M_DONTWAIT);
+		if (mnew == NULL) {
+			device_printf(sc->sc_dev,
+			    "could not defragment mbuf\n");
+			m_freem(m0);
+			return ENOBUFS;
+		}
+		m0 = mnew;
+
+		error = bus_dmamap_load_mbuf_sg(sc->txq.data_dmat, data->map,
+		    m0, segs, &nsegs, 0);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "could not map mbuf (error %d)\n", error);
+			m_freem(m0);
+			return error;
+		}
+
+		/* packet header may have moved, reset our local pointer */
+		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
 	if (sc->sc_drvbpf != NULL) {
