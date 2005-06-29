@@ -1751,6 +1751,9 @@ loop:
 	if (pcib == NULL)
 		return (-1);
 
+	if (device_get_parent(pcib) == NULL)
+		return (-1);
+
 	/*
 	 * Do the swizzle thing.
 	 *
