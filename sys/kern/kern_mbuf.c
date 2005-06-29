@@ -336,6 +336,9 @@ mb_fini_pack(void *mem, int size)
 	uma_zfree_arg(zone_clust, m->m_ext.ext_buf, NULL);
 	m->m_ext.ext_buf = NULL;
 	mbstat.m_mclusts += 1;	/* XXX */
+#ifdef INVARIANTS
+	trash_dtor(mem, size, NULL);
+#endif
 }
 
 /*
