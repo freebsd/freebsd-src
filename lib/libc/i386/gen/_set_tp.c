@@ -28,28 +28,11 @@
 
 #include <string.h>
 #include <stdint.h>
-#include <machine/segments.h>
 #include <machine/sysarch.h>
 
 void
 _set_tp(void *tp)
 {
-	union descriptor ldt;
-	int error, sel;
 
-	error = i386_set_gsbase(tp);
-	if (error == 0)
-		return;
-	memset(&ldt, 0, sizeof(ldt));
-	ldt.sd.sd_lolimit = 0xffff;	/* 4G limit */
-	ldt.sd.sd_lobase = ((uintptr_t)tp) & 0xffffff;
-	ldt.sd.sd_type = SDT_MEMRWA;
-	ldt.sd.sd_dpl = SEL_UPL;
-	ldt.sd.sd_p = 1;		/* present */
-	ldt.sd.sd_hilimit = 0xf;	/* 4G limit */
-	ldt.sd.sd_def32 = 1;		/* 32 bit */
-	ldt.sd.sd_gran = 1;		/* limit in pages */
-	ldt.sd.sd_hibase = (((uintptr_t)tp) >> 24) & 0xff;
-	sel = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
-	__asm __volatile("movl %0,%%gs" : : "rm" ((sel << 3) | 7));
+	i386_set_gsbase(tp);
 }
