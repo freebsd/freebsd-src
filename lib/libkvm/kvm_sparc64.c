@@ -191,7 +191,7 @@ fail_vm:
 }
 
 int
-_kvm_kvatop(kvm_t *kd, u_long va, u_long *pa)
+_kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 {
 	struct vmstate *vm;
 	struct tte tte;

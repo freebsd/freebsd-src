@@ -369,7 +369,7 @@ kvm_read(kd, kva, buf, len)
 	} else {
 		cp = buf;
 		while (len > 0) {
-			u_long pa;
+			off_t pa;
 
 			cc = _kvm_kvatop(kd, kva, &pa);
 			if (cc == 0)
@@ -377,7 +377,7 @@ kvm_read(kd, kva, buf, len)
 			if (cc > len)
 				cc = len;
 			errno = 0;
-			if (lseek(kd->pmfd, (off_t)pa, 0) == -1 && errno != 0) {
+			if (lseek(kd->pmfd, pa, 0) == -1 && errno != 0) {
 				_kvm_syserr(kd, 0, _PATH_MEM);
 				break;
 			}
