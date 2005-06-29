@@ -50,27 +50,3 @@ struct freebsd32_ps_strings {
 
 #define FREEBSD32_PS_STRINGS	\
 	(FREEBSD32_USRSTACK - sizeof(struct freebsd32_ps_strings))
-
-static __inline caddr_t stackgap_init(void);
-static __inline void *stackgap_alloc(caddr_t *, size_t);
-
-static __inline caddr_t
-stackgap_init()
-{
-#define	szsigcode (*(curproc->p_sysent->sv_szsigcode))
-	return (caddr_t)(((caddr_t)FREEBSD32_PS_STRINGS) - szsigcode -
-	    SPARE_USRSPACE);
-#undef szsigcode
-}
-
-static __inline void *
-stackgap_alloc(sgp, sz)
-	caddr_t *sgp;
-	size_t   sz;
-{
-	void *p;
-
-	p = (void *) *sgp;
-	*sgp += ALIGN(sz);
-	return p;
-}
