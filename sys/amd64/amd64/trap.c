@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
+#include "opt_kdb.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
