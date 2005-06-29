@@ -130,6 +130,7 @@ struct pfsyncstats	pfsyncstats;
 
 static void	pfsync_clone_destroy(struct ifnet *);
 static int	pfsync_clone_create(struct if_clone *, int);
+static void	pfsync_senddef(void *);
 #else
 void	pfsyncattach(int);
 #endif
@@ -170,6 +171,8 @@ pfsync_clone_destroy(struct ifnet *ifp)
 	callout_stop(&sc->sc_bulk_tmo);
 	callout_stop(&sc->sc_bulkfail_tmo);
 
+	callout_stop(&sc->sc_send_tmo);
+
 #if NBPFILTER > 0
         bpfdetach(ifp);
 #endif
@@ -208,14 +211,13 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_baudrate = IF_Mbps(100);
 	ifp->if_softc = sc;
 	pfsync_setmtu(sc, MCLBYTES);
-	/*
-	 * XXX
-	 *  The 2nd arg. 0 to callout_init(9) shoule be set to CALLOUT_MPSAFE
-	 * if Gaint lock is removed from the network stack.
-	 */
-	callout_init(&sc->sc_tmo, 0);
-	callout_init(&sc->sc_bulk_tmo, 0);
-	callout_init(&sc->sc_bulkfail_tmo, 0);
+	callout_init(&sc->sc_tmo, NET_CALLOUT_MPSAFE);
+	callout_init(&sc->sc_bulk_tmo, NET_CALLOUT_MPSAFE);
+	callout_init(&sc->sc_bulkfail_tmo, NET_CALLOUT_MPSAFE);
+	callout_init(&sc->sc_send_tmo, NET_CALLOUT_MPSAFE);
+	sc->sc_ifq.ifq_maxlen = ifqmaxlen;
+	mtx_init(&sc->sc_ifq.ifq_mtx, ifp->if_xname, "pfsync send queue",
+	    MTX_DEF);
 	if_attach(&sc->sc_if);
 
 	LIST_INSERT_HEAD(&pfsync_list, sc, sc_next);
@@ -913,6 +915,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (pfsyncr.pfsyncr_maxupdates > 255)
 			return (EINVAL);
 #ifdef __FreeBSD__
+		callout_drain(&sc->sc_send_tmo);
 		PF_LOCK();
 #endif
 		sc->sc_maxupdates = pfsyncr.pfsyncr_maxupdates;
@@ -1634,15 +1637,13 @@ pfsync_sendout(sc)
 #endif
 
 		pfsyncstats.pfsyncs_opackets++;
-
 #ifdef __FreeBSD__
-		PF_UNLOCK();
-#endif
+		if (!IF_HANDOFF(&sc->sc_ifq, m, NULL))
+			pfsyncstats.pfsyncs_oerrors++;
+		callout_reset(&sc->sc_send_tmo, 1, pfsync_senddef, sc);
+#else
 		if (ip_output(m, NULL, NULL, IP_RAWOUTPUT, &sc->sc_imo, NULL))
 			pfsyncstats.pfsyncs_oerrors++;
-
-#ifdef __FreeBSD__
-		PF_LOCK();
 #endif
 	} else
 		m_freem(m);
@@ -1650,8 +1651,22 @@ pfsync_sendout(sc)
 	return (0);
 }
 
-
 #ifdef __FreeBSD__
+static void
+pfsync_senddef(void *arg)
+{
+	struct pfsync_softc *sc = (struct pfsync_softc *)arg;
+	struct mbuf *m;
+
+	for(;;) {
+		IF_DEQUEUE(&sc->sc_ifq, m);
+		if (m == NULL)
+			break;
+		if (ip_output(m, NULL, NULL, IP_RAWOUTPUT, &sc->sc_imo, NULL))
+			pfsyncstats.pfsyncs_oerrors++;
+	}
+}
+
 static int
 pfsync_modevent(module_t mod, int type, void *data)
 {

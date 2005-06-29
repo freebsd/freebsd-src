@@ -322,12 +322,7 @@ pfattach(void)
 	my_timeout[PFTM_FRAG] = 30;			/* Fragment expire */
 	my_timeout[PFTM_INTERVAL] = 10;			/* Expire interval */
 
-	/*
-	 * XXX
-	 *  The 2nd arg. 0 to callout_init(9) shoule be set to CALLOUT_MPSAFE
-	 * if Gaint lock is removed from the network stack.
-	 */
-	callout_init(&pf_expire_to, 0);
+	callout_init(&pf_expire_to, NET_CALLOUT_MPSAFE);
 	callout_reset(&pf_expire_to, my_timeout[PFTM_INTERVAL] * hz,
 	    pf_purge_timeout, &pf_expire_to);
 
