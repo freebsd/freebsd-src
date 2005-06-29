@@ -488,9 +488,11 @@ void sendMTFValues ( EState* s )
       /*--
         Recompute the tables based on the accumulated frequencies.
       --*/
+      /* maxLen was changed from 20 to 17 in bzip2-1.0.3.  See 
+         comment in huffman.c for details. */
       for (t = 0; t < nGroups; t++)
          BZ2_hbMakeCodeLengths ( &(s->len[t][0]), &(s->rfreq[t][0]), 
-                                 alphaSize, 20 );
+                                 alphaSize, 17 /*20*/ );
    }
 
 
@@ -527,7 +529,7 @@ void sendMTFValues ( EState* s )
          if (s->len[t][i] > maxLen) maxLen = s->len[t][i];
          if (s->len[t][i] < minLen) minLen = s->len[t][i];
       }
-      AssertH ( !(maxLen > 20), 3004 );
+      AssertH ( !(maxLen > 17 /*20*/ ), 3004 );
       AssertH ( !(minLen < 1),  3005 );
       BZ2_hbAssignCodes ( &(s->code[t][0]), &(s->len[t][0]), 
                           minLen, maxLen, alphaSize );
@@ -651,8 +653,8 @@ void BZ2_compressBlock ( EState* s, Bool is_last_block )
       if (s->blockNo > 1) s->numZ = 0;
 
       if (s->verbosity >= 2)
-         VPrintf4( "    block %d: crc = 0x%8x, "
-                   "combined CRC = 0x%8x, size = %d\n",
+         VPrintf4( "    block %d: crc = 0x%08x, "
+                   "combined CRC = 0x%08x, size = %d\n",
                    s->blockNo, s->blockCRC, s->combinedCRC, s->nblock );
 
       BZ2_blockSort ( s );
@@ -703,7 +705,7 @@ void BZ2_compressBlock ( EState* s, Bool is_last_block )
       bsPutUChar ( s, 0x50 ); bsPutUChar ( s, 0x90 );
       bsPutUInt32 ( s, s->combinedCRC );
       if (s->verbosity >= 2)
-         VPrintf1( "    final combined CRC = 0x%x\n   ", s->combinedCRC );
+         VPrintf1( "    final combined CRC = 0x%08x\n   ", s->combinedCRC );
       bsFinishWrite ( s );
    }
 }

@@ -312,6 +312,7 @@ static void    compressedStreamEOF   ( void )    NORETURN;
 
 static void    copyFileName ( Char*, Char* );
 static void*   myMalloc     ( Int32 );
+static int     applySavedFileAttrToOutputFile ( int fd );
 
 
 
@@ -457,6 +458,10 @@ void compressStream ( FILE *stream, FILE *zStream )
    ret = fflush ( zStream );
    if (ret == EOF) goto errhandler_io;
    if (zStream != stdout) {
+      int fd = fileno ( zStream );
+      if (fd < 0) goto errhandler_io;
+      ret = applySavedFileAttrToOutputFile ( fd );
+      if (ret != 0) goto errhandler_io;
       ret = fclose ( zStream );
       outputHandleJustInCase = NULL;
       if (ret == EOF) goto errhandler_io;
@@ -525,6 +530,7 @@ Bool uncompressStream ( FILE *zStream, FILE *stream )
    UChar   obuf[5000];
    UChar   unused[BZ_MAX_UNUSED];
    Int32   nUnused;
+   void*   unusedTmpV;
    UChar*  unusedTmp;
 
    nUnused = 0;
@@ -554,9 +560,10 @@ Bool uncompressStream ( FILE *zStream, FILE *stream )
       }
       if (bzerr != BZ_STREAM_END) goto errhandler;
 
-      BZ2_bzReadGetUnused ( &bzerr, bzf, (void**)(&unusedTmp), &nUnused );
+      BZ2_bzReadGetUnused ( &bzerr, bzf, &unusedTmpV, &nUnused );
       if (bzerr != BZ_OK) panic ( "decompress:bzReadGetUnused" );
 
+      unusedTmp = (UChar*)unusedTmpV;
       for (i = 0; i < nUnused; i++) unused[i] = unusedTmp[i];
 
       BZ2_bzReadClose ( &bzerr, bzf );
@@ -567,6 +574,12 @@ Bool uncompressStream ( FILE *zStream, FILE *stream )
 
    closeok:
    if (ferror(zStream)) goto errhandler_io;
+   if ( stream != stdout) {
+      int fd = fileno ( stream );
+      if (fd < 0) goto errhandler_io;
+      ret = applySavedFileAttrToOutputFile ( fd );
+      if (ret != 0) goto errhandler_io;
+   }
    ret = fclose ( zStream );
    if (ret == EOF) goto errhandler_io;
 
@@ -639,6 +652,7 @@ Bool testStream ( FILE *zStream )
    UChar   obuf[5000];
    UChar   unused[BZ_MAX_UNUSED];
    Int32   nUnused;
+   void*   unusedTmpV;
    UChar*  unusedTmp;
 
    nUnused = 0;
@@ -662,9 +676,10 @@ Bool testStream ( FILE *zStream )
       }
       if (bzerr != BZ_STREAM_END) goto errhandler;
 
-      BZ2_bzReadGetUnused ( &bzerr, bzf, (void**)(&unusedTmp), &nUnused );
+      BZ2_bzReadGetUnused ( &bzerr, bzf, &unusedTmpV, &nUnused );
       if (bzerr != BZ_OK) panic ( "test:bzReadGetUnused" );
 
+      unusedTmp = (UChar*)unusedTmpV;
       for (i = 0; i < nUnused; i++) unused[i] = unusedTmp[i];
 
       BZ2_bzReadClose ( &bzerr, bzf );
@@ -1125,7 +1140,7 @@ void saveInputFileMetaInfo ( Char *srcName )
 
 
 static 
-void applySavedMetaInfoToOutputFile ( Char *dstName )
+void applySavedTimeInfoToOutputFile ( Char *dstName )
 {
 #  if BZ_UNIX
    IntNative      retVal;
@@ -1134,16 +1149,26 @@ void applySavedMetaInfoToOutputFile ( Char *dstName )
    uTimBuf.actime = fileMetaInfo.st_atime;
    uTimBuf.modtime = fileMetaInfo.st_mtime;
 
-   retVal = chmod ( dstName, fileMetaInfo.st_mode );
-   ERROR_IF_NOT_ZERO ( retVal );
-
    retVal = utime ( dstName, &uTimBuf );
    ERROR_IF_NOT_ZERO ( retVal );
+#  endif
+}
 
-   retVal = chown ( dstName, fileMetaInfo.st_uid, fileMetaInfo.st_gid );
+static 
+int applySavedFileAttrToOutputFile ( int fd )
+{
+#  if BZ_UNIX
+   IntNative      retVal;
+
+   retVal = fchmod ( fd, fileMetaInfo.st_mode );
+   if (retVal != 0)
+       return retVal;
+
+   (void) fchown ( fd, fileMetaInfo.st_uid, fileMetaInfo.st_gid );
    /* chown() will in many cases return with EPERM, which can
       be safely ignored.
    */
+   return 0;
 #  endif
 }
 
@@ -1366,7 +1391,7 @@ void compress ( Char *name )
 
    /*--- If there was an I/O error, we won't get here. ---*/
    if ( srcMode == SM_F2F ) {
-      applySavedMetaInfoToOutputFile ( outName );
+      applySavedTimeInfoToOutputFile ( outName );
       deleteOutputOnInterrupt = False;
       if ( !keepInputFiles ) {
          IntNative retVal = remove ( inName );
@@ -1544,7 +1569,7 @@ void uncompress ( Char *name )
    /*--- If there was an I/O error, we won't get here. ---*/
    if ( magicNumberOK ) {
       if ( srcMode == SM_F2F ) {
-         applySavedMetaInfoToOutputFile ( outName );
+         applySavedTimeInfoToOutputFile ( outName );
          deleteOutputOnInterrupt = False;
          if ( !keepInputFiles ) {
             IntNative retVal = remove ( inName );
