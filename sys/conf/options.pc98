@@ -104,5 +104,5 @@ DEV_MECIA		opt_mecia.h
 DEV_NPX			opt_npx.h
 
 # Debugging
-KDB_STOP_NMI		opt_global.h
+KDB_STOP_NMI		opt_kdb.h
 NPX_DEBUG		opt_npx.h
