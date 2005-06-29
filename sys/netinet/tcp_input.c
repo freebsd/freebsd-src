@@ -1086,7 +1086,7 @@ after_listen:
 	 * XXX this is traditional behavior, may need to be cleaned up.
 	 */
 	tcp_dooptions(tp, &to, optp, optlen, thflags & TH_SYN, th);
-	if (thflags & TH_SYN) {
+	if (tp->t_state == TCPS_SYN_SENT && (thflags & TH_SYN)) {
 		if (to.to_flags & TOF_SCALE) {
 			tp->t_flags |= TF_RCVD_SCALE;
 			tp->requested_s_scale = to.to_requested_s_scale;
