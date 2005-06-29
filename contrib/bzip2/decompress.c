@@ -524,16 +524,22 @@ Int32 BZ2_decompress ( DState* s )
       if (s->origPtr < 0 || s->origPtr >= nblock)
          RETURN(BZ_DATA_ERROR);
 
+      /*-- Set up cftab to facilitate generation of T^(-1) --*/
+      s->cftab[0] = 0;
+      for (i = 1; i <= 256; i++) s->cftab[i] = s->unzftab[i-1];
+      for (i = 1; i <= 256; i++) s->cftab[i] += s->cftab[i-1];
+      for (i = 0; i <= 256; i++) {
+         if (s->cftab[i] < 0 || s->cftab[i] > nblock) {
+            /* s->cftab[i] can legitimately be == nblock */
+            RETURN(BZ_DATA_ERROR);
+         }
+      }
+
       s->state_out_len = 0;
       s->state_out_ch  = 0;
       BZ_INITIALISE_CRC ( s->calculatedBlockCRC );
       s->state = BZ_X_OUTPUT;
       if (s->verbosity >= 2) VPrintf0 ( "rt+rld" );
-
-      /*-- Set up cftab to facilitate generation of T^(-1) --*/
-      s->cftab[0] = 0;
-      for (i = 1; i <= 256; i++) s->cftab[i] = s->unzftab[i-1];
-      for (i = 1; i <= 256; i++) s->cftab[i] += s->cftab[i-1];
 
       if (s->smallDecompress) {
 
