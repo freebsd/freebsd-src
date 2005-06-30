@@ -36,7 +36,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	timed tmp \
 	ugidfw usbd \
 	var virecover \
-	watchdogd \
+	watchdogd wpa_supplicant \
 	ypbind yppasswdd ypserv \
 	ypset ypupdated ypxfrd
 FILESDIR=	/etc/rc.d
