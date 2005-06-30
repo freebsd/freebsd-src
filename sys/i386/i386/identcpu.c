@@ -74,9 +74,6 @@ void	enable_K6_2_wt_alloc(void);
 void panicifcpuunsupported(void);
 
 static void identifycyrix(void);
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-static void print_AMD_features(void);
-#endif
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
 static void print_transmeta_info(void);
@@ -173,6 +170,14 @@ printcpuinfo(void)
 				}
 			}
 		}
+	}
+
+	/* Detect AMD features (PTE no-execute bit, 3dnow, 64 bit mode etc) */
+	if (cpu_exthigh >= 0x80000001 &&
+	    (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
+	     strcmp(cpu_vendor, "AuthenticAMD") == 0)) {
+		do_cpuid(0x80000001, regs);
+		amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
 	}
 
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
@@ -688,42 +693,80 @@ printcpuinfo(void)
 			"\040PBE"	/* Pending Break Enable */
 			);
 
-			if (cpu_feature2 != 0)
-			printf("\n  Features2=0x%b", cpu_feature2,
-			"\020"
-			"\001SSE3"	/* SSE3 */
-			"\002<b1>"
-			"\003RSVD2"	/* "Reserved" bit 2 */
-			"\004MON"	/* MONITOR/MWAIT Instructions */
-			"\005DS_CPL"	/* CPL Qualified Debug Store */
-			"\006<b5>"	/* Machine specific registers */
-			"\007<b6>"	/* Physical address extension */
-			"\010EST"	/* Enhanced SpeedStep */
-			"\011TM2"	/* Thermal Monitor 2 */
-			"\012<b9>"
-			"\013CNTX-ID"	/* L1 context ID available */
-			"\014<b11>"
-			"\015<b12>"
-			"\016CX16"	/* CMPXCHG16B Instruction */
-			"\017<b14>"
-			"\020<b15>"
-			"\021<b16>"
-			"\022<b17>"
-			"\023<b18>"
-			"\024<b19>"
-			"\025<b20>"
-			"\026<b21>"
-			"\027<b22>"
-			"\030<b23>"
-			"\031<b24>"
-			"\032<b25>"
-			"\033<b26>"
-			"\034<b27>"
-			"\035<b28>"
-			"\036<b29>"
-			"\037<b30>"
-			"\040<b31>"
-			);
+			if (cpu_feature2 != 0) {
+				printf("\n  Features2=0x%b", cpu_feature2,
+				"\020"
+				"\001SSE3"	/* SSE3 */
+				"\002<b1>"
+				"\003RSVD2"	/* "Reserved" bit 2 */
+				"\004MON"	/* MONITOR/MWAIT Instructions */
+				"\005DS_CPL"	/* CPL Qualified Debug Store */
+				"\006<b5>"	/* Machine specific registers */
+				"\007<b6>"	/* Physical address extension */
+				"\010EST"	/* Enhanced SpeedStep */
+				"\011TM2"	/* Thermal Monitor 2 */
+				"\012<b9>"
+				"\013CNTX-ID"	/* L1 context ID available */
+				"\014<b11>"
+				"\015<b12>"
+				"\016CX16"	/* CMPXCHG16B Instruction */
+				"\017<b14>"
+				"\020<b15>"
+				"\021<b16>"
+				"\022<b17>"
+				"\023<b18>"
+				"\024<b19>"
+				"\025<b20>"
+				"\026<b21>"
+				"\027<b22>"
+				"\030<b23>"
+				"\031<b24>"
+				"\032<b25>"
+				"\033<b26>"
+				"\034<b27>"
+				"\035<b28>"
+				"\036<b29>"
+				"\037<b30>"
+				"\040<b31>"
+				);
+			}
+			if (amd_feature != 0) {
+				printf("\n  AMD Features=0x%b", amd_feature,
+				"\020"		/* in hex */
+				"\001<s0>"	/* Same */
+				"\002<s1>"	/* Same */
+				"\003<s2>"	/* Same */
+				"\004<s3>"	/* Same */
+				"\005<s4>"	/* Same */
+				"\006<s5>"	/* Same */
+				"\007<s6>"	/* Same */
+				"\010<s7>"	/* Same */
+				"\011<s8>"	/* Same */
+				"\012<s9>"	/* Same */
+				"\013<b10>"	/* Undefined */
+				"\014SYSCALL"	/* Have SYSCALL/SYSRET */
+				"\015<s12>"	/* Same */
+				"\016<s13>"	/* Same */
+				"\017<s14>"	/* Same */
+				"\020<s15>"	/* Same */
+				"\021<s16>"	/* Same */
+				"\022<s17>"	/* Same */
+				"\023<b18>"	/* Reserved, unknown */
+				"\024MP"	/* Multiprocessor Capable */
+				"\025NX"	/* Has EFER.NXE, NX */
+				"\026<b21>"	/* Undefined */
+				"\027MMX+"	/* AMD MMX Extensions */
+				"\030<s23>"	/* Same */
+				"\031<s24>"	/* Same */
+				"\032<b25>"	/* Undefined */
+				"\033<b26>"	/* Undefined */
+				"\034<b27>"	/* Undefined */
+				"\035<b28>"	/* Undefined */
+				"\036LM"	/* 64 bit long mode */
+				"\0373DNow+"	/* AMD 3DNow! Extensions */
+				"\0403DNow"	/* AMD 3DNow! */
+				);
+			}
 
 			/*
 			 * If this CPU supports hyperthreading then mention
@@ -734,9 +777,6 @@ printcpuinfo(void)
 				printf("\n  Hyperthreading: %d logical CPUs",
 				    (cpu_procinfo & CPUID_HTT_CORES) >> 16);
 		}
-		if (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
-		    cpu_exthigh >= 0x80000001)
-			print_AMD_features();
 	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 		printf("  DIR=0x%04x", cyrix_did);
 		printf("  Stepping=%u", (cyrix_did & 0xf000) >> 12);
@@ -1100,55 +1140,6 @@ print_AMD_info(void)
 		}
 	}
 }
-
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-static void
-print_AMD_features(void)
-{
-	u_int regs[4];
-
-	/*
-	 * Values taken from AMD Processor Recognition
-	 * http://www.amd.com/products/cpg/athlon/techdocs/pdf/20734.pdf
-	 */
-	do_cpuid(0x80000001, regs);
-	printf("\n  AMD Features=0x%b", regs[3] &~ cpu_feature,
-		"\020"		/* in hex */
-		"\001FPU"	/* Integral FPU */
-		"\002VME"	/* Extended VM86 mode support */
-		"\003DE"	/* Debug extensions */
-		"\004PSE"	/* 4MByte page tables */
-		"\005TSC"	/* Timestamp counter */
-		"\006MSR"	/* Machine specific registers */
-		"\007PAE"	/* Physical address extension */
-		"\010MCE"	/* Machine Check support */
-		"\011CX8"	/* CMPEXCH8 instruction */
-		"\012APIC"	/* SMP local APIC */
-		"\013<b10>"
-		"\014SYSCALL"	/* SYSENTER/SYSEXIT instructions */
-		"\015MTRR"	/* Memory Type Range Registers */
-		"\016PGE"	/* PG_G (global bit) support */
-		"\017MCA"	/* Machine Check Architecture */
-		"\020ICMOV"	/* CMOV instruction */
-		"\021PAT"	/* Page attributes table */
-		"\022PGE36"	/* 36 bit address space support */
-		"\023RSVD"	/* Reserved, unknown */
-		"\024MP"	/* Multiprocessor Capable */
-		"\025NX"	/* Has EFER.NXE, NX (no execute pte bit) */
-		"\026<b21>"
-		"\027AMIE"	/* AMD MMX Instruction Extensions */
-		"\030MMX"
-		"\031FXSAVE"	/* FXSAVE/FXRSTOR */
-		"\032<b25>"
-		"\033<b26>"
-		"\034<b27>"
-		"\035<b28>"
-		"\036LM"	/* Long mode */
-		"\037DSP"	/* AMD 3DNow! Instruction Extensions */
-		"\0403DNow!"	/* AMD 3DNow! Instructions */
-		);
-}
-#endif
 
 static void
 print_transmeta_info()
