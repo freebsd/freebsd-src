@@ -139,6 +139,27 @@
 	    <entry>9&nbsp;Jun&nbsp;2005</entry>
 	    <entry><para>BIND 9 DNSSEC remote denial of service vulnerability</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:13.ipfw.asc"
+		>SA-05:13.ipfw</ulink></entry>
+	    <entry>29&nbsp;Jun&nbsp;2005</entry>
+	    <entry><para>ipfw packet matching errors with address tables</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:14.bzip2.asc"
+		>SA-05:14.bzip2</ulink></entry>
+	    <entry>29&nbsp;Jun&nbsp;2005</entry>
+	    <entry><para>bzip2 denial of service and permission race vulnerabilities</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc"
+		>SA-05:15.tcp</ulink></entry>
+	    <entry>29&nbsp;Jun&nbsp;2005</entry>
+	    <entry><para>TCP connection stall denial of service</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
