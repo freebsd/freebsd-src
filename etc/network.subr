@@ -113,16 +113,11 @@ _ifconfig_getargs()
 	fi
 
 	eval _args=\$ifconfig_$1
-	if [ -z "$_args" -a -n "${pccard_ifconfig}" ]; then
-		for _if in ${removable_interfaces} ; do
-			if [ "$_if" = "$_ifn" ] ; then
-				_args=${pccard_ifconfig}
-				break
-			fi
-		done
+	if [ -z "$_args" ]; then
+		_args=$ifconfig_DEFAULT
 	fi
 
-	echo $_args
+	echo "$_args"
 }
 
 # ifconfig_getargs if
@@ -394,7 +389,7 @@ list_net_interfaces()
 		_tmplist="`ifconfig -l`"
 		;;
 	*)
-		_tmplist="${network_interfaces} ${cloned_interfaces}"
+		_tmplist="${network_interfaces} ${removable_interfaces} ${cloned_interfaces}"
 		;;
 	esac
 
@@ -408,36 +403,14 @@ list_net_interfaces()
 	_aprefix=
 	_bprefix=
 	for _if in ${_tmplist} ; do
-		eval _ifarg="\$ifconfig_${_if}"
-		case "$_ifarg" in
-		[Dd][Hh][Cc][Pp])
+		if dhcpif $_if; then
 			_dhcplist="${_dhcplist}${_aprefix}${_if}"
 			[ -z "$_aprefix" ] && _aprefix=' '
-			;;
-		''|*)
+		elif [ -n "`_ifconfig_getargs $if`" ]; then
 			_nodhcplist="${_nodhcplist}${_bprefix}${_if}"
 			[ -z "$_bprefix" ] && _bprefix=' '
-			;;
-		esac
+		fi
 	done
-
-	case ${pccard_ifconfig} in
-	[Dd][Hh][Cc][Pp])
-		for _if in ${removable_interfaces} ; do
-			_test_if=`ifconfig ${_if} 2>&1`
-			case "$_test_if" in
-			"ifconfig: interface $_if does not exist")
-				;;
-			*)
-				_dhcplist="${_dhcplist}${_aprefix}${_if}"
-				[ -z "$_aprefix" ] && _aprefix=' '
-				;;
-			esac
-		done
-		;;
-	*)
-		;;
-	esac
 
 	case "$type" in
 	nodhcp)
