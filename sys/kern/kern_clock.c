@@ -37,7 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_ntp.h"
 #include "opt_watchdog.h"
@@ -85,19 +84,15 @@ SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 /* Some of these don't belong here, but it's easiest to concentrate them. */
 long cp_time[CPUSTATES];
 
-#ifdef COMPAT_IA32
-extern struct sysentvec ia32_freebsd_sysvec;
-#endif
-
 static int
 sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-#ifdef COMPAT_IA32
+#ifdef SCTL_MASK32
 	int i;
 	unsigned int cp_time32[CPUSTATES];
 	
-	if (req->td->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+	if (req->flags & SCTL_MASK32) {
 		if (!req->oldptr)
 			return SYSCTL_OUT(req, 0, sizeof(cp_time32));
 		for (i = 0; i < CPUSTATES; i++)
