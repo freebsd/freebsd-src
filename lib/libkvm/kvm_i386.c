@@ -423,7 +423,7 @@ invalid:
 }
 
 int
-_kvm_kvatop(kvm_t *kd, u_long va, uint64_t *pa)
+_kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 {
 
 	if (ISALIVE(kd)) {
