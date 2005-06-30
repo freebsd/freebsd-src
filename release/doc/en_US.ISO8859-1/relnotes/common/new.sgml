@@ -26,7 +26,8 @@
 
   <abstract>
     <para>The release notes for &os; &release.current; contain a summary
-      of the changes made to the &os; base system since &release.branch; is created.
+      of the changes made to the &os; base system on the
+      &release.branch; development line.
       This document lists applicable security advisories that were issued since
       the last release, as well as significant changes to the &os;
       kernel and userland.
@@ -136,7 +137,7 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>.
       &merged;</para>
 
-    <para>A information disclosure vulnerability in the
+    <para>An information disclosure vulnerability in the
       &man.sendfile.2; system call, which could permit it to transmit
       random parts of kernel memory, has been fixed.  More details are
       in security advisory
@@ -168,12 +169,12 @@
       allowed unprivileged local users can send commands to the
       hardware supported by the &man.iir.4; driver, has been fixed.
       For more information, see security advisory
-      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:06.iir.asc">FreeBSD-SA-05:06.iir</ulink>.
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:06.iir.asc">FreeBSD-SA-05:06.iir</ulink>.
       &merged;</para>
 
    <para>A bug in the validation of &man.i386.get.ldt.2; system call
-     input arguments, which may allow kernel memory may be disclosed
-     to the user process, has been fixed.  For more information, see
+     input arguments, which may allow kernel memory to be disclosed
+     to a user process, has been fixed.  For more information, see
       security advisory
      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:07.ldt.asc">FreeBSD-SA-05:07.ldt</ulink>.
      &merged;</para>
@@ -247,6 +248,8 @@
 
     <informaltable frame="none">
       <tgroup cols="2">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
 	<thead>
 	  <row>
 	    <entry>Value</entry>
@@ -257,22 +260,22 @@
 	<tbody>
 	  <row>
 	    <entry>0</entry>
-	    <entry>show all mount-points without any restrictions</entry>
+	    <entry>Show all mount-points without any restrictions.</entry>
 	  </row>
 
 	  <row>
 	    <entry>1</entry>
-	    <entry>show only mount-points below jail's chroot and show only part of the
-	      mount-point's path (if jail's chroot directory is
+	    <entry>Show only mount-points below jail's chroot and show only part of the
+	      mount-point's path (for example, if the jail's chroot directory is
 	      <filename>/jails/foo</filename> and
 	      mount-point is
-	      <filename>/jails/foo/usr/home</filename>
-	      only <filename>/usr/home</filename> will be shown)</entry>
+	      <filename>/jails/foo/usr/home</filename>,
+	      only <filename>/usr/home</filename> will be shown).</entry>
 	  </row>
 
 	  <row>
 	    <entry>2</entry>
-	    <entry>show only mount-point where jail's chroot directory is placed.</entry>
+	    <entry>Show only mount-point where jail's chroot directory is placed.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -390,7 +393,7 @@
       <para>The <command>autoboot</command> loader command
 	now supports the prompt parameter.</para>
 
-      <para>The <command>autoboot</command> will now prevent the user
+      <para>The <command>autoboot</command> loader command will now prevent the user
 	from interrupting the boot process at all if the
 	<varname>autoboot_delay</varname> variable is set to
 	<literal>-1</literal>. &merged;</para>
@@ -416,10 +419,8 @@
 	<varname>hw.pci.do_powerstate</varname> sysctls to <literal>0</literal>.</para>
 
       <para arch="i386,amd64">The &man.acpi.ibm.4; driver for IBM laptops
-	has been added.</para>
-
-      <para arch="i386,amd64">The &man.acpi.ibm.4; driver has been
-	improved to support hotkeys and reading fan status and thermal
+	has been added.  It provides support for the various
+	hotkeys and reading fan status and thermal
 	sensors.</para>
 
       <para arch="i386,amd64">The &man.acpi.fujitsu.4; driver for handling
@@ -431,10 +432,11 @@
 
       <para>The &man.atkbdc.4;, &man.atkbd.4;, and &man.psm.4;
 	drivers have been rewritten in more bus-independent way,
-	and now support EBus found on sparc64 platform.</para>
+	and now support the EBus found on the sparc64 platform.</para>
 
       <para arch="sparc64">The following device drivers have been
-	added and enabled by default:
+	added and enabled by default in the
+	<filename>GENERIC</filename> kernel:
 	&man.atkbdc.4;,
 	&man.atkbd.4;,
 	creator(4),
@@ -446,7 +448,7 @@
 	&man.ums.4;,
 	and &man.usb.4;.</para>
 
-      <para arch="sparc64">The &man.auxio.4; driver has been to drive
+      <para arch="sparc64">The &man.auxio.4; driver has been added; it supports
 	some auxiliary I/O functions found on various SBus/EBus
 	&ultrasparc; models. &merged;</para>
 
@@ -572,7 +574,7 @@
 	  between this feature and promiscuous mode. &merged;</para>
 
 	<para>Ethernet flow control is now disabled by default in the
-	  &man.fxp.4; driver, to prevent problems with a system panics
+	  &man.fxp.4; driver, to prevent problems on a subnet when a system panics
 	  or is left in the kernel debugger. &merged;</para>
 
 	<para>The gx(4) driver has been removed because
@@ -679,8 +681,9 @@
 	support IPv6.</para>
 
       <para>&man.ipfw.8; now supports classification and tagging
-	of &man.altq.4; packets via a divert socket,
-	as well as the TCP data length.</para>
+	of &man.altq.4; packets via a divert socket.  It is also
+	possible to specify rules that match TCP packets with specific
+	payload sizes.</para>
 
       <para>The &man.ipfw.8; <literal>ipfw fwd</literal> rule now supports
 	the full packet destination manipulation when the kernel option
@@ -692,7 +695,7 @@
 	Note that &man.ipfw.8; rules have to be carefully crafted to
 	make sure that things like PMTU discovery do not break. &merged;</para>
 
-      <para>The &man.ipfw.8; now supports IPv4 only rules.</para>
+      <para>The &man.ipfw.8; system now supports IPv4 only rules.</para>
 
       <para>&man.ipnat.8; now allows redirect rules to
 	work for non-TCP/UDP packets.  &merged;</para>
@@ -704,7 +707,7 @@
       <para>The <filename>libalias</filename> library can now be built
         as a kernel module.</para>
 
-      <para>The link state change notifications of network interface
+      <para>The link state change notifications of network interfaces
 	are sent to <filename>/dev/devctl</filename> now.</para>
 
       <para>A new &man.ng.ipfw.4; NetGraph node provides
@@ -946,18 +949,19 @@
       &man.getservbyport.3; functions are now thread-safe. &merged;</para>
 
     <para>For conformation to IEEE Std 1003.1-2001
-      (also known as POSIX 2001), the <varname>n_net</varname>
+      (also known as POSIX 2001), the <varname>n_net</varname> member
       of <varname>struct netent</varname> and the first argument
-      of &man.getnetbyaddr.3; has been changed to an uint32_t.
-      Due to these changes the ABI on 64-bit platforms becomes
+      of &man.getnetbyaddr.3; has been changed to an <literal>uint32_t</literal>.
+      Due to these changes, the ABI on 64-bit platforms is
       incompatible with previous releases of &os; and
-      the major version number of libpcap has been bumped.
-      If you upgrade &os; for 64-bit platforms, note that all of
-      the userland programs which use &man.getnetbyaddr.3;,
-      &man.getnetbyname.3;, &man.getnetent.3; and/or
-      <application>libpcap</application> have to be recompiled.</para>
+      the major version number of the <filename>libpcap</filename>
+      shared library has been bumped.
+      On 64-bit platforms being upgraded from older &os; versions, all
+      userland programs that use &man.getnetbyaddr.3;,
+      &man.getnetbyname.3;, &man.getnetent.3;, and/or
+      <filename>libpcap</filename> have to be recompiled.</para>
 
-    <para>The gvinum(8) utility now supports
+    <para>The gvinum(8) utility now supports the
       <command>checkparity</command>,
       <command>rebuildparity</command>, and
       <command>setstate</command>
@@ -1099,22 +1103,22 @@
     <para>The &man.periodic.8; security output now supports the display of
       information about blocked packet counts from &man.pf.4;.  &merged;</para>
 
-    <para>The &man.pgrep.1; now supports an <option>-S</option> option
-      which allows to match system processes (kernel threads).</para>
+    <para>The &man.pgrep.1; command now supports a <option>-S</option> option
+      which allows matching system processes (kernel threads).</para>
 
-    <para>The &man.pgrep.1; and &man.pkill.1; now support an
-      <option>-F</option> option which allows to use file where PID is stored
-      for matching.</para>
+    <para>The &man.pgrep.1; and &man.pkill.1; commands now support a
+      <option>-F</option> option, which matches a process whose PID is
+      stored in a file.</para>
 
-    <para>The &man.pgrep.1; and &man.pkill.1; now support an
+    <para>The &man.pgrep.1; and &man.pkill.1; commands now support a
       <option>-i</option> option to ignore case in the process match.</para>
 
-    <para>The &man.pgrep.1; and &man.pkill.1; now support an
-      <option>-j</option> option which allows to match processes
-      based on its &man.jail.2; ID.</para>
+    <para>The &man.pgrep.1; and &man.pkill.1; commands now support a
+      <option>-j</option> option that matches processes
+      based on their &man.jail.2; ID.</para>
 
-    <para>The &man.pgrep.1; and &man.pkill.1; now support an
-      <option>-o</option> option which allows to match oldest
+    <para>The &man.pgrep.1; and &man.pkill.1; commands now support a
+      <option>-o</option> option which matches only the oldest
       (least recently started) of the matching processes.</para>
 
     <para>The &man.powerd.8; program for managing power consumption has been
@@ -1137,11 +1141,11 @@
       which violates the Microsoft PPP Callback Control Protocol
       section 3.2.  &merged;</para>
 
-    <para>The &man.ps.1; now supports a <literal>jid</literal>
-      keyword in the <option>-o</option> option.  It displays
+    <para>The &man.ps.1; utility now supports a <literal>jid</literal>
+      keyword in the <option>-o</option> option.  It displays the
       &man.jail.2; ID of each process.</para>
 
-    <para>The &man.pstat.8; now supports a <option>-h</option> option
+    <para>The &man.pstat.8; program now supports a <option>-h</option> option
       to print swap sizes with SI prefixes such as K, M, and G,
       which are used to form binary multiples.</para>
 
@@ -1158,7 +1162,7 @@
     <para>The &man.rexecd.8; utility has been removed.
       There are no rexec clients in the &os; tree, and the client
       function &man.rexec.3; is present only in
-      <application>libcompat</application>.</para>
+      <filename>libcompat</filename>.</para>
 
     <para>The &man.rm.1; utility now supports an <option>-I</option>
       option that asks for confirmation (once) if recursively
@@ -1239,7 +1243,7 @@
       connection, has been added.  It was obtained from
       OpenBSD. &merged;</para>
 
-    <para>&man.what.1; now support a <option>-q</option> flag, which
+    <para>&man.what.1; now supports a <option>-q</option> flag, which
       causes it to print matching text, but not format it.</para>
 
     <para>&man.whois.1; now supports
@@ -1344,7 +1348,8 @@ moused_ums0_port="/dev/ums0"</programlisting>
       to 1.0.3.</para>
 
     <para><application>OpenBSD dhclient</application> as of OpenBSD 3.7
-      has been imported.</para>
+      has been imported.  It replaces the ISC DHCP client used in
+      prior versions of &os;.</para>
 
     <para><application>FILE</application> has been updated from 4.10
       to 4.12.</para>
@@ -1417,7 +1422,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       version 8.13.3 to version 8.13.4.  It now supports
       <literal>OSTYPE(freebsd6)</literal>.</para>
 
-    <para><application>TCPDUMP</application> has been updated from
+    <para><application>tcpdump</application> has been updated from
       v3.8.3 to v3.9.1 (alpha 096).</para>
 
     <para><application>tcsh</application> has been updated from
@@ -1504,7 +1509,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para>The supported version of the
       <application>GNOME</application> desktop environment has been
-      updated from 2.6.2 to 2.10.  More information about
+      updated from 2.6.2 to 2.10.1.  More information about
       running <application>GNOME</application> on &os; can be found on
       the <ulink url="&url.base;/gnome/">FreeBSD GNOME Project</ulink>
       Web page. &merged;
