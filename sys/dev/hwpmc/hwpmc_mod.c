@@ -661,16 +661,16 @@ pmc_force_context_switch(void)
  */
 
 static void
-pmc_getprocname(struct proc *p, char **fullpath, char **freepath)
+pmc_getfilename(struct vnode *v, char **fullpath, char **freepath)
 {
 	struct thread *td;
 
 	td = curthread;
 	*fullpath = "unknown";
 	*freepath = NULL;
-	vn_lock(p->p_textvp, LK_EXCLUSIVE | LK_RETRY, td);
-	vn_fullpath(td, p->p_textvp, fullpath, freepath);
-	VOP_UNLOCK(p->p_textvp, 0, td);
+	vn_lock(v, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_fullpath(td, v, fullpath, freepath);
+	VOP_UNLOCK(v, 0, td);
 }
 
 /*
@@ -951,7 +951,7 @@ pmc_attach_one_process(struct proc *p, struct pmc *pm)
 
 	/* issue an attach event to a configured log file */
 	if (pm->pm_owner->po_flags & PMC_PO_OWNS_LOGFILE) {
-		pmc_getprocname(p, &fullpath, &freepath);
+		pmc_getfilename(p->p_textvp, &fullpath, &freepath);
 		pmclog_process_pmcattach(pm, p->p_pid, fullpath);
 		if (freepath)
 			FREE(freepath, M_TEMP);
@@ -1442,7 +1442,6 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 	case PMC_FN_PROCESS_EXEC:
 	{
-		int *credentials_changed;
 		char *fullpath, *freepath;
 		unsigned int ri;
 		int is_using_hwpmcs;
@@ -1450,16 +1449,20 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		struct proc *p;
 		struct pmc_owner *po;
 		struct pmc_process *pp;
+		struct pmckern_procexec *pk;
 
 		sx_assert(&pmc_sx, SX_XLOCKED);
 
 		p = td->td_proc;
-		pmc_getprocname(p, &fullpath, &freepath);
+		pmc_getfilename(p->p_textvp, &fullpath, &freepath);
+
+		pk = (struct pmckern_procexec *) arg;
 
 		/* Inform owners of SS mode PMCs of the exec event. */
 		LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 		    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
-			    pmclog_process_procexec(po, p->p_pid, fullpath);
+			    pmclog_process_procexec(po, PMC_ID_INVALID,
+				p->p_pid, pk->pm_entryaddr, fullpath);
 
 		PROC_LOCK(p);
 		is_using_hwpmcs = p->p_flag & P_HWPMC;
@@ -1499,19 +1502,19 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 				po = pm->pm_owner;
 				if (po->po_sscount == 0 &&
 				    po->po_flags & PMC_PO_OWNS_LOGFILE)
-					pmclog_process_procexec(po, p->p_pid,
+					pmclog_process_procexec(po, pm->pm_id,
+					    p->p_pid, pk->pm_entryaddr,
 					    fullpath);
 			}
 
 		if (freepath)
 			FREE(freepath, M_TEMP);
 
-		credentials_changed = arg;
 
 		PMCDBG(PRC,EXC,1, "exec proc=%p (%d, %s) cred-changed=%d",
-		    p, p->p_pid, p->p_comm, *credentials_changed);
+		    p, p->p_pid, p->p_comm, pk->pm_credentialschanged);
 
-		if (*credentials_changed == 0) /* credentials didn't change */
+		if (pk->pm_credentialschanged == 0) /* no change */
 			break;
 
 		/*
@@ -3457,7 +3460,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
  */
 
 int
-pmc_process_interrupt(int cpu, struct pmc *pm, intfptr_t pc, int usermode)
+pmc_process_interrupt(int cpu, struct pmc *pm, uintfptr_t pc, int usermode)
 {
 	int error, ri;
 	struct thread *td;
@@ -3474,7 +3477,7 @@ pmc_process_interrupt(int cpu, struct pmc *pm, intfptr_t pc, int usermode)
 		atomic_add_int(&pmc_stats.pm_intr_bufferfull, 1);
 		atomic_set_int(&pm->pm_flags, PMC_F_IS_STALLED);
 		PMCDBG(SAM,INT,1,"(spc) cpu=%d pm=%p pc=%jx um=%d wr=%d rd=%d",
-		    cpu, pm, (int64_t) pc, usermode,
+		    cpu, pm, (uint64_t) pc, usermode,
 		    (int) (psb->ps_write - psb->ps_samples),
 		    (int) (psb->ps_read - psb->ps_samples));
 		error = ENOMEM;
@@ -3483,7 +3486,7 @@ pmc_process_interrupt(int cpu, struct pmc *pm, intfptr_t pc, int usermode)
 
 	/* fill in entry */
 	PMCDBG(SAM,INT,1,"cpu=%d pm=%p pc=%jx um=%d wr=%d rd=%d", cpu, pm,
-	    (int64_t) pc, usermode,
+	    (uint64_t) pc, usermode,
 	    (int) (psb->ps_write - psb->ps_samples),
 	    (int) (psb->ps_read - psb->ps_samples));
 
@@ -3549,7 +3552,7 @@ pmc_process_samples(int cpu)
 			goto entrydone;
 
 		PMCDBG(SAM,OPS,1,"cpu=%d pm=%p pc=%jx um=%d wr=%d rd=%d", cpu,
-		    pm, (int64_t) ps->ps_pc, ps->ps_usermode,
+		    pm, (uint64_t) ps->ps_pc, ps->ps_usermode,
 		    (int) (psb->ps_write - psb->ps_samples),
 		    (int) (psb->ps_read - psb->ps_samples));
 
@@ -3768,7 +3771,7 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 		 */
 		for (ri = 0; ri < md->pmd_npmc; ri++)
 			if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
-				if (pm->pm_flags & PMC_F_LOG_PROCEXIT)
+				if (pm->pm_flags & PMC_F_NEEDS_LOGFILE)
 					pmclog_process_procexit(pm, pp);
 				pmc_unlink_target_process(pm, pp);
 			}

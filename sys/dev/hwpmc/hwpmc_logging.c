@@ -138,14 +138,16 @@ CTASSERT(sizeof(struct pmclog_mappingchange) == PATH_MAX +
     5*4 + 2*sizeof(uintfptr_t));
 CTASSERT(offsetof(struct pmclog_mappingchange,pl_pathname) ==
     5*4 + 2*sizeof(uintfptr_t));
-CTASSERT(sizeof(struct pmclog_pcsample) == 5*4 + sizeof(uintfptr_t));
+CTASSERT(sizeof(struct pmclog_pcsample) == 6*4 + sizeof(uintfptr_t));
 CTASSERT(sizeof(struct pmclog_pmcallocate) == 6*4);
 CTASSERT(sizeof(struct pmclog_pmcattach) == 5*4 + PATH_MAX);
 CTASSERT(offsetof(struct pmclog_pmcattach,pl_pathname) == 5*4);
 CTASSERT(sizeof(struct pmclog_pmcdetach) == 5*4);
 CTASSERT(sizeof(struct pmclog_proccsw) == 5*4 + 8);
-CTASSERT(sizeof(struct pmclog_procexec) == 4*4 + PATH_MAX);
-CTASSERT(offsetof(struct pmclog_procexec,pl_pathname) == 4*4);
+CTASSERT(sizeof(struct pmclog_procexec) == 5*4 + PATH_MAX +
+    sizeof(uintfptr_t));
+CTASSERT(offsetof(struct pmclog_procexec,pl_pathname) == 5*4 +
+    sizeof(uintfptr_t));
 CTASSERT(sizeof(struct pmclog_procexit) == 5*4 + 8);
 CTASSERT(sizeof(struct pmclog_procfork) == 5*4);
 CTASSERT(sizeof(struct pmclog_sysexit) == 4*4);
@@ -755,6 +757,7 @@ pmclog_process_pcsample(struct pmc *pm, struct pmc_sample *ps)
 	PMCLOG_EMIT32(ps->ps_pid);
 	PMCLOG_EMITADDR(ps->ps_pc);
 	PMCLOG_EMIT32(pm->pm_id);
+	PMCLOG_EMIT32(ps->ps_usermode);
 	PMCLOG_DESPATCH(po);
 }
 
@@ -834,7 +837,8 @@ pmclog_process_proccsw(struct pmc *pm, struct pmc_process *pp, pmc_value_t v)
 }
 
 void
-pmclog_process_procexec(struct pmc_owner *po, pid_t pid, char *path)
+pmclog_process_procexec(struct pmc_owner *po, pmc_id_t pmid, pid_t pid,
+    uintfptr_t startaddr, char *path)
 {
 	int pathlen, recordlen;
 
@@ -845,6 +849,8 @@ pmclog_process_procexec(struct pmc_owner *po, pid_t pid, char *path)
 
 	PMCLOG_RESERVE(po, PROCEXEC, recordlen);
 	PMCLOG_EMIT32(pid);
+	PMCLOG_EMITADDR(startaddr);
+	PMCLOG_EMIT32(pmid);
 	PMCLOG_EMITSTRING(path,pathlen);
 	PMCLOG_DESPATCH(po);
 }
@@ -858,9 +864,6 @@ pmclog_process_procexit(struct pmc *pm, struct pmc_process *pp)
 {
 	int ri;
 	struct pmc_owner *po;
-
-	KASSERT(pm->pm_flags & PMC_F_LOG_PROCEXIT,
-	    ("[pmc,%d] log-process-exit called gratuitously", __LINE__));
 
 	ri = PMC_TO_ROWINDEX(pm);
 	PMCDBG(LOG,EXT,1,"pm=%p pid=%d v=%jx", pm, pp->pp_proc->p_pid,

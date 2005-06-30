@@ -301,6 +301,9 @@ do_execve(td, args, mac_p)
 	struct label *interplabel = NULL;
 	int will_transition;
 #endif
+#ifdef HWPMC_HOOKS
+	struct pmckern_procexec pe;
+#endif
 
 	vfslocked = 0;
 	imgp = &image_params;
@@ -681,8 +684,10 @@ interpret:
 	 */
 	if (PMC_SYSTEM_SAMPLING_ACTIVE() || PMC_PROC_IS_USING_PMCS(p)) {
 		PROC_UNLOCK(p);
-		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC,
-		    (void *) &credential_changing);
+		pe.pm_credentialschanged = credential_changing;
+		pe.pm_entryaddr = imgp->entry_addr;
+
+		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC, (void *) &pe);
 	} else
 		PROC_UNLOCK(p);
 #else  /* !HWPMC_HOOKS */
