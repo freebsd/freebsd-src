@@ -109,13 +109,10 @@ network_common()
 	#
 	_cooked_list=
 	if [ -n "$_cmdifn" ]; then
-		for i in $_cmdifn ; do
-			eval _if=\"`expr "$_ifn_list" : ".*\(${i}\).*"`\"
-			if [ -z "$_if" ]; then
-				err 1 "No such network interface: $i"
-			fi
-			_cooked_list="$_cooked_list $_if"
-		done
+		# Don't check that the interfaces exist.  We need to run
+		# the down code even when the interface doesn't exist to
+		# kill off wpa_supplicant.
+		_cooked_list="$_cmdifn"
 	else
 		_cooked_list="$_ifn_list"
 	fi
