@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -534,8 +535,12 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	size = IOCPARM_LEN(com);
 	if ((size > IOCPARM_MAX) ||
 	    ((com & (IOC_VOID  | IOC_IN | IOC_OUT)) == 0) ||
-	    ((com & IOC_VOID) && size > 0) ||
-	    ((com & (IOC_IN | IOC_OUT)) && size == 0)) {
+#if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	    ((com & IOC_OUT) && size == 0) ||
+#else
+	    ((com & (IOC_IN | IOC_OUT)) && size == 0) ||
+#endif
+	    ((com & IOC_VOID) && size > 0)) {
 		fdrop(fp, td);
 		return (ENOTTY);
 	}
