@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.27 2005/04/15 13:13:30 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.28 2005/06/30 11:12:32 den Exp $
 
-     Original revision: 1.845
+     Original revision: 1.879
 -->
 
 <articleinfo>
@@ -34,7 +34,7 @@
 
   <abstract>
     <para>Заметки о релизе для &os; &release.current; содержат общую
-      информацию по изменениям, внесенным в систему с момента создания
+      информацию по изменениям базовой системе &os; в ветви разработки
       &release.branch;.
       Этот документ содержит список сообщений безопасности, выпущенных после
       последнего релиза, а также список значительных изменений, внесенных
@@ -165,6 +165,69 @@
       За дальнейшей информацией обращайтесь к сообщению безопасности
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>.
       &merged;</para>
+ 
+    <para>Были исправлены несколько программных ошибок в &man.cvs.1;,
+      которые потенциально могли приводить к выполнению произвольного
+      кода на серверах CVS.  Дополнительная информация находится в
+      сообщении безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:05.cvs.asc">FreeBSD-SA-05:05.cvs</ulink>.
+      &merged;</para>
+
+    <para>Была исправлена ошибка установки прав на файл устройства <filename
+	class="devicefile">/dev/iir</filename>, которая позволяла
+      непривилегированным локальным пользователям отправлять команды
+      оборудованию, поддерживаемому драйвером &man.iir.4;.
+      За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:06.iir.asc">FreeBSD-SA-05:06.iir</ulink>.
+      &merged;</para>
+
+   <para>Была исправлена ошибка в проверке аргументов системного вызова
+     &man.i386.get.ldt.2;, которая позволяла раскрытие информации в памяти
+     ядра пользовательским процессам.  За дальнейшей информацией обращайтесь
+     к сообщению безопасности
+     <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:07.ldt.asc">FreeBSD-SA-05:07.ldt</ulink>.
+     &merged;</para>
+
+    <para>Были исправлены несколько ошибок, позволявших раскрытие информации
+      в различных областях памяти ядра.  За дальнейшей информацией обращайтесь
+      к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:08.kmem.asc">FreeBSD-SA-05:08.kmem</ulink>.
+      &merged;</para>
+
+    <para arch="i386,amd64">Вследствие обнаружения в процессорах с
+      Hyper-Threading Technology (HTT) уязвимости, приводящей к раскрытию
+      информации, была добавлена переменная sysctl
+      <varname>machdep.hyperthreading_allowed</varname>.
+      По умолчанию она установлена в <literal>1</literal> (HTT включена)
+      в &os; CURRENT, и в <literal>0</literal> (HTT выключена) в
+      в ветвях разработки 4-STABLE и 5-STABLE и в поддерживаемых
+      ветвях с исправлениями безопасности.  Дополнительная информация
+      находится в сообщении безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>.
+      &merged;</para>
+
+    <para>Была исправлена ошибка в утилите &man.tcpdump.1;, позволявшая
+      злонамеренному удаленному пользователю выполнение DoS атаки
+      путем использования сформированных специально для этого пакетов.
+      За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:10.tcpdump.asc">FreeBSD-SA-05:10.tcpdump</ulink>.
+      &merged;</para>
+
+    <para>Было исправлено две проблемы в утилите &man.gzip.1;.
+      Вследствие этих проблем локальный пользователь мог изменить права
+      произвольных файлов и перезаписать произвольные локальные файлы
+      при распаковке файла.
+      За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc">FreeBSD-SA-05:11.gzip</ulink>.
+      &merged;</para>
+
+    <para>Была исправлена ошибка в <application>BIND 9</application> DNSSEC.
+      Если DNSSEC включен, эта ошибка может позволить удаленно вызвать
+      завершение работы &man.named.8; путем отправки ему специально
+      сформированных пакетов.
+      За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:12.bind9.asc">FreeBSD-SA-05:12.bind9</ulink>.
+      &merged;</para>
 
   </sect2>
 
@@ -181,6 +244,9 @@
       потоков, удерживающих в данный момент sleep мьютексы (и spin мьютексы
       для текущего потока).  &merged;</para>
 
+    <para>Драйвер &man.ichsmb.4; теперь доступен в виде загружаемого модуля
+      ядра.</para>
+
     <para>&man.jail.8; теперь поддерживает новую переменную sysctl
       <varname>security.jail.chflags_allowed</varname>, которая контролирует
       поведение &man.chflags.1; внутри jail.
@@ -190,6 +256,47 @@
       <literal>1</literal>, различий между пользователем
       <username>root</username> внутри jail и вне jail не делается.
       &merged;</para>
+
+    <para>Переменная sysctl
+      <varname>security.jail.getfsstatroot_only</varname> была переименована
+      в <varname>security.jail.enforce_statfs</varname> и теперь поддерживает
+      следующие политики:</para>
+
+    <informaltable frame="none">
+      <tgroup cols="2">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Значение</entry>
+	    <entry>Политика</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry>0</entry>
+	    <entry>Показывать все точки монтирования без каких-либо
+	      ограничений.</entry>
+	  </row>
+
+	  <row>
+	    <entry>1</entry>
+	    <entry>Показывать только точки монтирования внутри каталога jail
+	      и только часть пути к точке монтирования (например, если каталог jail
+	      <filename>/jails/foo</filename> и точка монтирования
+	      <filename>/jails/foo/usr/home</filename>, будет показано только
+	      <filename>/usr/home</filename>).</entry>
+	  </row>
+
+	  <row>
+	    <entry>2</entry>
+	    <entry>Показывать только точку монтирования, под которой находится
+	      каталог jail.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
 
     <para arch="alpha,amd64,i386,sparc64">Переменная загрузчика
       <varname>debug.mpsafevm</varname> была включена по
@@ -201,6 +308,11 @@
       через <literal>options DEBUG_MEMGUARD</literal>, с небольшими
       изменениями ядра.  Он как в основном предназначен для использования
       разработчиками ядра.</para>
+ 
+    <para><varname>struct ifnet</varname> и API сетевых интерфейсов были
+      изменены.  Вследствие несовместимости ABI, все драйверы, не входящие
+      в базовую систему &os;, должны быть обновлены и перекомпилированы
+      для использования нового API.</para>
 
     <para>Множество ошибок было исправлено в планировщике ULE.
       &merged;</para>
@@ -259,6 +371,9 @@
       &man.pty.4; делает это для терминалов.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
+ 
+    <para arch="i386,amd64">&os; теперь всегда использует локальный APIC
+      таймер даже на однопроцессорных системах.</para>
 
     <para arch="i386,amd64,ia64">Параметр по умолчанию <varname>HZ</varname>
       (контролирующий различные таймеры ядра) был увеличен с
@@ -275,6 +390,13 @@
       пересобрать для поддержания синхронизации с
       ядром.</para>
 
+    <para>Была добавлена новая переменная загрузчика
+      <varname>vm.blacklist</varname>.  В нее может быть помещен разделенный
+      запятыми список физических адресов.  Страницы, помещенные в этот
+      список, не будут добавлены к списку свободных страниц, и
+      будут проигнорированы системой виртуальной памяти &os;.  Физические
+      адреса игнорируемых страниц также попадут в буфер сообщений.</para>
+
     <sect3 id="boot">
       <title>Изменения в загрузчике</title>
 
@@ -290,6 +412,11 @@
 
       <para>Команда загрузчика <command>autoboot</command> теперь
 	поддерживает параметр prompt.</para>
+ 
+      <para>Команда загрузчика <command>autoboot</command> теперь вовсе не позволит
+	пользователю прервать процесс загрузки, если переменная 
+	<varname>autoboot_delay</varname> установлена в
+	<literal>-1</literal>. &merged;</para>
 
       <para>Был добавлен параметр меню загрузчика для установки
 	<varname>hint.atkbd.0.flags=0x1</varname>.  Это позволяет
@@ -312,8 +439,10 @@
 	переменных sysctl <varname>debug.acpi.do_powerstate</varname>
 	и <varname>hw.pci.do_powerstate</varname> в <literal>0</literal>.</para>
 
-      <para arch="i386,amd64">Был добавлен драйвер acpi_ibm для
-	лэптопов IBM.</para>
+      <para arch="i386,amd64">Был добавлен драйвер &man.acpi.ibm.4; для
+	лэптопов IBM.  В него были добавлены
+	поддержка горячих клавиш, функция получения статуса вентилятора и
+	датчиков температуры.</para>
 
       <para arch="i386,amd64">Был добавлен драйвер &man.acpi.fujitsu.4; для
 	кнопок контроля &man.acpi.4; на лэптопах Fujitsu.</para>
@@ -321,9 +450,26 @@
       <para arch="i386,amd64">Был добавлен драйвер acpi_sony,
 	поддерживающий Sony Notebook Controller на различных лэптопах
 	Sony.</para>
+ 
+      <para>The &man.atkbdc.4;, &man.atkbd.4;, and &man.psm.4;
+	drivers have been rewritten in more bus-independent way,
+	and now support EBus found on sparc64 platform.</para>
 
-      <para arch="sparc64">Был добавлен драйвер &man.auxio.4; для обработки
-	некоторых вспомогательных функций ввода/вывода, обнаруженных
+      <para arch="sparc64">Следующие драйверы устройств были добавлены и
+	включены по умолчанию в ядре <filename>GENERIC</filename>:
+	&man.atkbdc.4;,
+	&man.atkbd.4;,
+	creator(4),
+	machfb(4),
+	&man.syscons.4;,
+	&man.ohci.4;,
+	&man.psm.4;,
+	&man.ukbd.4;,
+	&man.ums.4;,
+	и &man.usb.4;.</para>
+
+      <para arch="sparc64">Был добавлен драйвер &man.auxio.4;; он поддерживает
+	некоторые вспомогательных функций ввода/вывода, обнаруженных
 	в различных SBus/EBus &ultrasparc; моделях. &merged;</para>
 
       <para arch="sparc64">Был добавлен драйвер clkbrd для поддержки
@@ -341,6 +487,13 @@
 	включены в драйвер &man.acpi.4;.  Поддерживаемые драйверы
 	могут быть индивидуально отключены путем установки хинтов,
 	таких как <varname>hint.<replaceable>ichss</replaceable>.0.disabled="1"</varname>.</para>
+
+      <para>Был добавлен драйвер аппаратного мониторинга производительности,
+	&man.hwpmc.4;.  Этот драйвер виртуализует функции аппаратного
+	мониторинга производительности современных CPU и предоставляет
+	поддержку для использования этих функций пользовательскими процессами.
+	За дополнительной информацией обращайтесь к страницам справочника
+	&man.hwpmc.4;, соответствующих библиотек и программ пользователя.</para>
 
       <para arch="i386">Поддержка подсистемы OLDCARD была удалена.
 	Для поддержки всех устройств PCCARD в настоящее время
@@ -368,12 +521,21 @@
       <para arch="sparc64">Был добавлен драйвер rtc для поддержки
 	MC146818-совместимых часов, обнаруженных на некоторых моделях
 	&ultrasparc; II и III. &merged;</para>
+ 
+      <para arch="i386">Драйвер &man.syscons.4; теперь поддерживает режимы
+	VESA (15, 16, 24 и 32 бит).  Для включения этой функциональности,
+	необходимо добавить два параметра ядра,
+	<literal>SC_PIXEL_MODE</literal> и <literal>VESA</literal>
+	(или загрузить соответствующий модуль ядра).</para>
 
       <para arch="sparc64">Драйвер &man.uart.4; был включен в ядре
 	<filename>GENERIC</filename>, и теперь это драйвер по умолчанию
 	для последовательных портов.  Драйверы ofw_console и
 	&man.sab.4; теперь выключены в ядре
 	<filename>GENERIC</filename>. &merged;</para>
+
+      <para>Драйвер &man.uftdi.4; теперь поддерживает микросхему FTDI
+	FT2232C.</para>
 
       <para>Драйвер &man.uplcom.4; теперь поддерживает обработку сигнала
 	<literal>CTS</literal>.</para>
@@ -392,7 +554,7 @@
 
 	<para>Драйвер &man.uaudio.4; теперь содержит некоторую дополнительную
 	  функциональность, включая контроль уровня на большем числе входов
-	  и возможность записи на некоторых устройствах.</para>
+	  и возможность записи на некоторых устройствах. &merged;</para>
 
       </sect4>
 
@@ -408,7 +570,8 @@
 	  <literal>device ath_rate_sample</literal>.</para>
 
 	<para>Драйвер &man.bge.4; теперь поддерживает инфраструктуру
-	  &man.altq.4;.</para>
+	  &man.altq.4;, а также микросхемы BCM5714, 5721, 5750, 5751,
+	  5751M и 5789. &merged;</para>
 
 	<para>Был добавлен USB Communication Device Class Ethernet
 	  драйвер &man.cdce.4;. &merged;</para>
@@ -420,7 +583,7 @@
 	<para>Драйвер &man.cx.4; теперь MPSAFE. &merged;</para>
 
 	<para>Драйвер &man.dc.4; теперь поддерживает инфраструктуру
-          &man.altq.4;.</para>
+          &man.altq.4;. &merged;</para>
 
 	<para>Драйвер &man.ed.4; теперь поддерживает инфраструктуру
           &man.altq.4;.  &merged;</para>
@@ -430,8 +593,8 @@
 	  конфликтовала с promiscuous режимом. &merged;</para>
 
 	<para>Контроль потока Ethernet отключен по умолчанию в драйвере
-	  &man.fxp.4; для предотвращения проблем &mdash; паники ядра.
-	  <!--or is left in the kernel debugger. -->&merged;</para>
+	  &man.fxp.4; для предотвращения проблем в подсети при возникновении
+	  паники системы или при включенном отладчике ядра. &merged;</para>
 
 	<para>Драйвер gx(4) был удален, поскольку он не поддерживается
 	  достаточно активно, и драйвер &man.em.4; поддерживает все
@@ -439,13 +602,29 @@
 
 	<para>Драйвер &man.hme.4; теперь MPSAFE. &merged;</para>
 
-	<para>Драйвер &man.ixgb.4; теперь MPSAFE.</para>
+	<para>Были добавлены драйверы &man.ipw.4; (для Intel PRO/Wireless 2100),
+	  &man.iwi.4; (для Intel PRO/Wireless 2200BG/2225BG/2915ABG),
+	  &man.ral.4; (для Ralink Technology RT2500),
+	  и &man.ural.4; (для Ralink Technology RT2500USB).</para>
+
+	<para>Драйвер &man.ixgb.4; теперь MPSAFE. &merged;</para>
+
+	<para>Драйвер musycc для сетевой интерфейсной карты LanMedia
+	  LMC1504 T1/E1 не использовался и был удален.</para>
+
+	<para arch="i386,amd64">Драйверы, использующие конвертер драйверов
+	  устройств &man.ndis.4;, теперь создаются и загружаются по-другому.
+	  Драйвер &man.ndis.4; теперь может быть предварительно собран как
+	  модуль или статически компилирован в ядро.  Отдельные драйверы
+	  теперь могут быть собраны с использованием утилиты &man.ndisgen.8;;
+	  получившиеся модули могут быть загружены в работающее ядро с
+	  использованием &man.kldload.8;. &merged;</para>
 
 	<para arch="amd64">Конвертер драйверов устройств &man.ndis.4;
 	  теперь поддерживает бинарные файлы &windows;/x86-64 на системах
 	  amd64. &merged;</para>
 
-	<para arch="i386,amd64">Был добавлен драйвер nve, поддерживающий
+	<para arch="i386,amd64">Был добавлен драйвер &man.nve.4;, поддерживающий
 	  nVidia nForce MCP Networking Adapter.</para>
 
 	<para>Драйвер &man.re.4; теперь поддерживает инфраструктуру
@@ -479,7 +658,7 @@
 	  в ядро.</para>
 
 	<para>Драйвер &man.xl.4; теперь поддерживает
-	  &man.polling.4;.</para>
+	  &man.polling.4;. &merged;</para>
 
       </sect4>
     </sect3>
@@ -497,6 +676,13 @@
 	За дальнейшей информацией обращайтесь к странице справочника
 	&man.carp.4;.  &merged;</para>
 
+      <para>Была добавлена реализация сетевого моста &man.if.bridge.4;,
+	первоначально появившаяся в NetBSD.  Эта реализация поддерживает
+	IEEE 802.1D Spanning Tree Protocol, индивидуальные интерфейсные
+	устройства для каждого моста и фильтрацию проходящих через мост
+	пакетов.  Утилита &man.ifconfig.8; теперь поддерживает конфигурацию
+	&man.if.bridge.4;.</para>
+
       <para>Параметр &man.ipfw.4; <literal>IPDIVERT</literal> теперь
 	доступен в виде загружаемого модуля ядра.  Если этот модуль
 	не загружен, &man.ipfw.4; не будет загружать правила
@@ -509,9 +695,13 @@
 	когда используются параметры правил <literal>gid</literal>,
 	<literal>jail</literal>, и/или <literal>uid</literal>.  &merged;</para>
 
+      <para>Системы &man.ipfw.4; и &man.dummynet.4; теперь поддерживают
+	IPv6.</para>
+
       <para>&man.ipfw.8; теперь поддерживает классификацию и теги
-	пакетов &man.altq.4; через divert сокет, а также
-	TCP data length.</para>
+	пакетов &man.altq.4; через divert сокет.  Возможно также указать
+	правила, соответствующие TCP пакетам с определенным значением
+	payload size.</para>
 
       <para>Правило &man.ipfw.8; <literal>ipfw fwd</literal> теперь
 	поддерживает полное управление назначением пакета при
@@ -525,6 +715,8 @@
 	аккуратно, чтобы, например, не нарушить	определение PMTU.
 	&merged;</para>
 
+      <para>Система &man.ipfw.8; теперь поддерживает правила только IPv4.</para>
+
       <para>&man.ipnat.8; теперь позволяет определять правила
 	перенаправления для не-TCP/UDP пакетов.  &merged;</para>
 
@@ -532,17 +724,34 @@
 	Giant блокировки стеком сетевых протоколов и улучшению
 	стратегии блокировки.</para>
 
+      <para>Библиотека <filename>libalias</filename> теперь может быть собрана
+	как модуль ядра.</para>
+
+      <para>Уведомления об изменении статуса сетевых интерфейсов теперь
+	отправляются <filename>/dev/devctl</filename>.</para>
+
       <para>Новый узел NetGraph &man.ng.ipfw.4; предоставляет
 	простой интерфейс между &man.ipfw.4; и &man.netgraph.4;.</para>
+
+      <para>Был добавлен новый узел &man.ng.nat.4; NetGraph для выполнения
+	функций NAT.</para>
 
       <para>Новый узел NetGraph &man.ng.netflow.4; позволяет
 	маршрутизатору, работающему под &os;, выполнять экспорт
 	NetFlow версии 5. &merged;</para>
 
+      <para>Был добавлен новый узел NetGraph &man.ng.tcpmss.4;.
+	Он поддерживает изменение параметров MSS пакетов TCP.</para>
+
       <para>Драйвер &man.sppp.4; теперь включает поддержку Frame Relay
 	&merged;</para>
 
       <para>Драйвер &man.sppp.4; теперь MPSAFE.</para>
+
+      <para>Была реализована новая переменная sysctl
+	<varname>net.link.tap.user_open</varname>.  Она позволяет
+	непривилегированный доступ к файлам устройств &man.tap.4;
+	на основе прав, действующих в файловой системе.</para>
 
       <para>Была исправлена ошибка TCP, которая иногда приводила к
 	игнорированию пакетов RST при окне приема в ноль байт.
@@ -594,6 +803,16 @@
 	sysctl <varname>debug.mpsafenet</varname> может быть установлена
 	в <literal>1</literal>).</para>
 
+      <para>Сокеты Unix теперь поддерживают опции
+	<literal>LOCAL_CREDS</literal> и
+	<literal>LOCAL_CONNWAIT</literal>.
+	Опция <literal>LOCAL_CREDS</literal> предоставляет получателю
+	механизм для получения идентификатора процесса в виде
+	контрольного сообщения &man.recvmsg.2;.
+	Опция <literal>LOCAL_CONNWAIT</literal> вызывает блокирование
+	в функции &man.connect.2; до тех пор, пока на принимающем сокете
+	не будет вызвана функция &man.accept.2;.  Более детальная
+	информация находится на странице справочника &man.unix.4;.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -605,6 +824,20 @@
       <para arch="i386,ia64">Был добавлен драйвер &man.arcmsr.4;.
 	Он поддерживает контроллеры SATA RAID серий Areca ARC-11<replaceable>xx</replaceable>
 	и ARC-12<replaceable>xx</replaceable>.  &merged;</para>
+
+      <para>Семейство драйверов &man.ata.4; было пересмотрено и обновлено.
+	Оно было разделено на модули, которые могут быть загружены и выгружены
+	независимо (модули <filename>atapci</filename> и
+	<filename>ata</filename> необходимы для драйверов устройств, таких
+	как <filename>atadisk</filename>,
+	<filename>atapicd</filename>, <filename>atapifd</filename>,
+	<filename>atapist</filename> и
+	<filename>ataraid</filename>).  Устройства SATA поддерживают горячее
+	подключение/отключение на поддерживающих эту функцию контроллерах.
+	Поддержка ATA RAID была переписана и теперь поддерживает множество
+	новых форматов метаданных.  Драйвер <filename>atapicd</filename>
+	больше не поддерживает устройства смены CD.  Выполненное обновление
+	известно как <quote>ATA mkIII</quote>.</para>
 
       <para>Был добавлен класс SHSEC GEOM.  Он предоставлен для
 	разделения секретного ключа (<quote>secret</quote>)
@@ -627,6 +860,10 @@
 
       <para>Старая подсистема vinum(4) была удалена в пользу новой,
 	основанной на &man.geom.4; версии.</para>
+
+      <para>Драйвер &man.twa.4; был обновлен до версии
+	9.2 release (для &os; 5.2.1), распространяемой с веб сайта
+	3ware.</para>
 
       <para arch="pc98">Драйвер &man.wd.4; был удален.  Было обнаружено,
 	что драйвер &man.ata.4; работает достаточно хорошо на платформе
@@ -658,6 +895,9 @@
 	<ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:01.nfs.asc">FreeBSD-EN-05:01.nfs</ulink>.
 	&merged;</para>
 
+      <para arch="i386,pc98">Была добавлена поддержка чтения ReiserFS
+	версии 3.  Обращайтесь к &man.mount.reiserfs.8; за подробной
+	информацией.</para>
     </sect3>
 
     <sect3>
@@ -675,6 +915,17 @@
     <para>Утилита &man.burncd.8; теперь позволяет задание команд,
       (таких как <command>eject</command>), выполняемых после
       выполнения команды fixate.</para>
+
+    <para arch="amd64">Были реализованы специфичные для данной архитектуры
+      оптимизированные версии &man.bcmp.3;, &man.bcopy.3;, &man.bzero.3;,
+      &man.memcmp.3;, &man.memcpy.3;, &man.memmove.3;, &man.memset.3;,
+      &man.strcat.3; и &man.strcpy.3;.  Несколько математических
+      функций, таких как &man.ceill.3; и &man.sqrtf.3; также были замещены
+      оптимизированными версиями.</para>
+
+    <para>Утилита &man.chflags.1; теперь поддерживает флаг
+      <option>-h</option>, позволяющий изменять флаги на символических
+      ссылках.</para>
 
     <para>Программа &man.ftpd.8; теперь корректно использует коды
       статуса <literal>212</literal> и <literal>213</literal>
@@ -704,6 +955,34 @@
       результат все еще включает запись <literal>AF_INET6</literal>
       перед записью <literal>AF_INET</literal>.  &merged;</para>
 
+    <para>Функции &man.gethostbyname.3;, &man.gethostbyname2.3; и
+      &man.gethostbyaddr.3; теперь можно безопасно использовать
+      в многопоточных программах. &merged;</para>
+
+    <para>Функции &man.getnetent.3;, &man.getnetbyname.3; и
+      &man.getnetbyaddr.3; теперь можно безопасно использовать
+      в многопоточных программах. &merged;</para>
+
+    <para>Функции &man.getprotoent.3;, &man.getprotobyname.3; и
+      &man.getprotobynumber.3; теперь можно безопасно использовать
+      в многопоточных программах. &merged;</para>
+
+    <para>Функции &man.getservent.3;, &man.getservbyname.3; и
+      &man.getservbyport.3; теперь можно безопасно использовать
+      в многопоточных программах. &merged;</para>
+
+    <para>В соответствии с IEEE Std 1003.1-2001 (известным также как
+      POSIX 2001), переменная <varname>n_net</varname>
+      структуры <varname>struct netent</varname> и первый аргумент
+      &man.getnetbyaddr.3; были изменены на <literal>uint32_t</literal>.
+      Вследствие этого изменения ABI на 64-битных платформах
+      несовместим с предыдущими релизами &os; и основной номер версии
+      библиотеки <filename>libpcap</filename> был увеличен.
+      Если вы обновляете &os; на 64-битных платформах с более старой версии,
+      учтите, что все программы пользователя, использующие
+      &man.getnetbyaddr.3;, &man.getnetbyname.3;, &man.getnetent.3; и/или
+      <filename>libpcap</filename>, должны быть перекомпилированы.</para>
+
     <para>Утилита gvinum(8) теперь поддерживает субкоманды
       <command>checkparity</command>,
       <command>rebuildparity</command> и
@@ -719,9 +998,17 @@
       была исключена из числе рекомендованных.  При обнаружении одного
       из таких сокращений, на stderr печатается предупреждение, содержащее
       корректную полную форму.</para>
+ 
+    <para>Утилита &man.kldstat.8; теперь поддерживает опцию
+      <option>-m</option>, с которой возвращает статус определенного модуля
+      ядра. &merged;</para>
 
     <para>Дисковый формат файлов <literal>LC_CTYPE</literal> был изменен
-      к машино-независимому виду.</para>
+      к машинно-независимому виду.</para>
+
+    <para>Утилита &man.mixer.8; теперь поддерживает параметр
+      <option>-S</option>.  Это то же, что и опция <option>-s</option>,
+      но разделители полей не выводятся.</para>
 
     <para>Была исправлена ошибка в библиотеке <filename>libalias</filename>,
       приводившая к дампу памяти при указании в &man.natd.8;
@@ -749,7 +1036,7 @@
       платформах, основной поток получает 2MB стек по умолчанию,
       а остальные потоки получают 1MB стек по умолчанию.  На
       64-битных платформах, размер стека по умолчанию 4MB и 2MB
-      соответственно.</para>
+      соответственно. &merged;</para>
 
     <para>Библиотека <filename>libxpg4</filename> была удалена,
       поскольку вся ее функциональность была давно внесена в
@@ -838,21 +1125,21 @@
       отображение счетчиков пакетов, заблокированных
       &man.pf.4;.  &merged;</para>
 
-    <para>&man.pgrep.1; теперь поддерживает опцию <option>-S</option>,
+    <para>Команда &man.pgrep.1; теперь поддерживает опцию <option>-S</option>,
       которая соответствует системным процессам (потокам ядра).</para>
 
-    <para>&man.pgrep.1; и &man.pkill.1; теперь поддерживают опцию
+    <para>Команды &man.pgrep.1; и &man.pkill.1; теперь поддерживают опцию
       <option>-F</option>, позволяющую указывать файл, где сохраняется
       PID.</para>
 
-    <para>&man.pgrep.1; и &man.pkill.1; теперь поддерживают опцию
+    <para>Команды &man.pgrep.1; и &man.pkill.1; теперь поддерживают опцию
       <option>-i</option>, с которой регистр игнорируется.</para>
 
-    <para>&man.pgrep.1; и &man.pkill.1; теперь поддерживают опцию
+    <para>Команды &man.pgrep.1; и &man.pkill.1; теперь поддерживают опцию
       <option>-j</option>, с которой процессы сопоставляются на основе
       их идентификатора &man.jail.2;.</para>
 
-    <para>&man.pgrep.1; и &man.pkill.1; теперь поддерживают опцию
+    <para>Команды &man.pgrep.1; и &man.pkill.1; теперь поддерживают опцию
       <option>-o</option>, соответствующую наиболее старому
       (раньше всех запущенному) из выбираемых процессов.</para>
 
@@ -877,11 +1164,11 @@
       нарушающему Microsoft PPP Callback Control Protocol
       section 3.2.  &merged;</para>
 
-    <para>&man.ps.1; теперь поддерживает ключевое слово
+    <para>Утилита &man.ps.1; теперь поддерживает ключевое слово
       <literal>jid</literal> опции <option>-o</option>.  Оно предназначено
       для отображения идентификатора &man.jail.2; каждого процесса.</para>
 
-    <para>&man.pstat.8; теперь поддерживает опцию <option>-h</option>,
+    <para>Программа &man.pstat.8; теперь поддерживает опцию <option>-h</option>,
       чтобы выводить размер с префиксами, такими как K, M и G.
       <!--which are used to form binary multiples.--></para>
 
@@ -889,11 +1176,15 @@
       теперь включают &man.bsdtar.1; вместо GNU tar.</para>
 
     <para>Утилита &man.restore.8; опять может читать ленты с дампами
-      &os; версии 1.</para>
+      &os; версии 1. &merged;</para>
 
     <para>Была исправлена ошибка в утилите &man.rexecd.8;, из-за
       которой считалось, что опция <option>-i</option> всегда
       указана.  &merged;</para>
+
+    <para>Утилита &man.rexecd.8; была удалена.  В дереве исходных текстов
+      &os; нет клиентов rexec, и клиентская функция &man.rexec.3; существует
+      только в <filename>libcompat</filename>.</para>
 
     <para>Утилита &man.rm.1; теперь поддерживает параметр
       <option>-I</option>, с которым (однократно) запрашивается
@@ -907,6 +1198,11 @@
       <option>-f</option>.  Это поведение соответствует документу
       Version 3 of the Single UNIX Specification (SUSv3).</para>
 
+    <para>Были реализованы следующие функции стандарта ISO/IEC 9899:1999:
+      <function>roundl()</function>,
+      <function>lroundl()</function>, <function>llroundl()</function>,
+      <function>truncl()</function> и <function>floorl()</function>.</para>
+
     <para>Была добавлена библиотека &man.rpmatch.3; для проверки
       строки, содержащей положительный или отрицательный ответ
       в текущей локали.</para>
@@ -918,6 +1214,9 @@
 
     <para>Нестандартный интерфейс поддержки мультибайтовых и расширенных
       символов rune(3) был удален.</para>
+
+    <para>&man.sed.1; теперь поддерживает опцию <option>-l</option>,
+      включающую построчную буферизацию вывода. &merged;</para>
 
     <para>Функция &man.strftime.3; теперь поддерживает некоторые GNU
       расширения, такие как <literal>-</literal> (без заполнения),
@@ -934,10 +1233,17 @@
       привилегированных программ, когда буфер сокета переполняется
       вследствие локальной DoS атаки. &merged;</para>
 
+    <para>&man.syslogd.8; теперь поддерживает опцию <option>-S</option>,
+      которая позволяет изменять путь к привилегированному сокету.
+      Это полезно для предотвращения получения даемоном сообщений из
+      локальных сокетов (<filename>/var/run/log</filename> и
+      <filename>/var/run/logpriv</filename> используются по умолчанию).
+      &merged;</para>
+
     <para>Утилита &man.syslogd.8; теперь позволяет использование
       символов <literal>:</literal> и <literal>%</literal> в
       имени хоста.  Эти символы используются в адресах и
-      scope ID IPv6.</para>
+      scope ID IPv6. &merged;</para>
 
     <para>&man.systat.1; <option>-netstat</option> теперь приспособлен
       для IPv6. &merged;</para>
@@ -960,6 +1266,9 @@
     <para>Была добавлена команда &man.tcpdrop.8;, закрывающая выбранное
       соединение TCP.  Она была заимствована из OpenBSD. &merged;</para>
 
+    <para>&man.what.1; теперь поддерживает флаг <option>-q</option>, который
+      указывает выводить текст, но не форматировать его.</para>
+
     <para>&man.whois.1; теперь поддерживает флаг <option>-k</option>
       для запроса <hostid role="fqdn">whois.krnic.net</hostid>
       (the National Internet Development Agency of Korea),
@@ -973,8 +1282,15 @@
       таких как &man.hosts.5;, &man.services.5; и так далее, которые
       не заканчивались символом новой строки. &merged;</para>
 
+    <para>Были добавлены новые системные пользователь/группа
+      <username>_dhcp</username> для поддержки &man.dhclient.8; из
+      OpenBSD.</para>
+
     <sect3 id="rc-scripts">
       <title>Скрипты <filename>/etc/rc.d</filename></title>
+
+      <para>Был добавлен стартовый скрипт <filename>rc.d/bsnmpd</filename>
+	для &man.bsnmpd.1;.</para>
 
       <para>&man.rc.conf.5; теперь поддерживает изменение имен
 	сетевых интерфейсов во время загрузки. &merged;
@@ -1008,57 +1324,165 @@ moused_ums0_port="/dev/ums0"</programlisting>
 	указания владельца файловой системы по умолчанию и так далее.
 	&merged;</para>
 
+      <para>Следующие скрипты были удалены, поскольку они были
+	специфичны для NetBSD и никогда не использовались в &os;:
+	<filename>altqd</filename>,
+	<filename>dhcpd</filename>,
+	<filename>dhcrelay</filename>,
+	<filename>downinterfaces</filename>,
+	<filename>gated</filename>,
+	<filename>ifwatchd</filename>,
+	<filename>kdc</filename>,
+	<filename>lkm1</filename>,
+	<filename>lkm2</filename>,
+	<filename>lkm3</filename>,
+	<filename>mixerctl</filename>,
+	<filename>mopd</filename>,
+	<filename>mountall</filename>,
+	<filename>ndbootd</filename>,
+	<filename>network</filename>,
+	<filename>poffd</filename>,
+	<filename>postfix</filename>,
+	<filename>ppp</filename>,
+	<filename>racoon</filename>,
+	<filename>raidframe</filename>,
+	<filename>rbootd</filename>,
+	<filename>rtsold</filename>,
+	<filename>screenblank</filename>,
+	<filename>swap2</filename>,
+	<filename>sysdb</filename>,
+	<filename>wscons</filename>,
+	<filename>xdm</filename> и
+	<filename>xfs</filename>.</para>
     </sect3>
   </sect2>
 
   <sect2 id="contrib">
     <title>Стороннее программное обеспечение</title>
 
+    <para><application>awk</application> был обновлен с релиза от 7
+      февраля 2004 года до релиза от 24 апреля 2005 года.</para>
+
     <para><application>BIND</application> был обновлен с версии
       9.3.0 до версии 9.3.1. &merged;</para>
+
+    <para><application>bsnmp</application> был обновлен с 1.7
+      до 1.10.</para>
+
+    <para><application>bzip2</application> был обновлен с 1.0.2
+      до 1.0.3.</para>
+
+    <para><application>OpenBSD dhclient</application> был импортирован из
+      OpenBSD 3.7.  Он замещает ISC DHCP клиента, использовавшегося в
+      в предыдущих версиях &os;.</para>
 
     <para><application>FILE</application> был обновлен с 4.10
       до 4.12.</para>
 
+    <para><application>GNU GCC</application> был обновлен с
+      3.4.2-prerelease от 28 июля 2004 года до 3.4.4.</para>
+
+    <para>A number of bug fixes and performance enhancements have been
+      added to <application>GNU grep</application> in the form of
+      patches from Fedora's grep-2.5.1-48 source RPM.</para>
+
     <para><application>GNU readline</application> был обновлен с
       версии 4.3 до версии 5.0.</para>
+
+    <para><application>IPFilter</application> был обновлен с
+      3.4.35 до 4.1.18.</para>
 
     <para><application>Heimdal</application> был обновлен с
       0.6.1 до 0.6.3. &merged;</para>
 
+    <para>Был импортирован <application>hostapd</application>
+      v0.3.9.  Это пользовательская программа IEEE
+      802.11 AP и IEEE 802.1X/WPA/WPA2/EAP
+      Authenticator и RADIUS сервер аутентификации.
+      Более подробная информация находится на странице справочника
+      &man.hostapd.8;.</para>
+
+    <para><application>libpcap</application> был обновлен с
+      v0.8.3 до v0.9.1 (alpha 096).</para>
+
+    <para><application>libregex</application> была обновлена с снэпшота
+      <application>GNU grep</application> 2.5.1 до
+      снэпшота с тегом <literal>fedora-glibc-2_3_4-21</literal>
+      из CVS репозитория <application>glibc</application>.</para>
+
+    <para><application>libz</application> была обновлена с 1.2.1
+      до 1.2.2.</para>
+
     <para><application>lukemftp</application> был обновлен с
       снэпшота из OpenBSD от 26 апреля 2004 года до снэпшота
-      от 19 февраля 2005 года.</para>
+      от 16 мая 2005 года.</para>
 
     <para>Был добавлен снэпшот <application>netcat</application>
       из OpenBSD от 4 февраля 2005 года.  Более подробная информация
       находится на странице справки по &man.nc.1;. &merged;</para>
 
+    <para><application>NgATM</application> был обновлен с 1.0
+      до 1.2.</para>
+
     <para><application>OpenPAM</application> был обновлен с релиза
       Eelgrass до релиза Feterita.</para>
 
+    <para><application>OpenPAM</application> был обновлен с релиза
+      Feterita до релиза Figwort.</para>
+
     <para><application>OpenSSH</application> был обновлен с 3.8p1
-      до 3.9p1.</para>
+      до 4.1p1.</para>
 
     <para><application>OpenSSL</application> был обновлен с
       0.9.7d до 0.9.7e. &merged;</para>
 
+    <para><application>pf</application> был обновлен с версии, включенной
+      в <application>OpenBSD</application> 3.5 до версии, включенной в
+      в <application>OpenBSD</application> 3.7.</para>
+
     <para><application>sendmail</application> был обновлен с
       версии 8.13.1 до версии 8.13.3. &merged;</para>
+
+    <para><application>sendmail</application> был обновлен с версии
+      version 8.13.3 до версии 8.13.4.  Теперь он поддерживает
+      <literal>OSTYPE(freebsd6)</literal>.</para>
+
+    <para><application>tcpdump</application> был обновлен с
+      v3.8.3 до v3.9.1 (alpha 096).</para>
+
+    <para><application>tcsh</application> был обновлен с
+      6.13.00 до 6.14.00.</para>
+
+    <para><application>texinfo</application> был обновлен с 4.6
+      до 4.8.</para>
 
     <para>База данных timezone была обновлена с релиза
       <application>tzdata2004e</application> до релиза
       <application>tzdata2004g</application>. &merged;</para>
+
+    <para>Был импортирован <application>WPA Supplicant</application>
+      v0.3.9.  Он предоставляет WPA Supplicant компонент из набора
+      WPA/IEEE 802.11i.  За дополнительной информацией обращайтесь к
+      странице справочника &man.wpa.supplicant.8;.</para>
 
   </sect2>
 
   <sect2 id="ports">
     <title>Инфраструктура коллекции портов/пакетов</title>
 
+    <para>Утилита &man.pkg.create.1; теперь поддерживает флаг
+      <option>-R</option>.  Если указан этот флаг, при создании файла
+      пакета из локально установленного пакета, создаются файлы для
+      всех пакетов, от которых он зависит.</para>
+
     <para>Утилита &man.pkg.version.1; теперь поддерживает флаг
       <option>-q</option> для подавления вывода символов
       сравнения версий <literal>&lt;</literal>,
       <literal>=</literal> и <literal>&gt;</literal>.</para>
+
+    <para>Утилита &man.pkg.version.1; теперь поддерживает флаг
+      <option>-I</option>, с которым только файл <filename>INDEX</filename>
+      используется для определения того, является ли пакет устаревшим.</para>
 
     <para>Файлы
       <filename>ports/INDEX<replaceable>*</replaceable></filename>,
@@ -1110,7 +1534,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para>Поддерживаемая версия десктопа
       <application>GNOME</application> была обновлена с
-      2.6.2 до 2.10.  Более подробная информация о работе
+      2.6.2 до 2.10.1.  Более подробная информация о работе
       <application>GNOME</application> в &os; находится на веб странице
       <ulink url="&url.base;/gnome/">FreeBSD GNOME Project</ulink>.
       &merged;
@@ -1156,6 +1580,16 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
   <sect2 id="doc">
     <title>Документация</title>
+
+    <para>Документация существующей функциональности была улучшена путем
+      добавления следующих страниц справочника: &man.ataraid.4;,
+      &man.bus.space.9;,
+      &man.devfs.conf.5;, &man.devfs.rules.5;,
+      &man.pmap.page.init.9;,
+      &man.pthread.atfork.3;,
+      &man.sched.4bsd.4;, &man.sched.ule.4;, &man.snd.fm801.4;,
+      &man.snd.neomagic.4;, &man.snd.via8233.4;, &man.snd.via82c686.4;
+      и &man.snd.vibes.4;.</para>
 
     <para>Страницы справочника базовой системы получили множество
       исправлений, как в содержимом так и в отображении.
