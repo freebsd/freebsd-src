@@ -15,7 +15,7 @@ machine		amd64
 
 #
 # We want LINT to cover profiling as well.
-#XXX#profile         2
+profile         2
 
 
 #####################################################################
@@ -202,6 +202,9 @@ options 	ACPI_DEBUG
 #!options 	ACPI_NO_SEMAPHORES
 #!options 	ACPICA_PEDANTIC
 
+# The cpufreq(4) driver provides support for non-ACPI CPU frequency control
+device		cpufreq
+
 # Direct Rendering modules for 3D acceleration.
 device		drm		# DRM core module required by DRM drivers
 device		mach64drm	# ATI Rage Pro, Rage Mobility P/M, Rage XL
@@ -225,14 +228,18 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 
 #XXX#	still calls MD i386 kvtop function instead of vtophys etc
 #XXX#device		ed
+#XXX#options 		ED_3C503
+#XXX#options 		ED_HPP
+#XXX#options 		ED_SIC
 #XXX#device		lnc
 
-#XXX#device	ath
-#XXX#device	ath_hal		# Atheros HAL (includes binary component)
-device		wlan		# 802.11 layer
+device		ath
+device		ath_hal		# Atheros HAL (includes binary component)
+device		ath_rate_onoe	# Onoe rate control for ath driver
+#device		ath_rate_amrr	# AMRR rate control for ath driver
+#device		ath_rate_sample	# SampleRate rate control for the ath driver
+#device		wlan		# 802.11 layer
 
-#
-# ATA raid adapters
 #
 #XXX this stores pointers in a 32bit field that is defined by the hardware
 #device	pst
@@ -267,6 +274,11 @@ device		stg
 # the Dell PERC 2/QC and the HP NetRAID-4M
 device		aac
 device		aacp	# SCSI Passthrough interface (optional, CAM required)
+
+#
+# Highpoint RocketRAID 182x.  This is really just software RAID on a
+# Marvell SATA chip.
+#device		hptmv	# Broken, i386-only binary.
 
 #
 # IBM (now Adaptec) ServeRAID controllers
@@ -305,6 +317,10 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
+# Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
+device		pbio
+hint.pbio.0.at="isa"
+hint.pbio.0.port="0x360"
 # sx device is i386 and pc98 only at the moment.
 device		sx
 options 	SX_DEBUG
@@ -319,6 +335,13 @@ device		xrpu
 #
 # I2C Bus
 #
+
+#
+# Hardware watchdog timers:
+#
+# ichwd: Intel ICH watchdog timer
+#
+device		ichwd
 
 #---------------------------------------------------------------------------
 # ISDN4BSD

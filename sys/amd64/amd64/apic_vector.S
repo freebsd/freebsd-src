@@ -148,7 +148,7 @@ IDTVEC(timerint)
 	movq	lapic, %rdx
 	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
 
-	FAKE_MCOUNT(TF_EIP(%esp))
+	FAKE_MCOUNT(TF_RIP(%rsp))
 
 	call	lapic_handle_timer
 	MEXITCOUNT
