@@ -2228,6 +2228,12 @@ check_option(struct client_lease *l, int option)
 	case DHO_NETBIOS_DD_SERVER:
 	case DHO_FONT_SERVERS:
 	case DHO_DHCP_SERVER_IDENTIFIER:
+	case DHO_SMTP_SERVER:
+	case DHO_POP_SERVER:
+	case DHO_NNTP_SERVER:
+	case DHO_WWW_SERVER:
+	case DHO_FINGER_SERVER:
+	case DHO_IRC_SERVER:
 		if (!ipv4addrs(opbuf)) {
 			warning("Invalid IP address in option: %s", opbuf);
 			return (0);
