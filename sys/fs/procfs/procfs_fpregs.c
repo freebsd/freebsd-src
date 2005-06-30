@@ -37,6 +37,8 @@
  * $FreeBSD$
  */
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -50,11 +52,42 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
+#ifdef COMPAT_IA32
+#include <sys/procfs.h>
+#include <machine/fpu.h>
+#include <compat/ia32/ia32_reg.h>
+
+extern struct sysentvec ia32_freebsd_sysvec;
+/*
+ * PROC(write, fpregs, td2, &r) becomes
+ * proc_write_fpregs(td2, &r)   or
+ * proc_write_fpregs32(td2, &r32)
+ *
+ * UIOMOVE_FROMBUF(r, uio) becomes
+ * uiomove_frombuf(&r, sizeof(r), uio)  or
+ * uiomove_frombuf(&r32, sizeof(r32), uio)
+ */
+#define	PROC(d, w, t, r)	wrap32 ? \
+	proc_ ## d ## _ ## w ## 32(t, r ## 32) : \
+	proc_ ## d ## _ ## w(t, r)
+#define	UIOMOVE_FROMBUF(k, u)	wrap32 ? \
+	uiomove_frombuf(& k ## 32, sizeof(k ## 32), u) : \
+	uiomove_frombuf(& k, sizeof(k), u)
+#else
+#define	PROC(d, w, t, r)	proc_ ## d ## _ ## w(t, r)
+#define	UIOMOVE_FROMBUF(k, u)	uiomove_frombuf(& k, sizeof(k), u)
+#endif
+
 int
 procfs_doprocfpregs(PFS_FILL_ARGS)
 {
 	int error;
 	struct fpreg r;
+	struct thread *td2;
+#ifdef COMPAT_IA32
+	struct fpreg32 r32;
+	int wrap32 = 0;
+#endif
 
 	PROC_LOCK(p);
 	KASSERT(p->p_lock > 0, ("proc not held"));
@@ -64,10 +97,20 @@ procfs_doprocfpregs(PFS_FILL_ARGS)
 	}
 
 	/* XXXKSE: */
-	error = proc_read_fpregs(FIRST_THREAD_IN_PROC(p), &r);
+	td2 = FIRST_THREAD_IN_PROC(p);
+#ifdef COMPAT_IA32
+	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+		if (td2->td_proc->p_sysent != &ia32_freebsd_sysvec) {
+			PROC_UNLOCK(p);
+			return (EINVAL);
+		}
+		wrap32 = 1;
+	}
+#endif
+	error = PROC(read, fpregs, td2, &r);
 	if (error == 0) {
 		PROC_UNLOCK(p);
-		error = uiomove_frombuf(&r, sizeof(r), uio);
+		error = UIOMOVE_FROMBUF(r, uio);
 		PROC_LOCK(p);
 	}
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
@@ -75,7 +118,7 @@ procfs_doprocfpregs(PFS_FILL_ARGS)
 			error = EBUSY;
 		else
 			/* XXXKSE: */
-			error = proc_write_fpregs(FIRST_THREAD_IN_PROC(p), &r);
+			error = PROC(write, fpregs, td2, &r);
 	}
 	PROC_UNLOCK(p);
 
