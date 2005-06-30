@@ -2,9 +2,9 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.17 2005/04/25 12:23:24 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.18 2005/06/30 11:12:31 den Exp $
 
-     Original revision: 1.278
+     Original revision: 1.282
 -->
 
 <!--
@@ -87,65 +87,6 @@
     &hwlist.aac;
 
     &hwlist.ct;
-
-    <para arch="pc98">NEC PC-9801-55, 92 и совместимые с ними C-Bus SCSI
-      интерфейсы (драйвер bs)
-      <itemizedlist>
-	<listitem>
-	  <para>NEC PC-9801-55, 92 и совместимые с ними</para>
-	  <para>ICM IF-2660</para>
-	  <para>Midori-Denshi MDC-554NA</para>
-	  <para>Logitec LHA-N151</para>
-	  <note>
-	    <para>параметр <literal>flags 0x00000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      DMA.</para>
-	  </note>
-	</listitem>
-	<listitem>
-	  <para>I-O DATA SC-98II</para>
-	  <note>
-	    <para>параметр <literal>flags 0x10000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      DMA.</para>
-	  </note>
-	</listitem>
-	<listitem>
-	  <para>TEXA HA-55BS2 и более поздние</para>
-	  <para>Midori-Denshi MDC-926Rs</para>
-	  <note>
-	    <para>параметр <literal>flags 0x20000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      Bus-master.</para>
-	  </note>
-	</listitem>
-	<listitem>
-	  <para>ELECOM Bus-master SCSI интерфейсы</para>
-	  <note>
-	    <para>параметр <literal>flags 0x30000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      Bus-master.</para>
-	  </note>
-	</listitem>
-	<listitem>
-	  <para>Все SMIT transfer type SCSI интерфейсы</para>
-	  <note>
-	    <para>параметр <literal>flags 0x40000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      SMIT.</para>
-	  </note>
-	</listitem>
-	<listitem>
-	  <para>Logitec LHA-20x series</para>
-	  <para>ICM IF-2766, IF-2766ET, IF-2767 и IF-2769</para>
-	  <note>
-	    <para>параметр <literal>flags 0x50000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      Bus-master.</para>
-	  </note>
-	</listitem>
-      </itemizedlist>
-    </para>
 
     &hwlist.adv;
 
@@ -366,6 +307,8 @@
     &hwlist.ixgb;
 
     &hwlist.vge;
+
+    &hwlist.nve;
 
   </sect2>
 
@@ -739,57 +682,52 @@
       </note>
 
   </sect2>
-  <sect2 id="audio">
-    <title>Аудио устройства</title>
+  <sect2 id="sound">
+    <title>Звуковые устройства</title>
+
+    &hwlist.sound;
 
     &hwlist.snd.ad1816;
-    &hwlist.snd.cs4281;
-    &hwlist.snd.solo;
 
-    &hwlist.snd.sbc;
+    &hwlist.snd.als4000;
+
+    &hwlist.snd.audiocs;
 
     &hwlist.snd.cmi;
 
+    &hwlist.snd.cs4281;
+
     &hwlist.snd.csa;
+
+    &hwlist.snd.ds1;
+
+    &hwlist.snd.emu10k1;
 
     &hwlist.snd.es137x;
 
     &hwlist.snd.ess;
 
-    &hwlist.snd.maestro;
-
-    &hwlist.snd.maestro3;
-
-    &hwlist.snd.als4000;
-
     &hwlist.snd.fm801;
 
     &hwlist.snd.gusc;
 
-    <para arch="i386,amd64">Intel 443MX, 810, 815, и 815E встроенные звуковые
-      устройства (драйвер &man.pcm.4;)</para>
+    &hwlist.snd.ich;
 
-    <para arch="i386,alpha,amd64">MSS/WSS Compatible DSPs (драйвер &man.pcm.4;)</para>
+    &hwlist.snd.maestro;
+
+    &hwlist.snd.maestro3;
 
     &hwlist.snd.neomagic;
 
-    <para arch="i386,amd64">OPTi 931/82C931 (драйвер &man.pcm.4;)</para>
+    &hwlist.snd.sbc;
 
-    &hwlist.snd.vibes;
-
-    &hwlist.snd.emu10k1;
-
-    <para arch="i386,amd64">Trident 4DWave DX/NX (драйвер &man.pcm.4;)</para>
+    &hwlist.snd.solo;
 
     &hwlist.snd.via8233;
 
     &hwlist.snd.via82c686;
 
-    &hwlist.snd.ds1;
-
-    &hwlist.snd.ich;
-
-    &hwlist.snd.audiocs;
+    &hwlist.snd.vibes;
 
     <para arch="pc98">NEC PC-9801-73, 86 и совместимые (драйвер nss)
       <itemizedlist>
