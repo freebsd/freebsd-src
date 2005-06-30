@@ -17,11 +17,4 @@
 <!ENTITY % no.include.historic "IGNORE">
 
 <!-- Files to be included -->
-
-<!-- XXX: 4 entities will be removed. -->
-<!ENTITY artheader SYSTEM "../common/artheader.sgml">
-<!ENTITY sect.intro SYSTEM "../common/intro.sgml">
-<!ENTITY sect.new SYSTEM "../common/new.sgml">
-<!ENTITY sect.upgrading SYSTEM "../common/upgrading.sgml">
-<!-- XXX: -->
 <!ENTITY art SYSTEM "../common/new.sgml">
