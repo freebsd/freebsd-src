@@ -63,6 +63,7 @@ ALQ
 CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
 COMPAT_FREEBSD4	opt_compat.h
+COMPAT_FREEBSD5	opt_compat.h
 COMPILING_LINT	opt_global.h
 CONSPEED	opt_comconsole.h
 CY_PCI_FASTINTR
