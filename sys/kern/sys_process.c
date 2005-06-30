@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -54,6 +56,21 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+
+#ifdef COMPAT_IA32
+#include <sys/procfs.h>
+#include <machine/fpu.h>
+#include <compat/ia32/ia32_reg.h>
+
+extern struct sysentvec ia32_freebsd_sysvec;
+
+struct ptrace_io_desc32 {
+	int		piod_op;
+	u_int32_t	piod_offs;
+	u_int32_t	piod_addr;
+	u_int32_t	piod_len;
+};
+#endif
 
 /*
  * Functions implemented using PROC_ACTION():
@@ -137,6 +154,51 @@ proc_write_fpregs(struct thread *td, struct fpreg *fpregs)
 
 	PROC_ACTION(set_fpregs(td, fpregs));
 }
+
+#ifdef COMPAT_IA32
+/* For 32 bit binaries, we need to expose the 32 bit regs layouts. */
+int
+proc_read_regs32(struct thread *td, struct reg32 *regs32)
+{
+
+	PROC_ACTION(fill_regs32(td, regs32));
+}
+
+int
+proc_write_regs32(struct thread *td, struct reg32 *regs32)
+{
+
+	PROC_ACTION(set_regs32(td, regs32));
+}
+
+int
+proc_read_dbregs32(struct thread *td, struct dbreg32 *dbregs32)
+{
+
+	PROC_ACTION(fill_dbregs32(td, dbregs32));
+}
+
+int
+proc_write_dbregs32(struct thread *td, struct dbreg32 *dbregs32)
+{
+
+	PROC_ACTION(set_dbregs32(td, dbregs32));
+}
+
+int
+proc_read_fpregs32(struct thread *td, struct fpreg32 *fpregs32)
+{
+
+	PROC_ACTION(fill_fpregs32(td, fpregs32));
+}
+
+int
+proc_write_fpregs32(struct thread *td, struct fpreg32 *fpregs32)
+{
+
+	PROC_ACTION(set_fpregs32(td, fpregs32));
+}
+#endif
 
 int
 proc_sstep(struct thread *td)
@@ -290,6 +352,27 @@ struct ptrace_args {
 };
 #endif
 
+#ifdef COMPAT_IA32
+/*
+ * This CPP subterfuge is to try and reduce the number of ifdefs in
+ * the body of the code.
+ *   COPYIN(uap->addr, &r.reg, sizeof r.reg);
+ * becomes either:
+ *   copyin(uap->addr, &r.reg, sizeof r.reg);
+ * or
+ *   copyin(uap->addr, &r.reg32, sizeof r.reg32);
+ * .. except this is done at runtime.
+ */
+#define	COPYIN(u, k, s)		wrap32 ? \
+	copyin(u, k ## 32, s ## 32) : \
+	copyin(u, k, s)
+#define	COPYOUT(k, u, s)	wrap32 ? \
+	copyout(k ## 32, u, s ## 32) : \
+	copyout(k, u, s)
+#else
+#define	COPYIN(u, k, s)		copyin(u, k, s)
+#define	COPYOUT(k, u, s)	copyout(k, u, s)
+#endif
 /*
  * MPSAFE
  */
@@ -306,10 +389,21 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
+#ifdef COMPAT_IA32
+		struct dbreg32 dbreg32;
+		struct fpreg32 fpreg32;
+		struct reg32 reg32;
+		struct ptrace_io_desc32 piod32;
+#endif
 	} r;
 	void *addr;
 	int error = 0;
+#ifdef COMPAT_IA32
+	int wrap32 = 0;
 
+	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec)
+		wrap32 = 1;
+#endif
 	addr = &r;
 	switch (uap->req) {
 	case PT_GETREGS:
@@ -318,16 +412,16 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_LWPINFO:
 		break;
 	case PT_SETREGS:
-		error = copyin(uap->addr, &r.reg, sizeof r.reg);
+		error = COPYIN(uap->addr, &r.reg, sizeof r.reg);
 		break;
 	case PT_SETFPREGS:
-		error = copyin(uap->addr, &r.fpreg, sizeof r.fpreg);
+		error = COPYIN(uap->addr, &r.fpreg, sizeof r.fpreg);
 		break;
 	case PT_SETDBREGS:
-		error = copyin(uap->addr, &r.dbreg, sizeof r.dbreg);
+		error = COPYIN(uap->addr, &r.dbreg, sizeof r.dbreg);
 		break;
 	case PT_IO:
-		error = copyin(uap->addr, &r.piod, sizeof r.piod);
+		error = COPYIN(uap->addr, &r.piod, sizeof r.piod);
 		break;
 	default:
 		addr = uap->addr;
@@ -342,16 +436,16 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 
 	switch (uap->req) {
 	case PT_IO:
-		(void)copyout(&r.piod, uap->addr, sizeof r.piod);
+		error = COPYOUT(&r.piod, uap->addr, sizeof r.piod);
 		break;
 	case PT_GETREGS:
-		error = copyout(&r.reg, uap->addr, sizeof r.reg);
+		error = COPYOUT(&r.reg, uap->addr, sizeof r.reg);
 		break;
 	case PT_GETFPREGS:
-		error = copyout(&r.fpreg, uap->addr, sizeof r.fpreg);
+		error = COPYOUT(&r.fpreg, uap->addr, sizeof r.fpreg);
 		break;
 	case PT_GETDBREGS:
-		error = copyout(&r.dbreg, uap->addr, sizeof r.dbreg);
+		error = COPYOUT(&r.dbreg, uap->addr, sizeof r.dbreg);
 		break;
 	case PT_LWPINFO:
 		error = copyout(&r.pl, uap->addr, uap->data);
@@ -360,6 +454,30 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 
 	return (error);
 }
+#undef COPYIN
+#undef COPYOUT
+
+#ifdef COMPAT_IA32
+/*
+ *   PROC_READ(regs, td2, addr);
+ * becomes either:
+ *   proc_read_regs(td2, addr);
+ * or
+ *   proc_read_regs32(td2, addr);
+ * .. except this is done at runtime.  There is an additional
+ * complication in that PROC_WRITE disallows 32 bit consumers
+ * from writing to 64 bit address space targets.
+ */
+#define	PROC_READ(w, t, a)	wrap32 ? \
+	proc_read_ ## w ## 32(t, a) : \
+	proc_read_ ## w (t, a)
+#define	PROC_WRITE(w, t, a)	wrap32 ? \
+	(safe ? proc_write_ ## w ## 32(t, a) : EINVAL ) : \
+	proc_write_ ## w (t, a)
+#else
+#define	PROC_READ(w, t, a)	proc_read_ ## w (t, a)
+#define	PROC_WRITE(w, t, a)	proc_write_ ## w (t, a)
+#endif
 
 int
 kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
@@ -368,12 +486,16 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	struct uio uio;
 	struct proc *curp, *p, *pp;
 	struct thread *td2 = NULL;
-	struct ptrace_io_desc *piod;
+	struct ptrace_io_desc *piod = NULL;
 	struct ptrace_lwpinfo *pl;
 	int error, write, tmp, num;
 	int proctree_locked = 0;
 	lwpid_t tid = 0, *buf;
 	pid_t saved_pid = pid;
+#ifdef COMPAT_IA32
+	int wrap32 = 0, safe = 0;
+	struct ptrace_io_desc32 *piod32 = NULL;
+#endif
 
 	curp = td->td_proc;
 
@@ -449,6 +571,17 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		tid = td2->td_tid;
 	}
 
+#ifdef COMPAT_IA32
+	/*
+	 * Test if we're a 32 bit client and what the target is.
+	 * Set the wrap controls accordingly.
+	 */
+	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+		if (td2->td_proc->p_sysent == &ia32_freebsd_sysvec)
+			safe = 1;
+		wrap32 = 1;
+	}
+#endif
 	/*
 	 * Permissions check
 	 */
@@ -723,16 +856,32 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_IO:
 		PROC_UNLOCK(p);
-		piod = addr;
-		iov.iov_base = piod->piod_addr;
-		iov.iov_len = piod->piod_len;
+#ifdef COMPAT_IA32
+		if (wrap32) {
+			piod32 = addr;
+			iov.iov_base = (void *)(uintptr_t)piod32->piod_addr;
+			iov.iov_len = piod32->piod_len;
+			uio.uio_offset = (off_t)(uintptr_t)piod32->piod_offs;
+			uio.uio_resid = piod32->piod_len;
+		} else
+#endif
+		{
+			piod = addr;
+			iov.iov_base = piod->piod_addr;
+			iov.iov_len = piod->piod_len;
+			uio.uio_offset = (off_t)(uintptr_t)piod->piod_offs;
+			uio.uio_resid = piod->piod_len;
+		}
 		uio.uio_iov = &iov;
 		uio.uio_iovcnt = 1;
-		uio.uio_offset = (off_t)(uintptr_t)piod->piod_offs;
-		uio.uio_resid = piod->piod_len;
 		uio.uio_segflg = UIO_USERSPACE;
 		uio.uio_td = td;
-		switch (piod->piod_op) {
+#ifdef COMPAT_IA32
+		tmp = wrap32 ? piod32->piod_op : piod->piod_op;
+#else
+		tmp = piod->piod_op;
+#endif
+		switch (tmp) {
 		case PIOD_READ_D:
 		case PIOD_READ_I:
 			uio.uio_rw = UIO_READ;
@@ -745,7 +894,12 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			return (EINVAL);
 		}
 		error = proc_rwmem(p, &uio);
-		piod->piod_len -= uio.uio_resid;
+#ifdef COMPAT_IA32
+		if (wrap32)
+			piod32->piod_len -= uio.uio_resid;
+		else
+#endif
+			piod->piod_len -= uio.uio_resid;
 		return (error);
 
 	case PT_KILL:
@@ -754,42 +908,42 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_SETREGS:
 		_PHOLD(p);
-		error = proc_write_regs(td2, addr);
+		error = PROC_WRITE(regs, td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (error);
 
 	case PT_GETREGS:
 		_PHOLD(p);
-		error = proc_read_regs(td2, addr);
+		error = PROC_READ(regs, td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (error);
 
 	case PT_SETFPREGS:
 		_PHOLD(p);
-		error = proc_write_fpregs(td2, addr);
+		error = PROC_WRITE(fpregs, td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (error);
 
 	case PT_GETFPREGS:
 		_PHOLD(p);
-		error = proc_read_fpregs(td2, addr);
+		error = PROC_READ(fpregs, td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (error);
 
 	case PT_SETDBREGS:
 		_PHOLD(p);
-		error = proc_write_dbregs(td2, addr);
+		error = PROC_WRITE(dbregs, td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (error);
 
 	case PT_GETDBREGS:
 		_PHOLD(p);
-		error = proc_read_dbregs(td2, addr);
+		error = PROC_READ(dbregs, td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (error);
@@ -872,6 +1026,8 @@ fail_noproc:
 		sx_xunlock(&proctree_lock);
 	return (error);
 }
+#undef PROC_READ
+#undef PROC_WRITE
 
 /*
  * Stop a process because of a debugging event;
