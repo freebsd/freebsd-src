@@ -48,7 +48,7 @@ ifconfig_up()
 	fi
 
 	if wpaif $1; then
-		#/etc/rc.d/wpa_supplicant start $1
+		/etc/rc.d/wpa_supplicant start $1
 		_cfg=0		# XXX: not sure this should count
 	fi
 
@@ -89,7 +89,7 @@ ifconfig_down()
 	IFS="$oldifs"
 
 	if wpaif $1; then
-		#/etc/rc.d/wpa_supplicant stop $1
+		/etc/rc.d/wpa_supplicant stop $1
 		_cfg=0
 	fi
 
