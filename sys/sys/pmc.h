@@ -995,7 +995,7 @@ MALLOC_DECLARE(M_PMC);
 
 struct pmc_mdep *pmc_md_initialize(void);	/* MD init function */
 int	pmc_getrowdisp(int _ri);
-int	pmc_process_interrupt(int _cpu, struct pmc *_pm, intfptr_t _pc,
+int	pmc_process_interrupt(int _cpu, struct pmc *_pm, uintfptr_t _pc,
     int _usermode);
 
 #endif /* _KERNEL */

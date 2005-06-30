@@ -113,6 +113,7 @@ struct pmclog_pcsample {
 	uint32_t		pl_pid;
 	uintfptr_t		pl_pc;		/* 8 byte aligned */
 	uint32_t		pl_pmcid;
+	uint32_t		pl_usermode;
 } __packed;
 
 struct pmclog_pmcallocate {
@@ -145,6 +146,8 @@ struct pmclog_proccsw {
 struct pmclog_procexec {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pid;
+	uintfptr_t		pl_start;	/* keep 8 byte aligned */
+	uint32_t		pl_pmcid;
 	char			pl_pathname[PATH_MAX];
 } __packed;
 
@@ -217,7 +220,8 @@ void	pmclog_process_pmcattach(struct pmc *_pm, pid_t _pid, char *_path);
 void	pmclog_process_pmcdetach(struct pmc *_pm, pid_t _pid);
 void	pmclog_process_proccsw(struct pmc *_pm, struct pmc_process *_pp,
     pmc_value_t _v);
-void	pmclog_process_procexec(struct pmc_owner *_po, pid_t _pid, char *_path);
+void	pmclog_process_procexec(struct pmc_owner *_po, pmc_id_t _pmid, pid_t _pid,
+    uintfptr_t _startaddr, char *_path);
 void	pmclog_process_procexit(struct pmc *_pm, struct pmc_process *_pp);
 void	pmclog_process_procfork(struct pmc_owner *_po, pid_t _oldpid, pid_t _newpid);
 void	pmclog_process_sysexit(struct pmc_owner *_po, pid_t _pid);
