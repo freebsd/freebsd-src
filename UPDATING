@@ -21,6 +21,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050629:
+	The pccard_ifconfig rc.conf variable has been removed and a new
+	variable, ifconfig_DEFAULT has been introduced.  Unlike
+	pccard_ifconfig, ifconfig_DEFAULT applies to ALL interfaces that
+	do not have ifconfig_ifn entries rather than just those in
+	removable_interfaces.
+
 20050610:
 	Major changes to network interface API.  All drivers must be
 	recompiled.  Drivers not in the base system will need to be
