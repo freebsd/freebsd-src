@@ -217,6 +217,29 @@
       For more information, see security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:12.bind9.asc">FreeBSD-SA-05:12.bind9</ulink>.
       &merged;</para>
+
+    <para>A bug has been fixed in &man.ipfw.4; that could cause
+      packets to be matched incorrectly against a lookup table.  This
+      bug only affects SMP machines or UP machines that have the
+      <literal>PREEMPTION</literal> kernel option enabled.  More
+      information is contained in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:13.ipfw.asc">FreeBSD-SA-05:13.ipfw</ulink>.
+      &merged;</para>
+
+    <para>Two security-related problems have been fixed in
+      &man.bzip2.1;.  These include a potential denial of service and
+      unauthorized manipulation of file permissions.  For more
+      information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:14.bzip2.asc">FreeBSD-SA-05:14.bzip2</ulink>.
+      &merged;</para>
+
+    <para>Two problems in &os;'s TCP stack have been fixed.  They
+      could allow attackers to stall existing TCP connections,
+      creating a denial-of-service situation.  More information is
+      contained in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc">FreeBSD-SA-05:15.tcp</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
