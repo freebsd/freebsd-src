@@ -571,7 +571,7 @@ menu_read(void)
 
 	/* en_US.ISO8859-1 -> en_..\.ISO8859-1 */
 	strlcpy(dialect, lang, sizeof(dialect));
-	if (strlen(dialect) >= 6 && dialect[2] == '-') {
+	if (strlen(dialect) >= 6 && dialect[2] == '_') {
 		dialect[3] = '.';
 		dialect[4] = '.';
 	}
@@ -579,8 +579,8 @@ menu_read(void)
 
 	/* en_US.ISO8859-1 -> en */
 	strlcpy(lang_abk, lang, sizeof(lang_abk));
-	if (strlen(lang_abk) >= 3 && lang_abk[2] == '-')
-		lang_abk[2] = '.';
+	if (strlen(lang_abk) >= 3 && lang_abk[2] == '_')
+		lang_abk[2] = '\0';
 
 	fprintf(stderr, "lang_default = %s\n", lang_default);
 	fprintf(stderr, "dialect = %s\n", dialect);
