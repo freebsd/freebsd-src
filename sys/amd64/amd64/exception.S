@@ -126,8 +126,6 @@ IDTVEC(missing)
 	TRAP_ERR(T_SEGNPFLT)
 IDTVEC(stk)
 	TRAP_ERR(T_STKFLT)
-IDTVEC(prot)
-	TRAP_ERR(T_PROTFLT)
 IDTVEC(align)
 	TRAP_ERR(T_ALIGNFLT)
 
@@ -203,9 +201,34 @@ IDTVEC(page)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
-1:	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
+1:
+	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
 	movq	%cr2,%rdi		/* preserve %cr2 before ..  */
 	movq	%rdi,TF_ADDR(%rsp)	/* enabling interrupts. */
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	alltraps_pushregs_no_rdi
+	sti
+	jmp	alltraps_pushregs_no_rdi
+
+	/*
+	 * We have to special-case this one.  If we get a trap in doreti() at
+	 * the iretq stage, we'll reenter with the wrong gs state.  We'll have
+	 * to do a special the swapgs in this case even coming from the kernel.
+	 * XXX linux has a trap handler for their equivalent of load_gs().
+	 */
+IDTVEC(prot)
+	subq	$TF_ERR,%rsp
+	movq	$T_PROTFLT,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
+	leaq	doreti_iret(%rip),%rdi
+	cmpq	%rdi,TF_RIP(%rsp)
+	je	2f			/* kernel but with user gsbase!! */
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
+	jz	1f			/* already running with kernel GS.base */
+2:
+	swapgs
+1:
 	testl	$PSL_I,TF_RFLAGS(%rsp)
 	jz	alltraps_pushregs_no_rdi
 	sti
