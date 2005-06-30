@@ -10,7 +10,7 @@
      This script maintained in HEAD branch.
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/dev-auto-ru.sgml,v 1.4 2005/04/25 12:23:23 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/dev-auto-ru.sgml,v 1.5 2005/06/30 12:11:18 den Exp $
 -->
 <!ENTITY hwlist.62c9ec99a9ca598d738dcf66b339aa1e 'Контроллеры, поддерживаемые драйвером &man.aac.4;, включая:'>
 <!ENTITY hwlist.43922be022d49dabc274b2afffd0db8b 'Драйвер &man.adv.4; поддерживает следующие контроллеры SCSI:'>
@@ -152,3 +152,21 @@
 <!ENTITY hwlist.73c7ba1735e16bfd370f670d6f7f7ec1 'Драйвер &man.sr.4; поддерживает следующее оборудование:'>
 <!ENTITY hwlist.b15e9a237ad4fd8ff4d1e302d35b5d0e 'Драйвер &man.arcmsr.4; поддерживает следующие карты:'>
 <!ENTITY hwlist.5a5c5b85e01adc2f0accbf531676d0b3 'Драйвер &man.snd.via8233.4; поддерживает следующие аудио чипсеты:'>
+<!ENTITY hwlist.ffb8b63e66eb017d1fb18754c80430d7 'Драйвер &man.em.4; поддерживает Gigabit Ethernet адаптеры, основанные на Intel 82540&#44; 82541ER&#44; 82541PI&#44; 82542&#44; 82543&#44; 82544&#44; 82545&#44; 82546&#44; 82546EB&#44; 82546GB&#44; 82547 и 82573 микросхемах контроллеров:'>
+<!ENTITY hwlist.0fecf03242b8c2b439f69e438051ac74 'Драйвер &man.mn.4; предоставляет поддержку для референсных карт Siemens Easy321&#45;R1 E1&#47;T1&#46;'>
+<!ENTITY hwlist.d6e390f3eeb18215bf7061d249e6fd8d 'Драйвер &man.nve.4; поддерживает встроенные адаптеры NVIDIA MCP на материнских платах со следующими чипсетами:'>
+<!ENTITY hwlist.3b805ec9eee8b4752851992867518f42 'Следующие карты расширения проверены на работоспособность с драйвером &man.machfb.4; на данный момент:'>
+<!ENTITY hwlist.2a4b7e254ff87dc83da1876043a7c007 'Драйвер &man.sound.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.ad34498f56b94bcff7dc9243db266e4c 'Драйвер &man.snd.ad1816.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.7b418bf21d9b6039934a1b926b093195 'Драйвер &man.snd.als4000.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.5f7f9afb4483ff1bdff1219214a9073c 'Драйвер &man.snd.cmi.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.b4e3a832b1a55045a38edc20e6b4df3a 'Драйвер &man.snd.cs4281.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.9b49445e7dfa4e5f3e95a24a2a9bbf5c 'Драйвер &man.snd.csa.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.f1b7c2bba461df0c26bd84552c3741a8 'Драйвер &man.snd.ds1.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.07cc6d1fc2e38416cea9200af6b1dba0 'Драйвер &man.snd.emu10k1.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.07a14d75c09e9c0922d984454e495dd4 'Драйвер &man.snd.es137x.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.056d674fe1950d6be72d83c3ebbefdf5 'Драйвер &man.snd.ess.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.ce48e0b855b3c5375c1edbe1ddb7051e 'Драйвер &man.snd.gusc.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.b7b5ac30bf408e9efa9eae4c307a3564 'Драйвер &man.snd.sbc.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.5c8a068e76981ba8293f414b9f43c29a 'Драйвер &man.snd.solo.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.c6b92ba2243d8c1704e2971bd80b301d 'Драйвер &man.machfb.4; предоставляет поддержку для следующих микросхем:'>
