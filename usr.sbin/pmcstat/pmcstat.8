@@ -31,8 +31,8 @@
 .Nd "performance measurement with performance monitoring hardware"
 .Sh SYNOPSIS
 .Nm
-.Op Fl D Ar pathname
 .Op Fl C
+.Op Fl D Ar pathname
 .Op Fl E
 .Op Fl O Ar logfilename
 .Op Fl P Ar event-spec
@@ -42,6 +42,7 @@
 .Op Fl c Ar cpu
 .Op Fl d
 .Op Fl g
+.Op Fl k Ar kernelfile
 .Op Fl n Ar rate
 .Op Fl o Ar outputfile
 .Op Fl p Ar event-spec
@@ -154,6 +155,11 @@ The default is to measure events for the target process alone.
 .It Fl g
 Produce execution profiles in a format compatible with
 .Xr gprof 1 .
+.It Fl k Ar kernelfile
+Set the pathname of the kernel to argument
+.Ar kernelfile .
+The default is
+.Pa "/boot/kernel/kernel" .
 .It Fl n Ar rate
 Set the default sampling rate for subsequent sampling mode
 PMCs specified on the command line.

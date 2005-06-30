@@ -334,6 +334,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_s.pl_pid);
 		PMCLOG_READADDR(le,ev->pl_u.pl_s.pl_pc);
 		PMCLOG_READ32(le,ev->pl_u.pl_s.pl_pmcid);
+		PMCLOG_READ32(le,ev->pl_u.pl_s.pl_usermode);
 		break;
 	case PMCLOG_TYPE_PMCALLOCATE:
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_pmcid);
@@ -361,6 +362,8 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 	case PMCLOG_TYPE_PROCEXEC:
 		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_procexec);
 		PMCLOG_READ32(le,ev->pl_u.pl_x.pl_pid);
+		PMCLOG_READADDR(le,ev->pl_u.pl_x.pl_entryaddr);
+		PMCLOG_READ32(le,ev->pl_u.pl_x.pl_pmcid);
 		PMCLOG_READSTRING(le,ev->pl_u.pl_x.pl_pathname,pathlen);
 		break;
 	case PMCLOG_TYPE_PROCEXIT:
@@ -436,8 +439,10 @@ pmclog_read(void *cookie, struct pmclog_ev *ev)
 			    PMCLOG_BUFFER_SIZE);
 
 			if (nread <= 0) {
-				ev->pl_state = nread < 0 ? PMCLOG_ERROR :
-				    PMCLOG_EOF;
+				if (nread == 0)
+					ev->pl_state = PMCLOG_EOF;
+				else if (errno != EAGAIN) /* not restartable */
+					ev->pl_state = PMCLOG_ERROR;
 				return -1;
 			}
 
