@@ -152,6 +152,28 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>.
       </para>
 
+    <para>Two problems in the &man.gzip.1; utility have been fixed.
+      These may allow a local user to modify permissions
+      of arbitrary files and overwrite arbitrary local
+      files when uncompressing a file.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc">FreeBSD-SA-05:11.gzip</ulink>.
+      </para>
+
+    <para>Two security-related problems have been fixed in
+      &man.bzip2.1;.  These include a potential denial of service and
+      unauthorized manipulation of file permissions.  For more
+      information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:14.bzip2.asc">FreeBSD-SA-05:14.bzip2</ulink>.
+      </para>
+
+    <para>Two problems in &os;'s TCP stack have been fixed.  They
+      could allow attackers to stall existing TCP connections,
+      creating a denial-of-service situation.  More information is
+      contained in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc">FreeBSD-SA-05:15.tcp</ulink>.
+      </para>
+
   </sect2>
 
   <sect2 id="kernel">
