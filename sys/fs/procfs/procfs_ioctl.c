@@ -28,6 +28,8 @@
  *      $FreeBSD$
  */
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -51,12 +53,21 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 	PROC_LOCK(p);
 	error = 0;
 	switch (cmd) {
+#if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	case _IOC(IOC_IN, 'p', 1, 0):
+#endif
 	case PIOCBIS:
 		p->p_stops |= *(uintptr_t *)data;
 		break;
+#if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	case _IOC(IOC_IN, 'p', 2, 0):
+#endif
 	case PIOCBIC:
 		p->p_stops &= ~*(uintptr_t *)data;
 		break;
+#if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	case _IOC(IOC_IN, 'p', 3, 0):
+#endif
 	case PIOCSFL:
 		flags = *(uintptr_t *)data;
 		if (flags & PF_ISUGID && (error = suser(td)) != 0)
@@ -83,6 +94,9 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		ps->why = p->p_step ? p->p_stype : 0;
 		ps->val = p->p_step ? p->p_xstat : 0;
 		break;
+#if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	case _IOC(IOC_IN, 'p', 5, 0):
+#endif
 	case PIOCCONT:
 		if (p->p_step == 0)
 			break;
