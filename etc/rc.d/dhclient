@@ -5,8 +5,6 @@
 #
 
 # PROVIDE: dhclient
-# REQUIRE: netif ipfw ipfilter mountcritlocal cleanvar
-# BEFORE:  NETWORKING
 # KEYWORD: nojail nostart
 #
 
