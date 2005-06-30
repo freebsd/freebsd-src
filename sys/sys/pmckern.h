@@ -44,6 +44,11 @@
 #define	PMC_FN_CSW_OUT			3
 #define	PMC_FN_DO_SAMPLES		4
 
+struct pmckern_procexec {
+	int		pm_credentialschanged;
+	uintptr_t	pm_entryaddr;
+};
+
 /* hook */
 extern int (*pmc_hook)(struct thread *_td, int _function, void *_arg);
 extern int (*pmc_intr)(int _cpu, uintptr_t _pc, int _usermode);

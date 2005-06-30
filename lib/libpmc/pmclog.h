@@ -61,6 +61,7 @@ struct pmclog_ev_pcsample {
 	uintfptr_t	pl_pc;
 	pid_t		pl_pid;
 	pmc_id_t	pl_pmcid;
+	uint32_t	pl_usermode;
 };
 
 struct pmclog_ev_pmcallocate {
@@ -89,6 +90,8 @@ struct pmclog_ev_proccsw {
 
 struct pmclog_ev_procexec {
 	pid_t		pl_pid;
+	pmc_id_t	pl_pmcid;
+	uintfptr_t	pl_entryaddr;
 	char		pl_pathname[PATH_MAX];
 };
 
