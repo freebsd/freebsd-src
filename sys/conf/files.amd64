@@ -140,6 +140,7 @@ dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
+dev/ichwd/ichwd.c		optional	ichwd
 dev/if_ndis/if_ndis.c		optional	ndis
 dev/if_ndis/if_ndis_pccard.c	optional	ndis pccard
 dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus
