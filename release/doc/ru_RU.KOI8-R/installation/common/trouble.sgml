@@ -2,9 +2,9 @@
 	The FreeBSD Russian Documentation Project
 
 	$FreeBSD$
-	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/trouble.sgml,v 1.4 2005/04/14 13:30:11 den Exp $
+	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/trouble.sgml,v 1.5 2005/06/30 11:12:32 den Exp $
 
-	Original revision: 1.17
+	Original revision: 1.19
 
 	This file contains the comments of the old TROUBLE.TXT file.
 -->
@@ -77,7 +77,7 @@
 	</question>
 	<answer>
 	  <para>&os; 5.0 и выше использует системный сервис ACPI платформы
-	    i386 для получения системной конфигурации, если этот сервис
+	    i386, amd64 и ia64 для получения системной конфигурации, если этот сервис
 	    обнаружен во время загрузки.  К сожалению, в драйвере ACPI,
 	    материнских платах и BIOS все еще присутствуют некоторые ошибки.
 	    Использование ACPI может быть выключено установкой
@@ -92,7 +92,7 @@
 	    информация по загрузчику находится в Руководстве &os;.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386,pc98,alpha,sparc64">
 	<question>
 	  <para>ISA устройство, определявшееся в предыдущих версиях
 	    &os;, теперь не определяется.  Что случилось?</para>
@@ -215,7 +215,7 @@
 	  </blockquote>
  	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
 	<question>
 	  <para>Драйвер &man.mcd.4; считает, что нашел устройство и
 	    мешает работе карты Intel EtherExpress.</para>
@@ -256,7 +256,7 @@
 	    IRQ 2 или 9 если это возможно.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
 	<question>
 	  <para>Я загрузил с установочной дискеты лэптоп IBM ThinkPad (tm)
 	    и клавиатура работает неправильно.</para>
@@ -269,7 +269,7 @@
 	    и все должно заработать отлично.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386,pc98,alpha,sparc64">
 	<question>
 	  <para>Моя система не может найти карту Intel EtherExpress 16.</para>
 	</question>
@@ -280,7 +280,7 @@
 	    <filename>softset.exe</filename>.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
 	<question>
 	  <para>При установке на EISA HP Netserver, встроенный SCSI
 	    контроллер AIC-7xxx не обнаруживается.</para>
@@ -292,7 +292,7 @@
 	    третьей стадии загрузчика.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
 	<question>
 	  <para>У меня компьютер Panasonic AL-N1 или Rios Chandler Pentium
 	    и система подвисает не начав установку.</para>
@@ -312,7 +312,7 @@
 	  <para>&os; не поддерживает этот контроллер.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
 	<question>
 	  <para>При установке с дискет на ноутбуке Compaq Aero, я получаю
 	    сообщение <quote>No floppy devices found!  Please check
@@ -328,7 +328,7 @@
 	    дисковода (как 1.44 MB диск) без запроса к CMOS.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
 	<question>
 	  <para>При установке на Dell Poweredge XE,
 	    RAID контроллер Dell DSA (Dell SCSI Array) не
@@ -358,7 +358,7 @@
 	    решением является установка другого Ethernet адаптера.</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
 	<question>
 	  <para>Когда я настраиваю сеть во время установки на IBM Netfinity
 	    3500, система подвисает.</para>
