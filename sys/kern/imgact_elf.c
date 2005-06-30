@@ -31,6 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
@@ -65,6 +67,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
+
+#if defined(COMPAT_IA32) && __ELF_WORD_SIZE == 32
+#include <machine/fpu.h>
+#include <compat/ia32/ia32_reg.h>
+#endif
 
 #define OLD_EI_BRAND	8
 
@@ -1118,17 +1125,31 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 	    td)); /* XXXKSE */
 }
 
+#if defined(COMPAT_IA32) && __ELF_WORD_SIZE == 32
+typedef struct prstatus32 elf_prstatus_t;
+typedef struct prpsinfo32 elf_prpsinfo_t;
+typedef struct fpreg32 elf_prfpregset_t;
+typedef struct fpreg32 elf_fpregset_t;
+typedef struct reg32 elf_gregset_t;
+#else
+typedef prstatus_t elf_prstatus_t;
+typedef prpsinfo_t elf_prpsinfo_t;
+typedef prfpregset_t elf_prfpregset_t;
+typedef prfpregset_t elf_fpregset_t;
+typedef gregset_t elf_gregset_t;
+#endif
+
 static void
 __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 {
 	struct {
-		prstatus_t status;
-		prfpregset_t fpregset;
-		prpsinfo_t psinfo;
+		elf_prstatus_t status;
+		elf_prfpregset_t fpregset;
+		elf_prpsinfo_t psinfo;
 	} *tempdata;
-	prstatus_t *status;
-	prfpregset_t *fpregset;
-	prpsinfo_t *psinfo;
+	elf_prstatus_t *status;
+	elf_prfpregset_t *fpregset;
+	elf_prpsinfo_t *psinfo;
 	struct proc *p;
 	struct thread *thr;
 	size_t ehoff, noteoff, notesz, phoff;
@@ -1160,7 +1181,7 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 
 	if (dst != NULL) {
 		psinfo->pr_version = PRPSINFO_VERSION;
-		psinfo->pr_psinfosz = sizeof(prpsinfo_t);
+		psinfo->pr_psinfosz = sizeof(elf_prpsinfo_t);
 		strlcpy(psinfo->pr_fname, p->p_comm, sizeof(psinfo->pr_fname));
 		/*
 		 * XXX - We don't fill in the command line arguments properly
@@ -1182,14 +1203,19 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 	while (thr != NULL) {
 		if (dst != NULL) {
 			status->pr_version = PRSTATUS_VERSION;
-			status->pr_statussz = sizeof(prstatus_t);
-			status->pr_gregsetsz = sizeof(gregset_t);
-			status->pr_fpregsetsz = sizeof(fpregset_t);
+			status->pr_statussz = sizeof(elf_prstatus_t);
+			status->pr_gregsetsz = sizeof(elf_gregset_t);
+			status->pr_fpregsetsz = sizeof(elf_fpregset_t);
 			status->pr_osreldate = osreldate;
 			status->pr_cursig = p->p_sig;
 			status->pr_pid = thr->td_tid;
+#if defined(COMPAT_IA32) && __ELF_WORD_SIZE == 32
+			fill_regs32(thr, &status->pr_reg);
+			fill_fpregs32(thr, fpregset);
+#else
 			fill_regs(thr, &status->pr_reg);
 			fill_fpregs(thr, fpregset);
+#endif
 		}
 		__elfN(putnote)(dst, off, "FreeBSD", NT_PRSTATUS, status,
 		    sizeof *status);
@@ -1235,7 +1261,11 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 		ehdr->e_ident[EI_ABIVERSION] = 0;
 		ehdr->e_ident[EI_PAD] = 0;
 		ehdr->e_type = ET_CORE;
+#if defined(COMPAT_IA32) && __ELF_WORD_SIZE == 32
+		ehdr->e_machine = EM_386;
+#else
 		ehdr->e_machine = ELF_ARCH;
+#endif
 		ehdr->e_version = EV_CURRENT;
 		ehdr->e_entry = 0;
 		ehdr->e_phoff = phoff;

@@ -41,6 +41,19 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
+#ifdef COMPAT_IA32
+struct procfs_status32 {
+	int	state;	/* Running, stopped, something else? */
+	int	flags;	/* Any flags */
+	unsigned int	events;	/* Events to stop on */
+	int	why;	/* What event, if any, proc stopped on */
+	unsigned int	val;	/* Any extra data */
+};
+
+#define	PIOCWAIT32	_IOR('p', 4, struct procfs_status32)
+#define	PIOCSTATUS32	_IOR('p', 6, struct procfs_status32)
+#endif
+
 /*
  * Process ioctls
  */
@@ -48,6 +61,9 @@ int
 procfs_ioctl(PFS_IOCTL_ARGS)
 {
 	struct procfs_status *ps;
+#ifdef COMPAT_IA32
+	struct procfs_status32 *ps32;
+#endif
 	int error, flags, sig;
 
 	PROC_LOCK(p);
@@ -94,6 +110,25 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		ps->why = p->p_step ? p->p_stype : 0;
 		ps->val = p->p_step ? p->p_xstat : 0;
 		break;
+#ifdef COMPAT_IA32
+	case PIOCWAIT32:
+		while (p->p_step == 0) {
+			/* sleep until p stops */
+			error = msleep(&p->p_stype, &p->p_mtx,
+			    PWAIT|PCATCH, "pioctl", 0);
+			if (error != 0)
+				break;
+		}
+		/* fall through to PIOCSTATUS32 */
+	case PIOCSTATUS32:
+		ps32 = (struct procfs_status32 *)data;
+		ps32->state = (p->p_step == 0);
+		ps32->flags = 0; /* nope */
+		ps32->events = p->p_stops;
+		ps32->why = p->p_step ? p->p_stype : 0;
+		ps32->val = p->p_step ? p->p_xstat : 0;
+		break;
+#endif
 #if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
 	case _IOC(IOC_IN, 'p', 5, 0):
 #endif

@@ -188,6 +188,7 @@ pci/agp_intel.c			optional	agp
 # IA32 binary support
 #
 #amd64/ia32/ia32_exception.S	optional	compat_ia32
+amd64/ia32/ia32_reg.c		optional	compat_ia32
 amd64/ia32/ia32_signal.c	optional	compat_ia32
 amd64/ia32/ia32_sigtramp.S	optional	compat_ia32
 amd64/ia32/ia32_syscall.c	optional	compat_ia32

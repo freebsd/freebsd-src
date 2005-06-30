@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_ntp.h"
 #include "opt_watchdog.h"
@@ -84,8 +85,36 @@ SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 /* Some of these don't belong here, but it's easiest to concentrate them. */
 long cp_time[CPUSTATES];
 
-SYSCTL_OPAQUE(_kern, OID_AUTO, cp_time, CTLFLAG_RD, &cp_time, sizeof(cp_time),
-    "LU", "CPU time statistics");
+#ifdef COMPAT_IA32
+extern struct sysentvec ia32_freebsd_sysvec;
+#endif
+
+static int
+sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+#ifdef COMPAT_IA32
+	int i;
+	unsigned int cp_time32[CPUSTATES];
+	
+	if (req->td->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+		if (!req->oldptr)
+			return SYSCTL_OUT(req, 0, sizeof(cp_time32));
+		for (i = 0; i < CPUSTATES; i++)
+			cp_time32[i] = (unsigned int)cp_time[i];
+		error = SYSCTL_OUT(req, cp_time32, sizeof(cp_time32));
+	} else
+#endif
+	{
+		if (!req->oldptr)
+			return SYSCTL_OUT(req, 0, sizeof(cp_time));
+		error = SYSCTL_OUT(req, cp_time, sizeof(cp_time));
+	}
+	return error;
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, cp_time, CTLTYPE_LONG|CTLFLAG_RD, 
+    0,0, sysctl_kern_cp_time, "LU", "CPU time statistics");
 
 #ifdef SW_WATCHDOG
 #include <sys/watchdog.h>

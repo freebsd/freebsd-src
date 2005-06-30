@@ -135,6 +135,17 @@ int	proc_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_sstep(struct thread *_td);
 int	proc_rwmem(struct proc *_p, struct uio *_uio);
+#ifdef COMPAT_IA32
+struct reg32;
+struct fpreg32;
+struct dbreg32;
+int	proc_read_regs32(struct thread *_td, struct reg32 *_reg32);
+int	proc_write_regs32(struct thread *_td, struct reg32 *_reg32);
+int	proc_read_fpregs32(struct thread *_td, struct fpreg32 *_fpreg32);
+int	proc_write_fpregs32(struct thread *_td, struct fpreg32 *_fpreg32);
+int	proc_read_dbregs32(struct thread *_td, struct dbreg32 *_dbreg32);
+int	proc_write_dbregs32(struct thread *_td, struct dbreg32 *_dbreg32);
+#endif
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>

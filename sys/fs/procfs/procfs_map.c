@@ -35,6 +35,8 @@
  * $FreeBSD$
  */
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -53,6 +55,14 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
+
+#ifdef COMPAT_IA32
+#include <sys/procfs.h>
+#include <machine/fpu.h>
+#include <compat/ia32/ia32_reg.h>
+
+extern struct sysentvec ia32_freebsd_sysvec;
+#endif
 
 
 #define MEBUFFERSIZE 256
@@ -77,6 +87,9 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	vm_map_entry_t entry;
 	char mebuffer[MEBUFFERSIZE];
 	char *fullpath, *freepath;
+#ifdef COMPAT_IA32
+	int wrap32 = 0;
+#endif
 
 	GIANT_REQUIRED;
 
@@ -92,6 +105,13 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	if (uio->uio_offset != 0)
 		return (0);
 
+#ifdef COMPAT_IA32
+        if (curthread->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+                if (p->p_sysent != &ia32_freebsd_sysvec)
+                        return (EOPNOTSUPP);
+                wrap32 = 1;
+        }
+#endif
 	error = 0;
 	if (map != &curthread->td_proc->p_vmspace->vm_map)
 		vm_map_lock_read(map);
@@ -164,7 +184,12 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		snprintf(mebuffer, sizeof mebuffer,
 		    "0x%lx 0x%lx %d %d %p %s%s%s %d %d 0x%x %s %s %s %s\n",
 			(u_long)entry->start, (u_long)entry->end,
-			resident, privateresident, obj,
+			resident, privateresident,
+#ifdef COMPAT_IA32
+			wrap32 ? NULL : obj,	/* Hide 64 bit value */
+#else
+			obj,
+#endif
 			(entry->protection & VM_PROT_READ)?"r":"-",
 			(entry->protection & VM_PROT_WRITE)?"w":"-",
 			(entry->protection & VM_PROT_EXECUTE)?"x":"-",
