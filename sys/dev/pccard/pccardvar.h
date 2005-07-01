@@ -221,7 +221,7 @@ struct pccard_tuple {
 	bus_space_handle_t memh;
 };
 
-typedef int (*pccard_scan_t)(struct pccard_tuple *, void *);
+typedef int (*pccard_scan_t)(const struct pccard_tuple *, void *);
 
 struct pccard_product {
 	const char	*pp_name;		/* NULL if end of table */
