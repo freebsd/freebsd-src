@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2005
+.Dd June 30, 2005
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -2491,9 +2491,10 @@ Rules using
 .Cm uid
 or
 .Cm gid
-may not behave as expected.  In particular, incoming SYN packets may 
+may not behave as expected.
+In particular, incoming SYN packets may
 have no uid or gid associated with them since they do not yet belong
-to a TCP connection, and the uid/gid associated with a packet may not 
+to a TCP connection, and the uid/gid associated with a packet may not
 be as expected if the associated process calls
 .Xr setuid 2
 or similar system calls.
