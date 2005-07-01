@@ -185,12 +185,31 @@ SYSCTL_INT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 } while (0)
 #define KN_LIST_LOCK(kn) do {						\
 	if (kn->kn_knlist != NULL)					\
-		mtx_lock(kn->kn_knlist->kl_lock);			\
+		kn->kn_knlist->kl_lock(kn->kn_knlist->kl_lockarg);	\
 } while (0)
 #define KN_LIST_UNLOCK(kn) do {						\
-	if (kn->kn_knlist != NULL)					\
-		mtx_unlock(kn->kn_knlist->kl_lock);			\
+	if (kn->kn_knlist != NULL) 					\
+		kn->kn_knlist->kl_unlock(kn->kn_knlist->kl_lockarg);	\
 } while (0)
+#define	KNL_ASSERT_LOCK(knl, islocked) do {				\
+	if (islocked)							\
+		KNL_ASSERT_LOCKED(knl);				\
+	else								\
+		KNL_ASSERT_UNLOCKED(knl);				\
+} while (0)
+#ifdef INVARIANTS
+#define	KNL_ASSERT_LOCKED(knl) do {					\
+	if (!knl->kl_locked((knl)->kl_lockarg))				\
+			panic("knlist not locked, but should be");	\
+} while (0)
+#define	KNL_ASSERT_UNLOCKED(knl) do {				\
+	if (knl->kl_locked((knl)->kl_lockarg))				\
+		panic("knlist locked, but should not be");		\
+} while (0)
+#else /* !INVARIANTS */
+#define	KNL_ASSERT_LOCKED(knl) do {} while(0)
+#define	KNL_ASSERT_UNLOCKED(knl) do {} while (0)
+#endif /* INVARIANTS */
 
 #define	KN_HASHSIZE		64		/* XXX should be tunable */
 #define KN_HASH(val, mask)	(((val) ^ (val >> 8)) & (mask))
@@ -499,7 +518,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF|MTX_DUPOK);
 	TAILQ_INIT(&kq->kq_head);
 	kq->kq_fdp = fdp;
-	knlist_init(&kq->kq_sel.si_note, &kq->kq_lock);
+	knlist_init(&kq->kq_sel.si_note, &kq->kq_lock, NULL, NULL, NULL);
 	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 
 	FILEDESC_LOCK_FAST(fdp);
@@ -1507,9 +1526,11 @@ knote(struct knlist *list, long hint, int islocked)
 	if (list == NULL)
 		return;
 
-	mtx_assert(list->kl_lock, islocked ? MA_OWNED : MA_NOTOWNED);
-	if (!islocked)
-		mtx_lock(list->kl_lock);
+	KNL_ASSERT_LOCK(list, islocked);
+
+	if (!islocked) 
+		list->kl_lock(list->kl_lockarg); 
+
 	/*
 	 * If we unlock the list lock (and set KN_INFLUX), we can eliminate
 	 * the kqueue scheduling, but this will introduce four
@@ -1533,7 +1554,7 @@ knote(struct knlist *list, long hint, int islocked)
 		kq = NULL;
 	}
 	if (!islocked)
-		mtx_unlock(list->kl_lock);
+		list->kl_unlock(list->kl_lockarg); 
 }
 
 /*
@@ -1542,15 +1563,15 @@ knote(struct knlist *list, long hint, int islocked)
 void
 knlist_add(struct knlist *knl, struct knote *kn, int islocked)
 {
-	mtx_assert(knl->kl_lock, islocked ? MA_OWNED : MA_NOTOWNED);
+	KNL_ASSERT_LOCK(knl, islocked);
 	KQ_NOTOWNED(kn->kn_kq);
 	KASSERT((kn->kn_status & (KN_INFLUX|KN_DETACHED)) ==
 	    (KN_INFLUX|KN_DETACHED), ("knote not KN_INFLUX and KN_DETACHED"));
 	if (!islocked)
-		mtx_lock(knl->kl_lock);
+		knl->kl_lock(knl->kl_lockarg);
 	SLIST_INSERT_HEAD(&knl->kl_list, kn, kn_selnext);
 	if (!islocked)
-		mtx_unlock(knl->kl_lock);
+		knl->kl_unlock(knl->kl_lockarg);
 	KQ_LOCK(kn->kn_kq);
 	kn->kn_knlist = knl;
 	kn->kn_status &= ~KN_DETACHED;
@@ -1561,17 +1582,17 @@ static void
 knlist_remove_kq(struct knlist *knl, struct knote *kn, int knlislocked, int kqislocked)
 {
 	KASSERT(!(!!kqislocked && !knlislocked), ("kq locked w/o knl locked"));
-	mtx_assert(knl->kl_lock, knlislocked ? MA_OWNED : MA_NOTOWNED);
+	KNL_ASSERT_LOCK(knl, knlislocked);
 	mtx_assert(&kn->kn_kq->kq_lock, kqislocked ? MA_OWNED : MA_NOTOWNED);
 	if (!kqislocked)
 		KASSERT((kn->kn_status & (KN_INFLUX|KN_DETACHED)) == KN_INFLUX,
     ("knlist_remove called w/o knote being KN_INFLUX or already removed"));
 	if (!knlislocked)
-		mtx_lock(knl->kl_lock);
+		knl->kl_lock(knl->kl_lockarg);
 	SLIST_REMOVE(&knl->kl_list, kn, knote, kn_selnext);
 	kn->kn_knlist = NULL;
 	if (!knlislocked)
-		mtx_unlock(knl->kl_lock);
+		knl->kl_unlock(knl->kl_lockarg);
 	if (!kqislocked)
 		KQ_LOCK(kn->kn_kq);
 	kn->kn_status |= KN_DETACHED;
@@ -1603,23 +1624,57 @@ knlist_remove_inevent(struct knlist *knl, struct knote *kn)
 int
 knlist_empty(struct knlist *knl)
 {
-
-	mtx_assert(knl->kl_lock, MA_OWNED);
+	KNL_ASSERT_LOCKED(knl);
 	return SLIST_EMPTY(&knl->kl_list);
 }
 
 static struct mtx	knlist_lock;
 MTX_SYSINIT(knlist_lock, &knlist_lock, "knlist lock for lockless objects",
 	MTX_DEF);
+static void knlist_mtx_lock(void *arg);
+static void knlist_mtx_unlock(void *arg);
+static int knlist_mtx_locked(void *arg);
+
+static void
+knlist_mtx_lock(void *arg)
+{
+	mtx_lock((struct mtx *)arg);
+}
+
+static void
+knlist_mtx_unlock(void *arg)
+{
+	mtx_unlock((struct mtx *)arg);
+}
+
+static int
+knlist_mtx_locked(void *arg)
+{
+	return (mtx_owned((struct mtx *)arg));
+}
 
 void
-knlist_init(struct knlist *knl, struct mtx *mtx)
+knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
+    void (*kl_unlock)(void *), int (*kl_locked)(void *))
 {
 
-	if (mtx == NULL)
-		knl->kl_lock = &knlist_lock;
+	if (lock == NULL)
+		knl->kl_lockarg = &knlist_lock;
 	else
-		knl->kl_lock = mtx;
+		knl->kl_lockarg = lock;
+
+	if (kl_lock == NULL)
+		knl->kl_lock = knlist_mtx_lock;
+	else
+		knl->kl_lock = kl_lock;
+	if (kl_lock == NULL)
+		knl->kl_unlock = knlist_mtx_unlock;
+	else
+		knl->kl_unlock = kl_unlock;
+	if (kl_locked == NULL)
+		knl->kl_locked = knlist_mtx_locked;
+	else
+		knl->kl_locked = kl_locked;
 
 	SLIST_INIT(&knl->kl_list);
 }
@@ -1637,7 +1692,7 @@ knlist_destroy(struct knlist *knl)
 		printf("WARNING: destroying knlist w/ knotes on it!\n");
 #endif
 
-	knl->kl_lock = NULL;
+	knl->kl_lockarg = knl->kl_lock = knl->kl_unlock = NULL;
 	SLIST_INIT(&knl->kl_list);
 }
 
@@ -1652,11 +1707,11 @@ knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 	struct kqueue *kq;
 
 	if (islocked)
-		mtx_assert(knl->kl_lock, MA_OWNED);
+		KNL_ASSERT_LOCKED(knl);
 	else {
-		mtx_assert(knl->kl_lock, MA_NOTOWNED);
+		KNL_ASSERT_UNLOCKED(knl);
 again:		/* need to reaquire lock since we have dropped it */
-		mtx_lock(knl->kl_lock);
+		knl->kl_lock(knl->kl_lockarg);
 	}
 
 	SLIST_FOREACH(kn, &knl->kl_list, kn_selnext) {
@@ -1686,7 +1741,7 @@ again:		/* need to reaquire lock since we have dropped it */
 		KQ_LOCK(kq);
 		KASSERT(kn->kn_status & KN_INFLUX,
 		    ("knote removed w/o list lock"));
-		mtx_unlock(knl->kl_lock);
+		knl->kl_unlock(knl->kl_lockarg);
 		kq->kq_state |= KQ_FLUXWAIT;
 		msleep(kq, &kq->kq_lock, PSOCK | PDROP, "kqkclr", 0);
 		kq = NULL;
@@ -1694,10 +1749,10 @@ again:		/* need to reaquire lock since we have dropped it */
 	}
 
 	if (islocked)
-		mtx_assert(knl->kl_lock, MA_OWNED);
+		KNL_ASSERT_LOCKED(knl);
 	else {
-		mtx_unlock(knl->kl_lock);
-		mtx_assert(knl->kl_lock, MA_NOTOWNED);
+		knl->kl_unlock(knl->kl_lockarg);
+		KNL_ASSERT_UNLOCKED(knl);
 	}
 }
 

@@ -375,7 +375,7 @@ bpfopen(dev, flags, fmt, td)
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init(&d->bd_callout, NET_CALLOUT_MPSAFE);
-	knlist_init(&d->bd_sel.si_note, &d->bd_mtx);
+	knlist_init(&d->bd_sel.si_note, &d->bd_mtx, NULL, NULL, NULL);
 
 	return (0);
 }

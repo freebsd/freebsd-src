@@ -279,7 +279,7 @@ if_init(void *dummy __unused)
 
 	IFNET_LOCK_INIT();
 	TAILQ_INIT(&ifnet);
-	knlist_init(&ifklist, NULL);
+	knlist_init(&ifklist, NULL, NULL, NULL, NULL);
 	if_grow();				/* create initial table */
 	ifdev_byindex(0) = make_dev(&net_cdevsw, 0,
 	    UID_ROOT, GID_WHEEL, 0600, "network");
@@ -473,7 +473,7 @@ if_attach(struct ifnet *ifp)
 	TAILQ_INIT(&ifp->if_addrhead);
 	TAILQ_INIT(&ifp->if_prefixhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
-	knlist_init(&ifp->if_klist, NULL);
+	knlist_init(&ifp->if_klist, NULL, NULL, NULL, NULL);
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_data.ifi_epoch = time_uptime;
 	ifp->if_data.ifi_datalen = sizeof(struct if_data);

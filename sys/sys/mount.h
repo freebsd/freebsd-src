@@ -550,11 +550,18 @@ extern int mpsafe_vfs;
 		mtx_assert(&Giant, MA_OWNED);				\
 } while (0)
 
-#define VFS_SEND_KNOTE(vp, hint) do					\
+#define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
 	if ((vp)->v_mount &&						\
 	    ((vp)->v_mount->mnt_kern_flag & MNTK_NOKNOTE) == 0)		\
-		VN_KNOTE_UNLOCKED((vp), (hint));			\
+		VN_KNOTE((vp), (hint), 1);				\
+} while (0)
+
+#define VFS_KNOTE_UNLOCKED(vp, hint) do					\
+{									\
+	if ((vp)->v_mount &&						\
+	    ((vp)->v_mount->mnt_kern_flag & MNTK_NOKNOTE) == 0)		\
+		VN_KNOTE((vp), (hint), 0);				\
 } while (0)
 
 #include <sys/module.h>
