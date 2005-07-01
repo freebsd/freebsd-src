@@ -506,7 +506,7 @@ ktrace(td, uap)
 	int facs = uap->facs & ~KTRFAC_ROOT;
 	int ops = KTROP(uap->ops);
 	int descend = uap->ops & KTRFLAG_DESCEND;
-	int ret = 0;
+	int nfound, ret = 0;
 	int flags, error = 0;
 	struct nameidata nd;
 	struct ucred *cred;
@@ -592,11 +592,25 @@ ktrace(td, uap)
 		 * by the proctree_lock rather than pg_mtx.
 		 */
 		PGRP_UNLOCK(pg);
-		LIST_FOREACH(p, &pg->pg_members, p_pglist)
+		nfound = 0;
+		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
+			PROC_LOCK(p);
+			if (p_cansee(td, p) != 0) {
+				PROC_UNLOCK(p); 
+				continue;
+			}
+			PROC_UNLOCK(p); 
+			nfound++;
 			if (descend)
 				ret |= ktrsetchildren(td, p, ops, facs, vp);
 			else
 				ret |= ktrops(td, p, ops, facs, vp);
+		}
+		if (nfound == 0) {
+			sx_sunlock(&proctree_lock);
+			error = ESRCH;
+			goto done;
+		}
 	} else {
 		/*
 		 * by pid
@@ -613,8 +627,10 @@ ktrace(td, uap)
 		 * from going away, so unlocking the proc here is ok.
 		 */
 		PROC_UNLOCK(p);
-		if (error)
+		if (error) {
+			sx_sunlock(&proctree_lock);
 			goto done;
+		}
 		if (descend)
 			ret |= ktrsetchildren(td, p, ops, facs, vp);
 		else
