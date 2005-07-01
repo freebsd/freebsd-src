@@ -71,7 +71,7 @@ struct cis_state {
 	struct pccard_function *pf;
 };
 
-int	pccard_parse_cis_tuple(struct pccard_tuple *, void *);
+static int pccard_parse_cis_tuple(struct pccard_tuple *, void *);
 static int decode_funce(struct pccard_tuple *, struct pccard_function *);
 
 void
@@ -103,8 +103,7 @@ pccard_read_cis(struct pccard_softc *sc)
 }
 
 int
-pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
-	void *arg)
+pccard_scan_cis(device_t dev, pccard_scan_t fct, void *arg)
 {
 	struct resource *res;
 	int rid;
@@ -193,7 +192,7 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 				DPRINTF(("CISTPL_END\n ff\n"));
 				/* Call the function for the END tuple, since
 				   the CIS semantics depend on it */
-				if ((*fct) (&tuple, arg)) {
+				if ((*fct)(&tuple, arg)) {
 					ret = 1;
 					goto done;
 				}
@@ -353,7 +352,7 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 				 */
 			default:
 				{
-					if ((*fct) (&tuple, arg)) {
+					if ((*fct)(&tuple, arg)) {
 						ret = 1;
 						goto done;
 					}
@@ -616,7 +615,7 @@ pccard_print_cis(device_t dev)
 		    card->error);
 }
 
-int
+static int
 pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 {
 	/* most of these are educated guesses */
