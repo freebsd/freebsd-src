@@ -28,6 +28,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	do not have ifconfig_ifn entries rather than just those in
 	removable_interfaces.
 
+20050616:
+	Some previous versions of PAM have permitted the use of
+	non-absolute paths in /etc/pam.conf or /etc/pam.d/* when referring
+	to third party PAM modules in /usr/local/lib.  A change has been
+	made to require the use of absolute paths in order to avoid
+	ambiguity and dependence on library path configuration, which may
+	affect existing configurations.
+
 20050610:
 	Major changes to network interface API.  All drivers must be
 	recompiled.  Drivers not in the base system will need to be
