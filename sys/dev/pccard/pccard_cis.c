@@ -71,8 +71,8 @@ struct cis_state {
 	struct pccard_function *pf;
 };
 
-static int pccard_parse_cis_tuple(struct pccard_tuple *, void *);
-static int decode_funce(struct pccard_tuple *, struct pccard_function *);
+static int pccard_parse_cis_tuple(const struct pccard_tuple *, void *);
+static int decode_funce(const struct pccard_tuple *, struct pccard_function *);
 
 void
 pccard_read_cis(struct pccard_softc *sc)
@@ -80,9 +80,7 @@ pccard_read_cis(struct pccard_softc *sc)
 	struct cis_state state;
 
 	bzero(&state, sizeof state);
-
 	state.card = &sc->card;
-
 	state.card->error = 0;
 	state.card->cis1_major = -1;
 	state.card->cis1_minor = -1;
@@ -93,7 +91,6 @@ pccard_read_cis(struct pccard_softc *sc)
 	state.card->manufacturer = PCMCIA_VENDOR_INVALID;
 	state.card->product = PCMCIA_PRODUCT_INVALID;
 	STAILQ_INIT(&state.card->pf_head);
-
 	state.pf = NULL;
 
 	tsleep(&state, 0, "pccard", hz);
@@ -616,7 +613,7 @@ pccard_print_cis(device_t dev)
 }
 
 static int
-pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
+pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 {
 	/* most of these are educated guesses */
 	static struct pccard_config_entry init_cfe = {
@@ -813,9 +810,8 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
                                 "valid CISTPL_FUNCID\n"));
                         break;
                 }
-                if (tuple->length >= 2) {
+                if (tuple->length >= 2)
                         decode_funce(tuple, state->pf);
-                }
                 DPRINTF(("CISTPL_FUNCE\n"));
                 break;
 	case CISTPL_CONFIG:
@@ -1268,7 +1264,7 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 }
 
 static int
-decode_funce(struct pccard_tuple *tuple, struct pccard_function *pf)
+decode_funce(const struct pccard_tuple *tuple, struct pccard_function *pf)
 {
 	int i;
 	int len;

@@ -112,7 +112,7 @@ ep_pccard_probe(device_t dev)
 }
 
 static int
-ep_pccard_mac(struct pccard_tuple *tuple, void *argp)
+ep_pccard_mac(const struct pccard_tuple *tuple, void *argp)
 {
 	uint8_t *enaddr = argp;
 	int i;
