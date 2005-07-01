@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2004
+.Dd June 30, 2005
 .Dt EP 4 i386
 .Os
 .Sh NAME
@@ -139,6 +139,40 @@ This means that someone has scribbled with pencil
 in the test area on the card.
 Erase the pencil mark and reboot.
 (This is not a joke).
+.It ep0: No I/O space?!
+The driver was unable to allocate the I/O space that it thinks
+should be there.
+Look for conflicts with other devices.
+.It ep0: No irq?!
+The driver couldn't allocate the interrupt it wanted.
+Look for conflicts, although sharing interrupts for PC Card is normal.
+.It ep0: No connectors!
+The driver querried the hardware for what ethernet attachment were
+present, but the hardware reported none that the driver recognized.
+.It ep0: Unable to get Ethernet address!
+The driver was unabel to read the ethernet address from the EEPROM.
+This is likely the result of the card being wedged.
+.It ep0: if_alloc() failed
+The driver was unable to allocate a ifnet structure.
+This may happen in extremely low memory conditions.
+.It ep0: strange connector type in EEPROM: assuming AUI
+The driver does not know what to do with the information the EEPROM
+has about connectors, so it is assuming the worst.
+.It ep0: unknown ID 0xXXXXXXXX
+The driver has found an ID that it believes it supports, but doesn't
+have a specific identification string to present to the user.
+.It ep0: <%s> at port 0x%03x in EISA mode
+The 3C509 ISA card is in EISA mode.
+This message appears to be purely informational. 
+.It ep0: <%s> at x0%03x in PnP mode
+This card appears to be in Plug and Play mode.
+It should be probed as part of the plug and play phase of the ISA
+probes.
+.It ep0: Invalid EEPROM checksum!
+The EEPROM has a bad checksum, so the driver is ignoring the card.
+.It ep0: bus_setup_intr() failed!
+The driver was unable to setup the interrupt handler.
+This should never happen.
 .El
 .Sh SEE ALSO
 .Xr ed 4 ,
@@ -153,4 +187,3 @@ are great.
 There is so many to choose from.
 .Sh BUGS
 Support for the 3Com 3C1 is not working.
-Support for the 3CCFEM556 Fast Ethernet cards has not been tested.
