@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/kernel.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -39,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_queue.h>
 
 #define CAM_PATH_ANY (u_int32_t)-1
+
+MALLOC_DEFINE(M_CAMSIM, "CAM SIM", "CAM SIM buffers");
 
 struct cam_devq *
 cam_simq_alloc(u_int32_t max_sim_transactions)
@@ -68,10 +71,10 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	 */
 	if (strcmp(sim_name, "xpt") == 0)
 		sim = (struct cam_sim *)malloc(sizeof(struct cam_sim),
-					       M_DEVBUF, M_WAITOK);
+					       M_CAMSIM, M_WAITOK);
 	else
 		sim = (struct cam_sim *)malloc(sizeof(struct cam_sim),
-					       M_DEVBUF, M_NOWAIT);
+					       M_CAMSIM, M_NOWAIT);
 
 	if (sim != NULL) {
 		sim->sim_action = sim_action;
@@ -96,7 +99,7 @@ cam_sim_free(struct cam_sim *sim, int free_devq)
 {
 	if (free_devq)
 		cam_simq_free(sim->devq);
-	free(sim, M_DEVBUF);
+	free(sim, M_CAMSIM);
 }
 
 void

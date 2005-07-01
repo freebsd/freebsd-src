@@ -39,6 +39,7 @@
 #ifdef _KERNEL
 void		xpt_polled_action(union ccb *ccb);
 union ccb	*xpt_alloc_ccb(void);
+union ccb	*xpt_alloc_ccb_nowait(void);
 void		xpt_free_ccb(union ccb *free_ccb);
 void		xpt_release_ccb(union ccb *released_ccb);
 void		xpt_schedule(struct cam_periph *perph, u_int32_t new_priority);

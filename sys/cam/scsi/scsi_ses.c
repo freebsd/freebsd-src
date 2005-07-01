@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include <opt_ses.h>
 
+MALLOC_DEFINE(M_SCSISES, "SCSI SES", "SCSI SES buffers");
+
 /*
  * Platform Independent Driver Internal Definitions for SES devices.
  */
@@ -120,8 +122,8 @@ static int safte_set_objstat(ses_softc_t *, ses_objstat *, int);
 #define	SES_DLOG		if (0) ses_log
 #endif
 #define	SES_VLOG		if (bootverbose) ses_log
-#define	SES_MALLOC(amt)		malloc(amt, M_DEVBUF, M_NOWAIT)
-#define	SES_FREE(ptr, amt)	free(ptr, M_DEVBUF)
+#define	SES_MALLOC(amt)		malloc(amt, M_SCSISES, M_NOWAIT)
+#define	SES_FREE(ptr, amt)	free(ptr, M_SCSISES)
 #define	MEMZERO			bzero
 #define	MEMCPY(dest, src, amt)	bcopy(src, dest, amt)
 
@@ -250,7 +252,7 @@ sescleanup(struct cam_periph *periph)
 
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
-	free(softc, M_DEVBUF);
+	free(softc, M_SCSISES);
 }
 
 static void
@@ -324,7 +326,7 @@ sesregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	softc = malloc(sizeof (struct ses_softc), M_DEVBUF, M_NOWAIT);
+	softc = malloc(sizeof (struct ses_softc), M_SCSISES, M_NOWAIT);
 	if (softc == NULL) {
 		printf("sesregister: Unable to probe new device. "
 		       "Unable to allocate softc\n");				
@@ -359,7 +361,7 @@ sesregister(struct cam_periph *periph, void *arg)
 		break;
 	case SES_NONE:
 	default:
-		free(softc, M_DEVBUF);
+		free(softc, M_SCSISES);
 		return (CAM_REQ_CMP_ERR);
 	}
 

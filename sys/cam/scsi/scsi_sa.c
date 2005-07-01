@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
  * Driver states
  */
 
+MALLOC_DEFINE(M_SCSISA, "SCSI sa", "SCSI sequential access buffers");
 
 typedef enum {
 	SA_STATE_NORMAL, SA_STATE_ABNORMAL
@@ -1354,7 +1355,7 @@ sacleanup(struct cam_periph *periph)
 
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
-	free(softc, M_DEVBUF);
+	free(softc, M_SCSISA);
 }
 
 static void
@@ -1420,7 +1421,7 @@ saregister(struct cam_periph *periph, void *arg)
 	}
 
 	softc = (struct sa_softc *)
-	    malloc(sizeof (*softc), M_DEVBUF, M_NOWAIT | M_ZERO);
+	    malloc(sizeof (*softc), M_SCSISA, M_NOWAIT | M_ZERO);
 	if (softc == NULL) {
 		printf("saregister: Unable to probe new device. "
 		       "Unable to allocate softc\n");				
