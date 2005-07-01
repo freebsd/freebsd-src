@@ -211,8 +211,10 @@ socreate(dom, aso, type, proto, cred, td)
 #ifdef MAC
 	mac_create_socket(cred, so);
 #endif
-	knlist_init(&so->so_rcv.sb_sel.si_note, SOCKBUF_MTX(&so->so_rcv));
-	knlist_init(&so->so_snd.sb_sel.si_note, SOCKBUF_MTX(&so->so_snd));
+	knlist_init(&so->so_rcv.sb_sel.si_note, SOCKBUF_MTX(&so->so_rcv),
+	    NULL, NULL, NULL);
+	knlist_init(&so->so_snd.sb_sel.si_note, SOCKBUF_MTX(&so->so_snd),
+	    NULL, NULL, NULL);
 	so->so_count = 1;
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {

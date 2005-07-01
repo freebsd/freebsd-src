@@ -98,6 +98,10 @@ static void	vfree(struct vnode *);
 static void	vnlru_free(int);
 static void	vdestroy(struct vnode *);
 static void	vgonel(struct vnode *);
+static void	vfs_knllock(void *arg);
+static void	vfs_knlunlock(void *arg);
+static int	vfs_knllocked(void *arg);
+
 
 /*
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
@@ -2834,8 +2838,8 @@ v_addpollinfo(struct vnode *vp)
 	}
 	vp->v_pollinfo = vi;
 	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
-	knlist_init(&vp->v_pollinfo->vpi_selinfo.si_note,
-	    &vp->v_pollinfo->vpi_lock);
+	knlist_init(&vp->v_pollinfo->vpi_selinfo.si_note, vp, vfs_knllock,
+	    vfs_knlunlock, vfs_knllocked);
 }
 
 /*
@@ -3473,7 +3477,7 @@ vop_create_post(void *ap, int rc)
 	struct vop_create_args *a = ap;
 
 	if (!rc)
-		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE);
+		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE); 
 }
 
 void
@@ -3482,8 +3486,8 @@ vop_link_post(void *ap, int rc)
 	struct vop_link_args *a = ap;
 	
 	if (!rc) {
-		VFS_SEND_KNOTE(a->a_vp, NOTE_LINK);
-		VFS_SEND_KNOTE(a->a_tdvp, NOTE_WRITE);
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_LINK); 
+		VFS_KNOTE_LOCKED(a->a_tdvp, NOTE_WRITE);
 	}
 }
 
@@ -3493,7 +3497,7 @@ vop_mkdir_post(void *ap, int rc)
 	struct vop_mkdir_args *a = ap;
 
 	if (!rc)
-		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE | NOTE_LINK);
+		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE | NOTE_LINK);
 }
 
 void
@@ -3502,7 +3506,7 @@ vop_mknod_post(void *ap, int rc)
 	struct vop_mknod_args *a = ap;
 
 	if (!rc)
-		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE);
+		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE);
 }
 
 void
@@ -3511,8 +3515,8 @@ vop_remove_post(void *ap, int rc)
 	struct vop_remove_args *a = ap;
 
 	if (!rc) {
-		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE);
-		VFS_SEND_KNOTE(a->a_vp, NOTE_DELETE);
+		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE);
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_DELETE);
 	}
 }
 
@@ -3522,11 +3526,11 @@ vop_rename_post(void *ap, int rc)
 	struct vop_rename_args *a = ap;
 
 	if (!rc) {
-		VFS_SEND_KNOTE(a->a_fdvp, NOTE_WRITE);
-		VFS_SEND_KNOTE(a->a_tdvp, NOTE_WRITE);
-		VFS_SEND_KNOTE(a->a_fvp, NOTE_RENAME);
+		VFS_KNOTE_UNLOCKED(a->a_fdvp, NOTE_WRITE);
+		VFS_KNOTE_UNLOCKED(a->a_tdvp, NOTE_WRITE);
+		VFS_KNOTE_UNLOCKED(a->a_fvp, NOTE_RENAME);
 		if (a->a_tvp)
-			VFS_SEND_KNOTE(a->a_tvp, NOTE_DELETE);
+			VFS_KNOTE_UNLOCKED(a->a_tvp, NOTE_DELETE);
 	}
 	if (a->a_tdvp != a->a_fdvp)
 		vdrop(a->a_fdvp);
@@ -3543,8 +3547,8 @@ vop_rmdir_post(void *ap, int rc)
 	struct vop_rmdir_args *a = ap;
 
 	if (!rc) {
-		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE | NOTE_LINK);
-		VFS_SEND_KNOTE(a->a_vp, NOTE_DELETE);
+		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE | NOTE_LINK);
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_DELETE);
 	}
 }
 
@@ -3554,7 +3558,7 @@ vop_setattr_post(void *ap, int rc)
 	struct vop_setattr_args *a = ap;
 
 	if (!rc)
-		VFS_SEND_KNOTE(a->a_vp, NOTE_ATTRIB);
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
 }
 
 void
@@ -3563,7 +3567,7 @@ vop_symlink_post(void *ap, int rc)
 	struct vop_symlink_args *a = ap;
 	
 	if (!rc)
-		VFS_SEND_KNOTE(a->a_dvp, NOTE_WRITE);
+		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE);
 }
 
 static struct knlist fs_knlist;
@@ -3571,7 +3575,7 @@ static struct knlist fs_knlist;
 static void
 vfs_event_init(void *arg)
 {
-	knlist_init(&fs_knlist, NULL);
+	knlist_init(&fs_knlist, NULL, NULL, NULL, NULL);
 }
 /* XXX - correct order? */
 SYSINIT(vfs_knlist, SI_SUB_VFS, SI_ORDER_ANY, vfs_event_init, NULL);
@@ -3658,7 +3662,6 @@ static int	filt_vfsread(struct knote *kn, long hint);
 static int	filt_vfswrite(struct knote *kn, long hint);
 static int	filt_vfsvnode(struct knote *kn, long hint);
 static void	filt_vfsdetach(struct knote *kn);
-
 static struct filterops vfsread_filtops =
 	{ 1, NULL, filt_vfsdetach, filt_vfsread };
 static struct filterops vfswrite_filtops =
@@ -3666,11 +3669,36 @@ static struct filterops vfswrite_filtops =
 static struct filterops vfsvnode_filtops =
 	{ 1, NULL, filt_vfsdetach, filt_vfsvnode };
 
+static void
+vfs_knllock(void *arg)
+{
+	struct vnode *vp = arg;
+
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+}
+
+static void
+vfs_knlunlock(void *arg)
+{
+	struct vnode *vp = arg;
+
+	VOP_UNLOCK(vp, 0, curthread);
+}
+
+static int
+vfs_knllocked(void *arg)
+{
+	struct vnode *vp = arg;
+
+	return (VOP_ISLOCKED(vp, curthread) == LK_EXCLUSIVE);
+}
+
 int
 vfs_kqfilter(struct vop_kqfilter_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct knote *kn = ap->a_kn;
+	struct knlist *knl; 
 
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
@@ -3692,7 +3720,8 @@ vfs_kqfilter(struct vop_kqfilter_args *ap)
 		v_addpollinfo(vp);
 	if (vp->v_pollinfo == NULL)
 		return (ENOMEM);
-	knlist_add(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
+	knl = &vp->v_pollinfo->vpi_selinfo.si_note;
+	knlist_add(knl, kn, 0);
 
 	return (0);
 }
@@ -3725,10 +3754,7 @@ filt_vfsread(struct knote *kn, long hint)
 		return (1);
 	}
 
-	vn_lock(vp, LK_SHARED | LK_RETRY, curthread);
 	if (VOP_GETATTR(vp, &va, curthread->td_ucred, curthread)) 
-		return (0);
-	if (VOP_UNLOCK(vp, 0, curthread))
 		return (0);
 
 	kn->kn_data = va.va_size - kn->kn_fp->f_offset;
