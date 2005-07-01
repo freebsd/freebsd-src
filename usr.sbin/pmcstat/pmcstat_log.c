@@ -331,7 +331,7 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image, uintfptr_t *minp,
 	if (!IS_ELF(*h))
 		err(EX_SOFTWARE, "ERROR: \"%s\" not an ELF file", path);
 
-	sh = (const Elf_Shdr *)((const char *) mapbase + h->e_shoff);
+	sh = (const Elf_Shdr *)((uintptr_t) mapbase + h->e_shoff);
 
 	if (h->e_type == ET_EXEC || h->e_type == ET_DYN) {
 		/*
@@ -350,7 +350,7 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image, uintfptr_t *minp,
 
 	*is_dynamic = 0;
 	if (h->e_type == ET_EXEC) {
-		ph = (const Elf_Phdr *)((const char *) mapbase + h->e_phoff);
+		ph = (const Elf_Phdr *)((uintptr_t) mapbase + h->e_phoff);
 		for (i = 0; i < h->e_phnum; i++) {
 			switch (ph[i].p_type) {
 			case PT_DYNAMIC:
@@ -447,30 +447,31 @@ static enum pmcstat_image_type
 pmcstat_image_get_type(const char *path)
 {
 	int fd;
-	Elf_Ehdr *eh;
-	struct exec *ex;
+	Elf_Ehdr eh;
+	struct exec ex;
 	ssize_t nbytes;
 	char buffer[DEFAULT_BUFFER_SIZE];
 
 	if ((fd = open(path, O_RDONLY)) < 0)
 		err(EX_OSERR, "ERROR: Cannot open \"%s\"", path);
 
-	if ((nbytes = pread(fd, buffer, sizeof(buffer), 0)) < 0)
+	nbytes = max(sizeof(eh), sizeof(ex));
+	if ((nbytes = pread(fd, buffer, nbytes, 0)) < 0)
 		err(EX_OSERR, "ERROR: Cannot read \"%s\"", path);
 
 	(void) close(fd);
 
 	/* check if its an ELF file */
 	if ((unsigned) nbytes >= sizeof(Elf_Ehdr)) {
-		eh = (Elf_Ehdr *) buffer;
-		if (IS_ELF(*eh))
+		bcopy(buffer, &eh, sizeof(eh));
+		if (IS_ELF(eh))
 			return PMCSTAT_IMAGE_ELF;
 	}
 
 	/* Look for an A.OUT header */
 	if ((unsigned) nbytes >= sizeof(struct exec)) {
-		ex = (struct exec *) buffer;
-		if (!N_BADMAG(*ex))
+		bcopy(buffer, &ex, sizeof(ex));
+		if (!N_BADMAG(ex))
 			return PMCSTAT_IMAGE_AOUT;
 	}
 
@@ -534,7 +535,7 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 
 	assert(bucket < pgf->pgf_nsamples);
 
-	hc = (HISTCOUNTER *) ((char *) pgf->pgf_gmondata +
+	hc = (HISTCOUNTER *) ((uintptr_t) pgf->pgf_gmondata +
 	    sizeof(struct gmonhdr));
 	hc[bucket]++;
 
@@ -925,11 +926,8 @@ pmcstat_convert_log(struct pmcstat_args *a)
 			pp = pmcstat_process_lookup(ev.pl_u.pl_s.pl_pid, 1);
 			if ((ppm = pmcstat_process_find_map(pp, pc)) == NULL &&
 			    (ppm = pmcstat_process_find_map(pmcstat_kernproc,
-				pc)) == NULL) {
-				printf("!%d unknown %jx\n", pp->pp_pid,
-				    (uintmax_t) pc);
+				pc)) == NULL)
 				break; /* unknown process,offset pair */
-			}
 
 			pmcstat_image_increment_bucket(ppm, pc,
 			    ev.pl_u.pl_s.pl_pmcid, a);
