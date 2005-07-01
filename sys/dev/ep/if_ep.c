@@ -288,7 +288,7 @@ ep_attach(struct ep_softc *sc)
 	ep_setup_station(sc, sc->eaddr);
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		device_printf(sc->dev, "can not if_alloc()\n");
+		device_printf(sc->dev, "if_alloc() failed\n");
 		EP_LOCK_DESTORY(sc);
 		return (ENOSPC);
 	}
@@ -350,10 +350,8 @@ ep_detach(device_t dev)
 	EP_ASSERT_UNLOCKED(sc);
 	ifp = sc->ifp;
 
-	if (sc->gone) {
-		device_printf(dev, "already unloaded\n");
+	if (sc->gone)
 		return (0);
-	}
 	if (bus_child_present(dev))
 		epstop(sc);
 
