@@ -112,6 +112,28 @@ ep_pccard_probe(device_t dev)
 }
 
 static int
+ep_pccard_mac(struct pccard_tuple *tuple, void *argp)
+{
+	uint8_t *enaddr = argp;
+	int i;
+
+	/* Code 0x88 is 3com's special cis node contianing the MAC */
+	if (tuple->code != 0x88)
+		return (0);
+
+	/* Make sure this is a sane node */
+	if (tuple->length < ETHER_ADDR_LEN)
+		return (0);
+
+	/* Copy the MAC ADDR and return success */
+	for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
+		enaddr[i] = pccard_tuple_read_1(tuple, i + 1);
+		enaddr[i + 1] = pccard_tuple_read_1(tuple, i);
+	}
+	return (1);
+}
+
+static int
 ep_pccard_attach(device_t dev)
 {
 	struct ep_softc *sc = device_get_softc(dev);
@@ -122,11 +144,6 @@ ep_pccard_attach(device_t dev)
 	if ((pp = ep_pccard_lookup(dev)) == NULL)
 		panic("ep_pccard_attach: can't find product in attach.");
 
-	if ((error = ep_alloc(dev))) {
-		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
-		goto bad;
-	}
-
 	if (pp->chipset == EP_CHIP_589) {
 		sc->epb.mii_trans = 0;
 		sc->epb.cmd_off = 0;
@@ -135,8 +152,10 @@ ep_pccard_attach(device_t dev)
 		sc->epb.cmd_off = 2;
 	}
 
-	error = ep_get_e(sc, EEPROM_PROD_ID, &result);
-	sc->epb.prod_id = result;
+	if ((error = ep_alloc(dev))) {
+		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
+		goto bad;
+	}
 
 	/* ROM size = 0, ROM base = 0 */
 	/* For now, ignore AUTO SELECT feature of 3C589B and later. */
@@ -168,6 +187,18 @@ ep_pccard_attach(device_t dev)
 	} else
 		ep_get_media(sc);
 
+	/*
+	 * The 3C562 (a-c revisions) stores the MAC in the CIS in a
+	 * way that's unique to 3com.  If we have one of these cards,
+	 * scan the CIS for that MAC address, and use it if we find
+	 * it.  The NetBSD driver says that the ROADRUNNER chips also
+	 * do this, which may be true, but none of the cards that I
+	 * have include this TUPLE.  Always prefer the MAC addr in the
+	 * CIS tuple to the one returned by the card, as it appears that
+	 * only those cards that need it have this special tuple.
+	 */
+	if (CARD_CIS_SCAN(device_get_parent(dev), ep_pccard_mac, sc->eaddr))
+		sc->stat |= F_ENADDR_SKIP;
 	if ((error = ep_attach(sc))) {
 		device_printf(dev, "ep_attach() failed! (%d)\n", error);
 		goto bad;
