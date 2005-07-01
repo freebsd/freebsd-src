@@ -215,7 +215,7 @@ ep_isa_identify(driver_t * driver, device_t parent)
 		if (!desc) {
 			if (bootverbose)
 				device_printf(parent,
-				    "if_ep: unknown ID 0x%08x\n", isa_id);
+				    "unknown ID 0x%08x\n", isa_id);
 			continue;
 		}
 		/* Retreive IRQ */
@@ -232,7 +232,7 @@ ep_isa_identify(driver_t * driver, device_t parent)
 
 		if ((data & ADDR_CFG_MASK) == ADDR_CFG_EISA) {
 			device_printf(parent,
-			    "if_ep: <%s> at port 0x%03x in EISA mode!\n",
+			    "<%s> at port 0x%03x in EISA mode!\n",
 			    desc, ioport);
 			/*
 			 * Set the adaptor tag so that the next card can be
@@ -249,7 +249,7 @@ ep_isa_identify(driver_t * driver, device_t parent)
 			if (data & ICW1_IAS_PNP) {
 				if (bootverbose)
 					device_printf(parent,
-					    "if_ep: <%s> at 0x%03x "
+					    "<%s> at 0x%03x "
 					    "in PnP mode!\n",
 					    desc, ioport);
 				/*
@@ -271,7 +271,7 @@ ep_isa_identify(driver_t * driver, device_t parent)
 		data = inw(ioport + EP_W0_EEPROM_COMMAND);
 		if (data & EEPROM_TST_MODE) {
 			device_printf(parent,
-			    "if_ep: <%s> at port 0x%03x in TEST mode!"
+			    "<%s> at port 0x%03x in TEST mode!"
 			    "  Erase pencil mark.\n",
 			    desc, ioport);
 			continue;
@@ -284,7 +284,7 @@ ep_isa_identify(driver_t * driver, device_t parent)
 
 		if (bootverbose)
 			device_printf(parent,
-			    "if_ep: <%s>"
+			    "<%s>"
 			    " at port 0x%03x-0x%03x irq %d\n",
 			    desc, ioport, ioport + EP_IOSIZE, irq);
 		found++;
@@ -322,19 +322,15 @@ ep_isa_attach(device_t dev)
 	struct ep_softc *sc = device_get_softc(dev);
 	int error = 0;
 
-	if ((error = ep_alloc(dev))) {
-		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
+	if ((error = ep_alloc(dev)))
 		goto bad;
-	}
 	ep_get_media(sc);
 
 	GO_WINDOW(sc, 0);
 	SET_IRQ(sc, rman_get_start(sc->irq));
 
-	if ((error = ep_attach(sc))) {
-		device_printf(dev, "ep_attach() failed! (%d)\n", error);
+	if ((error = ep_attach(sc)))
 		goto bad;
-	}
 	error = ep_eeprom_cksum(sc);
 	if (error) {
 		device_printf(sc->dev, "Invalid EEPROM checksum!\n");
