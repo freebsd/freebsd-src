@@ -55,14 +55,13 @@ struct ep_softc {
 
 	int stat;		/* some flags */
 #define	F_RX_FIRST		0x001
+#define F_ENADDR_SKIP		0x002
 #define	F_PROMISC		0x008
 #define	F_ACCESS_32_BITS	0x100
 
 	int gone;		/* adapter is not present (for PCCARD) */
-
 	struct ep_board epb;
-
-	int unit;
+	uint8_t eaddr[6];
 
 #ifdef  EP_LOCAL_STATS
 	short tx_underrun;
@@ -80,7 +79,6 @@ void ep_get_media(struct ep_softc *);
 int ep_attach(struct ep_softc *);
 void ep_intr(void *);
 int ep_get_e(struct ep_softc *, uint16_t, uint16_t *);
-int ep_get_macaddr(struct ep_softc *, u_char *);
 
 #define CSR_READ_1(sc, off) (bus_space_read_1((sc)->bst, (sc)->bsh, off))
 #define CSR_READ_2(sc, off) (bus_space_read_2((sc)->bst, (sc)->bsh, off))
