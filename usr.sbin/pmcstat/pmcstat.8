@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2005
+.Dd July 1, 2005
 .Os
 .Dt PMCSTAT 8
 .Sh NAME
@@ -153,13 +153,17 @@ process' current and future children or only measuring events for
 the target process.
 The default is to measure events for the target process alone.
 .It Fl g
-Produce execution profiles in a format compatible with
+Produce flat execution profiles in a format compatible with
 .Xr gprof 1 .
+A separate profile file is generated for each executable object
+encountered.
+Profile files are placed in sub-directories named by their PMC
+event name.
 .It Fl k Ar kernelfile
 Set the pathname of the kernel to argument
 .Ar kernelfile .
 The default is
-.Pa "/boot/kernel/kernel" .
+.Pa /boot/kernel/kernel .
 .It Fl n Ar rate
 Set the default sampling rate for subsequent sampling mode
 PMCs specified on the command line.
@@ -212,6 +216,15 @@ To execute
 and measure the number of data cache misses suffered
 by it and its children every 12 seconds on an AMD Athlon, use:
 .Dl "pmcstat -d -w 12 -p k7-dc-misses mozilla"
+.Pp
+To collect a system-wide samples driven by processor instructions executed
+use:
+.Dl "pmcstat -S instructions -O /tmp/sample.out"
+.Pp
+To generate
+.Xr gprof 1
+compatible flat profiles from a sample file use:
+.Dl "pmcstat -R /tmp/sample.out -g"
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
@@ -227,5 +240,7 @@ The
 .Nm
 utility first appeared in
 .Fx 6.0 .
+It is
+.Ud
 .Sh AUTHORS
 .An Joseph Koshy Aq jkoshy@FreeBSD.org
