@@ -2486,3 +2486,14 @@ applied, making the order of
 rules in the rule sequence very important.
 .Pp
 Dummynet drops all packets with IPv6 link-local addresses.
+.Pp
+Rules using
+.Cm uid
+or
+.Cm gid
+may not behave as expected.  In particular, incoming SYN packets may 
+have no uid or gid associated with them since they do not yet belong
+to a TCP connection, and the uid/gid associated with a packet may not 
+be as expected if the associated process calls
+.Xr setuid 2
+or similar system calls.
