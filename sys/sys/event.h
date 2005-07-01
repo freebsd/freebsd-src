@@ -126,8 +126,11 @@ SLIST_HEAD(klist, knote);
 struct kqueue;
 SLIST_HEAD(kqlist, kqueue);
 struct knlist {
-	struct	mtx	*kl_lock;	/* lock to protect kll_list */
 	struct	klist	kl_list;
+	void    (*kl_lock)(void *);	/* lock function */
+	void    (*kl_unlock)(void *);
+	int    (*kl_locked)(void *);
+	void *kl_lockarg;		/* argument passed to kl_lockf() */
 };
 
 
@@ -209,7 +212,9 @@ extern void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);
 extern void	knlist_remove(struct knlist *knl, struct knote *kn, int islocked);
 extern void	knlist_remove_inevent(struct knlist *knl, struct knote *kn);
 extern int	knlist_empty(struct knlist *knl);
-extern void	knlist_init(struct knlist *knl, struct mtx *mtx);
+extern void	knlist_init(struct knlist *knl, void *lock,
+    void (*kl_lock)(void *), void (*kl_unlock)(void *),
+    int (*kl_locked)(void *));
 extern void	knlist_destroy(struct knlist *knl);
 extern void	knlist_cleardel(struct knlist *knl, struct thread *td,
 	int islocked, int killkn);
