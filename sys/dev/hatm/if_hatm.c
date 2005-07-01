@@ -1575,7 +1575,7 @@ static int
 hatm_utopia_readregs(struct ifatm *ifatm, u_int reg, uint8_t *val, u_int *n)
 {
 	u_int i;
-	struct hatm_softc *sc = (struct hatm_softc *)ifatm;
+	struct hatm_softc *sc = ifatm->ifp->if_softc;
 
 	if (reg >= (HE_REGO_SUNI_END - HE_REGO_SUNI) / 4)
 		return (EINVAL);
@@ -1596,7 +1596,7 @@ static int
 hatm_utopia_writereg(struct ifatm *ifatm, u_int reg, u_int mask, u_int val)
 {
 	uint32_t regval;
-	struct hatm_softc *sc = (struct hatm_softc *)ifatm;
+	struct hatm_softc *sc = ifatm->ifp->if_softc;
 
 	if (reg >= (HE_REGO_SUNI_END - HE_REGO_SUNI) / 4)
 		return (EINVAL);
@@ -1620,7 +1620,7 @@ static struct utopia_methods hatm_utopia_methods = {
 static int
 hatm_detach(device_t dev)
 {
-	struct hatm_softc *sc = (struct hatm_softc *)device_get_softc(dev);
+	struct hatm_softc *sc = device_get_softc(dev);
 
 	mtx_lock(&sc->mtx);
 	hatm_stop(sc);

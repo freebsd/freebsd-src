@@ -2054,7 +2054,7 @@ fatm_start(struct ifnet *ifp)
 	u_int mlen, vpi, vci;
 	struct card_vcc *vc;
 
-	sc = (struct fatm_softc *)ifp->if_softc;
+	sc = ifp->if_softc;
 
 	while (1) {
 		IF_DEQUEUE(&ifp->if_snd, m);
@@ -2544,7 +2544,7 @@ fatm_detach(device_t dev)
 	struct fatm_softc *sc;
 	struct txqueue *tx;
 
-	sc = (struct fatm_softc *)device_get_softc(dev);
+	sc = device_get_softc(dev);
 
 	if (device_is_alive(dev)) {
 		FATM_LOCK(sc);
