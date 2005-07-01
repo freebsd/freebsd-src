@@ -1287,7 +1287,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	aiocbe->inputcharge = 0;
 	aiocbe->outputcharge = 0;
 	/* XXX - need a lock */
-	knlist_init(&aiocbe->klist, NULL);
+	knlist_init(&aiocbe->klist, NULL, NULL, NULL, NULL);
 
 	suword(&job->_aiocb_private.status, -1);
 	suword(&job->_aiocb_private.error, 0);

@@ -231,8 +231,8 @@ struct xvnode {
 		if (!VN_KNLIST_EMPTY(vp))			\
 			KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b), (a)); \
 	} while (0)
-#define VN_KNOTE_LOCKED(vp, b)		VN_KNOTE(vp, b, 1)
-#define VN_KNOTE_UNLOCKED(vp, b)	VN_KNOTE(vp, b, 0)
+#define	VN_KNOTE_UNLOCKED(vp, b)	VN_KNOTE(vp, b, 0)
+#define	VN_KNOTE_UNLOCKED(vp, b)	VN_KNOTE(vp, b, 0)
 
 /*
  * Vnode flags.
@@ -702,7 +702,7 @@ void	vop_unlock_pre(void *a);
 #define VOP_WRITE_POST(ap, ret)						\
 	noffset = (ap)->a_uio->uio_offset;				\
 	if (noffset > ooffset && !VN_KNLIST_EMPTY((ap)->a_vp)) {	\
-		VFS_SEND_KNOTE((ap)->a_vp, NOTE_WRITE			\
+		VFS_KNOTE_LOCKED((ap)->a_vp, NOTE_WRITE			\
 		    | (noffset > osize ? NOTE_EXTEND : 0));		\
 	}
 
