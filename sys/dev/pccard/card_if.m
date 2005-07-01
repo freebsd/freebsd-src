@@ -169,3 +169,12 @@ METHOD struct pccard_product * do_product_lookup {
 METHOD int compat_match {
 	device_t dev;
 }
+
+#
+# Scanning function for accessing the CIS of a card in its driver.
+#
+METHOD int cis_scan {
+	device_t bus;
+        pccard_scan_t fnp;
+	void *argp;
+};

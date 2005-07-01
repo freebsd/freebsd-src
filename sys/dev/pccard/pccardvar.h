@@ -221,6 +221,8 @@ struct pccard_tuple {
 	bus_space_handle_t memh;
 };
 
+typedef int (*pccard_scan_t)(struct pccard_tuple *, void *);
+
 struct pccard_product {
 	const char	*pp_name;		/* NULL if end of table */
 #define PCCARD_VENDOR_ANY (0xffffffff)
@@ -250,8 +252,7 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 void	pccard_read_cis(struct pccard_softc *);
 void	pccard_check_cis_quirks(device_t);
 void	pccard_print_cis(device_t);
-int	pccard_scan_cis(device_t, 
-		int (*) (struct pccard_tuple *, void *), void *);
+int	pccard_scan_cis(device_t, pccard_scan_t, void *);
 
 #define	pccard_cis_read_1(tuple, idx0)					\
 	(bus_space_read_1((tuple)->memt, (tuple)->memh, (tuple)->mult*(idx0)))
