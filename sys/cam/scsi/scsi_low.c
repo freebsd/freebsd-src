@@ -111,6 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_sim.h>
 #include <cam/cam_debug.h>
 #include <cam/cam_periph.h>
+#include <cam/cam_xpt_periph.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -143,6 +144,8 @@ __FBSDID("$FreeBSD$");
 #define	SCSI_LOW_DISK_WIDE	(SCSI_LOW_DISK_WIDE_16 | SCSI_LOW_DISK_WIDE_32)
 #define	SCSI_LOW_DISK_LFLAGS	0x0000ffff
 #define	SCSI_LOW_DISK_TFLAGS	0xffff0000
+
+MALLOC_DEFINE(M_SCSILOW, "SCSI low", "SCSI low buffers");
 
 /**************************************************************
  * Declarations
@@ -394,8 +397,8 @@ scsi_low_translate_error_code(cb, tp)
  * SCSI INTERFACE (XS)
  **************************************************************/
 #define	SCSI_LOW_MINPHYS		0x10000
-#define	SCSI_LOW_MALLOC(size)		malloc((size), M_DEVBUF, M_NOWAIT)
-#define	SCSI_LOW_FREE(pt)		free((pt), M_DEVBUF)
+#define	SCSI_LOW_MALLOC(size)		malloc((size), M_SCSILOW, M_NOWAIT)
+#define	SCSI_LOW_FREE(pt)		free((pt), M_SCSILOW)
 #define	SCSI_LOW_ALLOC_CCB(flags)	scsi_low_get_ccb((flags))
 #define	SCSI_LOW_XS_POLL_HZ		1000
 
@@ -884,8 +887,8 @@ scsi_low_target_open(link, cf)
 /**************************************************************
  * SCSI INTERFACE (CAM)
  **************************************************************/
-#define	SCSI_LOW_MALLOC(size)		malloc((size), M_DEVBUF, M_NOWAIT)
-#define	SCSI_LOW_FREE(pt)		free((pt), M_DEVBUF)
+#define	SCSI_LOW_MALLOC(size)		malloc((size), M_SCSILOW, M_NOWAIT)
+#define	SCSI_LOW_FREE(pt)		free((pt), M_SCSILOW)
 #define	SCSI_LOW_ALLOC_CCB(flags)	scsi_low_get_ccb()
 
 static void scsi_low_poll_cam(struct cam_sim *);
@@ -955,7 +958,7 @@ scsi_low_cam_rescan_callback(periph, ccb)
 {
 
 	xpt_free_path(ccb->ccb_h.path);
-	free(ccb, M_DEVBUF);
+	xpt_free_ccb(ccb);
 }
 
 static void
@@ -963,7 +966,7 @@ scsi_low_rescan_bus_cam(slp)
 	struct scsi_low_softc *slp;
 {
   	struct cam_path *path;
-	union ccb *ccb = malloc(sizeof(union ccb), M_DEVBUF, M_WAITOK);
+	union ccb *ccb = xpt_alloc_ccb();
 	cam_status status;
 
 	bzero(ccb, sizeof(union ccb));
@@ -1412,7 +1415,7 @@ scsi_low_attach_cam(slp)
 	}
 
 	if (xpt_bus_register(slp->sl_si.sim, 0) != CAM_SUCCESS) {
-		free(slp->sl_si.sim, M_DEVBUF);
+		free(slp->sl_si.sim, M_SCSILOW);
 	 	return ENODEV;
 	}
        

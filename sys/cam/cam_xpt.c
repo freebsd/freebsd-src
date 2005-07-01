@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_cam.h"
 
 /* Datastructures internal to the xpt layer */
+MALLOC_DEFINE(M_CAMXPT, "CAM XPT", "CAM XPT buffers");
 
 /*
  * Definition of an async handler callback block.  These are used to add
@@ -3401,12 +3402,12 @@ xpt_action(union ccb *start_ccb)
 				SLIST_REMOVE(async_head, cur_entry,
 					     async_node, links);
 				csa->ccb_h.path->device->refcount--;
-				free(cur_entry, M_DEVBUF);
+				free(cur_entry, M_CAMXPT);
 			} else {
 				cur_entry->event_enable = csa->event_enable;
 			}
 		} else {
-			cur_entry = malloc(sizeof(*cur_entry), M_DEVBUF,
+			cur_entry = malloc(sizeof(*cur_entry), M_CAMXPT,
 					   M_NOWAIT);
 			if (cur_entry == NULL) {
 				splx(s);
@@ -4015,7 +4016,7 @@ xpt_create_path(struct cam_path **new_path_ptr, struct cam_periph *perph,
 
 	GIANT_REQUIRED;
 
-	path = (struct cam_path *)malloc(sizeof(*path), M_DEVBUF, M_NOWAIT);
+	path = (struct cam_path *)malloc(sizeof(*path), M_CAMXPT, M_NOWAIT);
 
 	if (path == NULL) {
 		status = CAM_RESRC_UNAVAIL;
@@ -4023,7 +4024,7 @@ xpt_create_path(struct cam_path **new_path_ptr, struct cam_periph *perph,
 	}
 	status = xpt_compile_path(path, perph, path_id, target_id, lun_id);
 	if (status != CAM_REQ_CMP) {
-		free(path, M_DEVBUF);
+		free(path, M_CAMXPT);
 		path = NULL;
 	}
 	*new_path_ptr = path;
@@ -4129,7 +4130,7 @@ xpt_free_path(struct cam_path *path)
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_free_path\n"));
 	xpt_release_path(path);
-	free(path, M_DEVBUF);
+	free(path, M_CAMXPT);
 }
 
 
@@ -4355,7 +4356,7 @@ xpt_bus_register(struct cam_sim *sim, u_int32_t bus)
 
 	sim->bus_id = bus;
 	new_bus = (struct cam_eb *)malloc(sizeof(*new_bus),
-					  M_DEVBUF, M_NOWAIT);
+					  M_CAMXPT, M_NOWAIT);
 	if (new_bus == NULL) {
 		/* Couldn't satisfy request */
 		return (CAM_RESRC_UNAVAIL);
@@ -4869,14 +4870,25 @@ xpt_alloc_ccb()
 
 	GIANT_REQUIRED;
 
-	new_ccb = malloc(sizeof(*new_ccb), M_DEVBUF, M_WAITOK);
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMXPT, M_WAITOK);
+	return (new_ccb);
+}
+
+union ccb *
+xpt_alloc_ccb_nowait()
+{
+	union ccb *new_ccb;
+
+	GIANT_REQUIRED;
+
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMXPT, M_NOWAIT);
 	return (new_ccb);
 }
 
 void
 xpt_free_ccb(union ccb *free_ccb)
 {
-	free(free_ccb, M_DEVBUF);
+	free(free_ccb, M_CAMXPT);
 }
 
 
@@ -4898,7 +4910,7 @@ xpt_get_ccb(struct cam_ed *device)
 
 	s = splsoftcam();
 	if ((new_ccb = (union ccb *)SLIST_FIRST(&ccb_freeq)) == NULL) {
-		new_ccb = malloc(sizeof(*new_ccb), M_DEVBUF, M_NOWAIT);
+		new_ccb = xpt_alloc_ccb_nowait();
                 if (new_ccb == NULL) {
 			splx(s);
 			return (NULL);
@@ -4925,7 +4937,7 @@ xpt_release_bus(struct cam_eb *bus)
 		TAILQ_REMOVE(&xpt_busses, bus, links);
 		bus_generation++;
 		splx(s);
-		free(bus, M_DEVBUF);
+		free(bus, M_CAMXPT);
 	} else
 		splx(s);
 }
@@ -4935,7 +4947,7 @@ xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 {
 	struct cam_et *target;
 
-	target = (struct cam_et *)malloc(sizeof(*target), M_DEVBUF, M_NOWAIT);
+	target = (struct cam_et *)malloc(sizeof(*target), M_CAMXPT, M_NOWAIT);
 	if (target != NULL) {
 		struct cam_et *cur_target;
 
@@ -4977,7 +4989,7 @@ xpt_release_target(struct cam_eb *bus, struct cam_et *target)
 		TAILQ_REMOVE(&bus->et_entries, target, links);
 		bus->generation++;
 		splx(s);
-		free(target, M_DEVBUF);
+		free(target, M_CAMXPT);
 		xpt_release_bus(bus);
 	} else
 		splx(s);
@@ -5001,7 +5013,7 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 		device = NULL;
 	} else {
 		device = (struct cam_ed *)malloc(sizeof(*device),
-						 M_DEVBUF, M_NOWAIT);
+						 M_CAMXPT, M_NOWAIT);
 	}
 
 	if (device != NULL) {
@@ -5015,13 +5027,13 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 		device->lun_id = lun_id;
 		/* Initialize our queues */
 		if (camq_init(&device->drvq, 0) != 0) {
-			free(device, M_DEVBUF);
+			free(device, M_CAMXPT);
 			return (NULL);
 		}
 		if (cam_ccbq_init(&device->ccbq,
 				  bus->sim->max_dev_openings) != 0) {
 			camq_fini(&device->drvq);
-			free(device, M_DEVBUF);
+			free(device, M_CAMXPT);
 			return (NULL);
 		}
 		SLIST_INIT(&device->asyncs);
@@ -5109,7 +5121,7 @@ xpt_release_device(struct cam_eb *bus, struct cam_et *target,
 		splx(s);
 		camq_fini(&device->drvq);
 		camq_fini(&device->ccbq.queue);
-		free(device, M_DEVBUF);
+		free(device, M_CAMXPT);
 		xpt_release_target(bus, target);
 	} else
 		splx(s);
@@ -5957,7 +5969,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 
 		/* Clean up from previous instance of this device */
 		if (path->device->serial_num != NULL) {
-			free(path->device->serial_num, M_DEVBUF);
+			free(path->device->serial_num, M_CAMXPT);
 			path->device->serial_num = NULL;
 			path->device->serial_num_len = 0;
 		}
@@ -5972,7 +5984,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			have_serialnum = 1;
 			path->device->serial_num =
 				(u_int8_t *)malloc((serial_buf->length + 1),
-						   M_DEVBUF, M_NOWAIT);
+						   M_CAMXPT, M_NOWAIT);
 			if (path->device->serial_num != NULL) {
 				bcopy(serial_buf->serial_num,
 				      path->device->serial_num,

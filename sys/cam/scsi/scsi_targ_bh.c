@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
+MALLOC_DEFINE(M_SCSIBH, "SCSI bh", "SCSI blackhole buffers");
+
 typedef enum {
 	TARGBH_STATE_NORMAL,
 	TARGBH_STATE_EXCEPTION,
@@ -276,7 +278,7 @@ targbhenlun(struct cam_periph *periph)
 	for (i = 0; i < MAX_ACCEPT; i++) {
 		struct ccb_accept_tio *atio;
 
-		atio = (struct ccb_accept_tio*)malloc(sizeof(*atio), M_DEVBUF,
+		atio = (struct ccb_accept_tio*)malloc(sizeof(*atio), M_SCSIBH,
 						      M_NOWAIT);
 		if (atio == NULL) {
 			status = CAM_RESRC_UNAVAIL;
@@ -286,7 +288,7 @@ targbhenlun(struct cam_periph *periph)
 		atio->ccb_h.ccb_descr = targbhallocdescr();
 
 		if (atio->ccb_h.ccb_descr == NULL) {
-			free(atio, M_DEVBUF);
+			free(atio, M_SCSIBH);
 			status = CAM_RESRC_UNAVAIL;
 			break;
 		}
@@ -298,7 +300,7 @@ targbhenlun(struct cam_periph *periph)
 		status = atio->ccb_h.status;
 		if (status != CAM_REQ_INPROG) {
 			targbhfreedescr(atio->ccb_h.ccb_descr);
-			free(atio, M_DEVBUF);
+			free(atio, M_SCSIBH);
 			break;
 		}
 		((struct targbh_cmd_desc*)atio->ccb_h.ccb_descr)->atio_link =
@@ -321,7 +323,7 @@ targbhenlun(struct cam_periph *periph)
 	for (i = 0; i < MAX_ACCEPT; i++) {
 		struct ccb_immed_notify *inot;
 
-		inot = (struct ccb_immed_notify*)malloc(sizeof(*inot), M_DEVBUF,
+		inot = (struct ccb_immed_notify*)malloc(sizeof(*inot), M_SCSIBH,
 						        M_NOWAIT);
 
 		if (inot == NULL) {
@@ -335,7 +337,7 @@ targbhenlun(struct cam_periph *periph)
 		xpt_action((union ccb *)inot);
 		status = inot->ccb_h.status;
 		if (status != CAM_REQ_INPROG) {
-			free(inot, M_DEVBUF);
+			free(inot, M_SCSIBH);
 			break;
 		}
 		SLIST_INSERT_HEAD(&softc->immed_notify_slist, &inot->ccb_h,
@@ -409,7 +411,7 @@ targbhctor(struct cam_periph *periph, void *arg)
 
 	/* Allocate our per-instance private storage */
 	softc = (struct targbh_softc *)malloc(sizeof(*softc),
-					      M_DEVBUF, M_NOWAIT);
+					      M_SCSIBH, M_NOWAIT);
 	if (softc == NULL) {
 		printf("targctor: unable to malloc softc\n");
 		return (CAM_REQ_CMP_ERR);
@@ -446,7 +448,7 @@ targbhdtor(struct cam_periph *periph)
 	default:
 		/* XXX Wait for callback of targbhdislun() */
 		tsleep(softc, PRIBIO, "targbh", hz/2);
-		free(softc, M_DEVBUF);
+		free(softc, M_SCSIBH);
 		break;
 	}
 }
@@ -576,7 +578,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 		if (softc->state == TARGBH_STATE_TEARDOWN
 		 || atio->ccb_h.status == CAM_REQ_ABORTED) {
 			targbhfreedescr(descr);
-			free(done_ccb, M_DEVBUF);
+			xpt_free_ccb(done_ccb);
 			return;
 		}
 
@@ -725,7 +727,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 			break;
 		} else {
 			targbhfreedescr(desc);
-			free(atio, M_DEVBUF);
+			free(atio, M_SCSIBH);
 		}
 		break;
 	}
@@ -737,7 +739,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 		if (softc->state == TARGBH_STATE_TEARDOWN
 		 || done_ccb->ccb_h.status == CAM_REQ_ABORTED) {
 			printf("Freed an immediate notify\n");
-			free(done_ccb, M_DEVBUF);
+			xpt_free_ccb(done_ccb);
 		} else {
 			/* Requeue for another immediate event */
 			xpt_action(done_ccb);
@@ -771,16 +773,16 @@ targbhallocdescr()
 
 	/* Allocate the targbh_descr structure */
 	descr = (struct targbh_cmd_desc *)malloc(sizeof(*descr),
-					       M_DEVBUF, M_NOWAIT);
+					       M_SCSIBH, M_NOWAIT);
 	if (descr == NULL)
 		return (NULL);
 
 	bzero(descr, sizeof(*descr));
 
 	/* Allocate buffer backing store */
-	descr->backing_store = malloc(MAX_BUF_SIZE, M_DEVBUF, M_NOWAIT);
+	descr->backing_store = malloc(MAX_BUF_SIZE, M_SCSIBH, M_NOWAIT);
 	if (descr->backing_store == NULL) {
-		free(descr, M_DEVBUF);
+		free(descr, M_SCSIBH);
 		return (NULL);
 	}
 	descr->max_size = MAX_BUF_SIZE;
@@ -790,6 +792,6 @@ targbhallocdescr()
 static void
 targbhfreedescr(struct targbh_cmd_desc *descr)
 {
-	free(descr->backing_store, M_DEVBUF);
-	free(descr, M_DEVBUF);
+	free(descr->backing_store, M_SCSIBH);
+	free(descr, M_SCSIBH);
 }
