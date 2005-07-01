@@ -465,7 +465,7 @@ patm_detach(device_t dev)
 {
 	struct patm_softc *sc;
 
-	sc = (struct patm_softc *)device_get_softc(dev);
+	sc = device_get_softc(dev);
 
 	mtx_lock(&sc->mtx);
 	patm_stop(sc);

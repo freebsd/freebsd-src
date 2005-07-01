@@ -275,7 +275,7 @@ hatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct ifaddr *ifa = (struct ifaddr *)data;
-	struct hatm_softc *sc = (struct hatm_softc *)ifp->if_softc;
+	struct hatm_softc *sc = ifp->if_softc;
 	struct atmio_vcctable *vtab;
 	int error = 0;
 
