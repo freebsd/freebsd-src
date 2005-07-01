@@ -117,10 +117,8 @@ ep_mca_attach(device_t dev)
 	struct ep_softc *sc = device_get_softc(dev);
 	int error = 0;
 
-	if ((error = ep_alloc(dev))) {
-		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
+	if ((error = ep_alloc(dev)))
 		goto bad;
-	}
 	sc->stat = F_ACCESS_32_BITS;
 
 	ep_get_media(sc);
@@ -128,10 +126,8 @@ ep_mca_attach(device_t dev)
 	GO_WINDOW(sc, 0);
 	SET_IRQ(sc, rman_get_start(sc->irq));
 
-	if ((error = ep_attach(sc))) {
-		device_printf(dev, "ep_attach() failed! (%d)\n", error);
+	if ((error = ep_attach(sc)))
 		goto bad;
-	}
 	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE, ep_intr,
 		    sc, &sc->ep_intrhand))) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
