@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/linker_set.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
@@ -82,6 +83,8 @@ static	int		camperiphscsisenseerror(union ccb *ccb,
 
 static int nperiph_drivers;
 struct periph_driver **periph_drivers;
+
+MALLOC_DEFINE(M_CAMPERIPH, "CAM periph", "CAM peripheral buffers");
 
 void
 periphdriver_register(void *data)
@@ -144,7 +147,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 		return (CAM_REQ_INVALID);
 	}
 	
-	periph = (struct cam_periph *)malloc(sizeof(*periph), M_DEVBUF,
+	periph = (struct cam_periph *)malloc(sizeof(*periph), M_CAMPERIPH,
 					     M_NOWAIT);
 
 	if (periph == NULL)
@@ -220,7 +223,7 @@ failure:
 		xpt_free_path(periph->path);
 		/* FALLTHROUGH */
 	case 1:
-		free(periph, M_DEVBUF);
+		free(periph, M_CAMPERIPH);
 		/* FALLTHROUGH */
 	case 0:
 		/* No cleanup to perform. */
@@ -485,7 +488,7 @@ camperiphfree(struct cam_periph *periph)
 					  periph->path, arg);
 	}
 	xpt_free_path(periph->path);
-	free(periph, M_DEVBUF);
+	free(periph, M_CAMPERIPH);
 }
 
 /*
