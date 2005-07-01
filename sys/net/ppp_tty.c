@@ -369,9 +369,9 @@ pppwrite(tp, uio, flag)
     int flag;
 {
     register struct ppp_softc *sc = ppp_for_tty(tp);
-    struct mbuf *m, *m0, **mp;
+    struct mbuf *m;
     struct sockaddr dst;
-    int len, error, s;
+    int error, s;
 
     if ((tp->t_state & TS_CONNECTED) == 0)
 	return 0;		/* wrote 0 bytes */
@@ -384,33 +384,18 @@ pppwrite(tp, uio, flag)
 	return (EMSGSIZE);
 
     s = spltty();
-    for (mp = &m0; uio->uio_resid; mp = &m->m_next) {
-	MGET(m, M_TRYWAIT, MT_DATA);
-	if ((*mp = m) == NULL) {
-	    m_freem(m0);
-	    splx(s);
-	    return (ENOBUFS);
-	}
-	m->m_len = 0;
-	if (uio->uio_resid >= MCLBYTES / 2)
-	    MCLGET(m, M_DONTWAIT);
-	len = M_TRAILINGSPACE(m);
-	if (len > uio->uio_resid)
-	    len = uio->uio_resid;
-	if ((error = uiomove(mtod(m, u_char *), len, uio)) != 0) {
-	    m_freem(m0);
-	    splx(s);
-	    return (error);
-	}
-	m->m_len = len;
+    if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, 0)) == NULL) {
+	splx(s);
+	return (ENOBUFS);
     }
+
     dst.sa_family = AF_UNSPEC;
-    bcopy(mtod(m0, u_char *), dst.sa_data, PPP_HDRLEN);
-    m0->m_data += PPP_HDRLEN;
-    m0->m_len -= PPP_HDRLEN;
+    bcopy(mtod(m, u_char *), dst.sa_data, PPP_HDRLEN);
+    m->m_data += PPP_HDRLEN;
+    m->m_len -= PPP_HDRLEN;
 
     /* call the upper layer to "transmit" it... */
-    error = pppoutput(PPP2IFP(sc), m0, &dst, (struct rtentry *)0);
+    error = pppoutput(PPP2IFP(sc), m, &dst, NULL);
     splx(s);
     return (error);
 }
