@@ -117,7 +117,7 @@ eeprom_rdy(struct ep_softc *sc)
 		DELAY(100);
 
 	if (i >= MAX_EEPROMBUSY) {
-		printf("ep%d: eeprom failed to come ready.\n", sc->unit);
+		device_printf(sc->dev, "eeprom failed to come ready.\n");
  		return (ENXIO);
 	}
 
@@ -146,7 +146,7 @@ ep_get_e(struct ep_softc *sc, uint16_t offset, uint16_t *result)
 	return (0);
 }
 
-int
+static int
 ep_get_macaddr(struct ep_softc *sc, u_char *addr)
 {
 	int i;
@@ -163,7 +163,6 @@ ep_get_macaddr(struct ep_softc *sc, u_char *addr)
 			return (error);
 		macaddr[i] = htons(result);
 	}
-
 	return (0);
 }
 
@@ -191,7 +190,6 @@ ep_alloc(device_t dev)
 		goto bad;
 	}
 	sc->dev = dev;
-	sc->unit = device_get_unit(dev);
 	sc->stat = 0;		/* 16 bit access */
 
 	sc->bst = rman_get_bustag(sc->iobase);
@@ -201,7 +199,6 @@ ep_alloc(device_t dev)
 	sc->ep_connector = 0;
 
 	GO_WINDOW(sc, 0);
-	sc->epb.cmd_off = 0;
 
 	error = ep_get_e(sc, EEPROM_PROD_ID, &result);
 	if (error)
@@ -258,32 +255,37 @@ ep_free(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 }
 
+static void
+ep_setup_station(struct ep_softc *sc, u_char *enaddr)
+{
+	int i;
+	
+	/*
+	 * Setup the station address
+	 */
+	GO_WINDOW(sc, 2);
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		CSR_WRITE_1(sc, EP_W2_ADDR_0 + i, enaddr[i]);
+}
+
 int
 ep_attach(struct ep_softc *sc)
 {
 	struct ifnet *ifp = NULL;
 	struct ifmedia *ifm = NULL;
-	u_char eaddr[6];
-	u_short *p;
-	int i;
 	int error;
 
 	sc->gone = 0;
 	EP_LOCK_INIT(sc);
-	error = ep_get_macaddr(sc, eaddr);
-	if (error) {
-		device_printf(sc->dev, "Unable to get Ethernet address!\n");
-		EP_LOCK_DESTORY(sc);
-		return (ENXIO);
+	if (! (sc->stat & F_ENADDR_SKIP)) {
+		error = ep_get_macaddr(sc, sc->eaddr);
+		if (error) {
+			device_printf(sc->dev, "Unable to get MAC address!\n");
+			EP_LOCK_DESTORY(sc);
+			return (ENXIO);
+		}
 	}
-	/*
-	 * Setup the station address
-	 */
-	p = (u_short *)eaddr;
-	GO_WINDOW(sc, 2);
-	for (i = 0; i < 3; i++)
-		CSR_WRITE_2(sc, EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
-
+	ep_setup_station(sc, sc->eaddr);
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(sc->dev, "can not if_alloc()\n");
@@ -324,7 +326,7 @@ ep_attach(struct ep_softc *sc)
 		ifm->ifm_media = ifm->ifm_cur->ifm_media;
 		ep_ifmedia_upd(ifp);
 	}
-	ether_ifattach(ifp, eaddr);
+	ether_ifattach(ifp, sc->eaddr);
 
 #ifdef EP_LOCAL_STATS
 	sc->rx_no_first = sc->rx_no_mbuf = sc->rx_bpf_disc =
@@ -404,10 +406,8 @@ epinit_locked(struct ep_softc *sc)
 	CSR_WRITE_2(sc, EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
 
 	GO_WINDOW(sc, 2);
-
 	/* Reload the ether_addr. */
-	for (i = 0; i < 6; i++)
-		CSR_WRITE_1(sc, EP_W2_ADDR_0 + i, IFP2ENADDR(sc->ifp)[i]);
+	ep_setup_station(sc, IFP2ENADDR(sc->ifp));
 
 	CSR_WRITE_2(sc, EP_COMMAND, RX_RESET);
 	CSR_WRITE_2(sc, EP_COMMAND, TX_RESET);
@@ -452,12 +452,6 @@ epinit_locked(struct ep_softc *sc)
 	}
 	CSR_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 	CSR_WRITE_2(sc, EP_COMMAND, SET_TX_START_THRESH | 16);
-
-	/*
-	 * Store up a bunch of mbuf's for use later. (MAX_MBS).
-	 * First we free up any that we had in case we're being
-	 * called from intr or somewhere else.
-	 */
 
 	GO_WINDOW(sc, 1);
 	epstart_locked(ifp);
@@ -621,7 +615,7 @@ rescan:
 		if (status & S_CARD_FAILURE) {
 			ifp->if_timer = 0;
 #ifdef EP_LOCAL_STATS
-			printf("\nep%d:\n\tStatus: %x\n", sc->unit, status);
+			device_printf(sc->dev, "\n\tStatus: %x\n", status);
 			GO_WINDOW(sc, 4);
 			printf("\tFIFO Diagnostic: %x\n",
 			    CSR_READ_2(sc, EP_W4_FIFO_DIAG));
@@ -634,8 +628,8 @@ rescan:
 #else
 
 #ifdef DIAGNOSTIC
-			printf("ep%d: Status: %x (input buffer overflow)\n",
-			    sc->unit, status);
+			device_printf(sc->dev,
+			    "Status: %x (input buffer overflow)\n", status);
 #else
 			++ifp->if_ierrors;
 #endif
