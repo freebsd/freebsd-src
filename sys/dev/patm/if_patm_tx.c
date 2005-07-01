@@ -282,7 +282,7 @@ patm_tx_vcc_closed(struct patm_softc *sc, struct patm_vcc *vcc)
 void
 patm_start(struct ifnet *ifp)
 {
-	struct patm_softc *sc = (struct patm_softc *)ifp->if_softc;
+	struct patm_softc *sc = ifp->if_softc;
 	struct mbuf *m;
 	struct atm_pseudohdr *aph;
 	u_int vpi, vci, cid;

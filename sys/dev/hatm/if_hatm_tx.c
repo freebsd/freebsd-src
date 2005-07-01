@@ -351,7 +351,7 @@ hatm_load_txbuf(void *uarg, bus_dma_segment_t *segs, int nseg,
 void
 hatm_start(struct ifnet *ifp)
 {
-	struct hatm_softc *sc = (struct hatm_softc *)ifp->if_softc;
+	struct hatm_softc *sc = ifp->if_softc;
 	struct mbuf *m;
 	struct atm_pseudohdr *aph;
 	u_int cid;
