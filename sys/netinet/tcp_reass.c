@@ -1147,7 +1147,8 @@ after_listen:
 			    ((!tcp_do_newreno && !tp->sack_enable &&
 			      tp->t_dupacks < tcprexmtthresh) ||
 			     ((tcp_do_newreno || tp->sack_enable) &&
-			      !IN_FASTRECOVERY(tp) && to.to_nsacks == 0))) {
+			      !IN_FASTRECOVERY(tp) && to.to_nsacks == 0 &&
+			      TAILQ_EMPTY(&tp->snd_holes)))) {
 				KASSERT(headlocked, ("headlocked"));
 				INP_INFO_WUNLOCK(&tcbinfo);
 				headlocked = 0;
@@ -1822,7 +1823,8 @@ trimthenstep6:
 			tcpstat.tcps_rcvacktoomuch++;
 			goto dropafterack;
 		}
-		if (tp->sack_enable)
+		if (tp->sack_enable &&
+		    (to.to_nsacks > 0 || !TAILQ_EMPTY(&tp->snd_holes)))
 			tcp_sack_doack(tp, &to, th->th_ack);
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			if (tlen == 0 && tiwin == tp->snd_wnd) {
