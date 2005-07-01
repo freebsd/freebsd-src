@@ -12,7 +12,6 @@ SUBDIR=	beyond4.3 \
 	kerntune \
 	malloc \
 	newvm \
-	nqnfs \
 	px \
 	relengr \
 	sysperf \
