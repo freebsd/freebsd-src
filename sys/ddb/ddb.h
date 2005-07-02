@@ -39,6 +39,16 @@
 
 #include <machine/db_machdep.h>		/* type definitions */
 
+#ifndef DB_MAXARGS
+#define	DB_MAXARGS	10
+#endif
+
+#ifndef DB_CALL
+#define	DB_CALL	db_fncall_generic
+#else
+int	DB_CALL(db_expr_t, db_expr_t *, int, db_expr_t[]);
+#endif
+
 typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	    char *modif);
 
