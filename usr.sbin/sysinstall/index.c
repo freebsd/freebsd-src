@@ -695,16 +695,18 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
      * Prompt user if the package is not available on the current volume.
      */
 
-    while (id->volume != dev->volume) {
-	if (!msgYesNo("This is disc #%d.  Package %s is on disc #%d\n"
-	    "Would you like to switch discs now?\n", dev->volume,
-	    id->name, id->volume)) {
+    if(mediaDevice->type == DEVICE_TYPE_CDROM) {
+	while (id->volume != dev->volume) {
+	    if (!msgYesNo("This is disc #%d.  Package %s is on disc #%d\n"
+			  "Would you like to switch discs now?\n", dev->volume,
+			  id->name, id->volume)) {
 		DEVICE_SHUTDOWN(mediaDevice);
 		msgConfirm("Please remove disc #%d from your drive, and add disc #%d\n",
 		    dev->volume, id->volume);
 		DEVICE_INIT(mediaDevice);
-	} else {
-	    return DITEM_FAILURE;
+	    } else {
+		return DITEM_FAILURE;
+	    }
 	}
     }
 
