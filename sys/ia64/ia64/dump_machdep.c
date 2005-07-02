@@ -117,6 +117,7 @@ buf_flush(struct dumperinfo *di)
 
 	error = di->dumper(di->priv, buffer, 0, dumplo, DEV_BSIZE);
 	dumplo += DEV_BSIZE;
+	fragsz = 0;
 	return (error);
 }
 
