@@ -753,7 +753,11 @@ ftp.1:
 .endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
-	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
+	@mkdir -p ${FD}/ports && \
+	  tar --exclude CVS --exclude 'ports/distfiles/*' -czf \
+	  ${FD}/ports/ports.tgz -C /usr ports && \
+	  cp ${.CURDIR}/scripts/ports-install.sh ${FD}/ports/install.sh \
+	  && (cd ${FD}/ports; md5 * > CHECKSUM.MD5)
 .endif
 	touch ftp.1
 
@@ -810,11 +814,7 @@ cdrom.1:
 	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
 .endif
 .if !defined(NOPORTS)
-	@mkdir -p ${CD_DISC1}/ports && \
-	  tar --exclude CVS --exclude 'ports/distfiles/*' -czf \
-	  ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
-	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh \
-	  && (cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
+	@tar --exclude CVS -cBf - -C ${FD} ports | tar -xBf - -C ${CD_DISC1}
 .endif
 	touch cdrom.1
 
