@@ -472,6 +472,25 @@ db_error(s)
  * Call random function:
  * !expr(arg,arg,arg)
  */
+
+/* The generic implementation supports a maximum of 10 arguments. */
+typedef db_expr_t __db_f(db_expr_t, db_expr_t, db_expr_t, db_expr_t,
+    db_expr_t, db_expr_t, db_expr_t, db_expr_t, db_expr_t, db_expr_t);
+
+static __inline int
+db_fncall_generic(db_expr_t addr, db_expr_t *rv, int nargs, db_expr_t args[])
+{
+	__db_f *f = (__db_f *)addr;
+
+	if (nargs > 10) {
+		db_printf("Too many arguments (max 10)\n");
+		return (0);
+	}
+	*rv = (*f)(args[0], args[1], args[2], args[3], args[4], args[5],
+	    args[6], args[7], args[8], args[9]);
+	return (1);
+}
+
 static void
 db_fncall(dummy1, dummy2, dummy3, dummy4)
 	db_expr_t	dummy1;
@@ -480,14 +499,9 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 	char *		dummy4;
 {
 	db_expr_t	fn_addr;
-#define	MAXARGS		11	/* XXX only 10 are passed */
-	db_expr_t	args[MAXARGS];
+	db_expr_t	args[DB_MAXARGS];
 	int		nargs = 0;
 	db_expr_t	retval;
-	typedef db_expr_t fcn_10args_t(db_expr_t, db_expr_t, db_expr_t,
-			    db_expr_t, db_expr_t, db_expr_t, db_expr_t,
-			    db_expr_t, db_expr_t, db_expr_t);
-	fcn_10args_t	*func;
 	int		t;
 
 	if (!db_expression(&fn_addr)) {
@@ -495,15 +509,14 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 	    db_flush_lex();
 	    return;
 	}
-	func = (fcn_10args_t *)fn_addr;	/* XXX */
 
 	t = db_read_token();
 	if (t == tLPAREN) {
 	    if (db_expression(&args[0])) {
 		nargs++;
 		while ((t = db_read_token()) == tCOMMA) {
-		    if (nargs == MAXARGS) {
-			db_printf("Too many arguments\n");
+		    if (nargs == DB_MAXARGS) {
+			db_printf("Too many arguments (max %d)\n", DB_MAXARGS);
 			db_flush_lex();
 			return;
 		    }
@@ -524,13 +537,8 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 	}
 	db_skip_to_eol();
 
-	while (nargs < MAXARGS) {
-	    args[nargs++] = 0;
-	}
-
-	retval = (*func)(args[0], args[1], args[2], args[3], args[4],
-			 args[5], args[6], args[7], args[8], args[9] );
-	db_printf("%#lr\n", (long)retval);
+	if (DB_CALL(fn_addr, &retval, nargs, args))
+		db_printf("= %#lr\n", (long)retval);
 }
 
 static void
