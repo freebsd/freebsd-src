@@ -43,6 +43,8 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#define __NO_STRICT_ALIGNMENT
+
 /*
  * Basic types upon which most other types are built.
  */
