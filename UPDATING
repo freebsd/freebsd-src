@@ -17,6 +17,11 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20050702:	p34	FreeBSD-SA-05:14.bzip2, FreeBSD-SA-05:15.tcp
+	Correct bzip2 denial of service and permission race vulnerabilities.
+
+	Correct TCP connection stall denial of service vulnerabilities.
+
 20050610:	p33	FreeBSD-SA-05:11.gzip
 	Correct directory traversal and race condition vulnerabilities in gzip.
 
