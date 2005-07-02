@@ -136,6 +136,12 @@ struct	ipstat {
 /* mbuf flag used by ip_fastfwd */
 #define	M_FASTFWD_OURS		M_PROTO1	/* changed dst to local */
 
+#ifdef __NO_STRICT_ALIGNMENT
+#define IP_HDR_ALIGNED_P(ip)	1
+#else
+#define IP_HDR_ALIGNED_P(ip)	((((intptr_t) (ip)) & 3) == 0)
+#endif
+
 struct ip;
 struct inpcb;
 struct route;
