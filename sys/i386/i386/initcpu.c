@@ -41,11 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
-#if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
+#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
 #define CPU_ENABLE_SSE
-#endif
-#if defined(CPU_DISABLE_SSE)
-#undef CPU_ENABLE_SSE
 #endif
 
 void initializecpu(void);
