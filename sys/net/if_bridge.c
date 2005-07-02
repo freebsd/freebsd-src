@@ -2249,7 +2249,28 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 		m_adj(*mp, sizeof(struct llc));
 	}
 
+	/*
+	 * Check the IP header for alignment and errors
+	 */
+	if (dir == PFIL_IN) {
+		switch (ether_type) {
+			case ETHERTYPE_IP:
+				error = bridge_ip_checkbasic(mp);
+				break;
+# ifdef INET6
+			case ETHERTYPE_IPV6:
+				error = bridge_ip6_checkbasic(mp);
+				break;
+# endif /* INET6 */
+			default:
+				error = 0;
+		}
+		if (error)
+			goto bad;
+	}
+
 	if (IPFW_LOADED && pfil_ipfw != 0 && dir == PFIL_OUT) {
+		error = -1;
 		args.rule = ip_dn_claim_rule(*mp);
 		if (args.rule != NULL && fw_one_pass)
 			goto ipfwpass; /* packet already partially processed */
@@ -2286,26 +2307,22 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 	}
 
 ipfwpass:
+	error = 0;
+
 	/*
-	 * Check basic packet sanity and run pfil through pfil.
+	 * Run the packet through pfil
 	 */
 	switch (ether_type)
 	{
 	case ETHERTYPE_IP :
-		error = (dir == PFIL_IN) ? bridge_ip_checkbasic(mp) : 0;
 		/*
 		 * before calling the firewall, swap fields the same as
 		 * IP does. here we assume the header is contiguous
 		 */
-		if (error == 0) {
-			ip = mtod(*mp, struct ip *);
+		ip = mtod(*mp, struct ip *);
 
-			ip->ip_len = ntohs(ip->ip_len);
-			ip->ip_off = ntohs(ip->ip_off);
-		} else {
-			error = -1;
-			break;
-		}
+		ip->ip_len = ntohs(ip->ip_len);
+		ip->ip_off = ntohs(ip->ip_off);
 
 		/*
 		 * Run pfil on the member interface and the bridge, both can
@@ -2314,21 +2331,21 @@ ipfwpass:
 		 * Keep the order:
 		 *   in_if -> bridge_if -> out_if
 		 */
-		if (error == 0 && pfil_bridge && dir == PFIL_OUT)
+		if (pfil_bridge && dir == PFIL_OUT)
 			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
 					dir, NULL);
 
-		if (*mp == NULL) /* filter may consume */
+		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
-		if (error == 0 && pfil_member)
+		if (pfil_member)
 			error = pfil_run_hooks(&inet_pfil_hook, mp, ifp,
 					dir, NULL);
 
-		if (*mp == NULL) /* filter may consume */
+		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
-		if (error == 0 && pfil_bridge && dir == PFIL_IN)
+		if (pfil_bridge && dir == PFIL_IN)
 			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
 					dir, NULL);
 
@@ -2342,23 +2359,21 @@ ipfwpass:
 		break;
 # ifdef INET6
 	case ETHERTYPE_IPV6 :
-		error = (dir == PFIL_IN) ? bridge_ip6_checkbasic(mp) : 0;
-
-		if (error == 0 && pfil_bridge && dir == PFIL_OUT)
+		if (pfil_bridge && dir == PFIL_OUT)
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 
-		if (*mp == NULL) /* filter may consume */
+		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
-		if (error == 0 && pfil_member)
+		if (pfil_member)
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, ifp,
 					dir, NULL);
 
-		if (*mp == NULL) /* filter may consume */
+		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
-		if (error == 0 && pfil_bridge && dir == PFIL_IN)
+		if (pfil_bridge && dir == PFIL_IN)
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 		break;
@@ -2421,7 +2436,14 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	if (*mp == NULL)
 		return -1;
 
-	if (__predict_false(m->m_len < sizeof (struct ip))) {
+	if (IP_HDR_ALIGNED_P(mtod(m, caddr_t)) == 0) {
+		if ((m = m_copyup(m, sizeof(struct ip),
+			(max_linkhdr + 3) & ~3)) == NULL) {
+			/* XXXJRT new stat, please */
+			ipstat.ips_toosmall++;
+			goto bad;
+		}
+	} else if (__predict_false(m->m_len < sizeof (struct ip))) {
 		if ((m = m_pullup(m, sizeof (struct ip))) == NULL) {
 			ipstat.ips_toosmall++;
 			goto bad;
@@ -2509,18 +2531,17 @@ bridge_ip6_checkbasic(struct mbuf **mp)
 	 * mbuf with space for link headers, in the event we forward
 	 * it.  Otherwise, if it is aligned, make sure the entire base
 	 * IPv6 header is in the first mbuf of the chain.
-
+	 */
 	if (IP6_HDR_ALIGNED_P(mtod(m, caddr_t)) == 0) {
 		struct ifnet *inifp = m->m_pkthdr.rcvif;
 		if ((m = m_copyup(m, sizeof(struct ip6_hdr),
 			    (max_linkhdr + 3) & ~3)) == NULL) {
-			* XXXJRT new stat, please *
+			/* XXXJRT new stat, please */
 			ip6stat.ip6s_toosmall++;
 			in6_ifstat_inc(inifp, ifs6_in_hdrerr);
 			goto bad;
 		}
-	} else */
-	if (__predict_false(m->m_len < sizeof(struct ip6_hdr))) {
+	} else if (__predict_false(m->m_len < sizeof(struct ip6_hdr))) {
 		struct ifnet *inifp = m->m_pkthdr.rcvif;
 		if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
 			ip6stat.ip6s_toosmall++;
