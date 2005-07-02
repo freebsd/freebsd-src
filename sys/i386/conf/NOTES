@@ -116,9 +116,6 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # technology which allows to restrict power consumption of the CPU by
 # using group of hw.crusoe.* sysctls.
 #
-# CPU_ENABLE_SSE enables SSE/MMX2 instructions support.  This is default
-# on I686_CPU and above.
-#
 # CPU_FASTER_5X86_FPU enables faster FPU exception handler.
 #
 # CPU_GEODE is for the SC1100 Geode embedded processor.  This option
@@ -194,7 +191,6 @@ options 	CPU_ELAN
 options 	CPU_ELAN_PPS
 options 	CPU_ELAN_XTAL=32768000
 options 	CPU_ENABLE_LONGRUN
-options 	CPU_ENABLE_SSE
 options 	CPU_FASTER_5X86_FPU
 options 	CPU_GEODE
 options 	CPU_I486_ON_386
