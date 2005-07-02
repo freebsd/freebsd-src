@@ -109,7 +109,7 @@ int
 _kvm_kvatop(kd, va, pa)
 	kvm_t *kd;
 	u_long va;
-	u_long *pa;
+	off_t *pa;
 {
 	u_int64_t       lev1map_pa;             /* PA of Lev1map */
         u_int64_t       page_size;
