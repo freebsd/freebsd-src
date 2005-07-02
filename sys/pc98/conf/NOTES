@@ -88,9 +88,6 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 #
 # CPU_DISABLE_SSE explicitly prevents I686_CPU from turning on SSE.
 #
-# CPU_ENABLE_SSE enables SSE/MMX2 instructions support.  This is default
-# on I686_CPU and above.
-#
 # CPU_FASTER_5X86_FPU enables faster FPU exception handler.
 #
 # CPU_I486_ON_386 enables CPU cache on i486 based CPU upgrade products
@@ -156,7 +153,6 @@ options 	CPU_DIRECT_MAPPED_CACHE
 options 	CPU_DISABLE_5X86_LSSER
 options 	CPU_DISABLE_CMPXCHG
 #options 	CPU_DISABLE_SSE
-options 	CPU_ENABLE_SSE
 options 	CPU_FASTER_5X86_FPU
 options 	CPU_I486_ON_386
 options 	CPU_IORT

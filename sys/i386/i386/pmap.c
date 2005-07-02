@@ -143,11 +143,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
-#if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
+#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
 #define CPU_ENABLE_SSE
-#endif
-#if defined(CPU_DISABLE_SSE)
-#undef CPU_ENABLE_SSE
 #endif
 
 #ifndef PMAP_SHPGPERPROC
