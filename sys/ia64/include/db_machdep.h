@@ -73,4 +73,8 @@ void db_bkpt_skip(void);
 
 #define	branch_taken(ins, pc, regs) pc
 
+/* Function call support. */
+#define	DB_MAXARGS	8	/* Only support arguments in registers. */
+#define	DB_CALL		db_fncall_ia64
+
 #endif	/* _MACHINE_DB_MACHDEP_H_ */

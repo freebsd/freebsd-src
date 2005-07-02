@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/db_machdep.h>
 #include <machine/frame.h>
+#include <machine/md_var.h>
 #include <machine/mutex.h>
 #include <machine/setjmp.h>
 
@@ -441,6 +442,25 @@ out:
 	if (slot > 2)
 		slot = 16;
 	return (loc + slot);
+}
+
+typedef db_expr_t __db_f(db_expr_t, db_expr_t, db_expr_t, db_expr_t, db_expr_t,
+    db_expr_t, db_expr_t, db_expr_t);
+
+register uint64_t __db_gp __asm__("gp");
+
+int
+db_fncall_ia64(db_expr_t addr, db_expr_t *rv, int nargs, db_expr_t args[])
+{
+	struct ia64_fdesc fdesc;
+	__db_f *f;
+
+	f = (__db_f *)&fdesc;
+	fdesc.func = addr;
+	fdesc.gp = __db_gp;	/* XXX doesn't work for modules. */
+	*rv = (*f)(args[0], args[1], args[2], args[3], args[4], args[5],
+	    args[6], args[7]);
+	return (1);
 }
 
 void
