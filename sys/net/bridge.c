@@ -1026,6 +1026,19 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	m_adj(m0, ETHER_HDR_LEN);		/* temporarily strip header */
 
 	/*
+	 * Check that the IP header is aligned before passing up to the packet
+	 * filter.
+	 */
+	if (ntohs(save_eh.ether_type) == ETHERTYPE_IP && 
+	    IP_HDR_ALIGNED_P(mtod(m0, caddr_t)) == 0) {
+		if ((m0 = m_copyup(m0, sizeof(struct ip),
+			(max_linkhdr + 3) & ~3)) == NULL) {
+			bdg_dropped++;
+			return NULL;
+		}
+	}
+
+	/*
 	 * NetBSD-style generic packet filter, pfil(9), hooks.
 	 * Enables ipf(8) in bridging.
 	 */
