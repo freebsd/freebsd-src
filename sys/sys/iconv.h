@@ -88,7 +88,7 @@ struct iconv_add_out {
 
 __BEGIN_DECLS
 
-#define	ENCODING_UNICODE	"ISO-10646-UCS-2"
+#define	ENCODING_UNICODE	"UTF-16BE"
 #define	KICONV_VENDOR_MICSFT	1	/* Microsoft Vendor Code for quirk */
 
 int   kiconv_add_xlat_table(const char *, const char *, const u_char *);
