@@ -83,10 +83,11 @@ SYSCTL_INT(_hw_usb_ural, OID_AUTO, debug, CTLFLAG_RW, &uraldebug, 0,
 static const struct usb_devno ural_devs[] = {
 	{ USB_VENDOR_ASUS,		USB_PRODUCT_ASUS_WL167G },
 	{ USB_VENDOR_ASUS,		USB_PRODUCT_RALINK_RT2570 },
+	{ USB_VENDOR_BELKIN,		USB_PRODUCT_BELKIN_F5D7050 },
 	{ USB_VENDOR_CONCEPTRONIC,	USB_PRODUCT_CONCEPTRONIC_C54U },
 	{ USB_VENDOR_DLINK,		USB_PRODUCT_DLINK_DWLG122 },
-        { USB_VENDOR_LINKSYS4,		USB_PRODUCT_LINKSYS4_WUSB54G },
-        { USB_VENDOR_LINKSYS4,		USB_PRODUCT_LINKSYS4_WUSB54GP },
+	{ USB_VENDOR_LINKSYS4,		USB_PRODUCT_LINKSYS4_WUSB54G },
+	{ USB_VENDOR_LINKSYS4,		USB_PRODUCT_LINKSYS4_WUSB54GP },
 	{ USB_VENDOR_MELCO,		USB_PRODUCT_MELCO_KG54 },
 	{ USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT2570 },
 	{ USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT2570_2 },
@@ -408,8 +409,13 @@ USB_ATTACH(ural)
 
 	printf("%s: MAC/BBP RT2570 (rev 0x%02x), RF %s\n",
 	    USBDEVNAME(sc->sc_dev), sc->asic_rev, ural_get_rf(sc->rf_rev));
-	
+
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("%s: can not if_alloc()\n", USBDEVNAME(sc->sc_dev));
+		USB_ATTACH_ERROR_RETURN;
+	}
+
 	ifp->if_softc = sc;
 	if_initname(ifp, "ural", USBDEVUNIT(sc->sc_dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
@@ -517,6 +523,7 @@ USB_DETACH(ural)
 
 	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
+	if_free(ifp);
 
 	mtx_destroy(&sc->sc_mtx);
 
