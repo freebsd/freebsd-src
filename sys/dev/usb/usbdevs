@@ -677,6 +677,7 @@ product BELKIN F5U109		0x0109	F5U109 Serial
 product BELKIN F5U208		0x0208	F5U208 VideoBus II
 product BELKIN F5U409		0x0409	F5U409 Serial
 product BELKIN F5U120		0x1203	F5U120-PC Hub
+product BELKIN F5D7050		0x7050	F5D7050 wireless adapter
 
 /* Billionton products */
 product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet
