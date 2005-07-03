@@ -263,11 +263,13 @@ ipw_attach(device_t dev)
 		device_printf(dev, "could not allocate DMA resources\n");
 		goto fail;
 	}
+
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
 		goto fail;
 	}
+
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -391,11 +393,11 @@ ipw_detach(device_t dev)
 
 	IPW_UNLOCK(sc);
 
-	if (ifp != NULL)
+	if (ifp != NULL) {
 		bpfdetach(ifp);
-	ieee80211_ifdetach(ic);
-	if (ifp != NULL)
+		ieee80211_ifdetach(ic);
 		if_free(ifp);
+	}
 
 	ipw_release(sc);
 
@@ -1017,6 +1019,10 @@ ipw_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 	struct ieee80211_node *ni;
 	bus_addr_t physaddr;
 	int error;
+
+	if (le32toh(status->len) < sizeof (struct ieee80211_frame_min) ||
+	    le32toh(status->len) > MCLBYTES)
+		return;
 
 	bus_dmamap_sync(sc->rxbuf_dmat, sbuf->map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(sc->rxbuf_dmat, sbuf->map);
