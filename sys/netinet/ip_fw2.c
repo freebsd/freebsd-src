@@ -1935,8 +1935,7 @@ ipfw_chk(struct ip_fw_args *args)
 	int retval = 0;
 
 	/*
-	 * hlen	The length of the IPv4 header.
-	 *	hlen >0 means we have an IPv4 packet.
+	 * hlen	The length of the IP header.
 	 */
 	u_int hlen = 0;		/* hlen >0 means we have an IP pkt */
 
@@ -2100,8 +2099,6 @@ do {									\
 		args->f_id.src_ip = 0;
 		args->f_id.dst_ip = 0;
 		args->f_id.flow_id6 = ntohs(mtod(m, struct ip6_hdr *)->ip6_flow);
-		/* hlen != 0 is used to detect ipv4 packets, so clear it now */
-		hlen = 0;
 	} else if (pktlen >= sizeof(struct ip) &&
 	    (args->eh == NULL || ntohs(args->eh->ether_type) == ETHERTYPE_IP) &&
 	    mtod(m, struct ip *)->ip_v == 4) {
@@ -2356,14 +2353,14 @@ check_body:
 				break;
 
 			case O_IP_SRC:
-				match = is_ipv4 && (hlen > 0 &&
-				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
+				match = is_ipv4 &&
+				    (((ipfw_insn_ip *)cmd)->addr.s_addr ==
 				    src_ip.s_addr);
 				break;
 
 			case O_IP_SRC_LOOKUP:
 			case O_IP_DST_LOOKUP:
-				if (hlen > 0 && is_ipv4) {
+				if (is_ipv4) {
 				    uint32_t a =
 					(cmd->opcode == O_IP_DST_LOOKUP) ?
 					    dst_ip.s_addr : src_ip.s_addr;
@@ -2380,7 +2377,7 @@ check_body:
 
 			case O_IP_SRC_MASK:
 			case O_IP_DST_MASK:
-				if (hlen > 0 && is_ipv4) {
+				if (is_ipv4) {
 				    uint32_t a =
 					(cmd->opcode == O_IP_DST_MASK) ?
 					    dst_ip.s_addr : src_ip.s_addr;
@@ -2393,7 +2390,7 @@ check_body:
 				break;
 
 			case O_IP_SRC_ME:
-				if (hlen > 0 && is_ipv4) {
+				if (is_ipv4) {
 					struct ifnet *tif;
 
 					INADDR_TO_IFP(src_ip, tif);
@@ -2403,7 +2400,7 @@ check_body:
 
 			case O_IP_DST_SET:
 			case O_IP_SRC_SET:
-				if (hlen > 0 && is_ipv4) {
+				if (is_ipv4) {
 					u_int32_t *d = (u_int32_t *)(cmd+1);
 					u_int32_t addr =
 					    cmd->opcode == O_IP_DST_SET ?
@@ -2420,13 +2417,13 @@ check_body:
 				break;
 
 			case O_IP_DST:
-				match = is_ipv4 && (hlen > 0 &&
-				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
+				match = is_ipv4 &&
+				    (((ipfw_insn_ip *)cmd)->addr.s_addr ==
 				    dst_ip.s_addr);
 				break;
 
 			case O_IP_DST_ME:
-				if (hlen > 0 && is_ipv4) {
+				if (is_ipv4) {
 					struct ifnet *tif;
 
 					INADDR_TO_IFP(dst_ip, tif);
@@ -2472,19 +2469,19 @@ check_body:
 #endif /* INET6 */
 
 			case O_IPOPT:
-				match = (hlen > 0 &&
+				match = (is_ipv4 &&
 				    ipopts_match(mtod(m, struct ip *), cmd) );
 				break;
 
 			case O_IPVER:
-				match = (hlen > 0 &&
+				match = (is_ipv4 &&
 				    cmd->arg1 == mtod(m, struct ip *)->ip_v);
 				break;
 
 			case O_IPID:
 			case O_IPLEN:
 			case O_IPTTL:
-				if (hlen > 0) {	/* only for IP packets */
+				if (is_ipv4) {	/* only for IP packets */
 				    uint16_t x;
 				    uint16_t *p;
 				    int i;
@@ -2508,12 +2505,12 @@ check_body:
 				break;
 
 			case O_IPPRECEDENCE:
-				match = (hlen > 0 &&
+				match = (is_ipv4 &&
 				    (cmd->arg1 == (mtod(m, struct ip *)->ip_tos & 0xe0)) );
 				break;
 
 			case O_IPTOS:
-				match = (hlen > 0 &&
+				match = (is_ipv4 &&
 				    flags_match(cmd, mtod(m, struct ip *)->ip_tos));
 				break;
 
@@ -2594,7 +2591,7 @@ check_body:
 				}
 				at = (struct altq_tag *)(mtag+1);
 				at->qid = altq->qid;
-				if (hlen != 0)
+				if (is_ipv4)
 					at->af = AF_INET;
 				else
 					at->af = AF_LINK;
@@ -2604,7 +2601,7 @@ check_body:
 			}
 
 			case O_LOG:
-				if (fw_verbose)
+				if (fw_verbose && !is_ipv6)
 					ipfw_log(f, hlen, args->eh, m, oif);
 				match = 1;
 				break;
