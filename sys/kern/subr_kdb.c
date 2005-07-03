@@ -121,6 +121,8 @@ kdb_sysctl_available(SYSCTL_HANDLER_ARGS)
 	sz++;
 	avail = malloc(sz, M_TEMP, M_WAITOK);
 	p = avail;
+	*p = '\0';
+
 	SET_FOREACH(iter, kdb_dbbe_set) {
 		be = *iter;
 		if (be->dbbe_active == 0) {
