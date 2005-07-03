@@ -136,6 +136,7 @@ static int rtc_inb(void);
 static void rtc_outb(int);
 
 static	unsigned i8254_get_timecount(struct timecounter *tc);
+static	unsigned i8254_simple_get_timecount(struct timecounter *tc);
 static	void	set_timer_freq(u_int freq, int intr_freq);
 
 static struct timecounter i8254_timecounter = {
@@ -473,10 +474,15 @@ set_timer_freq(u_int freq, int intr_freq)
 {
 	int new_timer0_max_count;
 
+	i8254_timecounter.tc_frequency = freq;
 	mtx_lock_spin(&clock_lock);
 	timer_freq = freq;
 	new_timer0_max_count = hardclock_max_count = TIMER_DIV(intr_freq);
-	if (new_timer0_max_count != timer0_max_count) {
+	if (using_lapic_timer) {
+		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+		outb(TIMER_CNTR0, 0);
+		outb(TIMER_CNTR0, 0);
+	} else if (new_timer0_max_count != timer0_max_count) {
 		timer0_max_count = new_timer0_max_count;
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
@@ -489,11 +495,7 @@ static void
 i8254_restore(void)
 {
 
-	mtx_lock_spin(&clock_lock);
-	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-	outb(TIMER_CNTR0, timer0_max_count & 0xff);
-	outb(TIMER_CNTR0, timer0_max_count >> 8);
-	mtx_unlock_spin(&clock_lock);
+	set_timer_freq(timer_freq, hz);
 }
 
 
@@ -559,7 +561,6 @@ startrtclock()
 	}
 
 	set_timer_freq(timer_freq, hz);
-	i8254_timecounter.tc_frequency = timer_freq;
 	tc_init(&i8254_timecounter);
 
 	init_TSC();
@@ -761,15 +762,21 @@ cpu_initclocks()
 	/*
 	 * If we aren't using the local APIC timer to drive the kernel
 	 * clocks, setup the interrupt handler for the 8254 timer 0 so
-	 * that it can drive hardclock().
+	 * that it can drive hardclock().  Otherwise, change the 8254
+	 * timecounter to user a simpler algorithm.
 	 */
-	if (!using_lapic_timer) {
+	if (!using_lapic_timer || 1) {
 		intr_add_handler("clk", 0, (driver_intr_t *)clkintr, NULL,
 		    INTR_TYPE_CLK | INTR_FAST, NULL);
 		i8254_intsrc = intr_lookup_source(0);
 		if (i8254_intsrc != NULL)
 			i8254_pending =
 			    i8254_intsrc->is_pic->pic_source_pending;
+	} else {
+		i8254_timecounter.tc_get_timecount =
+		    i8254_simple_get_timecount;
+		i8254_timecounter.tc_counter_mask = 0xffff;
+		set_timer_freq(timer_freq, hz);
 	}
 
 	init_TSC_tc();
@@ -797,15 +804,31 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 	 */
 	freq = timer_freq;
 	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
-	if (error == 0 && req->newptr != NULL) {
+	if (error == 0 && req->newptr != NULL)
 		set_timer_freq(freq, hz);
-		i8254_timecounter.tc_frequency = freq;
-	}
 	return (error);
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(u_int), sysctl_machdep_i8254_freq, "IU", "");
+
+static unsigned
+i8254_simple_get_timecount(struct timecounter *tc)
+{
+	u_int count;
+	u_int high, low;
+
+	mtx_lock_spin(&clock_lock);
+
+	/* Select timer0 and latch counter value. */
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
+
+	low = inb(TIMER_CNTR0);
+	high = inb(TIMER_CNTR0);
+	count = 0xffff - ((high << 8) | low);
+	mtx_unlock_spin(&clock_lock);
+	return (count);
+}
 
 static unsigned
 i8254_get_timecount(struct timecounter *tc)
