@@ -47,13 +47,13 @@ __FBSDID("$FreeBSD$");
 static int k7_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 static int k8_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
+static int p4_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
 #if defined(__i386__)
-static int p4_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
-    struct pmc_op_pmcallocate *_pmc_config);
 static int p5_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 static int p6_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
@@ -154,7 +154,7 @@ struct pmc_masks {
 #define	PMCMASK(N,V)	{ .pm_name = #N, .pm_value = (V) }
 #define	NULLMASK	PMCMASK(NULL,0)
 
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 static int
 pmc_parse_mask(const struct pmc_masks *pmask, char *p, uint32_t *evmask)
 {
@@ -301,7 +301,7 @@ k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 #endif
 
-#if	defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 
 /*
  * AMD K8 PMCs.
@@ -670,7 +670,7 @@ k8_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 #endif
 
-#if	defined(__i386__)
+#if defined(__amd64__) || defined(__i386__)
 
 /*
  * Intel P4 PMCs
@@ -1282,6 +1282,10 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 	return 0;
 }
+
+#endif
+
+#if defined(__i386__)
 
 /*
  * Pentium style PMCs
@@ -1950,11 +1954,12 @@ pmc_init(void)
 		pmc_mdep_event_aliases = p6_aliases;
 		pmc_mdep_allocate_pmc = p6_allocate_pmc;
 		break;
+#endif
+#if defined(__amd64__) || defined(__i386__)
 	case PMC_CPU_INTEL_PIV:
 		pmc_mdep_event_aliases = p4_aliases;
 		pmc_mdep_allocate_pmc = p4_allocate_pmc;
 		break;
-#elif defined(__amd64__)
 	case PMC_CPU_AMD_K8:
 		pmc_mdep_event_aliases = k8_aliases;
 		pmc_mdep_allocate_pmc = k8_allocate_pmc;
