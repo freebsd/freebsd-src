@@ -64,6 +64,8 @@ init_variables()
 	# "/etc/fstab.${_j}" will be used for {,u}mount(8) if none is specified.
 	eval jail_fstab=\"\$jail_${_j}_fstab\"
 	[ -z "${jail_fstab}" ] && jail_fstab="/etc/fstab.${_j}"
+	eval jail_flags=\"\$jail_${_j}_flags\"
+	[ -z "${jail_flags}" ] && jail_flags="-l -U root"
 
 	# Debugging aid
 	#
@@ -81,6 +83,7 @@ init_variables()
 	debug "$_j fstab: $jail_fstab"
 	debug "$_j exec start: $jail_exec_start"
 	debug "$_j exec stop: $jail_exec_stop"
+	debug "$_j flags: $jail_flags"
 }
 
 # set_sysctl rc_knob mib msg
@@ -193,7 +196,7 @@ jail_start()
 			fi
 		fi
 		_tmp_jail=${_tmp_dir}/jail.$$
-		eval jail -l -U root -i ${jail_rootdir} ${jail_hostname} \
+		eval jail ${jail_flags} -i ${jail_rootdir} ${jail_hostname} \
 			${jail_ip} ${jail_exec_start} > ${_tmp_jail} 2>&1
 		[ "$?" -eq 0 ] && echo -n " $jail_hostname"
 		_jail_id=$(head -1 ${_tmp_jail})
