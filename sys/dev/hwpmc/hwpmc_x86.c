@@ -91,7 +91,7 @@ pmc_intel_initialize(void)
 #if	defined(__i386__) || defined(__amd64__)
 	case 0xF00:		/* P4 */
 		model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
-		if (model >= 0 && model <= 3) /* known models */
+		if (model >= 0 && model <= 4) /* known models */
 			cputype = PMC_CPU_INTEL_PIV;
 		break;
 	}
