@@ -134,13 +134,6 @@
 	  </row>
 
 	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:12.bind9.asc"
-		>SA-05:12.bind9</ulink></entry>
-	    <entry>9&nbsp;Jun&nbsp;2005</entry>
-	    <entry><para>BIND 9 DNSSEC remote denial of service vulnerability</para></entry>
-	  </row>
-
-	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:13.ipfw.asc"
 		>SA-05:13.ipfw</ulink></entry>
 	    <entry>29&nbsp;Jun&nbsp;2005</entry>
