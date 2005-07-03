@@ -107,14 +107,103 @@
   <sect1>
     <title>Security Advisories</title>
 
-<![ %release.type.release [
-    <para>No active security advisories.</para>
-]]>
+    <para>The following security advisories pertain to &os; &release.prev;.
+      For more information, consult the individual advisories available from
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/"></ulink>.</para>
 
-<![ %release.type.snapshot [
-    <para>No active security advisories.</para>
-]]>
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
 
+	<tbody>
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc"
+		>SA-05:01.telnet</ulink></entry>
+	    <entry>28&nbsp;March&nbsp;2005</entry>
+	    <entry><para>telnet client buffer overflows</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc"
+		>SA-05:02.sendfile</ulink></entry>
+	    <entry>4&nbsp;April&nbsp;2005</entry>
+	    <entry><para>sendfile kernel memory disclosure</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc"
+		>SA-05:04.ifconf</ulink></entry>
+	    <entry>15&nbsp;April&nbsp;2005</entry>
+	    <entry><para>Kernel memory disclosure in ifconf()</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:05.cvs.asc"
+		>SA-05:05.cvs</ulink></entry>
+	    <entry>22&nbsp;April&nbsp;2005</entry>
+	    <entry><para>Multiple vulnerabilities in CVS</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:06.iir.asc"
+		>SA-05:06.iir</ulink></entry>
+	    <entry>6&nbsp;May&nbsp;2005</entry>
+	    <entry><para>Incorrect permissions on /dev/iir</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:07.ldt.asc"
+		>SA-05:07.ldt</ulink></entry>
+	    <entry>6&nbsp;May&nbsp;2005</entry>
+	    <entry><para>Local kernel memory disclosure in i386_get_ldt</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:08.kmem.asc"
+		>SA-05:08.kmem</ulink></entry>
+	    <entry>6&nbsp;May&nbsp;2005</entry>
+	    <entry><para>Local kernel memory disclosure</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc"
+		>SA-05:09.htt</ulink></entry>
+	    <entry>13&nbsp;May&nbsp;2005</entry>
+	    <entry><para>information disclosure when using HTT</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc"
+		>SA-05:11.gzip</ulink></entry>
+	    <entry>9&nbsp;June&nbsp;2005</entry>
+	    <entry><para>gzip directory traversal and permission race vulnerabilities</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:14.bzip2.asc"
+		>SA-05:14.bzip2</ulink></entry>
+	    <entry>29&nbsp;June&nbsp;2005</entry>
+	    <entry><para>bzip2 denial of service and permission race vulnerabilities</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc"
+		>SA-05:15.tcp</ulink></entry>
+	    <entry>29&nbsp;June&nbsp;2005</entry>
+	    <entry><para>TCP connection stall denial of service</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
   </sect1>
 
   <sect1>
