@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2005
+.Dd June 30, 2005
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -2415,3 +2415,15 @@ Stateful extensions were introduced in
 .Fx 4.0 .
 .Nm ipfw2
 was introduced in Summer 2002.
+.Pp
+Rules using
+.Cm uid
+or
+.Cm gid
+may not behave as expected.
+In particular, incoming SYN packets may
+have no uid or gid associated with them since they do not yet belong
+to a TCP connection, and the uid/gid associated with a packet may not
+be as expected if the associated process calls
+.Xr setuid 2
+or similar system calls.
