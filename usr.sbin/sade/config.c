@@ -990,7 +990,7 @@ configMTAPostfix(dialogMenuItem *self)
 	msgError("Error setting the enviroment variable POSTFIX_DEFAULT_MTA: %s (%u)",
 		 strerror(errno), errno);
 
-    ret = package_add("postfix-2.1");
+    ret = package_add("postfix-2.2");
     unsetenv("POSTFIX_DEFAULT_MTA");
 
     if(DITEM_STATUS(ret) == DITEM_FAILURE) {
