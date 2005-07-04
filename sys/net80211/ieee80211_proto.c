@@ -818,11 +818,31 @@ ieee80211_wme_updateparams(struct ieee80211com *ic)
 	}
 }
 
+static void
+sta_disassoc(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = arg;
+
+	if (ni->ni_associd != 0) {
+		IEEE80211_SEND_MGMT(ic, ni, IEEE80211_FC0_SUBTYPE_DISASSOC,
+			IEEE80211_REASON_ASSOC_LEAVE);
+		ieee80211_node_leave(ic, ni);
+	}
+}
+
+static void
+sta_deauth(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = arg;
+
+	IEEE80211_SEND_MGMT(ic, ni, IEEE80211_FC0_SUBTYPE_DEAUTH,
+		IEEE80211_REASON_ASSOC_LEAVE);
+}
+
 static int
 ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	struct ieee80211_node_table *nt;
 	struct ieee80211_node *ni;
 	enum ieee80211_state ostate;
 
@@ -845,16 +865,8 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				ieee80211_sta_leave(ic, ni);
 				break;
 			case IEEE80211_M_HOSTAP:
-				nt = &ic->ic_sta;
-				IEEE80211_NODE_LOCK(nt);
-				TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
-					if (ni->ni_associd == 0)
-						continue;
-					IEEE80211_SEND_MGMT(ic, ni,
-					    IEEE80211_FC0_SUBTYPE_DISASSOC,
-					    IEEE80211_REASON_ASSOC_LEAVE);
-				}
-				IEEE80211_NODE_UNLOCK(nt);
+				ieee80211_iterate_nodes(&ic->ic_sta,
+					sta_disassoc, ic);
 				break;
 			default:
 				break;
@@ -868,14 +880,8 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				    IEEE80211_REASON_AUTH_LEAVE);
 				break;
 			case IEEE80211_M_HOSTAP:
-				nt = &ic->ic_sta;
-				IEEE80211_NODE_LOCK(nt);
-				TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
-					IEEE80211_SEND_MGMT(ic, ni,
-					    IEEE80211_FC0_SUBTYPE_DEAUTH,
-					    IEEE80211_REASON_AUTH_LEAVE);
-				}
-				IEEE80211_NODE_UNLOCK(nt);
+				ieee80211_iterate_nodes(&ic->ic_sta,
+					sta_deauth, ic);
 				break;
 			default:
 				break;
