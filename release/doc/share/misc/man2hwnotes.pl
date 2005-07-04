@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 # Emacs should use -*- cperl -*- mode
 #
-# Copyright (c) 2003-2004 Simon L. Nielsen <simon@FreeBSD.org>
+# Copyright (c) 2003-2005 Simon L. Nielsen <simon@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -222,6 +222,9 @@ sub parse {
 		if ($mdocvars{parabuf} ne "") {
 		    add_listitem(\%mdocvars);
 		}
+
+		# Remove quotes, if any.
+		$txt =~ s/"(.*)"/$1/;
 
 		if ($mdocvars{listtype} eq "column") {
 		    # Ignore first item when it is likely to be a
