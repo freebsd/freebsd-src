@@ -59,6 +59,8 @@ struct ngsock {
 	struct ngpcb	*ctlsock;	/* optional control socket */
 	int    flags;
 	int    refs;
+	struct mtx	mtx;		/* mtx to wait on */
+	int		error;		/* place to store error */
 };
 #define	NGS_FLAG_NOLINGER	1	/* close with last hook */
 

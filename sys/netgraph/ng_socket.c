@@ -131,6 +131,7 @@ static int	ng_bind(struct sockaddr *nam, struct ngpcb *pcbp);
 static int	ngs_mod_event(module_t mod, int event, void *data);
 static int	ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg,
 			struct sockaddr_ng *addr);
+static void	ng_socket_item_applied(void *context, int error);
 
 /* Netgraph type descriptor */
 static struct ng_type typestruct = {
@@ -208,6 +209,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 struct mbuf *control, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
+	struct ngsock *const priv = NG_NODE_PRIVATE(pcbp->sockdata->node);
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
 	struct ng_mesg *msg;
 	struct mbuf *m0;
@@ -332,7 +334,29 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		item->el_dest->nd_type->name);
 #endif
 	SAVE_LINE(item);
-	error = ng_snd_item(item, NG_NOFLAGS);
+	/*
+	 * We do not want to return from syscall until the item
+	 * is processed by destination node. We register callback
+	 * on the item, which will update priv->error when item
+	 * was applied.
+	 * If ng_snd_item() has queued item, we sleep until
+	 * callback wakes us up.
+	 */
+	item->apply = ng_socket_item_applied;
+	item->context = priv;
+	priv->error = -1;
+
+	error = ng_snd_item(item, NG_PROGRESS);
+
+	if (error == EINPROGRESS) { 
+		mtx_lock(&priv->mtx);
+		if (priv->error == -1)
+			msleep(priv, &priv->mtx, 0, "ngsock", 0);
+		mtx_unlock(&priv->mtx);
+		KASSERT(priv->error != -1,
+		    ("ng_socket: priv->error wasn't updated"));
+		error = priv->error;
+	}
 
 release:
 	if (path != NULL)
@@ -552,6 +576,8 @@ ng_attach_cntl(struct socket *so)
 		return (error);
 	}
 	NG_NODE_SET_PRIVATE(privdata->node, privdata);
+
+	mtx_init(&privdata->mtx, "ng_socket", NULL, MTX_DEF);
 
 	/* Link the pcb and the node private data */
 	privdata->ctlsock = pcbp;
@@ -813,6 +839,10 @@ ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg, struct sockaddr_ng *addr)
 	return (0);
 }
 
+/***************************************************************
+	Netgraph node
+***************************************************************/
+
 /*
  * You can only create new nodes from the socket end of things.
  */
@@ -1020,8 +1050,21 @@ ngs_shutdown(node_p node)
 	}
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
+	mtx_destroy(&priv->mtx);
 	FREE(priv, M_NETGRAPH_SOCK);
 	return (0);
+}
+
+static void
+ng_socket_item_applied(void *context, int error)
+{
+	struct ngsock *const priv = (struct ngsock *)context;
+
+	mtx_lock(&priv->mtx);
+	priv->error = error;
+	wakeup(priv);
+	mtx_unlock(&priv->mtx);
+
 }
 
 static	int
