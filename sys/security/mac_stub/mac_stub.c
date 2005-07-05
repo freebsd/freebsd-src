@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
+ * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -9,6 +10,9 @@
  * Research, the Security Research Division of McAfee, Inc. under
  * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
  * CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -996,6 +1000,14 @@ stub_check_socket_connect(struct ucred *cred, struct socket *socket,
 }
 
 static int
+stub_check_socket_create(struct ucred *cred, int domain, int type,
+    int protocol)
+{
+
+	return (0);
+}
+
+static int
 stub_check_socket_deliver(struct socket *so, struct label *socketlabel,
     struct mbuf *m, struct label *mbuflabel)
 {
@@ -1533,6 +1545,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_socket_accept = stub_check_socket_accept,
 	.mpo_check_socket_bind = stub_check_socket_bind,
 	.mpo_check_socket_connect = stub_check_socket_connect,
+	.mpo_check_socket_create = stub_check_socket_create,
 	.mpo_check_socket_deliver = stub_check_socket_deliver,
 	.mpo_check_socket_listen = stub_check_socket_listen,
 	.mpo_check_socket_poll = stub_check_socket_poll,

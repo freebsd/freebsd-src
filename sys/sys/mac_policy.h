@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
+ * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -455,6 +456,8 @@ struct mac_policy_ops {
 	int	(*mpo_check_socket_connect)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel,
 		    struct sockaddr *sockaddr);
+	int	(*mpo_check_socket_create)(struct ucred *cred, int domain,
+		    int type, int protocol);
 	int	(*mpo_check_socket_deliver)(struct socket *so,
 		    struct label *socketlabel, struct mbuf *m,
 		    struct label *mbuflabel);

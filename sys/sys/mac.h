@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
+ * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -9,6 +10,9 @@
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -372,6 +376,8 @@ int	mac_check_socket_bind(struct ucred *cred, struct socket *so,
 	    struct sockaddr *sockaddr);
 int	mac_check_socket_connect(struct ucred *cred, struct socket *so,
 	    struct sockaddr *sockaddr);
+int	mac_check_socket_create(struct ucred *cred, int domain, int type,
+	    int protocol);
 int	mac_check_socket_deliver(struct socket *so, struct mbuf *m);
 int	mac_check_socket_listen(struct ucred *cred, struct socket *so);
 int	mac_check_socket_poll(struct ucred *cred, struct socket *so);

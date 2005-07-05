@@ -2,6 +2,7 @@
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
+ * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -11,6 +12,9 @@
  * Research, the Technology Research Division of Network Associates, Inc.
  * under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
  * DARPA CHATS research program.
+ * 
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -317,6 +321,20 @@ mac_check_socket_connect(struct ucred *cred, struct socket *socket,
 
 	MAC_CHECK(check_socket_connect, cred, socket, socket->so_label,
 	    sockaddr);
+
+	return (error);
+}
+
+int
+mac_check_socket_create(struct ucred *cred, int domain, int type,
+    int protocol)
+{
+	int error;
+
+	if (!mac_enforce_socket)
+		return (0);
+
+	MAC_CHECK(check_socket_create, cred, domain, type, protocol);
 
 	return (error);
 }
