@@ -253,6 +253,17 @@ mac_copy_mbuf_tag(struct m_tag *src, struct m_tag *dest)
 	MAC_PERFORM(copy_mbuf_label, src_label, dest_label);
 }
 
+void
+mac_copy_mbuf(struct mbuf *m_from, struct mbuf *m_to)
+{
+	struct label *src_label, *dest_label;
+
+	src_label = mac_mbuf_to_label(m_from);
+	dest_label = mac_mbuf_to_label(m_to);
+
+	MAC_PERFORM(copy_mbuf_label, src_label, dest_label);
+}
+
 static void
 mac_copy_ifnet_label(struct label *src, struct label *dest)
 {
@@ -295,18 +306,6 @@ mac_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d)
 {
 
 	MAC_PERFORM(create_bpfdesc, cred, bpf_d, bpf_d->bd_label);
-}
-
-void
-mac_create_mbuf_from_mbuf(struct mbuf *oldmbuf, struct mbuf *newmbuf)
-{
-	struct label *oldmbuflabel, *newmbuflabel;
-
-	oldmbuflabel = mac_mbuf_to_label(oldmbuf);
-	newmbuflabel = mac_mbuf_to_label(newmbuf);
-
-	MAC_PERFORM(create_mbuf_from_mbuf, oldmbuf, oldmbuflabel, newmbuf,
-	    newmbuflabel);
 }
 
 void

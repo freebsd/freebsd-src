@@ -207,7 +207,7 @@ ddp_route(struct mbuf *m, struct route *ro)
 	    return (ENOBUFS);
 	}
 #ifdef MAC
-	mac_create_mbuf_from_mbuf(m, m0);
+	mac_copy_mbuf(m, m0);
 #endif
 	m0->m_next = m;
 	/* XXX perhaps we ought to align the header? */

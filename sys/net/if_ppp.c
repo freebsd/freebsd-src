@@ -1490,7 +1490,7 @@ ppp_inproc(sc, m)
 	    }
 	}
 #ifdef MAC
-	mac_create_mbuf_from_mbuf(m, mp);
+	mac_copy_mbuf(m, mp);
 #endif
 	cp = mtod(mp, u_char *);
 	cp[0] = adrs;
@@ -1544,7 +1544,7 @@ ppp_inproc(sc, m)
 	MGETHDR(mp, M_DONTWAIT, MT_DATA);
 	if (mp != NULL) {
 #ifdef MAC
-	    mac_create_mbuf_from_mbuf(m, mp);
+	    mac_copy_mbuf(m, mp);
 #endif
 	    m_copydata(m, 0, ilen, mtod(mp, caddr_t));
 	    m_freem(m);

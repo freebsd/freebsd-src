@@ -1214,27 +1214,6 @@ mac_mls_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
 }
 
 static void
-mac_mls_create_mbuf_from_mbuf(struct mbuf *oldmbuf,
-    struct label *oldmbuflabel, struct mbuf *newmbuf,
-    struct label *newmbuflabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(oldmbuflabel);
-	dest = SLOT(newmbuflabel);
-
-	/*
-	 * Because the source mbuf may not yet have been "created",
-	 * just initialized, we do a conditional copy.  Since we don't
-	 * allow mbufs to have ranges, do a KASSERT to make sure that
-	 * doesn't happen.
-	 */
-	KASSERT((source->mm_flags & MAC_MLS_FLAG_RANGE) == 0,
-	    ("mac_mls_create_mbuf_from_mbuf: source mbuf has range"));
-	mac_mls_copy(source, dest);
-}
-
-static void
 mac_mls_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *mbuf, struct label *mbuflabel)
 {
@@ -2909,7 +2888,6 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_create_sysv_sem = mac_mls_create_sysv_sem,
 	.mpo_create_sysv_shm = mac_mls_create_sysv_shm,
 	.mpo_create_mbuf_from_inpcb = mac_mls_create_mbuf_from_inpcb,
-	.mpo_create_mbuf_from_mbuf = mac_mls_create_mbuf_from_mbuf,
 	.mpo_create_mbuf_linklayer = mac_mls_create_mbuf_linklayer,
 	.mpo_create_mbuf_from_bpfdesc = mac_mls_create_mbuf_from_bpfdesc,
 	.mpo_create_mbuf_from_ifnet = mac_mls_create_mbuf_from_ifnet,
