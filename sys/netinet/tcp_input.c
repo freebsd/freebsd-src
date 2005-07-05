@@ -3110,7 +3110,11 @@ tcp_newreno_partial_ack(tp, th)
 	 * Partial window deflation.  Relies on fact that tp->snd_una
 	 * not updated yet.
 	 */
-	tp->snd_cwnd -= (th->th_ack - tp->snd_una - tp->t_maxseg);
+	if (tp->snd_cwnd > th->th_ack - tp->snd_una)
+		tp->snd_cwnd -= th->th_ack - tp->snd_una;
+	else
+		tp->snd_cwnd = 0;
+	tp->snd_cwnd += tp->t_maxseg;
 }
 
 /*
