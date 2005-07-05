@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd July 27, 2004
+.Dd July 5, 2005
 .Dt NG_PPPOE 4
 .Os
 .Sh NAME
@@ -214,15 +214,6 @@ This node shuts down upon receipt of a
 control message, when all session have been disconnected or when the
 .Dv ethernet
 hook is disconnected.
-.Sh SYSCTL VARIABLES
-The variable
-.Va net.graph.nonstandard_pppoe
-is a deprecated way to set
-.Nm
-client mode.
-Consider using
-.Dv NGM_PPPOE_SETMODE
-or an appropriate option in your client software instead.
 .Sh EXAMPLES
 The following code uses
 .Dv libnetgraph
