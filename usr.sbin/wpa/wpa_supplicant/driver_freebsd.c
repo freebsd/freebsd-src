@@ -197,12 +197,17 @@ wpa_driver_bsd_del_key(struct wpa_driver_bsd_data *drv, int key_idx,
 {
 	struct ieee80211req_del_key wk;
 
-	wpa_printf(MSG_DEBUG, "%s: keyidx=%d", __func__, key_idx);
 	memset(&wk, 0, sizeof(wk));
-	wk.idk_keyix = key_idx;
-	if (addr != NULL)
+	if (addr != NULL &&
+	    bcmp(addr, "\xff\xff\xff\xff\xff\xff", IEEE80211_ADDR_LEN) != 0) {
+		wpa_printf(MSG_DEBUG, "%s: addr=%s keyidx=%d",
+			__func__, ether_ntoa(addr), key_idx);
 		memcpy(wk.idk_macaddr, addr, IEEE80211_ADDR_LEN);
-
+		wk.idk_keyix = (uint8_t) IEEE80211_KEYIX_NONE;
+	} else {
+		wpa_printf(MSG_DEBUG, "%s: keyidx=%d", __func__, key_idx);
+		wk.idk_keyix = key_idx;
+	}
 	return set80211var(drv, IEEE80211_IOC_DELKEY, &wk, sizeof(wk));
 }
 
@@ -239,9 +244,10 @@ wpa_driver_bsd_set_key(void *priv, wpa_alg alg,
 		return -1;
 	}
 
-	wpa_printf(MSG_DEBUG, "%s: alg=%s key_idx=%d set_tx=%d seq_len=%d "
-		   "key_len=%d", __func__, alg_name, key_idx, set_tx,
-		   seq_len, key_len);
+	wpa_printf(MSG_DEBUG,
+		"%s: alg=%s addr=%s key_idx=%d set_tx=%d seq_len=%d key_len=%d",
+		__func__, alg_name, ether_ntoa(addr), key_idx, set_tx,
+		seq_len, key_len);
 
 	if (seq_len > sizeof(u_int64_t)) {
 		wpa_printf(MSG_DEBUG, "%s: seq_len %d too big",
@@ -257,12 +263,21 @@ wpa_driver_bsd_set_key(void *priv, wpa_alg alg,
 	memset(&wk, 0, sizeof(wk));
 	wk.ik_type = cipher;
 	wk.ik_flags = IEEE80211_KEY_RECV;
-	if (set_tx) {
-		wk.ik_flags |= IEEE80211_KEY_XMIT | IEEE80211_KEY_DEFAULT;
-		memcpy(wk.ik_macaddr, addr, IEEE80211_ADDR_LEN);
+	if (set_tx)
+		wk.ik_flags |= IEEE80211_KEY_XMIT;
+	memcpy(wk.ik_macaddr, addr, IEEE80211_ADDR_LEN);
+	/*
+	 * Deduce whether group/global or unicast key by checking
+	 * the address (yech).  Note also that we can only mark global
+	 * keys default; doing this for a unicast key is an error.
+	 */
+	if (bcmp(addr, "\xff\xff\xff\xff\xff\xff", IEEE80211_ADDR_LEN) == 0) {
+		wk.ik_flags |= IEEE80211_KEY_GROUP;
+		wk.ik_keyix = key_idx;
+		if (set_tx)
+			wk.ik_flags |= IEEE80211_KEY_DEFAULT;
 	} else
-		memset(wk.ik_macaddr, 0, IEEE80211_ADDR_LEN);
-	wk.ik_keyix = key_idx;
+		wk.ik_keyix = IEEE80211_KEYIX_NONE;
 	wk.ik_keylen = key_len;
 	memcpy(&wk.ik_keyrsc, seq, seq_len);
 	memcpy(wk.ik_keydata, key, key_len);
