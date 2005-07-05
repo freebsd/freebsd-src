@@ -580,6 +580,7 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
  *
  */
 typedef	void	ng_item_fn(node_p node, hook_p hook, void *arg1, int arg2);
+typedef	void	ng_apply_t(void *context, int error);
 struct ng_item {
 	u_long	el_flags;
 	item_p	el_next;
@@ -597,6 +598,12 @@ struct ng_item {
 			int		fn_arg2;
 		} fn;
 	} body;
+	/*
+	 * Optional callback called when item is being applied,
+	 * and its context.
+	 */
+	ng_apply_t	*apply;
+	void		*context;
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 	char *lastfile;
 	int  lastline;
@@ -1084,6 +1091,7 @@ int	ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 #define	NG_NOFLAGS	0x00000000	/* no special options */
 #define	NG_QUEUE	0x00000001	/* enqueue item, don't dispatch */
 #define	NG_WAITOK	0x00000002	/* use M_WAITOK, etc. */
+#define	NG_PROGRESS	0x00000004	/* return EINPROGRESS if queued */
 
 /*
  * prototypes the user should DEFINITELY not use directly
