@@ -1073,41 +1073,67 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 	save_callee_saved_fp(&pcb->pcb_preserved_fp);
 }
 
-void
+int
 ia64_flush_dirty(struct thread *td, struct _special *r)
 {
+	struct iovec iov;
+	struct uio uio;
 	uint64_t bspst, kstk, rnat;
+	int error;
 
 	if (r->ndirty == 0)
-		return;
+		return (0);
 
 	kstk = td->td_kstack + (r->bspstore & 0x1ffUL);
-	__asm __volatile("mov	ar.rsc=0;;");
-	__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
-	/* Make sure we have all the user registers written out. */
-	if (bspst - kstk < r->ndirty) {
-		__asm __volatile("flushrs;;");
+	if (td == curthread) {
+		__asm __volatile("mov	ar.rsc=0;;");
 		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
+		/* Make sure we have all the user registers written out. */
+		if (bspst - kstk < r->ndirty) {
+			__asm __volatile("flushrs;;");
+			__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
+		}
+		__asm __volatile("mov	%0=ar.rnat;;" : "=r"(rnat));
+		__asm __volatile("mov	ar.rsc=3");
+		error = copyout((void*)kstk, (void*)r->bspstore, r->ndirty);
+		kstk += r->ndirty;
+		r->rnat = (bspst > kstk && (bspst & 0x1ffL) < (kstk & 0x1ffL))
+		    ? *(uint64_t*)(kstk | 0x1f8L) : rnat;
+	} else {
+		iov.iov_base = (void*)(uintptr_t)kstk;
+		iov.iov_len = r->ndirty;
+		uio.uio_iov = &iov;
+		uio.uio_iovcnt = 1;
+		uio.uio_offset = r->bspstore;
+		uio.uio_resid = r->ndirty;
+		uio.uio_segflg = UIO_SYSSPACE;
+		uio.uio_rw = UIO_WRITE;
+		uio.uio_td = td;
+		error = proc_rwmem(td->td_proc, &uio);
+		/*
+		 * XXX proc_rwmem() doesn't currently return ENOSPC,
+		 * so I think it can bogusly return 0. Neither do
+		 * we allow short writes.
+		 */
+		if (uio.uio_resid != 0 && error == 0)
+			error = ENOSPC;
 	}
-	__asm __volatile("mov	%0=ar.rnat;;" : "=r"(rnat));
-	__asm __volatile("mov	ar.rsc=3");
-	copyout((void*)kstk, (void*)r->bspstore, r->ndirty);
-	kstk += r->ndirty;
-	r->rnat = (bspst > kstk && (bspst & 0x1ffUL) < (kstk & 0x1ffUL))
-	    ? *(uint64_t*)(kstk | 0x1f8UL) : rnat;
+
 	r->bspstore += r->ndirty;
 	r->ndirty = 0;
+	return (error);
 }
 
 int
 get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 {
 	struct trapframe *tf;
+	int error;
 
 	tf = td->td_frame;
 	bzero(mc, sizeof(*mc));
 	mc->mc_special = tf->tf_special;
-	ia64_flush_dirty(td, &mc->mc_special);
+	error = ia64_flush_dirty(td, &mc->mc_special);
 	if (tf->tf_flags & FRAME_SYSCALL) {
 		mc->mc_flags |= _MC_FLAGS_SYSCALL_CONTEXT;
 		mc->mc_scratch = tf->tf_scratch;
@@ -1131,7 +1157,7 @@ get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 	}
 	save_callee_saved(&mc->mc_preserved);
 	save_callee_saved_fp(&mc->mc_preserved_fp);
-	return (0);
+	return (error);
 }
 
 int
@@ -1342,15 +1368,18 @@ int
 set_regs(struct thread *td, struct reg *regs)
 {
 	struct trapframe *tf;
+	int error;
 
 	tf = td->td_frame;
-	ia64_flush_dirty(td, &tf->tf_special);
-	tf->tf_special = regs->r_special;
-	tf->tf_special.bspstore += tf->tf_special.ndirty;
-	tf->tf_special.ndirty = 0;
-	tf->tf_scratch = regs->r_scratch;
-	restore_callee_saved(&regs->r_preserved);
-	return (0);
+	error = ia64_flush_dirty(td, &tf->tf_special);
+	if (!error) {
+		tf->tf_special = regs->r_special;
+		tf->tf_special.bspstore += tf->tf_special.ndirty;
+		tf->tf_special.ndirty = 0;
+		tf->tf_scratch = regs->r_scratch;
+		restore_callee_saved(&regs->r_preserved);
+	}
+	return (error);
 }
 
 int
