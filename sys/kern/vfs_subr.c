@@ -1766,7 +1766,6 @@ reassignbuf(struct buf *bp)
 			bo->bo_flag &= ~BO_ONWORKLST;
 		}
 	}
-	VI_UNLOCK(vp);
 #ifdef INVARIANTS
 	bv = &bo->bo_clean;
 	bp = TAILQ_FIRST(&bv->bv_hd);
@@ -1783,6 +1782,7 @@ reassignbuf(struct buf *bp)
 	KASSERT(bp == NULL || bp->b_bufobj == bo,
 	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
 #endif
+	VI_UNLOCK(vp);
 }
 
 /*
