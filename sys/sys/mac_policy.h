@@ -284,9 +284,6 @@ struct mac_policy_ops {
 	void	(*mpo_create_mbuf_from_inpcb)(struct inpcb *inp,
 		    struct label *inplabel, struct mbuf *m,
 		    struct label *mlabel);
-	void	(*mpo_create_mbuf_from_mbuf)(struct mbuf *oldmbuf,
-		    struct label *oldlabel, struct mbuf *newmbuf,
-		    struct label *newlabel);
 	void	(*mpo_create_mbuf_linklayer)(struct ifnet *ifnet,
 		    struct label *ifnetlabel, struct mbuf *mbuf,
 		    struct label *mbuflabel);

@@ -1140,16 +1140,6 @@ mac_test_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
 }
 
 static void
-mac_test_create_mbuf_from_mbuf(struct mbuf *oldmbuf,
-    struct label *oldmbuflabel, struct mbuf *newmbuf,
-    struct label *newmbuflabel)
-{
-
-	ASSERT_MBUF_LABEL(oldmbuflabel);
-	ASSERT_MBUF_LABEL(newmbuflabel);
-}
-
-static void
 mac_test_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *mbuf, struct label *mbuflabel)
 {
@@ -2503,7 +2493,6 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_create_fragment = mac_test_create_fragment,
 	.mpo_create_ipq = mac_test_create_ipq,
 	.mpo_create_mbuf_from_inpcb = mac_test_create_mbuf_from_inpcb,
-	.mpo_create_mbuf_from_mbuf = mac_test_create_mbuf_from_mbuf,
 	.mpo_create_mbuf_linklayer = mac_test_create_mbuf_linklayer,
 	.mpo_create_mbuf_from_bpfdesc = mac_test_create_mbuf_from_bpfdesc,
 	.mpo_create_mbuf_from_ifnet = mac_test_create_mbuf_from_ifnet,
