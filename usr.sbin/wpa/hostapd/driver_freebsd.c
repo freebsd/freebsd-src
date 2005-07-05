@@ -385,7 +385,7 @@ bsd_set_key(void *priv, const char *alg,
 	if (addr == NULL) {
 		memset(wk.ik_macaddr, 0xff, IEEE80211_ADDR_LEN);
 		wk.ik_keyix = key_idx;
-		wk.ik_flags |= IEEE80211_KEY_DEFAULT;
+		wk.ik_flags |= IEEE80211_KEY_DEFAULT | IEEE80211_KEY_GROUP;
 	} else {
 		memcpy(wk.ik_macaddr, addr, IEEE80211_ADDR_LEN);
 		wk.ik_keyix = IEEE80211_KEYIX_NONE;
