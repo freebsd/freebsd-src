@@ -158,6 +158,12 @@ socket(td, uap)
 	struct file *fp;
 	int fd, error;
 
+#ifdef MAC
+	error = mac_check_socket_create(td->td_ucred, uap->domain, uap->type,
+	    uap->protocol);
+	if (error)
+		return (error);
+#endif
 	fdp = td->td_proc->p_fd;
 	error = falloc(td, &fp, &fd);
 	if (error)
@@ -579,6 +585,14 @@ socketpair(td, uap)
 	struct file *fp1, *fp2;
 	struct socket *so1, *so2;
 	int fd, error, sv[2];
+
+#ifdef MAC
+	/* We might want to have a separate check for socket pairs. */
+	error = mac_check_socket_create(td->td_ucred, uap->domain, uap->type,
+	    uap->protocol);
+	if (error)
+		return (error);
+#endif
 
 	NET_LOCK_GIANT();
 	error = socreate(uap->domain, &so1, uap->type, uap->protocol,
