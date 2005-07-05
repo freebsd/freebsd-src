@@ -2211,7 +2211,11 @@ ng_snd_item(item_p item, int flags)
 			ng_setisr(node);
 		}
 		mtx_unlock_spin(&(ngq->q_mtx));
-		return (0);
+
+		if (flags & NG_PROGRESS)
+			return (EINPROGRESS);
+		else
+			return (0);
 	}
 	/*
 	 * Take a queue item and a node and see if we can apply the item to
@@ -2237,7 +2241,10 @@ ng_snd_item(item_p item, int flags)
 	 * have been queued in thises cases.
 	 */
 	if (item == NULL) {
-		return (0);
+		if (flags & NG_PROGRESS)
+			return (EINPROGRESS);
+		else
+			return (0);
 	}
 
 #ifdef	NETGRAPH_DEBUG
@@ -2333,11 +2340,25 @@ ng_apply_item(node_p node, item_p item)
 	int	error = 0;
 	ng_rcvdata_t *rcvdata;
 	ng_rcvmsg_t *rcvmsg;
+	ng_apply_t *apply = NULL;
+	void	*context = NULL;
 
 	NGI_GET_HOOK(item, hook); /* clears stored hook */
 #ifdef	NETGRAPH_DEBUG
         _ngi_check(item, __FILE__, __LINE__);
 #endif
+
+	/*
+	 * If item has apply callback, store it. Clear callback
+	 * immediately, two avoid another call in case if
+	 * item would be reused by destination node.
+	 */
+	if (item->apply != NULL) {
+		apply = item->apply;
+		context = item->context;
+		item->apply = NULL;
+	}
+
 	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
 		/*
@@ -2453,6 +2474,11 @@ ng_apply_item(node_p node, item_p item)
 	} else {
 		ng_leave_write(&node->nd_input_queue);
 	}
+
+	/* Apply callback. */
+	if (apply != NULL)
+		(*apply)(context, error);
+
 	return (error);
 }
 
