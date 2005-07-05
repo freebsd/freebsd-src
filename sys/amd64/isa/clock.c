@@ -736,7 +736,7 @@ cpu_initclocks()
 	 * that it can drive hardclock().  Otherwise, change the 8254
 	 * timecounter to user a simpler algorithm.
 	 */
-	if (!using_lapic_timer || 1) {
+	if (!using_lapic_timer) {
 		intr_add_handler("clk", 0, (driver_intr_t *)clkintr, NULL,
 		    INTR_TYPE_CLK | INTR_FAST, NULL);
 		i8254_intsrc = intr_lookup_source(0);
