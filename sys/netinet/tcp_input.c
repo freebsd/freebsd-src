@@ -2442,6 +2442,8 @@ dodata:							/* XXX */
 	 */
 	if ((tlen || (thflags & TH_FIN)) &&
 	    TCPS_HAVERCVDFIN(tp->t_state) == 0) {
+		tcp_seq save_start = th->th_seq;
+		tcp_seq save_end = th->th_seq + tlen;
 		m_adj(m, drop_hdrlen);	/* delayed header drop */
 		/*
 		 * Insert segment which includes th into TCP reassembly queue
@@ -2478,7 +2480,7 @@ dodata:							/* XXX */
 			tp->t_flags |= TF_ACKNOW;
 		}
 		if (tlen > 0 && tp->sack_enable)
-			tcp_update_sack_list(tp, th->th_seq, th->th_seq + tlen);
+			tcp_update_sack_list(tp, save_start, save_end);
 		/*
 		 * Note the amount of data that peer has sent into
 		 * our window, in order to estimate the sender's
