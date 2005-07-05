@@ -1527,9 +1527,6 @@ ieee80211_ioctl_setkey(struct ieee80211com *ic, struct ieee80211req *ireq)
 			return EINVAL;
 		wk = &ic->ic_nw_keys[kid];
 		ni = NULL;
-		/* XXX auto-add group key flag until applications are updated */
-		if ((ik.ik_flags & IEEE80211_KEY_XMIT) == 0)	/* XXX */
-			ik.ik_flags |= IEEE80211_KEY_GROUP;	/* XXX */
 	}
 	error = 0;
 	ieee80211_key_update_begin(ic);
