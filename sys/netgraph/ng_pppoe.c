@@ -52,7 +52,6 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
-#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <net/ethernet.h>
 
@@ -276,43 +275,6 @@ struct PPPOE {
 	/*struct sess_con *buckets[HASH_SIZE];*/	/* not yet used */
 };
 typedef struct PPPOE *priv_p;
-
-/* Deprecated sysctl, leaved here to keep compatibility for some time */
-#define PPPOE_SYSCTL_KEEPSTANDARD	-1
-#define PPPOE_SYSCTL_STANDARD		0
-#define PPPOE_SYSCTL_NONSTANDARD	1
-static int pppoe_mode = PPPOE_SYSCTL_KEEPSTANDARD;
-static const struct ng_pppoe_mode_t *sysctl_mode = ng_pppoe_modes;
-
-static int
-ngpppoe_set_ethertype(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	int val;
-
-	val = pppoe_mode;
-	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
-	if (error != 0 || req->newptr == NULL)
-		return (error);
-	switch (val) {
-	case PPPOE_SYSCTL_NONSTANDARD:
-		sysctl_mode = ng_pppoe_modes + 1;
-		break;
-	case PPPOE_SYSCTL_STANDARD:
-	case PPPOE_SYSCTL_KEEPSTANDARD:
-		sysctl_mode = ng_pppoe_modes;
-		break;
-	default:
-		return (EINVAL);
-	}
-
-	pppoe_mode = val;
-	printf("net.graph.nonstandard_pppoe is deprecated. See ng_pppoe(4), ppp(8).\n");
-	return (0);
-}
-
-SYSCTL_PROC(_net_graph, OID_AUTO, nonstandard_pppoe, CTLTYPE_INT | CTLFLAG_RW,
-    0, sizeof(int), ngpppoe_set_ethertype, "I", "select normal or stupid ISP");
 
 union uniq {
 	char bytes[sizeof(void *)];
@@ -632,7 +594,7 @@ ng_pppoe_constructor(node_p node)
 	privdata->node = node;
 
 	/* Initialize to standard mode (the first one in ng_pppoe_modes[]). */
-	privdata->mode = sysctl_mode;
+	privdata->mode = &ng_pppoe_modes[0];
  
 	return (0);
 }
