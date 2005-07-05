@@ -1511,9 +1511,11 @@ ieee80211_ioctl_setkey(struct ieee80211com *ic, struct ieee80211req *ireq)
 		if (ik.ik_flags != (IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV))
 			return EINVAL;
 		if (ic->ic_opmode == IEEE80211_M_STA) {
-			ni = ic->ic_bss;
-			if (!IEEE80211_ADDR_EQ(ik.ik_macaddr, ni->ni_bssid))
+			ni = ieee80211_ref_node(ic->ic_bss);
+			if (!IEEE80211_ADDR_EQ(ik.ik_macaddr, ni->ni_bssid)) {
+				ieee80211_free_node(ni);
 				return EADDRNOTAVAIL;
+			}
 		} else {
 			ni = ieee80211_find_node(&ic->ic_sta, ik.ik_macaddr);
 			if (ni == NULL)
@@ -1569,9 +1571,17 @@ ieee80211_ioctl_delkey(struct ieee80211com *ic, struct ieee80211req *ireq)
 	if (dk.idk_keyix == (u_int8_t) IEEE80211_KEYIX_NONE) {
 		struct ieee80211_node *ni;
 
-		ni = ieee80211_find_node(&ic->ic_sta, dk.idk_macaddr);
-		if (ni == NULL)
-			return EINVAL;		/* XXX */
+		if (ic->ic_opmode == IEEE80211_M_STA) {
+			ni = ieee80211_ref_node(ic->ic_bss);
+			if (!IEEE80211_ADDR_EQ(dk.idk_macaddr, ni->ni_bssid)) {
+				ieee80211_free_node(ni);
+				return EADDRNOTAVAIL;
+			}
+		} else {
+			ni = ieee80211_find_node(&ic->ic_sta, dk.idk_macaddr);
+			if (ni == NULL)
+				return ENOENT;
+		}
 		/* XXX error return */
 		ieee80211_crypto_delkey(ic, &ni->ni_ucastkey);
 		ieee80211_free_node(ni);
@@ -1969,6 +1979,8 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		} else
 			error = EINVAL;
 		ieee80211_key_update_end(ic);
+		if (!error)			/* NB: for compatibility */
+			error = ENETRESET;
 		break;
 	case IEEE80211_IOC_WEPTXKEY:
 		kid = (u_int) ireq->i_val;
