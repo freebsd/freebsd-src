@@ -618,6 +618,12 @@ DECL_CMD_FUNC(set80211maccmd, val, d)
 	set80211(s, IEEE80211_IOC_MACCMD, d, 0, NULL);
 }
 
+static void
+set80211pureg(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	set80211(s, IEEE80211_IOC_PUREG, d, 0, NULL);
+}
+
 static int
 getmaxrate(uint8_t rates[15], uint8_t nrates)
 {
@@ -1504,6 +1510,13 @@ ieee80211_status(int s)
 	}
 
 	if (IEEE80211_IS_CHAN_G(c) || IEEE80211_IS_CHAN_PUREG(c) || verbose) {
+		ireq.i_type = IEEE80211_IOC_PUREG;
+		if (ioctl(s, SIOCG80211, &ireq) != -1) {
+			if (ireq.i_val)
+				LINE_CHECK("%cpureg", spacer);
+			else if (verbose)
+				LINE_CHECK("%c-pureg", spacer);
+		}
 		ireq.i_type = IEEE80211_IOC_PROTMODE;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
 			switch (ireq.i_val) {
@@ -1790,6 +1803,8 @@ static struct cmd ieee80211_cmds[] = {
 #if 0
 	DEF_CMD_ARG("mac:kick",		set80211kickmac),
 #endif
+	DEF_CMD("pureg",	1,	set80211pureg),
+	DEF_CMD("-pureg",	0,	set80211pureg),
 };
 static struct afswtch af_ieee80211 = {
 	.af_name	= "af_ieee80211",
