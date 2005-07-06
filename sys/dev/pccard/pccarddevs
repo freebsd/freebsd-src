@@ -484,6 +484,7 @@ product SIMPLETECH COMMUNICATOR288 0x0100 Simple Technology 28.8 Communicator
 product SIMPLETECH SPECTRUM24 0x801 Symbol Spectrum24 WLAN Adapter
 
 /* Standard Microsystems Corporation Products */
+product SMC SMC91C96		0x0001 SMC 91C96 Farallon EtherMac
 product SMC 8016		0x0105 SMC 8016 EtherCard
 product SMC EZCARD		0x8022 SMC EZCard 10 PCMCIA
 
