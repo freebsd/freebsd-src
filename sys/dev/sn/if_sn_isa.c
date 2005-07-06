@@ -45,15 +45,15 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/sn/if_snvar.h>
 
-static int		sn_isa_probe	(device_t);
-static int		sn_isa_attach	(device_t);
+static int		sn_isa_probe(device_t);
+static int		sn_isa_attach(device_t);
 
 static int
 sn_isa_probe (device_t dev)
 {
 	if (isa_get_logicalid(dev))		/* skip PnP probes */
 		return (ENXIO);
-	if (sn_probe(dev, 0) != 0)
+	if (sn_probe(dev) != 0)
 		return (ENXIO);
 	return (0);
 }
@@ -62,9 +62,18 @@ static int
 sn_isa_attach (device_t dev)
 {
  	struct sn_softc *sc = device_get_softc(dev);
+	int err;
 
- 	sc->pccard_enaddr = 0;
-	return (sn_attach(dev));
+	sc->dev = dev;
+	err = sn_activate(dev);
+	if (err) {
+		sn_deactivate(dev);
+		return (err);
+	}
+	err = sn_attach(dev);
+	if (err)
+		sn_deactivate(dev);
+	return (err);
 }
 
 static device_method_t sn_isa_methods[] = {
