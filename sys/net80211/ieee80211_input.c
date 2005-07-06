@@ -2609,13 +2609,11 @@ ieee80211_node_pwrsave(struct ieee80211_node *ni, int enable)
 		/* 
 		 * If this is the last packet, turn off the TIM bit.
 		 * If there are more packets, set the more packets bit
-		 * in the packet dispatched to the station.
+		 * in the mbuf so ieee80211_encap will mark the 802.11
+		 * head to indicate more data frames will follow.
 		 */
-		if (qlen != 0) {
-			struct ieee80211_frame_min *wh =
-				mtod(m, struct ieee80211_frame_min *);
-			wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
-		}
+		if (qlen != 0)
+			m->m_flags |= M_MORE_DATA;
 		/* XXX need different driver interface */
 		/* XXX bypasses q max */
 		IF_ENQUEUE(&ic->ic_ifp->if_snd, m);
