@@ -426,6 +426,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_BEACON_INTERVAL	53	/* beacon interval (ms) */
 #define	IEEE80211_IOC_ADDMAC		54	/* add sta to MAC ACL table */
 #define	IEEE80211_IOC_DELMAC		55	/* del sta from MAC ACL table */
+#define	IEEE80211_IOC_PUREG		56	/* pure 11g (no 11b stations) */
 
 /*
  * Scan result data returned for IEEE80211_IOC_SCAN_RESULTS.
