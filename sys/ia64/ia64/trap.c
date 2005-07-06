@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <ia64/disasm/disasm.h>
+
 static int print_usertrap = 0;
 SYSCTL_INT(_machdep, OID_AUTO, print_usertrap,
     CTLFLAG_RW, &print_usertrap, 0, "");
@@ -304,6 +306,39 @@ printtrap(int vector, struct trapframe *tf, int isfatal, int user)
 	printf("\n");
 }
 
+/*
+ * We got a trap caused by a break instruction and the immediate was 0.
+ * This indicates that we may have a break.b with some non-zero immediate.
+ * The break.b doesn't cause the immediate to be put in cr.iim.  Hence,
+ * we need to disassemble the bundle and return the immediate found there.
+ * This may be a 0 value anyway.  Return 0 for any error condition.  This
+ * will result in a SIGILL, which is pretty much the best thing to do.
+ */
+static uint64_t
+trap_decode_break(struct trapframe *tf)
+{
+	struct asm_bundle bundle;
+	struct asm_inst *inst;
+	int slot;
+
+	if (!asm_decode(tf->tf_special.iip, &bundle))
+		return (0);
+
+	slot = ((tf->tf_special.psr & IA64_PSR_RI) == IA64_PSR_RI_0) ? 0 :
+            ((tf->tf_special.psr & IA64_PSR_RI) == IA64_PSR_RI_1) ? 1 : 2;
+	inst = bundle.b_inst + slot;
+
+	/*
+	 * Sanity checking: It must be a break instruction and the operand
+	 * that has the break value must be an immediate.
+	 */
+	if (inst->i_op != ASM_OP_BREAK ||
+	    inst->i_oper[1].o_type != ASM_OPER_IMM)
+		return (0);
+
+	return (inst->i_oper[1].o_value);
+}
+
 static void
 trap_panic(int vector, struct trapframe *tf)
 {
@@ -437,8 +472,22 @@ trap(int vector, struct trapframe *tf)
 
 	case IA64_VEC_BREAK:
 		if (user) {
-			/* XXX we don't decode break.b */
 			ucode = (int)tf->tf_special.ifa & 0x1FFFFF;
+			if (ucode == 0) {
+				/*
+				 * A break.b doesn't cause the immediate to be
+				 * stored in cr.iim (and saved in the TF in
+				 * tf_special.ifa).  We need to decode the
+				 * instruction to find out what the immediate
+				 * was.  Note that if the break instruction
+				 * didn't happen to be a break.b, but any
+				 * other break with an immediate of 0, we
+				 * will do unnecessary work to get the value
+				 * we already had.  Not an issue, because a
+				 * break 0 is invalid.
+				 */
+				ucode = trap_decode_break(tf);
+			}
 			if (ucode < 0x80000) {
 				/* Software interrupts. */
 				switch (ucode) {
