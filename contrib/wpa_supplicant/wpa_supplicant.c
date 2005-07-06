@@ -1000,6 +1000,7 @@ void wpa_supplicant_event(struct wpa_supplicant *wpa_s, wpa_event_type event,
 			wpa_s->interface_removed = 1;
 			wpa_supplicant_mark_disassoc(wpa_s);
 			l2_packet_deinit(wpa_s->l2);
+			wpa_s->l2 = NULL;
 			break;
 		}
 		break;
