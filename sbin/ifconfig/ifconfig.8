@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2005
+.Dd July 5, 2005
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -706,6 +706,12 @@ and
 .Dq Li rtscts
 (RTS/CTS).
 Technique names are case insensitive.
+.It Cm pureg
+When operating as an access point in 802.11g mode allow only
+11g-capable stations to associate (11b-only stations are not
+permitted to associate).
+To allow both 11g and 11b-only stations to associate, use
+.Fl pureg .
 .It Cm roaming Ar mode
 When operating as a station, control how the system will
 behave when communication with the current access point
