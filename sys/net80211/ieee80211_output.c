@@ -534,6 +534,8 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 	case IEEE80211_M_MONITOR:
 		goto bad;
 	}
+	if (m->m_flags & M_MORE_DATA)
+		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
 	if (addqos) {
 		struct ieee80211_qosframe *qwh =
 			(struct ieee80211_qosframe *) wh;
