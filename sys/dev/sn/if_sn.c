@@ -156,11 +156,10 @@ sn_attach(device_t dev)
 {
 	struct sn_softc *sc = device_get_softc(dev);
 	struct ifnet    *ifp;
-	uint16_t        i, w;
+	uint16_t        i;
 	uint8_t         *p;
 	int             rev;
 	uint16_t        address;
-	int		j;
 	int		err;
 	u_char		eaddr[6];
 
@@ -170,29 +169,21 @@ sn_attach(device_t dev)
 		return (ENOSPC);
 	}
 
-	sc->dev = dev;
-	sn_activate(dev);
 	SN_LOCK_INIT(sc);
 	snstop(sc);
 	sc->pages_wanted = -1;
 
-	SMC_SELECT_BANK(sc, 3);
-	rev = (CSR_READ_2(sc, REVISION_REG_W) >> 4) & 0xf;
-	if (chip_ids[rev])
-		device_printf(dev, " %s ", chip_ids[rev]);
-	else
-		device_printf(dev, " unsupported chip");
-
-	SMC_SELECT_BANK(sc, 1);
-	i = CSR_READ_2(sc, CONFIG_REG_W);
-	printf(i & CR_AUI_SELECT ? "AUI" : "UTP");
-
-	if (sc->pccard_enaddr)
-		for (j = 0; j < 3; j++) {
-			w = (uint16_t)eaddr[j * 2] | 
-			    (((uint16_t)eaddr[j * 2 + 1]) << 8);
-			CSR_WRITE_2(sc, IAR_ADDR0_REG_W + j * 2, w);
-		}
+	if (bootverbose || 1) {
+		SMC_SELECT_BANK(sc, 3);
+		rev = (CSR_READ_2(sc, REVISION_REG_W) >> 4) & 0xf;
+		if (chip_ids[rev])
+			device_printf(dev, " %s ", chip_ids[rev]);
+		else
+			device_printf(dev, " unsupported chip");
+		SMC_SELECT_BANK(sc, 1);
+		i = CSR_READ_2(sc, CONFIG_REG_W);
+		printf("%s\n", i & CR_AUI_SELECT ? "AUI" : "UTP");
+	}
 
 	/*
 	 * Read the station address from the chip. The MAC address is bank 1,
@@ -1263,7 +1254,7 @@ sn_deactivate(device_t dev)
 }
 
 /*
- * Function: sn_probe( device_t dev, int pccard )
+ * Function: sn_probe( device_t dev)
  *
  * Purpose:
  *      Tests to see if a given ioaddr points to an SMC9xxx chip.
@@ -1278,7 +1269,7 @@ sn_deactivate(device_t dev)
  *
  */
 int 
-sn_probe(device_t dev, int pccard)
+sn_probe(device_t dev)
 {
 	struct sn_softc *sc = device_get_softc(dev);
 	uint16_t        bank;
@@ -1322,11 +1313,7 @@ sn_probe(device_t dev, int pccard)
 	CSR_WRITE_2(sc, BANK_SELECT_REG_W, 0x0001);
 	base_address_register = (CSR_READ_2(sc, BASE_ADDR_REG_W) >> 3) & 0x3e0;
 
-	/*
-	 * This test is nonsence on PC-card architecture, so if 
-	 * pccard == 1, skip this test. (hosokawa)
-	 */
-	if (!pccard && rman_get_start(sc->port_res) != base_address_register) {
+	if (rman_get_start(sc->port_res) != base_address_register) {
 
 		/*
 		 * Well, the base address register didn't match.  Must not
