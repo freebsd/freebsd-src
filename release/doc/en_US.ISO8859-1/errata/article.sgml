@@ -153,6 +153,13 @@
 	    <entry>29&nbsp;Jun&nbsp;2005</entry>
 	    <entry><para>TCP connection stall denial of service</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:16.zlib.asc"
+		>SA-05:16.zlib</ulink></entry>
+	    <entry>6&nbsp;Jul&nbsp;2005</entry>
+	    <entry><para>Buffer overflow in zlib</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
