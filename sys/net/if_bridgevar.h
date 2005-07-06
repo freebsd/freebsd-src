@@ -352,7 +352,6 @@ void	bstp_linkstate(struct ifnet *, int);
 void	bstp_stop(struct bridge_softc *);
 struct mbuf *bstp_input(struct ifnet *, struct mbuf *);
 
-void	bridge_enqueue(struct bridge_softc *, struct ifnet *, struct mbuf *,
-	    int);
+void	bridge_enqueue(struct bridge_softc *, struct ifnet *, struct mbuf *);
 
 #endif /* _KERNEL */
