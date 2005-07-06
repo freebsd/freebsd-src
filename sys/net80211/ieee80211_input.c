@@ -1917,7 +1917,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				return;
 		}
 
-		if (ni == ic->ic_bss) {
+		if (ni == ic->ic_bss &&
+		    !IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_bssid)) {
 #ifdef IEEE80211_DEBUG
 			if (ieee80211_msg_scan(ic))
 				dump_probe_beacon(subtype, 1,
