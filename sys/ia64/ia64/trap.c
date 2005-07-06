@@ -186,15 +186,15 @@ static const char *ia64_vector_names[] = {
 };
 
 struct bitname {
-	u_int64_t mask;
+	uint64_t mask;
 	const char* name;
 };
 
 static void
-printbits(u_int64_t mask, struct bitname *bn, int count)
+printbits(uint64_t mask, struct bitname *bn, int count)
 {
 	int i, first = 1;
-	u_int64_t bit;
+	uint64_t bit;
 
 	for (i = 0; i < count; i++) {
 		/*
@@ -253,7 +253,7 @@ struct bitname psr_bits[] = {
 };
 
 static void
-printpsr(u_int64_t psr)
+printpsr(uint64_t psr)
 {
 	printbits(psr, psr_bits, sizeof(psr_bits)/sizeof(psr_bits[0]));
 }
@@ -274,7 +274,7 @@ struct bitname isr_bits[] = {
 	{IA64_ISR_ED,	"ed"},
 };
 
-static void printisr(u_int64_t isr)
+static void printisr(uint64_t isr)
 {
 	printbits(isr, isr_bits, sizeof(isr_bits)/sizeof(isr_bits[0]));
 }
@@ -349,7 +349,7 @@ trap(int vector, struct trapframe *tf)
 {
 	struct proc *p;
 	struct thread *td;
-	u_int64_t ucode;
+	uint64_t ucode;
 	int error, sig, user;
 	u_int sticks;
 
@@ -964,7 +964,7 @@ syscall(struct trapframe *tf)
 	struct sysent *callp;
 	struct proc *p;
 	struct thread *td;
-	u_int64_t *args;
+	uint64_t *args;
 	int code, error;
 	u_int sticks;
 
