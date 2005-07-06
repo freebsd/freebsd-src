@@ -281,7 +281,7 @@ bstp_send_config_bpdu(struct bridge_softc *sc, struct bridge_iflist *bif,
 
 	/* XXX: safe here?!? */
 	BRIDGE_UNLOCK(sc);
-	bridge_enqueue(sc, ifp, m, 0);
+	bridge_enqueue(sc, ifp, m);
 	BRIDGE_LOCK(sc);
 }
 
@@ -397,7 +397,7 @@ bstp_transmit_tcn(struct bridge_softc *sc)
 
 	/* XXX: safe here?!? */
 	BRIDGE_UNLOCK(sc);
-	bridge_enqueue(sc, ifp, m, 0);
+	bridge_enqueue(sc, ifp, m);
 	BRIDGE_LOCK(sc);
 }
 
