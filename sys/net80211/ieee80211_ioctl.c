@@ -1451,6 +1451,9 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		/* NB: get from ic_bss for station mode */
 		ireq->i_val = ic->ic_bss->ni_intval;
 		break;
+	case IEEE80211_IOC_PUREG:
+		ireq->i_val = (ic->ic_flags & IEEE80211_F_PUREG) != 0;
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -2315,6 +2318,15 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 			error = ENETRESET;		/* requires restart */
 		} else
 			error = EINVAL;
+		break;
+	case IEEE80211_IOC_PUREG:
+		if (ireq->i_val)
+			ic->ic_flags |= IEEE80211_F_PUREG;
+		else
+			ic->ic_flags &= ~IEEE80211_F_PUREG;
+		/* NB: reset only if we're operating on an 11g channel */
+		if (ic->ic_curmode == IEEE80211_MODE_11G)
+			error = ENETRESET;
 		break;
 	default:
 		error = EINVAL;
