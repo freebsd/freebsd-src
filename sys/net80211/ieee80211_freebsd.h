@@ -148,6 +148,7 @@ int	ieee80211_node_dectestref(struct ieee80211_node *ni);
 struct mbuf *ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen);
 #define	M_LINK0		M_PROTO1		/* WEP requested */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
+#define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
 /*
  * Encode WME access control bits in the PROTO flags.
  * This is safe since it's passed directly in to the
