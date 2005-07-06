@@ -1239,8 +1239,7 @@ bridge_stop(struct ifnet *ifp, int disable)
  *
  */
 __inline void
-bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m,
-    int runfilt)
+bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 {
 	int len, err;
 	short mflags;
@@ -1249,13 +1248,6 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m,
 	 * Clear any in-bound checksum flags for this packet.
 	 */
 	m->m_pkthdr.csum_flags = 0;
-
-	if (runfilt && inet_pfil_hook.ph_busy_count >= 0) {
-		if (bridge_pfil(&m, sc->sc_ifp, dst_ifp, PFIL_OUT) != 0)
-			return;
-	}
-	if (m == NULL)
-		return;
 
 	len = m->m_pkthdr.len;
 	mflags = m->m_flags;
@@ -1302,7 +1294,18 @@ bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
 		return;
 	}
 
-	bridge_enqueue(sc, ifp, m, 1);
+	if (inet_pfil_hook.ph_busy_count >= 0
+#ifdef INET6
+	    || inet6_pfil_hook.ph_busy_count >= 0
+#endif
+	    ) {
+		if (bridge_pfil(&m, sc->sc_ifp, ifp, PFIL_OUT) != 0)
+			return;
+		if (m == NULL)
+			return;
+	}
+
+	bridge_enqueue(sc, ifp, m);
 }
 
 /*
@@ -1394,7 +1397,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 				}
 			}
 
-			bridge_enqueue(sc, dst_if, mc, 0);
+			bridge_enqueue(sc, dst_if, mc);
 		}
 		if (used == 0)
 			m_freem(m);
@@ -1414,7 +1417,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 	}
 
 	BRIDGE_UNLOCK(sc);
-	bridge_enqueue(sc, dst_if, m, 0);
+	bridge_enqueue(sc, dst_if, m);
 	return (0);
 }
 
@@ -1453,7 +1456,19 @@ bridge_start(struct ifnet *ifp)
 			bridge_broadcast(sc, ifp, m);
 		else {
 			BRIDGE_UNLOCK(sc);
-			bridge_enqueue(sc, dst_if, m, 1);
+
+			if (inet_pfil_hook.ph_busy_count >= 0
+#ifdef INET6
+			    || inet6_pfil_hook.ph_busy_count >= 0
+#endif
+	    		    ) {
+				if (bridge_pfil(&m, sc->sc_ifp, dst_if, PFIL_OUT) != 0)
+					return;
+				if (m == NULL)
+					return;
+			}
+
+			bridge_enqueue(sc, dst_if, m);
 		}
 	}
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -1553,15 +1568,17 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	}
 
 	/* run the packet filter */
-	if (inet_pfil_hook.ph_busy_count >= 0) {
+	if (inet_pfil_hook.ph_busy_count >= 0
+#ifdef INET6
+	    || inet6_pfil_hook.ph_busy_count >= 0
+#endif
+	    ) {
 		BRIDGE_UNLOCK(sc);
 		if (bridge_pfil(&m, ifp, src_if, PFIL_IN) != 0)
 			return;
+		if (m == NULL)
+			return;
 		BRIDGE_LOCK(sc);
-	}
-	if (m == NULL) {
-		BRIDGE_UNLOCK(sc);
-		return;
 	}
 
 	if (dst_if == NULL) {
@@ -1603,7 +1620,19 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	BPF_MTAP(ifp, m);
 
 	BRIDGE_UNLOCK(sc);
-	bridge_enqueue(sc, dst_if, m, 1);
+
+	if (inet_pfil_hook.ph_busy_count >= 0
+#ifdef INET6
+	    || inet6_pfil_hook.ph_busy_count >= 0
+#endif
+	    ) {
+		if (bridge_pfil(&m, sc->sc_ifp, dst_if, PFIL_OUT) != 0)
+			return;
+		if (m == NULL)
+			return;
+	}
+
+	bridge_enqueue(sc, dst_if, m);
 }
 
 /*
@@ -1757,6 +1786,18 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		return;
 	}
 
+	/* Filter on the bridge interface before broadcasting */
+	if (inet_pfil_hook.ph_busy_count >= 0
+#ifdef INET6
+	    || inet6_pfil_hook.ph_busy_count >= 0
+#endif
+	    ) {
+		if (bridge_pfil(&m, sc->sc_ifp, NULL, PFIL_OUT) != 0)
+			return;
+		if (m == NULL)
+			return;
+	}
+
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		dst_if = bif->bif_ifp;
 		if (dst_if == src_if)
@@ -1788,7 +1829,23 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 			}
 		}
 
-		bridge_enqueue(sc, dst_if, mc, 1);
+		/*
+		 * Filter on the output interface. Pass a NULL bridge interface
+		 * pointer so we do not redundantly filter on the bridge for 
+		 * each interface we broadcast on.
+		 */
+		if (inet_pfil_hook.ph_busy_count >= 0
+#ifdef INET6
+		    || inet6_pfil_hook.ph_busy_count >= 0
+#endif
+		    ) {
+			if (bridge_pfil(&m, NULL, dst_if, PFIL_OUT) != 0)
+				return;
+			if (m == NULL)
+				return;
+		}
+		
+		bridge_enqueue(sc, dst_if, mc);
 	}
 	if (used == 0)
 		m_freem(m);
@@ -2169,7 +2226,8 @@ bridge_rtnode_destroy(struct bridge_softc *sc, struct bridge_rtnode *brt)
 /*
  * Send bridge packets through pfil if they are one of the types pfil can deal
  * with, or if they are ARP or REVARP.  (pfil will pass ARP and REVARP without
- * question.)
+ * question.) If *bifp or *ifp are NULL then packet filtering is skipped for
+ * that interface.
  */
 static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 		struct ifnet *ifp, int dir)
@@ -2269,7 +2327,7 @@ static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
 			goto bad;
 	}
 
-	if (IPFW_LOADED && pfil_ipfw != 0 && dir == PFIL_OUT) {
+	if (IPFW_LOADED && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
 		error = -1;
 		args.rule = ip_dn_claim_rule(*mp);
 		if (args.rule != NULL && fw_one_pass)
@@ -2331,21 +2389,21 @@ ipfwpass:
 		 * Keep the order:
 		 *   in_if -> bridge_if -> out_if
 		 */
-		if (pfil_bridge && dir == PFIL_OUT)
+		if (pfil_bridge && dir == PFIL_OUT && bifp != NULL)
 			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
-		if (pfil_member)
+		if (pfil_member && ifp != NULL)
 			error = pfil_run_hooks(&inet_pfil_hook, mp, ifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
-		if (pfil_bridge && dir == PFIL_IN)
+		if (pfil_bridge && dir == PFIL_IN && bifp != NULL)
 			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
 					dir, NULL);
 
@@ -2359,21 +2417,21 @@ ipfwpass:
 		break;
 # ifdef INET6
 	case ETHERTYPE_IPV6 :
-		if (pfil_bridge && dir == PFIL_OUT)
+		if (pfil_bridge && dir == PFIL_OUT && bifp != NULL)
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
-		if (pfil_member)
+		if (pfil_member && ifp != NULL)
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, ifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
-		if (pfil_bridge && dir == PFIL_IN)
+		if (pfil_bridge && dir == PFIL_IN && bifp != NULL)
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 		break;
