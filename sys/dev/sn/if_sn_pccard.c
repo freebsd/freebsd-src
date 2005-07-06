@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccard_cis.h>
+#include <dev/sn/if_snreg.h>
 #include <dev/sn/if_snvar.h>
 
 #include "card_if.h"
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 static const struct pccard_product sn_pccard_products[] = {
 	PCMCIA_CARD(DSPSI, XJACK),
 	PCMCIA_CARD(NEWMEDIA, BASICS),
+	PCMCIA_CARD(SMC, SMC91C96),
 #if 0
 	PCMCIA_CARD(SMC, 8020BT),
 #endif
@@ -62,7 +64,7 @@ static const struct pccard_product sn_pccard_products[] = {
 };
 
 static int
-sn_pccard_match(device_t dev)
+sn_pccard_probe(device_t dev)
 {
 	const struct pccard_product *pp;
 	int		error;
@@ -82,15 +84,6 @@ sn_pccard_match(device_t dev)
 		return 0;
 	}
 	return EIO;
-}
-
-static int
-sn_pccard_probe(device_t dev)
-{
-	int err;
-
-	err = sn_probe(dev, 1);
-	return (err);
 }
 
 static int
@@ -128,42 +121,53 @@ static int
 sn_pccard_attach(device_t dev)
 {
 	struct sn_softc *sc = device_get_softc(dev);
-	int i;
-	u_char sum;
-	u_char ether_addr[ETHER_ADDR_LEN];
 	const char *cisstr;
+	u_char eaddr[ETHER_ADDR_LEN];
+	int i, err;
+	uint16_t w;
+	u_char sum;
 
-	sc->pccard_enaddr = 0;
-	pccard_get_ether(dev, ether_addr);
+	pccard_get_ether(dev, eaddr);
 	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
-		sum |= ether_addr[i];
+		sum |= eaddr[i];
 	if (sum == 0) {
 		pccard_get_cis3_str(dev, &cisstr);
-		if (strlen(cisstr) == ETHER_ADDR_LEN * 2)
-		    sum = sn_pccard_ascii_enaddr(cisstr, ether_addr);
+		if (cisstr && strlen(cisstr) == ETHER_ADDR_LEN * 2)
+		    sum = sn_pccard_ascii_enaddr(cisstr, eaddr);
 	}
 	if (sum == 0) {
 		pccard_get_cis4_str(dev, &cisstr);
-		if (strlen(cisstr) == ETHER_ADDR_LEN * 2)
-		    sum = sn_pccard_ascii_enaddr(cisstr, ether_addr);
+		if (cisstr && strlen(cisstr) == ETHER_ADDR_LEN * 2)
+		    sum = sn_pccard_ascii_enaddr(cisstr, eaddr);
 	}
+
+	/* Allocate resources so we can program the ether addr */
+	sc->dev = dev;
+	err = sn_activate(dev);
+	if (err) {
+		sn_deactivate(dev);
+		return (err);
+	}
+
 	if (sum) {
-		sc->pccard_enaddr = 1;
-		bcopy(ether_addr, IFP2ENADDR(sc->ifp), ETHER_ADDR_LEN);
+		SMC_SELECT_BANK(sc, 1);
+		for (i = 0; i < 3; i++) {
+			w = (uint16_t)eaddr[i * 2] | 
+			    (((uint16_t)eaddr[i * 2 + 1]) << 8);
+			CSR_WRITE_2(sc, IAR_ADDR0_REG_W + i * 2, w);
+		}
 	}
-	return (sn_attach(dev));
+	err = sn_attach(dev);
+	if (err)
+		sn_deactivate(dev);
+	return (err);
 }
 
 static device_method_t sn_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		sn_pccard_probe),
+	DEVMETHOD(device_attach,	sn_pccard_attach),
 	DEVMETHOD(device_detach,	sn_detach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	sn_pccard_match),
-	DEVMETHOD(card_compat_probe,	sn_pccard_probe),
-	DEVMETHOD(card_compat_attach,	sn_pccard_attach),
 
 	{ 0, 0 }
 };
