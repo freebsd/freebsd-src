@@ -2305,7 +2305,14 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		rate = ieee80211_setup_rates(ic, ni, rates, xrates,
 				IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE |
 				IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
-		if (rate & IEEE80211_RATE_BASIC) {
+		/*
+		 * If constrained to 11g-only stations reject an
+		 * 11b-only station.  We cheat a bit here by looking
+		 * at the max negotiated xmit rate and assuming anyone
+		 * with a best rate <24Mb/s is an 11b station.
+		 */
+		if ((rate & IEEE80211_RATE_BASIC) ||
+		    ((ic->ic_flags & IEEE80211_F_PUREG) && rate < 48)) {
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_ANY,
 			    "[%s] deny %s request, rate set mismatch\n",
 			    ether_sprintf(wh->i_addr2),
