@@ -850,6 +850,13 @@ node_cleanup(struct ieee80211_node *ni)
 		    "[%s] power save mode off, %u sta's in ps mode\n",
 		    ether_sprintf(ni->ni_macaddr), ic->ic_ps_sta);
 	}
+	/*
+	 * Clear AREF flag that marks the authorization refcnt bump
+	 * has happened.  This is probably not needed as the node
+	 * should always be removed from the table so not found but
+	 * do it just in case.
+	 */
+	ni->ni_flags &= ~IEEE80211_NODE_AREF;
 
 	/*
 	 * Drain power save queue and, if needed, clear TIM.
@@ -1396,6 +1403,14 @@ restart:
 		if (ni->ni_scangen == gen)	/* previously handled */
 			continue;
 		ni->ni_scangen = gen;
+		/*
+		 * Ignore entries for which have yet to receive an
+		 * authentication frame.  These are transient and
+		 * will be reclaimed when the last reference to them
+		 * goes away (when frame xmits complete).
+		 */
+		if ((ni->ni_flags & IEEE80211_NODE_AREF) == 0)
+			continue;
 		/*
 		 * Free fragment if not needed anymore
 		 * (last fragment older than 1s).
