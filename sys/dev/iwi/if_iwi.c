@@ -1355,8 +1355,10 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 	bcopy(mtod(m0, struct ieee80211_frame *), &wh, sizeof (struct ieee80211_frame));
 	if (wh.i_fc[1] & IEEE80211_FC1_WEP) {
 		k = ieee80211_crypto_encap(ic, ni, m0);
-		if (k == NULL)
+		if (k == NULL) {
+			m_freem(m0);
 			return ENOBUFS;
+		}
 	}
 
 	if (sc->sc_drvbpf != NULL) {
