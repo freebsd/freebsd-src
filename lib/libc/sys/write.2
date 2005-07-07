@@ -49,9 +49,11 @@
 .Ft ssize_t
 .Fn write "int d" "const void *buf" "size_t nbytes"
 .Ft ssize_t
+.Fn pwrite "int d" "const void *buf" "size_t nbytes" "off_t offset"
+.Ft ssize_t
 .Fn writev "int d" "const struct iovec *iov" "int iovcnt"
 .Ft ssize_t
-.Fn pwrite "int d" "const void *buf" "size_t nbytes" "off_t offset"
+.Fn pwritev "int d" "const struct iovec *iov" "int iovcnt" "off_t offset"
 .Sh DESCRIPTION
 The
 .Fn write
@@ -73,12 +75,16 @@ buffers specified by the members of the
 array: iov[0], iov[1], ..., iov[iovcnt\|-\|1].
 The
 .Fn pwrite
-system call
-performs the same function, but writes to the specified position in
+and
+.Fn pwritev
+system calls
+perform the same functions, but write to the specified position in
 the file without modifying the file pointer.
 .Pp
 For
-.Fn writev ,
+.Fn writev
+and
+.Fn pwritev,
 the
 .Fa iovec
 structure is defined as:
@@ -143,8 +149,9 @@ is set to indicate the error.
 The
 .Fn write ,
 .Fn writev ,
-and
 .Fn pwrite
+and
+.Fn pwritev
 system calls
 will fail and the file pointer will remain unchanged if:
 .Bl -tag -width Er
@@ -201,6 +208,8 @@ is greater than
 .Pp
 In addition,
 .Fn writev
+and
+.Fn pwritev
 may return one of the following errors:
 .Bl -tag -width Er
 .It Bq Er EDESTADDRREQ
@@ -233,7 +242,9 @@ The mbuf pool has been completely exhausted when writing to a socket.
 .Pp
 The
 .Fn pwrite
-system call may also return the following errors:
+and
+.Fn pwritev
+system calls may also return the following errors:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
@@ -260,6 +271,10 @@ and
 system calls are expected to conform to
 .St -xpg4.2 .
 .Sh HISTORY
+The
+.Fn pwritev
+system call appeared in
+.Fx 6.0 .
 The
 .Fn pwrite
 function appeared in
