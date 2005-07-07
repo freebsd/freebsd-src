@@ -73,9 +73,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include "opt_sysvipc.h"
+
 #include <sys/param.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include <sys/proc.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <sys/syscallsubr.h>
+#include <sys/sysproto.h>
+#include <sys/systm.h>
 #include <sys/time.h>
 
 #include <compat/svr4/svr4.h>
@@ -99,9 +107,9 @@ static void svr4_to_bsd_semid_ds(const struct svr4_semid_ds *,
 				      struct semid_ds *);
 static int svr4_setsemun(caddr_t *sgp, union semun **argp,
 			      union semun *usp);
-static int svr4_semop(struct proc *, void *, register_t *);
-static int svr4_semget(struct proc *, void *, register_t *);
-static int svr4_semctl(struct proc *, void *, register_t *);
+static int svr4_semop(struct thread *, void *);
+static int svr4_semget(struct thread *, void *);
+static int svr4_semctl(struct thread *, void *);
 #endif
 
 #ifdef SYSVMSG
@@ -109,10 +117,10 @@ static void bsd_to_svr4_msqid_ds(const struct msqid_ds *,
 				      struct svr4_msqid_ds *);
 static void svr4_to_bsd_msqid_ds(const struct svr4_msqid_ds *,
 				      struct msqid_ds *);
-static int svr4_msgsnd(struct proc *, void *, register_t *);
-static int svr4_msgrcv(struct proc *, void *, register_t *);
-static int svr4_msgget(struct proc *, void *, register_t *);
-static int svr4_msgctl(struct proc *, void *, register_t *);
+static int svr4_msgsnd(struct thread *, void *);
+static int svr4_msgrcv(struct thread *, void *);
+static int svr4_msgget(struct thread *, void *);
+static int svr4_msgctl(struct thread *, void *);
 #endif
 
 #ifdef SYSVSHM
@@ -120,10 +128,10 @@ static void bsd_to_svr4_shmid_ds(const struct shmid_ds *,
 				      struct svr4_shmid_ds *);
 static void svr4_to_bsd_shmid_ds(const struct svr4_shmid_ds *,
 				      struct shmid_ds *);
-static int svr4_shmat(struct proc *, void *, register_t *);
-static int svr4_shmdt(struct proc *, void *, register_t *);
-static int svr4_shmget(struct proc *, void *, register_t *);
-static int svr4_shmctl(struct proc *, void *, register_t *);
+static int svr4_shmat(struct thread *, void *);
+static int svr4_shmdt(struct thread *, void *);
+static int svr4_shmget(struct thread *, void *);
+static int svr4_shmctl(struct thread *, void *);
 #endif
 
 #if defined(SYSVMSG) || defined(SYSVSHM) || defined(SYSVSEM)
@@ -197,22 +205,21 @@ svr4_setsemun(sgp, argp, usp)
 }
 
 struct svr4_sys_semctl_args {
-	syscallarg(int) what;
-	syscallarg(int) semid;
-	syscallarg(int) semnum;
-	syscallarg(int) cmd;
-	syscallarg(union semun) arg;
+	int what;
+	int semid;
+	int semnum;
+	int cmd;
+	union semun arg;
 };
 
 static int
-svr4_semctl(p, v, retval)
-	struct proc *p;
+svr4_semctl(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	int error;
 	struct svr4_sys_semctl_args *uap = v;
-	struct sys___semctl_args ap;
+	struct __semctl_args ap;
 	struct svr4_semid_ds ss;
 	struct semid_ds bs, *bsp;
 	caddr_t sg = stackgap_init();
@@ -239,28 +246,28 @@ svr4_semctl(p, v, retval)
 			ap.cmd = GETVAL;
 			break;
 		}
-		return sys___semctl(p, &ap, retval);
+		return __semctl(td, &ap);
 
 	case SVR4_SEM_SETVAL:
 		error = svr4_setsemun(&sg, &ap.arg, &uap->arg);
 		if (error)
 			return error;
 		ap.cmd = SETVAL;
-		return sys___semctl(p, &ap, retval);
+		return __semctl(td, &ap);
 
 	case SVR4_SEM_GETALL:
 		error = svr4_setsemun(&sg, &ap.arg, &uap->arg);
 		if (error)
 			return error;
 		ap.cmd = GETVAL;
-		return sys___semctl(p, &ap, retval);
+		return __semctl(td, &ap);
 
 	case SVR4_SEM_SETALL:
 		error = svr4_setsemun(&sg, &ap.arg, &uap->arg);
 		if (error)
 			return error;
 		ap.cmd = SETVAL;
-		return sys___semctl(p, &ap, retval);
+		return __semctl(td, &ap);
 
 	case SVR4_IPC_STAT:
                 ap.cmd = IPC_STAT;
@@ -269,7 +276,7 @@ svr4_semctl(p, v, retval)
 				      (union semun *)&bsp);
 		if (error)
 			return error;
-                if ((error = sys___semctl(p, &ap, retval)) != 0)
+                if ((error = __semctl(td, &ap)) != 0)
                         return error;
 		error = copyin((caddr_t)bsp, (caddr_t)&bs, sizeof(bs));
                 if (error)
@@ -291,7 +298,7 @@ svr4_semctl(p, v, retval)
 		error = copyout(&bs, bsp, sizeof(bs));
                 if (error)
                         return error;
-		return sys___semctl(p, &ap, retval);
+		return __semctl(td, &ap);
 
 	case SVR4_IPC_RMID:
 		ap.cmd = IPC_RMID;
@@ -307,7 +314,7 @@ svr4_semctl(p, v, retval)
 		error = copyout(&bs, bsp, sizeof(bs));
 		if (error)
 			return error;
-		return sys___semctl(p, &ap, retval);
+		return __semctl(td, &ap);
 
 	default:
 		return EINVAL;
@@ -315,69 +322,65 @@ svr4_semctl(p, v, retval)
 }
 
 struct svr4_sys_semget_args {
-	syscallarg(int) what;
-	syscallarg(svr4_key_t) key;
-	syscallarg(int) nsems;
-	syscallarg(int) semflg;
+	int what;
+	svr4_key_t key;
+	int nsems;
+	int semflg;
 };
 
 static int
-svr4_semget(p, v, retval)
-	struct proc *p;
+svr4_semget(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	struct svr4_sys_semget_args *uap = v;
-	struct sys_semget_args ap;
+	struct semget_args ap;
 
 	ap.key = uap->key;
 	ap.nsems = uap->nsems;
 	ap.semflg = uap->semflg;
 
-	return sys_semget(p, &ap, retval);
+	return semget(td, &ap);
 }
 
 struct svr4_sys_semop_args {
-	syscallarg(int) what;
-	syscallarg(int) semid;
-	syscallarg(struct svr4_sembuf *) sops;
-	syscallarg(u_int) nsops;
+	int what;
+	int semid;
+	struct svr4_sembuf * sops;
+	u_int nsops;
 };
 
 static int
-svr4_semop(p, v, retval)
-	struct proc *p;
+svr4_semop(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	struct svr4_sys_semop_args *uap = v;
-	struct sys_semop_args ap;
+	struct semop_args ap;
 
 	ap.semid = uap->semid;
 	/* These are the same */
 	ap.sops = (struct sembuf *) uap->sops;
 	ap.nsops = uap->nsops;
 
-	return sys_semop(p, &ap, retval);
+	return semop(td, &ap);
 }
 
 int
-svr4_sys_semsys(p, v, retval)
-	struct proc *p;
-	void *v;
-	register_t *retval;
+svr4_sys_semsys(td, uap)
+	struct thread *td;
+	struct svr4_sys_semsys_args *uap;
 {
-	struct svr4_sys_semsys_args *uap = v;
 
 	DPRINTF(("svr4_semsys(%d)\n", uap->what));
 
 	switch (uap->what) {
 	case SVR4_semctl:
-		return svr4_semctl(p, v, retval);
+		return svr4_semctl(td, uap);
 	case SVR4_semget:
-		return svr4_semget(p, v, retval);
+		return svr4_semget(td, uap);
 	case SVR4_semop:
-		return svr4_semop(p, v, retval);
+		return svr4_semop(td, uap);
 	default:
 		return EINVAL;
 	}
@@ -442,47 +445,45 @@ svr4_to_bsd_msqid_ds(sds, bds)
 }
 
 struct svr4_sys_msgsnd_args {
-	syscallarg(int) what;
-	syscallarg(int) msqid;
-	syscallarg(void *) msgp;
-	syscallarg(size_t) msgsz;
-	syscallarg(int) msgflg;
+	int what;
+	int msqid;
+	void * msgp;
+	size_t msgsz;
+	int msgflg;
 };
 
 static int
-svr4_msgsnd(p, v, retval)
-	struct proc *p;
+svr4_msgsnd(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	struct svr4_sys_msgsnd_args *uap = v;
-	struct sys_msgsnd_args ap;
+	struct msgsnd_args ap;
 
 	ap.msqid = uap->msqid;
 	ap.msgp = uap->msgp;
 	ap.msgsz = uap->msgsz;
 	ap.msgflg = uap->msgflg;
 
-	return sys_msgsnd(p, &ap, retval);
+	return msgsnd(td, &ap);
 }
 
 struct svr4_sys_msgrcv_args {
-	syscallarg(int) what;
-	syscallarg(int) msqid;
-	syscallarg(void *) msgp;
-	syscallarg(size_t) msgsz;
-	syscallarg(long) msgtyp;
-	syscallarg(int) msgflg;
+	int what;
+	int msqid;
+	void * msgp;
+	size_t msgsz;
+	long msgtyp;
+	int msgflg;
 };
 
 static int
-svr4_msgrcv(p, v, retval)
-	struct proc *p;
+svr4_msgrcv(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	struct svr4_sys_msgrcv_args *uap = v;
-	struct sys_msgrcv_args ap;
+	struct msgrcv_args ap;
 
 	ap.msqid = uap->msqid;
 	ap.msgp = uap->msgp;
@@ -490,42 +491,40 @@ svr4_msgrcv(p, v, retval)
 	ap.msgtyp = uap->msgtyp;
 	ap.msgflg = uap->msgflg;
 
-	return sys_msgrcv(p, &ap, retval);
+	return msgrcv(td, &ap);
 }
 	
 struct svr4_sys_msgget_args {
-	syscallarg(int) what;
-	syscallarg(svr4_key_t) key;
-	syscallarg(int) msgflg;
+	int what;
+	svr4_key_t key;
+	int msgflg;
 };
 
 static int
-svr4_msgget(p, v, retval)
-	struct proc *p;
+svr4_msgget(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	struct svr4_sys_msgget_args *uap = v;
-	struct sys_msgget_args ap;
+	struct msgget_args ap;
 
 	ap.key = uap->key;
 	ap.msgflg = uap->msgflg;
 
-	return sys_msgget(p, &ap, retval);
+	return msgget(td, &ap);
 }
 
 struct svr4_sys_msgctl_args {
-	syscallarg(int) what;
-	syscallarg(int) msqid;
-	syscallarg(int) cmd;
-	syscallarg(struct svr4_msqid_ds *) buf;
+	int what;
+	int msqid;
+	int cmd;
+	struct svr4_msqid_ds * buf;
 };
 
 static int
-svr4_msgctl(p, v, retval)
-	struct proc *p;
+svr4_msgctl(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	struct svr4_sys_msgctl_args *uap = v;
 	struct svr4_msqid_ds ss;
@@ -560,24 +559,22 @@ svr4_msgctl(p, v, retval)
 }
 
 int
-svr4_sys_msgsys(p, v, retval)
-	struct proc *p;
-	void *v;
-	register_t *retval;
+svr4_sys_msgsys(td, uap)
+	struct thread *td;
+	struct svr4_sys_msgsys_args *uap;
 {
-	struct svr4_sys_msgsys_args *uap = v;
 
 	DPRINTF(("svr4_msgsys(%d)\n", uap->what));
 
 	switch (uap->what) {
 	case SVR4_msgsnd:
-		return svr4_msgsnd(p, v, retval);
+		return svr4_msgsnd(td, uap);
 	case SVR4_msgrcv:
-		return svr4_msgrcv(p, v, retval);
+		return svr4_msgrcv(td, uap);
 	case SVR4_msgget:
-		return svr4_msgget(p, v, retval);
+		return svr4_msgget(td, uap);
 	case SVR4_msgctl:
-		return svr4_msgctl(p, v, retval);
+		return svr4_msgctl(td, uap);
 	default:
 		return EINVAL;
 	}
@@ -624,87 +621,83 @@ svr4_to_bsd_shmid_ds(sds, bds)
 }
 
 struct svr4_sys_shmat_args {
-	syscallarg(int) what;
-	syscallarg(int) shmid;
-	syscallarg(void *) shmaddr;
-	syscallarg(int) shmflg;
+	int what;
+	int shmid;
+	void * shmaddr;
+	int shmflg;
 };
 
 static int
-svr4_shmat(p, v, retval)
-	struct proc *p;
+svr4_shmat(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	struct svr4_sys_shmat_args *uap = v;
-	struct sys_shmat_args ap;
+	struct shmat_args ap;
 
 	ap.shmid = uap->shmid;
 	ap.shmaddr = uap->shmaddr;
 	ap.shmflg = uap->shmflg;
 
-	return sys_shmat(p, &ap, retval);
+	return shmat(td, &ap);
 }
 
 struct svr4_sys_shmdt_args {
-	syscallarg(int) what;
-	syscallarg(void *) shmaddr;
+	int what;
+	void * shmaddr;
 };
 
 static int
-svr4_shmdt(p, v, retval)
-	struct proc *p;
+svr4_shmdt(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	struct svr4_sys_shmdt_args *uap = v;
-	struct sys_shmdt_args ap;
+	struct shmdt_args ap;
 
 	ap.shmaddr = uap->shmaddr;
 
-	return sys_shmdt(p, &ap, retval);
+	return shmdt(td, &ap);
 }
 
 struct svr4_sys_shmget_args {
-	syscallarg(int) what;
-	syscallarg(key_t) key;
-	syscallarg(int) size;
-	syscallarg(int) shmflg;
+	int what;
+	key_t key;
+	int size;
+	int shmflg;
 };
 
 static int
-svr4_shmget(p, v, retval)
-	struct proc *p;
+svr4_shmget(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	struct svr4_sys_shmget_args *uap = v;
-	struct sys_shmget_args ap;
+	struct shmget_args ap;
 
 	ap.key = uap->key;
 	ap.size = uap->size;
 	ap.shmflg = uap->shmflg;
 
-	return sys_shmget(p, &ap, retval);
+	return shmget(td, &ap);
 }
 
 struct svr4_sys_shmctl_args {
-	syscallarg(int) what;
-	syscallarg(int) shmid;
-	syscallarg(int) cmd;
-	syscallarg(struct svr4_shmid_ds *) buf;
+	int what;
+	int shmid;
+	int cmd;
+	struct svr4_shmid_ds * buf;
 };
 
 int
-svr4_shmctl(p, v, retval)
-	struct proc *p;
+svr4_shmctl(td, v)
+	struct thread *td;
 	void *v;
-	register_t *retval;
 {
 	struct svr4_sys_shmctl_args *uap = v;
 	int error;
 	caddr_t sg = stackgap_init();
-	struct sys_shmctl_args ap;
+	struct shmctl_args ap;
 	struct shmid_ds bs;
 	struct svr4_shmid_ds ss;
 
@@ -737,7 +730,7 @@ svr4_shmctl(p, v, retval)
 	switch (uap->cmd) {
 	case SVR4_IPC_STAT:
 		ap.cmd = IPC_STAT;
-		if ((error = sys_shmctl(p, &ap, retval)) != 0)
+		if ((error = shmctl(td, &ap)) != 0)
 			return error;
 		if (uap->buf == NULL)
 			return 0;
@@ -749,7 +742,7 @@ svr4_shmctl(p, v, retval)
 
 	case SVR4_IPC_SET:
 		ap.cmd = IPC_SET;
-		return sys_shmctl(p, &ap, retval);
+		return shmctl(td, &ap);
 
 	case SVR4_IPC_RMID:
 	case SVR4_SHM_LOCK:
@@ -767,7 +760,7 @@ svr4_shmctl(p, v, retval)
 		default:
 			return EINVAL;
 		}
-		return sys_shmctl(p, &ap, retval);
+		return shmctl(td, &ap);
 
 	default:
 		return EINVAL;
@@ -775,24 +768,22 @@ svr4_shmctl(p, v, retval)
 }
 
 int
-svr4_sys_shmsys(p, v, retval)
-	struct proc *p;
-	void *v;
-	register_t *retval;
+svr4_sys_shmsys(td, uap)
+	struct thread *td;
+	struct svr4_sys_shmsys_args *uap;
 {
-	struct svr4_sys_shmsys_args *uap = v;
 
 	DPRINTF(("svr4_shmsys(%d)\n", uap->what));
 
 	switch (uap->what) {
 	case SVR4_shmat:
-		return svr4_shmat(p, v, retval);
+		return svr4_shmat(td, uap);
 	case SVR4_shmdt:
-		return svr4_shmdt(p, v, retval);
+		return svr4_shmdt(td, uap);
 	case SVR4_shmget:
-		return svr4_shmget(p, v, retval);
+		return svr4_shmget(td, uap);
 	case SVR4_shmctl:
-		return svr4_shmctl(p, v, retval);
+		return svr4_shmctl(td, uap);
 	default:
 		return ENOSYS;
 	}
