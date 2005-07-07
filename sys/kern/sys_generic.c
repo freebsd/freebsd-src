@@ -77,10 +77,10 @@ MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
 static int	pollscan(struct thread *, struct pollfd *, u_int);
 static int	selscan(struct thread *, fd_mask **, fd_mask **, int);
-static int	dofileread(struct thread *, struct file *, int, void *,
-		    size_t, off_t, int);
-static int	dofilewrite(struct thread *, struct file *, int,
-		    const void *, size_t, off_t, int);
+static int	dofileread(struct thread *, int, struct file *, struct uio *,
+		    off_t, int);
+static int	dofilewrite(struct thread *, int, struct file *, struct uio *,
+		    off_t, int);
 static void	doselwakeup(struct selinfo *, int);
 
 /*
@@ -101,19 +101,24 @@ read(td, uap)
 	struct thread *td;
 	struct read_args *uap;
 {
-	struct file *fp;
+	struct uio auio;
+	struct iovec aiov;
 	int error;
 
-	if ((error = fget_read(td, uap->fd, &fp)) == 0) {
-		error = dofileread(td, fp, uap->fd, uap->buf,
-			    uap->nbyte, (off_t)-1, 0);
-		fdrop(fp, td);
-	}
+	if (uap->nbyte > INT_MAX)
+		return (EINVAL);
+	aiov.iov_base = uap->buf;
+	aiov.iov_len = uap->nbyte;
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_resid = uap->nbyte;
+	auio.uio_segflg = UIO_USERSPACE;
+	error = kern_readv(td, uap->fd, &auio);
 	return(error);
 }
 
 /*
- * Pread system call
+ * Positioned read system call
  */
 #ifndef _SYS_SYSPROTO_H_
 struct pread_args {
@@ -132,79 +137,20 @@ pread(td, uap)
 	struct thread *td;
 	struct pread_args *uap;
 {
-	struct file *fp;
-	int error;
-
-	if ((error = fget_read(td, uap->fd, &fp)) != 0)
-		return (error);
-	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
-		error = ESPIPE;
-	else if (uap->offset < 0 && fp->f_vnode->v_type != VCHR)
-		error = EINVAL;
-	else {
-		error = dofileread(td, fp, uap->fd, uap->buf, uap->nbyte, 
-			    uap->offset, FOF_OFFSET);
-	}
-	fdrop(fp, td);
-	return(error);
-}
-
-/*
- * Code common for read and pread
- */
-static int
-dofileread(td, fp, fd, buf, nbyte, offset, flags)
-	struct thread *td;
-	struct file *fp;
-	int fd, flags;
-	void *buf;
-	size_t nbyte;
-	off_t offset;
-{
 	struct uio auio;
 	struct iovec aiov;
-	ssize_t cnt;
-	long error = 0;
-#ifdef KTRACE
-	struct uio *ktruio = NULL;
-#endif
+	int error;
 
-	/* Finish zero length reads right here */
-	if (nbyte == 0) {
-		td->td_retval[0] = 0;
-		return(0);
-	}
-	aiov.iov_base = buf;
-	aiov.iov_len = nbyte;
+	if (uap->nbyte > INT_MAX)
+		return (EINVAL);
+	aiov.iov_base = uap->buf;
+	aiov.iov_len = uap->nbyte;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	auio.uio_offset = offset;
-	if (nbyte > INT_MAX)
-		return (EINVAL);
-	auio.uio_resid = nbyte;
-	auio.uio_rw = UIO_READ;
+	auio.uio_resid = uap->nbyte;
 	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_td = td;
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_GENIO))
-		ktruio = cloneuio(&auio);
-#endif
-	cnt = nbyte;
-
-	if ((error = fo_read(fp, &auio, td->td_ucred, flags, td))) {
-		if (auio.uio_resid != cnt && (error == ERESTART ||
-		    error == EINTR || error == EWOULDBLOCK))
-			error = 0;
-	}
-	cnt -= auio.uio_resid;
-#ifdef KTRACE
-	if (ktruio != NULL) {
-		ktruio->uio_resid = cnt;
-		ktrgenio(fd, UIO_READ, ktruio, error);
-	}
-#endif
-	td->td_retval[0] = cnt;
-	return (error);
+	error = kern_preadv(td, uap->fd, &auio, uap->offset);
+	return(error);
 }
 
 /*
@@ -238,29 +184,100 @@ int
 kern_readv(struct thread *td, int fd, struct uio *auio)
 {
 	struct file *fp;
-	long cnt;
+	int error;
+
+	error = fget_read(td, fd, &fp);
+	if (error)
+		return (error);
+	error = dofileread(td, fd, fp, auio, (off_t)-1, 0);
+	fdrop(fp, td);
+	return (error);
+}
+
+/*
+ * Scatter positioned read system call.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct preadv_args {
+	int	fd;
+	struct	iovec *iovp;
+	u_int	iovcnt;
+	off_t	offset;
+};
+#endif
+/*
+ * MPSAFE
+ */
+int
+preadv(struct thread *td, struct preadv_args *uap)
+{
+	struct uio *auio;
+	int error;
+
+	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_preadv(td, uap->fd, auio, uap->offset);
+	free(auio, M_IOV);
+	return (error);
+}
+
+int
+kern_preadv(td, fd, auio, offset)
+	struct thread *td;
+	int fd;
+	struct uio *auio;
+	off_t offset;
+{
+	struct file *fp;
+	int error;
+
+	error = fget_read(td, fd, &fp);
+	if (error)
+		return (error);
+	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
+		error = ESPIPE;
+	else if (offset < 0 && fp->f_vnode->v_type != VCHR)
+		error = EINVAL;
+	else
+		error = dofileread(td, fd, fp, auio, offset, FOF_OFFSET);
+	fdrop(fp, td);
+	return (error);
+}
+
+/*
+ * Common code for readv and preadv that reads data in
+ * from a file using the passed in uio, offset, and flags.
+ */
+static int
+dofileread(td, fd, fp, auio, offset, flags)
+	struct thread *td;
+	int fd;
+	struct file *fp;
+	struct uio *auio;
+	off_t offset;
+	int flags;
+{
+	ssize_t cnt;
 	int error;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
 
-	error = fget_read(td, fd, &fp);
-	if (error)
-		return (error);
 	/* Finish zero length reads right here */
 	if (auio->uio_resid == 0) {
 		td->td_retval[0] = 0;
-		fdrop(fp, td);
 		return(0);
 	}
 	auio->uio_rw = UIO_READ;
+	auio->uio_offset = offset;
 	auio->uio_td = td;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_GENIO)) 
 		ktruio = cloneuio(auio);
 #endif
 	cnt = auio->uio_resid;
-	if ((error = fo_read(fp, auio, td->td_ucred, 0, td))) {
+	if ((error = fo_read(fp, auio, td->td_ucred, flags, td))) {
 		if (auio->uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -273,7 +290,6 @@ kern_readv(struct thread *td, int fd, struct uio *auio)
 	}
 #endif
 	td->td_retval[0] = cnt;
-	fdrop(fp, td);
 	return (error);
 }
 
@@ -295,21 +311,24 @@ write(td, uap)
 	struct thread *td;
 	struct write_args *uap;
 {
-	struct file *fp;
+	struct uio auio;
+	struct iovec aiov;
 	int error;
 
-	if ((error = fget_write(td, uap->fd, &fp)) == 0) {
-		error = dofilewrite(td, fp, uap->fd, uap->buf, uap->nbyte,
-			    (off_t)-1, 0);
-		fdrop(fp, td);
-	} else {
-		error = EBADF;	/* XXX this can't be right */
-	}
+	if (uap->nbyte > INT_MAX)
+		return (EINVAL);
+	aiov.iov_base = (void *)(uintptr_t)uap->buf;
+	aiov.iov_len = uap->nbyte;
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_resid = uap->nbyte;
+	auio.uio_segflg = UIO_USERSPACE;
+	error = kern_writev(td, uap->fd, &auio);
 	return(error);
 }
 
 /*
- * Pwrite system call
+ * Positioned write system call
  */
 #ifndef _SYS_SYSPROTO_H_
 struct pwrite_args {
@@ -328,80 +347,20 @@ pwrite(td, uap)
 	struct thread *td;
 	struct pwrite_args *uap;
 {
-	struct file *fp;
-	int error;
-
-	if ((error = fget_write(td, uap->fd, &fp)) == 0) {
-		if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
-			error = ESPIPE;
-		else if (uap->offset < 0 && fp->f_vnode->v_type != VCHR)
-			error = EINVAL;
-		else {
-			error = dofilewrite(td, fp, uap->fd, uap->buf,
-				    uap->nbyte, uap->offset, FOF_OFFSET);
-		}
-		fdrop(fp, td);
-	} else {
-		error = EBADF;	/* this can't be right */
-	}
-	return(error);
-}
-
-static int
-dofilewrite(td, fp, fd, buf, nbyte, offset, flags)
-	struct thread *td;
-	struct file *fp;
-	int fd, flags;
-	const void *buf;
-	size_t nbyte;
-	off_t offset;
-{
 	struct uio auio;
 	struct iovec aiov;
-	ssize_t cnt;
-	long error = 0;
-#ifdef KTRACE
-	struct uio *ktruio = NULL;
-#endif
+	int error;
 
-	aiov.iov_base = (void *)(uintptr_t)buf;
-	aiov.iov_len = nbyte;
+	if (uap->nbyte > INT_MAX)
+		return (EINVAL);
+	aiov.iov_base = (void *)(uintptr_t)uap->buf;
+	aiov.iov_len = uap->nbyte;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	auio.uio_offset = offset;
-	if (nbyte > INT_MAX)
-		return (EINVAL);
-	auio.uio_resid = nbyte;
-	auio.uio_rw = UIO_WRITE;
+	auio.uio_resid = uap->nbyte;
 	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_td = td;
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_GENIO))
-		ktruio = cloneuio(&auio);
-#endif
-	cnt = nbyte;
-	if (fp->f_type == DTYPE_VNODE)
-		bwillwrite();
-	if ((error = fo_write(fp, &auio, td->td_ucred, flags, td))) {
-		if (auio.uio_resid != cnt && (error == ERESTART ||
-		    error == EINTR || error == EWOULDBLOCK))
-			error = 0;
-		/* Socket layer is responsible for issuing SIGPIPE. */
-		if (error == EPIPE && fp->f_type != DTYPE_SOCKET) {
-			PROC_LOCK(td->td_proc);
-			psignal(td->td_proc, SIGPIPE);
-			PROC_UNLOCK(td->td_proc);
-		}
-	}
-	cnt -= auio.uio_resid;
-#ifdef KTRACE
-	if (ktruio != NULL) {
-		ktruio->uio_resid = cnt;
-		ktrgenio(fd, UIO_WRITE, ktruio, error);
-	}
-#endif
-	td->td_retval[0] = cnt;
-	return (error);
+	error = kern_pwritev(td, uap->fd, &auio, uap->offset);
+	return(error);
 }
 
 /*
@@ -435,17 +394,89 @@ int
 kern_writev(struct thread *td, int fd, struct uio *auio)
 {
 	struct file *fp;
-	long cnt;
+	int error;
+
+	error = fget_write(td, fd, &fp);
+	if (error)
+		return (EBADF);	/* XXX this can't be right */
+	error = dofilewrite(td, fd, fp, auio, (off_t)-1, 0);
+	fdrop(fp, td);
+	return (error);
+}
+
+/*
+ * Gather positioned write system call
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct pwritev_args {
+	int	fd;
+	struct	iovec *iovp;
+	u_int	iovcnt;
+	off_t	offset;
+};
+#endif
+/*
+ * MPSAFE
+ */
+int
+pwritev(struct thread *td, struct pwritev_args *uap)
+{
+	struct uio *auio;
+	int error;
+
+	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_pwritev(td, uap->fd, auio, uap->offset);
+	free(auio, M_IOV);
+	return (error);
+}
+
+int
+kern_pwritev(td, fd, auio, offset)
+	struct thread *td;
+	struct uio *auio;
+	int fd;
+	off_t offset;
+{
+	struct file *fp;
+	int error;
+
+	error = fget_write(td, fd, &fp);
+	if (error)
+		return (EBADF);	/* XXX this can't be right */
+	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
+		error = ESPIPE;
+	else if (offset < 0 && fp->f_vnode->v_type != VCHR)
+		error = EINVAL;
+	else
+		error = dofilewrite(td, fd, fp, auio, offset, FOF_OFFSET);
+	fdrop(fp, td);
+	return (error);
+}
+
+/*
+ * Common code for writev and pwritev that writes data to
+ * a file using the passed in uio, offset, and flags.
+ */
+static int
+dofilewrite(td, fd, fp, auio, offset, flags)
+	struct thread *td;
+	int fd;
+	struct file *fp;
+	struct uio *auio;
+	off_t offset;
+	int flags;
+{
+	ssize_t cnt;
 	int error;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
 
-	error = fget_write(td, fd, &fp);
-	if (error)
-		return (EBADF);
 	auio->uio_rw = UIO_WRITE;
 	auio->uio_td = td;
+	auio->uio_offset = offset;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_GENIO))
 		ktruio = cloneuio(auio);
@@ -453,10 +484,11 @@ kern_writev(struct thread *td, int fd, struct uio *auio)
 	cnt = auio->uio_resid;
 	if (fp->f_type == DTYPE_VNODE)
 		bwillwrite();
-	if ((error = fo_write(fp, auio, td->td_ucred, 0, td))) {
+	if ((error = fo_write(fp, auio, td->td_ucred, flags, td))) {
 		if (auio->uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
+		/* Socket layer is responsible for issuing SIGPIPE. */
 		if (error == EPIPE) {
 			PROC_LOCK(td->td_proc);
 			psignal(td->td_proc, SIGPIPE);
@@ -471,7 +503,6 @@ kern_writev(struct thread *td, int fd, struct uio *auio)
 	}
 #endif
 	td->td_retval[0] = cnt;
-	fdrop(fp, td);
 	return (error);
 }
 

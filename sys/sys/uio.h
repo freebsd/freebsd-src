@@ -42,6 +42,11 @@ typedef	__ssize_t	ssize_t;
 #define	_SSIZE_T_DECLARED
 #endif
 
+#ifndef _OFF_T_DECLARED
+typedef	__off_t	off_t;
+#define	_OFF_T_DECLARED
+#endif
+
 #if __BSD_VISIBLE
 enum	uio_rw { UIO_READ, UIO_WRITE };
 
@@ -101,6 +106,8 @@ int	uiomoveco(void *cp, int n, struct uio *uio, int disposable);
 __BEGIN_DECLS
 ssize_t	readv(int, const struct iovec *, int);
 ssize_t	writev(int, const struct iovec *, int);
+ssize_t	preadv(int, const struct iovec *, int, off_t);
+ssize_t	pwritev(int, const struct iovec *, int, off_t);
 __END_DECLS
 
 #endif /* _KERNEL */
