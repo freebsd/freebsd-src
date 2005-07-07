@@ -98,6 +98,7 @@ struct ath_node {
 struct ath_buf {
 	STAILQ_ENTRY(ath_buf)	bf_list;
 	int			bf_nseg;
+	int			bf_flags;	/* tx descriptor flags */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
 	bus_addr_t		bf_daddr;	/* physical addr of desc */
 	bus_dmamap_t		bf_dmamap;	/* DMA map for mbuf chain */
