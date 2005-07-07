@@ -507,8 +507,6 @@ ibcs2_read(td, uap)
 	}
 
 	off = fp->f_offset;
-	if (vp->v_type != VDIR)
-		return read(td, (struct read_args *)uap);
 
 	DPRINTF(("ibcs2_read: read directory\n"));
 
