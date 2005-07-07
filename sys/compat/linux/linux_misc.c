@@ -131,22 +131,10 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	int i, j;
 	struct timespec ts;
 
-	/* Uptime is copied out of print_uptime() in kern_shutdown.c */
 	getnanouptime(&ts);
-	i = 0;
-	if (ts.tv_sec >= 86400) {
-		ts.tv_sec %= 86400;
-		i = 1;
-	}
-	if (i || ts.tv_sec >= 3600) {
-		ts.tv_sec %= 3600;
-		i = 1;
-	}
-	if (i || ts.tv_sec >= 60) {
-		ts.tv_sec %= 60;
-		i = 1;
-	}
-	sysinfo.uptime=ts.tv_sec;
+	if (ts.tv_nsec != 0)
+		ts.tv_sec++;
+	sysinfo.uptime = ts.tv_sec;
 
 	/* Use the information from the mib to get our load averages */
 	for (i = 0; i < 3; i++)
