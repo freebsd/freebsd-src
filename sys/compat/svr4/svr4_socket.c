@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/file.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysproto.h>
@@ -114,6 +116,8 @@ svr4_add_socket(td, path, st)
 	struct svr4_sockcache_entry *e;
 	int len, error;
 
+	mtx_lock(&Giant);
+
 	/*
 	 * Wait for the TAILQ to be initialized.  Only the very first CPU
 	 * will succeed on the atomic_cmpset().  The other CPU's will spin
@@ -135,6 +139,7 @@ svr4_add_socket(td, path, st)
 
 	if ((error = copyinstr(path, e->sock.sun_path,
 	    sizeof(e->sock.sun_path), &len)) != 0) {
+		mtx_unlock(&Giant);
 		DPRINTF(("svr4_add_socket: copyinstr failed %d\n", error));
 		free(e, M_TEMP);
 		return error;
@@ -144,6 +149,7 @@ svr4_add_socket(td, path, st)
 	e->sock.sun_len = len;
 
 	TAILQ_INSERT_HEAD(&svr4_head, e, entries);
+	mtx_unlock(&Giant);
 	DPRINTF(("svr4_add_socket: %s [%p,%d,%d]\n", e->sock.sun_path,
 		 td->td_proc, e->dev, e->ino));
 	return 0;
