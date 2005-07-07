@@ -1256,7 +1256,7 @@ osf1_usleep_thread(td, uap)
 	struct thread *td;
 	struct osf1_usleep_thread_args *uap;
 {
-	int error, s, timo;
+	int error, timo;
 	struct osf1_timeval time;
 	struct timeval difftv, endtv, sleeptv, tv;
 
@@ -1274,19 +1274,15 @@ osf1_usleep_thread(td, uap)
 
 	if (timo == 0)
 		timo = 1;
-	s = splclock();
 	microtime(&tv);
-	splx(s);
 
 	tsleep(td, PUSER|PCATCH, "OSF/1", timo);
 
 	if (uap->slept != NULL) {
-		s = splclock();
 		microtime(&endtv);
-		timersub(&time, &endtv, &difftv);
-		splx(s);
-		if (tv.tv_sec < 0 || tv.tv_usec < 0)
-			tv.tv_sec = tv.tv_usec = 0;
+		timersub(&endtv, &tv, &difftv);
+		if (difftv.tv_sec < 0 || difftv.tv_usec < 0)
+			difftv.tv_sec = difftv.tv_usec = 0;
 		TV_CP(difftv, time)
 		error = copyout(&time, uap->slept, sizeof time);
 	}
