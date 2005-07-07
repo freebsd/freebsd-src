@@ -764,6 +764,34 @@ freebsd32_writev(struct thread *td, struct freebsd32_writev_args *uap)
 }
 
 int
+freebsd32_preadv(struct thread *td, struct freebsd32_preadv_args *uap)
+{
+	struct uio *auio;
+	int error;
+
+	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_preadv(td, uap->fd, auio, uap->offset);
+	free(auio, M_IOV);
+	return (error);
+}
+
+int
+freebsd32_pwritev(struct thread *td, struct freebsd32_pwritev_args *uap)
+{
+	struct uio *auio;
+	int error;
+
+	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_pwritev(td, uap->fd, auio, uap->offset);
+	free(auio, M_IOV);
+	return (error);
+}
+
+int
 freebsd32_settimeofday(struct thread *td,
 		       struct freebsd32_settimeofday_args *uap)
 {
