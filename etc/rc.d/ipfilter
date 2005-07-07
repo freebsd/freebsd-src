@@ -59,7 +59,7 @@ ipfilter_prestart()
 ipfilter_start()
 {
 	echo "Enabling ipfilter."
-	if [ `sysctl -n net.inet.ipf.fr_running` -eq 0 ]; then
+	if [ `sysctl -n net.inet.ipf.fr_running` -le 0 ]; then
 		${ipfilter_program:-/sbin/ipf} -E
 	fi
 	${ipfilter_program:-/sbin/ipf} -Fa
