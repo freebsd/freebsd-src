@@ -1,8 +1,13 @@
 # $Id: Makefile.am,v 1.7 2001/08/28 08:31:22 assar Exp $
+# $FreeBSD$
 
 include $(top_srcdir)/Makefile.am.common
 
 INCLUDES += $(INCLUDE_krb4) $(INCLUDE_des)
+
+.if defined(_FREEFALL_CONFIG)
+CFLAGS+=-D_FREEFALL_CONFIG
+.endif
 
 bin_PROGRAMS = su
 bin_SUIDS = su
