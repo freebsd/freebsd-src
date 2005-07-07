@@ -32,6 +32,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
@@ -50,13 +52,19 @@ ibcs2_isc(struct thread *td, struct ibcs2_isc_args *uap)
 {
 	struct trapframe *tf = td->td_frame;
         struct sysent *callp;
-        u_int code;             
+        u_int code;
+	int error;
 
 	code = (tf->tf_eax & 0xffffff00) >> 8;
 	callp = &isc_sysent[code];
 
-	if(code < IBCS2_ISC_MAXSYSCALL)
-	  return((*callp->sy_call)(td, (void *)uap));
-	else
-	  return ENOSYS;
+	if (code < IBCS2_ISC_MAXSYSCALL) {
+		if ((callp->sy_narg & SYF_MPSAFE) == 0)
+			mtx_lock(&Giant);
+		error = (*callp->sy_call)(td, (void *)uap);
+		if ((callp->sy_narg & SYF_MPSAFE) == 0)
+			mtx_unlock(&Giant);
+	} else
+		error = ENOSYS;
+	return (error);
 }
