@@ -223,9 +223,10 @@ ptsname(int fildes)
 		if (!ISPTM(sbuf))
 			errno = EINVAL;
 		else {
-			(void)sprintf(slave, _PATH_DEV PTS_PREFIX "%c%c",
-				      PT_DEV1[minor(sbuf.st_rdev) / 32],
-				      PT_DEV2[minor(sbuf.st_rdev) % 32]);
+			(void)snprintf(slave, sizeof(slave),
+				       _PATH_DEV PTS_PREFIX "%s",
+				       devname(sbuf.st_rdev, S_IFCHR) +
+				       strlen(PTM_PREFIX));
 			retval = slave;
 		}
 	}
