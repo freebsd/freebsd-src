@@ -1041,8 +1041,6 @@ svr4_sys_pgrpsys(td, uap)
 	}
 }
 
-#define syscallarg(x)   union { x datum; register_t pad; }
-
 struct svr4_hrtcntl_args {
 	int 			cmd;
 	int 			fun;
