@@ -2062,10 +2062,17 @@ ti_attach(dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
+	sc->ti_unit = unit;
 
 	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 	ifmedia_init(&sc->ifmedia, IFM_IMASK, ti_ifmedia_upd, ti_ifmedia_sts);
+	ifp = sc->ti_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("ti%d: can not if_alloc()\n", sc->ti_unit);
+		error = ENOSPC;
+		goto fail;
+	}
 	sc->ti_ifp->if_capabilities = IFCAP_HWCSUM |
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	sc->ti_ifp->if_capenable = sc->ti_ifp->if_capabilities;
@@ -2100,8 +2107,6 @@ ti_attach(dev)
 		error = ENXIO;
 		goto fail;
 	}
-
-	sc->ti_unit = unit;
 
 	if (ti_chipinit(sc)) {
 		printf("ti%d: chip initialization failed\n", sc->ti_unit);
@@ -2222,12 +2227,6 @@ ti_attach(dev)
 	sc->ti_tx_buf_ratio = 21;
 
 	/* Set up ifnet structure */
-	ifp = sc->ti_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		printf("ti%d: can not if_alloc()\n", sc->ti_unit);
-		error = ENOSPC;
-		goto fail;
-	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
