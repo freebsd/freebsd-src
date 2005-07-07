@@ -1273,110 +1273,72 @@ cond ("bz",	"tz",   CONDZ, F_CONDBR|F_ALIAS), /* for e */
 #define FM_DF 2		/* v9 */
 #define FM_QF 3		/* v9 */
 
-#define fmovicc(opcode, fpsize, cond, flags) /* v9 */ \
-{ opcode, F3F(2, 0x35, 0x100+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x100+fpsize))|MCOND(~cond,~0),  "z,f,g", flags, v9 }, \
-{ opcode, F3F(2, 0x35, 0x180+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x180+fpsize))|MCOND(~cond,~0),  "Z,f,g", flags, v9 }
+#define fmoviccx(opcode, fpsize, args, cond, flags) /* v9 */ \
+{ opcode, F3F(2, 0x35, 0x100+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x100+fpsize))|MCOND(~cond,~0),  "z," args, flags, v9 }, \
+{ opcode, F3F(2, 0x35, 0x180+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x180+fpsize))|MCOND(~cond,~0),  "Z," args, flags, v9 }
 
-#define fmovfcc(opcode, fpsize, fcond, flags) /* v9 */ \
-{ opcode, F3F(2, 0x35, 0x000+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x000+fpsize))|MCOND(~fcond,~0), "6,f,g", flags, v9 }, \
-{ opcode, F3F(2, 0x35, 0x040+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x040+fpsize))|MCOND(~fcond,~0), "7,f,g", flags, v9 }, \
-{ opcode, F3F(2, 0x35, 0x080+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x080+fpsize))|MCOND(~fcond,~0), "8,f,g", flags, v9 }, \
-{ opcode, F3F(2, 0x35, 0x0c0+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x0c0+fpsize))|MCOND(~fcond,~0), "9,f,g", flags, v9 }
+#define fmovfccx(opcode, fpsize, args, fcond, flags) /* v9 */ \
+{ opcode, F3F(2, 0x35, 0x000+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x000+fpsize))|MCOND(~fcond,~0), "6," args, flags, v9 }, \
+{ opcode, F3F(2, 0x35, 0x040+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x040+fpsize))|MCOND(~fcond,~0), "7," args, flags, v9 }, \
+{ opcode, F3F(2, 0x35, 0x080+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x080+fpsize))|MCOND(~fcond,~0), "8," args, flags, v9 }, \
+{ opcode, F3F(2, 0x35, 0x0c0+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x0c0+fpsize))|MCOND(~fcond,~0), "9," args, flags, v9 }
 
 /* FIXME: use fmovicc/fmovfcc? */ /* v9 */
-#define fmovcc(opcode, fpsize, cond, fcond, flags) /* v9 */ \
-{ opcode, F3F(2, 0x35, 0x100+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x100+fpsize))|MCOND(~cond,~0),  "z,f,g", flags | F_FLOAT, v9 }, \
-{ opcode, F3F(2, 0x35, 0x000+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x000+fpsize))|MCOND(~fcond,~0), "6,f,g", flags | F_FLOAT, v9 }, \
-{ opcode, F3F(2, 0x35, 0x180+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x180+fpsize))|MCOND(~cond,~0),  "Z,f,g", flags | F_FLOAT, v9 }, \
-{ opcode, F3F(2, 0x35, 0x040+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x040+fpsize))|MCOND(~fcond,~0), "7,f,g", flags | F_FLOAT, v9 }, \
-{ opcode, F3F(2, 0x35, 0x080+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x080+fpsize))|MCOND(~fcond,~0), "8,f,g", flags | F_FLOAT, v9 }, \
-{ opcode, F3F(2, 0x35, 0x0c0+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x0c0+fpsize))|MCOND(~fcond,~0), "9,f,g", flags | F_FLOAT, v9 }
+#define fmovccx(opcode, fpsize, args, cond, fcond, flags) /* v9 */ \
+{ opcode, F3F(2, 0x35, 0x100+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x100+fpsize))|MCOND(~cond,~0),  "z," args, flags | F_FLOAT, v9 }, \
+{ opcode, F3F(2, 0x35, 0x000+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x000+fpsize))|MCOND(~fcond,~0), "6," args, flags | F_FLOAT, v9 }, \
+{ opcode, F3F(2, 0x35, 0x180+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x180+fpsize))|MCOND(~cond,~0),  "Z," args, flags | F_FLOAT, v9 }, \
+{ opcode, F3F(2, 0x35, 0x040+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x040+fpsize))|MCOND(~fcond,~0), "7," args, flags | F_FLOAT, v9 }, \
+{ opcode, F3F(2, 0x35, 0x080+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x080+fpsize))|MCOND(~fcond,~0), "8," args, flags | F_FLOAT, v9 }, \
+{ opcode, F3F(2, 0x35, 0x0c0+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x0c0+fpsize))|MCOND(~fcond,~0), "9," args, flags | F_FLOAT, v9 }
 
-/* v9 */ fmovcc  ("fmovda",	FM_DF, CONDA, FCONDA, 0),
-/* v9 */ fmovcc  ("fmovqa",	FM_QF, CONDA, FCONDA, 0),
-/* v9 */ fmovcc  ("fmovsa",	FM_SF, CONDA, FCONDA, 0),
-/* v9 */ fmovicc ("fmovdcc",	FM_DF, CONDCC, 0),
-/* v9 */ fmovicc ("fmovqcc",	FM_QF, CONDCC, 0),
-/* v9 */ fmovicc ("fmovscc",	FM_SF, CONDCC, 0),
-/* v9 */ fmovicc ("fmovdcs",	FM_DF, CONDCS, 0),
-/* v9 */ fmovicc ("fmovqcs",	FM_QF, CONDCS, 0),
-/* v9 */ fmovicc ("fmovscs",	FM_SF, CONDCS, 0),
-/* v9 */ fmovcc  ("fmovde",	FM_DF, CONDE, FCONDE, 0),
-/* v9 */ fmovcc  ("fmovqe",	FM_QF, CONDE, FCONDE, 0),
-/* v9 */ fmovcc  ("fmovse",	FM_SF, CONDE, FCONDE, 0),
-/* v9 */ fmovcc  ("fmovdg",	FM_DF, CONDG, FCONDG, 0),
-/* v9 */ fmovcc  ("fmovqg",	FM_QF, CONDG, FCONDG, 0),
-/* v9 */ fmovcc  ("fmovsg",	FM_SF, CONDG, FCONDG, 0),
-/* v9 */ fmovcc  ("fmovdge",	FM_DF, CONDGE, FCONDGE, 0),
-/* v9 */ fmovcc  ("fmovqge",	FM_QF, CONDGE, FCONDGE, 0),
-/* v9 */ fmovcc  ("fmovsge",	FM_SF, CONDGE, FCONDGE, 0),
-/* v9 */ fmovicc ("fmovdgeu",	FM_DF, CONDGEU, F_ALIAS),
-/* v9 */ fmovicc ("fmovqgeu",	FM_QF, CONDGEU, F_ALIAS),
-/* v9 */ fmovicc ("fmovsgeu",	FM_SF, CONDGEU, F_ALIAS),
-/* v9 */ fmovicc ("fmovdgu",	FM_DF, CONDGU, 0),
-/* v9 */ fmovicc ("fmovqgu",	FM_QF, CONDGU, 0),
-/* v9 */ fmovicc ("fmovsgu",	FM_SF, CONDGU, 0),
-/* v9 */ fmovcc  ("fmovdl",	FM_DF, CONDL, FCONDL, 0),
-/* v9 */ fmovcc  ("fmovql",	FM_QF, CONDL, FCONDL, 0),
-/* v9 */ fmovcc  ("fmovsl",	FM_SF, CONDL, FCONDL, 0),
-/* v9 */ fmovcc  ("fmovdle",	FM_DF, CONDLE, FCONDLE, 0),
-/* v9 */ fmovcc  ("fmovqle",	FM_QF, CONDLE, FCONDLE, 0),
-/* v9 */ fmovcc  ("fmovsle",	FM_SF, CONDLE, FCONDLE, 0),
-/* v9 */ fmovicc ("fmovdleu",	FM_DF, CONDLEU, 0),
-/* v9 */ fmovicc ("fmovqleu",	FM_QF, CONDLEU, 0),
-/* v9 */ fmovicc ("fmovsleu",	FM_SF, CONDLEU, 0),
-/* v9 */ fmovfcc ("fmovdlg",	FM_DF, FCONDLG, 0),
-/* v9 */ fmovfcc ("fmovqlg",	FM_QF, FCONDLG, 0),
-/* v9 */ fmovfcc ("fmovslg",	FM_SF, FCONDLG, 0),
-/* v9 */ fmovicc ("fmovdlu",	FM_DF, CONDLU, F_ALIAS),
-/* v9 */ fmovicc ("fmovqlu",	FM_QF, CONDLU, F_ALIAS),
-/* v9 */ fmovicc ("fmovslu",	FM_SF, CONDLU, F_ALIAS),
-/* v9 */ fmovcc  ("fmovdn",	FM_DF, CONDN, FCONDN, 0),
-/* v9 */ fmovcc  ("fmovqn",	FM_QF, CONDN, FCONDN, 0),
-/* v9 */ fmovcc  ("fmovsn",	FM_SF, CONDN, FCONDN, 0),
-/* v9 */ fmovcc  ("fmovdne",	FM_DF, CONDNE, FCONDNE, 0),
-/* v9 */ fmovcc  ("fmovqne",	FM_QF, CONDNE, FCONDNE, 0),
-/* v9 */ fmovcc  ("fmovsne",	FM_SF, CONDNE, FCONDNE, 0),
-/* v9 */ fmovicc ("fmovdneg",	FM_DF, CONDNEG, 0),
-/* v9 */ fmovicc ("fmovqneg",	FM_QF, CONDNEG, 0),
-/* v9 */ fmovicc ("fmovsneg",	FM_SF, CONDNEG, 0),
-/* v9 */ fmovcc  ("fmovdnz",	FM_DF, CONDNZ, FCONDNZ, F_ALIAS),
-/* v9 */ fmovcc  ("fmovqnz",	FM_QF, CONDNZ, FCONDNZ, F_ALIAS),
-/* v9 */ fmovcc  ("fmovsnz",	FM_SF, CONDNZ, FCONDNZ, F_ALIAS),
-/* v9 */ fmovfcc ("fmovdo",	FM_DF, FCONDO, 0),
-/* v9 */ fmovfcc ("fmovqo",	FM_QF, FCONDO, 0),
-/* v9 */ fmovfcc ("fmovso",	FM_SF, FCONDO, 0),
-/* v9 */ fmovicc ("fmovdpos",	FM_DF, CONDPOS, 0),
-/* v9 */ fmovicc ("fmovqpos",	FM_QF, CONDPOS, 0),
-/* v9 */ fmovicc ("fmovspos",	FM_SF, CONDPOS, 0),
-/* v9 */ fmovfcc ("fmovdu",	FM_DF, FCONDU, 0),
-/* v9 */ fmovfcc ("fmovqu",	FM_QF, FCONDU, 0),
-/* v9 */ fmovfcc ("fmovsu",	FM_SF, FCONDU, 0),
-/* v9 */ fmovfcc ("fmovdue",	FM_DF, FCONDUE, 0),
-/* v9 */ fmovfcc ("fmovque",	FM_QF, FCONDUE, 0),
-/* v9 */ fmovfcc ("fmovsue",	FM_SF, FCONDUE, 0),
-/* v9 */ fmovfcc ("fmovdug",	FM_DF, FCONDUG, 0),
-/* v9 */ fmovfcc ("fmovqug",	FM_QF, FCONDUG, 0),
-/* v9 */ fmovfcc ("fmovsug",	FM_SF, FCONDUG, 0),
-/* v9 */ fmovfcc ("fmovduge",	FM_DF, FCONDUGE, 0),
-/* v9 */ fmovfcc ("fmovquge",	FM_QF, FCONDUGE, 0),
-/* v9 */ fmovfcc ("fmovsuge",	FM_SF, FCONDUGE, 0),
-/* v9 */ fmovfcc ("fmovdul",	FM_DF, FCONDUL, 0),
-/* v9 */ fmovfcc ("fmovqul",	FM_QF, FCONDUL, 0),
-/* v9 */ fmovfcc ("fmovsul",	FM_SF, FCONDUL, 0),
-/* v9 */ fmovfcc ("fmovdule",	FM_DF, FCONDULE, 0),
-/* v9 */ fmovfcc ("fmovqule",	FM_QF, FCONDULE, 0),
-/* v9 */ fmovfcc ("fmovsule",	FM_SF, FCONDULE, 0),
-/* v9 */ fmovicc ("fmovdvc",	FM_DF, CONDVC, 0),
-/* v9 */ fmovicc ("fmovqvc",	FM_QF, CONDVC, 0),
-/* v9 */ fmovicc ("fmovsvc",	FM_SF, CONDVC, 0),
-/* v9 */ fmovicc ("fmovdvs",	FM_DF, CONDVS, 0),
-/* v9 */ fmovicc ("fmovqvs",	FM_QF, CONDVS, 0),
-/* v9 */ fmovicc ("fmovsvs",	FM_SF, CONDVS, 0),
-/* v9 */ fmovcc  ("fmovdz",	FM_DF, CONDZ, FCONDZ, F_ALIAS),
-/* v9 */ fmovcc  ("fmovqz",	FM_QF, CONDZ, FCONDZ, F_ALIAS),
-/* v9 */ fmovcc  ("fmovsz",	FM_SF, CONDZ, FCONDZ, F_ALIAS),
+#define fmovicc(suffix, cond, flags) /* v9 */ \
+fmoviccx("fmovd" suffix, FM_DF, "B,H", cond, flags),		\
+fmoviccx("fmovq" suffix, FM_QF, "R,J", cond, flags),		\
+fmoviccx("fmovs" suffix, FM_SF, "f,g", cond, flags)
 
+#define fmovfcc(suffix, fcond, flags) /* v9 */ \
+fmovfccx("fmovd" suffix, FM_DF, "B,H", fcond, flags),		\
+fmovfccx("fmovq" suffix, FM_QF, "R,J", fcond, flags),		\
+fmovfccx("fmovs" suffix, FM_SF, "f,g", fcond, flags)
+
+#define fmovcc(suffix, cond, fcond, flags) /* v9 */ \
+fmovccx("fmovd" suffix, FM_DF, "B,H", cond, fcond, flags),	\
+fmovccx("fmovq" suffix, FM_QF, "R,J", cond, fcond, flags),	\
+fmovccx("fmovs" suffix, FM_SF, "f,g", cond, fcond, flags)
+
+/* v9 */ fmovcc  ("a", CONDA, FCONDA, 0),
+/* v9 */ fmovicc ("cc", CONDCC, 0),
+/* v9 */ fmovicc ("cs", CONDCS, 0),
+/* v9 */ fmovcc  ("e", CONDE, FCONDE, 0),
+/* v9 */ fmovcc  ("g", CONDG, FCONDG, 0),
+/* v9 */ fmovcc  ("ge", CONDGE, FCONDGE, 0),
+/* v9 */ fmovicc ("geu", CONDGEU, F_ALIAS),
+/* v9 */ fmovicc ("gu", CONDGU, 0),
+/* v9 */ fmovcc  ("l", CONDL, FCONDL, 0),
+/* v9 */ fmovcc  ("le", CONDLE, FCONDLE, 0),
+/* v9 */ fmovicc ("leu", CONDLEU, 0),
+/* v9 */ fmovfcc ("lg", FCONDLG, 0),
+/* v9 */ fmovicc ("lu", CONDLU, F_ALIAS),
+/* v9 */ fmovcc  ("n", CONDN, FCONDN, 0),
+/* v9 */ fmovcc  ("ne", CONDNE, FCONDNE, 0),
+/* v9 */ fmovicc ("neg", CONDNEG, 0),
+/* v9 */ fmovcc  ("nz", CONDNZ, FCONDNZ, F_ALIAS),
+/* v9 */ fmovfcc ("o", FCONDO, 0),
+/* v9 */ fmovicc ("pos", CONDPOS, 0),
+/* v9 */ fmovfcc ("u", FCONDU, 0),
+/* v9 */ fmovfcc ("ue", FCONDUE, 0),
+/* v9 */ fmovfcc ("ug", FCONDUG, 0),
+/* v9 */ fmovfcc ("uge", FCONDUGE, 0),
+/* v9 */ fmovfcc ("ul", FCONDUL, 0),
+/* v9 */ fmovfcc ("ule", FCONDULE, 0),
+/* v9 */ fmovicc ("vc", CONDVC, 0),
+/* v9 */ fmovicc ("vs", CONDVS, 0),
+/* v9 */ fmovcc  ("z", CONDZ, FCONDZ, F_ALIAS),
+
+#undef fmoviccx /* v9 */
+#undef fmovfccx /* v9 */
+#undef fmovccx /* v9 */
 #undef fmovicc /* v9 */
 #undef fmovfcc /* v9 */
 #undef fmovcc /* v9 */
