@@ -482,8 +482,15 @@
 286	AUE_NULL	UNIMPL	nosys
 287	AUE_NULL	UNIMPL	nosys
 288	AUE_NULL	UNIMPL	nosys
-289	AUE_NULL	UNIMPL	nosys
-290	AUE_NULL	UNIMPL	nosys
+; 289 and 290 from NetBSD (OpenBSD: 267 and 268)
+289	AUE_NULL	MSTD	{ ssize_t freebsd32_preadv(int fd, \
+					struct iovec32 *iovp, \
+					u_int iovcnt, off_t offset); }
+; XXX note - bigendian is different
+290	AUE_NULL	MSTD	{ ssize_t freebsd32_pwritev(int fd, \
+					struct iovec32 *iovp, \
+					u_int iovcnt, off_t offset); }
+; XXX note - bigendian is different
 291	AUE_NULL	UNIMPL	nosys
 292	AUE_NULL	UNIMPL	nosys
 293	AUE_NULL	UNIMPL	nosys
