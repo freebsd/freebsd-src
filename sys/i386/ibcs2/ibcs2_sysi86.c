@@ -31,6 +31,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
@@ -78,8 +80,11 @@ ibcs2_sysi86(struct thread *td, struct ibcs2_sysi86_args *args)
 		  return (error);
 		name[0] = CTL_KERN;
 		name[1] = KERN_HOSTNAME;
-		return (userland_sysctl(td, name, 2, 0, 0, 0, 
-			args->arg, 7, 0, 0));
+		mtx_lock(&Giant);
+		error = userland_sysctl(td, name, 2, 0, 0, 0, 
+		    args->arg, 7, 0, 0);
+		mtx_unlock(&Giant);
+		return (error);
 	}
 
 	case SI86_MEM:	/* size of physical memory */
