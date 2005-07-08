@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.28 2005/06/30 11:12:32 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.29 2005/07/08 10:19:47 den Exp $
 
-     Original revision: 1.879
+     Original revision: 1.880
 -->
 
 <articleinfo>
@@ -227,6 +227,29 @@
       сформированных пакетов.
       За дальнейшей информацией обращайтесь к сообщению безопасности
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:12.bind9.asc">FreeBSD-SA-05:12.bind9</ulink>.
+      &merged;</para>
+
+    <para>Была исправлена ошибка в &man.ipfw.4;, которая могла
+      приводить к неправильному сопоставлению пакета с lookup table.
+      Эта ошибка проявлялась только на SMP компьютерах, или на
+      однопроцессорных компьютерах с включенным параметром ядра
+      <literal>PREEMPTION</literal>.  Более подробная информация
+      находится в сообщении безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:13.ipfw.asc">FreeBSD-SA-05:13.ipfw</ulink>.
+      &merged;</para>
+
+    <para>В &man.bzip2.1; были решены две проблемы, связанные с
+      безопасностью.  Они включали потенциальную возможность DoS
+      и неавторизованное изменение прав на файлы.
+      За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:14.bzip2.asc">FreeBSD-SA-05:14.bzip2</ulink>.
+      &merged;</para>
+
+    <para>Были исправлены две проблемы в TCP стеке &os;.  Они могут
+      позволять атакующему задерживать существующие TCP соединения,
+      что приводит к созданию DoS.  Более подробная информация
+      находится в сообщении безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc">FreeBSD-SA-05:15.tcp</ulink>.
       &merged;</para>
 
   </sect2>
