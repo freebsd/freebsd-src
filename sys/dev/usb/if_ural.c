@@ -1321,8 +1321,10 @@ ural_start(struct ifnet *ifp)
 			BPF_MTAP(ifp, m0);
 
 			m0 = ieee80211_encap(ic, m0, ni);
-			if (m0 == NULL)
+			if (m0 == NULL) {
+				ieee80211_free_node(ni);
 				continue;
+			}
 
 			if (ic->ic_rawbpf != NULL)
 				bpf_mtap(ic->ic_rawbpf, m0);
