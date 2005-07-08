@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ral/if_ralreg.h>
 #include <dev/ral/if_ralvar.h>
 
+#define RAL_DEBUG
 #ifdef RAL_DEBUG
 #define DPRINTF(x)	do { if (ral_debug > 0) printf x; } while (0)
 #define DPRINTFN(n, x)	do { if (ral_debug >= (n)) printf x; } while (0)
@@ -1016,8 +1017,10 @@ ral_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	case IEEE80211_S_RUN:
 		ral_set_chan(sc, ic->ic_bss->ni_chan);
 
-		if (ic->ic_opmode != IEEE80211_M_MONITOR)
+		if (ic->ic_opmode != IEEE80211_M_MONITOR) {
 			ral_set_bssid(sc, ic->ic_bss->ni_bssid);
+			ral_update_slot(ic->ic_ifp);
+		}
 
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
 		    ic->ic_opmode == IEEE80211_M_IBSS) {
@@ -2108,8 +2111,10 @@ ral_start(struct ifnet *ifp)
 			BPF_MTAP(ifp, m0);
 
 			m0 = ieee80211_encap(ic, m0, ni);
-			if (m0 == NULL)
+			if (m0 == NULL) {
+				ieee80211_free_node(ni);
 				continue;
+			}
 
 			if (ic->ic_rawbpf != NULL)
 				bpf_mtap(ic->ic_rawbpf, m0);
