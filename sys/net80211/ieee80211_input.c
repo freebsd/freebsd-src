@@ -257,7 +257,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 			if (IEEE80211_QOS_HAS_SEQ(wh)) {
 				tid = ((struct ieee80211_qosframe *)wh)->
 					i_qos[0] & IEEE80211_QOS_TID;
-				if (tid >= WME_AC_VI)
+				if (TID_TO_WME_AC(tid) >= WME_AC_VI)
 					ic->ic_wme.wme_hipri_traffic++;
 				tid++;
 			} else
