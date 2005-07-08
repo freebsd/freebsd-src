@@ -921,6 +921,7 @@ ral_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k)
 static int
 ral_media_change(struct ifnet *ifp)
 {
+	struct ral_softc *sc = ifp->if_softc;
 	int error;
 
 	error = ieee80211_media_change(ifp);
