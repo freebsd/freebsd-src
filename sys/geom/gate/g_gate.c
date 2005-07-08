@@ -442,8 +442,11 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 }
 
 #define	G_GATE_CHECK_VERSION(ggio)	do {				\
-	if ((ggio)->gctl_version != G_GATE_VERSION)			\
+	if ((ggio)->gctl_version != G_GATE_VERSION) {			\
+		printf("Version mismatch %d != %d.\n",			\
+		    ggio->gctl_version, G_GATE_VERSION);		\
 		return (EINVAL);					\
+	}								\
 } while (0)
 static int
 g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
@@ -488,6 +491,44 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		g_gate_release(sc);
 		return (error);
 	    }
+	case G_GATE_CMD_CANCEL:
+	    {
+		struct g_gate_ctl_cancel *ggio = (void *)addr;
+		struct bio *tbp, *lbp;
+
+		G_GATE_CHECK_VERSION(ggio);
+		sc = g_gate_hold(ggio->gctl_unit);
+		if (sc == NULL)
+			return (ENXIO);
+		lbp = NULL;
+		mtx_lock(&sc->sc_queue_mtx);
+		TAILQ_FOREACH_SAFE(bp, &sc->sc_outqueue.queue, bio_queue, tbp) {
+			if (ggio->gctl_seq == 0 ||
+			    ggio->gctl_seq == (uintptr_t)bp->bio_driver1) {
+				G_GATE_LOGREQ(1, bp, "Request canceled.");
+				bioq_remove(&sc->sc_outqueue, bp);
+				/*
+				 * Be sure to put requests back onto incoming
+				 * queue in the proper order.
+				 */
+				if (lbp == NULL)
+					bioq_insert_head(&sc->sc_inqueue, bp);
+				else {
+					TAILQ_INSERT_AFTER(&sc->sc_inqueue.queue,
+					    lbp, bp, bio_queue);
+				}
+				lbp = bp;
+				/*
+				 * If only one request was canceled, leave now.
+				 */
+				if (ggio->gctl_seq != 0)
+					break;
+			}
+		}
+		mtx_unlock(&sc->sc_queue_mtx);
+		g_gate_release(sc);
+		return (error);
+	    }
 	case G_GATE_CMD_START:
 	    {
 		struct g_gate_ctl_io *ggio = (void *)addr;
@@ -526,6 +567,7 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		ggio->gctl_seq = (uintptr_t)bp->bio_driver1;
 		ggio->gctl_offset = bp->bio_offset;
 		ggio->gctl_length = bp->bio_length;
+
 		switch (bp->bio_cmd) {
 		case BIO_READ:
 			break;
