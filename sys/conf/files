@@ -704,15 +704,19 @@ dev/sound/pci/als4000.c	optional snd_als4000 pci
 #dev/sound/pci/au88x0.c	optional snd_au88x0 pci
 dev/sound/pci/cmi.c	optional snd_cmi pci
 dev/sound/pci/cs4281.c	optional snd_cs4281 pci
-dev/sound/pci/csa.c	optional snd_csa pci
+dev/sound/pci/csa.c	optional snd_csa pci \
+	warning "kernel contains GPL contaminated csaimg.h header"
 dev/sound/pci/csapcm.c	optional snd_csa pci
 dev/sound/pci/ds1.c	optional snd_ds1 pci
-dev/sound/pci/emu10k1.c	optional snd_emu10k1 pci dependency "emu10k1-alsa%diked.h"
+dev/sound/pci/emu10k1.c	optional snd_emu10k1 pci \
+	dependency "emu10k1-alsa%diked.h" \
+	warning "kernel contains GPL contaminated emu10k1 headers"
 dev/sound/pci/es137x.c	optional snd_es137x pci
 dev/sound/pci/fm801.c	optional snd_fm801 pci
 dev/sound/pci/ich.c	optional snd_ich pci
 dev/sound/pci/maestro.c optional snd_maestro pci
-dev/sound/pci/maestro3.c	optional snd_maestro3 pci
+dev/sound/pci/maestro3.c	optional snd_maestro3 pci \
+	warning "kernel contains GPL contaminated maestro3 headers"
 dev/sound/pci/neomagic.c	optional snd_neomagic pci
 dev/sound/pci/solo.c	optional snd_solo pci
 dev/sound/pci/t4dwave.c	optional snd_t4dwave pci
