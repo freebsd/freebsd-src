@@ -623,7 +623,7 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		ste_rxeoc(sc);
 	ste_rxeof(sc);
 	ste_txeof(sc);
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ste_start(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -716,7 +716,7 @@ ste_intr(xsc)
 	/* Re-enable interrupts */
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ste_start(ifp);
 
 #ifdef DEVICE_POLLING
@@ -938,7 +938,7 @@ ste_stats_update(xsc)
 			* otherwise we get stuck in the wrong link state
 			*/
 			ste_miibus_statchg(sc->ste_dev);
-			if (ifp->if_snd.ifq_head != NULL)
+			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 				ste_start(ifp);
 		}
 	}
@@ -1085,7 +1085,9 @@ ste_attach(dev)
 	ifp->if_watchdog = ste_watchdog;
 	ifp->if_init = ste_init;
 	ifp->if_baudrate = 10000000;
-	ifp->if_snd.ifq_maxlen = STE_TX_LIST_CNT - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, STE_TX_LIST_CNT - 1);
+	ifp->if_snd.ifq_drv_maxlen = STE_TX_LIST_CNT - 1;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	sc->ste_tx_thresh = STE_TXSTART_THRESH;
 
@@ -1610,7 +1612,7 @@ ste_start(ifp)
 			break;
 		}
 
-		IF_DEQUEUE(&ifp->if_snd, m_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
@@ -1678,7 +1680,7 @@ ste_watchdog(ifp)
 	ste_reset(sc);
 	ste_init(sc);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ste_start(ifp);
 	STE_UNLOCK(sc);
 
