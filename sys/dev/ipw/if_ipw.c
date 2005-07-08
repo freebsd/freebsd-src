@@ -581,8 +581,8 @@ ipw_dma_alloc(struct ipw_softc *sc)
 	 * Pre-allocate rx buffers and DMA maps.
 	 */
 	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, IPW_NRBD, MCLBYTES, 0,
-	    NULL, NULL, &sc->rxbuf_dmat);
+	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1, MCLBYTES, 0, NULL,
+	    NULL, &sc->rxbuf_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create rx DMA tag\n");
 		goto fail;
