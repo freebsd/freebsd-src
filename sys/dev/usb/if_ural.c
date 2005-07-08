@@ -388,6 +388,7 @@ USB_ATTACH(ural)
 	 */
 	id = usbd_get_interface_descriptor(sc->sc_iface);
 
+	sc->sc_rx_no = sc->sc_tx_no = -1;
 	for (i = 0; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(sc->sc_iface, i);
 		if (ed == NULL) {
@@ -402,6 +403,10 @@ USB_ATTACH(ural)
 		else if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT &&
 		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK)
 			sc->sc_tx_no = ed->bEndpointAddress;
+	}
+	if (sc->sc_rx_no == -1 || sc->sc_tx_no == -1) {
+		printf("%s: missing endpoint\n", USBDEVNAME(sc->sc_dev));
+		USB_ATTACH_ERROR_RETURN;
 	}
 
 	mtx_init(&sc->sc_mtx, USBDEVNAME(sc->sc_dev), MTX_NETWORK_LOCK,
