@@ -484,7 +484,9 @@ vendor OTI		0x0ea0	Ours
 vendor PILOTECH		0x0eaf	Pilotech
 vendor EGALAX		0x0eef	eGalax
 vendor MICROTUNE	0x0f4d	Microtune
+vendor VTECH		0x0f88	VTech
 vendor QUALCOMM2	0x1004	Qualcomm
+vendor GIGABYTE		0x1044	GIGABYTE
 vendor WESTERN		0x1058	Western Digital
 vendor MOTOROLA		0x1063	Motorola
 vendor CCYU		0x1065	CCYU
@@ -530,6 +532,7 @@ vendor IRIVER		0x4102	iRiver
 vendor DELL		0x413c	Dell
 vendor AVERATEC		0x50c2	Averatec
 vendor ONSPEC2		0x55aa	OnSpec
+vendor ZINWELL		0x5a57	Zinwell
 vendor SITECOM		0x6189	Sitecom
 vendor INTEL		0x8086	Intel
 vendor HP2		0xf003	Hewlett Packard
@@ -892,8 +895,17 @@ product GENESYS GL641USB	0x0700	GL641USB CompactFlash Card Reader
 product GENESYS GL641USB2IDE_2	0x0701	GL641USB USB-IDE Bridge No 2
 product GENESYS GL641USB2IDE	0x0702	GL641USB USB-IDE Bridge
 
+/* GIGABYTE products */
+product GIGABYTE GNBR402W	0x8002	GN-BR402W
+product GIGABYTE GNWLBM101	0x8003	GN-WLBM101
+product GIGABYTE GNWBKG		0x8007	GN-WBKG
+
 /* G.Mate, Inc products */
 product GMATE YP3X00		0x1001	YP3X00 PDA
+
+/* Guillemot Corporation */
+product GUILLEMOT DALEADER	0xa300	DA Leader
+product GUILLEMOT HWGUSB254	0xe000	HWGUSB2-54 WLAN
 
 /* HAL Corporation products */
 product HAL IMR001		0x0011	Crossam2+USB IR commander
@@ -1132,13 +1144,18 @@ product MELCO LUA2TX5		0x0009	LUA2-TX Ethernet
 product MELCO LUAKTX		0x0012	LUA-KTX Ethernet
 product MELCO DUBPXXG		0x001c	USB-IDE Bridge: DUB-PxxG
 product MELCO LUAU2KTX		0x003d	LUA-U2-KTX Ethernet
-product MELCO KG54		0x0066	KG54 wireless adapter
+product MELCO KG54YB		0x005e	WLI-U2-KG54-YB WLAN
+product MELCO KG54		0x0066	WLI-U2-KG54 WLAN
+product MELCO KG54AI		0x0067	WLI-U2-KG54-AI WLAN
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
 
 /* Micro Star International products */
 product MSI BT_DONGLE		0x1967	Bluetooth USB dongle
+product MSI RT2570		0x6861	RT2570
+product MSI RT2570_2		0x6865	RT2570
+product MSI RT2570_3		0x6869	RT2570
 
 /* Microsoft products */
 product MICROSOFT SIDEPREC	0x0008	SideWinder Precision Pro
@@ -1546,6 +1563,9 @@ product VISIONEER 8600		0x0331	OneTouch 8600
 /* Vodafone products */
 product VODAFONE MC3G		0x5000	Mobile Connect 3G datacard
 
+/* VTech products */
+product VTECH RT2570		0x3012	RT2570
+
 /* Wacom products */
 product WACOM CT0405U		0x0000	CT-0405-U Tablet
 product WACOM GRAPHIRE		0x0010	Graphire
@@ -1576,6 +1596,9 @@ product YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
 
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03
+
+/* Zinwell products */
+product ZINWELL RT2570		0x0260	RT2570
 
 /* Zoom Telephonics, Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
