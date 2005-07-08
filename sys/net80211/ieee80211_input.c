@@ -2685,8 +2685,7 @@ ieee80211_recv_pspoll(struct ieee80211com *ic,
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER,
 		    "[%s] recv ps-poll, send packet, %u still queued\n",
 		    ether_sprintf(ni->ni_macaddr), qlen);
-		wh = mtod(m, struct ieee80211_frame_min *);
-		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
+		m->m_flags |= M_MORE_DATA;
 	} else {
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER,
 		    "[%s] recv ps-poll, send packet, queue empty\n",
