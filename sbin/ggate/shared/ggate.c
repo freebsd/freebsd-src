@@ -38,6 +38,7 @@
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <signal.h>
 #include <err.h>
@@ -206,17 +207,6 @@ g_gate_destroy(int unit, int force)
 	g_gate_ioctl(G_GATE_CMD_DESTROY, &ggio);
 }
 
-int
-g_gate_openflags(unsigned ggflags)
-{
-
-	if ((ggflags & G_GATE_FLAG_READONLY) != 0)
-		return (O_RDONLY);
-	else if ((ggflags & G_GATE_FLAG_WRITEONLY) != 0)
-		return (O_WRONLY);
-	return (O_RDWR);
-}
-
 void
 g_gate_load_module(void)
 {
@@ -229,6 +219,76 @@ g_gate_load_module(void)
 				    "geom_gate module not available!");
 			}
 		}
+	}
+}
+
+ssize_t
+g_gate_send(int s, const void *buf, size_t len, int flags)
+{
+	ssize_t done = 0, done2;
+	const unsigned char *p = buf;
+
+	while (len > 0) {
+		done2 = send(s, p, len, flags);
+		if (done2 == 0)
+			break;
+		else if (done2 == -1) {
+			if (errno == EAGAIN) {
+				printf("%s: EAGAIN\n", __func__);
+				continue;
+			}
+			done = -1;
+			break;
+		}
+		done += done2;
+		p += done2;
+		len -= done2;
+	}
+	return (done);
+}
+
+ssize_t
+g_gate_recv(int s, void *buf, size_t len, int flags)
+{
+
+	return (recv(s, buf, len, flags));
+}
+
+int nagle = 1;
+unsigned rcvbuf = G_GATE_RCVBUF;
+unsigned sndbuf = G_GATE_SNDBUF;
+
+void
+g_gate_socket_settings(int sfd)
+{
+	struct timeval tv;
+	int bsize, on;
+
+	/* Socket settings. */
+	on = 1;
+	if (nagle) {
+		if (setsockopt(sfd, IPPROTO_TCP, TCP_NODELAY, &on, 
+		    sizeof(on)) == -1) {
+			g_gate_xlog("setsockopt() error: %s.", strerror(errno));
+		}
+	}
+	if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1)
+		g_gate_xlog("setsockopt(SO_REUSEADDR): %s.", strerror(errno));
+	bsize = rcvbuf;
+	if (setsockopt(sfd, SOL_SOCKET, SO_RCVBUF, &bsize, sizeof(bsize)) == -1)
+		g_gate_xlog("setsockopt(SO_RCVBUF): %s.", strerror(errno));
+	bsize = sndbuf;
+	if (setsockopt(sfd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(bsize)) == -1)
+		g_gate_xlog("setsockopt(SO_SNDBUF): %s.", strerror(errno));
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	if (setsockopt(sfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {
+		g_gate_log(LOG_ERR, "setsockopt(SO_SNDTIMEO) error: %s.",
+		    strerror(errno));
+	}
+	if (setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
+		g_gate_log(LOG_ERR, "setsockopt(SO_RCVTIMEO) error: %s.",
+		    strerror(errno));
 	}
 }
 
