@@ -41,7 +41,7 @@
 #define	G_GATE_MOD_NAME		"ggate"
 #define	G_GATE_CTL_NAME		"ggctl"
 
-#define G_GATE_VERSION		0
+#define G_GATE_VERSION		1
 
 /*
  * Maximum number of request that can be stored in
@@ -56,8 +56,9 @@
 
 #define G_GATE_CMD_CREATE	_IOWR('m', 0, struct g_gate_ctl_create)
 #define G_GATE_CMD_DESTROY	_IOWR('m', 1, struct g_gate_ctl_destroy)
-#define G_GATE_CMD_START	_IOWR('m', 2, struct g_gate_ctl_io)
-#define G_GATE_CMD_DONE		_IOWR('m', 3, struct g_gate_ctl_io)
+#define G_GATE_CMD_CANCEL	_IOWR('m', 2, struct g_gate_ctl_cancel)
+#define G_GATE_CMD_START	_IOWR('m', 3, struct g_gate_ctl_io)
+#define G_GATE_CMD_DONE		_IOWR('m', 4, struct g_gate_ctl_io)
 
 #define	G_GATE_INFOSIZE		2048
 
@@ -127,6 +128,12 @@ struct g_gate_ctl_destroy {
 	u_int	gctl_version;
 	int	gctl_unit;
 	int	gctl_force;
+};
+
+struct g_gate_ctl_cancel {
+	u_int		gctl_version;
+	int		gctl_unit;
+	uintptr_t	gctl_seq;
 };
 
 struct g_gate_ctl_io {
