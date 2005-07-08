@@ -422,6 +422,7 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 {
 	char buf[2048];
 	struct if_announcemsghdr *ifan;
+	struct if_msghdr *ifm;
 	struct rt_msghdr *rtm;
 	union wpa_event_data event;
 	struct ieee80211_michael_event *mic;
@@ -440,9 +441,9 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 			"understood\n", rtm->rtm_version);
 		return;
 	}
-	ifan = (struct if_announcemsghdr *) rtm;
 	switch (rtm->rtm_type) {
 	case RTM_IFANNOUNCE:
+		ifan = (struct if_announcemsghdr *) rtm;
 		memset(&event, 0, sizeof(event));
 		/* XXX name buffer must be >= IFNAMSIZ */
 		/* XXX check return value */
@@ -463,6 +464,7 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 		wpa_supplicant_event(ctx, EVENT_INTERFACE_STATUS, &event);
 		break;
 	case RTM_IEEE80211:
+		ifan = (struct if_announcemsghdr *) rtm;
 		switch (ifan->ifan_what) {
 		case RTM_IEEE80211_ASSOC:
 		case RTM_IEEE80211_REASSOC:
@@ -490,6 +492,17 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 			wpa_supplicant_event(ctx, EVENT_MICHAEL_MIC_FAILURE,
 				&event);
 			break;
+		}
+		break;
+	case RTM_IFINFO:
+		ifm = (struct if_msghdr *) rtm;
+		if ((rtm->rtm_flags & RTF_UP) == 0) {
+			if_indextoname(ifm->ifm_index,
+				event.interface_status.ifname);
+			event.interface_status.ievent = EVENT_INTERFACE_REMOVED;
+			wpa_printf(MSG_DEBUG, "RTM_IFINFO: Interface '%s' DOWN",
+				   event.interface_status.ifname);
+			wpa_supplicant_event(ctx, EVENT_INTERFACE_STATUS, &event);
 		}
 		break;
 	}
