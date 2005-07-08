@@ -685,7 +685,7 @@ ural_media_change(struct ifnet *ifp)
 	}
 
 	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
-		ural_init(ifp);
+		ural_init(sc);
 
 	RAL_UNLOCK(sc);
 
