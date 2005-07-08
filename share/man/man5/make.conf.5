@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2005
+.Dd June 9, 2005
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -820,6 +820,14 @@ for simple printers, or
 .Dq Li ps
 for postscript or graphics printers with a ghostscript
 filter, or both.
+.It Va ENABLE_WPA_SUPPLICANT_EAPOL
+.Pq Vt str
+Build
+.Xr wpa_supplicant 8
+with support for the IEEE 802.1X protocol and with
+support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
+protocols (usable only via 802.1X).
+This option is ignored if NO_CRYPTO or NO_OPENSSL are configured.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
@@ -836,6 +844,7 @@ filter, or both.
 .Xr ports 7 ,
 .Xr lpd 8 ,
 .Xr sendmail 8
+.Xr wpa_supplicant 8
 .Sh HISTORY
 The
 .Nm
