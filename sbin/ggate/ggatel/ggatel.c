@@ -47,7 +47,7 @@
 #include "ggate.h"
 
 
-enum { UNSET, ATTACH, CREATE, DESTROY, LIST } action = UNSET;
+enum { UNSET, CREATE, DESTROY, LIST, RESCUE } action = UNSET;
 
 static const char *path = NULL;
 static int unit = -1;
@@ -63,11 +63,22 @@ usage(void)
 
 	fprintf(stderr, "usage: %s create [-v] [-o <ro|wo|rw>] [-q queue_size] "
 	    "[-s sectorsize] [-t timeout] [-u unit] <path>\n", getprogname());
-	fprintf(stderr, "       %s attach [-v] [-o <ro|wo|rw>] <-u unit> "
+	fprintf(stderr, "       %s rescue [-v] [-o <ro|wo|rw>] <-u unit> "
 	    "<path>\n", getprogname());
 	fprintf(stderr, "       %s destroy [-f] <-u unit>\n", getprogname());
 	fprintf(stderr, "       %s list [-v] [-u unit]\n", getprogname());
 	exit(EXIT_FAILURE);
+}
+
+static int
+g_gate_openflags(unsigned ggflags)
+{
+
+	if ((ggflags & G_GATE_FLAG_READONLY) != 0)
+		return (O_RDONLY);
+	else if ((ggflags & G_GATE_FLAG_WRITEONLY) != 0)
+		return (O_WRONLY);
+	return (O_RDWR);
 }
 
 static void
@@ -181,13 +192,20 @@ g_gatel_create(void)
 }
 
 static void
-g_gatel_attach(void)
+g_gatel_rescue(void)
 {
+	struct g_gate_ctl_cancel ggioc;
 	int fd;
 
 	fd = open(path, g_gate_openflags(flags));
 	if (fd == -1)
 		err(EXIT_FAILURE, "Cannot open %s", path);
+
+	ggioc.gctl_version = G_GATE_VERSION;
+	ggioc.gctl_unit = unit;
+	ggioc.gctl_seq = 0;
+	g_gate_ioctl(G_GATE_CMD_CANCEL, &ggioc);
+
 	g_gatel_serve(fd);
 }
 
@@ -197,10 +215,10 @@ main(int argc, char *argv[])
 
 	if (argc < 2)
 		usage();
-	if (strcasecmp(argv[1], "attach") == 0)
-		action = ATTACH;
-	else if (strcasecmp(argv[1], "create") == 0)
+	if (strcasecmp(argv[1], "create") == 0)
 		action = CREATE;
+	else if (strcasecmp(argv[1], "rescue") == 0)
+		action = RESCUE;
 	else if (strcasecmp(argv[1], "destroy") == 0)
 		action = DESTROY;
 	else if (strcasecmp(argv[1], "list") == 0)
@@ -222,7 +240,7 @@ main(int argc, char *argv[])
 			force = 1;
 			break;
 		case 'o':
-			if (action != ATTACH && action != CREATE)
+			if (action != CREATE && action != RESCUE)
 				usage();
 			if (strcasecmp("ro", optarg) == 0)
 				flags = G_GATE_FLAG_READONLY;
@@ -278,7 +296,15 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	switch (action) {
-	case ATTACH:
+	case CREATE:
+		if (argc != 1)
+			usage();
+		g_gate_load_module();
+		g_gate_open_device();
+		path = argv[0];
+		g_gatel_create();
+		break;
+	case RESCUE:
 		if (argc != 1)
 			usage();
 		if (unit == -1) {
@@ -287,15 +313,7 @@ main(int argc, char *argv[])
 		}
 		g_gate_open_device();
 		path = argv[0];
-		g_gatel_attach();
-		break;
-	case CREATE:
-		if (argc != 1)
-			usage();
-		g_gate_load_module();
-		g_gate_open_device();
-		path = argv[0];
-		g_gatel_create();
+		g_gatel_rescue();
 		break;
 	case DESTROY:
 		if (unit == -1) {
