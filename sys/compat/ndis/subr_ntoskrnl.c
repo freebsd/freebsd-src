@@ -3110,15 +3110,15 @@ KeRemoveQueueDpc(dpc)
 	if (dpc->k_lock == NULL)
 		return(FALSE);
 
-	mtx_lock_spin(dpc->k_lock);
+	mtx_lock_spin((struct mtx*)(dpc->k_lock));
 	if (dpc->k_dpclistentry.nle_flink == &dpc->k_dpclistentry) {
-		mtx_unlock_spin(dpc->k_lock);
+		mtx_unlock_spin((struct mtx*)(dpc->k_lock));
 		return(FALSE);
 	}
 
 	REMOVE_LIST_ENTRY((&dpc->k_dpclistentry));
 	INIT_LIST_HEAD((&dpc->k_dpclistentry));
-	mtx_unlock_spin(dpc->k_lock);
+	mtx_unlock_spin((struct mtx*)(dpc->k_lock));
 
 	return(TRUE);
 }
