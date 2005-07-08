@@ -928,7 +928,7 @@ ral_media_change(struct ifnet *ifp)
 		return error;
 
 	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
-		ral_init(ifp);
+		ral_init(sc);
 
 	return 0;
 }
