@@ -44,7 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/limits.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -614,15 +616,20 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * when on a non-blocking socket. Instead it returns the
 	 * error getsockopt(SOL_SOCKET, SO_ERROR) would return on BSD.
 	 */
-	if ((error = fgetsock(td, linux_args.s, &so, &fflag)) != 0)
-		return(error);
-	error = EISCONN;
-	if (fflag & FNONBLOCK) {
-		if (so->so_emuldata == 0)
-			error = so->so_error;
-		so->so_emuldata = (void *)1;
+	NET_LOCK_GIANT();
+	error = fgetsock(td, linux_args.s, &so, &fflag);
+	if (error == 0) {
+		error = EISCONN;
+		if (fflag & FNONBLOCK) {
+			SOCK_LOCK(so);
+			if (so->so_emuldata == 0)
+				error = so->so_error;
+			so->so_emuldata = (void *)1;
+			SOCK_UNLOCK(so);
+		}
+		fputsock(so);
 	}
-	fputsock(so);
+	NET_UNLOCK_GIANT();
 	return (error);
 }
 
