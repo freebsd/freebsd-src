@@ -61,7 +61,24 @@ static	int _ieee80211_crypto_delkey(struct ieee80211com *,
 static int
 null_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k)
 {
-	return IEEE80211_KEYIX_NONE;
+	if (!(&ic->ic_nw_keys[0] <= k &&
+	     k < &ic->ic_nw_keys[IEEE80211_WEP_NKID])) {
+		/*
+		 * Not in the global key table, the driver should handle this
+		 * by allocating a slot in the h/w key table/cache.  In
+		 * lieu of that return key slot 0 for any unicast key
+		 * request.  We disallow the request if this is a group key.
+		 * This default policy does the right thing for legacy hardware
+		 * with a 4 key table.  It also handles devices that pass
+		 * packets through untouched when marked with the WEP bit
+		 * and key index 0.
+		 */
+		if ((k->wk_flags & IEEE80211_KEY_GROUP) == 0)
+			return 0;	/* NB: use key index 0 for ucast key */
+		else
+			return IEEE80211_KEYIX_NONE;
+	}
+	return k - ic->ic_nw_keys;
 }
 static int
 null_key_delete(struct ieee80211com *ic, const struct ieee80211_key *k)
