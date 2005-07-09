@@ -97,6 +97,11 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
  * Log file record constructors.
  */
 
+#define	_PMCLOG_TO_HEADER(T,L)						\
+	((PMCLOG_HEADER_MAGIC << 24) |					\
+	 (PMCLOG_TYPE_ ## T << 16)   |					\
+	 ((L) & 0xFFFF))
+
 /* reserve LEN bytes of space and initialize the entry header */
 #define	_PMCLOG_RESERVE(PO,TYPE,LEN,ACTION) do {			\
 		uint32_t *_le;						\
@@ -104,9 +109,7 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
 		if ((_le = pmclog_reserve((PO), _len)) == NULL) {	\
 			ACTION;						\
 		}							\
-		*_le = (PMCLOG_HEADER_MAGIC << 24) |			\
-		    (PMCLOG_TYPE_ ## TYPE << 16) |			\
-		    (_len & 0xFFFF);					\
+		*_le = _PMCLOG_TO_HEADER(TYPE,_len);			\
 		_le += 3	/* skip over timestamp */
 
 #define	PMCLOG_RESERVE(P,T,L)		_PMCLOG_RESERVE(P,T,L,return)
@@ -397,7 +400,7 @@ pmclog_release(struct pmc_owner *po)
 static uint32_t *
 pmclog_reserve(struct pmc_owner *po, int length)
 {
-	char *newptr, *oldptr;
+	uintptr_t newptr, oldptr;
 	uint32_t *lh;
 	struct timespec ts;
 
@@ -423,22 +426,25 @@ pmclog_reserve(struct pmc_owner *po, int length)
 		__LINE__, po, po->po_curbuf->plb_ptr, po->po_curbuf->plb_base,
 		po->po_curbuf->plb_fence));
 
-	oldptr = po->po_curbuf->plb_ptr;
+	oldptr = (uintptr_t) po->po_curbuf->plb_ptr;
 	newptr = oldptr + length;
 
-	KASSERT(oldptr != NULL,
+	KASSERT(oldptr != (uintptr_t) NULL,
 	    ("[pmc,%d] po=%p Null log buffer pointer", __LINE__, po));
 
 	/*
 	 * If we have space in the current buffer, return a pointer to
 	 * available space with the PO structure locked.
 	 */
-	if (newptr <= po->po_curbuf->plb_fence) {
-		po->po_curbuf->plb_ptr = newptr;
+	if (newptr <= (uintptr_t) po->po_curbuf->plb_fence) {
+		po->po_curbuf->plb_ptr = (char *) newptr;
 		goto done;
 	}
 
-	/* otherwise, schedule the current buffer and get a fresh buffer */
+	/*
+	 * Otherwise, schedule the current buffer for output and get a
+	 * fresh buffer.
+	 */
 	pmclog_schedule_io(po);
 
 	if (pmclog_get_buffer(po) != 0) {
@@ -458,12 +464,12 @@ pmclog_reserve(struct pmc_owner *po, int length)
 		__LINE__, po, po->po_curbuf->plb_ptr, po->po_curbuf->plb_base,
 		po->po_curbuf->plb_fence));
 
-	oldptr = po->po_curbuf->plb_ptr;
+	oldptr = (uintptr_t) po->po_curbuf->plb_ptr;
 
  done:
-	lh = (uint32_t *) oldptr; lh++;
-	/* fill in the timestamp */
-	getnanotime(&ts);
+	lh = (uint32_t *) oldptr;
+	lh++;				/* skip header */
+	getnanotime(&ts);		/* fill in the timestamp */
 	*lh++ = ts.tv_sec & 0xFFFFFFFF;
 	*lh++ = ts.tv_nsec & 0xFFFFFFF;
 	return (uint32_t *) oldptr;
@@ -517,7 +523,7 @@ pmclog_stop_kthread(struct pmc_owner *po)
 	po->po_flags &= ~PMC_PO_OWNS_LOGFILE;
 	wakeup_one(po);
 	if (po->po_kthread)
-		msleep(po->po_kthread, &pmc_kthread_mtx, PPAUSE, "pmcdcl", 0);
+		msleep(po->po_kthread, &pmc_kthread_mtx, PPAUSE, "pmckstp", 0);
 }
 
 /*
