@@ -287,6 +287,8 @@ static void ct_intr (void *arg)
 	for (i = 0; i < NCHAN && b->chan[i].type; i++) {
 		drv_t *d = b->chan[i].sys;
 		struct mbuf *m;
+		if (!d || !d->running)
+			continue;
 		while (_IF_QLEN(&d->queue)) {
 			IF_DEQUEUE (&d->queue,m);
 			if (!m)
