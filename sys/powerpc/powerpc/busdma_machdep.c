@@ -508,6 +508,8 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 
 	M_ASSERTPKTHDR(m0);
 
+	*nsegs = 0;
+
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
 		int first = 1;
 		vm_offset_t lastaddr = 0;
