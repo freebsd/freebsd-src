@@ -120,7 +120,7 @@ void	pmcstat_show_usage(void);
 void	pmcstat_shutdown_logging(void);
 void	pmcstat_start_pmcs(struct pmcstat_args *_a);
 void	pmcstat_start_process(struct pmcstat_args *_a);
-void	pmcstat_process_log(struct pmcstat_args *_a);
+int	pmcstat_process_log(struct pmcstat_args *_a);
 int	pmcstat_print_log(struct pmcstat_args *_a);
 int	pmcstat_convert_log(struct pmcstat_args *_a);
 
