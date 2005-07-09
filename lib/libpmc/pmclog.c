@@ -411,6 +411,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 int
 pmclog_read(void *cookie, struct pmclog_ev *ev)
 {
+	int retval;
 	ssize_t nread;
 	struct pmclog_parse_state *ps;
 
@@ -435,6 +436,7 @@ pmclog_read(void *cookie, struct pmclog_ev *ev)
 		 * can return EOF.
 		 */
 		if (ps->ps_fd != PMCLOG_FD_NONE) {
+		refill:
 			nread = read(ps->ps_fd, ps->ps_buffer,
 			    PMCLOG_BUFFER_SIZE);
 
@@ -454,10 +456,21 @@ pmclog_read(void *cookie, struct pmclog_ev *ev)
 
 	assert(ps->ps_len > 0);
 
+
+	 /* Retrieve one event from the byte stream. */
+	retval = pmclog_get_event(ps, &ps->ps_data, &ps->ps_len, ev);
+
 	/*
-	 * Retrieve one event from the byte stream.
+	 * If we need more data and we have a configured fd, try read
+	 * from it.
 	 */
-	return pmclog_get_event(ps, &ps->ps_data, &ps->ps_len, ev);
+	if (retval < 0 && ev->pl_state == PMCLOG_REQUIRE_DATA &&
+	    ps->ps_fd != -1) {
+		assert(ps->ps_len == 0);
+		goto refill;
+	}
+
+	return retval;
 }
 
 /*
