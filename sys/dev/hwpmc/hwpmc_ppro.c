@@ -762,8 +762,9 @@ p6_intr(int cpu, uintptr_t eip, int usermode)
 	 */
 	if (retval)
 		pmc_x86_lapic_enable_pmc_interrupt();
-	else
-		atomic_add_int(&pmc_stats.pm_intr_ignored, 1);
+
+	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
+	    &pmc_stats.pm_intr_ignored, 1);
 
 	/* restart counters that can be restarted */
 	P6_SYNC_CTR_STATE(pc);

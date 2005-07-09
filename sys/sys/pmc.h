@@ -306,7 +306,6 @@ enum pmc_ops {
 #define	PMC_F_ATTACHED_TO_OWNER	0x00010000 /*attached to owner*/
 #define	PMC_F_NEEDS_LOGFILE	0x00020000 /*needs log file */
 #define	PMC_F_ATTACH_DONE	0x00040000 /*attached at least once */
-#define	PMC_F_IS_STALLED	0x00080000 /*sampling is stalled*/
 
 /*
  * Cookies used to denote allocated PMCs, and the values of PMCs.
@@ -646,6 +645,7 @@ struct pmc {
 		pmc_value_t	pm_initial;	/* counting PMC modes */
 	} pm_sc;
 
+	uint32_t	pm_stalled;	/* true for stalled sampling PMCs */
 	uint32_t	pm_caps;	/* PMC capabilities */
 	enum pmc_event	pm_event;	/* event being measured */
 	uint32_t	pm_flags;	/* additional flags PMC_F_... */
@@ -915,7 +915,7 @@ extern struct pmc_debugflags pmc_debugflags;
 #define	PMC_DEBUG_DEFAULT_FLAGS		{ 0, 0, 0, 0, 0, 0, 0, 0 }
 
 #define	PMCDBG(M,N,L,F,...) do {					\
-	if (pmc_debugflags.pdb_ ## M & PMC_DEBUG_MIN_ ## N)		\
+	if (pmc_debugflags.pdb_ ## M & (1 << PMC_DEBUG_MIN_ ## N))	\
 		printf(#M ":" #N ":" #L  ": " F "\n", __VA_ARGS__);	\
 } while (0)
 
