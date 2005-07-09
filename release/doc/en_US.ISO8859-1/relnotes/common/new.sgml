@@ -255,6 +255,9 @@
       and threads currently holding sleep mutexes (and spin mutexes for
       the current thread).  &merged;</para>
 
+    <para arch="amd64,i386">The kernel crash dump format has been changed to
+      ELF to support large memory (more than 4GB) environment.</para>
+
     <para>The &man.ichsmb.4; driver is now available as a loadable
       kernel module.</para>
 
@@ -533,7 +536,7 @@
 
       <para arch="sparc64">The &man.uart.4; driver is now enabled in
 	the <filename>GENERIC</filename> kernel, and is now the
-	default driver for serial ports.  The ofw_console and
+	default driver for serial ports.  The &man.ofw.console.4; and
 	&man.sab.4; drivers are now disabled in the
 	<filename>GENERIC</filename> kernel. &merged;</para>
 
@@ -555,6 +558,9 @@
 	  added to support the Crystal Semiconductor CS4231 audio
 	  controller found on &ultrasparc;
 	  workstations. &merged;</para>
+
+	<para>The &man.snd.csa.4; driver now supports
+	  suspend and resume operation.</para>
 
 	<para>The &man.uaudio.4; driver now has some added
 	  functionality, including volume control on more inputs and
@@ -650,6 +656,8 @@
 	<para>The &man.sk.4; driver now has support for &man.altq.4;.
 	  This driver also now supports jumbo frames on Yukon-based
 	  interfaces. &merged;</para>
+
+	<para>The &man.ste.4; driver now has support for &man.altq.4;.</para>
 
 	<para>The &man.vge.4; driver now has support for device polling
 	  (&man.polling.4;).</para>
@@ -750,6 +758,13 @@
 	support. &merged;</para>
 
       <para>The &man.sppp.4; driver is now MPSAFE.</para>
+
+      <para>The &os; routing table now requires gateways for routes
+	to be of the same address family as the route itself.
+	The &man.route.8; utility now rejects a combination of different
+	address families.  For example:</para>
+
+      <screen>&prompt.root; route add 10.1.1.1 -inet6 fe80::1%fxp0</screen>
 
       <para>The new sysctl <varname>net.link.tap.user_open</varname>
 	has been implemented.  This allows unprivileged access to
@@ -930,6 +945,19 @@
       <option>-h</option> flag, which supports changing flags on
       symbolic links.</para>
 
+    <para>The &man.env.1; program now supports a <option>-v</option>
+      flag to write the command to standard error before it is executed.</para>
+
+    <para>The &man.env.1; program now supports a <option>-S
+	<replaceable>string</replaceable></option>
+      option to split the <replaceable>string</replaceable> and pass them to
+      the command as the command-line arguments.</para>
+
+    <para>The &man.env.1; program now supports a <option>-P
+	<replaceable>altpath</replaceable></option>
+      option to set the command search path used to look for
+      the command.</para>
+
     <para>The &man.ftpd.8; program now uses the <literal>212</literal>
       and <literal>213</literal> status codes for directory
       and file status correctly (<literal>211</literal> was used in
@@ -1007,6 +1035,11 @@
 
     <para>The on-disk format of <literal>LC_CTYPE</literal> files has
       been changed to be machine-independent.</para>
+
+    <para>The <application>libkvm</application> now supports
+      ELF crash dump on amd64 and i386 platforms,
+      large crash dump (more than 4GB) in 32-bit platforms,
+      and PAE crash dump on i386 platform.</para>
 
     <para>The &man.mixer.8; utility now supports the <option>-S</option>
       option.  This is the same as the <option>-s</option> option
@@ -1293,6 +1326,10 @@
 
       <para>The <filename>rc.d/bsnmpd</filename> startup script
 	for &man.bsnmpd.1; has been added.</para>
+
+      <para>The <filename>rc.d/jail</filename> startup script
+	now supports <varname>jail_<replaceable>name</replaceable>_flags</varname>
+	variable which allows to specify &man.jail.8; flags.</para>
 
       <para>&man.rc.conf.5; now supports changes of network interface names
 	at boot time. &merged;  For example:</para>
@@ -1582,10 +1619,15 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para>Documentation of existing functionality has been improved by
       the addition of the following manual pages: &man.ataraid.4;,
       &man.bus.space.9;,
+      &man.central.4;, &man.clkbrd.4;, &man.creator.4;,
       &man.devfs.conf.5, &man.devfs.rules.5,
-      &man.pmap.page.init.9;,
-      &man.pthread.atfork.3;,
-      &man.sched.4bsd.4;, &man.sched.ule.4;, &man.snd.fm801.4;,
+      &man.ebus.4;, &man.eeprom.4;,
+      &man.fhc.4;,
+      &man.machfb.4;,
+      &man.ofw.console.4;, &man.openfirm.4;, &man.openprom.4;,
+      &man.pmap.page.init.9;, &man.pthread.atfork.3;,
+      &man.rtc.4;,
+      &man.sbus.4;, &man.sched.4bsd.4;, &man.sched.ule.4;, &man.snd.fm801.4;,
       &man.snd.neomagic.4;, &man.snd.via8233.4;, &man.snd.via82c686.4;,
       and &man.snd.vibes.4;.</para>
 
