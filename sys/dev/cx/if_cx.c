@@ -1517,6 +1517,7 @@ static int cx_tmodem (struct tty *tp, int sigon, int sigoff)
 		if (cx_get_cts (d->chan)) sigon |= SER_CTS;
 		if (d->chan->dtr)	  sigon |= SER_DTR;
 		if (d->chan->rts)	  sigon |= SER_RTS;
+		CX_UNLOCK (bd);
 		return sigon;
 	}
 
@@ -2241,6 +2242,9 @@ static void cx_carrier (void *arg)
 			if (d->tty)
 				ttyld_modem(d->tty, 0);
 		}
+	} else {
+		CX_UNLOCK (bd);
+		splx (s);
 	}
 }
 
