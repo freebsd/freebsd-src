@@ -1324,7 +1324,7 @@ pmc_process_csw_out(struct thread *td)
 			__LINE__, PMC_TO_ROWINDEX(pm), ri));
 
 		/* Stop hardware if not already stopped */
-		if ((pm->pm_flags & PMC_F_IS_STALLED) == 0)
+		if (pm->pm_stalled == 0)
 			md->pmd_stop_pmc(cpu, ri);
 
 		/* reduce this PMC's runcount */
@@ -1855,7 +1855,7 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 
 		/* switch off non-stalled CPUs */
 		if (pm->pm_state == PMC_STATE_RUNNING &&
-		    (pm->pm_flags & PMC_F_IS_STALLED) == 0) {
+		    pm->pm_stalled == 0) {
 
 			phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
 
@@ -3395,8 +3395,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 
 	/*
-	 * Flush the per-owner log file and Write a user-entry to the
-	 * log file.
+	 * Write a user supplied value to the log file.
 	 */
 
 	case PMC_OP_WRITELOG:
@@ -3474,8 +3473,8 @@ pmc_process_interrupt(int cpu, struct pmc *pm, uintfptr_t pc, int usermode)
 
 	ps = psb->ps_write;
 	if (ps->ps_pc) {	/* in use, reader hasn't caught up */
+		pm->pm_stalled = 1;
 		atomic_add_int(&pmc_stats.pm_intr_bufferfull, 1);
-		atomic_set_int(&pm->pm_flags, PMC_F_IS_STALLED);
 		PMCDBG(SAM,INT,1,"(spc) cpu=%d pm=%p pc=%jx um=%d wr=%d rd=%d",
 		    cpu, pm, (uint64_t) pc, usermode,
 		    (int) (psb->ps_write - psb->ps_samples),
@@ -3599,19 +3598,19 @@ pmc_process_samples(int cpu)
 	/*
 	 * Restart any stalled sampling PMCs on this CPU.
 	 *
-	 * If the NMI handler sets PMC_F_IS_STALLED on a PMC after the
-	 * check below, we'll end up processing the stalled PMC at the
-	 * next hardclock tick.
+	 * If the NMI handler sets the pm_stalled field of a PMC after
+	 * the check below, we'll end up processing the stalled PMC at
+	 * the next hardclock tick.
 	 */
 	for (n = 0; n < md->pmd_npmc; n++) {
 		(void) (*md->pmd_get_config)(cpu,n,&pm);
 		if (pm == NULL ||			 /* !cfg'ed */
 		    pm->pm_state != PMC_STATE_RUNNING || /* !active */
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)) || /* !sampling */
-		    (pm->pm_flags & PMC_F_IS_STALLED) == 0) /* !stalled */
+		    pm->pm_stalled == 0) /* !stalled */
 			continue;
 
-		pm->pm_flags &= ~PMC_F_IS_STALLED;
+		pm->pm_stalled = 0;
 		ri = PMC_TO_ROWINDEX(pm);
 		(*md->pmd_start_pmc)(cpu, ri);
 	}
@@ -3733,9 +3732,9 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 			    ("[pmc,%d] bad runcount ri %d rc %d",
 				__LINE__, ri, pm->pm_runcount));
 
-			/* Stopped the hardware only if it is actually on */
+			/* Stop hardware only if it is actually running */
 			if (pm->pm_state == PMC_STATE_RUNNING &&
-			    (pm->pm_flags & PMC_F_IS_STALLED) == 0) {
+			    pm->pm_stalled == 0) {
 				md->pmd_read_pmc(cpu, ri, &newvalue);
 				tmp = newvalue -
 				    PMC_PCPU_SAVED(cpu,ri);
@@ -3771,7 +3770,8 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 		 */
 		for (ri = 0; ri < md->pmd_npmc; ri++)
 			if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
-				if (pm->pm_flags & PMC_F_NEEDS_LOGFILE)
+				if (pm->pm_flags & PMC_F_NEEDS_LOGFILE &&
+				    PMC_IS_COUNTING_MODE(PMC_TO_MODE(pm)))
 					pmclog_process_procexit(pm, pp);
 				pmc_unlink_target_process(pm, pp);
 			}

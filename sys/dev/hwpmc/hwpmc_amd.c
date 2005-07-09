@@ -679,7 +679,8 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 	KASSERT(cpu >= 0 && cpu < mp_ncpus,
 	    ("[amd,%d] out of range CPU %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INT,1, "cpu=%d eip=%p", cpu, (void *) eip);
+	PMCDBG(MDP,INT,1, "cpu=%d eip=%p um=%d", cpu, (void *) eip,
+	    usermode);
 
 	retval = 0;
 
@@ -733,8 +734,9 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 		retval = 1;	/* found an interrupting PMC */
 	}
 
-	if (retval == 0)
-		atomic_add_int(&pmc_stats.pm_intr_ignored, 1);
+	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
+	    &pmc_stats.pm_intr_ignored, 1);
+
 	return retval;
 }
 

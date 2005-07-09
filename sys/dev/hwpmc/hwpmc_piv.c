@@ -1674,8 +1674,9 @@ p4_intr(int cpu, uintptr_t eip, int usermode)
 
 	if (did_interrupt)
 		pmc_x86_lapic_enable_pmc_interrupt();
-	else
-		atomic_add_int(&pmc_stats.pm_intr_ignored, 1);
+
+	atomic_add_int(did_interrupt ? &pmc_stats.pm_intr_processed :
+	    &pmc_stats.pm_intr_ignored, 1);
 
 	return did_interrupt;
 }
