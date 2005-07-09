@@ -98,7 +98,6 @@ SYSCTL_INT(_debug_cp, OID_AUTO, mpsafenet, CTLFLAG_RD, &cp_mpsafenet, 0,
 					mtx_assert (&(_bd)->cp_mtx, MA_OWNED); \
 				} while (0)
 
-
 static	int cp_probe		__P((device_t));
 static	int cp_attach		__P((device_t));
 static	int cp_detach		__P((device_t));
@@ -523,20 +522,20 @@ static int cp_attach (device_t dev)
 		}
 		d->ifp->if_softc	= d;
 		if_initname (d->ifp, "cp", b->num * NCHAN + c->num);
-		d->ifp->if_mtu	= PP_MTU;
+		d->ifp->if_mtu		= PP_MTU;
 		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
 		if (!cp_mpsafenet)
 			d->ifp->if_flags |= IFF_NEEDSGIANT;
 		d->ifp->if_ioctl	= cp_sioctl;
 		d->ifp->if_start	= cp_ifstart;
 		d->ifp->if_watchdog	= cp_ifwatchdog;
-		d->ifp->if_init	= cp_initialize;
+		d->ifp->if_init		= cp_initialize;
 		d->queue.ifq_maxlen	= NRBUF;
 		mtx_init (&d->queue.ifq_mtx, "cp_queue", NULL, MTX_DEF);
 		sppp_attach (d->ifp);
 		if_attach (d->ifp);
-		IFP2SP(d->ifp)->pp_tlf		= cp_tlf;
-		IFP2SP(d->ifp)->pp_tls		= cp_tls;
+		IFP2SP(d->ifp)->pp_tlf	= cp_tlf;
+		IFP2SP(d->ifp)->pp_tls	= cp_tls;
 		/* If BPF is in the kernel, call the attach for it.
 		 * The header size of PPP or Cisco/HDLC is 4 bytes. */
 		bpfattach (d->ifp, DLT_PPP, 4);

@@ -741,22 +741,22 @@ static int ct_attach (device_t dev)
 			ct_bus_dma_mem_free (&d->dmamem);
 			continue;
 		}
-		d->ifp->if_softc    = d;
+		d->ifp->if_softc	= d;
 		if_initname (d->ifp, "ct", b->num * NCHAN + c->num);
-		d->ifp->if_mtu	= PP_MTU;
+		d->ifp->if_mtu		= PP_MTU;
 		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
 		if (!ct_mpsafenet)
 			d->ifp->if_flags |= IFF_NEEDSGIANT;
 		d->ifp->if_ioctl	= ct_sioctl;
 		d->ifp->if_start	= ct_ifstart;
 		d->ifp->if_watchdog	= ct_ifwatchdog;
-		d->ifp->if_init	= ct_initialize;
+		d->ifp->if_init		= ct_initialize;
 		d->queue.ifq_maxlen	= NBUF;
 		mtx_init (&d->queue.ifq_mtx, "ct_queue", NULL, MTX_DEF);
 		sppp_attach (d->ifp);
 		if_attach (d->ifp);
-		IFP2SP(d->ifp)->pp_tlf		= ct_tlf;
-		IFP2SP(d->ifp)->pp_tls		= ct_tls;
+		IFP2SP(d->ifp)->pp_tlf	= ct_tlf;
+		IFP2SP(d->ifp)->pp_tls	= ct_tls;
 		/* If BPF is in the kernel, call the attach for it.
 		 * Header size is 4 bytes. */
 		bpfattach (d->ifp, DLT_PPP, 4);
