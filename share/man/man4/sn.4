@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2004
+.Dd July 6, 2005
 .Dt SN 4
 .Os
 .Sh NAME
@@ -35,16 +35,23 @@
 .Sh DESCRIPTION
 The
 .Nm
-device driver supports SMC9xxx based ISA and PCMCIA cards.
+device driver supports SMC91Cxx based ISA and PCMCIA cards.
 .Sh HARDWARE
 The
 .Nm
-driver supports SMC9xxx based ISA and PCMCIA cards including:
+driver supports SMC91Cxx based ISA and PCMCIA cards including:
 .Pp
 .Bl -bullet -compact
 .It
-3Com Megahertz X-Jack Ethernet PC-Card CC-10BT
+3Com Megahertz X-Jack Ethernet PC-Card XJ10BT/XJ10BC
+.It
+Farallon EtherMac PC Card
 .El
+.Pp
+The
+.Nm
+driver supports the SMC 91C90, SMC 91C92, SMC 91C94, SMC 91C95, SMC 91C96,
+SMC91C100 and SMC 91C100FD chips from SMC.
 .Sh SEE ALSO
 .Xr ed 4 ,
 .Xr el 4 ,
