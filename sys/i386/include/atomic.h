@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 #ifndef _MACHINE_ATOMIC_H_
-#define _MACHINE_ATOMIC_H_
+#define	_MACHINE_ATOMIC_H_
 
 #ifndef _SYS_CDEFS_H_
 #error this file needs sys/cdefs.h as a prerequisite
@@ -67,8 +67,8 @@
  * Kernel modules call real functions which are built into the kernel.
  * This allows kernel modules to be portable between UP and SMP systems.
  */
-#if defined(KLD_MODULE)
-#define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
+#if defined(KLD_MODULE) || !defined(__GNUCLIKE_ASM)
+#define	ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
 void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
@@ -77,25 +77,23 @@ int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p);	\
 void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-#else /* !KLD_MODULE */
-
-#ifdef __GNUCLIKE_ASM
+#else /* !KLD_MODULE && __GNUCLIKE_ASM */
 
 /*
  * For userland, assume the SMP case and use lock prefixes so that
  * the binaries will run on both types of systems.
  */
 #if defined(SMP) || !defined(_KERNEL)
-#define MPLOCKED	lock ;
+#define	MPLOCKED	lock ;
 #else
-#define MPLOCKED
+#define	MPLOCKED
 #endif
 
 /*
  * The assembly is volatilized to demark potential before-and-after side
  * effects if an interrupt or SMP collision were to occur.
  */
-#define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)		\
+#define	ATOMIC_ASM(NAME, TYPE, OP, CONS, V)		\
 static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
@@ -105,13 +103,6 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }							\
 struct __hack
 
-#else /* !__GNUCLIKE_ASM */
-
-#define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)				\
-extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
-
-#endif /* __GNUCLIKE_ASM */
-
 /*
  * Atomic compare and set, used by the mutex functions
  *
@@ -119,8 +110,6 @@ extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
  *
  * Returns 0 on failure, non-zero on success
  */
-
-#ifdef __GNUCLIKE_ASM
 
 #if defined(CPU_DISABLE_CMPXCHG)
 
@@ -172,10 +161,6 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 
 #endif /* defined(CPU_DISABLE_CMPXCHG) */
 
-#endif /* __GNUCLIKE_ASM */
-
-#ifdef __GNUCLIKE_ASM
-
 #if defined(_KERNEL) && !defined(SMP)
 
 /*
@@ -185,7 +170,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
  * SMP kernels.  For UP kernels, however, the cache of the single processor
  * is always consistent, so we don't need any memory barriers.
  */
-#define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
+#define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 {							\
@@ -201,7 +186,7 @@ struct __hack
 
 #else /* defined(SMP) */
 
-#define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
+#define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 {							\
@@ -230,17 +215,7 @@ struct __hack
 
 #endif	/* !defined(SMP) */
 
-#else /* !__GNUCLIKE_ASM */
-
-extern int atomic_cmpset_int(volatile u_int *, u_int, u_int);
-
-#define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)				\
-extern u_##TYPE atomic_load_acq_##TYPE(volatile u_##TYPE *p);		\
-extern void atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
-
-#endif /* __GNUCLIKE_ASM */
-
-#endif /* KLD_MODULE */
+#endif /* KLD_MODULE || !__GNUCLIKE_ASM */
 
 ATOMIC_ASM(set,	     char,  "orb %b1,%0",  "iq",  v);
 ATOMIC_ASM(clear,    char,  "andb %b1,%0", "iq", ~v);
@@ -270,6 +245,57 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
 #undef ATOMIC_ASM
 #undef ATOMIC_STORE_LOAD
 
+#if !defined(WANT_FUNCTIONS)
+
+static __inline int
+atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
+{
+
+	return (atomic_cmpset_int((volatile u_int *)dst, (u_int)exp,
+	    (u_int)src));
+}
+
+/* Read the current value and store a zero in the destination. */
+#ifdef __GNUCLIKE_ASM
+
+static __inline u_int
+atomic_readandclear_int(volatile u_int *addr)
+{
+	u_int result;
+
+	__asm __volatile (
+	"	xorl	%0,%0 ;		"
+	"	xchgl	%1,%0 ;		"
+	"# atomic_readandclear_int"
+	: "=&r" (result)		/* 0 (result) */
+	: "m" (*addr));			/* 1 (addr) */
+
+	return (result);
+}
+
+static __inline u_long
+atomic_readandclear_long(volatile u_long *addr)
+{
+	u_long result;
+
+	__asm __volatile (
+	"	xorl	%0,%0 ;		"
+	"	xchgl	%1,%0 ;		"
+	"# atomic_readandclear_long"
+	: "=&r" (result)		/* 0 (result) */
+	: "m" (*addr));			/* 1 (addr) */
+
+	return (result);
+}
+
+#else /* !__GNUCLIKE_ASM */
+
+u_int	atomic_readandclear_int(volatile u_int *);
+u_long	atomic_readandclear_long(volatile u_long *);
+
+#endif /* __GNUCLIKE_ASM */
+
+/* Acquire and release variants are identical to the normal ones. */
 #define	atomic_set_acq_char		atomic_set_char
 #define	atomic_set_rel_char		atomic_set_char
 #define	atomic_clear_acq_char		atomic_clear_char
@@ -296,8 +322,8 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
 #define	atomic_add_rel_int		atomic_add_int
 #define	atomic_subtract_acq_int		atomic_subtract_int
 #define	atomic_subtract_rel_int		atomic_subtract_int
-#define atomic_cmpset_acq_int		atomic_cmpset_int
-#define atomic_cmpset_rel_int		atomic_cmpset_int
+#define	atomic_cmpset_acq_int		atomic_cmpset_int
+#define	atomic_cmpset_rel_int		atomic_cmpset_int
 
 #define	atomic_set_acq_long		atomic_set_long
 #define	atomic_set_rel_long		atomic_set_long
@@ -307,13 +333,13 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
 #define	atomic_add_rel_long		atomic_add_long
 #define	atomic_subtract_acq_long	atomic_subtract_long
 #define	atomic_subtract_rel_long	atomic_subtract_long
-#define	atomic_cmpset_long		atomic_cmpset_int
-#define	atomic_cmpset_acq_long		atomic_cmpset_acq_int
-#define	atomic_cmpset_rel_long		atomic_cmpset_rel_int
+#define	atomic_cmpset_acq_long		atomic_cmpset_long
+#define	atomic_cmpset_rel_long		atomic_cmpset_long
 
-#define atomic_cmpset_acq_ptr		atomic_cmpset_ptr
-#define atomic_cmpset_rel_ptr		atomic_cmpset_ptr
+#define	atomic_cmpset_acq_ptr		atomic_cmpset_ptr
+#define	atomic_cmpset_rel_ptr		atomic_cmpset_ptr
 
+/* Operations on 8-bit bytes. */
 #define	atomic_set_8		atomic_set_char
 #define	atomic_set_acq_8	atomic_set_acq_char
 #define	atomic_set_rel_8	atomic_set_rel_char
@@ -329,6 +355,7 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
 #define	atomic_load_acq_8	atomic_load_acq_char
 #define	atomic_store_rel_8	atomic_store_rel_char
 
+/* Operations on 16-bit words. */
 #define	atomic_set_16		atomic_set_short
 #define	atomic_set_acq_16	atomic_set_acq_short
 #define	atomic_set_rel_16	atomic_set_rel_short
@@ -344,6 +371,7 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
 #define	atomic_load_acq_16	atomic_load_acq_short
 #define	atomic_store_rel_16	atomic_store_rel_short
 
+/* Operations on 32-bit double words. */
 #define	atomic_set_32		atomic_set_int
 #define	atomic_set_acq_32	atomic_set_acq_int
 #define	atomic_set_rel_32	atomic_set_rel_int
@@ -363,7 +391,7 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
 #define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
 #define	atomic_readandclear_32	atomic_readandclear_int
 
-#if !defined(WANT_FUNCTIONS)
+/* Operations on pointers. */
 static __inline int
 atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 {
@@ -388,7 +416,7 @@ atomic_store_rel_ptr(volatile void *p, void *v)
 	atomic_store_rel_int((volatile u_int *)p, (u_int)v);
 }
 
-#define ATOMIC_PTR(NAME)				\
+#define	ATOMIC_PTR(NAME)				\
 static __inline void					\
 atomic_##NAME##_ptr(volatile void *p, uintptr_t v)	\
 {							\
@@ -413,45 +441,6 @@ ATOMIC_PTR(add)
 ATOMIC_PTR(subtract)
 
 #undef ATOMIC_PTR
-
-#ifdef __GNUCLIKE_ASM
-
-static __inline u_int
-atomic_readandclear_int(volatile u_int *addr)
-{
-	u_int result;
-
-	__asm __volatile (
-	"	xorl	%0,%0 ;		"
-	"	xchgl	%1,%0 ;		"
-	"# atomic_readandclear_int"
-	: "=&r" (result)		/* 0 (result) */
-	: "m" (*addr));			/* 1 (addr) */
-
-	return (result);
-}
-
-static __inline u_long
-atomic_readandclear_long(volatile u_long *addr)
-{
-	u_long result;
-
-	__asm __volatile (
-	"	xorl	%0,%0 ;		"
-	"	xchgl	%1,%0 ;		"
-	"# atomic_readandclear_int"
-	: "=&r" (result)		/* 0 (result) */
-	: "m" (*addr));			/* 1 (addr) */
-
-	return (result);
-}
-
-#else /* !__GNUCLIKE_ASM */
-
-extern u_long	atomic_readandclear_long(volatile u_long *);
-extern u_int	atomic_readandclear_int(volatile u_int *);
-
-#endif /* __GNUCLIKE_ASM */
 
 #endif	/* !defined(WANT_FUNCTIONS) */
 #endif /* ! _MACHINE_ATOMIC_H_ */
