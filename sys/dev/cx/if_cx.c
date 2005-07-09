@@ -853,8 +853,9 @@ static int cx_attach (device_t dev)
 		d->ifp->if_softc	= d;
 		if_initname (d->ifp, "cx", b->num * NCHAN + c->num);
 		d->ifp->if_mtu		= PP_MTU;
-		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST |
-					  IFF_NEEDSGIANT;
+		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
+		if (!cx_mpsafenet)
+			d->ifp->if_flags |= IFF_NEEDSGIANT;
 		d->ifp->if_ioctl	= cx_sioctl;
 		d->ifp->if_start	= cx_ifstart;
 		d->ifp->if_watchdog	= cx_ifwatchdog;
