@@ -136,7 +136,7 @@ struct socket {
 	struct	label *so_peerlabel;	/* (b) cached MAC label for peer */
 	/* NB: generation count must not be first; easiest to make it last. */
 	so_gen_t so_gencnt;		/* (h) generation count */
-	void	*so_emuldata;		/* private data for emulators */
+	void	*so_emuldata;		/* (b) private data for emulators */
  	struct so_accf {
 		struct	accept_filter *so_accept_filter;
 		void	*so_accept_filter_arg;	/* saved filter args */
