@@ -346,6 +346,7 @@ ext2_getattr(ap)
 	/*
 	 * Copy from inode table
 	 */
+	vap->va_fsid = dev2udev(ip->i_devvp->v_rdev);
 	vap->va_fileid = ip->i_number;
 	vap->va_mode = ip->i_mode & ~IFMT;
 	vap->va_nlink = ip->i_nlink;
