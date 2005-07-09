@@ -824,7 +824,7 @@ static void cp_send (drv_t *d)
 		if (d->ifp->if_bpf)
 			BPF_MTAP (d->ifp, m);
 #endif
-		len = m->m_pkthdr.len;
+		len = m_length (m, NULL);
 		if (len >= BUFSZ)
 			printf ("%s: too long packet: %d bytes: ",
 				d->name, len);
