@@ -876,6 +876,7 @@ static int cx_attach (device_t dev)
 		d->tty->t_param	= cx_param;
 		d->tty->t_stop	= cx_stop;
 		d->tty->t_modem	= cx_tmodem;
+		d->tty->t_oproc	= cx_oproc;
 		d->tty->t_sc	= d;
 		CX_LOCK (bd);
 		cx_start_chan (c, d->dmamem.virt, d->dmamem.phys);
