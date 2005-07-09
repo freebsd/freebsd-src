@@ -1159,7 +1159,7 @@ pmcstat_print_log(struct pmcstat_args *a)
  * Process a log file in offline analysis mode.
  */
 
-void
+int
 pmcstat_process_log(struct pmcstat_args *a)
 {
 
@@ -1168,12 +1168,10 @@ pmcstat_process_log(struct pmcstat_args *a)
 	 * log to the current output file.
 	 */
 	if (a->pa_flags & FLAG_DO_PRINT)
-		pmcstat_print_log(a);
+		return pmcstat_print_log(a);
 	else
 		/* convert the log to gprof compatible profiles */
-		pmcstat_convert_log(a);
-
-	return;
+		return pmcstat_convert_log(a);
 }
 
 void

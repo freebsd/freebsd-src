@@ -88,10 +88,6 @@ pmcstat_cleanup(struct pmcstat_args *a)
 {
 	struct pmcstat_ev *ev, *tmp;
 
-	/* de-configure the log file if present. */
-	if (a->pa_flags & (FLAG_HAS_PIPE | FLAG_HAS_OUTPUT_LOGFILE))
-		(void) pmc_configure_logfile(-1);
-
 	/* release allocated PMCs. */
 	STAILQ_FOREACH_SAFE(ev, &a->pa_head, ev_next, tmp)
 	    if (ev->ev_pmcid != PMC_ID_INVALID) {
@@ -103,6 +99,10 @@ pmcstat_cleanup(struct pmcstat_args *a)
 		STAILQ_REMOVE(&a->pa_head, ev, pmcstat_ev, ev_next);
 		free(ev);
 	    }
+
+	/* de-configure the log file if present. */
+	if (a->pa_flags & (FLAG_HAS_PIPE | FLAG_HAS_OUTPUT_LOGFILE))
+		(void) pmc_configure_logfile(-1);
 
 	if (a->pa_logparser) {
 		pmclog_close(a->pa_logparser);
@@ -305,7 +305,6 @@ pmcstat_start_process(struct pmcstat_args *a)
 
 	(void) close(pmcstat_pipefd[WRITEPIPEFD]);
 }
-
 
 void
 pmcstat_show_usage(void)
@@ -884,7 +883,7 @@ main(int argc, char **argv)
 			break;
 
 		case EVFILT_READ:  /* log file data is present */
-			runstate = pmcstat_print_log(&args);
+			runstate = pmcstat_process_log(&args);
 			break;
 
 		case EVFILT_SIGNAL:
