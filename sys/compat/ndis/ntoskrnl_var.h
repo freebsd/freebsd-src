@@ -365,7 +365,7 @@ struct kdpc {
 	void			*k_deferredctx;
 	void			*k_sysarg1;
 	void			*k_sysarg2;
-	struct mtx		*k_lock;
+	void			*k_lock;
 };
 
 #define KDPC_IMPORTANCE_LOW	0
