@@ -848,33 +848,33 @@ static int cx_attach (device_t dev)
 			cx_bus_dma_mem_free (&d->dmamem);
 			continue;
 		}
-		d->ifp->if_softc    = d;
+		d->ifp->if_softc	= d;
 		if_initname (d->ifp, "cx", b->num * NCHAN + c->num);
-		d->ifp->if_mtu	= PP_MTU;
+		d->ifp->if_mtu		= PP_MTU;
 		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST |
 					  IFF_NEEDSGIANT;
 		d->ifp->if_ioctl	= cx_sioctl;
 		d->ifp->if_start	= cx_ifstart;
 		d->ifp->if_watchdog	= cx_ifwatchdog;
-		d->ifp->if_init	= cx_initialize;
+		d->ifp->if_init		= cx_initialize;
 		d->queue.ifq_maxlen	= 2;
 		mtx_init (&d->queue.ifq_mtx, "cx_queue", NULL, MTX_DEF);
 		sppp_attach (d->ifp);
 		if_attach (d->ifp);
-		IFP2SP(d->ifp)->pp_tlf		= cx_tlf;
-		IFP2SP(d->ifp)->pp_tls		= cx_tls;
+		IFP2SP(d->ifp)->pp_tlf	= cx_tlf;
+		IFP2SP(d->ifp)->pp_tls	= cx_tls;
 		/* If BPF is in the kernel, call the attach for it.
 		 * Size of PPP header is 4 bytes. */
 		bpfattach (d->ifp, DLT_PPP, 4);
 #endif /*NETGRAPH*/
 		}
 		d->tty = ttyalloc ();
-		d->tty->t_open = cx_topen;
-		d->tty->t_close = cx_tclose;
-		d->tty->t_param = cx_param;
-		d->tty->t_stop  = cx_stop;
-		d->tty->t_modem  = cx_tmodem;
-		d->tty->t_sc = d;
+		d->tty->t_open	= cx_topen;
+		d->tty->t_close	= cx_tclose;
+		d->tty->t_param	= cx_param;
+		d->tty->t_stop	= cx_stop;
+		d->tty->t_modem	= cx_tmodem;
+		d->tty->t_sc	= d;
 		CX_LOCK (bd);
 		cx_start_chan (c, d->dmamem.virt, d->dmamem.phys);
 		cx_register_receive (c, &cx_receive);
