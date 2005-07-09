@@ -56,10 +56,9 @@ __FBSDID("$FreeBSD$");
 static const struct pccard_product sn_pccard_products[] = {
 	PCMCIA_CARD(DSPSI, XJACK),
 	PCMCIA_CARD(NEWMEDIA, BASICS),
-	PCMCIA_CARD(SMC, SMC91C96),
-#if 0
+	PCMCIA_CARD(PSION, GOLDCARD),
 	PCMCIA_CARD(SMC, 8020BT),
-#endif
+	PCMCIA_CARD(SMC, SMC91C96),
 	{ NULL }
 };
 
