@@ -355,9 +355,10 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
         td->td_retval[1] = 0;
 }
 
-void
+int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
 	td->td_frame->fixreg[2] = (register_t)tls_base;
+	return (0);
 }

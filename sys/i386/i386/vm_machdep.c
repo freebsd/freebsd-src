@@ -472,7 +472,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	    (int)arg);
 }
 
-void
+int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 	struct segment_descriptor sd;
@@ -503,6 +503,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 		load_gs(GSEL(GUGS_SEL, SEL_UPL));
 	}
 	critical_exit();
+	return (0);
 }
 
 /*
