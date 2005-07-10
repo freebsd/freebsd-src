@@ -95,16 +95,16 @@ __FBSDID("$FreeBSD$");
 #define AUXIO_PCIO_FREQ	2
 #define AUXIO_PCIO_OSC	3
 #define AUXIO_PCIO_TEMP	4
-#define AUXIO_PCIO_MAX	8
+#define AUXIO_PCIO_NREG	5
 
 struct auxio_softc {
 	struct device		*sc_dev;
 
 	int			sc_nauxio;
-	struct resource		*sc_res[AUXIO_PCIO_MAX];
-	int			sc_rid[AUXIO_PCIO_MAX];
-	bus_space_tag_t		sc_regt[AUXIO_PCIO_MAX];
-	bus_space_handle_t	sc_regh[AUXIO_PCIO_MAX];
+	struct resource		*sc_res[AUXIO_PCIO_NREG];
+	int			sc_rid[AUXIO_PCIO_NREG];
+	bus_space_tag_t		sc_regt[AUXIO_PCIO_NREG];
+	bus_space_handle_t	sc_regh[AUXIO_PCIO_NREG];
 	struct cdev		*sc_led_dev;
 	u_int32_t		sc_led_stat;
 
@@ -224,26 +224,13 @@ static int
 auxio_ebus_attach(device_t dev)
 {
 	struct auxio_softc *sc;
-	u_long start, count;
-	int i;
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
 	sc->sc_dev = dev;
 
 	AUXIO_LOCK_INIT(sc);
-	for (i = 0;
-	    i < AUXIO_PCIO_MAX &&
-	    bus_get_resource(dev, SYS_RES_MEMORY, i, &start, &count) == 0; i++)
-		if (bootverbose)
-			device_printf(sc->sc_dev,
-			    "Got rid %d, start %#lx, count %#lx\n",
-			    i, start, count);
-	if (i < 1) {
-		device_printf(dev, "no LED resource\n");
-		return (ENXIO);
-	}
-	sc->sc_nauxio = i;
+	sc->sc_nauxio = AUXIO_PCIO_NREG;
 	sc->sc_flags = AUXIO_LEDONLY | AUXIO_EBUS;
 
 	return(auxio_attach_common(sc));
