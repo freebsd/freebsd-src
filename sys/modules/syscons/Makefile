@@ -2,19 +2,30 @@
 
 SUBDIR=	${_apm} \
 	blank \
-	daemon \
-	dragon \
+	${_daemon} \
+	${_dragon} \
 	fade \
-	fire \
+	${_fire} \
 	green \
-	logo \
-	rain \
-	snake \
-	star \
-	warp
+	${_logo} \
+	${_rain} \
+	${_snake} \
+	${_star} \
+	${_warp}
 
 .if ${MACHINE_ARCH} == "i386"
-_apm=	apm
+_apm=		apm
+.endif
+
+.if ${MACHINE_ARCH} != "sparc64"
+_daemon=	daemon
+_dragon=	dragon
+_fire=		fire
+_logo=		logo
+_rain=		rain
+_snake=		snake
+_star=		star
+_warp=		warp
 .endif
 
 .include <bsd.subdir.mk>
