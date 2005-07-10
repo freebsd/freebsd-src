@@ -231,6 +231,9 @@ struct creator_softc {
 	int			sc_bg_cache;
 	int			sc_fg_cache;
 	int			sc_fifo_cache;
+	int			sc_fontinc_cache;
+	int			sc_fontw_cache;
+	int			sc_pmask_cache;
 
 	int			sc_flags;
 #define	CREATOR_AFB		(1 << 0)
