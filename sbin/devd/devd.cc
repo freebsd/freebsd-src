@@ -190,6 +190,71 @@ match::do_match(config &c)
 	return retval;
 }
 
+#include <sys/sockio.h>
+#include <net/if.h>
+#include <net/if_media.h>
+
+media::media(config &c, const char *var, const char *type)
+	: _var(var), _type(-1)
+{
+	static struct ifmedia_description media_types[] = {
+		{ IFM_ETHER,		"Ethernet" },
+		{ IFM_TOKEN,		"Tokenring" },
+		{ IFM_FDDI,		"FDDI" },
+		{ IFM_IEEE80211,	"802.11" },
+		{ IFM_ATM,		"ATM" },
+		{ IFM_CARP,		"CARP" },
+		{ -1,			"unknown" },
+		{ 0, NULL },
+	};
+	for (int i = 0; media_types[i].ifmt_string != NULL; i++)
+		if (strcasecmp(type, media_types[i].ifmt_string) == 0) {
+			_type = media_types[i].ifmt_word;
+			break;
+		}
+}
+
+media::~media()
+{
+}
+
+bool
+media::do_match(config &c)
+{
+	string value = c.get_variable("device-name");
+	struct ifmediareq ifmr;
+	bool retval;
+	int s;
+
+	if (Dflag)
+		fprintf(stderr, "Testing media type of %s against 0x%x\n",
+		    value.c_str(), _type);
+
+	retval = false;
+
+	s = socket(PF_INET, SOCK_DGRAM, 0);
+	if (s >= 0) {
+		memset(&ifmr, 0, sizeof(ifmr));
+		strncpy(ifmr.ifm_name, value.c_str(), sizeof(ifmr.ifm_name));
+
+		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0 &&
+		    ifmr.ifm_status & IFM_AVALID) {
+			if (Dflag)
+				fprintf(stderr, "%s has media type 0x%x\n", 
+				    value.c_str(), IFM_TYPE(ifmr.ifm_active));
+			retval = (IFM_TYPE(ifmr.ifm_active) == _type);
+		} else if (_type == -1) {
+			if (Dflag)
+				fprintf(stderr, "%s has unknown media type\n", 
+				    value.c_str());
+			retval = true;
+		}
+		close(s);
+	}
+
+	return retval;
+}
+
 const string var_list::bogus = "_$_$_$_$_B_O_G_U_S_$_$_$_$_";
 const string var_list::nothing = "";
 
@@ -767,6 +832,15 @@ eps *
 new_match(const char *var, const char *re)
 {
 	eps *e = new match(cfg, var, re);
+	free(const_cast<char *>(var));
+	free(const_cast<char *>(re));
+	return (e);
+}
+
+eps *
+new_media(const char *var, const char *re)
+{
+	eps *e = new media(cfg, var, re);
 	free(const_cast<char *>(var));
 	free(const_cast<char *>(re));
 	return (e);
