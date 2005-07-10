@@ -83,10 +83,6 @@ static vi_putm_t creator_putm;
 
 static void creator_cursor_enable(struct creator_softc *sc, int onoff);
 static void creator_cursor_install(struct creator_softc *sc);
-static void creator_ras_fifo_wait(struct creator_softc *sc, int n);
-static void creator_ras_setbg(struct creator_softc *sc, int bg);
-static void creator_ras_setfg(struct creator_softc *sc, int fg);
-static void creator_ras_wait(struct creator_softc *sc);
 
 static video_switch_t creatorvidsw = {
 	.probe			= creator_probe,
@@ -134,7 +130,7 @@ RENDERER_MODULE(creator, gfb_set);
 extern struct bus_space_tag nexus_bustag;
 
 #define	C(r, g, b)	((b << 16) | (g << 8) | (r))
-static int cmap[] = {
+static const int cmap[] = {
 	C(0x00, 0x00, 0x00),		/* black */
 	C(0x00, 0x00, 0xff),		/* blue */
 	C(0x00, 0xff, 0x00),		/* green */
@@ -153,7 +149,7 @@ static int cmap[] = {
 	C(0xff, 0xff, 0xff),		/* white */
 };
 
-static u_char creator_mouse_pointer[64][8] __aligned(8) = {
+static const u_char creator_mouse_pointer[64][8] __aligned(8) = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x80, 0x00, },	/* *........... */
 	{ 0xc0, 0x00, },	/* **.......... */
@@ -179,6 +175,102 @@ static u_char creator_mouse_pointer[64][8] __aligned(8) = {
 };
 
 static struct creator_softc creator_softc;
+
+static inline void creator_ras_fifo_wait(struct creator_softc *sc, int n);
+static inline void creator_ras_setfontinc(struct creator_softc *sc, int fontinc);
+static inline void creator_ras_setfontw(struct creator_softc *sc, int fontw);
+static inline void creator_ras_setbg(struct creator_softc *sc, int bg);
+static inline void creator_ras_setfg(struct creator_softc *sc, int fg);
+static inline void creator_ras_setpmask(struct creator_softc *sc, int pmask);
+static inline void creator_ras_wait(struct creator_softc *sc);
+
+static inline void
+creator_ras_wait(struct creator_softc *sc)
+{
+	int ucsr;
+	int r;
+
+	for (;;) {
+		ucsr = FFB_READ(sc, FFB_FBC, FFB_FBC_UCSR);
+		if ((ucsr & (FBC_UCSR_FB_BUSY | FBC_UCSR_RP_BUSY)) == 0)
+			break;
+		r = ucsr & (FBC_UCSR_READ_ERR | FBC_UCSR_FIFO_OVFL);
+		if (r != 0)
+			FFB_WRITE(sc, FFB_FBC, FFB_FBC_UCSR, r);
+	}
+}
+
+static inline void
+creator_ras_fifo_wait(struct creator_softc *sc, int n)
+{
+	int cache;
+
+	cache = sc->sc_fifo_cache;
+	while (cache < n)
+		cache = (FFB_READ(sc, FFB_FBC, FFB_FBC_UCSR) &
+		    FBC_UCSR_FIFO_MASK) - 8;
+	sc->sc_fifo_cache = cache - n;
+}
+
+static inline void
+creator_ras_setfontinc(struct creator_softc *sc, int fontinc)
+{
+
+	if (fontinc == sc->sc_fontinc_cache)
+		return;
+	sc->sc_fontinc_cache = fontinc;
+	creator_ras_fifo_wait(sc, 1);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONTINC, fontinc);
+	creator_ras_wait(sc);
+}
+
+static inline void
+creator_ras_setfontw(struct creator_softc *sc, int fontw)
+{
+
+	if (fontw == sc->sc_fontw_cache)
+		return;
+	sc->sc_fontw_cache = fontw;
+	creator_ras_fifo_wait(sc, 1);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONTW, fontw);
+	creator_ras_wait(sc);
+}
+
+static inline void
+creator_ras_setbg(struct creator_softc *sc, int bg)
+{
+
+	if (bg == sc->sc_bg_cache)
+		return;
+	sc->sc_bg_cache = bg;
+	creator_ras_fifo_wait(sc, 1);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BG, bg);
+	creator_ras_wait(sc);
+}
+
+static inline void
+creator_ras_setfg(struct creator_softc *sc, int fg)
+{
+
+	if (fg == sc->sc_fg_cache)
+		return;
+	sc->sc_fg_cache = fg;
+	creator_ras_fifo_wait(sc, 1);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FG, fg);
+	creator_ras_wait(sc);
+}
+
+static inline void
+creator_ras_setpmask(struct creator_softc *sc, int pmask)
+{
+
+	if (pmask == sc->sc_pmask_cache)
+		return;
+	sc->sc_pmask_cache = pmask;
+	creator_ras_fifo_wait(sc, 1);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_PMASK, pmask);
+	creator_ras_wait(sc);
+}
 
 static int
 creator_configure(int flags)
@@ -281,17 +373,7 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 	sc->sc_xmargin = (sc->sc_width - (vi->vi_width * vi->vi_cwidth)) / 2;
 	sc->sc_ymargin = (sc->sc_height - (vi->vi_height * vi->vi_cheight)) / 2;
 
-	sc->sc_bg_cache = -1;
-	sc->sc_fg_cache = -1;
-
-	creator_ras_wait(sc);
-	sc->sc_fifo_cache = 0;
-	creator_ras_fifo_wait(sc, 2);
-
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_PPC, FBC_PPC_VCE_DIS |
-	    FBC_PPC_TBE_OPAQUE | FBC_PPC_APE_DIS | FBC_PPC_CS_CONST);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FBC, FFB_FBC_WB_A | FFB_FBC_RB_A |
-	    FFB_FBC_SB_BOTH | FFB_FBC_XE_OFF | FFB_FBC_RGBE_MASK);
+	creator_set_mode(adp, 0);
 
 	if (!(sc->sc_flags & CREATOR_AFB)) {
 		FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_DID);
@@ -305,9 +387,17 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 		}
 	}
 
-	creator_blank_display(adp, V_DISPLAY_BLANK);
+	creator_blank_display(adp, V_DISPLAY_ON);
+	creator_clear(adp);
 
-	adp->va_flags |= V_ADP_COLOR | V_ADP_BORDER | V_ADP_INITIALIZED;
+	/*
+	 * Setting V_ADP_MODECHANGE serves as hack so creator_set_mode()
+	 * (which will invalidate our caches and restore our settings) is
+	 * called when the X server shuts down. Otherwise screen corruption
+	 * happens most of the time.
+	 */
+	adp->va_flags |= V_ADP_COLOR | V_ADP_MODECHANGE | V_ADP_BORDER |
+	    V_ADP_INITIALIZED;
 	if (vid_register(adp) < 0)
 		return (ENXIO);
 	adp->va_flags |= V_ADP_REGISTERED;
@@ -333,8 +423,23 @@ creator_query_mode(video_adapter_t *adp, video_info_t *info)
 static int
 creator_set_mode(video_adapter_t *adp, int mode)
 {
+	struct creator_softc *sc;
 
-	return (ENODEV);
+	sc = (struct creator_softc *)adp;
+	sc->sc_bg_cache = -1;
+	sc->sc_fg_cache = -1;
+	sc->sc_fontinc_cache = -1;
+	sc->sc_fontw_cache = -1;
+	sc->sc_pmask_cache = -1;
+
+	creator_ras_wait(sc);
+	sc->sc_fifo_cache = 0;
+	creator_ras_fifo_wait(sc, 2);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_PPC, FBC_PPC_VCE_DIS |
+	    FBC_PPC_TBE_OPAQUE | FBC_PPC_APE_DIS | FBC_PPC_CS_CONST);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FBC, FFB_FBC_WB_A | FFB_FBC_RB_A |
+	    FFB_FBC_SB_BOTH | FFB_FBC_XE_OFF | FFB_FBC_RGBE_MASK);
+	return (0);
 }
 
 static int
@@ -438,20 +543,37 @@ static int
 creator_blank_display(video_adapter_t *adp, int mode)
 {
 	struct creator_softc *sc;
-	int v;
+	uint32_t v;
+	int i;
 
 	sc = (struct creator_softc *)adp;
 	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_TGEN);
 	v = FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE);
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_TGEN);
-	if (mode == V_DISPLAY_ON || mode == V_DISPLAY_BLANK)
+	switch (mode) {
+	case V_DISPLAY_ON:
+		v &= ~(FFB_DAC_CFG_TGEN_VSD | FFB_DAC_CFG_TGEN_HSD);
 		v |= FFB_DAC_CFG_TGEN_VIDE;
-	else
+		break;
+	case V_DISPLAY_BLANK:
+		v |= (FFB_DAC_CFG_TGEN_VSD | FFB_DAC_CFG_TGEN_HSD);
 		v &= ~FFB_DAC_CFG_TGEN_VIDE;
+		break;
+	case V_DISPLAY_STAND_BY:
+		v &= ~FFB_DAC_CFG_TGEN_VSD;
+		v &= ~FFB_DAC_CFG_TGEN_VIDE;
+		break;
+	case V_DISPLAY_SUSPEND:
+		v |=  FFB_DAC_CFG_TGEN_VSD;
+		v &= ~FFB_DAC_CFG_TGEN_HSD;
+		v &= ~FFB_DAC_CFG_TGEN_VIDE;
+		break;
+	}
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_TGEN);
 	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE, v);
-	if (mode == V_DISPLAY_BLANK)
-		creator_fill_rect(adp, (SC_NORM_ATTR >> 4) & 0xf, 0, 0,
-		    sc->sc_width, sc->sc_height);
+	for (i = 0; i < 10; i++) {
+		FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_TGEN);
+		(void)FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE);
+	}
 	return (0);
 }
 
@@ -497,7 +619,11 @@ creator_ioctl(video_adapter_t *adp, u_long cmd, caddr_t data)
 static int
 creator_clear(video_adapter_t *adp)
 {
+	struct creator_softc *sc;
 
+	sc = (struct creator_softc *)adp;
+	creator_fill_rect(adp, (SC_NORM_ATTR >> 4) & 0xf, 0, 0, sc->sc_width,
+	    sc->sc_height);
 	return (0);
 }
 
@@ -507,16 +633,20 @@ creator_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 	struct creator_softc *sc;
 
 	sc = (struct creator_softc *)adp;
-	creator_ras_fifo_wait(sc, 3);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_PMASK, 0xffffffff);
+	creator_ras_setpmask(sc, 0xffffffff);
+	creator_ras_fifo_wait(sc, 2);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_ROP, FBC_ROP_NEW);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_DRAWOP, FBC_DRAWOP_RECTANGLE);
 	creator_ras_setfg(sc, cmap[val & 0xf]);
+	/*
+	 * Note that at least the Elite3D cards are sensitive to the order
+	 * of operations here.
+	 */
 	creator_ras_fifo_wait(sc, 4);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BX, x);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BY, y);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BW, cx);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BX, x);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BH, cy);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BW, cx);
 	creator_ras_wait(sc);
 	return (0);
 }
@@ -525,7 +655,7 @@ static int
 creator_bitblt(video_adapter_t *adp, ...)
 {
 
-	return (0);
+	return (ENODEV);
 }
 
 static int
@@ -583,11 +713,11 @@ creator_putc(video_adapter_t *adp, vm_offset_t off, u_int8_t c, u_int8_t a)
 	p = (uint16_t *)sc->sc_font + (c * adp->va_info.vi_cheight);
 	creator_ras_setfg(sc, cmap[a & 0xf]);
 	creator_ras_setbg(sc, cmap[(a >> 4) & 0xf]);
-	creator_ras_fifo_wait(sc, 3 + adp->va_info.vi_cheight);
+	creator_ras_fifo_wait(sc, 1 + adp->va_info.vi_cheight);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONTXY,
 	    ((row + sc->sc_ymargin) << 16) | (col + sc->sc_xmargin));
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONTW, adp->va_info.vi_cwidth);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONTINC, 0x10000);
+	creator_ras_setfontw(sc, adp->va_info.vi_cwidth);
+	creator_ras_setfontinc(sc, 0x10000);
 	for (i = 0; i < adp->va_info.vi_cheight; i++) {
 		FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONT, *p++ << 16);
 	}
@@ -625,60 +755,6 @@ creator_putm(video_adapter_t *adp, int x, int y, u_int8_t *pixel_image,
 }
 
 static void
-creator_ras_fifo_wait(struct creator_softc *sc, int n)
-{
-	int cache;
-
-	cache = sc->sc_fifo_cache;
-	while (cache < n) {
-		cache = (FFB_READ(sc, FFB_FBC, FFB_FBC_UCSR) &
-		    FBC_UCSR_FIFO_MASK) - 8;
-	}
-	sc->sc_fifo_cache = cache - n;
-}
-
-static void
-creator_ras_setbg(struct creator_softc *sc, int bg)
-{
-
-	if (bg == sc->sc_bg_cache)
-		return;
-	sc->sc_bg_cache = bg;
-	creator_ras_fifo_wait(sc, 1);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BG, bg);
-	creator_ras_wait(sc);
-}
-
-static void
-creator_ras_setfg(struct creator_softc *sc, int fg)
-{
-
-	if (fg == sc->sc_fg_cache)
-		return;
-	sc->sc_fg_cache = fg;
-	creator_ras_fifo_wait(sc, 1);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FG, fg);
-	creator_ras_wait(sc);
-}
-
-static void
-creator_ras_wait(struct creator_softc *sc)
-{
-	int ucsr;
-	int r;
-
-	for (;;) {
-		ucsr = FFB_READ(sc, FFB_FBC, FFB_FBC_UCSR);
-		if ((ucsr & (FBC_UCSR_FB_BUSY | FBC_UCSR_RP_BUSY)) == 0)
-			break;
-		r = ucsr & (FBC_UCSR_READ_ERR | FBC_UCSR_FIFO_OVFL);
-		if (r != 0) {
-			FFB_WRITE(sc, FFB_FBC, FFB_FBC_UCSR, r);
-		}
-	}
-}
-
-static void
 creator_cursor_enable(struct creator_softc *sc, int onoff)
 {
 	int v;
@@ -705,9 +781,9 @@ creator_cursor_install(struct creator_softc *sc)
 		    i ? FFB_DAC_CUR_BITMAP_P0 : FFB_DAC_CUR_BITMAP_P1);
 		for (j = 0; j < 64; j++) {
 			FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2,
-			    *(uint32_t *)(&creator_mouse_pointer[j][0]));
+			    *(const uint32_t *)(&creator_mouse_pointer[j][0]));
 			FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 
-			    *(uint32_t *)(&creator_mouse_pointer[j][4]));
+			    *(const uint32_t *)(&creator_mouse_pointer[j][4]));
 		}
 	}
 }
