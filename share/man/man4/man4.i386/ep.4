@@ -104,11 +104,9 @@ driver supports Ethernet adapters based on the
 .It
 3Com 3CXE589EC, 3CCE589EC, 3CXE589ET, 3CCE589ET PCMCIA
 .It
-3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B, 3CXEM556B PCMCIA
+3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B, 3CXEM556B, 3C3FEM556C PCMCIA
 .It
 3Com OfficeConnect 3CXSH572BT, 3CCSH572BT PCMCIA
-.It
-Farallon EtherMac PCMCIA
 .El
 .Sh NOTES
 The 3c509 card has no jumpers to set the address.
@@ -125,6 +123,10 @@ when installed in a computer that has actual EISA slots
 (and an EISA-aware BIOS).
 The normal driver auto-detection support
 is sufficient for non-EISA systems.
+.Pp
+Many different companies sold the 3Com PC Cards under their own private
+label.
+These cards also work.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It ep0: reset (status: %x)
