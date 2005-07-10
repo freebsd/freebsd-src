@@ -377,6 +377,7 @@ hme_pci_detach(device_t dev)
 	hme_detach(sc);
 	bus_release_resource(dev, SYS_RES_IRQ, hsc->hsc_irid, hsc->hsc_ires);
 	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_srid, hsc->hsc_sres);
+	mtx_destroy(&sc->sc_lock);
 	return (0);
 }
 
