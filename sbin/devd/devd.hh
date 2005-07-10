@@ -96,6 +96,22 @@ private:
 };
 
 /**
+ * media is the subclass used to match an individual variable.  Its
+ * actions are nops.
+ */
+class media : public eps
+{
+public:
+	media(config &, const char *var, const char *type);
+	virtual ~media();
+	virtual bool do_match(config &);
+	virtual bool do_action(config &) { return true; }
+private:
+	std::string _var;
+	int _type;
+};
+
+/**
  * action is used to fork a process.  It matches everything.
  */
 class action : public eps
