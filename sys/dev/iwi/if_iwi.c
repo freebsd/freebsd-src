@@ -116,8 +116,6 @@ static int	iwi_alloc_rx_ring(struct iwi_softc *, struct iwi_rx_ring *,
 		    int);
 static void	iwi_reset_rx_ring(struct iwi_softc *, struct iwi_rx_ring *);
 static void	iwi_free_rx_ring(struct iwi_softc *, struct iwi_rx_ring *);
-static int	iwi_key_alloc(struct ieee80211com *,
-		    const struct ieee80211_key *);
 static int	iwi_media_change(struct ifnet *);
 static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211com *, enum ieee80211_state, int);
@@ -365,7 +363,6 @@ iwi_attach(device_t dev)
 	/* override state transition machine */
 	sc->sc_newstate = ic->ic_newstate;
 	ic->ic_newstate = iwi_newstate;
-	ic->ic_crypto.cs_key_alloc = iwi_key_alloc;
 	ieee80211_media_init(ic, iwi_media_change, iwi_media_status);
 
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
@@ -796,15 +793,6 @@ iwi_resume(device_t dev)
 	IWI_UNLOCK(sc);
 
 	return 0;
-}
-
-static int
-iwi_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k)
-{
-	if (k >= ic->ic_nw_keys && k < &ic->ic_nw_keys[IEEE80211_WEP_NKID])
-		return k - ic->ic_nw_keys;
-
-	return IEEE80211_KEYIX_NONE;
 }
 
 static int
