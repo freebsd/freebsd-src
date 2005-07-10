@@ -1329,7 +1329,8 @@
 
       <para>The <filename>rc.d/jail</filename> startup script
 	now supports <varname>jail_<replaceable>name</replaceable>_flags</varname>
-	variable which allows to specify &man.jail.8; flags.</para>
+	variable which allows to specify &man.jail.8; flags.
+	&merged;</para>
 
       <para>&man.rc.conf.5; now supports changes of network interface names
 	at boot time. &merged;  For example:</para>
@@ -1519,7 +1520,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para>The &man.pkg.version.1; utility now supports a
       <option>-I</option> flag, which causes only the
       <filename>INDEX</filename> file to be used for determining if a
-      package is out of date.</para>
+      package is out of date.  &merged;</para>
 
     <para>The
       <filename>ports/INDEX<replaceable>*</replaceable></filename>
