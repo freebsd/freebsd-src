@@ -196,13 +196,14 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	td->td_retval[1] = tf->tf_out[1];
 }
 
-void
+int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
 	if (td == curthread)
 		flushw();
 	td->td_frame->tf_global[7] = (uint64_t) tls_base;
+	return (0);
 }
 
 /*

@@ -209,10 +209,11 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	}
 }
 
-void
+int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 	td->td_frame->tf_special.tp = (unsigned long)tls_base;
+	return (0);
 }
 
 /*

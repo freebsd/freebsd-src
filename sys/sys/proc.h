@@ -897,7 +897,7 @@ void	kse_GC(void);
 void	kseinit(void);
 void	cpu_set_upcall(struct thread *td, struct thread *td0);
 void	cpu_set_upcall_kse(struct thread *, void (*)(void *), void *, stack_t *);
-void	cpu_set_user_tls(struct thread *, void *tls_base);
+int	cpu_set_user_tls(struct thread *, void *tls_base);
 void	cpu_thread_clean(struct thread *);
 void	cpu_thread_exit(struct thread *);
 void	cpu_thread_setup(struct thread *td);

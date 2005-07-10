@@ -42,6 +42,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/sysarch.h>
 #include <machine/pcb.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/vmparam.h>
+
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
 	int op;
@@ -57,6 +61,7 @@ sysarch(td, uap)
 	int error = 0;
 	struct pcb *pcb = curthread->td_pcb;
 	uint32_t i386base;
+	uint64_t a64base;
 
 	switch(uap->op) {
 	case I386_GET_FSBASE:
@@ -65,9 +70,12 @@ sysarch(td, uap)
 		break;
 	case I386_SET_FSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
-		pcb->pcb_fsbase = i386base;
-		if (!error)
-			wrmsr(MSR_FSBASE, pcb->pcb_fsbase);
+		if (!error) {
+			critical_enter();
+			wrmsr(MSR_FSBASE, i386base);
+			pcb->pcb_fsbase = i386base;
+			critical_exit();
+		}
 		break;
 	case I386_GET_GSBASE:
 		i386base = pcb->pcb_gsbase;
@@ -75,18 +83,29 @@ sysarch(td, uap)
 		break;
 	case I386_SET_GSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
-		pcb->pcb_gsbase = i386base;
-		if (!error)
-			wrmsr(MSR_KGSBASE, pcb->pcb_gsbase);
+		if (!error) {
+			critical_enter();
+			wrmsr(MSR_KGSBASE, i386base);
+			pcb->pcb_gsbase = i386base;
+			critical_exit();
+		}
 		break;
 	case AMD64_GET_FSBASE:
 		error = copyout(&pcb->pcb_fsbase, uap->parms, sizeof(pcb->pcb_fsbase));
 		break;
 		
 	case AMD64_SET_FSBASE:
-		error = copyin(uap->parms, &pcb->pcb_fsbase, sizeof(pcb->pcb_fsbase));
-		if (!error)
-			wrmsr(MSR_FSBASE, pcb->pcb_fsbase);
+		error = copyin(uap->parms, &a64base, sizeof(a64base));
+		if (!error) {
+			if (a64base < VM_MAXUSER_ADDRESS) {
+				critical_enter();
+				wrmsr(MSR_FSBASE, a64base);
+				pcb->pcb_fsbase = a64base;
+				critical_exit();
+			} else {
+				error = EINVAL;
+			}
+		}
 		break;
 
 	case AMD64_GET_GSBASE:
@@ -94,9 +113,17 @@ sysarch(td, uap)
 		break;
 
 	case AMD64_SET_GSBASE:
-		error = copyin(uap->parms, &pcb->pcb_gsbase, sizeof(pcb->pcb_gsbase));
-		if (!error)
-			wrmsr(MSR_KGSBASE, pcb->pcb_gsbase);
+		error = copyin(uap->parms, &a64base, sizeof(a64base));
+		if (!error) {
+			if (a64base < VM_MAXUSER_ADDRESS) {
+				critical_enter();
+				wrmsr(MSR_KGSBASE, a64base);
+				pcb->pcb_gsbase = a64base;
+				critical_exit();
+			} else {
+				error = EINVAL;
+			}
+		}
 		break;
 
 	default:
