@@ -149,7 +149,6 @@
       contained in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc">FreeBSD-SA-05:15.tcp</ulink>.
       </para>
-
   </sect2>
 
   <sect2 id="kernel">
@@ -270,7 +269,9 @@
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para></para>
+      <para>The <filename>rc.d/jail</filename> startup script
+	now supports <varname>jail_<replaceable>name</replaceable>_flags</varname>
+	variable which allows to specify &man.jail.8; flags.</para>
 
     </sect3>
   </sect2>
@@ -284,8 +285,10 @@
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para></para>
-
+    <para>The &man.pkg.version.1; utility now supports a
+      <option>-I</option> flag, which causes only the
+      <filename>INDEX</filename> file to be used for determining if a
+      package is out of date.</para>
   </sect2>
 
   <sect2 id="releng">
