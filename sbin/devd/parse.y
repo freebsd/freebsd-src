@@ -47,7 +47,7 @@
 %token <str> STRING
 %token <str> ID
 %token OPTIONS SET DIRECTORY PID_FILE DEVICE_NAME ACTION MATCH
-%token ATTACH DETACH NOMATCH NOTIFY
+%token ATTACH DETACH NOMATCH NOTIFY MEDIA_TYPE CLASS SUBDEVICE
 
 %type <eventproc> match_or_action_list
 %type <eps> match_or_action match action
@@ -137,6 +137,12 @@ match
 	: MATCH STRING STRING SEMICOLON	{ $$ = new_match($2, $3); }
 	| DEVICE_NAME STRING SEMICOLON
 		{ $$ = new_match(strdup("device-name"), $2); }
+	| MEDIA_TYPE STRING SEMICOLON
+		{ $$ = new_media(strdup("media-type"), $2); }
+	| CLASS STRING SEMICOLON
+		{ $$ = new_match(strdup("class"), $2); }
+	| SUBDEVICE STRING SEMICOLON
+		{ $$ = new_match(strdup("subdevice"), $2); }
 	;
 
 action

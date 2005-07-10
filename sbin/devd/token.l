@@ -90,6 +90,9 @@ pid-file		{ return PID_FILE; }
 attach			{ return ATTACH; }
 detach			{ return DETACH; }
 device-name		{ return DEVICE_NAME; }
+media-type		{ return MEDIA_TYPE; }
+class			{ return CLASS; }
+subdevice		{ return SUBDEVICE; }
 action			{ return ACTION; }
 match			{ return MATCH; }
 nomatch			{ return NOMATCH; }
