@@ -297,7 +297,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	tf->tf_spsr = PSR_USR32_MODE;
 }
 
-void
+int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
@@ -308,6 +308,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 		*(void **)ARM_TP_ADDRESS = tls_base;
 		critical_exit();
 	}
+	return (0);
 }
 
 void
