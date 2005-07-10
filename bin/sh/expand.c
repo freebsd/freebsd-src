@@ -1164,7 +1164,7 @@ expmeta(char *enddir, char *name)
 			if (*p == '\0')
 				break;
 		}
-		if (metaflag == 0 || stat(expdir, &statb) >= 0)
+		if (metaflag == 0 || lstat(expdir, &statb) >= 0)
 			addfname(expdir);
 		return;
 	}
