@@ -147,7 +147,8 @@ static const char *chip_ids[15] = {
 	NULL,
 	 /* 7 */ "SMC91C100",
 	 /* 8 */ "SMC91C100FD",
-	NULL, NULL, NULL,
+	 /* 9 */ "SMC91C110",
+	NULL, NULL,
 	NULL, NULL, NULL
 };
 
