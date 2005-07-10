@@ -93,7 +93,7 @@ struct ffb_map {
 	uint64_t fm_size;
 };
 
-static struct ffb_map ffb_map[] = {
+static const struct ffb_map ffb_map[] = {
 	{ FFB_VIRT_SFB8R,	FFB_PHYS_SFB8R,		0x00400000 },
 	{ FFB_VIRT_SFB8G,	FFB_PHYS_SFB8G,		0x00400000 },
 	{ FFB_VIRT_SFB8B,	FFB_PHYS_SFB8B,		0x00400000 },
@@ -278,7 +278,7 @@ static int
 creator_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	struct creator_softc *sc;
-	struct ffb_map *fm;
+	const struct ffb_map *fm;
 
 	sc = dev->si_drv1;
 	for (fm = ffb_map; fm->fm_size != 0; fm++) {
