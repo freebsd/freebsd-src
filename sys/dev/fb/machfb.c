@@ -135,15 +135,12 @@ struct machfb_softc {
 	int			sc_mclk_post_div;
 	int			sc_mclk_fb_div;
 
-	int			sc_dacw;
-	uint8_t			sc_cmap_red[256];
-	uint8_t			sc_cmap_green[256];
-	uint8_t			sc_cmap_blue[256];
-
 	u_char			*sc_font;
 	int			sc_cbwidth;
 	vm_offset_t		sc_curoff;
 
+	int			sc_bg_cache;
+	int			sc_fg_cache;
 	int			sc_draw_cache;
 #define	MACHFB_DRAW_CHAR	(1 << 0)
 #define	MACHFB_DRAW_FILLRECT	(1 << 1)
@@ -154,7 +151,7 @@ struct machfb_softc {
 #define	MACHFB_DSP		(1 << 2)
 };
 
-static struct {
+static const struct {
 	uint16_t	chip_id;
 	const char	*name;
 	uint32_t	ramdac_freq;
@@ -166,7 +163,7 @@ static struct {
 	{ ATI_RAGE_XC_PCI66, "ATI Rage XL (PCI66)", 230000 },
 	{ ATI_RAGE_XL_AGP, "ATI Rage XL (AGP)", 230000 },
 	{ ATI_RAGE_XC_AGP, "ATI Rage XC (AGP)", 230000 },
-	{ ATI_RAGE_XL_PCI66, "Rage XL (PCI66)", 230000 },
+	{ ATI_RAGE_XL_PCI66, "ATI Rage XL (PCI66)", 230000 },
 	{ ATI_RAGE_PRO_PCI_P, "ATI 3D Rage Pro", 230000 },
 	{ ATI_RAGE_PRO_PCI_L, "ATI 3D Rage Pro (limited 3D)", 230000 },
 	{ ATI_RAGE_XL_PCI, "ATI Rage XL", 230000 },
@@ -192,7 +189,7 @@ static struct {
 	{ ATI_MACH64_VT4, "ATI Mach64 VT4", 230000 }
 };
 
-static struct machfb_cmap {
+static const struct machfb_cmap {
 	uint8_t red;
 	uint8_t green;
 	uint8_t blue;
@@ -215,7 +212,9 @@ static struct machfb_cmap {
 	{0xff, 0xff, 0xff}	/* white */
 };
 
-static u_char machfb_mouse_pointer_bits[64][8] = {
+#define	MACHFB_CMAP_OFF		16
+
+static const u_char machfb_mouse_pointer_bits[64][8] = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x80, 0x00, },	/* *........... */
 	{ 0xc0, 0x00, },	/* **.......... */
@@ -244,12 +243,12 @@ static u_char machfb_mouse_pointer_bits[64][8] = {
  * Lookup table to perform a bit-swap of the mouse pointer bits,
  * map set bits to CUR_CLR0 and unset bits to transparent.
  */
-static u_char machfb_mouse_pointer_lut[] = {
+static const u_char machfb_mouse_pointer_lut[] = {
 	0xaa, 0x2a, 0x8a, 0x0a, 0xa2, 0x22, 0x82, 0x02,
 	0xa8, 0x28, 0x88, 0x08, 0xa0, 0x20, 0x80, 0x00
 };
 
-static char *machfb_memtype_names[] = {
+static const char *machfb_memtype_names[] = {
 	"(N/A)", "DRAM", "EDO DRAM", "EDO DRAM", "SDRAM", "SGRAM", "WRAM",
 	"(unknown type)"
 };
@@ -289,8 +288,6 @@ static void machfb_init_engine(struct machfb_softc *);
 #if 0
 static void machfb_adjust_frame(struct machfb_softc *, int, int);
 #endif
-static void machfb_putpalreg(struct machfb_softc *, uint8_t, uint8_t, uint8_t,
-    uint8_t);
 static void machfb_shutdown_final(void *);
 static void machfb_shutdown_reset(void *);
 
@@ -439,6 +436,34 @@ wait_for_idle(struct machfb_softc *sc)
 }
 
 /*
+ * Inline functions for setting the background and foreground colors.
+ */
+static inline void machfb_setbg(struct machfb_softc *sc, int bg);
+static inline void machfb_setfg(struct machfb_softc *sc, int fg);
+
+static inline void
+machfb_setbg(struct machfb_softc *sc, int bg)
+{
+
+	if (bg == sc->sc_bg_cache)
+		return;
+	sc->sc_bg_cache = bg;
+	wait_for_fifo(sc, 1);
+	regw(sc, DP_BKGD_CLR, bg + MACHFB_CMAP_OFF);
+}
+
+static inline void
+machfb_setfg(struct machfb_softc *sc, int fg)
+{
+
+	if (fg == sc->sc_fg_cache)
+		return;
+	sc->sc_fg_cache = fg;
+	wait_for_fifo(sc, 1);
+	regw(sc, DP_FRGD_CLR, fg + MACHFB_CMAP_OFF);
+}
+
+/*
  * video driver interface
  */
 static int
@@ -522,7 +547,8 @@ machfb_init(int unit, video_adapter_t *adp, int flags)
 	phandle_t options;
 	video_info_t *vi;
 	char buf[32];
-	int i, j;
+	int i;
+	uint8_t	dac_mask, dac_rindex, dac_windex;
 
 	sc = (struct machfb_softc *)adp;
 	vi = &adp->va_info;
@@ -566,7 +592,6 @@ machfb_init(int unit, video_adapter_t *adp, int flags)
 	vi->vi_flags = V_INFO_COLOR;
 	vi->vi_mem_model = V_INFO_MM_OTHER;
 
-	sc->sc_draw_cache = -1;
 	sc->sc_font = gallant12x22_data;
 	sc->sc_cbwidth = howmany(vi->vi_cwidth, 8);	/* width in bytes */
 	sc->sc_xmargin = (sc->sc_width - (vi->vi_width * vi->vi_cwidth)) / 2;
@@ -605,18 +630,40 @@ machfb_init(int unit, video_adapter_t *adp, int flags)
 #if 0
 	mach64_adjust_frame(0, 0);
 #endif
+	machfb_set_mode(adp, 0);
 
-	sc->sc_dacw = -1;
-	for (i = 0; i < 16; i++)
-		for (j = 0; j < 16; j++)
-			machfb_putpalreg(sc, (i * 16) + j,
-			    machfb_default_cmap[j].red,
-			    machfb_default_cmap[j].green,
-			    machfb_default_cmap[j].blue);
+	/*
+	 * Install our 16-color color map. This is done only once and with
+	 * an offset of 16 on sparc64 as there the OBP driver expects white
+	 * to be at index 0 and black at 255 (some versions also use 1 - 8
+	 * for color text support or the full palette for the boot banner
+	 * logo but no versions seems to use the ISO 6429-1983 color map).
+	 * Otherwise the colors are inverted when back in the OFW.
+	 */
+	dac_rindex = regrb(sc, DAC_RINDEX);
+	dac_windex = regrb(sc, DAC_WINDEX);
+	dac_mask = regrb(sc, DAC_MASK);
+	regwb(sc, DAC_MASK, 0xff);
+	regwb(sc, DAC_WINDEX, MACHFB_CMAP_OFF);
+	for (i = 0; i < 16; i++) {
+		regwb(sc, DAC_DATA, machfb_default_cmap[i].red);
+		regwb(sc, DAC_DATA, machfb_default_cmap[i].green);
+		regwb(sc, DAC_DATA, machfb_default_cmap[i].blue);
+	}
+	regwb(sc, DAC_MASK, dac_mask);
+	regwb(sc, DAC_RINDEX, dac_rindex);
+	regwb(sc, DAC_WINDEX, dac_windex);
 
-	machfb_blank_display(adp, V_DISPLAY_BLANK);
+	machfb_blank_display(adp, V_DISPLAY_ON);
+	machfb_clear(adp);
 
-	adp->va_flags |= V_ADP_COLOR | V_ADP_BORDER | V_ADP_INITIALIZED;
+	/*
+	 * Setting V_ADP_MODECHANGE serves as hack so machfb_set_mode()
+	 * (which will invalidate our caches) is called as a precaution
+	 * when the X server shuts down.
+	 */
+	adp->va_flags |= V_ADP_COLOR | V_ADP_MODECHANGE | V_ADP_PALETTE |
+	    V_ADP_BORDER | V_ADP_INITIALIZED;
 	if (vid_register(adp) < 0)
 		return (ENXIO);
 	adp->va_flags |= V_ADP_REGISTERED;
@@ -643,8 +690,15 @@ machfb_query_mode(video_adapter_t *adp, video_info_t *info)
 static int
 machfb_set_mode(video_adapter_t *adp, int mode)
 {
+	struct machfb_softc *sc;
 
-	return (ENODEV);
+	sc = (struct machfb_softc *)adp;
+
+	sc->sc_bg_cache = -1;
+	sc->sc_fg_cache = -1;
+	sc->sc_draw_cache = -1;
+
+	return (0);
 }
 
 static int
@@ -673,15 +727,47 @@ machfb_show_font(video_adapter_t *adp, int page)
 static int
 machfb_save_palette(video_adapter_t *adp, u_char *palette)
 {
+	struct machfb_softc *sc;
+	int i;
+	uint8_t	dac_mask, dac_rindex, dac_windex;
 
-	return (ENODEV);
+	sc = (struct machfb_softc *)adp;
+
+	dac_rindex = regrb(sc, DAC_RINDEX);
+	dac_windex = regrb(sc, DAC_WINDEX);
+	dac_mask = regrb(sc, DAC_MASK);
+	regwb(sc, DAC_MASK, 0xff);
+	regwb(sc, DAC_RINDEX, 0x0);
+	for (i = 0; i < 256 * 3; i++)
+		palette[i] = regrb(sc, DAC_DATA);
+	regwb(sc, DAC_MASK, dac_mask);
+	regwb(sc, DAC_RINDEX, dac_rindex);
+	regwb(sc, DAC_WINDEX, dac_windex);
+
+	return (0);
 }
 
 static int
 machfb_load_palette(video_adapter_t *adp, u_char *palette)
 {
+	struct machfb_softc *sc;
+	int i;
+	uint8_t	dac_mask, dac_rindex, dac_windex;
 
-	return (ENODEV);
+	sc = (struct machfb_softc *)adp;
+
+	dac_rindex = regrb(sc, DAC_RINDEX);
+	dac_windex = regrb(sc, DAC_WINDEX);
+	dac_mask = regrb(sc, DAC_MASK);
+	regwb(sc, DAC_MASK, 0xff);
+	regwb(sc, DAC_WINDEX, 0x0);
+	for (i = 0; i < 256 * 3; i++)
+		regwb(sc, DAC_DATA, palette[i]);
+	regwb(sc, DAC_MASK, dac_mask);
+	regwb(sc, DAC_RINDEX, dac_rindex);
+	regwb(sc, DAC_WINDEX, dac_windex);
+
+	return (0);
 }
 
 static int
@@ -751,17 +837,27 @@ static int
 machfb_blank_display(video_adapter_t *adp, int mode)
 {
 	struct machfb_softc *sc;
+	uint32_t crtc_gen_cntl;
 
 	sc = (struct machfb_softc *)adp;
 
-	if (mode == V_DISPLAY_ON || mode == V_DISPLAY_BLANK)
-		regw(sc, CRTC_GEN_CNTL, (regr(sc, CRTC_GEN_CNTL) | CRTC_EN |
-		    CRTC_EXT_DISP_EN) & ~CRTC_DISPLAY_DIS);
-	else
-		regw(sc, CRTC_GEN_CNTL, regr(sc, CRTC_GEN_CNTL) & ~CRTC_EN);
-	if (mode == V_DISPLAY_BLANK)
-		machfb_fill_rect(adp, (SC_NORM_ATTR >> 4) & 0xf, 0, 0,
-		    sc->sc_width, sc->sc_height);
+	crtc_gen_cntl = (regr(sc, CRTC_GEN_CNTL) | CRTC_EXT_DISP_EN | CRTC_EN) &
+	    ~(CRTC_HSYNC_DIS | CRTC_VSYNC_DIS | CRTC_DISPLAY_DIS);
+	switch (mode) {
+	case V_DISPLAY_ON:
+		break;
+	case V_DISPLAY_BLANK:
+		crtc_gen_cntl |= CRTC_HSYNC_DIS | CRTC_VSYNC_DIS |
+		    CRTC_DISPLAY_DIS;
+		break;
+	case V_DISPLAY_STAND_BY:
+		crtc_gen_cntl |= CRTC_HSYNC_DIS | CRTC_DISPLAY_DIS;
+		break;
+	case V_DISPLAY_SUSPEND:
+		crtc_gen_cntl |= CRTC_VSYNC_DIS | CRTC_DISPLAY_DIS;
+		break;
+	}
+	regw(sc, CRTC_GEN_CNTL, crtc_gen_cntl);
 
 	return (0);
 }
@@ -841,8 +937,14 @@ machfb_ioctl(video_adapter_t *adp, u_long cmd, caddr_t data)
 static int
 machfb_clear(video_adapter_t *adp)
 {
+	struct machfb_softc *sc;
 
-	return (ENODEV);
+	sc = (struct machfb_softc *)adp;
+
+	machfb_fill_rect(adp, (SC_NORM_ATTR >> 4) & 0xf, 0, 0, sc->sc_width,
+	    sc->sc_height);
+
+	return (0);
 }
 
 static int
@@ -863,8 +965,8 @@ machfb_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 		regw(sc, DST_CNTL, DST_X_LEFT_TO_RIGHT | DST_Y_TOP_TO_BOTTOM);
 		sc->sc_draw_cache = MACHFB_DRAW_FILLRECT;
 	}
-	wait_for_fifo(sc, 5);
-	regw(sc, DP_FRGD_CLR, val);
+	machfb_setfg(sc, val);
+	wait_for_fifo(sc, 4);
 	regw(sc, SRC_Y_X, (x << 16) | y);
 	regw(sc, SRC_WIDTH1, cx);
 	regw(sc, DST_Y_X, (x << 16) | y);
@@ -943,10 +1045,9 @@ machfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 		regw(sc, HOST_CNTL, HOST_BYTE_ALIGN);
 		sc->sc_draw_cache = MACHFB_DRAW_CHAR;
 	}
-	p = sc->sc_font + (c * adp->va_info.vi_cheight * sc->sc_cbwidth);
-	wait_for_fifo(sc, 6 + (adp->va_info.vi_cheight / sc->sc_cbwidth));
-	regw(sc, DP_BKGD_CLR, (a >> 4) & 0xf);
-	regw(sc, DP_FRGD_CLR, a & 0xf);
+	machfb_setbg(sc, (a >> 4) & 0xf);
+	machfb_setfg(sc, a & 0xf);
+	wait_for_fifo(sc, 4 + (adp->va_info.vi_cheight / sc->sc_cbwidth));
 	regw(sc, SRC_Y_X, 0);
 	regw(sc, SRC_WIDTH1, adp->va_info.vi_cwidth);
 	regw(sc, DST_Y_X, ((((off % adp->va_info.vi_width) *
@@ -955,6 +1056,7 @@ machfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	    sc->sc_ymargin));
 	regw(sc, DST_HEIGHT_WIDTH, (adp->va_info.vi_cwidth << 16) |
 	    adp->va_info.vi_cheight);
+	p = sc->sc_font + (c * adp->va_info.vi_cheight * sc->sc_cbwidth);
 	for (i = 0; i < adp->va_info.vi_cheight * sc->sc_cbwidth; i += 4)
 		regw(sc, HOST_DATA0 + i, (p[i + 3] << 24 | p[i + 2] << 16 |
 		    p[i + 1] << 8 | p[i]));
@@ -1302,8 +1404,9 @@ machfb_cursor_install(struct machfb_softc *sc)
 	machfb_cursor_enable(sc, 0);
 	regw(sc, CUR_OFFSET, sc->sc_curoff >> 3);
 	fg = SC_NORM_ATTR & 0xf;
-	regw(sc, CUR_CLR0, sc->sc_cmap_red[fg] << 24 |
-	    sc->sc_cmap_green[fg] << 16 | sc->sc_cmap_blue[fg] << 8 | fg);
+	regw(sc, CUR_CLR0, machfb_default_cmap[fg].red << 24 |
+	    machfb_default_cmap[fg].green << 16 |
+	    machfb_default_cmap[fg].blue << 8);
 	p = (uint16_t *)(sc->sc_va.va_buffer + sc->sc_curoff);
 	for (i = 0; i < 64; i++)
 		for (j = 0; j < 8; j++)
@@ -1435,7 +1538,7 @@ machfb_init_engine(struct machfb_softc *sc)
 #endif
 	}
 
-	wait_for_fifo(sc, 5);
+	wait_for_fifo(sc, 2);
 	regw(sc, CRTC_INT_CNTL, regr(sc, CRTC_INT_CNTL) & ~0x20);
 	regw(sc, GUI_TRAJ_CNTL, DST_X_LEFT_TO_RIGHT | DST_Y_TOP_TO_BOTTOM);
 
@@ -1454,29 +1557,6 @@ machfb_adjust_frame(struct machfb_softc *sc, int x, int y)
 	     offset);
 }
 #endif
-
-static void
-machfb_putpalreg(struct machfb_softc *sc, uint8_t index, uint8_t r, uint8_t g,
-    uint8_t b)
-{
-
-	sc->sc_cmap_red[index] = r;
-	sc->sc_cmap_green[index] = g;
-	sc->sc_cmap_blue[index] = b;
-	/*
-	 * Writing the DAC index takes a while, in theory we can poll some
-	 * register to see when it's ready - but we better avoid writing it
-	 * unnecessarily.
-	 */
-	if (index != sc->sc_dacw) {
-		regwb(sc, DAC_MASK, 0xff);
-		regwb(sc, DAC_WINDEX, index);
-	}
-	sc->sc_dacw = index + 1;
-	regwb(sc, DAC_DATA, r);
-	regwb(sc, DAC_DATA, g);
-	regwb(sc, DAC_DATA, b);
-}
 
 static void
 machfb_shutdown_final(void *v)
