@@ -255,7 +255,7 @@
       and threads currently holding sleep mutexes (and spin mutexes for
       the current thread).  &merged;</para>
 
-    <para arch="amd64,i386">The kernel crash dump format has been changed to
+    <para arch="amd64,i386,pc98">The kernel crash dump format has been changed to
       ELF to support large memory (more than 4GB) environment.</para>
 
     <para>The &man.ichsmb.4; driver is now available as a loadable
