@@ -1,34 +1,40 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2000, 2001 by LSI Logic Corporation
- *
+ * Copyright (c) 2000-2005, LSI Logic Corporation and its contributors.
+ * All rights reserved.
+ * 
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * modification, are permitted provided that the following conditions are
+ * met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon including
+ *    a substantially similar Disclaimer requirement for further binary
+ *    redistribution.
+ * 3. Neither the name of the LSI Logic Corporation nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
+ * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
  *           Name:  MPI.H
  *          Title:  MPI Message independent structures and definitions
  *  Creation Date:  July 27, 2000
  *
- *    MPI.H Version:  01.02.09
+ *    MPI.H Version:  01.02.11
  *
  *  Version History
  *  ---------------
@@ -73,6 +79,8 @@
  *  11-15-02  01.02.08  Added define MPI_IOCSTATUS_TARGET_INVALID_IO_INDEX and
  *                      obsoleted define MPI_IOCSTATUS_TARGET_INVALID_IOCINDEX.
  *  04-01-03  01.02.09  New IOCStatus code: MPI_IOCSTATUS_FC_EXCHANGE_CANCELED
+ *  06-26-03  01.02.10  Bumped MPI_HEADER_VERSION_UNIT value.
+ *  01-16-04  01.02.11  Added define for MPI_IOCLOGINFO_TYPE_SHIFT.
  *  --------------------------------------------------------------------------
  */
 
@@ -101,7 +109,7 @@
 /* Note: The major versions of 0xe0 through 0xff are reserved */
 
 /* versioning for this MPI header set */
-#define MPI_HEADER_VERSION_UNIT             (0x09)
+#define MPI_HEADER_VERSION_UNIT             (0x0D)
 #define MPI_HEADER_VERSION_DEV              (0x00)
 #define MPI_HEADER_VERSION_UNIT_MASK        (0xFF00)
 #define MPI_HEADER_VERSION_UNIT_SHIFT       (8)
@@ -318,7 +326,7 @@ typedef struct _SGE_SIMPLE_UNION
     {
         U32                 Address32;
         U64                 Address64;
-    } _u;
+    }u;
 } SGESimpleUnion_t, MPI_POINTER pSGESimpleUnion_t,
   SGE_SIMPLE_UNION, MPI_POINTER PTR_SGE_SIMPLE_UNION;
 
@@ -353,7 +361,7 @@ typedef struct _SGE_CHAIN_UNION
     {
         U32                 Address32;
         U64                 Address64;
-    } _u;
+    }u;
 } SGE_CHAIN_UNION, MPI_POINTER PTR_SGE_CHAIN_UNION,
   SGEChainUnion_t, MPI_POINTER pSGEChainUnion_t;
 
@@ -417,7 +425,7 @@ typedef struct _SGE_TRANSACTION_UNION
         U32                 TransactionContext64[2];
         U32                 TransactionContext96[3];
         U32                 TransactionContext128[4];
-    } _u;
+    }u;
     U32                     TransactionDetails[1];
 } SGE_TRANSACTION_UNION, MPI_POINTER PTR_SGE_TRANSACTION_UNION,
   SGETransactionUnion_t, MPI_POINTER pSGETransactionUnion_t;
@@ -433,7 +441,7 @@ typedef struct _SGE_IO_UNION
     {
         SGE_SIMPLE_UNION    Simple;
         SGE_CHAIN_UNION     Chain;
-    } _u;
+    } u;
 } SGE_IO_UNION, MPI_POINTER PTR_SGE_IO_UNION,
   SGEIOUnion_t, MPI_POINTER pSGEIOUnion_t;
 
@@ -447,7 +455,7 @@ typedef struct _SGE_TRANS_SIMPLE_UNION
     {
         SGE_SIMPLE_UNION        Simple;
         SGE_TRANSACTION_UNION   Transaction;
-    } _u;
+    } u;
 } SGE_TRANS_SIMPLE_UNION, MPI_POINTER PTR_SGE_TRANS_SIMPLE_UNION,
   SGETransSimpleUnion_t, MPI_POINTER pSGETransSimpleUnion_t;
 
@@ -462,7 +470,7 @@ typedef struct _SGE_MPI_UNION
         SGE_SIMPLE_UNION        Simple;
         SGE_CHAIN_UNION         Chain;
         SGE_TRANSACTION_UNION   Transaction;
-    } _u;
+    } u;
 } SGE_MPI_UNION, MPI_POINTER PTR_SGE_MPI_UNION,
   MPI_SGE_UNION_t, MPI_POINTER pMPI_SGE_UNION_t,
   SGEAllUnion_t, MPI_POINTER pSGEAllUnion_t;
@@ -696,6 +704,7 @@ typedef struct _MSG_DEFAULT_REPLY
 /****************************************************************************/
 
 #define MPI_IOCLOGINFO_TYPE_MASK                (0xF0000000)
+#define MPI_IOCLOGINFO_TYPE_SHIFT               (28)
 #define MPI_IOCLOGINFO_TYPE_NONE                (0x0)
 #define MPI_IOCLOGINFO_TYPE_SCSI                (0x1)
 #define MPI_IOCLOGINFO_TYPE_FC                  (0x2)
