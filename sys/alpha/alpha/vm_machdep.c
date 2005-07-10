@@ -360,7 +360,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	tf->tf_regs[FRAME_FLAGS] = 0;			/* full restore */
 }
 
-void
+int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
@@ -368,6 +368,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 		td->td_pcb->pcb_hw.apcb_unique = (unsigned long)tls_base;
 	else
 		alpha_pal_wrunique((uintptr_t)tls_base);
+	return (0);
 }
 
 /*

@@ -176,7 +176,12 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		/* Set upcall address to user thread entry function. */
 		cpu_set_upcall_kse(newtd, start_func, arg, &stack);
 		/* Setup user TLS address and TLS pointer register. */
-		cpu_set_user_tls(newtd, tls_base);
+		error = cpu_set_user_tls(newtd, tls_base);
+		if (error != 0) {
+			thread_free(newtd);
+			crfree(td->td_ucred);
+			return (error);
+		}
 	}
 
 	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {

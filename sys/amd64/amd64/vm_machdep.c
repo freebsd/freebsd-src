@@ -341,9 +341,12 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	td->td_frame->tf_rdi = (register_t)arg;
 }
 
-void
+int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
+
+	if ((u_int64_t)tls_base >= VM_MAXUSER_ADDRESS)
+		return (EINVAL);
 
 	if (td == curthread) {
 		critical_enter();
@@ -353,6 +356,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	} else {
 		td->td_pcb->pcb_fsbase = (register_t)tls_base;
 	}
+	return (0);
 }
 
 #ifdef SMP
