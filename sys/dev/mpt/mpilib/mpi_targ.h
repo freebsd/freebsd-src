@@ -1,34 +1,40 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2000, 2001 by LSI Logic Corporation
- *
+ * Copyright (c) 2000-2005, LSI Logic Corporation and its contributors.
+ * All rights reserved.
+ * 
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * modification, are permitted provided that the following conditions are
+ * met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon including
+ *    a substantially similar Disclaimer requirement for further binary
+ *    redistribution.
+ * 3. Neither the name of the LSI Logic Corporation nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
+ * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
  *           Name:  MPI_TARG.H
  *          Title:  MPI Target mode messages and structures
  *  Creation Date:  June 22, 2000
  *
- *    MPI Version:  01.02.04
+ *    MPI_TARG.H Version:  01.02.09
  *
  *  Version History
  *  ---------------
@@ -56,6 +62,15 @@
  *                      of MPI.
  *  10-04-01  01.02.03  Added PriorityReason to MSG_TARGET_ERROR_REPLY.
  *  11-01-01  01.02.04  Added define for TARGET_STATUS_SEND_FLAGS_HIGH_PRIORITY.
+ *  03-14-02  01.02.05  Modified MPI_TARGET_FCP_RSP_BUFFER to get the proper
+ *                      byte ordering.
+ *  05-31-02  01.02.06  Modified TARGET_MODE_REPLY_ALIAS_MASK to only include
+ *                      one bit.
+ *                      Added AliasIndex field to MPI_TARGET_FCP_CMD_BUFFER.
+ *  09-16-02  01.02.07  Added flags for confirmed completion.
+ *                      Added PRIORITY_REASON_TARGET_BUSY.
+ *  11-15-02  01.02.08  Added AliasID field to MPI_TARGET_SCSI_SPI_CMD_BUFFER.
+ *  04-01-03  01.02.09  Added OptionalOxid field to MPI_TARGET_FCP_CMD_BUFFER.
  *  --------------------------------------------------------------------------
  */
 
@@ -77,7 +92,7 @@ typedef struct _CMD_BUFFER_DESCRIPTOR
     {
         U32                 PhysicalAddress32;
         U64                 PhysicalAddress64;
-    } _u;
+    } u;
 } CMD_BUFFER_DESCRIPTOR, MPI_POINTER PTR_CMD_BUFFER_DESCRIPTOR,
   CmdBufferDescriptor_t, MPI_POINTER pCmdBufferDescriptor_t;
 
@@ -155,6 +170,7 @@ typedef struct _MSG_PRIORITY_CMD_RECEIVED_REPLY
 #define PRIORITY_REASON_PROTOCOL_ERR            (0x06)
 #define PRIORITY_REASON_DATA_OUT_PARITY_ERR     (0x07)
 #define PRIORITY_REASON_DATA_OUT_CRC_ERR        (0x08)
+#define PRIORITY_REASON_TARGET_BUSY             (0x09)
 #define PRIORITY_REASON_UNKNOWN                 (0xFF)
 
 
@@ -183,6 +199,9 @@ typedef struct _MPI_TARGET_FCP_CMD_BUFFER
     U8      FcpCntl[4];                                 /* 08h */
     U8      FcpCdb[16];                                 /* 0Ch */
     U32     FcpDl;                                      /* 1Ch */
+    U8      AliasIndex;                                 /* 20h */
+    U8      Reserved1;                                  /* 21h */
+    U16     OptionalOxid;                               /* 22h */
 } MPI_TARGET_FCP_CMD_BUFFER, MPI_POINTER PTR_MPI_TARGET_FCP_CMD_BUFFER,
   MpiTargetFcpCmdBuffer, MPI_POINTER pMpiTargetFcpCmdBuffer;
 
@@ -201,6 +220,10 @@ typedef struct _MPI_TARGET_SCSI_SPI_CMD_BUFFER
     U8      TaskManagementFlags;                        /* 12h */
     U8      AdditionalCDBLength;                        /* 13h */
     U8      CDB[16];                                    /* 14h */
+    /* Alias ID */
+    U8      AliasID;                                    /* 24h */
+    U8      Reserved1;                                  /* 25h */
+    U16     Reserved2;                                  /* 26h */
 } MPI_TARGET_SCSI_SPI_CMD_BUFFER,
   MPI_POINTER PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER,
   MpiTargetScsiSpiCmdBuffer, MPI_POINTER pMpiTargetScsiSpiCmdBuffer;
@@ -231,6 +254,7 @@ typedef struct _MSG_TARGET_ASSIST_REQUEST
 #define TARGET_ASSIST_FLAGS_DATA_DIRECTION          (0x01)
 #define TARGET_ASSIST_FLAGS_AUTO_STATUS             (0x02)
 #define TARGET_ASSIST_FLAGS_HIGH_PRIORITY           (0x04)
+#define TARGET_ASSIST_FLAGS_CONFIRMED               (0x08)
 #define TARGET_ASSIST_FLAGS_REPOST_CMD_BUFFER       (0x80)
 
 
@@ -275,14 +299,19 @@ typedef struct _MSG_TARGET_STATUS_SEND_REQUEST
 
 #define TARGET_STATUS_SEND_FLAGS_AUTO_GOOD_STATUS   (0x01)
 #define TARGET_STATUS_SEND_FLAGS_HIGH_PRIORITY      (0x04)
+#define TARGET_STATUS_SEND_FLAGS_CONFIRMED          (0x08)
 #define TARGET_STATUS_SEND_FLAGS_REPOST_CMD_BUFFER  (0x80)
 
+/*
+ * NOTE: FCP_RSP data is big-endian. When used on a little-endian system, this
+ * structure properly orders the bytes.
+ */
 typedef struct _MPI_TARGET_FCP_RSP_BUFFER
 {
     U8      Reserved0[8];                               /* 00h */
-    U8      FcpStatus;                                  /* 08h */
-    U8      FcpFlags;                                   /* 09h */
-    U8      Reserved1[2];                               /* 0Ah */
+    U8      Reserved1[2];                               /* 08h */
+    U8      FcpFlags;                                   /* 0Ah */
+    U8      FcpStatus;                                  /* 0Bh */
     U32     FcpResid;                                   /* 0Ch */
     U32     FcpSenseLength;                             /* 10h */
     U32     FcpResponseLength;                          /* 14h */
@@ -291,6 +320,10 @@ typedef struct _MPI_TARGET_FCP_RSP_BUFFER
 } MPI_TARGET_FCP_RSP_BUFFER, MPI_POINTER PTR_MPI_TARGET_FCP_RSP_BUFFER,
   MpiTargetFcpRspBuffer, MPI_POINTER pMpiTargetFcpRspBuffer;
 
+/*
+ * NOTE: The SPI status IU is big-endian. When used on a little-endian system,
+ * this structure properly orders the bytes.
+ */
 typedef struct _MPI_TARGET_SCSI_SPI_STATUS_IU
 {
     U8      Reserved0;                                  /* 00h */
@@ -354,7 +387,7 @@ typedef struct _MSG_TARGET_MODE_ABORT_REPLY
 #define TARGET_MODE_REPLY_IO_INDEX_SHIFT        (0)
 #define TARGET_MODE_REPLY_INITIATOR_INDEX_MASK  (0x03FFC000)
 #define TARGET_MODE_REPLY_INITIATOR_INDEX_SHIFT (14)
-#define TARGET_MODE_REPLY_ALIAS_MASK            (0x0C000000)
+#define TARGET_MODE_REPLY_ALIAS_MASK            (0x04000000)
 #define TARGET_MODE_REPLY_ALIAS_SHIFT           (26)
 #define TARGET_MODE_REPLY_PORT_MASK             (0x10000000)
 #define TARGET_MODE_REPLY_PORT_SHIFT            (28)

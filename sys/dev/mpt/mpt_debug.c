@@ -24,15 +24,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- */
-/*
+ *
  * Additional Copyright (c) 2002 by Matthew Jacob under same license.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/mpt/mpt_freebsd.h>
+#include <dev/mpt/mpt.h>
+
+#include <dev/mpt/mpilib/mpi_ioc.h>
+#include <dev/mpt/mpilib/mpi_init.h>
+#include <dev/mpt/mpilib/mpi_fc.h>
+
+#include <cam/scsi/scsi_all.h>
+
 #include <machine/stdarg.h>	/* for use by mpt_prt below */
 
 struct Error_Map {
@@ -100,6 +106,7 @@ static const struct Error_Map IOC_Func[] = {
 { MPI_FUNCTION_PORT_FACTS,                   "Port Facts" },
 { MPI_FUNCTION_PORT_ENABLE,                  "Port Enable" },
 { MPI_FUNCTION_EVENT_NOTIFICATION,           "Event Notification" },
+{ MPI_FUNCTION_EVENT_ACK,                    "Event Ack" },
 { MPI_FUNCTION_FW_DOWNLOAD,                  "FW Download" },
 { MPI_FUNCTION_TARGET_CMD_BUFFER_POST,       "SCSI Target Command Buffer" },
 { MPI_FUNCTION_TARGET_ASSIST,                "Target Assist" },
@@ -109,9 +116,25 @@ static const struct Error_Map IOC_Func[] = {
 { MPI_FUNCTION_TARGET_FC_RSP_LINK_SRVC,      "FC: Link Service Response" },
 { MPI_FUNCTION_TARGET_FC_EX_SEND_LINK_SRVC,  "FC: Send Extended Link Service" },
 { MPI_FUNCTION_TARGET_FC_ABORT,              "FC: Abort" },
+{ MPI_FUNCTION_FC_LINK_SRVC_BUF_POST,        "FC: Link Service Buffers" },
+{ MPI_FUNCTION_FC_LINK_SRVC_RSP,             "FC: Link Server Response" },
+{ MPI_FUNCTION_FC_EX_LINK_SRVC_SEND,         "FC: Send Extended Link Service" },
+{ MPI_FUNCTION_FC_ABORT,                     "FC: Abort" },
+{ MPI_FUNCTION_FW_UPLOAD,                    "FW Upload" },
+{ MPI_FUNCTION_FC_COMMON_TRANSPORT_SEND,     "FC: Send Common Transport" },
+{ MPI_FUNCTION_FC_PRIMITIVE_SEND,            "FC: Send Primitive" },
+{ MPI_FUNCTION_RAID_ACTION,                  "RAID Action" },
+{ MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH,     "RAID SCSI Pass-Through" },
+{ MPI_FUNCTION_TOOLBOX,                      "Toolbox Command" },
+{ MPI_FUNCTION_SCSI_ENCLOSURE_PROCESSOR,     "SCSI Enclosure Proc. Command" },
+{ MPI_FUNCTION_MAILBOX,                      "Mailbox Command" },
 { MPI_FUNCTION_LAN_SEND,                     "LAN Send" },
 { MPI_FUNCTION_LAN_RECEIVE,                  "LAN Recieve" },
 { MPI_FUNCTION_LAN_RESET,                    "LAN Reset" },
+{ MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET,       "IOC Message Unit Reset" },
+{ MPI_FUNCTION_IO_UNIT_RESET,                "IO Unit Reset" },
+{ MPI_FUNCTION_HANDSHAKE,                    "Handshake" },
+{ MPI_FUNCTION_REPLY_FRAME_REMOVAL,          "Reply Frame Removal" },
 { -1, 0},
 };
 
@@ -154,15 +177,23 @@ static const struct Error_Map IOC_SCSIStatus[] = {
 };
 
 static const struct Error_Map IOC_Diag[] = {
-{ MPT_DIAG_ENABLED,	"DWE" },
-{ MPT_DIAG_FLASHBAD,	"FLASH_Bad" },
-{ MPT_DIAG_TTLI,	"TTLI" },
-{ MPT_DIAG_RESET_IOC,	"Reset" },
-{ MPT_DIAG_ARM_DISABLE,	"DisARM" },
-{ MPT_DIAG_DME,		"DME" },
+{ MPI_DIAG_DRWE,		"DWE" },
+{ MPI_DIAG_FLASH_BAD_SIG,	"FLASH_Bad" },
+{ MPI_DIAGNOSTIC_OFFSET,	"Offset" },
+{ MPI_DIAG_RESET_ADAPTER,	"Reset" },
+{ MPI_DIAG_DISABLE_ARM,		"DisARM" },
+{ MPI_DIAG_MEM_ENABLE,		"DME" },
 { -1, 0 },
 };
 
+static const struct Error_Map IOC_SCSITMType[] = {
+{ MPI_SCSITASKMGMT_TASKTYPE_ABORT_TASK,		"Abort Task" },
+{ MPI_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET,	"Abort Task Set" },
+{ MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET,	"Target Reset" },
+{ MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,		"Reset Bus" },
+{ MPI_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET,	"Logical Unit Reset" },
+{ -1, 0 },
+};
 
 static void mpt_dump_sgl(SGE_IO_UNION *sgl);
 
@@ -284,6 +315,20 @@ mpt_state(u_int32_t mb)
 		default: 		  text = "Unknown"; break;
 	}
 	return text;
+}
+
+static char *
+mpt_scsi_tm_type(int code)
+{
+	const struct Error_Map *status = IOC_SCSITMType;
+	static char buf[64];
+	while (status->Error_Code >= 0) {
+		if (status->Error_Code == code)
+			return status->Error_String;
+		status++;
+	}
+	snprintf(buf, sizeof buf, "Unknown (0x%08x)", code);
+	return buf;
 }
 
 void
@@ -508,6 +553,15 @@ mpt_print_scsi_io_request(MSG_SCSI_IO_REQUEST *orig_msg)
 	mpt_dump_sgl(&orig_msg->SGL);
 }
 
+static void
+mpt_print_scsi_tmf_request(MSG_SCSI_TASK_MGMT *msg)
+{
+	mpt_print_request_hdr((MSG_REQUEST_HEADER *)msg);
+	printf("\tLun             0x%02x\n", msg->LUN[1]);
+	printf("\tTaskType        %s\n", mpt_scsi_tm_type(msg->TaskType));
+	printf("\tTaskMsgContext  0x%08x\n", msg->TaskMsgContext);
+}
+
 void
 mpt_print_request(void *vreq)
 {
@@ -517,25 +571,81 @@ mpt_print_request(void *vreq)
 	case MPI_FUNCTION_SCSI_IO_REQUEST:
 		mpt_print_scsi_io_request((MSG_SCSI_IO_REQUEST *)req);
 		break;
+	case MPI_FUNCTION_SCSI_TASK_MGMT:
+		mpt_print_scsi_tmf_request((MSG_SCSI_TASK_MGMT *)req);
 	default:
 		mpt_print_request_hdr(req);
 		break;
 	}
 }
 
-char *
-mpt_req_state(enum mpt_req_state state)
+int
+mpt_decode_value(mpt_decode_entry_t *table, u_int num_entries,
+		 const char *name, u_int value, u_int *cur_column,
+		 u_int wrap_point)
 {
-	char *text;
+        int     printed;
+        u_int   printed_mask;
+	u_int	dummy_column;
 
-	switch (state) {
-	case REQ_FREE:         text = "Free";         break;
-	case REQ_IN_PROGRESS:  text = "In Progress";  break;
-	case REQ_ON_CHIP:      text = "On Chip";      break;
-	case REQ_TIMEOUT:      text = "Timeout";      break;
-	default: 	       text = "Unknown";      break;
+	if (cur_column == NULL) {
+		dummy_column = 0;
+		cur_column = &dummy_column;
 	}
-	return text;
+
+	if (*cur_column >= wrap_point) {
+		printf("\n");
+		*cur_column = 0;
+	}
+	printed = printf("%s[0x%x]", name, value);
+	if (table == NULL) {
+		printed += printf(" ");
+		*cur_column += printed;
+		return (printed);
+	}
+	printed_mask = 0;
+	while (printed_mask != 0xFF) {
+		int entry;
+
+		for (entry = 0; entry < num_entries; entry++) {
+			if (((value & table[entry].mask)
+			  != table[entry].value)
+			 || ((printed_mask & table[entry].mask)
+			  == table[entry].mask))
+				continue;
+
+			printed += printf("%s%s",
+					  printed_mask == 0 ? ":(" : "|",
+					  table[entry].name);
+			printed_mask |= table[entry].mask;
+			break;
+                }
+		if (entry >= num_entries)
+			break;
+        }
+        if (printed_mask != 0)
+		printed += printf(") ");
+        else
+		printed += printf(" ");
+	*cur_column += printed;
+	return (printed);
+}
+
+static mpt_decode_entry_t req_state_parse_table[] = {
+	{ "REQ_FREE",		0x00, 0xff },
+	{ "REQ_ALLOCATED",	0x01, 0x01 },
+	{ "REQ_QUEUED",		0x02, 0x02 },
+	{ "REQ_DONE",		0x04, 0x04 },
+	{ "REQ_TIMEDOUT",	0x08, 0x08 },
+	{ "REQ_NEED_WAKEUP",	0x10, 0x10 }
+};
+
+void
+mpt_req_state(mpt_req_state_t state)
+{
+	mpt_decode_value(req_state_parse_table,
+			 NUM_ELEMENTS(req_state_parse_table),
+			 "REQ_STATE", state, NULL, 80);
 }
 
 static void
@@ -597,12 +707,22 @@ mpt_dump_sgl(SGE_IO_UNION *su)
 }
 
 void
-mpt_prt(mpt_softc_t *mpt, const char *fmt, ...)
+mpt_prt(struct mpt_softc *mpt, const char *fmt, ...)
 {
 	va_list ap;
+
 	printf("%s: ", device_get_nameunit(mpt->dev));
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);
-	printf("\n");
+}
+
+void
+mpt_prtc(struct mpt_softc *mpt, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
 }

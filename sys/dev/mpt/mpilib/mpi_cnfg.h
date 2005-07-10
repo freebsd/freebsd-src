@@ -1,34 +1,40 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2000, 2001 by LSI Logic Corporation
- *
+ * Copyright (c) 2000-2005, LSI Logic Corporation and its contributors.
+ * All rights reserved.
+ * 
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * modification, are permitted provided that the following conditions are
+ * met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon including
+ *    a substantially similar Disclaimer requirement for further binary
+ *    redistribution.
+ * 3. Neither the name of the LSI Logic Corporation nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
+ * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
  *           Name:  MPI_CNFG.H
  *          Title:  MPI Config message, structures, and Pages
  *  Creation Date:  July 27, 2000
  *
- *    MPI_CNFG.H Version:  01.02.11
+ *    MPI_CNFG.H Version:  01.02.13
  *
  *  Version History
  *  ---------------
@@ -158,6 +164,21 @@
  *                      Added define MPI_FCPORTPAGE5_FLAGS_DISABLE to disable
  *                      an alias.
  *                      Added more device id defines.
+ *  06-26-03 01.02.12   Added MPI_IOUNITPAGE1_IR_USE_STATIC_VOLUME_ID define.
+ *                      Added TargetConfig and IDConfig fields to
+ *                      CONFIG_PAGE_SCSI_PORT_1.
+ *                      Added more PortFlags defines for CONFIG_PAGE_SCSI_PORT_2
+ *                      to control DV.
+ *                      Added more Flags defines for CONFIG_PAGE_FC_PORT_1.
+ *                      In CONFIG_PAGE_FC_DEVICE_0, replaced Reserved1 field
+ *                      with ADISCHardALPA.
+ *                      Added MPI_FC_DEVICE_PAGE0_PROT_FCP_RETRY define.
+ *  01-16-04 01.02.13   Added InitiatorDeviceTimeout and InitiatorIoPendTimeout
+ *                      fields and related defines to CONFIG_PAGE_FC_PORT_1.
+ *                      Added define for
+ *                      MPI_FCPORTPAGE1_FLAGS_SOFT_ALPA_FALLBACK.
+ *                      Added new fields to the substructures of
+ *                      CONFIG_PAGE_FC_PORT_10.
  *  --------------------------------------------------------------------------
  */
 
@@ -459,6 +480,7 @@ typedef struct _CONFIG_PAGE_IO_UNIT_1
 #define MPI_IOUNITPAGE1_SINGLE_FUNCTION                 (0x00000001)
 #define MPI_IOUNITPAGE1_MULTI_PATHING                   (0x00000002)
 #define MPI_IOUNITPAGE1_SINGLE_PATHING                  (0x00000000)
+#define MPI_IOUNITPAGE1_IR_USE_STATIC_VOLUME_ID         (0x00000004)
 #define MPI_IOUNITPAGE1_DISABLE_IR                      (0x00000040)
 #define MPI_IOUNITPAGE1_FORCE_32                        (0x00000080)
 
@@ -742,13 +764,21 @@ typedef struct _CONFIG_PAGE_SCSI_PORT_1
     CONFIG_PAGE_HEADER      Header;                     /* 00h */
     U32                     Configuration;              /* 04h */
     U32                     OnBusTimerValue;            /* 08h */
+    U8                      TargetConfig;               /* 0Ch */
+    U8                      Reserved1;                  /* 0Dh */
+    U16                     IDConfig;                   /* 0Eh */
 } CONFIG_PAGE_SCSI_PORT_1, MPI_POINTER PTR_CONFIG_PAGE_SCSI_PORT_1,
   SCSIPortPage1_t, MPI_POINTER pSCSIPortPage1_t;
 
-#define MPI_SCSIPORTPAGE1_PAGEVERSION                   (0x02)
+#define MPI_SCSIPORTPAGE1_PAGEVERSION                   (0x03)
 
+/* Configuration values */
 #define MPI_SCSIPORTPAGE1_CFG_PORT_SCSI_ID_MASK         (0x000000FF)
 #define MPI_SCSIPORTPAGE1_CFG_PORT_RESPONSE_ID_MASK     (0xFFFF0000)
+
+/* TargetConfig values */
+#define MPI_SCSIPORTPAGE1_TARGCONFIG_TARG_ONLY        (0x01)
+#define MPI_SCSIPORTPAGE1_TARGCONFIG_INIT_TARG        (0x02)
 
 
 typedef struct _MPI_DEVICE_INFO
@@ -768,13 +798,20 @@ typedef struct _CONFIG_PAGE_SCSI_PORT_2
 } CONFIG_PAGE_SCSI_PORT_2, MPI_POINTER PTR_CONFIG_PAGE_SCSI_PORT_2,
   SCSIPortPage2_t, MPI_POINTER pSCSIPortPage2_t;
 
-#define MPI_SCSIPORTPAGE2_PAGEVERSION                       (0x01)
+#define MPI_SCSIPORTPAGE2_PAGEVERSION                       (0x02)
 
+/* PortFlags values */
 #define MPI_SCSIPORTPAGE2_PORT_FLAGS_SCAN_HIGH_TO_LOW       (0x00000001)
 #define MPI_SCSIPORTPAGE2_PORT_FLAGS_AVOID_SCSI_RESET       (0x00000004)
 #define MPI_SCSIPORTPAGE2_PORT_FLAGS_ALTERNATE_CHS          (0x00000008)
 #define MPI_SCSIPORTPAGE2_PORT_FLAGS_TERMINATION_DISABLE    (0x00000010)
 
+#define MPI_SCSIPORTPAGE2_PORT_FLAGS_DV_MASK                (0x00000060)
+#define MPI_SCSIPORTPAGE2_PORT_FLAGS_FULL_DV                (0x00000000)
+#define MPI_SCSIPORTPAGE2_PORT_FLAGS_BASIC_DV_ONLY          (0x00000020)
+#define MPI_SCSIPORTPAGE2_PORT_FLAGS_OFF_DV                 (0x00000060)
+
+/* PortSettings values */
 #define MPI_SCSIPORTPAGE2_PORT_HOST_ID_MASK                 (0x0000000F)
 #define MPI_SCSIPORTPAGE2_PORT_MASK_INIT_HBA                (0x00000030)
 #define MPI_SCSIPORTPAGE2_PORT_DISABLE_INIT_HBA             (0x00000000)
@@ -1016,18 +1053,23 @@ typedef struct _CONFIG_PAGE_FC_PORT_1
     U8                      AltConnector;               /* 1Bh */
     U8                      NumRequestedAliases;        /* 1Ch */
     U8                      RR_TOV;                     /* 1Dh */
-    U16                     Reserved2;                  /* 1Eh */
+    U8                      InitiatorDeviceTimeout;     /* 1Eh */
+    U8                      InitiatorIoPendTimeout;     /* 1Fh */
 } CONFIG_PAGE_FC_PORT_1, MPI_POINTER PTR_CONFIG_PAGE_FC_PORT_1,
   FCPortPage1_t, MPI_POINTER pFCPortPage1_t;
 
-#define MPI_FCPORTPAGE1_PAGEVERSION                     (0x05)
+#define MPI_FCPORTPAGE1_PAGEVERSION                     (0x06)
 
 #define MPI_FCPORTPAGE1_FLAGS_EXT_FCP_STATUS_EN         (0x08000000)
 #define MPI_FCPORTPAGE1_FLAGS_IMMEDIATE_ERROR_REPLY     (0x04000000)
 #define MPI_FCPORTPAGE1_FLAGS_FORCE_USE_NOSEEPROM_WWNS  (0x02000000)
 #define MPI_FCPORTPAGE1_FLAGS_VERBOSE_RESCAN_EVENTS     (0x01000000)
 #define MPI_FCPORTPAGE1_FLAGS_TARGET_MODE_OXID          (0x00800000)
+#define MPI_FCPORTPAGE1_FLAGS_PORT_OFFLINE              (0x00400000)
+#define MPI_FCPORTPAGE1_FLAGS_SOFT_ALPA_FALLBACK        (0x00200000)
 #define MPI_FCPORTPAGE1_FLAGS_MASK_RR_TOV_UNITS         (0x00000070)
+#define MPI_FCPORTPAGE1_FLAGS_SUPPRESS_PROT_REG         (0x00000008)
+#define MPI_FCPORTPAGE1_FLAGS_PLOGI_ON_LOGO             (0x00000004)
 #define MPI_FCPORTPAGE1_FLAGS_MAINTAIN_LOGINS           (0x00000002)
 #define MPI_FCPORTPAGE1_FLAGS_SORT_BY_DID               (0x00000001)
 #define MPI_FCPORTPAGE1_FLAGS_SORT_BY_WWN               (0x00000000)
@@ -1059,6 +1101,9 @@ typedef struct _CONFIG_PAGE_FC_PORT_1
 #define MPI_FCPORTPAGE1_TOPOLOGY_AUTO                   (0x0F)
 
 #define MPI_FCPORTPAGE1_ALT_CONN_UNKNOWN                (0x00)
+
+#define MPI_FCPORTPAGE1_INITIATOR_DEV_TIMEOUT_MASK      (0x7F)
+#define MPI_FCPORTPAGE1_INITIATOR_DEV_UNIT_16           (0x80)
 
 
 typedef struct _CONFIG_PAGE_FC_PORT_2
@@ -1254,8 +1299,8 @@ typedef struct _CONFIG_PAGE_FC_PORT_10_BASE_SFP_DATA
     U8                      VendorOUI[3];               /* 35h */
     U8                      VendorPN[16];               /* 38h */
     U8                      VendorRev[4];               /* 48h */
-    U16                     Reserved4;                  /* 4Ch */
-    U8                      Reserved5;                  /* 4Eh */
+    U16                     Wavelength;                 /* 4Ch */
+    U8                      Reserved4;                  /* 4Eh */
     U8                      CC_BASE;                    /* 4Fh */
 } CONFIG_PAGE_FC_PORT_10_BASE_SFP_DATA,
   MPI_POINTER PTR_CONFIG_PAGE_FC_PORT_10_BASE_SFP_DATA,
@@ -1313,7 +1358,9 @@ typedef struct _CONFIG_PAGE_FC_PORT_10_EXTENDED_SFP_DATA
     U8                      BitRateMin;                 /* 53h */
     U8                      VendorSN[16];               /* 54h */
     U8                      DateCode[8];                /* 64h */
-    U8                      Reserved5[3];               /* 6Ch */
+    U8                      DiagMonitoringType;         /* 6Ch */
+    U8                      EnhancedOptions;            /* 6Dh */
+    U8                      SFF8472Compliance;          /* 6Eh */
     U8                      CC_EXT;                     /* 6Fh */
 } CONFIG_PAGE_FC_PORT_10_EXTENDED_SFP_DATA,
   MPI_POINTER PTR_CONFIG_PAGE_FC_PORT_10_EXTENDED_SFP_DATA,
@@ -1340,7 +1387,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_10
 } CONFIG_PAGE_FC_PORT_10, MPI_POINTER PTR_CONFIG_PAGE_FC_PORT_10,
   FCPortPage10_t, MPI_POINTER pFCPortPage10_t;
 
-#define MPI_FCPORTPAGE10_PAGEVERSION                    (0x00)
+#define MPI_FCPORTPAGE10_PAGEVERSION                    (0x01)
 
 /* standard MODDEF pin definitions (from GBIC spec.) */
 #define MPI_FCPORTPAGE10_FLAGS_MODDEF_MASK              (0x00000007)
@@ -1374,7 +1421,7 @@ typedef struct _CONFIG_PAGE_FC_DEVICE_0
     U8                      Flags;                      /* 19h */
     U16                     BBCredit;                   /* 1Ah */
     U16                     MaxRxFrameSize;             /* 1Ch */
-    U8                      Reserved1;                  /* 1Eh */
+    U8                      ADISCHardALPA;              /* 1Eh */
     U8                      PortNumber;                 /* 1Fh */
     U8                      FcPhLowestVersion;          /* 20h */
     U8                      FcPhHighestVersion;         /* 21h */
@@ -1383,7 +1430,7 @@ typedef struct _CONFIG_PAGE_FC_DEVICE_0
 } CONFIG_PAGE_FC_DEVICE_0, MPI_POINTER PTR_CONFIG_PAGE_FC_DEVICE_0,
   FCDevicePage0_t, MPI_POINTER pFCDevicePage0_t;
 
-#define MPI_FC_DEVICE_PAGE0_PAGEVERSION                 (0x02)
+#define MPI_FC_DEVICE_PAGE0_PAGEVERSION                 (0x03)
 
 #define MPI_FC_DEVICE_PAGE0_FLAGS_TARGETID_BUS_VALID    (0x01)
 #define MPI_FC_DEVICE_PAGE0_FLAGS_PLOGI_INVALID         (0x02)
@@ -1392,6 +1439,7 @@ typedef struct _CONFIG_PAGE_FC_DEVICE_0
 #define MPI_FC_DEVICE_PAGE0_PROT_IP                     (0x01)
 #define MPI_FC_DEVICE_PAGE0_PROT_FCP_TARGET             (0x02)
 #define MPI_FC_DEVICE_PAGE0_PROT_FCP_INITIATOR          (0x04)
+#define MPI_FC_DEVICE_PAGE0_PROT_FCP_RETRY              (0x08)
 
 #define MPI_FC_DEVICE_PAGE0_PGAD_PORT_MASK      (MPI_FC_DEVICE_PGAD_PORT_MASK)
 #define MPI_FC_DEVICE_PAGE0_PGAD_FORM_MASK      (MPI_FC_DEVICE_PGAD_FORM_MASK)
@@ -1402,6 +1450,7 @@ typedef struct _CONFIG_PAGE_FC_DEVICE_0
 #define MPI_FC_DEVICE_PAGE0_PGAD_BUS_SHIFT      (MPI_FC_DEVICE_PGAD_BT_BUS_SHIFT)
 #define MPI_FC_DEVICE_PAGE0_PGAD_TID_MASK       (MPI_FC_DEVICE_PGAD_BT_TID_MASK)
 
+#define MPI_FC_DEVICE_PAGE0_HARD_ALPA_UNKNOWN   (0xFF)
 
 /****************************************************************************
 *   RAID Volume Config Pages
@@ -1487,8 +1536,9 @@ typedef struct _CONFIG_PAGE_RAID_VOL_0
     U32                     Reserved2;      /* 1Ch */
     U32                     Reserved3;      /* 20h */
     U8                      NumPhysDisks;   /* 24h */
-    U8                      Reserved4;      /* 25h */
-    U16                     Reserved5;      /* 26h */
+    U8                      DataScrubRate;  /* 25h */
+    U8                      ResyncRate;     /* 26h */
+    U8                      InactiveStatus; /* 27h */
     RAID_VOL0_PHYS_DISK     PhysDisk[MPI_RAID_VOL_PAGE_0_PHYSDISK_MAX];/* 28h */
 } CONFIG_PAGE_RAID_VOL_0, MPI_POINTER PTR_CONFIG_PAGE_RAID_VOL_0,
   RaidVolumePage0_t, MPI_POINTER pRaidVolumePage0_t;
