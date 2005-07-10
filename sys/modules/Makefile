@@ -277,11 +277,8 @@ SUBDIR=	${_3dfx} \
 	${_xe} \
 	xl
 
-.if ${MACHINE_ARCH} != "sparc64" && ${MACHINE_ARCH} != "powerpc"
-_syscons=	syscons
-.endif
-
 .if ${MACHINE_ARCH} != "powerpc"
+_syscons=	syscons
 _uart=		uart
 _vpo=		vpo
 .endif
