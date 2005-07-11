@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-     "@(#) $Header: /tcpdump/master/tcpdump/smbutil.c,v 1.36 2005/01/29 10:37:02 guy Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/smbutil.c,v 1.36.2.1 2005/04/21 04:09:58 guy Exp $";
 #endif
 
 #include <tcpdump-stdinc.h>
@@ -428,7 +428,6 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf,
 {
     int reverse = 0;
     const char *attrib_fmt = "READONLY|HIDDEN|SYSTEM|VOLUME|DIR|ARCHIVE|";
-    int len;
 
     while (*fmt && buf<maxbuf) {
 	switch (*fmt) {
@@ -608,6 +607,8 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf,
 	  {
 	    /*XXX unistr() */
 	    const char *s;
+	    u_int32_t len;
+
 	    len = 0;
 	    s = unistr(buf, &len, (*fmt == 'R') ? 0 : unicodestr);
 	    if (s == NULL)
@@ -621,6 +622,8 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf,
 	case 'Y':	/* like 'Z', but always ASCII */
 	  {
 	    const char *s;
+	    u_int32_t len;
+
 	    TCHECK(*buf);
 	    if (*buf != 4 && *buf != 2) {
 		printf("Error! ASCIIZ buffer of type %u", *buf);

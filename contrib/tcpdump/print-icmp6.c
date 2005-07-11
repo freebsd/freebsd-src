@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp6.c,v 1.79 2005/01/14 10:41:50 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp6.c,v 1.79.2.4 2005/05/14 00:42:54 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,13 +35,13 @@ static const char rcsid[] _U_ =
 #include <stdio.h>
 #include <string.h>
 
-#include "ip6.h"
-#include "icmp6.h"
-#include "ipproto.h"
-
 #include "interface.h"
 #include "addrtoname.h"
 #include "extract.h"
+
+#include "ip6.h"
+#include "icmp6.h"
+#include "ipproto.h"
 
 #include "udp.h"
 #include "ah.h"
@@ -69,10 +69,10 @@ static struct tok icmp6_type_values[] = {
     { ICMP6_PARAM_PROB, "parameter problem"},
     { ICMP6_ECHO_REQUEST, "echo request"},
     { ICMP6_ECHO_REPLY, "echo reply"},
-    { MLD6_LISTENER_QUERY, "multicast listener query "},
-    { MLD6_LISTENER_REPORT, "multicast listener report "},
-    { MLD6_LISTENER_DONE, "multicast listener done "},
-    { ND_ROUTER_SOLICIT, "router solicitation "},
+    { MLD6_LISTENER_QUERY, "multicast listener query"},
+    { MLD6_LISTENER_REPORT, "multicast listener report"},
+    { MLD6_LISTENER_DONE, "multicast listener done"},
+    { ND_ROUTER_SOLICIT, "router solicitation"},
     { ND_ROUTER_ADVERT, "router advertisement"},
     { ND_NEIGHBOR_SOLICIT, "neighbor solicitation"},
     { ND_NEIGHBOR_ADVERT, "neighbor advertisment"},
@@ -80,7 +80,7 @@ static struct tok icmp6_type_values[] = {
     { ICMP6_ROUTER_RENUMBERING, "router renumbering"},
     { IND_SOLICIT, "inverse neighbor solicitation"},
     { IND_ADVERT, "inverse neighbor advertisement"},
-    { MLDV2_LISTENER_REPORT, "multicast listener report v2 "},
+    { MLDV2_LISTENER_REPORT, "multicast listener report v2"},
     { ICMP6_HADISCOV_REQUEST, "ha discovery request"},
     { ICMP6_HADISCOV_REPLY, "ha discovery reply"},
     { ICMP6_MOBILEPREFIX_SOLICIT, "mobile router solicitation"},
@@ -237,18 +237,15 @@ icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 {
 	const struct icmp6_hdr *dp;
 	const struct ip6_hdr *ip;
-	const char *str;
 	const struct ip6_hdr *oip;
 	const struct udphdr *ouh;
 	int dport;
 	const u_char *ep;
-	char buf[256];
 	u_int prot;
 
 	dp = (struct icmp6_hdr *)bp;
 	ip = (struct ip6_hdr *)bp2;
 	oip = (struct ip6_hdr *)(dp + 1);
-	str = buf;
 	/* 'ep' points to the end of available data. */
 	ep = snapend;
 
@@ -542,7 +539,7 @@ get_upperlayer(u_char *bp, u_int *prot)
 	nh = ip6->ip6_nxt;
 	hlen = sizeof(struct ip6_hdr);
 
-	while (bp < snapend) {
+	while (bp < ep) {
 		bp += hlen;
 
 		switch(nh) {
@@ -1153,8 +1150,6 @@ static void
 icmp6_rrenum_print(const u_char *bp, const u_char *ep)
 {
 	struct icmp6_router_renum *rr6;
-	struct icmp6_hdr *dp;
-	size_t siz;
 	const char *cp;
 	struct rr_pco_match *match;
 	struct rr_pco_use *use;
@@ -1163,9 +1158,7 @@ icmp6_rrenum_print(const u_char *bp, const u_char *ep)
 
 	if (ep < bp)
 		return;
-	dp = (struct icmp6_hdr *)bp;
 	rr6 = (struct icmp6_router_renum *)bp;
-	siz = ep - bp;
 	cp = (const char *)(rr6 + 1);
 
 	TCHECK(rr6->rr_reserved);

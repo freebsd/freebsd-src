@@ -35,7 +35,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-"@(#) $Header: /tcpdump/master/tcpdump/print-sctp.c,v 1.16 2004/12/15 08:43:23 guy Exp $ (NETLAB/PEL)";
+"@(#) $Header: /tcpdump/master/tcpdump/print-sctp.c,v 1.16.2.3 2005/05/06 10:53:20 guy Exp $ (NETLAB/PEL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -68,7 +68,6 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 #ifdef INET6
   const struct ip6_hdr *ip6;
 #endif
-  const u_char *cp;
   const void *endPacketPtr;
   u_short sourcePort, destPort;
   int chunkCount;
@@ -88,12 +87,7 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
   else
     ip6 = NULL;
 #endif /*INET6*/
-  cp = (const u_char *)(sctpPktHdr + 1);
-  if (cp > snapend)
-    {
-      printf("[|sctp]");
-      return;
-    }
+  TCHECK(*sctpPktHdr);
 
   if (sctpPacketLength < sizeof(struct sctpHeader))
     {
@@ -141,12 +135,21 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 
        chunkDescPtr = (const struct sctpChunkDesc *) nextChunk, chunkCount++)
     {
-      u_short align;
+      u_int16_t chunkLength;
       const u_char *chunkEnd;
+      u_int16_t align;
 
-      chunkEnd = ((const u_char*)chunkDescPtr + EXTRACT_16BITS(&chunkDescPtr->chunkLength));
+      TCHECK(*chunkDescPtr);
+      chunkLength = EXTRACT_16BITS(&chunkDescPtr->chunkLength);
+      if (chunkLength < sizeof(*chunkDescPtr)) {
+      	printf("%s%d) [Bad chunk length %u]", sep, chunkCount+1, chunkLength);
+      	break;
+      }
 
-      align=EXTRACT_16BITS(&chunkDescPtr->chunkLength) % 4;
+      TCHECK2(*((u_int8_t *)chunkDescPtr), chunkLength);
+      chunkEnd = ((const u_char*)chunkDescPtr + chunkLength);
+
+      align=chunkLength % 4;
       if (align != 0)
 	align = 4 - align;
 
@@ -259,7 +262,7 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	    const struct sctpSelectiveAck *sack;
 	    const struct sctpSelectiveFrag *frag;
 	    int fragNo, tsnNo;
-	    const u_long *dupTSN;
+	    const u_char *dupTSN;
 
 	    printf("[SACK] ");
 	    sack=(const struct sctpSelectiveAck*)(chunkDescPtr+1);
@@ -282,9 +285,9 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 
 
 	    /* print duplicate TSNs */
-	    for (dupTSN = (const u_long*)frag, tsnNo=0;
+	    for (dupTSN = (const u_char *)frag, tsnNo=0;
 		 (const void *) dupTSN < nextChunk && tsnNo<EXTRACT_16BITS(&sack->numDupTsns);
-		 dupTSN++, tsnNo++)
+		 dupTSN += 4, tsnNo++)
 	      printf("\n\t\t[dup TSN #%u: %u] ", tsnNo+1,
 	          EXTRACT_32BITS(dupTSN));
 
@@ -347,4 +350,9 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	if (vflag < 2)
 	  sep = ", (";
     }
+    return;
+
+trunc:
+    printf("[|sctp]");
+    return;
 }

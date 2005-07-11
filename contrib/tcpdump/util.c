@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.95 2005/03/21 11:35:55 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.95.2.5 2005/06/16 01:19:57 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -45,7 +45,7 @@ static const char rcsid[] _U_ =
 #include "interface.h"
 
 /*
- * Print out a filename (or other ascii string).
+ * Print out a null-terminated filename (or other ascii string).
  * If ep is NULL, assume no truncation check is needed.
  * Return true if truncated.
  */
@@ -102,6 +102,40 @@ fn_printn(register const u_char *s, register u_int n,
 		putchar(c);
 	}
 	return (n == 0) ? 0 : 1;
+}
+
+/*
+ * Print out a null-padded filename (or other ascii string).
+ * If ep is NULL, assume no truncation check is needed.
+ * Return true if truncated.
+ */
+int
+fn_printzp(register const u_char *s, register u_int n,
+	  register const u_char *ep)
+{
+	register int ret;
+	register u_char c;
+
+	ret = 1;			/* assume truncated */
+	while (n > 0 && (ep == NULL || s < ep)) {
+		n--;
+		c = *s++;
+		if (c == '\0') {
+			ret = 0;
+			break;
+		}
+		if (!isascii(c)) {
+			c = toascii(c);
+			putchar('M');
+			putchar('-');
+		}
+		if (!isprint(c)) {
+			c ^= 0x40;	/* DEL to ?, others to alpha */
+			putchar('^');
+		}
+		putchar(c);
+	}
+	return (n == 0) ? 0 : ret;
 }
 
 /*
@@ -208,6 +242,18 @@ relts_print(int secs)
 int
 print_unknown_data(const u_char *cp,const char *ident,int len)
 {
+	if (len < 0) {
+		printf("%sDissector error: print_unknown_data called with negative length",
+		    ident);
+		return(0);
+	}
+	if (snapend - cp < len)
+		len = snapend - cp;
+	if (len < 0) {
+		printf("%sDissector error: print_unknown_data called with pointer past end of packet",
+		    ident);
+		return(0);
+	}
         hex_print(ident,cp,len);
 	return(1); /* everything is ok */
 }
@@ -219,10 +265,12 @@ const char *
 tok2strbuf(register const struct tok *lp, register const char *fmt,
 	   register int v, char *buf, size_t bufsize)
 {
-	while (lp->s != NULL && lp != NULL) {
-		if (lp->v == v)
-			return (lp->s);
-		++lp;
+	if (lp != NULL) {
+		while (lp->s != NULL) {
+			if (lp->v == v)
+				return (lp->s);
+			++lp;
+		}
 	}
 	if (fmt == NULL)
 		fmt = "#%d";

@@ -1,6 +1,8 @@
 /*
  * Decode and print Zephyr packets.
  *
+ *	http://web.mit.edu/zephyr/doc/protocol
+ *
  * Copyright (c) 2001 Nickolai Zeldovich <kolya@MIT.EDU>
  * All rights reserved.
  *
@@ -20,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-zephyr.c,v 1.8 2003/11/16 09:36:42 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-zephyr.c,v 1.8.2.1 2005/04/21 06:51:24 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
