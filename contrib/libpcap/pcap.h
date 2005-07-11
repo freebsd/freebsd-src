@@ -112,6 +112,12 @@ struct pcap_file_header {
 	bpf_u_int32 linktype;	/* data link type (LINKTYPE_*) */
 };
 
+typedef enum {
+       D_INOUT = 0,
+       D_IN,
+       D_OUT
+} direction_t;
+
 /*
  * Each packet in the dump file is prepended with this generic header.
  * This gets around the problem of different headers for different
@@ -210,6 +216,7 @@ int 	pcap_next_ex(pcap_t *, struct pcap_pkthdr **, const u_char **);
 void	pcap_breakloop(pcap_t *);
 int	pcap_stats(pcap_t *, struct pcap_stat *);
 int	pcap_setfilter(pcap_t *, struct bpf_program *);
+int 	pcap_setdirection(pcap_t *, direction_t);
 int	pcap_getnonblock(pcap_t *, char *);
 int	pcap_setnonblock(pcap_t *, int, char *);
 void	pcap_perror(pcap_t *, char *);
@@ -239,10 +246,11 @@ int	pcap_fileno(pcap_t *);
 
 pcap_dumper_t *pcap_dump_open(pcap_t *, const char *);
 pcap_dumper_t *pcap_dump_fopen(pcap_t *, FILE *fp);
+FILE	*pcap_dump_file(pcap_dumper_t *);
+long	pcap_dump_ftell(pcap_dumper_t *);
 int	pcap_dump_flush(pcap_dumper_t *);
 void	pcap_dump_close(pcap_dumper_t *);
 void	pcap_dump(u_char *, const struct pcap_pkthdr *, const u_char *);
-FILE	*pcap_dump_file(pcap_dumper_t *);
 
 int	pcap_findalldevs(pcap_if_t **, char *);
 void	pcap_freealldevs(pcap_if_t *);
