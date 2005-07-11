@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/rpc_msg.h,v 1.1 2004/12/27 00:41:32 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/rpc_msg.h,v 1.1.2.1 2005/04/27 21:44:07 guy Exp $ (LBL) */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -38,9 +38,6 @@
  *
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
-
-#ifndef __RPC_MSG_H_
-#define __RPC_MSG_H_
 
 #define SUNRPC_MSG_VERSION	((u_int32_t) 2)
 
@@ -129,5 +126,3 @@ struct sunrpc_msg {
 };
 #define	acpted_rply	ru.RM_rmb.ru.RP_ar
 #define	rjcted_rply	ru.RM_rmb.ru.RP_dr
-
-#endif /* !__RPC_MSG_H_ */

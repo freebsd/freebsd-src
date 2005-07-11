@@ -14,7 +14,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/atm.h,v 1.1 2002/07/11 09:17:22 guy Exp $
+ * @(#) $Header: /tcpdump/master/tcpdump/atm.h,v 1.1.4.1 2005/06/20 07:45:05 hannes Exp $
  */
 
 /*
@@ -23,3 +23,10 @@
 #define ATM_UNKNOWN	0	/* Unknown */
 #define ATM_LANE	1	/* LANE */
 #define ATM_LLC		2	/* LLC encapsulation */
+
+/*
+ * some OAM cell captures (most notably Juniper's)
+ * do not deliver a heading HEC byte
+ */
+#define ATM_OAM_NOHEC   0
+#define ATM_OAM_HEC     1

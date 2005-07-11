@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/aclocal.m4,v 1.106 2005/03/27 03:31:01 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/aclocal.m4,v 1.106.2.6 2005/06/03 22:10:16 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996, 1997, 1998
 dnl	The Regents of the University of California.  All rights reserved.
@@ -157,6 +157,7 @@ AC_DEFUN(AC_LBL_C_INIT,
     fi
 ])
 
+
 #
 # Try compiling a sample of the type of code that appears in
 # gencode.c with "inline", "__inline__", and "__inline".
@@ -166,13 +167,8 @@ AC_DEFUN(AC_LBL_C_INIT,
 # at least some versions of HP's C compiler can inline that, but can't
 # inline a function that returns a struct pointer.
 #
-# Make sure we use the V_CCOPT flags, because some of those might
-# disable inlining.
-#
 AC_DEFUN(AC_LBL_C_INLINE,
     [AC_MSG_CHECKING(for inline)
-    save_CFLAGS="$CFLAGS"
-    CFLAGS="$V_CCOPT"
     AC_CACHE_VAL(ac_cv_lbl_inline, [
 	ac_cv_lbl_inline=""
 	ac_lbl_cc_inline=no
@@ -200,7 +196,6 @@ AC_DEFUN(AC_LBL_C_INLINE,
 	if test "$ac_lbl_cc_inline" = yes ; then
 	    ac_cv_lbl_inline=$ac_lbl_inline
 	fi])
-    CFLAGS="$save_CFLAGS"
     if test ! -z "$ac_cv_lbl_inline" ; then
 	AC_MSG_RESULT($ac_cv_lbl_inline)
     else
@@ -329,11 +324,13 @@ AC_DEFUN(AC_LBL_LIBPCAP,
     dnl
     dnl Check for "pcap_list_datalinks()", "pcap_set_datalink()",
     dnl and "pcap_datalink_name_to_val()", and use substitute versions
-    dnl if they're not present
+    dnl if they're not present.
     dnl
     AC_CHECK_FUNC(pcap_list_datalinks,
 	AC_DEFINE(HAVE_PCAP_LIST_DATALINKS),
-	AC_LIBOBJ(datalinks))
+	[
+	    AC_LIBOBJ(datalinks)
+	])
     AC_CHECK_FUNC(pcap_set_datalink,
 	AC_DEFINE(HAVE_PCAP_SET_DATALINK))
     AC_CHECK_FUNC(pcap_datalink_name_to_val,
@@ -341,9 +338,13 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 	    AC_DEFINE(HAVE_PCAP_DATALINK_NAME_TO_VAL)
 	    AC_CHECK_FUNC(pcap_datalink_val_to_description,
 		AC_DEFINE(HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION),
-		AC_LIBOBJ(dlnames))
+		[
+		    AC_LIBOBJ(dlnames)
+		])
 	],
-	AC_LIBOBJ(dlnames))
+	[
+	    AC_LIBOBJ(dlnames)
+	])
 
     dnl
     dnl Check for "pcap_breakloop()"; you can't substitute for it if
@@ -351,6 +352,15 @@ AC_DEFUN(AC_LBL_LIBPCAP,
     dnl so just define the HAVE_ value if it's there.
     dnl
     AC_CHECK_FUNCS(pcap_breakloop)
+
+    dnl
+    dnl Check for "pcap_dump_ftell()" and use a substitute version
+    dnl if it's not present.
+    AC_CHECK_FUNC(pcap_dump_ftell,
+	AC_DEFINE(HAVE_PCAP_DUMP_FTELL),
+	[
+	    AC_LIBOBJ(pcap_dump_ftell)
+	])
 ])
 
 dnl
@@ -563,36 +573,6 @@ AC_DEFUN(AC_LBL_HAVE_RUN_PATH,
     ])
 
 dnl
-dnl Due to the stupid way it's implemented, AC_CHECK_TYPE is nearly useless.
-dnl
-dnl usage:
-dnl
-dnl	AC_LBL_CHECK_TYPE
-dnl
-dnl results:
-dnl
-dnl	int32_t (defined)
-dnl	u_int32_t (defined)
-dnl
-AC_DEFUN(AC_LBL_CHECK_TYPE,
-    [AC_MSG_CHECKING(for $1 using $CC)
-    AC_CACHE_VAL(ac_cv_lbl_have_$1,
-	AC_TRY_COMPILE([
-#	include "confdefs.h"
-#	include <sys/types.h>
-#	if STDC_HEADERS
-#	include <stdlib.h>
-#	include <stddef.h>
-#	endif],
-	[$1 i],
-	ac_cv_lbl_have_$1=yes,
-	ac_cv_lbl_have_$1=no))
-    AC_MSG_RESULT($ac_cv_lbl_have_$1)
-    if test $ac_cv_lbl_have_$1 = no ; then
-	    AC_DEFINE($1, $2)
-    fi])
-
-dnl
 dnl Check whether a given format can be used to print 64-bit integers
 dnl
 AC_DEFUN(AC_LBL_CHECK_64BIT_FORMAT,
@@ -604,6 +584,9 @@ AC_DEFUN(AC_LBL_CHECK_64BIT_FORMAT,
 	  [[
 #	    ifdef HAVE_INTTYPES_H
 	    #include <inttypes.h>
+#	    endif
+#	    ifdef HAVE_SYS_BITYPES_H
+            #include <sys/bitypes.h>
 #	    endif
 	    #include <stdio.h>
 	    #include <sys/types.h>
@@ -1243,10 +1226,10 @@ dnl
 AC_DEFUN(AC_C___ATTRIBUTE__, [
 AC_MSG_CHECKING(for __attribute__)
 AC_CACHE_VAL(ac_cv___attribute__, [
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE(
+  AC_LANG_SOURCE([[
 #include <stdlib.h>
-],
-[
+
 static void foo(void) __attribute__ ((noreturn));
 
 static void
@@ -1254,7 +1237,13 @@ foo(void)
 {
   exit(1);
 }
-],
+
+int
+main(int argc, char **argv)
+{
+  foo();
+}
+  ]]),
 ac_cv___attribute__=yes,
 ac_cv___attribute__=no)])
 if test "$ac_cv___attribute__" = "yes"; then

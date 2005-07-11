@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-esp.c,v 1.55 2004/07/21 22:00:11 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-esp.c,v 1.55.2.1 2005/04/21 06:44:57 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -75,7 +75,7 @@ struct sa_list {
 	const EVP_CIPHER *evp;
 	int		ivlen;
 	int		authlen;
-	char		secret[256];  /* is that big enough for all secrets? */
+	u_char		secret[256];  /* is that big enough for all secrets? */
 	int		secretlen;
 };
 
@@ -100,7 +100,7 @@ static void esp_print_addsa(netdissect_options *ndo,
 }
 
 
-static int hexdigit(netdissect_options *ndo, char hex)
+static u_int hexdigit(netdissect_options *ndo, char hex)
 {
 	if (hex >= '0' && hex <= '9')
 		return (hex - '0');
@@ -114,9 +114,9 @@ static int hexdigit(netdissect_options *ndo, char hex)
 	}
 }
 
-static int hex2byte(netdissect_options *ndo, char *hexstring)
+static u_int hex2byte(netdissect_options *ndo, char *hexstring)
 {
-	int byte;
+	u_int byte;
 
 	byte = (hexdigit(ndo, hexstring[0]) << 4) + hexdigit(ndo, hexstring[1]);
 	return byte;
@@ -219,7 +219,7 @@ static void esp_print_decode_onesecret(netdissect_options *ndo, char *line)
 
 	if (decode) {
 		char *colon, *p;
-		char  espsecret_key[256];
+		u_char espsecret_key[256];
 		int len;
 		size_t i;
 		const EVP_CIPHER *evp;
@@ -353,7 +353,7 @@ esp_print(netdissect_options *ndo,
 #endif
 	int advance;
 	int len;
-	char *secret;
+	u_char *secret;
 	int ivlen = 0;
 	u_char *ivoff;
 	u_char *p;

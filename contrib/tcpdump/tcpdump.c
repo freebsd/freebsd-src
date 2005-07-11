@@ -30,7 +30,7 @@ static const char copyright[] _U_ =
     "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.253 2005/01/27 18:30:36 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.253.2.8 2005/07/05 21:09:05 mcr Exp $ (LBL)";
 #endif
 
 /*
@@ -226,11 +226,32 @@ static struct printer printers[] = {
 #ifdef DLT_JUNIPER_ATM2
 	{ juniper_atm2_print,	DLT_JUNIPER_ATM2 },
 #endif
+#ifdef DLT_JUNIPER_MFR
+	{ juniper_mfr_print,	DLT_JUNIPER_MFR },
+#endif
 #ifdef DLT_JUNIPER_MLFR
 	{ juniper_mlfr_print,	DLT_JUNIPER_MLFR },
 #endif
 #ifdef DLT_JUNIPER_MLPPP
 	{ juniper_mlppp_print,	DLT_JUNIPER_MLPPP },
+#endif
+#ifdef DLT_JUNIPER_PPPOE
+	{ juniper_pppoe_print,	DLT_JUNIPER_PPPOE },
+#endif
+#ifdef DLT_JUNIPER_PPPOE_ATM
+	{ juniper_pppoe_atm_print, DLT_JUNIPER_PPPOE_ATM },
+#endif
+#ifdef DLT_JUNIPER_GGSN
+	{ juniper_ggsn_print,	DLT_JUNIPER_GGSN },
+#endif
+#ifdef DLT_JUNIPER_ES
+	{ juniper_es_print,	DLT_JUNIPER_ES },
+#endif
+#ifdef DLT_JUNIPER_MONITOR
+	{ juniper_monitor_print, DLT_JUNIPER_MONITOR },
+#endif
+#ifdef DLT_JUNIPER_SERVICES
+	{ juniper_services_print, DLT_JUNIPER_SERVICES },
 #endif
 	{ NULL,			0 },
 };
@@ -1130,7 +1151,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 	 * larger than Cflag - the last packet written to the
 	 * file could put it over Cflag.
 	 */
-	if (ftell((FILE *)dump_info->p) > Cflag) {
+	if (pcap_dump_ftell(dump_info->p) > Cflag) {
 		/*
 		 * Close the current file and open a new one.
 		 */

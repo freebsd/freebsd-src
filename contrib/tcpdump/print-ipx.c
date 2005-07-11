@@ -24,7 +24,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ipx.c,v 1.40 2004/05/26 19:57:57 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ipx.c,v 1.40.2.2 2005/05/06 08:27:00 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -159,9 +159,13 @@ ipx_sap_print(const u_short *ipx, u_int length)
 	    (void)printf("ipx-sap-nearest-resp");
 
 	for (i = 0; i < 8 && length > 0; i++) {
-	    TCHECK2(ipx[25], 10);
+	    TCHECK(ipx[0]);
 	    (void)printf(" %s '", ipxsap_string(htons(EXTRACT_16BITS(&ipx[0]))));
-	    fn_print((u_char *)&ipx[1], (u_char *)&ipx[1] + 48);
+	    if (fn_printzp((u_char *)&ipx[1], 48, snapend)) {
+		printf("'");
+		goto trunc;
+	    }
+	    TCHECK2(ipx[25], 10);
 	    printf("' addr %s",
 		ipxaddr_string(EXTRACT_32BITS(&ipx[25]), (u_char *)&ipx[27]));
 	    ipx += 32;

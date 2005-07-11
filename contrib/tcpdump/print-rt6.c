@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-rt6.c,v 1.26 2003/11/19 00:36:08 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-rt6.c,v 1.26.2.1 2005/04/20 22:35:11 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -41,17 +41,15 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 
 int
-rt6_print(register const u_char *bp, register const u_char *bp2)
+rt6_print(register const u_char *bp, const u_char *bp2 _U_)
 {
 	register const struct ip6_rthdr *dp;
 	register const struct ip6_rthdr0 *dp0;
-	register const struct ip6_hdr *ip;
 	register const u_char *ep;
 	int i, len;
 	register const struct in6_addr *addr;
 
 	dp = (struct ip6_rthdr *)bp;
-	ip = (struct ip6_hdr *)bp2;
 	len = dp->ip6r_len;
 
 	/* 'ep' points to the end of available data. */
