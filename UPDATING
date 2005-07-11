@@ -8,8 +8,8 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
-	FreeBSD 6.x has many debugging features turned on, in
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
+	FreeBSD 7.x has many debugging features turned on, in
 	both the kernel and userland.  These features attempt to detect
 	incorrect use of system primitives, and encourage loud failure
 	through extra sanity checking and fail stop semantics.  They
@@ -20,6 +20,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	in userland, and various verbose features in the kernel.  Many
 	developers choose to disable these features on build machines
 	to maximize performance.
+
+20050711:
+	RELENG_6 branched here.
 
 20050629:
 	The pccard_ifconfig rc.conf variable has been removed and a new
