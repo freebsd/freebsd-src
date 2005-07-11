@@ -18,43 +18,12 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.17 2005/04/06 20:09:07 hannes Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.17.2.1 2005/04/26 07:27:16 guy Exp $ (LBL)
  */
 
 /*
- * This stuff should come from a system header file, but there's no
- * obviously portable way to do that and it's not really going
- * to change from system to system.
+ * Definitions for information in the LLC header.
  */
-
-/*
- * A somewhat abstracted view of the LLC header
- */
-
-struct llc {
-	u_int8_t dsap;
-	u_int8_t ssap;
-	union {
-		u_int8_t u_ctl;
-		u_int16_t is_ctl;
-		struct {
-			u_int8_t snap_ui;
-			u_int8_t snap_pi[5];
-		} snap;
-		struct {
-			u_int8_t snap_ui;
-			u_int8_t snap_orgcode[3];
-			u_int8_t snap_ethertype[2];
-		} snap_ether;
-	} ctl;
-};
-
-#define	llcui		ctl.snap.snap_ui
-#define	llcpi		ctl.snap.snap_pi
-#define	llc_orgcode	ctl.snap_ether.snap_orgcode
-#define	llc_ethertype	ctl.snap_ether.snap_ethertype
-#define	llcis		ctl.is_ctl
-#define	llcu		ctl.u_ctl
 
 #define	LLC_U_FMT	3
 #define	LLC_GSAP	1
@@ -144,4 +113,3 @@ struct llc {
 #define PID_RFC2684_802_6_FCS	0x0005	/* 802.6, with FCS */
 #define PID_RFC2684_802_6_NOFCS	0x000b	/* 802.6, without FCS */
 #define PID_RFC2684_BPDU	0x000e	/* BPDUs */
-

@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-smb.c,v 1.41 2004/12/30 03:36:51 guy Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-smb.c,v 1.41.2.2 2005/05/08 20:01:09 guy Exp $";
 #endif
 
 #include <tcpdump-stdinc.h>
@@ -925,17 +925,25 @@ trunc:
 void
 nbt_tcp_print(const u_char *data, int length)
 {
-    const u_char *maxbuf = data + length;
+    int caplen;
     int type;
     u_int nbt_len;
+    const u_char *maxbuf;
 
-    TCHECK2(data[2], 2);
+    if (length < 4)
+	goto trunc;
+    if (snapend < data)
+	goto trunc;
+    caplen = snapend - data;
+    if (caplen < 4)
+	goto trunc;
+    maxbuf = data + caplen;
     type = data[0];
     nbt_len = EXTRACT_16BITS(data + 2);
+    length -= 4;
+    caplen -= 4;
 
     startbuf = data;
-    if (maxbuf <= data)
-	return;
 
     if (vflag < 2) {
 	printf(" NBT Session Packet: ");
@@ -956,7 +964,12 @@ nbt_tcp_print(const u_char *data, int length)
 	  {
 	    int ecode;
 
-	    TCHECK(data[4]);
+	    if (nbt_len < 4)
+		goto trunc;
+	    if (length < 4)
+		goto trunc;
+	    if (caplen < 4)
+		goto trunc;
 	    ecode = data[4];
 
 	    printf("Session Reject, ");
@@ -996,13 +1009,17 @@ nbt_tcp_print(const u_char *data, int length)
 		data + 4, 0);
 	    if (data == NULL)
 		break;
-	    if (memcmp(data,"\377SMB",4) == 0) {
-		if (nbt_len > PTR_DIFF(maxbuf, data))
-		    printf("WARNING: Short packet. Try increasing the snap length (%lu)\n",
-			(unsigned long)PTR_DIFF(maxbuf, data));
+	    if (nbt_len >= 4 && caplen >= 4 && memcmp(data,"\377SMB",4) == 0) {
+		if ((int)nbt_len > caplen) {
+		    if ((int)nbt_len > length)
+			printf("WARNING: Packet is continued in later TCP segments\n");
+		    else
+			printf("WARNING: Short packet. Try increasing the snap length by %d\n",
+			    nbt_len - caplen);
+		}
 		print_smb(data, maxbuf > data + nbt_len ? data + nbt_len : maxbuf);
 	    } else
-		printf("Session packet:(raw data?)\n");
+		printf("Session packet:(raw data or continuation?)\n");
 	    break;
 
 	case 0x81:
@@ -1017,29 +1034,33 @@ nbt_tcp_print(const u_char *data, int length)
 
 	case 0x83:
 	  {
+	    const u_char *origdata;
 	    int ecode;
 
-	    TCHECK(data[4]);
-	    ecode = data[4];
-
+	    origdata = data;
 	    data = smb_fdata(data, "[P1]NBT SessionReject\nFlags=[B]\nLength=[rd]\nReason=[B]\n",
 		maxbuf, 0);
-	    switch (ecode) {
-	    case 0x80:
-		printf("Not listening on called name\n");
+	    if (data == NULL)
 		break;
-	    case 0x81:
-		printf("Not listening for calling name\n");
-		break;
-	    case 0x82:
-		printf("Called name not present\n");
-		break;
-	    case 0x83:
-		printf("Called name present, but insufficient resources\n");
-		break;
-	    default:
-		printf("Unspecified error 0x%X\n", ecode);
-		break;
+	    if (nbt_len >= 1 && caplen >= 1) {
+		ecode = origdata[4];
+		switch (ecode) {
+		case 0x80:
+		    printf("Not listening on called name\n");
+		    break;
+		case 0x81:
+		    printf("Not listening for calling name\n");
+		    break;
+		case 0x82:
+		    printf("Called name not present\n");
+		    break;
+		case 0x83:
+		    printf("Called name present, but insufficient resources\n");
+		    break;
+		default:
+		    printf("Unspecified error 0x%X\n", ecode);
+		    break;
+		}
 	    }
 	  }
 	    break;
@@ -1141,12 +1162,13 @@ nbt_udp137_print(const u_char *data, int length)
 
     if (qdcount) {
 	printf("QuestionRecords:\n");
-	for (i = 0; i < qdcount; i++)
+	for (i = 0; i < qdcount; i++) {
 	    p = smb_fdata(p,
 		"|Name=[n1]\nQuestionType=[rw]\nQuestionClass=[rw]\n#",
 		maxbuf, 0);
-	if (p == NULL)
-	    goto out;
+	    if (p == NULL)
+		goto out;
+	}
     }
 
     if (total) {
@@ -1180,6 +1202,8 @@ nbt_udp137_print(const u_char *data, int length)
 			goto out;
 		    while (numnames--) {
 			p = smb_fdata(p, "Name=[n2]\t#", maxbuf, 0);
+			if (p == NULL)
+			    goto out;
 			TCHECK(*p);
 			if (p[0] & 0x80)
 			    printf("<GROUP> ");

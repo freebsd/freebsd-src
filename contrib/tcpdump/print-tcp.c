@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-tcp.c,v 1.120 2005/04/06 18:53:56 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-tcp.c,v 1.120.2.2 2005/04/21 06:36:05 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -520,14 +520,13 @@ tcp_print(register const u_char *bp, register u_int length,
 				break;
 
 			case TCPOPT_SACK:
-				(void)printf("sack");
 				datalen = len - 2;
 				if (datalen % 8 != 0) {
-					(void)printf(" malformed sack ");
+					(void)printf("malformed sack");
 				} else {
 					u_int32_t s, e;
 
-					(void)printf(" sack %d ", datalen / 8);
+					(void)printf("sack %d ", datalen / 8);
 					for (i = 0; i < datalen; i += 8) {
 						LENCHECK(i + 4);
 						s = EXTRACT_32BITS(cp + i);
@@ -542,7 +541,6 @@ tcp_print(register const u_char *bp, register u_int length,
 						}
 						(void)printf("{%u:%u}", s, e);
 					}
-					(void)printf(" ");
 				}
 				break;
 
@@ -738,7 +736,7 @@ tcp_verify_signature(const struct ip *ip, const struct tcphdr *tp,
     const u_char *data, int length, const u_char *rcvsig)
 {
         struct tcphdr tp1;
-	char sig[TCP_SIGLEN];
+	u_char sig[TCP_SIGLEN];
 	char zero_proto = 0;
 	MD5_CTX ctx;
 	u_int16_t savecsum, tlen;

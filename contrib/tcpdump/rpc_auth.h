@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/rpc_auth.h,v 1.1 2004/12/27 00:41:32 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/rpc_auth.h,v 1.1.2.1 2005/04/27 21:44:07 guy Exp $ (LBL) */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -42,9 +42,6 @@
  * "sessions".
  */
 
-#ifndef __RPC_AUTH_H_
-#define __RPC_AUTH_H_
-
 /*
  * Status returned from authentication check
  */
@@ -80,5 +77,3 @@ struct sunrpc_opaque_auth {
 #define	SUNRPC_AUTH_SYS		1	/* forward compatibility */
 #define	SUNRPC_AUTH_SHORT	2	/* short hand unix style */
 #define SUNRPC_AUTH_DES		3	/* des style (encrypted timestamps) */
-
-#endif /* !__RPC_AUTH_H_ */

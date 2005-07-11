@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.188 2005/03/27 23:16:08 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.188.2.6 2005/04/24 01:36:19 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996, 1997
 dnl	The Regents of the University of California.  All rights reserved.
@@ -6,7 +6,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl
 
-AC_REVISION($Revision: 1.188 $)
+AC_REVISION($Revision: 1.188.2.6 $)
 AC_PREREQ(2.50)
 AC_INIT(tcpdump.c)
 
@@ -619,7 +619,7 @@ if test "$ac_cv_func_ether_ntohost" = yes -a \
 		#
 		# Yes.  Does it declare ether_ntohost()?
 		#
-		AC_CHECK_DECLS(ether_ntohost,
+		AC_CHECK_DECL(ether_ntohost,
 		    [
 			AC_DEFINE(NETINET_IF_ETHER_H_DECLARES_ETHER_NTOHOST,,
 			    [Define to 1 if netinet/if_ether.h declares `ether_ntohost'])
@@ -628,6 +628,7 @@ if test "$ac_cv_func_ether_ntohost" = yes -a \
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 struct mbuf;
 struct rtentry;
 #include <net/if.h>
@@ -650,7 +651,7 @@ struct rtentry;
 			# suppress the next test.
 			#
 			unset ac_cv_have_decl_ether_ntohost
-			AC_CHECK_DECLS(ether_ntohost,
+			AC_CHECK_DECL(ether_ntohost,
 			    [
 				AC_DEFINE(NETINET_ETHER_H_DECLARES_ETHER_NTOHOST,,
 				    [Define to 1 if netinet/ether.h declares `ether_ntohost'])
@@ -659,6 +660,33 @@ struct rtentry;
 #include <netinet/ether.h>
 			    ])
 		fi
+	fi
+	#
+	# Is ether_ntohost() declared?
+	#
+	if test "$ac_cv_have_decl_ether_ntohost" != yes; then
+		#
+		# No, we'll have to declare it ourselves.
+		# Do we have "struct ether_addr"?
+		#
+		AC_CHECK_TYPES(struct ether_addr,,,
+		    [
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+struct mbuf;
+struct rtentry;
+#include <net/if.h>
+#include <netinet/if_ether.h>
+		    ])
+		AC_DEFINE(HAVE_DECL_ETHER_NTOHOST, 0,
+		    [Define to 1 if you have the declaration of `ether_ntohost', and to 0 if you
+don't.])
+	else
+		AC_DEFINE(HAVE_DECL_ETHER_NTOHOST, 1,
+		    [Define to 1 if you have the declaration of `ether_ntohost', and to 0 if you
+don't.])
 	fi
 fi
 
@@ -761,14 +789,48 @@ if test -f /dev/bpf0 ; then
 	V_GROUP=bpf
 fi
 
-AC_LBL_CHECK_TYPE(int8_t, signed char)
-AC_LBL_CHECK_TYPE(u_int8_t, u_char)
-AC_LBL_CHECK_TYPE(int16_t, short)
-AC_LBL_CHECK_TYPE(u_int16_t, u_short)
-AC_LBL_CHECK_TYPE(int32_t, int)
-AC_LBL_CHECK_TYPE(u_int32_t, u_int)
-AC_LBL_CHECK_TYPE(int64_t, long long)
-AC_LBL_CHECK_TYPE(u_int64_t, unsigned long long)
+AC_CHECK_HEADERS(sys/bitypes.h)
+
+AC_CHECK_TYPE([int8_t], ,
+	[AC_DEFINE([int8_t], [signed char],
+	[Define to `signed char' if int8_t not defined.])])
+AC_CHECK_TYPE([u_int8_t], ,
+	[AC_DEFINE([u_int8_t], [unsigned char],
+	[Define to `unsigned char' if u_int8_t not defined.])],
+	[AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif])
+AC_CHECK_TYPE([int16_t], ,
+	[AC_DEFINE([int16_t], [short],
+	[Define to `short' if int16_t not defined.])])
+AC_CHECK_TYPE([u_int16_t], ,
+	[AC_DEFINE([u_int16_t], [unsigned short],
+	[Define to `unsigned short' if u_int16_t not defined.])],
+	[AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif])
+AC_CHECK_TYPE([int32_t], ,
+	[AC_DEFINE([int32_t], [int],
+	[Define to `int' if int32_t not defined.])])
+AC_CHECK_TYPE([u_int32_t], ,
+	[AC_DEFINE([u_int32_t], [unsigned int],
+	[Define to `unsigned int' if u_int32_t not defined.])],
+	[AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif])
+AC_CHECK_TYPE([int64_t], ,
+	[AC_DEFINE([int64_t], [long long],
+	[Define to `long long' if int64_t not defined.])])
+AC_CHECK_TYPE([u_int64_t], ,
+	[AC_DEFINE([u_int64_t], [unsigned long long],
+	[Define to `unsigned long long' if u_int64_t not defined.])],
+	[AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif])
 
 #
 # We can't just check for <inttypes.h> - some systems have one that
@@ -787,6 +849,9 @@ AC_CHECK_HEADERS(inttypes.h,
 	    #include <inttypes.h>
 	    #include <stdio.h>
 	    #include <sys/types.h>
+	    #ifdef HAVE_SYS_BITYPES_H
+	    #include <sys/bitypes.h>
+	    #endif
 
 	    main()
 	    {
@@ -813,16 +878,17 @@ AC_CHECK_HEADERS(inttypes.h,
     #
     ac_lbl_inttypes_h_defines_formats=no
   ])
-if test "$ac_lbl_inttypes_h_defines_formats" = yes; then
-  AC_DEFINE(INTTYPES_H_DEFINES_FORMATS)
-else
-  AC_LBL_CHECK_64BIT_FORMAT(ll,
+if test "$ac_lbl_inttypes_h_defines_formats" = no; then
+  AC_LBL_CHECK_64BIT_FORMAT(l,
     [
-      AC_LBL_CHECK_64BIT_FORMAT(L,
-	[
-	  AC_LBL_CHECK_64BIT_FORMAT(q,
+      AC_LBL_CHECK_64BIT_FORMAT(ll,
+        [
+          AC_LBL_CHECK_64BIT_FORMAT(L,
 	    [
-	      AC_MSG_ERROR([neither %llx nor %Lx nor %qx worked on a 64-bit integer])
+	      AC_LBL_CHECK_64BIT_FORMAT(q,
+	        [
+	          AC_MSG_ERROR([neither %llx nor %Lx nor %qx worked on a 64-bit integer])
+	        ])
 	    ])
 	])
     ])

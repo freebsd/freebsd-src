@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-bfd.c,v 1.5 2003/11/16 09:36:14 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-bfd.c,v 1.5.2.4 2005/04/28 09:28:47 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -34,12 +34,32 @@ static const char rcsid[] _U_ =
 #include "udp.h"
 
 /*
- * Control packet, draft-katz-ward-bfd-01.txt
+ * Control packet, BFDv0, draft-katz-ward-bfd-01.txt
  *
  *     0                   1                   2                   3
  *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *    |Vers |  Diag   |H|D|P|F| Rsvd  |  Detect Mult  |    Length     |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                       My Discriminator                        |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                      Your Discriminator                       |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                    Desired Min TX Interval                    |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                   Required Min RX Interval                    |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |                 Required Min Echo RX Interval                 |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+
+/* 
+ *  Control packet, BFDv1, draft-ietf-bfd-base-02.txt
+ *
+ *     0                   1                   2                   3
+ *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |Vers |  Diag   |Sta|P|F|C|A|D|R|  Detect Mult  |    Length     |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *    |                       My Discriminator                        |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -65,6 +85,32 @@ struct bfd_header_t {
     u_int8_t required_min_echo_interval[4];
 };
 
+/*
+ *    An optional Authentication Header may be present
+ *
+ *     0                   1                   2                   3
+ *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    |   Auth Type   |   Auth Len    |    Authentication Data...     |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+
+struct bfd_auth_header_t {
+    u_int8_t auth_type;
+    u_int8_t auth_len;
+    u_int8_t auth_data;
+};
+
+static const struct tok bfd_v1_authentication_values[] = {
+    { 0,        "Reserved" },
+    { 1,        "Simple Password" },
+    { 2,        "Keyed MD5" },
+    { 3,        "Meticulous Keyed MD5" },
+    { 4,        "Keyed SHA1" },
+    { 5,        "Meticulous Keyed SHA1" },
+    { 0, NULL }
+};
+
 #define	BFD_EXTRACT_VERSION(x) (((x)&0xe0)>>5)
 #define	BFD_EXTRACT_DIAG(x)     ((x)&0x1f)
 
@@ -84,10 +130,11 @@ static const struct tok bfd_diag_values[] = {
     { 5, "Path Down" },
     { 6, "Concatenated Path Down" },
     { 7, "Administratively Down" },
+    { 8, "Reverse Concatenated Path Down" },
     { 0, NULL }
 };
 
-static const struct tok bfd_flag_values[] = {
+static const struct tok bfd_v0_flag_values[] = {
     { 0x80,	"I Hear You" },
     { 0x40,	"Demand" },
     { 0x20,	"Poll" },
@@ -99,34 +146,58 @@ static const struct tok bfd_flag_values[] = {
     { 0, NULL }
 };
 
+#define BFD_FLAG_AUTH 0x04
+
+static const struct tok bfd_v1_flag_values[] = {
+    { 0x20, "Poll" },
+    { 0x10, "Final" },
+    { 0x08, "Control Plane Independent" },
+    { BFD_FLAG_AUTH, "Authentication Present" },
+    { 0x02, "Demand" },
+    { 0x01, "Reserved" },
+    { 0, NULL }
+};
+
+static const struct tok bfd_v1_state_values[] = {
+    { 0, "AdminDown" },
+    { 1, "Down" },
+    { 2, "Init" },
+    { 3, "Up" },
+    { 0, NULL }
+};
+
 void
 bfd_print(register const u_char *pptr, register u_int len, register u_int port)
 {
         const struct bfd_header_t *bfd_header;
+        const struct bfd_auth_header_t *bfd_auth_header;
+        u_int8_t version;
 
         bfd_header = (const struct bfd_header_t *)pptr;
         TCHECK(*bfd_header);
+        version = BFD_EXTRACT_VERSION(bfd_header->version_diag);
 
-        switch (port) {
+        switch (port << 8 | version) {
 
-        case BFD_CONTROL_PORT:
+            /* BFDv0 */
+        case (BFD_CONTROL_PORT << 8):
             if (vflag < 1 )
             {
                 printf("BFDv%u, %s, Flags: [%s], length: %u",
-                       BFD_EXTRACT_VERSION(bfd_header->version_diag),
+                       version,
                        tok2str(bfd_port_values, "unknown (%u)", port),
-                       bittok2str(bfd_flag_values, "none", bfd_header->flags),
+                       bittok2str(bfd_v0_flag_values, "none", bfd_header->flags),
                        len);
                 return;
             }
             
             printf("BFDv%u, length: %u\n\t%s, Flags: [%s], Diagnostic: %s (0x%02x)",
-                   BFD_EXTRACT_VERSION(bfd_header->version_diag),
+                   version,
                    len,
                    tok2str(bfd_port_values, "unknown (%u)", port),
-                   bittok2str(bfd_flag_values, "none", bfd_header->flags),
+                   bittok2str(bfd_v0_flag_values, "none", bfd_header->flags),
                    tok2str(bfd_diag_values,"unknown",BFD_EXTRACT_DIAG(bfd_header->version_diag)),
-               BFD_EXTRACT_DIAG(bfd_header->version_diag));
+                   BFD_EXTRACT_DIAG(bfd_header->version_diag));
             
             printf("\n\tDetection Timer Multiplier: %u (%u ms Detection time), BFD Length: %u",
                    bfd_header->detect_time_multiplier,
@@ -141,7 +212,55 @@ bfd_print(register const u_char *pptr, register u_int len, register u_int port)
             printf("\n\t  Required min Echo Interval: %4u ms", EXTRACT_32BITS(bfd_header->required_min_echo_interval)/1000);
             break;
 
-        case BFD_ECHO_PORT: /* not yet supported - fall through */
+            /* BFDv1 */
+        case (BFD_CONTROL_PORT << 8 | 1):
+            if (vflag < 1 )
+            {
+                printf("BFDv%u, %s, State %s, Flags: [%s], length: %u",
+                       version,
+                       tok2str(bfd_port_values, "unknown (%u)", port),
+                       tok2str(bfd_v1_state_values, "unknown (%u)", bfd_header->flags & 0xc0),
+                       bittok2str(bfd_v1_flag_values, "none", bfd_header->flags & 0x3f),
+                       len);
+                return;
+            }
+            
+            printf("BFDv%u, length: %u\n\t%s, State %s, Flags: [%s], Diagnostic: %s (0x%02x)",
+                   version,
+                   len,
+                   tok2str(bfd_port_values, "unknown (%u)", port),
+                   tok2str(bfd_v1_state_values, "unknown (%u)", (bfd_header->flags & 0xc0) >> 6),
+                   bittok2str(bfd_v1_flag_values, "none", bfd_header->flags & 0x3f),
+                   tok2str(bfd_diag_values,"unknown",BFD_EXTRACT_DIAG(bfd_header->version_diag)),
+                   BFD_EXTRACT_DIAG(bfd_header->version_diag));
+            
+            printf("\n\tDetection Timer Multiplier: %u (%u ms Detection time), BFD Length: %u",
+                   bfd_header->detect_time_multiplier,
+                   bfd_header->detect_time_multiplier * EXTRACT_32BITS(bfd_header->desired_min_tx_interval)/1000,
+                   bfd_header->length);
+
+
+            printf("\n\tMy Discriminator: 0x%08x", EXTRACT_32BITS(bfd_header->my_discriminator));
+            printf(", Your Discriminator: 0x%08x", EXTRACT_32BITS(bfd_header->your_discriminator));
+            printf("\n\t  Desired min Tx Interval:    %4u ms", EXTRACT_32BITS(bfd_header->desired_min_tx_interval)/1000);
+            printf("\n\t  Required min Rx Interval:   %4u ms", EXTRACT_32BITS(bfd_header->required_min_rx_interval)/1000);
+            printf("\n\t  Required min Echo Interval: %4u ms", EXTRACT_32BITS(bfd_header->required_min_echo_interval)/1000);
+
+            if (bfd_header->flags & BFD_FLAG_AUTH) {
+                pptr += sizeof (const struct bfd_header_t);
+                bfd_auth_header = (const struct bfd_auth_header_t *)pptr;
+                TCHECK2(*bfd_auth_header, sizeof(const struct bfd_auth_header_t));
+                printf("\n\t%s (%u) Authentication, length %u present",
+                       tok2str(bfd_v1_authentication_values,"Unknown",bfd_auth_header->auth_type),
+                       bfd_auth_header->auth_type,
+                       bfd_auth_header->auth_len);
+            }
+            break;
+
+            /* BFDv0 */
+        case (BFD_ECHO_PORT << 8): /* not yet supported - fall through */
+            /* BFDv1 */
+        case (BFD_ECHO_PORT << 8 | 1):
 
         default:
             printf("BFD, %s, length: %u",
