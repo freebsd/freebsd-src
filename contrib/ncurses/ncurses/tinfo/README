@@ -1,8 +1,0 @@
--- $Id: README,v 1.1 1998/11/07 22:59:07 tom Exp $
-
-The files in this directory (tinfo) are those that support the terminfo
-database and interfaces for ncurses.  The terminfo library can be built
-separately, as a lower-level library for ncurses, but usually is bundled.
-
-In addition to the standard documented interfaces, ncurses uses internal
-functions which reside in tinfo to satisfy linkage requirements.

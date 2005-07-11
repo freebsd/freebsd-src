@@ -1,7 +1,0 @@
-# $FreeBSD$ 
-#
-# The files in this directory are generated automatically
-# from doc/handbook/printing.sgml, do not edit it here!
-#
-# Please change doc/handbook/printing.sgml or maybe 
-# src/tools/tools/epfe/epfe.pl instead.
