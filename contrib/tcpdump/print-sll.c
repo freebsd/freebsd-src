@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-sll.c,v 1.16 2004/10/28 00:34:29 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-sll.c,v 1.16.2.1 2005/04/26 00:16:43 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -53,6 +53,8 @@ const struct tok sll_pkttype_values[] = {
 static inline void
 sll_print(register const struct sll_header *sllp, u_int length)
 {
+	u_short ether_type;
+
         printf("%3s ",tok2str(sll_pkttype_values,"?",EXTRACT_16BITS(&sllp->sll_pkttype)));
 
 	/*
@@ -63,11 +65,44 @@ sll_print(register const struct sll_header *sllp, u_int length)
 	if (EXTRACT_16BITS(&sllp->sll_halen) == 6)
 		(void)printf("%s ", etheraddr_string(sllp->sll_addr));
 
-	if (!qflag)
-                (void)printf("ethertype %s (0x%04x), length %u: ",
-                         tok2str(ethertype_values,"Unknown", EXTRACT_16BITS(&sllp->sll_protocol)),
-                         EXTRACT_16BITS(&sllp->sll_protocol),
-                         length);
+	if (!qflag) {
+		ether_type = EXTRACT_16BITS(&sllp->sll_protocol);
+	
+		if (ether_type <= ETHERMTU) {
+			/*
+			 * Not an Ethernet type; what type is it?
+			 */
+			switch (ether_type) {
+
+			case LINUX_SLL_P_802_3:
+				/*
+				 * Ethernet_802.3 IPX frame.
+				 */
+				(void)printf("802.3");
+				break;
+
+			case LINUX_SLL_P_802_2:
+				/*
+				 * 802.2.
+				 */
+				(void)printf("802.3");
+				break;
+
+			default:
+				/*
+				 * What is it?
+				 */
+				(void)printf("ethertype Unknown (0x%04x)",
+				    ether_type);
+				break;
+			}
+		} else {
+			(void)printf("ethertype %s (0x%04x)",
+			    tok2str(ethertype_values, "Unknown", ether_type),
+			    ether_type);
+		}
+		(void)printf(", length %u: ", length);
+	}
 }
 
 /*

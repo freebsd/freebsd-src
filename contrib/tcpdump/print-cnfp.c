@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-cnfp.c,v 1.16 2003/11/16 09:36:16 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-cnfp.c,v 1.16.2.1 2005/04/20 20:53:39 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -79,16 +79,16 @@ struct nfrec {
 };
 
 void
-cnfp_print(const u_char *cp, const u_char *bp)
+cnfp_print(const u_char *cp, const u_char *bp _U_)
 {
 	register const struct nfhdr *nh;
 	register const struct nfrec *nr;
-	register const struct ip *ip;
 	struct protoent *pent;
 	int nrecs, ver;
+#if 0
 	time_t t;
+#endif
 
-	ip = (const struct ip *)bp;
 	nh = (const struct nfhdr *)cp;
 
 	if ((const u_char *)(nh + 1) > snapend)
@@ -96,8 +96,14 @@ cnfp_print(const u_char *cp, const u_char *bp)
 
 	nrecs = EXTRACT_32BITS(&nh->ver_cnt) & 0xffff;
 	ver = (EXTRACT_32BITS(&nh->ver_cnt) & 0xffff0000) >> 16;
+#if 0
+	/*
+	 * This is seconds since the UN*X epoch, and is followed by
+	 * nanoseconds.  XXX - format it, rather than just dumping the
+	 * raw seconds-since-the-Epoch.
+	 */
 	t = EXTRACT_32BITS(&nh->utc_sec);
-/*	(p = ctime(&t))[24] = '\0'; */
+#endif
 
 	printf("NetFlow v%x, %u.%03u uptime, %u.%09u, ", ver,
 	       EXTRACT_32BITS(&nh->msys_uptime)/1000,

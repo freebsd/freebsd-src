@@ -58,7 +58,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.62 2005/01/05 04:05:04 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.62.2.2 2005/05/06 07:57:19 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -786,7 +786,10 @@ asn1_print(struct be *elem)
 		p = elem->data.str;
 		if (printable) {
 			putchar('"');
-			(void)fn_print(p, p + asnlen);
+			if (fn_printn(p, asnlen, snapend)) {
+				putchar('"');
+				goto trunc;
+			}
 			putchar('"');
 		} else
 			for (i = asnlen; i-- > 0; p++) {
@@ -1320,13 +1323,13 @@ snmppdu_print(u_short pduid, const u_char *np, u_int length)
 	if ((pduid == GETREQ || pduid == GETNEXTREQ || pduid == SETREQ
 	    || pduid == INFORMREQ || pduid == V2TRAP || pduid == REPORT)
 	    && elem.data.integer != 0) {
-		char errbuf[10];
+		char errbuf[20];
 		printf("[errorStatus(%s)!=0]",
 			DECODE_ErrorStatus(elem.data.integer));
 	} else if (pduid == GETBULKREQ) {
 	        printf(" N=%d", elem.data.integer);
 	} else if (elem.data.integer != 0) {
-		char errbuf[10];
+		char errbuf[20];
 		printf(" %s", DECODE_ErrorStatus(elem.data.integer));
 		error = elem.data.integer;
 	}
@@ -1415,7 +1418,7 @@ trappdu_print(const u_char *np, u_int length)
 	}
 	generic = elem.data.integer;
 	{
-		char buf[10];
+		char buf[20];
 		printf(" %s", DECODE_GenericTrap(generic));
 	}
 	length -= count;

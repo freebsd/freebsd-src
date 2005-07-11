@@ -16,7 +16,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ldp.c,v 1.8 2004/06/15 09:42:42 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ldp.c,v 1.8.2.5 2005/06/16 01:10:35 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -187,6 +187,33 @@ static const struct tok ldp_fec_values[] = {
     { 0, NULL}
 };
 
+#define LDP_FEC_MARTINI_IFPARM_MTU  0x01
+#define LDP_FEC_MARTINI_IFPARM_DESC 0x03
+#define LDP_FEC_MARTINI_IFPARM_VCCV 0x0c
+
+static const struct tok ldp_fec_martini_ifparm_values[] = {
+    { LDP_FEC_MARTINI_IFPARM_MTU, "MTU" },
+    { LDP_FEC_MARTINI_IFPARM_DESC, "Description" },
+    { LDP_FEC_MARTINI_IFPARM_VCCV, "VCCV" },
+    { 0, NULL}
+};
+
+/* draft-ietf-pwe3-vccv-04.txt */
+static const struct tok ldp_fec_martini_ifparm_vccv_cc_values[] = {
+    { 0x01, "PWE3 control word" },
+    { 0x02, "MPLS Router Alert Label" },
+    { 0x04, "MPLS inner label TTL = 1" },
+    { 0, NULL}
+};
+
+/* draft-ietf-pwe3-vccv-04.txt */
+static const struct tok ldp_fec_martini_ifparm_vccv_cv_values[] = {
+    { 0x01, "ICMP Ping" },
+    { 0x02, "LSP Ping" },
+    { 0x04, "BFD" },
+    { 0, NULL}
+};
+
 /* RFC1700 address family numbers, same definition in print-bgp.c */
 #define AFNUM_INET	1
 #define AFNUM_INET6	2
@@ -194,6 +221,7 @@ static const struct tok ldp_fec_values[] = {
 #define FALSE 0
 #define TRUE  1
 
+int ldp_msg_print(register const u_char *);
 int ldp_tlv_print(register const u_char *);
    
 /* 
@@ -224,7 +252,7 @@ ldp_tlv_print(register const u_char *tptr) {
     const struct ldp_tlv_header *ldp_tlv_header;
     u_short tlv_type,tlv_len,tlv_tlen,af,ft_flags;
     u_char fec_type;
-    u_int ui;
+    u_int ui,vc_info_len, vc_info_tlv_type, vc_info_tlv_len,idx;
     char buf[100];
     int i;
 
@@ -324,10 +352,65 @@ ldp_tlv_print(register const u_char *tptr) {
 	case LDP_FEC_HOSTADDRESS:
 	    break;
 	case LDP_FEC_MARTINI_VC:
-	    printf(": %s, %scontrol word, VC %u",
+            if (!TTEST2(*tptr, 11))
+                goto trunc;
+            vc_info_len = *(tptr+2);
+
+	    printf(": %s, %scontrol word, group-ID %u, VC-ID %u, VC-info-length: %u",
 		   tok2str(l2vpn_encaps_values, "Unknown", EXTRACT_16BITS(tptr)&0x7fff),
 		   EXTRACT_16BITS(tptr)&0x8000 ? "" : "no ",
-		   EXTRACT_32BITS(tptr+7));
+                   EXTRACT_32BITS(tptr+3),
+		   EXTRACT_32BITS(tptr+7),
+                   vc_info_len);
+
+            if (vc_info_len == 0) /* infinite loop protection */
+                break;
+
+            tptr+=11;
+            if (!TTEST2(*tptr, vc_info_len))
+                goto trunc;
+
+            while (vc_info_len > 2) {
+                vc_info_tlv_type = *tptr;
+                vc_info_tlv_len = *(tptr+1);
+                if (vc_info_tlv_len < 2)
+                    break;
+                if (vc_info_len < vc_info_tlv_len)
+                    break;
+
+                printf("\n\t\tInterface Parameter: %s (0x%02x), len %u",
+                       tok2str(ldp_fec_martini_ifparm_values,"Unknown",vc_info_tlv_type),
+                       vc_info_tlv_type,
+                       vc_info_tlv_len);
+
+                switch(vc_info_tlv_type) {
+                case LDP_FEC_MARTINI_IFPARM_MTU:
+                    printf(": %u",EXTRACT_16BITS(tptr+2));
+                    break;
+
+                case LDP_FEC_MARTINI_IFPARM_DESC:
+                    printf(": ");
+                    for (idx = 2; idx < vc_info_tlv_len; idx++)
+                        safeputchar(*(tptr+idx));
+                    break;
+
+                case LDP_FEC_MARTINI_IFPARM_VCCV:
+                    printf("\n\t\t  Control Channels (0x%02x) = [%s]",
+                           *(tptr+2),
+                           bittok2str(ldp_fec_martini_ifparm_vccv_cc_values,"none",*(tptr+2)));
+                    printf("\n\t\t  CV Types (0x%02x) = [%s]",
+                           *(tptr+3),
+                           bittok2str(ldp_fec_martini_ifparm_vccv_cv_values,"none",*(tptr+3)));
+                    break;
+
+                default:
+                    print_unknown_data(tptr+2,"\n\t\t  ",vc_info_tlv_len-2);
+                    break;
+                }
+
+                vc_info_len -= vc_info_tlv_len;
+                tptr += vc_info_tlv_len;
+            }
 	    break;
 	}
 
@@ -391,16 +474,34 @@ ldp_tlv_print(register const u_char *tptr) {
         break;
     }
     return(tlv_len+4); /* Type & Length fields not included */
+ 
+trunc:
+    printf("\n\t\t packet exceeded snapshot");
+    return 0;
 }
 
 void
 ldp_print(register const u_char *pptr, register u_int len) {
 
+    int processed;
+    while (len > (sizeof(struct ldp_common_header) + sizeof(struct ldp_msg_header))) {
+        processed = ldp_msg_print(pptr);
+        if (processed == 0)
+            return;
+        len -= processed;
+        pptr += processed;
+    }
+}
+
+
+int
+ldp_msg_print(register const u_char *pptr) {
+
     const struct ldp_common_header *ldp_com_header;
     const struct ldp_msg_header *ldp_msg_header;
     const u_char *tptr,*msg_tptr;
     u_short tlen;
-    u_short msg_len,msg_type,msg_tlen;
+    u_short pdu_len,msg_len,msg_type,msg_tlen;
     int hexdump,processed;
 
     tptr=pptr;
@@ -411,24 +512,26 @@ ldp_print(register const u_char *pptr, register u_int len) {
      * Sanity checking of the header.
      */
     if (EXTRACT_16BITS(&ldp_com_header->version) != LDP_VERSION) {
-	printf("LDP version %u packet not supported",
+	printf("%sLDP version %u packet not supported",
+               (vflag < 1) ? "" : "\n\t",
                EXTRACT_16BITS(&ldp_com_header->version));
-	return;
+	return 0;
     }
 
     /* print the LSR-ID, label-space & length */
-    printf("%sLDP, Label-Space-ID: %s:%u, length: %u",
+    pdu_len = EXTRACT_16BITS(&ldp_com_header->pdu_length);
+    printf("%sLDP, Label-Space-ID: %s:%u, pdu-length: %u",
            (vflag < 1) ? "" : "\n\t",
            ipaddr_string(&ldp_com_header->lsr_id),
            EXTRACT_16BITS(&ldp_com_header->label_space),
-           len);
+           pdu_len);
 
     /* bail out if non-verbose */ 
     if (vflag < 1)
-        return;
+        return 0;
 
     /* ok they seem to want to know everything - lets fully decode it */
-    tlen=EXTRACT_16BITS(ldp_com_header->pdu_length);
+    tlen=pdu_len;
 
     tptr += sizeof(const struct ldp_common_header);
     tlen -= sizeof(const struct ldp_common_header)-4;	/* Type & Length fields not included */
@@ -451,6 +554,9 @@ ldp_print(register const u_char *pptr, register u_int len) {
                msg_len,
                EXTRACT_32BITS(&ldp_msg_header->id),
                LDP_MASK_U_BIT(EXTRACT_16BITS(&ldp_msg_header->type)) ? "continue processing" : "ignore");
+
+        if (msg_len == 0) /* infinite loop protection */
+            return 0;
 
         msg_tptr=tptr+sizeof(struct ldp_msg_header);
         msg_tlen=msg_len-sizeof(struct ldp_msg_header)+4; /* Type & Length fields not included */
@@ -501,8 +607,9 @@ ldp_print(register const u_char *pptr, register u_int len) {
         tptr += msg_len+4;
         tlen -= msg_len+4;
     }
-    return;
+    return pdu_len+4;
 trunc:
     printf("\n\t\t packet exceeded snapshot");
+    return 0;
 }
 

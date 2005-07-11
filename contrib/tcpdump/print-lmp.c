@@ -11,11 +11,13 @@
  * FOR A PARTICULAR PURPOSE.
  *
  * Original code by Hannes Gredler (hannes@juniper.net)
+ * Support for LMP service discovery extensions (defined by UNI 1.0) added
+ * by Manu Pathak (mapathak@cisco.com), May 2005
  */
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-lmp.c,v 1.5 2004/04/27 14:03:44 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-lmp.c,v 1.5.2.1 2005/05/19 06:44:03 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -107,6 +109,48 @@ static const struct tok lmp_obj_link_summary_error_values[] = {
     { 0, NULL}
 };
 
+/* Service Config Supported Protocols Flags */
+static const struct tok lmp_obj_service_config_sp_flag_values[] = {
+    { 0x01, "RSVP Supported"},
+    { 0x02, "LDP Supported"},
+    { 0, NULL}
+};
+
+/* Service Config Client Port Service Attribute Transparency Flags */
+static const struct tok lmp_obj_service_config_cpsa_tp_flag_values[] = {
+    { 0x01, "Path/VC Overhead Transparency Supported"},
+    { 0x02, "Line/MS Overhead Transparency Supported"},
+    { 0x04, "Section/RS Overhead Transparency Supported"},
+    { 0, NULL}
+};
+
+/* Service Config Client Port Service Attribute Contiguous Concatenation Types Flags */
+static const struct tok lmp_obj_service_config_cpsa_cct_flag_values[] = {
+    { 0x01, "Contiguous Concatenation Types Supported"},
+    { 0, NULL}
+};
+
+/* Service Config Network Service Attributes Transparency Flags */
+static const struct tok lmp_obj_service_config_nsa_transparency_flag_values[] = {
+    { 0x01, "Standard SOH/RSOH Transparency Supported"},
+    { 0x02, "Standard LOH/MSOH Transparency Supported"},
+    { 0, NULL}
+};
+
+/* Service Config Network Service Attributes TCM Monitoring Flags */
+static const struct tok lmp_obj_service_config_nsa_tcm_flag_values[] = {
+    { 0x01, "Transparent Tandem Connection Monitoring Supported"},
+    { 0, NULL}
+};
+
+/* Network Service Attributes Network Diversity Flags */
+static const struct tok lmp_obj_service_config_nsa_network_diversity_flag_values[] = {
+    { 0x01, "Node Diversity Supported"},
+    { 0x02, "Link Diversity Supported"},
+    { 0x04, "SRLG Diversity Supported"},
+    { 0, NULL}
+};
+
 #define	LMP_MSGTYPE_CONFIG                 1
 #define	LMP_MSGTYPE_CONFIG_ACK             2
 #define	LMP_MSGTYPE_CONFIG_NACK            3
@@ -127,6 +171,10 @@ static const struct tok lmp_obj_link_summary_error_values[] = {
 #define	LMP_MSGTYPE_CHANNEL_STATUS_ACK    18
 #define	LMP_MSGTYPE_CHANNEL_STATUS_REQ    19
 #define	LMP_MSGTYPE_CHANNEL_STATUS_RESP   20
+/* LMP Service Discovery message types defined by UNI 1.0 */
+#define LMP_MSGTYPE_SERVICE_CONFIG        50
+#define LMP_MSGTYPE_SERVICE_CONFIG_ACK    51
+#define LMP_MSGTYPE_SERVICE_CONFIG_NACK   52
 
 static const struct tok lmp_msg_type_values[] = {
     { LMP_MSGTYPE_CONFIG, "Config"},
@@ -149,6 +197,9 @@ static const struct tok lmp_msg_type_values[] = {
     { LMP_MSGTYPE_CHANNEL_STATUS_ACK, "Channel Status ACK"},
     { LMP_MSGTYPE_CHANNEL_STATUS_REQ, "Channel Status Request"},
     { LMP_MSGTYPE_CHANNEL_STATUS_RESP, "Channel Status Response"},
+    { LMP_MSGTYPE_SERVICE_CONFIG, "Service Config"},
+    { LMP_MSGTYPE_SERVICE_CONFIG_ACK, "Service Config ACK"},
+    { LMP_MSGTYPE_SERVICE_CONFIG_NACK, "Service Config NACK"},
     { 0, NULL}
 };
 
@@ -188,6 +239,8 @@ struct lmp_object_header {
 #define LMP_OBJ_CHANNEL_STATUS_REQ   14
 #define LMP_OBJ_ERROR_CODE           20
 
+#define LMP_OBJ_SERVICE_CONFIG       51 /* defined in UNI 1.0 */
+
 static const struct tok lmp_obj_values[] = {
     { LMP_OBJ_CC_ID, "Control Channel ID" },
     { LMP_OBJ_NODE_ID, "Node ID" },
@@ -204,6 +257,8 @@ static const struct tok lmp_obj_values[] = {
     { LMP_OBJ_CHANNEL_STATUS, "Channel Status" },
     { LMP_OBJ_CHANNEL_STATUS_REQ, "Channel Status Request" },
     { LMP_OBJ_ERROR_CODE, "Error Code" },
+    { LMP_OBJ_SERVICE_CONFIG, "Service Config" },
+
     { 0, NULL}
 };
 
@@ -238,6 +293,19 @@ static const struct tok lmp_data_link_subobj[] = {
 
 #define LMP_CTYPE_BEGIN_VERIFY_ERROR 1
 #define LMP_CTYPE_LINK_SUMMARY_ERROR 2
+
+/* C-Types for Service Config Object */
+#define LMP_CTYPE_SERVICE_CONFIG_SP                   1
+#define LMP_CTYPE_SERVICE_CONFIG_CPSA                 2
+#define LMP_CTYPE_SERVICE_CONFIG_TRANSPARENCY_TCM     3
+#define LMP_CTYPE_SERVICE_CONFIG_NETWORK_DIVERSITY    4
+
+/* 
+ * Different link types allowed in the Client Port Service Attributes
+ * subobject defined for LMP Service Discovery in the UNI 1.0 spec
+ */
+#define LMP_SD_SERVICE_CONFIG_CPSA_LINK_TYPE_SDH     5 /* UNI 1.0 Sec 9.4.2 */
+#define LMP_SD_SERVICE_CONFIG_CPSA_LINK_TYPE_SONET   6 /* UNI 1.0 Sec 9.4.2 */
 
 #define FALSE 0
 #define TRUE  1
@@ -286,6 +354,10 @@ static const struct tok lmp_ctype_values[] = {
     { 256*LMP_OBJ_CHANNEL_STATUS_REQ+LMP_CTYPE_UNMD, "Unnumbered" },
     { 256*LMP_OBJ_ERROR_CODE+LMP_CTYPE_1, "1" },
     { 256*LMP_OBJ_ERROR_CODE+LMP_CTYPE_2, "2" },
+    { 256*LMP_OBJ_SERVICE_CONFIG+LMP_CTYPE_SERVICE_CONFIG_SP, "1" },
+    { 256*LMP_OBJ_SERVICE_CONFIG+LMP_CTYPE_SERVICE_CONFIG_CPSA, "2" },
+    { 256*LMP_OBJ_SERVICE_CONFIG+LMP_CTYPE_SERVICE_CONFIG_TRANSPARENCY_TCM, "3" },
+    { 256*LMP_OBJ_SERVICE_CONFIG+LMP_CTYPE_SERVICE_CONFIG_NETWORK_DIVERSITY, "4" },
     { 0, NULL}
 };
 
@@ -298,6 +370,7 @@ lmp_print(register const u_char *pptr, register u_int len) {
     int tlen,lmp_obj_len,lmp_obj_ctype,obj_tlen;
     int hexdump;
     int offset,subobj_type,subobj_len,total_subobj_len;
+    int link_type;
 
     union { /* int to float conversion buffer */
         float f; 
@@ -693,7 +766,105 @@ lmp_print(register const u_char *pptr, register u_int len) {
                 hexdump=TRUE;
             }
             break;      
-	    
+
+	case LMP_OBJ_SERVICE_CONFIG:
+	    switch (lmp_obj_ctype) {
+	    case LMP_CTYPE_SERVICE_CONFIG_SP:
+		
+		printf("\n\t Flags: %s",
+		       bittok2str(lmp_obj_service_config_sp_flag_values,
+				  "none", 
+				  EXTRACT_16BITS(obj_tptr)>>8));
+
+		printf("\n\t  UNI Version: %u",
+		       EXTRACT_16BITS(obj_tptr) & 0x00FF);
+
+		break;
+		
+            case LMP_CTYPE_SERVICE_CONFIG_CPSA:
+		
+		link_type = EXTRACT_16BITS(obj_tptr)>>8;
+		
+		printf("\n\t Link Type: %s (%u)",
+		       tok2str(lmp_sd_service_config_cpsa_link_type_values,
+			       "Unknown", link_type),
+		       link_type);
+		
+		if (link_type == LMP_SD_SERVICE_CONFIG_CPSA_LINK_TYPE_SDH) {
+		    printf("\n\t Signal Type: %s (%u)",
+			   tok2str(lmp_sd_service_config_cpsa_signal_type_sdh_values,
+				   "Unknown",
+				   EXTRACT_16BITS(obj_tptr) & 0x00FF),
+			   EXTRACT_16BITS(obj_tptr) & 0x00FF);
+		}
+		
+		if (link_type == LMP_SD_SERVICE_CONFIG_CPSA_LINK_TYPE_SONET) {
+		    printf("\n\t Signal Type: %s (%u)",
+			   tok2str(lmp_sd_service_config_cpsa_signal_type_sonet_values,
+				   "Unknown",
+				   EXTRACT_16BITS(obj_tptr) & 0x00FF),
+			   EXTRACT_16BITS(obj_tptr) & 0x00FF);
+		}
+		
+		printf("\n\t Transparency: %s",
+		       bittok2str(lmp_obj_service_config_cpsa_tp_flag_values,
+				  "none",
+				  EXTRACT_16BITS(obj_tptr+2)>>8));
+		
+		printf("\n\t Contiguous Concatenation Types: %s",
+		       bittok2str(lmp_obj_service_config_cpsa_cct_flag_values,
+				  "none",
+				  EXTRACT_16BITS(obj_tptr+2)>>8 & 0x00FF));
+		
+		printf("\n\t Minimum NCC: %u",
+		       EXTRACT_16BITS(obj_tptr+4));
+		
+		printf("\n\t Maximum NCC: %u",
+		       EXTRACT_16BITS(obj_tptr+6));
+		
+		printf("\n\t Minimum NVC:%u",
+		       EXTRACT_16BITS(obj_tptr+8));
+		
+		printf("\n\t Maximum NVC:%u",
+		       EXTRACT_16BITS(obj_tptr+10));
+		
+		printf("\n\t    Local Interface ID: %s (0x%08x)",
+		       ipaddr_string(obj_tptr+12),
+		       EXTRACT_32BITS(obj_tptr+12));
+		
+		break;
+		
+	    case LMP_CTYPE_SERVICE_CONFIG_TRANSPARENCY_TCM:
+		
+		printf("\n\t Transparency Flags: %s",
+		       bittok2str(
+			   lmp_obj_service_config_nsa_transparency_flag_values,
+			   "none",
+			   EXTRACT_32BITS(obj_tptr)));
+
+		printf("\n\t TCM Monitoring Flags: %s",
+		       bittok2str(
+			   lmp_obj_service_config_nsa_tcm_flag_values,
+			   "none",
+			   EXTRACT_16BITS(obj_tptr+6) & 0x00FF));
+		
+		break;
+		
+	    case LMP_CTYPE_SERVICE_CONFIG_NETWORK_DIVERSITY:
+		
+		printf("\n\t Diversity: Flags: %s",
+		       bittok2str(
+			   lmp_obj_service_config_nsa_network_diversity_flag_values,
+			   "none",
+			   EXTRACT_16BITS(obj_tptr+2) & 0x00FF));
+		break;
+
+	    default:
+		hexdump = TRUE;
+	    };
+
+	break;
+
         default:
             if (vflag <= 1)
                 print_unknown_data(obj_tptr,"\n\t    ",obj_tlen);
