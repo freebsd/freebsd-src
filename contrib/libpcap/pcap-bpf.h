@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-bpf.h,v 1.34 2005/02/08 20:03:15 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-bpf.h,v 1.34.2.5 2005/05/27 23:33:00 guy Exp $ (LBL)
  */
 
 /*
@@ -147,7 +147,7 @@ struct bpf_version {
  * XXX - DLT_ATM_RFC1483 is 13 in BSD/OS, and DLT_RAW is 14 in BSD/OS,
  * but I don't know what the right #define is for BSD/OS.
  */
-#define DLT_ATM_RFC1483	11	/* LLC/SNAP encapsulated atm */
+#define DLT_ATM_RFC1483	11	/* LLC-encapsulated ATM */
 
 #ifdef __OpenBSD__
 #define DLT_RAW		14	/* raw IP */
@@ -423,8 +423,13 @@ struct bpf_version {
 #define DLT_APPLE_IP_OVER_IEEE1394	138
 
 /*
- * 139 through 142 are reserved for SS7.
+ * Various SS7 encapsulations, as per a request from Jeff Morriss
+ * <jeff.morriss[AT]ulticom.com> and subsequent discussions.
  */
+#define DLT_MTP2_WITH_PHDR	139	/* pseudo-header with various info, followed by MTP2 */
+#define DLT_MTP2		140	/* MTP2, without pseudo-header */
+#define DLT_MTP3		141	/* MTP3, without pseudo-header or MTP2 */
+#define DLT_SCCP		142	/* SCCP, without pseudo-header or MTP2 or MTP3 */
 
 /*
  * DOCSIS MAC frames.
@@ -579,6 +584,14 @@ struct bpf_version {
  */
 #define DLT_ERF_ETH		175	/* Ethernet */
 #define DLT_ERF_POS		176	/* Packet-over-SONET */
+
+/*
+ * Requested by Daniele Orlandi <daniele@orlandi.com> for raw LAPD
+ * for vISDN (http://www.orlandi.com/visdn/).  Its link-layer header
+ * includes additional information before the LAPD header, so it's
+ * not necessarily a generic LAPD header.
+ */
+#define DLT_LINUX_LAPD		177
 
 /*
  * The instruction encodings.

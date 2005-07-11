@@ -24,7 +24,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-pf.c,v 1.91 2005/02/26 21:58:06 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-pf.c,v 1.91.2.2 2005/05/03 18:54:37 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -129,7 +129,7 @@ pcap_read_pf(pcap_t *pc, int cnt, pcap_handler callback, u_char *user)
 	 */
 	n = 0;
 #ifdef PCAP_FDDIPAD
-	pad = p->fddipad;
+	pad = pc->fddipad;
 #endif
 	while (cc > 0) {
 		/*
@@ -191,7 +191,7 @@ pcap_read_pf(pcap_t *pc, int cnt, pcap_handler callback, u_char *user)
 		 *
 #ifdef PCAP_FDDIPAD
 		 * Note: the filter code was generated assuming
-		 * that p->fddipad was the amount of padding
+		 * that pc->fddipad was the amount of padding
 		 * before the header, as that's what's required
 		 * in the kernel, so we run the filter before
 		 * skipping that padding.
@@ -448,7 +448,7 @@ your system may not be properly configured; see the packetfilter(4) man page\n",
 	/* set truncation */
 #ifdef PCAP_FDDIPAD
 	if (p->linktype == DLT_FDDI) {
-		p->fddipad = PCAP_FDDIPAD:
+		p->fddipad = PCAP_FDDIPAD;
 
 		/* packetfilter includes the padding in the snapshot */
 		snaplen += PCAP_FDDIPAD;
@@ -497,6 +497,7 @@ your system may not be properly configured; see the packetfilter(4) man page\n",
 	p->read_op = pcap_read_pf;
 	p->inject_op = pcap_inject_pf;
 	p->setfilter_op = pcap_setfilter_pf;
+	p->setdirection_op = NULL;	/* Not implemented. */
 	p->set_datalink_op = NULL;	/* can't change data link type */
 	p->getnonblock_op = pcap_getnonblock_fd;
 	p->setnonblock_op = pcap_setnonblock_fd;

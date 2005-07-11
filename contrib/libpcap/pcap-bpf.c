@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-bpf.c,v 1.86 2005/02/26 21:58:05 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-bpf.c,v 1.86.2.4 2005/06/04 02:53:16 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -59,7 +59,7 @@ static const char rcsid[] _U_ =
 #include <net/if_types.h>		/* for IFT_ values */
 #include <sys/sysconfig.h>
 #include <sys/device.h>
-#include <odmi.h>
+#include <sys/cfgodm.h>
 #include <cf.h>
 
 #ifdef __64BIT__
@@ -105,6 +105,7 @@ static int odmlockid = 0;
 #include "gencode.h"	/* for "no_optimize" */
 
 static int pcap_setfilter_bpf(pcap_t *p, struct bpf_program *fp);
+static int pcap_setdirection_bpf(pcap_t *, direction_t);
 static int pcap_set_datalink_bpf(pcap_t *p, int dlt);
 
 static int
@@ -729,7 +730,7 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 #endif
 #ifdef PCAP_FDDIPAD
 	if (v == DLT_FDDI)
-		p->fddipad = PCAP_FDDIPAD:
+		p->fddipad = PCAP_FDDIPAD;
 	else
 		p->fddipad = 0;
 #endif
@@ -996,29 +997,30 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 	 * there (and in sufficiently recent versions of OpenBSD
 	 * "select()" and "poll()" should work correctly).
 	 *
+	 * In addition, in Mac OS X 10.4, "select()" and "poll()" don't
+	 * work on *any* character devices, including BPF devices.
+	 *
 	 * XXX - what about AIX?
 	 */
+	p->selectable_fd = p->fd;	/* assume select() works until we know otherwise */
 	if (uname(&osinfo) == 0) {
 		/*
 		 * We can check what OS this is.
 		 */
-		if (strcmp(osinfo.sysname, "FreeBSD") == 0 &&
-		    (strncmp(osinfo.release, "4.3-", 4) == 0 ||
-		     strncmp(osinfo.release, "4.4-", 4) == 0))
-			p->selectable_fd = -1;
-		else
-			p->selectable_fd = p->fd;
-	} else {
-		/*
-		 * We can't find out what OS this is, so assume we can
-		 * do a "select()" or "poll()".
-		 */
-		p->selectable_fd = p->fd;
+		if (strcmp(osinfo.sysname, "FreeBSD") == 0) {
+			if (strncmp(osinfo.release, "4.3-", 4) == 0 ||
+			     strncmp(osinfo.release, "4.4-", 4) == 0)
+				p->selectable_fd = -1;
+		} else if (strcmp(osinfo.sysname, "Darwin") == 0) {
+			if (strncmp(osinfo.release, "8.", 2) == 0)
+				p->selectable_fd = -1;
+		}
 	}
 
 	p->read_op = pcap_read_bpf;
 	p->inject_op = pcap_inject_bpf;
 	p->setfilter_op = pcap_setfilter_bpf;
+	p->setdirection_op = pcap_setdirection_bpf;
 	p->set_datalink_op = pcap_set_datalink_bpf;
 	p->getnonblock_op = pcap_getnonblock_fd;
 	p->setnonblock_op = pcap_setnonblock_fd;
@@ -1086,6 +1088,42 @@ pcap_setfilter_bpf(pcap_t *p, struct bpf_program *fp)
 	 */
 	p->cc = 0;
 	return (0);
+}
+
+/*
+ * Set direction flag: Which packets do we accept on a forwarding
+ * single device? IN, OUT or both?
+ */
+static int
+pcap_setdirection_bpf(pcap_t *p, direction_t d)
+{
+#ifdef BIOCSSEESENT
+	u_int seesent;
+#endif
+
+	/*
+	 * We don't support D_OUT.
+	 */
+	if (d == D_OUT) {
+		snprintf(p->errbuf, sizeof(p->errbuf),
+		    "Setting direction to D_OUT is not supported on BPF");
+		return -1;
+	}
+#ifdef BIOCSSEESENT
+	seesent = (d == D_INOUT);
+	if (ioctl(p->fd, BIOCSSEESENT, &seesent) == -1) {
+		(void) snprintf(p->errbuf, sizeof(p->errbuf),
+		    "Cannot set direction to %s: %s",
+		        (d == D_INOUT) ? "D_INOUT" : "D_IN",
+			strerror(errno));
+		return (-1);
+	}
+	return (0);
+#else
+	(void) snprintf(p->errbuf, sizeof(p->errbuf),
+	    "This system doesn't support BIOCSSEESENT, so the direction can't be set");
+	return (-1);
+#endif
 }
 
 static int

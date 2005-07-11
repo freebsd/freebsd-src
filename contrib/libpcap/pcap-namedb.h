@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-namedb.h,v 1.10 2005/03/17 07:02:32 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-namedb.h,v 1.10.2.1 2005/04/19 04:26:08 guy Exp $ (LBL)
  */
 
 #ifndef lib_pcap_namedb_h
@@ -65,6 +65,7 @@ struct addrinfo *pcap_nametoaddrinfo(const char *);
 bpf_u_int32 pcap_nametonetaddr(const char *);
 
 int	pcap_nametoport(const char *, int *, int *);
+int	pcap_nametoportrange(const char *, int *, int *, int *);
 int	pcap_nametoproto(const char *);
 int	pcap_nametoeproto(const char *);
 int	pcap_nametollc(const char *);
