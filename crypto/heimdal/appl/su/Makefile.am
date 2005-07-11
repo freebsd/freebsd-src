@@ -4,6 +4,10 @@ include $(top_srcdir)/Makefile.am.common
 
 INCLUDES += $(INCLUDE_krb4) $(INCLUDE_des)
 
+.if defined(_FREEFALL_CONFIG)
+CFLAGS+=-D_FREEFALL_CONFIG
+.endif
+
 bin_PROGRAMS = su
 bin_SUIDS = su
 su_SOURCES = su.c
