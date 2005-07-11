@@ -80,7 +80,7 @@
 /* Maximum number of USB busses expected to be in a system
  * XXX should be replaced by dynamic allocation.
  */
-#define MAXUSBDEV	4
+#define MAXUSBDEV	40
 
 /* Sometimes a device does not respond in time for interrupt
  * driven explore to find it.  Therefore we run an exploration
