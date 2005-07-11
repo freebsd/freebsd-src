@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/ipproto.h,v 1.4 2004/04/28 22:02:23 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/ipproto.h,v 1.4.2.1 2005/05/20 21:15:46 hannes Exp $ (LBL)
  *
  * From:
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
@@ -129,6 +129,9 @@ extern struct tok ipproto_values[];
 #endif
 #ifndef IPPROTO_VRRP
 #define IPPROTO_VRRP		112
+#endif
+#ifndef IPPROTO_PGM
+#define IPPROTO_PGM             113
 #endif
 #ifndef IPPROTO_SCTP
 #define IPPROTO_SCTP		132

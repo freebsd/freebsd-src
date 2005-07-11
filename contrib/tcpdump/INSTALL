@@ -1,4 +1,4 @@
-@(#) $Header: /tcpdump/master/tcpdump/INSTALL,v 1.63 2004/12/27 00:41:29 guy Exp $ (LBL)
+@(#) $Header: /tcpdump/master/tcpdump/INSTALL,v 1.63.2.2 2005/06/03 22:10:15 guy Exp $ (LBL)
 
 If you have not built libpcap, do so first.  See the README
 file in this directory for the ftp location.
@@ -124,6 +124,8 @@ ospf.h		- Open Shortest Path First definitions
 ospf6.h		- IPv6 Open Shortest Path First definitions
 packetdat.awk	- TCP chunk summary awk script
 parsenfsfh.c	- Network File System file parser routines
+pcap_dump_ftell.c - pcap_dump_ftell() implementation, in case libpcap
+		doesn't have it
 pcap-missing.h	- declarations of functions possibly missing from libpcap
 pf.h		- OpenBSD PF definitions
 pmap_prot.h	- definitions for ONC RPC portmapper protocol
@@ -186,6 +188,7 @@ print-null.c	- BSD loopback device printer routines
 print-ospf.c	- Open Shortest Path First printer routines
 print-ospf6.c	- IPv6 Open Shortest Path First printer routines
 print-pflog.c	- OpenBSD packet filter log file printer routines
+print-pgm.c	- Pragmatic General Multicast printer routines
 print-pim.c	- Protocol Independent Multicast printer routines
 print-ppp.c	- Point to Point Protocol printer routines
 print-pppoe.c	- PPP-over-Ethernet printer routines

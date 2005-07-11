@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-"@(#) $Header: /tcpdump/master/tcpdump/print-pppoe.c,v 1.30 2004/08/27 03:57:41 guy Exp $ (LBL)";
+"@(#) $Header: /tcpdump/master/tcpdump/print-pppoe.c,v 1.30.2.1 2005/04/26 19:48:56 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -136,21 +136,6 @@ pppoe_print(register const u_char *bp, u_int length)
 	}
 	if (pppoe_sessionid) {
 		printf(" [ses 0x%x]", pppoe_sessionid);
-	}
-
-	if (pppoe_length < length && length + ETHER_HDRLEN > 60) {
-		/* (small packets are probably just padded up to the ethernet
-		   minimum of 60 bytes of data + 4 bytes of CRC) */
-		printf(" [length %u (%u extra bytes)]",
-		    pppoe_length, length - pppoe_length);
-#if RESPECT_PAYLOAD_LENGTH
-		if (snaplend > pppoe_payload+pppoe_length)
-			snapend = pppoe_payload+pppoe_length;
-#else
-		/* Actual PPPoE implementations appear to ignore the payload
-		   length and use the full ethernet frame anyways */
-		pppoe_length = length;
-#endif
 	}
 
 	if (pppoe_code) {

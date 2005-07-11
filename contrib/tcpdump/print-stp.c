@@ -11,7 +11,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-stp.c,v 1.13 2003/11/16 09:36:38 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-stp.c,v 1.13.2.1 2005/04/26 07:27:17 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -39,23 +39,23 @@ static void
 stp_print_config_bpdu(const u_char *p)
 {
 	printf("config ");
-	if (p[7] & 1)
+	if (p[4] & 1)
 		printf("TOP_CHANGE ");
-	if (p[7] & 0x80)
+	if (p[4] & 0x80)
 		printf("TOP_CHANGE_ACK ");
 
-	stp_print_bridge_id(p+20);
-	printf(".%.2x%.2x ", p[28], p[29]);
+	stp_print_bridge_id(p+17);
+	printf(".%.2x%.2x ", p[25], p[26]);
 
 	printf("root ");
-	stp_print_bridge_id(p+8);
+	stp_print_bridge_id(p+5);
 
-	printf(" pathcost %i ", (p[16] << 24) | (p[17] << 16) | (p[18] << 8) | p[19]);
+	printf(" pathcost %i ", (p[13] << 24) | (p[14] << 16) | (p[15] << 8) | p[16]);
 
-	printf("age %i ", p[30]);
-	printf("max %i ", p[32]);
-	printf("hello %i ", p[34]);
-	printf("fdelay %i ", p[36]);
+	printf("age %i ", p[27]);
+	printf("max %i ", p[29]);
+	printf("hello %i ", p[31]);
+	printf("fdelay %i ", p[33]);
 }
 
 static void
@@ -70,16 +70,16 @@ stp_print_tcn_bpdu(void)
 void
 stp_print(const u_char *p, u_int length)
 {
-	if (length < 7)
+	if (length < 4)
 		goto trunc;
 
 	printf("802.1d ");
-	if (p[2] != 0x03 || p[3] || p[4] || p[5]) {
+	if (p[0] || p[1] || p[2]) {
 		printf("unknown version");
 		return;
 	}
 
-	switch (p[6])
+	switch (p[3])
 	{
 	case 0x00:
 		if (length < 10)
@@ -92,7 +92,7 @@ stp_print(const u_char *p, u_int length)
 		break;
 
 	default:
-		printf("unknown type %i", p[6]);
+		printf("unknown type %i", p[3]);
 		break;
 	}
 

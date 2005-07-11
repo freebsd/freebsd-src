@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/gmpls.h,v 1.3 2004/09/15 17:54:11 hannes Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/gmpls.h,v 1.3.2.1 2005/05/19 06:44:03 guy Exp $ (LBL) */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code
@@ -19,3 +19,6 @@ extern struct tok gmpls_switch_cap_values[];
 extern struct tok gmpls_encoding_values[];
 extern struct tok gmpls_payload_values[];
 extern struct tok diffserv_te_bc_values[];
+extern struct tok lmp_sd_service_config_cpsa_link_type_values[];
+extern struct tok lmp_sd_service_config_cpsa_signal_type_sdh_values[];
+extern struct tok lmp_sd_service_config_cpsa_signal_type_sonet_values[];

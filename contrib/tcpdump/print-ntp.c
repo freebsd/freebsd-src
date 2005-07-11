@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ntp.c,v 1.41 2004/01/28 14:54:50 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ntp.c,v 1.41.2.1 2005/05/06 07:57:18 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -133,7 +133,8 @@ ntp_print(register const u_char *cp, u_int length)
 		break;
 
 	case PRIM_REF:
-		fn_printn((u_char *)&(bp->refid), 4, NULL);
+		if (fn_printn((u_char *)&(bp->refid), 4, snapend))
+			goto trunc;
 		break;
 
 	case INFO_QUERY:

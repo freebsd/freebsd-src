@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-mpls.c,v 1.13 2005/04/06 21:32:41 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-mpls.c,v 1.13.2.1 2005/07/05 09:39:29 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -61,36 +61,45 @@ void
 mpls_print(const u_char *bp, u_int length)
 {
 	const u_char *p;
-	u_int32_t v;
+	u_int32_t label_entry;
+        u_int16_t label_stack_depth = 0;
 
 	p = bp;
 	printf("MPLS");
 	do {
-		TCHECK2(*p, sizeof(v));
-		v = EXTRACT_32BITS(p);
-		printf(" (");	/*)*/
-		printf("label %u", MPLS_LABEL(v));
+		TCHECK2(*p, sizeof(label_entry));
+		label_entry = EXTRACT_32BITS(p);
+		printf("%s(label %u",
+                       label_stack_depth ? "\n\t" : " ",
+                       MPLS_LABEL(label_entry));
+                label_stack_depth++;
 		if (vflag &&
-		    MPLS_LABEL(v) < sizeof(mpls_labelname) / sizeof(mpls_labelname[0]))
-			printf(" (%s)", mpls_labelname[MPLS_LABEL(v)]);
-		printf(", exp %u", MPLS_EXP(v));
-		if (MPLS_STACK(v))
+		    MPLS_LABEL(label_entry) < sizeof(mpls_labelname) / sizeof(mpls_labelname[0]))
+			printf(" (%s)", mpls_labelname[MPLS_LABEL(label_entry)]);
+		printf(", exp %u", MPLS_EXP(label_entry));
+		if (MPLS_STACK(label_entry))
 			printf(", [S]");
-		printf(", ttl %u", MPLS_TTL(v));
-		/*(*/
-		printf(")");
+		printf(", ttl %u)", MPLS_TTL(label_entry));
 
-		p += sizeof(v);
-	} while (!MPLS_STACK(v));
+		p += sizeof(label_entry);
+	} while (!MPLS_STACK(label_entry));
 
-	switch (MPLS_LABEL(v)) {
+	switch (MPLS_LABEL(label_entry)) {
 	case 0:	/* IPv4 explicit NULL label */
         case 3:	/* IPv4 implicit NULL label */
-		ip_print(gndo, p, length - (p - bp));
+                if (vflag>0) {
+                        printf("\n\t");
+                        ip_print(gndo, p, length - (p - bp));
+                }
+                else printf(", IP, length: %u",length);
 		break;
 #ifdef INET6
 	case 2:	/* IPv6 explicit NULL label */
-		ip6_print(p, length - (p - bp));
+                if (vflag>0) {
+                        printf("\n\t");
+                        ip6_print(p, length - (p - bp));
+                }
+                else printf(", IPv6, length: %u",length);
 		break;
 #endif
 	default:
@@ -107,7 +116,7 @@ mpls_print(const u_char *bp, u_int length)
                  * which cisco by default sends MPLS encapsulated
 		 */
 
-                if (MPLS_STACK(v)) { /* only do this if the stack bit is set */
+                if (MPLS_STACK(label_entry)) { /* only do this if the stack bit is set */
                     switch(*p) {
                     case 0x45:
                     case 0x46:

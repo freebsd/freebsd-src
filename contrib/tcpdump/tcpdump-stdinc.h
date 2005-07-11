@@ -29,7 +29,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.12 2005/03/27 01:35:45 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.12.2.3 2005/05/04 19:20:20 risso Exp $ (LBL)
  */
 
 /*
@@ -54,6 +54,20 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <net/netdb.h>  /* in wpcap's Win32/include */
+
+#if !defined(__MINGW32__) && !defined(__WATCOMC__)
+#undef toascii
+#define isascii __isascii
+#define toascii __toascii
+#define stat _stat
+#define open _open
+#define fstat _fstat
+#define read _read
+#define close _close
+#define O_RDONLY _O_RDONLY
+
+typedef short ino_t;
+#endif /* __MINGW32__ */
 
 #ifdef __MINGW32__
 #include <stdint.h>
@@ -89,8 +103,15 @@ typedef char* caddr_t;
 #include <ctype.h>
 #include <unistd.h>
 #include <netdb.h>
-#ifdef INTTYPES_H_DEFINES_FORMATS
+#if HAVE_INTTYPES_H
 #include <inttypes.h>
+#else
+#if HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#endif
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
 #endif
 #include <sys/param.h>
 #include <sys/types.h>			/* concession to AIX */
@@ -122,7 +143,7 @@ typedef char* caddr_t;
   #define FOPEN_WRITE_BIN  FOPEN_WRITE_TXT
 #endif
 
-#if defined(__GNUC__) && defined(__i386__)
+#if defined(__GNUC__) && defined(__i386__) && !defined(__ntohl)
   #undef ntohl
   #undef ntohs
   #undef htonl

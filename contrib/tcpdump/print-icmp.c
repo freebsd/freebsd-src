@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.81 2005/04/06 21:32:40 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.81.2.2 2005/07/01 16:13:37 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -289,6 +289,24 @@ static const struct tok icmp_mpls_ext_obj_values[] = {
     { 0, NULL}
 };
 
+/* prototypes */
+const char *icmp_tstamp_print(u_int);
+
+/* print the milliseconds since midnight UTC */
+const char *
+icmp_tstamp_print(u_int tstamp) {
+    u_int msec,sec,min,hrs;
+
+    static char buf[64];
+
+    msec = tstamp % 1000;
+    sec = tstamp / 1000;
+    min = sec / 60; sec -= min * 60;
+    hrs = min / 60; min -= hrs * 60;
+    snprintf(buf, sizeof(buf), "%02u:%02u:%02u.%03u",hrs,min,sec,msec);
+    return buf;
+}
+ 
 void
 icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 {
@@ -314,10 +332,11 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 	case ICMP_ECHO:
 	case ICMP_ECHOREPLY:
 		TCHECK(dp->icmp_seq);
-		(void)snprintf(buf, sizeof(buf), "echo %s seq %u",
-			dp->icmp_type == ICMP_ECHO ?
-			"request" : "reply",
-			EXTRACT_16BITS(&dp->icmp_seq));
+		(void)snprintf(buf, sizeof(buf), "echo %s, id %u, seq %u",
+                               dp->icmp_type == ICMP_ECHO ?
+                               "request" : "reply",
+                               EXTRACT_16BITS(&dp->icmp_id),
+                               EXTRACT_16BITS(&dp->icmp_seq));
 		break;
 
 	case ICMP_UNREACH:
@@ -497,13 +516,16 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 	case ICMP_TSTAMPREPLY:
 		TCHECK(dp->icmp_ttime);
 		(void)snprintf(buf, sizeof(buf),
-		    "time stamp reply id %u seq %u : org 0x%x recv 0x%x xmit 0x%x",
-		    EXTRACT_16BITS(&dp->icmp_id),
-		    EXTRACT_16BITS(&dp->icmp_seq),
-		    EXTRACT_32BITS(&dp->icmp_otime),
-		    EXTRACT_32BITS(&dp->icmp_rtime),
-		    EXTRACT_32BITS(&dp->icmp_ttime));
-		break;
+		    "time stamp reply id %u seq %u: org %s",
+                               EXTRACT_16BITS(&dp->icmp_id),
+                               EXTRACT_16BITS(&dp->icmp_seq),
+                               icmp_tstamp_print(EXTRACT_32BITS(&dp->icmp_otime)));
+
+                (void)snprintf(buf+strlen(buf),sizeof(buf)-strlen(buf),", recv %s",
+                         icmp_tstamp_print(EXTRACT_32BITS(&dp->icmp_rtime)));
+                (void)snprintf(buf+strlen(buf),sizeof(buf)-strlen(buf),", xmit %s",
+                         icmp_tstamp_print(EXTRACT_32BITS(&dp->icmp_ttime)));
+                break;
 
 	default:
 		str = tok2str(icmp2str, "type-#%d", dp->icmp_type);
