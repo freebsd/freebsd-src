@@ -43,6 +43,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <paths.h>
 
 /* The help file for the TCP/IP setup screen */
 #define TCP_HELPFILE		"tcp"
@@ -253,8 +254,12 @@ verifySettings(void)
 static void
 dhcpGetInfo(Device *devp)
 {
+    char leasefile[PATH_MAX];
+
+    snprintf(leasefile, sizeof(leasefile), "%sdhclient.leases.%s",
+	_PATH_VARDB, devp->name);
     /* If it fails, do it the old-fashioned way */
-    if (dhcpParseLeases("/var/db/dhclient.leases", hostname, domainname,
+    if (dhcpParseLeases(leasefile, hostname, domainname,
 			 nameserver, ipaddr, gateway, netmask) == -1) {
 	FILE *ifp;
 	char *cp, cmd[256], data[2048];
@@ -407,8 +412,9 @@ tcpOpenDialog(Device *devp)
 	    Mkdir("/var/run");
 	    Mkdir("/tmp");
 	    msgNotify("Scanning for DHCP servers...");
-	    vsystem("dhclient -r %s", devp->name);
-	    if (0 == vsystem("dhclient -1 %s", devp->name)) {
+	    /* XXX clear any existing lease */
+	    /* XXX limit protocol to N tries */
+	    if (0 == vsystem("dhclient %s", devp->name)) {
 		dhcpGetInfo(devp);
 		use_dhcp = TRUE;
 	    }
