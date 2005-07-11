@@ -51,7 +51,7 @@
 *default host=CHANGE_THIS.FreeBSD.org
 *default base=/var/db
 *default prefix=/usr
-*default release=cvs tag=.
+*default release=cvs tag=RELENG_6
 *default delete use-rel-suffix
 
 # If you seem to be limited by CPU rather than network or disk bandwidth, try
