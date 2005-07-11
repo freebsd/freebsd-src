@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.95 2005/04/06 21:32:39 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.95.2.2 2005/07/01 16:16:30 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -39,24 +39,8 @@ static const char rcsid[] _U_ =
 #include "ethertype.h"
 
 #include "ether.h"
-#include "llc.h"
 
 const struct tok ethertype_values[] = { 
-    /* not really ethertypes but PIDs that are used
-       in the SNAP printer - its more convenient
-       to put them into a single tokentable */
-    { PID_RFC2684_ETH_FCS,      "Ethernet + FCS" },
-    { PID_RFC2684_ETH_NOFCS,    "Ethernet no FCS" },
-    { PID_RFC2684_802_4_FCS,    "802.4 + FCS" },
-    { PID_RFC2684_802_4_NOFCS,  "w/o FCS" },
-    { PID_RFC2684_802_5_FCS,    "Tokenring + FCS" },
-    { PID_RFC2684_802_5_NOFCS,  "Tokenring no FCS" },
-    { PID_RFC2684_FDDI_FCS,     "FDDI + FCS" },
-    { PID_RFC2684_FDDI_NOFCS,   "FDDI no FCS" },
-    { PID_RFC2684_802_6_FCS,    "802.6 + FCS" },
-    { PID_RFC2684_802_6_NOFCS,  "802.6 no FCS" },
-    { PID_RFC2684_BPDU,         "BPDU" },
-    /* the real Ethertypes */
     { ETHERTYPE_IP,		"IPv4" },
     { ETHERTYPE_MPLS,		"MPLS unicast" },
     { ETHERTYPE_MPLS_MULTI,	"MPLS multicast" },
@@ -316,7 +300,7 @@ ether_encap_print(u_short ether_type, const u_char *p,
 		return (1);
 
         case ETHERTYPE_LOOPBACK:
-                return (0);
+                return (1);
 
 	case ETHERTYPE_MPLS:
 	case ETHERTYPE_MPLS_MULTI:

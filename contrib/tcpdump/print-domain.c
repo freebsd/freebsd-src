@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-domain.c,v 1.89 2004/03/23 19:03:03 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-domain.c,v 1.89.2.1 2005/04/20 20:59:00 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -133,9 +133,10 @@ labellen(const u_char *cp)
 	i = *cp;
 	if ((i & INDIR_MASK) == EDNS0_MASK) {
 		int bitlen, elt;
-
-		if ((elt = (i & ~INDIR_MASK)) != EDNS0_ELT_BITLABEL)
+		if ((elt = (i & ~INDIR_MASK)) != EDNS0_ELT_BITLABEL) {
+			printf("<ELT %d>", elt);
 			return(-1);
+		}
 		if (!TTEST2(*(cp + 1), 1))
 			return(-1);
 		if ((bitlen = *(cp + 1)) == 0)
