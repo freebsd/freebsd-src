@@ -26,6 +26,9 @@ DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
 BINMODE=4555
 INSTALLFLAGS=-fschg
 .endif
+.if defined(_FREEFALL_CONFIG)
+CFLAGS+=-D_FREEFALL_CONFIG
+.endif
 
 .include <bsd.prog.mk>
 
