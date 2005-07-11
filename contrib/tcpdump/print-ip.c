@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ip.c,v 1.149 2005/04/07 00:28:17 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ip.c,v 1.149.2.1 2005/05/20 21:15:46 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -502,6 +502,10 @@ again:
 
 	case IPPROTO_VRRP:
 		vrrp_print(ipds->cp, ipds->len, ipds->ip->ip_ttl);
+		break;
+
+	case IPPROTO_PGM:
+		pgm_print(ipds->cp, ipds->len, (const u_char *)ipds->ip);
 		break;
 
 	default:

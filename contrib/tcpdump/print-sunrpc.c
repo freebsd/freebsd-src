@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-sunrpc.c,v 1.46 2004/12/27 00:41:31 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-sunrpc.c,v 1.46.2.1 2005/04/27 21:44:06 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -53,15 +53,16 @@ static const char rcsid[] _U_ =
 
 #include "rpc_auth.h"
 #include "rpc_msg.h"
+#include "pmap_prot.h"
 
 static struct tok proc2str[] = {
-	{ PMAPPROC_NULL,	"null" },
-	{ PMAPPROC_SET,		"set" },
-	{ PMAPPROC_UNSET,	"unset" },
-	{ PMAPPROC_GETPORT,	"getport" },
-	{ PMAPPROC_DUMP,	"dump" },
-	{ PMAPPROC_CALLIT,	"call" },
-	{ 0,			NULL }
+	{ SUNRPC_PMAPPROC_NULL,		"null" },
+	{ SUNRPC_PMAPPROC_SET,		"set" },
+	{ SUNRPC_PMAPPROC_UNSET,	"unset" },
+	{ SUNRPC_PMAPPROC_GETPORT,	"getport" },
+	{ SUNRPC_PMAPPROC_DUMP,		"dump" },
+	{ SUNRPC_PMAPPROC_CALLIT,	"call" },
+	{ 0,				NULL }
 };
 
 /* Forwards */
@@ -88,7 +89,7 @@ sunrpcrequest_print(register const u_char *bp, register u_int length,
 	} else {
 		snprintf(srcid, sizeof(srcid), "0x%x",
 		    EXTRACT_32BITS(&rp->rm_xid));
-		snprintf(dstid, sizeof(dstid), "0x%x", PMAPPORT);
+		snprintf(dstid, sizeof(dstid), "0x%x", SUNRPC_PMAPPORT);
 	}
 
 	switch (IP_V((struct ip *)bp2)) {
@@ -119,10 +120,10 @@ sunrpcrequest_print(register const u_char *bp, register u_int length,
 
 	switch (EXTRACT_32BITS(&rp->rm_call.cb_proc)) {
 
-	case PMAPPROC_SET:
-	case PMAPPROC_UNSET:
-	case PMAPPROC_GETPORT:
-	case PMAPPROC_CALLIT:
+	case SUNRPC_PMAPPROC_SET:
+	case SUNRPC_PMAPPROC_UNSET:
+	case SUNRPC_PMAPPROC_GETPORT:
+	case SUNRPC_PMAPPROC_CALLIT:
 		x = EXTRACT_32BITS(&rp->rm_call.cb_prog);
 		if (!nflag)
 			printf(" %s", progstr(x));

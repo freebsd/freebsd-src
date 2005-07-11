@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-nfs.c,v 1.106 2005/01/05 08:16:45 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-nfs.c,v 1.106.2.2 2005/05/06 07:57:18 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -390,9 +390,11 @@ parsefn(register const u_int32_t *dp)
 	cp = (u_char *)dp;
 	/* Update 32-bit pointer (NFS filenames padded to 32-bit boundaries) */
 	dp += ((len + 3) & ~3) / sizeof(*dp);
-	/* XXX seems like we should be checking the length */
 	putchar('"');
-	(void) fn_printn(cp, len, NULL);
+	if (fn_printn(cp, len, snapend)) {
+		putchar('"');
+		goto trunc;
+	}
 	putchar('"');
 
 	return (dp);
@@ -963,7 +965,7 @@ parserep(register const struct sunrpc_msg *rp, register u_int length)
 	/*
 	 * now we can check the ar_stat field
 	 */
-	astat = EXTRACT_32BITS(dp);
+	astat = (enum sunrpc_accept_stat) EXTRACT_32BITS(dp);
 	switch (astat) {
 
 	case SUNRPC_SUCCESS:

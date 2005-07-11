@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-null.c,v 1.53 2005/04/06 21:32:41 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-null.c,v 1.53.2.2 2005/05/19 07:26:18 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -72,49 +72,18 @@ static const char rcsid[] _U_ =
 #define BSD_AF_INET6_FREEBSD	28
 #define BSD_AF_INET6_DARWIN	30
 
-static void
-null_print(u_int family, u_int length)
-{
-	if (nflag)
-		printf("AF %u ", family);
-	else {
-		switch (family) {
+const struct tok bsd_af_values[] = {
+        { BSD_AF_INET, "IPv4" },
+        { BSD_AF_NS, "NS" },
+        { BSD_AF_ISO, "ISO" },
+        { BSD_AF_APPLETALK, "Appletalk" },
+        { BSD_AF_IPX, "IPX" },
+        { BSD_AF_INET6_BSD, "IPv6" },
+        { BSD_AF_INET6_FREEBSD, "IPv6" },
+        { BSD_AF_INET6_DARWIN, "IPv6" },
+        { 0, NULL}
+};
 
-		case BSD_AF_INET:
-			printf("ip ");
-			break;
-
-#ifdef INET6
-		case BSD_AF_INET6_BSD:
-		case BSD_AF_INET6_FREEBSD:
-		case BSD_AF_INET6_DARWIN:
-			printf("ip6 ");
-			break;
-#endif
-
-		case BSD_AF_NS:
-			printf("ns ");
-			break;
-
-		case BSD_AF_ISO:
-			printf("osi ");
-			break;
-
-		case BSD_AF_APPLETALK:
-			printf("atalk ");
-			break;
-
-		case BSD_AF_IPX:
-			printf("ipx ");
-			break;
-
-		default:
-			printf("AF %u ", family);
-			break;
-		}
-	}
-	printf("%d: ", length);
-}
 
 /*
  * Byte-swap a 32-bit number.
@@ -123,6 +92,20 @@ null_print(u_int family, u_int length)
  */
 #define	SWAPLONG(y) \
 ((((y)&0xff)<<24) | (((y)&0xff00)<<8) | (((y)&0xff0000)>>8) | (((y)>>24)&0xff))
+
+static inline void
+null_hdr_print(u_int family, u_int length)
+{
+	if (!qflag) {
+		(void)printf("AF %s (%u)",
+			tok2str(bsd_af_values,"Unknown",family),family);
+	} else {
+		(void)printf("%s",
+			tok2str(bsd_af_values,"Unknown AF %u",family));
+	}
+
+	(void)printf(", length %u: ", length);
+}
 
 /*
  * This is the top level routine of the printer.  'p' points
@@ -155,17 +138,17 @@ null_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	if ((family & 0xFFFF0000) != 0)
 		family = SWAPLONG(family);
 
+	if (eflag)
+		null_hdr_print(family, length);
+
 	length -= NULL_HDRLEN;
 	caplen -= NULL_HDRLEN;
 	p += NULL_HDRLEN;
 
-	if (eflag)
-		null_print(family, length);
-
 	switch (family) {
 
 	case BSD_AF_INET:
-	        ip_print(gndo, p, length);
+		ip_print(gndo, p, length);
 		break;
 
 #ifdef INET6
@@ -191,7 +174,7 @@ null_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	default:
 		/* unknown AF_ value */
 		if (!eflag)
-			null_print(family, length + NULL_HDRLEN);
+			null_hdr_print(family, length + NULL_HDRLEN);
 		if (!xflag && !qflag)
 			default_print(p, caplen);
 	}
