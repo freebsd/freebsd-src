@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.126 2005/02/08 20:03:16 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.126.2.8 2005/06/03 20:36:57 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -98,7 +98,7 @@ static const char rcsid[] _U_ =
  * Setting O_BINARY on DOS/Windows is a bit tricky
  */
 #if defined(WIN32)
-  #define SET_BINMODE(f)  _setmode(fileno(f), O_BINARY)
+  #define SET_BINMODE(f)  _setmode(_fileno(f), _O_BINARY)
 #elif defined(MSDOS)
   #if defined(__HIGHC__)
   #define SET_BINMODE(f)  setmode(f, O_BINARY)
@@ -269,10 +269,10 @@ static const char rcsid[] _U_ =
 
 #define LINKTYPE_APPLE_IP_OVER_IEEE1394 138	/* Apple IP-over-IEEE 1394 cooked header */
 
-#define LINKTYPE_RAWSS7         139             /* see rawss7.h for */
-#define LINKTYPE_RAWSS7_MTP2    140	        /* information  on these */
-#define LINKTYPE_RAWSS7_MTP3    141             /* definitions */
-#define LINKTYPE_RAWSS7_SCCP    142
+#define LINKTYPE_MTP2_WITH_PHDR	139
+#define LINKTYPE_MTP2		140
+#define LINKTYPE_MTP3		141
+#define LINKTYPE_SCCP		142
 
 #define LINKTYPE_DOCSIS		143		/* DOCSIS MAC frames */
 
@@ -404,6 +404,14 @@ static const char rcsid[] _U_ =
 #define LINKTYPE_ERF_ETH	175	/* Ethernet */
 #define LINKTYPE_ERF_POS	176	/* Packet-over-SONET */
 
+/*
+ * Requested by Daniele Orlandi <daniele@orlandi.com> for raw LAPD
+ * for vISDN (http://www.orlandi.com/visdn/).  Its link-layer header
+ * includes additional information before the LAPD header, so it's
+ * not necessarily a generic LAPD header.
+ */
+#define LINKTYPE_LINUX_LAPD	177
+
 static struct linktype_map {
 	int	dlt;
 	int	linktype;
@@ -530,6 +538,12 @@ static struct linktype_map {
 	/* Apple IP-over-IEEE 1394 cooked header */
 	{ DLT_APPLE_IP_OVER_IEEE1394, LINKTYPE_APPLE_IP_OVER_IEEE1394 },
 
+	/* SS7 */
+	{ DLT_MTP2_WITH_PHDR,	LINKTYPE_MTP2_WITH_PHDR },
+	{ DLT_MTP2,		LINKTYPE_MTP2 },
+	{ DLT_MTP3,		LINKTYPE_MTP3 },
+	{ DLT_SCCP,		LINKTYPE_SCCP },
+
 	/* DOCSIS MAC frames */
 	{ DLT_DOCSIS,		LINKTYPE_DOCSIS },
 
@@ -593,6 +607,9 @@ static struct linktype_map {
 	/* Endace types */
 	{ DLT_ERF_ETH,		LINKTYPE_ERF_ETH },
 	{ DLT_ERF_POS,		LINKTYPE_ERF_POS },
+
+	/* viSDN LAPD */
+	{ DLT_LINUX_LAPD,	LINKTYPE_LINUX_LAPD },
 
 	{ -1,			-1 }
 };
@@ -700,6 +717,18 @@ sf_inject(pcap_t *p, const void *buf _U_, size_t size _U_)
 	return (-1);
 }
 
+/*
+ * Set direction flag: Which packets do we accept on a forwarding
+ * single device? IN, OUT or both?
+ */
+static int
+sf_setdirection(pcap_t *p, direction_t d)
+{
+	snprintf(p->errbuf, sizeof(p->errbuf),
+	    "Setting direction is not supported on savefiles");
+	return (-1);
+}
+
 static void
 sf_close(pcap_t *p)
 {
@@ -716,7 +745,16 @@ pcap_open_offline(const char *fname, char *errbuf)
 	pcap_t *p;
 
 	if (fname[0] == '-' && fname[1] == '\0')
+	{
 		fp = stdin;
+#if defined(WIN32) || defined(MSDOS)
+		/*
+		 * We're reading from the standard input, so put it in binary
+		 * mode, as savefiles are binary files.
+		 */
+		SET_BINMODE(fp);
+#endif
+	}
 	else {
 #if !defined(WIN32) && !defined(MSDOS)
 		fp = fopen(fname, "r");
@@ -892,20 +930,12 @@ pcap_fopen_offline(FILE *fp, char *errbuf)
 	p->read_op = pcap_offline_read;
 	p->inject_op = sf_inject;
 	p->setfilter_op = install_bpf_program;
+	p->setdirection_op = sf_setdirection;
 	p->set_datalink_op = NULL;	/* we don't support munging link-layer headers */
 	p->getnonblock_op = sf_getnonblock;
 	p->setnonblock_op = sf_setnonblock;
 	p->stats_op = sf_stats;
 	p->close_op = sf_close;
-
-#if defined(WIN32) || defined(MSDOS)
-	/*
-	 * If we're reading from the standard input, put it in binary
-	 * mode, as savefiles are binary files.
-	 */
-	if (fp == stdin)
-		SET_BINMODE(fp);
-#endif
 
 	return (p);
  bad:
@@ -1210,6 +1240,12 @@ FILE *
 pcap_dump_file(pcap_dumper_t *p)
 {
 	return ((FILE *)p);
+}
+
+long
+pcap_dump_ftell(pcap_dumper_t *p)
+{
+	return (ftell((FILE *)p));
 }
 
 int
