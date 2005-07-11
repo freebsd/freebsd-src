@@ -1,4 +1,4 @@
-@(#) $Header: /tcpdump/master/libpcap/INSTALL.txt,v 1.12 2004/12/18 08:52:08 guy Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/INSTALL.txt,v 1.12.2.1 2005/06/20 21:30:14 guy Exp $ (LBL)
 
 To build libpcap, run "./configure" (a shell script). The configure
 script will determine your system attributes and generate an
@@ -308,6 +308,7 @@ README.dag	- notes on using libpcap to capture on Endace DAG devices
 README.hpux	- notes on using libpcap on HP-UX
 README.linux	- notes on using libpcap on Linux
 README.macosx	- notes on using libpcap on Mac OS X
+README.septel   - notes on using libpcap to capture on Intel/Septel devices
 README.tru64	- notes on using libpcap on Digital/Tru64 UNIX
 README.Win32	- notes on using libpcap on Win32 systems (with WinPcap)
 SUNOS4		- pre-SunOS 4.1 replacement kernel nit modules
@@ -363,6 +364,8 @@ pcap-nit.h	- SunOS Network Interface Tap definitions
 pcap-null.c	- dummy monitor support (allows offline use of libpcap)
 pcap-pf.c	- Ultrix and Digital/Tru64 UNIX Packet Filter support
 pcap-pf.h	- Ultrix and Digital/Tru64 UNIX Packet Filter definitions
+pcap-septel.c   - INTEL/Septel device capture support
+pcap-septel.h   - INTEL/Septel device capture support
 pcap-stdinc.h	- includes and #defines for compiling on Win32 systems
 pcap-snit.c	- SunOS 4.x STREAMS-based Network Interface Tap support
 pcap-snoop.c	- IRIX Snoop network monitoring support

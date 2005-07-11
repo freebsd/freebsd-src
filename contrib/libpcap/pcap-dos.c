@@ -5,7 +5,7 @@
  *  pcap-dos.c: Interface to PKTDRVR, NDIS2 and 32-bit pmode
  *              network drivers.
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-dos.c,v 1.1 2004/12/18 08:52:10 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-dos.c,v 1.1.2.1 2005/05/03 18:54:35 guy Exp $ (LBL)
  */
 
 #include <stdio.h>
@@ -172,6 +172,7 @@ pcap_t *pcap_open_live (const char *device_name, int snaplen, int promisc,
   pcap->stats_op          = pcap_stats_dos;
   pcap->inject_op         = pcap_sendpacket_dos;
   pcap->setfilter_op      = pcap_setfilter_dos;
+	pcap->setdirection_op   = NULL; /* Not implemented.*/
   pcap->fd                = ++ref_count;
 
   if (pcap->fd == 1)  /* first time we're called */
