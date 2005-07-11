@@ -20,7 +20,7 @@ SRCS=	addrtoname.c cpack.c gmpls.c gmt2local.c ipproto.c \
 	print-lmp.c print-lspping.c \
 	print-lwres.c print-msdp.c print-mobile.c print-mpls.c \
 	print-netbios.c print-nfs.c print-ntp.c print-null.c \
-	print-ospf.c print-pflog.c print-pim.c \
+	print-ospf.c print-pflog.c print-pgm.c print-pim.c \
 	print-ppp.c print-pppoe.c print-pptp.c print-radius.c \
 	print-raw.c print-rip.c print-rsvp.c print-rx.c print-sctp.c \
 	print-sip.c print-sl.c print-sll.c print-smb.c print-snmp.c \
