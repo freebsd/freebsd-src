@@ -1,8 +1,0 @@
-$ $Id: set10,v 1.2 1995/03/19 18:07:15 christos Exp $
-$ ma.setp.c
-$set 10 
-1 setpath: invalid command '%s'.\n
-2 setpath: insufficient arguments to command '%s'.\n
-3 setpath: value missing in path '%s'\n
-4 setpath: %s not found in %s\n
-5 setpath: %d not valid position in %s\n

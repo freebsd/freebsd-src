@@ -1,9 +1,0 @@
-res 300
-unitwidth 800
-family T
-styles R I B BI
-sizes 1-1000 0
-fonts 20 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
-tcommand
-orientation portrait
-postpro grolbp

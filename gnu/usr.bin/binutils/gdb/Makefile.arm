@@ -1,5 +1,0 @@
-# $FreeBSD$
-
-XSRCS+=	armnbsd-nat.c armnbsd-tdep.c arm-tdep.c \
-	core-regset.c
-CFLAGS+= -DDEFAULT_BFD_VEC=bfd_elf32_arm_vec
