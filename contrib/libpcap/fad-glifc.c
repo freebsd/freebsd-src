@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/fad-glifc.c,v 1.5 2005/01/29 10:34:04 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/fad-glifc.c,v 1.5.2.1 2005/04/19 00:54:16 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -326,7 +326,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 		 * be treated like the entry for the real interface;
 		 * we do that by stripping off the ":" and the number.
 		 */
-		p = strchr(ifrp->ifr_name, ':');
+		p = strchr(ifrp->lifr_name, ':');
 		if (p != NULL) {
 			/*
 			 * We have a ":"; is it followed by a number?
