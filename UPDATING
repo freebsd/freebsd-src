@@ -21,6 +21,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050711:
+	RELENG_6 branched here.
+
 20050629:
 	The pccard_ifconfig rc.conf variable has been removed and a new
 	variable, ifconfig_DEFAULT has been introduced.  Unlike
