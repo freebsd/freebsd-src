@@ -149,9 +149,6 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 		m_adj(m, -IEEE80211_CRC_LEN);
 		m->m_flags &= ~M_HASFCS;
 	}
-	KASSERT(m->m_pkthdr.len >= sizeof(struct ieee80211_frame_min),
-		("frame length too short: %u", m->m_pkthdr.len));
-
 	type = -1;			/* undefined */
 	/*
 	 * In monitor mode, send everything directly to bpf.
