@@ -1,4 +1,4 @@
-.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.167 2004/12/28 22:31:25 guy Exp $ (LBL)
+.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.167.2.4 2005/05/02 21:27:34 guy Exp $ (LBL)
 .\"
 .\"	$NetBSD: tcpdump.8,v 1.9 2003/03/31 00:18:17 perry Exp $
 .\"
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.TH TCPDUMP 1  "22 March 2004"
+.TH TCPDUMP 1  "18 April 2005"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
@@ -603,10 +603,11 @@ different kinds of qualifier:
 qualifiers say what kind of thing the id name or number refers to.
 Possible types are
 .BR host ,
-.B net
+.B net ,
+.B port
 and
-.BR port .
-E.g., `host foo', `net 128.3', `port 20'.
+.BR portrange .
+E.g., `host foo', `net 128.3', `port 20', `portrange 6000-6008'.
 If there is no type
 qualifier,
 .B host
@@ -657,7 +658,8 @@ protos are:
 .B tcp
 and
 .BR udp .
-E.g., `ether src foo', `arp net 128.3', `tcp port 21'.
+E.g., `ether src foo', `arp net 128.3', `tcp port 21', `udp portrange
+7000-7009'.
 If there is
 no proto qualifier, all protocols consistent with the type are
 assumed.
@@ -709,6 +711,7 @@ which may be either an address or a name.
 True if the IPv4/v6 source field of the packet is \fIhost\fP.
 .IP "\fBhost \fIhost\fP
 True if either the IPv4/v6 source or destination of the packet is \fIhost\fP.
+.IP
 Any of the above host expressions can be prepended with the keywords,
 \fBip\fP, \fBarp\fP, \fBrarp\fP, or \fBip6\fP as in:
 .in +.5i
@@ -763,7 +766,7 @@ number of \fInet\fP.
 True if either the IPv4/v6 source or destination address of the packet has a network
 number of \fInet\fP.
 .IP "\fBnet \fInet\fR \fBmask \fInetmask\fR"
-True if the IP address matches \fInet\fR with the specific \fInetmask\fR.
+True if the IPv4 address matches \fInet\fR with the specific \fInetmask\fR.
 May be qualified with \fBsrc\fR or \fBdst\fR.
 Note that this syntax is not valid for IPv6 \fInet\fR.
 .IP "\fBnet \fInet\fR/\fIlen\fR"
@@ -787,8 +790,25 @@ both tcp/domain and udp/domain traffic).
 True if the packet has a source port value of \fIport\fP.
 .IP "\fBport \fIport\fR"
 True if either the source or destination port of the packet is \fIport\fP.
-Any of the above port expressions can be prepended with the keywords,
-\fBtcp\fP or \fBudp\fP, as in:
+.IP "\fBdst portrange \fIport1\fB-\fIport2\fR"
+True if the packet is ip/tcp, ip/udp, ip6/tcp or ip6/udp and has a
+destination port value between \fIport1\fP and \fIport2\fP.
+.I port1
+and
+.I port2
+are interpreted in the same fashion as the
+.I port
+parameter for
+.BR port .
+.IP "\fBsrc portrange \fIport1\fB-\fIport2\fR"
+True if the packet has a source port value between \fIport1\fP and
+\fIport2\fP.
+.IP "\fBportrange \fIport1\fB-\fIport2\fR"
+True if either the source or destination port of the packet is between
+\fIport1\fP and \fIport2\fP.
+.IP
+Any of the above port or port range expressions can be prepended with
+the keywords, \fBtcp\fP or \fBudp\fP, as in:
 .in +.5i
 .nf
 \fBtcp src port \fIport\fR
@@ -812,7 +832,7 @@ This is equivalent to:
 .fi
 .in -.5i
 .IP "\fBip proto \fIprotocol\fR"
-True if the packet is an IP packet (see
+True if the packet is an IPv4 packet (see
 .IR ip (4P))
 of protocol type \fIprotocol\fP.
 \fIProtocol\fP can be a number or one of the names
@@ -864,7 +884,7 @@ The \fBether\fP
 keyword is optional.
 This is shorthand for `\fBether[0] & 1 != 0\fP'.
 .IP "\fBip multicast\fR"
-True if the packet is an IP multicast packet.
+True if the packet is an IPv4 multicast packet.
 .IP "\fBip6 multicast\fR"
 True if the packet is an IPv6 multicast packet.
 .IP  "\fBether proto \fIprotocol\fR"
@@ -1014,6 +1034,15 @@ If \fI[vlan_id]\fR is specified, only true is the packet has the specified
 Note that the first \fBvlan\fR keyword encountered in \fIexpression\fR
 changes the decoding offsets for the remainder of \fIexpression\fR
 on the assumption that the packet is a VLAN packet.
+the \fI[vlan_id]\fR statement may be used more than once, to filter on vlan hierarchies.
+each use of the \fI[vlan_id]\fR \fIexpression\fR increments the filter offsets by 4.
+.fi
+example(s):
+.fi
+"vlan 100 && vlan 200" filters on vlan 200 encapsulated within vlan 100
+.fi
+"vlan && vlan 300 && ip" filters IPv4 protocols encapsulated in vlan 300 encapsulated within any higher order vlan
+.fi
 .IP  "\fBtcp\fR, \fBudp\fR, \fBicmp\fR"
 Abbreviations for:
 .in +.5i
@@ -1103,10 +1132,11 @@ data inside the packet, use the following syntax:
 .fi
 .in -.5i
 \fIProto\fR is one of \fBether, fddi, tr, wlan, ppp, slip, link,
-ip, arp, rarp, tcp, udp, icmp\fR or \fBip6\fR, and
+ip, arp, rarp, tcp, udp, icmp, ip6\fR or \fBradio\fR, and
 indicates the protocol layer for the index operation.
 (\fBether, fddi, wlan, tr, ppp, slip\fR and \fBlink\fR all refer to the
-link layer.)
+link layer. \fBradio\fR refers to the "radio header" added to some
+802.11 captures.)
 Note that \fItcp, udp\fR and other upper-layer protocol types only
 apply to IPv4, not IPv6 (this will be fixed in the future).
 The byte offset, relative to the indicated protocol layer, is
@@ -1118,10 +1148,11 @@ length of the packet.
 
 For example, `\fBether[0] & 1 != 0\fP' catches all multicast traffic.
 The expression `\fBip[0] & 0xf != 5\fP'
-catches all IP packets with options.
+catches all IPv4 packets with options.
 The expression
 `\fBip[6:2] & 0x1fff = 0\fP'
-catches only unfragmented datagrams and frag zero of fragmented datagrams.
+catches only unfragmented IPv4 datagrams and frag zero of fragmented
+IPv4 datagrams.
 This check is implicitly applied to the \fBtcp\fP and \fBudp\fP
 index operations.
 For instance, \fBtcp[0]\fP always means the first

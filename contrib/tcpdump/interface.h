@@ -38,6 +38,10 @@
 
 #include <stdarg.h>
 
+#if HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
 #if !defined(HAVE_SNPRINTF)
 int snprintf(char *, size_t, const char *, ...)
      __attribute__((format(printf, 3, 4)));
@@ -135,6 +139,7 @@ extern void relts_print(int);
 
 extern int fn_print(const u_char *, const u_char *);
 extern int fn_printn(const u_char *, u_int, const u_char *);
+extern int fn_printzp(const u_char *, u_int, const u_char *);
 extern int mask2plen(u_int32_t);
 extern const char *tok2strary_internal(const char **, int, const char *, int);
 #define	tok2strary(a,f,i) tok2strary_internal(a, sizeof(a)/sizeof(a[0]),f,i)
@@ -171,15 +176,14 @@ extern void hex_print(const char *, const u_char *, u_int);
 extern int ether_encap_print(u_short, const u_char *, u_int, u_int, u_short *);
 extern int llc_print(const u_char *, u_int, u_int, const u_char *,
 	const u_char *, u_short *);
-extern int snap_print(const u_char *, u_int, u_int, u_short *, u_int32_t,
-	u_short, u_int);
+extern int snap_print(const u_char *, u_int, u_int, u_short *, u_int);
 extern void aarp_print(const u_char *, u_int);
 extern void aodv_print(const u_char *, u_int, int);
 extern void atalk_print(const u_char *, u_int);
 extern void atm_print(u_int, u_int, u_int, const u_char *, u_int, u_int);
 extern u_int atm_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int sunatm_if_print(const struct pcap_pkthdr *, const u_char *);
-extern int oam_print(const u_char *, u_int);
+extern int oam_print(const u_char *, u_int, u_int);
 extern void bootp_print(const u_char *, u_int);
 extern void bgp_print(const u_char *, int);
 extern void beep_print(const u_char *, u_int);
@@ -199,6 +203,7 @@ extern u_int token_if_print(const struct pcap_pkthdr *, const u_char *);
 extern void fddi_print(const u_char *, u_int, u_int);
 extern u_int fddi_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int fr_if_print(const struct pcap_pkthdr *, const u_char *);
+extern u_int fr_print(register const u_char *, u_int);
 extern u_int ieee802_11_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int ieee802_11_radio_if_print(const struct pcap_pkthdr *,
 	const u_char *);
@@ -249,8 +254,15 @@ extern u_int sl_bsdos_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int chdlc_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int juniper_atm1_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int juniper_atm2_print(const struct pcap_pkthdr *, const u_char *);
+extern u_int juniper_mfr_print(const struct pcap_pkthdr *, register const u_char *);
 extern u_int juniper_mlfr_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int juniper_mlppp_print(const struct pcap_pkthdr *, const u_char *);
+extern u_int juniper_pppoe_print(const struct pcap_pkthdr *, const u_char *);
+extern u_int juniper_pppoe_atm_print(const struct pcap_pkthdr *, const u_char *);
+extern u_int juniper_ggsn_print(const struct pcap_pkthdr *, const u_char *);
+extern u_int juniper_es_print(const struct pcap_pkthdr *, const u_char *);
+extern u_int juniper_monitor_print(const struct pcap_pkthdr *, const u_char *);
+extern u_int juniper_services_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int sll_if_print(const struct pcap_pkthdr *, const u_char *);
 extern void snmp_print(const u_char *, u_int);
 extern void sunrpcrequest_print(const u_char *, u_int, const u_char *);
@@ -273,6 +285,7 @@ extern const char *nt_errstr(u_int32_t);
 extern void print_data(const unsigned char *, int);
 extern void l2tp_print(const u_char *, u_int);
 extern void vrrp_print(const u_char *, u_int, int);
+extern void pgm_print(const u_char *, u_int, const u_char *);
 extern void cdp_print(const u_char *, u_int, u_int);
 extern void stp_print(const u_char *, u_int);
 extern void radius_print(const u_char *, u_int);
@@ -314,7 +327,7 @@ extern void bpf_dump(struct bpf_program *, int);
 
 /* forward compatibility */
 
-netdissect_options *gndo;
+extern netdissect_options *gndo;
 
 #define eflag gndo->ndo_eflag 
 #define fflag gndo->ndo_fflag 
