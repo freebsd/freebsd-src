@@ -85,8 +85,7 @@ v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 cat << EOF > vers.c
 $COPYRIGHT
-char sccspad[32 - 4 /* sizeof(sccs) */] = { '\\0' };
-char sccs[4] = { '@', '(', '#', ')' };
+char sccs[] =  "@(#)${VERSION} #${v}: ${t}";
 char version[] = "${VERSION} #${v}: ${t}\\n    ${u}@${h}:${d}\\n";
 char ostype[] = "${TYPE}";
 char osrelease[] = "${RELEASE}";
