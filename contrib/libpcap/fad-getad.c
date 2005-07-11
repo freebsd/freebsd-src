@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/fad-getad.c,v 1.10 2004/11/04 07:26:04 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/fad-getad.c,v 1.10.2.1 2005/04/10 18:04:49 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -47,9 +47,11 @@ static const char rcsid[] _U_ =
 
 #include <net/if.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ifaddrs.h>
 
 #include "pcap-int.h"
@@ -137,6 +139,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 	struct sockaddr *addr, *netmask, *broadaddr, *dstaddr;
 	size_t addr_size, broadaddr_size, dstaddr_size;
 	int ret = 0;
+	char *p, *q;
 
 	/*
 	 * Get the list of interface addresses.
@@ -212,6 +215,35 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 		} else {
 			dstaddr = NULL;
 			dstaddr_size = 0;
+		}
+
+		/*
+		 * If this entry has a colon followed by a number at
+		 * the end, we assume it's a logical interface.  Those
+		 * are just the way you assign multiple IP addresses to
+		 * a real interface on Linux, so an entry for a logical
+		 * interface should be treated like the entry for the
+		 * real interface; we do that by stripping off the ":"
+		 * and the number.
+		 *
+		 * XXX - should we do this only on Linux?
+		 */
+		p = strchr(ifa->ifa_name, ':');
+		if (p != NULL) {
+			/*
+			 * We have a ":"; is it followed by a number?
+			 */
+			q = p + 1;
+			while (isdigit((unsigned char)*q))
+				q++;
+			if (*q == '\0') {
+				/*
+				 * All digits after the ":" until the end.
+				 * Strip off the ":" and everything after
+				 * it.
+				 */
+			       *p = '\0';
+			}
 		}
 
 		/*

@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap.c,v 1.88 2005/02/08 20:03:15 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap.c,v 1.88.2.3 2005/05/27 23:33:00 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -331,7 +331,7 @@ static struct dlt_choice dlt_choices[] = {
 	DLT_CHOICE(DLT_SLIP, "SLIP"),
 	DLT_CHOICE(DLT_PPP, "PPP"),
 	DLT_CHOICE(DLT_FDDI, "FDDI"),
-	DLT_CHOICE(DLT_ATM_RFC1483, "RFC 1483 IP-over-ATM"),
+	DLT_CHOICE(DLT_ATM_RFC1483, "RFC 1483 LLC-encapsulated ATM"),
 	DLT_CHOICE(DLT_RAW, "Raw IP"),
 	DLT_CHOICE(DLT_SLIP_BSDOS, "BSD/OS SLIP"),
 	DLT_CHOICE(DLT_PPP_BSDOS, "BSD/OS PPP"),
@@ -369,6 +369,10 @@ static struct dlt_choice dlt_choices[] = {
  	DLT_CHOICE(DLT_JUNIPER_MLFR, "Juniper Multi-Link Frame Relay"),
 	DLT_CHOICE(DLT_ERF_ETH,	"Ethernet with Endace ERF header"),
 	DLT_CHOICE(DLT_ERF_POS, "Packet-over-SONET with Endace ERF header"),
+        DLT_CHOICE(DLT_JUNIPER_GGSN, "Juniper GGSN PIC"),
+        DLT_CHOICE(DLT_JUNIPER_ES, "Juniper Encryption Services PIC"),
+        DLT_CHOICE(DLT_JUNIPER_MONITOR, "Juniper Passive Monitor PIC"),
+        DLT_CHOICE(DLT_JUNIPER_SERVICES, "Juniper Advanced Services PIC"),
 	DLT_CHOICE_SENTINEL
 };
 
@@ -683,6 +687,23 @@ int
 pcap_setfilter(pcap_t *p, struct bpf_program *fp)
 {
 	return p->setfilter_op(p, fp);
+}
+
+/*
+ * Set direction flag, which controls whether we accept only incoming
+ * packets, only outgoing packets, or both.
+ * Note that, depending on the platform, some or all direction arguments
+ * might not be supported.
+ */
+int
+pcap_setdirection(pcap_t *p, direction_t d)
+{
+	if (p->setdirection_op == NULL) {
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		    "Setting direction is not implemented on this platform");
+		return -1;
+	} else
+		return p->setdirection_op(p, d);
 }
 
 int

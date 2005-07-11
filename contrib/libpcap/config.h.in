@@ -23,8 +23,8 @@
 /* Define to 1 if you have the `ether_hostton' function. */
 #undef HAVE_ETHER_HOSTTON
 
-/* on HP-UX 10.20 */
-#undef HAVE_HPUX10_20
+/* on HP-UX 10.20 or later */
+#undef HAVE_HPUX10_20_OR_LATER
 
 /* on HP-UX 9.x */
 #undef HAVE_HPUX9
@@ -52,6 +52,9 @@
 
 /* define if you have a /proc/net/dev */
 #undef HAVE_PROC_NET_DEV
+
+/* define if you have a Septel API */
+#undef HAVE_SEPTEL_API
 
 /* Define to 1 if you have the `snprintf' function. */
 #undef HAVE_SNPRINTF
@@ -82,6 +85,9 @@
 
 /* Define to 1 if you have the `strlcpy' function. */
 #undef HAVE_STRLCPY
+
+/* Define to 1 if the system has the type `struct ether_addr'. */
+#undef HAVE_STRUCT_ETHER_ADDR
 
 /* Define to 1 if you have the <sys/bufmod.h> header file. */
 #undef HAVE_SYS_BUFMOD_H
