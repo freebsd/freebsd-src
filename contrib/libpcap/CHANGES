@@ -1,4 +1,17 @@
-@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.59 2004/03/30 14:42:50 mcr Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.59.2.1 2005/07/05 21:04:27 mcr Exp $ (LBL)
+
+Tue. 	July 5, 2005.  ken@xelerance.com. Summary for 3.9.x tcpdump
+
+	Fixes for compiling on nearly every platform,
+		including improved 64bit support
+	MSDOS Support
+	Add support for sending packets
+	OpenBSD pf format support
+	IrDA capture (Linux only)
+
+Tue.   May 27, 2005. mcr@sandelman.ottawa.on.ca. Summary for 0.9.1 release
+
+	Numerous fixes for 
 
 Tue.   March 30, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.3 release
 
