@@ -240,7 +240,7 @@ Identifying Your Adapter section.
   At runtime use:
         sysctl kern.polling.enable=1 to turn polling on
   Use:
-        sysctl ker.polling.enable=0 to turn polling off
+        sysctl kern.polling.enable=0 to turn polling off
 
   Checksum Offload
   ----------------
