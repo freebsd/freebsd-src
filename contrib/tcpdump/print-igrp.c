@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-igrp.c,v 1.20 2003/11/16 09:36:23 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-igrp.c,v 1.20.2.1 2005/04/20 21:02:15 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -77,15 +77,13 @@ static struct tok op2str[] = {
 };
 
 void
-igrp_print(register const u_char *bp, u_int length, register const u_char *bp2)
+igrp_print(register const u_char *bp, u_int length, const u_char *bp2 _U_)
 {
 	register struct igrphdr *hdr;
-	register struct ip *ip;
 	register u_char *cp;
 	u_int nint, nsys, next;
 
 	hdr = (struct igrphdr *)bp;
-	ip = (struct ip *)bp2;
 	cp = (u_char *)(hdr + 1);
         (void)printf("igrp:");
 

@@ -16,7 +16,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-eigrp.c,v 1.5 2004/05/12 22:22:40 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-eigrp.c,v 1.5.2.2 2005/05/06 02:53:41 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -216,7 +216,7 @@ eigrp_print(register const u_char *pptr, register u_int len) {
     const struct eigrp_common_header *eigrp_com_header;
     const struct eigrp_tlv_header *eigrp_tlv_header;
     const u_char *tptr,*tlv_tptr;
-    int tlen,eigrp_tlv_len,eigrp_tlv_type,tlv_tlen,byte_length, bit_length;
+    u_int tlen,eigrp_tlv_len,eigrp_tlv_type,tlv_tlen, byte_length, bit_length;
     u_int8_t prefix[4];
 
     union {
@@ -271,15 +271,15 @@ eigrp_print(register const u_char *pptr, register u_int len) {
 
     while(tlen>0) {
         /* did we capture enough for fully decoding the object header ? */
-        if (!TTEST2(*tptr, sizeof(struct eigrp_tlv_header)))
-            goto trunc;
+        TCHECK2(*tptr, sizeof(struct eigrp_tlv_header));
 
         eigrp_tlv_header = (const struct eigrp_tlv_header *)tptr;
         eigrp_tlv_len=EXTRACT_16BITS(&eigrp_tlv_header->length);
         eigrp_tlv_type=EXTRACT_16BITS(&eigrp_tlv_header->type);
 
 
-        if (eigrp_tlv_len == 0 || eigrp_tlv_len > tlen) {
+        if (eigrp_tlv_len < sizeof(struct eigrp_tlv_header) ||
+            eigrp_tlv_len > tlen) {
             print_unknown_data(tptr+sizeof(sizeof(struct eigrp_tlv_header)),"\n\t    ",tlen);
             return;
         }
@@ -295,8 +295,7 @@ eigrp_print(register const u_char *pptr, register u_int len) {
         tlv_tlen=eigrp_tlv_len-sizeof(struct eigrp_tlv_header);
 
         /* did we capture enough for fully decoding the object ? */
-        if (!TTEST2(*tptr, eigrp_tlv_len))
-            goto trunc;
+        TCHECK2(*tptr, eigrp_tlv_len);
 
         switch(eigrp_tlv_type) {
 
@@ -326,7 +325,7 @@ eigrp_print(register const u_char *pptr, register u_int len) {
             tlv_ptr.eigrp_tlv_ip_int = (const struct eigrp_tlv_ip_int_t *)tlv_tptr;
 
             bit_length = tlv_ptr.eigrp_tlv_ip_int->plen;
-            if (bit_length < 0 || bit_length > 32) {
+            if (bit_length > 32) {
                 printf("\n\t    illegal prefix length %u",bit_length);
                 break;
             }
@@ -340,7 +339,7 @@ eigrp_print(register const u_char *pptr, register u_int len) {
             if (EXTRACT_32BITS(&tlv_ptr.eigrp_tlv_ip_int->nexthop) == 0)
                 printf("self");
             else
-                printf("%s",ipaddr_string(EXTRACT_32BITS(&tlv_ptr.eigrp_tlv_ip_int->nexthop)));
+                printf("%s",ipaddr_string(&tlv_ptr.eigrp_tlv_ip_int->nexthop));
 
             printf("\n\t      delay %u ms, bandwidth %u Kbps, mtu %u, hop %u, reliability %u, load %u",
                    (EXTRACT_32BITS(&tlv_ptr.eigrp_tlv_ip_int->delay)/100),
@@ -355,7 +354,7 @@ eigrp_print(register const u_char *pptr, register u_int len) {
             tlv_ptr.eigrp_tlv_ip_ext = (const struct eigrp_tlv_ip_ext_t *)tlv_tptr;
 
             bit_length = tlv_ptr.eigrp_tlv_ip_ext->plen;
-            if (bit_length < 0 || bit_length > 32) {
+            if (bit_length > 32) {
                 printf("\n\t    illegal prefix length %u",bit_length);
                 break;
             }
@@ -369,7 +368,7 @@ eigrp_print(register const u_char *pptr, register u_int len) {
             if (EXTRACT_32BITS(&tlv_ptr.eigrp_tlv_ip_ext->nexthop) == 0)
                 printf("self");
             else
-                printf("%s",ipaddr_string(EXTRACT_32BITS(&tlv_ptr.eigrp_tlv_ip_ext->nexthop)));
+                printf("%s",ipaddr_string(&tlv_ptr.eigrp_tlv_ip_ext->nexthop));
 
             printf("\n\t      origin-router %s, origin-as %u, origin-proto %s, flags [0x%02x], tag 0x%08x, metric %u",
                    ipaddr_string(tlv_ptr.eigrp_tlv_ip_ext->origin_router),

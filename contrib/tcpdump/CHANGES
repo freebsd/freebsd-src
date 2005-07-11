@@ -1,4 +1,40 @@
-$Header: /tcpdump/master/tcpdump/CHANGES,v 1.87 2004/03/30 14:42:38 mcr Exp $
+$Header: /tcpdump/master/tcpdump/CHANGES,v 1.87.2.1 2005/07/05 21:08:01 mcr Exp $
+
+Tue. 	July 5, 2005.  ken@xelerance.com. Summary for 3.9.x tcpdump
+
+	Option to chroot() when dropping privs  
+	Fixes for compiling on nearly every platform,
+		including improved 64bit support
+	Many new testcases
+	Support for sending packets
+	Many compliation fixes on most platforms
+	Fixes for recent version of GCC to eliminate warnings
+	Improved Unicode support
+
+	Decoders & DLT Changes, Updates and New:
+		AES ESP support
+		Juniper ATM, FRF.15, FRF.16, PPPoE, 
+			ML-FR, ML-PIC, ML-PPP, PL-PPP, LS-PIC 
+			GGSN,ES,MONITOR,SERVICES
+		L2VPN
+		Axent Raptor/Symantec Firewall
+		TCP-MD5 (RFC 2385)
+		ESP-in-UDP (RFC 3948)
+		ATM OAM
+		LMP, LMP Service Discovery
+		IP over FC
+		IP over IEEE 1394
+		BACnet MS/TP
+		SS7
+		LDP over TCP
+		PGM (RFC 3208)
+		LSP-PING
+		G.7041/Y.1303 Generic Framing Procedure
+		EIGRP-IP, EIGRP-IPX
+		ICMP6
+		Radio - via radiotap
+		DHCPv6
+		HDLC over PPP
 
 Tue.   March 30, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.3 release
 

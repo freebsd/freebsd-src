@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-mobility.c,v 1.11 2003/11/16 09:36:28 guy Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-mobility.c,v 1.11.2.1 2005/04/20 22:21:16 guy Exp $";
 #endif
 
 #ifdef INET6
@@ -168,15 +168,13 @@ trunc:
  * Mobility Header
  */
 int
-mobility_print(const u_char *bp, const u_char *bp2)
+mobility_print(const u_char *bp, const u_char *bp2 _U_)
 {
 	const struct ip6_mobility *mh;
-	const struct ip6_hdr *ip6;
 	const u_char *ep;
 	int mhlen, hlen, type;
 
 	mh = (struct ip6_mobility *)bp;
-	ip6 = (struct ip6_hdr *)bp2;
 
 	/* 'ep' points to the end of available data. */
 	ep = snapend;

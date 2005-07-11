@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.32 2005/04/06 21:32:38 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.32.2.7 2005/04/27 14:35:56 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -112,45 +112,54 @@ chdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 	return (CHDLC_HDRLEN);
 }
 
+/*
+ * The fixed-length portion of a SLARP packet.
+ */
 struct cisco_slarp {
-	u_int32_t code;
+	u_int8_t code[4];
 #define SLARP_REQUEST	0
 #define SLARP_REPLY	1
 #define SLARP_KEEPALIVE	2
 	union {
 		struct {
-			struct in_addr addr;
-			struct in_addr mask;
-			u_int16_t unused[3];
+			u_int8_t addr[4];
+			u_int8_t mask[4];
 		} addr;
 		struct {
-			u_int32_t myseq;
-			u_int32_t yourseq;
-			u_int16_t rel;
-			u_int16_t t1;
-			u_int16_t t2;
+			u_int8_t myseq[4];
+			u_int8_t yourseq[4];
+			u_int8_t rel[2];
 		} keep;
 	} un;
 };
 
-#define SLARP_LEN	18
+#define SLARP_MIN_LEN	14
+#define SLARP_MAX_LEN	18
 
 static void
 chdlc_slarp_print(const u_char *cp, u_int length)
 {
 	const struct cisco_slarp *slarp;
+        u_int sec,min,hrs,days;
 
-	if (length < SLARP_LEN)
+        printf("SLARP (length: %u), ",length);
+	if (length < SLARP_MIN_LEN)
 		goto trunc;
 
 	slarp = (const struct cisco_slarp *)cp;
-	TCHECK(*slarp);
-        printf("SLARP (length: %u), ",length);
+	TCHECK2(*slarp, SLARP_MIN_LEN);
 	switch (EXTRACT_32BITS(&slarp->code)) {
 	case SLARP_REQUEST:
 		printf("request");
-                /* ok we do not know it - but lets at least dump it */
-                print_unknown_data(cp+4,"\n\t",length-4);
+		/*
+		 * At least according to William "Chops" Westfield's
+		 * message in
+		 *
+		 *	http://www.nethelp.no/net/cisco-hdlc.txt
+		 *
+		 * the address and mask aren't used in requests -
+		 * they're just zero.
+		 */
 		break;
 	case SLARP_REPLY:
 		printf("reply %s/%s",
@@ -158,13 +167,21 @@ chdlc_slarp_print(const u_char *cp, u_int length)
 			ipaddr_string(&slarp->un.addr.mask));
 		break;
 	case SLARP_KEEPALIVE:
-		printf("keepalive: mineseen=0x%08x, yourseen=0x%08x",
-			EXTRACT_32BITS(&slarp->un.keep.myseq),
-			EXTRACT_32BITS(&slarp->un.keep.yourseq));
-		printf(", reliability=0x%04x, t1=%d.%d",
-			EXTRACT_16BITS(&slarp->un.keep.rel),
-			EXTRACT_16BITS(&slarp->un.keep.t1),
-			EXTRACT_16BITS(&slarp->un.keep.t2));
+		printf("keepalive: mineseen=0x%08x, yourseen=0x%08x, reliability=0x%04x",
+                       EXTRACT_32BITS(&slarp->un.keep.myseq),
+                       EXTRACT_32BITS(&slarp->un.keep.yourseq),
+                       EXTRACT_16BITS(&slarp->un.keep.rel));
+
+                if (length >= SLARP_MAX_LEN) { /* uptime-stamp is optional */
+                        cp += SLARP_MIN_LEN;
+                        if (!TTEST2(*cp, 4))
+                                goto trunc;
+                        sec = EXTRACT_32BITS(cp) / 1000;
+                        min = sec / 60; sec -= min * 60;
+                        hrs = min / 60; min -= hrs * 60;
+                        days = hrs / 24; hrs -= days * 24;
+                        printf(", link uptime=%ud%uh%um%us",days,hrs,min,sec);
+                }
 		break;
 	default:
 		printf("0x%02x unknown", EXTRACT_32BITS(&slarp->code));
@@ -173,8 +190,8 @@ chdlc_slarp_print(const u_char *cp, u_int length)
 		break;
 	}
 
-	if (SLARP_LEN < length && vflag)
-		printf(", (trailing junk: %d bytes)", length - SLARP_LEN);
+	if (SLARP_MAX_LEN < length && vflag)
+		printf(", (trailing junk: %d bytes)", length - SLARP_MAX_LEN);
         if (vflag > 1)
             print_unknown_data(cp+4,"\n\t",length-4);
 	return;
