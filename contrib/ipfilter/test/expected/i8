@@ -1,2 +1,0 @@
-pass in proto icmp from 127.0.0.1/32 to 127.0.0.1/32 icmp-type timest
-block in proto icmp from any to any icmp-type unreach code 1

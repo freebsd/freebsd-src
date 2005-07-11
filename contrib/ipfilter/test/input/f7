@@ -1,9 +1,0 @@
-in icmp 1.1.1.1 2.1.1.1 echo
-in icmp 1.1.1.1 2.1.1.1 echo,1
-in icmp 1.1.1.1 2.1.1.1 echo,3
-in icmp 1.1.1.1 2.1.1.1 unreach
-in icmp 1.1.1.1 2.1.1.1 unreach,1
-in icmp 1.1.1.1 2.1.1.1 unreach,3
-in icmp 1.1.1.1 2.1.1.1 echorep
-in icmp 1.1.1.1 2.1.1.1 echorep,1
-in icmp 1.1.1.1 2.1.1.1 echorep,3
