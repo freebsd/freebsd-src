@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-	"@(#) $Header: /tcpdump/master/libpcap/pcap-dag.c,v 1.21 2005/04/03 23:56:47 guy Exp $ (LBL)";
+	"@(#) $Header: /tcpdump/master/libpcap/pcap-dag.c,v 1.21.2.1 2005/05/03 18:54:35 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -507,6 +507,7 @@ dag_open_live(const char *device, int snaplen, int promisc, int to_ms, char *ebu
 	handle->read_op = dag_read;
 	handle->inject_op = dag_inject;
 	handle->setfilter_op = dag_setfilter;
+	handle->setdirection_op = NULL; /* Not implemented.*/
 	handle->set_datalink_op = dag_set_datalink;
 	handle->getnonblock_op = pcap_getnonblock_fd;
 	handle->setnonblock_op = dag_setnonblock;

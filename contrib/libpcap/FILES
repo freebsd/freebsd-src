@@ -12,6 +12,7 @@ README.dag
 README.hpux
 README.linux
 README.macosx
+README.septel
 README.tru64
 README.Win32
 SUNOS4/nit_if.o.sparc
@@ -87,6 +88,8 @@ pcap-nit.h
 pcap-null.c
 pcap-pf.c
 pcap-pf.h
+pcap-septel.c
+pcap-septel.h
 pcap-stdinc.h
 pcap-snit.c
 pcap-snoop.c
@@ -96,7 +99,6 @@ pcap.c
 pcap.h
 pf.h
 ppp.h
-rawss7.h
 savefile.c
 scanner.l
 sll.h

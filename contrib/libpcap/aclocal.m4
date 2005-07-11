@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/libpcap/aclocal.m4,v 1.85 2005/03/27 03:27:09 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/libpcap/aclocal.m4,v 1.85.2.1 2005/04/21 03:42:09 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996, 1997, 1998
 dnl	The Regents of the University of California.  All rights reserved.
@@ -851,10 +851,10 @@ dnl
 AC_DEFUN(AC_C___ATTRIBUTE__, [
 AC_MSG_CHECKING(for __attribute__)
 AC_CACHE_VAL(ac_cv___attribute__, [
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE(
+  AC_LANG_SOURCE([[
 #include <stdlib.h>
-],
-[
+
 static void foo(void) __attribute__ ((noreturn));
 
 static void
@@ -862,7 +862,13 @@ foo(void)
 {
   exit(1);
 }
-],
+
+int
+main(int argc, char **argv)
+{
+  foo();
+}
+  ]]),
 ac_cv___attribute__=yes,
 ac_cv___attribute__=no)])
 if test "$ac_cv___attribute__" = "yes"; then

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.68 2004/12/18 08:52:10 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.68.2.2 2005/05/03 18:54:36 guy Exp $ (LBL)
  */
 
 #ifndef pcap_int_h
@@ -99,6 +99,14 @@ struct pcap_md {
 #endif
 };
 
+/*
+ * Ultrix, DEC OSF/1^H^H^H^H^H^H^H^H^HDigital UNIX^H^H^H^H^H^H^H^H^H^H^H^H
+ * Tru64 UNIX, and NetBSD pad to make everything line up on a nice boundary.
+ */
+#if defined(ultrix) || defined(__osf__) || (defined(__NetBSD__) && __NetBSD_Version__ > 106000000)
+#define       PCAP_FDDIPAD 3
+#endif
+
 struct pcap {
 #ifdef WIN32
 	ADAPTER *adapter;
@@ -142,12 +150,16 @@ struct pcap {
 	 */
 	u_char *pkt;
 
+	/* We're accepting only packets in this direction/these directions. */
+	direction_t direction;
+
 	/*
 	 * Methods.
 	 */
 	int	(*read_op)(pcap_t *, int cnt, pcap_handler, u_char *);
 	int	(*inject_op)(pcap_t *, const void *, size_t);
 	int	(*setfilter_op)(pcap_t *, struct bpf_program *);
+	int	(*setdirection_op)(pcap_t *, direction_t);
 	int	(*set_datalink_op)(pcap_t *, int);
 	int	(*getnonblock_op)(pcap_t *, char *);
 	int	(*setnonblock_op)(pcap_t *, int, char *);
@@ -237,15 +249,6 @@ int	yylex(void);
 /* XXX should these be in pcap.h? */
 int	pcap_offline_read(pcap_t *, int, pcap_handler, u_char *);
 int	pcap_read(pcap_t *, int cnt, pcap_handler, u_char *);
-
-
-/*
- * Ultrix, DEC OSF/1^H^H^H^H^H^H^H^H^HDigital UNIX^H^H^H^H^H^H^H^H^H^H^H^H
- * Tru64 UNIX, and NetBSD pad to make everything line up on a nice boundary.
- */
-#if defined(ultrix) || defined(__osf__) || defined(__NetBSD__)
-#define       PCAP_FDDIPAD 3
-#endif
 
 #ifndef HAVE_STRLCPY
 #define strlcpy(x, y, z) \

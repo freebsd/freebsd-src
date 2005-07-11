@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/gencode.h,v 1.60 2004/06/16 08:20:30 hannes Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/gencode.h,v 1.60.2.5 2005/06/20 21:30:17 guy Exp $ (LBL)
  */
 
 /*
@@ -55,6 +55,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HAVE___ATTRIBUTE__
+#define __attribute__(x)
+#endif /* HAVE___ATTRIBUTE__ */
+
 /* Address qualifiers. */
 
 #define Q_HOST		1
@@ -63,6 +67,7 @@
 #define Q_GATEWAY	4
 #define Q_PROTO		5
 #define Q_PROTOCHAIN	6
+#define Q_PORTRANGE	7
 
 /* Protocol qualifiers. */
 
@@ -119,6 +124,8 @@
 #define Q_ISIS_PSNP     38
 #define Q_ISIS_LSP      39
 
+#define Q_RADIO		40
+
 /* Directional qualifiers. */
 
 #define Q_SRC		1
@@ -165,6 +172,13 @@
 				   circuit, oamf4 segment circuit, oamf4
 				   end-to-end circuits, ILMI circuits or
 				   connection signalling circuit. */
+
+/*MTP3 field types */
+#define M_SIO 1
+#define M_OPC 2
+#define M_DPC 3
+#define M_SLS 4
+
 
 struct slist;
 
@@ -275,9 +289,11 @@ struct block *gen_inbound(int);
 struct block *gen_vlan(int);
 struct block *gen_mpls(int);
 
-struct block *gen_atmfield_code(int atmfield, bpf_u_int32 jvalue, bpf_u_int32 jtype, int reverse);
+struct block *gen_atmfield_code(int atmfield, bpf_int32 jvalue, bpf_u_int32 jtype, int reverse);
 struct block *gen_atmtype_abbrev(int type);
 struct block *gen_atmmulti_abbrev(int type);
+
+struct block *gen_mtp3field_code(int mtp3field, bpf_u_int32 jvalue, bpf_u_int32 jtype, int reverse);
 
 struct block *gen_pf_ifname(const char *);
 struct block *gen_pf_rnr(int);
@@ -289,10 +305,7 @@ struct block *gen_pf_dir(int);
 
 void bpf_optimize(struct block **);
 void bpf_error(const char *, ...)
-#if HAVE___ATTRIBUTE__
-    __attribute__((noreturn, format (printf, 1, 2)))
-#endif
-;
+    __attribute__((noreturn, format (printf, 1, 2)));
 
 void finish_parse(struct block *);
 char *sdup(const char *);
