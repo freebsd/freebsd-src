@@ -401,11 +401,10 @@ ccmp_encrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 	struct ccmp_ctx *ctx = key->wk_private;
 	struct ieee80211_frame *wh;
 	struct mbuf *m = m0;
-	int data_len, i;
+	int data_len, i, space;
 	uint8_t aad[2 * AES_BLOCK_LEN], b0[AES_BLOCK_LEN], b[AES_BLOCK_LEN],
 		e[AES_BLOCK_LEN], s0[AES_BLOCK_LEN];
 	uint8_t *pos;
-	u_int space;
 
 	ctx->cc_ic->ic_stats.is_crypto_ccmp++;
 
@@ -444,27 +443,75 @@ ccmp_encrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 		}
 		if (space != 0) {
 			uint8_t *pos_next;
-			u_int space_next;
-			u_int len;
+			int space_next;
+			int len, dl, sp;
+			struct mbuf *n;
 
 			/*
-			 * Block straddles buffers, split references.  We
-			 * do not handle splits that require >2 buffers.
+			 * Block straddles one or more mbufs, gather data
+			 * into the block buffer b, apply the cipher, then
+			 * scatter the results back into the mbuf chain.
+			 * The buffer will automatically get space bytes
+			 * of data at offset 0 copied in+out by the
+			 * CCMP_ENCRYPT request so we must take care of
+			 * the remaining data.
 			 */
-			pos_next = mtod(m, uint8_t *);
-			len = min(data_len, AES_BLOCK_LEN);
-			space_next = len > space ? len - space : 0;
-			KASSERT(m->m_len >= space_next,
-				("not enough data in following buffer, "
-				"m_len %u need %u\n", m->m_len, space_next));
+			n = m;
+			dl = data_len;
+			sp = space;
+			for (;;) {
+				pos_next = mtod(n, uint8_t *);
+				len = min(dl, AES_BLOCK_LEN);
+				space_next = len > sp ? len - sp : 0;
+				if (n->m_len >= space_next) {
+					/*
+					 * This mbuf has enough data; just grab
+					 * what we need and stop.
+					 */
+					xor_block(b+sp, pos_next, space_next);
+					break;
+				}
+				/*
+				 * This mbuf's contents are insufficient,
+				 * take 'em all and prepare to advance to
+				 * the next mbuf.
+				 */
+				xor_block(b+sp, pos_next, n->m_len);
+				sp += n->m_len, dl -= n->m_len;
+				n = n->m_next;
+				if (n == NULL)
+					break;
+			}
 
-			xor_block(b+space, pos_next, space_next);
 			CCMP_ENCRYPT(i, b, b0, pos, e, space);
-			xor_block(pos_next, e+space, space_next);
-			data_len -= len;
-			/* XXX could check for data_len <= 0 */
-			i++;
 
+			/* NB: just like above, but scatter data to mbufs */
+			dl = data_len;
+			sp = space;
+			for (;;) {
+				pos_next = mtod(m, uint8_t *);
+				len = min(dl, AES_BLOCK_LEN);
+				space_next = len > sp ? len - sp : 0;
+				if (m->m_len >= space_next) {
+					xor_block(pos_next, e+sp, space_next);
+					break;
+				}
+				xor_block(pos_next, e+sp, m->m_len);
+				sp += m->m_len, dl -= m->m_len;
+				m = m->m_next;
+				if (m == NULL)
+					goto done;
+			}
+			/*
+			 * Do bookkeeping.  m now points to the last mbuf
+			 * we grabbed data from.  We know we consumed a
+			 * full block of data as otherwise we'd have hit
+			 * the end of the mbuf chain, so deduct from data_len.
+			 * Otherwise advance the block number (i) and setup
+			 * pos+space to reflect contents of the new mbuf.
+			 */
+			data_len -= AES_BLOCK_LEN;
+			i++;
 			pos = pos_next + space_next;
 			space = m->m_len - space_next;
 		} else {
@@ -475,6 +522,7 @@ ccmp_encrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 			space = m->m_len;
 		}
 	}
+done:
 	/* tack on MIC */
 	xor_block(b, s0, ccmp.ic_trailer);
 	return m_append(m0, ccmp.ic_trailer, b);
@@ -540,7 +588,9 @@ ccmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m, int hdrlen
 
 			/*
 			 * Block straddles buffers, split references.  We
-			 * do not handle splits that require >2 buffers.
+			 * do not handle splits that require >2 buffers
+			 * since rx'd frames are never badly fragmented
+			 * because drivers typically recv in clusters.
 			 */
 			pos_next = mtod(m, uint8_t *);
 			len = min(data_len, AES_BLOCK_LEN);
