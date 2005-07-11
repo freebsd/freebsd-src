@@ -57,6 +57,20 @@
 #include <sys/types.h>
 #include <net/netdb.h>  /* in wpcap's Win32/include */
 
+#if !defined(__MINGW32__) && !defined(__WATCOMC__)
+#undef toascii
+#define isascii __isascii
+#define toascii __toascii
+#define stat _stat
+#define open _open
+#define fstat _fstat
+#define read _read
+#define close _close
+#define O_RDONLY _O_RDONLY
+
+typedef short ino_t;
+#endif /* __MINGW32__ */
+
 #ifdef __MINGW32__
 #include <stdint.h>
 #endif
@@ -91,8 +105,15 @@ typedef char* caddr_t;
 #include <ctype.h>
 #include <unistd.h>
 #include <netdb.h>
-#ifdef INTTYPES_H_DEFINES_FORMATS
+#if HAVE_INTTYPES_H
 #include <inttypes.h>
+#else
+#if HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#endif
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
 #endif
 #include <sys/param.h>
 #include <sys/types.h>			/* concession to AIX */
