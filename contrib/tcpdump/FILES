@@ -103,6 +103,7 @@ oui.c
 oui.h
 packetdat.awk
 parsenfsfh.c
+pcap_dump_ftell.c
 pcap-missing.h
 pf.h
 pmap_prot.h
@@ -171,6 +172,7 @@ print-null.c
 print-ospf.c
 print-ospf6.c
 print-pflog.c
+print-pgm.c
 print-pim.c
 print-ppp.c
 print-pppoe.c

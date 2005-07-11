@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-rsvp.c,v 1.33 2005/01/13 07:08:54 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-rsvp.c,v 1.33.2.3 2005/06/16 00:50:12 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -548,7 +548,7 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
     } bw;
     u_int8_t namelen;
 
-    while(tlen>0) {
+    while(tlen>=sizeof(struct rsvp_object_header)) {
         /* did we capture enough for fully decoding the object header ? */
         if (!TTEST2(*tptr, sizeof(struct rsvp_object_header)))
             goto trunc;
@@ -557,7 +557,11 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
         rsvp_obj_len=EXTRACT_16BITS(rsvp_obj_header->length);
         rsvp_obj_ctype=rsvp_obj_header->ctype;
 
-        if(rsvp_obj_len % 4 || rsvp_obj_len < sizeof(struct rsvp_object_header)) {
+        if(rsvp_obj_len % 4) {
+            printf("%sERROR: object header size %u not a multiple of 4", ident, rsvp_obj_len);
+            return -1;
+        }
+        if(rsvp_obj_len < sizeof(struct rsvp_object_header)) {
             printf("%sERROR: object header too short %u < %lu", ident, rsvp_obj_len,
                    (unsigned long)sizeof(const struct rsvp_object_header));
             return -1;
@@ -582,6 +586,11 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
                rsvp_obj_ctype,
                rsvp_obj_len);
     
+        if(tlen < rsvp_obj_len) {
+            printf("%sERROR: object goes past end of objects TLV", ident);
+            return -1;
+        }
+
         obj_tptr=tptr+sizeof(struct rsvp_object_header);
         obj_tlen=rsvp_obj_len-sizeof(struct rsvp_object_header);
 
@@ -1268,6 +1277,8 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
                            *(obj_tptr+1));
                     if (obj_tlen < *(obj_tptr+1))
                         return-1;
+                    if (*(obj_tptr+1) < 2)
+                        return -1;
                     print_unknown_data(obj_tptr+2,"\n\t\t",*(obj_tptr+1)-2);
                     obj_tlen-=*(obj_tptr+1);
                     obj_tptr+=*(obj_tptr+1);
@@ -1419,6 +1430,12 @@ rsvp_print(register const u_char *pptr, register u_int len) {
             if (subtlen < sizeof(const struct rsvp_common_header)) {
                 printf("ERROR: common header too short %u < %lu", subtlen,
                        (unsigned long)sizeof(const struct rsvp_common_header));
+                return;
+            }
+
+            if (tlen < subtlen) {
+                printf("ERROR: common header too large %u > %u", subtlen,
+                       tlen);
                 return;
             }
 

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.56 2004/09/29 16:49:31 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.56.2.2 2005/05/06 07:57:19 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -873,15 +873,13 @@ trunc:
 
 void
 ospf_print(register const u_char *bp, register u_int length,
-    register const u_char *bp2)
+    const u_char *bp2 _U_)
 {
 	register const struct ospfhdr *op;
-	register const struct ip *ip;
 	register const u_char *dataend;
 	register const char *cp;
 
 	op = (struct ospfhdr *)bp;
-	ip = (struct ip *)bp2;
 
         /* XXX Before we do anything else, strip off the MD5 trailer */
         TCHECK(op->ospf_authtype);
@@ -934,8 +932,11 @@ ospf_print(register const u_char *bp, register u_int length,
 			break;
 
 		case OSPF_AUTH_SIMPLE:
-			(void)fn_printn(op->ospf_authdata,
-			    sizeof(op->ospf_authdata), NULL);
+			if (fn_printn(op->ospf_authdata,
+			    sizeof(op->ospf_authdata), snapend)) {
+				printf("\"");
+				goto trunc;
+			}
 			printf("\"");
 			break;
 

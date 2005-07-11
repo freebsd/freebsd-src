@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/gmpls.c,v 1.5 2004/09/15 17:54:10 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/gmpls.c,v 1.5.2.1 2005/05/19 06:44:02 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -131,6 +131,50 @@ struct tok gmpls_payload_values[] = {
     { 57,   "FICON"},
     { 58,   "Fiber Channel"},
     { 0, NULL }
+};
+
+/* 
+ * Link Type values used by LMP Service Discovery (specifically, the Client 
+ * Port Service Attributes Object). See UNI 1.0 section 9.4.2 for details.
+ */
+struct tok lmp_sd_service_config_cpsa_link_type_values[] = {
+    { 5, "SDH ITU-T G.707"},
+    { 6, "SONET ANSI T1.105"},
+    { 0, NULL}
+};
+
+/* 
+ * Signal Type values for SDH links used by LMP Service Discovery (specifically, 
+ * the Client Port Service Attributes Object). See UNI 1.0 section 9.4.2 for 
+ * details.
+ */
+struct tok lmp_sd_service_config_cpsa_signal_type_sdh_values[] = {
+    { 5,  "VC-3"},
+    { 6,  "VC-4"},
+    { 7,  "STM-0"},
+    { 8,  "STM-1"},
+    { 9,  "STM-4"},
+    { 10, "STM-16"},
+    { 11, "STM-64"},
+    { 12, "STM-256"},
+    { 0, NULL}
+};
+
+/* 
+ * Signal Type values for SONET links used by LMP Service Discovery (specifically, 
+ * the Client Port Service Attributes Object). See UNI 1.0 section 9.4.2 for 
+ * details.
+ */
+struct tok lmp_sd_service_config_cpsa_signal_type_sonet_values[] = {
+    { 5,  "STS-1 SPE"},
+    { 6,  "STS-3c SPE"},
+    { 7,  "STS-1"},
+    { 8,  "STM-3"},
+    { 9,  "STM-12"},
+    { 10, "STM-48"},
+    { 11, "STM-192"},
+    { 12, "STM-768"},
+    { 0, NULL}
 };
 
 #define DIFFSERV_BC_MODEL_RDM           0   /* draft-ietf-tewg-diff-te-proto-07 */

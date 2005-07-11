@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-pim.c,v 1.45 2005/04/06 21:32:42 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-pim.c,v 1.45.2.2 2005/04/20 22:08:44 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -161,6 +161,10 @@ pimv1_join_prune_print(register const u_char *bp, register u_int len)
 	bp += 4;
 	len -= 4;
 	while (ngroups--) {
+		/*
+		 * XXX - does the address have length "addrlen" and the
+		 * mask length "maddrlen"?
+		 */
 		TCHECK2(bp[0], 4);
 		(void)printf("\n\tGroup: %s", ipaddr_string(bp));
 		TCHECK2(bp[4], 4);
@@ -507,7 +511,6 @@ static int
 pimv2_addr_print(const u_char *bp, enum pimv2_addrtype at, int silent)
 {
 	int af;
-	const char *afstr;
 	int len, hdrlen;
 
 	TCHECK(bp[0]);
@@ -517,13 +520,11 @@ pimv2_addr_print(const u_char *bp, enum pimv2_addrtype at, int silent)
 		switch (bp[0]) {
 		case 1:
 			af = AF_INET;
-			afstr = "IPv4";
 			len = 4;
 			break;
 #ifdef INET6
 		case 2:
 			af = AF_INET6;
-			afstr = "IPv6";
 			len = 16;
 			break;
 #endif
@@ -537,12 +538,10 @@ pimv2_addr_print(const u_char *bp, enum pimv2_addrtype at, int silent)
 		switch (pimv2_addr_len) {
 		case 4:
 			af = AF_INET;
-			afstr = "IPv4";
 			break;
 #ifdef INET6
 		case 16:
 			af = AF_INET6;
-			afstr = "IPv6";
 			break;
 #endif
 		default:

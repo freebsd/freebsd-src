@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-isoclns.c,v 1.133 2005/04/06 21:32:40 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-isoclns.c,v 1.133.2.12 2005/06/16 01:14:52 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -127,7 +127,7 @@ static struct tok isis_pdu_values[] = {
 #define ISIS_TLV_SHARED_RISK_GROUP   138 /* draft-ietf-isis-gmpls-extensions */
 #define ISIS_TLV_NORTEL_PRIVATE1     176
 #define ISIS_TLV_NORTEL_PRIVATE2     177
-#define ISIS_TLV_RESTART_SIGNALING   211 /* draft-ietf-isis-restart-01 */
+#define ISIS_TLV_RESTART_SIGNALING   211 /* rfc3847 */
 #define ISIS_TLV_MT_IS_REACH         222 /* draft-ietf-isis-wg-multi-topology-05 */
 #define ISIS_TLV_MT_SUPPORTED        229 /* draft-ietf-isis-wg-multi-topology-05 */
 #define ISIS_TLV_IP6ADDR             232 /* draft-ietf-isis-ipv6-02 */
@@ -201,12 +201,20 @@ static struct tok esis_option_values[] = {
 
 #define CLNP_OPTION_DISCARD_REASON   193
 #define CLNP_OPTION_QOS_MAINTENANCE  195 /* iso8473 */
+#define CLNP_OPTION_SECURITY         197 /* iso8473 */
+#define CLNP_OPTION_SOURCE_ROUTING   200 /* iso8473 */
+#define CLNP_OPTION_ROUTE_RECORDING  203 /* iso8473 */
+#define CLNP_OPTION_PADDING          204 /* iso8473 */
 #define CLNP_OPTION_PRIORITY         205 /* iso8473 */
 
 static struct tok clnp_option_values[] = {
     { CLNP_OPTION_DISCARD_REASON,  "Discard Reason"},
     { CLNP_OPTION_PRIORITY,        "Priority"},
     { CLNP_OPTION_QOS_MAINTENANCE, "QoS Maintenance"},
+    { CLNP_OPTION_SECURITY, "Security"},
+    { CLNP_OPTION_SOURCE_ROUTING, "Source Routing"},
+    { CLNP_OPTION_ROUTE_RECORDING, "Route Recording"},
+    { CLNP_OPTION_PADDING, "Padding"},
     { 0, NULL }
 };
 
@@ -286,6 +294,40 @@ static struct tok *clnp_option_rfd_error_class[] = {
     NULL
 };
 
+#define CLNP_OPTION_OPTION_QOS_MASK 0x3f
+#define CLNP_OPTION_SCOPE_MASK      0xc0
+#define CLNP_OPTION_SCOPE_SA_SPEC   0x40
+#define CLNP_OPTION_SCOPE_DA_SPEC   0x80
+#define CLNP_OPTION_SCOPE_GLOBAL    0xc0
+
+static struct tok clnp_option_scope_values[] = {
+    { CLNP_OPTION_SCOPE_SA_SPEC, "Source Address Specific"},
+    { CLNP_OPTION_SCOPE_DA_SPEC, "Destination Address Specific"},
+    { CLNP_OPTION_SCOPE_GLOBAL, "Globally unique"},
+    { 0, NULL }
+};
+
+static struct tok clnp_option_sr_rr_values[] = {
+    { 0x0, "partial"},
+    { 0x1, "complete"},
+    { 0, NULL }
+};
+
+static struct tok clnp_option_sr_rr_string_values[] = {
+    { CLNP_OPTION_SOURCE_ROUTING, "source routing"},
+    { CLNP_OPTION_ROUTE_RECORDING, "recording of route in progress"},
+    { 0, NULL }
+};
+
+static struct tok clnp_option_qos_global_values[] = {
+    { 0x20, "reserved"},
+    { 0x10, "sequencing vs. delay"},
+    { 0x08, "congested"},
+    { 0x04, "delay vs. cost"},
+    { 0x02, "error vs. delay"},
+    { 0x01, "error vs. cost"},
+    { 0, NULL }
+};
 
 #define ISIS_SUBTLV_EXT_IS_REACH_ADMIN_GROUP           3 /* draft-ietf-isis-traffic-05 */
 #define ISIS_SUBTLV_EXT_IS_REACH_LINK_LOCAL_REMOTE_ID  4 /* draft-ietf-isis-gmpls-extensions */
@@ -487,6 +529,7 @@ static struct tok isis_is_reach_virtual_values[] = {
 static struct tok isis_restart_flag_values[] = {
     { 0x1,  "Restart Request"},
     { 0x2,  "Restart Acknowledgement"},
+    { 0x4,  "Suppress adjacency advertisement"},
     { 0, NULL }
 };
 
@@ -586,7 +629,9 @@ void isoclns_print(const u_int8_t *p, u_int length, u_int caplen)
 		break;
 
 	case NLPID_NULLNS:
-		(void)printf(", length: %u", length);
+		(void)printf("%slength: %u",
+		             eflag ? "" : ", ",
+                             length);
 		break;
 
         case NLPID_Q933:
@@ -610,7 +655,9 @@ void isoclns_print(const u_int8_t *p, u_int length, u_int caplen)
 	default:
                 if (!eflag)
                     printf("OSI NLPID 0x%02x unknown",*p);
-		(void)printf(", length: %u", length);
+		(void)printf("%slength: %u",
+		             eflag ? "" : ", ",
+                             length);
 		if (caplen > 1)
                         print_unknown_data(p,"\n\t",caplen);
 		break;
@@ -656,7 +703,7 @@ struct clnp_segment_header_t {
 static int clnp_print (const u_int8_t *pptr, u_int length)
 {
 	const u_int8_t *optr,*source_address,*dest_address;
-        u_int li,source_address_length,dest_address_length, clnp_pdu_type, clnp_flags;
+        u_int li,tlen,nsap_offset,source_address_length,dest_address_length, clnp_pdu_type, clnp_flags;
 	const struct clnp_header_t *clnp_header;
 	const struct clnp_segment_header_t *clnp_segment_header;
         u_int8_t rfd_error_major,rfd_error_minor;
@@ -746,8 +793,7 @@ static int clnp_print (const u_int8_t *pptr, u_int length)
             u_int op, opli;
             const u_int8_t *tptr;
             
-            if (snapend - pptr < 2)
-                return (0);
+            TCHECK2(*pptr, 2);
             if (li < 2) {
                 printf(", bad opts/li");
                 return (0);
@@ -755,15 +801,14 @@ static int clnp_print (const u_int8_t *pptr, u_int length)
             op = *pptr++;
             opli = *pptr++;
             li -= 2;
+            TCHECK2(*pptr, opli);
             if (opli > li) {
                 printf(", opt (%d) too long", op);
                 return (0);
             }
             li -= opli;
             tptr = pptr;
-            
-            if (snapend < pptr)
-                return(0);
+            tlen = opli;
             
             printf("\n\t  %s Option #%u, length %u, value: ",
                    tok2str(clnp_option_values,"Unknown",op),
@@ -772,9 +817,61 @@ static int clnp_print (const u_int8_t *pptr, u_int length)
 
             switch (op) {
 
+
+            case CLNP_OPTION_ROUTE_RECORDING: /* those two options share the format */
+            case CLNP_OPTION_SOURCE_ROUTING:  
+                    printf("%s %s",
+                           tok2str(clnp_option_sr_rr_values,"Unknown",*tptr),
+                           tok2str(clnp_option_sr_rr_string_values,"Unknown Option %u",op));
+                    nsap_offset=*(tptr+1);
+                    if (nsap_offset == 0) {
+                            printf(" Bad NSAP offset (0)");
+                            break;
+                    }
+                    nsap_offset-=1; /* offset to nsap list */
+                    if (nsap_offset > tlen) {
+                            printf(" Bad NSAP offset (past end of option)");
+                            break;
+                    }
+                    tptr+=nsap_offset;
+                    tlen-=nsap_offset;
+                    while (tlen > 0) {
+                            source_address_length=*tptr;
+                            if (tlen < source_address_length+1) {
+                                    printf("\n\t    NSAP address goes past end of option");
+                                    break;
+                    	    }
+                            if (source_address_length > 0) {
+                                    source_address=(tptr+1);
+                                    TCHECK2(*source_address, source_address_length);
+                                    printf("\n\t    NSAP address (length %u): %s",
+                                           source_address_length,
+                                           isonsap_string(source_address, source_address_length));
+                            }
+                            tlen-=source_address_length+1;
+                    }
+                    break;
+
             case CLNP_OPTION_PRIORITY:
-                printf("%u", *tptr);
-                break;
+                    printf("0x%1x", *tptr&0x0f);
+                    break;
+
+            case CLNP_OPTION_QOS_MAINTENANCE:
+                    printf("\n\t    Format Code: %s",
+                           tok2str(clnp_option_scope_values,"Reserved",*tptr&CLNP_OPTION_SCOPE_MASK));
+
+                    if ((*tptr&CLNP_OPTION_SCOPE_MASK) == CLNP_OPTION_SCOPE_GLOBAL)
+                            printf("\n\t    QoS Flags [%s]",
+                                   bittok2str(clnp_option_qos_global_values,
+                                              "none",
+                                              *tptr&CLNP_OPTION_OPTION_QOS_MASK));
+                    break;
+
+            case CLNP_OPTION_SECURITY:
+                    printf("\n\t    Format Code: %s, Security-Level %u",
+                           tok2str(clnp_option_scope_values,"Reserved",*tptr&CLNP_OPTION_SCOPE_MASK),
+                           *(tptr+1));
+                    break;
 
             case CLNP_OPTION_DISCARD_REASON:
                 rfd_error_major = (*tptr&0xf0) >> 4;
@@ -784,6 +881,10 @@ static int clnp_print (const u_int8_t *pptr, u_int length)
                        rfd_error_major,
                        tok2str(clnp_option_rfd_error_class[rfd_error_major],"Unknown",rfd_error_minor),
                        rfd_error_minor);
+                break;
+
+            case CLNP_OPTION_PADDING:
+                    printf("padding data");
                 break;
 
                 /*
@@ -804,6 +905,7 @@ static int clnp_print (const u_int8_t *pptr, u_int length)
 
         case    CLNP_PDU_ER: /* fall through */
         case 	CLNP_PDU_ERP:
+            TCHECK(*pptr);
             if (*(pptr) == NLPID_CLNP) {
                 printf("\n\t-----original packet-----\n\t");
                 /* FIXME recursion protection */
@@ -872,6 +974,7 @@ esis_print(const u_int8_t *pptr, u_int length)
 	}
 
 	esis_header = (const struct esis_header_t *) pptr;
+        TCHECK(*esis_header);
         li = esis_header->length_indicator;
         optr = pptr;
 
@@ -921,7 +1024,8 @@ esis_print(const u_int8_t *pptr, u_int length)
         /* do not attempt to verify the checksum if it is zero */
         if (EXTRACT_16BITS(esis_header->cksum) == 0)
                 printf("(unverified)");
-            else printf("(%s)", osi_cksum(pptr, li) ? "incorrect" : "correct");
+        else
+                printf("(%s)", osi_cksum(pptr, li) ? "incorrect" : "correct");
 
         printf(", holding time: %us, length indicator: %u",EXTRACT_16BITS(esis_header->holdtime),li);
 
@@ -933,25 +1037,72 @@ esis_print(const u_int8_t *pptr, u_int length)
 
 	switch (esis_pdu_type) {
 	case ESIS_PDU_REDIRECT: {
-		const u_int8_t *dst, *snpa, *tptr;
+		const u_int8_t *dst, *snpa, *neta;
+		u_int dstl, snpal, netal;
 
-		dst = pptr; pptr += *pptr + 1;
-		if (pptr > snapend)
+		TCHECK(*pptr);
+		if (li < 1) {
+			printf(", bad redirect/li");
 			return;
-		printf("\n\t  %s", isonsap_string(dst+1,*dst));
-		snpa = pptr; pptr += *pptr + 1;
-		tptr = pptr;   pptr += *pptr + 1;
-		if (pptr > snapend)
+		}
+		dstl = *pptr;
+		pptr++;
+		li--;
+		TCHECK2(*pptr, dstl);
+		if (li < dstl) {
+			printf(", bad redirect/li");
 			return;
+		}
+		dst = pptr;
+		pptr += dstl;
+                li -= dstl;
+		printf("\n\t  %s", isonsap_string(dst,dstl));
 
-		if (tptr[0] == 0)
-			printf("\n\t  %s", etheraddr_string(&snpa[1]));
+		TCHECK(*pptr);
+		if (li < 1) {
+			printf(", bad redirect/li");
+			return;
+		}
+		snpal = *pptr;
+		pptr++;
+		li--;
+		TCHECK2(*pptr, snpal);
+		if (li < snpal) {
+			printf(", bad redirect/li");
+			return;
+		}
+		snpa = pptr;
+		pptr += snpal;
+                li -= snpal;
+		TCHECK(*pptr);
+		if (li < 1) {
+			printf(", bad redirect/li");
+			return;
+		}
+		netal = *pptr;
+		pptr++;
+		TCHECK2(*pptr, netal);
+		if (li < netal) {
+			printf(", bad redirect/li");
+			return;
+		}
+		neta = pptr;
+		pptr += netal;
+                li -= netal;
+
+		if (netal == 0)
+			printf("\n\t  %s", etheraddr_string(snpa));
 		else
-			printf("\n\t  %s", isonsap_string(tptr+1,*tptr));
+			printf("\n\t  %s", isonsap_string(neta,netal));
 		break;
 	}
 
 	case ESIS_PDU_ESH:
+            TCHECK(*pptr);
+            if (li < 1) {
+                printf(", bad esh/li");
+                return;
+            }
             source_address_number = *pptr;
             pptr++;
             li--;
@@ -959,23 +1110,47 @@ esis_print(const u_int8_t *pptr, u_int length)
             printf("\n\t  Number of Source Addresses: %u", source_address_number);
            
             while (source_address_number > 0) {
+                TCHECK(*pptr);
+            	if (li < 1) {
+                    printf(", bad esh/li");
+            	    return;
+            	}
                 source_address_length = *pptr;
+                pptr++;
+            	li--;
+
+                TCHECK2(*pptr, source_address_length);
+            	if (li < source_address_length) {
+                    printf(", bad esh/li");
+            	    return;
+            	}
                 printf("\n\t  NET (length: %u): %s",
                        source_address_length,
-                       isonsap_string(pptr+1,source_address_length));
-
-                pptr += source_address_length+1;
-                li -= source_address_length+1;
+                       isonsap_string(pptr,source_address_length));
+                pptr += source_address_length;
+                li -= source_address_length;
                 source_address_number--;
             }
 
             break;
 
 	case ESIS_PDU_ISH: {
+            TCHECK(*pptr);
+            if (li < 1) {
+                printf(", bad ish/li");
+                return;
+            }
             source_address_length = *pptr;
-            printf("\n\t  NET (length: %u): %s", source_address_length, isonsap_string(pptr+1, source_address_length));
-            pptr += source_address_length+1;
-            li -= source_address_length +1;
+            pptr++;
+            li--;
+            TCHECK2(*pptr, source_address_length);
+            if (li < source_address_length) {
+                printf(", bad ish/li");
+                return;
+            }
+            printf("\n\t  NET (length: %u): %s", source_address_length, isonsap_string(pptr, source_address_length));
+            pptr += source_address_length;
+            li -= source_address_length;
             break;
 	}
 
@@ -992,8 +1167,7 @@ esis_print(const u_int8_t *pptr, u_int length)
             u_int op, opli;
             const u_int8_t *tptr;
             
-            if (snapend - pptr < 2)
-                return;
+            TCHECK2(*pptr, 2);
             if (li < 2) {
                 printf(", bad opts/li");
                 return;
@@ -1008,9 +1182,6 @@ esis_print(const u_int8_t *pptr, u_int length)
             li -= opli;
             tptr = pptr;
             
-            if (snapend < pptr)
-                return;
-            
             printf("\n\t  %s Option #%u, length %u, value: ",
                    tok2str(esis_option_values,"Unknown",op),
                    op,
@@ -1019,12 +1190,13 @@ esis_print(const u_int8_t *pptr, u_int length)
             switch (op) {
 
             case ESIS_OPTION_ES_CONF_TIME:
+                TCHECK2(*pptr, 2);
                 printf("%us", EXTRACT_16BITS(tptr));
                 break;
-                
 
             case ESIS_OPTION_PROTOCOLS:
                 while (opli>0) {
+                    TCHECK(*pptr);
                     printf("%s (0x%02x)",
                            tok2str(nlpid_values,
                                    "unknown",
@@ -1056,6 +1228,8 @@ esis_print(const u_int8_t *pptr, u_int length)
                 print_unknown_data(pptr,"\n\t  ",opli);
             pptr += opli;
         }
+trunc:
+	return;
 }   
 
 /* shared routine for printing system, node and lsp-ids */
@@ -1327,7 +1501,7 @@ isis_print_is_reach_subtlv (const u_int8_t *tptr,int subt,int subl,const char *i
                  not specified so just lets hexdump what is left */
               if(subl>0){
                 if(!print_unknown_data(tptr,"\n\t\t    ",
-				       subl-36))
+				       subl))
                     return(0);
               }
             }
@@ -1940,7 +2114,11 @@ static int isis_print (const u_int8_t *p, u_int length)
         case ISIS_TLV_ISNEIGH_VARLEN:
             if (!TTEST2(*tptr, 1) || tmp < 3) /* min. TLV length */
 		goto trunctlv;
-	    lan_alen = *tptr++; /* LAN adress length */
+	    lan_alen = *tptr++; /* LAN address length */
+	    if (lan_alen == 0) {
+                printf("\n\t      LAN address length 0 bytes (invalid)");
+                break;
+            }
             tmp --;
             printf("\n\t      LAN address length %u bytes ",lan_alen);
 	    while (tmp >= lan_alen) {
@@ -2084,7 +2262,7 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
 	case ISIS_TLV_IP6ADDR:
-	    while (tmp>0) {
+	    while (tmp>=16) {
 		if (!TTEST2(*tptr, 16))
 		    goto trunctlv;
 
@@ -2188,7 +2366,7 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
 	case ISIS_TLV_IPADDR:
-	    while (tmp>0) {
+	    while (tmp>=4) {
 		if (!TTEST2(*tptr, 4))
 		    goto trunctlv;
 		printf("\n\t      IPv4 interface address: %s", ipaddr_string(tptr));
@@ -2208,30 +2386,38 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
 	case ISIS_TLV_SHARED_RISK_GROUP:
+	    if (tmp < NODE_ID_LEN)
+	        break;
 	    if (!TTEST2(*tptr, NODE_ID_LEN))
                 goto trunctlv;
 	    printf("\n\t      IS Neighbor: %s", isis_print_id(tptr, NODE_ID_LEN));
 	    tptr+=(NODE_ID_LEN);
 	    tmp-=(NODE_ID_LEN);
 
+	    if (tmp < 1)
+	        break;
 	    if (!TTEST2(*tptr, 1))
                 goto trunctlv;
 	    printf(", Flags: [%s]", ISIS_MASK_TLV_SHARED_RISK_GROUP(*tptr++) ? "numbered" : "unnumbered");
 	    tmp--;
 
+	    if (tmp < 4)
+	        break;
 	    if (!TTEST2(*tptr,4))
                 goto trunctlv;
 	    printf("\n\t      IPv4 interface address: %s", ipaddr_string(tptr));
 	    tptr+=4;
 	    tmp-=4;
 
+	    if (tmp < 4)
+	        break;
 	    if (!TTEST2(*tptr,4))
                 goto trunctlv;
 	    printf("\n\t      IPv4 neighbor address: %s", ipaddr_string(tptr));
 	    tptr+=4;
 	    tmp-=4;
 
-	    while (tmp>0) {
+	    while (tmp>=4) {
                 if (!TTEST2(*tptr, 4))
                     goto trunctlv;
                 printf("\n\t      Link-ID: 0x%08x", EXTRACT_32BITS(tptr));
@@ -2242,7 +2428,7 @@ static int isis_print (const u_int8_t *p, u_int length)
 
 	case ISIS_TLV_LSP:
 	    tlv_lsp = (const struct isis_tlv_lsp *)tptr;
-	    while(tmp>0) {
+	    while(tmp>=sizeof(struct isis_tlv_lsp)) {
 		if (!TTEST((tlv_lsp->lsp_id)[LSP_ID_LEN-1]))
 		    goto trunctlv;
 		printf("\n\t      lsp-id: %s",
@@ -2262,6 +2448,8 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
 	case ISIS_TLV_CHECKSUM:
+	    if (tmp < 2)
+	        break;
 	    if (!TTEST2(*tptr, 2))
 		goto trunctlv;
 	    printf("\n\t      checksum: 0x%04x ", EXTRACT_16BITS(tptr));
@@ -2293,15 +2481,29 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
 	case ISIS_TLV_RESTART_SIGNALING:
+	    if (tmp < 3)
+	        break;
             if (!TTEST2(*tptr, 3))
                 goto trunctlv;
             printf("\n\t      Flags [%s], Remaining holding time %us",
                    bittok2str(isis_restart_flag_values, "none", *tptr),
                    EXTRACT_16BITS(tptr+1));
 	    tptr+=3;
+            tmp-=3;
+            if (tmp == SYSTEM_ID_LEN) {
+                    if (!TTEST2(*tptr, SYSTEM_ID_LEN))
+                            goto trunctlv;
+                    printf(", for %s",isis_print_id(tptr,SYSTEM_ID_LEN));
+            } else if (tmp == NODE_ID_LEN) {
+                    if (!TTEST2(*tptr, NODE_ID_LEN))
+                            goto trunctlv;
+                    printf(", for %s",isis_print_id(tptr,NODE_ID_LEN));
+            }
 	    break;
 
         case ISIS_TLV_IDRP_INFO:
+	    if (tmp < 1)
+	        break;
             if (!TTEST2(*tptr, 1))
                 goto trunctlv;
             printf("\n\t      Inter-Domain Information Type: %s",
@@ -2324,6 +2526,8 @@ static int isis_print (const u_int8_t *p, u_int length)
             break;
 
         case ISIS_TLV_LSP_BUFFERSIZE:
+	    if (tmp < 2)
+	        break;
             if (!TTEST2(*tptr, 2))
                 goto trunctlv;
             printf("\n\t      LSP Buffersize: %u",EXTRACT_16BITS(tptr));
@@ -2340,6 +2544,8 @@ static int isis_print (const u_int8_t *p, u_int length)
             break;
 
         case ISIS_TLV_PREFIX_NEIGH:
+	    if (tmp < sizeof(struct isis_metric_block))
+	        break;
             if (!TTEST2(*tptr, sizeof(struct isis_metric_block)))
                 goto trunctlv;
             printf("\n\t      Metric Block");
@@ -2351,7 +2557,13 @@ static int isis_print (const u_int8_t *p, u_int length)
                 if (!TTEST2(*tptr, 1))
                     goto trunctlv;
                 prefix_len=*tptr++; /* read out prefix length in semioctets*/
+                if (prefix_len < 2) {
+                    printf("\n\t\tAddress: prefix length %u < 2", prefix_len);
+                    break;
+                }
                 tmp--;
+                if (tmp < prefix_len/2)
+                    break;
                 if (!TTEST2(*tptr, prefix_len/2))
                     goto trunctlv;
                 printf("\n\t\tAddress: %s/%u",
@@ -2363,12 +2575,16 @@ static int isis_print (const u_int8_t *p, u_int length)
             break;
 
         case ISIS_TLV_IIH_SEQNR:
+	    if (tmp < 4)
+	        break;
             if (!TTEST2(*tptr, 4)) /* check if four bytes are on the wire */
                 goto trunctlv;
             printf("\n\t      Sequence number: %u", EXTRACT_32BITS(tptr) );
             break;
 
         case ISIS_TLV_VENDOR_PRIVATE:
+	    if (tmp < 3)
+	        break;
             if (!TTEST2(*tptr, 3)) /* check if enough byte for a full oui */
                 goto trunctlv;
             vendor_id = EXTRACT_24BITS(tptr);

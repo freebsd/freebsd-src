@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-802_11.c,v 1.31 2004/11/04 07:35:53 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-802_11.c,v 1.31.2.1 2005/04/20 19:32:41 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -1100,7 +1100,8 @@ ieee802_11_radio_print(const u_char *p, u_int length, u_int caplen)
 			next_present = present & (present - 1);
 
 			/* extract the least significant bit that is set */
-			bit = bit0 + BITNO_32(present ^ next_present);
+			bit = (enum ieee80211_radiotap_type)
+			    (bit0 + BITNO_32(present ^ next_present));
 
 			if (print_radiotap_field(&cpacker, bit) != 0)
 				goto out;
