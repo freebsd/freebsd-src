@@ -28,6 +28,7 @@ LIB=	pam_krb5
 SRCS=	pam_krb5.c
 MAN=	pam_krb5.8
 .if defined(_FREEFALL_CONFIG)
+CFLAGS+=-D_FREEFALL_CONFIG
 WARNS=	0
 .endif
 
