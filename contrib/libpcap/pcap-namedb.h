@@ -66,6 +66,7 @@ struct addrinfo *pcap_nametoaddrinfo(const char *);
 bpf_u_int32 pcap_nametonetaddr(const char *);
 
 int	pcap_nametoport(const char *, int *, int *);
+int	pcap_nametoportrange(const char *, int *, int *, int *);
 int	pcap_nametoproto(const char *);
 int	pcap_nametoeproto(const char *);
 int	pcap_nametollc(const char *);

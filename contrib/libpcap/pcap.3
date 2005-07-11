@@ -1,4 +1,4 @@
-.\" @(#) $Header: /tcpdump/master/libpcap/pcap.3,v 1.64 2004/12/17 21:27:54 guy Exp $
+.\" @(#) $Header: /tcpdump/master/libpcap/pcap.3,v 1.64.2.4 2005/06/03 20:36:56 guy Exp $
 .\"
 .\" Copyright (c) 1994, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
@@ -61,6 +61,10 @@ bpf_u_int32 *maskp, char *errbuf)
 .ft
 .LP
 .ft B
+typedef void (*pcap_handler)(u_char *user, const struct pcap_pkthdr *h,
+.ti +8
+			     const u_char *bytes);
+.ft B
 int pcap_dispatch(pcap_t *p, int cnt,
 .ti +8
 pcap_handler callback, u_char *user)
@@ -77,7 +81,8 @@ int pcap_compile(pcap_t *p, struct bpf_program *fp,
 .ti +8
 char *str, int optimize, bpf_u_int32 netmask)
 int pcap_setfilter(pcap_t *p, struct bpf_program *fp)
-void pcap_freecode(struct bpf_program *);
+void pcap_freecode(struct bpf_program *)
+int pcap_setdirection(pcap_t *p, direction_t d)
 .ft
 .LP
 .ft B
@@ -120,6 +125,7 @@ const char *pcap_lib_version(void)
 .ft B
 void pcap_close(pcap_t *p)
 int pcap_dump_flush(pcap_dumper_t *p)
+long pcap_dump_ftell(pcap_dumper_t *p)
 FILE *pcap_dump_file(pcap_dumper_t *p)
 void pcap_dump_close(pcap_dumper_t *p)
 .ft
@@ -775,6 +781,31 @@ when that BPF program is no longer needed, for example after it
 has been made the filter program for a pcap structure by a call to
 .BR pcap_setfilter() .
 .PP
+.B pcap_setdirection()
+is used to specify a direction that packets will be captured.
+.I direction_t 
+is one of the constants
+.BR D_IN ,
+.B D_OUT
+or 
+.BR D_INOUT .
+.B D_IN
+will only capture packets received by the device,
+.B D_OUT
+will only capture packets sent by the device and
+.B D_INOUT
+will capture packets received by or sent by the device.
+.B D_INOUT
+is the default setting if this function is not called.  This isn't
+necessarily supported on all platforms; some platforms might return an
+error, and some other platforms might not support
+.BR D_OUT .
+This operation is not supported if a ``savefile'' is being read.
+.B \-1
+is returned on failure,
+.B 0
+is returned on success.
+.PP
 .B pcap_datalink()
 returns the link layer type; link layer types it can return include:
 .PP
@@ -1249,6 +1280,15 @@ written with
 but not yet written to the ``savefile'' will be written.
 .B \-1
 is returned on error, 0 on success.
+.PP
+.B pcap_dump_ftell()
+returns the current file position for the ``savefile'', representing the
+number of bytes written by
+.B pcap_dump_open()
+and
+.BR pcap_dump() .
+.B \-1
+is returned on error.
 .PP
 .B pcap_dump_close()
 closes the ``savefile.''
