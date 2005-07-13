@@ -192,7 +192,7 @@ struct pccard_card {
 /* More later? */
 struct pccard_ivar {
 	struct resource_list resources;
-	struct pccard_function *fcn;
+	struct pccard_function *pf;
 };
 
 struct pccard_softc {
