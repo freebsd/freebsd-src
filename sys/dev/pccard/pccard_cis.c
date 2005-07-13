@@ -779,9 +779,8 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 		 * also handle the '6' case.  So far no cards have surfaced
 		 * with a length of '6'.
 		 */
-		if (tuple->length == 5 ) {
+		if (tuple->length == 5 )
 			state->card->prodext = pccard_tuple_read_1(tuple, 4);
-		}
 		DPRINTF(("CISTPL_MANFID\n"));
 		break;
 	case CISTPL_FUNCID:
@@ -1289,17 +1288,6 @@ decode_funce(const struct pccard_tuple *tuple, struct pccard_function *pf)
 					= pccard_tuple_read_1(tuple, i + 2);
 			}
 			pf->pf_funce_lan_nidlen = len;
-		} else if (type == PCCARD_TPLFE_TYPE_LAN_OLD_NID) {
-			/* Some older cards have this format, no idea if it is standard */
-			if (tuple->length != 13)
-				break;
-			len = pccard_tuple_read_1(tuple, 4);
-			if (len != 6)
-				break;
-			for (i = 0; i < len; i++) {
-				pf->pf_funce_lan_nid[i]
-					= pccard_tuple_read_1(tuple, i + 5);
-			}
 		}
 		break;
 	default:
