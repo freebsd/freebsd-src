@@ -17,9 +17,9 @@
 7	AUE_NULL	STD	{ int xenix_rdchk(int fd); }
 8	AUE_NULL	UNIMPL	nosys
 9	AUE_NULL	UNIMPL	nosys
-10	AUE_NULL	STD	{ int xenix_chsize(int fd, long size); }
-11	AUE_NULL	STD	{ int xenix_ftime(struct timeb *tp); }
-12	AUE_NULL	STD	{ int xenix_nap(int millisec); }
+10	AUE_NULL	MSTD	{ int xenix_chsize(int fd, long size); }
+11	AUE_NULL	MSTD	{ int xenix_ftime(struct timeb *tp); }
+12	AUE_NULL	MSTD	{ int xenix_nap(int millisec); }
 13	AUE_NULL	UNIMPL	xenix_sdget
 14	AUE_NULL	UNIMPL	xenix_sdfree
 15	AUE_NULL	UNIMPL	xenix_sdenter
@@ -28,7 +28,7 @@
 18	AUE_NULL	UNIMPL	xenix_sdwaitv
 19	AUE_NULL	UNIMPL	nosys
 20	AUE_NULL	UNIMPL	nosys
-21	AUE_NULL	STD	{ int xenix_scoinfo(void); }
+21	AUE_NULL	MSTD	{ int xenix_scoinfo(void); }
 22	AUE_NULL	UNIMPL	nosys
 23	AUE_NULL	UNIMPL	nosys
 24	AUE_NULL	UNIMPL	nosys
@@ -43,35 +43,35 @@
 33	AUE_NULL	UNIMPL	xenix_execseg
 34	AUE_NULL	UNIMPL	xenix_unexecseg
 35	AUE_NULL	UNIMPL	nosys
-36	AUE_NULL	NOPROTO	{ int select(u_int nd, fd_set *in, \
+36	AUE_NULL	MNOPROTO	{ int select(u_int nd, fd_set *in, \
 				    fd_set *ou, fd_set *ex, \
 				    struct timeval *tv); }
-37	AUE_NULL	STD	{ int xenix_eaccess(char *path, int flags); }
+37	AUE_NULL	MSTD	{ int xenix_eaccess(char *path, int flags); }
 38	AUE_NULL	UNIMPL	xenix_paccess
-39	AUE_NULL	STD	{ int ibcs2_sigaction(int sig, \
+39	AUE_NULL	MSTD	{ int ibcs2_sigaction(int sig, \
 				    struct ibcs2_sigaction *act, \
 				    struct ibcs2_sigaction *oact); }
-40	AUE_NULL	STD	{ int ibcs2_sigprocmask(int how, \
+40	AUE_NULL	MSTD	{ int ibcs2_sigprocmask(int how, \
 				    ibcs2_sigset_t *set, \
 				    ibcs2_sigset_t *oset); }
-41	AUE_NULL	STD	{ int ibcs2_sigpending(ibcs2_sigset_t *mask); }
-42	AUE_NULL	STD	{ int ibcs2_sigsuspend(ibcs2_sigset_t *mask); }
+41	AUE_NULL	MSTD	{ int ibcs2_sigpending(ibcs2_sigset_t *mask); }
+42	AUE_NULL	MSTD	{ int ibcs2_sigsuspend(ibcs2_sigset_t *mask); }
 43	AUE_NULL	STD	{ int ibcs2_getgroups(int gidsetsize, \
 				    ibcs2_gid_t *gidset); }
 44	AUE_NULL	STD	{ int ibcs2_setgroups(int gidsetsize, \
 				    ibcs2_gid_t *gidset); }
 45	AUE_NULL	MSTD	{ int ibcs2_sysconf(int name); }
-46	AUE_NULL	STD	{ int ibcs2_pathconf(char *path, int name); }
-47	AUE_NULL	STD	{ int ibcs2_fpathconf(int fd, int name); }
-48	AUE_NULL	STD	{ int ibcs2_rename(char *from, char *to); }
+46	AUE_NULL	MSTD	{ int ibcs2_pathconf(char *path, int name); }
+47	AUE_NULL	MSTD	{ int ibcs2_fpathconf(int fd, int name); }
+48	AUE_NULL	MSTD	{ int ibcs2_rename(char *from, char *to); }
 49	AUE_NULL	UNIMPL	nosys
-50	AUE_NULL	STD	{ int xenix_utsname(long addr); }
+50	AUE_NULL	MSTD	{ int xenix_utsname(long addr); }
 51	AUE_NULL	UNIMPL	nosys
 52	AUE_NULL	UNIMPL	nosys
 53	AUE_NULL	UNIMPL	nosys
 54	AUE_NULL	UNIMPL	nosys
-55	AUE_NULL	NOPROTO	{ int getitimer(u_int which, \
+55	AUE_NULL	MNOPROTO	{ int getitimer(u_int which, \
 				    struct itimerval *itv); }
-56	AUE_NULL	NOPROTO	{ int setitimer(u_int which, \
+56	AUE_NULL	MNOPROTO	{ int setitimer(u_int which, \
 				    struct itimerval *itv, \
 				    struct itimerval *otv); }

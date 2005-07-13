@@ -39,28 +39,28 @@
 #include <compat/svr4/svr4_proto.h>
 
 0	AUE_NULL	UNIMPL	unused
-1	AUE_NULL	NOPROTO	{ void sys_exit(int rval); } exit \
+1	AUE_NULL	MNOPROTO	{ void sys_exit(int rval); } exit \
 				    sys_exit_args void
 2	AUE_NULL	MNOPROTO { int fork(void); }
 3	AUE_NULL	MNOPROTO { int read(int fd, char *buf, u_int nbyte); }
 4	AUE_NULL	MNOPROTO { int write(int fd, char *buf, u_int nbyte); }
-5	AUE_NULL	STD	{ int svr4_sys_open(char *path, int flags, \
+5	AUE_NULL	MSTD	{ int svr4_sys_open(char *path, int flags, \
 				    int mode); }
 6	AUE_NULL	MNOPROTO { int close(int fd); }
-7	AUE_NULL	STD	{ int svr4_sys_wait(int *status); }
-8	AUE_NULL	STD	{ int svr4_sys_creat(char *path, int mode); }
-9	AUE_NULL	NOPROTO	{ int link(char *path, char *link); }
-10	AUE_NULL	NOPROTO	{ int unlink(char *path); }
-11	AUE_NULL	STD	{ int svr4_sys_execv(char *path, char **argp); }
-12	AUE_NULL	NOPROTO	{ int chdir(char *path); }
-13	AUE_NULL	STD	{ int svr4_sys_time(time_t *t); }
-14	AUE_NULL	STD	{ int svr4_sys_mknod(char* path, int mode, int dev); }
-15	AUE_NULL	NOPROTO	{ int chmod(char *path, int mode); }
-16	AUE_NULL	NOPROTO	{ int chown(char *path, uid_t uid, gid_t gid); }
+7	AUE_NULL	MSTD	{ int svr4_sys_wait(int *status); }
+8	AUE_NULL	MSTD	{ int svr4_sys_creat(char *path, int mode); }
+9	AUE_NULL	MNOPROTO	{ int link(char *path, char *link); }
+10	AUE_NULL	MNOPROTO	{ int unlink(char *path); }
+11	AUE_NULL	MSTD	{ int svr4_sys_execv(char *path, char **argp); }
+12	AUE_NULL	MNOPROTO	{ int chdir(char *path); }
+13	AUE_NULL	MSTD	{ int svr4_sys_time(time_t *t); }
+14	AUE_NULL	MSTD	{ int svr4_sys_mknod(char* path, int mode, int dev); }
+15	AUE_NULL	MNOPROTO	{ int chmod(char *path, int mode); }
+16	AUE_NULL	MNOPROTO	{ int chown(char *path, uid_t uid, gid_t gid); }
 17	AUE_NULL	STD	{ int svr4_sys_break(caddr_t nsize); }
-18	AUE_NULL	STD	{ int svr4_sys_stat(char* path, \
+18	AUE_NULL	MSTD	{ int svr4_sys_stat(char* path, \
 				    struct svr4_stat* ub); }
-19	AUE_NULL	NOPROTO	{ int lseek(int filedes, off_t *offset, \
+19	AUE_NULL	MNOPROTO	{ int lseek(int filedes, off_t *offset, \
 				    int whence); }
 20	AUE_NULL	MNOPROTO { pid_t getpid(void); }
 21	AUE_NULL	UNIMPL	old_mount
@@ -69,19 +69,19 @@
 24	AUE_NULL	MNOPROTO { uid_t getuid(void); }
 25	AUE_NULL	UNIMPL	stime
 26	AUE_NULL	UNIMPL	ptrace
-27	AUE_NULL	STD	{ int svr4_sys_alarm(unsigned sec); }
-28	AUE_NULL	STD	{ int svr4_sys_fstat(int fd, \
+27	AUE_NULL	MSTD	{ int svr4_sys_alarm(unsigned sec); }
+28	AUE_NULL	MSTD	{ int svr4_sys_fstat(int fd, \
 				    struct svr4_stat *sb); }
 29	AUE_NULL	MSTD	{ int svr4_sys_pause(void); }
-30	AUE_NULL	STD	{ int svr4_sys_utime(char *path, \
+30	AUE_NULL	MSTD	{ int svr4_sys_utime(char *path, \
 				    struct svr4_utimbuf *ubuf); }
 31	AUE_NULL	UNIMPL	stty
 32	AUE_NULL	UNIMPL	gtty
-33	AUE_NULL	STD	{ int svr4_sys_access(char *path, \
+33	AUE_NULL	MSTD	{ int svr4_sys_access(char *path, \
 				    int flags); }
 34	AUE_NULL	MSTD	{ int svr4_sys_nice(int prio); }
 35	AUE_NULL	UNIMPL	statfs
-36	AUE_NULL	NOPROTO	{ int sync(void); }
+36	AUE_NULL	MNOPROTO	{ int sync(void); }
 37	AUE_NULL	MSTD	{ int svr4_sys_kill(int pid, int signum); }
 38	AUE_NULL	UNIMPL	fstatfs
 39	AUE_NULL	MSTD	{ int svr4_sys_pgrpsys(int cmd, int pid, \
@@ -89,16 +89,16 @@
 40	AUE_NULL	UNIMPL	xenix
 41	AUE_NULL	MNOPROTO { int dup(u_int fd); }
 42	AUE_NULL	MNOPROTO { int pipe(void); }
-43	AUE_NULL	STD	{ int svr4_sys_times(struct tms *tp); }
+43	AUE_NULL	MSTD	{ int svr4_sys_times(struct tms *tp); }
 44	AUE_NULL	UNIMPL	profil
 45	AUE_NULL	UNIMPL	plock
 46	AUE_NULL	MNOPROTO { int setgid(gid_t gid); }
 47	AUE_NULL	MNOPROTO { gid_t getgid(void); }
 48	AUE_NULL	MSTD	{ int svr4_sys_signal(int signum, \
 				    svr4_sig_t handler); }
-49	AUE_NULL	STD	{ int svr4_sys_msgsys(int what, int a2, \
+49	AUE_NULL	MSTD	{ int svr4_sys_msgsys(int what, int a2, \
 				    int a3, int a4, int a5); }
-50	AUE_NULL	STD	{ int svr4_sys_sysarch(int op, void *a1); }
+50	AUE_NULL	MSTD	{ int svr4_sys_sysarch(int op, void *a1); }
 51	AUE_NULL	UNIMPL	acct
 52	AUE_NULL	STD	{ int svr4_sys_shmsys(int what, int a2, \
 				    int a3, int a4, int a5); }
@@ -108,13 +108,13 @@
 				    caddr_t data); }
 55	AUE_NULL	UNIMPL	uadmin
 56	AUE_NULL	UNIMPL	exch
-57	AUE_NULL	STD	{ int svr4_sys_utssys(void *a1, void *a2, \
+57	AUE_NULL	MSTD	{ int svr4_sys_utssys(void *a1, void *a2, \
 				    int sel, void *a3); }
-58	AUE_NULL	NOPROTO	{ int fsync(int fd); }
-59	AUE_NULL	STD	{ int svr4_sys_execve(char *path, \
+58	AUE_NULL	MNOPROTO	{ int fsync(int fd); }
+59	AUE_NULL	MSTD	{ int svr4_sys_execve(char *path, \
 				    char **argp, char **envp); }
 60	AUE_NULL	MNOPROTO { int umask(int newmask); }
-61	AUE_NULL	NOPROTO	{ int chroot(char *path); }
+61	AUE_NULL	MNOPROTO	{ int chroot(char *path); }
 62	AUE_NULL	MSTD	{ int svr4_sys_fcntl(int fd, int cmd, \
 				    char *arg); }
 63	AUE_NULL	MSTD	{ int svr4_sys_ulimit(int cmd, \
@@ -134,8 +134,8 @@
 76	AUE_NULL	UNIMPL	rdebug
 77	AUE_NULL	UNIMPL	rfstop
 78	AUE_NULL	UNIMPL	rfsys
-79	AUE_NULL	NOPROTO	{ int rmdir(char *path); }
-80	AUE_NULL	NOPROTO	{ int mkdir(char *path, int mode); }
+79	AUE_NULL	MNOPROTO	{ int rmdir(char *path); }
+80	AUE_NULL	MNOPROTO	{ int mkdir(char *path, int mode); }
 81	AUE_NULL	STD	{ int svr4_sys_getdents(int fd, char *buf, \
 				    int nbytes); }
 82	AUE_NULL	UNIMPL	libattach
@@ -147,19 +147,19 @@
 86	AUE_NULL	STD	{ int svr4_sys_putmsg(int fd, \
 				    struct svr4_strbuf *ctl, \
 				    struct svr4_strbuf *dat, int flags); }
-87	AUE_NULL	STD	{ int svr4_sys_poll(struct pollfd *fds, \
+87	AUE_NULL	MSTD	{ int svr4_sys_poll(struct pollfd *fds, \
 				    unsigned int nfds, int timeout); }
-88	AUE_NULL	STD	{ int svr4_sys_lstat(char *path, \
+88	AUE_NULL	MSTD	{ int svr4_sys_lstat(char *path, \
 				    struct svr4_stat *ub); }
-89	AUE_NULL	NOPROTO	{ int symlink(char *path, char *link); }
-90	AUE_NULL	NOPROTO	{ int readlink(char *path, char *buf, \
+89	AUE_NULL	MNOPROTO	{ int symlink(char *path, char *link); }
+90	AUE_NULL	MNOPROTO	{ int readlink(char *path, char *buf, \
 				    int count); }
 91	AUE_NULL	MNOPROTO { int getgroups(u_int gidsetsize, \
 				    gid_t *gidset); }
 92	AUE_NULL	MNOPROTO { int setgroups(u_int gidsetsize, \
 				    gid_t *gidset); }
-93	AUE_NULL	NOPROTO	{ int fchmod(int fd, int mode); }
-94	AUE_NULL	NOPROTO	{ int fchown(int fd, int uid, int gid); }
+93	AUE_NULL	MNOPROTO	{ int fchmod(int fd, int mode); }
+94	AUE_NULL	MNOPROTO	{ int fchown(int fd, int uid, int gid); }
 95	AUE_NULL	MSTD	{ int svr4_sys_sigprocmask(int how, \
 				    svr4_sigset_t *set, \
 				    svr4_sigset_t *oset); }
@@ -173,68 +173,68 @@
 				    struct svr4_sigaction *osa); }
 99	AUE_NULL	MSTD	{ int svr4_sys_sigpending(int what, \
 				    svr4_sigset_t *mask); }
-100	AUE_NULL	STD	{ int svr4_sys_context(int func, \
+100	AUE_NULL	MSTD	{ int svr4_sys_context(int func, \
 				    struct svr4_ucontext *uc); }
 101	AUE_NULL	UNIMPL	evsys
 102	AUE_NULL	UNIMPL	evtrapret
-103	AUE_NULL	STD	{ int svr4_sys_statvfs(char *path, \
+103	AUE_NULL	MSTD	{ int svr4_sys_statvfs(char *path, \
 				    struct svr4_statvfs *fs); }
-104	AUE_NULL	STD	{ int svr4_sys_fstatvfs(int fd, \
+104	AUE_NULL	MSTD	{ int svr4_sys_fstatvfs(int fd, \
 				    struct svr4_statvfs *fs); }
 105	AUE_NULL	UNIMPL	whoknows
 106	AUE_NULL	UNIMPL	nfssvc
 107	AUE_NULL	STD	{ int svr4_sys_waitsys(int grp, int id, \
 				    union svr4_siginfo *info, int options); }
 108	AUE_NULL	UNIMPL	sigsendsys
-109	AUE_NULL	STD	{ int svr4_sys_hrtsys(int cmd, int fun, \
+109	AUE_NULL	MSTD	{ int svr4_sys_hrtsys(int cmd, int fun, \
 				    int sub, void *rv1, void *rv2); }
 110	AUE_NULL	UNIMPL	acancel
 111	AUE_NULL	UNIMPL	async
 112	AUE_NULL	UNIMPL	priocntlsys
-113	AUE_NULL	STD	{ int svr4_sys_pathconf(char *path, \
+113	AUE_NULL	MSTD	{ int svr4_sys_pathconf(char *path, \
 				    int name); }
 114	AUE_NULL	UNIMPL	mincore
-115	AUE_NULL	STD	{ caddr_t svr4_sys_mmap(caddr_t addr, \
+115	AUE_NULL	MSTD	{ caddr_t svr4_sys_mmap(caddr_t addr, \
 				    svr4_size_t len, int prot, int flags, \
 				    int fd, svr4_off_t pos); }
 116	AUE_NULL	MNOPROTO { int mprotect(void *addr, int len, \
 				    int prot); }
 117	AUE_NULL	MNOPROTO { int munmap(void *addr, int len); }
-118	AUE_NULL	STD	{ int svr4_sys_fpathconf(int fd, int name); }
+118	AUE_NULL	MSTD	{ int svr4_sys_fpathconf(int fd, int name); }
 119	AUE_NULL	MNOPROTO { int vfork(void); }
-120	AUE_NULL	NOPROTO	{ int fchdir(int fd); }
-121	AUE_NULL	NOPROTO	{ int readv(int fd, struct iovec *iovp, \
+120	AUE_NULL	MNOPROTO	{ int fchdir(int fd); }
+121	AUE_NULL	MNOPROTO	{ int readv(int fd, struct iovec *iovp, \
 				    u_int iovcnt); }
-122	AUE_NULL	NOPROTO	{ int writev(int fd, struct iovec *iovp, \
+122	AUE_NULL	MNOPROTO	{ int writev(int fd, struct iovec *iovp, \
 				    u_int iovcnt); }
-123	AUE_NULL	STD	{ int svr4_sys_xstat(int two, char *path, \
+123	AUE_NULL	MSTD	{ int svr4_sys_xstat(int two, char *path, \
 				    struct svr4_xstat *ub); }
-124	AUE_NULL	STD	{ int svr4_sys_lxstat(int two, char *path, \
+124	AUE_NULL	MSTD	{ int svr4_sys_lxstat(int two, char *path, \
 				    struct svr4_xstat *ub); }
-125	AUE_NULL	STD	{ int svr4_sys_fxstat(int two, int fd, \
+125	AUE_NULL	MSTD	{ int svr4_sys_fxstat(int two, int fd, \
 				    struct svr4_xstat *sb); }
-126	AUE_NULL	STD	{ int svr4_sys_xmknod(int two, char *path, \
+126	AUE_NULL	MSTD	{ int svr4_sys_xmknod(int two, char *path, \
 				    svr4_mode_t mode, svr4_dev_t dev); }
 127	AUE_NULL	UNIMPL	clocal
 128	AUE_NULL	MSTD	{ int svr4_sys_setrlimit(int which, \
 				    const struct svr4_rlimit *rlp); }
 129	AUE_NULL	MSTD	{ int svr4_sys_getrlimit(int which, \
 				    struct svr4_rlimit *rlp); }
-130	AUE_NULL	NOPROTO	{ int lchown(char *path, uid_t uid, \
+130	AUE_NULL	MNOPROTO	{ int lchown(char *path, uid_t uid, \
 				    gid_t gid); }
-131	AUE_NULL	STD	{ int svr4_sys_memcntl(void * addr, \
+131	AUE_NULL	MSTD	{ int svr4_sys_memcntl(void * addr, \
 				    svr4_size_t len, int cmd, void * arg, \
 				    int attr, int mask); }
 132	AUE_NULL	UNIMPL	getpmsg
 133	AUE_NULL	UNIMPL	putpmsg
-134	AUE_NULL	NOPROTO	{ int rename(char *from, char *to); }
-135	AUE_NULL	STD	{ int svr4_sys_uname( \
+134	AUE_NULL	MNOPROTO	{ int rename(char *from, char *to); }
+135	AUE_NULL	MSTD	{ int svr4_sys_uname( \
 				    struct svr4_utsname* name, int dummy); }
 136	AUE_NULL	MNOPROTO { int setegid(gid_t egid); }
-137	AUE_NULL	STD	{ int svr4_sys_sysconfig(int name); }
+137	AUE_NULL	MSTD	{ int svr4_sys_sysconfig(int name); }
 138	AUE_NULL	MNOPROTO { int adjtime(struct timeval *delta, \
 				    struct timeval *olddelta); }
-139	AUE_NULL	STD	{ long svr4_sys_systeminfo(int what, \
+139	AUE_NULL	MSTD	{ long svr4_sys_systeminfo(int what, \
 				    char *buf, long len); }
 140	AUE_NULL	UNIMPL	notused
 141	AUE_NULL	MNOPROTO { int seteuid(uid_t euid); }
@@ -251,10 +251,10 @@
 151	AUE_NULL	UNIMPL	notused
 152	AUE_NULL	UNIMPL	modctl
 153	AUE_NULL	STD	{ int svr4_sys_fchroot(int fd); }
-154	AUE_NULL	STD	{ int svr4_sys_utimes(char *path, \
+154	AUE_NULL	MSTD	{ int svr4_sys_utimes(char *path, \
 				    struct timeval *tptr); }
-155	AUE_NULL	STD	{ int svr4_sys_vhangup(void); }
-156	AUE_NULL	STD	{ int svr4_sys_gettimeofday( \
+155	AUE_NULL	MSTD	{ int svr4_sys_vhangup(void); }
+156	AUE_NULL	MSTD	{ int svr4_sys_gettimeofday( \
 				    struct timeval *tp); }
 157	AUE_NULL	MNOPROTO { int getitimer(u_int which, \
 				    struct itimerval *itv); }
@@ -280,7 +280,7 @@
 174	AUE_NULL	UNIMPL	{ ssize_t svr4_sys_pwrite(int fd, \
 				    const void *buf, size_t nbyte, \
 				    svr4_off_t off); }
-175	AUE_NULL	STD	{ svr4_off64_t svr4_sys_llseek(int fd, \
+175	AUE_NULL	MSTD	{ svr4_off64_t svr4_sys_llseek(int fd, \
 				    long offset1, long offset2, int whence); }
 176	AUE_NULL	UNIMPL	inst_sync
 177	AUE_NULL	UNIMPL	whoknows
@@ -291,9 +291,9 @@
 182	AUE_NULL	UNIMPL	whoknows
 183	AUE_NULL	UNIMPL	whoknows
 184	AUE_NULL	UNIMPL	tsolsys
-185	AUE_NULL	STD	{ int svr4_sys_acl(char *path, int cmd, \
+185	AUE_NULL	MSTD	{ int svr4_sys_acl(char *path, int cmd, \
 				    int num, struct svr4_aclent *buf); }
-186	AUE_NULL	STD	{ int svr4_sys_auditsys(int code, int a1, \
+186	AUE_NULL	MSTD	{ int svr4_sys_auditsys(int code, int a1, \
 				    int a2, int a3, int a4, int a5); }
 187	AUE_NULL	UNIMPL	processor_bind
 188	AUE_NULL	UNIMPL	processor_info
@@ -310,7 +310,7 @@
 199	AUE_NULL	MNOPROTO { int nanosleep( \
 				    const struct timespec *rqtp, \
 				    struct timespec *rmtp); }
-200	AUE_NULL	STD	{ int svr4_sys_facl(int fd, int cmd, \
+200	AUE_NULL	MSTD	{ int svr4_sys_facl(int fd, int cmd, \
 				    int num, struct svr4_aclent *buf); }
 201	AUE_NULL	UNIMPL	door
 202	AUE_NULL	MNOPROTO { int setreuid(int ruid, int euid); }
@@ -328,18 +328,18 @@
 213	AUE_NULL	STD	{ int svr4_sys_getdents64(int fd, \
 				    struct svr4_dirent64 *dp, int nbytes); }
 ;213	AUE_NULL	UNIMPL	getdents64
-214	AUE_NULL	STD	{ caddr_t svr4_sys_mmap64(void *addr, \
+214	AUE_NULL	MSTD	{ caddr_t svr4_sys_mmap64(void *addr, \
 				    svr4_size_t len, int prot, int flags, \
 				    int fd, svr4_off64_t pos); }
-215	AUE_NULL	STD	{ int svr4_sys_stat64(char *path, \
+215	AUE_NULL	MSTD	{ int svr4_sys_stat64(char *path, \
 				    struct svr4_stat64 *sb); }
-216	AUE_NULL	STD	{ int svr4_sys_lstat64(char *path, \
+216	AUE_NULL	MSTD	{ int svr4_sys_lstat64(char *path, \
 				    struct svr4_stat64 *sb); }
-217	AUE_NULL	STD	{ int svr4_sys_fstat64(int fd, \
+217	AUE_NULL	MSTD	{ int svr4_sys_fstat64(int fd, \
 				    struct svr4_stat64 *sb); }
-218	AUE_NULL	STD	{ int svr4_sys_statvfs64(char *path, \
+218	AUE_NULL	MSTD	{ int svr4_sys_statvfs64(char *path, \
 				    struct svr4_statvfs64 *fs); }
-219	AUE_NULL	STD	{ int svr4_sys_fstatvfs64(int fd, \
+219	AUE_NULL	MSTD	{ int svr4_sys_fstatvfs64(int fd, \
 				    struct svr4_statvfs64 *fs); }
 220	AUE_NULL	MSTD	{ int svr4_sys_setrlimit64(int which, \
 				    const struct svr4_rlimit64 *rlp); }
@@ -347,50 +347,50 @@
 				    struct svr4_rlimit64 *rlp); }
 222	AUE_NULL	UNIMPL	pread64
 223	AUE_NULL	UNIMPL	pwrite64
-224	AUE_NULL	STD	{ int svr4_sys_creat64(char *path, \
+224	AUE_NULL	MSTD	{ int svr4_sys_creat64(char *path, \
 				    int mode); }
-225	AUE_NULL	STD	{ int svr4_sys_open64(char *path, int flags, \
+225	AUE_NULL	MSTD	{ int svr4_sys_open64(char *path, int flags, \
 				    int mode); }
 226	AUE_NULL	UNIMPL	rpcsys
 227	AUE_NULL	UNIMPL	whoknows
 228	AUE_NULL	UNIMPL	whoknows
 229	AUE_NULL	UNIMPL	whoknows
-230	AUE_NULL	STD	{ int svr4_sys_socket(int domain, int type, \
+230	AUE_NULL	MSTD	{ int svr4_sys_socket(int domain, int type, \
 				    int protocol); }
-231	AUE_NULL	NOPROTO	{ int socketpair(int domain, int type, \
+231	AUE_NULL	MNOPROTO	{ int socketpair(int domain, int type, \
 				    int protocol, int *rsv); }
-232	AUE_NULL	NOPROTO	{ int bind(int s, \
+232	AUE_NULL	MNOPROTO	{ int bind(int s, \
 				    const struct sockaddr *name, \
 				    int namelen); }
-233	AUE_NULL	NOPROTO	{ int listen(int s, int backlog); }
-234	AUE_NULL	NOPROTO	{ int accept(int s, struct sockaddr *name, \
+233	AUE_NULL	MNOPROTO	{ int listen(int s, int backlog); }
+234	AUE_NULL	MNOPROTO	{ int accept(int s, struct sockaddr *name, \
 				    int *anamelen); }
-235	AUE_NULL	NOPROTO	{ int connect(int s, \
+235	AUE_NULL	MNOPROTO	{ int connect(int s, \
 				    const struct sockaddr *name, \
 				    int namelen); }
-236	AUE_NULL	NOPROTO	{ int shutdown(int s, int how); }
-237	AUE_NULL	STD	{ int svr4_sys_recv(int s, caddr_t buf, \
+236	AUE_NULL	MNOPROTO	{ int shutdown(int s, int how); }
+237	AUE_NULL	MSTD	{ int svr4_sys_recv(int s, caddr_t buf, \
 				    int len, int flags); }
-238	AUE_NULL	NOPROTO	{ ssize_t recvfrom(int s, void *buf, \
+238	AUE_NULL	MNOPROTO	{ ssize_t recvfrom(int s, void *buf, \
 				    size_t len, int flags, \
 				    struct sockaddr *from, \
 				    int *fromlenaddr); }
-239	AUE_NULL	NOPROTO	{ ssize_t recvmsg(int s, struct msghdr *msg, \
+239	AUE_NULL	MNOPROTO	{ ssize_t recvmsg(int s, struct msghdr *msg, \
 				    int flags); }
-240	AUE_NULL	STD	{ int svr4_sys_send(int s, caddr_t buf, \
+240	AUE_NULL	MSTD	{ int svr4_sys_send(int s, caddr_t buf, \
 				    int len, int flags); }
-241	AUE_NULL	NOPROTO	{ ssize_t sendmsg(int s, \
+241	AUE_NULL	MNOPROTO	{ ssize_t sendmsg(int s, \
 				    const struct msghdr *msg, int flags); }
-242	AUE_NULL	STD	{ ssize_t svr4_sys_sendto(int s, void *buf, \
+242	AUE_NULL	MSTD	{ ssize_t svr4_sys_sendto(int s, void *buf, \
 				    size_t len, int flags, \
 				    struct sockaddr *to, int tolen); }
-243	AUE_NULL	NOPROTO	{ int getpeername(int fdes, \
+243	AUE_NULL	MNOPROTO	{ int getpeername(int fdes, \
 				    struct sockaddr *asa, int *alen); }
-244	AUE_NULL	NOPROTO	{ int getsockname(int fdes, \
+244	AUE_NULL	MNOPROTO	{ int getsockname(int fdes, \
 				    struct sockaddr *asa, int *alen); }
-245	AUE_NULL	NOPROTO	{ int getsockopt(int s, int level, int name, \
+245	AUE_NULL	MNOPROTO	{ int getsockopt(int s, int level, int name, \
 				    void *val, int *avalsize); }
-246	AUE_NULL	NOPROTO	{ int setsockopt(int s, int level, int name, \
+246	AUE_NULL	MNOPROTO	{ int setsockopt(int s, int level, int name, \
 				    const void *val, int valsize); }
 247	AUE_NULL	UNIMPL	sockconfig
 248	AUE_NULL	UNIMPL	{ int ntp_gettime(struct ntptimeval *ntvp); }
