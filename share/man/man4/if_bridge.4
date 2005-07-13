@@ -133,6 +133,9 @@ the filter for processing.
 Note that packets to and from the bridging host will be seen by the
 filter on the interface with the appropriate address configured as well
 as on the interface on which the packet arrives or departs.
+.Pp
+The MTU of the first member interface to be added is used as the bridge MTU,
+all additional members are required to have exactly the same value.
 .Sh EXAMPLES
 The following when placed in the file
 .Pa /etc/rc.conf
