@@ -35,17 +35,5 @@
 extern struct sysentvec svr4_sysvec;
 
 #define COMPAT_SVR4_SOLARIS2
-#define KTRACE
-
-/* These are currently unimplemented (see svr4_ipc.c) */
-#if defined(SYSVMSG)
-# undef SYSVMSG
-#endif
-#if defined(SYSVSHM)
-# undef SYSVSHM
-#endif
-#if defined(SYSVSEM)
-# undef SYSVSEM
-#endif
 
 #endif
