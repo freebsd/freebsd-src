@@ -753,30 +753,29 @@ Display the current set of scanned neighbors and/or trigger a new scan.
 Only the super-user can trigger a scan.
 Depending on the capabilities of the APs, the following
 flags can be included in the output:
-.Pp
-.Bl -tag -width xxxx
-.It E
+.Bl -tag -width 3n
+.It Li E
 Extended Service Set (ESS).
-Indicates that the station is part of an infrastructure network                         
+Indicates that the station is part of an infrastructure network
 (in contrast to an IBSS/ad-hoc network).
-.It I
+.It Li I
 IBSS/ad-hoc network.
 Indicates that the station is part of an ad-hoc network
 (in contrast to an ESS network).
-.It P
+.It Li P
 Privacy.
-Data confidentiality is required for all data type frames                          
+Data confidentiality is required for all data type frames
 exchanged within the BSS.
 This means that this BSS requires the station to
 use cryptographic means such as WEP, TKIP or AES-CCMP to
 encrypt/decrypt data frames being exchanged with others.
-.It S
+.It Li S
 Short Preamble.
-Indicates that the network is using short preambles (defined                         
+Indicates that the network is using short preambles (defined
 in 802.11b High Rate/DSSS PHY, short preamble utilizes a
 56 bit sync field in contrast to a 128 bit field used in long
 preamble mode).
-.It s
+.It Li s
 Short slot time.
 Indicates that the network supports short slot time.
 .El
