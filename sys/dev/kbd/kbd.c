@@ -282,13 +282,19 @@ keyboard_switch_t
  * exclusive use.
  */
 
-/* find the keyboard specified by a driver name and a unit number */
+/*
+ * find the keyboard specified by a driver name and a unit number
+ * starting at given index
+ */
 int
-kbd_find_keyboard(char *driver, int unit)
+kbd_find_keyboard2(char *driver, int unit, int index)
 {
 	int i;
 
-	for (i = 0; i < keyboards; ++i) {
+	if ((index < 0) || (index >= keyboards))
+		return (-1);
+
+	for (i = index; i < keyboards; ++i) {
 		if (keyboard[i] == NULL)
 			continue;
 		if (!KBD_IS_VALID(keyboard[i]))
@@ -299,7 +305,15 @@ kbd_find_keyboard(char *driver, int unit)
 			continue;
 		return (i);
 	}
+
 	return (-1);
+}
+
+/* find the keyboard specified by a driver name and a unit number */
+int
+kbd_find_keyboard(char *driver, int unit)
+{
+	return (kbd_find_keyboard2(driver, unit, 0));
 }
 
 /* allocate a keyboard */
