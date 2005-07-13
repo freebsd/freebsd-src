@@ -53,38 +53,51 @@ __FBSDID("$FreeBSD$");
 #include "card_if.h"
 #include "pccarddevs.h"
 
-static const struct pccard_product sn_pccard_products[] = {
-	PCMCIA_CARD(DSPSI, XJACK),
-	PCMCIA_CARD(MOTOROLA, MARINER),
-	PCMCIA_CARD(NEWMEDIA, BASICS),
-	PCMCIA_CARD(OSITECH, TRUMP_SOD),
-	PCMCIA_CARD(OSITECH, TRUMP_JOH),
-	PCMCIA_CARD(PSION, GOLDCARD),
-	PCMCIA_CARD(PSION, NETGLOBAL),
-	PCMCIA_CARD(PSION, NETGLOBAL2),
-	PCMCIA_CARD(SMC, 8020BT),
-	PCMCIA_CARD(SMC, SMC91C96),
-	{ NULL }
+static const struct sn_product {
+	struct pccard_product prod;
+	int type;
+#define SN_NORMAL	0	/* Normal, simple smc91cxx card */
+#define SN_MEGAHERTZ	1
+#define SN_MOTO_MARINER	2
+#define SN_OSI_SOD	3
+#define SN_OSITECH	4
+	int flags;
+#define SN_ALLOC_CLOSE	0x0001
+} sn_pccard_products[] = {
+	{ PCMCIA_CARD(DSPSI, XJACK), SN_NORMAL },
+/*	{ PCMCIA_CARD(MOTOROLA, MARINER), SN_MOTO_MARINER }, */
+	{ PCMCIA_CARD(NEWMEDIA, BASICS), SN_NORMAL },
+/*	{ PCMCIA_CARD(MEGAHERTZ, VARIOUS), SN_MEGAHERTZ}, */
+/*	{ PCMCIA_CARD(MEGAHERTZ, XJEM3336), SN_MEGAHERTZ}, */
+/*	{ PCMCIA_CARD(OSITECH, TRUMP_SOD), SN_OSI_SOD }, */
+/*	{ PCMCIA_CARD(OSITECH, TRUMP_JOH), SN_OSITECH }, */
+/*	{ PCMCIA_CARD(PSION, GOLDCARD), SN_OSITECH }, */
+/*	{ PCMCIA_CARD(PSION, NETGLOBAL), SNI_OSI_SOD }, */
+/*	{ PCMCIA_CARD(PSION, NETGLOBAL2), SN_OSITECH }, */
+	{ PCMCIA_CARD(SMC, 8020BT), SN_NORMAL },
+	{ PCMCIA_CARD(SMC, SMC91C96), SN_NORMAL },
+	{ { NULL } }
+	
 };
+
+static const struct sn_product *
+sn_pccard_lookup(device_t dev)
+{
+
+	return ((const struct sn_product *)
+	    pccard_product_lookup(dev,
+		(const struct pccard_product *)sn_pccard_products,
+		sizeof(sn_pccard_products[0]), NULL));
+}
 
 static int
 sn_pccard_probe(device_t dev)
 {
-	const struct pccard_product *pp;
-	int		error;
-	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+	const struct sn_product *pp;
 
-	/* Make sure we're a network function */
-	error = pccard_get_function(dev, &fcn);
-	if (error != 0)
-		return (error);
-	if (fcn != PCCARD_FUNCTION_NETWORK)
-		return (ENXIO);
-
-	if ((pp = pccard_product_lookup(dev, sn_pccard_products,
-	    sizeof(sn_pccard_products[0]), NULL)) != NULL) {
-		if (pp->pp_name != NULL)
-			device_set_desc(dev, pp->pp_name);
+	if ((pp = sn_pccard_lookup(dev)) != NULL) {
+		if (pp->prod.pp_name != NULL)
+			device_set_desc(dev, pp->prod.pp_name);
 		return 0;
 	}
 	return EIO;
