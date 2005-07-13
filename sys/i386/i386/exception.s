@@ -78,6 +78,8 @@ IDTVEC(div)
 	pushl $0; TRAP(T_DIVIDE)
 IDTVEC(dbg)
 	pushl $0; TRAP(T_TRCTRAP)
+IDTVEC(nmi)
+	pushl $0; TRAP(T_NMI)
 IDTVEC(bpt)
 	pushl $0; TRAP(T_BPTFLT)
 IDTVEC(ofl)
@@ -213,33 +215,6 @@ ENTRY(fork_trampoline)
 	MEXITCOUNT
 	jmp	doreti
 
-/*
- * NMI handling is somewhat special: NMI interrupts may be taken at
- * any time, including when the processor has turned off external
- * interrupts by clearing EFLAGS.IF.  This means that the kernel's
- * internal state could be inconsistent at the time of the interrupt,
- * and it is not safe to call "ast()" as is done in the exit path
- * for normal interrupts.
- *
- * The NMI handler therefore invokes the C language routine "trap()"
- * and directly jumps to 'doreti_exit'.
- */
-IDTVEC(nmi)
-	/* create a trap frame */
-	pushl	$0
-	pushl	$T_NMI
-	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
-	movl	$KDSEL,%eax
-	movl	%eax,%ds
-	movl	%eax,%es
-	movl	$KPSEL,%eax
-	movl	%eax,%fs
-	FAKE_MCOUNT(TF_EIP(%esp))
-	call	trap
-	jmp	doreti_exit
 
 /*
  * To efficiently implement classification of trap and interrupt handlers
