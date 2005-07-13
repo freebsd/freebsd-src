@@ -109,12 +109,12 @@ int	statclock_disable;
 #endif
 u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
+int	timer0_real_max_count;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 struct mtx clock_lock;
 
 static	int	beeping = 0;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
-static	u_int	hardclock_max_count;
 static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
@@ -472,21 +472,24 @@ fail:
 static void
 set_timer_freq(u_int freq, int intr_freq)
 {
-	int new_timer0_max_count;
+	int new_timer0_real_max_count;
 
 	i8254_timecounter.tc_frequency = freq;
 	mtx_lock_spin(&clock_lock);
 	timer_freq = freq;
-	new_timer0_max_count = hardclock_max_count = TIMER_DIV(intr_freq);
-	if (using_lapic_timer) {
+	if (using_lapic_timer)
+		new_timer0_real_max_count = 0x10000;
+	else
+		new_timer0_real_max_count = TIMER_DIV(intr_freq);
+	if (new_timer0_real_max_count != timer0_real_max_count) {
+		timer0_real_max_count = new_timer0_real_max_count;
+		if (timer0_real_max_count == 0x10000)
+			timer0_max_count = 0xffff;
+		else
+			timer0_max_count = timer0_real_max_count;
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-		outb(TIMER_CNTR0, 0);
-		outb(TIMER_CNTR0, 0);
-	} else if (new_timer0_max_count != timer0_max_count) {
-		timer0_max_count = new_timer0_max_count;
-		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-		outb(TIMER_CNTR0, timer0_max_count & 0xff);
-		outb(TIMER_CNTR0, timer0_max_count >> 8);
+		outb(TIMER_CNTR0, timer0_real_max_count & 0xff);
+		outb(TIMER_CNTR0, timer0_real_max_count >> 8);
 	}
 	mtx_unlock_spin(&clock_lock);
 }
@@ -495,7 +498,11 @@ static void
 i8254_restore(void)
 {
 
-	set_timer_freq(timer_freq, hz);
+	mtx_lock_spin(&clock_lock);
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+	outb(TIMER_CNTR0, timer0_real_max_count & 0xff);
+	outb(TIMER_CNTR0, timer0_real_max_count >> 8);
+	mtx_unlock_spin(&clock_lock);
 }
 
 
@@ -815,19 +822,8 @@ SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
 static unsigned
 i8254_simple_get_timecount(struct timecounter *tc)
 {
-	u_int count;
-	u_int high, low;
 
-	mtx_lock_spin(&clock_lock);
-
-	/* Select timer0 and latch counter value. */
-	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
-
-	low = inb(TIMER_CNTR0);
-	high = inb(TIMER_CNTR0);
-	count = 0xffff - ((high << 8) | low);
-	mtx_unlock_spin(&clock_lock);
-	return (count);
+	return (timer0_max_count - getit());
 }
 
 static unsigned
