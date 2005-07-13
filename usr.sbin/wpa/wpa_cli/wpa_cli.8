@@ -62,7 +62,7 @@ The
 .Nm
 utility
 provides an interface to supply authentication information
-such as username and password when it is not provided in
+such as username and password when it is not provided in the
 .Xr wpa_supplicant.conf 5
 configuration file.
 This can be used, for example, to implement
@@ -120,14 +120,14 @@ is
 .Li IDENTITY , PASSWORD ,
 or
 .Li OTP
-(one-time password),
+(One-Time Password),
 .Aq Ar id
 is a unique identifier for the current network,
 .Aq Ar text
-is description of the request.
-In the case of a
+is a description of the request.
+In the case of an
 .Li OTP
-(One Time Password) request,
+(One-Time Password) request,
 it includes the challenge from the authentication server.
 .Pp
 A user must supply
