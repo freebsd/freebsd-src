@@ -397,6 +397,7 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 		start = addr;
 		end = addr + len;
 
+		mtx_lock(&Giant);
 		if (start != trunc_page(start)) {
 			error = freebsd32_mmap_partial(td, start,
 						       round_page(start), prot,
@@ -427,11 +428,14 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 			prot |= VM_PROT_WRITE;
 			map = &td->td_proc->p_vmspace->vm_map;
 			rv = vm_map_remove(map, start, end);
-			if (rv != KERN_SUCCESS)
+			if (rv != KERN_SUCCESS) {
+				mtx_unlock(&Giant);
 				return (EINVAL);
+			}
 			rv = vm_map_find(map, 0, 0,
 					 &start, end - start, FALSE,
 					 prot, VM_PROT_ALL, 0);
+			mtx_unlock(&Giant);
 			if (rv != KERN_SUCCESS)
 				return (EINVAL);
 			r.fd = fd;
@@ -445,6 +449,7 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 			td->td_retval[0] = addr;
 			return (0);
 		}
+		mtx_unlock(&Giant);
 		if (end == start) {
 			/*
 			 * After dealing with the ragged ends, there
