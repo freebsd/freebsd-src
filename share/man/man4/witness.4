@@ -98,6 +98,7 @@ A value of 1 specifies that witness is enabled.
 A value of 0 specifies that witness is disabled.
 This sysctl can be written to in order to
 disable witness, however it may not be used to enable witness.
+The sysctl
 .Va debug.witness.watch
 can be set via
 .Xr loader 8 .
@@ -124,6 +125,8 @@ Finally, it displays a list of locks that have not yet been acquired.
 .El
 .Sh SEE ALSO
 .Xr ddb 4 ,
+.Xr loader 8 ,
+.Xr sysctl 8 ,
 .Xr mutex 9
 .Sh HISTORY
 The
