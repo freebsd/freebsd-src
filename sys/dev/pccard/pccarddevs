@@ -247,7 +247,7 @@ product BREEZECOM BREEZENET	0x0102 BreezeCOM BreezeNET
 product BROMAX IPORT		0x1103 iPort 10/100 Ethernet
 product BROMAX IPORT2		0x1121 iPort 10Mbps Ethernet
 product BROMAX IWN		0x1612 Instant Wireless Network PC Card
-product BROMAX IWN3		0x1613 Instant Wireless Network PC Card, Versin 3
+product BROMAX IWN3		0x1613 Instant Wireless Network PC Card, V3
 product BROMAX WCF11		0x3301 Instant Wireless Network CF Card
 
 /* BUFFALO */
@@ -380,6 +380,7 @@ product MACNICA MPS110		0xa041	MACNICA Miracle SCSI-II mPS110
 product MAGICRAM ETHER		0x0000	MagicRAM Ethernet PC Card 933926
 
 /* Megahertz Products */
+product MEGAHERTZ VARIOUS	0x0000 Megahertz X-jack Ethernet
 product MEGAHERTZ XJEM3336 	0x0006 Megahertz X-JACK Ethernet Modem
 product MEGAHERTZ XJ4288	0x0023 Megahertz XJ4288 Modem
 product MEGAHERTZ XJ4336	0x0027 Megahertz XJ4336 Modem
@@ -439,6 +440,9 @@ product OLICOM OC2231		0x3122 GoCard Combo Eth/Modem 288
 product OLICOM OC2232		0x3222 GoCard Combo Eth/Modem 336
 
 /* Ositech Products */
+product OSITECH JACK_144	0x0001 Ositech Jack of ??? 14.4
+product OSITECH JACK_288	0x0002 Ositech Jack of ??? 28.8
+product OSITECH JACK_336	0x0007 Ositech Jack of ??? 33.6
 product OSITECH TRUMP_SOD	0x0008 Ositech Seven of Diamonds Ethernet Card
 product OSITECH TRUMP_JOH	0x000a Ositech Jack of Hearts
 
