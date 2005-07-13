@@ -196,6 +196,7 @@ int			kbd_release(keyboard_t *kbd, void *id);
 int			kbd_change_callback(keyboard_t *kbd, void *id,
 				     kbd_callback_func_t *func, void *arg);
 int			kbd_find_keyboard(char *driver, int unit);
+int			kbd_find_keyboard2(char *driver, int unit, int index);
 keyboard_t 		*kbd_get_keyboard(int index);
 
 /* a back door for the console driver to tickle the keyboard driver XXX */
