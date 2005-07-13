@@ -35,7 +35,6 @@ struct ep_board {
 struct ep_softc {
 	struct ifnet *ifp;
 	struct ifmedia ifmedia;	/* media info		 */
-
 	device_t dev;
 
 	struct mtx sc_mtx;
