@@ -96,17 +96,14 @@
 47	AUE_NULL	MNOPROTO { gid_t getgid(void); }
 48	AUE_NULL	MSTD	{ int svr4_sys_signal(int signum, \
 				    svr4_sig_t handler); }
-#if defined(NOTYET)
 49	AUE_NULL	STD	{ int svr4_sys_msgsys(int what, int a2, \
-				    int a3, int a4, \
-		    int a5); }
-#else
-49	AUE_NULL	UNIMPL	msgsys
-#endif
+				    int a3, int a4, int a5); }
 50	AUE_NULL	STD	{ int svr4_sys_sysarch(int op, void *a1); }
 51	AUE_NULL	UNIMPL	acct
-52	AUE_NULL	UNIMPL	shmsys
-53	AUE_NULL	UNIMPL	semsys
+52	AUE_NULL	STD	{ int svr4_sys_shmsys(int what, int a2, \
+				    int a3, int a4, int a5); }
+53	AUE_NULL	STD	{ int svr4_sys_semsys(int what, int a2, \
+				    int a3, int a4, int a5); }
 54	AUE_NULL	STD	{ int svr4_sys_ioctl(int fd, u_long com, \
 				    caddr_t data); }
 55	AUE_NULL	UNIMPL	uadmin
