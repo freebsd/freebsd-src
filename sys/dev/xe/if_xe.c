@@ -277,13 +277,9 @@ xe_attach (device_t dev)
     scp->srev = (XE_INB(XE_BOV) & 0x30) >> 4;
 
   /* Print some useful information */
-  device_printf(dev, "%s %s, version 0x%02x/0x%02x%s%s\n",
-	 scp->vendor,
-	 scp->card_type,
-	 scp->version,
-	 scp->srev,
-	 scp->mohawk ? ", 100Mbps capable" : "",
-	 scp->modem ?  ", with modem"      : "");
+  device_printf(dev, "version 0x%02x/0x%02x%s%s\n", scp->version,
+    scp->srev, scp->mohawk ? ", 100Mbps capable" : "",
+    scp->modem ?  ", with modem" : "");
   if (scp->mohawk) {
     XE_SELECT_PAGE(0x10);
     DEVPRINTF(1, (dev, "DingoID=0x%04x, RevisionID=0x%04x, VendorID=0x%04x\n",
@@ -1900,8 +1896,7 @@ xe_activate(device_t dev)
 	    for (i = 0; i < 2; i++) {
 		start += (i == 0 ? 8 : -24);
 		sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						  &sc->port_rid, start,
-						  start + 18, 18, RF_ACTIVE);
+		    &sc->port_rid, start, start + 15, 16, RF_ACTIVE);
 		if (sc->port_res == 0)
 		    continue;	/* Failed, try again if possible */
 		if (bus_get_resource_start(dev, SYS_RES_IOPORT,

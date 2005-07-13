@@ -253,13 +253,36 @@ xe_macfix(device_t dev, int offset)
 	return (0);
 }
 
+static int
+xe_pccard_product_match(device_t dev, const struct pccard_product* ent, int vpfmatch)
+{
+	const struct xe_pccard_product* xpp;
+	uint16_t prodext;
+
+	xpp = (const struct xe_pccard_product*)ent;
+	pccard_get_prodext(dev, &prodext);
+	if (xpp->prodext != prodext)
+		vpfmatch = 0;
+	else
+		vpfmatch++;
+	return (vpfmatch);
+}
+
+static const struct xe_pccard_product *
+xe_pccard_get_product(device_t dev)
+{
+	return ((const struct xe_pccard_product *) pccard_product_lookup(dev,
+	    (const struct pccard_product *)xe_pccard_products,
+	    sizeof(xe_pccard_products[0]), xe_pccard_product_match));
+}
+
 /*
- * PCMCIA probe routine.
+ * PCMCIA attach routine.
  * Identify the device.  Called from the bus driver when the card is
  * inserted or otherwise powers up.
  */
 static int
-xe_pccard_probe(device_t dev)
+xe_pccard_attach(device_t dev)
 {
 	struct xe_softc *scp = (struct xe_softc *) device_get_softc(dev);
 	uint32_t vendor,product;
@@ -269,8 +292,9 @@ xe_pccard_probe(device_t dev)
 	const char* cis4_str = NULL;
 	const char *cis3_str=NULL;
 	const struct xe_pccard_product *xpp;
+	int err;
 
-	DEVPRINTF(2, (dev, "pccard_probe\n"));
+	DEVPRINTF(2, (dev, "pccard_attach\n"));
 
 	pccard_get_vendor(dev, &vendor);
 	pccard_get_product(dev, &product);
@@ -289,33 +313,9 @@ xe_pccard_probe(device_t dev)
 	DEVPRINTF(1, (dev, "cis4_str = %s\n", cis4_str));
 
 
-	/*
-	 * Possibly already did this search in xe_pccard_match(),
-	 * but we need to do it here anyway to figure out which
-	 * card we have.
-	 */
-	for (xpp = xe_pccard_products; xpp->product.pp_vendor != 0; xpp++) {
-		if (vendor == xpp->product.pp_vendor &&
-		    product == xpp->product.pp_product &&
-		    prodext == xpp->prodext)
-			break;
-	}
-
-	/* Found a match? */
-	if (xpp->product.pp_vendor == 0)
-		return (ENODEV);
-
-
-	/* Set card name for logging later */
-	if (xpp->product.pp_name != NULL)
-		device_set_desc(dev, xpp->product.pp_name);
-
-	/* Reject known but unsupported cards */
-	if (xpp->flags & XE_CARD_TYPE_FLAGS_NO) {
-		device_printf(dev, "Sorry, your %s %s card is not supported :(\n",
-				vendor_str, product_str);
-		return (ENODEV);
-	}
+	xpp = xe_pccard_get_product(dev);
+	if (xpp == NULL)
+		return (ENXIO);
 
 	/* Set various card ID fields in softc */
 	scp->vendor = vendor_str;
@@ -342,35 +342,20 @@ xe_pccard_probe(device_t dev)
 		|| scp->enaddr[2] != XE_MAC_ADDR_2)
 	    && xe_macfix(dev, XE_BOGUS_MAC_OFFSET) < 0) {
 		device_printf(dev,
-			      "Unable to find MAC address for your %s card\n",
-			      scp->card_type);
-		return (ENODEV);	    
+		    "Unable to find MAC address for your %s card\n",
+		    device_get_desc(dev));
+		return (ENXIO);
 	}
-
-	/* Success */
-	return (0);
-}
-
-/*
- * Attach a device.
- */
-static int
-xe_pccard_attach(device_t dev)
-{
-	struct xe_softc *scp = device_get_softc(dev);
-	int err;
-
-	DEVPRINTF(2, (dev, "pccard_attach\n"));
 
 	if ((err = xe_activate(dev)) != 0)
 		return (err);
          
 	/* Hack RealPorts into submission */
 	if (scp->modem && xe_cemfix(dev) < 0) {
-		device_printf(dev, "Unable to fix your %s %s combo card\n",
-					  scp->vendor, scp->card_type);
+		device_printf(dev, "Unable to fix your %s combo card\n",
+		    device_get_desc(dev));
 		xe_deactivate(dev);
-		return (ENODEV);
+		return (ENXIO);
 	}
 	if ((err = xe_attach(dev))) {
 		device_printf(dev, "xe_attach() failed! (%d)\n", err);
@@ -400,59 +385,40 @@ xe_pccard_detach(device_t dev)
 }
 
 static int
-xe_pccard_product_match(device_t dev, const struct pccard_product* ent, int vpfmatch)
+xe_pccard_probe(device_t dev)
 {
-	const struct xe_pccard_product* xpp;
-	uint16_t prodext;
+	const struct xe_pccard_product *xpp;
 
-	DEVPRINTF(2, (dev, "pccard_product_match\n"));
+	DEVPRINTF(2, (dev, "pccard_probe\n"));
 
-	xpp = (const struct xe_pccard_product*)ent;
-	pccard_get_prodext(dev, &prodext);
-
-	if (xpp->prodext != prodext)
-		vpfmatch = 0;
-	else
-		vpfmatch++;
-
-	return (vpfmatch);
-}
-
-static int
-xe_pccard_match(device_t dev)
-{
-	int		error = 0;
-	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
-	const struct pccard_product *pp;
-
-	DEVPRINTF(2, (dev, "pccard_match\n"));
-
-	/* Make sure we're a network function */
-	error = pccard_get_function(dev, &fcn);
-	if (error != 0)
-		return (error);
-	if (fcn != PCCARD_FUNCTION_NETWORK)
-		return (ENXIO);
+	/*
+	 * Xircom cards aren't proper MFC cards, so we have to take all
+	 * cards that match, not just ones that are network.
+	 */
 
 	/* If we match something in the table, it is our device. */
-	pp = (const struct pccard_product *)xe_pccard_products;
-	if ((pp = pccard_product_lookup(dev, pp,
-	     sizeof(xe_pccard_products[0]), xe_pccard_product_match)) != NULL)
-		return (0);
+	if ((xpp = xe_pccard_get_product(dev)) == NULL)
+		return (ENXIO);
 
-	return (EIO);
+	/* Set card name for logging later */
+	if (xpp->product.pp_name != NULL)
+		device_set_desc(dev, xpp->product.pp_name);
+
+	/* Reject known but unsupported cards */
+	if (xpp->flags & XE_CARD_TYPE_FLAGS_NO) {
+		device_printf(dev, "Sorry, your %s card is not supported :(\n",
+		    device_get_desc(dev));
+		return (ENXIO);
+	}
+
+	return (0);
 }
 
 static device_method_t xe_pccard_methods[] = {
         /* Device interface */
-        DEVMETHOD(device_probe,         pccard_compat_probe),
-        DEVMETHOD(device_attach,        pccard_compat_attach),
+        DEVMETHOD(device_probe,         xe_pccard_probe),
+        DEVMETHOD(device_attach,        xe_pccard_attach),
         DEVMETHOD(device_detach,        xe_pccard_detach),
-
-        /* Card interface */
-        DEVMETHOD(card_compat_match,    xe_pccard_match),
-        DEVMETHOD(card_compat_probe,    xe_pccard_probe),
-        DEVMETHOD(card_compat_attach,   xe_pccard_attach),
 
         { 0, 0 }
 };
