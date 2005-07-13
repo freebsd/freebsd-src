@@ -3,7 +3,9 @@
 # Makefile for syscall tables.
 
 all:
-	@echo "make osf1_sysent.c only"
+	@echo "make sysent only"
+
+sysent:  osf1_sysent.c osf1_syscall.h osf1_proto.h
 
 osf1_sysent.c osf1_syscall.h osf1_proto.h: ../../kern/makesyscalls.sh \
     syscalls.master syscalls.conf
