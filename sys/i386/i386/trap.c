@@ -238,11 +238,12 @@ trap(frame)
 			printf("kernel trap %d with interrupts disabled\n",
 			    type);
 			/*
-			 * Page faults need interrupts diasabled until later,
+			 * Page faults need interrupts disabled until later,
 			 * and we shouldn't enable interrupts while in a
-			 * critical section.
+			 * critical section or if servicing an NMI.
 			 */
-			if (type != T_PAGEFLT && td->td_critnest == 0)
+			if (type != T_NMI && type != T_PAGEFLT &&
+			    td->td_critnest == 0)
 				enable_intr();
 		}
 	}
