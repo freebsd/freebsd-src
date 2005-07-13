@@ -6,7 +6,10 @@
 ARCH=	i386 # luna68k news3400 pmax sparc tahoe vax
 
 all:
-	@echo "make tags, make links or init_sysent.c only"
+	@echo "make tags, make links or make sysent only"
+
+sysent:  init_sysent.c syscalls.c ../sys/syscall.h ../sys/syscall.mk \
+../sys/sysproto.h
 
 init_sysent.c syscalls.c ../sys/syscall.h \
 ../sys/syscall.mk ../sys/sysproto.h: makesyscalls.sh syscalls.master
