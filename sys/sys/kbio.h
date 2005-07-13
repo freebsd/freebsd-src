@@ -60,6 +60,10 @@
 /* set keyboard repeat rate (obsolete, use KDSETREPEAT below) */
 #define KDSETRAD	_IO('K', 67 /*, int */)
 
+/* add/remove keyboard to/from mux */
+#define KBADDKBD	_IOW('K', 68, int)	/* add keyboard */
+#define KBRELKBD	_IOW('K', 69, int)	/* release keyboard */
+
 /* see console.h for the definition of the following ioctl */
 #if notdef
 #define KDRASTER	_IOW('K', 100, scr_size_t)
