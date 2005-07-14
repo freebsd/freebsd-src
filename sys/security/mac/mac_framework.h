@@ -200,8 +200,8 @@ void	mac_associate_vnode_devfs(struct mount *mp, struct devfs_dirent *de,
 	    struct vnode *vp);
 int	mac_associate_vnode_extattr(struct mount *mp, struct vnode *vp);
 void	mac_associate_vnode_singlelabel(struct mount *mp, struct vnode *vp);
-void	mac_create_devfs_device(struct mount *mp, struct cdev *dev,
-	    struct devfs_dirent *de);
+void	mac_create_devfs_device(struct ucred *cred, struct mount *mp,
+	    struct cdev *dev, struct devfs_dirent *de);
 void	mac_create_devfs_directory(struct mount *mp, char *dirname,
 	    int dirnamelen, struct devfs_dirent *de);
 void	mac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
