@@ -2203,6 +2203,8 @@ uma_zalloc_internal(uma_zone_t zone, void *udata, int flags)
 
 	item = uma_slab_alloc(zone, slab);
 
+	zone->uz_allocs++;
+
 	ZONE_UNLOCK(zone);
 
 	/*
@@ -2799,7 +2801,6 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 				if (cache->uc_freebucket != NULL)
 					cachefree += cache->uc_freebucket->ub_cnt;
 				alloc += cache->uc_allocs;
-				cache->uc_allocs = 0;
 			}
 		}
 		alloc += z->uz_allocs;
