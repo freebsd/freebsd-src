@@ -326,7 +326,7 @@ For example,
 running an old version of
 .Xr imapd 8
 or
-.Xr popper 8
+.Xr popper 8 Pq Pa ports/mail/popper
 is like giving a universal root
 ticket out to the entire world.
 Never run a server that you have not checked
@@ -404,7 +404,7 @@ the system-default SUID and SGID binaries can be considered reasonably safe.
 Still, root holes are occasionally found in these binaries.
 A root hole
 was found in Xlib in 1998 that made
-.Xr xterm 1
+.Xr xterm 1 Pq Pa ports/x11/xterm
 (which is typically SUID)
 vulnerable.
 It is better to be safe than sorry and the prudent sysadmin will restrict SUID
@@ -945,7 +945,7 @@ machines.
 .Xr netstat 1 ,
 .Xr openssl 1 ,
 .Xr ssh 1 ,
-.Xr xdm 1 ,
+.Xr xdm 1 Pq Pa ports/x11/xorg-clients ,
 .Xr group 5 ,
 .Xr ttys 5 ,
 .Xr accton 8 ,
