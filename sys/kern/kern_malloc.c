@@ -696,7 +696,7 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 		    mtp->ks_shortdesc,
 		    temp_allocs,
 		    (temp_bytes + 1023) / 1024,
-		    mts_local.mts_numallocs);
+		    (unsigned long long)mts_local.mts_numallocs);
 
 		first = 1;
 		for (i = 0; i < sizeof(kmemzones) / sizeof(kmemzones[0]) - 1;
