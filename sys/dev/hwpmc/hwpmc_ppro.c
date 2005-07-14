@@ -294,9 +294,9 @@ p6_find_event(enum pmc_event ev)
 
 struct p6_cpu {
 	struct pmc_cpu	pc_common;
-	uint32_t	pc_state;
 	struct pmc_hw	*pc_hwpmcs[P6_NPMCS];
 	struct pmc_hw	pc_p6pmcs[P6_NPMCS];
+	uint32_t	pc_state;
 };
 
 /*
