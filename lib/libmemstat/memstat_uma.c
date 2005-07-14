@@ -199,6 +199,9 @@ retry:
 		 */
 		memstat_mt_reset_stats(mtp);
 
+		mtp->mt_numallocs = uthp->uth_allocs;
+		mtp->mt_numfrees = uthp->uth_frees;
+
 		for (j = 0; j < maxcpus; j++) {
 			upsp = (struct uma_percpu_stat *)p;
 			p += sizeof(*upsp);
@@ -211,14 +214,12 @@ retry:
 		}
 
 		mtp->mt_size = uthp->uth_size;
-		mtp->mt_memalloced = uthp->uth_allocs * uthp->uth_size;
-		mtp->mt_memfreed = uthp->uth_frees * uthp->uth_size;
+		mtp->mt_memalloced = mtp->mt_numallocs * uthp->uth_size;
+		mtp->mt_memfreed = mtp->mt_numfrees * uthp->uth_size;
 		mtp->mt_bytes = mtp->mt_memalloced - mtp->mt_memfreed;
 		mtp->mt_countlimit = uthp->uth_limit;
 		mtp->mt_byteslimit = uthp->uth_limit * uthp->uth_size;
 
-		mtp->mt_numallocs = uthp->uth_allocs;
-		mtp->mt_numfrees = uthp->uth_frees;
 		mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
 		mtp->mt_zonefree = uthp->uth_zone_free + uthp->uth_keg_free;
 		mtp->mt_free += mtp->mt_zonefree;
