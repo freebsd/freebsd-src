@@ -1224,7 +1224,7 @@ printkey(const struct ieee80211req_key *ik)
 	int keylen = ik->ik_keylen;
 	int printcontents;
 
-	printcontents =
+	printcontents = printkeys &&
 		(memcmp(ik->ik_keydata, zerodata, keylen) != 0 || verbose);
 	if (printcontents)
 		LINE_BREAK();

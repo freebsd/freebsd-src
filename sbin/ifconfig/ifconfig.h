@@ -126,6 +126,7 @@ extern	struct ifreq ifr;
 extern	char name[IFNAMSIZ];	/* name of interface */
 extern	int allmedia;
 extern	int supmedia;
+extern	int printkeys;
 extern	int printname;
 extern	int flags;
 extern	int newaddr;
