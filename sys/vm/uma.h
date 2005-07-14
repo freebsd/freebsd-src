@@ -509,4 +509,51 @@ void uma_prealloc(uma_zone_t zone, int itemcnt);
  */
 u_int32_t *uma_find_refcnt(uma_zone_t zone, void *item);
 
+/*
+ * Exported statistics structures to be used by user space monitoring tools.
+ * Statistics stream consusts of a uma_stream_header, followed by a series of
+ * alternative uma_type_header and uma_type_stat structures.  Statistics
+ * structures
+ */
+#define	UMA_STREAM_VERSION	0x00000001
+struct uma_stream_header {
+	u_int32_t	ush_version;	/* Stream format version. */
+	u_int32_t	ush_maxcpus;	/* Value of MAXCPU for stream. */
+	u_int32_t	ush_count;	/* Number of records. */
+	u_int32_t	_ush_pad;	/* Pad/reserved field. */
+};
+
+#define	UMA_MAX_NAME	32
+struct uma_type_header {
+	/*
+	 * Static per-zone data, some extracted from the supporting keg.
+	 */
+	char		uth_name[UMA_MAX_NAME];
+	u_int32_t	uth_align;	/* Keg: alignment. */
+	u_int32_t	uth_size;	/* Keg: requested size of item. */
+	u_int32_t	uth_rsize;	/* Keg: real size of item. */
+	u_int32_t	uth_maxpages;	/* Keg: maximum number of pages. */
+	u_int32_t	uth_limit;	/* Keg: max items to allocate. */
+
+	/*
+	 * Current dynamic zone/keg-derived statistics.
+	 */
+	u_int32_t	uth_pages;	/* Keg: pages allocated. */
+	u_int32_t	uth_keg_free;	/* Keg: items free. */
+	u_int32_t	uth_zone_free;	/* Zone: items free. */
+	u_int32_t	uth_bucketsize;	/* Zone: desired bucket size. */
+	u_int32_t	_uth_reserved0;	/* Reserved. */
+	u_int64_t	uth_allocs;	/* Zone: number of allocations. */
+	u_int64_t	uth_frees;	/* Zone: number of frees. */
+	u_int64_t	_uth_reserved1[4];	/* Reserved. */
+
+};
+
+struct uma_percpu_stat {
+	u_int64_t	ups_allocs;	/* Cache: number of alloctions. */
+	u_int64_t	ups_frees;	/* Cache: number of frees. */
+	u_int64_t	ups_cache_free;	/* Cache: free items in cache. */
+	u_int64_t	_ups_reserved[5];	/* Reserved. */
+};
+
 #endif
