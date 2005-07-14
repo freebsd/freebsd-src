@@ -486,7 +486,7 @@ product QUATECH DUAL_RS232	0x0052 Quatech Dual RS-232
 
 /* RATOC System Inc. Products */
 /* Don't use because both cards have same product id */
-product RATOC REX_R280_9530	0x0001	RATOC REX-R280/REX-9530
+product RATOC REX_R280_9530	0x0001	RATOC REX-R280/REX-9530/CFU01
 
 /* Racore Computer Products */
 product RACORE ACCTON_EN2226	0x010a Accton Fast EtherCard
@@ -699,6 +699,7 @@ product RATOC REX5536AM		{ "PCMCIA&spSCSI&spMBH10404", "01", NULL, NULL } RATOC 
 product RATOC REX5536M		{ "PCMCIA&spSCSI2&spCARD", "01", NULL, NULL } RATOC REX-5536M
 product RATOC REX5572		{ "RATOC&spSystem&spInc.", "SOUND/SCSI2&spCARD", NULL, NULL } RATOC REX-5572
 product RATOC REX9530		{ "RATOC&spSystem&spInc.", "SCSI2&spCARD&sp37", NULL, NULL } RATOC REX-9530
+product RATOC REX_CFU1		{ "RATOC", "USB&spHOST&spCF+&spCard", NULL, NULL } RATOC REX-CFU1
 product SIMPLETECH SPECTRUM24_ALT	{ "Symbol&spTechnologies", "LA4111&spSpectrum24&spWireless&spLAN&spPC&spCard", NULL, NULL } LA4111 Spectrum24 Wireless LAN PC Card
 product SMC 2632W		{ "SMC", "SMC2632W", "Version&sp01.02", NULL } SMC 2632 EZ Connect Wireless PC Card
 product SMC 8000		{ "SMC8000", "DEV1", NULL, NULL }
