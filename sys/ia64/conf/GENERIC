@@ -28,6 +28,7 @@ makeoptions	DEBUG=-g	# Build kernel with debug information.
 
 options 	CD9660		# ISO 9660 Filesystem
 options 	COMPAT_43	# Compatible with BSD 4.3 [KEEP THIS!]
+options 	COMPAT_FREEBSD5	# Compatible with FreeBSD5
 options 	DDB		# Support DDB
 options 	FFS		# Berkeley Fast Filesystem
 options 	GDB		# Support remote GDB
