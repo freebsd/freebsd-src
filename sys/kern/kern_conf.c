@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/ctype.h>
 #include <sys/tty.h>
+#include <sys/ucred.h>
 #include <machine/stdarg.h>
 
 static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
@@ -51,6 +52,9 @@ static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 static struct mtx devmtx;
 static void freedev(struct cdev *dev);
 static void destroy_devl(struct cdev *dev);
+static struct cdev *make_dev_credv(struct cdevsw *devsw, int minornr,
+	    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
+	    va_list ap);
 
 void
 dev_lock(void)
@@ -300,6 +304,8 @@ static void
 freedev(struct cdev *dev)
 {
 
+	if (dev->si_cred != NULL)
+		crfree(dev->si_cred);
 	free(dev, M_DEVT);
 }
 
@@ -370,11 +376,11 @@ prep_cdevsw(struct cdevsw *devsw)
 	dev_unlock();
 }
 
-struct cdev *
-make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int mode, const char *fmt, ...)
+static struct cdev *
+make_dev_credv(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
+    gid_t gid, int mode, const char *fmt, va_list ap)
 {
 	struct cdev *dev;
-	va_list ap;
 	int i;
 
 	KASSERT((minornr & ~MAXMINOR) == 0,
@@ -400,22 +406,51 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int mode, cons
 	    ("make_dev() by driver %s on pre-existing device (min=%x, name=%s)",
 	    devsw->d_name, minor(dev), devtoname(dev)));
 
-	va_start(ap, fmt);
 	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
 	if (i > (sizeof dev->__si_namebuf - 1)) {
 		printf("WARNING: Device name truncated! (%s)\n", 
 		    dev->__si_namebuf);
 	}
-	va_end(ap);
 		
 	dev->si_devsw = devsw;
 	dev->si_flags |= SI_NAMED;
+	if (cr != NULL)
+		dev->si_cred = crhold(cr);
+	else
+		dev->si_cred = NULL;
 	dev->si_uid = uid;
 	dev->si_gid = gid;
 	dev->si_mode = mode;
 
 	devfs_create(dev);
 	dev_unlock();
+	return (dev);
+}
+
+struct cdev *
+make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int mode,
+    const char *fmt, ...)
+{
+	struct cdev *dev;
+	va_list ap;
+
+	va_start(ap, fmt);
+	dev = make_dev_credv(devsw, minornr, NULL, uid, gid, mode, fmt, ap);
+	va_end(ap);
+	return (dev);
+}
+
+struct cdev *
+make_dev_cred(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
+    gid_t gid, int mode, const char *fmt, ...)
+{
+	struct cdev *dev;
+	va_list ap;
+
+	va_start(ap, fmt);
+	dev = make_dev_credv(devsw, minornr, cr, uid, gid, mode, fmt, ap);
+	va_end(ap);
+
 	return (dev);
 }
 

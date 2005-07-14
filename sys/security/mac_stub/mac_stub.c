@@ -187,8 +187,8 @@ stub_associate_vnode_singlelabel(struct mount *mp,
 }
 
 static void
-stub_create_devfs_device(struct mount *mp, struct cdev *dev,
-    struct devfs_dirent *devfs_dirent, struct label *label)
+stub_create_devfs_device(struct ucred *cred, struct mount *mp,
+    struct cdev *dev, struct devfs_dirent *devfs_dirent, struct label *label)
 {
 
 }
