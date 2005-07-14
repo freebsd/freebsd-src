@@ -37,6 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl L
+.Op Fl k
 .Op Fl m
 .Ar interface
 .Op Cm create
@@ -65,6 +66,7 @@
 .Nm
 .Op Fl L
 .Op Fl d
+.Op Fl k
 .Op Fl m
 .Op Fl u
 .Op Fl v
@@ -1070,6 +1072,15 @@ The
 flag may be used to list all of the interface cloners available on
 the system, with no additional information.
 Use of this flag is mutually exclusive with all other flags and commands.
+.Pp
+The
+.Fl k
+flag causes keying information for the interface, if available, to be
+printed.
+For example, the values of 802.11 WEP keys will be printed, if accessible to
+the current user.
+This information is not printed by default, as it may be considered
+sensitive.
 .Pp
 Only the super-user may modify the configuration of a network interface.
 .Sh NOTES
