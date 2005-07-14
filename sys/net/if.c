@@ -653,7 +653,6 @@ if_detach(struct ifnet *ifp)
 	 */
 	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
 
-	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 #ifdef DEV_CARP
 	/* Maybe hook to the generalized departure handler above?!? */
 	if (ifp->if_carp)
@@ -714,6 +713,7 @@ if_detach(struct ifnet *ifp)
 
 	/* Announce that the interface is gone. */
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
+	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 
 	IF_AFDATA_LOCK(ifp);
 	for (dp = domains; dp; dp = dp->dom_next) {
@@ -1333,9 +1333,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		if (ifunit(new_name) != NULL)
 			return (EEXIST);
 		
-		EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 		/* Announce the departure of the interface. */
 		rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
+		EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 
 		log(LOG_INFO, "%s: changing name to '%s'\n",
 		    ifp->if_xname, new_name);
