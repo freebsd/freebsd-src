@@ -29,7 +29,7 @@
 .Dt SDPCONTROL 8
 .Os
 .Sh NAME
-.Nm spdcontrol
+.Nm sdpcontrol
 .Nd SDP query utility
 .Sh SYNOPSIS
 .Nm
@@ -46,22 +46,22 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility attempts to query specified Service Discovery Protocol (SDP) server.
+utility attempts to query the specified Service Discovery Protocol (SDP) server.
 Remote SDP servers are identified by their address.
-Connection to the local SDP server is made via control socket.
+Connection to the local SDP server is made via the control socket.
 The
 .Nm
-utility will use Service Search Attribute Request and will print results to
-the standard output and error messages to the standard error.
+utility uses Service Search Attribute Requests and prints results to
+standard output and error messages to standard error.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl a Ar address
 Connect to the remote device with the specified address.
-The address can be specified as BD_ADDR or name.
-If name was specified then the
+The address can be specified as BD_ADDR or a name.
+If a name was specified, the
 .Nm
-utility will attempt to resolve the name via
+utility attempts to resolve the name via
 .Xr bt_gethostbyname 3 .
 .It Fl c Ar path
 Specify path to the control socket.
@@ -73,10 +73,10 @@ Display usage message and exit.
 Query the local SDP server via the control socket.
 .It Ar command
 One of the supported commands (see below).
-Special command
+The special command
 .Cm help
-can be used to obtain the list of all supported commands.
-To get more information about specific command use
+can be used to obtain a list of all supported commands.
+To get more information about a specific command, use
 .Cm help Ar command .
 .It Ar parameters
 One or more optional space separated command parameters.
@@ -90,7 +90,7 @@ are:
 .It Cm Browse
 .It Cm Search
 .El
-.Sh CAVEAT
+.Sh CAVEATS
 The
 .Nm
 utility only implements client side functionality.
@@ -109,7 +109,7 @@ Protocol Descriptor List
 .It
 Bluetooth Profile Descriptor List
 .El
-.Sh DIAGNOSTICS
+.Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
 .Xr bluetooth 3 ,
