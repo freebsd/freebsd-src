@@ -170,7 +170,7 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, int how)
 {
 	struct mbuf *mp, *mp2;
 	int siz2, xfer;
-	caddr_t ptr;
+	caddr_t ptr, npos = NULL;
 	void *ret;
 
 	mp = *mdp;
@@ -192,6 +192,7 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, int how)
 		MGET(mp2, how, MT_DATA);
 		if (mp2 == NULL)
 			return NULL;
+		mp2->m_len = siz;
 		mp2->m_next = mp->m_next;
 		mp->m_next = mp2;
 		mp->m_len -= left;
@@ -202,6 +203,7 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, int how)
 		siz2 = siz-left;
 		ptr += left;
 		mp2 = mp->m_next;
+		npos = mtod(mp2, caddr_t);
 		/* Loop around copying up the siz2 bytes */
 		while (siz2 > 0) {
 			if (mp2 == NULL)
@@ -214,12 +216,19 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, int how)
 				ptr += xfer;
 				siz2 -= xfer;
 			}
-			if (siz2 > 0)
+			if (siz2 > 0) {
 				mp2 = mp2->m_next;
+				if (mp2 != NULL)
+					npos = mtod(mp2, caddr_t);
+			}
 		}
-		mp->m_len = siz;
 		*mdp = mp2;
 		*dposp = mtod(mp2, caddr_t);
+		if (!nfsm_aligned(*dposp, u_int32_t)) {
+			bcopy(*dposp, npos, mp2->m_len);
+			mp2->m_data = npos;
+			*dposp = npos;
+		}
 	}
 	return ret;
 }
