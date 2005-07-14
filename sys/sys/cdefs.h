@@ -345,7 +345,7 @@
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #ifndef __INTEL_COMPILER
 #define	__strong_reference(sym,aliassym)	\
-	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)));
+	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)))
 #endif
 #ifdef __STDC__
 #define	__weak_reference(sym,alias)	\
