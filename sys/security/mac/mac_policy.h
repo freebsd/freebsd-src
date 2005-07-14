@@ -618,7 +618,7 @@ struct mac_policy_conf {
 		mac_policy_modevent,					\
 		&mpname##_mac_policy_conf				\
 	};								\
-	MODULE_DEPEND(mpname, kernel_mac_support, 2, 2, 2);		\
+	MODULE_DEPEND(mpname, kernel_mac_support, 3, 3, 3);		\
 	DECLARE_MODULE(mpname, mpname##_mod, SI_SUB_MAC_POLICY,		\
 	    SI_ORDER_MIDDLE)
 
