@@ -99,6 +99,8 @@ int biospci_read_config(uint32_t locator, int offset, int width, uint32_t *val);
 
 void	biosacpi_detect();
 
+void	smbios_detect();
+
 void	gateA20(void);
 
 int	i386_autoload(void);
