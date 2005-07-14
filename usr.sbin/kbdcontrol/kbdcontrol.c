@@ -130,6 +130,7 @@ void		print_key_definition_line(FILE *fp, int scancode,
 			struct keyent_t *key);
 void		print_keymap(void);
 void		release_keyboard(void);
+void		mux_keyboard(int op, char *kbd);
 void		set_bell_values(char *opt);
 void		set_functionkey(char *keynumstr, char *string);
 void		set_keyboard(char *device);
@@ -1080,12 +1081,75 @@ release_keyboard(void)
 		warn("unable to release the keyboard");
 }
 
+void
+mux_keyboard(int op, char *kbd)
+{
+	keyboard_info_t	info;
+	char		*unit, *ep;
+
+	/*
+	 * If stdin is not associated with a keyboard, the following ioctl
+	 * will fail.
+	 */
+	if (ioctl(0, KDGKBINFO, &info) == -1) {
+		warn("unable to obtain keyboard information");
+		return;
+	}
+#if 1
+	printf("kbd%d\n", info.kb_index);
+	printf("    %.*s%d, type:%s (%d)\n",
+		(int)sizeof(info.kb_name), info.kb_name, info.kb_unit,
+		get_kbd_type_name(info.kb_type), info.kb_type);
+#endif
+	/*
+	 * split kbd into name and unit. find the right most part of the
+	 * kbd string that consist of only digits.
+	 */
+
+	memset(&info, 0, sizeof(info));
+
+	info.kb_unit = -1;
+	ep = kbd - 1;
+
+	do {
+		unit = strpbrk(ep + 1, "0123456789");
+		if (unit != NULL) {
+			info.kb_unit = strtol(unit, &ep, 10);
+			if (*ep != '\0')
+				info.kb_unit = -1;
+		}
+	} while (unit != NULL && info.kb_unit == -1);
+
+	if (info.kb_unit == -1) {
+		warnx("unable to find keyboard driver unit in '%s'", kbd);
+		return;
+	}
+
+	if (unit == kbd) {
+		warnx("unable to find keyboard driver name in '%s'", kbd);
+		return;
+	}
+	if (unit - kbd >= (int) sizeof(info.kb_name)) {
+		warnx("keyboard name '%s' is too long", kbd);
+		return;
+	}
+
+	strncpy(info.kb_name, kbd, unit - kbd);
+
+	/*
+	 * If stdin is not associated with a kbdmux(4) keyboard, the following
+	 * ioctl will fail.
+	 */
+
+	if (ioctl(0, op, &info) == -1)
+		warn("unable to (un)mux the keyboard");
+}
 
 void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: kbdcontrol [-dFKix] [-b duration.pitch | [quiet.]belltype]",
+"usage: kbdcontrol [-dFKix] [-A name] [-a name] [-b duration.pitch | [quiet.]belltype]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
 "                  [-k device] [-L mapfile]");
 	exit(1);
@@ -1097,8 +1161,12 @@ main(int argc, char **argv)
 {
 	int		opt;
 
-	while((opt = getopt(argc, argv, "b:df:iKk:Fl:L:r:x")) != -1)
+	while((opt = getopt(argc, argv, "A:a:b:df:iKk:Fl:L:r:x")) != -1)
 		switch(opt) {
+		case 'A':
+		case 'a':
+			mux_keyboard((opt == 'A')? KBRELKBD : KBADDKBD, optarg);
+			break;
 		case 'b':
 			set_bell_values(optarg);
 			break;
