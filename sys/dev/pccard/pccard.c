@@ -969,10 +969,13 @@ pccard_probe_nomatch(device_t bus, device_t child)
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
 
 	device_printf(bus, "<unknown card>");
-	printf(" (manufacturer=0x%04x, product=0x%04x) at function %d\n",
-	  sc->card.manufacturer, sc->card.product, pf->number);
-	device_printf(bus, "   CIS info: %s, %s, %s\n", sc->card.cis1_info[0],
-	  sc->card.cis1_info[1], sc->card.cis1_info[2]);
+	printf(" (manufacturer=0x%04x, product=0x%04x, function_type=%d) "
+	    "at function %d\n", sc->card.manufacturer, sc->card.product,
+	    pf->function, pf->number);
+	device_printf(bus, "   CIS info: ");
+	for (i = 0; sc->card.cis1_info[i] != NULL && i < 4; i++)
+		printf("%s%s", i > 0 ? ", " : "", sc->card.cis1_info[i]);
+	printf("\n");
 	return;
 }
 
