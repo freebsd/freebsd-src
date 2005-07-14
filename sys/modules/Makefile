@@ -124,6 +124,7 @@ SUBDIR=	${_3dfx} \
 	ispfw \
 	iwi \
 	joy \
+	kbdmux \
 	kue \
 	lge \
 	libalias \
