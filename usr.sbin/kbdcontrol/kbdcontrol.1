@@ -22,6 +22,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl dFKix
+.Op Fl A Ar name
+.Op Fl a Ar name
 .Oo
 .Fl b
 .Ar duration . Ns Ar pitch | Ar belltype
@@ -52,6 +54,26 @@ below.
 .Pp
 The following command line options are supported:
 .Bl -tag -width indent
+.It Fl A Ar name
+Detach the keyboard, specified by the keyboard device name, from the keyboard
+multiplexer.
+When using this option, the standard input of the
+.Nm
+process should be redirected from the keyboard multilpexor keyboard device
+(if keyboard multiplexor is not active keyboard) or
+.Pa /dev/console
+(if keyboard multiplexor is active keyboard and
+you are not working on the system console).
+.It Fl a Ar name
+Attach the keyboard, specified by the keyboard device name, to the keyboard
+multiplexer.
+When using this option, the standard input of the
+.Nm
+process should be redirected from the keyboard multilpexor keyboard device
+(if keyboard multiplexor is not active keyboard) or
+.Pa /dev/console
+(if keyboard multiplexor is active keyboard and
+you are not working on the system console).
 .It Fl b Xo
 .Ar duration . Ns Ar pitch | Ar belltype
 .Xc

@@ -143,7 +143,6 @@ MALLOC_DEFINE(M_KBDMUX, KEYBOARD_NAME, "Keyboard multiplexor");
 struct kbdmux_kbd
 {
 	keyboard_t		*kbd;	/* keyboard */
-	int			 idx;	/* keyboard index */
 	SLIST_ENTRY(kbdmux_kbd)	 next;	/* link to next */
 };
 
@@ -282,7 +281,6 @@ kbdmux_kbd_event(keyboard_t *kbd, int event, void *arg)
 			SLIST_REMOVE(&state->ks_kbds, k, kbdmux_kbd, next);
 
 			k->kbd = NULL;
-			k->idx = -1;
 
 			free(k, M_KBDMUX);
 		}
@@ -500,7 +498,6 @@ kbdmux_term(keyboard_t *kbd)
 		SLIST_REMOVE_HEAD(&state->ks_kbds, next);
 
 		k->kbd = NULL;
-		k->idx = -1;
 
 		free(k, M_KBDMUX);
 	}
@@ -903,6 +900,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 	kbdmux_state_t	*state = (kbdmux_state_t *) kbd->kb_data;
 	kbdmux_kbd_t	*k;
+	keyboard_info_t	*ki;
 	int		 error = 0, mode;
 
 	if (state == NULL)
@@ -910,10 +908,17 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 	switch (cmd) {
 	case KBADDKBD: /* add keyboard to the mux */
+		ki = (keyboard_info_t *) arg;
+
+		if (ki == NULL || ki->kb_unit < 0 || ki->kb_name[0] == '\0' ||
+		    strcmp(ki->kb_name, "*") == 0)
+			return (EINVAL); /* bad input */
+
 		KBDMUX_LOCK(state);
 
 		SLIST_FOREACH(k, &state->ks_kbds, next)
-			if (k->idx == *((int *) arg))
+			if (k->kbd->kb_unit == ki->kb_unit &&
+			    strcmp(k->kbd->kb_name, ki->kb_name) == 0)
 				break;
 
 		if (k != NULL) {
@@ -929,22 +934,17 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			return (ENOMEM); /* out of memory */
 		}
 
-		k->kbd = kbd_get_keyboard(*((int *) arg));
+		k->kbd = kbd_get_keyboard(
+				kbd_allocate(
+					ki->kb_name,
+					ki->kb_unit,
+					(void *) &k->kbd,
+					kbdmux_kbd_event, (void *) state));
 		if (k->kbd == NULL) {
 			KBDMUX_UNLOCK(state);
 			free(k, M_KBDMUX);
 
-			return (EINVAL); /* bad keyboard index */
-		}
-
-		k->idx = kbd_allocate(k->kbd->kb_name, k->kbd->kb_unit,
-					(void *) &k->kbd,
-					kbdmux_kbd_event, (void *) state);
-		if (k->idx == -1) {
-			KBDMUX_UNLOCK(state);
-			free(k, M_KBDMUX);
-
-			return (EBUSY); /* keyboard is busy */
+			return (EINVAL); /* bad keyboard */
 		}
 
 		KBDMUX_ENABLE(k->kbd);
@@ -964,7 +964,6 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 			kbd_release(k->kbd, &k->kbd);
 			k->kbd = NULL;
-			k->idx = -1;
 
 			free(k, M_KBDMUX);
 
@@ -977,10 +976,17 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		break;
 
 	case KBRELKBD: /* release keyboard from the mux */
+		ki = (keyboard_info_t *) arg;
+
+		if (ki == NULL || ki->kb_unit < 0 || ki->kb_name[0] == '\0' ||
+		    strcmp(ki->kb_name, "*") == 0)
+			return (EINVAL); /* bad input */
+
 		KBDMUX_LOCK(state);
 
 		SLIST_FOREACH(k, &state->ks_kbds, next)
-			if (k->idx == *((int *) arg))
+			if (k->kbd->kb_unit == ki->kb_unit &&
+			    strcmp(k->kbd->kb_name, ki->kb_name) == 0)
 				break;
 
 		if (k != NULL) {
@@ -989,7 +995,6 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 				SLIST_REMOVE(&state->ks_kbds, k, kbdmux_kbd, next);
 
 				k->kbd = NULL;
-				k->idx = -1;
 
 				free(k, M_KBDMUX);
 			}
