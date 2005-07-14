@@ -63,7 +63,7 @@ echo ${SECTS} ${SC} ${HD} ${DATASIZE} | awk '
 	# size of cylinder in sectors
 	cs = $2 * $3
 	# number of full cylinders
-	cyl = $1 / cs
+	cyl = int ($1 / cs)
 	print "g c" cyl " h" $3 " s" $2
 	# Size of data/conf patition, round up to full cylinder
 	dsl = int (($4 + cs - 1) / cs)
