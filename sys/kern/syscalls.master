@@ -411,8 +411,11 @@
 286	UNIMPL	nosys
 287	UNIMPL	nosys
 288	UNIMPL	nosys
-289	UNIMPL	nosys
-290	UNIMPL	nosys
+; 289 and 290 from NetBSD (OpenBSD: 267 and 268)
+289	MSTD	{ ssize_t preadv(int fd, struct iovec *iovp, u_int iovcnt, \
+		    off_t offset); }
+290	MSTD	{ ssize_t pwritev(int fd, struct iovec *iovp, u_int iovcnt, \
+		    off_t offset); }
 291	UNIMPL	nosys
 292	UNIMPL	nosys
 293	UNIMPL	nosys

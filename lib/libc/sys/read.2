@@ -38,7 +38,8 @@
 .Sh NAME
 .Nm read ,
 .Nm readv ,
-.Nm pread
+.Nm pread ,
+.Nm preadv
 .Nd read input
 .Sh LIBRARY
 .Lb libc
@@ -49,9 +50,11 @@
 .Ft ssize_t
 .Fn read "int d" "void *buf" "size_t nbytes"
 .Ft ssize_t
+.Fn pread "int d" "void *buf" "size_t nbytes" "off_t offset"
+.Ft ssize_t
 .Fn readv "int d" "const struct iovec *iov" "int iovcnt"
 .Ft ssize_t
-.Fn pread "int d" "void *buf" "size_t nbytes" "off_t offset"
+.Fn preadv "int d" "const struct iovec *iov" "int iovcnt" "off_t offset"
 .Sh DESCRIPTION
 The
 .Fn read
@@ -73,12 +76,16 @@ buffers specified by the members of the
 array: iov[0], iov[1], ..., iov[iovcnt\|\-\|1].
 The
 .Fn pread
-system call
-performs the same function, but reads from the specified position in
+and
+.Fn preadv
+system calls
+perform the same functions, but read from the specified position in
 the file without modifying the file pointer.
 .Pp
 For
-.Fn readv ,
+.Fn readv
+and
+.Fn preadv ,
 the
 .Fa iovec
 structure is defined as:
@@ -119,8 +126,9 @@ object is undefined.
 Upon successful completion,
 .Fn read ,
 .Fn readv ,
-and
 .Fn pread
+and
+.Fn preadv
 return the number of bytes actually read and placed in the buffer.
 The system guarantees to read the number of bytes requested if
 the descriptor references a normal file that has that many bytes left
@@ -137,8 +145,9 @@ is set to indicate the error.
 The
 .Fn read ,
 .Fn readv ,
-and
 .Fn pread
+and
+.Fn preadv
 system calls
 will succeed unless:
 .Bl -tag -width Er
@@ -184,6 +193,8 @@ for this file system.
 .Pp
 In addition,
 .Fn readv
+and
+.Fn preadv
 may return one of the following errors:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -212,7 +223,9 @@ points outside the process's allocated address space.
 .Pp
 The
 .Fn pread
-system call may also return the following errors:
+and
+.Fn preadv
+system calls may also return the following errors:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
@@ -244,6 +257,10 @@ and
 system calls are expected to conform to
 .St -xpg4.2 .
 .Sh HISTORY
+The
+.Fn preadv
+system call appeared in
+.Fx 6.0 .
 The
 .Fn pread
 function appeared in

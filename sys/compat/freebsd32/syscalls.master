@@ -406,8 +406,13 @@
 286	UNIMPL	nosys
 287	UNIMPL	nosys
 288	UNIMPL	nosys
-289	UNIMPL	nosys
-290	UNIMPL	nosys
+; 289 and 290 from NetBSD (OpenBSD: 267 and 268)
+289	MSTD	{ ssize_t freebsd32_preadv(int fd, struct iovec32 *iovp, \
+		    u_int iovcnt, off_t offset); }
+; XXX note - bigendian is different
+290	MSTD	{ ssize_t freebsd32_pwritev(int fd, struct iovec32 *iovp, \
+		    u_int iovcnt, off_t offset); }
+; XXX note - bigendian is different
 291	UNIMPL	nosys
 292	UNIMPL	nosys
 293	UNIMPL	nosys
