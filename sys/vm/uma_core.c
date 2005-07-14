@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
 
@@ -234,6 +235,8 @@ static uma_zone_t uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit,
 void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
 static int sysctl_vm_zone(SYSCTL_HANDLER_ARGS);
+static int sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS);
+static int sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS);
 
 #ifdef WITNESS
 static int nosleepwithlocks = 1;
@@ -247,6 +250,12 @@ SYSCTL_INT(_debug, OID_AUTO, nosleepwithlocks, CTLFLAG_RW, &nosleepwithlocks,
 SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD,
     NULL, 0, sysctl_vm_zone, "A", "Zone Info");
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
+
+SYSCTL_PROC(_vm, OID_AUTO, zone_count, CTLFLAG_RD|CTLTYPE_INT,
+    0, 0, sysctl_vm_zone_count, "I", "Number of UMA zones");
+
+SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
+    0, 0, sysctl_vm_zone_stats, "s,struct uma_type_header", "Zone Stats");
 
 /*
  * This routine checks to see whether or not it's safe to enable buckets.
@@ -2751,6 +2760,48 @@ uma_print_zone(uma_zone_t zone)
 }
 
 /*
+ * Generate statistics across both the zone and its per-cpu cache's.  Return
+ * desired statistics if the pointer is non-NULL for that statistic.
+ *
+ * Note: does not update the zone statistics, as it can't safely clear the
+ * per-CPU cache statistic.
+ *
+ * XXXRW: Following the uc_allocbucket and uc_freebucket pointers here isn't
+ * safe from off-CPU; we should modify the caches to track this information
+ * directly so that we don't have to.
+ */
+static void
+uma_zone_sumstat(uma_zone_t z, int *cachefreep, u_int64_t *allocsp,
+    u_int64_t *freesp)
+{
+	uma_cache_t cache;
+	u_int64_t allocs, frees;
+	int cachefree, cpu;
+
+	allocs = frees = 0;
+	cachefree = 0;
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		if (CPU_ABSENT(cpu))
+			continue;
+		cache = &z->uz_cpu[cpu];
+		if (cache->uc_allocbucket != NULL)
+			cachefree += cache->uc_allocbucket->ub_cnt;
+		if (cache->uc_freebucket != NULL)
+			cachefree += cache->uc_freebucket->ub_cnt;
+		allocs += cache->uc_allocs;
+		frees += cache->uc_frees;
+	}
+	allocs += z->uz_allocs;
+	frees += z->uz_frees;
+	if (cachefreep != NULL)
+		*cachefreep = cachefree;
+	if (allocsp != NULL)
+		*allocsp = allocs;
+	if (freesp != NULL)
+		*freesp = frees;
+}
+
+/*
  * Sysctl handler for vm.zone
  *
  * stolen from vm_zone.c
@@ -2765,11 +2816,9 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	uma_zone_t z;
 	uma_keg_t zk;
 	char *p;
-	int cpu;
 	int cachefree;
 	uma_bucket_t bucket;
-	uma_cache_t cache;
-	u_int64_t alloc;
+	u_int64_t allocs, frees;
 
 	cnt = 0;
 	mtx_lock(&uma_mtx);
@@ -2795,20 +2844,12 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 			break;
 		ZONE_LOCK(z);
 		cachefree = 0;
-		alloc = 0;
 		if (!(zk->uk_flags & UMA_ZFLAG_INTERNAL)) {
-			for (cpu = 0; cpu <= mp_maxid; cpu++) {
-				if (CPU_ABSENT(cpu))
-					continue;
-				cache = &z->uz_cpu[cpu];
-				if (cache->uc_allocbucket != NULL)
-					cachefree += cache->uc_allocbucket->ub_cnt;
-				if (cache->uc_freebucket != NULL)
-					cachefree += cache->uc_freebucket->ub_cnt;
-				alloc += cache->uc_allocs;
-			}
+			uma_zone_sumstat(z, &cachefree, &allocs, &frees);
+		} else {
+			allocs = z->uz_allocs;
+			frees = z->uz_frees;
 		}
-		alloc += z->uz_allocs;
 
 		LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link) {
 			cachefree += bucket->ub_cnt;
@@ -2820,7 +2861,7 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 		    zk->uk_maxpages * zk->uk_ipers,
 		    (zk->uk_ipers * (zk->uk_pages / zk->uk_ppera)) - totalfree,
 		    totalfree,
-		    (unsigned long long)alloc);
+		    (unsigned long long)allocs);
 		ZONE_UNLOCK(z);
 		for (p = offset + 12; p > offset && *p == ' '; --p)
 			/* nothing */ ;
@@ -2834,5 +2875,140 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, tmpbuf, offset - tmpbuf);
 out:
 	FREE(tmpbuf, M_TEMP);
+	return (error);
+}
+
+static int
+sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS)
+{
+	uma_keg_t kz;
+	uma_zone_t z;
+	int count;
+
+	count = 0;
+	mtx_lock(&uma_mtx);
+	LIST_FOREACH(kz, &uma_kegs, uk_link) {
+		LIST_FOREACH(z, &kz->uk_zones, uz_link)
+			count++;
+	}
+	mtx_unlock(&uma_mtx);
+	return (sysctl_handle_int(oidp, &count, 0, req));
+}
+
+static int
+sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct uma_stream_header ush;
+	struct uma_type_header uth;
+	struct uma_percpu_stat ups;
+	uma_bucket_t bucket;
+	struct sbuf sbuf;
+	uma_cache_t cache;
+	uma_keg_t kz;
+	uma_zone_t z;
+	char *buffer;
+	int buflen, count, error, i;
+
+	mtx_lock(&uma_mtx);
+restart:
+	mtx_assert(&uma_mtx, MA_OWNED);
+	count = 0;
+	LIST_FOREACH(kz, &uma_kegs, uk_link) {
+		LIST_FOREACH(z, &kz->uk_zones, uz_link)
+			count++;
+	}
+	mtx_unlock(&uma_mtx);
+
+	buflen = sizeof(ush) + count * (sizeof(uth) + sizeof(ups) *
+	    MAXCPU) + 1;
+	buffer = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
+
+	mtx_lock(&uma_mtx);
+	i = 0;
+	LIST_FOREACH(kz, &uma_kegs, uk_link) {
+		LIST_FOREACH(z, &kz->uk_zones, uz_link)
+			i++;
+	}
+	if (i > count) {
+		free(buffer, M_TEMP);
+		goto restart;
+	}
+	count =  i;
+
+	sbuf_new(&sbuf, buffer, buflen, SBUF_FIXEDLEN);
+
+	/*
+	 * Insert stream header.
+	 */
+	bzero(&ush, sizeof(ush));
+	ush.ush_version = UMA_STREAM_VERSION;
+	ush.ush_maxcpus = MAXCPU;
+	ush.ush_count = count;
+	if (sbuf_bcat(&sbuf, &ush, sizeof(ush)) < 0) {
+		mtx_unlock(&uma_mtx);
+		error = ENOMEM;
+		goto out;
+	}
+
+	LIST_FOREACH(kz, &uma_kegs, uk_link) {
+		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
+			bzero(&uth, sizeof(uth));
+			ZONE_LOCK(z);
+			strlcpy(uth.uth_name, z->uz_name, UMA_MAX_NAME);
+			uth.uth_align = kz->uk_align;
+			uth.uth_pages = kz->uk_pages;
+			uth.uth_keg_free = kz->uk_free;
+			uth.uth_size = kz->uk_size;
+			uth.uth_rsize = kz->uk_rsize;
+			uth.uth_maxpages = kz->uk_maxpages;
+			if (kz->uk_ppera > 1)
+				uth.uth_limit = kz->uk_maxpages /
+				    kz->uk_ppera;
+			else
+				uth.uth_limit = kz->uk_maxpages *
+				    kz->uk_ipers;
+			LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link)
+				uth.uth_zone_free += bucket->ub_cnt;
+			uth.uth_allocs = z->uz_allocs;
+			uth.uth_frees = z->uz_frees;
+			ZONE_UNLOCK(z);
+			if (sbuf_bcat(&sbuf, &uth, sizeof(uth)) < 0) {
+				mtx_unlock(&uma_mtx);
+				error = ENOMEM;
+				goto out;
+			}
+			/*
+			 * XXXRW: Should not access bucket fields from
+			 * non-local CPU.  Instead need to modify the caches
+			 * to directly maintain these statistics so we don't
+			 * have to.
+			 */
+			for (i = 0; i < MAXCPU; i++) {
+				bzero(&ups, sizeof(ups));
+				if (kz->uk_flags & UMA_ZFLAG_INTERNAL)
+					goto skip;
+				cache = &z->uz_cpu[i];
+				if (cache->uc_allocbucket != NULL)
+					ups.ups_cache_free +=
+					    cache->uc_allocbucket->ub_cnt;
+				if (cache->uc_freebucket != NULL)
+					ups.ups_cache_free +=
+					    cache->uc_freebucket->ub_cnt;
+				ups.ups_allocs = cache->uc_allocs;
+				ups.ups_frees = cache->uc_frees;
+skip:
+				if (sbuf_bcat(&sbuf, &ups, sizeof(ups)) < 0) {
+					mtx_unlock(&uma_mtx);
+					error = ENOMEM;
+					goto out;
+				}
+			}
+		}
+	}
+	mtx_unlock(&uma_mtx);
+	sbuf_finish(&sbuf);
+	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
+out:
+	free(buffer, M_TEMP);
 	return (error);
 }
