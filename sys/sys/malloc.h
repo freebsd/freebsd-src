@@ -70,14 +70,14 @@
  * monitoring app should take into account.
  */
 struct malloc_type_stats {
-	u_long	mts_memalloced;		/* Bytes allocated on CPU. */
-	u_long	mts_memfreed;		/* Bytes freed on CPU. */
-	u_long	mts_numallocs;		/* Number of allocates on CPU. */
-	u_long	mts_numfrees;		/* number of frees on CPU. */
-	u_long	mts_size;		/* Bitmask of sizes allocated on CPU. */
-	u_long	_mts_reserved1;		/* Reserved field. */
-	u_long	_mts_reserved2;		/* Reserved field. */
-	u_long	_mts_reserved3;		/* Reserved field. */
+	uint64_t	mts_memalloced;	/* Bytes allocated on CPU. */
+	uint64_t	mts_memfreed;	/* Bytes freed on CPU. */
+	uint64_t	mts_numallocs;	/* Number of allocates on CPU. */
+	uint64_t	mts_numfrees;	/* number of frees on CPU. */
+	uint64_t	mts_size;	/* Bitmask of sizes allocated on CPU. */
+	uint64_t	_mts_reserved1;	/* Reserved field. */
+	uint64_t	_mts_reserved2;	/* Reserved field. */
+	uint64_t	_mts_reserved3;	/* Reserved field. */
 };
 
 struct malloc_type_internal {
@@ -114,6 +114,26 @@ struct malloc_type {
 	struct witness	*_lo_witness;
 	uintptr_t	 _mtx_lock;
 	u_int		 _mtx_recurse;
+};
+
+/*
+ * Statistics structure headers for user space.  The kern.malloc sysctl
+ * exposes a structure stream consisting of a stream header, then a series of
+ * malloc type headers and statistics structures (quantity maxcpus).  For
+ * convenience, the kernel will provide the current value of maxcpus at the
+ * head of the stream.
+ */
+#define	MALLOC_TYPE_STREAM_VERSION	0x00000001
+struct malloc_type_stream_header {
+	uint32_t	mtsh_version;	/* Stream format version. */
+	uint32_t	mtsh_maxcpus;	/* Value of MAXCPU for stream. */
+	uint32_t	mtsh_count;	/* Number of records. */
+	uint32_t	_mtsh_pad;	/* Pad/reserved field. */
+};
+
+#define	MALLOC_MAX_NAME	32
+struct malloc_type_header {
+	char				mth_name[MALLOC_MAX_NAME];
 };
 
 #ifdef _KERNEL
