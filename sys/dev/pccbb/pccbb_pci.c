@@ -292,6 +292,7 @@ cbb_pci_attach(device_t brdev)
 	parent = device_get_parent(brdev);
 	mtx_init(&sc->mtx, device_get_nameunit(brdev), "cbb", MTX_DEF);
 	cv_init(&sc->cv, "cbb cv");
+	cv_init(&sc->powercv, "cbb cv");
 	sc->chipset = cbb_chipset(pci_get_devid(brdev), NULL);
 	sc->dev = brdev;
 	sc->cbdev = NULL;

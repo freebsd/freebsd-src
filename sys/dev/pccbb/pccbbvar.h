@@ -66,6 +66,7 @@ struct cbb_softc {
 	u_int8_t	subbus;
 	struct mtx	mtx;
 	struct cv	cv;
+	struct cv	powercv;
 	u_int32_t	flags;
 #define CBB_CARD_OK		0x08000000
 #define	CBB_16BIT_CARD		0x20000000
@@ -84,10 +85,10 @@ struct cbb_softc {
 #define	CB_O2MICRO	9		/* O2Micro chips */
 	SLIST_HEAD(, cbb_reslist) rl;
 	STAILQ_HEAD(, cbb_intrhand) intr_handlers;
-
 	device_t	cbdev;
 	struct proc	*event_thread;
 	void (*chipinit)(struct cbb_softc *);
+	volatile int	powerintr;
 };
 
 /* result of detect_card */
