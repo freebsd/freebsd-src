@@ -324,7 +324,8 @@ devfs_populate(struct devfs_mount *dm)
 				de->de_dirent->d_type = DT_CHR;
 			}
 #ifdef MAC
-			mac_create_devfs_device(dm->dm_mount, dev, de);
+			mac_create_devfs_device(dev->si_cred, dm->dm_mount,
+			    dev, de);
 #endif
 			*dep = de;
 			de->de_dir = dd;
