@@ -157,7 +157,7 @@ SYSCTL_ULONG(_hw_cbb, OID_AUTO, debug, CTLFLAG_RW, &cbb_debug, 0,
 
 static void	cbb_insert(struct cbb_softc *sc);
 static void	cbb_removal(struct cbb_softc *sc);
-static int	cbb_detect_voltage(device_t brdev);
+static uint32_t	cbb_detect_voltage(device_t brdev);
 static void	cbb_cardbus_reset(device_t brdev);
 static int	cbb_cardbus_io_open(device_t brdev, int win, uint32_t start,
 		    uint32_t end);
@@ -318,6 +318,7 @@ cbb_detach(device_t brdev)
 	    sc->base_res);
 	mtx_destroy(&sc->mtx);
 	cv_destroy(&sc->cv);
+	cv_destroy(&sc->powercv);
 	return (0);
 }
 
@@ -643,10 +644,20 @@ cbb_intr(void *arg)
 		 */
 		if (sockevent & CBB_SOCKET_EVENT_CD) {
 			mtx_lock(&sc->mtx);
-			cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
+			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
 			sc->flags &= ~CBB_CARD_OK;
 			cbb_disable_func_intr(sc);
 			cv_signal(&sc->cv);
+			mtx_unlock(&sc->mtx);
+		}
+		/*
+		 * If we get a power interrupt, wakeup anybody that might
+		 * be waiting for one.
+		 */
+		if (sockevent & CBB_SOCKET_EVENT_POWER) {
+			mtx_lock(&sc->mtx);
+			sc->powerintr++;
+			cv_signal(&sc->powercv);
 			mtx_unlock(&sc->mtx);
 		}
 	}
@@ -669,12 +680,12 @@ cbb_intr(void *arg)
 /* Generic Power functions						*/
 /************************************************************************/
 
-static int
+static uint32_t
 cbb_detect_voltage(device_t brdev)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	uint32_t psr;
-	int vol = CARD_UKN_CARD;
+	uint32_t vol = CARD_UKN_CARD;
 
 	psr = cbb_get(sc, CBB_SOCKET_STATE);
 
@@ -740,27 +751,30 @@ cbb_power(device_t brdev, int volts)
 {
 	uint32_t status, sock_ctrl;
 	struct cbb_softc *sc = device_get_softc(brdev);
-	int timeout;
+	int cnt;
 	int retval = 0;
-	uint32_t sockevent;
+	int on = 0;
 	uint8_t reg = 0;
 
-	status = cbb_get(sc, CBB_SOCKET_STATE);
 	sock_ctrl = cbb_get(sc, CBB_SOCKET_CONTROL);
 
 	sock_ctrl &= ~CBB_SOCKET_CTRL_VCCMASK;
 	switch (volts & CARD_VCCMASK) {
 	case 5:
 		sock_ctrl |= CBB_SOCKET_CTRL_VCC_5V;
+		on++;
 		break;
 	case 3:
 		sock_ctrl |= CBB_SOCKET_CTRL_VCC_3V;
+		on++;
 		break;
 	case XV:
 		sock_ctrl |= CBB_SOCKET_CTRL_VCC_XV;
+		on++;
 		break;
 	case YV:
 		sock_ctrl |= CBB_SOCKET_CTRL_VCC_YV;
+		on++;
 		break;
 	case 0:
 		break;
@@ -778,41 +792,24 @@ cbb_power(device_t brdev, int volts)
 	if (volts != 0 && sc->chipset == CB_O2MICRO)
 		reg = cbb_o2micro_power_hack(sc);
 
+	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_POWER);
 	cbb_set(sc, CBB_SOCKET_CONTROL, sock_ctrl);
-	status = cbb_get(sc, CBB_SOCKET_STATE);
-
-	/* 
-	 * XXX This busy wait is bogus.  We should wait for a power
-	 * interrupt and then whine if the status is bad.  If we're
-	 * worried about the card not coming up, then we should also
-	 * schedule a timeout which we can cancel in the power interrupt.
-	 */
-	timeout = 20;
-	do {
-		DELAY(20*1000);
-		sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
-	} while (!(sockevent & CBB_SOCKET_EVENT_POWER) && --timeout > 0);
-	/* reset event status */
-	/* XXX should only reset EVENT_POWER */
-	cbb_set(sc, CBB_SOCKET_EVENT, sockevent);
-	if (timeout < 0) {
-		printf ("VCC supply failed.\n");
-		goto done;
+	if (on) {
+		mtx_lock(&sc->mtx);
+		cnt = sc->powerintr;
+		/* XXX timeout needed! */
+		while (cnt == sc->powerintr)
+			cv_wait(&sc->powercv, &sc->mtx);
+		mtx_unlock(&sc->mtx);
 	}
-
-	/* XXX
-	 * delay 400 ms: thgough the standard defines that the Vcc set-up time
-	 * is 20 ms, some PC-Card bridge requires longer duration.
-	 * XXX Note: We should check the stutus AFTER the delay to give time
-	 * for things to stabilize.
-	 */
-	DELAY(400*1000);
-
+	cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_POWER);
+	status = cbb_get(sc, CBB_SOCKET_STATE);
+	if (on) {
+		if ((status & CBB_STATE_POWER_CYCLE) == 0)
+			device_printf(sc->dev, "Power not on?\n");
+	}
 	if (status & CBB_STATE_BAD_VCC_REQ) {
-		device_printf(sc->dev,
-		    "bad Vcc request. ctrl=0x%x, status=0x%x\n",
-		    sock_ctrl ,status);
-		printf("cbb_power: %dV\n", volts);
+		device_printf(sc->dev, "Bad Vcc requested\n");	
 		goto done;
 	}
 	retval = 1;
@@ -822,25 +819,54 @@ done:;
 	return (retval);
 }
 
+static int
+cbb_current_voltage(device_t brdev)
+{
+	struct cbb_softc *sc = device_get_softc(brdev);
+	uint32_t ctrl;
+	
+	ctrl = cbb_get(sc, CBB_SOCKET_CONTROL);
+	switch (ctrl & CBB_SOCKET_CTRL_VCCMASK) {
+	case CBB_SOCKET_CTRL_VCC_5V:
+		return CARD_5V_CARD;
+	case CBB_SOCKET_CTRL_VCC_3V:
+		return CARD_3V_CARD;
+	case CBB_SOCKET_CTRL_VCC_XV:
+		return CARD_XV_CARD;
+	case CBB_SOCKET_CTRL_VCC_YV:
+		return CARD_YV_CARD;
+	}
+	return 0;
+}
+
 /*
  * detect the voltage for the card, and set it.  Since the power
  * used is the square of the voltage, lower voltages is a big win
  * and what Windows does (and what Microsoft prefers).  The MS paper
- * also talks about preferring the CIS entry as well.  In addition,
- * we power up with OE disabled.  We'll set it later in the power
- * up sequence.
+ * also talks about preferring the CIS entry as well, but that has
+ * to be done elsewhere.  We also optimize power sequencing here
+ * and don't change things if we're already powered up at a supported
+ * voltage.
+ *
+ * In addition, we power up with OE disabled.  We'll set it later
+ * in the power up sequence.
  */
 static int
 cbb_do_power(device_t brdev)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
-	int voltage;
+	uint32_t voltage, curpwr;
+	uint32_t status;
 
-	/* Don't enable OE */
+	/* Don't enable OE (output enable) until power stable */
 	exca_clrb(&sc->exca[0], EXCA_PWRCTL, EXCA_PWRCTL_OE);
 
-	/* Prefer lowest voltage supported */
 	voltage = cbb_detect_voltage(brdev);
+	curpwr = cbb_current_voltage(brdev);
+	status = cbb_get(sc, CBB_SOCKET_STATE);
+	if ((status & CBB_STATE_POWER_CYCLE) && (voltage & curpwr))
+		return 0;
+	/* Prefer lowest voltage supported */
 	cbb_power(brdev, CARD_OFF);
 	if (voltage & CARD_YV_CARD)
 		cbb_power(brdev, CARD_VCC(YV));
@@ -1198,14 +1224,14 @@ cbb_pcic_power_disable_socket(device_t brdev, device_t child)
 
 	/* reset signal asserting... */
 	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
-	DELAY(2*1000);
+	tsleep(sc, PZERO, "cbbP1", hz / 100);
 
 	/* power down the socket */
-	cbb_power(brdev, CARD_OFF);
 	exca_clrb(&sc->exca[0], EXCA_PWRCTL, EXCA_PWRCTL_OE);
+	cbb_power(brdev, CARD_OFF);
 
 	/* wait 300ms until power fails (Tpf). */
-	DELAY(300 * 1000);
+	tsleep(sc, PZERO, "cbbP1", hz * 300 / 1000);
 }
 
 /************************************************************************/
