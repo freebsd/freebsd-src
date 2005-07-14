@@ -1,0 +1,238 @@
+.\" Copyright (c) 2005 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 27, 2005
+.Os
+.Dt LIBMEMSTAT 3
+.Sh NAME
+.Nm libmemstat
+.Nd "library interface to retrieve kernel memory allocator statistics"
+.Sh LIBRARY
+.Lb libmemstat
+.Sh SYNOPSIS
+.In sys/types.h
+.In memstat.h
+.Ss Memory Type List Management Functions
+.Ft struct memory_type_list *
+.Fn memstat_mtl_alloc "void"
+.Ft struct memory_type *
+.Fn memstat_mtl_first "struct memory_type_list *list"
+.Ft struct memory_type *
+.Fn memstat_mtl_next "struct memory_type *mtp"
+.Ft struct memory_type *
+.Fn memstat_mtl_find "struct memory_type_list *list" "int allocator" "const char *name"
+.Ft void
+.Fn memstat_mtl_free "struct memory_type_list *list"
+.Ss Allocator Query Functions
+.Ft int
+.Fn memstat_sysctl_all "struct memory_type_list *list" "int flags"
+.Ft int
+.Fn memstat_sysctl_malloc "struct memory_type_list *list" "int flags"
+.Ft int
+.Fn memstat_sysctl_uma "struct memory_type_list *list" "int flags"
+.Ss Memory Type Accessor Methods
+.Ft const char *
+.Fn memstat_get_name "const struct memory_type *mtp"
+.Ft int
+.Fn memstat_get_allocator "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_countlimit "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_byteslimit "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_sizemask "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_size "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_memalloced "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_memfreed "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_numallocs "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_numfrees "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_bytes "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_count "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_free "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_failures "const struct memory_type *mtp"
+.Ft void *
+.Fn memstat_get_caller_pointer "const struct memory_type *mtp" "int index"
+.Ft void
+.Fn memstat_set_caller_pointer "struct memory_type *mtp" "int index" "void *value"
+.Ft uint64_t
+.Fn memstat_get_caller_uint64 "const struct memory_type *mtp" "int index"
+.Ft void
+.Fn memstat_set_caller_uint64 "struct memory_type *mtp" "int index" "uint64_t value"
+.Ft uint64_t
+.Fn memstat_get_zonefree "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_percpu_memalloced "const struct memory_type *mtp" "int cpu"
+.Ft uint64_t
+.Fn memstat_get_percpu_memfreed "const struct memory_type *mtp" "int cpu"
+.Ft uint64_t
+.Fn memstat_get_percpu_numallocs "const struct memory_type *mtp" "int cpu"
+.Ft uint64_t
+.Fn memstat_get_percpu_numfrees "const struct memory_type *mtp" "int cpu"
+.Ft uint64_t
+.Fn memstat_get_percpu_sizemask "const struct memory_type *mtp" "int cpu"
+.Ft void *
+.Fn memstat_get_percpu_caller_pointer "const struct memory_type *mtp" "int cpu" "int index"
+.Ft void
+.Fn memstat_set_percpu_caller_pointer "struct memory_type *mtp" "int cpu" "int index" "void *value"
+.Ft uint64_t
+.Fn memstat_get_percpu_caller_uint64 "const struct memory_type *mtp" "int cpu" "int index"
+.Ft void
+.Fn memstat_set_percpu_caller_uint64 "struct memory_type *mtp" "int cpu" "int index" "uint64_t value"
+.Ft uint64_t
+.Fn memstat_get_percpu_free "const struct memory_type *mtp" "int cpu"
+.Sh DESCRIPTION
+.Nm
+provides an interface to retrieve kernel memory allocator statistics, for
+the purposes of debugging and system monitoring, insulating applications
+from implementation details of the allocators, and allowing a tool to
+transparently support multiple allocators.
+.Nm
+supports both retrieving a single statistics snapshot, as well as
+incrementally updating statistics for long-term monitoring.
+.Pp
+.Nm
+describes each memory type using a
+.Vt struct memory_type ,
+an opaque memory type accessed by the application using accessor functions
+in the library.
+.Nm
+returns and updates chains of
+.Vt struct memory_type
+via a
+.Vt struct memory_type_list ,
+which will be allocated by calling
+.Fn memstat_mtl_alloc ,
+and freed on completion using
+.Fn memstat_mtl_free .
+Lists of memory types are populated via calls that query the kernel for
+statistics information; currently:
+.Fn memstat_sysctl_all ,
+.Fn memstat_sysctl_uma ,
+and
+.Fn memstat_sysctl_malloc .
+Repeated calls will incrementally update the list of memory types, permitting
+tracking over time without recreating all list state.
+Freeing the list will free all memory type data in the list, and so
+invalidates any outstanding pointers to entries in the list.
+.Vt struct memory_type
+entries in the list may be iterated over using
+.Fn memstat_mtl_first
+and
+.fn memstat_mtl_next ,
+which respectively return the first entry in a list, and the next entry in a
+list.
+.Fn memstat_mtl_find ,
+which will return a pointer to the first entry matching the passed
+parameters.
+.Pp
+A series of accessor methods is provided to access fields of the structure,
+including retrieving statistics and properties, as well as setting of caller
+owned fields.
+Direct application access to the data structure fields is not supported.
+.Ss Library memory_type Fields
+Each
+.Vt struct memory_type
+holds a description of the memory type, including its name and the allocator
+it is managed by, as well as current statistics on use.
+Some statistics are directly measured, others are derived from directly
+measured statistics.
+Certain high level statistics are present across all available allocators,
+such as the number of allocation and free operations; other measurements,
+such as the quantity of free items in per-CPU caches, or administrative
+limit on the number of allocations, is available only for specific
+allocators.
+.Ss User memory_type Fields
+.Vt struct memory_type
+includes fields appropriate for use by the application in order to more
+easily maintain state associated with memory types across updates.
+For example, the application author might make use of one of the caller
+pointers to reference a more complex data structure tracking long-term
+behavior of the memory type, or a window system object that is used to
+render the state of the memory type.
+Query updates may reset or otherwise modify all other fields in the
+.Vt struct memory_type
+data structure, but will preserve the caller-provided values, which will
+be initialized to
+.Dv 0
+or
+.Dv NULL
+before first use.
+.Sh EXAMPLES
+Create a memory type list, query the
+.Xr uma 9
+memory allocator for available statistics, and print out the number of
+allocations performed by the
+.Dv Mbuf
+zone.
+.Bd -literal -offset indent
+struct memory_type_list *mtlp;
+struct memory_type *mtp;
+uint64_t mbuf_count;
+
+mtlp = memstat_mtl_alloc();
+if (mtlp == NULL)
+    err(-1, "memstat_mtl_alloc");
+if (memstat_sysctl_uma(mtlp, 0) < 0)
+    err(-1, "memstat_sysctl_uma");
+mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, "Mbuf");
+if (mtp == NULL)
+    errx(-1, "memstat_mtl_find: Mbuf not found");
+mbuf_count = memstat_get_count(mtp);
+memstat_mtl_free(mtlp);
+
+printf("Mbufs: %llu\\n", (unsigned long long)mbuf_count);
+.Ed
+.Sh SEE ALSO
+.Xr malloc 9 ,
+.Xr uma 9
+.Sh HISTORY
+The
+.Nm memstat
+library appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The kernel memory allocator changes necessary to support a general purpose
+monitoring library, along with the library, were written by
+.An Robert Watson Aq rwatson@FreeBSD.org
+.Sh BUGS
+.Nm
+cannot yet extract statistics from kernel core dumps, although this should be
+straight forward to implement.
+.Pp
+Once a memory type is present on a memory type list, it will not be removed
+even if the kernel no longer presents information on the type via its
+monitoring interfaces.
+In order to flush removed memory types, it is necessary to free the entire
+list and allocate a new one.
