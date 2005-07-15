@@ -259,6 +259,9 @@ xe_pccard_product_match(device_t dev, const struct pccard_product* ent, int vpfm
 	const struct xe_pccard_product* xpp;
 	uint16_t prodext;
 
+	if (vpfmatch == 0)
+		return (0);
+
 	xpp = (const struct xe_pccard_product*)ent;
 	pccard_get_prodext(dev, &prodext);
 	if (xpp->prodext != prodext)
