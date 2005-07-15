@@ -14,6 +14,9 @@ CFLAGS+=	-mno-fp-regs -Os
 CFLAGS+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
 .endif
+.if ${MACHINE_ARCH} == "i386"
+CFLAGS+=	-mno-sse3
+.endif
 .if ${MACHINE_ARCH} == "powerpc"
 CFLAGS+=	-msoft-float
 .endif
