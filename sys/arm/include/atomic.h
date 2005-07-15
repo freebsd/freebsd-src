@@ -285,13 +285,9 @@ atomic_readandclear_32(volatile u_int32_t *p)
 #define atomic_cmpset_rel_32		atomic_cmpset_32
 #define atomic_cmpset_rel_ptr		atomic_cmpset_ptr
 #define atomic_load_acq_int		atomic_load_32
-#define atomic_clear_ptr(ptr, bit)	atomic_clear_32( \
-    (volatile uint32_t *)ptr, (uint32_t)bit)
-#define atomic_store_ptr(ptr, bit)	atomic_store_32( \
-    (volatile uint32_t *)ptr, (uint32_t)bit)
-#define atomic_cmpset_ptr(dst, exp, s)	atomic_cmpset_32( \
-    (volatile uint32_t *)dst, (uint32_t)exp, (uint32_t)s)
-#define atomic_set_ptr(ptr, src)	atomic_set_32( \
-    (volatile uint32_t *)ptr,  (uint32_t)src)
+#define	atomic_clear_ptr		atomic_clear_32
+#define	atomic_store_ptr		atomic_store_32
+#define	atomic_cmpset_ptr		atomic_cmpset_32
+#define	atomic_set_ptr			atomic_set_32
 
 #endif /* _MACHINE_ATOMIC_H_ */
