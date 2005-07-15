@@ -558,8 +558,8 @@ redistribute:
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 DISTRIBUTION=lib32
 .endif
 
-distribution:
-	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} distribution
+distrib-dirs distribution:
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} ${.TARGET}
 
 #
 # buildkernel and installkernel
