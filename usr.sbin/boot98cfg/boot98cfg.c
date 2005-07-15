@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgeom.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,7 +83,7 @@ u_char	menu[BOOTMENUSIZE];
 
 static	int read_boot(const char *, u_char *);
 static	int write_boot(const char *, u_char *);
-static	char *mkrdev(char *);
+static	char *mkrdev(const char *);
 static	void usage(void);
 
 /*
@@ -240,11 +241,11 @@ write_boot(const char *disk, u_char *boot)
 {
 	int fd, n, i;
 	char buf[MAXPATHLEN];
+	const char *q;
+	struct gctl_req *grq;
 
-	fd = open(disk, O_RDWR);
+	fd = open(disk, O_WRONLY, 0666);
 	if (fd != -1) {
-		if (lseek(fd, 0, SEEK_SET) == -1)
-			err(1, "%s", disk);
 		if ((n = write(fd, boot, BOOTSIZE)) < 0)
 			err(1, "%s", disk);
 		if (n != BOOTSIZE)
@@ -252,6 +253,23 @@ write_boot(const char *disk, u_char *boot)
 		close(fd);
 		return 0;
 	}
+
+	grq = gctl_get_handle();
+	gctl_ro_param(grq, "verb", -1, "write PC98");
+	gctl_ro_param(grq, "class", -1, "PC98");
+	q = strrchr(disk, '/');
+	if (q == NULL)
+		q = disk;
+	else
+		q++;
+	gctl_ro_param(grq, "geom", -1, q);
+	gctl_ro_param(grq, "data", BOOTSIZE, boot);
+	q = gctl_issue(grq);
+	if (q == NULL)
+		return 0;
+
+	warnx("%s: %s", disk, q);
+	gctl_free(grq);
 
 	for (i = 0; i < NDOSPART; i++) {
 		snprintf(buf, sizeof(buf), "%ss%d", disk, i + 1);
@@ -272,20 +290,19 @@ write_boot(const char *disk, u_char *boot)
  * Produce a device path for a "canonical" name, where appropriate.
  */
 static char *
-mkrdev(char *fname)
+mkrdev(const char *fname)
 {
     char buf[MAXPATHLEN];
-    struct stat sb;
     char *s;
 
-    s = (char *)fname;
     if (!strchr(fname, '/')) {
-        snprintf(buf, sizeof(buf), "%sr%s", _PATH_DEV, fname);
-        if (stat(buf, &sb))
-            snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
-        if (!(s = strdup(buf)))
-            err(1, NULL);
-    }
+	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
+        s = strdup(buf);
+    } else
+        s = strdup(fname);
+
+    if (s == NULL)
+        errx(1, "No more memory");
     return s;
 }
 
