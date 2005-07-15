@@ -230,6 +230,11 @@ atomic_readandclear_64(volatile u_int64_t *addr)
 #define	atomic_subtract_long(p, v)     	atomic_subtract_32((uint32_t *)p, (uint32_t)v)
 #define	atomic_readandclear_long	atomic_readandclear_32
 
+#define	atomic_set_ptr			atomic_set_32
+#define	atomic_clear_ptr		atomic_clear_32
+#define	atomic_add_ptr			atomic_add_32
+#define	atomic_subtract_ptr     	atomic_subtract_32
+
 #if 0
 
 /* See above. */
@@ -293,6 +298,15 @@ ATOMIC_ACQ_REL(subtract, 32, int)
 #define	atomic_subtract_acq_long	atomic_subtract_acq_32
 #define	atomic_subtract_rel_long	atomic_subtract_rel_32
 
+#define	atomic_set_acq_ptr		atomic_set_acq_32
+#define	atomic_set_rel_ptr		atomic_set_rel_32
+#define	atomic_clear_acq_ptr		atomic_clear_acq_32
+#define	atomic_clear_rel_ptr		atomic_clear_rel_32
+#define	atomic_add_acq_ptr		atomic_add_acq_32
+#define	atomic_add_rel_ptr		atomic_add_rel_32
+#define	atomic_subtract_acq_ptr		atomic_subtract_acq_32
+#define	atomic_subtract_rel_ptr		atomic_subtract_rel_32
+
 #undef ATOMIC_ACQ_REL
 
 /*
@@ -339,6 +353,9 @@ ATOMIC_STORE_LOAD(int,		32)
 
 #define	atomic_load_acq_long	atomic_load_acq_32
 #define	atomic_store_rel_long	atomic_store_rel_32
+
+#define	atomic_load_acq_ptr	atomic_load_acq_32
+#define	atomic_store_rel_ptr	atomic_store_rel_32
 
 #undef ATOMIC_STORE_LOAD
 
@@ -397,18 +414,11 @@ atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 
 #define	atomic_cmpset_int	atomic_cmpset_32
 #define	atomic_cmpset_long	atomic_cmpset_32
+#define	atomic_cmpset_ptr	atomic_cmpset_32
 
 #if 0
 #define	atomic_cmpset_long_long	atomic_cmpset_64
 #endif /* 0 */
-
-static __inline int
-atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
-{
-
-	return (atomic_cmpset_32((volatile uint32_t *)dst, (uint32_t)exp,
-	    (uint32_t)src));
-}
 
 static __inline uint32_t
 atomic_cmpset_acq_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
@@ -431,60 +441,7 @@ atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 #define	atomic_cmpset_rel_int	atomic_cmpset_rel_32
 #define	atomic_cmpset_acq_long	atomic_cmpset_acq_32
 #define	atomic_cmpset_rel_long	atomic_cmpset_rel_32
+#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_32
+#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_32
 
-static __inline int
-atomic_cmpset_acq_ptr(volatile void *dst, void *exp, void *src)
-{
-
-        return (atomic_cmpset_acq_32((volatile uint32_t *)dst,
-	    (uint32_t)exp, (uint32_t)src));
-}
-
-static __inline int
-atomic_cmpset_rel_ptr(volatile void *dst, void *exp, void *src)
-{
-
-        return (atomic_cmpset_rel_32((volatile uint32_t *)dst,
-	    (uint32_t)exp, (uint32_t)src));
-}
-
-static __inline void *
-atomic_load_acq_ptr(volatile void *p)
-{
-
-	return (void *)atomic_load_acq_32((volatile uint32_t *)p);
-}
-
-static __inline void
-atomic_store_rel_ptr(volatile void *p, void *v)
-{
-
-	atomic_store_rel_32((volatile uint32_t *)p, (uint32_t)v);
-}
-
-#define	ATOMIC_PTR(NAME)					\
-static __inline void						\
-atomic_##NAME##_ptr(volatile void *p, uintptr_t v)		\
-{								\
-	atomic_##NAME##_32((volatile uint32_t *)p, v);	\
-}								\
-								\
-static __inline void						\
-atomic_##NAME##_acq_ptr(volatile void *p, uintptr_t v)		\
-{								\
-	atomic_##NAME##_acq_32((volatile uint32_t *)p, v);	\
-}								\
-								\
-static __inline void						\
-atomic_##NAME##_rel_ptr(volatile void *p, uintptr_t v)		\
-{								\
-	atomic_##NAME##_rel_32((volatile uint32_t *)p, v);	\
-}
-
-ATOMIC_PTR(set)
-ATOMIC_PTR(clear)
-ATOMIC_PTR(add)
-ATOMIC_PTR(subtract)
-
-#undef ATOMIC_PTR
 #endif /* ! _MACHINE_ATOMIC_H_ */

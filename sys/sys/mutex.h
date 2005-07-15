@@ -100,11 +100,11 @@ void	mtx_init(struct mtx *m, const char *name, const char *type, int opts);
 void	mtx_destroy(struct mtx *m);
 void	mtx_sysinit(void *arg);
 void	mutex_init(void);
-void	_mtx_lock_sleep(struct mtx *m, struct thread *td, int opts,
+void	_mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts,
 	    const char *file, int line);
 void	_mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line);
 #ifdef SMP
-void	_mtx_lock_spin(struct mtx *m, struct thread *td, int opts,
+void	_mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts,
 	    const char *file, int line);
 #endif
 void	_mtx_unlock_spin(struct mtx *m, int opts, const char *file, int line);
@@ -127,19 +127,19 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 /* Try to obtain mtx_lock once. */
 #ifndef _obtain_lock
 #define _obtain_lock(mp, tid)						\
-	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, (void *)MTX_UNOWNED, (tid))
+	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, MTX_UNOWNED, (tid))
 #endif
 
 /* Try to release mtx_lock if it is unrecursed and uncontested. */
 #ifndef _release_lock
 #define _release_lock(mp, tid)						\
-	atomic_cmpset_rel_ptr(&(mp)->mtx_lock, (tid), (void *)MTX_UNOWNED)
+	atomic_cmpset_rel_ptr(&(mp)->mtx_lock, (tid), MTX_UNOWNED)
 #endif
 
 /* Release mtx_lock quickly, assuming we own it. */
 #ifndef _release_lock_quick
 #define _release_lock_quick(mp)						\
-	atomic_store_rel_ptr(&(mp)->mtx_lock, (void *)MTX_UNOWNED)
+	atomic_store_rel_ptr(&(mp)->mtx_lock, MTX_UNOWNED)
 #endif
 
 /*
@@ -148,7 +148,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  */
 #ifndef _get_sleep_lock
 #define _get_sleep_lock(mp, tid, opts, file, line) do {			\
-	struct thread *_tid = (tid);					\
+	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
 	if (!_obtain_lock((mp), _tid))					\
 		_mtx_lock_sleep((mp), _tid, (opts), (file), (line));	\
@@ -165,11 +165,11 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #ifndef _get_spin_lock
 #ifdef SMP
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\
-	struct thread *_tid = (tid);					\
+	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
 	spinlock_enter();						\
 	if (!_obtain_lock((mp), _tid)) {				\
-		if ((mp)->mtx_lock == (uintptr_t)_tid)			\
+		if ((mp)->mtx_lock == _tid)				\
 			(mp)->mtx_recurse++;				\
 		else							\
 			_mtx_lock_spin((mp), _tid, (opts), (file), (line)); \
@@ -177,14 +177,14 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 } while (0)
 #else /* SMP */
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\
-	struct thread *_tid = (tid);					\
+	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
 	spinlock_enter();						\
-	if ((mp)->mtx_lock == (uintptr_t)_tid)				\
+	if ((mp)->mtx_lock == _tid)					\
 		(mp)->mtx_recurse++;					\
 	else {								\
 		KASSERT((mp)->mtx_lock == MTX_UNOWNED, ("corrupt spinlock")); \
-		(mp)->mtx_lock = (uintptr_t)_tid;			\
+		(mp)->mtx_lock = _tid;				\
 	}								\
 } while (0)
 #endif /* SMP */
@@ -196,7 +196,9 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  */
 #ifndef _rel_sleep_lock
 #define _rel_sleep_lock(mp, tid, opts, file, line) do {			\
-	if (!_release_lock((mp), (tid)))				\
+	uintptr_t _tid = (uintptr_t)(tid);				\
+									\
+	if (!_release_lock((mp), _tid))					\
 		_mtx_unlock_sleep((mp), (opts), (file), (line));	\
 } while (0)
 #endif
