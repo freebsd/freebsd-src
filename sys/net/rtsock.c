@@ -434,6 +434,25 @@ route_output(struct mbuf *m, struct socket *so)
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
 
+		/* 
+		 * Fix for PR: 82974
+		 *
+		 * RTM_CHANGE/LOCK need a perfect match, rn_lookup()
+		 * returns a perfect match in case a netmask is
+		 * specified.  For host routes only a longest prefix
+		 * match is returned so it is necessary to compare the
+		 * existence of the netmask.  If both have a netmask
+		 * rnh_lookup() did a perfect match and if none of them
+		 * have a netmask both are host routes which is also a
+		 * perfect match.
+		 */
+
+		if (rtm->rtm_type != RTM_GET && 
+		    (!rt_mask(rt) != !info.rti_info[RTAX_NETMASK])) {
+			RT_UNLOCK(rt);
+			senderr(ESRCH);
+		}
+
 		switch(rtm->rtm_type) {
 
 		case RTM_GET:
