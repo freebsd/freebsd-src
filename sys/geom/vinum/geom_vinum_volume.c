@@ -226,9 +226,10 @@ gv_vol_completed_request(struct gv_volume *v, struct bio *bp)
 static void
 gv_vol_normal_request(struct gv_volume *v, struct bio *bp)
 {
+	struct bio_queue_head queue;
 	struct g_geom *gp;
-	struct gv_plex *p;
-	struct bio *cbp, *pbp;
+	struct gv_plex *p, *lp;
+	struct bio *cbp;
 
 	gp = v->geom;
 
@@ -244,52 +245,61 @@ gv_vol_normal_request(struct gv_volume *v, struct bio *bp)
 		 * Try to find a good plex where we can send the request to.
 		 * The plex either has to be up, or it's a degraded RAID5 plex.
 		 */
-		p = NULL;
-		LIST_FOREACH(p, &v->plexes, in_volume) {
+		lp = v->last_read_plex;
+		if (lp == NULL)
+			lp = LIST_FIRST(&v->plexes);
+		p = LIST_NEXT(lp, in_volume);
+		do {
+			if (p == NULL)
+				p = LIST_FIRST(&v->plexes);
 			if ((p->state > GV_PLEX_DEGRADED) ||
 			    (p->state >= GV_PLEX_DEGRADED &&
 			    p->org == GV_PLEX_RAID5))
 				break;
-		}
-		if (p == NULL) {
+			p = LIST_NEXT(p, in_volume);
+		} while (p != lp);
+
+		if (p == NULL ||
+		    (p->org == GV_PLEX_RAID5 && p->state < GV_PLEX_DEGRADED) ||
+		    (p->state <= GV_PLEX_DEGRADED)) {
 			g_destroy_bio(cbp);
 			bp->bio_children--;
 			g_io_deliver(bp, ENXIO);
 			return;
 		}
 		g_io_request(cbp, p->consumer);
+		v->last_read_plex = p;
 
 		break;
 
 	case BIO_WRITE:
 	case BIO_DELETE:
+		bioq_init(&queue);
 		LIST_FOREACH(p, &v->plexes, in_volume) {
 			if (p->state < GV_PLEX_DEGRADED)
 				continue;
-
 			cbp = g_clone_bio(bp);
-			if (cbp == NULL)	/* XXX */
-				g_io_deliver(bp, ENOMEM);
-			cbp->bio_done = gv_volume_done;
-			cbp->bio_caller2 = p->consumer;
-
-			if (bp->bio_driver1 == NULL) {
-				bp->bio_driver1 = cbp;
-			} else {
-				pbp = bp->bio_driver1;
-				while (pbp->bio_caller1 != NULL)
-					pbp = pbp->bio_caller1;
-				pbp->bio_caller1 = cbp;
+			if (cbp == NULL) {
+				for (cbp = bioq_first(&queue); cbp != NULL;
+				    cbp = bioq_first(&queue)) {
+					bioq_remove(&queue, cbp);
+					g_destroy_bio(cbp);
+				}
+				if (bp->bio_error == 0)
+					bp->bio_error = ENOMEM;
+				g_io_deliver(bp, bp->bio_error);
+				return;
 			}
+			bioq_insert_tail(&queue, cbp);
+			cbp->bio_done = gv_volume_done;
+			cbp->bio_caller1 = p->consumer;
 		}
-
 		/* Fire off all sub-requests. */
-		pbp = bp->bio_driver1;
-		while (pbp != NULL) {
-			g_io_request(pbp, pbp->bio_caller2);
-			pbp = pbp->bio_caller1;
+		for (cbp = bioq_first(&queue); cbp != NULL;
+		     cbp = bioq_first(&queue)) {
+			bioq_remove(&queue, cbp);
+			g_io_request(cbp, cbp->bio_caller1);
 		}
-
 		break;
 	}
 }
