@@ -189,6 +189,28 @@ be initialized to
 or
 .Dv NULL
 before first use.
+.Ss Allocator Types
+Currently,
+.Nm
+supports two kernel allocators:
+.Dv ALLOCATOR_UMA
+for
+.Xr uma 9 ,
+and
+.Dv ALLOCATOR_MALLOC
+for
+.Xr malloc 9 .
+These values may be passed to
+.Fn memstat_mtl_find ,
+and will be returned by
+.Fn memstat_get_allocator .
+Two additional constants in the allocator name space are defined:
+.Dv ALLOCATOR_UNKNOWN ,
+which will only be returned as a result of a library error, and
+.Dv ALLOCATOR_ANY ,
+which can be used to specify that returning types matching any allocator is
+permittible from
+.Fn memstat_mtl_find .
 .Sh EXAMPLES
 Create a memory type list, query the
 .Xr uma 9
