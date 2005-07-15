@@ -201,6 +201,7 @@ retry:
 
 		mtp->mt_numallocs = uthp->uth_allocs;
 		mtp->mt_numfrees = uthp->uth_frees;
+		mtp->mt_failures = uthp->uth_fails;
 
 		for (j = 0; j < maxcpus; j++) {
 			upsp = (struct uma_percpu_stat *)p;
