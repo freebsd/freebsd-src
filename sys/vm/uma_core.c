@@ -192,7 +192,12 @@ struct uma_bucket_zone bucket_zones[] = {
  */
 static uint8_t bucket_size[BUCKET_ZONES];
 
+/*
+ * Flags and enumerations to be passed to internal functions.
+ */
 enum zfreeskip { SKIP_NONE, SKIP_DTOR, SKIP_FINI };
+
+#define	ZFREE_STATFAIL	0x00000001	/* Update zone failure statistic. */
 
 /* Prototypes.. */
 
@@ -219,7 +224,8 @@ static void hash_free(struct uma_hash *hash);
 static void uma_timeout(void *);
 static void uma_startup3(void);
 static void *uma_zalloc_internal(uma_zone_t, void *, int);
-static void uma_zfree_internal(uma_zone_t, void *, void *, enum zfreeskip);
+static void uma_zfree_internal(uma_zone_t, void *, void *, enum zfreeskip,
+    int);
 static void bucket_enable(void);
 static void bucket_init(void);
 static uma_bucket_t bucket_alloc(int, int);
@@ -344,7 +350,7 @@ bucket_free(uma_bucket_t bucket)
 	struct uma_bucket_zone *ubz;
 
 	ubz = bucket_zone_lookup(bucket->ub_entries);
-	uma_zfree_internal(ubz->ubz_zone, bucket, NULL, SKIP_NONE);
+	uma_zfree_internal(ubz->ubz_zone, bucket, NULL, SKIP_NONE, 0);
 }
 
 static void
@@ -535,7 +541,7 @@ hash_free(struct uma_hash *hash)
 		return;
 	if (hash->uh_hashsize == UMA_HASH_SIZE_INIT)
 		uma_zfree_internal(hashzone,
-		    hash->uh_slab_hash, NULL, SKIP_NONE);
+		    hash->uh_slab_hash, NULL, SKIP_NONE, 0);
 	else
 		free(hash->uh_slab_hash, M_UMAHASH);
 }
@@ -584,7 +590,7 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 		 */
 		if (mzone)
 			slab = vtoslab((vm_offset_t)item & (~UMA_SLAB_MASK));
-		uma_zfree_internal(zone, item, slab, SKIP_DTOR);
+		uma_zfree_internal(zone, item, slab, SKIP_DTOR, 0);
 	}
 }
 
@@ -751,7 +757,7 @@ finished:
 		}
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 			uma_zfree_internal(keg->uk_slabzone, slab, NULL,
-			    SKIP_NONE);
+			    SKIP_NONE, 0);
 #ifdef UMA_DEBUG
 		printf("%s: Returning %d bytes.\n",
 		    zone->uz_name, UMA_SLAB_SIZE * keg->uk_ppera);
@@ -814,7 +820,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 	if (mem == NULL) {
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 			uma_zfree_internal(keg->uk_slabzone, slab, NULL,
-			    SKIP_NONE);
+			    SKIP_NONE, 0);
 		ZONE_LOCK(zone);
 		return (NULL);
 	}
@@ -871,7 +877,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 			}
 			if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 				uma_zfree_internal(keg->uk_slabzone, slab,
-				    NULL, SKIP_NONE);
+				    NULL, SKIP_NONE, 0);
 			keg->uk_freef(mem, UMA_SLAB_SIZE * keg->uk_ppera,
 			    flags);
 			ZONE_LOCK(zone);
@@ -1335,6 +1341,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_fini = NULL;
 	zone->uz_allocs = 0;
 	zone->uz_frees = 0;
+	zone->uz_fails = 0;
 	zone->uz_fills = zone->uz_count = 0;
 
 	if (arg->flags & UMA_ZONE_SECONDARY) {
@@ -1461,7 +1468,7 @@ zone_dtor(void *arg, int size, void *udata)
 		LIST_REMOVE(keg, uk_link);
 		LIST_REMOVE(zone, uz_link);
 		mtx_unlock(&uma_mtx);
-		uma_zfree_internal(kegs, keg, NULL, SKIP_NONE);
+		uma_zfree_internal(kegs, keg, NULL, SKIP_NONE, 0);
 	}
 	zone->uz_keg = NULL;
 }
@@ -1765,7 +1772,7 @@ uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 void
 uma_zdestroy(uma_zone_t zone)
 {
-	uma_zfree_internal(zones, zone, NULL, SKIP_NONE);
+	uma_zfree_internal(zones, zone, NULL, SKIP_NONE, 0);
 }
 
 /* See uma.h */
@@ -1849,7 +1856,7 @@ zalloc_start:
 				if (zone->uz_ctor(item, zone->uz_keg->uk_size,
 				    udata, flags) != 0) {
 					uma_zfree_internal(zone, item, udata,
-					    SKIP_DTOR);
+					    SKIP_DTOR, ZFREE_STATFAIL);
 					return (NULL);
 				}
 			}
@@ -2156,7 +2163,7 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 
 			for (j = i; j < bucket->ub_cnt; j++) {
 				uma_zfree_internal(zone, bucket->ub_bucket[j],
-				    NULL, SKIP_FINI);
+				    NULL, SKIP_FINI, 0);
 #ifdef INVARIANTS
 				bucket->ub_bucket[j] = NULL;
 #endif
@@ -2209,6 +2216,7 @@ uma_zalloc_internal(uma_zone_t zone, void *udata, int flags)
 
 	slab = uma_zone_slab(zone, flags);
 	if (slab == NULL) {
+		zone->uz_fails++;
 		ZONE_UNLOCK(zone);
 		return (NULL);
 	}
@@ -2227,13 +2235,15 @@ uma_zalloc_internal(uma_zone_t zone, void *udata, int flags)
 	 */
 	if (zone->uz_init != NULL) {
 		if (zone->uz_init(item, keg->uk_size, flags) != 0) {
-			uma_zfree_internal(zone, item, udata, SKIP_FINI);
+			uma_zfree_internal(zone, item, udata, SKIP_FINI,
+			    ZFREE_STATFAIL);
 			return (NULL);
 		}
 	}
 	if (zone->uz_ctor != NULL) {
 		if (zone->uz_ctor(item, keg->uk_size, udata, flags) != 0) {
-			uma_zfree_internal(zone, item, udata, SKIP_DTOR);
+			uma_zfree_internal(zone, item, udata, SKIP_DTOR,
+			    ZFREE_STATFAIL);
 			return (NULL);
 		}
 	}
@@ -2406,7 +2416,7 @@ zfree_start:
 	 * If nothing else caught this, we'll just do an internal free.
 	 */
 zfree_internal:
-	uma_zfree_internal(zone, item, udata, SKIP_DTOR);
+	uma_zfree_internal(zone, item, udata, SKIP_DTOR, ZFREE_STATFAIL);
 
 	return;
 }
@@ -2422,7 +2432,7 @@ zfree_internal:
  */
 static void
 uma_zfree_internal(uma_zone_t zone, void *item, void *udata,
-    enum zfreeskip skip)
+    enum zfreeskip skip, int flags)
 {
 	uma_slab_t slab;
 	uma_slabrefcnt_t slabref;
@@ -2438,6 +2448,9 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata,
 		zone->uz_fini(item, keg->uk_size);
 
 	ZONE_LOCK(zone);
+
+	if (flags & ZFREE_STATFAIL)
+		zone->uz_fails++;
 
 	if (!(keg->uk_flags & UMA_ZONE_MALLOC)) {
 		mem = (u_int8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
@@ -2690,7 +2703,8 @@ uma_large_malloc(int size, int wait)
 		slab->us_flags = flags | UMA_SLAB_MALLOC;
 		slab->us_size = size;
 	} else {
-		uma_zfree_internal(slabzone, slab, NULL, SKIP_NONE);
+		uma_zfree_internal(slabzone, slab, NULL, SKIP_NONE,
+		    ZFREE_STATFAIL);
 	}
 
 	return (mem);
@@ -2701,7 +2715,7 @@ uma_large_free(uma_slab_t slab)
 {
 	vsetobj((vm_offset_t)slab->us_data, kmem_object);
 	page_free(slab->us_data, slab->us_size, slab->us_flags);
-	uma_zfree_internal(slabzone, slab, NULL, SKIP_NONE);
+	uma_zfree_internal(slabzone, slab, NULL, SKIP_NONE, 0);
 }
 
 void
@@ -2971,6 +2985,7 @@ restart:
 				uth.uth_zone_free += bucket->ub_cnt;
 			uth.uth_allocs = z->uz_allocs;
 			uth.uth_frees = z->uz_frees;
+			uth.uth_fails = z->uz_fails;
 			ZONE_UNLOCK(z);
 			if (sbuf_bcat(&sbuf, &uth, sizeof(uth)) < 0) {
 				mtx_unlock(&uma_mtx);
