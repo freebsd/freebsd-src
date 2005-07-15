@@ -893,17 +893,21 @@ cbb_cardbus_reset(device_t brdev)
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int delay_us;
 
-	delay_us = sc->chipset == CB_RF5C47X ? 400*1000 : 20*1000;
+	/*
+	 * 20ms is necessary for most bridges.  For some reason, the Ricoh
+	 * RF5C47x bridges need 400ms.
+	 */
+	delay = sc->chipset == CB_RF5C47X ? 400 : 20;
 
 	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL, |CBBM_BRIDGECTRL_RESET, 2);
 
-	DELAY(delay_us);
+	tsleep(sc, PZERO, "cbbP3", hz * delay / 1000);
 
 	/* If a card exists, unreset it! */
 	if (CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
-		DELAY(delay_us);
+		tsleep(sc, PZERO, "cbbP3", hz * delay / 1000);
 	}
 }
 
