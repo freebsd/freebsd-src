@@ -36,6 +36,14 @@
 #define	MEMSTAT_MAXCPU	16
 
 /*
+ * Amount of caller data to maintain for each caller data slot.  Applications
+ * must not request more than this number of caller save data, or risk
+ * corrupting internal libmemstat(3) data structures.  A compile time check
+ * in the application is probably appropriate.
+ */
+#define	MEMSTAT_MAXCALLER	8
+
+/*
  * libmemstat(3) is able to extract memory data from different allocators;
  * when it does so, it tags which allocator it got the data from so that
  * consumers can determine which fields are usable, as data returned varies
