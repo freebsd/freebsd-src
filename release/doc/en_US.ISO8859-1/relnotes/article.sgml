@@ -119,7 +119,13 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para>A new sysctl variable <varname>kern.malloc_stats</varname>
+      has been added.  This allows to export kernel malloc
+      statistics via a binary structure stream.</para>
+
+    <para>A new sysctl variable <varname>vm.zone_stats</varname>
+      has been added.  This allows to export &man.uma.9; allocator
+      statistics via a binary structure stream.</para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
@@ -157,7 +163,12 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The &man.mpt.4; driver has been updated to support
+	various new features such as RAID volume and RAID member
+	state/settings reporting, periodic volume re-synchronization
+	status reporting, and sysctl variables for volume
+	re-synchronization rate, volume member write cache status,
+	and volume transaction queue depth.</para>
     </sect3>
 
     <sect3 id="fs">
@@ -176,6 +187,18 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>The &man.ifconfig.8; utility now supports
+      a <option>-k</option> flag to allow printing
+      potentially sensitive keying material to standard output.
+      This sensitive information will not be printed by default.</para>
+
+    <para>The &man.libmemstat.3; library has been added.
+      This is for use by debugging and monitoring applications
+      in tracking kernel memory statistics.  It provides an
+      abstracted interface to &man.uma.9; and &man.malloc.9;
+      statistics, wrapped around the binary stream sysctl variables
+      for the allocators.</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -186,7 +209,11 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para></para>
+    <para><application>libpcap</application> has been updated
+      to v0.9.1 (release).</para>
+
+    <para><application>tcpdump</application> has been updated
+      to v3.9.1 (release).</para>
   </sect2>
 
   <sect2 id="ports">
