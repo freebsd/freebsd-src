@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2005
+.Dd July 14, 2005
 .Dt ED 4
 .Os
 .Sh NAME
@@ -374,3 +374,8 @@ driver is a bit too aggressive about resetting the card whenever any bad
 packets are received.
 As a result, it may throw out some good packets which
 have been received but not yet transferred from the card to main memory.
+.Pp
+The
+.Nm 
+PC Card attachment supports the D-Link DMF650TX Lan/Modem card's ethernet
+port only at this time.
