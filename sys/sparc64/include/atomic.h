@@ -275,7 +275,7 @@ ATOMIC_GEN(32, uint32_t *, uint32_t, uint32_t, 32);
 ATOMIC_GEN(long, u_long *, u_long, u_long, 64);
 ATOMIC_GEN(64, uint64_t *, uint64_t, uint64_t, 64);
 
-ATOMIC_GEN(ptr, void *, void *, uintptr_t, 64);
+ATOMIC_GEN(ptr, uintptr_t *, uintptr_t, uintptr_t, 64);
 
 #undef ATOMIC_GEN
 #undef atomic_cas
