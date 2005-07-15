@@ -146,55 +146,28 @@ ex_pccard_enet_ok(u_char *enaddr)
 	return (sum != 0);
 }
 
-#if 0
-#ifdef NETBSD_LIKE
 static int
-ex_pccard_silicom_cb(struct pccard_tuple *tuple, void *arg)
+ex_pccard_silicom_cb(const struct pccard_tuple *tuple, void *arg)
 {
 	u_char *enaddr = arg;
+	int i;
 
-	if (tuple->code != PCMCIA_CISTPL_FUNCE)
+	if (tuple->code != CISTPL_FUNCE)
 		return (0);
 	if (tuple->length != 15)
 		return (0);
-	if (CARD_CIS_READ_1(tuple->dev, tuple, 6) != 6)
+	if (pccard_tuple_read_1(tuple, 6) != 6)
 		return (0);
 	for (i = 0; i < 6; i++)
-		enaddr[i] = CARD_CIS_READ_1(tuple->dev, tuple, 7 + i);
+		enaddr[i] = pccard_tuple_read_1(tuple, 7 + i);
 	return (1);
 }
-#endif
-#endif
 
 static void
 ex_pccard_get_silicom_mac(device_t dev, u_char *ether_addr)
 {
-#if 0
-#ifdef	NETBSD_LIKE
-	CARD_CIS_SCAN(dev, ex_pccard_silicom_cb, ether_addr);
-#endif
-#ifdef	CS_LIKE
-	uint8_t buffer[64];
-	tuple_t tuple;
-	int i;
-	
-	tuple.TupleData = buffer;
-	tuple.TupleDataMax = sizeof(buffer);
-	tuple.TupleOffset = 0;
-	tuple.DesiredTuple = CISTPL_FUNCE;
-	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if (CARD_SERVICE(dev, GetFirstTuple, &tuple) != CS_SUCCESS)
-		return;
-	if (CARD_SERVICES(dev, GetTupleData, &tuple) != CS_SUCCESS)
-		return;
-	if (tuple.TupleLength != 15)
-		return;
-	if (buffer[6] != 6)
-		return;
-	for (i = 0; i < 6; i++)
-		ether_addr[i] = buffer[7 + i);
-#endif
-#endif
+	CARD_CIS_SCAN(device_get_parent(dev), ex_pccard_silicom_cb,
+	    ether_addr);
 }
 
 static int
