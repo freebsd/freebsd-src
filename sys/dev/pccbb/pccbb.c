@@ -891,7 +891,7 @@ static void
 cbb_cardbus_reset(device_t brdev)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
-	int delay_us;
+	int delay;
 
 	/*
 	 * 20ms is necessary for most bridges.  For some reason, the Ricoh
