@@ -173,22 +173,35 @@ such as the number of allocation and free operations; other measurements,
 such as the quantity of free items in per-CPU caches, or administrative
 limit on the number of allocations, is available only for specific
 allocators.
-.Ss User memory_type Fields
+.Ss Caller memory_type Fields
 .Vt struct memory_type
-includes fields appropriate for use by the application in order to more
-easily maintain state associated with memory types across updates.
+includes fields to allow the application to store data, in the form of
+pointers and 64-bit integers, with memory types.
 For example, the application author might make use of one of the caller
 pointers to reference a more complex data structure tracking long-term
 behavior of the memory type, or a window system object that is used to
 render the state of the memory type.
-Query updates may reset or otherwise modify all other fields in the
+General and per-CPU storage is provided with each
 .Vt struct memory_type
-data structure, but will preserve the caller-provided values, which will
-be initialized to
+in the form of an array of pointers and integers.
+The array entries are accessed via the
+.Fa index
+argument to the get and set accessor methods.
+Possible values of
+.Fa index
+range between
+.Dv 0
+and
+.Dv MEMSTAT_MAXCALLER .
+.Pp
+Caller-owned fields are initialized to
 .Dv 0
 or
 .Dv NULL
-before first use.
+when a new
+.Vt struct memory_type
+is allocated and attached to a memory type list; these fields retain their
+values across queries that update library-owned fields.
 .Ss Allocator Types
 Currently,
 .Nm
