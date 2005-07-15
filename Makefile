@@ -64,7 +64,7 @@
 #
 TGTS=	all all-man buildenv buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distributeworld \
-	distribution everything \
+	distrib-dirs distribution everything \
 	hierarchy install installcheck installkernel installkernel.debug\
 	reinstallkernel reinstallkernel.debug installworld \
 	kernel-toolchain libraries lint maninstall \
