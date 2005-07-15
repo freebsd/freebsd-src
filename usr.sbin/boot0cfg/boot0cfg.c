@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgeom.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -256,6 +257,8 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
     int fd, p;
     ssize_t n;
     char *s;
+    const char *q;
+    struct gctl_req *grq;
    
     fd = open(fname, O_WRONLY | flags, 0666);
     if (fd != -1) {
@@ -265,12 +268,30 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
 	   errx(1, "%s: short write", fname);
 	return;
     }
+
     if (flags != 0)
 	err(1, "%s", fname);
+    grq = gctl_get_handle();
+    gctl_ro_param(grq, "verb", -1, "write MBR");
+    gctl_ro_param(grq, "class", -1, "MBR");
+    q = strrchr(fname, '/');
+    if (q == NULL)
+	q = fname;
+    else
+	q++;
+    gctl_ro_param(grq, "geom", -1, q);
+    gctl_ro_param(grq, "data", mbr_size, mbr);
+    q = gctl_issue(grq);
+    if (q == NULL)
+	return;
+
+    warnx("%s: %s", fname, q);
+    gctl_free(grq);
+
 #ifdef DIOCSMBR
     for (p = 1; p < 5; p++) {
 	asprintf(&s, "%ss%d", fname, p);
-	fd = open(s, O_RDWR);
+	fd = open(s, O_RDONLY);
 	if (fd < 0) {
 	    free(s);
 	    continue;
