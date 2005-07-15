@@ -80,7 +80,7 @@ retry:
 		return (-1);
 	}
 	if (size != sizeof(maxcpus)) {
-		fprintf(stderr, "kern.smp.maxcpus: wronge size");
+		fprintf(stderr, "kern.smp.maxcpus: wrong size");
 		errno = EINVAL;
 		return (-1);
 	}
@@ -99,7 +99,7 @@ retry:
 		return (-1);
 	}
 	if (size != sizeof(count)) {
-		fprintf(stderr, "kern.malloc_count: wronge size");
+		fprintf(stderr, "kern.malloc_count: wrong size");
 		errno = EINVAL;
 		return (-1);
 	}
