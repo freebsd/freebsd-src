@@ -105,7 +105,11 @@ static const struct ed_product {
 #define	NE2000DVF_DL100XX	0x0001		/* chip is D-Link DL10019/22 */
 #define	NE2000DVF_AX88X90	0x0002		/* chip is ASIX AX88[17]90 */
 #define NE2000DVF_ENADDR	0x0004		/* Get MAC from attr mem */
+#define NE2000DVF_ANYFUNC	0x0008		/* Allow any function type */
+#define NE2000DVF_MODEM		0x0010		/* Has a modem/serial */
 	int enoff;
+	int edrid;
+	int siorid;
 } ed_pccard_products[] = {
 	{ PCMCIA_CARD(ACCTON, EN2212), 0},
 	{ PCMCIA_CARD(ACCTON, EN2216), 0},
@@ -142,7 +146,8 @@ static const struct ed_product {
 	{ PCMCIA_CARD(EPSON, EEN10B), 0},
 	{ PCMCIA_CARD(EXP, THINLANCOMBO), 0},
 	{ PCMCIA_CARD(GREY_CELL, TDK3000), 0},
-	{ PCMCIA_CARD(GREY_CELL, DMF650TX), 0},
+	{ PCMCIA_CARD(GREY_CELL, DMF650TX),
+	    NE2000DVF_ANYFUNC | NE2000DVF_DL100XX | NE2000DVF_MODEM, -1, 1, 0},
 	{ PCMCIA_CARD(IBM, HOME_AND_AWAY), 0},
 	{ PCMCIA_CARD(IBM, INFOMOVER), NE2000DVF_ENADDR, 0xff0},
 	{ PCMCIA_CARD(IODATA3, PCLAT), 0},
@@ -203,14 +208,19 @@ ed_pccard_match(device_t dev)
 	error = pccard_get_function(dev, &fcn);
 	if (error != 0)
 		return (error);
-	if (fcn != PCCARD_FUNCTION_NETWORK)
-		return (ENXIO);
 
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) != NULL) {
 		if (pp->prod.pp_name != NULL)
 			device_set_desc(dev, pp->prod.pp_name);
+		/*
+		 * Some devices don't ID themselves as network, but
+		 * that's OK if the flags say so.
+		 */
+		if (!(pp->flags & NE2000DVF_ANYFUNC) &&
+		    fcn != PCCARD_FUNCTION_NETWORK)
+			return (ENXIO);
 		return (0);
 	}
 	return (ENXIO);
@@ -226,13 +236,15 @@ ed_pccard_probe(device_t dev)
 {
 	const struct ed_product *pp;
 	int	error;
+	struct ed_softc *sc = device_get_softc(dev);
 
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) == NULL)
 		return (ENXIO);
+	sc->port_rid = pp->edrid;
 	if (pp->flags & NE2000DVF_DL100XX) {
-		error = ed_probe_Novell(dev, 0, 0);
+		error = ed_probe_Novell(dev, sc->port_rid, 0);
 		if (error == 0)
 			error = ed_pccard_Linksys(dev);
 		ed_release_resources(dev);
@@ -244,7 +256,7 @@ ed_pccard_probe(device_t dev)
 		if (error == 0)
 			goto end2;
 	}
-	error = ed_probe_Novell(dev, 0, 0);
+	error = ed_probe_Novell(dev, sc->port_rid, 0);
 end2:
 	if (error == 0)
 		error = ed_alloc_irq(dev, 0, 0);
@@ -279,6 +291,13 @@ ed_pccard_rom_mac(device_t dev, uint8_t *enaddr)
 }
 
 static int
+ed_pccard_add_modem(device_t dev, int rid)
+{
+	device_printf(dev, "Need to write this code: modem rid is %d\n", rid);
+	return 0;
+}
+
+static int
 ed_pccard_attach(device_t dev)
 {
 	int error, i;
@@ -291,6 +310,7 @@ ed_pccard_attach(device_t dev)
 	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) == NULL)
 		return (ENXIO);
+	sc->port_rid = pp->edrid;
 	if (sc->port_used > 0)
 		ed_alloc_port(dev, sc->port_rid, sc->port_used);
 	if (sc->mem_used)
@@ -367,6 +387,8 @@ ed_pccard_attach(device_t dev)
 		    ed_ifmedia_sts);
 	}
 #endif
+	if (pp->flags & NE2000DVF_MODEM)
+		ed_pccard_add_modem(dev, pp->siorid);
 	return (error);
 }
 
@@ -514,7 +536,7 @@ ed_pccard_ax88x90(device_t dev)
 	struct	ed_softc *sc = device_get_softc(dev);
 
 	/* Allocate the port resource during setup. */
-	error = ed_alloc_port(dev, 0, ED_NOVELL_IO_PORTS);
+	error = ed_alloc_port(dev, sc->port_rid, ED_NOVELL_IO_PORTS);
 	if (error)
 		return (error);
 
