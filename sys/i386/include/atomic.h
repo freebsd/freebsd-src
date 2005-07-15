@@ -336,9 +336,6 @@ u_long	atomic_readandclear_long(volatile u_long *);
 #define	atomic_cmpset_acq_long		atomic_cmpset_long
 #define	atomic_cmpset_rel_long		atomic_cmpset_long
 
-#define	atomic_cmpset_acq_ptr		atomic_cmpset_ptr
-#define	atomic_cmpset_rel_ptr		atomic_cmpset_ptr
-
 /* Operations on 8-bit bytes. */
 #define	atomic_set_8		atomic_set_char
 #define	atomic_set_acq_8	atomic_set_acq_char
@@ -392,55 +389,24 @@ u_long	atomic_readandclear_long(volatile u_long *);
 #define	atomic_readandclear_32	atomic_readandclear_int
 
 /* Operations on pointers. */
-static __inline int
-atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
-{
-
-	return (atomic_cmpset_int((volatile u_int *)dst, (u_int)exp,
-	    (u_int)src));
-}
-
-static __inline void *
-atomic_load_acq_ptr(volatile void *p)
-{
-	/*
-	 * The apparently-bogus cast to intptr_t in the following is to
-	 * avoid a warning from "gcc -Wbad-function-cast".
-	 */
-	return ((void *)(intptr_t)atomic_load_acq_int((volatile u_int *)p));
-}
-
-static __inline void
-atomic_store_rel_ptr(volatile void *p, void *v)
-{
-	atomic_store_rel_int((volatile u_int *)p, (u_int)v);
-}
-
-#define	ATOMIC_PTR(NAME)				\
-static __inline void					\
-atomic_##NAME##_ptr(volatile void *p, uintptr_t v)	\
-{							\
-	atomic_##NAME##_int((volatile u_int *)p, v);	\
-}							\
-							\
-static __inline void					\
-atomic_##NAME##_acq_ptr(volatile void *p, uintptr_t v)	\
-{							\
-	atomic_##NAME##_acq_int((volatile u_int *)p, v);\
-}							\
-							\
-static __inline void					\
-atomic_##NAME##_rel_ptr(volatile void *p, uintptr_t v)	\
-{							\
-	atomic_##NAME##_rel_int((volatile u_int *)p, v);\
-}
-
-ATOMIC_PTR(set)
-ATOMIC_PTR(clear)
-ATOMIC_PTR(add)
-ATOMIC_PTR(subtract)
-
-#undef ATOMIC_PTR
+#define	atomic_set_ptr		atomic_set_int
+#define	atomic_set_acq_ptr	atomic_set_acq_int
+#define	atomic_set_rel_ptr	atomic_set_rel_int
+#define	atomic_clear_ptr	atomic_clear_int
+#define	atomic_clear_acq_ptr	atomic_clear_acq_int
+#define	atomic_clear_rel_ptr	atomic_clear_rel_int
+#define	atomic_add_ptr		atomic_add_int
+#define	atomic_add_acq_ptr	atomic_add_acq_int
+#define	atomic_add_rel_ptr	atomic_add_rel_int
+#define	atomic_subtract_ptr	atomic_subtract_int
+#define	atomic_subtract_acq_ptr	atomic_subtract_acq_int
+#define	atomic_subtract_rel_ptr	atomic_subtract_rel_int
+#define	atomic_load_acq_ptr	atomic_load_acq_int
+#define	atomic_store_rel_ptr	atomic_store_rel_int
+#define	atomic_cmpset_ptr	atomic_cmpset_int
+#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_int
+#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_int
+#define	atomic_readandclear_ptr	atomic_readandclear_int
 
 #endif	/* !defined(WANT_FUNCTIONS) */
 #endif /* ! _MACHINE_ATOMIC_H_ */

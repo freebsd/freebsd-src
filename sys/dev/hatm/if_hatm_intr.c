@@ -115,7 +115,8 @@ hatm_ext_free(struct mbufx_free **list, struct mbufx_free *buf)
 {
 	for (;;) {
 		buf->link = *list;
-		if (atomic_cmpset_ptr(list, buf->link, buf))
+		if (atomic_cmpset_ptr((uintptr_t *)list, (uintptr_t)buf->link,
+		    (uintptr_t)buf))
 			break;
 	}
 }
@@ -128,7 +129,8 @@ hatm_ext_alloc(struct hatm_softc *sc, u_int g)
 	for (;;) {
 		if ((buf = sc->mbuf_list[g]) == NULL)
 			break;
-		if (atomic_cmpset_ptr(&sc->mbuf_list[g], buf, buf->link))
+		if (atomic_cmpset_ptr((uintptr_t *)&sc->mbuf_list[g],
+			(uintptr_t)buf, (uintptr_t)buf->link))
 			break;
 	}
 	if (buf == NULL) {
@@ -136,7 +138,8 @@ hatm_ext_alloc(struct hatm_softc *sc, u_int g)
 		for (;;) {
 			if ((buf = sc->mbuf_list[g]) == NULL)
 				break;
-			if (atomic_cmpset_ptr(&sc->mbuf_list[g], buf, buf->link))
+			if (atomic_cmpset_ptr((uintptr_t *)&sc->mbuf_list[g],
+			    (uintptr_t)buf, (uintptr_t)buf->link))
 				break;
 		}
 	}
