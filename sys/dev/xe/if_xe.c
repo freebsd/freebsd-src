@@ -1887,6 +1887,7 @@ xe_activate(device_t dev)
 						  8, RF_ACTIVE);
 	    if (!sc->ce2_port_res) {
 		DEVPRINTF(1, (dev, "Cannot allocate I/O port for modem\n"));
+		xe_deactivate(dev);
 		return ENOMEM;
 	    }
 
@@ -1914,6 +1915,7 @@ xe_activate(device_t dev)
 
 	if (!sc->port_res) {
 		DEVPRINTF(1, (dev, "Cannot allocate ioport\n"));
+		xe_deactivate(dev);
 		return ENOMEM;
 	}
 
