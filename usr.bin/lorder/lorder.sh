@@ -52,21 +52,21 @@ S=$(mktemp -t _symbol_)
 NM=${NM:-nm}
 
 # remove temporary files on HUP, INT, QUIT, PIPE, TERM
-trap "rm -f $R $S; exit 1" 1 2 3 13 15
+trap "rm -f $R $S $T; exit 1" 1 2 3 13 15
 
 # make sure all the files get into the output
 for i in $*; do
 	echo $i $i
 done
 
-# if the line has " T " or " D " it's a globally defined symbol, put it
+# if the line has " [TDW] " it's a globally defined symbol, put it
 # into the symbol file.
 #
 # if the line has " U " it's a globally undefined symbol, put it into
 # the reference file.
 ${NM} -go $* | sed "
-	/ [TD] / {
-		s/:.* [TD] / /
+	/ [TDW] / {
+		s/:.* [TDW] / /
 		w $S
 		d
 	}
@@ -77,7 +77,16 @@ ${NM} -go $* | sed "
 	d
 "
 
-# sort symbols and references on the first field (the symbol)
+# eliminate references that can be resolved by the same library.
+if [ $(expr "$*" : '.*\.a[[:>:]]') -ne 0 ]; then
+	sort -u -o $S $S
+	sort -u -o $R $R
+	T=$(mktemp -t _temp_)
+	comm -23 $R $S >$T
+	mv $T $R
+fi
+
+# sort references and symbols on the second field (the symbol),
 # join on that field, and print out the file names.
 sort -k 2 -o $R $R
 sort -k 2 -o $S $S
