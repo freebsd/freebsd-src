@@ -509,7 +509,7 @@ ulptopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 	u_char flags = ULPTFLAGS(dev);
 	struct ulpt_softc *sc;
 	usbd_status err;
-	int spin, error;
+	int error;
 
 	USB_GET_SC_OPEN(ulpt, ULPTUNIT(dev), sc);
 
@@ -536,28 +536,6 @@ ulptopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 
 	if ((flags & ULPT_NOPRIME) == 0) {
 		ulpt_reset(sc);
-		if (sc->sc_dying) {
-			error = ENXIO;
-			sc->sc_state = 0;
-			goto done;
-		}
-	}
-
-	for (spin = 0; (ulpt_status(sc) & LPS_SELECT) == 0; spin += STEP) {
-		DPRINTF(("ulpt_open: waiting a while\n"));
-		if (spin >= TIMEOUT) {
-			error = EBUSY;
-			sc->sc_state = 0;
-			goto done;
-		}
-
-		/* wait 1/4 second, give up if we get a signal */
-		error = tsleep(sc, LPTPRI | PCATCH, "ulptop", STEP);
-		if (error != EWOULDBLOCK) {
-			sc->sc_state = 0;
-			goto done;
-		}
-
 		if (sc->sc_dying) {
 			error = ENXIO;
 			sc->sc_state = 0;
