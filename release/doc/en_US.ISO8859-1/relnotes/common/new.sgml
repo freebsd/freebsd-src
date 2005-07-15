@@ -847,7 +847,7 @@
       <para>The &man.ata.4; family of drivers has been overhauled and
 	updated.  It has been split into modules that can be loaded
 	and unloaded independently (the <filename>atapci</filename>
-	and <filename>ata</filename> modules are prerequesites for the
+	and <filename>ata</filename> modules are prerequisites for the
 	device subdrivers, which are <filename>atadisk</filename>,
 	<filename>atapicd</filename>, <filename>atapifd</filename>,
 	<filename>atapist</filename>, and
@@ -1449,7 +1449,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       to 1.2.2.</para>
 
     <para><application>lukemftp</application> has been updated from a
-      26 April 2004 snapshot from OpenBSD's sources to a snapshot as
+      26 April 2004 snapshot from NetBSD's sources to a snapshot as
       of 16 May 2005.</para>
 
     <para>A snapshot of <application>netcat</application> from OpenBSD
@@ -1460,10 +1460,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       to 1.2.</para>
 
     <para><application>OpenPAM</application> has been updated from the
-      Eelgrass release to the Feterita release.</para>
-
-    <para><application>OpenPAM</application> has been updated from the
-      Feterita release to the Figwort release.</para>
+      Eelgrass release to the Figwort release.</para>
 
     <para><application>OpenSSH</application> has been updated from 3.8p1
       to 4.1p1.</para>
