@@ -967,6 +967,7 @@ pccard_probe_nomatch(device_t bus, device_t child)
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct pccard_function *pf = devi->pf;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
+	int i;
 
 	device_printf(bus, "<unknown card>");
 	printf(" (manufacturer=0x%04x, product=0x%04x, function_type=%d) "
