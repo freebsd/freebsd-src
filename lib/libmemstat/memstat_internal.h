@@ -65,13 +65,12 @@ struct memory_type {
 	uint64_t	 mt_count;	/* Number of current allocations. */
 	uint64_t	 mt_free;	/* Number of cached free items. */
 	uint64_t	 mt_failures;	/* Number of allocation failures. */
-	uint64_t	 _mt_spare_uint64[4];	/* Spare. */
 
 	/*
 	 * Caller-owned memory.
 	 */
-	void		*mt_caller_pointer[4];	/* Caller-owned pointers. */
-	uint64_t	 mt_caller_uint64[4];	/* Caller-owned longs. */
+	void		*mt_caller_pointer[MEMSTAT_MAXCALLER];	/* Pointers. */
+	uint64_t	 mt_caller_uint64[MEMSTAT_MAXCALLER];	/* Integers. */
 
 	/*
 	 * For allocators making use of per-CPU caches, we also provide raw
@@ -86,7 +85,6 @@ struct memory_type {
 	 * global stats above.
 	 */
 	uint64_t	 mt_zonefree;	/* Free items in zone. */
-	uint64_t	 _mt_spare_uint642[4];	/* Spare. */
 
 	/*
 	 * Per-CPU measurements fall into two categories: per-CPU allocation,
@@ -98,14 +96,12 @@ struct memory_type {
 		uint64_t	 mtp_numallocs;	/* Per-CPU mt_numallocs. */
 		uint64_t	 mtp_numfrees;	/* Per-CPU mt_numfrees. */
 		uint64_t	 mtp_sizemask;	/* Per-CPU mt_sizemask. */
-		void		*mtp_caller_pointer[2];	/* Caller data. */
-		uint64_t	 mtp_caller_uint64[2];	/* Caller data. */
-		uint64_t	 _mtp_spare_uint64[3];	/* Per-CPU spare. */
+		void		*mtp_caller_pointer[MEMSTAT_MAXCALLER];
+		uint64_t	 mtp_caller_uint64[MEMSTAT_MAXCALLER];
 	}	mt_percpu_alloc[MEMSTAT_MAXCPU];
 
 	struct {
 		uint64_t	 mtp_free;	/* Per-CPU cache free items. */
-		uint64_t	 _mtp_spare_uint64[3];	/* Per-CPU spare. */
 	}	mt_percpu_cache[MEMSTAT_MAXCPU];
 
 	LIST_ENTRY(memory_type)	mt_list;	/* List of types. */
