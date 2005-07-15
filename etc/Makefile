@@ -94,7 +94,7 @@ distribution:
 		${BIN2} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
-	    pwd_mkdb ${PWD_MKDB_ENDIAN} -p -d ${DESTDIR}/etc \
+	    pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
 		${DESTDIR}/etc/master.passwd
 	cd ${.CURDIR}/bluetooth; ${MAKE} install
 	cd ${.CURDIR}/defaults; ${MAKE} install
