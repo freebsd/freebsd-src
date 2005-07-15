@@ -314,6 +314,71 @@ gblenv=OUTSIDEVAR=OutsideValue
    script:done
    stdout:list_args.sh with $# = 3
    stdout:....$1 = [  5] 'userA'
-   stdout:....$2 = [ 12] ' scriptname:'
+   stdout:....$2 = [ 11] 'scriptname:'
    stdout:....$3 = [ 16] '[%-script.pathname-%]'
+[run]
+[test]
+   sb_args:-S/bin/sh [%-script.pathname-%] ${A} ${NB} ${C} ${ND} ${NE} ${F} S:
+   setenv:A=A_ThisisAlongstring_A1
+   setenv:NB=
+   setenv:C=C_ThisisAlongstring_C1
+   setenv:ND=
+   setenv:NE=
+   setenv:F=F_ThisisAlongstring_F1
+   script:printf "list_args.sh with \$# = $#\n"
+   script:# Process all parameters.
+   script:N=0
+   script:while test $# != 0 ; do
+   script:    N=$(($N+1))
+   script:    printf "....\$$N = [%3d] '$1'\n" ${#1}
+   script:    shift
+   script:done
+   stdout:list_args.sh with $# = 5
+   stdout:....$1 = [ 22] 'A_ThisisAlongstring_A1'
+   stdout:....$2 = [ 22] 'C_ThisisAlongstring_C1'
+   stdout:....$3 = [ 22] 'F_ThisisAlongstring_F1'
+   stdout:....$4 = [  2] 'S:'
+   stdout:....$5 = [ 16] '/tmp/env-regress'
+[run]
+[test]
+   sb_args:-S/bin/sh [%-script.pathname-%] ${A} ${NB} "${NB}" ${NB} ${C} "${ND}" ${NE} ${F} S:
+   setenv:A=A_ThisisAlongstring_A1
+   setenv:NB=
+   setenv:C=C_ThisisAlongstring_C1
+   setenv:ND=
+   setenv:NE=
+   setenv:F=F_ThisisAlongstring_F1
+   script:printf "list_args.sh with \$# = $#\n"
+   script:# Process all parameters.
+   script:N=0
+   script:while test $# != 0 ; do
+   script:    N=$(($N+1))
+   script:    printf "....\$$N = [%3d] '$1'\n" ${#1}
+   script:    shift
+   script:done
+   stdout:list_args.sh with $# = 7
+   stdout:....$1 = [ 22] 'A_ThisisAlongstring_A1'
+   stdout:....$2 = [  0] ''
+   stdout:....$3 = [ 22] 'C_ThisisAlongstring_C1'
+   stdout:....$4 = [  0] ''
+   stdout:....$5 = [ 22] 'F_ThisisAlongstring_F1'
+   stdout:....$6 = [  2] 'S:'
+   stdout:....$7 = [ 16] '/tmp/env-regress'
+[run]
+
+[test]
+   sb_args:-S/bin/echo ${A} ${B} ${C} ${D} ScriptName:
+   setenv:A=A_ThisisAlongstring_A1
+   setenv:B=B_ThisisAlongstring_B1
+   setenv:C=C_ThisisAlongstring_C1
+   setenv:D=D_ThisisAlongstring_D1
+   stdout:A_ThisisAlongstring_A1 B_ThisisAlongstring_B1 C_ThisisAlongstring_C1 D_ThisisAlongstring_D1 ScriptName: [%-script.pathname-%]
+[run]
+[test]
+   sb_args:-S/bin/echo ${A} "${B}" ${C} "${D}" ScriptName:
+   setenv:A=A_ThisisAlongstring_A1
+   setenv:B=B_ThisisAlongstring_B1
+   setenv:C=C_ThisisAlongstring_C1
+   setenv:D=D_ThisisAlongstring_D1
+   stdout:A_ThisisAlongstring_A1 B_ThisisAlongstring_B1 C_ThisisAlongstring_C1 D_ThisisAlongstring_D1 ScriptName: [%-script.pathname-%]
 [run]
