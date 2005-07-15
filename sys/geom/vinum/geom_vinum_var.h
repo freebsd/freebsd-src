@@ -311,6 +311,7 @@ struct gv_volume {
 	LIST_HEAD(,gv_plex)   plexes;	/* List of attached plexes. */
 	LIST_ENTRY(gv_volume) volume;	/* Entry in vinum config. */
 
+	struct gv_plex	*last_read_plex;
 	struct g_geom	*geom;		/* The geom of this volume. */
 	struct gv_softc	*vinumconf;	/* Pointer to the vinum config. */
 };
