@@ -155,7 +155,7 @@ struct uma_zctor_args {
 	uma_fini fini;
 	uma_keg_t keg;
 	int align;
-	u_int16_t flags;
+	u_int32_t flags;
 };
 
 struct uma_kctor_args {
@@ -164,7 +164,7 @@ struct uma_kctor_args {
 	uma_init uminit;
 	uma_fini fini;
 	int align;
-	u_int16_t flags;
+	u_int32_t flags;
 };
 
 struct uma_bucket_zone {
@@ -236,7 +236,7 @@ static uma_slab_t uma_zone_slab(uma_zone_t zone, int flags);
 static void *uma_slab_alloc(uma_zone_t zone, uma_slab_t slab);
 static void zone_drain(uma_zone_t);
 static uma_zone_t uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit,
-    uma_fini fini, int align, u_int16_t flags);
+    uma_fini fini, int align, u_int32_t flags);
 
 void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
@@ -1713,7 +1713,7 @@ uma_startup3(void)
 
 static uma_zone_t
 uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit, uma_fini fini,
-		int align, u_int16_t flags)
+		int align, u_int32_t flags)
 {
 	struct uma_kctor_args args;
 
@@ -1729,7 +1729,7 @@ uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit, uma_fini fini,
 /* See uma.h */
 uma_zone_t
 uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
-		uma_init uminit, uma_fini fini, int align, u_int16_t flags)
+		uma_init uminit, uma_fini fini, int align, u_int32_t flags)
 
 {
 	struct uma_zctor_args args;

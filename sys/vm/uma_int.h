@@ -219,7 +219,7 @@ struct uma_keg {
 	u_int16_t	uk_pgoff;	/* Offset to uma_slab struct */
 	u_int16_t	uk_ppera;	/* pages per allocation from backend */
 	u_int16_t	uk_ipers;	/* Items per slab */
-	u_int16_t	uk_flags;	/* Internal flags */
+	u_int32_t	uk_flags;	/* Internal flags */
 };
 
 /* Simpler reference to uma_keg for internal use. */
@@ -319,10 +319,10 @@ struct uma_zone {
 /*
  * These flags must not overlap with the UMA_ZONE flags specified in uma.h.
  */
-#define UMA_ZFLAG_PRIVALLOC	0x1000		/* Use uz_allocf. */
-#define UMA_ZFLAG_INTERNAL	0x2000		/* No offpage no PCPU. */
-#define UMA_ZFLAG_FULL		0x4000		/* Reached uz_maxpages */
-#define UMA_ZFLAG_CACHEONLY	0x8000		/* Don't ask VM for buckets. */
+#define UMA_ZFLAG_PRIVALLOC	0x10000000	/* Use uz_allocf. */
+#define UMA_ZFLAG_INTERNAL	0x20000000	/* No offpage no PCPU. */
+#define UMA_ZFLAG_FULL		0x40000000	/* Reached uz_maxpages */
+#define UMA_ZFLAG_CACHEONLY	0x80000000	/* Don't ask VM for buckets. */
 
 /* Internal prototypes */
 static __inline uma_slab_t hash_sfind(struct uma_hash *hash, u_int8_t *data);
