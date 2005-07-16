@@ -1,8 +1,7 @@
 /*-
- * Copyright (c) 2004, 2005,
- *     Bosko Milekic <bmilekic@FreeBSD.org>.  All rights reserved.
- * Copyright (c) 2002, 2003, 2004, 2005,
- *     Jeffrey Roberson <jeff@FreeBSD.org>.  All rights reserved.
+ * Copyright (c) 2002, 2003, 2004, 2005 Jeffrey Roberson <jeff@FreeBSD.org>
+ * Copyright (c) 2004, 2005 Bosko Milekic <bmilekic@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
