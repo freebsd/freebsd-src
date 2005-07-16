@@ -194,7 +194,7 @@ List of acceptable pairwise (unicast) ciphers for WPA; one or more of:
 .Li CCMP
 (AES in Counter mode with CBC-MAC, RFC 3610, IEEE 802.11i/D7.0),
 .Li TKIP
-(Temporal Key Integrity Protocol, IEE 802.11i/D7.0),
+(Temporal Key Integrity Protocol, IEEE 802.11i/D7.0),
 .Li NONE
 (deprecated).
 If not set this defaults to
@@ -204,7 +204,7 @@ List of acceptable group (multicast) ciphers for WPA; one or more of:
 .Li CCMP
 (AES in Counter mode with CBC-MAC, RFC 3610, IEEE 802.11i/D7.0),
 .Li TKIP
-(Temporal Key Integrity Protocol, IEE 802.11i/D7.0),
+(Temporal Key Integrity Protocol, IEEE 802.11i/D7.0),
 .Li WEP104
 (WEP with 104-bit key),
 .Li WEP40
@@ -241,9 +241,9 @@ used only as a Phase 2 metod with EAP-PEAP or EAP-TTLS),
 .Li TLS
 (EAP-TLS, client and server certificate),
 .Li PEAP
-(EAP-PEAP, with tunnelled EAP authentication),
+(EAP-PEAP, with tunneled EAP authentication),
 .Li TTLS
-(EAP-TTLS, with tunnelled EAP or PAP/CHAP/MSCHAP/MSCHAPV2 authentication).
+(EAP-TTLS, with tunneled EAP or PAP/CHAP/MSCHAP/MSCHAPV2 authentication).
 If not set this defaults to all available methods compiled in to
 .Xr wpa_supplicant 8 .
 Note that by default
@@ -257,7 +257,7 @@ configuration variable.
 Identity string for EAP.
 .It Va anonymous_identity
 Anonymous identity string for EAP (to be used as the unencrypted identity
-with EAP types that support different tunnnelled identity; e.g.\& EAP-TTLS).
+with EAP types that support different tunneled identities; e.g.\& EAP-TTLS).
 .It Va password
 Password string for EAP.
 .It Va ca_cert
@@ -292,7 +292,7 @@ into DH params.
 Substring to be matched against the subject of the
 authentication server certificate.
 If this string is set, the server
-sertificate is only accepted if it contains this string in the subject.
+certificate is only accepted if it contains this string in the subject.
 The subject string is in following format:
 .Pp
 .Dl "/C=US/ST=CA/L=San Francisco/CN=Test AS/emailAddress=as@example.com"
@@ -378,7 +378,7 @@ Like
 .Va subject_match
 but for EAP inner Phase 2.
 .It Va eappsk
-16-byte pre-shared key in hext format for use with EAP-PSK.
+16-byte pre-shared key in hex format for use with EAP-PSK.
 .It Va nai
 User NAI for use with EAP-PSK.
 .It Va server_nai
