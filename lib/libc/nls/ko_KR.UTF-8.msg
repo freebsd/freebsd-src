@@ -194,11 +194,11 @@ $ SIGQUIT
 $ SIGILL
 4 잘못된 명령
 $ SIGTRAP
-5 Trace/BPT 덫
+5 Trace/BPT 트랩
 $ SIGABRT
-6 Abort 덫
+6 Abort 트랩
 $ SIGEMT
-7 EMT 덫
+7 EMT 트랩
 $ SIGFPE
 8 부동소수점 연산 예외
 $ SIGKILL
