@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2005
+.Dd July 11, 2005
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -751,6 +751,34 @@ Additionally, the SSID may be cleared by setting it to
 .It Cm scan
 Display the current set of scanned neighbors and/or trigger a new scan.
 Only the super-user can trigger a scan.
+Depending on the capabilities of the APs, the following
+flags can be included in the output:
+.Bl -tag -width 3n
+.It Li E
+Extended Service Set (ESS).
+Indicates that the station is part of an infrastructure network
+(in contrast to an IBSS/ad-hoc network).
+.It Li I
+IBSS/ad-hoc network.
+Indicates that the station is part of an ad-hoc network
+(in contrast to an ESS network).
+.It Li P
+Privacy.
+Data confidentiality is required for all data type frames
+exchanged within the BSS.
+This means that this BSS requires the station to
+use cryptographic means such as WEP, TKIP or AES-CCMP to
+encrypt/decrypt data frames being exchanged with others.
+.It Li S
+Short Preamble.
+Indicates that the network is using short preambles (defined
+in 802.11b High Rate/DSSS PHY, short preamble utilizes a
+56 bit sync field in contrast to a 128 bit field used in long
+preamble mode).
+.It Li s
+Short slot time.
+Indicates that the network supports short slot time.
+.El
 .It Cm stationname Ar name
 Set the name of this station.
 It appears that the station name is not really part of the IEEE 802.11
