@@ -93,9 +93,7 @@ pccard_read_cis(struct pccard_softc *sc)
 	STAILQ_INIT(&state.card->pf_head);
 	state.pf = NULL;
 
-	tsleep(&state, 0, "pccard", hz);
-	if (pccard_scan_cis(sc->dev, pccard_parse_cis_tuple,
-	    &state) == -1)
+	if (pccard_scan_cis(sc->dev, pccard_parse_cis_tuple, &state) == -1)
 		state.card->error++;
 }
 
