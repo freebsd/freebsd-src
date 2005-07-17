@@ -36,7 +36,7 @@
 .\"	@(#)tolower.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2004
+.Dd July 17, 2005
 .Dt TOLOWER 3
 .Os
 .Sh NAME
@@ -53,13 +53,8 @@ The
 .Fn tolower
 function converts an upper-case letter to the corresponding lower-case
 letter.
-For single C
-.Va char Ns s
-locales (see
-.Xr multibyte 3 )
-the value of the argument is
-representable as an
-.Li unsigned char
+The argument must be representable as an
+.Vt unsigned char
 or the value of
 .Dv EOF .
 .Sh RETURN VALUES
@@ -80,7 +75,6 @@ function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
 .Xr islower 3 ,
-.Xr multibyte 3 ,
 .Xr towlower 3
 .Sh STANDARDS
 The
