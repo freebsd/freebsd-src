@@ -76,7 +76,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 
-static MALLOC_DEFINE(M_PACKET_TAGS, "mbuf tags", "packet-attached information");
+static MALLOC_DEFINE(M_PACKET_TAGS, MBUF_TAG_MEM_NAME,
+    "packet-attached information");
 
 /* can't call it m_dup(), as freebsd[34] uses m_dup() with different arg */
 static struct mbuf *m_dup1(struct mbuf *, int, int, int);
