@@ -135,13 +135,15 @@ mbuf_init(void *dummy)
 	/*
 	 * Configure UMA zones for Mbufs, Clusters, and Packets.
 	 */
-	zone_mbuf = uma_zcreate("Mbuf", MSIZE, mb_ctor_mbuf, mb_dtor_mbuf,
+	zone_mbuf = uma_zcreate(MBUF_MEM_NAME, MSIZE, mb_ctor_mbuf,
+	    mb_dtor_mbuf,
 #ifdef INVARIANTS
 	    trash_init, trash_fini, MSIZE - 1, UMA_ZONE_MAXBUCKET);
 #else
 	    NULL, NULL, MSIZE - 1, UMA_ZONE_MAXBUCKET);
 #endif
-	zone_clust = uma_zcreate("MbufClust", MCLBYTES, mb_ctor_clust,
+	zone_clust = uma_zcreate(MBUF_CLUSTER_MEM_NAME, MCLBYTES,
+	    mb_ctor_clust,
 #ifdef INVARIANTS
 	    mb_dtor_clust, trash_init, trash_fini, UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
 #else
@@ -149,8 +151,8 @@ mbuf_init(void *dummy)
 #endif
 	if (nmbclusters > 0)
 		uma_zone_set_max(zone_clust, nmbclusters);
-	zone_pack = uma_zsecond_create("Packet", mb_ctor_pack, mb_dtor_pack,
-	    mb_init_pack, mb_fini_pack, zone_mbuf);
+	zone_pack = uma_zsecond_create(MBUF_PACKET_MEM_NAME, mb_ctor_pack,
+	    mb_dtor_pack, mb_init_pack, mb_fini_pack, zone_mbuf);
 
 	/* uma_prealloc() goes here */
 
