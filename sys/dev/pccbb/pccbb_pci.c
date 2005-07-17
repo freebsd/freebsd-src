@@ -446,7 +446,7 @@ cbb_chipinit(struct cbb_softc *sc)
 	/* Use PCI interrupt for interrupt routing */
 	PCI_MASK2_CONFIG(sc->dev, CBBR_BRIDGECTRL,
 	    & ~(CBBM_BRIDGECTRL_MASTER_ABORT |
-	    CBBM_BRIDGECTRL_INTR_IREQ_EN),
+	    CBBM_BRIDGECTRL_INTR_IREQ_ISA_EN),
 	    | CBBM_BRIDGECTRL_WRITE_POST_EN,
 	    2);
 
