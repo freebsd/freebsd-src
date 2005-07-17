@@ -668,7 +668,7 @@ pmc_getfilename(struct vnode *v, char **fullpath, char **freepath)
 	td = curthread;
 	*fullpath = "unknown";
 	*freepath = NULL;
-	vn_lock(v, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(v, LK_CANRECURSE | LK_EXCLUSIVE | LK_RETRY, td);
 	vn_fullpath(td, v, fullpath, freepath);
 	VOP_UNLOCK(v, 0, td);
 }
