@@ -528,19 +528,21 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		break;
 	}
 
-	/*
-	 * In case of IP header with options, we haven't pulled
-	 * up enough, yet.
-	 */
-	pullup_len += (ip->ip_hl << 2) - sizeof(struct ip);
+	if ((ip->ip_off & htons(IP_OFFMASK)) == 0) {
+		/*
+		 * In case of IP header with options, we haven't pulled
+		 * up enough, yet.
+		 */
+		pullup_len += (ip->ip_hl << 2) - sizeof(struct ip);
 
-	switch (ip->ip_p) {
-	case IPPROTO_TCP:
-		M_CHECK(sizeof(struct tcphdr));
-		break;
-	case IPPROTO_UDP:
-		M_CHECK(sizeof(struct udphdr));
-		break;
+		switch (ip->ip_p) {
+		case IPPROTO_TCP:
+			M_CHECK(sizeof(struct tcphdr));
+			break;
+		case IPPROTO_UDP:
+			M_CHECK(sizeof(struct udphdr));
+			break;
+		}
 	}
 
 	switch (iface->info.ifinfo_dlt) {
