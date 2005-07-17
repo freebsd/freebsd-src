@@ -41,7 +41,7 @@ the packet filter,
 .Xr pf 4 .
 Logged packets can easily be monitored in real
 time by invoking
-.Xr tcpdump 8
+.Xr tcpdump 1
 on the
 .Nm
 interface, or stored to disk using
@@ -75,13 +75,13 @@ struct pfloghdr {
 # tcpdump -n -e -ttt -i pflog0
 .Ed
 .Sh SEE ALSO
+.Xr tcpdump 1
 .Xr inet 4 ,
 .Xr inet6 4 ,
 .Xr netintro 4 ,
 .Xr pf 4 ,
 .Xr ifconfig 8 ,
-.Xr pflogd 8 ,
-.Xr tcpdump 8
+.Xr pflogd 8
 .Sh HISTORY
 The
 .Nm
