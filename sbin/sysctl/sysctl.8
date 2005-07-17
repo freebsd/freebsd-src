@@ -87,7 +87,7 @@ Show only variable names, not their values.
 This is particularly useful with shells that offer programmable
 completion.
 To enable completion of variable names in
-.Xr zsh 1 ,
+.Xr zsh 1 Pq Pa ports/shells/zsh ,
 use the following code:
 .Bd -literal -offset indent
 listsysctls () { set -A reply $(sysctl -AN ${1%.*}) }
