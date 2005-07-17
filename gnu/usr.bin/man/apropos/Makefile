@@ -1,5 +1,4 @@
 # $FreeBSD$
-MAINTAINER= wosch
 
 SCRIPTS=apropos
 MAN=	apropos.1
