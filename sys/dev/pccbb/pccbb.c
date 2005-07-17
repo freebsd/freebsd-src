@@ -536,6 +536,9 @@ cbb_insert(struct cbb_softc *sc)
 		if (sc->exca[0].pccarddev) {
 			sc->flags |= CBB_16BIT_CARD;
 			exca_insert(&sc->exca[0]);
+		} else {
+			device_printf(sc->dev,
+			    "16-bit card inserted, but no pccard bus.\n");
 		}
 	} else if (sockstate & CBB_STATE_CB_CARD) {
 		if (sc->cbdev != NULL) {
@@ -621,13 +624,10 @@ cbb_intr(void *arg)
 	struct cbb_softc *sc = arg;
 	uint32_t sockevent;
 
-	/*
-	 * This ISR needs work XXX
-	 */
 	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
 	if (sockevent != 0) {
 		/* ack the interrupt */
-		cbb_setb(sc, CBB_SOCKET_EVENT, sockevent);
+		cbb_set(sc, CBB_SOCKET_EVENT, sockevent);
 
 		/*
 		 * If anything has happened to the socket, we assume that
@@ -729,6 +729,9 @@ cbb_o2micro_power_hack(struct cbb_softc *sc)
 	 * Selecting IRQ1 will result in INT# NOT being asserted
 	 * (because IRQ1 is selected), and IRQ1 won't be asserted
 	 * because our controllers don't generate IRQ1.
+	 *
+	 * Other, non O2Micro controllers will generate irq 1 in some
+	 * situations, so we can't do this hack for everybody.
 	 */
 	reg = exca_getb(&sc->exca[0], EXCA_INTR);
 	exca_putb(&sc->exca[0], EXCA_INTR, (reg & 0xf0) | 1);
@@ -749,9 +752,9 @@ cbb_o2micro_power_hack2(struct cbb_softc *sc, uint8_t reg)
 int
 cbb_power(device_t brdev, int volts)
 {
-	uint32_t status, sock_ctrl;
+	uint32_t status, sock_ctrl, mask;
 	struct cbb_softc *sc = device_get_softc(brdev);
-	int cnt;
+	int cnt, sane;
 	int retval = 0;
 	int on = 0;
 	uint8_t reg = 0;
@@ -792,16 +795,40 @@ cbb_power(device_t brdev, int volts)
 	if (volts != 0 && sc->chipset == CB_O2MICRO)
 		reg = cbb_o2micro_power_hack(sc);
 
-	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_POWER);
+	/*
+	 * We have to mask the card change detect interrupt while we're
+	 * messing with the power.  It is allowed to bounce while we're
+	 * messing with power as things settle down.
+	 */
+	mask = cbb_get(sc, CBB_SOCKET_MASK);
+	mask |= CBB_SOCKET_MASK_POWER;
+	mask &= ~CBB_SOCKET_MASK_CD;
+	cbb_set(sc, CBB_SOCKET_MASK, mask);
 	cbb_set(sc, CBB_SOCKET_CONTROL, sock_ctrl);
 	if (on) {
 		mtx_lock(&sc->mtx);
 		cnt = sc->powerintr;
-		/* XXX timeout needed! */
-		while (cnt == sc->powerintr)
-			cv_wait(&sc->powercv, &sc->mtx);
+		sane = 200;
+		while (!(cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_POWER_CYCLE) &&
+		    cnt == sc->powerintr && sane-- > 0)
+			cv_timedwait(&sc->powercv, &sc->mtx, hz / 10);
 		mtx_unlock(&sc->mtx);
+		if (sane <= 0)
+			device_printf(sc->dev, "power timeout, doom?\n");
 	}
+
+	/*
+	 * After the power is good, we can turn off the power
+	 * interrupt.  However, the PC Card standard says that we must
+	 * delay turning the CD bit back on for a bit to allow for
+	 * bouncyness on power down (recall that we don't wait above
+	 * for a power down, since we don't get an interrupt for
+	 * that).  We're called either from the suspend code in which
+	 * case we don't want to turn card change on again, or we're
+	 * called from the card insertion code, in which case the cbb
+	 * thread will turn it on for us before it waits to be woken
+	 * by a change event.
+	 */
 	cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_POWER);
 	status = cbb_get(sc, CBB_SOCKET_STATE);
 	if (on) {
@@ -810,6 +837,7 @@ cbb_power(device_t brdev, int volts)
 	}
 	if (status & CBB_STATE_BAD_VCC_REQ) {
 		device_printf(sc->dev, "Bad Vcc requested\n");	
+		/* XXX Do we want to do something to mitigate things here? */
 		goto done;
 	}
 	retval = 1;
