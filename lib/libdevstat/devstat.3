@@ -87,7 +87,10 @@
 .Fa "..."
 .Fc
 .Ft "long double"
-.Fn devstat_compute_etime "struct bintime cur_time" "struct bintime prev_time"
+.Fo devstat_compute_etime
+.Fa "struct bintime *cur_time"
+.Fa "struct bintime *prev_time"
+.Fc
 .Sh DESCRIPTION
 The
 .Nm
@@ -684,7 +687,9 @@ This can be useful in scenarios where the statistics to be calculated
 are determined at run time.
 .El
 .Pp
+The
 .Fn devstat_compute_etime
+function
 provides an easy way to find the difference in seconds between two
 .Vt bintime
 structures.
