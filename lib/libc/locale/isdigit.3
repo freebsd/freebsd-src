@@ -36,7 +36,7 @@
 .\"     @(#)isdigit.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2004
+.Dd July 17, 2005
 .Dt ISDIGIT 3
 .Os
 .Sh NAME
@@ -68,13 +68,8 @@ function behaves similarly to
 but may recognize additional characters, depending on the current locale
 setting.
 .Pp
-For single C
-.Va char Ns s
-locales (see
-.Xr multibyte 3 )
-the value of the argument is
-representable as an
-.Li unsigned char
+The value of the argument must be representable as an
+.Vt unsigned char
 or the value of
 .Dv EOF .
 .Sh RETURN VALUES
