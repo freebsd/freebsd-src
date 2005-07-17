@@ -731,7 +731,9 @@ cbb_o2micro_power_hack(struct cbb_softc *sc)
 	 * because our controllers don't generate IRQ1.
 	 *
 	 * Other, non O2Micro controllers will generate irq 1 in some
-	 * situations, so we can't do this hack for everybody.
+	 * situations, so we can't do this hack for everybody.  Reports of
+	 * keyboard controller's interrupts being suppressed occurred when
+	 * we did this.
 	 */
 	reg = exca_getb(&sc->exca[0], EXCA_INTR);
 	exca_putb(&sc->exca[0], EXCA_INTR, (reg & 0xf0) | 1);
@@ -798,12 +800,19 @@ cbb_power(device_t brdev, int volts)
 	/*
 	 * We have to mask the card change detect interrupt while we're
 	 * messing with the power.  It is allowed to bounce while we're
-	 * messing with power as things settle down.
+	 * messing with power as things settle down.  In addition, we mask off
+	 * the card's function interrupt by routing it via the ISA bus.  This
+	 * bit generally only affects 16bit cards.  Some bridges allow one to
+	 * set another bit to have it also affect 32bit cards.  Since 32bit
+	 * cards are required to be better behaved, we don't bother to get
+	 * into those bridge specific features.
 	 */
 	mask = cbb_get(sc, CBB_SOCKET_MASK);
 	mask |= CBB_SOCKET_MASK_POWER;
 	mask &= ~CBB_SOCKET_MASK_CD;
 	cbb_set(sc, CBB_SOCKET_MASK, mask);
+	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
+	    |CBBM_BRIDGECTRL_INTR_IREQ_ISA_EN, 2);
 	cbb_set(sc, CBB_SOCKET_CONTROL, sock_ctrl);
 	if (on) {
 		mtx_lock(&sc->mtx);
@@ -818,16 +827,15 @@ cbb_power(device_t brdev, int volts)
 	}
 
 	/*
-	 * After the power is good, we can turn off the power
-	 * interrupt.  However, the PC Card standard says that we must
-	 * delay turning the CD bit back on for a bit to allow for
-	 * bouncyness on power down (recall that we don't wait above
-	 * for a power down, since we don't get an interrupt for
-	 * that).  We're called either from the suspend code in which
-	 * case we don't want to turn card change on again, or we're
-	 * called from the card insertion code, in which case the cbb
-	 * thread will turn it on for us before it waits to be woken
-	 * by a change event.
+	 * After the power is good, we can turn off the power interrupt.
+	 * However, the PC Card standard says that we must delay turning the
+	 * CD bit back on for a bit to allow for bouncyness on power down
+	 * (recall that we don't wait above for a power down, since we don't
+	 * get an interrupt for that).  We're called either from the suspend
+	 * code in which case we don't want to turn card change on again, or
+	 * we're called from the card insertion code, in which case the cbb
+	 * thread will turn it on for us before it waits to be woken by a
+	 * change event.
 	 */
 	cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_POWER);
 	status = cbb_get(sc, CBB_SOCKET_STATE);
@@ -840,6 +848,8 @@ cbb_power(device_t brdev, int volts)
 		/* XXX Do we want to do something to mitigate things here? */
 		goto done;
 	}
+	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
+	    & ~CBBM_BRIDGECTRL_INTR_IREQ_ISA_EN, 2);
 	retval = 1;
 done:;
 	if (volts != 0 && sc->chipset == CB_O2MICRO)
