@@ -75,6 +75,7 @@ struct memory_type;
  */
 struct memory_type_list;
 
+__BEGIN_DECLS
 /*
  * Functions for managing memory type and statistics data.
  */
@@ -138,5 +139,6 @@ void		 memstat_set_percpu_caller_uint64(struct memory_type *mtp,
 		    int cpu, int index, uint64_t value);
 uint64_t	 memstat_get_percpu_free(const struct memory_type *mtp,
 		    int cpu);
+__END_DECLS
 
 #endif /* !_MEMSTAT_H_ */
