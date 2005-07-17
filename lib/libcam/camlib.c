@@ -96,8 +96,7 @@ cam_getccb(struct cam_device *dev)
 void
 cam_freeccb(union ccb *ccb)
 {
-	if (ccb != NULL)
-		free(ccb);
+	free(ccb);
 }
 
 /*
@@ -707,8 +706,7 @@ cam_close_device(struct cam_device *dev)
 
 	cam_close_spec_device(dev);
 
-	if (dev != NULL)
-		free(dev);
+	free(dev);
 }
 
 void
@@ -756,6 +754,11 @@ cam_device_dup(struct cam_device *device)
 	}
 
 	newdev = malloc(sizeof(struct cam_device));
+	if (newdev == NULL) {
+		snprintf(cam_errbuf, CAM_ERRBUF_SIZE, 
+			"%s: couldn't malloc CAM device structure", func_name);
+		return(NULL);
+	}
 
 	bcopy(device, newdev, sizeof(struct cam_device));
 
