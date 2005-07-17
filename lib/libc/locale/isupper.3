@@ -36,7 +36,7 @@
 .\"     @(#)isupper.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2004
+.Dd July 17, 2005
 .Dt ISUPPER 3
 .Os
 .Sh NAME
@@ -52,15 +52,11 @@
 The
 .Fn isupper
 function tests for any upper-case letter.
-For single C
-.Va char Ns s
-locales (see
-.Xr multibyte 3 )
-the value of the argument is
-representable as an
-.Li unsigned char
+The value of the argument must be representable as an
+.Vt unsigned char
 or the value of
 .Dv EOF .
+.Pp
 In the ASCII character set, this includes the following characters
 (with their numeric values shown in octal):
 .Pp
@@ -90,7 +86,6 @@ function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
 .Xr iswupper 3 ,
-.Xr multibyte 3 ,
 .Xr toupper 3 ,
 .Xr ascii 7
 .Sh STANDARDS

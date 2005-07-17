@@ -32,7 +32,7 @@
 .\"     @(#)isblank.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2004
+.Dd July 17, 2005
 .Dt ISBLANK 3
 .Os
 .Sh NAME
@@ -57,13 +57,8 @@ For any locale, this includes the following standard characters:
 In the "C" locale
 .Fn isblank
 successful test is limited to this characters only.
-For single C
-.Va char Ns s
-locales (see
-.Xr multibyte 3 )
-the value of the argument is
-representable as an
-.Li unsigned char
+The value of the argument must be representable as an
+.Vt unsigned char
 or the value of
 .Dv EOF .
 .Sh RETURN VALUES
@@ -84,7 +79,6 @@ function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
 .Xr iswblank 3 ,
-.Xr multibyte 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The
