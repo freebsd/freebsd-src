@@ -423,6 +423,7 @@ expand_vars(int in_thisarg, char **thisarg_p, char **dest_p, const char **src_p)
 			fprintf(stderr,
 			    "#env  replacing ${%s} with null string\n",
 			    vname);
+		free(vname);
 		return (NULL);
 	}
 
@@ -435,8 +436,10 @@ expand_vars(int in_thisarg, char **thisarg_p, char **dest_p, const char **src_p)
 	 * shorter than the ${VARNAME} reference that it replaces, then our
 	 * caller can just copy the value to the existing destination.
 	 */
-	if (strlen(vname) + 3 >= strlen(vvalue))
+	if (strlen(vname) + 3 >= strlen(vvalue)) {
+		free(vname);
 		return (vvalue);
+	}
 
 	/*
 	 * The value is longer than the string it replaces, which means the
@@ -460,5 +463,6 @@ expand_vars(int in_thisarg, char **thisarg_p, char **dest_p, const char **src_p)
 		*newstr = '\0';
 	}
 	*dest_p = strchr(newstr, '\0');
+	free(vname);
 	return (vvalue);
 }
