@@ -38,8 +38,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define COMPAT_43 1
-
+#include "opt_compat.h"
+#include "opt_ktrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
