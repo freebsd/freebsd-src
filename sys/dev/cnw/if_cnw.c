@@ -1638,7 +1638,8 @@ static int cnw_pccard_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_timer = 0;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST
+	    | IFF_NEEDSGIANT);
 	ifp->if_ioctl = cnw_ioctl;
 	ifp->if_start = cnw_start;
 /*	ifp->if_watchdog = 0; */
