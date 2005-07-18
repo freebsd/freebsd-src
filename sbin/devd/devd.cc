@@ -606,11 +606,13 @@ create_socket(const char *name)
 	strlcpy(sun.sun_path, name, sizeof(sun.sun_path));
 	slen = SUN_LEN(&sun);
 	unlink(name);
+	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
+	    	err(1, "fcntl");
 	if (bind(fd, (struct sockaddr *) & sun, slen) < 0)
 		err(1, "bind");
 	listen(fd, 4);
-	fchown(fd, 0, 0);	/* XXX - root.wheel */
-	fchmod(fd, 0660);
+	chown(name, 0, 0);	/* XXX - root.wheel */
+	chmod(name, 0660);
 	return (fd);
 }
 
