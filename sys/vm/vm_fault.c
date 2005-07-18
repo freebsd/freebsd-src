@@ -399,7 +399,7 @@ RetryFault:;
 				vm_object_pip_wakeup(fs.object);
 				VM_OBJECT_UNLOCK(fs.object);
 				atomic_add_int(&cnt.v_intrans, 1);
-				if (!fs.map->system_map)
+				if (fs.first_object->flags & OBJ_NEEDGIANT)
 					VM_UNLOCK_GIANT();
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
