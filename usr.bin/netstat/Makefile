@@ -15,7 +15,7 @@ CFLAGS+=-DINET6
 
 BINGRP=	kmem
 BINMODE=2555
-DPADD=	${LIBKVM} ${LIBIPX} ${LIBNETGRAPH} ${LIBUTIL}
-LDADD=	-lkvm -lipx -lnetgraph -lutil
+DPADD=	${LIBKVM} ${LIBIPX} ${LIBMEMSTAT} ${LIBNETGRAPH} ${LIBUTIL}
+LDADD=	-lkvm -lipx -lmemstat -lnetgraph -lutil
 
 .include <bsd.prog.mk>
