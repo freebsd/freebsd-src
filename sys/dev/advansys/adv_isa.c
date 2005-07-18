@@ -116,6 +116,12 @@ adv_isa_probe(device_t dev)
 	struct resource	*iores, *irqres;
 
 	/*
+	 * We don't know of any PnP ID's for these cards.
+	 */
+	if (isa_get_logicalid(dev) != 0)
+		return (ENXIO);
+
+	/*
 	 * Default to scanning all possible device locations.
 	 */
 	port_index = 0;
