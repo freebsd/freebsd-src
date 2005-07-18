@@ -1883,7 +1883,6 @@ static driver_t mss_driver = {
 };
 
 DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
-DRIVER_MODULE(snd_mss, acpi, mss_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_mss, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_mss, 1);
 
