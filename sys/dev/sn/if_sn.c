@@ -142,7 +142,7 @@ static int sn_getmcf(struct ifnet *ifp, u_char *mcf);
 static const char *chip_ids[15] = {
 	NULL, NULL, NULL,
 	 /* 3 */ "SMC91C90/91C92",
-	 /* 4 */ "SMC91C94",
+	 /* 4 */ "SMC91C94/91C96",
 	 /* 5 */ "SMC91C95",
 	NULL,
 	 /* 7 */ "SMC91C100",
