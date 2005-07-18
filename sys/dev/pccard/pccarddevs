@@ -82,6 +82,7 @@ vendor NEWMEDIA			0x0057	New Media Corporation
 vendor INTEL			0x0089	Intel
 vendor IBM			0x00a4	IBM Corporation
 vendor SHARP			0x00b0	Sharp Corporation
+vendor TOSHIBA2			0x0098	Toshiba
 vendor DIGITAL			0x0100	Digital Equipment Corporation
 vendor 3COM			0x0101	3Com Corporation
 vendor MEGAHERTZ		0x0102	Megahertz Corporation
@@ -107,6 +108,7 @@ vendor NETGEAR			0x0149	Netgear
 vendor SIMPLETECH		0x014d	Simple Technology
 vendor SYMBOL2			0x014d	Symbol
 vendor LUCENT			0x0156	Lucent Technologies
+vendor AGERE			0x0156	Agere Systems
 vendor GEMPLUS			0x0157	Gemplus
 vendor AIRONET			0x015f	Aironet Wireless Communications
 vendor ERICSSON			0x016b	Ericsson
@@ -134,6 +136,7 @@ vendor BROMAX			0x0274	Bromax communications, Inc
 vendor IODATA2			0x028a	I-O DATA
 vendor ASUS			0x02aa	ASUS
 vendor SIEMENS			0x02ac	Siemens
+vendor UNGERMANN		0x02c0	Ungermann Bass
 vendor MICROSOFT		0x02d2	Microsoft Corporation
 
 /*
@@ -371,6 +374,8 @@ product LINKSYS COMBO_ECARD	0xc1ab Linksys Combo EthernetCard
 
 /* Lucent WaveLAN/IEEE */
 product LUCENT WAVELAN_IEEE	0x0002 WaveLAN/IEEE
+product AGERE HERMES_II		0x0003 Agere Systems Hermes-II Wireless
+product AGERE HERMES_II_5	0x0004 Agere Systems Hermes-II.5 Wireless
 
 /* MACNICA */
 product MACNICA ME1_JEIDA	0x3300	MACNICA ME1 for JEIDA
@@ -450,6 +455,7 @@ product OSITECH TRUMP_JOH	0x000a Ositech Jack of Hearts
 product PANASONIC KXLC002	0x0304 Panasonic 4X CD-ROM Interface Card
 product PANASONIC KXLC003	0x0504 Panasonic 8X CD-ROM Interface Card
 product PANASONIC KXLC004	0x0604 Panasonic KXL-810AN Interface Card
+product PANASONIC KXLC005_2	0x0704 Panasonic 16X CD-ROM Interface Card
 product PANASONIC KME		0x2604 Panasonic CD-R/RW Interface
 product PANASONIC KXLC005	0x2704 Panasonic 16X CD-ROM Interface Card
 product PANASONIC KXLC005_1	0x2904 Panasonic 16X CD-ROM Interface Card
@@ -548,6 +554,7 @@ product TDK LAK_CD021BX		0x0200 TDK LAK-CD021BX Ethernet
 product TDK LAK_CF010		0x0900 TDK LAC-CF010
 product TDK DFL9610		0x0d0a TDK DFL9610 Ethernet & Digital Cellular
 product	TDK C6500012		0x410a TDK ELSA MicroLink MC all
+product TDK GN3410		0x4815 TDK GlobalNetworker 3410
 product TDK LAK_CD031		0xc1ab TDK LAK-CD031 Ethernet
 product TDK DFL5610WS		0xea15 TDK DFL5610WS Ethernet/Modem
 
