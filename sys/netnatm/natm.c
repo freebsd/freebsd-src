@@ -2,6 +2,7 @@
 /*-
  *
  * Copyright (c) 1996 Charles D. Cranor and Washington University.
+ * Copyright (c) 2005 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,6 +68,8 @@ static const u_long natm5_recvspace = 16*1024;
 static const u_long natm0_sendspace = 16*1024;
 static const u_long natm0_recvspace = 16*1024;
 
+struct mtx natm_mtx;
+
 /*
  * user requests
  */
@@ -93,14 +96,10 @@ natm_usr_attach(struct socket *so, int proto, d_thread_t *p)
 {
     struct natmpcb *npcb;
     int error = 0;
-    int s = SPLSOFTNET();
 
     npcb = (struct natmpcb *)so->so_pcb;
 
-    if (npcb) {
-	error = EISCONN;
-	goto out;
-    }
+    KASSERT(npcb == NULL, ("natm_usr_attach: so_pcb != NULL"));
 
     if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 	if (proto == PROTO_NATMAAL5) 
@@ -113,8 +112,7 @@ natm_usr_attach(struct socket *so, int proto, d_thread_t *p)
 
     so->so_pcb = (caddr_t) (npcb = npcb_alloc(M_WAITOK));
     npcb->npcb_socket = so;
- out:
-    splx(s);
+out:
     return (error);
 }
 
@@ -123,10 +121,11 @@ natm_usr_detach(struct socket *so)
 {
     struct natmpcb *npcb;
     int error = 0;
-    int s = SPLSOFTNET();
 
+    NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
     if (npcb == NULL) {
+	/* XXXRW: Does this case ever actually happen? */
 	error = EINVAL;
 	goto out;
     }
@@ -140,7 +139,7 @@ natm_usr_detach(struct socket *so)
     so->so_pcb = NULL;
     sotryfree(so);
  out:
-    splx(s);
+    NATM_UNLOCK();
     return (error);
 }
 
@@ -152,11 +151,12 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
     struct atmio_openvcc op;
     struct ifnet *ifp;
     int error = 0;
-    int s2, s = SPLSOFTNET();
     int proto = so->so_proto->pr_protocol;
 
+    NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
     if (npcb == NULL) {
+	/* XXXRW: Does this case ever actually happen? */
 	error = EINVAL;
 	goto out;
     }
@@ -198,6 +198,7 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
         error = EADDRINUSE;
         goto out;
     }
+    NATM_UNLOCK();
 
     /*
      * open the channel
@@ -211,20 +212,22 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
     op.param.aal = (proto == PROTO_NATMAAL5) ? ATMIO_AAL_5 : ATMIO_AAL_0;
     op.param.traffic = ATMIO_TRAFFIC_UBR;
 
-    s2 = splimp();
+    IFF_LOCKGIANT(ifp);
     if (ifp->if_ioctl == NULL || 
 	ifp->if_ioctl(ifp, SIOCATMOPENVCC, (caddr_t)&op) != 0) {
-	splx(s2);
+	IFF_UNLOCKGIANT(ifp);
+	NATM_LOCK();
 	npcb_free(npcb, NPCB_REMOVE);
         error = EIO;
 	goto out;
     }
-    splx(s2);
+    IFF_UNLOCKGIANT(ifp);
 
+    NATM_LOCK();
     soisconnected(so);
 
  out:
-    splx(s);
+    NATM_UNLOCK();
     return (error);
 }
 
@@ -235,10 +238,11 @@ natm_usr_disconnect(struct socket *so)
     struct atmio_closevcc cl;
     struct ifnet *ifp;
     int error = 0;
-    int s2, s = SPLSOFTNET();
 
+    NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
     if (npcb == NULL) {
+	/* XXXRW: Does this case ever actually happen? */
 	error = EINVAL;
 	goto out;
     }
@@ -255,16 +259,19 @@ natm_usr_disconnect(struct socket *so)
      */
     cl.vpi = npcb->npcb_vpi;
     cl.vci = npcb->npcb_vci;
-    s2 = splimp();
-    if (ifp->if_ioctl != NULL)
+    NATM_UNLOCK();
+    if (ifp->if_ioctl != NULL) {
+	IFF_LOCKGIANT(ifp);
 	ifp->if_ioctl(ifp, SIOCATMCLOSEVCC, (caddr_t)&cl);
-    splx(s2);
+	IFF_UNLOCKGIANT(ifp);
+    }
+    NATM_LOCK();
 
     npcb_free(npcb, NPCB_REMOVE);
     soisdisconnected(so);
 
  out:
-    splx(s);
+    NATM_UNLOCK();
     return (error);
 }
 
@@ -282,11 +289,12 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
     struct natmpcb *npcb;
     struct atm_pseudohdr *aph;
     int error = 0;
-    int s = SPLSOFTNET();
     int proto = so->so_proto->pr_protocol;
 
+    NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
     if (npcb == NULL) {
+	/* XXXRW: Does this case ever actually happen? */
 	error = EINVAL;
 	goto out;
     }
@@ -301,7 +309,7 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
     /*
      * send the data.   we must put an atm_pseudohdr on first
      */
-    M_PREPEND(m, sizeof(*aph), M_TRYWAIT);
+    M_PREPEND(m, sizeof(*aph), M_DONTWAIT);
     if (m == NULL) {
         error = ENOBUFS;
 	goto out;
@@ -314,7 +322,7 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
     error = atm_output(npcb->npcb_ifp, m, NULL, NULL);
 
  out:
-    splx(s);
+    NATM_UNLOCK();
     return (error);
 }
 
@@ -323,13 +331,13 @@ natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
 {
     struct natmpcb *npcb;
     struct sockaddr_natm *snatm, ssnatm;
-    int error = 0;
-    int s = SPLSOFTNET();
 
+    NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
     if (npcb == NULL) {
-	error = EINVAL;
-	goto out;
+	/* XXXRW: Does this case ever actually happen? */
+    	NATM_UNLOCK();
+	return (EINVAL);
     }
 
     snatm = &ssnatm;
@@ -340,11 +348,9 @@ natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
         sizeof(snatm->snatm_if));
     snatm->snatm_vci = npcb->npcb_vci;
     snatm->snatm_vpi = npcb->npcb_vpi;
-    *nam = sodupsockaddr((struct sockaddr *)snatm, M_NOWAIT);
-
- out:
-    splx(s);
-    return (error);
+    NATM_UNLOCK();
+    *nam = sodupsockaddr((struct sockaddr *)snatm, M_WAITOK);
+    return (0);
 }
 
 static int
@@ -352,24 +358,22 @@ natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
     struct ifnet *ifp, d_thread_t *p)
 {
     struct natmpcb *npcb;
-    int error = 0;
-    int s = SPLSOFTNET();
+    int error;
 
+    /*
+     * XXXRW: Does this case ever actually happen?  And does it even matter
+     * given that npcb is unused?
+     */
     npcb = (struct natmpcb *)so->so_pcb;
-    if (npcb == NULL) {
-	error = EINVAL;
-	goto out;
-    }
+    if (npcb == NULL)
+	return (EINVAL);
 
-    splx(s);
-    if (ifp == NULL || ifp->if_ioctl == NULL) {
-	error = EOPNOTSUPP;
-	goto out;
-    }
-    return ((*ifp->if_ioctl)(ifp, cmd, arg));
+    if (ifp == NULL || ifp->if_ioctl == NULL)
+	return (EOPNOTSUPP);
 
- out:
-    splx(s);
+    IFF_LOCKGIANT(ifp);
+    error = ((*ifp->if_ioctl)(ifp, cmd, arg));
+    IFF_UNLOCKGIANT(ifp);
     return (error);
 }
 
@@ -407,6 +411,7 @@ struct pr_usrreqs natm_usrreqs = {
 };
 
 #else  /* !FREEBSD_USRREQS */
+#error "!FREEBSD_USRREQS not implemented - locking"
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int natm_usrreq(so, req, m, nam, control, p)
@@ -690,31 +695,29 @@ done:
 void
 natmintr(struct mbuf *m)
 {
-	int s;
 	struct socket *so;
 	struct natmpcb *npcb;
-
-	GIANT_REQUIRED;
 
 #ifdef DIAGNOSTIC
 	M_ASSERTPKTHDR(m);
 #endif
 
+	NATM_LOCK();
 	npcb = (struct natmpcb *)m->m_pkthdr.rcvif;	/* XXX: overloaded */
 	so = npcb->npcb_socket;
 
-	s = splimp();		/* could have atm devs @ different levels */
 	npcb->npcb_inq--;
-	splx(s);
 
 	if (npcb->npcb_flags & NPCB_DRAIN) {
-		m_freem(m);
 		if (npcb->npcb_inq == 0)
 			FREE(npcb, M_PCB);			/* done! */
+		NATM_UNLOCK();
+		m_freem(m);
 		return;
 	}
 
 	if (npcb->npcb_flags & NPCB_FREE) {
+		NATM_UNLOCK();
 		m_freem(m);					/* drop */
 		return;
 	}
@@ -734,11 +737,13 @@ natmintr(struct mbuf *m)
 #endif
 		sbappendrecord(&so->so_rcv, m);
 		sorwakeup(so);
+		NATM_UNLOCK();
 	} else {
 #ifdef NATM_STAT
 		natm_sodropcnt++;
 		natm_sodropbytes += m->m_pkthdr.len;
 #endif
+		NATM_UNLOCK();
 		m_freem(m);
 	}
 }
