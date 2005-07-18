@@ -41,7 +41,7 @@
  * corrupting internal libmemstat(3) data structures.  A compile time check
  * in the application is probably appropriate.
  */
-#define	MEMSTAT_MAXCALLER	8
+#define	MEMSTAT_MAXCALLER	16
 
 /*
  * libmemstat(3) is able to extract memory data from different allocators;
