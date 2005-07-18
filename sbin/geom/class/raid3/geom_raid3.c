@@ -173,6 +173,7 @@ raid3_label(struct gctl_req *req)
 		return;
 	}
 	strlcpy(md.md_name, str, sizeof(md.md_name));
+	md.md_id = arc4random();
 	md.md_all = *nargs - 1;
 	md.md_mflags = 0;
 	md.md_dflags = 0;
