@@ -327,6 +327,15 @@ pci_pir_initial_irqs(struct PIR_entry *entry, struct PIR_intpin *intpin,
 	if (irq == PCI_INVALID_IRQ || irq == pci_link->pl_irq)
 		return;
 
+	/* Don't trust any BIOS IRQs greater than 15. */
+	if (irq >= NUM_ISA_INTERRUPTS) {
+		printf(
+	"$PIR: Ignoring invalid BIOS IRQ %d from %d.%d.INT%c for link %#x\n",
+		    irq, entry->pe_bus, entry->pe_device, pin + 'A',
+		    pci_link->pl_id);
+		return;
+	}
+
 	/*
 	 * If we don't have an IRQ for this link yet, then we trust the
 	 * BIOS, even if it seems invalid from the $PIR entries.
@@ -334,7 +343,7 @@ pci_pir_initial_irqs(struct PIR_entry *entry, struct PIR_intpin *intpin,
 	if (pci_link->pl_irq == PCI_INVALID_IRQ) {
 		if (!pci_pir_valid_irq(pci_link, irq))
 			printf(
-	"$PIR: Using invalid BIOS IRQ %d from %d.%d.INT%c is for link %#x\n",
+	"$PIR: Using invalid BIOS IRQ %d from %d.%d.INT%c for link %#x\n",
 			    irq, entry->pe_bus, entry->pe_device, pin + 'A',
 			    pci_link->pl_id);
 		pci_link->pl_irq = irq;
