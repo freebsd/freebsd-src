@@ -15,19 +15,32 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2005
+.Dd July 16, 2005
 .Os
 .Dt URAL 4
 .Sh NAME
 .Nm ural
 .Nd "Ralink Technology RT2500USB IEEE 802.11 driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ehci"
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device ural"
 .Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ural_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

@@ -30,17 +30,31 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 26, 2004
+.Dd July 16, 2005
 .Dt CUE 4
 .Os
 .Sh NAME
 .Nm cue
-.Nd CATC USB-EL1210A USB Ethernet driver
+.Nd "CATC USB-EL1210A USB Ethernet driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration 
+file:
+.Bd -ragged -offset indent
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device cue"
+.Ed
+.Pp
+Alternatively, to load the
+.Xr cue 4
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cue_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
