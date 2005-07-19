@@ -1032,6 +1032,17 @@ tryagain:
 	 */
 	s = splsoftclock();
 	mtx_lock(&nfs_reqq_mtx);
+	/*
+	 * nfs_timer() may be in the process of re-transmitting this request.
+	 * nfs_timer() drops the nfs_reqq_mtx before the pru_send() (to avoid LORs).
+	 * Wait till nfs_timer() completes the re-transmission. When the reply 
+	 * comes back, it will be discarded (since the req struct for it no longer 
+	 * exists).
+	 */
+	while (rep->r_flags & R_REXMIT_INPROG) {
+		msleep((caddr_t)&rep->r_flags, &nfs_reqq_mtx, 
+		       (PZERO - 1), "nfsrxmt", 0);
+	}
 	TAILQ_REMOVE(&nfs_reqq, rep, r_chain);
 	if (TAILQ_EMPTY(&nfs_reqq))
 		callout_stop(&nfs_callout);
@@ -1152,19 +1163,11 @@ nfsmout:
  * To avoid retransmission attempts on STREAM sockets (in the future) make
  * sure to set the r_retry field to 0 (implies nm_retry == 0).
  * 
- * XXX - 
- * For now, since we don't register MPSAFE callouts for the NFS client -
- * softclock() acquires Giant before calling us. That prevents req entries
- * from being removed from the list (from nfs_request()). But we still 
- * acquire the nfs reqq mutex to make sure the state of individual req
- * entries is not modified from RPC reply handling (from socket callback)
- * while nfs_timer is walking the list of reqs.
  * The nfs reqq lock cannot be held while we do the pru_send() because of a
  * lock ordering violation. The NFS client socket callback acquires 
  * inp_lock->nfsreq mutex and pru_send acquires inp_lock. So we drop the 
- * reqq mutex (and reacquire it after the pru_send()). This won't work
- * when we move to fine grained locking for NFS. When we get to that point, 
- * a rewrite of nfs_timer() will be needed.
+ * reqq mutex (and reacquire it after the pru_send()). The req structure
+ * (for the rexmit) is prevented from being removed by the R_REXMIT_INPROG flag.
  */
 void
 nfs_timer(void *arg)
@@ -1245,7 +1248,12 @@ nfs_timer(void *arg)
 		   ((nmp->nm_flag & NFSMNT_DUMBTIMR) ||
 		    (rep->r_flags & R_SENT) ||
 		    nmp->nm_sent < nmp->nm_cwnd) &&
-		   (m = m_copym(rep->r_mreq, 0, M_COPYALL, M_DONTWAIT))){
+		   (m = m_copym(rep->r_mreq, 0, M_COPYALL, M_DONTWAIT))) {
+			/*
+			 * Mark the request to indicate that a XMIT is in progress
+			 * to prevent the req structure being removed in nfs_request().
+			 */
+			rep->r_flags |= R_REXMIT_INPROG;
 			mtx_unlock(&nfs_reqq_mtx);
 			if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
@@ -1254,6 +1262,8 @@ nfs_timer(void *arg)
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, nmp->nm_nam, NULL, curthread);
 			mtx_lock(&nfs_reqq_mtx);
+			rep->r_flags &= ~R_REXMIT_INPROG;
+			wakeup((caddr_t)&rep->r_flags);
 			if (error) {
 				if (NFSIGNORE_SOERROR(nmp->nm_soflags, error))
 					so->so_error = 0;
