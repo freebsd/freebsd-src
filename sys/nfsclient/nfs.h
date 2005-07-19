@@ -194,6 +194,7 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 #define	R_TPRINTFMSG	0x20		/* Did a tprintf msg. */
 #define	R_MUSTRESEND	0x40		/* Must resend request */
 #define	R_GETONEREP	0x80		/* Probe for one reply only */
+#define	R_REXMIT_INPROG	0x100		/* Re-transmit in progress */
 
 /*
  * Pointers to ops that differ from v3 to v4
