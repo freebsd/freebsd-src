@@ -1853,11 +1853,11 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa, struct ifmultiaddr **retifma
 	 * find out which AF_LINK address this maps to, if it isn't one
 	 * already.
 	 */
-	if (ifp->if_resolvemulti) {
+	if (ifp->if_resolvemulti != NULL) {
 		error = ifp->if_resolvemulti(ifp, &llsa, sa);
 		if (error) return error;
 	} else {
-		llsa = 0;
+		llsa = NULL;
 	}
 
 	MALLOC(ifma, struct ifmultiaddr *, sizeof *ifma, M_IFMADDR, M_WAITOK);
@@ -1881,7 +1881,7 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa, struct ifmultiaddr **retifma
 	if (retifma != NULL)
 		*retifma = ifma;
 
-	if (llsa != 0) {
+	if (llsa != NULL) {
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (sa_equal(ifma->ifma_addr, llsa))
 				break;
@@ -1908,7 +1908,7 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa, struct ifmultiaddr **retifma
 	 * We are certain we have added something, so call down to the
 	 * interface to let them know about it.
 	 */
-	if (ifp->if_ioctl) {
+	if (ifp->if_ioctl != NULL) {
 		s = splimp();
 		IFF_LOCKGIANT(ifp);
 		(void) (*ifp->if_ioctl)(ifp, SIOCADDMULTI, 0);
@@ -1932,7 +1932,7 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		if (sa_equal(sa, ifma->ifma_addr))
 			break;
-	if (ifma == 0)
+	if (ifma == NULL)
 		return ENOENT;
 
 	if (ifma->ifma_refcount > 1) {
@@ -1956,7 +1956,7 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	splx(s);
 	free(ifma->ifma_addr, M_IFMADDR);
 	free(ifma, M_IFMADDR);
-	if (sa == 0)
+	if (sa == NULL)
 		return 0;
 
 	/*
@@ -1973,7 +1973,7 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		if (sa_equal(sa, ifma->ifma_addr))
 			break;
-	if (ifma == 0)
+	if (ifma == NULL)
 		return 0;
 
 	if (ifma->ifma_refcount > 1) {
@@ -1983,7 +1983,7 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 
 	s = splimp();
 	TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
-	if (ifp->if_ioctl) {
+	if (ifp->if_ioctl != NULL) {
 		IFF_LOCKGIANT(ifp);
 		(void) (*ifp->if_ioctl)(ifp, SIOCDELMULTI, 0);
 		IFF_UNLOCKGIANT(ifp);
