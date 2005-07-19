@@ -3367,7 +3367,7 @@ Compat_Run(Lst *targs)
 	 */
 	if (error_cnt == 0) {
 		LST_FOREACH(ln, &ENDNode->commands) {
-			if (Compat_RunCommand(Lst_Datum(ln), gn))
+			if (Compat_RunCommand(Lst_Datum(ln), ENDNode))
 				break;
 		}
 	}
