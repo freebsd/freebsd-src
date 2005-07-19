@@ -413,7 +413,7 @@ nfs_init(struct vfsconf *vfsp)
 	 * Initialize reply list and start timer
 	 */
 	TAILQ_INIT(&nfs_reqq);
-	callout_init(&nfs_callout, 0);
+	callout_init(&nfs_callout, CALLOUT_MPSAFE);
 	mtx_init(&nfs_reqq_mtx, "NFS reqq lock", NULL, MTX_DEF);
 	mtx_init(&nfs_reply_mtx, "Synch NFS reply posting", NULL, MTX_DEF);
 
