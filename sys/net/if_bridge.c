@@ -716,8 +716,13 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	if (ifs == NULL)
 		return (ENOENT);
 
-	if (sc->sc_ifp->if_mtu != ifs->if_mtu)
+	/* Allow the first member to define the MTU */
+	if (LIST_EMPTY(&sc->sc_iflist))
+		sc->sc_ifp->if_mtu = ifs->if_mtu;
+	else if (sc->sc_ifp->if_mtu != ifs->if_mtu) {
+		if_printf(sc->sc_ifp, "invalid MTU for %s\n", ifs->if_xname);
 		return (EINVAL);
+	}
 
 	if (ifs->if_bridge == sc)
 		return (EEXIST);
