@@ -305,26 +305,22 @@ tcp_timer_keep(xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct tcptemp *t_template;
-	int s;
 	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
-	s = splnet();
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
 	if (!inp) {
 		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
 		return;
 	}
 	INP_LOCK(inp);
 	if (callout_pending(tp->tt_keep) || !callout_active(tp->tt_keep)) {
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
 		return;
 	}
 	callout_deactivate(tp->tt_keep);
@@ -370,7 +366,6 @@ tcp_timer_keep(xtp)
 #endif
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
-	splx(s);
 	return;
 
 dropit:
@@ -385,7 +380,6 @@ dropit:
 	if (tp)
 		INP_UNLOCK(tp->t_inpcb);
 	INP_INFO_WUNLOCK(&tcbinfo);
-	splx(s);
 }
 
 void
@@ -393,26 +387,22 @@ tcp_timer_persist(xtp)
 	void *xtp;
 {
 	struct tcpcb *tp = xtp;
-	int s;
 	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
-	s = splnet();
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
 	if (!inp) {
 		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
 		return;
 	}
 	INP_LOCK(inp);
 	if (callout_pending(tp->tt_persist) || !callout_active(tp->tt_persist)){
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
 		return;
 	}
 	callout_deactivate(tp->tt_persist);
@@ -449,7 +439,6 @@ out:
 	if (tp)
 		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
-	splx(s);
 }
 
 void
@@ -457,7 +446,6 @@ tcp_timer_rexmt(xtp)
 	void *xtp;
 {
 	struct tcpcb *tp = xtp;
-	int s;
 	int rexmt;
 	int headlocked;
 	struct inpcb *inp;
@@ -466,20 +454,17 @@ tcp_timer_rexmt(xtp)
 
 	ostate = tp->t_state;
 #endif
-	s = splnet();
 	INP_INFO_WLOCK(&tcbinfo);
 	headlocked = 1;
 	inp = tp->t_inpcb;
 	if (!inp) {
 		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
 		return;
 	}
 	INP_LOCK(inp);
 	if (callout_pending(tp->tt_rexmt) || !callout_active(tp->tt_rexmt)) {
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
 		return;
 	}
 	callout_deactivate(tp->tt_rexmt);
@@ -603,5 +588,4 @@ out:
 		INP_UNLOCK(inp);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
-	splx(s);
 }
