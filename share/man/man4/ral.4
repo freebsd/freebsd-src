@@ -15,15 +15,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2005
+.Dd July 16, 2005
 .Os
 .Dt RAL 4
 .Sh NAME
 .Nm ral
 .Nd "Ralink Technology RT2500 IEEE 802.11 driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ral"
 .Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ral_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

@@ -25,15 +25,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 28, 2004
+.Dd July 16,2005
 .Dt CM 4
 .Os
 .Sh NAME
 .Nm cm
-.Nd SMC Arcnet Ethernet device driver
+.Nd "SMC Arcnet Ethernet device driver"
 .Sh SYNOPSIS
-.Cd device isa
-.Cd device cm
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration 
+file:
+.Bd -ragged -offset indent
+.Cd "device isa"
+.Cd "device cm"
+.Ed
+.Pp
+Alternatively, to load the
+.Xr cm 4
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cm_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
