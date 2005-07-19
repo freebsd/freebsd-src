@@ -59,45 +59,21 @@ static	void natm_init(void);
 static struct protosw natmsw[] = {
 { SOCK_STREAM,	&natmdomain,	PROTO_NATMAAL5, PR_CONNREQUIRED,
   0,	0,	0,	0,
-#ifdef FREEBSD_USRREQS
   0,
-#else
-  natm_usrreq,
-#endif
   0,	0,	0,	0,	
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	natm5_sysctl
-#elif defined(FREEBSD_USRREQS)
         &natm_usrreqs
-#endif
 },
 { SOCK_DGRAM,	&natmdomain,	PROTO_NATMAAL5,	PR_CONNREQUIRED | PR_ATOMIC,
   0,	0,	0,	0,
-#ifdef FREEBSD_USRREQS
   0,
-#else
-  natm_usrreq,
-#endif
   0,	0,	0,	0,	
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	natm5_sysctl
-#elif defined(FREEBSD_USRREQS)
         &natm_usrreqs
-#endif
 },
 { SOCK_STREAM,	&natmdomain,	PROTO_NATMAAL0, PR_CONNREQUIRED,
   0,	0,	0,	0,
-#ifdef FREEBSD_USRREQS
   0,
-#else
-  natm_usrreq,
-#endif
   0,	0,	0,	0,	
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	natm0_sysctl
-#elif defined(FREEBSD_USRREQS)
         &natm_usrreqs
-#endif
 },
 };
 
@@ -126,6 +102,4 @@ natm_init(void)
 	netisr_register(NETISR_NATM, natmintr, &natmintrq, NETISR_MPSAFE);
 }
 
-#if defined(__FreeBSD__)
 DOMAIN_SET(natm);
-#endif
