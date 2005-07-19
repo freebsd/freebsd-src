@@ -267,6 +267,7 @@ USB_MATCH(ubt)
 	 */
 
 	Static struct usb_devno const	ubt_ignored_devices[] = {
+		{ USB_VENDOR_AVM, 0x2200 }, /* AVM USB Bluetooth-Adapter BlueFritz! v1.0 */
 		{ 0, 0 } /* This should be the last item in the list */
 	};
 
