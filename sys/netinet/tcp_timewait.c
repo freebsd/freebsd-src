@@ -866,7 +866,7 @@ tcp_notify(inp, error)
 static int
 tcp_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	int error, i, n, s;
+	int error, i, n;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
@@ -888,12 +888,10 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	/*
 	 * OK, now we're committed to doing something.
 	 */
-	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
 	gencnt = tcbinfo.ipi_gencnt;
 	n = tcbinfo.ipi_count;
 	INP_INFO_RUNLOCK(&tcbinfo);
-	splx(s);
 
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
 		+ n * sizeof(struct xtcpcb));
@@ -912,7 +910,6 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (inp_list == NULL)
 		return (ENOMEM);
 
-	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
 	for (inp = LIST_FIRST(tcbinfo.listhead), i = 0; inp != NULL && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
@@ -935,7 +932,6 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_UNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&tcbinfo);
-	splx(s);
 	n = i;
 
 	error = 0;
@@ -975,13 +971,11 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		 * while we were processing this request, and it
 		 * might be necessary to retry.
 		 */
-		s = splnet();
 		INP_INFO_RLOCK(&tcbinfo);
 		xig.xig_gen = tcbinfo.ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
 		xig.xig_count = tcbinfo.ipi_count;
 		INP_INFO_RUNLOCK(&tcbinfo);
-		splx(s);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
 	free(inp_list, M_TEMP);
@@ -997,7 +991,7 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	struct xucred xuc;
 	struct sockaddr_in addrs[2];
 	struct inpcb *inp;
-	int error, s;
+	int error;
 
 	error = suser_cred(req->td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
@@ -1005,7 +999,6 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
 	if (error)
 		return (error);
-	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
 	inp = in_pcblookup_hash(&tcbinfo, addrs[1].sin_addr, addrs[1].sin_port,
 	    addrs[0].sin_addr, addrs[0].sin_port, 0, NULL);
@@ -1026,7 +1019,6 @@ out:
 	INP_UNLOCK(inp);
 outunlocked:
 	INP_INFO_RUNLOCK(&tcbinfo);
-	splx(s);
 	if (error == 0)
 		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
@@ -1044,7 +1036,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 	struct sockaddr_in6 addrs[2];
 	struct in6_addr a6[2];
 	struct inpcb *inp;
-	int error, s, mapped = 0;
+	int error, mapped = 0;
 
 	error = suser_cred(req->td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
@@ -1065,7 +1057,6 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		if (error)
 			return (EINVAL);
 	}
-	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
 	if (mapped == 1)
 		inp = in_pcblookup_hash(&tcbinfo,
@@ -1094,7 +1085,6 @@ out:
 	INP_UNLOCK(inp);
 outunlocked:
 	INP_INFO_RUNLOCK(&tcbinfo);
-	splx(s);
 	if (error == 0)
 		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
@@ -1121,7 +1111,7 @@ tcp_ctlinput(cmd, sa, vip)
 	struct icmp *icp;
 	struct in_conninfo inc;
 	tcp_seq icmp_tcp_seq;
-	int mtu, s;
+	int mtu;
 
 	faddr = ((struct sockaddr_in *)sa)->sin_addr;
 	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
@@ -1152,7 +1142,6 @@ tcp_ctlinput(cmd, sa, vip)
 	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
 	if (ip != NULL) {
-		s = splnet();
 		icp = (struct icmp *)((caddr_t)ip
 				      - offsetof(struct icmp, icmp_ip));
 		th = (struct tcphdr *)((caddr_t)ip
@@ -1219,7 +1208,6 @@ tcp_ctlinput(cmd, sa, vip)
 			syncache_unreach(&inc, th);
 		}
 		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
 	} else
 		in_pcbnotifyall(&tcbinfo, faddr, inetctlerrmap[cmd], notify);
 }
