@@ -254,6 +254,7 @@ make: .PHONY
 # with a reasonable chance of success, regardless of how old your
 # existing system is.
 #
+.if make(universe)
 universe: universe_prologue
 universe_prologue:
 	@echo "--------------------------------------------------------------"
@@ -262,6 +263,9 @@ universe_prologue:
 .for target in i386 i386:pc98 sparc64 alpha ia64 amd64
 .for arch in ${target:C/:.*$//}
 .for mach in ${target:C/^.*://}
+KERNCONFS!=	cd ${.CURDIR}/sys/${mach}/conf && \
+		find [A-Z]*[A-Z] -type f -maxdepth 0
+KERNCONFS:=	${KERNCONFS:S/^NOTES$/LINT/}
 universe: universe_${mach}
 .ORDER: universe_prologue universe_${mach} universe_epilogue
 universe_${mach}:
@@ -275,7 +279,13 @@ universe_${mach}:
 	-cd ${.CURDIR}/sys/${mach}/conf && ${MAKE} LINT \
 	    > ${.CURDIR}/_.${mach}.makeLINT 2>&1
 .endif
-	cd ${.CURDIR} && ${MAKE} buildkernels TARGET_ARCH=${arch} TARGET=${mach}
+.for kernel in ${KERNCONFS}
+	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildkernel \
+	    TARGET_ARCH=${arch} TARGET=${mach} \
+	    KERNCONF=${kernel} \
+	    __MAKE_CONF=/dev/null \
+	    > _.${mach}.${kernel} 2>&1
+.endfor
 	@echo ">> ${mach} completed on `LC_ALL=C date`"
 .endfor
 .endfor
@@ -286,15 +296,4 @@ universe_epilogue:
 	@echo ">>> make universe completed on `LC_ALL=C date`"
 	@echo "                      (started ${STARTTIME})"
 	@echo "--------------------------------------------------------------"
-
-.if make(buildkernels)
-KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
-		find [A-Z]*[A-Z] -type f -maxdepth 0 ! -name NOTES
-buildkernels:
-.for kernel in ${KERNCONFS}
-	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildkernel \
-	    KERNCONF=${kernel} \
-	    __MAKE_CONF=/dev/null \
-	    > _.${TARGET}.${kernel} 2>&1
-.endfor
 .endif
