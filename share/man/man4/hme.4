@@ -36,15 +36,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2004
+.Dd July 16, 2005
 .Dt HME 4
 .Os
 .Sh NAME
 .Nm hme
-.Nd Sun Microelectronics STP2002-STQ Ethernet interfaces device driver
+.Nd "Sun Microelectronics STP2002-STQ Ethernet interfaces device driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration 
+file:
+.Bd -ragged -offset indent
 .Cd "device miibus"
 .Cd "device hme"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_hme_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

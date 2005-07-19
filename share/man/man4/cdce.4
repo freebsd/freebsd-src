@@ -28,17 +28,31 @@
 .\" $NetBSD: cdce.4,v 1.4 2004/12/08 18:35:56 peter Exp $
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2004
+.Dd July 16, 2005
 .Dt CDCE 4
 .Os
 .Sh NAME
 .Nm cdce
-.Nd USB Communication Device Class Ethernet driver
+.Nd "USB Communication Device Class Ethernet driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration 
+file:
+.Bd -ragged -offset indent
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device cdce"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cdce_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

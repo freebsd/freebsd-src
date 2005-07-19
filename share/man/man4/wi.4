@@ -31,15 +31,28 @@
 .\" $FreeBSD$
 .\"	$OpenBSD: wi.4tbl,v 1.14 2002/04/29 19:53:50 jsyn Exp $
 .\"
-.Dd February 17, 2003
+.Dd July 16, 2005
 .Dt WI 4
 .Os
 .Sh NAME
 .Nm wi
 .Nd "Lucent Hermes, Intersil PRISM and Spectrum24 IEEE 802.11 driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device wi"
 .Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_wi_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

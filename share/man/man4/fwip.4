@@ -25,20 +25,30 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2004
+.Dd July 16, 2005
 .Dt FWIP 4
 .Os
 .Sh NAME
 .Nm fwip
-.Nd IP over FireWire driver
+.Nd "IP over FireWire driver"
 .Sh SYNOPSIS
-.Cd "kldload firewire"
-.Cd "kldload if_fwip"
-.Pp
-or
-.Pp
+To compile support for the
+.Xr fwip 4
+driver into your kernel, place the following lines in your kernel configuration 
+file:
+.Bd -ragged -offset indent
 .Cd "device firewire"
 .Cd "device fwip"
+.Ed
+.Pp
+Alternatively, to load the
+.Xr fwip 4
+driver at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+firewire_load="YES"
+if_fwip_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
