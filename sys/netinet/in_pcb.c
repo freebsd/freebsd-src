@@ -160,9 +160,9 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime, CTLFLAG_RW,
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
  *
- * NOTE: It is assumed that most of these functions will be called at
- * splnet(). XXX - There are, unfortunately, a few exceptions to this
- * rule that should be fixed.
+ * NOTE: It is assumed that most of these functions will be called with
+ * the pcbinfo lock held, and often, the inpcb lock held, as these utility
+ * functions often modify hash chains or addresses in pcbs.
  */
 
 /*
@@ -769,17 +769,14 @@ in_setsockaddr(so, nam, pcbinfo)
 	struct sockaddr **nam;
 	struct inpcbinfo *pcbinfo;
 {
-	int s;
 	register struct inpcb *inp;
 	struct in_addr addr;
 	in_port_t port;
 
-	s = splnet();
 	INP_INFO_RLOCK(pcbinfo);
 	inp = sotoinpcb(so);
 	if (!inp) {
 		INP_INFO_RUNLOCK(pcbinfo);
-		splx(s);
 		return ECONNRESET;
 	}
 	INP_LOCK(inp);
@@ -787,7 +784,6 @@ in_setsockaddr(so, nam, pcbinfo)
 	addr = inp->inp_laddr;
 	INP_UNLOCK(inp);
 	INP_INFO_RUNLOCK(pcbinfo);
-	splx(s);
 
 	*nam = in_sockaddr(port, &addr);
 	return 0;
@@ -802,17 +798,14 @@ in_setpeeraddr(so, nam, pcbinfo)
 	struct sockaddr **nam;
 	struct inpcbinfo *pcbinfo;
 {
-	int s;
 	register struct inpcb *inp;
 	struct in_addr addr;
 	in_port_t port;
 
-	s = splnet();
 	INP_INFO_RLOCK(pcbinfo);
 	inp = sotoinpcb(so);
 	if (!inp) {
 		INP_INFO_RUNLOCK(pcbinfo);
-		splx(s);
 		return ECONNRESET;
 	}
 	INP_LOCK(inp);
@@ -820,7 +813,6 @@ in_setpeeraddr(so, nam, pcbinfo)
 	addr = inp->inp_faddr;
 	INP_UNLOCK(inp);
 	INP_INFO_RUNLOCK(pcbinfo);
-	splx(s);
 
 	*nam = in_sockaddr(port, &addr);
 	return 0;
@@ -835,9 +827,7 @@ in_pcbnotifyall(pcbinfo, faddr, errno, notify)
 {
 	struct inpcb *inp, *ninp;
 	struct inpcbhead *head;
-	int s;
 
-	s = splnet();
 	INP_INFO_WLOCK(pcbinfo);
 	head = pcbinfo->listhead;
 	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
@@ -858,7 +848,6 @@ in_pcbnotifyall(pcbinfo, faddr, errno, notify)
 			INP_UNLOCK(inp);
 	}
 	INP_INFO_WUNLOCK(pcbinfo);
-	splx(s);
 }
 
 void
@@ -870,7 +859,6 @@ in_pcbpurgeif0(pcbinfo, ifp)
 	struct ip_moptions *imo;
 	int i, gap;
 
-	/* why no splnet here? XXX */
 	INP_INFO_RLOCK(pcbinfo);
 	LIST_FOREACH(inp, pcbinfo->listhead, inp_list) {
 		INP_LOCK(inp);
