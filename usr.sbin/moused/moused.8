@@ -43,7 +43,7 @@
 .Op Fl F Ar rate
 .Op Fl r Ar resolution
 .Op Fl S Ar baudrate
-.Op Fl V Op Fl U Ar distance
+.Op Fl VH Op Fl U Ar distance
 .Op Fl a Ar X Ns Op , Ns Ar Y
 .Op Fl C Ar threshold
 .Op Fl m Ar N=M
@@ -128,6 +128,18 @@ simultaneously.
 The default timeout is 100 msec.
 .It Fl F Ar rate
 Set the report rate (reports/sec) of the device if supported.
+.It Fl H
+Enable
+.Dq Horizontal Virtual Scrolling .
+With this option set, holding the middle mouse
+button down will cause motion to be interpreted as 
+horizontal scrolling. 
+Use the
+.Fl U
+option to set the distance the mouse must move before the scrolling mode is
+activated.  This option may be used with or without the
+.Fl V
+option.
 .It Fl I Ar file
 Write the process id of the
 .Nm

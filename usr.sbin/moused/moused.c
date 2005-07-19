@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #define ClearRTS	0x0008
 #define NoPnP		0x0010
 #define VirtualScroll	0x0020
+#define HVirtualScroll	0x0040
 
 #define ID_NONE		0
 #define ID_PORT		1
@@ -167,6 +168,7 @@ char	*pidfile = "/var/run/moused.pid";
 
 static int	scroll_state;
 static int	scroll_movement;
+static int	hscroll_movement;
 
 /* local variables */
 
@@ -523,7 +525,7 @@ main(int argc, char *argv[])
     for (i = 0; i < MOUSE_MAXBUTTON; ++i)
 	mstate[i] = &bstate[i];
 
-    while ((c = getopt(argc, argv, "3C:DE:F:I:PRS:VU:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
+    while ((c = getopt(argc, argv, "3C:DE:F:HI:PRS:VU:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
 	switch(c) {
 
 	case '3':
@@ -688,6 +690,10 @@ main(int argc, char *argv[])
 	    }
 	    break;
 
+	case 'H':
+	    rodent.flags |= HVirtualScroll;
+	    break;
+		 
 	case 'I':
 	    pidfile = optarg;
 	    break;
@@ -993,7 +999,7 @@ moused(void)
 	    if ((flags = r_protocol(b, &action0)) == 0)
 		continue;
 
-	    if (rodent.flags & VirtualScroll) {
+	    if ((rodent.flags & VirtualScroll) || (rodent.flags & HVirtualScroll)) {
 		/* Allow middle button drags to scroll up and down */
 		if (action0.button == MOUSE_BUTTON2DOWN) {
 		    if (scroll_state == SCROLL_NOTSCROLLING) {
@@ -1053,7 +1059,7 @@ moused(void)
 	    debug("activity : buttons 0x%08x  dx %d  dy %d  dz %d",
 		action2.button, action2.dx, action2.dy, action2.dz);
 
-	    if (rodent.flags & VirtualScroll) {
+	    if ((rodent.flags & VirtualScroll) || (rodent.flags & HVirtualScroll)) {
 		/* 
 		 * If *only* the middle button is pressed AND we are moving
 		 * the stick/trackpoint/nipple, scroll!
@@ -1064,19 +1070,34 @@ moused(void)
 			scroll_state = SCROLL_SCROLLING;
 		}
 		if (scroll_state == SCROLL_SCROLLING) {
-		    scroll_movement += action2.dy;
-		    debug("SCROLL: %d", scroll_movement);
+			 if (rodent.flags & VirtualScroll) {
+				 scroll_movement += action2.dy;
+				 debug("SCROLL: %d", scroll_movement);
 
-		    if (scroll_movement < -rodent.scrollthreshold) { 
-			/* Scroll down */
-			action2.dz = -1;
-			scroll_movement = 0;
-		    }
-		    else if (scroll_movement > rodent.scrollthreshold) { 
-			/* Scroll up */
-			action2.dz = 1;
-			scroll_movement = 0;
-		    }
+			    if (scroll_movement < -rodent.scrollthreshold) { 
+				/* Scroll down */
+				action2.dz = -1;
+				scroll_movement = 0;
+			    }
+			    else if (scroll_movement > rodent.scrollthreshold) { 
+				/* Scroll up */
+				action2.dz = 1;
+				scroll_movement = 0;
+			    }
+			 }
+			 if (rodent.flags & HVirtualScroll) {
+				 hscroll_movement += action2.dx;
+				 debug("HORIZONTAL SCROLL: %d", hscroll_movement);
+
+				 if (hscroll_movement < -rodent.scrollthreshold) {
+					 action2.dz = -2;
+					 hscroll_movement = 0;
+				 }
+				 else if (hscroll_movement > rodent.scrollthreshold) {
+					 action2.dz = 2;
+					 hscroll_movement = 0;
+				 }
+			 }
 
 		    /* Don't move while scrolling */
 		    action2.dx = action2.dy = 0;
@@ -1158,7 +1179,7 @@ usage(void)
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n",
 	"usage: moused [-DRcdfs] [-I file] [-F rate] [-r resolution] [-S baudrate]",
-	"              [-V [-U threshold]] [-a X [,Y]] [-C threshold] [-m N=M] [-w N]",
+	"              [-VH [-U threshold]] [-a X [,Y]] [-C threshold] [-m N=M] [-w N]",
 	"              [-z N] [-t <mousetype>] [-l level] [-3 [-E timeout]] -p <port>",
 	"       moused [-d] -i <port|if|type|model|all> -p <port>");
     exit(1);
