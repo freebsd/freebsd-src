@@ -538,7 +538,7 @@ dev/ep/if_ep_pccard.c		optional ep pccard
 dev/esp/ncr53c9x.c		optional esp
 dev/ex/if_ex.c			optional ex
 dev/ex/if_ex_isa.c		optional ex isa
-#dev/ex/if_ex_pccard.c		optional ex pccard
+dev/ex/if_ex_pccard.c		optional ex pccard
 dev/exca/exca.c			optional cbb
 dev/fatm/if_fatm.c		optional fatm pci
 dev/fe/if_fe.c			optional fe
