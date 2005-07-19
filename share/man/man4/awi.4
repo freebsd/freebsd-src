@@ -1,15 +1,28 @@
 .\"     $NetBSD: awi.4,v 1.6 2000/03/22 11:24:33 onoe Exp $
 .\" $FreeBSD$
 .\"
-.Dd October 31, 1999
+.Dd July 16, 2005
 .Dt AWI 4
 .Os
 .Sh NAME
 .Nm awi
 .Nd "AMD PCnetMobile IEEE 802.11 PCMCIA wireless network driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device awi"
 .Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_awi_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

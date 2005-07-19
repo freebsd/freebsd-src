@@ -30,15 +30,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2004
+.Dd July 16, 2005
 .Dt VR 4
 .Os
 .Sh NAME
 .Nm vr
 .Nd "VIA Technologies Rhine I/II/III Ethernet device driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device miibus"
 .Cd "device vr"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_vr_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

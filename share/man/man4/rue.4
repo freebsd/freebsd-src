@@ -25,18 +25,31 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2004
+.Dd July 16, 2005
 .Dt RUE 4
 .Os
 .Sh NAME
 .Nm rue
 .Nd "RealTek RTL8150 USB to Fast Ethernet controller driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device miibus"
 .Cd "device rue"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_rue_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

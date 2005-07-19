@@ -25,14 +25,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2004
+.Dd July 16, 2005
 .Dt DE 4
 .Os
 .Sh NAME
 .Nm de
-.Nd DEC DC21x4x Ethernet device driver
+.Nd "DEC DC21x4x Ethernet device driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following line in your kernel configuration 
+file:
+.Bd -ragged -offset indent
 .Cd "device de"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_de_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

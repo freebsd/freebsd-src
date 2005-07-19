@@ -25,16 +25,30 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2005
+.Dd July 16, 2005
 .Os
 .Dt IWI 4
 .Sh NAME
 .Nm iwi
 .Nd "Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your kernel configuration 
+file:
+.Bd -ragged -offset indent
 .Cd "device iwi"
 .Cd "device pci"
 .Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_iwi_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

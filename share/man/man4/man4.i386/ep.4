@@ -29,14 +29,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2005
+.Dd July 16, 2005
 .Dt EP 4 i386
 .Os
 .Sh NAME
 .Nm ep
-.Nd Ethernet driver for 3Com Etherlink III (3c5x9) interfaces
+.Nd "Ethernet driver for 3Com Etherlink III (3c5x9) interfaces"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following line in your kernel configuration 
+file:
+.Bd -ragged -offset indent
 .Cd "device ep"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ep_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
