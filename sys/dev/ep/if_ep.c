@@ -281,7 +281,7 @@ ep_attach(struct ep_softc *sc)
 		error = ep_get_macaddr(sc, sc->eaddr);
 		if (error) {
 			device_printf(sc->dev, "Unable to get MAC address!\n");
-			EP_LOCK_DESTORY(sc);
+			EP_LOCK_DESTROY(sc);
 			return (ENXIO);
 		}
 	}
@@ -289,7 +289,7 @@ ep_attach(struct ep_softc *sc)
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(sc->dev, "if_alloc() failed\n");
-		EP_LOCK_DESTORY(sc);
+		EP_LOCK_DESTROY(sc);
 		return (ENOSPC);
 	}
 
@@ -361,7 +361,7 @@ ep_detach(device_t dev)
 
 	sc->gone = 1;
 	ep_free(dev);
-	EP_LOCK_DESTORY(sc);
+	EP_LOCK_DESTROY(sc);
 
 	return (0);
 }
