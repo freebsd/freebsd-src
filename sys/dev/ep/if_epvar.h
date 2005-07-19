@@ -103,6 +103,6 @@ int ep_get_e(struct ep_softc *, uint16_t, uint16_t *);
 #define EP_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
 	    MTX_NETWORK_LOCK, MTX_DEF)
-#define EP_LOCK_DESTORY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define EP_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
 #define EP_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define EP_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
