@@ -450,7 +450,7 @@ struct route_in6 {
 #define IPV6_FW_GET		34 /* get entire firewall rule chain */
 #endif
 
-/* new socket options introduced in RFC2292bis */
+/* new socket options introduced in RFC3542 */
 #define IPV6_RTHDRDSTOPTS	35 /* ip6_dest; send dst option before rthdr */
 
 #define IPV6_RECVPKTINFO	36 /* bool; recv if, dst addr */
@@ -472,7 +472,7 @@ struct route_in6 {
 				      (cmsg only/not in of RFC3542) */
 #endif
 
-/* more new socket options introduced in RFC2292bis */
+/* more new socket options introduced in RFC3542 */
 #define IPV6_PKTINFO		46 /* in6_pktinfo; send if, src addr */
 #define IPV6_HOPLIMIT		47 /* int; send hop limit */
 #define IPV6_NEXTHOP		48 /* sockaddr; next hop addr */
@@ -481,7 +481,7 @@ struct route_in6 {
 #define IPV6_RTHDR		51 /* ip6_rthdr; send routing header */
 #if 0
 #define IPV6_PKTOPTIONS		52 /* buf/cmsghdr; set/get IPv6 options */
-				   /* obsoleted by 2292bis */
+				   /* obsoleted by RFC3542 */
 #endif
 
 #define IPV6_RECVTCLASS		57 /* bool; recv traffic class values */
