@@ -1363,8 +1363,6 @@ swp_pager_async_iodone(struct buf *bp)
 	int i;
 	vm_object_t object = NULL;
 
-	bp->b_flags |= B_DONE;
-
 	/*
 	 * report error
 	 */

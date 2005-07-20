@@ -3046,7 +3046,6 @@ bufdone(struct buf *bp)
 	if (bp->b_iodone != NULL) {
 		biodone = bp->b_iodone;
 		bp->b_iodone = NULL;
-		bp->b_flags |= B_DONE;
 		(*biodone) (bp);
 		if (dropobj)
 			bufobj_wdrop(dropobj);
