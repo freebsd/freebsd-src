@@ -54,7 +54,6 @@
 #include <net/if_arc.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/if_atm.h>
 #include <net/iso88025.h>
 #include <net/fddi.h>
 #include <net/route.h>
@@ -203,23 +202,9 @@ nd6_setmtu0(ifp, ndi)
 	case IFT_ARCNET:
 		ndi->maxmtu = MIN(ARC_PHDS_MAXMTU, ifp->if_mtu); /* RFC2497 */
 		break;
-	case IFT_ETHER:
-		ndi->maxmtu = MIN(ETHERMTU, ifp->if_mtu);
-		break;
 	case IFT_FDDI:
 		ndi->maxmtu = MIN(FDDIIPMTU, ifp->if_mtu); /* RFC2467 */
 		break;
-	case IFT_ATM:
-		ndi->maxmtu = MIN(ATMMTU, ifp->if_mtu);
-		break;
-	case IFT_IEEE1394:	/* XXX should be IEEE1394MTU(1500) */
-		ndi->maxmtu = MIN(ETHERMTU, ifp->if_mtu);
-		break;
-#ifdef IFT_IEEE80211
-	case IFT_IEEE80211:	/* XXX should be IEEE80211MTU(1500) */
-		ndi->maxmtu = MIN(ETHERMTU, ifp->if_mtu);
-		break;
-#endif
 	 case IFT_ISO88025:
 		 ndi->maxmtu = MIN(ISO88025_MAX_MTU, ifp->if_mtu);
 		 break;
