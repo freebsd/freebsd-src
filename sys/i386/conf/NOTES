@@ -637,6 +637,9 @@ options 	SAFE_RNDTEST	# enable rndtest support
 #
 # apm: Laptop Advanced Power Management (experimental)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
+# smapi: System Management Application Program Interface driver
+# smbios: DMI/SMBIOS entry point
+# vpd: Vital Product Data kernel interface
 # cy: Cyclades serial driver
 # digi: Digiboard driver
 # spic: Sony Programmable I/O controller (VAIO notebooks)
@@ -665,6 +668,9 @@ options 	SAFE_RNDTEST	# enable rndtest support
 
 device		apm
 hint.apm.0.flags="0x20"
+device		smapi
+device		smbios
+device		vpd
 device		pmtimer			# Adjust system timer at wakeup time
 device		cy
 options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
