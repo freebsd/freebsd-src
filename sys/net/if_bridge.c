@@ -676,6 +676,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif)
 
 	switch (ifs->if_type) {
 	case IFT_ETHER:
+	case IFT_L2VLAN:
 		/*
 		 * Take the interface out of promiscuous mode.
 		 */
