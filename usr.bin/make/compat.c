@@ -712,6 +712,6 @@ Compat_Run(Lst targs)
      * If the user has defined a .END target, run its commands.
      */
     if (errors == 0) {
-	Lst_ForEach(ENDNode->commands, Compat_RunCommand, (void *)gn);
+	Lst_ForEach(ENDNode->commands, Compat_RunCommand, (void *)ENDNode);
     }
 }
