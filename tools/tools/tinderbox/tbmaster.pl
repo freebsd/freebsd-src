@@ -46,7 +46,7 @@ my $lockfile;			# Lock file name
 my $lock;			# Lock file descriptor
 
 my %INITIAL_CONFIG = (
-    'BRANCHES'	=> [ 'CURRENT' ],
+    'BRANCHES'	=> [ 'HEAD' ],
     'CFLAGS'	=> '',
     'COPTFLAGS'	=> '',
     'COMMENT'	=> '',
