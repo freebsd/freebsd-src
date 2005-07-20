@@ -197,6 +197,7 @@ static uint8_t bucket_size[BUCKET_ZONES];
 enum zfreeskip { SKIP_NONE, SKIP_DTOR, SKIP_FINI };
 
 #define	ZFREE_STATFAIL	0x00000001	/* Update zone failure statistic. */
+#define	ZFREE_STATFREE	0x00000002	/* Update zone free statistic. */
 
 /* Prototypes.. */
 
@@ -349,7 +350,8 @@ bucket_free(uma_bucket_t bucket)
 	struct uma_bucket_zone *ubz;
 
 	ubz = bucket_zone_lookup(bucket->ub_entries);
-	uma_zfree_internal(ubz->ubz_zone, bucket, NULL, SKIP_NONE, 0);
+	uma_zfree_internal(ubz->ubz_zone, bucket, NULL, SKIP_NONE,
+	    ZFREE_STATFREE);
 }
 
 static void
@@ -540,7 +542,7 @@ hash_free(struct uma_hash *hash)
 		return;
 	if (hash->uh_hashsize == UMA_HASH_SIZE_INIT)
 		uma_zfree_internal(hashzone,
-		    hash->uh_slab_hash, NULL, SKIP_NONE, 0);
+		    hash->uh_slab_hash, NULL, SKIP_NONE, ZFREE_STATFREE);
 	else
 		free(hash->uh_slab_hash, M_UMAHASH);
 }
@@ -756,7 +758,7 @@ finished:
 		}
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 			uma_zfree_internal(keg->uk_slabzone, slab, NULL,
-			    SKIP_NONE, 0);
+			    SKIP_NONE, ZFREE_STATFREE);
 #ifdef UMA_DEBUG
 		printf("%s: Returning %d bytes.\n",
 		    zone->uz_name, UMA_SLAB_SIZE * keg->uk_ppera);
@@ -819,7 +821,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 	if (mem == NULL) {
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 			uma_zfree_internal(keg->uk_slabzone, slab, NULL,
-			    SKIP_NONE, 0);
+			    SKIP_NONE, ZFREE_STATFREE);
 		ZONE_LOCK(zone);
 		return (NULL);
 	}
@@ -876,7 +878,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 			}
 			if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 				uma_zfree_internal(keg->uk_slabzone, slab,
-				    NULL, SKIP_NONE, 0);
+				    NULL, SKIP_NONE, ZFREE_STATFREE);
 			keg->uk_freef(mem, UMA_SLAB_SIZE * keg->uk_ppera,
 			    flags);
 			ZONE_LOCK(zone);
@@ -1467,7 +1469,8 @@ zone_dtor(void *arg, int size, void *udata)
 		LIST_REMOVE(keg, uk_link);
 		LIST_REMOVE(zone, uz_link);
 		mtx_unlock(&uma_mtx);
-		uma_zfree_internal(kegs, keg, NULL, SKIP_NONE, 0);
+		uma_zfree_internal(kegs, keg, NULL, SKIP_NONE,
+		    ZFREE_STATFREE);
 	}
 	zone->uz_keg = NULL;
 }
@@ -1771,7 +1774,8 @@ uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 void
 uma_zdestroy(uma_zone_t zone)
 {
-	uma_zfree_internal(zones, zone, NULL, SKIP_NONE, 0);
+
+	uma_zfree_internal(zones, zone, NULL, SKIP_NONE, ZFREE_STATFREE);
 }
 
 /* See uma.h */
@@ -1855,7 +1859,8 @@ zalloc_start:
 				if (zone->uz_ctor(item, zone->uz_keg->uk_size,
 				    udata, flags) != 0) {
 					uma_zfree_internal(zone, item, udata,
-					    SKIP_DTOR, ZFREE_STATFAIL);
+					    SKIP_DTOR, ZFREE_STATFAIL |
+					    ZFREE_STATFREE);
 					return (NULL);
 				}
 			}
@@ -2235,14 +2240,14 @@ uma_zalloc_internal(uma_zone_t zone, void *udata, int flags)
 	if (zone->uz_init != NULL) {
 		if (zone->uz_init(item, keg->uk_size, flags) != 0) {
 			uma_zfree_internal(zone, item, udata, SKIP_FINI,
-			    ZFREE_STATFAIL);
+			    ZFREE_STATFAIL | ZFREE_STATFREE);
 			return (NULL);
 		}
 	}
 	if (zone->uz_ctor != NULL) {
 		if (zone->uz_ctor(item, keg->uk_size, udata, flags) != 0) {
 			uma_zfree_internal(zone, item, udata, SKIP_DTOR,
-			    ZFREE_STATFAIL);
+			    ZFREE_STATFAIL | ZFREE_STATFREE);
 			return (NULL);
 		}
 	}
@@ -2369,6 +2374,12 @@ zfree_start:
 		}
 	}
 
+	/* Since we have locked the zone we may as well send back our stats */
+	zone->uz_allocs += cache->uc_allocs;
+	cache->uc_allocs = 0;
+	zone->uz_frees += cache->uc_frees;
+	cache->uc_frees = 0;
+
 	bucket = cache->uc_freebucket;
 	cache->uc_freebucket = NULL;
 
@@ -2415,7 +2426,8 @@ zfree_start:
 	 * If nothing else caught this, we'll just do an internal free.
 	 */
 zfree_internal:
-	uma_zfree_internal(zone, item, udata, SKIP_DTOR, ZFREE_STATFAIL);
+	uma_zfree_internal(zone, item, udata, SKIP_DTOR, ZFREE_STATFAIL |
+	    ZFREE_STATFREE);
 
 	return;
 }
@@ -2450,6 +2462,8 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata,
 
 	if (flags & ZFREE_STATFAIL)
 		zone->uz_fails++;
+	if (flags & ZFREE_STATFREE)
+		zone->uz_frees++;
 
 	if (!(keg->uk_flags & UMA_ZONE_MALLOC)) {
 		mem = (u_int8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
@@ -2492,7 +2506,6 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata,
 
 	/* Zone statistics */
 	keg->uk_free++;
-	zone->uz_frees++;
 
 	if (keg->uk_flags & UMA_ZFLAG_FULL) {
 		if (keg->uk_pages < keg->uk_maxpages)
@@ -2703,7 +2716,7 @@ uma_large_malloc(int size, int wait)
 		slab->us_size = size;
 	} else {
 		uma_zfree_internal(slabzone, slab, NULL, SKIP_NONE,
-		    ZFREE_STATFAIL);
+		    ZFREE_STATFAIL | ZFREE_STATFREE);
 	}
 
 	return (mem);
@@ -2714,7 +2727,7 @@ uma_large_free(uma_slab_t slab)
 {
 	vsetobj((vm_offset_t)slab->us_data, kmem_object);
 	page_free(slab->us_data, slab->us_size, slab->us_flags);
-	uma_zfree_internal(slabzone, slab, NULL, SKIP_NONE, 0);
+	uma_zfree_internal(slabzone, slab, NULL, SKIP_NONE, ZFREE_STATFREE);
 }
 
 void
