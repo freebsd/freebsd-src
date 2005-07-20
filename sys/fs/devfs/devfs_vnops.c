@@ -784,6 +784,12 @@ devfs_mknod(struct vop_mknod_args *ap)
 	struct devfs_mount *dmp;
 	int error;
 
+	/*
+	 * The only type of node we should be creating here is a
+	 * character device, for anything else return EOPNOTSUPP.
+	 */
+	if (ap->a_vap->va_type != VCHR)
+		return (EOPNOTSUPP);
 	dvp = ap->a_dvp;
 	dmp = VFSTODEVFS(dvp->v_mount);
 	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
