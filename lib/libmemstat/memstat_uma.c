@@ -222,7 +222,8 @@ retry:
 		mtp->mt_byteslimit = uthp->uth_limit * uthp->uth_size;
 
 		mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
-		mtp->mt_zonefree = uthp->uth_zone_free + uthp->uth_keg_free;
+		mtp->mt_zonefree = uthp->uth_zone_free;
+		mtp->mt_kegfree = uthp->uth_keg_free;
 		mtp->mt_free += mtp->mt_zonefree;
 	}
 

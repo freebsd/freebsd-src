@@ -85,6 +85,7 @@ struct memory_type {
 	 * global stats above.
 	 */
 	uint64_t	 mt_zonefree;	/* Free items in zone. */
+	uint64_t	 mt_kegfree;	/* Free items in keg. */
 
 	/*
 	 * Per-CPU measurements fall into two categories: per-CPU allocation,

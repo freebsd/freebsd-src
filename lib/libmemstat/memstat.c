@@ -143,6 +143,7 @@ memstat_mt_reset_stats(struct memory_type *mtp)
 	mtp->mt_failures = 0;
 
 	mtp->mt_zonefree = 0;
+	mtp->mt_kegfree = 0;
 
 	for (i = 0; i < MEMSTAT_MAXCPU; i++) {
 		mtp->mt_percpu_alloc[i].mtp_memalloced = 0;
@@ -289,6 +290,13 @@ memstat_get_zonefree(const struct memory_type *mtp)
 {
 
 	return (mtp->mt_zonefree);
+}
+
+uint64_t
+memstat_get_kegfree(const struct memory_type *mtp)
+{
+
+	return (mtp->mt_kegfree);
 }
 
 uint64_t

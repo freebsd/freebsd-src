@@ -119,6 +119,7 @@ uint64_t	 memstat_get_caller_uint64(const struct memory_type *mtp,
 void		 memstat_set_caller_uint64(struct memory_type *mtp, int index,
 		    uint64_t value);
 uint64_t	 memstat_get_zonefree(const struct memory_type *mtp);
+uint64_t	 memstat_get_kegfree(const struct memory_type *mtp);
 uint64_t	 memstat_get_percpu_memalloced(const struct memory_type *mtp,
 		    int cpu);
 uint64_t	 memstat_get_percpu_memfreed(const struct memory_type *mtp,
