@@ -142,7 +142,7 @@ struct ip6_dest {
 #ifndef _KERNEL
 #define IP6OPT_RTALERT		0x05	/* 00 0 00101 (KAME definition) */
 #endif
-#define IP6OPT_ROUTER_ALERT	0x05	/* 00 0 00101 (2292bis, recommended) */
+#define IP6OPT_ROUTER_ALERT	0x05	/* 00 0 00101 (RFC3542, recommended) */
 
 #define IP6OPT_RTALERT_LEN	4
 #define IP6OPT_RTALERT_MLD	0	/* Datagram contains an MLD message */
@@ -202,10 +202,10 @@ struct ip6_frag {
 /*
  * Internet implementation parameters.
  */
-#define IPV6_MAXHLIM	255	/* maximun hoplimit */
+#define IPV6_MAXHLIM	255	/* maximum hoplimit */
 #define IPV6_DEFHLIM	64	/* default hlim */
 #define IPV6_FRAGTTL	120	/* ttl for fragment packets, in slowtimo tick */
-#define IPV6_HLIMDEC	1	/* subtracted when forwaeding */
+#define IPV6_HLIMDEC	1	/* subtracted when forwarding */
 
 #define IPV6_MMTU	1280	/* minimal MTU and reassembly. 1024 + 256 */
 #define IPV6_MAXPACKET	65535	/* ip6 max packet size without Jumbo payload*/
