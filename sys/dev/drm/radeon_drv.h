@@ -107,7 +107,9 @@ enum radeon_family {
 	CHIP_RV280,
 	CHIP_R300,
 	CHIP_RS300,
+	CHIP_R350,
 	CHIP_RV350,
+	CHIP_R420,
 	CHIP_LAST,
 };
 
@@ -128,6 +130,7 @@ enum radeon_chip_flags {
 	CHIP_SINGLE_CRTC = 0x00040000UL,
 	CHIP_IS_AGP = 0x00080000UL,
 	CHIP_HAS_HIERZ = 0x00100000UL, 
+	CHIP_IS_PCIE = 0x00200000UL,
 };
 
 #define GET_RING_HEAD(dev_priv)		DRM_READ32(  (dev_priv)->ring_rptr, 0 )
@@ -321,6 +324,14 @@ extern int radeon_driver_open_helper(drm_device_t * dev,
 extern void radeon_driver_free_filp_priv(drm_device_t * dev,
 					 drm_file_t * filp_priv);
 
+/* r300_cmdbuf.c */
+extern void r300_init_reg_flags(void);
+
+extern int r300_do_cp_cmdbuf( drm_device_t* dev,
+				  DRMFILE filp,
+			      drm_file_t* filp_priv,
+			      drm_radeon_cmd_buffer_t* cmdbuf );
+
 /* Flags for stats.boxes
  */
 #define RADEON_BOX_DMA_IDLE      0x1
@@ -357,6 +368,25 @@ extern void radeon_driver_free_filp_priv(drm_device_t * dev,
 #	define RADEON_CRTC_OFFSET_FLIP_CNTL	(1 << 16)
 #define RADEON_CRTC2_OFFSET		0x0324
 #define RADEON_CRTC2_OFFSET_CNTL	0x0328
+
+#define RADEON_PCIE_INDEX               0x0030
+#define RADEON_PCIE_DATA                0x0034
+#define RADEON_PCIE_TX_GART_CNTL	0x10
+#	define RADEON_PCIE_TX_GART_EN   	(1 << 0)
+#	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_PASS_THRU (0<<1)
+#	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_CLAMP_LO  (1<<1)
+#	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_DISCARD   (3<<1)
+#	define RADEON_PCIE_TX_GART_MODE_32_128_CACHE	(0<<3)
+#	define RADEON_PCIE_TX_GART_MODE_8_4_128_CACHE	(1<<3)
+#	define RADEON_PCIE_TX_GART_CHK_RW_VALID_EN      (1<<5)
+#	define RADEON_PCIE_TX_GART_INVALIDATE_TLB	(1<<8)
+#define RADEON_PCIE_TX_DISCARD_RD_ADDR_LO 0x11
+#define RADEON_PCIE_TX_DISCARD_RD_ADDR_HI 0x12
+#define RADEON_PCIE_TX_GART_BASE  	0x13
+#define RADEON_PCIE_TX_GART_START_LO	0x14
+#define RADEON_PCIE_TX_GART_START_HI	0x15
+#define RADEON_PCIE_TX_GART_END_LO	0x16
+#define RADEON_PCIE_TX_GART_END_HI	0x17
 
 #define RADEON_MPP_TB_CONFIG		0x01c0
 #define RADEON_MEM_CNTL			0x0140
@@ -603,6 +633,8 @@ extern void radeon_driver_free_filp_priv(drm_device_t * dev,
 
 #define RADEON_WAIT_UNTIL		0x1720
 #	define RADEON_WAIT_CRTC_PFLIP		(1 << 0)
+#	define RADEON_WAIT_2D_IDLE		(1 << 14)
+#	define RADEON_WAIT_3D_IDLE		(1 << 15)
 #	define RADEON_WAIT_2D_IDLECLEAN		(1 << 16)
 #	define RADEON_WAIT_3D_IDLECLEAN		(1 << 17)
 #	define RADEON_WAIT_HOST_IDLECLEAN	(1 << 18)
@@ -655,16 +687,27 @@ extern void radeon_driver_free_filp_priv(drm_device_t * dev,
 #define RADEON_CP_PACKET1		0x40000000
 #define RADEON_CP_PACKET2		0x80000000
 #define RADEON_CP_PACKET3		0xC0000000
+#       define RADEON_CP_NOP                    0x00001000
+#       define RADEON_CP_NEXT_CHAR              0x00001900
+#       define RADEON_CP_PLY_NEXTSCAN           0x00001D00
+#       define RADEON_CP_SET_SCISSORS           0x00001E00
+             /* GEN_INDX_PRIM is unsupported starting with R300 */
 #	define RADEON_3D_RNDR_GEN_INDX_PRIM	0x00002300
 #	define RADEON_WAIT_FOR_IDLE		0x00002600
 #	define RADEON_3D_DRAW_VBUF		0x00002800
 #	define RADEON_3D_DRAW_IMMD		0x00002900
 #	define RADEON_3D_DRAW_INDX		0x00002A00
+#       define RADEON_CP_LOAD_PALETTE           0x00002C00
 #	define RADEON_3D_LOAD_VBPNTR		0x00002F00
 #	define RADEON_MPEG_IDCT_MACROBLOCK	0x00003000
 #	define RADEON_MPEG_IDCT_MACROBLOCK_REV	0x00003100
 #	define RADEON_3D_CLEAR_ZMASK		0x00003200
+#	define RADEON_CP_INDX_BUFFER		0x00003300
+#       define RADEON_CP_3D_DRAW_VBUF_2         0x00003400
+#       define RADEON_CP_3D_DRAW_IMMD_2         0x00003500
+#       define RADEON_CP_3D_DRAW_INDX_2         0x00003600
 #	define RADEON_3D_CLEAR_HIZ		0x00003700
+#       define RADEON_CP_3D_CLEAR_CMASK         0x00003802
 #	define RADEON_CNTL_HOSTDATA_BLT		0x00009400
 #	define RADEON_CNTL_PAINT_MULTI		0x00009A00
 #	define RADEON_CNTL_BITBLT_MULTI		0x00009B00
@@ -857,6 +900,13 @@ do {									\
 	RADEON_WRITE8( RADEON_CLOCK_CNTL_INDEX,				\
 		       ((addr) & 0x1f) | RADEON_PLL_WR_EN );		\
 	RADEON_WRITE( RADEON_CLOCK_CNTL_DATA, (val) );			\
+} while (0)
+
+#define RADEON_WRITE_PCIE( addr, val )					\
+do {									\
+	RADEON_WRITE8( RADEON_PCIE_INDEX,				\
+			((addr) & 0xff));				\
+	RADEON_WRITE( RADEON_PCIE_DATA, (val) );			\
 } while (0)
 
 extern int radeon_preinit(struct drm_device *dev, unsigned long flags);

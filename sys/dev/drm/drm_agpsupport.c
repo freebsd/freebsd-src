@@ -39,8 +39,8 @@
 #include <dev/pci/pcireg.h>
 #endif
 
-int
-drm_device_is_agp(drm_device_t *dev)
+static int
+drm_device_find_capability(drm_device_t *dev, int cap)
 {
 #ifdef __FreeBSD__
 	/* Code taken from agp.c.  IWBNI that was a public interface. */
@@ -64,9 +64,9 @@ drm_device_is_agp(drm_device_t *dev)
 		next = AGP_CAPID_GET_NEXT_PTR(capid);
 
 		/*
-		 * If this capability entry ID is 2, then we are done.
+		 * If this capability entry ID is cap, then we are done.
 		 */
-		if (AGP_CAPID_GET_CAP_ID(capid) == 2)
+		if (AGP_CAPID_GET_CAP_ID(capid) == cap)
 			return 1;
 	}
 
@@ -75,6 +75,18 @@ drm_device_is_agp(drm_device_t *dev)
 	/* XXX: fill me in for non-FreeBSD */
 	return 1;
 #endif
+}
+
+int
+drm_device_is_agp(drm_device_t *dev)
+{
+	return (drm_device_find_capability(dev, PCIY_AGP));
+}
+
+int
+drm_device_is_pcie(drm_device_t *dev)
+{
+	return (drm_device_find_capability(dev, PCIY_EXPRESS));
 }
 
 int drm_agp_info(DRM_IOCTL_ARGS)
