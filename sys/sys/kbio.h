@@ -60,12 +60,6 @@
 /* set keyboard repeat rate (obsolete, use KDSETREPEAT below) */
 #define KDSETRAD	_IO('K', 67 /*, int */)
 
-/* see console.h for the definition of the following ioctl */
-#if notdef
-#define KDRASTER	_IOW('K', 100, scr_size_t)
-#endif
-
-/* get keyboard information */
 struct keyboard_info {
 	int		kb_index;	/* kbdio index#			*/
 	char		kb_name[16];	/* driver name			*/
@@ -75,6 +69,17 @@ struct keyboard_info {
 	int		kb_flags;	/* internal flags		*/
 };
 typedef struct keyboard_info keyboard_info_t;
+
+/* add/remove keyboard to/from mux */
+#define KBADDKBD	_IOW('K', 68, keyboard_info_t)	/* add keyboard */
+#define KBRELKBD	_IOW('K', 69, keyboard_info_t)	/* release keyboard */
+
+/* see console.h for the definition of the following ioctl */
+#if notdef
+#define KDRASTER	_IOW('K', 100, scr_size_t)
+#endif
+
+/* get keyboard information */
 #define KDGKBINFO	_IOR('K', 101, keyboard_info_t)
 
 /* set/get keyboard repeat rate (new interface) */
