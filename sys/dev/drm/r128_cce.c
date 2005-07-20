@@ -559,7 +559,7 @@ static int r128_do_init_cce(drm_device_t * dev, drm_r128_init_t * init)
 	if (dev_priv->is_pci) {
 #endif
 		if (!drm_ati_pcigart_init(dev, &dev_priv->phys_pci_gart,
-					  &dev_priv->bus_pci_gart)) {
+					  &dev_priv->bus_pci_gart, 0)) {
 			DRM_ERROR("failed to init PCI GART!\n");
 			dev->dev_private = (void *)dev_priv;
 			r128_do_cleanup_cce(dev);
