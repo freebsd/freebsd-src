@@ -582,7 +582,7 @@ vlrureclaim(struct mount *mp)
 		}
 		MNT_IUNLOCK(mp);
 		vholdl(vp);
-		if (VOP_LOCK(vp, LK_INTERLOCK|LK_EXCLUSIVE|LK_NOWAIT, td)) {
+		if (VOP_LOCK(vp, LK_INTERLOCK|LK_EXCLUSIVE, td)) {
 			vdrop(vp);
 			MNT_ILOCK(mp);
 			continue;
@@ -680,11 +680,19 @@ vnlru_proc(void)
 		done = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
+			int vfsunlocked;
 			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
+			if (!VFS_NEEDSGIANT(mp)) {
+				mtx_unlock(&Giant);
+				vfsunlocked = 1;
+			} else
+				vfsunlocked = 0;
 			done += vlrureclaim(mp);
+			if (vfsunlocked)
+				mtx_lock(&Giant);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp, td);
@@ -700,7 +708,8 @@ vnlru_proc(void)
 #endif
 			vnlru_nowhere++;
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
-		}
+		} else 
+			uio_yield();
 	}
 }
 
