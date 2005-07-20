@@ -1534,7 +1534,7 @@ ffs_backgroundwritedone(struct buf *bp)
 	 * by biodone it will be tossed.
 	 */
 	bp->b_flags |= B_NOCACHE;
-	bp->b_flags &= ~(B_CACHE | B_DONE);
+	bp->b_flags &= ~B_CACHE;
 	bufdone(bp);
 	BO_LOCK(bufobj);
 	/*
