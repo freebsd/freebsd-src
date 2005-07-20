@@ -1,0 +1,9 @@
+#
+# RELENG_6 tinderbox setup
+#
+# $FreeBSD$
+#
+
+branches	= RELENG_6
+platforms	= alpha, amd64, i386/i386, i386/pc98, sparc64
+recipient	= %%SENDER%%,<stable@freebsd.org>,<%%arch%%@freebsd.org>
