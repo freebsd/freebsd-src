@@ -1,0 +1,4 @@
+# $FreeBSD$
+branches	= HEAD
+platforms	= alpha, amd64, i386/i386, i386/pc98, sparc64
+targets		= update
