@@ -1,11 +1,11 @@
 #
-# CURRENT tinderbox setup
+# HEAD tinderbox setup
 #
 # $FreeBSD$
 #
 
-branches	= CURRENT
-platforms	= alpha, amd64, i386/i386, i386/pc98, ia64, powerpc, sparc64
+branches	= HEAD
+platforms	= alpha, amd64, i386/i386, i386/pc98, sparc64
 cflags		= -O2 -pipe
 coptflags	= %%CFLAGS%%
 recipient	= %%SENDER%%,<current@freebsd.org>,<%%arch%%@freebsd.org>
