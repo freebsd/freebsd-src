@@ -160,6 +160,13 @@
 	    <entry>6&nbsp;Jul&nbsp;2005</entry>
 	    <entry><para>Buffer overflow in zlib</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:17.devfs.asc"
+		>SA-05:17.devfs</ulink></entry>
+	    <entry>20&nbsp;Jul&nbsp;2005</entry>
+	    <entry><para>devfs ruleset bypass</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
