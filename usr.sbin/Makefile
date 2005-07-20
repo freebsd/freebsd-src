@@ -152,6 +152,7 @@ SUBDIR=	ac \
 	sliplogin \
 	slstat \
 	smbmsg \
+	snapinfo \
 	${_spkrtest} \
 	spray \
 	${_sysinstall} \
