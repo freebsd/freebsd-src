@@ -8,7 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
-20050706:	p18	FreeBSD-SA-05:17.zlib
+20050720:	p19	FreeBSD-SA-05:17.devfs
+	Correct devfs ruleset bypass.
+
+20050706:	p18	FreeBSD-SA-05:16.zlib
 	Correct buffer overflow when handling corrupt deflated data streams.
 
 20050629:	p17	FreeBSD-SA-05:14.bzip2, FreeBSD-SA-05:15.tcp
