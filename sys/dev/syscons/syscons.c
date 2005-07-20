@@ -1164,6 +1164,13 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	*(int *)data = scp->status & LED_MASK;
 	return 0;
 
+    case KBADDKBD:		/* add/remove keyboard to/from mux */
+    case KBRELKBD:
+	error = kbd_ioctl(sc->kbd, cmd, data);
+	if (error == ENOIOCTL)
+	    error = ENODEV;
+	return error;
+
     case CONS_SETKBD: 		/* set the new keyboard */
 	{
 	    keyboard_t *newkbd;
