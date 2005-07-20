@@ -620,6 +620,9 @@ EISA_SLOTS		opt_eisa.h
 # ed driver
 ED_NO_MIIBUS		opt_ed.h
 
+# bge driver
+BGE_FAKE_AUTONEG	opt_bge.h
+
 # wi driver
 WI_SYMBOL_FIRMWARE	opt_wi.h
 
