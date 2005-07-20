@@ -40,7 +40,7 @@ my $COPYRIGHT	= "Copyright (c) 2003 Dag-Erling Smørgrav. " .
 		  "All rights reserved.";
 
 my $arch;			# Target architecture
-my $branch;			# CVS branch to checkou
+my $branch;			# CVS branch to check out
 my $cvsup;			# Name of CVSup server
 my $date;			# Date of sources to check out
 my $jobs;			# Number of paralell jobs
@@ -304,7 +304,7 @@ MAIN:{
     chomp($hostname);
     $machine = `/usr/bin/uname -m`;
     chomp($machine);
-    $branch = "CURRENT";
+    $branch = "HEAD";
     $jobs = 0;
     $repository = "/home/ncvs";
     $sandbox = "/tmp/tinderbox";
@@ -337,7 +337,7 @@ MAIN:{
     if ($branch !~ m|^(\w+)$|) {
 	error("invalid source branch");
     }
-    $branch = $1;
+    $branch = ($1 eq 'CURRENT') ? 'HEAD' : $1;
     if ($arch !~ m|^(\w+)$|) {
 	error("invalid target architecture");
     }
@@ -451,7 +451,7 @@ MAIN:{
 	    print(SUPFILE "*default prefix=$sandbox\n");
 	    print(SUPFILE "*default delete use-rel-suffix\n");
 	    print(SUPFILE "src-all release=cvs");
-	    if ($branch eq 'CURRENT') {
+	    if ($branch eq 'HEAD') {
 		print(SUPFILE " tag=.");
 	    } else {
 		print(SUPFILE " tag=$branch");
@@ -482,7 +482,7 @@ MAIN:{
 	    } else {
 		push(@cvsargs, "checkout", "-P");
 	    };
-	    push(@cvsargs, ($branch eq 'CURRENT') ? "-A" : "-r$branch")
+	    push(@cvsargs, ($branch eq 'HEAD') ? "-A" : "-r$branch")
 		if defined($branch);
 	    push(@cvsargs, "-D$date")
 		if defined($date);
@@ -536,7 +536,7 @@ MAIN:{
 	$ENV{'CHROOTDIR'} = "$sandbox/root";
 	$ENV{'CVSROOT'} = $repository;
 	$ENV{'RELEASETAG'} = $branch
-	    if $branch ne 'CURRENT';
+	    if $branch ne 'HEAD';
 	$ENV{'CVSCMDARGS'} = "-D$date"
 	    if defined($date);
 	$ENV{'WORLD_FLAGS'} = $ENV{'KERNEL_FLAGS'} =
