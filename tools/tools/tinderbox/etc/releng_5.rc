@@ -4,6 +4,6 @@
 # $FreeBSD$
 #
 
-branches	= RELENG_5
-platforms	= alpha, amd64, i386/i386, i386/pc98, ia64, sparc64
+branches	= RELENG_5_4, RELENG_5
+platforms	= alpha, amd64, i386/i386, i386/pc98, sparc64
 recipient	= %%SENDER%%,<stable@freebsd.org>,<%%arch%%@freebsd.org>
