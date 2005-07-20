@@ -1127,7 +1127,6 @@ void
 ip_slowtimo()
 {
 	register struct ipq *fp;
-	int s = splnet();
 	int i;
 
 	IPQ_LOCK();
@@ -1158,7 +1157,6 @@ ip_slowtimo()
 		}
 	}
 	IPQ_UNLOCK();
-	splx(s);
 }
 
 /*
