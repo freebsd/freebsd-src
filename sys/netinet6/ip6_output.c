@@ -139,6 +139,7 @@ static int ip6_insert_jumboopt __P((struct ip6_exthdrs *, u_int32_t));
 static int ip6_splithdr __P((struct mbuf *, struct ip6_exthdrs *));
 static int ip6_getpmtu __P((struct route_in6 *, struct route_in6 *,
 	struct ifnet *, struct in6_addr *, u_long *, int *));
+static int copypktopts __P((struct ip6_pktopts *, struct ip6_pktopts *, int));
 
 
 /*
@@ -2358,7 +2359,7 @@ ip6_pcbopts(pktopt, m, so, sopt)
 	/*  set options specified by user. */
 	if (td && !suser(td))
 		priv = 1;
-	if ((error = ip6_setpktopts(m, opt, NULL, priv, 1,
+	if ((error = ip6_setpktopts(m, opt, NULL, priv,
 	    so->so_proto->pr_protocol)) != 0) {
 		ip6_clearpktopts(opt, -1); /* XXX: discard all options */
 		free(opt, M_IP6OPT);
@@ -2397,7 +2398,6 @@ ip6_pcbopt(optname, buf, len, pktopt, priv, uproto)
 		*pktopt = malloc(sizeof(struct ip6_pktopts), M_IP6OPT,
 		    M_WAITOK);
 		ip6_initpktopts(*pktopt);
-		(*pktopt)->needfree = 1;
 	}
 	opt = *pktopt;
 
@@ -2510,15 +2510,11 @@ ip6_clearpktopts(pktopt, optname)
 	struct ip6_pktopts *pktopt;
 	int optname;
 {
-	int needfree;
-
 	if (pktopt == NULL)
 		return;
 
-	needfree = pktopt->needfree;
-
 	if (optname == -1 || optname == IPV6_PKTINFO) {
-		if (needfree && pktopt->ip6po_pktinfo)
+		if (pktopt->ip6po_pktinfo)
 			free(pktopt->ip6po_pktinfo, M_IP6OPT);
 		pktopt->ip6po_pktinfo = NULL;
 	}
@@ -2531,22 +2527,22 @@ ip6_clearpktopts(pktopt, optname)
 			RTFREE(pktopt->ip6po_nextroute.ro_rt);
 			pktopt->ip6po_nextroute.ro_rt = NULL;
 		}
-		if (needfree && pktopt->ip6po_nexthop)
+		if (pktopt->ip6po_nexthop)
 			free(pktopt->ip6po_nexthop, M_IP6OPT);
 		pktopt->ip6po_nexthop = NULL;
 	}
 	if (optname == -1 || optname == IPV6_HOPOPTS) {
-		if (needfree && pktopt->ip6po_hbh)
+		if (pktopt->ip6po_hbh)
 			free(pktopt->ip6po_hbh, M_IP6OPT);
 		pktopt->ip6po_hbh = NULL;
 	}
 	if (optname == -1 || optname == IPV6_RTHDRDSTOPTS) {
-		if (needfree && pktopt->ip6po_dest1)
+		if (pktopt->ip6po_dest1)
 			free(pktopt->ip6po_dest1, M_IP6OPT);
 		pktopt->ip6po_dest1 = NULL;
 	}
 	if (optname == -1 || optname == IPV6_RTHDR) {
-		if (needfree && pktopt->ip6po_rhinfo.ip6po_rhi_rthdr)
+		if (pktopt->ip6po_rhinfo.ip6po_rhi_rthdr)
 			free(pktopt->ip6po_rhinfo.ip6po_rhi_rthdr, M_IP6OPT);
 		pktopt->ip6po_rhinfo.ip6po_rhi_rthdr = NULL;
 		if (pktopt->ip6po_route.ro_rt) {
@@ -2555,7 +2551,7 @@ ip6_clearpktopts(pktopt, optname)
 		}
 	}
 	if (optname == -1 || optname == IPV6_DSTOPTS) {
-		if (needfree && pktopt->ip6po_dest2)
+		if (pktopt->ip6po_dest2)
 			free(pktopt->ip6po_dest2, M_IP6OPT);
 		pktopt->ip6po_dest2 = NULL;
 	}
@@ -2572,23 +2568,15 @@ do {\
 	}\
 } while (/*CONSTCOND*/ 0)
 
-struct ip6_pktopts *
-ip6_copypktopts(src, canwait)
-	struct ip6_pktopts *src;
+static int
+copypktopts(dst, src, canwait)
+	struct ip6_pktopts *dst, *src;
 	int canwait;
 {
-	struct ip6_pktopts *dst;
-
-	if (src == NULL) {
+	if (dst == NULL || src == NULL)  {
 		printf("ip6_clearpktopts: invalid argument\n");
-		return (NULL);
+		return (EINVAL);
 	}
-
-	dst = malloc(sizeof(*dst), M_IP6OPT, canwait);
-	if (dst == NULL && canwait == M_NOWAIT)
-		return (NULL);
-	bzero(dst, sizeof(*dst));
-	dst->needfree = 1;
 
 	dst->ip6po_hlim = src->ip6po_hlim;
 	dst->ip6po_tclass = src->ip6po_tclass;
@@ -2612,7 +2600,7 @@ ip6_copypktopts(src, canwait)
 	PKTOPT_EXTHDRCPY(ip6po_dest1);
 	PKTOPT_EXTHDRCPY(ip6po_dest2);
 	PKTOPT_EXTHDRCPY(ip6po_rthdr); /* not copy the cached route */
-	return (dst);
+	return (0);
 
   bad:
 	if (dst->ip6po_pktinfo) free(dst->ip6po_pktinfo, M_IP6OPT);
@@ -2621,10 +2609,30 @@ ip6_copypktopts(src, canwait)
 	if (dst->ip6po_dest1) free(dst->ip6po_dest1, M_IP6OPT);
 	if (dst->ip6po_dest2) free(dst->ip6po_dest2, M_IP6OPT);
 	if (dst->ip6po_rthdr) free(dst->ip6po_rthdr, M_IP6OPT);
-	free(dst, M_IP6OPT);
-	return (NULL);
+	return (ENOBUFS);
 }
 #undef PKTOPT_EXTHDRCPY
+
+struct ip6_pktopts *
+ip6_copypktopts(src, canwait)
+	struct ip6_pktopts *src;
+	int canwait;
+{
+	int error;
+	struct ip6_pktopts *dst;
+
+	dst = malloc(sizeof(*dst), M_IP6OPT, canwait);
+	if (dst == NULL && canwait == M_NOWAIT)
+		return (NULL);
+	ip6_initpktopts(dst);
+
+	if ((error = copypktopts(dst, src, canwait)) != 0) {
+		free(dst, M_IP6OPT);
+		return (NULL);
+	}
+
+	return (dst);
+}
 
 void
 ip6_freepcbopts(pktopt)
@@ -2998,33 +3006,32 @@ ip6_freemoptions(im6o)
  * Set IPv6 outgoing packet options based on advanced API.
  */
 int
-ip6_setpktopts(control, opt, stickyopt, priv, needcopy, uproto)
+ip6_setpktopts(control, opt, stickyopt, priv, uproto)
 	struct mbuf *control;
 	struct ip6_pktopts *opt, *stickyopt;
-	int priv, needcopy, uproto;
+	int priv, uproto;
 {
 	struct cmsghdr *cm = 0;
 
 	if (control == NULL || opt == NULL)
 		return (EINVAL);
 
+	ip6_initpktopts(opt);
 	if (stickyopt) {
+		int error;
+
 		/*
 		 * If stickyopt is provided, make a local copy of the options
 		 * for this particular packet, then override them by ancillary
 		 * objects.
-		 * XXX: need to gain a reference for the cached route of the
-		 * next hop in case of the overriding.
+		 * XXX: copypktopts() does not copy the cached route to a next
+		 * hop (if any).  This is not very good in terms of efficiency,
+		 * but we can allow this since this option should be rarely
+		 * used.
 		 */
-		*opt = *stickyopt;
-		if (opt->ip6po_nextroute.ro_rt) {
-			RT_LOCK(opt->ip6po_nextroute.ro_rt);
-			RT_ADDREF(opt->ip6po_nextroute.ro_rt);
-			RT_UNLOCK(opt->ip6po_nextroute.ro_rt);
-		}
-	} else
-		ip6_initpktopts(opt);
-	opt->needfree = needcopy;
+		if ((error = copypktopts(opt, stickyopt, M_NOWAIT)) != 0)
+			return (error);
+	}
 
 	/*
 	 * XXX: Currently, we assume all the optional information is stored
@@ -3047,7 +3054,7 @@ ip6_setpktopts(control, opt, stickyopt, priv, needcopy, uproto)
 			continue;
 
 		error = ip6_setpktopt(cm->cmsg_type, CMSG_DATA(cm),
-		    cm->cmsg_len - CMSG_LEN(0), opt, priv, needcopy, 1, uproto);
+		    cm->cmsg_len - CMSG_LEN(0), opt, priv, 0, 1, uproto);
 		if (error)
 			return (error);
 	}
@@ -3164,14 +3171,13 @@ ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 		 * XXX: the delay of the validation may confuse the
 		 * application when it is used as a sticky option.
 		 */
-		if (sticky) {
-			if (opt->ip6po_pktinfo == NULL) {
-				opt->ip6po_pktinfo = malloc(sizeof(*pktinfo),
-				    M_IP6OPT, M_WAITOK);
-			}
-			bcopy(pktinfo, opt->ip6po_pktinfo, sizeof(*pktinfo));
-		} else
-			opt->ip6po_pktinfo = pktinfo;
+		if (opt->ip6po_pktinfo == NULL) {
+			opt->ip6po_pktinfo = malloc(sizeof(*pktinfo),
+			    M_IP6OPT, M_NOWAIT);
+			if (opt->ip6po_pktinfo == NULL)
+				return (ENOBUFS);
+		}
+		bcopy(pktinfo, opt->ip6po_pktinfo, sizeof(*pktinfo));
 		break;
 	}
 
@@ -3256,11 +3262,8 @@ ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 
 		/* turn off the previous option, then set the new option. */
 		ip6_clearpktopts(opt, IPV6_NEXTHOP);
-		if (sticky) {
-			opt->ip6po_nexthop = malloc(*buf, M_IP6OPT, M_WAITOK);
-			bcopy(buf, opt->ip6po_nexthop, *buf);
-		} else
-			opt->ip6po_nexthop = (struct sockaddr *)buf;
+		opt->ip6po_nexthop = malloc(*buf, M_IP6OPT, M_WAITOK);
+		bcopy(buf, opt->ip6po_nexthop, *buf);
 		break;
 
 	case IPV6_2292HOPOPTS:
@@ -3292,11 +3295,8 @@ ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 
 		/* turn off the previous option, then set the new option. */
 		ip6_clearpktopts(opt, IPV6_HOPOPTS);
-		if (sticky) {
-			opt->ip6po_hbh = malloc(hbhlen, M_IP6OPT, M_WAITOK);
-			bcopy(hbh, opt->ip6po_hbh, hbhlen);
-		} else
-			opt->ip6po_hbh = hbh;
+		opt->ip6po_hbh = malloc(hbhlen, M_IP6OPT, M_WAITOK);
+		bcopy(hbh, opt->ip6po_hbh, hbhlen);
 
 		break;
 	}
@@ -3357,11 +3357,8 @@ ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 
 		/* turn off the previous option, then set the new option. */
 		ip6_clearpktopts(opt, optname);
-		if (sticky) {
-			*newdest = malloc(destlen, M_IP6OPT, M_WAITOK);
-			bcopy(dest, *newdest, destlen);
-		} else
-			*newdest = dest;
+		*newdest = malloc(destlen, M_IP6OPT, M_WAITOK);
+		bcopy(dest, *newdest, destlen);
 
 		break;
 	}
@@ -3400,11 +3397,8 @@ ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 
 		/* turn off the previous option */
 		ip6_clearpktopts(opt, IPV6_RTHDR);
-		if (sticky) {
-			opt->ip6po_rthdr = malloc(rthlen, M_IP6OPT, M_WAITOK);
-			bcopy(rth, opt->ip6po_rthdr, rthlen);
-		} else
-			opt->ip6po_rthdr = rth;
+		opt->ip6po_rthdr = malloc(rthlen, M_IP6OPT, M_WAITOK);
+		bcopy(rth, opt->ip6po_rthdr, rthlen);
 
 		break;
 	}
