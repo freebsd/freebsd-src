@@ -290,6 +290,7 @@ dev/acpica/acpi_pci_link.c	optional acpi pci
 dev/acpica/acpi_pcib.c		optional acpi pci
 dev/acpica/acpi_pcib_acpi.c	optional acpi pci
 dev/acpica/acpi_pcib_pci.c	optional acpi pci
+dev/acpica/acpi_perf.c		optional acpi
 dev/acpica/acpi_powerres.c	optional acpi
 dev/acpica/acpi_quirk.c		optional acpi
 dev/acpica/acpi_resource.c	optional acpi
@@ -388,6 +389,7 @@ dev/ciss/ciss.c		optional ciss
 dev/cm/smc90cx6.c	optional cm
 dev/cnw/if_cnw.c	optional cnw card
 #dev/cnw/if_cnw.c	optional cnw pccard
+dev/cpufreq/ichss.c	optional cpufreq
 dev/cs/if_cs.c		optional cs
 dev/cs/if_cs_isa.c	optional cs isa
 dev/cs/if_cs_pccard.c	optional cs card

@@ -51,6 +51,7 @@ SUBDIR=	${_3dfx} \
 	${_coff} \
 	${_cp} \
 	${_crypto} \
+	${_cpufreq} \
 	${_cryptodev} \
 	${_cs} \
 	${_ctau} \
@@ -297,6 +298,7 @@ _awi=		awi
 _bktr=		bktr
 _coff=		coff
 _cp=		cp
+_cpufreq=	cpufreq
 _cs=		cs
 _drm=		drm
 _ed=		ed
@@ -387,6 +389,7 @@ _sppp=		sppp
 .if ${MACHINE_ARCH} == "amd64"
 _agp=		agp
 _arcmsr=	arcmsr
+_cpufreq=	cpufreq
 _drm=		drm
 _if_ndis=	if_ndis
 _io=		io
