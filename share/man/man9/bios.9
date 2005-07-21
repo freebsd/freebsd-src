@@ -30,7 +30,8 @@
 .Sh NAME
 .Nm bios_sigsearch ,
 .Nm bios32_SDlookup ,
-.Nm bios32
+.Nm bios32 ,
+.Nm bios_oem_strings
 .Nd interact with PC BIOS
 .Sh SYNOPSIS
 .In sys/param.h
@@ -50,6 +51,23 @@
 .Vt extern struct bios32_SDentry PCIbios ;
 .Vt extern struct SMBIOS_table SMBIOStable ;
 .Vt extern struct DMI_table DMItable ;
+.Ft int
+.Fn bios_oem_strings "struct bios_oem *oem" "u_char *buffer" "size_t maxlen"
+.Bd -literal
+struct bios_oem_signature {
+        char * anchor;          /* search anchor string in BIOS memory */
+        size_t offset;          /* offset from anchor (may be negative) */
+        size_t totlen;          /* total length of BIOS string to copy */
+};
+struct bios_oem_range {
+        u_int from;             /* shouldn't be below 0xe0000 */
+        u_int to;               /* shouldn't be above 0xfffff */
+};
+struct bios_oem {
+        struct bios_oem_range range;
+        struct bios_oem_signature signature[];
+};
+.Ed
 .Sh DESCRIPTION
 These functions provide a general-purpose interface for dealing with
 the BIOS functions and data encountered on x86 PC-architecture systems.
@@ -75,6 +93,36 @@ bytes and the search repeated.
 If the signature is found, its effective
 physical address is returned.
 If no signature is found, zero is returned.
+.It Fn bios_oem_strings
+Searches a given BIOS memory range for one or more strings,
+and composes a printable concatenation of those found.
+The routine expects a structure describing the BIOS address
+.Fa range
+(within 0xe0000 - 0xfffff), and a { NULL, 0, 0 } -terminated array of
+.Fa bios_oem_signature
+structures which define the
+.Fa anchor
+string, an
+.Fa offset
+from the beginning of the match (which may be negative), and
+.Fa totlen
+number of bytes to be collected from BIOS memory starting at that offset.
+Unmatched anchors are ignored, whereas matches are copied from BIOS memory
+starting at their corresponding
+.Fa offset
+with unprintable characters being replaced with space, and consecutive spaces
+being suppressed. This composed string is stored in
+.Fa buffer
+up to the given
+.Fa maxlen
+bytes (including trailing '\\0', and any trailing space surpressed).
+If an error is encountered, i.e. trying to read out of said BIOS range,
+other invalid input, or
+.Fa buffer
+overflow, a negative integer is returned, otherwise the
+length of the composed string is returned. In particular, a return
+value of 0 means that none of the given anchor strings were found in
+the specified BIOS memory range.
 .It Fn BIOS_VADDRTOPADDR
 Returns the effective physical address which corresponds to the kernel
 virtual address
