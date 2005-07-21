@@ -139,29 +139,43 @@ denotes the kind of the event returned in argument
 .Fa *ev
 and is one of the following:
 .Bl -tag -width ".Dv PMCLOG_TYPE_PMCALLOCATE"
+.It Dv PMCLOG_TYPE_CLOSELOG
+A marker indicating a successful close of a log file.
+This record will be the last record of a log file.
 .It Dv PMCLOG_TYPE_DROPNOTIFY
-a marker indicating that
+A marker indicating that
 .Xr hwpmc 4
 had to drop data due to a resource constraint.
 .It Dv PMCLOG_TYPE_INITIALIZE
-an initialization record.
-This is usually the first record in a log file.
+An initialization record.
+This is the first record in a log file.
+.It Dv PMCLOG_TYPE_MAPPINGCHANGE
+A record describing an address space change for a process.
 .It Dv PMCLOG_TYPE_PCSAMPLE
 A record containing an instruction pointer sample.
 .It Dv PMCLOG_TYPE_PMCALLOCATE
 A record describing a PMC allocation operation.
 .It Dv PMCLOG_TYPE_PMCATTACH
 A record describing a PMC attach operation.
+.It Dv PMCLOG_TYPE_PMCDETACH
+A record describing a PMC detach operation.
 .It Dv PMCLOG_TYPE_PROCCSW
 A record describing a PMC reading at the time of a process context switch.
-.It Dv PMCLOG_TYPE_PROCEXIT
-A record describing the accumulated PMC reading for a process at the
-time of
-.Xr _exit 2 .
 .It Dv PMCLOG_TYPE_PROCEXEC
 A record describing an
 .Xr execve 2
 by a target process.
+.It Dv PMCLOG_TYPE_PROCEXIT
+A record describing the accumulated PMC reading for a process at the
+time of
+.Xr _exit 2 .
+.It Dv PMCLOG_TYPE_PROCFORK
+A record describing a
+.Xr fork 2
+by a target process.
+.It Dv PMCLOG_TYPE_SYSEXIT
+A record describing a process exit, sent to processes
+owning system-wide sampling PMCs.
 .It Dv PMCLOG_TYPE_USERDATA
 A record containing user data.
 .El
@@ -279,3 +293,10 @@ for a file based parser may fail with any of the errors returned by
 .Xr pmc 3 ,
 .Xr hwpmc 4 ,
 .Xr pmcstat 8
+.Sh HISTORY
+The
+.Xr pmclog 3
+API
+.Ud
+It first appeared in
+.Fx 6.0 .
