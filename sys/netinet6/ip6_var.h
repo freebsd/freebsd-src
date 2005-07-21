@@ -173,8 +173,6 @@ struct	ip6_pktopts {
 #endif
 #define IP6PO_DONTFRAG	0x04	/* disable fragmentation (IPV6_DONTFRAG) */
 #define IP6PO_USECOA	0x08	/* use care of address */
-
-	int	needfree;	/* members dynamically allocated */
 };
 
 /*
@@ -368,7 +366,7 @@ int	ip6_ctloutput __P((struct socket *, struct sockopt *));
 int	ip6_raw_ctloutput __P((struct socket *, struct sockopt *));
 void	ip6_initpktopts __P((struct ip6_pktopts *));
 int	ip6_setpktopts __P((struct mbuf *, struct ip6_pktopts *,
-	struct ip6_pktopts *, int, int, int));
+	struct ip6_pktopts *, int, int));
 void	ip6_clearpktopts __P((struct ip6_pktopts *, int));
 struct ip6_pktopts *ip6_copypktopts __P((struct ip6_pktopts *, int));
 int	ip6_optlen __P((struct inpcb *));
