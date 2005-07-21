@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2004
+.Dd July 21, 2005
 .Dt NEXTWCTYPE 3
 .Os
 .Sh NAME
@@ -51,6 +51,17 @@ is \-1, the search begins at the first member of
 .Sh RETURN VALUES
 The
 .Fn nextwctype
-functions returns the next character, or \-1 if there are no more.
+function returns the next character, or \-1 if there are no more.
+.Sh COMPATIBILITY
+This function is a non-standard
+.Fx
+extension and should not be used where the standard
+.Fn iswctype
+function would suffice.
 .Sh SEE ALSO
 .Xr wctype 3
+.Sh HISTORY
+The
+.Fn nextwctype
+function appeared in
+.Fx 5.4 .
