@@ -39,6 +39,34 @@ __FBSDID("$FreeBSD$");
 #include <dev/led/led.h>
 #include <machine/pc/bios.h>
 
+static struct bios_oem bios_soekris = {
+	{ 0xf0000, 0xf1000 },
+	{
+		{ "Soekris", 0, 8 },	/* Soekris Engineering. */
+		{ "net4", 0, 8 },	/* net45xx */
+		{ "comBIOS", 0, 54 },	/* comBIOS ver. 1.26a  20040819 ... */
+		{ NULL, 0, 0 },
+	}
+};
+
+static struct bios_oem bios_pcengines = {
+	{ 0xf9000, 0xfa000 },
+	{
+		{ "PC Engines WRAP", 0, 28 },	/* PC Engines WRAP.1C v1.03 */
+		{ "tinyBIOS", 0, 28 },		/* tinyBIOS V1.4a (C)1997-2003 */
+		{ NULL, 0, 0 },
+	}
+};
+
+static struct bios_oem bios_advantech = {
+	{ 0xfe000, 0xff000 },
+	{
+		{ "**** PCM-582", 5, 33 },	/* PCM-5823 BIOS V1.12 ... */
+		{ "GXm-Cx5530",	-11, 35 },	/* 06/07/2002-GXm-Cx5530... */
+		{ NULL, 0, 0 },
+	}
+};
+
 static unsigned	cba;
 static unsigned	gpio;
 static unsigned	geode_counter;
@@ -115,9 +143,23 @@ geode_watchdog(void *foo __unused, u_int cmd, int *error)
 	}
 }
 
+/*
+ * The Advantech PCM-582x watchdog expects 0x1 at I/O port 0x0443
+ * every 1.6 secs +/- 30%. Writing 0x0 disables the watchdog
+ * NB: reading the I/O port enables the timer as well
+ */
+static void
+advantech_watchdog(void *foo __unused, u_int cmd, int *error)
+{
+	outb(0x0443, (cmd & WD_INTERVAL) ? 1 : 0);
+	*error = 0;
+}
+
 static int
 geode_probe(device_t self)
 {
+#define BIOS_OEM_MAXLEN 80
+	static u_char bios_oem[BIOS_OEM_MAXLEN] = "\0";
 
 	if (pci_get_devid(self) == 0x0515100b) {
 		if (geode_counter == 0) {
@@ -139,14 +181,12 @@ geode_probe(device_t self)
 		gpio = pci_read_config(self, PCIR_BAR(0), 4);
 		gpio &= ~0x1f;
 		printf("Geode GPIO@ = %x\n", gpio);
-		if (NULL != 
-		    bios_string(0xf0000, 0xf0100, "Soekris Engineering", 0)) {
-			printf("Soekris Engineering NET4801 platform\n");
+		if ( bios_oem_strings(&bios_soekris,
+					bios_oem, BIOS_OEM_MAXLEN) > 0 ) {
 			led1b = 20;
 			led1 = led_create(led_func, &led1b, "error");
-		} else if (NULL !=
-		    bios_string(0xf9000, 0xf9000, "PC Engines WRAP.1C ", 0)) {
-			printf("PC Engines WRAP.1C platfrom\n");
+		} else if ( bios_oem_strings(&bios_pcengines,
+					bios_oem, BIOS_OEM_MAXLEN) > 0 ) {
 			led1b = -2;
 			led2b = -3;
 			led3b = -18;
@@ -154,10 +194,19 @@ geode_probe(device_t self)
 			led2 = led_create(led_func, &led2b, "led2");
 			led3 = led_create(led_func, &led3b, "led3");
 			/*
-			 * Turn on first LED so we don't make people think
-			 * their box just died.
-			 */
+		 	* Turn on first LED so we don't make
+			* people think their box just died.
+		 	*/
 			led_func(&led1b, 1);
+		}
+		if ( strlen(bios_oem) )
+			printf("Geode %s\n", bios_oem);
+	} else if (pci_get_devid(self) == 0x01011078) {
+		if ( bios_oem_strings(&bios_advantech,
+				bios_oem, BIOS_OEM_MAXLEN) > 0 ) {
+			printf("Geode %s\n", bios_oem);
+			EVENTHANDLER_REGISTER(watchdog_list, advantech_watchdog,
+			    NULL, 0);
 		}
 	}
 	return (ENXIO);
