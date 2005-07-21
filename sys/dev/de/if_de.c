@@ -61,9 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
-#ifdef TULIP_USE_SOFTINTR
-#include <net/netisr.h>
-#endif
 
 #include <net/bpf.h>
 
@@ -97,10 +94,6 @@ __FBSDID("$FreeBSD$");
 
 #if 0
 #define	TULIP_PERFSTATS
-#endif
-
-#if 0
-#define	TULIP_USE_SOFTINTR
 #endif
 
 #define	TULIP_HZ	10
@@ -166,29 +159,6 @@ tulip_timeout(
     timeout(tulip_timeout_callback, sc, (hz + TULIP_HZ / 2) / TULIP_HZ);
 }
 
-#if defined(TULIP_NEED_FASTTIMEOUT)
-static void
-tulip_fasttimeout_callback(
-    void *arg)
-{
-    tulip_softc_t * const sc = arg;
-    int s = splimp();
-
-    sc->tulip_flags &= ~TULIP_FASTTIMEOUTPENDING;
-    (sc->tulip_boardsw->bd_media_poll)(sc, TULIP_MEDIAPOLL_FASTTIMER);
-    splx(s);
-}
-
-static void
-tulip_fasttimeout(
-    tulip_softc_t * const sc)
-{
-    if (sc->tulip_flags & TULIP_FASTTIMEOUTPENDING)
-	return;
-    sc->tulip_flags |= TULIP_FASTTIMEOUTPENDING;
-    timeout(tulip_fasttimeout_callback, sc, 1);
-}
-#endif
 
 static int
 tulip_txprobe(
@@ -229,11 +199,6 @@ tulip_txprobe(
     return 1;
 }
 
-#ifdef BIG_PACKET
-#define TULIP_SIAGEN_WATCHDOG	(sc->tulip_ifp->if_mtu > ETHERMTU ? TULIP_WATCHDOG_RXDISABLE|TULIP_WATCHDOG_TXDISABLE : 0)
-#else
-#define	TULIP_SIAGEN_WATCHDOG	0
-#endif
 
 static void
 tulip_media_set(
@@ -254,11 +219,11 @@ tulip_media_set(
 	TULIP_CSR_WRITE(sc, csr_sia_connectivity, TULIP_SIACONN_RESET);
 	TULIP_CSR_WRITE(sc, csr_sia_tx_rx,        mi->mi_sia_tx_rx);
 	if (sc->tulip_features & TULIP_HAVE_SIAGP) {
-	    TULIP_CSR_WRITE(sc, csr_sia_general,  mi->mi_sia_gp_control|mi->mi_sia_general|TULIP_SIAGEN_WATCHDOG);
+	    TULIP_CSR_WRITE(sc, csr_sia_general,  mi->mi_sia_gp_control|mi->mi_sia_general);
 	    DELAY(50);
-	    TULIP_CSR_WRITE(sc, csr_sia_general,  mi->mi_sia_gp_data|mi->mi_sia_general|TULIP_SIAGEN_WATCHDOG);
+	    TULIP_CSR_WRITE(sc, csr_sia_general,  mi->mi_sia_gp_data|mi->mi_sia_general);
 	} else {
-	    TULIP_CSR_WRITE(sc, csr_sia_general,  mi->mi_sia_general|TULIP_SIAGEN_WATCHDOG);
+	    TULIP_CSR_WRITE(sc, csr_sia_general,  mi->mi_sia_general);
 	}
 	TULIP_CSR_WRITE(sc, csr_sia_connectivity, mi->mi_sia_connectivity);
     } else if (mi->mi_type == TULIP_MEDIAINFO_GPR) {
@@ -3380,9 +3345,8 @@ tulip_rx_intr(
 		break;
 
 	    /*
-	     * It is possible (though improbable unless the BIG_PACKET support
-	     * is enabled or MCLBYTES < 1518) for a received packet to cross
-	     * more than one receive descriptor.  
+	     * It is possible (though improbable unless MCLBYTES < 1518) for
+	     * a received packet to cross more than one receive descriptor.  
 	     */
 	    while ((((volatile tulip_desc_t *) eop)->d_status & TULIP_DSTS_RxLASTDESC) == 0) {
 		if (++eop == ri->ri_last)
@@ -3433,14 +3397,7 @@ tulip_rx_intr(
 	 */
 	total_len = ((eop->d_status >> 16) & 0x7FFF) - 4;
 	if ((sc->tulip_flags & TULIP_RXIGNORE) == 0
-		&& ((eop->d_status & TULIP_DSTS_ERRSUM) == 0
-#ifdef BIG_PACKET
-		     || (total_len <= sc->tulip_ifp->if_mtu + sizeof(struct ether_header) && 
-			 (eop->d_status & (TULIP_DSTS_RxBADLENGTH|TULIP_DSTS_RxRUNT|
-					  TULIP_DSTS_RxCOLLSEEN|TULIP_DSTS_RxBADCRC|
-					  TULIP_DSTS_RxOVERFLOW)) == 0)
-#endif
-		)) {
+		&& ((eop->d_status & TULIP_DSTS_ERRSUM) == 0)) {
 	    me->m_len = total_len - last_offset;
 
 #if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NORX)
@@ -3454,14 +3411,6 @@ tulip_rx_intr(
 #endif
 #endif /* TULIP_BUS_DMA */
 
-#ifndef __FreeBSD__
-	    if (sc->tulip_ifp->if_bpf != NULL) {
-		if (me == ms)
-		    bpf_tap(&sc->tulip_if, mtod(ms, caddr_t), total_len);
-		else
-		    bpf_mtap(&sc->tulip_if, ms);
-	    }
-#endif
 	    sc->tulip_flags |= TULIP_RXACT;
 	    accept = 1;
 	} else {
@@ -3557,9 +3506,6 @@ tulip_rx_intr(
 		ms->m_pkthdr.rcvif = ifp;
 		(*ifp->if_input)(ifp, ms);
 #else
-#ifdef BIG_PACKET
-#error BIG_PACKET is incompatible with TULIP_COPY_RXDATA
-#endif
 		m0->m_data += 2;	/* align data after header */
 		m_copydata(ms, 0, total_len, mtod(m0, caddr_t));
 		m0->m_len = m0->m_pkthdr.len = total_len;
@@ -3807,14 +3753,12 @@ tulip_print_abnormal_interrupt(
 
 static void
 tulip_intr_handler(
-    tulip_softc_t * const sc,
-    int *progress_p)
+    tulip_softc_t * const sc)
 {
     TULIP_PERFSTART(intr)
     u_int32_t csr;
 
     while ((csr = TULIP_CSR_READ(sc, csr_status)) & sc->tulip_intrmask) {
-	*progress_p = 1;
 	TULIP_CSR_WRITE(sc, csr_status, csr);
 
 	if (csr & TULIP_STS_SYSERROR) {
@@ -3903,124 +3847,18 @@ tulip_intr_handler(
     TULIP_PERFEND(intr);
 }
 
-#if defined(TULIP_USE_SOFTINTR)
-/*
- * This is an experimental idea to alleviate problems due to interrupt
- * livelock.  What is interrupt livelock?  It's when you spend all your
- * time servicing device interrupts and never drop below device ipl
- * to do "useful" work.
- *
- * So what we do here is see if the device needs service and if so,
- * disable interrupts (dismiss the interrupt), place it in a list of devices
- * needing service, and issue a network software interrupt.
- *
- * When our network software interrupt routine gets called, we simply
- * walk done the list of devices that we have created and deal with them
- * at splnet/splsoftnet.
- *
- */
-static void
-tulip_hardintr_handler(
-    tulip_softc_t * const sc,
-    int *progress_p)
-{
-    if (TULIP_CSR_READ(sc, csr_status) & (TULIP_STS_NORMALINTR|TULIP_STS_ABNRMLINTR) == 0)
-	return;
-    *progress_p = 1;
-    /*
-     * disable interrupts
-     */
-    TULIP_CSR_WRITE(sc, csr_intr, 0);
-    /*
-     * mark it as needing a software interrupt
-     */
-    tulip_softintr_mask |= (1U << sc->tulip_unit);
-}
-
-static void
-tulip_softintr(
-    void)
-{
-    u_int32_t softintr_mask, mask;
-    int progress = 0;
-    int unit;
-    int s;
-
-    /*
-     * Copy mask to local copy and reset global one to 0.
-     */
-    s = splimp();
-    softintr_mask = tulip_softintr_mask;
-    tulip_softintr_mask = 0;
-    splx(s);
-
-    /*
-     * Optimize for the single unit case.
-     */
-    if (tulip_softintr_max_unit == 0) {
-	if (softintr_mask & 1) {
-	    tulip_softc_t * const sc = tulips[0];
-	    /*
-	     * Handle the "interrupt" and then reenable interrupts
-	     */
-	    softintr_mask = 0;
-	    tulip_intr_handler(sc, &progress);
-	    TULIP_CSR_WRITE(sc, csr_intr, sc->tulip_intrmask);
-	}
-	return;
-    }
-
-    /*
-     * Handle all "queued" interrupts in a round robin fashion.
-     * This is done so as not to favor a particular interface.
-     */
-    unit = tulip_softintr_last_unit;
-    mask = (1U << unit);
-    while (softintr_mask != 0) {
-	if (tulip_softintr_max_unit == unit) {
-	    unit  = 0; mask   = 1;
-	} else {
-	    unit += 1; mask <<= 1;
-	}
-	if (softintr_mask & mask) {
-	    tulip_softc_t * const sc = tulips[unit];
-	    /*
-	     * Handle the "interrupt" and then reenable interrupts
-	     */
-	    softintr_mask ^= mask;
-	    tulip_intr_handler(sc, &progress);
-	    TULIP_CSR_WRITE(sc, csr_intr, sc->tulip_intrmask);
-	}
-    }
-
-    /*
-     * Save where we ending up.
-     */
-    tulip_softintr_last_unit = unit;
-}
-#endif	/* TULIP_USE_SOFTINTR */
-
 static void
 tulip_intr_shared(
     void *arg)
 {
     tulip_softc_t * sc = arg;
-    int progress = 0;
 
     for (; sc != NULL; sc = sc->tulip_slaves) {
 #if defined(TULIP_DEBUG)
 	sc->tulip_dbg.dbg_intrs++;
 #endif
-#if defined(TULIP_USE_SOFTINTR)
-	tulip_hardintr_handler(sc, &progress);
-#else
-	tulip_intr_handler(sc, &progress);
-#endif
+	tulip_intr_handler(sc);
     }
-#if defined(TULIP_USE_SOFTINTR)
-    if (progress)
-	schednetisr(NETISR_DE);
-#endif
 }
 
 static void
@@ -4028,18 +3866,11 @@ tulip_intr_normal(
     void *arg)
 {
     tulip_softc_t * sc = (tulip_softc_t *) arg;
-    int progress = 0;
 
 #if defined(TULIP_DEBUG)
     sc->tulip_dbg.dbg_intrs++;
 #endif
-#if defined(TULIP_USE_SOFTINTR)
-    tulip_hardintr_handler(sc, &progress);
-    if (progress)
-	schednetisr(NETISR_DE);
-#else
-    tulip_intr_handler(sc, &progress);
-#endif
+    tulip_intr_handler(sc);
 }
 
 static struct mbuf *
@@ -4047,7 +3878,8 @@ tulip_mbuf_compress(
     struct mbuf *m)
 {
     struct mbuf *m0;
-#if MCLBYTES >= ETHERMTU + 18 && !defined(BIG_PACKET)
+
+#if MCLBYTES >= ETHERMTU + 18
     MGETHDR(m0, M_DONTWAIT, MT_DATA);
     if (m0 != NULL) {
 	if (m->m_pkthdr.len > MHLEN) {
@@ -4252,11 +4084,6 @@ tulip_txput(
 
 	while (len > 0) {
 	    unsigned slen = min(len, clsize);
-#ifdef BIG_PACKET
-	    int partial = 0;
-	    if (slen >= 2048)
-		slen = 2040, partial = 1;
-#endif
 	    segcnt++;
 	    if (segcnt > TULIP_MAX_TXSEG) {
 		/*
@@ -4306,10 +4133,6 @@ tulip_txput(
 	    d_status = TULIP_DSTS_OWNER;
 	    len -= slen;
 	    addr += slen;
-#ifdef BIG_PACKET
-	    if (partial)
-		continue;
-#endif
 	    clsize = PAGE_SIZE;
 	}
     } while ((m0 = m0->m_next) != NULL);
@@ -4517,11 +4340,6 @@ tulip_txput_setup(
 }
 
 
-/*
- * This routine is entered at splnet() (splsoftnet() on NetBSD)
- * and thereby imposes no problems when TULIP_USE_SOFTINTR is 
- * defined or not.
- */
 static int
 tulip_ifioctl(
     struct ifnet * ifp,
@@ -4534,11 +4352,7 @@ tulip_ifioctl(
     int s;
     int error = 0;
 
-#if defined(TULIP_USE_SOFTINTR)
-    s = splnet();
-#else
     s = splimp();
-#endif
     switch (cmd) {
 	case SIOCSIFFLAGS: {
 	    tulip_addr_filter(sc); /* reinit multicast filter */
@@ -4567,21 +4381,11 @@ tulip_ifioctl(
 	    /*
 	     * Set the interface MTU.
 	     */
-	    if (ifr->ifr_mtu > ETHERMTU
-#ifdef BIG_PACKET
-		    && sc->tulip_chipid != TULIP_21140
-		    && sc->tulip_chipid != TULIP_21140A
-		    && sc->tulip_chipid != TULIP_21041
-#endif
-		) {
+	    if (ifr->ifr_mtu > ETHERMTU) {
 		error = EINVAL;
 		break;
 	    }
 	    ifp->if_mtu = ifr->ifr_mtu;
-#ifdef BIG_PACKET
-	    tulip_reset(sc);
-	    tulip_init(sc);
-#endif
 	    break;
 
 #ifdef SIOCGADDRROM
@@ -4607,12 +4411,6 @@ tulip_ifioctl(
     return error;
 }
 
-/*
- * These routines gets called at device spl (from ether_output).  This might
- * pose a problem for TULIP_USE_SOFTINTR if ether_output is called at
- * device spl from another driver.
- */
-
 static void
 tulip_ifstart(
     struct ifnet * const ifp)
@@ -4643,7 +4441,7 @@ tulip_ifstart(
 /*
  * Even though this routine runs at device spl, it does not break
  * our use of splnet (splsoftnet under NetBSD) for the majority
- * of this driver (if TULIP_USE_SOFTINTR defined) since 
+ * of this driver since 
  * if_watcbog is called from if_watchdog which is called from
  * splsoftclock which is below spl[soft]net.
  */
@@ -4754,9 +4552,6 @@ tulip_attach(
 	   sc->tulip_revinfo & 0x0F,
 	   (sc->tulip_features & (TULIP_HAVE_ISVSROM|TULIP_HAVE_OKSROM))
 		 == TULIP_HAVE_ISVSROM ? " (invalid EESPROM checksum)" : "");
-#ifndef __FreeBSD__
-    if_printf(ifp, "address %6D\n", sc->tulip_enaddr, ":");
-#endif
 
 #if defined(__alpha__)
     /*
@@ -5194,10 +4989,6 @@ tulip_pci_attach(device_t dev)
 		return ENXIO;
 	    }
 	}
-#if defined(TULIP_USE_SOFTINTR)
-	if (sc->tulip_unit > tulip_softintr_max_unit)
-	    tulip_softintr_max_unit = sc->tulip_unit;
-#endif
 
 	s = splimp();
 #if defined(__alpha__) 
