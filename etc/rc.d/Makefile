@@ -26,7 +26,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	nfslocking nfsserver nisdomain nsswitch ntpd ntpdate \
 	othermta \
 	pccard pcvt pf pflog preseedrandom \
-	power_profile ppp-user pppoed pwcheck \
+	powerd power_profile ppp-user pppoed pwcheck \
 	quota \
 	random rarpd rcconf.sh resolv root \
 	route6d routed routing rpcbind rtadvd rwho \

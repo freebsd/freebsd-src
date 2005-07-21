@@ -29,7 +29,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -168,10 +167,8 @@ static int
 set_freq(int freq)
 {
 
-	if (sysctl(freq_mib, 4, NULL, NULL, &freq, sizeof(freq))) {
-		if (errno != EPERM)
-			return (-1);
-	}
+	if (sysctl(freq_mib, 4, NULL, NULL, &freq, sizeof(freq)))
+		return (-1);
 
 	return (0);
 }

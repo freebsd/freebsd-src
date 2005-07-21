@@ -113,6 +113,7 @@ SUBDIR=	ac \
 	periodic \
 	pkg_install \
 	${_pnpinfo} \
+	powerd \
 	ppp \
 	${_pppctl} \
 	pppd \
