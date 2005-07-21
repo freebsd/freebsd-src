@@ -474,45 +474,15 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		    np->ra_expect_lbn = lbn + 1;
 		}
 
-		/*
-		 * Obtain the buffer cache block.  Figure out the buffer size
-		 * when we are at EOF.  If we are modifying the size of the
-		 * buffer based on an EOF condition we need to hold
-		 * nfs_rslock() through obtaining the buffer to prevent
-		 * a potential writer-appender from messing with n_size.
-		 * Otherwise we may accidently truncate the buffer and
-		 * lose dirty data.
-		 *
-		 * Note that bcount is *not* DEV_BSIZE aligned.
-		 */
-
-again:
+		/* Note that bcount is *not* DEV_BSIZE aligned. */
 		bcount = biosize;
 		if ((off_t)lbn * biosize >= np->n_size) {
 			bcount = 0;
 		} else if ((off_t)(lbn + 1) * biosize > np->n_size) {
 			bcount = np->n_size - (off_t)lbn * biosize;
 		}
-		if (bcount != biosize) {
-			switch(nfs_rslock(np, td)) {
-			case ENOLCK:
-				goto again;
-				/* not reached */
-			case EIO:
-				return (EIO);
-			case EINTR:
-			case ERESTART:
-				return(EINTR);
-				/* not reached */
-			default:
-				break;
-			}
-		}
-
 		bp = nfs_getcacheblk(vp, lbn, bcount, td);
 
-		if (bcount != biosize)
-			nfs_rsunlock(np, td);
 		if (!bp) {
 			error = nfs_sigintr(nmp, NULL, td);
 			return (error ? error : EINTR);
@@ -846,7 +816,6 @@ nfs_write(struct vop_write_args *ap)
 	daddr_t lbn;
 	int bcount;
 	int n, on, error = 0;
-	int haverslock = 0;
 	struct proc *p = td?td->td_proc:NULL;
 
 	GIANT_REQUIRED;
@@ -894,7 +863,6 @@ flush_and_restart:
 	 * If IO_APPEND then load uio_offset.  We restart here if we cannot
 	 * get the append lock.
 	 */
-restart:
 	if (ioflag & IO_APPEND) {
 		np->n_attrstamp = 0;
 		error = VOP_GETATTR(vp, &vattr, cred, td);
@@ -914,38 +882,6 @@ restart:
 		return nfs_directio_write(vp, uio, cred, ioflag);
 
 	/*
-	 * We need to obtain the rslock if we intend to modify np->n_size
-	 * in order to guarentee the append point with multiple contending
-	 * writers, to guarentee that no other appenders modify n_size
-	 * while we are trying to obtain a truncated buffer (i.e. to avoid
-	 * accidently truncating data written by another appender due to
-	 * the race), and to ensure that the buffer is populated prior to
-	 * our extending of the file.  We hold rslock through the entire
-	 * operation.
-	 *
-	 * Note that we do not synchronize the case where someone truncates
-	 * the file while we are appending to it because attempting to lock
-	 * this case may deadlock other parts of the system unexpectedly.
-	 */
-	if ((ioflag & IO_APPEND) ||
-	    uio->uio_offset + uio->uio_resid > np->n_size) {
-		switch(nfs_rslock(np, td)) {
-		case ENOLCK:
-			goto restart;
-			/* not reached */
-		case EIO:
-			return (EIO);
-		case EINTR:
-		case ERESTART:
-			return(EINTR);
-			/* not reached */
-		default:
-			break;
-		}
-		haverslock = 1;
-	}
-
-	/*
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, i don't think it matters
 	 */
@@ -955,8 +891,6 @@ restart:
 		    lim_cur(p, RLIMIT_FSIZE)) {
 			psignal(p, SIGXFSZ);
 			PROC_UNLOCK(p);
-			if (haverslock)
-				nfs_rsunlock(np, td);
 			return (EFBIG);
 		}
 		PROC_UNLOCK(p);
@@ -1012,13 +946,8 @@ restart:
 			if (wouldcommit > nmp->nm_wcommitsize)
 				needrestart = 1;
 		}
-		if (needrestart) {
-			if (haverslock) {
-				nfs_rsunlock(np, td);
-				haverslock = 0;
-			}
+		if (needrestart)
 			goto flush_and_restart;
-		}
 	}
 
 	do {
@@ -1214,9 +1143,6 @@ again:
 			bdwrite(bp);
 		}
 	} while (uio->uio_resid > 0 && n > 0);
-
-	if (haverslock)
-		nfs_rsunlock(np, td);
 
 	return (error);
 }
