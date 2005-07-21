@@ -2974,7 +2974,6 @@ tulip_addr_filter(
 		multicnt++;
     }
 
-    sc->tulip_ifp->if_start = tulip_ifstart;	/* so the setup packet gets queued */
     if (multicnt > 14) {
 	u_int32_t *sp = sc->tulip_setupdata;
 	unsigned hash;
@@ -3124,7 +3123,6 @@ tulip_reset(
 	sc->tulip_flags |= TULIP_INRESET;
 	sc->tulip_flags &= ~(TULIP_NEEDRESET|TULIP_RXBUFSLOW);
 	sc->tulip_ifp->if_flags &= ~IFF_OACTIVE;
-	sc->tulip_ifp->if_start = tulip_ifstart;
     }
 
 #if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NOTX)
@@ -4206,7 +4204,6 @@ tulip_txput(
     if (sc->tulip_flags & TULIP_TXPROBE_ACTIVE) {
 	TULIP_CSR_WRITE(sc, csr_txpoll, 1);
 	sc->tulip_ifp->if_flags |= IFF_OACTIVE;
-	sc->tulip_ifp->if_start = tulip_ifstart;
 	TULIP_PERFEND(txput);
 	return NULL;
     }
@@ -4236,7 +4233,6 @@ tulip_txput(
 #endif
     if (sc->tulip_flags & (TULIP_WANTTXSTART|TULIP_DOINGSETUP)) {
 	sc->tulip_ifp->if_flags |= IFF_OACTIVE;
-	sc->tulip_ifp->if_start = tulip_ifstart;
 	if ((sc->tulip_intrmask & TULIP_STS_TXINTR) == 0) {
 	    sc->tulip_intrmask |= TULIP_STS_TXINTR;
 	    TULIP_CSR_WRITE(sc, csr_intr, sc->tulip_intrmask);
@@ -4267,7 +4263,6 @@ tulip_txput_setup(
     if ((sc->tulip_cmdmode & TULIP_CMD_TXRUN) == 0) {
 	if_printf(sc->tulip_ifp, "txput_setup: tx not running\n");
 	sc->tulip_flags |= TULIP_WANTTXSTART;
-	sc->tulip_ifp->if_start = tulip_ifstart;
 	return;
     }
 #endif
@@ -4278,7 +4273,6 @@ tulip_txput_setup(
 	tulip_tx_intr(sc);
     if ((sc->tulip_flags & TULIP_DOINGSETUP) || ri->ri_free == 1) {
 	sc->tulip_flags |= TULIP_WANTTXSTART;
-	sc->tulip_ifp->if_start = tulip_ifstart;
 	return;
     }
     bcopy(sc->tulip_setupdata, sc->tulip_setupbuf,
