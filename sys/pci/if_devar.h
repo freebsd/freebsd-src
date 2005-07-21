@@ -120,7 +120,7 @@ typedef struct {
  *
  * The receive space MUST ALWAYS be a multiple of the page size.
  * And the number of receive descriptors multiplied by the size
- * of the receive buffers must equal the recevive space.  This
+ * of the receive buffers must equal the receive space.  This
  * is so that we can manipulate the page tables so that even if a
  * packet wraps around the end of the receive space, we can
  * treat it as virtually contiguous.
@@ -277,8 +277,7 @@ typedef struct {
 #define	mi_mii_interrupt	mi_un.un_mii.mii_interrupt
 #define	mi_phyid		mi_un.un_mii.mii_phyid
 
-#define	TULIP_MEDIAINFO_SIA_INIT(sc, mi, chipid, media)			\
-do {									\
+#define	TULIP_MEDIAINFO_SIA_INIT(sc, mi, chipid, media) do {		\
 	(mi)->mi_type = TULIP_MEDIAINFO_SIA;				\
 	sc->tulip_mediums[TULIP_MEDIA_ ## media] = (mi);		\
 	(mi)->mi_sia_connectivity = TULIP_ ## chipid ## _SIACONN_ ## media; \
@@ -286,8 +285,7 @@ do {									\
 	(mi)->mi_sia_general = TULIP_ ## chipid ## _SIAGEN_ ## media;	\
 } while (0)
 
-#define TULIP_MEDIAINFO_ADD_CAPABILITY(sc, mi, media)			\
-do {	\
+#define TULIP_MEDIAINFO_ADD_CAPABILITY(sc, mi, media) do {		\
 	if ((sc)->tulip_mediums[TULIP_MEDIA_ ## media] == NULL		\
 	    && ((mi)->mi_capabilities & PHYSTS_ ## media)) {		\
 		(sc)->tulip_mediums[TULIP_MEDIA_ ## media] = (mi);	\
