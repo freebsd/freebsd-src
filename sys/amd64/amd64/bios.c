@@ -93,18 +93,3 @@ bios_sigsearch(u_int32_t start, u_char *sig, int siglen, int paralen, int sigofs
     }
     return(0);
 }
-
-const u_char *
-bios_string(u_int from, u_int to, const u_char *string, int len)
-{
-	const char *t, *te;
-
-	if (len == 0)
-		len = strlen(string);
-	t = (const char *)(KERNBASE + from);
-	te = (const char *)(KERNBASE + to);
-	for (; t <= te; t++)
-		if (!memcmp(string, t, len))
-			return (t);
-	return (NULL);
-}
