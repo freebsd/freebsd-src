@@ -136,6 +136,12 @@ dev/atkbdc/atkbdc.c		optional	atkbdc
 dev/atkbdc/atkbdc_isa.c		optional	atkbdc isa
 dev/atkbdc/atkbdc_subr.c	optional	atkbdc
 dev/atkbdc/psm.c		optional	psm atkbdc
+# There are no systems with isa slots, so all ed isa entries should go..
+dev/ed/if_ed_3c503.c		optional	ed isa ed_3c503
+dev/ed/if_ed_isa.c		optional	ed isa
+dev/ed/if_ed_wd80x3.c		optional	ed isa
+dev/ed/if_ed_hpp.c		optional	ed isa ed_hpp
+dev/ed/if_ed_sic.c		optional	ed isa ed_sic
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
