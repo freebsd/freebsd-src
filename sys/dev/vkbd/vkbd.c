@@ -65,7 +65,7 @@ MALLOC_DEFINE(M_VKBD, KEYBOARD_NAME, "Virtual AT keyboard");
  *****************************************************************************/
 
 #define VKBD_LOCK_DECL		struct mtx ks_lock
-#define VKBD_LOCK_INIT(s)	mtx_init(&(s)->ks_lock, NULL, NULL, MTX_DEF)
+#define VKBD_LOCK_INIT(s)	mtx_init(&(s)->ks_lock, "vkbd_lock", NULL, MTX_DEF|MTX_RECURSE)
 #define VKBD_LOCK_DESTROY(s)	mtx_destroy(&(s)->ks_lock)
 #define VKBD_LOCK(s)		mtx_lock(&(s)->ks_lock)
 #define VKBD_UNLOCK(s)		mtx_unlock(&(s)->ks_lock)
