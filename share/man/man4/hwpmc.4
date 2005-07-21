@@ -70,6 +70,7 @@ The
 driver supports the use of hardware PMCs for counting or for
 sampling:
 .Bl -tag -width ".Em Counting"
+.It Em Counting
 In counting modes, the PMCs count hardware events.
 These counts are retrievable using the
 .Dv PMC_OP_PMCREAD
@@ -500,6 +501,16 @@ The value for tunable
 .Va kern.hwpmc.nsamples
 was negative or greater than 65535.
 .El
+.Sh COMPATIBILITY
+The
+.Nm
+driver is
+.Ud
+The API and ABI documented in this manual page may change in
+the future.
+The recommended method of accessing this driver is using the
+.Xr pmc 3
+API.
 .Sh ERRORS
 A command issued to the
 .Nm
@@ -685,12 +696,18 @@ driver.
 .Sh SEE ALSO
 .Xr kenv 1 ,
 .Xr pmc 3 ,
+.Xr pmclog 3 ,
 .Xr kgmon 8 ,
 .Xr kldload 8 ,
 .Xr pmccontrol 8 ,
 .Xr pmcstat 8 ,
 .Xr sysctl 8 ,
 .Xr p_candebug 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 6.0 .
 .Sh BUGS
 The driver samples the state of the kernel's logical processor support
 at the time of initialization (i.e., at module load time).
