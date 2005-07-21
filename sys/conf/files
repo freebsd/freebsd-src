@@ -627,6 +627,7 @@ dev/ixgb/ixgb_hw.c		optional ixgb
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
 dev/joy/joy_pccard.c		optional joy pccard
+dev/kbdmux/kbdmux.c		optional kbdmux
 dev/led/led.c			standard
 dev/lge/if_lge.c		optional lge
 dev/lnc/if_lnc.c		optional lnc
