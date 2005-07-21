@@ -346,9 +346,8 @@ rip6_output(m, va_alist)
 		priv = 1;
 	dst = &dstsock->sin6_addr;
 	if (control) {
-		if ((error = ip6_setpktoptions(control, &opt,
-					       stickyopt, priv, 0,
-					       so->so_proto->pr_protocol))
+		if ((error = ip6_setpktopts(control, &opt,
+		    stickyopt, priv, 0, so->so_proto->pr_protocol))
 		    != 0) {
 			goto bad;
 		}
@@ -394,7 +393,7 @@ rip6_output(m, va_alist)
 
 		/*
 		 * XXX Boundary check is assumed to be already done in
-		 * ip6_setpktoptions().
+		 * ip6_setpktopts().
 		 */
 		if (in6p->in6p_outputopts &&
 		    (pi = in6p->in6p_outputopts->ip6po_pktinfo) &&
