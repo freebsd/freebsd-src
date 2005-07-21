@@ -134,7 +134,7 @@ acpi_throttle_identify(driver_t *driver, device_t parent)
 	ACPI_OBJECT *obj;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "acpi_throttle", -1) != NULL)
+	if (device_find_child(parent, "acpi_throttle", -1))
 		return;
 
 	/* Check for a valid duty width and parent CPU type. */
@@ -169,6 +169,16 @@ acpi_throttle_probe(device_t dev)
 	if (resource_disabled("acpi_throttle", 0))
 		return (ENXIO);
 
+	/*
+	 * On i386 platforms at least, ACPI throttling is accomplished by
+	 * the chipset modulating the STPCLK# pin based on the duty cycle.
+	 * Since p4tcc uses the same mechanism (but internal to the CPU),
+	 * we disable acpi_throttle when p4tcc is also present.
+	 */
+	if (device_find_child(device_get_parent(dev), "p4tcc", -1) &&
+	    !resource_disabled("p4tcc", 0))
+		return (ENXIO);
+
 	device_set_desc(dev, "ACPI CPU Throttling");
 	return (0);
 }
@@ -177,6 +187,7 @@ static int
 acpi_throttle_attach(device_t dev)
 {
 	struct acpi_throttle_softc *sc;
+	struct cf_setting set;
 	ACPI_BUFFER buf;
 	ACPI_OBJECT *obj;
 	ACPI_STATUS status;
@@ -207,6 +218,13 @@ acpi_throttle_attach(device_t dev)
 	error = acpi_throttle_evaluate(sc);
 	if (error)
 		return (error);
+
+	/*
+	 * Set our initial frequency to the highest since some systems
+	 * seem to boot with this at the lowest setting.
+	 */
+	set.freq = 10000;
+	acpi_thr_set(dev, &set);
 
 	/* Everything went ok, register with cpufreq(4). */
 	cpufreq_register(dev);

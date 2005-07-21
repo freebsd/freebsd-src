@@ -154,3 +154,16 @@ METHOD ACPI_STATUS scan_children {
 	acpi_scan_cb_t	user_fn;
 	void		*arg;
 };
+
+#
+# Query a given driver for its supported feature(s).  This should be
+# called by the parent bus before the driver is probed.
+#
+# driver_t *driver:  child driver
+#
+# u_int *features:  returned bitmask of all supported features
+#
+STATICMETHOD int get_features {
+	driver_t	*driver;
+	u_int		*features;
+};
