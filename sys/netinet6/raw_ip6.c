@@ -324,7 +324,7 @@ rip6_output(m, va_alist)
 	struct inpcb *in6p;
 	u_int	plen = m->m_pkthdr.len;
 	int error = 0;
-	struct ip6_pktopts opt, *stickyopt = NULL;
+	struct ip6_pktopts opt, *optp;
 	struct ifnet *oifp = NULL;
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
 	int priv = 0;
@@ -339,7 +339,6 @@ rip6_output(m, va_alist)
 
 	in6p = sotoin6pcb(so);
 	INP_LOCK(in6p);
-	stickyopt = in6p->in6p_outputopts;
 
 	priv = 0;
 	if (so->so_cred->cr_uid == 0)
@@ -347,12 +346,13 @@ rip6_output(m, va_alist)
 	dst = &dstsock->sin6_addr;
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
-		    stickyopt, priv, 0, so->so_proto->pr_protocol))
+		    in6p->in6p_outputopts, priv, 0, so->so_proto->pr_protocol))
 		    != 0) {
 			goto bad;
 		}
-		in6p->in6p_outputopts = &opt;
-	}
+		optp = &opt;
+	} else
+		optp = in6p->in6p_outputopts;
 
 	/*
 	 * For an ICMPv6 packet, we should know its type and code
@@ -395,8 +395,8 @@ rip6_output(m, va_alist)
 		 * XXX Boundary check is assumed to be already done in
 		 * ip6_setpktopts().
 		 */
-		if (in6p->in6p_outputopts &&
-		    (pi = in6p->in6p_outputopts->ip6po_pktinfo) &&
+		if (optp &&
+		    (pi = optp->ip6po_pktinfo) &&
 		    pi->ipi6_ifindex) {
 			ip6->ip6_dst.s6_addr16[1] = htons(pi->ipi6_ifindex);
 			oifp = ifnet_byindex(pi->ipi6_ifindex);
@@ -420,8 +420,8 @@ rip6_output(m, va_alist)
 	/*
 	 * Source address selection.
 	 */
-	if ((in6a = in6_selectsrc(dstsock, in6p->in6p_outputopts,
-	    in6p->in6p_moptions, NULL, &in6p->in6p_laddr, &error)) == 0) {
+	if ((in6a = in6_selectsrc(dstsock, optp, in6p->in6p_moptions, NULL,
+	    &in6p->in6p_laddr, &error)) == 0) {
 		if (error == 0)
 			error = EADDRNOTAVAIL;
 		goto bad;
@@ -464,8 +464,7 @@ rip6_output(m, va_alist)
 		*p = in6_cksum(m, ip6->ip6_nxt, sizeof(*ip6), plen);
 	}
 
-	error = ip6_output(m, in6p->in6p_outputopts, NULL, 0,
-			   in6p->in6p_moptions, &oifp, in6p);
+	error = ip6_output(m, optp, NULL, 0, in6p->in6p_moptions, &oifp, in6p);
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);
@@ -481,8 +480,7 @@ rip6_output(m, va_alist)
 
  freectl:
 	if (control) {
-		ip6_clearpktopts(in6p->in6p_outputopts, -1);
-		in6p->in6p_outputopts = stickyopt;
+		ip6_clearpktopts(&opt, -1);
 		m_freem(control);
 	}
 	INP_UNLOCK(in6p);
