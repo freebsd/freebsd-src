@@ -107,20 +107,10 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 	struct vnode *nvp;
 	int error;
 	u_int hash;
-	int rsflags;
 	struct nfsmount *nmp;
 	struct nfs_vncmp ncmp;
 
-	/*
-	 * Calculate nfs mount point and figure out whether the rslock should
-	 * be interruptible or not.
-	 */
 	nmp = VFSTONFS(mntp);
-	if (nmp->nm_flag & NFSMNT_INT)
-		rsflags = PCATCH;
-	else
-		rsflags = 0;
-
 	*npp = NULL;
 
 	hash = fnv_32_buf(fhp->fh_bytes, fhsize, FNV1_32_INIT);
@@ -173,7 +163,6 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 		np->n_fhp = &np->n_fh;
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
 	np->n_fhsize = fhsize;
-	lockinit(&np->n_rslock, PVFS | rsflags, "nfrslk", 0, 0);
 	*npp = np;
 
 	return (0);
@@ -240,7 +229,6 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 		FREE((caddr_t)np->n_fhp, M_NFSBIGFH);
 	}
 
-	lockdestroy(&np->n_rslock);
 	uma_zfree(nfsnode_zone, vp->v_data);
 	vp->v_data = NULL;
 	vnode_destroy_vobject(vp);
