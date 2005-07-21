@@ -152,6 +152,31 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 	return (res);
 }
 
+#if defined(_KERNEL) && !defined(SMP)
+
+/*
+ * We assume that a = b will do atomic loads and stores.  However, on a
+ * PentiumPro or higher, reads may pass writes, so for that case we have
+ * to use a serializing instruction (i.e. with LOCK) to do the load in
+ * SMP kernels.  For UP kernels, however, the cache of the single processor
+ * is always consistent, so we don't need any memory barriers.
+ */
+#define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
+static __inline u_##TYPE				\
+atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
+{							\
+	return (*p);					\
+}							\
+							\
+static __inline void					\
+atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	*p = v;						\
+}							\
+struct __hack
+
+#else /* defined(SMP) */
+
 #define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
@@ -178,6 +203,8 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	: : "memory");				 	\
 }							\
 struct __hack
+
+#endif /* SMP */
 
 #endif /* KLD_MODULE || !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
 
