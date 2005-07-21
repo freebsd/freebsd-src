@@ -1457,7 +1457,6 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_create_ipq = stub_create_ipq,
 	.mpo_create_datagram_from_ipq = stub_create_datagram_from_ipq,
 	.mpo_create_fragment = stub_create_fragment,
-	.mpo_create_ipq = stub_create_ipq,
 	.mpo_create_mbuf_from_inpcb = stub_create_mbuf_from_inpcb,
 	.mpo_create_mbuf_linklayer = stub_create_mbuf_linklayer,
 	.mpo_create_mbuf_from_bpfdesc = stub_create_mbuf_from_bpfdesc,
