@@ -958,33 +958,15 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 	    (sc)->tulip_curperfstats.perf_ ## name ++; \
 	} while (0)
 
-#if defined(__i386__)
-typedef u_quad_t tulip_cycle_t;
+typedef u_long tulip_cycle_t;
 
 static __inline tulip_cycle_t
 TULIP_PERFREAD(void)
 {
-	tulip_cycle_t x;
-	__asm__ volatile (".byte 0x0f, 0x31":"=A" (x));
-
-	return (x);
+	return (get_cyclecount());
 }
 
 #define	TULIP_PERFDIFF(s, f)	((f) - (s))
-#elif defined(__alpha__)
-typedef unsigned long tulip_cycle_t;
-
-static __inline tulip_cycle_t
-TULIP_PERFREAD(void)
-{
-	tulip_cycle_t x;
-	__asm__ volatile ("rpcc %0":"=r" (x));
-
-	return (x);
-}
-
-#define	TULIP_PERFDIFF(s, f)	((unsigned int) ((f) - (s)))
-#endif
 #else
 #define	TULIP_PERFSTART(name)
 #define	TULIP_PERFEND(name)	do { } while (0)
