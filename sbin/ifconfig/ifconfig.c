@@ -91,6 +91,7 @@ int	newaddr = 1;
 int	verbose;
 
 int	supmedia = 0;
+int	printkeys = 0;		/* Print keying material for interfaces. */
 int	printname = 0;		/* Print the name of the created interface. */
 
 static	int ifconfig(int argc, char *const *argv, const struct afswtch *afp);
@@ -156,7 +157,7 @@ main(int argc, char *argv[])
 	all = downonly = uponly = namesonly = verbose = 0;
 
 	/* Parse leading line options */
-	strlcpy(options, "adlmuv", sizeof(options));
+	strlcpy(options, "adklmuv", sizeof(options));
 	for (p = opts; p != NULL; p = p->next)
 		strlcat(options, p->opt, sizeof(options));
 	while ((c = getopt(argc, argv, options)) != -1) {
@@ -166,6 +167,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':	/* restrict scan to "down" interfaces */
 			downonly++;
+			break;
+		case 'k':
+			printkeys++;
 			break;
 		case 'l':	/* scan interface names only */
 			namesonly++;
