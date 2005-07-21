@@ -108,7 +108,7 @@ list_rules(void)
 
 	printf("%d slots, %d rules\n", rule_slots, rule_count);
 
-	for (i = 0; i <= rule_slots; i++) {
+	for (i = 0; i < rule_slots; i++) {
 		error = bsde_get_rule(i, &rule, BUFSIZ, errstr);
 		switch (error) {
 		case -2:
