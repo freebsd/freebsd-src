@@ -95,6 +95,9 @@ static int bootAP;
 /* Free these after use */
 void *bootstacks[MAXCPU];
 
+/* Temporary holder for double fault stack */
+char *doublefault_stack;
+
 /* Hotwire a 0->4MB V==P mapping */
 extern pt_entry_t *KPTphys;
 
@@ -432,6 +435,7 @@ init_secondary(void)
 	common_tss[cpu] = common_tss[0];
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss);
+	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
 
 	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
@@ -679,7 +683,8 @@ start_all_aps(void)
 		cpu_apic_ids[cpu] = apic_id;
 
 		/* allocate and set up an idle stack data page */
-		bootstacks[cpu] = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
+		bootstacks[cpu] = (void *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
+		doublefault_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
 
 		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
 		bootAP = cpu;
