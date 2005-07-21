@@ -226,12 +226,11 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
 #       Am79C960)
 
-#XXX#	still calls MD i386 kvtop function instead of vtophys etc
-#XXX#device		ed
-#XXX#options 		ED_3C503
-#XXX#options 		ED_HPP
-#XXX#options 		ED_SIC
-#XXX#device		lnc
+device		ed
+options 	ED_3C503
+options 	ED_HPP
+options 	ED_SIC
+device		lnc
 
 device		ath
 device		ath_hal		# Atheros HAL (includes binary component)
