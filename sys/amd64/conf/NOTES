@@ -296,9 +296,10 @@ options 	SAFE_RNDTEST	# enable rndtest support
 #
 # Miscellaneous hardware:
 #
+# smbios: DMI/SMBIOS entry point
+# vpd: Vital Product Data kernel interface
 # cy: Cyclades serial driver
 # digi: Digiboard driver
-# smbios: DMI/SMBIOS entry point
 
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
@@ -322,6 +323,7 @@ device		pbio
 hint.pbio.0.at="isa"
 hint.pbio.0.port="0x360"
 device		smbios
+device		vpd
 # sx device is i386 and pc98 only at the moment.
 device		sx
 options 	SX_DEBUG
