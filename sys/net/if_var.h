@@ -161,7 +161,7 @@ struct ifnet {
 	void	*if_spare1;		/* spare pointer 1 */
 	void	*if_spare2;		/* spare pointer 2 */
 	void	*if_spare3;		/* spare pointer 3 */
-	u_int	if_spare_flags1;	/* spare flags 1 */
+	int	if_drv_flags;		/* driver-managed status flags */
 	u_int	if_spare_flags2;	/* spare flags 2 */
 	struct  ifaltq if_snd;		/* output queue (includes altq) */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
