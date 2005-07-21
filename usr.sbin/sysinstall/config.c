@@ -207,7 +207,11 @@ configFstab(dialogMenuItem *self)
 	if (!disk->chunks)
 	    msgFatal("No chunk list found for %s!", disk->name);
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+#ifdef __powerpc__
+	    if (c1->type == apple) {
+#else
 	    if (c1->type == freebsd) {
+#endif
 		for (c2 = c1->part; c2; c2 = c2->next) {
 		    if (c2->type == part && (c2->subtype == FS_SWAP || c2->private_data))
 			chunk_list[nchunks++] = c2;
