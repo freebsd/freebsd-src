@@ -4742,8 +4742,8 @@ tulip_initring(
  * This is the PCI configuration support.
  */
 
-#define	PCI_CBIO	0x10	/* Configuration Base IO Address */
-#define	PCI_CBMA	0x14	/* Configuration Base Memory Address */
+#define	PCI_CBIO	PCIR_BAR(0)	/* Configuration Base IO Address */
+#define	PCI_CBMA	PCIR_BAR(1)	/* Configuration Base Memory Address */
 #define	PCI_CFDA	0x40	/* Configuration Driver Area */
 
 static int
@@ -4807,7 +4807,7 @@ tulip_pci_attach(device_t dev)
     tulip_media_t media = TULIP_MEDIA_UNKNOWN;
 #endif
     int retval, idx;
-    u_int32_t revinfo, cfdainfo, cfcsinfo;
+    u_int32_t revinfo, cfdainfo;
     unsigned csroffset = TULIP_PCI_CSROFFSET;
     unsigned csrsize = TULIP_PCI_CSRSIZE;
     tulip_csrptr_t csr_base;
@@ -4825,13 +4825,9 @@ tulip_pci_attach(device_t dev)
 
     revinfo  = pci_get_revid(dev);
     cfdainfo = pci_read_config(dev, PCI_CFDA, 4);
-    cfcsinfo = pci_read_config(dev, PCIR_COMMAND, 4);
 
     /* turn busmaster on in case BIOS doesn't set it */
-    if(!(cfcsinfo & PCIM_CMD_BUSMASTEREN)) {
-	 cfcsinfo |= PCIM_CMD_BUSMASTEREN;
-	 pci_write_config(dev, PCIR_COMMAND, cfcsinfo, 4);
-    }
+    pci_enable_busmaster(dev);
 
     if (pci_get_vendor(dev) == DEC_VENDORID) {
 	if (pci_get_device(dev) == CHIPID_21040)
