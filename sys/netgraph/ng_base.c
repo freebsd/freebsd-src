@@ -3260,7 +3260,7 @@ static void
 ng_setisr(node_p node)
 {
 
-	mtx_assert(&ngq->q_mtx, MA_OWNED);
+	mtx_assert(&node->nd_input_queue.q_mtx, MA_OWNED);
 
 	if ((node->nd_flags & NGF_WORKQ) == 0) {
 		/*
