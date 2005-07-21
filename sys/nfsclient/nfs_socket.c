@@ -580,7 +580,8 @@ tryagain:
 	if (rep->r_nmp->nm_flag & NFSMNT_INT)
 		slpflag = PCATCH;
 	mtx_lock(&nfs_reply_mtx);
-	while ((rep->r_mrep == NULL) && (error == 0) &&
+	while ((rep->r_mrep == NULL) && (error == 0) && 
+	       ((rep->r_flags & R_SOFTTERM) == 0) &&
 	       ((sotype == SOCK_DGRAM) || ((rep->r_flags & R_MUSTRESEND) == 0)))
 		error = msleep((caddr_t)rep, &nfs_reply_mtx, 
 			       slpflag | (PZERO - 1), "nfsreq", 0);
