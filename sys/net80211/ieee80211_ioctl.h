@@ -149,6 +149,8 @@ struct ieee80211_stats {
 	u_int32_t	is_tx_badcipher;	/* tx failed 'cuz key type */
 	u_int32_t	is_tx_nodefkey;		/* tx failed 'cuz no defkey */
 	u_int32_t	is_tx_noheadroom;	/* tx failed 'cuz no space */
+	u_int32_t	is_tx_fragframes;	/* tx frames fragmented */
+	u_int32_t	is_tx_frags;		/* tx fragments created */
 	u_int32_t	is_scan_active;		/* active scans started */
 	u_int32_t	is_scan_passive;	/* passive scans started */
 	u_int32_t	is_node_timeout;	/* nodes timed out inactivity */
@@ -173,6 +175,12 @@ struct ieee80211_stats {
 	u_int32_t	is_ps_unassoc;		/* ps-poll for unassoc. sta */
 	u_int32_t	is_ps_badaid;		/* ps-poll w/ incorrect aid */
 	u_int32_t	is_ps_qempty;		/* ps-poll w/ nothing to send */
+	u_int32_t	is_ff_badhdr;		/* fast frame rx'd w/ bad hdr */
+	u_int32_t	is_ff_tooshort;		/* fast frame rx decap error */
+	u_int32_t	is_ff_split;		/* fast frame rx split error */
+	u_int32_t	is_ff_decap;		/* fast frames decap'd */
+	u_int32_t	is_ff_encap;		/* fast frames encap'd for tx */
+	u_int32_t	is_spare[10];
 };
 
 /*
