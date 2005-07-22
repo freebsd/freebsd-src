@@ -122,6 +122,8 @@ printstats(FILE *fd, const struct ieee80211_stats *stats)
 	STAT(tx_badcipher,	"tx failed 'cuz bad ciper/key type");
 	STAT(tx_nodefkey,	"tx failed 'cuz no defkey");
 	STAT(tx_noheadroom,	"tx failed 'cuz no space for crypto hdrs");
+	STAT(tx_fragframes,	"tx frames fragmented");
+	STAT(tx_frags,		"tx frags generated");
 	STAT(scan_active,	"active scans started");
 	STAT(scan_passive,	"passive scans started");
 	STAT(node_timeout,	"nodes timed out inactivity");
@@ -146,6 +148,11 @@ printstats(FILE *fd, const struct ieee80211_stats *stats)
 	STAT(ps_unassoc,	"ps-poll received for unassociated station");
 	STAT(ps_badaid,		"ps-poll received with invalid association id");
 	STAT(ps_qempty,		"ps-poll received with nothing to send");
+	STAT(ff_badhdr,		"fast frame rx'd w/ bad hdr");
+	STAT(ff_tooshort,	"fast frame rx decap error");
+	STAT(ff_split,		"fast frame rx split error");
+	STAT(ff_decap,		"fast frames decap'd");
+	STAT(ff_encap,		"fast frames encap'd for tx");
 #undef STAT
 #undef N
 }
