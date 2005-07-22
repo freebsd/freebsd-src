@@ -109,6 +109,7 @@ struct ieee80211com {
 	struct ieee80211_node_table ic_scan;	/* scan candidates */
 	struct ifqueue		ic_mgtq;
 	u_int32_t		ic_flags;	/* state flags */
+	u_int32_t		ic_flags_ext;	/* extended state flags */
 	u_int32_t		ic_caps;	/* capabilities */
 	u_int16_t		ic_modecaps;	/* set of mode capabilities */
 	u_int16_t		ic_curmode;	/* current mode */
@@ -196,7 +197,7 @@ struct ieee80211com {
 #define	IEEE80211_ADDR_COPY(dst,src)	memcpy(dst,src,IEEE80211_ADDR_LEN)
 
 /* ic_flags */
-/* NB: bits 0x4f available */
+/* NB: bits 0x4c available */
 /* NB: this is intentionally setup to be IEEE80211_CAPINFO_PRIVACY */
 #define	IEEE80211_F_PRIVACY	0x00000010	/* CONF: privacy enabled */
 #define	IEEE80211_F_PUREG	0x00000020	/* CONF: 11g w/o 11b sta's */
@@ -208,7 +209,7 @@ struct ieee80211com {
 #define	IEEE80211_F_PMGTON	0x00000800	/* CONF: Power mgmt enable */
 #define	IEEE80211_F_DESBSSID	0x00001000	/* CONF: des_bssid is set */
 #define	IEEE80211_F_WME		0x00002000	/* CONF: enable WME use */
-#define	IEEE80211_F_ROAMING	0x00004000	/* CONF: roaming enabled (???)*/
+#define	IEEE80211_F_BGSCAN	0x00004000	/* CONF: bg scan enabled (???)*/
 #define	IEEE80211_F_SWRETRY	0x00008000	/* CONF: sw tx retry enabled */
 #define IEEE80211_F_TXPOW_FIXED	0x00010000	/* TX Power: fixed rate */
 #define	IEEE80211_F_IBSSON	0x00020000	/* CONF: IBSS creation enable */
@@ -226,12 +227,19 @@ struct ieee80211com {
 #define	IEEE80211_F_NOBRIDGE	0x10000000	/* CONF: dis. internal bridge */
 #define	IEEE80211_F_WMEUPDATE	0x20000000	/* STATUS: update beacon wme */
 
+/* ic_flags_ext */
+#define	IEEE80211_FEXT_WDS	0x00000001	/* CONF: 4 addr allowed */
+/* 0x00000006 reserved */
+#define	IEEE80211_FEXT_BGSCAN	0x00000008	/* STATUS: enable full bgscan completion */
+
 /* ic_caps */
 #define	IEEE80211_C_WEP		0x00000001	/* CAPABILITY: WEP available */
 #define	IEEE80211_C_TKIP	0x00000002	/* CAPABILITY: TKIP available */
 #define	IEEE80211_C_AES		0x00000004	/* CAPABILITY: AES OCB avail */
 #define	IEEE80211_C_AES_CCM	0x00000008	/* CAPABILITY: AES CCM avail */
 #define	IEEE80211_C_CKIP	0x00000020	/* CAPABILITY: CKIP available */
+#define	IEEE80211_C_FF		0x00000040	/* CAPABILITY: ATH FF avail */
+#define	IEEE80211_C_TURBOP	0x00000080	/* CAPABILITY: ATH Turbo avail*/
 #define	IEEE80211_C_IBSS	0x00000100	/* CAPABILITY: IBSS available */
 #define	IEEE80211_C_PMGT	0x00000200	/* CAPABILITY: Power mgmt */
 #define	IEEE80211_C_HOSTAP	0x00000400	/* CAPABILITY: HOSTAP avail */
@@ -247,6 +255,10 @@ struct ieee80211com {
 #define	IEEE80211_C_WPA		0x01800000	/* CAPABILITY: WPA1+WPA2 avail*/
 #define	IEEE80211_C_BURST	0x02000000	/* CAPABILITY: frame bursting */
 #define	IEEE80211_C_WME		0x04000000	/* CAPABILITY: WME avail */
+#define	IEEE80211_C_WDS		0x08000000	/* CAPABILITY: 4-addr support */
+/* 0x10000000 reserved */
+#define	IEEE80211_C_BGSCAN	0x20000000	/* CAPABILITY: bg scanning */
+#define	IEEE80211_C_TXFRAG	0x40000000	/* CAPABILITY: tx fragments */
 /* XXX protection/barker? */
 
 #define	IEEE80211_C_CRYPTO	0x0000002f	/* CAPABILITY: crypto alg's */
@@ -338,14 +350,36 @@ ieee80211_anyhdrspace(struct ieee80211com *ic, const void *data)
 #define	IEEE80211_MSG_WPA	0x00001000	/* WPA/RSN protocol */
 #define	IEEE80211_MSG_ACL	0x00000800	/* ACL handling */
 #define	IEEE80211_MSG_WME	0x00000400	/* WME protocol */
+#define	IEEE80211_MSG_SUPERG	0x00000200	/* Atheros SuperG protocol */
+#define	IEEE80211_MSG_DOTH	0x00000100	/* 802.11h support */
+#define	IEEE80211_MSG_INACT	0x00000080	/* inactivity handling */
+#define	IEEE80211_MSG_ROAM	0x00000040	/* sta-mode roaming */
 
 #define	IEEE80211_MSG_ANY	0xffffffff	/* anything */
 
 #ifdef IEEE80211_DEBUG
-#define	IEEE80211_DPRINTF(_ic, _m, _fmt, ...) do {	\
-	if (_ic->ic_debug & (_m))			\
-		printf(_fmt, __VA_ARGS__);		\
+#define	ieee80211_msg(_ic, _m)	((_ic)->ic_debug & (_m))
+#define	IEEE80211_DPRINTF(_ic, _m, _fmt, ...) do {			\
+	if (ieee80211_msg(_ic, _m))					\
+		ieee80211_note(_ic, _fmt, __VA_ARGS__);		\
 } while (0)
+#define	IEEE80211_NOTE(_ic, _m, _ni, _fmt, ...) do {			\
+	if (ieee80211_msg(_ic, _m))					\
+		ieee80211_note_mac(_ic, (_ni)->ni_macaddr, _fmt, __VA_ARGS__);\
+} while (0)
+#define	IEEE80211_NOTE_MAC(_ic, _m, _mac, _fmt, ...) do {		\
+	if (ieee80211_msg(_ic, _m))					\
+		ieee80211_note_mac(_ic, _mac, _fmt, __VA_ARGS__);	\
+} while (0)
+#define	IEEE80211_NOTE_FRAME(_ic, _m, _wh, _fmt, ...) do {		\
+	if (ieee80211_msg(_ic, _m))					\
+		ieee80211_note_frame(_ic, _wh, _fmt, __VA_ARGS__);	\
+} while (0)
+void	ieee80211_note(struct ieee80211com *ic, const char *fmt, ...);
+void	ieee80211_note_mac(struct ieee80211com *ic,
+		const u_int8_t mac[IEEE80211_ADDR_LEN], const char *fmt, ...);
+void	ieee80211_note_frame(struct ieee80211com *ic,
+		const struct ieee80211_frame *wh, const char *fmt, ...);
 #define	ieee80211_msg_debug(_ic) \
 	((_ic)->ic_debug & IEEE80211_MSG_DEBUG)
 #define	ieee80211_msg_dumppkts(_ic) \
@@ -360,8 +394,14 @@ ieee80211_anyhdrspace(struct ieee80211com *ic, const void *data)
 	((_ic)->ic_debug & IEEE80211_MSG_RADKEYS)
 #define	ieee80211_msg_scan(_ic) \
 	((_ic)->ic_debug & IEEE80211_MSG_SCAN)
+#define	ieee80211_msg_assoc(_ic) \
+	((_ic)->ic_debug & IEEE80211_MSG_ASSOC)
 #else
 #define	IEEE80211_DPRINTF(_ic, _m, _fmt, ...)
+#define	IEEE80211_NOTE_FRAME(_ic, _m, _wh, _fmt, ...)
+#define	IEEE80211_NOTE_MAC(_ic, _m, _mac, _fmt, ...)
+#define	ieee80211_msg_dumppkts(_ic)	0
+#define	ieee80211_msg(_ic, _m)		0
 #endif
 
 #endif /* _NET80211_IEEE80211_VAR_H_ */
