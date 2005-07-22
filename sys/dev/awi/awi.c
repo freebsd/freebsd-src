@@ -605,7 +605,7 @@ awi_init(struct ifnet *ifp)
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_FH];
 	else
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_11B];
-	if (ic->ic_fixed_rate != -1) {
+	if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE) {
 		rate = rs->rs_rates[ic->ic_fixed_rate] & IEEE80211_RATE_VAL;
 	} else {
 		rate = 0;
@@ -1095,7 +1095,7 @@ awi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 		rate = ic->ic_bss->ni_rates.rs_rates[ic->ic_bss->ni_txrate] &
 		    IEEE80211_RATE_VAL;
 	} else {
-		if (ic->ic_fixed_rate == -1)
+		if (ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE)
 			rate = 0;
 		else
 			rate = ic->ic_sup_rates[mode].
