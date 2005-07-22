@@ -5,7 +5,7 @@ LIBBEGEMOT_DIR=${.CURDIR}/../../contrib/libbegemot
 .PATH: ${LIBBEGEMOT_DIR}
 
 LIB=	begemot
-SHLIB_MAJOR= 1
+SHLIB_MAJOR= 2
 SHLIBDIR?= /lib
 
 # WARNS?=	6

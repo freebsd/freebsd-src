@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		mp
-SHLIB_MAJOR=	4
+SHLIB_MAJOR=	5
 MAN=		libmp.3
 INCS=		mp.h
 SRCS=		mpasbn.c

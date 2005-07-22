@@ -43,7 +43,7 @@
  * backwards-compatible API changes, so application writers have a way to 
  * determine when a particular feature is available.
  */
-#define	DEVSTAT_USER_API_VER	5
+#define	DEVSTAT_USER_API_VER	6
 
 #define DEVSTAT_ERRBUF_SIZE  2048 /* size of the devstat library error string */
 
