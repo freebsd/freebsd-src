@@ -72,6 +72,8 @@
 #define	IEEE80211_PS_SLEEP	0x1	/* STA is in power saving mode */
 #define	IEEE80211_PS_MAX_QUEUE	50	/* maximum saved packets */
 
+#define	IEEE80211_FIXED_RATE_NONE	-1
+
 #define	IEEE80211_MS_TO_TU(x)	(((x) * 1000) / 1024)
 #define	IEEE80211_TU_TO_MS(x)	(((x) * 1024) / 1000)
 

@@ -100,7 +100,7 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	ic->ic_rtsthreshold = IEEE80211_RTS_MAX;
 #endif
 	ic->ic_fragthreshold = 2346;		/* XXX not used yet */
-	ic->ic_fixed_rate = -1;			/* no fixed rate */
+	ic->ic_fixed_rate = IEEE80211_FIXED_RATE_NONE;
 	ic->ic_protmode = IEEE80211_PROT_CTSONLY;
 	ic->ic_roaming = IEEE80211_ROAMING_AUTO;
 
@@ -335,7 +335,8 @@ ieee80211_fix_rate(struct ieee80211com *ic, struct ieee80211_node *ni, int flags
 	 * If the fixed rate check was requested but no
 	 * fixed has been defined then just remove it.
 	 */
-	if ((flags & IEEE80211_F_DOFRATE) && ic->ic_fixed_rate < 0)
+	if ((flags & IEEE80211_F_DOFRATE) &&
+	    ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE)
 		flags &= ~IEEE80211_F_DOFRATE;
 	error = 0;
 	okrate = badrate = fixedrate = 0;

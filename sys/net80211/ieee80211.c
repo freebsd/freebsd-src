@@ -665,7 +665,7 @@ ieee80211_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	/*
 	 * Calculate a current rate if possible.
 	 */
-	if (ic->ic_fixed_rate != -1) {
+	if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE) {
 		/*
 		 * A fixed rate is set, report that.
 		 */
