@@ -1378,7 +1378,10 @@ ieee80211_timeout_stations(struct ieee80211_node_table *nt)
 	struct ieee80211com *ic = nt->nt_ic;
 	struct ieee80211_node *ni;
 	u_int gen;
+	int isadhoc;
 
+	isadhoc = (ic->ic_opmode == IEEE80211_M_IBSS ||
+		   ic->ic_opmode == IEEE80211_M_AHDEMO);
 	IEEE80211_SCAN_LOCK(nt);
 	gen = nt->nt_scangen++;
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
@@ -1414,7 +1417,7 @@ restart:
 		if (ni == ic->ic_bss)
 			continue;
 		ni->ni_inact--;
-		if (ni->ni_associd != 0) {
+		if (ni->ni_associd != 0 || isadhoc) {
 			/*
 			 * Age frames on the power save queue. The
 			 * aging interval is 4 times the listen
@@ -1460,9 +1463,10 @@ IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether
 			 */
 			if (0 < ni->ni_inact &&
 			    ni->ni_inact <= ic->ic_inact_probe) {
-				IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
-				    "[%s] probe station due to inactivity\n",
-				    ether_sprintf(ni->ni_macaddr));
+				IEEE80211_NOTE(ic,
+				    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE,
+				    ni, "%s",
+				    "probe station due to inactivity");
 				IEEE80211_NODE_UNLOCK(nt);
 				ieee80211_send_nulldata(ni);
 				/* XXX stat? */
@@ -1470,10 +1474,10 @@ IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether
 			}
 		}
 		if (ni->ni_inact <= 0) {
-			IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
-			    "[%s] station timed out due to inactivity "
-			    "(refcnt %u)\n", ether_sprintf(ni->ni_macaddr),
-			    ieee80211_node_refcnt(ni));
+			IEEE80211_NOTE(ic,
+			    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE, ni,
+			    "station timed out due to inactivity "
+			    "(refcnt %u)", ieee80211_node_refcnt(ni));
 			/*
 			 * Send a deauthenticate frame and drop the station.
 			 * This is somewhat complicated due to reference counts
