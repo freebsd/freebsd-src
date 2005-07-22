@@ -96,7 +96,7 @@ acpi_battinfo(int num)
 		err(EX_USAGE, "invalid battery %d", num);
 
 	battio.unit = num;
-	if (ioctl(acpifd, ACPIIO_CMBAT_GET_BIF, &battio) == -1)
+	if (ioctl(acpifd, ACPIIO_BATT_GET_BIF, &battio) == -1)
 		err(EX_IOERR, "get battery info (%d) failed", num);
 	printf("Battery %d information\n", num);
 	if (battio.bif.units == 0)
@@ -129,7 +129,7 @@ acpi_battinfo(int num)
 	printf("OEM info:\t\t%s\n", battio.bif.oeminfo);
 
 	battio.unit = num;
-	if (ioctl(acpifd, ACPIIO_CMBAT_GET_BST, &battio) == -1)
+	if (ioctl(acpifd, ACPIIO_BATT_GET_BST, &battio) == -1)
 		err(EX_IOERR, "get battery info (%d) failed", num);
 
 	if (battio.bst.state != ACPI_BATT_STAT_NOT_PRESENT) {
