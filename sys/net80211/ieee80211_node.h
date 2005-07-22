@@ -191,7 +191,7 @@ void	ieee80211_create_ibss(struct ieee80211com*, struct ieee80211_channel *);
 void	ieee80211_reset_bss(struct ieee80211com *);
 void	ieee80211_cancel_scan(struct ieee80211com *);
 void	ieee80211_end_scan(struct ieee80211com *);
-int	ieee80211_ibss_merge(struct ieee80211com *, struct ieee80211_node *);
+int	ieee80211_ibss_merge(struct ieee80211_node *);
 int	ieee80211_sta_join(struct ieee80211com *, struct ieee80211_node *);
 void	ieee80211_sta_leave(struct ieee80211com *, struct ieee80211_node *);
 
