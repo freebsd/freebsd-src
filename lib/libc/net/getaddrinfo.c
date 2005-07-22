@@ -1352,9 +1352,6 @@ get_ai(pai, afd, addr)
 	memset(ai->ai_addr, 0, (size_t)afd->a_socklen);
 	ai->ai_addr->sa_len = afd->a_socklen;
 	ai->ai_addrlen = afd->a_socklen;
-#if __LONG_BIT == 64
-	ai->__ai_pad0 = 0;		/* ABI compatibility */
-#endif
 	ai->ai_addr->sa_family = ai->ai_family = afd->a_af;
 	p = (char *)(void *)(ai->ai_addr);
 #ifdef FAITH
