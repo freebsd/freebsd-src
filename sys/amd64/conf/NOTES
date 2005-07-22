@@ -230,7 +230,8 @@ device		ed
 options 	ED_3C503
 options 	ED_HPP
 options 	ED_SIC
-device		lnc
+#XXX#	still calls MD i386 kvtop function instead of vtophys etc
+#XXX#device		lnc
 
 device		ath
 device		ath_hal		# Atheros HAL (includes binary component)
