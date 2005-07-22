@@ -2114,6 +2114,11 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			IEEE80211_DISCARD(ic, IEEE80211_MSG_ACL,
 			    wh, "auth", "%s", "disallowed by ACL");
 			ic->ic_stats.is_rx_acl++;
+			if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
+				IEEE80211_SEND_MGMT(ic, ni,
+				    IEEE80211_FC0_SUBTYPE_AUTH,
+				    (seq+1) | (IEEE80211_STATUS_UNSPECIFIED<<16));
+			}
 			return;
 		}
 		if (ic->ic_flags & IEEE80211_F_COUNTERM) {
