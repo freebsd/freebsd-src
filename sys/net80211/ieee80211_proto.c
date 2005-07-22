@@ -94,12 +94,8 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	/* XXX room for crypto  */
 	ifp->if_hdrlen = sizeof(struct ieee80211_qosframe_addr4);
 
-#ifdef notdef
 	ic->ic_rtsthreshold = IEEE80211_RTS_DEFAULT;
-#else
-	ic->ic_rtsthreshold = IEEE80211_RTS_MAX;
-#endif
-	ic->ic_fragthreshold = 2346;		/* XXX not used yet */
+	ic->ic_fragthreshold = IEEE80211_FRAG_DEFAULT;
 	ic->ic_fixed_rate = IEEE80211_FIXED_RATE_NONE;
 	ic->ic_protmode = IEEE80211_PROT_CTSONLY;
 	ic->ic_roaming = IEEE80211_ROAMING_AUTO;
