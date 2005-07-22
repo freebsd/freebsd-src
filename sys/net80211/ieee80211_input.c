@@ -2718,9 +2718,9 @@ ieee80211_discard_frame(struct ieee80211com *ic,
 
 	printf("[%s] discard ", ether_sprintf(ieee80211_getbssid(ic, wh)));
 	if (type != NULL)
-		printf(" %s frame, ", type);
+		printf("%s frame, ", type);
 	else
-		printf(" frame, ");
+		printf("frame, ");
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);
@@ -2736,9 +2736,9 @@ ieee80211_discard_ie(struct ieee80211com *ic,
 
 	printf("[%s] discard ", ether_sprintf(ieee80211_getbssid(ic, wh)));
 	if (type != NULL)
-		printf(" %s information element, ", type);
+		printf("%s information element, ", type);
 	else
-		printf(" information element, ");
+		printf("information element, ");
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);
@@ -2754,9 +2754,9 @@ ieee80211_discard_mac(struct ieee80211com *ic,
 
 	printf("[%s] discard ", ether_sprintf(mac));
 	if (type != NULL)
-		printf(" %s frame, ", type);
+		printf("%s frame, ", type);
 	else
-		printf(" frame, ");
+		printf("frame, ");
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);
