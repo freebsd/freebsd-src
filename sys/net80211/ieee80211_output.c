@@ -945,6 +945,91 @@ ieee80211_add_wme_param(u_int8_t *frm, struct ieee80211_wme_state *wme)
 #undef WME_OUI_BYTES
 
 /*
+ * Send a probe request frame with the specified ssid
+ * and any optional information element data.
+ */
+int
+ieee80211_send_probereq(struct ieee80211_node *ni,
+	const u_int8_t sa[IEEE80211_ADDR_LEN],
+	const u_int8_t da[IEEE80211_ADDR_LEN],
+	const u_int8_t bssid[IEEE80211_ADDR_LEN],
+	const u_int8_t *ssid, size_t ssidlen,
+	const void *optie, size_t optielen)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	enum ieee80211_phymode mode;
+	struct ieee80211_frame *wh;
+	struct mbuf *m;
+	u_int8_t *frm;
+
+	/*
+	 * Hold a reference on the node so it doesn't go away until after
+	 * the xmit is complete all the way in the driver.  On error we
+	 * will remove our reference.
+	 */
+	IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
+		"ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n",
+		__func__, __LINE__,
+		ni, ether_sprintf(ni->ni_macaddr),
+		ieee80211_node_refcnt(ni)+1);
+	ieee80211_ref_node(ni);
+
+	/*
+	 * prreq frame format
+	 *	[tlv] ssid
+	 *	[tlv] supported rates
+	 *	[tlv] extended supported rates
+	 *	[tlv] user-specified ie's
+	 */
+	m = ieee80211_getmgtframe(&frm,
+		 2 + IEEE80211_NWID_LEN
+	       + 2 + IEEE80211_RATE_SIZE
+	       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
+	       + (optie != NULL ? optielen : 0)
+	);
+	if (m == NULL) {
+		ic->ic_stats.is_tx_nobuf++;
+		ieee80211_free_node(ni);
+		return ENOMEM;
+	}
+
+	frm = ieee80211_add_ssid(frm, ssid, ssidlen);
+	mode = ieee80211_chan2mode(ic, ni->ni_chan);
+	frm = ieee80211_add_rates(frm, &ic->ic_sup_rates[mode]);
+	frm = ieee80211_add_xrates(frm, &ic->ic_sup_rates[mode]);
+
+	if (optie != NULL) {
+		memcpy(frm, optie, optielen);
+		frm += optielen;
+	}
+	m->m_pkthdr.len = m->m_len = frm - mtod(m, u_int8_t *);
+
+	M_PREPEND(m, sizeof(struct ieee80211_frame), M_DONTWAIT);
+	if (m == NULL)
+		return ENOMEM;
+	KASSERT(m->m_pkthdr.rcvif == NULL, ("rcvif not null"));
+	m->m_pkthdr.rcvif = (void *)ni;
+
+	wh = mtod(m, struct ieee80211_frame *);
+	ieee80211_send_setup(ic, ni, wh,
+		IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ,
+		sa, da, bssid);
+	/* XXX power management? */
+
+	IEEE80211_NODE_STAT(ni, tx_probereq);
+	IEEE80211_NODE_STAT(ni, tx_mgmt);
+
+	IEEE80211_DPRINTF(ic, IEEE80211_MSG_DEBUG | IEEE80211_MSG_DUMPPKTS,
+	    "[%s] send probe req on channel %u\n",
+	    ether_sprintf(wh->i_addr1),
+	    ieee80211_chan2ieee(ic, ni->ni_chan));
+
+	IF_ENQUEUE(&ic->ic_mgtq, m);
+	if_start(ic->ic_ifp);
+	return 0;
+}
+
+/*
  * Send a management frame.  The node is for the destination (or ic_bss
  * when in station mode).  Nodes other than ic_bss have their reference
  * count bumped to reflect our use for an indeterminant time.
@@ -956,7 +1041,6 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 #define	senderr(_x, _v)	do { ic->ic_stats._v++; ret = _x; goto bad; } while (0)
 	struct mbuf *m;
 	u_int8_t *frm;
-	enum ieee80211_phymode mode;
 	u_int16_t capinfo;
 	int has_challenge, is_shared_key, ret, timer, status;
 
@@ -976,38 +1060,6 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 
 	timer = 0;
 	switch (type) {
-	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
-		/*
-		 * prreq frame format
-		 *	[tlv] ssid
-		 *	[tlv] supported rates
-		 *	[tlv] extended supported rates
-		 *	[tlv] user-specified ie's
-		 */
-		m = ieee80211_getmgtframe(&frm,
-			 2 + IEEE80211_NWID_LEN
-		       + 2 + IEEE80211_RATE_SIZE
-		       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
-		       + (ic->ic_opt_ie != NULL ? ic->ic_opt_ie_len : 0)
-		);
-		if (m == NULL)
-			senderr(ENOMEM, is_tx_nobuf);
-
-		frm = ieee80211_add_ssid(frm, ic->ic_des_essid, ic->ic_des_esslen);
-		mode = ieee80211_chan2mode(ic, ni->ni_chan);
-		frm = ieee80211_add_rates(frm, &ic->ic_sup_rates[mode]);
-		frm = ieee80211_add_xrates(frm, &ic->ic_sup_rates[mode]);
-		if (ic->ic_opt_ie != NULL) {
-			memcpy(frm, ic->ic_opt_ie, ic->ic_opt_ie_len);
-			frm += ic->ic_opt_ie_len;
-		}
-		m->m_pkthdr.len = m->m_len = frm - mtod(m, u_int8_t *);
-
-		IEEE80211_NODE_STAT(ni, tx_probereq);
-		if (ic->ic_opmode == IEEE80211_M_STA)
-			timer = IEEE80211_TRANS_WAIT;
-		break;
-
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 		/*
 		 * probe response frame format
