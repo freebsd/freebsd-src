@@ -297,6 +297,8 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_STA:
 			if (dir != IEEE80211_FC1_DIR_FROMDS) {
+				IEEE80211_DISCARD(ic, IEEE80211_MSG_INPUT,
+				    wh, "data", "%s", "unknown dir 0x%x", dir);
 				ic->ic_stats.is_rx_wrongdir++;
 				goto out;
 			}
@@ -318,6 +320,8 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 		case IEEE80211_M_IBSS:
 		case IEEE80211_M_AHDEMO:
 			if (dir != IEEE80211_FC1_DIR_NODS) {
+				IEEE80211_DISCARD(ic, IEEE80211_MSG_INPUT,
+				    wh, "data", "%s", "unknown dir 0x%x", dir);
 				ic->ic_stats.is_rx_wrongdir++;
 				goto out;
 			}
@@ -325,6 +329,8 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 			break;
 		case IEEE80211_M_HOSTAP:
 			if (dir != IEEE80211_FC1_DIR_TODS) {
+				IEEE80211_DISCARD(ic, IEEE80211_MSG_INPUT,
+				    wh, "data", "%s", "unknown dir 0x%x", dir);
 				ic->ic_stats.is_rx_wrongdir++;
 				goto out;
 			}
@@ -477,6 +483,8 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 	case IEEE80211_FC0_TYPE_MGT:
 		IEEE80211_NODE_STAT(ni, rx_mgmt);
 		if (dir != IEEE80211_FC1_DIR_NODS) {
+			IEEE80211_DISCARD(ic, IEEE80211_MSG_INPUT,
+			    wh, "data", "%s", "unknown dir 0x%x", dir);
 			ic->ic_stats.is_rx_wrongdir++;
 			goto err;
 		}
