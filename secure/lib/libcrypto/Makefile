@@ -2,7 +2,7 @@
 
 LIB=		crypto
 SHLIBDIR?=	/lib
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 
 NO_LINT=
 

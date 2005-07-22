@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	ssh
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 SRCS=	acss.c authfd.c authfile.c bufaux.c buffer.c \
 	canohost.c channels.c cipher.c cipher-acss.c cipher-aes.c \
 	cipher-bf1.c cipher-ctr.c cipher-3des1.c cleanup.c \
