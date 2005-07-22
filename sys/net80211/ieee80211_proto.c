@@ -319,9 +319,10 @@ ieee80211_dump_pkt(const u_int8_t *buf, int len, int rate, int rssi)
 }
 
 int
-ieee80211_fix_rate(struct ieee80211com *ic, struct ieee80211_node *ni, int flags)
+ieee80211_fix_rate(struct ieee80211_node *ni, int flags)
 {
 #define	RV(v)	((v) & IEEE80211_RATE_VAL)
+	struct ieee80211com *ic = ni->ni_ic;
 	int i, j, ignore, error;
 	int okrate, badrate, fixedrate;
 	struct ieee80211_rateset *srs, *nrs;
