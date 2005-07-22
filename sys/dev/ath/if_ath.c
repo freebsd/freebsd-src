@@ -161,8 +161,7 @@ static void	ath_next_scan(void *);
 static void	ath_calibrate(void *);
 static int	ath_newstate(struct ieee80211com *, enum ieee80211_state, int);
 static void	ath_setup_stationkey(struct ieee80211_node *);
-static void	ath_newassoc(struct ieee80211com *,
-			struct ieee80211_node *, int);
+static void	ath_newassoc(struct ieee80211_node *, int);
 static int	ath_getchannels(struct ath_softc *, u_int cc,
 			HAL_BOOL outdoor, HAL_BOOL xchanmode);
 static void	ath_led_event(struct ath_softc *, int);
@@ -4285,8 +4284,9 @@ ath_setup_stationkey(struct ieee80211_node *ni)
  * param tells us if this is the first time or not.
  */
 static void
-ath_newassoc(struct ieee80211com *ic, struct ieee80211_node *ni, int isnew)
+ath_newassoc(struct ieee80211_node *ni, int isnew)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 
 	ath_rate_newassoc(sc, ATH_NODE(ni), isnew);
