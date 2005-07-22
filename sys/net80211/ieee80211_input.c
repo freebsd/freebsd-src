@@ -815,10 +815,11 @@ ieee80211_decap(struct ieee80211com *ic, struct mbuf *m, int hdrlen)
 /*
  * Install received rate set information in the node's state block.
  */
-static int
-ieee80211_setup_rates(struct ieee80211com *ic, struct ieee80211_node *ni,
-	u_int8_t *rates, u_int8_t *xrates, int flags)
+int
+ieee80211_setup_rates(struct ieee80211_node *ni,
+	const u_int8_t *rates, const u_int8_t *xrates, int flags)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_rateset *rs = &ni->ni_rates;
 
 	memset(rs, 0, sizeof(*rs));
@@ -841,7 +842,7 @@ ieee80211_setup_rates(struct ieee80211com *ic, struct ieee80211_node *ni,
 		memcpy(rs->rs_rates + rs->rs_nrates, xrates+2, nxrates);
 		rs->rs_nrates += nxrates;
 	}
-	return ieee80211_fix_rate(ic, ni, flags);
+	return ieee80211_fix_rate(ni, flags);
 }
 
 static void
@@ -2036,7 +2037,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		if (wpa != NULL)
 			ieee80211_saveie(&ni->ni_wpa_ie, wpa);
 		/* NB: must be after ni_chan is setup */
-		ieee80211_setup_rates(ic, ni, rates, xrates, IEEE80211_F_DOSORT);
+		ieee80211_setup_rates(ni, rates, xrates, IEEE80211_F_DOSORT);
 		break;
 	}
 
@@ -2106,7 +2107,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		    "[%s] recv probe req\n", ether_sprintf(wh->i_addr2));
 		ni->ni_rssi = rssi;
 		ni->ni_rstamp = rstamp;
-		rate = ieee80211_setup_rates(ic, ni, rates, xrates,
+		rate = ieee80211_setup_rates(ni, rates, xrates,
 			  IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE
 			| IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
 		if (rate & IEEE80211_RATE_BASIC) {
@@ -2332,7 +2333,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			ic->ic_stats.is_rx_assoc_capmismatch++;
 			return;
 		}
-		rate = ieee80211_setup_rates(ic, ni, rates, xrates,
+		rate = ieee80211_setup_rates(ni, rates, xrates,
 				IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE |
 				IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
 		/*
@@ -2453,7 +2454,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		}
 
 		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_MAXSIZE);
-		rate = ieee80211_setup_rates(ic, ni, rates, xrates,
+		rate = ieee80211_setup_rates(ni, rates, xrates,
 				IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE |
 				IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
 		if (rate & IEEE80211_RATE_BASIC) {
