@@ -63,8 +63,6 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
-#include <machine/_limits.h>
-#include <machine/endian.h>
 
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
@@ -125,29 +123,12 @@ struct protoent {
 	int	p_proto;	/* protocol # */
 };
 
-/*
- * Note: ai_addrlen used to be a size_t, per RFC 2553.
- * In XNS5.2, and subsequently in POSIX-2001 and RFC 3493 it was
- * changed to a socklen_t.
- * To accomodate for this while preserving binary compatibility with the
- * old interface, we prepend or append 32 bits of padding, depending on
- * the (LP64) architecture's endianness.
- *
- * This should be deleted the next time the libc major number is
- * incremented.
- */
 struct addrinfo {
 	int	ai_flags;	/* AI_PASSIVE, AI_CANONNAME, AI_NUMERICHOST */
 	int	ai_family;	/* PF_xxx */
 	int	ai_socktype;	/* SOCK_xxx */
 	int	ai_protocol;	/* 0 or IPPROTO_xxx for IPv4 and IPv6 */
-#if __LONG_BIT == 64 && _BYTE_ORDER == _BIG_ENDIAN
-	uint32_t __ai_pad0;	/* ABI compatibility */
-#endif
 	socklen_t ai_addrlen;	/* length of ai_addr */
-#if __LONG_BIT == 64 && _BYTE_ORDER == _LITTLE_ENDIAN
-	uint32_t __ai_pad0;	/* ABI compatibility */
-#endif
 	char	*ai_canonname;	/* canonical name for hostname */
 	struct	sockaddr *ai_addr;	/* binary address */
 	struct	addrinfo *ai_next;	/* next structure in linked list */
