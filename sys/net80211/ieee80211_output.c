@@ -78,6 +78,62 @@ doprint(struct ieee80211com *ic, int subtype)
 #endif
 
 /*
+ * Set the direction field and address fields of an outgoing
+ * non-QoS frame.  Note this should be called early on in
+ * constructing a frame as it sets i_fc[1]; other bits can
+ * then be or'd in.
+ */
+static void
+ieee80211_send_setup(struct ieee80211com *ic,
+	struct ieee80211_node *ni,
+	struct ieee80211_frame *wh,
+	int type,
+	const u_int8_t sa[IEEE80211_ADDR_LEN],
+	const u_int8_t da[IEEE80211_ADDR_LEN],
+	const u_int8_t bssid[IEEE80211_ADDR_LEN])
+{
+#define	WH4(wh)	((struct ieee80211_frame_addr4 *)wh)
+
+	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | type;
+	if ((type & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_DATA) {
+		switch (ic->ic_opmode) {
+		case IEEE80211_M_STA:
+			wh->i_fc[1] = IEEE80211_FC1_DIR_TODS;
+			IEEE80211_ADDR_COPY(wh->i_addr1, bssid);
+			IEEE80211_ADDR_COPY(wh->i_addr2, sa);
+			IEEE80211_ADDR_COPY(wh->i_addr3, da);
+			break;
+		case IEEE80211_M_IBSS:
+		case IEEE80211_M_AHDEMO:
+			wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
+			IEEE80211_ADDR_COPY(wh->i_addr1, da);
+			IEEE80211_ADDR_COPY(wh->i_addr2, sa);
+			IEEE80211_ADDR_COPY(wh->i_addr3, bssid);
+			break;
+		case IEEE80211_M_HOSTAP:
+			wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
+			IEEE80211_ADDR_COPY(wh->i_addr1, da);
+			IEEE80211_ADDR_COPY(wh->i_addr2, bssid);
+			IEEE80211_ADDR_COPY(wh->i_addr3, sa);
+			break;
+		case IEEE80211_M_MONITOR:	/* NB: to quiet compiler */
+			break;
+		}
+	} else {
+		wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
+		IEEE80211_ADDR_COPY(wh->i_addr1, da);
+		IEEE80211_ADDR_COPY(wh->i_addr2, sa);
+		IEEE80211_ADDR_COPY(wh->i_addr3, bssid);
+	}
+	*(u_int16_t *)&wh->i_dur[0] = 0;
+	/* NB: use non-QoS tid */
+	*(u_int16_t *)&wh->i_seq[0] =
+	    htole16(ni->ni_txseqs[0] << IEEE80211_SEQ_SEQ_SHIFT);
+	ni->ni_txseqs[0]++;
+#undef WH4
+}
+
+/*
  * Send a management frame to the specified node.  The node pointer
  * must have a reference as the pointer will be passed to the driver
  * and potentially held for a long time.  If the frame is successfully
@@ -112,30 +168,9 @@ ieee80211_mgmt_output(struct ieee80211com *ic, struct ieee80211_node *ni,
 	m->m_pkthdr.rcvif = (void *)ni;
 
 	wh = mtod(m, struct ieee80211_frame *);
-	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_MGT | type;
-	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
-	*(u_int16_t *)wh->i_dur = 0;
-	*(u_int16_t *)wh->i_seq =
-	    htole16(ni->ni_txseqs[0] << IEEE80211_SEQ_SEQ_SHIFT);
-	ni->ni_txseqs[0]++;
-	/*
-	 * Hack.  When sending PROBE_REQ frames while scanning we
-	 * explicitly force a broadcast rather than (as before) clobber
-	 * ni_macaddr and ni_bssid.  This is stopgap, we need a way
-	 * to communicate this directly rather than do something
-	 * implicit based on surrounding state.
-	 */
-	if (type == IEEE80211_FC0_SUBTYPE_PROBE_REQ &&
-	    (ic->ic_flags & IEEE80211_F_SCAN)) {
-		IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
-		IEEE80211_ADDR_COPY(wh->i_addr2, ic->ic_myaddr);
-		IEEE80211_ADDR_COPY(wh->i_addr3, ifp->if_broadcastaddr);
-	} else {
-		IEEE80211_ADDR_COPY(wh->i_addr1, ni->ni_macaddr);
-		IEEE80211_ADDR_COPY(wh->i_addr2, ic->ic_myaddr);
-		IEEE80211_ADDR_COPY(wh->i_addr3, ni->ni_bssid);
-	}
-
+	ieee80211_send_setup(ic, ni, wh, 
+		IEEE80211_FC0_TYPE_MGT | type,
+		ic->ic_myaddr, ni->ni_macaddr, ni->ni_bssid);
 	if ((m->m_flags & M_LINK0) != 0 && ni->ni_challenge != NULL) {
 		m->m_flags &= ~M_LINK0;
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_AUTH,
@@ -182,21 +217,22 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	m->m_pkthdr.rcvif = (void *) ieee80211_ref_node(ni);
 
 	wh = mtod(m, struct ieee80211_frame *);
-	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_DATA |
-		IEEE80211_FC0_SUBTYPE_NODATA;
-	*(u_int16_t *)wh->i_dur = 0;
-	*(u_int16_t *)wh->i_seq =
-	    htole16(ni->ni_txseqs[0] << IEEE80211_SEQ_SEQ_SHIFT);
-	ni->ni_txseqs[0]++;
-
-	/* XXX WDS */
-	wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
-	IEEE80211_ADDR_COPY(wh->i_addr1, ni->ni_macaddr);
-	IEEE80211_ADDR_COPY(wh->i_addr2, ni->ni_bssid);
-	IEEE80211_ADDR_COPY(wh->i_addr3, ic->ic_myaddr);
+	ieee80211_send_setup(ic, ni, wh,
+		IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_NODATA,
+		ic->ic_myaddr, ni->ni_macaddr, ni->ni_bssid);
+	/* NB: power management bit is never sent by an AP */
+	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
+	    ic->ic_opmode != IEEE80211_M_HOSTAP)
+		wh->i_fc[1] |= IEEE80211_FC1_PWR_MGT;
 	m->m_len = m->m_pkthdr.len = sizeof(struct ieee80211_frame);
 
 	IEEE80211_NODE_STAT(ni, tx_data);
+
+	IEEE80211_DPRINTF(ic, IEEE80211_MSG_DEBUG | IEEE80211_MSG_DUMPPKTS,
+	    "[%s] send null data frame on channel %u, pwr mgt %s\n",
+	    ether_sprintf(ni->ni_macaddr),
+	    ieee80211_chan2ieee(ic, ni->ni_chan),
+	    wh->i_fc[1] & IEEE80211_FC1_PWR_MGT ? "ena" : "dis");
 
 	IF_ENQUEUE(&ic->ic_mgtq, m);		/* cheat */
 	if_start(ifp);
