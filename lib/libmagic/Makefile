@@ -5,7 +5,7 @@ CONTRDIR=	${.CURDIR}/../../contrib/file
 .PATH: ${CONTRDIR}
 
 LIB=	magic
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 MAN=	libmagic.3 magic.5
 
 SRCS=	apprentice.c apptype.c ascmagic.c compress.c fsmagic.c funcs.c \

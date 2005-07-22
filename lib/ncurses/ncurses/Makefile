@@ -4,7 +4,7 @@ NCURSES=${.CURDIR}/../../contrib/ncurses
 
 LIB=	ncurses
 SHLIBDIR?= /lib
-SHLIB_MAJOR=5
+SHLIB_MAJOR=6
 
 # Should be elsewhere
 AWK?=	awk

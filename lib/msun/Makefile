@@ -26,7 +26,7 @@ ARCH_SUBDIR= ${MACHINE_ARCH}
 
 LIB=	m
 SHLIBDIR?= /lib
-SHLIB_MAJOR= 3
+SHLIB_MAJOR= 4
 COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 	e_atan2.c e_atan2f.c e_atanh.c e_atanhf.c e_cosh.c e_coshf.c e_exp.c \

@@ -8,7 +8,7 @@
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
 LIB=c_r
-SHLIB_MAJOR= 5
+SHLIB_MAJOR= 6
 CFLAGS+=-DPTHREAD_KERNEL 
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/uthread \
 	-I${.CURDIR}/../../include

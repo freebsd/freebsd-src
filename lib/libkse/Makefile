@@ -12,7 +12,7 @@ LIB=kse
 .else
 LIB=pthread
 .endif
-SHLIB_MAJOR= 1
+SHLIB_MAJOR= 2
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include

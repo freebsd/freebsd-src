@@ -4,7 +4,7 @@ NCPLIB=${.CURDIR}
 
 LIB=		ncp
 
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 
 NO_MAN=
 
