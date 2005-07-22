@@ -103,8 +103,7 @@ struct ieee80211com {
 	void			(*ic_newassoc)(struct ieee80211com *,
 				    struct ieee80211_node *, int);
 	void			(*ic_updateslot)(struct ifnet *);
-	void			(*ic_set_tim)(struct ieee80211com *,
-				    struct ieee80211_node *, int);
+	void			(*ic_set_tim)(struct ieee80211_node *, int);
 	u_int8_t		ic_myaddr[IEEE80211_ADDR_LEN];
 	struct ieee80211_rateset ic_sup_rates[IEEE80211_MODE_MAX];
 	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX+1];

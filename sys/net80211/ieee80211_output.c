@@ -1602,5 +1602,5 @@ ieee80211_pwrsave(struct ieee80211com *ic, struct ieee80211_node *ni,
 		ether_sprintf(ni->ni_macaddr), qlen);
 
 	if (qlen == 1)
-		ic->ic_set_tim(ic, ni, 1);
+		ic->ic_set_tim(ni, 1);
 }
