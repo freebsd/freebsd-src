@@ -2166,7 +2166,7 @@ wi_set_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 		WI_LOCK(sc);
 		switch (le16toh(wreq.wi_val[0])) {
 		case 3:
-			ic->ic_fixed_rate = -1;
+			ic->ic_fixed_rate = IEEE80211_FIXED_RATE_NONE;
 			break;
 		default:
 			rs = &ic->ic_sup_rates[IEEE80211_MODE_11B];
@@ -2272,7 +2272,7 @@ wi_write_txrate(struct wi_softc *sc)
 	int i;
 	u_int16_t rate;
 
-	if (ic->ic_fixed_rate < 0)
+	if (ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE)
 		rate = 0;	/* auto */
 	else
 		rate = (ic->ic_sup_rates[IEEE80211_MODE_11B].rs_rates[ic->ic_fixed_rate] &

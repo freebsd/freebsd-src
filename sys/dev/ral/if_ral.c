@@ -1875,7 +1875,7 @@ ral_tx_data(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
-	if (ic->ic_fixed_rate != -1) {
+	if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE) {
 		rs = &ic->ic_sup_rates[ic->ic_curmode];
 		rate = rs->rs_rates[ic->ic_fixed_rate];
 	} else {
@@ -2009,7 +2009,7 @@ ral_tx_data(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	data->ni = ni;
 
 	/* remember link conditions for rate adaptation algorithm */
-	if (ic->ic_fixed_rate == -1) {
+	if (ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE) {
 		data->id.id_len = m0->m_pkthdr.len;
 		data->id.id_rateidx = ni->ni_txrate;
 		data->id.id_node = ni;

@@ -1195,7 +1195,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	wh = mtod(m0, struct ieee80211_frame *);
 
 	/* XXX should do automatic rate adaptation */
-	if (ic->ic_fixed_rate != -1)
+	if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE)
 		rate = ic->ic_bss->ni_rates.rs_rates[ic->ic_fixed_rate];
 	else
 		rate = ni->ni_rates.rs_rates[ni->ni_txrate];
