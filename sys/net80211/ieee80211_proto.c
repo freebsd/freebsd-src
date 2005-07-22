@@ -923,8 +923,11 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 			 */
 			if ((ic->ic_flags & IEEE80211_F_ASCAN) &&
 			    (ni->ni_chan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0) {
-				IEEE80211_SEND_MGMT(ic, ni,
-				    IEEE80211_FC0_SUBTYPE_PROBE_REQ, 0);
+				ieee80211_send_probereq(ni,
+					ic->ic_myaddr, ifp->if_broadcastaddr,
+					ifp->if_broadcastaddr,
+					ic->ic_des_essid, ic->ic_des_esslen,
+					ic->ic_opt_ie, ic->ic_opt_ie_len);
 			}
 			break;
 		case IEEE80211_S_RUN:
