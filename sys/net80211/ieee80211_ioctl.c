@@ -273,7 +273,7 @@ ieee80211_cfgget(struct ieee80211com *ic, u_long cmd, caddr_t data)
 		wreq.wi_len = IEEE80211_ADDR_LEN / 2;
 		break;
 	case WI_RID_TX_RATE:
-		if (ic->ic_fixed_rate == -1)
+		if (ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE)
 			wreq.wi_val[0] = 0;	/* auto */
 		else
 			wreq.wi_val[0] = htole16(
@@ -592,7 +592,7 @@ ieee80211_cfgset(struct ieee80211com *ic, u_long cmd, caddr_t data)
 			return EINVAL;
 		if (wreq.wi_val[0] == 0) {
 			/* auto */
-			ic->ic_fixed_rate = -1;
+			ic->ic_fixed_rate = IEEE80211_FIXED_RATE_NONE;
 			break;
 		}
 		rate = 2 * le16toh(wreq.wi_val[0]);
