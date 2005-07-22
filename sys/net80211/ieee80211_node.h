@@ -182,10 +182,8 @@ ieee80211_node_is_authorized(const struct ieee80211_node *ni)
 	return (ni->ni_flags & IEEE80211_NODE_AUTH);
 }
 
-void	ieee80211_node_authorize(struct ieee80211com *,
-		struct ieee80211_node *);
-void	ieee80211_node_unauthorize(struct ieee80211com *,
-		struct ieee80211_node *);
+void	ieee80211_node_authorize(struct ieee80211_node *);
+void	ieee80211_node_unauthorize(struct ieee80211_node *);
 
 void	ieee80211_begin_scan(struct ieee80211com *, int);
 int	ieee80211_next_scan(struct ieee80211com *);

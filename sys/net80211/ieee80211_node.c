@@ -200,14 +200,16 @@ ieee80211_node_detach(struct ieee80211com *ic)
  */
 
 void
-ieee80211_node_authorize(struct ieee80211com *ic, struct ieee80211_node *ni)
+ieee80211_node_authorize(struct ieee80211_node *ni)
 {
+	struct ieee80211com *ic = ni->ni_ic;
+
 	ni->ni_flags |= IEEE80211_NODE_AUTH;
 	ni->ni_inact_reload = ic->ic_inact_run;
 }
 
 void
-ieee80211_node_unauthorize(struct ieee80211com *ic, struct ieee80211_node *ni)
+ieee80211_node_unauthorize(struct ieee80211_node *ni)
 {
 	ni->ni_flags &= ~IEEE80211_NODE_AUTH;
 }
@@ -1048,7 +1050,7 @@ ieee80211_fakeup_adhoc_node(struct ieee80211_node_table *nt,
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ic, ni, 1);
 		/* XXX not right for 802.1x/WPA */
-		ieee80211_node_authorize(ic, ni);
+		ieee80211_node_authorize(ni);
 	}
 	return ni;
 }

@@ -904,7 +904,7 @@ ieee80211_auth_open(struct ieee80211com *ic, struct ieee80211_frame *wh,
 		 * authorized at this point so traffic can flow.
 		 */
 		if (ni->ni_authmode != IEEE80211_AUTH_8021X)
-			ieee80211_node_authorize(ic, ni);
+			ieee80211_node_authorize(ni);
 		break;
 
 	case IEEE80211_M_STA:
@@ -1127,7 +1127,7 @@ ieee80211_auth_shared(struct ieee80211com *ic, struct ieee80211_frame *wh,
 			    IEEE80211_MSG_DEBUG | IEEE80211_MSG_AUTH,
 			    "[%s] station authenticated (shared key)\n",
 			    ether_sprintf(ni->ni_macaddr));
-			ieee80211_node_authorize(ic, ni);
+			ieee80211_node_authorize(ni);
 			break;
 		default:
 			IEEE80211_DISCARD_MAC(ic, IEEE80211_MSG_AUTH,
