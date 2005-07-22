@@ -112,6 +112,8 @@ static struct mbuf *ieee80211_defrag(struct ieee80211com *,
 static struct mbuf *ieee80211_decap(struct ieee80211com *, struct mbuf *, int);
 static void ieee80211_send_error(struct ieee80211com *, struct ieee80211_node *,
 		const u_int8_t *mac, int subtype, int arg);
+static void ieee80211_deliver_data(struct ieee80211com *,
+	struct ieee80211_node *, struct mbuf *);
 static void ieee80211_node_pwrsave(struct ieee80211_node *, int enable);
 static void ieee80211_recv_pspoll(struct ieee80211com *,
 	struct ieee80211_node *, struct mbuf *);
@@ -469,44 +471,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 		IEEE80211_NODE_STAT(ni, rx_data);
 		IEEE80211_NODE_STAT_ADD(ni, rx_bytes, m->m_pkthdr.len);
 
-		/* perform as a bridge within the AP */
-		if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
-		    (ic->ic_flags & IEEE80211_F_NOBRIDGE) == 0) {
-			struct mbuf *m1 = NULL;
-
-			if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-				m1 = m_copypacket(m, M_DONTWAIT);
-				if (m1 == NULL)
-					ifp->if_oerrors++;
-				else
-					m1->m_flags |= M_MCAST;
-			} else {
-				/* XXX this dups work done in ieee80211_encap */
-				/* check if destination is associated */
-				struct ieee80211_node *ni1 =
-				    ieee80211_find_node(&ic->ic_sta,
-							eh->ether_dhost);
-				if (ni1 != NULL) {
-					/* XXX check if authorized */
-					if (ni1->ni_associd != 0) {
-						m1 = m;
-						m = NULL;
-					}
-					/* XXX statistic? */
-					ieee80211_free_node(ni1);
-				}
-			}
-			if (m1 != NULL)
-				IF_HANDOFF(&ifp->if_snd, m1, ifp);
-		}
-		if (m != NULL) {
-			if (ni->ni_vlan != 0) {
-				/* attach vlan tag */
-				/* XXX goto err? */
-				VLAN_INPUT_TAG(ifp, m, ni->ni_vlan, goto out);
-			}
-			(*ifp->if_input)(ifp, m);
-		}
+		ieee80211_deliver_data(ic, ni, m);
 		return IEEE80211_FC0_TYPE_DATA;
 
 	case IEEE80211_FC0_TYPE_MGT:
@@ -685,6 +650,59 @@ ieee80211_defrag(struct ieee80211com *ic, struct ieee80211_node *ni,
 		mfrag = NULL;
 	}
 	return mfrag;
+}
+
+static void
+ieee80211_deliver_data(struct ieee80211com *ic,
+	struct ieee80211_node *ni, struct mbuf *m)
+{
+	struct ether_header *eh = mtod(m, struct ether_header *);
+	struct ifnet *ifp = ic->ic_ifp;
+
+	/* perform as a bridge within the AP */
+	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
+	    (ic->ic_flags & IEEE80211_F_NOBRIDGE) == 0) {
+		struct mbuf *m1 = NULL;
+
+		if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
+			m1 = m_copypacket(m, M_DONTWAIT);
+			if (m1 == NULL)
+				ifp->if_oerrors++;
+			else
+				m1->m_flags |= M_MCAST;
+		} else {
+			/* XXX this dups work done in ieee80211_encap */
+			/* check if destination is associated */
+			struct ieee80211_node *ni1 =
+			    ieee80211_find_node(&ic->ic_sta,
+						eh->ether_dhost);
+			if (ni1 != NULL) {
+				if (ieee80211_node_is_authorized(ni1)) {
+					m1 = m;
+					m = NULL;
+				}
+				/* XXX statistic? */
+				ieee80211_free_node(ni1);
+			}
+		}
+		if (m1 != NULL)
+			IF_HANDOFF(&ifp->if_snd, m1, ifp);
+	}
+	if (m != NULL) {
+		if (ni->ni_vlan != 0) {
+			/* attach vlan tag */
+			/* XXX goto err? */
+			VLAN_INPUT_TAG(ifp, m, ni->ni_vlan, goto out);
+		}
+		(*ifp->if_input)(ifp, m);
+	}
+	return;
+  out:
+	if (m != NULL) {
+		if (ic->ic_rawbpf)
+			bpf_mtap(ic->ic_rawbpf, m);
+		m_freem(m);
+	}
 }
 
 static struct mbuf *
