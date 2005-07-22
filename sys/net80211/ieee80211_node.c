@@ -1477,7 +1477,7 @@ IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether
 				    "[%s] probe station due to inactivity\n",
 				    ether_sprintf(ni->ni_macaddr));
 				IEEE80211_NODE_UNLOCK(nt);
-				ieee80211_send_nulldata(ic, ni);
+				ieee80211_send_nulldata(ni);
 				/* XXX stat? */
 				goto restart;
 			}

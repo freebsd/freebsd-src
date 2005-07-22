@@ -2701,7 +2701,7 @@ ieee80211_recv_pspoll(struct ieee80211com *ic,
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER,
 		    "[%s] recv ps-poll, but queue empty\n",
 		    ether_sprintf(wh->i_addr2));
-		ieee80211_send_nulldata(ic, ni);
+		ieee80211_send_nulldata(ni);
 		ic->ic_stats.is_ps_qempty++;	/* XXX node stat */
 		if (ic->ic_set_tim != NULL)
 			ic->ic_set_tim(ic, ni, 0);	/* just in case */
