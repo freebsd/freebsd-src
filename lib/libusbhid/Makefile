@@ -4,7 +4,7 @@
 LIB=	usbhid
 MAN=	usbhid.3
 
-SHLIB_MAJOR= 1
+SHLIB_MAJOR= 2
 
 MLINKS=	usbhid.3 libusbhid.3 usbhid.3 hid_get_report_desc.3 \
 	usbhid.3 hid_dispose_report_desc.3 \
