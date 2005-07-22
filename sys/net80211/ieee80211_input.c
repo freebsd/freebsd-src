@@ -136,7 +136,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *key;
 	struct ether_header *eh;
-	int len, hdrspace;
+	int hdrspace;
 	u_int8_t dir, type, subtype;
 	u_int8_t *bssid;
 	u_int16_t rxseq;
@@ -496,13 +496,8 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 					ieee80211_free_node(ni1);
 				}
 			}
-			if (m1 != NULL) {
-				len = m1->m_pkthdr.len;
-				IF_ENQUEUE(&ifp->if_snd, m1);
-				if (m != NULL)
-					ifp->if_omcasts++;
-				ifp->if_obytes += len;
-			}
+			if (m1 != NULL)
+				IF_HANDOFF(&ifp->if_snd, m1, ifp);
 		}
 		if (m != NULL) {
 			if (ni->ni_vlan != 0) {
