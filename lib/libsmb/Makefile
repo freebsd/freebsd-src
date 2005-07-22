@@ -4,7 +4,7 @@ CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
 .PATH: ${CONTRIBDIR}/lib/smb
 
 LIB=	smb
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 NO_MAN=
 
 SRCS=	rcfile.c ctx.c cfopt.c subr.c nls.c rap.c mbuf.c rq.c file.c \

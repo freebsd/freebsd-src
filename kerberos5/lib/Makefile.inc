@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SHLIB_MAJOR?=	7
+SHLIB_MAJOR?=	8
 
 .include "../Makefile.inc"
