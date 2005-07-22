@@ -733,8 +733,9 @@ ieee80211_end_scan(struct ieee80211com *ic)
  * Return !0 if the BSSID changed, 0 otherwise.
  */
 int
-ieee80211_ibss_merge(struct ieee80211com *ic, struct ieee80211_node *ni)
+ieee80211_ibss_merge(struct ieee80211_node *ni)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 
 	if (ni == ic->ic_bss ||
 	    IEEE80211_ADDR_EQ(ni->ni_bssid, ic->ic_bss->ni_bssid)) {
