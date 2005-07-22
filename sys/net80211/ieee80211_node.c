@@ -72,8 +72,7 @@ static void ieee80211_free_allnodes(struct ieee80211_node_table *);
 static void ieee80211_timeout_scan_candidates(struct ieee80211_node_table *);
 static void ieee80211_timeout_stations(struct ieee80211_node_table *);
 
-static void ieee80211_set_tim(struct ieee80211com *,
-		struct ieee80211_node *, int set);
+static void ieee80211_set_tim(struct ieee80211_node *, int set);
 
 static void ieee80211_node_table_init(struct ieee80211com *ic,
 	struct ieee80211_node_table *nt, const char *name, int inact,
@@ -864,7 +863,7 @@ node_cleanup(struct ieee80211_node *ni)
 	 */
 	IEEE80211_NODE_SAVEQ_DRAIN(ni, qlen);
 	if (qlen != 0 && ic->ic_set_tim != NULL)
-		ic->ic_set_tim(ic, ni, 0);
+		ic->ic_set_tim(ni, 0);
 
 	ni->ni_associd = 0;
 	if (ni->ni_challenge != NULL) {
@@ -1464,7 +1463,7 @@ IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether
 					IEEE80211_NODE_STAT_ADD(ni,
 						ps_discard, discard);
 					if (IEEE80211_NODE_SAVEQ_QLEN(ni) == 0)
-						ic->ic_set_tim(ic, ni, 0);
+						ic->ic_set_tim(ni, 0);
 				}
 			}
 			/*
@@ -1860,8 +1859,9 @@ ieee80211_getrssi(struct ieee80211com *ic)
  * Indicate whether there are frames queued for a station in power-save mode.
  */
 static void
-ieee80211_set_tim(struct ieee80211com *ic, struct ieee80211_node *ni, int set)
+ieee80211_set_tim(struct ieee80211_node *ni, int set)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	u_int16_t aid;
 
 	KASSERT(ic->ic_opmode == IEEE80211_M_HOSTAP ||
