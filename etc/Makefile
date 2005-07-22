@@ -86,6 +86,10 @@ CAP_MKDB_ENDIAN=
 .endif
 
 distribution:
+.if !defined(DESTDIR)
+	@echo "set DESTDIR before running \"make ${.TARGET}\""
+	@false
+.endif
 	cd ${.CURDIR}; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${BIN1} ${DESTDIR}/etc; \
