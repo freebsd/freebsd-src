@@ -335,22 +335,7 @@ ieee80211_next_scan(struct ieee80211com *ic)
 			    ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan),
 			    ieee80211_chan2ieee(ic, chan));
 			ieee80211_set_chan(ic, ic->ic_bss, chan);
-#ifdef notyet
-			/* XXX driver state change */
-			/*
-			 * Scan next channel. If doing an active scan
-			 * and the channel is not marked passive-only
-			 * then send a probe request.  Otherwise just
-			 * listen for beacons on the channel.
-			 */
-			if ((ic->ic_flags & IEEE80211_F_ASCAN) &&
-			    (ni->ni_chan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0) {
-				IEEE80211_SEND_MGMT(ic, ni,
-				    IEEE80211_FC0_SUBTYPE_PROBE_REQ, 0);
-			}
-#else
 			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
-#endif
 			return 1;
 		}
 	} while (chan != ic->ic_bss->ni_chan);
