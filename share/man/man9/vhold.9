@@ -53,10 +53,10 @@ The
 function decrements the
 .Va v_holdcnt
 of the vnode.
-If the holdcount is less than or equal zero prior to calling
+If the holdcount is less than or equal to zero prior to calling
 .Fn vdrop ,
 the system will panic.
-If the vnode is no longer referenced, it will freed.
+If the vnode is no longer referenced, it will be freed.
 .Sh SEE ALSO
 .Xr vbusy 9 ,
 .Xr vfree 9
