@@ -21,6 +21,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050722:
+	The ai_addrlen of a struct addrinfo was changed to a socklen_t
+	to conform to POSIX-2001.  This change broke an ABI
+	compatibility on 64 bit architecture.  You have to recompile
+	userland programs that use getaddrinfo(3) on 64 bit
+	architecture.
+
 20050711:
 	RELENG_6 branched here.
 
