@@ -1131,7 +1131,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		IEEE80211_NODE_STAT(ni, tx_deauth);
 		IEEE80211_NODE_STAT_SET(ni, tx_deauth_code, arg);
 
-		ieee80211_node_unauthorize(ic, ni);	/* port closed */
+		ieee80211_node_unauthorize(ni);		/* port closed */
 		break;
 
 	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:

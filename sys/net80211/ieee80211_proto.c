@@ -1068,7 +1068,7 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 		 * at this point so traffic can flow.
 		 */
 		if (ni->ni_authmode != IEEE80211_AUTH_8021X)
-			ieee80211_node_authorize(ic, ni);
+			ieee80211_node_authorize(ni);
 		/*
 		 * Enable inactivity processing.
 		 * XXX

@@ -1124,7 +1124,7 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 
 		switch (auth->state) {
 		case IWI_AUTHENTICATED:
-			ieee80211_node_authorize(ic, ic->ic_bss);
+			ieee80211_node_authorize(ic->ic_bss);
 			ieee80211_new_state(ic, IEEE80211_S_ASSOC, -1);
 			break;
 

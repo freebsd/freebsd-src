@@ -842,7 +842,7 @@ ipw_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 		ieee80211_ref_node(ni);
 		ieee80211_sta_join(ic, ni);
-		ieee80211_node_authorize(ic, ni);
+		ieee80211_node_authorize(ni);
 
 		if (ic->ic_opmode == IEEE80211_M_STA)
 			ieee80211_notify_node_join(ic, ni, 1);
