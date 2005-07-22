@@ -1685,9 +1685,9 @@ ieee80211_ioctl_setmlme(struct ieee80211com *ic, struct ieee80211req *ireq)
 		if (ni == NULL)
 			return EINVAL;
 		if (mlme.im_op == IEEE80211_MLME_AUTHORIZE)
-			ieee80211_node_authorize(ic, ni);
+			ieee80211_node_authorize(ni);
 		else
-			ieee80211_node_unauthorize(ic, ni);
+			ieee80211_node_unauthorize(ni);
 		ieee80211_free_node(ni);
 		break;
 	default:
