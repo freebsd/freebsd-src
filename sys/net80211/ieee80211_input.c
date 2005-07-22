@@ -2827,7 +2827,7 @@ ieee80211_discard_mac(struct ieee80211com *ic,
 {
 	va_list ap;
 
-	printf("[%s] discard ", ether_sprintf(mac));
+	printf("[%s:%s] discard ", ic->ic_ifp->if_xname, ether_sprintf(mac));
 	if (type != NULL)
 		printf("%s frame, ", type);
 	else
