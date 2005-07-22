@@ -1382,8 +1382,12 @@ ieee80211_parse_wpa(struct ieee80211com *ic, u_int8_t *frm,
 	 * version, mcast cipher, and 2 selector counts.
 	 * Other, variable-length data, must be checked separately.
 	 */
-	KASSERT(ic->ic_flags & IEEE80211_F_WPA1,
-		("not WPA, flags 0x%x", ic->ic_flags));
+	if ((ic->ic_flags & IEEE80211_F_WPA1) == 0) {
+		IEEE80211_DISCARD_IE(ic,
+		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_WPA,
+		    wh, "WPA", "not WPA, flags 0x%x", ic->ic_flags);
+		return IEEE80211_REASON_IE_INVALID;
+	}
 	if (len < 14) {
 		IEEE80211_DISCARD_IE(ic,
 		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_WPA,
@@ -1545,8 +1549,12 @@ ieee80211_parse_rsn(struct ieee80211com *ic, u_int8_t *frm,
 	 * version, mcast cipher, and 2 selector counts.
 	 * Other, variable-length data, must be checked separately.
 	 */
-	KASSERT(ic->ic_flags & IEEE80211_F_WPA2,
-		("not RSN, flags 0x%x", ic->ic_flags));
+	if ((ic->ic_flags & IEEE80211_F_WPA2) == 0) {
+		IEEE80211_DISCARD_IE(ic,
+		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_WPA,
+		    wh, "WPA", "not RSN, flags 0x%x", ic->ic_flags);
+		return IEEE80211_REASON_IE_INVALID;
+	}
 	if (len < 10) {
 		IEEE80211_DISCARD_IE(ic,
 		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_WPA,
@@ -2239,10 +2247,9 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				wpa = frm;
 				break;
 			case IEEE80211_ELEMID_VENDOR:
-				if (iswpaoui(frm)) {
-					if (ic->ic_flags & IEEE80211_F_WPA1)
-						wpa = frm;
-				} else if (iswmeinfo(frm))
+				if (iswpaoui(frm))
+					wpa = frm;
+				else if (iswmeinfo(frm))
 					wme = frm;
 				/* XXX Atheros OUI support */
 				break;
