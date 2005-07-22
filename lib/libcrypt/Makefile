@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 LIB=		crypt
 SHLIBDIR?=	/lib
 

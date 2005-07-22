@@ -2,7 +2,7 @@
 
 LIB =		gpib
 SHLIBDIR ?=	/lib
-SHLIB_MAJOR =	0
+SHLIB_MAJOR =	1
 NO_MAN =	sorry
 SRCS =		ibfoo.c
 INCS =		gpib.h
