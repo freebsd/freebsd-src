@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #define	READIN_BUF	(4 * 1024)
 #define	PAGE_SIZE	0x1000
 #define	PAGE_MASK	0x0fff
+#define MAPMEM_PAGE_INC 16
+
 
 #define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))
 
@@ -76,10 +78,10 @@ ofw_mapmem(vm_offset_t dest, const size_t len)
 
 	/*
 	 * To avoid repeated mappings on small allocations,
-	 * never map anything less than 16 pages at a time
+	 * never map anything less than MAPMEM_PAGE_INC pages at a time
 	 */
-	if ((nlen + resid) < PAGE_SIZE*8) {
-		dlen = PAGE_SIZE*8;
+	if ((nlen + resid) < PAGE_SIZE*MAPMEM_PAGE_INC) {
+		dlen = PAGE_SIZE*MAPMEM_PAGE_INC;
 	} else
 		dlen = roundup(nlen + resid, PAGE_SIZE);
 
