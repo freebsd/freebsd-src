@@ -3,7 +3,7 @@
 # $FreeBSD$
 
 LIB=	edit
-SHLIB_MAJOR=	4
+SHLIB_MAJOR=	5
 SHLIBDIR?= /lib
 
 OSRCS=	chared.c common.c el.c emacs.c fcns.c help.c hist.c key.c map.c \

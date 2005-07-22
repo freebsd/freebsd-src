@@ -6,7 +6,7 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc
 .PATH: ${OBJCDIR}/objc ${OBJCDIR}
 
 LIB=		objc
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 NO_MAN=
 
 SRCS=   archive.c class.c encoding.c gc.c hash.c init.c misc.c \
