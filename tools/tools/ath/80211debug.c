@@ -72,6 +72,10 @@ const char *progname;
 #define	IEEE80211_MSG_WPA	0x00001000	/* WPA/RSN protocol */
 #define	IEEE80211_MSG_ACL	0x00000800	/* ACL handling */
 #define	IEEE80211_MSG_WME	0x00000400	/* WME protocol */
+#define	IEEE80211_MSG_SUPERG	0x00000200	/* Atheros SuperG protocol */
+#define	IEEE80211_MSG_DOTH	0x00000100	/* 802.11h support */
+#define	IEEE80211_MSG_INACT	0x00000080	/* inactivity handling */
+#define	IEEE80211_MSG_ROAM	0x00000040	/* sta-mode roaming */
 
 static struct {
 	const char	*name;
@@ -98,6 +102,10 @@ static struct {
 	{ "wpa",	IEEE80211_MSG_WPA },
 	{ "acl",	IEEE80211_MSG_ACL },
 	{ "wme",	IEEE80211_MSG_WME },
+	{ "superg",	IEEE80211_MSG_SUPERG },
+	{ "doth",	IEEE80211_MSG_DOTH },
+	{ "inact",	IEEE80211_MSG_INACT },
+	{ "roam",	IEEE80211_MSG_ROAM },
 };
 
 static u_int
