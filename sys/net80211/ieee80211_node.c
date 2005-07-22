@@ -1048,7 +1048,7 @@ ieee80211_fakeup_adhoc_node(struct ieee80211_node_table *nt,
 		/* XXX no rate negotiation; just dup */
 		ni->ni_rates = ic->ic_bss->ni_rates;
 		if (ic->ic_newassoc != NULL)
-			ic->ic_newassoc(ic, ni, 1);
+			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
 		ieee80211_node_authorize(ni);
 	}
@@ -1678,7 +1678,7 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 
 	/* give driver a chance to setup state like ni_txrate */
 	if (ic->ic_newassoc != NULL)
-		ic->ic_newassoc(ic, ni, newassoc);
+		ic->ic_newassoc(ni, newassoc);
 	ni->ni_inact_reload = ic->ic_inact_auth;
 	ni->ni_inact = ni->ni_inact_reload;
 	IEEE80211_SEND_MGMT(ic, ni, resp, IEEE80211_STATUS_SUCCESS);
