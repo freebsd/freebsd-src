@@ -2714,6 +2714,48 @@ ieee80211_getbssid(struct ieee80211com *ic, const struct ieee80211_frame *wh)
 	return wh->i_addr3;
 }
 
+void
+ieee80211_note(struct ieee80211com *ic, const char *fmt, ...)
+{
+	char buf[128];		/* XXX */
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	if_printf(ic->ic_ifp, "%s", buf);	/* NB: no \n */
+}
+
+void
+ieee80211_note_frame(struct ieee80211com *ic,
+	const struct ieee80211_frame *wh,
+	const char *fmt, ...)
+{
+	char buf[128];		/* XXX */
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	if_printf(ic->ic_ifp, "[%s] %s\n",
+		ether_sprintf(ieee80211_getbssid(ic, wh)), buf);
+}
+
+void
+ieee80211_note_mac(struct ieee80211com *ic,
+	const u_int8_t mac[IEEE80211_ADDR_LEN],
+	const char *fmt, ...)
+{
+	char buf[128];		/* XXX */
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	if_printf(ic->ic_ifp, "[%s] %s\n", ether_sprintf(mac), buf);
+}
+
 static void
 ieee80211_discard_frame(struct ieee80211com *ic,
 	const struct ieee80211_frame *wh,
