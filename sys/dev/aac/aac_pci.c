@@ -356,8 +356,8 @@ static int
 aacch_probe(device_t dev)
 {
 
-	if ((pci_get_subvendor(dev) != 0x9005) ||
-	    (pci_get_subdevice(dev) != 0x00c5))
+	if ((pci_get_vendor(dev) != 0x9005) ||
+	    (pci_get_device(dev) != 0x00c5))
 		return (ENXIO);
 
 	device_set_desc(dev, "AAC RAID Channel");
