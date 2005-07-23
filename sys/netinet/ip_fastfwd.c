@@ -34,16 +34,16 @@
  * completion (if_output on the other side) without any queues or netisr's.
  * The receiving interface DMAs the packet into memory, the upper half of
  * driver calls ip_fastforward, we do our routing table lookup and directly
- * send it off to the outgoing interface which DMAs the packet to the
+ * send it off to the outgoing interface, which DMAs the packet to the
  * network card. The only part of the packet we touch with the CPU is the
  * IP header (unless there are complex firewall rules touching other parts
  * of the packet, but that is up to you). We are essentially limited by bus
  * bandwidth and how fast the network card/driver can set up receives and
  * transmits.
  *
- * We handle basic errors, ip header errors, checksum errors,
+ * We handle basic errors, IP header errors, checksum errors,
  * destination unreachable, fragmentation and fragmentation needed and
- * report them via icmp to the sender.
+ * report them via ICMP to the sender.
  *
  * Else if something is not pure IPv4 unicast forwarding we fall back to
  * the normal ip_input processing path. We should only be called from
@@ -58,16 +58,16 @@
  * We try to do the least expensive (in CPU ops) checks and operations
  * first to catch junk with as little overhead as possible.
  * 
- * We take full advantage of hardware support for ip checksum and
+ * We take full advantage of hardware support for IP checksum and
  * fragmentation offloading.
  *
  * We don't do ICMP redirect in the fast forwarding path. I have had my own
  * cases where two core routers with Zebra routing suite would send millions
- * ICMP redirects to connected hosts if the router to dest was not the default
- * gateway. In one case it was filling the routing table of a host with close
- * 300'000 cloned redirect entries until it ran out of kernel memory. However
- * the networking code proved very robust and it didn't crash or went ill
- * otherwise.
+ * ICMP redirects to connected hosts if the destination router was not the
+ * default gateway. In one case it was filling the routing table of a host
+ * with approximately 300.000 cloned redirect entries until it ran out of
+ * kernel memory. However the networking code proved very robust and it didn't
+ * crash or fail in other ways.
  */
 
 /*
@@ -243,7 +243,7 @@ ip_fastforward(struct mbuf *m)
 	}
 
 	/*
-	 * Remeber that we have checked the IP header and found it valid.
+	 * Remember that we have checked the IP header and found it valid.
 	 */
 	m->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED | CSUM_IP_VALID);
 
@@ -537,7 +537,7 @@ passout:
 	}
 
 	/*
-	 * Check if packet fits MTU or if hardware will fragement for us
+	 * Check if packet fits MTU or if hardware will fragment for us
 	 */
 	if (ro.ro_rt->rt_rmx.rmx_mtu)
 		mtu = min(ro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
@@ -567,7 +567,7 @@ passout:
 			goto consumed;
 		} else {
 			/*
-			 * We have to fragement the packet
+			 * We have to fragment the packet
 			 */
 			m->m_pkthdr.csum_flags |= CSUM_IP;
 			/*
