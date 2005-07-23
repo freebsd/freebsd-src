@@ -2986,17 +2986,19 @@ restart:
 			uth.uth_allocs = z->uz_allocs;
 			uth.uth_frees = z->uz_frees;
 			uth.uth_fails = z->uz_fails;
-			ZONE_UNLOCK(z);
 			if (sbuf_bcat(&sbuf, &uth, sizeof(uth)) < 0) {
+				ZONE_UNLOCK(z);
 				mtx_unlock(&uma_mtx);
 				error = ENOMEM;
 				goto out;
 			}
 			/*
-			 * XXXRW: Should not access bucket fields from
-			 * non-local CPU.  Instead need to modify the caches
-			 * to directly maintain these statistics so we don't
-			 * have to.
+			 * While it is not normally safe to access the cache
+			 * bucket pointers while not on the CPU that owns the
+			 * cache, we only allow the pointers to be exchanged
+			 * without the zone lock held, not invalidated, so
+			 * accept the possible race associated with bucket
+			 * exchange during monitoring.
 			 */
 			for (i = 0; i < MAXCPU; i++) {
 				bzero(&ups, sizeof(ups));
@@ -3013,11 +3015,13 @@ restart:
 				ups.ups_frees = cache->uc_frees;
 skip:
 				if (sbuf_bcat(&sbuf, &ups, sizeof(ups)) < 0) {
+					ZONE_UNLOCK(z);
 					mtx_unlock(&uma_mtx);
 					error = ENOMEM;
 					goto out;
 				}
 			}
+			ZONE_UNLOCK(z);
 		}
 	}
 	mtx_unlock(&uma_mtx);
