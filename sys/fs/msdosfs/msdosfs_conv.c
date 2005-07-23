@@ -560,7 +560,9 @@ unix2dosfn(un, dn, unlen, gen, pmp)
 	}
 
 	/*
-	 * Now convert it (this part is for extension)
+	 * Now convert it (this part is for extension).
+	 * As Windows XP do, if it's not ascii char,
+	 * this function should return 2 or 3, so that checkng out Unicode name.
 	 */
 	if (dp) {
 		if (dp1)
@@ -573,6 +575,8 @@ unix2dosfn(un, dn, unlen, gen, pmp)
 				dn[j] = c >> 8;
 				if (++j < 11) {
 					dn[j] = c;
+					if (conv != 3)
+						conv = 2;
 					continue;
 				} else {
 					conv = 3;
@@ -582,7 +586,7 @@ unix2dosfn(un, dn, unlen, gen, pmp)
 			} else {
 				dn[j] = c;
 			}
-			if (*(cp - 1) != dn[j] && conv != 3)
+			if (((dn[j] & 0x80) || *(cp - 1) != dn[j]) && conv != 3)
 				conv = 2;
 			if (dn[j] == 1) {
 				conv = 3;
@@ -610,6 +614,8 @@ unix2dosfn(un, dn, unlen, gen, pmp)
 			dn[j] = c >> 8;
 			if (++j < 8) {
 				dn[j] = c;
+				if (conv != 3)
+					conv = 2;
 				continue;
 			} else {
 				conv = 3;
@@ -619,7 +625,7 @@ unix2dosfn(un, dn, unlen, gen, pmp)
 		} else {
 			dn[j] = c;
 		}
-		if (*(un - 1) != dn[j] && conv != 3)
+		if (((dn[j] & 0x80) || *(un - 1) != dn[j]) && conv != 3)
 			conv = 2;
 		if (dn[j] == 1) {
 			conv = 3;
@@ -1048,22 +1054,23 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 	u_char c;
 	char *up, *outp, unicode[3], outbuf[3];
 	u_int16_t wc;
-	size_t len, ulen, olen;
+	size_t len, ucslen, unixlen, olen;
 
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
 		/*
 		 * to hide an invisible character, using a unicode filter
 		 */
-		ulen = 2;
+		ucslen = 2;
 		len = *ilen;
 		up = unicode;
 		msdosfs_iconv->convchr(pmp->pm_u2w, (const char **)instr,
-				     ilen, &up, &ulen);
+				     ilen, &up, &ucslen);
+		unixlen = len - *ilen;
 
 		/*
 		 * cannot be converted
 		 */
-		if (ulen == 2) {
+		if (unixlen == 0) {
 			(*ilen)--;
 			(*instr)++;
 			return (0);
@@ -1072,7 +1079,7 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 		/*
 		 * return magic number for ascii char
 		 */
-		if ((len - *ilen) == 1) {
+		if (unixlen == 1) {
 			c = *(*instr -1);
 			if (! (c & 0x80)) {
 				c = unix2dos[c];
@@ -1084,14 +1091,24 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 		/*
 		 * now convert using libiconv
 		 */
-		*instr -= len - *ilen;
-		*ilen = (int)len;
+		*instr -= unixlen;
+		*ilen = len;
 
 		olen = len = 2;
 		outp = outbuf;
 		msdosfs_iconv->convchr_case(pmp->pm_u2d, (const char **)instr,
 					  ilen, &outp, &olen, KICONV_FROM_UPPER);
 		len -= olen;
+
+		/*
+		 * cannot be converted, but has unicode char, should return magic number
+		 */
+		if (len == 0) {
+			(*ilen) -= unixlen;
+			(*instr) += unixlen;
+			return (1);
+		}
+
 		wc = 0;
 		while(len--)
 			wc |= (*(outp - len - 1) & 0xff) << (len << 3);
