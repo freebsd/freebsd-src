@@ -177,6 +177,7 @@ struct uma_cache {
 	uma_bucket_t	uc_freebucket;	/* Bucket we're freeing to */
 	uma_bucket_t	uc_allocbucket;	/* Bucket to allocate from */
 	u_int64_t	uc_allocs;	/* Count of allocations */
+	u_int64_t	uc_frees;	/* Count of frees */
 };
 
 typedef struct uma_cache * uma_cache_t;
@@ -303,6 +304,7 @@ struct uma_zone {
 	uma_fini	uz_fini;	/* Discards memory */
 
 	u_int64_t	uz_allocs;	/* Total number of allocations */
+	u_int64_t	uz_frees;	/* total number of frees */
 	uint16_t	uz_fills;	/* Outstanding bucket fills */
 	uint16_t	uz_count;	/* Highest value ub_ptr can have */
 

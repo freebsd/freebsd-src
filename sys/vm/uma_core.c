@@ -1325,6 +1325,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_init = NULL;
 	zone->uz_fini = NULL;
 	zone->uz_allocs = 0;
+	zone->uz_frees = 0;
 	zone->uz_fills = zone->uz_count = 0;
 
 	if (arg->flags & UMA_ZONE_SECONDARY) {
@@ -1894,6 +1895,8 @@ zalloc_start:
 	/* Since we have locked the zone we may as well send back our stats */
 	zone->uz_allocs += cache->uc_allocs;
 	cache->uc_allocs = 0;
+	zone->uz_frees += cache->uc_frees;
+	cache->uc_frees = 0;
 
 	/* Our old one is now a free bucket */
 	if (cache->uc_allocbucket) {
@@ -2296,6 +2299,7 @@ zfree_start:
 			    ("uma_zfree: Freeing to non free bucket index."));
 			bucket->ub_bucket[bucket->ub_cnt] = item;
 			bucket->ub_cnt++;
+			cache->uc_frees++;
 			critical_exit();
 			return;
 		} else if (cache->uc_allocbucket) {
@@ -2467,6 +2471,7 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata,
 
 	/* Zone statistics */
 	keg->uk_free++;
+	zone->uz_frees++;
 
 	if (keg->uk_flags & UMA_ZFLAG_FULL) {
 		if (keg->uk_pages < keg->uk_maxpages)
