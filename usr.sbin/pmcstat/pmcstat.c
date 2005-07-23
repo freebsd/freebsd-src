@@ -325,6 +325,7 @@ pmcstat_show_usage(void)
 	    "\t -c cpu\t\t set cpu for subsequent system-wide PMCs\n"
 	    "\t -d\t\t (toggle) track descendants\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
+	    "\t -k file\t set the path to the kernel\n"
 	    "\t -n rate\t set sampling rate\n"
 	    "\t -o file\t send print output to \"file\"\n"
 	    "\t -p spec\t allocate a process-private counting PMC\n"
