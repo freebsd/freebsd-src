@@ -99,9 +99,11 @@ memstat_mtl_find(struct memory_type_list *list, int allocator,
 /*
  * Allocate a new memory_type with the specificed allocator type and name,
  * then insert into the list.  The structure will be zero'd.
+ *
+ * libmemstat(3) internal function.
  */
 struct memory_type *
-memstat_mt_allocate(struct memory_type_list *list, int allocator,
+_memstat_mt_allocate(struct memory_type_list *list, int allocator,
     const char *name)
 {
 	struct memory_type *mtp;
@@ -122,9 +124,11 @@ memstat_mt_allocate(struct memory_type_list *list, int allocator,
  * Reset any libmemstat(3)-owned statistics in a memory_type record so that
  * it can be reused without incremental addition problems.  Caller-owned
  * memory is left "as-is", and must be updated by the caller if desired.
+ *
+ * libmemstat(3) internal function.
  */
 void
-memstat_mt_reset_stats(struct memory_type *mtp)
+_memstat_mt_reset_stats(struct memory_type *mtp)
 {
 	int i;
 
