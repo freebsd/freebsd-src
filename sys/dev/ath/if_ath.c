@@ -342,11 +342,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			ath_outdoor, ath_xchanmode);
 	if (error != 0)
 		goto bad;
-	/*
-	 * Setup dynamic sysctl's now that country code and
-	 * regdomain are available from the hal.
-	 */
-	ath_sysctlattach(sc);
 
 	/*
 	 * Setup rate tables for all potential media types.
@@ -587,6 +582,11 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ieee80211_media_init(ic, ath_media_change, ieee80211_media_status);
 
 	ath_bpfattach(sc);
+	/*
+	 * Setup dynamic sysctl's now that country code and
+	 * regdomain are available from the hal.
+	 */
+	ath_sysctlattach(sc);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -1848,7 +1848,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 		/*
 		 * Let hardware handle antenna switching.
 		 */
-		antenna = 0;
+		antenna = sc->sc_txantenna;
 	} else {
 		ds->ds_link = 0;
 		/*
