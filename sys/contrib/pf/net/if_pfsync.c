@@ -56,6 +56,7 @@
 #include <sys/sockio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #else
 #include <sys/ioctl.h>
 #include <sys/timeout.h>
@@ -119,8 +120,11 @@ int pfsyncdebug;
 struct pfsync_softc	pfsyncif;
 #endif
 struct pfsyncstats	pfsyncstats;
-
 #ifdef __FreeBSD__
+SYSCTL_DECL(_net_inet_pfsync);
+SYSCTL_STRUCT(_net_inet_pfsync, 0, stats, CTLFLAG_RW,
+    &pfsyncstats, pfsyncstats,
+    "PFSYNC statistics (struct pfsyncstats, net/if_pfsync.h)");
 
 /*
  * Locking notes:
