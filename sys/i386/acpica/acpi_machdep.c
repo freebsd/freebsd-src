@@ -143,7 +143,7 @@ acpi_capm_get_info(apm_info_t aip)
 	else
 		aip->ai_acline = acline;	/* on/off */
 
-	if (acpi_battery_get_battinfo(-1, &batt)) {
+	if (acpi_battery_get_battinfo(NULL, &batt) != 0) {
 		aip->ai_batt_stat = APM_UNKNOWN;
 		aip->ai_batt_life = APM_UNKNOWN;
 		aip->ai_batt_time = -1;		 /* unknown */
@@ -161,8 +161,8 @@ acpi_capm_get_info(apm_info_t aip)
 static int
 acpi_capm_get_pwstatus(apm_pwstatus_t app)
 {
-	int	batt_unit;
-	int	acline;
+	device_t dev;
+	int	acline, unit, error;
 	struct	acpi_battinfo batt;
 
 	if (app->ap_device != PMDV_ALLDEV &&
@@ -170,11 +170,16 @@ acpi_capm_get_pwstatus(apm_pwstatus_t app)
 		return (1);
 
 	if (app->ap_device == PMDV_ALLDEV)
-		batt_unit = -1;			/* all units */
-	else
-		batt_unit = app->ap_device - PMDV_BATT0;
-
-	if (acpi_battery_get_battinfo(batt_unit, &batt))
+		error = acpi_battery_get_battinfo(NULL, &batt);
+	else {
+		unit = app->ap_device - PMDV_BATT0;
+		dev = devclass_get_device(devclass_find("battery"), unit);
+		if (dev != NULL)
+			error = acpi_battery_get_battinfo(dev, &batt);
+		else
+			error = ENXIO;
+	}
+	if (error)
 		return (1);
 
 	app->ap_batt_stat = acpi_capm_convert_battstate(&batt);
