@@ -51,6 +51,9 @@ INTERFACE acpi;
 HEADER {
 	typedef ACPI_STATUS (*acpi_scan_cb_t)(ACPI_HANDLE h, device_t *dev,
 	    int level, void *arg);
+
+	struct acpi_bif;
+	struct acpi_bst;
 };
 
 #
@@ -196,4 +199,26 @@ METHOD int ec_write {
 	u_int		addr;
 	ACPI_INTEGER	val;
 	int		width;
+};
+
+#
+# Get battery information (_BIF format)
+#
+# device_t dev:  Battery device
+# struct acpi_bif *bif:  Pointer to storage for _BIF results
+#
+METHOD int batt_get_info {
+	device_t	dev;
+	struct acpi_bif	*bif;
+};
+
+#
+# Get battery status (_BST format)
+#
+# device_t dev:  Battery device
+# struct acpi_bst *bst:  Pointer to storage for _BST results
+#
+METHOD int batt_get_status {
+	device_t	dev;
+	struct acpi_bst	*bst;
 };
