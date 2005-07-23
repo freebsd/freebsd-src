@@ -94,6 +94,7 @@ static MALLOC_DEFINE(M_FREE, "free", "should be on free list");
 static struct malloc_type *kmemstatistics;
 static char *kmembase;
 static char *kmemlimit;
+static int kmemcount;
 
 #define KMEM_ZSHIFT	4
 #define KMEM_ZBASE	16
@@ -169,6 +170,7 @@ static int sysctl_kern_mprof(SYSCTL_HANDLER_ARGS);
 #endif
 
 static int sysctl_kern_malloc(SYSCTL_HANDLER_ARGS);
+static int sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS);
 
 /* time_uptime of last malloc(9) failure */
 static time_t t_malloc_fail;
@@ -593,6 +595,7 @@ malloc_init(void *data)
 	mtx_lock(&malloc_mtx);
 	mtp->ks_next = kmemstatistics;
 	kmemstatistics = mtp;
+	kmemcount++;
 	mtx_unlock(&malloc_mtx);
 }
 
@@ -615,6 +618,7 @@ malloc_uninit(void *data)
 		}
 	} else
 		kmemstatistics = mtp->ks_next;
+	kmemcount--;
 	mtx_unlock(&malloc_mtx);
 	uma_zfree(mt_zone, mtip);
 }
@@ -639,8 +643,7 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 
 	/* Guess at how much room is needed. */
 	mtx_lock(&malloc_mtx);
-	for (mtp = kmemstatistics; mtp != NULL; mtp = mtp->ks_next)
-		cnt++;
+	cnt = kmemcount;
 	mtx_unlock(&malloc_mtx);
 
 	bufsize = linesize * (cnt + 1);
@@ -686,14 +689,14 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 			temp_bytes = 0;
 
 		/*
-		 * XXXRW: High-waterwark is no longer easily available, so
-		 * we just print '-' for that column.
+		 * High-waterwark is no longer easily available, so we just
+		 * print '-' for that column.
 		 */
-		sbuf_printf(&sbuf, "%13s%6lu%6luK       -%9lu",
+		sbuf_printf(&sbuf, "%13s%6lu%6luK       -%9llu",
 		    mtp->ks_shortdesc,
 		    temp_allocs,
 		    (temp_bytes + 1023) / 1024,
-		    mts_local.mts_numallocs);
+		    (unsigned long long)mts_local.mts_numallocs);
 
 		first = 1;
 		for (i = 0; i < sizeof(kmemzones) / sizeof(kmemzones[0]) - 1;
@@ -722,6 +725,91 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_OID(_kern, OID_AUTO, malloc, CTLTYPE_STRING|CTLFLAG_RD,
     NULL, 0, sysctl_kern_malloc, "A", "Malloc Stats");
+
+static int
+sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct malloc_type_stream_header mtsh;
+	struct malloc_type_internal *mtip;
+	struct malloc_type_header mth;
+	struct malloc_type *mtp;
+	int buflen, count, error, i;
+	struct sbuf sbuf;
+	char *buffer;
+
+	mtx_lock(&malloc_mtx);
+restart:
+	mtx_assert(&malloc_mtx, MA_OWNED);
+	count = kmemcount;
+	mtx_unlock(&malloc_mtx);
+	buflen = sizeof(mtsh) + count * (sizeof(mth) +
+	    sizeof(struct malloc_type_stats) * MAXCPU) + 1;
+	buffer = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
+	mtx_lock(&malloc_mtx);
+	if (count < kmemcount) {
+		free(buffer, M_TEMP);
+		goto restart;
+	}
+
+	sbuf_new(&sbuf, buffer, buflen, SBUF_FIXEDLEN);
+
+	/*
+	 * Insert stream header.
+	 */
+	bzero(&mtsh, sizeof(mtsh));
+	mtsh.mtsh_version = MALLOC_TYPE_STREAM_VERSION;
+	mtsh.mtsh_maxcpus = MAXCPU;
+	mtsh.mtsh_count = kmemcount;
+	if (sbuf_bcat(&sbuf, &mtsh, sizeof(mtsh)) < 0) {
+		mtx_unlock(&malloc_mtx);
+		error = ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * Insert alternating sequence of type headers and type statistics.
+	 */
+	for (mtp = kmemstatistics; mtp != NULL; mtp = mtp->ks_next) {
+		mtip = (struct malloc_type_internal *)mtp->ks_handle;
+
+		/*
+		 * Insert type header.
+		 */
+		bzero(&mth, sizeof(mth));
+		strlcpy(mth.mth_name, mtp->ks_shortdesc, MALLOC_MAX_NAME);
+		if (sbuf_bcat(&sbuf, &mth, sizeof(mth)) < 0) {
+			mtx_unlock(&malloc_mtx);
+			error = ENOMEM;
+			goto out;
+		}
+
+		/*
+		 * Insert type statistics for each CPU.
+		 */
+		for (i = 0; i < MAXCPU; i++) {
+			if (sbuf_bcat(&sbuf, &mtip->mti_stats[i],
+			    sizeof(mtip->mti_stats[i])) < 0) {
+				mtx_unlock(&malloc_mtx);
+				error = ENOMEM;
+				goto out;
+			}
+		}
+	}
+	mtx_unlock(&malloc_mtx);
+	sbuf_finish(&sbuf);
+	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
+out:
+	sbuf_delete(&sbuf);
+	free(buffer, M_TEMP);
+	return (error);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, malloc_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
+    0, 0, sysctl_kern_malloc_stats, "s,malloc_type_ustats",
+    "Return malloc types");
+
+SYSCTL_INT(_kern, OID_AUTO, malloc_count, CTLFLAG_RD, &kmemcount, 0,
+    "Count of kernel malloc types");
 
 #ifdef MALLOC_PROFILE
 
