@@ -99,7 +99,7 @@ main(int argc, __unused char *argv[])
 	thejail.version = 0;
 	thejail.path = "/";
 	thejail.hostname = "jail";
-	thejail.ip_number = htonl(INADDR_LOOPBACK);
+	thejail.ip_number = INADDR_LOOPBACK;
 	if (jail(&thejail) < 0)
 		errx(-1, "jail: %s", strerror(errno));
 	test("in jail", &sin);
