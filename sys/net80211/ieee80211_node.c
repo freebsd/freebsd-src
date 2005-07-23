@@ -1398,7 +1398,8 @@ restart:
 		 * will be reclaimed when the last reference to them
 		 * goes away (when frame xmits complete).
 		 */
-		if ((ni->ni_flags & IEEE80211_NODE_AREF) == 0)
+		if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
+		    (ni->ni_flags & IEEE80211_NODE_AREF) == 0)
 			continue;
 		/*
 		 * Free fragment if not needed anymore
