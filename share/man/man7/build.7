@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2005
+.Dd July 23, 2005
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -95,6 +95,15 @@ Equivalent to
 .Cm buildkernel
 followed by
 .Cm installkernel
+.It Cm delete-old
+Delete obsolete base system files and directories interactively.
+When -DBATCH_DELETE_OLD_FILES is specified at the command line,
+the delete operation will be non-interactively.
+.It Cm delete-old-libs
+Delete obsolete base system libraries interactively.
+This should only be used if no 3rd party software uses the libraries anymore.
+When -DBATCH_DELETE_OLD_FILES is specified at the command line,
+the delete operation will be non-interactively.
 .El
 .Pp
 For more information about the ports build process, see
