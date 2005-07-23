@@ -1099,7 +1099,7 @@ static struct pr_usrreqs ngd_usrreqs = {
 	.pru_peeraddr =		NULL,
 	.pru_send =		ngd_send,
 	.pru_shutdown =		NULL,
-	.pru_sockaddr		ng_setsockaddr,
+	.pru_sockaddr =		ng_setsockaddr,
 };
 
 /*
