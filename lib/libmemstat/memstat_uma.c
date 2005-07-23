@@ -175,15 +175,10 @@ retry:
 		if (hint_dontsearch == 0) {
 			mtp = memstat_mtl_find(list, ALLOCATOR_UMA,
 			    uthp->uth_name);
-			/*
-			 * Reset the statistics on a reused node.
-			 */
-			if (mtp != NULL)
-				memstat_mt_reset_stats(mtp);
 		} else
 			mtp = NULL;
 		if (mtp == NULL)
-			mtp = memstat_mt_allocate(list, ALLOCATOR_UMA,
+			mtp = _memstat_mt_allocate(list, ALLOCATOR_UMA,
 			    uthp->uth_name);
 		if (mtp == NULL) {
 			memstat_mtl_free(list);
@@ -197,7 +192,7 @@ retry:
 		/*
 		 * Reset the statistics on a current node.
 		 */
-		memstat_mt_reset_stats(mtp);
+		_memstat_mt_reset_stats(mtp);
 
 		mtp->mt_numallocs = uthp->uth_allocs;
 		mtp->mt_numfrees = uthp->uth_frees;
