@@ -12,6 +12,8 @@
 # order.
 #
 
+# 20050721: moved to ports
+OLD_FILES+=usr/sbin/vttest
 # 20050610: rexecd (insecure by design)
 OLD_FILES+=etc/pam.d/rexecd
 OLD_FILES+=usr/share/man/man8/rexecd.8.gz
