@@ -69,7 +69,9 @@ pf_reload()
 {
 	echo "Reloading pf rules."
 
-	${pf_program:-/sbin/pfctl} -Fa > /dev/null 2>&1
+	# Flush everything but existing state entries that way when
+	# rules are read in, it doesn't break established connections.
+	${pf_program:-/sbin/pfctl} -Fnat -Fqueue -Frules -FSources -Finfo -FTables -Fosfp > /dev/null 2>&1
 	if [ -r "${pf_rules}" ]; then
 		${pf_program:-/sbin/pfctl} \
 		    -f "${pf_rules}" ${pf_flags}
