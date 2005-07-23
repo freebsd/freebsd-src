@@ -1058,3 +1058,95 @@ par-${__target}: ${SUBDIR:S/$/.${__target}__D/}
 .endfor
 
 .include <bsd.subdir.mk>
+
+#
+# check for / delete old files section
+#
+
+.include "ObsoleteFiles.inc"
+
+OLD_LIBS_MESSAGE="Please be sure no application still uses those libraries, \
+else you can not start such an application. Consult UPDATING for more \
+information regarding how to cope with the removal/revision bump of a \
+specific library."
+
+.if !defined(BATCH_DELETE_OLD_FILES)
+RM_I=-i
+.endif
+
+delete-old-files:
+.if defined(${TARGET_ARCH})
+.error "You have to run this in a native environment!"
+.endif
+	@echo ">>> Removing old files (only deletes safe to delete libs)"
+.for file in ${OLD_FILES}
+# Ask for every old file if the user really wants to remove it.
+# It's anoying, but beter safe than sorry.
+	@[ ! -f "${DESTDIR}/${file}" ] || (rm ${RM_I} "${DESTDIR}/${file}" \
+                ||  ([ -f "${DESTDIR}/${file}" ] \
+                        && echo "Removing schg flag on ${DESTDIR}/${file}" \
+                        && chflags noschg "${DESTDIR}/${file}" \
+                        && rm ${RM_I} "${DESTDIR}/${file}"))
+.endfor
+	@echo ">>> Old files removed"
+
+check-old-files:
+.if defined(${TARGET_ARCH})
+.error "You have to run this in a native environment!"
+.endif
+	@echo ">>> Checking for old files"
+.for file in ${OLD_FILES}
+	@[ ! -f "${DESTDIR}/${file}" ] || echo "${DESTDIR}/${file}"
+.endfor
+
+delete-old-libs:
+.if defined(${TARGET_ARCH})
+.error "You have to run this in a native environment!"
+.endif
+	@echo ">>> Removing old libraries"
+	@echo "${OLD_LIBS_MESSAGE}" | fmt
+.for file in ${OLD_LIBS}
+	@[ ! -f "${DESTDIR}/${file}" ] || (rm ${RM_I} "${DESTDIR}/${file}" \
+		||  ([ -f "${DESTDIR}/${file}" ] \
+			&& echo "Removing schg flag on ${DESTDIR}/${file}" \
+			&& chflags noschg "${DESTDIR}/${file}" \
+			&& rm ${RM_I} "${DESTDIR}/${file}"))
+.endfor
+	@echo ">>> Old libraries removed"
+
+check-old-libs:
+.if defined(${TARGET_ARCH})
+.error "You have to run this in a native environment!"
+.endif
+	@echo ">>> Checking for old libraries"
+.for file in ${OLD_LIBS}
+	@[ ! -f "${DESTDIR}/${file}" ] || echo "${DESTDIR}/${file}"
+.endfor
+
+delete-old-dirs:
+.if defined(${TARGET_ARCH})
+.error "You have to run this in a native environment!"
+.endif
+	@echo ">>> Removing old directories"
+.for dir in ${OLD_DIRS}
+# Don't fail if an old directory isn't empty.
+	@[ ! -d "${DESTDIR}/${dir}" ] || (rmdir -v "${DESTDIR}/${dir}" || true)
+.endfor
+	@echo ">>> Old directories removed"
+
+check-old-dirs:
+.if defined(${TARGET_ARCH})
+.error "You have to run this in a native environment!"
+.endif
+	@echo ">>> Checking for old directories"
+.for dir in ${OLD_DIRS}
+	@[ ! -d "${DESTDIR}/${dir}" ] || echo "${DESTDIR}/${dir}"
+.endfor
+
+delete-old: delete-old-files delete-old-dirs
+	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
+
+check-old: check-old-files check-old-libs check-old-dirs
+	@echo "To remove old files and directories run '${MAKE} delete-old'."
+	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
+
