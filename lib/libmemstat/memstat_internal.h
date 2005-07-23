@@ -113,9 +113,8 @@ struct memory_type {
  */
 LIST_HEAD(memory_type_list, memory_type);
 
-void			 memstat_mtl_free(struct memory_type_list *list);
-struct memory_type	*memstat_mt_allocate(struct memory_type_list *list,
+struct memory_type	*_memstat_mt_allocate(struct memory_type_list *list,
 			    int allocator, const char *name);
-void			 memstat_mt_reset_stats(struct memory_type *mtp);
+void			 _memstat_mt_reset_stats(struct memory_type *mtp);
 
 #endif /* !_MEMSTAT_INTERNAL_H_ */
