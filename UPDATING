@@ -277,6 +277,7 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	mergemaster -p					[5]
 	make installworld
+	make delete-old
 	mergemaster					[4]
 	<reboot>
 
@@ -314,6 +315,7 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	mergemaster -p					[5]
 	make installworld
+	make delete-old
 	mergemaster -i					[4]
 	<reboot>
 
