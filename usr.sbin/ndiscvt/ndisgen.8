@@ -40,6 +40,7 @@
 NDIS driver distribution
 .Sh SYNOPSIS
 .Nm
+.Op Ar /path/to/INF /path/to/SYS
 .Sh DESCRIPTION
 The
 .Nm
@@ -57,13 +58,16 @@ compatibility module.
 The
 .Nm
 script is interactive and contains its own help section.
-The script will prompt the user for the
+Unless the paths to both files are supplied on the command line,
+the script will prompt the user for the
 .Pa .INF
 and
 .Pa .SYS
-files (and any firmware or other external files) needed to generate the
+files needed to generate the
 .Fx
 driver module.
+The script will also prompt for
+any firmware or other external files needed.
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr objcopy 1 ,

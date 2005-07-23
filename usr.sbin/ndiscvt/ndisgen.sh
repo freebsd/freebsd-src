@@ -187,16 +187,20 @@ return
 infconv () {
 header
 echo "			INF file validation"
-echo ""
-echo ""
-echo "	A .INF file is most often provided as an ASCII file, however"
-echo "	files with multilanguage support are provided in Unicode format."
-echo "	Please type in the path to your .INF file now."
-echo ""
-echo -n "	> "
-read INFPATH
+
+if [ -z "$INFPATH" ]; then
+	echo ""
+	echo ""
+	echo "	A .INF file is most often provided as an ASCII file, however"
+	echo "	files with multilanguage support are provided in Unicode format."
+	echo "	Please type in the path to your .INF file now."
+	echo ""
+	echo -n "	> "
+	read INFPATH
+fi
+
 if [ ${INFPATH} ] && [ -e ${INFPATH} ]; then 
-	INFTYPE=`${EGREP} -i -c "^Signature|^.S.i.g.n.a.t.u.r.e" ${INFPATH}`
+	INFTYPE=`${EGREP} -i -c "Signature|.S.i.g.n.a.t.u.r.e" ${INFPATH}`
 	if [ ${INFTYPE} -le 0 ]; then
 		echo ""
 		echo "	I don't recognize this file format. It may not be a valid .INF file."
@@ -207,7 +211,7 @@ if [ ${INFPATH} ] && [ -e ${INFPATH} ]; then
 		return
 	fi
 
-	INFTYPE=`${EGREP} -i -c "^Class.*=.*Net" ${INFPATH}`
+	INFTYPE=`${EGREP} -i -c "Class.*=.*Net" ${INFPATH}`
 	if [ ${INFTYPE} -gt 0 ]; then
 		echo ""
 		echo "	This .INF file appears to be ASCII."
@@ -217,7 +221,7 @@ if [ ${INFPATH} ] && [ -e ${INFPATH} ]; then
 		return
 	fi
 
-	INFTYPE=`${EGREP} -i -c "^.C.l.a.s.s.*=.*N.e.t" ${INFPATH}`
+	INFTYPE=`${EGREP} -i -c ".C.l.a.s.s.*=.*N.e.t" ${INFPATH}`
 	if [ ${INFTYPE} -gt 0 ]; then
 		echo ""
 		echo "	This .INF file appears to be Unicode."
@@ -259,19 +263,23 @@ return
 sysconv() {
 header
 echo "			Driver file validation"
-echo ""
-echo ""
-echo "	Now you need to specify the name of the Windows(r) driver .SYS"
-echo "	file for your device. Note that if you are running FreeBSD/amd64,"
-echo "	then you must provide a driver that has been compiled for the"
-echo "	64-bit Windows(r) platform. If a 64-bit driver is not available"
-echo "	for your device, you must install FreeBSD/i386 and use the"
-echo "	32-bit driver instead."
-echo ""
-echo "	Please type in the path to the Windows(r) driver .SYS file now."
-echo ""
-echo -n "	> "
-read SYSPATH
+
+if [ ! -r "$SYSPATH" ]; then
+	echo ""
+	echo ""
+	echo "	Now you need to specify the name of the Windows(r) driver .SYS"
+	echo "	file for your device. Note that if you are running FreeBSD/amd64,"
+	echo "	then you must provide a driver that has been compiled for the"
+	echo "	64-bit Windows(r) platform. If a 64-bit driver is not available"
+	echo "	for your device, you must install FreeBSD/i386 and use the"
+	echo "	32-bit driver instead."
+	echo ""
+	echo "	Please type in the path to the Windows(r) driver .SYS file now."
+	echo ""
+	echo -n "	> "
+	read SYSPATH
+fi
+
 if [ ${SYSPATH} ] && [ -e ${SYSPATH} ]; then
 	SYSTYPE=`${FILE} ${SYSPATH}`
 
@@ -509,6 +517,13 @@ FRMLIST=""
 SYSPATH=""
 SYSBASE=""
 FRMBASE=""
+
+if [ -r "$1" -a -r "$2" ]; then
+	# Looks like the user supplied .INF and .SYS files on the command line
+	INFPATH=$1
+	SYSPATH=$2
+	convert_driver && exit 0
+fi
 
 while : ; do
 	mainmenu
