@@ -2933,7 +2933,7 @@ restart:
 	mtx_unlock(&uma_mtx);
 
 	buflen = sizeof(ush) + count * (sizeof(uth) + sizeof(ups) *
-	    MAXCPU) + 1;
+	    (mp_maxid + 1)) + 1;
 	buffer = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
 
 	mtx_lock(&uma_mtx);
@@ -2955,7 +2955,7 @@ restart:
 	 */
 	bzero(&ush, sizeof(ush));
 	ush.ush_version = UMA_STREAM_VERSION;
-	ush.ush_maxcpus = MAXCPU;
+	ush.ush_maxcpus = (mp_maxid + 1);
 	ush.ush_count = count;
 	if (sbuf_bcat(&sbuf, &ush, sizeof(ush)) < 0) {
 		mtx_unlock(&uma_mtx);
@@ -2999,7 +2999,7 @@ restart:
 			 * accept the possible race associated with bucket
 			 * exchange during monitoring.
 			 */
-			for (i = 0; i < MAXCPU; i++) {
+			for (i = 0; i < (mp_maxid + 1); i++) {
 				bzero(&ups, sizeof(ups));
 				if (kz->uk_flags & UMA_ZFLAG_INTERNAL)
 					goto skip;
