@@ -62,7 +62,7 @@ $ EFBIG
 $ ENOSPC
 28 Brak miejsca na urz±dzeniu
 $ ESPIPE
-29 B³êdne przesuniêcie
+29 Przesuniêcie niemo¿liwe
 $ EROFS
 30 System plików tylko do odczytu
 $ EMLINK
