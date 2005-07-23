@@ -301,8 +301,11 @@ SYSCTL_NODE(_net_inet, IPPROTO_AH,	ipsec,	CTLFLAG_RW, 0,	"IPSEC");
 #endif /* !FAST_IPSEC */
 SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
 #ifdef PIM
-SYSCTL_NODE(_net_inet, IPPROTO_PIM,    pim,    CTLFLAG_RW, 0,  "PIM");
+SYSCTL_NODE(_net_inet, IPPROTO_PIM,	pim,	CTLFLAG_RW, 0,	"PIM");
+#endif
+#ifdef DEV_PFSYNC
+SYSCTL_NODE(_net_inet, IPPROTO_PFSYNC,	pfsync,	CTLFLAG_RW, 0,	"PFSYNC");
 #endif
 #ifdef DEV_CARP
-SYSCTL_NODE(_net_inet, IPPROTO_CARP,    carp,    CTLFLAG_RW, 0,  "CARP");
+SYSCTL_NODE(_net_inet, IPPROTO_CARP,	carp,	CTLFLAG_RW, 0,	"CARP");
 #endif
