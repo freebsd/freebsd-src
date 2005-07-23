@@ -165,7 +165,7 @@ typedef void (*uma_fini)(void *mem, int size);
  */
 uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 			uma_init uminit, uma_fini fini, int align,
-			u_int16_t flags);
+			u_int32_t flags);
 
 /*
  * Create a secondary uma zone
@@ -206,7 +206,7 @@ uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
  * Definitions for uma_zcreate flags
  *
  * These flags share space with UMA_ZFLAGs in uma_int.h.  Be careful not to
- * overlap when adding new features.  0xf000 is in use by uma_int.h.
+ * overlap when adding new features.  0xf0000000 is in use by uma_int.h.
  */
 #define UMA_ZONE_PAGEABLE	0x0001	/* Return items not fully backed by
 					   physical memory XXX Not yet */
