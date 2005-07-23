@@ -174,7 +174,6 @@ char	*av[];
 #ifdef	OK_TO_WRITE_DISK
 	int	fd;
 #endif	/* OK_TO_WRITE_DISK */
-	struct timeval now;
 
 	(void) setlocale(LC_ALL, "");
 
@@ -184,8 +183,7 @@ char	*av[];
 		exit(find_matches() != 0);
 
 	init_prob();
-	gettimeofday(&now, NULL);
-	srandom(now.tv_usec);
+	srandomdev();
 	do {
 		get_fort();
 	} while ((Short_only && fortlen() > SLEN) ||
