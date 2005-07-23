@@ -52,12 +52,16 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/bridge.h>
 #include <net/ethernet.h>
+#include <net/pfvar.h>
+#include <net/if_pfsync.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 #include <arpa/inet.h>
 
+#include <err.h>
+#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -118,8 +122,50 @@ bdg_stats(u_long dummy __unused, const char *name, int af1 __unused)
     }
 }
 
+/* 
+ * Dump pfsync statistics structure.
+ */
+void
+pfsync_stats(u_long off __unused, const char *name, int af1 __unused)
+{
+	struct pfsyncstats pfsyncstat, zerostat;
+	size_t len = sizeof(struct pfsyncstats);
 
+	if (zflag)
+		memset(&zerostat, 0, len);
+	if (sysctlbyname("net.inet.pfsync.stats", &pfsyncstat, &len,
+	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+		if (errno != ENOENT)
+			warn("sysctl: net.inet.pfsync.stats");
+		return;
+	}
 
+	printf("%s:\n", name);
+
+#define p(f, m) if (pfsyncstat.f || sflag <= 1) \
+	printf(m, (unsigned long long)pfsyncstat.f, plural(pfsyncstat.f))
+#define p2(f, m) if (pfsyncstat.f || sflag <= 1) \
+	printf(m, (unsigned long long)pfsyncstat.f)
+
+	p(pfsyncs_ipackets, "\t%llu packet%s received (IPv4)\n");
+	p(pfsyncs_ipackets6, "\t%llu packet%s received (IPv6)\n");
+	p(pfsyncs_badif, "\t\t%llu packet%s discarded for bad interface\n");
+	p(pfsyncs_badttl, "\t\t%llu packet%s discarded for bad ttl\n");
+	p(pfsyncs_hdrops, "\t\t%llu packet%s shorter than header\n");
+	p(pfsyncs_badver, "\t\t%llu packet%s discarded for bad version\n");
+	p(pfsyncs_badauth, "\t\t%llu packet%s discarded for bad HMAC\n");
+	p(pfsyncs_badact,"\t\t%llu packet%s discarded for bad action\n");
+	p(pfsyncs_badlen, "\t\t%llu packet%s discarded for short packet\n");
+	p(pfsyncs_badval, "\t\t%llu state%s discarded for bad values\n");
+	p(pfsyncs_stale, "\t\t%llu stale state%s\n");
+	p(pfsyncs_badstate, "\t\t%llu failed state lookup/insert%s\n");
+	p(pfsyncs_opackets, "\t%llu packet%s sent (IPv4)\n");
+	p(pfsyncs_opackets6, "\t%llu packet%s sent (IPv6)\n");
+	p2(pfsyncs_onomem, "\t\t%llu send failed due to mbuf memory error\n");
+	p2(pfsyncs_oerrors, "\t\t%llu send error\n");
+#undef p
+#undef p2
+}
 
 /*
  * Display a formatted value, or a '-' in the same space.
