@@ -22,6 +22,9 @@ OLD_FILES+=usr/share/man/man5/drivers.conf.5.gz
 OLD_FILES+=sbin/mount_autofs
 OLD_FILES+=usr/lib/libautofs.a
 OLD_FILES+=usr/lib/libautofs.so
+# 20050203 Merged with fortunes
+OLD_FILES+=usr/share/games/fortune/fortunes2
+OLD_FILES+=usr/share/games/fortune/fortunes2.dat
 # 20041109: replaced by em(4)
 OLD_FILES+=usr/share/man/man4/gx.4.gz
 OLD_FILES+=usr/share/man/man4/if_gx.4.gz
@@ -36,6 +39,7 @@ OLD_FILES+=usr/sbin/named.restart
 OLD_FILES+=usr/sbin/ndc
 OLD_FILES+=usr/sbin/nslookup
 OLD_FILES+=usr/sbin/nsupdate
+OLD_DIRS+=usr/share/doc/bind
 # 2004XXYY: OS internal libs, no ports use them, no need to use OLD_LIBS
 OLD_FILES+=lib/geom/geom_concat.so.1
 OLD_FILES+=lib/geom/geom_label.so.1
