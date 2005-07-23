@@ -458,8 +458,7 @@ iconv_convstr(void *handle, char *dst, const char *src)
 		strcpy(dst, src);
 		return dst;
 	}
-	inlen = strlen(src);
-	outlen = inlen * 3;
+	inlen = outlen = strlen(src);
 	error = iconv_conv(handle, NULL, NULL, &p, &outlen);
 	if (error)
 		return NULL;
@@ -484,8 +483,7 @@ iconv_convmem(void *handle, void *dst, const void *src, int size)
 		memcpy(dst, src, size);
 		return dst;
 	}
-	inlen = size;
-	outlen = inlen * 3;
+	inlen = outlen = size;
 	error = iconv_conv(handle, NULL, NULL, &d, &outlen);
 	if (error)
 		return NULL;
