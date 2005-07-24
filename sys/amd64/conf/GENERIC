@@ -215,8 +215,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ISA Ethernet NICs.  pccard NICs included.
 device		cs		# Crystal Semiconductor CS89x0 NIC
 # 'device ed' requires 'device miibus'
-# XXX kvtop brokenness, pointer/int warnings
-#device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
+device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 device		ex		# Intel EtherExpress Pro/10 and Pro/10+
 device		ep		# Etherlink III based cards
 device		fe		# Fujitsu MB8696x based cards
