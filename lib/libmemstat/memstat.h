@@ -61,6 +61,19 @@
 #define	MEMTYPE_MAXNAME		32
 
 /*
+ * Library error conditions, mostly from the underlying data sources.  On
+ * failure, functions typically return (-1) or (NULL); on success, (0) or a
+ * valid data pointer.  The error from the last operation is stored in
+ * struct memory_type, and accessed via memstat_get_error(mtp).
+ */
+#define	MEMSTAT_ERROR_UNDEFINED		0	/* Initialization value. */
+#define	MEMSTAT_ERROR_NOMEMORY		1	/* Out of memory. */
+#define	MEMSTAT_ERROR_VERSION		2	/* Unsupported version. */
+#define	MEMSTAT_ERROR_PERMISSION	3	/* Permission denied. */
+#define	MEMSTAT_ERROR_TOOMANYCPUS	4	/* Too many CPUs. */
+#define	MEMSTAT_ERROR_DATAERROR		5	/* Error in stat data. */
+
+/*
  * Forward declare struct memory_type, which holds per-type properties and
  * statistics.  This is an opaque type, to be frobbed only from within the
  * library, in order to avoid building ABI assumptions into the application.
@@ -85,6 +98,7 @@ struct memory_type	*memstat_mtl_next(struct memory_type *mtp);
 struct memory_type	*memstat_mtl_find(struct memory_type_list *list,
 			    int allocator, const char *name);
 void	memstat_mtl_free(struct memory_type_list *list);
+int	memstat_mtl_geterror(struct memory_type_list *list);
 
 /*
  * Functions to retrieve data from a live kernel using sysctl.
@@ -94,7 +108,7 @@ int	memstat_sysctl_malloc(struct memory_type_list *list, int flags);
 int	memstat_sysctl_uma(struct memory_type_list *list, int flags);
 
 /*
- * Accessor methods for struct memory_type_list.
+ * Accessor methods for struct memory_type.
  */
 const char	*memstat_get_name(const struct memory_type *mtp);
 int		 memstat_get_allocator(const struct memory_type *mtp);
