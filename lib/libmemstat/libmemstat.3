@@ -35,6 +35,9 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In memstat.h
+.Ss General Functions
+.Ft const char *
+.Fn memstat_strerror "int error"
 .Ss Memory Type List Management Functions
 .Ft struct memory_type_list *
 .Fn memstat_mtl_alloc "void"
@@ -150,7 +153,9 @@ Repeated calls will incrementally update the list of memory types, permitting
 tracking over time without recreating all list state.
 If an error is detected during a query call, error condition information may
 be retrieved using
-.Fn memstat_mtl_geterror .
+.Fn memstat_mtl_geterror ,
+and converted to a user-readable string using
+.Fn memstat_strerror .
 .Pp
 Freeing the list will free all memory type data in the list, and so
 invalidates any outstanding pointers to entries in the list.
@@ -356,7 +361,10 @@ on success, or
 on failure.
 If a failure is returned, the list error access method,
 .Fn memstat_mtl_geterror ,
-may be used to retrieve the error state.  Possible error values are:
+may be used to retrieve the error state.
+The string representation of the error may be retrieved using
+.Fn memstat_strerror .
+Possible error values are:
 .Pp
 .Bl -tag -width "MEMSTAT_ERROR_TOOMANYCPUS" -compact -offset wee
 .It Dv MEMSTAT_ERROR_UNDEFINED
@@ -426,7 +434,7 @@ printf("Mbufs: %llu\\n", (unsigned long long)mbuf_count);
 .Xr uma 9
 .Sh HISTORY
 The
-.Nm memstat
+.Nm libmemstat
 library appeared in
 .Fx 6.0 .
 .Sh AUTHORS
