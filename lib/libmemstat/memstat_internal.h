@@ -111,7 +111,10 @@ struct memory_type {
 /*
  * Description of struct memory_type_list is in memstat.h.
  */
-LIST_HEAD(memory_type_list, memory_type);
+struct memory_type_list {
+	LIST_HEAD(, memory_type)	mtl_list;
+	int				mtl_error;
+};
 
 struct memory_type	*_memstat_mt_allocate(struct memory_type_list *list,
 			    int allocator, const char *name);

@@ -47,7 +47,8 @@ memstat_mtl_alloc(void)
 	if (mtlp == NULL)
 		return (NULL);
 
-	LIST_INIT(mtlp);
+	LIST_INIT(&mtlp->mtl_list);
+	mtlp->mtl_error = MEMSTAT_ERROR_UNDEFINED;
 	return (mtlp);
 }
 
@@ -55,7 +56,7 @@ struct memory_type *
 memstat_mtl_first(struct memory_type_list *list)
 {
 
-	return (LIST_FIRST(list));
+	return (LIST_FIRST(&list->mtl_list));
 }
 
 struct memory_type *
@@ -70,16 +71,24 @@ memstat_mtl_free(struct memory_type_list *list)
 {
 	struct memory_type *mtp;
 
-	while ((mtp = LIST_FIRST(list))) {
+	while ((mtp = LIST_FIRST(&list->mtl_list))) {
 		LIST_REMOVE(mtp, mt_list);
 		free(mtp);
 	}
 	free(list);
 }
 
+int
+memstat_mtl_geterror(struct memory_type_list *list)
+{
+
+	return (list->mtl_error);
+}
+
 /*
  * Look for an existing memory_type entry in a memory_type list, based on the
- * allocator and name of the type.  If not found, return NULL.  O(n).
+ * allocator and name of the type.  If not found, return NULL.  No errno or
+ * memstat error.
  */
 struct memory_type *
 memstat_mtl_find(struct memory_type_list *list, int allocator,
@@ -87,7 +96,7 @@ memstat_mtl_find(struct memory_type_list *list, int allocator,
 {
 	struct memory_type *mtp;
 
-	LIST_FOREACH(mtp, list, mt_list) {
+	LIST_FOREACH(mtp, &list->mtl_list, mt_list) {
 		if ((mtp->mt_allocator == allocator ||
 		    allocator == ALLOCATOR_ANY) &&
 		    strcmp(mtp->mt_name, name) == 0)
@@ -116,7 +125,7 @@ _memstat_mt_allocate(struct memory_type_list *list, int allocator,
 
 	mtp->mt_allocator = allocator;
 	strlcpy(mtp->mt_name, name, MEMTYPE_MAXNAME);
-	LIST_INSERT_HEAD(list, mtp, mt_list);
+	LIST_INSERT_HEAD(&list->mtl_list, mtp, mt_list);
 	return (mtp);
 }
 
