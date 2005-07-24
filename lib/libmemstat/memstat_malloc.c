@@ -58,11 +58,11 @@ memstat_sysctl_malloc(struct memory_type_list *list, int flags)
 	struct malloc_type_header *mthp;
 	struct malloc_type_stats *mtsp;
 	struct memory_type *mtp;
-	int count, error, hint_dontsearch, i, j, maxcpus;
+	int count, hint_dontsearch, i, j, maxcpus;
 	char *buffer, *p;
 	size_t size;
 
-	hint_dontsearch = LIST_EMPTY(list);
+	hint_dontsearch = LIST_EMPTY(&list->mtl_list);
 
 	/*
 	 * Query the number of CPUs, number of malloc types so that we can
@@ -74,33 +74,32 @@ memstat_sysctl_malloc(struct memory_type_list *list, int flags)
 retry:
 	size = sizeof(maxcpus);
 	if (sysctlbyname("kern.smp.maxcpus", &maxcpus, &size, NULL, 0) < 0) {
-		error = errno;
-		perror("kern.smp.maxcpus");
-		errno = error;
+		if (errno == EACCES || errno == EPERM)
+			list->mtl_error = MEMSTAT_ERROR_PERMISSION;
+		else
+			list->mtl_error = MEMSTAT_ERROR_DATAERROR;
 		return (-1);
 	}
 	if (size != sizeof(maxcpus)) {
-		fprintf(stderr, "kern.smp.maxcpus: wrong size");
-		errno = EINVAL;
+		list->mtl_error = MEMSTAT_ERROR_DATAERROR;
 		return (-1);
 	}
 
 	if (maxcpus > MEMSTAT_MAXCPU) {
-		fprintf(stderr, "kern.smp.maxcpus: too many CPUs\n");
-		errno = EINVAL;
+		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		return (-1);
 	}
 
 	size = sizeof(count);
 	if (sysctlbyname("kern.malloc_count", &count, &size, NULL, 0) < 0) {
-		error = errno;
-		perror("kern.malloc_count");
-		errno = error;
+		if (errno == EACCES || errno == EPERM)
+			list->mtl_error = MEMSTAT_ERROR_PERMISSION;
+		else
+			list->mtl_error = MEMSTAT_ERROR_VERSION;
 		return (-1);
 	}
 	if (size != sizeof(count)) {
-		fprintf(stderr, "kern.malloc_count: wrong size");
-		errno = EINVAL;
+		list->mtl_error = MEMSTAT_ERROR_DATAERROR;
 		return (-1);
 	}
 
@@ -109,9 +108,7 @@ retry:
 
 	buffer = malloc(size);
 	if (buffer == NULL) {
-		error = errno;
-		perror("malloc");
-		errno = error;
+		list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
 		return (-1);
 	}
 
@@ -124,10 +121,11 @@ retry:
 			free(buffer);
 			goto retry;
 		}
-		error = errno;
+		if (errno == EACCES || errno == EPERM)
+			list->mtl_error = MEMSTAT_ERROR_PERMISSION;
+		else
+			list->mtl_error = MEMSTAT_ERROR_VERSION;
 		free(buffer);
-		perror("kern.malloc_stats");
-		errno = error;
 		return (-1);
 	}
 
@@ -137,9 +135,8 @@ retry:
 	}
 
 	if (size < sizeof(*mtshp)) {
-		fprintf(stderr, "sysctl_malloc: invalid malloc header");
+		list->mtl_error = MEMSTAT_ERROR_VERSION;
 		free(buffer);
-		errno = EINVAL;
 		return (-1);
 	}
 	p = buffer;
@@ -147,16 +144,14 @@ retry:
 	p += sizeof(*mtshp);
 
 	if (mtshp->mtsh_version != MALLOC_TYPE_STREAM_VERSION) {
-		fprintf(stderr, "sysctl_malloc: unknown malloc version");
+		list->mtl_error = MEMSTAT_ERROR_VERSION;
 		free(buffer);
-		errno = EINVAL;
 		return (-1);
 	}
 
 	if (mtshp->mtsh_maxcpus > MEMSTAT_MAXCPU) {
-		fprintf(stderr, "sysctl_malloc: too many CPUs");
+		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		free(buffer);
-		errno = EINVAL;
 		return (-1);
 	}
 
@@ -182,9 +177,7 @@ retry:
 		if (mtp == NULL) {
 			memstat_mtl_free(list);
 			free(buffer);
-			errno = ENOMEM;
-			perror("malloc");
-			errno = ENOMEM;
+			list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
 			return (-1);
 		}
 
