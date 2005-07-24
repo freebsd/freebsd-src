@@ -90,6 +90,11 @@ struct memory_type_list;
 
 __BEGIN_DECLS
 /*
+ * Functions that operate without memory type or memory type list context.
+ */
+const char	*memstat_strerror(int error);
+
+/*
  * Functions for managing memory type and statistics data.
  */
 struct memory_type_list	*memstat_mtl_alloc(void);

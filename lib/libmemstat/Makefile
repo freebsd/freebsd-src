@@ -17,6 +17,7 @@ MLINKS+=	libmemstat.3 memstat_mtl_next.3
 MLINKS+=	libmemstat.3 memstat_mtl_find.3
 MLINKS+=	libmemstat.3 memstat_mtl_free.3
 MLINKS+=	libmemstat.3 memstat_mtl_geterror.3
+MLINKS+=	libmemstat.3 memstat_strerror.3
 MLINKS+=	libmemstat.3 memstat_sysctl_all.3
 MLINKS+=	libmemstat.3 memstat_sysctl_malloc.3
 MLINKS+=	libmemstat.3 memstat_sysctl_uma.3
