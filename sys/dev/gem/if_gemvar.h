@@ -188,6 +188,8 @@ struct gem_softc {
 	int		sc_inited;
 	int		sc_debug;
 	int		sc_ifflags;
+
+	struct mtx	sc_mtx;
 };
 
 #define	GEM_DMA_READ(sc, v)	(((sc)->sc_pci) ? le64toh(v) : be64toh(v))
@@ -213,6 +215,13 @@ do {									\
 			(((__m->m_ext.ext_size)<<GEM_RD_BUFSHIFT)	\
 				& GEM_RD_BUFSIZE) | GEM_RD_OWN);	\
 } while (0)
+
+#define	GEM_LOCK_INIT(_sc, _name)					\
+	mtx_init(&(_sc)->sc_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+#define	GEM_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
+#define	GEM_UNLOCK(_sc)			mtx_unlock(&(_sc)->sc_mtx)
+#define	GEM_LOCK_ASSERT(_sc, _what)	mtx_assert(&(_sc)->sc_mtx, (_what))
+#define	GEM_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->sc_mtx)
 
 #ifdef _KERNEL
 extern devclass_t gem_devclass;

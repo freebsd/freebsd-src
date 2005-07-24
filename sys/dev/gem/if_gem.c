@@ -50,7 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 
@@ -73,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #define TRIES	10000
 
 static void	gem_start(struct ifnet *);
+static void	gem_start_locked(struct ifnet *);
 static void	gem_stop(struct ifnet *, int);
 static int	gem_ioctl(struct ifnet *, u_long, caddr_t);
 static void	gem_cddma_callback(void *, bus_dma_segment_t *, int, int);
@@ -81,6 +84,7 @@ static void	gem_txdma_callback(void *, bus_dma_segment_t *, int,
 static void	gem_tick(void *);
 static void	gem_watchdog(struct ifnet *);
 static void	gem_init(void *);
+static void	gem_init_locked(struct gem_softc *sc);
 static void	gem_init_regs(struct gem_softc *sc);
 static int	gem_ringsize(int sz);
 static int	gem_meminit(struct gem_softc *);
@@ -132,13 +136,17 @@ gem_attach(sc)
 	int i, error;
 	u_int32_t v;
 
+	GEM_LOCK_ASSERT(sc, MA_NOTOWNED);
+
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL)
 		return (ENOSPC);
 
 	/* Make sure the chip is stopped. */
 	ifp->if_softc = sc;
+	GEM_LOCK(sc);
 	gem_reset(sc);
+	GEM_UNLOCK(sc);
 
 	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, GEM_NSEGS,
@@ -226,7 +234,9 @@ gem_attach(sc)
 		sc->sc_rxsoft[i].rxs_mbuf = NULL;
 	}
 
+	GEM_LOCK(sc);
 	gem_mifinit(sc);
+	GEM_UNLOCK(sc);
 
 	if ((error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus, gem_mediachange,
 	    gem_mediastatus)) != 0) {
@@ -255,8 +265,7 @@ gem_attach(sc)
 	if_initname(ifp, device_get_name(sc->sc_dev),
 	    device_get_unit(sc->sc_dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = gem_start;
 	ifp->if_ioctl = gem_ioctl;
 	ifp->if_watchdog = gem_watchdog;
@@ -320,9 +329,9 @@ gem_attach(sc)
 		    "hook\n");
 #endif
 
-	callout_init(&sc->sc_tick_ch, 0);
+	callout_init(&sc->sc_tick_ch, CALLOUT_MPSAFE);
 #ifdef GEM_RINT_TIMEOUT
-	callout_init(&sc->sc_rx_ch, 0);
+	callout_init(&sc->sc_rx_ch, CALLOUT_MPSAFE);
 #endif
 	return (0);
 
@@ -366,7 +375,11 @@ gem_detach(sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
+	GEM_LOCK_ASSERT(sc, MA_NOTOWNED);
+
+	GEM_LOCK(sc);
 	gem_stop(ifp, 1);
+	GEM_UNLOCK(sc);
 	ether_ifdetach(ifp);
 	if_free(ifp);
 	device_delete_child(sc->sc_dev, sc->sc_miibus);
@@ -398,7 +411,9 @@ gem_suspend(sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 
+	GEM_LOCK(sc);
 	gem_stop(ifp, 0);
+	GEM_UNLOCK(sc);
 }
 
 void
@@ -407,8 +422,10 @@ gem_resume(sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 
+	GEM_LOCK(sc);
 	if (ifp->if_flags & IFF_UP)
-		gem_init(ifp);
+		gem_init_locked(sc);
+	GEM_UNLOCK(sc);
 }
 
 static void
@@ -509,11 +526,8 @@ gem_tick(arg)
 	void *arg;
 {
 	struct gem_softc *sc = arg;
-	int s;
 
-	s = splnet();
 	mii_tick(sc->sc_mii);
-	splx(s);
 
 	callout_reset(&sc->sc_tick_ch, hz, gem_tick, sc);
 }
@@ -542,9 +556,7 @@ gem_reset(sc)
 {
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t h = sc->sc_h;
-	int s;
 
-	s = splnet();
 #ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_reset", device_get_name(sc->sc_dev));
 #endif
@@ -555,7 +567,6 @@ gem_reset(sc)
 	bus_space_write_4(t, h, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX);
 	if (!gem_bitwait(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX, 0))
 		device_printf(sc->sc_dev, "cannot reset device\n");
-	splx(s);
 }
 
 
@@ -833,22 +844,31 @@ gem_ringsize(sz)
 	return (v);
 }
 
-/*
- * Initialization of interface; set up initialization block
- * and transmit/receive descriptor rings.
- */
 static void
 gem_init(xsc)
 	void *xsc;
 {
 	struct gem_softc *sc = (struct gem_softc *)xsc;
+
+	GEM_LOCK(sc);
+	gem_init_locked(sc);
+	GEM_UNLOCK(sc);
+}
+
+/*
+ * Initialization of interface; set up initialization block
+ * and transmit/receive descriptor rings.
+ */
+static void
+gem_init_locked(sc)
+	struct gem_softc *sc;
+{
 	struct ifnet *ifp = sc->sc_ifp;
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t h = sc->sc_h;
-	int s;
 	u_int32_t v;
 
-	s = splnet();
+	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
 #ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_init: calling stop", device_get_name(sc->sc_dev));
@@ -935,7 +955,9 @@ gem_init(xsc)
 	bus_space_write_4(t, h, GEM_RX_BLANKING, (6<<12)|6);
 
 	/* step 11. Configure Media */
+	GEM_UNLOCK(sc);
 	mii_mediachg(sc->sc_mii);
+	GEM_LOCK(sc);
 
 	/* step 12. RX_MAC Configuration Register */
 	v = bus_space_read_4(t, h, GEM_MAC_RX_CONFIG);
@@ -954,7 +976,6 @@ gem_init(xsc)
 	ifp->if_flags &= ~IFF_OACTIVE;
 	ifp->if_timer = 0;
 	sc->sc_ifflags = ifp->if_flags;
-	splx(s);
 }
 
 static int
@@ -1101,6 +1122,17 @@ gem_init_regs(sc)
 
 static void
 gem_start(ifp)
+	struct ifnet *ifp;
+{
+	struct gem_softc *sc = (struct gem_softc *)ifp->if_softc;
+
+	GEM_LOCK(sc);
+	gem_start_locked(ifp);
+	GEM_UNLOCK(sc);
+}
+
+static void
+gem_start_locked(ifp)
 	struct ifnet *ifp;
 {
 	struct gem_softc *sc = (struct gem_softc *)ifp->if_softc;
@@ -1308,7 +1340,7 @@ gem_tint(sc)
 
 		/* Freed some descriptors, so reset IFF_OACTIVE and restart. */
 		ifp->if_flags &= ~IFF_OACTIVE;
-		gem_start(ifp);
+		gem_start_locked(ifp);
 
 		if (STAILQ_EMPTY(&sc->sc_txdirtyq))
 			ifp->if_timer = 0;
@@ -1325,8 +1357,11 @@ static void
 gem_rint_timeout(arg)
 	void *arg;
 {
+	struct gem_softc *sc = (struct gem_softc *)arg;
 
-	gem_rint((struct gem_softc *)arg);
+	GEM_LOCK(sc);
+	gem_rint(sc);
+	GEM_UNLOCK(sc);
 }
 #endif
 
@@ -1429,7 +1464,9 @@ gem_rint(sc)
 		m->m_pkthdr.len = m->m_len = len - ETHER_CRC_LEN;
 
 		/* Pass it on. */
+		GEM_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		GEM_LOCK(sc);
 	}
 
 	if (progress) {
@@ -1526,6 +1563,7 @@ gem_intr(v)
 	bus_space_handle_t seb = sc->sc_h;
 	u_int32_t status;
 
+	GEM_LOCK(sc);
 	status = bus_space_read_4(t, seb, GEM_STATUS);
 #ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "%s: gem_intr: cplt %x, status %x",
@@ -1549,7 +1587,7 @@ gem_intr(v)
 			device_printf(sc->sc_dev, "MAC tx fault, status %x\n",
 			    txstat);
 		if (txstat & (GEM_MAC_TX_UNDERRUN | GEM_MAC_TX_PKT_TOO_LONG))
-			gem_init(sc);
+			gem_init_locked(sc);
 	}
 	if (status & GEM_INTR_RX_MAC) {
 		int rxstat = bus_space_read_4(t, seb, GEM_MAC_RX_STATUS);
@@ -1557,8 +1595,9 @@ gem_intr(v)
 			device_printf(sc->sc_dev, "MAC rx fault, status %x\n",
 			    rxstat);
 		if ((rxstat & GEM_MAC_RX_OVERFLOW) != 0)
-			gem_init(sc);
+			gem_init_locked(sc);
 	}
+	GEM_UNLOCK(sc);
 }
 
 
@@ -1568,6 +1607,7 @@ gem_watchdog(ifp)
 {
 	struct gem_softc *sc = ifp->if_softc;
 
+	GEM_LOCK(sc);
 #ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "gem_watchdog: GEM_RX_CONFIG %x GEM_MAC_RX_STATUS %x "
 		"GEM_MAC_RX_CONFIG %x",
@@ -1585,7 +1625,8 @@ gem_watchdog(ifp)
 	++ifp->if_oerrors;
 
 	/* Try to get more packets going. */
-	gem_init(ifp);
+	gem_init_locked(sc);
+	GEM_UNLOCK(sc);
 }
 
 /*
@@ -1597,6 +1638,8 @@ gem_mifinit(sc)
 {
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t mif = sc->sc_h;
+
+	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
 	/* Configure the MIF in frame mode */
 	sc->sc_mif_config = bus_space_read_4(t, mif, GEM_MIF_CONFIG);
@@ -1629,6 +1672,7 @@ gem_mii_readreg(dev, phy, reg)
 	int n;
 	u_int32_t v;
 
+	GEM_LOCK(sc);
 #ifdef GEM_DEBUG_PHY
 	printf("gem_mii_readreg: phy %d reg %d\n", phy, reg);
 #endif
@@ -1652,11 +1696,14 @@ gem_mii_readreg(dev, phy, reg)
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
 		v = bus_space_read_4(t, mif, GEM_MIF_FRAME);
-		if (v & GEM_MIF_FRAME_TA0)
+		if (v & GEM_MIF_FRAME_TA0) {
+			GEM_UNLOCK(sc);
 			return (v & GEM_MIF_FRAME_DATA);
+		}
 	}
 
 	device_printf(sc->sc_dev, "mii_read timeout\n");
+	GEM_UNLOCK(sc);
 	return (0);
 }
 
@@ -1671,6 +1718,7 @@ gem_mii_writereg(dev, phy, reg, val)
 	int n;
 	u_int32_t v;
 
+	GEM_LOCK(sc);
 #ifdef GEM_DEBUG_PHY
 	printf("gem_mii_writereg: phy %d reg %d val %x\n", phy, reg, val);
 #endif
@@ -1695,11 +1743,14 @@ gem_mii_writereg(dev, phy, reg, val)
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
 		v = bus_space_read_4(t, mif, GEM_MIF_FRAME);
-		if (v & GEM_MIF_FRAME_TA0)
+		if (v & GEM_MIF_FRAME_TA0) {
+			GEM_UNLOCK(sc);
 			return (1);
+		}
 	}
 
 	device_printf(sc->sc_dev, "mii_write timeout\n");
+	GEM_UNLOCK(sc);
 	return (0);
 }
 
@@ -1709,13 +1760,15 @@ gem_mii_statchg(dev)
 {
 	struct gem_softc *sc = device_get_softc(dev);
 #ifdef GEM_DEBUG
-	int instance = IFM_INST(sc->sc_mii->mii_media.ifm_cur->ifm_media);
+	int instance;
 #endif
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t mac = sc->sc_h;
 	u_int32_t v;
 
+	GEM_LOCK(sc);
 #ifdef GEM_DEBUG
+	instance = IFM_INST(sc->sc_mii->mii_media.ifm_cur->ifm_media);
 	if (sc->sc_debug)
 		printf("gem_mii_statchg: status change: phy = %d\n",
 			sc->sc_phys[instance]);
@@ -1755,6 +1808,7 @@ gem_mii_statchg(dev)
 		v |= GEM_MAC_XIF_MII_BUF_ENA;
 	}
 	bus_space_write_4(t, mac, GEM_MAC_XIF_CONFIG, v);
+	GEM_UNLOCK(sc);
 }
 
 int
@@ -1775,12 +1829,18 @@ gem_mediastatus(ifp, ifmr)
 {
 	struct gem_softc *sc = ifp->if_softc;
 
-	if ((ifp->if_flags & IFF_UP) == 0)
+	GEM_LOCK(sc);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		GEM_UNLOCK(sc);
 		return;
+	}
 
+	GEM_UNLOCK(sc);
 	mii_pollstat(sc->sc_mii);
+	GEM_LOCK(sc);
 	ifmr->ifm_active = sc->sc_mii->mii_media_active;
 	ifmr->ifm_status = sc->sc_mii->mii_media_status;
+	GEM_UNLOCK(sc);
 }
 
 /*
@@ -1794,20 +1854,24 @@ gem_ioctl(ifp, cmd, data)
 {
 	struct gem_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int s, error = 0;
+	int error = 0;
+
+	GEM_LOCK(sc);
 
 	switch (cmd) {
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
 	case SIOCSIFMTU:
+		GEM_UNLOCK(sc);
 		error = ether_ioctl(ifp, cmd, data);
+		GEM_LOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if ((sc->sc_ifflags ^ ifp->if_flags) == IFF_PROMISC)
 				gem_setladrf(sc);
 			else
-				gem_init(sc);
+				gem_init_locked(sc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING)
 				gem_stop(ifp, 0);
@@ -1822,7 +1886,9 @@ gem_ioctl(ifp, cmd, data)
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
+		GEM_UNLOCK(sc);
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_mii->mii_media, cmd);
+		GEM_LOCK(sc);
 		break;
 	default:
 		error = ENOTTY;
@@ -1831,8 +1897,8 @@ gem_ioctl(ifp, cmd, data)
 
 	/* Try to get things going again */
 	if (ifp->if_flags & IFF_UP)
-		gem_start(ifp);
-	splx(s);
+		gem_start_locked(ifp);
+	GEM_UNLOCK(sc);
 	return (error);
 }
 
@@ -1851,6 +1917,8 @@ gem_setladrf(sc)
 	u_int32_t hash[16];
 	u_int32_t v;
 	int i;
+
+	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
 	/* Get current RX configuration */
 	v = bus_space_read_4(t, h, GEM_MAC_RX_CONFIG);
