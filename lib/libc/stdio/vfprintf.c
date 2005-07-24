@@ -331,9 +331,9 @@ __ujtoa(uintmax_t val, char *endp, int base, int octzero, const char *xdigs,
 
 /*
  * Convert a wide character string argument for the %ls format to a multibyte
- * string representation. ``prec'' specifies the maximum number of bytes
- * to output. If ``prec'' is greater than or equal to zero, we can't assume
- * that the wide char. string ends in a null character.
+ * string representation. If not -1, prec specifies the maximum number of
+ * bytes to output, and also means that we can't assume that the wide char.
+ * string ends is null-terminated.
  */
 static char *
 __wcsconv(wchar_t *wcsarg, int prec)
@@ -342,53 +342,49 @@ __wcsconv(wchar_t *wcsarg, int prec)
 	mbstate_t mbs;
 	char buf[MB_LEN_MAX];
 	wchar_t *p;
-	char *convbuf, *mbp;
+	char *convbuf;
 	size_t clen, nbytes;
 
-	/*
-	 * Determine the number of bytes to output and allocate space for
-	 * the output.
-	 */
-	if (prec >= 0) {
-		nbytes = 0;
-		p = wcsarg;
-		mbs = initial;
-		for (;;) {
-			clen = wcrtomb(buf, *p++, &mbs);
-			if (clen == 0 || clen == (size_t)-1 ||
-			    nbytes + clen > prec)
-				break;
-			nbytes += clen;
-		}
-	} else {
+	/* Allocate space for the maximum number of bytes we could output. */
+	if (prec < 0) {
 		p = wcsarg;
 		mbs = initial;
 		nbytes = wcsrtombs(NULL, (const wchar_t **)&p, 0, &mbs);
 		if (nbytes == (size_t)-1)
 			return (NULL);
+	} else {
+		/*
+		 * Optimisation: if the output precision is small enough,
+		 * just allocate enough memory for the maximum instead of
+		 * scanning the string.
+		 */
+		if (prec < 128)
+			nbytes = prec;
+		else {
+			nbytes = 0;
+			p = wcsarg;
+			mbs = initial;
+			for (;;) {
+				clen = wcrtomb(buf, *p++, &mbs);
+				if (clen == 0 || clen == (size_t)-1 ||
+				    nbytes + clen > prec)
+					break;
+				nbytes += clen;
+			}
+		}
 	}
 	if ((convbuf = malloc(nbytes + 1)) == NULL)
 		return (NULL);
 
-	/*
-	 * Fill the output buffer with the multibyte representations of as
-	 * many wide characters as will fit.
-	 */
-	mbp = convbuf;
+	/* Fill the output buffer. */
 	p = wcsarg;
 	mbs = initial;
-	while (mbp - convbuf < nbytes) {
-		clen = wcrtomb(mbp, *p++, &mbs);
-		if (clen == 0 || clen == (size_t)-1)
-			break;
-		mbp += clen;
-	}
-	if (clen == (size_t)-1) {
+	if ((nbytes = wcsrtombs(convbuf, (const wchar_t **)&p,
+	    nbytes, &mbs)) == (size_t)-1) {
 		free(convbuf);
 		return (NULL);
 	}
-	*mbp = '\0';
-
+	convbuf[nbytes] = '\0';
 	return (convbuf);
 }
 
