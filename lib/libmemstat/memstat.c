@@ -38,6 +38,27 @@
 #include "memstat.h"
 #include "memstat_internal.h"
 
+const char *
+memstat_strerror(int error)
+{
+
+	switch (error) {
+	case MEMSTAT_ERROR_NOMEMORY:
+		return ("Cannot allocate memory");
+	case MEMSTAT_ERROR_VERSION:
+		return ("Version mismatch");
+	case MEMSTAT_ERROR_PERMISSION:
+		return ("Permission denied");
+	case MEMSTAT_ERROR_TOOMANYCPUS:
+		return ("Too many CPUs");
+	case MEMSTAT_ERROR_DATAERROR:
+		return ("Data format error");
+	case MEMSTAT_ERROR_UNDEFINED:
+	default:
+		return ("Unknown error");
+	}
+}
+
 struct memory_type_list *
 memstat_mtl_alloc(void)
 {
