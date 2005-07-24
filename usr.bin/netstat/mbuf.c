@@ -205,7 +205,8 @@ mbpr_sysctl(void)
 	 * uma(9), and some malloc(9).
 	 */
 	if (memstat_sysctl_all(mtlp, 0) < 0) {
-		warn("memstat_sysctl_all");
+		warnx("memstat_sysctl_all: %s",
+		    memstat_strerror(memstat_mtl_geterror(mtlp)));
 		goto out;
 	}
 
