@@ -522,8 +522,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * all parts.  We're a bit pedantic here as all parts
 	 * support a global cap.
 	 */
-	sc->sc_hastpc = ath_hal_hastpc(ah);
-	if (sc->sc_hastpc || ath_hal_hastxpowlimit(ah))
+	if (ath_hal_hastpc(ah) || ath_hal_hastxpowlimit(ah))
 		ic->ic_caps |= IEEE80211_C_TXPMGT;
 
 	/*
@@ -547,10 +546,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/*
 	 * Query the hal about antenna support.
 	 */
-	if (ath_hal_hasdiversity(ah)) {
-		sc->sc_hasdiversity = 1;
-		sc->sc_diversity = ath_hal_getdiversity(ah);
-	}
 	sc->sc_defant = ath_hal_getdefantenna(ah);
 
 	/*
@@ -880,6 +875,11 @@ ath_init(void *arg)
 	 * but it's best done after a reset.
 	 */
 	ath_update_txpow(sc);
+	/*
+	 * Likewise this is set during reset so update
+	 * state cached in the driver.
+	 */
+	sc->sc_diversity = ath_hal_getdiversity(ah);
 
 	/*
 	 * Setup the hardware after reset: the key cache
@@ -1031,6 +1031,7 @@ ath_reset(struct ifnet *ifp)
 		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
 			__func__, status);
 	ath_update_txpow(sc);		/* update tx power state */
+	sc->sc_diversity = ath_hal_getdiversity(ah);
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
 	/*
@@ -4040,6 +4041,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		}
 		sc->sc_curchan = hchan;
 		ath_update_txpow(sc);		/* update tx power state */
+		sc->sc_diversity = ath_hal_getdiversity(ah);
 
 		/*
 		 * Re-enable rx framework.
@@ -4820,14 +4822,16 @@ static int
 ath_sysctl_diversity(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int diversity = sc->sc_diversity;
+	u_int diversity = ath_hal_getdiversity(sc->sc_ah);
 	int error;
 
 	error = sysctl_handle_int(oidp, &diversity, 0, req);
 	if (error || !req->newptr)
 		return error;
+	if (!ath_hal_setdiversity(sc->sc_ah, diversity))
+		return EINVAL;
 	sc->sc_diversity = diversity;
-	return !ath_hal_setdiversity(sc->sc_ah, diversity) ? EINVAL : 0;
+	return 0;
 }
 
 static int
@@ -4878,6 +4882,7 @@ ath_sysctlattach(struct ath_softc *sc)
 {
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct ath_hal *ah = sc->sc_ah;
 
 	ath_hal_getcountrycode(sc->sc_ah, &sc->sc_countrycode);
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
@@ -4919,7 +4924,7 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"rxantenna", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_rxantenna, "I", "default/rx antenna");
-	if (sc->sc_hasdiversity)
+	if (ath_hal_hasdiversity(ah))
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"diversity", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_diversity, "I", "antenna diversity");
@@ -4933,7 +4938,7 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tpscale", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_tpscale, "I", "tx power scaling");
-	if (sc->sc_hastpc)
+	if (ath_hal_hastpc(ah))
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"tpc", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_tpc, "I", "enable/disable per-packet TPC");
