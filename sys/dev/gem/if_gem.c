@@ -38,6 +38,10 @@ __FBSDID("$FreeBSD$");
 #define	GEM_DEBUG
 #endif
 
+#if 0	/* XXX: In case of emergency, re-enable this. */
+#define	GEM_RINT_TIMEOUT
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -72,8 +76,6 @@ static void	gem_start(struct ifnet *);
 static void	gem_stop(struct ifnet *, int);
 static int	gem_ioctl(struct ifnet *, u_long, caddr_t);
 static void	gem_cddma_callback(void *, bus_dma_segment_t *, int, int);
-static void	gem_rxdma_callback(void *, bus_dma_segment_t *, int,
-    bus_size_t, int);
 static void	gem_txdma_callback(void *, bus_dma_segment_t *, int,
     bus_size_t, int);
 static void	gem_tick(void *);
@@ -97,7 +99,7 @@ static void	gem_setladrf(struct gem_softc *);
 struct mbuf	*gem_get(struct gem_softc *, int, int);
 static void	gem_eint(struct gem_softc *, u_int);
 static void	gem_rint(struct gem_softc *);
-#if 0
+#ifdef GEM_RINT_TIMEOUT
 static void	gem_rint_timeout(void *);
 #endif
 static void	gem_tint(struct gem_softc *);
@@ -224,7 +226,6 @@ gem_attach(sc)
 		sc->sc_rxsoft[i].rxs_mbuf = NULL;
 	}
 
-
 	gem_mifinit(sc);
 
 	if ((error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus, gem_mediachange,
@@ -320,7 +321,9 @@ gem_attach(sc)
 #endif
 
 	callout_init(&sc->sc_tick_ch, 0);
+#ifdef GEM_RINT_TIMEOUT
 	callout_init(&sc->sc_rx_ch, 0);
+#endif
 	return (0);
 
 	/*
@@ -424,22 +427,6 @@ gem_cddma_callback(xsc, segs, nsegs, error)
 		panic("gem_cddma_callback: bad control buffer segment count");
 	}
 	sc->sc_cddma = segs[0].ds_addr;
-}
-
-static void
-gem_rxdma_callback(xsc, segs, nsegs, totsz, error)
-	void *xsc;
-	bus_dma_segment_t *segs;
-	int nsegs;
-	bus_size_t totsz;
-	int error;
-{
-	struct gem_rxsoft *rxs = (struct gem_rxsoft *)xsc;
-
-	if (error != 0)
-		return;
-	KASSERT(nsegs == 1, ("gem_rxdma_callback: bad dma segment count"));
-	rxs->rxs_paddr = segs[0].ds_addr;
 }
 
 static void
@@ -986,7 +973,6 @@ gem_load_txmbuf(sc, m0)
 	}
 	txd.txd_sc = sc;
 	txd.txd_txs = txs;
-	txs->txs_mbuf = m0;
 	txs->txs_firstdesc = sc->sc_txnext;
 	error = bus_dmamap_load_mbuf(sc->sc_tdmatag, txs->txs_dmamap, m0,
 	    gem_txdma_callback, &txd, BUS_DMA_NOWAIT);
@@ -1008,6 +994,7 @@ gem_load_txmbuf(sc, m0)
 #endif
 	STAILQ_REMOVE_HEAD(&sc->sc_txfreeq, txs_q);
 	STAILQ_INSERT_TAIL(&sc->sc_txdirtyq, txs, txs_q);
+	txs->txs_mbuf = m0;
 
 	sc->sc_txnext = GEM_NEXTTX(txs->txs_lastdesc);
 	sc->sc_txfree -= txs->txs_ndescs;
@@ -1333,7 +1320,7 @@ gem_tint(sc)
 #endif
 }
 
-#if 0
+#ifdef GEM_RINT_TIMEOUT
 static void
 gem_rint_timeout(arg)
 	void *arg;
@@ -1359,7 +1346,9 @@ gem_rint(sc)
 	u_int32_t rxcomp;
 	int i, len, progress = 0;
 
+#ifdef GEM_RINT_TIMEOUT
 	callout_stop(&sc->sc_rx_ch);
+#endif
 #ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_rint", device_get_name(sc->sc_dev));
 #endif
@@ -1382,7 +1371,7 @@ gem_rint(sc)
 		rxstat = GEM_DMA_READ(sc, sc->sc_rxdescs[i].gd_flags);
 
 		if (rxstat & GEM_RD_OWN) {
-#if 0 /* XXX: In case of emergency, re-enable this. */
+#ifdef GEM_RINT_TIMEOUT
 			/*
 			 * The descriptor is still marked as owned, although
 			 * it is supposed to have completed. This has been
@@ -1472,7 +1461,8 @@ gem_add_rxbuf(sc, idx)
 {
 	struct gem_rxsoft *rxs = &sc->sc_rxsoft[idx];
 	struct mbuf *m;
-	int error;
+	bus_dma_segment_t segs[1];
+	int error, nsegs;
 
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
@@ -1492,13 +1482,17 @@ gem_add_rxbuf(sc, idx)
 
 	rxs->rxs_mbuf = m;
 
-	error = bus_dmamap_load_mbuf(sc->sc_rdmatag, rxs->rxs_dmamap,
-	    m, gem_rxdma_callback, rxs, BUS_DMA_NOWAIT);
-	if (error != 0 || rxs->rxs_paddr == 0) {
+	error = bus_dmamap_load_mbuf_sg(sc->sc_rdmatag, rxs->rxs_dmamap,
+	    m, segs, &nsegs, BUS_DMA_NOWAIT);
+	/* If nsegs is wrong then the stack is corrupt. */
+	KASSERT(nsegs == 1, ("Too many segments returned!"));
+	if (error != 0) {
 		device_printf(sc->sc_dev, "can't load rx DMA map %d, error = "
 		    "%d\n", idx, error);
-		panic("gem_add_rxbuf");	/* XXX */
+		m_freem(m);
+		return (ENOBUFS);
 	}
+	rxs->rxs_paddr = segs[0].ds_addr;
 
 	bus_dmamap_sync(sc->sc_rdmatag, rxs->rxs_dmamap, BUS_DMASYNC_PREREAD);
 
@@ -1591,7 +1585,7 @@ gem_watchdog(ifp)
 	++ifp->if_oerrors;
 
 	/* Try to get more packets going. */
-	gem_start(ifp);
+	gem_init(ifp);
 }
 
 /*
@@ -1738,8 +1732,6 @@ gem_mii_statchg(dev)
 	bus_space_write_4(t, mac, GEM_MAC_TX_CONFIG, v);
 
 	/* XIF Configuration */
- /* We should really calculate all this rather than rely on defaults */
-	v = bus_space_read_4(t, mac, GEM_MAC_XIF_CONFIG);
 	v = GEM_MAC_XIF_LINK_LED;
 	v |= GEM_MAC_XIF_TX_MII_ENA;
 
