@@ -73,6 +73,7 @@ LIBLWRES?=	${DESTDIR}${LIBDIR}/liblwres.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
 LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
+LIBMEMSTAT?=	${DESTDIR}${LIBDIR}/libmemstat.a
 LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
 .if !defined(NO_SENDMAIL)
 LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a
