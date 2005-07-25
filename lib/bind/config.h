@@ -36,7 +36,7 @@
 /* #undef NEED_PTHREAD_INIT */
 
 /* define if your system has sigwait() */
-#define HAVE_SIGWAIT 1
+/* #undef HAVE_SIGWAIT */
 
 /* define if sigwait() is the UnixWare flavor */
 /* #undef HAVE_UNIXWARE_SIGWAIT */
@@ -48,7 +48,7 @@
 /* #undef HAVE_LINUXTHREADS */
 
 /* define if sysconf() is available */
-#define HAVE_SYSCONF 1
+/* #undef HAVE_SYSCONF */
 
 /* define if sysctlbyname() is available */
 #define HAVE_SYSCTLBYNAME 1
@@ -129,10 +129,10 @@ int sigwait(const unsigned int *set, int *sig);
 #define PATH_RANDOMDEV "/dev/random"
 
 /* define if pthread_attr_getstacksize() is available */
-#define HAVE_PTHREAD_ATTR_GETSTACKSIZE 1
+/* #undef HAVE_PTHREAD_ATTR_GETSTACKSIZE */
 
 /* define if pthread_attr_setstacksize() is available */
-#define HAVE_PTHREAD_ATTR_SETSTACKSIZE 1
+/* #undef HAVE_PTHREAD_ATTR_SETSTACKSIZE */
 
 /* define if you have strerror in the C library. */
 #define HAVE_STRERROR 1
@@ -148,6 +148,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define if threads need PTHREAD_SCOPE_SYSTEM */
 /* #undef NEED_PTHREAD_SCOPE_SYSTEM */
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+/* #undef HAVE_DLFCN_H */
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
@@ -165,7 +168,7 @@ int sigwait(const unsigned int *set, int *sig);
 /* #undef HAVE_LIBNSL */
 
 /* Define to 1 if you have the `pthread' library (-lpthread). */
-#define HAVE_LIBPTHREAD 1
+/* #undef HAVE_LIBPTHREAD */
 
 /* Define to 1 if you have the `scf' library (-lscf). */
 /* #undef HAVE_LIBSCF */
@@ -252,9 +255,11 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
 
-/* Define as `__inline' if that's what the C compiler calls it, or to nothing
-   if it is not supported. */
+/* Define to `__inline__' or `__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
 /* #undef inline */
+#endif
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 /* #undef size_t */

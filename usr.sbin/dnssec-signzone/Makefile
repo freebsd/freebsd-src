@@ -14,8 +14,8 @@ SRCS+=		dnssec-signzone.c dnssectool.c
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 
-DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
-LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
+DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD}
+LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD}
 
 MAN=		dnssec-signzone.8
 
