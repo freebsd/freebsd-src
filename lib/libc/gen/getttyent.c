@@ -105,6 +105,10 @@ getttyent()
 
 	zapchar = 0;
 	tty.ty_name = p;
+	tty.ty_status = 0;
+	tty.ty_window = NULL;
+	tty.ty_group  = _TTYS_NOGROUP;
+
 	p = skip(p);
 	if (!*(tty.ty_getty = p))
 		tty.ty_getty = tty.ty_type = NULL;
@@ -121,9 +125,6 @@ getttyent()
 			p = skip(p);
 		}
 	}
-	tty.ty_status = 0;
-	tty.ty_window = NULL;
-	tty.ty_group  = _TTYS_NOGROUP;
 
 	for (; *p; p = skip(p)) {
 		if (scmp(_TTYS_OFF))
