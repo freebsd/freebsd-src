@@ -244,6 +244,13 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 	    battinfo->state = bi[dev_idx].state;
 	    battinfo->rate = bst[dev_idx].rate;
 	}
+
+	/*
+	 * If the queried battery has no discharge rate or is charging,
+	 * report that we don't know the remaining time.
+	 */
+	if (valid_rate == 0 || (battinfo->state & ACPI_BATT_STAT_CHARGING))
+	    battinfo->min = -1;
     } else
 	acpi_reset_battinfo(battinfo);
 
