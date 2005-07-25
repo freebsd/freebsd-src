@@ -46,3 +46,11 @@ extern __inline int __sputaux(int _c, struct __sFILE *_p);
 #endif
 /* #undef BROKEN_IN6ADDR_INIT_MACROS */
 #define HAVE_STRLCAT 1
+/* Shut up warnings about missing braces */
+/* #undef SHUTUP_MUTEX_INITIALIZER */
+#ifdef SHUTUP_MUTEX_INITIALIZER
+#define LIBBIND_MUTEX_INITIALIZER { PTHREAD_MUTEX_INITIALIZER }
+#else
+#define LIBBIND_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
+#endif
+

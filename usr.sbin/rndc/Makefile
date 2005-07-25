@@ -17,8 +17,8 @@ SRCS+=		rndc.c util.c
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 
-DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
-LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
+DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD}
+LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD}
 
 MAN=		rndc.8 rndc.conf.5
 
