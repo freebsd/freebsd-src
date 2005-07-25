@@ -249,6 +249,7 @@ routehandler(struct protocol *p)
 			break;
 		switch (ifan->ifan_what) {
 		case RTM_IEEE80211_ASSOC:
+		case RTM_IEEE80211_REASSOC:
 			state_reboot(ifi);
 			break;
 		case RTM_IEEE80211_DISASSOC:
