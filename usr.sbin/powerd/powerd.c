@@ -269,6 +269,10 @@ main(int argc, char * argv[])
 	vflag = 0;
 	apm_fd = -1;
 
+	/* User must be root to control frequencies. */
+	if (geteuid() != 0)
+		errx(1, "must be root to run");
+
 	while ((ch = getopt(argc, argv, "a:b:i:n:p:r:v")) != EOF)
 		switch (ch) {
 		case 'a':
