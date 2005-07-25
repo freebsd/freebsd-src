@@ -19,6 +19,7 @@ SUBDIR=	geom_apple \
 	geom_sunlabel \
 	geom_uzip \
 	geom_vinum \
-	geom_vol_ffs
+	geom_vol_ffs \
+	geom_zero
 
 .include <bsd.subdir.mk>
