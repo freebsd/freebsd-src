@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Script to update the ALTROOTSLICE on NanoBSD systems.
+#
+# usage:
+#	mdconfig -a -t vnode -f _.i.s1
+#	ssh somewhere sh updatep < /dev/md0a
+#	mdconfig -d -u 0
+#
+
+set -e
+
+altslice=`grep /alt /etc/fstab | cut -d \  -f 1`
+
+if mount | grep $altslice > /dev/null ; then
+	echo "You have $altslice mounted, unmount it first"
+	exit 1
+fi
+
+(echo 1 >/dev/led/error) 2>/dev/null || true
+dd of=$altslice obs=64k
+boot0cfg -s 1 -v ad0
+(echo 0 >/dev/led/error) 2>/dev/null || true
