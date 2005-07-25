@@ -44,8 +44,8 @@ __FBSDID("$FreeBSD$");
 #include "envopts.h"
 
 static const char *
-		 expand_vars(char **thisarg_p, char **dest_p, const char
-		     **src_p);
+		 expand_vars(int in_thisarg, char **thisarg_p, char **dest_p,
+		     const char **src_p);
 static int	 is_there(char *candidate);
 
 /*
@@ -222,8 +222,8 @@ split_spaces(const char *str, int *origind, int *origc, char ***origv)
 			if (in_sq)
 				copychar = *src;
 			else {
-				copystr = expand_vars((nextarg - 1), &dest,
-				    &src);
+				copystr = expand_vars(in_arg, (nextarg - 1),
+				    &dest, &src);
 			}
 			break;
 		case '\'':
@@ -315,7 +315,7 @@ split_spaces(const char *str, int *origind, int *origc, char ***origv)
 		default:
 			if ((in_dq || in_sq) && in_arg)
 				copychar = *src;
-			else if (in_arg && isspacech(*src))
+			else if (isspacech(*src))
 				found_sep = 1;
 			else {
 				/*
@@ -386,7 +386,7 @@ str_done:
  * possibly *thisarg_p in the calling routine.
  */
 static const char *
-expand_vars(char **thisarg_p, char **dest_p, const char **src_p)
+expand_vars(int in_thisarg, char **thisarg_p, char **dest_p, const char **src_p)
 {
 	const char *vbegin, *vend, *vvalue;
 	char *newstr, *vname;
@@ -423,6 +423,7 @@ expand_vars(char **thisarg_p, char **dest_p, const char **src_p)
 			fprintf(stderr,
 			    "#env  replacing ${%s} with null string\n",
 			    vname);
+		free(vname);
 		return (NULL);
 	}
 
@@ -435,21 +436,33 @@ expand_vars(char **thisarg_p, char **dest_p, const char **src_p)
 	 * shorter than the ${VARNAME} reference that it replaces, then our
 	 * caller can just copy the value to the existing destination.
 	 */
-	if (strlen(vname) + 3 >= strlen(vvalue))
+	if (strlen(vname) + 3 >= strlen(vvalue)) {
+		free(vname);
 		return (vvalue);
+	}
 
 	/*
 	 * The value is longer than the string it replaces, which means the
 	 * present destination area is too small to hold it.  Create a new
-	 * destination area, copy the present 'thisarg' value to it, and
-	 * update the caller's 'thisarg' and 'dest' variables to match.
-	 * Note that it is still the caller which will copy vvalue to *dest.
+	 * destination area, and update the caller's 'dest' variable to match.
+	 * If the caller has already started copying some info for 'thisarg'
+	 * into the present destination, then the new destination area must
+	 * include a copy of that data, and the pointer to 'thisarg' must also
+	 * be updated.  Note that it is still the caller which copies this
+	 * vvalue to the new *dest.
 	 */
-	**dest_p = '\0';		/* Provide terminator for 'thisarg' */
-	newlen = strlen(*thisarg_p) + strlen(vvalue) + strlen(*src_p) + 1;
-	newstr = malloc(newlen);
-	strcpy(newstr, *thisarg_p);
-	*thisarg_p = newstr;
+	newlen = strlen(vvalue) + strlen(*src_p) + 1;
+	if (in_thisarg) {
+		**dest_p = '\0';	/* Provide terminator for 'thisarg' */
+		newlen += strlen(*thisarg_p);
+		newstr = malloc(newlen);
+		strcpy(newstr, *thisarg_p);
+		*thisarg_p = newstr;
+	} else {
+		newstr = malloc(newlen);
+		*newstr = '\0';
+	}
 	*dest_p = strchr(newstr, '\0');
+	free(vname);
 	return (vvalue);
 }
