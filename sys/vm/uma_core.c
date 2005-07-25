@@ -2980,7 +2980,7 @@ restart:
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
 			bzero(&uth, sizeof(uth));
 			ZONE_LOCK(z);
-			strlcpy(uth.uth_name, z->uz_name, UMA_MAX_NAME);
+			strlcpy(uth.uth_name, z->uz_name, UTH_MAX_NAME);
 			uth.uth_align = kz->uk_align;
 			uth.uth_pages = kz->uk_pages;
 			uth.uth_keg_free = kz->uk_free;
@@ -2993,6 +2993,15 @@ restart:
 			else
 				uth.uth_limit = kz->uk_maxpages *
 				    kz->uk_ipers;
+
+			/*
+			 * A zone is secondary is it is not the first entry
+			 * on the keg's zone list.
+			 */
+			if ((kz->uk_flags & UMA_ZONE_SECONDARY) &&
+			    (LIST_FIRST(&kz->uk_zones) != z))
+				uth.uth_zone_flags = UTH_ZONE_SECONDARY;
+
 			LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link)
 				uth.uth_zone_free += bucket->ub_cnt;
 			uth.uth_allocs = z->uz_allocs;
