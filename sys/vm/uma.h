@@ -522,12 +522,13 @@ struct uma_stream_header {
 	u_int32_t	_ush_pad;	/* Pad/reserved field. */
 };
 
-#define	UMA_MAX_NAME	32
+#define	UTH_MAX_NAME	32
+#define	UTH_ZONE_SECONDARY	0x00000001
 struct uma_type_header {
 	/*
 	 * Static per-zone data, some extracted from the supporting keg.
 	 */
-	char		uth_name[UMA_MAX_NAME];
+	char		uth_name[UTH_MAX_NAME];
 	u_int32_t	uth_align;	/* Keg: alignment. */
 	u_int32_t	uth_size;	/* Keg: requested size of item. */
 	u_int32_t	uth_rsize;	/* Keg: real size of item. */
@@ -541,12 +542,11 @@ struct uma_type_header {
 	u_int32_t	uth_keg_free;	/* Keg: items free. */
 	u_int32_t	uth_zone_free;	/* Zone: items free. */
 	u_int32_t	uth_bucketsize;	/* Zone: desired bucket size. */
-	u_int32_t	_uth_reserved0;	/* Reserved. */
+	u_int32_t	uth_zone_flags;	/* Zone: flags. */
 	u_int64_t	uth_allocs;	/* Zone: number of allocations. */
 	u_int64_t	uth_frees;	/* Zone: number of frees. */
 	u_int64_t	uth_fails;	/* Zone: number of alloc failures. */
 	u_int64_t	_uth_reserved1[3];	/* Reserved. */
-
 };
 
 struct uma_percpu_stat {
