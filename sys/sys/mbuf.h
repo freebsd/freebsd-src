@@ -287,6 +287,16 @@ struct mbstat {
 #define	M_TRYWAIT	M_WAITOK
 #define	M_WAIT		M_WAITOK
 
+/*
+ * String names of mbuf-related UMA(9) and malloc(9) types.  Exposed to
+ * !_KERNEL so that monitoring tools can look up the zones with
+ * libmemstat(3).
+ */
+#define	MBUF_MEM_NAME		"mbuf"
+#define	MBUF_CLUSTER_MEM_NAME	"mbuf_cluster"
+#define	MBUF_PACKET_MEM_NAME	"mbuf_packet"
+#define	MBUF_TAG_MEM_NAME	"mbuf_tag"
+
 #ifdef _KERNEL
 /*-
  * mbuf external reference count management macros.
