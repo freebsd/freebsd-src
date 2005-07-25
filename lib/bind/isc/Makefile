@@ -19,7 +19,7 @@ SRCS+=		app.c dir.c entropy.c \
 .PATH:		${SRCDIR}/nls
 SRCS+=		msgcat.c \
 
-.PATH:		${SRCDIR}/pthreads
+.PATH:		${SRCDIR}/nothreads
 SRCS+=		condition.c mutex.c \
 		thread.c
 
@@ -35,7 +35,7 @@ SRCS+=		inet_pton.c \
 		serial.c sha1.c  sockaddr.c string.c strtoul.c \
 		symtab.c task.c taskpool.c timer.c version.c
 
-CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/pthreads/include
+CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/nothreads/include
 CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR}
 
 DPADD=		${PTHREAD_DPADD}
@@ -104,10 +104,10 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/types.h \
 		${SRCDIR}/include/isc/util.h \
 		${SRCDIR}/include/isc/version.h \
-		${SRCDIR}/pthreads/include/isc/condition.h \
-		${SRCDIR}/pthreads/include/isc/mutex.h \
-		${SRCDIR}/pthreads/include/isc/once.h \
-		${SRCDIR}/pthreads/include/isc/thread.h \
+		${SRCDIR}/nothreads/include/isc/condition.h \
+		${SRCDIR}/nothreads/include/isc/mutex.h \
+		${SRCDIR}/nothreads/include/isc/once.h \
+		${SRCDIR}/nothreads/include/isc/thread.h \
 		${SRCDIR}/unix/include/isc/dir.h \
 		${SRCDIR}/unix/include/isc/int.h \
 		${SRCDIR}/unix/include/isc/keyboard.h \
