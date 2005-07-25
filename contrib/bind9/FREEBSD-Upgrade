@@ -43,11 +43,12 @@
 
 7) Generate and run configure:
 
-	$ autoconf253
-	$ autoheader253
+	$ aclocal
+	$ autoheader
+	$ autoconf
 	$ ./configure --prefix=/usr \
 		--infodir=/usr/share/info --mandir=/usr/share/man \
-		--enable-threads --enable-libbind --disable-ipv6 \
+		--disable-threads --enable-libbind --disable-ipv6 \
 		--enable-getifaddrs --disable-linux-caps \
 		--with-openssl=/usr --with-randomdev=/dev/random
 
@@ -55,9 +56,20 @@
    command line; src/lib/bind/config.mk will re-enable it at compile
    time if NO_INET6 is not defined.
 
-8) Copy the resulting config.h to src/lib/bind, add an RCS id tag and
-   commit it.  Do not commit any other file that was modified or
-   created in steps 6) or 7).
+8) Copy the following generated files to src/lib/bind and commit them:
+
+	Path in src/contrib/bind9		Path in src/lib/bind
+	------------------------------------------------------------
+	config.h				config.h
+	lib/bind/config.h			bind/config.h
+	lib/bind/port_after.h			bind/port_after.h
+	lib/bind/port_before.h			bind/port_before.h
+	lib/isc/include/isc/platform.h		isc/isc/platform.h
+	lib/lwres/include/lwres/netdb.h		lwres/lwres/netdb.h
+	lib/lwres/include/lwres/platform.h	lwres/lwres/platform.h
+
+   Do not commit any other file that was modified or created in
+   steps 6) or 7).
 
 9) cd src/lib/bind/dns && make -DMAINTAINER_MODE generate && rm gen
    Commit the new versions of the files generated.
