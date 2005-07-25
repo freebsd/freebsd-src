@@ -8,7 +8,9 @@
 
 set -ex
 
-mount /dev/ad0s3 /mnt
+cfgslice=`grep '/cfg' /etc/fstab | cut -d \  -f 1`
+
+mount -o rw $cfgslice /mnt
 mkdir -p /mnt/ssh
 (
 cd /etc/ssh
