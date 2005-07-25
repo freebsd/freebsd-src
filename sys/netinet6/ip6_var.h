@@ -322,6 +322,9 @@ extern int	ip6_use_tempaddr; /* whether to use temporary addresses. */
 extern int	ip6_prefer_tempaddr; /* whether to prefer temporary addresses
 					in the source address selection */
 
+extern int	ip6_use_defzone; /* whether to use the default scope zone
+				    when unspecified */
+
 extern	struct pfil_head inet6_pfil_hook;	/* packet filter hooks */
 
 extern struct	pr_usrreqs rip6_usrreqs;
@@ -391,7 +394,7 @@ int	none_input __P((struct mbuf **, int *, int));
 
 struct in6_addr *in6_selectsrc __P((struct sockaddr_in6 *,
 	struct ip6_pktopts *, struct ip6_moptions *, struct route_in6 *,
-	struct in6_addr *, int *));
+	struct in6_addr *, struct ifnet **, int *));
 int in6_selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
 	struct rtentry **, int));

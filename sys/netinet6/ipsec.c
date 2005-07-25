@@ -73,6 +73,7 @@
 #include <netinet/ip6.h>
 #ifdef INET6
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #endif
 #include <netinet/in_pcb.h>
 #ifdef INET6
@@ -1143,14 +1144,14 @@ ipsec6_setspidx_ipaddr(m, spidx)
 	bzero(sin6, sizeof(*sin6));
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_len = sizeof(struct sockaddr_in6);
-	in6_recoverscope(sin6, &ip6->ip6_src, NULL);
+	sin6->sin6_addr = ip6->ip6_src;
 	spidx->prefs = sizeof(struct in6_addr) << 3;
 
 	sin6 = (struct sockaddr_in6 *)&spidx->dst;
 	bzero(sin6, sizeof(*sin6));
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_len = sizeof(struct sockaddr_in6);
-	in6_recoverscope(sin6, &ip6->ip6_dst, NULL);
+	sin6->sin6_addr = ip6->ip6_dst;
 	spidx->prefd = sizeof(struct in6_addr) << 3;
 
 	return 0;
@@ -2177,9 +2178,11 @@ ipsec6_encapsulate(m, sav)
 	struct mbuf *m;
 	struct secasvar *sav;
 {
+	struct sockaddr_in6 sa6;
 	struct ip6_hdr *oip6;
 	struct ip6_hdr *ip6;
 	size_t plen;
+	int error;
 
 	/* can't tunnel between different AFs */
 	if (((struct sockaddr *)&sav->sah->saidx.src)->sa_family
@@ -2237,10 +2240,17 @@ ipsec6_encapsulate(m, sav)
 		/* ip6->ip6_plen will be updated in ip6_output() */
 	}
 	ip6->ip6_nxt = IPPROTO_IPV6;
-	in6_embedscope(&ip6->ip6_src,
-	    (struct sockaddr_in6 *)&sav->sah->saidx.src, NULL, NULL);
-	in6_embedscope(&ip6->ip6_dst,
-	    (struct sockaddr_in6 *)&sav->sah->saidx.dst, NULL, NULL);
+
+	sa6 = *(struct sockaddr_in6 *)&sav->sah->saidx.src;
+	if ((error = sa6_embedscope(&sa6, 0)) != 0)
+		return (error);
+	ip6->ip6_src = sa6.sin6_addr;
+
+	sa6 = *(struct sockaddr_in6 *)&sav->sah->saidx.dst;
+	if ((error = sa6_embedscope(&sa6, 0)) != 0)
+		return (error);
+	ip6->ip6_dst = sa6.sin6_addr;
+
 	ip6->ip6_hlim = IPV6_DEFHLIM;
 
 	/* XXX Should ip6_src be updated later ? */
@@ -2833,14 +2843,14 @@ ipsec6_checksa(isr, state, tunnel)
 		sin6->sin6_len = sizeof(*sin6);
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = IPSEC_PORT_ANY;
-		in6_recoverscope(sin6, &ip6->ip6_src, NULL);
+		sin6->sin6_addr = ip6->ip6_src;
 	}
 	sin6 = (struct sockaddr_in6 *)&saidx.dst;
 	if (sin6->sin6_len == 0 || tunnel) {
 		sin6->sin6_len = sizeof(*sin6);
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = IPSEC_PORT_ANY;
-		in6_recoverscope(sin6, &ip6->ip6_dst, NULL);
+		sin6->sin6_addr = ip6->ip6_dst;
 	}
 
 	return key_checkrequest(isr, &saidx);

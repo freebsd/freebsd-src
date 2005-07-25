@@ -590,6 +590,7 @@ struct ip6_mtuinfo {
 #define IPV6CTL_RIP6STATS	36	/* raw_ip6 stats */
 #define IPV6CTL_PREFER_TEMPADDR	37	/* prefer temporary addr as src */
 #define IPV6CTL_ADDRCTLPOLICY	38	/* get/set address selection policy */
+#define IPV6CTL_USE_DEFAULTZONE	39	/* use default scope zone */
 
 #define IPV6CTL_MAXFRAGS	41	/* max fragments */
 
