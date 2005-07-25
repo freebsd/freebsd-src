@@ -373,6 +373,8 @@ static void cx_intr (void *arg)
 	for (i = 0; i < NCHAN && b->chan[i].type; i++) {
 		drv_t *d = b->chan[i].sys;
 		struct mbuf *m;
+		if (!d || !d->running)
+			continue;
 		while (_IF_QLEN(&d->queue)) {
 			IF_DEQUEUE (&d->queue,m);
 			if (!m)
@@ -843,8 +845,9 @@ static int cx_attach (device_t dev)
 		d->pp.pp_if.if_softc    = d;
 		if_initname (&d->pp.pp_if, "cx", b->num * NCHAN + c->num);
 		d->pp.pp_if.if_mtu	= PP_MTU;
-		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST |
-					IFF_NEEDSGIANT;
+		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
+		if (!cx_mpsafenet)
+			d->pp.pp_if.if_flags |= IFF_NEEDSGIANT;
 		d->pp.pp_if.if_ioctl	= cx_sioctl;
 		d->pp.pp_if.if_start	= cx_ifstart;
 		d->pp.pp_if.if_watchdog	= cx_ifwatchdog;
@@ -1173,7 +1176,7 @@ static void cx_send (drv_t *d)
 		if (d->pp.pp_if.if_bpf)
 			BPF_MTAP (&d->pp.pp_if, m);
 #endif
-		len = m->m_pkthdr.len;
+		len = m_length (m, NULL);
 		if (! m->m_next)
 			cx_send_packet (d->chan, (u_char*)mtod (m, caddr_t),
 				len, 0);
@@ -2350,6 +2353,9 @@ static void cx_carrier (void *arg)
 			if (d->tty)
 				ttyld_modem(d->tty, 0);
 		}
+	} else {
+		CX_UNLOCK (bd);
+		splx (s);
 	}
 }
 
