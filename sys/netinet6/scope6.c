@@ -410,7 +410,11 @@ in6_setscope(in6, ifp, ret_id)
 {
 	int scope;
 	u_int32_t zoneid = 0;
-	struct scope6_id *sid = SID(ifp);
+	struct scope6_id *sid;
+
+	IF_AFDATA_LOCK(ifp);
+
+	sid = SID(ifp);
 
 #ifdef DIAGNOSTIC
 	if (sid == NULL) { /* should not happen */
@@ -425,16 +429,19 @@ in6_setscope(in6, ifp, ret_id)
 	 */
 	if (IN6_IS_ADDR_LOOPBACK(in6)) {
 		if (!(ifp->if_flags & IFF_LOOPBACK))
+			IF_AFDATA_UNLOCK(ifp);
 			return (EINVAL);
 		else {
 			if (ret_id != NULL)
 				*ret_id = 0; /* there's no ambiguity */
+			IF_AFDATA_UNLOCK(ifp);
 			return (0);
 		}
 	}
 
 	scope = in6_addrscope(in6);
 
+	SCOPE6_LOCK();
 	switch (scope) {
 	case IPV6_ADDR_SCOPE_INTFACELOCAL: /* should be interface index */
 		zoneid = sid->s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL];
@@ -456,6 +463,8 @@ in6_setscope(in6, ifp, ret_id)
 		zoneid = 0;	/* XXX: treat as global. */
 		break;
 	}
+	SCOPE6_UNLOCK();
+	IF_AFDATA_UNLOCK(ifp);
 
 	if (ret_id != NULL)
 		*ret_id = zoneid;
