@@ -428,10 +428,10 @@ in6_setscope(in6, ifp, ret_id)
 	 * interface.
 	 */
 	if (IN6_IS_ADDR_LOOPBACK(in6)) {
-		if (!(ifp->if_flags & IFF_LOOPBACK))
+		if (!(ifp->if_flags & IFF_LOOPBACK)) {
 			IF_AFDATA_UNLOCK(ifp);
 			return (EINVAL);
-		else {
+		} else {
 			if (ret_id != NULL)
 				*ret_id = 0; /* there's no ambiguity */
 			IF_AFDATA_UNLOCK(ifp);
