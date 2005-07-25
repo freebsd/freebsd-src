@@ -74,6 +74,7 @@
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #include <netinet6/in6_gif.h>
 #include <netinet6/ip6protosw.h>
 #endif /* INET6 */
@@ -679,6 +680,13 @@ gif_ioctl(ifp, cmd, data)
 		if (src->sa_len > size)
 			return EINVAL;
 		bcopy((caddr_t)src, (caddr_t)dst, src->sa_len);
+#ifdef INET6
+		if (dst->sa_family == AF_INET6) {
+			error = sa6_recoverscope((struct sockaddr_in6 *)dst);
+			if (error != 0)
+				return (error);
+		}
+#endif
 		break;
 			
 	case SIOCGIFPDSTADDR:
@@ -711,6 +719,13 @@ gif_ioctl(ifp, cmd, data)
 		if (src->sa_len > size)
 			return EINVAL;
 		bcopy((caddr_t)src, (caddr_t)dst, src->sa_len);
+#ifdef INET6
+		if (dst->sa_family == AF_INET6) {
+			error = sa6_recoverscope((struct sockaddr_in6 *)dst);
+			if (error != 0)
+				return (error);
+		}
+#endif
 		break;
 
 	case SIOCGLIFPHYADDR:
@@ -832,6 +847,16 @@ gif_set_tunnel(ifp, src, dst)
 #endif
 #ifdef INET6
 	case AF_INET6:
+		/*
+		 * Check validity of the scope zone ID of the addresses, and
+		 * convert it into the kernel internal form if necessary.
+		 */
+		error = sa6_embedscope((struct sockaddr_in6 *)sc->gif_psrc, 0);
+		if (error != 0)
+			break;
+		error = sa6_embedscope((struct sockaddr_in6 *)sc->gif_pdst, 0);
+		if (error != 0)
+			break;
 		error = in6_gif_attach(sc);
 		break;
 #endif

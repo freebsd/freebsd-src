@@ -436,8 +436,7 @@ in6_ifattach_linklocal(ifp, altifp)
 
 	ifra.ifra_addr.sin6_family = AF_INET6;
 	ifra.ifra_addr.sin6_len = sizeof(struct sockaddr_in6);
-	ifra.ifra_addr.sin6_addr.s6_addr16[0] = htons(0xfe80);
-	ifra.ifra_addr.sin6_addr.s6_addr16[1] = htons(ifp->if_index); /* XXX */
+	ifra.ifra_addr.sin6_addr.s6_addr32[0] = htonl(0xfe800000);
 	ifra.ifra_addr.sin6_addr.s6_addr32[1] = 0;
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		ifra.ifra_addr.sin6_addr.s6_addr32[2] = 0;
@@ -449,6 +448,8 @@ in6_ifattach_linklocal(ifp, altifp)
 			return (-1);
 		}
 	}
+	if (in6_setscope(&ifra.ifra_addr.sin6_addr, ifp, NULL))
+		return (-1);
 
 	ifra.ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
 	ifra.ifra_prefixmask.sin6_family = AF_INET6;
@@ -643,10 +644,10 @@ in6_nigroup(ifp, name, namelen, in6)
 
 	bzero(in6, sizeof(*in6));
 	in6->s6_addr16[0] = htons(0xff02);
-	if (ifp)
-		in6->s6_addr16[1] = htons(ifp->if_index);
 	in6->s6_addr8[11] = 2;
 	bcopy(digest, &in6->s6_addr32[3], sizeof(in6->s6_addr32[3]));
+	if (in6_setscope(in6, ifp, NULL))
+		return (-1); /* XXX: should not fail */
 
 	return 0;
 }
@@ -841,7 +842,9 @@ in6_ifdetach(ifp)
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_addr = in6addr_linklocal_allnodes;
-	sin6.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+	if (in6_setscope(&sin6.sin6_addr, ifp, NULL))
+		/* XXX: should not fail */
+		return;
 	/* XXX grab lock first to avoid LOR */
 	if (rt_tables[AF_INET6] != NULL) {
 		RADIX_NODE_HEAD_LOCK(rt_tables[AF_INET6]);

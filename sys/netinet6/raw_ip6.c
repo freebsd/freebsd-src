@@ -75,6 +75,7 @@
 #include <sys/socketvar.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -92,9 +93,7 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/raw_ip6.h>
-#ifdef ENABLE_DEFAULT_SCOPE
 #include <netinet6/scope6_var.h>
-#endif
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
@@ -328,6 +327,7 @@ rip6_output(m, va_alist)
 	struct ifnet *oifp = NULL;
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
 	int priv = 0;
+	int scope_ambiguous = 0;
 	struct in6_addr *in6a;
 	va_list ap;
 
@@ -355,6 +355,17 @@ rip6_output(m, va_alist)
 		optp = in6p->in6p_outputopts;
 
 	/*
+	 * Check and convert scope zone ID into internal form.
+	 * XXX: we may still need to determine the zone later.
+	 */
+	if (!(so->so_state & SS_ISCONNECTED)) {
+		if (dstsock->sin6_scope_id == 0 && !ip6_use_defzone)
+			scope_ambiguous = 1;
+		if ((error = sa6_embedscope(dstsock, ip6_use_defzone)) != 0)
+			goto bad;
+	}
+
+	/*
 	 * For an ICMPv6 packet, we should know its type and code
 	 * to update statistics.
 	 */
@@ -378,55 +389,32 @@ rip6_output(m, va_alist)
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/*
-	 * Next header might not be ICMP6 but use its pseudo header anyway.
-	 */
-	ip6->ip6_dst = *dst;
-
-	/*
-	 * If the scope of the destination is link-local, embed the interface
-	 * index in the address.
-	 *
-	 * XXX advanced-api value overrides sin6_scope_id
-	 */
-	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) {
-		struct in6_pktinfo *pi;
-
-		/*
-		 * XXX Boundary check is assumed to be already done in
-		 * ip6_setpktopts().
-		 */
-		if (optp &&
-		    (pi = optp->ip6po_pktinfo) &&
-		    pi->ipi6_ifindex) {
-			ip6->ip6_dst.s6_addr16[1] = htons(pi->ipi6_ifindex);
-			oifp = ifnet_byindex(pi->ipi6_ifindex);
-		} else if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
-			 in6p->in6p_moptions &&
-			 in6p->in6p_moptions->im6o_multicast_ifp) {
-			oifp = in6p->in6p_moptions->im6o_multicast_ifp;
-			ip6->ip6_dst.s6_addr16[1] = htons(oifp->if_index);
-		} else if (dstsock->sin6_scope_id) {
-			/* boundary check */
-			if (dstsock->sin6_scope_id < 0 ||
-			    if_index < dstsock->sin6_scope_id) {
-				error = ENXIO;  /* XXX EINVAL? */
-				goto bad;
-			}
-			ip6->ip6_dst.s6_addr16[1] =
-			    htons(dstsock->sin6_scope_id & 0xffff); /* XXX */
-		}
-	}
-
-	/*
 	 * Source address selection.
 	 */
 	if ((in6a = in6_selectsrc(dstsock, optp, in6p->in6p_moptions, NULL,
-	    &in6p->in6p_laddr, &error)) == 0) {
+	    &in6p->in6p_laddr, &oifp, &error)) == NULL) {
 		if (error == 0)
 			error = EADDRNOTAVAIL;
 		goto bad;
 	}
 	ip6->ip6_src = *in6a;
+
+	if (oifp && scope_ambiguous) {
+		/*
+		 * Application should provide a proper zone ID or the use of
+		 * default zone IDs should be enabled.  Unfortunately, some
+		 * applications do not behave as it should, so we need a
+		 * workaround.  Even if an appropriate ID is not determined
+		 * (when it's required), if we can determine the outgoing
+		 * interface. determine the zone ID based on the interface.
+		 */
+		error = in6_setscope(&dstsock->sin6_addr, oifp, NULL);
+		if (error != 0)
+			goto bad;
+	}
+	ip6->ip6_dst = dstsock->sin6_addr;
+
+	/* fill in the rest of the IPv6 header fields */
 	ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
 		(in6p->in6p_flowinfo & IPV6_FLOWINFO_MASK);
 	ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
@@ -648,16 +636,15 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcb *inp = sotoinpcb(so);
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct ifaddr *ia = NULL;
+	int error = 0;
 
 	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
 	if (TAILQ_EMPTY(&ifnet) || addr->sin6_family != AF_INET6)
 		return EADDRNOTAVAIL;
-#ifdef ENABLE_DEFAULT_SCOPE
-	if (addr->sin6_scope_id == 0) {	/* not change if specified  */
-		addr->sin6_scope_id = scope6_addr2default(&addr->sin6_addr);
-	}
-#endif
+	if ((error = sa6_embedscope(addr, ip6_use_defzone)) != 0)
+		return(error);
+
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr) &&
 	    (ia = ifa_ifwithaddr((struct sockaddr *)addr)) == 0)
 		return EADDRNOTAVAIL;
@@ -681,10 +668,8 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcb *inp = sotoinpcb(so);
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct in6_addr *in6a = NULL;
-	int error = 0;
-#ifdef ENABLE_DEFAULT_SCOPE
-	struct sockaddr_in6 tmp;
-#endif
+	struct ifnet *ifp = NULL;
+	int error = 0, scope_ambiguous = 0;
 
 	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
@@ -692,27 +677,41 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return EADDRNOTAVAIL;
 	if (addr->sin6_family != AF_INET6)
 		return EAFNOSUPPORT;
-#ifdef ENABLE_DEFAULT_SCOPE
-	if (addr->sin6_scope_id == 0) {	/* not change if specified  */
-		/* avoid overwrites */
-		tmp = *addr;
-		addr = &tmp;
-		addr->sin6_scope_id = scope6_addr2default(&addr->sin6_addr);
-	}
-#endif
+
+	/*
+	 * Application should provide a proper zone ID or the use of
+	 * default zone IDs should be enabled.  Unfortunately, some
+	 * applications do not behave as it should, so we need a
+	 * workaround.  Even if an appropriate ID is not determined,
+	 * we'll see if we can determine the outgoing interface.  If we
+	 * can, determine the zone ID based on the interface below.
+	 */
+	if (addr->sin6_scope_id == 0 && !ip6_use_defzone)
+		scope_ambiguous = 1;
+	if ((error = sa6_embedscope(addr, ip6_use_defzone)) != 0)
+		return(error);
+
 	INP_INFO_WLOCK(&ripcbinfo);
 	INP_LOCK(inp);
 	/* Source address selection. XXX: need pcblookup? */
 	in6a = in6_selectsrc(addr, inp->in6p_outputopts,
 			     inp->in6p_moptions, NULL,
-			     &inp->in6p_laddr, &error);
+			     &inp->in6p_laddr, &ifp, &error);
 	if (in6a == NULL) {
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return (error ? error : EADDRNOTAVAIL);
 	}
-	inp->in6p_laddr = *in6a;
+
+	/* XXX: see above */
+	if (ifp && scope_ambiguous &&
+	    (error = in6_setscope(&addr->sin6_addr, ifp, NULL)) != 0) {
+		INP_UNLOCK(inp);
+		INP_INFO_WUNLOCK(&ripcbinfo);
+		return(error);
+	}
 	inp->in6p_faddr = addr->sin6_addr;
+	inp->in6p_laddr = *in6a;
 	soisconnected(so);
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
@@ -764,14 +763,29 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			m_freem(m);
 			return ENOTCONN;
 		}
+		if (nam->sa_len != sizeof(struct sockaddr_in6)) {
+			INP_INFO_WUNLOCK(&ripcbinfo);
+			m_freem(m);
+			return(EINVAL);
+		}
 		tmp = *(struct sockaddr_in6 *)nam;
 		dst = &tmp;
+
+		if (dst->sin6_family == AF_UNSPEC) {
+			/*
+			 * XXX: we allow this case for backward
+			 * compatibility to buggy applications that
+			 * rely on old (and wrong) kernel behavior.
+			 */
+			log(LOG_INFO, "rip6 SEND: address family is "
+			    "unspec. Assume AF_INET6\n");
+			dst->sin6_family = AF_INET6;
+		} else if (dst->sin6_family != AF_INET6) {
+			INP_INFO_WUNLOCK(&ripcbinfo);
+			m_freem(m);
+			return(EAFNOSUPPORT);
+		}
 	}
-#ifdef ENABLE_DEFAULT_SCOPE
-	if (dst->sin6_scope_id == 0) {	/* not change if specified  */
-		dst->sin6_scope_id = scope6_addr2default(&dst->sin6_addr);
-	}
-#endif
 	ret = rip6_output(m, so, dst, control);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 	return (ret);
