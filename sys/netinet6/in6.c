@@ -330,7 +330,7 @@ in6_control(so, cmd, data, ifp, td)
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
 	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
-	int privileged;
+	int error, privileged;
 
 	privileged = 0;
 	if (td == NULL || !suser(td))
@@ -412,25 +412,15 @@ in6_control(so, cmd, data, ifp, td)
 	 * Find address for this interface, if it exists.
 	 */
 	if (ifra->ifra_addr.sin6_family == AF_INET6) { /* XXX */
-		struct sockaddr_in6 *sa6 =
-			(struct sockaddr_in6 *)&ifra->ifra_addr;
+		int error = 0;
 
-		if (IN6_IS_ADDR_LINKLOCAL(&sa6->sin6_addr)) {
-			if (sa6->sin6_addr.s6_addr16[1] == 0) {
-				/* link ID is not embedded by the user */
-				sa6->sin6_addr.s6_addr16[1] =
-				    htons(ifp->if_index);
-			} else if (sa6->sin6_addr.s6_addr16[1] !=
-			    htons(ifp->if_index)) {
-				return (EINVAL);	/* link ID contradicts */
-			}
-			if (sa6->sin6_scope_id) {
-				if (sa6->sin6_scope_id !=
-				    (u_int32_t)ifp->if_index)
-					return (EINVAL);
-				sa6->sin6_scope_id = 0; /* XXX: good way? */
-			}
-		}
+		if (ifra->ifra_addr.sin6_scope_id != 0)
+			error = sa6_embedscope(&ifra->ifra_addr, 0);
+		else
+			error = in6_setscope(&ifra->ifra_addr.sin6_addr,
+			    ifp, NULL);
+		if (error != 0)
+			return (error);
 		ia = in6ifa_ifpwithaddr(ifp, &ifra->ifra_addr.sin6_addr);
 	}
 
@@ -507,6 +497,8 @@ in6_control(so, cmd, data, ifp, td)
 
 	case SIOCGIFADDR_IN6:
 		ifr->ifr_addr = ia->ia_addr;
+		if ((error = sa6_recoverscope(&ifr->ifr_addr)) != 0)
+			return (error);
 		break;
 
 	case SIOCGIFDSTADDR_IN6:
@@ -517,6 +509,8 @@ in6_control(so, cmd, data, ifp, td)
 		 * an error?
 		 */
 		ifr->ifr_dstaddr = ia->ia_dstaddr;
+		if ((error = sa6_recoverscope(&ifr->ifr_dstaddr)) != 0)
+			return (error);
 		break;
 
 	case SIOCGIFNETMASK_IN6:
@@ -741,6 +735,7 @@ in6_update_ifa(ifp, ifra, ia)
 	struct in6_ifaddr *oia;
 	struct sockaddr_in6 dst6;
 	struct in6_addrlifetime *lt;
+	struct rtentry *rt;
 
 	/* Validate parameters */
 	if (ifp == NULL || ifra == NULL) /* this maybe redundant */
@@ -789,21 +784,22 @@ in6_update_ifa(ifp, ifra, ia)
 	dst6 = ifra->ifra_dstaddr;
 	if ((ifp->if_flags & (IFF_POINTOPOINT|IFF_LOOPBACK)) != 0 &&
 	    (dst6.sin6_family == AF_INET6)) {
+		struct in6_addr in6_tmp;
 		u_int32_t zoneid;
 
-		if ((error = in6_recoverscope(&dst6,
-		    &ifra->ifra_dstaddr.sin6_addr, ifp)) != 0)
-			return (error);
-		if (in6_addr2zoneid(ifp, &dst6.sin6_addr, &zoneid))
-			return (EINVAL);
-		if (dst6.sin6_scope_id == 0) /* user omit to specify the ID. */
+		in6_tmp = dst6.sin6_addr;
+		if (in6_setscope(&in6_tmp, ifp, &zoneid))
+			return (EINVAL); /* XXX: should be impossible */
+
+		if (dst6.sin6_scope_id != 0) {
+			if (dst6.sin6_scope_id != zoneid)
+				return (EINVAL);
+		} else		/* user omit to specify the ID. */
 			dst6.sin6_scope_id = zoneid;
-		else if (dst6.sin6_scope_id != zoneid)
-			return (EINVAL); /* scope ID mismatch. */
-		if ((error = in6_embedscope(&dst6.sin6_addr, &dst6, NULL, NULL))
-		    != 0)
-			return (error);
-		dst6.sin6_scope_id = 0; /* XXX */
+
+		/* convert into the internal form */
+		if (sa6_embedscope(&dst6, 0))
+			return (EINVAL); /* XXX: should be impossible */
 	}
 	/*
 	 * The destination address can be specified only for a p2p or a
@@ -927,9 +923,58 @@ in6_update_ifa(ifp, ifra, ia)
 		ia->ia_dstaddr = dst6;
 	}
 
+	/*
+	 * Set lifetimes.  We do not refer to ia6t_expire and ia6t_preferred
+	 * to see if the address is deprecated or invalidated, but initialize
+	 * these members for applications.
+	 */
+	ia->ia6_lifetime = ifra->ifra_lifetime;
+	if (ia->ia6_lifetime.ia6t_vltime != ND6_INFINITE_LIFETIME) {
+		ia->ia6_lifetime.ia6t_expire =
+		    time_second + ia->ia6_lifetime.ia6t_vltime;
+	} else
+		ia->ia6_lifetime.ia6t_expire = 0;
+	if (ia->ia6_lifetime.ia6t_pltime != ND6_INFINITE_LIFETIME) {
+		ia->ia6_lifetime.ia6t_preferred =
+		    time_second + ia->ia6_lifetime.ia6t_pltime;
+	} else
+		ia->ia6_lifetime.ia6t_preferred = 0;
+
 	/* reset the interface and routing table appropriately. */
 	if ((error = in6_ifinit(ifp, ia, &ifra->ifra_addr, hostIsNew)) != 0)
 		goto unlink;
+
+	/*
+	 * configure address flags.
+	 */
+	ia->ia6_flags = ifra->ifra_flags;
+	ia->ia6_flags &= ~IN6_IFF_DUPLICATED;	/* safety */
+	ia->ia6_flags &= ~IN6_IFF_NODAD;	/* Mobile IPv6 */
+	/*
+	 * backward compatibility - if IN6_IFF_DEPRECATED is set from the
+	 * userland, make it deprecated.
+	 */
+	if ((ifra->ifra_flags & IN6_IFF_DEPRECATED) != 0) {
+		ia->ia6_lifetime.ia6t_pltime = 0;
+		ia->ia6_lifetime.ia6t_preferred = time_second;
+	}
+	
+	/*
+	 * Perform DAD, if needed.
+	 * XXX It may be of use, if we can administratively
+	 * disable DAD.
+	 */
+	if (in6if_do_dad(ifp) && hostIsNew &&
+	    (ifra->ifra_flags & IN6_IFF_NODAD) == 0) {
+		ia->ia6_flags |= IN6_IFF_TENTATIVE;
+		nd6_dad_start((struct ifaddr *)ia, NULL);
+	}
+
+	/*
+	 * We are done if we have simply modified an existing address.
+	 */
+	if (!hostIsNew)
+		return (error);
 
 	/*
 	 * Beyond this point, we should call in6_purgeaddr upon an error,
@@ -939,29 +984,29 @@ in6_update_ifa(ifp, ifra, ia)
 	if ((ifp->if_flags & IFF_MULTICAST) != 0) {
 		struct sockaddr_in6 mltaddr, mltmask;
 		struct in6_multi *in6m;
+		struct in6_addr llsol;
 
-		if (hostIsNew) {
-			/* join solicited multicast addr for new host id */
-			struct in6_addr llsol;
-
-			bzero(&llsol, sizeof(struct in6_addr));
-			llsol.s6_addr16[0] = htons(0xff02);
-			llsol.s6_addr16[1] = htons(ifp->if_index);
-			llsol.s6_addr32[1] = 0;
-			llsol.s6_addr32[2] = htonl(1);
-			llsol.s6_addr32[3] =
-				ifra->ifra_addr.sin6_addr.s6_addr32[3];
-			llsol.s6_addr8[12] = 0xff;
-			(void)in6_addmulti(&llsol, ifp, &error);
-			if (error != 0) {
-				nd6log((LOG_WARNING,
-				    "in6_update_ifa: addmulti failed for "
-				    "%s on %s (errno=%d)\n",
-				    ip6_sprintf(&llsol), if_name(ifp),
-				    error));
-				in6_purgeaddr((struct ifaddr *)ia);
-				return (error);
-			}
+		/* join solicited multicast addr for new host id */
+		bzero(&llsol, sizeof(struct in6_addr));
+		llsol.s6_addr16[0] = htons(0xff02);
+		llsol.s6_addr32[1] = 0;
+		llsol.s6_addr32[2] = htonl(1);
+		llsol.s6_addr32[3] = ifra->ifra_addr.sin6_addr.s6_addr32[3];
+		llsol.s6_addr8[12] = 0xff;
+		if ((error = in6_setscope(&llsol, ifp, NULL)) != 0) {
+			/* XXX: should not happen */
+			log(LOG_ERR, "in6_update_ifa: "
+			    "in6_setscope failed\n");
+			goto cleanup;
+		}
+		(void)in6_addmulti(&llsol, ifp, &error);
+		if (error != 0) {
+			nd6log((LOG_WARNING,
+			    "in6_update_ifa: addmulti failed for "
+			    "%s on %s (errno=%d)\n",
+			    ip6_sprintf(&llsol), if_name(ifp),
+			    error));
+			goto cleanup;
 		}
 
 		bzero(&mltmask, sizeof(mltmask));
@@ -976,16 +1021,41 @@ in6_update_ifa(ifp, ifra, ia)
 		mltaddr.sin6_len = sizeof(struct sockaddr_in6);
 		mltaddr.sin6_family = AF_INET6;
 		mltaddr.sin6_addr = in6addr_linklocal_allnodes;
-		mltaddr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+		if ((error = in6_setscope(&mltaddr.sin6_addr, ifp, NULL)) !=
+		    0)
+			goto cleanup; /* XXX: should not fail */
+
+		/*
+		 * XXX: do we really need this automatic routes?
+		 * We should probably reconsider this stuff.  Most applications
+		 * actually do not need the routes, since they usually specify
+		 * the outgoing interface.
+		 */
+		rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
+		if (rt) {
+			/*
+			 * 32bit came from "mltmask"
+			 */
+			if (memcmp(&mltaddr.sin6_addr,
+			    &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr,
+			    32 / 8)) {
+				RTFREE_LOCKED(rt);
+				rt = NULL;
+			}
+		}
+		if (!rt) {
+			/* XXX: we need RTF_CLONING to fake nd6_rtrequest */
+			error = rtrequest(RTM_ADD, (struct sockaddr *)&mltaddr,
+			    (struct sockaddr *)&ia->ia_addr,
+			    (struct sockaddr *)&mltmask, RTF_UP | RTF_CLONING,
+			    (struct rtentry **)0);
+			if (error)
+				goto cleanup;
+		} else
+			RTFREE_LOCKED(rt);
 
 		IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
 		if (in6m == NULL) {
-			rtrequest(RTM_ADD,
-				  (struct sockaddr *)&mltaddr,
-				  (struct sockaddr *)&ia->ia_addr,
-				  (struct sockaddr *)&mltmask,
-				  RTF_UP|RTF_CLONING,  /* xxx */
-				  (struct rtentry **)0);
 			(void)in6_addmulti(&mltaddr.sin6_addr, ifp, &error);
 			if (error != 0) {
 				nd6log((LOG_WARNING,
@@ -993,6 +1063,7 @@ in6_update_ifa(ifp, ifra, ia)
 				    "%s on %s (errno=%d)\n",
 				    ip6_sprintf(&mltaddr.sin6_addr),
 				    if_name(ifp), error));
+				goto cleanup;
 			}
 		}
 
@@ -1003,7 +1074,7 @@ in6_update_ifa(ifp, ifra, ia)
 		if (in6_nigroup(ifp, hostname, hostnamelen, &mltaddr.sin6_addr)
 		    == 0) {
 			IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
-			if (in6m == NULL && ia != NULL) {
+			if (in6m == NULL) {
 				(void)in6_addmulti(&mltaddr.sin6_addr,
 				    ifp, &error);
 				if (error != 0) {
@@ -1012,71 +1083,53 @@ in6_update_ifa(ifp, ifra, ia)
 					    "%s on %s (errno=%d)\n",
 					    ip6_sprintf(&mltaddr.sin6_addr),
 					    if_name(ifp), error));
+					goto cleanup;
 				}
 			}
 		}
 #undef hostnamelen
 
 		/*
-		 * join node-local all-nodes address, on loopback.
-		 * XXX: since "node-local" is obsoleted by interface-local,
-		 *      we have to join the group on every interface with
-		 *      some interface-boundary restriction.
+		 * join interface-local all-nodes address.
+		 * (ff01::1%ifN, and ff01::%ifN/32)
 		 */
-		if (ifp->if_flags & IFF_LOOPBACK) {
-			struct in6_ifaddr *ia_loop;
-
-			struct in6_addr loop6 = in6addr_loopback;
-			ia_loop = in6ifa_ifpwithaddr(ifp, &loop6);
-
-			mltaddr.sin6_addr = in6addr_nodelocal_allnodes;
-
-			IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
-			if (in6m == NULL && ia_loop != NULL) {
-				rtrequest(RTM_ADD,
-					  (struct sockaddr *)&mltaddr,
-					  (struct sockaddr *)&ia_loop->ia_addr,
-					  (struct sockaddr *)&mltmask,
-					  RTF_UP,
-					  (struct rtentry **)0);
-				(void)in6_addmulti(&mltaddr.sin6_addr, ifp,
-						   &error);
-				if (error != 0) {
-					nd6log((LOG_WARNING, "in6_update_ifa: "
-					    "addmulti failed for %s on %s "
-					    "(errno=%d)\n",
-					    ip6_sprintf(&mltaddr.sin6_addr),
-					    if_name(ifp), error));
-				}
+		mltaddr.sin6_addr = in6addr_nodelocal_allnodes;
+		if ((error = in6_setscope(&mltaddr.sin6_addr, ifp, NULL))
+		    != 0)
+			goto cleanup; /* XXX: should not fail */
+		/* XXX: again, do we really need the route? */
+		rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
+		if (rt) {
+			/* 32bit came from "mltmask" */
+			if (memcmp(&mltaddr.sin6_addr,
+			    &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr,
+			    32 / 8)) {
+				RTFREE_LOCKED(rt);
+				rt = NULL;
 			}
 		}
-	}
+		if (!rt) {
+			error = rtrequest(RTM_ADD, (struct sockaddr *)&mltaddr,
+			    (struct sockaddr *)&ia->ia_addr,
+			    (struct sockaddr *)&mltmask, RTF_UP | RTF_CLONING,
+			    (struct rtentry **)0);
+			if (error)
+				goto cleanup;
+		} else
+			RTFREE_LOCKED(rt);
 
-	ia->ia6_flags = ifra->ifra_flags;
-	ia->ia6_flags &= ~IN6_IFF_DUPLICATED;	/*safety*/
-	ia->ia6_flags &= ~IN6_IFF_NODAD;	/* Mobile IPv6 */
-
-	ia->ia6_lifetime = ifra->ifra_lifetime;
-	/* for sanity */
-	if (ia->ia6_lifetime.ia6t_vltime != ND6_INFINITE_LIFETIME) {
-		ia->ia6_lifetime.ia6t_expire =
-			time_second + ia->ia6_lifetime.ia6t_vltime;
-	} else
-		ia->ia6_lifetime.ia6t_expire = 0;
-	if (ia->ia6_lifetime.ia6t_pltime != ND6_INFINITE_LIFETIME) {
-		ia->ia6_lifetime.ia6t_preferred =
-			time_second + ia->ia6_lifetime.ia6t_pltime;
-	} else
-		ia->ia6_lifetime.ia6t_preferred = 0;
-
-	/*
-	 * Perform DAD, if needed.
-	 * XXX It may be of use, if we can administratively
-	 * disable DAD.
-	 */
-	if (in6if_do_dad(ifp) && (ifra->ifra_flags & IN6_IFF_NODAD) == 0) {
-		ia->ia6_flags |= IN6_IFF_TENTATIVE;
-		nd6_dad_start((struct ifaddr *)ia, NULL);
+		IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
+		if (in6m == NULL) {
+			(void)in6_addmulti(&mltaddr.sin6_addr, ifp, &error);
+			if (error != 0) {
+				nd6log((LOG_WARNING, "in6_update_ifa: "
+				    "addmulti failed for %s on %s "
+				    "(errno=%d)\n",
+				    ip6_sprintf(&mltaddr.sin6_addr),
+				    if_name(ifp), error));
+				goto cleanup;
+			}
+		}
 	}
 
 	return (error);
@@ -1089,6 +1142,10 @@ in6_update_ifa(ifp, ifra, ia)
 	if (hostIsNew)
 		in6_unlink_ifa(ia, ifp);
 	return (error);
+
+  cleanup:
+	in6_purgeaddr(&ia->ia_ifa);
+	return error;
 }
 
 void
@@ -1131,12 +1188,12 @@ in6_purgeaddr(ifa)
 		struct in6_addr llsol;
 		bzero(&llsol, sizeof(struct in6_addr));
 		llsol.s6_addr16[0] = htons(0xff02);
-		llsol.s6_addr16[1] = htons(ifp->if_index);
 		llsol.s6_addr32[1] = 0;
 		llsol.s6_addr32[2] = htonl(1);
 		llsol.s6_addr32[3] =
 			ia->ia_addr.sin6_addr.s6_addr32[3];
 		llsol.s6_addr8[12] = 0xff;
+		(void)in6_setscope(&llsol, ifp, NULL); /* XXX proceed anyway */
 
 		IN6_LOOKUP_MULTI(llsol, ifp, in6m);
 		if (in6m)
@@ -1397,14 +1454,13 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 			if (!cmp)
 				break;
 
-			bcopy(IFA_IN6(ifa), &candidate, sizeof(candidate));
 			/*
 			 * XXX: this is adhoc, but is necessary to allow
 			 * a user to specify fe80::/64 (not /10) for a
 			 * link-local address.
 			 */
-			if (IN6_IS_ADDR_LINKLOCAL(&candidate))
-				candidate.s6_addr16[1] = 0;
+			bcopy(IFA_IN6(ifa), &candidate, sizeof(candidate));
+			in6_clearscope(&candidate);
 			candidate.s6_addr32[0] &= mask.s6_addr32[0];
 			candidate.s6_addr32[1] &= mask.s6_addr32[1];
 			candidate.s6_addr32[2] &= mask.s6_addr32[2];
@@ -1417,27 +1473,22 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 		ia = ifa2ia6(ifa);
 
 		if (cmd == SIOCGLIFADDR) {
-			struct sockaddr_in6 *s6;
+			int error;
 
 			/* fill in the if_laddrreq structure */
 			bcopy(&ia->ia_addr, &iflr->addr, ia->ia_addr.sin6_len);
-			s6 = (struct sockaddr_in6 *)&iflr->addr;
-			if (IN6_IS_ADDR_LINKLOCAL(&s6->sin6_addr)) {
-				s6->sin6_addr.s6_addr16[1] = 0;
-				if (in6_addr2zoneid(ifp, &s6->sin6_addr,
-				    &s6->sin6_scope_id))
-					return (EINVAL);	/* XXX */
-			}
+			error = sa6_recoverscope(
+			    (struct sockaddr_in6 *)&iflr->addr);
+			if (error != 0)
+				return (error);
+
 			if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
 				bcopy(&ia->ia_dstaddr, &iflr->dstaddr,
 				    ia->ia_dstaddr.sin6_len);
-				s6 = (struct sockaddr_in6 *)&iflr->dstaddr;
-				if (IN6_IS_ADDR_LINKLOCAL(&s6->sin6_addr)) {
-					s6->sin6_addr.s6_addr16[1] = 0;
-					if (in6_addr2zoneid(ifp,
-					    &s6->sin6_addr, &s6->sin6_scope_id))
-						return (EINVAL); /* EINVAL */
-				}
+				error = sa6_recoverscope(
+				    (struct sockaddr_in6 *)&iflr->dstaddr);
+				if (error != 0)
+					return (error);
 			} else
 				bzero(&iflr->dstaddr, sizeof(iflr->dstaddr));
 
