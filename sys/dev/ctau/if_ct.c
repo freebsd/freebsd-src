@@ -289,6 +289,8 @@ static void ct_intr (void *arg)
 	for (i = 0; i < NCHAN && b->chan[i].type; i++) {
 		drv_t *d = b->chan[i].sys;
 		struct mbuf *m;
+		if (!d || !d->running)
+			continue;
 		while (_IF_QLEN(&d->queue)) {
 			IF_DEQUEUE (&d->queue,m);
 			if (!m)
@@ -1023,7 +1025,7 @@ static void ct_send (drv_t *d)
 		if (d->pp.pp_if.if_bpf)
 			BPF_MTAP (&d->pp.pp_if, m);
 #endif
-		len = m->m_pkthdr.len;
+		len = m_length (m, NULL);
 		if (! m->m_next)
 			ct_send_packet (d->chan, (u_char*)mtod (m, caddr_t),
 				len, 0);
