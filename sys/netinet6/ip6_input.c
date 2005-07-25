@@ -236,8 +236,6 @@ ip6_input(m)
 	u_int32_t rtalert = ~0;
 	int nxt, ours = 0;
 	struct ifnet *deliverifp = NULL;
-	struct sockaddr_in6 sa6;
-	u_int32_t srczone, dstzone;
 	struct in6_addr odst;
 	int srcrt = 0;
 
@@ -401,23 +399,23 @@ ip6_input(m)
 #endif
 
 	/*
-	 * Drop packets if the link ID portion is already filled.
-	 * XXX: this is technically not a good behavior.  But, we internally
-	 * use the field to disambiguate link-local addresses, so we cannot
-	 * be generous against those a bit strange addresses.
+	 * Disambiguate address scope zones (if there is ambiguity).
+	 * We first make sure that the original source or destination address
+	 * is not in our internal form for scoped addresses.  Such addresses
+	 * are not necessarily invalid spec-wise, but we cannot accept them due
+	 * to the usage conflict.
+	 * in6_setscope() then also checks and rejects the cases where src or
+	 * dst are the loopback address and the receiving interface
+	 * is not loopback. 
 	 */
-	if ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
-		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src) &&
-		    ip6->ip6_src.s6_addr16[1]) {
-			ip6stat.ip6s_badscope++;
-			goto bad;
-		}
-		if ((IN6_IS_ADDR_MC_INTFACELOCAL(&ip6->ip6_dst) ||
-		     IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) &&
-		    ip6->ip6_dst.s6_addr16[1]) {
-			ip6stat.ip6s_badscope++;
-			goto bad;
-		}
+	if (in6_clearscope(&ip6->ip6_src) || in6_clearscope(&ip6->ip6_dst)) {
+		ip6stat.ip6s_badscope++; /* XXX */
+		goto bad;
+	}
+	if (in6_setscope(&ip6->ip6_src, m->m_pkthdr.rcvif, NULL) ||
+	    in6_setscope(&ip6->ip6_dst, m->m_pkthdr.rcvif, NULL)) {
+		ip6stat.ip6s_badscope++;
+		goto bad;
 	}
 
 	/*
@@ -455,49 +453,6 @@ passin:
 		if (!m)
 			return;
 	}
-
-	/*
-	 * construct source and destination address structures with
-	 * disambiguating their scope zones (if there is ambiguity).
-	 * XXX: sin6_family and sin6_len will NOT be referred to, but we fill
-	 * in these fields just in case.
-	 */
-	if (in6_addr2zoneid(m->m_pkthdr.rcvif, &ip6->ip6_src, &srczone) ||
-	    in6_addr2zoneid(m->m_pkthdr.rcvif, &ip6->ip6_dst, &dstzone)) {
-		/*
-		 * Note that these generic checks cover cases that src or
-		 * dst are the loopback address and the receiving interface
-		 * is not loopback.
-		 */
-		ip6stat.ip6s_badscope++;
-		goto bad;
-	}
-
-	bzero(&sa6, sizeof(sa6));
-	sa6.sin6_family = AF_INET6;
-	sa6.sin6_len = sizeof(struct sockaddr_in6);
-
-	sa6.sin6_addr = ip6->ip6_src;
-	sa6.sin6_scope_id = srczone;
-	if (in6_embedscope(&ip6->ip6_src, &sa6, NULL, NULL)) {
-		/* XXX: should not happen */
-		ip6stat.ip6s_badscope++;
-		goto bad;
-	}
-
-	sa6.sin6_addr = ip6->ip6_dst;
-	sa6.sin6_scope_id = dstzone;
-	if (in6_embedscope(&ip6->ip6_dst, &sa6, NULL, NULL)) {
-		/* XXX: should not happen */
-		ip6stat.ip6s_badscope++;
-		goto bad;
-	}
-
-	/* XXX: ff01::%ifN awareness is not merged, yet. */
-	if (IN6_IS_ADDR_MC_INTFACELOCAL(&ip6->ip6_src))
-		ip6->ip6_src.s6_addr16[1] = 0;
-	if (IN6_IS_ADDR_MC_INTFACELOCAL(&ip6->ip6_dst))
-		ip6->ip6_dst.s6_addr16[1] = 0;
 
 	/*
 	 * Multicast check
@@ -1363,7 +1318,8 @@ ip6_notify_pmtu(in6p, dst, mtu)
 	bzero(&mtuctl, sizeof(mtuctl));	/* zero-clear for safety */
 	mtuctl.ip6m_mtu = *mtu;
 	mtuctl.ip6m_addr = *dst;
-	in6_recoverscope(&mtuctl.ip6m_addr, &mtuctl.ip6m_addr.sin6_addr, NULL);
+	if (sa6_recoverscope(&mtuctl.ip6m_addr))
+		return;
 
 	if ((m_mtu = sbcreatecontrol((caddr_t)&mtuctl, sizeof(mtuctl),
 	    IPV6_PATHMTU, IPPROTO_IPV6)) == NULL)

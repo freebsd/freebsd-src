@@ -96,6 +96,7 @@
 #include <netinet6/nd6.h>
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/scope6_var.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
@@ -139,6 +140,8 @@ in6_pcbbind(inp, nam, cred)
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		wild = 1;
 	if (nam) {
+		int error;
+
 		sin6 = (struct sockaddr_in6 *)nam;
 		if (nam->sa_len != sizeof(*sin6))
 			return (EINVAL);
@@ -148,11 +151,8 @@ in6_pcbbind(inp, nam, cred)
 		if (nam->sa_family != AF_INET6)
 			return (EAFNOSUPPORT);
 
-		/* KAME hack: embed scopeid */
-		if (in6_embedscope(&sin6->sin6_addr, sin6, inp, NULL) != 0)
-			return EINVAL;
-		/* this must be cleared for ifa_ifwithaddr() */
-		sin6->sin6_scope_id = 0;
+		if ((error = sa6_embedscope(sin6, ip6_use_defzone)) != 0)
+			return(error);
 
 		lport = sin6->sin6_port;
 		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
@@ -292,8 +292,9 @@ in6_pcbladdr(inp, nam, plocal_addr6)
 	struct in6_addr **plocal_addr6;
 {
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
-	struct ifnet *ifp = NULL;
 	int error = 0;
+	struct ifnet *ifp = NULL;
+	int scope_ambiguous = 0;
 
 	if (nam->sa_len != sizeof (*sin6))
 		return (EINVAL);
@@ -302,12 +303,13 @@ in6_pcbladdr(inp, nam, plocal_addr6)
 	if (sin6->sin6_port == 0)
 		return (EADDRNOTAVAIL);
 
+	if (sin6->sin6_scope_id == 0 && !ip6_use_defzone)
+		scope_ambiguous = 1;
+	if ((error = sa6_embedscope(sin6, ip6_use_defzone)) != 0)
+		return(error);
+
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_LOCK_ASSERT(inp);
-
-	/* KAME hack: embed scopeid */
-	if (in6_embedscope(&sin6->sin6_addr, sin6, inp, &ifp) != 0)
-		return EINVAL;
 
 	if (in6_ifaddr) {
 		/*
@@ -317,26 +319,31 @@ in6_pcbladdr(inp, nam, plocal_addr6)
 		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
 			sin6->sin6_addr = in6addr_loopback;
 	}
-	{
-		/*
-		 * XXX: in6_selectsrc might replace the bound local address
-		 * with the address specified by setsockopt(IPV6_PKTINFO).
-		 * Is it the intended behavior?
-		 */
-		*plocal_addr6 = in6_selectsrc(sin6, inp->in6p_outputopts,
-					      inp->in6p_moptions, NULL,
-					      &inp->in6p_laddr, &error);
-		if (*plocal_addr6 == 0) {
-			if (error == 0)
-				error = EADDRNOTAVAIL;
-			return (error);
-		}
-		/*
-		 * Don't do pcblookup call here; return interface in
-		 * plocal_addr6
-		 * and exit to caller, that will do the lookup.
-		 */
+
+	/*
+	 * XXX: in6_selectsrc might replace the bound local address
+	 * with the address specified by setsockopt(IPV6_PKTINFO).
+	 * Is it the intended behavior?
+	 */
+	*plocal_addr6 = in6_selectsrc(sin6, inp->in6p_outputopts,
+				      inp->in6p_moptions, NULL,
+				      &inp->in6p_laddr, &ifp, &error);
+	if (ifp && scope_ambiguous &&
+	    (error = in6_setscope(&sin6->sin6_addr, ifp, NULL)) != 0) {
+		return(error);
 	}
+
+	if (*plocal_addr6 == 0) {
+		if (error == 0)
+			error = EADDRNOTAVAIL;
+		return (error);
+	}
+	/*
+	 * Don't do pcblookup call here; return interface in
+	 * plocal_addr6
+	 * and exit to caller, that will do the lookup.
+	 */
+
 	return (0);
 }
 
@@ -466,12 +473,7 @@ in6_sockaddr(port, addr_p)
 	sin6->sin6_len = sizeof(*sin6);
 	sin6->sin6_port = port;
 	sin6->sin6_addr = *addr_p;
-	if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
-		sin6->sin6_scope_id = ntohs(sin6->sin6_addr.s6_addr16[1]);
-	else
-		sin6->sin6_scope_id = 0;	/*XXX*/
-	if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
-		sin6->sin6_addr.s6_addr16[1] = 0;
+	(void)sa6_recoverscope(sin6); /* XXX: should catch errors */
 
 	return (struct sockaddr *)sin6;
 }
@@ -953,11 +955,8 @@ init_sin6(struct sockaddr_in6 *sin6, struct mbuf *m)
 	sin6->sin6_len = sizeof(*sin6);
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_addr = ip->ip6_src;
-	if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
-		sin6->sin6_addr.s6_addr16[1] = 0;
-	sin6->sin6_scope_id =
-		(m->m_pkthdr.rcvif && IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
-		? m->m_pkthdr.rcvif->if_index : 0;
+
+	(void)sa6_recoverscope(sin6); /* XXX: should catch errors... */
 
 	return;
 }
