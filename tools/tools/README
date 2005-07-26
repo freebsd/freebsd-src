@@ -11,6 +11,7 @@ file.
 ath		Tools specific to the Atheros 802.11 support
 backout_commit	A tool for reading in a commit message and generating
 		a script that will backout the commit.
+bpfstat		A tool to retrieve bpf statistics
 commitsdb	A tool for reconstructing commit history using md5
 		checksums of the commit logs.
 crypto		Test and exercise tools related to the crypto framework
