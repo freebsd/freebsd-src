@@ -344,7 +344,8 @@ set80211nwkey(const char *val, int d, int s, const struct afswtch *rafp)
 static void
 set80211rtsthreshold(const char *val, int d, int s, const struct afswtch *rafp)
 {
-	set80211(s, IEEE80211_IOC_RTSTHRESHOLD, atoi(val), 0, NULL);
+	set80211(s, IEEE80211_IOC_RTSTHRESHOLD,
+		isundefarg(val) ? IEEE80211_RTS_MAX : atoi(val), 0, NULL);
 }
 
 static void
@@ -622,6 +623,13 @@ static void
 set80211pureg(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	set80211(s, IEEE80211_IOC_PUREG, d, 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211fragthreshold, val, d)
+{
+	set80211(s, IEEE80211_IOC_FRAGTHRESHOLD,
+		isundefarg(val) ? IEEE80211_FRAG_MAX : atoi(val), 0, NULL);
 }
 
 static int
@@ -1509,6 +1517,12 @@ ieee80211_status(int s)
 			LINE_CHECK("%crtsthreshold %d", spacer, ireq.i_val);
 	}
 
+	ireq.i_type = IEEE80211_IOC_FRAGTHRESHOLD;
+	if (ioctl(s, SIOCG80211, &ireq) != -1) {
+		if (ireq.i_val != IEEE80211_FRAG_MAX || verbose)
+			LINE_CHECK("%cfragthreshold %d", spacer, ireq.i_val);
+	}
+
 	if (IEEE80211_IS_CHAN_G(c) || IEEE80211_IS_CHAN_PUREG(c) || verbose) {
 		ireq.i_type = IEEE80211_IOC_PUREG;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
@@ -1805,6 +1819,7 @@ static struct cmd ieee80211_cmds[] = {
 #endif
 	DEF_CMD("pureg",	1,	set80211pureg),
 	DEF_CMD("-pureg",	0,	set80211pureg),
+	DEF_CMD_ARG("fragthreshold",	set80211fragthreshold),
 };
 static struct afswtch af_ieee80211 = {
 	.af_name	= "af_ieee80211",
