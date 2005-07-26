@@ -20,6 +20,8 @@ OLD_FILES+=usr/share/man/man8/rexecd.8.gz
 OLD_FILES+=usr/libexec/rexecd
 # 20050324: updated release infrastructure
 OLD_FILES+=usr/share/man/man5/drivers.conf.5.gz
+# 20050317: removed from BIND 9 distribution
+OLD_FILES+=usr/share/doc/bind9/KNOWN_DEFECTS
 # 2005XXXX:
 OLD_FILES+=sbin/mount_autofs
 OLD_FILES+=usr/lib/libautofs.a
