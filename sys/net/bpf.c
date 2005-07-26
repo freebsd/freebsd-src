@@ -1670,8 +1670,8 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 static int
 bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct xbpf_d xbd;
-	int error;
+	struct xbpf_d *xbdbuf, *xbd;
+	int index, error;
 	struct bpf_if *bp;
 	struct bpf_d *bd;
 
@@ -1685,26 +1685,28 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 	if (req->oldptr == NULL)
-		return (SYSCTL_OUT(req, 0, bpf_bpfd_cnt * sizeof(xbd)));
-	if (req->oldlen < bpf_bpfd_cnt * sizeof(xbd))
-		return (ENOMEM);
+		return (SYSCTL_OUT(req, 0, bpf_bpfd_cnt * sizeof(*xbd)));
 	if (bpf_bpfd_cnt == 0)
 		return (SYSCTL_OUT(req, 0, 0));
+	xbdbuf = malloc(req->oldlen, M_BPF, M_WAITOK);
 	mtx_lock(&bpf_mtx);
-	KASSERT(bpf_bpfd_cnt != 0, ("zero bpf descriptors present"));
+	if (req->oldlen < (bpf_bpfd_cnt * sizeof(*xbd))) {
+		mtx_unlock(&bpf_mtx);
+		free(xbdbuf, M_BPF);
+		return (ENOMEM);
+	}
+	index = 0;
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
+			xbd = &xbdbuf[index++];
 			BPFD_LOCK(bd);
-			bpfstats_fill_xbpf(&xbd, bd);
+			bpfstats_fill_xbpf(xbd, bd);
 			BPFD_UNLOCK(bd);
-			error = SYSCTL_OUT(req, &xbd, sizeof(xbd));
-			if (error != 0) {
-				mtx_unlock(&bpf_mtx);
-				return (error);
-			}
 		}
 	}
 	mtx_unlock(&bpf_mtx);
+	error = SYSCTL_OUT(req, xbdbuf, index * sizeof(*xbd));
+	free(xbdbuf, M_BPF);
 	return (error);
 }
 
