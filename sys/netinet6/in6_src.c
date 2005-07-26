@@ -91,9 +91,6 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
-#ifdef ENABLE_DEFAULT_SCOPE
-#include <netinet6/scope6_var.h>
-#endif
 
 #include <net/net_osdep.h>
 
