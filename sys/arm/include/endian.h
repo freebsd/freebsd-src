@@ -100,11 +100,10 @@ static __inline __uint16_t
 __bswap16_var(__uint16_t v)
 {
 	__asm __volatile(
-	    "mov    %0, %1, ror #8\n"
+	    "mov    %0, %0, ror #8\n"
 	    "orr    %0, %0, %0, lsr #16\n"
 	    "bic    %0, %0, %0, lsl #16"
-	    : "=r" (v)
-	    : "0" (v));
+	    : "+r" (v));
 	
 	return (v);
 }		
