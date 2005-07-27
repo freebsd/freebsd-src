@@ -9,6 +9,8 @@ MAN=	acct.5 \
 	config.5 \
 	core.5 \
 	devfs.5 \
+	devfs.conf.5 \
+	devfs.rules.5 \
 	device.hints.5 \
 	dir.5 \
 	disktab.5 \
