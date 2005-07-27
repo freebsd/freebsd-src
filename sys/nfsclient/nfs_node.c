@@ -154,7 +154,8 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 		return (error);
 	if (nvp != NULL) {
 		*npp = VTONFS(nvp);
-		/* XXX I wonder of nfs_reclaim will survive the unused vnode */
+		/* vrele() the duplicate allocated here, to get it recycled */
+		vrele(vp);
 		return (0);
 	}
 	if (fhsize > NFS_SMALLFH) {
