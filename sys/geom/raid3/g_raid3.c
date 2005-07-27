@@ -1688,6 +1688,13 @@ static int
 g_raid3_try_destroy(struct g_raid3_softc *sc)
 {
  
+	if (sc->sc_rootmount != NULL) {
+		G_RAID3_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
+		    sc->sc_rootmount);
+		root_mount_rel(sc->sc_rootmount);
+		sc->sc_rootmount = NULL;
+	}
+
 	g_topology_lock();
 	if (!g_raid3_can_destroy(sc)) {
 		g_topology_unlock();
@@ -2149,6 +2156,10 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 				 * Timeout expired, so destroy device.
 				 */
 				sc->sc_flags |= G_RAID3_DEVICE_FLAG_DESTROY;
+				G_RAID3_DEBUG(1, "root_mount_rel[%u] %p",
+				    __LINE__, sc->sc_rootmount);
+				root_mount_rel(sc->sc_rootmount);
+				sc->sc_rootmount = NULL;
 			}
 			return;
 		}
@@ -2291,6 +2302,12 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 		}
 		if (sc->sc_provider == NULL)
 			g_raid3_launch_provider(sc);
+		if (sc->sc_rootmount != NULL) {
+			G_RAID3_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
+			    sc->sc_rootmount);
+			root_mount_rel(sc->sc_rootmount);
+			sc->sc_rootmount = NULL;
+		}
 		break;
 	case G_RAID3_DEVICE_STATE_COMPLETE:
 		/*
@@ -2318,6 +2335,12 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 		}
 		if (sc->sc_provider == NULL)
 			g_raid3_launch_provider(sc);
+		if (sc->sc_rootmount != NULL) {
+			G_RAID3_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
+			    sc->sc_rootmount);
+			root_mount_rel(sc->sc_rootmount);
+			sc->sc_rootmount = NULL;
+		}
 		break;
 	default:
 		KASSERT(1 == 0, ("Wrong device state (%s, %s).", sc->sc_name,
@@ -2809,6 +2832,9 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	}
 
 	G_RAID3_DEBUG(0, "Device %s created (id=%u).", sc->sc_name, sc->sc_id);
+
+	sc->sc_rootmount = root_mount_hold("GRAID3");
+	G_RAID3_DEBUG(1, "root_mount_hold %p", sc->sc_rootmount);
 
 	/*
 	 * Run timeout.
