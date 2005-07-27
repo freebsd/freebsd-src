@@ -826,18 +826,19 @@ an_detach(device_t dev)
 	struct an_softc		*sc = device_get_softc(dev);
 	struct ifnet		*ifp = sc->an_ifp;
 
+	AN_LOCK(sc);
 	if (sc->an_gone) {
+		AN_UNLOCK(sc);
 		device_printf(dev,"already unloaded\n");
 		return(0);
 	}
-	AN_LOCK(sc);
 	an_stop(sc);
+	sc->an_gone = 1;
 	ifmedia_removeall(&sc->an_ifmedia);
 	ifp->if_flags &= ~IFF_RUNNING;
+	AN_UNLOCK(sc);
 	ether_ifdetach(ifp);
 	if_free(ifp);
-	sc->an_gone = 1;
-	AN_UNLOCK(sc);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	an_release_resources(dev);
 	mtx_destroy(&sc->an_mtx);
