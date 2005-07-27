@@ -1093,6 +1093,35 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		return;
 	if (pp != NULL || cp != NULL)
 		return;	/* Nothing here. */
+	sbuf_printf(sb, "%s<Flags>", indent);
+	if (sc->sc_flags == 0)
+		sbuf_printf(sb, "NONE");
+	else {
+		int first = 1;
+
+#define ADD_FLAG(flag, name)	do {					\
+	if ((sc->sc_flags & (flag)) != 0) {				\
+		if (!first)						\
+			sbuf_printf(sb, ", ");				\
+		else							\
+			first = 0;					\
+		sbuf_printf(sb, name);					\
+	}								\
+} while (0)
+		ADD_FLAG(G_ELI_FLAG_ONETIME, "ONETIME");
+		ADD_FLAG(G_ELI_FLAG_BOOT, "BOOT");
+		ADD_FLAG(G_ELI_FLAG_WO_DETACH, "W-DETACH");
+		ADD_FLAG(G_ELI_FLAG_RW_DETACH, "RW-DETACH");
+		ADD_FLAG(G_ELI_FLAG_WOPEN, "W-OPEN");
+		ADD_FLAG(G_ELI_FLAG_DESTROY, "DESTROY");
+#undef  ADD_FLAG
+	}
+	sbuf_printf(sb, "</Flags>\n");
+
+	if ((sc->sc_flags & G_ELI_FLAG_ONETIME) == 0) {
+		sbuf_printf(sb, "%s<UsedKey>%u</UsedKey>\n", indent,
+		    sc->sc_nkey);
+	}
 	sbuf_printf(sb, "%s<Crypto>", indent);
 	switch (sc->sc_crypto) {
 	case G_ELI_CRYPTO_HW:
@@ -1106,6 +1135,9 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		break;
 	}
 	sbuf_printf(sb, "</Crypto>\n");
+	sbuf_printf(sb, "%s<KeyLength>%u</KeyLength>\n", indent, sc->sc_keylen);
+	sbuf_printf(sb, "%s<Cipher>%s</Cipher>\n", indent,
+	    g_eli_algo2str(sc->sc_algo));
 }
 
 static void
