@@ -5,6 +5,7 @@ SUBDIR=	geom_apple \
 	geom_bsd \
 	geom_ccd \
 	geom_concat \
+	geom_eli \
 	geom_fox \
 	geom_gate \
 	geom_gpt \
