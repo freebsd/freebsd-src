@@ -78,6 +78,7 @@ ah_aes_xcbc_mac_init(state, sav)
 	u_int8_t k3seed[AES_BLOCKSIZE] = { 3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3 };
 	u_int32_t r_ks[(RIJNDAEL_MAXNR+1)*4];
 	aesxcbc_ctx *ctx;
+	u_int8_t k1[AES_BLOCKSIZE];
 
 	if (!state)
 		panic("ah_aes_xcbc_mac_init: what?");
@@ -93,14 +94,15 @@ ah_aes_xcbc_mac_init(state, sav)
 	if ((ctx->r_nr = rijndaelKeySetupEnc(r_ks,
 	    (char *)_KEYBUF(sav->key_auth), AES_BLOCKSIZE * 8)) == 0)
 		return -1;
-	if (rijndaelKeySetupEnc(ctx->r_k1s, k1seed, AES_BLOCKSIZE * 8) == 0)
-		return -1;
-	if (rijndaelKeySetupEnc(ctx->r_k2s, k2seed, AES_BLOCKSIZE * 8) == 0)
-		return -1;
-	if (rijndaelKeySetupEnc(ctx->r_k3s, k3seed, AES_BLOCKSIZE * 8) == 0)
-		return -1;
+	rijndaelEncrypt(r_ks, ctx->r_nr, k1seed, k1);
 	rijndaelEncrypt(r_ks, ctx->r_nr, k2seed, ctx->k2);
 	rijndaelEncrypt(r_ks, ctx->r_nr, k3seed, ctx->k3);
+	if (rijndaelKeySetupEnc(ctx->r_k1s, k1, AES_BLOCKSIZE * 8) == 0)
+		return -1;
+	if (rijndaelKeySetupEnc(ctx->r_k2s, ctx->k2, AES_BLOCKSIZE * 8) == 0)
+		return -1;
+	if (rijndaelKeySetupEnc(ctx->r_k3s, ctx->k3, AES_BLOCKSIZE * 8) == 0)
+		return -1;
 
 	return 0;
 }
@@ -151,8 +153,8 @@ ah_aes_xcbc_mac_loop(state, addr, len)
 		addr += AES_BLOCKSIZE;
 	}
 	if (addr < ep) {
-		bcopy(addr, ctx->buf, ep - addr);
-		ctx->buflen = ep - addr;
+		bcopy(addr, ctx->buf + ctx->buflen, ep - addr);
+		ctx->buflen += ep - addr;
 	}
 }
 
