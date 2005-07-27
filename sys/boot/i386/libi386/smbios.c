@@ -72,9 +72,6 @@ smbios_detect(void)
 	if (smbios == NULL)
 		return;
 
-	/* export values from the SMBIOS */
-	setenv("hint.smbios.0.enabled", "YES", 1);
-
 	length = *(u_int16_t *)(smbios + 0x16);	/* Structure Table Length */
 	paddr = *(u_int32_t *)(smbios + 0x18);	/* Structure Table Address */
 	count = *(u_int16_t *)(smbios + 0x1c);	/* No of SMBIOS Structures */
@@ -91,26 +88,26 @@ smbios_parse_table(const u_int8_t *dmi)
 
 	switch(dmi[0]) {
 	case 0:		/* Type 0: BIOS */
-		smbios_setenv("hint.smbios.0.bios.vendor", dmi, 0x04);
-		smbios_setenv("hint.smbios.0.bios.version", dmi, 0x05);
-		smbios_setenv("hint.smbios.0.bios.reldate", dmi, 0x08);
+		smbios_setenv("smbios.bios.vendor", dmi, 0x04);
+		smbios_setenv("smbios.bios.version", dmi, 0x05);
+		smbios_setenv("smbios.bios.reldate", dmi, 0x08);
 		break;
 
 	case 1:		/* Type 1: System */
-		smbios_setenv("hint.smbios.0.system.maker", dmi, 0x04);
-		smbios_setenv("hint.smbios.0.system.product", dmi, 0x05);
-		smbios_setenv("hint.smbios.0.system.version", dmi, 0x06);
+		smbios_setenv("smbios.system.maker", dmi, 0x04);
+		smbios_setenv("smbios.system.product", dmi, 0x05);
+		smbios_setenv("smbios.system.version", dmi, 0x06);
 		break;
 
 	case 2:		/* Type 2: Base Board (or Module) */
-		smbios_setenv("hint.smbios.0.planar.maker", dmi, 0x04);
-		smbios_setenv("hint.smbios.0.planar.product", dmi, 0x05);
-		smbios_setenv("hint.smbios.0.planar.version", dmi, 0x06);
+		smbios_setenv("smbios.planar.maker", dmi, 0x04);
+		smbios_setenv("smbios.planar.product", dmi, 0x05);
+		smbios_setenv("smbios.planar.version", dmi, 0x06);
 		break;
 
 	case 3:		/* Type 3: System Enclosure or Chassis */
-		smbios_setenv("hint.smbios.0.chassis.maker", dmi, 0x04);
-		smbios_setenv("hint.smbios.0.chassis.version", dmi, 0x06);
+		smbios_setenv("smbios.chassis.maker", dmi, 0x04);
+		smbios_setenv("smbios.chassis.version", dmi, 0x06);
 		break;
 
 	default: /* skip other types */
