@@ -29,4 +29,7 @@
 #ifndef	_MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
 
+#define wall_cmos_clock 0
+#define adjkerntz 0
+
 #endif /* !_MACHINE_CLOCK_H_ */
