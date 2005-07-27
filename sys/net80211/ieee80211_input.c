@@ -679,18 +679,28 @@ ieee80211_deliver_data(struct ieee80211com *ic,
 			else
 				m1->m_flags |= M_MCAST;
 		} else {
-			/* XXX this dups work done in ieee80211_encap */
-			/* check if destination is associated */
-			struct ieee80211_node *ni1 =
-			    ieee80211_find_node(&ic->ic_sta,
-						eh->ether_dhost);
-			if (ni1 != NULL) {
-				if (ieee80211_node_is_authorized(ni1)) {
-					m1 = m;
-					m = NULL;
+			/*
+			 * Check if the destination is known; if so
+			 * and the port is authorized dispatch directly.
+			 */
+			struct ieee80211_node *sta =
+			    ieee80211_find_node(&ic->ic_sta, eh->ether_dhost);
+			if (sta != NULL) {
+				if (ieee80211_node_is_authorized(sta)) {
+					/*
+					 * Beware of sending to ourself; this
+					 * needs to happen via the normal
+					 * input path.
+					 */
+					if (sta != ic->ic_bss) {
+						m1 = m;
+						m = NULL;
+					}
+				} else {
+					ic->ic_stats.is_rx_unauth++;
+					IEEE80211_NODE_STAT(sta, rx_unauth);
 				}
-				/* XXX statistic? */
-				ieee80211_free_node(ni1);
+				ieee80211_free_node(sta);
 			}
 		}
 		if (m1 != NULL)
