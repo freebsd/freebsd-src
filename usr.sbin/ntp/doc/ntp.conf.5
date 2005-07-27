@@ -24,6 +24,16 @@ but could be installed elsewhere
 .Fl c
 command line option).
 .Pp
+The
+.Pa /etc/rc.d/ntpdate
+script reads this file to get a list of NTP servers to use if the
+variable
+.Dq Li ntpdate_hosts
+was not declared.
+Refer to the
+.Xr rc.conf 5
+man page for further info about this.
+.Pp
 The file format is similar to other
 .Ux
 configuration files.
@@ -1973,7 +1983,7 @@ general, they interact in intricate ways that are hard to predict
 and some combinations can result in some very nasty behavior.
 Very
 rarely is it necessary to change the default values; but, some
-folks can't resist twisting the knobs anyway and this command is
+folks cannot resist twisting the knobs anyway and this command is
 for them.
 Emphasis added: twisters are on their own and can expect
 no help from the support group.
@@ -2065,6 +2075,7 @@ RSA public key
 Diffie-Hellman agreement parameters
 .El
 .Sh SEE ALSO
+.Xr rc.conf 5 ,
 .Xr ntpd 8 ,
 .Xr ntpdc 8 ,
 .Xr ntpq 8
