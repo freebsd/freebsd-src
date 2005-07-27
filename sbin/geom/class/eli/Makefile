@@ -8,10 +8,11 @@ SRCS+=	g_eli_key.c
 SRCS+=	pkcs5v2.c
 SRCS+=	sha2.c
 
-DPADD=	${LIBMD} ${LIBCRYPTO}
-LDADD=	-lmd -lcrypto
+DPADD=	${LIBCRYPTO}
+LDADD=	-lcrypto
 
-NO_MAN=
+WARNS?=	3
+
 CFLAGS+=-I${.CURDIR}/../../../../sys
 
 .include <bsd.lib.mk>
