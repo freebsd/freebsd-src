@@ -1254,13 +1254,18 @@ xl_attach(device_t dev)
 	if (did == TC_DEVICEID_HURRICANE_556B)
 		sc->xl_flags |= XL_FLAG_NO_XCVR_PWR;
 
+	if (did == TC_DEVICEID_HURRICANE_575B ||
+	    did == TC_DEVICEID_HURRICANE_575C ||
+	    did == TC_DEVICEID_HURRICANE_656B ||
+	    did == TC_DEVICEID_TORNADO_656C)
+		sc->xl_flags |= XL_FLAG_FUNCREG;
 	if (did == TC_DEVICEID_HURRICANE_575A ||
 	    did == TC_DEVICEID_HURRICANE_575B ||
 	    did == TC_DEVICEID_HURRICANE_575C ||
 	    did == TC_DEVICEID_HURRICANE_656B ||
 	    did == TC_DEVICEID_TORNADO_656C)
-		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK |
-		    XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_8BITROM;
+		sc->xl_flags |= XL_FLAG_PHYOK | XL_FLAG_EEPROM_OFFSET_30 |
+		  XL_FLAG_8BITROM;
 	if (did == TC_DEVICEID_HURRICANE_656)
 		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK;
 	if (did == TC_DEVICEID_HURRICANE_575B)
@@ -1326,7 +1331,7 @@ xl_attach(device_t dev)
 		    RF_ACTIVE);
 
 		if (sc->xl_fres == NULL) {
-			device_printf(dev, "couldn't map ports/memory\n");
+			device_printf(dev, "couldn't map funcreg memory\n");
 			error = ENXIO;
 			goto fail;
 		}
