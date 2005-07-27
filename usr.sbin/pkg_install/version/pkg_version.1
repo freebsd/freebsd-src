@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2005
+.Dd Jul 27, 2005
 .Dt PKG_VERSION 1
 .Os
 .Sh NAME
@@ -33,13 +33,14 @@
 .Nd summarize installed versions of packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl hIqv
+.Op Fl hIoqv
 .Op Fl l Ar limchar
 .Op Fl L Ar limchar
 .Oo
 .Op Fl X
 .Fl s Ar string
 .Oc
+.Op Fl O Ar origin
 .Op Ar index
 .Nm
 .Fl t Ar version1 version2
@@ -143,6 +144,12 @@ Note that because some of the status flag characters are also special
 to the shell, it is best to quote
 .Ar limchar
 with single quotes.
+.It Fl o
+Show the origin recorded on package generation instead of the package
+name.
+.It Fl O
+Only list packages whose registered origin is
+.Ar origin .
 .It Fl q
 Enable quiet output.
 Quiet output precludes printing the
