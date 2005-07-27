@@ -446,6 +446,9 @@ ieee80211_reset_bss(struct ieee80211com *ic)
 	}
 }
 
+/* XXX tunable */
+#define	STA_FAILS_MAX	2		/* assoc failures before ignored */
+
 static int
 ieee80211_match_bss(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
@@ -483,9 +486,12 @@ ieee80211_match_bss(struct ieee80211com *ic, struct ieee80211_node *ni)
 	if ((ic->ic_flags & IEEE80211_F_DESBSSID) &&
 	    !IEEE80211_ADDR_EQ(ic->ic_des_bssid, ni->ni_bssid))
 		fail |= 0x20;
+	if (ni->ni_fails >= STA_FAILS_MAX)
+		fail |= 0x40;
 #ifdef IEEE80211_DEBUG
 	if (ieee80211_msg_scan(ic)) {
-		printf(" %c %s", fail ? '-' : '+',
+		printf(" %c %s",
+		    fail & 0x40 ? '=' : fail & 0x80 ? '^' : fail ? '-' : '+',
 		    ether_sprintf(ni->ni_macaddr));
 		printf(" %s%c", ether_sprintf(ni->ni_bssid),
 		    fail & 0x20 ? '!' : ' ');
@@ -532,6 +538,7 @@ ieee80211_node_compare(struct ieee80211com *ic,
 {
 	u_int8_t maxa, maxb;
 	u_int8_t rssia, rssib;
+	int weight;
 
 	/* privacy support preferred */
 	if ((a->ni_capinfo & IEEE80211_CAPINFO_PRIVACY) &&
@@ -540,6 +547,11 @@ ieee80211_node_compare(struct ieee80211com *ic,
 	if ((a->ni_capinfo & IEEE80211_CAPINFO_PRIVACY) == 0 &&
 	    (b->ni_capinfo & IEEE80211_CAPINFO_PRIVACY))
 		return -1;
+
+	/* compare count of previous failures */
+	weight = b->ni_fails - a->ni_fails;
+	if (abs(weight) > 1)
+		return weight;
 
 	rssia = ic->ic_node_getrssi(a);
 	rssib = ic->ic_node_getrssi(b);
@@ -658,6 +670,17 @@ ieee80211_end_scan(struct ieee80211com *ic)
 			return;
 		}
 		/*
+		 * Decrement the failure counts so entries will be
+		 * reconsidered the next time around.  We really want
+		 * to do this only for sta's where we've previously
+		 had some success.
+		 */
+		IEEE80211_NODE_LOCK(nt);
+		TAILQ_FOREACH(ni, &nt->nt_node, ni_list)
+			if (ni->ni_fails)
+				ni->ni_fails--;
+		IEEE80211_NODE_UNLOCK(nt);
+		/*
 		 * Reset the list of channels to scan and start again.
 		 */
 		ieee80211_reset_scan(ic);
@@ -670,23 +693,6 @@ ieee80211_end_scan(struct ieee80211com *ic)
 	    "macaddr          bssid         chan  rssi rate flag  wep  essid");
 	IEEE80211_NODE_LOCK(nt);
 	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
-		if (ni->ni_fails) {
-			/*
-			 * The configuration of the access points may change
-			 * during my scan.  So delete the entry for the AP
-			 * and retry to associate if there is another beacon.
-			 */
-			IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN,
-				"%s: skip scan candidate %s, fails %u\n",
-				__func__, ether_sprintf(ni->ni_macaddr),
-				ni->ni_fails);
-			ni->ni_fails++;
-#if 0
-			if (ni->ni_fails++ > 2)
-				ieee80211_free_node(ni);
-#endif
-			continue;
-		}
 		if (ieee80211_match_bss(ic, ni) == 0) {
 			if (selbs == NULL)
 				selbs = ni;
