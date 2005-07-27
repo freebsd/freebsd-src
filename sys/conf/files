@@ -1028,6 +1028,11 @@ geom/bde/g_bde_crypt.c		optional geom_bde
 geom/bde/g_bde_lock.c		optional geom_bde
 geom/bde/g_bde_work.c		optional geom_bde
 geom/concat/g_concat.c		optional geom_concat
+geom/eli/g_eli.c		optional geom_eli
+geom/eli/g_eli_crypto.c		optional geom_eli
+geom/eli/g_eli_ctl.c		optional geom_eli
+geom/eli/g_eli_key.c		optional geom_eli
+geom/eli/pkcs5v2.c		optional geom_eli
 geom/gate/g_gate.c		optional geom_gate
 geom/geom_aes.c			optional geom_aes
 geom/geom_apple.c		optional geom_apple
