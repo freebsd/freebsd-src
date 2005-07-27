@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 SUBDIR=	concat
+SUBDIR+=eli
 SUBDIR+=label
 SUBDIR+=mirror
 SUBDIR+=nop
