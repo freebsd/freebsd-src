@@ -1255,12 +1255,14 @@ nfs_timer(void *arg)
 			 */
 			rep->r_flags |= R_REXMIT_INPROG;
 			mtx_unlock(&nfs_reqq_mtx);
+			NET_LOCK_GIANT();
 			if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, NULL, NULL, curthread);
 			else
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, nmp->nm_nam, NULL, curthread);
+			NET_UNLOCK_GIANT();
 			mtx_lock(&nfs_reqq_mtx);
 			rep->r_flags &= ~R_REXMIT_INPROG;
 			wakeup((caddr_t)&rep->r_flags);
