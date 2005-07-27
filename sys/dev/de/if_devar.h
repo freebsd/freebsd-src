@@ -582,6 +582,8 @@ struct tulip_softc {
 	tulip_srom_connection_t	tulip_conntype;
 	tulip_desc_t		*tulip_rxdescs;
 	tulip_desc_t		*tulip_txdescs;
+	struct callout		tulip_callout;
+	struct mtx		tulip_mutex;
 };
 
 #define	tulip_curperfstats	tulip_perfstats[TULIP_PERF_CURRENT]
@@ -974,5 +976,10 @@ TULIP_PERFREAD(void)
 	(((u_int16_t *)a1)[0] == 0xFFFFU \
 	 && ((u_int16_t *)a1)[1] == 0xFFFFU \
 	 && ((u_int16_t *)a1)[2] == 0xFFFFU)
+
+#define	TULIP_MUTEX(sc)		(&(sc)->tulip_mutex)
+#define	TULIP_LOCK(sc)		mtx_lock(TULIP_MUTEX(sc))
+#define	TULIP_UNLOCK(sc)	mtx_unlock(TULIP_MUTEX(sc))
+#define	TULIP_LOCK_ASSERT(sc)	mtx_assert(TULIP_MUTEX(sc), MA_OWNED)
 
 #endif	/* _DEVAR_H */
