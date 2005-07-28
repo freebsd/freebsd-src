@@ -143,9 +143,9 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
      * Allocate storage for all _BST data, their derived battinfo data,
      * and the current battery's _BIF data.
      */
-    bst = malloc(devcount * sizeof(*bst), M_TEMP, M_WAITOK);
-    bi = malloc(devcount * sizeof(*bi), M_TEMP, M_WAITOK);
-    bif = malloc(sizeof(*bif), M_TEMP, M_WAITOK);
+    bst = malloc(devcount * sizeof(*bst), M_TEMP, M_WAITOK | M_ZERO);
+    bi = malloc(devcount * sizeof(*bi), M_TEMP, M_WAITOK | M_ZERO);
+    bif = malloc(sizeof(*bif), M_TEMP, M_WAITOK | M_ZERO);
 
     /*
      * Pass 1:  for each battery that is present and valid, get its status,
