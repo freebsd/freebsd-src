@@ -29,7 +29,7 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libform libftpio libgeom ${_libgpib} \
 	${_libio} libipsec \
-	libipx libkiconv libmagic libmenu ${_libmilter} ${_libmp} \
+	libipx libkiconv libmagic libmemstat libmenu ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpanel libpcap \
 	libpmc ${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
 	${_libsmutil} libstand libtelnet ${_libthr} ${_libthread_db} libufs \
