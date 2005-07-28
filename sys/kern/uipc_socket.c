@@ -1162,7 +1162,10 @@ dontblock:
 			}
 			cm = cmn;
 		}
-		nextrecord = so->so_rcv.sb_mb->m_nextpkt;
+		if (so->so_rcv.sb_mb)
+			nextrecord = so->so_rcv.sb_mb->m_nextpkt;
+		else
+			nextrecord = NULL;
 		orig_resid = 0;
 	}
 	if (m != NULL) {
