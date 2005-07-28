@@ -152,7 +152,7 @@ acpi_battinfo(int num)
 			printf("Remaining capacity:\t%d%%\n",
 			    battio.battinfo.cap);
 		if (battio.battinfo.min == -1)
-			printf("Remaining time:\tunknown\n");
+			printf("Remaining time:\t\tunknown\n");
 		else {
 			hours = battio.battinfo.min / 60;
 			min = battio.battinfo.min % 60;
