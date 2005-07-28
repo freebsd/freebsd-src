@@ -209,13 +209,10 @@ out:
 	mtx_unlock(&mac_bsdextended_mtx);
 	if (ruleptr != NULL)
 		FREE(ruleptr, M_MACBSDEXTENDED);
-	if (req->oldptr && error == 0) {
+	if (req->oldptr && error == 0)
 		error = SYSCTL_OUT(req, &temprule, sizeof(temprule));
-		if (error)
-			return (error);
-	}
 
-	return (0);
+	return (error);
 }
 
 SYSCTL_NODE(_security_mac_bsdextended, OID_AUTO, rules,
