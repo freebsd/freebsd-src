@@ -673,7 +673,7 @@ which can be used later to refer to the job in the commands described below.
 Job numbers remain
 the same until the job terminates and then are re-used.
 .PP
-When a job is started in the backgound using `&', its number, as well
+When a job is started in the background using `&', its number, as well
 as the process numbers of all its (top level) commands, is typed by the shell
 before prompting you for another command.
 For example,
@@ -699,7 +699,7 @@ foreground job.  A background job can become suspended by using the
 .I stop
 command described below.  When jobs are suspended they merely stop
 any further progress until started again, either in the foreground
-or the backgound.  The shell notices when a job becomes stopped and
+or the background.  The shell notices when a job becomes stopped and
 reports this fact, much like it reports the termination of background jobs.
 For foreground jobs this looks like
 .DS
@@ -742,7 +742,7 @@ starts `du' in the foreground, stops it before it finishes, then continues
 it in the background allowing more foreground commands to be executed.
 This is especially helpful
 when a foreground job ends up taking longer than you expected and you
-wish you had started it in the backgound in the beginning.
+wish you had started it in the background in the beginning.
 .PP
 All
 .I "job control"
@@ -775,7 +775,7 @@ in only one of the jobs.
 The
 .I jobs
 command types the table of jobs, giving the job number,
-commands and status (`Stopped' or `Running') of each backgound or
+commands and status (`Stopped' or `Running') of each background or
 suspended job.  With the `\-l' option the process numbers are also
 typed.
 .DS
@@ -874,7 +874,7 @@ and then put in the background using
 Some time later when the `s' command was finished,
 .I ed
 tried to read another command and was stopped because jobs
-in the backgound cannot read from the terminal.  The
+in the background cannot read from the terminal.  The
 .I fg
 command returned the `ed' job to the foreground where it could once again
 accept commands from the terminal.
