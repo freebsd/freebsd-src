@@ -211,7 +211,16 @@ retry:
 
 		mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
 		mtp->mt_zonefree = uthp->uth_zone_free;
-		mtp->mt_kegfree = uthp->uth_keg_free;
+
+		/*
+		 * UMA secondary zones share a keg with the primary zone.  To
+		 * avoid double-reporting of free items, report keg free
+		 * items only in the primary zone.
+		 */
+		if (!(uthp->uth_zone_flags & UTH_ZONE_SECONDARY)) {
+			mtp->mt_free += mtp->mt_kegfree;
+			mtp->mt_kegfree = uthp->uth_keg_free;
+		}
 		mtp->mt_free += mtp->mt_zonefree;
 	}
 
