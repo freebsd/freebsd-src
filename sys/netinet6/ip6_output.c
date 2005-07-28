@@ -1764,6 +1764,7 @@ do { \
 			{
 				/* new advanced API (RFC3542) */
 				u_char *optbuf;
+				u_char optbuf_storage[MCLBYTES];
 				int optlen;
 				struct ip6_pktopts **optp;
 
@@ -1773,48 +1774,21 @@ do { \
 					break;
 				}
 
-				switch (optname) {
-				case IPV6_HOPOPTS:
-				case IPV6_DSTOPTS:
-				case IPV6_RTHDRDSTOPTS:
-				case IPV6_NEXTHOP:
-					if (!privileged)
-						error = EPERM;
-					break;
-				}
+				/*
+				 * We only ensure valsize is not too large
+				 * here.  Further validation will be done
+				 * later.
+				 */
+				error = sooptcopyin(sopt, optbuf_storage,
+				    sizeof(optbuf_storage), 0);
 				if (error)
 					break;
-
-				switch (optname) {
-				case IPV6_PKTINFO:
-					optlen = sizeof(struct in6_pktinfo);
-					break;
-				case IPV6_NEXTHOP:
-					optlen = SOCK_MAXADDRLEN;
-					break;
-				default:
-					optlen = IPV6_MAXOPTHDR;
-					break;
-				}
-				if (sopt->sopt_valsize > optlen) {
-					error = EINVAL;
-					break;
-				}
-
 				optlen = sopt->sopt_valsize;
-				optbuf = malloc(optlen, M_TEMP, M_WAITOK);
-				error = sooptcopyin(sopt, optbuf, optlen,
-				    optlen);
-				if (error) {
-					free(optbuf, M_TEMP);
-					break;
-				}
-
+				optbuf = optbuf_storage;
 				optp = &in6p->in6p_outputopts;
 				error = ip6_pcbopt(optname,
 						   optbuf, optlen,
 						   optp, privileged, uproto);
-				free(optbuf, M_TEMP);
 				break;
 			}
 #undef OPTSET
