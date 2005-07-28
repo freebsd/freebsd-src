@@ -101,6 +101,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"em",		"Intel(R) PRO/1000 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"ex",		"Intel EtherExpress Pro/10 ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"fe",		"Fujitsu MB86960A/MB86965A ethernet card"			},
+    { DEVICE_TYPE_NETWORK,	"gem",		"Apple/Sun GMAC ethernet adapter"				},
     { DEVICE_TYPE_NETWORK,	"ie",		"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"			},
     { DEVICE_TYPE_NETWORK,	"ix",		"Intel Etherexpress ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"kue",		"Kawasaki LSI USB ethernet adapter"				},
