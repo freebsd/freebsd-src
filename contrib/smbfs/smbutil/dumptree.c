@@ -1,9 +1,13 @@
+/* $FreeBSD$ */
+
 #include <sys/param.h>
 #include <sys/time.h>
+#include <grp.h>
+#include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdlib.h>
 #ifdef APPLE
 #include <err.h>
 #include <sysexits.h>
