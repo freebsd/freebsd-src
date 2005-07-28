@@ -71,6 +71,33 @@ my %INITIAL_CONFIG = (
 my %CONFIG;
 
 ###
+### Expand a path
+###
+sub realpath($;$);
+sub realpath($;$) {
+    my $path = shift;
+    my $base = shift || "";
+
+    my $realpath = ($path =~ m|^/|) ? "" : $base;
+    my @parts = split('/', $path);
+    while (defined(my $part = shift(@parts))) {
+        if ($part eq '' || $part eq '.') {
+            # nothing
+        } elsif ($part eq '..') {
+            $realpath =~ s|/[^/]+$||
+                or die("'$path' is not a valid path relative to '$base'\n");
+        } elsif (-l "$realpath/$part") {
+            my $target = readlink("$realpath/$part")
+                or die("unable to resolve symlink '$realpath/$part': $!\n");
+            $realpath = realpath($target, $realpath);
+        } else {
+            $realpath .= "/$part";
+        }
+    }
+    return $realpath;
+}
+
+###
 ### Perform variable expansion
 ###
 sub expand($);
@@ -243,7 +270,7 @@ sub tinderbox($$$) {
     # Fork and start the tinderbox
     my @args = @{$CONFIG{'OPTIONS'}};
     push(@args, "--hostname=" . expand('HOSTNAME'));
-    push(@args, "--sandbox=" . expand('SANDBOX'));
+    push(@args, "--sandbox=" . realpath(expand('SANDBOX')));
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
     push(@args, "--cvsup=" . expand('CVSUP'))
@@ -287,7 +314,9 @@ sub tinderbox($$$) {
     my @lines = ();
     my $error = 0;
     my $summary = "";
+    my $root = realpath(expand('SANDBOX') . "/$branch/$arch/$machine");
     while (<RPIPE>) {
+	s/\Q$root\E\/(src|obj)/\/$1/g;
 	print(FULL $_);
 	if (/^TB ---/ || /^>>> /) {
 	    if ($error) {
