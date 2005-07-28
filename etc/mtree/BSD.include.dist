@@ -94,6 +94,8 @@
     geom
         concat
         ..
+        eli
+        ..
         gate
         ..
         label
