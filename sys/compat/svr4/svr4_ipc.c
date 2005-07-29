@@ -385,6 +385,8 @@ svr4_sys_semsys(td, uap)
 		return EINVAL;
 	}
 }
+
+MODULE_DEPEND(svr4elf, sysvsem, 1, 1, 1);
 #endif
 
 #ifdef SYSVMSG
@@ -579,6 +581,8 @@ svr4_sys_msgsys(td, uap)
 		return EINVAL;
 	}
 }
+
+MODULE_DEPEND(svr4elf, sysvmsg, 1, 1, 1);
 #endif
 
 #ifdef SYSVSHM
@@ -788,4 +792,6 @@ svr4_sys_shmsys(td, uap)
 		return ENOSYS;
 	}
 }
+
+MODULE_DEPEND(svr4elf, sysvshm, 1, 1, 1);
 #endif /* SYSVSHM */

@@ -405,3 +405,7 @@ ibcs2_shmsys(td, uap)
 	}
 	return EINVAL;
 }
+
+MODULE_DEPEND(ibcs2, sysvmsg, 1, 1, 1);
+MODULE_DEPEND(ibcs2, sysvsem, 1, 1, 1);
+MODULE_DEPEND(ibcs2, sysvshm, 1, 1, 1);
