@@ -250,7 +250,7 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	/* Create and send LP_ConnectRsp event */
 	NG_MKMESSAGE(rsp, NGM_HCI_COOKIE, NGM_HCI_LP_CON_RSP,
 		sizeof(*rp), M_NOWAIT);
-	if (msg == NULL) {
+	if (rsp == NULL) {
 		ng_l2cap_free_con(con);
 		error = ENOMEM;
 		goto out;
