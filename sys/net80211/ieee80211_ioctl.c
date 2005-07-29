@@ -273,7 +273,7 @@ ieee80211_cfgget(struct ieee80211com *ic, u_long cmd, caddr_t data)
 		wreq.wi_len = IEEE80211_ADDR_LEN / 2;
 		break;
 	case WI_RID_TX_RATE:
-		if (ic->ic_fixed_rate == -1)
+		if (ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE)
 			wreq.wi_val[0] = 0;	/* auto */
 		else
 			wreq.wi_val[0] = htole16(
@@ -592,7 +592,7 @@ ieee80211_cfgset(struct ieee80211com *ic, u_long cmd, caddr_t data)
 			return EINVAL;
 		if (wreq.wi_val[0] == 0) {
 			/* auto */
-			ic->ic_fixed_rate = -1;
+			ic->ic_fixed_rate = IEEE80211_FIXED_RATE_NONE;
 			break;
 		}
 		rate = 2 * le16toh(wreq.wi_val[0]);
@@ -1454,6 +1454,9 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 	case IEEE80211_IOC_PUREG:
 		ireq->i_val = (ic->ic_flags & IEEE80211_F_PUREG) != 0;
 		break;
+	case IEEE80211_IOC_FRAGTHRESHOLD:
+		ireq->i_val = ic->ic_fragthreshold;
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -1682,9 +1685,9 @@ ieee80211_ioctl_setmlme(struct ieee80211com *ic, struct ieee80211req *ireq)
 		if (ni == NULL)
 			return EINVAL;
 		if (mlme.im_op == IEEE80211_MLME_AUTHORIZE)
-			ieee80211_node_authorize(ic, ni);
+			ieee80211_node_authorize(ni);
 		else
-			ieee80211_node_unauthorize(ic, ni);
+			ieee80211_node_unauthorize(ni);
 		ieee80211_free_node(ni);
 		break;
 	default:
@@ -2089,8 +2092,8 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		error = IS_UP(ic) ? ic->ic_reset(ic->ic_ifp) : 0;
 		break;
 	case IEEE80211_IOC_RTSTHRESHOLD:
-		if (!(IEEE80211_RTS_MIN < ireq->i_val &&
-		      ireq->i_val < IEEE80211_RTS_MAX))
+		if (!(IEEE80211_RTS_MIN <= ireq->i_val &&
+		      ireq->i_val <= IEEE80211_RTS_MAX))
 			return EINVAL;
 		ic->ic_rtsthreshold = ireq->i_val;
 		error = IS_UP(ic) ? ic->ic_reset(ic->ic_ifp) : 0;
@@ -2327,6 +2330,16 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		/* NB: reset only if we're operating on an 11g channel */
 		if (ic->ic_curmode == IEEE80211_MODE_11G)
 			error = ENETRESET;
+		break;
+	case IEEE80211_IOC_FRAGTHRESHOLD:
+		if ((ic->ic_caps & IEEE80211_C_TXFRAG) == 0 &&
+		    ireq->i_val != IEEE80211_FRAG_MAX)
+			return EINVAL;
+		if (!(IEEE80211_FRAG_MIN <= ireq->i_val &&
+		      ireq->i_val <= IEEE80211_FRAG_MAX))
+			return EINVAL;
+		ic->ic_fragthreshold = ireq->i_val;
+		error = IS_UP(ic) ? ic->ic_reset(ic->ic_ifp) : 0;
 		break;
 	default:
 		error = EINVAL;
