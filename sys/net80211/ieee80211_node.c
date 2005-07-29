@@ -72,8 +72,7 @@ static void ieee80211_free_allnodes(struct ieee80211_node_table *);
 static void ieee80211_timeout_scan_candidates(struct ieee80211_node_table *);
 static void ieee80211_timeout_stations(struct ieee80211_node_table *);
 
-static void ieee80211_set_tim(struct ieee80211com *,
-		struct ieee80211_node *, int set);
+static void ieee80211_set_tim(struct ieee80211_node *, int set);
 
 static void ieee80211_node_table_init(struct ieee80211com *ic,
 	struct ieee80211_node_table *nt, const char *name, int inact,
@@ -200,14 +199,16 @@ ieee80211_node_detach(struct ieee80211com *ic)
  */
 
 void
-ieee80211_node_authorize(struct ieee80211com *ic, struct ieee80211_node *ni)
+ieee80211_node_authorize(struct ieee80211_node *ni)
 {
+	struct ieee80211com *ic = ni->ni_ic;
+
 	ni->ni_flags |= IEEE80211_NODE_AUTH;
 	ni->ni_inact_reload = ic->ic_inact_run;
 }
 
 void
-ieee80211_node_unauthorize(struct ieee80211com *ic, struct ieee80211_node *ni)
+ieee80211_node_unauthorize(struct ieee80211_node *ni)
 {
 	ni->ni_flags &= ~IEEE80211_NODE_AUTH;
 }
@@ -334,22 +335,7 @@ ieee80211_next_scan(struct ieee80211com *ic)
 			    ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan),
 			    ieee80211_chan2ieee(ic, chan));
 			ieee80211_set_chan(ic, ic->ic_bss, chan);
-#ifdef notyet
-			/* XXX driver state change */
-			/*
-			 * Scan next channel. If doing an active scan
-			 * and the channel is not marked passive-only
-			 * then send a probe request.  Otherwise just
-			 * listen for beacons on the channel.
-			 */
-			if ((ic->ic_flags & IEEE80211_F_ASCAN) &&
-			    (ni->ni_chan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0) {
-				IEEE80211_SEND_MGMT(ic, ni,
-				    IEEE80211_FC0_SUBTYPE_PROBE_REQ, 0);
-			}
-#else
 			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
-#endif
 			return 1;
 		}
 	} while (chan != ic->ic_bss->ni_chan);
@@ -460,6 +446,9 @@ ieee80211_reset_bss(struct ieee80211com *ic)
 	}
 }
 
+/* XXX tunable */
+#define	STA_FAILS_MAX	2		/* assoc failures before ignored */
+
 static int
 ieee80211_match_bss(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
@@ -487,8 +476,7 @@ ieee80211_match_bss(struct ieee80211com *ic, struct ieee80211_node *ni)
 		if (ni->ni_capinfo & IEEE80211_CAPINFO_PRIVACY)
 			fail |= 0x04;
 	}
-	rate = ieee80211_fix_rate(ic, ni,
-			IEEE80211_F_DONEGO | IEEE80211_F_DOFRATE);
+	rate = ieee80211_fix_rate(ni, IEEE80211_F_DONEGO | IEEE80211_F_DOFRATE);
 	if (rate & IEEE80211_RATE_BASIC)
 		fail |= 0x08;
 	if (ic->ic_des_esslen != 0 &&
@@ -498,9 +486,12 @@ ieee80211_match_bss(struct ieee80211com *ic, struct ieee80211_node *ni)
 	if ((ic->ic_flags & IEEE80211_F_DESBSSID) &&
 	    !IEEE80211_ADDR_EQ(ic->ic_des_bssid, ni->ni_bssid))
 		fail |= 0x20;
+	if (ni->ni_fails >= STA_FAILS_MAX)
+		fail |= 0x40;
 #ifdef IEEE80211_DEBUG
 	if (ieee80211_msg_scan(ic)) {
-		printf(" %c %s", fail ? '-' : '+',
+		printf(" %c %s",
+		    fail & 0x40 ? '=' : fail & 0x80 ? '^' : fail ? '-' : '+',
 		    ether_sprintf(ni->ni_macaddr));
 		printf(" %s%c", ether_sprintf(ni->ni_bssid),
 		    fail & 0x20 ? '!' : ' ');
@@ -547,6 +538,7 @@ ieee80211_node_compare(struct ieee80211com *ic,
 {
 	u_int8_t maxa, maxb;
 	u_int8_t rssia, rssib;
+	int weight;
 
 	/* privacy support preferred */
 	if ((a->ni_capinfo & IEEE80211_CAPINFO_PRIVACY) &&
@@ -555,6 +547,11 @@ ieee80211_node_compare(struct ieee80211com *ic,
 	if ((a->ni_capinfo & IEEE80211_CAPINFO_PRIVACY) == 0 &&
 	    (b->ni_capinfo & IEEE80211_CAPINFO_PRIVACY))
 		return -1;
+
+	/* compare count of previous failures */
+	weight = b->ni_fails - a->ni_fails;
+	if (abs(weight) > 1)
+		return weight;
 
 	rssia = ic->ic_node_getrssi(a);
 	rssib = ic->ic_node_getrssi(b);
@@ -673,6 +670,17 @@ ieee80211_end_scan(struct ieee80211com *ic)
 			return;
 		}
 		/*
+		 * Decrement the failure counts so entries will be
+		 * reconsidered the next time around.  We really want
+		 * to do this only for sta's where we've previously
+		 had some success.
+		 */
+		IEEE80211_NODE_LOCK(nt);
+		TAILQ_FOREACH(ni, &nt->nt_node, ni_list)
+			if (ni->ni_fails)
+				ni->ni_fails--;
+		IEEE80211_NODE_UNLOCK(nt);
+		/*
 		 * Reset the list of channels to scan and start again.
 		 */
 		ieee80211_reset_scan(ic);
@@ -685,23 +693,6 @@ ieee80211_end_scan(struct ieee80211com *ic)
 	    "macaddr          bssid         chan  rssi rate flag  wep  essid");
 	IEEE80211_NODE_LOCK(nt);
 	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
-		if (ni->ni_fails) {
-			/*
-			 * The configuration of the access points may change
-			 * during my scan.  So delete the entry for the AP
-			 * and retry to associate if there is another beacon.
-			 */
-			IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN,
-				"%s: skip scan candidate %s, fails %u\n",
-				__func__, ether_sprintf(ni->ni_macaddr),
-				ni->ni_fails);
-			ni->ni_fails++;
-#if 0
-			if (ni->ni_fails++ > 2)
-				ieee80211_free_node(ni);
-#endif
-			continue;
-		}
 		if (ieee80211_match_bss(ic, ni) == 0) {
 			if (selbs == NULL)
 				selbs = ni;
@@ -733,8 +724,9 @@ ieee80211_end_scan(struct ieee80211com *ic)
  * Return !0 if the BSSID changed, 0 otherwise.
  */
 int
-ieee80211_ibss_merge(struct ieee80211com *ic, struct ieee80211_node *ni)
+ieee80211_ibss_merge(struct ieee80211_node *ni)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 
 	if (ni == ic->ic_bss ||
 	    IEEE80211_ADDR_EQ(ni->ni_bssid, ic->ic_bss->ni_bssid)) {
@@ -772,7 +764,7 @@ ieee80211_sta_join(struct ieee80211com *ic, struct ieee80211_node *selbs)
 		 * Delete unusable rates; we've already checked
 		 * that the negotiated rate set is acceptable.
 		 */
-		ieee80211_fix_rate(ic, selbs, IEEE80211_F_DODEL);
+		ieee80211_fix_rate(selbs, IEEE80211_F_DODEL);
 		/*
 		 * Fillin the neighbor table; it will already
 		 * exist if we are simply switching mastership.
@@ -863,7 +855,7 @@ node_cleanup(struct ieee80211_node *ni)
 	 */
 	IEEE80211_NODE_SAVEQ_DRAIN(ni, qlen);
 	if (qlen != 0 && ic->ic_set_tim != NULL)
-		ic->ic_set_tim(ic, ni, 0);
+		ic->ic_set_tim(ni, 0);
 
 	ni->ni_associd = 0;
 	if (ni->ni_challenge != NULL) {
@@ -1047,9 +1039,9 @@ ieee80211_fakeup_adhoc_node(struct ieee80211_node_table *nt,
 		/* XXX no rate negotiation; just dup */
 		ni->ni_rates = ic->ic_bss->ni_rates;
 		if (ic->ic_newassoc != NULL)
-			ic->ic_newassoc(ic, ni, 1);
+			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
-		ieee80211_node_authorize(ic, ni);
+		ieee80211_node_authorize(ni);
 	}
 	return ni;
 }
@@ -1392,7 +1384,10 @@ ieee80211_timeout_stations(struct ieee80211_node_table *nt)
 	struct ieee80211com *ic = nt->nt_ic;
 	struct ieee80211_node *ni;
 	u_int gen;
+	int isadhoc;
 
+	isadhoc = (ic->ic_opmode == IEEE80211_M_IBSS ||
+		   ic->ic_opmode == IEEE80211_M_AHDEMO);
 	IEEE80211_SCAN_LOCK(nt);
 	gen = nt->nt_scangen++;
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
@@ -1409,7 +1404,8 @@ restart:
 		 * will be reclaimed when the last reference to them
 		 * goes away (when frame xmits complete).
 		 */
-		if ((ni->ni_flags & IEEE80211_NODE_AREF) == 0)
+		if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
+		    (ni->ni_flags & IEEE80211_NODE_AREF) == 0)
 			continue;
 		/*
 		 * Free fragment if not needed anymore
@@ -1428,7 +1424,7 @@ restart:
 		if (ni == ic->ic_bss)
 			continue;
 		ni->ni_inact--;
-		if (ni->ni_associd != 0) {
+		if (ni->ni_associd != 0 || isadhoc) {
 			/*
 			 * Age frames on the power save queue. The
 			 * aging interval is 4 times the listen
@@ -1463,7 +1459,7 @@ IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether
 					IEEE80211_NODE_STAT_ADD(ni,
 						ps_discard, discard);
 					if (IEEE80211_NODE_SAVEQ_QLEN(ni) == 0)
-						ic->ic_set_tim(ic, ni, 0);
+						ic->ic_set_tim(ni, 0);
 				}
 			}
 			/*
@@ -1474,20 +1470,21 @@ IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether
 			 */
 			if (0 < ni->ni_inact &&
 			    ni->ni_inact <= ic->ic_inact_probe) {
-				IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
-				    "[%s] probe station due to inactivity\n",
-				    ether_sprintf(ni->ni_macaddr));
+				IEEE80211_NOTE(ic,
+				    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE,
+				    ni, "%s",
+				    "probe station due to inactivity");
 				IEEE80211_NODE_UNLOCK(nt);
-				ieee80211_send_nulldata(ic, ni);
+				ieee80211_send_nulldata(ni);
 				/* XXX stat? */
 				goto restart;
 			}
 		}
 		if (ni->ni_inact <= 0) {
-			IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
-			    "[%s] station timed out due to inactivity "
-			    "(refcnt %u)\n", ether_sprintf(ni->ni_macaddr),
-			    ieee80211_node_refcnt(ni));
+			IEEE80211_NOTE(ic,
+			    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE, ni,
+			    "station timed out due to inactivity "
+			    "(refcnt %u)", ieee80211_node_refcnt(ni));
 			/*
 			 * Send a deauthenticate frame and drop the station.
 			 * This is somewhat complicated due to reference counts
@@ -1677,7 +1674,7 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 
 	/* give driver a chance to setup state like ni_txrate */
 	if (ic->ic_newassoc != NULL)
-		ic->ic_newassoc(ic, ni, newassoc);
+		ic->ic_newassoc(ni, newassoc);
 	ni->ni_inact_reload = ic->ic_inact_auth;
 	ni->ni_inact = ni->ni_inact_reload;
 	IEEE80211_SEND_MGMT(ic, ni, resp, IEEE80211_STATUS_SUCCESS);
@@ -1859,8 +1856,9 @@ ieee80211_getrssi(struct ieee80211com *ic)
  * Indicate whether there are frames queued for a station in power-save mode.
  */
 static void
-ieee80211_set_tim(struct ieee80211com *ic, struct ieee80211_node *ni, int set)
+ieee80211_set_tim(struct ieee80211_node *ni, int set)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	u_int16_t aid;
 
 	KASSERT(ic->ic_opmode == IEEE80211_M_HOSTAP ||
