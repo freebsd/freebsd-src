@@ -1067,7 +1067,7 @@ RM_I=-i
 .endif
 
 delete-old-files:
-.if defined(${TARGET_ARCH})
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .error "You have to run this in a native environment!"
 .endif
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
@@ -1083,7 +1083,7 @@ delete-old-files:
 	@echo ">>> Old files removed"
 
 check-old-files:
-.if defined(${TARGET_ARCH})
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .error "You have to run this in a native environment!"
 .endif
 	@echo ">>> Checking for old files"
@@ -1092,7 +1092,7 @@ check-old-files:
 .endfor
 
 delete-old-libs:
-.if defined(${TARGET_ARCH})
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .error "You have to run this in a native environment!"
 .endif
 	@echo ">>> Removing old libraries"
@@ -1107,7 +1107,7 @@ delete-old-libs:
 	@echo ">>> Old libraries removed"
 
 check-old-libs:
-.if defined(${TARGET_ARCH})
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .error "You have to run this in a native environment!"
 .endif
 	@echo ">>> Checking for old libraries"
@@ -1116,7 +1116,7 @@ check-old-libs:
 .endfor
 
 delete-old-dirs:
-.if defined(${TARGET_ARCH})
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .error "You have to run this in a native environment!"
 .endif
 	@echo ">>> Removing old directories"
@@ -1127,7 +1127,7 @@ delete-old-dirs:
 	@echo ">>> Old directories removed"
 
 check-old-dirs:
-.if defined(${TARGET_ARCH})
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .error "You have to run this in a native environment!"
 .endif
 	@echo ">>> Checking for old directories"
