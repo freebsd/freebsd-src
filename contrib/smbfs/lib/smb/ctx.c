@@ -503,7 +503,7 @@ smb_ctx_resolve(struct smb_ctx *ctx)
 		return error;
 	if (ssn->ioc_servercs[0] != 0) {
 		error = kiconv_add_xlat16_cspairs
-			(ssn->ioc_localcs, ssn->ioc_servercs);
+			(ssn->ioc_servercs, ssn->ioc_localcs);
 		if (error) return error;
 	}
 	if (ctx->ct_srvaddr) {
