@@ -96,7 +96,8 @@ betohq(int64_t x)
 struct mbuf;
 struct mbchain;
 
-typedef int mb_copy_t(struct mbchain *mbp, c_caddr_t src, caddr_t dst, size_t len);
+typedef int mb_copy_t(struct mbchain *mbp, c_caddr_t src, caddr_t dst,
+    size_t *srclen, size_t *dstlen);
 
 struct mbchain {
 	struct mbuf *	mb_top;		/* head of mbufs chain */
