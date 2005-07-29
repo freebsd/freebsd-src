@@ -180,7 +180,9 @@ _lock_acquire(struct lock *lck, struct lockuser *lu, int prio)
 	atomic_swap_ptr(&lck->l_head, lu->lu_myreq, &lu->lu_watchreq);
 
 	if (lu->lu_watchreq->lr_locked != 0) {
-		atomic_store_rel_ptr(&lu->lu_watchreq->lr_watcher, lu);
+		atomic_store_rel_ptr
+		    ((volatile uintptr_t *)&lu->lu_watchreq->lr_watcher,
+		    (uintptr_t)lu);
 		if ((lck->l_wait == NULL) ||
 		    ((lck->l_type & LCK_ADAPTIVE) == 0)) {
 			while (lu->lu_watchreq->lr_locked != 0)
@@ -250,14 +252,19 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 
 		/* Update tail if our request is last. */
 		if (lu->lu_watchreq->lr_owner == NULL) {
-			atomic_store_rel_ptr(&lck->l_tail, lu->lu_myreq);
-			atomic_store_rel_ptr(&lu->lu_myreq->lr_owner, NULL);
+			atomic_store_rel_ptr((volatile uintptr_t *)&lck->l_tail,
+			    (uintptr_t)lu->lu_myreq);
+			atomic_store_rel_ptr
+			    ((volatile uintptr_t *)&lu->lu_myreq->lr_owner,
+			    (uintptr_t)NULL);
 		} else {
 			/* Remove ourselves from the list. */
-			atomic_store_rel_ptr(&lu->lu_myreq->lr_owner,
-			    lu->lu_watchreq->lr_owner);
-			atomic_store_rel_ptr(
-			    &lu->lu_watchreq->lr_owner->lu_myreq, lu->lu_myreq);
+			atomic_store_rel_ptr((volatile uintptr_t *)
+			    &lu->lu_myreq->lr_owner,
+			    (uintptr_t)lu->lu_watchreq->lr_owner);
+			atomic_store_rel_ptr((volatile uintptr_t *)
+			    &lu->lu_watchreq->lr_owner->lu_myreq,
+			    (uintptr_t)lu->lu_myreq);
 		}
 		/*
 		 * The watch request now becomes our own because we've
