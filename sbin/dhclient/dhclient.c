@@ -249,6 +249,7 @@ routehandler(struct protocol *p)
 			break;
 		switch (ifan->ifan_what) {
 		case RTM_IEEE80211_ASSOC:
+		case RTM_IEEE80211_REASSOC:
 			state_reboot(ifi);
 			break;
 		case RTM_IEEE80211_DISASSOC:
@@ -986,7 +987,12 @@ packet_to_lease(struct packet *packet)
 	lease->address.len = sizeof(packet->raw->yiaddr);
 	memcpy(lease->address.iabuf, &packet->raw->yiaddr, lease->address.len);
 
-	/* If the server name was filled out, copy it. */
+	/* If the server name was filled out, copy it.
+	   Do not attempt to validate the server name as a host name.
+	   RFC 2131 merely states that sname is NUL-terminated (which do
+	   do not assume) and that it is the server's host name.  Since
+	   the ISC client and server allow arbitrary characters, we do
+	   as well. */
 	if ((!packet->options[DHO_DHCP_OPTION_OVERLOAD].len ||
 	    !(packet->options[DHO_DHCP_OPTION_OVERLOAD].data[0] & 2)) &&
 	    packet->raw->sname[0]) {
@@ -998,12 +1004,6 @@ packet_to_lease(struct packet *packet)
 		}
 		memcpy(lease->server_name, packet->raw->sname, DHCP_SNAME_LEN);
 		lease->server_name[DHCP_SNAME_LEN]='\0';
-		if (!res_hnok(lease->server_name) ) {
-			warning("Bogus server name %s",  lease->server_name );
-			free_client_lease(lease);
-			return (NULL);
-		}
-
 	}
 
 	/* Ditto for the filename. */
