@@ -434,7 +434,6 @@ struct ata_dmasetprd_args {
     int error;
 };
 
-struct ata_channel {};
 /* structure holding DMA related information */
 struct ata_dma {
     bus_dma_tag_t               dmatag;         /* parent DMA tag */
