@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -167,8 +168,10 @@ static int
 set_freq(int freq)
 {
 
-	if (sysctl(freq_mib, 4, NULL, NULL, &freq, sizeof(freq)))
-		return (-1);
+	if (sysctl(freq_mib, 4, NULL, NULL, &freq, sizeof(freq))) {
+		if (errno != EPERM)
+			return (-1);
+	}
 
 	return (0);
 }
@@ -265,6 +268,10 @@ main(int argc, char * argv[])
 	mjoules_used = 0;
 	vflag = 0;
 	apm_fd = -1;
+
+	/* User must be root to control frequencies. */
+	if (geteuid() != 0)
+		errx(1, "must be root to run");
 
 	while ((ch = getopt(argc, argv, "a:b:i:n:p:r:v")) != EOF)
 		switch (ch) {
