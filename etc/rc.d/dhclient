@@ -23,7 +23,6 @@ dhclient_start()
 	if [ -x /usr/bin/pgrep ]; then
 		pids=`/usr/bin/pgrep -f "dhclient: $ifn(\$| .*)"`
 		if [ -n "$pids" ]; then
-			echo "${name} ${ifn}: already running?"
 			exit 0
 		fi
 	fi
