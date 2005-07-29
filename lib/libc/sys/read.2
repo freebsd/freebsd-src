@@ -156,6 +156,11 @@ The
 .Fa d
 argument
 is not a valid file or socket descriptor open for reading.
+.It Bq Er ECONNRESET
+The
+.Fa d
+argument refers to a socket, and the remote socket end is
+forcibly closed.
 .It Bq Er EFAULT
 The
 .Fa buf
