@@ -3034,6 +3034,10 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case 0x42: /* READ_SUBCHANNEL */
 	case 0x43: /* READ_TOC */
 	case 0x44: /* READ_HEADER */
+	case 0x47: /* PLAY_MSF (Play Minute/Second/Frame) */
+	case 0x48: /* PLAY_TRACK */
+	case 0x49: /* PLAY_TRACK_REL */
+	case 0x4b: /* PAUSE */
 	case 0x51: /* READ_DISK_INFO */
 	case 0x52: /* READ_TRACK_INFO */
 	case 0x54: /* SEND_OPC */
@@ -3042,6 +3046,7 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case 0x5c: /* READ_BUFFER_CAP */
 	case 0x5d: /* SEND_CUE_SHEET */
 	case 0xa1: /* BLANK */
+	case 0xa5: /* PLAY_12 */
 	case 0xa6: /* EXCHANGE_MEDIUM */
 	case 0xad: /* READ_DVD_STRUCTURE */
 	case 0xbb: /* SET_CD_SPEED */
