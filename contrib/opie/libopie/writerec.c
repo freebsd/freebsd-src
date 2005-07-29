@@ -13,6 +13,8 @@ you didn't get a copy, you may request one from <license@inner.net>.
 	Modified by cmetz for OPIE 2.31. Removed active attack protection
 		support. Fixed passwd bug.
 	Created by cmetz for OPIE 2.3 from passwd.c.
+
+$FreeBSD$
 */
 #include "opie_cfg.h"
 
@@ -65,13 +67,13 @@ int __opiewriterec FUNCTION((opie), struct opie *opie)
 
   switch(i) {
   case 0:
-    if (!(f = __opieopen(KEY_FILE, 1, 0644)))
+    if (!(f = __opieopen(KEY_FILE, 1, 0600)))
       return -1;
     if (fseek(f, opie->opie_recstart, SEEK_SET))
       return -1;
     break;
   case 1:
-    if (!(f = __opieopen(KEY_FILE, 2, 0644)))
+    if (!(f = __opieopen(KEY_FILE, 2, 0600)))
       return -1;
     break;
   default:
