@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -128,6 +129,12 @@ struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
 	
 static int bsp_id, current_cluster, logical_clusters, next_ioapic_base;
 static u_int next_id, program_logical_dest;
+
+SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
+static int enable_extint;
+SYSCTL_INT(_hw_apic, OID_AUTO, enable_extint, CTLFLAG_RDTUN, &enable_extint, 0,
+    "Enable the ExtINT pin in the first I/O APIC");
+TUNABLE_INT("hw.apic.enable_extint", &enable_extint);
 
 static __inline void
 _ioapic_eoi_source(struct intsrc *isrc)
@@ -286,7 +293,7 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	switch (intpin->io_vector) {
 	case VECTOR_EXTINT:
 		KASSERT(intpin->io_edgetrigger,
-		    ("EXTINT not edge triggered"));
+		    ("ExtINT not edge triggered"));
 		low |= IOART_DELEXINT;
 		break;
 	case VECTOR_NMI:
@@ -680,7 +687,10 @@ ioapic_set_extint(void *cookie, u_int pin)
 		return (EINVAL);
 	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
 	io->io_pins[pin].io_vector = VECTOR_EXTINT;
-	io->io_pins[pin].io_masked = 1;
+	if (enable_extint)
+		io->io_pins[pin].io_masked = 0;
+	else
+		io->io_pins[pin].io_masked = 1;
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
 	if (bootverbose)
