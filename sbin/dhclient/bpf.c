@@ -316,18 +316,20 @@ receive_packet(struct interface_info *interface, unsigned char *buf,
 			continue;
 		}
 
+		/* Skip over the BPF header... */
+		interface->rbuf_offset += hdr.bh_hdrlen;
+
 		/*
 		 * If the captured data wasn't the whole packet, or if
 		 * the packet won't fit in the input buffer, all we can
 		 * do is drop it.
 		 */
 		if (hdr.bh_caplen != hdr.bh_datalen) {
-			interface->rbuf_offset += hdr.bh_hdrlen = hdr.bh_caplen;
+			interface->rbuf_offset =
+			    BPF_WORDALIGN(interface->rbuf_offset +
+			    hdr.bh_caplen);
 			continue;
 		}
-
-		/* Skip over the BPF header... */
-		interface->rbuf_offset += hdr.bh_hdrlen;
 
 		/* Decode the physical header... */
 		offset = decode_hw_header(interface->rbuf,
@@ -339,7 +341,9 @@ receive_packet(struct interface_info *interface, unsigned char *buf,
 		 * this packet.
 		 */
 		if (offset < 0) {
-			interface->rbuf_offset += hdr.bh_caplen;
+			interface->rbuf_offset =
+			    BPF_WORDALIGN(interface->rbuf_offset +
+			    hdr.bh_caplen);
 			continue;
 		}
 		interface->rbuf_offset += offset;
@@ -351,7 +355,9 @@ receive_packet(struct interface_info *interface, unsigned char *buf,
 
 		/* If the IP or UDP checksum was bad, skip the packet... */
 		if (offset < 0) {
-			interface->rbuf_offset += hdr.bh_caplen;
+			interface->rbuf_offset =
+			    BPF_WORDALIGN(interface->rbuf_offset +
+			    hdr.bh_caplen);
 			continue;
 		}
 		interface->rbuf_offset += offset;
@@ -363,14 +369,18 @@ receive_packet(struct interface_info *interface, unsigned char *buf,
 		 * life, though).
 		 */
 		if (hdr.bh_caplen > len) {
-			interface->rbuf_offset += hdr.bh_caplen;
+			interface->rbuf_offset =
+			    BPF_WORDALIGN(interface->rbuf_offset +
+			    hdr.bh_caplen);
 			continue;
 		}
 
 		/* Copy out the data in the packet... */
 		memcpy(buf, interface->rbuf + interface->rbuf_offset,
 		    hdr.bh_caplen);
-		interface->rbuf_offset += hdr.bh_caplen;
+		interface->rbuf_offset =
+		    BPF_WORDALIGN(interface->rbuf_offset +
+		    hdr.bh_caplen);
 		return (hdr.bh_caplen);
 	} while (!length);
 	return (0);
