@@ -206,7 +206,11 @@ sub report($$$$) {
     my $subject = shift;
     my $message = shift;
 
-    if (length($message) < 64) {
+    if (!$message) {
+	print(STDERR "[empty report, not sent by email]\n\n]");
+	return;
+    }
+    if (length($message) < 128) {
 	print(STDERR "[suspiciously short report, not sent by email]\n\n");
 	print(STDERR $message);
 	return;
@@ -512,7 +516,7 @@ MAIN:{
 	$INITIAL_CONFIG{'HOSTNAME'} = 'unknown';
     }
     if ($ENV{'HOME'} =~ m/^((?:\/[\w\.-]+)+)\/*$/) {
-	$INITIAL_CONFIG{'HOME'} = $1;
+	$INITIAL_CONFIG{'HOME'} = realpath($1);
 	$etcdir = "$1/etc";
 	$ENV{'PATH'} = "$1/bin:$ENV{'PATH'}"
 	    if (-d "$1/bin");
