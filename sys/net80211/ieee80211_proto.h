@@ -59,9 +59,17 @@ void	ieee80211_proto_detach(struct ieee80211com *);
 struct ieee80211_node;
 int	ieee80211_input(struct ieee80211com *, struct mbuf *,
 		struct ieee80211_node *, int, u_int32_t);
+int	ieee80211_setup_rates(struct ieee80211_node *ni,
+		const u_int8_t *rates, const u_int8_t *xrates, int flags);
 void	ieee80211_recv_mgmt(struct ieee80211com *, struct mbuf *,
 		struct ieee80211_node *, int, int, u_int32_t);
-int	ieee80211_send_nulldata(struct ieee80211com *, struct ieee80211_node *);
+int	ieee80211_send_nulldata(struct ieee80211_node *);
+int	ieee80211_send_probereq(struct ieee80211_node *ni,
+		const u_int8_t sa[IEEE80211_ADDR_LEN],
+		const u_int8_t da[IEEE80211_ADDR_LEN],
+		const u_int8_t bssid[IEEE80211_ADDR_LEN],
+		const u_int8_t *ssid, size_t ssidlen,
+		const void *optie, size_t optielen);
 int	ieee80211_send_mgmt(struct ieee80211com *, struct ieee80211_node *,
 		int, int);
 int	ieee80211_classify(struct ieee80211com *, struct mbuf *,
@@ -163,7 +171,7 @@ const struct ieee80211_aclator *ieee80211_aclator_get(const char *name);
 #define	IEEE80211_F_DOFRATE	0x00000002	/* use fixed rate */
 #define	IEEE80211_F_DONEGO	0x00000004	/* calc negotiated rate */
 #define	IEEE80211_F_DODEL	0x00000008	/* delete ignore rate */
-int	ieee80211_fix_rate(struct ieee80211com *, struct ieee80211_node *, int);
+int	ieee80211_fix_rate(struct ieee80211_node *, int);
 
 /*
  * WME/WMM support.

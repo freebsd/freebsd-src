@@ -199,10 +199,8 @@ struct ath_softc {
 				sc_softled : 1,	/* enable LED gpio status */
 				sc_splitmic: 1,	/* split TKIP MIC keys */
 				sc_needmib : 1,	/* enable MIB stats intr */
-				sc_hasdiversity : 1,/* rx diversity available */
 				sc_diversity : 1,/* enable rx diversity */
 				sc_hasveol : 1,	/* tx VEOL support */
-				sc_hastpc  : 1,	/* per-packet TPC support */
 				sc_ledstate: 1,	/* LED on/off state */
 				sc_blinking: 1,	/* LED blink operation active */
 				sc_mcastkey: 1,	/* mcast key cache search */

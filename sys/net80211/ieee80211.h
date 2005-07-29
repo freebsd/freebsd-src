@@ -622,10 +622,18 @@ enum {
 
 /* 
  * RTS frame length parameters.  The default is specified in
- * the 802.11 spec.  The max may be wrong for jumbo frames.
+ * the 802.11 spec as 512; we treat it as implementation-dependent
+ * so it's defined in ieee80211_var.h.  The max may be wrong
+ * for jumbo frames.
  */
-#define	IEEE80211_RTS_DEFAULT		512
 #define	IEEE80211_RTS_MIN		1
-#define	IEEE80211_RTS_MAX		IEEE80211_MAX_LEN
+#define	IEEE80211_RTS_MAX		2346
+
+/* 
+ * TX fragmentation parameters.  As above for RTS, we treat
+ * default as implementation-dependent so define it elsewhere.
+ */
+#define	IEEE80211_FRAG_MIN		256
+#define	IEEE80211_FRAG_MAX		2346
 
 #endif /* _NET80211_IEEE80211_H_ */

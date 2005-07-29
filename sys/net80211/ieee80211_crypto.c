@@ -543,7 +543,7 @@ ieee80211_crypto_decap(struct ieee80211com *ic,
 {
 #define	IEEE80211_WEP_HDRLEN	(IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN)
 #define	IEEE80211_WEP_MINLEN \
-	(sizeof(struct ieee80211_frame) + ETHER_HDR_LEN + \
+	(sizeof(struct ieee80211_frame) + \
 	IEEE80211_WEP_HDRLEN + IEEE80211_WEP_CRCLEN)
 	struct ieee80211_key *k;
 	struct ieee80211_frame *wh;
