@@ -91,7 +91,9 @@ sub realpath($;$) {
                 or die("unable to resolve symlink '$realpath/$part': $!\n");
             $realpath = realpath($target, $realpath);
         } else {
-            $realpath .= "/$part";
+	    $part =~ m/^([\w.-]+)$/
+		or die("unsafe path '$realpath/$part'\n");
+            $realpath .= "/$1";
         }
     }
     return $realpath;
