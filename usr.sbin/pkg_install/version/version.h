@@ -40,8 +40,10 @@ SLIST_HEAD(index_head, index_entry);
 extern char	*LimitChars;
 extern char	*PreventChars;
 extern char	*MatchName;
+extern char	*LookUpOrigin;
 extern Boolean	RegexExtended;
 extern Boolean	UseINDEXOnly;
+extern Boolean	ShowOrigin;
 
 extern int	version_match(char *, const char *);
 
