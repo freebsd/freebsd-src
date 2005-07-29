@@ -79,7 +79,6 @@ devfs_mount(struct mount *mp, struct thread *td)
 	lockinit(&fmp->dm_lock, PVFS, "devfs", 0, 0);
 
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
 #ifdef MAC
 	mp->mnt_flag |= MNT_MULTILABEL;
 #endif
