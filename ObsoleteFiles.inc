@@ -11,6 +11,8 @@
 # In case of a complete directory hierarchy the sorting is in depth first
 # order.
 #
+# The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
+#
 
 # 20050721: moved to ports
 OLD_FILES+=usr/sbin/vttest
@@ -43,7 +45,27 @@ OLD_FILES+=usr/sbin/named.restart
 OLD_FILES+=usr/sbin/ndc
 OLD_FILES+=usr/sbin/nslookup
 OLD_FILES+=usr/sbin/nsupdate
-OLD_DIRS+=usr/share/doc/bind
+OLD_FILES+=usr/share/doc/bind/html/acl.html
+OLD_FILES+=usr/share/doc/bind/html/address_list.html
+OLD_FILES+=usr/share/doc/bind/html/comments.html
+OLD_FILES+=usr/share/doc/bind/html/config.html
+OLD_FILES+=usr/share/doc/bind/html/controls.html
+OLD_FILES+=usr/share/doc/bind/html/docdef.html
+OLD_FILES+=usr/share/doc/bind/html/example.html
+OLD_FILES+=usr/share/doc/bind/html/include.html
+OLD_FILES+=usr/share/doc/bind/html/index.html
+OLD_FILES+=usr/share/doc/bind/html/key.html
+OLD_FILES+=usr/share/doc/bind/html/logging.html
+OLD_FILES+=usr/share/doc/bind/html/master.html
+OLD_FILES+=usr/share/doc/bind/html/options.html
+OLD_FILES+=usr/share/doc/bind/html/server.html
+OLD_FILES+=usr/share/doc/bind/html/trusted-keys.html
+OLD_FILES+=usr/share/doc/bind/html/zone.html
+OLD_FILES+=usr/share/doc/bind/misc/DynamicUpdate
+OLD_FILES+=usr/share/doc/bind/misc/FAQ.1of2
+OLD_FILES+=usr/share/doc/bind/misc/FAQ.2of2
+OLD_FILES+=usr/share/doc/bind/misc/rfc2317-notes.txt
+OLD_FILES+=usr/share/doc/bind/misc/style.txt
 # 2004XXYY: OS internal libs, no ports use them, no need to use OLD_LIBS
 OLD_FILES+=lib/geom/geom_concat.so.1
 OLD_FILES+=lib/geom/geom_label.so.1
@@ -147,7 +169,7 @@ OLD_FILES+=usr/lib/libg++_p.a
 # 20001006
 OLD_FILES+=usr/bin/miniperl
 # 20000810
-OLD_FILES+=usr/bin/sperl*
+OLD_FILES+=usr/bin/sperl
 # 199909XX
 OLD_FILES+=usr/lib/libdesrypt_p.a
 ## unsorted
@@ -235,12 +257,41 @@ OLD_LIBS+=usr/lib/libusbhid.so.1
 OLD_LIBS+=usr/lib/libvgl.so.3
 OLD_LIBS+=usr/lib/libwrap.so.3
 OLD_LIBS+=usr/lib/libypclnt.so.1
-OLD_LIBS+=usr/lib/pam_*.so.2
-OLD_LIBS+=usr/lib/snmp_*.so.3
+OLD_LIBS+=usr/lib/pam_chroot.so.2
+OLD_LIBS+=usr/lib/pam_deny.so.2
+OLD_LIBS+=usr/lib/pam_echo.so.2
+OLD_LIBS+=usr/lib/pam_exec.so.2
+OLD_LIBS+=usr/lib/pam_ftpusers.so.2
+OLD_LIBS+=usr/lib/pam_group.so.2
+OLD_LIBS+=usr/lib/pam_guest.so.2
+OLD_LIBS+=usr/lib/pam_krb5.so.2
+OLD_LIBS+=usr/lib/pam_ksu.so.2
+OLD_LIBS+=usr/lib/pam_lastlog.so.2
+OLD_LIBS+=usr/lib/pam_login_access.so.2
+OLD_LIBS+=usr/lib/pam_nologin.so.2
+OLD_LIBS+=usr/lib/pam_opie.so.2
+OLD_LIBS+=usr/lib/pam_opieaccess.so.2
+OLD_LIBS+=usr/lib/pam_passwdqc.so.2
+OLD_LIBS+=usr/lib/pam_permit.so.2
+OLD_LIBS+=usr/lib/pam_radius.so.2
+OLD_LIBS+=usr/lib/pam_rhosts.so.2
+OLD_LIBS+=usr/lib/pam_rootok.so.2
+OLD_LIBS+=usr/lib/pam_securetty.so.2
+OLD_LIBS+=usr/lib/pam_self.so.2
+OLD_LIBS+=usr/lib/pam_ssh.so.2
+OLD_LIBS+=usr/lib/pam_tacplus.so.2
+OLD_LIBS+=usr/lib/pam_unix.so.2
+OLD_LIBS+=usr/lib/snmp_atm.so.3
+OLD_LIBS+=usr/lib/snmp_mibII.so.3
+OLD_LIBS+=usr/lib/snmp_netgraph.so.3
+OLD_LIBS+=usr/lib/snmp_pf.so.3
 # 20050603: network related ABI change on 64bit systems
 OLD_LIBS+=usr/lib/libpcap.so.3
 # 200505XX: ?
-OLD_LIBS+=usr/lib/snmp_*.so.2
+OLD_LIBS+=usr/lib/snmp_atm.so.2
+OLD_LIBS+=usr/lib/snmp_mibII.so.2
+OLD_LIBS+=usr/lib/snmp_netgraph.so.2
+OLD_LIBS+=usr/lib/snmp_pf.so.2
 # 2005XXXX: not ready for primetime yet
 OLD_LIBS+=usr/lib/libautofs.so.1
 # 200410XX: libm compatibility fix
@@ -337,5 +388,8 @@ OLD_LIBS+=usr/lib/libwrap.so.2
 # 199909XX
 OLD_LIBS+=usr/lib/libc_r.so.3
 
-OLD_DIRS+=
+# 20040925: bind9 import
+OLD_DIRS+=usr/share/doc/bind/html
+OLD_DIRS+=usr/share/doc/bind/misc
+OLD_DIRS+=usr/share/doc/bind/
 
