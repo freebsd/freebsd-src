@@ -815,3 +815,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	return EINVAL;
     }
 }
+
+MODULE_DEPEND(linux, sysvmsg, 1, 1, 1);
+MODULE_DEPEND(linux, sysvsem, 1, 1, 1);
+MODULE_DEPEND(linux, sysvshm, 1, 1, 1);
