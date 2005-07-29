@@ -962,7 +962,7 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
 static int
 amr_wait_command(struct amr_command *ac)
 {
-    int			error, count;
+    int			error = 0;
     
     debug_called(1);
 
@@ -971,12 +971,10 @@ amr_wait_command(struct amr_command *ac)
     if ((error = amr_start(ac)) != 0)
 	return(error);
     
-    count = 0;
-    /* XXX better timeout? */
-    while ((ac->ac_flags & AMR_CMD_BUSY) && (count < 30)) {
-	msleep(ac, &ac->ac_sc->amr_io_lock, PRIBIO | PCATCH, "amrwcmd", hz);
+    while ((ac->ac_flags & AMR_CMD_BUSY) && (error != EWOULDBLOCK)) {
+	error = msleep(ac, &ac->ac_sc->amr_io_lock, PRIBIO, "amrwcmd", 0);
     }
-    return(0);
+    return(error);
 }
 
 /********************************************************************************
