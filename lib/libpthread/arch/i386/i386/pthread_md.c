@@ -75,7 +75,6 @@ _tcb_dtor(struct tcb *tcb)
 struct kcb *
 _kcb_ctor(struct kse *kse)
 {
-	void *base;
 	struct kcb *kcb;
 
 	kcb = malloc(sizeof(struct kcb));
