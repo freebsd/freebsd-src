@@ -74,9 +74,6 @@ struct acpi_softc {
     bus_dmamap_t	acpi_wakemap;
     vm_offset_t		acpi_wakeaddr;
     vm_paddr_t		acpi_wakephys;
-
-    struct sysctl_ctx_list	 acpi_battery_sysctl_ctx;
-    struct sysctl_oid		*acpi_battery_sysctl_tree;
 };
 
 struct acpi_device {
@@ -393,16 +390,15 @@ int		acpi_machdep_quirks(int *quirks);
 
 /* Battery Abstraction. */
 struct acpi_battinfo;
-struct acpi_battdesc;
 
-int		acpi_battery_register(int, int);
-int		acpi_battery_remove(int, int);
-int		acpi_battery_get_battinfo(int, struct acpi_battinfo *);
+int		acpi_battery_register(device_t dev);
+int		acpi_battery_remove(device_t dev);
 int		acpi_battery_get_units(void);
 int		acpi_battery_get_info_expire(void);
-int		acpi_battery_get_battdesc(int, struct acpi_battdesc *);
-
-int		acpi_cmbat_get_battinfo(int, struct acpi_battinfo *);
+int		acpi_battery_bst_valid(struct acpi_bst *bst);
+int		acpi_battery_bif_valid(struct acpi_bif *bif);
+int		acpi_battery_get_battinfo(device_t dev,
+		    struct acpi_battinfo *info);
 
 /* Embedded controller. */
 void		acpi_ec_ecdt_probe(device_t);
