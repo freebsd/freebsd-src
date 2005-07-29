@@ -66,10 +66,6 @@ __FBSDID("$FreeBSD$");
 #undef szsigcode
 
 MODULE_VERSION(linux, 1);
-MODULE_DEPEND(linux, osf1, 1, 1, 1);
-MODULE_DEPEND(linux, sysvmsg, 1, 1, 1);
-MODULE_DEPEND(linux, sysvsem, 1, 1, 1);
-MODULE_DEPEND(linux, sysvshm, 1, 1, 1);
 
 MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 
@@ -288,4 +284,5 @@ static moduledata_t linux_elf_mod = {
 
 DUMMY(rt_sigreturn);
 
+MODULE_DEPEND(linux, osf1, 1, 1, 1);
 DECLARE_MODULE(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
