@@ -206,6 +206,12 @@ sub report($$$$) {
     my $subject = shift;
     my $message = shift;
 
+    if (length($message) < 64) {
+	print(STDERR "[suspiciously short report, not sent by email]\n\n");
+	print(STDERR $message);
+	return;
+    }
+
     local *PIPE;
     if (open(PIPE, "|-", "/usr/sbin/sendmail", "-i", "-t", "-f$sender")) {
 	print(PIPE "Sender: $sender\n");
