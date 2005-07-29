@@ -878,13 +878,13 @@ amr_startio(struct amr_softc *sc)
 static void
 amr_completeio(struct amr_command *ac)
 {
-    struct amr_softc	*sc = ac->ac_sc;
+    struct amrd_softc	*sc = ac->ac_bio->bio_disk->d_drv1;
 
     if (ac->ac_status != AMR_STATUS_SUCCESS) {	/* could be more verbose here? */
 	ac->ac_bio->bio_error = EIO;
 	ac->ac_bio->bio_flags |= BIO_ERROR;
 
-	device_printf(sc->amr_dev, "I/O error - 0x%x\n", ac->ac_status);
+	device_printf(sc->amrd_dev, "I/O error - 0x%x\n", ac->ac_status);
 /*	amr_printcommand(ac);*/
     }
     amrd_intr(ac->ac_bio);
