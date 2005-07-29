@@ -46,7 +46,7 @@
 .Ar host
 .Ar path
 .Nm
-.Cm attach
+.Cm rescue
 .Op Fl n
 .Op Fl v
 .Op Fl o Cm ro | wo | rw
@@ -83,12 +83,11 @@ Connect to given
 daemon and create a
 .Nm ggate
 provider related to the given remote file or device.
-.It Cm attach
-Attach a worker process to an existing
-.Nm ggate
-provider (create a new connection to the
+.It Cm rescue
+If ggatec process died/has been killed, you can save situation with this
+command, which creates new connection to the
 .Xr ggated 8
-daemon).
+daemon and will handle pending and future requests.
 .It Cm destroy
 Destroy the given
 .Nm ggate
@@ -139,7 +138,7 @@ If not specified, it is taken from device, or set to 512 bytes for files.
 .It Fl t Ar timeout
 Number of seconds to wait before an I/O request will be canceled.
 0 means no timeout.
-Default is 30.
+Default is 0.
 .It Fl u Ar unit
 Unit number to use.
 .It Fl v
