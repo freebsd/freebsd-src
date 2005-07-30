@@ -935,7 +935,9 @@ key_allocsa(family, src, dst, proto, spi)
 	struct secasvar *sav, *match;
 	u_int stateidx, state, tmpidx, matchidx;
 	struct sockaddr_in sin;
+#ifdef INET6
 	struct sockaddr_in6 sin6;
+#endif
 	int s;
 	const u_int *saorder_state_valid;
 	int arraysize;
@@ -959,9 +961,11 @@ key_allocsa(family, src, dst, proto, spi)
 	bzero(&sin, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_len = sizeof(sin);
+#ifdef INET6
 	bzero(&sin6, sizeof(sin6));
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_len = sizeof(sin6);
+#endif
 
 	/*
 	 * searching SAD.
@@ -1005,6 +1009,7 @@ key_allocsa(family, src, dst, proto, spi)
 				continue;
 
 			break;
+#ifdef INET6
 		case AF_INET6:
 			bcopy(src, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
 			sin6.sin6_scope_id = 0;
@@ -1014,6 +1019,7 @@ key_allocsa(family, src, dst, proto, spi)
 			    (struct sockaddr *)&sav->sah->saidx.src, 0) != 0)
 				continue;
 			break;
+#endif
 		default:
 			ipseclog((LOG_DEBUG, "key_allocsa: "
 			    "unknown address family=%d.\n",
@@ -1031,6 +1037,7 @@ key_allocsa(family, src, dst, proto, spi)
 				continue;
 
 			break;
+#ifdef INET6
 		case AF_INET6:
 			bcopy(dst, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
 			sin6.sin6_scope_id = 0;
@@ -1040,6 +1047,7 @@ key_allocsa(family, src, dst, proto, spi)
 			    (struct sockaddr *)&sav->sah->saidx.dst, 0) != 0)
 				continue;
 			break;
+#endif
 		default:
 			ipseclog((LOG_DEBUG, "key_allocsa: "
 			    "unknown address family=%d.\n", family));
