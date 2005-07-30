@@ -3263,6 +3263,23 @@ if successful; otherwise the value
 is returned and the global variable
 .Va errno
 is set to indicate the error.
+.Sh COMPATIBILITY
+The interface between the
+.Xr pmc 3
+library and the
+.Xr hwpmc 4
+driver is intended to be private to the implementation and may
+change.
+In order to ease forward compatibility with future versions of the
+.Xr hwpmc 4
+driver, applications are urged to dynamically link with the
+.Xr pmc 3
+library.
+.Pp
+The
+.Xr pmc 3
+API is
+.Ud
 .Sh ERRORS
 A call to
 .Fn pmc_init
@@ -3384,6 +3401,11 @@ driver.
 .Xr hwpmc 4 ,
 .Xr pmccontrol 8 ,
 .Xr pmcstat 8
+.Sh HISTORY
+The
+.Xr pmc 3
+library first appeared in
+.Fx 6.0 .
 .Sh BUGS
 The information returned by
 .Fn pmc_cpuinfo ,
