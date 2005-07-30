@@ -1060,6 +1060,7 @@ geom/raid3/g_raid3_ctl.c	optional geom_raid3
 geom/shsec/g_shsec.c		optional geom_shsec
 geom/stripe/g_stripe.c		optional geom_stripe
 geom/uzip/g_uzip.c		optional geom_uzip
+geom/zero/g_zero.c		optional geom_zero
 gnu/fs/ext2fs/ext2_alloc.c		optional ext2fs \
 	warning "kernel contains GPL contaminated ext2fs filesystem"
 gnu/fs/ext2fs/ext2_balloc.c	optional ext2fs
