@@ -247,6 +247,7 @@ extern void	*dsitrap, *dsisize;
 extern void	*decrint, *decrsize;
 extern void     *extint, *extsize;
 extern void	*dblow, *dbsize;
+extern void	*vectrap, *vectrapsize;
 
 void
 powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
@@ -335,6 +336,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	bcopy(&trapcode, (void *)EXC_SC,   (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_TRC,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_FPA,  (size_t)&trapsize);
+	bcopy(&vectrap,  (void *)EXC_VEC,  (size_t)&vectrapsize);
+	bcopy(&trapcode, (void *)EXC_VECAST, (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_THRM, (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_BPT,  (size_t)&trapsize);
 #ifdef KDB

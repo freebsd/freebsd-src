@@ -443,6 +443,14 @@ CNAME(trapexit):
 	FRAME_LEAVE(PC_TEMPSAVE)
 	rfi
 
+/*
+ *     Temporary: vector-unavailable traps are directed to vector-assist traps
+ */
+	.globl  CNAME(vectrap),CNAME(vectrapsize)
+CNAME(vectrap):
+	ba	EXC_VECAST
+CNAME(vectrapsize) = .-CNAME(vectrap)
+
 #if defined(KDB)
 /*
  * Deliberate entry to dbtrap
