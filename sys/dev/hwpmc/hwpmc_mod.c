@@ -3917,6 +3917,18 @@ pmc_initialize(void)
 
 	PMCDBG(MOD,INI,0, "PMC Initialize (version %x)", PMC_VERSION);
 
+	/* check kernel version */
+	if (pmc_kernel_version != PMC_VERSION) {
+		if (pmc_kernel_version == 0)
+			printf("hwpmc: this kernel has not been compiled with "
+			    "'options HWPMC_HOOKS'.\n");
+		else
+			printf("hwpmc: kernel version (0x%x) does not match "
+			    "module version (0x%x).\n", pmc_kernel_version,
+			    PMC_VERSION);
+		return EPROGMISMATCH;
+	}
+
 	/*
 	 * check sysctl parameters
 	 */
