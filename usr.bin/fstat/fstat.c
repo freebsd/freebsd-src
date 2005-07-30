@@ -154,7 +154,7 @@ void socktrans(struct socket *sock, int i);
 void getinetproto(int number);
 int  getfname(const char *filename);
 void usage(void);
-
+char *kdevtoname(struct cdev *dev);
 
 int
 main(int argc, char **argv)
@@ -472,6 +472,16 @@ dommap(struct kinfo_proc *kp)
 	}
 }
 
+char *
+kdevtoname(struct cdev *dev)
+{
+	struct cdev si;
+
+	if (!KVM_READ(dev, &si, sizeof si))
+		return (NULL);
+	return (strdup(si.__si_namebuf));
+}
+
 void
 vtrans(struct vnode *vp, int i, int flag)
 {
@@ -555,11 +565,13 @@ vtrans(struct vnode *vp, int i, int flag)
 	case VCHR: {
 		char *name;
 
-		if (nflg || ((name = devname(fst.rdev, vn.v_type == VCHR ?
-		    S_IFCHR : S_IFBLK)) == NULL))
+		name = kdevtoname(vn.v_rdev);
+		if (nflg || !name)
 			printf("  %2d,%-2d", major(fst.rdev), minor(fst.rdev));
-		else
+		else {
 			printf(" %6s", name);
+			free(name);
+		}
 		break;
 	}
 	default:
