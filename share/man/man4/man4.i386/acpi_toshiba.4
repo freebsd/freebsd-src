@@ -42,7 +42,7 @@ The
 driver allows the user to manipulate HCI-controlled hardware using a number of
 .Xr sysctl 8
 variables.
-.Sh SYSCTLS
+.Sh SYSCTL VARIABLES
 The following sysctls are currently implemented:
 .Bl -tag -width indent
 .It Va hw.acpi.toshiba.force_fan
@@ -85,7 +85,7 @@ Higher sysctl values mean lower CPU speeds.
 Defaults for these variables can be set in
 .Xr sysctl.conf 5 ,
 which is parsed at boot-time.
-.Sh TUNABLES
+.Sh LOADER TUNABLES
 The
 .Va hw.acpi.toshiba.enable_fn_keys
 tunable enables or disables the function keys on the keyboard.

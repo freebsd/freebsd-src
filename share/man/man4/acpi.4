@@ -52,7 +52,7 @@ driver is automatically loaded by the
 .Xr loader 8 ,
 and should only be
 compiled into the kernel on platforms where ACPI is mandatory.
-.Sh SYSCTLS
+.Sh SYSCTL VARIABLES
 The
 .Nm
 driver is intended to provide power management without user intervention.
@@ -87,7 +87,7 @@ semantics as the C3 state.
 Deeper sleeps provide more power savings but increased transition
 latency when an interrupt occurs.
 .El
-.Sh TUNABLES
+.Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel or stored in
