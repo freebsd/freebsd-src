@@ -10,6 +10,8 @@
  * license.
  *
  * See README and COPYING for more details.
+ *
+ * $FreeBSD$
  */
 
 #include <stdlib.h>
@@ -871,6 +873,15 @@ static void wpa_supplicant_associnfo(struct wpa_supplicant *wpa_s,
 
 }
 
+static int any_interfaces(struct wpa_supplicant *head)
+{
+	struct wpa_supplicant *wpa_s;
+
+	for (wpa_s = head; wpa_s != NULL; wpa_s = wpa_s->next)
+		if (!wpa_s->interface_removed)
+			return 1;
+	return 0;
+}
 
 void wpa_supplicant_event(struct wpa_supplicant *wpa_s, wpa_event_type event,
 			  union wpa_event_data *data)
@@ -1001,6 +1012,9 @@ void wpa_supplicant_event(struct wpa_supplicant *wpa_s, wpa_event_type event,
 			wpa_supplicant_mark_disassoc(wpa_s);
 			l2_packet_deinit(wpa_s->l2);
 			wpa_s->l2 = NULL;
+			/* check if last interface */
+			if (!any_interfaces(wpa_s->head))
+				eloop_terminate();
 			break;
 		}
 		break;
