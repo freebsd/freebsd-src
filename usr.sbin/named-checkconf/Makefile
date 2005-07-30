@@ -14,8 +14,8 @@ SRCS+=		named-checkconf.c check-tool.c
 
 CFLAGS+=	-I${LIB_BIND_DIR}
 
-DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
-LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
+DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD}
+LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD}
 
 MAN=		named-checkconf.8
 

@@ -24,8 +24,8 @@ SRCS+=		aclconf.c builtin.c client.c config.c control.c \
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 
-DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
-LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
+DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD}
+LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD}
 
 MAN=		named.8 lwresd.8 named.conf.5
 

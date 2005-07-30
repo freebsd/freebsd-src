@@ -74,7 +74,7 @@ LIBISCCFG=	${LIB_BIND_REL}/isccfg/libisccfg.a
 CFLAGS+=	-I${BIND_DIR}/lib/isccfg/include
 LIBISC=		${LIB_BIND_REL}/isc/libisc.a
 CFLAGS+=	-I${BIND_DIR}/lib/isc/unix/include \
-		-I${BIND_DIR}/lib/isc/pthreads/include \
+		-I${BIND_DIR}/lib/isc/nothreads/include \
 		-I${BIND_DIR}/lib/isc/include \
 		-I${LIB_BIND_DIR}/isc
 LIBLWRES=	${LIB_BIND_REL}/lwres/liblwres.a
@@ -95,17 +95,3 @@ BIND_LDADD=	${BIND_DPADD}
 CRYPTO_DPADD=	${LIBCRYPTO}
 CRYPTO_LDADD=	-lcrypto
 .endif
-
-# Link against POSIX threads library
-.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
-.if defined(NO_LIBC_R)
-.error "BIND requires libpthread - define NO_BIND, or undefine NO_LIBC_R"
-.endif
-.else
-.if defined(NO_LIBPTHREAD)
-.error "BIND requires libpthread - define NO_BIND, or undefine NO_LIBPTHREAD"
-.endif
-.endif
-
-PTHREAD_DPADD=	${LIBPTHREAD}
-PTHREAD_LDADD=	-lpthread
