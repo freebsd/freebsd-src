@@ -26,10 +26,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_hwpmc_hooks.h"
+
+#include <sys/types.h>
+#include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/smp.h>
 
-struct sx pmc_sx;
+#if	HWPMC_HOOKS
+#define	PMC_KERNEL_VERSION	PMC_VERSION
+#else
+#define	PMC_KERNEL_VERSION	0
+#endif
+
+const int pmc_kernel_version = PMC_KERNEL_VERSION;
 
 /* Hook variable. */
 int (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
@@ -37,13 +47,13 @@ int (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
 /* Interrupt handler */
 int (*pmc_intr)(int cpu, uintptr_t pc, int usermode) = NULL;
 
+/* Bitmask of CPUs requiring servicing at hardclock time */
 volatile cpumask_t pmc_cpumask;
 
 /*
  * A global count of SS mode PMCs.  When non-zero, this means that
  * we have processes that are sampling the system as a whole.
  */
-
 volatile int pmc_ss_count;
 
 /*
@@ -55,14 +65,11 @@ volatile int pmc_ss_count;
  * shared (sx) lock -- thus making the process of calling into PMC(4)
  * somewhat more expensive than a simple 'if' check and indirect call.
  */
-
-
+struct sx pmc_sx;
 SX_SYSINIT(pmc, &pmc_sx, "pmc shared lock");
 
 /*
- * pmc_cpu_is_disabled
- *
- * return TRUE if the cpu specified has been disabled.
+ * Helper functions
  */
 
 int
