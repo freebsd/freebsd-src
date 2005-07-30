@@ -1051,6 +1051,8 @@ par-${__target}: ${SUBDIR:S/$/.${__target}__D/}
 
 .include <bsd.subdir.mk>
 
+.if make(delete-old) || make(delete-old-libs) || make(check-old)
+
 #
 # check for / delete old files section
 #
@@ -1064,6 +1066,8 @@ specific library."
 
 .if !defined(BATCH_DELETE_OLD_FILES)
 RM_I=-i
+.else
+RM_I=-v
 .endif
 
 delete-old-files:
@@ -1141,4 +1145,6 @@ delete-old: delete-old-files delete-old-dirs
 check-old: check-old-files check-old-libs check-old-dirs
 	@echo "To remove old files and directories run '${MAKE} delete-old'."
 	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
+
+.endif
 
