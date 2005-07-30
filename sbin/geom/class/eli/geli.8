@@ -128,13 +128,13 @@ The
 .Nm
 utility is used to configure encryption on GEOM providers.
 .Pp
-Here is the list of the most important features:
+The following is a list of the most important features:
 .Pp
 .Bl -bullet -offset indent -compact
 .It
-Utilize the
+Utilizes the
 .Xr crypto 9
-framework, so when there is a crypto hardware available,
+framework, so when there is crypto hardware available,
 .Nm
 will make use of it automatically.
 If cryptography needs to be done in software,
@@ -149,10 +149,10 @@ and
 Can create a key from a couple of components (user entered passphrase, random
 bits from a file, etc.).
 .It
-Allows to encrypt root partition - user will be asked for the passphrase before
-root file system is mounted.
+Allows to encrypt the root partition - the user will be asked for the
+passphrase before the root file system is mounted.
 .It
-User's passphrase is strengthen with:
+The passphrase of the user is strengthened with:
 .Rs 
 .%A B. Kaliski
 .%T "PKCS #5: Password-Based Cryptography Specification, Version 2.0."
@@ -169,13 +169,15 @@ It is fast -
 .Nm
 performs simple sector-to-sector encryption.
 .It
-Allows to backup/restore Master Keys, so when user have to quickly destroy keys,
-it is able to get the data back by restoring keys from the backup.
+Allows to backup/restore Master Keys, so when a user has to quickly
+destroy his keys,
+it is possible to get the data back by restoring keys from the backup.
 .It
-Provider can be configured to automatically detach on last close (so user don't
-have to remember to detach provider after unmounting file system).
+Providers can be configured to automatically detach on last close
+(so users don't have to remember to detach providers after unmounting
+the file systems).
 .It
-Allows to attach provider with a random, one-time keys - useful for swap
+Allows to attach a provider with a random, one-time key - useful for swap
 partitions and temporary file systems.
 .El
 .Pp
@@ -185,7 +187,7 @@ indicates an action to be performed:
 .Bl -tag -width ".Cm onetime"
 .It Cm init
 Initialize provider which needs to be encrypted.
-Here you can setup cryptographic algorithm to use, key length, etc.
+Here you can set up the cryptographic algorithm to use, key length, etc.
 The last provider's sector is used to store metadata.
 .Pp
 Additional options include:
@@ -200,15 +202,15 @@ and
 The default is
 .Nm AES .
 .It Fl b
-Ask for the passphrase on boot, before root partition is mounted.
-This allows to use encrypted root partition.
-One will still need bootable unencrypted storage with
+Ask for the passphrase on boot, before the root partition is mounted.
+This makes it possible to use an encrypted root partition.
+One will still need bootable unencrypted storage with a
 .Pa /boot/
-directory, which can be a CD-ROM disc or USB pen-drive, which can be removed
+directory, which can be a CD-ROM disc or USB pen-drive, that can be removed
 after boot.
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2.
-If this option is not specified
+If this option is not specified,
 .Nm
 will find the number of iterations which is equal to 2 seconds of crypto work.
 If 0 is given, PKCS#5v2 will not be used.
@@ -217,7 +219,7 @@ Specifies a file which contains part of the key.
 If
 .Ar newkeyfile
 is given as -, standard input will be used.
-Here is how more than one file with the key component can be used:
+Here is how more than one file with a key component can be used:
 .Bd -literal -offset indent
 # cat key1 key2 key3 | geli init -K - /dev/da0
 .Ed
@@ -233,13 +235,14 @@ and 192 for
 .It Fl s Ar sectorsize
 Change decrypted provider's sector size.
 Increasing sector size allows to increase performance, because we need to
-generate IV and do encrypt/decrypt for every single sector - less number
+generate an IV and do encrypt/decrypt for every single sector - less number
 of sectors means less work to do.
 .It Fl P
 Do not use passphrase as the key component.
 .El
 .It Cm attach
-Attach the given provider. The master key will be decrypted using the given
+Attach the given provider.
+The master key will be decrypted using the given
 passphrase/keyfile and a new GEOM provider will be created using the given
 provider's name with an
 .Qq .eli
@@ -248,19 +251,19 @@ suffix.
 Additional options include:
 .Bl -tag -width ".Fl a Ar algo"
 .It Fl d
-If specified, decrypted provider will be detached automatically on last close.
-This can help with short memory - user doesn't have to remember to detach
-provider after unmounting file system.
-It only works when provider was opened for writing, so it will not work if
-file system on the provider is mounted read-only.
-Probably better choice is the
+If specified, a decrypted provider will be detached automatically on last close.
+This can help with short memory - user doesn't have to remember to detach the
+provider after unmounting the file system.
+It only works when the provider was opened for writing, so it will not work if
+the file system on the provider is mounted read-only.
+Probably a better choice is the
 .Fl l
 option for the
 .Cm detach
 subcommand.
 .It Fl k Ar keyfile
 Specifies a file which contains part of the key.
-For more information see description of
+For more information see the description of the
 .Fl K
 option for the
 .Cm init
@@ -269,46 +272,47 @@ subcommand.
 Do not use passphrase as the key component.
 .El
 .It Cm detach
-Detach the given providers, which means remove devfs entry and clear the keys
-from memory.
+Detach the given providers, which means remove the devfs entry
+and clear the keys from memory.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl a Ar algo"
 .It Fl f
-Force detach - detach even if provider is open.
+Force detach - detach even if the provider is open.
 .It Fl l
 Mark provider to detach on last close.
-If this option is specified provider will not be detached until it is open,
-but when it will be closed last time, it will be automatically detached (even
+If this option is specified, the provider will not be detached
+until it is open, but when it will be closed last time, it will
+be automatically detached (even
 if it was only opened for reading).
 .El
 .It Cm onetime
-Attach the given providers with a random, one-time keys.
+Attach the given providers with random, one-time keys.
 The command can be used to encrypt swap partitions or temporary file systems.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl a Ar algo"
 .It Fl a Ar algo
 Encryption algorithm to use.
-For more information see description of the
+For more information, see the description of the
 .Cm init
 subcommand.
 .It Fl d
 Detach on last close.
-Note, the option is not usable for temporary file system, because provider will
-be detached after creating file system on it.
+Note, the option is not usable for temporary file systems as the provider will
+be detached after creating the file system on it.
 It still can (and should be) used for swap partitions.
-For more information see description of the
+For more information, see the description of the
 .Cm attach
 subcommand.
 .It Fl l Ar keylen
 Key length to use with the given cryptographic algorithm.
-For more information see description of the
+For more information, see the description of the
 .Cm init
 subcommand.
 .It Fl s Ar sectorsize
 Change decrypted provider's sector size.
-For more information see description of the
+For more information, see the description of the
 .Cm init
 subcommand.
 .El
@@ -317,10 +321,11 @@ Change or setup (if not yet initialized) selected key.
 There is one master key, which can be encrypted with two independent user keys.
 With the
 .Cm init
-subcommand only key number 0 is initialized.
-The key can be always changed: for attached provider, for detached provider or
-on the backup file.
-When provider is attached, user don't have to provide an old passphrase/keyfile.
+subcommand, only key number 0 is initialized.
+The key can always be changed: for an attached provider,
+for a detached provider or on the backup file.
+When a provider is attached, the user does not have to provide
+an old passphrase/keyfile.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl a Ar algo"
@@ -329,43 +334,45 @@ Specifies a file which contains part of the old key.
 .It Fl K Ar newkeyfile
 Specifies a file which contains part of the new key.
 .It Fl n Ar keyno
-Specifies number of the key to change (could be 0 or 1).
-If provider is attached and no key number is given, the key used for attaching
-provider will be changed.
-If provider is detached (or we're operating on a backup file) and no key number
-is given, the key decrypted with passphrase/keyfile will be changed.
+Specifies the number of the key to change (could be 0 or 1).
+If the provider is attached and no key number is given, the key
+used for attaching the provider will be changed.
+If the provider is detached (or we are operating on a backup file)
+and no key number is given, the key decrypted with the passphrase/keyfile
+will be changed.
 .It Fl p
 Do not use passphrase as the old key component.
 .It Fl P
 Do not use passphrase as the new key component.
 .El
 .It Cm delkey
-Destroy (overwrite with random data) selected key.
-If one is destroying keys for an attached provider, provider won't be detached
-even if all keys will be destroyed.
+Destroy (overwrite with random data) the selected key.
+If one is destroying keys for an attached provider, the provider
+will not be detached even if all keys will be destroyed.
 It can be even rescued with the
 .Cm setkey
 subcommand.
 .Bl -tag -width ".Fl a Ar algo"
 .It Fl a
-Destroy all keys (doesn't need
+Destroy all keys (does not need
 .Fl f
 option).
 .It Fl f
-Force key destruction. This option is needed to destroy the last key.
+Force key destruction.
+This option is needed to destroy the last key.
 .It Fl n Ar keyno
 Specifies the key number.
-If provider is attached and no key number is given, the key used for attaching
-provider will be destroyed.
-If provider is detached (or we're operating on a backup file) the key number
+If the provider is attached and no key number is given, the key
+used for attaching the provider will be destroyed.
+If provider is detached (or we are operating on a backup file) the key number
 has to be given.
 .El
 .It Cm kill
-The command should be used in emergency situations.
+This command should be used in emergency situations.
 It will destroy all keys on the given provider and will detach it forcibly
 (if it is attached).
-This is absolutely one-way command - if you don't have metadata backup, your data
-is gone for good.
+This is absolutely a one-way command - if you do not have a metadata
+backup, your data is gone for good.
 .Bl -tag -width ".Fl a Ar algo"
 .It Fl a
 If specified, all currently attached providers will be killed.
@@ -410,44 +417,46 @@ Debug level of the
 .Nm ELI
 GEOM class.
 This can be set to a number between 0 and 3 inclusive.
-If set to 0 minimal debug information is printed, and if set to 3 the
+If set to 0, minimal debug information is printed.
+If set to 3, the
 maximum amount of debug information is printed.
 This variable could be set in
 .Pa /boot/loader.conf .
 .It Va kern.geom.eli.tries : No 3
-Number of times user is asked for the passphrase.
-This is only used for providers which should be attached on boot (before root
-file system is mounted).
+Number of times a user is asked for the passphrase.
+This is only used for providers which should be attached on boot
+(before the root file system is mounted).
 If set to 0, attaching providers on boot will be disabled.
 This variable should be set in
 .Pa /boot/loader.conf .
 .It Va kern.geom.eli.overwrites : No 5
-Specifies how many times Master-Key will be overwriten with random values when
-it is destroyed. After this operation it is filled with zeros.
+Specifies how many times the Master-Key will be overwritten
+with random values when it is destroyed.
+After this operation it is filled with zeros.
 .It Va kern.geom.eli.visible_passphrase : No 0
-If set to 1, passphrase entered on boot (before root file system is mounted)
-will be visible.
-This possibility should be used with caution as entered passphrase can be logged
-and exposed via
+If set to 1, the passphrase entered on boot (before the root
+file system is mounted) will be visible.
+This possibility should be used with caution as the entered
+passphrase can be logged and exposed via
 .Xr dmesg 8 .
 This variable should be set in
 .Pa /boot/loader.conf .
 .It Va kern.geom.eli.threads : No 1
 Specifies how many kernel threads should be used for doing software
 cryptography.
-It's purpose is to increase performance on SMP systems.
+Its purpose is to increase performance on SMP systems.
 This variable could be set in
 .Pa /boot/loader.conf .
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
-Initialize provider which is going to be encrypted with a passphrase and random
-data from a file on the user's pen drive.
+Initialize a provider which is going to be encrypted with a
+passphrase and random data from a file on the user's pen drive.
 Use 4kB sector size.
 Attach the provider, create a file system and mount it.
 Do the work.
-Unmount provider and detach it:
+Unmount the provider and detach it:
 .Bd -literal -offset indent
 # dd if=/dev/random of=/mnt/pendrive/da2.key bs=64 count=1
 # geli init -s 4096 -K /mnt/pendrive/da2.key /dev/da2
@@ -463,26 +472,27 @@ Enter passphrase:
 # geli detach da2.eli
 .Ed
 .Pp
-Create encrypted provider, but use two key: one for your girlfriend and one for
-you (so there will be no tragedy if she forget her passphrase):
+Create an encrypted provider, but use two keys:
+one for your girlfriend and one for
+you (so there will be no tragedy if she forgets her passphrase):
 .Bd -literal -offset indent
 # geli init /dev/da2
 Enter new passphrase:	(enter your passphrase)
 Reenter new passphrase:
 # geli setkey -n 1 /dev/da2
 Enter passphrase:	(enter your passphrase)
-Enter new passphrase:	(let your girlfriend to enter her passphrase ...)
+Enter new passphrase:	(let your girlfriend enter her passphrase ...)
 Reenter new passphrase:	(... twice)
 .Ed
 .Pp
-You are security-person in your company.
-Create encrypted provider for use by the user, but remember that users forget
-their passphrases, so backup Master Key with your own random key:
+You are the security-person in your company.
+Create an encrypted provider for use by the user, but remember that users
+forget their passphrases, so back Master Key up with your own random key:
 .Bd -literal -offset indent
 # dd if=/dev/random of=/mnt/pendrive/keys/`hostname` bs=64 count=1
 # geli init -P -K /mnt/pendrive/keys/`hostname` /dev/ad0s1e
 # geli backup /dev/ad0s1e /mnt/pendrive/backups/`hostname`
-(use key number 0, so encrypted Master Key by you will be overwriten)
+(use key number 0, so the encrypted Master Key by you will be overwritten)
 # geli setkey -n 0 -k /mnt/pendrive/keys/`hostname` /dev/ad0s1e
 (allow the user to enter his passphrase)
 Enter new passphrase:
@@ -497,11 +507,11 @@ Encrypted swap partition setup:
 .Ed
 .Sh SEE ALSO
 .Xr crypto 4 ,
-.Xr crypto 9 ,
 .Xr gbde 4 ,
-.Xr gbde 8 ,
 .Xr geom 4 ,
-.Xr geom 8
+.Xr gbde 8 ,
+.Xr geom 8 ,
+.Xr crypto 9
 .Sh HISTORY
 The
 .Nm
