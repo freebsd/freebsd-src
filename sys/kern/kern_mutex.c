@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -728,7 +729,7 @@ void
 _mtx_assert(struct mtx *m, int what, const char *file, int line)
 {
 
-	if (panicstr != NULL)
+	if (panicstr != NULL || dumping)
 		return;
 	switch (what) {
 	case MA_OWNED:
