@@ -632,6 +632,13 @@ DECL_CMD_FUNC(set80211fragthreshold, val, d)
 		isundefarg(val) ? IEEE80211_FRAG_MAX : atoi(val), 0, NULL);
 }
 
+static
+DECL_CMD_FUNC(set80211fragthreshold, val, d)
+{
+	set80211(s, IEEE80211_IOC_FRAGTHRESHOLD,
+		isundefarg(val) ? IEEE80211_FRAG_MAX : atoi(val), 0, NULL);
+}
+
 static int
 getmaxrate(uint8_t rates[15], uint8_t nrates)
 {
