@@ -213,8 +213,10 @@ malloc_type_zone_allocated(struct malloc_type *mtp, unsigned long size,
 	critical_enter();
 	mtip = mtp->ks_handle;
 	mtsp = &mtip->mti_stats[curcpu];
-	mtsp->mts_memalloced += size;
-	mtsp->mts_numallocs++;
+	if (size > 0) {
+		mtsp->mts_memalloced += size;
+		mtsp->mts_numallocs++;
+	}
 	if (zindx != -1)
 		mtsp->mts_size |= 1 << zindx;
 	critical_exit();
@@ -224,7 +226,8 @@ void
 malloc_type_allocated(struct malloc_type *mtp, unsigned long size)
 {
 
-	malloc_type_zone_allocated(mtp, size, -1);
+	if (size > 0)
+		malloc_type_zone_allocated(mtp, size, -1);
 }
 
 /*
