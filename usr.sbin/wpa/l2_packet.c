@@ -148,6 +148,16 @@ l2_packet_init_libpcap(struct l2_packet_data *l2, unsigned short protocol)
 	return 0;
 }
 
+static void
+l2_packet_deinit_libpcap(struct l2_packet_data *l2)
+{
+	if (l2->pcap != NULL) {
+		eloop_unregister_read_sock(pcap_get_selectable_fd(l2->pcap));
+		pcap_close(l2->pcap);
+		l2->pcap = NULL;
+	}
+}
+
 static int
 eth_get(const char *device, u8 ea[ETH_ALEN])
 {
@@ -220,8 +230,7 @@ void
 l2_packet_deinit(struct l2_packet_data *l2)
 {
 	if (l2 != NULL) {
-		if (l2->pcap)
-			pcap_close(l2->pcap);
+		l2_packet_deinit_libpcap(l2);
 		free(l2);
 	}
 }

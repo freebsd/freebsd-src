@@ -39,6 +39,7 @@ struct wpa_driver_bsd_data {
 	int	sock;			/* open socket for 802.11 ioctls */
 	int	route;			/* routing socket for events */
 	char	ifname[IFNAMSIZ+1];	/* interface name */
+	unsigned int ifindex;		/* interface index */
 	void	*ctx;
 };
 
@@ -420,6 +421,7 @@ wpa_driver_bsd_scan(void *priv, const u8 *ssid, size_t ssid_len)
 static void
 wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 {
+	struct wpa_driver_bsd_data *drv = sock_ctx;
 	char buf[2048];
 	struct if_announcemsghdr *ifan;
 	struct if_msghdr *ifm;
@@ -441,17 +443,15 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 			"understood\n", rtm->rtm_version);
 		return;
 	}
+	memset(&event, 0, sizeof(event));
 	switch (rtm->rtm_type) {
 	case RTM_IFANNOUNCE:
 		ifan = (struct if_announcemsghdr *) rtm;
-		memset(&event, 0, sizeof(event));
-		/* XXX name buffer must be >= IFNAMSIZ */
-		/* XXX check return value */
-		if_indextoname(ifan->ifan_index, event.interface_status.ifname);
-		switch (ifan->ifan_what) {
-		case IFAN_ARRIVAL:
-			event.interface_status.ievent = EVENT_INTERFACE_ADDED;
+		if (ifan->ifan_index != drv->ifindex)
 			break;
+		strlcpy(event.interface_status.ifname, drv->ifname,
+			sizeof(event.interface_status.ifname));
+		switch (ifan->ifan_what) {
 		case IFAN_DEPARTURE:
 			event.interface_status.ievent = EVENT_INTERFACE_REMOVED;
 		default:
@@ -465,6 +465,8 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 		break;
 	case RTM_IEEE80211:
 		ifan = (struct if_announcemsghdr *) rtm;
+		if (ifan->ifan_index != drv->ifindex)
+			break;
 		switch (ifan->ifan_what) {
 		case RTM_IEEE80211_ASSOC:
 		case RTM_IEEE80211_REASSOC:
@@ -496,9 +498,11 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 		break;
 	case RTM_IFINFO:
 		ifm = (struct if_msghdr *) rtm;
+		if (ifm->ifm_index != drv->ifindex)
+			break;
 		if ((rtm->rtm_flags & RTF_UP) == 0) {
-			if_indextoname(ifm->ifm_index,
-				event.interface_status.ifname);
+			strlcpy(event.interface_status.ifname, drv->ifname,
+				sizeof(event.interface_status.ifname));
 			event.interface_status.ievent = EVENT_INTERFACE_REMOVED;
 			wpa_printf(MSG_DEBUG, "RTM_IFINFO: Interface '%s' DOWN",
 				   event.interface_status.ifname);
@@ -646,6 +650,18 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 	if (drv == NULL)
 		return NULL;
 	memset(drv, 0, sizeof(*drv));
+	/*
+	 * NB: We require the interface name be mappable to an index.
+	 *     This implies we do not support having wpa_supplicant
+	 *     wait for an interface to appear.  This seems ok; that
+	 *     doesn't belong here; it's really the job of devd.
+	 */
+	drv->ifindex = if_nametoindex(ifname);
+	if (drv->ifindex == 0) {
+		wpa_printf(MSG_DEBUG, "%s: interface %s does not exist",
+			   __func__, ifname);
+		goto fail1;
+	}
 	drv->sock = socket(PF_INET, SOCK_DGRAM, 0);
 	if (drv->sock < 0)
 		goto fail1;
@@ -653,7 +669,7 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 	if (drv->route < 0)
 		goto fail;
 	eloop_register_read_sock(drv->route,
-		wpa_driver_bsd_event_receive, ctx, NULL);
+		wpa_driver_bsd_event_receive, ctx, drv);
 
 	drv->ctx = ctx;
 	strncpy(drv->ifname, ifname, sizeof(drv->ifname));
