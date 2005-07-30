@@ -487,6 +487,13 @@ that intend to write values larger than 2^31 into these PMCs with
 need to be aware of this hardware limitation.
 .Sh DIAGNOSTICS
 .Bl -diag
+.It "hwpmc: this kernel has not been compiled with 'options HWPMC_HOOKS'."
+The module loading process failed because the currently executing kernel
+was not configured with the required configuration option
+.Cd HWPMC_HOOKS .
+.It "hwpmc: kernel version (0x%x) does not match module version (0x%x)."
+The module loading process failed because a version mismatch was detected
+between the currently executing kernel and the module being loaded.
 .It "hwpmc: tunable hashsize=%d must be greater than zero."
 A negative value was supplied for tunable
 .Va kern.hwpmc.hashsize .
