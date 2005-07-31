@@ -578,7 +578,7 @@ sb_stop(struct sb_chinfo *ch)
 		 */
 		sb_cmd(sb, DSP_CMD_DMAEXIT_8);
 #endif
-		 sb_reset_dsp(sb);
+		sb_reset_dsp(sb);
 	}
 
 	if (play)
