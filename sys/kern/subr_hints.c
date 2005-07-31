@@ -61,6 +61,8 @@ res_find(int *line, int *startln,
 	char *p;
 
 	if (checkmethod) {
+		hintp = NULL;
+
 		switch (hintmode) {
 		case 0:		/* loader hints in environment only */
 			break;
