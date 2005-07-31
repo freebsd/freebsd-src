@@ -199,6 +199,10 @@ ieee80211_mgmt_output(struct ieee80211com *ic, struct ieee80211_node *ni,
 
 /*
  * Send a null data frame to the specified node.
+ *
+ * NB: the caller is assumed to have setup a node reference
+ *     for use; this is necessary to deal with a race condition
+ *     when probing for inactive stations.
  */
 int
 ieee80211_send_nulldata(struct ieee80211_node *ni)
@@ -212,9 +216,10 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	if (m == NULL) {
 		/* XXX debug msg */
 		ic->ic_stats.is_tx_nobuf++;
+		ieee80211_unref_node(&ni);
 		return ENOMEM;
 	}
-	m->m_pkthdr.rcvif = (void *) ieee80211_ref_node(ni);
+	m->m_pkthdr.rcvif = (void *) ni;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ic, ni, wh,
