@@ -30,6 +30,14 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
+/*
+ * Default speed
+ */
+#define VCHAN_DEFAULT_SPEED	48000
+
+extern int feeder_rate_ratemin;
+extern int feeder_rate_ratemax;
+
 struct vchinfo {
 	u_int32_t spd, fmt, blksz, bps, run;
 	struct pcm_channel *channel, *parent;
@@ -154,8 +162,12 @@ vchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	ch->fmt = format;
 	ch->bps = 1;
 	ch->bps <<= (ch->fmt & AFMT_STEREO)? 1 : 0;
-	ch->bps <<= (ch->fmt & AFMT_16BIT)? 1 : 0;
-	ch->bps <<= (ch->fmt & AFMT_32BIT)? 2 : 0;
+	if (ch->fmt & AFMT_16BIT)
+		ch->bps <<= 1;
+	else if (ch->fmt & AFMT_24BIT)
+		ch->bps *= 3;
+	else if (ch->fmt & AFMT_32BIT)
+		ch->bps <<= 2;
    	CHN_UNLOCK(channel);
 	chn_notify(parent, CHN_N_FORMAT);
    	CHN_LOCK(channel);
@@ -243,6 +255,113 @@ static kobj_method_t vchan_methods[] = {
 };
 CHANNEL_DECLARE(vchan);
 
+/* 
+ * On the fly vchan rate settings
+ */
+#ifdef SND_DYNSYSCTL
+static int
+sysctl_hw_snd_vchanrate(SYSCTL_HANDLER_ARGS)
+{
+	struct snddev_info *d;
+    	struct snddev_channel *sce;
+	struct pcm_channel *c, *fake;
+	struct pcmchan_caps *caps;
+	int err = 0;
+	int errcnt = 0;
+	int found = 0;
+	int newspd = 0;
+	int success = 0;
+
+	d = oidp->oid_arg1;
+	if (pcm_inprog(d, 1) != 1) {
+		pcm_inprog(d, -1);
+		return EINPROGRESS;
+	}
+	if (d->vchancount < 1) {
+		pcm_inprog(d, -1);
+		return EINVAL;
+	}
+	SLIST_FOREACH(sce, &d->channels, link) {
+		c = sce->channel;
+		CHN_LOCK(c);
+		if (c->direction == PCMDIR_PLAY) {
+			if (c->flags & CHN_F_VIRTUAL) {
+				if (req->newptr != NULL &&
+						(c->flags & CHN_F_BUSY)) {
+					CHN_UNLOCK(c);
+					pcm_inprog(d, -1);
+					return EBUSY;
+				}
+			} else if (!SLIST_EMPTY(&c->children)) {
+				if (found++ == 0)
+					newspd = c->speed;
+			}
+		}
+		CHN_UNLOCK(c);
+	}
+	if (found < 1) {
+		pcm_inprog(d, -1);
+		return EINVAL;
+	}
+	err = sysctl_handle_int(oidp, &newspd, sizeof(newspd), req);
+	if (err == 0 && req->newptr != NULL) {
+		if (newspd < 1) {
+			pcm_inprog(d, -1);
+			return EINVAL;
+		}
+		SLIST_FOREACH(sce, &d->channels, link) {
+			c = sce->channel;
+			CHN_LOCK(c);
+			if (c->direction == PCMDIR_PLAY) {
+				if (c->flags & CHN_F_VIRTUAL) {
+					if (c->flags & CHN_F_BUSY) {
+						CHN_UNLOCK(c);
+						pcm_inprog(d, -1);
+						return EBUSY;
+					}
+				} else if (!SLIST_EMPTY(&c->children)) {
+					caps = chn_getcaps(c);
+					if (caps != NULL) {
+						if (newspd < caps->minspeed ||
+								newspd > caps->maxspeed ||
+								newspd < feeder_rate_ratemin ||
+								newspd > feeder_rate_ratemax) {
+							errcnt++;
+						} else {
+							if (newspd != c->speed) {
+								err = chn_setspeed(c, newspd);
+								if (err != 0)
+									errcnt++;
+								else
+									success++;
+							} else
+								success++;
+						}
+					} else
+						errcnt++;
+				}
+			}
+			CHN_UNLOCK(c);
+		}
+		/*
+		 * Save new value to fake channel.
+		 */
+		if (success > 0) {
+			fake = pcm_getfakechan(d);
+			if (fake != NULL) {
+				CHN_LOCK(fake);
+				fake->speed = newspd;
+				CHN_UNLOCK(fake);
+			}
+		}
+	}
+	pcm_inprog(d, -1);
+	if (errcnt > 0)
+		err = EINVAL;
+	return err;
+}
+#endif
+
 /* virtual channel interface */
 
 int
@@ -292,12 +411,74 @@ vchan_create(struct pcm_channel *parent)
    	CHN_LOCK(parent);
 	/* XXX gross ugly hack, murder death kill */
 	if (first && !err) {
+		struct pcm_channel *fake;
+		struct pcmchan_caps *parent_caps;
+		int speed = 0;
+
 		err = chn_reset(parent, AFMT_STEREO | AFMT_S16_LE);
 		if (err)
 			printf("chn_reset: %d\n", err);
-		err = chn_setspeed(parent, 44100);
+
+		fake = pcm_getfakechan(d);
+		if (fake != NULL) {
+			/*
+			 * Trying to avoid querying kernel hint, previous
+			 * value already saved here.
+			 */
+			CHN_LOCK(fake);
+			speed = fake->speed;
+			CHN_UNLOCK(fake);
+		}
+		/*
+		 * This is very sad. Few soundcards advertised as being
+		 * able to do (insanely) higher/lower speed, but in
+		 * reality, they simply can't. At least, we give user chance
+		 * to set sane value via kernel hints file or sysctl.
+		 */
+		if (speed < 1 && resource_int_value(device_get_name(parent->dev),
+				device_get_unit(parent->dev),
+				"vchanrate", &speed) != 0) {
+			speed = VCHAN_DEFAULT_SPEED;
+		}
+
+		parent_caps = chn_getcaps(parent);
+
+		if (parent_caps != NULL) {
+			/*
+			 * Limit speed based on driver caps.
+			 * This is supposed to help fixed rate, non-VRA
+			 * AC97 cards, but.. (see below)
+			 */
+			if (speed < parent_caps->minspeed)
+				speed = parent_caps->minspeed;
+			if (speed > parent_caps->maxspeed)
+				speed = parent_caps->maxspeed;
+		}
+
+		/*
+		 * We still need to limit the speed between
+		 * feeder_rate_ratemin <-> feeder_rate_ratemax. This is
+		 * just an escape goat if all of the above failed
+		 * miserably.
+		 */
+		if (speed < feeder_rate_ratemin)
+			speed = feeder_rate_ratemin;
+		if (speed > feeder_rate_ratemax)
+			speed = feeder_rate_ratemax;
+
+		err = chn_setspeed(parent, speed);
 		if (err)
 			printf("chn_setspeed: %d\n", err);
+		else {
+			if (fake != NULL) {
+				/*
+				 * Save new value to fake channel.
+				 */
+				CHN_LOCK(fake);
+				fake->speed = speed;
+				CHN_UNLOCK(fake);
+			}
+		}
 	}
 
 	return err;
@@ -338,8 +519,10 @@ gotch:
 
 	/* remove us from our grandparent's channel list */
 	err = pcm_chn_remove(d, c);
-	if (err)
+	if (err) {
+		CHN_UNLOCK(parent);
 		return err;
+	}
 
 	CHN_UNLOCK(parent);
 	/* destroy ourselves */
@@ -358,6 +541,9 @@ vchan_initsys(device_t dev)
 	SYSCTL_ADD_PROC(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
             OID_AUTO, "vchans", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
 	    sysctl_hw_snd_vchans, "I", "");
+	SYSCTL_ADD_PROC(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
+	    OID_AUTO, "vchanrate", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
+	    sysctl_hw_snd_vchanrate, "I", "");
 #endif
 
 	return 0;
