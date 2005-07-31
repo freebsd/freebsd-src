@@ -705,9 +705,7 @@ est_get_info(device_t dev)
 	if (error) {
 		printf(
 	"est: CPU supports Enhanced Speedstep, but is not recognized.\n"
-	"est: Please update driver or contact the maintainer.\n"
-	"est: cpu_vendor %s, msr %0jx, bus_clk, %x\n",
-		    cpu_vendor, msr, INTEL_BUS_CLK);
+		    );
 		return (ENXIO);
 	}
 
