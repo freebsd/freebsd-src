@@ -170,7 +170,7 @@ Each of these functions takes the following arguments:
 .It Fa cookie
 is the node specific command cookie,
 .It Fa opcode
-is the node specific code for the operation to performa,
+is the node specific code for the operation to perform,
 .It Fa arg
 is a pointer to the message itself.
 This message must start with a
@@ -208,7 +208,7 @@ and waits for a matching response.
 All three functions take the same arguments as the
 .Fn ng_output*
 functions.
-The functions return the reponse message in a buffer allocated by
+The functions return the response message in a buffer allocated by
 .Xr malloc 3
 or NULL in case of an error.
 The maximum size of the response buffer can be
@@ -223,14 +223,14 @@ hook through which to send the data, a pointer to the message buffer and
 the size of the message.
 It returns -1 if an error happens.
 .Ss ASYNCHRONOUS CONTROL AND DATA MESSAGES
-A module can register functions to asynchronuosly receive control and data
+A module can register functions to asynchronously receive control and data
 message.
 .Pp
 The function
 .Fn ng_register_cookie
 registers a control message receive function.
 If a control message is
-received, that is not consumed by the dialog functions, the list of registerred
+received, that is not consumed by the dialog functions, the list of registered
 control message receive functions is scanned.
 If the cookie in the received
 message is the same as the
@@ -256,7 +256,7 @@ to the same cookie and node id.
 A control message registration can be undone by calling
 .Fn ng_unregister_cookie
 with the return value of the registration call.
-If an error occures while registering,
+If an error occurs while registering,
 .Fn ng_register_cookie
 returns NULL.
 .Pp
@@ -275,7 +275,7 @@ The message should be treated as read-only.
 A data message registration can be undone by calling
 .Fn ng_unregister_hook
 with the return value of the registration call.
-If an error occures while registering,
+If an error occurs while registering,
 .Fn ng_register_hook
 returns NULL.
 .Pp
@@ -348,7 +348,7 @@ is not NULL, the function checks, that the peer node's type is
 .Fa type .
 The function skips intermediate tee nodes (see
 .Xr ng_tee 4 ) .
-It returns the node id of the peer node or 0 if an error occurres or the
+It returns the node id of the peer node or 0 if an error occurs or the
 types do not match.
 .Ss CHANGING THE GRAPH
 A number of functions can be used to create or destroy nodes and hooks.
