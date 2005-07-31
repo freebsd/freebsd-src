@@ -253,6 +253,9 @@ ep_free(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->iobase);
 	if (sc->irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+	sc->ep_intrhand = 0;
+	sc->iobase = 0;
+	sc->irq = 0;
 }
 
 static void
@@ -420,7 +423,6 @@ epinit_locked(struct ep_softc *sc)
 	CSR_WRITE_2(sc, EP_COMMAND, ACK_INTR | 0xff);
 
 	CSR_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK | S_5_INTS);
-
 	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
 	if (ifp->if_flags & IFF_PROMISC)
