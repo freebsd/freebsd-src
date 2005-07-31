@@ -167,6 +167,17 @@
 #define ES1371_SRC_RAM_DATAI(i) (((i)>>0)&0xffff)	/* current value of the sample rate converter */
 
 /*
+ * S/PDIF specific
+ */
+
+/* Use ES1370_REG_CONTROL */
+#define RECEN_B			0x08000000	/* Used to control mixing of analog with digital data */
+#define SPDIFEN_B		0x04000000	/* Reset to switch digital output mux to "THRU" mode */
+/* Use ES1370_REG_STATUS */
+#define ENABLE_SPDIF		0x00040000	/* Used to enable the S/PDIF circuitry */
+#define TEST_SPDIF		0x00020000	/* Used to put the S/PDIF module in "test mode" */
+
+/*
  *  Sample rate converter addresses
  */
 
