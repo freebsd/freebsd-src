@@ -111,12 +111,12 @@
 #define EEPROM_CHECKSUM_EL3     0x17
 
 /**************************************************************************
- *										  *
+ *									  *
  * These are the registers for the 3Com 3c509 and their bit patterns when *
  * applicable.  They have been taken out the the "EtherLink III Parallel  *
  * Tasking EISA and ISA Technical Reference" "Beta Draft 10/30/92" manual *
  * from 3com.								  *
- *										  *
+ *									  *
  **************************************************************************/
 
 #define EP_COMMAND		0x0e	/* Write. BASE+0x0e is always a
@@ -277,6 +277,11 @@
 #define STATS_ENABLE		(u_short) (0x15<<11)
 #define STATS_DISABLE		(u_short) (0x16<<11)
 #define STOP_TRANSCEIVER	(u_short) (0x17<<11)
+#define TX_PLL_ENABLE		(u_short) (0x18<<11)
+#define TX_PLL_DISABLE		(u_short) (0x19<<11)
+#define POWER_UP		(u_short) (0x1b<<11)
+#define POWER_DOWN		(u_short) (0x1b<<11)
+#define POWER_AUTO		(u_short) (0x1b<<11)
 
 /*
  * Status register. All windows.
