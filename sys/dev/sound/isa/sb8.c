@@ -475,11 +475,17 @@ sb_intr(void *arg)
     	struct sb_info *sb = (struct sb_info *)arg;
 
 	sb_lock(sb);
-    	if (sndbuf_runsz(sb->pch.buffer) > 0)
+    	if (sndbuf_runsz(sb->pch.buffer) > 0) {
+		sb_unlock(sb);
 		chn_intr(sb->pch.channel);
+		sb_lock(sb);
+	}
 
-    	if (sndbuf_runsz(sb->rch.buffer) > 0)
+    	if (sndbuf_runsz(sb->rch.buffer) > 0) {
+		sb_unlock(sb);
 		chn_intr(sb->rch.channel);
+		sb_lock(sb);
+	}
 
 	sb_rd(sb, DSP_DATA_AVAIL); /* int ack */
 	sb_unlock(sb);
@@ -564,8 +570,16 @@ sb_stop(struct sb_chinfo *ch)
 	sb_lock(sb);
     	if (sb->bd_flags & BD_F_HISPEED)
 		sb_reset_dsp(sb);
-	else
+	else {
+#if 0
+		/*
+		 * NOTE: DSP_CMD_DMAEXIT_8 does not work with old
+		 * soundblaster.
+		 */
 		sb_cmd(sb, DSP_CMD_DMAEXIT_8);
+#endif
+		 sb_reset_dsp(sb);
+	}
 
 	if (play)
 		sb_cmd(sb, DSP_CMD_SPKOFF); /* speaker off */
