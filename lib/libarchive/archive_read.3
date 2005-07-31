@@ -194,7 +194,7 @@ the
 .Fn archive_read_data_block
 function avoids copying data and allows you to correctly handle
 sparse files, as supported by some archive formats.
-The library gaurantees that offsets will increase and that blocks
+The library guarantees that offsets will increase and that blocks
 will not overlap.
 Note that the blocks returned from this function can be much larger
 than the block size read from disk, due to compression
@@ -272,7 +272,7 @@ Complete the archive and invoke the close callback.
 .It Fn archive_read_finish
 Invokes
 .Fn archive_read_close
-if it was not invoked maually, then release all resources.
+if it was not invoked manually, then release all resources.
 .El
 .Pp
 Note that the library determines most of the relevant information about
@@ -341,7 +341,7 @@ on success.
 On failure, the callback should invoke
 .Fn archive_set_error
 to register an error code and message and
-regurn
+return
 .Cm ARCHIVE_FATAL.
 .Sh EXAMPLE
 The following illustrates basic usage of the library.
