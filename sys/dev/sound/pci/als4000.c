@@ -219,11 +219,11 @@ alschan_init(kobj_t obj, void *devinfo,
 	ch->format = AFMT_U8;
 	ch->speed = DSP_DEFAULT_SPEED;
 	ch->buffer = b;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
-		snd_mtxunlock(sc->lock);
-		return NULL;
-	}
 	snd_mtxunlock(sc->lock);
+
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0)
+		return NULL;
+
 	return ch;
 }
 
@@ -231,11 +231,8 @@ static int
 alschan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct	sc_chinfo *ch = data;
-	struct  sc_info *sc = ch->parent;
 
-	snd_mtxlock(sc->lock);
 	ch->format = format;
-	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -245,18 +242,15 @@ alschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	struct	sc_chinfo *ch = data, *other;
 	struct  sc_info *sc = ch->parent;
 
-	snd_mtxlock(sc->lock);
 	other = (ch->dir == PCMDIR_PLAY) ? &sc->rch : &sc->pch;
 
 	/* Deny request if other dma channel is active */
 	if (other->dma_active) {
 		ch->speed = other->speed;
-		snd_mtxunlock(sc->lock);
 		return other->speed;
 	}
 
 	ch->speed = speed;
-	snd_mtxunlock(sc->lock);
 	return speed;
 }
 
@@ -277,13 +271,10 @@ static int
 alschan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
-	struct sc_info *sc = ch->parent;
 	int32_t pos, sz;
 
-	snd_mtxlock(sc->lock);
 	pos = als_gcr_rd(ch->parent, ch->gcr_fifo_status) & 0xffff;
 	sz  = sndbuf_getsize(ch->buffer);
-	snd_mtxunlock(sc->lock);
 	return (2 * sz - pos - 1) % sz;
 }
 
@@ -395,9 +386,7 @@ static int
 alspchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct	sc_chinfo *ch = data;
-	struct  sc_info *sc = ch->parent;
 
-	snd_mtxlock(sc->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		als_playback_start(ch);
@@ -406,7 +395,6 @@ alspchan_trigger(kobj_t obj, void *data, int go)
 		als_playback_stop(ch);
 		break;
 	}
-	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -488,9 +476,7 @@ static int
 alsrchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct	sc_chinfo *ch = data;
-	struct  sc_info *sc = ch->parent;
 
-	snd_mtxlock(sc->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		als_capture_start(ch);
@@ -499,7 +485,6 @@ alsrchan_trigger(kobj_t obj, void *data, int go)
 		als_capture_stop(ch);
 		break;
 	}
-	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -904,11 +889,9 @@ als_pci_suspend(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
 
-	snd_mtxlock(sc->lock);
 	sc->pch.dma_was_active = als_playback_stop(&sc->pch);
 	sc->rch.dma_was_active = als_capture_stop(&sc->rch);
 	als_uninit(sc);
-	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -917,17 +900,14 @@ als_pci_resume(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
 
-	snd_mtxlock(sc->lock);
 
 	if (als_init(sc) != 0) {
 		device_printf(dev, "unable to reinitialize the card\n");
-		snd_mtxunlock(sc->lock);
 		return ENXIO;
 	}
 
 	if (mixer_reinit(dev) != 0) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
-		snd_mtxunlock(sc->lock);
 		return ENXIO;
 	}
 
@@ -939,7 +919,6 @@ als_pci_resume(device_t dev)
 		als_capture_start(&sc->rch);
 	}
 
-	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
