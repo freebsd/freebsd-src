@@ -268,12 +268,10 @@ viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-
-	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0) {
-		snd_mtxunlock(via->lock);
-		return NULL;
-	}
 	snd_mtxunlock(via->lock);
+
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0)
+		return NULL;
 
 	return ch;
 }
@@ -292,12 +290,10 @@ viachan_setformat(kobj_t obj, void *data, u_int32_t format)
 		mode_set |= VIA_RPMODE_16BIT;
 
 	DEB(printf("set format: dir = %d, format=%x\n", ch->dir, format));
-	snd_mtxlock(via->lock);
 	mode = via_rd(via, ch->mode, 1);
 	mode &= ~(VIA_RPMODE_16BIT | VIA_RPMODE_STEREO);
 	mode |= mode_set;
 	via_wr(via, ch->mode, mode, 1);
-	snd_mtxunlock(via->lock);
 
 	return 0;
 }
@@ -329,12 +325,9 @@ static int
 viachan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct via_chinfo *ch = data;
-	struct via_info *via = ch->parent;
 
-	snd_mtxlock(via->lock);
 	ch->blksz = blocksize;
 	sndbuf_resize(ch->buffer, SEGS_PER_CHAN, ch->blksz);
-	snd_mtxunlock(via->lock);
 
 	return ch->blksz;
 }
@@ -350,7 +343,6 @@ viachan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	snd_mtxlock(via->lock);
 	ado = ch->sgd_table;
 	DEB(printf("ado located at va=%p pa=%x\n", ado, sgd_addr));
 
@@ -360,8 +352,6 @@ viachan_trigger(kobj_t obj, void *data, int go)
 		via_wr(via, ch->ctrl, VIA_RPCTRL_START, 1);
 	} else
 		via_wr(via, ch->ctrl, VIA_RPCTRL_TERMINATE, 1);
-
-	snd_mtxunlock(via->lock);
 
 	DEB(printf("viachan_trigger: go=%d\n", go));
 	return 0;
@@ -376,7 +366,6 @@ viachan_getptr(kobj_t obj, void *data)
 	bus_addr_t sgd_addr = ch->sgd_addr;
 	int ptr, base, base1, len, seg;
 
-	snd_mtxlock(via->lock);
 	ado = ch->sgd_table;
 	base1 = via_rd(via, ch->base, 4);
 	len = via_rd(via, ch->count, 4);
@@ -400,7 +389,6 @@ viachan_getptr(kobj_t obj, void *data)
 		/* so don't return any part line - it isn't in RAM yet	*/
 		ptr = ptr & ~0x1f;
 	}
-	snd_mtxunlock(via->lock);
 
 	DEB(printf("return ptr=%d\n", ptr));
 	return ptr;
