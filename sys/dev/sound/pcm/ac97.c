@@ -611,15 +611,39 @@ ac97_initmixer(struct ac97_info *codec)
 	for (i = 0; i < 32; i++) {
 		k = codec->noext? codec->mix[i].enable : 1;
 		if (k && (codec->mix[i].reg > 0)) {
-			old = ac97_rdcd(codec, codec->mix[i].reg);
-			ac97_wrcd(codec, codec->mix[i].reg, 0x3f);
-			j = ac97_rdcd(codec, codec->mix[i].reg);
+			j = old = ac97_rdcd(codec, codec->mix[i].reg);
+			if (!(j & 0x8000)) {
+				ac97_wrcd(codec, codec->mix[i].reg, j | 0x8000);
+				j = ac97_rdcd(codec, codec->mix[i].reg);
+			}
+			if ((j & 0x8000)) {
+				j = ((1 << 6) - 1) << codec->mix[i].ofs;
+				if (codec->mix[i].mute)
+					j |= 0x8000;
+				ac97_wrcd(codec, codec->mix[i].reg, j);
+				j = ac97_rdcd(codec, codec->mix[i].reg) & j;
+				j >>= codec->mix[i].ofs;
+				if (codec->mix[i].reg == AC97_MIX_TONE &&
+						((j & 0x0001) == 0x0000))
+					j >>= 1;
+				for (k = 0; j != 0; k++)
+					j >>= 1;
+				for (j = 0; k != 0; j++)
+					k >>= 1;
+				if (j != 0) {
+					codec->mix[i].enable = 1;
+#if 0
+					codec->mix[i].bits = j;
+#endif
+				} else
+					codec->mix[i].enable = 0;
+			} else
+				codec->mix[i].enable = 0;
 			ac97_wrcd(codec, codec->mix[i].reg, old);
-			codec->mix[i].enable = (j != 0 && j != old)? 1 : 0;
-			for (k = 1; j & (1 << k); k++);
-			codec->mix[i].bits = j? k - codec->mix[i].ofs : 0;
 		}
-		/* printf("mixch %d, en=%d, b=%d\n", i, codec->mix[i].enable, codec->mix[i].bits); */
+#if 0
+		printf("mixch %d, en=%d, b=%d\n", i, codec->mix[i].enable, codec->mix[i].bits);
+#endif
 	}
 
 	device_printf(codec->dev, "<%s>\n",
@@ -645,8 +669,16 @@ ac97_initmixer(struct ac97_info *codec)
 		}
 	}
 
-	if ((ac97_rdcd(codec, AC97_REG_POWER) & 2) == 0)
-		device_printf(codec->dev, "ac97 codec reports dac not ready\n");
+	i = 0;
+	while ((ac97_rdcd(codec, AC97_REG_POWER) & 2) == 0) {
+		if (++i == 100) {
+			device_printf(codec->dev, "ac97 codec reports dac not ready\n");
+			break;
+		}
+		DELAY(1000);
+	}
+	if (bootverbose)
+		device_printf(codec->dev, "ac97 codec dac ready count: %d\n", i);
 	snd_mtxunlock(codec->lock);
 	return 0;
 }
