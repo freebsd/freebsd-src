@@ -658,6 +658,10 @@ kseq_assign(struct kseq *kseq)
 		kseq->ksq_group->ksg_load--;
 		kseq->ksq_load--;
 		ke->ke_flags &= ~KEF_ASSIGNED;
+		if (ke->ke_flags & KEF_REMOVED) {
+			ke->ke_flags &= ~KEF_REMOVED;
+			continue;
+		}
 		ke->ke_flags |= KEF_INTERNAL | KEF_HOLD;
 		sched_add(ke->ke_thread, SRQ_YIELDING);
 	}
