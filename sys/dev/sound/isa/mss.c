@@ -795,11 +795,15 @@ mss_intr(void *arg)
 		c &= ~served;
 		if (sndbuf_runsz(mss->pch.buffer) && (c & 0x10)) {
 	    		served |= 0x10;
+			mss_unlock(mss);
 	    		chn_intr(mss->pch.channel);
+			mss_lock(mss);
 		}
 		if (sndbuf_runsz(mss->rch.buffer) && (c & 0x20)) {
 	    		served |= 0x20;
+			mss_unlock(mss);
 	    		chn_intr(mss->rch.channel);
+			mss_unlock(mss);
 		}
 		/* now ack the interrupt */
 		if (FULL_DUPLEX(mss)) ad_write(mss, 24, ~c); /* ack selectively */
@@ -1111,8 +1115,16 @@ opti931_intr(void *arg)
 		return;
     	}
 
-    	if (sndbuf_runsz(mss->rch.buffer) && (mc11 & 8)) chn_intr(mss->rch.channel);
-    	if (sndbuf_runsz(mss->pch.buffer) && (mc11 & 4)) chn_intr(mss->pch.channel);
+    	if (sndbuf_runsz(mss->rch.buffer) && (mc11 & 8)) {
+		mss_unlock(mss);
+		chn_intr(mss->rch.channel);
+		mss_lock(mss);
+	}
+    	if (sndbuf_runsz(mss->pch.buffer) && (mc11 & 4)) {
+		mss_unlock(mss);
+		chn_intr(mss->pch.channel);
+		mss_lock(mss);
+	}
     	opti_wr(mss, 11, ~mc11); /* ack */
     	if (--loops) goto again;
 	mss_unlock(mss);
