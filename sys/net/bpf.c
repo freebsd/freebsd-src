@@ -79,20 +79,6 @@ static MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 #define PRINET  26			/* interruptible */
 
 /*
- * The default read buffer size is patchable.
- */
-SYSCTL_NODE(_net, OID_AUTO, bpf, CTLFLAG_RW, 0, "bpf sysctl");
-static int bpf_bufsize = 4096;
-SYSCTL_INT(_net_bpf, OID_AUTO, bufsize, CTLFLAG_RW,
-    &bpf_bufsize, 0, "");
-static int bpf_maxbufsize = BPF_MAXBUFSIZE;
-SYSCTL_INT(_net_bpf, OID_AUTO, maxbufsize, CTLFLAG_RW,
-    &bpf_maxbufsize, 0, "");
-static int bpf_maxinsns = BPF_MAXINSNS;
-SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
-    &bpf_maxinsns, 0, "Maximum bpf program instructions");
-
-/*
  * bpf_iflist is a list of BPF interface structures, each corresponding to a
  * specific DLT.  The same network interface might have several BPF interface
  * structures registered by different layers in the stack (i.e., 802.11
@@ -100,6 +86,7 @@ SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
  */
 static LIST_HEAD(, bpf_if)	bpf_iflist;
 static struct mtx	bpf_mtx;		/* bpf global lock */
+static int		bpf_bpfd_cnt;
 
 static int	bpf_allocbufs(struct bpf_d *);
 static void	bpf_attachd(struct bpf_d *d, struct bpf_if *bp);
@@ -122,6 +109,23 @@ static void	filt_bpfdetach(struct knote *);
 static int	filt_bpfread(struct knote *, long);
 static void	bpf_drvinit(void *);
 static void	bpf_clone(void *, char *, int, struct cdev **);
+static int	bpf_stats_sysctl(SYSCTL_HANDLER_ARGS);
+
+/*
+ * The default read buffer size is patchable.
+ */
+SYSCTL_NODE(_net, OID_AUTO, bpf, CTLFLAG_RW, 0, "bpf sysctl");
+static int bpf_bufsize = 4096;
+SYSCTL_INT(_net_bpf, OID_AUTO, bufsize, CTLFLAG_RW,
+    &bpf_bufsize, 0, "");
+static int bpf_maxbufsize = BPF_MAXBUFSIZE;
+SYSCTL_INT(_net_bpf, OID_AUTO, maxbufsize, CTLFLAG_RW,
+    &bpf_maxbufsize, 0, "");
+static int bpf_maxinsns = BPF_MAXINSNS;
+SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
+    &bpf_maxinsns, 0, "Maximum bpf program instructions");
+SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_RW,
+    bpf_stats_sysctl, "bpf statistics portal");
 
 static	d_open_t	bpfopen;
 static	d_close_t	bpfclose;
@@ -279,6 +283,7 @@ bpf_attachd(d, bp)
 	d->bd_bif = bp;
 	LIST_INSERT_HEAD(&bp->bif_dlist, d, bd_next);
 
+	bpf_bpfd_cnt++;
 	*bp->bif_driverp = bp;
 	BPFIF_UNLOCK(bp);
 }
@@ -304,6 +309,7 @@ bpf_detachd(d)
 	 */
 	LIST_REMOVE(d, bd_next);
 
+	bpf_bpfd_cnt--;
 	/*
 	 * Let the driver know that there are no more listeners.
 	 */
@@ -369,6 +375,8 @@ bpfopen(dev, flags, fmt, td)
 	d->bd_bufsize = bpf_bufsize;
 	d->bd_sig = SIGIO;
 	d->bd_seesent = 1;
+	d->bd_pid = td->td_proc->p_pid;
+	strlcpy(d->bd_pcomm, td->td_proc->p_comm, MAXCOMLEN);
 #ifdef MAC
 	mac_init_bpfdesc(d);
 	mac_create_bpfdesc(td->td_ucred, d);
@@ -634,6 +642,7 @@ reset_d(d)
 	d->bd_hlen = 0;
 	d->bd_rcount = 0;
 	d->bd_dcount = 0;
+	d->bd_fcount = 0;
 }
 
 /*
@@ -1178,6 +1187,7 @@ bpf_tap(bp, pkt, pktlen)
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, pkt, pktlen, pktlen);
 		if (slen != 0) {
+			d->bd_fcount++;
 #ifdef MAC
 			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
 #endif
@@ -1247,6 +1257,7 @@ bpf_mtap(bp, m)
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, (u_char *)m, pktlen, 0);
 		if (slen != 0)
+			d->bd_fcount++;
 #ifdef MAC
 			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
 #endif
@@ -1298,6 +1309,7 @@ bpf_mtap2(bp, data, dlen, m)
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, (u_char *)&mb, pktlen, 0);
 		if (slen != 0)
+			d->bd_fcount++;
 #ifdef MAC
 			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
 #endif
@@ -1629,6 +1641,73 @@ bpf_drvinit(unused)
 	mtx_init(&bpf_mtx, "bpf global lock", NULL, MTX_DEF);
 	LIST_INIT(&bpf_iflist);
 	EVENTHANDLER_REGISTER(dev_clone, bpf_clone, 0, 1000);
+}
+
+static void
+bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
+{
+
+	bzero(d, sizeof(*d));
+	BPFD_LOCK_ASSERT(bd);
+	d->bd_immediate = bd->bd_immediate;
+	d->bd_promisc = bd->bd_promisc;
+	d->bd_hdrcmplt = bd->bd_hdrcmplt;
+	d->bd_seesent = bd->bd_seesent;
+	d->bd_async = bd->bd_async;
+	d->bd_rcount = bd->bd_rcount;
+	d->bd_dcount = bd->bd_dcount;
+	d->bd_fcount = bd->bd_fcount;
+	d->bd_sig = bd->bd_sig;
+	d->bd_slen = bd->bd_slen;
+	d->bd_hlen = bd->bd_hlen;
+	d->bd_bufsize = bd->bd_bufsize;
+	d->bd_pid = bd->bd_pid;
+	strlcpy(d->bd_ifname,
+	    bd->bd_bif->bif_ifp->if_xname, IFNAMSIZ);
+	strlcpy(d->bd_pcomm, bd->bd_pcomm, MAXCOMLEN);
+}
+
+static int
+bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct xbpf_d *xbdbuf, *xbd;
+	int index, error;
+	struct bpf_if *bp;
+	struct bpf_d *bd;
+
+	/*
+	 * XXX This is not technically correct. It is possible for non
+	 * privileged users to open bpf devices. It would make sense
+	 * if the users who opened the devices were able to retrieve
+	 * the statistics for them, too.
+	 */
+	error = suser(req->td);
+	if (error)
+		return (error);
+	if (req->oldptr == NULL)
+		return (SYSCTL_OUT(req, 0, bpf_bpfd_cnt * sizeof(*xbd)));
+	if (bpf_bpfd_cnt == 0)
+		return (SYSCTL_OUT(req, 0, 0));
+	xbdbuf = malloc(req->oldlen, M_BPF, M_WAITOK);
+	mtx_lock(&bpf_mtx);
+	if (req->oldlen < (bpf_bpfd_cnt * sizeof(*xbd))) {
+		mtx_unlock(&bpf_mtx);
+		free(xbdbuf, M_BPF);
+		return (ENOMEM);
+	}
+	index = 0;
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
+			xbd = &xbdbuf[index++];
+			BPFD_LOCK(bd);
+			bpfstats_fill_xbpf(xbd, bd);
+			BPFD_UNLOCK(bd);
+		}
+	}
+	mtx_unlock(&bpf_mtx);
+	error = SYSCTL_OUT(req, xbdbuf, index * sizeof(*xbd));
+	free(xbdbuf, M_BPF);
+	return (error);
 }
 
 SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,bpf_drvinit,NULL)
