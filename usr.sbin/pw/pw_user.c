@@ -183,7 +183,11 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				strncat(dbuf, cnf->home, MAXPATHLEN-5);
 				if (mkdir(dbuf, 0755) != -1 || errno == EEXIST) {
 					chown(dbuf, 0, 0);
-					symlink(dbuf, cnf->home);
+					/*
+					 * Skip first "/" and create symlink:
+					 * /home -> usr/home
+					 */
+					symlink(dbuf+1, cnf->home);
 				}
 				/* If this falls, fall back to old method */
 			}
