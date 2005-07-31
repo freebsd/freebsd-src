@@ -240,10 +240,30 @@ chn_wrfeed(struct pcm_channel *c)
 	KASSERT(amt <= sndbuf_getsize(bs),
 	    ("%s(%s): amt %d > source size %d, flags 0x%x", __func__, c->name,
 	   amt, sndbuf_getsize(bs), c->flags));
-	if (sndbuf_getready(bs) < amt)
-		c->xruns++;
 
-	ret = (amt > 0)? sndbuf_feed(bs, b, c, c->feeder, amt) : ENOSPC;
+	if (SLIST_EMPTY(&c->children)) {
+		/*
+		 * Hardware channel
+		 */
+		if (sndbuf_getready(bs) < amt)
+			c->xruns++;
+		ret = (amt > 0) ? sndbuf_feed(bs, b, c, c->feeder, amt) : ENOSPC;
+	} else {
+		/*
+		 * vchan
+		 */
+		if (amt > 0) {
+			ret = sndbuf_feed(bs, b, c, c->feeder, amt);
+			/*
+			 * Possible vchan xruns. There should be no empty space
+			 * left in buffer.
+			 */
+			if (sndbuf_getfree(b) > 0)
+				c->xruns++;
+		} else
+			ret = ENOSPC;
+	}
+
 	if (ret == 0 && sndbuf_getfree(b) < amt)
 		chn_wakeup(c);
 
@@ -918,7 +938,10 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 			delta = -delta;
 
 		c->feederflags &= ~(1 << FEEDER_RATE);
-		if (delta > 500)
+		/*
+		 * Used to be 500. It was too big!
+		 */
+		if (delta > 25)
 			c->feederflags |= 1 << FEEDER_RATE;
 		else
 			sndbuf_setspd(bs, sndbuf_getspd(b));
@@ -932,8 +955,13 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 		if (r)
 			goto out;
 
-		if (!(c->feederflags & (1 << FEEDER_RATE)))
+		if (!(c->feederflags & (1 << FEEDER_RATE))) {
+			if (c->direction == PCMDIR_PLAY &&
+					!(c->flags & CHN_F_VIRTUAL))
+				r = CHANNEL_SETFORMAT(c->methods, c->devinfo,
+							c->feeder->desc->out);
 			goto out;
+		}
 
 		r = EINVAL;
 		f = chn_findfeeder(c, FEEDER_RATE);
@@ -950,6 +978,17 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 		x = (c->direction == PCMDIR_REC)? bs : b;
 		r = FEEDER_SET(f, FEEDRATE_DST, sndbuf_getspd(x));
 		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", sndbuf_getspd(x), r));
+		if (c->direction == PCMDIR_PLAY && !(c->flags & CHN_F_VIRTUAL)
+				&& !((c->format & AFMT_S16_LE) &&
+						(c->format & AFMT_STEREO))) {
+			uint32_t fmt;
+
+			fmt = chn_fmtchain(c, chn_getcaps(c)->fmtlist);
+			if (fmt != 0)
+				r = CHANNEL_SETFORMAT(c->methods, c->devinfo, fmt);
+			else
+				r = EINVAL;
+		}
 out:
 		DEB(printf("setspeed done, r = %d\n", r));
 		return r;
@@ -1176,7 +1215,9 @@ chn_getformats(struct pcm_channel *c)
 
 	/* report software-supported formats */
 	if (report_soft_formats)
-		fmts |= AFMT_MU_LAW|AFMT_A_LAW|AFMT_U16_LE|AFMT_U16_BE|
+		fmts |= AFMT_MU_LAW|AFMT_A_LAW|AFMT_U32_LE|AFMT_U32_BE|
+		    AFMT_S32_LE|AFMT_S32_BE|AFMT_U24_LE|AFMT_U24_BE|
+		    AFMT_S24_LE|AFMT_S24_BE|AFMT_U16_LE|AFMT_U16_BE|
 		    AFMT_S16_LE|AFMT_S16_BE|AFMT_U8|AFMT_S8;
 
 	return fmts;
