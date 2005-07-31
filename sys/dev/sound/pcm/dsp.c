@@ -942,7 +942,14 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
     	case SOUND_PCM_READ_BITS:
 		chn = wrch ? wrch : rdch;
 		CHN_LOCK(chn);
-        	*arg_i = (chn->format & AFMT_16BIT) ? 16 : 8;
+		if (chn->format & AFMT_8BIT)
+        		*arg_i = 8;
+		else if (chn->format & AFMT_16BIT)
+        		*arg_i = 16;
+		else if (chn->format & AFMT_24BIT)
+        		*arg_i = 24;
+		else if (chn->format & AFMT_32BIT)
+        		*arg_i = 32;
 		CHN_UNLOCK(chn);
 		break;
 
