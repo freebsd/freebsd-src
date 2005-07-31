@@ -1474,6 +1474,14 @@ IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether
 				    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE,
 				    ni, "%s",
 				    "probe station due to inactivity");
+				/*
+				 * Grab a reference before unlocking the table
+				 * so the node cannot be reclaimed before we
+				 * send the frame. ieee80211_send_nulldata
+				 * understands we've done this and reclaims the
+				 * ref for us as needed.
+				 */
+				ieee80211_ref_node(ni);
 				IEEE80211_NODE_UNLOCK(nt);
 				ieee80211_send_nulldata(ni);
 				/* XXX stat? */
