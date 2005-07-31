@@ -42,6 +42,8 @@
 #include <sys/callout.h>
 #include <sys/selinfo.h>
 #include <sys/queue.h>
+#include <sys/conf.h>
+#include <net/if.h>
 
 /*
  * Descriptor associated with each open bpf file.
@@ -90,6 +92,9 @@ struct bpf_d {
 	struct mtx	bd_mtx;		/* mutex for this descriptor */
 	struct callout	bd_callout;	/* for BPF timeouts with select */
 	struct label	*bd_label;	/* MAC label for descriptor */
+	u_long		bd_fcount;	/* number of packets which matched filter */
+	pid_t		bd_pid;		/* PID which created descriptor */
+	char		bd_pcomm[MAXCOMLEN + 1];
 };
 
 /* Values for bd_state */
@@ -121,6 +126,27 @@ struct bpf_if {
 	u_int bif_hdrlen;		/* length of header (with padding) */
 	struct ifnet *bif_ifp;		/* corresponding interface */
 	struct mtx	bif_mtx;	/* mutex for interface */
+};
+
+/*
+ * External representation of the bpf descriptor
+ */
+struct xbpf_d {
+	u_char		bd_promisc;
+	u_char		bd_immediate;
+	int		bd_hdrcmplt;
+	int		bd_seesent;
+	int		bd_async;
+	u_long		bd_rcount;
+	u_long		bd_dcount;
+	u_long		bd_fcount;
+	int		bd_sig;
+	int		bd_slen;
+	int		bd_hlen;
+	int		bd_bufsize;
+	pid_t		bd_pid;
+	char		bd_ifname[IFNAMSIZ];
+	char		bd_pcomm[MAXCOMLEN + 1];
 };
 
 #define BPFIF_LOCK(bif)		mtx_lock(&(bif)->bif_mtx)
