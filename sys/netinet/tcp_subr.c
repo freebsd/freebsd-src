@@ -2194,6 +2194,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 		if (error)
 			return (error);
 		error = sa6_embedscope(lin6, ip6_use_defzone);
+		if (error)
 			return (error);
 		break;
 #endif
