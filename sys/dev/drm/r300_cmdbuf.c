@@ -625,7 +625,7 @@ static void r300_discard_buffer(drm_device_t * dev, drm_buf_t * buf)
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_buf_priv_t *buf_priv = buf->dev_private;
 
-	buf_priv->age = dev_priv->sarea_priv->last_dispatch+1;
+	buf_priv->age = ++dev_priv->sarea_priv->last_dispatch;
 	buf->pending = 1;
 	buf->used = 0;
 }
@@ -789,8 +789,6 @@ cleanup:
 	 */
 	if (emit_dispatch_age) {
 		RING_LOCALS;
-
-		dev_priv->sarea_priv->last_dispatch++;
 
 		/* Emit the vertex buffer age */
 		BEGIN_RING(2);
