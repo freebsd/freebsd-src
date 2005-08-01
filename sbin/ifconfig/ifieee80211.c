@@ -531,15 +531,25 @@ DECL_CMD_FUNC2(set80211txoplimit, ac, val)
 }
 
 static
-DECL_CMD_FUNC(set80211acm, val, d)
+DECL_CMD_FUNC(set80211acm, ac, d)
 {
-	set80211(s, IEEE80211_IOC_WME_ACM, d, WME_AC_BE, NULL);
+	set80211(s, IEEE80211_IOC_WME_ACM, 1, getac(ac), NULL);
+}
+static
+DECL_CMD_FUNC(set80211noacm, ac, d)
+{
+	set80211(s, IEEE80211_IOC_WME_ACM, 0, getac(ac), NULL);
 }
 
 static
-DECL_CMD_FUNC(set80211ackpolicy, val, d)
+DECL_CMD_FUNC(set80211ackpolicy, ac, d)
 {
-	set80211(s, IEEE80211_IOC_WME_ACKPOLICY, d, WME_AC_BE, NULL);
+	set80211(s, IEEE80211_IOC_WME_ACKPOLICY, 1, getac(ac), NULL);
+}
+static
+DECL_CMD_FUNC(set80211noackpolicy, ac, d)
+{
+	set80211(s, IEEE80211_IOC_WME_ACKPOLICY, 0, getac(ac), NULL);
 }
 
 static
@@ -1797,10 +1807,10 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG2("cwmax",		set80211cwmax),
 	DEF_CMD_ARG2("aifs",		set80211aifs),
 	DEF_CMD_ARG2("txoplimit",	set80211txoplimit),
-	DEF_CMD("acm",		1,	set80211acm),
-	DEF_CMD("-acm",		0,	set80211acm),
-	DEF_CMD("ack",		1,	set80211ackpolicy),
-	DEF_CMD("-ack",		0,	set80211ackpolicy),
+	DEF_CMD_ARG("acm",		set80211acm),
+	DEF_CMD_ARG("-acm",		set80211noacm),
+	DEF_CMD_ARG("ack",		set80211ackpolicy),
+	DEF_CMD_ARG("-ack",		set80211noackpolicy),
 	DEF_CMD_ARG2("bss:cwmin",	set80211bsscwmin),
 	DEF_CMD_ARG2("bss:cwmax",	set80211bsscwmax),
 	DEF_CMD_ARG2("bss:aifs",	set80211bssaifs),
