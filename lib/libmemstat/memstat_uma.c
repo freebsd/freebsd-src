@@ -176,7 +176,7 @@ retry:
 			mtp = _memstat_mt_allocate(list, ALLOCATOR_UMA,
 			    uthp->uth_name);
 		if (mtp == NULL) {
-			memstat_mtl_free(list);
+			_memstat_mtl_empty(list);
 			free(buffer);
 			list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
 			return (-1);
@@ -218,8 +218,8 @@ retry:
 		 * items only in the primary zone.
 		 */
 		if (!(uthp->uth_zone_flags & UTH_ZONE_SECONDARY)) {
-			mtp->mt_free += mtp->mt_kegfree;
 			mtp->mt_kegfree = uthp->uth_keg_free;
+			mtp->mt_free += mtp->mt_kegfree;
 		}
 		mtp->mt_free += mtp->mt_zonefree;
 	}
