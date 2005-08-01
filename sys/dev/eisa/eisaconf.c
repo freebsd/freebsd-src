@@ -93,10 +93,9 @@ TUNABLE_INT("hw.eisa_slots", &num_eisa_slots);
 static devclass_t eisa_devclass;
 
 static int eisa_probe_slot(int slot, eisa_id_t *eisa_id);
-static void eisa_reg_print (device_t, char *, char *, int *);
-static struct irq_node * eisa_find_irq(struct eisa_device *e_dev, int rid);
-static struct resvaddr * eisa_find_maddr(struct eisa_device *e_dev, int rid);
-static struct resvaddr * eisa_find_ioaddr(struct eisa_device *e_dev, int rid);
+static struct irq_node *eisa_find_irq(struct eisa_device *e_dev, int rid);
+static struct resvaddr *eisa_find_maddr(struct eisa_device *e_dev, int rid);
+static struct resvaddr *eisa_find_ioaddr(struct eisa_device *e_dev, int rid);
 
 static int
 mainboard_probe(device_t dev)
@@ -231,94 +230,47 @@ eisa_probe_nomatch(device_t dev, device_t child)
 	u_int32_t	eisa_id = eisa_get_id(child);
 	u_int8_t	slot = eisa_get_slot(child);
 
-	device_printf(dev, "unknown card %c%c%c%03x%01x (0x%08x) at slot %d\n",
+	device_printf(dev, "%c%c%c%03x%01x (0x%08x) at slot %d (no driver attached)\n",
 	    EISA_MFCTR_CHAR0(eisa_id), EISA_MFCTR_CHAR1(eisa_id),
 	    EISA_MFCTR_CHAR2(eisa_id), EISA_PRODUCT_ID(eisa_id),
 	    EISA_REVISION_ID(eisa_id), eisa_id, slot);
 	return;
 }
 
-static void
-eisa_reg_print (device_t dev, char *string, char *separator, int *column)
-{
-	int length = strlen(string);
-
-	length += (separator ? 2 : 1);
-
-	if (((*column) + length) >= MAX_COL) {
-		printf("\n");
-		(*column) = 0;
-	} else if ((*column) != 0) {
-		if (separator) {
-			printf("%c", *separator);
-			(*column)++;
-		}
-		printf(" ");
-		(*column)++;
-	}
-
-	if ((*column) == 0)
-		(*column) += device_printf(dev, "%s", string);
-	else
-		(*column) += printf("%s", string);
-
-	return;
-}
-
 static int
 eisa_print_child(device_t dev, device_t child)
 {
-	char			buf[81];
 	struct eisa_device *	e_dev = device_get_ivars(child);
 	int			rid;
 	struct irq_node *	irq;
 	struct resvaddr *	resv;
-	char			separator = ',';
-	int			column = 0;
 	int			retval = 0;
 
-	if (device_get_desc(child)) {
-		snprintf(buf, sizeof(buf), "<%s>", device_get_desc(child));
-		eisa_reg_print(child, buf, NULL, &column);
-	}
-
+	retval += bus_print_child_header(dev, child);
 	rid = 0;
 	while ((resv = eisa_find_ioaddr(e_dev, rid++))) {
 		if (resv->size == 1 || (resv->flags & RESVADDR_BITMASK))
-			snprintf(buf, sizeof(buf), "%s%lx",
-			    rid == 1 ? "at 0x" : "0x", resv->addr);
+			retval += printf("%s%lx", rid == 1 ? " port 0x" : ",0x",
+			    resv->addr);
 		else
-			snprintf(buf, sizeof(buf), "%s%lx-0x%lx",
-			    rid == 1 ? "at 0x" : "0x", resv->addr,
-			    resv->addr + resv->size - 1);
-		eisa_reg_print(child, buf, rid == 2 ? &separator : NULL,
-		    &column);
+			retval += printf("%s%lx-0x%lx", rid == 1 ? " port 0x" :
+			    ",0x", resv->addr, resv->addr + resv->size - 1);
 	}
-
 	rid = 0;
 	while ((resv = eisa_find_maddr(e_dev, rid++))) {
 		if (resv->size == 1 || (resv->flags & RESVADDR_BITMASK))
-			snprintf(buf, sizeof(buf), "%s%lx",
-			    rid == 1 ? "at 0x" : "0x", resv->addr);
+			retval += printf("%s%lx", rid == 1 ? " mem 0x" : ",0x",
+			    resv->addr);
 		else
-			snprintf(buf, sizeof(buf), "%s%lx-0x%lx",
-			    rid == 1 ? "at 0x" : "0x",
-				resv->addr, resv->addr + resv->size - 1);
-		eisa_reg_print(child, buf, rid == 2 ? &separator : NULL,
-		    &column);
+			retval += printf("%s%lx-0x%lx", rid == 1 ? " mem 0x" :
+			    ",0x", resv->addr, resv->addr + resv->size - 1);
 	}
-
 	rid = 0;
-	while ((irq = eisa_find_irq(e_dev, rid++)) != NULL) {
-		snprintf(buf, sizeof(buf), "irq %d (%s)", irq->irq_no,
-			 irq->irq_trigger ? "level" : "edge");
-		eisa_reg_print(child, buf, rid == 1 ? &separator : NULL,
-		    &column);
-	}
-
-	snprintf(buf, sizeof(buf), "on %s slot %d\n",
-	    device_get_nameunit(dev), eisa_get_slot(child));
-	eisa_reg_print(child, buf, NULL, &column);
+	while ((irq = eisa_find_irq(e_dev, rid++)) != NULL)
+		retval += printf(" irq %d (%s)", irq->irq_no,
+		    irq->irq_trigger ? "level" : "edge");
+	retval += printf(" at slot %d on %s\n", eisa_get_slot(child),
+	    device_get_nameunit(dev));
 
 	return (retval);
 }
