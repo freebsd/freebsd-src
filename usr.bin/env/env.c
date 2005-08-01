@@ -53,31 +53,71 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "envopts.h"
+
 extern char **environ;
+
+int	 env_verbosity;
 
 static void usage(void);
 
 int
 main(int argc, char **argv)
 {
-	char **ep, *p;
+	char *altpath, **ep, *p, **parg;
 	char *cleanenv[1];
-	int ch;
+	int ch, want_clear;
 
-	while ((ch = getopt(argc, argv, "-i")) != -1)
+	altpath = NULL;
+	want_clear = 0;
+	while ((ch = getopt(argc, argv, "-iP:S:v")) != -1)
 		switch(ch) {
 		case '-':
 		case 'i':
-			environ = cleanenv;
-			cleanenv[0] = NULL;
+			want_clear = 1;
+			break;
+		case 'P':
+			altpath = strdup(optarg);
+			break;
+		case 'S':
+			/*
+			 * The -S option, for "split string on spaces, with
+			 * support for some simple substitutions"...
+			 */
+			split_spaces(optarg, &optind, &argc, &argv);
+			break;
+		case 'v':
+			env_verbosity++;
+			if (env_verbosity > 1)
+				fprintf(stderr, "#env verbosity now at %d\n",
+				    env_verbosity);
 			break;
 		case '?':
 		default:
 			usage();
 		}
-	for (argv += optind; *argv && (p = strchr(*argv, '=')); ++argv)
+	if (want_clear) {
+		environ = cleanenv;
+		cleanenv[0] = NULL;
+		if (env_verbosity)
+			fprintf(stderr, "#env clearing environ\n");
+	}
+	for (argv += optind; *argv && (p = strchr(*argv, '=')); ++argv) {
+		if (env_verbosity)
+			fprintf(stderr, "#env setenv:\t%s\n", *argv);
 		(void)setenv(*argv, ++p, 1);
+	}
 	if (*argv) {
+		if (altpath)
+			search_paths(altpath, argv);
+		if (env_verbosity) {
+			fprintf(stderr, "#env executing:\t%s\n", *argv);
+			for (parg = argv, argc = 0; *parg; parg++, argc++)
+				fprintf(stderr, "#env    arg[%d]=\t'%s'\n",
+				    argc, *parg);
+			if (env_verbosity > 1)
+				sleep(1);
+		}
 		execvp(*argv, argv);
 		err(errno == ENOENT ? 127 : 126, "%s", *argv);
 	}
@@ -90,6 +130,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: env [-i] [name=value ...] [utility [argument ...]]\n");
+	    "usage: env [-iv] [-P utilpath] [-S string] [name=value ...]"
+	    " [utility [argument ...]]\n");
 	exit(1);
 }
