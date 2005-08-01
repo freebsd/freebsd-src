@@ -175,7 +175,7 @@ retry:
 			mtp = _memstat_mt_allocate(list, ALLOCATOR_MALLOC,
 			    mthp->mth_name);
 		if (mtp == NULL) {
-			memstat_mtl_free(list);
+			_memstat_mtl_empty(list);
 			free(buffer);
 			list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
 			return (-1);

@@ -116,6 +116,7 @@ struct memory_type_list {
 	int				mtl_error;
 };
 
+void			 _memstat_mtl_empty(struct memory_type_list *list);
 struct memory_type	*_memstat_mt_allocate(struct memory_type_list *list,
 			    int allocator, const char *name);
 void			 _memstat_mt_reset_stats(struct memory_type *mtp);
