@@ -88,7 +88,7 @@ memstat_mtl_next(struct memory_type *mtp)
 }
 
 void
-memstat_mtl_free(struct memory_type_list *list)
+_memstat_mtl_empty(struct memory_type_list *list)
 {
 	struct memory_type *mtp;
 
@@ -96,6 +96,13 @@ memstat_mtl_free(struct memory_type_list *list)
 		LIST_REMOVE(mtp, mt_list);
 		free(mtp);
 	}
+}
+
+void
+memstat_mtl_free(struct memory_type_list *list)
+{
+
+	_memstat_mtl_empty(list);
 	free(list);
 }
 
