@@ -383,7 +383,7 @@ owi_generic_attach(device_t dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, mac.wi_mac_addr);
+	ether_ifattach(ifp, (const u_int8_t *)mac.wi_mac_addr);
 	callout_handle_init(&sc->wi_stat_ch);
 	WI_UNLOCK(sc, s);
 
