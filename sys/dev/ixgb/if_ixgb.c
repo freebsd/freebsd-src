@@ -725,6 +725,11 @@ ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 
 	IXGB_LOCK_ASSERT(adapter);
 
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
+
 	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
 		ixgb_enable_intr(adapter);
 		return;
@@ -783,7 +788,8 @@ ixgb_intr(void *arg)
 		return;
 	}
 
-	if (ether_poll_register(ixgb_poll, ifp)) {
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(ixgb_poll, ifp)) {
 		ixgb_disable_intr(adapter);
 		ixgb_poll_locked(ifp, 0, 1);
 		IXGB_UNLOCK(adapter);
@@ -1345,7 +1351,9 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 #endif
 
 	ifp->if_capabilities = IFCAP_HWCSUM;
-	ifp->if_capenable = ifp->if_capabilities;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -1355,6 +1363,9 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 #if __FreeBSD_version >= 500000
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 #endif
+
+	ifp->if_capenable = ifp->if_capabilities;
+
 	/*
 	 * Specify the media types supported by this adapter and register
 	 * callbacks to update media and link information
