@@ -72,7 +72,7 @@ The
 library can read GNU-format tar archives.
 It currently supports the most popular GNU extensions, including
 modern long filename and linkname support, as well as atime and ctime data.
-The libarchive library does not support sparse files, multi-volume
+The libarchive library does not support multi-volume
 archives, nor the old GNU long filename format.
 .It Cm pax
 The
@@ -105,6 +105,11 @@ ustar data (user name, group name, UID, GID, etc) cannot be fully
 represented in the ustar header.
 In all cases, the result can be dearchived by any program that
 can read POSIX-compliant pax interchange format archives.
+Programs that correctly read ustar format (see below) will also be
+able to read this format; any extended attributes will be extracted as
+separate files stored in
+.Pn PaxHeader
+directories.
 .It Cm ustar
 The libarchive library can both read and write this format.
 This format has the following limitations:
@@ -188,10 +193,6 @@ limit for most other fields makes it unsuitable for modern systems.
 In addition, cpio formats only store numeric UID/GID values (not
 usernames and group names), which can make it very difficult to correctly
 transfer archives across systems.
-Finally, there is no good way to extend the format, which means that
-ACLs, file flags, character encoding information, and non-standard file
-types can not be added except by breaking compatibility with existing
-implementations.
 .Ss Shar Formats
 A
 .Dq shell archive
