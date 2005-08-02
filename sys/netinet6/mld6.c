@@ -290,6 +290,7 @@ mld6_input(m, off)
 		if (timer == 0 && mldh->mld_maxdelay)
 			timer = 1;
 
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET6)
 				continue;
@@ -317,6 +318,7 @@ mld6_input(m, off)
 				}
 			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 		break;
 
 	case MLD_LISTENER_REPORT:
