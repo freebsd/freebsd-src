@@ -1027,8 +1027,8 @@ struct ng_type {
  *
  * If a different link time is desired, e.g., a device driver that
  * needs to install its netgraph type before probing, use the
- * NETGRAPH_INIT_ORDERED() macro instead. Deivce drivers probably
- * want to use SI_SUB_DRIVERS instead of SI_SUB_PSEUDO.
+ * NETGRAPH_INIT_ORDERED() macro instead.  Device drivers probably
+ * want to use SI_SUB_DRIVERS/SI_ORDER_FIRST.
  */
 
 #define NETGRAPH_INIT_ORDERED(typename, typestructp, sub, order)	\
