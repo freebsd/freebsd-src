@@ -636,6 +636,8 @@ archive_write_pax_header(struct archive *a,
 	if (archive_strlen(&(pax->pax_header)) > 0) {
 		struct stat st;
 		struct archive_entry *pax_attr_entry;
+		time_t s;
+		long ns;
 
 		memset(&st, 0, sizeof(st));
 		pax_attr_entry = archive_entry_new();
@@ -668,16 +670,23 @@ archive_write_pax_header(struct archive *a,
 		    archive_entry_uname(entry_main));
 		archive_entry_set_gname(pax_attr_entry,
 		    archive_entry_gname(entry_main));
-		/* Copy timestamps. */
-		archive_entry_set_mtime(pax_attr_entry,
-		    archive_entry_mtime(entry_main),
-		    archive_entry_mtime_nsec(entry_main));
-		archive_entry_set_atime(pax_attr_entry,
-		    archive_entry_atime(entry_main),
-		    archive_entry_atime_nsec(entry_main));
-		archive_entry_set_ctime(pax_attr_entry,
-		    archive_entry_ctime(entry_main),
-		    archive_entry_ctime_nsec(entry_main));
+
+		/* Copy mtime, but clip to ustar limits. */
+		s = archive_entry_mtime(entry_main);
+		ns = archive_entry_mtime_nsec(entry_main);
+		if (s < 0) { s = 0; ns = 0; }
+		if (s > 0x7fffffff) { s = 0x7fffffff; ns = 0; }
+		archive_entry_set_mtime(pax_attr_entry, s, ns);
+
+		/* Ditto for atime. */
+		s = archive_entry_atime(entry_main);
+		ns = archive_entry_atime_nsec(entry_main);
+		if (s < 0) { s = 0; ns = 0; }
+		if (s > 0x7fffffff) { s = 0x7fffffff; ns = 0; }
+		archive_entry_set_atime(pax_attr_entry, s, ns);
+
+		/* Standard ustar doesn't support ctime. */
+		archive_entry_set_ctime(pax_attr_entry, 0, 0);
 
 		ret = __archive_write_format_header_ustar(a, paxbuff,
 		    pax_attr_entry, 'x', 1);
