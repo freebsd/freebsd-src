@@ -1714,6 +1714,9 @@ em_stop(void *arg)
 	mtx_assert(&adapter->mtx, MA_OWNED);
 
 	INIT_DEBUGOUT("em_stop: begin");
+#ifdef DEVICE_POLLING
+	ether_poll_deregister(ifp);
+#endif
 	em_disable_intr(adapter);
 	em_reset_hw(&adapter->hw);
 	callout_stop(&adapter->timer);
