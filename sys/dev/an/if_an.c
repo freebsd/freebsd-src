@@ -826,12 +826,11 @@ an_detach(device_t dev)
 	struct an_softc		*sc = device_get_softc(dev);
 	struct ifnet		*ifp = sc->an_ifp;
 
-	AN_LOCK(sc);
 	if (sc->an_gone) {
-		AN_UNLOCK(sc);
 		device_printf(dev,"already unloaded\n");
 		return(0);
 	}
+	AN_LOCK(sc);
 	an_stop(sc);
 	sc->an_gone = 1;
 	ifmedia_removeall(&sc->an_ifmedia);
