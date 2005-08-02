@@ -12,4 +12,4 @@
 # ${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR} [ ${LOCAL_FILES_LIST} ]
 
 cd $3/Files
-find . -print | cpio -dumpv $1
+find . ! -path \*/CVS\* -print | cpio -dumpv $1
