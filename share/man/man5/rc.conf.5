@@ -176,18 +176,6 @@ enable PCCARD support at boot time.
 Set to PCCARD controller memory address or
 .Dq Li DEFAULT
 for the default value.
-.It Va pccard_ifconfig
-.Pq Vt str
-This variable has the same format as the
-.Va ifconfig_ Ns Aq Ar interface
-variable
-(see
-.Va network_interfaces
-below).
-It is used as a fallback variable when there is no
-.Va ifconfig_ Ns Aq Ar interface
-is defined and only if the interface name is listed in
-.Va removable_interfaces .
 .It Va pccard_beep
 .Pq Vt int
 If 0,
@@ -231,9 +219,6 @@ daemon.
 .Pq Vt str
 List of removable network interfaces to be supported by
 .Pa /etc/pccard_ether .
-This also determines which interfaces will be able to use the
-.Va pccard_ifconfig
-fallback variable.
 .It Va tmpmfs
 Controls the creation of a
 .Pa /tmp
@@ -902,7 +887,9 @@ Refer to
 for more information.
 .It Va network_interfaces
 .Pq Vt str
-Set to the list of network interfaces to configure on this host.
+Set to the list of network interfaces to configure on this host or 
+.Dq Li "AUTO"
+(the default) for all current interfaces.
 For example, if the only network devices in the system are the loopback
 device
 .Pq Li lo0
@@ -989,6 +976,18 @@ possible to use something like:
 .Bd -literal
 ifconfig_wi0="DHCP WPA mode 11b"
 .Ed
+.Pp
+In addition to the
+.Va ifconfig_ Ns Aq Ar interface
+form, a fallback variable
+.Va ifconfig_DEFAULT
+may be configured.
+It will be used for all interfaces no
+.Va ifconfig_ Ns Aq Ar interface
+variable.
+This is intended to replace the no longer supported
+.Va pccard_ifconfig
+variable.
 .Pp
 It is also possible to rename interface by doing:
 .Bd -literal
