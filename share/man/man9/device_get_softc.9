@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 1998
+.Dd August 2, 2005
 .Dt DEVICE_GET_SOFTC 9
 .Os
 .Sh NAME
@@ -42,7 +42,8 @@
 .Sh DESCRIPTION
 Return the driver-specific state of
 .Fa dev .
-The softc is automatically allocated the first time it is requested.
+The softc is automatically allocated and zeroed the first
+time it is requested.
 The size of the allocation is determined by the device's
 .Vt driver_t
 information used to define the driver.
