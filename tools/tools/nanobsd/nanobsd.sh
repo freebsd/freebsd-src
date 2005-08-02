@@ -17,7 +17,7 @@ NANO_SRC=/usr/src
 # Object tree directory
 # default is subdir of /usr/obj
 # XXX: MAKEOBJDIRPREFIX handling... ?
-NANO_OBJ=""
+#NANO_OBJ=""
 
 # Parallel Make
 NANO_PMAKE="make -j 3"
@@ -34,15 +34,29 @@ CONF_WORLD=' '
 # Kernel config file to use
 NANO_KERNEL=GENERIC
 
-# Media data, sizes in 512 bytes sectors
+# Newfs paramters to use
+NANO_NEWFS="-b 4096 -f 512 -i 8192 -O1 -U"
+
+# Target media size in 512 bytes sectors
 NANO_MEDIA=1048576
+
+# Number of code images on media (1 or 2)
 NANO_IMAGES=2
+
+# Size of configuration file system in 512 bytes sectors
 NANO_CONFSIZE=2048
+
+# Size of data file system in 512 bytes sectors
 NANO_DATASIZE=1023
 
 # Media geometry, only relevant if bios doesn't understand LBA.
 NANO_SECTS=32
 NANO_HEADS=16
+
+#######################################################################
+# Not a variable at this time
+
+NANO_ARCH=i386
 
 #######################################################################
 # Functions which can be overridden in configs.
@@ -62,8 +76,8 @@ clean_target ( ) (
 make_conf_build ( ) (
 	echo "## Construct build make.conf ($NANO_MAKE_CONF)"
 
-	echo ${CONF_WORLD} > ${NANO_MAKE_CONF}
-	echo ${CONF_BUILD} >> ${NANO_MAKE_CONF}
+	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF}
+	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF}
 )
 
 build_world ( ) (
@@ -103,8 +117,8 @@ clean_world ( ) (
 make_conf_install ( ) (
 	echo "## Construct install make.conf ($NANO_MAKE_CONF)"
 
-	echo ${CONF_WORLD} > ${NANO_MAKE_CONF}
-	echo ${CONF_INSTALL} >> ${NANO_MAKE_CONF}
+	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF}
+	echo "${CONF_INSTALL}" >> ${NANO_MAKE_CONF}
 )
 
 install_world ( ) (
@@ -172,11 +186,6 @@ setup_diskless ( ) (
 
 create_i386_diskimage ( ) (
 
-	set -x
-
-	# XXX: param ?
-	# NEWFSPARAM="-b 4096 -f 512 -i 8192 -O1 -U"
-
 	echo $NANO_MEDIA $NANO_IMAGES \
 		$NANO_CONFSIZE $NANO_DATASIZE \
 		$NANO_SECTS $NANO_HEADS |
@@ -242,11 +251,13 @@ create_i386_diskimage ( ) (
 	bsdlabel -w -B ${MD}s1
 
 	# Create first image
-	newfs ${NEWFSPARAM} /dev/${MD}s1a
+	newfs ${NANO_NEWFS} /dev/${MD}s1a
 	mount /dev/${MD}s1a ${MNT}
 	( cd ${NANO_WORLDDIR} && find . -print | cpio -dump ${MNT} )
 	# XXX: make_fstab
 	df -i ${MNT}
+	( cd ${MNT} && mtree -c ) > ${MAKEOBJDIRPREFIX}/_.mtree
+	( cd ${MNT} && du -k ) > ${MAKEOBJDIRPREFIX}/_.du
 	umount ${MNT}
 
 	if [ $NANO_IMAGES -gt 1 ] ; then
@@ -255,12 +266,12 @@ create_i386_diskimage ( ) (
 	fi
 	
 	# Create Config slice
-	newfs ${NEWFSPARAM} /dev/${MD}s3
+	newfs ${NANO_NEWFS} /dev/${MD}s3
 	# XXX: fill from where ?
 
 	# Create Data slice, if any.
 	if [ $NANO_DATASIZE -gt 0 ] ; then
-		newfs ${NEWFSPARAM} /dev/${MD}s4
+		newfs ${NANO_NEWFS} /dev/${MD}s4
 		# XXX: fill from where ?
 	fi
 
@@ -288,27 +299,23 @@ NANO_WORLDDIR=${MAKEOBJDIRPREFIX}/_.w
 NANO_MAKE_CONF=${MAKEOBJDIRPREFIX}/make.conf
 
 #######################################################################
-# Not a variable at this time
-
-NANO_ARCH=i386
-
-#######################################################################
 #
 export MAKEOBJDIRPREFIX
 
-export NANO_WORLDDIR
 export NANO_ARCH
-export NANO_MEDIA
-export NANO_IMAGES
 export NANO_CONFSIZE
 export NANO_DATASIZE
-export NANO_SECTS
 export NANO_HEADS
-export NANO_PMAKE
-export NANO_OBJ
-export NANO_NAME
-export NANO_SRC
+export NANO_IMAGES
 export NANO_MAKE_CONF
+export NANO_MEDIA
+export NANO_NAME
+export NANO_NEWFS
+export NANO_OBJ
+export NANO_PMAKE
+export NANO_SECTS
+export NANO_SRC
+export NANO_WORLDDIR
 
 #######################################################################
 # Parse arguments
@@ -325,7 +332,7 @@ do
 	case "$i" 
 	in
 	-c)
-		copt="$2"
+		. "$2"
 		shift;
 		shift;
 		;;
@@ -334,14 +341,6 @@ do
 		break;
 	esac
 done
-
-if [ "x${copt}" != "x" ] ; then
-	if [ ! -f ${copt} ] ; then
-		echo "Cannot read ${copt}" 1>&2
-		exit 2
-	fi
-	. ${copt}
-fi
 
 #######################################################################
 # Set up object directory
@@ -356,4 +355,4 @@ install_world
 install_etc
 install_kernel
 setup_diskless
-create_i386_diskimage
+create_${NANO_ARCH}_diskimage
