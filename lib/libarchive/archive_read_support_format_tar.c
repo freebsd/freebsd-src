@@ -361,6 +361,22 @@ static int
 archive_read_format_tar_read_header(struct archive *a,
     struct archive_entry *entry)
 {
+	/*
+	 * When converting tar archives to cpio archives, it is
+	 * essential that each distinct file have a distinct inode
+	 * number.  To simplify this, we keep a static count here to
+	 * assign fake dev/inode numbers to each tar entry.  Note that
+	 * pax format archives may overwrite this with something more
+	 * useful.
+	 *
+	 * Ideally, we would track every file read from the archive so
+	 * that we could assign the same dev/ino pair to hardlinks,
+	 * but the memory required to store a complete lookup table is
+	 * probably not worthwhile just to support the relatively
+	 * obscure tar->cpio conversion case.
+	 */
+	static int default_inode;
+	static int default_dev;
 	struct stat st;
 	struct tar *tar;
 	const char *p;
@@ -368,6 +384,15 @@ archive_read_format_tar_read_header(struct archive *a,
 	size_t l;
 
 	memset(&st, 0, sizeof(st));
+	/* Assign default device/inode values. */
+	st.st_dev = 1 + default_dev; /* Don't use zero. */
+	st.st_ino = ++default_inode; /* Don't use zero. */
+	/* Limit generated st_ino number to 16 bits. */
+	if (default_inode >= 0xffff) {
+		++default_dev;
+		default_inode = 0;
+	}
+
 	tar = *(a->pformat_data);
 	tar->entry_offset = 0;
 
