@@ -1739,6 +1739,7 @@ allmulti:
 	}
 
 	n = 0;
+	IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version < 500000
 	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 #else
@@ -1752,6 +1753,7 @@ allmulti:
 		    (LLADDR((struct sockaddr_dl *)ifma->ifma_addr)));
 		n++;
 	}
+	IF_ADDR_UNLOCK(ifp);
 	return wi_write_rid(sc, WI_RID_MCAST_LIST, &mlist,
 	    IEEE80211_ADDR_LEN * n);
 }

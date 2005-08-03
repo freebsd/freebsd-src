@@ -431,6 +431,7 @@ sf_setmulti(sc)
 		SF_SETBIT(sc, SF_RXFILT, SF_RXFILT_ALLMULTI);
 	} else {
 		i = 1;
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH_REVERSE(ifma, &ifp->if_multiaddrs, ifmultihead, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -449,6 +450,7 @@ sf_setmulti(sc)
 			sf_sethash(sc,
 			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr), 0);
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 }
 

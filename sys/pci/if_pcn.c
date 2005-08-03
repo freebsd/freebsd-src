@@ -351,6 +351,7 @@ pcn_setmulti(sc)
 		pcn_csr_write(sc, PCN_CSR_MAR0 + i, 0);
 
 	/* now program new ones */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -358,6 +359,7 @@ pcn_setmulti(sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		hashes[h >> 4] |= 1 << (h & 0xF);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	for (i = 0; i < 4; i++)
 		pcn_csr_write(sc, PCN_CSR_MAR0 + i, hashes[i]);

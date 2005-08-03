@@ -533,6 +533,7 @@ vr_setmulti(struct vr_softc *sc)
 	CSR_WRITE_4(sc, VR_MAR1, 0);
 
 	/* Now program new ones. */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -544,6 +545,7 @@ vr_setmulti(struct vr_softc *sc)
 			hashes[1] |= (1 << (h - 32));
 		mcnt++;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (mcnt)
 		rxfilt |= VR_RXCFG_RX_MULTI;

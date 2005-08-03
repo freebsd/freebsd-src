@@ -1662,6 +1662,7 @@ ath_mode_init(struct ath_softc *sc)
 	/* calculate and install multicast filter */
 	if ((ifp->if_flags & IFF_ALLMULTI) == 0) {
 		mfilt[0] = mfilt[1] = 0;
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			caddr_t dl;
 
@@ -1674,6 +1675,7 @@ ath_mode_init(struct ath_softc *sc)
 			pos &= 0x3f;
 			mfilt[pos / 32] |= (1 << (pos % 32));
 		}
+		IF_ADDR_UNLOCK(ifp);
 	} else {
 		mfilt[0] = mfilt[1] = ~0;
 	}
