@@ -178,7 +178,8 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 /*
  * Stack trace.
  */
-#define	INKERNEL(va)	(((vm_offset_t)(va)) >= USRSTACK)
+#define	INKERNEL(va) (((va) >= DMAP_MIN_ADDRESS && (va) < DMAP_MAX_ADDRESS) \
+	    || (va) >= KERNBASE)
 
 struct amd64_frame {
 	struct amd64_frame	*f_frame;
