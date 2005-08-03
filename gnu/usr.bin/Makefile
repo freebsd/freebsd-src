@@ -30,7 +30,9 @@ NO_GDB=	# not yet
 .if ${MACHINE_ARCH} != "powerpc"
 _gperf=		gperf
 .endif
+.if !defined(NO_GROFF)
 _groff=		groff
+.endif
 .endif
 
 .if !defined(NO_CVS)
