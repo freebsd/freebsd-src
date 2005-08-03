@@ -3762,9 +3762,6 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd\n",
 	    bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
 	    bp->b_bufobj, bp->b_data, (intmax_t)bp->b_blkno);
-	db_printf("lockstatus = %d, excl count = %d, excl owner %p\n",
-	    lockstatus(&bp->b_lock, NULL), bp->b_lock.lk_exclusivecount,
-	    bp->b_lock.lk_lockholder);
 	if (bp->b_npages) {
 		int i;
 		db_printf("b_npages = %d, pages(OBJ, IDX, PA): ", bp->b_npages);
@@ -3778,6 +3775,7 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		}
 		db_printf("\n");
 	}
+	lockmgr_printinfo(&bp->b_lock);
 }
 
 DB_SHOW_COMMAND(lockedbufs, lockedbufs)
