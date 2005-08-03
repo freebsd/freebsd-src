@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/proc.h>
 #include <sys/kdb.h>
+#include <sys/stack.h>
 #include <machine/armreg.h>
 #include <machine/asm.h>
 #include <machine/cpufunc.h>
@@ -218,4 +219,22 @@ void
 db_trace_self(void)
 {
 	db_trace_thread(curthread, -1);
+}
+
+void
+stack_save(struct stack *st)
+{
+	vm_offset_t callpc;
+	u_int32_t *frame;
+
+	stack_zero(st);
+	frame = (u_int32_t *)__builtin_frame_address(0);
+	while (1) {
+		if (!INKERNEL(frame))
+			break;
+		callpc = frame[FR_SCP];
+		if (stack_put(st, callpc) == -1)
+			break;
+		frame = (u_int32_t *)(frame[FR_RFP]);
+	}
 }
