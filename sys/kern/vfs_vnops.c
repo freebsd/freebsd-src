@@ -779,18 +779,10 @@ vn_poll(fp, events, active_cred, td)
  * acquire requested lock.
  */
 int
-#ifndef	DEBUG_LOCKS
 vn_lock(vp, flags, td)
-#else
-debug_vn_lock(vp, flags, td, filename, line)
-#endif
 	struct vnode *vp;
 	int flags;
 	struct thread *td;
-#ifdef	DEBUG_LOCKS
-	const char *filename;
-	int line;
-#endif
 {
 	int error;
 
@@ -809,10 +801,6 @@ debug_vn_lock(vp, flags, td, filename, line)
 			VI_UNLOCK(vp);
 			return (0);
 		}
-#ifdef	DEBUG_LOCKS
-		vp->filename = filename;
-		vp->line = line;
-#endif
 		/*
 		 * lockmgr drops interlock before it will return for
 		 * any reason.  So force the code above to relock it.
