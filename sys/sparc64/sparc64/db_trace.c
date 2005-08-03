@@ -31,6 +31,7 @@
 #include <sys/kdb.h>
 #include <sys/linker_set.h>
 #include <sys/proc.h>
+#include <sys/stack.h>
 #include <sys/sysent.h>
 
 #include <vm/vm.h>
@@ -290,4 +291,24 @@ db_trace_thread(struct thread *td, int count)
 
 	ctx = kdb_thr_ctx(td);
 	return (db_backtrace(td, (struct frame*)(ctx->pcb_sp + SPOFF), count));
+}
+
+void
+stack_save(struct stack *st)
+{
+	struct frame *fp;
+	db_expr_t addr;
+	vm_offset_t callpc;
+
+	stack_zero(st);
+	addr = (db_expr_t)__builtin_frame_address(1);
+	fp = (struct frame *)(addr + SPOFF);
+	while (1) {
+		callpc = fp->fr_pc;
+		if (!INKERNEL(callpc))
+			break;
+		if (stack_put(st, callpc) == -1)
+			break;
+		fp = (struct frame *)(fp->fr_fp + SPOFF);
+	}
 }
