@@ -327,6 +327,7 @@ kue_setmulti(struct kue_softc *sc)
 
 	sc->kue_rxfilt &= ~KUE_RXFILT_ALLMULTI;
 
+	IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version >= 500000
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 #else
@@ -345,6 +346,7 @@ kue_setmulti(struct kue_softc *sc)
 		    KUE_MCFILT(sc, i), ETHER_ADDR_LEN);
 		i++;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (i == KUE_MCFILTCNT(sc))
 		sc->kue_rxfilt |= KUE_RXFILT_ALLMULTI;

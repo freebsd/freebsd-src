@@ -705,6 +705,7 @@ nge_setmulti(sc)
 	 * that needs to be updated, and the lower 4 bits represent
 	 * which bit within that byte needs to be set.
 	 */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -716,6 +717,7 @@ nge_setmulti(sc)
 		    NGE_FILTADDR_MCAST_LO + (index * 2));
 		NGE_SETBIT(sc, NGE_RXFILT_DATA, (1 << bit));
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, filtsave);
 

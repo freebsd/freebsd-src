@@ -1409,6 +1409,7 @@ epic_set_mc_table(sc)
 	filter[2] = 0;
 	filter[3] = 0;
 
+	IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version < 500000
 	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 #else
@@ -1420,6 +1421,7 @@ epic_set_mc_table(sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		filter[h >> 4] |= 1 << (h & 0xF);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	CSR_WRITE_4(sc, MC0, filter[0]);
 	CSR_WRITE_4(sc, MC1, filter[1]);

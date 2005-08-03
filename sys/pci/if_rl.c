@@ -685,6 +685,7 @@ rl_setmulti(struct rl_softc *sc)
 	CSR_WRITE_4(sc, RL_MAR4, 0);
 
 	/* now program new ones */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -696,6 +697,7 @@ rl_setmulti(struct rl_softc *sc)
 			hashes[1] |= (1 << (h - 32));
 		mcnt++;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (mcnt)
 		rxfilt |= RL_RXCFG_RX_MULTI;
