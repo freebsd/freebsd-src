@@ -33,9 +33,11 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-extern unsigned int __sleep(unsigned int);
+extern unsigned int	__sleep(unsigned int);
+extern int		__usleep(useconds_t);
 
 __weak_reference(_sleep, sleep);
+__weak_reference(_usleep, usleep);
 
 unsigned int
 _sleep(unsigned int seconds)
@@ -45,6 +47,19 @@ _sleep(unsigned int seconds)
 
 	_thr_cancel_enter(curthread);
 	ret = __sleep(seconds);
+	_thr_cancel_leave(curthread, 1);
+	
+	return (ret);
+}
+
+int
+_usleep(useconds_t useconds)
+{
+	struct pthread *curthread = _get_curthread();
+	unsigned int	ret;
+
+	_thr_cancel_enter(curthread);
+	ret = __usleep(useconds);
 	_thr_cancel_leave(curthread, 1);
 	
 	return (ret);
