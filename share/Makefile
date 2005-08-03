@@ -6,10 +6,10 @@
 SUBDIR=	colldef \
 	${_dict} \
 	${_doc} \
-	examples \
+	${_examples} \
 	${_isdn} \
-	man \
-	me \
+	${_man} \
+	${_me} \
 	misc \
 	mk \
 	mklocale \
@@ -19,11 +19,27 @@ SUBDIR=	colldef \
 	${_sendmail} \
 	skel \
 	snmp \
-	syscons \
+	${_syscons} \
 	tabset \
 	termcap \
 	timedef \
 	zoneinfo
+
+.if !defined(NO_SYSCONS)
+_syscons=	syscons
+.endif
+
+.if !defined(NO_MAN)
+_man=		man
+.endif
+
+.if !defined(NO_GROFF)
+_me=		me
+.endif
+
+.if !defined(NO_EXAMPLES)
+_examples=	examples
+.endif
 
 .if !defined(NO_I4B)
 _isdn=		isdn
