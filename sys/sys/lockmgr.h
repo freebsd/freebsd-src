@@ -37,6 +37,10 @@
 #ifndef	_SYS_LOCKMGR_H_
 #define	_SYS_LOCKMGR_H_
 
+#ifdef	DEBUG_LOCKS
+#include <sys/stack.h> /* XXX */
+#endif
+
 struct	mtx;
 
 /*
@@ -56,14 +60,7 @@ struct lock {
 	struct thread *lk_lockholder;	/* thread of exclusive lock holder */
 	struct	lock *lk_newlock;	/* lock taking over this lock */
 #ifdef	DEBUG_LOCKS
-	const char *lk_filename;
-	const char *lk_lockername;
-	int     lk_lineno;
-
-	struct thread *lk_slockholder;
-	const char *lk_sfilename;
-	const char *lk_slockername;
-	int     lk_slineno;
+	struct stack stack;
 #endif
 };
 /*
@@ -200,19 +197,8 @@ void	lockinit(struct lock *, int prio, const char *wmesg,
 			int timo, int flags);
 void	lockdestroy(struct lock *);
 
-#ifdef DEBUG_LOCKS
-int	debuglockmgr(struct lock *, u_int flags,
-			struct mtx *, struct thread *p,
-			const char *,
-			const char *,
-			int);
-#define lockmgr(lockp, flags, slockp, proc) \
-	debuglockmgr((lockp), (flags), (slockp), (proc), \
-	    "lockmgr", __FILE__, __LINE__)
-#else
 int	lockmgr(struct lock *, u_int flags,
 			struct mtx *, struct thread *p);
-#endif
 void	transferlockers(struct lock *, struct lock *);
 void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *, struct thread *);

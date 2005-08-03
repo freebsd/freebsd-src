@@ -159,10 +159,6 @@ struct vnode {
 	struct	lock v_lock;			/* u (if fs don't have one) */
 	struct	mtx v_interlock;		/* lock for "i" things */
 	struct	lock *v_vnlock;			/* u pointer to vnode lock */
-#ifdef	DEBUG_LOCKS
-	const char *filename;			/* Source file doing locking */
-	int line;				/* Line number doing locking */
-#endif
 	int	v_holdcnt;			/* i prevents recycling. */
 	int	v_usecount;			/* i ref count of users */
 	u_long	v_iflag;			/* i vnode flags (see below) */
@@ -613,11 +609,6 @@ int	vn_close(struct vnode *vp,
 void	vn_finished_write(struct mount *mp);
 int	vn_isdisk(struct vnode *vp, int *errp);
 int	vn_lock(struct vnode *vp, int flags, struct thread *td);
-#ifdef	DEBUG_LOCKS
-int	debug_vn_lock(struct vnode *vp, int flags, struct thread *p,
-	    const char *filename, int line);
-#define vn_lock(vp,flags,p) debug_vn_lock(vp,flags,p,__FILE__,__LINE__)
-#endif
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, int fdidx);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
 	    struct ucred *cred, int fdidx);
