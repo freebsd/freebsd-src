@@ -236,14 +236,8 @@ LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		SHLIBDIR=/usr/lib32
 
 LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
-		-DNO_BIND -DNO_MAN -DNO_NLS -DNO_INFO -DNO_HTML \
-		CC="${CC} ${LIB32CC}" \
-		CXX="${CXX} ${LIB32CXX}" \
-		OBJC="${OBJC} ${LIB32OBJC}" \
-		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
-		AS="${AS} --32" \
-		LIBDIR=/usr/lib32 \
-		SHLIBDIR=/usr/lib32
+		-DNO_BIND -DNO_MAN -DNO_NLS -DNO_INFO -DNO_HTML
+LIB32IMAKE=	${LIB32MAKE:NINSTALL=*}
 .endif
 
 # install stage
@@ -441,12 +435,12 @@ distribute32 install32:
 .else
 	mkdir -p ${DESTDIR}/usr/lib32			# XXX add to mtree
 .endif
-	cd ${.CURDIR}/lib; ${LIB32MAKE} ${.TARGET:S/32$//}
-	cd ${.CURDIR}/gnu/lib; ${LIB32MAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/gnu/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .if !defined(NO_CRYPT)
-	cd ${.CURDIR}/secure/lib; ${LIB32MAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/secure/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
-	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32MAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
 
 
