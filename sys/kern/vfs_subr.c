@@ -747,6 +747,7 @@ vdestroy(struct vnode *vp)
 	VNASSERT(bo->bo_dirty.bv_root == NULL, vp, ("dirtyblkroot not NULL"));
 	VNASSERT(TAILQ_EMPTY(&vp->v_cache_dst), vp, ("vp has namecache dst"));
 	VNASSERT(LIST_EMPTY(&vp->v_cache_src), vp, ("vp has namecache src"));
+	VI_UNLOCK(vp);
 #ifdef MAC
 	mac_destroy_vnode(vp);
 #endif
