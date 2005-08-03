@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
+#include <sys/stack.h>
 #include <sys/sysent.h>
 
 #include <machine/cpu.h>
@@ -498,6 +499,28 @@ db_trace_thread(struct thread *thr, int count)
 	ctx = kdb_thr_ctx(thr);
 	return (db_backtrace(thr, NULL, (struct i386_frame *)ctx->pcb_ebp,
 		    ctx->pcb_eip, count));
+}
+
+void
+stack_save(struct stack *st)
+{
+	struct i386_frame *frame;
+	vm_offset_t callpc;
+	register_t ebp;
+
+	stack_zero(st);
+	__asm __volatile("movl %%ebp,%0" : "=r" (ebp));
+	frame = (struct i386_frame *)ebp;
+	while (1) {
+		if (!INKERNEL(frame))
+			break;
+		callpc = frame->f_retaddr;
+		if (!INKERNEL(callpc))
+			break;
+		if (stack_put(st, callpc) == -1)
+			break;
+		frame = frame->f_frame;
+	}
 }
 
 int
