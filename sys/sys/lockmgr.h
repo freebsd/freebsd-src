@@ -60,7 +60,7 @@ struct lock {
 	struct thread *lk_lockholder;	/* thread of exclusive lock holder */
 	struct	lock *lk_newlock;	/* lock taking over this lock */
 #ifdef	DEBUG_LOCKS
-	struct stack stack;
+	struct stack lk_stack;
 #endif
 };
 /*
