@@ -291,9 +291,11 @@ again:
 				ip->ip_src = IA_SIN(ia)->sin_addr;
 		}
 
+		IN_MULTI_LOCK();
 		IN_LOOKUP_MULTI(ip->ip_dst, ifp, inm);
 		if (inm != NULL &&
 		   (imo == NULL || imo->imo_multicast_loop)) {
+			IN_MULTI_UNLOCK();
 			/*
 			 * If we belong to the destination multicast group
 			 * on the outgoing interface, and the caller did not
@@ -302,6 +304,7 @@ again:
 			ip_mloopback(ifp, m, dst, hlen);
 		}
 		else {
+			IN_MULTI_UNLOCK();
 			/*
 			 * If we are acting as a multicast router, perform
 			 * multicast forwarding as if the packet had just
