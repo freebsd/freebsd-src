@@ -110,21 +110,62 @@ test_pipe(int num)
 }
 
 inline void
-test_socket(int num)
+test_socket_stream(int num)
 {
 	int i, so;
 
-	/*
-	 * Sockets are also expensive, but unlike pipes, currently
-	 * require Giant.
-	 */
 	for (i = 0; i < num; i++) {
 		so = socket(PF_LOCAL, SOCK_STREAM, 0);
 		if (so == -1) {
-			perror("socket");
+			perror("socket_stream");
 			exit(-1);
 		}
 		close(so);
+	}
+}
+
+inline void
+test_socket_dgram(int num)
+{
+	int i, so;
+
+	for (i = 0; i < num; i++) {
+		so = socket(PF_LOCAL, SOCK_DGRAM, 0);
+		if (so == -1) {
+			perror("socket_dgram");
+			exit(-1);
+		}
+		close(so);
+	}
+}
+
+inline void
+test_socketpair_stream(int num)
+{
+	int i, so[2];
+
+	for (i = 0; i < num; i++) {
+		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, so) == -1) {
+			perror("socketpair_stream");
+			exit(-1);
+		}
+		close(so[0]);
+		close(so[1]);
+	}
+}
+
+inline void
+test_socketpair_dgram(int num)
+{
+	int i, so[2];
+
+	for (i = 0; i < num; i++) {
+		if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, so) == -1) {
+			perror("socketpair_dgram");
+			exit(-1);
+		}
+		close(so[0]);
+		close(so[1]);
 	}
 }
 
@@ -133,8 +174,10 @@ usage(void)
 {
 
 	fprintf(stderr, "syscall_timing [iterations] [test]\n");
-	fprintf(stderr, "supported tests: getuid getppid clock_gettime "
-	    "pipe socket\n");
+	fprintf(stderr,
+	    "supported tests: getuid getppid clock_gettime pipe\n"
+	    "socket_stream socket_dgram socketpair_stream\n"
+	    "socketpair_dgram\n");
 	exit(-1);
 }
 
@@ -167,9 +210,21 @@ main(int argc, char *argv[])
 		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
 		test_pipe(count);
 		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
-	} else if (strcmp(argv[2], "socket") == 0) {
+	} else if (strcmp(argv[2], "socket_stream") == 0) {
 		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
-		test_socket(count);
+		test_socket_stream(count);
+		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
+	} else if (strcmp(argv[2], "socket_dgram") == 0) {
+		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
+		test_socket_dgram(count);
+		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
+	} else if (strcmp(argv[2], "socketpair_stream") == 0) {
+		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
+		test_socketpair_stream(count);
+		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
+	} else if (strcmp(argv[2], "socketpair_dgram") == 0) {
+		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
+		test_socketpair_dgram(count);
 		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
 	 } else
 		usage();
