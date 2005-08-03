@@ -594,6 +594,7 @@ vge_setmulti(sc)
 	}
 
 	/* Now program new ones */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -626,6 +627,7 @@ vge_setmulti(sc)
 		CSR_WRITE_4(sc, VGE_MAR0, hashes[0]);
 		CSR_WRITE_4(sc, VGE_MAR1, hashes[1]);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	return;
 }

@@ -539,6 +539,7 @@ aue_setmulti(struct aue_softc *sc)
 		aue_csr_write_1(sc, AUE_MAR0 + i, 0);
 
 	/* now program new ones */
+	IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version >= 500000
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 #else
@@ -551,6 +552,7 @@ aue_setmulti(struct aue_softc *sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) & ((1 << AUE_BITS) - 1);
 		AUE_SETBIT(sc, AUE_MAR + (h >> 3), 1 << (h & 0x7));
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	return;
 }

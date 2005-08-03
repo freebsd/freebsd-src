@@ -1621,6 +1621,7 @@ ti_setmulti(sc)
 	}
 
 	/* Now program new ones. */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1634,6 +1635,7 @@ ti_setmulti(sc)
 		SLIST_INSERT_HEAD(&sc->ti_mc_listhead, mc, mc_entries);
 		ti_add_mcast(sc, &mc->mc_addr);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	/* Re-enable interrupts. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, intrs);

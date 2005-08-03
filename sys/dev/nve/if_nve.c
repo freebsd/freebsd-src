@@ -1073,6 +1073,7 @@ nve_setmulti(struct nve_softc *sc)
 		return;
 	}
 	/* Setup multicast filter */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		u_char *addrp;
 
@@ -1086,6 +1087,7 @@ nve_setmulti(struct nve_softc *sc)
 			oraddr[i] |= mcaddr;
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 	for (i = 0; i < 6; i++) {
 		hwfilter.acMulticastAddress[i] = andaddr[i] & oraddr[i];
 		hwfilter.acMulticastMask[i] = andaddr[i] | (~oraddr[i]);
