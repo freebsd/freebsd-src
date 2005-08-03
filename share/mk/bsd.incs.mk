@@ -39,10 +39,12 @@ ${group}NAME_${header:T}?=	${header:T}
 .endif
 installincludes: _${group}INS_${header:T}
 _${group}INS_${header:T}: ${header}
+.if !defined(NO_TOOLCHAIN)
 	${INSTALL} -C -o ${${group}OWN_${.ALLSRC:T}} \
 	    -g ${${group}GRP_${.ALLSRC:T}} -m ${${group}MODE_${.ALLSRC:T}} \
 	    ${.ALLSRC} \
 	    ${DESTDIR}${${group}DIR_${.ALLSRC:T}}/${${group}NAME_${.ALLSRC:T}}
+.endif
 .else
 _${group}INCS+= ${header}
 .endif
@@ -50,6 +52,7 @@ _${group}INCS+= ${header}
 .if !empty(_${group}INCS)
 installincludes: _${group}INS
 _${group}INS: ${_${group}INCS}
+.if !defined(NO_TOOLCHAIN)
 .if defined(${group}NAME)
 	${INSTALL} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/${${group}NAME}
@@ -57,6 +60,7 @@ _${group}INS: ${_${group}INCS}
 	${INSTALL} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}
 .endif
+.endif # !defined(NO_TOOLCHAIN)
 .endif
 
 .endif # defined(${group}) && !empty(${group})
@@ -64,6 +68,7 @@ _${group}INS: ${_${group}INCS}
 
 .if defined(INCSLINKS) && !empty(INCSLINKS)
 installincludes:
+.if !defined(NO_TOOLCHAIN)
 	@set ${INCSLINKS}; \
 	while test $$# -ge 2; do \
 		l=$$1; \
@@ -73,6 +78,7 @@ installincludes:
 		${ECHO} $$t -\> $$l; \
 		ln -fs $$l $$t; \
 	done; true
+.endif # !defined(NO_TOOLCHAIN)
 .endif
 .endif # !target(installincludes)
 
