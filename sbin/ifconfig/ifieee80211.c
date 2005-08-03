@@ -301,8 +301,8 @@ set80211wepkey(const char *val, int d, int s, const struct afswtch *rafp)
 }
 
 /*
- * This function is purly a NetBSD compatability interface.  The NetBSD
- * iterface is too inflexable, but it's there so we'll support it since
+ * This function is purely a NetBSD compatability interface.  The NetBSD
+ * interface is too inflexible, but it's there so we'll support it since
  * it's not all that hard.
  */
 static void
@@ -749,7 +749,7 @@ copy_essid(char buf[], size_t bufsize, const u_int8_t *essid, size_t essid_len)
 	return maxlen;
 }
 
-/* unalligned little endian access */     
+/* unaligned little endian access */     
 #define LE_READ_4(p)					\
 	((u_int32_t)					\
 	 ((((const u_int8_t *)(p))[0]      ) |		\
@@ -1326,7 +1326,7 @@ ieee80211_status(int s)
 	ireq.i_type = IEEE80211_IOC_SSID;
 	ireq.i_val = -1;
 	if (ioctl(s, SIOCG80211, &ireq) < 0) {
-		/* If we can't get the SSID, the this isn't an 802.11 device. */
+		/* If we can't get the SSID, this isn't an 802.11 device. */
 		return;
 	}
 	num = 0;
