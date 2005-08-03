@@ -500,6 +500,7 @@ rue_setmulti(struct rue_softc *sc)
 	rue_csr_write_4(sc, RUE_MAR4, 0);
 
 	/* now program new ones */
+	IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version >= 500000
 	TAILQ_FOREACH (ifma, &ifp->if_multiaddrs, ifma_link)
 #else
@@ -516,6 +517,7 @@ rue_setmulti(struct rue_softc *sc)
 			hashes[1] |= (1 << (h - 32));
 		mcnt++;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (mcnt)
 		rxcfg |= RUE_RCR_AM;

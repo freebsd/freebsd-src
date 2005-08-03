@@ -1146,15 +1146,19 @@ awi_mode_init(struct awi_softc *sc)
 #ifdef __FreeBSD__
 	if (ifp->if_flags & IFF_ALLMULTI)
 		goto set_mib;
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		if (n == AWI_GROUP_ADDR_SIZE)
+		if (n == AWI_GROUP_ADDR_SIZE) {
+			IF_ADDR_UNLOCK(ifp);
 			goto set_mib;
+		}
 		IEEE80211_ADDR_COPY(sc->sc_mib_addr.aGroup_Addresses[n],
 		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		n++;
 	}
+	IF_ADDR_UNLOCK(ifp);
 #else
 	ETHER_FIRST_MULTI(step, &sc->sc_ic.ic_ec, enm);
 	while (enm != NULL) {

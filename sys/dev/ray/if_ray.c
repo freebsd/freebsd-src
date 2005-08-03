@@ -2704,13 +2704,16 @@ ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 	 * The multicast list is only 16 items long so use promiscuous
 	 * mode and don't bother updating the multicast list.
 	 */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		count++;
 	if (count == 0) {
+		IF_ADDR_UNLOCK(ifp);
 		ray_com_runq_done(sc);
 		return;
 	} else if (count > 16) {
 		ifp->if_flags |= IFF_ALLMULTI;
+		IF_ADDR_UNLOCK(ifp);
 		ray_com_runq_done(sc);
 		return;
 	} else if (ifp->if_flags & IFF_ALLMULTI)
@@ -2732,6 +2735,7 @@ ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 		);
 		bufp += ETHER_ADDR_LEN;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	ray_com_ecf(sc, com);
 }

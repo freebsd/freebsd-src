@@ -2485,6 +2485,7 @@ fxp_mc_addrs(struct fxp_softc *sc)
 
 	nmcasts = 0;
 	if ((sc->flags & FXP_FLAG_ALL_MCAST) == 0) {
+		IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version < 500000
 		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 #else
@@ -2501,6 +2502,7 @@ fxp_mc_addrs(struct fxp_softc *sc)
 			    &sc->mcsp->mc_addr[nmcasts][0], ETHER_ADDR_LEN);
 			nmcasts++;
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	mcsp->mc_cnt = htole16(nmcasts * ETHER_ADDR_LEN);
 	return (nmcasts);
