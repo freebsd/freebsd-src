@@ -312,7 +312,12 @@ adjustrunqueue( struct thread *td, int newpri)
 
 	/* It is a threaded process */
 	kg = td->td_ksegrp;
-	if (ke->ke_state == KES_ONRUNQ) {
+	if (ke->ke_state == KES_ONRUNQ
+#ifdef SCHED_ULE
+	 || ((ke->ke_flags & KEF_ASSIGNED) != 0 &&
+	     (ke->ke_flags & KEF_REMOVED) == 0)
+#endif
+	   ) {
 		if (kg->kg_last_assigned == td) {
 			kg->kg_last_assigned =
 			    TAILQ_PREV(td, threadqueue, td_runq);
