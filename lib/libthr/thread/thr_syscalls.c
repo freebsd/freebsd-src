@@ -97,6 +97,7 @@ extern int __pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 extern unsigned int __sleep(unsigned int);
 extern int __system(const char *);
 extern int __tcdrain(int);
+extern int __usleep(useconds_t);
 extern pid_t __wait(int *);
 extern pid_t __sys_wait4(pid_t, int *, int, struct rusage *);
 extern pid_t __waitpid(pid_t, int *, int);
@@ -473,6 +474,8 @@ __sendto(int s, const void *m, size_t l, int f, const struct sockaddr *t,
 	return (ret);
 }
 
+__weak_reference(_sleep, sleep);
+
 unsigned int
 _sleep(unsigned int seconds)
 {
@@ -516,6 +519,22 @@ _tcdrain(int fd)
 	ret = __tcdrain(fd);
 	_thr_cancel_leave(curthread, oldcancel);
 
+	return (ret);
+}
+
+__weak_reference(_usleep, usleep);
+
+int
+_usleep(useconds_t useconds)
+{
+	struct pthread *curthread = _get_curthread();
+	int		oldcancel;
+	int		ret;
+
+	oldcancel = _thr_cancel_enter(curthread);
+	ret = __usleep(useconds);
+	_thr_cancel_leave(curthread, oldcancel);
+	
 	return (ret);
 }
 
