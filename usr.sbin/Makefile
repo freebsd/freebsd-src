@@ -290,7 +290,9 @@ _acpi=		acpi
 .endif
 _arlcontrol=	arlcontrol
 _boot0cfg=	boot0cfg
+.if !defined(NO_PCVT)
 _pcvt=		pcvt
+.endif
 _wlconfig=	wlconfig
 .elif ${MACHINE} == "pc98"
 _boot98cfg=	boot98cfg
