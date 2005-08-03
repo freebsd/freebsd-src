@@ -148,10 +148,10 @@ main(int argc, char *argv[])
 	const char *ifname = "ath0";
 	const char *cp, *tp;
 	const char *sep;
-	int c, op, i;
+	int c, op, i, unit;
 	u_int32_t debug, ndebug;
-	size_t debuglen;
-	char oid[256];
+	size_t debuglen, parentlen;
+	char oid[256], parent[256];
 
 	progname = argv[0];
 	if (argc > 1) {
@@ -159,17 +159,28 @@ main(int argc, char *argv[])
 			if (argc < 2)
 				errx(1, "missing interface name for -i option");
 			ifname = argv[2];
-			if (strncmp(ifname, "ath", 3) != 0)
-				errx(2, "huh, this is for ath devices?");
 			argc -= 2, argv += 2;
 		} else if (strcmp(argv[1], "-?") == 0)
 			usage();
 	}
 
+	for (unit = 0; unit < 10; unit++) {
 #ifdef __linux__
-	snprintf(oid, sizeof(oid), "net.wlan%s.debug", ifname+3);
+		snprintf(oid, sizeof(oid), "net.wlan%d.%%parent", unit);
 #else
-	snprintf(oid, sizeof(oid), "net.wlan.%s.debug", ifname+3);
+		snprintf(oid, sizeof(oid), "net.wlan.%d.%%parent", unit);
+#endif
+		parentlen = sizeof(parentlen);
+		if (sysctlbyname(oid, parent, &parentlen, NULL, 0) >= 0 &&
+		    strncmp(parent, ifname, parentlen) == 0)
+			break;
+	}
+	if (unit == 10)
+		errx(1, "%s: cannot locate wlan sysctl node.", ifname);
+#ifdef __linux__
+	snprintf(oid, sizeof(oid), "net.wlan%d.debug", unit);
+#else
+	snprintf(oid, sizeof(oid), "net.wlan.%d.debug", unit);
 #endif
 	debuglen = sizeof(debug);
 	if (sysctlbyname(oid, &debug, &debuglen, NULL, 0) < 0)
