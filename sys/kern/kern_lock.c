@@ -214,7 +214,7 @@ lockmgr(lkp, flags, interlkp, td)
 				break;
 			sharelock(td, lkp, 1);
 #if defined(DEBUG_LOCKS)
-			stack_save(&lkp->stack);
+			stack_save(&lkp->lk_stack);
 #endif
 			break;
 		}
@@ -297,7 +297,7 @@ lockmgr(lkp, flags, interlkp, td)
 			lkp->lk_exclusivecount = 1;
 			COUNT(td, 1);
 #if defined(DEBUG_LOCKS)
-			stack_save(&lkp->stack);
+			stack_save(&lkp->lk_stack);
 #endif
 			break;
 		}
@@ -356,7 +356,7 @@ lockmgr(lkp, flags, interlkp, td)
 		lkp->lk_exclusivecount = 1;
 		COUNT(td, 1);
 #if defined(DEBUG_LOCKS)
-		stack_save(&lkp->stack);
+		stack_save(&lkp->lk_stack);
 #endif
 		break;
 
@@ -401,7 +401,7 @@ lockmgr(lkp, flags, interlkp, td)
 		lkp->lk_exclusivecount = 1;
 		COUNT(td, 1);
 #if defined(DEBUG_LOCKS)
-		stack_save(&lkp->stack);
+		stack_save(&lkp->lk_stack);
 #endif
 		break;
 
@@ -495,7 +495,7 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	lkp->lk_lockholder = LK_NOPROC;
 	lkp->lk_newlock = NULL;
 #ifdef DEBUG_LOCKS
-	stack_zero(&lkp->stack);
+	stack_zero(&lkp->lk_stack);
 #endif
 }
 
@@ -565,4 +565,7 @@ lockmgr_printinfo(lkp)
 		    lkp->lk_lockholder, lkp->lk_lockholder->td_proc->p_pid);
 	if (lkp->lk_waitcount > 0)
 		printf(" with %d pending", lkp->lk_waitcount);
+#ifdef DEBUG_LOCKS
+	stack_print(&lkp->lk_stack);
+#endif
 }
