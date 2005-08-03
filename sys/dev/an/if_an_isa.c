@@ -77,12 +77,11 @@ static struct isa_pnp_id an_ids[] = {
 	{ 0, NULL }
 };
 
-static int an_probe_isa		(device_t);
-static int an_attach_isa	(device_t);
+static int an_probe_isa(device_t);
+static int an_attach_isa(device_t);
 
 static int
-an_probe_isa(dev)
-	device_t		dev;
+an_probe_isa(device_t dev)
 {
 	int			error = 0;
 
@@ -103,8 +102,7 @@ an_probe_isa(dev)
 }
 
 static int
-an_attach_isa(dev)
-	device_t dev;
+an_attach_isa(device_t dev)
 {
 	struct an_softc *sc = device_get_softc(dev);
 	int flags = device_get_flags(dev);
