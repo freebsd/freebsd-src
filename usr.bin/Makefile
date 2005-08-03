@@ -22,7 +22,7 @@ SUBDIR=	alias \
 	bzip2recover \
 	${_c89} \
 	${_c99} \
-	calendar \
+	${_calendar} \
 	cap_mkdb \
 	catman \
 	chat \
@@ -244,6 +244,10 @@ _nsupdate=	nsupdate
 
 .if !defined(NO_BLUETOOTH)
 _bluetooth=	bluetooth
+.endif
+
+.if !defined(NO_CALENDAR)
+_calendar=	calendar
 .endif
 
 .if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
