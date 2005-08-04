@@ -114,8 +114,8 @@ struct ums_softc {
 
 	int flags;		/* device configuration */
 #define UMS_Z		0x01	/* z direction available */
-#define UMS_T		0x02	/* aa direction available (tilt) */
 #define UMS_SPUR_BUT_UP	0x02	/* spurious button up events */
+#define UMS_T		0x04	/* aa direction available (tilt) */
 	int nbuttons;
 #define MAX_BUTTONS	7	/* chosen because sc_buttons is u_char */
 
@@ -370,6 +370,7 @@ USB_ATTACH(ums)
 			UID_ROOT, GID_OPERATOR,
 			0644, "ums%d", device_get_unit(self));
 
+	usb_callout_init(sc->callout_handle);
 	if (usbd_get_quirks(uaa->device)->uq_flags & UQ_SPUR_BUT_UP) {
 		DPRINTF(("%s: Spurious button up events\n",
 			USBDEVNAME(sc->sc_dev)));
