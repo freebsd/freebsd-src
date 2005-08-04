@@ -408,6 +408,7 @@ if_alloc(u_char type)
 			return (NULL);
 		}
 	}
+	IF_ADDR_LOCK_INIT(ifp);
 
 	return (ifp);
 }
@@ -462,7 +463,6 @@ if_attach(struct ifnet *ifp)
 	TASK_INIT(&ifp->if_starttask, 0, if_start_deferred, ifp);
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
 	IF_AFDATA_LOCK_INIT(ifp);
-	IF_ADDR_LOCK_INIT(ifp);
 	ifp->if_afdata_initialized = 0;
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
