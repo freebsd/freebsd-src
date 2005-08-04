@@ -67,7 +67,7 @@
 #ifndef	_VM_PAGE_
 #define	_VM_PAGE_
 
-#if !defined(KLD_MODULE)
+#if !defined(KLD_MODULE) && !defined(LIBMEMSTAT)
 #include "opt_vmpage.h"
 #endif
 
