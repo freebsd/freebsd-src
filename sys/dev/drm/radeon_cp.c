@@ -34,6 +34,7 @@
 #include "dev/drm/drm.h"
 #include "dev/drm/radeon_drm.h"
 #include "dev/drm/radeon_drv.h"
+#include "dev/drm/r300_reg.h"
 
 #define RADEON_FIFO_DEBUG	0
 
@@ -825,6 +826,12 @@ static int RADEON_READ_PLL(drm_device_t * dev, int addr)
 	return RADEON_READ(RADEON_CLOCK_CNTL_DATA);
 }
 
+static int RADEON_READ_PCIE(drm_radeon_private_t *dev_priv, int addr)
+{
+	RADEON_WRITE8(RADEON_PCIE_INDEX, addr & 0xff);
+	return RADEON_READ(RADEON_PCIE_DATA);
+}
+
 #if RADEON_FIFO_DEBUG
 static void radeon_status(drm_radeon_private_t * dev_priv)
 {
@@ -1133,6 +1140,7 @@ static void radeon_cp_init_ring_buffer(drm_device_t * dev,
 		ring_start = (dev_priv->cp_ring->offset
 			      - dev->sg->handle + dev_priv->gart_vm_start);
 
+
 	RADEON_WRITE(RADEON_CP_RB_BASE, ring_start);
 
 	/* Set the write pointer delay */
@@ -1233,10 +1241,37 @@ static void radeon_cp_init_ring_buffer(drm_device_t * dev,
 		      RADEON_ISYNC_CPSCRATCH_IDLEGUI));
 }
 
+/* Enable or disable PCI-E GART on the chip */
+static void radeon_set_pciegart(drm_radeon_private_t * dev_priv, int on)
+{
+	u32 tmp = RADEON_READ_PCIE(dev_priv, RADEON_PCIE_TX_GART_CNTL);
+	if (on) {
+
+		DRM_DEBUG("programming pcie %08X %08lX %08X\n", dev_priv->gart_vm_start, dev_priv->bus_pci_gart,dev_priv->gart_size);
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_DISCARD_RD_ADDR_LO, dev_priv->gart_vm_start);
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_GART_BASE, dev_priv->bus_pci_gart);
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_GART_START_LO, dev_priv->gart_vm_start);
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_GART_END_LO, dev_priv->gart_vm_start
+			     + dev_priv->gart_size - 1);
+
+		RADEON_WRITE(RADEON_MC_AGP_LOCATION, 0xffffffc0);	/* ?? */
+
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_GART_CNTL, RADEON_PCIE_TX_GART_EN | RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_DISCARD | RADEON_PCIE_TX_GART_CHK_RW_VALID_EN);
+	} else {
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp & ~RADEON_PCIE_TX_GART_EN);
+	}
+}
+
 /* Enable or disable PCI GART on the chip */
 static void radeon_set_pcigart(drm_radeon_private_t * dev_priv, int on)
 {
 	u32 tmp = RADEON_READ(RADEON_AIC_CNTL);
+
+	if (dev_priv->flags & CHIP_IS_PCIE)
+	{
+		radeon_set_pciegart(dev_priv, on);
+		return;
+	}
 
 	if (on) {
 		RADEON_WRITE(RADEON_AIC_CNTL,
@@ -1499,7 +1534,7 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 #endif
 	{
 		if (!drm_ati_pcigart_init(dev, &dev_priv->phys_pci_gart,
-					  &dev_priv->bus_pci_gart)) {
+					  &dev_priv->bus_pci_gart, (dev_priv->flags & CHIP_IS_PCIE))) {
 			DRM_ERROR("failed to init PCI GART!\n");
 			radeon_do_cleanup_cp(dev);
 			return DRM_ERR(ENOMEM);
@@ -1608,6 +1643,9 @@ int radeon_cp_init(DRM_IOCTL_ARGS)
 	DRM_COPY_FROM_USER_IOCTL(init, (drm_radeon_init_t __user *) data,
 				 sizeof(init));
 
+	if(init.func == RADEON_INIT_R300_CP)
+		r300_init_reg_flags();
+	
 	switch (init.func) {
 	case RADEON_INIT_CP:
 	case RADEON_INIT_R200_CP:
@@ -2024,6 +2062,7 @@ int radeon_preinit(struct drm_device *dev, unsigned long flags)
 	case CHIP_RV200:
 	case CHIP_R200:
 	case CHIP_R300:
+	case CHIP_R420:
 		dev_priv->flags |= CHIP_HAS_HIERZ;
 		break;
 	default:
@@ -2056,8 +2095,11 @@ int radeon_preinit(struct drm_device *dev, unsigned long flags)
 	if (drm_device_is_agp(dev))
 		dev_priv->flags |= CHIP_IS_AGP;
 
+	if (drm_device_is_pcie(dev))
+		dev_priv->flags |= CHIP_IS_PCIE;
+
 	DRM_DEBUG("%s card detected\n",
-		  ((dev_priv->flags & CHIP_IS_AGP) ? "AGP" : "PCI"));
+		  ((dev_priv->flags & CHIP_IS_AGP) ? "AGP" : (((dev_priv->flags & CHIP_IS_PCIE) ? "PCIE" : "PCI"))));
 
 #if defined(__linux__)
 	/* Check if we need a reset */
