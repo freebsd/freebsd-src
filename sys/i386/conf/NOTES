@@ -458,7 +458,7 @@ device		drm		# DRM core module required by DRM drivers
 device		mach64drm	# ATI Rage Pro, Rage Mobility P/M, Rage XL
 device		mgadrm		# AGP Matrox G200, G400, G450, G550
 device		r128drm		# ATI Rage 128
-device		radeondrm	# ATI Radeon up to 9200
+device		radeondrm	# ATI Radeon
 device		sisdrm		# SiS 300/305, 540, 630
 device		tdfxdrm		# 3dfx Voodoo 3/4/5 and Banshee
 options 	DRM_DEBUG	# Include debug printfs (slow)

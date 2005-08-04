@@ -252,6 +252,15 @@ typedef drm_device_t *device_t;
 extern struct cfdriver drm_cd;
 #endif /* !__FreeBSD__ */
 
+/* Capabilities taken from src/sys/dev/pci/pcireg.h. */
+#ifndef PCIY_AGP
+#define PCIY_AGP	0x02
+#endif
+
+#ifndef PCIY_EXPRESS
+#define PCIY_EXPRESS	0x10
+#endif
+
 typedef unsigned long dma_addr_t;
 typedef u_int32_t u32;
 typedef u_int16_t u16;
@@ -821,8 +830,9 @@ void	drm_driver_irq_uninstall(drm_device_t *dev);
 int	drm_vblank_wait(drm_device_t *dev, unsigned int *vbl_seq);
 void	drm_vbl_send_signals(drm_device_t *dev);
 
-/* AGP/GART support (drm_agpsupport.c) */
+/* AGP/PCI Express/GART support (drm_agpsupport.c) */
 int	drm_device_is_agp(drm_device_t *dev);
+int	drm_device_is_pcie(drm_device_t *dev);
 drm_agp_head_t *drm_agp_init(void);
 void	drm_agp_uninit(void);
 void	drm_agp_do_release(void);
@@ -842,7 +852,7 @@ extern int		drm_sysctl_cleanup(drm_device_t *dev);
 
 /* ATI PCIGART support (ati_pcigart.c) */
 int	drm_ati_pcigart_init(drm_device_t *dev, unsigned long *addr,
-			     dma_addr_t *bus_addr);
+			     dma_addr_t *bus_addr, int is_pcie);
 int	drm_ati_pcigart_cleanup(drm_device_t *dev, unsigned long addr,
 				dma_addr_t bus_addr);
 
