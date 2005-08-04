@@ -1810,14 +1810,14 @@ retry:
 			if (pbits & PG_MANAGED) {
 				m = NULL;
 				if (pbits & PG_A) {
-					m = PHYS_TO_VM_PAGE(pbits);
+					m = PHYS_TO_VM_PAGE(*pte);
 					vm_page_flag_set(m, PG_REFERENCED);
 					pbits &= ~PG_A;
 				}
 				if ((pbits & PG_M) != 0 &&
 				    pmap_track_modified(sva)) {
 					if (m == NULL)
-						m = PHYS_TO_VM_PAGE(pbits);
+						m = PHYS_TO_VM_PAGE(*pte);
 					vm_page_dirty(m);
 				}
 			}
