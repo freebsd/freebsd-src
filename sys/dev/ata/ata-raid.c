@@ -3114,7 +3114,6 @@ ata_raid_send_request(struct ata_request *request)
     struct ata_device *atadev = device_get_softc(request->dev);
   
     request->transfersize = min(request->bytecount, atadev->max_iosize);
-    request->transfersize = DEV_BSIZE;
     if (request->flags & ATA_R_READ) {
 	if (atadev->mode >= ATA_DMA) {
 	    request->flags |= ATA_R_DMA;
@@ -3260,7 +3259,8 @@ ata_raid_module_event_handler(module_t mod, int what, void *arg)
 
     switch (what) {
     case MOD_LOAD:
-	printf("ATA PseudoRAID loaded\n");
+	if (bootverbose)
+	    printf("ATA PseudoRAID loaded\n");
 #if 0
 	/* setup table to hold metadata for all ATA PseudoRAID arrays */
 	ata_raid_arrays = malloc(sizeof(struct ar_soft *) * MAX_ARRAYS,
@@ -3292,7 +3292,8 @@ ata_raid_module_event_handler(module_t mod, int what, void *arg)
 		continue;
 	    disk_destroy(rdp->disk);
 	}
-	printf("ATA PseudoRAID unloaded\n");
+	if (bootverbose)
+	    printf("ATA PseudoRAID unloaded\n");
 #if 0
 	free(ata_raid_arrays, M_AR);
 #endif
