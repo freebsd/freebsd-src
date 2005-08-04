@@ -144,7 +144,11 @@ struct acpi_ibm_softc {
 	int		light_val;
 	int		light_get_supported;
 	int		light_set_supported;
+
+	/* led(4) interface */
 	struct cdev	*led_dev;
+	int		led_busy;
+	int		led_state;
 
 	int		wlan_bt_flags;
 	int		thermal_updt_supported;
@@ -240,6 +244,9 @@ static int	acpi_ibm_probe(device_t dev);
 static int	acpi_ibm_attach(device_t dev);
 static int	acpi_ibm_detach(device_t dev);
 
+static void	ibm_led(void *softc, int onoff);
+static void	ibm_led_task(struct acpi_ibm_softc *sc, int pending __unused);
+
 static int	acpi_ibm_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_ibm_sysctl_init(struct acpi_ibm_softc *sc, int method);
 static int	acpi_ibm_sysctl_get(struct acpi_ibm_softc *sc, int method);
@@ -274,10 +281,30 @@ static char    *ibm_ids[] = {"IBM0057", "IBM0068", NULL};
 static void
 ibm_led(void *softc, int onoff)
 {
+	struct acpi_ibm_softc* sc = (struct acpi_ibm_softc*) softc;
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+	if (sc->led_busy)
+		return;
+
+	sc->led_busy = 1;
+	sc->led_state = onoff;
+
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
+	    (void *)ibm_led_task, sc);
+}
+
+static void
+ibm_led_task(struct acpi_ibm_softc *sc, int pending __unused)
+{
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
 	ACPI_SERIAL_BEGIN(ibm);
-	acpi_ibm_sysctl_set((struct acpi_ibm_softc*)softc,
-	    ACPI_IBM_METHOD_THINKLIGHT, onoff);
+	acpi_ibm_sysctl_set(sc, ACPI_IBM_METHOD_THINKLIGHT, sc->led_state);
 	ACPI_SERIAL_END(ibm);
+
+	sc->led_busy = 0;
 }
 
 static int
