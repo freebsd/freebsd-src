@@ -29,17 +29,9 @@
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
-/*
- * XXX: Grubbing around in UMA(9) using libkvm requires internal knowledge of
- * a number of VM-related bits.  The ifdefs around those bits are not
- * designed with a nosy user-space consumer in mind.
- */
+#define	LIBMEMSTAT	/* Cause vm_page.h not to include opt_vmpage.h */
 #include <vm/vm.h>
-#define	_KERNEL		/* XXX: vm_page.h confusion. */
-#define	KLD_MODULE	/* XXX: vm_page.h shouldn't include opt_vmpage.h. */
 #include <vm/vm_page.h>
-#undef KLD_MODULE
-#undef _KERNEL
 
 #include <vm/uma.h>
 #include <vm/uma_int.h>
