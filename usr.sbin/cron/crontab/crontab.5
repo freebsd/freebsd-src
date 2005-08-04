@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 1994
+.Dd July 31, 2005
 .Dt CRONTAB 5
 .Os
 .Sh NAME
@@ -72,6 +72,9 @@ daemon.
 .Ev SHELL
 is set to
 .Pa /bin/sh ,
+.Ev PATH
+is set to
+.Pa /usr/bin:/bin ,
 and
 .Ev LOGNAME
 and
@@ -79,7 +82,8 @@ and
 are set from the
 .Pa /etc/passwd
 line of the crontab's owner.
-.Ev HOME
+.Ev HOME ,
+.Ev PATH
 and
 .Ev SHELL
 may be overridden by settings in the crontab;
@@ -100,6 +104,7 @@ will be set also).
 In addition to
 .Ev LOGNAME ,
 .Ev HOME ,
+.Ev PATH ,
 and
 .Ev SHELL ,
 .Xr cron 8
