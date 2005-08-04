@@ -121,7 +121,7 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	    args->argp, args->envp);
 	free(newpath, M_TEMP);
 	if (error == 0)
-		kern_execve(td, &eargs, NULL);
+		error = kern_execve(td, &eargs, NULL);
 	exec_free_args(&eargs);
 	return (error);
 }
