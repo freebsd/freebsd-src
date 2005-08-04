@@ -323,6 +323,7 @@ struct uma_zone {
 #define UMA_ZFLAG_FULL		0x40000000	/* Reached uz_maxpages */
 #define UMA_ZFLAG_CACHEONLY	0x80000000	/* Don't ask VM for buckets. */
 
+#ifdef _KERNEL
 /* Internal prototypes */
 static __inline uma_slab_t hash_sfind(struct uma_hash *hash, u_int8_t *data);
 void *uma_large_malloc(int size, int wait);
@@ -412,5 +413,6 @@ vsetobj(vm_offset_t va, vm_object_t obj)
  */
 void *uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait);
 void uma_small_free(void *mem, int size, u_int8_t flags);
+#endif /* _KERNEL */
 
 #endif /* VM_UMA_INT_H */
