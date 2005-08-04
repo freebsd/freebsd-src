@@ -1345,7 +1345,7 @@ sis_ring_init(struct sis_softc *sc)
 	sc->sis_tx_prod = sc->sis_tx_cons = sc->sis_tx_cnt = 0;
 
 	bus_dmamap_sync(sc->sis_tx_tag,
-	    sc->sis_rx_dmamap, BUS_DMASYNC_PREWRITE);
+	    sc->sis_tx_dmamap, BUS_DMASYNC_PREWRITE);
 
 	dp = &sc->sis_rx_list[0];
 	for (i = 0; i < SIS_RX_LIST_CNT; i++, dp++) {
