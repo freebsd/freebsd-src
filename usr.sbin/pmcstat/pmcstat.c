@@ -881,6 +881,9 @@ main(int argc, char **argv)
 			if (args.pa_flags & (FLAG_HAS_OUTPUT_LOGFILE |
 				FLAG_HAS_PIPE))
 				runstate = pmcstat_close_log(&args);
+			else
+				runstate = PMCSTAT_FINISHED;
+			do_print = 1;
 			break;
 
 		case EVFILT_READ:  /* log file data is present */
