@@ -112,6 +112,7 @@ struct acpi_tz_softc {
 
     /* passive cooling */
     struct proc			*tz_cooling_proc;
+    int				tz_cooling_proc_running;
     int				tz_cooling_enabled;
     int				tz_cooling_active;
     int				tz_cooling_updated;
@@ -198,6 +199,7 @@ acpi_tz_attach(device_t dev)
     sc->tz_active = TZ_ACTIVE_NONE;
     sc->tz_thflags = TZ_THFLAG_NONE;
     sc->tz_cooling_proc = NULL;
+    sc->tz_cooling_proc_running = FALSE;
     sc->tz_cooling_active = FALSE;
     sc->tz_cooling_updated = FALSE;
 
@@ -994,8 +996,9 @@ acpi_tz_cooling_thread(void *arg)
 	acpi_tz_cpufreq_restore(sc);
 	sc->tz_cooling_active = FALSE;
     }
-    ACPI_LOCK(thermal);
     sc->tz_cooling_proc = NULL;
+    ACPI_LOCK(thermal);
+    sc->tz_cooling_proc_running = FALSE;
     ACPI_UNLOCK(thermal);
     kthread_exit(0);
 }
@@ -1019,16 +1022,25 @@ acpi_tz_cooling_thread_start(struct acpi_tz_softc *sc)
     int error;
     char name[16];
 
-    error = 0;
     ACPI_LOCK(thermal);
+    if (sc->tz_cooling_proc_running) {
+	ACPI_UNLOCK(thermal);
+	return (0);
+    }
+    sc->tz_cooling_proc_running = TRUE;
+    ACPI_UNLOCK(thermal);
+    error = 0;
     if (sc->tz_cooling_proc == NULL) {
 	snprintf(name, sizeof(name), "acpi_cooling%d",
 	    device_get_unit(sc->tz_dev));
 	error = kthread_create(acpi_tz_cooling_thread, sc,
 	    &sc->tz_cooling_proc, RFHIGHPID, 0, name);
-	if (error != 0)
+	if (error != 0) {
 	    device_printf(sc->tz_dev, "could not create thread - %d", error);
+	    ACPI_LOCK(thermal);
+	    sc->tz_cooling_proc_running = FALSE;
+	    ACPI_UNLOCK(thermal);
+	}
     }
-    ACPI_UNLOCK(thermal);
     return (error);
 }
