@@ -223,7 +223,7 @@
 
 	set currdev=<device>
 
-	Selects the default device.  Syntax for devices is odd.
+	Selects the default device.  See lsdev for available devices.
 
 ################################################################################
 # Tset Sinit_path DSet the list of init candidates
