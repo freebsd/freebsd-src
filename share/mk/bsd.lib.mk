@@ -145,7 +145,7 @@ ${SHLIB_NAME}: ${SOBJS}
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
 
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && !defined(NO_TOOLCHAIN)
 _LIBS+=		lib${LIB}_pic.a
 
 lib${LIB}_pic.a: ${SOBJS}
@@ -232,7 +232,7 @@ _libinstall:
 .endif
 .endif
 .endif
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && !defined(NO_TOOLCHAIN)
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
 .endif
