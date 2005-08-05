@@ -235,6 +235,7 @@ struct protox netgraphprotox[] = {
 	  NULL,		NULL,		NULL,	0 }
 };
 
+#ifdef IPX
 struct protox ipxprotox[] = {
 	{ N_IPX,	N_IPXSTAT,	1,	ipxprotopr,
 	  ipx_stats,	NULL,		"ipx",	0 },
@@ -243,6 +244,7 @@ struct protox ipxprotox[] = {
 	{ -1,		-1,		0,	NULL,
 	  NULL,		NULL,		0,	0 }
 };
+#endif
 
 struct protox *protoprotox[] = {
 					 protox,
@@ -252,7 +254,10 @@ struct protox *protoprotox[] = {
 #ifdef IPSEC
 					 pfkeyprotox,
 #endif
-					 ipxprotox, atalkprotox, NULL };
+#ifdef IPX
+					 ipxprotox,
+#endif
+					 atalkprotox, NULL };
 
 const char *pluralies(int);
 static void printproto(struct protox *, const char *);
@@ -517,11 +522,13 @@ main(int argc, char *argv[])
 		for (tp = pfkeyprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 #endif /*IPSEC*/
+#ifdef IPX
 	if (af == AF_IPX || af == AF_UNSPEC) {
 		kread(0, 0, 0);
 		for (tp = ipxprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 	}
+#endif /* IPX */
 	if (af == AF_APPLETALK || af == AF_UNSPEC)
 		for (tp = atalkprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
