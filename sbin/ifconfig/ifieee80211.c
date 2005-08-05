@@ -301,8 +301,8 @@ set80211wepkey(const char *val, int d, int s, const struct afswtch *rafp)
 }
 
 /*
- * This function is purly a NetBSD compatability interface.  The NetBSD
- * iterface is too inflexable, but it's there so we'll support it since
+ * This function is purely a NetBSD compatability interface.  The NetBSD
+ * interface is too inflexible, but it's there so we'll support it since
  * it's not all that hard.
  */
 static void
@@ -531,15 +531,25 @@ DECL_CMD_FUNC2(set80211txoplimit, ac, val)
 }
 
 static
-DECL_CMD_FUNC(set80211acm, val, d)
+DECL_CMD_FUNC(set80211acm, ac, d)
 {
-	set80211(s, IEEE80211_IOC_WME_ACM, d, WME_AC_BE, NULL);
+	set80211(s, IEEE80211_IOC_WME_ACM, 1, getac(ac), NULL);
+}
+static
+DECL_CMD_FUNC(set80211noacm, ac, d)
+{
+	set80211(s, IEEE80211_IOC_WME_ACM, 0, getac(ac), NULL);
 }
 
 static
-DECL_CMD_FUNC(set80211ackpolicy, val, d)
+DECL_CMD_FUNC(set80211ackpolicy, ac, d)
 {
-	set80211(s, IEEE80211_IOC_WME_ACKPOLICY, d, WME_AC_BE, NULL);
+	set80211(s, IEEE80211_IOC_WME_ACKPOLICY, 1, getac(ac), NULL);
+}
+static
+DECL_CMD_FUNC(set80211noackpolicy, ac, d)
+{
+	set80211(s, IEEE80211_IOC_WME_ACKPOLICY, 0, getac(ac), NULL);
 }
 
 static
@@ -739,7 +749,7 @@ copy_essid(char buf[], size_t bufsize, const u_int8_t *essid, size_t essid_len)
 	return maxlen;
 }
 
-/* unalligned little endian access */     
+/* unaligned little endian access */     
 #define LE_READ_4(p)					\
 	((u_int32_t)					\
 	 ((((const u_int8_t *)(p))[0]      ) |		\
@@ -1316,7 +1326,7 @@ ieee80211_status(int s)
 	ireq.i_type = IEEE80211_IOC_SSID;
 	ireq.i_val = -1;
 	if (ioctl(s, SIOCG80211, &ireq) < 0) {
-		/* If we can't get the SSID, the this isn't an 802.11 device. */
+		/* If we can't get the SSID, this isn't an 802.11 device. */
 		return;
 	}
 	num = 0;
@@ -1797,10 +1807,10 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG2("cwmax",		set80211cwmax),
 	DEF_CMD_ARG2("aifs",		set80211aifs),
 	DEF_CMD_ARG2("txoplimit",	set80211txoplimit),
-	DEF_CMD("acm",		1,	set80211acm),
-	DEF_CMD("-acm",		0,	set80211acm),
-	DEF_CMD("ack",		1,	set80211ackpolicy),
-	DEF_CMD("-ack",		0,	set80211ackpolicy),
+	DEF_CMD_ARG("acm",		set80211acm),
+	DEF_CMD_ARG("-acm",		set80211noacm),
+	DEF_CMD_ARG("ack",		set80211ackpolicy),
+	DEF_CMD_ARG("-ack",		set80211noackpolicy),
 	DEF_CMD_ARG2("bss:cwmin",	set80211bsscwmin),
 	DEF_CMD_ARG2("bss:cwmax",	set80211bsscwmax),
 	DEF_CMD_ARG2("bss:aifs",	set80211bssaifs),
