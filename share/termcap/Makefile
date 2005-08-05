@@ -7,7 +7,7 @@
 #
 MAN=	termcap.5
 
-FILES=		map3270 termcap termcap.db
+FILES=		termcap termcap.db
 FILESDIR=	${BINDIR}/misc
 CLEANFILES+=	termcap termcap.db
 
