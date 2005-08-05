@@ -76,6 +76,7 @@ GEOM_APPLE	opt_geom.h
 GEOM_BDE	opt_geom.h
 GEOM_BSD	opt_geom.h
 GEOM_CONCAT	opt_geom.h
+GEOM_ELI	opt_geom.h
 GEOM_FOX	opt_geom.h
 GEOM_GATE	opt_geom.h
 GEOM_GPT	opt_geom.h

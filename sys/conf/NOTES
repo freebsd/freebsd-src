@@ -131,6 +131,7 @@ options 	GEOM_APPLE		# Apple partitioning
 options 	GEOM_BDE		# Disk encryption.
 options 	GEOM_BSD		# BSD disklabels
 options 	GEOM_CONCAT		# Disk concatenation.
+options 	GEOM_ELI		# Disk encryption.
 options 	GEOM_FOX		# Redundant path mitigation
 options 	GEOM_GATE		# Userland services.
 options 	GEOM_GPT		# GPT partitioning
