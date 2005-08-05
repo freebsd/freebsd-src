@@ -477,7 +477,7 @@ main(int argc, char **argv)
 
 		if (!(sscanf(argv[2], "ar%d", &array) == 1)) {
 			fprintf(stderr,
-				"atacontrol: Invalid array %s\n", argv[3]);
+				"atacontrol: Invalid array %s\n", argv[2]);
                         exit(EX_USAGE);
 		}
 		if (ioctl(fd, IOCATARAIDDELETE, &array) < 0)
@@ -489,7 +489,7 @@ main(int argc, char **argv)
 
 		if (!(sscanf(argv[2], "ar%d", &config.lun) == 1)) {
 			fprintf(stderr,
-				"atacontrol: Invalid array %s\n", argv[3]);
+				"atacontrol: Invalid array %s\n", argv[2]);
 			usage();
 		}
 		if (!(sscanf(argv[3], "ad%d", &config.disks[0]) == 1)) {
@@ -506,7 +506,7 @@ main(int argc, char **argv)
 
 		if (!(sscanf(argv[2], "ar%d", &array) == 1)) {
 			fprintf(stderr,
-				"atacontrol: Invalid array %s\n", argv[3]);
+				"atacontrol: Invalid array %s\n", argv[2]);
 			usage();
 		}
 		if (ioctl(fd, IOCATARAIDREBUILD, &array) < 0)
@@ -525,6 +525,11 @@ main(int argc, char **argv)
 		struct ata_ioc_raid_config config;
 		int i;
 
+		if (!(sscanf(argv[2], "ar%d", &config.lun) == 1)) {
+			fprintf(stderr,
+				"atacontrol: Invalid array %s\n", argv[2]);
+			usage();
+		}
 		if (ioctl(fd, IOCATARAIDSTATUS, &config) < 0)
 			err(1, "ioctl(IOCATARAIDSTATUS)");
 
