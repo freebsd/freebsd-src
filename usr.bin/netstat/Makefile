@@ -15,8 +15,8 @@ CFLAGS+=-DINET6
 
 BINGRP=	kmem
 BINMODE=2555
-DPADD=	${LIBKVM} ${LIBIPX} ${LIBMEMSTAT} ${LIBNETGRAPH} ${LIBUTIL}
-LDADD=	-lkvm -lipx -lmemstat -lnetgraph -lutil
+DPADD=	${LIBKVM} ${LIBMEMSTAT} ${LIBNETGRAPH} ${LIBUTIL}
+LDADD=	-lkvm -lmemstat -lnetgraph -lutil
 
 .if !defined(NO_IPX)
 SRCS+=	ipx.c
