@@ -70,7 +70,8 @@ kiconv_add_xlat16_cspair(const char *tocode, const char *fromcode, int flag)
 	size_t i, size, idxsize;
 	struct iconv_cspair_info *csi;
 	struct xlat16_table xt;
-	void *data, *p;
+	void *data;
+	char *p;
 
 	if (sysctlbyname("kern.iconv.cslist", NULL, &size, NULL, 0) == -1)
 		return (-1);
@@ -141,7 +142,7 @@ kiconv_xlat16_open(const char *tocode, const char *fromcode, int lcase)
 	struct xlat16_table xt;
 	struct quirk_replace_list *pre_q_list, *post_q_list;
 	iconv_t cd;
-	void *p;
+	char *p;
 
 	xt.data = NULL;
 	xt.size = 0;
@@ -251,7 +252,7 @@ kiconv_xlat16_open(const char *tocode, const char *fromcode, int lcase)
 	}
 	my_iconv_close(cd);
 
-	xt.size = p - xt.data;
+	xt.size = p - (char *)xt.data;
 	xt.data = realloc(xt.data, xt.size);
 	return (xt);
 }
