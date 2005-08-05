@@ -623,10 +623,8 @@ parsetime(int argc, char **argv)
      */
     runtime.tm_isdst = -1;
     runtimer = mktime(&runtime);
-    if (runtime.tm_isdst > 0) {
+    if (runtime.tm_isdst > 0)
 	runtimer -= 3600;
-	runtimer = mktime(&runtime);
-    }
 
     if (runtimer < 0)
 	panic("garbled time");
