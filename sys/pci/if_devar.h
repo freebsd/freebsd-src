@@ -120,7 +120,7 @@ typedef struct {
  *
  * The receive space MUST ALWAYS be a multiple of the page size.
  * And the number of receive descriptors multiplied by the size
- * of the receive buffers must equal the recevive space.  This
+ * of the receive buffers must equal the receive space.  This
  * is so that we can manipulate the page tables so that even if a
  * packet wraps around the end of the receive space, we can
  * treat it as virtually contiguous.
@@ -277,8 +277,7 @@ typedef struct {
 #define	mi_mii_interrupt	mi_un.un_mii.mii_interrupt
 #define	mi_phyid		mi_un.un_mii.mii_phyid
 
-#define	TULIP_MEDIAINFO_SIA_INIT(sc, mi, chipid, media)			\
-do {									\
+#define	TULIP_MEDIAINFO_SIA_INIT(sc, mi, chipid, media) do {		\
 	(mi)->mi_type = TULIP_MEDIAINFO_SIA;				\
 	sc->tulip_mediums[TULIP_MEDIA_ ## media] = (mi);		\
 	(mi)->mi_sia_connectivity = TULIP_ ## chipid ## _SIACONN_ ## media; \
@@ -286,8 +285,7 @@ do {									\
 	(mi)->mi_sia_general = TULIP_ ## chipid ## _SIAGEN_ ## media;	\
 } while (0)
 
-#define TULIP_MEDIAINFO_ADD_CAPABILITY(sc, mi, media)			\
-do {	\
+#define TULIP_MEDIAINFO_ADD_CAPABILITY(sc, mi, media) do {		\
 	if ((sc)->tulip_mediums[TULIP_MEDIA_ ## media] == NULL		\
 	    && ((mi)->mi_capabilities & PHYSTS_ ## media)) {		\
 		(sc)->tulip_mediums[TULIP_MEDIA_ ## media] = (mi);	\
@@ -584,6 +582,8 @@ struct tulip_softc {
 	tulip_srom_connection_t	tulip_conntype;
 	tulip_desc_t		*tulip_rxdescs;
 	tulip_desc_t		*tulip_txdescs;
+	struct callout		tulip_callout;
+	struct mtx		tulip_mutex;
 };
 
 #define	tulip_curperfstats	tulip_perfstats[TULIP_PERF_CURRENT]
@@ -847,13 +847,6 @@ static const struct {
  */
 #define	TULIP_MAX_DEVICES	32
 
-#if defined(TULIP_USE_SOFTINTR) && defined(TULIP_HDR_DATA)
-static u_int32_t	tulip_softintr_mask;
-static int		tulip_softintr_last_unit;
-static int		tulip_softintr_max_unit;
-static void		tulip_softintr(void);
-#endif
-
 #if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NORX)
 #define TULIP_RXDESC_PRESYNC(sc, di, s)	\
 	bus_dmamap_sync((sc)->tulip_dmatag, (sc)->tulip_rxdescmap, \
@@ -931,10 +924,6 @@ static void		tulip_softintr(void);
 static tulip_softc_t	*tulips[TULIP_MAX_DEVICES];
 #endif
 
-#if defined(TULIP_USE_SOFTINTR)
-NETISR_SET(NETISR_DE, tulip_softintr);
-#endif
-
 #define	loudprintf			if (bootverbose) printf
 
 #if !defined(TULIP_KVATOPHYS) && (!defined(TULIP_BUS_DMA) || defined(TULIP_BUS_DMA_NORX) || defined(TULIP_BUS_DMA_NOTX))
@@ -960,33 +949,15 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 	    (sc)->tulip_curperfstats.perf_ ## name ++; \
 	} while (0)
 
-#if defined(__i386__)
-typedef u_quad_t tulip_cycle_t;
+typedef u_long tulip_cycle_t;
 
 static __inline tulip_cycle_t
 TULIP_PERFREAD(void)
 {
-	tulip_cycle_t x;
-	__asm__ volatile (".byte 0x0f, 0x31":"=A" (x));
-
-	return (x);
+	return (get_cyclecount());
 }
 
 #define	TULIP_PERFDIFF(s, f)	((f) - (s))
-#elif defined(__alpha__)
-typedef unsigned long tulip_cycle_t;
-
-static __inline tulip_cycle_t
-TULIP_PERFREAD(void)
-{
-	tulip_cycle_t x;
-	__asm__ volatile ("rpcc %0":"=r" (x));
-
-	return (x);
-}
-
-#define	TULIP_PERFDIFF(s, f)	((unsigned int) ((f) - (s)))
-#endif
 #else
 #define	TULIP_PERFSTART(name)
 #define	TULIP_PERFEND(name)	do { } while (0)
@@ -1005,5 +976,10 @@ TULIP_PERFREAD(void)
 	(((u_int16_t *)a1)[0] == 0xFFFFU \
 	 && ((u_int16_t *)a1)[1] == 0xFFFFU \
 	 && ((u_int16_t *)a1)[2] == 0xFFFFU)
+
+#define	TULIP_MUTEX(sc)		(&(sc)->tulip_mutex)
+#define	TULIP_LOCK(sc)		mtx_lock(TULIP_MUTEX(sc))
+#define	TULIP_UNLOCK(sc)	mtx_unlock(TULIP_MUTEX(sc))
+#define	TULIP_LOCK_ASSERT(sc)	mtx_assert(TULIP_MUTEX(sc), MA_OWNED)
 
 #endif	/* _DEVAR_H */
