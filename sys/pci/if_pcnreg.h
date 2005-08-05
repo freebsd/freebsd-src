@@ -465,7 +465,7 @@ struct pcn_softc {
 	int			pcn_type;
 	struct pcn_list_data	*pcn_ldata;
 	struct pcn_ring_data	pcn_cdata;
-	struct callout_handle	pcn_stat_ch;
+	struct callout		pcn_stat_callout;
 	struct mtx		pcn_mtx;
 };
 
