@@ -51,6 +51,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,10 +95,10 @@ static int	 escape(char *, int, size_t *);
 static int	 getchr(void);
 static int	 getfloating(long double *, int);
 static int	 getint(int *);
-static int	 getquads(quad_t *, u_quad_t *, int);
+static int	 getnum(intmax_t *, uintmax_t *, int);
 static const char
 		*getstr(void);
-static char	*mkquad(char *, int);
+static char	*mknum(char *, int);
 static void	 usage(void);
 
 static char **gargv;
@@ -290,14 +291,14 @@ doformat(char *start, int *rval)
 	}
 	case 'd': case 'i': case 'o': case 'u': case 'x': case 'X': {
 		char *f;
-		quad_t val;
-		u_quad_t uval;
+		intmax_t val;
+		uintmax_t uval;
 		int signedconv;
 
 		signedconv = (convch == 'd' || convch == 'i');
-		if ((f = mkquad(start, convch)) == NULL)
+		if ((f = mknum(start, convch)) == NULL)
 			return (NULL);
-		if (getquads(&val, &uval, signedconv))
+		if (getnum(&val, &uval, signedconv))
 			*rval = 1;
 		if (signedconv)
 			PF(f, val);
@@ -328,7 +329,7 @@ doformat(char *start, int *rval)
 }
 
 static char *
-mkquad(char *str, int ch)
+mknum(char *str, int ch)
 {
 	static char *copy;
 	static size_t copy_size;
@@ -352,7 +353,7 @@ mkquad(char *str, int ch)
 	}
 
 	memmove(copy, str, len - 3);
-	copy[len - 3] = 'q';
+	copy[len - 3] = 'j';
 	copy[len - 2] = ch;
 	copy[len - 1] = '\0';
 	return (copy);
@@ -448,11 +449,11 @@ getstr(void)
 static int
 getint(int *ip)
 {
-	quad_t val;
-	u_quad_t uval;
+	intmax_t val;
+	uintmax_t uval;
 	int rval;
 
-	if (getquads(&val, &uval, 1))
+	if (getnum(&val, &uval, 1))
 		return (1);
 	rval = 0;
 	if (val < INT_MIN || val > INT_MAX) {
@@ -464,28 +465,28 @@ getint(int *ip)
 }
 
 static int
-getquads(quad_t *qp, u_quad_t *uqp, int signedconv)
+getnum(intmax_t *ip, uintmax_t *uip, int signedconv)
 {
 	char *ep;
 	int rval;
 
 	if (!*gargv) {
-		*qp = 0;
+		*ip = 0;
 		return (0);
 	}
 	if (**gargv == '"' || **gargv == '\'') {
 		if (signedconv)
-			*qp = asciicode();
+			*ip = asciicode();
 		else
-			*uqp = asciicode();
+			*uip = asciicode();
 		return (0);
 	}
 	rval = 0;
 	errno = 0;
 	if (signedconv)
-		*qp = strtoq(*gargv, &ep, 0);
+		*ip = strtoimax(*gargv, &ep, 0);
 	else
-		*uqp = strtouq(*gargv, &ep, 0);
+		*uip = strtoumax(*gargv, &ep, 0);
 	if (ep == *gargv) {
 		warnx2("%s: expected numeric value", *gargv, NULL);
 		rval = 1;
