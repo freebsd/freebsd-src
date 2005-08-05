@@ -24,7 +24,7 @@ SUBDIR=	alias \
 	${_c99} \
 	${_calendar} \
 	cap_mkdb \
-	catman \
+	${_catman} \
 	chat \
 	checknr \
 	${_chkey} \
@@ -233,6 +233,10 @@ _truss=		truss
 
 .if !defined(NO_ATM)
 _atm=		atm
+.endif
+
+.if !defined(NO_MAN)
+_catman=	catman
 .endif
 
 .if !defined(NO_BIND) && !defined(NO_BIND_UTILS)
