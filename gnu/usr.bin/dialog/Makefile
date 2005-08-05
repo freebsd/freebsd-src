@@ -1,7 +1,9 @@
 # Makefile for dialog
 # $FreeBSD$
 
+.if !defined (NO_EXAMPLES)
 SUBDIR=	TESTS
+.endif
 
 PROG=   dialog
 

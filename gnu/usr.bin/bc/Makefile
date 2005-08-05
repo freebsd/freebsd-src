@@ -11,7 +11,9 @@ CFLAGS+=-DHAVE_CONFIG_H
 DPADD=	${LIBREADLINE} ${LIBTERMCAP}
 LDADD=	-lreadline -ltermcap
 
+.if !defined (NO_EXAMPLES)
 FILES=	ckbook.b pi.b primes.b twins.b
 FILESDIR=	${SHAREDIR}/examples/bc
+.endif
 
 .include <bsd.prog.mk>
