@@ -1156,6 +1156,12 @@ Number of times to attempt attaching to a
 .Xr gbde 4
 device, i.e., how many times the user is asked for the pass-phrase.
 Default is 3.
+.It Va geli_swap_flags
+Options passed to the
+.Xr geli 8
+utility when encrypted GEOM providers for swap partitions are created.
+The default is
+.Dq Li -a aes -l 256 -s 4096 -d .
 .It Va root_rw_mount
 .Pq Vt bool
 Set to
