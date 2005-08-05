@@ -495,18 +495,16 @@ retry:
 	 * We have to wait until after acquiring all locks before
 	 * changing p_state.  We need to avoid all possible context
 	 * switches (including ones from blocking on a mutex) while
-	 * marked as a zombie.
+	 * marked as a zombie.  We also have to set the zombie state
+	 * before we release the parent process' proc lock to avoid
+	 * a lost wakeup.  So, we first call wakeup, then we grab the
+	 * sched lock, update the state, and release the parent process'
+	 * proc lock.
 	 */
+	wakeup(p->p_pptr);
 	mtx_lock_spin(&sched_lock);
 	p->p_state = PRS_ZOMBIE;
-
-	critical_enter();
-	mtx_unlock_spin(&sched_lock);
-	wakeup(p->p_pptr);
-	
 	PROC_UNLOCK(p->p_pptr);
-	mtx_lock_spin(&sched_lock);
-	critical_exit();
 
 	/* Do the same timestamp bookkeeping that mi_switch() would do. */
 	binuptime(&new_switchtime);
@@ -624,6 +622,20 @@ loop:
 
 		nfound++;
 		if (p->p_state == PRS_ZOMBIE) {
+
+			/*
+			 * It is possible that the last thread of this
+			 * process is still running on another CPU
+			 * in thread_exit() after having dropped the process
+			 * lock via PROC_UNLOCK() but before it has completed
+			 * cpu_throw().  In that case, the other thread must
+			 * still hold sched_lock, so simply by acquiring
+			 * sched_lock once we will wait long enough for the
+			 * thread to exit in that case.
+			 */
+			mtx_lock_spin(&sched_lock);
+			mtx_unlock_spin(&sched_lock);
+			
 			td->td_retval[0] = p->p_pid;
 			if (status)
 				*status = p->p_xstat;	/* convert to int */
