@@ -202,6 +202,8 @@ struct g_raid3_softc {
 	struct mtx	sc_events_mtx;
 
 	struct callout	sc_callout;
+
+	struct root_hold_token *sc_rootmount;
 };
 #define	sc_name	sc_geom->name
 
