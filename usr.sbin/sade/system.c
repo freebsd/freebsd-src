@@ -408,6 +408,7 @@ vsystem(char *fmt, ...)
     sig_t intsave, quitsave;
     char *cmd;
     int i;
+    struct stat sb;
 
     cmd = (char *)alloca(FILENAME_MAX);
     cmd[0] = '\0';
@@ -438,7 +439,7 @@ vsystem(char *fmt, ...)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	if (RunningAsInit)
+	if (stat("/stand/sh", &sb) == 0)
 	    execl("/stand/sh", "/stand/sh", "-c", cmd, (char *)NULL);
 	else
 	    execl("/bin/sh", "/bin/sh", "-c", cmd, (char *)NULL);
