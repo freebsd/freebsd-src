@@ -14,13 +14,13 @@ SUBDIR= bc \
 	grep \
 	${_groff} \
 	gzip \
-	man \
+	${_man} \
 	patch \
-	rcs \
+	${_rcs} \
 	sdiff \
 	send-pr \
 	sort \
-	texinfo
+	${_texinfo}
  
 .if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "powerpc"
 NO_GDB=	# not yet
@@ -39,9 +39,18 @@ _groff=		groff
 _cvs=		cvs
 .endif
 
+.if !defined(NO_MAN)
+_man=		man
+.endif
+
+.if !defined(NO_INFO)
+_texinfo=	texinfo
+.endif
+
 .if !defined(NO_TOOLCHAIN)
 _binutils=	binutils
 _cc=		cc
+_rcs=		rcs
 .if !defined(NO_GDB)
 _gdb=		gdb
 .endif
