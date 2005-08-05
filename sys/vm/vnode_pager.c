@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 static void vnode_pager_init(void);
-static vm_offset_t vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
+static daddr_t vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
 					 int *run);
 static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
 static int vnode_pager_input_old(vm_object_t object, vm_page_t m);
@@ -384,18 +384,18 @@ vnode_pager_setsize(vp, nsize)
  * calculate the linear (byte) disk address of specified virtual
  * file address
  */
-static vm_offset_t
+static daddr_t
 vnode_pager_addr(vp, address, run)
 	struct vnode *vp;
 	vm_ooffset_t address;
 	int *run;
 {
-	int rtaddress;
+	daddr_t rtaddress;
 	int bsize;
 	daddr_t block;
 	int err;
 	daddr_t vblock;
-	int voffset;
+	daddr_t voffset;
 
 	GIANT_REQUIRED;
 	if (address < 0)
@@ -436,7 +436,7 @@ vnode_pager_input_smlfs(object, m)
 	struct vnode *dp, *vp;
 	struct buf *bp;
 	struct sf_buf *sf;
-	int fileaddr;
+	daddr_t fileaddr;
 	vm_offset_t bsize;
 	int error = 0;
 
@@ -646,7 +646,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	vm_object_t object;
 	vm_offset_t kva;
 	off_t foff, tfoff, nextoff;
-	int i, j, size, bsize, first, firstaddr;
+	int i, j, size, bsize, first;
+	daddr_t firstaddr;
 	struct vnode *dp;
 	int runpg;
 	int runend;
@@ -738,8 +739,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		if (firstaddr == -1) {
 			VM_OBJECT_LOCK(object);
 			if (i == reqpage && foff < object->un_pager.vnp.vnp_size) {
-				panic("vnode_pager_getpages: unexpected missing page: firstaddr: %d, foff: 0x%jx%08jx, vnp_size: 0x%jx%08jx",
-				    firstaddr, (uintmax_t)(foff >> 32),
+				panic("vnode_pager_getpages: unexpected missing page: firstaddr: %jd, foff: 0x%jx%08jx, vnp_size: 0x%jx%08jx",
+				    (intmax_t)firstaddr, (uintmax_t)(foff >> 32),
 				    (uintmax_t)foff,
 				    (uintmax_t)
 				    (object->un_pager.vnp.vnp_size >> 32),
