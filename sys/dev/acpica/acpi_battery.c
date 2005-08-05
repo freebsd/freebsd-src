@@ -225,6 +225,10 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 	else
 	    bi[i].min = 0;
 	total_min += bi[i].min;
+
+	/* If this battery is not present, don't use its capacity. */
+	if (bi[i].cap == -1)
+	    bi[i].cap = 0;
 	total_cap += bi[i].cap;
     }
 
