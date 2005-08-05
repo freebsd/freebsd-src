@@ -1755,13 +1755,35 @@ skc_attach(dev)
 	/* Announce the product name. */
 	device_printf(dev, "%s rev. %s(0x%x)\n", pname, revstr, sc->sk_rev);
 	sc->sk_devs[SK_PORT_A] = device_add_child(dev, "sk", -1);
+	if (sc->sk_devs[SK_PORT_A] == NULL) {
+		device_printf(dev, "failed to add child for PORT_A\n");
+		error = ENXIO;
+		goto fail;
+	}
 	port = malloc(sizeof(int), M_DEVBUF, M_NOWAIT);
+	if (port == NULL) {
+		device_printf(dev, "failed to allocate memory for "
+		    "ivars of PORT_A\n");
+		error = ENXIO;
+		goto fail;
+	}
 	*port = SK_PORT_A;
 	device_set_ivars(sc->sk_devs[SK_PORT_A], port);
 
 	if (!(sk_win_read_1(sc, SK_CONFIG) & SK_CONFIG_SINGLEMAC)) {
 		sc->sk_devs[SK_PORT_B] = device_add_child(dev, "sk", -1);
+		if (sc->sk_devs[SK_PORT_B] == NULL) {
+			device_printf(dev, "failed to add child for PORT_B\n");
+			error = ENXIO;
+			goto fail;
+		}
 		port = malloc(sizeof(int), M_DEVBUF, M_NOWAIT);
+		if (port == NULL) {
+			device_printf(dev, "failed to allocate memory for "
+			    "ivars of PORT_B\n");
+			error = ENXIO;
+			goto fail;
+		}
 		*port = SK_PORT_B;
 		device_set_ivars(sc->sk_devs[SK_PORT_B], port);
 	}
