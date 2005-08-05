@@ -9,11 +9,11 @@
 
 . /etc/rc.subr
 
-name="gbde_swap"
-start_cmd="gbde_swap_attach"
-stop_cmd="gbde_swap_detach"
+name="encswap"
+start_cmd="encswap_attach"
+stop_cmd="encswap_detach"
 
-gbde_swap_attach()
+encswap_attach()
 {
 	while read device mountpoint type options rest ; do
 		case ":${device}:${type}:${options}" in
@@ -21,19 +21,20 @@ gbde_swap_attach()
 			continue
 			;;
 		*.bde:swap:sw)
+			passphrase=`dd if=/dev/random count=1 2>/dev/null | md5 -q`
+			device="${device%.bde}"
+			gbde init "${device}" -P "${passphrase}" || return 1
+			gbde attach "${device}" -p "${passphrase}" || return 1
 			;;
-		*)
-			continue
+		*.eli:swap:sw)
+			device="${device%.eli}"
+			geli onetime ${geli_swap_flags} "${device}" || return 1
 			;;
 		esac
-		passphrase=`dd if=/dev/random count=1 2>/dev/null | md5 -q`
-		device="${device%.bde}"
-		gbde init "${device}" -P "${passphrase}" || return 1
-		gbde attach "${device}" -p "${passphrase}" || return 1
 	done < /etc/fstab
 }
 
-gbde_swap_detach()
+encswap_detach()
 {
 	while read device mountpoint type options rest ; do
 		case ":${device}:${type}:${options}" in
@@ -41,13 +42,14 @@ gbde_swap_detach()
 			continue
 			;;
 		*.bde:swap:sw)
+			device="${device%.bde}"
+			gbde detach "${device}"
 			;;
-		*)
-			continue
+		*.eli:swap:sw)
+			# Nothing here, because geli swap devices should be
+			# created with the auto-detach-on-last-close option.
 			;;
 		esac
-		device="${device%.bde}"
-		gbde detach "${device}"
 	done < /etc/fstab
 }
 
