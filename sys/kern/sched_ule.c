@@ -651,7 +651,8 @@ kseq_assign(struct kseq *kseq)
 
 	do {
 		*(volatile struct kse **)&ke = kseq->ksq_assigned;
-	} while(!atomic_cmpset_ptr(&kseq->ksq_assigned, ke, NULL));
+	} while(!atomic_cmpset_ptr((volatile uintptr_t *)&kseq->ksq_assigned,
+		(uintptr_t)ke, (uintptr_t)NULL));
 	for (; ke != NULL; ke = nke) {
 		nke = ke->ke_assign;
 		kseq->ksq_group->ksg_load--;
@@ -688,7 +689,8 @@ kseq_notify(struct kse *ke, int cpu)
 	 */
 	do {
 		*(volatile struct kse **)&ke->ke_assign = kseq->ksq_assigned;
-	} while(!atomic_cmpset_ptr(&kseq->ksq_assigned, ke->ke_assign, ke));
+	} while(!atomic_cmpset_ptr((volatile uintptr_t *)&kseq->ksq_assigned,
+		(uintptr_t)ke->ke_assign, (uintptr_t)ke));
 	/*
 	 * Without sched_lock we could lose a race where we set NEEDRESCHED
 	 * on a thread that is switched out before the IPI is delivered.  This

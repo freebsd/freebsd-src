@@ -434,66 +434,23 @@ atomic_cmpset_rel_64(volatile u_int64_t *p, u_int64_t cmpval, u_int64_t newval)
 #define	atomic_readandclear_long	atomic_readandclear_64
 
 /* Operations on pointers. */
-static __inline int
-atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
-{
-
-        return (atomic_cmpset_long((volatile u_long *)dst, (u_long)exp,
-            (u_long)src));
-}
-
-static __inline int
-atomic_cmpset_acq_ptr(volatile void *dst, void *exp, void *src)
-{
-
-        return (atomic_cmpset_acq_long((volatile u_long *)dst, (u_long)exp,
-	    (u_long)src));
-}
-
-static __inline int
-atomic_cmpset_rel_ptr(volatile void *dst, void *exp, void *src)
-{
-
-        return (atomic_cmpset_rel_long((volatile u_long *)dst, (u_long)exp,
-            (u_long)src));
-}
-
-static __inline void *
-atomic_load_acq_ptr(volatile void *p)
-{
-	return (void *)atomic_load_acq_long((volatile u_long *)p);
-}
-
-static __inline void
-atomic_store_rel_ptr(volatile void *p, void *v)
-{
-	atomic_store_rel_long((volatile u_long *)p, (u_long)v);
-}
-
-#define	ATOMIC_PTR(NAME)				\
-static __inline void					\
-atomic_##NAME##_ptr(volatile void *p, uintptr_t v)	\
-{							\
-	atomic_##NAME##_long((volatile u_long *)p, v);	\
-}							\
-							\
-static __inline void					\
-atomic_##NAME##_acq_ptr(volatile void *p, uintptr_t v)	\
-{							\
-	atomic_##NAME##_acq_long((volatile u_long *)p, v);\
-}							\
-							\
-static __inline void					\
-atomic_##NAME##_rel_ptr(volatile void *p, uintptr_t v)	\
-{							\
-	atomic_##NAME##_rel_long((volatile u_long *)p, v);\
-}
-
-ATOMIC_PTR(set)
-ATOMIC_PTR(clear)
-ATOMIC_PTR(add)
-ATOMIC_PTR(subtract)
-
-#undef ATOMIC_PTR
+#define	atomic_set_ptr		atomic_set_64
+#define	atomic_set_acq_ptr	atomic_set_acq_64
+#define	atomic_set_rel_ptr	atomic_set_rel_64
+#define	atomic_clear_ptr	atomic_clear_64
+#define	atomic_clear_acq_ptr	atomic_clear_acq_64
+#define	atomic_clear_rel_ptr	atomic_clear_rel_64
+#define	atomic_add_ptr		atomic_add_64
+#define	atomic_add_acq_ptr	atomic_add_acq_64
+#define	atomic_add_rel_ptr	atomic_add_rel_64
+#define	atomic_subtract_ptr	atomic_subtract_64
+#define	atomic_subtract_acq_ptr	atomic_subtract_acq_64
+#define	atomic_subtract_rel_ptr	atomic_subtract_rel_64
+#define	atomic_cmpset_ptr	atomic_cmpset_64
+#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_64
+#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_64
+#define	atomic_load_acq_ptr	atomic_load_acq_64
+#define	atomic_store_rel_ptr	atomic_store_rel_64
+#define	atomic_readandclear_ptr	atomic_readandclear_64
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
