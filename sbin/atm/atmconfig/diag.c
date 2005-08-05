@@ -889,16 +889,16 @@ print_channel(const struct diagif *aif)
 	const struct atmio_vcc *v;
 
 	static const char *const aal_tab[] = {
-		[ATMIO_AAL_0] "0",
-		[ATMIO_AAL_34] "3/4",
-		[ATMIO_AAL_5] "5",
-		[ATMIO_AAL_RAW] "raw",
+		[ATMIO_AAL_0] = "0",
+		[ATMIO_AAL_34] = "3/4",
+		[ATMIO_AAL_5] = "5",
+		[ATMIO_AAL_RAW] = "raw",
 	};
 	static const char *const traffic_tab[] = {
-		[ATMIO_TRAFFIC_UBR] "ubr",
-		[ATMIO_TRAFFIC_CBR] "cbr",
-		[ATMIO_TRAFFIC_ABR] "abr",
-		[ATMIO_TRAFFIC_VBR] "vbr",
+		[ATMIO_TRAFFIC_UBR] = "ubr",
+		[ATMIO_TRAFFIC_CBR] = "cbr",
+		[ATMIO_TRAFFIC_ABR] = "abr",
+		[ATMIO_TRAFFIC_VBR] = "vbr",
 	};
 
 	for (v = aif->vtab->vccs; v < &aif->vtab->vccs[aif->vtab->count]; v++) {
