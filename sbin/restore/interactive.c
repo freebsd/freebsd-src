@@ -369,8 +369,14 @@ getnext:
 		snprintf(output, sizeof(output), "%s/%s", curdir, rawname);
 		canon(output, name, size);
 	}
-	if (glob(name, GLOB_ALTDIRFUNC, NULL, &ap->glob) < 0)
+	switch (glob(name, GLOB_ALTDIRFUNC, NULL, &ap->glob)) {
+	case GLOB_NOSPACE:
 		fprintf(stderr, "%s: out of memory\n", ap->cmd);
+		break;
+	case GLOB_NOMATCH:
+		fprintf(stderr, "%s %s: no such file or directory\n", ap->cmd, name);
+		break;
+	}
 	if (ap->glob.gl_pathc == 0)
 		return;
 	ap->freeglob = 1;
