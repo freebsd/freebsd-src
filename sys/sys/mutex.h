@@ -418,7 +418,9 @@ struct mtx_args {
 		(opts)							\
 	};								\
 	SYSINIT(name##_mtx_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    mtx_sysinit, &name##_args)
+	    mtx_sysinit, &name##_args);					\
+	SYSUNINIT(name##_mtx_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	    mtx_destroy, (mtx))
 
 /*
  * The INVARIANTS-enabled mtx_assert() functionality.
