@@ -55,7 +55,8 @@ read_rip(int sock,
 {
 	struct sockaddr_in from;
 	struct interface *aifp;
-	int fromlen, cc;
+	socklen_t fromlen;
+	int cc;
 #ifdef USE_PASSIFNAME
 	static struct msg_limit  bad_name;
 	struct {
@@ -80,7 +81,7 @@ read_rip(int sock,
 		}
 		if (fromlen != sizeof(struct sockaddr_in))
 			logbad(1,"impossible recvfrom(rip) fromlen=%d",
-			       fromlen);
+			       (int)fromlen);
 
 		/* aifp is the "authenticated" interface via which the packet
 		 *	arrived.  In fact, it is only the interface on which

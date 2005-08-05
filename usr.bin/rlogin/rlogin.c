@@ -135,7 +135,8 @@ main(int argc, char *argv[])
 	char *host, *localname, *p, *user, term[1024];
 	speed_t ospeed;
 	struct sockaddr_storage ss;
-	int i, len, len2, sslen;
+	socklen_t sslen;
+	int i, len, len2;
 
 	argoff = dflag = Dflag = 0;
 	one = 1;
