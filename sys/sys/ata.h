@@ -398,7 +398,7 @@ struct ata_ioc_raid_config {
 };
 
 /* ATA RAID ioctl calls */
-#define IOCATARAIDCREATE        _IOW('a', 200, struct ata_ioc_raid_config)
+#define IOCATARAIDCREATE        _IOWR('a', 200, struct ata_ioc_raid_config)
 #define IOCATARAIDDELETE        _IOW('a', 201, int)
 #define IOCATARAIDSTATUS        _IOWR('a', 202, struct ata_ioc_raid_config)
 #define IOCATARAIDADDSPARE      _IOW('a', 203, struct ata_ioc_raid_config)
