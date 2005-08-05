@@ -167,6 +167,20 @@
 	    <entry>20&nbsp;Jul&nbsp;2005</entry>
 	    <entry><para>devfs ruleset bypass</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:18.zlib.asc"
+		>SA-05:18.zlib</ulink></entry>
+	    <entry>27&nbsp;Jul&nbsp;2005</entry>
+	    <entry><para>Buffer overflow in zlib</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:19.ipsec.asc"
+		>SA-05:19.ipsec</ulink></entry>
+	    <entry>27&nbsp;Jul&nbsp;2005</entry>
+	    <entry><para>IPsec incorrect key usage in AES-XCBC-MAC</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
