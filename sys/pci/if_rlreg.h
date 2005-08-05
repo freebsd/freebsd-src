@@ -796,6 +796,11 @@ struct rl_softc {
 #define DLINK_DEVICEID_530TXPLUS		0x1300
 
 /*
+ * D-Link DFE-5280T device ID
+ */
+#define DLINK_DEVICEID_528T			0x4300
+
+/*
  * D-Link DFE-690TXD device ID
  */
 #define DLINK_DEVICEID_690TXD			0x1340
