@@ -136,14 +136,14 @@ getargs(char *av[])
 			if (*++p || (p = *++av))
 				ip->sepstring = p;
 			else
-				errx(1, "need string after -%s", c);
+				usage();
 			S = (*c == 'S' ? 1 : 0);
 			break;
 		case 't':
 			if (*++p || (p = *++av))
 				ip->eol = *p;
 			else
-				errx(1, "need character after -%s", c);
+				usage();
 			T = (*c == 'T' ? 1 : 0);
 			nofinalnl = 1;
 			break;
@@ -166,11 +166,10 @@ getargs(char *av[])
 				ip->format = fmtp;
 			}
 			else
-				errx(1, "need string after -%s", c);
+				usage();
 			break;
 		default:
-			errx(1, "what do you mean by -%s?", c);
-			break;
+			usage();
 		}
 	}
 	ip->fp = NULL;
