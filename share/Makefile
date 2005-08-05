@@ -3,7 +3,7 @@
 
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
-SUBDIR=	colldef \
+SUBDIR=	${_colldef} \
 	${_dict} \
 	${_doc} \
 	${_examples} \
@@ -12,18 +12,27 @@ SUBDIR=	colldef \
 	${_me} \
 	misc \
 	mk \
-	mklocale \
-	monetdef \
-	msgdef \
-	numericdef \
+	${_mklocale} \
+	${_monetdef} \
+	${_msgdef} \
+	${_numericdef} \
 	${_sendmail} \
 	skel \
 	snmp \
 	${_syscons} \
 	tabset \
 	termcap \
-	timedef \
+	${_timedef} \
 	zoneinfo
+
+.if !defined(NO_LOCALES)
+_colldef =	colldef
+_mklocale =	mklocale
+_monetdef =	monetdef
+_msgdef =	msgdef
+_numericdef =	numericdef
+_timedef =	timedef
+.endif
 
 .if !defined(NO_SYSCONS)
 _syscons=	syscons
