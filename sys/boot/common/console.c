@@ -217,7 +217,7 @@ cons_change(const char *string)
 	if (*curpos == '\0')
 		continue;
 	cons = cons_find(curpos);
-	if (cons > 0) {
+	if (cons >= 0) {
 	    consoles[cons]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
 	    consoles[cons]->c_init(0);
 	}
