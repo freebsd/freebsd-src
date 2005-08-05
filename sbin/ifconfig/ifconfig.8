@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 11, 2005
+.Dd July 25, 2005
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -624,17 +624,24 @@ valid modes is
 (shared key),
 .Dq Li 8021x
 (IEEE 802.1x),
-or
+and
 .Dq Li wpa
 (IEEE WPA/WPA2/802.11i).
 The
 .Dq Li 8021x
 and
 .Dq Li wpa
-modes are only useful when used an authentication service
+modes are only useful when using an authentication service
 (a supplicant for client operation or an authenticator when
 operating as an access point).
 Modes are case insensitive.
+.It Cm bintval Ar interval
+Set the interval at which beacon frames are sent when operating in
+ad-hoc or ap mode.
+The
+.Ar interval
+parameter is specified in TU's (1/1024 msecs).
+By default beacon frames are transmitted every 100 TU's.
 .It Cm bssid Ar address
 Specify the MAC address of the access point to use when operating
 as a station in a BSS network.
@@ -671,16 +678,81 @@ the channel to
 or
 .Dq Li -
 will give you the default for your adaptor.
-Many
+Some
 adaptors ignore this setting unless you are in ad-hoc mode.
 Alternatively the frequency, in megahertz, may be specified
 instead of the channel number.
+.It Cm dtimperiod Ar period
+Set the
+DTIM
+period for transmitting buffered multicast data frames when
+operating in ap mode.
+The
+.Ar period
+specifies the number of beacon intervals between DTIM
+and must be in the range 1 to 15.
+By default DTIM is 1 (i.e. DTIM occurs at each beacon).
+.It Cm fragthreshold Ar length
+Set the threshold for which transmitted frames are broken into fragments.
+The
+.Ar length
+argument is the frame size in bytes and must be in the range 256 to 2346.
+Setting
+.Ar length
+to
+.Dq Li 2346 ,
+.Dq Li any ,
+or
+.Dq Li -
+disables transmit fragmentation.
+Not all adaptors honor the fragmentation threshold.
 .It Cm hidessid
 When operating as an access point, do not broadcast the SSID
-in beacon frames.
-By default, the SSID is included in beacon frames.
-To re-enable the broadcast of the SSID, use
+in beacon frames or respond to probe request frames unless
+they are directed to the ap (i.e. they include the ap's SSID).
+By default, the SSID is included in beacon frames and
+undirected probe request frames are answered.
+To re-enable the broadcast of the SSID etc., use
 .Fl hidessid .
+.It Cm list Cm active
+Display the list of channels available for use taking into account
+any restrictions set with the
+.Dq Li chanlist
+and
+.Dq Li channel
+directives.
+.It Cm list Cm caps
+Display the adaptor's capabilities, including the operating
+modes supported.
+.It Cm list Cm chan
+Display the list of channels available for use.
+.Dq Li list freq
+is another way of requesting this information.
+.\" not yet implemented
+.\".It Cm list Cm mac
+.\"Display the current MAC Access Control List state.
+.It Cm list Cm scan
+Display the access points and/or ad-hoc neighbors
+located in the vicinity.
+This information may be updated automatically by the adaptor
+and/or with a
+.Dq Li scan
+request.
+.Dq Li list ap
+is another way of requesting this information.
+.It Cm list Cm sta
+When operating as an access point display the stations that are
+currently associated.
+When operating in ad-hoc mode display stations identified as
+neighbors in the IBSS.
+.It Cm list Cm wme
+Display the current parameters to use when operating in WME mode.
+When WME mode is enabled for an adaptor this information will be
+displayed with the regular status; this command is mostly useful
+for examining parameters when WME mode is disabled.
+See the description of the
+.Dq Li wme
+directive for information on the various parameters.
 .It Cm powersave
 Enable powersave operation.
 When operating as a client, the station will conserve power by
@@ -740,7 +812,15 @@ control frame.
 The
 .Ar length
 argument
-is the frame size in bytes and must be in the range 1 to 2312.
+is the frame size in bytes and must be in the range 1 to 2346.
+Setting
+.Ar length
+to
+.Dq Li 2346 ,
+.Dq Li any ,
+or
+.Dq Li -
+disables transmission of RTS frames.
 Not all adaptors support setting the RTS threshold.
 .It Cm ssid Ar ssid
 Set the desired Service Set Identifier (aka network name).
@@ -751,8 +831,9 @@ hexadecimal when preceded by
 Additionally, the SSID may be cleared by setting it to
 .Ql - .
 .It Cm scan
-Display the current set of scanned neighbors and/or trigger a new scan.
-Only the super-user can trigger a scan.
+Initiate a scan of neighboring stations, wait for it to complete, and
+display all stations found.
+Only the super-user can initiate a scan.
 Depending on the capabilities of the APs, the following
 flags can be included in the output:
 .Bl -tag -width 3n
@@ -766,7 +847,7 @@ Indicates that the station is part of an ad-hoc network
 (in contrast to an ESS network).
 .It Li P
 Privacy.
-Data confidentiality is required for all data type frames
+Data confidentiality is required for all data frames
 exchanged within the BSS.
 This means that this BSS requires the station to
 use cryptographic means such as WEP, TKIP or AES-CCMP to
@@ -779,8 +860,13 @@ in 802.11b High Rate/DSSS PHY, short preamble utilizes a
 preamble mode).
 .It Li s
 Short slot time.
-Indicates that the network supports short slot time.
+Indicates that the network is using a short slot time.
 .El
+.Pp
+The
+.Dq Li list scan
+request can be used to show recent scan results without
+initiating a new scan.
 .It Cm stationname Ar name
 Set the name of this station.
 It appears that the station name is not really part of the IEEE 802.11
@@ -846,15 +932,124 @@ If that is the case, then the first four keys
 (1-4) will be the standard temporary keys and any others will be adaptor
 specific keys such as permanent keys stored in NVRAM.
 .It Cm wme
-Enable Wireless Media Extensions (WME) support, if available,
+Enable Wireless Multimedia Extensions (WME) support, if available,
 for the specified interface.
 WME is a subset of the IEEE 802.11e standard to support the
 efficient communication of realtime and multimedia data.
 To disable WME support, use
 .Fl wme .
+.Pp
+The following parameters are meaningful only when WME support is in use.
+Parameters are specified per-AC (Access Category) and
+split into those that are used by a station when acting
+as an access point and those for client stations in the BSS.
+The latter are received from the access point and may not be changed
+(at the station).
+The following Access Categories are recognized:
+.Pp
+.Bl -tag -width AC_BK -compact
+.It Cm AC_BE
+(or BE) best effort delivery,
+.It Cm AC_BK
+(or BK) background traffic,
+.It Cm AC_VI
+(or VI) video traffic,
+.It Cm AC_VO
+(or VO) voice traffic.
 .El
 .Pp
-The following parameters are support for compatibility with other systems:
+AC parameters are case-insensitive.
+Traffic classification is done in the operating system using the
+vlan priority associated with data frames or the
+ToS (Type of Service) indication in IP-encapsulated frames.
+If neither information is present traffic is assigned to the
+Best Effort (BE) category.
+.Bl -tag -width indent
+.It Cm ack Ar ac
+Set the ACK policy for QoS transmissions by the local station;
+this controls whether or not data frames transmitted by a station
+require an ACK response from the receiving station.
+To disable waiting for an ACK use
+.Fl ack .
+This parameter is applied only to the local station.
+.It Cm acm Ar ac
+Enable the Admission Control Mandatory (ACM) mechanism
+for transmissions by the local station.
+To disable the ACM use
+.Fl acm .
+On stations in a BSS this parameter is read-only and indicates
+the setting received from the access point.
+NB: ACM is not supported right now.
+.It Cm aifs Ar ac Ar count
+Set the Arbitration Inter Frame Spacing (AIFS)
+channel access parameter to use for transmissions
+by the local station.
+On stations in a BSS this parameter is read-only and indicates
+the setting received from the access point.
+.It Cm cwmin Ar ac Ar count
+Set the CWmin channel access parameter to use for transmissions
+by the local station.
+On stations in a BSS this parameter is read-only and indicates
+the setting received from the access point.
+.It Cm cwmax Ar ac Ar count
+Set the CWmax channel access parameter to use for transmissions
+by the local station.
+On stations in a BSS this parameter is read-only and indicates
+the setting received from the access point.
+.It Cm txoplimit Ar ac Ar limit
+Set the Transmission Opportunity Limit channel access parameter
+to use for transmissions by the local station.
+This parameter defines an interval of time when a WME station
+has the right to initiate transmissions onto the wireless medium.
+On stations in a BSS this parameter is read-only and indicates
+the setting received from the access point.
+.It Cm bss:aifs Ar ac Ar count
+Set the AIFS channel access parameter to send to stations in a BSS.
+This parameter is meaningful only when operating in ap mode.
+.It Cm bss:cwmin Ar ac Ar count
+Set the CWmin channel access parameter to send to stations in a BSS.
+This parameter is meaningful only when operating in ap mode.
+.It Cm bss:cwmax Ar ac Ar count
+Set the CWmax channel access parameter to send to stations in a BSS.
+This parameter is meaningful only when operating in ap mode.
+.It Cm bss:txoplimit Ar ac Ar limit
+Set the TxOpLimit channel access parameter to send to stations in a BSS.
+This parameter is meaningful only when operating in ap mode.
+.El
+.El
+.Pp
+The following parameters support an optional access control list
+feature available with some adaptors when operating in ap mode; see
+.Xr wlan_acl 4 .
+This facility allows an access point to accept/deny association
+requests based on the MAC address of the station.
+Note that this feature does not significantly enhance security
+as MAC address spoofing is easy to do.
+.Bl -tag -width indent
+.It Cm mac:add Ar address
+Add the specified MAC address to the database.
+Depending on the policy setting association requests from the
+specified station will be allowed or denied.
+.It Cm mac:allow
+Set the ACL policy to permit association only by
+stations registered in the database.
+.It Cm mac:del
+Delete the specified MAC address from the database.
+.It Cm mac:deny
+Set the ACL policy to deny association only by
+stations registered in the database.
+.\" XXX not yet implemented
+.\".It Cm mac:kick
+.\"Force the specified station to be deauthenticated.
+.\"This typically is done to block a station after updating the
+.\"address database.
+.It Cm mac:open
+Set the ACL policy to allow all stations to associate.
+.It Cm mac:flush
+Delete all entries in the database.
+.El
+.Pp
+The following parameters are for compatibility with other systems:
 .Bl -tag -width indent
 .It Cm nwid Ar ssid
 Another name for the
