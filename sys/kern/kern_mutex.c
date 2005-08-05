@@ -412,7 +412,7 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		rval = 1;
 	} else
-		rval = _obtain_lock(m, curthread);
+		rval = _obtain_lock(m, (uintptr_t)curthread);
 
 	LOCK_LOG_TRY("LOCK", &m->mtx_object, opts, rval, file, line);
 	if (rval)
@@ -429,7 +429,7 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
  * sleep waiting for it), or if we need to recurse on it.
  */
 void
-_mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
+_mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
 #if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
@@ -462,7 +462,7 @@ _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
 #ifdef MUTEX_PROFILING
 	contested = 0;
 #endif
-	while (!_obtain_lock(m, td)) {
+	while (!_obtain_lock(m, tid)) {
 #ifdef MUTEX_PROFILING
 		contested = 1;
 		atomic_add_int(&m->mtx_contest_holding, 1);
@@ -490,7 +490,7 @@ _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
 		 * necessary.
 		 */
 		if (v == MTX_CONTESTED) {
-			m->mtx_lock = (uintptr_t)td | MTX_CONTESTED;
+			m->mtx_lock = tid | MTX_CONTESTED;
 			turnstile_claim(&m->mtx_object);
 			break;
 		}
@@ -502,8 +502,7 @@ _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
 		 * or the state of the MTX_RECURSED bit changed.
 		 */
 		if ((v & MTX_CONTESTED) == 0 &&
-		    !atomic_cmpset_ptr(&m->mtx_lock, (void *)v,
-			(void *)(v | MTX_CONTESTED))) {
+		    !atomic_cmpset_ptr(&m->mtx_lock, v, v | MTX_CONTESTED)) {
 			turnstile_release(&m->mtx_object);
 			cpu_spinwait();
 			continue;
@@ -537,7 +536,7 @@ _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
 		if (!cont_logged) {
 			CTR6(KTR_CONTENTION,
 			    "contention: %p at %s:%d wants %s, taken by %s:%d",
-			    td, file, line, m->mtx_object.lo_name,
+			    (void *)tid, file, line, m->mtx_object.lo_name,
 			    WITNESS_FILE(&m->mtx_object),
 			    WITNESS_LINE(&m->mtx_object));
 			cont_logged = 1;
@@ -554,7 +553,7 @@ _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
 	if (cont_logged) {
 		CTR4(KTR_CONTENTION,
 		    "contention end: %s acquired by %p at %s:%d",
-		    m->mtx_object.lo_name, td, file, line);
+		    m->mtx_object.lo_name, (void *)tid, file, line);
 	}
 #endif
 #ifdef MUTEX_PROFILING
@@ -573,7 +572,7 @@ _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
  * is handled inline.
  */
 void
-_mtx_lock_spin(struct mtx *m, struct thread *td, int opts, const char *file,
+_mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
 	int i = 0;
@@ -582,7 +581,7 @@ _mtx_lock_spin(struct mtx *m, struct thread *td, int opts, const char *file,
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
 	for (;;) {
-		if (_obtain_lock(m, td))
+		if (_obtain_lock(m, tid))
 			break;
 
 		/* Give interrupts a chance while we spin. */
