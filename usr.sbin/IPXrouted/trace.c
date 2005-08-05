@@ -66,13 +66,12 @@ int	tracing = 0;
 
 void dumpif(FILE *fd, struct interface *ifp);
 void dumptrace(FILE *fd, char *dir, struct ifdebug *ifd);
+static int iftraceinit(struct interface *ifp, struct ifdebug *ifd);
 
 void
 traceinit(ifp)
 	register struct interface *ifp;
 {
-	static int iftraceinit();
-
 	if (iftraceinit(ifp, &ifp->int_input) &&
 	    iftraceinit(ifp, &ifp->int_output))
 		return;
