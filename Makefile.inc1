@@ -274,6 +274,9 @@ _worldtmp:
 	@echo "--------------------------------------------------------------"
 .if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
+.if ${TARGET_ARCH} == "amd64"
+	rm -rf ${LIB32TMP}
+.endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
 	# XXX - These two can depend on any header file.
@@ -332,6 +335,9 @@ _cleanobj:
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
+.if ${TARGET_ARCH} == "amd64"
+	rm -rf ${OBJTREE}/lib32
+.endif
 .endif
 _obj:
 	@echo
@@ -391,6 +397,7 @@ build32:
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
+	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 .for _t in obj depend all
