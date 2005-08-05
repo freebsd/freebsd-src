@@ -294,8 +294,10 @@ wi_attach(device_t dev)
 	if (error || IEEE80211_ADDR_EQ(ic->ic_myaddr, empty_macaddr)) {
 		if (error != 0)
 			device_printf(dev, "mac read failed %d\n", error);
-		else
+		else {
 			device_printf(dev, "mac read failed (all zeros)\n");
+			error = ENXIO;
+		}
 		wi_free(dev);
 		return (error);
 	}
