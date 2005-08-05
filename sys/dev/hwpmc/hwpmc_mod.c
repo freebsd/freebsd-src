@@ -771,7 +771,8 @@ pmc_link_target_process(struct pmc *pm, struct pmc_process *pp)
 
 	LIST_INSERT_HEAD(&pm->pm_targets, pt, pt_next);
 
-	atomic_store_rel_ptr(&pp->pp_pmcs[ri].pp_pmc, pm);
+	atomic_store_rel_ptr((uintptr_t *)&pp->pp_pmcs[ri].pp_pmc,
+	    (uintptr_t)pm);
 
 	if (pm->pm_owner->po_owner == pp->pp_proc)
 		pm->pm_flags |= PMC_F_ATTACHED_TO_OWNER;
