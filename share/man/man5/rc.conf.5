@@ -1156,14 +1156,6 @@ Number of times to attempt attaching to a
 .Xr gbde 4
 device, i.e., how many times the user is asked for the pass-phrase.
 Default is 3.
-.It Va gbde_swap_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-any .bde swap devices listed in
-.Pa /etc/fstab
-will be initialized with a random, one-shot key.
-Note that this makes recovery of kernel dumps impossible.
 .It Va root_rw_mount
 .Pq Vt bool
 Set to
