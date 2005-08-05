@@ -72,9 +72,8 @@ main(argc, argv)
 {
 	struct iovec iov[6];
 	int ch, mntflags;
-	char *fs_name, *options, *fspec, mntpath[MAXPATHLEN];
+	char *fs_name, *fspec, mntpath[MAXPATHLEN];
 
-	options = NULL;
 	mntflags = 0;
 	while ((ch = getopt(argc, argv, "o:")) != -1)
 		switch (ch) {

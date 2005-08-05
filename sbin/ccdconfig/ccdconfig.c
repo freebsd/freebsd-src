@@ -397,7 +397,6 @@ flags_to_val(char *flags)
 {
 	char *cp, *tok;
 	int i, tmp, val;
-	size_t flagslen;
 
 	errno = 0;	/* to check for ERANGE */
 	val = (int)strtol(flags, &cp, 0);
@@ -407,7 +406,6 @@ flags_to_val(char *flags)
 		return (val);
 	}
 
-	flagslen = strlen(flags);
 	/* Check for values represented by strings. */
 	if ((cp = strdup(flags)) == NULL)
 		err(1, "no memory to parse flags");
