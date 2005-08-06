@@ -50,10 +50,12 @@ _texinfo=	texinfo
 .if !defined(NO_TOOLCHAIN)
 _binutils=	binutils
 _cc=		cc
-_rcs=		rcs
 .if !defined(NO_GDB)
 _gdb=		gdb
 .endif
+.endif
+.if !defined(NO_RCS)
+_rcs=		rcs
 .endif
 
 .include <bsd.subdir.mk>
