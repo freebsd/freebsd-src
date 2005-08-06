@@ -10,7 +10,7 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c eui64.c \
 	getifaddrs.c getifmaddrs.c getnameinfo.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
 	getproto.c getprotoent.c getprotoname.c getservbyname.c \
-	getservbyport.c getservent.c herror.c hesiod.c inet_addr.c \
+	getservbyport.c getservent.c herror.c inet_addr.c \
 	if_indextoname.c if_nameindex.c if_nametoindex.c inet_lnaof.c \
 	inet_makeaddr.c inet_net_ntop.c inet_net_pton.c inet_neta.c \
 	inet_netof.c inet_network.c inet_ntoa.c inet_ntop.c \
@@ -43,7 +43,7 @@ nslexer.c: nslexer.l nsparser.h
 MAN+=	addr2ascii.3 byteorder.3 ethers.3 eui64.3 \
 	getaddrinfo.3 gai_strerror.3 gethostbyname.3 \
 	getifaddrs.3 getifmaddrs.3 getipnodebyname.3 \
-	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 hesiod.3 \
+	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 \
 	if_indextoname.3 \
 	inet.3 inet_net.3 \
 	inet6_opt_init.3 inet6_option_space.3 inet6_rth_space.3 \
@@ -112,3 +112,9 @@ MLINKS+=resolver.3 dn_comp.3 resolver.3 dn_expand.3 resolver.3 res_init.3 \
 	resolver.3 res_search.3 resolver.3 res_send.3 resolver.3 dn_skipname.3 \
 	resolver.3 ns_get16.3 resolver.3 ns_get32.3 \
 	resolver.3 ns_put16.3 resolver.3 ns_put32.3
+
+.if defined(YES_HESIOD)
+SRCS+=	hesiod.c 
+MAN+=	hesiod.3
+.endif
+

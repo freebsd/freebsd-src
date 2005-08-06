@@ -58,7 +58,7 @@ NOASM=
 CFLAGS+= -DYP
 .include "${.CURDIR}/yp/Makefile.inc"
 .endif
-.if !defined(NO_HESIOD_LIBC)
+.if defined(YES_HESIOD)
 CFLAGS+= -DHESIOD
 .endif
 .if defined(NO_FP_LIBC)
