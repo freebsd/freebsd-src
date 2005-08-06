@@ -9,7 +9,7 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
 	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
 	fts.h ftw.h getopt.h glob.h grp.h \
-	hesiod.h histedit.h ieeefp.h ifaddrs.h \
+	histedit.h ieeefp.h ifaddrs.h \
 	inttypes.h iso646.h kenv.h langinfo.h libgen.h limits.h link.h \
 	locale.h malloc.h memory.h monetary.h mpool.h ndbm.h netconfig.h \
 	netdb.h nl_types.h nlist.h nss.h nsswitch.h objformat.h paths.h \
@@ -53,6 +53,10 @@ LSUBDIRS=	cam/scsi \
 
 .if !defined(NO_GPIB)
 _dev_ieee488=	dev/ieee488
+.endif
+
+.if defined(YES_HESIOD)
+INCS+=	hesiod.h
 .endif
 
 .if !defined(NO_BLUETOOTH)

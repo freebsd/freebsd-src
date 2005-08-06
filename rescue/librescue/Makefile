@@ -33,7 +33,9 @@ CFLAGS+=	-DBROKEN_DES -DPORTMAP -DDES_BUILTIN
 .if !defined(NO_NIS)
 CFLAGS+=       -DYP
 .endif
+.if defined(YES_HESIOD)
 CFLAGS+=       -DHESIOD
+.endif
 CFLAGS+=	-I${.CURDIR}/../../lib/libc/include
 
 .include <bsd.lib.mk>
