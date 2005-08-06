@@ -226,7 +226,7 @@ ia64_tpa(u_int64_t va)
 static __inline void
 ia64_ptc_e(u_int64_t v)
 {
-	__asm __volatile("ptc.e %0;; srlz.d;;" :: "r"(v));
+	__asm __volatile("ptc.e %0;; srlz.i;;" :: "r"(v));
 }
 
 /*
@@ -235,7 +235,7 @@ ia64_ptc_e(u_int64_t v)
 static __inline void
 ia64_ptc_g(u_int64_t va, u_int64_t log2size)
 {
-	__asm __volatile("ptc.g %0,%1;; srlz.d;;" :: "r"(va), "r"(log2size));
+	__asm __volatile("ptc.g %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
 }
 
 /*
@@ -244,7 +244,7 @@ ia64_ptc_g(u_int64_t va, u_int64_t log2size)
 static __inline void
 ia64_ptc_ga(u_int64_t va, u_int64_t log2size)
 {
-	__asm __volatile("ptc.ga %0,%1;; srlz.d;;" :: "r"(va), "r"(log2size));
+	__asm __volatile("ptc.ga %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
 }
 
 /*
@@ -253,7 +253,7 @@ ia64_ptc_ga(u_int64_t va, u_int64_t log2size)
 static __inline void
 ia64_ptc_l(u_int64_t va, u_int64_t log2size)
 {
-	__asm __volatile("ptc.l %0,%1;; srlz.d;;" :: "r"(va), "r"(log2size));
+	__asm __volatile("ptc.l %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
 }
 
 /*
