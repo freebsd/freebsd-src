@@ -32,12 +32,22 @@
 
 #include <err.h>
 #include <errno.h>
+#include <kvm.h>
+#include <nlist.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "memstat.h"
 #include "memstat_internal.h"
+
+static struct nlist namelist[] = {
+#define	X_KMEMSTATISTICS	0
+	{ .n_name = "_kmemstatistics" },
+#define	X_MP_MAXCPUS		1
+	{ .n_name = "_mp_maxcpus" },
+	{ .n_name = "" },
+};
 
 /*
  * Extract malloc(9) statistics from the running kernel, and store all memory
@@ -223,6 +233,176 @@ retry:
 	}
 
 	free(buffer);
+
+	return (0);
+}
+
+static int
+kread(kvm_t *kvm, void *kvm_pointer, void *address, size_t size,
+    size_t offset)
+{
+	ssize_t ret;
+
+	ret = kvm_read(kvm, (unsigned long)kvm_pointer + offset, address,
+	    size);
+	if (ret < 0)
+		return (MEMSTAT_ERROR_KVM);
+	if ((size_t)ret != size)
+		return (MEMSTAT_ERROR_KVM_SHORTREAD);
+	return (0);
+}
+
+static int
+kread_string(kvm_t *kvm, void *kvm_pointer, char *buffer, int buflen)
+{
+	ssize_t ret;
+	int i;
+
+	for (i = 0; i < buflen; i++) {
+		ret = kvm_read(kvm, (unsigned long)kvm_pointer + i,
+		    &(buffer[i]), sizeof(char));
+		if (ret < 0)
+			return (MEMSTAT_ERROR_KVM);
+		if ((size_t)ret != sizeof(char))
+			return (MEMSTAT_ERROR_KVM_SHORTREAD);
+		if (buffer[i] == '\0')
+			return (0);
+	}
+	/* Truncate. */
+	buffer[i-1] = '\0';
+	return (0);
+}
+
+static int
+kread_symbol(kvm_t *kvm, int index, void *address, size_t size,
+    size_t offset)
+{
+	ssize_t ret;
+
+	ret = kvm_read(kvm, namelist[index].n_value + offset, address, size);
+	if (ret < 0)
+		return (MEMSTAT_ERROR_KVM);
+	if ((size_t)ret != size)
+		return (MEMSTAT_ERROR_KVM_SHORTREAD);
+	return (0);
+}
+
+int
+memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
+{
+	struct memory_type *mtp;
+	void *kmemstatistics;
+	int hint_dontsearch, j, mp_maxcpus, ret;
+	char name[MEMTYPE_MAXNAME];
+	struct malloc_type_stats mts[MEMSTAT_MAXCPU], *mtsp;
+	struct malloc_type type, *typep;
+	kvm_t *kvm;
+
+	kvm = (kvm_t *)kvm_handle;
+
+	hint_dontsearch = LIST_EMPTY(&list->mtl_list);
+
+	if (kvm_nlist(kvm, namelist) != 0) {
+		list->mtl_error = MEMSTAT_ERROR_KVM;
+		return (-1);
+	}
+
+	if (namelist[X_KMEMSTATISTICS].n_type == 0 ||
+	    namelist[X_KMEMSTATISTICS].n_value == 0) {
+		list->mtl_error = MEMSTAT_ERROR_KVM_NOSYMBOL;
+		return (-1);
+	}
+
+	ret = kread_symbol(kvm, X_MP_MAXCPUS, &mp_maxcpus,
+	    sizeof(mp_maxcpus), 0);
+	if (ret != 0) {
+		list->mtl_error = ret;
+		return (-1);
+	}
+
+	if (mp_maxcpus > MEMSTAT_MAXCPU) {
+		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
+		return (-1);
+	}
+
+	ret = kread_symbol(kvm, X_KMEMSTATISTICS, &kmemstatistics,
+	    sizeof(kmemstatistics), 0);
+	if (ret != 0) {
+		list->mtl_error = ret;
+		return (-1);
+	}
+
+	for (typep = kmemstatistics; typep != NULL; typep = type.ks_next) {
+		ret = kread(kvm, typep, &type, sizeof(type), 0);
+		if (ret != 0) {
+			_memstat_mtl_empty(list);
+			list->mtl_error = ret;
+			return (-1);
+		}
+		ret = kread_string(kvm, (void *)type.ks_shortdesc, name,
+		    MEMTYPE_MAXNAME);
+		if (ret != 0) {
+			_memstat_mtl_empty(list);
+			list->mtl_error = ret;
+			return (-1);
+		}
+
+		/*
+		 * Take advantage of explicit knowledge that
+		 * malloc_type_internal is simply an array of statistics
+		 * structures of number MAXCPU.  Since our compile-time
+		 * value for MAXCPU may differ from the kernel's, we
+		 * populate our own array.
+		 */
+		ret = kread(kvm, type.ks_handle, mts, mp_maxcpus *
+		    sizeof(struct malloc_type_stats), 0);
+		if (ret != 0) {
+			_memstat_mtl_empty(list);
+			list->mtl_error = ret;
+			return (-1);
+		}
+
+		if (hint_dontsearch == 0) {
+			mtp = memstat_mtl_find(list, ALLOCATOR_MALLOC, name);
+		} else
+			mtp = NULL;
+		if (mtp == NULL)
+			mtp = _memstat_mt_allocate(list, ALLOCATOR_MALLOC,
+			    name);
+		if (mtp == NULL) {
+			_memstat_mtl_empty(list);
+			list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
+			return (-1);
+		}
+
+		/*
+		 * This logic is replicated from kern_malloc.c, and should
+		 * be kept in sync.
+		 */
+		_memstat_mt_reset_stats(mtp);
+		for (j = 0; j < mp_maxcpus; j++) {
+			mtsp = &mts[j];
+			mtp->mt_memalloced += mtsp->mts_memalloced;
+			mtp->mt_memfreed += mtsp->mts_memfreed;
+			mtp->mt_numallocs += mtsp->mts_numallocs;
+			mtp->mt_numfrees += mtsp->mts_numfrees;
+			mtp->mt_sizemask |= mtsp->mts_size;
+
+			mtp->mt_percpu_alloc[j].mtp_memalloced =
+			    mtsp->mts_memalloced;
+			mtp->mt_percpu_alloc[j].mtp_memfreed =
+			    mtsp->mts_memfreed;
+			mtp->mt_percpu_alloc[j].mtp_numallocs =
+			    mtsp->mts_numallocs;
+			mtp->mt_percpu_alloc[j].mtp_numfrees =
+			    mtsp->mts_numfrees;
+			mtp->mt_percpu_alloc[j].mtp_sizemask =
+			    mtsp->mts_size;
+		}
+
+		mtp->mt_bytes = mtp->mt_memalloced - mtp->mt_memfreed;
+		mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
+	}
 
 	return (0);
 }
