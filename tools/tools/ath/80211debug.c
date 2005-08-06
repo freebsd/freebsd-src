@@ -170,7 +170,7 @@ main(int argc, char *argv[])
 #else
 		snprintf(oid, sizeof(oid), "net.wlan.%d.%%parent", unit);
 #endif
-		parentlen = sizeof(parentlen);
+		parentlen = sizeof(parent);
 		if (sysctlbyname(oid, parent, &parentlen, NULL, 0) >= 0 &&
 		    strncmp(parent, ifname, parentlen) == 0)
 			break;
