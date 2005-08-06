@@ -119,6 +119,7 @@ int	memstat_sysctl_uma(struct memory_type_list *list, int flags);
  * Functions to retrieve data from a kernel core (or /dev/kmem).
  */
 int	memstat_kvm_all(struct memory_type_list *list, void *kvm_handle);
+int	memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle);
 int	memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle);
 
 /*

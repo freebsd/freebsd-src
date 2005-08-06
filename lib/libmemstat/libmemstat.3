@@ -53,6 +53,10 @@
 .Fn memstat_mtl_geterror "struct memory_type_list *list"
 .Ss Allocator Query Functions
 .Ft int
+.Fn memstat_kvm_all "struct memory_type_list *list" "void *kvm_handle"
+.Ft int
+.Fn memstat_kvm_malloc "struct memory_type_list *list" "void *kvm_handle"
+.Ft int
 .Fn memstat_kvm_uma "struct memory_type_list *list" "void *kvm_handle"
 .Ft int
 .Fn memstat_sysctl_all "struct memory_type_list *list" "int flags"
@@ -147,6 +151,8 @@ and freed on completion using
 .Fn memstat_mtl_free .
 Lists of memory types are populated via calls that query the kernel for
 statistics information; currently:
+.Fn memstat_kvm_all ,
+.Fn memstat_kvm_malloc ,
 .Fn memstat_kvm_uma ,
 .Fn memstat_sysctl_all ,
 .Fn memstat_sysctl_uma ,
@@ -445,11 +451,9 @@ The kernel memory allocator changes necessary to support a general purpose
 monitoring library, along with the library, were written by
 .An Robert Watson Aq rwatson@FreeBSD.org
 .Sh BUGS
-.Nm
-cannot yet extract
-.Xr malloc 9
-statistics from kernel core dumps, although this should be straight forward
-to implement.
+There are memory allocators in the kernel, such as the VM page allocator
+and sf_buf allocator, which are not currently supported by
+.Nm.
 .Pp
 Once a memory type is present on a memory type list, it will not be removed
 even if the kernel no longer presents information on the type via its
