@@ -2581,7 +2581,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		IEEE80211_NODE_STAT(ni, rx_disassoc);
 
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
-		    "[%s] recv disassociated (reason %d)\n",
+		    "[%s] recv disassociate (reason %d)\n",
 		    ether_sprintf(ni->ni_macaddr), reason);
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_STA:
