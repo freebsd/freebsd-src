@@ -218,6 +218,8 @@ void	ieee80211_node_table_reset(struct ieee80211_node_table *);
 
 struct ieee80211_node *ieee80211_alloc_node(
 		struct ieee80211_node_table *, const u_int8_t *);
+struct ieee80211_node *ieee80211_tmp_node(struct ieee80211com *,
+		const u_int8_t *macaddr);
 struct ieee80211_node *ieee80211_dup_bss(struct ieee80211_node_table *,
 		const u_int8_t *);
 #ifdef IEEE80211_DEBUG_REFCNT
