@@ -954,7 +954,7 @@ ieee80211_send_error(struct ieee80211com *ic, struct ieee80211_node *ni,
 	int istmp;
 
 	if (ni == ic->ic_bss) {
-		ni = ieee80211_dup_bss(&ic->ic_sta, mac);
+		ni = ieee80211_tmp_node(ic, mac);
 		if (ni == NULL) {
 			/* XXX msg */
 			return;
@@ -2107,7 +2107,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				ni = ieee80211_fakeup_adhoc_node(&ic->ic_sta,
 					wh->i_addr2);
 			} else
-				ni = ieee80211_dup_bss(&ic->ic_sta, wh->i_addr2);
+				ni = ieee80211_tmp_node(ic, wh->i_addr2);
 			if (ni == NULL)
 				return;
 			allocbs = 1;
