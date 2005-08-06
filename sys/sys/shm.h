@@ -94,11 +94,11 @@ struct shmid_ds {
  * might be of interest to user programs.  Do we really want/need this?
  */
 struct shminfo {
-	int	shmmax,		/* max shared memory segment size (bytes) */
-		shmmin,		/* min shared memory segment size (bytes) */
-		shmmni,		/* max number of shared memory identifiers */
-		shmseg,		/* max shared memory segments per process */
-		shmall;		/* max amount of shared memory (pages) */
+	u_long	shmmax;		/* max shared memory segment size (bytes) */
+	u_long	shmmin;		/* max shared memory segment size (bytes) */
+	u_long	shmmni;		/* max number of shared memory identifiers */
+	u_long	shmseg;		/* max shared memory segments per process */
+	u_long	shmall;		/* max amount of shared memory (pages) */
 };
 
 /* 
