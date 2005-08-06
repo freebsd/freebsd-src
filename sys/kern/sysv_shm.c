@@ -177,15 +177,15 @@ static int shm_use_phys;
 static int shm_allow_removed;
 
 SYSCTL_DECL(_kern_ipc);
-SYSCTL_INT(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RW, &shminfo.shmmax, 0,
+SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RW, &shminfo.shmmax, 0,
     "Maximum shared memory segment size");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RW, &shminfo.shmmin, 0,
+SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RW, &shminfo.shmmin, 0,
     "Minimum shared memory segment size");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shmmni, CTLFLAG_RDTUN, &shminfo.shmmni, 0,
+SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmni, CTLFLAG_RDTUN, &shminfo.shmmni, 0,
     "Number of shared memory identifiers");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RDTUN, &shminfo.shmseg, 0,
+SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RDTUN, &shminfo.shmseg, 0,
     "Number of segments per process");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &shminfo.shmall, 0,
+SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &shminfo.shmall, 0,
     "Maximum number of pages available for shared memory");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW,
     &shm_use_phys, 0, "Enable/Disable locking of shared memory pages in core");
@@ -955,15 +955,15 @@ shminit()
 {
 	int i;
 
-	TUNABLE_INT_FETCH("kern.ipc.shmmaxpgs", &shminfo.shmall);
+	TUNABLE_ULONG_FETCH("kern.ipc.shmmaxpgs", &shminfo.shmall);
 	for (i = PAGE_SIZE; i > 0; i--) {
 		shminfo.shmmax = shminfo.shmall * i;
 		if (shminfo.shmmax >= shminfo.shmall)
 			break;
 	}
-	TUNABLE_INT_FETCH("kern.ipc.shmmin", &shminfo.shmmin);
-	TUNABLE_INT_FETCH("kern.ipc.shmmni", &shminfo.shmmni);
-	TUNABLE_INT_FETCH("kern.ipc.shmseg", &shminfo.shmseg);
+	TUNABLE_ULONG_FETCH("kern.ipc.shmmin", &shminfo.shmmin);
+	TUNABLE_ULONG_FETCH("kern.ipc.shmmni", &shminfo.shmmni);
+	TUNABLE_ULONG_FETCH("kern.ipc.shmseg", &shminfo.shmseg);
 	TUNABLE_INT_FETCH("kern.ipc.shm_use_phys", &shm_use_phys);
 
 	shmalloced = shminfo.shmmni;
