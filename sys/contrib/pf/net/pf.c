@@ -1085,6 +1085,11 @@ pf_src_tree_remove_state(struct pf_state *s)
 void
 pf_purge_expired_state(struct pf_state *cur)
 {
+#ifdef __FreeBSD__
+	if (cur->sync_flags & PFSTATE_EXPIRING)
+		return;
+	cur->sync_flags |= PFSTATE_EXPIRING;
+#endif
 	if (cur->src.state == PF_TCPS_PROXY_DST)
 		pf_send_tcp(cur->rule.ptr, cur->af,
 		    &cur->ext.addr, &cur->lan.addr,
