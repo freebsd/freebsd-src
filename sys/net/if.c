@@ -417,9 +417,8 @@ void
 if_free(struct ifnet *ifp)
 {
 
-	if_free_type(ifp, ifp->if_type);
-
 	IF_ADDR_LOCK_DESTROY(ifp);
+	if_free_type(ifp, ifp->if_type);
 }
 
 void
