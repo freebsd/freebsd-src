@@ -947,6 +947,42 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt, const u_int8_t *macaddr)
 	return ni;
 }
 
+/*
+ * Craft a temporary node suitable for sending a management frame
+ * to the specified station.  We craft only as much state as we
+ * need to do the work since the node will be immediately reclaimed
+ * once the send completes.
+ */
+struct ieee80211_node *
+ieee80211_tmp_node(struct ieee80211com *ic, const u_int8_t *macaddr)
+{
+	struct ieee80211_node *ni;
+
+	ni = ic->ic_node_alloc(&ic->ic_sta);
+	if (ni != NULL) {
+		IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
+			"%s %p<%s>\n", __func__, ni, ether_sprintf(macaddr));
+
+		IEEE80211_ADDR_COPY(ni->ni_macaddr, macaddr);
+		IEEE80211_ADDR_COPY(ni->ni_bssid, ic->ic_bss->ni_bssid);
+		ieee80211_node_initref(ni);		/* mark referenced */
+		ni->ni_txpower = ic->ic_bss->ni_txpower;
+		/* NB: required by ieee80211_fix_rate */
+		ieee80211_set_chan(ic, ni, ic->ic_bss->ni_chan);
+		ieee80211_crypto_resetkey(ic, &ni->ni_ucastkey,
+			IEEE80211_KEYIX_NONE);
+		/* XXX optimize away */
+		IEEE80211_NODE_SAVEQ_INIT(ni, "unknown");
+
+		ni->ni_table = NULL;		/* NB: pedantic */
+		ni->ni_ic = ic;
+	} else {
+		/* XXX msg */
+		ic->ic_stats.is_rx_nodealloc++;
+	}
+	return ni;
+}
+
 struct ieee80211_node *
 ieee80211_dup_bss(struct ieee80211_node_table *nt, const u_int8_t *macaddr)
 {
