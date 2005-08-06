@@ -23,7 +23,6 @@ MAN=	acct.5 \
 	fs.5 \
 	fstab.5 \
 	group.5 \
-	hesiod.conf.5 \
 	hosts.5 \
 	hosts.equiv.5 \
 	hosts.lpd.5 \
@@ -64,5 +63,9 @@ MLINKS+=passwd.5 master.passwd.5
 MLINKS+=quota.user.5 quota.group.5
 MLINKS+=resolver.5 resolv.conf.5
 MLINKS+=utmp.5 lastlog.5 utmp.5 wtmp.5
+
+.if defined(YES_HESIOD)
+MAN+=	hesiod.conf.5 
+.endif
 
 .include <bsd.prog.mk>
