@@ -724,6 +724,9 @@ struct pf_state {
 	u_int8_t	 sync_flags;
 #define	PFSTATE_NOSYNC	 0x01
 #define	PFSTATE_FROMSYNC 0x02
+#ifdef __FreeBSD__
+#define	PFSTATE_EXPIRING 0x10
+#endif
 	u_int8_t	 pad;
 };
 

@@ -929,7 +929,9 @@ pf_purge_expired_states(void)
 		next = RB_NEXT(pf_state_tree_id, &tree_id, cur);
 
 #ifdef __FreeBSD__
-		if (pf_state_expires(cur) <= time_second) {
+		if ((pf_state_expires(cur) <= time_second) && 
+		    !(cur->sync_flags & PFSTATE_EXPIRING)) {
+			cur->sync_flags |= PFSTATE_EXPIRING;
 #else
 		if (pf_state_expires(cur) <= time.tv_sec) {
 #endif
