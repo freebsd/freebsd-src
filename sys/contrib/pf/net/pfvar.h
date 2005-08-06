@@ -790,6 +790,9 @@ struct pf_state {
 #define	PFSTATE_NOSYNC	 0x01
 #define	PFSTATE_FROMSYNC 0x02
 #define	PFSTATE_STALE	 0x04
+#ifdef __FreeBSD__
+#define	PFSTATE_EXPIRING 0x10
+#endif
 	u_int8_t	 pad;
 };
 
