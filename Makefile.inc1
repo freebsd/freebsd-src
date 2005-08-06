@@ -1010,14 +1010,6 @@ _prebuild_libs+= lib/libcom_err lib/libcrypt lib/libexpat \
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
-.if !defined(NO_BIND)
-.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
-_prebuild_libs+= lib/libc_r
-.else
-_prebuild_libs+= lib/libpthread
-.endif
-.endif
-
 _generic_libs+=	lib
 
 .if !defined(NOCRYPT)
