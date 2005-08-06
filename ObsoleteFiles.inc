@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20050805 tn3270 retired long ago
+OLD_FILES+=usr/share/misc/map3270
 # 20050721: moved to ports
 OLD_FILES+=usr/sbin/vttest
 OLD_FILES+=usr/share/man/man1/vttest.1.gz
