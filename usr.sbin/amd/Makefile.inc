@@ -21,6 +21,10 @@ CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -DHAVE_LOCALCONFIG_H
 .endif
 
+.if defined(YES_HESIOD)
+CFLAGS+= -DYES_HESIOD
+.endif
+
 CFLAGS+= -DHOST_CPU=\"${MACHINE_ARCH}\" -DHOST_ARCH=\"${MACHINE_ARCH}\"
 
 .if exists(${.OBJDIR}/../libamu)
