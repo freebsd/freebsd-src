@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/random.h>
 #include <sys/reboot.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
@@ -764,8 +765,8 @@ ia64_init(void)
 	 */
 	proc0kstack = (vm_offset_t)kstack;
 	thread0.td_kstack = proc0kstack;
-	thread0.td_pcb = (struct pcb *)
-	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack_pages = KSTACK_PAGES;
+
 	/*
 	 * Setup the global data for the bootstrap cpu.
 	 */
@@ -774,6 +775,8 @@ ia64_init(void)
 	pcpu_init(pcpup, 0, PAGE_SIZE);
 	PCPU_SET(curthread, &thread0);
 
+	mutex_init();
+
 	/*
 	 * Initialize the rest of proc 0's PCB.
 	 *
@@ -781,14 +784,11 @@ ia64_init(void)
 	 * and make proc0's trapframe pointer point to it for sanity.
 	 * Initialise proc0's backing store to start after u area.
 	 */
-	thread0.td_frame = (struct trapframe *)thread0.td_pcb - 1;
-	thread0.td_frame->tf_length = sizeof(struct trapframe);
+	cpu_thread_setup(&thread0);
 	thread0.td_frame->tf_flags = FRAME_SYSCALL;
 	thread0.td_pcb->pcb_special.sp =
 	    (u_int64_t)thread0.td_frame - 16;
-	thread0.td_pcb->pcb_special.bspstore = (u_int64_t)proc0kstack;
-
-	mutex_init();
+	thread0.td_pcb->pcb_special.bspstore = thread0.td_kstack;
 
 	/*
 	 * Initialize the virtual memory system.
@@ -1428,7 +1428,6 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 
 /*
  * High FP register functions.
- * XXX no synchronization yet.
  */
 
 int
@@ -1438,13 +1437,17 @@ ia64_highfp_drop(struct thread *td)
 	struct pcpu *cpu;
 	struct thread *thr;
 
+	mtx_lock(&td->td_md.md_highfp_mtx);
 	pcb = td->td_pcb;
 	cpu = pcb->pcb_fpcpu;
-	if (cpu == NULL)
+	if (cpu == NULL) {
+		mtx_unlock(&td->td_md.md_highfp_mtx);
 		return (0);
+	}
 	pcb->pcb_fpcpu = NULL;
 	thr = cpu->pc_fpcurthread;
 	cpu->pc_fpcurthread = NULL;
+	mtx_unlock(&td->td_md.md_highfp_mtx);
 
 	/* Post-mortem sanity checking. */
 	KASSERT(thr == td, ("Inconsistent high FP state"));
@@ -1462,22 +1465,36 @@ ia64_highfp_save(struct thread *td)
 	if ((td->td_frame->tf_special.psr & IA64_PSR_MFH) == 0)
 		return (ia64_highfp_drop(td));
 
+	mtx_lock(&td->td_md.md_highfp_mtx);
 	pcb = td->td_pcb;
 	cpu = pcb->pcb_fpcpu;
-	if (cpu == NULL)
+	if (cpu == NULL) {
+		mtx_unlock(&td->td_md.md_highfp_mtx);
 		return (0);
+	}
 #ifdef SMP
+	if (td == curthread)
+		sched_pin();
 	if (cpu != pcpup) {
-		ipi_send(cpu->pc_lid, IPI_HIGH_FP);
-		while (pcb->pcb_fpcpu != cpu)
+		mtx_unlock(&td->td_md.md_highfp_mtx);
+		ipi_send(cpu, IPI_HIGH_FP);
+		if (td == curthread)
+			sched_unpin();
+		while (pcb->pcb_fpcpu == cpu)
 			DELAY(100);
 		return (1);
+	} else {
+		save_high_fp(&pcb->pcb_high_fp);
+		if (td == curthread)
+			sched_unpin();
 	}
-#endif
+#else
 	save_high_fp(&pcb->pcb_high_fp);
+#endif
 	pcb->pcb_fpcpu = NULL;
 	thr = cpu->pc_fpcurthread;
 	cpu->pc_fpcurthread = NULL;
+	mtx_unlock(&td->td_md.md_highfp_mtx);
 
 	/* Post-mortem sanity cxhecking. */
 	KASSERT(thr == td, ("Inconsistent high FP state"));

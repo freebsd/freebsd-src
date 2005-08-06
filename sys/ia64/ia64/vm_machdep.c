@@ -118,6 +118,7 @@ cpu_thread_setup(struct thread *td)
 	sp -= sizeof(struct trapframe);
 	td->td_frame = (struct trapframe *)sp;
 	td->td_frame->tf_length = sizeof(struct trapframe);
+	mtx_init(&td->td_md.md_highfp_mtx, "High FP lock", NULL, MTX_DEF);
 }
 
 void
