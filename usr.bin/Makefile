@@ -260,7 +260,7 @@ _chkey=		chkey
 _newkey=	newkey
 .endif
 
-.if !defined(YES_HESIOD)
+.if defined(YES_HESIOD)
 _hesinfo=	hesinfo
 .endif
 
