@@ -70,7 +70,7 @@ SUBDIR=	alias \
 	getopt \
 	${_gprof} \
 	head \
-	hesinfo \
+	${_hesinfo} \
 	hexdump \
 	${_host} \
 	id \
@@ -258,6 +258,10 @@ _calendar=	calendar
 .if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _chkey=		chkey
 _newkey=	newkey
+.endif
+
+.if !defined(YES_HESIOD)
+_hesinfo=	hesinfo
 .endif
 
 .if !defined(NO_NETCAT)
