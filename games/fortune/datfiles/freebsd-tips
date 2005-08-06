@@ -75,7 +75,7 @@ To change an environment variable in /bin/sh use:
 %
 You can use /etc/make.conf to control the options used to compile software
 on this system.  Example entries are in
-/usr/share/examples/etc/defaults/make.conf.
+/usr/share/examples/etc/make.conf.
 %
 To do a fast search for a file, try
 
@@ -171,9 +171,9 @@ In other words, to get the intro to general commands, type
 %
 FreeBSD is started up by the program 'init'.  The first thing init does when
 starting multiuser mode (ie, starting the computer up for normal use) is to
-run the shell script /etc/rc.  By reading /etc/rc, you can learn a lot about
-how the system is put together, which again will make you more confident about
-what happens when you do something with it.
+run the shell script /etc/rc.  By reading /etc/rc and the /etc/rc.d/ scripts,
+you can learn a lot about how the system is put together, which again will
+make you more confident about what happens when you do something with it.
 %
 If you want to play CDs with FreeBSD, a utility for this is already included.
 Type 'cdcontrol' then 'help' to learn more.  (You may need to set the CDROM
@@ -212,7 +212,7 @@ To see the output from when your computer started, run dmesg(8).  If it has
 been replaced with other messages, look at /var/run/dmesg.boot.
 		-- Francisco Reyes <lists@natserv.com>
 %
-You can use "whereis" to locate standard binary, manual page and source
+You can use "whereis" to search standard binary, manual page and source
 directories for the specified programs. This can be particularly handy
 when you are trying to find where in the ports tree an application is.
 
@@ -262,7 +262,7 @@ the section of the manual the man page is in.  "man man" will tell you more.
 You can often get answers to your questions about FreeBSD by searching in the
 FreeBSD mailing list archives at
 
-	http://www.freebsd.org/search.html
+	http://www.freebsd.org/search/search.html
 %
 You can adjust the volume of various parts of the sound system in your
 computer by typing 'mixer <type> <volume>'.  To get a list of what you can
@@ -314,8 +314,7 @@ Want to see how much virtual memory you're using? Just type "swapinfo" to
 be shown information about the usage of your swap partitions.
 %
 ports/net/netcat port is useful not only for redirecting input/output
-to TCP or UDP connections, but also for proxying them. See inetd(8) for
-details.
+to TCP or UDP connections, but also for proxying them with inetd(8).
 %
 If other operating systems have damaged your Master Boot Record, you can
 reinstall it either with /stand/sysinstall or with boot0cfg(8). See
