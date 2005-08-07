@@ -1763,7 +1763,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		 */
 		if ((ptpaddr & PG_PS) != 0) {
 			*pde &= ~(PG_M|PG_RW);
-			pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
 			anychanged = 1;
 			continue;
 		}
