@@ -65,7 +65,6 @@ typedef enum {
 #define	tok_malloc(a)		malloc(a)
 #define	tok_free(a)		free(a)
 #define	tok_realloc(a, b)	realloc(a, b)
-#define tok_reallocf(a, b)	reallocf(a, b)
 
 
 struct tokenizer {
@@ -386,7 +385,7 @@ tok_line(Tokenizer *tok, const char *line, int *argc, char ***argv)
 		if (tok->argc >= tok->amax - 4) {
 			char **p;
 			tok->amax += AINCR;
-			p = (char **) tok_reallocf(tok->argv,
+			p = (char **) tok_realloc(tok->argv,
 			    tok->amax * sizeof(char *));
 			if (p == NULL)
 				return (-1);
