@@ -1795,13 +1795,21 @@ int
 ata_ite_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    struct ata_chip_id *idx;
+    static struct ata_chip_id ids[] =
+    {{ ATA_IT8212F, 0x00, 0x00, 0x00, ATA_UDMA6, "ITE IT8212F" },
+     { ATA_IT8211F, 0x00, 0x00, 0x00, ATA_UDMA6, "ITE IT8211F" },
+     { 0, 0, 0, 0, 0, 0}};
+    char buffer[64]; 
 
-    if (pci_get_devid(dev) == ATA_IT8212F) {
-	device_set_desc(dev, "ITE IT8212F ATA133 controller");
-	ctlr->chipinit = ata_ite_chipinit;
-	return 0;
-    }
-    return ENXIO;
+    if (!(idx = ata_match_chip(dev, ids)))
+	return ENXIO;
+
+    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    device_set_desc_copy(dev, buffer);
+    ctlr->chip = idx;
+    ctlr->chipinit = ata_ite_chipinit;
+    return 0;
 }
 
 static int

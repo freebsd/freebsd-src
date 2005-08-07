@@ -149,6 +149,7 @@ struct ata_connect_task {
 #define ATA_I31244		0x32008086
 
 #define ATA_ITE_ID              0x1283
+#define ATA_IT8211F             0x82111283
 #define ATA_IT8212F             0x82121283
 
 #define ATA_MICRON_ID           0x1042
