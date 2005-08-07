@@ -57,6 +57,7 @@ SYSCTL_UINT(_kern, OID_AUTO, kobj_misses, CTLFLAG_RD,
 #endif
 
 static struct mtx kobj_mtx;
+static int kobj_mutex_inited;
 static int kobj_next_id = 1;
 
 SYSCTL_UINT(_kern, OID_AUTO, kobj_methodcount, CTLFLAG_RD,
@@ -65,11 +66,19 @@ SYSCTL_UINT(_kern, OID_AUTO, kobj_methodcount, CTLFLAG_RD,
 static void
 kobj_init_mutex(void *arg)
 {
-
-	mtx_init(&kobj_mtx, "kobj", NULL, MTX_DEF);
+	if (!kobj_mutex_inited) {
+		mtx_init(&kobj_mtx, "kobj", NULL, MTX_DEF);
+		kobj_mutex_inited = 1;
+	}
 }
 
 SYSINIT(kobj, SI_SUB_LOCK, SI_ORDER_ANY, kobj_init_mutex, NULL);
+
+void
+kobj_machdep_init(void)
+{
+	kobj_init_mutex(NULL);
+}
 
 /*
  * This method structure is used to initialise new caches. Since the

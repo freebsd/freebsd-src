@@ -246,4 +246,9 @@ kobj_method_t* kobj_lookup_method(kobj_class_t cls,
  */
 int kobj_error_method(void);
 
+/*
+ * Machine-dependent initialisation call for boot-time kobj clients
+ */
+void kobj_machdep_init(void);
+
 #endif /* !_SYS_KOBJ_H_ */
