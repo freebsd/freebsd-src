@@ -1275,11 +1275,7 @@ xe_set_multicast(struct xe_softc *scp) {
   /* Iterate over multicast address list */
   count = 0;
   IF_ADDR_LOCK(ifp);
-#if __FreeBSD_version < 500000
-  LIST_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
-#else
   TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
-#endif
     if (maddr->ifma_addr->sa_family != AF_LINK)
       continue;
 
