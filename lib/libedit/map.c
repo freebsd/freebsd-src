@@ -1395,10 +1395,10 @@ map_addfunc(EditLine *el, const char *name, const char *help, el_func_t func)
 	if (name == NULL || help == NULL || func == NULL)
 		return (-1);
 
-	if ((p = el_reallocf(el->el_map.func, nf * sizeof(el_func_t))) == NULL)
+	if ((p = el_realloc(el->el_map.func, nf * sizeof(el_func_t))) == NULL)
 		return (-1);
 	el->el_map.func = (el_func_t *) p;
-	if ((p = el_reallocf(el->el_map.help, nf * sizeof(el_bindings_t)))
+	if ((p = el_realloc(el->el_map.help, nf * sizeof(el_bindings_t)))
 	    == NULL)
 		return (-1);
 	el->el_map.help = (el_bindings_t *) p;
