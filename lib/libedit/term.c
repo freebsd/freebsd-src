@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: term.c,v 1.31 2001/01/10 22:42:56 jdolecek Exp $
+ *	$NetBSD: term.c,v 1.40 2004/05/22 23:21:28 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -47,13 +43,15 @@ __FBSDID("$FreeBSD$");
  *	   We have to declare a static variable here, since the
  *	   termcap putchar routine does not take an argument!
  */
-#include "sys.h"
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <termcap.h>
+#include <curses.h>
+#include <ncurses.h>
+#include <term.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -258,7 +256,7 @@ private void	term_setflags(EditLine *);
 private int	term_rebuffer_display(EditLine *);
 private void	term_free_display(EditLine *);
 private int	term_alloc_display(EditLine *);
-private void	term_alloc(EditLine *, const struct termcapstr *, char *);
+private void	term_alloc(EditLine *, const struct termcapstr *, const char *);
 private void	term_init_arrow(EditLine *);
 private void	term_reset_arrow(EditLine *);
 
@@ -339,10 +337,10 @@ term_init(EditLine *el)
 	(void) memset(el->el_term.t_val, 0, T_val * sizeof(int));
 	term_outfile = el->el_outfile;
 	term_init_arrow(el);
-	if (term_set(el, NULL) == -1)
-		return (-1);
+	(void) term_set(el, NULL);
 	return (0);
 }
+
 /* term_end():
  *	Clean up the terminal stuff
  */
@@ -359,6 +357,8 @@ term_end(EditLine *el)
 	el->el_term.t_str = NULL;
 	el_free((ptr_t) el->el_term.t_val);
 	el->el_term.t_val = NULL;
+	el_free((ptr_t) el->el_term.t_fkey);
+	el->el_term.t_fkey = NULL;
 	term_free_display(el);
 }
 
@@ -367,7 +367,7 @@ term_end(EditLine *el)
  *	Maintain a string pool for termcap strings
  */
 private void
-term_alloc(EditLine *el, const struct termcapstr *t, char *cap)
+term_alloc(EditLine *el, const struct termcapstr *t, const char *cap)
 {
 	char termbuf[TC_BUFSIZE];
 	int tlen, clen;
@@ -635,7 +635,8 @@ mc_again:
 				 * from col 0
 				 */
 				if (EL_CAN_TAB ?
-				    (-del > (((unsigned int) where >> 3) +
+				    ((unsigned int)-del >
+				    (((unsigned int) where >> 3) +
 				     (where & 07)))
 				    : (-del > where)) {
 					term__putc('\r');	/* do a CR */
@@ -655,7 +656,7 @@ mc_again:
  *	Overstrike num characters
  */
 protected void
-term_overwrite(EditLine *el, char *cp, int n)
+term_overwrite(EditLine *el, const char *cp, int n)
 {
 	if (n <= 0)
 		return;		/* catch bugs */
@@ -863,12 +864,18 @@ term_clear_to_bottom(EditLine *el)
 }
 #endif
 
+protected void
+term_get(EditLine *el, const char **term)
+{
+	*term = el->el_term.t_name;
+}
+
 
 /* term_set():
  *	Read in the terminal capabilities from the requested terminal
  */
 protected int
-term_set(EditLine *el, char *term)
+term_set(EditLine *el, const char *term)
 {
 	int i;
 	char buf[TC_BUFSIZE];
@@ -924,8 +931,11 @@ term_set(EditLine *el, char *term)
 		/* Get the size */
 		Val(T_co) = tgetnum("co");
 		Val(T_li) = tgetnum("li");
-		for (t = tstr; t->name != NULL; t++)
-			term_alloc(el, t, tgetstr(t->name, &area));
+		for (t = tstr; t->name != NULL; t++) {
+			/* XXX: some systems tgetstr needs non const */
+			term_alloc(el, t, tgetstr(strchr(t->name, *t->name),
+			    &area));
+		}
 	}
 
 	if (Val(T_co) < 2)
@@ -944,6 +954,7 @@ term_set(EditLine *el, char *term)
 		return (-1);
 	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
 	term_bind_arrow(el);
+	el->el_term.t_name = term;
 	return (i <= 0 ? -1 : 0);
 }
 
@@ -1105,7 +1116,7 @@ term_reset_arrow(EditLine *el)
  *	Set an arrow key binding
  */
 protected int
-term_set_arrow(EditLine *el, char *name, key_value_t *fun, int type)
+term_set_arrow(EditLine *el, const char *name, key_value_t *fun, int type)
 {
 	fkey_t *arrow = el->el_term.t_fkey;
 	int i;
@@ -1124,7 +1135,7 @@ term_set_arrow(EditLine *el, char *name, key_value_t *fun, int type)
  *	Clear an arrow key binding
  */
 protected int
-term_clear_arrow(EditLine *el, char *name)
+term_clear_arrow(EditLine *el, const char *name)
 {
 	fkey_t *arrow = el->el_term.t_fkey;
 	int i;
@@ -1142,7 +1153,7 @@ term_clear_arrow(EditLine *el, char *name)
  *	Print the arrow key bindings
  */
 protected void
-term_print_arrow(EditLine *el, char *name)
+term_print_arrow(EditLine *el, const char *name)
 {
 	int i;
 	fkey_t *arrow = el->el_term.t_fkey;
@@ -1239,7 +1250,8 @@ term__flush(void)
  */
 protected int
 /*ARGSUSED*/
-term_telltc(EditLine *el, int argc, char **argv)
+term_telltc(EditLine *el, int argc __unused, 
+    const char **argv __unused)
 {
 	const struct termcapstr *t;
 	char **ts;
@@ -1274,11 +1286,12 @@ term_telltc(EditLine *el, int argc, char **argv)
  */
 protected int
 /*ARGSUSED*/
-term_settc(EditLine *el, int argc, char **argv)
+term_settc(EditLine *el, int argc __unused,
+    const char **argv)
 {
 	const struct termcapstr *ts;
 	const struct termcapval *tv;
-	char *what, *how;
+	const char *what, *how;
 
 	if (argv == NULL || argv[1] == NULL || argv[2] == NULL)
 		return (-1);
@@ -1350,7 +1363,8 @@ term_settc(EditLine *el, int argc, char **argv)
  */
 protected int
 /*ARGSUSED*/
-term_echotc(EditLine *el, int argc, char **argv)
+term_echotc(EditLine *el, int argc __unused,
+    const char **argv)
 {
 	char *cap, *scap, *ep;
 	int arg_need, arg_cols, arg_rows;
@@ -1409,7 +1423,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 			}
 		(void) fprintf(el->el_outfile, fmtd, 0);
 #else
-		(void) fprintf(el->el_outfile, fmtd, el->el_tty.t_speed);
+		(void) fprintf(el->el_outfile, fmtd, (int)el->el_tty.t_speed);
 #endif
 		return (0);
 	} else if (strcmp(*argv, "rows") == 0 || strcmp(*argv, "lines") == 0) {
@@ -1428,8 +1442,10 @@ term_echotc(EditLine *el, int argc, char **argv)
 			scap = el->el_term.t_str[t - tstr];
 			break;
 		}
-	if (t->name == NULL)
-		scap = tgetstr(*argv, &area);
+	if (t->name == NULL) {
+		/* XXX: some systems tgetstr needs non const */
+		scap = tgetstr(strchr(*argv, **argv), &area);
+	}
 	if (!scap || scap[0] == '\0') {
 		if (!silent)
 			(void) fprintf(el->el_errfile,

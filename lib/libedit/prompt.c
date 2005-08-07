@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: prompt.c,v 1.7 2000/09/04 22:06:31 lukem Exp $
+ *	$NetBSD: prompt.c,v 1.11 2003/08/07 16:44:32 agc Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -57,7 +53,7 @@ private char	*prompt_default_r(EditLine *);
  */
 private char *
 /*ARGSUSED*/
-prompt_default(EditLine *el)
+prompt_default(EditLine *el __unused)
 {
 	static char a[3] = {'?', ' ', '\0'};
 
@@ -70,7 +66,7 @@ prompt_default(EditLine *el)
  */
 private char *
 /*ARGSUSED*/
-prompt_default_r(EditLine *el)
+prompt_default_r(EditLine *el __unused)
 {
 	static char a[1] = {'\0'};
 
@@ -125,7 +121,7 @@ prompt_init(EditLine *el)
  */
 protected void
 /*ARGSUSED*/
-prompt_end(EditLine *el)
+prompt_end(EditLine *el __unused)
 {
 }
 
