@@ -48,10 +48,11 @@ __FBSDID("$FreeBSD$");
 static int
 puc_ebus_probe(device_t dev)
 {
-	const char *nm;
+	const char *nm, *cmpt;
 
 	nm = ofw_bus_get_name(dev);
-	if (!strcmp(nm, "se")) {
+	cmpt = ofw_bus_get_compat(dev);
+	if (!strcmp(nm, "se") || (cmpt != NULL && !strcmp(cmpt, "sab82532"))) {
 		device_set_desc(dev, "Siemens SAB 82532 dual channel SCC");
 		return (0);
 	}
