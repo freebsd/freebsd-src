@@ -243,7 +243,7 @@ cmdloop(void)
 	 * el_parse returns -1 to signal that it's not been handled
 	 * internally.
 	 */
-	if (el_parse(elptr, cmd_argc, cmd_argv) != -1)
+	if (el_parse(elptr, cmd_argc, (const char **)cmd_argv) != -1)
 	    continue;
 	if (cmd_argc) {
 	    known = 0;
