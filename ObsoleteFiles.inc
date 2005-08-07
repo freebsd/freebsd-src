@@ -16,6 +16,8 @@
 
 # 20050805 tn3270 retired long ago
 OLD_FILES+=usr/share/misc/map3270
+# 20050801: too old to be interesting here
+OLD_FILES+=usr/share/doc/papers/px.ps.gz
 # 20050721: moved to ports
 OLD_FILES+=usr/sbin/vttest
 OLD_FILES+=usr/share/man/man1/vttest.1.gz
