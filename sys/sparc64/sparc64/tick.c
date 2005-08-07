@@ -185,6 +185,6 @@ tick_stop(void)
 {
 
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
-		wr(asr24, 1L << 63, 0);
+		wr(asr25, 1L << 63, 0);
 	wrtickcmpr(1L << 63, 0);
 }
