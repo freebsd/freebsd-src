@@ -124,7 +124,7 @@ smb_ctx_init(struct smb_ctx *ctx, int argc, char *argv[],
 				return error;
 			break;
 		    case 'L':
-			error = nls_setlocale(optarg);
+			error = nls_setlocale(arg);
 			if (error)
 				break;
 			break;
