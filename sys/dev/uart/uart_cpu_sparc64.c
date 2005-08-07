@@ -216,7 +216,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		compat[0] = '\0';
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
-	if (!strcmp(buf, "se")) {
+	if (!strcmp(buf, "se") || !strcmp(compat, "sab82532")) {
 		di->ops = uart_sab82532_ops;
 		/* SAB82532 are only known to be used for TTYs. */
 		if ((di->bas.chan = uart_cpu_channel(dev)) == 0)
