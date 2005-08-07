@@ -1082,6 +1082,17 @@ delete-old-files:
                         && chflags noschg "${DESTDIR}/${file}" \
                         && rm ${RM_I} "${DESTDIR}/${file}"))
 .endfor
+# Remove catpages without corresponding manpages.
+	@for dir in ${DESTDIR}/usr/share/man/cat*; do \
+		for catpage in $${dir}/*; do \
+			manpage=$$(echo $${catpage} \
+				| sed 's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:') \
+			check_empty=$$(echo $${catpage} \
+				| sed 's:.*\*:empty:'); \
+			[ $${check_empty} != empty -a ! -e $${manpage} ] \
+				&& rm ${RM_I} $${catpage} || true; \
+		done; \
+	done
 	@echo ">>> Old files removed"
 
 check-old-files:
@@ -1089,6 +1100,17 @@ check-old-files:
 .for file in ${OLD_FILES}
 	@[ ! -f "${DESTDIR}/${file}" ] || echo "${DESTDIR}/${file}"
 .endfor
+# Check for catpages without corresponding manpages.
+	@for dir in ${DESTDIR}/usr/share/man/cat*; do \
+		for catpage in $${dir}/*; do \
+			manpage=$$(echo $${catpage} \
+				| sed 's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:'); \
+			check_empty=$$(echo $${catpage} \
+				| sed 's:.*\*:empty:'); \
+			[ $${check_empty} != empty -a ! -e $${manpage} ] \
+				&& echo $${catpage} || true; \
+		done; \
+	done
 
 delete-old-libs:
 	@echo ">>> Removing old libraries"
