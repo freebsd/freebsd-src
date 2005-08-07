@@ -239,5 +239,9 @@ jail_stop()
 }
 
 load_rc_config $name
-[ -n "$2" ] && jail_list="$2"
-run_rc_command "$1"
+cmd="$1"
+if [ $# -gt 0 ]; then
+	shift
+fi
+[ -n "$*" ] && jail_list="$*"
+run_rc_command "${cmd}"
