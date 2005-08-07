@@ -72,6 +72,10 @@ const char *progname;
 #define	IEEE80211_MSG_WPA	0x00001000	/* WPA/RSN protocol */
 #define	IEEE80211_MSG_ACL	0x00000800	/* ACL handling */
 #define	IEEE80211_MSG_WME	0x00000400	/* WME protocol */
+#define	IEEE80211_MSG_SUPERG	0x00000200	/* Atheros SuperG protocol */
+#define	IEEE80211_MSG_DOTH	0x00000100	/* 802.11h support */
+#define	IEEE80211_MSG_INACT	0x00000080	/* inactivity handling */
+#define	IEEE80211_MSG_ROAM	0x00000040	/* sta-mode roaming */
 
 static struct {
 	const char	*name;
@@ -98,6 +102,10 @@ static struct {
 	{ "wpa",	IEEE80211_MSG_WPA },
 	{ "acl",	IEEE80211_MSG_ACL },
 	{ "wme",	IEEE80211_MSG_WME },
+	{ "superg",	IEEE80211_MSG_SUPERG },
+	{ "doth",	IEEE80211_MSG_DOTH },
+	{ "inact",	IEEE80211_MSG_INACT },
+	{ "roam",	IEEE80211_MSG_ROAM },
 };
 
 static u_int
@@ -140,10 +148,10 @@ main(int argc, char *argv[])
 	const char *ifname = "ath0";
 	const char *cp, *tp;
 	const char *sep;
-	int c, op, i;
+	int c, op, i, unit;
 	u_int32_t debug, ndebug;
-	size_t debuglen;
-	char oid[256];
+	size_t debuglen, parentlen;
+	char oid[256], parent[256];
 
 	progname = argv[0];
 	if (argc > 1) {
@@ -151,17 +159,28 @@ main(int argc, char *argv[])
 			if (argc < 2)
 				errx(1, "missing interface name for -i option");
 			ifname = argv[2];
-			if (strncmp(ifname, "ath", 3) != 0)
-				errx(2, "huh, this is for ath devices?");
 			argc -= 2, argv += 2;
 		} else if (strcmp(argv[1], "-?") == 0)
 			usage();
 	}
 
+	for (unit = 0; unit < 10; unit++) {
 #ifdef __linux__
-	snprintf(oid, sizeof(oid), "net.wlan%s.debug", ifname+3);
+		snprintf(oid, sizeof(oid), "net.wlan%d.%%parent", unit);
 #else
-	snprintf(oid, sizeof(oid), "net.wlan.%s.debug", ifname+3);
+		snprintf(oid, sizeof(oid), "net.wlan.%d.%%parent", unit);
+#endif
+		parentlen = sizeof(parent);
+		if (sysctlbyname(oid, parent, &parentlen, NULL, 0) >= 0 &&
+		    strncmp(parent, ifname, parentlen) == 0)
+			break;
+	}
+	if (unit == 10)
+		errx(1, "%s: cannot locate wlan sysctl node.", ifname);
+#ifdef __linux__
+	snprintf(oid, sizeof(oid), "net.wlan%d.debug", unit);
+#else
+	snprintf(oid, sizeof(oid), "net.wlan.%d.debug", unit);
 #endif
 	debuglen = sizeof(debug);
 	if (sysctlbyname(oid, &debug, &debuglen, NULL, 0) < 0)
