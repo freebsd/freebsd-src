@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: key.c,v 1.11 2001/01/23 15:55:30 jdolecek Exp $
+ *	$NetBSD: key.c,v 1.16 2005/07/06 21:13:02 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -63,7 +59,6 @@ __FBSDID("$FreeBSD$");
  *      1) It is not possible to have one key that is a
  *	   substr of another.
  */
-#include "sys.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -87,9 +82,11 @@ private int		 node_trav(EditLine *, key_node_t *, char *,
 private int		 node__try(EditLine *, key_node_t *, const char *,
     key_value_t *, int);
 private key_node_t	*node__get(int);
+private void		 node__free(key_node_t *);
 private void		 node__put(EditLine *, key_node_t *);
-private int		 node__delete(EditLine *, key_node_t **, char *);
-private int		 node_lookup(EditLine *, char *, key_node_t *, int);
+private int		 node__delete(EditLine *, key_node_t **, const char *);
+private int		 node_lookup(EditLine *, const char *, key_node_t *,
+    int);
 private int		 node_enum(EditLine *, key_node_t *, int);
 private int		 key__decode_char(char *, int, int);
 
@@ -111,7 +108,6 @@ key_init(EditLine *el)
 	return (0);
 }
 
-
 /* key_end():
  *	Free the key maps
  */
@@ -121,8 +117,7 @@ key_end(EditLine *el)
 
 	el_free((ptr_t) el->el_key.buf);
 	el->el_key.buf = NULL;
-	/* XXX: provide a function to clear the keys */
-	el->el_key.map = NULL;
+	node__free(el->el_key.map);
 }
 
 
@@ -216,7 +211,7 @@ key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
  *
  */
 protected void
-key_clear(EditLine *el, el_action_t *map, char *in)
+key_clear(EditLine *el, el_action_t *map, const char *in)
 {
 
 	if ((map[(unsigned char)*in] == ED_SEQUENCE_LEAD_IN) &&
@@ -233,7 +228,7 @@ key_clear(EditLine *el, el_action_t *map, char *in)
  *      they exists.
  */
 protected int
-key_delete(EditLine *el, char *key)
+key_delete(EditLine *el, const char *key)
 {
 
 	if (key[0] == '\0') {
@@ -254,7 +249,7 @@ key_delete(EditLine *el, char *key)
  *	Print entire el->el_key.map if null
  */
 protected void
-key_print(EditLine *el, char *key)
+key_print(EditLine *el, const char *key)
 {
 
 	/* do nothing if el->el_key.map is empty and null key specified */
@@ -353,7 +348,8 @@ node__try(EditLine *el, key_node_t *ptr, const char *str, key_value_t *val, int 
 			break;
 		case XK_STR:
 		case XK_EXE:
-			ptr->val.str = strdup(val->str);
+			if ((ptr->val.str = el_strdup(val->str)) == NULL)
+				return -1;
 			break;
 		default:
 			EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ntype));
@@ -373,7 +369,7 @@ node__try(EditLine *el, key_node_t *ptr, const char *str, key_value_t *val, int 
  *	Delete node that matches str
  */
 private int
-node__delete(EditLine *el, key_node_t **inptr, char *str)
+node__delete(EditLine *el, key_node_t **inptr, const char *str)
 {
 	key_node_t *ptr;
 	key_node_t *prev_ptr = NULL;
@@ -468,14 +464,22 @@ node__get(int ch)
 	return (ptr);
 }
 
-
+private void
+node__free(key_node_t *k)
+{
+	if (k == NULL)
+		return;
+	node__free(k->sibling);
+	node__free(k->next);
+	el_free((ptr_t) k);
+}
 
 /* node_lookup():
  *	look for the str starting at node ptr.
  *	Print if last node
  */
 private int
-node_lookup(EditLine *el, char *str, key_node_t *ptr, int cnt)
+node_lookup(EditLine *el, const char *str, key_node_t *ptr, int cnt)
 {
 	int ncnt;
 
@@ -565,7 +569,7 @@ node_enum(EditLine *el, key_node_t *ptr, int cnt)
  *	function specified by val
  */
 protected void
-key_kprint(EditLine *el, char *key, key_value_t *val, int ntype)
+key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
 {
 	el_bindings_t *fp;
 	char unparsbuf[EL_BUFSIZ];
@@ -638,13 +642,15 @@ key__decode_char(char *buf, int cnt, int ch)
 	return (cnt);
 }
 
+
 /* key__decode_str():
  *	Make a printable version of the ey
  */
 protected char *
-key__decode_str(char *str, char *buf, char *sep)
+key__decode_str(const char *str, char *buf, const char *sep)
 {
-	char *b, *p;
+	char *b;
+	const char *p;
 
 	b = buf;
 	if (sep[0] != '\0')

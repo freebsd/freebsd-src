@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,7 +39,7 @@ __COPYRIGHT("@(#) Copyright (c) 1992, 1993\n\
 #if !defined(lint) && !defined(SCCSID)
 static char sccsid[] = "@(#)test.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
-__RCSID("$NetBSD: test.c,v 1.8 1999/09/21 00:07:03 lukem Exp $");
+__RCSID("$NetBSD: test.c,v 1.18 2005/06/01 11:37:52 lukem Exp $");
 __FBSDID("$FreeBSD$");
 
 /*
@@ -60,12 +56,11 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 
 #include "histedit.h"
-#include "tokenizer.h"
 
 static int continuation = 0;
-static EditLine *el = NULL;
+volatile sig_atomic_t gotsig = 0;
 
-static	u_char	complete(EditLine *, int);
+static	unsigned char	complete(EditLine *, int);
 	int	main(int, char **);
 static	char   *prompt(EditLine *);
 static	void	sig(int);
@@ -73,8 +68,8 @@ static	void	sig(int);
 static char *
 prompt(EditLine *el)
 {
-	static char a[] = "Edit$";
-	static char b[] = "Edit>";
+	static char a[] = "Edit$ ";
+	static char b[] = "Edit> ";
 
 	return (continuation ? b : a);
 }
@@ -82,9 +77,7 @@ prompt(EditLine *el)
 static void
 sig(int i)
 {
-
-	(void) fprintf(stderr, "Got signal %d.\n", i);
-	el_reset(el);
+	gotsig = i;
 }
 
 static unsigned char
@@ -99,7 +92,8 @@ complete(EditLine *el, int ch)
 	/*
 	 * Find the last word
 	 */
-	for (ptr = lf->cursor - 1; !isspace(*ptr) && ptr > lf->buffer; ptr--)
+	for (ptr = lf->cursor - 1;
+	    !isspace((unsigned char)*ptr) && ptr > lf->buffer; ptr--)
 		continue;
 	len = lf->cursor - ++ptr;
 
@@ -122,10 +116,14 @@ complete(EditLine *el, int ch)
 int
 main(int argc, char *argv[])
 {
+	EditLine *el = NULL;
 	int num;
 	const char *buf;
 	Tokenizer *tok;
-	int lastevent = 0, ncontinuation;
+#if 0
+	int lastevent = 0;
+#endif
+	int ncontinuation;
 	History *hist;
 	HistEvent ev;
 
@@ -169,17 +167,41 @@ main(int argc, char *argv[])
 	el_source(el, NULL);
 
 	while ((buf = el_gets(el, &num)) != NULL && num != 0)  {
-		int ac;
-		char **av;
+		int ac, cc, co;
 #ifdef DEBUG
-		(void) fprintf(stderr, "got %d %s", num, buf);
+		int i;
 #endif
+		const char **av;
+		const LineInfo *li;
+		li = el_line(el);
+#ifdef DEBUG
+		(void) fprintf(stderr, "==> got %d %s", num, buf);
+		(void) fprintf(stderr, "  > li `%.*s_%.*s'\n",
+		    (li->cursor - li->buffer), li->buffer,
+		    (li->lastchar - 1 - li->cursor),
+		    (li->cursor >= li->lastchar) ? "" : li->cursor);
+
+#endif
+		if (gotsig) {
+			(void) fprintf(stderr, "Got signal %d.\n", gotsig);
+			gotsig = 0;
+			el_reset(el);
+		}
+
 		if (!continuation && num == 1)
 			continue;
 
-		if (tok_line(tok, buf, &ac, &av) > 0)
-			ncontinuation = 1;
-
+		ac = cc = co = 0;
+		ncontinuation = tok_line(tok, li, &ac, &av, &cc, &co);
+		if (ncontinuation < 0) {
+			(void) fprintf(stderr, "Internal error\n");
+			continuation = 0;
+			continue;
+		}
+#ifdef DEBUG
+		(void) fprintf(stderr, "  > nc %d ac %d cc %d co %d\n",
+		    ncontinuation, ac, cc, co);
+#endif
 #if 0
 		if (continuation) {
 			/*
@@ -187,7 +209,7 @@ main(int argc, char *argv[])
 			 * moved around in history.
 			 */
 			if (history(hist, &ev, H_SET, lastevent) == -1)
-				err(1, "%d: %s\n", lastevent, ev.str);
+				err(1, "%d: %s", lastevent, ev.str);
 			history(hist, &ev, H_ADD , buf);
 		} else {
 			history(hist, &ev, H_ENTER, buf);
@@ -200,6 +222,18 @@ main(int argc, char *argv[])
 
 		continuation = ncontinuation;
 		ncontinuation = 0;
+		if (continuation)
+			continue;
+#ifdef DEBUG
+		for (i = 0; i < ac; i++) {
+			(void) fprintf(stderr, "  > arg# %2d ", i);
+			if (i != cc)
+				(void) fprintf(stderr, "`%s'\n", av[i]);
+			else
+				(void) fprintf(stderr, "`%.*s_%s'\n",
+				    co, av[i], av[i] + co);
+		}
+#endif
 
 		if (strcmp(av[0], "history") == 0) {
 			int rv;
@@ -235,7 +269,7 @@ main(int argc, char *argv[])
 		} else if (el_parse(el, ac, av) == -1) {
 			switch (fork()) {
 			case 0:
-				execvp(av[0], av);
+				execvp(av[0], __DECONST(char *const *, av));
 				perror(av[0]);
 				_exit(1);
 				/*NOTREACHED*/

@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: tty.h,v 1.7 1999/09/26 14:37:47 lukem Exp $
+ *	$NetBSD: tty.h,v 1.11 2005/06/01 11:37:52 lukem Exp $
  * $FreeBSD$
  */
 
@@ -453,16 +449,16 @@
 #define	MD_NN	5
 
 typedef struct {
-	char	*t_name;
-	u_int	 t_setmask;
-	u_int	 t_clrmask;
+	const char	*t_name;
+	unsigned int	 t_setmask;
+	unsigned int	 t_clrmask;
 } ttyperm_t[NN_IO][MD_NN];
 
 typedef unsigned char ttychar_t[NN_IO][C_NCC];
 
 protected int	tty_init(EditLine *);
 protected void	tty_end(EditLine *);
-protected int	tty_stty(EditLine *, int, char**);
+protected int	tty_stty(EditLine *, int, const char **);
 protected int	tty_rawmode(EditLine *);
 protected int	tty_cookedmode(EditLine *);
 protected int	tty_quotemode(EditLine *);

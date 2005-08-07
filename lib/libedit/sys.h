@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: sys.h,v 1.3 1997/01/11 06:48:12 lukem Exp $
+ *	$NetBSD: sys.h,v 1.9 2004/01/17 17:57:40 christos Exp $
  * $FreeBSD$
  */
 
@@ -74,20 +70,24 @@ typedef void	*ioctl_t;
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
 
-#ifdef SUNOS
+#ifdef notdef
 # undef REGEX
 # undef REGEXP
 # include <malloc.h>
-typedef void (*sig_t)(int);
 # ifdef __GNUC__
 /*
  * Broken hdrs.
  */
+extern int	tgetent(const char *bp, char *name);
+extern int	tgetflag(const char *id);
+extern int	tgetnum(const char *id);
+extern char    *tgetstr(const char *id, char **area);
+extern char    *tgoto(const char *cap, int col, int row);
+extern int	tputs(const char *str, int affcnt, int (*putc)(int));
 extern char    *getenv(const char *);
 extern int	fprintf(FILE *, const char *, ...);
 extern int	sigsetmask(int);
 extern int	sigblock(int);
-extern int	ioctl(int, int, void *);
 extern int	fputc(int, FILE *);
 extern int	fgetc(FILE *);
 extern int	fflush(FILE *);
@@ -96,7 +96,6 @@ extern int	toupper(int);
 extern int	errno, sys_nerr;
 extern char	*sys_errlist[];
 extern void	perror(const char *);
-extern int	read(int, const char*, int);
 #  include <string.h>
 #  define strerror(e)	sys_errlist[e]
 # endif

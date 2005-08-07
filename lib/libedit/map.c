@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: map.c,v 1.13 2001/01/04 15:56:32 christos Exp $
+ *	$NetBSD: map.c,v 1.20 2004/08/13 12:10:39 mycroft Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -51,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #define	N_KEYS 256
 
-private void	map_print_key(EditLine *, el_action_t *, char *);
+private void	map_print_key(EditLine *, el_action_t *, const char *);
 private void	map_print_some_keys(EditLine *, el_action_t *, int, int);
 private void	map_print_all_keys(EditLine *);
 private void	map_init_nls(EditLine *);
@@ -69,7 +65,7 @@ private const el_action_t  el_map_emacs[] = {
 	/*   5 */	ED_MOVE_TO_END,		/* ^E */
 	/*   6 */	ED_NEXT_CHAR,		/* ^F */
 	/*   7 */	ED_UNASSIGNED,		/* ^G */
-	/*   8 */	ED_DELETE_PREV_CHAR,	/* ^H */
+	/*   8 */	EM_DELETE_PREV_CHAR,	/* ^H */
 	/*   9 */	ED_UNASSIGNED,		/* ^I */
 	/*  10 */	ED_NEWLINE,		/* ^J */
 	/*  11 */	ED_KILL_LINE,		/* ^K */
@@ -188,7 +184,7 @@ private const el_action_t  el_map_emacs[] = {
 	/* 124 */	ED_INSERT,		/* | */
 	/* 125 */	ED_INSERT,		/* } */
 	/* 126 */	ED_INSERT,		/* ~ */
-	/* 127 */	ED_DELETE_PREV_CHAR,	/* ^? */
+	/* 127 */	EM_DELETE_PREV_CHAR,	/* ^? */
 	/* 128 */	ED_UNASSIGNED,		/* M-^@ */
 	/* 129 */	ED_UNASSIGNED,		/* M-^A */
 	/* 130 */	ED_UNASSIGNED,		/* M-^B */
@@ -377,7 +373,7 @@ private const el_action_t  el_map_vi_insert[] = {
 	/*   5 */	ED_MOVE_TO_END,		/* ^E */
 	/*   6 */	ED_NEXT_CHAR,		/* ^F */
 	/*   7 */	ED_UNASSIGNED,		/* ^G */
-	/*   8 */	ED_DELETE_PREV_CHAR,	/* ^H */   /* BackSpace key */
+	/*   8 */	VI_DELETE_PREV_CHAR,	/* ^H */   /* BackSpace key */
 	/*   9 */	ED_UNASSIGNED,		/* ^I */   /* Tab Key */
 	/*  10 */	ED_NEWLINE,		/* ^J */
 	/*  11 */	ED_KILL_LINE,		/* ^K */
@@ -497,135 +493,135 @@ private const el_action_t  el_map_vi_insert[] = {
 	/* 124 */	ED_INSERT,		/* | */
 	/* 125 */	ED_INSERT,		/* } */
 	/* 126 */	ED_INSERT,		/* ~ */
-	/* 127 */	ED_DELETE_PREV_CHAR,	/* ^? */
-	/* 128 */	ED_UNASSIGNED,		/* M-^@ */
-	/* 129 */	ED_UNASSIGNED,		/* M-^A */
-	/* 130 */	ED_UNASSIGNED,		/* M-^B */
-	/* 131 */	ED_UNASSIGNED,		/* M-^C */
-	/* 132 */	ED_UNASSIGNED,		/* M-^D */
-	/* 133 */	ED_UNASSIGNED,		/* M-^E */
-	/* 134 */	ED_UNASSIGNED,		/* M-^F */
-	/* 135 */	ED_UNASSIGNED,		/* M-^G */
-	/* 136 */	ED_UNASSIGNED,		/* M-^H */
-	/* 137 */	ED_UNASSIGNED,		/* M-^I */
-	/* 138 */	ED_UNASSIGNED,		/* M-^J */
-	/* 139 */	ED_UNASSIGNED,		/* M-^K */
-	/* 140 */	ED_UNASSIGNED,		/* M-^L */
-	/* 141 */	ED_UNASSIGNED,		/* M-^M */
-	/* 142 */	ED_UNASSIGNED,		/* M-^N */
-	/* 143 */	ED_UNASSIGNED,		/* M-^O */
-	/* 144 */	ED_UNASSIGNED,		/* M-^P */
-	/* 145 */	ED_UNASSIGNED,		/* M-^Q */
-	/* 146 */	ED_UNASSIGNED,		/* M-^R */
-	/* 147 */	ED_UNASSIGNED,		/* M-^S */
-	/* 148 */	ED_UNASSIGNED,		/* M-^T */
-	/* 149 */	ED_UNASSIGNED,		/* M-^U */
-	/* 150 */	ED_UNASSIGNED,		/* M-^V */
-	/* 151 */	ED_UNASSIGNED,		/* M-^W */
-	/* 152 */	ED_UNASSIGNED,		/* M-^X */
-	/* 153 */	ED_UNASSIGNED,		/* M-^Y */
-	/* 154 */	ED_UNASSIGNED,		/* M-^Z */
-	/* 155 */	ED_UNASSIGNED,		/* M-^[ */
-	/* 156 */	ED_UNASSIGNED,		/* M-^\ */
-	/* 157 */	ED_UNASSIGNED,		/* M-^] */
-	/* 158 */	ED_UNASSIGNED,		/* M-^^ */
-	/* 159 */	ED_UNASSIGNED,		/* M-^_ */
-	/* 160 */	ED_UNASSIGNED,		/* M-SPACE */
-	/* 161 */	ED_UNASSIGNED,		/* M-! */
-	/* 162 */	ED_UNASSIGNED,		/* M-" */
-	/* 163 */	ED_UNASSIGNED,		/* M-# */
-	/* 164 */	ED_UNASSIGNED,		/* M-$ */
-	/* 165 */	ED_UNASSIGNED,		/* M-% */
-	/* 166 */	ED_UNASSIGNED,		/* M-& */
-	/* 167 */	ED_UNASSIGNED,		/* M-' */
-	/* 168 */	ED_UNASSIGNED,		/* M-( */
-	/* 169 */	ED_UNASSIGNED,		/* M-) */
-	/* 170 */	ED_UNASSIGNED,		/* M-* */
-	/* 171 */	ED_UNASSIGNED,		/* M-+ */
-	/* 172 */	ED_UNASSIGNED,		/* M-, */
-	/* 173 */	ED_UNASSIGNED,		/* M-- */
-	/* 174 */	ED_UNASSIGNED,		/* M-. */
-	/* 175 */	ED_UNASSIGNED,		/* M-/ */
-	/* 176 */	ED_UNASSIGNED,		/* M-0 */
-	/* 177 */	ED_UNASSIGNED,		/* M-1 */
-	/* 178 */	ED_UNASSIGNED,		/* M-2 */
-	/* 179 */	ED_UNASSIGNED,		/* M-3 */
-	/* 180 */	ED_UNASSIGNED,		/* M-4 */
-	/* 181 */	ED_UNASSIGNED,		/* M-5 */
-	/* 182 */	ED_UNASSIGNED,		/* M-6 */
-	/* 183 */	ED_UNASSIGNED,		/* M-7 */
-	/* 184 */	ED_UNASSIGNED,		/* M-8 */
-	/* 185 */	ED_UNASSIGNED,		/* M-9 */
-	/* 186 */	ED_UNASSIGNED,		/* M-: */
-	/* 187 */	ED_UNASSIGNED,		/* M-; */
-	/* 188 */	ED_UNASSIGNED,		/* M-< */
-	/* 189 */	ED_UNASSIGNED,		/* M-= */
-	/* 190 */	ED_UNASSIGNED,		/* M-> */
-	/* 191 */	ED_UNASSIGNED,		/* M-? */
-	/* 192 */	ED_UNASSIGNED,		/* M-@ */
-	/* 193 */	ED_UNASSIGNED,		/* M-A */
-	/* 194 */	ED_UNASSIGNED,		/* M-B */
-	/* 195 */	ED_UNASSIGNED,		/* M-C */
-	/* 196 */	ED_UNASSIGNED,		/* M-D */
-	/* 197 */	ED_UNASSIGNED,		/* M-E */
-	/* 198 */	ED_UNASSIGNED,		/* M-F */
-	/* 199 */	ED_UNASSIGNED,		/* M-G */
-	/* 200 */	ED_UNASSIGNED,		/* M-H */
-	/* 201 */	ED_UNASSIGNED,		/* M-I */
-	/* 202 */	ED_UNASSIGNED,		/* M-J */
-	/* 203 */	ED_UNASSIGNED,		/* M-K */
-	/* 204 */	ED_UNASSIGNED,		/* M-L */
-	/* 205 */	ED_UNASSIGNED,		/* M-M */
-	/* 206 */	ED_UNASSIGNED,		/* M-N */
-	/* 207 */	ED_UNASSIGNED,		/* M-O */
-	/* 208 */	ED_UNASSIGNED,		/* M-P */
-	/* 209 */	ED_UNASSIGNED,		/* M-Q */
-	/* 210 */	ED_UNASSIGNED,		/* M-R */
-	/* 211 */	ED_UNASSIGNED,		/* M-S */
-	/* 212 */	ED_UNASSIGNED,		/* M-T */
-	/* 213 */	ED_UNASSIGNED,		/* M-U */
-	/* 214 */	ED_UNASSIGNED,		/* M-V */
-	/* 215 */	ED_UNASSIGNED,		/* M-W */
-	/* 216 */	ED_UNASSIGNED,		/* M-X */
-	/* 217 */	ED_UNASSIGNED,		/* M-Y */
-	/* 218 */	ED_UNASSIGNED,		/* M-Z */
-	/* 219 */	ED_UNASSIGNED,		/* M-[ */
-	/* 220 */	ED_UNASSIGNED,		/* M-\ */
-	/* 221 */	ED_UNASSIGNED,		/* M-] */
-	/* 222 */	ED_UNASSIGNED,		/* M-^ */
-	/* 223 */	ED_UNASSIGNED,		/* M-_ */
-	/* 224 */	ED_UNASSIGNED,		/* M-` */
-	/* 225 */	ED_UNASSIGNED,		/* M-a */
-	/* 226 */	ED_UNASSIGNED,		/* M-b */
-	/* 227 */	ED_UNASSIGNED,		/* M-c */
-	/* 228 */	ED_UNASSIGNED,		/* M-d */
-	/* 229 */	ED_UNASSIGNED,		/* M-e */
-	/* 230 */	ED_UNASSIGNED,		/* M-f */
-	/* 231 */	ED_UNASSIGNED,		/* M-g */
-	/* 232 */	ED_UNASSIGNED,		/* M-h */
-	/* 233 */	ED_UNASSIGNED,		/* M-i */
-	/* 234 */	ED_UNASSIGNED,		/* M-j */
-	/* 235 */	ED_UNASSIGNED,		/* M-k */
-	/* 236 */	ED_UNASSIGNED,		/* M-l */
-	/* 237 */	ED_UNASSIGNED,		/* M-m */
-	/* 238 */	ED_UNASSIGNED,		/* M-n */
-	/* 239 */	ED_UNASSIGNED,		/* M-o */
-	/* 240 */	ED_UNASSIGNED,		/* M-p */
-	/* 241 */	ED_UNASSIGNED,		/* M-q */
-	/* 242 */	ED_UNASSIGNED,		/* M-r */
-	/* 243 */	ED_UNASSIGNED,		/* M-s */
-	/* 244 */	ED_UNASSIGNED,		/* M-t */
-	/* 245 */	ED_UNASSIGNED,		/* M-u */
-	/* 246 */	ED_UNASSIGNED,		/* M-v */
-	/* 247 */	ED_UNASSIGNED,		/* M-w */
-	/* 248 */	ED_UNASSIGNED,		/* M-x */
-	/* 249 */	ED_UNASSIGNED,		/* M-y */
-	/* 250 */	ED_UNASSIGNED,		/* M-z */
-	/* 251 */	ED_UNASSIGNED,		/* M-{ */
-	/* 252 */	ED_UNASSIGNED,		/* M-| */
-	/* 253 */	ED_UNASSIGNED,		/* M-} */
-	/* 254 */	ED_UNASSIGNED,		/* M-~ */
-	/* 255 */	ED_UNASSIGNED		/* M-^? */
+	/* 127 */	VI_DELETE_PREV_CHAR,	/* ^? */
+	/* 128 */	ED_INSERT,		/* M-^@ */
+	/* 129 */	ED_INSERT,		/* M-^A */
+	/* 130 */	ED_INSERT,		/* M-^B */
+	/* 131 */	ED_INSERT,		/* M-^C */
+	/* 132 */	ED_INSERT,		/* M-^D */
+	/* 133 */	ED_INSERT,		/* M-^E */
+	/* 134 */	ED_INSERT,		/* M-^F */
+	/* 135 */	ED_INSERT,		/* M-^G */
+	/* 136 */	ED_INSERT,		/* M-^H */
+	/* 137 */	ED_INSERT,		/* M-^I */
+	/* 138 */	ED_INSERT,		/* M-^J */
+	/* 139 */	ED_INSERT,		/* M-^K */
+	/* 140 */	ED_INSERT,		/* M-^L */
+	/* 141 */	ED_INSERT,		/* M-^M */
+	/* 142 */	ED_INSERT,		/* M-^N */
+	/* 143 */	ED_INSERT,		/* M-^O */
+	/* 144 */	ED_INSERT,		/* M-^P */
+	/* 145 */	ED_INSERT,		/* M-^Q */
+	/* 146 */	ED_INSERT,		/* M-^R */
+	/* 147 */	ED_INSERT,		/* M-^S */
+	/* 148 */	ED_INSERT,		/* M-^T */
+	/* 149 */	ED_INSERT,		/* M-^U */
+	/* 150 */	ED_INSERT,		/* M-^V */
+	/* 151 */	ED_INSERT,		/* M-^W */
+	/* 152 */	ED_INSERT,		/* M-^X */
+	/* 153 */	ED_INSERT,		/* M-^Y */
+	/* 154 */	ED_INSERT,		/* M-^Z */
+	/* 155 */	ED_INSERT,		/* M-^[ */
+	/* 156 */	ED_INSERT,		/* M-^\ */
+	/* 157 */	ED_INSERT,		/* M-^] */
+	/* 158 */	ED_INSERT,		/* M-^^ */
+	/* 159 */	ED_INSERT,		/* M-^_ */
+	/* 160 */	ED_INSERT,		/* M-SPACE */
+	/* 161 */	ED_INSERT,		/* M-! */
+	/* 162 */	ED_INSERT,		/* M-" */
+	/* 163 */	ED_INSERT,		/* M-# */
+	/* 164 */	ED_INSERT,		/* M-$ */
+	/* 165 */	ED_INSERT,		/* M-% */
+	/* 166 */	ED_INSERT,		/* M-& */
+	/* 167 */	ED_INSERT,		/* M-' */
+	/* 168 */	ED_INSERT,		/* M-( */
+	/* 169 */	ED_INSERT,		/* M-) */
+	/* 170 */	ED_INSERT,		/* M-* */
+	/* 171 */	ED_INSERT,		/* M-+ */
+	/* 172 */	ED_INSERT,		/* M-, */
+	/* 173 */	ED_INSERT,		/* M-- */
+	/* 174 */	ED_INSERT,		/* M-. */
+	/* 175 */	ED_INSERT,		/* M-/ */
+	/* 176 */	ED_INSERT,		/* M-0 */
+	/* 177 */	ED_INSERT,		/* M-1 */
+	/* 178 */	ED_INSERT,		/* M-2 */
+	/* 179 */	ED_INSERT,		/* M-3 */
+	/* 180 */	ED_INSERT,		/* M-4 */
+	/* 181 */	ED_INSERT,		/* M-5 */
+	/* 182 */	ED_INSERT,		/* M-6 */
+	/* 183 */	ED_INSERT,		/* M-7 */
+	/* 184 */	ED_INSERT,		/* M-8 */
+	/* 185 */	ED_INSERT,		/* M-9 */
+	/* 186 */	ED_INSERT,		/* M-: */
+	/* 187 */	ED_INSERT,		/* M-; */
+	/* 188 */	ED_INSERT,		/* M-< */
+	/* 189 */	ED_INSERT,		/* M-= */
+	/* 190 */	ED_INSERT,		/* M-> */
+	/* 191 */	ED_INSERT,		/* M-? */
+	/* 192 */	ED_INSERT,		/* M-@ */
+	/* 193 */	ED_INSERT,		/* M-A */
+	/* 194 */	ED_INSERT,		/* M-B */
+	/* 195 */	ED_INSERT,		/* M-C */
+	/* 196 */	ED_INSERT,		/* M-D */
+	/* 197 */	ED_INSERT,		/* M-E */
+	/* 198 */	ED_INSERT,		/* M-F */
+	/* 199 */	ED_INSERT,		/* M-G */
+	/* 200 */	ED_INSERT,		/* M-H */
+	/* 201 */	ED_INSERT,		/* M-I */
+	/* 202 */	ED_INSERT,		/* M-J */
+	/* 203 */	ED_INSERT,		/* M-K */
+	/* 204 */	ED_INSERT,		/* M-L */
+	/* 205 */	ED_INSERT,		/* M-M */
+	/* 206 */	ED_INSERT,		/* M-N */
+	/* 207 */	ED_INSERT,		/* M-O */
+	/* 208 */	ED_INSERT,		/* M-P */
+	/* 209 */	ED_INSERT,		/* M-Q */
+	/* 210 */	ED_INSERT,		/* M-R */
+	/* 211 */	ED_INSERT,		/* M-S */
+	/* 212 */	ED_INSERT,		/* M-T */
+	/* 213 */	ED_INSERT,		/* M-U */
+	/* 214 */	ED_INSERT,		/* M-V */
+	/* 215 */	ED_INSERT,		/* M-W */
+	/* 216 */	ED_INSERT,		/* M-X */
+	/* 217 */	ED_INSERT,		/* M-Y */
+	/* 218 */	ED_INSERT,		/* M-Z */
+	/* 219 */	ED_INSERT,		/* M-[ */
+	/* 220 */	ED_INSERT,		/* M-\ */
+	/* 221 */	ED_INSERT,		/* M-] */
+	/* 222 */	ED_INSERT,		/* M-^ */
+	/* 223 */	ED_INSERT,		/* M-_ */
+	/* 224 */	ED_INSERT,		/* M-` */
+	/* 225 */	ED_INSERT,		/* M-a */
+	/* 226 */	ED_INSERT,		/* M-b */
+	/* 227 */	ED_INSERT,		/* M-c */
+	/* 228 */	ED_INSERT,		/* M-d */
+	/* 229 */	ED_INSERT,		/* M-e */
+	/* 230 */	ED_INSERT,		/* M-f */
+	/* 231 */	ED_INSERT,		/* M-g */
+	/* 232 */	ED_INSERT,		/* M-h */
+	/* 233 */	ED_INSERT,		/* M-i */
+	/* 234 */	ED_INSERT,		/* M-j */
+	/* 235 */	ED_INSERT,		/* M-k */
+	/* 236 */	ED_INSERT,		/* M-l */
+	/* 237 */	ED_INSERT,		/* M-m */
+	/* 238 */	ED_INSERT,		/* M-n */
+	/* 239 */	ED_INSERT,		/* M-o */
+	/* 240 */	ED_INSERT,		/* M-p */
+	/* 241 */	ED_INSERT,		/* M-q */
+	/* 242 */	ED_INSERT,		/* M-r */
+	/* 243 */	ED_INSERT,		/* M-s */
+	/* 244 */	ED_INSERT,		/* M-t */
+	/* 245 */	ED_INSERT,		/* M-u */
+	/* 246 */	ED_INSERT,		/* M-v */
+	/* 247 */	ED_INSERT,		/* M-w */
+	/* 248 */	ED_INSERT,		/* M-x */
+	/* 249 */	ED_INSERT,		/* M-y */
+	/* 250 */	ED_INSERT,		/* M-z */
+	/* 251 */	ED_INSERT,		/* M-{ */
+	/* 252 */	ED_INSERT,		/* M-| */
+	/* 253 */	ED_INSERT,		/* M-} */
+	/* 254 */	ED_INSERT,		/* M-~ */
+	/* 255 */	ED_INSERT		/* M-^? */
 };
 
 private const el_action_t el_map_vi_command[] = {
@@ -637,7 +633,7 @@ private const el_action_t el_map_vi_command[] = {
 	/*   5 */	ED_MOVE_TO_END,		/* ^E */
 	/*   6 */	ED_UNASSIGNED,		/* ^F */
 	/*   7 */	ED_UNASSIGNED,		/* ^G */
-	/*   8 */	ED_PREV_CHAR,		/* ^H */
+	/*   8 */	ED_DELETE_PREV_CHAR,	/* ^H */
 	/*   9 */	ED_UNASSIGNED,		/* ^I */
 	/*  10 */	ED_NEWLINE,		/* ^J */
 	/*  11 */	ED_KILL_LINE,		/* ^K */
@@ -664,9 +660,9 @@ private const el_action_t el_map_vi_command[] = {
 	/*  32 */	ED_NEXT_CHAR,		/* SPACE */
 	/*  33 */	ED_UNASSIGNED,		/* ! */
 	/*  34 */	ED_UNASSIGNED,		/* " */
-	/*  35 */	ED_UNASSIGNED,		/* # */
+	/*  35 */	VI_COMMENT_OUT,		/* # */
 	/*  36 */	ED_MOVE_TO_END,		/* $ */
-	/*  37 */	ED_UNASSIGNED,		/* % */
+	/*  37 */	VI_MATCH,		/* % */
 	/*  38 */	ED_UNASSIGNED,		/* & */
 	/*  39 */	ED_UNASSIGNED,		/* ' */
 	/*  40 */	ED_UNASSIGNED,		/* ( */
@@ -675,7 +671,7 @@ private const el_action_t el_map_vi_command[] = {
 	/*  43 */	ED_NEXT_HISTORY,	/* + */
 	/*  44 */	VI_REPEAT_PREV_CHAR,	/* , */
 	/*  45 */	ED_PREV_HISTORY,	/* - */
-	/*  46 */	ED_UNASSIGNED,		/* . */
+	/*  46 */	VI_REDO,		/* . */
 	/*  47 */	VI_SEARCH_PREV,		/* / */
 	/*  48 */	VI_ZERO,		/* 0 */
 	/*  49 */	ED_ARGUMENT_DIGIT,	/* 1 */
@@ -693,14 +689,14 @@ private const el_action_t el_map_vi_command[] = {
 	/*  61 */	ED_UNASSIGNED,		/* = */
 	/*  62 */	ED_UNASSIGNED,		/* > */
 	/*  63 */	VI_SEARCH_NEXT,		/* ? */
-	/*  64 */	ED_UNASSIGNED,		/* @ */
+	/*  64 */	VI_ALIAS,		/* @ */
 	/*  65 */	VI_ADD_AT_EOL,		/* A */
-	/*  66 */	VI_PREV_SPACE_WORD,	/* B */
+	/*  66 */	VI_PREV_BIG_WORD,	/* B */
 	/*  67 */	VI_CHANGE_TO_EOL,	/* C */
 	/*  68 */	ED_KILL_LINE,		/* D */
-	/*  69 */	VI_TO_END_WORD,		/* E */
+	/*  69 */	VI_END_BIG_WORD,	/* E */
 	/*  70 */	VI_PREV_CHAR,		/* F */
-	/*  71 */	ED_UNASSIGNED,		/* G */
+	/*  71 */	VI_TO_HISTORY_LINE,	/* G */
 	/*  72 */	ED_UNASSIGNED,		/* H */
 	/*  73 */	VI_INSERT_AT_BOL,	/* I */
 	/*  74 */	ED_SEARCH_NEXT_HISTORY,	/* J */
@@ -716,15 +712,15 @@ private const el_action_t el_map_vi_command[] = {
 	/*  84 */	VI_TO_PREV_CHAR,	/* T */
 	/*  85 */	VI_UNDO_LINE,		/* U */
 	/*  86 */	ED_UNASSIGNED,		/* V */
-	/*  87 */	VI_NEXT_SPACE_WORD,	/* W */
+	/*  87 */	VI_NEXT_BIG_WORD,	/* W */
 	/*  88 */	ED_DELETE_PREV_CHAR,	/* X */
-	/*  89 */	ED_UNASSIGNED,		/* Y */
+	/*  89 */	VI_YANK_END,		/* Y */
 	/*  90 */	ED_UNASSIGNED,		/* Z */
 	/*  91 */	ED_SEQUENCE_LEAD_IN,	/* [ */
 	/*  92 */	ED_UNASSIGNED,		/* \ */
 	/*  93 */	ED_UNASSIGNED,		/* ] */
 	/*  94 */	ED_MOVE_TO_BEG,		/* ^ */
-	/*  95 */	ED_UNASSIGNED,		/* _ */
+	/*  95 */	VI_HISTORY_WORD,	/* _ */
 	/*  96 */	ED_UNASSIGNED,		/* ` */
 	/*  97 */	VI_ADD,			/* a */
 	/*  98 */	VI_PREV_WORD,		/* b */
@@ -747,13 +743,13 @@ private const el_action_t el_map_vi_command[] = {
 	/* 115 */	VI_SUBSTITUTE_CHAR,	/* s */
 	/* 116 */	VI_TO_NEXT_CHAR,	/* t */
 	/* 117 */	VI_UNDO,		/* u */
-	/* 118 */	ED_UNASSIGNED,		/* v */
+	/* 118 */	VI_HISTEDIT,		/* v */
 	/* 119 */	VI_NEXT_WORD,		/* w */
 	/* 120 */	ED_DELETE_NEXT_CHAR,	/* x */
-	/* 121 */	ED_UNASSIGNED,		/* y */
+	/* 121 */	VI_YANK,		/* y */
 	/* 122 */	ED_UNASSIGNED,		/* z */
 	/* 123 */	ED_UNASSIGNED,		/* { */
-	/* 124 */	ED_UNASSIGNED,		/* | */
+	/* 124 */	VI_TO_COLUMN,		/* | */
 	/* 125 */	ED_UNASSIGNED,		/* } */
 	/* 126 */	VI_CHANGE_CASE,		/* ~ */
 	/* 127 */	ED_DELETE_PREV_CHAR,	/* ^? */
@@ -1124,7 +1120,7 @@ map_get_editor(EditLine *el, const char **editor)
  *	Print the function description for 1 key
  */
 private void
-map_print_key(EditLine *el, el_action_t *map, char *in)
+map_print_key(EditLine *el, el_action_t *map, const char *in)
 {
 	char outbuf[EL_BUFSIZ];
 	el_bindings_t *bp;
@@ -1237,14 +1233,14 @@ map_print_all_keys(EditLine *el)
  *	Add/remove/change bindings
  */
 protected int
-map_bind(EditLine *el, int argc, char **argv)
+map_bind(EditLine *el, int argc, const char **argv)
 {
 	el_action_t *map;
 	int ntype, rem;
-	char *p;
+	const char *p;
 	char inbuf[EL_BUFSIZ];
 	char outbuf[EL_BUFSIZ];
-	char *in = NULL;
+	const char *in = NULL;
 	char *out = NULL;
 	el_bindings_t *bp;
 	int cmd;
