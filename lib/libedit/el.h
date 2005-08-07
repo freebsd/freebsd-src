@@ -91,7 +91,6 @@ typedef struct el_state_t {
  */
 #define	el_malloc(a)	malloc(a)
 #define	el_realloc(a,b)	realloc(a, b)
-#define el_reallocf(a,b) reallocf(a, b)
 #define	el_free(a)	free(a)
 
 #include "tty.h"
