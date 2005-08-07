@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: search.c,v 1.10 2001/01/04 15:56:32 christos Exp $
+ *	$NetBSD: search.c,v 1.20 2004/11/04 01:16:03 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -74,7 +70,8 @@ search_init(EditLine *el)
 	el->el_search.patlen = 0;
 	el->el_search.patdir = -1;
 	el->el_search.chacha = '\0';
-	el->el_search.chadir = -1;
+	el->el_search.chadir = CHAR_FWD;
+	el->el_search.chatflg = 0;
 	return (0);
 }
 
@@ -223,8 +220,11 @@ ce_inc_search(EditLine *el, int dir)
 		if (el->el_search.patlen == 0) {	/* first round */
 			pchar = ':';
 #ifdef ANCHOR
+#define	LEN	2
 			el->el_search.patbuf[el->el_search.patlen++] = '.';
 			el->el_search.patbuf[el->el_search.patlen++] = '*';
+#else
+#define	LEN	0
 #endif
 		}
 		done = redo = 0;
@@ -233,7 +233,7 @@ ce_inc_search(EditLine *el, int dir)
 		    *cp; *el->el_line.lastchar++ = *cp++)
 			continue;
 		*el->el_line.lastchar++ = pchar;
-		for (cp = &el->el_search.patbuf[1];
+		for (cp = &el->el_search.patbuf[LEN];
 		    cp < &el->el_search.patbuf[el->el_search.patlen];
 		    *el->el_line.lastchar++ = *cp++)
 			continue;
@@ -246,7 +246,7 @@ ce_inc_search(EditLine *el, int dir)
 		switch (el->el_map.current[(unsigned char) ch]) {
 		case ED_INSERT:
 		case ED_DIGIT:
-			if (el->el_search.patlen > EL_BUFSIZ - 3)
+			if (el->el_search.patlen >= EL_BUFSIZ - LEN)
 				term_beep(el);
 			else {
 				el->el_search.patbuf[el->el_search.patlen++] =
@@ -267,8 +267,9 @@ ce_inc_search(EditLine *el, int dir)
 			redo++;
 			break;
 
+		case EM_DELETE_PREV_CHAR:
 		case ED_DELETE_PREV_CHAR:
-			if (el->el_search.patlen > 1)
+			if (el->el_search.patlen > LEN)
 				done++;
 			else
 				term_beep(el);
@@ -283,17 +284,18 @@ ce_inc_search(EditLine *el, int dir)
 
 			case 0027:	/* ^W: Append word */
 			/* No can do if globbing characters in pattern */
-				for (cp = &el->el_search.patbuf[1];; cp++)
-				    if (cp >= &el->el_search.patbuf[el->el_search.patlen]) {
+				for (cp = &el->el_search.patbuf[LEN];; cp++)
+				    if (cp >= &el->el_search.patbuf[
+					el->el_search.patlen]) {
 					el->el_line.cursor +=
-					    el->el_search.patlen - 1;
+					    el->el_search.patlen - LEN - 1;
 					cp = c__next_word(el->el_line.cursor,
 					    el->el_line.lastchar, 1,
 					    ce__isword);
 					while (el->el_line.cursor < cp &&
 					    *el->el_line.cursor != '\n') {
-						if (el->el_search.patlen >
-						    EL_BUFSIZ - 3) {
+						if (el->el_search.patlen >=
+						    EL_BUFSIZ - LEN) {
 							term_beep(el);
 							break;
 						}
@@ -335,13 +337,13 @@ ce_inc_search(EditLine *el, int dir)
 			/* Can't search if unmatched '[' */
 			for (cp = &el->el_search.patbuf[el->el_search.patlen-1],
 			    ch = ']';
-			    cp > el->el_search.patbuf;
+			    cp >= &el->el_search.patbuf[LEN];
 			    cp--)
 				if (*cp == '[' || *cp == ']') {
 					ch = *cp;
 					break;
 				}
-			if (el->el_search.patlen > 1 && ch != '[') {
+			if (el->el_search.patlen > LEN && ch != '[') {
 				if (redo && newdir == dir) {
 					if (pchar == '?') { /* wrap around */
 						el->el_history.eventno =
@@ -371,9 +373,8 @@ ce_inc_search(EditLine *el, int dir)
 				    '\0';
 				if (el->el_line.cursor < el->el_line.buffer ||
 				    el->el_line.cursor > el->el_line.lastchar ||
-				    (ret = ce_search_line(el,
-				    &el->el_search.patbuf[1],
-				    newdir)) == CC_ERROR) {
+				    (ret = ce_search_line(el, newdir))
+				    == CC_ERROR) {
 					/* avoid c_setpat */
 					el->el_state.lastcmd =
 					    (el_action_t) newdir;
@@ -386,11 +387,11 @@ ce_inc_search(EditLine *el, int dir)
 						    el->el_line.lastchar :
 						    el->el_line.buffer;
 						(void) ce_search_line(el,
-						    &el->el_search.patbuf[1],
 						    newdir);
 					}
 				}
-				el->el_search.patbuf[--el->el_search.patlen] =
+				el->el_search.patlen -= LEN;
+				el->el_search.patbuf[el->el_search.patlen] =
 				    '\0';
 				if (ret == CC_ERROR) {
 					term_beep(el);
@@ -446,29 +447,20 @@ cv_search(EditLine *el, int dir)
 	char tmpbuf[EL_BUFSIZ];
 	int tmplen;
 
-	tmplen = 0;
 #ifdef ANCHOR
-	tmpbuf[tmplen++] = '.';
-	tmpbuf[tmplen++] = '*';
+	tmpbuf[0] = '.';
+	tmpbuf[1] = '*';
 #endif
+	tmplen = LEN;
 
-	el->el_line.buffer[0] = '\0';
-	el->el_line.lastchar = el->el_line.buffer;
-	el->el_line.cursor = el->el_line.buffer;
 	el->el_search.patdir = dir;
 
-	c_insert(el, 2);	/* prompt + '\n' */
-	*el->el_line.cursor++ = '\n';
-	*el->el_line.cursor++ = dir == ED_SEARCH_PREV_HISTORY ? '/' : '?';
-	re_refresh(el);
+	tmplen = c_gets(el, &tmpbuf[LEN],
+		dir == ED_SEARCH_PREV_HISTORY ? "\n/" : "\n?" );
+	if (tmplen == -1)
+		return CC_REFRESH;
 
-#ifdef ANCHOR
-#define	LEN	2
-#else
-#define	LEN	0
-#endif
-
-	tmplen = c_gets(el, &tmpbuf[LEN]) + LEN;
+	tmplen += LEN;
 	ch = tmpbuf[tmplen];
 	tmpbuf[tmplen] = '\0';
 
@@ -477,9 +469,6 @@ cv_search(EditLine *el, int dir)
 		 * Use the old pattern, but wild-card it.
 		 */
 		if (el->el_search.patlen == 0) {
-			el->el_line.buffer[0] = '\0';
-			el->el_line.lastchar = el->el_line.buffer;
-			el->el_line.cursor = el->el_line.buffer;
 			re_refresh(el);
 			return (CC_ERROR);
 		}
@@ -510,19 +499,15 @@ cv_search(EditLine *el, int dir)
 	el->el_state.lastcmd = (el_action_t) dir;	/* avoid c_setpat */
 	el->el_line.cursor = el->el_line.lastchar = el->el_line.buffer;
 	if ((dir == ED_SEARCH_PREV_HISTORY ? ed_search_prev_history(el, 0) :
-		ed_search_next_history(el, 0)) == CC_ERROR) {
+	    ed_search_next_history(el, 0)) == CC_ERROR) {
 		re_refresh(el);
 		return (CC_ERROR);
-	} else {
-		if (ch == 0033) {
-			re_refresh(el);
-			*el->el_line.lastchar++ = '\n';
-			*el->el_line.lastchar = '\0';
-			re_goto_bottom(el);
-			return (CC_NEWLINE);
-		} else
-			return (CC_REFRESH);
 	}
+	if (ch == 0033) {
+		re_refresh(el);
+		return ed_newline(el, 0);
+	}
+	return (CC_REFRESH);
 }
 
 
@@ -530,24 +515,39 @@ cv_search(EditLine *el, int dir)
  *	Look for a pattern inside a line
  */
 protected el_action_t
-ce_search_line(EditLine *el, char *pattern, int dir)
+ce_search_line(EditLine *el, int dir)
 {
-	char *cp;
+	char *cp = el->el_line.cursor;
+	char *pattern = el->el_search.patbuf;
+	char oc, *ocp;
+#ifdef ANCHOR
+	ocp = &pattern[1];
+	oc = *ocp;
+	*ocp = '^';
+#else
+	ocp = pattern;
+	oc = *ocp;
+#endif
 
 	if (dir == ED_SEARCH_PREV_HISTORY) {
-		for (cp = el->el_line.cursor; cp >= el->el_line.buffer; cp--)
-			if (el_match(cp, pattern)) {
+		for (; cp >= el->el_line.buffer; cp--) {
+			if (el_match(cp, ocp)) {
+				*ocp = oc;
 				el->el_line.cursor = cp;
 				return (CC_NORM);
 			}
+		}
+		*ocp = oc;
 		return (CC_ERROR);
 	} else {
-		for (cp = el->el_line.cursor; *cp != '\0' &&
-		    cp < el->el_line.limit; cp++)
-			if (el_match(cp, pattern)) {
+		for (; *cp != '\0' && cp < el->el_line.limit; cp++) {
+			if (el_match(cp, ocp)) {
+				*ocp = oc;
 				el->el_line.cursor = cp;
 				return (CC_NORM);
 			}
+		}
+		*ocp = oc;
 		return (CC_ERROR);
 	}
 }
@@ -579,69 +579,53 @@ cv_repeat_srch(EditLine *el, int c)
 }
 
 
-/* cv_csearch_back():
- *	Vi character search reverse
+/* cv_csearch():
+ *	Vi character search
  */
 protected el_action_t
-cv_csearch_back(EditLine *el, int ch, int count, int tflag)
+cv_csearch(EditLine *el, int direction, int ch, int count, int tflag)
 {
 	char *cp;
+
+	if (ch == 0)
+		return CC_ERROR;
+
+	if (ch == -1) {
+		char c;
+		if (el_getc(el, &c) != 1)
+			return ed_end_of_file(el, 0);
+		ch = c;
+	}
+
+	/* Save for ';' and ',' commands */
+	el->el_search.chacha = ch;
+	el->el_search.chadir = direction;
+	el->el_search.chatflg = tflag;
 
 	cp = el->el_line.cursor;
 	while (count--) {
 		if (*cp == ch)
-			cp--;
-		while (cp > el->el_line.buffer && *cp != ch)
-			cp--;
+			cp += direction;
+		for (;;cp += direction) {
+			if (cp >= el->el_line.lastchar)
+				return CC_ERROR;
+			if (cp < el->el_line.buffer)
+				return CC_ERROR;
+			if (*cp == ch)
+				break;
+		}
 	}
 
-	if (cp < el->el_line.buffer || (cp == el->el_line.buffer && *cp != ch))
-		return (CC_ERROR);
-
-	if (*cp == ch && tflag)
-		cp++;
+	if (tflag)
+		cp -= direction;
 
 	el->el_line.cursor = cp;
 
-	if (el->el_chared.c_vcmd.action & DELETE) {
-		el->el_line.cursor++;
+	if (el->el_chared.c_vcmd.action != NOP) {
+		if (direction > 0)
+			el->el_line.cursor++;
 		cv_delfini(el);
-		return (CC_REFRESH);
+		return CC_REFRESH;
 	}
-	re_refresh_cursor(el);
-	return (CC_NORM);
-}
-
-
-/* cv_csearch_fwd():
- *	Vi character search forward
- */
-protected el_action_t
-cv_csearch_fwd(EditLine *el, int ch, int count, int tflag)
-{
-	char *cp;
-
-	cp = el->el_line.cursor;
-	while (count--) {
-		if (*cp == ch)
-			cp++;
-		while (cp < el->el_line.lastchar && *cp != ch)
-			cp++;
-	}
-
-	if (cp >= el->el_line.lastchar)
-		return (CC_ERROR);
-
-	if (*cp == ch && tflag)
-		cp--;
-
-	el->el_line.cursor = cp;
-
-	if (el->el_chared.c_vcmd.action & DELETE) {
-		el->el_line.cursor++;
-		cv_delfini(el);
-		return (CC_REFRESH);
-	}
-	re_refresh_cursor(el);
-	return (CC_NORM);
+	return CC_CURSOR;
 }

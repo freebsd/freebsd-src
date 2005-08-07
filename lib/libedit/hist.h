@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hist.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: hist.h,v 1.5 2000/09/04 22:06:30 lukem Exp $
+ *	$NetBSD: hist.h,v 1.10 2003/08/07 16:44:31 agc Exp $
  * $FreeBSD$
  */
 
@@ -66,7 +62,7 @@ typedef struct el_history_t {
 #define	HIST_FIRST(el)		HIST_FUN(el, H_FIRST, NULL)
 #define	HIST_LAST(el)		HIST_FUN(el, H_LAST, NULL)
 #define	HIST_PREV(el)		HIST_FUN(el, H_PREV, NULL)
-#define	HIST_EVENT(el, num)	HIST_FUN(el, H_EVENT, num)
+#define	HIST_SET(el, num)	HIST_FUN(el, H_SET, num)
 #define	HIST_LOAD(el, fname)	HIST_FUN(el, H_LOAD fname)
 #define	HIST_SAVE(el, fname)	HIST_FUN(el, H_SAVE fname)
 
@@ -74,7 +70,7 @@ protected int		hist_init(EditLine *);
 protected void		hist_end(EditLine *);
 protected el_action_t	hist_get(EditLine *);
 protected int		hist_set(EditLine *, hist_fun_t, ptr_t);
-protected int		hist_list(EditLine *, int, char **);
+protected int		hist_command(EditLine *, int, const char **);
 protected int		hist_enlargebuf(EditLine *, size_t, size_t);
 
 #endif /* _h_el_hist */
