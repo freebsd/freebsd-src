@@ -18,8 +18,6 @@ purgedir()
 		(
 			cd "$dir" && for file in .* *
 			do
-				# Skip over logging sockets
-				[ -S "$file" -a "$file" = "log" ] && continue
 				[ ."$file" = .. -o ."$file" = ... ] && continue
 				if [ -d "$file" -a ! -L "$file" ]
 				then
