@@ -56,11 +56,9 @@
  *      $FreeBSD$
  */
 
-#if __FreeBSD_version >= 500005
-# include <geom/geom_disk.h>
-# include <sys/lock.h>
-# include <sys/mutex.h>
-#endif
+#include <geom/geom_disk.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #define LSI_DESC_PCI "LSILogic MegaRAID 1.51"
 
