@@ -43,12 +43,15 @@ typedef struct mtx ieee80211_beacon_lock_t;
 
 /*
  * Node locking definitions.
+ * NB: MTX_DUPOK is because we don't generate per-interface strings.
  */
 typedef struct mtx ieee80211_node_lock_t;
 #define	IEEE80211_NODE_LOCK_INIT(_nt, _name) \
-	mtx_init(&(_nt)->nt_nodelock, _name, "802.11 node table", MTX_DEF)
+	mtx_init(&(_nt)->nt_nodelock, _name, "802.11 node table", \
+		MTX_DEF | MTX_DUPOK)
 #define	IEEE80211_NODE_LOCK_DESTROY(_nt)	mtx_destroy(&(_nt)->nt_nodelock)
 #define	IEEE80211_NODE_LOCK(_nt)		mtx_lock(&(_nt)->nt_nodelock)
+#define	IEEE80211_NODE_IS_LOCKED(_nt)		mtx_owned(&(_nt)->nt_nodelock)
 #define	IEEE80211_NODE_UNLOCK(_nt)		mtx_unlock(&(_nt)->nt_nodelock)
 #define	IEEE80211_NODE_LOCK_ASSERT(_nt) \
 	mtx_assert(&(_nt)->nt_nodelock, MA_OWNED)
