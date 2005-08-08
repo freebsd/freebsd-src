@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2004
+.Dd August 7, 2005
 .Dt MBUF 9
 .Os
 .\"
@@ -90,6 +90,8 @@
 .Ss Mbuf utility functions
 .Ft void
 .Fn m_adj "struct mbuf *mbuf" "int len"
+.Ft void
+.Fn m_align "struct mbuf *mbuf" "int len"
 .Ft int
 .Fn m_append "struct mbuf *mbuf" "int len" "c_caddr_t cp"
 .Ft struct mbuf *
@@ -439,6 +441,10 @@ or initialized by
 .Fn m_dup_pkthdr
 or
 .Fn m_move_pkthdr .
+.It Fn m_align mbuf len
+Services the same purpose as
+.Fn M_ALIGN
+but handles any type of mbuf.
 .It Fn M_LEADINGSPACE mbuf
 Returns the number of bytes available before the beginning
 of data in
