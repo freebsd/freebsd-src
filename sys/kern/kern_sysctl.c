@@ -1099,6 +1099,8 @@ sysctl_new_user(struct sysctl_req *req, void *p, size_t l)
 		return (0);
 	if (req->newlen - req->newidx < l)
 		return (EINVAL);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+	    "sysctl_new_user()");
 	error = copyin((char *)req->newptr + req->newidx, p, l);
 	req->newidx += l;
 	return (error);
