@@ -1404,7 +1404,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 				used = 1;
 				mc = m;
 			} else {
-				mc = m_copym(m, 0, M_COPYALL, M_DONTWAIT);
+				mc = m_copypacket(m, M_DONTWAIT);
 				if (mc == NULL) {
 					sc->sc_ifp->if_oerrors++;
 					continue;
@@ -1836,7 +1836,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 			mc = m;
 			used = 1;
 		} else {
-			mc = m_copym(m, 0, M_COPYALL, M_DONTWAIT);
+			mc = m_copypacket(m, M_DONTWAIT);
 			if (mc == NULL) {
 				sc->sc_ifp->if_oerrors++;
 				continue;
