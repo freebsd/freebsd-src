@@ -403,7 +403,7 @@ struct {								\
 		(head2)->tqh_first->field.tqe_prev = (head1)->tqh_last;	\
 		(head1)->tqh_last = (head2)->tqh_last;			\
 		TAILQ_INIT((head2));					\
-		QMD_TRACE_HEAD(head);					\
+		QMD_TRACE_HEAD(head1);					\
 		QMD_TRACE_HEAD(head2);					\
 	}								\
 } while (0)
