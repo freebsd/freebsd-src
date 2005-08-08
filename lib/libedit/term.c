@@ -932,7 +932,7 @@ term_set(EditLine *el, const char *term)
 		Val(T_co) = tgetnum("co");
 		Val(T_li) = tgetnum("li");
 		for (t = tstr; t->name != NULL; t++) {
-			/* XXX: some systems tgetstr needs non const */
+			/* XXX: some systems' tgetstr needs non const */
 			term_alloc(el, t, tgetstr(strchr(t->name, *t->name),
 			    &area));
 		}
@@ -1443,7 +1443,7 @@ term_echotc(EditLine *el, int argc __unused,
 			break;
 		}
 	if (t->name == NULL) {
-		/* XXX: some systems tgetstr needs non const */
+		/* XXX: some systems' tgetstr needs non const */
 		scap = tgetstr(strchr(*argv, **argv), &area);
 	}
 	if (!scap || scap[0] == '\0') {
