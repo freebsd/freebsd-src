@@ -376,18 +376,16 @@ fxp_attach(device_t dev)
 	uint16_t data, myea[ETHER_ADDR_LEN / 2];
 	u_char eaddr[ETHER_ADDR_LEN];
 	int i, rid, m1, m2, prefer_iomap;
-	int error, s;
+	int error;
 
 	error = 0;
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	callout_init(&sc->stat_ch, CALLOUT_MPSAFE);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+	callout_init_mtx(&sc->stat_ch, &sc->sc_mtx, 0);
 	ifmedia_init(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
 	    fxp_serial_ifmedia_sts);
-
-	s = splimp();
 
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
@@ -811,7 +809,6 @@ fxp_attach(device_t dev)
 	}
 
 fail:
-	splx(s);
 	if (error)
 		fxp_release(sc);
 	return (error);
@@ -895,17 +892,9 @@ static int
 fxp_detach(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
-	int s;
 
 	FXP_LOCK(sc);
-	s = splimp();
-
 	sc->suspended = 1;	/* Do same thing as we do for suspend */
-	/*
-	 * Close down routes etc.
-	 */
-	ether_ifdetach(sc->ifp);
-
 	/*
 	 * Stop DMA and drop transmit queue, but disable interrupts first.
 	 */
@@ -914,13 +903,16 @@ fxp_detach(device_t dev)
 	FXP_UNLOCK(sc);
 
 	/*
+	 * Close down routes etc.
+	 */
+	ether_ifdetach(sc->ifp);
+
+	/*
 	 * Unhook interrupt before dropping lock. This is to prevent
 	 * races with fxp_intr().
 	 */
 	bus_teardown_intr(sc->dev, sc->irq, sc->ih);
 	sc->ih = NULL;
-
-	splx(s);
 
 	/* Release our allocated resources. */
 	fxp_release(sc);
@@ -935,12 +927,16 @@ fxp_detach(device_t dev)
 static int
 fxp_shutdown(device_t dev)
 {
+	struct fxp_softc *sc = device_get_softc(dev);
+
 	/*
 	 * Make sure that DMA is disabled prior to reboot. Not doing
 	 * do could allow DMA to corrupt kernel memory during the
 	 * reboot before the driver initializes.
 	 */
-	fxp_stop((struct fxp_softc *) device_get_softc(dev));
+	FXP_LOCK(sc);
+	fxp_stop(sc);
+	FXP_UNLOCK(sc);
 	return (0);
 }
 
@@ -953,17 +949,14 @@ static int
 fxp_suspend(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
-	int s;
 
 	FXP_LOCK(sc);
-	s = splimp();
 
 	fxp_stop(sc);
 	
 	sc->suspended = 1;
 
 	FXP_UNLOCK(sc);
-	splx(s);
 	return (0);
 }
 
@@ -976,16 +969,8 @@ fxp_resume(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->ifp;
-	uint16_t pci_command;
-	int s;
 
 	FXP_LOCK(sc);
-	s = splimp();
-
-	/* reenable busmastering */
-	pci_command = pci_read_config(dev, PCIR_COMMAND, 2);
-	pci_command |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, pci_command, 2);
 
 	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SELECTIVE_RESET);
 	DELAY(10);
@@ -997,7 +982,6 @@ fxp_resume(device_t dev)
 	sc->suspended = 0;
 
 	FXP_UNLOCK(sc);
-	splx(s);
 	return (0);
 }
 
@@ -1752,10 +1736,8 @@ fxp_tick(void *xsc)
 	struct fxp_softc *sc = xsc;
 	struct ifnet *ifp = sc->ifp;
 	struct fxp_stats *sp = sc->fxp_stats;
-	int s;
 
-	FXP_LOCK(sc);
-	s = splimp();
+	FXP_LOCK_ASSERT(sc, MA_OWNED);
 	bus_dmamap_sync(sc->fxp_stag, sc->fxp_smap, BUS_DMASYNC_POSTREAD);
 	ifp->if_opackets += le32toh(sp->tx_good);
 	ifp->if_collisions += le32toh(sp->tx_total_collisions);
@@ -1840,8 +1822,6 @@ fxp_tick(void *xsc)
 	 * Schedule another timeout one second from now.
 	 */
 	callout_reset(&sc->stat_ch, hz, fxp_tick, sc);
-	FXP_UNLOCK(sc);
-	splx(s);
 }
 
 /*
@@ -1941,10 +1921,9 @@ fxp_init_body(struct fxp_softc *sc)
 	struct fxp_cb_tx *tcbp;
 	struct fxp_tx *txp;
 	struct fxp_cb_mcs *mcsp;
-	int i, prm, s;
+	int i, prm;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
-	s = splimp();
 	/*
 	 * Cancel any pending I/O
 	 */
@@ -2195,7 +2174,6 @@ fxp_init_body(struct fxp_softc *sc)
 	 * Start stats updater.
 	 */
 	callout_reset(&sc->stat_ch, hz, fxp_tick, sc);
-	splx(s);
 }
 
 static int
@@ -2222,7 +2200,9 @@ fxp_ifmedia_upd(struct ifnet *ifp)
 	struct mii_data *mii;
 
 	mii = device_get_softc(sc->miibus);
+	FXP_LOCK(sc);
 	mii_mediachg(mii);
+	FXP_UNLOCK(sc);
 	return (0);
 }
 
@@ -2236,6 +2216,7 @@ fxp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct mii_data *mii;
 
 	mii = device_get_softc(sc->miibus);
+	FXP_LOCK(sc);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
@@ -2244,6 +2225,7 @@ fxp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		sc->cu_resume_bug = 1;
 	else
 		sc->cu_resume_bug = 0;
+	FXP_UNLOCK(sc);
 }
 
 /*
@@ -2377,20 +2359,11 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct fxp_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
-	int flag, mask, s, error = 0;
-
-	/*
-	 * Detaching causes us to call ioctl with the mutex owned.  Preclude
-	 * that by saying we're busy if the lock is already held.
-	 */
-	if (FXP_LOCKED(sc))
-		return (EBUSY);
-
-	FXP_LOCK(sc);
-	s = splimp();
+	int flag, mask, error = 0;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
+		FXP_LOCK(sc);
 		if (ifp->if_flags & IFF_ALLMULTI)
 			sc->flags |= FXP_FLAG_ALL_MCAST;
 		else
@@ -2408,10 +2381,12 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (ifp->if_flags & IFF_RUNNING)
 				fxp_stop(sc);
 		}
+		FXP_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		FXP_LOCK(sc);
 		if (ifp->if_flags & IFF_ALLMULTI)
 			sc->flags |= FXP_FLAG_ALL_MCAST;
 		else
@@ -2428,6 +2403,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 */
 		if (sc->flags & FXP_FLAG_ALL_MCAST)
 			fxp_init_body(sc);
+		FXP_UNLOCK(sc);
 		error = 0;
 		break;
 
@@ -2443,6 +2419,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCSIFCAP:
+		FXP_LOCK(sc);
 		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
 		if (mask & IFCAP_POLLING)
 			ifp->if_capenable ^= IFCAP_POLLING;
@@ -2456,19 +2433,12 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (ifp->if_flags & IFF_UP)
 				fxp_init_body(sc);
 		}
+		FXP_UNLOCK(sc);
 		break;
 
 	default:
-		/* 
-		 * ether_ioctl() will eventually call fxp_start() which
-		 * will result in mutex recursion so drop it first.
-		 */
-		FXP_UNLOCK(sc);
 		error = ether_ioctl(ifp, command, data);
 	}
-	if (FXP_LOCKED(sc))
-		FXP_UNLOCK(sc);
-	splx(s);
 	return (error);
 }
 
@@ -2486,11 +2456,7 @@ fxp_mc_addrs(struct fxp_softc *sc)
 	nmcasts = 0;
 	if ((sc->flags & FXP_FLAG_ALL_MCAST) == 0) {
 		IF_ADDR_LOCK(ifp);
-#if __FreeBSD_version < 500000
-		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#else
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#endif
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			if (nmcasts >= MAXMCADDR) {
