@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 
-#include <dev/amr/amr_compat.h>
+#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
@@ -929,7 +929,7 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
     ac->ac_bio = bio;
     ac->ac_data = bio->bio_data;
     ac->ac_length = bio->bio_bcount;
-    if (BIO_IS_READ(bio)) {
+    if (bio->bio_cmd == BIO_READ) {
 	ac->ac_flags |= AMR_CMD_DATAIN;
 	cmd = AMR_CMD_LREAD;
     } else {
