@@ -1074,18 +1074,57 @@ ieee80211_ioctl_getscanresults(struct ieee80211com *ic, struct ieee80211req *ire
 	return error;
 }
 
-static void
-get_sta_info(struct ieee80211req_sta_info *si, const struct ieee80211_node *ni)
-{
-	struct ieee80211com *ic = ni->ni_ic;
+struct stainforeq {
+	struct ieee80211com *ic;
+	struct ieee80211req_sta_info *si;
+	size_t	space;
+};
 
-	si->isi_ie_len = 0;
+static size_t
+sta_space(const struct ieee80211_node *ni, size_t *ielen)
+{
+	*ielen = 0;
 	if (ni->ni_wpa_ie != NULL)
-		si->isi_ie_len += 2+ni->ni_wpa_ie[1];
+		*ielen += 2+ni->ni_wpa_ie[1];
 	if (ni->ni_wme_ie != NULL)
-		si->isi_ie_len += 2+ni->ni_wme_ie[1];
-	si->isi_len = sizeof(*si) + si->isi_ie_len, sizeof(u_int32_t);
-	si->isi_len = roundup(si->isi_len, sizeof(u_int32_t));
+		*ielen += 2+ni->ni_wme_ie[1];
+	return roundup(sizeof(struct ieee80211req_sta_info) + *ielen,
+		      sizeof(u_int32_t));
+}
+
+static void
+get_sta_space(void *arg, struct ieee80211_node *ni)
+{
+	struct stainforeq *req = arg;
+	struct ieee80211com *ic = ni->ni_ic;
+	size_t ielen;
+
+	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
+	    ni->ni_associd == 0)	/* only associated stations */
+		return;
+	req->space += sta_space(ni, &ielen);
+}
+
+static void
+get_sta_info(void *arg, struct ieee80211_node *ni)
+{
+	struct stainforeq *req = arg;
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211req_sta_info *si;
+	size_t ielen, len;
+	u_int8_t *cp;
+
+	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
+	    ni->ni_associd == 0)	/* only associated stations */
+		return;
+	if (ni->ni_chan == IEEE80211_CHAN_ANYC)	/* XXX bogus entry */
+		return;
+	len = sta_space(ni, &ielen);
+	if (len > req->space)
+		return;
+	si = req->si;
+	si->isi_len = len;
+	si->isi_ie_len = ielen;
 	si->isi_freq = ni->ni_chan->ic_freq;
 	si->isi_flags = ni->ni_chan->ic_flags;
 	si->isi_state = ni->ni_flags;
@@ -1109,55 +1148,60 @@ get_sta_info(struct ieee80211req_sta_info *si, const struct ieee80211_node *ni)
 		si->isi_txseqs[0] = ni->ni_txseqs[0];
 		si->isi_rxseqs[0] = ni->ni_rxseqs[0];
 	}
-	if (ic->ic_opmode == IEEE80211_M_IBSS || ni->ni_associd != 0)
+	/* NB: leave all cases in case we relax ni_associd == 0 check */
+	if (ieee80211_node_is_authorized(ni))
 		si->isi_inact = ic->ic_inact_run;
-	else if (ieee80211_node_is_authorized(ni))
+	else if (ni->ni_associd != 0)
 		si->isi_inact = ic->ic_inact_auth;
 	else
 		si->isi_inact = ic->ic_inact_init;
 	si->isi_inact = (si->isi_inact - ni->ni_inact) * IEEE80211_INACT_WAIT;
+
+	cp = (u_int8_t *)(si+1);
+	if (ni->ni_wpa_ie != NULL) {
+		memcpy(cp, ni->ni_wpa_ie, 2+ni->ni_wpa_ie[1]);
+		cp += 2+ni->ni_wpa_ie[1];
+	}
+	if (ni->ni_wme_ie != NULL) {
+		memcpy(cp, ni->ni_wme_ie, 2+ni->ni_wme_ie[1]);
+		cp += 2+ni->ni_wme_ie[1];
+	}
+
+	req->si = (struct ieee80211req_sta_info *)(((u_int8_t *)si) + len);
+	req->space -= len;
 }
 
 static int
 ieee80211_ioctl_getstainfo(struct ieee80211com *ic, struct ieee80211req *ireq)
 {
-	union {
-		struct ieee80211req_sta_info info;
-		char data[512];		/* XXX shrink? */
-	} u;
-	struct ieee80211req_sta_info *si = &u.info;
-	struct ieee80211_node_table *nt;
-	struct ieee80211_node *ni;
-	int error, space;
-	u_int8_t *p, *cp;
+	struct stainforeq req;
+	int error;
 
-	nt = &ic->ic_sta;
-	p = ireq->i_data;
-	space = ireq->i_len;
+	if (ireq->i_len < sizeof(struct stainforeq))
+		return EFAULT;
+
 	error = 0;
-	/* XXX locking */
-	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
-		get_sta_info(si, ni);
-		if (si->isi_len > sizeof(u))
-			continue;		/* XXX */
-		if (space < si->isi_len)
-			break;
-		cp = (u_int8_t *)(si+1);
-		if (ni->ni_wpa_ie != NULL) {
-			memcpy(cp, ni->ni_wpa_ie, 2+ni->ni_wpa_ie[1]);
-			cp += 2+ni->ni_wpa_ie[1];
-		}
-		if (ni->ni_wme_ie != NULL) {
-			memcpy(cp, ni->ni_wme_ie, 2+ni->ni_wme_ie[1]);
-			cp += 2+ni->ni_wme_ie[1];
-		}
-		error = copyout(si, p, si->isi_len);
-		if (error)
-			break;
-		p += si->isi_len;
-		space -= si->isi_len;
-	}
-	ireq->i_len -= space;
+	req.space = 0;
+	ieee80211_iterate_nodes(&ic->ic_sta, get_sta_space, &req);
+	if (req.space > ireq->i_len)
+		req.space = ireq->i_len;
+	if (req.space > 0) {
+		size_t space;
+		void *p;
+
+		space = req.space;
+		/* XXX M_WAITOK after driver lock released */
+		MALLOC(p, void *, space, M_TEMP, M_NOWAIT);
+		if (p == NULL)
+			return ENOMEM;
+		req.si = p;
+		ieee80211_iterate_nodes(&ic->ic_sta, get_sta_info, &req);
+		ireq->i_len = space - req.space;
+		error = copyout(p, ireq->i_data, ireq->i_len);
+		FREE(p, M_TEMP);
+	} else
+		ireq->i_len = 0;
+
 	return error;
 }
 
