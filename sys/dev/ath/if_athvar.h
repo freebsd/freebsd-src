@@ -224,7 +224,6 @@ struct ath_softc {
 	HAL_INT			sc_imask;	/* interrupt mask copy */
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
-	struct ieee80211_node	*sc_keyixmap[ATH_KEYMAX];/* key ix->node map */
 
 	u_int			sc_ledpin;	/* GPIO pin for driving LED */
 	u_int			sc_ledon;	/* pin setting for LED on */

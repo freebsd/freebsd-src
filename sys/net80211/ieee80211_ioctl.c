@@ -1630,7 +1630,7 @@ ieee80211_ioctl_delkey(struct ieee80211com *ic, struct ieee80211req *ireq)
 				return ENOENT;
 		}
 		/* XXX error return */
-		ieee80211_crypto_delkey(ic, &ni->ni_ucastkey);
+		ieee80211_node_delucastkey(ni);
 		ieee80211_free_node(ni);
 	} else {
 		if (kid >= IEEE80211_WEP_NKID)

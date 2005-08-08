@@ -339,7 +339,9 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 			tkip.ic_miclen, mic0);
 		if (memcmp(mic, mic0, tkip.ic_miclen)) {
 			/* NB: 802.11 layer handles statistic and debug msg */
-			ieee80211_notify_michael_failure(ic, wh, k->wk_keyix);
+			ieee80211_notify_michael_failure(ic, wh,
+				k->wk_rxkeyix != IEEE80211_KEYIX_NONE ?
+					k->wk_rxkeyix : k->wk_keyix);
 			return 0;
 		}
 	}

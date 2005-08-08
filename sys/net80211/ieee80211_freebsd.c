@@ -261,9 +261,10 @@ ieee80211_notify_replay_failure(struct ieee80211com *ic,
 	struct ifnet *ifp = ic->ic_ifp;
 
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-		"[%s] %s replay detected <rsc %ju, csc %ju, keyix %u>\n",
-		ether_sprintf(wh->i_addr2), k->wk_cipher->ic_name,
-		(intmax_t) rsc, (intmax_t) k->wk_keyrsc, k->wk_keyix);
+	    "[%s] %s replay detected <rsc %ju, csc %ju, keyix %u rxkeyix %u>\n",
+	    ether_sprintf(wh->i_addr2), k->wk_cipher->ic_name,
+	    (intmax_t) rsc, (intmax_t) k->wk_keyrsc,
+	    k->wk_keyix, k->wk_rxkeyix);
 
 	if (ifp != NULL) {		/* NB: for cipher test modules */
 		struct ieee80211_replay_event iev;
@@ -271,7 +272,10 @@ ieee80211_notify_replay_failure(struct ieee80211com *ic,
 		IEEE80211_ADDR_COPY(iev.iev_dst, wh->i_addr1);
 		IEEE80211_ADDR_COPY(iev.iev_src, wh->i_addr2);
 		iev.iev_cipher = k->wk_cipher->ic_cipher;
-		iev.iev_keyix = k->wk_keyix;
+		if (k->wk_rxkeyix != IEEE80211_KEYIX_NONE)
+			iev.iev_keyix = k->wk_rxkeyix;
+		else
+			iev.iev_keyix = k->wk_keyix;
 		iev.iev_keyrsc = k->wk_keyrsc;
 		iev.iev_rsc = rsc;
 		rt_ieee80211msg(ifp, RTM_IEEE80211_REPLAY, &iev, sizeof(iev));
