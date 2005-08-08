@@ -59,7 +59,8 @@ static	int _ieee80211_crypto_delkey(struct ieee80211com *,
  * Default "null" key management routines.
  */
 static int
-null_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k)
+null_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k,
+	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
 {
 	if (!(&ic->ic_nw_keys[0] <= k &&
 	     k < &ic->ic_nw_keys[IEEE80211_WEP_NKID])) {
@@ -73,12 +74,14 @@ null_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k)
 		 * packets through untouched when marked with the WEP bit
 		 * and key index 0.
 		 */
-		if ((k->wk_flags & IEEE80211_KEY_GROUP) == 0)
-			return 0;	/* NB: use key index 0 for ucast key */
-		else
-			return IEEE80211_KEYIX_NONE;
+		if (k->wk_flags & IEEE80211_KEY_GROUP)
+			return 0;
+		*keyix = 0;	/* NB: use key index 0 for ucast key */
+	} else {
+		*keyix = k - ic->ic_nw_keys;
 	}
-	return k - ic->ic_nw_keys;
+	*rxkeyix = IEEE80211_KEYIX_NONE;	/* XXX maybe *keyix? */
+	return 1;
 }
 static int
 null_key_delete(struct ieee80211com *ic, const struct ieee80211_key *k)
@@ -113,9 +116,10 @@ cipher_attach(struct ieee80211com *ic, struct ieee80211_key *key)
  */
 static __inline int
 dev_key_alloc(struct ieee80211com *ic,
-	const struct ieee80211_key *key)
+	const struct ieee80211_key *key,
+	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
 {
-	return ic->ic_crypto.cs_key_alloc(ic, key);
+	return ic->ic_crypto.cs_key_alloc(ic, key, keyix, rxkeyix);
 }
 
 static __inline int
@@ -143,6 +147,7 @@ ieee80211_crypto_attach(struct ieee80211com *ic)
 
 	/* NB: we assume everything is pre-zero'd */
 	cs->cs_def_txkey = IEEE80211_KEYIX_NONE;
+	cs->cs_max_keyix = IEEE80211_WEP_NKID;
 	ciphers[IEEE80211_CIPHER_NONE] = &ieee80211_cipher_none;
 	for (i = 0; i < IEEE80211_WEP_NKID; i++)
 		ieee80211_crypto_resetkey(ic, &cs->cs_nw_keys[i],
@@ -241,6 +246,7 @@ ieee80211_crypto_newkey(struct ieee80211com *ic,
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	const struct ieee80211_cipher *cip;
+	ieee80211_keyix keyix, rxkeyix;
 	void *keyctx;
 	int oflags;
 
@@ -354,8 +360,7 @@ again:
 	 * crypto we also call the driver to give us a key index.
 	 */
 	if (key->wk_keyix == IEEE80211_KEYIX_NONE) {
-		key->wk_keyix = dev_key_alloc(ic, key);
-		if (key->wk_keyix == IEEE80211_KEYIX_NONE) {
+		if (!dev_key_alloc(ic, key, &keyix, &rxkeyix)) {
 			/*
 			 * Driver has no room; fallback to doing crypto
 			 * in the host.  We change the flags and start the
@@ -382,6 +387,8 @@ again:
 			    __func__, cip->ic_name);
 			return 0;
 		}
+		key->wk_keyix = keyix;
+		key->wk_rxkeyix = rxkeyix;
 	}
 	return 1;
 #undef N
@@ -393,7 +400,7 @@ again:
 static int
 _ieee80211_crypto_delkey(struct ieee80211com *ic, struct ieee80211_key *key)
 {
-	u_int16_t keyix;
+	ieee80211_keyix keyix;
 
 	KASSERT(key->wk_cipher != NULL, ("No cipher!"));
 
