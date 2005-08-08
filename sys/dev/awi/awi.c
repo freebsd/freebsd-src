@@ -660,7 +660,7 @@ awi_init(struct ifnet *ifp)
 	if (ic->ic_opmode == IEEE80211_M_AHDEMO ||
 	    ic->ic_opmode == IEEE80211_M_HOSTAP) {
 		ni->ni_chan = ic->ic_ibss_chan;
-		ni->ni_intval = ic->ic_lintval;
+		ni->ni_intval = ic->ic_bintval;
 		ni->ni_rssi = 0;
 		ni->ni_rstamp = 0;
 		memset(&ni->ni_tstamp, 0, sizeof(ni->ni_tstamp));

@@ -2001,7 +2001,7 @@ ipw_config(struct ipw_softc *sc)
 #endif
 
 	if (ic->ic_opmode == IEEE80211_M_IBSS) {
-		data = htole32(ic->ic_lintval);
+		data = htole32(ic->ic_bintval);
 		DPRINTF(("Setting beacon interval to %u\n", le32toh(data)));
 		error = ipw_cmd(sc, IPW_CMD_SET_BEACON_INTERVAL, &data,
 		    sizeof data);

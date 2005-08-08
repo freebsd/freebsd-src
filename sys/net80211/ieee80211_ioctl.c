@@ -2317,7 +2317,7 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 			return EINVAL;
 		if (IEEE80211_BINTVAL_MIN <= ireq->i_val &&
 		    ireq->i_val <= IEEE80211_BINTVAL_MAX) {
-			ic->ic_lintval = ireq->i_val;
+			ic->ic_bintval = ireq->i_val;
 			error = ENETRESET;		/* requires restart */
 		} else
 			error = EINVAL;

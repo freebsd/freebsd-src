@@ -739,7 +739,7 @@ wi_init(void *arg)
 
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	    sc->sc_firmware_type == WI_INTERSIL) {
-		wi_write_val(sc, WI_RID_OWN_BEACON_INT, ic->ic_lintval);
+		wi_write_val(sc, WI_RID_OWN_BEACON_INT, ic->ic_bintval);
 		wi_write_val(sc, WI_RID_BASIC_RATE, 0x03);   /* 1, 2 */
 		wi_write_val(sc, WI_RID_SUPPORT_RATE, 0x0f); /* 1, 2, 5.5, 11 */
 		wi_write_val(sc, WI_RID_DTIM_PERIOD, 1);
