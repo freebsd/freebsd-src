@@ -45,7 +45,7 @@ static int foo_detach(device_t);
 static int foo_frob(device_t, int, int);
 static int foo_twiddle(device_t, char *);
 
-static struct device_method_t foo_methods[] = {
+static device_method_t foo_methods[] = {
 	/* Methods from the device interface */
 	DEVMETHOD(device_probe,		foo_probe),
 	DEVMETHOD(device_attach,	foo_attach),
