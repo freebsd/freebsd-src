@@ -199,6 +199,11 @@ trap(struct trapframe *frame)
 			enable_vec(td);
 			frame->srr1 |= PSL_VEC;
 			break;
+#else
+		case EXC_VEC:
+		case EXC_VECAST:
+			sig = SIGILL;
+			break;
 #endif /* ALTIVEC */
 
 		case EXC_ALI:
