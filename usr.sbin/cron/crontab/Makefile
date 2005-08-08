@@ -10,7 +10,7 @@ INSTALLFLAGS=-fschg
 
 CFLAGS+= -I${.CURDIR}/../cron
 
-DPADD=	${LIBCRON} ${LIBUTIL}
-LDADD=	${LIBCRON} -lutil
+DPADD=	${LIBCRON} ${LIBMD} ${LIBUTIL}
+LDADD=	${LIBCRON} -lmd -lutil
 
 .include <bsd.prog.mk>
