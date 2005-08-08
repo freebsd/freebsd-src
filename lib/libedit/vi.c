@@ -890,7 +890,7 @@ vi_yank(EditLine *el, int c)
 
 /* vi_comment_out():
  *	Vi comment out current command
- *	[c]
+ *	[#]
  */
 protected el_action_t
 /*ARGSUSED*/
@@ -907,7 +907,7 @@ vi_comment_out(EditLine *el, int c)
 /* vi_alias():
  *	Vi include shell alias
  *	[@]
- * NB: posix impiles that we should enter insert mode, however
+ * NB: posix implies that we should enter insert mode, however
  * this is against historical precedent...
  */
 protected el_action_t
