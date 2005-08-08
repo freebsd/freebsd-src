@@ -234,12 +234,10 @@ mly_attach(device_t dev)
     mly_initq_busy(sc);
     mly_initq_complete(sc);
 
-#if __FreeBSD_version >= 500005
     /*
      * Initialise command-completion task.
      */
     TASK_INIT(&sc->mly_task_complete, 0, mly_complete, sc);
-#endif
 
     /* disable interrupts before we start talking to the controller */
     MLY_MASK_INTERRUPTS(sc);
@@ -1605,11 +1603,9 @@ mly_done(struct mly_softc *sc)
 
     splx(s);
     if (worked) {
-#if __FreeBSD_version >= 500005
 	if (sc->mly_state & MLY_STATE_INTERRUPTS_ON)
 	    taskqueue_enqueue(taskqueue_swi_giant, &sc->mly_task_complete);
 	else
-#endif
 	    mly_complete(sc, 0);
     }
 }
