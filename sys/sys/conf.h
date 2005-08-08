@@ -68,7 +68,7 @@ struct cdev {
 	uid_t		si_uid;
 	gid_t		si_gid;
 	mode_t		si_mode;
-	struct ucred	*si_cred;
+	struct ucred	*si_cred;	/* cached clone-time credential */
 	u_int		si_drv0;
 	int		si_refcount;
 	LIST_ENTRY(cdev)	si_list;
@@ -279,14 +279,11 @@ void devfs_destroy(struct cdev *dev);
 #define		GID_GAMES	13
 #define		GID_DIALER	68
 
-typedef void (*dev_clone_fn)(void *arg, char *name, int namelen, struct cdev **result);
+typedef void (*dev_clone_fn)(void *arg, struct ucred *cred, char *name,
+	    int namelen, struct cdev **result);
 
 int dev_stdclone(char *_name, char **_namep, const char *_stem, int *_unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
-
-typedef void (*dev_clone_cred_fn)(void *arg, struct ucred *cred, char *name,
-	int namelen, struct cdev **result);
-EVENTHANDLER_DECLARE(dev_clone_cred, dev_clone_cred_fn);
 
 /* Stuff relating to kernel-dump */
 

@@ -124,7 +124,8 @@ typedef struct vkbd_state	vkbd_state_t;
  *****************************************************************************
  *****************************************************************************/
 
-static void		vkbd_dev_clone(void *, char *, int, struct cdev **);
+static void		vkbd_dev_clone(void *, struct ucred *, char *, int,
+			    struct cdev **);
 static d_open_t		vkbd_dev_open;
 static d_close_t	vkbd_dev_close;
 static d_read_t		vkbd_dev_read;
@@ -152,7 +153,8 @@ static struct clonedevs	*vkbd_dev_clones = NULL;
 
 /* Clone device */
 static void
-vkbd_dev_clone(void *arg, char *name, int namelen, struct cdev **dev)
+vkbd_dev_clone(void *arg, struct ucred *cred, char *name, int namelen,
+    struct cdev **dev)
 {
 	int	unit;
 

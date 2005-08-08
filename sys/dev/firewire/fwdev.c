@@ -840,7 +840,8 @@ fwdev_destroydev(struct firewire_softc *sc)
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 #define NDEVTYPE 2
 void
-fwdev_clone(void *arg, char *name, int namelen, struct cdev **dev)
+fwdev_clone(void *arg, struct ucred *cred, char *name, int namelen,
+    struct cdev **dev)
 {
 	struct firewire_softc *sc;
 	char *devnames[NDEVTYPE] = {"fw", "fwmem"};
