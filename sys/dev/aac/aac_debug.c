@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/bus.h>
 
-#include <dev/aac/aac_compat.h>
 #include <dev/aac/aacreg.h>
 #include <sys/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
