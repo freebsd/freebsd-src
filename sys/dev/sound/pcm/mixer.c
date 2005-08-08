@@ -486,7 +486,8 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread
 
 #ifdef USING_DEVFS
 static void
-mixer_clone(void *arg, char *name, int namelen, struct cdev **dev)
+mixer_clone(void *arg, struct ucred *cred, char *name, int namelen,
+    struct cdev **dev)
 {
 	struct snddev_info *sd;
 

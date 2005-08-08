@@ -104,7 +104,8 @@ static struct clonedevs *nmdmclones;
 static TAILQ_HEAD(,nm_softc) nmdmhead = TAILQ_HEAD_INITIALIZER(nmdmhead);
 
 static void
-nmdm_clone(void *arg, char *name, int nameen, struct cdev **dev)
+nmdm_clone(void *arg, struct ucred *cred, char *name, int nameen,
+    struct cdev **dev)
 {
 	int i, unit;
 	char *p;

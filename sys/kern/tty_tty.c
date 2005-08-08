@@ -52,7 +52,8 @@ cttyopen(struct cdev *dev, int flag, int mode, struct thread *td)
 }
 
 static void
-ctty_clone(void *arg, char *name, int namelen, struct cdev **dev)
+ctty_clone(void *arg, struct ucred *cred, char *name, int namelen,
+    struct cdev **dev)
 {
 
 	if (*dev != NULL)
