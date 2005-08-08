@@ -389,7 +389,7 @@ ieee80211_create_ibss(struct ieee80211com* ic, struct ieee80211_channel *chan)
 	ni->ni_esslen = ic->ic_des_esslen;
 	memcpy(ni->ni_essid, ic->ic_des_essid, ni->ni_esslen);
 	copy_bss(ni, ic->ic_bss);
-	ni->ni_intval = ic->ic_lintval;
+	ni->ni_intval = ic->ic_bintval;
 	if (ic->ic_flags & IEEE80211_F_PRIVACY)
 		ni->ni_capinfo |= IEEE80211_CAPINFO_PRIVACY;
 	if (ic->ic_phytype == IEEE80211_T_FH) {
@@ -441,7 +441,7 @@ ieee80211_reset_bss(struct ieee80211com *ic)
 	ic->ic_bss = ieee80211_ref_node(ni);
 	if (obss != NULL) {
 		copy_bss(ni, obss);
-		ni->ni_intval = ic->ic_lintval;
+		ni->ni_intval = ic->ic_bintval;
 		ieee80211_free_node(obss);
 	}
 }
