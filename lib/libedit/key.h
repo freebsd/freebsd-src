@@ -58,6 +58,8 @@ typedef struct el_key_t {
 #define	XK_NOD	2
 #define	XK_EXE	3
 
+#include <term.h>
+
 #undef key_end
 #undef key_clear
 #undef key_print
