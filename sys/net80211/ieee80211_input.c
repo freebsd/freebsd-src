@@ -1901,6 +1901,16 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			ic->ic_stats.is_rx_chanmismatch++;
 			return;
 		}
+		if (!(IEEE80211_BINTVAL_MIN <= bintval &&
+		      bintval <= IEEE80211_BINTVAL_MAX)) {
+			IEEE80211_DISCARD(ic,
+			    IEEE80211_MSG_ELEMID | IEEE80211_MSG_INPUT,
+			    wh, ieee80211_mgt_subtype_name[subtype >>
+				IEEE80211_FC0_SUBTYPE_SHIFT],
+			    "bogus beacon interval", bintval);
+			ic->ic_stats.is_rx_badbintval++;
+			return;
+		}
 
 		/*
 		 * Count frame now that we know it's to be processed.
@@ -2201,7 +2211,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 
 	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ: {
-		u_int16_t capinfo, bintval;
+		u_int16_t capinfo, lintval;
 		struct ieee80211_rsnparms rsn;
 		u_int8_t reason;
 
@@ -2238,7 +2248,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			return;
 		}
 		capinfo = le16toh(*(u_int16_t *)frm);	frm += 2;
-		bintval = le16toh(*(u_int16_t *)frm);	frm += 2;
+		lintval = le16toh(*(u_int16_t *)frm);	frm += 2;
 		if (reassoc)
 			frm += 6;	/* ignore current AP info */
 		ssid = rates = xrates = wpa = wme = NULL;
@@ -2366,7 +2376,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		}
 		ni->ni_rssi = rssi;
 		ni->ni_rstamp = rstamp;
-		ni->ni_intval = bintval;
+		ni->ni_intval = lintval;
 		ni->ni_capinfo = capinfo;
 		ni->ni_chan = ic->ic_bss->ni_chan;
 		ni->ni_fhdwell = ic->ic_bss->ni_fhdwell;
