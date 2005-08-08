@@ -913,11 +913,11 @@ map_init(EditLine *el)
 	el->el_map.vic = el_map_vi_command;
 	el->el_map.vii = el_map_vi_insert;
 	el->el_map.help = (el_bindings_t *) el_malloc(sizeof(el_bindings_t) *
-	    EL_NUM_FCNS);
+	    (EL_NUM_FCNS + 1));
 	if (el->el_map.help == NULL)
 		return (-1);
 	(void) memcpy(el->el_map.help, help__get(),
-	    sizeof(el_bindings_t) * EL_NUM_FCNS);
+	    sizeof(el_bindings_t) * (EL_NUM_FCNS + 1));
 	el->el_map.func = (el_func_t *)el_malloc(sizeof(el_func_t) *
 	    EL_NUM_FCNS);
 	if (el->el_map.func == NULL)
