@@ -108,7 +108,7 @@ static int	bpf_setdlt(struct bpf_d *, u_int);
 static void	filt_bpfdetach(struct knote *);
 static int	filt_bpfread(struct knote *, long);
 static void	bpf_drvinit(void *);
-static void	bpf_clone(void *, char *, int, struct cdev **);
+static void	bpf_clone(void *, struct ucred *, char *, int, struct cdev **);
 static int	bpf_stats_sysctl(SYSCTL_HANDLER_ARGS);
 
 /*
@@ -1614,8 +1614,9 @@ bpf_setdlt(d, dlt)
 }
 
 static void
-bpf_clone(arg, name, namelen, dev)
+bpf_clone(arg, cred, name, namelen, dev)
 	void *arg;
+	struct ucred *cred;
 	char *name;
 	int namelen;
 	struct cdev **dev;

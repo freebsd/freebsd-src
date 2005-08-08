@@ -705,13 +705,10 @@ devfs_lookupx(ap)
 		goto notfound;
 
 	cdev = NULL;
-	EVENTHANDLER_INVOKE(dev_clone_cred, td->td_ucred, pname,
-	    strlen(pname), &cdev);
-	if (cdev == NULL) {
-		EVENTHANDLER_INVOKE(dev_clone, pname, strlen(pname), &cdev);
-		if (cdev == NULL)
-			goto notfound;
-	}
+	EVENTHANDLER_INVOKE(dev_clone, td->td_ucred, pname, strlen(pname),
+	    &cdev);
+	if (cdev == NULL)
+		goto notfound;
 
 	devfs_populate(dmp);
 

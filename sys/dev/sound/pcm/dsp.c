@@ -1130,7 +1130,8 @@ dsp_mmap(struct cdev *i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
  *    	if xN.i isn't busy, return its dev_t
  */
 static void
-dsp_clone(void *arg, char *name, int namelen, struct cdev **dev)
+dsp_clone(void *arg, struct ucred *cred, char *name, int namelen,
+    struct cdev **dev)
 {
 	struct cdev *pdev;
 	struct snddev_info *pcm_dev;

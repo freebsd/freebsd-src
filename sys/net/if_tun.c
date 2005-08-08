@@ -107,7 +107,8 @@ static struct clonedevs *tunclones;
 static TAILQ_HEAD(,tun_softc)	tunhead = TAILQ_HEAD_INITIALIZER(tunhead);
 SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
 
-static void	tunclone(void *arg, char *name, int namelen, struct cdev **dev);
+static void	tunclone(void *arg, struct ucred *cred, char *name,
+		    int namelen, struct cdev **dev);
 static void	tuncreate(struct cdev *dev);
 static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static int	tuninit(struct ifnet *);
@@ -136,7 +137,8 @@ static struct cdevsw tun_cdevsw = {
 };
 
 static void
-tunclone(void *arg, char *name, int namelen, struct cdev **dev)
+tunclone(void *arg, struct ucred *cred, char *name, int namelen,
+    struct cdev **dev)
 {
 	int u, i;
 
