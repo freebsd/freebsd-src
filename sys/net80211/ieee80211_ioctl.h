@@ -180,7 +180,8 @@ struct ieee80211_stats {
 	u_int32_t	is_ff_split;		/* fast frame rx split error */
 	u_int32_t	is_ff_decap;		/* fast frames decap'd */
 	u_int32_t	is_ff_encap;		/* fast frames encap'd for tx */
-	u_int32_t	is_spare[10];
+	u_int32_t	is_rx_badbintval;	/* rx frame w/ bogus bintval */
+	u_int32_t	is_spare[9];
 };
 
 /*

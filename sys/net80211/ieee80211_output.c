@@ -1686,13 +1686,13 @@ ieee80211_pwrsave(struct ieee80211com *ic, struct ieee80211_node *ni,
 	 * using this information.
 	 */
 	/* XXX handle overflow? */
-	age = ((ni->ni_intval * ic->ic_lintval) << 2) / 1024; /* TU -> secs */
+	age = ((ni->ni_intval * ic->ic_bintval) << 2) / 1024; /* TU -> secs */
 	_IEEE80211_NODE_SAVEQ_ENQUEUE(ni, m, qlen, age);
 	IEEE80211_NODE_SAVEQ_UNLOCK(ni);
 
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER,
-		"[%s] save frame, %u now queued\n",
-		ether_sprintf(ni->ni_macaddr), qlen);
+		"[%s] save frame with age %d, %u now queued\n",
+		ether_sprintf(ni->ni_macaddr), age, qlen);
 
 	if (qlen == 1)
 		ic->ic_set_tim(ni, 1);
