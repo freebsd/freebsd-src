@@ -106,6 +106,7 @@ struct mac_policy_ops {
 	void	(*mpo_init_bpfdesc_label)(struct label *label);
 	void	(*mpo_init_cred_label)(struct label *label);
 	void	(*mpo_init_devfsdirent_label)(struct label *label);
+	void	(*_mpo_placeholder0)(void);
 	void	(*mpo_init_ifnet_label)(struct label *label);
 	int	(*mpo_init_inpcb_label)(struct label *label, int flag);
 	void	(*mpo_init_sysv_msgmsg_label)(struct label *label);
@@ -125,6 +126,7 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_bpfdesc_label)(struct label *label);
 	void	(*mpo_destroy_cred_label)(struct label *label);
 	void	(*mpo_destroy_devfsdirent_label)(struct label *label);
+	void	(*_mpo_placeholder1)(void);
 	void	(*mpo_destroy_ifnet_label)(struct label *label);
 	void	(*mpo_destroy_inpcb_label)(struct label *label);
 	void	(*mpo_destroy_sysv_msgmsg_label)(struct label *label);
@@ -151,6 +153,7 @@ struct mac_policy_ops {
 		    struct label *dest);
 	void	(*mpo_copy_mbuf_label)(struct label *src,
 		    struct label *dest);
+	void	(*_mpo_placeholder2)(void);
 	void	(*mpo_copy_pipe_label)(struct label *src,
 		    struct label *dest);
 	void	(*mpo_copy_socket_label)(struct label *src,
@@ -161,6 +164,7 @@ struct mac_policy_ops {
 		    char *element_name, struct sbuf *sb, int *claimed);
 	int	(*mpo_externalize_ifnet_label)(struct label *label,
 		    char *element_name, struct sbuf *sb, int *claimed);
+	void	(*_mpo_placeholder3)(void);
 	int	(*mpo_externalize_pipe_label)(struct label *label,
 		    char *element_name, struct sbuf *sb, int *claimed);
 	int	(*mpo_externalize_socket_label)(struct label *label,
@@ -173,6 +177,7 @@ struct mac_policy_ops {
 		    char *element_name, char *element_data, int *claimed);
 	int	(*mpo_internalize_ifnet_label)(struct label *label,
 		    char *element_name, char *element_data, int *claimed);
+	void	(*_mpo_placeholder4)(void);
 	int	(*mpo_internalize_pipe_label)(struct label *label,
 		    char *element_name, char *element_data, int *claimed);
 	int	(*mpo_internalize_socket_label)(struct label *label,
@@ -204,6 +209,7 @@ struct mac_policy_ops {
 		    struct mount *mp, struct devfs_dirent *dd,
 		    struct label *ddlabel, struct devfs_dirent *de,
 		    struct label *delabel);
+	void	(*_mpo_placeholder5)(void);
 	int	(*mpo_create_vnode_extattr)(struct ucred *cred,
 		    struct mount *mp, struct label *fslabel,
 		    struct vnode *dvp, struct label *dlabel,
@@ -334,6 +340,7 @@ struct mac_policy_ops {
 	void	(*mpo_create_proc1)(struct ucred *cred);
 	void	(*mpo_relabel_cred)(struct ucred *cred,
 		    struct label *newlabel);
+	void	(*_mpo_placeholder6)(void);
 	void	(*mpo_thread_userret)(struct thread *thread);
 
 	/*
@@ -342,9 +349,21 @@ struct mac_policy_ops {
 	int	(*mpo_check_bpfdesc_receive)(struct bpf_d *bpf_d,
 		    struct label *bpflabel, struct ifnet *ifnet,
 		    struct label *ifnetlabel);
+	void	(*_mpo_placeholder7)(void);
 	int	(*mpo_check_cred_relabel)(struct ucred *cred,
 		    struct label *newlabel);
 	int	(*mpo_check_cred_visible)(struct ucred *u1, struct ucred *u2);
+	void	(*_mpo_placeholder8)(void);
+	void	(*_mpo_placeholder9)(void);
+	void	(*_mpo_placeholder10)(void);
+	void	(*_mpo_placeholder11)(void);
+	void	(*_mpo_placeholder12)(void);
+	void	(*_mpo_placeholder13)(void);
+	void	(*_mpo_placeholder14)(void);
+	void	(*_mpo_placeholder15)(void);
+	void	(*_mpo_placeholder16)(void);
+	void	(*_mpo_placeholder17)(void);
+	void	(*_mpo_placeholder18)(void);
 	int	(*mpo_check_ifnet_relabel)(struct ucred *cred,
 		    struct ifnet *ifnet, struct label *ifnetlabel,
 		    struct label *newlabel);
@@ -399,8 +418,11 @@ struct mac_policy_ops {
 		    struct label *vlabel);
 	int	(*mpo_check_kld_stat)(struct ucred *cred);
 	int	(*mpo_check_kld_unload)(struct ucred *cred);
+	void	(*_mpo_placeholder19)(void);
+	void	(*_mpo_placeholder20)(void);
 	int	(*mpo_check_mount_stat)(struct ucred *cred, struct mount *mp,
 		    struct label *mntlabel);
+	void	(*_mpo_placeholder21)(void);
 	int	(*mpo_check_pipe_ioctl)(struct ucred *cred,
 		    struct pipepair *pp, struct label *pipelabel,
 		    unsigned long cmd, void *data);
@@ -462,6 +484,7 @@ struct mac_policy_ops {
 	int	(*mpo_check_socket_deliver)(struct socket *so,
 		    struct label *socketlabel, struct mbuf *m,
 		    struct label *mbuflabel);
+	void	(*_mpo_placeholder22)(void);
 	int	(*mpo_check_socket_listen)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_poll)(struct ucred *cred,
@@ -490,6 +513,7 @@ struct mac_policy_ops {
 	int	(*mpo_check_system_sysctl)(struct ucred *cred,
 		    struct sysctl_oid *oidp, void *arg1, int arg2,
 		    struct sysctl_req *req);
+	void	(*_mpo_placeholder23)(void);
 	int	(*mpo_check_vnode_access)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, int acc_mode);
 	int	(*mpo_check_vnode_chdir)(struct ucred *cred,
@@ -516,6 +540,7 @@ struct mac_policy_ops {
 	int	(*mpo_check_vnode_getextattr)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, int attrnamespace,
 		    const char *name, struct uio *uio);
+	void	(*_mpo_placeholder24)(void);
 	int	(*mpo_check_vnode_link)(struct ucred *cred, struct vnode *dvp,
 		    struct label *dlabel, struct vnode *vp,
 		    struct label *label, struct componentname *cnp);
