@@ -41,6 +41,7 @@
 #else
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #endif
 #ifndef _OpenSSL_
 #include <sys/md5.h>
@@ -223,13 +224,13 @@ static __inline u_int
 g_eli_str2algo(const char *name)
 {
 
-	if (strcmp("null", name) == 0)
+	if (strcasecmp("null", name) == 0)
 		return (CRYPTO_NULL_CBC);
-	if (strcmp("aes", name) == 0)
+	else if (strcasecmp("aes", name) == 0)
 		return (CRYPTO_AES_CBC);
-	else if (strcmp("blowfish", name) == 0)
+	else if (strcasecmp("blowfish", name) == 0)
 		return (CRYPTO_BLF_CBC);
-	else if (strcmp("3des", name) == 0)
+	else if (strcasecmp("3des", name) == 0)
 		return (CRYPTO_3DES_CBC);
 	return (CRYPTO_ALGORITHM_MIN - 1);
 }
