@@ -1066,7 +1066,12 @@ sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 	req->oldidx += l;
 	if (req->oldptr == NULL)
 		return (0);
-	if (req->lock == REQ_LOCKED)
+	/*
+	 * If we have not wired the user supplied buffer and we are currently
+	 * holding locks, drop a witness warning, as it's possible that
+	 * write operations to the user page can sleep.
+	 */
+	if (req->lock != REQ_WIRED)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 		    "sysctl_old_user()");
 	i = l;
