@@ -123,6 +123,7 @@ struct kse {
 #define	KEF_HOLD	0x0008		/* Thread is temporarily bound. */
 #define	KEF_REMOVED	0x0010		/* Thread was removed while ASSIGNED */
 #define	KEF_INTERNAL	0x0020		/* Thread added due to migration. */
+#define	KEF_PREEMPTED	0x0040		/* Thread was preempted */
 #define	KEF_DIDRUN	0x02000		/* Thread actually ran. */
 #define	KEF_EXIT	0x04000		/* Thread is being killed. */
 
@@ -205,7 +206,8 @@ static struct kg_sched kg_sched0;
 #define	SCHED_INTERACTIVE(kg)						\
     (sched_interact_score(kg) < SCHED_INTERACT_THRESH)
 #define	SCHED_CURR(kg, ke)						\
-    ((ke->ke_thread->td_flags & TDF_BORROWING) || SCHED_INTERACTIVE(kg))
+    ((ke->ke_thread->td_flags & TDF_BORROWING) ||			\
+     (ke->ke_flags & KEF_PREEMPTED) || SCHED_INTERACTIVE(kg))
 
 /*
  * Cpu percentage computation macros and defines.
@@ -350,6 +352,8 @@ kseq_runq_add(struct kseq *kseq, struct kse *ke, int flags)
 		ke->ke_flags |= KEF_XFERABLE;
 	}
 #endif
+	if (ke->ke_flags & KEF_PREEMPTED)
+		flags |= SRQ_PREEMPTED;
 	runq_add(ke->ke_runq, ke, flags);
 }
 
@@ -1734,6 +1738,7 @@ restart:
 #endif
 		kseq_runq_rem(kseq, ke);
 		ke->ke_state = KES_THREAD;
+		ke->ke_flags &= ~KEF_PREEMPTED;
 		return (ke);
 	}
 #ifdef SMP
@@ -1781,6 +1786,8 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: process swapped out"));
 	KASSERT(ke->ke_runq == NULL,
 	    ("sched_add: KSE %p is still assigned to a run queue", ke));
+	if (flags & SRQ_PREEMPTED)
+		ke->ke_flags |= KEF_PREEMPTED;
 	switch (class) {
 	case PRI_ITHD:
 	case PRI_REALTIME:
@@ -1871,6 +1878,7 @@ sched_rem(struct thread *td)
 	mtx_assert(&sched_lock, MA_OWNED);
 	ke = td->td_kse;
 	SLOT_RELEASE(td->td_ksegrp);
+	ke->ke_flags &= ~KEF_PREEMPTED;
 	if (ke->ke_flags & KEF_ASSIGNED) {
 		ke->ke_flags |= KEF_REMOVED;
 		return;
