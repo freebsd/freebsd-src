@@ -597,12 +597,6 @@ ciss_init_pci(struct ciss_softc *sc)
 		    sc->ciss_cfg->signature[2], sc->ciss_cfg->signature[3]);
 	return(ENXIO);
     }
-    if ((sc->ciss_cfg->valence < CISS_MIN_VALENCE) ||
-	(sc->ciss_cfg->valence > CISS_MAX_VALENCE)) {
-	ciss_printf(sc, "adapter interface specification (%d) unsupported\n",
-		    sc->ciss_cfg->valence);
-	return(ENXIO);
-    }
 
     /*
      * Put the board into simple mode, and tell it we're using the low
