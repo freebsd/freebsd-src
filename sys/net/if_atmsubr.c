@@ -158,6 +158,7 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 			error = rt_check(&rt, &rt0, dst);
 			if (error)
 				goto bad;
+			RT_UNLOCK(rt);
 
 			if (dst->sa_family == AF_INET6)
 			        etype = ETHERTYPE_IPV6;

@@ -105,6 +105,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	error = rt_check(&rt, &rt0, dst);
 	if (error)
 		goto bad;
+	RT_UNLOCK(rt);
 
 	/*
 	 * For unicast, we make a tag to store the lladdr of the
