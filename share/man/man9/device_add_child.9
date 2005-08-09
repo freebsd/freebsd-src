@@ -96,8 +96,10 @@ is used, then the new child will be added as if its order was zero.
 .Pp
 When adding a device in the context of
 .Xr DEVICE_IDENTIFY 9
-routine, some care must be taken to ensure that the device has not
-already been added to the tree.
+routine, the
+.Xr device_find_children 9
+routine should be used to ensure that the device has not already been
+added to the tree.
 Because the device name and
 .Vt devclass_t
 are associated at probe time (not child addition time), previous
@@ -109,7 +111,9 @@ devices.
 .Sh RETURN VALUES
 The new device if successful, NULL otherwise.
 .Sh SEE ALSO
+.Xr DEVICE_IDENTIFY 9
 .Xr device 9
+.Xr device_find_children 9
 .Sh AUTHORS
 This manual page was written by
 .An Doug Rabson .
