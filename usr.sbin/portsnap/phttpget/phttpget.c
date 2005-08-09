@@ -66,6 +66,9 @@ readenv(void)
 	if (env_HTTP_PROXY) {
 		if (strncmp(env_HTTP_PROXY, "http://", 7) == 0)
 			env_HTTP_PROXY += 7;
+		p = strchr(env_HTTP_PROXY, '/');
+		if (p != NULL)
+			*p = 0;
 		p = strchr(env_HTTP_PROXY, ':');
 		if (p != NULL) {
 			*p = 0;
@@ -223,8 +226,9 @@ main(int argc, char *argv[])
 	error = getaddrinfo(env_HTTP_PROXY ? env_HTTP_PROXY : servername,
 	    env_HTTP_PROXY ? proxyport : "http", &hints, &res0);
 	if (error)
-		errx(1, "%s: %s",
+		errx(1, "%s: host = %s, port = %s",
 		    env_HTTP_PROXY ? env_HTTP_PROXY : servername,
+		    env_HTTP_PROXY ? proxyport : "http",
 		    gai_strerror(error));
 	if (res0 == NULL)
 		errx(1, "could not look up %s", servername);
