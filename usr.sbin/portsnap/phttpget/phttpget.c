@@ -403,7 +403,7 @@ main(int argc, char *argv[])
 
 				/* Compute the length */
 				while (isdigit(*hln)) {
-					if (contentlength > INT_MAX / 10) {
+					if (contentlength >= OFF_MAX / 10) {
 						/* Nasty people... */
 						goto conndied;
 					}
@@ -488,7 +488,7 @@ main(int argc, char *argv[])
 
 				clen = 0;
 				while (isxdigit(*hln)) {
-					if (clen > INT_MAX / 16) {
+					if (clen >= OFF_MAX / 16) {
 						/* Nasty people... */
 						goto conndied;
 					}
@@ -528,7 +528,7 @@ main(int argc, char *argv[])
 			 * Read everything until the server closes the
 			 * socket.
 			 */
-			error = copybytes(sd, fd, INT_MAX, resbuf,
+			error = copybytes(sd, fd, OFF_MAX, resbuf,
 			    &resbuflen, &resbufpos);
 			if (error == -1)
 				goto conndied;
