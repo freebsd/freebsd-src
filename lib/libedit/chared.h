@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)chared.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: chared.h,v 1.15 2005/08/01 23:00:15 christos Exp $
+ *	$NetBSD: chared.h,v 1.16 2005/08/08 14:05:37 christos Exp $
  * $FreeBSD$
  */
 
