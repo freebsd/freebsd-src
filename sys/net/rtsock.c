@@ -859,7 +859,7 @@ rt_ifmsg(struct ifnet *ifp)
 		return;
 	ifm = mtod(m, struct if_msghdr *);
 	ifm->ifm_index = ifp->if_index;
-	ifm->ifm_flags = ifp->if_flags;
+	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
 	ifm->ifm_data = ifp->if_data;
 	ifm->ifm_addrs = 0;
 	rt_dispatch(m, NULL);
@@ -1124,7 +1124,7 @@ sysctl_iflist(int af, struct walkarg *w)
 
 			ifm = (struct if_msghdr *)w->w_tmem;
 			ifm->ifm_index = ifp->if_index;
-			ifm->ifm_flags = ifp->if_flags;
+			ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
 			ifm->ifm_data = ifp->if_data;
 			ifm->ifm_addrs = info.rti_addrs;
 			error = SYSCTL_OUT(w->w_req,(caddr_t)ifm, len);
@@ -1178,6 +1178,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 			continue;
 		ifa = ifaddr_byindex(ifp->if_index);
 		info.rti_info[RTAX_IFP] = ifa ? ifa->ifa_addr : NULL;
+
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
