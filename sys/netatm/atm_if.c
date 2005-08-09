@@ -518,7 +518,8 @@ atm_physif_ioctl(code, data, arg)
 
 			if_initname(ifp, nip->nif_name, count);
 			ifp->if_mtu = ATM_NIF_MTU;
-			ifp->if_flags = IFF_UP | IFF_BROADCAST | IFF_RUNNING;
+			ifp->if_flags = IFF_UP | IFF_BROADCAST;
+			ifp->if_drv_flags = IFF_DRV_RUNNING;
 			ifp->if_output = atm_ifoutput;
 			ifp->if_ioctl = atm_if_ioctl;
 			ifp->if_snd.ifq_maxlen = ifqmaxlen;
@@ -992,7 +993,8 @@ atm_if_ioctl(ifp, cmd, data)
 
 	case SIOCSIFADDR:
 		error = atm_nif_setaddr ( nip, (struct ifaddr *)data);
-		ifp->if_flags |= IFF_UP | IFF_RUNNING | IFF_BROADCAST;
+		ifp->if_flags |= IFF_UP | IFF_BROADCAST;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		break;
 
 	case SIOCGIFFLAGS:

@@ -1835,7 +1835,7 @@ fxp_stop(struct fxp_softc *sc)
 	struct fxp_tx *txp;
 	int i;
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	ifp->if_timer = 0;
 
 #ifdef DEVICE_POLLING
@@ -2153,8 +2153,8 @@ fxp_init_body(struct fxp_softc *sc)
 	if (sc->miibus != NULL)
 		mii_mediachg(device_get_softc(sc->miibus));
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/*
 	 * Enable interrupts.
@@ -2378,7 +2378,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			fxp_init_body(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				fxp_stop(sc);
 		}
 		FXP_UNLOCK(sc);

@@ -445,7 +445,7 @@ ath_ratectl(void *arg)
 	struct ieee80211com *ic = &sc->sc_ic;
 	int interval;
 
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		sc->sc_stats.ast_rate_calls++;
 
 		if (ic->ic_opmode == IEEE80211_M_STA)

@@ -308,7 +308,7 @@ tulip_linkup(
     if ((sc->tulip_flags & TULIP_LINKUP) == 0)
 	sc->tulip_flags |= TULIP_PRINTLINKUP;
     sc->tulip_flags |= TULIP_LINKUP;
-    sc->tulip_ifp->if_flags &= ~IFF_OACTIVE;
+    sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 #if 0 /* XXX how does with work with ifmedia? */
     if ((sc->tulip_flags & TULIP_DIDNWAY) == 0) {
 	if (sc->tulip_ifp->if_flags & IFF_FULLDUPLEX) {
@@ -606,7 +606,7 @@ tulip_media_poll(
     }
 
     if (event == TULIP_MEDIAPOLL_START) {
-	sc->tulip_ifp->if_flags |= IFF_OACTIVE;
+	sc->tulip_ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	if (sc->tulip_probe_state != TULIP_PROBE_INACTIVE)
 	    return;
 	sc->tulip_probe_mediamask = 0;
@@ -778,7 +778,7 @@ tulip_media_poll(
 		if (++sc->tulip_probe_passes == 3) {
 		    if_printf(ifp, "autosense failed: cable problem?\n");
 		    if ((sc->tulip_ifp->if_flags & IFF_UP) == 0) {
-			sc->tulip_ifp->if_flags &= ~IFF_RUNNING;
+			sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			sc->tulip_probe_state = TULIP_PROBE_INACTIVE;
 			return;
 		    }
@@ -1027,7 +1027,7 @@ tulip_21041_media_poll(
      * restart the probe (and reset the tulip to a known state).
      */
     if (event == TULIP_MEDIAPOLL_START) {
-	sc->tulip_ifp->if_flags |= IFF_OACTIVE;
+	sc->tulip_ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	sc->tulip_cmdmode &= ~(TULIP_CMD_FULLDUPLEX|TULIP_CMD_RXRUN);
 #ifdef notyet
 	if (sc->tulip_revinfo >= 0x20) {
@@ -1134,7 +1134,7 @@ tulip_21041_media_poll(
 		if_printf(sc->tulip_ifp,
 		    "autosense failed: cable problem?\n");
 		if ((sc->tulip_ifp->if_flags & IFF_UP) == 0) {
-		    sc->tulip_ifp->if_flags &= ~IFF_RUNNING;
+		    sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		    sc->tulip_probe_state = TULIP_PROBE_INACTIVE;
 		    return;
 		}
@@ -1354,7 +1354,8 @@ tulip_mii_autonegotiate(
 			   ifp->if_xname, phyaddr);
 		sc->tulip_flags &= ~TULIP_TXPROBE_ACTIVE;
 		sc->tulip_probe_state = TULIP_PROBE_FAILED;
-		sc->tulip_ifp->if_flags &= ~(IFF_UP|IFF_RUNNING);
+		sc->tulip_ifp->if_flags &= ~IFF_UP;
+		sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		return;
 	    }
 	    status = tulip_mii_readreg(sc, phyaddr, PHYREG_STATUS);
@@ -3184,7 +3185,7 @@ tulip_reset(
     if (!inreset) {
 	sc->tulip_flags |= TULIP_INRESET;
 	sc->tulip_flags &= ~(TULIP_NEEDRESET|TULIP_RXBUFSLOW);
-	sc->tulip_ifp->if_flags &= ~IFF_OACTIVE;
+	sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
     }
 
 #if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NOTX)
@@ -3318,11 +3319,11 @@ tulip_init(
     tulip_softc_t * const sc)
 {
     if (sc->tulip_ifp->if_flags & IFF_UP) {
-	if ((sc->tulip_ifp->if_flags & IFF_RUNNING) == 0) {
+	if ((sc->tulip_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 	    /* initialize the media */
 	    tulip_reset(sc);
 	}
-	sc->tulip_ifp->if_flags |= IFF_RUNNING;
+	sc->tulip_ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	if (sc->tulip_ifp->if_flags & IFF_PROMISC) {
 	    sc->tulip_flags |= TULIP_PROMISC;
 	    sc->tulip_cmdmode |= TULIP_CMD_PROMISCUOUS;
@@ -3342,7 +3343,7 @@ tulip_init(
 	    sc->tulip_cmdmode |= TULIP_CMD_RXRUN;
 	    sc->tulip_intrmask |= TULIP_STS_RXSTOPPED;
 	} else {
-	    sc->tulip_ifp->if_flags |= IFF_OACTIVE;
+	    sc->tulip_ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	    sc->tulip_cmdmode &= ~TULIP_CMD_RXRUN;
 	    sc->tulip_intrmask &= ~TULIP_STS_RXSTOPPED;
 	}
@@ -3351,7 +3352,7 @@ tulip_init(
 	if ((sc->tulip_flags & (TULIP_WANTSETUP|TULIP_TXPROBE_ACTIVE)) == TULIP_WANTSETUP)
 	    tulip_txput_setup(sc);
     } else {
-	sc->tulip_ifp->if_flags &= ~IFF_RUNNING;
+	sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	tulip_reset(sc);
     }
 }
@@ -3774,7 +3775,7 @@ tulip_tx_intr(
 	    ri->ri_nextin = ri->ri_first;
 
 	if ((sc->tulip_flags & TULIP_TXPROBE_ACTIVE) == 0)
-	    sc->tulip_ifp->if_flags &= ~IFF_OACTIVE;
+	    sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
     }
     /*
      * If nothing left to transmit, disable the timer.
@@ -4280,7 +4281,7 @@ tulip_txput(
 
     if (sc->tulip_flags & TULIP_TXPROBE_ACTIVE) {
 	TULIP_CSR_WRITE(sc, csr_txpoll, 1);
-	sc->tulip_ifp->if_flags |= IFF_OACTIVE;
+	sc->tulip_ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	TULIP_PERFEND(txput);
 	return NULL;
     }
@@ -4309,7 +4310,7 @@ tulip_txput(
     sc->tulip_dbg.dbg_txput_finishes[6]++;
 #endif
     if (sc->tulip_flags & (TULIP_WANTTXSTART|TULIP_DOINGSETUP)) {
-	sc->tulip_ifp->if_flags |= IFF_OACTIVE;
+	sc->tulip_ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	if ((sc->tulip_intrmask & TULIP_STS_TXINTR) == 0) {
 	    sc->tulip_intrmask |= TULIP_STS_TXINTR;
 	    TULIP_CSR_WRITE(sc, csr_intr, sc->tulip_intrmask);
@@ -4494,7 +4495,7 @@ tulip_ifstart(
     TULIP_PERFSTART(ifstart)
     tulip_softc_t * const sc = (tulip_softc_t *)ifp->if_softc;
 
-    if (ifp->if_flags & IFF_RUNNING) {
+    if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 	TULIP_LOCK(sc);
 	tulip_start(sc);
 	TULIP_UNLOCK(sc);

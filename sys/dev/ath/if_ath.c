@@ -653,7 +653,7 @@ ath_resume(struct ath_softc *sc)
 
 	if (ifp->if_flags & IFF_UP) {
 		ath_init(sc);
-		if (ifp->if_flags & IFF_RUNNING)
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			ath_start(ifp);
 	}
 	if (sc->sc_softled) {
@@ -694,7 +694,8 @@ ath_intr(void *arg)
 	}
 	if (!ath_hal_intrpend(ah))		/* shared irq, not for us */
 		return;
-	if ((ifp->if_flags & (IFF_RUNNING|IFF_UP)) != (IFF_RUNNING|IFF_UP)) {
+	if (!((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags &
+	    IFF_DRV_RUNNING))) {
 		DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags 0x%x\n",
 			__func__, ifp->if_flags);
 		ath_hal_getisr(ah, &status);	/* clear ISR */
@@ -909,7 +910,7 @@ ath_init(void *arg)
 		sc->sc_imask |= HAL_INT_MIB;
 	ath_hal_intrset(ah, sc->sc_imask);
 
-	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ic->ic_state = IEEE80211_S_INIT;
 
 	/*
@@ -940,7 +941,7 @@ ath_stop_locked(struct ifnet *ifp)
 		__func__, sc->sc_invalid, ifp->if_flags);
 
 	ATH_LOCK_ASSERT(sc);
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/*
 		 * Shutdown the hardware and driver:
 		 *    reset 802.11 state machine
@@ -957,7 +958,7 @@ ath_stop_locked(struct ifnet *ifp)
 		 * hardware is gone (invalid).
 		 */
 		ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
-		ifp->if_flags &= ~IFF_RUNNING;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		ifp->if_timer = 0;
 		if (!sc->sc_invalid) {
 			if (sc->sc_softled) {
@@ -1062,7 +1063,7 @@ ath_start(struct ifnet *ifp)
 	struct ieee80211_frame *wh;
 	struct ether_header *eh;
 
-	if ((ifp->if_flags & IFF_RUNNING) == 0 || sc->sc_invalid)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
 	for (;;) {
 		/*
@@ -1077,7 +1078,7 @@ ath_start(struct ifnet *ifp)
 			DPRINTF(sc, ATH_DEBUG_ANY, "%s: out of xmit buffers\n",
 				__func__);
 			sc->sc_stats.ast_tx_qstop++;
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 		/*
@@ -1205,7 +1206,7 @@ static int
 ath_media_change(struct ifnet *ifp)
 {
 #define	IS_UP(ifp) \
-	((ifp->if_flags & (IFF_RUNNING|IFF_UP)) == (IFF_RUNNING|IFF_UP))
+	((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 	int error;
 
 	error = ieee80211_media_change(ifp);
@@ -3712,7 +3713,7 @@ ath_tx_proc_q0(void *arg, int npending)
 
 	ath_tx_processq(sc, &sc->sc_txq[0]);
 	ath_tx_processq(sc, sc->sc_cabq);
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_tx_timer = 0;
 
 	if (sc->sc_softled)
@@ -3740,7 +3741,7 @@ ath_tx_proc_q0123(void *arg, int npending)
 	ath_tx_processq(sc, &sc->sc_txq[3]);
 	ath_tx_processq(sc, sc->sc_cabq);
 
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_tx_timer = 0;
 
 	if (sc->sc_softled)
@@ -3767,7 +3768,7 @@ ath_tx_proc(void *arg, int npending)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_processq(sc, &sc->sc_txq[i]);
 
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_tx_timer = 0;
 
 	if (sc->sc_softled)
@@ -3855,7 +3856,7 @@ ath_draintxq(struct ath_softc *sc)
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_draintxq(sc, &sc->sc_txq[i]);
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_tx_timer = 0;
 }
 
@@ -4555,7 +4556,7 @@ ath_watchdog(struct ifnet *ifp)
 	struct ieee80211com *ic = &sc->sc_ic;
 
 	ifp->if_timer = 0;
-	if ((ifp->if_flags & IFF_RUNNING) == 0 || sc->sc_invalid)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
 	if (sc->sc_tx_timer) {
 		if (--sc->sc_tx_timer == 0) {
@@ -4634,7 +4635,7 @@ static int
 ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 #define	IS_RUNNING(ifp) \
-	((ifp->if_flags & (IFF_RUNNING|IFF_UP)) == (IFF_RUNNING|IFF_UP))
+	((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifreq *ifr = (struct ifreq *)data;
@@ -4672,7 +4673,7 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * the multicast address(es), just recalculate the
 		 * multicast filter for the card.
 		 */
-		if (ifp->if_flags & IFF_RUNNING)
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			ath_mode_init(sc);
 		break;
 	case SIOCGATHSTATS:

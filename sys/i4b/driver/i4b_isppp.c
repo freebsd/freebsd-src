@@ -280,7 +280,7 @@ i4bisppp_start(struct ifnet *ifp)
 
 	/*
 	 * s = splimp();
-	 * ifp->if_flags |= IFF_OACTIVE; // - need to clear this somewhere
+	 * ifp->if_drv_flags |= IFF_DRV_OACTIVE; // - need to clear this somewhere
 	 * splx(s);
 	 */
 

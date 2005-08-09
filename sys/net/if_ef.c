@@ -143,7 +143,7 @@ ef_attach(struct efnet *sc)
 
 	ifp->if_resolvemulti = 0;
 	ifp->if_type = IFT_XETHER;
-	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	EFDEBUG("%s: attached\n", ifp->if_xname);
 	return 1;
@@ -214,7 +214,7 @@ ef_start(struct ifnet *ifp)
 	struct mbuf *m;
 	int error;
 
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	p = sc->ef_pifp;
 
 	EFDEBUG("\n");
@@ -230,7 +230,7 @@ ef_start(struct ifnet *ifp)
 		}
 		ifp->if_opackets++;
 	}
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	return;
 }
 

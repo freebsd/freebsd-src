@@ -598,7 +598,7 @@ cbqrestart(struct ifaltq *ifq)
 
 	ifp = ifq->altq_ifp;
 	if (ifp->if_start &&
-	    cbqp->cbq_qlen > 0 && (ifp->if_flags & IFF_OACTIVE) == 0) {
+	    cbqp->cbq_qlen > 0 && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 	    	IFQ_UNLOCK(ifq);
 		(*ifp->if_start)(ifp);
 		IFQ_LOCK(ifq);

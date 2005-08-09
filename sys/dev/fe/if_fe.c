@@ -976,7 +976,7 @@ fe_stop (struct fe_softc *sc)
 	DELAY(200);
 
 	/* Reset transmitter variables and interface flags.  */
-	sc->ifp->if_flags &= ~(IFF_OACTIVE | IFF_RUNNING);
+	sc->ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
 	sc->ifp->if_timer = 0;
 	sc->txb_free = sc->txb_size;
 	sc->txb_count = 0;
@@ -1110,7 +1110,7 @@ fe_init (void * xsc)
 #endif
 
 	/* Set 'running' flag, because we are now running.   */
-	sc->ifp->if_flags |= IFF_RUNNING;
+	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	/*
 	 * At this point, the interface is running properly,
@@ -1162,7 +1162,7 @@ fe_xmit (struct fe_softc *sc)
  *  1) that the current priority is set to splimp _before_ this code
  *     is called *and* is returned to the appropriate priority after
  *     return
- *  2) that the IFF_OACTIVE flag is checked before this code is called
+ *  2) that the IFF_DRV_OACTIVE flag is checked before this code is called
  *     (i.e. that the output part of the interface is idle)
  */
 static void
@@ -1300,7 +1300,7 @@ fe_start (struct ifnet *ifp)
 	 * filled all the buffers with data then we still
 	 * want to accept more.
 	 */
-	sc->ifp->if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	return;
 
   indicate_active:
@@ -1308,7 +1308,7 @@ fe_start (struct ifnet *ifp)
 	 * The transmitter is active, and there are no room for
 	 * more outgoing packets in the transmission buffer.
 	 */
-	sc->ifp->if_flags |= IFF_OACTIVE;
+	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	return;
 }
 
@@ -1532,7 +1532,7 @@ fe_tint (struct fe_softc * sc, u_char tstat)
 		 * The transmitter is no more active.
 		 * Reset output active flag and watchdog timer.
 		 */
-		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->ifp->if_timer = 0;
 
 		/*
@@ -1723,7 +1723,7 @@ fe_intr (void *arg)
 		if (sc->filter_change &&
 		    sc->txb_count == 0 && sc->txb_sched == 0) {
 			fe_loadmar(sc);
-			sc->ifp->if_flags &= ~IFF_OACTIVE;
+			sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		}
 
 		/*
@@ -1739,7 +1739,7 @@ fe_intr (void *arg)
 		 * receiver interrupts.  86960 can raise a receiver
 		 * interrupt when the transmission buffer is full.
 		 */
-		if ((sc->ifp->if_flags & IFF_OACTIVE) == 0)
+		if ((sc->ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
 			fe_start(sc->ifp);
 	}
 
@@ -1767,10 +1767,10 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 		 * "stopped", reflecting the UP flag.
 		 */
 		if (sc->ifp->if_flags & IFF_UP) {
-			if ((sc->ifp->if_flags & IFF_RUNNING) == 0)
+			if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				fe_init(sc);
 		} else {
-			if ((sc->ifp->if_flags & IFF_RUNNING) != 0)
+			if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 				fe_stop(sc);
 		}
 
@@ -2084,7 +2084,6 @@ fe_mcaf ( struct fe_softc *sc )
 static void
 fe_setmode (struct fe_softc *sc)
 {
-	int flags = sc->ifp->if_flags;
 
 	/*
 	 * If the interface is not running, we postpone the update
@@ -2096,13 +2095,13 @@ fe_setmode (struct fe_softc *sc)
 	 * To complete the trick, fe_init() calls fe_setmode() after
 	 * restarting the interface.
 	 */
-	if (!(flags & IFF_RUNNING))
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 
 	/*
 	 * Promiscuous mode is handled separately.
 	 */
-	if (flags & IFF_PROMISC) {
+	if (sc->ifp->if_flags & IFF_PROMISC) {
 		/*
 		 * Program 86960 to receive all packets on the segment
 		 * including those directed to other stations.
@@ -2128,7 +2127,7 @@ fe_setmode (struct fe_softc *sc)
 	/*
 	 * Find the new multicast filter value.
 	 */
-	if (flags & IFF_ALLMULTI)
+	if (sc->ifp->if_flags & IFF_ALLMULTI)
 		sc->filter = fe_filter_all;
 	else
 		sc->filter = fe_mcaf(sc);

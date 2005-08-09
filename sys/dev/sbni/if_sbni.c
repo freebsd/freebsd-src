@@ -271,7 +271,7 @@ sbni_init(void *xsc)
 	 * kludge to avoid multiple initialization when more than once
 	 * protocols configured
 	 */
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	s = splimp();
@@ -279,8 +279,8 @@ sbni_init(void *xsc)
 	card_start(sc);
 	sc->wch = timeout(sbni_timeout, sc, hz/SBNI_HZ);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* attempt to start output */
 	sbni_start(ifp);
@@ -669,7 +669,7 @@ prepare_to_send(struct sbni_softc *sc)
 			sc->pktlen     = 0;
 			sc->tx_frameno = 0;
 			sc->framelen   = 0;
-			sc->ifp->if_flags &= ~IFF_OACTIVE;
+			sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			return;
 		}
 
@@ -689,7 +689,7 @@ prepare_to_send(struct sbni_softc *sc)
 	sc->framelen	= min(len, sc->maxframe);
 
 	sbni_outb(sc, CSR0, sbni_inb(sc, CSR0) | TR_REQ);
-	sc->ifp->if_flags |= IFF_OACTIVE;
+	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	BPF_MTAP(sc->ifp, sc->tx_buf_p);
 }
 
@@ -717,7 +717,7 @@ drop_xmit_queue(struct sbni_softc *sc)
 	sc->framelen	= 0;
 	sc->outpos	= 0;
 	sc->state &= ~(FL_WAIT_ACK | FL_NEED_RESEND);
-	sc->ifp->if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 
@@ -1062,12 +1062,12 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * If it is marked down and running, then stop it.
 		 */
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING))
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				sbni_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				sbni_stop(sc);
-				ifp->if_flags &= ~IFF_RUNNING;
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			}
 		}
 		break;

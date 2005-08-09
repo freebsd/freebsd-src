@@ -694,7 +694,7 @@ cs_detach(device_t dev)
 	ifp = sc->ifp;
 
 	cs_stop(sc);
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(ifp);
 	if_free(ifp);
 	cs_release_resources(dev);
@@ -768,8 +768,8 @@ cs_init(void *xsc)
 	/*
 	 * Set running and clear output active flags
 	 */
-	sc->ifp->if_flags |= IFF_RUNNING;
-	sc->ifp->if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/*
 	 * Start sending process
@@ -882,18 +882,18 @@ csintr(void *arg)
 				ifp->if_opackets++;
 			else
 				ifp->if_oerrors++;
-			ifp->if_flags &= ~IFF_OACTIVE;
+			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			ifp->if_timer = 0;
 			break;
 
 		case ISQ_BUFFER_EVENT:
 			if (status & READY_FOR_TX) {
-				ifp->if_flags &= ~IFF_OACTIVE;
+				ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 				ifp->if_timer = 0;
 			}
 
 			if (status & TX_UNDERRUN) {
-				ifp->if_flags &= ~IFF_OACTIVE;
+				ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 				ifp->if_timer = 0;
 				ifp->if_oerrors++;
 			}
@@ -909,7 +909,7 @@ csintr(void *arg)
 		}
 	}
 
-	if (!(ifp->if_flags & IFF_OACTIVE)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
 		cs_start(ifp);
 	}
 }
@@ -1003,7 +1003,7 @@ cs_start(struct ifnet *ifp)
 		if (!(cs_readreg(sc, PP_BusST) & READY_FOR_TX_NOW)) {
 			ifp->if_timer = sc->buf_len;
 			(void) splx(s);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			return;
 		}
 
@@ -1017,7 +1017,7 @@ cs_start(struct ifnet *ifp)
 		ifp->if_timer = length;
 
 		(void) splx(s);
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
 	}
 }
@@ -1035,7 +1035,7 @@ cs_stop(struct cs_softc *sc)
 	cs_writereg(sc, PP_BufCFG, 0);
 	cs_writereg(sc, PP_BusCTL, 0);
 
-	sc->ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->ifp->if_timer = 0;
 
 	(void) splx(s);
@@ -1112,11 +1112,11 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 		 * "stopped", reflecting the UP flag.
 		 */
 		if (sc->ifp->if_flags & IFF_UP) {
-			if ((sc->ifp->if_flags & IFF_RUNNING)==0) {
+			if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING)==0) {
 				cs_init(sc);
 			}
 		} else {
-			if ((sc->ifp->if_flags & IFF_RUNNING)!=0) {
+			if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING)!=0) {
 				cs_stop(sc);
 			}
 		}
