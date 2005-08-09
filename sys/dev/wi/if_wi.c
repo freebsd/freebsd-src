@@ -629,7 +629,7 @@ wi_intr(void *arg)
 		wi_tx_ex_intr(sc);
 	if (status & WI_EV_INFO)
 		wi_info_intr(sc);
-	if ((ifp->if_flags & IFF_OACTIVE) == 0 &&
+	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
 	    (sc->sc_flags & WI_FLAGS_OUTRANGE) == 0 &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		wi_start(ifp);
@@ -792,8 +792,8 @@ wi_init(void *arg)
 	wi_cmd(sc, WI_CMD_ENABLE | sc->sc_portnum, 0, 0, 0);
 
 	sc->sc_enabled = 1;
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	if (ic->ic_opmode == IEEE80211_M_AHDEMO ||
 	    ic->ic_opmode == IEEE80211_M_IBSS ||
 	    ic->ic_opmode == IEEE80211_M_MONITOR ||
@@ -866,7 +866,7 @@ wi_stop(struct ifnet *ifp, int disable)
 	sc->sc_scan_timer = 0;
 	sc->sc_false_syns = 0;
 	sc->sc_naps = 0;
-	ifp->if_flags &= ~(IFF_OACTIVE | IFF_RUNNING);
+	ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
 	ifp->if_timer = 0;
 
 	WI_UNLOCK(sc);
@@ -902,7 +902,7 @@ wi_start(struct ifnet *ifp)
 		IF_POLL(&ic->ic_mgtq, m0);
 		if (m0 != NULL) {
 			if (sc->sc_txd[cur].d_len != 0) {
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
 			IF_DEQUEUE(&ic->ic_mgtq, m0);
@@ -930,7 +930,7 @@ wi_start(struct ifnet *ifp)
 				break;
 			if (sc->sc_txd[cur].d_len != 0) {
 				IFQ_DRV_PREPEND(&ifp->if_snd, m0);
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
 			if (m0->m_len < sizeof(struct ether_header) &&
@@ -1121,7 +1121,7 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		WI_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ic->ic_opmode != IEEE80211_M_HOSTAP &&
-			    ifp->if_flags & IFF_RUNNING) {
+			    ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if (ifp->if_flags & IFF_PROMISC &&
 				    !(sc->sc_if_flags & IFF_PROMISC)) {
 					wi_write_val(sc, WI_RID_PROMISC, 1);
@@ -1135,7 +1135,7 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				wi_init(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				wi_stop(ifp, 1);
 			}
 			sc->wi_gone = 0;
@@ -1164,7 +1164,7 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 		if (error)
 			break;
-		if (!(ifp->if_flags & IFF_RUNNING) ||
+		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING) ||
 		    sc->sc_firmware_type == WI_LUCENT) {
 			error = EIO;
 			break;
@@ -1631,7 +1631,7 @@ wi_tx_intr(struct wi_softc *sc)
 	sc->sc_txd[cur].d_len = 0;
 	sc->sc_txcur = cur = (cur + 1) % sc->sc_ntxbuf;
 	if (sc->sc_txd[cur].d_len == 0)
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	else {
 		if (wi_cmd(sc, WI_CMD_TX | WI_RECLAIM, sc->sc_txd[cur].d_fid,
 		    0, 0)) {

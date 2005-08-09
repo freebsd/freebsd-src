@@ -621,7 +621,7 @@ nve_init(void *xsc)
 	ifp = sc->ifp;
 
 	/* Do nothing if already running */
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		goto fail;
 
 	nve_stop(sc);
@@ -650,8 +650,8 @@ nve_init(void *xsc)
 	nve_ifmedia_upd(ifp);
 
 	/* Update interface parameters */
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->stat_ch = timeout(nve_tick, sc, hz);
 
@@ -692,7 +692,7 @@ nve_stop(struct nve_softc *sc)
 	sc->cur_rx = 0;
 	sc->pending_rxs = 0;
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_stop - exit\n");
 
@@ -840,7 +840,7 @@ nve_ifstart(struct ifnet *ifp)
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_ifstart - entry\n");
 
 	/* If link is down/busy or queue is empty do nothing */
-	if (ifp->if_flags & IFF_OACTIVE || ifp->if_snd.ifq_head == NULL)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE || ifp->if_snd.ifq_head == NULL)
 		return;
 
 	/* Transmit queued packets until sent or TX ring is full */
@@ -915,7 +915,7 @@ nve_ifstart(struct ifnet *ifp)
 			/* The API TX queue is full - requeue the packet */
 			device_printf(sc->dev,
 			    "nve_ifstart: transmit queue is full\n");
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			bus_dmamap_unload(sc->mtag, buf->map);
 			IF_PREPEND(&ifp->if_snd, buf->mbuf);
 			buf->mbuf = NULL;
@@ -936,7 +936,7 @@ nve_ifstart(struct ifnet *ifp)
 		/* Copy packet to BPF tap */
 		BPF_MTAP(ifp, m0);
 	}
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_ifstart - exit\n");
 }
@@ -970,12 +970,12 @@ nve_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		/* Setup interface flags */
 		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_flags & IFF_RUNNING) == 0) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 				nve_init(sc);
 				break;
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				nve_stop(sc);
 				break;
 			}
@@ -987,7 +987,7 @@ nve_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		/* Setup multicast filter */
-		if (ifp->if_flags & IFF_RUNNING) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			nve_setmulti(sc);
 		}
 		break;
@@ -1249,7 +1249,7 @@ nve_watchdog(struct ifnet *ifp)
 	sc->tx_errors++;
 
 	nve_stop(sc);
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	nve_init(sc);
 
 	if (ifp->if_snd.ifq_head != NULL)
@@ -1490,7 +1490,7 @@ nve_ospackettx(PNV_VOID ctx, PNV_VOID id, NV_UINT32 success)
 
 	/* Send more packets if we have them */
 	if (sc->pending_txs < TX_RING_SIZE)
-		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	if (ifp->if_snd.ifq_head != NULL && sc->pending_txs < TX_RING_SIZE)
 		nve_ifstart(ifp);

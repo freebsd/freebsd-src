@@ -909,7 +909,7 @@ pcn_txeof(sc)
 	if (idx != sc->pcn_cdata.pcn_tx_cons) {
 		/* Some buffers have been freed. */
 		sc->pcn_cdata.pcn_tx_cons = idx;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 	ifp->if_timer = (sc->pcn_cdata.pcn_tx_cnt == 0) ? 0 : 5;
 
@@ -927,7 +927,7 @@ pcn_tick(xsc)
 	sc = xsc;
 	ifp = sc->pcn_ifp;
 	PCN_LOCK(sc);
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		PCN_UNLOCK(sc);
 		return;
 	}
@@ -1087,7 +1087,7 @@ pcn_start_locked(ifp)
 
 	idx = sc->pcn_cdata.pcn_tx_prod;
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	while(sc->pcn_cdata.pcn_tx_chain[idx] == NULL) {
@@ -1097,7 +1097,7 @@ pcn_start_locked(ifp)
 
 		if (pcn_encap(sc, m_head, &idx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -1254,8 +1254,8 @@ pcn_init_locked(sc)
 
 	mii_mediachg(mii);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	callout_reset(&sc->pcn_stat_callout, hz, pcn_tick, sc);
 
@@ -1326,7 +1326,7 @@ pcn_ioctl(ifp, command, data)
 	case SIOCSIFFLAGS:
 		PCN_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-                        if (ifp->if_flags & IFF_RUNNING &&
+                        if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->pcn_if_flags & IFF_PROMISC)) {
 				PCN_CSR_SETBIT(sc, PCN_CSR_EXTCTL1,
@@ -1336,7 +1336,7 @@ pcn_ioctl(ifp, command, data)
 				    PCN_EXTCTL1_SPND);
 				pcn_csr_write(sc, PCN_CSR_CSR,
 				    PCN_CSR_INTEN|PCN_CSR_START);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 				sc->pcn_if_flags & IFF_PROMISC) {
 				PCN_CSR_SETBIT(sc, PCN_CSR_EXTCTL1,
@@ -1346,10 +1346,10 @@ pcn_ioctl(ifp, command, data)
 				    PCN_EXTCTL1_SPND);
 				pcn_csr_write(sc, PCN_CSR_CSR,
 				    PCN_CSR_INTEN|PCN_CSR_START);
-			} else if (!(ifp->if_flags & IFF_RUNNING))
+			} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				pcn_init_locked(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				pcn_stop(sc);
 		}
 		sc->pcn_if_flags = ifp->if_flags;
@@ -1449,7 +1449,7 @@ pcn_stop(sc)
 	bzero((char *)&sc->pcn_ldata->pcn_tx_list,
 		sizeof(sc->pcn_ldata->pcn_tx_list));
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	return;
 }

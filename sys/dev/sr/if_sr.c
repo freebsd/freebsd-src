@@ -744,7 +744,7 @@ sr_xmit(struct sr_softc *sc)
  * This function only place the data in the oncard buffers. It does not
  * start the transmition. sr_xmit() does that.
  *
- * Transmitter idle state is indicated by the IFF_OACTIVE flag.
+ * Transmitter idle state is indicated by the IFF_DRV_OACTIVE flag.
  * The function that clears that should ensure that the transmitter
  * and its DMA is in a "good" idle state.
  */
@@ -773,7 +773,7 @@ srstart(struct sr_softc *sc)
 	printf("sr: srstart( ifp=%08x)\n", ifp);
 #endif
 	sc = ifp->if_softc;
-	if ((ifp->if_flags & IFF_RUNNING) == 0)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 #endif /* NETGRAPH */
 	hc = sc->hc;
@@ -799,9 +799,9 @@ top_srstart:
 	 */
 	if (sc->txb_inuse == SR_TX_BLOCKS) {	/* out of space? */
 #ifndef NETGRAPH
-		ifp->if_flags |= IFF_OACTIVE;	/* yes, mark active */
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;	/* yes, mark active */
 #else
-		/*ifp->if_flags |= IFF_OACTIVE;*/	/* yes, mark active */
+		/*ifp->if_drv_flags |= IFF_DRV_OACTIVE;*/	/* yes, mark active */
 #endif /* NETGRAPH */
 
 		if (hc->mempages)
@@ -1009,7 +1009,7 @@ srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	       ifp, cmd, data);
 #endif
 
-	was_up = ifp->if_flags & IFF_RUNNING;
+	was_up = ifp->if_drv_flags & IFF_DRV_RUNNING;
 
 	error = sppp_ioctl(ifp, cmd, data);
 
@@ -1048,7 +1048,7 @@ srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 
 	s = splimp();
-	should_be_up = ifp->if_flags & IFF_RUNNING;
+	should_be_up = ifp->if_drv_flags & IFF_DRV_RUNNING;
 
 	if (!was_up && should_be_up) {
 		/*
@@ -1101,7 +1101,7 @@ srwatchdog(struct sr_softc *sc)
 #endif
 
 #ifndef NETGRAPH
-	if (!(ifp->if_flags & IFF_RUNNING))
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 
 	ifp->if_oerrors++;	/* update output error count */
@@ -1133,9 +1133,9 @@ srwatchdog(struct sr_softc *sc)
 	}
 	sc->xmit_busy = 0;
 #ifndef NETGRAPH
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 #else
-	/*ifp->if_flags &= ~IFF_OACTIVE; */
+	/*ifp->if_drv_flags &= ~IFF_DRV_OACTIVE; */
 #endif /* NETGRAPH */
 
 	if (sc->txb_inuse && --sc->txb_inuse)
@@ -2281,7 +2281,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				/*
 				 * This should be the most common case.
 				 *
-				 * Clear the IFF_OACTIVE flag.
+				 * Clear the IFF_DRV_OACTIVE flag.
 				 *
 				 * Call srstart to start a new transmit if
 				 * there is data to transmit.
@@ -2291,7 +2291,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 #endif
 				sc->xmit_busy = 0;
 #ifndef NETGRAPH
-				SC2IFP(sc)->if_flags &= ~IFF_OACTIVE;
+				SC2IFP(sc)->if_drv_flags &= ~IFF_DRV_OACTIVE;
 				SC2IFP(sc)->if_timer = 0;
 #else
 				/* XXX may need to mark tx inactive? */

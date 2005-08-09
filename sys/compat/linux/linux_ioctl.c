@@ -2212,9 +2212,9 @@ linux_gifflags(struct thread *td, struct ifnet *ifp, struct l_ifreq *ifr)
 {
 	l_short flags;
 
-	flags = ifp->if_flags & 0xffff;
+	flags = (ifp->if_flags | ifp->if_drv_flags) & 0xffff;
 	/* these flags have no Linux equivalent */
-	flags &= ~(IFF_SMART|IFF_OACTIVE|IFF_SIMPLEX|
+	flags &= ~(IFF_SMART|IFF_DRV_OACTIVE|IFF_SIMPLEX|
 	    IFF_LINK0|IFF_LINK1|IFF_LINK2);
 	/* Linux' multicast flag is in a different bit */
 	if (flags & IFF_MULTICAST) {

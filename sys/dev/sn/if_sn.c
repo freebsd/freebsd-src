@@ -231,7 +231,7 @@ sn_detach(device_t dev)
 	struct ifnet	*ifp = sc->ifp;
 
 	snstop(sc);
-	ifp->if_flags &= ~IFF_RUNNING; 
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING; 
 	ether_ifdetach(ifp);
 	if_free(ifp);
 	sn_deactivate(dev);
@@ -337,8 +337,8 @@ sninit_locked(void *xsc)
 	/*
 	 * Mark the interface running but not active.
 	 */
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/*
 	 * Attempt to push out any waiting packets.
@@ -373,7 +373,7 @@ snstart_locked(struct ifnet *ifp)
 
 	SN_ASSERT_LOCKED(sc);
 
-	if (sc->ifp->if_flags & IFF_OACTIVE)
+	if (sc->ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 	if (sc->pages_wanted != -1) {
 		if_printf(ifp, "snstart() while memory allocation pending\n");
@@ -461,7 +461,7 @@ startagain:
 		sc->intr_mask = mask;
 
 		sc->ifp->if_timer = 1;
-		sc->ifp->if_flags |= IFF_OACTIVE;
+		sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		sc->pages_wanted = numPages;
 		return;
 	}
@@ -544,7 +544,7 @@ startagain:
 
 	CSR_WRITE_2(sc, MMU_CMD_REG_W, MMUCR_ENQUEUE);
 
-	sc->ifp->if_flags |= IFF_OACTIVE;
+	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	sc->ifp->if_timer = 1;
 
 	BPF_MTAP(ifp, top);
@@ -751,14 +751,14 @@ try_start:
 	/*
 	 * Now pass control to snstart() to queue any additional packets
 	 */
-	sc->ifp->if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	snstart(ifp);
 
 	/*
 	 * We've sent something, so we're active.  Set a watchdog in case the
 	 * TX_EMPTY interrupt is lost.
 	 */
-	sc->ifp->if_flags |= IFF_OACTIVE;
+	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	sc->ifp->if_timer = 1;
 
 	return;
@@ -845,7 +845,7 @@ sn_intr(void *arg)
 		 * Disable this interrupt.
 		 */
 		mask &= ~IM_ALLOC_INT;
-		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		snresume(sc->ifp);
 	}
 	/*
@@ -912,7 +912,7 @@ sn_intr(void *arg)
 		/*
 		 * Attempt to queue more transmits.
 		 */
-		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		snstart_locked(sc->ifp);
 	}
 	/*
@@ -950,7 +950,7 @@ sn_intr(void *arg)
 		/*
 		 * Attempt to enqueue some more stuff.
 		 */
-		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		snstart_locked(sc->ifp);
 	}
 	/*
@@ -1131,8 +1131,9 @@ snioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		SN_LOCK(sc);
-		if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
-			ifp->if_flags &= ~IFF_RUNNING;
+		if ((ifp->if_flags & IFF_UP) == 0 &&
+		    ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			snstop(sc);
 		} else {
 			/* reinitialize card on any parameter change */

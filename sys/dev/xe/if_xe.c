@@ -411,8 +411,8 @@ xe_init(void *xscp) {
   xe_setmedia(scp);
 
   /* Enable output */
-  scp->ifp->if_flags |= IFF_RUNNING;
-  scp->ifp->if_flags &= ~IFF_OACTIVE;
+  scp->ifp->if_drv_flags |= IFF_DRV_RUNNING;
+  scp->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
   (void)splx(s);
 }
@@ -420,8 +420,8 @@ xe_init(void *xscp) {
 
 /*
  * Start output on interface.  Should be called at splimp() priority.  Check
- * that the output is idle (ie, IFF_OACTIVE is not set) before calling this
- * function.  If media selection is in progress we set IFF_OACTIVE ourselves
+ * that the output is idle (ie, IFF_DRV_OACTIVE is not set) before calling this
+ * function.  If media selection is in progress we set IFF_DRV_OACTIVE ourselves
  * and return immediately.
  */
 static void
@@ -430,7 +430,7 @@ xe_start(struct ifnet *ifp) {
   struct mbuf *mbp;
 
   if (scp->autoneg_status != XE_AUTONEG_NONE) {
-    ifp->if_flags |= IFF_OACTIVE;
+    ifp->if_drv_flags |= IFF_DRV_OACTIVE;
     return;
   }
 
@@ -451,14 +451,14 @@ xe_start(struct ifnet *ifp) {
        * we haven't filled all the buffers with data then we still want to
        * accept more.
        */
-      ifp->if_flags &= ~IFF_OACTIVE;
+      ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
       return;
     }
 
     if (xe_pio_write_packet(scp, mbp) != 0) {
       /* Push the packet back onto the queue */
       IF_PREPEND(&ifp->if_snd, mbp);
-      ifp->if_flags |= IFF_OACTIVE;
+      ifp->if_drv_flags |= IFF_DRV_OACTIVE;
       return;
     }
 
@@ -496,13 +496,13 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
      * marked down and running, then stop it.
      */
     if (ifp->if_flags & IFF_UP) {
-      if (!(ifp->if_flags & IFF_RUNNING)) {
+      if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 	xe_reset(scp);
 	xe_init(scp);
       }
     }
     else {
-      if (ifp->if_flags & IFF_RUNNING)
+      if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 	xe_stop(scp);
     }
     /* FALL THROUGH  (handle changes to PROMISC/ALLMULTI flags) */
@@ -630,7 +630,7 @@ xe_intr(void *xscp)
 	}
       }
       ifp->if_timer = 0;
-      ifp->if_flags &= ~IFF_OACTIVE;
+      ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
     }
 
     /* Handle most MAC interrupts */
@@ -935,7 +935,7 @@ static void xe_setmedia(void *xscp) {
 
     case XE_AUTONEG_NONE:
       DEVPRINTF(2, (scp->dev, "Waiting for idle transmitter\n"));
-      scp->ifp->if_flags |= IFF_OACTIVE;
+      scp->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
       scp->autoneg_status = XE_AUTONEG_WAITING;
       /* FALL THROUGH */
 
@@ -1129,7 +1129,7 @@ static void xe_setmedia(void *xscp) {
 
   /* Restart output? */
   xe_enable_intr(scp);
-  scp->ifp->if_flags &= ~IFF_OACTIVE;
+  scp->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
   xe_start(scp->ifp);
 }
 
@@ -1198,10 +1198,10 @@ xe_stop(struct xe_softc *scp) {
   }
 
   /*
-   * ~IFF_RUNNING == interface down.
+   * ~IFF_DRV_RUNNING == interface down.
    */
-  scp->ifp->if_flags &= ~IFF_RUNNING;
-  scp->ifp->if_flags &= ~IFF_OACTIVE;
+  scp->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+  scp->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
   scp->ifp->if_timer = 0;
 
   (void)splx(s);

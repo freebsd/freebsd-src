@@ -191,7 +191,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #define RAY_COM_FRUNNING	0x0002		/* This one running	*/
 #define RAY_COM_FCOMPLETED	0x0004		/* This one completed	*/
 #define RAY_COM_FWAIT		0x0008		/* Do not run the queue */
-#define RAY_COM_FCHKRUNNING	0x0010		/* Check IFF_RUNNING	*/
+#define RAY_COM_FCHKRUNNING	0x0010		/* Check IFF_DRV_RUNNING*/
 #define RAY_COM_FDETACHED	0x0020		/* Card is gone		*/
 #define RAY_COM_FWOKEN		0x0040		/* Woken by detach	*/
 #define RAY_COM_FLAGS_PRINTFB	\
@@ -272,13 +272,13 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
  * of a change to the cards operating parameters (e.g. BSSID change), and
  * b) those that happen as a result of a change to the interface parameters
  * (e.g. a change to the IP address). The second set of entries need not
- * send a command to the card when the card is IFF_RUNNING. The
+ * send a command to the card when the card is IFF_DRV_RUNNING. The
  * RAY_COM_FCHKRUNNING flags indicates when the RUNNING flag should be
  * checked, and this macro does the necessary check and command abort.
  */
 #define RAY_COM_CHKRUNNING(sc, com, ifp) do {				\
     if (((com)->c_flags & RAY_COM_FCHKRUNNING) &&			\
-	((ifp)->if_flags & IFF_RUNNING)) {				\
+	((ifp)->if_drv_flags & IFF_DRV_RUNNING)) {			\
 	    ray_com_runq_done(sc);					\
 	    return;							\
 } } while (0)

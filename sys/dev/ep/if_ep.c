@@ -358,7 +358,7 @@ ep_detach(device_t dev)
 	if (bus_child_present(dev))
 		epstop(sc);
 
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
@@ -438,8 +438,8 @@ epinit_locked(struct ep_softc *sc)
 	CSR_WRITE_2(sc, EP_COMMAND, RX_ENABLE);
 	CSR_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;	/* just in case */
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;	/* just in case */
 
 #ifdef EP_LOCAL_STATS
 	sc->rx_no_first = sc->rx_no_mbuf =
@@ -480,7 +480,7 @@ epstart_locked(struct ifnet *ifp)
 		return;
 	EP_ASSERT_LOCKED(sc);
 	EP_BUSY_WAIT(sc);
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 startagain:
 	/* Sneak a peek at the next packet */
@@ -508,7 +508,7 @@ startagain:
 		CSR_WRITE_2(sc, EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
 		/* make sure */
 		if (CSR_READ_2(sc, EP_W1_FREE_TX) < len + pad + 4) {
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IF_PREPEND(&ifp->if_snd, m0);
 			goto done;
 		}
@@ -607,7 +607,7 @@ rescan:
 		if (status & S_TX_AVAIL) {
 			/* we need ACK */
 			ifp->if_timer = 0;
-			ifp->if_flags &= ~IFF_OACTIVE;
+			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			GO_WINDOW(sc, 1);
 			CSR_READ_2(sc, EP_W1_FREE_TX);
 			epstart_locked(ifp);
@@ -681,7 +681,7 @@ rescan:
 				/* pops up the next status */
 				CSR_WRITE_1(sc, EP_W1_TX_STATUS, 0x0);
 			}	/* while */
-			ifp->if_flags &= ~IFF_OACTIVE;
+			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			GO_WINDOW(sc, 1);
 			CSR_READ_2(sc, EP_W1_FREE_TX);
 			epstart_locked(ifp);
@@ -910,8 +910,8 @@ epioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		EP_LOCK(sc);
 		if (((ifp->if_flags & IFF_UP) == 0) &&
-		    (ifp->if_flags & IFF_RUNNING)) {
-			ifp->if_flags &= ~IFF_RUNNING;
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			epstop(sc);
 		} else
 			/* reinitialize card on any parameter change */
@@ -956,7 +956,7 @@ epwatchdog(struct ifnet *ifp)
 
 	if (sc->gone)
 		return;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	epstart(ifp);
 	ep_intr(ifp->if_softc);
 }

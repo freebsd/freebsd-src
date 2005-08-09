@@ -466,7 +466,7 @@ ietint(struct ie_softc *sc)
 	int	i;
 
 	sc->ifp->if_timer = 0;
-	sc->ifp->if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	for (i = 0; i < sc->xmit_count; i++) {
 		status = sc->xmit_cmds[i]->ie_xmit_status;
@@ -927,9 +927,9 @@ iestart(struct ifnet *ifp)
 	 */
 	volatile u_short *bptr = &sc->scb->ie_command_list;
 
-	if (!(ifp->if_flags & IFF_RUNNING))
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	do {
@@ -985,7 +985,7 @@ iestart(struct ifnet *ifp)
 		 * command.  I wish I understood what was happening here.
 		 */
 		command_and_wait(sc, IE_CU_START, 0, 0);
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	}
 	return;
 }
@@ -1601,9 +1601,9 @@ ieinit(xsc)
 		ee16_interrupt_enable(sc);
 		ee16_chan_attn(sc);
 	}
-	sc->ifp->if_flags |= IFF_RUNNING;	/* tell higher levels
+	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;	/* tell higher levels
 							 * we're here */
-	sc->ifp->if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	start_receiver(sc);
 
@@ -1632,11 +1632,11 @@ ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * filtering manually.
 		 */
 		if ((ifp->if_flags & IFF_UP) == 0 &&
-		    (ifp->if_flags & IFF_RUNNING)) {
-			ifp->if_flags &= ~IFF_RUNNING;
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			ie_stop(sc);
 		} else if ((ifp->if_flags & IFF_UP) &&
-			   (ifp->if_flags & IFF_RUNNING) == 0) {
+			   (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			sc->promisc =
 			    ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI);
 			ieinit(sc);
@@ -1794,7 +1794,7 @@ ie_detach (device_t dev)
 		ee16_shutdown(sc, 0);
 
 	ie_stop(sc);
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(ifp);
 	if_free(ifp);
 	ie_release_resources(dev);

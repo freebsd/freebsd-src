@@ -714,7 +714,7 @@ static int cp_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	bdrv_t *bd = d->board->sys;
 	int error, s, was_up, should_be_up;
 
-	was_up = (ifp->if_flags & IFF_RUNNING) != 0;
+	was_up = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
 	error = sppp_ioctl (ifp, cmd, data);
 
 	if (error)
@@ -736,7 +736,7 @@ static int cp_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* We get here only in case of SIFFLAGS or SIFADDR. */
 	s = splimp ();
 	CP_LOCK (bd);
-	should_be_up = (ifp->if_flags & IFF_RUNNING) != 0;
+	should_be_up = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
 	if (! was_up && should_be_up) {
 		/* Interface goes up -- start it. */
 		cp_up (d);
@@ -844,7 +844,7 @@ static void cp_send (drv_t *d)
 #endif
 	}
 #ifndef NETGRAPH
-	d->ifp->if_flags |= IFF_OACTIVE;
+	d->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 #endif
 }
 
@@ -896,7 +896,7 @@ static void cp_transmit (cp_chan_t *c, void *attachment, int len)
 	d->timeout = 0;
 #else
 	++d->ifp->if_opackets;
-	d->ifp->if_flags &= ~IFF_OACTIVE;
+	d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	d->ifp->if_timer = 0;
 #endif
 	cp_start (d);
@@ -973,7 +973,7 @@ static void cp_error (cp_chan_t *c, int data)
 		d->timeout = 0;
 #else
 		++d->ifp->if_oerrors;
-		d->ifp->if_flags &= ~IFF_OACTIVE;
+		d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		d->ifp->if_timer = 0;
 #endif
 		cp_start (d);
@@ -1063,7 +1063,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		error = suser (td);
 		if (error)
 			return error;
-		if (d->ifp->if_flags & IFF_RUNNING)
+		if (d->ifp->if_drv_flags & IFF_DRV_RUNNING)
 			return EBUSY;
 		if (! strcmp ("cisco", (char*)data)) {
 			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);

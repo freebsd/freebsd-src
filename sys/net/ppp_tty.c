@@ -207,7 +207,7 @@ pppopen(dev, tp)
     sc->sc_setmtu = pppasyncsetmtu;
     sc->sc_outm = NULL;
     pppgetm(sc);
-    PPP2IFP(sc)->if_flags |= IFF_RUNNING;
+    PPP2IFP(sc)->if_drv_flags |= IFF_DRV_RUNNING;
     getmicrotime(&PPP2IFP(sc)->if_lastchange);
     PPP2IFP(sc)->if_baudrate = tp->t_ospeed;
 

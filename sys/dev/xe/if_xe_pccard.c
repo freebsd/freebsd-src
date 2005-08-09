@@ -350,7 +350,7 @@ xe_pccard_detach(device_t dev)
 
 	DEVPRINTF(2, (dev, "pccard_detach\n"));
 
-	sc->ifp->if_flags &= ~IFF_RUNNING;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(sc->ifp);
 	if_free(sc->ifp);
 	xe_deactivate(dev);
