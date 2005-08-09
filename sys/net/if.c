@@ -1029,6 +1029,8 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 {
 	struct ifaddr *ifa;
 
+	KASSERT(flag == IFF_UP, ("if_unroute: flag != IFF_UP"));
+
 	ifp->if_flags &= ~flag;
 	getmicrotime(&ifp->if_lastchange);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
@@ -1051,6 +1053,8 @@ static void
 if_route(struct ifnet *ifp, int flag, int fam)
 {
 	struct ifaddr *ifa;
+
+	KASSERT(flag == IFF_UP, ("if_route: flag != IFF_UP"));
 
 	ifp->if_flags |= flag;
 	getmicrotime(&ifp->if_lastchange);
@@ -1229,7 +1233,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	struct ifreq *ifr;
 	struct ifstat *ifs;
 	int error = 0;
-	int new_flags;
+	int new_flags, temp_flags;
 	size_t namelen, onamelen;
 	char new_name[IFNAMSIZ];
 	struct ifaddr *ifa;
@@ -1242,8 +1246,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCGIFFLAGS:
-		ifr->ifr_flags = ifp->if_flags & 0xffff;
-		ifr->ifr_flagshigh = ifp->if_flags >> 16;
+		temp_flags = ifp->if_flags | ifp->if_drv_flags;
+		ifr->ifr_flags = temp_flags & 0xffff;
+		ifr->ifr_flagshigh = temp_flags >> 16;
 		break;
 
 	case SIOCGIFCAP:
@@ -1273,6 +1278,10 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = suser(td);
 		if (error)
 			return (error);
+		/*
+		 * Currently, no driver owned flags pass the IFF_CANTCHANGE
+		 * check, so we don't need special handling here yet.
+		 */
 		new_flags = (ifr->ifr_flags & 0xffff) |
 		    (ifr->ifr_flagshigh << 16);
 		if (ifp->if_flags & IFF_SMART) {
@@ -1610,10 +1619,12 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 }
 
 /*
- * The code common to hadling reference counted flags,
+ * The code common to handling reference counted flags,
  * e.g., in ifpromisc() and if_allmulti().
  * The "pflag" argument can specify a permanent mode flag,
  * such as IFF_PPROMISC for promiscuous mode; should be 0 if none.
+ *
+ * Only to be used on stack-owned flags, not driver-owned flags.
  */
 static int
 if_setflag(struct ifnet *ifp, int flag, int pflag, int *refcount, int onswitch)
@@ -1621,6 +1632,9 @@ if_setflag(struct ifnet *ifp, int flag, int pflag, int *refcount, int onswitch)
 	struct ifreq ifr;
 	int error;
 	int oldflags, oldcount;
+
+	KASSERT((flag & (IFF_DRV_OACTIVE|IFF_DRV_RUNNING)) == 0,
+	    ("if_setflag: setting driver-ownded flag %d", flag));
 
 	/* Sanity checks to catch programming errors */
 	if (onswitch) {
@@ -2258,7 +2272,7 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 		ifp->if_obytes += m->m_pkthdr.len + adjust;
 		if (m->m_flags & (M_BCAST|M_MCAST))
 			ifp->if_omcasts++;
-		active = ifp->if_flags & IFF_OACTIVE;
+		active = ifp->if_drv_flags & IFF_DRV_OACTIVE;
 	}
 	_IF_ENQUEUE(ifq, m);
 	IF_UNLOCK(ifq);
