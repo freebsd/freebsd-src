@@ -2070,6 +2070,7 @@ nd6_storelladdr(ifp, rt0, m, dst, desten)
 		m_freem(m);
 		return (error);
 	}
+	RT_UNLOCK(rt);
 
 	if (rt->rt_gateway->sa_family != AF_LINK) {
 		printf("nd6_storelladdr: something odd happens\n");

@@ -1302,11 +1302,12 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 		error = (rt->rt_flags & RTF_REJECT) &&
 			(rt->rt_rmx.rmx_expire == 0 ||
 				time_second < rt->rt_rmx.rmx_expire);
-		RT_UNLOCK(rt);
-		if (error)
+		if (error) {
+			RT_UNLOCK(rt);
 			senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
+		}
 	}
-	*lrt = rt;		/* NB: return unlocked */
+	*lrt = rt;
 	*lrt0 = rt0;
 	return (0);
 bad:
