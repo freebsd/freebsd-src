@@ -376,6 +376,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		m_freem(m);
 		return error;
 	}
+	RT_UNLOCK(rt);
 
 	if (m->m_flags & M_BCAST) {	/* broadcast */
 		(void)memcpy(desten, ifp->if_broadcastaddr, ifp->if_addrlen);

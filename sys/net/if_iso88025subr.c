@@ -262,6 +262,7 @@ iso88025_output(ifp, m, dst, rt0)
 	error = rt_check(&rt, &rt0, dst);
 	if (error)
 		goto bad;
+	RT_UNLOCK(rt);
 
 	if (rt && (sdl = (struct sockaddr_dl *)rt->rt_gateway))
 		if (SDL_ISO88025(sdl)->trld_rcf != 0)
