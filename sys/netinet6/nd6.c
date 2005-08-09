@@ -2028,11 +2028,13 @@ nd6_storelladdr(ifp, rt0, m, dst, desten)
 	struct sockaddr *dst;
 	u_char *desten;
 {
-	int i;
 	struct sockaddr_dl *sdl;
 	struct rtentry *rt;
+	int error;
 
 	if (m->m_flags & M_MCAST) {
+		int i;
+
 		switch (ifp->if_type) {
 		case IFT_ETHER:
 		case IFT_FDDI:
@@ -2063,17 +2065,12 @@ nd6_storelladdr(ifp, rt0, m, dst, desten)
 		}
 	}
 
-	i = rt_check(&rt, &rt0, dst);
-	if (i) {
+	error = rt_check(&rt, &rt0, dst);
+	if (error) {
 		m_freem(m);
-		return i;
+		return (error);
 	}
 
-	if (rt == NULL) {
-		/* this could happen, if we could not allocate memory */
-		m_freem(m);
-		return (ENOMEM);
-	}
 	if (rt->rt_gateway->sa_family != AF_LINK) {
 		printf("nd6_storelladdr: something odd happens\n");
 		m_freem(m);
