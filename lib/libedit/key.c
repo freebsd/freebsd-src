@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: key.c,v 1.16 2005/07/06 21:13:02 christos Exp $
+ *	$NetBSD: key.c,v 1.17 2005/08/08 14:05:37 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
