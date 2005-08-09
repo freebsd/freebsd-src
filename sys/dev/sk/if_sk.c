@@ -1244,14 +1244,14 @@ sk_ioctl(ifp, command, data)
 			error = EINVAL;
 		else {
 			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			sk_init(sc_if);
 		}
 		break;
 	case SIOCSIFFLAGS:
 		SK_IF_LOCK(sc_if);
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if ((ifp->if_flags ^ sc_if->sk_if_flags)
 				    & IFF_PROMISC) {
 					sk_setpromisc(sc_if);
@@ -1260,7 +1260,7 @@ sk_ioctl(ifp, command, data)
 			} else
 				sk_init(sc_if);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				sk_stop(sc_if);
 		}
 		sc_if->sk_if_flags = ifp->if_flags;
@@ -1269,7 +1269,7 @@ sk_ioctl(ifp, command, data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifp->if_flags & IFF_RUNNING) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			SK_IF_LOCK(sc_if);
 			sk_setmulti(sc_if);
 			SK_IF_UNLOCK(sc_if);
@@ -2052,7 +2052,7 @@ sk_start(ifp)
 		 */
 		if (sk_encap(sc_if, m_head, &idx)) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -2086,7 +2086,7 @@ sk_watchdog(ifp)
 	sc_if = ifp->if_softc;
 
 	printf("sk%d: watchdog timeout\n", sc_if->sk_unit);
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	sk_init(sc_if);
 
 	return;
@@ -2221,7 +2221,7 @@ sk_txeof(sc_if)
 		CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
 
 	if (sc_if->sk_cdata.sk_tx_cnt < SK_TX_RING_CNT - 2)
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc_if->sk_cdata.sk_tx_cons = idx;
 }
@@ -2297,7 +2297,7 @@ sk_intr_bcom(sc_if)
 	 */
 	status = sk_xmac_miibus_readreg(sc_if, SK_PHYADDR_BCOM, BRGPHY_MII_ISR);
 
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		sk_init_xmac(sc_if);
 		return;
 	}
@@ -2429,14 +2429,16 @@ sk_intr(xsc)
 		}
 
 		/* Then MAC interrupts. */
-		if (status & SK_ISR_MAC1 && ifp0->if_flags & IFF_RUNNING) {
+		if (status & SK_ISR_MAC1 &&
+		    ifp0->if_drv_flags & IFF_DRV_RUNNING) {
 			if (sc->sk_type == SK_GENESIS)
 				sk_intr_xmac(sc_if0);
 			else
 				sk_intr_yukon(sc_if0);
 		}
 
-		if (status & SK_ISR_MAC2 && ifp1->if_flags & IFF_RUNNING) {
+		if (status & SK_ISR_MAC2 &&
+		    ifp1->if_drv_flags & IFF_DRV_RUNNING) {
 			if (sc->sk_type == SK_GENESIS)
 				sk_intr_xmac(sc_if1);
 			else
@@ -2760,7 +2762,7 @@ sk_init(xsc)
 	sc = sc_if->sk_softc;
 	mii = device_get_softc(sc_if->sk_miibus);
 
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		SK_IF_UNLOCK(sc_if);
 		return;
 	}
@@ -2889,8 +2891,8 @@ sk_init(xsc)
 		SK_YU_WRITE_2(sc_if, YUKON_GPCR, reg);
 	}
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	SK_IF_UNLOCK(sc_if);
 
@@ -2975,7 +2977,7 @@ sk_stop(sc_if)
 		}
 	}
 
-	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 	SK_IF_UNLOCK(sc_if);
 	return;
 }

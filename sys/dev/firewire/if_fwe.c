@@ -289,7 +289,11 @@ fwe_stop(struct fwe_softc *fwe)
 		fwe->dma_ch = -1;
 	}
 
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+#else
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+#endif
 }
 
 static int
@@ -404,8 +408,13 @@ found:
 	if ((xferq->flag & FWXFERQ_RUNNING) == 0)
 		fc->irx_enable(fc, fwe->dma_ch);
 
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
+#endif
 
 	FWE_POLL_REGISTER(fwe_poll, fwe, ifp);
 #if 0
@@ -426,10 +435,18 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case SIOCSIFFLAGS:
 			s = splimp();
 			if (ifp->if_flags & IFF_UP) {
+#if defined(__FreeBSD__)
+				if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+#else
 				if (!(ifp->if_flags & IFF_RUNNING))
+#endif
 					fwe_init(&fwe->eth_softc);
 			} else {
+#if defined(__FreeBSD__)
+				if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+#else
 				if (ifp->if_flags & IFF_RUNNING)
+#endif
 					fwe_stop(fwe);
 			}
 			/* XXX keep promiscoud mode */
@@ -525,12 +542,20 @@ fwe_start(struct ifnet *ifp)
 	}
 
 	s = splimp();
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags |= IFF_OACTIVE;
+#endif
 
 	if (ifp->if_snd.ifq_len != 0)
 		fwe_as_output(fwe, ifp);
 
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags &= ~IFF_OACTIVE;
+#endif
 	splx(s);
 }
 

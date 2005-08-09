@@ -901,7 +901,7 @@ ste_txeof(sc)
 
 		m_freem(cur_tx->ste_mbuf);
 		cur_tx->ste_mbuf = NULL;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		ifp->if_opackets++;
 
 		STE_INC(idx, STE_TX_LIST_CNT);
@@ -1376,8 +1376,8 @@ ste_init(xsc)
 
 	ste_ifmedia_upd(ifp);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->ste_stat_ch = timeout(ste_stats_update, sc, hz);
 	STE_UNLOCK(sc);
@@ -1396,7 +1396,7 @@ ste_stop(sc)
 	ifp = sc->ste_ifp;
 
 	untimeout(ste_stats_update, sc, sc->ste_stat_ch);
-	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
 #endif /* DEVICE_POLLING */
@@ -1480,26 +1480,26 @@ ste_ioctl(ifp, command, data)
 	switch(command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->ste_if_flags & IFF_PROMISC)) {
 				STE_SETBIT1(sc, STE_RX_MODE,
 				    STE_RXMODE_PROMISC);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->ste_if_flags & IFF_PROMISC) {
 				STE_CLRBIT1(sc, STE_RX_MODE,
 				    STE_RXMODE_PROMISC);
 			} 
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    (ifp->if_flags ^ sc->ste_if_flags) & IFF_ALLMULTI)
 				ste_setmulti(sc);
-			if (!(ifp->if_flags & IFF_RUNNING)) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				sc->ste_tx_thresh = STE_TXSTART_THRESH;
 				ste_init(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ste_stop(sc);
 		}
 		sc->ste_if_flags = ifp->if_flags;
@@ -1596,7 +1596,7 @@ ste_start(ifp)
 		return;
 	}
 
-	if (ifp->if_flags & IFF_OACTIVE) {
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		STE_UNLOCK(sc);
 		return;
 	}
@@ -1610,7 +1610,7 @@ ste_start(ifp)
 		 */
 		if (STE_NEXT(idx, STE_TX_LIST_CNT) ==
 		    sc->ste_cdata.ste_tx_cons) {
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 

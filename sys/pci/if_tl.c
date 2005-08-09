@@ -1655,7 +1655,7 @@ tl_intvec_txeoc(xsc, type)
 	ifp->if_timer = 0;
 
 	if (sc->tl_cdata.tl_tx_head == NULL) {
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->tl_cdata.tl_tx_tail = NULL;
 		sc->tl_txeoc = 1;
 	} else {
@@ -1969,7 +1969,7 @@ tl_start(ifp)
 	 * punt.
 	 */
 	if (sc->tl_cdata.tl_tx_free == NULL) {
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		TL_UNLOCK(sc);
 		return;
 	}
@@ -2124,8 +2124,8 @@ tl_init(xsc)
 	/* Send the RX go command */
 	CMD_SET(sc, TL_CMD_GO|TL_CMD_NES|TL_CMD_RT);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* Start the stats update counter */
 	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
@@ -2206,12 +2206,12 @@ tl_ioctl(ifp, command, data)
 	switch(command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->tl_if_flags & IFF_PROMISC)) {
 				tl_dio_setbit(sc, TL_NETCMD, TL_CMD_CAF);
 				tl_setmulti(sc);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->tl_if_flags & IFF_PROMISC) {
 				tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_CAF);
@@ -2219,7 +2219,7 @@ tl_ioctl(ifp, command, data)
 			} else
 				tl_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				tl_stop(sc);
 			}
 		}
@@ -2332,7 +2332,7 @@ tl_stop(sc)
 	bzero((char *)&sc->tl_ldata->tl_tx_list,
 		sizeof(sc->tl_ldata->tl_tx_list));
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	TL_UNLOCK(sc);
 
 	return;

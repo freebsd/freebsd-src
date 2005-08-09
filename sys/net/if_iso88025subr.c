@@ -253,7 +253,8 @@ iso88025_output(ifp, m, dst, rt0)
 
 	if (ifp->if_flags & IFF_MONITOR)
 		senderr(ENETDOWN);
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
 		senderr(ENETDOWN);
 	getmicrotime(&ifp->if_lastchange);
 
@@ -484,7 +485,8 @@ iso88025_input(ifp, m)
 	/*
 	 * Discard packet if interface is not up.
 	 */
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
 		goto dropanyway;
 
 	/*

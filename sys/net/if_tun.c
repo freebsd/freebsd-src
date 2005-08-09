@@ -360,7 +360,7 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 		splx(s);
 	}
 
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		struct ifaddr *ifa;
 
 		s = splimp();
@@ -370,7 +370,7 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 				/* Unlocked read. */
 				rtinit(ifa, (int)RTM_DELETE,
 				    tp->tun_flags & TUN_DSTADDR ? RTF_HOST : 0);
-		ifp->if_flags &= ~IFF_RUNNING;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		splx(s);
 	}
 
@@ -389,7 +389,8 @@ tuninit(struct ifnet *ifp)
 
 	TUNDEBUG(ifp, "tuninit\n");
 
-	ifp->if_flags |= IFF_UP | IFF_RUNNING;
+	ifp->if_flags |= IFF_UP;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	getmicrotime(&ifp->if_lastchange);
 
 	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;

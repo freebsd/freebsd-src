@@ -274,7 +274,7 @@ ex_detach(device_t dev)
 
         ex_stop(sc);
 
-        ifp->if_flags &= ~IFF_RUNNING;
+        ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
@@ -354,8 +354,8 @@ ex_init(void *xsc)
 	CSR_WRITE_2(sc, XMT_BAR, sc->tx_lower_limit);
 	sc->tx_head = sc->tx_tail = sc->tx_lower_limit;
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	DODEBUG(Status, printf("OIDLE init\n"););
 	
 	ex_setmulti(sc);
@@ -392,7 +392,7 @@ ex_start(struct ifnet *ifp)
 	 * more packets left, or the card cannot accept any more yet.
 	 */
 	while (((opkt = ifp->if_snd.ifq_head) != NULL) &&
-	       !(ifp->if_flags & IFF_OACTIVE)) {
+	       !(ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
 
 		/*
 		 * Ensure there is enough free transmit buffer space for
@@ -538,7 +538,7 @@ ex_start(struct ifnet *ifp)
 			ifp->if_opackets++;
 			m_freem(opkt);
 		} else {
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			DODEBUG(Status, printf("OACTIVE start\n"););
 		}
 	}
@@ -656,7 +656,7 @@ ex_tx_intr(struct ex_softc *sc)
 	 * The card should be ready to accept more packets now.
 	 */
 
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	DODEBUG(Status, printf("OIDLE tx_intr\n"););
 	DODEBUG(Start_End, printf("ex_tx_intr%d: finish\n", unit););
@@ -792,9 +792,9 @@ ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 		case SIOCSIFFLAGS:
 			DODEBUG(Start_End, printf("SIOCSIFFLAGS"););
 			if ((ifp->if_flags & IFF_UP) == 0 &&
-			    (ifp->if_flags & IFF_RUNNING)) {
+			    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 
-				ifp->if_flags &= ~IFF_RUNNING;
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				ex_stop(sc);
 			} else {
       				ex_init(sc);
@@ -951,7 +951,7 @@ ex_watchdog(struct ifnet *ifp)
 
 	DODEBUG(Start_End, printf("%s: ex_watchdog: start\n", ifp->if_xname););
 
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	DODEBUG(Status, printf("OIDLE watchdog\n"););
 

@@ -444,12 +444,13 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case SIOCSIFFLAGS:	/* set interface flags */
 			if(!(ifr->ifr_flags & IFF_UP))
 			{
-				if(sc->sc_ifp->if_flags & IFF_RUNNING)
+				if(sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
 				{
 					/* disconnect ISDN line */
 					i4b_l4_drvrdisc(BDRV_IPR,
 					    ifp->if_dunit);
-					sc->sc_ifp->if_flags &= ~IFF_RUNNING;
+					sc->sc_ifp->if_drv_flags &=
+					    ~IFF_DRV_RUNNING;
 				}
 
 				sc->sc_state = ST_IDLE;
@@ -594,7 +595,7 @@ ipr_connect(int unit, void *cdp)
 
 	NDBGL4(L4_DIALST, "ipr%d: setting dial state to ST_CONNECTED", unit);
 
-	sc->sc_ifp->if_flags |= IFF_RUNNING;
+	sc->sc_ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sc->sc_state = ST_CONNECTED_W;
 
 	sc->sc_dialresp = DSTAT_NONE;
@@ -687,7 +688,7 @@ ipr_disconnect(int unit, void *cdp)
 	sc->sc_dialresp = DSTAT_NONE;
 	sc->sc_lastdialresp = DSTAT_NONE;	
 
-	sc->sc_ifp->if_flags &= ~IFF_RUNNING;
+	sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	sc->sc_state = ST_IDLE;
 }
 

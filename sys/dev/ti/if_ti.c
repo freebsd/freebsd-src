@@ -2594,7 +2594,7 @@ ti_txeof(sc)
 	}
 
 	if (cur_tx != NULL)
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 static void
@@ -2620,7 +2620,7 @@ ti_intr(xsc)
 	/* Ack interrupt and stop others from occuring. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 1);
 
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check RX return ring producer/consumer */
 		ti_rxeof(sc);
 
@@ -2633,7 +2633,8 @@ ti_intr(xsc)
 	/* Re-enable interrupts. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 0);
 
-	if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    ifp->if_snd.ifq_head != NULL)
 		ti_start(ifp);
 
 	TI_UNLOCK(sc);
@@ -2789,7 +2790,7 @@ ti_start(ifp)
 			if ((TI_TX_RING_CNT - sc->ti_txcnt) <
 			    m_head->m_pkthdr.csum_data + 16) {
 				IF_PREPEND(&ifp->if_snd, m_head);
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
 		}
@@ -2801,7 +2802,7 @@ ti_start(ifp)
 		 */
 		if (ti_encap(sc, m_head, &prodidx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -2909,8 +2910,8 @@ static void ti_init2(sc)
 	/* Enable host interrupts. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 0);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/*
 	 * Make sure to set media properly. We have to do this
@@ -3110,12 +3111,12 @@ ti_ioctl(ifp, command, data)
 			 * waiting for it to start up, which may take a
 			 * second or two.
 			 */
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->ti_if_flags & IFF_PROMISC)) {
 				TI_DO_CMD(TI_CMD_SET_PROMISC_MODE,
 				    TI_CMD_CODE_PROMISC_ENB, 0);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->ti_if_flags & IFF_PROMISC) {
 				TI_DO_CMD(TI_CMD_SET_PROMISC_MODE,
@@ -3123,7 +3124,7 @@ ti_ioctl(ifp, command, data)
 			} else
 				ti_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				ti_stop(sc);
 			}
 		}
@@ -3132,7 +3133,7 @@ ti_ioctl(ifp, command, data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifp->if_flags & IFF_RUNNING) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			ti_setmulti(sc);
 			error = 0;
 		}
@@ -3148,7 +3149,7 @@ ti_ioctl(ifp, command, data)
 				ifp->if_capenable &= ~IFCAP_HWCSUM;
 			else
 				ifp->if_capenable |= IFCAP_HWCSUM;
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ti_init(sc);
 		}
 		error = 0;
@@ -3529,7 +3530,7 @@ ti_stop(sc)
 	sc->ti_tx_considx.ti_idx = 0;
 	sc->ti_tx_saved_considx = TI_TXCONS_UNSET;
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	TI_UNLOCK(sc);
 }
 

@@ -786,7 +786,7 @@ iwi_resume(device_t dev)
 
 	if (ifp->if_flags & IFF_UP) {
 		ifp->if_init(ifp->if_softc);
-		if (ifp->if_flags & IFF_RUNNING)
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			ifp->if_start(ifp);
 	}
 
@@ -809,7 +809,7 @@ iwi_media_change(struct ifnet *ifp)
 		return error;
 	}
 
-	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
+	if ((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 		iwi_init(sc);
 
 	IWI_UNLOCK(sc);
@@ -1247,7 +1247,7 @@ iwi_tx_intr(struct iwi_softc *sc)
 	}
 
 	sc->sc_tx_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	iwi_start(ifp);
 }
 
@@ -1460,7 +1460,7 @@ iwi_start(struct ifnet *ifp)
 
 		if (sc->txq.queued >= IWI_TX_RING_COUNT - 4) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m0);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -1538,10 +1538,10 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING))
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				iwi_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				iwi_stop(sc);
 		}
 		break;
@@ -1570,8 +1570,8 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 
 	if (error == ENETRESET) {
-		if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
-		    (IFF_UP | IFF_RUNNING))
+		if ((ifp->if_flags & IFF_UP) &&
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			iwi_init(sc);
 		error = 0;
 	}
@@ -2276,8 +2276,8 @@ iwi_init(void *priv)
 	else
 		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 
-	ifp->if_flags &= ~IFF_OACTIVE;
-	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	return;
 
@@ -2303,7 +2303,7 @@ iwi_stop(void *priv)
 
 	sc->sc_tx_timer = 0;
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 }

@@ -820,7 +820,7 @@ lnc_tint(struct lnc_softc *sc)
 		 * more packets again.
 		 */
 
-		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		lookahead++;
 
@@ -1070,8 +1070,8 @@ printf("Enabling lnc interrupts\n");
 		 * running and transmit any pending packets.
 		 */
 		write_csr(sc, CSR0, STRT | INEA);
-		sc->ifp->if_flags |= IFF_RUNNING;
-		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		lnc_start(sc->ifp);
 	} else
 		log(LOG_ERR, "%s: Initialisation failed\n", 
@@ -1130,8 +1130,8 @@ lncintr(void *arg)
 printf("IDON\n");
 			sc->ifp->if_timer = 0;
 			write_csr(sc, CSR0, STRT | INEA);
-			sc->ifp->if_flags |= IFF_RUNNING;
-			sc->ifp->if_flags &= ~IFF_OACTIVE;
+			sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
+			sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			lnc_start(sc->ifp);
 			continue;
 		}
@@ -1174,7 +1174,7 @@ printf("IDON\n");
 		 * some more transmit packets.
 		 */
 
-		if (!(sc->ifp->if_flags & IFF_OACTIVE))
+		if (!(sc->ifp->if_drv_flags & IFF_DRV_OACTIVE))
 			lnc_start(sc->ifp);
 	}
 }
@@ -1213,9 +1213,9 @@ chain_to_cluster(struct mbuf *m)
 }
 
 /*
- * IFF_OACTIVE and IFF_RUNNING are checked in ether_output so it's redundant
- * to check them again since we wouldn't have got here if they were not
- * appropriately set. This is also called from lnc_init and lncintr but the
+ * IFF_DRV_OACTIVE and IFF_DRV_RUNNING are checked in ether_output so it's
+ * redundant to check them again since we wouldn't have got here if they were
+ * not appropriately set. This is also called from lnc_init and lncintr but the
  * flags should be ok at those points too.
  */
 
@@ -1366,11 +1366,11 @@ lnc_start(struct ifnet *ifp)
 	} while (sc->pending_transmits < NDESC(sc->ntdre));
 
 	/*
-	 * Transmit ring is full so set IFF_OACTIVE
+	 * Transmit ring is full so set IFF_DRV_OACTIVE
 	 * since we can't buffer any more packets.
 	 */
 
-	sc->ifp->if_flags |= IFF_OACTIVE;
+	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	LNCSTATS(trans_ring_full)
 }
 
@@ -1412,15 +1412,15 @@ lnc_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 		}
 
 		if ((ifp->if_flags & IFF_UP) == 0 &&
-		    (ifp->if_flags & IFF_RUNNING) != 0) {
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			/*
 			 * If interface is marked down and it is running,
 			 * then stop it.
 			 */
 			lnc_stop(sc);
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		} else if ((ifp->if_flags & IFF_UP) != 0 &&
-			   (ifp->if_flags & IFF_RUNNING) == 0) {
+			   (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			/*
 			 * If interface is marked up and it is stopped, then
 			 * start it.

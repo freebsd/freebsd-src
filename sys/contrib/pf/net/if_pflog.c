@@ -272,9 +272,9 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFDSTADDR:
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP)
-			ifp->if_flags |= IFF_RUNNING;
+			ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		else
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		break;
 	default:
 		return (EINVAL);

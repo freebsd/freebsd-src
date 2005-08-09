@@ -413,7 +413,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
 			return (error);
 		}
 		ifv->ifv_tag = tag;
-		ifp->if_flags |= IFF_RUNNING;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		VLAN_UNLOCK();
 
 		/* Update promiscuous mode, if necessary. */
@@ -467,7 +467,7 @@ vlan_start(struct ifnet *ifp)
 	ifv = ifp->if_softc;
 	p = ifv->ifv_p;
 
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	for (;;) {
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == 0)
@@ -478,8 +478,8 @@ vlan_start(struct ifnet *ifp)
 		 * Do not run parent's if_start() if the parent is not up,
 		 * or parent's driver will cause a system crash.
 		 */
-		if ((p->if_flags & (IFF_UP | IFF_RUNNING)) !=
-					(IFF_UP | IFF_RUNNING)) {
+		if (!((p->if_flags & IFF_UP) &&
+		    (p->if_drv_flags & IFF_DRV_RUNNING))) {
 			m_freem(m);
 			ifp->if_collisions++;
 			continue;
@@ -550,7 +550,7 @@ vlan_start(struct ifnet *ifp)
 		else
 			ifp->if_oerrors++;
 	}
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 static void
@@ -926,7 +926,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			vlan_unconfig(ifp);
 			if (ifp->if_flags & IFF_UP)
 				if_down(ifp);
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			VLAN_UNLOCK();
 			break;
 		}
@@ -950,7 +950,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		ifv->ifv_tag = vlr.vlr_tag;
-		ifp->if_flags |= IFF_RUNNING;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		VLAN_UNLOCK();
 
 		/* Update promiscuous mode, if necessary. */

@@ -607,9 +607,9 @@ ar_xmit(struct ar_softc *sc)
  * This function only place the data in the oncard buffers. It does not
  * start the transmition. ar_xmit() does that.
  *
- * Transmitter idle state is indicated by the IFF_OACTIVE flag. The function
- * that clears that should ensure that the transmitter and its DMA is
- * in a "good" idle state.
+ * Transmitter idle state is indicated by the IFF_DRV_OACTIVE flag. The
+ * function that clears that should ensure that the transmitter and its
+ * DMA is in a "good" idle state.
  */
 #ifndef NETGRAPH
 static void
@@ -628,7 +628,7 @@ arstart(struct ar_softc *sc)
 	struct buf_block *blkp;
 
 #ifndef NETGRAPH
-	if(!(ifp->if_flags & IFF_RUNNING))
+	if(!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 #else	/* NETGRAPH */
 /* XXX */
@@ -641,9 +641,9 @@ top_arstart:
 	 */
 	if(sc->txb_inuse == AR_TX_BLOCKS) {
 #ifndef NETGRAPH
-		ifp->if_flags |= IFF_OACTIVE;	/* yes, mark active */
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;	/* yes, mark active */
 #else	/* NETGRAPH */
-/*XXX*/		/*ifp->if_flags |= IFF_OACTIVE;*/	/* yes, mark active */
+/*XXX*/		/*ifp->if_drv_flags |= IFF_DRV_OACTIVE;*/	/* yes, mark active */
 #endif /* NETGRAPH */
 		return;
 	}
@@ -775,7 +775,7 @@ arioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	TRC(if_printf(ifp, "arioctl.\n");)
 
-	was_up = ifp->if_flags & IFF_RUNNING;
+	was_up = ifp->if_drv_flags & IFF_DRV_RUNNING;
 
 	error = sppp_ioctl(ifp, cmd, data);
 	TRC(if_printf(ifp, "ioctl: ifsppp.pp_flags = %x, if_flags %x.\n", 
@@ -790,7 +790,7 @@ arioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		(cmd == SIOCSIFFLAGS) ? "SIOCSIFFLAGS" : "SIOCSIFADDR");)
 
 	s = splimp();
-	should_be_up = ifp->if_flags & IFF_RUNNING;
+	should_be_up = ifp->if_drv_flags & IFF_DRV_RUNNING;
 
 	if(!was_up && should_be_up) {
 		/* Interface should be up -- start it. */
@@ -824,7 +824,7 @@ arwatchdog(struct ar_softc *sc)
 	msci_channel *msci = &sc->sca->msci[sc->scachan];
 
 #ifndef	NETGRAPH
-	if(!(ifp->if_flags & IFF_RUNNING))
+	if(!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 #endif	/* NETGRAPH */
 
@@ -848,9 +848,9 @@ arwatchdog(struct ar_softc *sc)
 
 	sc->xmit_busy = 0;
 #ifndef	NETGRAPH
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 #else	/* NETGRAPH */
-	/* XXX ifp->if_flags &= ~IFF_OACTIVE; */
+	/* XXX ifp->if_drv_flags &= ~IFF_DRV_OACTIVE; */
 #endif	/* NETGRAPH */
 
 	if(sc->txb_inuse && --sc->txb_inuse)
@@ -1853,17 +1853,17 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 				/*
 				 * This should be the most common case.
 				 *
-				 * Clear the IFF_OACTIVE flag.
+				 * Clear the IFF_DRV_OACTIVE flag.
 				 *
 				 * Call arstart to start a new transmit if
 				 * there is data to transmit.
 				 */
 				sc->xmit_busy = 0;
 #ifndef	NETGRAPH
-				SC2IFP(sc)->if_flags &= ~IFF_OACTIVE;
+				SC2IFP(sc)->if_drv_flags &= ~IFF_DRV_OACTIVE;
 				SC2IFP(sc)->if_timer = 0;
 #else	/* NETGRAPH */
-			/* XXX 	SC2IFP(sc)->if_flags &= ~IFF_OACTIVE; */
+			/* XXX 	SC2IFP(sc)->if_drv_flags &= ~IFF_DRV_OACTIVE; */
 				sc->out_dog = 0; /* XXX */
 #endif	/* NETGRAPH */
 

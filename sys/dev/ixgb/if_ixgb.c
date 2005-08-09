@@ -401,7 +401,7 @@ ixgb_detach(device_t dev)
 	if (adapter->prev != NULL)
 		adapter->prev->next = adapter->next;
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	ifp->if_timer = 0;
 
 	IXGB_LOCK_DESTROY(adapter);
@@ -453,7 +453,7 @@ ixgb_start_locked(struct ifnet * ifp)
 			break;
 
 		if (ixgb_encap(adapter, m_head)) {
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IF_PREPEND(&ifp->if_snd, m_head);
 			break;
 		}
@@ -525,13 +525,13 @@ ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFFLAGS (Set Interface Flags)");
 		IXGB_LOCK(adapter);
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING)) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				ixgb_init_locked(adapter);
 			}
 			ixgb_disable_promisc(adapter);
 			ixgb_set_promisc(adapter);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				ixgb_stop(adapter);
 			}
 		}
@@ -540,7 +540,7 @@ ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOC(ADD|DEL)MULTI");
-		if (ifp->if_flags & IFF_RUNNING) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			IXGB_LOCK(adapter);
 			ixgb_disable_intr(adapter);
 			ixgb_set_multi(adapter);
@@ -561,7 +561,7 @@ ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 				ifp->if_capenable &= ~IFCAP_HWCSUM;
 			else
 				ifp->if_capenable |= IFCAP_HWCSUM;
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ixgb_init(adapter);
 		}
 		break;
@@ -597,7 +597,7 @@ ixgb_watchdog(struct ifnet * ifp)
 	}
 	printf("ixgb%d: watchdog timeout -- resetting\n", adapter->unit);
 
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 
 	ixgb_stop(adapter);
@@ -668,8 +668,8 @@ ixgb_init_locked(struct adapter *adapter)
 	ixgb_set_promisc(adapter);
 
 	ifp = adapter->ifp;
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 
 	if (ifp->if_capenable & IFCAP_TXCSUM)
@@ -744,11 +744,12 @@ ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 			    adapter);
 		}
 	}
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ixgb_process_receive_interrupts(adapter, count);
 		ixgb_clean_transmit_interrupts(adapter);
 	}
-	if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    ifp->if_snd.ifq_head != NULL)
 		ixgb_start_locked(ifp);
 }
 
@@ -826,7 +827,7 @@ ixgb_intr(void *arg)
 		    adapter);
 	}
 	while (loop_cnt > 0) {
-		if (ifp->if_flags & IFF_RUNNING) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			ixgb_process_receive_interrupts(adapter, -1);
 			ixgb_clean_transmit_interrupts(adapter);
 		}
@@ -837,7 +838,7 @@ ixgb_intr(void *arg)
 		IXGB_WRITE_REG(&adapter->hw, IMC, IXGB_INT_RXDMT0);
 		IXGB_WRITE_REG(&adapter->hw, IMS, IXGB_INT_RXDMT0);
 	}
-	if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING && ifp->if_snd.ifq_head != NULL)
 		ixgb_start_locked(ifp);
 
 	IXGB_UNLOCK(adapter);
@@ -1116,7 +1117,7 @@ ixgb_local_timer(void *arg)
 	ixgb_check_for_link(&adapter->hw);
 	ixgb_print_link_status(adapter);
 	ixgb_update_stats_counters(adapter);
-	if (ixgb_display_debug_stats && ifp->if_flags & IFF_RUNNING) {
+	if (ixgb_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ixgb_print_hw_stats(adapter);
 	}
 	callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer, adapter);
@@ -1174,7 +1175,7 @@ ixgb_stop(void *arg)
 
 
 	/* Tell the stack that the interface is no longer active */
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	return;
 }
@@ -1733,7 +1734,7 @@ ixgb_clean_transmit_interrupts(struct adapter * adapter)
 	adapter->oldest_used_tx_desc = i;
 
 	/*
-	 * If we have enough room, clear IFF_OACTIVE to tell the stack that
+	 * If we have enough room, clear IFF_DRV_OACTIVE to tell the stack that
 	 * it is OK to send packets. If there are no pending descriptors,
 	 * clear the timeout. Otherwise, if some descriptors have been freed,
 	 * restart the timeout.
@@ -1741,7 +1742,7 @@ ixgb_clean_transmit_interrupts(struct adapter * adapter)
 	if (num_avail > IXGB_TX_CLEANUP_THRESHOLD) {
 		struct ifnet   *ifp = adapter->ifp;
 
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		if (num_avail == adapter->num_tx_desc)
 			ifp->if_timer = 0;
 		else if (num_avail == adapter->num_tx_desc_avail)

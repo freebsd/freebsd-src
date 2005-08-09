@@ -182,16 +182,18 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	ifp->if_flags |= IFF_UP;
 	/* FALLTHROUGH */
     case SIOCSIFFLAGS:
-	if ((!(ifp->if_flags & IFF_UP)) && (ifp->if_flags & IFF_RUNNING)) {
+	if ((!(ifp->if_flags & IFF_UP)) &&
+	  (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 
 	    /* XXX disable PCF */
-	    ifp->if_flags &= ~IFF_RUNNING;
+	    ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	    /* IFF_UP is not set, try to release the bus anyway */
 	    iicbus_release_bus(parent, icdev);
 	    break;
 	}
-	if (((ifp->if_flags & IFF_UP)) && (!(ifp->if_flags & IFF_RUNNING))) {
+	if (((ifp->if_flags & IFF_UP)) &&
+	  (!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 
 	    if ((error = iicbus_request_bus(parent, icdev, IIC_WAIT|IIC_INTR)))
 		return (error);
@@ -212,7 +214,7 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	    iicbus_reset(parent, IIC_FASTEST, 0, NULL);
 
-	    ifp->if_flags |= IFF_RUNNING;
+	    ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	}
 	break;
 
@@ -382,7 +384,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m,
 	else 
 		hdr = dst->sa_family;
 
-	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	s = splhigh();
 

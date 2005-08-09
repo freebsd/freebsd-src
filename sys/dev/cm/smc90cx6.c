@@ -131,7 +131,7 @@ devclass_t cm_devclass;
  * else fill tx_act ^ 1 && inc tx_fillcount
  *
  * check tx_fillcount again.
- * case 2: set IFF_OACTIVE to stop arc_output from filling us.
+ * case 2: set IFF_DRV_OACTIVE to stop arc_output from filling us.
  * case 1: start tx
  *
  * tint clears IFF_OCATIVE, decrements and checks tx_fillcount
@@ -360,9 +360,9 @@ cm_init(xsc)
 
 	ifp = sc->sc_ifp;
 
-	if ((ifp->if_flags & IFF_RUNNING) == 0) {
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		s = splimp();
-		ifp->if_flags |= IFF_RUNNING;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		cm_reset(sc);
 		cm_start(ifp);
 		splx(s);
@@ -441,8 +441,8 @@ cm_reset(sc)
 	sc->sc_tx_act = 0;
 	sc->sc_tx_fillcount = 0;
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	cm_start(ifp);
 }
@@ -490,7 +490,7 @@ cm_start(ifp)
 	if_printf(ifp, "start(%p)\n", ifp);
 #endif
 
-	if ((ifp->if_flags & IFF_RUNNING) == 0)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	s = splimp();
@@ -577,7 +577,7 @@ cm_start(ifp)
 		 * We are filled up to the rim. No more bufs for the moment,
 		 * please.
 		 */
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	} else {
 #ifdef CM_DEBUG
 		if_printf(ifp, "start: starting transmitter on buffer %d\n",
@@ -588,7 +588,7 @@ cm_start(ifp)
 
 		/*
 		 * We still can accept another buf, so don't:
-		 * ifp->if_flags |= IFF_OACTIVE;
+		 * ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		 */
 		sc->sc_intmask |= CM_TA;
 		PUTREG(CMCMD, CM_TX(buffer));
@@ -763,7 +763,7 @@ cm_tint(sc, isr)
 
 
 	/* We know we can accept another buffer at this point. */
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	if (--sc->sc_tx_fillcount > 0) {
 
@@ -1004,15 +1004,15 @@ cm_ioctl(ifp, command, data)
 
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP) == 0 &&
-		    (ifp->if_flags & IFF_RUNNING) != 0) {
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			/*
 			 * If interface is marked down and it is running,
 			 * then stop it.
 			 */
 			cm_stop(sc);
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		} else if ((ifp->if_flags & IFF_UP) != 0 &&
-			   (ifp->if_flags & IFF_RUNNING) == 0) {
+			   (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			/*
 			 * If interface is marked up and it is stopped, then
 			 * start it.

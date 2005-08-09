@@ -628,8 +628,8 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 		if (sc->sc_vhid == ch->carp_vhid)
 			break;
 
-	if (!sc || (SC2IFP(sc)->if_flags & (IFF_UP|IFF_RUNNING)) !=
-	    (IFF_UP|IFF_RUNNING)) {
+	if (!sc || !((SC2IFP(sc)->if_flags & IFF_UP) &&
+	    (SC2IFP(sc)->if_drv_flags & IFF_DRV_RUNNING))) {
 		carpstats.carps_badvhid++;
 		CARP_UNLOCK(ifp->if_carp);
 		m_freem(m);
@@ -828,7 +828,8 @@ carp_send_ad_all(void)
 		if (sc->sc_carpdev == NULL)
 			continue;
 		CARP_SCLOCK(sc);
-		if ((SC2IFP(sc)->if_flags & (IFF_UP|IFF_RUNNING)) &&
+		if ((SC2IFP(sc)->if_flags & IFF_UP) &&
+		    (SC2IFP(sc)->if_drv_flags & IFF_DRV_RUNNING) &&
 		     sc->sc_state == MASTER)
 			carp_send_ad_locked(sc);
 		CARP_SCUNLOCK(sc);
@@ -858,8 +859,8 @@ carp_send_ad_locked(struct carp_softc *sc)
 	CARP_SCLOCK_ASSERT(sc);
 
 	/* bow out if we've lost our UPness or RUNNINGuiness */
-	if ((SC2IFP(sc)->if_flags &
-	    (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+	if (!((SC2IFP(sc)->if_flags & IFF_UP) &&
+	    (SC2IFP(sc)->if_drv_flags & IFF_DRV_RUNNING))) {
 		advbase = 255;
 		advskew = 255;
 	} else {
@@ -1086,8 +1087,8 @@ carp_addrcount(struct carp_if *cif, struct in_ifaddr *ia, int type)
 
 	TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list) {
 		if ((type == CARP_COUNT_RUNNING &&
-		    (SC2IFP(vh)->if_flags & (IFF_UP|IFF_RUNNING)) ==
-		    (IFF_UP|IFF_RUNNING)) ||
+		    (SC2IFP(vh)->if_flags & IFF_UP) &&
+		    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING)) ||
 		    (type == CARP_COUNT_MASTER && vh->sc_state == MASTER)) {
 			TAILQ_FOREACH(ifa, &SC2IFP(vh)->if_addrlist,
 			    ifa_list) {
@@ -1132,8 +1133,8 @@ carp_iamatch(void *v, struct in_ifaddr *ia,
 		count = 0;
 
 		TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list) {
-			if ((SC2IFP(vh)->if_flags & (IFF_UP|IFF_RUNNING)) ==
-			    (IFF_UP|IFF_RUNNING)) {
+			if ((SC2IFP(vh)->if_flags & IFF_UP) &&
+			    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING)) {
 				TAILQ_FOREACH(ifa, &SC2IFP(vh)->if_addrlist,
 				    ifa_list) {
 					if (ifa->ifa_addr->sa_family ==
@@ -1158,9 +1159,9 @@ carp_iamatch(void *v, struct in_ifaddr *ia,
 		}
 	} else {
 		TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list) {
-			if ((SC2IFP(vh)->if_flags & (IFF_UP|IFF_RUNNING)) ==
-			    (IFF_UP|IFF_RUNNING) && ia->ia_ifp ==
-			    SC2IFP(vh)) {
+			if ((SC2IFP(vh)->if_flags & IFF_UP) &&
+			    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING) &&
+			    ia->ia_ifp == SC2IFP(vh)) {
 				*enaddr = IFP2ENADDR(vh->sc_ifp);
 				CARP_UNLOCK(cif);
 				return (1);
@@ -1184,8 +1185,8 @@ carp_iamatch6(void *v, struct in6_addr *taddr)
 		TAILQ_FOREACH(ifa, &SC2IFP(vh)->if_addrlist, ifa_list) {
 			if (IN6_ARE_ADDR_EQUAL(taddr,
 			    &ifatoia6(ifa)->ia_addr.sin6_addr) &&
- 			    ((SC2IFP(vh)->if_flags &
-			    (IFF_UP|IFF_RUNNING)) == (IFF_UP|IFF_RUNNING))) {
+ 			    (SC2IFP(vh)->if_flags & IFF_UP) &&
+			    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING)) {
 			    	CARP_UNLOCK(cif);
 				return (ifa);
 			}
@@ -1209,8 +1210,8 @@ carp_macmatch6(void *v, struct mbuf *m, const struct in6_addr *taddr)
 		TAILQ_FOREACH(ifa, &SC2IFP(sc)->if_addrlist, ifa_list) {
 			if (IN6_ARE_ADDR_EQUAL(taddr,
 			    &ifatoia6(ifa)->ia_addr.sin6_addr) &&
- 			    ((SC2IFP(sc)->if_flags &
-			    (IFF_UP|IFF_RUNNING)) == (IFF_UP|IFF_RUNNING))) {	
+ 			    (SC2IFP(sc)->if_flags & IFF_UP) &&
+			    (SC2IFP(sc)->if_drv_flags & IFF_DRV_RUNNING)) {
 				struct ifnet *ifp = SC2IFP(sc);
 				mtag = m_tag_get(PACKET_TAG_CARP,
 				    sizeof(struct ifnet *), M_NOWAIT);
@@ -1246,8 +1247,9 @@ carp_forus(void *v, void *dhost)
 
 	CARP_LOCK(cif);
 	TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list)
-		if ((SC2IFP(vh)->if_flags & (IFF_UP|IFF_RUNNING)) ==
-		    (IFF_UP|IFF_RUNNING) && vh->sc_state == MASTER &&
+		if ((SC2IFP(vh)->if_flags & IFF_UP) &&
+		    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING) &&
+		    vh->sc_state == MASTER &&
 		    !bcmp(dhost, IFP2ENADDR(vh->sc_ifp), ETHER_ADDR_LEN)) {
 		    	CARP_UNLOCK(cif);
 			return (SC2IFP(vh));
@@ -1307,9 +1309,9 @@ carp_setrun(struct carp_softc *sc, sa_family_t af)
 
 	if (SC2IFP(sc)->if_flags & IFF_UP &&
 	    sc->sc_vhid > 0 && (sc->sc_naddrs || sc->sc_naddrs6))
-		SC2IFP(sc)->if_flags |= IFF_RUNNING;
+		SC2IFP(sc)->if_drv_flags |= IFF_DRV_RUNNING;
 	else {
-		SC2IFP(sc)->if_flags &= ~IFF_RUNNING;
+		SC2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
 		carp_setroute(sc, RTM_DELETE);
 		return;
 	}
@@ -1511,7 +1513,8 @@ carp_del_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 
 		CARP_LOCK(cif);
 		callout_stop(&sc->sc_ad_tmo);
-		SC2IFP(sc)->if_flags &= ~(IFF_UP|IFF_RUNNING);
+		SC2IFP(sc)->if_flags &= ~IFF_UP;
+		SC2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
 		sc->sc_vhid = -1;
 		in_delmulti(imo->imo_membership[--imo->imo_num_memberships]);
 		imo->imo_multicast_ifp = NULL;
@@ -1700,7 +1703,8 @@ carp_del_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 
 		CARP_LOCK(cif);
 		callout_stop(&sc->sc_ad_tmo);
-		SC2IFP(sc)->if_flags &= ~(IFF_UP|IFF_RUNNING);
+		SC2IFP(sc)->if_flags &= ~IFF_UP;
+		SC2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
 		sc->sc_vhid = -1;
 		while (!LIST_EMPTY(&im6o->im6o_memberships)) {
 			struct in6_multi_mship *imm =
@@ -2096,7 +2100,8 @@ carp_sc_state_locked(struct carp_softc *sc)
 	if (sc->sc_carpdev->if_link_state != LINK_STATE_UP ||
 	    !(sc->sc_carpdev->if_flags & IFF_UP)) {
 		sc->sc_flags_backup = SC2IFP(sc)->if_flags;
-		SC2IFP(sc)->if_flags &= ~(IFF_UP|IFF_RUNNING);
+		SC2IFP(sc)->if_flags &= ~IFF_UP;
+		SC2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
 		callout_stop(&sc->sc_ad_tmo);
 		callout_stop(&sc->sc_md_tmo);
 		callout_stop(&sc->sc_md6_tmo);
