@@ -99,6 +99,7 @@ static void	ip_mloopback
 static int	ip_getmoptions(struct inpcb *, struct sockopt *);
 static int	ip_pcbopts(struct inpcb *, int, struct mbuf *);
 static int	ip_setmoptions(struct inpcb *, struct sockopt *);
+static struct ip_moptions	*ip_findmoptions(struct inpcb *inp);
 
 int	ip_optcopy(struct ip *, struct ip *);
 
@@ -1569,6 +1570,39 @@ ip_multicast_if(a, ifindexp)
 }
 
 /*
+ * Given an inpcb, return its multicast options structure pointer.  Accepts
+ * an unlocked inpcb pointer, but will return it locked.  May sleep.
+ */
+static struct ip_moptions *
+ip_findmoptions(struct inpcb *inp)
+{
+	struct ip_moptions *imo;
+
+	INP_LOCK(inp);
+	if (inp->inp_moptions != NULL)
+		return (inp->inp_moptions);
+
+	INP_UNLOCK(inp);
+
+	imo = (struct ip_moptions*)malloc(sizeof(*imo), M_IPMOPTS, M_WAITOK);
+
+	imo->imo_multicast_ifp = NULL;
+	imo->imo_multicast_addr.s_addr = INADDR_ANY;
+	imo->imo_multicast_vif = -1;
+	imo->imo_multicast_ttl = IP_DEFAULT_MULTICAST_TTL;
+	imo->imo_multicast_loop = IP_DEFAULT_MULTICAST_LOOP;
+	imo->imo_num_memberships = 0;
+
+	INP_LOCK(inp);
+	if (inp->inp_moptions != NULL) {
+		free(imo, M_IPMOPTS);
+		return (inp->inp_moptions);
+	}
+	inp->inp_moptions = imo;
+	return (imo);
+}
+
+/*
  * Set the IP multicast options in response to user setsockopt().
  */
 static int
@@ -1585,26 +1619,6 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 	int ifindex;
 	int s;
 
-	imo = inp->inp_moptions;
-	if (imo == NULL) {
-		/*
-		 * No multicast option buffer attached to the pcb;
-		 * allocate one and initialize to default values.
-		 */
-		imo = (struct ip_moptions*)malloc(sizeof(*imo), M_IPMOPTS,
-		    M_WAITOK);
-
-		if (imo == NULL)
-			return (ENOBUFS);
-		inp->inp_moptions = imo;
-		imo->imo_multicast_ifp = NULL;
-		imo->imo_multicast_addr.s_addr = INADDR_ANY;
-		imo->imo_multicast_vif = -1;
-		imo->imo_multicast_ttl = IP_DEFAULT_MULTICAST_TTL;
-		imo->imo_multicast_loop = IP_DEFAULT_MULTICAST_LOOP;
-		imo->imo_num_memberships = 0;
-	}
-
 	switch (sopt->sopt_name) {
 	/* store an index number for the vif you wanna use in the send */
 	case IP_MULTICAST_VIF:
@@ -1619,7 +1633,9 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 			error = EINVAL;
 			break;
 		}
+		imo = ip_findmoptions(inp);
 		imo->imo_multicast_vif = i;
+		INP_UNLOCK(inp);
 		break;
 
 	case IP_MULTICAST_IF:
@@ -1634,8 +1650,10 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 		 * When no interface is selected, a default one is
 		 * chosen every time a multicast packet is sent.
 		 */
+		imo = ip_findmoptions(inp);
 		if (addr.s_addr == INADDR_ANY) {
 			imo->imo_multicast_ifp = NULL;
+			INP_UNLOCK(inp);
 			break;
 		}
 		/*
@@ -1646,6 +1664,7 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 		s = splimp();
 		ifp = ip_multicast_if(&addr, &ifindex);
 		if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0) {
+			INP_UNLOCK(inp);
 			splx(s);
 			error = EADDRNOTAVAIL;
 			break;
@@ -1655,6 +1674,7 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 			imo->imo_multicast_addr = addr;
 		else
 			imo->imo_multicast_addr.s_addr = INADDR_ANY;
+		INP_UNLOCK(inp);
 		splx(s);
 		break;
 
@@ -1670,7 +1690,9 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 			error = sooptcopyin(sopt, &ttl, 1, 1);
 			if (error)
 				break;
+			imo = ip_findmoptions(inp);
 			imo->imo_multicast_ttl = ttl;
+			INP_UNLOCK(inp);
 		} else {
 			u_int ttl;
 			error = sooptcopyin(sopt, &ttl, sizeof ttl, 
@@ -1679,8 +1701,11 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 				break;
 			if (ttl > 255)
 				error = EINVAL;
-			else
+			else {
+				imo = ip_findmoptions(inp);
 				imo->imo_multicast_ttl = ttl;
+				INP_UNLOCK(inp);
+			}
 		}
 		break;
 
@@ -1696,14 +1721,18 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 			error = sooptcopyin(sopt, &loop, 1, 1);
 			if (error)
 				break;
+			imo = ip_findmoptions(inp);
 			imo->imo_multicast_loop = !!loop;
+			INP_UNLOCK(inp);
 		} else {
 			u_int loop;
 			error = sooptcopyin(sopt, &loop, sizeof loop,
 					    sizeof loop);
 			if (error)
 				break;
+			imo = ip_findmoptions(inp);
 			imo->imo_multicast_loop = !!loop;
+			INP_UNLOCK(inp);
 		}
 		break;
 
@@ -1757,6 +1786,7 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 		 * See if the membership already exists or if all the
 		 * membership slots are full.
 		 */
+		imo = ip_findmoptions(inp);
 		for (i = 0; i < imo->imo_num_memberships; ++i) {
 			if (imo->imo_membership[i]->inm_ifp == ifp &&
 			    imo->imo_membership[i]->inm_addr.s_addr
@@ -1764,11 +1794,13 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 				break;
 		}
 		if (i < imo->imo_num_memberships) {
+			INP_UNLOCK(inp);
 			error = EADDRINUSE;
 			splx(s);
 			break;
 		}
 		if (i == IP_MAX_MEMBERSHIPS) {
+			INP_UNLOCK(inp);
 			error = ETOOMANYREFS;
 			splx(s);
 			break;
@@ -1779,11 +1811,13 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 		 */
 		if ((imo->imo_membership[i] =
 		    in_addmulti(&mreq.imr_multiaddr, ifp)) == NULL) {
+			INP_UNLOCK(inp);
 			error = ENOBUFS;
 			splx(s);
 			break;
 		}
 		++imo->imo_num_memberships;
+		INP_UNLOCK(inp);
 		splx(s);
 		break;
 
@@ -1819,6 +1853,7 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 		/*
 		 * Find the membership in the membership array.
 		 */
+		imo = ip_findmoptions(inp);
 		for (i = 0; i < imo->imo_num_memberships; ++i) {
 			if ((ifp == NULL ||
 			     imo->imo_membership[i]->inm_ifp == ifp) &&
@@ -1827,6 +1862,7 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 				break;
 		}
 		if (i == imo->imo_num_memberships) {
+			INP_UNLOCK(inp);
 			error = EADDRNOTAVAIL;
 			splx(s);
 			break;
@@ -1842,24 +1878,13 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 		for (++i; i < imo->imo_num_memberships; ++i)
 			imo->imo_membership[i-1] = imo->imo_membership[i];
 		--imo->imo_num_memberships;
+		INP_UNLOCK(inp);
 		splx(s);
 		break;
 
 	default:
 		error = EOPNOTSUPP;
 		break;
-	}
-
-	/*
-	 * If all options have default values, no need to keep the mbuf.
-	 */
-	if (imo->imo_multicast_ifp == NULL &&
-	    imo->imo_multicast_vif == -1 &&
-	    imo->imo_multicast_ttl == IP_DEFAULT_MULTICAST_TTL &&
-	    imo->imo_multicast_loop == IP_DEFAULT_MULTICAST_LOOP &&
-	    imo->imo_num_memberships == 0) {
-		free(inp->inp_moptions, M_IPMOPTS);
-		inp->inp_moptions = NULL;
 	}
 
 	return (error);
