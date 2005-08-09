@@ -286,8 +286,9 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "ifaddr", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
-	 * Multicast - protocol locks before interface locks.
+	 * Multicast - protocol locks before interface locks, after UDP locks.
 	 */
+	{ "udpinp", &lock_class_mtx_sleep },
 	{ "in_multi_mtx", &lock_class_mtx_sleep },
 	{ "igmp_mtx", &lock_class_mtx_sleep },
 	{ "if_addr_mtx", &lock_class_mtx_sleep },
