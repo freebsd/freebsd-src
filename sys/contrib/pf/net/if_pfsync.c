@@ -989,10 +989,17 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCAIFADDR:
 	case SIOCSIFDSTADDR:
 	case SIOCSIFFLAGS:
+#ifdef __FreeBSD__
 		if (ifp->if_flags & IFF_UP)
 			ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		else
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+#else
+		if (ifp->if_flags & IFF_UP)
+			ifp->if_flags |= IFF_RUNNING;
+		else
+			ifp->if_flags &= ~IFF_RUNNING;
+#endif
 		break;
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu < PFSYNC_MINMTU)
