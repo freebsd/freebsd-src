@@ -75,6 +75,7 @@ init_params() {
 	QUIETREDIR=""
 	QUIETFLAG=""
 	STATSREDIR=""
+	XARGST=""
 	NDEBUG=""
 	DDSTATS=""
 	INDEXONLY=""
@@ -95,6 +96,7 @@ parse_cmdline() {
 			STATSREDIR="/dev/stderr"
 			QUIETFLAG=" "
 			NDEBUG=" "
+			XARGST="-t"
 			DDSTATS=".."
 			;;
 		-f)
@@ -435,7 +437,7 @@ fetch_update_tagsanity() {
 		echo "older than what we already have!"
 		echo -n "Cowardly refusing to downgrade from "
 		date -r ${OLDSNAPSHOTDATE}
-		echo -n "to `date -r ${SNAPSHOTDATE}`."
+		echo "to `date -r ${SNAPSHOTDATE}`."
 		return 1
 	fi
 }
@@ -612,7 +614,7 @@ fetch_update() {
 	echo ${NDEBUG} "metadata patches.${DDSTATS}"
 	tr '|' '-' < patchlist |
 	    lam -s "tp/" - -s ".gz" |
-	    xargs ${PHTTPGET} ${SERVERNAME}	\
+	    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
 	    2>${STATSREDIR} | fetch_progress
 	echo "done."
 
@@ -646,7 +648,7 @@ fetch_update() {
 	echo -n "Fetching `wc -l < filelist | tr -d ' '` "
 	echo ${NDEBUG} "metadata files... "
 	lam -s "f/" - -s ".gz" < filelist |
-	    xargs ${PHTTPGET} ${SERVERNAME}	\
+	    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
 	    2>${QUIETREDIR}
 
 	while read Y; do
@@ -672,7 +674,7 @@ fetch_update() {
 	echo -n "Fetching `wc -l < patchlist | tr -d ' '` "
 	echo ${NDEBUG} "patches.${DDSTATS}"
 	tr '|' '-' < patchlist | lam -s "bp/" - |
-	    xargs ${PHTTPGET} ${SERVERNAME}	\
+	    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
 	    2>${STATSREDIR} | fetch_progress
 	echo "done."
 
@@ -703,7 +705,7 @@ fetch_update() {
 	echo -n "Fetching `wc -l < filelist | tr -d ' '` "
 	echo ${NDEBUG} "new ports or files... "
 	lam -s "f/" - -s ".gz" < filelist |
-	    xargs ${PHTTPGET} ${SERVERNAME}	\
+	    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
 	    2>${QUIETREDIR}
 
 	while read Y; do
