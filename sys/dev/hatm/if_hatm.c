@@ -1974,7 +1974,7 @@ hatm_initialize(struct hatm_softc *sc)
 	u_int cid;
 	static const u_int layout[2][7] = HE_CONFIG_MEM_LAYOUT;
 
-	if (sc->ifp->if_flags & IFF_RUNNING)
+	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	hatm_init_bus_width(sc);
@@ -2244,7 +2244,7 @@ hatm_initialize(struct hatm_softc *sc)
 	v |= HE_PCIM_CTL0_INIT_ENB | HE_PCIM_CTL0_INT_PROC_ENB;
 	pci_write_config(sc->dev, HE_PCIR_GEN_CNTL_0, v, 4);
 
-	sc->ifp->if_flags |= IFF_RUNNING;
+	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sc->ifp->if_baudrate = 53 * 8 * IFP2IFATM(sc->ifp)->mib.pcr;
 
 	sc->utopia.flags &= ~UTP_FL_POLL_CARRIER;
@@ -2272,9 +2272,9 @@ hatm_stop(struct hatm_softc *sc)
 
 	mtx_assert(&sc->mtx, MA_OWNED);
 
-	if (!(sc->ifp->if_flags & IFF_RUNNING))
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
-	sc->ifp->if_flags &= ~IFF_RUNNING;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	ATMEV_SEND_IFSTATE_CHANGED(IFP2IFATM(sc->ifp),
 	    sc->utopia.carrier == UTP_CARR_OK);
@@ -2318,7 +2318,7 @@ hatm_stop(struct hatm_softc *sc)
 
 	/*
 	 * Give any waiters on closing a VCC a chance. They will stop
-	 * to wait if they see that IFF_RUNNING disappeared.
+	 * to wait if they see that IFF_DRV_RUNNING disappeared.
 	 */
 	cv_broadcast(&sc->vcc_cv);
 	cv_broadcast(&sc->cv_rcclose);

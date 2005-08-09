@@ -107,7 +107,7 @@ cm_isa_detach(device_t dev)
 	int s;
 
 	cm_stop(sc);
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	s = splimp();
 	arc_ifdetach(ifp);

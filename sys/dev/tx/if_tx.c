@@ -567,12 +567,12 @@ epic_ifioctl(ifp, command, data)
 		 * If it is marked down and running, then stop it.
 		 */
 		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_flags & IFF_RUNNING) == 0) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 				epic_init(sc);
 				break;
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				epic_stop(sc);
 				break;
 			}
@@ -719,7 +719,7 @@ epic_ifstart(ifp)
 		BPF_MTAP(ifp, m0);
 	}
 
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 }
 
 /*
@@ -852,7 +852,7 @@ epic_tx_done(sc)
 	}
 
 	if (sc->pending_txs < TX_RING_SIZE)
-		sc->ifp->if_flags &= ~IFF_OACTIVE;
+		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	bus_dmamap_sync(sc->ttag, sc->tmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
@@ -1267,7 +1267,7 @@ epic_init(xsc)
 	s = splimp();
 
 	/* If interface is already running, then we need not do anything. */
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		splx(s);
 		return;
 	}
@@ -1323,12 +1323,12 @@ epic_init(xsc)
 
 	/* Mark interface running ... */
 	if (ifp->if_flags & IFF_UP)
-		ifp->if_flags |= IFF_RUNNING;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	else
-		ifp->if_flags &= ~IFF_RUNNING;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	/* ... and free */
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* Start Rx process */
 	epic_start_activity(sc);
@@ -1590,7 +1590,7 @@ epic_stop(sc)
 	CSR_WRITE_4(sc, GENCTL, GENCTL_POWER_DOWN);
 
 	/* Mark as stoped */
-	sc->ifp->if_flags &= ~IFF_RUNNING;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	splx(s);
 }

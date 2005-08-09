@@ -360,7 +360,7 @@ hatm_start(struct ifnet *ifp)
 	u_int len;
 	int error;
 
-	if (!(ifp->if_flags & IFF_RUNNING))
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 	mtx_lock(&sc->mtx);
 	arg.sc = sc;

@@ -1310,7 +1310,7 @@ ndis_txeof(adapter, packet, status)
 	else
 		ifp->if_oerrors++;
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	NDIS_UNLOCK(sc);
 
@@ -1549,7 +1549,7 @@ ndis_start(ifp)
 
 	NDIS_LOCK(sc);
 
-	if (!sc->ndis_link || ifp->if_flags & IFF_OACTIVE) {
+	if (!sc->ndis_link || ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		NDIS_UNLOCK(sc);
 		return;
 	}
@@ -1651,7 +1651,7 @@ ndis_start(ifp)
 	}
 
 	if (sc->ndis_txpending == 0)
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -1732,8 +1732,8 @@ ndis_init(xsc)
 	sc->ndis_txpending = sc->ndis_maxpkts;
 	sc->ndis_link = 0;
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	NDIS_UNLOCK(sc);
 
@@ -2274,7 +2274,7 @@ ndis_ioctl(ifp, command, data)
 	switch(command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->ndis_if_flags & IFF_PROMISC)) {
 				sc->ndis_filter |=
@@ -2283,7 +2283,7 @@ ndis_ioctl(ifp, command, data)
 				error = ndis_set_info(sc,
 				    OID_GEN_CURRENT_PACKET_FILTER,
 				    &sc->ndis_filter, &i);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->ndis_if_flags & IFF_PROMISC) {
 				sc->ndis_filter &=
@@ -2295,7 +2295,7 @@ ndis_ioctl(ifp, command, data)
 			} else
 				ndis_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ndis_stop(sc);
 		}
 		sc->ndis_if_flags = ifp->if_flags;
@@ -3000,7 +3000,7 @@ ndis_stop(sc)
 	NDIS_LOCK(sc);
 	ifp->if_timer = 0;
 	sc->ndis_link = 0;
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	NDIS_UNLOCK(sc);
 
 	ndis_halt_nic(sc);

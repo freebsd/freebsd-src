@@ -290,8 +290,9 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	/* These two are mostly handled at a higher layer */
 	case SIOCSIFADDR:
-		ifp->if_flags |= (IFF_UP | IFF_RUNNING);
-		ifp->if_flags &= ~(IFF_OACTIVE);
+		ifp->if_flags |= IFF_UP;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
 		break;
 	case SIOCGIFADDR:
 		break;
@@ -303,13 +304,14 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * If it is marked down and running, then stop it.
 		 */
 		if (ifr->ifr_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING)) {
-				ifp->if_flags &= ~(IFF_OACTIVE);
-				ifp->if_flags |= IFF_RUNNING;
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+				ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
+				ifp->if_drv_flags |= IFF_DRV_RUNNING;
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
-				ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				ifp->if_drv_flags &= ~(IFF_DRV_RUNNING |
+				    IFF_DRV_OACTIVE);
 		}
 		break;
 
@@ -355,7 +357,8 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	u_int32_t af;
 
 	/* Check interface flags */
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 		m_freem(m);
 		return (ENETDOWN);
 	}
@@ -628,10 +631,10 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	case NGM_FLOW_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_LINK_IS_UP:
-			ifp->if_flags |= IFF_RUNNING;
+			ifp->if_drv_flags |= IFF_DRV_RUNNING;
 			break;
 		case NGM_LINK_IS_DOWN:
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			break;
 		default:
 			break;

@@ -267,7 +267,7 @@ wi_pci_resume(device_t dev)
 
 	if (ifp->if_flags & IFF_UP) {
 		ifp->if_init(ifp->if_softc);
-		if (ifp->if_flags & IFF_RUNNING)
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			ifp->if_start(ifp);
 	}
 

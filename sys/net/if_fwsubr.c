@@ -97,7 +97,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		goto bad;
 #endif
 
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+	if (!((ifp->if_flags & IFF_UP) &&
+	   (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 		error = ENETDOWN;
 		goto bad;
 	}

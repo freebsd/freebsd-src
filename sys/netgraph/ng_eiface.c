@@ -147,13 +147,14 @@ ng_eiface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * If it is marked down and running, then stop it.
 		 */
 		if (ifr->ifr_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING)) {
-				ifp->if_flags &= ~(IFF_OACTIVE);
-				ifp->if_flags |= IFF_RUNNING;
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+				ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
+				ifp->if_drv_flags |= IFF_DRV_RUNNING;
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
-				ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				ifp->if_drv_flags &= ~(IFF_DRV_RUNNING |
+				    IFF_DRV_OACTIVE);
 		}
 		break;
 
@@ -192,8 +193,8 @@ ng_eiface_init(void *xsc)
 
 	s = splimp();
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	splx(s);
 }
@@ -212,14 +213,16 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 	struct mbuf *m;
 
 	/* Check interface flags */
-	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))
+
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
 		return;
 
 	/* Don't do anything if output is active */
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	/*
 	 * Grab a packet to transmit.
@@ -228,7 +231,7 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 
 	/* If there's nothing to send, return. */
 	if (m == NULL) {
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		return;
 	}
 
@@ -254,7 +257,7 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		ifp->if_opackets++;
 	}
 
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	return;
 }
@@ -523,8 +526,8 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
 
-	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) !=
-	    (IFF_UP | IFF_RUNNING)) {
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 		NG_FREE_M(m);
 		return (ENETDOWN);
 	}

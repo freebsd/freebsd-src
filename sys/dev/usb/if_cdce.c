@@ -322,7 +322,7 @@ USB_DETACH(cdce)
 	CDCE_LOCK(sc);
 	sc->cdce_dying = 1;
 	ifp = GET_IFP(sc);
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		cdce_shutdown(sc->cdce_dev);
 
 	ether_ifdetach(ifp);
@@ -344,8 +344,8 @@ cdce_start(struct ifnet *ifp)
 
 
 	if (sc->cdce_dying ||
-		ifp->if_flags & IFF_OACTIVE ||
-		!(ifp->if_flags & IFF_RUNNING)) {
+		ifp->if_drv_flags & IFF_DRV_OACTIVE ||
+		!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		CDCE_UNLOCK(sc);
 		return;
 	}
@@ -358,14 +358,14 @@ cdce_start(struct ifnet *ifp)
 
 	if (cdce_encap(sc, m_head, 0)) {
 		IF_PREPEND(&ifp->if_snd, m_head);
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		CDCE_UNLOCK(sc);
 		return;
 	}
 
 	BPF_MTAP(ifp, m_head);
 
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	CDCE_UNLOCK(sc);
 
@@ -445,7 +445,7 @@ cdce_stop(struct cdce_softc *sc)
 	usb_ether_rx_list_free(&sc->cdce_cdata);
 	usb_ether_tx_list_free(&sc->cdce_cdata);
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	CDCE_UNLOCK(sc);
 
 	return;
@@ -474,10 +474,10 @@ cdce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch(command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING))
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				cdce_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				cdce_stop(sc);
 		}
 		error = 0;
@@ -507,7 +507,7 @@ cdce_init(void *xsc)
 	usbd_status		 err;
 	int			 i;
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	CDCE_LOCK(sc);
@@ -555,8 +555,8 @@ cdce_init(void *xsc)
 		usbd_transfer(c->ue_xfer);
 	}
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	CDCE_UNLOCK(sc);
 
@@ -575,7 +575,7 @@ cdce_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	CDCE_LOCK(sc);
 	ifp = GET_IFP(sc);
 
-	if (sc->cdce_dying || !(ifp->if_flags & IFF_RUNNING)) {
+	if (sc->cdce_dying || !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		CDCE_UNLOCK(sc);
 		return;
 	}
@@ -643,7 +643,7 @@ cdce_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	ifp = GET_IFP(sc);
 
 	if (sc->cdce_dying ||
-		!(ifp->if_flags & IFF_RUNNING)) {
+		!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		CDCE_UNLOCK(sc);
 		return;
 	}
@@ -662,7 +662,7 @@ cdce_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		return;
 	}
 
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	usbd_get_xfer_status(c->ue_xfer, NULL, NULL, NULL, &err);
 
 	if (c->ue_mbuf != NULL) {
@@ -690,7 +690,7 @@ cdce_rxstart(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	CDCE_LOCK(sc);
 
-	if (sc->cdce_dying || !(ifp->if_flags & IFF_RUNNING)) {
+	if (sc->cdce_dying || !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		CDCE_UNLOCK(sc);
 		return;
 	}

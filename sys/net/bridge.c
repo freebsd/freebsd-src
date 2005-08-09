@@ -908,7 +908,8 @@ bridge_ifok(struct ifnet *ifp, struct ifnet *src, struct ifnet *dst)
     return (BDG_USED(ifp)
 	&& !BDG_MUTED(ifp)
 	&& !_IF_QFULL(&ifp->if_snd)
-	&& (ifp->if_flags & (IFF_UP|IFF_RUNNING)) == (IFF_UP|IFF_RUNNING)
+	&& (ifp->if_flags & IFF_UP)
+	&& (ifp->if_drv_flags & IFF_DRV_RUNNING)
 	&& ifp != src
 	&& BDG_SAMECLUSTER(ifp, dst));
 }

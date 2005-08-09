@@ -669,7 +669,7 @@ wi_txeof(sc, status)
 	ifp = sc->ifp;
 
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	if (status & WI_EV_TX_EXC)
 		ifp->if_oerrors++;
@@ -693,7 +693,7 @@ wi_inquire(xsc)
 	sc->wi_stat_ch = timeout(wi_inquire, sc, hz * 60);
 
 	/* Don't do this while we're transmitting */
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	WI_LOCK(sc, s);
@@ -1358,7 +1358,7 @@ wi_ioctl(ifp, command, data)
 		 * wi_init() by just setting PROMISC in the hardware.
 		 */
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if (ifp->if_flags & IFF_PROMISC &&
 				    !(sc->wi_if_flags & IFF_PROMISC)) {
 					WI_SETVAL(WI_RID_PROMISC, 1);
@@ -1372,7 +1372,7 @@ wi_ioctl(ifp, command, data)
 				wi_init(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				owi_stop(sc);
 			}
 		}
@@ -1704,7 +1704,7 @@ wi_init(xsc)
 		return;
 	}
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		owi_stop(sc);
 
 	wi_reset(sc);
@@ -1792,8 +1792,8 @@ wi_init(xsc)
 	/* enable interrupts */
 	CSR_WRITE_2(sc, WI_INT_EN, WI_INTRS);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->wi_stat_ch = timeout(wi_inquire, sc, hz * 60);
 	WI_UNLOCK(sc, s);
@@ -1820,7 +1820,7 @@ wi_start(ifp)
 		return;
 	}
 
-	if (ifp->if_flags & IFF_OACTIVE) {
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		WI_UNLOCK(sc, s);
 		return;
 	}
@@ -1888,7 +1888,7 @@ wi_start(ifp)
 	if (wi_cmd(sc, WI_CMD_TX|WI_RECLAIM, id, 0, 0))
 		device_printf(sc->dev, "xmit failed\n");
 
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -1927,7 +1927,7 @@ owi_stop(sc)
 		wi_cmd(sc, WI_CMD_DISABLE|sc->wi_portnum, 0, 0, 0);
 	}
 
-	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 
 	WI_UNLOCK(sc, s);
 	return;

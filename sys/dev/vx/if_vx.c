@@ -245,8 +245,8 @@ vxinit(void *xsc)
 	vxmbuffill((caddr_t) sc);
 
 	/* Interface is now `running', with no output active. */
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* Attempt to start output, if any. */
 	vxstart(ifp);
@@ -405,8 +405,8 @@ vxstart(struct ifnet *ifp)
 	int sh, len, pad;
 
 	/* Don't transmit if interface is busy or not running */
-	if ((sc->ifp->if_flags &
-	    (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING)
+	if ((sc->ifp->if_drv_flags &
+	    (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING)
 		return;
 
 startagain:
@@ -439,7 +439,7 @@ startagain:
 		    SET_TX_AVAIL_THRESH | ((len + pad + 4) >> 2));
 		/* not enough room in FIFO - make sure */
 		if (CSR_READ_2(sc, VX_W1_FREE_TX) < len + pad + 4) {
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			ifp->if_timer = 1;
 			return;
 		}
@@ -585,7 +585,7 @@ vxtxstat(struct vx_softc *sc)
 		} else if (i & TXS_MAX_COLLISION) {
 			++sc->ifp->if_collisions;
 			CSR_WRITE_2(sc, VX_COMMAND, TX_ENABLE);
-			sc->ifp->if_flags &= ~IFF_OACTIVE;
+			sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		} else
 			sc->tx_succ_ok = (sc->tx_succ_ok + 1) & 127;
 	}
@@ -619,7 +619,7 @@ vxintr(void *voidsc)
 			vxread(sc);
 		if (status & S_TX_AVAIL) {
 			ifp->if_timer = 0;
-			sc->ifp->if_flags &= ~IFF_OACTIVE;
+			sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			vxstart(sc->ifp);
 		}
 		if (status & S_CARD_FAILURE) {
@@ -854,15 +854,15 @@ vxioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP) == 0 &&
-		    (ifp->if_flags & IFF_RUNNING) != 0) {
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			/*
 	                 * If interface is marked up and it is stopped, then
 	                 * start it.
 	                 */
 			vxstop(sc);
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		} else if ((ifp->if_flags & IFF_UP) != 0 &&
-		    (ifp->if_flags & IFF_RUNNING) == 0) {
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			/*
 	                 * If interface is marked up and it is stopped, then
 	                 * start it.
@@ -930,7 +930,7 @@ vxwatchdog(struct ifnet *ifp)
 
 	if (ifp->if_flags & IFF_DEBUG)
 		if_printf(ifp, "device timeout\n");
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	vxstart(ifp);
 	vxintr(sc);
 }

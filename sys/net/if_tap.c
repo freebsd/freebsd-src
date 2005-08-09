@@ -393,8 +393,8 @@ tapopen(dev, flag, mode, td)
 	mtx_unlock(&tp->tap_mtx);
 
 	s = splimp();
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	splx(s);
 
 	TAPDEBUG("%s is open. minor = %#x\n", ifp->if_xname, minor(dev));
@@ -433,12 +433,12 @@ tapclose(dev, foo, bar, td)
 		mtx_unlock(&tp->tap_mtx);
 		s = splimp();
 		if_down(ifp);
-		if (ifp->if_flags & IFF_RUNNING) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				rtinit(ifa, (int)RTM_DELETE, 0);
 			}
 			if_purgeaddrs(ifp);
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		}
 		splx(s);
 	} else
@@ -473,8 +473,8 @@ tapifinit(xtp)
 
 	TAPDEBUG("initializing %s\n", ifp->if_xname);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* attempt to start output */
 	tapifstart(ifp);
@@ -570,7 +570,7 @@ tapifstart(ifp)
 	mtx_unlock(&tp->tap_mtx);
 
 	s = splimp();
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	if (ifp->if_snd.ifq_len != 0) {
 		mtx_lock(&tp->tap_mtx);
@@ -589,7 +589,7 @@ tapifstart(ifp)
 		ifp->if_opackets ++; /* obytes are counted in ether_output */
 	}
 
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	splx(s);
 } /* tapifstart */
 

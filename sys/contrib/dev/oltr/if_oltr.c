@@ -230,7 +230,7 @@ oltr_start(struct ifnet *ifp)
 	/*
 	 * Check to see if output is already active
 	 */
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 outloop:
@@ -240,7 +240,7 @@ outloop:
 	 */
 	if (sc->tx_avail <= 0) {
 		printf("oltr%d: tx queue full\n", sc->unit);
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
 	}
 
@@ -298,7 +298,7 @@ bad:
 nobuffers:
 
 	printf("oltr%d: queue full\n", sc->unit);
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	ifp->if_oerrors++;
 	/*m_freem(m0);*/
 	sc->restart = m0;
@@ -323,7 +323,8 @@ oltr_stop(struct oltr_softc *sc)
 
 	/*printf("oltr%d: oltr_stop\n", sc->unit);*/
 
-	ifp->if_flags &= ~(IFF_UP | IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_flags &= ~IFF_UP;
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	TRlldClose(sc->TRlldAdapter, 0);
 	sc->state = OL_CLOSING;
 }
@@ -539,8 +540,8 @@ oltr_init(void * xsc)
 
 	sc->restart = NULL;
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/*
 	 * Set up adapter statistics poll
@@ -577,7 +578,7 @@ oltr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			oltr_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				oltr_close(sc);
 			}
 		}
@@ -902,9 +903,9 @@ DriverTransmitFrameCompleted(void *DriverHandle, void *FrameHandle, int Transmit
 	
 	sc->tx_avail += frame->FragmentCount;
 
-	if (ifp->if_flags & IFF_OACTIVE) {
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		printf("oltr%d: queue restart\n", sc->unit);
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		oltr_start(ifp);
 	}
 

@@ -1731,7 +1731,7 @@ re_txeof(sc)
 
 	if (idx != sc->rl_ldata.rl_tx_considx) {
 		sc->rl_ldata.rl_tx_considx = idx;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		ifp->if_timer = 0;
 	}
 
@@ -2039,7 +2039,7 @@ re_start_locked(ifp)
 
 		if (re_encap(sc, &m_head, &idx)) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -2257,8 +2257,8 @@ re_init_locked(sc)
 
 	CSR_WRITE_1(sc, RL_CFG1, RL_CFG1_DRVLOAD|RL_CFG1_FULLDUPLEX);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->rl_stat_ch = timeout(re_tick, sc, hz);
 }
@@ -2320,7 +2320,7 @@ re_ioctl(ifp, command, data)
 		RL_LOCK(sc);
 		if (ifp->if_flags & IFF_UP)
 			re_init_locked(sc);
-		else if (ifp->if_flags & IFF_RUNNING)
+		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			re_stop(sc);
 		RL_UNLOCK(sc);
 		error = 0;
@@ -2345,7 +2345,7 @@ re_ioctl(ifp, command, data)
 			ifp->if_hwassist = RE_CSUM_FEATURES;
 		else
 			ifp->if_hwassist = 0;
-		if (ifp->if_flags & IFF_RUNNING)
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			re_init(sc);
 		break;
 	default:
@@ -2391,7 +2391,7 @@ re_stop(sc)
 	ifp->if_timer = 0;
 
 	untimeout(re_tick, sc, sc->rl_stat_ch);
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
 #endif /* DEVICE_POLLING */

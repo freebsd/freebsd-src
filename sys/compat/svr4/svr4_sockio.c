@@ -62,7 +62,8 @@ bsd_to_svr4_flags(bf)
 #if defined(IFF_NOTRAILERS)
 	bsd_to_svr4_flag(FF_NOTRAILERS);
 #endif
-	bsd_to_svr4_flag(FF_RUNNING);
+	if (bf & IFF_DRV_RUNNING)
+		sf |= SVR4_IFF_RUNNING;
 	bsd_to_svr4_flag(FF_NOARP);
 	bsd_to_svr4_flag(FF_PROMISC);
 	bsd_to_svr4_flag(FF_ALLMULTI);

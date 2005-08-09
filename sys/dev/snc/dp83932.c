@@ -266,16 +266,16 @@ sncioctl(ifp, cmd, data)
 
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP) == 0 &&
-		    (ifp->if_flags & IFF_RUNNING) != 0) {
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			/*
 			 * If interface is marked down and it is running,
 			 * then stop it.
 			 */
 			sncstop(sc);
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			snc_disable(sc);
 		} else if ((ifp->if_flags & IFF_UP) != 0 &&
-		    (ifp->if_flags & IFF_RUNNING) == 0) {
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			/*
 			 * If interface is marked up and it is stopped,
 			 * then start it.
@@ -330,7 +330,8 @@ sncstart(ifp)
 	struct mbuf	*m;
 	int		mtd_next;
 
-	if ((ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
 outloop:
@@ -339,7 +340,7 @@ outloop:
 		mtd_next = 0;
 
 	if (mtd_next == sc->mtd_hw) {
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
 	}
 
@@ -399,7 +400,7 @@ sncinit(xsc)
 	u_long	s_rcr;
 	int	s;
 
-	if (sc->sc_ifp->if_flags & IFF_RUNNING)
+	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		/* already running */
 		return;
 
@@ -451,8 +452,8 @@ sncinit(xsc)
 	wbflush();
 
 	/* flag interface as "running" */
-	sc->sc_ifp->if_flags |= IFF_RUNNING;
-	sc->sc_ifp->if_flags &= ~IFF_OACTIVE;
+	sc->sc_ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	sc->sc_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	splx(s);
 	return;
@@ -485,7 +486,8 @@ sncstop(sc)
 	}
 
 	sc->sc_ifp->if_timer = 0;
-	sc->sc_ifp->if_flags &= ~(IFF_RUNNING | IFF_UP);
+	sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	sc->sc_ifp->if_flags &= ~IFF_UP;
 
 	splx(s);
 	return (0);
@@ -939,7 +941,7 @@ sonictxint(sc)
 		}
 #endif /* SNCDEBUG */
 
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		if (mtd->mtd_mbuf != 0) {
 			m_freem(mtd->mtd_mbuf);

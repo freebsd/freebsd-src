@@ -95,7 +95,7 @@ snc_pccard_detach(device_t dev)
 		return (0);
 	}
 	sncshutdown(sc);
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	if_detach(ifp);
 	sc->gone = 1;
 	bus_teardown_intr(dev, sc->irq, sc->irq_handle);

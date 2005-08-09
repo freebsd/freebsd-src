@@ -129,7 +129,7 @@ ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 	rt = ro->ro_rt;
 	if (rt && (rt->rt_flags & RTF_UP) &&
 	    (rt->rt_ifp->if_flags & IFF_UP) &&
-	    (rt->rt_ifp->if_flags & IFF_RUNNING)) {
+	    (rt->rt_ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		if (rt->rt_flags & RTF_GATEWAY)
 			dst = (struct sockaddr_in *)rt->rt_gateway;
 	} else {

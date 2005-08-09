@@ -349,7 +349,8 @@ loioctl(ifp, cmd, data)
 	switch (cmd) {
 
 	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP | IFF_RUNNING;
+		ifp->if_flags |= IFF_UP;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		ifa = (struct ifaddr *)data;
 		ifa->ifa_rtrequest = lortrequest;
 		/*

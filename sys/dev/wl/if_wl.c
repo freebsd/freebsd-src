@@ -810,12 +810,12 @@ wlinit(void *xsc)
     WL_LOCK(sc);
     oldpri = splimp();
     if ((stat = wlhwrst(sc)) == TRUE) {
-	sc->ifp->if_flags |= IFF_RUNNING;   /* same as DSF_RUNNING */
+	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;   /* same as DSF_RUNNING */
 	/* 
 	 * OACTIVE is used by upper-level routines
 	 * and must be set
 	 */
-	sc->ifp->if_flags &= ~IFF_OACTIVE;  /* same as tbusy below */
+	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;  /* same as tbusy below */
 		
 	sc->flags |= DSF_RUNNING;
 	sc->tbusy = 0;
@@ -990,7 +990,7 @@ wlstart(struct ifnet *ifp)
 	   (cu_status & AC_SW_B) == 0){
 	    sc->tbusy = 0;
 	    untimeout(wlwatchdog, sc, sc->watchdog_ch);
-	    sc->ifp->if_flags &= ~IFF_OACTIVE;
+	    sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	    /*
 	     * This is probably just a race.  The xmt'r is just
 	     * became idle but WE have masked interrupts so ...
@@ -1027,11 +1027,11 @@ wlstart(struct ifnet *ifp)
 	 */
 	/* try 10 ticks, not very long */
 	sc->watchdog_ch = timeout(wlwatchdog, sc, 10);
-	sc->ifp->if_flags |= IFF_OACTIVE;
+	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	sc->ifp->if_opackets++;
 	wlxmt(sc, m);
     } else {
-	sc->ifp->if_flags &= ~IFF_OACTIVE;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
     }
     WL_UNLOCK(sc);
     return;
@@ -1074,7 +1074,7 @@ wlread(struct wl_softc *sc, u_short fd_p)
     if (sc->ifp->if_flags & IFF_DEBUG)
 	printf("wl%d: entered wlread()\n", sc->unit);
 #endif
-    if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+    if (!((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 	printf("%s read(): board is not running.\n", ifp->if_xname);
 	sc->hacr &= ~HACR_INTRON;
 	CMD(sc);		/* turn off interrupts */
@@ -1627,7 +1627,7 @@ wlintr(void *arg)
 	    }
 	    sc->tbusy = 0;
 	    untimeout(wlwatchdog, sc, sc->watchdog_ch);
-	    sc->ifp->if_flags &= ~IFF_OACTIVE;
+	    sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	    wlstart(sc->ifp);
 	}
     }
