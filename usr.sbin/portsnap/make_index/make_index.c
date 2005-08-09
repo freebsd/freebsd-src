@@ -116,6 +116,8 @@ makelist(char * str, size_t * n)
 
 	/* Allocate and fill an array */
 	d = malloc(*n * sizeof(DEP));
+	if (d == NULL)
+		err(1, "malloc(DEP)");
 	for (i = 0; i < *n; i++) {
 		d[i].name = strdup2(strsep(&str, " "));
 
