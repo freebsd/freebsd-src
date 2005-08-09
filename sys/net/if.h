@@ -109,17 +109,33 @@ struct if_data {
 	struct	timeval ifi_lastchange;	/* time of last administrative change */
 };
 
+/*
+ * Interface flags are of two types: network stack owned flags, and driver
+ * owned flags.  Historically, these values were stored in the same ifnet
+ * flags field, but with the advent of fine-grained locking, they have been
+ * broken out such that the network stack is responsible for synchronizing
+ * the stack-owned fields, and the device driver the device-owned fields.
+ * Both halves can perform lockless reads of the other half's field, subject
+ * to accepting the involved races.
+ *
+ * Both sets of flags come from the same number space, and should not be
+ * permitted to conflict, as they are exposed to user space via a single
+ * field.
+ *
+ * For historical reasons, the old flag names for driver flags are exposed to
+ * user space.
+ */
 #define	IFF_UP		0x1		/* interface is up */
 #define	IFF_BROADCAST	0x2		/* broadcast address valid */
 #define	IFF_DEBUG	0x4		/* turn on debugging */
 #define	IFF_LOOPBACK	0x8		/* is a loopback net */
 #define	IFF_POINTOPOINT	0x10		/* interface is point-to-point link */
 #define	IFF_SMART	0x20		/* interface manages own routes */
-#define	IFF_RUNNING	0x40		/* resources allocated */
+#define	IFF_DRV_RUNNING	0x40		/* resources allocated */
 #define	IFF_NOARP	0x80		/* no address resolution protocol */
 #define	IFF_PROMISC	0x100		/* receive all packets */
 #define	IFF_ALLMULTI	0x200		/* receive all multicast packets */
-#define	IFF_OACTIVE	0x400		/* tx hardware queue is full */
+#define	IFF_DRV_OACTIVE	0x400		/* tx hardware queue is full */
 #define	IFF_SIMPLEX	0x800		/* can't hear own transmissions */
 #define	IFF_LINK0	0x1000		/* per link layer defined bit */
 #define	IFF_LINK1	0x2000		/* per link layer defined bit */
@@ -132,9 +148,18 @@ struct if_data {
 #define	IFF_STATICARP	0x80000		/* static ARP */
 #define	IFF_NEEDSGIANT	0x100000	/* hold Giant over if_start calls */
 
+/*
+ * Old names for driver flags so that user space tools can continue to use
+ * the old names.
+ */
+#ifndef _KERNEL
+#define	IFF_RUNNING	IFF_DRV_RUNNING
+#define	IFF_OACTIVE	IFF_DRV_OACTIVE
+#endif
+
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
-	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|\
+	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_DRV_RUNNING|IFF_DRV_OACTIVE|\
 	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART|IFF_PROMISC|\
 	    IFF_POLLING)
 
