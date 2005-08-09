@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: chared.c,v 1.24 2005/08/01 23:00:15 christos Exp $
+ *	$NetBSD: chared.c,v 1.25 2005/08/08 01:41:30 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -521,6 +521,8 @@ ch_reset(EditLine *el, int mclear)
 	el->el_state.metanext		= 0;
 	el->el_state.argument		= 1;
 	el->el_state.lastcmd		= ED_UNASSIGNED;
+
+	el->el_history.eventno		= 0;
 
 	if (mclear)
 		ch__clearmacro(el);
