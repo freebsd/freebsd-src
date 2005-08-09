@@ -131,7 +131,7 @@ static struct mbuf *ni6_input __P((struct mbuf *, int));
 static struct mbuf *ni6_nametodns __P((const char *, int, int));
 static int ni6_dnsmatch __P((const char *, int, const char *, int));
 static int ni6_addrs __P((struct icmp6_nodeinfo *, struct mbuf *,
-			  struct ifnet **, char *));
+			  struct ifnet **, struct in6_addr *));
 static int ni6_store_addrs __P((struct icmp6_nodeinfo *, struct icmp6_nodeinfo *,
 				struct ifnet *, int));
 static int icmp6_notify_error __P((struct mbuf **, int, int, int));
@@ -1342,7 +1342,7 @@ ni6_input(m, off)
 		replylen += offsetof(struct ni_reply_fqdn, ni_fqdn_namelen);
 		break;
 	case NI_QTYPE_NODEADDR:
-		addrs = ni6_addrs(ni6, m, &ifp, subj);
+		addrs = ni6_addrs(ni6, m, &ifp, (struct in6_addr *)subj);
 		if ((replylen += addrs * (sizeof(struct in6_addr) +
 		    sizeof(u_int32_t))) > MCLBYTES)
 			replylen = MCLBYTES; /* XXX: will truncate pkt later */
@@ -1629,12 +1629,11 @@ ni6_addrs(ni6, m, ifpp, subj)
 	struct icmp6_nodeinfo *ni6;
 	struct mbuf *m;
 	struct ifnet **ifpp;
-	char *subj;
+	struct in6_addr *subj;
 {
 	struct ifnet *ifp;
 	struct in6_ifaddr *ifa6;
 	struct ifaddr *ifa;
-	struct sockaddr_in6 *subj_ip6 = NULL; /* XXX pedant */
 	int addrs = 0, addrsofif, iffound = 0;
 	int niflags = ni6->ni_flags;
 
@@ -1643,7 +1642,6 @@ ni6_addrs(ni6, m, ifpp, subj)
 		case ICMP6_NI_SUBJ_IPV6:
 			if (subj == NULL) /* must be impossible... */
 				return (0);
-			subj_ip6 = (struct sockaddr_in6 *)subj;
 			break;
 		default:
 			/*
@@ -1663,8 +1661,7 @@ ni6_addrs(ni6, m, ifpp, subj)
 			ifa6 = (struct in6_ifaddr *)ifa;
 
 			if ((niflags & NI_NODEADDR_FLAG_ALL) == 0 &&
-			    IN6_ARE_ADDR_EQUAL(&subj_ip6->sin6_addr,
-			    &ifa6->ia_addr.sin6_addr))
+			    IN6_ARE_ADDR_EQUAL(subj, &ifa6->ia_addr.sin6_addr))
 				iffound = 1;
 
 			/*
