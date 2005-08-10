@@ -218,7 +218,6 @@ enum upd7210_rreg {
 #define ADR1_EOI	(1 << 7)	/* End or Identify		*/
 
 /* Stuff from software drivers */
-extern struct cdevsw gpib_l_cdevsw;
 extern struct cdevsw gpib_ib_cdevsw;
 
 /* Stuff from upd7210.c */

@@ -71,7 +71,6 @@ struct pimstat {
 }
 
 #ifdef _KERNEL
-extern struct pimstat pimstat;
 
 void pim_input(struct mbuf *, int);
 SYSCTL_DECL(_net_inet_pim);
