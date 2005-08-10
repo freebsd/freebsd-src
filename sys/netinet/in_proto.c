@@ -69,6 +69,8 @@
  * TCP/IP protocol family: IP, ICMP, UDP, TCP.
  */
 
+static struct pr_usrreqs nousrreqs;
+
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #include <netinet6/ah.h>
