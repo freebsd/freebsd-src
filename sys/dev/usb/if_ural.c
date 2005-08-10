@@ -722,20 +722,20 @@ ural_task(void *arg)
 		break;
 
 	case IEEE80211_S_SCAN:
-		ural_set_chan(sc, ic->ic_bss->ni_chan);
+		ural_set_chan(sc, ic->ic_curchan);
 		callout_reset(&sc->scan_ch, hz / 5, ural_next_scan, sc);
 		break;
 
 	case IEEE80211_S_AUTH:
-		ural_set_chan(sc, ic->ic_bss->ni_chan);
+		ural_set_chan(sc, ic->ic_curchan);
 		break;
 
 	case IEEE80211_S_ASSOC:
-		ural_set_chan(sc, ic->ic_bss->ni_chan);
+		ural_set_chan(sc, ic->ic_curchan);
 		break;
 
 	case IEEE80211_S_RUN:
-		ural_set_chan(sc, ic->ic_bss->ni_chan);
+		ural_set_chan(sc, ic->ic_curchan);
 
 		if (ic->ic_opmode != IEEE80211_M_MONITOR)
 			ural_set_bssid(sc, ic->ic_bss->ni_bssid);
@@ -1125,7 +1125,7 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	data = &sc->tx_data[0];
 	desc = (struct ural_tx_desc *)data->buf;
 
-	rate = IEEE80211_IS_CHAN_5GHZ(ni->ni_chan) ? 12 : 4;
+	rate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 4;
 
 	if (sc->sc_drvbpf != NULL) {
 		struct ural_tx_radiotap_header *tap = &sc->sc_txtap;
@@ -1956,7 +1956,8 @@ ural_init(void *priv)
 
 	/* set default BSS channel */
 	ic->ic_bss->ni_chan = ic->ic_ibss_chan;
-	ural_set_chan(sc, ic->ic_bss->ni_chan);
+	ic->ic_curchan = ic->ic_ibss_chan;
+	ural_set_chan(sc, ic->ic_curchan);
 
 	/* clear statistic registers (STA_CSR0 to STA_CSR10) */
 	ural_read_multi(sc, RAL_STA_CSR0, sta, sizeof sta);

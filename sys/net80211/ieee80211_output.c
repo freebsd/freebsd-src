@@ -187,7 +187,7 @@ ieee80211_mgmt_output(struct ieee80211com *ic, struct ieee80211_node *ni,
 		    ieee80211_mgt_subtype_name[
 			(type & IEEE80211_FC0_SUBTYPE_MASK) >>
 				IEEE80211_FC0_SUBTYPE_SHIFT],
-		    ieee80211_chan2ieee(ic, ni->ni_chan));
+		    ieee80211_chan2ieee(ic, ic->ic_curchan));
 	}
 #endif
 	IEEE80211_NODE_STAT(ni, tx_mgmt);
@@ -236,7 +236,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_DEBUG | IEEE80211_MSG_DUMPPKTS,
 	    "[%s] send null data frame on channel %u, pwr mgt %s\n",
 	    ether_sprintf(ni->ni_macaddr),
-	    ieee80211_chan2ieee(ic, ni->ni_chan),
+	    ieee80211_chan2ieee(ic, ic->ic_curchan),
 	    wh->i_fc[1] & IEEE80211_FC1_PWR_MGT ? "ena" : "dis");
 
 	IF_ENQUEUE(&ic->ic_mgtq, m);		/* cheat */
@@ -999,7 +999,7 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	}
 
 	frm = ieee80211_add_ssid(frm, ssid, ssidlen);
-	mode = ieee80211_chan2mode(ic, ni->ni_chan);
+	mode = ieee80211_chan2mode(ic, ic->ic_curchan);
 	frm = ieee80211_add_rates(frm, &ic->ic_sup_rates[mode]);
 	frm = ieee80211_add_xrates(frm, &ic->ic_sup_rates[mode]);
 
@@ -1027,7 +1027,7 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_DEBUG | IEEE80211_MSG_DUMPPKTS,
 	    "[%s] send probe req on channel %u\n",
 	    ether_sprintf(wh->i_addr1),
-	    ieee80211_chan2ieee(ic, ni->ni_chan));
+	    ieee80211_chan2ieee(ic, ic->ic_curchan));
 
 	IF_ENQUEUE(&ic->ic_mgtq, m);
 	if_start(ic->ic_ifp);
@@ -1109,7 +1109,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		if (ic->ic_flags & IEEE80211_F_PRIVACY)
 			capinfo |= IEEE80211_CAPINFO_PRIVACY;
 		if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
-		    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+		    IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
 			capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
 		if (ic->ic_flags & IEEE80211_F_SHSLOT)
 			capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
@@ -1126,14 +1126,14 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
                         *frm++ = ni->ni_fhdwell & 0x00ff;
                         *frm++ = (ni->ni_fhdwell >> 8) & 0x00ff;
                         *frm++ = IEEE80211_FH_CHANSET(
-			    ieee80211_chan2ieee(ic, ni->ni_chan));
+			    ieee80211_chan2ieee(ic, ic->ic_curchan));
                         *frm++ = IEEE80211_FH_CHANPAT(
-			    ieee80211_chan2ieee(ic, ni->ni_chan));
+			    ieee80211_chan2ieee(ic, ic->ic_curchan));
                         *frm++ = ni->ni_fhindex;
 		} else {
 			*frm++ = IEEE80211_ELEMID_DSPARMS;
 			*frm++ = 1;
-			*frm++ = ieee80211_chan2ieee(ic, ni->ni_chan);
+			*frm++ = ieee80211_chan2ieee(ic, ic->ic_curchan);
 		}
 
 		if (ic->ic_opmode == IEEE80211_M_IBSS) {
@@ -1265,7 +1265,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		 *     short premable is set.
 		 */
 		if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
-		    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+		    IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
 			capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
 		if ((ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME) &&
 		    (ic->ic_caps & IEEE80211_C_SHSLOT))
@@ -1321,7 +1321,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		if (ic->ic_flags & IEEE80211_F_PRIVACY)
 			capinfo |= IEEE80211_CAPINFO_PRIVACY;
 		if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
-		    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+		    IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
 			capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
 		if (ic->ic_flags & IEEE80211_F_SHSLOT)
 			capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;

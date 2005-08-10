@@ -990,21 +990,21 @@ ral_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		break;
 
 	case IEEE80211_S_SCAN:
-		ral_set_chan(sc, ic->ic_bss->ni_chan);
+		ral_set_chan(sc, ic->ic_curchan);
 		callout_reset(&sc->scan_ch, (sc->dwelltime * hz) / 1000,
 		    ral_next_scan, sc);
 		break;
 
 	case IEEE80211_S_AUTH:
-		ral_set_chan(sc, ic->ic_bss->ni_chan);
+		ral_set_chan(sc, ic->ic_curchan);
 		break;
 
 	case IEEE80211_S_ASSOC:
-		ral_set_chan(sc, ic->ic_bss->ni_chan);
+		ral_set_chan(sc, ic->ic_curchan);
 		break;
 
 	case IEEE80211_S_RUN:
-		ral_set_chan(sc, ic->ic_bss->ni_chan);
+		ral_set_chan(sc, ic->ic_curchan);
 
 		if (ic->ic_opmode != IEEE80211_M_MONITOR)
 			ral_set_bssid(sc, ic->ic_bss->ni_bssid);
@@ -1768,7 +1768,7 @@ ral_tx_mgt(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	desc = &sc->prioq.desc[sc->prioq.cur];
 	data = &sc->prioq.data[sc->prioq.cur];
 
-	rate = IEEE80211_IS_CHAN_5GHZ(ni->ni_chan) ? 12 : 4;
+	rate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 4;
 
 	error = bus_dmamap_load_mbuf_sg(sc->prioq.data_dmat, data->map, m0,
 	    segs, &nsegs, 0);
@@ -1910,7 +1910,7 @@ ral_tx_data(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		uint16_t dur;
 		int rtsrate, ackrate;
 
-		rtsrate = IEEE80211_IS_CHAN_5GHZ(ni->ni_chan) ? 12 : 4;
+		rtsrate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 4;
 		ackrate = ral_ack_rate(rate);
 
 		dur = ral_txtime(m0->m_pkthdr.len + 4, rate, ic->ic_flags) +
@@ -2739,7 +2739,8 @@ ral_init(void *priv)
 
 	/* set default BSS channel */
 	ic->ic_bss->ni_chan = ic->ic_ibss_chan;
-	ral_set_chan(sc, ic->ic_bss->ni_chan);
+	ic->ic_curchan = ic->ic_ibss_chan;
+	ral_set_chan(sc, ic->ic_curchan);
 
 	/* kick Rx */
 	tmp = RAL_DROP_PHY_ERROR | RAL_DROP_CRC_ERROR;

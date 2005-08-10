@@ -167,6 +167,10 @@ ieee80211_ifattach(struct ieee80211com *ic)
 				ic->ic_modecaps |= 1<<IEEE80211_MODE_TURBO_A;
 			if (IEEE80211_IS_CHAN_108G(c))
 				ic->ic_modecaps |= 1<<IEEE80211_MODE_TURBO_G;
+			if (ic->ic_curchan == NULL) {
+				/* arbitrarily pick the first channel */
+				ic->ic_curchan = &ic->ic_channels[i];
+			}
 		}
 	}
 	/* validate ic->ic_curmode */
