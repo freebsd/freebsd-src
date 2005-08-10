@@ -64,6 +64,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_ipstealth.h"
 #include "opt_carp.h"
 
 #include <sys/param.h>
@@ -310,6 +311,9 @@ int	ip6_v6only = 1;
 
 int	ip6_keepfaith = 0;
 time_t	ip6_log_time = (time_t)0L;
+#ifdef IPSTEALTH
+int	ip6stealth = 0;
+#endif
 
 /* icmp6 */
 /*
@@ -446,6 +450,10 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USE_DEFAULTZONE,
 	use_defaultzone, CTLFLAG_RW, &ip6_use_defzone,		0,"");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS,
 	maxfrags, CTLFLAG_RW,		&ip6_maxfrags,	0, "");
+#ifdef IPSTEALTH
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_STEALTH, stealth, CTLFLAG_RW,
+	&ip6stealth, 0, "");
+#endif
 
 /* net.inet6.icmp6 */
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT,
