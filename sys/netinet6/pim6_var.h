@@ -52,8 +52,6 @@ struct pim6stat {
 };
 
 #if (defined(KERNEL)) || (defined(_KERNEL))
-extern struct pim6stat pim6stat;
-
 int pim6_input __P((struct mbuf **, int*, int));
 #endif /* KERNEL */
 

@@ -135,7 +135,6 @@ extern int (*union_dircheckp)(struct thread *, struct vnode **,
 #define UDEBUG_ENABLED	1
 
 extern struct vop_vector union_vnodeops;
-extern struct vfsops union_vfsops;
 extern int uniondebug;
 
 #endif /* _KERNEL */
