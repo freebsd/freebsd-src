@@ -136,10 +136,6 @@ static int ni6_store_addrs __P((struct icmp6_nodeinfo *, struct icmp6_nodeinfo *
 				struct ifnet *, int));
 static int icmp6_notify_error __P((struct mbuf **, int, int, int));
 
-#ifdef COMPAT_RFC1885
-static struct route_in6 icmp6_reflect_rt;
-#endif
-
 
 void
 icmp6_init()
@@ -484,16 +480,10 @@ icmp6_input(mp, offp, proto)
 		case ICMP6_DST_UNREACH_ADDR:
 			code = PRC_HOSTDEAD;
 			break;
-#ifdef COMPAT_RFC1885
-		case ICMP6_DST_UNREACH_NOTNEIGHBOR:
-			code = PRC_UNREACH_SRCFAIL;
-			break;
-#else
 		case ICMP6_DST_UNREACH_BEYONDSCOPE:
 			/* I mean "source address was incorrect." */
 			code = PRC_PARAMPROB;
 			break;
-#endif
 		case ICMP6_DST_UNREACH_NOPORT:
 			code = PRC_UNREACH_PORT;
 			break;
@@ -2030,10 +2020,6 @@ icmp6_reflect(m, off)
 	int type, code;
 	struct ifnet *outif = NULL;
 	struct in6_addr origdst, *src = NULL;
-#ifdef COMPAT_RFC1885
-	int mtu = IPV6_MMTU;
-	struct sockaddr_in6 *sin6 = &icmp6_reflect_rt.ro_dst;
-#endif
 
 	/* too short to reflect */
 	if (off < sizeof(struct ip6_hdr)) {
@@ -2086,40 +2072,6 @@ icmp6_reflect(m, off)
 	 * So, the src is never multicast.
 	 */
 	ip6->ip6_dst = ip6->ip6_src;
-
-#ifdef COMPAT_RFC1885
-	/*
-	 * xxx guess MTU
-	 * RFC 1885 requires that echo reply should be truncated if it
-	 * does not fit in with (return) path MTU, but the description was
-	 * removed in the new spec.
-	 */
-	if (icmp6_reflect_rt.ro_rt == 0 ||
-	    ! (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &ip6->ip6_dst))) {
-		if (icmp6_reflect_rt.ro_rt) {
-			RTFREE(icmp6_reflect_rt.ro_rt);
-			icmp6_reflect_rt.ro_rt = 0;
-		}
-		bzero(sin6, sizeof(*sin6));
-		sin6->sin6_family = PF_INET6;
-		sin6->sin6_len = sizeof(struct sockaddr_in6);
-		sin6->sin6_addr = ip6->ip6_dst;
-
-		rtalloc((struct route *)&icmp6_reflect_rt.ro_rt);
-	}
-
-	if (icmp6_reflect_rt.ro_rt == 0)
-		goto bad;
-
-	if ((icmp6_reflect_rt.ro_rt->rt_flags & RTF_HOST)
-	    && mtu < icmp6_reflect_rt.ro_rt->rt_ifp->if_mtu)
-		mtu = icmp6_reflect_rt.ro_rt->rt_rmx.rmx_mtu;
-
-	if (mtu < m->m_pkthdr.len) {
-		plen -= (m->m_pkthdr.len - mtu);
-		m_adj(m, mtu - m->m_pkthdr.len);
-	}
-#endif
 
 	/*
 	 * If the incoming packet was addressed directly to us (i.e. unicast),
@@ -2204,11 +2156,7 @@ icmp6_reflect(m, off)
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 
-#ifdef COMPAT_RFC1885
-	ip6_output(m, NULL, &icmp6_reflect_rt, 0, NULL, &outif, NULL);
-#else
 	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
-#endif
 	if (outif)
 		icmp6_ifoutstat_inc(outif, type, code);
 
