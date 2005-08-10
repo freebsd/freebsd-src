@@ -181,7 +181,6 @@ main(int argc, char *argv[])
 	int resbufpos = 0;	/* Response buffer position */
 	int resbuflen = 0;	/* Response buffer length */
 	char * eolp;		/* Pointer to "\r\n" within resbuf */
-	char * hln0;		/* Pointer to start of header line */
 	char * hln;		/* Pointer within header line */
 	char * servername;	/* Name of server */
 	char * fname = NULL;	/* Name of downloaded file */
@@ -334,7 +333,7 @@ main(int argc, char *argv[])
 			error = readln(sd, resbuf, &resbuflen, &resbufpos);
 			if (error)
 				goto conndied;
-			hln0 = hln = resbuf + resbufpos;
+			hln = resbuf + resbufpos;
 			eolp = strnstr(hln, "\r\n", resbuflen - resbufpos);
 			resbufpos = (eolp - resbuf) + 2;
 			*eolp = '\0';
