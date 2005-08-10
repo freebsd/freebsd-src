@@ -359,7 +359,6 @@ struct my_softc {
 	struct resource		*my_res;
 	struct resource		*my_irq;
 	void			*my_intrhand;
-        u_int8_t                my_unit;        /* interface number */
         u_int8_t                my_phy_addr;    /* PHY address */
         u_int8_t                my_tx_pend;     /* TX pending */
         u_int8_t                my_want_auto;
