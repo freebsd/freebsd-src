@@ -1049,7 +1049,7 @@ ng_l2tp_recv_ctrl(node_p node, item_p item)
 	/* Sanity check receive ack timer state */
 	KASSERT((i == 0) ^ callout_pending(&seq->rack_timer),
 	    ("%s: xwin %d full but rack timer %s running",
-	    __FUNCTION__, i, callout_pending(&seq->rack_timer) ? "" : "not "));
+	    __func__, i, callout_pending(&seq->rack_timer) ? "" : "not "));
 
 	/* If peer's receive window is already full, nothing else to do */
 	if (i >= seq->cwnd)
@@ -1155,7 +1155,7 @@ ng_l2tp_seq_init(priv_p priv)
 	struct l2tp_seq *const seq = &priv->seq;
 
 	KASSERT(priv->conf.peer_win >= 1,
-	    ("%s: peer_win is zero", __FUNCTION__));
+	    ("%s: peer_win is zero", __func__));
 	memset(seq, 0, sizeof(*seq));
 	seq->cwnd = 1;
 	seq->wmax = priv->conf.peer_win;
@@ -1283,7 +1283,7 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 		return;
 	}
 	KASSERT(nack <= L2TP_MAX_XWIN,
-	    ("%s: nack=%d > %d", __FUNCTION__, nack, L2TP_MAX_XWIN));
+	    ("%s: nack=%d > %d", __func__, nack, L2TP_MAX_XWIN));
 
 	/* Update receive ack stats */
 	seq->rack = nr;
@@ -1533,7 +1533,7 @@ ng_l2tp_seq_check(struct l2tp_seq *seq)
 	const int peer_unack = L2TP_SEQ_DIFF(seq->ns, seq->rack);
 	int i;
 
-#define CHECK(p)	KASSERT((p), ("%s: not: %s", __FUNCTION__, #p))
+#define CHECK(p)	KASSERT((p), ("%s: not: %s", __func__, #p))
 
 	CHECK(seq->wmax <= L2TP_MAX_XWIN);
 	CHECK(seq->cwnd >= 1);

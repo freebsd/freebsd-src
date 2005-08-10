@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/atm/sscop/ng_sscop_cust.h>
 #include <netnatm/saal/sscop.h>
 
-#define DDD printf("%s: %d\n", __FUNCTION__, __LINE__)
+#define DDD printf("%s: %d\n", __func__, __LINE__)
 
 #ifdef SSCOP_DEBUG
 #define VERBOSE(P,M,F)							\
