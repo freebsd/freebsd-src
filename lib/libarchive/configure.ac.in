@@ -77,6 +77,14 @@ AC_CHECK_FUNCS([chflags fchdir fchflags fchmod fchown futimes])
 AC_CHECK_FUNCS([lchflags lchmod lchown lutimes memmove])
 AC_CHECK_FUNCS([memset mkdir mkfifo strchr strdup strerror strrchr])
 
+# MacOS has an acl.h that isn't POSIX.  It can be detected by
+# checking for ACL_USER
+AC_CHECK_DECL([ACL_USER],
+		[AC_DEFINE(HAVE_ACL_USER, 1, [True for systems with POSIX ACL support])],
+		[],
+		[#include <sys/acl.h>])
+
+
 # Additional requirements
 AC_SYS_LARGEFILE
 AC_SUBST(ARCHIVE_API_VERSION,[1])
