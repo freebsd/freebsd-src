@@ -252,7 +252,7 @@ ieee80211_cfgget(struct ieee80211com *ic, u_long cmd, caddr_t data)
 		break;
 	case WI_RID_CURRENT_CHAN:
 		wreq.wi_val[0] = htole16(
-			ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan));
+			ieee80211_chan2ieee(ic, ic->ic_curchan));
 		wreq.wi_len = 1;
 		break;
 	case WI_RID_COMMS_QUALITY:
@@ -448,7 +448,6 @@ findrate(struct ieee80211com *ic, enum ieee80211_phymode mode, int rate)
 static int
 ieee80211_setupscan(struct ieee80211com *ic, const u_int8_t chanlist[])
 {
-	int i;
 
 	/*
 	 * XXX don't permit a scan to be started unless we
@@ -460,20 +459,6 @@ ieee80211_setupscan(struct ieee80211com *ic, const u_int8_t chanlist[])
 	 */
 	if (!IS_UP(ic))
 		return EINVAL;
-	if (ic->ic_ibss_chan == NULL ||
-	    isclr(chanlist, ieee80211_chan2ieee(ic, ic->ic_ibss_chan))) {
-		for (i = 0; i <= IEEE80211_CHAN_MAX; i++)
-			if (isset(chanlist, i)) {
-				ic->ic_ibss_chan = &ic->ic_channels[i];
-				goto found;
-			}
-		return EINVAL;			/* no active channels */
-found:
-		;
-	}
-	if (ic->ic_bss->ni_chan == IEEE80211_CHAN_ANYC ||
-	    isclr(chanlist, ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan)))
-		ic->ic_bss->ni_chan = ic->ic_ibss_chan;
 	memcpy(ic->ic_chan_active, chanlist, sizeof(ic->ic_chan_active));
 	/*
 	 * We force the state to INIT before calling ieee80211_new_state
@@ -825,18 +810,6 @@ ieee80211_cfgset(struct ieee80211com *ic, u_long cmd, caddr_t data)
 	if (error == ENETRESET && !IS_UP_AUTO(ic))
 		error = 0;
 	return error;
-}
-
-static struct ieee80211_channel *
-getcurchan(struct ieee80211com *ic)
-{
-	switch (ic->ic_state) {
-	case IEEE80211_S_INIT:
-	case IEEE80211_S_SCAN:
-		return ic->ic_des_chan;
-	default:
-		return ic->ic_ibss_chan;
-	}
 }
 
 static int
@@ -1351,7 +1324,7 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 			ireq->i_val = ic->ic_bss->ni_authmode;
 		break;
 	case IEEE80211_IOC_CHANNEL:
-		ireq->i_val = ieee80211_chan2ieee(ic, getcurchan(ic));
+		ireq->i_val = ieee80211_chan2ieee(ic, ic->ic_curchan);
 		break;
 	case IEEE80211_IOC_POWERSAVE:
 		if (ic->ic_flags & IEEE80211_F_PMGTON)
@@ -1841,9 +1814,6 @@ found:
 		;
 	}
 	memcpy(ic->ic_chan_active, chanlist, sizeof(ic->ic_chan_active));
-	if (ic->ic_bss->ni_chan == IEEE80211_CHAN_ANYC ||
-	    isclr(chanlist, ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan)))
-		ic->ic_bss->ni_chan = ic->ic_ibss_chan;
 	return IS_UP_AUTO(ic) ? ENETRESET : 0;
 }
 

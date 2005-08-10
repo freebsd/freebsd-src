@@ -261,16 +261,12 @@ ieee80211_reset_scan(struct ieee80211com *ic)
 	} else
 		memcpy(ic->ic_chan_scan, ic->ic_chan_active,
 			sizeof(ic->ic_chan_active));
-	/* NB: hack, setup so next_scan starts with the first channel */
-	if (ic->ic_bss->ni_chan == IEEE80211_CHAN_ANYC)
-		ieee80211_set_chan(ic, ic->ic_bss,
-			&ic->ic_channels[IEEE80211_CHAN_MAX]);
 #ifdef IEEE80211_DEBUG
 	if (ieee80211_msg_scan(ic)) {
 		printf("%s: scan set:", __func__);
 		dump_chanlist(ic->ic_chan_scan);
 		printf(" start chan %u\n",
-			ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan));
+			ieee80211_chan2ieee(ic, ic->ic_curchan));
 	}
 #endif /* IEEE80211_DEBUG */
 }
@@ -324,7 +320,7 @@ ieee80211_next_scan(struct ieee80211com *ic)
 	 */
 	ic->ic_mgt_timer = 0;
 
-	chan = ic->ic_bss->ni_chan;
+	chan = ic->ic_curchan;
 	do {
 		if (++chan > &ic->ic_channels[IEEE80211_CHAN_MAX])
 			chan = &ic->ic_channels[0];
@@ -332,13 +328,19 @@ ieee80211_next_scan(struct ieee80211com *ic)
 			clrbit(ic->ic_chan_scan, ieee80211_chan2ieee(ic, chan));
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN,
 			    "%s: chan %d->%d\n", __func__,
-			    ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan),
+			    ieee80211_chan2ieee(ic, ic->ic_curchan),
 			    ieee80211_chan2ieee(ic, chan));
-			ieee80211_set_chan(ic, ic->ic_bss, chan);
+			ic->ic_curchan = chan;
+			/*
+			 * XXX drivers should do this as needed,
+			 * XXX for now maintain compatibility
+			 */
+			ic->ic_bss->ni_rates =
+				ic->ic_sup_rates[ieee80211_chan2mode(ic, chan)];
 			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 			return 1;
 		}
-	} while (chan != ic->ic_bss->ni_chan);
+	} while (chan != ic->ic_curchan);
 	ieee80211_end_scan(ic);
 	return 0;
 }
@@ -408,6 +410,7 @@ ieee80211_create_ibss(struct ieee80211com* ic, struct ieee80211_channel *chan)
 	 * Fix the channel and related attributes.
 	 */
 	ieee80211_set_chan(ic, ni, chan);
+	ic->ic_curchan = chan;
 	ic->ic_curmode = ieee80211_chan2mode(ic, chan);
 	/*
 	 * Do mode-specific rate setup.
@@ -790,6 +793,7 @@ ieee80211_sta_join(struct ieee80211com *ic, struct ieee80211_node *selbs)
 	 * mode is locked.
 	 */ 
 	ic->ic_curmode = ieee80211_chan2mode(ic, selbs->ni_chan);
+	ic->ic_curchan = selbs->ni_chan;
 	ieee80211_reset_erp(ic);
 	ieee80211_wme_initparams(ic);
 
@@ -1077,6 +1081,177 @@ ieee80211_fakeup_adhoc_node(struct ieee80211_node_table *nt,
 	if (ni != NULL) {
 		/* XXX no rate negotiation; just dup */
 		ni->ni_rates = ic->ic_bss->ni_rates;
+		if (ic->ic_newassoc != NULL)
+			ic->ic_newassoc(ni, 1);
+		/* XXX not right for 802.1x/WPA */
+		ieee80211_node_authorize(ni);
+	}
+	return ni;
+}
+
+#ifdef IEEE80211_DEBUG
+static void
+dump_probe_beacon(u_int8_t subtype, int isnew,
+	const u_int8_t mac[IEEE80211_ADDR_LEN],
+	const struct ieee80211_scanparams *sp)
+{
+
+	printf("[%s] %s%s on chan %u (bss chan %u) ",
+	    ether_sprintf(mac), isnew ? "new " : "",
+	    ieee80211_mgt_subtype_name[subtype >> IEEE80211_FC0_SUBTYPE_SHIFT],
+	    sp->chan, sp->bchan);
+	ieee80211_print_essid(sp->ssid + 2, sp->ssid[1]);
+	printf("\n");
+
+	if (isnew) {
+		printf("[%s] caps 0x%x bintval %u erp 0x%x", 
+			ether_sprintf(mac), sp->capinfo, sp->bintval, sp->erp);
+		if (sp->country != NULL) {
+#ifdef __FreeBSD__
+			printf(" country info %*D",
+				sp->country[1], sp->country+2, " ");
+#else
+			int i;
+			printf(" country info");
+			for (i = 0; i < sp->country[1]; i++)
+				printf(" %02x", sp->country[i+2]);
+#endif
+		}
+		printf("\n");
+	}
+}
+#endif /* IEEE80211_DEBUG */
+
+static void
+saveie(u_int8_t **iep, const u_int8_t *ie)
+{
+
+	if (ie == NULL)
+		*iep = NULL;
+	else
+		ieee80211_saveie(iep, ie);
+}
+
+/*
+ * Process a beacon or probe response frame.
+ */
+void
+ieee80211_add_scan(struct ieee80211com *ic,
+	const struct ieee80211_scanparams *sp,
+	const struct ieee80211_frame *wh,
+	int subtype, int rssi, int rstamp)
+{
+#define	ISPROBE(_st)	((_st) == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
+	struct ieee80211_node_table *nt = &ic->ic_scan;
+	struct ieee80211_node *ni;
+	int newnode = 0;
+
+	ni = ieee80211_find_node(nt, wh->i_addr2);
+	if (ni == NULL) {
+		/*
+		 * Create a new entry.
+		 */
+		ni = ic->ic_node_alloc(nt);
+		if (ni == NULL) {
+			ic->ic_stats.is_rx_nodealloc++;
+			return;
+		}
+		ieee80211_setup_node(nt, ni, wh->i_addr2);
+		/*
+		 * XXX inherit from ic_bss.
+		 */
+		ni->ni_authmode = ic->ic_bss->ni_authmode;
+		ni->ni_txpower = ic->ic_bss->ni_txpower;
+		ni->ni_vlan = ic->ic_bss->ni_vlan;	/* XXX?? */
+		ieee80211_set_chan(ic, ni, ic->ic_curchan);
+		ni->ni_rsn = ic->ic_bss->ni_rsn;
+		newnode = 1;
+	}
+#ifdef IEEE80211_DEBUG
+	if (ieee80211_msg_scan(ic) && (ic->ic_flags & IEEE80211_F_SCAN))
+		dump_probe_beacon(subtype, newnode, wh->i_addr2, sp);
+#endif
+	/* XXX ap beaconing multiple ssid w/ same bssid */
+	if (sp->ssid[1] != 0 &&
+	    (ISPROBE(subtype) || ni->ni_esslen == 0)) {
+		ni->ni_esslen = sp->ssid[1];
+		memset(ni->ni_essid, 0, sizeof(ni->ni_essid));
+		memcpy(ni->ni_essid, sp->ssid + 2, sp->ssid[1]);
+	}
+	ni->ni_scangen = ic->ic_scan.nt_scangen;
+	IEEE80211_ADDR_COPY(ni->ni_bssid, wh->i_addr3);
+	ni->ni_rssi = rssi;
+	ni->ni_rstamp = rstamp;
+	memcpy(ni->ni_tstamp.data, sp->tstamp, sizeof(ni->ni_tstamp));
+	ni->ni_intval = sp->bintval;
+	ni->ni_capinfo = sp->capinfo;
+	ni->ni_chan = &ic->ic_channels[sp->chan];
+	ni->ni_fhdwell = sp->fhdwell;
+	ni->ni_fhindex = sp->fhindex;
+	ni->ni_erp = sp->erp;
+	if (sp->tim != NULL) {
+		struct ieee80211_tim_ie *ie =
+		    (struct ieee80211_tim_ie *) sp->tim;
+
+		ni->ni_dtim_count = ie->tim_count;
+		ni->ni_dtim_period = ie->tim_period;
+	}
+	/*
+	 * Record the byte offset from the mac header to
+	 * the start of the TIM information element for
+	 * use by hardware and/or to speedup software
+	 * processing of beacon frames.
+	 */
+	ni->ni_timoff = sp->timoff;
+	/*
+	 * Record optional information elements that might be
+	 * used by applications or drivers.
+	 */
+	saveie(&ni->ni_wme_ie, sp->wme);
+	saveie(&ni->ni_wpa_ie, sp->wpa);
+
+	/* NB: must be after ni_chan is setup */
+	ieee80211_setup_rates(ni, sp->rates, sp->xrates, IEEE80211_F_DOSORT);
+
+	if (!newnode)
+		ieee80211_free_node(ni);
+#undef ISPROBE
+}
+
+/*
+ * Do node discovery in adhoc mode on receipt of a beacon
+ * or probe response frame.  Note that for the driver's
+ * benefit we we treat this like an association so the
+ * driver has an opportunity to setup it's private state.
+ */
+struct ieee80211_node *
+ieee80211_add_neighbor(struct ieee80211com *ic,
+	const struct ieee80211_frame *wh,
+	const struct ieee80211_scanparams *sp)
+{
+	struct ieee80211_node *ni;
+
+	ni = ieee80211_dup_bss(&ic->ic_sta, wh->i_addr2);/* XXX alloc_node? */
+	if (ni != NULL) {
+		ni->ni_esslen = sp->ssid[1];
+		memcpy(ni->ni_essid, sp->ssid + 2, sp->ssid[1]);
+		IEEE80211_ADDR_COPY(ni->ni_bssid, wh->i_addr3);
+		memcpy(ni->ni_tstamp.data, sp->tstamp, sizeof(ni->ni_tstamp));
+		ni->ni_intval = sp->bintval;
+		ni->ni_capinfo = sp->capinfo;
+		ni->ni_chan = ic->ic_bss->ni_chan;
+		ni->ni_fhdwell = sp->fhdwell;
+		ni->ni_fhindex = sp->fhindex;
+		ni->ni_erp = sp->erp;
+		ni->ni_timoff = sp->timoff;
+		if (sp->wme != NULL)
+			ieee80211_saveie(&ni->ni_wme_ie, sp->wme);
+		if (sp->wpa != NULL)
+			ieee80211_saveie(&ni->ni_wpa_ie, sp->wpa);
+
+		/* NB: must be after ni_chan is setup */
+		ieee80211_setup_rates(ni, sp->rates, sp->xrates, IEEE80211_F_DOSORT);
+
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */

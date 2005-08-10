@@ -132,7 +132,7 @@ struct ieee80211_node {
 	u_int8_t		ni_esslen;
 	u_int8_t		ni_essid[IEEE80211_NWID_LEN];
 	struct ieee80211_rateset ni_rates;	/* negotiated rate set */
-	struct ieee80211_channel *ni_chan;
+	struct ieee80211_channel *ni_chan;	/* XXX multiple uses */
 	u_int16_t		ni_fhdwell;	/* FH only */
 	u_int8_t		ni_fhindex;	/* FH only */
 	u_int8_t		ni_erp;		/* ERP from beacon/probe resp */
@@ -293,4 +293,38 @@ struct ieee80211_node *ieee80211_fakeup_adhoc_node(
 void	ieee80211_node_join(struct ieee80211com *, struct ieee80211_node *,int);
 void	ieee80211_node_leave(struct ieee80211com *, struct ieee80211_node *);
 u_int8_t ieee80211_getrssi(struct ieee80211com *ic);
+
+/*
+ * Parameters supplied when adding/updating an entry in a
+ * scan cache.  Pointer variables should be set to NULL
+ * if no data is available.  Pointer references can be to
+ * local data; any information that is saved will be copied.
+ * All multi-byte values must be in host byte order.
+ */
+struct ieee80211_scanparams {
+	u_int16_t	capinfo;	/* 802.11 capabilities */
+	u_int16_t	fhdwell;	/* FHSS dwell interval */
+	u_int8_t	chan;		/* */
+	u_int8_t	bchan;
+	u_int8_t	fhindex;
+	u_int8_t	erp;
+	u_int16_t	bintval;
+	u_int8_t	timoff;
+	u_int8_t	*tim;
+	u_int8_t	*tstamp;
+	u_int8_t	*country;
+	u_int8_t	*ssid;
+	u_int8_t	*rates;
+	u_int8_t	*xrates;
+	u_int8_t	*wpa;
+	u_int8_t	*wme;
+};
+
+void	ieee80211_add_scan(struct ieee80211com *,
+		const struct ieee80211_scanparams *,
+		const struct ieee80211_frame *,
+		int subtype, int rssi, int rstamp);
+struct ieee80211_node *ieee80211_add_neighbor(struct ieee80211com *,
+		const struct ieee80211_frame *,
+		const struct ieee80211_scanparams *);
 #endif /* _NET80211_IEEE80211_NODE_H_ */

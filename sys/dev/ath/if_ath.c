@@ -844,7 +844,6 @@ ath_init(void *arg)
 	struct ath_softc *sc = (struct ath_softc *) arg;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211_node *ni;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 
@@ -865,8 +864,8 @@ ath_init(void *arg)
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
 	 */
-	sc->sc_curchan.channel = ic->ic_ibss_chan->ic_freq;
-	sc->sc_curchan.channelFlags = ath_chan2flags(ic, ic->ic_ibss_chan);
+	sc->sc_curchan.channel = ic->ic_curchan->ic_freq;
+	sc->sc_curchan.channelFlags = ath_chan2flags(ic, ic->ic_curchan);
 	if (!ath_hal_reset(ah, ic->ic_opmode, &sc->sc_curchan, AH_FALSE, &status)) {
 		if_printf(ifp, "unable to reset hardware; hal status %u\n",
 			status);
@@ -918,9 +917,7 @@ ath_init(void *arg)
 	 * to kick the 802.11 state machine as it's likely to
 	 * immediately call back to us to send mgmt frames.
 	 */
-	ni = ic->ic_bss;
-	ni->ni_chan = ic->ic_ibss_chan;
-	ath_chan_change(sc, ni->ni_chan);
+	ath_chan_change(sc, ic->ic_curchan);
 	if (ic->ic_opmode != IEEE80211_M_MONITOR) {
 		if (ic->ic_roaming != IEEE80211_ROAMING_MANUAL)
 			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
@@ -1022,7 +1019,7 @@ ath_reset(struct ifnet *ifp)
 	 * Convert to a HAL channel description with the flags
 	 * constrained to reflect the current operating mode.
 	 */
-	c = ic->ic_ibss_chan;
+	c = ic->ic_curchan;
 	sc->sc_curchan.channel = c->ic_freq;
 	sc->sc_curchan.channelFlags = ath_chan2flags(ic, c);
 
@@ -4114,7 +4111,7 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		goto done;
 	}
 	ni = ic->ic_bss;
-	error = ath_chan_set(sc, ni->ni_chan);
+	error = ath_chan_set(sc, ic->ic_curchan);
 	if (error != 0)
 		goto bad;
 	rfilt = ath_calcrxfilter(sc, nstate);
@@ -4153,7 +4150,7 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			 , ni->ni_intval
 			 , ether_sprintf(ni->ni_bssid)
 			 , ni->ni_capinfo
-			 , ieee80211_chan2ieee(ic, ni->ni_chan));
+			 , ieee80211_chan2ieee(ic, ic->ic_curchan));
 
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_HOSTAP:
