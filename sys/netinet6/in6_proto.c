@@ -144,7 +144,7 @@
  */
 
 extern	struct domain inet6domain;
-static struct pr_usrreqs nousrreqs;
+static	struct pr_usrreqs nousrreqs;
 
 #define PR_LISTEN	0
 #define PR_ABRTACPTDIS	0
