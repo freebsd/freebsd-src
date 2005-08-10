@@ -99,7 +99,6 @@ struct ithd {
 
 extern struct	ithd *tty_ithd;
 extern struct	ithd *clk_ithd;
-extern void	*net_ih;
 extern void	*softclock_ih;
 extern void	*vm_ih;
 
