@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <dirent.h>
 #include "y.tab.h"
 #include "config.h"
+#include "configvers.h"
 
 #ifndef TRUE
 #define TRUE	(1)
@@ -95,8 +96,11 @@ main(int argc, char **argv)
 	char *p;
 	char xxx[MAXPATHLEN];
 
-	while ((ch = getopt(argc, argv, "d:gp")) != -1)
+	while ((ch = getopt(argc, argv, "d:gpV")) != -1)
 		switch (ch) {
+		case 'V':
+			printf("%d\n", CONFIGVERS);
+			exit(0);
 		case 'd':
 			if (*destdir == '\0')
 				strlcpy(destdir, optarg, sizeof(destdir));
