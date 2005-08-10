@@ -836,7 +836,7 @@ vatmpif_harp_recv_drain(Vatmpif_unit *vup, KBuffer *m,
 
 	if (IS_VATMPIF_DEBUG_PACKET(vup))
 		atm_dev_pdu_print((Cmn_unit *)vup, (Cmn_vcc *)vvp, m,
-		    __FUNCTION__);
+		    __func__);
 
 	/*
 	 * Get packet PDU length
