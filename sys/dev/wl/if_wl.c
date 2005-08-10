@@ -175,7 +175,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 /*
  * NOTE:
  *		by rvb:
