@@ -250,6 +250,11 @@ vm_object_init(void)
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
 
+	/*
+	 * The lock portion of struct vm_object must be type stable due
+	 * to vm_pageout_fallback_object_lock locking a vm object
+	 * without holding any references to it.
+	 */
 	obj_zone = uma_zcreate("VM OBJECT", sizeof (struct vm_object), NULL,
 #ifdef INVARIANTS
 	    vm_object_zdtor,
