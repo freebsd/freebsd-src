@@ -2062,9 +2062,9 @@ static void
 ieee80211_node_leave_11g(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
 
-	KASSERT(ic->ic_curmode == IEEE80211_MODE_11G ||
-		ic->ic_curmode == IEEE80211_MODE_TURBO_G,
-		("not in 11g, curmode %x", ic->ic_curmode));
+	KASSERT(IEEE80211_IS_CHAN_ANYG(ni->ni_chan),
+	     ("not in 11g, bss %u:0x%x, curmode %u", ni->ni_chan->ic_freq,
+	      ni->ni_chan->ic_flags, ic->ic_curmode));
 
 	/*
 	 * If a long slot station do the slot time bookkeeping.
@@ -2152,8 +2152,7 @@ ieee80211_node_leave(struct ieee80211com *ic, struct ieee80211_node *ni)
 	ni->ni_associd = 0;
 	ic->ic_sta_assoc--;
 
-	if (ic->ic_curmode == IEEE80211_MODE_11G ||
-	    ic->ic_curmode == IEEE80211_MODE_TURBO_G)
+	if (IEEE80211_IS_CHAN_ANYG(ic->ic_bss->ni_chan))
 		ieee80211_node_leave_11g(ic, ni);
 	/*
 	 * Cleanup station state.  In particular clear various
