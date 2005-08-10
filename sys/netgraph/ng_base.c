@@ -136,6 +136,7 @@ struct ng_hook ng_deadhook = {
 	NULL,		/* private */
 	HK_INVALID | HK_DEAD,
 	1,		/* refs always >= 1 */
+	0,		/* undefined data link type */
 	&ng_deadhook,	/* Peer is self */
 	&ng_deadnode,	/* attached to deadnode */
 	{},		/* hooks list */

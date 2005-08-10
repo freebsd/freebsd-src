@@ -66,7 +66,7 @@
  * Change it for NETGRAPH_DEBUG version so we cannot mix debug and non debug
  * modules.
  */
-#define _NG_ABI_VERSION 10
+#define _NG_ABI_VERSION 11
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define NG_ABI_VERSION	(_NG_ABI_VERSION + 0x10000)
 #else	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
@@ -108,6 +108,7 @@ struct ng_hook {
 	void   *hk_private;		/* node dependant ID for this hook */
 	int	hk_flags;		/* info about this hook/link */
 	int	hk_refs;		/* dont actually free this till 0 */
+	int	hk_type;		/* tbd: hook data link type */
 	struct	ng_hook *hk_peer;	/* the other end of this link */
 	struct	ng_node *hk_node;	/* The node this hook is attached to */
 	LIST_ENTRY(ng_hook) hk_hooks;	/* linked list of all hooks on node */
