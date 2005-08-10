@@ -112,7 +112,6 @@ static int	hme_meminit(struct hme_softc *);
 static int	hme_mac_bitflip(struct hme_softc *, u_int32_t, u_int32_t,
     u_int32_t, u_int32_t);
 static void	hme_mifinit(struct hme_softc *);
-static void	hme_reset(struct hme_softc *);
 static void	hme_setladrf(struct hme_softc *, int);
 
 static int	hme_mediachange(struct ifnet *);
@@ -206,6 +205,8 @@ hme_config(struct hme_softc *sc)
 	hme_stop(sc);
 	HME_UNLOCK(sc);
 
+	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_lock, 0);
+
 	/*
 	 * Allocate DMA capable memory
 	 * Buffer descriptors must be aligned on a 2048 byte boundary;
@@ -224,7 +225,7 @@ hme_config(struct hme_softc *sc)
 	error = bus_dma_tag_create(sc->sc_pdmatag, 2048, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
 	    1, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW, busdma_lock_mutex,
-	    &Giant, &sc->sc_cdmatag);
+	    &sc->sc_lock, &sc->sc_cdmatag);
 	if (error)
 		goto fail_ptag;
 
@@ -301,9 +302,7 @@ hme_config(struct hme_softc *sc)
 	ifp->if_snd.ifq_drv_maxlen = HME_NTXQ;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	HME_LOCK(sc);
 	hme_mifinit(sc);
-	HME_UNLOCK(sc);
 
 	if ((error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus, hme_mediachange,
 	    hme_mediastatus)) != 0) {
@@ -347,8 +346,6 @@ hme_config(struct hme_softc *sc)
 	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
 	ifp->if_hwassist |= sc->sc_csum_features;
 	ifp->if_capenable |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
-
-	callout_init(&sc->sc_tick_ch, CALLOUT_MPSAFE);
 	return (0);
 
 fail_txdesc:
@@ -447,25 +444,11 @@ static void
 hme_tick(void *arg)
 {
 	struct hme_softc *sc = arg;
-	int s;
 
-	s = splnet();
+	HME_LOCK_ASSERT(sc, MA_OWNED);
 	mii_tick(sc->sc_mii);
-	splx(s);
 
 	callout_reset(&sc->sc_tick_ch, hz, hme_tick, sc);
-}
-
-static void
-hme_reset(struct hme_softc *sc)
-{
-	int s;
-
-	HME_LOCK(sc);
-	s = splnet();
-	hme_init_locked(sc);
-	splx(s);
-	HME_UNLOCK(sc);
 }
 
 static void
@@ -475,6 +458,7 @@ hme_stop(struct hme_softc *sc)
 	int n;
 
 	callout_stop(&sc->sc_tick_ch);
+	sc->sc_ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	/* Reset transmitter and receiver */
 	HME_SEB_WRITE_4(sc, HME_SEBI_RESET, HME_SEB_RESET_ETX |
@@ -872,9 +856,7 @@ hme_init_locked(struct hme_softc *sc)
 
 	/* Set the current media. */
 	/*
-	 * HME_UNLOCK(sc);	
 	 * mii_mediachg(sc->sc_mii);
-	 * HME_LOCK(sc);	
 	 */
 
 	/* Start the one second timer. */
@@ -1372,9 +1354,9 @@ hme_watchdog(struct ifnet *ifp)
 #endif
 	device_printf(sc->sc_dev, "device timeout\n");
 	++ifp->if_oerrors;
-	HME_UNLOCK(sc);
 
-	hme_reset(sc);
+	hme_init_locked(sc);
+	HME_UNLOCK(sc);
 }
 
 /*
@@ -1384,8 +1366,6 @@ static void
 hme_mifinit(struct hme_softc *sc)
 {
 	u_int32_t v;
-
-	HME_LOCK_ASSERT(sc, MA_OWNED);
 
 	/* Configure the MIF in frame mode */
 	v = HME_MIF_READ_4(sc, HME_MIFI_CFG);
@@ -1403,7 +1383,6 @@ hme_mii_readreg(device_t dev, int phy, int reg)
 	int n;
 	u_int32_t v;
 
-	HME_LOCK(sc);
 	/* Select the desired PHY in the MIF configuration register */
 	v = HME_MIF_READ_4(sc, HME_MIFI_CFG);
 	/* Clear PHY select bit */
@@ -1425,13 +1404,11 @@ hme_mii_readreg(device_t dev, int phy, int reg)
 		DELAY(1);
 		v = HME_MIF_READ_4(sc, HME_MIFI_FO);
 		if (v & HME_MIF_FO_TALSB) {
-			HME_UNLOCK(sc);
 			return (v & HME_MIF_FO_DATA);
 		}
 	}
 
 	device_printf(sc->sc_dev, "mii_read timeout\n");
-	HME_UNLOCK(sc);
 	return (0);
 }
 
@@ -1442,7 +1419,6 @@ hme_mii_writereg(device_t dev, int phy, int reg, int val)
 	int n;
 	u_int32_t v;
 
-	HME_LOCK(sc);
 	/* Select the desired PHY in the MIF configuration register */
 	v = HME_MIF_READ_4(sc, HME_MIFI_CFG);
 	/* Clear PHY select bit */
@@ -1464,14 +1440,11 @@ hme_mii_writereg(device_t dev, int phy, int reg, int val)
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
 		v = HME_MIF_READ_4(sc, HME_MIFI_FO);
-		if (v & HME_MIF_FO_TALSB) {
-			HME_UNLOCK(sc);
+		if (v & HME_MIF_FO_TALSB)
 			return (1);
-		}
 	}
 
 	device_printf(sc->sc_dev, "mii_write timeout\n");
-	HME_UNLOCK(sc);
 	return (0);
 }
 
@@ -1483,7 +1456,6 @@ hme_mii_statchg(device_t dev)
 	int phy;
 	u_int32_t v;
 
-	HME_LOCK(sc);
 	instance = IFM_INST(sc->sc_mii->mii_media.ifm_cur->ifm_media);
 	phy = sc->sc_phys[instance];
 #ifdef HMEDEBUG
@@ -1500,28 +1472,27 @@ hme_mii_statchg(device_t dev)
 
 	/* Set the MAC Full Duplex bit appropriately */
 	v = HME_MAC_READ_4(sc, HME_MACI_TXCFG);
-	if (!hme_mac_bitflip(sc, HME_MACI_TXCFG, v, HME_MAC_TXCFG_ENABLE, 0)) {
-		HME_UNLOCK(sc);
+	if (!hme_mac_bitflip(sc, HME_MACI_TXCFG, v, HME_MAC_TXCFG_ENABLE, 0))
 		return;
-	}
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) & IFM_FDX) != 0)
 		v |= HME_MAC_TXCFG_FULLDPLX;
 	else
 		v &= ~HME_MAC_TXCFG_FULLDPLX;
 	HME_MAC_WRITE_4(sc, HME_MACI_TXCFG, v);
-	if (!hme_mac_bitflip(sc, HME_MACI_TXCFG, v, 0, HME_MAC_TXCFG_ENABLE)) {
-		HME_UNLOCK(sc);
+	if (!hme_mac_bitflip(sc, HME_MACI_TXCFG, v, 0, HME_MAC_TXCFG_ENABLE))
 		return;
-	}
-	HME_UNLOCK(sc);
 }
 
 static int
 hme_mediachange(struct ifnet *ifp)
 {
 	struct hme_softc *sc = ifp->if_softc;
+	int error;
 
-	return (mii_mediachg(sc->sc_mii));
+	HME_LOCK(sc);
+	error = mii_mediachg(sc->sc_mii);
+	HME_UNLOCK(sc);
+	return (error);
 }
 
 static void
@@ -1535,9 +1506,7 @@ hme_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 		return;
 	}
 
-	HME_UNLOCK(sc);
 	mii_pollstat(sc->sc_mii);
-	HME_LOCK(sc);
 	ifmr->ifm_active = sc->sc_mii->mii_media_active;
 	ifmr->ifm_status = sc->sc_mii->mii_media_status;
 	HME_UNLOCK(sc);
@@ -1551,13 +1520,11 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct hme_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int s, error = 0;
-
-	HME_LOCK(sc);
-	s = splnet();
+	int error = 0;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
+		HME_LOCK(sc);
 		if ((ifp->if_flags & IFF_UP) == 0 &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			/*
@@ -1565,7 +1532,6 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * stop it.
 			 */
 			hme_stop(sc);
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		} else if ((ifp->if_flags & IFF_UP) != 0 &&
 		    	   (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			/*
@@ -1589,35 +1555,34 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef HMEDEBUG
 		sc->sc_debug = (ifp->if_flags & IFF_DEBUG) != 0 ? 1 : 0;
 #endif
+		HME_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		HME_LOCK(sc);
 		hme_setladrf(sc, 1);
+		HME_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		HME_UNLOCK(sc);
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_mii->mii_media, cmd);
-		HME_LOCK(sc);
 		break;
 	case SIOCSIFCAP:
+		HME_LOCK(sc);
 		ifp->if_capenable = ifr->ifr_reqcap;
 		if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
 			ifp->if_hwassist = sc->sc_csum_features;
 		else
 			ifp->if_hwassist = 0;
+		HME_UNLOCK(sc);
 		break;
 	default:
-		HME_UNLOCK(sc);
 		error = ether_ioctl(ifp, cmd, data);
-		HME_LOCK(sc);
 		break;
 	}
 
-	splx(s);
-	HME_UNLOCK(sc);
 	return (error);
 }
 
