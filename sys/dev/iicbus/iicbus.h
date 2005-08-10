@@ -36,8 +36,6 @@ struct iicbus_softc {
 				 * 0 if no start condition succeeded */
 };
 
-extern devclass_t iicbus_devclass;
-
 extern int iicbus_generic_intr(device_t dev, int event, char *buf);
 
 #endif
