@@ -34,6 +34,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_ipstealth.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -161,6 +162,9 @@ ip6_forward(m, srcrt)
 		return;
 	}
 
+#ifdef IPSTEALTH
+	if (!ip6stealth) {
+#endif
 	if (ip6->ip6_hlim <= IPV6_HLIMDEC) {
 		/* XXX in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard) */
 		icmp6_error(m, ICMP6_TIME_EXCEEDED,
@@ -168,6 +172,10 @@ ip6_forward(m, srcrt)
 		return;
 	}
 	ip6->ip6_hlim -= IPV6_HLIMDEC;
+
+#ifdef IPSTEALTH
+	}
+#endif
 
 	/*
 	 * Save at most ICMPV6_PLD_MAXLEN (= the min IPv6 MTU -
