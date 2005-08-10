@@ -152,6 +152,8 @@ struct ieee80211_channel {
 	(((_c)->ic_flags & IEEE80211_CHAN_PUREG) == IEEE80211_CHAN_PUREG)
 #define	IEEE80211_IS_CHAN_G(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)
+#define	IEEE80211_IS_CHAN_ANYG(_c) \
+	(IEEE80211_IS_CHAN_PUREG(_c) || IEEE80211_IS_CHAN_G(_c))
 #define	IEEE80211_IS_CHAN_T(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_T) == IEEE80211_CHAN_T)
 #define	IEEE80211_IS_CHAN_108G(_c) \
