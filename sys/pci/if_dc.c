@@ -864,8 +864,8 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 			phy_reg = DC_AL_ANER;
 			break;
 		default:
-			printf("dc%d: phy_read: bad phy register %x\n",
-			    sc->dc_unit, reg);
+			device_printf(dev, "phy_read: bad phy register %x\n",
+			    reg);
 			return (0);
 			break;
 		}
@@ -940,8 +940,8 @@ dc_miibus_writereg(device_t dev, int phy, int reg, int data)
 			phy_reg = DC_AL_ANER;
 			break;
 		default:
-			printf("dc%d: phy_write: bad phy register %x\n",
-			    sc->dc_unit, reg);
+			device_printf(dev, "phy_write: bad phy register %x\n",
+			    reg);
 			return (0);
 			break;
 		}
@@ -1388,8 +1388,8 @@ dc_setcfg(struct dc_softc *sc, int media)
 		}
 
 		if (i == DC_TIMEOUT)
-			printf("dc%d: failed to force tx and "
-				"rx to idle state\n", sc->dc_unit);
+			if_printf(sc->dc_ifp,
+			    "failed to force tx and rx to idle state\n");
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
@@ -1529,7 +1529,7 @@ dc_reset(struct dc_softc *sc)
 	}
 
 	if (i == DC_TIMEOUT)
-		printf("dc%d: reset never completed!\n", sc->dc_unit);
+		if_printf(sc->dc_ifp, "reset never completed!\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -1837,12 +1837,11 @@ dc_attach(device_t dev)
 	struct dc_softc *sc;
 	struct ifnet *ifp;
 	u_int32_t revision;
-	int unit, error = 0, rid, mac_offset;
+	int error = 0, rid, mac_offset;
 	int i;
 	u_int8_t *mac;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -1856,7 +1855,7 @@ dc_attach(device_t dev)
 	sc->dc_res = bus_alloc_resource_any(dev, DC_RES, &rid, RF_ACTIVE);
 
 	if (sc->dc_res == NULL) {
-		printf("dc%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1870,7 +1869,7 @@ dc_attach(device_t dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->dc_irq == NULL) {
-		printf("dc%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2001,8 +2000,7 @@ dc_attach(device_t dev)
 		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	default:
-		printf("dc%d: unknown device: %x\n", sc->dc_unit,
-		    sc->dc_info->dc_did);
+		device_printf(dev, "unknown device: %x\n", sc->dc_info->dc_did);
 		break;
 	}
 
@@ -2097,21 +2095,19 @@ dc_attach(device_t dev)
 		break;
 	}
 
-	sc->dc_unit = unit;
-
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
 	error = bus_dma_tag_create(NULL, PAGE_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof(struct dc_list_data), 1,
 	    sizeof(struct dc_list_data), 0, NULL, NULL, &sc->dc_ltag);
 	if (error) {
-		printf("dc%d: failed to allocate busdma tag\n", unit);
+		device_printf(dev, "failed to allocate busdma tag\n");
 		error = ENXIO;
 		goto fail;
 	}
 	error = bus_dmamem_alloc(sc->dc_ltag, (void **)&sc->dc_ldata,
 	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->dc_lmap);
 	if (error) {
-		printf("dc%d: failed to allocate DMA safe memory\n", unit);
+		device_printf(dev, "failed to allocate DMA safe memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2119,7 +2115,7 @@ dc_attach(device_t dev)
 	    sizeof(struct dc_list_data), dc_dma_map_addr, &sc->dc_laddr,
 	    BUS_DMA_NOWAIT);
 	if (error) {
-		printf("dc%d: cannot get address of the descriptors\n", unit);
+		device_printf(dev, "cannot get address of the descriptors\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2132,21 +2128,21 @@ dc_attach(device_t dev)
 	    BUS_SPACE_MAXADDR, NULL, NULL, DC_SFRAME_LEN + DC_MIN_FRAMELEN, 1,
 	    DC_SFRAME_LEN + DC_MIN_FRAMELEN, 0, NULL, NULL, &sc->dc_stag);
 	if (error) {
-		printf("dc%d: failed to allocate busdma tag\n", unit);
+		device_printf(dev, "failed to allocate busdma tag\n");
 		error = ENXIO;
 		goto fail;
 	}
 	error = bus_dmamem_alloc(sc->dc_stag, (void **)&sc->dc_cdata.dc_sbuf,
 	    BUS_DMA_NOWAIT, &sc->dc_smap);
 	if (error) {
-		printf("dc%d: failed to allocate DMA safe memory\n", unit);
+		device_printf(dev, "failed to allocate DMA safe memory\n");
 		error = ENXIO;
 		goto fail;
 	}
 	error = bus_dmamap_load(sc->dc_stag, sc->dc_smap, sc->dc_cdata.dc_sbuf,
 	    DC_SFRAME_LEN, dc_dma_map_addr, &sc->dc_saddr, BUS_DMA_NOWAIT);
 	if (error) {
-		printf("dc%d: cannot get address of the descriptors\n", unit);
+		device_printf(dev, "cannot get address of the descriptors\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2156,7 +2152,7 @@ dc_attach(device_t dev)
 	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, DC_TX_LIST_CNT, MCLBYTES,
 	    0, NULL, NULL, &sc->dc_mtag);
 	if (error) {
-		printf("dc%d: failed to allocate busdma tag\n", unit);
+		device_printf(dev, "failed to allocate busdma tag\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2166,7 +2162,7 @@ dc_attach(device_t dev)
 		error = bus_dmamap_create(sc->dc_mtag, 0,
 		    &sc->dc_cdata.dc_tx_map[i]);
 		if (error) {
-			printf("dc%d: failed to init TX ring\n", unit);
+			device_printf(dev, "failed to init TX ring\n");
 			error = ENXIO;
 			goto fail;
 		}
@@ -2175,21 +2171,21 @@ dc_attach(device_t dev)
 		error = bus_dmamap_create(sc->dc_mtag, 0,
 		    &sc->dc_cdata.dc_rx_map[i]);
 		if (error) {
-			printf("dc%d: failed to init RX ring\n", unit);
+			device_printf(dev, "failed to init RX ring\n");
 			error = ENXIO;
 			goto fail;
 		}
 	}
 	error = bus_dmamap_create(sc->dc_mtag, 0, &sc->dc_sparemap);
 	if (error) {
-		printf("dc%d: failed to init RX ring\n", unit);
+		device_printf(dev, "failed to init RX ring\n");
 		error = ENXIO;
 		goto fail;
 	}
 
 	ifp = sc->dc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("dc%d: can not if_alloc()\n", unit);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -2259,7 +2255,7 @@ dc_attach(device_t dev)
 	}
 
 	if (error) {
-		printf("dc%d: MII without any PHY!\n", sc->dc_unit);
+		device_printf(dev, "MII without any PHY!\n");
 		goto fail;
 	}
 
@@ -2319,7 +2315,7 @@ dc_attach(device_t dev)
 	    dc_intr, sc, &sc->dc_intrhand);
 
 	if (error) {
-		printf("dc%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		if_free(ifp);
 		goto fail;
@@ -3015,13 +3011,13 @@ dc_tx_underrun(struct dc_softc *sc)
 			DELAY(10);
 		}
 		if (i == DC_TIMEOUT) {
-			printf("dc%d: failed to force tx to idle state\n",
-			    sc->dc_unit);
+			if_printf(sc->dc_ifp,
+			    "failed to force tx to idle state\n");
 			dc_init(sc);
 		}
 	}
 
-	printf("dc%d: TX underrun -- ", sc->dc_unit);
+	if_printf(sc->dc_ifp, "TX underrun -- ");
 	sc->dc_txthresh += DC_TXTHRESH_INC;
 	if (sc->dc_txthresh > DC_TXTHRESH_MAX) {
 		printf("using store and forward mode\n");
@@ -3090,7 +3086,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			dc_tx_underrun(sc);
 
 		if (status & DC_ISR_BUS_ERR) {
-			printf("dc_poll: dc%d bus error\n", sc->dc_unit);
+			if_printf(ifp, "dc_poll: bus error\n");
 			dc_reset(sc);
 			dc_init(sc);
 		}
@@ -3488,8 +3484,8 @@ dc_init(void *xsc)
 
 	/* Init circular RX list. */
 	if (dc_list_rx_init(sc) == ENOBUFS) {
-		printf("dc%d: initialization failed: no "
-		    "memory for rx buffers\n", sc->dc_unit);
+		if_printf(ifp,
+		    "initialization failed: no memory for rx buffers\n");
 		dc_stop(sc);
 		DC_UNLOCK(sc);
 		return;
@@ -3693,7 +3689,7 @@ dc_watchdog(struct ifnet *ifp)
 	DC_LOCK(sc);
 
 	ifp->if_oerrors++;
-	printf("dc%d: watchdog timeout\n", sc->dc_unit);
+	if_printf(ifp, "watchdog timeout\n");
 
 	dc_stop(sc);
 	dc_reset(sc);
