@@ -242,10 +242,8 @@ struct pr_usrreqs {
 };
 
 /*
- * The dummy protocol specific user requests function pointer array is
- * initialized to the functions below.  All functions return EOPNOTSUPP.
+ * below.  All functions return EOPNOTSUPP.
  */
-extern	struct pr_usrreqs nousrreqs;
 
 int	pru_abort_notsupp(struct socket *so);
 int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
