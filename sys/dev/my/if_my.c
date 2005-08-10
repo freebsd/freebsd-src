@@ -804,7 +804,7 @@ my_attach(device_t dev)
 {
 	int             s, i;
 	u_char          eaddr[ETHER_ADDR_LEN];
-	u_int32_t       command, iobase;
+	u_int32_t       iobase;
 	struct my_softc *sc;
 	struct ifnet   *ifp;
 	int             media = IFM_ETHER | IFM_100_TX | IFM_FDX;
@@ -823,52 +823,12 @@ my_attach(device_t dev)
 	/*
 	 * Map control/status registers.
 	 */
-#if 0
-	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
-	command |= (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command & 0x000000ff, 4);
-	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
-#endif
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	command |= (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, command & 0x000000ff, 4);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
+	pci_enable_busmaster(dev);
 
 	if (my_info_tmp->my_did == MTD800ID) {
 		iobase = pci_read_config(dev, MY_PCI_LOIO, 4);
 		if (iobase & 0x300)
 			MY_USEIOSPACE = 0;
-	}
-	if (MY_USEIOSPACE) {
-		if (!(command & PCIM_CMD_PORTEN)) {
-			device_printf(dev, "failed to enable I/O ports!\n");
-			error = ENXIO;
-			goto fail;
-		}
-#if 0
-		if (!pci_map_port(config_id, MY_PCI_LOIO, (u_int16_t *) & (sc->my_bhandle))) {
-			device_printf(dev, "couldn't map ports\n");
-			error = ENXIO;
-			goto fail;
-		}
-		  
-		sc->my_btag = I386_BUS_SPACE_IO;
-#endif
-	} else {
-		if (!(command & PCIM_CMD_MEMEN)) {
-			device_printf(dev, "failed to enable memory mapping!\n");
-			error = ENXIO;
-			goto fail;
-		}
-#if 0
-		 if (!pci_map_mem(config_id, MY_PCI_LOMEM, &vbase, &pbase)) {
-			device_printf(dev, "couldn't map memory\n");
-			error = ENXIO;
-			goto fail;
-		}
-		sc->my_btag = I386_BUS_SPACE_MEM;
-		sc->my_bhandle = vbase;
-#endif
 	}
 
 	rid = MY_RID;
@@ -1004,11 +964,6 @@ my_attach(device_t dev)
 	ifmedia_set(&sc->ifmedia, media);
 
 	ether_ifattach(ifp, eaddr);
-
-#if 0
-	at_shutdown(my_shutdown, sc, SHUTDOWN_POST_SYNC);
-	shutdownhook_establish(my_shutdown, sc);
-#endif
 	 
 	MY_UNLOCK(sc);
 	return (0);
@@ -1037,17 +992,9 @@ my_detach(device_t dev)
 	if_free(ifp);
 	my_stop(sc);
 
-#if 0
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->rl_miibus);
-#endif
-
 	bus_teardown_intr(dev, sc->my_irq, sc->my_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->my_irq);
 	bus_release_resource(dev, MY_RES, MY_RID, sc->my_res);
-#if 0
-	contigfree(sc->my_cdata.my_rx_buf, MY_RXBUFLEN + 32, M_DEVBUF);
-#endif
 	MY_UNLOCK(sc);
 	splx(s);
 	mtx_destroy(&sc->my_mtx);
