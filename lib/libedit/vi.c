@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: vi.c,v 1.22 2005/08/08 14:05:37 christos Exp $
+ *	$NetBSD: vi.c,v 1.24 2005/08/10 12:46:24 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -66,8 +66,10 @@ cv_action(EditLine *el, int c)
 			    el->el_line.lastchar - el->el_line.buffer);
 		el->el_chared.c_vcmd.action = NOP;
 		el->el_chared.c_vcmd.pos = 0;
-		el->el_line.lastchar = el->el_line.buffer;
-		el->el_line.cursor = el->el_line.buffer;
+		if (!(c & YANK)) {
+			el->el_line.lastchar = el->el_line.buffer;
+			el->el_line.cursor = el->el_line.buffer;
+		}
 		if (c & INSERT)
 			el->el_map.current = el->el_map.key;
 
@@ -84,7 +86,6 @@ cv_action(EditLine *el, int c)
 private el_action_t
 cv_paste(EditLine *el, int c)
 {
-	char *ptr;
 	c_kill_t *k = &el->el_chared.c_kill;
 	int len = k->last - k->buf;
 
@@ -98,12 +99,12 @@ cv_paste(EditLine *el, int c)
 
 	if (!c && el->el_line.cursor < el->el_line.lastchar)
 		el->el_line.cursor++;
-	ptr = el->el_line.cursor;
 
 	c_insert(el, len);
 	if (el->el_line.cursor + len > el->el_line.lastchar)
 		return (CC_ERROR);
-	(void) memcpy(ptr, k->buf, len +0u);
+	(void) memcpy(el->el_line.cursor, k->buf, len +0u);
+
 	return (CC_REFRESH);
 }
 
