@@ -136,6 +136,7 @@ struct ieee80211com {
 	struct bpf_if		*ic_rawbpf;	/* packet filter structure */
 	struct ieee80211_node	*ic_bss;	/* information for this node */
 	struct ieee80211_channel *ic_ibss_chan;
+	struct ieee80211_channel *ic_curchan;	/* current channel */
 	int			ic_fixed_rate;	/* index to ic_sup_rates[] */
 	u_int16_t		ic_rtsthreshold;
 	u_int16_t		ic_fragthreshold;
