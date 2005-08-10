@@ -573,7 +573,7 @@ sf_reset(sc)
 	}
 
 	if (i == SF_TIMEOUT)
-		printf("sf%d: reset never completed!\n", sc->sf_unit);
+		if_printf(sc->sf_ifp, "reset never completed!\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -643,11 +643,10 @@ sf_attach(dev)
 	int			i;
 	struct sf_softc		*sc;
 	struct ifnet		*ifp;
-	int			unit, rid, error = 0;
+	int			rid, error = 0;
 	u_char			eaddr[6];
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -660,7 +659,7 @@ sf_attach(dev)
 	sc->sf_res = bus_alloc_resource_any(dev, SF_RES, &rid, RF_ACTIVE);
 
 	if (sc->sf_res == NULL) {
-		printf ("sf%d: couldn't map ports\n", unit);
+		device_printf(dev, "couldn't map ports\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -674,7 +673,7 @@ sf_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->sf_irq == NULL) {
-		printf("sf%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -690,14 +689,12 @@ sf_attach(dev)
 		eaddr[i] =
 		    sf_read_eeprom(sc, SF_EE_NODEADDR + ETHER_ADDR_LEN - i);
 
-	sc->sf_unit = unit;
-
 	/* Allocate the descriptor queues. */
 	sc->sf_ldata = contigmalloc(sizeof(struct sf_list_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->sf_ldata == NULL) {
-		printf("sf%d: no memory for list buffers!\n", unit);
+		device_printf(dev, "no memory for list buffers!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -706,7 +703,7 @@ sf_attach(dev)
 
 	ifp = sc->sf_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("sf%d: can not if_alloc()\n", sc->sf_unit);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -714,7 +711,7 @@ sf_attach(dev)
 	/* Do MII setup. */
 	if (mii_phy_probe(dev, &sc->sf_miibus,
 	    sf_ifmedia_upd, sf_ifmedia_sts)) {
-		printf("sf%d: MII without any phy!\n", sc->sf_unit);
+		device_printf(dev, "MII without any phy!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -747,7 +744,7 @@ sf_attach(dev)
 	    sf_intr, sc, &sc->sf_intrhand);
 
 	if (error) {
-		printf("sf%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		if_free(ifp);
 		goto fail;
@@ -1034,9 +1031,9 @@ sf_txthresh_adjust(sc)
 		txfctl &= ~SF_TXFRMCTL_TXTHRESH;
 		txfctl |= txthresh;
 #ifdef DIAGNOSTIC
-		printf("sf%d: tx underrun, increasing "
+		if_printf(sc->sf_ifp, "tx underrun, increasing "
 		    "tx threshold to %d bytes\n",
-		    sc->sf_unit, txthresh * 4);
+		    txthresh * 4);
 #endif
 		csr_write_4(sc, SF_TX_FRAMCTL, txfctl);
 	}
@@ -1207,8 +1204,8 @@ sf_init(xsc)
 	sf_setperf(sc, 0, (caddr_t)&IFP2ENADDR(sc->sf_ifp));
 
 	if (sf_init_rx_ring(sc) == ENOBUFS) {
-		printf("sf%d: initialization failed: no "
-		    "memory for rx buffers\n", sc->sf_unit);
+		if_printf(sc->sf_ifp,
+		    "initialization failed: no memory for rx buffers\n");
 		SF_UNLOCK(sc);
 		return;
 	}
@@ -1324,7 +1321,7 @@ sf_encap(sc, c, m_head)
 
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			printf("sf%d: no memory for tx list\n", sc->sf_unit);
+			if_printf(sc->sf_ifp, "no memory for tx list\n");
 			return(1);
 		}
 
@@ -1332,8 +1329,7 @@ sf_encap(sc, c, m_head)
 			MCLGET(m_new, M_DONTWAIT);
 			if (!(m_new->m_flags & M_EXT)) {
 				m_freem(m_new);
-				printf("sf%d: no memory for tx list\n",
-				    sc->sf_unit);
+				if_printf(sc->sf_ifp, "no memory for tx list\n");
 				return(1);
 			}
 		}
@@ -1384,7 +1380,7 @@ sf_start(ifp)
 	i = SF_IDX_HI(txprod) >> 4;
 
 	if (sc->sf_ldata->sf_tx_dlist[i].sf_mbuf != NULL) {
-		printf("sf%d: TX ring full, resetting\n", sc->sf_unit);
+		if_printf(ifp, "TX ring full, resetting\n");
 		sf_init(sc);
 		txprod = csr_read_4(sc, SF_TXDQ_PRODIDX);
 		i = SF_IDX_HI(txprod) >> 4;
@@ -1546,7 +1542,7 @@ sf_watchdog(ifp)
 	SF_LOCK(sc);
 
 	ifp->if_oerrors++;
-	printf("sf%d: watchdog timeout\n", sc->sf_unit);
+	if_printf(ifp, "watchdog timeout\n");
 
 	sf_stop(sc);
 	sf_reset(sc);
