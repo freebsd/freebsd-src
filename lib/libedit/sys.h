@@ -40,6 +40,8 @@
 #ifndef _h_sys
 #define	_h_sys
 
+#include <sys/cdefs.h>
+
 #ifndef public
 # define public		/* Externally visible functions/variables */
 #endif
@@ -52,8 +54,6 @@
 # define protected	/* Redefined from elsewhere to "static" */
 			/* When we want to hide everything	*/
 #endif
-
-#include <sys/cdefs.h>
 
 #ifndef _PTR_T
 # define _PTR_T
