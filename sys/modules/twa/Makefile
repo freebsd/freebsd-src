@@ -1,3 +1,4 @@
+# $FreeBSD$
 #
 # Copyright (c) 2004 Applied Micro Circuits Corporation.
 # All rights reserved.
@@ -22,19 +23,10 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
-#
-#	$FreeBSD$
-#
 
-#
 # 3ware driver for 9000 series storage controllers.
-#
 # Author: Vinod Kashyap
-#
 
-
-
-#
 # In the line following this comment, a value of 0 on the right hand
 # side will not cause firmware to be bundled.  Change this value to 1
 # to bundle the firmware with the driver, which may be flashed onto
@@ -45,19 +37,17 @@
 TWA_FLASH_FIRMWARE?=0
 
 KMOD = twa
-.PATH:	${.CURDIR}/../../dev/${KMOD}
-SRCS = tw_osl_freebsd.c tw_osl_cam.c \
-      tw_cl_init.c tw_cl_io.c tw_cl_intr.c tw_cl_misc.c \
-      bus_if.h device_if.h pci_if.h opt_scsi.h opt_cam.h opt_twa.h
+.PATH: ${.CURDIR}/../../dev/${KMOD}
+SRCS=	tw_osl_freebsd.c tw_osl_cam.c \
+	tw_cl_init.c tw_cl_io.c tw_cl_intr.c tw_cl_misc.c \
+	bus_if.h device_if.h pci_if.h opt_scsi.h opt_cam.h opt_twa.h
 
-CFLAGS += -I${.CURDIR}/../../dev/${KMOD}
+#CFLAGS+= -DTWA_DEBUG=0
+CFLAGS+= -I${.CURDIR}/../../dev/${KMOD}
 
 .if $(TWA_FLASH_FIRMWARE) != 0
-CFLAGS += -DTWA_FLASH_FIRMWARE
-SRCS += tw_cl_fwimg.c
+CFLAGS+= -DTWA_FLASH_FIRMWARE
+SRCS+=	tw_cl_fwimg.c
 .endif
 
-#CFLAGS += -DTWA_DEBUG=0
-
 .include <bsd.kmod.mk>
-
