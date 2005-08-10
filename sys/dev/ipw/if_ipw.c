@@ -1002,7 +1002,7 @@ ipw_fix_channel(struct ieee80211com *ic, struct mbuf *m)
 #if IEEE80211_CHAN_MAX < 255
 		if (frm[2] <= IEEE80211_CHAN_MAX)
 #endif
-			ic->ic_bss->ni_chan = &ic->ic_channels[frm[2]];
+			ic->ic_curchan = &ic->ic_channels[frm[2]];
 
 		frm += frm[1] + 2;
 	}
