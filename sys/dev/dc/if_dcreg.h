@@ -732,7 +732,6 @@ struct dc_softc {
 	struct resource		*dc_res;
 	struct dc_type		*dc_info;	/* adapter info */
 	device_t		dc_miibus;
-	u_int8_t		dc_unit;	/* interface number */
 	u_int8_t		dc_type;
 	u_int8_t		dc_pmode;
 	u_int8_t		dc_link;
