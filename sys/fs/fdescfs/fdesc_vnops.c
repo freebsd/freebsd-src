@@ -74,7 +74,19 @@ static vop_readdir_t	fdesc_readdir;
 static vop_reclaim_t	fdesc_reclaim;
 static vop_setattr_t	fdesc_setattr;
 
-extern struct vop_vector fdesc_vnodeops;
+static struct vop_vector fdesc_vnodeops = {
+	.vop_default =		&default_vnodeops,
+
+	.vop_access =		VOP_NULL,
+	.vop_getattr =		fdesc_getattr,
+	.vop_inactive =		fdesc_inactive,
+	.vop_lookup =		fdesc_lookup,
+	.vop_open =		fdesc_open,
+	.vop_pathconf =		vop_stdpathconf,
+	.vop_readdir =		fdesc_readdir,
+	.vop_reclaim =		fdesc_reclaim,
+	.vop_setattr =		fdesc_setattr,
+};
 
 /*
  * Initialise cache headers
@@ -517,17 +529,3 @@ fdesc_reclaim(ap)
 
 	return (0);
 }
-
-static struct vop_vector fdesc_vnodeops = {
-	.vop_default =		&default_vnodeops,
-
-	.vop_access =		VOP_NULL,
-	.vop_getattr =		fdesc_getattr,
-	.vop_inactive =		fdesc_inactive,
-	.vop_lookup =		fdesc_lookup,
-	.vop_open =		fdesc_open,
-	.vop_pathconf =		vop_stdpathconf,
-	.vop_readdir =		fdesc_readdir,
-	.vop_reclaim =		fdesc_reclaim,
-	.vop_setattr =		fdesc_setattr,
-};
