@@ -459,6 +459,7 @@ ip6_mrouter_init(so, v, cmd)
 
 	pim6 = 0;/* used for stubbing out/in pim stuff */
 
+	callout_init(&expire_upcalls_ch, 0);
 	callout_reset(&expire_upcalls_ch, EXPIRE_TIMEOUT,
 	    expire_upcalls, NULL);
 
