@@ -2333,10 +2333,8 @@ vgonel(struct vnode *vp)
 	/*
 	 * Don't vgonel if we're already doomed.
 	 */
-	if (vp->v_iflag & VI_DOOMED) {
-		VI_UNLOCK(vp);
+	if (vp->v_iflag & VI_DOOMED)
 		return;
-	}
 	vp->v_iflag |= VI_DOOMED;
 	/*
 	 * Check to see if the vnode is in use.  If so, we have to call
