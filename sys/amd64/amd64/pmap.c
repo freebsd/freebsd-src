@@ -207,8 +207,8 @@ static void	pmap_clear_ptes(vm_page_t m, long bit);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq,
 		vm_offset_t sva, pd_entry_t ptepde);
 static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
-static int pmap_remove_entry(struct pmap *pmap, vm_page_t m,
-		vm_offset_t va, pd_entry_t ptepde);
+static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
+		vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
@@ -1420,11 +1420,10 @@ get_pv_entry(void)
 }
 
 
-static int
-pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va, pd_entry_t ptepde)
+static void
+pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 {
 	pv_entry_t pv;
-	int rtval;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
@@ -1439,20 +1438,13 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va, pd_entry_t ptepde)
 				break;
 		}
 	}
-
-	rtval = 0;
-	if (pv) {
-		rtval = pmap_unuse_pt(pmap, va, ptepde);
-		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count--;
-		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
-			vm_page_flag_clear(m, PG_WRITEABLE);
-
-		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
-		free_pv_entry(pv);
-	}
-			
-	return rtval;
+	KASSERT(pv != NULL, ("pmap_remove_entry: pv not found"));
+	TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+	m->md.pv_list_count--;
+	if (TAILQ_EMPTY(&m->md.pv_list))
+		vm_page_flag_clear(m, PG_WRITEABLE);
+	TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
+	free_pv_entry(pv);
 }
 
 /*
@@ -1510,10 +1502,9 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, pd_entry_t ptepde)
 		}
 		if (oldpte & PG_A)
 			vm_page_flag_set(m, PG_REFERENCED);
-		return pmap_remove_entry(pmap, m, va, ptepde);
-	} else {
-		return pmap_unuse_pt(pmap, va, ptepde);
+		pmap_remove_entry(pmap, m, va);
 	}
+	return (pmap_unuse_pt(pmap, va, ptepde));
 }
 
 /*
@@ -1930,9 +1921,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			pmap->pm_stats.wired_count--;
 		if (origpte & PG_MANAGED) {
 			om = PHYS_TO_VM_PAGE(opa);
-			err = pmap_remove_entry(pmap, om, va, ptepde);
-		} else
-			err = pmap_unuse_pt(pmap, va, ptepde);
+			pmap_remove_entry(pmap, om, va);
+		}
+		err = pmap_unuse_pt(pmap, va, ptepde);
 		if (err)
 			panic("pmap_enter: pte vanished, va: 0x%lx", va);
 	} else
