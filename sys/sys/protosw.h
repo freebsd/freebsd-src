@@ -242,7 +242,7 @@ struct pr_usrreqs {
 };
 
 /*
- * below.  All functions return EOPNOTSUPP.
+ * All nonvoid pru_*() functions below return EOPNOTSUPP.
  */
 
 int	pru_abort_notsupp(struct socket *so);
