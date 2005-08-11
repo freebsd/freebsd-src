@@ -1167,4 +1167,3 @@ SYSINIT(geli_boot_end, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, g_eli_on_boot_end, NU
 
 DECLARE_GEOM_CLASS(g_eli_class, g_eli);
 MODULE_DEPEND(geom_eli, crypto, 1, 1, 1);
-MODULE_DEPEND(geom_eli, cryptodev, 1, 1, 1);
