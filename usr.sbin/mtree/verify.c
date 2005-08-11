@@ -154,7 +154,8 @@ miss(NODE *p, char *tail)
 {
 	int create;
 	char *tp;
-	const char *type;
+	const char *type, *what;
+	int serr;
 
 	for (; p; p = p->next) {
 		if (p->type != F_DIR && (dflag || p->flags & F_VISIT))
@@ -191,9 +192,20 @@ miss(NODE *p, char *tail)
 					    strerror(errno));
 				else
 					(void)printf(" (created)\n");
-				if (lchown(path, p->st_uid, p->st_gid))
-					(void)printf("%s: user/group not modified: %s\n",
-					    path, strerror(errno));
+				if (lchown(path, p->st_uid, p->st_gid) == -1) {
+					serr = errno;
+					if (p->st_uid == (uid_t)-1)
+						what = "group";
+					else if (lchown(path, (uid_t)-1,
+					    p->st_gid) == -1)
+						what = "user & group";
+					else {
+						what = "user";
+						errno = serr;
+					}
+					(void)printf("%s: %s not modified: %s"
+					    "\n", path, what, strerror(errno));
+				}
 				continue;
 			} else if (!(p->flags & F_MODE))
 			    (void)printf(" (directory not created: mode not specified)");
@@ -215,12 +227,18 @@ miss(NODE *p, char *tail)
 
 		if (!create)
 			continue;
-		if (chown(path, p->st_uid, p->st_gid)) {
-			(void)printf("%s: user/group/mode not modified: %s\n",
-			    path, strerror(errno));
-			(void)printf("%s: warning: file mode %snot set\n", path,
-			    (p->flags & F_FLAGS) ? "and file flags " : "");
-			continue;
+		if (chown(path, p->st_uid, p->st_gid) == -1) {
+			serr = errno;
+			if (p->st_uid == (uid_t)-1)
+				what = "group";
+			else if (chown(path, (uid_t)-1, p->st_gid) == -1)
+				what = "user & group";
+			else {
+				what = "user";
+				errno = serr;
+			}
+			(void)printf("%s: %s not modified: %s\n",
+			    path, what, strerror(errno));
 		}
 		if (chmod(path, p->st_mode))
 			(void)printf("%s: permissions not set: %s\n",
