@@ -803,6 +803,11 @@ update_run() {
 		return 0
 	fi
 
+	if sort ${WORKDIR}/INDEX | cmp ${PORTSDIR}/.portsnap.INDEX -; then
+		echo "Ports tree is already up to date."
+		return 0
+	fi
+
 	echo -n "Removing old files and directories... "
 	sort ${WORKDIR}/INDEX | comm -23 ${PORTSDIR}/.portsnap.INDEX - |
 	    cut -f 1 -d '|' | lam -s "${PORTSDIR}/" - | xargs rm -rf
