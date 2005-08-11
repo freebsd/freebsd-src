@@ -955,8 +955,8 @@ acpi_pci_link_choose_irq(device_t dev, struct link *link)
 		}
 	}
 
-	if (bootverbose) {
-		if (PCI_INTERRUPT_VALID(best_irq))
+	if (PCI_INTERRUPT_VALID(best_irq)) {
+		if (bootverbose)
 			device_printf(dev, "Picked IRQ %u with weight %d\n",
 			    best_irq, best_weight);
 	} else
