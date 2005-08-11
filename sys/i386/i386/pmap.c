@@ -2702,13 +2702,6 @@ pmap_clear_ptes(vm_page_t m, int bit)
 				continue;
 		}
 
-#if defined(PMAP_DIAGNOSTIC)
-		if (!pv->pv_pmap) {
-			printf("Null pmap (cb) at va: 0x%x\n", pv->pv_va);
-			continue;
-		}
-#endif
-
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 retry:
