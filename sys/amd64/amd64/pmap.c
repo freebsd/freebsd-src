@@ -104,7 +104,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_msgbuf.h"
-#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -2557,12 +2556,6 @@ pmap_is_modified(vm_page_t m)
 		 */
 		if (!pmap_track_modified(pv->pv_va))
 			continue;
-#if defined(PMAP_DIAGNOSTIC)
-		if (!pv->pv_pmap) {
-			printf("Null pmap (tb) at va: 0x%lx\n", pv->pv_va);
-			continue;
-		}
-#endif
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 		rv = (*pte & PG_M) != 0;
