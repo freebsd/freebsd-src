@@ -208,7 +208,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: config [-gp] [-d destdir] sysname\n");
+	fprintf(stderr, "usage: config [-Vgp] [-d destdir] sysname\n");
 	exit(1);
 }
 
