@@ -2065,6 +2065,12 @@ nd6_storelladdr(ifp, rt0, m, dst, desten)
 		}
 	}
 
+	if (rt0 == NULL) {
+		/* this could happen, if we could not allocate memory */
+		m_freem(m);
+		return (ENOMEM);
+	}
+
 	error = rt_check(&rt, &rt0, dst);
 	if (error) {
 		m_freem(m);
