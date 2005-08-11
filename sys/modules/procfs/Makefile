@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../fs/procfs
 
 KMOD=		procfs
-SRCS=
+SRCS=		opt_compat.h
 SRCS+=		vnode_if.h
 SRCS+=		procfs_ctl.c
 SRCS+=		procfs_dbregs.c
@@ -25,5 +25,11 @@ EXPORT_SYMS+=	procfs_docurproc
 EXPORT_SYMS+=	procfs_doprocfile
 EXPORT_SYMS+=	procfs_doprocmem
 EXPORT_SYMS+=	procfs_notsystem
+
+opt_compat.h:
+	echo "#define COMPAT_43 1" > ${.TARGET}
+.if ${MACHINE_ARCH} == "amd64"
+	echo "#define COMPAT_IA32 1" >> ${.TARGET}
+.endif
 
 .include <bsd.kmod.mk>
