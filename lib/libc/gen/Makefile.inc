@@ -94,7 +94,8 @@ MLINKS+=getfsent.3 endfsent.3 getfsent.3 getfsfile.3 getfsent.3 getfsspec.3 \
 	getfsent.3 getfstype.3 getfsent.3 setfsent.3 \
 	getfsent.3 setfstab.3 getfsent.3 getfstab.3
 MLINKS+=getgrent.3 endgrent.3 getgrent.3 getgrgid.3 getgrent.3 getgrnam.3 \
-	getgrent.3 setgrent.3 getgrent.3 setgroupent.3
+	getgrent.3 setgrent.3 getgrent.3 setgroupent.3 \
+	getgrent.3 getgrent_r.3 getgrent.3 getgrnam_r.3 getgrent.3 getgrgid_r.3
 MLINKS+=gethostname.3 sethostname.3
 MLINKS+=getnetgrent.3 endnetgrent.3 getnetgrent.3 innetgr.3 \
 	getnetgrent.3 setnetgrent.3
