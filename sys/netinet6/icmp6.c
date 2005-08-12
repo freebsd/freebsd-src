@@ -373,7 +373,7 @@ icmp6_error(m, type, code, param)
 
 	/*
 	 * icmp6_reflect() is designed to be in the input path.
-	 * icmp6_error() can be called from both input and outut path,
+	 * icmp6_error() can be called from both input and output path,
 	 * and if we are in output path rcvif could contain bogus value.
 	 * clear m->m_pkthdr.rcvif for safety, we should have enough scope
 	 * information in ip header (nip6).
@@ -387,7 +387,7 @@ icmp6_error(m, type, code, param)
 
   freeit:
 	/*
-	 * If we can't tell wheter or not we can generate ICMP6, free it.
+	 * If we can't tell whether or not we can generate ICMP6, free it.
 	 */
 	m_freem(m);
 }
@@ -448,7 +448,7 @@ icmp6_input(mp, offp, proto)
 	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
 		/*
 		 * Deliver very specific ICMP6 type only.
-		 * This is important to deilver TOOBIG.  Otherwise PMTUD
+		 * This is important to deliver TOOBIG.  Otherwise PMTUD
 		 * will not work.
 		 */
 		switch (icmp6->icmp6_type) {
