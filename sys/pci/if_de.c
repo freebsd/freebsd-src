@@ -3905,7 +3905,7 @@ tulip_intr_handler(
 	if (sc->tulip_flags & (TULIP_WANTTXSTART|TULIP_TXPROBE_ACTIVE|TULIP_DOINGSETUP|TULIP_PROMISC)) {
 	    tulip_tx_intr(sc);
 	    if ((sc->tulip_flags & TULIP_TXPROBE_ACTIVE) == 0)
-		tulip_ifstart(sc->tulip_ifp);
+		tulip_start(sc);
 	}
     }
     if (sc->tulip_flags & TULIP_NEEDRESET) {
