@@ -46,14 +46,14 @@ to the packet logging interface
 and writes the packets to a logfile (normally
 .Pa /var/log/pflog )
 in
-.Xr tcpdump 8
+.Xr tcpdump 1
 binary format.
 These logs can be reviewed later using the
 .Fl r
 option of
-.Xr tcpdump 8 ,
+.Xr tcpdump 1 ,
 hopefully offline in case there are bugs in the packet parsing code of
-.Xr tcpdump 8 .
+.Xr tcpdump 1 .
 .Pp
 .Nm
 closes and then re-opens the log file when it receives
@@ -112,7 +112,7 @@ Other file parsers may desire a higher snaplen.
 Check the integrity of an existing log file, and return.
 .It Ar expression
 Selects which packets will be dumped, using the regular language of
-.Xr tcpdump 8 .
+.Xr tcpdump 1 .
 .El
 .Sh FILES
 .Bl -tag -width /var/run/pflogd.pid -compact
@@ -178,12 +178,12 @@ the wi0 interface:
 # tcpdump -n -e -ttt -i pflog0 inbound and action block and on wi0
 .Ed
 .Sh SEE ALSO
+.Xr tcpdump 1 ,
 .Xr pcap 3 ,
 .Xr pf 4 ,
 .Xr pflog 4 ,
 .Xr pf.conf 5 ,
-.Xr newsyslog 8 ,
-.Xr tcpdump 8
+.Xr newsyslog 8
 .Sh HISTORY
 The
 .Nm
