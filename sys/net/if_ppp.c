@@ -160,22 +160,6 @@ static void	pppdumpm(struct mbuf *m0);
 static int	ppp_clone_create(struct if_clone *, int);
 static void	ppp_clone_destroy(struct ifnet *);
 
-struct ppp_softc *
-ppp_for_tty(struct tty *tp)
-{
-	struct ppp_softc *sc;
-
-	PPP_LIST_LOCK();
-	LIST_FOREACH(sc, &ppp_softc_list, sc_list) {
-		if (sc->sc_devp == (void*)tp) {
-			PPP_LIST_UNLOCK();
-			return (sc);
-		}
-	}
-	PPP_LIST_UNLOCK();
-	return (NULL);
-}
-
 IFC_SIMPLE_DECLARE(ppp, 0);
 
 /*
