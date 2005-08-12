@@ -3425,14 +3425,14 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			ctsduration += ath_hal_computetxtime(ah,
 				rt, pktlen, rix, AH_TRUE);
 			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[cix].spAckDuration;
+				ctsduration += rt->info[rix].spAckDuration;
 		} else {
 			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
 				ctsduration += rt->info[cix].lpAckDuration;
 			ctsduration += ath_hal_computetxtime(ah,
 				rt, pktlen, rix, AH_FALSE);
 			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[cix].lpAckDuration;
+				ctsduration += rt->info[rix].lpAckDuration;
 		}
 		/*
 		 * Must disable multi-rate retry when using RTS/CTS.
