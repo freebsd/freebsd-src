@@ -5,6 +5,8 @@
  * All rights reserved.
  * Copyright (c) 1994 David Greenman
  * All rights reserved.
+ * Copyright (c) 2005 Yahoo! Technologies Norway AS
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * The Mach Operating System project at Carnegie-Mellon University.
@@ -208,6 +210,55 @@ static void vm_pageout_object_deactivate_pages(pmap_t, vm_object_t, long);
 static void vm_req_vmdaemon(void);
 #endif
 static void vm_pageout_page_stats(void);
+
+/*
+ * vm_pageout_fallback_object_lock:
+ * 
+ * Lock vm object currently associated with `m'. VM_OBJECT_TRYLOCK is
+ * known to have failed and page queue must be either PQ_ACTIVE or
+ * PQ_INACTIVE.  To avoid lock order violation, unlock the page queues
+ * while locking the vm object.  Use marker page to detect page queue
+ * changes and maintain notion of next page on page queue.  Return
+ * TRUE if no changes were detected, FALSE otherwise.  vm object is
+ * locked on return.
+ * 
+ * This function depends on both the lock portion of struct vm_object
+ * and normal struct vm_page being type stable.
+ */
+static boolean_t
+vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
+{
+	struct vm_page marker;
+	boolean_t unchanged;
+	u_short queue;
+	vm_object_t object;
+
+	/*
+	 * Initialize our marker
+	 */
+	bzero(&marker, sizeof(marker));
+	marker.flags = PG_BUSY | PG_FICTITIOUS | PG_MARKER;
+	marker.queue = m->queue;
+	marker.wire_count = 1;
+
+	queue = m->queue;
+	object = m->object;
+	
+	TAILQ_INSERT_AFTER(&vm_page_queues[queue].pl,
+			   m, &marker, pageq);
+	vm_page_unlock_queues();
+	VM_OBJECT_LOCK(object);
+	vm_page_lock_queues();
+
+	/* Page queue might have changed. */
+	*next = TAILQ_NEXT(&marker, pageq);
+	unchanged = (m->queue == queue &&
+		     m->object == object &&
+		     &marker == TAILQ_NEXT(m, pageq));
+	TAILQ_REMOVE(&vm_page_queues[queue].pl,
+		     &marker, pageq);
+	return (unchanged);
+}
 
 /*
  * vm_pageout_clean:
@@ -749,7 +800,10 @@ rescan0:
 		 * Don't mess with busy pages, keep in the front of the
 		 * queue, most likely are being paged out.
 		 */
-		if (!VM_OBJECT_TRYLOCK(object)) {
+		if (!VM_OBJECT_TRYLOCK(object) &&
+		    (!vm_pageout_fallback_object_lock(m, &next) ||
+		     m->hold_count != 0)) {
+			VM_OBJECT_UNLOCK(object);
 			addl_page_shortage++;
 			continue;
 		}
@@ -1024,8 +1078,13 @@ unlock_and_continue:
 
 		next = TAILQ_NEXT(m, pageq);
 		object = m->object;
-		if (!VM_OBJECT_TRYLOCK(object)) {
-			vm_pageq_requeue(m);
+		if ((m->flags & PG_MARKER) != 0) {
+			m = next;
+			continue;
+		}
+		if (!VM_OBJECT_TRYLOCK(object) &&
+		    !vm_pageout_fallback_object_lock(m, &next)) {
+			VM_OBJECT_UNLOCK(object);
 			m = next;
 			continue;
 		}
@@ -1296,8 +1355,14 @@ vm_pageout_page_stats()
 
 		next = TAILQ_NEXT(m, pageq);
 		object = m->object;
-		if (!VM_OBJECT_TRYLOCK(object)) {
-			vm_pageq_requeue(m);
+
+		if ((m->flags & PG_MARKER) != 0) {
+			m = next;
+			continue;
+		}
+		if (!VM_OBJECT_TRYLOCK(object) &&
+		    !vm_pageout_fallback_object_lock(m, &next)) {
+			VM_OBJECT_UNLOCK(object);
 			m = next;
 			continue;
 		}
