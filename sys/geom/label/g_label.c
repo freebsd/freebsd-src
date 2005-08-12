@@ -75,6 +75,8 @@ const struct g_label_desc *g_labels[] = {
 	&g_label_ufs,
 	&g_label_iso9660,
 	&g_label_msdosfs,
+	&g_label_ext2fs,
+	&g_label_reiserfs,
 	NULL
 };
 
