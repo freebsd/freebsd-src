@@ -102,9 +102,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
@@ -131,6 +133,11 @@ vm_page_t vm_page_array = 0;
 int vm_page_array_size = 0;
 long first_page = 0;
 int vm_page_zero_count = 0;
+
+static int boot_pages = UMA_BOOT_PAGES;
+TUNABLE_INT("vm.boot_pages", &boot_pages);
+SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
+	"number of pages allocated for bootstrapping the VM system");
 
 /*
  *	vm_set_page_size:
@@ -175,7 +182,6 @@ vm_page_startup(vm_offset_t vaddr)
 	int biggestone;
 
 	vm_paddr_t total;
-	vm_size_t bootpages;
 
 	total = 0;
 	biggestsize = 0;
@@ -219,8 +225,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Allocate memory for use when boot strapping the kernel memory
 	 * allocator.
 	 */
-	bootpages = UMA_BOOT_PAGES * UMA_SLAB_SIZE;
-	new_end = end - bootpages;
+	new_end = end - (boot_pages * UMA_SLAB_SIZE);
 	new_end = trunc_page(new_end);
 	mapped = pmap_map(&vaddr, new_end, end,
 	    VM_PROT_READ | VM_PROT_WRITE);
