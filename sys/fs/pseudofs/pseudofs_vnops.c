@@ -595,7 +595,7 @@ pfs_readdir(struct vop_readdir_args *va)
 	struct pfs_node *pd = pvd->pvd_pn;
 	pid_t pid = pvd->pvd_pid;
 	struct pfs_node *pn;
-	struct dirent entry;
+	struct dirent *entry;
 	struct uio *uio;
 	struct proc *p;
 	off_t offset;
@@ -631,48 +631,48 @@ pfs_readdir(struct vop_readdir_args *va)
 		}
 
 	/* fill in entries */
-	ent = buf = malloc(resid, M_IOV, M_WAITOK);
-	entry.d_reclen = PFS_DELEN;
+	ent = buf = malloc(resid, M_IOV, M_WAITOK | M_ZERO);
 	while (pfs_iterate(curthread, pid, pd, &pn, &p) != -1 &&
 	    resid >= PFS_DELEN) {
+		entry = (struct dirent *)ent;
+		entry->d_reclen = PFS_DELEN;
 		if (!pn->pn_parent)
 			pn->pn_parent = pd;
 		if (!pn->pn_fileno)
 			pfs_fileno_alloc(pi, pn);
 		if (pid != NO_PID)
-			entry.d_fileno = pn->pn_fileno * NO_PID + pid;
+			entry->d_fileno = pn->pn_fileno * NO_PID + pid;
 		else
-			entry.d_fileno = pn->pn_fileno;
+			entry->d_fileno = pn->pn_fileno;
 		/* PFS_DELEN was picked to fit PFS_NAMLEN */
 		for (i = 0; i < PFS_NAMELEN - 1 && pn->pn_name[i] != '\0'; ++i)
-			entry.d_name[i] = pn->pn_name[i];
-		entry.d_name[i] = 0;
-		entry.d_namlen = i;
+			entry->d_name[i] = pn->pn_name[i];
+		entry->d_name[i] = 0;
+		entry->d_namlen = i;
 		switch (pn->pn_type) {
 		case pfstype_procdir:
 			KASSERT(p != NULL,
 			    ("reached procdir node with p == NULL"));
-			entry.d_fileno = pn->pn_fileno * NO_PID + p->p_pid;
-			entry.d_namlen = snprintf(entry.d_name,
+			entry->d_fileno = pn->pn_fileno * NO_PID + p->p_pid;
+			entry->d_namlen = snprintf(entry->d_name,
 			    PFS_NAMELEN, "%d", p->p_pid);
 			/* fall through */
 		case pfstype_root:
 		case pfstype_dir:
 		case pfstype_this:
 		case pfstype_parent:
-			entry.d_type = DT_DIR;
+			entry->d_type = DT_DIR;
 			break;
 		case pfstype_file:
-			entry.d_type = DT_REG;
+			entry->d_type = DT_REG;
 			break;
 		case pfstype_symlink:
-			entry.d_type = DT_LNK;
+			entry->d_type = DT_LNK;
 			break;
 		default:
 			panic("%s has unexpected node type: %d", pn->pn_name, pn->pn_type);
 		}
-		PFS_TRACE((entry.d_name));
-		bcopy(&entry, ent, PFS_DELEN); /* XXX waste of cycles */
+		PFS_TRACE((entry->d_name));
 		offset += PFS_DELEN;
 		resid -= PFS_DELEN;
 		ent += PFS_DELEN;
