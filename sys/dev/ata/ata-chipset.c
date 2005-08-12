@@ -208,6 +208,7 @@ ata_generic_setmode(device_t dev, int mode)
 static void
 ata_sata_setmode(device_t dev, int mode)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev));
     struct ata_device *atadev = device_get_softc(dev);
 
     /*
@@ -220,7 +221,7 @@ ata_sata_setmode(device_t dev, int mode)
 	atadev->param.satacapabilities != 0xffff) {
 	if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
 			    ata_limit_mode(dev, mode, ATA_UDMA6)))
-	    atadev->mode = ATA_SA150;
+	    atadev->mode = ctlr->chip->max_dma;
     }
     else {
 	mode = ata_limit_mode(dev, mode, ATA_UDMA5);
@@ -2233,6 +2234,8 @@ ata_promise_ident(device_t dev)
      { ATA_PDC20622,  0, PRMIO, PRSX4X,  ATA_SA150, "Promise PDC20622" },
      { ATA_PDC40518,  0, PRMIO, PRSATA2, ATA_SA150, "Promise PDC40518" },
      { ATA_PDC40519,  0, PRMIO, PRSATA2, ATA_SA150, "Promise PDC40519" },
+     { ATA_PDC40718,  0, PRMIO, PRSATA2, ATA_SA300, "Promise PDC40718" },
+     { ATA_PDC40719,  0, PRMIO, PRSATA2, ATA_SA300, "Promise PDC40719" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
     uintptr_t devid = 0;
