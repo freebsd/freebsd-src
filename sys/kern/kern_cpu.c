@@ -249,7 +249,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	}
 
 	/* Reject levels that are below our specified threshold. */
-	if (level->total_set.freq <= cf_lowest_freq) {
+	if (level->total_set.freq < cf_lowest_freq) {
 		CF_DEBUG("rejecting freq %d, less than %d limit\n",
 		    level->total_set.freq, cf_lowest_freq);
 		error = EINVAL;
@@ -566,7 +566,7 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 	i = 0;
 	TAILQ_FOREACH(lev, &sc->all_levels, link) {
 		/* Skip levels that have a frequency that is too low. */
-		if (lev->total_set.freq <= cf_lowest_freq) {
+		if (lev->total_set.freq < cf_lowest_freq) {
 			sc->all_count--;
 			continue;
 		}
