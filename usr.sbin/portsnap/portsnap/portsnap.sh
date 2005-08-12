@@ -803,7 +803,8 @@ update_run() {
 		return 0
 	fi
 
-	if sort ${WORKDIR}/INDEX | cmp ${PORTSDIR}/.portsnap.INDEX -; then
+	if sort ${WORKDIR}/INDEX |
+	    cmp ${PORTSDIR}/.portsnap.INDEX - >/dev/null; then
 		echo "Ports tree is already up to date."
 		return 0
 	fi
