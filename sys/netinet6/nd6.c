@@ -1036,7 +1036,7 @@ nd6_free(rt)
 /*
  * Upper-layer reachability hint for Neighbor Unreachability Detection.
  *
- * XXX cost-effective metods?
+ * XXX cost-effective methods?
  */
 void
 nd6_nud_hint(rt, dst6, force)
@@ -1822,7 +1822,7 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 		goto sendpkt;
 
 	/*
-	 * next hop determination.  This routine is derived from ether_outpout.
+	 * next hop determination.  This routine is derived from ether_output.
 	 */
 again:
 	if (rt) {

@@ -461,7 +461,7 @@ selectroute(dstsock, opts, mopts, ro, retifp, retrt, clone, norouteok)
 		    (norouteok || retrt == NULL ||
 		    IN6_IS_ADDR_MULTICAST(dst))) {
 			/*
-			 * we do not have to check nor get the route for
+			 * we do not have to check or get the route for
 			 * multicast.
 			 */
 			goto done;
