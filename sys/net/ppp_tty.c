@@ -212,6 +212,7 @@ pppopen(dev, tp)
     PPP2IFP(sc)->if_baudrate = tp->t_ospeed;
 
     tp->t_hotchar = PPP_FLAG;
+    tp->t_lsc = sc;
     ttyflush(tp, FREAD | FWRITE);
 
     /*
@@ -240,14 +241,13 @@ pppclose(tp, flag)
     struct tty *tp;
     int flag;
 {
-    register struct ppp_softc *sc;
+    register struct ppp_softc *sc = (struct ppp_softc *)tp->t_lsc;
     int s;
 
     s = spltty();
     ttyflush(tp, FREAD | FWRITE);
     clist_free_cblocks(&tp->t_canq);
     clist_free_cblocks(&tp->t_outq);
-    sc = ppp_for_tty(tp);
     if (sc != NULL) {
 	    pppasyncrelinq(sc);
 	    pppdealloc(sc);
@@ -309,7 +309,7 @@ pppread(tp, uio, flag)
     struct uio *uio;
     int flag;
 {
-    register struct ppp_softc *sc = ppp_for_tty(tp);
+    register struct ppp_softc *sc = (struct ppp_softc *)tp->t_lsc;
     struct mbuf *m, *m0;
     register int s;
     int error = 0;
@@ -368,7 +368,7 @@ pppwrite(tp, uio, flag)
     struct uio *uio;
     int flag;
 {
-    register struct ppp_softc *sc = ppp_for_tty(tp);
+    register struct ppp_softc *sc = (struct ppp_softc *)tp->t_lsc;
     struct mbuf *m;
     struct sockaddr dst;
     int error, s;
@@ -414,7 +414,7 @@ ppptioctl(tp, cmd, data, flag, td)
     int flag;
     struct thread *td;
 {
-    struct ppp_softc *sc = ppp_for_tty(tp);
+    struct ppp_softc *sc = (struct ppp_softc *)tp->t_lsc;
     int error, s;
 
     if (sc == NULL || tp != (struct tty *) sc->sc_devp)
@@ -729,7 +729,7 @@ static int
 pppstart(tp)
     register struct tty *tp;
 {
-    register struct ppp_softc *sc = ppp_for_tty(tp);
+    register struct ppp_softc *sc = (struct ppp_softc *)tp->t_lsc;
 
     /*
      * Call output process whether or not there is any output.
@@ -815,7 +815,7 @@ pppinput(c, tp)
     struct mbuf *m;
     int ilen, s;
 
-    sc = ppp_for_tty(tp);
+    sc = (struct ppp_softc *)tp->t_lsc;
     if (sc == NULL)
 	return 0;
 
