@@ -67,6 +67,8 @@ struct g_label_desc {
 extern const struct g_label_desc g_label_ufs;
 extern const struct g_label_desc g_label_iso9660;
 extern const struct g_label_desc g_label_msdosfs;
+extern const struct g_label_desc g_label_ext2fs;
+extern const struct g_label_desc g_label_reiserfs;
 #endif	/* _KERNEL */
 
 struct g_label_metadata {
