@@ -144,6 +144,9 @@ atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 		 * Parse and verify the link level address as
 		 * an open request
 		 */
+#ifdef NATM
+		NATM_LOCK();
+#endif
 		bzero(&op, sizeof(op));
 		addr = LLADDR(SDL(gate));
 		alen = SDL(gate)->sdl_alen;
@@ -247,6 +250,9 @@ atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 		SDL(gate)->sdl_type = rt->rt_ifp->if_type;
 		SDL(gate)->sdl_index = rt->rt_ifp->if_index;
 
+#ifdef NATM
+		NATM_UNLOCK();
+#endif
 		break;
 
 failed:
@@ -256,6 +262,7 @@ failed:
 			rt->rt_llinfo = NULL;
 			rt->rt_flags &= ~RTF_LLINFO;
 		}
+		NATM_UNLOCK();
 #endif
 		/* mark as invalid. We cannot RTM_DELETE the route from
 		 * here, because the recursive call to rtrequest1 does
@@ -269,10 +276,12 @@ failed:
 		 * tell native ATM we are done with this VC
 		 */
 		if (rt->rt_flags & RTF_LLINFO) {
+			NATM_LOCK();
 			npcb_free((struct natmpcb *)rt->rt_llinfo,
 			    NPCB_DESTROY);
 			rt->rt_llinfo = NULL;
 			rt->rt_flags &= ~RTF_LLINFO;
+			NATM_UNLOCK();
 		}
 #endif
 		/*
