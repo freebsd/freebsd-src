@@ -67,9 +67,13 @@ struct g_class g_label_class = {
 /*
  * To add a new file system where you want to look for volume labels,
  * you have to:
- * 1. Add a file which implements looking for volume labels.
- * 2. Add an 'extern const struct g_label_desc g_label_<your file system>;'.
- * 3. Add an element to the table below '&g_label_<your_file_system>,'.
+ * 1. Add a file g_label_<file system>.c which implements labels recognition.
+ * 2. Add an 'extern const struct g_label_desc g_label_<file system>;' into
+ *    g_label.h file.
+ * 3. Add an element to the table below '&g_label_<file system>,'.
+ * 4. Add your file to sys/conf/files.
+ * 5. Add your file to sys/modules/geom/geom_label/Makefile.
+ * 6. Add your file system to manual page sbin/geom/class/label/glabel.8.
  */
 const struct g_label_desc *g_labels[] = {
 	&g_label_ufs,
