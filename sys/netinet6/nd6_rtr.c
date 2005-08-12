@@ -1600,10 +1600,6 @@ in6_ifadd(pr, ifid)
 	 * (4) it is easier to manage when an interface has addresses
 	 * with the same interface identifier, than to have multiple addresses
 	 * with different interface identifiers.
-	 *
-	 * Mobile IPv6 addition: allow for caller to specify a wished interface
-	 * ID. This is to not break connections when moving addresses between
-	 * interfaces.
 	 */
 	ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp, 0); /* 0 is OK? */
 	if (ifa)
