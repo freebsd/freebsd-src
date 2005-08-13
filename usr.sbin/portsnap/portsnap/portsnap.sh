@@ -517,7 +517,7 @@ fetch_progress() {
 	while read x; do
 		LNC=$(($LNC + 1))
 		if [ $(($LNC % 10)) = 0 ]; then
-			echo -n $FN2
+			echo -n $LNC
 		elif [ $(($LNC % 2)) = 0 ]; then
 			echo -n .
 		fi
