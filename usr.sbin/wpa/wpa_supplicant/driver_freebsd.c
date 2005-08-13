@@ -41,6 +41,9 @@ struct wpa_driver_bsd_data {
 	char	ifname[IFNAMSIZ+1];	/* interface name */
 	unsigned int ifindex;		/* interface index */
 	void	*ctx;
+	int	prev_roaming;		/* roaming state to restore on deinit */
+	int	prev_privacy;		/* privacy state to restore on deinit */
+	int	prev_wpa;		/* wpa state to restore on deinit */
 };
 
 static int
@@ -97,6 +100,24 @@ set80211param(struct wpa_driver_bsd_data *drv, int op, int arg)
 		return -1;
 	}
 	return 0;
+}
+
+static int
+get80211param(struct wpa_driver_bsd_data *drv, int op)
+{
+	struct ieee80211req ireq;
+
+	memset(&ireq, 0, sizeof(ireq));
+	strncpy(ireq.i_name, drv->ifname, IFNAMSIZ);
+	ireq.i_type = op;
+
+	if (ioctl(drv->sock, SIOCG80211, &ireq) < 0) {
+		perror("ioctl[SIOCG80211]");
+		fprintf(stderr, "ioctl[SIOCG80211, op %u]: %s\n",
+			op, strerror(errno));
+		return -1;
+	}
+	return ireq.i_val;
 }
 
 static int
@@ -175,21 +196,30 @@ wpa_driver_bsd_set_wpa_ie(struct wpa_driver_bsd_data *drv,
 }
 
 static int
-wpa_driver_bsd_set_wpa(void *priv, int enabled)
+wpa_driver_bsd_set_wpa_internal(void *priv, int wpa, int privacy)
 {
 	struct wpa_driver_bsd_data *drv = priv;
 	int ret = 0;
 
-	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __FUNCTION__, enabled);
+	wpa_printf(MSG_DEBUG, "%s: wpa=%d privacy=%d",
+		__FUNCTION__, wpa, privacy);
 
-	if (!enabled && wpa_driver_bsd_set_wpa_ie(drv, NULL, 0) < 0)
+	if (!wpa && wpa_driver_bsd_set_wpa_ie(drv, NULL, 0) < 0)
 		ret = -1;
-	if (set80211param(drv, IEEE80211_IOC_PRIVACY, enabled) < 0)
+	if (set80211param(drv, IEEE80211_IOC_PRIVACY, privacy) < 0)
 		ret = -1;
-	if (set80211param(drv, IEEE80211_IOC_WPA, enabled ? 3 : 0) < 0)
+	if (set80211param(drv, IEEE80211_IOC_WPA, wpa) < 0)
 		ret = -1;
 
 	return ret;
+}
+
+static int
+wpa_driver_bsd_set_wpa(void *priv, int enabled)
+{
+	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __FUNCTION__, enabled);
+
+	return wpa_driver_bsd_set_wpa_internal(priv, enabled ? 3 : 0, enabled);
 }
 
 static int
@@ -644,6 +674,8 @@ wpa_driver_bsd_get_scan_results(void *priv,
 static void *
 wpa_driver_bsd_init(void *ctx, const char *ifname)
 {
+#define	GETPARAM(drv, param, v) \
+	(((v) = get80211param(drv, param)) != -1)
 	struct wpa_driver_bsd_data *drv;
 
 	drv = malloc(sizeof(*drv));
@@ -674,6 +706,21 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 	drv->ctx = ctx;
 	strncpy(drv->ifname, ifname, sizeof(drv->ifname));
 
+	if (!GETPARAM(drv, IEEE80211_IOC_ROAMING, drv->prev_roaming)) {
+		wpa_printf(MSG_DEBUG, "%s: failed to get roaming state: %s",
+			__func__, strerror(errno));
+		goto fail;
+	}
+	if (!GETPARAM(drv, IEEE80211_IOC_PRIVACY, drv->prev_privacy)) {
+		wpa_printf(MSG_DEBUG, "%s: failed to get privacy state: %s",
+			__func__, strerror(errno));
+		goto fail;
+	}
+	if (!GETPARAM(drv, IEEE80211_IOC_WPA, drv->prev_wpa)) {
+		wpa_printf(MSG_DEBUG, "%s: failed to get wpa state: %s",
+			__func__, strerror(errno));
+		goto fail;
+	}
 	if (set80211param(drv, IEEE80211_IOC_ROAMING, IEEE80211_ROAMING_MANUAL) < 0) {
 		wpa_printf(MSG_DEBUG, "%s: failed to set wpa_supplicant-based "
 			   "roaming: %s", __func__, strerror(errno));
@@ -692,6 +739,7 @@ fail:
 fail1:
 	free(drv);
 	return NULL;
+#undef GETPARAM
 }
 
 static void
@@ -704,10 +752,10 @@ wpa_driver_bsd_deinit(void *priv)
 	if (getifflags(drv, &flags) == 0)
 		(void) setifflags(drv, flags &~ IFF_UP);
 
-	wpa_driver_bsd_set_wpa(drv, 0);
-	if (set80211param(drv, IEEE80211_IOC_ROAMING, IEEE80211_ROAMING_DEVICE) < 0)
-		wpa_printf(MSG_DEBUG, "%s: failed to enable driver-based "
-			   "roaming", __func__);
+	wpa_driver_bsd_set_wpa_internal(drv, drv->prev_wpa, drv->prev_privacy);
+	if (set80211param(drv, IEEE80211_IOC_ROAMING, drv->prev_roaming) < 0)
+		wpa_printf(MSG_DEBUG, "%s: failed to restore roaming state",
+			__func__);
 
 	(void) close(drv->route);		/* ioctl socket */
 	(void) close(drv->sock);		/* event socket */
