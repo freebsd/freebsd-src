@@ -30,6 +30,8 @@
  * $FreeBSD$
  */
 
+extern char *arith_buf, *arith_startbuf;
+
 int arith(char *);
-int arith_assign(char *, arith_t);
+void arith_lex_reset(void);
 int expcmd(int, char **);
