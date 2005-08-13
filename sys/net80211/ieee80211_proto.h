@@ -144,6 +144,7 @@ void	ieee80211_authenticator_register(int type,
 void	ieee80211_authenticator_unregister(int type);
 const struct ieee80211_authenticator *ieee80211_authenticator_get(int auth);
 
+struct ieee80211req;
 /*
  * Template for an MAC ACL policy module.  Such modules
  * register with the protocol code and are passed the sender's
@@ -162,6 +163,8 @@ struct ieee80211_aclator {
 	int	(*iac_flush)(struct ieee80211com *);
 	int	(*iac_setpolicy)(struct ieee80211com *, int);
 	int	(*iac_getpolicy)(struct ieee80211com *);
+	int	(*iac_setioctl)(struct ieee80211com *, struct ieee80211req *);
+	int	(*iac_getioctl)(struct ieee80211com *, struct ieee80211req *);
 };
 void	ieee80211_aclator_register(const struct ieee80211_aclator *);
 void	ieee80211_aclator_unregister(const struct ieee80211_aclator *);
