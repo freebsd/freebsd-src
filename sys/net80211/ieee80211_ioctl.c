@@ -1242,6 +1242,14 @@ ieee80211_ioctl_getwmeparam(struct ieee80211com *ic, struct ieee80211req *ireq)
 	return 0;
 }
 
+static int
+ieee80211_ioctl_getmaccmd(struct ieee80211com *ic, struct ieee80211req *ireq)
+{
+	const struct ieee80211_aclator *acl = ic->ic_acl;
+
+	return (acl == NULL ? EINVAL : acl->iac_getioctl(ic, ireq));
+}
+
 /*
  * When building the kernel with -O2 on the i386 architecture, gcc
  * seems to want to inline this function into ieee80211_ioctl()
@@ -1474,6 +1482,9 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		break;
 	case IEEE80211_IOC_FRAGTHRESHOLD:
 		ireq->i_val = ic->ic_fragthreshold;
+		break;
+	case IEEE80211_IOC_MACCMD:
+		error = ieee80211_ioctl_getmaccmd(ic, ireq);
 		break;
 	default:
 		error = EINVAL;
@@ -1740,7 +1751,7 @@ ieee80211_ioctl_macmac(struct ieee80211com *ic, struct ieee80211req *ireq)
 }
 
 static int
-ieee80211_ioctl_maccmd(struct ieee80211com *ic, struct ieee80211req *ireq)
+ieee80211_ioctl_setmaccmd(struct ieee80211com *ic, struct ieee80211req *ireq)
 {
 	const struct ieee80211_aclator *acl = ic->ic_acl;
 
@@ -1768,7 +1779,10 @@ ieee80211_ioctl_maccmd(struct ieee80211com *ic, struct ieee80211req *ireq)
 		}
 		break;
 	default:
-		return EINVAL;
+		if (acl == NULL)
+			return EINVAL;
+		else
+			return acl->iac_setioctl(ic, ireq);
 	}
 	return 0;
 }
@@ -2302,7 +2316,7 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		error = ieee80211_ioctl_macmac(ic, ireq);
 		break;
 	case IEEE80211_IOC_MACCMD:
-		error = ieee80211_ioctl_maccmd(ic, ireq);
+		error = ieee80211_ioctl_setmaccmd(ic, ireq);
 		break;
 	case IEEE80211_IOC_STA_TXPOW:
 		error = ieee80211_ioctl_setstatxpow(ic, ireq);
