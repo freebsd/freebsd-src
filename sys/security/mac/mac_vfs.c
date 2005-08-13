@@ -2,6 +2,7 @@
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 McAfee, Inc.
+ * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -11,6 +12,9 @@
  * Research, the Security Research Division of McAfee, Inc. under
  * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
  * CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract 
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -939,10 +943,11 @@ mac_check_mount_stat(struct ucred *cred, struct mount *mount)
 }
 
 void
-mac_create_devfs_device(struct mount *mp, struct cdev *dev, struct devfs_dirent *de)
+mac_create_devfs_device(struct ucred *cred, struct mount *mp,
+    struct cdev *dev, struct devfs_dirent *de)
 {
 
-	MAC_PERFORM(create_devfs_device, mp, dev, de, de->de_label);
+	MAC_PERFORM(create_devfs_device, cred, mp, dev, de, de->de_label);
 }
 
 void

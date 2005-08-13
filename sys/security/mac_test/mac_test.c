@@ -865,10 +865,13 @@ mac_test_associate_vnode_singlelabel(struct mount *mp,
 }
 
 static void
-mac_test_create_devfs_device(struct mount *mp, struct cdev *dev,
-    struct devfs_dirent *devfs_dirent, struct label *label)
+mac_test_create_devfs_device(struct ucred *cred, struct mount *mp,
+    struct cdev *dev, struct devfs_dirent *devfs_dirent, struct label *label)
 {
 
+	if (cred != NULL) {
+		ASSERT_CRED_LABEL(cred->cr_label);
+	}
 	ASSERT_DEVFS_LABEL(label);
 }
 

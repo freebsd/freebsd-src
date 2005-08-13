@@ -99,7 +99,8 @@ static struct cdevsw nsmb_cdevsw = {
 static eventhandler_tag nsmb_dev_tag;
 
 static void
-nsmb_dev_clone(void *arg, char *name, int namelen, struct cdev **dev)
+nsmb_dev_clone(void *arg, struct ucred *cred, char *name, int namelen,
+    struct cdev **dev)
 {
 	int u;
 

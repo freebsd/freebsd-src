@@ -303,7 +303,7 @@ struct fw_bind *fw_bindlookup (struct firewire_comm *, uint16_t, uint32_t);
 void fw_drain_txq (struct firewire_comm *);
 int fwdev_makedev (struct firewire_softc *);
 int fwdev_destroydev (struct firewire_softc *);
-void fwdev_clone (void *, char *, int, struct cdev **);
+void fwdev_clone (void *, struct ucred *, char *, int, struct cdev **);
 
 extern int firewire_debug;
 extern devclass_t firewire_devclass;
