@@ -768,7 +768,7 @@ extract_metadata() {
 
 # Do the actual work involved in "extract"
 extract_run() {
-	grep "^${EXTRACTPATH}" ${WORKDIR}/INDEX | while read LINE; do
+	if ! grep "^${EXTRACTPATH}" ${WORKDIR}/INDEX | while read LINE; do
 		FILE=`echo ${LINE} | cut -f 1 -d '|'`
 		HASH=`echo ${LINE} | cut -f 2 -d '|'`
 		echo ${PORTSDIR}/${FILE}
@@ -789,7 +789,9 @@ extract_run() {
 			    -C ${PORTSDIR} ${FILE}
 			;;
 		esac
-	done
+	done; then
+		return 1
+	fi
 	if [ ! -z "${EXTRACTPATH}" ]; then
 		return 0;
 	fi
@@ -818,7 +820,8 @@ update_run() {
 
 # Install new files
 	echo "Extracting new files:"
-	sort ${WORKDIR}/INDEX | comm -13 ${PORTSDIR}/.portsnap.INDEX - |
+	if ! sort ${WORKDIR}/INDEX |
+	    comm -13 ${PORTSDIR}/.portsnap.INDEX - |
 	    while read LINE; do
 		FILE=`echo ${LINE} | cut -f 1 -d '|'`
 		HASH=`echo ${LINE} | cut -f 2 -d '|'`
@@ -838,7 +841,9 @@ update_run() {
 			    -C ${PORTSDIR} ${FILE}
 			;;
 		esac
-	done
+	done; then
+		return 1
+	fi
 
 	extract_metadata
 	extract_indices
