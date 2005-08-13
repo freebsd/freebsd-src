@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stdio.h>
 
+#include "arith.h"
 #include "shell.h"
 #include "var.h"
 %}
@@ -261,12 +262,11 @@ expr:
 #define lstrlen(var) (3 + (2 + CHAR_BIT * sizeof((var))) / 3)
 
 char *arith_buf, *arith_startbuf;
-extern void arith_lex_reset();
 
 int yylex(void);
 int yyparse(void);
 
-int
+static int
 arith_assign(char *name, arith_t value)
 {
 	char *str;
@@ -294,7 +294,7 @@ arith(char *s)
 	return result;
 }
 
-void
+static void
 yyerror(char *s)
 {
 
