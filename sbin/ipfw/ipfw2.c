@@ -277,6 +277,8 @@ enum tokens {
 	TOK_SRCIP6,
 
 	TOK_IPV4,
+	TOK_UNREACH6,
+	TOK_RESET6,
 };
 
 struct _s_x dummynet_params[] = {
@@ -326,7 +328,9 @@ struct _s_x rule_actions[] = {
 	{ "deny",		TOK_DENY },
 	{ "drop",		TOK_DENY },
 	{ "reject",		TOK_REJECT },
+	{ "reset6",		TOK_RESET6 },
 	{ "reset",		TOK_RESET },
+	{ "unreach6",		TOK_UNREACH6 },
 	{ "unreach",		TOK_UNREACH },
 	{ "check-state",	TOK_CHECKSTATE },
 	{ "//",			TOK_COMMENT },
@@ -851,6 +855,40 @@ print_reject_code(uint16_t code)
 		printf("unreach %u", code);
 }
 
+static struct _s_x icmp6codes[] = {
+      { "no-route",		ICMP6_DST_UNREACH_NOROUTE },
+      { "admin-prohib",		ICMP6_DST_UNREACH_ADMIN },
+      { "address",		ICMP6_DST_UNREACH_ADDR },
+      { "port",			ICMP6_DST_UNREACH_NOPORT },
+      { NULL, 0 }
+};
+
+static void
+fill_unreach6_code(u_short *codep, char *str)
+{
+	int val;
+	char *s;
+
+	val = strtoul(str, &s, 0);
+	if (s == str || *s != '\0' || val >= 0x100)
+		val = match_token(icmp6codes, str);
+	if (val < 0)
+		errx(EX_DATAERR, "unknown ICMPv6 unreachable code ``%s''", str);
+	*codep = val;
+	return;
+}
+
+static void
+print_unreach6_code(uint16_t code)
+{
+	char const *s = match_value(icmp6codes, code);
+
+	if (s != NULL)
+		printf("unreach6 %s", s);
+	else
+		printf("unreach6 %u", code);
+}
+
 /*
  * Returns the number of bits set (from left) in a contiguous bitmask,
  * or -1 if the mask is not contiguous.
@@ -1169,6 +1207,7 @@ static struct _s_x ext6hdrcodes[] = {
        { "frag",       EXT_FRAGMENT },
        { "hopopt",     EXT_HOPOPTS },
        { "route",      EXT_ROUTING },
+       { "dstopt",     EXT_DSTOPTS },
        { "ah",         EXT_AH },
        { "esp",        EXT_ESP },
        { NULL,         0 }
@@ -1197,6 +1236,10 @@ fill_ext6hdr( ipfw_insn *cmd, char *av)
 
            case EXT_ROUTING:
                cmd->arg1 |= EXT_ROUTING;
+               break;
+
+           case EXT_DSTOPTS:
+               cmd->arg1 |= EXT_DSTOPTS;
                break;
 
            case EXT_AH:
@@ -1235,6 +1278,10 @@ print_ext6hdr( ipfw_insn *cmd )
        }
        if (cmd->arg1 & EXT_ROUTING ) {
            printf("%crouting options", sep);
+           sep = ',';
+       }
+       if (cmd->arg1 & EXT_DSTOPTS ) {
+           printf("%cdestination options", sep);
            sep = ',';
        }
        if (cmd->arg1 & EXT_AH ) {
@@ -1404,6 +1451,13 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				printf("reject");
 			else
 				print_reject_code(cmd->arg1);
+			break;
+
+		case O_UNREACH6:
+			if (cmd->arg1 == ICMP6_UNREACH_RST)
+				printf("reset6");
+			else
+				print_unreach6_code(cmd->arg1);
 			break;
 
 		case O_SKIPTO:
@@ -2495,8 +2549,9 @@ help(void)
 "table N {add ip[/bits] [value] | delete ip[/bits] | flush | list}\n"
 "\n"
 "RULE-BODY:	check-state [PARAMS] | ACTION [PARAMS] ADDR [OPTION_LIST]\n"
-"ACTION:	check-state | allow | count | deny | unreach CODE | skipto N |\n"
-"		{divert|tee} PORT | forward ADDR | pipe N | queue N\n"
+"ACTION:	check-state | allow | count | deny | unreach{,6} CODE |\n"
+"               skipto N | {divert|tee} PORT | forward ADDR |\n"
+"               pipe N | queue N\n"
 "PARAMS: 	[log [logamount LOGLIMIT]] [altq QUEUE_NAME]\n"
 "ADDR:		[ MAC dst src ether_type ] \n"
 "		[ ip from IPADDR [ PORT ] to IPADDR [ PORTLIST ] ]\n"
@@ -3754,10 +3809,22 @@ add(int ac, char *av[])
 		action->arg1 = ICMP_REJECT_RST;
 		break;
 
+	case TOK_RESET6:
+		action->opcode = O_UNREACH6;
+		action->arg1 = ICMP6_UNREACH_RST;
+		break;
+
 	case TOK_UNREACH:
 		action->opcode = O_REJECT;
 		NEED1("missing reject code");
 		fill_reject_code(&action->arg1, *av);
+		ac--; av++;
+		break;
+
+	case TOK_UNREACH6:
+		action->opcode = O_UNREACH6;
+		NEED1("missing unreach code");
+		fill_unreach6_code(&action->arg1, *av);
 		ac--; av++;
 		break;
 
