@@ -1259,7 +1259,7 @@ wi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	u_int16_t val;
 	int rate, len;
 
-	if (sc->wi_gone || !sc->sc_enabled) {
+	if (sc->wi_gone) {		/* hardware gone (e.g. ejected) */
 		imr->ifm_active = IFM_IEEE80211 | IFM_NONE;
 		imr->ifm_status = 0;
 		return;
@@ -1267,6 +1267,11 @@ wi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 
 	imr->ifm_status = IFM_AVALID;
 	imr->ifm_active = IFM_IEEE80211;
+	if (!sc->sc_enabled) {		/* port !enabled, have no status */
+		imr->ifm_active |= IFM_NONE;
+		imr->ifm_status = IFM_AVALID;
+		return;
+	}
 	if (ic->ic_state == IEEE80211_S_RUN &&
 	    (sc->sc_flags & WI_FLAGS_OUTRANGE) == 0)
 		imr->ifm_status |= IFM_ACTIVE;
