@@ -555,7 +555,7 @@ clearcmdentry(int firstchange)
  */
 
 #ifdef mkinit
-MKINIT void deletefuncs();
+MKINIT void deletefuncs(void);
 
 SHELLPROC {
 	deletefuncs();

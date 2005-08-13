@@ -445,7 +445,7 @@ environment(void)
  */
 
 #ifdef mkinit
-MKINIT void shprocvar();
+MKINIT void shprocvar(void);
 
 SHELLPROC {
 	shprocvar();
