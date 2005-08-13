@@ -64,6 +64,10 @@ __FBSDID("$FreeBSD$");
 
 #undef eflag
 
+int readcmd(int, char **);
+int umaskcmd(int, char **);
+int ulimitcmd(int, char **);
+
 /*
  * The read builtin.  The -r option causes backslashes to be treated like
  * ordinary characters.
