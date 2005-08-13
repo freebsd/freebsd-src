@@ -34,7 +34,7 @@
 # --no-stats	-- don't show progress statistics while fetching files
 usage() {
 	cat <<EOF
-usage: `basename $0` [options] command [path]
+usage: `basename $0` [options] command ... [path]
 
 Options:
   -d workdir   -- Store working files in workdir
@@ -72,6 +72,7 @@ init_params() {
 	PORTSDIR=""
 	CONFFILE=""
 	COMMAND=""
+	COMMANDS=""
 	QUIETREDIR=""
 	QUIETFLAG=""
 	STATSREDIR=""
@@ -132,19 +133,20 @@ parse_cmdline() {
 			shift; SERVERNAME="$1"
 			;;
 		cron | extract | fetch | update)
-			if [ ! -z "${COMMAND}" ]; then usage; fi
-			COMMAND="$1"
+			COMMANDS="${COMMANDS} $1"
 			;;
 		*)
 			if [ $# -gt 1 ]; then usage; fi
-			if [ "${COMMAND}" = "extract" ]; then usage; fi
+			if echo ${COMMANDS} | grep -vq extract; then
+				usage
+			fi
 			EXTRACTPATH="$1"
 			;;
 		esac
 		shift
 	done
 
-	if [ -z "${COMMAND}" ]; then
+	if [ -z "${COMMANDS}" ]; then
 		usage
 	fi
 }
@@ -906,4 +908,6 @@ cmd_update() {
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:${PATH}
 
 get_params $@
-cmd_${COMMAND}
+for COMMAND in ${COMMANDS}; do
+	cmd_${COMMAND}
+done
