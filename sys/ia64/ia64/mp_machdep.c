@@ -372,6 +372,7 @@ ipi_send(struct pcpu *cpu, int ipi)
 	pipi = __MEMIO_ADDR(ia64_lapic_address |
 	    ((cpu->pc_lid & LID_SAPIC_MASK) >> 12));
 	vector = (uint64_t)(ipi_vector[ipi] & 0xff);
+	KASSERT(vector != 0, ("IPI %d is not assigned a vector", ipi));
 	*pipi = vector;
 	CTR3(KTR_SMP, "ipi_send(%p, %ld), cpuid=%d", pipi, vector,
 	    PCPU_GET(cpuid));
