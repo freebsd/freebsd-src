@@ -135,6 +135,8 @@ g_eli_crypto_rerun(struct cryptop *crp)
 
 /*
  * The function is called afer reading encrypted data from the provider.
+ *
+ * g_eli_start -> g_io_request -> G_ELI_READ_DONE -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
  */
 static void
 g_eli_read_done(struct bio *bp)
@@ -181,6 +183,8 @@ g_eli_read_done(struct bio *bp)
 
 /*
  * The function is called after we read and decrypt data.
+ *
+ * g_eli_start -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> G_ELI_CRYPTO_READ_DONE -> g_io_deliver
  */
 static int
 g_eli_crypto_read_done(struct cryptop *crp)
@@ -224,6 +228,8 @@ g_eli_crypto_read_done(struct cryptop *crp)
 
 /*
  * The function is called after we encrypt and write data.
+ *
+ * g_eli_start -> g_eli_crypto_run -> g_eli_crypto_write_done -> g_io_request -> G_ELI_WRITE_DONE -> g_io_deliver
  */
 static void
 g_eli_write_done(struct bio *bp)
@@ -252,6 +258,8 @@ g_eli_write_done(struct bio *bp)
 
 /*
  * The function is called after data encryption.
+ *
+ * g_eli_start -> g_eli_crypto_run -> G_ELI_CRYPTO_WRITE_DONE -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
 static int
 g_eli_crypto_write_done(struct cryptop *crp)
@@ -329,6 +337,10 @@ g_eli_orphan(struct g_consumer *cp)
 	g_eli_destroy(sc, 1);
 }
 
+/*
+ * BIO_READ : G_ELI_START -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
+ * BIO_WRITE: G_ELI_START -> g_eli_crypto_run -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
+ */
 static void     
 g_eli_start(struct bio *bp)
 {       
