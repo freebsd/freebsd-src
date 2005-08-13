@@ -705,7 +705,8 @@ devfs_lookupx(ap)
 		goto notfound;
 
 	cdev = NULL;
-	EVENTHANDLER_INVOKE(dev_clone, pname, strlen(pname), &cdev);
+	EVENTHANDLER_INVOKE(dev_clone, td->td_ucred, pname, strlen(pname),
+	    &cdev);
 	if (cdev == NULL)
 		goto notfound;
 

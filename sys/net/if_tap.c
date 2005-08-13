@@ -82,7 +82,8 @@
 static int		tapmodevent(module_t, int, void *);
 
 /* device */
-static void		tapclone(void *, char *, int, struct cdev **);
+static void		tapclone(void *, struct ucred *, char *, int,
+			    struct cdev **);
 static void		tapcreate(struct cdev *);
 
 /* network interface */
@@ -231,8 +232,9 @@ tapmodevent(mod, type, data)
  * We need to support two kind of devices - tap and vmnet
  */
 static void
-tapclone(arg, name, namelen, dev)
+tapclone(arg, cred, name, namelen, dev)
 	void	*arg;
+	struct ucred *cred;
 	char	*name;
 	int	 namelen;
 	struct cdev **dev;

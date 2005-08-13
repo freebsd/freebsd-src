@@ -70,8 +70,8 @@ int     vcdebug = 1;
 #define VCDEBUG if (vcdebug) printf
 
 /* for DEVFS, using bpf & tun drivers as examples*/
-static void coda_fbsd_clone(void *arg, char *name, int namelen,
-    struct cdev **dev);
+static void coda_fbsd_clone(void *arg, struct ucred *cred, char *name,
+    int namelen, struct cdev **dev);
 
 static int
 codadev_modevent(module_t mod, int type, void *data)
@@ -105,8 +105,9 @@ static moduledata_t codadev_mod = {
 };
 DECLARE_MODULE(codadev, codadev_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
-static void coda_fbsd_clone(arg, name, namelen, dev)
+static void coda_fbsd_clone(arg, cred, name, namelen, dev)
     void *arg;
+    struct ucred *cred;
     char *name;
     int namelen;
     struct cdev **dev;

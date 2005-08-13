@@ -68,6 +68,7 @@ struct cdev {
 	uid_t		si_uid;
 	gid_t		si_gid;
 	mode_t		si_mode;
+	struct ucred	*si_cred;	/* cached clone-time credential */
 	u_int		si_drv0;
 	int		si_refcount;
 	LIST_ENTRY(cdev)	si_list;
@@ -253,6 +254,9 @@ void	dev_rel(struct cdev *dev);
 void	dev_strategy(struct cdev *dev, struct buf *bp);
 struct cdev *make_dev(struct cdevsw *_devsw, int _minor, uid_t _uid, gid_t _gid,
 		int _perms, const char *_fmt, ...) __printflike(6, 7);
+struct cdev *make_dev_cred(struct cdevsw *_devsw, int _minor,
+		struct ucred *_cr, uid_t _uid, gid_t _gid, int _perms,
+		const char *_fmt, ...) __printflike(7, 8);
 struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...) __printflike(2, 3);
 int	dev2unit(struct cdev *_dev);
 void	dev_lock(void);
@@ -275,7 +279,8 @@ void devfs_destroy(struct cdev *dev);
 #define		GID_GAMES	13
 #define		GID_DIALER	68
 
-typedef void (*dev_clone_fn)(void *arg, char *name, int namelen, struct cdev **result);
+typedef void (*dev_clone_fn)(void *arg, struct ucred *cred, char *name,
+	    int namelen, struct cdev **result);
 
 int dev_stdclone(char *_name, char **_namep, const char *_stem, int *_unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
