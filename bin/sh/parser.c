@@ -1600,7 +1600,7 @@ getprompt(void *unused __unused)
 				 */
 			case 'h':
 			case 'H':
-				ps[i] == '\0';
+				ps[i] = '\0';
 				gethostname(&ps[i], PROMPTLEN - i);
 				/* Skip to end of hostname. */
 				trim = (*fmt == 'h') ? '.' : '\0';
@@ -1616,7 +1616,7 @@ getprompt(void *unused __unused)
 				 */
 			case 'W':
 			case 'w':
-				ps[i] == '\0';
+				ps[i] = '\0';
 				getcwd(&ps[i], PROMPTLEN - i);
 				if (*fmt == 'W') {
 					/* Final path component only. */
