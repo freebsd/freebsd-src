@@ -133,10 +133,10 @@ char shellproc[] = "\
 
 
 struct event event[] = {
-	{"INIT", "init", init},
-	{"RESET", "reset", reset},
-	{"SHELLPROC", "initshellproc", shellproc},
-	{NULL, NULL}
+	{ "INIT", "init", init, { NULL, 0, NULL, NULL } },
+	{ "RESET", "reset", reset, { NULL, 0, NULL, NULL } },
+	{ "SHELLPROC", "initshellproc", shellproc, { NULL, 0, NULL, NULL } },
+	{ NULL, NULL, NULL, { NULL, 0, NULL, NULL } }
 };
 
 
@@ -172,6 +172,7 @@ main(int argc __unused, char *argv[])
 
 	header_files[0] = "\"shell.h\"";
 	header_files[1] = "\"mystring.h\"";
+	header_files[2] = "\"init.h\"";
 	for (ap = argv + 1 ; *ap ; ap++)
 		readfile(*ap);
 	output();
@@ -391,7 +392,7 @@ output(void)
 	for (ep = event ; ep->name ; ep++) {
 		fputs("\n\n\n", fp);
 		fputs(ep->comment, fp);
-		fprintf(fp, "\nvoid\n%s() {\n", ep->routine);
+		fprintf(fp, "\nvoid\n%s(void)\n{\n", ep->routine);
 		writetext(&ep->code, fp);
 		fprintf(fp, "}\n");
 	}
