@@ -624,6 +624,30 @@ DECL_CMD_FUNC(set80211delmac, val, d)
 }
 
 static
+DECL_CMD_FUNC(set80211kickmac, val, d)
+{
+	char *temp;
+	struct sockaddr_dl sdl;
+	struct ieee80211req_mlme mlme;
+
+	temp = malloc(strlen(val) + 1);
+	if (temp == NULL)
+		errx(1, "malloc failed");
+	temp[0] = ':';
+	strcpy(temp + 1, val);
+	sdl.sdl_len = sizeof(sdl);
+	link_addr(temp, &sdl);
+	free(temp);
+	if (sdl.sdl_alen != IEEE80211_ADDR_LEN)
+		errx(1, "malformed link-level address");
+	memset(&mlme, 0, sizeof(mlme));
+	mlme.im_op = IEEE80211_MLME_DEAUTH;
+	mlme.im_reason = IEEE80211_REASON_AUTH_EXPIRE;
+	memcpy(mlme.im_macaddr, LLADDR(&sdl), IEEE80211_ADDR_LEN);
+	set80211(s, IEEE80211_IOC_MLME, 0, sizeof(mlme), (u_int8_t *) &mlme);
+}
+
+static
 DECL_CMD_FUNC(set80211maccmd, val, d)
 {
 	set80211(s, IEEE80211_IOC_MACCMD, d, 0, NULL);
@@ -1110,6 +1134,63 @@ again:
 	}
 }
 
+static void
+list_mac(int s)
+{
+	struct ieee80211req ireq;
+	struct ieee80211req_maclist *acllist;
+	int i, nacls, policy;
+	char c;
+
+	(void) memset(&ireq, 0, sizeof(ireq));
+	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name)); /* XXX ?? */
+	ireq.i_type = IEEE80211_IOC_MACCMD;
+	ireq.i_val = IEEE80211_MACCMD_POLICY;
+	if (ioctl(s, SIOCG80211, &ireq) < 0) {
+		if (errno == EINVAL) {
+			printf("No acl policy loaded\n");
+			return;
+		}
+		err(1, "unable to get mac policy");
+	}
+	policy = ireq.i_val;
+
+	ireq.i_val = IEEE80211_MACCMD_LIST;
+	ireq.i_len = 0;
+	if (ioctl(s, SIOCG80211, &ireq) < 0)
+		err(1, "unable to get mac acl list size");
+	if (ireq.i_len == 0)		/* NB: no acls */
+		return;
+
+	ireq.i_data = malloc(ireq.i_len);
+	if (ireq.i_data == NULL)
+		err(1, "out of memory for acl list");
+
+	if (ioctl(s, SIOCG80211, &ireq) < 0)
+		err(1, "unable to get mac acl list");
+	if (policy == IEEE80211_MACCMD_POLICY_OPEN) {
+		if (verbose)
+			printf("policy: open\n");
+		c = '*';
+	} else if (policy == IEEE80211_MACCMD_POLICY_ALLOW) {
+		if (verbose)
+			printf("policy: allow\n");
+		c = '+';
+	} else if (policy == IEEE80211_MACCMD_POLICY_DENY) {
+		if (verbose)
+			printf("policy: deny\n");
+		c = '-';
+	} else {
+		printf("policy: unknown (%u)\n", policy);
+		c = '?';
+	}
+	nacls = ireq.i_len / sizeof(*acllist);
+	acllist = (struct ieee80211req_maclist *) ireq.i_data;
+	for (i = 0; i < nacls; i++)
+		printf("%c%s\n", c, ether_ntoa(
+			(const struct ether_addr *) acllist[i].ml_macaddr));
+}
+
 static
 DECL_CMD_FUNC(set80211list, arg, d)
 {
@@ -1129,6 +1210,8 @@ DECL_CMD_FUNC(set80211list, arg, d)
 		list_capabilities(s);
 	else if (iseq(arg, "wme"))
 		list_wme(s);
+	else if (iseq(arg, "mac"))
+		list_mac(s);
 	else
 		errx(1, "Don't know how to list %s for %s", arg, name);
 #undef iseq
@@ -1824,9 +1907,7 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("mac:detach",	IEEE80211_MACCMD_DETACH,	set80211maccmd),
 	DEF_CMD_ARG("mac:add",		set80211addmac),
 	DEF_CMD_ARG("mac:del",		set80211delmac),
-#if 0
 	DEF_CMD_ARG("mac:kick",		set80211kickmac),
-#endif
 	DEF_CMD("pureg",	1,	set80211pureg),
 	DEF_CMD("-pureg",	0,	set80211pureg),
 	DEF_CMD_ARG("fragthreshold",	set80211fragthreshold),
