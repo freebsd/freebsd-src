@@ -1,4 +1,4 @@
-\.\"-
+.\"-
 .\" Copyright 2004-2005 Colin Percival
 .\" All rights reserved
 .\"
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2005
+.Dd August 13, 2005
 .Dt PORTSNAP 8
 .Os FreeBSD
 .Sh NAME
@@ -45,7 +45,9 @@
 The
 .Nm
 tool is used to fetch and update compressed snapshots
-of the FreeBSD ports tree, and extract and update an
+of the
+.Fx
+ports tree, and extract and update an
 uncompressed ports tree.
 .Sh OPTIONS
 The following options are supported:
@@ -72,7 +74,7 @@ Expect a public key with given SHA256 hash.
 When extracting or updating an uncompressed snapshot,
 operate on the directory
 .Ar portsdir .
-(default: 
+(default:
 .Pa /usr/ports/ ,
 or as given in the configuration file.)
 .It Fl s Ar server
@@ -88,7 +90,7 @@ command only, operate only on parts of the ports tree starting with
 .Nm
 .cm extract
 .Ar sysutils/port
-would extract sysutils/portsman, sysutils/portsnap, 
+would extract sysutils/portsman, sysutils/portsnap,
 sysutils/portupgrade, etc.)
 .El
 .Sh COMMANDS
@@ -163,7 +165,7 @@ from
 is a bad idea -- if you're ever installing or updating a
 port at the time the cron job runs, you'll probably end up
 in a mess when
-.Cm
+.Nm
 updates or removes files which are being used by the port
 build.
 However, running
@@ -177,7 +179,8 @@ to identify installed software which is out of date.
 If you wish to use
 .Nm
 to keep a large number of machines up to date, you may wish
-to set up a caching HTTP proxy.  Since
+to set up a caching HTTP proxy.
+Since
 .Nm
 uses
 .Xr fetch 1
