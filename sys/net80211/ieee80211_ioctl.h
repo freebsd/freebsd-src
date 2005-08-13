@@ -252,6 +252,12 @@ enum {
 	IEEE80211_MACCMD_POLICY_DENY	= 2,	/* set policy: deny traffic */
 	IEEE80211_MACCMD_FLUSH		= 3,	/* flush ACL database */
 	IEEE80211_MACCMD_DETACH		= 4,	/* detach ACL policy */
+	IEEE80211_MACCMD_POLICY		= 5,	/* get ACL policy */
+	IEEE80211_MACCMD_LIST		= 6,	/* get ACL database */
+};
+
+struct ieee80211req_maclist {
+	u_int8_t	ml_macaddr[IEEE80211_ADDR_LEN];
 };
 
 /*
