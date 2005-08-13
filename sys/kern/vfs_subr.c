@@ -107,7 +107,8 @@ static int	vfs_knllocked(void *arg);
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
  * build.  Without mpsafevm the buffer cache can not run Giant free.
  */
-#if defined(__alpha__) || defined(__amd64__) || defined(__i386__)
+#if defined(__alpha__) || defined(__amd64__) || defined(__i386__) || \
+	defined(__ia64__)
 int mpsafe_vfs = 1;
 #else
 int mpsafe_vfs;
