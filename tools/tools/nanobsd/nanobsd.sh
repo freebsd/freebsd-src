@@ -184,6 +184,16 @@ setup_diskless ( ) (
 	ln -s var/tmp tmp
 )
 
+prune_usr() (
+
+	# Remove all empty directories in /usr 
+	find ${NANO_WORLDDIR}/usr -type d -depth -print |
+		while read d
+		do
+			rmdir $d > /dev/null 2>&1 || true 
+		done
+)
+
 create_i386_diskimage ( ) (
 
 	echo $NANO_MEDIA $NANO_IMAGES \
@@ -242,7 +252,7 @@ create_i386_diskimage ( ) (
 
 	MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} -y ${NANO_HEADS}`
 
-	trap "umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
+	trap "df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
 	fdisk -i -f ${MAKEOBJDIRPREFIX}/_.fdisk ${MD}
 	# XXX: params
@@ -253,6 +263,7 @@ create_i386_diskimage ( ) (
 	# Create first image
 	newfs ${NANO_NEWFS} /dev/${MD}s1a
 	mount /dev/${MD}s1a ${MNT}
+	df -i ${MNT}
 	( cd ${NANO_WORLDDIR} && find . -print | cpio -dump ${MNT} )
 	# XXX: make_fstab
 	df -i ${MNT}
@@ -286,6 +297,31 @@ create_i386_diskimage ( ) (
 #
 #######################################################################
 
+#######################################################################
+# Parse arguments
+
+args=`getopt c: $*`
+if [ $? -ne 0 ] ; then
+	echo "Usage: $0 [-c config file]" 1>&2
+	exit 2
+fi
+
+set -- $args
+for i
+do
+	case "$i" 
+	in
+	-c)
+		. "$2"
+		shift;
+		shift;
+		;;
+	--)
+		shift;
+		break;
+	esac
+done
+
 
 #######################################################################
 # Internal variables
@@ -318,31 +354,6 @@ export NANO_SRC
 export NANO_WORLDDIR
 
 #######################################################################
-# Parse arguments
-
-args=`getopt c: $*`
-if [ $? -ne 0 ] ; then
-	echo "Usage: $0 [-c config file]" 1>&2
-	exit 2
-fi
-
-set -- $args
-for i
-do
-	case "$i" 
-	in
-	-c)
-		. "$2"
-		shift;
-		shift;
-		;;
-	--)
-		shift;
-		break;
-	esac
-done
-
-#######################################################################
 # Set up object directory
 
 clean_target
@@ -355,4 +366,5 @@ install_world
 install_etc
 install_kernel
 setup_diskless
+prune_usr
 create_${NANO_ARCH}_diskimage
