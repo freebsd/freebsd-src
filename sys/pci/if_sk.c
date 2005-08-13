@@ -195,8 +195,10 @@ static void sk_txeof(struct sk_if_softc *);
 static int sk_encap(struct sk_if_softc *, struct mbuf *,
 					u_int32_t *);
 static void sk_start(struct ifnet *);
+static void sk_start_locked(struct ifnet *);
 static int sk_ioctl(struct ifnet *, u_long, caddr_t);
 static void sk_init(void *);
+static void sk_init_locked(struct sk_if_softc *);
 static void sk_init_xmac(struct sk_if_softc *);
 static void sk_init_yukon(struct sk_if_softc *);
 static void sk_stop(struct sk_if_softc *);
@@ -797,6 +799,7 @@ sk_setmulti(sc_if)
 	struct ifmultiaddr	*ifma;
 	u_int8_t		dummy[] = { 0, 0, 0, 0, 0 ,0 };
 
+	SK_IF_LOCK_ASSERT(sc_if);
 
 	/* First, zot all the existing filters. */
 	switch(sc->sk_type) {
@@ -885,6 +888,8 @@ sk_setpromisc(sc_if)
 {
 	struct sk_softc		*sc = sc_if->sk_softc;
 	struct ifnet		*ifp = sc_if->sk_ifp;
+
+	SK_IF_LOCK_ASSERT(sc_if);
 
 	switch(sc->sk_type) {
 	case SK_GENESIS:
@@ -1240,13 +1245,15 @@ sk_ioctl(ifp, command, data)
 
 	switch(command) {
 	case SIOCSIFMTU:
+		SK_IF_LOCK(sc_if);
 		if (ifr->ifr_mtu > SK_JUMBO_MTU)
 			error = EINVAL;
 		else {
 			ifp->if_mtu = ifr->ifr_mtu;
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			sk_init(sc_if);
+			sk_init_locked(sc_if);
 		}
+		SK_IF_UNLOCK(sc_if);
 		break;
 	case SIOCSIFFLAGS:
 		SK_IF_LOCK(sc_if);
@@ -1258,7 +1265,7 @@ sk_ioctl(ifp, command, data)
 					sk_setmulti(sc_if);
 				}
 			} else
-				sk_init(sc_if);
+				sk_init_locked(sc_if);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				sk_stop(sc_if);
@@ -1269,12 +1276,12 @@ sk_ioctl(ifp, command, data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		SK_IF_LOCK(sc_if);
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			SK_IF_LOCK(sc_if);
 			sk_setmulti(sc_if);
-			SK_IF_UNLOCK(sc_if);
 			error = 0;
 		}
+		SK_IF_UNLOCK(sc_if);
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -1353,8 +1360,9 @@ sk_reset(sc)
 	 * register represents 18.825ns, so to specify a timeout in
 	 * microseconds, we have to multiply by 54.
 	 */
-	printf("skc%d: interrupt moderation is %d us\n",
-	    sc->sk_unit, sc->sk_int_mod);
+	if (bootverbose)
+		printf("skc%d: interrupt moderation is %d us\n",
+		    sc->sk_unit, sc->sk_int_mod);
 	sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(sc->sk_int_mod));
 	sk_win_write_4(sc, SK_IMMR, SK_ISR_TX1_S_EOF|SK_ISR_TX2_S_EOF|
 	    SK_ISR_RX1_EOF|SK_ISR_RX2_EOF);
@@ -1678,7 +1686,7 @@ skc_attach(dev)
 			break;
 		default:
 			printf("skc%d: unknown ram size: %d\n",
-			    sc->sk_unit, sk_win_read_1(sc, SK_EPROM0));
+			    sc->sk_unit, skrs);
 			error = ENXIO;
 			goto fail;
 		}
@@ -1866,7 +1874,11 @@ skc_attach(dev)
 	/* Turn on the 'driver is loaded' LED. */
 	CSR_WRITE_2(sc, SK_LED, SK_LED_GREEN_ON);
 
-	bus_generic_attach(dev);
+	error = bus_generic_attach(dev);
+	if (error) {
+		device_printf(dev, "failed to attach port(s)\n");
+		goto fail;
+	}
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sk_irq, INTR_TYPE_NET|INTR_MPSAFE,
@@ -2028,6 +2040,21 @@ static void
 sk_start(ifp)
 	struct ifnet		*ifp;
 {
+	struct sk_if_softc *sc_if;
+
+	sc_if = ifp->if_softc;
+
+	SK_IF_LOCK(sc_if);
+	sk_start_locked(ifp);
+	SK_IF_UNLOCK(sc_if);
+
+	return;
+}
+
+static void
+sk_start_locked(ifp)
+	struct ifnet		*ifp;
+{
         struct sk_softc		*sc;
         struct sk_if_softc	*sc_if;
         struct mbuf		*m_head = NULL;
@@ -2036,7 +2063,7 @@ sk_start(ifp)
 	sc_if = ifp->if_softc;
 	sc = sc_if->sk_softc;
 
-	SK_IF_LOCK(sc_if);
+	SK_IF_LOCK_ASSERT(sc_if);
 
 	idx = sc_if->sk_cdata.sk_tx_prod;
 
@@ -2071,7 +2098,6 @@ sk_start(ifp)
 		/* Set a timeout in case the chip goes out to lunch. */
 		ifp->if_timer = 5;
 	}
-	SK_IF_UNLOCK(sc_if);
 
 	return;
 }
@@ -2086,8 +2112,10 @@ sk_watchdog(ifp)
 	sc_if = ifp->if_softc;
 
 	printf("sk%d: watchdog timeout\n", sc_if->sk_unit);
+	SK_IF_LOCK(sc_if);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	sk_init(sc_if);
+	sk_init_locked(sc_if);
+	SK_IF_UNLOCK(sc_if);
 
 	return;
 }
@@ -2458,9 +2486,9 @@ sk_intr(xsc)
 	CSR_WRITE_4(sc, SK_IMR, sc->sk_intrmask);
 
 	if (ifp0 != NULL && !IFQ_DRV_IS_EMPTY(&ifp0->if_snd))
-		sk_start(ifp0);
+		sk_start_locked(ifp0);
 	if (ifp1 != NULL && !IFQ_DRV_IS_EMPTY(&ifp1->if_snd))
-		sk_start(ifp1);
+		sk_start_locked(ifp1);
 
 	SK_UNLOCK(sc);
 
@@ -2646,7 +2674,7 @@ sk_init_yukon(sc_if)
 	ifp = sc_if->sk_ifp;
 
 	if (sc->sk_type == SK_YUKON_LITE &&
-	    sc->sk_rev == SK_YUKON_LITE_REV_A3) {
+	    sc->sk_rev >= SK_YUKON_LITE_REV_A3) {
 		/* Take PHY out of reset. */
 		sk_win_write_4(sc, SK_GPIO,
 			(sk_win_read_4(sc, SK_GPIO) | SK_GPIO_DIR9) & ~SK_GPIO_DAT9);
@@ -2750,22 +2778,32 @@ sk_init(xsc)
 	void			*xsc;
 {
 	struct sk_if_softc	*sc_if = xsc;
+
+	SK_IF_LOCK(sc_if);
+	sk_init_locked(sc_if);
+	SK_IF_UNLOCK(sc_if);
+
+	return;
+}
+
+static void
+sk_init_locked(sc_if)
+	struct sk_if_softc	*sc_if;
+{
 	struct sk_softc		*sc;
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
 	u_int16_t		reg;
 	u_int32_t		imr;
 
-	SK_IF_LOCK(sc_if);
+	SK_IF_LOCK_ASSERT(sc_if);
 
 	ifp = sc_if->sk_ifp;
 	sc = sc_if->sk_softc;
 	mii = device_get_softc(sc_if->sk_miibus);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		SK_IF_UNLOCK(sc_if);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
-	}
 
 	/* Cancel pending I/O and free all RX/TX buffers. */
 	sk_stop(sc_if);
@@ -2847,7 +2885,6 @@ sk_init(xsc)
 		printf("sk%d: initialization failed: no "
 		    "memory for rx buffers\n", sc_if->sk_unit);
 		sk_stop(sc_if);
-		SK_IF_UNLOCK(sc_if);
 		return;
 	}
 	sk_init_tx_ring(sc_if);
@@ -2857,8 +2894,9 @@ sk_init(xsc)
 	imr = sk_win_read_4(sc, SK_IMTIMERINIT);
 	if (imr != SK_IM_USECS(sc->sk_int_mod)) {
 		sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(sc->sk_int_mod));
-		printf("skc%d: interrupt moderation is %d us\n",
-		    sc->sk_unit, sc->sk_int_mod);
+		if (bootverbose)
+			printf("skc%d: interrupt moderation is %d us\n",
+			    sc->sk_unit, sc->sk_int_mod);
 	}
 	/* SK_UNLOCK(sc); */
 
@@ -2894,8 +2932,6 @@ sk_init(xsc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	SK_IF_UNLOCK(sc_if);
-
 	return;
 }
 
@@ -2907,7 +2943,7 @@ sk_stop(sc_if)
 	struct sk_softc		*sc;
 	struct ifnet		*ifp;
 
-	SK_IF_LOCK(sc_if);
+	SK_IF_LOCK_ASSERT(sc_if);
 	sc = sc_if->sk_softc;
 	ifp = sc_if->sk_ifp;
 
@@ -2978,7 +3014,7 @@ sk_stop(sc_if)
 	}
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
-	SK_IF_UNLOCK(sc_if);
+
 	return;
 }
 
