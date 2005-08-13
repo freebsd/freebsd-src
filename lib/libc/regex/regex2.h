@@ -196,5 +196,5 @@ struct re_guts {
 };
 
 /* misc utilities */
-#define	OUT	(-2)	/* a non-character value */
+#define	OUT	(CHAR_MIN - 1)	/* a non-character value */
 #define ISWORD(c)       (iswalnum((uch)(c)) || (c) == '_')
