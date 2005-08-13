@@ -8,6 +8,8 @@
  * This code is derived from software contributed to The NetBSD Foundation
  * by Heiko W.Rupp <hwr@pilhuhn.de>
  *
+ * IPv6-over-GRE contributed by Gert Doering <gert@greenie.muc.de>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -45,6 +47,7 @@
 
 #include "opt_inet.h"
 #include "opt_atalk.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -142,6 +145,7 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 	int isr;
 	struct gre_softc *sc;
 	u_int16_t flags;
+	u_int32_t af;
 
 	if ((sc = gre_lookup(m, proto)) == NULL) {
 		/* No matching tunnel or tunnel is down. */
@@ -183,14 +187,20 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 			/* FALLTHROUGH */
 		case ETHERTYPE_IP:	/* shouldn't need a schednetisr(), */
 			isr = NETISR_IP;/* as we are in ip_input */
+			af = AF_INET;
 			break;
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+			isr = NETISR_IPV6;
+			af = AF_INET6;
+			break;
+#endif
 #ifdef NETATALK
 		case ETHERTYPE_ATALK:
 			isr = NETISR_ATALK1;
+			af = AF_APPLETALK;
 			break;
 #endif
-		case ETHERTYPE_IPV6:
-			/* FALLTHROUGH */
 		default:	   /* others not yet supported */
 			return (0);
 		}
@@ -208,7 +218,6 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 	m_adj(m, hlen);
 
 	if (sc->sc_if.if_bpf) {
-		u_int32_t af = AF_INET;
 		bpf_mtap2(sc->sc_if.if_bpf, &af, sizeof(af), m);
 	}
 

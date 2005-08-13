@@ -8,6 +8,8 @@
  * This code is derived from software contributed to The NetBSD Foundation
  * by Heiko W.Rupp <hwr@pilhuhn.de>
  *
+ * IPv6-over-GRE contributed by Gert Doering <gert@greenie.muc.de>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -39,7 +41,7 @@
 
 /*
  * Encapsulate L3 protocols into IP
- * See RFC 1701 and 1702 for more details.
+ * See RFC 2784 (successor of RFC 1701 and 1702) for more details.
  * If_gre is compatible with Cisco GRE tunnels, so you can
  * have a NetBSD box as the other end of a tunnel interface of a Cisco
  * router. See gre(4) for more details.
@@ -230,6 +232,8 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct gre_softc *sc = ifp->if_softc;
 	struct greip *gh;
 	struct ip *ip;
+	u_short ip_id = 0;
+	uint8_t ip_tos = 0;
 	u_int16_t etype = 0;
 	struct mobile_h mob_h;
 
@@ -338,8 +342,16 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		switch (dst->sa_family) {
 		case AF_INET:
 			ip = mtod(m, struct ip *);
+			ip_tos = ip->ip_tos;
+			ip_id = ip->ip_id;
 			etype = ETHERTYPE_IP;
 			break;
+#ifdef INET6
+		case AF_INET6:
+			ip_id = ip_newid();
+			etype = ETHERTYPE_IPV6;
+			break;
+#endif
 #ifdef NETATALK
 		case AF_APPLETALK:
 			etype = ETHERTYPE_ATALK;
@@ -379,8 +391,8 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		((struct ip*)gh)->ip_v = IPPROTO_IPV4;
 		((struct ip*)gh)->ip_hl = (sizeof(struct ip)) >> 2;
 		((struct ip*)gh)->ip_ttl = GRE_TTL;
-		((struct ip*)gh)->ip_tos = ip->ip_tos;
-		((struct ip*)gh)->ip_id = ip->ip_id;
+		((struct ip*)gh)->ip_tos = ip_tos;
+		((struct ip*)gh)->ip_id = ip_id;
 		gh->gi_len = m->m_pkthdr.len;
 	}
 
@@ -457,6 +469,10 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		switch (ifr->ifr_addr.sa_family) {
 #ifdef INET
 		case AF_INET:
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
 			break;
 #endif
 		default:
