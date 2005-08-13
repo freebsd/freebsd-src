@@ -72,13 +72,15 @@ setup_ipi_vectors(int ceil)
 	int ipi;
 
 	ipi_vector[IPI_MCA_RENDEZ] = ceil - 0x10;
-	ipi_vector[IPI_MCA_CMCV] = ceil - 0x30;
-	ipi_vector[IPI_TEST] = ceil - 0x30 + 1;
 
 	ipi = IPI_AST;		/* First generic IPI. */
 	ceil -= 0x20;		/* First vector in group. */
 	while (ipi < IPI_COUNT)
 		ipi_vector[ipi++] = ceil++;
+
+	ipi_vector[IPI_HIGH_FP] = ceil - 0x30;
+	ipi_vector[IPI_MCA_CMCV] = ceil - 0x30 + 1;
+	ipi_vector[IPI_TEST] = ceil - 0x30 + 2;
 }
 
 void
