@@ -82,5 +82,7 @@
 pointer stalloc(int);
 void error(const char *, ...) __printf0like(1, 2);
 
+int echocmd(int, char **);
+int testcmd(int, char **);
 
 extern char *commandname;
