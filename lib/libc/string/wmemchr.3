@@ -39,7 +39,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 22, 2000
+.Dd August 13, 2005
 .Dt WMEMCHR 3
 .Os
 .Sh NAME
@@ -53,6 +53,7 @@
 .Nm wcscmp ,
 .Nm wcscpy ,
 .Nm wcscspn ,
+.Nm wcsdup ,
 .Nm wcslcat ,
 .Nm wcslcpy ,
 .Nm wcslen ,
@@ -88,6 +89,8 @@
 .Fn wcscpy "wchar_t * restrict s1" "const wchar_t * restrict s2"
 .Ft size_t
 .Fn wcscspn "const wchar_t *s1" "const wchar_t *s2"
+.Ft wchar_t *
+.Fn wcsdup "const wchar_t *s"
 .Ft size_t
 .Fn wcslcat "wchar_t *s1" "const wchar_t *s2" "size_t n"
 .Ft size_t
@@ -125,6 +128,7 @@ counterpart, such as
 .Xr strcmp 3 ,
 .Xr strcpy 3 ,
 .Xr strcspn 3 ,
+.Xr strdup 3 ,
 .Xr strlcat 3 ,
 .Xr strlcpy 3 ,
 .Xr strlen 3 ,
@@ -139,7 +143,8 @@ counterpart, such as
 These functions conform to
 .St -isoC-99 ,
 with the exception of
-.Fn wcslcat
+.Fn wcsdup ,
+.Fn wcslcat ,
 and
 .Fn wcslcpy ,
 which are extensions.
