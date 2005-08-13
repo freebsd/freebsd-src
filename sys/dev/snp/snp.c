@@ -114,7 +114,7 @@ static LIST_HEAD(, snoop) snp_sclist = LIST_HEAD_INITIALIZER(&snp_sclist);
 static struct clonedevs	  *snpclones;
 
 static struct tty	*snpdevtotty(struct cdev *dev);
-static void		snp_clone(void *arg, char *name,
+static void		snp_clone(void *arg, struct ucred *cred, char *name,
 			    int namelen, struct cdev **dev);
 static int		snp_detach(struct snoop *snp);
 static int		snp_down(struct snoop *snp);
@@ -627,8 +627,9 @@ snppoll(dev, events, td)
 }
 
 static void
-snp_clone(arg, name, namelen, dev)
+snp_clone(arg, cred, name, namelen, dev)
 	void *arg;
+	struct ucred *cred;
 	char *name;
 	int namelen;
 	struct cdev **dev;

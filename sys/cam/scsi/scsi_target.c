@@ -141,8 +141,8 @@ static void		targfreeccb(struct targ_softc *softc, union ccb *ccb);
 static struct targ_cmd_descr *
 			targgetdescr(struct targ_softc *softc);
 static periph_init_t	targinit;
-static void		targclone(void *arg, char *name, int namelen,
-				  struct cdev **dev);
+static void		targclone(void *arg, struct ucred *cred, char *name,
+				  int namelen, struct cdev **dev);
 static void		targasync(void *callback_arg, u_int32_t code,
 				  struct cam_path *path, void *arg);
 static void		abort_all_pending(struct targ_softc *softc);
@@ -1025,7 +1025,8 @@ targinit(void)
 }
 
 static void
-targclone(void *arg, char *name, int namelen, struct cdev **dev)
+targclone(void *arg, struct ucred *cred, char *name, int namelen,
+    struct cdev **dev)
 {
 	int u;
 

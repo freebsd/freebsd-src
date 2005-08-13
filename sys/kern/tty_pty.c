@@ -63,7 +63,7 @@ static MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 static void ptsstart(struct tty *tp);
 static void ptsstop(struct tty *tp, int rw);
 static void ptcwakeup(struct tty *tp, int flag);
-static struct cdev *ptyinit(struct cdev *cdev);
+static struct cdev *ptyinit(struct cdev *cdev, struct thread *td);
 
 static	d_open_t	ptsopen;
 static	d_close_t	ptsclose;
@@ -132,7 +132,7 @@ static char *names = "pqrsPQRS";
  *      than 256 ptys.
  */
 static struct cdev *
-ptyinit(struct cdev *devc)
+ptyinit(struct cdev *devc, struct thread *td)
 {
 	struct cdev *devs;
 	struct ptsc *pt;
@@ -146,7 +146,7 @@ ptyinit(struct cdev *devc)
 	devc->si_flags &= ~SI_CHEAPCLONE;
 
 	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK | M_ZERO);
-	pt->devs = devs = make_dev(&pts_cdevsw, n,
+	pt->devs = devs = make_dev_cred(&pts_cdevsw, n, td->td_ucred,
 	    UID_ROOT, GID_WHEEL, 0666, "tty%c%r", names[n / 32], n % 32);
 	pt->devc = devc;
 
@@ -272,7 +272,7 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	struct ptsc *pt;
 
 	if (!dev->si_drv1)
-		ptyinit(dev);
+		ptyinit(dev, td);
 	if (!dev->si_drv1)
 		return(ENXIO);
 	tp = dev->si_tty;
@@ -681,7 +681,8 @@ ptsioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 }
 
 static void
-pty_clone(void *arg, char *name, int namelen, struct cdev **dev)
+pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
+    struct cdev **dev)
 {
 	int u;
 
@@ -708,7 +709,7 @@ pty_clone(void *arg, char *name, int namelen, struct cdev **dev)
 		u += name[4] - 'a' + 10;
 	else
 		return;
-	*dev = make_dev(&ptc_cdevsw, u,
+	*dev = make_dev_cred(&ptc_cdevsw, u, cr,
 	    UID_ROOT, GID_WHEEL, 0666, "pty%c%r", names[u / 32], u % 32);
 	dev_ref(*dev);
 	(*dev)->si_flags |= SI_CHEAPCLONE;
