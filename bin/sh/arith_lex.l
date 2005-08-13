@@ -42,13 +42,15 @@ __FBSDID("$FreeBSD$");
 
 #include <string.h>
 
+#include "arith.h"
 #include "shell.h"
 #include "y.tab.h"
 #include "error.h"
 #include "memalloc.h"
 #include "var.h"
 
-extern char *arith_buf, *arith_startbuf;
+int yylex(void);
+
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max) \
 	result = (*buf = *arith_buf++) ? 1 : YY_NULL;
