@@ -47,7 +47,7 @@ geli_start()
 	fi
 
 	geli load >/dev/null 2>&1
-	if ! kldstat -v | grep -q g_eli\$; then
+	if ! kldstat -m g_eli >/dev/null 2>&1; then
 		err 1 'geom_eli module failed to load.'
 	fi
 
