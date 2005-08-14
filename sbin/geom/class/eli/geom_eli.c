@@ -344,6 +344,10 @@ eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
 	if (!*nopassphrase) {
 		char buf1[BUFSIZ], buf2[BUFSIZ], *p;
 
+		if (!new && md->md_iterations == -1) {
+			gctl_error(req, "Missing -p flag.");
+			return (NULL);
+		}
 		for (;;) {
 			p = readpassphrase(
 			    new ? "Enter new passphrase:" : "Enter passphrase:",
