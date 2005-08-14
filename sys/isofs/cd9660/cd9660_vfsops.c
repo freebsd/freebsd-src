@@ -118,7 +118,6 @@ cd9660_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
 	ma = mount_argb(ma,
 	    args.flags & ISOFSMNT_BROKENJOLIET, "nobrokenjoliet");
 	ma = mount_argb(ma, args.flags & ISOFSMNT_KICONV, "nokiconv");
-	ma = mount_argb(ma, args.flags & ISOFSMNT_EXTATT, "nogens");
 
 	error = kernel_mount(ma, flags);
 
@@ -288,7 +287,7 @@ iso_mountfs(devvp, mp, td)
 				bp = NULL;
 				sup = (struct iso_supplementary_descriptor *)vdp;
 
-				if (vfs_flagopt(mp->mnt_optnew, "joliet", NULL, 0)) {
+				if (!vfs_flagopt(mp->mnt_optnew, "nojoliet", NULL, 0)) {
 					if (bcmp(sup->escape, "%/@", 3) == 0)
 						joliet_level = 1;
 					if (bcmp(sup->escape, "%/C", 3) == 0)
@@ -379,14 +378,14 @@ iso_mountfs(devvp, mp, td)
 	isomp->im_dev = dev;
 	isomp->im_devvp = devvp;
 
-	vfs_flagopt(mp->mnt_optnew, "rrip", &isomp->im_flags, ISOFSMNT_NORRIP);
+	vfs_flagopt(mp->mnt_optnew, "norrip", &isomp->im_flags, ISOFSMNT_NORRIP);
 	vfs_flagopt(mp->mnt_optnew, "gens", &isomp->im_flags, ISOFSMNT_GENS);
 	vfs_flagopt(mp->mnt_optnew, "extatt", &isomp->im_flags, ISOFSMNT_EXTATT);
-	vfs_flagopt(mp->mnt_optnew, "joliet", &isomp->im_flags, ISOFSMNT_NOJOLIET);
+	vfs_flagopt(mp->mnt_optnew, "nojoliet", &isomp->im_flags, ISOFSMNT_NOJOLIET);
 	vfs_flagopt(mp->mnt_optnew, "kiconv", &isomp->im_flags, ISOFSMNT_KICONV);
-	isomp->im_flags ^= (ISOFSMNT_NORRIP | ISOFSMNT_NOJOLIET);
-	/* Check the Rock Ridge Extention support */
-	if (vfs_flagopt(mp->mnt_optnew, "rrip", NULL, 0)) {
+
+	/* Check the Rock Ridge Extension support */
+	if (!(isomp->im_flags & ISOFSMNT_NORRIP)) {
 		if ((error = bread(isomp->im_devvp,
 				  (isomp->root_extent + isonum_711(rootp->ext_attr_length)) <<
 				  (isomp->im_bshift - DEV_BSHIFT),
