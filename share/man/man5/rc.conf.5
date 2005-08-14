@@ -1156,6 +1156,35 @@ Number of times to attempt attaching to a
 .Xr gbde 4
 device, i.e., how many times the user is asked for the pass-phrase.
 Default is 3.
+.It Va geli_devices
+.Pq Vt str
+List of devices to automatically attach on boot.
+Note that .eli devices from
+.Pa /etc/fstab
+are automatically appended to this list.
+.It Va geli_tries
+.Pq Vt int
+Number of times user is asked for the pass-phrase.
+If empty, it will be taken from
+.Va kern.geom.eli.tries
+sysctl variable.
+.It Va geli_default_flags
+.Pq Vt str
+Default flags to use by
+.Xr geli 8
+when configuring disk encryption.
+Flags can be configured for every device separately by defining
+.Va geli_<device>_flags
+variable.
+.It Va geli_autodetach
+.Pq Vt str
+Specifies if GELI devices should be marked for detach on last close after
+file systems are mounted.
+Default is
+.Dq Li YES .
+This can be changed for every device separately by defining
+.Va geli_<device>_autodetach
+variable.
 .It Va geli_swap_flags
 Options passed to the
 .Xr geli 8
