@@ -323,6 +323,7 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime, CTLFLAG_RW,
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive, CTLFLAG_RW,
     &dyn_keepalive, 0, "Enable keepalives for dyn. rules");
 
+#ifdef INET6
 /*
  * IPv6 specific variables
  */
@@ -330,9 +331,10 @@ SYSCTL_DECL(_net_inet6_ip6);
 
 static struct sysctl_ctx_list ip6_fw_sysctl_ctx;
 static struct sysctl_oid *ip6_fw_sysctl_tree;
+#endif /* INET6 */
+#endif /* SYSCTL_NODE */
 
 static int fw_deny_unknown_exthdrs = 1;
-#endif /* SYSCTL_NODE */
 
 
 /*
@@ -4133,6 +4135,7 @@ ipfw_init(void)
 	struct ip_fw default_rule;
 	int error;
 
+#ifdef INET6
 	/* Setup IPv6 fw sysctl tree. */
 	sysctl_ctx_init(&ip6_fw_sysctl_ctx);
 	ip6_fw_sysctl_tree = SYSCTL_ADD_NODE(&ip6_fw_sysctl_ctx,
@@ -4142,6 +4145,7 @@ ipfw_init(void)
 		OID_AUTO, "deny_unknown_exthdrs", CTLFLAG_RW | CTLFLAG_SECURE,
 		&fw_deny_unknown_exthdrs, 0,
 		"Deny packets with unknown IPv6 Extension Headers");
+#endif
 
 	layer3_chain.rules = NULL;
 	layer3_chain.want_write = 0;
@@ -4235,8 +4239,10 @@ ipfw_destroy(void)
 	uma_zdestroy(ipfw_dyn_rule_zone);
 	IPFW_LOCK_DESTROY(&layer3_chain);
 
+#ifdef INET6
 	/* Free IPv6 fw sysctl tree. */
 	sysctl_ctx_free(&ip6_fw_sysctl_ctx);
+#endif
 
 	printf("IP firewall unloaded\n");
 }
