@@ -748,11 +748,16 @@ fsinit(time_t utime)
 {
 	union dinode node;
 	struct group *grp;
+	gid_t gid;
 	int entries;
 
 	memset(&node, 0, sizeof node);
-	if ((grp = getgrnam("operator")) == NULL)
-		errx(35, "Cannot retrieve operator gid");
+	if ((grp = getgrnam("operator")) != NULL) {
+		gid = grp->gr_gid;
+	} else {
+		warnx("Cannot retrieve operator gid.");
+		gid = 0;
+	}
 	entries = (nflag) ? ROOTLINKCNT - 1: ROOTLINKCNT;
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		/*
@@ -778,7 +783,7 @@ fsinit(time_t utime)
 			 * create the .snap directory
 			 */
 			node.dp1.di_mode |= 020;
-			node.dp1.di_gid = grp->gr_gid;
+			node.dp1.di_gid = gid;
 			node.dp1.di_nlink = SNAPLINKCNT;
 			node.dp1.di_size = makedir(snap_dir, SNAPLINKCNT);
 				node.dp1.di_db[0] =
@@ -814,7 +819,7 @@ fsinit(time_t utime)
 			 * create the .snap directory
 			 */
 			node.dp2.di_mode |= 020;
-			node.dp2.di_gid = grp->gr_gid;
+			node.dp2.di_gid = gid;
 			node.dp2.di_nlink = SNAPLINKCNT;
 			node.dp2.di_size = makedir(snap_dir, SNAPLINKCNT);
 				node.dp2.di_db[0] =
