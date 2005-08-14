@@ -142,11 +142,11 @@ console driver is available for the Intel-based
 operating system.
 It has been designed to be highly configurable in order to satisfy
 everyone's needs.
-The preferred way for those configurations is to
+The preferred configuration method is to
 provide appropriate
-.Em options
-lines within the config file, possibly overriding the built-in default
-values.
+.Em option
+lines within the kernel configuration file,
+possibly overriding the built-in defaults.
 .Pp
 The following list gives a short overview of the available configuration
 options.
@@ -154,13 +154,9 @@ Refer to the file
 .Pa i386/isa/pcvt/pcvt_conf.h
 in the kernel source tree for detailed documentation.
 .Pp
-Note: the following conventions apply to all the Boolean options.
-If an option is given with no value, a value of 1
-(activated)
-is substituted.
-If an option value is given as 0, this options is
-deactivated.
-Any other value is substituted by 1, too.
+Note: The following conventions apply to all Boolean options.
+If an option value is given as 0, the option is deactivated.
+With any other value, or no value, the option is activated.
 If an option
 is omitted, a built-in default is assumed.
 .Bl -tag -width indent
@@ -648,7 +644,7 @@ struct pcvtinfo {
 .Pp
 Depending on the configuration of a
 .Nm
-driver, their might be a simple screen saver available.
+driver, there might be a simple screen saver available.
 It is controlled
 by the command
 .Pp
@@ -658,7 +654,7 @@ set timeout for screen saver in seconds; 0 turns it off,
 .El
 .Pp
 taking a pointer to an integer as argument.
-Despite of its command name,
+Despite its command name,
 this is available on
 .Em any
 kind of adaptor if configured in by the
