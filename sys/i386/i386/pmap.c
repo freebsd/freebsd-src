@@ -1954,23 +1954,23 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * handle validating new mapping.
 	 */
 	if (opa) {
-		int err;
 		if (origpte & PG_W)
 			pmap->pm_stats.wired_count--;
 		if (origpte & PG_MANAGED) {
 			om = PHYS_TO_VM_PAGE(opa);
 			pmap_remove_entry(pmap, om, va);
 		}
-		err = pmap_unuse_pt(pmap, va);
-		if (err)
-			panic("pmap_enter: pte vanished, va: 0x%x", va);
+		if (mpte != NULL) {
+			mpte->wire_count--;
+			KASSERT(mpte->wire_count > 0,
+			    ("pmap_enter: missing reference to page table page,"
+			     " va: 0x%x", va));
+		}
 	} else
 		pmap->pm_stats.resident_count++;
 
 	/*
-	 * Enter on the PV list if part of our managed memory. Note that we
-	 * raise IPL while manipulating pv_table since pmap_enter can be
-	 * called at interrupt time.
+	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
 		pmap_insert_entry(pmap, va, m);
