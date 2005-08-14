@@ -471,18 +471,19 @@ load_library(void)
 
 	snprintf(path, sizeof(path), "%s/geom_%s.so", library_path(),
 	    class_name);
-	dlh = dlopen(path, RTLD_NOW);
-	if (dlh == NULL) {
-#if 0
-		fprintf(stderr, "Cannot open library %s, but continuing "
-		    "anyway.\n", path);
-#endif
-		/*
-		 * Even if library cannot be loaded, standard commands are
-		 * available, so don't panic!
-		 */
-		return;
+	if (access(path, F_OK) == -1) {
+		if (errno == ENOENT) {
+			/*
+			 * If we cannot find library, that's ok, standard
+			 * commands can still be used.
+			 */
+			return;
+		}
+		err(EXIT_FAILURE, "Cannot access library");
 	}
+	dlh = dlopen(path, RTLD_NOW);
+	if (dlh == NULL)
+		errx(EXIT_FAILURE, "Cannot open library: %s.", dlerror());
 	lib_version = dlsym(dlh, "lib_version");
 	if (lib_version == NULL) {
 		fprintf(stderr, "Cannot find symbol %s: %s.\n", "lib_version",
