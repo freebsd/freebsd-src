@@ -1134,6 +1134,13 @@ If
 .Ar seconds
 is zero, then address cache entries will not be expired.
 The default is 240 seconds.
+.It Cm addr
+Display the addresses that have been learned by the bridge.
+.It Cm static Ar interface-name Ar address
+Add a static entry into the address cache pointing to
+.Ar interface-name .
+Static entries are never aged out of the cache or re-placed, even if the
+address is seen on a different interface.
 .It Cm deladdr Ar address
 Delete
 .Ar address
