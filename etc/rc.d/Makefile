@@ -10,7 +10,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	dmesg dumpon \
 	early.sh encswap \
 	fsck \
-	gbde \
+	gbde geli geli2 \
 	hostname \
 	ike \
 	inetd initrandom \
