@@ -76,7 +76,7 @@ struct sysentvec elf64_freebsd_sysvec = {
 	VM_MAXUSER_ADDRESS,
 	USRSTACK,
 	PS_STRINGS,
-	VM_PROT_ALL,
+	VM_PROT_READ|VM_PROT_WRITE,
 	exec_copyout_strings,
 	exec_setregs,
 	NULL
