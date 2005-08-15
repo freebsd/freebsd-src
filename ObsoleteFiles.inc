@@ -27,6 +27,7 @@ OLD_FILES+=usr/share/man/man8/rexecd.8.gz
 OLD_FILES+=usr/libexec/rexecd
 # 20050606: OpenBSD dhclient replaces ISC one
 OLD_FILES+=bin/omshell
+OLD_FILES+=sbin/omshell
 OLD_FILES+=usr/share/man/man1/omshell.1.gz
 OLD_FILES+=usr/share/man/man5/dhcp-eval.5.gz
 # 200504XX: ipf tools moved from /usr to /
@@ -53,8 +54,11 @@ OLD_FILES+=usr/share/man/man8/mount_autofs.8.gz
 # 20050203: Merged with fortunes
 OLD_FILES+=usr/share/games/fortune/fortunes2
 OLD_FILES+=usr/share/games/fortune/fortunes2.dat
+# 200501XX:
+OLD_FILES+=usr/libexec/getNAME
 # 200411XX: gvinum replaces vinum
 OLD_FILES+=bin/vinum
+OLD_FILES+=sbin/vinum
 OLD_FILES+=usr/share/man/man8/vinum.8.gz
 # 20041109: replaced by em(4)
 OLD_FILES+=usr/share/man/man4/gx.4.gz
@@ -219,6 +223,7 @@ OLD_FILES+=usr/sbin/arlconfig
 OLD_FILES+=usr/share/man/man8/arlconfig.8.gz
 # 200403XX
 OLD_FILES+=bin/raidctl
+OLD_FILES+=sbin/raidctl
 OLD_FILES+=usr/bin/sasc
 OLD_FILES+=usr/sbin/sgsc
 OLD_FILES+=usr/sbin/stlload
@@ -255,6 +260,7 @@ OLD_FILES+=lib/libufs.so
 OLD_FILES+=lib/libz.so
 # 200312XX
 OLD_FILES+=bin/cxconfig
+OLD_FILES+=sbin/cxconfig
 OLD_FILES+=usr/share/man/man8/cxconfig.8.gz
 # 200309XX
 OLD_FILES+=usr/bin/symorder
@@ -284,11 +290,16 @@ OLD_FILES+=usr/lib/libposix1e_p.a
 OLD_FILES+=usr/lib/libskey.a
 OLD_FILES+=usr/lib/libskey.so
 OLD_FILES+=usr/lib/libskey_p.a
+OLD_FILES+=usr/libexec/tradcpp0
+OLD_FILES+=usr/libexec/cpp0
 # 200304XX: removal of xten
 OLD_FILES+=usr/sbin/xten
 OLD_FILES+=usr/share/man/man1/xten.1.gz
 OLD_FILES+=usr/share/man/man8/xtend.8.gz
 # 200303XX
+OLD_FILES+=sbin/mount_portalfs
+OLD_FILES+=sbin/mount_smbfs
+OLD_FILES+=sbin/mount_nwfs
 OLD_FILES+=usr/lib/libacl.so
 OLD_FILES+=usr/lib/libdescrypt.so
 OLD_FILES+=usr/lib/libf2c.so
@@ -410,6 +421,10 @@ OLD_FILES+=usr/share/man/man3/des_set_key.3.gz
 OLD_FILES+=usr/share/man/man3/des_set_odd_parity.3.gz
 OLD_FILES+=usr/share/man/man3/des_string_to_2key.3.gz
 OLD_FILES+=usr/share/man/man3/des_string_to_key.3.gz
+# 200212XX
+OLD_FILES+=usr/sbin/kenv
+OLD_FILES+=usr/bin/kenv
+OLD_FILES+=usr/sbin/elf2aout
 # 200210XX
 OLD_FILES+=usr/share/man/man3/All_FreeBSD.3.gz
 OLD_FILES+=usr/share/man/man3/CheckRules.3.gz
@@ -469,11 +484,44 @@ OLD_FILES+=usr/share/man/man6/worm.6.gz
 OLD_FILES+=usr/share/man/man6/worms.6.gz
 OLD_FILES+=usr/share/man/man6/wump.6.gz
 # 200207XX
+OLD_FILES+=usr/share/man/man1aout/ar.1aout.gz
+OLD_FILES+=usr/share/man/man1aout/as.1aout.gz
+OLD_FILES+=usr/share/man/man1aout/ld.1aout.gz
+OLD_FILES+=usr/share/man/man1aout/nm.1aout.gz
+OLD_FILES+=usr/share/man/man1aout/ranlib.1aout.gz
+OLD_FILES+=usr/share/man/man1aout/size.1aout.gz
+OLD_FILES+=usr/share/man/man1aout/strings.1aout.gz
+OLD_FILES+=usr/share/man/man1aout/strip.1aout.gz
 OLD_FILES+=bin/mountd
 OLD_FILES+=bin/nfsd
 # 200206XX
 OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
+OLD_FILES+=usr/bin/help
+OLD_FILES+=usr/bin/sccs
+OLD_FILES+=usr/bin/gdbserver
+OLD_FILES+=usr/bin/ssh-keysign
+OLD_FILES+=usr/sbin/gifconfig
+OLD_FILES+=usr/sbin/prefix
+# 200205XX
+OLD_FILES+=usr/bin/doscmd
+# 200204XX
+OLD_FILES+=usr/bin/a2p
+OLD_FILES+=usr/bin/ptx
+OLD_FILES+=usr/bin/pod2text
+OLD_FILES+=usr/bin/pod2man
+OLD_FILES+=usr/bin/pod2latex
+OLD_FILES+=usr/bin/pod2html
+OLD_FILES+=usr/bin/h2ph
+OLD_FILES+=usr/bin/dprofpp
+OLD_FILES+=usr/bin/c2ph
+OLD_FILES+=usr/bin/h2xs
+OLD_FILES+=usr/bin/pl2pm
+OLD_FILES+=usr/bin/splain
+OLD_FILES+=usr/bin/s2p
+OLD_FILES+=usr/bin/find2perl
+OLD_FILES+=usr/sbin/pkg_update
+OLD_FILES+=usr/sbin/scriptdump
 # 200203XX
 OLD_FILES+=usr/lib/libss.a
 OLD_FILES+=usr/lib/libss_p.a
@@ -482,12 +530,33 @@ OLD_FILES+=usr/lib/libtelnet_p.a
 OLD_FILES+=usr/lib/libusb.a
 OLD_FILES+=usr/lib/libusb.so
 OLD_FILES+=usr/lib/libusb_p.a
+OLD_FILES+=usr/sbin/diskpart
+# 200202XX
+OLD_FILES+=usr/bin/gprof4
+# 200201XX
+OLD_FILES+=usr/sbin/linux
 # 2001XXXX
 OLD_FILES+=etc/security
+OLD_FILES+=usr/bin/joy
+OLD_FILES+=usr/sbin/ibcs2
+OLD_FILES+=usr/sbin/svr4
+OLD_FILES+=usr/bin/chflags
+OLD_FILES+=usr/sbin/uuconv
+OLD_FILES+=usr/sbin/uuchk
+OLD_FILES+=usr/sbin/portmap
+OLD_FILES+=usr/sbin/pmap_set
+OLD_FILES+=usr/sbin/pmap_dump
+OLD_FILES+=usr/sbin/mcon
+OLD_FILES+=usr/sbin/stlstty
+OLD_FILES+=usr/sbin/ispppcontrol
+OLD_FILES+=usr/sbin/rndcontrol
 # 200104XX
 OLD_FILES+=usr/lib/libdescrypt.a
 OLD_FILES+=usr/lib/libscrypt.a
 OLD_FILES+=usr/lib/libscrypt_p.a
+OLD_FILES+=usr/sbin/pim6stat
+OLD_FILES+=usr/sbin/pim6sd
+OLD_FILES+=usr/sbin/pim6dd
 # 20001200
 OLD_FILES+=usr/lib/libgcc_r_pic.a
 # 200009XX
