@@ -830,6 +830,8 @@ bstp_initialization(struct bridge_softc *sc)
 {
 	struct bridge_iflist *bif, *mif;
 
+	BRIDGE_LOCK_ASSERT(sc);
+
 	mif = NULL;
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		if ((bif->bif_flags & IFBIF_STP) == 0)
