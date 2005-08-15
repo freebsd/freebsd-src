@@ -552,15 +552,13 @@ extern int mpsafe_vfs;
 
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
-	if ((vp)->v_mount &&						\
-	    ((vp)->v_mount->mnt_kern_flag & MNTK_NOKNOTE) == 0)		\
+	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
 		VN_KNOTE((vp), (hint), 1);				\
 } while (0)
 
 #define VFS_KNOTE_UNLOCKED(vp, hint) do					\
 {									\
-	if ((vp)->v_mount &&						\
-	    ((vp)->v_mount->mnt_kern_flag & MNTK_NOKNOTE) == 0)		\
+	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
 		VN_KNOTE((vp), (hint), 0);				\
 } while (0)
 
