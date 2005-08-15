@@ -174,7 +174,7 @@ static __inline void	_ng_hook_force_writer(hook_p hook, char * file,
 					int line);
 static __inline void	_ng_hook_force_queue(hook_p hook, char * file, int line);
 
-static void __inline 
+static __inline void
 _chkhook(hook_p hook, char *file, int line)
 {
 	if (hook->hk_magic != HK_MAGIC) {
@@ -406,7 +406,7 @@ typedef	int	ng_fn_eachhook(hook_p hook, void* arg);
 
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 void	dumpnode(node_p node, char *file, int line);
-static void __inline _chknode(node_p node, char *file, int line);
+static __inline void _chknode(node_p node, char *file, int line);
 static __inline char * _ng_node_name(node_p node, char *file, int line);
 static __inline int _ng_node_has_name(node_p node, char *file, int line);
 static __inline ng_ID_t _ng_node_id(node_p node, char *file, int line);
@@ -424,7 +424,7 @@ static __inline hook_p _ng_node_foreach_hook(node_p node,
 			ng_fn_eachhook *fn, void *arg, char *file, int line);
 static __inline void _ng_node_revive(node_p node, char *file, int line);
 
-static void __inline 
+static __inline void  
 _chknode(node_p node, char *file, int line)
 {
 	if (node->nd_magic != ND_MAGIC) {
