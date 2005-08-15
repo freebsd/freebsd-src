@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/sf_buf.h>
 
+#include <machine/atomic.h>
+
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -480,7 +482,7 @@ vnode_pager_input_smlfs(object, m)
 			bp->b_bcount = bsize;
 			bp->b_bufsize = bsize;
 			bp->b_runningbufspace = bp->b_bufsize;
-			runningbufspace += bp->b_runningbufspace;
+			atomic_add_int(&runningbufspace, bp->b_runningbufspace);
 
 			/* do the input */
 			bp->b_iooffset = dbtob(bp->b_blkno);
@@ -830,7 +832,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
 	bp->b_runningbufspace = bp->b_bufsize;
-	runningbufspace += bp->b_runningbufspace;
+	atomic_add_int(&runningbufspace, bp->b_runningbufspace);
 
 	cnt.v_vnodein++;
 	cnt.v_vnodepgsin += count;
