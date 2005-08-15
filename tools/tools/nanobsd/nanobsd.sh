@@ -110,7 +110,6 @@ build_kernel ( ) (
 )
 
 clean_world ( ) (
-	set -x
 	echo "## Clean and create world directory (${NANO_WORLDDIR})"
 	if rm -rf ${NANO_WORLDDIR}/ > /dev/null 2>&1 ; then
 		true
@@ -163,7 +162,9 @@ install_kernel ( ) (
 
 setup_diskless ( ) (
 	echo "## configure diskless setup"
+	echo "### log: ${MAKEOBJDIRPREFIX}/_.dl"
 
+	(
 	cd ${NANO_WORLDDIR}
 
 	# create diskless marker file
@@ -188,6 +189,7 @@ setup_diskless ( ) (
 	ln -s var/tmp tmp
 
 	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
+	) > ${MAKEOBJDIRPREFIX}/_.dl 2>&1
 )
 
 run_customize() (
@@ -197,7 +199,7 @@ run_customize() (
 	do
 		echo "## customize \"$c\""
 		echo "### log: ${MAKEOBJDIRPREFIX}/_.cust.$c"
-		type $c
+		echo "### `type $c`"
 		( $c ) 2>&1 | tee ${MAKEOBJDIRPREFIX}/_.cust.$c
 	done
 )
@@ -213,7 +215,10 @@ prune_usr() (
 )
 
 create_i386_diskimage ( ) (
+	echo "## build diskimage"
+	echo "### log: ${MAKEOBJDIRPREFIX}/_.di"
 
+	(
 	echo $NANO_MEDIA $NANO_IMAGES \
 		$NANO_CONFSIZE $NANO_DATASIZE \
 		$NANO_SECTS $NANO_HEADS |
@@ -305,6 +310,7 @@ create_i386_diskimage ( ) (
 
 	dd if=/dev/${MD}s1 of=${MAKEOBJDIRPREFIX}/_.disk.image bs=64k
 	mdconfig -d -u $MD
+	) > ${MAKEOBJDIRPREFIX}/_.di 2>&1
 )
 
 
