@@ -55,16 +55,6 @@ struct sockaddr_natm {
 	u_int8_t	snatm_vpi;		/* vpi */
 };
 
-#if defined(__FreeBSD__) && defined(_KERNEL)
-
-#define	SPLSOFTNET() splnet()
-
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-
-#define	SPLSOFTNET() splsoftnet()
-
-#endif
-
 #ifdef _KERNEL
 
 /*
@@ -119,22 +109,7 @@ void	npcb_free(struct natmpcb *, int);
 struct	natmpcb *npcb_add(struct natmpcb *, struct ifnet *, uint16_t, uint8_t);
 
 /* natm.c */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-int	natm_usrreq(struct socket *, int, struct mbuf *,
-	    struct mbuf *, struct mbuf *, struct proc *);
-#elif defined(__FreeBSD__)
-#if __FreeBSD__ > 2
-/*
- * FreeBSD new usrreqs style appeared since 2.2.  compatibility to old style
- * has gone since 3.0.
- */
-#define	FREEBSD_USRREQS
 extern struct pr_usrreqs natm_usrreqs;
-#else /* !( __FreeBSD__ > 2) */
-int	natm_usrreq(struct socket *, int, struct mbuf *,
-	    struct mbuf *, struct mbuf *);
-#endif /* !( __FreeBSD__ > 2) */
-#endif
 
 #ifdef SYSCTL_HANDLER_ARGS
 int	natm0_sysctl(SYSCTL_HANDLER_ARGS);
