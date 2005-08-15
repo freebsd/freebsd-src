@@ -218,6 +218,13 @@ OLD_FILES+=usr/share/man/man8/ntp-genkeys.8.gz
 OLD_FILES+=usr/bin/gasp
 OLD_FILES+=usr/bin/gdbreplay
 OLD_FILES+=usr/share/man/man1/gasp.1.gz
+OLD_FILES+=sbin/mountd
+OLD_FILES+=sbin/mount_fdesc
+OLD_FILES+=sbin/mount_umap
+OLD_FILES+=sbin/mount_union
+OLD_FILES+=sbin/mount_msdos
+OLD_FILES+=sbin/mount_null
+OLD_FILES+=sbin/mount_kernfs
 # 200405XX: arl
 OLD_FILES+=usr/sbin/arlconfig
 OLD_FILES+=usr/share/man/man8/arlconfig.8.gz
@@ -297,9 +304,6 @@ OLD_FILES+=usr/sbin/xten
 OLD_FILES+=usr/share/man/man1/xten.1.gz
 OLD_FILES+=usr/share/man/man8/xtend.8.gz
 # 200303XX
-OLD_FILES+=sbin/mount_portalfs
-OLD_FILES+=sbin/mount_smbfs
-OLD_FILES+=sbin/mount_nwfs
 OLD_FILES+=usr/lib/libacl.so
 OLD_FILES+=usr/lib/libdescrypt.so
 OLD_FILES+=usr/lib/libf2c.so
@@ -574,8 +578,51 @@ OLD_FILES+=usr/lib/libg++_p.a
 OLD_FILES+=usr/bin/miniperl
 # 20000810
 OLD_FILES+=usr/bin/sperl
+# 200001XX
+OLD_FILES+=usr/sbin/apmconf
+# 199911XX
+OLD_FILES+=usr/sbin/ipfstat
+OLD_FILES+=usr/sbin/ipmon
+OLD_FILES+=usr/sbin/ipnat
+OLD_FILES+=usr/sbin/bad144
+OLD_FILES+=usr/sbin/wormcontrol
+OLD_FILES+=usr/sbin/named-bootconf
+OLD_FILES+=usr/sbin/kvm_mkdb
+OLD_FILES+=usr/sbin/keyadmin
 # 199909XX
 OLD_FILES+=usr/lib/libdesrypt_p.a
+OLD_FILES+=sbin/ft
+# 199903XX
+OLD_FILES+=sbin/modload
+OLD_FILES+=sbin/modunload
+OLD_FILES+=usr/sbin/natd
+# 199812XX
+OLD_FILES+=sbin/dset
+# 199809XX
+OLD_FILES+=sbin/scsi
+OLD_FILES+=sbin/scsiformat
+OLD_FILES+=usr/sbin/ncrcontrol
+OLD_FILES+=usr/sbin/tickadj
+# 199806XX
+OLD_FILES+=usr/sbin/mkdosfs
+# 199801XX
+OLD_FILES+=sbin/mount_lfs
+OLD_FILES+=sbin/newlfs
+OLD_FILES+=sbin/dumplfs
+OLD_FILES+=usr/sbin/qcamcontrol
+OLD_FILES+=usr/sbin/supscan
+# 1997XXXX
+OLD_FILES+=usr/sbin/sysctl
+OLD_FILES+=usr/sbin/ctm_scan
+OLD_FILES+=usr/sbin/addgroup
+OLD_FILES+=usr/sbin/rmgroup
+# 1996XXXX
+OLD_FILES+=sbin/rdisc
+OLD_FILES+=usr/sbin/cdplay
+OLD_FILES+=usr/sbin/supfilesrv
+OLD_FILES+=usr/sbin/routed
+OLD_FILES+=usr/sbin/lsdev
+OLD_FILES+=usr/sbin/yppasswdd
 ## unsorted
 # do we still support aout builds?
 #OLD_FILES+=usr/lib/aout/c++rt0.o
