@@ -886,6 +886,8 @@ getnewvnode(tag, mp, vops, vpp)
 	if (mp != NULL) {
 		insmntque(vp, mp);
 		bo->bo_bsize = mp->mnt_stat.f_iosize;
+		if ((mp->mnt_kern_flag & MNTK_NOKNOTE) != 0)
+			vp->v_vflag |= VV_NOKNOTE;
 	}
 
 	CTR2(KTR_VFS, "getnewvnode: mp %p vp %p", mp, vp);

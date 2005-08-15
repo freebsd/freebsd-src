@@ -255,6 +255,7 @@ struct xvnode {
 #define	VV_COPYONWRITE	0x0040	/* vnode is doing copy-on-write */
 #define	VV_SYSTEM	0x0080	/* vnode being used by kernel */
 #define	VV_PROCDEP	0x0100	/* vnode is process dependent */
+#define	VV_NOKNOTE	0x0200	/* don't activate knotes on this vnode */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
