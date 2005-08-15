@@ -40,6 +40,9 @@ NANO_CUSTOMIZE=""
 # Newfs paramters to use
 NANO_NEWFS="-b 4096 -f 512 -i 8192 -O1 -U"
 
+# The drive name of the media at runtime
+NANO_DRIVE=ad0
+
 # Target media size in 512 bytes sectors
 NANO_MEDIA=1048576
 
@@ -107,6 +110,7 @@ build_kernel ( ) (
 )
 
 clean_world ( ) (
+	set -x
 	echo "## Clean and create world directory (${NANO_WORLDDIR})"
 	if rm -rf ${NANO_WORLDDIR}/ > /dev/null 2>&1 ; then
 		true
@@ -165,26 +169,25 @@ setup_diskless ( ) (
 	# create diskless marker file
 	touch etc/diskless
 
-	# link /var under /conf
-	# we use hard links so we have them both places.
-	# the files in /var will be hidden by the mount.
-	# XXX: configure /var ramdisk size
-	mkdir -p conf/base/var
-	find var -print | cpio -dumpl ../conf/base/var
-
-	# move /etc under /conf
-	# we use hard links so we have them both places.
-	# the files in /etc will be hidden by the mount.
-	# XXX: configure /etc ramdisk size
-	mkdir -p conf/base/etc conf/default/etc
-	find etc -print | cpio -dumpl ../conf/base/etc
+	for d in var etc
+	do
+		# link /$d under /conf
+		# we use hard links so we have them both places.
+		# the files in /$d will be hidden by the mount.
+		# XXX: configure /$d ramdisk size
+		mkdir -p conf/base/$d conf/default/$d
+		find $d -print | cpio -dumpl conf/base/
+	done
 
 	# pick up config files from the special partition
-	echo "mount -o ro /dev/ad0s3" > conf/default/etc/remount
+	echo "mount -o ro /dev/${NANO_DRIVE}s3" > conf/default/etc/remount
 
-	# Put /tmp on the /var ramdisk
-	rmdir tmp
+	# Put /tmp on the /var ramdisk (could be symlink already)
+	rmdir tmp || true
+	rm tmp || true
 	ln -s var/tmp tmp
+
+	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
 )
 
 run_customize() (
@@ -194,7 +197,8 @@ run_customize() (
 	do
 		echo "## customize \"$c\""
 		echo "### log: ${MAKEOBJDIRPREFIX}/_.cust.$c"
-		$c > ${MAKEOBJDIRPREFIX}/_.cust.$c 2>&1
+		type $c
+		( $c ) 2>&1 | tee ${MAKEOBJDIRPREFIX}/_.cust.$c
 	done
 )
 
@@ -279,7 +283,6 @@ create_i386_diskimage ( ) (
 	mount /dev/${MD}s1a ${MNT}
 	df -i ${MNT}
 	( cd ${NANO_WORLDDIR} && find . -print | cpio -dump ${MNT} )
-	# XXX: make_fstab
 	df -i ${MNT}
 	( cd ${MNT} && mtree -c ) > ${MAKEOBJDIRPREFIX}/_.mtree
 	( cd ${MNT} && du -k ) > ${MAKEOBJDIRPREFIX}/_.du
@@ -357,6 +360,7 @@ export NANO_ARCH
 export NANO_CONFSIZE
 export NANO_CUSTOMIZE
 export NANO_DATASIZE
+export NANO_DRIVE
 export NANO_HEADS
 export NANO_IMAGES
 export NANO_MAKE_CONF
@@ -372,16 +376,16 @@ export NANO_WORLDDIR
 #######################################################################
 # Set up object directory
 
-clean_target
-make_conf_build
-build_world
-build_kernel
-clean_world
+#clean_target
+#make_conf_build
+#build_world
+#build_kernel
 make_conf_install
+clean_world
 install_world
 install_etc
 install_kernel
-setup_diskless
 run_customize
+setup_diskless
 prune_usr
 create_${NANO_ARCH}_diskimage
