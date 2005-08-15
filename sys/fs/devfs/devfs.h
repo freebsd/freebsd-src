@@ -169,7 +169,6 @@ struct devfs_dirent {
 struct devfs_mount {
 	struct mount		*dm_mount;
 	struct devfs_dirent	*dm_rootdir;
-	struct devfs_dirent	*dm_basedir;
 	unsigned		dm_generation;
 	struct devfs_dirent	**dm_dirent;
 	struct devfs_dirent	**dm_overflow;
