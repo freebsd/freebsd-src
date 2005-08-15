@@ -136,6 +136,11 @@ vm_contig_launder(int queue)
 
 	for (m = TAILQ_FIRST(&vm_page_queues[queue].pl); m != NULL; m = next) {
 		next = TAILQ_NEXT(m, pageq);
+
+		/* Skip marker pages */
+		if ((m->flags & PG_MARKER) != 0)
+			continue;
+
 		KASSERT(m->queue == queue,
 		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
 		error = vm_contig_launder_page(m);
