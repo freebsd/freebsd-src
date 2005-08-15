@@ -404,7 +404,7 @@ static void
 devfs_rule_applydm(struct devfs_krule *dk, struct devfs_mount *dm)
 {
 
-	devfs_rule_applyde_recursive(dk, dm->dm_basedir);
+	devfs_rule_applyde_recursive(dk, dm->dm_rootdir);
 }
 
 /*

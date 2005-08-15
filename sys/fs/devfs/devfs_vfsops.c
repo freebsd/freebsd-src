@@ -93,7 +93,6 @@ devfs_mount(struct mount *mp, struct thread *td)
 #ifdef MAC
 	mac_create_devfs_directory(mp, "", 0, fmp->dm_rootdir);
 #endif
-	fmp->dm_basedir = fmp->dm_rootdir;
 	devfs_rules_newmount(fmp, td);
 
 	error = devfs_root(mp, LK_EXCLUSIVE, &rvp, td);
