@@ -43,6 +43,8 @@ struct sn_softc {
 	int		irq_rid;
 	struct resource	*port_res;
 	int		port_rid;
+	struct resource	*modem_res;	/* Extra resource for modem */
+	int		modem_rid;
 };
 
 int	sn_probe(device_t);
