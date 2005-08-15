@@ -312,6 +312,7 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 
 		gv_config_new_drive(d);
 
+		d->flags |= GV_DRIVE_NEWBORN;
 		LIST_INSERT_HEAD(&sc->drives, d, drive);
 	}
 
@@ -461,6 +462,7 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 			g_destroy_consumer(cp);
 		} else
 			gv_save_config(NULL, d, sc);
+		d->flags &= ~GV_DRIVE_NEWBORN;
 	}
 
 	return (0);
