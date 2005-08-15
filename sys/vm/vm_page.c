@@ -1846,10 +1846,15 @@ again1:
 				m != NULL;
 				m = next) {
 
+				next = TAILQ_NEXT(m, pageq);
+
+				/* Skip marker pages */
+				if ((m->flags & PG_MARKER) != 0)
+					continue;
+
 				KASSERT(m->queue == PQ_INACTIVE,
 					("contigmalloc1: page %p is not PQ_INACTIVE", m));
 
-				next = TAILQ_NEXT(m, pageq);
 				if (vm_page_sleep_busy(m, TRUE, "vpctw0"))
 					goto again1;
 				vm_page_test_dirty(m);
