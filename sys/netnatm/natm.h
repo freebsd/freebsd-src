@@ -95,6 +95,7 @@ LIST_HEAD(npcblist, natmpcb);
 
 /* global data structures */
 
+extern struct mtx natm_mtx;		/* global netnatm lock */
 extern struct npcblist natm_pcbs;	/* global list of pcbs */
 #define	NATM_STAT
 #ifdef NATM_STAT
@@ -103,6 +104,12 @@ extern	u_int	natm_sodropbytes;	/* account of droppage */
 extern	u_int	natm_sookcnt;
 extern	u_int	natm_sookbytes;		/* account of ok */
 #endif
+
+/* locking macros */
+#define	NATM_LOCK_INIT()	mtx_init(&natm_mtx, "natm_mtx", NULL, MTX_DEF)
+#define	NATM_LOCK()		mtx_lock(&natm_mtx)
+#define	NATM_UNLOCK()		mtx_unlock(&natm_mtx)
+#define	NATM_LOCK_ASSERT()	mtx_assert(&natm_mtx, MA_OWNED)
 
 /* external functions */
 

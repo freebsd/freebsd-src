@@ -81,7 +81,8 @@ npcb_alloc(int wait)
 void
 npcb_free(struct natmpcb *npcb, int op)
 {
-	int s = splimp();
+
+	NATM_LOCK_ASSERT();
 
 	if ((npcb->npcb_flags & NPCB_FREE) == 0) {
 		LIST_REMOVE(npcb, pcblist);
@@ -94,8 +95,6 @@ npcb_free(struct natmpcb *npcb, int op)
 			FREE(npcb, M_PCB);		/* kill it! */
 		}
 	}
-
-	splx(s);
 }
 
 
@@ -107,8 +106,8 @@ struct natmpcb *
 npcb_add(struct natmpcb *npcb, struct ifnet *ifp, u_int16_t vci, u_int8_t vpi)
 {
 	struct natmpcb *cpcb = NULL;		/* current pcb */
-	int s = splimp();
 
+	NATM_LOCK_ASSERT();
 
 	/*
 	 * lookup required
@@ -147,7 +146,6 @@ npcb_add(struct natmpcb *npcb, struct ifnet *ifp, u_int16_t vci, u_int8_t vpi)
 	LIST_INSERT_HEAD(&natm_pcbs, cpcb, pcblist);
 
 done:
-	splx(s);
 	return (cpcb);
 }
 
