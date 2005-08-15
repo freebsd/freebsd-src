@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 
 #define PATH_CONFIG	"/boot.config"
 #define PATH_BOOT3	"/boot/loader"
-#define PATH_KERNEL	"/kernel"
+#define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
 #define NOPT		12
