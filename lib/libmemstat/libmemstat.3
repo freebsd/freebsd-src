@@ -436,7 +436,7 @@ Create a memory type list, query the
 .Xr uma 9
 memory allocator for available statistics, and print out the number of
 allocations performed by the
-.Dv Mbuf
+.Dv mbuf
 zone.
 .Bd -literal -offset indent
 struct memory_type_list *mtlp;
@@ -448,13 +448,13 @@ if (mtlp == NULL)
     err(-1, "memstat_mtl_alloc");
 if (memstat_sysctl_uma(mtlp, 0) < 0)
     err(-1, "memstat_sysctl_uma");
-mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, "Mbuf");
+mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, "mbuf");
 if (mtp == NULL)
-    errx(-1, "memstat_mtl_find: Mbuf not found");
+    errx(-1, "memstat_mtl_find: mbuf not found");
 mbuf_count = memstat_get_count(mtp);
 memstat_mtl_free(mtlp);
 
-printf("Mbufs: %llu\\n", (unsigned long long)mbuf_count);
+printf("mbufs: %llu\\n", (unsigned long long)mbuf_count);
 .Ed
 .Sh SEE ALSO
 .Xr malloc 9 ,
