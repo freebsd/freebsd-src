@@ -62,6 +62,9 @@ extern volatile cpumask_t pmc_cpumask;
 /* Count of system-wide sampling PMCs in existence */
 extern volatile int pmc_ss_count;
 
+/* kernel version number */
+extern const int pmc_kernel_version;
+
 /* Hook invocation; for use within the kernel */
 #define	PMC_CALL_HOOK(t, cmd, arg)		\
 do {						\
