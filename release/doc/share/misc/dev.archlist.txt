@@ -121,6 +121,7 @@ snd_maestro3	i386,alpha,amd64
 snd_neomagic	i386,amd64
 snd_sbc	i386,alpha,amd64
 snd_solo	i386,amd64
+snd_t4dwave	i386,amd64
 snd_via8233	i386
 snd_via82c686	i386,amd64
 snd_vibes	i386,amd64
