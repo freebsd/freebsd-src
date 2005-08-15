@@ -700,6 +700,8 @@
 
     &hwlist.snd.solo;
 
+    &hwlist.snd.t4dwave;
+
     &hwlist.snd.via8233;
 
     &hwlist.snd.via82c686;
