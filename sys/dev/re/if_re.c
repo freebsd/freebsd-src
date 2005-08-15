@@ -159,6 +159,8 @@ MODULE_DEPEND(re, miibus, 1, 1, 1);
  * Various supported device vendors/types and their names.
  */
 static struct rl_type re_devs[] = {
+	{ DLINK_VENDORID, DLINK_DEVICEID_528T, RL_HWREV_8169S,
+		"D-Link DGE-528(T) Gigabit Ethernet Adapter" },
 	{ RT_VENDORID, RT_DEVICEID_8139, RL_HWREV_8139CPLUS,
 		"RealTek 8139C+ 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169,
