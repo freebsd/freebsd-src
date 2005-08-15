@@ -34,6 +34,9 @@ CONF_WORLD=' '
 # Kernel config file to use
 NANO_KERNEL=GENERIC
 
+# Customize commands.
+NANO_CUSTOMIZE=""
+
 # Newfs paramters to use
 NANO_NEWFS="-b 4096 -f 512 -i 8192 -O1 -U"
 
@@ -184,6 +187,17 @@ setup_diskless ( ) (
 	ln -s var/tmp tmp
 )
 
+run_customize() (
+
+	echo "## run customize scripts"
+	for c in $NANO_CUSTOMIZE
+	do
+		echo "## customize \"$c\""
+		echo "### log: ${MAKEOBJDIRPREFIX}/_.cust.$c"
+		$c > ${MAKEOBJDIRPREFIX}/_.cust.$c 2>&1
+	done
+)
+
 prune_usr() (
 
 	# Remove all empty directories in /usr 
@@ -327,6 +341,7 @@ done
 # Internal variables
 if [ "x${NANO_OBJ}" = "x" ] ; then
 	MAKEOBJDIRPREFIX=/usr/obj/nanobsd.${NANO_NAME}/
+	NANO_OBJ=${MAKEOBJDIRPREFIX}
 else
 	MAKEOBJDIRPREFIX=${NANO_OBJ}
 fi
@@ -340,6 +355,7 @@ export MAKEOBJDIRPREFIX
 
 export NANO_ARCH
 export NANO_CONFSIZE
+export NANO_CUSTOMIZE
 export NANO_DATASIZE
 export NANO_HEADS
 export NANO_IMAGES
@@ -366,5 +382,6 @@ install_world
 install_etc
 install_kernel
 setup_diskless
+run_customize
 prune_usr
 create_${NANO_ARCH}_diskimage
