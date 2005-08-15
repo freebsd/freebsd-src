@@ -284,7 +284,7 @@ devfs_populate(struct devfs_mount *dm)
 				continue;
 			if (!devfs_getref(i))
 				continue;
-			dd = dm->dm_basedir;
+			dd = dm->dm_rootdir;
 			s = dev->si_name;
 			for (;;) {
 				for (q = s; *q != '/' && *q != '\0'; q++)

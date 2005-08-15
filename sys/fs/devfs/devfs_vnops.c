@@ -222,7 +222,7 @@ devfs_fqpn(char *buf, struct vnode *dvp, struct componentname *cnp)
 		 return (NULL);
 	bcopy(cnp->cn_nameptr, buf + i, cnp->cn_namelen);
 	de = dd;
-	while (de != dmp->dm_basedir) {
+	while (de != dmp->dm_rootdir) {
 		i--;
 		if (i < 0)
 			 return (NULL);
