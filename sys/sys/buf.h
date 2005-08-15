@@ -474,6 +474,8 @@ extern char	*buffers;		/* The buffer contents. */
 extern int	bufpages;		/* Number of memory pages in the buffer pool. */
 extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
+extern int	cluster_pbuf_freecnt;	/* Number of pbufs for clusters */
+extern int	vnode_pbuf_freecnt;	/* Number of pbufs for vnode pager */
 
 caddr_t	kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est);
 void	bufinit(void);
