@@ -56,8 +56,6 @@ extern	struct domain natmdomain;
 
 static	void natm_init(void);
 
-NET_NEEDS_GIANT("netnatm");
-
 static struct protosw natmsw[] = {
 { SOCK_STREAM,	&natmdomain,	PROTO_NATMAAL5, PR_CONNREQUIRED,
   0,	0,	0,	0,
@@ -123,8 +121,9 @@ natm_init(void)
 	LIST_INIT(&natm_pcbs);
 	bzero(&natmintrq, sizeof(natmintrq));
 	natmintrq.ifq_maxlen = natmqmaxlen;
+	NATM_LOCK_INIT();
 	mtx_init(&natmintrq.ifq_mtx, "natm_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_NATM, natmintr, &natmintrq, 0);
+	netisr_register(NETISR_NATM, natmintr, &natmintrq, NETISR_MPSAFE);
 }
 
 #if defined(__FreeBSD__)
