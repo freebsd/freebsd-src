@@ -86,8 +86,12 @@ struct g_mbr_softc {
 	u_char		slicesum[16];
 };
 
+/*
+ * XXX: Add gctl_req arg and give good error msgs.
+ * XXX: Check that length argument does not bring boot code inside any slice.
+ */
 static int
-g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
+g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0, int len __unused)
 {
 	int i, error;
 	off_t l[NDOSPART];
@@ -104,8 +108,6 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 		dos_partition_dec(
 		    sec0 + DOSPARTOFF + i * sizeof(struct dos_partition),
 		    dp + i);
-		if (0 && bootverbose)
-			g_mbr_print(i, dp + i);
 	}
 	if ((!bcmp(dp, historical_bogus_partition_table,
 	    sizeof historical_bogus_partition_table)) ||
@@ -193,7 +195,7 @@ g_mbr_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thr
 				opened = 1;
 		}
 		if (!error)
-			error = g_mbr_modify(gp, ms, data);
+			error = g_mbr_modify(gp, ms, data, 512);
 		if (!error)
 			error = g_write_data(cp, 0, data, 512);
 		if (opened)
@@ -301,7 +303,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		}
 
 		g_topology_lock();
-		g_mbr_modify(gp, ms, buf);
+		g_mbr_modify(gp, ms, buf, 512);
 		g_topology_unlock();
 		g_free(buf);
 		break;
@@ -315,11 +317,59 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	return (gp);
 }
 
+static void
+g_mbr_config(struct gctl_req *req, struct g_class *mp, const char *verb)
+{
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	struct g_mbr_softc *ms;
+	struct g_slicer *gsp;
+	int opened = 0, error = 0;
+	void *data;
+	int len;
+
+	g_topology_assert();
+	gp = gctl_get_geom(req, mp, "geom");
+	if (gp == NULL)
+		return;
+	if (strcmp(verb, "write MBR")) {
+		gctl_error(req, "Unknown verb");
+		return;
+	}
+	gsp = gp->softc;
+	ms = gsp->softc;
+	data = gctl_get_param(req, "data", &len);
+	if (data == NULL)
+		return;
+	if (len < 512 || (len % 512)) {
+		gctl_error(req, "Wrong request length");
+		return;
+	}
+	cp = LIST_FIRST(&gp->consumer);
+	if (cp->acw == 0) {
+		error = g_access(cp, 0, 1, 0);
+		if (error == 0)
+			opened = 1;
+	}
+	if (!error)
+		error = g_mbr_modify(gp, ms, data, len);
+	if (error)
+		gctl_error(req, "conflict with open slices");
+	if (!error)
+		error = g_write_data(cp, 0, data, len);
+	if (error)
+		gctl_error(req, "sector zero write failed");
+	if (opened)
+		g_access(cp, 0, -1 , 0);
+	return;
+}
+
 static struct g_class g_mbr_class	= {
 	.name = MBR_CLASS_NAME,
 	.version = G_VERSION,
 	.taste = g_mbr_taste,
 	.dumpconf = g_mbr_dumpconf,
+	.ctlreq = g_mbr_config,
 	.ioctl = g_mbr_ioctl,
 };
 
