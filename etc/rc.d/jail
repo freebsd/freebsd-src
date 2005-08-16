@@ -158,6 +158,10 @@ jail_start()
 	for _jail in ${jail_list}
 	do
 		init_variables $_jail
+		if [ -f /var/run/jail_${_jail}.id ]; then
+			echo -n " [${jail_hostname} already running (/var/run/jail_${_jail}.id exists)]"
+			continue;
+		fi
 		if checkyesno jail_mount; then
 			info "Mounting fstab for jail ${_jail} (${jail_fstab})"
 			if [ ! -f "${jail_fstab}" ]; then
