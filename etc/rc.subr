@@ -1297,4 +1297,27 @@ mount_md()
 	/sbin/mdmfs $flags -s $1 -M md $2
 }
 
+# ltr str src dst
+#	Change every $src in $str to $dst.
+#	Useful when /usr is not yet mounted and we cannot use tr(1), sed(1) nor
+#	awk(1).
+ltr()
+{
+	local _str _src _dst _out _com
+	_str=$1
+	_src=$2
+	_dst=$3
+	_out=""
+
+	IFS=${_src}
+	for _com in ${_str}; do
+		if [ -z "${_out}" ]; then
+			_out="${_com}"
+		else
+			_out="${_out}${_dst}${_com}"
+		fi
+	done
+	echo "${_out}"
+}
+
 fi
