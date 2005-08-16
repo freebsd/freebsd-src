@@ -169,25 +169,6 @@ static struct vop_vector devfs_specops = {
 	.vop_write =		VOP_PANIC,
 };
 
-static u_int
-devfs_random(void)
-{
-	static u_int devfs_seed;
-
-	while (devfs_seed == 0) {
-		/*
-		 * Make sure people don't make stupid assumptions
-		 * about device major/minor numbers in userspace.
-		 * We do this late to get entropy and for the same
-		 * reason we force a reseed, but it may not be
-		 * late enough for entropy to be available.
-		 */
-		arc4rand(&devfs_seed, sizeof devfs_seed, 1);
-		devfs_seed &= 0xf0f;
-	}
-	return (devfs_seed);
-}
-
 static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
 {
@@ -520,7 +501,7 @@ devfs_getattr(ap)
 		fix(dev->si_ctime);
 		vap->va_ctime = dev->si_ctime;
 
-		vap->va_rdev = dev->si_inode ^ devfs_random();
+		vap->va_rdev = dev->si_inode;
 	}
 	vap->va_gen = 0;
 	vap->va_flags = 0;
@@ -1453,37 +1434,9 @@ dev2udev(struct cdev *x)
 {
 	if (x == NULL)
 		return (NODEV);
-	return (x->si_inode ^ devfs_random());
+	return (x->si_inode);
 }
 
-/*
- * Helper sysctl for devname(3).  We're given a struct cdev * and return
- * the name, if any, registered by the device driver.
- */
-static int
-sysctl_devname(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	dev_t ud;
-	struct cdev *dev, **dp;
-
-	error = SYSCTL_IN(req, &ud, sizeof (ud));
-	if (error)
-		return (error);
-	if (ud == NODEV)
-		return(EINVAL);
-	dp = devfs_itod(ud ^ devfs_random());
-	if (dp == NULL)
-		return(ENOENT);
-	dev = *dp;
-	if (dev == NULL)
-		return(ENOENT);
-	return(SYSCTL_OUT(req, dev->si_name, strlen(dev->si_name) + 1));
-	return (error);
-}
-
-SYSCTL_PROC(_kern, OID_AUTO, devname, CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	NULL, 0, sysctl_devname, "", "devname(3) handler");
 
 /*
  * Our calling convention to the device drivers used to be that we passed
