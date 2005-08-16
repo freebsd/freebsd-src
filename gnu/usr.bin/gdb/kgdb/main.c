@@ -66,6 +66,7 @@ extern void symbol_file_add_main (char *args, int from_tty);
 #include "kgdb.h"
 
 kvm_t *kvm;
+static char kvm_err[_POSIX2_LINE_MAX];
 
 static int dumpnr;
 static int verbose;
@@ -76,6 +77,13 @@ static char *remote;
 static char *vmcore;
 
 static void (*kgdb_new_objfile_chain)(struct objfile * objfile);
+
+static void
+kgdb_atexit(void)
+{
+	if (kvm != NULL)
+		kvm_close(kvm);
+}
 
 static void
 usage(void)
@@ -167,11 +175,33 @@ out:
 		kgdb_new_objfile_chain(objfile);
 }
 
+static CORE_ADDR
+kgdb_parse(const char *exp)
+{
+	struct cleanup *old_chain;
+	struct expression *expr;
+	struct value *val;
+	char *s;
+	CORE_ADDR n;
+
+	s = strdup(exp);
+	old_chain = make_cleanup(free_current_contents, &expr);
+	expr = parse_expression(s);
+	val = (expr != NULL) ? evaluate_expression(expr) : NULL;
+	n = (val != NULL) ? value_as_address(val) : 0;
+	do_cleanups(old_chain);
+	free(s);
+	return (n);
+}
+
 static void
 kgdb_init_target(void)
 {
+	CORE_ADDR bufp;
 	bfd *kern_bfd;
+	int size, rseq, wseq;
 	int kern_desc;
+	char c;
 
 	kern_desc = open(kernel, O_RDONLY);
 	if (kern_desc == -1)
@@ -199,6 +229,29 @@ kgdb_init_target(void)
 		push_remote_target (remote, 0);
 	else
 		kgdb_target();
+
+	/*
+	 * Display the unread portion of the message buffer. This gives the
+	 * user a some initial data to work from.
+	 */
+	bufp = kgdb_parse("msgbufp->msg_ptr");
+	size = (int)kgdb_parse("msgbufp->msg_size");
+	rseq = (int)kgdb_parse("msgbufp->msg_rseq");
+	wseq = (int)kgdb_parse("msgbufp->msg_wseq");
+	if (bufp == 0 || size == 0 || rseq == wseq)
+		return;
+
+	printf("\nUnread portion of the kernel message buffer:\n");
+	while (rseq < wseq) {
+		read_memory(bufp + rseq, &c, 1);
+		putchar(c);
+		rseq++;
+		if (rseq == size)
+			rseq = 0;
+	}
+	if (c != '\n')
+		putchar('\n');
+	putchar('\n');
 }
 
 static void
@@ -209,9 +262,8 @@ kgdb_interp_command_loop(void *data)
 	if (!once) {
 		once = 1;
 		kgdb_init_target();
-		kgdb_target();
-		print_stack_frame (get_selected_frame (),
-                	frame_relative_level (get_selected_frame ()), 1);
+		print_stack_frame(get_selected_frame(),
+		    frame_relative_level(get_selected_frame()), 1);
 	}
 	command_loop();
 }
@@ -405,11 +457,10 @@ main(int argc, char *argv[])
 	}
 
 	if (remote == NULL) {
-		s = malloc(_POSIX2_LINE_MAX);
-		kvm = kvm_openfiles(kernel, vmcore, NULL, O_RDONLY, s);
+		kvm = kvm_openfiles(kernel, vmcore, NULL, O_RDONLY, kvm_err);
 		if (kvm == NULL)
-			errx(1, s);
-		free(s);
+			errx(1, kvm_err);
+		atexit(kgdb_atexit);
 		kgdb_thr_init();
 	}
 
