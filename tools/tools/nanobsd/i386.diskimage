@@ -34,8 +34,10 @@ TMPFILE1=`mktemp -t nanobsd`
 TMPMNT=`mktemp -d -t nanobsd`
 
 make_fstab () {
-  echo "/dev/$1 / ufs ro 1 1" > $2/etc/fstab
-  ln -f $2/etc/fstab $2/conf/base/etc/fstab
+  echo "/dev/$1 / ufs ro 1 1" > $4/etc/fstab
+  echo "/dev/$2 /alt ufs ro,noauto 1 1" >> $4/etc/fstab
+  echo "/dev/$3 /cfg ufs ro,noauto 1 1" >> $4/etc/fstab
+  ln -f $4/etc/fstab $4/conf/base/etc/fstab
 }
 
 get_label () {
@@ -63,7 +65,7 @@ echo ${SECTS} ${SC} ${HD} ${DATASIZE} | awk '
 	# size of cylinder in sectors
 	cs = $2 * $3
 	# number of full cylinders
-	cyl = $1 / cs
+	cyl = int ($1 / cs)
 	print "g c" cyl " h" $3 " s" $2
 	# Size of data/conf patition, round up to full cylinder
 	dsl = int (($4 + cs - 1) / cs)
@@ -89,7 +91,7 @@ bsdlabel -w -B ${MD}s1
 newfs ${NEWFSPARAM} ${PRIROOTLABEL} -O1 -U ${MD}s1a
 mount /dev/${MD}s1a ${TMPMNT}
 (cd ${WD} && find . -print | cpio -dump ${TMPMNT}) || true
-make_fstab ${PRIROOTSLICE} ${TMPMNT}
+make_fstab ${PRIROOTSLICE} ${ALTROOTSLICE} ${CFGSLICE} ${TMPMNT}
 df -i ${TMPMNT}
 umount ${TMPMNT}
 
@@ -100,7 +102,7 @@ if [ -n "${ALTROOTLABEL}" ]; then
   tunefs ${ALTROOTLABEL} /dev/${MD}s2a
 fi
 mount /dev/${MD}s2a ${TMPMNT}
-make_fstab ${ALTROOTSLICE} ${TMPMNT}
+make_fstab ${ALTROOTSLICE} ${PRIROOTSLICE} ${CFGSLICE} ${TMPMNT}
 umount ${TMPMNT}
 
 # Prepare configuration slice
