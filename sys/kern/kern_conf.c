@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <machine/stdarg.h>
 
+#include <fs/devfs/devfs_int.h>
+
 static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 
 /* Built at compile time from sys/conf/majors */

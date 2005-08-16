@@ -46,6 +46,7 @@
 #include <machine/atomic.h>
 
 #include <fs/devfs/devfs.h>
+#include <fs/devfs/devfs_int.h>
 
 static struct cdev *devfs_inot[NDEVFSINO];
 static struct cdev **devfs_overflow;
