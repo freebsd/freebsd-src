@@ -1018,10 +1018,10 @@ walk_addrsel_policy(callback, w)
 	ADDRSEL_LOCK();
 	for (pol = TAILQ_FIRST(&addrsel_policytab); pol;
 	     pol = TAILQ_NEXT(pol, ape_entry)) {
-		if ((error = (*callback)(&pol->ape_policy, w)) != 0) {
-			ADDRSEL_UNLOCK();
+		ADDRSEL_UNLOCK();
+		if ((error = (*callback)(&pol->ape_policy, w)) != 0)
 			return (error);
-		}
+		ADDRSEL_LOCK();
 	}
 	ADDRSEL_UNLOCK();
 
