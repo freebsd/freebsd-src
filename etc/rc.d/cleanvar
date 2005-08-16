@@ -20,6 +20,7 @@ purgedir()
 			do
 				# Skip over logging sockets
 				[ -S "$file" -a "$file" = "log" ] && continue
+				[ -S "$file" -a "$file" = "logpriv" ] && continue
 				[ ."$file" = .. -o ."$file" = ... ] && continue
 				if [ -d "$file" -a ! -L "$file" ]
 				then
