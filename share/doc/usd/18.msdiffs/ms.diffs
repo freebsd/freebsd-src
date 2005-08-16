@@ -286,4 +286,3 @@ and macros to format the optional cover page.
 The code for the \*ms package lives in /usr/lib/tmac/tmac.s,
 and sourced files reside in the directory /usr/ucb/lib/ms.
 .sp
-.tl '''\*(DY'
