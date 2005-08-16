@@ -268,15 +268,18 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	bp->bio_flags |= BIO_ONQUEUE;
 
 	binuptime(&bp->bio_t0);
-	if (g_collectstats & 4)
-		g_bioq_lock(&g_bio_run_down);
+
+	/*
+	 * The statistics collection is lockless, as such, but we
+	 * can not update one instance of the statistics from more
+	 * than one thread at a time, so grab the lock first.
+	 */
+	g_bioq_lock(&g_bio_run_down);
 	if (g_collectstats & 1)
 		devstat_start_transaction(pp->stat, &bp->bio_t0);
 	if (g_collectstats & 2)
 		devstat_start_transaction(cp->stat, &bp->bio_t0);
 
-	if (!(g_collectstats & 4))
-		g_bioq_lock(&g_bio_run_down);
 	pp->nstart++;
 	cp->nstart++;
 	TAILQ_INSERT_TAIL(&g_bio_run_down.bio_queue, bp, bio_queue);
@@ -322,14 +325,17 @@ g_io_deliver(struct bio *bp, int error)
 	bp->bio_bcount = bp->bio_length;
 	bp->bio_resid = bp->bio_bcount - bp->bio_completed;
 
-	if (g_collectstats & 4)
-		g_bioq_lock(&g_bio_run_up);
+	/*
+	 * The statistics collection is lockless, as such, but we
+	 * can not update one instance of the statistics from more
+	 * than one thread at a time, so grab the lock first.
+	 */
+	g_bioq_lock(&g_bio_run_up);
 	if (g_collectstats & 1)
 		devstat_end_transaction_bio(pp->stat, bp);
 	if (g_collectstats & 2)
 		devstat_end_transaction_bio(cp->stat, bp);
-	if (!(g_collectstats & 4))
-		g_bioq_lock(&g_bio_run_up);
+
 	cp->nend++;
 	pp->nend++;
 	if (error != ENOMEM) {
