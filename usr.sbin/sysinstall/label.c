@@ -82,10 +82,10 @@
  * for this configuration we scale things relative to the NOM vs DEFAULT
  * sizes.  If the disk is larger then /home will get any remaining space.
  */
-#define ROOT_DEFAULT_SIZE		256
-#define USR_DEFAULT_SIZE		3072
-#define VAR_DEFAULT_SIZE		256
-#define TMP_DEFAULT_SIZE		256
+#define ROOT_DEFAULT_SIZE		512
+#define USR_DEFAULT_SIZE		8192
+#define VAR_DEFAULT_SIZE		1024
+#define TMP_DEFAULT_SIZE		512
 #define HOME_DEFAULT_SIZE		USR_DEFAULT_SIZE
 
 /*
@@ -93,10 +93,10 @@
  * when we have insufficient disk space.  If this isn't sufficient we scale
  * down using the MIN sizes instead.
  */
-#define ROOT_NOMINAL_SIZE		192
-#define USR_NOMINAL_SIZE		512
-#define VAR_NOMINAL_SIZE		64
-#define TMP_NOMINAL_SIZE		64
+#define ROOT_NOMINAL_SIZE		256
+#define USR_NOMINAL_SIZE		1536
+#define VAR_NOMINAL_SIZE		128
+#define TMP_NOMINAL_SIZE		128
 #define HOME_NOMINAL_SIZE		USR_NOMINAL_SIZE
 
 /* The bottom-most row we're allowed to scribble on */
@@ -1378,6 +1378,11 @@ requested_part_size(char *varName, daddr_t nom, int def, int perc)
  * a confirmation requestor (*req == 1).  *req is 0 on
  * entry to this call.
  *
+ * As a special exception to the usual sizing rules, /var is given
+ * additional space equal to the amount of physical memory present
+ * if perc == 100 in order to ensure that users with large hard drives
+ * will have enough space to store a crashdump in /var/crash.
+ *
  * We autolabel the following partitions:  /, swap, /var, /tmp, /usr,
  * and /home.  /home receives any extra left over disk space. 
  */
@@ -1468,7 +1473,21 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	record_label_chunks(devs, dev);
     }
     if (VarChunk == NULL) {
-	sz = requested_part_size(VAR_VAR_SIZE, VAR_NOMINAL_SIZE, VAR_DEFAULT_SIZE, perc);
+	/* Work out how much extra space we want for a crash dump */
+	unsigned long crashdumpsz;
+
+	mib[0] = CTL_HW;
+	mib[1] = HW_PHYSMEM;
+	size = sizeof(physmem);
+	sysctl(mib, 2, &physmem, &size, (void *)0, (size_t)0);
+
+	if (perc == 100)
+		crashdumpsz = physmem / 1048576;
+	else
+		crashdumpsz = 0;
+
+	sz = requested_part_size(VAR_VAR_SIZE, VAR_NOMINAL_SIZE,	\
+	    VAR_DEFAULT_SIZE + crashdumpsz, perc);
 
 	AutoVar = Create_Chunk_DWIM(label_chunk_info[here].c->disk, 
 				label_chunk_info[here].c, sz, part,
