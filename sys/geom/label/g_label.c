@@ -67,14 +67,20 @@ struct g_class g_label_class = {
 /*
  * To add a new file system where you want to look for volume labels,
  * you have to:
- * 1. Add a file which implements looking for volume labels.
- * 2. Add an 'extern const struct g_label_desc g_label_<your file system>;'.
- * 3. Add an element to the table below '&g_label_<your_file_system>,'.
+ * 1. Add a file g_label_<file system>.c which implements labels recognition.
+ * 2. Add an 'extern const struct g_label_desc g_label_<file system>;' into
+ *    g_label.h file.
+ * 3. Add an element to the table below '&g_label_<file system>,'.
+ * 4. Add your file to sys/conf/files.
+ * 5. Add your file to sys/modules/geom/geom_label/Makefile.
+ * 6. Add your file system to manual page sbin/geom/class/label/glabel.8.
  */
 const struct g_label_desc *g_labels[] = {
 	&g_label_ufs,
 	&g_label_iso9660,
 	&g_label_msdosfs,
+	&g_label_ext2fs,
+	&g_label_reiserfs,
 	NULL
 };
 
@@ -257,12 +263,20 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	} while (0);
 	for (i = 0; g_labels[i] != NULL; i++) {
 		char label[64];
+		char *p;
 
 		g_topology_unlock();
 		g_labels[i]->ld_taste(cp, label, sizeof(label));
 		g_topology_lock();
 		if (label[0] == '\0')
 			continue;
+		/*
+		 * Don't allow / in labels.
+		 */
+		for (p = label; *p != '\0'; p++) {
+			if (*p == '/')
+				*p = '_';
+		}
 		g_label_create(NULL, mp, pp, label, g_labels[i]->ld_dir,
 		    pp->mediasize);
 	}
