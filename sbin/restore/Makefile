@@ -19,7 +19,6 @@ LDADD+=	-lkrb -lcrypto
 CFLAGS+=-DKERBEROS -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../../kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/include \
-	-I${.CURDIR}/../../crypto/kerberosIV/lib/roken \
 	-I${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 DISTRIBUTION=	krb4
 .endif
