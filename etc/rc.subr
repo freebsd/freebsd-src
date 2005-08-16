@@ -1320,4 +1320,38 @@ ltr()
 	echo "${_out}"
 }
 
+# Creates a list of providers for GELI encryption.
+geli_make_list()
+{
+	local devices devices2
+	local provider mountpoint type options rest
+
+	# Create list of GELI providers from fstab.
+	while read provider mountpoint type options rest ; do
+		case ":${provider}" in
+		:#*)
+			continue
+			;;
+		*.eli)
+			# Skip swap devices.
+			if [ "${type}" = "swap" -o "${options}" = "sw" ]; then
+				continue
+			fi
+			devices="${devices} ${provider}"
+			;;
+		esac
+	done < /etc/fstab
+
+	# Append providers from geli_devices.
+	devices="${devices} ${geli_devices}"
+
+	for provider in ${devices}; do
+		provider=${provider%.eli}
+		provider=${provider#/dev/}
+		devices2="${devices2} ${provider}"
+	done
+
+	echo ${devices2}
+}
+
 fi
