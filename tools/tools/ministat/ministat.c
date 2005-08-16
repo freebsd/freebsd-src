@@ -283,12 +283,13 @@ struct plot {
 	char		*data;
 	char		**bar;
 	int		separate_bars;
+	int		num_datasets;
 };
 
 static struct plot plot;
 
 static void
-SetupPlot(int width, int separate)
+SetupPlot(int width, int separate, int num_datasets)
 {
 	struct plot *pl;
 
@@ -298,6 +299,7 @@ SetupPlot(int width, int separate)
 	pl->data = NULL;
 	pl->bar = NULL;
 	pl->separate_bars = separate;
+	pl->num_datasets = num_datasets;
 	pl->min = 999e99;
 	pl->max = -999e99;
 }
@@ -344,8 +346,8 @@ PlotSet(struct dataset *ds, int val)
 		bar = 0;
 
 	if (pl->bar == NULL) {
-		pl->bar = malloc(sizeof(char *) * 2);
-		memset(pl->bar, 0, sizeof(char*) * 2);
+		pl->bar = malloc(sizeof(char *) * pl->num_datasets);
+		memset(pl->bar, 0, sizeof(char*) * pl->num_datasets);
 	}
 	if (pl->bar[bar] == NULL) {
 		pl->bar[bar] = malloc(pl->width);
@@ -426,7 +428,7 @@ DumpPlot(void)
 		putchar('|');
 		putchar('\n');
 	}
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < pl->num_datasets; i++) {
 		if (pl->bar[i] == NULL)
 			continue;
 		putchar('|');
@@ -568,7 +570,7 @@ main(int argc, char **argv)
 	}
 
 	if (!flag_n) {
-		SetupPlot(74, flag_s);
+		SetupPlot(74, flag_s, nds);
 		for (i = 0; i < nds; i++)
 			DimPlot(ds[i]);
 		for (i = 0; i < nds; i++)
