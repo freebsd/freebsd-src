@@ -44,16 +44,23 @@ NANO_NEWFS="-b 4096 -f 512 -i 8192 -O1 -U"
 NANO_DRIVE=ad0
 
 # Target media size in 512 bytes sectors
-NANO_MEDIA=1048576
+NANO_MEDIASIZE=1048576
 
 # Number of code images on media (1 or 2)
 NANO_IMAGES=2
 
 # Size of configuration file system in 512 bytes sectors
+# If zero, size will be as large as possible.
+NANO_CODESIZE=0
+
+# Size of configuration file system in 512 bytes sectors
+# Cannot be zero.
 NANO_CONFSIZE=2048
 
 # Size of data file system in 512 bytes sectors
-NANO_DATASIZE=1023
+# If zero: no partition configured.
+# If negative: max size possible
+NANO_DATASIZE=0
 
 # Media geometry, only relevant if bios doesn't understand LBA.
 NANO_SECTS=32
@@ -67,7 +74,7 @@ NANO_ARCH=i386
 #######################################################################
 # Functions which can be overridden in configs.
 
-clean_target ( ) (
+clean_build ( ) (
 	echo "## Clean and create object directory (${MAKEOBJDIRPREFIX})"
 
 	if rm -rf ${MAKEOBJDIRPREFIX} > /dev/null 2>&1 ; then
@@ -219,40 +226,50 @@ create_i386_diskimage ( ) (
 	echo "### log: ${MAKEOBJDIRPREFIX}/_.di"
 
 	(
-	echo $NANO_MEDIA $NANO_IMAGES \
-		$NANO_CONFSIZE $NANO_DATASIZE \
-		$NANO_SECTS $NANO_HEADS |
+	echo $NANO_MEDIASIZE $NANO_IMAGES \
+		$NANO_SECTS $NANO_HEADS \
+		$NANO_CODESIZE $NANO_CONFSIZE $NANO_DATASIZE |
 	awk '
 		{
+		printf "# %s\n", $0
+
 		# size of cylinder in sectors
-		cs = $5 * $6
+		cs = $3 * $4
 
 		# number of full cylinders on media
 		cyl = int ($1 / cs)
 
-		# output fdisk geometry spec
+		# output fdisk geometry spec, truncate cyls to 1023
 		if (cyl <= 1023)
-			print "g c" cyl " h" $6 " s" $5
+			print "g c" cyl " h" $4 " s" $3
 		else
-			print "g c" 1023 " h" $6 " s" $5
+			print "g c" 1023 " h" $4 " s" $3
 
-		# size of data partition in full cylinders
-		dsl = int (($4 + cs - 1) / cs)
+		if ($7 > 0) { 
+			# size of data partition in full cylinders
+			dsl = int (($7 + cs - 1) / cs)
+		} else {
+			dsl = 0;
+		}
 
 		# size of config partition in full cylinders
-		csl = int (($3 + cs - 1) / cs)
+		csl = int (($6 + cs - 1) / cs)
 
-		# size of image partition(s) in full cylinders
-		isl = int ((cyl - dsl - csl) / $2)
+		if ($3 == 5) {
+			# size of image partition(s) in full cylinders
+			isl = int ((cyl - dsl - csl) / $2)
+		} else {
+			isl = int (($5 + cs - 1) / cs)
+		}
 
 		# First image partition start at second track
-		print "p 1 165 " $5, isl * cs - $5
+		print "p 1 165 " $3, isl * cs - $3
 		c = isl * cs;
 
 		# Second image partition (if any) also starts offset one 
 		# track to keep them identical.
 		if ($2 > 1) {
-			print "p 2 165 " $5 + c, isl * cs - $5
+			print "p 2 165 " $3 + c, isl * cs - $3
 			c += isl * cs;
 		}
 
@@ -261,8 +278,11 @@ create_i386_diskimage ( ) (
 		c += csl * cs
 
 		# Data partition (if any) starts at cylinder boundary.
-		if ($4 > 0)
+		if ($7 > 0) {
 			print "p 4 165 " c, dsl * cs
+		} else if ($7 < 0 && $1 > $c) {
+			print "p 4 165 " c, $1 - $c
+		}
 		}
 	' > ${MAKEOBJDIRPREFIX}/_.fdisk
 
@@ -271,17 +291,19 @@ create_i386_diskimage ( ) (
 	mkdir -p ${MNT}
 
 	dd if=/dev/zero of=${IMG} bs=${NANO_SECTS}b \
-	    count=`expr ${NANO_MEDIA} / ${NANO_SECTS}`
+	    count=`expr ${NANO_MEDIASIZE} / ${NANO_SECTS}`
 
 	MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} -y ${NANO_HEADS}`
 
 	trap "df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
 	fdisk -i -f ${MAKEOBJDIRPREFIX}/_.fdisk ${MD}
+	fdisk ${MD}
 	# XXX: params
 	# XXX: pick up cached boot* files, they may not be in image anymore.
 	boot0cfg -B -b ${NANO_WORLDDIR}/boot/boot0sio -o packet -s 1 -m 3 ${MD}
 	bsdlabel -w -B ${MD}s1
+	bsdlabel ${MD}s1
 
 	# Create first image
 	newfs ${NANO_NEWFS} /dev/${MD}s1a
@@ -363,6 +385,7 @@ NANO_MAKE_CONF=${MAKEOBJDIRPREFIX}/make.conf
 export MAKEOBJDIRPREFIX
 
 export NANO_ARCH
+export NANO_CODESIZE
 export NANO_CONFSIZE
 export NANO_CUSTOMIZE
 export NANO_DATASIZE
@@ -370,7 +393,7 @@ export NANO_DRIVE
 export NANO_HEADS
 export NANO_IMAGES
 export NANO_MAKE_CONF
-export NANO_MEDIA
+export NANO_MEDIASIZE
 export NANO_NAME
 export NANO_NEWFS
 export NANO_OBJ
@@ -382,16 +405,20 @@ export NANO_WORLDDIR
 #######################################################################
 # Set up object directory
 
-#clean_target
-#make_conf_build
-#build_world
-#build_kernel
-make_conf_install
+clean_build
+make_conf_build
+build_world
+build_kernel
+
 clean_world
+make_conf_install
 install_world
 install_etc
 install_kernel
+
 run_customize
 setup_diskless
 prune_usr
 create_${NANO_ARCH}_diskimage
+
+echo "# NanoBSD image completed"
