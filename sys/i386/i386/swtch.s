@@ -223,7 +223,7 @@ sw1:
 	movl	4(%edi), %esi
 	movl	%eax, 0(%ebx)
 	movl	%esi, 4(%ebx)
-	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
+	movl	$GPROC0_SEL*8, %esi		/* GSEL(GPROC0_SEL, SEL_KPL) */
 	ltr	%si
 3:
 
