@@ -41,13 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <gdbthread.h>
 #include <inferior.h>
 #include <regcache.h>
+#include <sparc-tdep.h>
+#include <sparc64-tdep.h>
 
 void
 kgdb_trgt_fetch_registers(int regno __unused)
 {
 	struct kthr *kt;
 	struct pcb pcb;
-	uint64_t r;
 
 	kt = kgdb_thr_lookup_tid(ptid_get_tid(inferior_ptid));
 	if (kt == NULL)
@@ -57,21 +58,11 @@ kgdb_trgt_fetch_registers(int regno __unused)
 		memset(&pcb, 0, sizeof(pcb));
 	}
 
-	/* 0-7: global registers (g0-g7) */
-
-	/* 8-15: output registers (o0-o7) */
-	r = pcb.pcb_sp - CCFSZ;
-	supply_register(14, (char *)&r);
-
-	/* 16-23: local registers (l0-l7) */
-
-	/* 24-31: input registers (i0-i7) */
-	supply_register(30, (char *)&pcb.pcb_sp);
-
-	/* 32-63: single precision FP (f0-f31) */
-
-	/* 64-79: double precision FP (f32-f62) */
-	supply_register(80, (char *)&pcb.pcb_pc);
+	supply_register(SPARC_SP_REGNUM, (char *)&pcb.pcb_sp);
+	sparc_supply_rwindow(current_regcache, pcb.pcb_sp, -1);
+	supply_register(SPARC64_PC_REGNUM, (char *)&pcb.pcb_pc);
+	pcb.pcb_pc += 4;
+	supply_register(SPARC64_NPC_REGNUM, (char *)&pcb.pcb_pc);
 }
 
 void
