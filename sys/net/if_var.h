@@ -179,6 +179,7 @@ struct ifnet {
 	struct	mtx if_afdata_mtx;
 	struct	task if_starttask;	/* task for IFF_NEEDSGIANT */
 	struct	task if_linktask;	/* task for link change events */
+	struct	mtx if_addr_mtx;	/* mutex to protect address lists */
 };
 
 typedef void if_init_f_t(void *);
@@ -215,6 +216,16 @@ typedef void if_init_f_t(void *);
 /* for compatibility with other BSDs */
 #define	if_addrlist	if_addrhead
 #define	if_list		if_link
+
+/*
+ * Locks for address lists on the network interface.
+ */
+#define	IF_ADDR_LOCK_INIT(if)	mtx_init(&(if)->if_addr_mtx,		\
+				    "if_addr_mtx", NULL, MTX_DEF)
+#define	IF_ADDR_LOCK_DESTROY(if)	mtx_destroy(&(if)->if_addr_mtx)
+#define	IF_ADDR_LOCK(if)	mtx_lock(&(if)->if_addr_mtx)
+#define	IF_ADDR_UNLOCK(if)	mtx_unlock(&(if)->if_addr_mtx)
+#define	IF_ADDR_LOCK_ASSERT(if)	mtx_assert(&(if)->if_addr_mtx, MA_OWNED)
 
 /*
  * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
