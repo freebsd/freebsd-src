@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/led/led.h>
 #include <machine/md_var.h>
 #include <machine/elan_mmcr.h>
+#include <machine/pc/bios.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -76,6 +77,20 @@ static volatile uint16_t *pps_ap[3];
 static u_int	pps_a, pps_d;
 static u_int	echo_a, echo_d;
 #endif /* CPU_ELAN_PPS */
+
+#ifdef CPU_SOEKRIS
+
+static struct bios_oem bios_soekris = {
+	{ 0xf0000, 0xf1000 },
+	{
+		{ "Soekris", 0, 8 },	/* Soekris Engineering. */
+		{ "net4", 0, 8 },	/* net45xx */
+		{ "comBIOS", 0, 54 },	/* comBIOS ver. 1.26a  20040819 ... */
+		{ NULL, 0, 0 },
+	}
+};
+
+#endif
 
 static u_int	led_cookie[32];
 static struct cdev *led_dev[32];
@@ -449,6 +464,11 @@ static void
 elan_drvinit(void)
 {
 
+#ifdef CPU_SOEKRIS
+#define BIOS_OEM_MAXLEN 72
+        static u_char bios_oem[BIOS_OEM_MAXLEN] = "\0";
+#endif /* CPU_SOEKRIS */
+
 	/* If no elan found, just return */
 	if (mmcrptr == NULL)
 		return;
@@ -466,6 +486,9 @@ elan_drvinit(void)
 	    UID_ROOT, GID_WHEEL, 0600, "elan-mmcr");
 
 #ifdef CPU_SOEKRIS
+	if ( bios_oem_strings(&bios_soekris, bios_oem, BIOS_OEM_MAXLEN) > 0 )
+		printf("Elan-mmcr %s\n", bios_oem);
+
 	/* Create the error LED on GPIO9 */
 	led_cookie[9] = 0x02000c34;
 	led_dev[9] = led_create(gpio_led, &led_cookie[9], "error");
