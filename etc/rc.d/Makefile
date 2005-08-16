@@ -8,9 +8,9 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	ccd cleanvar cleartmp cron \
 	devd devfs dhclient \
 	dmesg dumpon \
-	early.sh \
+	early.sh encswap \
 	fsck \
-	gbde gbde_swap \
+	gbde geli geli2 \
 	hostname \
 	ike \
 	inetd initrandom \
