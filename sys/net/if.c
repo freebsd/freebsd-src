@@ -417,7 +417,7 @@ void
 if_free(struct ifnet *ifp)
 {
 
-	IF_ADDR_LOCK_DESTROY(ifp);
+	/* Do not add code to this function!  Add it to if_free_type(). */
 	if_free_type(ifp, ifp->if_type);
 }
 
@@ -430,6 +430,8 @@ if_free_type(struct ifnet *ifp, u_char type)
 		    __func__);
 		return;
 	}
+
+	IF_ADDR_LOCK_DESTROY(ifp);
 
 	ifnet_byindex(ifp->if_index) = NULL;
 
