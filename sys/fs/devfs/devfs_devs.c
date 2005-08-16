@@ -71,6 +71,38 @@ SYSCTL_UINT(_vfs_devfs, OID_AUTO, inodes, CTLFLAG_RD,
 SYSCTL_UINT(_vfs_devfs, OID_AUTO, topinode, CTLFLAG_RD,
 	&devfs_topino, 0, "DEVFS highest inode#");
 
+/*
+ * Helper sysctl for devname(3).  We're given a struct cdev * and return
+ * the name, if any, registered by the device driver.
+ */
+static int
+sysctl_devname(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	dev_t ud;
+	struct cdev *dev, **dp;
+
+	error = SYSCTL_IN(req, &ud, sizeof (ud));
+	if (error)
+		return (error);
+	if (ud == NODEV)
+		return(EINVAL);
+	dp = devfs_itod(ud);
+	if (dp == NULL)
+		return(ENOENT);
+	dev = *dp;
+	if (dev == NULL)
+		return(ENOENT);
+	return(SYSCTL_OUT(req, dev->si_name, strlen(dev->si_name) + 1));
+	return (error);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, devname, CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	NULL, 0, sysctl_devname, "", "devname(3) handler");
+
+SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev, CTLFLAG_RD,
+    0, sizeof(struct cdev), "sizeof(struct cdev)");
+
 static int *
 devfs_itor(int inode)
 {
