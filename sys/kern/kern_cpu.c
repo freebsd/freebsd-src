@@ -336,7 +336,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	 */
 	if (sc->curr_level.total_set.freq != CPUFREQ_VAL_UNKNOWN &&
 	    sc->saved_level.total_set.freq == CPUFREQ_VAL_UNKNOWN &&
-	    priority > sc->curr_priority) {
+	    priority > CPUFREQ_PRIO_USER && priority > sc->curr_priority) {
 		CF_DEBUG("saving level, freq %d prio %d\n",
 		    sc->curr_level.total_set.freq, sc->curr_priority);
 		sc->saved_level = sc->curr_level;
