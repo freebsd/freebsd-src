@@ -86,8 +86,6 @@ g_ctl_init(void)
 /*
  * Report an error back to the user in ascii format.  Return whatever copyout
  * returned, or EINVAL if it succeeded.
- * XXX: should not be static.
- * XXX: should take printf like args.
  */
 int
 gctl_error(struct gctl_req *req, const char *fmt, ...)
