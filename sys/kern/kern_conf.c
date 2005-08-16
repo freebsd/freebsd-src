@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 
-/* Built at compile time from sys/conf/majors */
-
 static struct mtx devmtx;
 static void freedev(struct cdev *dev);
 static void destroy_devl(struct cdev *dev);
