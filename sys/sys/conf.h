@@ -265,9 +265,6 @@ int	unit2minor(int _unit);
 u_int	minor2unit(u_int _minor);
 void	setconf(void);
 
-void devfs_create(struct cdev *dev);
-void devfs_destroy(struct cdev *dev);
-
 #define		UID_ROOT	0
 #define		UID_BIN		3
 #define		UID_UUCP	66
