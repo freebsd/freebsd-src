@@ -12,3 +12,4 @@ test:	${PROG}
 	./${PROG} ${.CURDIR}/chameleon ${.CURDIR}/iguana
 	./${PROG} -c 80 ${.CURDIR}/chameleon ${.CURDIR}/iguana
 	./${PROG} -s -c 80 ${.CURDIR}/chameleon ${.CURDIR}/iguana
+	./${PROG} -s -c 80 ${.CURDIR}/chameleon ${.CURDIR}/iguana ${.CURDIR}/iguana
