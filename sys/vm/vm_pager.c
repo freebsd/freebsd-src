@@ -216,6 +216,7 @@ vm_pager_bufferinit()
 	}
 
 	cluster_pbuf_freecnt = nswbuf / 2;
+	vnode_pbuf_freecnt = nswbuf / 2 + 1;
 
 	swapbkva = kmem_alloc_nofault(pager_map, nswbuf * MAXPHYS);
 	if (!swapbkva)

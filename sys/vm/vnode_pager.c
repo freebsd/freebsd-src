@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
-static void vnode_pager_init(void);
 static daddr_t vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
 					 int *run);
 static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
@@ -85,7 +84,6 @@ static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *
 static boolean_t vnode_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 
 struct pagerops vnodepagerops = {
-	.pgo_init =	vnode_pager_init,
 	.pgo_alloc =	vnode_pager_alloc,
 	.pgo_dealloc =	vnode_pager_dealloc,
 	.pgo_getpages =	vnode_pager_getpages,
@@ -94,13 +92,6 @@ struct pagerops vnodepagerops = {
 };
 
 int vnode_pbuf_freecnt;
-
-static void
-vnode_pager_init(void)
-{
-
-	vnode_pbuf_freecnt = nswbuf / 2 + 1;
-}
 
 /*
  * Allocate (or lookup) pager for a vnode.

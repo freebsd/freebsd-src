@@ -78,12 +78,6 @@ SYSCTL_INT(_vfs, OID_AUTO, read_max, CTLFLAG_RW, &read_max, 0,
 extern vm_page_t	bogus_page;
 
 /*
- * Number of physical bufs (pbufs) this subsystem is allowed.
- * Manipulated by vm_pager.c
- */
-extern int cluster_pbuf_freecnt;
-
-/*
  * Read data to a buf, including read-ahead if we find this to be beneficial.
  * cluster_read replaces bread.
  */
