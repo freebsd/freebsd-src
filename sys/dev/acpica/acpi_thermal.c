@@ -116,6 +116,7 @@ struct acpi_tz_softc {
     int				tz_cooling_enabled;
     int				tz_cooling_active;
     int				tz_cooling_updated;
+    int				tz_cooling_saved_freq;
 };
 
 #define CPUFREQ_MAX_LEVELS	64 /* XXX cpufreq should export this */
@@ -853,8 +854,8 @@ acpi_tz_cpufreq_restore(struct acpi_tz_softc *sc)
     if ((dev = devclass_get_device(devclass_find("cpufreq"), 0)) == NULL)
 	return (ENXIO);
     ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
-	"temperature %d.%dC: resuming previous clock speed\n",
-	TZ_KELVTOC(sc->tz_temperature));
+	"temperature %d.%dC: resuming previous clock speed (%d MHz)\n",
+	TZ_KELVTOC(sc->tz_temperature), sc->tz_cooling_saved_freq);
     error = CPUFREQ_SET(dev, NULL, CPUFREQ_PRIO_KERN);
     if (error == 0)
 	sc->tz_cooling_updated = FALSE;
@@ -904,7 +905,7 @@ acpi_tz_cpufreq_update(struct acpi_tz_softc *sc, int req)
 	perf = 100;
     desired_freq = levels[0].total_set.freq * perf / 100;
 
-    if (desired_freq <= freq) {
+    if (desired_freq < freq) {
 	/* Find the closest available frequency, rounding down. */
 	for (i = 0; i < num_levels; i++)
 	    if (levels[i].total_set.freq <= desired_freq)
@@ -914,6 +915,16 @@ acpi_tz_cpufreq_update(struct acpi_tz_softc *sc, int req)
 	if (i == num_levels)
 	    i--;
     } else {
+	/* If we didn't decrease frequency yet, don't increase it. */
+	if (!sc->tz_cooling_updated) {
+	    sc->tz_cooling_active = FALSE;
+	    goto out;
+	}
+
+	/* Use saved cpu frequency as maximum value. */
+	if (desired_freq > sc->tz_cooling_saved_freq)
+	    desired_freq = sc->tz_cooling_saved_freq;
+
 	/* Find the closest available frequency, rounding up. */
 	for (i = num_levels - 1; i >= 0; i--)
 	    if (levels[i].total_set.freq >= desired_freq)
@@ -922,14 +933,14 @@ acpi_tz_cpufreq_update(struct acpi_tz_softc *sc, int req)
 	/* If we didn't find a relevant setting, use the highest. */
 	if (i == -1)
 	    i++;
-    }
 
-    /* If we're going to the highest frequency, restore the old setting. */
-    if (i == 0) {
-	error = acpi_tz_cpufreq_restore(sc);
-	if (error == 0)
-	    sc->tz_cooling_active = FALSE;
-	goto out;
+	/* If we're going to the highest frequency, restore the old setting. */
+	if (i == 0 || desired_freq == sc->tz_cooling_saved_freq) {
+	    error = acpi_tz_cpufreq_restore(sc);
+	    if (error == 0)
+		sc->tz_cooling_active = FALSE;
+	    goto out;
+	}
     }
 
     /* If we are going to a new frequency, activate it. */
@@ -941,8 +952,10 @@ acpi_tz_cpufreq_update(struct acpi_tz_softc *sc, int req)
 	    (freq > levels[i].total_set.freq) ? "de" : "in",
 	    freq, levels[i].total_set.freq);
 	error = CPUFREQ_SET(dev, &levels[i], CPUFREQ_PRIO_KERN);
-	if (error == 0)
+	if (error == 0 && !sc->tz_cooling_updated) {
+	    sc->tz_cooling_saved_freq = freq;
 	    sc->tz_cooling_updated = TRUE;
+	}
     }
 
 out:
