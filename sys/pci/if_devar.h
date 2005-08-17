@@ -45,15 +45,6 @@ typedef bus_addr_t tulip_csrptr_t;
 			  (sc)->tulip_csrs_bsh,		\
 			  (sc)->tulip_csrs.csr, val)
 
-#define TULIP_CSR_READBYTE(sc, csr)		\
-	bus_space_read_1((sc)->tulip_csrs_bst,	\
-			 (sc)->tulip_csrs_bsh,	\
-			 (sc)->tulip_csrs.csr)
-#define TULIP_CSR_WRITEBYTE(sc, csr, val)		\
-	bus_space_write_1((sc)->tulip_csrs_bst,		\
-			  (sc)->tulip_csrs_bsh,		\
-			  (sc)->tulip_csrs.csr, val)
-
 /*
  * This structure contains "pointers" for the registers on
  * the various 21x4x chips.  CSR0 through CSR8 are common
