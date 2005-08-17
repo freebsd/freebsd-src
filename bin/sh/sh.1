@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2004
+.Dd August 17, 2005
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1978,12 +1978,17 @@ The maximal number of simultaneous processes for this user ID.
 .It Fl v Ar virtualmem
 The maximal virtual size of a process, in kilobytes.
 .El
-.It Ic umask Op Ar mask
+.It Ic umask Oo Fl S Oc Op Ar mask
 Set the file creation mask (see
 .Xr umask 2 )
-to the octal value specified by
+to the octal or symbolic (see
+.Xr chmod 1 )
+value specified by
 .Ar mask .
 If the argument is omitted, the current mask value is printed.
+If the
+.Fl S
+option is specified, the output is symbolic, otherwise the output is octal.
 .It Ic unalias Oo Fl a Oc Op Ar name
 If
 .Ar name
