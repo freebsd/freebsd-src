@@ -175,7 +175,6 @@ fwip_attach(device_t dev)
 	if (ifp == NULL)
 		return (ENOSPC);
 
-	bzero(fwip, sizeof(struct fwip_softc));
 	/* XXX */
 	fwip->dma_ch = -1;
 
