@@ -593,7 +593,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	}
 	if (bp->bio_error == 0)
 		bp->bio_error = error;
-	return (error);
+	return (0);
 }
 
 int
