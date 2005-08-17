@@ -588,21 +588,11 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crd->crd_next = NULL;
 
 		err = crypto_dispatch(crp);
-		if (err != 0) {
-			G_ELI_DEBUG(1, "crypto_dispatch() returned %d.", err);
-			bp->bio_children--;
-			if (error == 0)
-				error = err;
-		}
+		if (error == 0)
+			error = err;
 	}
 	if (bp->bio_error == 0)
 		bp->bio_error = error;
-	if (bp->bio_children > 0)
-		error = 0;
-	else {
-		free(bp->bio_driver2, M_ELI);
-		bp->bio_driver2 = NULL;
-	}
 	return (error);
 }
 
