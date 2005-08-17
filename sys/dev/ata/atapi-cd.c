@@ -855,7 +855,7 @@ acd_strategy(struct bio *bp)
 	return;
     }
     request->dev = dev;
-    request->driver = bp;
+    request->bio = bp;
     bcopy(ccb, request->u.atapi.ccb,
 	  (atadev->param.config & ATA_PROTO_MASK) == 
 	  ATA_PROTO_ATAPI_12 ? 16 : 12);
@@ -887,7 +887,7 @@ acd_strategy(struct bio *bp)
 static void 
 acd_done(struct ata_request *request)
 {
-    struct bio *bp = request->driver;
+    struct bio *bp = request->bio;
     
     /* finish up transfer */
     bp->bio_completed = request->donecount;
