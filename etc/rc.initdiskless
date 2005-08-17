@@ -43,16 +43,19 @@
 #  default	secondary universal base, typically overriding some
 #		of the files in the original root;
 #  ${ipba}	where ${ipba} is the assigned broadcast IP address
+#  bcast/${ipba} same as above
 #  ${class}	where ${class} is a list of directories supplied by
 #		bootp/dhcp through the T134 option.
 #		${ipba} and ${class} are typicall used to configure features
 #		for group of diskless clients, or even individual features;
 #  ${ip}	where ${ip} is the machine's assigned IP address, typically
 #		used to set host-specific features;
+#  ip/${ip}	same as above
 #
 # Template directories are scanned in the order they are listed above,
 # with each sucessive directory overriding (merged into) the previous one;
-# non-existing directories are ignored.
+# non-existing directories are ignored.  The subdirectory forms exist to
+# help keep the top level /conf managable in large installations.
 #
 # The existence of a directory /conf/T/M causes this script to create a
 # memory filesystem mounted as /M on the client.
@@ -169,6 +172,7 @@ create_md() {
 bootp_ifc=""
 bootp_ipa=""
 bootp_ipbca=""
+class=""
 if [ ${dlv:=0} -ne 0 ] ; then
 	iflist=`ifconfig -l`
 	for i in ${iflist} ; do
@@ -186,12 +190,10 @@ if [ ${dlv:=0} -ne 0 ] ; then
 		break
 	    fi
 	done
-	# Insert the directories passed with the T134 bootp cookie
-	# in the list of paths used for templates.
-	i="`/sbin/sysctl -n kern.bootp_cookie`"
-	[ "${i}" != "" ] && bootp_ipbca="${bootp_ipbca} ${i}"
+	# Get the values passed with the T134 bootp cookie.
+	class="`/sbin/sysctl -n kern.bootp_cookie`"
 
-	echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
+	echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca} ${class}"
 fi
 
 # Figure out our NFS root path
@@ -206,7 +208,16 @@ while [ $# -ge 1 ] ; do
 done
 
 # The list of directories with template files
-templates="base default ${bootp_ipbca} ${bootp_ipa}"
+templates="base default"
+if [ -n "${bootp_ipbca}" ]; then
+	templates="${templates} ${bootp_ipbca} bcast/${bootp_ipbca}"
+fi
+if [ -n "${class}" ]; then
+	templates="${templates} ${class}"
+fi
+if [ -n "${bootp_ipa}" ]; then
+	templates="${templates} ${bootp_ipa} ip/${bootp_ipa}"
+fi
 
 # The list of filesystems to umount after the copy
 to_umount=""
