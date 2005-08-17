@@ -734,8 +734,10 @@ int rijndaelKeySetupEnc(u32 rk[/*4*(Nr + 1)*/], const u8 cipherKey[], int keyBit
    	int i = 0;
 	u32 temp;
 
+#ifdef _KERNEL
 	KASSERT(keyBits == 128 || keyBits == 192 || keyBits == 256,
 	    ("Invalid key size (%d).", keyBits));
+#endif
 	rk[0] = GETU32(cipherKey     );
 	rk[1] = GETU32(cipherKey +  4);
 	rk[2] = GETU32(cipherKey +  8);
