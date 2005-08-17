@@ -217,6 +217,12 @@ vop_stdpathconf(ap)
 {
 
 	switch (ap->a_name) {
+		case _PC_NAME_MAX:
+			*ap->a_retval = NAME_MAX;
+			return (0);
+		case _PC_PATH_MAX:
+			*ap->a_retval = PATH_MAX;
+			return (0);
 		case _PC_LINK_MAX:
 			*ap->a_retval = LINK_MAX;
 			return (0);
