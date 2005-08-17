@@ -232,6 +232,125 @@ no_poll(struct cdev *dev __unused, int events, struct thread *td __unused)
 
 #define no_dump		(dumper_t *)enodev
 
+static int
+giant_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+{
+	int retval;
+
+	mtx_lock(&Giant);
+	retval = dev->si_devsw->d_gianttrick->
+	    d_open(dev, oflags, devtype, td);
+	mtx_unlock(&Giant);
+	return (retval);
+}
+
+static int
+giant_fdopen(struct cdev *dev, int oflags, struct thread *td, int fdidx)
+{
+	int retval;
+
+	mtx_lock(&Giant);
+	retval = dev->si_devsw->d_gianttrick->
+	    d_fdopen(dev, oflags, td, fdidx);
+	mtx_unlock(&Giant);
+	return (retval);
+}
+
+static int
+giant_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
+{
+	int retval;
+
+	mtx_lock(&Giant);
+	retval = dev->si_devsw->d_gianttrick->
+	    d_close(dev, fflag, devtype, td);
+	mtx_unlock(&Giant);
+	return (retval);
+}
+
+static void
+giant_strategy(struct bio *bp)
+{
+
+	mtx_lock(&Giant);
+	bp->bio_dev->si_devsw->d_gianttrick->
+	    d_strategy(bp);
+	mtx_unlock(&Giant);
+}
+
+static int
+giant_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+{
+	int retval;
+
+	mtx_lock(&Giant);
+	retval = dev->si_devsw->d_gianttrick->
+	    d_ioctl(dev, cmd, data, fflag, td);
+	mtx_unlock(&Giant);
+	return (retval);
+}
+  
+static int
+giant_read(struct cdev *dev, struct uio *uio, int ioflag)
+{
+	int retval;
+
+	mtx_lock(&Giant);
+	retval = dev->si_devsw->d_gianttrick->
+	    d_read(dev, uio, ioflag);
+	mtx_unlock(&Giant);
+	return (retval);
+}
+
+static int
+giant_write(struct cdev *dev, struct uio *uio, int ioflag)
+{
+	int retval;
+
+	mtx_lock(&Giant);
+	retval = dev->si_devsw->d_gianttrick->
+		d_write(dev, uio, ioflag);
+	mtx_unlock(&Giant);
+	return (retval);
+}
+
+static int
+giant_poll(struct cdev *dev, int events, struct thread *td)
+{
+	int retval;
+
+	mtx_lock(&Giant);
+	retval = dev->si_devsw->d_gianttrick->
+	    d_poll(dev, events, td);
+	mtx_unlock(&Giant);
+	return (retval);
+}
+
+static int
+giant_kqfilter(struct cdev *dev, struct knote *kn)
+{
+	int retval;
+
+	mtx_lock(&Giant);
+	retval = dev->si_devsw->d_gianttrick->
+	    d_kqfilter(dev, kn);
+	mtx_unlock(&Giant);
+	return (retval);
+}
+
+static int
+giant_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+{
+	int retval;
+
+	mtx_lock(&Giant);
+	retval = dev->si_devsw->d_gianttrick->
+	    d_mmap(dev, offset, paddr, nprot);
+	mtx_unlock(&Giant);
+	return (retval);
+}
+
+
 /*
  * struct cdev * and u_dev_t primitives
  */
@@ -325,13 +444,21 @@ static void
 fini_cdevsw(struct cdevsw *devsw)
 {
 
+	if (devsw->d_gianttrick != NULL)
+		free(devsw->d_gianttrick, M_DEVT);
+	devsw->d_gianttrick = NULL;
 	devsw->d_flags &= ~D_INIT;
 }
 
 static void
 prep_cdevsw(struct cdevsw *devsw)
 {
+	struct cdevsw *dsw2;
 
+	if (devsw->d_flags & D_NEEDGIANT)
+		dsw2 = malloc(sizeof *dsw2, M_DEVT, M_WAITOK);
+	else
+		dsw2 = NULL;
 	dev_lock();
 
 	if (devsw->d_version != D_VERSION_01) {
@@ -358,16 +485,35 @@ prep_cdevsw(struct cdevsw *devsw)
 		if (devsw->d_poll == NULL)	devsw->d_poll = ttypoll;
 	}
 
-	if (devsw->d_open == NULL)	devsw->d_open = null_open;
-	if (devsw->d_close == NULL)	devsw->d_close = null_close;
-	if (devsw->d_read == NULL)	devsw->d_read = no_read;
-	if (devsw->d_write == NULL)	devsw->d_write = no_write;
-	if (devsw->d_ioctl == NULL)	devsw->d_ioctl = no_ioctl;
-	if (devsw->d_poll == NULL)	devsw->d_poll = no_poll;
-	if (devsw->d_mmap == NULL)	devsw->d_mmap = no_mmap;
-	if (devsw->d_strategy == NULL)	devsw->d_strategy = no_strategy;
+	if (devsw->d_flags & D_NEEDGIANT) {
+		if (devsw->d_gianttrick == NULL) {
+			memcpy(dsw2, devsw, sizeof *dsw2);
+			devsw->d_gianttrick = dsw2;
+		} else
+			free(dsw2, M_DEVT);
+	}
+
+#define FIXUP(member, noop, giant) 				\
+	do {							\
+		if (devsw->member == NULL) {			\
+			devsw->member = noop;			\
+		} else if (devsw->d_flags & D_NEEDGIANT)	\
+			devsw->member = giant;			\
+		}						\
+	while (0)
+
+	FIXUP(d_open,		null_open,	giant_open);
+	FIXUP(d_fdopen,		NULL,		giant_fdopen);
+	FIXUP(d_close,		null_close,	giant_close);
+	FIXUP(d_read,		no_read,	giant_read);
+	FIXUP(d_write,		no_write,	giant_write);
+	FIXUP(d_ioctl,		no_ioctl,	giant_ioctl);
+	FIXUP(d_poll,		no_poll,	giant_poll);
+	FIXUP(d_mmap,		no_mmap,	giant_mmap);
+	FIXUP(d_strategy,	no_strategy,	giant_strategy);
+	FIXUP(d_kqfilter,	no_kqfilter,	giant_kqfilter);
+
 	if (devsw->d_dump == NULL)	devsw->d_dump = no_dump;
-	if (devsw->d_kqfilter == NULL)	devsw->d_kqfilter = no_kqfilter;
 
 	LIST_INIT(&devsw->d_devs);
 
