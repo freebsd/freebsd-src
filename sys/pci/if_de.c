@@ -3061,11 +3061,7 @@ tulip_addr_filter(
 			continue;
 
 		hash = tulip_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-#if BYTE_ORDER == BIG_ENDIAN
-		sp[hash >> 4] |= bswap32(1 << (hash & 0xF));
-#else
-		sp[hash >> 4] |= 1 << (hash & 0xF);
-#endif
+		sp[hash >> 4] |= htole32(1 << (hash & 0xF));
 	}
 	/*
 	 * No reason to use a hash if we are going to be
@@ -3073,20 +3069,17 @@ tulip_addr_filter(
 	 */
 	if ((sc->tulip_flags & TULIP_ALLMULTI) == 0) {
 	    hash = tulip_mchash(sc->tulip_ifp->if_broadcastaddr);
-#if BYTE_ORDER == BIG_ENDIAN
-	    sp[hash >> 4] |= bswap32(1 << (hash & 0xF));
-#else
-	    sp[hash >> 4] |= 1 << (hash & 0xF);
-#endif
+	    sp[hash >> 4] |= htole32(1 << (hash & 0xF));
 	    if (sc->tulip_flags & TULIP_WANTHASHONLY) {
 		hash = tulip_mchash(IFP2ENADDR(sc->tulip_ifp));
-#if BYTE_ORDER == BIG_ENDIAN
-		sp[hash >> 4] |= bswap32(1 << (hash & 0xF));
-#else
-		sp[hash >> 4] |= 1 << (hash & 0xF);
-#endif
+		sp[hash >> 4] |= htole32(1 << (hash & 0xF));
 	    } else {
 #if BYTE_ORDER == BIG_ENDIAN
+		/*
+		 * I'm pretty sure this is wrong and should be using
+		 * htole32() since we run the chip in little endian but
+		 * use big endian for the descriptors.
+		 */
 		sp[39] = ((u_int16_t *) IFP2ENADDR(sc->tulip_ifp))[0] << 16;
 		sp[40] = ((u_int16_t *) IFP2ENADDR(sc->tulip_ifp))[1] << 16;
 		sp[41] = ((u_int16_t *) IFP2ENADDR(sc->tulip_ifp))[2] << 16;
@@ -3150,10 +3143,6 @@ tulip_addr_filter(
 	}
     }
     IF_ADDR_UNLOCK(sc->tulip_ifp);
-#if defined(IFF_ALLMULTI)
-    if (sc->tulip_flags & TULIP_ALLMULTI)
-	sc->tulip_ifp->if_flags |= IFF_ALLMULTI;
-#endif
 }
 
 static void
