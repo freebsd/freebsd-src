@@ -490,7 +490,7 @@ ste_wait(sc)
 	}
 
 	if (i == STE_TIMEOUT)
-		printf("ste%d: command never completed!\n", sc->ste_unit);
+		if_printf(sc->ste_ifp, "command never completed!\n");
 
 	return;
 }
@@ -515,7 +515,7 @@ ste_eeprom_wait(sc)
 	}
 
 	if (i == 100) {
-		printf("ste%d: eeprom failed to come ready\n", sc->ste_unit);
+		if_printf(sc->ste_ifp, "eeprom failed to come ready\n");
 		return(1);
 	}
 
@@ -804,8 +804,8 @@ ste_rxeof(sc)
 		 * If not, something truly strange has happened.
 		 */
 		if (!(rxstat & STE_RXSTAT_DMADONE)) {
-			printf("ste%d: bad receive status -- packet dropped\n",
-							sc->ste_unit);
+			if_printf(ifp,
+			    "bad receive status -- packet dropped\n");
 			ifp->if_ierrors++;
 			cur_rx->ste_ptr->ste_status = 0;
 			continue;
@@ -858,8 +858,7 @@ ste_txeoc(sc)
 		    txstat & STE_TXSTATUS_EXCESSCOLLS ||
 		    txstat & STE_TXSTATUS_RECLAIMERR) {
 			ifp->if_oerrors++;
-			printf("ste%d: transmission error: %x\n",
-			    sc->ste_unit, txstat);
+			if_printf(ifp, "transmission error: %x\n", txstat);
 
 			ste_reset(sc);
 			ste_init(sc);
@@ -867,9 +866,9 @@ ste_txeoc(sc)
 			if (txstat & STE_TXSTATUS_UNDERRUN &&
 			    sc->ste_tx_thresh < STE_PACKET_SIZE) {
 				sc->ste_tx_thresh += STE_MIN_FRAMELEN;
-				printf("ste%d: tx underrun, increasing tx"
+				if_printf(ifp, "tx underrun, increasing tx"
 				    " start threshold to %d bytes\n",
-				    sc->ste_unit, sc->ste_tx_thresh);
+				    sc->ste_tx_thresh);
 			}
 			CSR_WRITE_2(sc, STE_TX_STARTTHRESH, sc->ste_tx_thresh);
 			CSR_WRITE_2(sc, STE_TX_RECLAIM_THRESH,
@@ -986,11 +985,10 @@ ste_attach(dev)
 {
 	struct ste_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	int			error = 0, rid;
 	u_char			eaddr[6];
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 	sc->ste_dev = dev;
 
 	/*
@@ -1014,7 +1012,7 @@ ste_attach(dev)
 	sc->ste_res = bus_alloc_resource_any(dev, STE_RES, &rid, RF_ACTIVE);
 
 	if (sc->ste_res == NULL) {
-		printf ("ste%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1028,7 +1026,7 @@ ste_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->ste_irq == NULL) {
-		printf("ste%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1043,19 +1041,17 @@ ste_attach(dev)
 	 */
 	if (ste_read_eeprom(sc, eaddr,
 	    STE_EEADDR_NODE0, 3, 0)) {
-		printf("ste%d: failed to read station address\n", unit);
+		device_printf(dev, "failed to read station address\n");
 		error = ENXIO;;
 		goto fail;
 	}
-
-	sc->ste_unit = unit;
 
 	/* Allocate the descriptor queues. */
 	sc->ste_ldata = contigmalloc(sizeof(struct ste_list_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->ste_ldata == NULL) {
-		printf("ste%d: no memory for list buffers!\n", unit);
+		device_printf(dev, "no memory for list buffers!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1064,7 +1060,7 @@ ste_attach(dev)
 
 	ifp = sc->ste_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("ste%d: can not if_alloc()\n", sc->ste_unit);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -1072,7 +1068,7 @@ ste_attach(dev)
 	/* Do MII setup. */
 	if (mii_phy_probe(dev, &sc->ste_miibus,
 	    ste_ifmedia_upd, ste_ifmedia_sts)) {
-		printf("ste%d: MII without any phy!\n", sc->ste_unit);
+		device_printf(dev, "MII without any phy!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1113,7 +1109,7 @@ ste_attach(dev)
 	    ste_intr, sc, &sc->ste_intrhand);
 
 	if (error) {
-		printf("ste%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		if_free(ifp);
 		goto fail;
@@ -1291,8 +1287,8 @@ ste_init(xsc)
 
 	/* Init RX list */
 	if (ste_init_rx_list(sc) == ENOBUFS) {
-		printf("ste%d: initialization failed: no "
-		    "memory for RX buffers\n", sc->ste_unit);
+		if_printf(ifp,
+		    "initialization failed: no memory for RX buffers\n");
 		ste_stop(sc);
 		STE_UNLOCK(sc);
 		return;
@@ -1457,7 +1453,7 @@ ste_reset(sc)
 	}
 
 	if (i == STE_TIMEOUT)
-		printf("ste%d: global reset never completed\n", sc->ste_unit);
+		if_printf(sc->ste_ifp, "global reset never completed\n");
 
 	return;
 }
@@ -1673,7 +1669,7 @@ ste_watchdog(ifp)
 	STE_LOCK(sc);
 
 	ifp->if_oerrors++;
-	printf("ste%d: watchdog timeout\n", sc->ste_unit);
+	if_printf(ifp, "watchdog timeout\n");
 
 	ste_txeoc(sc);
 	ste_txeof(sc);
