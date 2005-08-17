@@ -188,6 +188,7 @@ ufsdirhash_build(struct inode *ip)
 		DIRHASHLIST_UNLOCK();
 		return (-1);
 	}
+	mtx_init(&dh->dh_mtx, "dirhash", NULL, MTX_DEF);
 	MALLOC(dh->dh_hash, doff_t **, narrays * sizeof(dh->dh_hash[0]),
 	    M_DIRHASH, M_NOWAIT | M_ZERO);
 	MALLOC(dh->dh_blkfree, u_int8_t *, nblocks * sizeof(dh->dh_blkfree[0]),
@@ -202,7 +203,6 @@ ufsdirhash_build(struct inode *ip)
 	}
 
 	/* Initialise the hash table and block statistics. */
-	mtx_init(&dh->dh_mtx, "dirhash", NULL, MTX_DEF);
 	dh->dh_narrays = narrays;
 	dh->dh_hlen = nslots;
 	dh->dh_nblk = nblocks;
@@ -265,6 +265,7 @@ fail:
 	}
 	if (dh->dh_blkfree != NULL)
 		FREE(dh->dh_blkfree, M_DIRHASH);
+	mtx_destroy(&dh->dh_mtx);
 	FREE(dh, M_DIRHASH);
 	ip->i_dirhash = NULL;
 	DIRHASHLIST_LOCK();
@@ -398,7 +399,7 @@ restart:
 			/*
 			 * We found an entry with the expected offset. This
 			 * is probably the entry we want, but if not, the
-			 * code below will turn off seqoff and retry.
+			 * code below will turn off seqopt and retry.
 			 */ 
 			slot = i;
 		} else 
