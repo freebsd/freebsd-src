@@ -493,6 +493,7 @@ struct ata_channel {
 #define         ATA_NO_SLAVE            0x01
 #define         ATA_USE_16BIT           0x02
 #define         ATA_ATAPI_DMA_RO        0x04
+#define         ATA_NO_48BIT_DMA        0x08
 
     int                         devices;        /* what is present */
 #define         ATA_ATA_MASTER          0x01
@@ -535,7 +536,7 @@ int ata_resume(device_t dev);
 int ata_device_ioctl(device_t dev, u_long cmd, caddr_t data);
 int ata_identify(device_t dev);
 void ata_default_registers(device_t dev);
-u_int8_t ata_modify_if_48bit(struct ata_request *request);
+void ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);
 char *ata_mode2str(int mode);
 int ata_pmode(struct ata_params *ap);
