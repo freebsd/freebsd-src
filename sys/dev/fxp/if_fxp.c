@@ -901,6 +901,7 @@ fxp_detach(device_t dev)
 	CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
 	fxp_stop(sc);
 	FXP_UNLOCK(sc);
+	callout_drain(&sc->stat_ch);
 
 	/*
 	 * Close down routes etc.
