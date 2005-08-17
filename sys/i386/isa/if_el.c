@@ -77,19 +77,21 @@ struct el_softc {
 static int el_attach(device_t);
 static int el_detach(device_t);
 static void el_init(void *);
+static void el_init_locked(struct el_softc *);
 static int el_ioctl(struct ifnet *,u_long,caddr_t);
 static int el_probe(device_t);
 static void el_start(struct ifnet *);
-static void el_reset(void *);
+static void el_start_locked(struct ifnet *);
+static void el_reset(struct el_softc *);
 static void el_watchdog(struct ifnet *);
 static int el_shutdown(device_t);
 
-static void el_stop(void *);
+static void el_stop(struct el_softc *);
 static int el_xmit(struct el_softc *,int);
 static void elintr(void *);
 static __inline void elread(struct el_softc *,caddr_t,int);
 static struct mbuf *elget(caddr_t,int,struct ifnet *);
-static __inline void el_hardreset(void *);
+static __inline void el_hardreset(struct el_softc *);
 
 static device_method_t el_methods[] = {
         /* Device interface */
@@ -117,6 +119,7 @@ DRIVER_MODULE(if_el, isa, el_driver, el_devclass, 0, 0);
 
 #define EL_LOCK(_sc)		mtx_lock(&(_sc)->el_mtx)
 #define EL_UNLOCK(_sc)		mtx_unlock(&(_sc)->el_mtx)
+#define EL_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->el_mtx, MA_OWNED)
 
 /* Probe routine.  See if the card is there and at the right place. */
 static int
@@ -152,9 +155,6 @@ el_probe(device_t dev)
 
 	sc->el_btag = rman_get_bustag(sc->el_res);
 	sc->el_bhandle = rman_get_bushandle(sc->el_res);
-	mtx_init(&sc->el_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
-	EL_LOCK(sc);
 
 	/* Now attempt to grab the station address from the PROM
 	 * and see if it contains the 3com vendor code.
@@ -175,8 +175,6 @@ el_probe(device_t dev)
 
 	/* Now release resources */
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->el_res);
-	EL_UNLOCK(sc);
-	mtx_destroy(&sc->el_mtx);
 
 	dprintf(("Address is %6D\n",sc->el_enaddr, ":"));
 
@@ -198,13 +196,13 @@ el_probe(device_t dev)
 
 /* Do a hardware reset of the 3c501.  Do not call until after el_probe()! */
 static __inline void
-el_hardreset(xsc)
-	void *xsc;
+el_hardreset(sc)
+	struct el_softc *sc;
 {
-	register struct el_softc *sc = xsc;
 	register int j;
 
 	/* First reset the board */
+	EL_LOCK_ASSERT(sc);
 	CSR_WRITE_1(sc,EL_AC,EL_AC_RESET);
 	DELAY(5);
 	CSR_WRITE_1(sc,EL_AC,0);
@@ -231,16 +229,21 @@ el_attach(device_t dev)
 
 	/* Get things pointing to the right places. */
 	sc = device_get_softc(dev);
+	mtx_init(&sc->el_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
 	ifp = sc->el_ifp = if_alloc(IFT_ETHER);
 
-	if (ifp == NULL)
+	if (ifp == NULL) {
+		mtx_destroy(&sc->el_mtx);
 		return (ENOSPC);
+	}
 
 	rid = 0;
 	sc->el_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 	    0, ~0, EL_IOSIZ, RF_ACTIVE);
 
 	if (sc->el_res == NULL) {
+		mtx_destroy(&sc->el_mtx);
 		if_free(ifp);
 		return(ENXIO);
 	}
@@ -250,18 +253,9 @@ el_attach(device_t dev)
             RF_SHAREABLE | RF_ACTIVE);
 
         if (sc->el_irq == NULL) {
+		mtx_destroy(&sc->el_mtx);
 		if_free(ifp);
                 bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->el_res);
-		return(ENXIO);
-	}
-
-	error = bus_setup_intr(dev, sc->el_irq, INTR_TYPE_NET,
-		elintr, sc, &sc->el_intrhand);
-
-	if (error) {
-		if_free(ifp);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->el_irq);
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->el_res);
 		return(ENXIO);
 	}
 
@@ -280,9 +274,24 @@ el_attach(device_t dev)
 	dprintf(("Attaching interface...\n"));
 	ether_ifattach(ifp, sc->el_enaddr);
 
+	/* Finally, setup the interrupt handler. */
+	error = bus_setup_intr(dev, sc->el_irq, INTR_TYPE_NET | INTR_MPSAFE,
+		elintr, sc, &sc->el_intrhand);
+
+	if (error) {
+		ether_ifdetach(ifp);
+		if_free(ifp);
+		mtx_destroy(&sc->el_mtx);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->el_irq);
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->el_res);
+		return(ENXIO);
+	}
+
 	/* Now reset the board */
 	dprintf(("Resetting board...\n"));
+	EL_LOCK(sc);
 	el_hardreset(sc);
+	EL_UNLOCK(sc);
 
 	dprintf(("el_attach() finished.\n"));
 	return(0);
@@ -297,14 +306,14 @@ static int el_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = sc->el_ifp;
 
-	el_stop(sc);
 	EL_LOCK(sc);
+	el_stop(sc);
+	EL_UNLOCK(sc);
 	ether_ifdetach(ifp);
 	if_free(ifp);
 	bus_teardown_intr(dev, sc->el_irq, sc->el_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->el_irq);
 	bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->el_res);
-	EL_UNLOCK(sc);
 	mtx_destroy(&sc->el_mtx);
 
 	return(0);
@@ -317,39 +326,48 @@ el_shutdown(dev)
 	struct el_softc *sc;
 
 	sc = device_get_softc(dev);
+	EL_LOCK(sc);
 	el_stop(sc);
+	EL_UNLOCK(sc);
 	return(0);
 }
 
 /* This routine resets the interface. */
 static void 
-el_reset(xsc)
-	void *xsc;
+el_reset(sc)
+	struct el_softc *sc;
 {
-	struct el_softc *sc = xsc;
 
 	dprintf(("elreset()\n"));
 	el_stop(sc);
-	el_init(sc);
+	el_init_locked(sc);
 }
 
-static void el_stop(xsc)
+static void el_stop(sc)
+	struct el_softc *sc;
+{
+
+	EL_LOCK_ASSERT(sc);
+	CSR_WRITE_1(sc,EL_AC,0);
+	el_hardreset(sc);
+}
+
+/* Initialize interface.  */
+static void
+el_init(xsc)
 	void *xsc;
 {
 	struct el_softc *sc = xsc;
 
 	EL_LOCK(sc);
-	CSR_WRITE_1(sc,EL_AC,0);
-	el_hardreset(sc);
+	el_init_locked(sc);
 	EL_UNLOCK(sc);
 }
 
-/* Initialize interface.  */
 static void 
-el_init(xsc)
-	void *xsc;
+el_init_locked(sc)
+	struct el_softc *sc;
 {
-	struct el_softc *sc = xsc;
 	struct ifnet *ifp;
 
 	/* Set up pointers */
@@ -359,7 +377,7 @@ el_init(xsc)
 	if(TAILQ_EMPTY(&ifp->if_addrhead)) /* XXX unlikely */
 		return;
 
-	EL_LOCK(sc);
+	EL_LOCK_ASSERT(sc);
 
 	/* First, reset the board. */
 	dprintf(("Resetting board...\n"));
@@ -390,9 +408,7 @@ el_init(xsc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* And start output. */
-	el_start(ifp);
-
-	EL_UNLOCK(sc);
+	el_start_locked(ifp);
 }
 
 /* Start output on interface.  Get datagrams from the queue and output
@@ -403,6 +419,17 @@ static void
 el_start(struct ifnet *ifp)
 {
 	struct el_softc *sc;
+
+	sc = ifp->if_softc;
+	EL_LOCK(sc);
+	el_start_locked(ifp);
+	EL_UNLOCK(sc);
+}
+
+static void
+el_start_locked(struct ifnet *ifp)
+{
+	struct el_softc *sc;
 	struct mbuf *m, *m0;
 	int i, len, retries, done;
 
@@ -410,7 +437,7 @@ el_start(struct ifnet *ifp)
 	sc = ifp->if_softc;
 
 	dprintf(("el_start()...\n"));
-	EL_LOCK(sc);
+	EL_LOCK_ASSERT(sc);
 
 	/* Don't do anything if output is active */
 	if(sc->el_ifp->if_drv_flags & IFF_DRV_OACTIVE)
@@ -427,7 +454,6 @@ el_start(struct ifnet *ifp)
 		/* If there's nothing to send, return. */
 		if(m0 == NULL) {
 			sc->el_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-			EL_UNLOCK(sc);
 			return;
 		}
 
@@ -537,11 +563,14 @@ elread(struct el_softc *sc,caddr_t buf,int len)
 	/*
 	 * Put packet into an mbuf chain
 	 */
+	EL_LOCK_ASSERT(sc);
 	m = elget(buf,len,ifp);
 	if(m == 0)
 		return;
 
+	EL_UNLOCK(sc);
 	(*ifp->if_input)(ifp,m);
+	EL_LOCK(sc);
 }
 
 /* controller interrupt */
@@ -736,16 +765,16 @@ el_ioctl(ifp, command, data)
 	struct el_softc *sc;
 
 	sc = ifp->if_softc;
-	EL_LOCK(sc);
 
 	switch (command) {
 	case SIOCSIFFLAGS:
+		EL_LOCK(sc);
 		/*
 		 * If interface is marked down and it is running, then stop it
 		 */
 		if (((ifp->if_flags & IFF_UP) == 0) &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-			el_stop(ifp->if_softc);
+			el_stop(sc);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		} else {
 		/*
@@ -753,14 +782,14 @@ el_ioctl(ifp, command, data)
 		 */
 			if ((ifp->if_flags & IFF_UP) &&
 		    	    ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0))
-				el_init(ifp->if_softc);
+				el_init_locked(ifp->if_softc);
 		}
+		EL_UNLOCK(sc);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
-	EL_UNLOCK(sc);
 	return (error);
 }
 
@@ -768,7 +797,12 @@ el_ioctl(ifp, command, data)
 static void
 el_watchdog(struct ifnet *ifp)
 {
+	struct el_softc *sc;
+
+	sc = ifp->if_softc;
 	log(LOG_ERR,"%s: device timeout\n", ifp->if_xname);
+	EL_LOCK(sc);
 	ifp->if_oerrors++;
-	el_reset(ifp->if_softc);
+	el_reset(sc);
+	EL_UNLOCK(sc);
 }
