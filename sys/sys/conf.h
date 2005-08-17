@@ -213,6 +213,7 @@ struct cdevsw {
 	LIST_ENTRY(cdevsw)	d_list;
 	LIST_HEAD(, cdev)	d_devs;
 	int			d_spare3;
+	struct cdevsw		*d_gianttrick;
 };
 
 #define NUMCDEVSW 256

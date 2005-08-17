@@ -405,9 +405,7 @@ devfs_close(ap)
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
 		PICKUP_GIANT();
 	} else {
-		mtx_lock(&Giant);
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
-		mtx_unlock(&Giant);
 	}
 	dev_relthread(dev);
 	return (error);
@@ -542,11 +540,7 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 			return (EINVAL);
 		return (copyout(p, fgn->buf, i));
 	}
-	if (dsw->d_flags & D_NEEDGIANT)
-		mtx_lock(&Giant);
 	error = dsw->d_ioctl(dev, com, data, fp->f_flag, td);
-	if (dsw->d_flags & D_NEEDGIANT)
-		mtx_unlock(&Giant);
 	dev_relthread(dev);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
@@ -590,11 +584,7 @@ devfs_kqfilter_f(struct file *fp, struct knote *kn)
 	error = devfs_fp_check(fp, &dev, &dsw);
 	if (error)
 		return (error);
-	if (dsw->d_flags & D_NEEDGIANT)
-		mtx_lock(&Giant);
 	error = dsw->d_kqfilter(dev, kn);
-	if (dsw->d_flags & D_NEEDGIANT)
-		mtx_unlock(&Giant);
 	dev_relthread(dev);
 	return (error);
 }
@@ -862,12 +852,10 @@ devfs_open(ap)
 			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 		PICKUP_GIANT();
 	} else {
-		mtx_lock(&Giant);
 		if (dsw->d_fdopen != NULL)
 			error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
 		else
 			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
-		mtx_unlock(&Giant);
 	}
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
@@ -942,11 +930,7 @@ devfs_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 	error = devfs_fp_check(fp, &dev, &dsw);
 	if (error)
 		return (error);
-	if (dsw->d_flags & D_NEEDGIANT)
-		mtx_lock(&Giant);
 	error = dsw->d_poll(dev, events, td);
-	if (dsw->d_flags & D_NEEDGIANT)
-		mtx_unlock(&Giant);
 	dev_relthread(dev);
 	return(error);
 }
@@ -987,11 +971,7 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 
-	if (dsw->d_flags & D_NEEDGIANT)
-		mtx_lock(&Giant);
 	error = dsw->d_read(dev, uio, ioflag);
-	if (dsw->d_flags & D_NEEDGIANT)
-		mtx_unlock(&Giant);
 	dev_relthread(dev);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
@@ -1412,11 +1392,7 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 
 	resid = uio->uio_resid;
 
-	if (dsw->d_flags & D_NEEDGIANT)
-		mtx_lock(&Giant);
 	error = dsw->d_write(dev, uio, ioflag);
-	if (dsw->d_flags & D_NEEDGIANT)
-		mtx_unlock(&Giant);
 	dev_relthread(dev);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
 		vfs_timestamp(&dev->si_ctime);
