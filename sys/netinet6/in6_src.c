@@ -76,6 +76,7 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/sx.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -99,6 +100,13 @@ static struct mtx addrsel_lock;
 #define	ADDRSEL_LOCK()		mtx_lock(&addrsel_lock)
 #define	ADDRSEL_UNLOCK()	mtx_unlock(&addrsel_lock)
 #define	ADDRSEL_LOCK_ASSERT()	mtx_assert(&addrsel_lock, MA_OWNED)
+
+static struct sx addrsel_sxlock;
+#define	ADDRSEL_SXLOCK_INIT()	sx_init(&addrsel_sxlock, "addrsel_sxlock")
+#define	ADDRSEL_SLOCK()		sx_slock(&addrsel_sxlock)
+#define	ADDRSEL_SUNLOCK()	sx_sunlock(&addrsel_sxlock)
+#define	ADDRSEL_XLOCK()		sx_xlock(&addrsel_sxlock)
+#define	ADDRSEL_XUNLOCK()	sx_xunlock(&addrsel_sxlock)
 
 #define ADDR_LABEL_NOTAPP (-1)
 struct in6_addrpolicy defaultaddrpolicy;
@@ -837,6 +845,7 @@ void
 addrsel_policy_init()
 {
 	ADDRSEL_LOCK_INIT();
+	ADDRSEL_SXLOCK_INIT();
 
 	init_policy_queue();
 
@@ -953,16 +962,17 @@ add_addrsel_policyent(newpolicy)
 
 	MALLOC(new, struct addrsel_policyent *, sizeof(*new), M_IFADDR,
 	       M_WAITOK);
+	ADDRSEL_XLOCK();
 	ADDRSEL_LOCK();
 
 	/* duplication check */
-	for (pol = TAILQ_FIRST(&addrsel_policytab); pol;
-	     pol = TAILQ_NEXT(pol, ape_entry)) {
+	TAILQ_FOREACH(pol, &addrsel_policytab, ape_entry) {
 		if (SA6_ARE_ADDR_EQUAL(&newpolicy->addr,
 				       &pol->ape_policy.addr) &&
 		    SA6_ARE_ADDR_EQUAL(&newpolicy->addrmask,
 				       &pol->ape_policy.addrmask)) {
 			ADDRSEL_UNLOCK();
+			ADDRSEL_XUNLOCK();
 			FREE(new, M_IFADDR);
 			return (EEXIST);	/* or override it? */
 		}
@@ -975,6 +985,7 @@ add_addrsel_policyent(newpolicy)
 
 	TAILQ_INSERT_TAIL(&addrsel_policytab, new, ape_entry);
 	ADDRSEL_UNLOCK();
+	ADDRSEL_XUNLOCK();
 
 	return (0);
 }
@@ -985,11 +996,11 @@ delete_addrsel_policyent(key)
 {
 	struct addrsel_policyent *pol;
 
+	ADDRSEL_XLOCK();
 	ADDRSEL_LOCK();
 
 	/* search for the entry in the table */
-	for (pol = TAILQ_FIRST(&addrsel_policytab); pol;
-	     pol = TAILQ_NEXT(pol, ape_entry)) {
+	TAILQ_FOREACH(pol, &addrsel_policytab, ape_entry) {
 		if (SA6_ARE_ADDR_EQUAL(&key->addr, &pol->ape_policy.addr) &&
 		    SA6_ARE_ADDR_EQUAL(&key->addrmask,
 				       &pol->ape_policy.addrmask)) {
@@ -998,11 +1009,13 @@ delete_addrsel_policyent(key)
 	}
 	if (pol == NULL) {
 		ADDRSEL_UNLOCK();
+		ADDRSEL_XUNLOCK();
 		return (ESRCH);
 	}
 
 	TAILQ_REMOVE(&addrsel_policytab, pol, ape_entry);
 	ADDRSEL_UNLOCK();
+	ADDRSEL_XUNLOCK();
 
 	return (0);
 }
@@ -1015,16 +1028,14 @@ walk_addrsel_policy(callback, w)
 	struct addrsel_policyent *pol;
 	int error = 0;
 
-	ADDRSEL_LOCK();
-	for (pol = TAILQ_FIRST(&addrsel_policytab); pol;
-	     pol = TAILQ_NEXT(pol, ape_entry)) {
-		ADDRSEL_UNLOCK();
-		if ((error = (*callback)(&pol->ape_policy, w)) != 0)
+	ADDRSEL_SLOCK();
+	TAILQ_FOREACH(pol, &addrsel_policytab, ape_entry) {
+		if ((error = (*callback)(&pol->ape_policy, w)) != 0) {
+			ADDRSEL_SUNLOCK();
 			return (error);
-		ADDRSEL_LOCK();
+		}
 	}
-	ADDRSEL_UNLOCK();
-
+	ADDRSEL_SUNLOCK();
 	return (error);
 }
 
@@ -1050,8 +1061,7 @@ match_addrsel_policy(key)
 	int matchlen, bestmatchlen = -1;
 	u_char *mp, *ep, *k, *p, m;
 
-	for (pent = TAILQ_FIRST(&addrsel_policytab); pent;
-	     pent = TAILQ_NEXT(pent, ape_entry)) {
+	TAILQ_FOREACH(pent, &addrsel_policytab, ape_entry) {
 		matchlen = 0;
 
 		pol = &pent->ape_policy;
