@@ -808,10 +808,11 @@ sopno stopst;
 	for (;;) {
 		/* next character */
 		lastc = c;
-		if (p == m->endp)
+		if (p == m->endp) {
+			clen = 0;
 			c = OUT;
-		else
-			clen = XMBRTOWC(&c, p, stop - p, &m->mbs, BADCHAR);
+		} else
+			clen = XMBRTOWC(&c, p, m->endp - p, &m->mbs, BADCHAR);
 		if (EQ(st, fresh))
 			coldp = p;
 
@@ -849,7 +850,7 @@ sopno stopst;
 		}
 
 		/* are we done? */
-		if (ISSET(st, stopst) || p == stop)
+		if (ISSET(st, stopst) || p == stop || clen > stop - p)
 			break;		/* NOTE BREAK OUT */
 
 		/* no, we must deal with this character */
@@ -917,7 +918,7 @@ sopno stopst;
 			c = OUT;
 			clen = 0;
 		} else
-			clen = XMBRTOWC(&c, p, stop - p, &m->mbs, BADCHAR);
+			clen = XMBRTOWC(&c, p, m->endp - p, &m->mbs, BADCHAR);
 
 		/* is there an EOL and/or BOL between lastc and c? */
 		flagch = '\0';
@@ -955,7 +956,7 @@ sopno stopst;
 		/* are we done? */
 		if (ISSET(st, stopst))
 			matchp = p;
-		if (EQ(st, empty) || p == stop)
+		if (EQ(st, empty) || p == stop || clen > stop - p)
 			break;		/* NOTE BREAK OUT */
 
 		/* no, we must deal with this character */
