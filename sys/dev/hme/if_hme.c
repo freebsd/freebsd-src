@@ -388,6 +388,7 @@ hme_detach(struct hme_softc *sc)
 	HME_LOCK(sc);
 	hme_stop(sc);
 	HME_UNLOCK(sc);
+	callout_drain(&sc->sc_tick_ch);
 	device_delete_child(sc->sc_dev, sc->sc_miibus);
 
 	for (i = 0; i < HME_NTXQ; i++) {
