@@ -529,7 +529,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	 */
 	if (bp->bio_cmd == BIO_WRITE)
 		size += bp->bio_length;
-	p = malloc(size, M_ELI, M_NOWAIT | M_ZERO);
+	p = malloc(size, M_ELI, M_NOWAIT);
 	if (p == NULL)
 		return (ENOMEM);
 
