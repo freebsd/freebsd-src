@@ -588,7 +588,7 @@ pcn_attach(dev)
 	eaddr[1] = CSR_READ_4(sc, PCN_IO32_APROM01);
 
 	sc->pcn_unit = unit;
-	callout_init(&sc->pcn_stat_callout, CALLOUT_MPSAFE);
+	callout_init_mtx(&sc->pcn_stat_callout, &sc->pcn_mtx, 0);
 
 	sc->pcn_ldata = contigmalloc(sizeof(struct pcn_list_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
@@ -926,11 +926,7 @@ pcn_tick(xsc)
 
 	sc = xsc;
 	ifp = sc->pcn_ifp;
-	PCN_LOCK(sc);
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		PCN_UNLOCK(sc);
-		return;
-	}
+	PCN_LOCK_ASSERT(sc);
 
 	mii = device_get_softc(sc->pcn_miibus);
 	mii_tick(mii);
@@ -948,8 +944,6 @@ pcn_tick(xsc)
 	}
 
 	callout_reset(&sc->pcn_stat_callout, hz, pcn_tick, sc);
-
-	PCN_UNLOCK(sc);
 
 	return;
 }
