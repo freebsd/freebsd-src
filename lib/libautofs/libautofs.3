@@ -79,11 +79,11 @@
 .Sh DESCRIPTION
 The
 .Nm libautofs
-libarary provides a "mostly" stable interface to the
+library provides a "mostly" stable interface to the
 .Xr autofs 9
 file system.
 .Pp
-The inteface to
+The interface to
 .Xr autofs 9
 is managed via handles of type
 .Fa autoh_t
@@ -172,7 +172,7 @@ return the inode associated with the request
 return the directory inode associated with the request
 .Fa req .
 .It Fn autoreq_getaux
-return the auxilliray data associated with the request
+return the auxiliary data associated with the request
 .Fa req .
 .It Fn autoreq_getoffset
 return the offset request associated with the request
@@ -197,16 +197,16 @@ inode to
 this is typically unused.
 .It Fn autoreq_seterrno
 set the error returned to the application sending the request, typically
-this is left alone, or set to ENOENT if the request is for a non-existant
+this is left alone, or set to ENOENT if the request is for a non-existent
 name.
 The default error is no error.
 Meaning the application will see
 a successful return.
 .It Fn autoreq_setaux
-used to set the auxilliray data for a request, currently used to set
+used to set the auxiliary data for a request, currently used to set
 the dirent structures for serving a readdir request.
 Default is no
-auxilliary data.
+auxiliary data.
 .It Fn autoreq_seteof
 used to set the eof flag for readdir requests (default is not eof.)
 .El
