@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd November 7, 2004
+.Dd August 18, 2005
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -164,6 +164,18 @@ a bitmap will be loaded to be displayed on screen while booting.
 .Pq Dq Pa /boot/splash.bmp
 Name of the bitmap to be loaded.
 Any other name can be used.
+.It Va comconsole_speed
+.Po Dq 9600
+or the value of the
+.Va BOOT_COMCONSOLE_SPEED
+variable when
+.Xr loader 8
+was compiled
+.Pc .
+Sets the speed of the serial console.
+If the previous boot loader stage specified that a serial console
+is in use then the default speed is determined from the current
+serial port speed setting.
 .It Va console
 .Pq Dq vidconsole
 .Dq comconsole
