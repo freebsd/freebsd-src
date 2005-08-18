@@ -1043,7 +1043,7 @@ struct sf_softc {
 	int			sf_tx_cnt;
 	u_int8_t		sf_link;
 	int			sf_if_flags;
-	struct callout_handle	sf_stat_ch;
+	struct callout		sf_stat_callout;
 	struct mtx		sf_mtx;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
