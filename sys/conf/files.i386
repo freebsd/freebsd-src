@@ -135,6 +135,7 @@ bf_enc.o			optional crypto		\
 crypto/des/arch/i386/des_enc.S	optional crypto
 crypto/des/des_ecb.c		optional crypto
 crypto/des/des_setkey.c		optional crypto
+crypto/via/padlock.c		optional padlock
 dev/advansys/adv_isa.c		optional adv isa
 dev/aic/aic_isa.c		optional aic isa
 dev/arcmsr/arcmsr.c		optional arcmsr pci
