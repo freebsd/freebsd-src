@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2005
+.Dd August 18, 2005
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -392,6 +392,19 @@ by the kernel during the boot phase.
 List of semicolon-separated search path for bootable kernels.
 The default is
 .Dq Li kernel .
+.It Va comconsole_speed
+Defines the speed of the serial console (i386 and amd64 only).
+If the previous boot stage indicated that a serial console is in use
+then this variable is initialized to the current speed of the console
+serial port.
+Otherwise it is set to 9600 unless this was overridden using the
+.Va BOOT_COMCONSOLE_SPEED
+variable when
+.Nm
+was compiled.
+Changes to the
+.Va comconsole_speed
+variable take effect immediately.
 .It Va console
 Defines the current console or consoles.
 Multiple consoles may be specified.
