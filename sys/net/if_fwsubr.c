@@ -81,7 +81,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 {
 	struct fw_com *fc = IFP2FC(ifp);
 	int error, type;
-	struct rtentry *rt;
+	struct rtentry *rt = NULL;
 	struct m_tag *mtag;
 	union fw_encap *enc;
 	struct fw_hwaddr *destfw;
@@ -102,9 +102,12 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		goto bad;
 	}
 
-	error = rt_check(&rt, &rt0, dst);
-	if (error)
-		goto bad;
+	if (rt0 != NULL) {
+		error = rt_check(&rt, &rt0, dst);
+		if (error)
+			goto bad;
+		RT_UNLOCK(rt);
+	}
 
 	/*
 	 * For unicast, we make a tag to store the lladdr of the
