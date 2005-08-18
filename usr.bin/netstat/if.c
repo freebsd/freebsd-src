@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <libutil.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -175,17 +176,27 @@ show_stat(const char *fmt, int width, u_long value, short showvalue)
 {
 	char newfmt[32];
 
-	/* Construct the format string */
-	if (showvalue) {
-		sprintf(newfmt, "%%%d%s", width, fmt);
-		printf(newfmt, value);
-	} else {
+	if (showvalue == 0) {
+		/* Print just dash. */
 		sprintf(newfmt, "%%%ds", width);
 		printf(newfmt, "-");
+		return;
+	}
+
+	if (hflag) {
+		char buf[5];
+
+		/* Format in human readable form. */
+		humanize_number(buf, sizeof(buf), (int64_t)value, "",
+		    HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL);
+		sprintf(newfmt, "%%%ds", width);
+		printf(newfmt, buf);
+	} else {
+		/* Construct the format string. */
+		sprintf(newfmt, "%%%d%s", width, fmt);
+		printf(newfmt, value);
 	}
 }
-
-
 
 /*
  * Print a description of the network interfaces.
