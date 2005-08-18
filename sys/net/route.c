@@ -1262,51 +1262,52 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 	struct rtentry *rt0;
 	int error;
 
-	rt0 = *lrt0;
-	rt = rt0;
-	if (rt) {
-		/* NB: the locking here is tortuous... */
-		RT_LOCK(rt);
-		if ((rt->rt_flags & RTF_UP) == 0) {
-			RT_UNLOCK(rt);
-			rt = rtalloc1(dst, 1, 0UL);
-			if (rt != NULL) {
-				RT_REMREF(rt);
-				/* XXX what about if change? */
-			} else
-				senderr(EHOSTUNREACH);
-			rt0 = rt;
-		}
-		/* XXX BSD/OS checks dst->sa_family != AF_NS */
-		if (rt->rt_flags & RTF_GATEWAY) {
-			if (rt->rt_gwroute == NULL)
-				goto lookup;
-			rt = rt->rt_gwroute;
-			RT_LOCK(rt);		/* NB: gwroute */
-			if ((rt->rt_flags & RTF_UP) == 0) {
-				rtfree(rt);	/* unlock gwroute */
-				rt = rt0;
-			lookup:
-				RT_UNLOCK(rt0);
-				rt = rtalloc1(rt->rt_gateway, 1, 0UL);
-				RT_LOCK(rt0);
-				rt0->rt_gwroute = rt;
-				if (rt == NULL) {
-					RT_UNLOCK(rt0);
-					senderr(EHOSTUNREACH);
-				}
-			}
-			RT_UNLOCK(rt0);
-		}
-		/* XXX why are we inspecting rmx_expire? */
-		error = (rt->rt_flags & RTF_REJECT) &&
-			(rt->rt_rmx.rmx_expire == 0 ||
-				time_second < rt->rt_rmx.rmx_expire);
+	KASSERT(*lrt0 != NULL, ("rt_check"));
+	rt = rt0 = *lrt0;
+
+	/* NB: the locking here is tortuous... */
+	RT_LOCK(rt);
+	if ((rt->rt_flags & RTF_UP) == 0) {
 		RT_UNLOCK(rt);
-		if (error)
-			senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
+		rt = rtalloc1(dst, 1, 0UL);
+		if (rt != NULL) {
+			RT_REMREF(rt);
+			/* XXX what about if change? */
+		} else
+			senderr(EHOSTUNREACH);
+		rt0 = rt;
 	}
-	*lrt = rt;		/* NB: return unlocked */
+	/* XXX BSD/OS checks dst->sa_family != AF_NS */
+	if (rt->rt_flags & RTF_GATEWAY) {
+		if (rt->rt_gwroute == NULL)
+			goto lookup;
+		rt = rt->rt_gwroute;
+		RT_LOCK(rt);		/* NB: gwroute */
+		if ((rt->rt_flags & RTF_UP) == 0) {
+			rtfree(rt);	/* unlock gwroute */
+			rt = rt0;
+		lookup:
+			RT_UNLOCK(rt0);
+			rt = rtalloc1(rt->rt_gateway, 1, 0UL);
+			RT_LOCK(rt0);
+			rt0->rt_gwroute = rt;
+			if (rt == NULL) {
+				RT_UNLOCK(rt0);
+				senderr(EHOSTUNREACH);
+			}
+		}
+		RT_UNLOCK(rt0);
+	}
+	/* XXX why are we inspecting rmx_expire? */
+	error = (rt->rt_flags & RTF_REJECT) &&
+		(rt->rt_rmx.rmx_expire == 0 ||
+			time_second < rt->rt_rmx.rmx_expire);
+	if (error) {
+		RT_UNLOCK(rt);
+		senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
+	}
+
+	*lrt = rt;
 	*lrt0 = rt0;
 	return (0);
 bad:
