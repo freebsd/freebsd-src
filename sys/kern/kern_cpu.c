@@ -260,8 +260,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	if (CPUFREQ_CMP(sc->curr_level.total_set.freq, level->total_set.freq)) {
 		CF_DEBUG("skipping freq %d, same as current level %d\n",
 		    level->total_set.freq, sc->curr_level.total_set.freq);
-		sc->curr_priority = priority;
-		goto out;
+		goto skip;
 	}
 
 	/* First, set the absolute frequency via its driver. */
@@ -323,6 +322,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 		}
 	}
 
+skip:
 	/* If we were restoring a saved state, reset it to "unused". */
 	if (level == &sc->saved_level) {
 		CF_DEBUG("resetting saved level\n");
@@ -345,7 +345,6 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	}
 	sc->curr_level = *level;
 	sc->curr_priority = priority;
-	error = 0;
 
 out:
 	CF_MTX_UNLOCK(&sc->lock);
