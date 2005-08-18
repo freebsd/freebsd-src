@@ -371,6 +371,26 @@ u_long	atomic_readandclear_long(volatile u_long *);
 #define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
 #define	atomic_readandclear_32	atomic_readandclear_int
 
+/* Operations on 64-bit quad words. */
+#define	atomic_set_64		atomic_set_long
+#define	atomic_set_acq_64	atomic_set_acq_long
+#define	atomic_set_rel_64	atomic_set_rel_long
+#define	atomic_clear_64		atomic_clear_long
+#define	atomic_clear_acq_64	atomic_clear_acq_long
+#define	atomic_clear_rel_64	atomic_clear_rel_long
+#define	atomic_add_64		atomic_add_long
+#define	atomic_add_acq_64	atomic_add_acq_long
+#define	atomic_add_rel_64	atomic_add_rel_long
+#define	atomic_subtract_64	atomic_subtract_long
+#define	atomic_subtract_acq_64	atomic_subtract_acq_long
+#define	atomic_subtract_rel_64	atomic_subtract_rel_long
+#define	atomic_load_acq_64	atomic_load_acq_long
+#define	atomic_store_rel_64	atomic_store_rel_long
+#define	atomic_cmpset_64	atomic_cmpset_long
+#define	atomic_cmpset_acq_64	atomic_cmpset_acq_long
+#define	atomic_cmpset_rel_64	atomic_cmpset_rel_long
+#define	atomic_readandclear_64	atomic_readandclear_long
+
 /* Operations on pointers. */
 #define	atomic_set_ptr		atomic_set_long
 #define	atomic_set_acq_ptr	atomic_set_acq_long
