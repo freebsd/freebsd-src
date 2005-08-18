@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD$");
 extern uint32_t	acpi_reset_video;
 extern void	initializecpu(void);
 
-static struct region_descriptor	r_idt, r_gdt, *p_gdt;
-static uint16_t		r_ldt;
+static struct region_descriptor	saved_idt, saved_gdt, *p_gdt;
+static uint16_t		saved_ldt;
 
 static uint32_t		r_eax, r_ebx, r_ecx, r_edx, r_ebp, r_esi, r_edi,
 			r_efl, r_cr0, r_cr2, r_cr3, r_cr4, ret_addr;
@@ -134,9 +134,9 @@ acpi_savecpu:				\n\
 					\n\
 	movl	%esp,r_esp		\n\
 					\n\
-	sgdt	r_gdt			\n\
-	sidt	r_idt			\n\
-	sldt	r_ldt			\n\
+	sgdt	saved_gdt		\n\
+	sidt	saved_idt		\n\
+	sldt	saved_ldt		\n\
 	str	r_tr			\n\
 					\n\
 	movl	(%esp),%eax		\n\
@@ -151,8 +151,9 @@ acpi_printcpu(void)
 {
 	printf("======== acpi_printcpu() debug dump ========\n");
 	printf("gdt[%04x:%08x] idt[%04x:%08x] ldt[%04x] tr[%04x] efl[%08x]\n",
-		r_gdt.rd_limit, r_gdt.rd_base, r_idt.rd_limit, r_idt.rd_base,
-		r_ldt, r_tr, r_efl);
+		saved_gdt.rd_limit, saved_gdt.rd_base,
+		saved_idt.rd_limit, saved_idt.rd_base,
+		saved_ldt, r_tr, r_efl);
 	printf("eax[%08x] ebx[%08x] ecx[%08x] edx[%08x]\n",
 		r_eax, r_ebx, r_ecx, r_edx);
 	printf("esi[%08x] edi[%08x] ebp[%08x] esp[%08x]\n",
@@ -217,8 +218,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 		p_gdt = (struct region_descriptor *)
 				(sc->acpi_wakeaddr + physical_gdt);
-		p_gdt->rd_limit = r_gdt.rd_limit;
-		p_gdt->rd_base = vtophys(r_gdt.rd_base);
+		p_gdt->rd_limit = saved_gdt.rd_limit;
+		p_gdt->rd_base = vtophys(saved_gdt.rd_base);
 
 		WAKECODE_FIXUP(physical_esp, uint32_t, vtophys(r_esp));
 		WAKECODE_FIXUP(previous_cr0, uint32_t, r_cr0);
@@ -229,9 +230,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(reset_video, uint32_t, acpi_reset_video);
 
 		WAKECODE_FIXUP(previous_tr,  uint16_t, r_tr);
-		WAKECODE_BCOPY(previous_gdt, struct region_descriptor, r_gdt);
-		WAKECODE_FIXUP(previous_ldt, uint16_t, r_ldt);
-		WAKECODE_BCOPY(previous_idt, struct region_descriptor, r_idt);
+		WAKECODE_BCOPY(previous_gdt, struct region_descriptor, saved_gdt);
+		WAKECODE_FIXUP(previous_ldt, uint16_t, saved_ldt);
+		WAKECODE_BCOPY(previous_idt, struct region_descriptor, saved_idt);
 
 		WAKECODE_FIXUP(where_to_recover, void *, acpi_restorecpu);
 
