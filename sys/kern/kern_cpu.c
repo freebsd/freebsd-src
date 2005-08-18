@@ -260,6 +260,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	if (CPUFREQ_CMP(sc->curr_level.total_set.freq, level->total_set.freq)) {
 		CF_DEBUG("skipping freq %d, same as current level %d\n",
 		    level->total_set.freq, sc->curr_level.total_set.freq);
+		sc->curr_priority = priority;
 		goto out;
 	}
 
