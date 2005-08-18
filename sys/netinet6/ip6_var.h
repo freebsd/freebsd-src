@@ -319,6 +319,9 @@ extern int	ip6_prefer_tempaddr; /* whether to prefer temporary addresses
 					in the source address selection */
 
 extern	struct pfil_head inet6_pfil_hook;	/* packet filter hooks */
+#ifdef IPSTEALTH
+extern int	ip6stealth;
+#endif
 
 extern struct	pr_usrreqs rip6_usrreqs;
 struct sockopt;
