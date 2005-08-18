@@ -67,6 +67,10 @@ static int	in_ifinit(struct ifnet *,
 static int subnetsarelocal = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW,
 	&subnetsarelocal, 0, "Treat all subnets as directly connected");
+static int sameprefixcarponly = 0;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, same_prefix_carp_only, CTLFLAG_RW,
+	&sameprefixcarponly, 0,
+	"Refuse to create same prefixes on different interfaces");
 
 /*
  * The IPv4 multicast list (in_multihead and associated structures) are
@@ -824,8 +828,14 @@ in_addprefix(target, flags)
 		 * If we got a matching prefix route inserted by other
 		 * interface address, we are done here.
 		 */
-		if (ia->ia_flags & IFA_ROUTE)
-			return 0;
+		if (ia->ia_flags & IFA_ROUTE) {
+			if (sameprefixcarponly &&
+			    target->ia_ifp->if_type != IFT_CARP &&
+			    ia->ia_ifp->if_type != IFT_CARP)
+				return (EEXIST);
+			else
+				return (0);
+		}
 	}
 
 	/*
