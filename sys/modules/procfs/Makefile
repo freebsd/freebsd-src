@@ -27,10 +27,15 @@ EXPORT_SYMS+=	procfs_doprocfile
 EXPORT_SYMS+=	procfs_doprocmem
 EXPORT_SYMS+=	procfs_notsystem
 
+.if !defined(KERNBUILDDIR)
 opt_compat.h:
 	echo "#define COMPAT_43 1" > ${.TARGET}
+	echo "#define COMPAT_FREEBSD4 1" >> ${.TARGET}
+	echo "#define COMPAT_FREEBSD5 1" >> ${.TARGET}
 .if ${MACHINE_ARCH} == "amd64"
 	echo "#define COMPAT_IA32 1" >> ${.TARGET}
+	echo "#define COMPAT_LINUX32 1" >> ${.TARGET}
+.endif
 .endif
 
 .include <bsd.kmod.mk>
