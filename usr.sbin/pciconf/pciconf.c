@@ -369,7 +369,8 @@ load_vendors(void)
 	FILE *db;
 	struct pci_vendor_info *cv;
 	struct pci_device_info *cd;
-	char buf[100], str[100];
+	char buf[1024], str[1024];
+	char *ch;
 	int id, error;
 
 	/*
@@ -391,8 +392,20 @@ load_vendors(void)
 		if (fgets(buf, sizeof(buf), db) == NULL)
 			break;
 
+		if ((ch = strchr(buf, '#')) != NULL)
+			*ch = '\0';
+		ch = strchr(buf, '\0') - 1;
+		while (ch > buf && isspace(*ch))
+			*ch-- = '\0';
+		if (ch <= buf)
+			continue;
+
+		/* Can't handle subvendor / subdevice entries yet */
+		if (buf[0] == '\t' && buf[1] == '\t')
+			continue;
+
 		/* Check for vendor entry */
-		if ((buf[0] != '\t') && (sscanf(buf, "%04x\t%[^\n]", &id, str) == 2)) {
+		if (buf[0] != '\t' && sscanf(buf, "%04x %[^\n]", &id, str) == 2) {
 			if ((id == 0) || (strlen(str) < 1))
 				continue;
 			if ((cv = malloc(sizeof(struct pci_vendor_info))) == NULL) {
@@ -413,7 +426,7 @@ load_vendors(void)
 		}
 
 		/* Check for device entry */
-		if ((buf[0] == '\t') && (sscanf(buf + 1, "%04x\t%[^\n]", &id, str) == 2)) {
+		if (buf[0] == '\t' && sscanf(buf + 1, "%04x %[^\n]", &id, str) == 2) {
 			if ((id == 0) || (strlen(str) < 1))
 				continue;
 			if (cv == NULL) {
