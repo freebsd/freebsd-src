@@ -619,12 +619,10 @@ parsetime(int argc, char **argv)
     } /* ugly case statement */
     expect(EOF);
 
-    /* adjust for daylight savings time
+    /* convert back to time_t
      */
     runtime.tm_isdst = -1;
     runtimer = mktime(&runtime);
-    if (runtime.tm_isdst > 0)
-	runtimer -= 3600;
 
     if (runtimer < 0)
 	panic("garbled time");
