@@ -439,8 +439,8 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	/* Initialize our routing table. */
 	bridge_rtable_init(sc);
 
-	callout_init(&sc->sc_brcallout, 0);
-	callout_init(&sc->sc_bstpcallout, 0);
+	callout_init_mtx(&sc->sc_brcallout, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->sc_bstpcallout, &sc->sc_mtx, 0);
 
 	LIST_INIT(&sc->sc_iflist);
 
@@ -497,6 +497,9 @@ bridge_clone_destroy(struct ifnet *ifp)
 		bridge_delete_member(sc, bif);
 
 	BRIDGE_UNLOCK(sc);
+
+	callout_drain(&sc->sc_brcallout);
+	callout_drain(&sc->sc_bstpcallout);
 
 	mtx_lock(&bridge_list_mtx);
 	LIST_REMOVE(sc, sc_list);
@@ -1212,10 +1215,10 @@ bridge_init(void *xsc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
+	BRIDGE_LOCK(sc);
 	callout_reset(&sc->sc_brcallout, bridge_rtable_prune_period * hz,
 	    bridge_timer, sc);
 
-	BRIDGE_LOCK(sc);
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	bstp_initialization(sc);
 	BRIDGE_UNLOCK(sc);
@@ -1988,9 +1991,9 @@ bridge_timer(void *arg)
 {
 	struct bridge_softc *sc = arg;
 
-	BRIDGE_LOCK(sc);
+	BRIDGE_LOCK_ASSERT(sc);
+
 	bridge_rtage(sc);
-	BRIDGE_UNLOCK(sc);
 
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		callout_reset(&sc->sc_brcallout,
