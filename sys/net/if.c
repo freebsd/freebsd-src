@@ -785,7 +785,7 @@ if_rtdel(struct radix_node *rn, void *arg)
 	return (0);
 }
 
-#define	equal(a1, a2)	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
+#define	sa_equal(a1, a2)	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
 
 /*
  * Locate an interface based on a complete address.
@@ -802,13 +802,13 @@ ifa_ifwithaddr(struct sockaddr *addr)
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
-			if (equal(addr, ifa->ifa_addr))
+			if (sa_equal(addr, ifa->ifa_addr))
 				goto done;
 			/* IP6 doesn't have broadcast */
 			if ((ifp->if_flags & IFF_BROADCAST) &&
 			    ifa->ifa_broadaddr &&
 			    ifa->ifa_broadaddr->sa_len != 0 &&
-			    equal(ifa->ifa_broadaddr, addr))
+			    sa_equal(ifa->ifa_broadaddr, addr))
 				goto done;
 		}
 	ifa = NULL;
@@ -834,7 +834,8 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
-			if (ifa->ifa_dstaddr && equal(addr, ifa->ifa_dstaddr))
+			if (ifa->ifa_dstaddr &&
+			    sa_equal(addr, ifa->ifa_dstaddr))
 				goto done;
 		}
 	}
@@ -887,8 +888,8 @@ next:				continue;
 				 * The trouble is that we don't know the
 				 * netmask for the remote end.
 				 */
-				if (ifa->ifa_dstaddr != 0
-				    && equal(addr, ifa->ifa_dstaddr))
+				if (ifa->ifa_dstaddr != 0 &&
+				    sa_equal(addr, ifa->ifa_dstaddr))
 					goto done;
 			} else {
 				/*
@@ -959,13 +960,14 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 		if (ifa_maybe == 0)
 			ifa_maybe = ifa;
 		if (ifa->ifa_netmask == 0) {
-			if (equal(addr, ifa->ifa_addr) ||
-			    (ifa->ifa_dstaddr && equal(addr, ifa->ifa_dstaddr)))
+			if (sa_equal(addr, ifa->ifa_addr) ||
+			    (ifa->ifa_dstaddr &&
+			    sa_equal(addr, ifa->ifa_dstaddr)))
 				goto done;
 			continue;
 		}
 		if (ifp->if_flags & IFF_POINTOPOINT) {
-			if (equal(addr, ifa->ifa_dstaddr))
+			if (sa_equal(addr, ifa->ifa_dstaddr))
 				goto done;
 		} else {
 			cp = addr->sa_data;
@@ -1819,7 +1821,7 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa, struct ifmultiaddr **retifma
 	 * then don't add a new one, just add a reference
 	 */
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (equal(sa, ifma->ifma_addr)) {
+		if (sa_equal(sa, ifma->ifma_addr)) {
 			ifma->ifma_refcount++;
 			if (retifma)
 				*retifma = ifma;
@@ -1862,7 +1864,7 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa, struct ifmultiaddr **retifma
 
 	if (llsa != 0) {
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (equal(ifma->ifma_addr, llsa))
+			if (sa_equal(ifma->ifma_addr, llsa))
 				break;
 		}
 		if (ifma) {
@@ -1907,7 +1909,7 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	int s;
 
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-		if (equal(sa, ifma->ifma_addr))
+		if (sa_equal(sa, ifma->ifma_addr))
 			break;
 	if (ifma == 0)
 		return ENOENT;
@@ -1948,7 +1950,7 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	 * in that case.)
 	 */
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-		if (equal(sa, ifma->ifma_addr))
+		if (sa_equal(sa, ifma->ifma_addr))
 			break;
 	if (ifma == 0)
 		return 0;
@@ -2049,7 +2051,7 @@ ifmaof_ifpforaddr(struct sockaddr *sa, struct ifnet *ifp)
 	struct ifmultiaddr *ifma;
 
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-		if (equal(ifma->ifma_addr, sa))
+		if (sa_equal(ifma->ifma_addr, sa))
 			break;
 
 	return ifma;
