@@ -428,11 +428,13 @@ route_output(struct mbuf *m, struct socket *so)
 		RADIX_NODE_HEAD_LOCK(rnh);
 		rt = (struct rtentry *) rnh->rnh_lookup(info.rti_info[RTAX_DST],
 			info.rti_info[RTAX_NETMASK], rnh);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-		if (rt == NULL)		/* XXX looks bogus */
+		if (rt == NULL) {	/* XXX looks bogus */
+			RADIX_NODE_HEAD_UNLOCK(rnh);
 			senderr(ESRCH);
+		}
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 
 		switch(rtm->rtm_type) {
 
