@@ -3,7 +3,8 @@
 .PATH: ${.CURDIR}/../../fs/procfs
 
 KMOD=		procfs
-SRCS=		opt_compat.h
+SRCS=
+SRCS+=		opt_compat.h
 SRCS+=		vnode_if.h
 SRCS+=		procfs_ctl.c
 SRCS+=		procfs_dbregs.c
