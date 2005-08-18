@@ -1256,13 +1256,14 @@ bpf_mtap(bp, m)
 		BPFD_LOCK(d);
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, (u_char *)m, pktlen, 0);
-		if (slen != 0)
+		if (slen != 0) {
 			d->bd_fcount++;
 #ifdef MAC
 			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, (u_char *)m, pktlen, slen,
 				    bpf_mcopy);
+		}
 		BPFD_UNLOCK(d);
 	}
 	BPFIF_UNLOCK(bp);
@@ -1308,13 +1309,14 @@ bpf_mtap2(bp, data, dlen, m)
 		BPFD_LOCK(d);
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, (u_char *)&mb, pktlen, 0);
-		if (slen != 0)
+		if (slen != 0) {
 			d->bd_fcount++;
 #ifdef MAC
 			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, (u_char *)&mb, pktlen, slen,
 				    bpf_mcopy);
+		}
 		BPFD_UNLOCK(d);
 	}
 	BPFIF_UNLOCK(bp);
