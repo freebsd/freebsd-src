@@ -17,7 +17,6 @@
 
 		.set SIO_PRT,SIOPRT		# Base port
 		.set SIO_FMT,SIOFMT		# 8N1
-		.set SIO_DIV,(115200/SIOSPD)	# 115200 / SPD
 
 		.globl sio_init
 		.globl sio_flush
@@ -25,14 +24,14 @@
 		.globl sio_getc
 		.globl sio_ischar
 
-/* void sio_init(void) */
+/* void sio_init(int div) */
 
 sio_init:	movw $SIO_PRT+0x3,%dx		# Data format reg
 		movb $SIO_FMT|0x80,%al		# Set format
 		outb %al,(%dx)			#  and DLAB
 		pushl %edx			# Save
 		subb $0x3,%dl			# Divisor latch reg
-		movw $SIO_DIV,%ax		# Set
+		movl 0x8(%esp),%eax		# Set
 		outw %ax,(%dx)			#  BPS
 		popl %edx			# Restore
 		movb $SIO_FMT,%al		# Clear
@@ -41,6 +40,8 @@ sio_init:	movw $SIO_PRT+0x3,%dx		# Data format reg
 		movb $0x3,%al			# Set RTS,
 		outb %al,(%dx)			#  DTR
 		incl %edx			# Line status reg
+		call sio_flush
+		ret $0x4
 
 /* void sio_flush(void) */
 

@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2004
+.Dd August 18, 2005
 .Dt BOOT 8 i386
 .Os
 .Sh NAME
@@ -126,9 +126,12 @@ the listing will be of the relevant subdirectory.)
 .It Xo
 .Sm off
 .Ar bios_drive : interface ( unit , Oo Ar slice , Oc Ar part )
-.Sm on
 .Ar filename
+.Sm on
 .Op Fl aCcDdghmnPprsv
+.Sm off
+.Op Fl S Ar speed
+.Sm on
 .Xc
 Specify boot file and flags.
 .Bl -tag -width indent
@@ -186,9 +189,13 @@ slice) is booted from.
 The pathname of the file to boot (relative to the root directory
 on the specified partition).
 Defaults to
-.Pa /kernel .
+.Pa /boot/kernel/kernel .
 Symbolic links are not supported (hard links are).
-.It Fl aCcDdghmnPprsv
+.It Xo Op Fl aCcDdghmnPprsv
+.Sm off
+.Op Fl S Ar speed
+.Sm on
+.Xc
 Boot flags:
 .Pp
 .Bl -tag -width "-CXX" -compact
@@ -263,6 +270,17 @@ boot into single-user mode; if the console is marked as
 (see
 .Xr ttys 5 ) ,
 the root password must be entered.
+.It Xo Sm off
+.Fl S Ar speed
+.Sm on
+.Xc
+set the speed of the serial console to
+.Ar speed .
+The default is 9600 unless it has been overridden by setting
+.Va BOOT_COMCONSOLE_SPEED
+in
+.Pa /etc/make.conf
+and recompiling the boot blocks.
 .It Fl v
 be verbose during device probing (and later).
 .El
