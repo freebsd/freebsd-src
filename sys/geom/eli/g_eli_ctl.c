@@ -327,8 +327,7 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 	const char *name;
 	u_char *key, *mkeydst, *sector;
 	intmax_t *valp;
-	int nkey;
-	int keysize, error;
+	int keysize, nkey, error;
 
 	g_topology_assert();
 
@@ -364,6 +363,26 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 	if (nkey < 0 || nkey >= G_ELI_MAXMKEYS) {
 		gctl_error(req, "Invalid '%s' argument.", "keyno");
 		return;
+	}
+
+	valp = gctl_get_paraml(req, "iterations", sizeof(*valp));
+	if (valp == NULL) {
+		gctl_error(req, "No '%s' argument.", "iterations");
+		return;
+	}
+	/* Check if iterations number should and can be changed. */
+	if (*valp != -1) {
+		if (bitcount32(md.md_keys) != 1) {
+			gctl_error(req, "To be able to use '-i' option, only "
+			    "one key can be defined.");
+			return;
+		}
+		if (md.md_keys != (1 << nkey)) {
+			gctl_error(req, "Only already defined key can be "
+			    "changed when '-i' option is used.");
+			return;
+		}
+		md.md_iterations = *valp;
 	}
 
 	key = gctl_get_param(req, "key", &keysize);
