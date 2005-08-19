@@ -71,8 +71,12 @@ g_pc98_print(int i, struct pc98_partition *dp)
 	printf(" sname:%s\n", sname);
 }
 
+/*
+ * XXX: Add gctl_req arg and give good error msgs.
+ * XXX: Check that length argument does not bring boot code inside any slice.
+ */
 static int
-g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
+g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec, int len __unused)
 {
 	int i, error;
 	off_t s[NDOSPART], l[NDOSPART];
@@ -155,22 +159,32 @@ g_pc98_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct th
 	struct g_pc98_softc *ms;
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
-	int error;
+	int error, opened;
 
 	gp = pp->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
 
+	opened = 0;
+	error = 0;
 	switch(cmd) {
 	case DIOCSPC98: {
 		if (!(fflag & FWRITE))
 			return (EPERM);
 		DROP_GIANT();
 		g_topology_lock();
-		/* Validate and modify our slicer instance to match. */
-		error = g_pc98_modify(gp, ms, data);
 		cp = LIST_FIRST(&gp->consumer);
-		error = g_write_data(cp, 0, data, 8192);
+		if (cp->acw == 0) {
+			error = g_access(cp, 0, 1, 0);
+			if (error == 0)
+				opened = 1;
+		}
+		if (!error)
+			error = g_pc98_modify(gp, ms, data, 8192);
+		if (!error)
+			error = g_write_data(cp, 0, data, 8192);
+		if (opened)
+			g_access(cp, 0, -1 , 0);
 		g_topology_unlock();
 		PICKUP_GIANT();
 		return(error);
@@ -281,7 +295,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		ms->fwheads = fwheads;
 		ms->sectorsize = sectorsize;
 		g_topology_lock();
-		g_pc98_modify(gp, ms, buf);
+		g_pc98_modify(gp, ms, buf, 8192);
 		g_topology_unlock();
 		g_free(buf);
 		break;
@@ -295,11 +309,59 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	return (gp);
 }
 
+static void
+g_pc98_config(struct gctl_req *req, struct g_class *mp, const char *verb)
+{
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	struct g_pc98_softc *ms;
+	struct g_slicer *gsp;
+	int opened = 0, error = 0;
+	void *data;
+	int len;
+
+	g_topology_assert();
+	gp = gctl_get_geom(req, mp, "geom");
+	if (gp == NULL)
+		return;
+	if (strcmp(verb, "write PC98")) {
+		gctl_error(req, "Unknown verb");
+		return;
+	}
+	gsp = gp->softc;
+	ms = gsp->softc;
+	data = gctl_get_param(req, "data", &len);
+	if (data == NULL)
+		return;
+	if (len < 8192 || (len % 512)) {
+		gctl_error(req, "Wrong request length");
+		return;
+	}
+	cp = LIST_FIRST(&gp->consumer);
+	if (cp->acw == 0) {
+		error = g_access(cp, 0, 1, 0);
+		if (error == 0)
+			opened = 1;
+	}
+	if (!error)
+		error = g_pc98_modify(gp, ms, data, len);
+	if (error)
+		gctl_error(req, "conflict with open slices");
+	if (!error)
+		error = g_write_data(cp, 0, data, len);
+	if (error)
+		gctl_error(req, "sector zero write failed");
+	if (opened)
+		g_access(cp, 0, -1 , 0);
+	return;
+}
+
 static struct g_class g_pc98_class = {
 	.name = PC98_CLASS_NAME,
 	.version = G_VERSION,
 	.taste = g_pc98_taste,
 	.dumpconf = g_pc98_dumpconf,
+	.ctlreq = g_pc98_config,
 	.ioctl = g_pc98_ioctl,
 };
 
