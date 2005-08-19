@@ -148,7 +148,7 @@ struct g_eli_metadata {
 	uint64_t	md_provsize;	/* Provider's size. */
 	uint32_t	md_sectorsize;	/* Sector size. */
 	uint8_t		md_keys;	/* Available keys. */
-	int32_t		md_iterations;	/* Number of iterations for PKCS#5v2 */
+	int32_t		md_iterations;	/* Number of iterations for PKCS#5v2. */
 	uint8_t		md_salt[G_ELI_SALTLEN]; /* Salt. */
 			/* Encrypted master key (IV-key, Data-key, HMAC). */
 	uint8_t		md_mkeys[G_ELI_MAXMKEYS * G_ELI_MKEYLEN];
@@ -273,7 +273,7 @@ eli_metadata_dump(const struct g_eli_metadata *md)
 		str[i * 2] = hex[md->md_salt[i] >> 4];
 		str[i * 2 + 1] = hex[md->md_salt[i] & 0x0f];
 	}
-	printf("        Salt: %s\n", str);
+	printf("      Salt: %s\n", str);
 	bzero(str, sizeof(str));
 	for (i = 0; i < sizeof(md->md_mkeys); i++) {
 		str[i * 2] = hex[md->md_mkeys[i] >> 4];
@@ -285,7 +285,7 @@ eli_metadata_dump(const struct g_eli_metadata *md)
 		str[i * 2] = hex[md->md_hash[i] >> 4];
 		str[i * 2 + 1] = hex[md->md_hash[i] & 0x0f];
 	}
-	printf("    MD5 hash: %s\n", str);
+	printf("  MD5 hash: %s\n", str);
 }
 
 static __inline u_int
