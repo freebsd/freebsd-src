@@ -595,6 +595,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * If interface is marked up and it is stopped, then
 			 * start it.
 			 */
+			BRIDGE_UNLOCK(sc);
 			(*ifp->if_init)(sc);
 		}
 		break;
@@ -1212,8 +1213,10 @@ bridge_init(void *xsc)
 	callout_reset(&sc->sc_brcallout, bridge_rtable_prune_period * hz,
 	    bridge_timer, sc);
 
+	BRIDGE_LOCK(sc);
 	ifp->if_flags |= IFF_RUNNING;
 	bstp_initialization(sc);
+	BRIDGE_UNLOCK(sc);
 	return;
 }
 
@@ -1226,6 +1229,8 @@ void
 bridge_stop(struct ifnet *ifp, int disable)
 {
 	struct bridge_softc *sc = ifp->if_softc;
+
+	BRIDGE_LOCK_ASSERT(sc);
 
 	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
