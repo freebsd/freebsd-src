@@ -1569,13 +1569,13 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			break;
 
 		pml4e = pmap_pml4e(pmap, sva);
-		if (pml4e == 0) {
+		if ((*pml4e & PG_V) == 0) {
 			va_next = (sva + NBPML4) & ~PML4MASK;
 			continue;
 		}
 
 		pdpe = pmap_pdpe(pmap, sva);
-		if (pdpe == 0) {
+		if ((*pdpe & PG_V) == 0) {
 			va_next = (sva + NBPDP) & ~PDPMASK;
 			continue;
 		}
@@ -1586,8 +1586,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		va_next = (sva + NBPDR) & ~PDRMASK;
 
 		pde = pmap_pde(pmap, sva);
-		if (pde == 0)
-			continue;
 		ptpaddr = *pde;
 
 		/*
@@ -1724,13 +1722,13 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	for (; sva < eva; sva = va_next) {
 
 		pml4e = pmap_pml4e(pmap, sva);
-		if (pml4e == 0) {
+		if ((*pml4e & PG_V) == 0) {
 			va_next = (sva + NBPML4) & ~PML4MASK;
 			continue;
 		}
 
 		pdpe = pmap_pdpe(pmap, sva);
-		if (pdpe == 0) {
+		if ((*pdpe & PG_V) == 0) {
 			va_next = (sva + NBPDP) & ~PDPMASK;
 			continue;
 		}
@@ -1738,8 +1736,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		va_next = (sva + NBPDR) & ~PDRMASK;
 
 		pde = pmap_pde(pmap, sva);
-		if (pde == NULL)
-			continue;
 		ptpaddr = *pde;
 
 		/*
@@ -2263,13 +2259,13 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			break;
 		
 		pml4e = pmap_pml4e(src_pmap, addr);
-		if (pml4e == 0) {
+		if ((*pml4e & PG_V) == 0) {
 			va_next = (addr + NBPML4) & ~PML4MASK;
 			continue;
 		}
 
 		pdpe = pmap_pdpe(src_pmap, addr);
-		if (pdpe == 0) {
+		if ((*pdpe & PG_V) == 0) {
 			va_next = (addr + NBPDP) & ~PDPMASK;
 			continue;
 		}
@@ -2277,10 +2273,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		va_next = (addr + NBPDR) & ~PDRMASK;
 
 		pde = pmap_pde(src_pmap, addr);
-		if (pde)
-			srcptepaddr = *pde;
-		else
-			continue;
+		srcptepaddr = *pde;
 		if (srcptepaddr == 0)
 			continue;
 			
