@@ -268,6 +268,7 @@ int	aflag;		/* show all sockets (including servers) */
 int	bflag;		/* show i/f total bytes in/out */
 int	dflag;		/* show i/f dropped packets */
 int	gflag;		/* show group (multicast) routing or stats */
+int	hflag;		/* show counters in human readable format */
 int	iflag;		/* show interfaces */
 int	Lflag;		/* show size of listen queues */
 int	mflag;		/* show memory stats */
@@ -295,7 +296,7 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rSstuWw:z")) != -1)
+	while ((ch = getopt(argc, argv, "Aabdf:ghI:iLlM:mN:np:rSstuWw:z")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -337,6 +338,9 @@ main(int argc, char *argv[])
 			break;
 		case 'g':
 			gflag = 1;
+			break;
+		case 'h':
+			hflag = 1;
 			break;
 		case 'I': {
 			char *cp;
@@ -691,7 +695,7 @@ usage(void)
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-AaLnSW] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
-"       netstat -i | -I interface [-abdnt] [-f address_family]\n"
+"       netstat -i | -I interface [-abdhnt] [-f address_family]\n"
 "               [-M core] [-N system]",
 "       netstat -w wait [-I interface] [-d] [-M core] [-N system]",
 "       netstat -s [-s] [-z] [-f protocol_family | -p protocol] [-M core]",
