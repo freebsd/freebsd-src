@@ -96,15 +96,7 @@ static int ichsmb_wait(sc_p sc);
 int
 ichsmb_probe(device_t dev)
 {
-	device_t smb;
-
-	/* Add child: an instance of the "smbus" device */
-	if ((smb = device_add_child(dev, DRIVER_SMBUS, -1)) == NULL) {
-		log(LOG_ERR, "%s: no \"%s\" child found\n",
-		    device_get_nameunit(dev), DRIVER_SMBUS);
-		return (ENXIO);
-	}
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 /*
@@ -116,6 +108,13 @@ ichsmb_attach(device_t dev)
 {
 	const sc_p sc = device_get_softc(dev);
 	int error;
+
+	/* Add child: an instance of the "smbus" device */
+	if ((sc->smb = device_add_child(dev, DRIVER_SMBUS, -1)) == NULL) {
+		log(LOG_ERR, "%s: no \"%s\" child found\n",
+		    device_get_nameunit(dev), DRIVER_SMBUS);
+		return (ENXIO);
+	}
 
 	/* Clear interrupt conditions */
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_HST_STA, 0xff);
@@ -675,3 +674,14 @@ ichsmb_release_resources(sc_p sc)
 	}
 }
 
+int ichsmb_detach(device_t dev)
+{
+	const sc_p sc = device_get_softc(dev);
+
+	mtx_destroy(&sc->mutex);
+	bus_generic_detach(dev);
+	device_delete_child(dev, sc->smb);
+	ichsmb_release_resources(sc);
+	
+	return 0;
+}
