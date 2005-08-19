@@ -336,8 +336,10 @@ cryptodev_op(
 	if (cop->len > 256*1024-4)
 		return (E2BIG);
 
-	if (cse->txform && (cop->len % cse->txform->blocksize) != 0)
-		return (EINVAL);
+	if (cse->txform) {
+		if (cop->len == 0 || (cop->len % cse->txform->blocksize) != 0)
+			return (EINVAL);
+	}
 
 	cse->uio.uio_iov = &cse->iovec;
 	cse->uio.uio_iovcnt = 1;
