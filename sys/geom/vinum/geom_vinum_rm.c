@@ -244,21 +244,17 @@ gv_rm_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, int fla
 static int
 gv_rm_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *s, int flags)
 {
-	struct gv_drive *d;
-	struct g_geom *gp;
 	struct g_provider *pp;
 
 	KASSERT(s != NULL, ("gv_rm_sd: NULL s"));
-	d = s->drive_sc;
-	KASSERT(d != NULL, ("gv_rm_sd: NULL d"));
-	gp = d->geom;
-	KASSERT(gp != NULL, ("gv_rm_sd: NULL gp"));
 
 	pp = s->provider;
 
 	/* Clean up. */
-	LIST_REMOVE(s, in_plex);
-	LIST_REMOVE(s, from_drive);
+	if (s->plex_sc)
+		LIST_REMOVE(s, in_plex);
+	if (s->drive_sc)
+		LIST_REMOVE(s, from_drive);
 	LIST_REMOVE(s, sd);
 	gv_free_sd(s);
 	g_free(s);
@@ -389,8 +385,10 @@ gv_free_sd(struct gv_sd *s)
 	struct gv_freelist *fl, *fl2;
 
 	KASSERT(s != NULL, ("gv_free_sd: NULL s"));
+
 	d = s->drive_sc;
-	KASSERT(d != NULL, ("gv_free_sd: NULL d"));
+	if (d == NULL)
+		return;
 
 	/*
 	 * First, find the free slot that's immediately before or after this

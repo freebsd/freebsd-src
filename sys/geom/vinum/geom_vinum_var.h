@@ -189,6 +189,7 @@ struct gv_drive {
 #define	GV_DRIVE_THREAD_ACTIVE	0x01	/* Drive has an active worker thread. */
 #define	GV_DRIVE_THREAD_DIE	0x02	/* Signal the worker thread to die. */
 #define	GV_DRIVE_THREAD_DEAD	0x04	/* The worker thread has died. */
+#define	GV_DRIVE_NEWBORN	0x08	/* The drive was just created. */
 
 	struct gv_hdr	*hdr;			/* The drive header. */
 
@@ -311,6 +312,7 @@ struct gv_volume {
 	LIST_HEAD(,gv_plex)   plexes;	/* List of attached plexes. */
 	LIST_ENTRY(gv_volume) volume;	/* Entry in vinum config. */
 
+	struct gv_plex	*last_read_plex;
 	struct g_geom	*geom;		/* The geom of this volume. */
 	struct gv_softc	*vinumconf;	/* Pointer to the vinum config. */
 };
