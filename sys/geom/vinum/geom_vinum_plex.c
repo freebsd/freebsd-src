@@ -727,7 +727,10 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	/* Now find the correct plex where this subdisk belongs to. */
 	p = gv_find_plex(sc, s->plex);
-	KASSERT(p != NULL, ("gv_plex_taste: NULL p"));
+	if (p == NULL) {
+		printf("gv_plex_taste: NULL p for '%s'\n", s->name);
+		return (NULL);
+	}
 
 	/*
 	 * Add this subdisk to this plex.  Since we trust the on-disk

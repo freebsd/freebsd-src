@@ -113,7 +113,12 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 	KASSERT(d != NULL, ("gv_save_config: null d"));
 	KASSERT(sc != NULL, ("gv_save_config: null sc"));
 
-	if (d->state != GV_DRIVE_UP)
+	/*
+	 * We can't save the config on a drive that isn't up, but drives that
+	 * were just created aren't officially up yet, so we check a special
+	 * flag.
+	 */
+	if ((d->state != GV_DRIVE_UP) && !(d->flags && GV_DRIVE_NEWBORN))
 		return;
 
 	if (cp == NULL) {
