@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <err.h>
 #include <errno.h>
+#include <libgeom.h>
 #include <paths.h>
 #include <regex.h>
 #include <stdint.h>
@@ -81,7 +82,7 @@ struct mboot {
 };
 
 static struct mboot mboot;
-static int fd, fdw;
+static int fd;
 
 #define ACTIVE 0x80
 
@@ -160,7 +161,7 @@ static char *get_rootdisk(void);
 static void dos(u_int32_t start, u_int32_t size, struct pc98_partition *partp);
 static int open_disk(int flag);
 static ssize_t read_disk(off_t sector, void *buf);
-static ssize_t write_disk(off_t sector, void *buf);
+static int write_disk(off_t sector, void *buf);
 static int get_params(void);
 static int read_s0(void);
 static int write_s0(void);
@@ -560,10 +561,8 @@ static int
 open_disk(int flag)
 {
 	struct stat 	st;
-	int rwmode, p;
-	char *s;
+	int rwmode;
 
-	fdw = -1;
 	if (stat(disk, &st) == -1) {
 		if (errno == ENOENT)
 			return -2;
@@ -574,23 +573,10 @@ open_disk(int flag)
 		warnx("device %s is not character special", disk);
 	rwmode = a_flag || B_flag || flag ? O_RDWR : O_RDONLY;
 	fd = open(disk, rwmode);
+	if (fd == -1 && errno == EPERM && rwmode == O_RDWR)
+		fd = open(disk, O_RDONLY);
 	if (fd == -1 && errno == ENXIO)
 		return -2;
-	if (fd == -1 && errno == EPERM && rwmode == O_RDWR) {
-		fd = open(disk, O_RDONLY);
-		if (fd == -1)
-			return -3;
-		for (p = 0; p < NDOSPART; p++) {
-			asprintf(&s, "%ss%d", disk, p + 1);
-			fdw = open(s, rwmode);
-			free(s);
-			if (fdw == -1)
-				continue;
-			break;
-		}
-		if (fdw == -1)
-			return -4;
-	}
 	if (fd == -1) {
 		warnx("can't open device %s", disk);
 		return -1;
@@ -611,18 +597,46 @@ read_disk(off_t sector, void *buf)
 		    secsize > MIN_SEC_SIZE ? secsize : MIN_SEC_SIZE * 2);
 }
 
-static ssize_t
+static int
 write_disk(off_t sector, void *buf)
 {
+	int error;
+	struct gctl_req *grq;
+	const char *q;
+	char fbuf[BUFSIZ];
+	int i, fdw;
 
-	if (fdw != -1) {
-		return ioctl(fdw, DIOCSPC98, buf);
-	} else {
-		lseek(fd, (sector * 512), 0);
-		/* write out in the size that the read_disk found worked */
-		return write(fd, buf,
-		     secsize > MIN_SEC_SIZE ? secsize : MIN_SEC_SIZE * 2);
+	grq = gctl_get_handle();
+	gctl_ro_param(grq, "verb", -1, "write PC98");
+	gctl_ro_param(grq, "class", -1, "PC98");
+	q = strrchr(disk, '/');
+	if (q == NULL)
+		q = disk;
+	else
+		q++;
+	gctl_ro_param(grq, "geom", -1, q);
+	gctl_ro_param(grq, "data", secsize, buf);
+	q = gctl_issue(grq);
+	if (q == NULL)
+		return(0);
+	warnx("%s", q);
+
+	error = pwrite(fd, buf, secsize, (sector * 512));
+	if (error == secsize)
+		return (0);
+
+	for (i = 0; i < NDOSPART; i++) {
+		sprintf(fbuf, "%ss%d", disk, i + 1);
+		fdw = open(fbuf, O_RDWR, 0);
+		if (fdw < 0)
+			continue;
+		error = ioctl(fdw, DIOCSPC98, buf);
+		close(fdw);
+		if (error == 0)
+			return (0);
 	}
+	warnx("Failed to write sector zero");
+	return(EINVAL);
 }
 
 static int

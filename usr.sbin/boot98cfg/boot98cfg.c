@@ -27,8 +27,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -57,13 +55,17 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/diskpc98.h>
+#include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgeom.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,95 +77,18 @@
 #define	BOOTMENUSIZE		7168		/* Max HDD boot menu size */
 #define	BOOTMENUOFF		0x400
 
-static	char *mkrdev(char *);
-static	void usage(void);
-static	int read_boot(const char *, u_char *);
-static	int write_boot(const char *, u_char *);
-
 u_char	boot0buf[BOOTSIZE];
 u_char	ipl[IPLSIZE];
 u_char	menu[BOOTMENUSIZE];
 
+static	int read_boot(const char *, u_char *);
+static	int write_boot(const char *, u_char *);
+static	char *mkrdev(const char *);
+static	void usage(void);
+
 /*
- * Produce a device path for a "canonical" name, where appropriate.
+ * Boot manager installation/configuration utility.
  */
-static char *
-mkrdev(char *fname)
-{
-    char buf[MAXPATHLEN];
-    struct stat sb;
-    char *s;
-
-    s = (char *)fname;
-    if (!strchr(fname, '/')) {
-        snprintf(buf, sizeof(buf), "%sr%s", _PATH_DEV, fname);
-        if (stat(buf, &sb))
-            snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
-        if (!(s = strdup(buf)))
-            err(1, NULL);
-    }
-    return s;
-}
-
-static void
-usage(void)
-{
-	fprintf(stderr,
-	    "boot98cfg [-B][-i boot0][-m boot0.5][-s secsize][-v version]\n"
-	    "          [-f ipl.bak][-F menu.bak] disk\n");
-	exit(1);
-}
-
-static int
-read_boot(const char *disk, u_char *boot)
-{
-	int fd, n;
-
-	/* Read IPL, partition table and HDD boot menu. */
-	fd = open(disk, O_RDONLY);
-	if (fd < 0)
-		err(1, "%s", disk);
-	n = read(fd, boot, BOOTSIZE);
-	if (n != BOOTSIZE)
-		errx(1, "%s: short read", disk);
-	close(fd);
-
-	return 0;
-}
-
-static int
-write_boot(const char *disk, u_char *boot)
-{
-	int fd, n, i;
-	char buf[MAXPATHLEN];
-
-	fd = open(disk, O_RDWR);
-	if (fd != -1) {
-		if (lseek(fd, 0, SEEK_SET) == -1)
-			err(1, "%s", disk);
-		if ((n = write(fd, boot, BOOTSIZE)) < 0)
-			err(1, "%s", disk);
-		if (n != BOOTSIZE)
-			errx(1, "%s: short write", disk);
-		close(fd);
-		return 0;
-	}
-
-	for (i = 0; i < NDOSPART; i++) {
-		snprintf(buf, sizeof(buf), "%ss%d", disk, i + 1);
-		fd = open(buf, O_RDONLY);
-		if (fd < 0)
-			continue;
-		n = ioctl(fd, DIOCSPC98, boot);
-		if (n != 0)
-			err(1, "%s: ioctl DIOCSPC98", disk);
-		close(fd);
-		return 0;
-	}
-
-	err(1, "%s", disk);
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -292,4 +217,103 @@ main(int argc, char *argv[])
 		write_boot(disk, boot0buf);
 
 	return 0;
+}
+
+static int
+read_boot(const char *disk, u_char *boot)
+{
+	int fd, n;
+
+	/* Read IPL, partition table and HDD boot menu. */
+	fd = open(disk, O_RDONLY);
+	if (fd < 0)
+		err(1, "%s", disk);
+	n = read(fd, boot, BOOTSIZE);
+	if (n != BOOTSIZE)
+		errx(1, "%s: short read", disk);
+	close(fd);
+
+	return 0;
+}
+
+static int
+write_boot(const char *disk, u_char *boot)
+{
+	int fd, n, i;
+	char buf[MAXPATHLEN];
+	const char *q;
+	struct gctl_req *grq;
+
+	fd = open(disk, O_WRONLY, 0666);
+	if (fd != -1) {
+		if ((n = write(fd, boot, BOOTSIZE)) < 0)
+			err(1, "%s", disk);
+		if (n != BOOTSIZE)
+			errx(1, "%s: short write", disk);
+		close(fd);
+		return 0;
+	}
+
+	grq = gctl_get_handle();
+	gctl_ro_param(grq, "verb", -1, "write PC98");
+	gctl_ro_param(grq, "class", -1, "PC98");
+	q = strrchr(disk, '/');
+	if (q == NULL)
+		q = disk;
+	else
+		q++;
+	gctl_ro_param(grq, "geom", -1, q);
+	gctl_ro_param(grq, "data", BOOTSIZE, boot);
+	q = gctl_issue(grq);
+	if (q == NULL)
+		return 0;
+
+	warnx("%s: %s", disk, q);
+	gctl_free(grq);
+
+	for (i = 0; i < NDOSPART; i++) {
+		snprintf(buf, sizeof(buf), "%ss%d", disk, i + 1);
+		fd = open(buf, O_RDONLY);
+		if (fd < 0)
+			continue;
+		n = ioctl(fd, DIOCSPC98, boot);
+		if (n != 0)
+			err(1, "%s: ioctl DIOCSPC98", disk);
+		close(fd);
+		return 0;
+	}
+
+	err(1, "%s", disk);
+}
+
+/*
+ * Produce a device path for a "canonical" name, where appropriate.
+ */
+static char *
+mkrdev(const char *fname)
+{
+    char buf[MAXPATHLEN];
+    char *s;
+
+    if (!strchr(fname, '/')) {
+	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
+        s = strdup(buf);
+    } else
+        s = strdup(fname);
+
+    if (s == NULL)
+        errx(1, "No more memory");
+    return s;
+}
+
+/*
+ * Display usage information.
+ */
+static void
+usage(void)
+{
+	fprintf(stderr,
+	    "boot98cfg [-B][-i boot0][-m boot0.5][-s secsize][-v version]\n"
+	    "          [-f ipl.bak][-F menu.bak] disk\n");
+	exit(1);
 }
