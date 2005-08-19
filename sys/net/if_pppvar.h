@@ -110,4 +110,3 @@ int	pppoutput(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 void	ppp_restart(struct ppp_softc *sc);
 void	ppppktin(struct ppp_softc *sc, struct mbuf *m, int lost);
 struct	mbuf *ppp_dequeue(struct ppp_softc *sc);
-struct	ppp_softc *ppp_for_tty(struct tty *);
