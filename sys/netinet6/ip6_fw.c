@@ -114,17 +114,9 @@ static int fw6_verbose_limit = 0;
 
 static LIST_HEAD (ip6_fw_head, ip6_fw_chain) ip6_fw_chain;
 
-#ifdef SYSCTL_NODE
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, fw, CTLFLAG_RW | CTLFLAG_SECURE,
-    0, "Firewall");
-SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, enable, CTLFLAG_RW | CTLFLAG_SECURE,
-	&ip6_fw_enable, 0, "Enable ip6fw");
-SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, debug, CTLFLAG_RW, &fw6_debug, 0, "");
-SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose, CTLFLAG_RW | CTLFLAG_SECURE,
-    &fw6_verbose, 0, "");
-SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw6_verbose_limit, 0, "");
-#endif
+static struct sysctl_ctx_list	ip6_fw_sysctl_ctx;
+static struct sysctl_oid	*ip6_fw_sysctl_tree;
 
 #define dprintf(a)	do {						\
 				if (fw6_debug)				\
@@ -1245,6 +1237,22 @@ ip6_fw_init(void)
 		add_entry6(&ip6_fw_chain, &default_rule))
 		panic(__func__);
 
+	/* Setup our sysctl tree */
+	sysctl_ctx_init(&ip6_fw_sysctl_ctx);
+	ip6_fw_sysctl_tree = SYSCTL_ADD_NODE(&ip6_fw_sysctl_ctx,
+	    SYSCTL_STATIC_CHILDREN(_net_inet6_ip6), OID_AUTO, "fw",
+	    CTLFLAG_RW | CTLFLAG_SECURE, 0, "Firewall");
+	SYSCTL_ADD_INT(&ip6_fw_sysctl_ctx, SYSCTL_CHILDREN(ip6_fw_sysctl_tree),
+	    OID_AUTO, "enable", CTLFLAG_RW | CTLFLAG_SECURE, &ip6_fw_enable, 0,
+	    "Enable ip6fw");
+	SYSCTL_ADD_INT(&ip6_fw_sysctl_ctx, SYSCTL_CHILDREN(ip6_fw_sysctl_tree),
+	    OID_AUTO, "debug", CTLFLAG_RW, &fw6_debug, 0, "");
+	SYSCTL_ADD_INT(&ip6_fw_sysctl_ctx, SYSCTL_CHILDREN(ip6_fw_sysctl_tree),
+	    OID_AUTO, "verbose", CTLFLAG_RW | CTLFLAG_SECURE, &fw6_verbose, 0,
+	    "");
+	SYSCTL_ADD_INT(&ip6_fw_sysctl_ctx, SYSCTL_CHILDREN(ip6_fw_sysctl_tree),
+	    OID_AUTO, "verbose_limit", CTLFLAG_RW, &fw6_verbose_limit, 0, "");
+
 	printf("IPv6 packet filtering initialized, ");
 #ifdef IPV6FIREWALL_DEFAULT_TO_ACCEPT
 	printf("default to accept, ");
@@ -1288,6 +1296,9 @@ ip6fw_modevent(module_t mod, int type, void *unused)
 			free(fcp->rule, M_IP6FW);
 			free(fcp, M_IP6FW);
 		}
+
+		/* Free sysctl tree */
+		sysctl_ctx_free(&ip6_fw_sysctl_ctx);
 
 		splx(s);
 		printf("IPv6 firewall unloaded\n");
