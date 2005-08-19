@@ -18,6 +18,7 @@ SRCS+=	cp-demangle.c
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
 CFLAGS+=	-I${SRCDIR} -I${GCCDIR} -I${.CURDIR}/../libstdc++
+CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections
 
 HDRS=	exception new typeinfo cxxabi.h exception_defines.h
