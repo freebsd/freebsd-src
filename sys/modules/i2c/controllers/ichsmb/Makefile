@@ -1,4 +1,4 @@
-#$FreeBSD$
+# $FreeBSD$
 
 .PATH:		${.CURDIR}/../../../../dev/ichsmb
 KMOD		= ichsmb
