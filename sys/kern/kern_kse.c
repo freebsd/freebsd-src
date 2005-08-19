@@ -707,8 +707,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * Make the new upcall available to the ksegrp.
 	 * It may or may not use it, but it's available.
 	 */
-	PROC_UNLOCK(p);
 	upcall_link(newku, newkg);
+	PROC_UNLOCK(p);
 	if (mbx.km_quantum)
 		newkg->kg_upquantum = max(1, mbx.km_quantum / tick);
 
@@ -1441,7 +1441,7 @@ thread_continued(struct proc *p)
 	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(P_SHOULDSTOP(p), "process not stopped");
 
 	if (!(p->p_flag & P_SA))
 		return;
@@ -1455,11 +1455,10 @@ thread_continued(struct proc *p)
 			if (!(td->td_pflags & TDP_SA))
 				continue;
 			FOREACH_UPCALL_IN_GROUP(kg, ku) {
+				mtx_lock_spin(&sched_lock);
 				ku->ku_flags |= KUF_DOUPCALL;
+				mtx_unlock_spin(&sched_lock);
 				wakeup(&kg->kg_completed);
-				if (TD_IS_SUSPENDED(ku->ku_owner)) {
-					thread_unsuspend_one(ku->ku_owner);
-				}	
 			}
 		}
 	}
