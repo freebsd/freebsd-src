@@ -233,4 +233,3 @@ fail:
 MODULE_DEPEND(ichsmb, pci, 1, 1, 1);
 MODULE_DEPEND(ichsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(ichsmb, 1);
-;
