@@ -23,6 +23,7 @@ CFLAGS+= -DHAVE_GTHR_DEFAULT -DIN_GCC -DIN_TARGET_LIBS
 CFLAGS+= -I. -I${.CURDIR}/../../usr.bin/cc/cc_tools
 CFLAGS+= -I${OBJCDIR}/objc -I${OBJCDIR} 
 CFLAGS+= -I${GCCDIR}/config -I${GCCDIR}
+CFLAGS+= -frandom-seed=RepeatabilityConsideredGood
 
 GENHDRS=	runtime-info.h tconfig.h tm.h
 CLEANFILES+=	${GENHDRS}
