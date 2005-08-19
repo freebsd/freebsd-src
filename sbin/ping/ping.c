@@ -142,6 +142,7 @@ int options;
 #define	F_HDRINCL	0x40000
 #define	F_MASK		0x80000
 #define	F_TIME		0x100000
+#define	F_SWEEP		0x200000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -175,6 +176,12 @@ long npackets;			/* max packets to transmit */
 long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
 long ntransmitted;		/* sequence # for outbound packets = #sent */
+long snpackets;			/* max packets to transmit in one sweep */
+long snreceived;		/* # of packets we got back in this sweep */
+long sntransmitted;		/* # of packets we sent in this sweep */
+int sweepmax;			/* max value of payload in sweep */
+int sweepmin = 0;		/* start value of payload in sweep */
+int sweepincr = 1;		/* payload increment in sweep */
 int interval = 1000;		/* interval between packets, ms */
 
 /* timing */
@@ -254,7 +261,7 @@ main(argc, argv)
 
 	outpack = outpackhdr + sizeof(struct ip);
 	while ((ch = getopt(argc, argv,
-		"Aac:DdfI:i:Ll:M:m:nop:QqRrS:s:T:t:vz:"
+		"Aac:DdfG:g:h:I:i:Ll:M:m:nop:QqRrS:s:T:t:vz:"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -291,6 +298,48 @@ main(argc, argv)
 			}
 			options |= F_FLOOD;
 			setbuf(stdout, (char *)NULL);
+			break;
+		case 'G': /* Maximum packet size for ping sweep */
+			ultmp = strtoul(optarg, &ep, 0);
+			if (*ep || ep == optarg)
+				errx(EX_USAGE, "invalid packet size: `%s'",
+				    optarg);
+			if (uid != 0 && ultmp > DEFDATALEN) {
+				errno = EPERM;
+				err(EX_NOPERM,
+				    "packet size too large: %lu > %u",
+				    ultmp, DEFDATALEN);
+			}
+			options |= F_SWEEP;
+			sweepmax = ultmp;
+			break;
+		case 'g': /* Minimum packet size for ping sweep */
+			ultmp = strtoul(optarg, &ep, 0);
+			if (*ep || ep == optarg)
+				errx(EX_USAGE, "invalid packet size: `%s'",
+				    optarg);
+			if (uid != 0 && ultmp > DEFDATALEN) {
+				errno = EPERM;
+				err(EX_NOPERM,
+				    "packet size too large: %lu > %u",
+				    ultmp, DEFDATALEN);
+			}
+			options |= F_SWEEP;
+			sweepmin = ultmp;
+			break;
+		case 'h': /* Packet size increment for ping sweep */
+			ultmp = strtoul(optarg, &ep, 0);
+			if (*ep || ep == optarg || ultmp < 1)
+				errx(EX_USAGE, "invalid increment size: `%s'",
+				    optarg);
+			if (uid != 0 && ultmp > DEFDATALEN) {
+				errno = EPERM;
+				err(EX_NOPERM,
+				    "packet size too large: %lu > %u",
+				    ultmp, DEFDATALEN);
+			}
+			options |= F_SWEEP;
+			sweepincr = ultmp;
 			break;
 		case 'I':		/* multicast interface */
 			if (inet_aton(optarg, &ifaddr) == 0)
@@ -643,6 +692,23 @@ main(argc, argv)
 		err(EX_OSERR, "setsockopt SO_TIMESTAMP");
 	}
 #endif
+	if (sweepmax) {
+		if (sweepmin >= sweepmax)
+			errx(EX_USAGE, "Maximum packet size must be greater than the minimum packet size");
+
+		if (datalen != DEFDATALEN)
+			errx(EX_USAGE, "Packet size and ping sweep are mutually exclusive");
+
+		if (npackets > 0) {
+			snpackets = npackets;
+			npackets = 0;
+		} else
+			snpackets = 1;
+		datalen = sweepmin;
+		send_len = icmp_len + sweepmin;
+	}
+	if (options & F_SWEEP && !sweepmax) 
+		errx(EX_USAGE, "Maximum sweep size must be specified");
 
 	/*
 	 * When pinging the broadcast address, you can get a lot of answers.
@@ -668,9 +734,19 @@ main(argc, argv)
 		    inet_ntoa(to->sin_addr));
 		if (source)
 			(void)printf(" from %s", shostname);
-		(void)printf(": %d data bytes\n", datalen);
-	} else
-		(void)printf("PING %s: %d data bytes\n", hostname, datalen);
+		if (sweepmax)
+			(void)printf(": (%d ... %d) data bytes\n",
+			    sweepmin, sweepmax);
+		else 
+			(void)printf(": %d data bytes\n", datalen);
+		
+	} else {
+		if (sweepmax)
+			(void)printf("PING %s: (%d ... %d) data bytes\n",
+			    hostname, sweepmin, sweepmax);
+		else
+			(void)printf("PING %s: %d data bytes\n", hostname, datalen);
+	}
 
 	/*
 	 * Use sigaction() instead of signal() to get unambiguous semantics,
@@ -784,6 +860,15 @@ main(argc, argv)
 				break;
 		}
 		if (n == 0 || options & F_FLOOD) {
+			if (sweepmax && sntransmitted == snpackets) {
+				for (i = 0; i < sweepincr ; ++i) 
+					*datap++ = i;
+				datalen += sweepincr;
+				if (datalen > sweepmax)
+					break;
+				send_len = icmp_len + datalen;
+				sntransmitted = 0;
+			} 
 			if (!npackets || ntransmitted < npackets)
 				pinger();
 			else {
@@ -901,6 +986,7 @@ pinger(void)
 		}
 	}
 	ntransmitted++;
+	sntransmitted++;
 	if (!(options & F_QUIET) && options & F_FLOOD)
 		(void)write(STDOUT_FILENO, &DOT, 1);
 }
@@ -1600,10 +1686,11 @@ static void
 usage()
 {
 
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: ping [-AaDdfnoQqRrv] [-c count] [-i wait] [-l preload] [-M mask | time]",
 "            [-m ttl]" SECOPT " [-p pattern] [-S src_addr] [-s packetsize]",
-"            [-t timeout] [-z tos] host",
+"            [-t timeout] [-z tos] [-G sweepmaxsize ] [-g sweepminsize ]",
+"            [-h sweepincrsize ] host", 
 "       ping [-AaDdfLnoQqRrv] [-c count] [-I iface] [-i wait] [-l preload]",
 "            [-M mask | time] [-m ttl]" SECOPT " [-p pattern] [-S src_addr]",
 "            [-s packetsize] [-T ttl] [-t timeout] [-z tos] mcast-group");
