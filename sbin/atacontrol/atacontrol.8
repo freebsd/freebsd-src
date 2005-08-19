@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2005
+.Dd August 16, 2005
 .Dt ATACONTROL 8
 .Os
 .Sh NAME
@@ -88,7 +88,7 @@ exercise caution when using this command!
 .Pp
 The
 .Ar channel
-argument is the number of the ATA channel on which to operate.
+argument is the ATA channel device (e.g., ata0) on which to operate.
 The following commands are supported:
 .Bl -tag -width "rebuild"
 .It Ic attach
@@ -197,6 +197,11 @@ Show info about the attached devices on the
 Show info about all attached devices on all active controllers.
 .El
 .Sh EXAMPLES
+To get information on devices attached to a channel,                                             
+use the command line:                                                                            
+.Pp                                                                                               
+.Dl "atacontrol info ata0"                                                                        
+.Pp
 To see the devices' current access modes, use the command line:
 .Pp
 .Dl "atacontrol mode ad0"
