@@ -120,7 +120,7 @@ mutex_init(pthread_mutex_t *mutex,
 
 	/* Check mutex type: */
 	else if (((*mutex_attr)->m_type < PTHREAD_MUTEX_ERRORCHECK) ||
-	    ((*mutex_attr)->m_type >= MUTEX_TYPE_MAX))
+	    ((*mutex_attr)->m_type >= PTHREAD_MUTEX_TYPE_MAX))
 		/* Return an invalid argument error: */
 		ret = EINVAL;
 
