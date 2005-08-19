@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <kvm.h>
 #include <limits.h>
+#include <memstat.h>
 #include <nlist.h>
 #include <paths.h>
 #include <stdio.h>
@@ -153,7 +154,6 @@ static void	doforkst(void);
 static void	domem(void);
 static void	dointr(void);
 static void	dosum(void);
-static void	dosysctl(const char *);
 static void	dovmstat(unsigned int, int);
 static void	dozmem(void);
 static void	kread(int, void *, size_t);
@@ -897,6 +897,80 @@ dointr(void)
 	    (long long)inttotal, (long long)(inttotal / uptime));
 }
 
+static void
+domemstat_malloc(void)
+{
+	struct memory_type_list *mtlp;
+	struct memory_type *mtp;
+	int first, i;
+
+	mtlp = memstat_mtl_alloc();
+	if (mtlp == NULL) {
+		warn("memstat_mtl_alloc");
+		return;
+	}
+	if (memstat_sysctl_malloc(mtlp, 0) < 0) {
+		warnx("memstat_sysctl_malloc: %s",
+		    memstat_strerror(memstat_mtl_geterror(mtlp)));
+		return;
+	}
+	printf("%13s %5s %6s %7s %8s  Size(s)\n", "Type", "InUse", "MemUse",
+	    "HighUse", "Requests");
+	for (mtp = memstat_mtl_first(mtlp); mtp != NULL;
+	    mtp = memstat_mtl_next(mtp)) {
+		if (memstat_get_numallocs(mtp) == 0 &&
+		    memstat_get_count(mtp) == 0)
+			continue;
+		printf("%13s %5lld %5lldK %7s %8lld  ",
+		    memstat_get_name(mtp), memstat_get_count(mtp),
+		    ((int64_t)memstat_get_bytes(mtp) + 1023) / 1024, "-",
+		    memstat_get_numallocs(mtp));
+		first = 1;
+		for (i = 0; i < 32; i++) {
+			if (memstat_get_sizemask(mtp) & (1 << i)) {
+				if (!first)
+					printf(",");
+				printf("%d", 1 << (i + 4));
+				first = 0;
+			}
+		}
+		printf("\n");
+	}
+	memstat_mtl_free(mtlp);
+}
+
+static void
+domemstat_zone(void)
+{
+	struct memory_type_list *mtlp;
+	struct memory_type *mtp;
+	char name[MEMTYPE_MAXNAME + 1];
+
+	mtlp = memstat_mtl_alloc();
+	if (mtlp == NULL) {
+		warn("memstat_mtl_alloc");
+		return;
+	}
+	if (memstat_sysctl_uma(mtlp, 0) < 0) {
+		warnx("memstat_sysctl_uma: %s",
+		    memstat_strerror(memstat_mtl_geterror(mtlp)));
+		return;
+	}
+	printf("%-15s %-8s %-9s %-7s %-5s %-8s\n\n", "ITEM", "SIZE", "LIMIT",
+	    "USED", "FREE", "REQUESTS");
+	for (mtp = memstat_mtl_first(mtlp); mtp != NULL;
+	    mtp = memstat_mtl_next(mtp)) {
+		strlcpy(name, memstat_get_name(mtp), MEMTYPE_MAXNAME);
+		strcat(name, ":");
+		printf("%-15s %4llu, %8llu, %7llu, %6llu, %8llu\n", name,
+		    memstat_get_size(mtp), memstat_get_countlimit(mtp),
+		    memstat_get_count(mtp), memstat_get_free(mtp),
+		    memstat_get_numallocs(mtp));
+	}
+	memstat_mtl_free(mtlp);
+	printf("\n");
+}
+
 /*
  * domem() replicates the kernel implementation of kern.malloc by inspecting
  * kernel data structures, which is appropriate for use on a core dump.
@@ -915,7 +989,7 @@ domem(void)
 	int i;
 	
 	if (kd == NULL) {
-		dosysctl("kern.malloc");
+		domemstat_malloc();
 		return;
 	}
 	kread(X_KMEMSTATS, &type.ks_next, sizeof(type.ks_next));
@@ -991,25 +1065,7 @@ dozmem(void)
 {
 	if (kd != NULL)
 		errx(1, "not implemented");
-	dosysctl("vm.zone");
-}
-
-static void
-dosysctl(const char *name)
-{
-	char *buf;
-	size_t bufsize;
-
-	for (buf = NULL, bufsize = 1024; ; bufsize *= 2) {
-		if ((buf = realloc(buf, bufsize)) == NULL)
-			err(1, "realloc()");
-		bufsize--;	/* Leave space for the kern.malloc fixup. */
-		if (mysysctl(name, buf, &bufsize, NULL, 0) == 0)
-			break;
-	}
-	buf[bufsize] = '\0';	/* Fix up kern.malloc not returning a string. */
-	(void)printf("%s", buf);
-	free(buf);
+	domemstat_zone();
 }
 
 /*
