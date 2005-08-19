@@ -1008,58 +1008,6 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 		ia32_pause();
 }
 
-/*
- * This is about as magic as it gets.  fortune(1) has got similar code
- * for reversing bits in a word.  Who thinks up this stuff??
- *
- * Yes, it does appear to be consistently faster than:
- * while (i = ffs(m)) {
- *	m >>= i;
- *	bits++;
- * }
- * and
- * while (lsb = (m & -m)) {	// This is magic too
- * 	m &= ~lsb;		// or: m ^= lsb
- *	bits++;
- * }
- * Both of these latter forms do some very strange things on gcc-3.1 with
- * -mcpu=pentiumpro and/or -march=pentiumpro and/or -O or -O2.
- * There is probably an SSE or MMX popcnt instruction.
- *
- * I wonder if this should be in libkern?
- *
- * XXX Stop the presses!  Another one:
- * static __inline u_int32_t
- * popcnt1(u_int32_t v)
- * {
- *	v -= ((v >> 1) & 0x55555555);
- *	v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
- *	v = (v + (v >> 4)) & 0x0F0F0F0F;
- *	return (v * 0x01010101) >> 24;
- * }
- * The downside is that it has a multiply.  With a pentium3 with
- * -mcpu=pentiumpro and -march=pentiumpro then gcc-3.1 will use
- * an imull, and in that case it is faster.  In most other cases
- * it appears slightly slower.
- *
- * Another variant (also from fortune):
- * #define BITCOUNT(x) (((BX_(x)+(BX_(x)>>4)) & 0x0F0F0F0F) % 255)
- * #define  BX_(x)     ((x) - (((x)>>1)&0x77777777)            \
- *                          - (((x)>>2)&0x33333333)            \
- *                          - (((x)>>3)&0x11111111))
- */
-static __inline u_int32_t
-popcnt(u_int32_t m)
-{
-
-	m = (m & 0x55555555) + ((m & 0xaaaaaaaa) >> 1);
-	m = (m & 0x33333333) + ((m & 0xcccccccc) >> 2);
-	m = (m & 0x0f0f0f0f) + ((m & 0xf0f0f0f0) >> 4);
-	m = (m & 0x00ff00ff) + ((m & 0xff00ff00) >> 8);
-	m = (m & 0x0000ffff) + ((m & 0xffff0000) >> 16);
-	return m;
-}
-
 static void
 smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 {
@@ -1074,7 +1022,7 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 		mask &= ~PCPU_GET(cpumask);
 		if (mask == 0)
 			return;
-		ncpu = popcnt(mask);
+		ncpu = bitcount32(mask);
 		if (ncpu > othercpus) {
 			/* XXX this should be a panic offence */
 			printf("SMP: tlb shootdown to %d other cpus (only have %d)\n",
