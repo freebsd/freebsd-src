@@ -41,6 +41,7 @@ extern int	aflag;	/* show all sockets (including servers) */
 extern int	bflag;	/* show i/f total bytes in/out */
 extern int	dflag;	/* show i/f dropped packets */
 extern int	gflag;	/* show group (multicast) routing or stats */
+extern int	hflag;	/* show counters in human readable format */
 extern int	iflag;	/* show interfaces */
 extern int	Lflag;	/* show size of listen queues */
 extern int	mflag;	/* show memory stats */
