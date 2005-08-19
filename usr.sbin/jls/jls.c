@@ -51,7 +51,7 @@ main(void)
 	for (i = 0; i < 4; i++) {
 		if (len <= 0)
 			exit(0);	
-		sxp = xp = calloc(len, 1);
+		sxp = xp = malloc(len);
 		if (sxp == NULL)
 			err(1, "malloc()");
 
