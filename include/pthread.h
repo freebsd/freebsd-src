@@ -141,12 +141,10 @@ enum pthread_mutextype {
  * Thread function prototype definitions:
  */
 __BEGIN_DECLS
-int		pthread_atfork(void (*prepare)(void), void (*parent)(void),
-			void (*child)(void));
+int		pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
 int		pthread_attr_destroy(pthread_attr_t *);
 int		pthread_attr_getstack(const pthread_attr_t * __restrict, 
-			void ** __restrict stackaddr, 
-			size_t * __restrict stacksize);
+			void ** __restrict, size_t * __restrict);
 int		pthread_attr_getstacksize(const pthread_attr_t *, size_t *);
 int		pthread_attr_getguardsize(const pthread_attr_t *, size_t *);
 int		pthread_attr_getstackaddr(const pthread_attr_t *, void **);
@@ -167,7 +165,7 @@ int		pthread_barrierattr_getpshared(const pthread_barrierattr_t *,
 int		pthread_barrierattr_init(pthread_barrierattr_t *);
 int		pthread_barrierattr_setpshared(pthread_barrierattr_t *, int);
 void		pthread_cleanup_pop(int);
-void		pthread_cleanup_push(void (*) (void *), void *routine_arg);
+void		pthread_cleanup_push(void (*) (void *), void *);
 int		pthread_condattr_destroy(pthread_condattr_t *);
 int		pthread_condattr_init(pthread_condattr_t *);
 int             pthread_condattr_getclock(const pthread_condattr_t *,
