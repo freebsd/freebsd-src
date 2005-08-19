@@ -29,6 +29,7 @@
 #ifndef _SUBR_H_
 #define	_SUBR_H_
 unsigned g_lcm(unsigned a, unsigned b);
+uint32_t bitcount32(uint32_t x);
 
 off_t g_get_mediasize(const char *name);
 unsigned g_get_sectorsize(const char *name);
