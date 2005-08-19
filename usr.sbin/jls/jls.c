@@ -47,20 +47,26 @@ main(void)
 
 	if (sysctlbyname("security.jail.list", NULL, &len, NULL, 0) == -1)
 		err(1, "sysctlbyname(): security.jail.list");
-retry:
-	if (len <= 0)
-		exit(0);	
-	sxp = xp = calloc(len, 1);
-	if (sxp == NULL)
-		err(1, "malloc()");
 
-	if (sysctlbyname("security.jail.list", xp, &len, NULL, 0) == -1) {
-		if (errno == ENOMEM) {
-			free(sxp);
-			goto retry;
+	for (i = 0; i < 4; i++) {
+		if (len <= 0)
+			exit(0);	
+		sxp = xp = malloc(len);
+		if (sxp == NULL)
+			err(1, "malloc()");
+
+		if (sysctlbyname("security.jail.list", xp, &len, NULL, 0) == -1) {
+			if (errno == ENOMEM) {
+				free(sxp);
+				sxp = NULL;
+				continue;
+			}
+			err(1, "sysctlbyname(): security.jail.list");
 		}
-		err(1, "sysctlbyname(): security.jail.list");
+		break;
 	}
+	if (sxp == NULL)
+		err(1, "sysctlbyname(): security.jail.list");
 	if (len < sizeof(*xp) || len % sizeof(*xp) ||
 	    xp->pr_version != XPRISON_VERSION)
 		errx(1, "Kernel and userland out of sync");
