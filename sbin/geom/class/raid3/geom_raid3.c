@@ -155,12 +155,7 @@ raid3_label(struct gctl_req *req)
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
-#ifndef BITCOUNT
-#define	BITCOUNT(x)	(((BX_(x) + (BX_(x) >> 4)) & 0x0F0F0F0F) % 255)
-#define	BX_(x)		((x) - (((x) >> 1) & 0x77777777) -		\
-			 (((x) >> 2) & 0x33333333) - (((x) >> 3) & 0x11111111))
-#endif
-	if (BITCOUNT(*nargs - 2) != 1) {
+	if (bitcount32(*nargs - 2) != 1) {
 		gctl_error(req, "Invalid number of components.");
 		return;
 	}
