@@ -1441,7 +1441,7 @@ thread_continued(struct proc *p)
 	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT(P_SHOULDSTOP(p), "process not stopped");
+	KASSERT(P_SHOULDSTOP(p), ("process not stopped"));
 
 	if (!(p->p_flag & P_SA))
 		return;
