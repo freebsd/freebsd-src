@@ -83,6 +83,7 @@ utility:
 .Nm
 .Cm setkey
 .Op Fl pPv
+.Op Fl i Ar iterations
 .Op Fl k Ar keyfile
 .Op Fl K Ar newkeyfile
 .Op Fl n Ar keyno
@@ -326,6 +327,12 @@ an old passphrase/keyfile.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl a Ar algo"
+.It Fl i Ar iterations
+Number of iterations to use with PKCS#5v2.
+If 0 is given, PKCS#5v2 will not be used.
+To be able to use this option with
+.Cm setkey
+subcommand, only one key have to be defined and this key has to be changed.
 .It Fl k Ar keyfile
 Specifies a file which contains part of the old key.
 .It Fl K Ar newkeyfile
