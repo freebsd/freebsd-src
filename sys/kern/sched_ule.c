@@ -1778,6 +1778,14 @@ sched_add(struct thread *td, int flags)
 		return;
 	}
 	canmigrate = KSE_CAN_MIGRATE(ke);
+	/*
+	 * Don't migrate running threads here.  Force the long term balancer
+	 * to do it.
+	 */
+	if (ke->ke_flags & KEF_HOLD) {
+		ke->ke_flags &= ~KEF_HOLD;
+		canmigrate = 0;
+	}
 #endif
 	KASSERT(ke->ke_state != KES_ONRUNQ,
 	    ("sched_add: kse %p (%s) already in run queue", ke,
@@ -1817,14 +1825,6 @@ sched_add(struct thread *td, int flags)
 		break;
 	}
 #ifdef SMP
-	/*
-	 * Don't migrate running threads here.  Force the long term balancer
-	 * to do it.
-	 */
-	if (ke->ke_flags & KEF_HOLD) {
-		ke->ke_flags &= ~KEF_HOLD;
-		canmigrate = 0;
-	}
 	/*
 	 * If this thread is pinned or bound, notify the target cpu.
 	 */
