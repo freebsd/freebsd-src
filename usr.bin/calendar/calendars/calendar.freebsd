@@ -12,6 +12,7 @@
 01/03	Tetsurou Okazaki <okazaki@FreeBSD.org> born in Mobara, Chiba, Japan, 1972
 01/04	Hiroyuki Hanai <hanai@FreeBSD.org> born in Kagawa pre., Japan, 1969
 01/08	Michael L. Hostbaek <mich@FreeBSD.org> born in Copenhagen, Denmark, 1977
+01/10	Jean-Yves Lefort <jylefort@FreeBSD.org> born in Charleroi, Belgium, 1980
 01/12	Yen-Ming Lee <leeym@FreeBSD.org> born in Taipei, Taiwan, Republic of China, 1977
 01/12	Ying-Chieh Liao <ijliao@FreeBSD.org> born in Taipei, Taiwan, Republic of China, 1979
 01/16	Dmitry Sivachenko <demon@FreeBSD.org> born in Moscow, USSR, 1978
@@ -30,6 +31,7 @@
 02/01	Juli Mallett <jmallett@FreeBSD.org> born in Washington, Pennsylvania, United States, 1985
 02/02	Diomidis D. Spinellis <dds@FreeBSD.org> born in Athens, Greece, 1967
 02/02	Yoichi Nakayama <yoichi@FreeBSD.org> born in Tsu, Mie, Japan, 1976
+02/10	Simon Barner <barner@FreeBSD.org> born in Rosenheim, Bayern, Germany, 1980
 02/10	David Greenman <dg@FreeBSD.org> born in Portland, Oregon, United States, 1968
 02/10	Paul Richards <paul@FreeBSD.org> born in Ammanford, Carmarthenshire, United Kingdom, 1968
 02/13	Jesper Skriver <jesper@FreeBSD.org> born in Aarhus, Denmark, 1975
@@ -49,6 +51,7 @@
 03/02	Cy Schubert <cy@FreeBSD.org> born in Edmonton, Alberta, Canada, 1956
 03/03	Doug White <dwhite@FreeBSD.org> born in Eugene, Oregon, United States, 1977
 03/03	Gordon Tetlow <gordon@FreeBSD.org> born in Reno, Nevada, United States, 1978
+03/03	Sergey Matveychuk <sem@FreeBSD.org> born in Moscow, Russian Federation, 1973
 03/05	Philip Paeps <philip@FreeBSD.org> born in Leuven, Belgium, 1983
 03/06	Christopher Piazza <cpiazza@FreeBSD.org> born in Kamloops, British Columbia, Canada, 1981
 03/07	Michael P. Pritchard <mpp@FreeBSD.org> born in Los Angeles, California, United States, 1964
@@ -62,6 +65,8 @@
 03/18	Koop Mast <kwm@FreeBSD.org> born in Dokkum, the Netherlands, 1981
 03/19	Mikhail Teterin <mi@FreeBSD.org> born in Kyiv, Ukraine, 1972
 03/20	MANTANI Nobutaka <nobutaka@FreeBSD.org> born in Hiroshima, Japan, 1978
+03/20	Cameron Grant <cg@FreeBSD.org> died in Hemel Hempstead, United Kingdom, 2005
+03/22	Brad Davis <brd@FreeBSD.org> born in Farmington, New Mexico, United States, 1983
 03/23	Daniel C. Sobral <dcs@FreeBSD.org> born in Brasilia, Distrito Federal, Brazil, 1971
 03/23	Benno Rice <benno@FreeBSD.org> born in Adelaide, South Australia, Australia, 1977
 03/24	Marcel Moolenaar <marcel@FreeBSD.org> born in Hilversum, the Netherlands, 1968
@@ -116,6 +121,7 @@
 06/06	Alan Eldridge <alane@FreeBSD.org> died in Denver, Colorado, 2003
 06/07	Jimmy Olgeni <olgeni@FreeBSD.org> born in Milano, Italy, 1976
 06/17	Tilman Linneweh <arved@FreeBSD.org> born in Weinheim, Baden-Wuertemberg, Germany, 1978
+06/18	Roman Bogorodskiy <novel@FreeBSD.org> born in Saratov, Russian Federation, 1986
 06/19	Charlie Root <root@FreeBSD.org> born in Portland, Oregon, United States, 1993
 06/21	Niels Heinen <niels@FreeBSD.org> born in Markelo, the Netherlands, 1978
 06/24	Chris Faulhaber <jedgar@FreeBSD.org> born in Springfield, Illinois, United States, 1971
@@ -128,10 +134,14 @@
 07/01	Matthew Dillon <dillon@FreeBSD.org> born in San Francisco, California, United States, 1966
 07/02	Mark Christopher Ovens <marko@FreeBSD.org> born in Preston, Lancashire, United Kingdom, 1958
 07/04	Motoyuki Konno <motoyuki@FreeBSD.org> born in Musashino, Tokyo, Japan, 1969
+07/04	Florent Thoumie <flz@FreeBSD.org> born in Montmorency, Val d'Oise, France, 1982
 07/07	Maxime Henrion <mux@FreeBSD.org> born in Metz, France, 1981
 07/07	George Reid <greid@FreeBSD.org> born in Frimley, Hampshire, United Kingdom, 1983
+07/07	Andrew Thompson <thompsa@FreeBSD.org> born in Lower Hutt, Wellington, New Zealand, 1979
+07/10	Jung-uk Kim <jkim@FreeBSD.org> born in Seoul, Korea, 1971
 07/10	Justin Seger <jseger@FreeBSD.org> born in Harvard, Massachusetts, United States, 1981
 07/10	David Schultz <das@FreeBSD.org> born in Oakland, California, United States, 1982
+07/11	Jesus R. Camou <jcamou@FreeBSD.org> born in Hermosillo, Sonora, Mexico, 1983
 07/15	Gary Jennejohn <gj@FreeBSD.org> born in Rochester, New York, United States, 1950
 07/16	Suleiman Souhlal <ssouhlal@FreeBSD.org> born in Roma, Italy, 1983
 07/17	Michael Chin-Yuan Wu <keichii@FreeBSD.org> born in Taipei, Taiwan, Republic of China, 1980
@@ -159,6 +169,7 @@
 08/24	Mark Linimon <linimon@FreeBSD.org> born in Houston, Texas, United States, 1955
 08/26	Dima Ruban <dima@FreeBSD.org> born in Nalchik, USSR, 1970
 08/26	Marc Fonvieille <blackend@FreeBSD.org> born in Avignon, France, 1972
+08/26	Herve Quiroz <hq@FreeBSD.org> born in Aix-en-Provence, France, 1977
 08/27	Andrey Chernov <ache@FreeBSD.org> born in Moscow, USSR, 1966
 08/27	Tony Finch <fanf@FreeBSD.org> born in London, United Kingdom, 1974
 08/27	Michael Johnson <ahze@FreeBSD.org> born in Morganton, North Carolina, United States, 1980
@@ -174,6 +185,7 @@
 09/17	Maxim Bolotin <mb@FreeBSD.org> born in Rostov-on-Don, Russian Federation, 1976
 09/20	Kevin Lo <kevlo@FreeBSD.org> born in Taipei, Taiwan, Republic of China, 1972
 09/27	Neil Blakey-Milner <nbm@FreeBSD.org> born in Port Elizabeth, South Africa, 1978
+09/27	Renato Botelho <garga@FreeBSD.org> born in Araras, Sao Paulo, Brazil, 1979
 09/28	Greg Lehey <grog@FreeBSD.org> born in Melbourne, Victoria, Australia, 1948
 09/28	Alex Dupre <ale@FreeBSD.org> born in Milano, Italy, 1980
 09/29	Matthew Hunt <mph@FreeBSD.org> born in Johnstown, Pennsylvania, United States, 1976
@@ -186,6 +198,7 @@
 10/17	Maho NAKATA <maho@FreeBSD.org> born in Osaka, Japan, 1974
 10/18	Sheldon Hearn <sheldonh@FreeBSD.org> born in Cape Town, Western Cape, South Africa, 1974
 10/19	Nicholas Souchu <nsouch@FreeBSD.org> born in Suresnes, Hauts-de-Seine, France, 1972
+10/20	Joel Dahl <joel@FreeBSD.org> born in Lidkoping, Sweden, 1983
 10/21	Dan Moschuk <dan@FreeBSD.org> born in Halifax, Nova Scotia, Canada, 1980
 10/21	Ben Smithurst <ben@FreeBSD.org> born in Sheffield, South Yorkshire, United Kingdom, 1981
 10/22	Jean-Sebastien Pedron <dumbbell@FreeBSD.org> born in Redon, Ille-et-Vilaine, France, 1980
@@ -213,5 +226,6 @@
 12/23	Sean Chittenden <seanc@FreeBSD.org> born in Seattle, Washington, United States, 1979
 12/28	Soren Schmidt <sos@FreeBSD.org> born in Maribo, Denmark, 1960
 12/28	Marius Strobl <marius@FreeBSD.org> born in Cham, Bavaria, Germany, 1978
+12/31	Edwin Groothuis <edwin@FreeBSD.org> born in Geldrop, the Netherlands, 1970
 
 #endif /* !_calendar_freebsd_ */
