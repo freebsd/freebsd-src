@@ -109,7 +109,7 @@ static int	iwi_alloc_cmd_ring(struct iwi_softc *, struct iwi_cmd_ring *,
 static void	iwi_reset_cmd_ring(struct iwi_softc *, struct iwi_cmd_ring *);
 static void	iwi_free_cmd_ring(struct iwi_softc *, struct iwi_cmd_ring *);
 static int	iwi_alloc_tx_ring(struct iwi_softc *, struct iwi_tx_ring *,
-		    int);
+		    int, bus_addr_t, bus_addr_t);
 static void	iwi_reset_tx_ring(struct iwi_softc *, struct iwi_tx_ring *);
 static void	iwi_free_tx_ring(struct iwi_softc *, struct iwi_tx_ring *);
 static int	iwi_alloc_rx_ring(struct iwi_softc *, struct iwi_rx_ring *,
@@ -119,13 +119,14 @@ static void	iwi_free_rx_ring(struct iwi_softc *, struct iwi_rx_ring *);
 static int	iwi_media_change(struct ifnet *);
 static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211com *, enum ieee80211_state, int);
+static int	iwi_wme_update(struct ieee80211com *);
 static uint16_t	iwi_read_prom_word(struct iwi_softc *, uint8_t);
 static void	iwi_fix_channel(struct ieee80211com *, struct mbuf *);
 static void	iwi_frame_intr(struct iwi_softc *, struct iwi_rx_data *, int,
 		    struct iwi_frame *);
 static void	iwi_notification_intr(struct iwi_softc *, struct iwi_notif *);
 static void	iwi_rx_intr(struct iwi_softc *);
-static void	iwi_tx_intr(struct iwi_softc *);
+static void	iwi_tx_intr(struct iwi_softc *, struct iwi_tx_ring *);
 static void	iwi_intr(void *);
 static int	iwi_cmd(struct iwi_softc *, uint8_t, void *, uint8_t, int);
 static int	iwi_tx_start(struct ifnet *, struct mbuf *,
@@ -278,8 +279,31 @@ iwi_attach(device_t dev)
 		goto fail;
 	}
 
-	if (iwi_alloc_tx_ring(sc, &sc->txq, IWI_TX_RING_COUNT) != 0) {
-		device_printf(dev, "could not allocate Tx ring\n");
+	error = iwi_alloc_tx_ring(sc, &sc->txq[0], IWI_TX_RING_COUNT,
+	    IWI_CSR_TX1_RIDX, IWI_CSR_TX1_WIDX);
+	if (error != 0) {
+		device_printf(dev, "could not allocate Tx ring 1\n");
+		goto fail;
+	}
+
+	error = iwi_alloc_tx_ring(sc, &sc->txq[1], IWI_TX_RING_COUNT,
+	    IWI_CSR_TX2_RIDX, IWI_CSR_TX2_WIDX);
+	if (error != 0) {
+		device_printf(dev, "could not allocate Tx ring 2\n");
+		goto fail;
+	}
+
+	error = iwi_alloc_tx_ring(sc, &sc->txq[2], IWI_TX_RING_COUNT,
+	    IWI_CSR_TX3_RIDX, IWI_CSR_TX3_WIDX);
+	if (error != 0) {
+		device_printf(dev, "could not allocate Tx ring 3\n");
+		goto fail;
+	}
+
+	error = iwi_alloc_tx_ring(sc, &sc->txq[3], IWI_TX_RING_COUNT,
+	    IWI_CSR_TX4_RIDX, IWI_CSR_TX4_WIDX);
+	if (error != 0) {
+		device_printf(dev, "could not allocate Tx ring 4\n");
 		goto fail;
 	}
 
@@ -306,13 +330,18 @@ iwi_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_wme.wme_update = iwi_wme_update;
 	ic->ic_phytype = IEEE80211_T_OFDM; /* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA; /* default to BSS mode */
 	ic->ic_state = IEEE80211_S_INIT;
 
 	/* set device capabilities */
-	ic->ic_caps = IEEE80211_C_WPA | IEEE80211_C_PMGT | IEEE80211_C_TXPMGT |
-	    IEEE80211_C_SHPREAMBLE | IEEE80211_C_MONITOR;
+	ic->ic_caps =
+	    IEEE80211_C_MONITOR |	/* monitor mode supported */
+	    IEEE80211_C_TXPMGT |	/* tx power management */
+	    IEEE80211_C_SHPREAMBLE |	/* short preamble supported */
+	    IEEE80211_C_WPA |		/* 802.11i */
+	    IEEE80211_C_WME;		/* 802.11e */
 
 	/* read MAC address from EEPROM */
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 0);
@@ -441,7 +470,10 @@ iwi_detach(device_t dev)
 		if_free(ifp);
 
 	iwi_free_cmd_ring(sc, &sc->cmdq);
-	iwi_free_tx_ring(sc, &sc->txq);
+	iwi_free_tx_ring(sc, &sc->txq[0]);
+	iwi_free_tx_ring(sc, &sc->txq[1]);
+	iwi_free_tx_ring(sc, &sc->txq[2]);
+	iwi_free_tx_ring(sc, &sc->txq[3]);
 	iwi_free_rx_ring(sc, &sc->rxq);
 
 	if (sc->irq != NULL) {
@@ -527,13 +559,16 @@ iwi_free_cmd_ring(struct iwi_softc *sc, struct iwi_cmd_ring *ring)
 }
 
 static int
-iwi_alloc_tx_ring(struct iwi_softc *sc, struct iwi_tx_ring *ring, int count)
+iwi_alloc_tx_ring(struct iwi_softc *sc, struct iwi_tx_ring *ring, int count,
+    bus_addr_t csr_ridx, bus_addr_t csr_widx)
 {
 	int i, error;
 
 	ring->count = count;
 	ring->queued = 0;
 	ring->cur = ring->next = 0;
+	ring->csr_ridx = csr_ridx;
+	ring->csr_widx = csr_widx;
 
 	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, count * IWI_TX_DESC_SIZE, 1,
@@ -918,6 +953,14 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	return 0;
 }
 
+static int
+iwi_wme_update(struct ieee80211com *ic)
+{
+	/* XXX: we should send a IWI_CMD_SET_WME_PARAMS command here */
+
+	return 0;
+}
+
 /*
  * Read 16 bits at address 'addr' from the serial EEPROM.
  */
@@ -1214,32 +1257,32 @@ iwi_rx_intr(struct iwi_softc *sc)
 }
 
 static void
-iwi_tx_intr(struct iwi_softc *sc)
+iwi_tx_intr(struct iwi_softc *sc, struct iwi_tx_ring *txq)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwi_tx_data *data;
 	uint32_t hw;
 
-	hw = CSR_READ_4(sc, IWI_CSR_TX1_RIDX);
+	hw = CSR_READ_4(sc, txq->csr_ridx);
 
-	for (; sc->txq.next != hw;) {
-		data = &sc->txq.data[sc->txq.next];
+	for (; txq->next != hw;) {
+		data = &txq->data[txq->next];
 
-		bus_dmamap_sync(sc->txq.data_dmat, data->map,
+		bus_dmamap_sync(txq->data_dmat, data->map,
 		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(sc->txq.data_dmat, data->map);
+		bus_dmamap_unload(txq->data_dmat, data->map);
 		m_freem(data->m);
 		data->m = NULL;
 		ieee80211_free_node(data->ni);
 		data->ni = NULL;
 
-		DPRINTFN(15, ("tx done idx=%u\n", sc->txq.next));
+		DPRINTFN(15, ("tx done idx=%u\n", txq->next));
 
 		ifp->if_opackets++;
 
-		sc->txq.queued--;
-		sc->txq.next = (sc->txq.next + 1) % IWI_TX_RING_COUNT;
+		txq->queued--;
+		txq->next = (txq->next + 1) % IWI_TX_RING_COUNT;
 	}
 
 	sc->sc_tx_timer = 0;
@@ -1280,14 +1323,23 @@ iwi_intr(void *arg)
 		iwi_stop(sc);
 	}
 
-	if (r & IWI_INTR_RX_DONE)
-		iwi_rx_intr(sc);
-
 	if (r & IWI_INTR_CMD_DONE)
 		wakeup(sc);
 
 	if (r & IWI_INTR_TX1_DONE)
-		iwi_tx_intr(sc);
+		iwi_tx_intr(sc, &sc->txq[0]);
+
+	if (r & IWI_INTR_TX2_DONE)
+		iwi_tx_intr(sc, &sc->txq[1]);
+
+	if (r & IWI_INTR_TX3_DONE)
+		iwi_tx_intr(sc, &sc->txq[2]);
+
+	if (r & IWI_INTR_TX4_DONE)
+		iwi_tx_intr(sc, &sc->txq[3]);
+
+	if (r & IWI_INTR_RX_DONE)
+		iwi_rx_intr(sc);
 
 	/* acknowledge interrupts */
 	CSR_WRITE_4(sc, IWI_CSR_INTR, r);
@@ -1328,21 +1380,48 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 {
 	struct iwi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame wh;
+	struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
+	const struct chanAccParams *cap;
+	struct iwi_tx_ring *txq;
 	struct iwi_tx_data *data;
 	struct iwi_tx_desc *desc;
 	struct mbuf *mnew;
 	bus_dma_segment_t segs[IWI_MAX_NSEG];
-	int nsegs, error, i;
+	int error, nsegs, hdrlen, ac, i, noack = 0;
 
-	bcopy(mtod(m0, struct ieee80211_frame *), &wh, sizeof (struct ieee80211_frame));
-	if (wh.i_fc[1] & IEEE80211_FC1_WEP) {
+	wh = mtod(m0, struct ieee80211_frame *);
+
+	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
+		hdrlen = sizeof (struct ieee80211_qosframe);
+		ac = M_WME_GETAC(m0);
+		cap = &ic->ic_wme.wme_chanParams;
+		noack = cap->cap_wmeParams[ac].wmep_noackPolicy;
+	} else {
+		hdrlen = sizeof (struct ieee80211_frame);
+		ac = WME_AC_BE;
+	}
+
+	txq = &sc->txq[ac];
+	if (txq->queued >= IWI_TX_RING_COUNT - 4) {
+		/*
+		 * There is no place left in this ring.  Perhaps in 802.11e,
+		 * we should try to fallback to a lowest priority ring?
+		 */
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		m_freem(m0);
+		return 0;
+	}
+
+	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
 		k = ieee80211_crypto_encap(ic, ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
 			return ENOBUFS;
 		}
+
+		/* packet header may have moved, reset our local pointer */
+		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
 	if (sc->sc_drvbpf != NULL) {
@@ -1355,13 +1434,14 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
 	}
 
-	data = &sc->txq.data[sc->txq.cur];
-	desc = &sc->txq.desc[sc->txq.cur];
+	data = &txq->data[txq->cur];
+	desc = &txq->desc[txq->cur];
 
-	/* trim IEEE802.11 header */
-	m_adj(m0, sizeof (struct ieee80211_frame));
+	/* save and trim IEEE802.11 header */
+	m_copydata(m0, 0, hdrlen, (caddr_t)&desc->wh);
+	m_adj(m0, hdrlen);
 
-	error = bus_dmamap_load_mbuf_sg(sc->txq.data_dmat, data->map, m0, segs,
+	error = bus_dmamap_load_mbuf_sg(txq->data_dmat, data->map, m0, segs,
 	    &nsegs, 0);
 	if (error != 0 && error != EFBIG) {
 		device_printf(sc->sc_dev, "could not map mbuf (error %d)\n",
@@ -1379,7 +1459,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 		}
 		m0 = mnew;
 
-		error = bus_dmamap_load_mbuf_sg(sc->txq.data_dmat, data->map,
+		error = bus_dmamap_load_mbuf_sg(txq->data_dmat, data->map,
 		    m0, segs, &nsegs, 0);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
@@ -1396,15 +1476,15 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 	desc->hdr.flags = IWI_HDR_FLAG_IRQ;
 	desc->cmd = IWI_DATA_CMD_TX;
 	desc->len = htole16(m0->m_pkthdr.len);
-	memcpy(&desc->wh, &wh, sizeof (struct ieee80211_frame));
 	desc->flags = 0;
+	desc->xflags = 0;
 
-	if (!IEEE80211_IS_MULTICAST(wh.i_addr1))
+	if (!noack && !IEEE80211_IS_MULTICAST(desc->wh.i_addr1))
 		desc->flags |= IWI_DATA_FLAG_NEED_ACK;
 
 #if 0
 	if (ic->ic_flags & IEEE80211_F_PRIVACY) {
-		wh.i_fc[1] |= IEEE80211_FC1_WEP;
+		desc->wh.i_fc[1] |= IEEE80211_FC1_WEP;
 		desc->wep_txkey = ic->ic_crypto.cs_def_txkey;
 	} else
 #endif
@@ -1413,22 +1493,24 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
 		desc->flags |= IWI_DATA_FLAG_SHPREAMBLE;
 
+	if (desc->wh.i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS)
+		desc->xflags |= IWI_DATA_XFLAG_QOS;
+
 	desc->nseg = htole32(nsegs);
 	for (i = 0; i < nsegs; i++) {
 		desc->seg_addr[i] = htole32(segs[i].ds_addr);
 		desc->seg_len[i]  = htole32(segs[i].ds_len);
 	}
 
-	bus_dmamap_sync(sc->txq.data_dmat, data->map, BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(sc->txq.desc_dmat, sc->txq.desc_map,
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(txq->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(txq->desc_dmat, txq->desc_map, BUS_DMASYNC_PREWRITE);
 
-	DPRINTFN(5, ("sending data frame idx=%u len=%u nseg=%u\n", sc->txq.cur,
-	    desc->len, desc->nseg));
+	DPRINTFN(5, ("sending data frame txq=%u idx=%u len=%u nseg=%u\n",
+	    ac, txq->cur, desc->len, desc->nseg));
 
-	sc->txq.queued++;
-	sc->txq.cur = (sc->txq.cur + 1) % IWI_TX_RING_COUNT;
-	CSR_WRITE_4(sc, IWI_CSR_TX1_WIDX, sc->txq.cur);
+	txq->queued++;
+	txq->cur = (txq->cur + 1) % IWI_TX_RING_COUNT;
+	CSR_WRITE_4(sc, txq->csr_widx, txq->cur);
 
 	return 0;
 }
@@ -1454,12 +1536,6 @@ iwi_start(struct ifnet *ifp)
 		if (m0 == NULL)
 			break;
 
-		if (sc->txq.queued >= IWI_TX_RING_COUNT - 4) {
-			IFQ_DRV_PREPEND(&ifp->if_snd, m0);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
-
 		if (m0->m_len < sizeof (struct ether_header) &&
 		    (m0 = m_pullup(m0, sizeof (struct ether_header))) == NULL)
 			continue;
@@ -1467,6 +1543,10 @@ iwi_start(struct ifnet *ifp)
 		eh = mtod(m0, struct ether_header *);
 		ni = ieee80211_find_txnode(ic, eh->ether_dhost);
 		if (ni == NULL) {
+			m_freem(m0);
+			continue;
+		}
+		if (ieee80211_classify(ic, m0, ni) != 0) {
 			m_freem(m0);
 			continue;
 		}
@@ -2095,6 +2175,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_node *ni = ic->ic_bss;
+	struct ieee80211_wme_info wme;
 	struct iwi_configuration config;
 	struct iwi_associate assoc;
 	struct iwi_rateset rs;
@@ -2141,6 +2222,23 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	if (error != 0)
 		return error;
 
+	if ((ic->ic_flags & IEEE80211_F_WME) && ni->ni_wme_ie != NULL) {
+		wme.wme_id = IEEE80211_ELEMID_VENDOR;
+		wme.wme_len = sizeof (struct ieee80211_wme_info) - 2;
+		wme.wme_oui[0] = 0x00;
+		wme.wme_oui[1] = 0x50;
+		wme.wme_oui[2] = 0xf2;
+		wme.wme_type = WME_OUI_TYPE;
+		wme.wme_subtype = WME_INFO_OUI_SUBTYPE;
+		wme.wme_version = WME_VERSION;
+		wme.wme_info = 0;
+
+		DPRINTF(("Setting WME IE (len=%u)\n", wme.wme_len));
+		error = iwi_cmd(sc, IWI_CMD_SET_WMEIE, &wme, sizeof wme, 1);
+		if (error != 0)
+			return error;
+	}
+
 	if (ic->ic_opt_ie != NULL) {
 		DPRINTF(("Setting optional IE (len=%u)\n", ic->ic_opt_ie_len));
 		error = iwi_cmd(sc, IWI_CMD_SET_OPTIE, ic->ic_opt_ie,
@@ -2161,8 +2259,10 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	assoc.chan = ieee80211_chan2ieee(ic, ni->ni_chan);
 	if (ni->ni_authmode == IEEE80211_AUTH_SHARED)
 		assoc.auth = ic->ic_crypto.cs_def_txkey << 4 | IWI_AUTH_SHARED;
+	if ((ic->ic_flags & IEEE80211_F_WME) && ni->ni_wme_ie != NULL)
+		assoc.policy |= htole16(IWI_POLICY_WME);
 	if (ic->ic_opt_ie != NULL)
-		assoc.policy |= htole16(IWI_POLICY_OPTIE);
+		assoc.policy |= htole16(IWI_POLICY_WPA);
 	memcpy(assoc.tstamp, ni->ni_tstamp.data, 8);
 
 	if (ic->ic_opmode == IEEE80211_M_IBSS)
@@ -2233,21 +2333,21 @@ iwi_init(void *priv)
 	CSR_WRITE_4(sc, IWI_CSR_CMD_SIZE, sc->cmdq.count);
 	CSR_WRITE_4(sc, IWI_CSR_CMD_WIDX, sc->cmdq.cur);
 
-	CSR_WRITE_4(sc, IWI_CSR_TX1_BASE, sc->txq.physaddr);
-	CSR_WRITE_4(sc, IWI_CSR_TX1_SIZE, sc->txq.count);
-	CSR_WRITE_4(sc, IWI_CSR_TX1_WIDX, sc->txq.cur);
+	CSR_WRITE_4(sc, IWI_CSR_TX1_BASE, sc->txq[0].physaddr);
+	CSR_WRITE_4(sc, IWI_CSR_TX1_SIZE, sc->txq[0].count);
+	CSR_WRITE_4(sc, IWI_CSR_TX1_WIDX, sc->txq[0].cur);
 
-	CSR_WRITE_4(sc, IWI_CSR_TX2_BASE, sc->txq.physaddr);
-	CSR_WRITE_4(sc, IWI_CSR_TX2_SIZE, sc->txq.count);
-	CSR_WRITE_4(sc, IWI_CSR_TX2_WIDX, sc->txq.cur);
+	CSR_WRITE_4(sc, IWI_CSR_TX2_BASE, sc->txq[1].physaddr);
+	CSR_WRITE_4(sc, IWI_CSR_TX2_SIZE, sc->txq[1].count);
+	CSR_WRITE_4(sc, IWI_CSR_TX2_WIDX, sc->txq[1].cur);
 
-	CSR_WRITE_4(sc, IWI_CSR_TX3_BASE, sc->txq.physaddr);
-	CSR_WRITE_4(sc, IWI_CSR_TX3_SIZE, sc->txq.count);
-	CSR_WRITE_4(sc, IWI_CSR_TX3_WIDX, sc->txq.cur);
+	CSR_WRITE_4(sc, IWI_CSR_TX3_BASE, sc->txq[2].physaddr);
+	CSR_WRITE_4(sc, IWI_CSR_TX3_SIZE, sc->txq[2].count);
+	CSR_WRITE_4(sc, IWI_CSR_TX3_WIDX, sc->txq[2].cur);
 
-	CSR_WRITE_4(sc, IWI_CSR_TX4_BASE, sc->txq.physaddr);
-	CSR_WRITE_4(sc, IWI_CSR_TX4_SIZE, sc->txq.count);
-	CSR_WRITE_4(sc, IWI_CSR_TX4_WIDX, sc->txq.cur);
+	CSR_WRITE_4(sc, IWI_CSR_TX4_BASE, sc->txq[3].physaddr);
+	CSR_WRITE_4(sc, IWI_CSR_TX4_SIZE, sc->txq[3].count);
+	CSR_WRITE_4(sc, IWI_CSR_TX4_WIDX, sc->txq[3].cur);
 
 	for (i = 0; i < sc->rxq.count; i++) {
 		data = &sc->rxq.data[i];
@@ -2296,7 +2396,10 @@ iwi_stop(void *priv)
 
 	/* reset rings */
 	iwi_reset_cmd_ring(sc, &sc->cmdq);
-	iwi_reset_tx_ring(sc, &sc->txq);
+	iwi_reset_tx_ring(sc, &sc->txq[0]);
+	iwi_reset_tx_ring(sc, &sc->txq[1]);
+	iwi_reset_tx_ring(sc, &sc->txq[2]);
+	iwi_reset_tx_ring(sc, &sc->txq[3]);
 	iwi_reset_rx_ring(sc, &sc->rxq);
 
 	sc->sc_tx_timer = 0;
