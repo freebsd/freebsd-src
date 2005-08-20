@@ -1089,7 +1089,7 @@ delete-old-files:
 				| sed 's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:') \
 			check_empty=$$(echo $${catpage} \
 				| sed 's:.*\*:empty:'); \
-			[ $${check_empty} != empty -a ! -e $${manpage} ] \
+			[ "$${check_empty}" != "empty" -a ! -e "$${manpage}" ] \
 				&& rm ${RM_I} $${catpage} || true; \
 		done; \
 	done
@@ -1107,7 +1107,7 @@ check-old-files:
 				| sed 's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:'); \
 			check_empty=$$(echo $${catpage} \
 				| sed 's:.*\*:empty:'); \
-			[ $${check_empty} != empty -a ! -e $${manpage} ] \
+			[ "$${check_empty}" != "empty" -a ! -e "$${manpage}" ] \
 				&& echo $${catpage} || true; \
 		done; \
 	done
