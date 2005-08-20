@@ -286,8 +286,7 @@ ipw_attach(device_t dev)
 
 	/* set device capabilities */
 	ic->ic_caps = IEEE80211_C_SHPREAMBLE | IEEE80211_C_TXPMGT |
-	    IEEE80211_C_PMGT | IEEE80211_C_IBSS | IEEE80211_C_MONITOR |
-	    IEEE80211_C_WPA;
+	    IEEE80211_C_PMGT | IEEE80211_C_IBSS | IEEE80211_C_MONITOR;
 
 	/* read MAC address from EEPROM */
 	val = ipw_read_prom_word(sc, IPW_EEPROM_MAC + 0);
