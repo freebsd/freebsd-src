@@ -437,7 +437,7 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	VLAN_UNLOCK();
 
 	ether_ifdetach(ifp);
-	if_free(ifp);
+	if_free_type(ifp, IFT_ETHER);
 
 	free(ifv, M_VLAN);
 
