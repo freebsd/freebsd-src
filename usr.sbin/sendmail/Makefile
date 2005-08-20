@@ -9,6 +9,8 @@ BINDIR=	/usr/libexec/sendmail
 
 PROG=	sendmail
 MAN=	mailq.1 newaliases.1 aliases.5 sendmail.8 
+MLINKS+=sendmail.8 hoststat.8
+MLINKS+=sendmail.8 purgestat.8
 SRCS=	alias.c arpadate.c bf.c collect.c conf.c control.c \
 	convtime.c daemon.c deliver.c domain.c envelope.c err.c headers.c \
 	macro.c main.c map.c mci.c milter.c mime.c parseaddr.c queue.c \
