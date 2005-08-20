@@ -2107,6 +2107,7 @@ aio_physwakeup(struct buf *bp)
 	struct aio_liojob *lj;
 
 	mtx_lock(&Giant);
+	bp->b_flags |= B_DONE;
 	wakeup(bp);
 
 	aiocbe = (struct aiocblist *)bp->b_caller1;
