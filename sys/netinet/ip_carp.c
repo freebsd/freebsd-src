@@ -1126,7 +1126,7 @@ carp_iamatch(void *v, struct in_ifaddr *ia,
 		}
 
 		/* this should be a hash, like pf_hash() */
-		index = isaddr->s_addr % count;
+		index = ntohl(isaddr->s_addr) % count;
 		count = 0;
 
 		TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list) {
