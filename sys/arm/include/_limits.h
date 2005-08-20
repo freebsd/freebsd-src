@@ -94,4 +94,7 @@
 #endif
 #define	__WORD_BIT	32
 
+/* Minimum signal stack size. */
+#define	__MINSIGSTKSZ	(1024 * 4)
+
 #endif /* !_MACHINE__LIMITS_H_ */
