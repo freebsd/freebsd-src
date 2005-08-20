@@ -42,6 +42,7 @@
 #include <sys/_types.h>
 #include <sys/_sigset.h>
 
+#include <machine/_limits.h>	/* __MINSIGSTKSZ */
 #include <machine/signal.h>	/* sig_atomic_t; trap codes; sigcontext */
 
 /*
@@ -274,6 +275,7 @@ typedef	struct {
 
 #define	SS_ONSTACK	0x0001	/* take signal on alternate stack */
 #define	SS_DISABLE	0x0004	/* disable taking signals on alternate stack */
+#define	MINSIGSTKSZ	__MINSIGSTKSZ		/* minimum stack size */
 #define	SIGSTKSZ	(MINSIGSTKSZ + 32768)	/* recommended stack size */
 #endif
 

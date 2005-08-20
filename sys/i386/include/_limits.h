@@ -94,4 +94,10 @@
 #endif
 #define	__WORD_BIT	32
 
+/*
+ * Minimum signal stack size. The current signal frame
+ * for i386 is 408 bytes large.
+ */
+#define	__MINSIGSTKSZ	(512 * 4)
+
 #endif /* !_MACHINE__LIMITS_H_ */

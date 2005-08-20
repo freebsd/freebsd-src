@@ -50,11 +50,6 @@ typedef long	sig_atomic_t;
 #define BUS_SEGM_FAULT	30	/* segment protection base */
 #endif
 
-#if __XSI_VISIBLE
-/* Minimum signal stack size. */
-#define MINSIGSTKSZ     (3072 * 4)
-#endif
-
 /*
  * Information pushed on stack when a signal is delivered.
  * This is used by the kernel to restore state following
