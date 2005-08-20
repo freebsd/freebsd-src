@@ -104,7 +104,6 @@ static int	ifconf(u_long, caddr_t);
 static void	if_grow(void);
 static void	if_init(void *);
 static void	if_check(void *);
-static int	if_findindex(struct ifnet *);
 static void	if_qflush(struct ifaltq *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static void	if_slowtimo(void *);
@@ -328,57 +327,6 @@ if_check(void *dummy __unused)
 	if_slowtimo(0);
 }
 
-/* XXX: should be locked. */
-static int
-if_findindex(struct ifnet *ifp)
-{
-	int i, unit;
-	char eaddr[18], devname[32];
-	const char *name, *p;
-
-	switch (ifp->if_type) {
-	case IFT_ETHER:			/* these types use struct arpcom */
-	case IFT_FDDI:
-	case IFT_XETHER:
-	case IFT_ISO88025:
-	case IFT_L2VLAN:
-	case IFT_BRIDGE:
-		snprintf(eaddr, 18, "%6D", IFP2ENADDR(ifp), ":");
-		break;
-	default:
-		eaddr[0] = '\0';
-		break;
-	}
-	strlcpy(devname, ifp->if_xname, sizeof(devname));
-	name = net_cdevsw.d_name;
-	i = 0;
-	while ((resource_find_dev(&i, name, &unit, NULL, NULL)) == 0) {
-		if (resource_string_value(name, unit, "ether", &p) == 0)
-			if (strcmp(p, eaddr) == 0)
-				goto found;
-		if (resource_string_value(name, unit, "dev", &p) == 0)
-			if (strcmp(p, devname) == 0)
-				goto found;
-	}
-	unit = 0;
-found:
-	if (unit != 0) {
-		if (ifaddr_byindex(unit) == NULL)
-			return (unit);
-		printf("%s%d in use, cannot hardwire it to %s.\n",
-		    name, unit, devname);
-	}
-	for (unit = 1; ; unit++) {
-		if (unit <= if_index && ifaddr_byindex(unit) != NULL)
-			continue;
-		if (resource_string_value(name, unit, "ether", &p) == 0 ||
-		    resource_string_value(name, unit, "dev", &p) == 0)
-			continue;
-		break;
-	}
-	return (unit);
-}
-
 /*
  * Allocate a struct ifnet and in index for an interface.
  */
@@ -389,13 +337,25 @@ if_alloc(u_char type)
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
 
-	/* XXX: This should fail if if_index is too big */
-	ifp->if_index = if_findindex(ifp);
+	/*
+	 * Try to find an empty slot below if_index.  If we fail, take
+	 * the next slot.
+	 *
+	 * XXX: should be locked!
+	 */
+	for (ifp->if_index = 1; ifp->if_index <= if_index; ifp->if_index++) {
+		if (ifnet_byindex(ifp->if_index) == NULL)
+			break;
+	}
+	/* Catch if_index overflow. */
+	if (ifp->if_index < 1) {
+		free(ifp, M_IFNET);
+		return (NULL);
+	}
 	if (ifp->if_index > if_index)
 		if_index = ifp->if_index;
 	if (if_index >= if_indexlim)
 		if_grow();
-
 	ifnet_byindex(ifp->if_index) = ifp;
 
 	ifp->if_type = type;
@@ -415,6 +375,7 @@ void
 if_free(struct ifnet *ifp)
 {
 
+	/* Do not add code to this function!  Add it to if_free_type(). */
 	if_free_type(ifp, ifp->if_type);
 }
 
@@ -431,7 +392,7 @@ if_free_type(struct ifnet *ifp, u_char type)
 	ifnet_byindex(ifp->if_index) = NULL;
 
 	/* XXX: should be locked with if_findindex() */
-	while (if_index > 0 && ifaddr_byindex(if_index) == NULL)
+	while (if_index > 0 && ifnet_byindex(if_index) == NULL)
 		if_index--;
 
 	if (if_com_free[type] != NULL)
