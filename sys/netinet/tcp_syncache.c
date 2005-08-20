@@ -499,7 +499,6 @@ syncache_unreach(inc, th)
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
-	/* we are called at splnet() here */
 	sc = syncache_lookup(inc, &sch);
 	if (sc == NULL)
 		return;
