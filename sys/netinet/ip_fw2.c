@@ -34,6 +34,7 @@
 
 #if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
+#include "opt_ip6fw.h"
 #include "opt_ipdn.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -319,7 +320,18 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime, CTLFLAG_RW,
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive, CTLFLAG_RW,
     &dyn_keepalive, 0, "Enable keepalives for dyn. rules");
 
+#ifdef INET6
+/*
+ * IPv6 specific variables
+ */
+SYSCTL_DECL(_net_inet6_ip6);
+
+static struct sysctl_ctx_list ip6_fw_sysctl_ctx;
+static struct sysctl_oid *ip6_fw_sysctl_tree;
+#endif /* INET6 */
 #endif /* SYSCTL_NODE */
+
+static int fw_deny_unknown_exthdrs = 1;
 
 
 /*
@@ -659,7 +671,88 @@ hash_packet6(struct ipfw_flow_id *id)
 	    (id->dst_port) ^ (id->src_port) ^ (id->flow_id6);
 	return i;
 }
-/* end of ipv6 opcodes */
+
+static int
+is_icmp6_query(int icmp6_type)
+{
+	if ((icmp6_type <= ICMP6_MAXTYPE) &&
+	    (icmp6_type == ICMP6_ECHO_REQUEST ||
+	    icmp6_type == ICMP6_MEMBERSHIP_QUERY ||
+	    icmp6_type == ICMP6_WRUREQUEST ||
+	    icmp6_type == ICMP6_FQDN_QUERY ||
+	    icmp6_type == ICMP6_NI_QUERY))
+		return (1);
+
+	return (0);
+}
+
+static void
+send_reject6(struct ip_fw_args *args, int code, u_short offset, u_int hlen)
+{
+	if (code == ICMP6_UNREACH_RST && offset == 0 &&
+	    args->f_id.proto == IPPROTO_TCP) {
+		struct ip6_hdr *ip6;
+		struct tcphdr *tcp;
+		tcp_seq ack, seq;
+		int flags;
+		struct {
+			struct ip6_hdr ip6;
+			struct tcphdr th;
+		} ti;
+
+		if (args->m->m_len < (hlen+sizeof(struct tcphdr))) {
+			args->m = m_pullup(args->m, hlen+sizeof(struct tcphdr));
+			if (args->m == NULL)
+				return;
+		}
+
+		ip6 = mtod(args->m, struct ip6_hdr *);
+		tcp = (struct tcphdr *)(mtod(args->m, char *) + hlen);
+
+		if ((tcp->th_flags & TH_RST) != 0) {
+			m_freem(args->m);
+			return;
+		}
+
+		ti.ip6 = *ip6;
+		ti.th = *tcp;
+		ti.th.th_seq = ntohl(ti.th.th_seq);
+		ti.th.th_ack = ntohl(ti.th.th_ack);
+		ti.ip6.ip6_nxt = IPPROTO_TCP;
+
+		if (ti.th.th_flags & TH_ACK) {
+			ack = 0;
+			seq = ti.th.th_ack;
+			flags = TH_RST;
+		} else {
+			ack = ti.th.th_seq;
+			if (((args->m)->m_flags & M_PKTHDR) != 0) {
+				ack += (args->m)->m_pkthdr.len - hlen
+					- (ti.th.th_off << 2);
+			} else if (ip6->ip6_plen) {
+				ack += ntohs(ip6->ip6_plen) + sizeof(*ip6)
+					- hlen - (ti.th.th_off << 2);
+			} else {
+				m_freem(args->m);
+				return;
+			}
+			if (tcp->th_flags & TH_SYN)
+				ack++;
+			seq = 0;
+			flags = TH_RST|TH_ACK;
+		}
+		bcopy(&ti, ip6, sizeof(ti));
+		tcp_respond(NULL, ip6, (struct tcphdr *)(ip6 + 1),
+			args->m, ack, seq, flags);
+
+	} else if (code != ICMP6_UNREACH_RST) { /* Send an ICMPv6 unreach. */
+		icmp6_error(args->m, ICMP6_DST_UNREACH, code, 0);
+
+	} else
+		m_freem(args->m);
+
+	args->m = NULL;
+}
 
 #endif /* INET6 */
 
@@ -673,12 +766,13 @@ static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
  * XXX this function alone takes about 2Kbytes of code!
  */
 static void
-ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
-	struct mbuf *m, struct ifnet *oif)
+ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
+	struct mbuf *m, struct ifnet *oif, u_short offset)
 {
+	struct ether_header *eh = args->eh;
 	char *action;
 	int limit_reached = 0;
-	char action2[40], proto[48], fragment[28];
+	char action2[40], proto[128], fragment[32];
 
 	fragment[0] = '\0';
 	proto[0] = '\0';
@@ -721,6 +815,14 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 				action = "Reset";
 			else if (cmd->arg1==ICMP_UNREACH_HOST)
 				action = "Reject";
+			else
+				snprintf(SNPARGS(action2, 0), "Unreach %d",
+					cmd->arg1);
+			break;
+
+		case O_UNREACH6:
+			if (cmd->arg1==ICMP6_UNREACH_RST)
+				action = "Reset";
 			else
 				snprintf(SNPARGS(action2, 0), "Unreach %d",
 					cmd->arg1);
@@ -779,78 +881,123 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 
 	if (hlen == 0) {	/* non-ip */
 		snprintf(SNPARGS(proto, 0), "MAC");
+
 	} else {
-		struct ip *ip = mtod(m, struct ip *);
-		/* these three are all aliases to the same thing */
-		struct icmphdr *const icmp = L3HDR(struct icmphdr, ip);
-		struct tcphdr *const tcp = (struct tcphdr *)icmp;
-		struct udphdr *const udp = (struct udphdr *)icmp;
-
-		int ip_off, offset, ip_len;
-
 		int len;
+		char src[48], dst[48];
+		struct icmphdr *icmp;
+		struct tcphdr *tcp;
+		struct udphdr *udp;
+		/* Initialize to make compiler happy. */
+		struct ip *ip = NULL;
+#ifdef INET6
+		struct ip6_hdr *ip6 = NULL;
+		struct icmp6_hdr *icmp6;
+#endif
+		src[0] = '\0';
+		dst[0] = '\0';
+#ifdef INET6
+		if (args->f_id.addr_type == 6) {
+			snprintf(src, sizeof(src), "[%s]",
+			    ip6_sprintf(&args->f_id.src_ip6));
+			snprintf(dst, sizeof(dst), "[%s]",
+			    ip6_sprintf(&args->f_id.dst_ip6));
 
-		if (eh != NULL) { /* layer 2 packets are as on the wire */
-			ip_off = ntohs(ip->ip_off);
-			ip_len = ntohs(ip->ip_len);
-		} else {
-			ip_off = ip->ip_off;
-			ip_len = ip->ip_len;
+			ip6 = (struct ip6_hdr *)mtod(m, struct ip6_hdr *);
+			tcp = (struct tcphdr *)(mtod(args->m, char *) + hlen);
+			udp = (struct udphdr *)(mtod(args->m, char *) + hlen);
+		} else
+#endif
+		{
+			ip = mtod(m, struct ip *);
+			tcp = L3HDR(struct tcphdr, ip);
+			udp = L3HDR(struct udphdr, ip);
+
+			inet_ntoa_r(ip->ip_src, src);
+			inet_ntoa_r(ip->ip_dst, dst);
 		}
-		offset = ip_off & IP_OFFMASK;
-		switch (ip->ip_p) {
+
+		switch (args->f_id.proto) {
 		case IPPROTO_TCP:
-			len = snprintf(SNPARGS(proto, 0), "TCP %s",
-			    inet_ntoa(ip->ip_src));
+			len = snprintf(SNPARGS(proto, 0), "TCP %s", src);
 			if (offset == 0)
 				snprintf(SNPARGS(proto, len), ":%d %s:%d",
 				    ntohs(tcp->th_sport),
-				    inet_ntoa(ip->ip_dst),
+				    dst,
 				    ntohs(tcp->th_dport));
 			else
-				snprintf(SNPARGS(proto, len), " %s",
-				    inet_ntoa(ip->ip_dst));
+				snprintf(SNPARGS(proto, len), " %s", dst);
 			break;
 
 		case IPPROTO_UDP:
-			len = snprintf(SNPARGS(proto, 0), "UDP %s",
-				inet_ntoa(ip->ip_src));
+			len = snprintf(SNPARGS(proto, 0), "UDP %s", src);
 			if (offset == 0)
 				snprintf(SNPARGS(proto, len), ":%d %s:%d",
 				    ntohs(udp->uh_sport),
-				    inet_ntoa(ip->ip_dst),
+				    dst,
 				    ntohs(udp->uh_dport));
 			else
-				snprintf(SNPARGS(proto, len), " %s",
-				    inet_ntoa(ip->ip_dst));
+				snprintf(SNPARGS(proto, len), " %s", dst);
 			break;
 
 		case IPPROTO_ICMP:
+			icmp = L3HDR(struct icmphdr, ip);
 			if (offset == 0)
 				len = snprintf(SNPARGS(proto, 0),
 				    "ICMP:%u.%u ",
 				    icmp->icmp_type, icmp->icmp_code);
 			else
 				len = snprintf(SNPARGS(proto, 0), "ICMP ");
-			len += snprintf(SNPARGS(proto, len), "%s",
-			    inet_ntoa(ip->ip_src));
-			snprintf(SNPARGS(proto, len), " %s",
-			    inet_ntoa(ip->ip_dst));
+			len += snprintf(SNPARGS(proto, len), "%s", src);
+			snprintf(SNPARGS(proto, len), " %s", dst);
 			break;
-
+#ifdef INET6
+		case IPPROTO_ICMPV6:
+			icmp6 = (struct icmp6_hdr *)(mtod(args->m, char *) + hlen);
+			if (offset == 0)
+				len = snprintf(SNPARGS(proto, 0),
+				    "ICMPv6:%u.%u ",
+				    icmp6->icmp6_type, icmp6->icmp6_code);
+			else
+				len = snprintf(SNPARGS(proto, 0), "ICMPv6 ");
+			len += snprintf(SNPARGS(proto, len), "%s", src);
+			snprintf(SNPARGS(proto, len), " %s", dst);
+			break;
+#endif
 		default:
-			len = snprintf(SNPARGS(proto, 0), "P:%d %s", ip->ip_p,
-			    inet_ntoa(ip->ip_src));
-			snprintf(SNPARGS(proto, len), " %s",
-			    inet_ntoa(ip->ip_dst));
+			len = snprintf(SNPARGS(proto, 0), "P:%d %s",
+			    args->f_id.proto, src);
+			snprintf(SNPARGS(proto, len), " %s", dst);
 			break;
 		}
 
-		if (ip_off & (IP_MF | IP_OFFMASK))
-			snprintf(SNPARGS(fragment, 0), " (frag %d:%d@%d%s)",
-			     ntohs(ip->ip_id), ip_len - (ip->ip_hl << 2),
-			     offset << 3,
-			     (ip_off & IP_MF) ? "+" : "");
+#ifdef INET6
+		if (args->f_id.addr_type == 6) {
+			if (offset & (IP6F_OFF_MASK | IP6F_MORE_FRAG))
+				snprintf(SNPARGS(fragment, 0),
+				    " (frag %08x:%d@%d%s)",
+				    args->f_id.frag_id6,
+				    ntohs(ip6->ip6_plen) - hlen,
+				    ntohs(offset & IP6F_OFF_MASK) << 3,
+				    (offset & IP6F_MORE_FRAG) ? "+" : "");
+		} else
+#endif
+		{
+			int ip_off, ip_len;
+			if (eh != NULL) { /* layer 2 packets are as on the wire */
+				ip_off = ntohs(ip->ip_off);
+				ip_len = ntohs(ip->ip_len);
+			} else {
+				ip_off = ip->ip_off;
+				ip_len = ip->ip_len;
+			}
+			if (ip_off & (IP_MF | IP_OFFMASK))
+				snprintf(SNPARGS(fragment, 0),
+				    " (frag %d:%d@%d%s)",
+				    ntohs(ip->ip_id), ip_len - (ip->ip_hl << 2),
+				    offset << 3,
+				    (ip_off & IP_MF) ? "+" : "");
+		}
 	}
 	if (oif || m->m_pkthdr.rcvif)
 		log(LOG_SECURITY | LOG_INFO,
@@ -1480,7 +1627,7 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
  * sends a reject message, consuming the mbuf passed as an argument.
  */
 static void
-send_reject(struct ip_fw_args *args, int code, int offset, int ip_len)
+send_reject(struct ip_fw_args *args, int code, u_short offset, int ip_len)
 {
 
 	if (code != ICMP_REJECT_RST) { /* Send an ICMP unreach */
@@ -1944,6 +2091,11 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	we have a fragment at this offset of an IPv4 packet.
 	 *	offset == 0 means that (if this is an IPv4 packet)
 	 *	this is the first or only fragment.
+	 *	For IPv6 offset == 0 means there is no Fragment Header. 
+	 *	If offset != 0 for IPv6 always use correct mask to
+	 *	get the correct offset because we add IP6F_MORE_FRAG
+	 *	to be able to dectect the first fragment which would
+	 *	otherwise have offset = 0.
 	 */
 	u_short offset = 0;
 
@@ -1995,6 +2147,7 @@ ipfw_chk(struct ip_fw_args *args)
 
 	pktlen = m->m_pkthdr.len;
 	proto = args->f_id.proto = 0;	/* mark f_id invalid */
+		/* XXX 0 is a valid proto: IP/IPv6 Hop-by-Hop Option */
 
 /*
  * PULLUP_TO(len, p, T) makes sure that len + sizeof(T) is contiguous,
@@ -2043,43 +2196,80 @@ do {									\
 				src_port = UDP(ulp)->uh_sport;
 				break;
 
-			case IPPROTO_HOPOPTS:
+			case IPPROTO_HOPOPTS:	/* RFC 2460 */
 				PULLUP_TO(hlen, ulp, struct ip6_hbh);
 				ext_hd |= EXT_HOPOPTS;
-				hlen += sizeof(struct ip6_hbh);
+				hlen += (((struct ip6_hbh *)ulp)->ip6h_len + 1) << 3;
 				proto = ((struct ip6_hbh *)ulp)->ip6h_nxt;
 				ulp = NULL;
 				break;
 
-			case IPPROTO_ROUTING:
+			case IPPROTO_ROUTING:	/* RFC 2460 */
 				PULLUP_TO(hlen, ulp, struct ip6_rthdr);
+				if (((struct ip6_rthdr *)ulp)->ip6r_type != 0) {
+					printf("IPFW2: IPV6 - Unknown Routing "
+					    "Header type(%d)\n",
+					    ((struct ip6_rthdr *)ulp)->ip6r_type);
+					if (fw_deny_unknown_exthdrs)
+					    return (IP_FW_DENY);
+					break;
+				}
 				ext_hd |= EXT_ROUTING;
-				hlen += sizeof(struct ip6_rthdr);
+				hlen += (((struct ip6_rthdr *)ulp)->ip6r_len + 1) << 3;
 				proto = ((struct ip6_rthdr *)ulp)->ip6r_nxt;
 				ulp = NULL;
 				break;
 
-			case IPPROTO_FRAGMENT:
+			case IPPROTO_FRAGMENT:	/* RFC 2460 */
 				PULLUP_TO(hlen, ulp, struct ip6_frag);
 				ext_hd |= EXT_FRAGMENT;
 				hlen += sizeof (struct ip6_frag);
 				proto = ((struct ip6_frag *)ulp)->ip6f_nxt;
-				offset = 1;
-				ulp = NULL; /* XXX is it correct ? */
+				offset = ((struct ip6_frag *)ulp)->ip6f_offlg &
+					IP6F_OFF_MASK;
+				/* Add IP6F_MORE_FRAG for offset of first
+				 * fragment to be != 0. */
+				offset |= ((struct ip6_frag *)ulp)->ip6f_offlg &
+					IP6F_MORE_FRAG;
+				if (offset == 0) {
+					printf("IPFW2: IPV6 - Invalid Fragment "
+					    "Header\n");
+					if (fw_deny_unknown_exthdrs)
+					    return (IP_FW_DENY);
+					break;
+				}
+				args->f_id.frag_id6 =
+				    ntohl(((struct ip6_frag *)ulp)->ip6f_ident);
+				ulp = NULL;
 				break;
 
-			case IPPROTO_AH:
-			case IPPROTO_NONE:
-			case IPPROTO_ESP:
+			case IPPROTO_DSTOPTS:	/* RFC 2460 */
+				PULLUP_TO(hlen, ulp, struct ip6_hbh);
+				ext_hd |= EXT_DSTOPTS;
+				hlen += (((struct ip6_hbh *)ulp)->ip6h_len + 1) << 3;
+				proto = ((struct ip6_hbh *)ulp)->ip6h_nxt;
+				ulp = NULL;
+				break;
+
+			case IPPROTO_AH:	/* RFC 2402 */
 				PULLUP_TO(hlen, ulp, struct ip6_ext);
-				if (proto == IPPROTO_AH)
 				ext_hd |= EXT_AH;
-				else if (proto == IPPROTO_ESP)
-				ext_hd |= EXT_ESP;
-				hlen += ((struct ip6_ext *)ulp)->ip6e_len +
-					    sizeof (struct ip6_ext);
+				hlen += (((struct ip6_ext *)ulp)->ip6e_len + 2) << 2;
 				proto = ((struct ip6_ext *)ulp)->ip6e_nxt;
 				ulp = NULL;
+				break;
+
+			case IPPROTO_ESP:	/* RFC 2406 */
+				PULLUP_TO(hlen, ulp, uint32_t);	/* SPI, Seq# */
+				/* Anything past Seq# is variable length and
+				 * data past this ext. header is encrypted. */
+				ext_hd |= EXT_ESP;
+				break;
+
+			case IPPROTO_NONE:	/* RFC 2460 */
+				PULLUP_TO(hlen, ulp, struct ip6_ext);
+				/* Packet ends here. if ip6e_len!=0 octets
+				 * must be ignored. */
 				break;
 
 			case IPPROTO_OSPFIGP:
@@ -2088,9 +2278,10 @@ do {									\
 				break;
 
 			default:
-				printf( "IPFW2: IPV6 - Unknown Extension Header (%d)\n",
-				    proto);
-				return 0; /* deny */
+				printf("IPFW2: IPV6 - Unknown Extension "
+				    "Header(%d), ext_hd=%x\n", proto, ext_hd);
+				if (fw_deny_unknown_exthdrs)
+				    return (IP_FW_DENY);
 				break;
 			} /*switch */
 		}
@@ -2098,7 +2289,7 @@ do {									\
 		args->f_id.dst_ip6 = mtod(m,struct ip6_hdr *)->ip6_dst;
 		args->f_id.src_ip = 0;
 		args->f_id.dst_ip = 0;
-		args->f_id.flow_id6 = ntohs(mtod(m, struct ip6_hdr *)->ip6_flow);
+		args->f_id.flow_id6 = ntohl(mtod(m, struct ip6_hdr *)->ip6_flow);
 	} else if (pktlen >= sizeof(struct ip) &&
 	    (args->eh == NULL || ntohs(args->eh->ether_type) == ETHERTYPE_IP) &&
 	    mtod(m, struct ip *)->ip_v == 4) {
@@ -2601,8 +2792,8 @@ check_body:
 			}
 
 			case O_LOG:
-				if (fw_verbose && !is_ipv6)
-					ipfw_log(f, hlen, args->eh, m, oif);
+				if (fw_verbose)
+					ipfw_log(f, hlen, args, m, oif, offset);
 				match = 1;
 				break;
 
@@ -2870,7 +3061,6 @@ check_body:
 				 * if the packet is not ICMP (or is an ICMP
 				 * query), and it is not multicast/broadcast.
 				 */
-				/* XXX: IPv6 missing!?! */
 				if (hlen > 0 && is_ipv4 &&
 				    (proto != IPPROTO_ICMP ||
 				     is_icmp_query(ICMP(ulp))) &&
@@ -2881,6 +3071,19 @@ check_body:
 					m = args->m;
 				}
 				/* FALLTHROUGH */
+#ifdef INET6
+			case O_UNREACH6:
+				if (hlen > 0 && is_ipv6 &&
+				    (proto != IPPROTO_ICMPV6 ||
+				     (is_icmp6_query(args->f_id.flags) == 1)) &&
+				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
+				    !IN6_IS_ADDR_MULTICAST(&args->f_id.dst_ip6)) {
+					send_reject6(args, cmd->arg1,
+					    offset, hlen);
+					m = args->m;
+				}
+				/* FALLTHROUGH */
+#endif
 			case O_DENY:
 				retval = IP_FW_DENY;
 				goto done;
@@ -3501,6 +3704,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_ACCEPT:
 		case O_DENY:
 		case O_REJECT:
+		case O_UNREACH6:
 		case O_SKIPTO:
 check_size:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
@@ -3928,6 +4132,18 @@ ipfw_init(void)
 	struct ip_fw default_rule;
 	int error;
 
+#ifdef INET6
+	/* Setup IPv6 fw sysctl tree. */
+	sysctl_ctx_init(&ip6_fw_sysctl_ctx);
+	ip6_fw_sysctl_tree = SYSCTL_ADD_NODE(&ip6_fw_sysctl_ctx,
+		SYSCTL_STATIC_CHILDREN(_net_inet6_ip6), OID_AUTO, "fw",
+		CTLFLAG_RW | CTLFLAG_SECURE, 0, "Firewall");
+	SYSCTL_ADD_INT(&ip6_fw_sysctl_ctx, SYSCTL_CHILDREN(ip6_fw_sysctl_tree),
+		OID_AUTO, "deny_unknown_exthdrs", CTLFLAG_RW | CTLFLAG_SECURE,
+		&fw_deny_unknown_exthdrs, 0,
+		"Deny packets with unknown IPv6 Extension Headers");
+#endif
+
 	layer3_chain.rules = NULL;
 	layer3_chain.want_write = 0;
 	layer3_chain.busy_count = 0;
@@ -4019,5 +4235,11 @@ ipfw_destroy(void)
 	IPFW_DYN_LOCK_DESTROY();
 	uma_zdestroy(ipfw_dyn_rule_zone);
 	IPFW_LOCK_DESTROY(&layer3_chain);
+
+#ifdef INET6
+	/* Free IPv6 fw sysctl tree. */
+	sysctl_ctx_free(&ip6_fw_sysctl_ctx);
+#endif
+
 	printf("IP firewall unloaded\n");
 }
