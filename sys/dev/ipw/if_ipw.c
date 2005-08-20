@@ -130,9 +130,7 @@ static void	ipw_free_firmware(struct ipw_softc *);
 static int	ipw_config(struct ipw_softc *);
 static void	ipw_init(void *);
 static void	ipw_stop(void *);
-#ifdef IPW_DEBUG
 static int	ipw_sysctl_stats(SYSCTL_HANDLER_ARGS);
-#endif
 static int	ipw_sysctl_radio(SYSCTL_HANDLER_ARGS);
 static uint32_t	ipw_read_table1(struct ipw_softc *, uint32_t);
 static void	ipw_write_table1(struct ipw_softc *, uint32_t, uint32_t);
@@ -348,12 +346,10 @@ ipw_attach(device_t dev)
 	    CTLTYPE_INT | CTLFLAG_RD, sc, 0, ipw_sysctl_radio, "I",
 	    "radio transmitter switch state (0=off, 1=on)");
 
-#ifdef IPW_DEBUG
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "stats",
 	    CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0, ipw_sysctl_stats, "S",
 	    "statistics");
-#endif
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "dwell",
@@ -2124,7 +2120,6 @@ ipw_stop(void *priv)
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 }
 
-#ifdef IPW_DEBUG
 static int
 ipw_sysctl_stats(SYSCTL_HANDLER_ARGS)
 {
@@ -2144,7 +2139,6 @@ ipw_sysctl_stats(SYSCTL_HANDLER_ARGS)
 
 	return SYSCTL_OUT(req, buf, sizeof buf);
 }
-#endif
 
 static int
 ipw_sysctl_radio(SYSCTL_HANDLER_ARGS)
