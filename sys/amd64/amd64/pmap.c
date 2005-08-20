@@ -288,16 +288,34 @@ pmap_pml4e(pmap_t pmap, vm_offset_t va)
 
 /* Return a pointer to the PDP slot that corresponds to a VA */
 static __inline pdp_entry_t *
+pmap_pml4e_to_pdpe(pml4_entry_t *pml4e, vm_offset_t va)
+{
+	pdp_entry_t *pdpe;
+
+	pdpe = (pdp_entry_t *)PHYS_TO_DMAP(*pml4e & PG_FRAME);
+	return (&pdpe[pmap_pdpe_index(va)]);
+}
+
+/* Return a pointer to the PDP slot that corresponds to a VA */
+static __inline pdp_entry_t *
 pmap_pdpe(pmap_t pmap, vm_offset_t va)
 {
 	pml4_entry_t *pml4e;
-	pdp_entry_t *pdpe;
 
 	pml4e = pmap_pml4e(pmap, va);
 	if (pml4e == NULL || (*pml4e & PG_V) == 0)
 		return NULL;
-	pdpe = (pdp_entry_t *)PHYS_TO_DMAP(*pml4e & PG_FRAME);
-	return (&pdpe[pmap_pdpe_index(va)]);
+	return (pmap_pml4e_to_pdpe(pml4e, va));
+}
+
+/* Return a pointer to the PD slot that corresponds to a VA */
+static __inline pd_entry_t *
+pmap_pdpe_to_pde(pdp_entry_t *pdpe, vm_offset_t va)
+{
+	pd_entry_t *pde;
+
+	pde = (pd_entry_t *)PHYS_TO_DMAP(*pdpe & PG_FRAME);
+	return (&pde[pmap_pde_index(va)]);
 }
 
 /* Return a pointer to the PD slot that corresponds to a VA */
@@ -305,13 +323,11 @@ static __inline pd_entry_t *
 pmap_pde(pmap_t pmap, vm_offset_t va)
 {
 	pdp_entry_t *pdpe;
-	pd_entry_t *pde;
 
 	pdpe = pmap_pdpe(pmap, va);
 	if (pdpe == NULL || (*pdpe & PG_V) == 0)
 		 return NULL;
-	pde = (pd_entry_t *)PHYS_TO_DMAP(*pdpe & PG_FRAME);
-	return (&pde[pmap_pde_index(va)]);
+	return (pmap_pdpe_to_pde(pdpe, va));
 }
 
 /* Return a pointer to the PT slot that corresponds to a VA */
@@ -1574,7 +1590,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			continue;
 		}
 
-		pdpe = pmap_pdpe(pmap, sva);
+		pdpe = pmap_pml4e_to_pdpe(pml4e, sva);
 		if ((*pdpe & PG_V) == 0) {
 			va_next = (sva + NBPDP) & ~PDPMASK;
 			continue;
@@ -1585,7 +1601,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		 */
 		va_next = (sva + NBPDR) & ~PDRMASK;
 
-		pde = pmap_pde(pmap, sva);
+		pde = pmap_pdpe_to_pde(pdpe, sva);
 		ptpaddr = *pde;
 
 		/*
@@ -1727,7 +1743,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			continue;
 		}
 
-		pdpe = pmap_pdpe(pmap, sva);
+		pdpe = pmap_pml4e_to_pdpe(pml4e, sva);
 		if ((*pdpe & PG_V) == 0) {
 			va_next = (sva + NBPDP) & ~PDPMASK;
 			continue;
@@ -1735,7 +1751,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 		va_next = (sva + NBPDR) & ~PDRMASK;
 
-		pde = pmap_pde(pmap, sva);
+		pde = pmap_pdpe_to_pde(pdpe, sva);
 		ptpaddr = *pde;
 
 		/*
@@ -2264,7 +2280,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			continue;
 		}
 
-		pdpe = pmap_pdpe(src_pmap, addr);
+		pdpe = pmap_pml4e_to_pdpe(pml4e, addr);
 		if ((*pdpe & PG_V) == 0) {
 			va_next = (addr + NBPDP) & ~PDPMASK;
 			continue;
@@ -2272,7 +2288,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 
 		va_next = (addr + NBPDR) & ~PDRMASK;
 
-		pde = pmap_pde(src_pmap, addr);
+		pde = pmap_pdpe_to_pde(pdpe, addr);
 		srcptepaddr = *pde;
 		if (srcptepaddr == 0)
 			continue;
