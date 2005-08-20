@@ -608,6 +608,8 @@ sidewaysintpr(unsigned interval1, u_long off)
 		ip = ipn;
 		off = (u_long)TAILQ_NEXT(&ifnet, if_link);
 	}
+	if (interface && interesting == NULL)
+		errx(1, "%s: unknown interface", interface);
 	if ((total = malloc(sizeof(struct iftot))) == NULL) {
 		printf("malloc failed\n");
 		exit(1);
