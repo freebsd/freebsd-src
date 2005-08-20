@@ -155,6 +155,8 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_IP4,
 
+	O_UNREACH6,		/* arg1=icmpv6 code arg (deny)  */
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
 
@@ -167,6 +169,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 #define EXT_ROUTING	0x4
 #define EXT_AH		0x8
 #define EXT_ESP		0x10
+#define EXT_DSTOPTS	0x20
 
 /*
  * Template for instructions.
@@ -403,6 +406,7 @@ struct ipfw_flow_id {
 	struct in6_addr dst_ip6;	/* could also store MAC addr! */
 	struct in6_addr src_ip6;
 	u_int32_t	flow_id6;
+	u_int32_t	frag_id6;
 };
 
 #define IS_IP6_FLOW_ID(id)	((id)->addr_type == 6)
@@ -451,6 +455,7 @@ struct _ipfw_dyn_rule {
 #define	IP_FW_TCPOPT_CC		0x10
 
 #define	ICMP_REJECT_RST		0x100	/* fake ICMP code (send a TCP RST) */
+#define	ICMP6_UNREACH_RST	0x100	/* fake ICMPv6 code (send a TCP RST) */
 
 /*
  * These are used for lookup tables.
