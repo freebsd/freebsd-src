@@ -1408,7 +1408,8 @@ ural_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	if (error == ENETRESET) {
 		if ((ifp->if_flags & IFF_UP) &&
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING))
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
+		    (ic->ic_roaming != IEEE80211_ROAMING_MANUAL))
 			ural_init(sc);
 		error = 0;
 	}
@@ -2038,10 +2039,11 @@ ural_init(void *priv)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
-	if (ic->ic_opmode == IEEE80211_M_MONITOR)
+	if (ic->ic_opmode != IEEE80211_M_MONITOR) {
+		if (ic->ic_roaming != IEEE80211_ROAMING_MANUAL)
+			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
+	} else
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
-	else
-		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 
 	return;
 
