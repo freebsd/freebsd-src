@@ -37,10 +37,6 @@
 
 #include <sys/cdefs.h>
 
-#if __XSI_VISIBLE
-#define	MINSIGSTKSZ	(512 * 4)
-#endif
-
 typedef int sig_atomic_t;
 
 #if __BSD_VISIBLE

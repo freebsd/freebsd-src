@@ -39,10 +39,6 @@
 
 typedef	long sig_atomic_t;
 
-#if __XSI_VISIBLE
-#define	MINSIGSTKSZ	(1024 * 4)
-#endif
-
 #if __BSD_VISIBLE
 
 struct sigcontext {
