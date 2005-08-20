@@ -443,10 +443,14 @@ umajor(dev_t dev)
 static void
 fini_cdevsw(struct cdevsw *devsw)
 {
+	struct cdevsw *gt;
 
-	if (devsw->d_gianttrick != NULL)
-		free(devsw->d_gianttrick, M_DEVT);
-	devsw->d_gianttrick = NULL;
+	if (devsw->d_gianttrick != NULL) {
+		gt = devsw->d_gianttrick;
+		memcpy(devsw, gt, sizeof *devsw);
+		free(gt, M_DEVT);
+		devsw->d_gianttrick = NULL;
+	}
 	devsw->d_flags &= ~D_INIT;
 }
 
