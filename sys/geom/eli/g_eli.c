@@ -771,11 +771,6 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 			goto failed;
 		}
 
-		/*
-		 * If we cannot get hardware acceleration, create dedicated
-		 * thread(s) and do the crypto work in there.
-		 */
-
 		error = kthread_create(g_eli_worker, wr, &wr->w_proc, 0, 0,
 		    "g_eli[%u] %s", i, bpp->name);
 		if (error != 0) {
