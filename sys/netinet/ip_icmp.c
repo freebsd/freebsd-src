@@ -110,6 +110,11 @@ static char	reply_src[IFNAMSIZ];
 SYSCTL_STRING(_net_inet_icmp, OID_AUTO, reply_src, CTLFLAG_RW,
 	&reply_src, IFNAMSIZ, "icmp reply source for non-local packets.");
 
+static int	icmp_rfi = 0;
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, reply_from_interface, CTLFLAG_RW,
+	&icmp_rfi, 0, "ICMP reply from incoming interface for "
+	"non-local packets");
+
 /*
  * ICMP broadcast echo sysctl
  */
@@ -621,6 +626,20 @@ icmp_reflect(m)
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    t.s_addr)
 				goto match;
+		}
+	}
+	/*
+	 * If the packet was transiting through us, use the address of
+	 * the interface the packet came through in.  If that interface
+	 * doesn't have a suitable IP address, the normal selection
+	 * criteria apply.
+	 */
+	if (icmp_rfi && m->m_pkthdr.rcvif != NULL) {
+		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+			ia = ifatoia(ifa);
+			goto match;
 		}
 	}
 	/*
