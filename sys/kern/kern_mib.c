@@ -140,13 +140,8 @@ char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW,
     kernelname, sizeof kernelname, "Name of kernel file booted");
 
-#ifdef SMP
 SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD,
     &mp_ncpus, 0, "Number of active CPUs");
-#else
-SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD,
-    0, 1, "Number of active CPUs");
-#endif
 
 SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD,
     0, BYTE_ORDER, "System byte order");
