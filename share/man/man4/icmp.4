@@ -146,6 +146,11 @@ By default continue with normal source selection.
 Enabling this option is particularly useful on routers because it
 makes external traceroutes show the actual path a packet has taken
 instead of the possibly different return path.
+.It Va quotelen
+.Pq Vt integer
+Number of bytes from original packet to quote in ICMP reply.
+This number is internally enforced to be at least 8 bytes (per RFC792)
+and at most the maximal space left in the ICMP reply mbuf.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
