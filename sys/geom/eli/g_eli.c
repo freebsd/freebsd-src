@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 #include <sys/uio.h>
 
 #include <vm/uma.h>
@@ -68,7 +69,7 @@ SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RW,
 u_int g_eli_overwrites = 5;
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RW, &g_eli_overwrites,
     0, "Number of overwrites on-disk keys when destroying");
-static u_int g_eli_threads = 1;
+static u_int g_eli_threads = 0;
 TUNABLE_INT("kern.geom.eli.threads", &g_eli_threads);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RW, &g_eli_threads, 0,
     "Number of threads doing crypto work");
@@ -391,6 +392,8 @@ g_eli_worker(void *arg)
 	sc = wr->w_softc;
 	mtx_lock_spin(&sched_lock);
 	sched_prio(curthread, PRIBIO);
+	if (sc->sc_crypto == G_ELI_CRYPTO_SW && g_eli_threads == 0)
+		sched_bind(curthread, wr->w_number);
 	mtx_unlock_spin(&sched_lock);
  
 	G_ELI_DEBUG(1, "Thread %s started.", curthread->td_proc->p_comm);
@@ -738,10 +741,12 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	cri.cri_key = sc->sc_datakey;
 
 	threads = g_eli_threads;
-	/* There is really no need for too many worker threads. */
-	if (threads > MAXCPU) {
-		G_ELI_DEBUG(0, "Reducing number of threads to %u.", MAXCPU);
-		threads = MAXCPU;
+	if (threads == 0)
+		threads = mp_ncpus;
+	else if (threads > mp_ncpus) {
+		/* There is really no need for too many worker threads. */
+		threads = mp_ncpus;
+		G_ELI_DEBUG(0, "Reducing number of threads to %u.", threads);
 	}
 	for (i = 0; i < threads; i++) {
 		wr = malloc(sizeof(*wr), M_ELI, M_WAITOK | M_ZERO);
