@@ -193,7 +193,7 @@ icmp_error(n, type, code, dest, mtu)
 	 * Calculate length to quote from original packet and
 	 * prevent the ICMP mbuf from overflowing.
 	 */
-	icmplen = min(oiplen + max(8, icmp_quote), oip->ip_len);
+	icmplen = min(oiplen + max(8, icmp_quotelen), oip->ip_len);
 	icmplen = min(icmplen, M_TRAILINGSPACE(m) -
 			(ICMP_MINLEN + sizeof(struct ip)));
 	if (icmplen < sizeof(struct ip))
