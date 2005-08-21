@@ -739,7 +739,8 @@ ffs_mountfs(devvp, mp, td)
 	/*
 	 * Set FS local "last mounted on" information (NULL pad)
 	 */
-	vfs_mountedfrom(mp, fs->fs_fsmnt);
+	bzero(fs->fs_fsmnt, MAXMNTLEN);
+	strlcpy(fs->fs_fsmnt, mp->mnt_stat.f_mntonname, MAXMNTLEN);
 
 	if( mp->mnt_flag & MNT_ROOTFS) {
 		/*
