@@ -73,6 +73,7 @@ do { \
 
 #define ng_l2cap_free_cmd(cmd) \
 do { \
+	KASSERT(!callout_pending(&(cmd)->timo), ("Pending callout!")); \
 	NG_FREE_M((cmd)->aux); \
 	bzero((cmd), sizeof(*(cmd))); \
 	FREE((cmd), M_NETGRAPH_L2CAP); \
