@@ -953,12 +953,72 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	return 0;
 }
 
+/*
+ * WME parameters coming from IEEE 802.11e specification.  These values are
+ * already declared in ieee80211_proto.c, but they are static so they can't
+ * be reused here.
+ */
+static const struct wmeParams iwi_wme_cck_params[WME_NUM_AC] = {
+	{ 0, 3, 5,  7,   0 },	/* WME_AC_BE */
+	{ 0, 3, 5, 10,   0 },	/* WME_AC_BK */
+	{ 0, 2, 4,  5, 188 },	/* WME_AC_VI */
+	{ 0, 2, 3,  4, 102 }	/* WME_AC_VO */
+};
+
+static const struct wmeParams iwi_wme_ofdm_params[WME_NUM_AC] = {
+	{ 0, 3, 4,  6,   0 },	/* WME_AC_BE */
+	{ 0, 3, 4, 10,   0 },	/* WME_AC_BK */
+	{ 0, 2, 3,  4,  94 },	/* WME_AC_VI */
+	{ 0, 2, 2,  3,  47 }	/* WME_AC_VO */
+};
+
 static int
 iwi_wme_update(struct ieee80211com *ic)
 {
-	/* XXX: we should send a IWI_CMD_SET_WME_PARAMS command here */
+#define IWI_EXP2(v)	htole16((1 << (v)) - 1)
+#define IWI_USEC(v)	htole16(IEEE80211_TXOP_TO_US(v))
+	struct iwi_softc *sc = ic->ic_ifp->if_softc;
+	struct iwi_wme_params wme[3];
+	const struct wmeParams *wmep;
+	int ac;
 
-	return 0;
+	/*
+	 * We shall not override firmware default WME values if WME is not
+	 * actually enabled.
+	 */
+	if (!(ic->ic_flags & IEEE80211_F_WME))
+		return 0;
+
+	for (ac = 0; ac < WME_NUM_AC; ac++) {
+		/* set WME values for current operating mode */
+		wmep = &ic->ic_wme.wme_chanParams.cap_wmeParams[ac];
+		wme[0].aifsn[ac] = wmep->wmep_aifsn;
+		wme[0].cwmin[ac] = IWI_EXP2(wmep->wmep_logcwmin);
+		wme[0].cwmax[ac] = IWI_EXP2(wmep->wmep_logcwmax);
+		wme[0].burst[ac] = IWI_USEC(wmep->wmep_txopLimit);
+		wme[0].acm[ac]   = wmep->wmep_acm;
+
+		/* set WME values for CCK modulation */
+		wmep = &iwi_wme_cck_params[ac];
+		wme[1].aifsn[ac] = wmep->wmep_aifsn;
+		wme[1].cwmin[ac] = IWI_EXP2(wmep->wmep_logcwmin);
+		wme[1].cwmax[ac] = IWI_EXP2(wmep->wmep_logcwmax);
+		wme[1].burst[ac] = IWI_USEC(wmep->wmep_txopLimit);
+		wme[1].acm[ac]   = wmep->wmep_acm;
+
+		/* set WME values for OFDM modulation */
+		wmep = &iwi_wme_ofdm_params[ac];
+		wme[2].aifsn[ac] = wmep->wmep_aifsn;
+		wme[2].cwmin[ac] = IWI_EXP2(wmep->wmep_logcwmin);
+		wme[2].cwmax[ac] = IWI_EXP2(wmep->wmep_logcwmax);
+		wme[2].burst[ac] = IWI_USEC(wmep->wmep_txopLimit);
+		wme[2].acm[ac]   = wmep->wmep_acm;
+	}
+
+	DPRINTF(("Setting WME parameters\n"));
+	return iwi_cmd(sc, IWI_CMD_SET_WME_PARAMS, wme, sizeof wme, 1);
+#undef IWI_USEC
+#undef IWI_EXP2
 }
 
 /*
