@@ -274,6 +274,10 @@ ng_l2cap_free_con(ng_l2cap_con_p con)
 	}
 
 	LIST_REMOVE(con, next);
+	if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)
+		ng_l2cap_discon_untimeout(con);
+	if (con->flags & NG_L2CAP_CON_LP_TIMO)
+		ng_l2cap_lp_untimeout(con);
 	bzero(con, sizeof(*con));
 	FREE(con, M_NETGRAPH_L2CAP);
 } /* ng_l2cap_free_con */
