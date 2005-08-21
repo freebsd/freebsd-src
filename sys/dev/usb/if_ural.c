@@ -118,7 +118,7 @@ Static void		ural_txeof(usbd_xfer_handle, usbd_private_handle,
 			    usbd_status);
 Static void		ural_rxeof(usbd_xfer_handle, usbd_private_handle,
 			    usbd_status);
-Static int		ural_ack_rate(int);
+Static int		ural_ack_rate(struct ieee80211com *, int);
 Static uint16_t		ural_txtime(int, int, uint32_t);
 Static uint8_t		ural_plcp_signal(int);
 Static void		ural_setup_tx_desc(struct ural_softc *,
@@ -737,6 +737,18 @@ ural_task(void *arg)
 	case IEEE80211_S_RUN:
 		ural_set_chan(sc, ic->ic_curchan);
 
+		/* update basic rate set */
+		if (ic->ic_curmode == IEEE80211_MODE_11B) {
+			/* 11b basic rates: 1, 2Mbps */
+			ural_write(sc, RAL_TXRX_CSR11, 0x3);
+		} else if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan)) {
+			/* 11a basic rates: 6, 12, 24Mbps */
+			ural_write(sc, RAL_TXRX_CSR11, 0x150);
+		} else {
+			/* 11g basic rates: 1, 2, 5.5, 11, 6, 12, 24Mbps */
+			ural_write(sc, RAL_TXRX_CSR11, 0x15f);
+		}
+
 		if (ic->ic_opmode != IEEE80211_M_MONITOR)
 			ural_set_bssid(sc, ic->ic_bss->ni_bssid);
 
@@ -906,7 +918,7 @@ skip:	/* setup a new transfer */
  * XXX: this should depend on the destination node basic rate set.
  */
 Static int
-ural_ack_rate(int rate)
+ural_ack_rate(struct ieee80211com *ic, int rate)
 {
 	switch (rate) {
 	/* CCK rates */
@@ -915,7 +927,7 @@ ural_ack_rate(int rate)
 	case 4:
 	case 11:
 	case 22:
-		return 4;
+		return (ic->ic_curmode == IEEE80211_MODE_11B) ? 4 : rate;
 
 	/* OFDM rates */
 	case 12:
@@ -1016,7 +1028,7 @@ ural_setup_tx_desc(struct ural_softc *sc, struct ural_tx_desc *desc,
 	if (RAL_RATE_IS_OFDM(rate))
 		desc->flags |= htole32(RAL_TX_OFDM);
 
-	desc->wme = htole16(RAL_LOGCWMAX(5) | RAL_LOGCWMIN(3) | RAL_AIFSN(2));
+	desc->wme = htole16(RAL_AIFSN(3) | RAL_LOGCWMIN(4) | RAL_LOGCWMAX(6));
 	desc->wme |= htole16(RAL_IVOFFSET(sizeof (struct ieee80211_frame)));
 
 	/*
@@ -1236,7 +1248,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		flags |= RAL_TX_ACK;
 		flags |= RAL_TX_RETRY(7);
 
-		dur = ural_txtime(RAL_ACK_SIZE, ural_ack_rate(rate),
+		dur = ural_txtime(RAL_ACK_SIZE, ural_ack_rate(ic, rate),
 		    ic->ic_flags) + RAL_SIFS;
 		*(uint16_t *)wh->i_dur = htole16(dur);
 	}
@@ -1949,7 +1961,7 @@ ural_init(void *priv)
 	/* we're ready! */
 	ural_write(sc, RAL_MAC_CSR1, RAL_HOST_READY);
 
-	/* set supported basic rates (1, 2, 6, 12, 24) */
+	/* set basic rate set (will be updated later) */
 	ural_write(sc, RAL_TXRX_CSR11, 0x153);
 
 	if (ural_bbp_init(sc) != 0)
