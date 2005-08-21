@@ -111,8 +111,8 @@ is not specified, two letters are used as the suffix.
 If the
 .Ar name
 argument is not specified, the file is split into lexically ordered
-files named with prefixes in the range of
-.Dq Li x-z
+files named with the prefix
+.Dq Li x
 and with suffixes as above.
 .Sh ENVIRONMENT
 The
@@ -139,12 +139,10 @@ A
 command appeared in
 .At v3 .
 .Sh BUGS
-For historical reasons, if you specify
-.Ar name ,
+For historical reasons,
 .Nm
 can only create 676 separate
 files.
-The default naming convention allows 2028 separate files.
 The
 .Fl a
 option can be used to work around this limitation.
