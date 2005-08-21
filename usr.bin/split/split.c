@@ -319,16 +319,8 @@ newfile(void)
 		if ((maxfiles *= 26) <= 0)
 			errx(EX_USAGE, "suffix is too long (max %ld)", i);
 
-	/*
-	 * Hack to increase max files; original code wandered through
-	 * magic characters.
-	 */
-	if (fnum == maxfiles) {
-		if (!defname || fname[0] == 'z')
-			errx(EX_DATAERR, "too many files");
-		++fname[0];
-		fnum = 0;
-	}
+	if (fnum == maxfiles)
+		errx(EX_DATAERR, "too many files");
 
 	/* Generate suffix of sufflen letters */
 	tfnum = fnum;
