@@ -115,6 +115,11 @@ SYSCTL_INT(_net_inet_icmp, OID_AUTO, reply_from_interface, CTLFLAG_RW,
 	&icmp_rfi, 0, "ICMP reply from incoming interface for "
 	"non-local packets");
 
+static int	icmp_quotelen = 8;
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, quotelen, CTLFLAG_RW,
+	&icmp_quotelen, 0, "Number of bytes from original packet to "
+	"quote in ICMP reply");
+
 /*
  * ICMP broadcast echo sysctl
  */
@@ -184,7 +189,13 @@ icmp_error(n, type, code, dest, mtu)
 #ifdef MAC
 	mac_create_mbuf_netlayer(n, m);
 #endif
-	icmplen = min(oiplen + 8, oip->ip_len);
+	/*
+	 * Calculate length to quote from original packet and
+	 * prevent the ICMP mbuf from overflowing.
+	 */
+	icmplen = min(oiplen + max(8, icmp_quote), oip->ip_len);
+	icmplen = min(icmplen, M_TRAILINGSPACE(m) -
+			(ICMP_MINLEN + sizeof(struct ip)));
 	if (icmplen < sizeof(struct ip))
 		panic("icmp_error: bad length");
 	m->m_len = icmplen + ICMP_MINLEN;
