@@ -3558,9 +3558,10 @@ ng_uncallout(struct callout *c, node_p node)
 {
 	item_p item;
 	int rval;
-	
-	if (c == NULL)
-		return (0);
+
+	KASSERT(c != NULL, ("ng_uncallout: NULL callout"));
+	KASSERT(node != NULL, ("ng_uncallout: NULL node"));
+
 	rval = callout_stop(c);
 	item = c->c_arg;
 	/* Do an extra check */
