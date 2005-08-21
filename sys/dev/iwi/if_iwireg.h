@@ -378,11 +378,11 @@ struct iwi_wep_key {
 
 /* structure for command IWI_CMD_SET_WME_PARAMS */
 struct iwi_wme_params {
-	uint16_t	logcwmin[WME_NUM_AC];
-	uint16_t	logcwmax[WME_NUM_AC];
+	uint16_t	cwmin[WME_NUM_AC];
+	uint16_t	cwmax[WME_NUM_AC];
 	uint8_t		aifsn[WME_NUM_AC];
 	uint8_t		acm[WME_NUM_AC];
-	uint16_t	txopLimit[WME_NUM_AC];
+	uint16_t	burst[WME_NUM_AC];
 } __packed;
 
 #define IWI_MEM_EEPROM_CTL	0x00300040
