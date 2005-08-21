@@ -445,10 +445,12 @@ passphrase can be logged and exposed via
 .Xr dmesg 8 .
 This variable should be set in
 .Pa /boot/loader.conf .
-.It Va kern.geom.eli.threads : No 1
+.It Va kern.geom.eli.threads : No 0
 Specifies how many kernel threads should be used for doing software
 cryptography.
 Its purpose is to increase performance on SMP systems.
+If hardware acceleration is available, only one thread will be started.
+If set to 0, CPU-bound thread will be started for every active CPU.
 This variable could be set in
 .Pa /boot/loader.conf .
 .El
