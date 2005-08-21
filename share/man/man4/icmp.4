@@ -32,7 +32,7 @@
 .\"     @(#)icmp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2003
+.Dd August 21, 2005
 .Dt ICMP 4
 .Os
 .Sh NAME
@@ -137,6 +137,15 @@ Defaults to false.
 An interface name used for the ICMP reply source in response to packets
 which are not directly addressed to us.
 By default continue with normal source selection.
+.It Va reply_from_interface
+.Pq Vt boolean
+Use the IP address of the interface the packet came through in for
+responses to packets which are not directly addressed to us.
+If enabled this rule is processed before all others.
+By default continue with normal source selection.
+Enabling this option is particularly useful on routers because it
+makes external traceroutes show the actual path a packet has taken
+instead of the possibly different return path.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
