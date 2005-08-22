@@ -474,6 +474,11 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		return 0;
 	}
 
+#if	__amd64__
+	if (pd->pd_caps & PMC_CAP_INTERRUPT)
+		return EOPNOTSUPP;	/* XXX avoid a processor double fault */
+#endif
+
 #if	DEBUG
 	KASSERT(pd->pd_class == amd_pmc_class,
 	    ("[amd,%d] Unknown PMC class (%d)", __LINE__, pd->pd_class));
