@@ -1190,7 +1190,7 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
 		case 'S':
-			dep("S", "powersleep");
+			dep("S", "powersavesleep");
 			wi_setword(iface, WI_RID_MAX_SLEEP, atoi(optarg));
 			exit(0);
 			break;
