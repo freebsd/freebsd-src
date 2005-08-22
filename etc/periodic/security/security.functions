@@ -43,7 +43,7 @@ check_diff() {
   rc=0
   if [ "$1" = "new_only" ]; then
     shift
-    filter="grep '^>'"
+    filter="grep '^[>+]'"
   else
     filter="cat"
   fi
