@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2005
+.Dd August 22, 2005
 .Dt IP 4
 .Os
 .Sh NAME
@@ -112,6 +112,14 @@ setsockopt(s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
 int ttl = 60;                   /* max = 255 */
 setsockopt(s, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
 .Ed
+.Pp
+.Dv IP_MINTTL
+may be used to set the minimum acceptable TTL a packet must have when
+received on a socket.
+All packets with a lower TTL are silently dropped.
+This option is only really useful when set to 255 preventing packets
+from outside the directly connected networks reaching local listeners
+on sockets.
 .Pp
 If the
 .Dv IP_RECVDSTADDR
