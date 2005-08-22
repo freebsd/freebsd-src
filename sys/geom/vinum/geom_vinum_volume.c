@@ -261,7 +261,7 @@ gv_vol_normal_request(struct gv_volume *v, struct bio *bp)
 
 		if (p == NULL ||
 		    (p->org == GV_PLEX_RAID5 && p->state < GV_PLEX_DEGRADED) ||
-		    (p->state <= GV_PLEX_DEGRADED)) {
+		    (p->org != GV_PLEX_RAID5 && p->state <= GV_PLEX_DEGRADED)) {
 			g_destroy_bio(cbp);
 			bp->bio_children--;
 			g_io_deliver(bp, ENXIO);
