@@ -183,7 +183,7 @@ icmp_error(n, type, code, dest, mtu)
 	/*
 	 * First, formulate icmp message
 	 */
-	m = m_gethdr(M_DONTWAIT, MT_HEADER);
+	MGETHDR(m, M_DONTWAIT, MT_HEADER);
 	if (m == NULL)
 		goto freeit;
 #ifdef MAC
@@ -193,11 +193,31 @@ icmp_error(n, type, code, dest, mtu)
 	 * Calculate length to quote from original packet and
 	 * prevent the ICMP mbuf from overflowing.
 	 */
-	icmplen = min(oiplen + max(8, icmp_quotelen), oip->ip_len);
-	icmplen = min(icmplen, M_TRAILINGSPACE(m) -
-			(ICMP_MINLEN + sizeof(struct ip)));
+	if (oip->ip_p == IPPROTO_TCP) {
+		struct tcphdr *th;
+		int tcphlen;
+
+		if (n->m_len < oiplen + sizeof(struct tcphdr) &&
+		    ((n = m_pullup(n, oiplen + sizeof(struct tcphdr))) == NULL))
+			goto freeit;
+		th = (struct tcphdr *)((caddr_t)oip + oiplen);
+		tcphlen = th->th_off << 2;
+		if (tcphlen < sizeof(struct tcphdr))
+			goto freeit;
+		if (oip->ip_len < oiplen + tcphlen)
+			goto freeit;
+		if (n->m_len < oiplen + tcphlen && 
+		    ((n = m_pullup(n, oiplen + tcphlen)) == NULL))
+			goto freeit;
+		icmplen = max(oiplen + tcphlen, min(icmp_quotelen, oip->ip_len));
+	} else
+		icmplen = min(oiplen + max(8, icmp_quotelen), oip->ip_len);
 	if (icmplen < sizeof(struct ip))
 		panic("icmp_error: bad length");
+	if (icmplen + ICMP_MINLEN + sizeof(struct ip) > MHLEN)
+		MCLGET(m, M_DONTWAIT);
+	if (!(m->m_flags & M_EXT))
+		goto freeit;
 	m->m_len = icmplen + ICMP_MINLEN;
 	MH_ALIGN(m, m->m_len);
 	icp = mtod(m, struct icmp *);
