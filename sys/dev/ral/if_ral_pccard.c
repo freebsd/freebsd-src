@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include "card_if.h"
 #include "pccarddevs.h"
 
-MODULE_DEPEND(ral, pccard, 1, 1, 1);
 MODULE_DEPEND(ral, wlan, 1, 1, 1);
 
 static const struct pccard_product ral_pccard_products[] = {
