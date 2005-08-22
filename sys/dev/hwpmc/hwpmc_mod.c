@@ -4033,10 +4033,16 @@ pmc_initialize(void)
 
 	if (error == 0) {
 		printf(PMC_MODULE_NAME ":");
-		for (n = 0; n < (int) md->pmd_nclass; n++)
-			printf(" %s(%d)",
+		for (n = 0; n < (int) md->pmd_nclass; n++) {
+			printf(" %s/%d/0x%b",
 			    pmc_name_of_pmcclass[md->pmd_classes[n].pm_class],
-			    md->pmd_nclasspmcs[n]);
+			    md->pmd_nclasspmcs[n],
+			    md->pmd_classes[n].pm_caps,
+			    "\20"
+			    "\1INT\2USR\3SYS\4EDG\5THR"
+			    "\6REA\7WRI\10INV\11QUA\12PRC"
+			    "\13TAG\14CSC");
+		}
 		printf("\n");
 	}
 
