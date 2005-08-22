@@ -2708,10 +2708,12 @@ ata_promise_mio_command(struct ata_request *request)
 	return ata_generic_command(request);
 
     case ATA_READ_DMA:
+    case ATA_READ_DMA48:
 	wordp[0] = htole32(0x04 | ((ch->unit + 1) << 16) | (0x00 << 24));
 	break;
 
     case ATA_WRITE_DMA:
+    case ATA_WRITE_DMA48:
 	wordp[0] = htole32(0x00 | ((ch->unit + 1) << 16) | (0x00 << 24));
 	break;
     }
@@ -2742,14 +2744,19 @@ ata_promise_sx4_command(struct ata_request *request)
 
     case ATA_ATA_IDENTIFY:
     case ATA_READ:
+    case ATA_READ48:
     case ATA_READ_MUL:
+    case ATA_READ_MUL48:
     case ATA_WRITE:
+    case ATA_WRITE48:
     case ATA_WRITE_MUL:
+    case ATA_WRITE_MUL48:
 	ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit + 1) << 2), 0x00000001);
 	return ata_generic_command(request);
 
     case ATA_SETFEATURES:
     case ATA_FLUSHCACHE:
+    case ATA_FLUSHCACHE48:
     case ATA_SLEEP:
     case ATA_SET_MULTI:
 	wordp = (u_int32_t *)
@@ -2765,7 +2772,9 @@ ata_promise_sx4_command(struct ata_request *request)
 	return 0;
 
     case ATA_READ_DMA:
+    case ATA_READ_DMA48:
     case ATA_WRITE_DMA:
+    case ATA_WRITE_DMA48:
 	wordp = (u_int32_t *)
 	    (window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_HSG_OFFSET);
 	i = idx = 0;
