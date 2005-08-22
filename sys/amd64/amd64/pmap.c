@@ -205,7 +205,7 @@ static void	pmap_clear_ptes(vm_page_t m, long bit);
 
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq,
 		vm_offset_t sva, pd_entry_t ptepde);
-static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
+static void pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 		vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
@@ -1530,16 +1530,17 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, pd_entry_t ptepde)
  * Remove a single page from a process address space
  */
 static void
-pmap_remove_page(pmap_t pmap, vm_offset_t va)
+pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde)
 {
-	pd_entry_t ptepde;
 	pt_entry_t *pte;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	pte = pmap_pte_pde(pmap, va, &ptepde);
-	if (pte == NULL || (*pte & PG_V) == 0)
+	if ((*pde & PG_V) == 0)
 		return;
-	pmap_remove_pte(pmap, pte, va, ptepde);
+	pte = pmap_pde_to_pte(pde, va);
+	if ((*pte & PG_V) == 0)
+		return;
+	pmap_remove_pte(pmap, pte, va, *pde);
 	pmap_invalidate_page(pmap, va);
 }
 
@@ -1578,7 +1579,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (sva + PAGE_SIZE == eva) {
 		pde = pmap_pde(pmap, sva);
 		if (pde && (*pde & PG_PS) == 0) {
-			pmap_remove_page(pmap, sva);
+			pmap_remove_page(pmap, sva, pde);
 			goto out;
 		}
 	}
