@@ -213,11 +213,12 @@ icmp_error(n, type, code, dest, mtu)
 	} else
 		icmplen = min(oiplen + max(8, icmp_quotelen), oip->ip_len);
 	if (icmplen < sizeof(struct ip))
-		panic("icmp_error: bad length");
-	if (icmplen + ICMP_MINLEN + sizeof(struct ip) > MHLEN)
-		MCLGET(m, M_DONTWAIT);
-	if (!(m->m_flags & M_EXT))
 		goto freeit;
+	if (icmplen + ICMP_MINLEN + sizeof(struct ip) > MHLEN) {
+		MCLGET(m, M_DONTWAIT);
+		if (!(m->m_flags & M_EXT))
+			goto freeit;
+	}
 	m->m_len = icmplen + ICMP_MINLEN;
 	MH_ALIGN(m, m->m_len);
 	icp = mtod(m, struct icmp *);
