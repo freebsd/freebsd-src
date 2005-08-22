@@ -384,6 +384,9 @@ udp_input(m, off)
 		return;
 	}
 	INP_LOCK(inp);
+	/* Check the minimum TTL for socket. */
+	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl)
+		goto badheadlocked;
 	udp_append(inp, ip, m, iphlen + sizeof(struct udphdr), &udp_in);
 	INP_UNLOCK(inp);
 	INP_INFO_RUNLOCK(&udbinfo);
