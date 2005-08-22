@@ -170,10 +170,20 @@ pmc_intel_initialize(void)
 struct pmc_mdep *
 pmc_md_initialize()
 {
+	int i;
+	struct pmc_mdep *md;
+
 	/* determine the CPU kind */
+	md = NULL;
 	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
-		return pmc_amd_initialize();
+		md = pmc_amd_initialize();
 	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
-		return pmc_intel_initialize();
-	return NULL;
+		md = pmc_intel_initialize();
+
+	/* disallow sampling if we do not have an LAPIC */
+	if (md != NULL && lapic == NULL)
+		for (i = 1; i < md->pmd_nclass; i++)
+			md->pmd_classes[i].pm_caps &= ~PMC_CAP_INTERRUPT;
+
+	return md;
 }
