@@ -69,7 +69,8 @@ struct bpf_d {
 
 	struct bpf_if *	bd_bif;		/* interface descriptor */
 	u_long		bd_rtout;	/* Read timeout in 'ticks' */
-	struct bpf_insn *bd_filter; 	/* filter code */
+	struct bpf_insn *bd_rfilter; 	/* read filter code */
+	struct bpf_insn *bd_wfilter;	/* write filter code */
 	u_long		bd_rcount;	/* number of packets received */
 	u_long		bd_dcount;	/* number of packets dropped */
 
@@ -95,6 +96,7 @@ struct bpf_d {
 	u_long		bd_fcount;	/* number of packets which matched filter */
 	pid_t		bd_pid;		/* PID which created descriptor */
 	char		bd_pcomm[MAXCOMLEN + 1];
+	int		bd_locked;	/* true if descriptor is locked */
 };
 
 /* Values for bd_state */
@@ -147,6 +149,7 @@ struct xbpf_d {
 	pid_t		bd_pid;
 	char		bd_ifname[IFNAMSIZ];
 	char		bd_pcomm[MAXCOMLEN + 1];
+	int		bd_locked;
 };
 
 #define BPFIF_LOCK(bif)		mtx_lock(&(bif)->bif_mtx)

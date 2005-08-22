@@ -113,6 +113,8 @@ struct bpf_version {
 #define BIOCSSEESENT	_IOW('B',119, u_int)
 #define	BIOCSDLT	_IOW('B',120, u_int)
 #define	BIOCGDLTLIST	_IOWR('B',121, struct bpf_dltlist)
+#define	BIOCLOCK	_IO('B', 122)
+#define	BIOCSETWF	_IOW('B',123, struct bpf_program)
 
 /*
  * Structure prepended to each packet.
