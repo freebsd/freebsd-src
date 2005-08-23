@@ -75,6 +75,7 @@ static void ata_acard_86X_setmode(device_t dev, int mode);
 static int ata_ali_chipinit(device_t dev);
 static int ata_ali_allocate(device_t dev);
 static int ata_ali_sata_allocate(device_t dev);
+static void ata_ali_reset(device_t dev);
 static void ata_ali_setmode(device_t dev, int mode);
 static int ata_amd_chipinit(device_t dev);
 static int ata_cyrix_chipinit(device_t dev);
@@ -878,26 +879,28 @@ ata_ali_chipinit(device_t dev)
 	break;
 
     case ALINEW:
-	/* deactivate the ATAPI FIFO and enable ATAPI UDMA */
-	pci_write_config(dev, 0x53,
-			 pci_read_config(dev, 0x53, 1) | 0x01, 1);
+	/* use device interrupt as byte count end */
+	pci_write_config(dev, 0x4a, pci_read_config(dev, 0x4a, 1) | 0x20, 1);
 
 	/* enable cable detection and UDMA support on newer chips */
 	pci_write_config(dev, 0x4b, pci_read_config(dev, 0x4b, 1) | 0x09, 1);
+
+	/* enable ATAPI UDMA mode */
+	pci_write_config(dev, 0x53, pci_read_config(dev, 0x53, 1) | 0x01, 1);
 
 	/* only chips with revision > 0xc4 can do 48bit DMA */
 	if (ctlr->chip->chiprev <= 0xc4)
 	    device_printf(dev,
 			  "using PIO transfers above 137GB as workaround for "
 			  "48bit DMA access bug, expect reduced performance\n");
+	ctlr->reset = ata_ali_reset;
 	ctlr->allocate = ata_ali_allocate;
 	ctlr->setmode = ata_ali_setmode;
 	break;
 
     case ALIOLD:
 	/* deactivate the ATAPI FIFO and enable ATAPI UDMA */
-	pci_write_config(dev, 0x53,
-			 (pci_read_config(dev, 0x53, 1) & ~0x02) | 0x03, 1);
+	pci_write_config(dev, 0x53, pci_read_config(dev, 0x53, 1) | 0x03, 1);
 	ctlr->setmode = ata_ali_setmode;
 	break;
     }
@@ -960,6 +963,39 @@ ata_ali_sata_allocate(device_t dev)
     /* XXX SOS PHY handling awkward in ALI chip not supported yet */
     ata_generic_hw(dev);
     return 0;
+}
+
+static void
+ata_ali_reset(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    device_t *children;
+    int nchildren, i;
+
+    ata_generic_reset(dev);
+
+    /*
+     * workaround for datacorruption bug found on at least SUN Blade-100
+     * find the ISA function on the southbridge and disable then enable
+     * the ATA channel tristate buffer
+     */
+    if (ctlr->chip->chiprev == 0xc3 || ctlr->chip->chiprev == 0xc2) {
+	if (!device_get_children(GRANDPARENT(dev), &children, &nchildren)) {
+	    for (i = 0; i < nchildren; i++) {
+		if (pci_get_devid(children[i]) == ATA_ALI_1533) {
+		    pci_write_config(children[i], 0x58, 
+				     pci_read_config(children[i], 0x58, 1) &
+				     ~(0x04 << ch->unit), 1);
+		    pci_write_config(children[i], 0x58, 
+				     pci_read_config(children[i], 0x58, 1) |
+				     (0x04 << ch->unit), 1);
+		    break;
+		}
+	    }
+	    free(children, M_TEMP);
+	}
+    }
 }
 
 static void
