@@ -216,15 +216,11 @@ init_pcap(void)
 
 	cur_snaplen = snaplen = pcap_snapshot(hpcap);
 
-#ifdef __FreeBSD__
-	/* We can not lock bpf devices ... yet */
-#else
 	/* lock */
 	if (ioctl(pcap_fileno(hpcap), BIOCLOCK) < 0) {
 		logmsg(LOG_ERR, "BIOCLOCK: %s", strerror(errno));
 		return (-1);
 	}
-#endif
 
 	return (0);
 }
