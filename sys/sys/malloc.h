@@ -145,7 +145,7 @@ struct malloc_type_header {
 	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_SECOND, malloc_init,	\
 	    type);							\
 	SYSUNINIT(type##_uninit, SI_SUB_KMEM, SI_ORDER_ANY,		\
-	    malloc_uninit, type);
+	    malloc_uninit, type)
 
 #define	MALLOC_DECLARE(type) \
 	extern struct malloc_type type[1]
