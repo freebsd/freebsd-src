@@ -1075,7 +1075,7 @@ delete-old-files:
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
 .for file in ${OLD_FILES}
 # Ask for every old file if the user really wants to remove it.
-# It's anoying, but beter safe than sorry.
+# It's annoying, but better safe than sorry.
 	@[ ! -f "${DESTDIR}/${file}" ] || (rm ${RM_I} "${DESTDIR}/${file}" \
                 ||  ([ -f "${DESTDIR}/${file}" ] \
                         && echo "Removing schg flag on ${DESTDIR}/${file}" \
