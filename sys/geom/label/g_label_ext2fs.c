@@ -58,6 +58,9 @@ g_label_ext2fs_taste(struct g_consumer *cp, char *label, size_t size)
 	pp = cp->provider;
 	label[0] = '\0';
 
+	if ((EXT2FS_SB_OFFSET % pp->sectorsize) != 0)
+		return;
+
 	fs = (e2sb_t *)g_read_data(cp, EXT2FS_SB_OFFSET, pp->sectorsize, NULL);
 	if (fs == NULL)
 		return;

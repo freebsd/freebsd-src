@@ -49,11 +49,17 @@ typedef struct resiserfs_sb {
 } reiserfs_sb_t;
 
 static reiserfs_sb_t *
-g_label_reiserfs_read_super(struct g_consumer *cp, off_t offset, off_t len) 
+g_label_reiserfs_read_super(struct g_consumer *cp, off_t offset)
 {
 	reiserfs_sb_t *fs;
+	u_int secsize;
 
-	fs = (reiserfs_sb_t *)g_read_data(cp, offset, len, NULL);
+	secsize = cp->provider->sectorsize;
+
+	if ((offset % secsize) != 0)
+		return (NULL);
+
+	fs = (reiserfs_sb_t *)g_read_data(cp, offset, secsize, NULL);
 	if (fs == NULL)
 		return (NULL);
 
@@ -77,12 +83,10 @@ g_label_reiserfs_taste(struct g_consumer *cp, char *label, size_t size)
 	label[0] = '\0';
 
 	/* Try old format */
-	fs = g_label_reiserfs_read_super(cp, REISERFS_OLD_DISK_OFFSET,
-	    pp->sectorsize);
+	fs = g_label_reiserfs_read_super(cp, REISERFS_OLD_DISK_OFFSET);
 	if (fs == NULL) {
 		/* Try new format */
-		fs = g_label_reiserfs_read_super(cp, REISERFS_NEW_DISK_OFFSET,
-		    pp->sectorsize);
+		fs = g_label_reiserfs_read_super(cp, REISERFS_NEW_DISK_OFFSET);
 	}
 	if (fs == NULL)
 		return;
