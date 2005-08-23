@@ -697,19 +697,19 @@ found_dev:
 	if (dev->ifacenums == NULL) {
 		snprintf(buf, buflen, "vendor=0x%04x product=0x%04x "
 		    "devclass=0x%02x devsubclass=0x%02x "
-		    "sernum=\"%s\"",
+		    "release=0x%04x sernum=\"%s\"",
 		    UGETW(dev->ddesc.idVendor), UGETW(dev->ddesc.idProduct),
 		    dev->ddesc.bDeviceClass, dev->ddesc.bDeviceSubClass,
-		    serial);
+		    UGETW(dev->ddesc.bcdDevice), serial);
 	} else {
 		iface = &dev->ifaces[dev->ifacenums[i]];
 		snprintf(buf, buflen, "vendor=0x%04x product=0x%04x "
 		    "devclass=0x%02x devsubclass=0x%02x "
-		    "sernum=\"%s\" "
+		    "release=0x%04x sernum=\"%s\" "
 		    "intclass=0x%02x intsubclass=0x%02x",
 		    UGETW(dev->ddesc.idVendor), UGETW(dev->ddesc.idProduct),
 		    dev->ddesc.bDeviceClass, dev->ddesc.bDeviceSubClass,
-		    serial,
+		    UGETW(dev->ddesc.bcdDevice), serial,
 		    iface->idesc->bInterfaceClass,
 		    iface->idesc->bInterfaceSubClass);
 	}
