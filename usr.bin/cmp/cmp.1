@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl l | Fl s | Fl x
-.Op Fl z
+.Op Fl hz
 .Ar file1 file2
 .Op Ar skip1 Op Ar skip2
 .Sh DESCRIPTION
@@ -61,6 +61,8 @@ Bytes and lines are numbered beginning with one.
 .Pp
 The following options are available:
 .Bl -tag -width flag
+.It Fl h
+Don't follow symbolic links.
 .It Fl l
 Print the byte number (decimal) and the differing
 byte values (octal) for each difference.
