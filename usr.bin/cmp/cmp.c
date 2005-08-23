@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,11 +68,15 @@ main(int argc, char *argv[])
 {
 	struct stat sb1, sb2;
 	off_t skip1, skip2;
-	int ch, fd1, fd2, special;
+	int ch, fd1, fd2, oflag, special;
 	const char *file1, *file2;
 
-	while ((ch = getopt(argc, argv, "lsxz")) != -1)
+	oflag = O_RDONLY;
+	while ((ch = getopt(argc, argv, "hlsxz")) != -1)
 		switch (ch) {
+		case 'h':		/* Don't follow symlinks */
+			oflag |= O_NOFOLLOW;
+			break;
 		case 'l':		/* print all differences */
 			lflag = 1;
 			break;
@@ -106,7 +111,7 @@ main(int argc, char *argv[])
 		fd1 = 0;
 		file1 = "stdin";
 	}
-	else if ((fd1 = open(file1, O_RDONLY, 0)) < 0) {
+	else if ((fd1 = open(file1, oflag, 0)) < 0 && errno != EMLINK) {
 		if (!sflag)
 			err(ERR_EXIT, "%s", file1);
 		else
@@ -120,7 +125,7 @@ main(int argc, char *argv[])
 		fd2 = 0;
 		file2 = "stdin";
 	}
-	else if ((fd2 = open(file2, O_RDONLY, 0)) < 0) {
+	else if ((fd2 = open(file2, oflag, 0)) < 0 && errno != EMLINK) {
 		if (!sflag)
 			err(ERR_EXIT, "%s", file2);
 		else
@@ -129,6 +134,21 @@ main(int argc, char *argv[])
 
 	skip1 = argc > 2 ? strtol(argv[2], NULL, 0) : 0;
 	skip2 = argc == 4 ? strtol(argv[3], NULL, 0) : 0;
+
+	if (fd1 == -1) {
+		if (fd2 == -1) {
+			c_link(file1, skip1, file2, skip2);
+			exit(0);
+		} else if (!sflag)
+			errx(ERR_EXIT, "%s: Not a symbolic link", file2);
+		else
+			exit(ERR_EXIT);
+	} else if (fd2 == -1) {
+		if (!sflag)
+			errx(ERR_EXIT, "%s: Not a symbolic link", file1);
+		else
+			exit(ERR_EXIT);
+	}
 
 	if (!special) {
 		if (fstat(fd1, &sb1)) {
@@ -171,6 +191,6 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "usage: cmp [-l | -s | -x] [-z] file1 file2 [skip1 [skip2]]\n");
+	    "usage: cmp [-l | -s | -x] [-hz] file1 file2 [skip1 [skip2]]\n");
 	exit(ERR_EXIT);
 }
