@@ -2711,12 +2711,22 @@ vfs_unmountall()
 		error = dounmount(mp, MNT_FORCE, td);
 		if (error) {
 			TAILQ_REMOVE(&mountlist, mp, mnt_list);
-			printf("unmount of %s failed (",
-			    mp->mnt_stat.f_mntonname);
-			if (error == EBUSY)
-				printf("BUSY)\n");
-			else
-				printf("%d)\n", error);
+			/*
+			 * XXX: Due to the way in which we mount the root
+			 * file system off of devfs, devfs will generate a
+			 * "busy" warning when we try to unmount it before
+			 * the root.  Don't print a warning as a result in
+			 * order to avoid false positive errors that may
+			 * cause needless upset.
+			 */
+			if (strcmp(mp->mnt_vfc->vfc_name, "devfs") != 0) {
+				printf("unmount of %s failed (",
+				    mp->mnt_stat.f_mntonname);
+				if (error == EBUSY)
+					printf("BUSY)\n");
+				else
+					printf("%d)\n", error);
+			}
 		} else {
 			/* The unmount has removed mp from the mountlist */
 		}
