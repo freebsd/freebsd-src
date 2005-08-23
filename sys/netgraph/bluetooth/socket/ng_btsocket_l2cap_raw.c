@@ -546,24 +546,24 @@ ng_btsocket_l2cap_raw_init(void)
 	/* Create input queue */
 	NG_BT_ITEMQ_INIT(&ng_btsocket_l2cap_raw_queue, ifqmaxlen);
 	mtx_init(&ng_btsocket_l2cap_raw_queue_mtx,
-		"btsocks_l2cap_queue_mtx", NULL, MTX_DEF);
+		"btsocks_l2cap_raw_queue_mtx", NULL, MTX_DEF);
 	TASK_INIT(&ng_btsocket_l2cap_raw_queue_task, 0,
 		ng_btsocket_l2cap_raw_input, NULL);
 
 	/* Create list of sockets */
 	LIST_INIT(&ng_btsocket_l2cap_raw_sockets);
 	mtx_init(&ng_btsocket_l2cap_raw_sockets_mtx,
-		"btsocks_l2cap_sockets_mtx", NULL, MTX_DEF);
+		"btsocks_l2cap_raw_sockets_mtx", NULL, MTX_DEF);
 
 	/* Tokens */
 	ng_btsocket_l2cap_raw_token = 0;
 	mtx_init(&ng_btsocket_l2cap_raw_token_mtx,
-		"btsocks_l2cap_token_mtx", NULL, MTX_DEF);
+		"btsocks_l2cap_raw_token_mtx", NULL, MTX_DEF);
 
 	/* Routing table */
 	LIST_INIT(&ng_btsocket_l2cap_raw_rt);
 	mtx_init(&ng_btsocket_l2cap_raw_rt_mtx,
-		"btsocks_l2cap_rt_mtx", NULL, MTX_DEF);
+		"btsocks_l2cap_raw_rt_mtx", NULL, MTX_DEF);
 	TASK_INIT(&ng_btsocket_l2cap_raw_rt_task, 0,
 		ng_btsocket_l2cap_raw_rtclean, NULL);
 } /* ng_btsocket_l2cap_raw_init */
