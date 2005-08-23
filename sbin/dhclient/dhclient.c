@@ -1,5 +1,4 @@
 /*	$OpenBSD: dhclient.c,v 1.63 2005/02/06 17:10:13 krw Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Copyright 2004 Henning Brauer <henning@openbsd.org>
@@ -53,6 +52,9 @@
  * the shell script can invoke the native tools to accomplish the same
  * purpose.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
 #include "privsep.h"
