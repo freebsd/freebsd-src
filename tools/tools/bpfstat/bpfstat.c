@@ -116,7 +116,7 @@ bpfd_print_header(struct conf *conf)
 	printf("%*s %*s %*s %*s %*s %*s %*s %*s %s\n",
 	    c->pd_width,	"pid",
 	    7,			"netif",
-	    6,			"flags",
+	    7,			"flags",
 	    c->rc_width,	"recv",
 	    c->dc_width,	"drop",
 	    c->fc_width,	"match",
@@ -136,7 +136,7 @@ bpfd_print_row(struct xbpf_d *bd, struct conf *conf)
 	printf("%*d %*s %*s %*lu %*lu %*lu %*d %*d %s\n",
 	    c->pd_width,	bd->bd_pid,
 	    7,			bd->bd_ifname,
-	    6,			flagbuf,
+	    7,			flagbuf,
 	    c->rc_width,	bd->bd_rcount,
 	    c->dc_width,	bd->bd_dcount,
 	    c->fc_width,	bd->bd_fcount,
@@ -154,6 +154,7 @@ bpfd_parse_flags(struct xbpf_d *bd, char *flagbuf)
 	*flagbuf++ = bd->bd_hdrcmplt ? '-' : 'f';
 	*flagbuf++ = bd->bd_seesent ? 's' : '.';
 	*flagbuf++ = bd->bd_async ? 'a' : '-';
+	*flagbuf++ = bd->bd_locked ? 'l' : '-';
 	*flagbuf++ = '\0';
 }
 
