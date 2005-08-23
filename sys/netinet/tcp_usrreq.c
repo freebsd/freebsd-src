@@ -30,7 +30,6 @@
  * $FreeBSD$
  */
 
-#include "opt_ipsec.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
@@ -77,10 +76,6 @@
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
-
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#endif /*IPSEC*/
 
 /*
  * TCP protocol interface to socket abstraction.
