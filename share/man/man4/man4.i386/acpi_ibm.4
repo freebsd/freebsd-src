@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 11, 2005
+.Dd August 23, 2005
 .Dt ACPI_IBM 4 i386
 .Os
 .Sh NAME
@@ -132,6 +132,17 @@ Mute
 .It Li 0x18
 Access IBM Button
 .El
+.Ss Xr led 4 Ss Interface
+The
+.Nm
+driver provides an
+.Xr led 4
+interface for the Thinklight.
+The Thinklight can be made to blink by writing
+.Tn ASCII
+strings to the
+.Pa /dev/led/thinklight
+device.
 .Sh SYSCTL VARIABLES
 The following sysctls are currently implemented:
 .Bl -tag -width indent
@@ -385,6 +396,13 @@ then
 fi
 exit 0
 .Ed
+.Sh FILES
+.Bl -tag -width ".Pa /dev/led/thinklight"
+.It Pa /dev/led/thinklight
+Thinklight
+.Xr led 4
+device node
+.El
 .Sh SEE ALSO
 .Xr acpi 4 ,
 .Xr sysctl.conf 5 ,
