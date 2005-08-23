@@ -231,7 +231,7 @@ which must respond to messages in real time.
 The default for a new file is off.
 .It Dv BIOCSETF
 .Pq Li "struct bpf_program"
-Sets the filter program used by the kernel to discard uninteresting
+Sets the read filter program used by the kernel to discard uninteresting
 packets.
 An array of instructions and its length is passed in using
 the following structure:
@@ -255,6 +255,11 @@ are performed.
 See section
 .Sx "FILTER MACHINE"
 for an explanation of the filter language.
+.It Dv BIOCSETWF
+.Pq Li "struct bpf_program"
+Sets the write filter program used by the kernel to control what type of
+packets can be written to the interface. See the BIOCSETF command for more
+information on the bpf filter program.
 .It Dv BIOCVERSION
 .Pq Li "struct bpf_version"
 Returns the major and minor version numbers of the filter language currently
@@ -301,6 +306,10 @@ Set to zero to see only incoming packets on the interface.
 Set to one to see packets originating locally and remotely on the interface.
 This flag is initialized to one by
 default.
+.It Dv BIOCLOCK
+Set the locked flag on the bpf descriptor. This prevents the execution of
+ioctl commands which could change the underlying operating parameters of
+the device.
 .El
 .Sh BPF HEADER
 The following structure is prepended to each packet returned by
