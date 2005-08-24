@@ -297,6 +297,7 @@ static int	LogFacPri;	/* Put facility and priority in log message: */
 				/* 0=no, 1=numeric, 2=names */
 static int	KeepKernFac;	/* Keep remotely logged kernel facility */
 static int	needdofsync = 0; /* Are any file(s) waiting to be fsynced? */
+static struct pidfh *pfh;
 
 volatile sig_atomic_t MarkSet, WantDie;
 
@@ -339,14 +340,13 @@ main(int argc, char *argv[])
 	struct sockaddr_un sunx, fromunix;
 	struct sockaddr_storage frominet;
 	fd_set *fdsr = NULL;
-	FILE *fp;
 	char line[MAXLINE + 1];
 	const char *bindhostname, *hname;
 	struct timeval tv, *tvp;
 	struct sigaction sact;
 	struct funix *fx, *fx1;
 	sigset_t mask;
-	pid_t ppid = 1;
+	pid_t ppid = 1, spid;
 	socklen_t len;
 
 	bindhostname = NULL;
@@ -456,10 +456,20 @@ main(int argc, char *argv[])
 	if ((argc -= optind) != 0)
 		usage();
 
+	pfh = pidfile_open(PidFile, 0600, &spid);
+	if (pfh == NULL) {
+		if (errno == EEXIST)
+			errx(1, "syslogd already running, pid: %d", spid);
+		warn("cannot open pid file");
+	}
+
 	if (!Debug) {
 		ppid = waitdaemon(0, 0, 30);
-		if (ppid < 0)
-			err(1, "could not become daemon");
+		if (ppid < 0) {
+			warn("could not become daemon");
+			pidfile_remove(pfh);
+			exit(1);
+		}
 	} else {
 		setlinebuf(stdout);
 	}
@@ -542,11 +552,7 @@ main(int argc, char *argv[])
 		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
 
 	/* tuck my process id away */
-	fp = fopen(PidFile, "w");
-	if (fp != NULL) {
-		fprintf(fp, "%d\n", getpid());
-		(void)fclose(fp);
-	}
+	pidfile_write(pfh);
 
 	dprintf("off & running....\n");
 
@@ -1476,6 +1482,7 @@ die(int signo)
 	}
 	STAILQ_FOREACH(fx, &funixes, next)
 		(void)unlink(fx->name);
+	pidfile_remove(pfh);
 
 	exit(1);
 }
