@@ -723,7 +723,9 @@ iso88025_resolvemulti (ifp, llsa, sa)
 			return (EADDRNOTAVAIL);
 		}
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
-		       M_WAITOK|M_ZERO);
+		       M_NOWAIT|M_ZERO);
+		if (sdl == NULL)
+			return (ENOMEM);
 		sdl->sdl_len = sizeof *sdl;
 		sdl->sdl_family = AF_LINK;
 		sdl->sdl_index = ifp->if_index;
@@ -751,7 +753,9 @@ iso88025_resolvemulti (ifp, llsa, sa)
 			return (EADDRNOTAVAIL);
 		}
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
-		       M_WAITOK|M_ZERO);
+		       M_NOWAIT|M_ZERO);
+		if (sdl == NULL)
+			return (ENOMEM);
 		sdl->sdl_len = sizeof *sdl;
 		sdl->sdl_family = AF_LINK;
 		sdl->sdl_index = ifp->if_index;
