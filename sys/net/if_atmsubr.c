@@ -259,9 +259,6 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 {
 	int isr;
 	u_int16_t etype = ETHERTYPE_IP;		/* default */
-#ifdef NATM
-	int s;
-#endif
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
@@ -287,13 +284,19 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 
 	if (rxhand) {
 #ifdef NATM
-		struct natmpcb *npcb = rxhand;
+		struct natmpcb *npcb;
 
-		s = splimp();		/* in case 2 atm cards @ diff lvls */
+		/*
+		 * XXXRW: this use of 'rxhand' is not a very good idea, and
+		 * was subject to races even before SMPng due to the release
+		 * of spl here.
+		 */
+		NATM_LOCK();
+		npcb = rxhand;
 		npcb->npcb_inq++;	/* count # in queue */
-		splx(s);
 		isr = NETISR_NATM;
 		m->m_pkthdr.rcvif = rxhand; /* XXX: overload */
+		NATM_UNLOCK();
 #else
 		printf("atm_input: NATM detected but not "
 		    "configured in kernel\n");
