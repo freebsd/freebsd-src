@@ -104,7 +104,7 @@ get_char(FILE *cfile)
 			lpos = 1;
 			cur_line[0] = 0;
 		} else if (c != EOF) {
-			if (lpos <= 81) {
+			if (lpos < sizeof(line1)) {
 				cur_line[lpos - 1] = c;
 				cur_line[lpos] = 0;
 			}
