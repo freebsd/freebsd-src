@@ -222,65 +222,6 @@ set_cron_cwd()
 }
 
 
-/* acquire_daemonlock() - write our PID into /etc/cron.pid, unless
- *	another daemon is already running, which we detect here.
- *
- * note: main() calls us twice; once before forking, once after.
- *	we maintain static storage of the file pointer so that we
- *	can rewrite our PID into the PIDFILE after the fork.
- *
- * it would be great if fflush() disassociated the file buffer.
- */
-void
-acquire_daemonlock(closeflag)
-	int closeflag;
-{
-	static	FILE	*fp = NULL;
-
-	if (closeflag && fp) {
-		fclose(fp);
-		fp = NULL;
-		return;
-	}
-
-	if (!fp) {
-		char	pidfile[MAX_FNAME];
-		char	buf[MAX_TEMPSTR];
-		int	fd, otherpid;
-
-		(void) sprintf(pidfile, PIDFILE, PIDDIR);
-		if ((-1 == (fd = open(pidfile, O_RDWR|O_CREAT, 0644)))
-		    || (NULL == (fp = fdopen(fd, "r+")))
-		    ) {
-			sprintf(buf, "can't open or create %s: %s",
-				pidfile, strerror(errno));
-			log_it("CRON", getpid(), "DEATH", buf);
-			errx(ERROR_EXIT, "%s", buf);
-		}
-
-		if (flock(fd, LOCK_EX|LOCK_NB) < OK) {
-			int save_errno = errno;
-
-			fscanf(fp, "%d", &otherpid);
-			sprintf(buf, "can't lock %s, otherpid may be %d: %s",
-				pidfile, otherpid, strerror(save_errno));
-			log_it("CRON", getpid(), "DEATH", buf);
-			errx(ERROR_EXIT, "%s", buf);
-		}
-
-		(void) fcntl(fd, F_SETFD, 1);
-	}
-
-	rewind(fp);
-	fprintf(fp, "%d\n", getpid());
-	fflush(fp);
-	(void) ftruncate(fileno(fp), ftell(fp));
-
-	/* abandon fd and fp even though the file is open. we need to
-	 * keep it open and locked, but we don't need the handles elsewhere.
-	 */
-}
-
 /* get_char(file) : like getc() but increment LineNumber on newlines
  */
 int
