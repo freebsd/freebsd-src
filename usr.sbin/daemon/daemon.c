@@ -31,10 +31,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 
 #include <err.h>
 #include <errno.h>
+#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -44,9 +45,10 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
+	struct pidfh *pfh;
 	int ch, nochdir, noclose, errcode;
-	FILE *pidf;
 	const char *pidfile;
+	pid_t otherpid;
 
 	nochdir = noclose = 1;
 	pidfile = NULL;
@@ -75,19 +77,22 @@ main(int argc, char *argv[])
 	 * to be able to report the error intelligently
 	 */
 	if (pidfile) {
-		pidf = fopen(pidfile, "w");
-		if (pidf == NULL)
+		pfh = pidfile_open(pidfile, 0600, &otherpid);
+		if (pfh == NULL) {
+			if (errno == EEXIST) {
+				errx(3, "process already running, pid: %d",
+				    otherpid);
+			}
 			err(2, "pidfile ``%s''", pidfile);
+		}
 	}
 
 	if (daemon(nochdir, noclose) == -1)
 		err(1, NULL);
 
 	/* Now that we are the child, write out the pid */
-	if (pidfile) {
-		fprintf(pidf, "%lu\n", (unsigned long)getpid());
-		fclose(pidf);
-	}
+	if (pidfile)
+		pidfile_write(pfh);
 
 	execvp(argv[0], argv);
 
@@ -97,7 +102,7 @@ main(int argc, char *argv[])
 	 */
 	errcode = errno; /* Preserve errcode -- unlink may reset it */
 	if (pidfile)
-		unlink(pidfile);
+		pidfile_remove(pfh);
 
 	/* The child is now running, so the exit status doesn't matter. */
 	errc(1, errcode, "%s", argv[0]);
