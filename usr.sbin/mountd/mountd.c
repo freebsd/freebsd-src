@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
+#include <libutil.h>
 #include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
@@ -85,10 +86,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DEBUG
 #include <stdarg.h>
-#endif
-
-#ifndef MOUNTDLOCK
-#define MOUNTDLOCK "/var/run/mountd.lock"
 #endif
 
 /*
@@ -228,7 +225,7 @@ int got_sighup = 0;
 int opt_flags;
 static int have_v6 = 1;
 
-int mountdlockfd;
+struct pidfh *pfh = NULL;
 /* Bits for opt_flags above */
 #define	OP_MAPROOT	0x01
 #define	OP_MAPALL	0x02
@@ -266,6 +263,7 @@ main(argc, argv)
 	char *endptr;
 	SVCXPRT *udptransp, *tcptransp, *udp6transp, *tcp6transp;
 	struct netconfig *udpconf, *tcpconf, *udp6conf, *tcp6conf;
+	pid_t otherpid;
 	int udpsock, tcpsock, udp6sock, tcp6sock;
 	int xcreated = 0, s;
 	int maxrec = RPC_MAXDATASIZE;
@@ -277,11 +275,13 @@ main(argc, argv)
 	udp6sock = tcp6sock = 0;
 
 	/* Check that another mountd isn't already running. */
-	if ((mountdlockfd = (open(MOUNTDLOCK, O_RDONLY|O_CREAT, 0444))) == -1)
-		err(1, "%s", MOUNTDLOCK);
+	pfh = pidfile_open(_PATH_MOUNTDPID, 0644, &otherpid);
+	if (pfh == NULL) {
+		if (errno == EEXIST)
+			errx(1, "mountd already running, pid: %d.", otherpid);
+		warn("cannot open or create pidfile");
+	}
 
-	if(flock(mountdlockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK)
-		errx(1, "another mountd is already running. Aborting");
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	if (s < 0)
 		have_v6 = 0;
@@ -346,12 +346,9 @@ main(argc, argv)
 	}
 	signal(SIGHUP, huphandler);
 	signal(SIGTERM, terminate);
-	{ FILE *pidfile = fopen(_PATH_MOUNTDPID, "w");
-	  if (pidfile != NULL) {
-		fprintf(pidfile, "%d\n", getpid());
-		fclose(pidfile);
-	  }
-	}
+
+	pidfile_write(pfh);
+
 	rpcb_unset(RPCPROG_MNT, RPCMNT_VER1, NULL);
 	rpcb_unset(RPCPROG_MNT, RPCMNT_VER3, NULL);
 	udpsock  = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -2531,8 +2528,7 @@ huphandler(int sig)
 void terminate(sig)
 int sig;
 {
-	close(mountdlockfd);
-	unlink(MOUNTDLOCK);
+	pidfile_remove(pfh);
 	rpcb_unset(RPCPROG_MNT, RPCMNT_VER1, NULL);
 	rpcb_unset(RPCPROG_MNT, RPCMNT_VER3, NULL);
 	exit (0);
