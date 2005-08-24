@@ -379,6 +379,12 @@ iconv_sysctl_add(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 	if (din.ia_datalen > ICONV_CSMAXDATALEN)
 		return EINVAL;
+	if (strlen(din.ia_from) >= ICONV_CSNMAXLEN)
+		return EINVAL;
+	if (strlen(din.ia_to) >= ICONV_CSNMAXLEN)
+		return EINVAL;
+	if (strlen(din.ia_converter) >= ICONV_CNVNMAXLEN)
+		return EINVAL;
 	if (iconv_lookupconv(din.ia_converter, &dcp) != 0)
 		return EINVAL;
 	error = iconv_register_cspair(din.ia_to, din.ia_from, dcp, NULL, &csp);
