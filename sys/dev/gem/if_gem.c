@@ -1894,6 +1894,7 @@ gem_setladrf(sc)
 	/* Clear hash table */
 	memset(hash, 0, sizeof(hash));
 
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1906,6 +1907,7 @@ gem_setladrf(sc)
 		/* Set the corresponding bit in the filter. */
 		hash[crc >> 4] |= 1 << (15 - (crc & 15));
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	v |= GEM_MAC_RX_HASH_FILTER;
 	ifp->if_flags &= ~IFF_ALLMULTI;

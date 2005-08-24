@@ -1071,6 +1071,7 @@ ixgb_set_multi(struct adapter * adapter)
 
 	IOCTL_DEBUGOUT("ixgb_set_multi: begin");
 
+	IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version < 500000
 	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 #else
@@ -1083,6 +1084,7 @@ ixgb_set_multi(struct adapter * adapter)
 		      &mta[mcnt * IXGB_ETH_LENGTH_OF_ADDRESS], IXGB_ETH_LENGTH_OF_ADDRESS);
 		mcnt++;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (mcnt > MAX_NUM_MULTICAST_ADDRESSES) {
 		reg_rctl = IXGB_READ_REG(&adapter->hw, RCTL);

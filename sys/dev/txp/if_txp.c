@@ -1774,6 +1774,7 @@ txp_set_filter(sc)
 	else {
 		hash[0] = hash[1] = 0;
 
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -1797,6 +1798,7 @@ txp_set_filter(sc)
 			hashbit = (u_int16_t)(crc & (64 - 1));
 			hash[hashbit / 32] |= (1 << hashbit % 32);
 		}
+		IF_ADDR_UNLOCK(ifp);
 
 		if (mcnt > 0) {
 			filter |= TXP_RXFILT_HASHMULTI;
