@@ -61,8 +61,8 @@ shift
 
 load_rc_config pccard_ether
 
-# Ignore interfaces not in removable_interfaces
-expr "${removable_interfaces}" : ".*${ifn}" > /dev/null || exit 0
+# Ignore interfaces with the NOAUTO keyword
+autoif $ifn || exit 0
 
 if [ -n "$1" ]; then
 	usage
