@@ -265,6 +265,7 @@ ndis_setmulti(sc)
 	sc->ndis_filter |= NDIS_PACKET_TYPE_MULTICAST;
 
 	len = 0;
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -272,11 +273,13 @@ ndis_setmulti(sc)
 		    mclist + (ETHER_ADDR_LEN * len), ETHER_ADDR_LEN);
 		len++;
 		if (len > mclistsz) {
+			IF_ADDR_UNLOCK(ifp);
 			sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
 			sc->ndis_filter &= ~NDIS_PACKET_TYPE_MULTICAST;
 			goto out;
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	len = len * ETHER_ADDR_LEN;
 	error = ndis_set_info(sc, OID_802_3_MULTICAST_LIST, mclist, &len);

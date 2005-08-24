@@ -1596,7 +1596,8 @@ em_set_multi(struct adapter * adapter)
                 E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
                 msec_delay(5);
         }
-        
+
+	IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version < 500000
         LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 #else
@@ -1611,6 +1612,7 @@ em_set_multi(struct adapter * adapter)
                       &mta[mcnt*ETH_LENGTH_OF_ADDRESS], ETH_LENGTH_OF_ADDRESS);
                 mcnt++;
         }
+	IF_ADDR_UNLOCK(ifp);
 
         if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES) {
                 reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
