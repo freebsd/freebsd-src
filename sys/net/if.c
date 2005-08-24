@@ -106,6 +106,7 @@ static void	if_init(void *);
 static void	if_check(void *);
 static void	if_qflush(struct ifaltq *);
 static void	if_route(struct ifnet *, int flag, int fam);
+static int	if_setflag(struct ifnet *, int, int, int *, int);
 static void	if_slowtimo(void *);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
@@ -1568,6 +1569,83 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 }
 
 /*
+ * The code common to hadling reference counted flags,
+ * e.g., in ifpromisc() and if_allmulti().
+ * The "pflag" argument can specify a permanent mode flag,
+ * such as IFF_PPROMISC for promiscuous mode; should be 0 if none.
+ */
+static int
+if_setflag(struct ifnet *ifp, int flag, int pflag, int *refcount, int onswitch)
+{
+	struct ifreq ifr;
+	int error;
+	int oldflags, oldcount;
+
+	/* Sanity checks to catch programming errors */
+	if (onswitch) {
+		if (*refcount < 0) {
+			if_printf(ifp,
+			    "refusing to increment negative refcount %d "
+			    "for interface flag %d\n", *refcount, flag);
+			return (EINVAL);
+		}
+	} else {
+		if (*refcount <= 0) {
+			if_printf(ifp,
+			    "refusing to decrement non-positive refcount %d"
+			    "for interface flag %d\n", *refcount, flag);
+			return (EINVAL);
+		}
+	}
+
+	/* In case this mode is permanent, just touch refcount */
+	if (ifp->if_flags & pflag) {
+		*refcount += onswitch ? 1 : -1;
+		return (0);
+	}
+
+	/* Save ifnet parameters for if_ioctl() may fail */
+	oldcount = *refcount;
+	oldflags = ifp->if_flags;
+	
+	/*
+	 * See if we aren't the only and touching refcount is enough.
+	 * Actually toggle interface flag if we are the first or last.
+	 */
+	if (onswitch) {
+		if ((*refcount)++)
+			return (0);
+		ifp->if_flags |= flag;
+	} else {
+		if (--(*refcount))
+			return (0);
+		ifp->if_flags &= ~flag;
+	}
+
+	/* Call down the driver since we've changed interface flags */
+	if (ifp->if_ioctl == NULL) {
+		error = EOPNOTSUPP;
+		goto recover;
+	}
+	ifr.ifr_flags = ifp->if_flags & 0xffff;
+	ifr.ifr_flagshigh = ifp->if_flags >> 16;
+	IFF_LOCKGIANT(ifp);
+	error = (*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+	IFF_UNLOCKGIANT(ifp);
+	if (error)
+		goto recover;
+	/* Notify userland that interface flags have changed */
+	rt_ifmsg(ifp);
+	return (0);
+
+recover:
+	/* Recover after driver error */
+	*refcount = oldcount;
+	ifp->if_flags = oldflags;
+	return (error);
+}
+
+/*
  * Set/clear promiscuous mode on interface ifp based on the truth value
  * of pswitch.  The calls are reference counted so that only the first
  * "on" request actually has an effect, as does the final "off" request.
@@ -1576,47 +1654,17 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 int
 ifpromisc(struct ifnet *ifp, int pswitch)
 {
-	struct ifreq ifr;
 	int error;
-	int oldflags, oldpcount;
+	int oldflags = ifp->if_flags;
 
-	oldpcount = ifp->if_pcount;
-	oldflags = ifp->if_flags;
-	if (ifp->if_flags & IFF_PPROMISC) {
-		/* Do nothing if device is in permanently promiscuous mode */
-		ifp->if_pcount += pswitch ? 1 : -1;
-		return (0);
-	}
-	if (pswitch) {
-		/*
-		 * If the device is not configured up, we cannot put it in
-		 * promiscuous mode.
-		 */
-		if ((ifp->if_flags & IFF_UP) == 0)
-			return (ENETDOWN);
-		if (ifp->if_pcount++ != 0)
-			return (0);
-		ifp->if_flags |= IFF_PROMISC;
-	} else {
-		if (--ifp->if_pcount > 0)
-			return (0);
-		ifp->if_flags &= ~IFF_PROMISC;
-	}
-	ifr.ifr_flags = ifp->if_flags & 0xffff;
-	ifr.ifr_flagshigh = ifp->if_flags >> 16;
-	IFF_LOCKGIANT(ifp);
-	error = (*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
-	IFF_UNLOCKGIANT(ifp);
-	if (error == 0) {
+	error = if_setflag(ifp, IFF_PROMISC, IFF_PPROMISC,
+			   &ifp->if_pcount, pswitch);
+	/* If promiscuous mode status has changed, log a message */
+	if (error == 0 && ((ifp->if_flags ^ oldflags) & IFF_PROMISC))
 		log(LOG_INFO, "%s: promiscuous mode %s\n",
 		    ifp->if_xname,
 		    (ifp->if_flags & IFF_PROMISC) ? "enabled" : "disabled");
-		rt_ifmsg(ifp);
-	} else {
-		ifp->if_pcount = oldpcount;
-		ifp->if_flags = oldflags;
-	}
-	return error;
+	return (error);
 }
 
 /*
@@ -1733,37 +1781,8 @@ again:
 int
 if_allmulti(struct ifnet *ifp, int onswitch)
 {
-	int error = 0;
-	int s = splimp();
-	struct ifreq ifr;
 
-	if (onswitch) {
-		if (ifp->if_amcount++ == 0) {
-			ifp->if_flags |= IFF_ALLMULTI;
-			ifr.ifr_flags = ifp->if_flags & 0xffff;
-			ifr.ifr_flagshigh = ifp->if_flags >> 16;
-			IFF_LOCKGIANT(ifp);
-			error = ifp->if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
-			IFF_UNLOCKGIANT(ifp);
-		}
-	} else {
-		if (ifp->if_amcount > 1) {
-			ifp->if_amcount--;
-		} else {
-			ifp->if_amcount = 0;
-			ifp->if_flags &= ~IFF_ALLMULTI;
-			ifr.ifr_flags = ifp->if_flags & 0xffff;;
-			ifr.ifr_flagshigh = ifp->if_flags >> 16;
-			IFF_LOCKGIANT(ifp);
-			error = ifp->if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
-			IFF_UNLOCKGIANT(ifp);
-		}
-	}
-	splx(s);
-
-	if (error == 0)
-		rt_ifmsg(ifp);
-	return error;
+	return (if_setflag(ifp, IFF_ALLMULTI, 0, &ifp->if_amcount, onswitch));
 }
 
 /*
@@ -1850,11 +1869,13 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa, struct ifmultiaddr **retifma
 	 * We are certain we have added something, so call down to the
 	 * interface to let them know about it.
 	 */
-	s = splimp();
-	IFF_LOCKGIANT(ifp);
-	ifp->if_ioctl(ifp, SIOCADDMULTI, 0);
-	IFF_UNLOCKGIANT(ifp);
-	splx(s);
+	if (ifp->if_ioctl) {
+		s = splimp();
+		IFF_LOCKGIANT(ifp);
+		(void) (*ifp->if_ioctl)(ifp, SIOCADDMULTI, 0);
+		IFF_UNLOCKGIANT(ifp);
+		splx(s);
+	}
 
 	return 0;
 }
@@ -1888,9 +1909,9 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	 * Make sure the interface driver is notified
 	 * in the case of a link layer mcast group being left.
 	 */
-	if (ifma->ifma_addr->sa_family == AF_LINK && sa == 0) {
+	if (ifp->if_ioctl && ifma->ifma_addr->sa_family == AF_LINK && sa == 0) {
 		IFF_LOCKGIANT(ifp);
-		ifp->if_ioctl(ifp, SIOCDELMULTI, 0);
+		(void) (*ifp->if_ioctl)(ifp, SIOCDELMULTI, 0);
 		IFF_UNLOCKGIANT(ifp);
 	}
 	splx(s);
@@ -1923,9 +1944,11 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 
 	s = splimp();
 	TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
-	IFF_LOCKGIANT(ifp);
-	ifp->if_ioctl(ifp, SIOCDELMULTI, 0);
-	IFF_UNLOCKGIANT(ifp);
+	if (ifp->if_ioctl) {
+		IFF_LOCKGIANT(ifp);
+		(void) (*ifp->if_ioctl)(ifp, SIOCDELMULTI, 0);
+		IFF_UNLOCKGIANT(ifp);
+	}
 	splx(s);
 	free(ifma->ifma_addr, M_IFMADDR);
 	free(sa, M_IFMADDR);
@@ -1981,16 +2004,18 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	 * address filter.
 	 */
 	if ((ifp->if_flags & IFF_UP) != 0) {
-		IFF_LOCKGIANT(ifp);
-		ifp->if_flags &= ~IFF_UP;
-		ifr.ifr_flags = ifp->if_flags & 0xffff;
-		ifr.ifr_flagshigh = ifp->if_flags >> 16;
-		(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
-		ifp->if_flags |= IFF_UP;
-		ifr.ifr_flags = ifp->if_flags & 0xffff;
-		ifr.ifr_flagshigh = ifp->if_flags >> 16;
-		(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
-		IFF_UNLOCKGIANT(ifp);
+		if (ifp->if_ioctl) {
+			IFF_LOCKGIANT(ifp);
+			ifp->if_flags &= ~IFF_UP;
+			ifr.ifr_flags = ifp->if_flags & 0xffff;
+			ifr.ifr_flagshigh = ifp->if_flags >> 16;
+			(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+			ifp->if_flags |= IFF_UP;
+			ifr.ifr_flags = ifp->if_flags & 0xffff;
+			ifr.ifr_flagshigh = ifp->if_flags >> 16;
+			(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+			IFF_UNLOCKGIANT(ifp);
+		}
 #ifdef INET
 		/*
 		 * Also send gratuitous ARPs to notify other nodes about
