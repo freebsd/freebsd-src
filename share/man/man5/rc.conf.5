@@ -215,10 +215,6 @@ is set to
 these are the flags to pass to the
 .Xr powerd 8
 daemon.
-.It Va removable_interfaces
-.Pq Vt str
-List of removable network interfaces to be supported by
-.Pa /etc/pccard_ether .
 .It Va tmpmfs
 Controls the creation of a
 .Pa /tmp
@@ -906,6 +902,17 @@ An
 .Va ifconfig_ Ns Aq Ar interface
 variable is also assumed to exist for each value of
 .Ar interface .
+If the
+.Va ifconfig_ Ns Aq Ar interface
+contains the keyword
+.Dq Li "NOAUTO"
+then the interface will not be configured by
+at boot or by
+.Pa /etc/pccard_ether
+when
+.Va network_interfaces
+is set to
+.Dq Li "AUTO" .
 It is also possible to add IP alias entries here in cases where
 multiple IP addresses registered against a single interface
 are desired.
