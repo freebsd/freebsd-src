@@ -1676,6 +1676,7 @@ ie_mc_reset(struct ie_softc *sc)
 	 * Step through the list of addresses.
 	 */
 	sc->mcast_count = 0;
+	IF_ADDR_LOCK(sc->ifp);
 	TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1690,6 +1691,7 @@ ie_mc_reset(struct ie_softc *sc)
 		      &(sc->mcast_addrs[sc->mcast_count]), 6);
 		sc->mcast_count++;
 	}
+	IF_ADDR_UNLOCK(sc->ifp);
 
 setflag:
 	sc->want_mcsetup = 1;

@@ -1278,6 +1278,7 @@ xe_set_multicast(struct xe_softc *scp) {
 
   /* Iterate over multicast address list */
   count = 0;
+  IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version < 500000
   LIST_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
 #else
@@ -1299,6 +1300,7 @@ xe_set_multicast(struct xe_softc *scp) {
 	/* Nowhere else to put them on CE2 */
 	break;
   }
+  IF_ADDR_UNLOCK(ifp);
 
   DEVPRINTF(2, (scp->dev, "set_multicast: count = %u\n", count));
 

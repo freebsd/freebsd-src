@@ -1679,6 +1679,7 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 	 * the word.
 	 */
 
+	IF_ADDR_LOCK(sc->sc_ifp);
 	TAILQ_FOREACH(inm, &sc->sc_ifp->if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1691,6 +1692,7 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 		/* Set the corresponding bit in the filter. */
 		hash[crc >> 4] |= 1 << (crc & 0xf);
 	}
+	IF_ADDR_UNLOCK(sc->sc_ifp);
 
 	ifp->if_flags &= ~IFF_ALLMULTI;
 

@@ -338,6 +338,7 @@ axe_setmulti(struct axe_softc *sc)
 	} else
 		rxmode &= ~AXE_RXCMD_ALLMULTI;
 
+	IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version >= 500000
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 #else
@@ -350,6 +351,7 @@ axe_setmulti(struct axe_softc *sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		hashtbl[h / 8] |= 1 << (h % 8);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	axe_cmd(sc, AXE_CMD_WRITE_MCAST, 0, 0, (void *)&hashtbl);
 	axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, rxmode, NULL);

@@ -777,8 +777,10 @@ xl_setmulti(struct xl_softc *sc)
 		return;
 	}
 
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		mcnt++;
+	IF_ADDR_UNLOCK(ifp);
 
 	if (mcnt)
 		rxfilt |= XL_RXFILTER_ALLMULTI;
@@ -817,6 +819,7 @@ xl_setmulti_hash(struct xl_softc *sc)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH|i);
 
 	/* now program new ones */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -838,6 +841,7 @@ xl_setmulti_hash(struct xl_softc *sc)
 		    h | XL_CMD_RX_SET_HASH | XL_HASH_SET);
 		mcnt++;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (mcnt)
 		rxfilt |= XL_RXFILTER_MULTIHASH;
