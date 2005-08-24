@@ -185,6 +185,7 @@ struct in_multistep {
 do { \
 	struct ifmultiaddr *ifma; \
 \
+	IF_ADDR_LOCK(ifp); \
 	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) { \
 		if (ifma->ifma_addr->sa_family == AF_INET \
 		    && ((struct sockaddr_in *)ifma->ifma_addr)->sin_addr.s_addr == \
@@ -192,6 +193,7 @@ do { \
 			break; \
 	} \
 	(inm) = ifma ? ifma->ifma_protospec : 0; \
+	IF_ADDR_UNLOCK(ifp); \
 } while(0)
 
 /*
