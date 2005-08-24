@@ -938,7 +938,7 @@ re_dma_map_addr(arg, segs, nseg, error)
 	int			nseg;
 	int			error;
 {
-	u_int32_t		*addr;
+	bus_addr_t		*addr;
 
 	if (error)
 		return;
