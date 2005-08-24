@@ -31,6 +31,7 @@
 #include <sys/types.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/rtprio.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -39,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <math.h>
 #include <paths.h>
 #include <signal.h>
@@ -75,7 +77,8 @@ int
 main(int argc, char *argv[])
 {
 	struct rtprio rtp;
-	FILE *fp;
+	struct pidfh *pfh;
+	pid_t otherpid;
 
 	if (getuid() != 0)
 		errx(EX_SOFTWARE, "not super user");
@@ -94,8 +97,18 @@ main(int argc, char *argv[])
 		if (watchdog_onoff(1) == -1)
 			exit(EX_SOFTWARE);
 
+		pfh = pidfile_open(pidfile, 0644, &otherpid);
+		if (pfh == NULL) {
+			if (errno == EEXIST) {
+				errx(EX_SOFTWARE, "%s already running, pid: %d",
+				    getprogname(), otherpid);
+			}
+			warn("Cannot open or create pidfile");
+		}
+
 		if (debugging == 0 && daemon(0, 0) == -1) {
 			watchdog_onoff(0);
+			pidfile_remove(pfh);
 			err(EX_OSERR, "daemon");
 		}
 
@@ -103,17 +116,13 @@ main(int argc, char *argv[])
 		signal(SIGINT, sighandler);
 		signal(SIGTERM, sighandler);
 
-		fp = fopen(pidfile, "w");
-		if (fp != NULL) {
-			fprintf(fp, "%d\n", getpid());
-			fclose(fp);
-		}
+		pidfile_write(pfh);
 
 		watchdog_loop();
 
 		/* exiting */
 		watchdog_onoff(0);
-		unlink(pidfile);
+		pidfile_remove(pfh);
 		return (EX_OK);
 	} else {
 		if (passive)
