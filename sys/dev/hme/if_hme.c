@@ -199,13 +199,12 @@ hme_config(struct hme_softc *sc)
 	 *
 	 */
 
-	HME_LOCK_ASSERT(sc, MA_NOTOWNED);
+	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_lock, 0);
+
 	/* Make sure the chip is stopped. */
 	HME_LOCK(sc);
 	hme_stop(sc);
 	HME_UNLOCK(sc);
-
-	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_lock, 0);
 
 	/*
 	 * Allocate DMA capable memory
@@ -380,8 +379,6 @@ hme_detach(struct hme_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
-
-	HME_LOCK_ASSERT(sc, MA_NOTOWNED);
 
 	ether_ifdetach(ifp);
 	if_free(ifp);
