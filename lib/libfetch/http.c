@@ -724,7 +724,7 @@ _http_get_proxy(const char *flags)
 	if (flags != NULL && strchr(flags, 'd') != NULL)
 		return (NULL);
 	if (((p = getenv("HTTP_PROXY")) || (p = getenv("http_proxy"))) &&
-	    (purl = fetchParseURL(p))) {
+	    *p && (purl = fetchParseURL(p))) {
 		if (!*purl->scheme)
 			strcpy(purl->scheme, SCHEME_HTTP);
 		if (!purl->port)
