@@ -221,6 +221,7 @@ docontinue:
 #endif /*IPSEC*/
 		ip6stat.ip6s_delivered--;
 		/* do not inject data into pcb */
+		INP_UNLOCK(last);
 	} else
 #endif /*IPSEC || FAST_IPSEC*/
 	if (last) {
