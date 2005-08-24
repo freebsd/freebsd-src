@@ -91,6 +91,12 @@ The following options are available:
 Restrict matches to a process whose PID is stored in the
 .Ar pidfile
 file.
+The
+.Ar pidfile
+file must be locked with the
+.Xr flock 2
+syscall or created with
+.Xr pidfile 3 .
 .It Fl G Ar gid
 Restrict matches to processes with a real group ID in the comma-separated
 list
@@ -233,8 +239,10 @@ An internal error occurred.
 .Xr kill 1 ,
 .Xr killall 1 ,
 .Xr ps 1 ,
+.Xr flock 2 ,
 .Xr kill 2 ,
 .Xr sigaction 2 ,
+.Xr pidfile 3 ,
 .Xr re_format 7
 .\" Xr signal 7
 .Sh HISTORY
