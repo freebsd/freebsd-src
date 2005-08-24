@@ -54,7 +54,7 @@ kiconv_add_xlat16_table(const char *to, const char *from, const void *data, int 
 	struct iconv_add_out dout;
 	size_t olen;
 
-	if (strlen(from) > ICONV_CSNMAXLEN || strlen(to) > ICONV_CSNMAXLEN)
+	if (strlen(from) >= ICONV_CSNMAXLEN || strlen(to) >= ICONV_CSNMAXLEN)
 		return (EINVAL);
 	din.ia_version = ICONV_ADD_VER;
 	strcpy(din.ia_converter, "xlat16");
