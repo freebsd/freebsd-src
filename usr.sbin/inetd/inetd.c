@@ -275,6 +275,7 @@ extern struct biltin biltins[];
 
 const char	*CONFIG = _PATH_INETDCONF;
 const char	*pid_file = _PATH_INETDPID;
+struct pidfh	*pfh = NULL;
 
 struct netconfig *udpconf, *tcpconf, *udp6conf, *tcp6conf;
 
@@ -464,7 +465,18 @@ main(int argc, char **argv)
 	if (access(CONFIG, R_OK) < 0)
 		syslog(LOG_ERR, "Accessing %s: %m, continuing anyway.", CONFIG);
 	if (debug == 0) {
-		FILE *fp;
+		pid_t otherpid;
+
+		pfh = pidfile_open(pid_file, 0644, &otherpid);
+		if (pfh == NULL) {
+			if (errno == EEXIST) {
+				syslog(LOG_ERR, "%s already running, pid: %d",
+				    getprogname(), otherpid);
+				exit(EX_OSERR);
+			}
+			syslog(LOG_WARNING, "pidfile_open() failed: %m");
+		}
+
 		if (daemon(0, 0) < 0) {
 			syslog(LOG_WARNING, "daemon(0,0) failed: %m");
 		}
@@ -480,13 +492,8 @@ main(int argc, char **argv)
 			syslog(LOG_WARNING, "cannot clear logname: %m");
 			/* no big deal if it fails.. */
 		}
-		pid = getpid();
-		fp = fopen(pid_file, "w");
-		if (fp) {
-			fprintf(fp, "%ld\n", (long)pid);
-			fclose(fp);
-		} else {
-			syslog(LOG_WARNING, "%s: %m", pid_file);
+		if (pfh != NULL && pidfile_write(pfh) == -1) {
+			syslog(LOG_WARNING, "pidfile_write(): %m");
 		}
 	}
 
@@ -721,6 +728,7 @@ main(int argc, char **argv)
 		    }
 		    sigsetmask(0L);
 		    if (pid == 0) {
+			    pidfile_close(pfh);
 			    if (dofork) {
 				sigaction(SIGALRM, &saalrm, (struct sigaction *)0);
 				sigaction(SIGCHLD, &sachld, (struct sigaction *)0);
