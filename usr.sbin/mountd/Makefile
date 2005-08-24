@@ -6,4 +6,7 @@ MAN=	exports.5 netgroup.5 mountd.8
 
 WARNS?=	2
 
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
+
 .include <bsd.prog.mk>
