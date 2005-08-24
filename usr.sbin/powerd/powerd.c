@@ -256,7 +256,7 @@ usage(void)
 int
 main(int argc, char * argv[])
 {
-	struct pidfh *pfh;
+	struct pidfh *pfh = NULL;
 	const char *pidfile = NULL;
 	long idle, total;
 	int curfreq, *freqs, i, *mwatts, numfreqs;
