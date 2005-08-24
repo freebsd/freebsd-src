@@ -368,6 +368,7 @@ if_alloc(u_char type)
 			return (NULL);
 		}
 	}
+	IF_ADDR_LOCK_INIT(ifp);
 
 	return (ifp);
 }
@@ -378,8 +379,6 @@ if_free(struct ifnet *ifp)
 
 	/* Do not add code to this function!  Add it to if_free_type(). */
 	if_free_type(ifp, ifp->if_type);
-
-	IF_ADDR_LOCK_DESTROY(ifp);
 }
 
 void
@@ -391,6 +390,8 @@ if_free_type(struct ifnet *ifp, u_char type)
 		    __func__);
 		return;
 	}
+
+	IF_ADDR_LOCK_DESTROY(ifp);
 
 	ifnet_byindex(ifp->if_index) = NULL;
 
@@ -423,7 +424,6 @@ if_attach(struct ifnet *ifp)
 	TASK_INIT(&ifp->if_starttask, 0, if_start_deferred, ifp);
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
 	IF_AFDATA_LOCK_INIT(ifp);
-	IF_ADDR_LOCK_INIT(ifp);
 	ifp->if_afdata_initialized = 0;
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
