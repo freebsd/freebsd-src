@@ -28,9 +28,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/ioctl.h>
+#include <sys/sysctl.h>
+#include <sys/resource.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,10 +46,6 @@ __FBSDID("$FreeBSD$");
 #ifdef __i386__
 #include <machine/apm_bios.h>
 #endif
-
-#include <sys/ioctl.h>
-#include <sys/sysctl.h>
-#include <sys/resource.h>
 
 #define DEFAULT_ACTIVE_PERCENT	65
 #define DEFAULT_IDLE_PERCENT	90
@@ -247,13 +249,15 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: powerd [-v] [-a mode] [-b mode] [-i %%] [-n mode] [-p ival] [-r %%]\n");
+"usage: powerd [-v] [-a mode] [-b mode] [-i %%] [-n mode] [-p ival] [-r %%] [-P pidfile]\n");
 	exit(1);
 }
 
 int
 main(int argc, char * argv[])
 {
+	struct pidfh *pfh;
+	const char *pidfile = NULL;
 	long idle, total;
 	int curfreq, *freqs, i, *mwatts, numfreqs;
 	int ch, mode_ac, mode_battery, mode_none, acline, mode, vflag;
@@ -273,7 +277,7 @@ main(int argc, char * argv[])
 	if (geteuid() != 0)
 		errx(1, "must be root to run");
 
-	while ((ch = getopt(argc, argv, "a:b:i:n:p:r:v")) != EOF)
+	while ((ch = getopt(argc, argv, "a:b:i:n:p:P:r:v")) != EOF)
 		switch (ch) {
 		case 'a':
 			parse_mode(optarg, &mode_ac, ch);
@@ -298,6 +302,9 @@ main(int argc, char * argv[])
 				warnx("poll interval is in units of ms");
 				usage();
 			}
+			break;
+		case 'P':
+			pidfile = optarg;
 			break;
 		case 'r':
 			cpu_running_mark = atoi(optarg);
@@ -338,8 +345,20 @@ main(int argc, char * argv[])
 	acline_init();
 
 	/* Run in the background unless in verbose mode. */
-	if (!vflag)
+	if (!vflag) {
+		pid_t otherpid;
+
+		pfh = pidfile_open(pidfile, 0600, &otherpid);
+		if (pfh == NULL) {
+			if (errno == EEXIST) {
+				errx(1, "powerd already running, pid: %d",
+				    otherpid);
+			}
+			warn("cannot open pid file");
+		}
 		daemon(0, 0);
+		pidfile_write(pfh);
+	}
 	signal(SIGINT, handle_sigs);
 	signal(SIGTERM, handle_sigs);
 
@@ -460,6 +479,8 @@ main(int argc, char * argv[])
 	}
 	free(freqs);
 	free(mwatts);
+	if (!vflag)
+		pidfile_remove(pfh);
 
 	exit(0);
 }
