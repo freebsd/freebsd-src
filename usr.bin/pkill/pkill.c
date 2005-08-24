@@ -641,6 +641,20 @@ takepid(const char *pidfile)
 	if (fh == NULL)
 		err(STATUS_ERROR, "can't open pid file `%s'", pidfile);
 
+	/*
+	 * If we can lock pidfile, this means that daemon is not running,
+	 * so better don't kill the process from the pidfile.
+	 */
+	if (flock(fileno(fh), LOCK_EX | LOCK_NB) == 0) {
+		(void)fclose(fh);
+		errx(STATUS_ERROR, "file '%s' can be locked", pidfile);
+	} else {
+		if (errno != EWOULDBLOCK) {
+			errx(STATUS_ERROR, "error while locking file '%s'",
+			    pidfile);
+		}
+	}
+
 	if (fgets(line, sizeof(line), fh) == NULL) {
 		if (feof(fh)) {
 			(void)fclose(fh);
