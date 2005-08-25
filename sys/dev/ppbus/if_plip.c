@@ -321,16 +321,18 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	ifp->if_flags |= IFF_UP;
 	/* FALLTHROUGH */
     case SIOCSIFFLAGS:
-	if ((!(ifp->if_flags & IFF_UP)) && (ifp->if_flags & IFF_RUNNING)) {
+	if ((!(ifp->if_flags & IFF_UP)) &&
+	  (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 
 	    ppb_wctr(ppbus, 0x00);
-	    ifp->if_flags &= ~IFF_RUNNING;
+	    ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	    /* IFF_UP is not set, try to release the bus anyway */
 	    ppb_release_bus(ppbus, dev);
 	    break;
 	}
-	if (((ifp->if_flags & IFF_UP)) && (!(ifp->if_flags & IFF_RUNNING))) {
+	if (((ifp->if_flags & IFF_UP)) &&
+	  (!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 
 	    /* XXX
 	     * Should the request be interruptible?
@@ -362,7 +364,7 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	    }
 
 	    ppb_wctr(ppbus, IRQENABLE);
-	    ifp->if_flags |= IFF_RUNNING;
+	    ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	}
 	break;
 
@@ -577,7 +579,7 @@ lp_intr (void *arg)
 	if (sc->sc_iferrs > LPMAXERRS) {
 	    printf("lp%d: Too many errors, Going off-line.\n", device_get_unit(dev));
 	    ppb_wctr(ppbus, 0x00);
-	    sc->sc_ifp->if_flags &= ~IFF_RUNNING;
+	    sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	    sc->sc_iferrs=0;
 	}
 
@@ -615,7 +617,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 
     /* We need a sensible value if we abort */
     cp++;
-    ifp->if_flags |= IFF_RUNNING;
+    ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
     err = 1;			/* assume we're aborting because of an error */
 

@@ -653,8 +653,8 @@ awi_init(struct ifnet *ifp)
 	sc->sc_rxdoff = awi_read_4(sc, AWI_CA_IRX_DATA_DESC);
 	sc->sc_rxmoff = awi_read_4(sc, AWI_CA_IRX_PS_DESC);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ic->ic_state = IEEE80211_S_INIT;
 
 	if (ic->ic_opmode == IEEE80211_M_AHDEMO ||
@@ -720,7 +720,7 @@ awi_stop(struct ifnet *ifp, int disable)
 		awi_write_1(sc, AWI_CA_FTX_CF, 0);
 		(void)awi_cmd(sc, AWI_CMD_FLUSH_TX, AWI_WAIT);
 	}
-	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 	ifp->if_timer = 0;
 	sc->sc_tx_timer = sc->sc_rx_timer = 0;
 	if (sc->sc_rxpend != NULL) {
@@ -763,7 +763,7 @@ awi_start(struct ifnet *ifp)
 		if (m0 != NULL) {
 			len = m0->m_pkthdr.len;
 			if (awi_next_txd(sc, len, &frame, &ntxd)) {
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
 			IF_DEQUEUE(&ic->ic_mgtq, m0);
@@ -790,7 +790,7 @@ awi_start(struct ifnet *ifp)
 				    IEEE80211_WEP_KIDLEN + IEEE80211_WEP_CRCLEN;
 			}
 			if (awi_next_txd(sc, len, &frame, &ntxd)) {
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
 			IFQ_DEQUEUE(&ifp->if_snd, m0);
@@ -1293,7 +1293,7 @@ awi_tx_int(struct awi_softc *sc)
 	DPRINTF2(("awi_txint: txdone %d txnext %d txbase %d txend %d\n",
 	    sc->sc_txdone, sc->sc_txnext, sc->sc_txbase, sc->sc_txend));
 	sc->sc_tx_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	awi_start(ifp);
 }
 

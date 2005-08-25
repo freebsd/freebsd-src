@@ -289,7 +289,7 @@ patm_start(struct ifnet *ifp)
 	struct patm_vcc *vcc;
 
 	mtx_lock(&sc->mtx);
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		mtx_unlock(&sc->mtx);
 		return;
 	}

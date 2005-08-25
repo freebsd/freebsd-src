@@ -620,7 +620,7 @@ cue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	CUE_LOCK(sc);
 	ifp = sc->cue_ifp;
 
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		CUE_UNLOCK(sc);
 		return;
 	}
@@ -704,7 +704,7 @@ cue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	}
 
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	usbd_get_xfer_status(c->ue_xfer, NULL, NULL, NULL, &err);
 
 	if (c->ue_mbuf != NULL) {
@@ -798,7 +798,7 @@ cue_start(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	CUE_LOCK(sc);
 
-	if (ifp->if_flags & IFF_OACTIVE) {
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		CUE_UNLOCK(sc);
 		return;
 	}
@@ -811,7 +811,7 @@ cue_start(struct ifnet *ifp)
 
 	if (cue_encap(sc, m_head, 0)) {
 		IF_PREPEND(&ifp->if_snd, m_head);
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		CUE_UNLOCK(sc);
 		return;
 	}
@@ -822,7 +822,7 @@ cue_start(struct ifnet *ifp)
 	 */
 	BPF_MTAP(ifp, m_head);
 
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -842,7 +842,7 @@ cue_init(void *xsc)
 	usbd_status		err;
 	int			i;
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	CUE_LOCK(sc);
@@ -928,8 +928,8 @@ cue_init(void *xsc)
 		usbd_transfer(c->ue_xfer);
 	}
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	CUE_UNLOCK(sc);
 
@@ -949,20 +949,20 @@ cue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch(command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->cue_if_flags & IFF_PROMISC)) {
 				CUE_SETBIT(sc, CUE_ETHCTL, CUE_ETHCTL_PROMISC);
 				cue_setmulti(sc);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->cue_if_flags & IFF_PROMISC) {
 				CUE_CLRBIT(sc, CUE_ETHCTL, CUE_ETHCTL_PROMISC);
 				cue_setmulti(sc);
-			} else if (!(ifp->if_flags & IFF_RUNNING))
+			} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				cue_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				cue_stop(sc);
 		}
 		sc->cue_if_flags = ifp->if_flags;
@@ -1074,7 +1074,7 @@ cue_stop(struct cue_softc *sc)
 	/* Free TX resources. */
 	usb_ether_tx_list_free(&sc->cue_cdata);
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	CUE_UNLOCK(sc);
 
 	return;

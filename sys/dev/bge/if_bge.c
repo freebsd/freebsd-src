@@ -2895,7 +2895,7 @@ bge_txeof(sc)
 	}
 
 	if (cur_tx != NULL)
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	return;
 }
@@ -2995,7 +2995,7 @@ bge_intr(xsc)
 		}
 	}
 
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check RX return ring producer/consumer */
 		bge_rxeof(sc);
 
@@ -3011,7 +3011,8 @@ bge_intr(xsc)
 	/* Re-enable interrupts. */
 	CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 0);
 
-	if (ifp->if_flags & IFF_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bge_start_locked(ifp);
 
 	BGE_UNLOCK(sc);
@@ -3262,7 +3263,7 @@ bge_start_locked(ifp)
 			if ((BGE_TX_RING_CNT - sc->bge_txcnt) <
 			    m_head->m_pkthdr.csum_data + 16) {
 				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
 		}
@@ -3274,7 +3275,7 @@ bge_start_locked(ifp)
 		 */
 		if (bge_encap(sc, m_head, &prodidx)) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 		++count;
@@ -3332,7 +3333,7 @@ bge_init_locked(sc)
 
 	ifp = sc->bge_ifp;
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	/* Cancel pending I/O and flush buffers. */
@@ -3417,8 +3418,8 @@ bge_init_locked(sc)
 
 	bge_ifmedia_upd(ifp);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
 
@@ -3561,7 +3562,7 @@ bge_ioctl(ifp, command, data)
 			error = EINVAL;
 		else {
 			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			bge_init(sc);
 		}
 		break;
@@ -3576,12 +3577,12 @@ bge_ioctl(ifp, command, data)
 			 * waiting for it to start up, which may take a
 			 * second or two.
 			 */
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->bge_if_flags & IFF_PROMISC)) {
 				BGE_SETBIT(sc, BGE_RX_MODE,
 				    BGE_RXMODE_RX_PROMISC);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->bge_if_flags & IFF_PROMISC) {
 				BGE_CLRBIT(sc, BGE_RX_MODE,
@@ -3589,7 +3590,7 @@ bge_ioctl(ifp, command, data)
 			} else
 				bge_init_locked(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				bge_stop(sc);
 			}
 		}
@@ -3599,7 +3600,7 @@ bge_ioctl(ifp, command, data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifp->if_flags & IFF_RUNNING) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			BGE_LOCK(sc);
 			bge_setmulti(sc);
 			BGE_UNLOCK(sc);
@@ -3647,7 +3648,7 @@ bge_watchdog(ifp)
 
 	printf("bge%d: watchdog timeout -- resetting\n", sc->bge_unit);
 
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	bge_init(sc);
 
 	ifp->if_oerrors++;
@@ -3760,7 +3761,7 @@ bge_stop(sc)
 
 	sc->bge_tx_saved_considx = BGE_TXCONS_UNSET;
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	return;
 }

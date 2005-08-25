@@ -880,8 +880,8 @@ hme_init_locked(struct hme_softc *sc)
 	/* Start the one second timer. */
 	callout_reset(&sc->sc_tick_ch, hz, hme_tick, sc);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_timer = 0;
 	hme_start_locked(ifp);
 }
@@ -1107,7 +1107,8 @@ hme_start_locked(struct ifnet *ifp)
 	struct mbuf *m;
 	int error, enq = 0;
 
-	if ((ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
 	error = 0;
@@ -1118,7 +1119,7 @@ hme_start_locked(struct ifnet *ifp)
 
 		error = hme_load_txmbuf(sc, m);
 		if (error == -1) {
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			break;
 		} else if (error > 0) {
@@ -1131,7 +1132,7 @@ hme_start_locked(struct ifnet *ifp)
 	}
 
 	if (sc->sc_rb.rb_td_nbusy == HME_NTXDESC || error == -1)
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	/* Set watchdog timer if a packet was queued */
 	if (enq) {
 		bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
@@ -1184,7 +1185,7 @@ hme_tint(struct hme_softc *sc)
 
 		CTR0(KTR_HME, "hme_tint: not owned");
 		--sc->sc_rb.rb_td_nbusy;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		/* Complete packet transmitted? */
 		if ((txflags & HME_XD_EOP) == 0)
@@ -1558,15 +1559,15 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP) == 0 &&
-		    (ifp->if_flags & IFF_RUNNING) != 0) {
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			/*
 			 * If interface is marked down and it is running, then
 			 * stop it.
 			 */
 			hme_stop(sc);
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		} else if ((ifp->if_flags & IFF_UP) != 0 &&
-		    	   (ifp->if_flags & IFF_RUNNING) == 0) {
+		    	   (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			/*
 			 * If interface is marked up and it is stopped, then
 			 * start it.

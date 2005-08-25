@@ -228,7 +228,7 @@ bstp_send_config_bpdu(struct bridge_softc *sc, struct bridge_iflist *bif,
 
 	ifp = bif->bif_ifp;
 
-	if ((ifp->if_flags & IFF_RUNNING) == 0)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -370,7 +370,7 @@ bstp_transmit_tcn(struct bridge_softc *sc)
 
 	BRIDGE_LOCK_ASSERT(sc);
 
-	if ((ifp->if_flags & IFF_RUNNING) == 0)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -1139,7 +1139,7 @@ bstp_tick(void *arg)
 			bstp_hold_timer_expiry(sc, bif);
 	}
 
-	if (sc->sc_ifp->if_flags & IFF_RUNNING)
+	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		callout_reset(&sc->sc_bstpcallout, hz, bstp_tick, sc);
 
 	BRIDGE_UNLOCK(sc);

@@ -1291,7 +1291,7 @@ nge_txeof(sc)
 		if (cur_tx->nge_mbuf != NULL) {
 			m_freem(cur_tx->nge_mbuf);
 			cur_tx->nge_mbuf = NULL;
-			ifp->if_flags &= ~IFF_OACTIVE;
+			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		}
 
 		sc->nge_cdata.nge_tx_cnt--;
@@ -1484,7 +1484,7 @@ nge_intr(arg)
 
 		if (status & NGE_ISR_SYSERR) {
 			nge_reset(sc);
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			nge_init_locked(sc);
 		}
 
@@ -1622,7 +1622,7 @@ nge_start_locked(ifp)
 
 	idx = sc->nge_cdata.nge_tx_prod;
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	while(sc->nge_ldata->nge_tx_list[idx].nge_mbuf == NULL) {
@@ -1632,7 +1632,7 @@ nge_start_locked(ifp)
 
 		if (nge_encap(sc, m_head, &idx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -1676,7 +1676,7 @@ nge_init_locked(sc)
 
 	NGE_LOCK_ASSERT(sc);
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	/*
@@ -1849,8 +1849,8 @@ nge_init_locked(sc)
 
 	nge_ifmedia_upd(ifp);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	return;
 }
@@ -1999,13 +1999,13 @@ nge_ioctl(ifp, command, data)
 	case SIOCSIFFLAGS:
 		NGE_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->nge_if_flags & IFF_PROMISC)) {
 				NGE_SETBIT(sc, NGE_RXFILT_CTL,
 				    NGE_RXFILTCTL_ALLPHYS|
 				    NGE_RXFILTCTL_ALLMULTI);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->nge_if_flags & IFF_PROMISC) {
 				NGE_CLRBIT(sc, NGE_RXFILT_CTL,
@@ -2014,11 +2014,11 @@ nge_ioctl(ifp, command, data)
 					NGE_CLRBIT(sc, NGE_RXFILT_CTL,
 					    NGE_RXFILTCTL_ALLMULTI);
 			} else {
-				ifp->if_flags &= ~IFF_RUNNING;
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				nge_init_locked(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				nge_stop(sc);
 		}
 		sc->nge_if_flags = ifp->if_flags;
@@ -2069,7 +2069,7 @@ nge_watchdog(ifp)
 	NGE_LOCK(sc);
 	nge_stop(sc);
 	nge_reset(sc);
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	nge_init_locked(sc);
 
 	if (ifp->if_snd.ifq_head != NULL)
@@ -2142,7 +2142,7 @@ nge_stop(sc)
 	bzero((char *)&sc->nge_ldata->nge_tx_list,
 		sizeof(sc->nge_ldata->nge_tx_list));
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	return;
 }

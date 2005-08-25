@@ -1314,7 +1314,7 @@ nd6_dad_ns_output(dp, ifa)
 #endif
 		return;
 	}
-	if ((ifp->if_flags & IFF_RUNNING) == 0) {
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 #if 0
 		printf("%s: interface not running?\n", if_name(ifp));
 #endif

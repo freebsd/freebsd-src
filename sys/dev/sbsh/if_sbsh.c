@@ -345,7 +345,7 @@ sbsh_init(void *xsc)
 	int			s;
 	u_int8_t		t;
 
-	if ((ifp->if_flags & IFF_RUNNING) || sc->state == NOT_LOADED)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) || sc->state == NOT_LOADED)
 		return;
 
 	s = splimp();
@@ -360,8 +360,8 @@ sbsh_init(void *xsc)
 	if (issue_cx28975_cmd(sc, _DSL_ACTIVATION, &t, 1) == 0) {
 		sc->state = ACTIVATION;
 
-		ifp->if_flags |= IFF_RUNNING;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 
 	splx(s);
@@ -488,7 +488,7 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING)) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				if (sc->state == NOT_LOADED) {
 					if_printf(ifp, "firmware wasn't loaded\n");
 					error = EBUSY;
@@ -496,9 +496,9 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 					sbsh_init(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				sbsh_stop(sc);
-				ifp->if_flags &= ~IFF_RUNNING;
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			}
 		}
 		break;
@@ -658,9 +658,9 @@ start_xmit_frames(struct sbsh_softc *sc)
 	}
 
 	if (sc->regs->CTDR != sc->regs->LTDR)
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	else
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 

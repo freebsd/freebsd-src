@@ -811,7 +811,7 @@ txp_rxbuf_reclaim(sc)
 	struct txp_swdesc *sd;
 	u_int32_t i;
 
-	if (!(ifp->if_flags & IFF_RUNNING))
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 
 	i = sc->sc_rxbufprod;
@@ -884,7 +884,7 @@ txp_tx_reclaim(sc, r)
 				ifp->if_opackets++;
 			}
 		}
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		if (++cons == TX_ENTRIES) {
 			txd = r->r_desc;
@@ -1078,7 +1078,7 @@ txp_ioctl(ifp, command, data)
 		if (ifp->if_flags & IFF_UP) {
 			txp_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				txp_stop(sc);
 		}
 		break;
@@ -1178,7 +1178,7 @@ txp_init(xsc)
 	sc = xsc;
 	ifp = sc->sc_ifp;
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	txp_stop(sc);
@@ -1212,8 +1212,8 @@ txp_init(xsc)
 	    TXP_INT_PCI_TABORT | TXP_INT_PCI_MABORT |  TXP_INT_LATCH);
 	WRITE_REG(sc, TXP_IMR, TXP_INT_A2H_3);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_timer = 0;
 
 	sc->sc_tick = timeout(txp_tick, sc, hz);
@@ -1276,7 +1276,8 @@ txp_start(ifp)
 	u_int32_t firstprod, firstcnt, prod, cnt;
 	struct m_tag *mtag;
 
-	if ((ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	   IFF_DRV_RUNNING)
 		return;
 
 	prod = r->r_prod;
@@ -1362,7 +1363,7 @@ txp_start(ifp)
 	return;
 
 oactive:
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	r->r_prod = firstprod;
 	r->r_cnt = firstcnt;
 	IF_PREPEND(&ifp->if_snd, m);
@@ -1580,7 +1581,7 @@ txp_stop(sc)
 
 	ifp = sc->sc_ifp;
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	untimeout(txp_tick, sc, sc->sc_tick);
 

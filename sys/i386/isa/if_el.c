@@ -386,8 +386,8 @@ el_init(xsc)
 	CSR_WRITE_1(sc,EL_AC,(EL_AC_IRQE|EL_AC_RX));
 
 	/* Set flags appropriately */
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* And start output. */
 	el_start(ifp);
@@ -413,9 +413,9 @@ el_start(struct ifnet *ifp)
 	EL_LOCK(sc);
 
 	/* Don't do anything if output is active */
-	if(sc->el_ifp->if_flags & IFF_OACTIVE)
+	if(sc->el_ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
-	sc->el_ifp->if_flags |= IFF_OACTIVE;
+	sc->el_ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	/* The main loop.  They warned me against endless loops, but
 	 * would I listen?  NOOO....
@@ -426,7 +426,7 @@ el_start(struct ifnet *ifp)
 
 		/* If there's nothing to send, return. */
 		if(m0 == NULL) {
-			sc->el_ifp->if_flags &= ~IFF_OACTIVE;
+			sc->el_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			EL_UNLOCK(sc);
 			return;
 		}
@@ -744,15 +744,15 @@ el_ioctl(ifp, command, data)
 		 * If interface is marked down and it is running, then stop it
 		 */
 		if (((ifp->if_flags & IFF_UP) == 0) &&
-		    (ifp->if_flags & IFF_RUNNING)) {
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			el_stop(ifp->if_softc);
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		} else {
 		/*
 		 * If interface is marked up and it is stopped, then start it
 		 */
 			if ((ifp->if_flags & IFF_UP) &&
-		    	    ((ifp->if_flags & IFF_RUNNING) == 0))
+		    	    ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0))
 				el_init(ifp->if_softc);
 		}
 		break;

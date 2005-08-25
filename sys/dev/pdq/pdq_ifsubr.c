@@ -74,7 +74,7 @@ pdq_ifinit(
     pdq_softc_t *sc)
 {
     if (PDQ_IFNET(sc)->if_flags & IFF_UP) {
-	PDQ_IFNET(sc)->if_flags |= IFF_RUNNING;
+	PDQ_IFNET(sc)->if_drv_flags |= IFF_DRV_RUNNING;
 	if (PDQ_IFNET(sc)->if_flags & IFF_PROMISC) {
 	    sc->sc_pdq->pdq_flags |= PDQ_PROMISC;
 	} else {
@@ -88,7 +88,7 @@ pdq_ifinit(
 	sc->sc_pdq->pdq_flags |= PDQ_RUNNING;
 	pdq_run(sc->sc_pdq);
     } else {
-	PDQ_IFNET(sc)->if_flags &= ~IFF_RUNNING;
+	PDQ_IFNET(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
 	sc->sc_pdq->pdq_flags &= ~PDQ_RUNNING;
 	pdq_stop(sc->sc_pdq);
     }
@@ -103,7 +103,7 @@ pdq_ifwatchdog(
      * seconds.  Remove all queued packets.
      */
 
-    ifp->if_flags &= ~IFF_OACTIVE;
+    ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
     ifp->if_timer = 0;
     for (;;) {
 	struct mbuf *m;
@@ -122,14 +122,14 @@ pdq_ifstart(
     struct mbuf *m;
     int tx = 0;
 
-    if ((ifp->if_flags & IFF_RUNNING) == 0)
+    if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 	return;
 
     if (PDQ_IFNET(sc)->if_timer == 0)
 	PDQ_IFNET(sc)->if_timer = PDQ_OS_TX_TIMEOUT;
 
     if ((sc->sc_pdq->pdq_flags & PDQ_TXOK) == 0) {
-	PDQ_IFNET(sc)->if_flags |= IFF_OACTIVE;
+	PDQ_IFNET(sc)->if_drv_flags |= IFF_DRV_OACTIVE;
 	return;
     }
     sc->sc_flags |= PDQIF_DOWNCALL;
@@ -170,7 +170,7 @@ pdq_ifstart(
 	    break;
     }
     if (m != NULL) {
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	IF_PREPEND(&ifp->if_snd, m);
     }
     if (tx)
@@ -226,7 +226,7 @@ pdq_os_restart_transmitter(
     pdq_t *pdq)
 {
     pdq_softc_t *sc = pdq->pdq_os_ctx;
-    PDQ_IFNET(sc)->if_flags &= ~IFF_OACTIVE;
+    PDQ_IFNET(sc)->if_drv_flags &= ~IFF_DRV_OACTIVE;
     if (IFQ_IS_EMPTY(&PDQ_IFNET(sc)->if_snd) == 0) {
 	PDQ_IFNET(sc)->if_timer = PDQ_OS_TX_TIMEOUT;
 	if ((sc->sc_flags & PDQIF_DOWNCALL) == 0)
@@ -379,7 +379,7 @@ pdq_ifioctl(
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI: {
-	    if (PDQ_IFNET(sc)->if_flags & IFF_RUNNING) {
+	    if (PDQ_IFNET(sc)->if_drv_flags & IFF_DRV_RUNNING) {
 		    pdq_run(sc->sc_pdq);
 		error = 0;
 	    }

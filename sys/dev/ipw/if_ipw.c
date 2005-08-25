@@ -733,7 +733,7 @@ ipw_resume(device_t dev)
 
 	if (ifp->if_flags & IFF_UP) {
 		ifp->if_init(ifp->if_softc);
-		if (ifp->if_flags & IFF_RUNNING)
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			ifp->if_start(ifp);
 	}
 
@@ -756,7 +756,7 @@ ipw_media_change(struct ifnet *ifp)
 		return error;
 	}
 
-	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
+	if ((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 		ipw_init(sc);
 
 	IPW_UNLOCK(sc);
@@ -1199,7 +1199,7 @@ ipw_tx_intr(struct ipw_softc *sc)
 	/* remember what the firmware has processed */
 	sc->txold = (r == 0) ? IPW_NTBD - 1 : r - 1;
 
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ipw_start(ifp);
 }
 
@@ -1475,7 +1475,7 @@ ipw_start(struct ifnet *ifp)
 
 		if (sc->txfree < 1 + IPW_MAX_NSEG) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m0);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -1549,10 +1549,10 @@ ipw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING))
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				ipw_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ipw_stop(sc);
 		}
 		break;
@@ -1581,8 +1581,8 @@ ipw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 
 	if (error == ENETRESET) {
-		if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
-		    (IFF_UP | IFF_RUNNING))
+		if ((ifp->if_flags & IFF_UP) &&
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			ipw_init(sc);
 		error = 0;
 	}
@@ -2090,8 +2090,8 @@ ipw_init(void *priv)
 		goto fail;
 	}
 
-	ifp->if_flags &= ~IFF_OACTIVE;
-	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	return;
 
@@ -2119,7 +2119,7 @@ ipw_stop(void *priv)
 
 	sc->sc_tx_timer = 0;
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 }

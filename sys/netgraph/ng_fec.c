@@ -637,7 +637,7 @@ ng_fec_tick(void *arg)
 	}
 
 	ifp = priv->ifp;
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		priv->fec_ch = timeout(ng_fec_tick, priv, hz);
 
 	return;
@@ -704,7 +704,7 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * If it is marked down and running, then stop it.
 		 */
 		if (ifr->ifr_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING)) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				/* Sanity. */
 				if (b->fec_ifcnt == 1 || b->fec_ifcnt == 3) {
 					printf("fec%d: invalid bundle "
@@ -713,8 +713,8 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					error = EINVAL;
 					break;
 				}
-				ifp->if_flags &= ~(IFF_OACTIVE);
-				ifp->if_flags |= IFF_RUNNING;
+				ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
+				ifp->if_drv_flags |= IFF_DRV_RUNNING;
 				ng_fec_init(ifp);
 			}
 			/*
@@ -727,8 +727,9 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				priv->if_flags = ifp->if_flags;
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
-				ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				ifp->if_drv_flags &= ~(IFF_DRV_RUNNING |
+				    IFF_DRV_OACTIVE);
 			ng_fec_stop(ifp);
 		}
 		break;
@@ -834,7 +835,8 @@ ng_fec_output(struct ifnet *ifp, struct mbuf *m,
 	int error;
 
 	/* Check interface flags */
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 		m_freem(m);
 		return (ENETDOWN);
 	}

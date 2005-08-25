@@ -1110,7 +1110,7 @@ bfe_txeof(struct bfe_softc *sc)
 	if(i != sc->bfe_tx_cons) {
 		/* we freed up some mbufs */
 		sc->bfe_tx_cons = i;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 	if(sc->bfe_tx_cnt == 0)
 		ifp->if_timer = 0;
@@ -1219,7 +1219,7 @@ bfe_intr(void *xsc)
 		if(flag & BFE_RX_FLAG_ERRORS)
 			ifp->if_ierrors++;
 
-		ifp->if_flags &= ~IFF_RUNNING;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		bfe_init_locked(sc);
 	}
 
@@ -1232,7 +1232,8 @@ bfe_intr(void *xsc)
 		bfe_txeof(sc);
 
 	/* We have packets pending, fire them out */
-	if (ifp->if_flags & IFF_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bfe_start_locked(ifp);
 
 	BFE_UNLOCK(sc);
@@ -1354,7 +1355,7 @@ bfe_start_locked(struct ifnet *ifp)
 	if (!sc->bfe_link && ifp->if_snd.ifq_len < 10)
 		return;
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	while(sc->bfe_tx_ring[idx].bfe_mbuf == NULL) {
@@ -1368,7 +1369,7 @@ bfe_start_locked(struct ifnet *ifp)
 		 */
 		if(bfe_encap(sc, m_head, &idx)) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -1410,7 +1411,7 @@ bfe_init_locked(void *xsc)
 
 	BFE_LOCK_ASSERT(sc);
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	bfe_stop(sc);
@@ -1431,8 +1432,8 @@ bfe_init_locked(void *xsc)
 	CSR_WRITE_4(sc, BFE_IMASK, BFE_IMASK_DEF);
 
 	bfe_ifmedia_upd(ifp);
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->bfe_stat_ch = timeout(bfe_tick, sc, hz);
 }
@@ -1488,18 +1489,18 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case SIOCSIFFLAGS:
 			BFE_LOCK(sc);
 			if(ifp->if_flags & IFF_UP)
-				if(ifp->if_flags & IFF_RUNNING)
+				if(ifp->if_drv_flags & IFF_DRV_RUNNING)
 					bfe_set_rx_mode(sc);
 				else
 					bfe_init_locked(sc);
-			else if(ifp->if_flags & IFF_RUNNING)
+			else if(ifp->if_drv_flags & IFF_DRV_RUNNING)
 				bfe_stop(sc);
 			BFE_UNLOCK(sc);
 			break;
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
 			BFE_LOCK(sc);
-			if(ifp->if_flags & IFF_RUNNING)
+			if(ifp->if_drv_flags & IFF_DRV_RUNNING)
 				bfe_set_rx_mode(sc);
 			BFE_UNLOCK(sc);
 			break;
@@ -1528,7 +1529,7 @@ bfe_watchdog(struct ifnet *ifp)
 
 	printf("bfe%d: watchdog timeout -- resetting\n", sc->bfe_unit);
 
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	bfe_init_locked(sc);
 
 	ifp->if_oerrors++;
@@ -1584,5 +1585,5 @@ bfe_stop(struct bfe_softc *sc)
 	bfe_tx_ring_free(sc);
 	bfe_rx_ring_free(sc);
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }

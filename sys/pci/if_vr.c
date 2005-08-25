@@ -1109,7 +1109,7 @@ vr_txeof(struct vr_softc *sc)
 		ifp->if_opackets++;
 		m_freem(cur_tx->vr_mbuf);
 		cur_tx->vr_mbuf = NULL;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		cur_tx = cur_tx->vr_nextdesc;
 	}
@@ -1400,7 +1400,7 @@ vr_start_locked(struct ifnet *ifp)
 	struct mbuf		*m_head;
 	struct vr_chain		*cur_tx;
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	cur_tx = sc->vr_cdata.vr_tx_prod;
@@ -1436,7 +1436,7 @@ vr_start_locked(struct ifnet *ifp)
 		ifp->if_timer = 5;
 
 		if (cur_tx->vr_mbuf != NULL)
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	}
 }
 
@@ -1545,8 +1545,8 @@ vr_init_locked(struct vr_softc *sc)
 
 	mii_mediachg(mii);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->vr_stat_ch = timeout(vr_tick, sc, hz);
 }
@@ -1596,7 +1596,7 @@ vr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			vr_init_locked(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				vr_stop(sc);
 		}
 		VR_UNLOCK(sc);
@@ -1661,7 +1661,7 @@ vr_stop(struct vr_softc *sc)
 	ifp->if_timer = 0;
 
 	untimeout(vr_tick, sc, sc->vr_stat_ch);
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
 #endif /* DEVICE_POLLING */

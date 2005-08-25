@@ -304,9 +304,9 @@ en_pci_detach(device_t dev)
 	/*
 	 * Stop DMA and drop transmit queue.
 	 */
-	if ((sc->ifp->if_flags & IFF_RUNNING)) {
+	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		if_printf(sc->ifp, "still running\n");
-		sc->ifp->if_flags &= ~IFF_RUNNING;
+		sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	}
 
 	/*

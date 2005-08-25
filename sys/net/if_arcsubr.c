@@ -112,7 +112,8 @@ arc_output(ifp, m, dst, rt0)
 	int			loop_copy = 0;
 	int			isphds;
 
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
 		return(ENETDOWN); /* m, m1 aren't initialized yet */
 
 	error = 0;

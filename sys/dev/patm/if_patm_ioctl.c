@@ -107,7 +107,7 @@ patm_open_vcc(struct patm_softc *sc, struct atmio_openvcc *arg)
 		return (ENOMEM);
 
 	mtx_lock(&sc->mtx);
-	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		/* stopped while we have analyzed the arguments */
 		error = EIO;
 		goto done;
@@ -224,7 +224,7 @@ patm_close_vcc(struct patm_softc *sc, struct atmio_closevcc *arg)
 	cid = PATM_CID(sc, arg->vpi, arg->vci);
 
 	mtx_lock(&sc->mtx);
-	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		/* stopped while we have analyzed the arguments */
 		error = EIO;
 		goto done;
@@ -246,7 +246,7 @@ patm_close_vcc(struct patm_softc *sc, struct atmio_closevcc *arg)
 
 	while (vcc->vflags & (PATM_VCC_TX_CLOSING | PATM_VCC_RX_CLOSING)) {
 		cv_wait(&sc->vcc_cv, &sc->mtx);
-		if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+		if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			/* ups, has been stopped */
 			error = EIO;
 			goto done;
@@ -299,7 +299,7 @@ patm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	  case SIOCSIFADDR:
 		mtx_lock(&sc->mtx);
 		ifp->if_flags |= IFF_UP;
-		if (!(ifp->if_flags & IFF_RUNNING))
+		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 			patm_initialize(sc);
 		switch (ifa->ifa_addr->sa_family) {
 
@@ -318,11 +318,11 @@ patm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	  case SIOCSIFFLAGS:
 		mtx_lock(&sc->mtx);
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING)) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				patm_initialize(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				patm_stop(sc);
 			}
 		}
@@ -339,7 +339,7 @@ patm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * null cells of it gets the timing wrong.
 		 */
 		mtx_lock(&sc->mtx);
-		if (ifp->if_flags & IFF_RUNNING) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			if (sc->utopia.state & UTP_ST_UNASS) {
 				if (!(sc->flags & PATM_UNASS)) {
 					cfg = patm_nor_read(sc, IDT_NOR_CFG);

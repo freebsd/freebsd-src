@@ -456,10 +456,10 @@ arl_ioctl(ifp, cmd, data)
 
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING))
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				arl_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				arl_stop(sc);
 		}
 		break;
@@ -694,7 +694,7 @@ arl_waitreg(ifp)
 
 	D(("wait reg\n"));
 
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		if (ARL_CHECKREG(sc)) {
 			/* wait registration */
 			D(("wait registration\n"));
@@ -718,7 +718,7 @@ arl_watchdog(ifp)
 {
 	struct arl_softc        *sc = ifp->if_softc;
 
-	if (!(ifp->if_flags & IFF_RUNNING))
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 
 	D(("device timeout\n"));
@@ -753,8 +753,8 @@ arl_init(xsc)
 
 	/* set flags */
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	arl_start(ifp);
 
@@ -826,7 +826,7 @@ arl_start(ifp)
 	D(("start\n"));
 
 	/* Don't do anything if output is active */
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	/* Dequeue the next datagram */
@@ -834,7 +834,7 @@ arl_start(ifp)
 
 	/* If there's nothing to send, return. */
 	if (m0 != NULL) {
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 		/* Copy the datagram to the buffer. */
 		sc->tx_len = 0;
@@ -881,7 +881,7 @@ arl_stop(sc)
 	ifp = sc->arl_ifp;
 
 	ifp->if_timer = 0;        /* disable timer */
-	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 	/*  arl_hwreset(unit);  */
 	sc->rx_len = 0;
 	sc->tx_len = 0;
@@ -1064,7 +1064,7 @@ arl_intr(arg)
 		if (ar->txStatusVector != 1)
 			sc->arl_ifp->if_collisions++;
 		ifp->if_timer = 0;     /* disable timer */
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		arl_start(ifp);
 		ar->txStatusVector = 0;
 #ifdef ARLCACHE

@@ -512,18 +512,18 @@ sf_ioctl(ifp, command, data)
 	switch(command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->sf_if_flags & IFF_PROMISC)) {
 				SF_SETBIT(sc, SF_RXFILT, SF_RXFILT_PROMISC);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->sf_if_flags & IFF_PROMISC) {
 				SF_CLRBIT(sc, SF_RXFILT, SF_RXFILT_PROMISC);
-			} else if (!(ifp->if_flags & IFF_RUNNING))
+			} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				sf_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				sf_stop(sc);
 		}
 		sc->sf_if_flags = ifp->if_flags;
@@ -1013,7 +1013,7 @@ sf_txeof(sc)
 	}
 
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	csr_write_4(sc, SF_CQ_CONSIDX,
 	    (txcons & ~SF_CQ_CONSIDX_TXQ) |
@@ -1286,8 +1286,8 @@ sf_init(xsc)
 	/*mii_mediachg(mii);*/
 	sf_ifmedia_upd(ifp);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->sf_stat_ch = timeout(sf_stats_update, sc, hz);
 
@@ -1375,7 +1375,7 @@ sf_start(ifp)
 		return;
 	}
 
-	if (ifp->if_flags & IFF_OACTIVE) {
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		SF_UNLOCK(sc);
 		return;
 	}
@@ -1392,7 +1392,7 @@ sf_start(ifp)
 
 	while(sc->sf_ldata->sf_tx_dlist[i].sf_mbuf == NULL) {
 		if (sc->sf_tx_cnt >= (SF_TX_DLIST_CNT - 5)) {
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			cur_tx = NULL;
 			break;
 		}
@@ -1403,7 +1403,7 @@ sf_start(ifp)
 		cur_tx = &sc->sf_ldata->sf_tx_dlist[i];
 		if (sf_encap(sc, cur_tx, m_head)) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			cur_tx = NULL;
 			break;
 		}
@@ -1482,7 +1482,7 @@ sf_stop(sc)
 		}
 	}
 
-	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 	SF_UNLOCK(sc);
 }
 
