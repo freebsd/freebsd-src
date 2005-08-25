@@ -851,6 +851,15 @@ reply:
 			       inet_ntoa(itaddr));
 #endif
 		} else {
+			/*
+			 * Return proxied ARP replies only on the interface
+			 * where this network resides. Otherwise we may
+			 * conflict with the host we are proxying for.
+			 */
+			if (rt->rt_ifp != ifp) {
+				RT_UNLOCK(rt);
+				goto drop;
+			}
 			sdl = SDL(rt->rt_gateway);
 			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
 			(void)memcpy(ar_sha(ah), LLADDR(sdl), ah->ar_hln);
