@@ -165,10 +165,7 @@ static int	insertchild(struct witness *parent, struct witness *child);
 static int	isitmychild(struct witness *parent, struct witness *child);
 static int	isitmydescendant(struct witness *parent, struct witness *child);
 static int	itismychild(struct witness *parent, struct witness *child);
-static int	rebalancetree(struct witness_list *list);
 static void	removechild(struct witness *parent, struct witness *child);
-static int	reparentchildren(struct witness *newparent,
-		    struct witness *oldparent);
 static int	sysctl_debug_witness_watch(SYSCTL_HANDLER_ARGS);
 static void	witness_displaydescendants(void(*)(const char *fmt, ...),
 					   struct witness *, int indent);
@@ -194,11 +191,8 @@ static void	witness_display(void(*)(const char *fmt, ...));
 SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, 0, "Witness Locking");
 
 /*
- * If set to 0, witness is disabled.  If set to 1, witness performs full lock
- * order checking for all locks.  If set to 2 or higher, then witness skips
- * the full lock order check if the lock being acquired is at a higher level
- * (i.e. farther down in the tree) than the current lock.  This last mode is
- * somewhat experimental and not considered fully safe.  At runtime, this
+ * If set to 0, witness is disabled.  If set to a non-zero value, witness
+ * performs full lock order checking for all locks.  At runtime, this
  * value may be set to 0 to turn off witness.  witness is not allowed be
  * turned on once it is turned off, however.
  */
@@ -249,6 +243,16 @@ static struct witness_list w_spin = STAILQ_HEAD_INITIALIZER(w_spin);
 static struct witness_list w_sleep = STAILQ_HEAD_INITIALIZER(w_sleep);
 static struct witness_child_list_entry *w_child_free = NULL;
 static struct lock_list_entry *w_lock_list_free = NULL;
+
+static int w_free_cnt, w_spin_cnt, w_sleep_cnt, w_child_free_cnt, w_child_cnt;
+SYSCTL_INT(_debug_witness, OID_AUTO, free_cnt, CTLFLAG_RD, &w_free_cnt, 0, "");
+SYSCTL_INT(_debug_witness, OID_AUTO, spin_cnt, CTLFLAG_RD, &w_spin_cnt, 0, "");
+SYSCTL_INT(_debug_witness, OID_AUTO, sleep_cnt, CTLFLAG_RD, &w_sleep_cnt, 0,
+    "");
+SYSCTL_INT(_debug_witness, OID_AUTO, child_free_cnt, CTLFLAG_RD,
+    &w_child_free_cnt, 0, "");
+SYSCTL_INT(_debug_witness, OID_AUTO, child_cnt, CTLFLAG_RD, &w_child_cnt, 0,
+    "");
 
 static struct witness w_data[WITNESS_COUNT];
 static struct witness_child_list_entry w_childdata[WITNESS_CHILDCOUNT];
@@ -820,18 +824,11 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	MPASS(!mtx_owned(&w_mtx));
 	mtx_lock_spin(&w_mtx);
 	/*
-	 * If we have a known higher number just say ok
-	 */
-	if (witness_watch > 1 && w->w_level > w1->w_level) {
-		mtx_unlock_spin(&w_mtx);
-		return;
-	}
-	/*
 	 * If we know that the the lock we are acquiring comes after
 	 * the lock we most recently acquired in the lock order tree,
 	 * then there is no need for any further checks.
 	 */
-	if (isitmydescendant(w1, w)) {
+	if (isitmychild(w1, w)) {
 		mtx_unlock_spin(&w_mtx);
 		return;
 	}
@@ -1312,11 +1309,13 @@ enroll(const char *description, struct lock_class *lock_class)
 	w->w_class = lock_class;
 	w->w_refcount = 1;
 	STAILQ_INSERT_HEAD(&w_all, w, w_list);
-	if (lock_class->lc_flags & LC_SPINLOCK)
+	if (lock_class->lc_flags & LC_SPINLOCK) {
 		STAILQ_INSERT_HEAD(&w_spin, w, w_typelist);
-	else if (lock_class->lc_flags & LC_SLEEPLOCK)
+		w_spin_cnt++;
+	} else if (lock_class->lc_flags & LC_SLEEPLOCK) {
 		STAILQ_INSERT_HEAD(&w_sleep, w, w_typelist);
-	else {
+		w_sleep_cnt++;
+	} else {
 		mtx_unlock_spin(&w_mtx);
 		panic("lock class %s is not sleep or spin",
 		    lock_class->lc_name);
@@ -1334,10 +1333,13 @@ depart(struct witness *w)
 	struct witness *parent;
 
 	MPASS(w->w_refcount == 0);
-	if (w->w_class->lc_flags & LC_SLEEPLOCK)
+	if (w->w_class->lc_flags & LC_SLEEPLOCK) {
 		list = &w_sleep;
-	else
+		w_sleep_cnt--;
+	} else {
 		list = &w_spin;
+		w_spin_cnt--;
+	}
 	/*
 	 * First, we run through the entire tree looking for any
 	 * witnesses that the outgoing witness is a child of.  For
@@ -1348,8 +1350,6 @@ depart(struct witness *w)
 		if (!isitmychild(parent, w))
 			continue;
 		removechild(parent, w);
-		if (!reparentchildren(parent, w))
-			return (0);
 	}
 
 	/*
@@ -1358,6 +1358,7 @@ depart(struct witness *w)
 	 */
 	for (wcl = w->w_children; wcl != NULL; wcl = nwcl) {
 		nwcl = wcl->wcl_next;
+        	w_child_cnt--;
 		witness_child_free(wcl);
 	}
 
@@ -1368,34 +1369,6 @@ depart(struct witness *w)
 	STAILQ_REMOVE(&w_all, w, witness, w_list);
 	witness_free(w);
 
-	/* Finally, fixup the tree. */
-	return (rebalancetree(list));
-}
-
-/*
- * Prune an entire lock order tree.  We look for cases where a lock
- * is now both a descendant and a direct child of a given lock.  In
- * that case, we want to remove the direct child link from the tree.
- *
- * Returns false if insertchild() fails.
- */
-static int
-rebalancetree(struct witness_list *list)
-{
-	struct witness *child, *parent;
-
-	STAILQ_FOREACH(child, list, w_typelist) {
-		STAILQ_FOREACH(parent, list, w_typelist) {
-			if (!isitmychild(parent, child))
-				continue;
-			removechild(parent, child);
-			if (isitmydescendant(parent, child))
-				continue;
-			if (!insertchild(parent, child))
-				return (0);
-		}
-	}
-	witness_levelall();
 	return (1);
 }
 
@@ -1420,31 +1393,13 @@ insertchild(struct witness *parent, struct witness *child)
 		*wcl = witness_child_get();
 		if (*wcl == NULL)
 			return (0);
+        	w_child_cnt++;
 	}
 	(*wcl)->wcl_children[(*wcl)->wcl_count++] = child;
 
 	return (1);
 }
 
-/*
- * Make all the direct descendants of oldparent be direct descendants
- * of newparent.
- */
-static int
-reparentchildren(struct witness *newparent, struct witness *oldparent)
-{
-	struct witness_child_list_entry *wcl;
-	int i;
-
-	/* Avoid making a witness a child of itself. */
-	MPASS(!isitmychild(oldparent, newparent));
-	
-	for (wcl = oldparent->w_children; wcl != NULL; wcl = wcl->wcl_next)
-		for (i = 0; i < wcl->wcl_count; i++)
-			if (!insertchild(newparent, wcl->wcl_children[i]))
-				return (0);
-	return (1);
-}
 
 static int
 itismychild(struct witness *parent, struct witness *child)
@@ -1466,7 +1421,7 @@ itismychild(struct witness *parent, struct witness *child)
 		list = &w_sleep;
 	else
 		list = &w_spin;
-	return (rebalancetree(list));
+	return (1);
 }
 
 static void
@@ -1490,6 +1445,7 @@ found:
 		return;
 	wcl1 = *wcl;
 	*wcl = wcl1->wcl_next;
+	w_child_cnt--;
 	witness_child_free(wcl1);
 }
 
@@ -1648,6 +1604,7 @@ witness_get(void)
 	}
 	w = STAILQ_FIRST(&w_free);
 	STAILQ_REMOVE_HEAD(&w_free, w_list);
+	w_free_cnt--;
 	bzero(w, sizeof(*w));
 	return (w);
 }
@@ -1657,6 +1614,7 @@ witness_free(struct witness *w)
 {
 
 	STAILQ_INSERT_HEAD(&w_free, w, w_list);
+	w_free_cnt++;
 }
 
 static struct witness_child_list_entry *
@@ -1676,6 +1634,7 @@ witness_child_get(void)
 		return (NULL);
 	}
 	w_child_free = wcl->wcl_next;
+	w_child_free_cnt--;
 	bzero(wcl, sizeof(*wcl));
 	return (wcl);
 }
@@ -1686,6 +1645,7 @@ witness_child_free(struct witness_child_list_entry *wcl)
 
 	wcl->wcl_next = w_child_free;
 	w_child_free = wcl;
+	w_child_free_cnt++;
 }
 
 static struct lock_list_entry *
