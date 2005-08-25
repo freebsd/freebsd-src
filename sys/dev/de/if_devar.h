@@ -88,12 +88,29 @@ typedef struct {
  * traditional FIFO ring.
  */
 typedef struct {
-	tulip_desc_t	*ri_first;	/* first entry in ring */
-	tulip_desc_t	*ri_last;	/* one after last entry */
-	tulip_desc_t	*ri_nextin;	/* next to processed by host */
-	tulip_desc_t	*ri_nextout;	/* next to processed by adapter */
+	tulip_desc_t	*di_desc;
+	struct mbuf	*di_mbuf;
+#ifdef TULIP_BUS_DMA
+	bus_dmamap_t	*di_map;
+#endif
+} tulip_descinfo_t;
+
+typedef struct {
+	tulip_descinfo_t *ri_first;	/* first entry in ring */
+	tulip_descinfo_t *ri_last;	/* one after last entry */
+	tulip_descinfo_t *ri_nextin;	/* next to processed by host */
+	tulip_descinfo_t *ri_nextout;	/* next to processed by adapter */
 	int		ri_max;
 	int		ri_free;
+	tulip_desc_t	*ri_descs;
+	tulip_descinfo_t *ri_descinfo;
+#ifdef TULIP_BUS_DMA
+	bus_dma_tag_t	ri_ring_tag;
+	bus_dmamap_t	ri_ring_map;
+	uint32_t	ri_dma_addr;
+	bus_dma_tag_t	ri_data_tag;
+	bus_dmamap_t	*ri_data_maps;
+#endif
 } tulip_ringinfo_t;
 
 /*
@@ -496,20 +513,6 @@ struct tulip_perfstat {
 struct tulip_softc {
 	struct ifmedia		tulip_ifmedia;
 	int			tulip_unit;
-#if defined(TULIP_BUS_DMA)
-	bus_dma_tag_t		tulip_dmatag;
-#if !defined(TULIP_BUS_DMA_NOTX)
-	bus_dmamap_t		tulip_setupmap;
-	bus_dmamap_t		tulip_txdescmap;
-	bus_dmamap_t		tulip_txmaps[TULIP_TXDESCS];
-	unsigned int		tulip_txmaps_free;
-#endif
-#if !defined(TULIP_BUS_DMA_NORX)
-	bus_dmamap_t		tulip_rxdescmap;
-	bus_dmamap_t		tulip_rxmaps[TULIP_RXDESCS];
-	unsigned int		tulip_rxmaps_free;
-#endif
-#endif
 	struct ifnet		*tulip_ifp;
 	u_char			tulip_enaddr[6];
 	bus_space_tag_t		tulip_csrs_bst;
@@ -550,8 +553,6 @@ struct tulip_softc {
 #if defined(TULIP_PERFSTATS)
 	struct tulip_perfstat	tulip_perfstats[TULIP_PERF_MAX];
 #endif
-	struct ifqueue		tulip_txq;
-	struct ifqueue		tulip_rxq;
 	tulip_dot3_stats_t	tulip_dot3stats;
 	tulip_ringinfo_t	tulip_rxinfo;
 	tulip_ringinfo_t	tulip_txinfo;
@@ -560,7 +561,14 @@ struct tulip_softc {
 	 * The setup buffers for sending the setup frame to the chip. one is
 	 * the one being sent while the other is the one being filled.
 	 */
+#ifdef TULIP_BUS_DMA
+	bus_dma_tag_t		tulip_setup_tag;
+	bus_dmamap_t		tulip_setup_map;
+	uint32_t		tulip_setup_dma_addr;
+	u_int32_t		*tulip_setupbuf;
+#else
 	u_int32_t		tulip_setupbuf[192 / sizeof(u_int32_t)];
+#endif
 	u_int32_t		tulip_setupdata[192 / sizeof(u_int32_t)];
 	char			tulip_boardid[24];
 	u_int8_t		tulip_rombuf[128];	/* must be aligned */
@@ -571,8 +579,6 @@ struct tulip_softc {
 
 	u_int8_t		tulip_connidx;
 	tulip_srom_connection_t	tulip_conntype;
-	tulip_desc_t		*tulip_rxdescs;
-	tulip_desc_t		*tulip_txdescs;
 	struct callout		tulip_callout;
 	struct mtx		tulip_mutex;
 };
@@ -833,78 +839,60 @@ static const struct {
 #endif				/* TULIP_HDR_DATA */
 
 /*
+ * Macro to encode 16 bits of a MAC address into the setup buffer.  Since
+ * we are casting the two bytes in the char array to a uint16 and then
+ * handing them to this macro, we don't need to swap the bytes in the big
+ * endian case, just shift them left 16.
+ */
+#if BYTE_ORDER == BIG_ENDIAN
+#define	TULIP_SP_MAC(x)		((x) << 16)
+#else
+#define	TULIP_SP_MAC(x)		(x)
+#endif
+
+/*
  * This driver supports a maximum of 32 tulip boards.
  * This should be enough for the forseeable future.
  */
 #define	TULIP_MAX_DEVICES	32
 
-#if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NORX)
-#define TULIP_RXDESC_PRESYNC(sc, di, s)	\
-	bus_dmamap_sync((sc)->tulip_dmatag, (sc)->tulip_rxdescmap, \
-		   (caddr_t) di - (caddr_t) (sc)->tulip_rxdescs, \
-		   (s), BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)
-#define TULIP_RXDESC_POSTSYNC(sc, di, s)	\
-	bus_dmamap_sync((sc)->tulip_dmatag, (sc)->tulip_rxdescmap, \
-		   (caddr_t) di - (caddr_t) (sc)->tulip_rxdescs, \
-		   (s), BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE)
-#define	TULIP_RXMAP_PRESYNC(sc, map) \
-	bus_dmamap_sync((sc)->tulip_dmatag, (map), 0, (map)->dm_mapsize, \
-			BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)
-#define	TULIP_RXMAP_POSTSYNC(sc, map) \
-	bus_dmamap_sync((sc)->tulip_dmatag, (map), 0, (map)->dm_mapsize, \
-			BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE)
-#define	TULIP_RXMAP_CREATE(sc, mapp) \
-	bus_dmamap_create((sc)->tulip_dmatag, TULIP_RX_BUFLEN, 2, \
-			  TULIP_DATA_PER_DESC, 0, \
-			  BUS_DMA_NOWAIT|BUS_DMA_ALLOCNOW, (mapp))
+#if defined(TULIP_BUS_DMA)
+#define	_TULIP_DESC_SYNC(ri, op)					\
+	bus_dmamap_sync((ri)->ri_ring_tag, (ri)->ri_ring_map, (op))
+#define	_TULIP_MAP_SYNC(ri, di, op)					\
+	bus_dmamap_sync((ri)->ri_data_tag, *(di)->di_map, (op))
 #else
 #ifdef __alpha__
-#define TULIP_RXDESC_PRESYNC(sc, di, s)		alpha_mb()
-#define TULIP_RXDESC_POSTSYNC(sc, di, s)	alpha_mb()
-#define TULIP_RXMAP_PRESYNC(sc, map)		alpha_mb()
-#define TULIP_RXMAP_POSTSYNC(sc, map)		alpha_mb()
+#define _TULIP_DESC_SYNC(ri, op)		alpha_mb()
+#define _TULIP_MAP_SYNC(ri, di, op)		alpha_mb()
 #else
-#define TULIP_RXDESC_PRESYNC(sc, di, s)		do { } while (0)
-#define TULIP_RXDESC_POSTSYNC(sc, di, s)	do { } while (0)
-#define TULIP_RXMAP_PRESYNC(sc, map)		do { } while (0)
-#define TULIP_RXMAP_POSTSYNC(sc, map)		do { } while (0)
+#define _TULIP_DESC_SYNC(ri, op)		do { } while (0)
+#define _TULIP_MAP_SYNC(ri, di, op)		do { } while (0)
 #endif
-#define TULIP_RXMAP_CREATE(sc, mapp)		do { } while (0)
 #endif
 
-#if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NOTX)
-#define TULIP_TXDESC_PRESYNC(sc, di, s)	\
-	bus_dmamap_sync((sc)->tulip_dmatag, (sc)->tulip_txdescmap, \
-			(caddr_t) di - (caddr_t) (sc)->tulip_txdescs, \
-			(s), BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)
-#define TULIP_TXDESC_POSTSYNC(sc, di, s)	\
-	bus_dmamap_sync((sc)->tulip_dmatag, (sc)->tulip_txdescmap, \
-			(caddr_t) di - (caddr_t) (sc)->tulip_txdescs, \
-			(s), BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE)
-#define	TULIP_TXMAP_PRESYNC(sc, map) \
-	bus_dmamap_sync((sc)->tulip_dmatag, (map), 0, (map)->dm_mapsize, \
-			BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)
-#define	TULIP_TXMAP_POSTSYNC(sc, map) \
-	bus_dmamap_sync((sc)->tulip_dmatag, (map), 0, (map)->dm_mapsize, \
-			BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE)
-#define	TULIP_TXMAP_CREATE(sc, mapp) \
-	bus_dmamap_create((sc)->tulip_dmatag, TULIP_DATA_PER_DESC, \
-			  TULIP_MAX_TXSEG, TULIP_DATA_PER_DESC, \
-			  0, BUS_DMA_NOWAIT, (mapp))
-#else
-#ifdef __alpha__
-#define TULIP_TXDESC_PRESYNC(sc, di, s)		alpha_mb()
-#define TULIP_TXDESC_POSTSYNC(sc, di, s)	alpha_mb()
-#define TULIP_TXMAP_PRESYNC(sc, map)		alpha_mb()
-#define TULIP_TXMAP_POSTSYNC(sc, map)		alpha_mb()
-#else
-#define TULIP_TXDESC_PRESYNC(sc, di, s)		do { } while (0)
-#define TULIP_TXDESC_POSTSYNC(sc, di, s)	do { } while (0)
-#define TULIP_TXMAP_PRESYNC(sc, map)		do { } while (0)
-#define TULIP_TXMAP_POSTSYNC(sc, map)		do { } while (0)
-#endif
-#define TULIP_TXMAP_CREATE(sc, mapp)		do { } while (0)
-#endif
+/*
+ * Descriptors are both read from and written to by the card (corresponding
+ * to DMA WRITE and READ operations in bus-dma speak).  Receive maps are
+ * written to by the card (a DMA READ operation in bus-dma) and transmit
+ * buffers are read from by the card (a DMA WRITE operation in bus-dma).
+ */
+#define TULIP_RXDESC_PRESYNC(ri)					\
+	_TULIP_DESC_SYNC(ri, BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)
+#define TULIP_RXDESC_POSTSYNC(ri)					\
+	_TULIP_DESC_SYNC(ri, BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE)
+#define	TULIP_RXMAP_PRESYNC(ri, di)					\
+	_TULIP_MAP_SYNC(ri, di, BUS_DMASYNC_PREREAD)
+#define	TULIP_RXMAP_POSTSYNC(ri, di)					\
+	_TULIP_MAP_SYNC(ri, di, BUS_DMASYNC_POSTREAD)
+#define TULIP_TXDESC_PRESYNC(ri)					\
+	_TULIP_DESC_SYNC(ri, BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)
+#define TULIP_TXDESC_POSTSYNC(ri)					\
+	_TULIP_DESC_SYNC(ri, BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE)
+#define	TULIP_TXMAP_PRESYNC(ri, di)					\
+	_TULIP_MAP_SYNC(ri, di, BUS_DMASYNC_PREWRITE)
+#define	TULIP_TXMAP_POSTSYNC(ri, di)					\
+	_TULIP_MAP_SYNC(ri, di, BUS_DMASYNC_POSTWRITE)
 
 #ifdef notyet
 #define	SIOCGADDRROM		_IOW('i', 240, struct ifreq)	/* get 128 bytes of ROM */
@@ -917,7 +905,7 @@ static tulip_softc_t	*tulips[TULIP_MAX_DEVICES];
 
 #define	loudprintf			if (bootverbose) printf
 
-#if !defined(TULIP_KVATOPHYS) && (!defined(TULIP_BUS_DMA) || defined(TULIP_BUS_DMA_NORX) || defined(TULIP_BUS_DMA_NOTX))
+#if !defined(TULIP_KVATOPHYS) && !defined(TULIP_BUS_DMA)
 #if defined(__alpha__)
 /* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
 #define vtobus(va)			alpha_XXX_dmamap((vm_offset_t)va)
@@ -958,6 +946,7 @@ TULIP_PERFREAD(void)
 #define	TULIP_CRC32_POLY	0xEDB88320UL	/* CRC-32 Poly -- Little
 						 * Endian */
 #define	TULIP_MAX_TXSEG		30
+#define	TULIP_MAX_FRAGS		2
 
 #define	TULIP_ADDREQUAL(a1, a2) \
 	(((u_int16_t *)a1)[0] == ((u_int16_t *)a2)[0] \
