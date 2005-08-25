@@ -615,7 +615,9 @@ ata_getparam(device_t parent, struct ata_device *atadev)
 		atadev->mode = ATA_DMA_MAX;
 	}
 	else {
-	    if (ata_dma && ch->dma)
+	    if (ata_dma && ch->dma &&
+		(ata_umode(&atadev->param) > 0 ||
+		 ata_wmode(&atadev->param) > 0))
 		atadev->mode = ATA_DMA_MAX;
 	}
     }
