@@ -16,7 +16,7 @@
 #SEARCHPATHS="/"
 
 # directories unwanted in output
-#PRUNEPATHS="/tmp /usr/tmp /var/tmp"
+#PRUNEPATHS="/tmp /usr/tmp /var/tmp /var/db/portsnap"
 
 # filesystems allowed. Beware: a non-listed filesystem will be pruned
 # and if the SEARCHPATHS starts in such a filesystem locate will build
