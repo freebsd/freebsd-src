@@ -677,7 +677,8 @@ ural_media_change(struct ifnet *ifp)
 		return error;
 	}
 
-	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
+	if ((ifp->if_flags & IFF_UP)  &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING))
 		ural_init(sc);
 
 	RAL_UNLOCK(sc);
@@ -820,7 +821,7 @@ ural_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	DPRINTFN(10, ("tx done\n"));
 
 	sc->sc_tx_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ural_start(ifp);
 }
 
@@ -1275,7 +1276,7 @@ ural_start(struct ifnet *ifp)
 		IF_POLL(&ic->ic_mgtq, m0);
 		if (m0 != NULL) {
 			if (sc->tx_queued >= RAL_TX_LIST_COUNT) {
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
 			IF_DEQUEUE(&ic->ic_mgtq, m0);
@@ -1297,7 +1298,7 @@ ural_start(struct ifnet *ifp)
 				break;
 			if (sc->tx_queued >= RAL_TX_LIST_COUNT) {
 				IFQ_DRV_PREPEND(&ifp->if_snd, m0);
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
 
@@ -1391,12 +1392,12 @@ ural_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ural_update_promisc(sc);
 			else
 				ural_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ural_stop(sc);
 		}
 		break;
@@ -1406,8 +1407,8 @@ ural_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 
 	if (error == ENETRESET) {
-		if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
-		    (IFF_UP | IFF_RUNNING))
+		if ((ifp->if_flags & IFF_UP) &&
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			ural_init(sc);
 		error = 0;
 	}
@@ -2033,8 +2034,8 @@ ural_init(void *priv)
 	}
 	ural_write(sc, RAL_TXRX_CSR2, tmp);
 
-	ifp->if_flags &= ~IFF_OACTIVE;
-	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
@@ -2058,7 +2059,7 @@ ural_stop(void *priv)
 
 	sc->sc_tx_timer = 0;
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	/* disable Rx */
 	ural_write(sc, RAL_TXRX_CSR2, RAL_DISABLE_RX);

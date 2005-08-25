@@ -171,7 +171,7 @@ fatm_utopia_writereg(struct ifatm *ifatm, u_int reg, u_int mask, u_int val)
 
 	sc = ifatm->ifp->if_softc;
 	FATM_CHECKLOCK(sc);
-	if (!(ifatm->ifp->if_flags & IFF_RUNNING))
+	if (!(ifatm->ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return (EIO);
 
 	/* get queue element and fill it */
@@ -254,7 +254,7 @@ fatm_utopia_readregs_internal(struct fatm_softc *sc)
 
 	/* get the buffer */
 	for (;;) {
-		if (!(sc->ifp->if_flags & IFF_RUNNING))
+		if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING))
 			return (EIO);
 		if (!(sc->flags & FATM_REGS_INUSE))
 			break;
@@ -396,7 +396,7 @@ fatm_watchdog(struct ifnet *ifp)
 	struct fatm_softc *sc = ifp->if_softc;
 
 	FATM_LOCK(sc);
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		fatm_check_heartbeat(sc);
 		ifp->if_timer = 5;
 	}
@@ -476,8 +476,8 @@ fatm_stop(struct fatm_softc *sc)
 	/* stop watchdog */
 	sc->ifp->if_timer = 0;
 
-	if (sc->ifp->if_flags & IFF_RUNNING) {
-		sc->ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 		ATMEV_SEND_IFSTATE_CHANGED(IFP2IFATM(sc->ifp),
 		    sc->utopia.carrier == UTP_CARR_OK);
 
@@ -1260,7 +1260,7 @@ fatm_init_locked(struct fatm_softc *sc)
 	uint32_t start;
 
 	DBG(sc, INIT, ("initialize"));
-	if (sc->ifp->if_flags & IFF_RUNNING)
+	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
 		fatm_stop(sc);
 
 	/*
@@ -1336,7 +1336,7 @@ fatm_init_locked(struct fatm_softc *sc)
 	/*
 	 * Now set flags, that we are ready
 	 */
-	sc->ifp->if_flags |= IFF_RUNNING;
+	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	/*
 	 * Start the watchdog timer
@@ -1635,7 +1635,7 @@ fatm_intr(void *p)
 	}
 	WRITE4(sc, FATMO_HCR, FATM_HCR_CLRIRQ);
 
-	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		FATM_UNLOCK(sc);
 		return;
 	}
@@ -1690,7 +1690,7 @@ fatm_getstat(struct fatm_softc *sc)
 	 * statistics buffer
 	 */
 	for (;;) {
-		if (!(sc->ifp->if_flags & IFF_RUNNING))
+		if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING))
 			return (EIO);
 		if (!(sc->flags & FATM_STAT_INUSE))
 			break;
@@ -2096,7 +2096,7 @@ fatm_start(struct ifnet *ifp)
 		 * From here on we need the softc
 		 */
 		FATM_LOCK(sc);
-		if (!(ifp->if_flags & IFF_RUNNING)) {
+		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			FATM_UNLOCK(sc);
 			m_freem(m);
 			break;
@@ -2264,7 +2264,7 @@ fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op)
 	error = 0;
 
 	FATM_LOCK(sc);
-	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -2404,7 +2404,7 @@ fatm_close_vcc(struct fatm_softc *sc, struct atmio_closevcc *cl)
 	error = 0;
 
 	FATM_LOCK(sc);
-	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -2467,7 +2467,7 @@ fatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t arg)
 	  case SIOCSIFADDR:
 		FATM_LOCK(sc);
 		ifp->if_flags |= IFF_UP;
-		if (!(ifp->if_flags & IFF_RUNNING))
+		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 			fatm_init_locked(sc);
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
@@ -2485,11 +2485,11 @@ fatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t arg)
 	  case SIOCSIFFLAGS:
 		FATM_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING)) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				fatm_init_locked(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				fatm_stop(sc);
 			}
 		}
@@ -2498,7 +2498,7 @@ fatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t arg)
 
 	  case SIOCGIFMEDIA:
 	  case SIOCSIFMEDIA:
-		if (ifp->if_flags & IFF_RUNNING)
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			error = ifmedia_ioctl(ifp, ifr, &sc->media, cmd);
 		else
 			error = EINVAL;

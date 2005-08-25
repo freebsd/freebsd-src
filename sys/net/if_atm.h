@@ -320,8 +320,8 @@ void	atm_event(struct ifnet *, u_int, void *);
 #define	ATMEV_SEND_IFSTATE_CHANGED(ATMIF, CARRIER)			\
 	do {								\
 		struct atmev_ifstate_changed _arg;			\
-		_arg.running = (((ATMIF)->ifp->if_flags &		\
-		    IFF_RUNNING) != 0);					\
+		_arg.running = (((ATMIF)->ifp->if_drv_flags &		\
+		    IFF_DRV_RUNNING) != 0);				\
 		_arg.carrier = ((CARRIER) != 0);			\
 		atm_event((ATMIF)->ifp, ATMEV_IFSTATE_CHANGED, &_arg); \
 	} while (0)

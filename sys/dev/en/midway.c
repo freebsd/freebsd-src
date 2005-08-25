@@ -1043,7 +1043,7 @@ en_start(struct ifnet *ifp)
 			continue;
 		}
 
-		if ((ifp->if_flags & IFF_RUNNING) == 0) {
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			EN_UNLOCK(sc);
 			uma_zfree(sc->map_zone, map);
 			m_freem(m);
@@ -1314,12 +1314,12 @@ en_close_vcc(struct en_softc *sc, struct atmio_closevcc *cl)
 		goto done;
 
 	vc->vflags |= VCC_CLOSE_RX;
-	while ((sc->ifp->if_flags & IFF_RUNNING) &&
+	while ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 	    (vc->vflags & VCC_DRAIN))
 		cv_wait(&sc->cv_close, &sc->en_mtx);
 
 	en_close_finish(sc, vc);
-	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -1350,7 +1350,7 @@ en_reset_ul(struct en_softc *sc)
 	int lcv;
 
 	if_printf(sc->ifp, "reset\n");
-	sc->ifp->if_flags &= ~IFF_RUNNING;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	if (sc->en_busreset)
 		sc->en_busreset(sc);
@@ -1446,7 +1446,7 @@ en_init(struct en_softc *sc)
 	}
 
 	DBG(sc, INIT, ("going up"));
-	sc->ifp->if_flags |= IFF_RUNNING;	/* enable */
+	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;	/* enable */
 
 	if (sc->en_busreset)
 		sc->en_busreset(sc);
@@ -1550,7 +1550,7 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #if defined(INET) || defined(INET6)
 		if (ifa->ifa_addr->sa_family == AF_INET
 		    || ifa->ifa_addr->sa_family == AF_INET6) {
-			if (!(ifp->if_flags & IFF_RUNNING)) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				en_reset_ul(sc);
 				en_init(sc);
 			}
@@ -1559,7 +1559,7 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 #endif /* INET */
-		if (!(ifp->if_flags & IFF_RUNNING)) {
+		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			en_reset_ul(sc);
 			en_init(sc);
 		}
@@ -1569,10 +1569,10 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS: 
 		EN_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING))
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				en_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				en_reset_ul(sc);
 		}
 		EN_UNLOCK(sc);
@@ -2434,7 +2434,7 @@ en_intr(void *arg)
 		    "resetting\n", reg, MID_INTBITS);
 #ifdef EN_DEBUG
 		kdb_enter("en: unexpected error");
-		sc->ifp->if_flags &= ~IFF_RUNNING; /* FREEZE! */
+		sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING; /* FREEZE! */
 #else
 		en_reset_ul(sc);
 		en_init(sc);

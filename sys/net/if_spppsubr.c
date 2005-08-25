@@ -835,8 +835,9 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	s = splimp();
 	SPPP_LOCK(sp);
 
-	if ((ifp->if_flags & IFF_UP) == 0 ||
-	    (ifp->if_flags & (IFF_RUNNING | IFF_AUTO)) == 0) {
+	if (!(ifp->if_flags & IFF_UP) ||
+	    (!(ifp->if_flags & IFF_AUTO) &&
+	    !(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 #ifdef INET6
 	  drop:
 #endif
@@ -846,7 +847,8 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		return (ENETDOWN);
 	}
 
-	if ((ifp->if_flags & (IFF_RUNNING | IFF_AUTO)) == IFF_AUTO) {
+	if ((ifp->if_flags & IFF_AUTO) &&
+	    !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 #ifdef INET6
 		/*
 		 * XXX
@@ -864,7 +866,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		 * Interface is not yet running, but auto-dial.  Need
 		 * to start LCP for it.
 		 */
-		ifp->if_flags |= IFF_RUNNING;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		splx(s);
 		lcp.Open(sp);
 		s = splimp();
@@ -1264,9 +1266,9 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 
 	case SIOCSIFFLAGS:
 		going_up = ifp->if_flags & IFF_UP &&
-			(ifp->if_flags & IFF_RUNNING) == 0;
+			(ifp->if_drv_flags & IFF_DRV_RUNNING) == 0;
 		going_down = (ifp->if_flags & IFF_UP) == 0 &&
-			ifp->if_flags & IFF_RUNNING;
+			ifp->if_drv_flags & IFF_DRV_RUNNING;
 
 		newmode = ifp->if_flags & IFF_PASSIVE;
 		if (!newmode)
@@ -1282,7 +1284,7 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 		if (newmode != sp->pp_mode) {
 			going_down = 1;
 			if (!going_up)
-				going_up = ifp->if_flags & IFF_RUNNING;
+				going_up = ifp->if_drv_flags & IFF_DRV_RUNNING;
 		}
 
 		if (going_down) {
@@ -1292,7 +1294,7 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 			else if (sp->pp_tlf)
 				(sp->pp_tlf)(sp);
 			sppp_flush_unlocked(ifp);
-			ifp->if_flags &= ~IFF_RUNNING;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			sp->pp_mode = newmode;
 		}
 
@@ -1302,14 +1304,14 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 				lcp.Close(sp);
 			sp->pp_mode = newmode;
 			if (sp->pp_mode == 0) {
-				ifp->if_flags |= IFF_RUNNING;
+				ifp->if_drv_flags |= IFF_DRV_RUNNING;
 				lcp.Open(sp);
 			}
 			if ((sp->pp_mode == IFF_CISCO) ||
 			    (sp->pp_mode == PP_FR)) {
 				if (sp->pp_tls)
 					(sp->pp_tls)(sp);
-				ifp->if_flags |= IFF_RUNNING;
+				ifp->if_drv_flags |= IFF_DRV_RUNNING;
 			}
 		}
 
@@ -1424,7 +1426,7 @@ sppp_cisco_input(struct sppp *sp, struct mbuf *m)
 		}
 		sp->pp_loopcnt = 0;
 		if (! (ifp->if_flags & IFF_UP) &&
-		    (ifp->if_flags & IFF_RUNNING)) {
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			if_up(ifp);
 			printf (SPP_FMT "up\n", SPP_ARGS(ifp));
 		}
@@ -2264,7 +2266,7 @@ sppp_lcp_up(struct sppp *sp)
 		if (debug)
 			log(LOG_DEBUG,
 			    SPP_FMT "Up event", SPP_ARGS(ifp));
-		ifp->if_flags |= IFF_RUNNING;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		if (sp->state[IDX_LCP] == STATE_INITIAL) {
 			if (debug)
 				log(-1, "(incoming call)\n");
@@ -2274,7 +2276,7 @@ sppp_lcp_up(struct sppp *sp)
 			log(-1, "\n");
 	} else if ((ifp->if_flags & (IFF_AUTO | IFF_PASSIVE)) == 0 &&
 		   (sp->state[IDX_LCP] == STATE_INITIAL)) {
-		ifp->if_flags |= IFF_RUNNING;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		lcp.Open(sp);
 	}
 
@@ -2308,7 +2310,7 @@ sppp_lcp_down(struct sppp *sp)
 		sp->pp_flags &= ~PP_CALLIN;
 		if (sp->state[IDX_LCP] != STATE_INITIAL)
 			lcp.Close(sp);
-		ifp->if_flags &= ~IFF_RUNNING;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	}
 }
 
@@ -2714,7 +2716,7 @@ sppp_lcp_tlu(struct sppp *sp)
 
 	/* XXX ? */
 	if (! (ifp->if_flags & IFF_UP) &&
-	    (ifp->if_flags & IFF_RUNNING)) {
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		/* Coming out of loopback mode. */
 		if_up(ifp);
 		printf (SPP_FMT "up\n", SPP_ARGS(ifp));
@@ -4815,7 +4817,7 @@ sppp_keepalive(void *dummy)
 	SPPP_LOCK(sp);
 	/* Keepalive mode disabled or channel down? */
 	if (! (sp->pp_flags & PP_KEEPALIVE) ||
-	    ! (ifp->if_flags & IFF_RUNNING))
+	    ! (ifp->if_drv_flags & IFF_DRV_RUNNING))
 		goto out;
 
 	if (sp->pp_mode == PP_FR) {

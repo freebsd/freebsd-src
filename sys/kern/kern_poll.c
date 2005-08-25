@@ -66,7 +66,7 @@ void ether_poll(int);			/* polling while in trap	*/
  *  POLL_DEREGISTER: deregister and return to interrupt mode.
  *
  * The first two commands are only issued if the interface is marked as
- * 'IFF_UP and IFF_RUNNING', the last one only if IFF_RUNNING is set.
+ * 'IFF_UP and IFF_DRV_RUNNING', the last one only if IFF_DRV_RUNNING is set.
  *
  * The count limit specifies how much work the handler can do during the
  * call -- typically this is the number of packets to be received, or
@@ -251,8 +251,9 @@ ether_poll(int count)
 	if (count > poll_each_burst)
 		count = poll_each_burst;
 	for (i = 0 ; i < poll_handlers ; i++)
-		if (pr[i].handler && (IFF_UP|IFF_RUNNING) ==
-		    (pr[i].ifp->if_flags & (IFF_UP|IFF_RUNNING)) )
+		if (pr[i].handler &&
+		    (pr[i].ifp->if_flags & IFF_UP) &&
+		    (pr[i].ifp->if_drv_flags & IFF_DRV_RUNNING))
 			pr[i].handler(pr[i].ifp, 0, count); /* quick check */
 	mtx_unlock(&Giant);
 }
@@ -373,13 +374,14 @@ netisr_poll(void)
 
 	if (polling) {
 		for (i = 0 ; i < poll_handlers ; i++)
-			if (pr[i].handler && (IFF_UP|IFF_RUNNING) ==
-			    (pr[i].ifp->if_flags & (IFF_UP|IFF_RUNNING)) )
+			if (pr[i].handler &&
+			    (pr[i].ifp->if_flags & IFF_UP) &&
+			    (pr[i].ifp->if_drv_flags & IFF_DRV_RUNNING))
 				pr[i].handler(pr[i].ifp, arg, cycles);
 	} else {	/* unregister */
 		for (i = 0 ; i < poll_handlers ; i++) {
 			if (pr[i].handler &&
-			    pr[i].ifp->if_flags & IFF_RUNNING) {
+			    pr[i].ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				pr[i].ifp->if_flags &= ~IFF_POLLING;
 				pr[i].handler(pr[i].ifp, POLL_DEREGISTER, 1);
 			}

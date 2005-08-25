@@ -1266,7 +1266,7 @@ rl_txeof(struct rl_softc *sc)
 			return;
 		}
 		RL_INC(sc->rl_cdata.last_tx);
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	} while (sc->rl_cdata.last_tx != sc->rl_cdata.cur_tx);
 
 	if (RL_LAST_TXMBUF(sc) == NULL)
@@ -1499,7 +1499,7 @@ rl_start_locked(struct ifnet *ifp)
 	 * packets from the queue.
 	 */
 	if (RL_CUR_TXMBUF(sc) != NULL)
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 }
 
 static void
@@ -1607,8 +1607,8 @@ rl_init_locked(struct rl_softc *sc)
 
 	CSR_WRITE_1(sc, RL_CFG1, RL_CFG1_DRVLOAD|RL_CFG1_FULLDUPLEX);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->rl_stat_ch = timeout(rl_tick, sc, hz);
 }
@@ -1659,7 +1659,7 @@ rl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			rl_init_locked(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				rl_stop(sc);
 		}
 		RL_UNLOCK(sc);
@@ -1720,7 +1720,7 @@ rl_stop(struct rl_softc *sc)
 
 	ifp->if_timer = 0;
 	untimeout(rl_tick, sc, sc->rl_stat_ch);
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
 #endif /* DEVICE_POLLING */

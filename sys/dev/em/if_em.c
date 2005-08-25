@@ -562,7 +562,7 @@ em_detach(device_t dev)
 
 	EM_LOCK_DESTROY(adapter);
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	ifp->if_timer = 0;
 
 	return(0);
@@ -619,7 +619,7 @@ em_start_locked(struct ifnet *ifp)
 		if (em_encap(adapter, &m_head)) { 
 			if (m_head == NULL)
 				break;
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			break;
                 }
@@ -693,14 +693,14 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFFLAGS (Set Interface Flags)");
 		EM_LOCK(adapter);
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING)) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				em_init_locked(adapter);
 			}
 
 			em_disable_promisc(adapter);
 			em_set_promisc(adapter);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				em_stop(adapter);
 			}
 		}
@@ -709,7 +709,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOC(ADD|DEL)MULTI");
-		if (ifp->if_flags & IFF_RUNNING) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			EM_LOCK(adapter);
 			em_disable_intr(adapter);
 			em_set_multi(adapter);
@@ -742,7 +742,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			reinit = 1;
 		}
-		if (reinit && (ifp->if_flags & IFF_RUNNING))
+		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			em_init(adapter);
 		break;
 	default:
@@ -777,7 +777,7 @@ em_watchdog(struct ifnet *ifp)
 	if (em_check_for_link(&adapter->hw))
 		printf("em%d: watchdog timeout -- resetting\n", adapter->unit);
 
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	em_init(adapter);
 
@@ -878,8 +878,8 @@ em_init_locked(struct adapter * adapter)
 	/* Don't loose promiscuous settings */
 	em_set_promisc(adapter);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	if (adapter->hw.mac_type >= em_82543) {
 		if (ifp->if_capenable & IFCAP_TXCSUM)
@@ -948,12 +948,13 @@ em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			callout_reset(&adapter->timer, hz, em_local_timer, adapter);
                 }
         }
-        if (ifp->if_flags & IFF_RUNNING) {
+        if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
                 em_process_receive_interrupts(adapter, count);
                 em_clean_transmit_interrupts(adapter);
         }
 	
-        if (ifp->if_flags & IFF_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+        if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
                 em_start_locked(ifp);
 }
         
@@ -1016,14 +1017,15 @@ em_intr(void *arg)
         }
 
         while (loop_cnt > 0) { 
-                if (ifp->if_flags & IFF_RUNNING) {
+                if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
                         em_process_receive_interrupts(adapter, -1);
                         em_clean_transmit_interrupts(adapter);
                 }
                 loop_cnt--;
         }
                  
-        if (ifp->if_flags & IFF_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+        if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
                 em_start_locked(ifp);
 
 	EM_UNLOCK(adapter);
@@ -1654,7 +1656,7 @@ em_local_timer(void *arg)
 	em_check_for_link(&adapter->hw);
 	em_print_link_status(adapter);
 	em_update_stats_counters(adapter);   
-	if (em_display_debug_stats && ifp->if_flags & IFF_RUNNING) {
+	if (em_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		em_print_hw_stats(adapter);
 	}
 	em_smartspeed(adapter);
@@ -1725,7 +1727,7 @@ em_stop(void *arg)
 
 
 	/* Tell the stack that the interface is no longer active */
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	return;
 }
@@ -2468,13 +2470,13 @@ em_clean_transmit_interrupts(struct adapter * adapter)
         adapter->oldest_used_tx_desc = i;
 
         /*
-         * If we have enough room, clear IFF_OACTIVE to tell the stack
+         * If we have enough room, clear IFF_DRV_OACTIVE to tell the stack
          * that it is OK to send packets.
          * If there are no pending descriptors, clear the timeout. Otherwise,
          * if some descriptors have been freed, restart the timeout.
          */
         if (num_avail > EM_TX_CLEANUP_THRESHOLD) {                
-                ifp->if_flags &= ~IFF_OACTIVE;
+                ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
                 if (num_avail == adapter->num_tx_desc)
                         ifp->if_timer = 0;
                 else if (num_avail == adapter->num_tx_desc_avail)

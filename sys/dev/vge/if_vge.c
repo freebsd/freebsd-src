@@ -1551,7 +1551,7 @@ vge_txeof(sc)
 
 	if (idx != sc->vge_ldata.vge_tx_considx) {
 		sc->vge_ldata.vge_tx_considx = idx;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		ifp->if_timer = 0;
 	}
 
@@ -1866,7 +1866,7 @@ vge_start(ifp)
 	sc = ifp->if_softc;
 	VGE_LOCK(sc);
 
-	if (!sc->vge_link || ifp->if_flags & IFF_OACTIVE) {
+	if (!sc->vge_link || ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		VGE_UNLOCK(sc);
 		return;
 	}
@@ -1902,7 +1902,7 @@ vge_start(ifp)
 #else
 			IF_PREPEND(&ifp->if_snd, m_head);
 #endif
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -2119,8 +2119,8 @@ vge_init(xsc)
 
 	mii_mediachg(mii);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->vge_if_flags = 0;
 	sc->vge_link = 0;
@@ -2237,13 +2237,13 @@ vge_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->vge_if_flags & IFF_PROMISC)) {
 				CSR_SETBIT_1(sc, VGE_RXCTL,
 				    VGE_RXCTL_RX_PROMISC);
 				vge_setmulti(sc);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->vge_if_flags & IFF_PROMISC) {
 				CSR_CLRBIT_1(sc, VGE_RXCTL,
@@ -2252,7 +2252,7 @@ vge_ioctl(ifp, command, data)
                         } else
 				vge_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				vge_stop(sc);
 		}
 		sc->vge_if_flags = ifp->if_flags;
@@ -2282,7 +2282,7 @@ vge_ioctl(ifp, command, data)
 			ifp->if_hwassist = VGE_CSUM_FEATURES;
 		else
 			ifp->if_hwassist = 0;
-		if (ifp->if_flags & IFF_RUNNING)
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			vge_init(sc);
 		break;
 	default:
@@ -2329,7 +2329,7 @@ vge_stop(sc)
 	ifp = sc->vge_ifp;
 	ifp->if_timer = 0;
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
 #endif /* DEVICE_POLLING */

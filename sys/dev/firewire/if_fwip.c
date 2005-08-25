@@ -268,7 +268,11 @@ fwip_stop(struct fwip_softc *fwip)
 		fwip->dma_ch = -1;
 	}
 
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+#else
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+#endif
 }
 
 static int
@@ -396,8 +400,13 @@ found:
 	if ((xferq->flag & FWXFERQ_RUNNING) == 0)
 		fc->irx_enable(fc, fwip->dma_ch);
 
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
+#endif
 
 	FWIP_POLL_REGISTER(fwip_poll, fwip, ifp);
 #if 0
@@ -416,10 +425,18 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		s = splimp();
 		if (ifp->if_flags & IFF_UP) {
+#if defined(__FreeBSD__)
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+#else
 			if (!(ifp->if_flags & IFF_RUNNING))
+#endif
 				fwip_init(&fwip->fw_softc);
 		} else {
+#if defined(__FreeBSD__)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+#else
 			if (ifp->if_flags & IFF_RUNNING)
+#endif
 				fwip_stop(fwip);
 		}
 		splx(s);
@@ -535,12 +552,20 @@ fwip_start(struct ifnet *ifp)
 	}
 
 	s = splimp();
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags |= IFF_OACTIVE;
+#endif
 
 	if (ifp->if_snd.ifq_len != 0)
 		fwip_async_output(fwip, ifp);
 
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags &= ~IFF_OACTIVE;
+#endif
 	splx(s);
 }
 

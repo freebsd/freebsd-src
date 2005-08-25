@@ -116,7 +116,7 @@ hatm_open_vcc(struct hatm_softc *sc, struct atmio_openvcc *arg)
 		return (ENOMEM);
 
 	mtx_lock(&sc->mtx);
-	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -230,7 +230,7 @@ hatm_close_vcc(struct hatm_softc *sc, struct atmio_closevcc *arg)
 
 	mtx_lock(&sc->mtx);
 	vcc = sc->vccs[cid];
-	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -248,11 +248,11 @@ hatm_close_vcc(struct hatm_softc *sc, struct atmio_closevcc *arg)
 	if (vcc->param.flags & ATMIO_FLAG_ASYNC)
 		goto done;
 
-	while ((sc->ifp->if_flags & IFF_RUNNING) &&
+	while ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 	       (vcc->vflags & (HE_VCC_TX_CLOSING | HE_VCC_RX_CLOSING)))
 		cv_wait(&sc->vcc_cv, &sc->mtx);
 
-	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		error = EIO;
 		goto done;
 	}
@@ -284,7 +284,7 @@ hatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	  case SIOCSIFADDR:
 		mtx_lock(&sc->mtx);
 		ifp->if_flags |= IFF_UP;
-		if (!(ifp->if_flags & IFF_RUNNING))
+		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 			hatm_initialize(sc);
 		switch (ifa->ifa_addr->sa_family) {
 
@@ -303,11 +303,11 @@ hatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	  case SIOCSIFFLAGS:
 		mtx_lock(&sc->mtx);
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_flags & IFF_RUNNING)) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				hatm_initialize(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				hatm_stop(sc);
 			}
 		}

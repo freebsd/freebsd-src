@@ -68,7 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/wi/if_wavelan_ieee.h>
 
 #define	IS_UP(_ic) \
-	(((_ic)->ic_ifp->if_flags & (IFF_RUNNING|IFF_UP)) == (IFF_RUNNING|IFF_UP))
+	(((_ic)->ic_ifp->if_flags & IFF_UP) &&			\
+	    ((_ic)->ic_ifp->if_drv_flags & IFF_DRV_RUNNING))
 #define	IS_UP_AUTO(_ic) \
 	(IS_UP(_ic) && (_ic)->ic_roaming == IEEE80211_ROAMING_AUTO)
 
