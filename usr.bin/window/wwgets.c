@@ -43,15 +43,21 @@ static char rcsid[] =
 #include "ww.h"
 #include "char.h"
 
-wwgets(buf, n, w)
-char *buf;
-int n;
-register struct ww *w;
+static void
+rub(unsigned char c, struct ww *w)
+{
+	int i;
+
+	for (i = isctrl(c) ? strlen(unctrl(c)) : 1; --i >= 0;)
+		(void) wwwrite(w, "\b \b", 3);
+}
+
+void
+wwgets(char *buf, int n, struct ww *w)
 {
 	register char *p = buf;
 	register int c;
 	char uc = w->ww_unctrl;
-	static void rub();
 
 	w->ww_unctrl = 0;
 	for (;;) {
@@ -101,14 +107,4 @@ register struct ww *w;
 	}
 	*p = 0;
 	w->ww_unctrl = uc;
-}
-
-static void
-rub(c, w)
-struct ww *w;
-{
-	register i;
-
-	for (i = isctrl(c) ? strlen(unctrl(c)) : 1; --i >= 0;)
-		(void) wwwrite(w, "\b \b", 3);
 }
