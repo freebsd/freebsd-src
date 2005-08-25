@@ -857,6 +857,7 @@ get_date(char *p, struct timeb *now)
     time_t		tod;
     time_t nowtime;
 
+    bzero (&gmt, sizeof(struct tm));
     yyInput = p;
     if (now == NULL) {
 	struct tm *gmt_ptr;
