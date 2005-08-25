@@ -124,17 +124,17 @@ void	usage(void);
 void	killact(struct kinfo_proc *);
 void	grepact(struct kinfo_proc *);
 void	makelist(struct listhead *, enum listtype, char *);
-int	takepid(const char *);
+int	takepid(const char *, int);
 
 int
 main(int argc, char **argv)
 {
 	extern char *optarg;
 	extern int optind;
-	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q;
+	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q, *pidfile;
 	const char *execf, *coref;
 	int debug_opt;
-	int i, ch, bestidx, rv, criteria, pidfromfile;
+	int i, ch, bestidx, rv, criteria, pidfromfile, pidfilelock;
 	size_t jsz;
 	void (*action)(struct kinfo_proc *);
 	struct kinfo_proc *kp;
@@ -176,21 +176,25 @@ main(int argc, char **argv)
 
 	criteria = 0;
 	debug_opt = 0;
-	pidfromfile = -1;
+	pidfile = NULL;
+	pidfilelock = 0;
 	execf = coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DF:G:M:N:P:SU:d:fg:ij:lnos:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DF:G:LM:N:P:SU:d:fg:ij:lnos:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
 			break;
 		case 'F':
-			pidfromfile = takepid(optarg);
+			pidfile = optarg;
 			criteria = 1;
 			break;
 		case 'G':
 			makelist(&rgidlist, LT_GROUP, optarg);
 			criteria = 1;
+			break;
+		case 'L':
+			pidfilelock = 1;
 			break;
 		case 'M':
 			coref = optarg;
@@ -274,6 +278,13 @@ main(int argc, char **argv)
 		usage();
 	if (newest && oldest)
 		errx(STATUS_ERROR, "-n and -o are mutually exclusive");
+	if (pidfile != NULL)
+		pidfromfile = takepid(pidfile, pidfilelock);
+	else {
+		if (pidfilelock)
+			errx(STATUS_ERROR, "-L doesn't make sense without -F");
+		pidfromfile = -1;
+	}
 
 	mypid = getpid();
 
@@ -497,9 +508,9 @@ usage(void)
 	const char *ustr;
 
 	if (pgrep)
-		ustr = "[-Sfilnovx] [-d delim]";
+		ustr = "[-LSfilnovx] [-d delim]";
 	else
-		ustr = "[-signal] [-finovx]";
+		ustr = "[-signal] [-Lfinovx]";
 
 	fprintf(stderr,
 		"usage: %s %s [-F pidfile] [-G gid] [-M core] [-N system]\n"
@@ -631,7 +642,7 @@ makelist(struct listhead *head, enum listtype type, char *src)
 }
 
 int
-takepid(const char *pidfile)
+takepid(const char *pidfile, int pidfilelock)
 {
 	char *endp, line[BUFSIZ];
 	FILE *fh;
@@ -641,17 +652,19 @@ takepid(const char *pidfile)
 	if (fh == NULL)
 		err(STATUS_ERROR, "can't open pid file `%s'", pidfile);
 
-	/*
-	 * If we can lock pidfile, this means that daemon is not running,
-	 * so better don't kill the process from the pidfile.
-	 */
-	if (flock(fileno(fh), LOCK_EX | LOCK_NB) == 0) {
-		(void)fclose(fh);
-		errx(STATUS_ERROR, "file '%s' can be locked", pidfile);
-	} else {
-		if (errno != EWOULDBLOCK) {
-			errx(STATUS_ERROR, "error while locking file '%s'",
-			    pidfile);
+	if (pidfilelock) {
+		/*
+		 * If we can lock pidfile, this means that daemon is not
+		 * running, so would be better not to kill some random process.
+		 */
+		if (flock(fileno(fh), LOCK_EX | LOCK_NB) == 0) {
+			(void)fclose(fh);
+			errx(STATUS_ERROR, "file '%s' can be locked", pidfile);
+		} else {
+			if (errno != EWOULDBLOCK) {
+				errx(STATUS_ERROR,
+				    "error while locking file '%s'", pidfile);
+			}
 		}
 	}
 
