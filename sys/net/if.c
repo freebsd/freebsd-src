@@ -2071,6 +2071,7 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 
 	return 0;
 }
+
 /*
  * Set the link layer address on an interface.
  *
