@@ -9,9 +9,10 @@ name="pgrep -F <pidfile>"
 pidfile=`mktemp /tmp/$base.XXXXXX` || exit 1
 sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
 ln -sf /bin/sleep $sleep
-daemon -p $pidfile $sleep 5
+$sleep 5 &
 sleep 0.3
-chpid=`cat $pidfile`
+chpid=$!
+echo $chpid > $pidfile
 pid=`pgrep -f -F $pidfile $sleep`
 if [ "$pid" = "$chpid" ]; then
 	echo "ok - $name"

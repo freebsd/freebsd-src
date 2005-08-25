@@ -9,8 +9,9 @@ name="pkill -F <pidfile>"
 pidfile=`mktemp /tmp/$base.XXXXXX` || exit 1
 sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
 ln -sf /bin/sleep $sleep
-daemon -p $pidfile $sleep 5
+$sleep 5 &
 sleep 0.3
+echo $! > $pidfile
 pkill -f -F $pidfile $sleep
 ec=$?
 case $ec in
