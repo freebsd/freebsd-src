@@ -109,7 +109,7 @@ struct if_data {
 	struct	timeval ifi_lastchange;	/* time of last administrative change */
 };
 
-/*
+/*-
  * Interface flags are of two types: network stack owned flags, and driver
  * owned flags.  Historically, these values were stored in the same ifnet
  * flags field, but with the advent of fine-grained locking, they have been
@@ -122,35 +122,41 @@ struct if_data {
  * permitted to conflict, as they are exposed to user space via a single
  * field.
  *
- * For historical reasons, the old flag names for driver flags are exposed to
- * user space.
+ * The following symbols identify read and write requirements for fields:
+ *
+ * (i) if_flags field set by device driver before attach, read-only there
+ *     after.
+ * (n) if_flags field written only by the network stack, read by either the
+ *     stack or driver.
+ * (d) if_drv_flags field written only by the device driver, read by either
+ *     the stack or driver.
  */
-#define	IFF_UP		0x1		/* interface is up */
-#define	IFF_BROADCAST	0x2		/* broadcast address valid */
-#define	IFF_DEBUG	0x4		/* turn on debugging */
-#define	IFF_LOOPBACK	0x8		/* is a loopback net */
-#define	IFF_POINTOPOINT	0x10		/* interface is point-to-point link */
-#define	IFF_SMART	0x20		/* interface manages own routes */
-#define	IFF_DRV_RUNNING	0x40		/* resources allocated */
-#define	IFF_NOARP	0x80		/* no address resolution protocol */
-#define	IFF_PROMISC	0x100		/* receive all packets */
-#define	IFF_ALLMULTI	0x200		/* receive all multicast packets */
-#define	IFF_DRV_OACTIVE	0x400		/* tx hardware queue is full */
-#define	IFF_SIMPLEX	0x800		/* can't hear own transmissions */
+#define	IFF_UP		0x1		/* (n) interface is up */
+#define	IFF_BROADCAST	0x2		/* (i) broadcast address valid */
+#define	IFF_DEBUG	0x4		/* (n) turn on debugging */
+#define	IFF_LOOPBACK	0x8		/* (i) is a loopback net */
+#define	IFF_POINTOPOINT	0x10		/* (i) is a point-to-point link */
+#define	IFF_SMART	0x20		/* (i) interface manages own routes */
+#define	IFF_DRV_RUNNING	0x40		/* (d) resources allocated */
+#define	IFF_NOARP	0x80		/* (n) no address resolution protocol */
+#define	IFF_PROMISC	0x100		/* (n) receive all packets */
+#define	IFF_ALLMULTI	0x200		/* (n) receive all multicast packets */
+#define	IFF_DRV_OACTIVE	0x400		/* (d) tx hardware queue is full */
+#define	IFF_SIMPLEX	0x800		/* (i) can't hear own transmissions */
 #define	IFF_LINK0	0x1000		/* per link layer defined bit */
 #define	IFF_LINK1	0x2000		/* per link layer defined bit */
 #define	IFF_LINK2	0x4000		/* per link layer defined bit */
 #define	IFF_ALTPHYS	IFF_LINK2	/* use alternate physical connection */
-#define	IFF_MULTICAST	0x8000		/* supports multicast */
-#define	IFF_POLLING	0x10000		/* Interface is in polling mode. */
-#define	IFF_PPROMISC	0x20000		/* user-requested promisc mode */
-#define	IFF_MONITOR	0x40000		/* user-requested monitor mode */
-#define	IFF_STATICARP	0x80000		/* static ARP */
-#define	IFF_NEEDSGIANT	0x100000	/* hold Giant over if_start calls */
+#define	IFF_MULTICAST	0x8000		/* (i) supports multicast */
+#define	IFF_POLLING	0x10000		/* (n) Interface is in polling mode. */
+#define	IFF_PPROMISC	0x20000		/* (n) user-requested promisc mode */
+#define	IFF_MONITOR	0x40000		/* (n) user-requested monitor mode */
+#define	IFF_STATICARP	0x80000		/* (n) static ARP */
+#define	IFF_NEEDSGIANT	0x100000	/* (i) hold Giant over if_start calls */
 
 /*
  * Old names for driver flags so that user space tools can continue to use
- * the old names.
+ * the old (portable) names.
  */
 #ifndef _KERNEL
 #define	IFF_RUNNING	IFF_DRV_RUNNING
