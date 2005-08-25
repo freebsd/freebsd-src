@@ -90,9 +90,7 @@ typedef struct {
 typedef struct {
 	tulip_desc_t	*di_desc;
 	struct mbuf	*di_mbuf;
-#ifdef TULIP_BUS_DMA
 	bus_dmamap_t	*di_map;
-#endif
 } tulip_descinfo_t;
 
 typedef struct {
@@ -104,13 +102,11 @@ typedef struct {
 	int		ri_free;
 	tulip_desc_t	*ri_descs;
 	tulip_descinfo_t *ri_descinfo;
-#ifdef TULIP_BUS_DMA
 	bus_dma_tag_t	ri_ring_tag;
 	bus_dmamap_t	ri_ring_map;
 	uint32_t	ri_dma_addr;
 	bus_dma_tag_t	ri_data_tag;
 	bus_dmamap_t	*ri_data_maps;
-#endif
 } tulip_ringinfo_t;
 
 /*
@@ -561,14 +557,10 @@ struct tulip_softc {
 	 * The setup buffers for sending the setup frame to the chip. one is
 	 * the one being sent while the other is the one being filled.
 	 */
-#ifdef TULIP_BUS_DMA
 	bus_dma_tag_t		tulip_setup_tag;
 	bus_dmamap_t		tulip_setup_map;
 	uint32_t		tulip_setup_dma_addr;
 	u_int32_t		*tulip_setupbuf;
-#else
-	u_int32_t		tulip_setupbuf[192 / sizeof(u_int32_t)];
-#endif
 	u_int32_t		tulip_setupdata[192 / sizeof(u_int32_t)];
 	char			tulip_boardid[24];
 	u_int8_t		tulip_rombuf[128];	/* must be aligned */
@@ -856,20 +848,10 @@ static const struct {
  */
 #define	TULIP_MAX_DEVICES	32
 
-#if defined(TULIP_BUS_DMA)
 #define	_TULIP_DESC_SYNC(ri, op)					\
 	bus_dmamap_sync((ri)->ri_ring_tag, (ri)->ri_ring_map, (op))
 #define	_TULIP_MAP_SYNC(ri, di, op)					\
 	bus_dmamap_sync((ri)->ri_data_tag, *(di)->di_map, (op))
-#else
-#ifdef __alpha__
-#define _TULIP_DESC_SYNC(ri, op)		alpha_mb()
-#define _TULIP_MAP_SYNC(ri, di, op)		alpha_mb()
-#else
-#define _TULIP_DESC_SYNC(ri, op)		do { } while (0)
-#define _TULIP_MAP_SYNC(ri, di, op)		do { } while (0)
-#endif
-#endif
 
 /*
  * Descriptors are both read from and written to by the card (corresponding
@@ -904,16 +886,6 @@ static tulip_softc_t	*tulips[TULIP_MAX_DEVICES];
 #endif
 
 #define	loudprintf			if (bootverbose) printf
-
-#if !defined(TULIP_KVATOPHYS) && !defined(TULIP_BUS_DMA)
-#if defined(__alpha__)
-/* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
-#define vtobus(va)			alpha_XXX_dmamap((vm_offset_t)va)
-#else
-#define vtobus(va)			vtophys(va)
-#endif
-#define	TULIP_KVATOPHYS(sc, va)		vtobus(va)
-#endif
 
 #if defined(TULIP_PERFSTATS)
 #define	TULIP_PERFMERGE(sc, member) \
