@@ -415,6 +415,28 @@ acpi_tz_aclevel_string(int active)
 }
 
 /*
+ * Get the current temperature.
+ */
+static int
+acpi_tz_get_temperature(struct acpi_tz_softc *sc)
+{
+    int		temp;
+    ACPI_STATUS	status;
+
+    status = acpi_GetInteger(sc->tz_handle, "_TMP", &temp);
+    if (ACPI_FAILURE(status)) {
+	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+	    "error fetching current temperature -- %s\n",
+	     AcpiFormatException(status));
+	return (FALSE);
+    }
+
+    ACPI_DEBUG_PRINT((ACPI_DB_VALUES, "got %d.%dC\n", TZ_KELVTOC(temp)));
+    sc->tz_temperature = temp;
+    return (TRUE);
+}
+
+/*
  * Evaluate the condition of a thermal zone, take appropriate actions.
  */
 static void
@@ -425,24 +447,17 @@ acpi_tz_monitor(void *Context)
     int		temp;
     int		i;
     int		newactive, newflags;
-    ACPI_STATUS	status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     sc = (struct acpi_tz_softc *)Context;
 
     /* Get the current temperature. */
-    status = acpi_GetInteger(sc->tz_handle, "_TMP", &temp);
-    if (ACPI_FAILURE(status)) {
-	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
-	    "error fetching current temperature -- %s\n",
-	     AcpiFormatException(status));
+    if (!acpi_tz_get_temperature(sc)) {
 	/* XXX disable zone? go to max cooling? */
 	return_VOID;
     }
-
-    ACPI_DEBUG_PRINT((ACPI_DB_VALUES, "got %d.%dC\n", TZ_KELVTOC(temp)));
-    sc->tz_temperature = temp;
+    temp = sc->tz_temperature;
 
     /*
      * Work out what we ought to be doing right now.
@@ -979,19 +994,22 @@ static void
 acpi_tz_cooling_thread(void *arg)
 {
     struct acpi_tz_softc *sc;
-    int error, perf, temperature;
+    int error, perf, curr_temp, prev_temp;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     sc = (struct acpi_tz_softc *)arg;
 
-    temperature = sc->tz_temperature;
+    prev_temp = sc->tz_temperature;
     while (sc->tz_cooling_enabled) {
-	if (sc->tz_temperature >= sc->tz_zone.psv)
+	if (sc->tz_cooling_active)
+	    (void)acpi_tz_get_temperature(sc);
+	curr_temp = sc->tz_temperature;
+	if (curr_temp >= sc->tz_zone.psv)
 	    sc->tz_cooling_active = TRUE;
 	if (sc->tz_cooling_active) {
-	    perf = sc->tz_zone.tc1 * (sc->tz_temperature - temperature) +
-		   sc->tz_zone.tc2 * (sc->tz_temperature - sc->tz_zone.psv);
+	    perf = sc->tz_zone.tc1 * (curr_temp - prev_temp) +
+		   sc->tz_zone.tc2 * (curr_temp - sc->tz_zone.psv);
 	    perf /= 10;
 
 	    if (perf != 0) {
@@ -1008,7 +1026,7 @@ acpi_tz_cooling_thread(void *arg)
 		}
 	    }
 	}
-	temperature = sc->tz_temperature;
+	prev_temp = curr_temp;
 	tsleep(&sc->tz_cooling_proc, PZERO, "cooling",
 	    hz * sc->tz_zone.tsp / 10);
     }
