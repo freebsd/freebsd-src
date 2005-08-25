@@ -601,7 +601,8 @@ ng_ether_rcv_lower(node_p node, struct mbuf *m)
  	struct ifnet *const ifp = priv->ifp;
 
 	/* Check whether interface is ready for packets */
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 		NG_FREE_M(m);
 		return (ENETDOWN);
 	}

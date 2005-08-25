@@ -915,7 +915,8 @@ ral_media_change(struct ifnet *ifp)
 	if (error != ENETRESET)
 		return error;
 
-	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
+	if ((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING))
 		ral_init(sc);
 
 	return 0;
@@ -1220,7 +1221,7 @@ ral_tx_intr(struct ral_softc *sc)
 	    BUS_DMASYNC_PREWRITE);
 
 	sc->sc_tx_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ral_start(ifp);
 }
 
@@ -1286,7 +1287,7 @@ ral_prio_intr(struct ral_softc *sc)
 	    BUS_DMASYNC_PREWRITE);
 
 	sc->sc_tx_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ral_start(ifp);
 }
 
@@ -2058,7 +2059,7 @@ ral_start(struct ifnet *ifp)
 		IF_POLL(&ic->ic_mgtq, m0);
 		if (m0 != NULL) {
 			if (sc->prioq.queued >= RAL_PRIO_RING_COUNT) {
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
 			IF_DEQUEUE(&ic->ic_mgtq, m0);
@@ -2080,7 +2081,7 @@ ral_start(struct ifnet *ifp)
 				break;
 			if (sc->txq.queued >= RAL_TX_RING_COUNT - 1) {
 				IFQ_DRV_PREPEND(&ifp->if_snd, m0);
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
 
@@ -2176,12 +2177,12 @@ ral_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ral_update_promisc(sc);
 			else
 				ral_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ral_stop(sc);
 		}
 		break;
@@ -2191,8 +2192,8 @@ ral_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 
 	if (error == ENETRESET) {
-		if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
-		    (IFF_UP | IFF_RUNNING))
+		if ((ifp->if_flags & IFF_UP) &&
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			ral_init(sc);
 		error = 0;
 	}
@@ -2761,8 +2762,8 @@ ral_init(void *priv)
 	/* enable interrupts */
 	RAL_WRITE(sc, RAL_CSR8, RAL_INTR_MASK);
 
-	ifp->if_flags &= ~IFF_OACTIVE;
-	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
@@ -2782,7 +2783,7 @@ ral_stop(void *priv)
 
 	sc->sc_tx_timer = 0;
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	/* abort Tx */
 	RAL_WRITE(sc, RAL_TXCSR0, RAL_ABORT_TX);

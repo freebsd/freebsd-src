@@ -178,7 +178,7 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
      * convert interface string to ifp, validate.
      */
     ifp = ifunit(snatm->snatm_if);
-    if (ifp == NULL || (ifp->if_flags & IFF_RUNNING) == 0) {
+    if (ifp == NULL || (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 	error = ENXIO;
 	goto out;
     }

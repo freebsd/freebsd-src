@@ -602,7 +602,7 @@ ray_detach(device_t dev)
 	 */
 	sc->sc_gone = 1;
 	sc->sc_c.np_havenet = 0;
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
@@ -769,7 +769,7 @@ ray_init(void *xsc)
  * Returns values are either 0 for success, a varity of resource allocation
  * failures or errors in the command sent to the card.
  *
- * Note, IFF_RUNNING is eventually set by init_sj_done or init_assoc_done
+ * Note, IFF_DRV_RUNNING is eventually set by init_sj_done or init_assoc_done
  */
 static int
 ray_init_user(struct ray_softc *sc)
@@ -792,7 +792,7 @@ ray_init_user(struct ray_softc *sc)
 	 * We may enter this routine from a simple change of IP
 	 * address and do not need to get the card to do these things.
 	 * However, we cannot perform the check here as there may be
-	 * commands in the runq that change the IFF_RUNNING state of
+	 * commands in the runq that change the IFF_DRV_RUNNING state of
 	 * the interface.
 	 */
 	ncom = 0;
@@ -1156,15 +1156,15 @@ ray_init_sj_done(struct ray_softc *sc, u_int8_t status, size_t ccs)
 	/*
 	 * Hurrah! The network is now active.
 	 *
-	 * Clearing IFF_OACTIVE will ensure that the system will send us
+	 * Clearing IFF_DRV_OACTIVE will ensure that the system will send us
 	 * packets. Just before we return from the interrupt context
 	 * we check to see if packets have been queued.
 	 */
 	if (SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd) == RAY_CMD_START_NET) {
 		sc->sc_c.np_havenet = 1;
 		sc->sc_c.np_framing = sc->sc_d.np_framing;
-		ifp->if_flags |= IFF_RUNNING;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 
 	ray_com_ecf_done(sc);
@@ -1313,14 +1313,14 @@ ray_init_assoc_done(struct ray_softc *sc, u_int8_t status, size_t ccs)
 	/*
 	 * Hurrah! The network is now active.
 	 *
-	 * Clearing IFF_OACTIVE will ensure that the system will send us
+	 * Clearing IFF_DRV_OACTIVE will ensure that the system will send us
 	 * packets. Just before we return from the interrupt context
 	 * we check to see if packets have been queued.
 	 */
 	sc->sc_c.np_havenet = 1;
 	sc->sc_c.np_framing = sc->sc_d.np_framing;
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	ray_com_ecf_done(sc);
 }
@@ -1371,7 +1371,7 @@ ray_stop(struct ray_softc *sc, struct ray_comq_entry *com)
 	/*
 	 * Mark as not running and drain output queue
 	 */
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	ifp->if_timer = 0;
 	for (;;) {
 		IF_DEQUEUE(&ifp->if_snd, m);
@@ -1408,7 +1408,7 @@ ray_watchdog(struct ifnet *ifp)
  *  1) That the current priority is set to splimp _before_ this code
  *     is called *and* is returned to the appropriate priority after
  *     return
- *  2) That the IFF_OACTIVE flag is checked before this code is called
+ *  2) That the IFF_DRV_OACTIVE flag is checked before this code is called
  *     (i.e. that the output part of the interface is idle)
  *
  * A simple one packet at a time TX routine is used - we don't bother
@@ -1447,7 +1447,7 @@ ray_tx(struct ifnet *ifp)
 	 */
 	if ((sc == NULL) || (sc->sc_gone))
 		return;
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		RAY_RECERR(sc, "cannot transmit - not running");
 		return;
 	}
@@ -1473,7 +1473,7 @@ ray_tx(struct ifnet *ifp)
 	 * errors and the packet wouldn't get through anyway.
 	 */
 	if (ray_ccs_tx(sc, &ccs, &bufp)) {
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
 	}
     
@@ -1628,7 +1628,7 @@ ray_tx_timo(void *xsc)
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
-	if (!(ifp->if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_OACTIVE) && (ifp->if_snd.ifq_head != NULL)) {
 		s = splimp();
 		ray_tx(ifp);
 		splx(s);
@@ -1746,8 +1746,8 @@ ray_tx_done(struct ray_softc *sc, u_int8_t status, size_t ccs)
 
 	RAY_CCS_FREE(sc, ccs);
 	ifp->if_timer = 0;
-	if (ifp->if_flags & IFF_OACTIVE)
-	    ifp->if_flags &= ~IFF_OACTIVE;
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	    ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 /*
@@ -2490,7 +2490,7 @@ ray_intr(void *xsc)
 	}
 
 	/* Send any packets lying around and update error counters */
-	if (!(ifp->if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL))
+	if (!(ifp->if_drv_flags & IFF_DRV_OACTIVE) && (ifp->if_snd.ifq_head != NULL))
 		ray_tx(ifp);
 	if ((++sc->sc_checkcounters % 32) == 0)
 		ray_intr_updt_errcntrs(sc);
@@ -2694,7 +2694,7 @@ ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 	/*
 	 * If card is not running we don't need to update this.
 	 */
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "not running");
 		ray_com_runq_done(sc);
 		return;
@@ -2770,7 +2770,7 @@ ray_promisc(struct ray_softc *sc, struct ray_comq_entry *com)
 	 * we don't need to update this
 	 */
 	sc->sc_d.np_promisc = !!(ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI));
-	if (!(ifp->if_flags & IFF_RUNNING) ||
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING) ||
 	    (sc->sc_c.np_promisc == sc->sc_d.np_promisc)) {
 		ray_com_runq_done(sc);
 		return;
@@ -3317,7 +3317,7 @@ ray_com_runq_done(struct ray_softc *sc)
 	/* XXX what about error on completion then? deal with when i fix
 	 * XXX the status checking
 	 *
-	 * XXX all the runq_done calls from IFF_RUNNING checks in runq
+	 * XXX all the runq_done calls from IFF_DRV_RUNNING checks in runq
 	 * XXX routines should return EIO but shouldn't abort the runq
 	 */
 }

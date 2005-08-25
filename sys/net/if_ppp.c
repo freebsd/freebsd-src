@@ -388,7 +388,8 @@ pppdealloc(sc)
     struct mbuf *m;
 
     if_down(PPP2IFP(sc));
-    PPP2IFP(sc)->if_flags &= ~(IFF_UP|IFF_RUNNING);
+    PPP2IFP(sc)->if_flags &= ~IFF_UP;
+    PPP2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
     getmicrotime(&PPP2IFP(sc)->if_lastchange);
     sc->sc_devp = NULL;
     sc->sc_xfer = 0;
@@ -672,7 +673,7 @@ pppsioctl(ifp, cmd, data)
 
     switch (cmd) {
     case SIOCSIFFLAGS:
-	if ((ifp->if_flags & IFF_RUNNING) == 0)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 	    ifp->if_flags &= ~IFF_UP;
 	break;
 
@@ -806,7 +807,7 @@ pppoutput(ifp, m0, dst, rtp)
 	goto bad;
 #endif
 
-    if (sc->sc_devp == NULL || (ifp->if_flags & IFF_RUNNING) == 0
+    if (sc->sc_devp == NULL || (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0
 	|| ((ifp->if_flags & IFF_UP) == 0 && dst->sa_family != AF_UNSPEC)) {
 	error = ENETDOWN;	/* sort of */
 	goto bad;

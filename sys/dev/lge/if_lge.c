@@ -986,7 +986,7 @@ lge_rxeoc(sc)
 	struct ifnet		*ifp;
 
 	ifp = sc->lge_ifp;
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	lge_init(sc);
 	return;
 }
@@ -1034,7 +1034,7 @@ lge_txeof(sc)
 	sc->lge_cdata.lge_tx_cons = idx;
 
 	if (cur_tx != NULL)
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	return;
 }
@@ -1204,7 +1204,7 @@ lge_start(ifp)
 
 	idx = sc->lge_cdata.lge_tx_prod;
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	while(sc->lge_ldata->lge_tx_list[idx].lge_mbuf == NULL) {
@@ -1217,7 +1217,7 @@ lge_start(ifp)
 
 		if (lge_encap(sc, m_head, &idx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -1247,7 +1247,7 @@ lge_init(xsc)
 	struct mii_data		*mii;
 	int			s;
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	s = splimp();
@@ -1363,8 +1363,8 @@ lge_init(xsc)
 
 	lge_ifmedia_upd(ifp);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	(void)splx(s);
 
@@ -1441,23 +1441,23 @@ lge_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->lge_if_flags & IFF_PROMISC)) {
 				CSR_WRITE_4(sc, LGE_MODE1,
 				    LGE_MODE1_SETRST_CTL1|
 				    LGE_MODE1_RX_PROMISC);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->lge_if_flags & IFF_PROMISC) {
 				CSR_WRITE_4(sc, LGE_MODE1,
 				    LGE_MODE1_RX_PROMISC);
 			} else {
-				ifp->if_flags &= ~IFF_RUNNING;
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				lge_init(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				lge_stop(sc);
 		}
 		sc->lge_if_flags = ifp->if_flags;
@@ -1496,7 +1496,7 @@ lge_watchdog(ifp)
 
 	lge_stop(sc);
 	lge_reset(sc);
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	lge_init(sc);
 
 	if (ifp->if_snd.ifq_head != NULL)
@@ -1550,7 +1550,7 @@ lge_stop(sc)
 	bzero((char *)&sc->lge_ldata->lge_tx_list,
 		sizeof(sc->lge_ldata->lge_tx_list));
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	return;
 }

@@ -537,7 +537,7 @@ hatm_intr(void *p)
 
 	/* if we have a stray interrupt with a non-initialized card,
 	 * we cannot even lock before looking at the flag */
-	if (!(sc->ifp->if_flags & IFF_RUNNING))
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 
 	mtx_lock(&sc->mtx);

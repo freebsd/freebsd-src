@@ -205,17 +205,18 @@ ng_sppp_start (struct ifnet *ifp)
 	 * are not UP. If we are not running we still want to send LCP term
 	 * packets.
 	 */
-/*	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {*/
+/*	if (!((ifp->if_flags & IFF_UP) && */
+/*	    (ifp->if_drv_flags & IFF_DRV_RUNNING))) { */
 /*		return;*/
 /*	}*/
 	
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 		
 	if (!priv->hook)
 		return;
 		
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	while ((m = sppp_dequeue (ifp)) != NULL) {
 		if (ifp->if_bpf)
@@ -225,11 +226,11 @@ ng_sppp_start (struct ifnet *ifp)
 		NG_SEND_DATA_ONLY (error, priv->hook, m);
 		
 		if (error) {
-			ifp->if_flags &= ~IFF_OACTIVE;
+			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			return;
 		}
 	}
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 /************************************************************************

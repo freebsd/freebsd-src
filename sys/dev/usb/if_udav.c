@@ -519,7 +519,11 @@ USB_DETACH(udav)
 		/* Wait for processes to go away */
 		usb_detach_wait(USBDEV(sc->sc_dev));
 	}
+#if defined(__FreeBSD__)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+#else
 	if (ifp->if_flags & IFF_RUNNING)
+#endif
 		udav_stop(GET_IFP(sc), 1);
 
 #if NRND > 0
@@ -913,8 +917,13 @@ udav_init(void *xsc)
 		}
 	}
 
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
+#endif
 
 #if defined(__NetBSD__)
 	splx(s);
@@ -1151,7 +1160,11 @@ udav_start(struct ifnet *ifp)
 	if (!sc->sc_link)
 		return;
 
+#if defined(__FreeBSD__)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+#else
 	if (ifp->if_flags & IFF_OACTIVE)
+#endif
 		return;
 #if defined(__NetBSD__)
 	IFQ_POLL(&ifp->if_snd, m_head);
@@ -1164,8 +1177,10 @@ udav_start(struct ifnet *ifp)
 	if (udav_send(sc, m_head, 0)) {
 #if defined(__FreeBSD__)
 		IF_PREPEND(&ifp->if_snd, m_head);
-#endif
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+#else
 		ifp->if_flags |= IFF_OACTIVE;
+#endif
 		return;
 	}
 
@@ -1177,7 +1192,11 @@ udav_start(struct ifnet *ifp)
 	BPF_MTAP(ifp, m_head);
 #endif
 
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags |= IFF_OACTIVE;
+#endif
 
 	/* Set a timeout in case the chip goes out to lunch. */
 	ifp->if_timer = 5;
@@ -1257,7 +1276,11 @@ udav_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	DPRINTF(("%s: %s: enter\n", USBDEVNAME(sc->sc_dev), __func__));
 
 	ifp->if_timer = 0;
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags &= ~IFF_OACTIVE;
+#endif
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
@@ -1458,11 +1481,11 @@ udav_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #if defined(__FreeBSD__)
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC) {
 				UDAV_SETBIT(sc, UDAV_RCR,
 					    UDAV_RCR_ALL|UDAV_RCR_PRMSC);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 				   !(ifp->if_flags & IFF_PROMISC)) {
 				if (ifp->if_flags & IFF_ALLMULTI)
 					UDAV_CLRBIT(sc, UDAV_RCR,
@@ -1470,10 +1493,10 @@ udav_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  				else
  					UDAV_CLRBIT(sc, UDAV_RCR,
  						    UDAV_RCR_ALL|UDAV_RCR_PRMSC);
- 			} else if (!(ifp->if_flags & IFF_RUNNING))
+ 			} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
  				udav_init(sc);
  		} else {
- 			if (ifp->if_flags & IFF_RUNNING)
+ 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
  				udav_stop(ifp, 1);
  		}
  		error = 0;
@@ -1617,7 +1640,11 @@ udav_stop(struct ifnet *ifp, int disable)
 	usb_ether_tx_list_free(&sc->sc_cdata);
 
 	sc->sc_link = 0;
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+#else
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+#endif
 }
 
 /* Set media options */
@@ -1655,7 +1682,11 @@ udav_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	if (sc->sc_dying)
 		return;
 
+#if defined(__FreeBSD__)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+#else
 	if ((ifp->if_flags & IFF_RUNNING) == 0) {
+#endif
 		ifmr->ifm_active = IFM_ETHER | IFM_NONE;
 		ifmr->ifm_status = 0;
 		return;

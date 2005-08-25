@@ -1322,7 +1322,7 @@ my_txeoc(struct my_softc * sc)
 	ifp = sc->my_ifp;
 	ifp->if_timer = 0;
 	if (sc->my_cdata.my_tx_head == NULL) {
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->my_cdata.my_tx_tail = NULL;
 		if (sc->my_want_auto)
 			my_autoneg_mii(sc, MY_FLAG_SCHEDDELAY, 1);
@@ -1480,7 +1480,7 @@ my_start(struct ifnet * ifp)
 	 * Check for an available queue slot. If there are none, punt.
 	 */
 	if (sc->my_cdata.my_tx_free->my_mbuf != NULL) {
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		MY_UNLOCK(sc);
 		return;
 	}
@@ -1627,8 +1627,8 @@ my_init(void *xsc)
 	/* Restore state of BMCR */
 	if (sc->my_pinfo != NULL)
 		my_phy_writereg(sc, PHY_BMCR, phy_bmcr);
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	(void)splx(s);
 	MY_UNLOCK(sc);
 	return;
@@ -1733,7 +1733,7 @@ my_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP)
 			my_init(sc);
-		else if (ifp->if_flags & IFF_RUNNING)
+		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			my_stop(sc);
 		error = 0;
 		break;
@@ -1822,7 +1822,7 @@ my_stop(struct my_softc * sc)
 	}
 	bzero((char *)&sc->my_ldata->my_tx_list,
 	    sizeof(sc->my_ldata->my_tx_list));
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	MY_UNLOCK(sc);
 	return;
 }

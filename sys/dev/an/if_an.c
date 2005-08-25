@@ -834,7 +834,7 @@ an_detach(device_t dev)
 	an_stop(sc);
 	sc->an_gone = 1;
 	ifmedia_removeall(&sc->an_ifmedia);
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	AN_UNLOCK(sc);
 	ether_ifdetach(ifp);
 	if_free(ifp);
@@ -1118,7 +1118,7 @@ an_txeof(sc, status)
 	ifp = sc->an_ifp;
 
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	if (!sc->mpi350) {
 		id = CSR_READ_2(sc, AN_TX_CMP_FID(sc->mpi350));
@@ -1180,7 +1180,7 @@ an_stats_update(xsc)
 		sc->an_associated = 0;
 
 	/* Don't do this while we're transmitting */
-	if (ifp->if_flags & IFF_OACTIVE) {
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		sc->an_stat_ch = timeout(an_stats_update, sc, hz);
 		AN_UNLOCK(sc);
 		return;
@@ -1951,18 +1951,18 @@ an_ioctl(ifp, command, data)
 	switch (command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->an_if_flags & IFF_PROMISC)) {
 				an_promisc(sc, 1);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->an_if_flags & IFF_PROMISC) {
 				an_promisc(sc, 0);
 			} else
 				an_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				an_stop(sc);
 		}
 		sc->an_if_flags = ifp->if_flags;
@@ -2544,7 +2544,7 @@ an_init(xsc)
 		return;
 	}
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		an_stop(sc);
 
 	sc->an_associated = 0;
@@ -2631,8 +2631,8 @@ an_init(xsc)
 	/* enable interrupts */
 	CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), AN_INTRS(sc->mpi350));
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->an_stat_ch = timeout(an_stats_update, sc, hz);
 	AN_UNLOCK(sc);
@@ -2658,7 +2658,7 @@ an_start(ifp)
 	if (sc->an_gone)
 		return;
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	if (!sc->an_associated)
@@ -2819,7 +2819,7 @@ an_start(ifp)
 	}
 
 	if (m0 != NULL)
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	sc->an_rdata.an_tx_prod = idx;
 
@@ -2851,7 +2851,7 @@ an_stop(sc)
 
 	untimeout(an_stats_update, sc, sc->an_stat_ch);
 
-	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 
 	if (sc->an_flash_buffer) {
 		free(sc->an_flash_buffer, M_DEVBUF);

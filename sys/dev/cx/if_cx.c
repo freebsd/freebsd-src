@@ -1090,7 +1090,7 @@ static int cx_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 		return EBUSY;
 
 	/* Socket ioctls on slave subchannels are not allowed. */
-	was_up = (ifp->if_flags & IFF_RUNNING) != 0;
+	was_up = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
 	error = sppp_ioctl (ifp, cmd, data);
 	if (error)
 		return error;
@@ -1111,7 +1111,7 @@ static int cx_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* We get here only in case of SIFFLAGS or SIFADDR. */
 	s = splhigh ();
 	CX_LOCK (bd);
-	should_be_up = (ifp->if_flags & IFF_RUNNING) != 0;
+	should_be_up = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
 	if (!was_up && should_be_up) {
 		/* Interface goes up -- start it. */
 		cx_up (d);
@@ -1207,7 +1207,7 @@ static void cx_send (drv_t *d)
 #endif
 	}
 #ifndef NETGRAPH
-	d->ifp->if_flags |= IFF_OACTIVE;
+	d->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 #endif
 }
 
@@ -1275,7 +1275,7 @@ static void cx_transmit (cx_chan_t *c, void *attachment, int len)
 	d->timeout = 0;
 #else
 	++d->ifp->if_opackets;
-	d->ifp->if_flags &= ~IFF_OACTIVE;
+	d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	d->ifp->if_timer = 0;
 #endif
 	cx_start (d);
@@ -1435,7 +1435,7 @@ static void cx_error (cx_chan_t *c, int data)
 			d->timeout = 0;
 #else
 			++d->ifp->if_oerrors;
-			d->ifp->if_flags &= ~IFF_OACTIVE;
+			d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			d->ifp->if_timer = 0;
 			cx_start (d);
 #endif
@@ -1654,7 +1654,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			return error;
 		if (c->mode == M_ASYNC)
 			return EBUSY;
-		if (d->ifp->if_flags & IFF_RUNNING)
+		if (d->ifp->if_drv_flags & IFF_DRV_RUNNING)
 			return EBUSY;
 		if (! strcmp ("cisco", (char*)data)) {
 			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);

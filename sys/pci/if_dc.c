@@ -1330,7 +1330,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);
-	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sframe->dc_status = htole32(DC_TXSTAT_OWN);
 	CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
 
@@ -2908,7 +2908,7 @@ dc_txeof(struct dc_softc *sc)
 	if (idx != sc->dc_cdata.dc_tx_cons) {
 	    	/* Some buffers have been freed. */
 		sc->dc_cdata.dc_tx_cons = idx;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 	ifp->if_timer = (sc->dc_cdata.dc_tx_cnt == 0) ? 0 : 5;
 }
@@ -3057,7 +3057,8 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	sc->rxcycles = count;
 	dc_rxeof(sc);
 	dc_txeof(sc);
-	if (!IFQ_IS_EMPTY(&ifp->if_snd) && !(ifp->if_flags & IFF_OACTIVE))
+	if (!IFQ_IS_EMPTY(&ifp->if_snd) &&
+	    !(ifp->if_drv_flags & IFF_DRV_OACTIVE))
 		dc_start(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
@@ -3328,7 +3329,7 @@ dc_start(struct ifnet *ifp)
 		return;
 	}
 
-	if (ifp->if_flags & IFF_OACTIVE) {
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		DC_UNLOCK(sc);
 		return;
 	}
@@ -3346,7 +3347,7 @@ dc_start(struct ifnet *ifp)
 			m = m_defrag(m_head, M_DONTWAIT);
 			if (m == NULL) {
 				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-				ifp->if_flags |= IFF_OACTIVE;
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			} else {
 				m_head = m;
@@ -3355,7 +3356,7 @@ dc_start(struct ifnet *ifp)
 
 		if (dc_encap(sc, &m_head)) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 		idx = sc->dc_cdata.dc_tx_prod;
@@ -3368,7 +3369,7 @@ dc_start(struct ifnet *ifp)
 		BPF_MTAP(ifp, m_head);
 
 		if (sc->dc_flags & DC_TX_ONE) {
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 	}
@@ -3550,8 +3551,8 @@ dc_init(void *xsc)
 	mii_mediachg(mii);
 	dc_setcfg(sc, sc->dc_if_media);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* Don't start the ticker if this is a homePNA link. */
 	if (IFM_SUBTYPE(mii->mii_media.ifm_media) == IFM_HPNA_1)
@@ -3640,7 +3641,7 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			int need_setfilt = (ifp->if_flags ^ sc->dc_if_flags) &
 				(IFF_PROMISC | IFF_ALLMULTI);
 
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if (need_setfilt)
 					dc_setfilt(sc);
 			} else {
@@ -3648,7 +3649,7 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				dc_init(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				dc_stop(sc);
 		}
 		sc->dc_if_flags = ifp->if_flags;
@@ -3726,7 +3727,7 @@ dc_stop(struct dc_softc *sc)
 
 	callout_stop(&sc->dc_stat_ch);
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
 #endif

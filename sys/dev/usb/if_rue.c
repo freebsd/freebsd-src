@@ -766,7 +766,7 @@ rue_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	RUE_LOCK(sc);
 	ifp = sc->rue_ifp;
 
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		RUE_UNLOCK(sc);
 		return;
 	}
@@ -842,7 +842,7 @@ rue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	RUE_LOCK(sc);
 	ifp = sc->rue_ifp;
 
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		RUE_UNLOCK(sc);
 		return;
 	}
@@ -929,7 +929,7 @@ rue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	}
 
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	usbd_get_xfer_status(c->ue_xfer, NULL, NULL, NULL, &err);
 
 	if (c->ue_mbuf != NULL) {
@@ -1032,7 +1032,7 @@ rue_start(struct ifnet *ifp)
 		return;
 	}
 
-	if (ifp->if_flags & IFF_OACTIVE) {
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		RUE_UNLOCK(sc);
 		return;
 	}
@@ -1045,7 +1045,7 @@ rue_start(struct ifnet *ifp)
 
 	if (rue_encap(sc, m_head, 0)) {
 		IF_PREPEND(&ifp->if_snd, m_head);
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		RUE_UNLOCK(sc);
 		return;
 	}
@@ -1056,7 +1056,7 @@ rue_start(struct ifnet *ifp)
 	 */
 	BPF_MTAP(ifp, m_head);
 
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -1079,7 +1079,7 @@ rue_init(void *xsc)
 
 	RUE_LOCK(sc);
 
-	if (ifp->if_flags & IFF_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		RUE_UNLOCK(sc);
 		return;
 	}
@@ -1183,8 +1183,8 @@ rue_init(void *xsc)
 		usbd_transfer(c->ue_xfer);
 	}
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->rue_stat_ch = timeout(rue_tick, sc, hz);
 
@@ -1240,22 +1240,22 @@ rue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->rue_if_flags & IFF_PROMISC)) {
 				RUE_SETBIT_2(sc, RUE_RCR,
 					     (RUE_RCR_AAM | RUE_RCR_AAP));
 				rue_setmulti(sc);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 				   !(ifp->if_flags & IFF_PROMISC) &&
 				   sc->rue_if_flags & IFF_PROMISC) {
 				RUE_CLRBIT_2(sc, RUE_RCR,
 					     (RUE_RCR_AAM | RUE_RCR_AAP));
 				rue_setmulti(sc);
-			} else if (!(ifp->if_flags & IFF_RUNNING))
+			} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				rue_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				rue_stop(sc);
 		}
 		sc->rue_if_flags = ifp->if_flags;
@@ -1381,7 +1381,7 @@ rue_stop(struct rue_softc *sc)
 
 	sc->rue_link = 0;
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	RUE_UNLOCK(sc);
 }

@@ -119,7 +119,7 @@ patm_intr(void *p)
 	stat = patm_nor_read(sc, IDT_NOR_STAT);
 	patm_nor_write(sc, IDT_NOR_STAT, stat & (ints | fbqa));
 
-	if (!(sc->ifp->if_flags & IFF_RUNNING)) {
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		/* if we are stopped ack all interrupts and handle PHYI */
 		if (stat & IDT_STAT_PHYI) {
 			patm_debug(sc, INTR, "PHYI (stopped)");

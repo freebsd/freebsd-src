@@ -353,7 +353,7 @@ ed_detach(device_t dev)
 	if (sc->gone)
 		return (0);
 	ed_stop(sc);
-	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(ifp);
 	if_free(ifp);
 	sc->gone = 1;
@@ -595,8 +595,8 @@ ed_init(void *xsc)
 	/*
 	 * Set 'running' flag, and clear output active flag.
 	 */
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/*
 	 * ...and attempt to start output
@@ -665,7 +665,7 @@ ed_xmit(struct ed_softc *sc)
  *  1) that the current priority is set to splimp _before_ this code
  *     is called *and* is returned to the appropriate priority after
  *     return
- *  2) that the IFF_OACTIVE flag is checked before this code is called
+ *  2) that the IFF_DRV_OACTIVE flag is checked before this code is called
  *     (i.e. that the output part of the interface is idle)
  */
 static void
@@ -699,7 +699,7 @@ outloop:
 		/*
 		 * No room. Indicate this to the outside world and exit.
 		 */
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
 	}
 	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
@@ -712,7 +712,7 @@ outloop:
 		 * transmitter may be active, but if we haven't filled all the
 		 * buffers with data then we still want to accept more.
 		 */
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		return;
 	}
 
@@ -1069,7 +1069,7 @@ edintr(void *arg)
 			 * reset tx busy and output active flags
 			 */
 			sc->xmit_busy = 0;
-			ifp->if_flags &= ~IFF_OACTIVE;
+			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 			/*
 			 * clear watchdog timer
@@ -1180,7 +1180,7 @@ edintr(void *arg)
 		 * attempt to start output on the interface. This is done
 		 * after handling the receiver to give the receiver priority.
 		 */
-		if ((ifp->if_flags & IFF_OACTIVE) == 0)
+		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
 			ed_start(ifp);
 
 		/*
@@ -1218,7 +1218,7 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	int     s, error = 0;
 
 	if (sc == NULL || sc->gone) {
-		ifp->if_flags &= ~IFF_RUNNING;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		return ENXIO;
 	}
 	s = splimp();
@@ -1231,12 +1231,12 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * If it is marked down and running, then stop it.
 		 */
 		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_flags & IFF_RUNNING) == 0)
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				ed_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				ed_stop(sc);
-				ifp->if_flags &= ~IFF_RUNNING;
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			}
 		}
 

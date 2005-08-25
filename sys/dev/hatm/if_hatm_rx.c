@@ -316,11 +316,11 @@ hatm_rx_vcc_close(struct hatm_softc *sc, u_int cid)
 	WRITE_RSR(sc, cid, 0, 0xf, 0);
 
 	v = READ4(sc, HE_REGO_RCCSTAT);
-	while ((sc->ifp->if_flags & IFF_RUNNING) &&
+	while ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 	       (READ4(sc, HE_REGO_RCCSTAT) & HE_REGM_RCCSTAT_PROG))
 		cv_timedwait(&sc->cv_rcclose, &sc->mtx, 1);
 
-	if (!(sc->ifp->if_flags & IFF_RUNNING))
+	if (!(sc->ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 
 	WRITE_MBOX4(sc, HE_REGO_RCON_CLOSE, cid);

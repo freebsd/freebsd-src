@@ -1551,7 +1551,7 @@ sis_txeof(struct sis_softc *sc)
 	if (idx != sc->sis_tx_cons) {
 		/* we freed up some buffers */
 		sc->sis_tx_cons = idx;
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 
 	ifp->if_timer = (sc->sis_tx_cnt == 0) ? 0 : 5;
@@ -1815,7 +1815,7 @@ sis_startl(struct ifnet *ifp)
 
 	idx = sc->sis_tx_prod;
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	while(sc->sis_tx_list[idx].sis_mbuf == NULL) {
@@ -1825,7 +1825,7 @@ sis_startl(struct ifnet *ifp)
 
 		if (sis_encap(sc, &m_head, &idx)) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -2068,8 +2068,8 @@ sis_initl(struct sis_softc *sc)
 	mii_mediachg(mii);
 #endif
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	if (!sc->in_tick)
 		callout_reset(&sc->sis_stat_ch, hz,  sis_tick, sc);
@@ -2127,7 +2127,7 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			sis_init(sc);
-		} else if (ifp->if_flags & IFF_RUNNING) {
+		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			SIS_LOCK(sc);
 			sis_stop(sc);
 			SIS_UNLOCK(sc);
@@ -2208,7 +2208,7 @@ sis_stop(struct sis_softc *sc)
 
 	callout_stop(&sc->sis_stat_ch);
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
 #endif

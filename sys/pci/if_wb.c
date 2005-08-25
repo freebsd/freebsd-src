@@ -1226,7 +1226,7 @@ wb_txeoc(sc)
 	ifp->if_timer = 0;
 
 	if (sc->wb_cdata.wb_tx_head == NULL) {
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->wb_cdata.wb_tx_tail = NULL;
 	} else {
 		if (WB_TXOWN(sc->wb_cdata.wb_tx_head) == WB_UNSENT) {
@@ -1462,7 +1462,7 @@ wb_start(ifp)
 	 * punt.
 	 */
 	if (sc->wb_cdata.wb_tx_free->wb_mbuf != NULL) {
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		WB_UNLOCK(sc);
 		return;
 	}
@@ -1649,8 +1649,8 @@ wb_init(xsc)
 
 	mii_mediachg(mii);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->wb_stat_ch = timeout(wb_tick, sc, hz);
 	WB_UNLOCK(sc);
@@ -1715,7 +1715,7 @@ wb_ioctl(ifp, command, data)
 		if (ifp->if_flags & IFF_UP) {
 			wb_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				wb_stop(sc);
 		}
 		error = 0;
@@ -1814,7 +1814,7 @@ wb_stop(sc)
 	bzero((char *)&sc->wb_ldata->wb_tx_list,
 		sizeof(sc->wb_ldata->wb_tx_list));
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	WB_UNLOCK(sc);
 
 	return;

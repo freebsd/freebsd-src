@@ -612,7 +612,7 @@ axe_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	AXE_LOCK(sc);
 	ifp = sc->axe_ifp;
 
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		AXE_UNLOCK(sc);
 		return;
 	}
@@ -691,7 +691,7 @@ axe_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	}
 
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	usbd_get_xfer_status(c->ue_xfer, NULL, NULL, NULL, &err);
 
 	if (c->ue_mbuf != NULL) {
@@ -791,7 +791,7 @@ axe_start(struct ifnet *ifp)
 		return;
 	}
 
-	if (ifp->if_flags & IFF_OACTIVE) {
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		AXE_UNLOCK(sc);
 		return;
 	}
@@ -804,7 +804,7 @@ axe_start(struct ifnet *ifp)
 
 	if (axe_encap(sc, m_head, 0)) {
 		IF_PREPEND(&ifp->if_snd, m_head);
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		AXE_UNLOCK(sc);
 		return;
 	}
@@ -815,7 +815,7 @@ axe_start(struct ifnet *ifp)
 	 */
 	BPF_MTAP(ifp, m_head);
 
-	ifp->if_flags |= IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -836,7 +836,7 @@ axe_init(void *xsc)
 	int			i;
 	int			rxmode;
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	AXE_LOCK(sc);
@@ -918,8 +918,8 @@ axe_init(void *xsc)
 		usbd_transfer(c->ue_xfer);
 	}
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	AXE_UNLOCK(sc);
 
@@ -940,7 +940,7 @@ axe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch(command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->axe_if_flags & IFF_PROMISC)) {
 				AXE_LOCK(sc);
@@ -951,7 +951,7 @@ axe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					0, rxmode, NULL);
 				AXE_UNLOCK(sc);
 				axe_setmulti(sc);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->axe_if_flags & IFF_PROMISC) {
 				AXE_LOCK(sc);
@@ -962,10 +962,10 @@ axe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					0, rxmode, NULL);
 				AXE_UNLOCK(sc);
 				axe_setmulti(sc);
-			} else if (!(ifp->if_flags & IFF_RUNNING))
+			} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				axe_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				axe_stop(sc);
 		}
 		sc->axe_if_flags = ifp->if_flags;
@@ -1084,7 +1084,7 @@ axe_stop(struct axe_softc *sc)
 	/* Free TX resources. */
 	usb_ether_tx_list_free(&sc->axe_cdata);
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
         sc->axe_link = 0;
 	AXE_UNLOCK(sc);
 

@@ -204,7 +204,7 @@ patm_initialize(struct patm_softc *sc)
 	patm_debug(sc, ATTACH, "go...");
 
 	sc->utopia.flags &= ~UTP_FL_POLL_CARRIER;
-	sc->ifp->if_flags |= IFF_RUNNING;
+	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	/* enable interrupts, Tx and Rx paths */
 	cfg |= IDT_CFG_RXPTH | IDT_CFG_RXIIMM | IDT_CFG_RAWIE | IDT_CFG_RQFIE |
@@ -245,7 +245,7 @@ patm_stop(struct patm_softc *sc)
 	struct patm_txmap *map;
 	struct patm_scd *scd;
 
-	sc->ifp->if_flags &= ~IFF_RUNNING;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	sc->utopia.flags |= UTP_FL_POLL_CARRIER;
 
 	patm_reset(sc);
@@ -265,7 +265,7 @@ patm_stop(struct patm_softc *sc)
 
 	/*
 	 * Give any waiters on closing a VCC a chance. They will stop
-	 * to wait if they see that IFF_RUNNING disappeared.
+	 * to wait if they see that IFF_DRV_RUNNING disappeared.
 	 */
 	cv_broadcast(&sc->vcc_cv);
 

@@ -640,7 +640,7 @@ gem_stop(ifp, disable)
 	/*
 	 * Mark the interface down and cancel the watchdog timer.
 	 */
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	ifp->if_timer = 0;
 }
 
@@ -963,8 +963,8 @@ gem_init(xsc)
 	/* Start the one second timer. */
 	callout_reset(&sc->sc_tick_ch, hz, gem_tick, sc);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_timer = 0;
 	sc->sc_ifflags = ifp->if_flags;
 	splx(s);
@@ -1120,7 +1120,8 @@ gem_start(ifp)
 	struct mbuf *m0 = NULL;
 	int firsttx, ntx = 0, ofree, txmfail;
 
-	if ((ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
 	/*
@@ -1179,7 +1180,7 @@ gem_start(ifp)
 
 	if (txmfail == -1 || sc->sc_txfree == 0) {
 		/* No more slots left; notify upper layer. */
-		ifp->if_flags |= IFF_OACTIVE;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	}
 
 	if (ntx > 0) {
@@ -1320,7 +1321,7 @@ gem_tint(sc)
 			sc->sc_txwin = 0;
 
 		/* Freed some descriptors, so reset IFF_OACTIVE and restart. */
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		gem_start(ifp);
 
 		if (STAILQ_EMPTY(&sc->sc_txdirtyq))
@@ -1817,7 +1818,7 @@ gem_ioctl(ifp, cmd, data)
 			else
 				gem_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				gem_stop(ifp, 0);
 		}
 		sc->sc_ifflags = ifp->if_flags;

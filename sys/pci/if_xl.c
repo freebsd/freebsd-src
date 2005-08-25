@@ -2152,7 +2152,7 @@ xl_txeof(struct xl_softc *sc)
 	}
 
 	if (sc->xl_cdata.xl_tx_head == NULL) {
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->xl_cdata.xl_tx_tail = NULL;
 	} else {
 		if (CSR_READ_4(sc, XL_DMACTL) & XL_DMACTL_DOWN_STALLED ||
@@ -2202,7 +2202,7 @@ xl_txeof_90xB(struct xl_softc *sc)
 	sc->xl_cdata.xl_tx_cons = idx;
 
 	if (cur_tx != NULL)
-		ifp->if_flags &= ~IFF_OACTIVE;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 /*
@@ -2604,7 +2604,7 @@ xl_start_locked(struct ifnet *ifp)
 		xl_txeoc(sc);
 		xl_txeof(sc);
 		if (sc->xl_cdata.xl_tx_free == NULL) {
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			return;
 		}
 	}
@@ -2722,7 +2722,7 @@ xl_start_90xB_locked(struct ifnet *ifp)
 
 	XL_LOCK_ASSERT(sc);
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
 	idx = sc->xl_cdata.xl_tx_prod;
@@ -2731,7 +2731,7 @@ xl_start_90xB_locked(struct ifnet *ifp)
 	while (sc->xl_cdata.xl_tx_chain[idx].xl_mbuf == NULL) {
 
 		if ((XL_TX_LIST_CNT - sc->xl_cdata.xl_tx_cnt) < 3) {
-			ifp->if_flags |= IFF_OACTIVE;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
@@ -3022,8 +3022,8 @@ xl_init_locked(struct xl_softc *sc)
 	/* Select window 7 for normal operations. */
 	XL_SEL_WIN(7);
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->xl_stat_ch = timeout(xl_stats_update, sc, hz);
 }
@@ -3159,14 +3159,14 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		XL_SEL_WIN(5);
 		rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->xl_if_flags & IFF_PROMISC)) {
 				rxfilt |= XL_RXFILTER_ALLFRAMES;
 				CSR_WRITE_2(sc, XL_COMMAND,
 				    XL_CMD_RX_SET_FILT|rxfilt);
 				XL_SEL_WIN(7);
-			} else if (ifp->if_flags & IFF_RUNNING &&
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->xl_if_flags & IFF_PROMISC) {
 				rxfilt &= ~XL_RXFILTER_ALLFRAMES;
@@ -3174,11 +3174,11 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				    XL_CMD_RX_SET_FILT|rxfilt);
 				XL_SEL_WIN(7);
 			} else {
-				if ((ifp->if_flags & IFF_RUNNING) == 0)
+				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 					xl_init_locked(sc);
 			}
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				xl_stop(sc);
 		}
 		sc->xl_if_flags = ifp->if_flags;
@@ -3337,7 +3337,7 @@ xl_stop(struct xl_softc *sc)
 	if (sc->xl_ldata.xl_tx_list != NULL)
 		bzero(sc->xl_ldata.xl_tx_list, XL_TX_LIST_SZ);
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
 /*

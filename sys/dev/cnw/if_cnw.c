@@ -773,16 +773,22 @@ cnw_start(ifp)
 #ifdef CNW_DEBUG
 	if (sc->sc_ethercom.ec_if.if_flags & IFF_DEBUG)
 		printf("%s: cnw_start\n", ifp->if_xname);
+#if defined(__FreeBSD__)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+#else
 	if (ifp->if_flags & IFF_OACTIVE)
+#endif
 		printf("%s: cnw_start reentered\n", ifp->if_xname);
 #endif
 
 #if defined(__FreeBSD__)
 	if (sc->cnw_gone)
 		return;
-#endif
 
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags |= IFF_OACTIVE;
+#endif
 
 	for (;;) {
 #ifdef ONE_AT_A_TIME
@@ -863,7 +869,11 @@ cnw_start(ifp)
 		sc->sc_active = 1;
 	}
 
+#if defined(__FreeBSD__)
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+#else
 	ifp->if_flags &= ~IFF_OACTIVE;
+#endif
 }
 
 /*
@@ -1086,7 +1096,7 @@ cnw_intr(arg)
 	    (sc->sc_dev.dv_flags & DVF_ACTIVE) == 0)
 		return (0);
 #else
-	if ((ifp->if_flags & IFF_RUNNING) == 0)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 #endif
 	ifp->if_timer = 0;	/* stop watchdog timer */
@@ -1201,7 +1211,11 @@ cnw_intr(arg)
 			}
 
 			sc->sc_active = 0;
+#if defined(__FreeBSD__)
+			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+#else
 			ifp->if_flags &= ~IFF_OACTIVE;
+#endif
 
 			/* Continue to send packets from the queue */
 #if !defined(__FreeBSD__)
@@ -1291,7 +1305,7 @@ cnw_ioctl(ifp, cmd, data)
 		if (ifp->if_flags & IFF_UP) {
 				cnw_freebsd_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				cnw_stop(sc);
 			} else {
 				cnw_freebsd_init(sc);
@@ -1352,7 +1366,11 @@ cnw_ioctl(ifp, cmd, data)
 #endif
 		if (error)
 			break;
+#if !defined(__FreeBSD__)
 		if ((ifp->if_flags & IFF_RUNNING) == 0)
+#else
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+#endif
 			break;
 		bus_space_read_region_1(sc->sc_memt, sc->sc_memh,
 		    sc->sc_memoff + CNW_EREG_CB,
@@ -1464,7 +1482,7 @@ cnw_detach(self, flags)
 	struct cnw_softc *sc = (struct cnw_softc *)self;
 	struct ifnet *ifp = &sc->sc_ethercom.ec_if;
 
-	/* cnw_disable() checks IFF_RUNNING */
+	/* cnw_disable() checks IFF_DRV_RUNNING */
 	cnw_disable(sc);
 
 	if ((sc->sc_resource & CNW_RES_NET) != 0) {
@@ -1508,12 +1526,12 @@ static void cnw_freebsd_init(xsc)
 	cnw_init(sc);
 
 #if 0
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		cnw_stop(sc);
 #endif
 
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 /*	sc->cnw_stat_ch = timeout(cnw_inquire, sc, hz * 60); */
 
@@ -1535,7 +1553,7 @@ static void cnw_stop(sc)
 	cnw_reset(sc);
 
 	ifp = sc->sc_ifp;
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	return;
 }
