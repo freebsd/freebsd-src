@@ -422,6 +422,10 @@ do {									\
 #define	IFQ_INC_DROPS(ifq)		((ifq)->ifq_drops++)
 #define	IFQ_SET_MAXLEN(ifq, len)	((ifq)->ifq_maxlen = (len))
 
+/*
+ * The IFF_DRV_OACTIVE test should really occur in the device driver, not in
+ * the handoff logic, as that flag is locked by the device driver.
+ */
 #define	IFQ_HANDOFF_ADJ(ifp, m, adj, err)				\
 do {									\
 	int len;							\
@@ -434,7 +438,7 @@ do {									\
 		(ifp)->if_obytes += len + (adj);			\
 		if (mflags & M_MCAST)					\
 			(ifp)->if_omcasts++;				\
-		if (((ifp)->if_flags & IFF_OACTIVE) == 0)		\
+		if (((ifp)->if_drv_flags & IFF_DRV_OACTIVE) == 0)	\
 			if_start(ifp);					\
 	}								\
 } while (0)
