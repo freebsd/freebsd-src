@@ -44,7 +44,7 @@
 .Nd find or signal processes by name
 .Sh SYNOPSIS
 .Nm pgrep
-.Op Fl Sfilnovx
+.Op Fl LSfilnovx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -60,7 +60,7 @@
 .Ar pattern ...
 .Nm pkill
 .Op Fl Ar signal
-.Op Fl finovx
+.Op Fl Lfinovx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -91,16 +91,19 @@ The following options are available:
 Restrict matches to a process whose PID is stored in the
 .Ar pidfile
 file.
-The
-.Ar pidfile
-file must be locked with the
-.Xr flock 2
-syscall or created with
-.Xr pidfile 3 .
 .It Fl G Ar gid
 Restrict matches to processes with a real group ID in the comma-separated
 list
 .Ar gid .
+.It Fl L
+The
+.Ar pidfile
+file given for the
+.Fl F
+option must be locked with the
+.Xr flock 2
+syscall or created with
+.Xr pidfile 3 .
 .It Fl M Ar core
 Extract values associated with the name list from the specified core
 instead of the currently running system.
