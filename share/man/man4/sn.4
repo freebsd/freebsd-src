@@ -61,7 +61,7 @@ driver supports SMC91Cxx based ISA and PCMCIA cards including:
 .It
 3Com Megahertz X-Jack Ethernet PC-Card XJ10BC
 .It
-Farallon EtherMac PC Card
+Farallon EtherMac PC Card 595a
 .It
 Motorola Mariner Ethernet/Modem PC Card
 .It
@@ -84,6 +84,17 @@ The
 .Nm
 driver supports the SMC 91C90, SMC 91C92, SMC 91C94, SMC 91C95, SMC 91C96,
 SMC91C100 and SMC 91C100FD chips from SMC.
+.Pp
+The Farallon EtherWave and EtherMac card came in two varieties.
+The
+.Xr ep 4
+driver supports the 595 and 895 cards.
+These cards have the blue arrow on the front along with a 3Com logo.
+The Farallon 595a cards, which have a red arrow on the front,
+are also called EtherWave and EtherMac.
+They are supported by the
+.Nm
+driver.
 .Sh SEE ALSO
 .Xr ed 4 ,
 .Xr el 4 ,
