@@ -74,6 +74,8 @@ static void ata_acard_850_setmode(device_t dev, int mode);
 static void ata_acard_86X_setmode(device_t dev, int mode);
 static int ata_ali_chipinit(device_t dev);
 static int ata_ali_allocate(device_t dev);
+static int ata_ali_sata_allocate(device_t dev);
+static void ata_ali_reset(device_t dev);
 static void ata_ali_setmode(device_t dev, int mode);
 static int ata_amd_chipinit(device_t dev);
 static int ata_cyrix_chipinit(device_t dev);
@@ -208,6 +210,7 @@ ata_generic_setmode(device_t dev, int mode)
 static void
 ata_sata_setmode(device_t dev, int mode)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev));
     struct ata_device *atadev = device_get_softc(dev);
 
     /*
@@ -220,7 +223,7 @@ ata_sata_setmode(device_t dev, int mode)
 	atadev->param.satacapabilities != 0xffff) {
 	if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
 			    ata_limit_mode(dev, mode, ATA_UDMA6)))
-	    atadev->mode = ATA_SA150;
+	    atadev->mode = ctlr->chip->max_dma;
     }
     else {
 	mode = ata_limit_mode(dev, mode, ATA_UDMA5);
@@ -371,7 +374,7 @@ ata_ahci_allocate(device_t dev)
     /* XXX SOS this is a hack to satisfy various legacy cruft */
     ch->r_io[ATA_CYL_LSB].res = ctlr->r_res2;
     ch->r_io[ATA_CYL_LSB].offset = ATA_AHCI_P_SIG + 1 + offset;
-    ch->r_io[ATA_CYL_LSB].res = ctlr->r_res2;
+    ch->r_io[ATA_CYL_MSB].res = ctlr->r_res2;
     ch->r_io[ATA_CYL_MSB].offset = ATA_AHCI_P_SIG + 3 + offset;
     ch->r_io[ATA_STATUS].res = ctlr->r_res2;
     ch->r_io[ATA_STATUS].offset = ATA_AHCI_P_TFD + offset;
@@ -423,9 +426,11 @@ ata_ahci_setup_fis(u_int8_t *fis, struct ata_request *request)
     int idx = 0;
 
     /* XXX SOS add ATAPI commands support later */
+    ata_modify_if_48bit(request);
+
     fis[idx++] = 0x27;  /* host to device */
     fis[idx++] = 0x80;  /* command FIS (note PM goes here) */
-    fis[idx++] = ata_modify_if_48bit(request);
+    fis[idx++] = request->u.ata.command;
     fis[idx++] = request->u.ata.feature;
 
     fis[idx++] = request->u.ata.lba;
@@ -869,24 +874,33 @@ ata_ali_chipinit(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
 	ctlr->channels = ctlr->chip->cfg1;
-	ctlr->allocate = ata_ali_allocate;
+	ctlr->allocate = ata_ali_sata_allocate;
 	ctlr->setmode = ata_sata_setmode;
 	break;
 
     case ALINEW:
-	/* deactivate the ATAPI FIFO and enable ATAPI UDMA */
-	pci_write_config(dev, 0x53,
-			 pci_read_config(dev, 0x53, 1) | 0x01, 1);
+	/* use device interrupt as byte count end */
+	pci_write_config(dev, 0x4a, pci_read_config(dev, 0x4a, 1) | 0x20, 1);
 
 	/* enable cable detection and UDMA support on newer chips */
 	pci_write_config(dev, 0x4b, pci_read_config(dev, 0x4b, 1) | 0x09, 1);
+
+	/* enable ATAPI UDMA mode */
+	pci_write_config(dev, 0x53, pci_read_config(dev, 0x53, 1) | 0x01, 1);
+
+	/* only chips with revision > 0xc4 can do 48bit DMA */
+	if (ctlr->chip->chiprev <= 0xc4)
+	    device_printf(dev,
+			  "using PIO transfers above 137GB as workaround for "
+			  "48bit DMA access bug, expect reduced performance\n");
+	ctlr->reset = ata_ali_reset;
+	ctlr->allocate = ata_ali_allocate;
 	ctlr->setmode = ata_ali_setmode;
 	break;
 
     case ALIOLD:
 	/* deactivate the ATAPI FIFO and enable ATAPI UDMA */
-	pci_write_config(dev, 0x53,
-			 (pci_read_config(dev, 0x53, 1) & ~0x02) | 0x03, 1);
+	pci_write_config(dev, 0x53, pci_read_config(dev, 0x53, 1) | 0x03, 1);
 	ctlr->setmode = ata_ali_setmode;
 	break;
     }
@@ -895,6 +909,21 @@ ata_ali_chipinit(device_t dev)
 
 static int
 ata_ali_allocate(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+
+    /* setup the usual register normal pci style */
+    ata_pci_allocate(dev);
+
+    if (ctlr->chip->chiprev <= 0xc4)
+	ch->flags |= ATA_NO_48BIT_DMA;
+
+    return 0;
+}
+
+static int
+ata_ali_sata_allocate(device_t dev)
 {
     device_t parent = device_get_parent(dev);
     struct ata_pci_controller *ctlr = device_get_softc(parent);
@@ -934,6 +963,39 @@ ata_ali_allocate(device_t dev)
     /* XXX SOS PHY handling awkward in ALI chip not supported yet */
     ata_generic_hw(dev);
     return 0;
+}
+
+static void
+ata_ali_reset(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    device_t *children;
+    int nchildren, i;
+
+    ata_generic_reset(dev);
+
+    /*
+     * workaround for datacorruption bug found on at least SUN Blade-100
+     * find the ISA function on the southbridge and disable then enable
+     * the ATA channel tristate buffer
+     */
+    if (ctlr->chip->chiprev == 0xc3 || ctlr->chip->chiprev == 0xc2) {
+	if (!device_get_children(GRANDPARENT(dev), &children, &nchildren)) {
+	    for (i = 0; i < nchildren; i++) {
+		if (pci_get_devid(children[i]) == ATA_ALI_1533) {
+		    pci_write_config(children[i], 0x58, 
+				     pci_read_config(children[i], 0x58, 1) &
+				     ~(0x04 << ch->unit), 1);
+		    pci_write_config(children[i], 0x58, 
+				     pci_read_config(children[i], 0x58, 1) |
+				     (0x04 << ch->unit), 1);
+		    break;
+		}
+	    }
+	    free(children, M_TEMP);
+	}
+    }
 }
 
 static void
@@ -1615,10 +1677,8 @@ ata_intel_31244_command(struct ata_request *request)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_device *atadev = device_get_softc(request->dev);
-    u_int8_t command;
     u_int64_t lba;
 
-    command = ata_modify_if_48bit(request);
     if (!(atadev->flags & ATA_D_48BIT_ACTIVE))
 	    return (ata_generic_command(request));
 
@@ -1629,13 +1689,13 @@ ata_intel_31244_command(struct ata_request *request)
     ATA_IDX_OUTW(ch, ATA_FEATURE, request->u.ata.feature);
     ATA_IDX_OUTW(ch, ATA_COUNT, request->u.ata.count);
     ATA_IDX_OUTW(ch, ATA_SECTOR, ((lba >> 16) & 0xff00) | (lba & 0x00ff));
-    ATA_IDX_OUTW(ch, ATA_CYL_LSB, ((lba >> 24) & 0xff00) | ((lba >> 8) &
-	0x00ff));
-    ATA_IDX_OUTW(ch, ATA_CYL_MSB, ((lba >> 32) & 0xff00) | ((lba >> 16) &
-	0x00ff));
+    ATA_IDX_OUTW(ch, ATA_CYL_LSB, ((lba >> 24) & 0xff00) |
+				  ((lba >> 8) & 0x00ff));
+    ATA_IDX_OUTW(ch, ATA_CYL_MSB, ((lba >> 32) & 0xff00) | 
+				  ((lba >> 16) & 0x00ff));
 
     /* issue command to controller */
-    ATA_IDX_OUTB(ch, ATA_COMMAND, command);
+    ATA_IDX_OUTB(ch, ATA_COMMAND, request->u.ata.command);
 
     return 0;
 }
@@ -2233,6 +2293,8 @@ ata_promise_ident(device_t dev)
      { ATA_PDC20622,  0, PRMIO, PRSX4X,  ATA_SA150, "Promise PDC20622" },
      { ATA_PDC40518,  0, PRMIO, PRSATA2, ATA_SA150, "Promise PDC40518" },
      { ATA_PDC40519,  0, PRMIO, PRSATA2, ATA_SA150, "Promise PDC40519" },
+     { ATA_PDC40718,  0, PRMIO, PRSATA2, ATA_SA300, "Promise PDC40718" },
+     { ATA_PDC40719,  0, PRMIO, PRSATA2, ATA_SA300, "Promise PDC40719" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
     uintptr_t devid = 0;
@@ -2682,10 +2744,12 @@ ata_promise_mio_command(struct ata_request *request)
 	return ata_generic_command(request);
 
     case ATA_READ_DMA:
+    case ATA_READ_DMA48:
 	wordp[0] = htole32(0x04 | ((ch->unit + 1) << 16) | (0x00 << 24));
 	break;
 
     case ATA_WRITE_DMA:
+    case ATA_WRITE_DMA48:
 	wordp[0] = htole32(0x00 | ((ch->unit + 1) << 16) | (0x00 << 24));
 	break;
     }
@@ -2716,14 +2780,19 @@ ata_promise_sx4_command(struct ata_request *request)
 
     case ATA_ATA_IDENTIFY:
     case ATA_READ:
+    case ATA_READ48:
     case ATA_READ_MUL:
+    case ATA_READ_MUL48:
     case ATA_WRITE:
+    case ATA_WRITE48:
     case ATA_WRITE_MUL:
+    case ATA_WRITE_MUL48:
 	ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit + 1) << 2), 0x00000001);
 	return ata_generic_command(request);
 
     case ATA_SETFEATURES:
     case ATA_FLUSHCACHE:
+    case ATA_FLUSHCACHE48:
     case ATA_SLEEP:
     case ATA_SET_MULTI:
 	wordp = (u_int32_t *)
@@ -2739,7 +2808,9 @@ ata_promise_sx4_command(struct ata_request *request)
 	return 0;
 
     case ATA_READ_DMA:
+    case ATA_READ_DMA48:
     case ATA_WRITE_DMA:
+    case ATA_WRITE_DMA48:
 	wordp = (u_int32_t *)
 	    (window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_HSG_OFFSET);
 	i = idx = 0;
@@ -2800,15 +2871,12 @@ static int
 ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
 { 
     struct ata_device *atadev = device_get_softc(request->dev);
-    u_int8_t command;
     int i = 12;
 
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_PDC_WAIT_NBUSY|ATA_DRIVE;
     bytep[i++] = ATA_D_IBM | ATA_D_LBA | atadev->unit;
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_CTL;
     bytep[i++] = ATA_A_4BIT;
-
-    command = ata_modify_if_48bit(request);
 
     if (atadev->flags & ATA_D_48BIT_ACTIVE) {
 	bytep[i++] = ATA_PDC_2B | ATA_PDC_WRITE_REG | ATA_FEATURE;
@@ -2845,7 +2913,7 @@ ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
 		   ATA_D_IBM | atadev->unit | ((request->u.ata.lba >> 24)&0xf);
     }
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_END | ATA_COMMAND;
-    bytep[i++] = command;
+    bytep[i++] = request->u.ata.command;
     return i;
 }
 

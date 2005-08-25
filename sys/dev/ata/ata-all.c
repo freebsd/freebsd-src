@@ -615,7 +615,9 @@ ata_getparam(device_t parent, struct ata_device *atadev)
 		atadev->mode = ATA_DMA_MAX;
 	}
 	else {
-	    if (ata_dma && ch->dma)
+	    if (ata_dma && ch->dma &&
+		(ata_umode(&atadev->param) > 0 ||
+		 ata_wmode(&atadev->param) > 0))
 		atadev->mode = ATA_DMA_MAX;
 	}
     }
@@ -699,11 +701,11 @@ ata_default_registers(device_t dev)
     ch->r_io[ATA_ALTSTAT].offset = ch->r_io[ATA_CONTROL].offset;
 }
 
-u_int8_t
+void
 ata_modify_if_48bit(struct ata_request *request)
 {
+    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_device *atadev = device_get_softc(request->dev);
-    u_int8_t command = request->u.ata.command;
 
     atadev->flags &= ~ATA_D_48BIT_ACTIVE;
 
@@ -712,31 +714,72 @@ ata_modify_if_48bit(struct ata_request *request)
 	atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48) {
 
 	/* translate command into 48bit version */
-	switch (command) {
+	switch (request->u.ata.command) {
 	case ATA_READ:
-	    command = ATA_READ48; break;
+	    request->u.ata.command = ATA_READ48;
+	    break;
 	case ATA_READ_MUL:
-	    command = ATA_READ_MUL48; break;
+	    request->u.ata.command = ATA_READ_MUL48;
+	    break;
 	case ATA_READ_DMA:
-	    command = ATA_READ_DMA48; break;
+	    if (ch->flags & ATA_NO_48BIT_DMA) {
+		if (request->transfersize > DEV_BSIZE)
+		    request->u.ata.command = ATA_READ_MUL48;
+		else
+		    request->u.ata.command = ATA_READ48;
+		request->flags &= ~ATA_R_DMA;
+	    }
+	    else
+		request->u.ata.command = ATA_READ_DMA48;
+	    break;
 	case ATA_READ_DMA_QUEUED:
-	    command = ATA_READ_DMA_QUEUED48; break;
+	    if (ch->flags & ATA_NO_48BIT_DMA) {
+		if (request->transfersize > DEV_BSIZE)
+		    request->u.ata.command = ATA_READ_MUL48;
+		else
+		    request->u.ata.command = ATA_READ48;
+		request->flags &= ~ATA_R_DMA;
+	    }
+	    else
+		request->u.ata.command = ATA_READ_DMA_QUEUED48;
+	    break;
 	case ATA_WRITE:
-	    command = ATA_WRITE48; break;
+	    request->u.ata.command = ATA_WRITE48;
+	    break;
 	case ATA_WRITE_MUL:
-	    command = ATA_WRITE_MUL48; break;
+	    request->u.ata.command = ATA_WRITE_MUL48;
+	    break;
 	case ATA_WRITE_DMA:
-	    command = ATA_WRITE_DMA48; break;
+	    if (ch->flags & ATA_NO_48BIT_DMA) {
+		if (request->transfersize > DEV_BSIZE)
+		    request->u.ata.command = ATA_WRITE_MUL48;
+		else
+		    request->u.ata.command = ATA_WRITE48;
+		request->flags &= ~ATA_R_DMA;
+	    }
+	    else
+		request->u.ata.command = ATA_WRITE_DMA48;
+	    break;
 	case ATA_WRITE_DMA_QUEUED:
-	    command = ATA_WRITE_DMA_QUEUED48; break;
+	    if (ch->flags & ATA_NO_48BIT_DMA) {
+		if (request->transfersize > DEV_BSIZE)
+		    request->u.ata.command = ATA_WRITE_MUL48;
+		else
+		    request->u.ata.command = ATA_WRITE48;
+		request->u.ata.command = ATA_WRITE48;
+		request->flags &= ~ATA_R_DMA;
+	    }
+	    else
+		request->u.ata.command = ATA_WRITE_DMA_QUEUED48;
+	    break;
 	case ATA_FLUSHCACHE:
-	    command = ATA_FLUSHCACHE48; break;
+	    request->u.ata.command = ATA_FLUSHCACHE48;
+	    break;
 	default:
-	    return command;
+	    return;
 	}
 	atadev->flags |= ATA_D_48BIT_ACTIVE;
     }
-    return command;
 }
 
 void
@@ -769,6 +812,7 @@ ata_mode2str(int mode)
     case ATA_UDMA5: return "UDMA100";
     case ATA_UDMA6: return "UDMA133";
     case ATA_SA150: return "SATA150";
+    case ATA_SA300: return "SATA300";
     default:
 	if (mode & ATA_DMA_MASK)
 	    return "BIOSDMA";

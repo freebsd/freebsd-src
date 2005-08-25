@@ -244,7 +244,7 @@ ad_strategy(struct bio *bp)
 	    request->u.ata.command = ATA_READ_DMA;
 	    request->flags |= ATA_R_DMA;
 	}
-	else if (atadev->max_iosize > DEV_BSIZE)
+	else if (request->transfersize > DEV_BSIZE)
 	    request->u.ata.command = ATA_READ_MUL;
 	else
 	    request->u.ata.command = ATA_READ;
@@ -255,7 +255,7 @@ ad_strategy(struct bio *bp)
 	    request->u.ata.command = ATA_WRITE_DMA;
 	    request->flags |= ATA_R_DMA;
 	}
-	else if (atadev->max_iosize > DEV_BSIZE)
+	else if (request->transfersize > DEV_BSIZE)
 	    request->u.ata.command = ATA_WRITE_MUL;
 	else
 	    request->u.ata.command = ATA_WRITE;

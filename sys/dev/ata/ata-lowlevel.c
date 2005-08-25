@@ -83,6 +83,9 @@ ata_begin_transaction(struct ata_request *request)
 	 (ATA_R_ATAPI | ATA_R_DMA | ATA_R_WRITE)))
 	request->flags &= ~ATA_R_DMA;
 
+    /* check for 48 bit access and convert if needed */
+    ata_modify_if_48bit(request);
+
     switch (request->flags & (ATA_R_ATAPI | ATA_R_DMA)) {
 
     /* ATA PIO data transfer and control commands */
@@ -710,8 +713,6 @@ ata_generic_command(struct ata_request *request)
 			   ATA_PROTO_ATAPI_12 ? 6 : 8);
     }
     else {
-	u_int8_t command = ata_modify_if_48bit(request);
-
 	if (atadev->flags & ATA_D_48BIT_ACTIVE) {
 	    ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature >> 8);
 	    ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature);
@@ -726,7 +727,6 @@ ata_generic_command(struct ata_request *request)
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_LBA | atadev->unit);
 	}
 	else {
-	    command = request->u.ata.command;
 	    ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature);
 	    ATA_IDX_OUTB(ch, ATA_COUNT, request->u.ata.count);
 	    if (atadev->flags & ATA_D_USE_CHS) {
@@ -760,7 +760,7 @@ ata_generic_command(struct ata_request *request)
 	}
 
 	/* issue command to controller */
-	ATA_IDX_OUTB(ch, ATA_COMMAND, command);
+	ATA_IDX_OUTB(ch, ATA_COMMAND, request->u.ata.command);
     }
 
     return 0;
