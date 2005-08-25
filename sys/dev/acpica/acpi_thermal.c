@@ -347,7 +347,14 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
 	    AcpiOsFree(sc->tz_zone.al[i].Pointer);
     if (sc->tz_zone.psl.Pointer != NULL)
 	AcpiOsFree(sc->tz_zone.psl.Pointer);
-    bzero(&sc->tz_zone, sizeof(sc->tz_zone));
+
+    /*
+     * XXX: We initialize only ACPI_BUFFER to avoid race condition
+     * with passive cooling thread which refers psv, tc1, tc2 and tsp.
+     */
+    bzero(sc->tz_zone.ac, sizeof(sc->tz_zone.ac));
+    bzero(sc->tz_zone.al, sizeof(sc->tz_zone.al));
+    bzero(&sc->tz_zone.psl, sizeof(sc->tz_zone.psl));
 
     /* Evaluate thermal zone parameters. */
     for (i = 0; i < TZ_NUMLEVELS; i++) {
