@@ -818,7 +818,7 @@ f_fstype(PLAN *plan, FTSENT *entry)
 	static int first = 1;
 	struct statfs sb;
 	static int val_type, val_flags;
-	char *p, save[2];
+	char *p, save[2] = {0,0};
 
 	if ((plan->flags & F_MTMASK) == F_MTUNKNOWN)
 		return 0;
