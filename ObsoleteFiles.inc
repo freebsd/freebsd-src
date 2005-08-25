@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# T/TCP retired several months ago
+OLD_FILES+=usr/share/man/man4/ttcp.4.gz
 # 20050805 tn3270 retired long ago
 OLD_FILES+=usr/share/misc/map3270
 # 20050801: too old to be interesting here
