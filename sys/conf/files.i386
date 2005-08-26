@@ -321,7 +321,6 @@ i386/isa/clock.c		standard
 i386/isa/elcr.c			standard
 i386/isa/elink.c		optional ep
 i386/isa/elink.c		optional ie
-i386/isa/if_el.c		optional el
 i386/isa/isa.c			optional isa
 i386/isa/isa_dma.c		optional isa
 i386/isa/nmi.c			standard
