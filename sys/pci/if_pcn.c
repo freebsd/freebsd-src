@@ -143,8 +143,10 @@ static void pcn_txeof(struct pcn_softc *);
 static void pcn_intr(void *);
 static void pcn_tick(void *);
 static void pcn_start(struct ifnet *);
+static void pcn_start_locked(struct ifnet *);
 static int pcn_ioctl(struct ifnet *, u_long, caddr_t);
 static void pcn_init(void *);
+static void pcn_init_locked(struct pcn_softc *);
 static void pcn_stop(struct pcn_softc *);
 static void pcn_watchdog(struct ifnet *);
 static void pcn_shutdown(device_t);
@@ -542,7 +544,7 @@ pcn_attach(dev)
 
 	/* Initialize our mutex. */
 	mtx_init(&sc->pcn_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 	/*
 	 * Map control/status registers.
 	 */
@@ -586,7 +588,7 @@ pcn_attach(dev)
 	eaddr[1] = CSR_READ_4(sc, PCN_IO32_APROM01);
 
 	sc->pcn_unit = unit;
-	callout_handle_init(&sc->pcn_stat_ch);
+	callout_init_mtx(&sc->pcn_stat_callout, &sc->pcn_mtx, 0);
 
 	sc->pcn_ldata = contigmalloc(sizeof(struct pcn_list_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
@@ -607,8 +609,7 @@ pcn_attach(dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = pcn_ioctl;
 	ifp->if_start = pcn_start;
 	ifp->if_watchdog = pcn_watchdog;
@@ -633,7 +634,7 @@ pcn_attach(dev)
 	ether_ifattach(ifp, (u_int8_t *) eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->pcn_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->pcn_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    pcn_intr, sc, &sc->pcn_intrhand);
 
 	if (error) {
@@ -667,12 +668,14 @@ pcn_detach(dev)
 	ifp = sc->pcn_ifp;
 
 	KASSERT(mtx_initialized(&sc->pcn_mtx), ("pcn mutex not initialized"));
-	PCN_LOCK(sc);
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
+		PCN_LOCK(sc);
 		pcn_reset(sc);
 		pcn_stop(sc);
+		PCN_UNLOCK(sc);
+		callout_drain(&sc->pcn_stat_callout);
 		ether_ifdetach(ifp);
 		if_free(ifp);
 	}
@@ -691,7 +694,6 @@ pcn_detach(dev)
 		contigfree(sc->pcn_ldata, sizeof(struct pcn_list_data),
 		    M_DEVBUF);
 	}
-	PCN_UNLOCK(sc);
 
 	mtx_destroy(&sc->pcn_mtx);
 
@@ -924,7 +926,7 @@ pcn_tick(xsc)
 
 	sc = xsc;
 	ifp = sc->pcn_ifp;
-	PCN_LOCK(sc);
+	PCN_LOCK_ASSERT(sc);
 
 	mii = device_get_softc(sc->pcn_miibus);
 	mii_tick(mii);
@@ -938,12 +940,10 @@ pcn_tick(xsc)
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->pcn_link++;
 		if (ifp->if_snd.ifq_head != NULL)
-			pcn_start(ifp);
+			pcn_start_locked(ifp);
 	}
 
-	sc->pcn_stat_ch = timeout(pcn_tick, sc, hz);
-
-	PCN_UNLOCK(sc);
+	callout_reset(&sc->pcn_stat_callout, hz, pcn_tick, sc);
 
 	return;
 }
@@ -959,13 +959,14 @@ pcn_intr(arg)
 	sc = arg;
 	ifp = sc->pcn_ifp;
 
+	PCN_LOCK(sc);
+
 	/* Suppress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
 		pcn_stop(sc);
+		PCN_UNLOCK(sc);
 		return;
 	}
-
-	PCN_LOCK(sc);
 
 	CSR_WRITE_4(sc, PCN_IO32_RAP, PCN_CSR_CSR);
 
@@ -979,13 +980,13 @@ pcn_intr(arg)
 			pcn_txeof(sc);
 
 		if (status & PCN_CSR_ERR) {
-			pcn_init(sc);
+			pcn_init_locked(sc);
 			break;
 		}
 	}
 
 	if (ifp->if_snd.ifq_head != NULL)
-		pcn_start(ifp);
+		pcn_start_locked(ifp);
 
 	PCN_UNLOCK(sc);
 	return;
@@ -1056,24 +1057,32 @@ pcn_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct pcn_softc	*sc;
+
+	sc = ifp->if_softc;
+	PCN_LOCK(sc);
+	pcn_start_locked(ifp);
+	PCN_UNLOCK(sc);
+}
+
+static void
+pcn_start_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct pcn_softc	*sc;
 	struct mbuf		*m_head = NULL;
 	u_int32_t		idx;
 
 	sc = ifp->if_softc;
 
-	PCN_LOCK(sc);
+	PCN_LOCK_ASSERT(sc);
 
-	if (!sc->pcn_link) {
-		PCN_UNLOCK(sc);
+	if (!sc->pcn_link)
 		return;
-	}
 
 	idx = sc->pcn_cdata.pcn_tx_prod;
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
-		PCN_UNLOCK(sc);
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
-	}
 
 	while(sc->pcn_cdata.pcn_tx_chain[idx] == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
@@ -1102,8 +1111,6 @@ pcn_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
-
-	PCN_UNLOCK(sc);
 
 	return;
 }
@@ -1138,10 +1145,20 @@ pcn_init(xsc)
 	void			*xsc;
 {
 	struct pcn_softc	*sc = xsc;
+
+	PCN_LOCK(sc);
+	pcn_init_locked(sc);
+	PCN_UNLOCK(sc);
+}
+
+static void
+pcn_init_locked(sc)
+	struct pcn_softc	*sc;
+{
 	struct ifnet		*ifp = sc->pcn_ifp;
 	struct mii_data		*mii = NULL;
 
-	PCN_LOCK(sc);
+	PCN_LOCK_ASSERT(sc);
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -1164,7 +1181,6 @@ pcn_init(xsc)
 		printf("pcn%d: initialization failed: no "
 		    "memory for rx buffers\n", sc->pcn_unit);
 		pcn_stop(sc);
-		PCN_UNLOCK(sc);
 		return;
 	}
 
@@ -1235,8 +1251,7 @@ pcn_init(xsc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->pcn_stat_ch = timeout(pcn_tick, sc, hz);
-	PCN_UNLOCK(sc);
+	callout_reset(&sc->pcn_stat_callout, hz, pcn_tick, sc);
 
 	return;
 }
@@ -1254,6 +1269,7 @@ pcn_ifmedia_upd(ifp)
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->pcn_miibus);
 
+	PCN_LOCK(sc);
 	sc->pcn_link = 0;
 	if (mii->mii_instance) {
 		struct mii_softc        *miisc;
@@ -1261,6 +1277,7 @@ pcn_ifmedia_upd(ifp)
 			mii_phy_reset(miisc);
 	}
 	mii_mediachg(mii);
+	PCN_UNLOCK(sc);
 
 	return(0);
 }
@@ -1279,9 +1296,11 @@ pcn_ifmedia_sts(ifp, ifmr)
 	sc = ifp->if_softc;
 
 	mii = device_get_softc(sc->pcn_miibus);
+	PCN_LOCK(sc);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	PCN_UNLOCK(sc);
 
 	return;
 }
@@ -1297,10 +1316,9 @@ pcn_ioctl(ifp, command, data)
 	struct mii_data		*mii = NULL;
 	int			error = 0;
 
-	PCN_LOCK(sc);
-
 	switch(command) {
 	case SIOCSIFFLAGS:
+		PCN_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
                         if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
@@ -1323,17 +1341,20 @@ pcn_ioctl(ifp, command, data)
 				pcn_csr_write(sc, PCN_CSR_CSR,
 				    PCN_CSR_INTEN|PCN_CSR_START);
 			} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-				pcn_init(sc);
+				pcn_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				pcn_stop(sc);
 		}
 		sc->pcn_if_flags = ifp->if_flags;
+		PCN_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		PCN_LOCK(sc);
 		pcn_setmulti(sc);
+		PCN_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
@@ -1345,8 +1366,6 @@ pcn_ioctl(ifp, command, data)
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
-
-	PCN_UNLOCK(sc);
 
 	return(error);
 }
@@ -1366,7 +1385,7 @@ pcn_watchdog(ifp)
 
 	pcn_stop(sc);
 	pcn_reset(sc);
-	pcn_init(sc);
+	pcn_init_locked(sc);
 
 	if (ifp->if_snd.ifq_head != NULL)
 		pcn_start(ifp);
@@ -1387,11 +1406,11 @@ pcn_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
+	PCN_LOCK_ASSERT(sc);
 	ifp = sc->pcn_ifp;
-	PCN_LOCK(sc);
 	ifp->if_timer = 0;
 
-	untimeout(pcn_tick, sc, sc->pcn_stat_ch);
+	callout_stop(&sc->pcn_stat_callout);
 
 	/* Turn off interrupts */
 	PCN_CSR_CLRBIT(sc, PCN_CSR_CSR, PCN_CSR_INTEN);
@@ -1425,7 +1444,6 @@ pcn_stop(sc)
 		sizeof(sc->pcn_ldata->pcn_tx_list));
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	PCN_UNLOCK(sc);
 
 	return;
 }
