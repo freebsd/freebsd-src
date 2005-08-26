@@ -423,6 +423,8 @@ acpi_tz_get_temperature(struct acpi_tz_softc *sc)
     int		temp;
     ACPI_STATUS	status;
 
+    ACPI_FUNCTION_NAME ("acpi_tz_get_temperature");
+
     status = acpi_GetInteger(sc->tz_handle, "_TMP", &temp);
     if (ACPI_FAILURE(status)) {
 	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
