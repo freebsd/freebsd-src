@@ -1039,12 +1039,11 @@ struct sf_softc {
 	struct resource		*sf_res;	/* mem/ioport resource */
 	struct sf_type		*sf_info;	/* Starfire adapter info */
 	device_t		sf_miibus;
-	u_int8_t		sf_unit;	/* interface number */
 	struct sf_list_data	*sf_ldata;
 	int			sf_tx_cnt;
 	u_int8_t		sf_link;
 	int			sf_if_flags;
-	struct callout_handle	sf_stat_ch;
+	struct callout		sf_stat_callout;
 	struct mtx		sf_mtx;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
