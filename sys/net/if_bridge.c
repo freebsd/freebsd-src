@@ -1265,13 +1265,6 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 	len = m->m_pkthdr.len;
 	mflags = m->m_flags;
 
-#ifdef INVARIANTS
-	if (len > dst_ifp->if_mtu)
-		if_printf(sc->sc_ifp,
-		    "MTU mismatch, frame length %d exceeds %ld on %s\n", len,
-		    dst_ifp->if_mtu, dst_ifp->if_xname);
-#endif
-
 	IFQ_ENQUEUE(&dst_ifp->if_snd, m, err);
 	if (err == 0) {
 
