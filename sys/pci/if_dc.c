@@ -235,8 +235,10 @@ static void dc_tick(void *);
 static void dc_tx_underrun(struct dc_softc *);
 static void dc_intr(void *);
 static void dc_start(struct ifnet *);
+static void dc_start_locked(struct ifnet *);
 static int dc_ioctl(struct ifnet *, u_long, caddr_t);
 static void dc_init(void *);
+static void dc_init_locked(struct dc_softc *);
 static void dc_stop(struct dc_softc *);
 static void dc_watchdog(struct ifnet *);
 static void dc_shutdown(device_t);
@@ -342,8 +344,6 @@ DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
 
 #define SIO_SET(x)	DC_SETBIT(sc, DC_SIO, (x))
 #define SIO_CLR(x)	DC_CLRBIT(sc, DC_SIO, (x))
-
-#define IS_MPSAFE 	0
 
 static void
 dc_delay(struct dc_softc *sc)
@@ -670,8 +670,6 @@ dc_mii_readreg(struct dc_softc *sc, struct dc_mii_frame *frame)
 {
 	int i, ack;
 
-	DC_LOCK(sc);
-
 	/*
 	 * Set up frame for RX.
 	 */
@@ -724,8 +722,6 @@ fail:
 	dc_mii_writebit(sc, 0);
 	dc_mii_writebit(sc, 0);
 
-	DC_UNLOCK(sc);
-
 	if (ack)
 		return (1);
 	return (0);
@@ -738,7 +734,6 @@ static int
 dc_mii_writereg(struct dc_softc *sc, struct dc_mii_frame *frame)
 {
 
-	DC_LOCK(sc);
 	/*
 	 * Set up frame for TX.
 	 */
@@ -762,8 +757,6 @@ dc_mii_writereg(struct dc_softc *sc, struct dc_mii_frame *frame)
 	/* Idle bit. */
 	dc_mii_writebit(sc, 0);
 	dc_mii_writebit(sc, 0);
-
-	DC_UNLOCK(sc);
 
 	return (0);
 }
@@ -864,8 +857,8 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 			phy_reg = DC_AL_ANER;
 			break;
 		default:
-			printf("dc%d: phy_read: bad phy register %x\n",
-			    sc->dc_unit, reg);
+			device_printf(dev, "phy_read: bad phy register %x\n",
+			    reg);
 			return (0);
 			break;
 		}
@@ -940,8 +933,8 @@ dc_miibus_writereg(device_t dev, int phy, int reg, int data)
 			phy_reg = DC_AL_ANER;
 			break;
 		default:
-			printf("dc%d: phy_write: bad phy register %x\n",
-			    sc->dc_unit, reg);
+			device_printf(dev, "phy_write: bad phy register %x\n",
+			    reg);
 			return (0);
 			break;
 		}
@@ -1388,8 +1381,8 @@ dc_setcfg(struct dc_softc *sc, int media)
 		}
 
 		if (i == DC_TIMEOUT)
-			printf("dc%d: failed to force tx and "
-				"rx to idle state\n", sc->dc_unit);
+			if_printf(sc->dc_ifp,
+			    "failed to force tx and rx to idle state\n");
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
@@ -1529,7 +1522,7 @@ dc_reset(struct dc_softc *sc)
 	}
 
 	if (i == DC_TIMEOUT)
-		printf("dc%d: reset never completed!\n", sc->dc_unit);
+		if_printf(sc->dc_ifp, "reset never completed!\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -1837,15 +1830,14 @@ dc_attach(device_t dev)
 	struct dc_softc *sc;
 	struct ifnet *ifp;
 	u_int32_t revision;
-	int unit, error = 0, rid, mac_offset;
+	int error = 0, rid, mac_offset;
 	int i;
 	u_int8_t *mac;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 
 	/*
 	 * Map control/status registers.
@@ -1856,7 +1848,7 @@ dc_attach(device_t dev)
 	sc->dc_res = bus_alloc_resource_any(dev, DC_RES, &rid, RF_ACTIVE);
 
 	if (sc->dc_res == NULL) {
-		printf("dc%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1870,7 +1862,7 @@ dc_attach(device_t dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->dc_irq == NULL) {
-		printf("dc%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2001,8 +1993,7 @@ dc_attach(device_t dev)
 		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	default:
-		printf("dc%d: unknown device: %x\n", sc->dc_unit,
-		    sc->dc_info->dc_did);
+		device_printf(dev, "unknown device: %x\n", sc->dc_info->dc_did);
 		break;
 	}
 
@@ -2097,21 +2088,19 @@ dc_attach(device_t dev)
 		break;
 	}
 
-	sc->dc_unit = unit;
-
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
 	error = bus_dma_tag_create(NULL, PAGE_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof(struct dc_list_data), 1,
 	    sizeof(struct dc_list_data), 0, NULL, NULL, &sc->dc_ltag);
 	if (error) {
-		printf("dc%d: failed to allocate busdma tag\n", unit);
+		device_printf(dev, "failed to allocate busdma tag\n");
 		error = ENXIO;
 		goto fail;
 	}
 	error = bus_dmamem_alloc(sc->dc_ltag, (void **)&sc->dc_ldata,
 	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->dc_lmap);
 	if (error) {
-		printf("dc%d: failed to allocate DMA safe memory\n", unit);
+		device_printf(dev, "failed to allocate DMA safe memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2119,7 +2108,7 @@ dc_attach(device_t dev)
 	    sizeof(struct dc_list_data), dc_dma_map_addr, &sc->dc_laddr,
 	    BUS_DMA_NOWAIT);
 	if (error) {
-		printf("dc%d: cannot get address of the descriptors\n", unit);
+		device_printf(dev, "cannot get address of the descriptors\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2132,21 +2121,21 @@ dc_attach(device_t dev)
 	    BUS_SPACE_MAXADDR, NULL, NULL, DC_SFRAME_LEN + DC_MIN_FRAMELEN, 1,
 	    DC_SFRAME_LEN + DC_MIN_FRAMELEN, 0, NULL, NULL, &sc->dc_stag);
 	if (error) {
-		printf("dc%d: failed to allocate busdma tag\n", unit);
+		device_printf(dev, "failed to allocate busdma tag\n");
 		error = ENXIO;
 		goto fail;
 	}
 	error = bus_dmamem_alloc(sc->dc_stag, (void **)&sc->dc_cdata.dc_sbuf,
 	    BUS_DMA_NOWAIT, &sc->dc_smap);
 	if (error) {
-		printf("dc%d: failed to allocate DMA safe memory\n", unit);
+		device_printf(dev, "failed to allocate DMA safe memory\n");
 		error = ENXIO;
 		goto fail;
 	}
 	error = bus_dmamap_load(sc->dc_stag, sc->dc_smap, sc->dc_cdata.dc_sbuf,
 	    DC_SFRAME_LEN, dc_dma_map_addr, &sc->dc_saddr, BUS_DMA_NOWAIT);
 	if (error) {
-		printf("dc%d: cannot get address of the descriptors\n", unit);
+		device_printf(dev, "cannot get address of the descriptors\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2156,7 +2145,7 @@ dc_attach(device_t dev)
 	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, DC_TX_LIST_CNT, MCLBYTES,
 	    0, NULL, NULL, &sc->dc_mtag);
 	if (error) {
-		printf("dc%d: failed to allocate busdma tag\n", unit);
+		device_printf(dev, "failed to allocate busdma tag\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2166,7 +2155,7 @@ dc_attach(device_t dev)
 		error = bus_dmamap_create(sc->dc_mtag, 0,
 		    &sc->dc_cdata.dc_tx_map[i]);
 		if (error) {
-			printf("dc%d: failed to init TX ring\n", unit);
+			device_printf(dev, "failed to init TX ring\n");
 			error = ENXIO;
 			goto fail;
 		}
@@ -2175,21 +2164,21 @@ dc_attach(device_t dev)
 		error = bus_dmamap_create(sc->dc_mtag, 0,
 		    &sc->dc_cdata.dc_rx_map[i]);
 		if (error) {
-			printf("dc%d: failed to init RX ring\n", unit);
+			device_printf(dev, "failed to init RX ring\n");
 			error = ENXIO;
 			goto fail;
 		}
 	}
 	error = bus_dmamap_create(sc->dc_mtag, 0, &sc->dc_sparemap);
 	if (error) {
-		printf("dc%d: failed to init RX ring\n", unit);
+		device_printf(dev, "failed to init RX ring\n");
 		error = ENXIO;
 		goto fail;
 	}
 
 	ifp = sc->dc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("dc%d: can not if_alloc()\n", unit);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -2198,8 +2187,6 @@ dc_attach(device_t dev)
 	/* XXX: bleah, MTU gets overwritten in ether_ifattach() */
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	if (!IS_MPSAFE)
-		ifp->if_flags |= IFF_NEEDSGIANT;
 	ifp->if_ioctl = dc_ioctl;
 	ifp->if_start = dc_start;
 	ifp->if_watchdog = dc_watchdog;
@@ -2259,7 +2246,7 @@ dc_attach(device_t dev)
 	}
 
 	if (error) {
-		printf("dc%d: MII without any PHY!\n", sc->dc_unit);
+		device_printf(dev, "MII without any PHY!\n");
 		goto fail;
 	}
 
@@ -2280,7 +2267,7 @@ dc_attach(device_t dev)
 #endif
 	ifp->if_capenable = ifp->if_capabilities;
 
-	callout_init(&sc->dc_stat_ch, IS_MPSAFE ? CALLOUT_MPSAFE : 0);
+	callout_init_mtx(&sc->dc_stat_ch, &sc->dc_mtx, 0);
 
 #ifdef SRM_MEDIA
 	sc->dc_srm_media = 0;
@@ -2314,12 +2301,11 @@ dc_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->dc_irq, INTR_TYPE_NET |
-	    (IS_MPSAFE ? INTR_MPSAFE : 0),
+	error = bus_setup_intr(dev, sc->dc_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    dc_intr, sc, &sc->dc_intrhand);
 
 	if (error) {
-		printf("dc%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		if_free(ifp);
 		goto fail;
@@ -2348,13 +2334,15 @@ dc_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->dc_mtx), ("dc mutex not initialized"));
-	DC_LOCK(sc);
 
 	ifp = sc->dc_ifp;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
+		DC_LOCK(sc);
 		dc_stop(sc);
+		DC_UNLOCK(sc);
+		callout_drain(&sc->dc_stat_ch);
 		ether_ifdetach(ifp);
 		if_free(ifp);
 	}
@@ -2394,7 +2382,6 @@ dc_detach(device_t dev)
 	}
 	free(sc->dc_srom, M_DEVBUF);
 
-	DC_UNLOCK(sc);
 	mtx_destroy(&sc->dc_mtx);
 
 	return (0);
@@ -2755,7 +2742,7 @@ dc_rxeof(struct dc_softc *sc)
 					DC_INC(i, DC_RX_LIST_CNT);
 					continue;
 				} else {
-					dc_init(sc);
+					dc_init_locked(sc);
 					return;
 				}
 			}
@@ -2883,7 +2870,7 @@ dc_txeof(struct dc_softc *sc)
 			if (txstat & DC_TXSTAT_LATECOLL)
 				ifp->if_collisions++;
 			if (!(txstat & DC_TXSTAT_UNDERRUN)) {
-				dc_init(sc);
+				dc_init_locked(sc);
 				return;
 			}
 		}
@@ -2922,7 +2909,7 @@ dc_tick(void *xsc)
 	u_int32_t r;
 
 	sc = xsc;
-	DC_LOCK(sc);
+	DC_LOCK_ASSERT(sc);
 	ifp = sc->dc_ifp;
 	mii = device_get_softc(sc->dc_miibus);
 
@@ -2976,15 +2963,13 @@ dc_tick(void *xsc)
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->dc_link++;
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			dc_start(ifp);
+			dc_start_locked(ifp);
 	}
 
 	if (sc->dc_flags & DC_21143_NWAY && !sc->dc_link)
 		callout_reset(&sc->dc_stat_ch, hz/10, dc_tick, sc);
 	else
 		callout_reset(&sc->dc_stat_ch, hz, dc_tick, sc);
-
-	DC_UNLOCK(sc);
 }
 
 /*
@@ -2998,7 +2983,7 @@ dc_tx_underrun(struct dc_softc *sc)
 	int i;
 
 	if (DC_IS_DAVICOM(sc))
-		dc_init(sc);
+		dc_init_locked(sc);
 
 	if (DC_IS_INTEL(sc)) {
 		/*
@@ -3015,13 +3000,13 @@ dc_tx_underrun(struct dc_softc *sc)
 			DELAY(10);
 		}
 		if (i == DC_TIMEOUT) {
-			printf("dc%d: failed to force tx to idle state\n",
-			    sc->dc_unit);
-			dc_init(sc);
+			if_printf(sc->dc_ifp,
+			    "failed to force tx to idle state\n");
+			dc_init_locked(sc);
 		}
 	}
 
-	printf("dc%d: TX underrun -- ", sc->dc_unit);
+	if_printf(sc->dc_ifp, "TX underrun -- ");
 	sc->dc_txthresh += DC_TXTHRESH_INC;
 	if (sc->dc_txthresh > DC_TXTHRESH_MAX) {
 		printf("using store and forward mode\n");
@@ -3059,7 +3044,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	dc_txeof(sc);
 	if (!IFQ_IS_EMPTY(&ifp->if_snd) &&
 	    !(ifp->if_drv_flags & IFF_DRV_OACTIVE))
-		dc_start(ifp);
+		dc_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
 		u_int32_t	status;
@@ -3090,9 +3075,9 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			dc_tx_underrun(sc);
 
 		if (status & DC_ISR_BUS_ERR) {
-			printf("dc_poll: dc%d bus error\n", sc->dc_unit);
+			if_printf(ifp, "dc_poll: bus error\n");
 			dc_reset(sc);
-			dc_init(sc);
+			dc_init_locked(sc);
 		}
 	}
 	DC_UNLOCK(sc);
@@ -3179,7 +3164,7 @@ dc_intr(void *arg)
 
 		if (status & DC_ISR_BUS_ERR) {
 			dc_reset(sc);
-			dc_init(sc);
+			dc_init_locked(sc);
 		}
 	}
 
@@ -3187,7 +3172,7 @@ dc_intr(void *arg)
 	CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		dc_start(ifp);
+		dc_start_locked(ifp);
 
 #ifdef DEVICE_POLLING
 done:
@@ -3316,23 +3301,30 @@ static void
 dc_start(struct ifnet *ifp)
 {
 	struct dc_softc *sc;
+
+	sc = ifp->if_softc;
+	DC_LOCK(sc);
+	dc_start_locked(ifp);
+	DC_UNLOCK(sc);
+}
+
+static void
+dc_start_locked(struct ifnet *ifp)
+{
+	struct dc_softc *sc;
 	struct mbuf *m_head = NULL, *m;
 	unsigned int queued = 0;
 	int idx;
 
 	sc = ifp->if_softc;
 
-	DC_LOCK(sc);
+	DC_LOCK_ASSERT(sc);
 
-	if (!sc->dc_link && ifp->if_snd.ifq_len < 10) {
-		DC_UNLOCK(sc);
+	if (!sc->dc_link && ifp->if_snd.ifq_len < 10)
 		return;
-	}
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
-		DC_UNLOCK(sc);
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
-	}
 
 	idx = sc->dc_cdata.dc_tx_first = sc->dc_cdata.dc_tx_prod;
 
@@ -3384,18 +3376,37 @@ dc_start(struct ifnet *ifp)
 		 */
 		ifp->if_timer = 5;
 	}
-
-	DC_UNLOCK(sc);
 }
 
 static void
 dc_init(void *xsc)
 {
 	struct dc_softc *sc = xsc;
+
+	DC_LOCK(sc);
+	dc_init_locked(sc);
+#ifdef SRM_MEDIA
+	if(sc->dc_srm_media) {
+		struct ifreq ifr;
+		struct mii_data *mii;
+
+		ifr.ifr_media = sc->dc_srm_media;
+		sc->dc_srm_media = 0;
+		DC_UNLOCK(sc);
+		mii = device_get_softc(sc->dc_miibus);
+		ifmedia_ioctl(sc->dc_ifp, &ifr, &mii->mii_media, SIOCSIFMEDIA);
+	} else
+#endif
+		DC_UNLOCK(sc);
+}
+
+static void
+dc_init_locked(struct dc_softc *sc)
+{
 	struct ifnet *ifp = sc->dc_ifp;
 	struct mii_data *mii;
 
-	DC_LOCK(sc);
+	DC_LOCK_ASSERT(sc);
 
 	mii = device_get_softc(sc->dc_miibus);
 
@@ -3488,10 +3499,9 @@ dc_init(void *xsc)
 
 	/* Init circular RX list. */
 	if (dc_list_rx_init(sc) == ENOBUFS) {
-		printf("dc%d: initialization failed: no "
-		    "memory for rx buffers\n", sc->dc_unit);
+		if_printf(ifp,
+		    "initialization failed: no memory for rx buffers\n");
 		dc_stop(sc);
-		DC_UNLOCK(sc);
 		return;
 	}
 
@@ -3563,17 +3573,6 @@ dc_init(void *xsc)
 		else
 			callout_reset(&sc->dc_stat_ch, hz, dc_tick, sc);
 	}
-
-#ifdef SRM_MEDIA
-	if(sc->dc_srm_media) {
-		struct ifreq ifr;
-
-		ifr.ifr_media = sc->dc_srm_media;
-		ifmedia_ioctl(ifp, &ifr, &mii->mii_media, SIOCSIFMEDIA);
-		sc->dc_srm_media = 0;
-	}
-#endif
-	DC_UNLOCK(sc);
 }
 
 /*
@@ -3588,6 +3587,7 @@ dc_ifmedia_upd(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->dc_miibus);
+	DC_LOCK(sc);
 	mii_mediachg(mii);
 	ifm = &mii->mii_media;
 
@@ -3596,6 +3596,7 @@ dc_ifmedia_upd(struct ifnet *ifp)
 		dc_setcfg(sc, ifm->ifm_media);
 	else
 		sc->dc_link = 0;
+	DC_UNLOCK(sc);
 
 	return (0);
 }
@@ -3612,6 +3613,7 @@ dc_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->dc_miibus);
+	DC_LOCK(sc);
 	mii_pollstat(mii);
 	ifm = &mii->mii_media;
 	if (DC_IS_DAVICOM(sc)) {
@@ -3623,6 +3625,7 @@ dc_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	}
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	DC_UNLOCK(sc);
 }
 
 static int
@@ -3633,10 +3636,9 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data *mii;
 	int error = 0;
 
-	DC_LOCK(sc);
-
 	switch (command) {
 	case SIOCSIFFLAGS:
+		DC_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			int need_setfilt = (ifp->if_flags ^ sc->dc_if_flags) &
 				(IFF_PROMISC | IFF_ALLMULTI);
@@ -3646,18 +3648,21 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					dc_setfilt(sc);
 			} else {
 				sc->dc_txthresh = 0;
-				dc_init(sc);
+				dc_init_locked(sc);
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				dc_stop(sc);
 		}
 		sc->dc_if_flags = ifp->if_flags;
+		DC_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		DC_LOCK(sc);
 		dc_setfilt(sc);
+		DC_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
@@ -3665,20 +3670,22 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		mii = device_get_softc(sc->dc_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 #ifdef SRM_MEDIA
+		DC_LOCK(sc);
 		if (sc->dc_srm_media)
 			sc->dc_srm_media = 0;
+		DC_UNLOCK(sc);
 #endif
 		break;
 	case SIOCSIFCAP:
+		DC_LOCK(sc);
 		ifp->if_capenable &= ~IFCAP_POLLING;
 		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
+		DC_UNLOCK(sc);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
-
-	DC_UNLOCK(sc);
 
 	return (error);
 }
@@ -3693,14 +3700,14 @@ dc_watchdog(struct ifnet *ifp)
 	DC_LOCK(sc);
 
 	ifp->if_oerrors++;
-	printf("dc%d: watchdog timeout\n", sc->dc_unit);
+	if_printf(ifp, "watchdog timeout\n");
 
 	dc_stop(sc);
 	dc_reset(sc);
-	dc_init(sc);
+	dc_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		dc_start(ifp);
+		dc_start_locked(ifp);
 
 	DC_UNLOCK(sc);
 }
@@ -3718,7 +3725,7 @@ dc_stop(struct dc_softc *sc)
 	int i;
 	u_int32_t ctl;
 
-	DC_LOCK(sc);
+	DC_LOCK_ASSERT(sc);
 
 	ifp = sc->dc_ifp;
 	ifp->if_timer = 0;
@@ -3766,8 +3773,6 @@ dc_stop(struct dc_softc *sc)
 		}
 	}
 	bzero(&ld->dc_tx_list, sizeof(ld->dc_tx_list));
-
-	DC_UNLOCK(sc);
 }
 
 /*
@@ -3779,15 +3784,13 @@ static int
 dc_suspend(device_t dev)
 {
 	struct dc_softc *sc;
-	int s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	DC_LOCK(sc);
 	dc_stop(sc);
 	sc->suspended = 1;
+	DC_UNLOCK(sc);
 
-	splx(s);
 	return (0);
 }
 
@@ -3801,20 +3804,18 @@ dc_resume(device_t dev)
 {
 	struct dc_softc *sc;
 	struct ifnet *ifp;
-	int s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	ifp = sc->dc_ifp;
 
 	/* reinitialize interface if necessary */
+	DC_LOCK(sc);
 	if (ifp->if_flags & IFF_UP)
-		dc_init(sc);
+		dc_init_locked(sc);
 
 	sc->suspended = 0;
+	DC_UNLOCK(sc);
 
-	splx(s);
 	return (0);
 }
 
@@ -3829,5 +3830,7 @@ dc_shutdown(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	DC_LOCK(sc);
 	dc_stop(sc);
+	DC_UNLOCK(sc);
 }

@@ -137,12 +137,15 @@ static void sf_txeof(struct sf_softc *);
 static int sf_encap(struct sf_softc *, struct sf_tx_bufdesc_type0 *,
 		struct mbuf *);
 static void sf_start(struct ifnet *);
+static void sf_start_locked(struct ifnet *);
 static int sf_ioctl(struct ifnet *, u_long, caddr_t);
 static void sf_init(void *);
+static void sf_init_locked(struct sf_softc *);
 static void sf_stop(struct sf_softc *);
 static void sf_watchdog(struct ifnet *);
 static void sf_shutdown(device_t);
 static int sf_ifmedia_upd(struct ifnet *);
+static void sf_ifmedia_upd_locked(struct ifnet *);
 static void sf_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static void sf_reset(struct sf_softc *);
 static int sf_init_rx_ring(struct sf_softc *);
@@ -462,10 +465,25 @@ sf_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct sf_softc		*sc;
+
+	sc = ifp->if_softc;
+	SF_LOCK(sc);
+	sf_ifmedia_upd_locked(ifp);
+	SF_UNLOCK(sc);
+
+	return(0);
+}
+
+static void
+sf_ifmedia_upd_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct sf_softc		*sc;
 	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->sf_miibus);
+	SF_LOCK_ASSERT(sc);
 	sc->sf_link = 0;
 	if (mii->mii_instance) {
 		struct mii_softc        *miisc;
@@ -473,8 +491,6 @@ sf_ifmedia_upd(ifp)
 			mii_phy_reset(miisc);
 	}
 	mii_mediachg(mii);
-
-	return(0);
 }
 
 /*
@@ -489,11 +505,13 @@ sf_ifmedia_sts(ifp, ifmr)
 	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
+	SF_LOCK(sc);
 	mii = device_get_softc(sc->sf_miibus);
 
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	SF_UNLOCK(sc);
 }
 
 static int
@@ -507,10 +525,9 @@ sf_ioctl(ifp, command, data)
 	struct mii_data		*mii;
 	int			error = 0;
 
-	SF_LOCK(sc);
-
 	switch(command) {
 	case SIOCSIFFLAGS:
+		SF_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
@@ -521,17 +538,20 @@ sf_ioctl(ifp, command, data)
 			    sc->sf_if_flags & IFF_PROMISC) {
 				SF_CLRBIT(sc, SF_RXFILT, SF_RXFILT_PROMISC);
 			} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-				sf_init(sc);
+				sf_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				sf_stop(sc);
 		}
 		sc->sf_if_flags = ifp->if_flags;
+		SF_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		SF_LOCK(sc);
 		sf_setmulti(sc);
+		SF_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
@@ -540,15 +560,15 @@ sf_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
+		SF_LOCK(sc);
 		ifp->if_capenable &= ~IFCAP_POLLING;
 		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
+		SF_UNLOCK(sc);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
-
-	SF_UNLOCK(sc);
 
 	return(error);
 }
@@ -573,7 +593,7 @@ sf_reset(sc)
 	}
 
 	if (i == SF_TIMEOUT)
-		printf("sf%d: reset never completed!\n", sc->sf_unit);
+		if_printf(sc->sf_ifp, "reset never completed!\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -643,14 +663,13 @@ sf_attach(dev)
 	int			i;
 	struct sf_softc		*sc;
 	struct ifnet		*ifp;
-	int			unit, rid, error = 0;
+	int			rid, error = 0;
 	u_char			eaddr[6];
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 	/*
 	 * Map control/status registers.
 	 */
@@ -660,7 +679,7 @@ sf_attach(dev)
 	sc->sf_res = bus_alloc_resource_any(dev, SF_RES, &rid, RF_ACTIVE);
 
 	if (sc->sf_res == NULL) {
-		printf ("sf%d: couldn't map ports\n", unit);
+		device_printf(dev, "couldn't map ports\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -674,12 +693,13 @@ sf_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->sf_irq == NULL) {
-		printf("sf%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
 
-	callout_handle_init(&sc->sf_stat_ch);
+	callout_init_mtx(&sc->sf_stat_callout, &sc->sf_mtx, 0);
+
 	/* Reset the adapter. */
 	sf_reset(sc);
 
@@ -690,14 +710,12 @@ sf_attach(dev)
 		eaddr[i] =
 		    sf_read_eeprom(sc, SF_EE_NODEADDR + ETHER_ADDR_LEN - i);
 
-	sc->sf_unit = unit;
-
 	/* Allocate the descriptor queues. */
 	sc->sf_ldata = contigmalloc(sizeof(struct sf_list_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->sf_ldata == NULL) {
-		printf("sf%d: no memory for list buffers!\n", unit);
+		device_printf(dev, "no memory for list buffers!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -706,7 +724,7 @@ sf_attach(dev)
 
 	ifp = sc->sf_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("sf%d: can not if_alloc()\n", sc->sf_unit);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -714,7 +732,7 @@ sf_attach(dev)
 	/* Do MII setup. */
 	if (mii_phy_probe(dev, &sc->sf_miibus,
 	    sf_ifmedia_upd, sf_ifmedia_sts)) {
-		printf("sf%d: MII without any phy!\n", sc->sf_unit);
+		device_printf(dev, "MII without any phy!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -722,8 +740,7 @@ sf_attach(dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = sf_ioctl;
 	ifp->if_start = sf_start;
 	ifp->if_watchdog = sf_watchdog;
@@ -743,11 +760,11 @@ sf_attach(dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->sf_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->sf_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    sf_intr, sc, &sc->sf_intrhand);
 
 	if (error) {
-		printf("sf%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		if_free(ifp);
 		goto fail;
@@ -776,12 +793,14 @@ sf_detach(dev)
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->sf_mtx), ("sf mutex not initialized"));
-	SF_LOCK(sc);
 	ifp = sc->sf_ifp;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
+		SF_LOCK(sc);
 		sf_stop(sc);
+		SF_UNLOCK(sc);
+		callout_drain(&sc->sf_stat_callout);
 		ether_ifdetach(ifp);
 		if_free(ifp);
 	}
@@ -799,7 +818,6 @@ sf_detach(dev)
 	if (sc->sf_ldata)
 		contigfree(sc->sf_ldata, sizeof(struct sf_list_data), M_DEVBUF);
 
-	SF_UNLOCK(sc);
 	mtx_destroy(&sc->sf_mtx);
 
 	return(0);
@@ -987,6 +1005,7 @@ sf_txeof(sc)
 
 	ifp = sc->sf_ifp;
 
+	SF_LOCK_ASSERT(sc);
 	txcons = csr_read_4(sc, SF_CQ_CONSIDX);
 	cmpprodidx = SF_IDX_HI(csr_read_4(sc, SF_CQ_PRODIDX));
 	cmpconsidx = SF_IDX_HI(txcons);
@@ -1034,9 +1053,9 @@ sf_txthresh_adjust(sc)
 		txfctl &= ~SF_TXFRMCTL_TXTHRESH;
 		txfctl |= txthresh;
 #ifdef DIAGNOSTIC
-		printf("sf%d: tx underrun, increasing "
+		if_printf(sc->sf_ifp, "tx underrun, increasing "
 		    "tx threshold to %d bytes\n",
-		    sc->sf_unit, txthresh * 4);
+		    txthresh * 4);
 #endif
 		csr_write_4(sc, SF_TX_FRAMCTL, txfctl);
 	}
@@ -1075,7 +1094,7 @@ sf_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	sf_rxeof(sc);
 	sf_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sf_start(ifp);
+		sf_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		u_int32_t status;
@@ -1089,11 +1108,10 @@ sf_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & SF_ISR_ABNORMALINTR) {
 			if (status & SF_ISR_STATSOFLOW) {
-				untimeout(sf_stats_update, sc,
-				    sc->sf_stat_ch);
+				callout_stop(&sc->sf_stat_callout);
 				sf_stats_update(sc);
 			} else
-				sf_init(sc);
+				sf_init_locked(sc);
 		}
 	}
 }
@@ -1154,11 +1172,10 @@ sf_intr(arg)
 
 		if (status & SF_ISR_ABNORMALINTR) {
 			if (status & SF_ISR_STATSOFLOW) {
-				untimeout(sf_stats_update, sc,
-				    sc->sf_stat_ch);
+				callout_stop(&sc->sf_stat_callout);
 				sf_stats_update(sc);
 			} else
-				sf_init(sc);
+				sf_init_locked(sc);
 		}
 	}
 
@@ -1166,7 +1183,7 @@ sf_intr(arg)
 	csr_write_4(sc, SF_IMR, SF_INTRS);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sf_start(ifp);
+		sf_start_locked(ifp);
 
 #ifdef DEVICE_POLLING
 done_locked:
@@ -1179,12 +1196,22 @@ sf_init(xsc)
 	void			*xsc;
 {
 	struct sf_softc		*sc;
+
+	sc = xsc;
+	SF_LOCK(sc);
+	sf_init_locked(sc);
+	SF_UNLOCK(sc);
+}
+
+static void
+sf_init_locked(sc)
+	struct sf_softc		*sc;
+{
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
 	int			i;
 
-	sc = xsc;
-	SF_LOCK(sc);
+	SF_LOCK_ASSERT(sc);
 	ifp = sc->sf_ifp;
 	mii = device_get_softc(sc->sf_miibus);
 
@@ -1207,9 +1234,8 @@ sf_init(xsc)
 	sf_setperf(sc, 0, (caddr_t)&IFP2ENADDR(sc->sf_ifp));
 
 	if (sf_init_rx_ring(sc) == ENOBUFS) {
-		printf("sf%d: initialization failed: no "
-		    "memory for rx buffers\n", sc->sf_unit);
-		SF_UNLOCK(sc);
+		if_printf(sc->sf_ifp,
+		    "initialization failed: no memory for rx buffers\n");
 		return;
 	}
 
@@ -1284,14 +1310,12 @@ sf_init(xsc)
 	SF_SETBIT(sc, SF_GEN_ETH_CTL, SF_ETHCTL_TX_ENB|SF_ETHCTL_TXDMA_ENB);
 
 	/*mii_mediachg(mii);*/
-	sf_ifmedia_upd(ifp);
+	sf_ifmedia_upd_locked(ifp);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->sf_stat_ch = timeout(sf_stats_update, sc, hz);
-
-	SF_UNLOCK(sc);
+	callout_reset(&sc->sf_stat_callout, hz, sf_stats_update, sc);
 }
 
 static int
@@ -1324,7 +1348,7 @@ sf_encap(sc, c, m_head)
 
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			printf("sf%d: no memory for tx list\n", sc->sf_unit);
+			if_printf(sc->sf_ifp, "no memory for tx list\n");
 			return(1);
 		}
 
@@ -1332,8 +1356,7 @@ sf_encap(sc, c, m_head)
 			MCLGET(m_new, M_DONTWAIT);
 			if (!(m_new->m_flags & M_EXT)) {
 				m_freem(m_new);
-				printf("sf%d: no memory for tx list\n",
-				    sc->sf_unit);
+				if_printf(sc->sf_ifp, "no memory for tx list\n");
 				return(1);
 			}
 		}
@@ -1363,29 +1386,37 @@ sf_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct sf_softc		*sc;
+
+	sc = ifp->if_softc;
+	SF_LOCK(sc);
+	sf_start_locked(ifp);
+	SF_UNLOCK(sc);
+}
+
+static void
+sf_start_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct sf_softc		*sc;
 	struct sf_tx_bufdesc_type0 *cur_tx = NULL;
 	struct mbuf		*m_head = NULL;
 	int			i, txprod;
 
 	sc = ifp->if_softc;
-	SF_LOCK(sc);
+	SF_LOCK_ASSERT(sc);
 
-	if (!sc->sf_link && ifp->if_snd.ifq_len < 10) {
-		SF_UNLOCK(sc);
+	if (!sc->sf_link && ifp->if_snd.ifq_len < 10)
 		return;
-	}
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
-		SF_UNLOCK(sc);
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
-	}
 
 	txprod = csr_read_4(sc, SF_TXDQ_PRODIDX);
 	i = SF_IDX_HI(txprod) >> 4;
 
 	if (sc->sf_ldata->sf_tx_dlist[i].sf_mbuf != NULL) {
-		printf("sf%d: TX ring full, resetting\n", sc->sf_unit);
-		sf_init(sc);
+		if_printf(ifp, "TX ring full, resetting\n");
+		sf_init_locked(sc);
 		txprod = csr_read_4(sc, SF_TXDQ_PRODIDX);
 		i = SF_IDX_HI(txprod) >> 4;
 	}
@@ -1423,10 +1454,8 @@ sf_start(ifp)
 			break;
 	}
 
-	if (cur_tx == NULL) {
-		SF_UNLOCK(sc);
+	if (cur_tx == NULL)
 		return;
-	}
 
 	/* Transmit */
 	csr_write_4(sc, SF_TXDQ_PRODIDX,
@@ -1434,8 +1463,6 @@ sf_start(ifp)
 	    ((i << 20) & 0xFFFF0000));
 
 	ifp->if_timer = 5;
-
-	SF_UNLOCK(sc);
 }
 
 static void
@@ -1445,11 +1472,11 @@ sf_stop(sc)
 	int			i;
 	struct ifnet		*ifp;
 
-	SF_LOCK(sc);
+	SF_LOCK_ASSERT(sc);
 
 	ifp = sc->sf_ifp;
 
-	untimeout(sf_stats_update, sc, sc->sf_stat_ch);
+	callout_stop(&sc->sf_stat_callout);
 
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
@@ -1483,7 +1510,6 @@ sf_stop(sc)
 	}
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
-	SF_UNLOCK(sc);
 }
 
 /*
@@ -1505,7 +1531,7 @@ sf_stats_update(xsc)
 	int			i;
 
 	sc = xsc;
-	SF_LOCK(sc);
+	SF_LOCK_ASSERT(sc);
 	ifp = sc->sf_ifp;
 	mii = device_get_softc(sc->sf_miibus);
 
@@ -1527,12 +1553,10 @@ sf_stats_update(xsc)
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->sf_link++;
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			sf_start(ifp);
+			sf_start_locked(ifp);
 	}
 
-	sc->sf_stat_ch = timeout(sf_stats_update, sc, hz);
-
-	SF_UNLOCK(sc);
+	callout_reset(&sc->sf_stat_callout, hz, sf_stats_update, sc);
 }
 
 static void
@@ -1546,14 +1570,14 @@ sf_watchdog(ifp)
 	SF_LOCK(sc);
 
 	ifp->if_oerrors++;
-	printf("sf%d: watchdog timeout\n", sc->sf_unit);
+	if_printf(ifp, "watchdog timeout\n");
 
 	sf_stop(sc);
 	sf_reset(sc);
-	sf_init(sc);
+	sf_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sf_start(ifp);
+		sf_start_locked(ifp);
 
 	SF_UNLOCK(sc);
 }
@@ -1566,5 +1590,7 @@ sf_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	SF_LOCK(sc);
 	sf_stop(sc);
+	SF_UNLOCK(sc);
 }
