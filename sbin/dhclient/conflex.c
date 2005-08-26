@@ -236,6 +236,7 @@ read_string(FILE *cfile)
 		}
 		if (bs) {
 			bs = 0;
+			i--;
 			tokbuf[i] = c;
 		} else if (c == '\\')
 			bs = 1;
