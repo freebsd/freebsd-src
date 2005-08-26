@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"	/* XXX trim includes */
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -411,7 +412,13 @@ getconfexit:
 							  io->pi_width);
 				error = 0;
 			} else {
-				error = ENODEV;
+#ifdef COMPAT_FREEBSD4
+				if (cmd == PCIOCREAD) {
+					io->pi_data = -1;
+					error = 0;
+				} else
+#endif
+					error = ENODEV;
 			}
 			break;
 		default:
