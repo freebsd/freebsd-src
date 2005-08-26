@@ -3096,7 +3096,6 @@ handle_written_inodeblock(inodedep, bp)
 	if ((inodedep->id_state & IOSTARTED) == 0)
 		panic("handle_written_inodeblock: not started");
 	inodedep->id_state &= ~IOSTARTED;
-	inodedep->id_state |= COMPLETE;
 	dp = (struct dinode *)bp->b_data +
 	    ino_to_fsbo(inodedep->id_fs, inodedep->id_ino);
 	/*
@@ -3113,6 +3112,7 @@ handle_written_inodeblock(inodedep, bp)
 		bdirty(bp);
 		return (1);
 	}
+	inodedep->id_state |= COMPLETE;
 	/*
 	 * Roll forward anything that had to be rolled back before 
 	 * the inode could be updated.
