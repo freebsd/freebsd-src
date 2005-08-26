@@ -190,6 +190,7 @@ static struct fxp_ident fxp_ident_table[] = {
     { 0x1229,	0x10,	"Intel 82551 Pro/100 Ethernet" },
     { 0x1229,	-1,	"Intel 82557/8/9 Pro/100 Ethernet" },
     { 0x2449,	-1,	"Intel 82801BA/CAM (ICH2/3) Pro/100 Ethernet" },
+    { 0x27dc,	-1,	"Intel 82801GB (ICH7) 10/100 Ethernet" },
     { 0,	-1,	NULL },
 };
 
