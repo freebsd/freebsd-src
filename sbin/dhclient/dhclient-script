@@ -54,15 +54,15 @@ arp_flush() {
 }
 
 delete_old_address() {
-	ifconfig $interface inet -alias $old_ip_address $medium
+	eval "ifconfig $interface inet -alias $old_ip_address $medium"
 }
 
 add_new_address() {
-	ifconfig $interface \
+	eval "ifconfig $interface \
 		inet $new_ip_address \
 		netmask $new_subnet_mask \
 		broadcast $new_broadcast_address \
-		$medium
+		$medium"
 
 	$LOGGER "New IP Address ($interface): $new_ip_address"
 	$LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
@@ -204,8 +204,8 @@ fi
 
 case $reason in
 MEDIUM)
-	ifconfig $interface $medium
-	ifconfig $interface inet -alias 0.0.0.0 $medium >/dev/null 2>&1
+	eval "ifconfig $interface $medium"
+	eval "ifconfig $interface inet -alias 0.0.0.0 $medium" >/dev/null 2>&1
 	sleep 1
 	;;
 
@@ -271,7 +271,7 @@ TIMEOUT)
 			fi
 		fi
 	fi
-	ifconfig $interface inet -alias $new_ip_address $medium
+	eval "ifconfig $interface inet -alias $new_ip_address $medium"
 	delete_old_routes
 	exit_with_hooks 1
 	;;
