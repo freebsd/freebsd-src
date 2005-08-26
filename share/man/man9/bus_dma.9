@@ -244,28 +244,25 @@ allows the type of DMA operation that will be or has been performed
 to be communicated to the system so that the correct coherency measures
 are taken.
 All operations specified below are performed from the CPU's
-point of view (for a complete description, see the
+point of view, where a read implies data coming from the device to the CPU, and
+a write implies data going from the CPU to the device.
+The operations are represented as bitfield flags that can be combined together,
+though it only makes sense to combine PRE flags or POST flags, not both.
+See the
 .Fn bus_dmamap_sync
-description below):
+description below for more details on how to use these operations.
 .Bl -tag -width BUS_DMASYNC_POSTWRITE
 .It Dv BUS_DMASYNC_PREREAD
-Perform any synchronization required after an update of memory by the CPU
-but prior to DMA read operations.
+Perform any synchronization required prior to an update of memory by the DMA
+operation.
 .It Dv BUS_DMASYNC_PREWRITE
 Perform any synchronization required after an update of memory by the CPU
-but prior to DMA write operations.
-.It Dv BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE
-Perform any synchronization required prior to a combination of DMA read
-and write operations.
+and prior to DMA write operations.
 .It Dv BUS_DMASYNC_POSTREAD
-Perform any synchronization required after DMA read operations, but prior
-to CPU access of the memory.
+Perform any synchronization required after DMA read operations and prior to
+CPU access to the memory.
 .It Dv BUS_DMASYNC_POSTWRITE
-Perform any synchronization required after DMA write operations, but prior
-to CPU access of the memory.
-.It Dv BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE
-Perform any synchronization required after a combination of DMA read
-and write operations.
+Perform any synchronization required after DMA write operations.
 .El
 .It Vt bus_dma_lock_t
 Client specified lock/mutex manipulation method.
