@@ -2790,9 +2790,23 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		 * All sampling mode PMCs need to be able to interrupt the
 		 * CPU.
 		 */
-
 		if (PMC_IS_SAMPLING_MODE(mode))
 			caps |= PMC_CAP_INTERRUPT;
+
+		/* A valid class specifier should have been passed in. */
+		for (n = 0; n < md->pmd_nclass; n++)
+			if (md->pmd_classes[n].pm_class == pa.pm_class)
+				break;
+		if (n == md->pmd_nclass) {
+			error = EINVAL;
+			break;
+		}
+
+		/* The requested PMC capabilities should be feasible. */
+		if ((md->pmd_classes[n].pm_caps & caps) != caps) {
+			error = EOPNOTSUPP;
+			break;
+		}
 
 		PMCDBG(PMC,ALL,2, "event=%d caps=0x%x mode=%d cpu=%d",
 		    pa.pm_ev, caps, mode, cpu);
@@ -4033,10 +4047,16 @@ pmc_initialize(void)
 
 	if (error == 0) {
 		printf(PMC_MODULE_NAME ":");
-		for (n = 0; n < (int) md->pmd_nclass; n++)
-			printf(" %s(%d)",
+		for (n = 0; n < (int) md->pmd_nclass; n++) {
+			printf(" %s/%d/0x%b",
 			    pmc_name_of_pmcclass[md->pmd_classes[n].pm_class],
-			    md->pmd_nclasspmcs[n]);
+			    md->pmd_nclasspmcs[n],
+			    md->pmd_classes[n].pm_caps,
+			    "\20"
+			    "\1INT\2USR\3SYS\4EDG\5THR"
+			    "\6REA\7WRI\10INV\11QUA\12PRC"
+			    "\13TAG\14CSC");
+		}
 		printf("\n");
 	}
 
