@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (C) 1984-2002  Mark Nudelman
  *
@@ -911,8 +912,8 @@ back_raw_line(curr_pos, linep)
 			/*
 			 * Shift the data to the end of the new linebuf.
 			 */
-			for (fm = linebuf + old_size_linebuf,
-			      to = linebuf + size_linebuf;
+			for (fm = linebuf + old_size_linebuf - 1,
+			      to = linebuf + size_linebuf - 1;
 			     fm >= linebuf;  fm--, to--)
 				*to = *fm;
 			n = size_linebuf - old_size_linebuf;
