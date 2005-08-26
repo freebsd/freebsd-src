@@ -20,7 +20,6 @@
 #
 
 NETSTAT=/usr/bin/netstat
-GREP=/usr/bin/grep
 AWK=/usr/bin/awk
 HOSTNAME=/bin/hostname
 
@@ -198,7 +197,7 @@ if [ -f /etc/dhclient-enter-hooks ]; then
 fi
 
 if [ -x $NETSTAT ]; then
-	if_defaultroute=`$NETSTAT -rn | $GREP "^default" | $AWK '{print $6}'`
+	if_defaultroute=`$NETSTAT -rnf inet | $AWK '{if ($1=="default") printf $6}'`
 else
 	if_defaultroute="x"
 fi
