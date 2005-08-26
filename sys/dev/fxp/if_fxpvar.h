@@ -101,21 +101,9 @@
  */
 #define TUNABLE_BUNDLE_MAX 6
 
-#if __FreeBSD_version < 500000
-#define	FXP_LOCK(_sc)
-#define	FXP_UNLOCK(_sc)
-#define	FXP_LOCKED(_sc)
-#define	FXP_LOCK_ASSERT(_sc, _what)
-#define	INTR_MPSAFE		0
-#define mtx_init(a, b, c, d)
-#define mtx_destroy(a)
-struct mtx { int dummy; };
-#else
 #define	FXP_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	FXP_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define	FXP_LOCKED(_sc)		mtx_owned(&(_sc)->sc_mtx)
 #define	FXP_LOCK_ASSERT(_sc, _what)	mtx_assert(&(_sc)->sc_mtx, (_what))
-#endif
 
 /*
  * Structures to handle TX and RX descriptors.
