@@ -1972,7 +1972,6 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 	/*
 	 * and queue the request for later.
 	 */
-	item->el_flags |= NGQF_READER;
 	ng_queue_rw(ngq, item, NGQRW_R);
 	if (CAN_GET_WORK(ngq->q_flags))
 		ng_setisr(ngq->q_node);
@@ -2005,7 +2004,6 @@ restart:
 	/*
 	 * and queue the request for later.
 	 */
-	item->el_flags &= ~NGQF_RW;
 	ng_queue_rw(ngq, item, NGQRW_W);
 	if (CAN_GET_WORK(ngq->q_flags))
 		ng_setisr(ngq->q_node);
@@ -2144,9 +2142,6 @@ ng_snd_item(item_p item, int flags)
 		if ((hook->hk_flags & HK_QUEUE)) {
 			queue = 1;
 		}
-		/* By default data is a reader in the locking scheme */
-		item->el_flags |= NGQF_READER;
-		rw = NGQRW_R;
 		break;
 	case NGQF_MESG:
 		/*
@@ -2159,34 +2154,38 @@ ng_snd_item(item_p item, int flags)
 		if (hook && (hook->hk_flags & HK_QUEUE)) {
 			queue = 1;
 		}
-		/* Data messages count as writers unles explicitly exempted */
-		if (NGI_MSG(item)->header.cmd & NGM_READONLY) {
-			item->el_flags |= NGQF_READER;
-			rw = NGQRW_R;
-		} else {
-			item->el_flags &= ~NGQF_RW;
-			rw = NGQRW_W;
-		}
 		break;
 	case NGQF_FN:
-		item->el_flags &= ~NGQF_RW;
-		rw = NGQRW_W;
 		break;
 	default:
 		NG_FREE_ITEM(item);
 		TRAP_ERROR();
 		return (EINVAL);
 	}
+	switch(item->el_flags & NGQF_RW) {
+	case NGQF_READER:
+		rw = NGQRW_R;
+		break;
+	case NGQF_WRITER:
+		rw = NGQRW_W;
+		break;
+	default:
+		panic("%s: invalid item flags %lx", __func__, item->el_flags);
+	}
+
 	/*
-	 * If the node specifies single threading, force writer semantics
-	 * Similarly the node may say one hook always produces writers.
-	 * These are over-rides.
+	 * If the node specifies single threading, force writer semantics.
+	 * Similarly, the node may say one hook always produces writers.
+	 * These are overrides. Modify the item itself, so that if it
+	 * is queued now, it would be dequeued later with corrected
+	 * read/write flags.
 	 */
 	if ((node->nd_flags & NGF_FORCE_WRITER)
-	|| (hook && (hook->hk_flags & HK_FORCE_WRITER))) {
+	    || (hook && (hook->hk_flags & HK_FORCE_WRITER))) {
 			rw = NGQRW_W;
 			item->el_flags &= ~NGQF_READER;
 	}
+
 	if (queue) {
 		/* Put it on the queue for that node*/
 #ifdef	NETGRAPH_DEBUG
@@ -3322,7 +3321,7 @@ ng_package_data(struct mbuf *m, int flags)
 		return (NULL);
 	}
 	ITEM_DEBUG_CHECKS;
-	item->el_flags = NGQF_DATA;
+	item->el_flags = NGQF_DATA | NGQF_READER;
 	item->el_next = NULL;
 	NGI_M(item) = m;
 	return (item);
@@ -3345,7 +3344,11 @@ ng_package_msg(struct ng_mesg *msg, int flags)
 		return (NULL);
 	}
 	ITEM_DEBUG_CHECKS;
-	item->el_flags = NGQF_MESG;
+	/* Messages items count as writers unless explicitly exempted. */
+	if (msg->header.cmd & NGM_READONLY)
+		item->el_flags = NGQF_MESG | NGQF_READER;
+	else
+		item->el_flags = NGQF_MESG | NGQF_WRITER;
 	item->el_next = NULL;
 	/*
 	 * Set the current lasthook into the queue item
@@ -3453,8 +3456,6 @@ ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr)
 		return(EINVAL);
 	}
 	/* Fill out the contents */
-	item->el_flags = NGQF_MESG;
-	item->el_next = NULL;
 	NGI_SET_NODE(item, dest);
 	NGI_CLR_HOOK(item);
 	SET_RETADDR(item, here, retaddr);
@@ -3482,7 +3483,7 @@ ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg)
 	}
 
 	/* Fill out the contents */
-	item->el_flags = NGQF_MESG;
+	item->el_flags = NGQF_MESG | NGQF_WRITER;
 	item->el_next = NULL;
 	NG_NODE_REF(here);
 	NGI_SET_NODE(item, here);
