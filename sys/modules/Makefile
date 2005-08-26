@@ -69,7 +69,6 @@ SUBDIR=	${_3dfx} \
 	${_drm} \
 	dummynet \
 	${_ed} \
-	${_el} \
 	${_elink} \
 	${_em} \
 	en \
@@ -384,7 +383,6 @@ _cs=		cs
 _ctau=		ctau
 _cx=		cx
 _dpt=		dpt
-_el=		el
 _ex=		ex
 _exca=		exca
 _hptmv=		hptmv
@@ -469,7 +467,6 @@ _ciss=		ciss
 _cm=		cm
 _coff=		coff
 _cpufreq=	cpufreq
-_el=		el
 _em=		em
 _ep=		ep
 _exca=		exca
