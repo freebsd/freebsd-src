@@ -43,7 +43,7 @@ ifconfig_up()
 
 	ifconfig_args=`ifconfig_getargs $1`
 	if [ -n "${ifconfig_args}" ]; then
-		ifconfig $1 ${ifconfig_args}
+		eval "ifconfig $1 ${ifconfig_args}"
 		_cfg=0
 	fi
 
