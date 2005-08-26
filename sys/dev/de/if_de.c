@@ -3412,7 +3412,7 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	/*
 	 *  Now get the size of received packet (minus the CRC).
 	 */
-	total_len = ((DESC_STATUS(eop) >> 16) & 0x7FFF) - 4;
+	total_len = ((DESC_STATUS(eop) >> 16) & 0x7FFF) - ETHER_CRC_LEN;
 	if ((sc->tulip_flags & TULIP_RXIGNORE) == 0
 	    && ((DESC_STATUS(eop) & TULIP_DSTS_ERRSUM) == 0)) {
 	    me->m_len = total_len - last_offset;
@@ -3469,50 +3469,55 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	ri->ri_nextin = eop;
       queue_mbuf:
 	/*
-	 * Either we are priming the TULIP with mbufs (m == NULL)
-	 * or we are about to accept an mbuf for the upper layers
-	 * so we need to allocate an mbuf to replace it.  If we
-	 * can't replace it, send up it anyways.  This may cause
-	 * us to drop packets in the future but that's better than
-	 * being caught in livelock.
-	 *
-	 * Note that if this packet crossed multiple descriptors
-	 * we don't even try to reallocate all the mbufs here.
-	 * Instead we rely on the test at the beginning of
-	 * the loop to refill for the extra consumed mbufs.
+	 * We have received a good packet that needs to be passed up the
+	 * stack.
 	 */
-	if (accept || ms == NULL) {
+	if (accept) {
 	    struct mbuf *m0;
 
+	    KASSERT(ms != NULL, ("no packet to accept"));
 #if defined(TULIP_COPY_RXDATA)
-	    if (!accept || total_len >= (MHLEN - 2))
-		    m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	    else
-		    MGETHDR(m0, M_DONTWAIT, MT_DATA);
-	    if (accept && m0 != NULL) {
-		TULIP_UNLOCK(sc);
-		m0->m_data += 2;	/* align data after header */
-		m_copydata(ms, 0, total_len, mtod(m0, caddr_t));
-		m0->m_len = m0->m_pkthdr.len = total_len;
-		m0->m_pkthdr.rcvif = ifp;
-		CTR1(KTR_TULIP, "tulip_rx_intr: passing %p to upper layer", m0);
-		(*ifp->if_input)(ifp, m0);
-		m0 = ms;
-		TULIP_LOCK(sc);
+	    /*
+	     * Copy the data into a new mbuf that is properly aligned.  If
+	     * we fail to allocate a new mbuf, then drop the packet.  We will
+	     * reuse the same rx buffer ('ms') below for another packet
+	     * regardless.
+	     */
+	    m0 = m_devget(mtod(ms, caddr_t), total_len, ETHER_ALIGN, ifp, NULL);
+	    if (m0 == NULL) {
+		ifp->if_ierrors++;
+		goto skip_input;
 	    }
-#else /* TULIP_COPY_RXDATA */
-	    m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	    if (accept) {
-		TULIP_UNLOCK(sc);
-		ms->m_pkthdr.len = total_len;
-		ms->m_pkthdr.rcvif = ifp;
-		CTR1(KTR_TULIP, "tulip_rx_intr: passing %p to upper layer", ms);
-		(*ifp->if_input)(ifp, ms);
-		TULIP_LOCK(sc);
-	    }
-#endif /* TULIP_COPY_RXDATA */
-	    ms = m0;
-	}
+#else
+	    /*
+	     * Update the header for the mbuf referencing this receive
+	     * buffer and pass it up the stack.  Allocate a new mbuf cluster
+	     * to replace the one we just passed up the stack.
+	     *
+	     * Note that if this packet crossed multiple descriptors
+	     * we don't even try to reallocate all the mbufs here.
+	     * Instead we rely on the test at the beginning of
+	     * the loop to refill for the extra consumed mbufs.
+	     */
+	    ms->m_pkthdr.len = total_len;
+	    ms->m_pkthdr.rcvif = ifp;
+	    m0 = ms;
+	    ms = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+#endif
+	    TULIP_UNLOCK(sc);
+	    CTR1(KTR_TULIP, "tulip_rx_intr: passing %p to upper layer", m0);
+	    (*ifp->if_input)(ifp, m0);
+	    TULIP_LOCK(sc);
+	} else if (ms == NULL)
+	    /*
+	     * If we are priming the TULIP with mbufs, then allocate
+	     * a new cluster for the next descriptor.
+	     */
+	    ms = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+
+#if defined(TULIP_COPY_RXDATA)
+    skip_input:
+#endif
 	if (ms == NULL) {
 	    /*
 	     * Couldn't allocate a new buffer.  Don't bother 
@@ -3868,25 +3873,6 @@ tulip_intr_normal(void *arg)
     TULIP_UNLOCK(sc);
 }
 
-CTASSERT(MCLBYTES >= ETHERMTU + 18);
-	
-static struct mbuf *
-tulip_mbuf_compress(struct mbuf *m)
-{
-    struct mbuf *m0;
-
-    if (m->m_pkthdr.len > MHLEN)
-	    m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-    else
-	    MGETHDR(m0, M_DONTWAIT, MT_DATA);
-    if (m0 != NULL) {
-	m_copydata(m, 0, m->m_pkthdr.len, mtod(m0, caddr_t));
-	m0->m_pkthdr.len = m0->m_len = m->m_pkthdr.len;
-    }
-    m_freem(m);
-    return m0;
-}
-
 static struct mbuf *
 tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
 {
@@ -3898,9 +3884,7 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
     bus_dma_segment_t segs[TULIP_MAX_TXSEG];
     bus_dmamap_t *map;
     int error, nsegs;
-#if defined(KTR) && KTR_TULIP
-    struct mbuf *m1;
-#endif
+    struct mbuf *m0;
 
     TULIP_LOCK_ASSERT(sc);
 #if defined(TULIP_DEBUG)
@@ -3932,10 +3916,10 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
      */
 #if defined(KTR) && KTR_TULIP
     segcnt = 1;
-    m1 = m;
-    while (m1->m_next != NULL) {
+    m0 = m;
+    while (m0->m_next != NULL) {
 	    segcnt++;
-	    m1 = m1->m_next;
+	    m0 = m0->m_next;
     }
 #endif
     CTR2(KTR_TULIP, "tulip_txput: sending packet %p (%d chunks)", m, segcnt);
@@ -3968,15 +3952,18 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
 	    /*
 	     * The packet exceeds the number of transmit buffer
 	     * entries that we can use for one packet, so we have
-	     * to recopy it into one mbuf and then try again.
+	     * to recopy it into one mbuf and then try again.  If
+	     * we can't recopy it, try again later.
 	     */
-	    m = tulip_mbuf_compress(m);
-	    if (m == NULL) {
+	    m0 = m_defrag(m, M_DONTWAIT);
+	    if (m0 == NULL) {
+		sc->tulip_flags |= TULIP_WANTTXSTART;
 #if defined(TULIP_DEBUG)
 		sc->tulip_dbg.dbg_txput_finishes[2]++;
 #endif
 		goto finish;
 	    }
+	    m = m0;
 	    error = bus_dmamap_load_mbuf_sg(ri->ri_data_tag, *eop->di_map, m,
 		segs, &nsegs, BUS_DMA_NOWAIT);
 	}
