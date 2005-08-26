@@ -946,6 +946,7 @@ main(int argc, char **argv)
 					continue;
 				if (!gotlastaddr ||
 				    from->sin_addr.s_addr != lastaddr) {
+					if (probe > 0) printf("\n   ");
 					print(packet, cc, from);
 					lastaddr = from->sin_addr.s_addr;
 					++gotlastaddr;
