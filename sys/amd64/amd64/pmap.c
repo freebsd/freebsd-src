@@ -7,6 +7,8 @@
  * All rights reserved.
  * Copyright (c) 2003 Peter Wemm
  * All rights reserved.
+ * Copyright (c) 2005 Alan L. Cox <alc@cs.rice.edu>
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
@@ -210,6 +212,7 @@ static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 		vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
+static vm_page_t pmap_allocpde(pmap_t pmap, vm_offset_t va, int flags);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags);
@@ -1242,6 +1245,33 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 }
 
 static vm_page_t
+pmap_allocpde(pmap_t pmap, vm_offset_t va, int flags)
+{
+	vm_pindex_t pdpindex, ptepindex;
+	pdp_entry_t *pdpe;
+	vm_page_t pdpg;
+
+	KASSERT((flags & (M_NOWAIT | M_WAITOK)) == M_NOWAIT ||
+	    (flags & (M_NOWAIT | M_WAITOK)) == M_WAITOK,
+	    ("pmap_allocpde: flags is neither M_NOWAIT nor M_WAITOK"));
+retry:
+	pdpe = pmap_pdpe(pmap, va);
+	if (pdpe != NULL && (*pdpe & PG_V) != 0) {
+		/* Add a reference to the pd page. */
+		pdpg = PHYS_TO_VM_PAGE(*pdpe & PG_FRAME);
+		pdpg->wire_count++;
+	} else {
+		/* Allocate a pd page. */
+		ptepindex = pmap_pde_pindex(va);
+		pdpindex = ptepindex >> NPDPEPGSHIFT;
+		pdpg = _pmap_allocpte(pmap, NUPDE + pdpindex, flags);
+		if (pdpg == NULL && (flags & M_WAITOK))
+			goto retry;
+	}
+	return (pdpg);
+}
+
+static vm_page_t
 pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags)
 {
 	vm_pindex_t ptepindex;
@@ -1269,6 +1299,8 @@ retry:
 	if (pd != 0 && (*pd & (PG_PS | PG_V)) == (PG_PS | PG_V)) {
 		*pd = 0;
 		pd = 0;
+		pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
+		pmap_unuse_pt(pmap, va, *pmap_pdpe(pmap, va));
 		pmap_invalidate_all(kernel_pmap);
 	}
 
@@ -1621,6 +1653,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if ((ptpaddr & PG_PS) != 0) {
 			*pde = 0;
 			pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
+			pmap_unuse_pt(pmap, sva, *pdpe);
 			anyvalid = 1;
 			continue;
 		}
@@ -2135,15 +2168,14 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex,
 		    vm_size_t size)
 {
-	vm_page_t p;
+	vm_offset_t va;
+	vm_page_t p, pdpg;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->type == OBJT_DEVICE,
 	    ("pmap_object_init_pt: non-device object"));
 	if (((addr & (NBPDR - 1)) == 0) && ((size & (NBPDR - 1)) == 0)) {
-		int i;
 		vm_page_t m[1];
-		int npdes;
 		pd_entry_t ptepa, *pde;
 
 		PMAP_LOCK(pmap);
@@ -2183,12 +2215,35 @@ retry:
 		p->valid = VM_PAGE_BITS_ALL;
 
 		PMAP_LOCK(pmap);
-		pmap->pm_stats.resident_count += size >> PAGE_SHIFT;
-		npdes = size >> PDRSHIFT;
-		for(i = 0; i < npdes; i++) {
-			pde_store(pde, ptepa | PG_U | PG_RW | PG_V | PG_PS);
+		for (va = addr; va < addr + size; va += NBPDR) {
+			while ((pdpg =
+			    pmap_allocpde(pmap, va, M_NOWAIT)) == NULL) {
+				PMAP_UNLOCK(pmap);
+				vm_page_lock_queues();
+				vm_page_busy(p);
+				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(object);
+				VM_WAIT;
+				VM_OBJECT_LOCK(object);
+				vm_page_lock_queues();
+				vm_page_wakeup(p);
+				vm_page_unlock_queues();
+				PMAP_LOCK(pmap);
+			}
+			pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pdpg));
+			pde = &pde[pmap_pde_index(va)];
+			if ((*pde & PG_V) == 0) {
+				pde_store(pde, ptepa | PG_PS | PG_M | PG_A |
+				    PG_U | PG_RW | PG_V);
+				pmap->pm_stats.resident_count +=
+				    NBPDR / PAGE_SIZE;
+			} else {
+				pdpg->wire_count--;
+				KASSERT(pdpg->wire_count > 0,
+				    ("pmap_object_init_pt: missing reference "
+				     "to page directory page, va: 0x%lx", va));
+			}
 			ptepa += NBPDR;
-			pde++;
 		}
 		pmap_invalidate_all(pmap);
 out:
@@ -2262,7 +2317,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	}
 	for (addr = src_addr; addr < end_addr; addr = va_next) {
 		pt_entry_t *src_pte, *dst_pte;
-		vm_page_t dstmpte, srcmpte;
+		vm_page_t dstmpde, dstmpte, srcmpte;
 		pml4_entry_t *pml4e;
 		pdp_entry_t *pdpe;
 		pd_entry_t srcptepaddr, *pde;
@@ -2299,19 +2354,18 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			continue;
 			
 		if (srcptepaddr & PG_PS) {
-			pde = pmap_pde(dst_pmap, addr);
-			if (pde == 0) {
-				/*
-				 * XXX should do an allocpte here to
-				 * instantiate the pde
-				 */
-				continue;
-			}
+			dstmpde = pmap_allocpde(dst_pmap, addr, M_NOWAIT);
+			if (dstmpde == NULL)
+				break;
+			pde = (pd_entry_t *)
+			    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpde));
+			pde = &pde[pmap_pde_index(addr)];
 			if (*pde == 0) {
 				*pde = srcptepaddr;
 				dst_pmap->pm_stats.resident_count +=
 				    NBPDR / PAGE_SIZE;
-			}
+			} else
+				pmap_unwire_pte_hold(dst_pmap, addr, dstmpde);
 			continue;
 		}
 
