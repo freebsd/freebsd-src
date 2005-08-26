@@ -1063,6 +1063,7 @@ geom/label/g_label.c		optional geom_label
 geom/label/g_label_ext2fs.c	optional geom_label
 geom/label/g_label_iso9660.c	optional geom_label
 geom/label/g_label_msdosfs.c	optional geom_label
+geom/label/g_label_ntfs.c	optional geom_label
 geom/label/g_label_reiserfs.c	optional geom_label
 geom/label/g_label_ufs.c	optional geom_label
 geom/mirror/g_mirror.c		optional geom_mirror
