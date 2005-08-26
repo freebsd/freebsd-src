@@ -186,6 +186,24 @@ pcib_attach_common(device_t dev)
     case 0x060513d7:		/* Toshiba ???? */
 	sc->flags |= PCIB_SUBTRACTIVE;
 	break;
+
+    /* Compaq R3000 BIOS sets wrong subordinate bus number. */
+    case 0x00dd10de:
+	{
+	    char *cp;
+
+	    cp = getenv("smbios.planar.maker");
+	    if (cp == NULL || strncmp(cp, "Compal", 6) != 0)
+		break;
+	    cp = getenv("smbios.planar.product");
+	    if (cp == NULL || strncmp(cp, "08A0", 4) != 0)
+		break;
+	    if (sc->subbus < 0xa) {
+		pci_write_config(dev, PCIR_SUBBUS_1, 0xa, 1);
+		sc->subbus = pci_read_config(dev, PCIR_SUBBUS_1, 1);
+	    }
+	    break;
+	}
     }
 
     /*
