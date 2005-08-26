@@ -513,7 +513,6 @@ struct ste_softc {
 	struct ste_type		*ste_info;
 	device_t		ste_miibus;
 	device_t		ste_dev;
-	int			ste_unit;
 	int			ste_tx_thresh;
 	u_int8_t		ste_link;
 	int			ste_if_flags;
