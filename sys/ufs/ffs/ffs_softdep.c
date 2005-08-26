@@ -4273,7 +4273,6 @@ handle_written_inodeblock(inodedep, bp)
 		panic("handle_written_inodeblock: not started");
 	}
 	inodedep->id_state &= ~IOSTARTED;
-	inodedep->id_state |= COMPLETE;
 	if (inodedep->id_fs->fs_magic == FS_UFS1_MAGIC) {
 		fstype = UFS1;
 		dp1 = (struct ufs1_dinode *)bp->b_data +
@@ -4302,6 +4301,7 @@ handle_written_inodeblock(inodedep, bp)
 		bdirty(bp);
 		return (1);
 	}
+	inodedep->id_state |= COMPLETE;
 	/*
 	 * Roll forward anything that had to be rolled back before 
 	 * the inode could be updated.
