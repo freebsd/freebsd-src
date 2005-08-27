@@ -45,6 +45,8 @@ extern struct tlb_entry *itlb_store;
 extern int dtlb_slot;
 extern int itlb_slot;
 
+static int md_bootserial(void);
+
 /*
  * Return a 'boothowto' value corresponding to the kernel arguments in
  * (kargs) and any relevant environment variables.
@@ -68,8 +70,6 @@ static struct
 int
 md_getboothowto(char *kargs)
 {
-    char	buf[32], buf2[32];
-    phandle_t	options;
     char	*cp;
     int		howto;
     int		active;
@@ -126,23 +126,47 @@ md_getboothowto(char *kargs)
     for (i = 0; howto_names[i].ev != NULL; i++)
 	if (getenv(howto_names[i].ev) != NULL)
 	    howto |= howto_names[i].mask;
-    options = OF_finddevice("/options");
-    OF_getprop(options, "input-device", buf, sizeof(buf));
-    OF_getprop(options, "output-device", buf2, sizeof(buf2));
-    if (strncmp(buf, "tty", sizeof("tty") - 1) == 0 && strncmp(buf2, "tty",
-      sizeof("tty") - 1) == 0)
+    if (md_bootserial() != -1)
 	howto |= RB_SERIAL;
-    else if (strcmp(buf, "keyboard") == 0 && strcmp(buf2, "screen") == 0) {
-	phandle_t	chosen;
-	ihandle_t	stdin, stdout;
-
-	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "stdin", &stdin, sizeof(stdin));
-	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
-	if (OF_instance_to_package(stdin) == OF_instance_to_package(stdout))
-	    howto |= RB_SERIAL;
-    }
     return(howto);
+}
+
+static int
+md_bootserial(void)
+{
+    char	buf[64];
+    ihandle_t	inst;
+    phandle_t	input;
+    phandle_t	node;
+    phandle_t	output;
+
+    if ((node = OF_finddevice("/options")) == -1)
+	return(-1);
+    if (OF_getprop(node, "input-device", buf, sizeof(buf)) == -1)
+	return(-1);
+    input = OF_finddevice(buf);
+    if (OF_getprop(node, "output-device", buf, sizeof(buf)) == -1)
+	return(-1);
+    output = OF_finddevice(buf);
+    if (input == -1 || output == -1 || OF_getproplen(input, "keyboard") >= 0) {
+	if ((node = OF_finddevice("/chosen")) == -1)
+	    return(-1);
+	if (OF_getprop(node, "stdin", &inst, sizeof(inst)) == -1)
+	    return(-1);
+	if ((input = OF_instance_to_package(inst)) == -1)
+	    return(-1);
+	if (OF_getprop(node, "stdout", &inst, sizeof(inst)) == -1)
+	    return(-1);
+	if ((output = OF_instance_to_package(inst)) == -1)
+	    return(-1);
+    }
+    if (input != output)
+	return(-1);
+    if (OF_getprop(input, "device_type", buf, sizeof(buf)) == -1)
+	return(-1);
+    if (strcmp(buf, "serial") != 0)
+	return(-1);
+    return(0);
 }
 
 /*
