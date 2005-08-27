@@ -209,3 +209,5 @@ ASSYM(SEL_RPL_MASK, SEL_RPL_MASK);
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
+
+ASSYM(MSR_GSBASE, MSR_GSBASE);
