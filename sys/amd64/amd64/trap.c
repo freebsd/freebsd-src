@@ -210,7 +210,8 @@ trap(frame)
 			printf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curproc->p_comm, type);
-		else if (type != T_BPTFLT && type != T_TRCTRAP) {
+		else if (type != T_NMI && type != T_BPTFLT &&
+		    type != T_TRCTRAP) {
 			/*
 			 * XXX not quite right, since this may be for a
 			 * multiple fault in user mode.
