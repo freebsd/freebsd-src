@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 SUBDIR=	concat
-.if !defined(NO_CRYPT)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=eli
 .endif
 SUBDIR+=label
