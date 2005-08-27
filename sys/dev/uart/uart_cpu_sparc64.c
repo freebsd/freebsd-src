@@ -78,8 +78,8 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 
 /*
  * Get the package handle of the UART that is selected as the console, if
- * the console is an UART of course. Note that we enforce that both stdin
- * and stdout are selected.
+ * the console is an UART of course. Note that we enforce that both input
+ * and output are selected.
  * Note that the currently active console (i.e. /chosen/stdout and
  * /chosen/stdin) may not be the same as the device selected in the
  * environment (ie /options/output-device and /options/input-device) because
@@ -91,32 +91,32 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 static phandle_t
 uart_cpu_getdev_console(phandle_t options, char *dev, size_t devsz)
 {
-	char buf[32];
-	ihandle_t stdin, stdout;
-	phandle_t chosen, input;
+	char buf[sizeof("serial")];
+	ihandle_t inst;
+	phandle_t chosen, input, output;
 
 	if (OF_getprop(options, "input-device", dev, devsz) == -1)
 		return (-1);
-	if (OF_getprop(options, "output-device", buf, sizeof(buf)) == -1)
+	input = OF_finddevice(dev);
+	if (OF_getprop(options, "output-device", dev, devsz) == -1)
 		return (-1);
-	if (!strcmp(dev, "keyboard") && !strcmp(buf, "screen")) {
+	output = OF_finddevice(dev);
+	if (input == -1 || output == -1 ||
+	    OF_getproplen(input, "keyboard") >= 0) {
 		if ((chosen = OF_finddevice("/chosen")) == -1)
 			return (-1);
-		if (OF_getprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1)
+		if (OF_getprop(chosen, "stdin", &inst, sizeof(inst)) == -1)
 			return (-1);
-		if ((input = OF_instance_to_package(stdin)) == -1)
+		if ((input = OF_instance_to_package(inst)) == -1)
 			return (-1);
-		if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1)
+		if (OF_getprop(chosen, "stdout", &inst, sizeof(inst)) == -1)
 			return (-1);
-		if (OF_instance_to_package(stdout) != input)
+		if ((output = OF_instance_to_package(inst)) == -1)
 			return (-1);
 		snprintf(dev, devsz, "ttya");
-	} else {
-		if ((input = OF_finddevice(dev)) == -1)
-			return (-1);
-		if (OF_finddevice(buf) != input)
-			return (-1);
 	}
+	if (input != output)
+		return (-1);
 	if (OF_getprop(input, "device_type", buf, sizeof(buf)) == -1)
 		return (-1);
 	if (strcmp(buf, "serial") != 0)
@@ -132,9 +132,9 @@ uart_cpu_getdev_console(phandle_t options, char *dev, size_t devsz)
  * the OF.
  */
 static phandle_t
-uart_cpu_getdev_dbgport(phandle_t options, char *dev, size_t devsz)
+uart_cpu_getdev_dbgport(char *dev, size_t devsz)
 {
-	char buf[32];
+	char buf[sizeof("serial")];
 	phandle_t input;
 
 	if (!getenv_string("hw.uart.dbgport", dev, devsz))
@@ -158,7 +158,7 @@ uart_cpu_getdev_dbgport(phandle_t options, char *dev, size_t devsz)
 static phandle_t
 uart_cpu_getdev_keyboard(char *dev, size_t devsz)
 {
-	char buf[32];
+	char buf[sizeof("serial")];
 	phandle_t input;
 
 	if ((input = OF_finddevice("keyboard")) == -1)
@@ -181,7 +181,7 @@ uart_cpu_getdev_keyboard(char *dev, size_t devsz)
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	char buf[32], dev[32], compat[32];
+	char buf[32], compat[32], dev[64];
 	phandle_t input, options;
 	bus_addr_t addr;
 	int baud, bits, error, space, stop;
@@ -194,7 +194,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		input = uart_cpu_getdev_console(options, dev, sizeof(dev));
 		break;
 	case UART_DEV_DBGPORT:
-		input = uart_cpu_getdev_dbgport(options, dev, sizeof(dev));
+		input = uart_cpu_getdev_dbgport(dev, sizeof(dev));
 		break;
 	case UART_DEV_KEYBOARD:
 		input = uart_cpu_getdev_keyboard(dev, sizeof(dev));
