@@ -126,7 +126,7 @@ device		psm		# PS/2 mouse
 device		sc
 device		creator		# Creator, Creator3D and Elite3D framebuffers
 device		machfb		# ATI Mach64 framebuffers
-#device		splash		# Splash screen and screen saver support
+device		splash		# Splash screen and screen saver support
 options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 
 #device		ofw_console	# Open Firmware console device
