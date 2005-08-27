@@ -70,6 +70,7 @@ The
 driver supports the use of hardware PMCs for counting or for
 sampling:
 .Bl -tag -width ".Em Counting"
+.It Em Counting
 In counting modes, the PMCs count hardware events.
 These counts are retrievable using the
 .Dv PMC_OP_PMCREAD
@@ -486,6 +487,20 @@ that intend to write values larger than 2^31 into these PMCs with
 need to be aware of this hardware limitation.
 .Sh DIAGNOSTICS
 .Bl -diag
+.It "hwpmc: [class/npmc/capabilities]..."
+Announce the presence of
+.Va npmc
+PMCs of class
+.Va class ,
+with capabilities described by bit string
+.Va capabilities .
+.It "hwpmc: kernel version (0x%x) does not match module version (0x%x)."
+The module loading process failed because a version mismatch was detected
+between the currently executing kernel and the module being loaded.
+.It "hwpmc: this kernel has not been compiled with 'options HWPMC_HOOKS'."
+The module loading process failed because the currently executing kernel
+was not configured with the required configuration option
+.Cd HWPMC_HOOKS .
 .It "hwpmc: tunable hashsize=%d must be greater than zero."
 A negative value was supplied for tunable
 .Va kern.hwpmc.hashsize .
@@ -500,6 +515,16 @@ The value for tunable
 .Va kern.hwpmc.nsamples
 was negative or greater than 65535.
 .El
+.Sh COMPATIBILITY
+The
+.Nm
+driver is
+.Ud
+The API and ABI documented in this manual page may change in
+the future.
+The recommended method of accessing this driver is using the
+.Xr pmc 3
+API.
 .Sh ERRORS
 A command issued to the
 .Nm
@@ -527,6 +552,10 @@ PMC using the same hardware resources attached to it.
 A
 .Dv PMC_OP_PMCRW
 request writing a new value was issued on a PMC that was active.
+.It Bq Er EBUSY
+A
+.Dv PMC_OP_PMCSETCOUNT
+request was issued on a PMC that was active.
 .It Bq Er EDOOFUS
 A
 .Dv PMC_OP_PMCSTART
@@ -536,10 +565,6 @@ PMC allocated with
 and
 .Dv PMC_F_LOG_PROCEXIT
 modifiers.
-.It Bq Er EBUSY
-A
-.Dv PMC_OP_PMCSETCOUNT
-request was issued on a PMC that was active.
 .It Bq Er EEXIST
 A
 .Dv PMC_OP_PMCATTACH
@@ -649,6 +674,11 @@ or
 .Dv PMC_OP_PMCSTOP
 request was issued for a system-wide PMC that was allocated on a
 currently disabled CPU.
+.It Bq Er EOPNOTSUPP
+A
+.Dv PMC_OP_PMCALLOCATE
+request was issued for PMC capabilities not supported
+by the specified PMC class.
 .It Bq Er EPERM
 A
 .Dv PMC_OP_PMCADMIN
@@ -685,15 +715,28 @@ driver.
 .Sh SEE ALSO
 .Xr kenv 1 ,
 .Xr pmc 3 ,
+.Xr pmclog 3 ,
 .Xr kgmon 8 ,
 .Xr kldload 8 ,
 .Xr pmccontrol 8 ,
 .Xr pmcstat 8 ,
 .Xr sysctl 8 ,
 .Xr p_candebug 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 6.0 .
 .Sh BUGS
 The driver samples the state of the kernel's logical processor support
 at the time of initialization (i.e., at module load time).
 On CPUs supporting logical processors, the driver could misbehave if
 logical processors are subsequently enabled or disabled while the
 driver is active.
+.Pp
+On x86 architectures, the driver requires that the local APIC on the
+CPU be enabled for sampling mode to be supported.
+Many single-processor motherboards keep the APIC disabled in BIOS; on
+such systems
+.Nm
+will not support sampling PMCs.
