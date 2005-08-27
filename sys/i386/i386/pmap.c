@@ -1199,6 +1199,7 @@ retry:
 	if (ptepa & PG_PS) {
 		pmap->pm_pdir[ptepindex] = 0;
 		ptepa = 0;
+		pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
 		pmap_invalidate_all(kernel_pmap);
 	}
 
