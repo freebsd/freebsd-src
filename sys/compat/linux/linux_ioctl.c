@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker_set.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/soundcard.h>
@@ -2130,13 +2131,14 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	struct l_ifreq ifr;
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
-	struct iovec iov;
-	struct uio uio;
-	int error, ethno;
+	struct sbuf *sb;
+	int error, ethno, full = 0, valid_len, max_len;
 
 	error = copyin(uifc, &ifc, sizeof(ifc));
 	if (error != 0)
 		return (error);
+
+	max_len = MAXPHYS - 1;
 
 	/* handle the 'request buffer size' case */
 	if (ifc.ifc_buf == PTROUT(NULL)) {
@@ -2152,25 +2154,24 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 		return (error);
 	}
 
-	/* much easier to use uiomove than keep track ourselves */
-	iov.iov_base = PTRIN(ifc.ifc_buf);
-	iov.iov_len = ifc.ifc_len;
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = 0;
-	uio.uio_resid = ifc.ifc_len;
-	uio.uio_segflg = UIO_USERSPACE;
-	uio.uio_rw = UIO_READ;
-	uio.uio_td = td;
+	if (ifc.ifc_len <= 0)
+		return (EINVAL);
 
+again:
 	/* Keep track of eth interfaces */
 	ethno = 0;
+	if (ifc.ifc_len <= max_len) {
+		max_len = ifc.ifc_len;
+		full = 1;
+	}
+	sb = sbuf_new(NULL, NULL, max_len + 1, SBUF_FIXEDLEN);
+	max_len = 0;
+	valid_len = 0;
 
 	/* Return all AF_INET addresses of all interfaces */
 	IFNET_RLOCK();		/* could sleep XXX */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-		if (uio.uio_resid <= 0)
-			break;
+		int addrs = 0;
 
 		bzero(&ifr, sizeof(ifr));
 		if (IFP_IS_ETH(ifp))
@@ -2183,26 +2184,39 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa = ifa->ifa_addr;
 
-			if (uio.uio_resid <= 0)
-				break;
-
 			if (sa->sa_family == AF_INET) {
 				ifr.ifr_addr.sa_family = LINUX_AF_INET;
 				memcpy(ifr.ifr_addr.sa_data, sa->sa_data,
 				    sizeof(ifr.ifr_addr.sa_data));
-
-				error = uiomove(&ifr, sizeof(ifr), &uio);
-				if (error != 0) {
-					IFNET_RUNLOCK();
-					return (error);
-				}
+				sbuf_bcat(sb, &ifr, sizeof(ifr));
+				max_len += sizeof(ifr);
+				addrs++;
 			}
+
+			if (!sbuf_overflowed(sb))
+				valid_len = sbuf_len(sb);
+		}
+		if (addrs == 0) {
+			bzero((caddr_t)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
+			sbuf_bcat(sb, &ifr, sizeof(ifr));
+			max_len += sizeof(ifr);
+
+			if (!sbuf_overflowed(sb))
+				valid_len = sbuf_len(sb);
 		}
 	}
 	IFNET_RUNLOCK();
 
-	ifc.ifc_len -= uio.uio_resid;
+	if (valid_len != max_len && !full) {
+		sbuf_delete(sb);
+		goto again;
+	}
+
+	ifc.ifc_len = valid_len; 
+	sbuf_finish(sb);
+	memcpy(ifc.ifc_buf, sbuf_data(sb), ifc.ifc_len);
 	error = copyout(&ifc, uifc, sizeof(ifc));
+	sbuf_delete(sb);
 
 	return (error);
 }
