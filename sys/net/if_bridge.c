@@ -492,6 +492,7 @@ bridge_clone_destroy(struct ifnet *ifp)
 	BRIDGE_LOCK(sc);
 
 	bridge_stop(ifp, 1);
+	ifp->if_flags &= ~IFF_UP;
 
 	while ((bif = LIST_FIRST(&sc->sc_iflist)) != NULL)
 		bridge_delete_member(sc, bif);
