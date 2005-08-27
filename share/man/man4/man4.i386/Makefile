@@ -17,7 +17,6 @@ MAN=	acpi_asus.4 \
 	ct.4 \
 	ctau.4 \
 	cx.4 \
-	el.4 \
 	ep.4 \
 	ex.4 \
 	fe.4 \
