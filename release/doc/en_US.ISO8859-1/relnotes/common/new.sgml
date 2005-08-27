@@ -930,6 +930,9 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>The &man.bsdiff.1; and &man.bspatch.1; binary diff and binary
+      patching tools have been added.</para>
+
     <para>The &man.burncd.8; utility now allows commands (such as
       <command>eject</command>) to take place after fixating a
       disk.</para>
@@ -1176,6 +1179,10 @@
     <para>The &man.pgrep.1; and &man.pkill.1; commands now support a
       <option>-o</option> option which matches only the oldest
       (least recently started) of the matching processes.</para>
+
+    <para>The &man.portsnap.8; utility for downloading, updating, and
+      extracting compressed snapshots of the &os; ports tree has been
+      added.</para>
 
     <para>The &man.powerd.8; program for managing power consumption has been
       added.</para>
