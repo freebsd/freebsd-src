@@ -93,8 +93,6 @@ IDTVEC(bpt)
 	jmp alltraps
 IDTVEC(div)
 	TRAP(T_DIVIDE)
-IDTVEC(nmi)
-	TRAP_NOEN(T_NMI)
 IDTVEC(ofl)
 	TRAP(T_OFLOW)
 IDTVEC(bnd)
@@ -312,6 +310,82 @@ IDTVEC(fast_syscall)
  */
 IDTVEC(fast_syscall32)
 	sysret
+
+/*
+ * NMI handling is special.
+ *
+ * First, NMIs do not respect the state of the processor's RFLAGS.IF
+ * bit and the NMI handler may be invoked at any time, including when
+ * the processor is in a critical section with RFLAGS.IF == 0.  In
+ * particular, this means that the processor's GS.base values could be
+ * inconsistent on entry to the handler, and so we need to read
+ * MSR_GSBASE to determine if a 'swapgs' is needed.  We use '%ebx', a
+ * C-preserved register, to remember whether to swap GS back on the
+ * exit path.
+ *
+ * Second, the processor treats NMIs specially, blocking further NMIs
+ * until an 'iretq' instruction is executed.  We therefore need to
+ * execute the NMI handler with interrupts disabled to prevent a
+ * nested interrupt from executing an 'iretq' instruction and
+ * inadvertently taking the processor out of NMI mode.
+ */
+
+IDTVEC(nmi)
+	subq	$TF_RIP,%rsp
+	movq	$(T_NMI),TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	movq	$0,TF_ERR(%rsp)
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rsi,TF_RSI(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_R10(%rsp)
+	movq	%r11,TF_R11(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
+	xorl	%ebx,%ebx
+	testb	$SEL_RPL_MASK,TF_CS(%rsp)
+	jnz	nmi_needswapgs		/* we came from userland */
+	movl	$MSR_GSBASE,%ecx
+	rdmsr
+	cmpl	$VM_MAXUSER_ADDRESS >> 32,%edx
+	jae	nmi_calltrap		/* GS.base holds a kernel VA */
+nmi_needswapgs:
+	incl	%ebx
+	swapgs
+/* Note: this label is also used by ddb and gdb: */
+nmi_calltrap:
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	call	trap
+	MEXITCOUNT
+	testl	%ebx,%ebx
+	jz	nmi_restoreregs
+	swapgs
+nmi_restoreregs:
+	movq	TF_RDI(%rsp),%rdi
+	movq	TF_RSI(%rsp),%rsi
+	movq	TF_RDX(%rsp),%rdx
+	movq	TF_RCX(%rsp),%rcx
+	movq	TF_R8(%rsp),%r8
+	movq	TF_R9(%rsp),%r9
+	movq	TF_RAX(%rsp),%rax
+	movq	TF_RBX(%rsp),%rbx
+	movq	TF_RBP(%rsp),%rbp
+	movq	TF_R10(%rsp),%r10
+	movq	TF_R11(%rsp),%r11
+	movq	TF_R12(%rsp),%r12
+	movq	TF_R13(%rsp),%r13
+	movq	TF_R14(%rsp),%r14
+	movq	TF_R15(%rsp),%r15
+	addq	$TF_RIP,%rsp
+	iretq
 
 ENTRY(fork_trampoline)
 	movq	%r12, %rdi		/* function */
