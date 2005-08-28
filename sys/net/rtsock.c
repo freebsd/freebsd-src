@@ -140,11 +140,8 @@ rts_input(struct mbuf *m)
 static int
 rts_abort(struct socket *so)
 {
-	int s, error;
-	s = splnet();
-	error = raw_usrreqs.pru_abort(so);
-	splx(s);
-	return error;
+
+	return (raw_usrreqs.pru_abort(so));
 }
 
 /* pru_accept is EOPNOTSUPP */
@@ -203,21 +200,15 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 static int
 rts_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	int s, error;
-	s = splnet();
-	error = raw_usrreqs.pru_bind(so, nam, td); /* xxx just EINVAL */
-	splx(s);
-	return error;
+
+	return (raw_usrreqs.pru_bind(so, nam, td)); /* xxx just EINVAL */
 }
 
 static int
 rts_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	int s, error;
-	s = splnet();
-	error = raw_usrreqs.pru_connect(so, nam, td); /* XXX just EINVAL */
-	splx(s);
-	return error;
+
+	return (raw_usrreqs.pru_connect(so, nam, td)); /* XXX just EINVAL */
 }
 
 /* pru_connect2 is EOPNOTSUPP */
@@ -254,11 +245,8 @@ rts_detach(struct socket *so)
 static int
 rts_disconnect(struct socket *so)
 {
-	int s, error;
-	s = splnet();
-	error = raw_usrreqs.pru_disconnect(so);
-	splx(s);
-	return error;
+
+	return (raw_usrreqs.pru_disconnect(so));
 }
 
 /* pru_listen is EOPNOTSUPP */
@@ -266,11 +254,8 @@ rts_disconnect(struct socket *so)
 static int
 rts_peeraddr(struct socket *so, struct sockaddr **nam)
 {
-	int s, error;
-	s = splnet();
-	error = raw_usrreqs.pru_peeraddr(so, nam);
-	splx(s);
-	return error;
+
+	return (raw_usrreqs.pru_peeraddr(so, nam));
 }
 
 /* pru_rcvd is EOPNOTSUPP */
@@ -280,11 +265,8 @@ static int
 rts_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 struct mbuf *control, struct thread *td)
 {
-	int s, error;
-	s = splnet();
-	error = raw_usrreqs.pru_send(so, flags, m, nam, control, td);
-	splx(s);
-	return error;
+
+	return (raw_usrreqs.pru_send(so, flags, m, nam, control, td));
 }
 
 /* pru_sense is null */
@@ -292,21 +274,15 @@ rts_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 static int
 rts_shutdown(struct socket *so)
 {
-	int s, error;
-	s = splnet();
-	error = raw_usrreqs.pru_shutdown(so);
-	splx(s);
-	return error;
+
+	return (raw_usrreqs.pru_shutdown(so));
 }
 
 static int
 rts_sockaddr(struct socket *so, struct sockaddr **nam)
 {
-	int s, error;
-	s = splnet();
-	error = raw_usrreqs.pru_sockaddr(so, nam);
-	splx(s);
-	return error;
+
+	return (raw_usrreqs.pru_sockaddr(so, nam));
 }
 
 static struct pr_usrreqs route_usrreqs = {
@@ -1162,6 +1138,10 @@ sysctl_ifmalist(int af, struct walkarg *w)
 		ifa = ifaddr_byindex(ifp->if_index);
 		info.rti_info[RTAX_IFP] = ifa ? ifa->ifa_addr : NULL;
 
+		/*
+		 * XXXRW: Can't acquire IF_ADDR_LOCK() due to call
+	 	 * to SYSCTL_OUT().
+		 */
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
