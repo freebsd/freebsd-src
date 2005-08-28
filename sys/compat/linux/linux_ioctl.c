@@ -2214,7 +2214,7 @@ again:
 
 	ifc.ifc_len = valid_len; 
 	sbuf_finish(sb);
-	memcpy(ifc.ifc_buf, sbuf_data(sb), ifc.ifc_len);
+	memcpy(PTRIN(ifc.ifc_buf), sbuf_data(sb), ifc.ifc_len);
 	error = copyout(&ifc, uifc, sizeof(ifc));
 	sbuf_delete(sb);
 
