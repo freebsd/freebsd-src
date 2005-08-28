@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.385 2004/11/25 06:52:06 msk Exp $
+#	$Id: README,v 8.386 2005/03/04 23:24:08 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -375,6 +375,9 @@ LA_TYPE		The type of load average your kernel supports.  These
 		 LA_DEVSHORT (13) reads a short from a system file (default:
 			/dev/table/avenrun) and scales it in the same manner
 			as LA_SHORT.
+		 LA_LONGLONG (17) to read /dev/kmem for the symbol avenrun and
+			interpret as a long long integer (e.g., for 64 bit
+			systems).
 		LA_INT, LA_SHORT, LA_FLOAT, and LA_READKSYM have several
 		other parameters that they try to divine: the name of your
 		kernel, the name of the variable in the kernel to examine,
@@ -1823,4 +1826,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.385 $, last update $Date: 2004/11/25 06:52:06 $ )
+(Version $Revision: 8.386 $, last update $Date: 2005/03/04 23:24:08 $ )

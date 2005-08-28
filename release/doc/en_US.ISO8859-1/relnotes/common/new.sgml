@@ -279,7 +279,8 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para></para>
+    <para><application>sendmail</application> has been updated from
+      version 8.13.3 to version 8.13.4.</para>
   </sect2>
 
   <sect2 id="ports">

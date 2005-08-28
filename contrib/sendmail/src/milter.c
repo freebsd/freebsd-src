@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.228 2004/11/09 18:54:55 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.229 2005/03/02 02:32:34 ca Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
@@ -350,6 +350,16 @@ milter_read(m, cmd, rlen, to, e)
 	char *buf;
 	char data[MILTER_LEN_BYTES + 1];
 
+	if (m->mf_sock < 0)
+	{
+		if (MilterLogLevel > 0)
+			sm_syslog(LOG_ERR, e->e_id,
+				  "milter_read(%s): socket closed",
+				  m->mf_name);
+		milter_error(m, e);
+		return NULL;
+	}
+
 	*rlen = 0;
 	*cmd = '\0';
 
@@ -484,6 +494,15 @@ milter_write(m, cmd, buf, len, to, e)
 			sm_syslog(LOG_ERR, e->e_id,
 				  "milter_write(%s): length %ld out of range",
 				  m->mf_name, (long) len);
+		milter_error(m, e);
+		return NULL;
+	}
+	if (m->mf_sock < 0)
+	{
+		if (MilterLogLevel > 0)
+			sm_syslog(LOG_ERR, e->e_id,
+				  "milter_write(%s): socket closed",
+				  m->mf_name);
 		milter_error(m, e);
 		return NULL;
 	}
@@ -1852,7 +1871,7 @@ milter_send_macros(m, macros, cmd, e)
 	}
 	(void) milter_write(m, SMFIC_MACRO, buf, s,
 			    m->mf_timeout[SMFTO_WRITE], e);
-	sm_free(buf); /* XXX */
+	sm_free(buf);
 }
 
 /*
@@ -3760,8 +3779,11 @@ milter_data(e, state)
 		}
 
 		if (MilterEOMMacros[0] != NULL)
+		{
 			milter_send_macros(m, MilterEOMMacros,
 					   SMFIC_BODYEOB, e);
+			MILTER_CHECK_RESULTS();
+		}
 
 		/* send the final body chunk */
 		(void) milter_write(m, SMFIC_BODYEOB, NULL, 0,

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 8.293 2004/02/18 00:46:18 gshapiro Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 8.294 2005/02/16 23:38:51 ca Exp $")
 
 /*
 **  CLRSESSENVELOPE -- clear session oriented data in an envelope
@@ -518,7 +518,7 @@ simpledrop:
 		if (xunlink(queuename(e, ANYQFL_LETTER)) == 0)
 		{
 			/* add to available space in filesystem */
-			updfs(e, true, !panic);
+			updfs(e, -1, panic ? 0 : -1, "dropenvelope");
 		}
 
 		if (e->e_ntries > 0 && LogLevel > 9)

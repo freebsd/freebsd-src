@@ -1593,7 +1593,7 @@ The four mailers are:
 
     uucp-old (obsolete name: "uucp")
 	This is the oldest, the worst (but the closest to UUCP) way of
-	sending messages accros UUCP connections.  It does bangify
+	sending messages across UUCP connections.  It does bangify
 	everything and prepends $U (your UUCP name) to the sender's
 	address (which can already be a bang path itself).  It can
 	only send to one address at a time, so it spends a lot of
@@ -2662,7 +2662,7 @@ blacklists, use the access_db feature and add:
 
 to the access map, where 10.1 is your local network.  You may
 want to use "RELAY" instead of "OK" to allow also relaying
-instead of just disabling the DNS lookups in the backlists.
+instead of just disabling the DNS lookups in the blacklists.
 
 
 The features described above make use of the check_relay, check_mail,
@@ -2870,12 +2870,12 @@ the previous paragraph.  Example:
 | STARTTLS |
 +----------+
 
-In this text, cert will be used as an abreviation for X.509 certificate,
+In this text, cert will be used as an abbreviation for X.509 certificate,
 DN (CN) is the distinguished (common) name of a cert, and CA is a
 certification authority, which signs (issues) certs.
 
 For STARTTLS to be offered by sendmail you need to set at least
-this variables (the file names and paths are just examples):
+these variables (the file names and paths are just examples):
 
 	define(`confCACERT_PATH', `/etc/mail/certs/')
 	define(`confCACERT', `/etc/mail/certs/CA.cert.pem')
@@ -4127,12 +4127,8 @@ confAUTH_OPTIONS	AuthOptions	[undefined] If this option is 'A'
 					then the AUTH= parameter for the
 					MAIL FROM command is only issued
 					when authentication succeeded.
-					Other values (which should be listed
-					one after the other without any
-					intervening characters except for
-					space or comma) are a, c, d, f, p,
-					and y.  See doc/op/op.me for
-					details.
+					See doc/op/op.me for more options
+					and details.
 confAUTH_MAX_BITS	AuthMaxBits	[INT_MAX] Limit the maximum encryption
 					strength for the security layer in
 					SMTP AUTH (SASL).  Default is
@@ -4587,4 +4583,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.691 $, Last updated $Date: 2004/07/19 17:47:34 $
+$Revision: 8.694 $, Last updated $Date: 2005/03/23 21:41:09 $

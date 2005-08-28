@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.379 2004/08/06 22:19:36 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.381 2005/02/04 22:01:45 ca Exp $")
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -2194,9 +2194,22 @@ cataddr(pvp, evp, buf, sz, spacesub)
 			break;
 	}
 
-	/* Don't silently truncate long strings */
+#if 0
+	/*
+	**  Silently truncate long strings: even though this doesn't
+	**  seem like a good idea it is necessary because header checks
+	**  send the whole header value to rscheck() and hence rewrite().
+	**  The latter however sometimes uses a "short" buffer (e.g.,
+	**  cbuf[MAXNAME + 1]) to call cataddr() which then triggers this
+	**  error function.  One possible fix to the problem is to pass
+	**  flags to rscheck() and rewrite() to distinguish the various
+	**  calls and only trigger the error if necessary.  For now just
+	**  undo the change from 8.13.0.
+	*/
+
 	if (sz <= 0)
 		usrerr("cataddr: string too long");
+#endif
 	*p = '\0';
 }
 /*

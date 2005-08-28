@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.653 2004/11/18 23:45:01 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.658 2005/02/02 18:19:28 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -77,9 +77,21 @@ struct daemon
 	char		*d_inputfilterlist;
 	struct milter	*d_inputfilters[MAXFILTERS];
 #endif /* MILTER */
+#if _FFR_SS_PER_DAEMON
+	int		d_supersafe;
+#endif /* _FFR_SS_PER_DAEMON */
+#if _FFR_DM_PER_DAEMON
+	int		d_dm;	/* DeliveryMode */
+#endif /* _FFR_DM_PER_DAEMON */
 };
 
 typedef struct daemon DAEMON_T;
+
+#define SAFE_NOTSET	(-1)	/* SuperSafe (per daemon) option not set */
+/* see also sendmail.h: SuperSafe values */
+
+#define DM_NOTSET	(-1)	/* DeliveryMode (per daemon) option not set */
+/* see also sendmail.h: values for e_sendmode -- send modes */
 
 static void		connecttimeout __P((int));
 static int		opendaemonsocket __P((DAEMON_T *, bool));
@@ -742,6 +754,17 @@ getrequests(e)
 
 				/* don't schedule queue runs if ETRN */
 				QueueIntvl = 0;
+#if _FFR_SS_PER_DAEMON
+				if (Daemons[curdaemon].d_supersafe !=
+				    SAFE_NOTSET)
+					SuperSafe = Daemons[curdaemon].d_supersafe;
+#endif /* _FFR_SS_PER_DAEMON */
+#if _FFR_DM_PER_DAEMON
+				if (Daemons[curdaemon].d_dm != DM_NOTSET)
+					set_delivery_mode(
+						Daemons[curdaemon].d_dm, e);
+#endif /* _FFR_DM_PER_DAEMON */
+					
 
 				sm_setproctitle(true, e, "startup with %s",
 						anynet_ntoa(&RealHostAddr));
@@ -1453,9 +1476,37 @@ setsockaddroptions(p, d)
 			continue;
 		if (isascii(*f) && islower(*f))
 			*f = toupper(*f);
+#if _FFR_SS_PER_DAEMON
+		d->d_supersafe = SAFE_NOTSET;
+#endif /* _FFR_SS_PER_DAEMON */
+#if _FFR_DM_PER_DAEMON
+		d->d_dm = DM_NOTSET;
+#endif /* _FFR_DM_PER_DAEMON */
 
 		switch (*f)
 		{
+		  case 'A':		/* address */
+			addr = v;
+			break;
+
+#if _FFR_DM_PER_DAEMON
+		  case 'D':		/* DeliveryMode */
+			switch (*v)
+			{
+			  case SM_QUEUE:
+			  case SM_DEFER:
+			  case SM_DELIVER:
+			  case SM_FORK:	
+				d->d_dm = *v;
+				break;
+			  default:
+				syserr("554 5.3.5 Unknown delivery mode %c",
+					*v);
+				break;
+			}
+			break;
+#endif /* _FFR_DM_PER_DAEMON */
+
 		  case 'F':		/* address family */
 			if (isascii(*v) && isdigit(*v))
 				d->d_addr.sa.sa_family = atoi(v);
@@ -1491,19 +1542,11 @@ setsockaddroptions(p, d)
 				       v);
 			break;
 
-		  case 'A':		/* address */
-			addr = v;
-			break;
-
 #if MILTER
 		  case 'I':
 			d->d_inputfilterlist = v;
 			break;
 #endif /* MILTER */
-
-		  case 'P':		/* port */
-			port = v;
-			break;
 
 		  case 'L':		/* listen queue size */
 			d->d_listenqueue = atoi(v);
@@ -1513,17 +1556,38 @@ setsockaddroptions(p, d)
 			d->d_mflags = getmodifiers(v, d->d_flags);
 			break;
 
-		  case 'S':		/* send buffer size */
-			d->d_tcpsndbufsize = atoi(v);
+		  case 'N':		/* name */
+			d->d_name = v;
+			break;
+
+		  case 'P':		/* port */
+			port = v;
 			break;
 
 		  case 'R':		/* receive buffer size */
 			d->d_tcprcvbufsize = atoi(v);
 			break;
 
-		  case 'N':		/* name */
-			d->d_name = v;
+		  case 'S':		/* send buffer size */
+			d->d_tcpsndbufsize = atoi(v);
 			break;
+
+#if _FFR_SS_PER_DAEMON
+		  case 'T':		/* SuperSafe */
+			if (tolower(*v) == 'i')
+				d->d_supersafe = SAFE_INTERACTIVE;
+			else if (tolower(*v) == 'p')
+# if MILTER
+				d->d_supersafe = SAFE_REALLY_POSTMILTER;
+# else /* MILTER */
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					"Warning: SuperSafe=PostMilter requires Milter support (-DMILTER)\n");
+# endif /* MILTER */
+			else
+				d->d_supersafe = atobool(v) ? SAFE_REALLY
+							: SAFE_NO;
+			break;
+#endif /* _FFR_SS_PER_DAEMON */
 
 		  default:
 			syserr("554 5.3.5 PortOptions parameter \"%s\" unknown",
