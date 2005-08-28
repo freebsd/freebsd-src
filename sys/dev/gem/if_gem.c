@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_vlan_var.h>
 
 #include <machine/bus.h>
 
@@ -333,6 +334,14 @@ gem_attach(sc)
 #ifdef GEM_RINT_TIMEOUT
 	callout_init(&sc->sc_rx_ch, CALLOUT_MPSAFE);
 #endif
+
+	/*
+	 * Tell the upper layer(s) we support long frames.
+	 */
+	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
+
 	return (0);
 
 	/*
@@ -423,6 +432,11 @@ gem_resume(sc)
 	struct ifnet *ifp = sc->sc_ifp;
 
 	GEM_LOCK(sc);
+	/*
+	 * On resume all registers have to be initialized again like
+	 * after power-on.
+	 */
+	sc->sc_inited = 0;
 	if (ifp->if_flags & IFF_UP)
 		gem_init_locked(sc);
 	GEM_UNLOCK(sc);
@@ -766,7 +780,6 @@ gem_meminit(sc)
 	/*
 	 * Initialize the transmit descriptor ring.
 	 */
-	memset((void *)sc->sc_txdescs, 0, sizeof(sc->sc_txdescs));
 	for (i = 0; i < GEM_NTXDESC; i++) {
 		sc->sc_txdescs[i].gd_flags = 0;
 		sc->sc_txdescs[i].gd_addr = 0;
@@ -895,9 +908,6 @@ gem_init_locked(sc)
 
 	/* step 4. TX MAC registers & counters */
 	gem_init_regs(sc);
-	/* XXX: VLAN code from NetBSD temporarily removed. */
-	bus_space_write_4(t, h, GEM_MAC_MAC_MAX_FRAME,
-            (ETHER_MAX_LEN + sizeof(struct ether_header)) | (0x2000<<16));
 
 	/* step 5. RX MAC registers & counters */
 	gem_setladrf(sc);
@@ -1049,7 +1059,8 @@ gem_init_regs(sc)
 		bus_space_write_4(t, h, GEM_MAC_MAC_MIN_FRAME, ETHER_MIN_LEN);
 		/* Max frame and max burst size */
 		bus_space_write_4(t, h, GEM_MAC_MAC_MAX_FRAME,
-		    ETHER_MAX_LEN | (0x2000<<16));
+		    (ETHER_MAX_LEN + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN) |
+		    (0x2000 << 16));
 
 		bus_space_write_4(t, h, GEM_MAC_PREAMBLE_LEN, 0x7);
 		bus_space_write_4(t, h, GEM_MAC_JAM_SIZE, 0x4);
@@ -1592,11 +1603,15 @@ gem_intr(v)
 	}
 	if (status & GEM_INTR_RX_MAC) {
 		int rxstat = bus_space_read_4(t, seb, GEM_MAC_RX_STATUS);
-		if (rxstat & ~(GEM_MAC_RX_DONE | GEM_MAC_RX_FRAME_CNT))
+		/*
+		 * On some chip revisions GEM_MAC_RX_OVERFLOW happen often
+		 * due to a silicon bug so handle them silently.
+		 */
+		if (rxstat & GEM_MAC_RX_OVERFLOW)
+			gem_init_locked(sc);
+		else if (rxstat & ~(GEM_MAC_RX_DONE | GEM_MAC_RX_FRAME_CNT))
 			device_printf(sc->sc_dev, "MAC rx fault, status %x\n",
 			    rxstat);
-		if ((rxstat & GEM_MAC_RX_OVERFLOW) != 0)
-			gem_init_locked(sc);
 	}
 	GEM_UNLOCK(sc);
 }
