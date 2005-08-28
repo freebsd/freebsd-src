@@ -80,9 +80,8 @@ MODULE_DEPEND(ed, ether, 1, 1, 1);
 #define ED_DEFAULT_MAC_OFFSET	0xff0
 
 /*
- *      PC-Card (PCMCIA) specific code.
+ *      PC Card (PCMCIA) specific code.
  */
-static int	ed_pccard_match(device_t);
 static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
 
@@ -198,7 +197,7 @@ static const struct ed_product {
 };
 
 static int
-ed_pccard_match(device_t dev)
+ed_pccard_probe(device_t dev)
 {
 	const struct ed_product *pp;
 	int		error;
@@ -224,45 +223,6 @@ ed_pccard_match(device_t dev)
 		return (0);
 	}
 	return (ENXIO);
-}
-
-/* 
- * Probe framework for pccards.  Replicates the standard framework,
- * minus the pccard driver registration and ignores the ether address
- * supplied (from the CIS), relying on the probe to find it instead.
- */
-static int
-ed_pccard_probe(device_t dev)
-{
-	const struct ed_product *pp;
-	int	error;
-	struct ed_softc *sc = device_get_softc(dev);
-
-	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
-	    (const struct pccard_product *) ed_pccard_products,
-	    sizeof(ed_pccard_products[0]), NULL)) == NULL)
-		return (ENXIO);
-	sc->port_rid = pp->edrid;
-	if (pp->flags & NE2000DVF_DL100XX) {
-		error = ed_probe_Novell(dev, sc->port_rid, 0);
-		if (error == 0)
-			error = ed_pccard_Linksys(dev);
-		ed_release_resources(dev);
-		if (error == 0)
-			goto end2;
-	}
-	if (pp->flags & NE2000DVF_AX88X90) {
-		error = ed_pccard_ax88x90(dev);
-		if (error == 0)
-			goto end2;
-	}
-	error = ed_probe_Novell(dev, sc->port_rid, 0);
-end2:
-	if (error == 0)
-		error = ed_alloc_irq(dev, 0, 0);
-
-	ed_release_resources(dev);
-	return (error);
 }
 
 static int
@@ -300,25 +260,44 @@ ed_pccard_add_modem(device_t dev, int rid)
 static int
 ed_pccard_attach(device_t dev)
 {
-	int error, i;
-	struct ed_softc *sc = device_get_softc(dev);
 	u_char sum;
 	u_char enaddr[ETHER_ADDR_LEN];
 	const struct ed_product *pp;
-	
+	int	error, i;
+	struct ed_softc *sc = device_get_softc(dev);
+
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) == NULL)
 		return (ENXIO);
 	sc->port_rid = pp->edrid;
-	if (sc->port_used > 0)
-		ed_alloc_port(dev, sc->port_rid, sc->port_used);
-	if (sc->mem_used)
-		ed_alloc_memory(dev, sc->mem_rid, sc->mem_used);
-	ed_alloc_irq(dev, sc->irq_rid, 0);
-		
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, edintr, sc,
-	    &sc->irq_handle);
+	if (pp->flags & NE2000DVF_DL100XX) {
+		error = ed_probe_Novell(dev, sc->port_rid, 0);
+		if (error == 0)
+			error = ed_pccard_Linksys(dev);
+		ed_release_resources(dev);
+		if (error == 0)
+			goto end2;
+	}
+	if (pp->flags & NE2000DVF_AX88X90) {
+		error = ed_pccard_ax88x90(dev);
+		if (error == 0)
+			goto end2;
+	}
+	error = ed_probe_Novell(dev, sc->port_rid, 0);
+end2:
+	if (error) {
+		ed_release_resources(dev);
+		return (error);
+	}
+	error = ed_alloc_irq(dev, 0, 0);
+	if (error) {
+		ed_release_resources(dev);
+		return (error);
+	}
+
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+	    edintr, sc, &sc->irq_handle);
 	if (error) {
 		device_printf(dev, "setup intr failed %d \n", error);
 		ed_release_resources(dev);
@@ -376,9 +355,13 @@ ed_pccard_attach(device_t dev)
 	}
 
 	error = ed_attach(dev);
+	if (error) {
+		ed_release_resources(dev);
+		return (error);
+	}
 #ifndef ED_NO_MIIBUS
- 	if (error == 0 && (sc->chip_type == ED_CHIP_TYPE_DL10019 ||
-		sc->chip_type == ED_CHIP_TYPE_DL10022)) {
+ 	if (sc->chip_type == ED_CHIP_TYPE_DL10019 ||
+	    sc->chip_type == ED_CHIP_TYPE_DL10022) {
 		/* Probe for an MII bus, but ignore errors. */
 		ed_pccard_dlink_mii_reset(sc);
 		sc->mii_readbits = ed_pccard_dlink_mii_readbits;
@@ -389,7 +372,7 @@ ed_pccard_attach(device_t dev)
 #endif
 	if (pp->flags & NE2000DVF_MODEM)
 		ed_pccard_add_modem(dev, pp->siorid);
-	return (error);
+	return (0);
 }
 
 static void
@@ -650,8 +633,8 @@ ed_pccard_dlink_mii_readbits(sc, nbits)
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		ed_pccard_probe),
+	DEVMETHOD(device_attach,	ed_pccard_attach),
 	DEVMETHOD(device_detach,	ed_detach),
 
 #ifndef ED_NO_MIIBUS
@@ -663,10 +646,6 @@ static device_method_t ed_pccard_methods[] = {
 	DEVMETHOD(miibus_writereg,	ed_miibus_writereg),
 #endif
 
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	ed_pccard_match),
-	DEVMETHOD(card_compat_probe,	ed_pccard_probe),
-	DEVMETHOD(card_compat_attach,	ed_pccard_attach),
 	{ 0, 0 }
 };
 

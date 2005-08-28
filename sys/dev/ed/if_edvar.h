@@ -34,12 +34,14 @@
  */
 struct ed_softc {
 	struct ifnet *ifp;
+	struct ifmedia ifmedia; /* Media info */
+	device_t dev;
+	struct mtx sc_mtx;
 
 	char   *type_str;	/* pointer to type string */
 	u_char  vendor;		/* interface vendor */
 	u_char  type;		/* interface type code */
 	u_char	chip_type;	/* the type of chip (one of ED_CHIP_TYPE_*) */
-	u_char	gone;		/* HW missing, presumed having a good time */
 	u_char  isa16bit;	/* width of access to card 0=8 or 1=16 */
 	u_char  mem_shared;	/* NIC memory is shared with host */
 	u_char  xmit_busy;	/* transmitter is busy */
@@ -61,7 +63,9 @@ struct ed_softc {
 	device_t miibus;	/* MII bus for cards with MII. */
 	void	(*mii_writebits)(struct ed_softc *, u_int, int);
 	u_int	(*mii_readbits)(struct ed_softc *, int);
-	struct callout_handle tick_ch; /* Callout handle for ed_tick */
+	struct callout	      tick_ch;
+	void (*readmem)(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
+	    uint16_t amount);
 
 	int	nic_offset;	/* NIC (DS8390) I/O bus address offset */
 	int	asic_offset;	/* ASIC I/O bus address offset */
@@ -81,10 +85,10 @@ struct ed_softc {
 	u_short hpp_id;		/* software revision and other fields */
 	caddr_t hpp_mem_start;	/* Memory-mapped IO register address */
 
-	caddr_t mem_start;	/* NIC memory start address */
-	caddr_t mem_end;		/* NIC memory end address */
+	bus_size_t mem_start; /* NIC memory start address */
+	bus_size_t mem_end; /* NIC memory end address */
 	uint32_t mem_size;	/* total NIC memory size */
-	caddr_t mem_ring;	/* start of RX ring-buffer (in NIC mem) */
+	bus_size_t mem_ring; /* start of RX ring-buffer (in NIC mem) */
 
 	u_char  txb_cnt;	/* number of transmit buffers */
 	u_char  txb_inuse;	/* number of TX buffers currently in-use */
@@ -202,7 +206,9 @@ int	ed_detach(device_t);
 int	ed_clear_memory(device_t);
 int	ed_isa_mem_ok(device_t, u_long, u_int); /* XXX isa specific */
 void	ed_stop(struct ed_softc *);
-void	ed_pio_readmem(struct ed_softc *, long, uint8_t *, uint16_t);
+void	ed_shmem_readmem16(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
+void	ed_shmem_readmem8(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
+void	ed_pio_readmem(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
 void	ed_pio_writemem(struct ed_softc *, uint8_t *, uint16_t, uint16_t);
 #ifndef ED_NO_MIIBUS
 int	ed_miibus_readreg(device_t, int, int);
@@ -215,7 +221,7 @@ void	ed_child_detached(device_t, device_t);
 /* The following is unsatisfying XXX */
 #ifdef ED_HPP
 void	ed_hpp_set_physical_link(struct ed_softc *);
-void	ed_hpp_readmem(struct ed_softc *, long, uint8_t *, uint16_t);
+void	ed_hpp_readmem(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
 u_short	ed_hpp_write_mbufs(struct ed_softc *, struct mbuf *, int);
 #endif
 
@@ -271,5 +277,15 @@ extern devclass_t ed_devclass;
 #define ED_FLAGS_LINKSYS		0x80000
 
 #define ED_FLAGS_GETTYPE(flg)		((flg) & 0xff0000)
+
+#define ED_MUTEX(_sc)		(&(_sc)->sc_mtx)
+#define ED_LOCK(_sc)		mtx_lock(ED_MUTEX(_sc))
+#define	ED_UNLOCK(_sc)		mtx_unlock(ED_MUTEX(_sc))
+#define ED_LOCK_INIT(_sc) \
+	mtx_init(ED_MUTEX(_sc), device_get_nameunit(_sc->dev), \
+	    MTX_NETWORK_LOCK, MTX_DEF)
+#define ED_LOCK_DESTROY(_sc)	mtx_destroy(ED_MUTEX(_sc));
+#define ED_ASSERT_LOCKED(_sc)	mtx_assert(ED_MUTEX(_sc), MA_OWNED);
+#define ED_ASSERT_UNLOCKED(_sc)	mtx_assert(ED_MUTEX(_sc), MA_NOTOWNED);
 
 #endif /* SYS_DEV_ED_IF_EDVAR_H */

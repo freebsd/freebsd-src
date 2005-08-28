@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_media.h>
 #include <net/if_mib.h>
 
 #include <dev/pci/pcireg.h>
@@ -94,7 +95,7 @@ ed_pci_attach(device_t dev)
 		ed_release_resources(dev);
 		return (error);
 	}
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    edintr, sc, &sc->irq_handle);
 	if (error) {
 		ed_release_resources(dev);
