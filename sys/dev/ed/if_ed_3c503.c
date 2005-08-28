@@ -249,7 +249,7 @@ ed_probe_3Com(device_t dev, int port_rid, int flags)
 	if (error)
 		return (error);
 
-	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
+	sc->mem_start = 0;
 	sc->mem_size = memsize;
 	sc->mem_end = sc->mem_start + memsize;
 

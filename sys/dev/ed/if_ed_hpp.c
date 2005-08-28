@@ -410,7 +410,8 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
  */
 
 void
-ed_hpp_readmem(struct ed_softc *sc, long src, uint8_t *dst, uint16_t amount)
+ed_hpp_readmem(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
+    uint16_t amount)
 {
 	int use_32bit_access = !(sc->hpp_id & ED_HPP_ID_16_BIT_ACCESS);
 
@@ -434,10 +435,10 @@ ed_hpp_readmem(struct ed_softc *sc, long src, uint8_t *dst, uint16_t amount)
 				(uint32_t *) sc->hpp_mem_start;
 			uint32_t *const fence = dl + (amount >> 2);
 			
-			/* Copy out NIC data.  We could probably write this
-			   as a `movsl'. The currently generated code is lousy.
-			   */
-
+			/*
+			 * Copy out NIC data.  We could probably write this
+			 * as a `movsl'. The currently generated code is lousy.
+			 */
 			while (dl < fence)
 				*dl++ = *sl;
 		

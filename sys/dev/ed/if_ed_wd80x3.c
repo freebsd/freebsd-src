@@ -258,7 +258,7 @@ ed_probe_WD80x3_generic(device_t dev, int flags, uint16_t *intr_vals[])
 	error = ed_alloc_memory(dev, 0, memsize);
 	if (error)
 		return (error);
-	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
+	sc->mem_start = 0;
 
 #ifdef ED_DEBUG
 	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%lu\n",

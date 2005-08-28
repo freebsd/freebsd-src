@@ -85,7 +85,7 @@ ed_probe_SIC(device_t dev, int port_rid, int flags)
 	if (error)
 		return (error);
 
-	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
+	sc->mem_start = 0;
 	sc->mem_size  = memsize;
 
 	pmem = rman_get_start(sc->mem_res);
@@ -105,9 +105,10 @@ ed_probe_SIC(device_t dev, int port_rid, int flags)
 	ed_asic_outb(sc, 0, 0x81);
 	DELAY(100);
 
-	sum = sc->mem_start[6];
+	sum = bus_space_read_1(sc->mem_bst, sc->mem_bsh, 6);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sum ^= (sc->enaddr[i] = sc->mem_start[i]);
+		sum ^= (sc->enaddr[i] =
+		    bus_space_read_1(sc->mem_bst, sc->mem_bsh, i));
 #ifdef ED_DEBUG
 	device_printf(dev, "ed_probe_sic: got address %6D\n",
 	    sc->enaddr, ":");
