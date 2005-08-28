@@ -710,15 +710,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 			(vm_offset_t *) &ef->address,
 			mapsize, 1,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
-#ifdef SPARSE_MAPPING
-	/*
-	 * Wire down the pages
-	 */
-    if (error == 0)
-	error = vm_map_wire(kernel_map, (vm_offset_t) ef->address,
-			    (vm_offset_t) ef->address + mapsize,
-			    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
-#endif
     if (error) {
 	vm_object_deallocate(ef->object);
 	ef->object = 0;
@@ -747,6 +738,16 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	}
 	bzero(segbase + segs[i]->p_filesz,
 	      segs[i]->p_memsz - segs[i]->p_filesz);
+
+#ifdef SPARSE_MAPPING
+	/*
+	 * Wire down the pages
+	 */
+	vm_map_wire(kernel_map,
+		    (vm_offset_t) segbase,
+		    (vm_offset_t) segbase + segs[i]->p_memsz,
+		    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
+#endif
     }
 
 #ifdef GPROF
@@ -880,14 +881,6 @@ link_elf_unload_file(linker_file_t file)
 
 #ifdef SPARSE_MAPPING
     if (ef->object) {
-	/*
-	 * Unwire the pages
-	 */
-	vm_map_unwire(kernel_map,
-		    (vm_offset_t) ef->address,
-		    (vm_offset_t) ef->address
-		    + (ef->object->size << PAGE_SHIFT),
-		    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
 	vm_map_remove(kernel_map, (vm_offset_t) ef->address,
 		      (vm_offset_t) ef->address
 		      + (ef->object->size << PAGE_SHIFT));
