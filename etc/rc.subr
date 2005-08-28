@@ -1294,7 +1294,7 @@ mount_md()
 	if [ -n "$3" ]; then
 		flags="$3"
 	fi
-	/sbin/mdmfs $flags -s $1 -M md $2
+	/sbin/mdmfs $flags -s $1 md $2
 }
 
 # ltr str src dst
