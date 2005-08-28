@@ -65,6 +65,8 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 	
 	mftrecsz = (char)bf->bf_mftrecsz;
 	recsize = (mftrecsz > 0) ? (mftrecsz * bf->bf_bps * bf->bf_spc) : (1 << -mftrecsz);
+	if(recsize % pp->sectorsize != 0)
+		goto done;
 	
 	voloff = bf->bf_mftcn * bf->bf_spc * bf->bf_bps +
 	  recsize * NTFS_VOLUMEINO;
