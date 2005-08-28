@@ -29,6 +29,11 @@
 __FBSDID("$FreeBSD$");
 
 /*
+ * TODO:
+ * o lock MII
+ */
+
+/*
  * Device driver for National Semiconductor DS8390/WD83C690 based ethernet
  *   adapters. By David Greenman, 29-April-1993
  *
@@ -71,12 +76,15 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
+#include <sys/kdb.h>
 
 devclass_t ed_devclass;
 
 static void	ed_init(void *);
+static void	ed_init_locked(struct ed_softc *);
 static int	ed_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ed_start(struct ifnet *);
+static void	ed_start_locked(struct ifnet *);
 static void	ed_reset(struct ifnet *);
 static void	ed_watchdog(struct ifnet *);
 #ifndef ED_NO_MIIBUS
@@ -85,12 +93,15 @@ static void	ed_tick(void *);
 
 static void	ed_ds_getmcaf(struct ed_softc *, uint32_t *);
 
-static void	ed_get_packet(struct ed_softc *, char *, u_short);
+static void	ed_get_packet(struct ed_softc *, bus_size_t, u_short);
+static void     ed_stop_hw(struct ed_softc *sc);
 
-static __inline void	ed_rint(struct ed_softc *);
-static __inline void	ed_xmit(struct ed_softc *);
-static __inline char *ed_ring_copy(struct ed_softc *, char *, char *, u_short);
-static u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, long);
+static __inline void ed_rint(struct ed_softc *);
+static __inline void ed_xmit(struct ed_softc *);
+static __inline void ed_ring_copy(struct ed_softc *, bus_size_t, char *,
+    u_short);
+static u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *,
+    bus_size_t);
 
 static void	ed_setrcr(struct ed_softc *);
 
@@ -257,17 +268,31 @@ ed_attach(device_t dev)
 	struct ed_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 
+	sc->dev = dev;
+	ED_LOCK_INIT(sc);
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
+		ED_LOCK_DESTROY(sc);
 		return (ENOSPC);
 	}
 
-	callout_handle_init(&sc->tick_ch);
+	if (sc->readmem == NULL) {
+		if (sc->mem_shared) {
+			if (sc->isa16bit)
+				sc->readmem = ed_shmem_readmem16;
+			else
+				sc->readmem = ed_shmem_readmem8;
+		} else {
+			sc->readmem = ed_pio_readmem;
+		}
+	}
+	
+	callout_init_mtx(&sc->tick_ch, ED_MUTEX(sc), 0);
 	/*
 	 * Set interface to stopped condition (reset)
 	 */
-	ed_stop(sc);
+	ed_stop_hw(sc);
 
 	/*
 	 * Initialize ifnet structure
@@ -298,15 +323,11 @@ ed_attach(device_t dev)
 
 	/*
 	 * Set default state for ALTPHYS flag (used to disable the 
-	 * tranceiver for AUI operation), based on compile-time 
-	 * config option.
+	 * tranceiver for AUI operation), based on config option.
 	 */
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	if (device_get_flags(dev) & ED_FLAGS_DISABLE_TRANCEIVER)
-		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | 
-		    IFF_MULTICAST | IFF_ALTPHYS | IFF_NEEDSGIANT);
-	else
-		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX |
-		    IFF_MULTICAST | IFF_NEEDSGIANT);
+		ifp->if_flags |= IFF_ALTPHYS;
 
 	/*
 	 * Attach the interface
@@ -331,7 +352,7 @@ ed_attach(device_t dev)
 			printf("%s ", sc->isa16bit ? "(16 bit)" : "(8 bit)");
 
 #if defined(ED_HPP) || defined(ED_3C503)
-		printf("%s\n", (((sc->vendor == ED_VENDOR_3COM) ||
+		printf("%s", (((sc->vendor == ED_VENDOR_3COM) ||
 				    (sc->vendor == ED_VENDOR_HP)) &&
 			   (ifp->if_flags & IFF_ALTPHYS)) ?
 		    " tranceiver disabled" : "");
@@ -350,15 +371,18 @@ ed_detach(device_t dev)
 	struct ed_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->ifp;
 
-	if (sc->gone)
-		return (0);
-	ed_stop(sc);
+	ED_ASSERT_UNLOCKED(sc);
+	ED_LOCK(sc);
+	if (bus_child_present(dev))
+		ed_stop(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	ED_UNLOCK(sc);
+	callout_drain(&sc->tick_ch);
 	ether_ifdetach(ifp);
 	if_free(ifp);
-	sc->gone = 1;
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
+	ED_LOCK_DESTROY(sc);
 	return (0);
 }
 
@@ -369,35 +393,20 @@ static void
 ed_reset(struct ifnet *ifp)
 {
 	struct ed_softc *sc = ifp->if_softc;
-	int     s;
 
-	if (sc->gone)
-		return;
-	s = splimp();
-
+	ED_ASSERT_LOCKED(sc);
 	/*
 	 * Stop interface and re-initialize.
 	 */
 	ed_stop(sc);
-	ed_init(sc);
-
-	(void) splx(s);
+	ed_init_locked(sc);
 }
 
-/*
- * Take interface offline.
- */
-void
-ed_stop(struct ed_softc *sc)
+static void
+ed_stop_hw(struct ed_softc *sc)
 {
 	int     n = 5000;
 
-#ifndef ED_NO_MIIBUS
-	untimeout(ed_tick, sc, sc->tick_ch);
-	callout_handle_init(&sc->tick_ch);
-#endif
-	if (sc->gone)
-		return;
 	/*
 	 * Stop everything on the interface, and select page 0 registers.
 	 */
@@ -414,6 +423,19 @@ ed_stop(struct ed_softc *sc)
 }
 
 /*
+ * Take interface offline.
+ */
+void
+ed_stop(struct ed_softc *sc)
+{
+	ED_ASSERT_LOCKED(sc);
+#ifndef ED_NO_MIIBUS
+	callout_stop(&sc->tick_ch);
+#endif
+	ed_stop_hw(sc);
+}
+
+/*
  * Device timeout/watchdog routine. Entered if the device neglects to
  *	generate an interrupt after a transmit has been started on it.
  */
@@ -422,12 +444,12 @@ ed_watchdog(struct ifnet *ifp)
 {
 	struct ed_softc *sc = ifp->if_softc;
 
-	if (sc->gone)
-		return;
 	log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
 	ifp->if_oerrors++;
 
+	ED_LOCK(sc);
 	ed_reset(ifp);
+	ED_UNLOCK(sc);
 }
 
 #ifndef ED_NO_MIIBUS
@@ -436,19 +458,13 @@ ed_tick(void *arg)
 {
 	struct ed_softc *sc = arg;
 	struct mii_data *mii;
-	int s;
 
-	if (sc->gone) {
-		callout_handle_init(&sc->tick_ch);
-		return;
-	}
-	s = splimp();
+	ED_ASSERT_LOCKED(sc);
 	if (sc->miibus != NULL) {
 		mii = device_get_softc(sc->miibus);
 		mii_tick(mii);
 	}
-	sc->tick_ch = timeout(ed_tick, sc, hz);
-	splx(s);
+	callout_reset(&sc->tick_ch, hz, ed_tick, sc);
 }
 #endif
 
@@ -459,18 +475,26 @@ static void
 ed_init(void *xsc)
 {
 	struct ed_softc *sc = xsc;
-	struct ifnet *ifp = sc->ifp;
-	int     i, s;
 
-	if (sc->gone)
-		return;
+	ED_ASSERT_UNLOCKED(sc);
+	ED_LOCK(sc);
+	ed_init_locked(sc);
+	ED_UNLOCK(sc);
+}
+
+static void
+ed_init_locked(struct ed_softc *sc)
+{
+	struct ifnet *ifp = sc->ifp;
+	int     i;
+
+	ED_ASSERT_LOCKED(sc);
 
 	/*
 	 * Initialize the NIC in the exact order outlined in the NS manual.
 	 * This init procedure is "mandatory"...don't change what or when
 	 * things happen.
 	 */
-	s = splimp();
 
 	/* reset transmitter flags */
 	sc->xmit_busy = 0;
@@ -601,13 +625,11 @@ ed_init(void *xsc)
 	/*
 	 * ...and attempt to start output
 	 */
-	ed_start(ifp);
+	ed_start_locked(ifp);
 
 #ifndef ED_NO_MIIBUS
-	untimeout(ed_tick, sc, sc->tick_ch);
-	sc->tick_ch = timeout(ed_tick, sc, hz);
+	callout_reset(&sc->tick_ch, hz, ed_tick, sc);
 #endif
-	(void) splx(s);
 }
 
 /*
@@ -619,8 +641,6 @@ ed_xmit(struct ed_softc *sc)
 	struct ifnet *ifp = sc->ifp;
 	unsigned short len;
 
-	if (sc->gone)
-		return;
 	len = sc->txb_len[sc->txb_next_tx];
 
 	/*
@@ -672,14 +692,22 @@ static void
 ed_start(struct ifnet *ifp)
 {
 	struct ed_softc *sc = ifp->if_softc;
+
+	ED_ASSERT_UNLOCKED(sc);
+	ED_LOCK(sc);
+	ed_start_locked(ifp);
+	ED_UNLOCK(sc);
+}
+
+static void
+ed_start_locked(struct ifnet *ifp)
+{
+	struct ed_softc *sc = ifp->if_softc;
 	struct mbuf *m0, *m;
-	caddr_t buffer;
+	bus_size_t buffer;
 	int     len;
 
-	if (sc->gone) {
-		printf("ed_start(%p) GONE\n",ifp);
-		return;
-	}
+	ED_ASSERT_LOCKED(sc);
 outloop:
 
 	/*
@@ -719,7 +747,6 @@ outloop:
 	/*
 	 * Copy the mbuf chain into the transmit buffer
 	 */
-
 	m0 = m;
 
 	/* txb_new points to next open buffer slot */
@@ -758,11 +785,14 @@ outloop:
 			}
 		}
 		for (len = 0; m != 0; m = m->m_next) {
-			/* XXX 
-			 * I'm not sure that this bcopy does only 16bit 
-			 * access
-			 */
-			bcopy(mtod(m, caddr_t), buffer, m->m_len);
+			if (sc->isa16bit)
+				bus_space_write_region_2(sc->mem_bst,
+				    sc->mem_bsh, buffer,
+				    mtod(m, uint16_t *), (m->m_len + 1)/ 2);
+			else
+				bus_space_write_region_1(sc->mem_bst,
+				    sc->mem_bsh, buffer,
+				    mtod(m, uint8_t *), m->m_len);
 			buffer += m->m_len;
 			len += m->m_len;
 		}
@@ -788,7 +818,7 @@ outloop:
 			}
 		}
 	} else {
-		len = ed_pio_write_mbufs(sc, m, (uintptr_t)buffer);
+		len = ed_pio_write_mbufs(sc, m, buffer);
 		if (len == 0) {
 			m_freem(m0);
 			goto outloop;
@@ -832,10 +862,9 @@ ed_rint(struct ed_softc *sc)
 	u_char  boundry;
 	u_short len;
 	struct ed_ring packet_hdr;
-	char   *packet_ptr;
+	bus_size_t packet_ptr;
 
-	if (sc->gone)
-		return;
+	ED_ASSERT_LOCKED(sc);
 
 	/*
 	 * Set NIC to page 1 registers to get 'current' pointer
@@ -860,11 +889,8 @@ ed_rint(struct ed_softc *sc)
 		 * The byte count includes a 4 byte header that was added by
 		 * the NIC.
 		 */
-		if (sc->mem_shared)
-			packet_hdr = *(struct ed_ring *) packet_ptr;
-		else
-			ed_pio_readmem(sc, (uintptr_t)packet_ptr,
-			    (char *) &packet_hdr, sizeof(packet_hdr));
+		sc->readmem(sc, packet_ptr, (char *) &packet_hdr,
+		    sizeof(packet_hdr));
 		len = packet_hdr.count;
 		if (len > (ETHER_MAX_LEN - ETHER_CRC_LEN + sizeof(struct ed_ring)) ||
 		    len < (ETHER_MIN_LEN - ETHER_CRC_LEN + sizeof(struct ed_ring))) {
@@ -968,8 +994,13 @@ edintr(void *arg)
 	u_char  isr;
 	int	count;
 
-	if (sc->gone)
+	ED_LOCK(sc);
+#if 0
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		ED_UNLOCK(sc);
 		return;
+	}
+#endif
 	/*
 	 * Set NIC to page 0 registers
 	 */
@@ -1181,7 +1212,7 @@ edintr(void *arg)
 		 * after handling the receiver to give the receiver priority.
 		 */
 		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
-			ed_start(ifp);
+			ed_start_locked(ifp);
 
 		/*
 		 * return NIC CR to standard state: page 0, remote DMA
@@ -1202,6 +1233,7 @@ edintr(void *arg)
 			(void) ed_nic_inb(sc, ED_P0_CNTR2);
 		}
 	}
+	ED_UNLOCK(sc);
 }
 
 /*
@@ -1215,24 +1247,26 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
 #endif
-	int     s, error = 0;
+	int     error = 0;
 
-	if (sc == NULL || sc->gone) {
+	/*
+	 * XXX really needed?
+	 */
+	if (sc == NULL) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		return ENXIO;
+		return (ENXIO);
 	}
-	s = splimp();
 
 	switch (command) {
 	case SIOCSIFFLAGS:
-
 		/*
 		 * If the interface is marked up and stopped, then start it.
 		 * If it is marked down and running, then stop it.
 		 */
+		ED_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-				ed_init(sc);
+				ed_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				ed_stop(sc);
@@ -1264,6 +1298,7 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (sc->vendor == ED_VENDOR_HP) 
 			ed_hpp_set_physical_link(sc);
 #endif
+		ED_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
@@ -1272,7 +1307,9 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * Multicast list has changed; set the hardware filter
 		 * accordingly.
 		 */
+		ED_LOCK(sc);
 		ed_setrcr(sc);
+		ED_UNLOCK(sc);
 		error = 0;
 		break;
 
@@ -1290,8 +1327,8 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	default:
 		error = ether_ioctl(ifp, command, data);
+		break;
 	}
-	(void) splx(s);
 	return (error);
 }
 
@@ -1300,34 +1337,21 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
  *	the ring buffer into a linear destination buffer. Takes into account
  *	ring-wrap.
  */
-static __inline char *
-ed_ring_copy(struct ed_softc *sc, char *src, char *dst, u_short amount)
+static __inline void
+ed_ring_copy(struct ed_softc *sc, bus_size_t src, char *dst, u_short amount)
 {
 	u_short tmp_amount;
 
 	/* does copy wrap to lower addr in ring buffer? */
 	if (src + amount > sc->mem_end) {
 		tmp_amount = sc->mem_end - src;
-
-		/* XXX 
-		 * I'm not sure that this bcopy does only 16bit access
-		 */
 		/* copy amount up to end of NIC memory */
-		if (sc->mem_shared)
-			bcopy(src, dst, tmp_amount);
-		else
-			ed_pio_readmem(sc, (uintptr_t)src, dst, tmp_amount);
-
+		sc->readmem(sc, src, dst, tmp_amount);
 		amount -= tmp_amount;
 		src = sc->mem_ring;
 		dst += tmp_amount;
 	}
-	if (sc->mem_shared)
-		bcopy(src, dst, amount);
-	else
-		ed_pio_readmem(sc, (uintptr_t)src, dst, amount);
-
-	return (src + amount);
+	sc->readmem(sc, src, dst, amount);
 }
 
 /*
@@ -1335,7 +1359,7 @@ ed_ring_copy(struct ed_softc *sc, char *src, char *dst, u_short amount)
  * ether_input().
  */
 static void
-ed_get_packet(struct ed_softc *sc, char *buf, u_short len)
+ed_get_packet(struct ed_softc *sc, bus_size_t buf, u_short len)
 {
 	struct ifnet *ifp = sc->ifp;
 	struct ether_header *eh;
@@ -1379,12 +1403,41 @@ ed_get_packet(struct ed_softc *sc, char *buf, u_short len)
 
 	m->m_pkthdr.len = m->m_len = len;
 
+	ED_UNLOCK(sc);
 	(*ifp->if_input)(ifp, m);
+	ED_LOCK(sc);
 }
 
 /*
  * Supporting routines
  */
+
+/*
+ * Given a NIC memory source address and a host memory destination
+ *	address, copy 'amount' from NIC to host using shared memory.
+ *	The 'amount' is rounded up to a word - okay as long as mbufs
+ *		are word sized.  That's what the +1 is below.
+ * This routine accesses things as 16 bit quantities.
+ */
+void
+ed_shmem_readmem16(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
+    uint16_t amount)
+{
+	bus_space_read_region_2(sc->mem_bst, sc->mem_bsh, src, (uint16_t *)dst,
+	    amount + 1 / 2);
+}
+
+/*
+ * Given a NIC memory source address and a host memory destination
+ *	address, copy 'amount' from NIC to host using shared memory.
+ * This routine accesses things as 8 bit quantities.
+ */
+void
+ed_shmem_readmem8(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
+    uint16_t amount)
+{
+	bus_space_read_region_1(sc->mem_bst, sc->mem_bsh, src, dst, amount);
+}
 
 /*
  * Given a NIC memory source address and a host memory destination
@@ -1394,16 +1447,9 @@ ed_get_packet(struct ed_softc *sc, char *buf, u_short len)
  *	This routine is currently Novell-specific.
  */
 void
-ed_pio_readmem(struct ed_softc *sc, long src, uint8_t *dst, uint16_t amount)
+ed_pio_readmem(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
+    uint16_t amount)
 {
-#ifdef ED_HPP
-	/* HP PC Lan+ cards need special handling */
-	if (sc->vendor == ED_VENDOR_HP && sc->type == ED_TYPE_HP_PCLANPLUS) {
-		ed_hpp_readmem(sc, src, dst, amount);
-		return;
-	}
-#endif
-
 	/* Regular Novell cards */
 	/* select page 0 registers */
 	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
@@ -1477,12 +1523,14 @@ ed_pio_writemem(struct ed_softc *sc, uint8_t *src, uint16_t dst, uint16_t len)
  *	programmed I/O.
  */
 static u_short
-ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, long dst)
+ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 {
 	struct ifnet *ifp = sc->ifp;
 	unsigned short total_len, dma_len;
 	struct mbuf *mp;
 	int     maxwait = 200;	/* about 240us */
+
+	ED_ASSERT_LOCKED(sc);
 
 #ifdef ED_HPP
 	/* HP PC Lan+ cards need special handling */
@@ -1599,15 +1647,12 @@ int
 ed_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct ed_softc *sc;
-	int failed, s, val;
+	int failed, val;
 
-	s = splimp();
 	sc = device_get_softc(dev);
-	if (sc->gone) {
-		splx(s);
-		return (0);
-	}
 
+	/* XXX is this right? */
+	ED_LOCK(sc);
 	(*sc->mii_writebits)(sc, 0xffffffff, 32);
 	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_READOP, ED_MII_OP_BITS);
@@ -1617,8 +1662,8 @@ ed_miibus_readreg(device_t dev, int phy, int reg)
 	failed = (*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
 	val = (*sc->mii_readbits)(sc, ED_MII_DATA_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
-
-	splx(s);
+	/* XXX is this right? */
+	ED_UNLOCK(sc);
 	return (failed ? 0 : val);
 }
 
@@ -1626,15 +1671,11 @@ void
 ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct ed_softc *sc;
-	int s;
 
-	s = splimp();
 	sc = device_get_softc(dev);
-	if (sc->gone) {
-		splx(s);
-		return;
-	}
 
+	/* XXX is this right? */
+	ED_LOCK(sc);
 	(*sc->mii_writebits)(sc, 0xffffffff, 32);
 	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_WRITEOP, ED_MII_OP_BITS);
@@ -1643,8 +1684,8 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 	(*sc->mii_writebits)(sc, ED_MII_TURNAROUND, ED_MII_TURNAROUND_BITS);
 	(*sc->mii_writebits)(sc, data, ED_MII_DATA_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
-
-	splx(s);
+	/* XXX is this right? */
+	ED_UNLOCK(sc);
 }
 
 int
@@ -1654,7 +1695,7 @@ ed_ifmedia_upd(struct ifnet *ifp)
 	struct mii_data *mii;
 
 	sc = ifp->if_softc;
-	if (sc->gone || sc->miibus == NULL)
+	if (sc->miibus == NULL)
 		return (ENXIO);
 	
 	mii = device_get_softc(sc->miibus);
@@ -1668,7 +1709,7 @@ ed_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct mii_data *mii;
 
 	sc = ifp->if_softc;
-	if (sc->gone || sc->miibus == NULL)
+	if (sc->miibus == NULL)
 		return;
 
 	mii = device_get_softc(sc->miibus);
@@ -1694,6 +1735,8 @@ ed_setrcr(struct ed_softc *sc)
 	struct ifnet *ifp = sc->ifp;
 	int     i;
 	u_char	reg1;
+
+	ED_ASSERT_LOCKED(sc);
 
 	/* Bit 6 in AX88190 RCR register must be set. */
 	if (sc->chip_type == ED_CHIP_TYPE_AX88190)
@@ -1804,17 +1847,14 @@ int
 ed_clear_memory(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
-	int i;
+	bus_size_t i;
 
-	/*
-	 * Now zero memory and verify that it is clear
-	 * XXX restricted to 16-bit writes?  Do we need to
-	 * XXX enable 16-bit access?
-	 */
-	bzero(sc->mem_start, sc->mem_size);
+	bus_space_set_region_1(sc->mem_bst, sc->mem_bsh, sc->mem_start,
+	    0, sc->mem_size);
 
-	for (i = 0; i < sc->mem_size; ++i) {
-		if (sc->mem_start[i]) {
+	for (i = 0; i < sc->mem_size; i++) {
+		if (bus_space_read_1(sc->mem_bst, sc->mem_bsh,
+		    sc->mem_start + i)) {
 			device_printf(dev, "failed to clear shared memory at "
 			  "0x%jx - check configuration\n",
 			    (uintmax_t)rman_get_start(sc->mem_res) + i);

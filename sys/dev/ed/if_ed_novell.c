@@ -169,7 +169,7 @@ ed_probe_Novell_generic(device_t dev, int flags)
 
 	/* NIC memory doesn't start at zero on an NE board */
 	/* The start address is tied to the bus width */
-	sc->mem_start = (char *) 8192 + sc->isa16bit * 8192;
+	sc->mem_start = 8192 + sc->isa16bit * 8192;
 	sc->mem_end = sc->mem_start + memsize;
 	sc->tx_page_start = memsize / ED_PAGE_SIZE;
 
@@ -218,7 +218,7 @@ static int
 ed_probe_gwether(device_t dev)
 {
 	int     x, i, msize = 0;
-	long    mstart = 0;
+	bus_size_t mstart = 0;
 	char    pbuf0[ED_PAGE_SIZE], pbuf[ED_PAGE_SIZE], tbuf[ED_PAGE_SIZE];
 	struct ed_softc *sc = device_get_softc(dev);
 
@@ -269,14 +269,17 @@ ed_probe_gwether(device_t dev)
 
 	if (msize == 0) {
 		device_printf(dev,
-		    "Cannot find any RAM, start : %ld, x = %d.\n", mstart, x);
+		    "Cannot find any RAM, start : %d, x = %d.\n",
+		    (int)mstart, x);
 		return (ENXIO);
 	}
-	device_printf(dev, "RAM start at %ld, size : %d.\n", mstart, msize);
+	if (bootverbose)
+		device_printf(dev,
+		    "RAM start at %d, size : %d.\n", (int)mstart, msize);
 
 	sc->mem_size = msize;
-	sc->mem_start = (caddr_t)(uintptr_t) mstart;
-	sc->mem_end = (caddr_t)(uintptr_t) (msize + mstart);
+	sc->mem_start = mstart;
+	sc->mem_end = msize + mstart;
 	sc->tx_page_start = mstart / ED_PAGE_SIZE;
 	return 0;
 }
