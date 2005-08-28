@@ -704,7 +704,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	error = ENOMEM;
 	goto out;
     }
-    vm_object_reference(ef->object);
     ef->address = (caddr_t) vm_map_min(kernel_map);
     error = vm_map_find(kernel_map, ef->object, 0,
 			(vm_offset_t *) &ef->address,
@@ -884,7 +883,6 @@ link_elf_unload_file(linker_file_t file)
 	vm_map_remove(kernel_map, (vm_offset_t) ef->address,
 		      (vm_offset_t) ef->address
 		      + (ef->object->size << PAGE_SHIFT));
-	vm_object_deallocate(ef->object);
     }
 #else
     if (ef->address)
