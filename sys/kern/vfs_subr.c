@@ -3406,7 +3406,7 @@ vop_rename_pre(void *ap)
 	ASSERT_VOP_LOCKED(a->a_tdvp, "vop_rename: tdvp not locked");
 #endif
 	if (a->a_tdvp != a->a_fdvp)
-		vholdl(a->a_fdvp);
+		vhold(a->a_fdvp);
 	if (a->a_tvp != a->a_fvp)
 		vhold(a->a_fvp);
 	vhold(a->a_tdvp);
