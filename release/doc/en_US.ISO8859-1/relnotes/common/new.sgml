@@ -212,6 +212,9 @@
     <para><application>libpcap</application> has been updated
       to v0.9.1 (release).</para>
 
+    <para><application>sendmail</application> has been updated from
+      version 8.13.3 to version 8.13.4.</para>
+
     <para><application>tcpdump</application> has been updated
       to v3.9.1 (release).</para>
   </sect2>
