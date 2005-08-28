@@ -40,14 +40,13 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
 
-int	gv_init_plex(struct gv_plex *);
-int	gv_init_sd(struct gv_sd *);
+static int	gv_init_plex(struct gv_plex *);
 void	gv_init_td(void *);
-void	gv_rebuild_plex(struct gv_plex *);
+static int	gv_rebuild_plex(struct gv_plex *);
 void	gv_rebuild_td(void *);
-void	gv_start_plex(struct gv_plex *);
-void	gv_start_vol(struct gv_volume *);
-void	gv_sync(struct gv_volume *);
+static int	gv_start_plex(struct gv_plex *);
+static int	gv_start_vol(struct gv_volume *);
+static int	gv_sync(struct gv_volume *);
 void	gv_sync_td(void *);
 
 struct gv_sync_args {
@@ -188,7 +187,7 @@ gv_start_obj(struct g_geom *gp, struct gctl_req *req)
 	struct gv_plex *p;
 	int *argc, *initsize;
 	char *argv, buf[20];
-	int i, type;
+	int err, i, type;
 
 	argc = gctl_get_paraml(req, "argc", sizeof(*argc));
 	initsize = gctl_get_paraml(req, "initsize", sizeof(*initsize));
@@ -209,18 +208,39 @@ gv_start_obj(struct g_geom *gp, struct gctl_req *req)
 		switch (type) {
 		case GV_TYPE_VOL:
 			v = gv_find_vol(sc, argv);
-			gv_start_vol(v);
+			err = gv_start_vol(v);
+			if (err) {
+				if (err == EINPROGRESS) {
+					gctl_error(req, "cannot start volume "
+					    "'%s': already in progress", argv);
+				} else {
+					gctl_error(req, "cannot start volume "
+					    "'%s'; errno: %d", argv, err);
+				}
+				return;
+			}
 			break;
 
 		case GV_TYPE_PLEX:
 			p = gv_find_plex(sc, argv);
-			gv_start_plex(p);
+			err = gv_start_plex(p);
+			if (err) {
+				if (err == EINPROGRESS) {
+					gctl_error(req, "cannot start plex "
+					    "'%s': already in progress", argv);
+				} else {
+					gctl_error(req, "cannot start plex "
+					    "'%s'; errno: %d", argv, err);
+				}
+				return;
+			}
 			break;
 
 		case GV_TYPE_SD:
 		case GV_TYPE_DRIVE:
 			/* XXX not yet */
-			gctl_error(req, "cannot start '%s'", argv);
+			gctl_error(req, "cannot start '%s' - not yet supported",
+			    argv);
 			return;
 		default:
 			gctl_error(req, "unknown object '%s'", argv);
@@ -229,39 +249,44 @@ gv_start_obj(struct g_geom *gp, struct gctl_req *req)
 	}
 }
 
-void
+static int
 gv_start_plex(struct gv_plex *p)
 {
 	struct gv_volume *v;
+	int error;
 
 	KASSERT(p != NULL, ("gv_start_plex: NULL p"));
 
 	if (p->state == GV_PLEX_UP)
-		return;
+		return (0);
 
+	error = 0;
 	v = p->vol_sc;
 	if ((v != NULL) && (v->plexcount > 1))
-		gv_sync(v);
+		error = gv_sync(v);
 	else if (p->org == GV_PLEX_RAID5) {
 		if (p->state == GV_PLEX_DEGRADED)
-			gv_rebuild_plex(p);
+			error = gv_rebuild_plex(p);
 		else
-			gv_init_plex(p);
+			error = gv_init_plex(p);
 	}
 
-	return;
+	return (error);
 }
 
-void
+static int
 gv_start_vol(struct gv_volume *v)
 {
 	struct gv_plex *p;
 	struct gv_sd *s;
+	int error;
 
 	KASSERT(v != NULL, ("gv_start_vol: NULL v"));
 
+	error = 0;
+
 	if (v->plexcount == 0)
-		return;
+		return (ENXIO);
 
 	else if (v->plexcount == 1) {
 		p = LIST_FIRST(&v->plexes);
@@ -269,13 +294,13 @@ gv_start_vol(struct gv_volume *v)
 		if (p->org == GV_PLEX_RAID5) {
 			switch (p->state) {
 			case GV_PLEX_DOWN:
-				gv_init_plex(p);
+				error = gv_init_plex(p);
 				break;
 			case GV_PLEX_DEGRADED:
-				gv_rebuild_plex(p);
+				error = gv_rebuild_plex(p);
 				break;
 			default:
-				return;
+				return (0);
 			}
 		} else {
 			LIST_FOREACH(s, &p->subdisks, in_plex) {
@@ -284,10 +309,12 @@ gv_start_vol(struct gv_volume *v)
 			}
 		}
 	} else
-		gv_sync(v);
+		error = gv_sync(v);
+
+	return (error);
 }
 
-void
+static int
 gv_sync(struct gv_volume *v)
 {
 	struct gv_softc *sc;
@@ -307,11 +334,15 @@ gv_sync(struct gv_volume *v)
 
 	/* Didn't find a good plex. */
 	if (up == NULL)
-		return;
+		return (ENXIO);
 
 	LIST_FOREACH(p, &v->plexes, in_volume) {
 		if ((p == up) || (p->state == GV_PLEX_UP))
 			continue;
+		if (p->flags & GV_PLEX_SYNCING) {
+			return (EINPROGRESS);
+		}
+		p->flags |= GV_PLEX_SYNCING;
 		sync = g_malloc(sizeof(*sync), M_WAITOK | M_ZERO);
 		sync->v = v;
 		sync->from = up;
@@ -320,15 +351,21 @@ gv_sync(struct gv_volume *v)
 		kthread_create(gv_sync_td, sync, NULL, 0, 0, "gv_sync '%s'",
 		    p->name);
 	}
+
+	return (0);
 }
 
-void
+static int
 gv_rebuild_plex(struct gv_plex *p)
 {
 	struct gv_sync_args *sync;
 
-	if ((p->flags & GV_PLEX_SYNCING) || gv_is_open(p->geom))
-		return;
+	if (gv_is_open(p->geom))
+		return (EBUSY);
+
+	if (p->flags & GV_PLEX_SYNCING)
+		return (EINPROGRESS);
+	p->flags |= GV_PLEX_SYNCING;
 
 	sync = g_malloc(sizeof(*sync), M_WAITOK | M_ZERO);
 	sync->to = p;
@@ -336,38 +373,25 @@ gv_rebuild_plex(struct gv_plex *p)
 
 	kthread_create(gv_rebuild_td, sync, NULL, 0, 0, "gv_rebuild %s",
 	    p->name);
-}
-
-int
-gv_init_plex(struct gv_plex *p)
-{
-	struct gv_sd *s;
-	int err;
-
-	KASSERT(p != NULL, ("gv_init_plex: NULL p"));
-
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
-		err = gv_init_sd(s);
-		if (err)
-			return (err);
-	}
 
 	return (0);
 }
 
-int
-gv_init_sd(struct gv_sd *s)
+static int
+gv_init_plex(struct gv_plex *p)
 {
-	KASSERT(s != NULL, ("gv_init_sd: NULL s"));
+	struct gv_sd *s;
 
-	if (gv_set_sd_state(s, GV_SD_INITIALIZING, GV_SETSTATE_FORCE))
-		return (-1);
+	KASSERT(p != NULL, ("gv_init_plex: NULL p"));
 
-	s->init_size = GV_DFLT_SYNCSIZE;
-	s->flags &= ~GV_SD_INITCANCEL;
-
-	/* Spawn the thread that does the work for us. */
-	kthread_create(gv_init_td, s, NULL, 0, 0, "gv_init %s", s->name);
+	LIST_FOREACH(s, &p->subdisks, in_plex) {
+		if (s->state == GV_SD_INITIALIZING)
+			return (EINPROGRESS);
+		gv_set_sd_state(s, GV_SD_INITIALIZING, GV_SETSTATE_FORCE);
+		s->init_size = GV_DFLT_SYNCSIZE;
+		kthread_create(gv_init_td, s, NULL, 0, 0, "gv_init %s",
+		    s->name);
+	}
 
 	return (0);
 }
@@ -390,7 +414,6 @@ gv_rebuild_td(void *arg)
 	sync = arg;
 	p = sync->to;
 	p->synced = 0;
-	p->flags |= GV_PLEX_SYNCING;
 	cp = p->consumer;
 
 	g_topology_lock();
@@ -477,15 +500,7 @@ gv_sync_td(void *arg)
 	to = sync->to->consumer;
 
 	p = sync->to;
-
-	if (p->flags & GV_PLEX_SYNCING) {
-		printf("GEOM_VINUM: plex '%s' is already syncing.\n", p->name);
-		g_free(sync);
-		kthread_exit(0);
-	}
-
 	p->synced = 0;
-	p->flags |= GV_PLEX_SYNCING;
 
 	error = 0;
 
@@ -615,25 +630,19 @@ gv_init_td(void *arg)
 	if (error) {
 		s->init_error = error;
 		g_topology_unlock();
-		printf("geom_vinum: init '%s' failed to access consumer: %d\n",
-		    s->name, error);
+		printf("GEOM_VINUM: subdisk '%s' init: failed to access "
+		    "consumer; error: %d\n", s->name, error);
 		kthread_exit(error);
 	}
 	g_topology_unlock();
 
 	for (i = start; i < offset + length; i += init_size) {
-		if (s->flags & GV_SD_INITCANCEL) {
-			printf("geom_vinum: subdisk '%s' init: cancelled at"
-			    " offset %jd (drive offset %jd)\n", s->name,
-			    (intmax_t)s->initialized, (intmax_t)i);
-			error = EAGAIN;
-			break;
-		}
 		error = g_write_data(cp, i, buf, init_size);
 		if (error) {
-			printf("geom_vinum: subdisk '%s' init: write failed"
-			    " at offset %jd (drive offset %jd)\n", s->name,
-			    (intmax_t)s->initialized, (intmax_t)i);
+			printf("GEOM_VINUM: subdisk '%s' init: write failed"
+			    " at offset %jd (drive offset %jd); error %d\n",
+			    s->name, (intmax_t)s->initialized, (intmax_t)i,
+			    error);
 			break;
 		}
 		s->initialized += init_size;
@@ -655,7 +664,8 @@ gv_init_td(void *arg)
 		gv_set_sd_state(s, GV_SD_UP, GV_SETSTATE_CONFIG);
 		g_topology_unlock();
 		s->initialized = 0;
-		printf("geom_vinum: init '%s' finished\n", s->name);
+		printf("GEOM_VINUM: subdisk '%s' init: finished successfully\n",
+		    s->name);
 	}
 	kthread_exit(error);
 }
