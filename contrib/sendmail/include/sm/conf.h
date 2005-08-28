@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.118 2004/08/20 20:30:32 ca Exp $
+ *	$Id: conf.h,v 1.120 2005/03/22 22:07:53 ca Exp $
  */
 
 /*
@@ -161,6 +161,8 @@ extern void	hard_syslog();
 
 # ifdef _AIX5
 #  define _AIX4		40300
+#  define SOCKADDR_LEN_T socklen_t /* e.g., arg#3 to accept, getsockname */
+#  define SOCKOPT_LEN_T	socklen_t /* arg#5 to getsockopt */
 #  if _AIX5 >= 50200
 #   define HASUNSETENV	1	/* has unsetenv(3) call */
 #  endif /* _AIX5 >= 50200 */
@@ -175,10 +177,14 @@ extern void	hard_syslog();
 #  define BSD4_4_SOCKADDR	/* has sa_len */
 #  define USESETEUID	1	/* seteuid(2) works */
 #  define TZ_TYPE	TZ_NAME	/* use tzname[] vector */
-#  define SOCKOPT_LEN_T	size_t	/* arg#5 to getsockopt */
+#  ifndef SOCKOPT_LEN_T
+#   define SOCKOPT_LEN_T	size_t	/* arg#5 to getsockopt */
+#  endif /* SOCKOPT_LEN_T */
 #  if _AIX4 >= 40200
 #   define HASSETREUID	1	/* setreuid(2) works as of AIX 4.2 */
-#   define SOCKADDR_LEN_T	size_t	/* e.g., arg#3 to accept, getsockname */
+#   ifndef SOCKADDR_LEN_T
+#    define SOCKADDR_LEN_T	size_t	/* e.g., arg#3 to accept, getsockname */
+#   endif /* SOCKADDR_LEN_T */
 #  endif /* _AIX4 >= 40200 */
 #  if defined(_ILS_MACROS)	/* IBM versions aren't side-effect clean */
 #   undef isascii
@@ -208,7 +214,9 @@ extern void	hard_syslog();
 #  define GIDSET_T	gid_t
 #  define SFS_TYPE	SFS_STATFS	/* use <sys/statfs.h> statfs() impl */
 #  define SPT_PADCHAR	'\0'	/* pad process title with nulls */
-#  define LA_TYPE	LA_INT
+#  ifndef LA_TYPE
+#   define LA_TYPE	LA_INT
+#  endif /* LA_TYPE */
 #  define FSHIFT	16
 #  define LA_AVENRUN	"avenrun"
 #  if !defined(_AIX4) || _AIX4 < 40300
@@ -1125,7 +1133,7 @@ typedef short		pid_t;
 #   define _SCO_unix_4_2
 #  else /* ! _SCO_unix_4_2 */
 #   define SOCKADDR_LEN_T	size_t	/* e.g., arg#3 to accept, getsockname */
-#   define SOCKOPT_LEN_T		size_t	/* arg#5 to getsockopt */
+#   define SOCKOPT_LEN_T	size_t	/* arg#5 to getsockopt */
 #  endif /* ! _SCO_unix_4_2 */
 # endif /* _SCO_DS >= 1 */
 
@@ -1819,7 +1827,7 @@ extern struct passwd *	sendmail_mpe_getpwuid __P((uid_t));
 #  define HASWAITPID		1
 #  define HASGETDTABLESIZE	1
 #  define GIDSET_T		gid_t
-#  define SOCKADDR_LEN_T		size_t
+#  define SOCKADDR_LEN_T	size_t
 #  define SOCKOPT_LEN_T		size_t
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/stand/unix"

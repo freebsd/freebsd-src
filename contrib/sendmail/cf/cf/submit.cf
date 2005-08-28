@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Tue Jan 11 20:36:44 PST 2005
-##### in /extra/home/ca/sm-8.13.3/OpenSource/sendmail-8.13.3/cf/cf
+##### built by ca@wiz.smi.sendmail.com on Sun Mar 27 16:38:48 PST 2005
+##### in /extra/home/ca/sm-8.13.4/OpenSource/sendmail-8.13.4/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.13.3/Submit
+DZ8.13.4/Submit
 
 
 ###############

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2005 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.60 2004/08/03 20:42:21 ca Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.62 2005/02/24 00:30:01 ca Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>
@@ -589,7 +589,9 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 		LDAPMessage *entry;
 
 		/* If we don't want multiple values and we have one, break */
-		if ((char) delim == '\0' && *result != NULL)
+		if ((char) delim == '\0' &&
+		    !bitset(SM_LDAP_SINGLEMATCH, flags) &&
+		    *result != NULL)
 			break;
 
 		/* Cycle through all entries */
@@ -767,17 +769,15 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 					if (*result != NULL)
 					{
 						/* already have a value */
+						if (bitset(SM_LDAP_SINGLEMATCH,
+							   flags))
+						{
+							/* only wanted one match */
+							SM_LDAP_ERROR_CLEANUP();
+							errno = ENOENT;
+							return EX_NOTFOUND;
+						}
 						break;
-					}
-
-					if (bitset(SM_LDAP_SINGLEMATCH,
-						   flags) &&
-					    *result != NULL)
-					{
-						/* only wanted one match */
-						SM_LDAP_ERROR_CLEANUP();
-						errno = ENOENT;
-						return EX_NOTFOUND;
 					}
 
 					if (lmap->ldap_attrsonly == LDAPMAP_TRUE)
@@ -990,7 +990,9 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 			}
 
 			/* We don't want multiple values and we have one */
-			if ((char) delim == '\0' && *result != NULL)
+			if ((char) delim == '\0' &&
+			    !bitset(SM_LDAP_SINGLEMATCH, flags) &&
+			    *result != NULL)
 				break;
 		}
 		save_errno = sm_ldap_geterrno(lmap->ldap_ld);

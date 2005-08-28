@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1992, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.666 2004/08/17 16:50:19 gshapiro Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.669 2005/02/09 01:46:35 ca Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -5657,11 +5657,13 @@ stab_map_lookup(map, name, av, pstat)
 			map->map_mname, name);
 
 	s = stab(name, ST_ALIAS, ST_FIND);
-	if (s != NULL)
-		return s->s_alias;
-	return NULL;
+	if (s == NULL)
+		return NULL;
+	if (bitset(MF_MATCHONLY, map->map_mflags))
+		return map_rewrite(map, name, strlen(name), NULL);
+	else
+		return map_rewrite(map, s->s_alias, strlen(s->s_alias), av);
 }
-
 
 /*
 **  STAB_MAP_STORE -- store in symtab (actually using during init, not rebuild)
@@ -7554,8 +7556,9 @@ socket_map_lookup(map, name, av, statp)
 	int *statp;
 {
 	unsigned int nettolen, replylen, recvlen;
-	char *replybuf, *rval, *value, *status;
+	char *replybuf, *rval, *value, *status, *key;
 	SM_FILE_T *f;
+	char keybuf[MAXNAME + 1];
 
 	replybuf = NULL;
 	rval = NULL;
@@ -7564,11 +7567,24 @@ socket_map_lookup(map, name, av, statp)
 		sm_dprintf("socket_map_lookup(%s, %s) %s\n",
 			map->map_mname, name, map->map_file);
 
-	nettolen = strlen(map->map_mname) + 1 + strlen(name);
+	if (!bitset(MF_NOFOLDCASE, map->map_mflags))
+	{
+		nettolen = strlen(name);
+		if (nettolen > sizeof keybuf - 1)
+			nettolen = sizeof keybuf - 1;
+		memmove(keybuf, name, nettolen);
+		keybuf[nettolen] = '\0';
+		makelower(keybuf);
+		key = keybuf;
+	}
+	else
+		key = name;
+
+	nettolen = strlen(map->map_mname) + 1 + strlen(key);
 	SM_ASSERT(nettolen > strlen(map->map_mname));
-	SM_ASSERT(nettolen > strlen(name));
+	SM_ASSERT(nettolen > strlen(key));
 	if ((sm_io_fprintf(f, SM_TIME_DEFAULT, "%u:%s %s,",
-			   nettolen, map->map_mname, name) == SM_IO_EOF) ||
+			   nettolen, map->map_mname, key) == SM_IO_EOF) ||
 	    (sm_io_flush(f, SM_TIME_DEFAULT) != 0) ||
 	    (sm_io_error(f)))
 	{
@@ -7638,7 +7654,7 @@ socket_map_lookup(map, name, av, statp)
 
 		/* collect the return value */
 		if (bitset(MF_MATCHONLY, map->map_mflags))
-			rval = map_rewrite(map, name, strlen(name), NULL);
+			rval = map_rewrite(map, key, strlen(key), NULL);
 		else
 			rval = map_rewrite(map, value, strlen(value), av);
 	}
@@ -7647,13 +7663,13 @@ socket_map_lookup(map, name, av, statp)
 		*statp = EX_NOTFOUND;
 		if (tTd(38, 20))
 			sm_dprintf("socket_map_lookup(%s): %s not found\n",
-				map->map_mname, name);
+				map->map_mname, key);
 	}
 	else
 	{
 		if (tTd(38, 5))
 			sm_dprintf("socket_map_lookup(%s, %s): server returned error: type=%s, reason=%s\n",
-				map->map_mname, name, status,
+				map->map_mname, key, status,
 				value ? value : "");
 		if ((strcmp(status, "TEMP") == 0) ||
 		    (strcmp(status, "TIMEOUT") == 0))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: tls.c,v 8.96 2004/08/04 21:17:58 ca Exp $")
+SM_RCSID("@(#)$Id: tls.c,v 8.97 2005/03/08 22:20:52 ca Exp $")
 
 #if STARTTLS
 #  include <openssl/err.h>
@@ -1155,7 +1155,8 @@ tls_get_info(ssl, srv, host, mac, certreq)
 					  NID_commonName, buf, sizeof buf);
 		macdefine(mac, A_TEMP, macid("{cn_issuer}"),
 			 xtextify(buf, "<>\")"));
-		if (X509_digest(cert, EVP_md5(), md, &n))
+		n = 0;
+		if (X509_digest(cert, EVP_md5(), md, &n) != 0 && n > 0)
 		{
 			char md5h[EVP_MAX_MD_SIZE * 3];
 			static const char hexcodes[] = "0123456789ABCDEF";

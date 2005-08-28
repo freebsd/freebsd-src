@@ -14,9 +14,9 @@
 #include <sendmail.h>
 
 #if NAMED_BIND
-SM_RCSID("@(#)$Id: domain.c,v 8.195 2004/08/04 21:11:31 ca Exp $ (with name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.197 2005/03/04 00:54:42 ca Exp $ (with name server)")
 #else /* NAMED_BIND */
-SM_RCSID("@(#)$Id: domain.c,v 8.195 2004/08/04 21:11:31 ca Exp $ (without name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.197 2005/03/04 00:54:42 ca Exp $ (without name server)")
 #endif /* NAMED_BIND */
 
 #if NAMED_BIND
@@ -232,6 +232,9 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode, tryfallback, pttl)
 	if (tTd(8, 2))
 		sm_dprintf("getmxrr(%s, droplocalhost=%d)\n",
 			   host, droplocalhost);
+	*rcode = EX_OK;
+	if (pttl != NULL)
+		*pttl = SM_DEFAULT_TTL;
 	if (*host == '\0')
 		return 0;
 
@@ -241,8 +244,6 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode, tryfallback, pttl)
 		/* don't use fallback for this pass */
 		fallbackMX = NULL;
 	}
-
-	*rcode = EX_OK;
 
 	if (mxprefs != NULL)
 		prefs = mxprefs;

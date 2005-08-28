@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.460 2005/01/11 00:24:19 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.463 2005/03/16 00:36:09 ca Exp $")
 
 #include <sysexits.h>
 
@@ -1596,8 +1596,6 @@ attemptauth(m, mci, e, sai)
 	(void) memset(&ssp, '\0', sizeof ssp);
 
 	/* XXX should these be options settable via .cf ? */
-#  if STARTTLS
-#endif /* STARTTLS */
 	{
 		ssp.max_ssf = MaxSLBits;
 		ssp.maxbufsize = MAXOUTLEN;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.990 2004/11/09 19:45:46 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.993 2005/03/07 18:03:17 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -2578,10 +2578,11 @@ extern void	unsetenv __P((char *));
 
 /* update file system information: +/- some blocks */
 #if SM_CONF_SHM
-extern void	upd_qs __P((ENVELOPE *, bool, bool));
-# define updfs(e, delete, avail) upd_qs(e, delete, avail)
+extern void	upd_qs __P((ENVELOPE *, bool, bool, char *));
+# define updfs(e, count, space, where) upd_qs(e, count, space, where)
 #else /* SM_CONF_SHM */
-# define updfs(e, delete, avail)
+# define updfs(e, count, space, where)
+# define upd_qs(e, count, space, where)
 #endif /* SM_CONF_SHM */
 
 extern char	*username __P((void));

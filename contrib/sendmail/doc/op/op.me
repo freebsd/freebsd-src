@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
 .\"	All rights reserved.
 .\" Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 .\" Copyright (c) 1983, 1993
@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.699 2004/06/03 18:29:01 ca Exp $
+.\"	$Id: op.me,v 8.704 2005/02/01 00:40:57 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,7 +90,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.699 $
+.Ve $Revision: 8.704 $
 .rm Ve
 .sp
 For Sendmail Version 8.13
@@ -1621,7 +1621,7 @@ the
 .i address
 part of the triple is looked up as the key
 (i.e., the left hand side)
-into the alias database.
+in the alias database.
 If there is a match, the address is deleted from the send queue
 and all addresses on the right hand side of the alias
 are added in place of the alias that was found.
@@ -3916,6 +3916,11 @@ The complete syntax for ruleset 0 is:
 This specifies the
 {mailer, host, user}
 3-tuple necessary to direct the mailer.
+Note: the third element (
+.i user
+) is often also called
+.i address
+part.
 If the mailer is local
 the host part may be omitted\**.
 .(f
@@ -4781,7 +4786,8 @@ command line flag or by the SMTP server code.
 Sender's host name.
 Set from the
 .b \-p
-command line flag or by the SMTP server code.
+command line flag or by the SMTP server code
+(in which case it is set to the EHLO/HELO parameter).
 .ip $t
 A numeric representation of the current time in the format YYYYMMDDHHmm
 (4 digit year 1900-9999, 2 digit month 01-12, 2 digit day 01-31,
@@ -5514,7 +5520,7 @@ set to be the set of all names
 this host is known by.
 This can be used to match local hostnames.
 .ip $={persistentMacros}
-set to the macros would should be saved across queue runs.
+set to the macros that should be saved across queue runs.
 Care should be taken when adding macro names to this class.
 .pp
 .i Sendmail
@@ -5596,7 +5602,8 @@ Run Extended SMTP (ESMTP) protocol (defined in RFCs 1869, 1652, and 1870).
 This flag defaults on if the SMTP greeting message includes the word
 .q ESMTP .
 .ip A
-Look up the user part of the address in the alias database.
+Look up the user (address) part of the resolved mailer triple,
+in the alias database.
 Normally this is only set for local mailers.
 .ip b
 Force a blank line on the end of a message.
@@ -11310,7 +11317,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.699 $
+.\"Version $Revision: 8.704 $
 .\".ce 0
 .bp 3
 .ce
