@@ -43,11 +43,13 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_media.h>
 #include <net/if_mib.h>
 
 #include <isa/isavar.h>
 
 #include <dev/ed/if_edvar.h>
+#include <dev/ed/if_edreg.h>
 
 static int ed_isa_probe(device_t);
 static int ed_isa_attach(device_t);
@@ -157,13 +159,17 @@ ed_isa_attach(device_t dev)
 
 	ed_alloc_irq(dev, sc->irq_rid, 0);
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       edintr, sc, &sc->irq_handle);
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+	    edintr, sc, &sc->irq_handle);
 	if (error) {
 		ed_release_resources(dev);
 		return (error);
 	}
 
+#ifdef ED_HPP
+	if (sc->vendor == ED_VENDOR_HP && sc->type == ED_TYPE_HP_PCLANPLUS)
+		sc->readmem = ed_hpp_readmem;
+#endif
 	return ed_attach(dev);
 }
 
