@@ -63,7 +63,6 @@ cx	i386
 de	i386,pc98,alpha,ia64,amd64
 dpt	i386,ia64,amd64
 ed	i386,pc98
-el	i386
 em	i386,pc98,alpha,ia64,amd64
 ep	i386,pc98,amd64
 ex	i386,amd64
