@@ -75,7 +75,7 @@
 #		then foo.com:/etc will be be mounted on /conf/base/etc/
 #		If the file contains a pathname starting with "/", then
 #		the root path is prepended to it; this allows relocation of
-#		the root filesystem withouth changing configuration files.
+#		the root filesystem without changing configuration files.
 #
 # /conf/T/M/md_size
 #		The contents of the file specifies the size of the memory
