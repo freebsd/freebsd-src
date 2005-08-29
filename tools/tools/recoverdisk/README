@@ -1,7 +1,7 @@
 $FreeBSD$
 
-This is a small tool which will read an entire disk(partition) using
-1M blocks and optionally write the read data to a file or disk.
+This is a small tool which will read an entire disk(partition) or file
+using 1M blocks and optionally write the read data to a file or disk.
  
 If a read error happens, the 1M block gets put on the end of the worklist
 and will be retried with 64k blocksize.
@@ -20,3 +20,6 @@ or salvage a floppy:
 	touch myfloppy.flp
 	recoverdisk /dev/fd0 myfloppy.flp
 
+or recover a single file from the unreadable media:
+
+	recoverdisk /cdrom/file.avi file.avi
