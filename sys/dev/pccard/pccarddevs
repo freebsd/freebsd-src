@@ -71,7 +71,11 @@ $FreeBSD$
  */
 
 /*
- * List of known PCMCIA vendors, sorted by numeric ID.
+ * List of known PCMCIA vendors, sorted by numeric ID, as registered with the
+ * PCMCIA consortium.
+ *
+ * Exceptions:
+ * 	0x018c Global Village uses this w/o it appearing in the official list.
  */
 
 vendor FUJITSU			0x0004	Fujitsu Corporation
@@ -118,6 +122,7 @@ vendor COMPAQ2			0x0183	Compaq
 vendor PARALON			0x0183	Paralon Technologies Inc
 vendor KINGSTON			0x0186	Kingston
 vendor MELCO			0x018a	Melco Corporation
+vendor GLOBALVILLAGE		0x018c	Global Village
 vendor DAYNA			0x0194	Dayna Corporation
 vendor RAYTHEON			0x01a6	Raytheon
 vendor RACORE			0x01bf	Racore Computer Products
