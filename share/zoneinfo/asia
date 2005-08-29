@@ -1,4 +1,4 @@
-# @(#)asia	7.84
+# @(#)asia	7.85
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -43,8 +43,8 @@
 #	8:00 CST	China
 #	9:00 CJT	Central Japanese Time (1896/1937)*
 #	9:00 EIT	east Indonesia
-#	9:00 JST	Japan
-#	9:00 KST	Korea
+#	9:00 JST  JDT	Japan
+#	9:00 KST  KDT	Korea
 #	9:30 CST	(Australian) Central Standard Time
 #
 # See the `europe' file for Russia and Turkey in Asia.
@@ -846,14 +846,28 @@ Zone	Asia/Jerusalem	2:20:56 -	LMT	1880
 # Today's _Asahi Evening News_ (page 4) reports that Japan had
 # daylight saving between 1948 and 1951, but ``the system was discontinued
 # because the public believed it would lead to longer working hours.''
+
+# From Mayumi Negishi in the 2005-08-10 Japan Times
+# <http://www.japantimes.co.jp/cgi-bin/getarticle.pl5?nn20050810f2.htm>:
+# Occupation authorities imposed daylight-saving time on Japan on
+# [1948-05-01]....  But lack of prior debate and the execution of
+# daylight-saving time just three days after the bill was passed generated
+# deep hatred of the concept....  The Diet unceremoniously passed a bill to
+# dump the unpopular system in October 1951, less than a month after the San
+# Francisco Peace Treaty was signed.  (A government poll in 1951 showed 53%
+# of the Japanese wanted to scrap daylight-saving time, as opposed to 30% who
+# wanted to keep it.)
+
 # Shanks writes that daylight saving in Japan during those years was as follows:
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-#Rule	Japan	1948	only	-	May	Sun>=1	2:00	1:00	D
-#Rule	Japan	1948	1951	-	Sep	Sat>=8	2:00	0	S
-#Rule	Japan	1949	only	-	Apr	Sun>=1	2:00	1:00	D
-#Rule	Japan	1950	1951	-	May	Sun>=1	2:00	1:00	D
-# but the only locations using it were US military bases.
-# We go with Shanks and omit daylight saving in those years for Asia/Tokyo.
+Rule	Japan	1948	only	-	May	Sun>=1	2:00	1:00	D
+Rule	Japan	1948	1951	-	Sep	Sat>=8	2:00	0	S
+Rule	Japan	1949	only	-	Apr	Sun>=1	2:00	1:00	D
+Rule	Japan	1950	1951	-	May	Sun>=1	2:00	1:00	D
+# but the only locations using it (for birth certificates, presumably, since
+# Shanks's audience is astrologers) were US military bases.  For now, assume
+# that for most purposes daylight-saving time was observed; otherwise, what
+# would have been the point of the 1951 poll?
 
 # From Hideyuki Suzuki (1998-11-09):
 # 'Tokyo' usually stands for the former location of Tokyo Astronomical
@@ -883,7 +897,7 @@ Zone	Asia/Jerusalem	2:20:56 -	LMT	1880
 Zone	Asia/Tokyo	9:18:59	-	LMT	1887 Dec 31 15:00u
 			9:00	-	JST	1896
 			9:00	-	CJT	1938
-			9:00	-	JST
+			9:00	Japan	J%sT
 # Since 1938, all Japanese possessions have been like Asia/Tokyo.
 
 # Jordan
