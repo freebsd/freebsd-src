@@ -573,6 +573,8 @@ void		 m_extadd(struct mbuf *, caddr_t, u_int,
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct	mbuf	*m_copym(struct mbuf *, int, int, int);
+struct	mbuf	*m_copymdata(struct mbuf *, struct mbuf *,
+		    int, int, int, int);
 struct	mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
 struct	mbuf	*m_copyup(struct mbuf *n, int len, int dstoff);
