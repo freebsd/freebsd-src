@@ -2444,7 +2444,6 @@ wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 	if (i == 0) {
 		device_printf(sc->sc_dev, "wi_cmd: busy bit won't clear.\n" );
 		sc->wi_gone = 1;
-		count--;
 		return(ETIMEDOUT);
 	}
 
@@ -2468,7 +2467,6 @@ wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 			s = CSR_READ_2(sc, WI_STATUS);
 			CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_CMD);
 			if (s & WI_STAT_CMD_RESULT) {
-				count--;
 				return(EIO);
 			}
 			break;
@@ -2476,7 +2474,6 @@ wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 		DELAY(WI_DELAY);
 	}
 
-	count--;
 	if (i == WI_TIMEOUT) {
 		device_printf(sc->sc_dev,
 		    "timeout in wi_cmd 0x%04x; event status 0x%04x\n", cmd, s);
