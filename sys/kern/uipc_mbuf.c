@@ -294,6 +294,101 @@ m_demote(struct mbuf *m0, int all)
 }
 
 /*
+ * Sanity checks on mbuf (chain).
+ * Returns 0 bad, 1 good, panic worse.
+ * sanitize, 0 run M_SANITY_ACTION, 1 garble things so they blow up later.
+ */
+int
+m_sanity(struct mbuf *m0, int sanitize)
+{
+	struct mbuf *m;
+	caddr_t a, b;
+	int pktlen = 0;
+
+#define	M_SANITY_ACTION(s)	return (0)
+/* #define	M_SANITY_ACTION(s)	panic("mbuf %p: " s, m) */
+
+	m = m0;
+	while (m) {
+		/*
+		 * Basic pointer checks.  If any of these fails then some
+		 * unrelated kernel memory before or after us is trashed.
+		 * No way to recover from that.
+		 */
+		a = (m->m_flags & M_EXT ? m->m_ext.ext_buf :
+			(m->m_flags & M_PKTHDR ? (caddr_t)(&m->m_pktdat) :
+			 (caddr_t)(&m->m_dat)) );
+		b = (caddr_t)(a + (m->m_flags & M_EXT ? m->m_ext.ext_size :
+			(m->m_flags & M_PKTHDR ? MHLEN : MLEN)));
+		if ((caddr_t)m->m_data < a)
+			M_SANITY_ACTION("m_data outside mbuf data range left");
+		if ((caddr_t)m->m_data > b)
+			M_SANITY_ACTION("m_data outside mbuf data range right");
+		if ((caddr_t)m->m_data + m->m_len > b)
+			M_SANITY_ACTION("m_data + m_len exeeds mbuf space");
+		if (m->m_flags & M_PKTHDR && m->m_pkthdr.header) {
+			if ((caddr_t)m->m_pkthdr.header < a ||
+			    (caddr_t)m->m_pkthdr.header > b)
+				M_SANITY_ACTION("m_pkthdr.header outside mbuf data range");
+		}
+
+		/* m->m_nextpkt may only be set on first mbuf in chain. */
+		if (m != m0 && m->m_nextpkt) {
+			if (sanitize) {
+				m_freem(m->m_nextpkt);
+				m->m_nextpkt = (struct mbuf *)0xDEADC0DE;
+			} else
+				M_SANITY_ACTION("m->m_nextpkt on in-chain mbuf");
+		}
+
+		/* correct type correlations. */
+		if (m->m_type == MT_HEADER && !(m->m_flags & M_PKTHDR)) {
+			if (sanitize)
+				m->m_type = MT_DATA;
+			else
+				M_SANITY_ACTION("MT_HEADER set but not M_PKTHDR");
+		}
+
+		/* packet length (not mbuf length!) calculation */
+		if (m0->m_flags & M_PKTHDR)
+			pktlen += m->m_len;
+
+		/* m_tags may only be attached to first mbuf in chain. */
+		if (m != m0 && m->m_flags & M_PKTHDR &&
+		    !SLIST_EMPTY(&m->m_pkthdr.tags)) {
+			if (sanitize) {
+				m_tag_delete_chain(m, NULL);
+				/* put in 0xDEADC0DE perhaps? */
+			}
+			else
+				M_SANITY_ACTION("m_tags on in-chain mbuf");
+		}
+
+		/* M_PKTHDR may only be set on first mbuf in chain */
+		if (m != m0 && m->m_flags & M_PKTHDR) {
+			if (sanitize) {
+				bzero(&m->m_pkthdr, sizeof(m->m_pkthdr));
+				m->m_flags &= ~M_PKTHDR;
+				/* put in 0xDEADCODE and leave hdr flag in */
+			} else
+				M_SANITY_ACTION("M_PKTHDR on in-chain mbuf");
+		}
+
+		m = m->m_next;
+	}
+	if (pktlen && pktlen != m0->m_pkthdr.len) {
+		if (sanitize)
+			m0->m_pkthdr.len = 0;
+		else
+			M_SANITY_ACTION("m_pkthdr.len != mbuf chain length");
+	}
+#undef	M_SANITY_ACTION
+
+	return 1;
+}
+
+
+/*
  * "Move" mbuf pkthdr from "from" to "to".
  * "from" must have M_PKTHDR set, and "to" must be empty.
  */
