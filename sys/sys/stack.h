@@ -47,13 +47,13 @@ void		 stack_zero(struct stack *);
 void		 stack_print(struct stack *);
 void		 stack_sbuf_print(struct sbuf *, struct stack *);
 #ifdef KTR
-void		 stack_ktr(u_int, const char *, int, struct stack *, int);
-#define	CTRSTACK(m, st, cheap) do {					\
+void		 stack_ktr(u_int, const char *, int, struct stack *, u_int, int);
+#define	CTRSTACK(m, st, depth, cheap) do {				\
 	if (KTR_COMPILE & (m))						\
-		stack_ktr((m), __FILE__, __LINE__, st, cheap);		\
+		stack_ktr((m), __FILE__, __LINE__, st, depth, cheap);	\
 	} while(0)
 #else
-#define	CTRSTACK(m, st, cheap)
+#define	CTRSTACK(m, st, depth, cheap)
 #endif
 
 /* MD Routine. */

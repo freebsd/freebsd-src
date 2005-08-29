@@ -168,7 +168,7 @@ lockmgr(lkp, flags, interlkp, td)
 	{
 		struct stack stack; /* XXX */
 		stack_save(&stack);
-		CTRSTACK(KTR_LOCK, &stack, 1);
+		CTRSTACK(KTR_LOCK, &stack, 0, 1);
 	}
 #endif
 
