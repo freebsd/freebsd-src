@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/ktr.h>
+#include <sys/stack.h>
 
 #include <sys/errno.h>
 #include <geom/geom.h>
@@ -112,6 +113,15 @@ g_new_bio(void)
 	struct bio *bp;
 
 	bp = uma_zalloc(biozone, M_NOWAIT | M_ZERO);
+#ifdef KTR
+	if (KTR_COMPILE & KTR_GEOM) {
+		struct stack st;
+
+		CTR1(KTR_GEOM, "g_new_bio(): %p", bp);
+		stack_save(&st);
+		CTRSTACK(KTR_GEOM, &st, 3, 0);
+	}
+#endif
 	return (bp);
 }
 
@@ -121,13 +131,30 @@ g_alloc_bio(void)
 	struct bio *bp;
 
 	bp = uma_zalloc(biozone, M_WAITOK | M_ZERO);
+#ifdef KTR
+	if (KTR_COMPILE & KTR_GEOM) {
+		struct stack st;
+
+		CTR1(KTR_GEOM, "g_alloc_bio(): %p", bp);
+		stack_save(&st);
+		CTRSTACK(KTR_GEOM, &st, 3, 0);
+	}
+#endif
 	return (bp);
 }
 
 void
 g_destroy_bio(struct bio *bp)
 {
+#ifdef KTR
+	if (KTR_COMPILE & KTR_GEOM) {
+		struct stack st;
 
+		CTR1(KTR_GEOM, "g_destroy_bio(): %p", bp);
+		stack_save(&st);
+		CTRSTACK(KTR_GEOM, &st, 3, 0);
+	}
+#endif
 	uma_zfree(biozone, bp);
 }
 
@@ -146,6 +173,15 @@ g_clone_bio(struct bio *bp)
 		bp2->bio_attribute = bp->bio_attribute;
 		bp->bio_children++;
 	}
+#ifdef KTR
+	if (KTR_COMPILE & KTR_GEOM) {
+		struct stack st;
+
+		CTR2(KTR_GEOM, "g_close_bio(%p): %p", bp, bp2);
+		stack_save(&st);
+		CTRSTACK(KTR_GEOM, &st, 3, 0);
+	}
+#endif
 	return(bp2);
 }
 
