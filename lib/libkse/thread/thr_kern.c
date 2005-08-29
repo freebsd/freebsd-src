@@ -2372,12 +2372,13 @@ _thr_alloc(struct pthread *curthread)
 		} else {
 			thread->tcb = _tcb_ctor(thread, 1 /* initial tls */);
 		}
-		if (thread->tcb == NULL) {
+		thread->siginfo = calloc(_SIG_MAXSIG, sizeof(siginfo_t));
+		if ((thread->tcb == NULL) || (thread->siginfo == NULL)) {
+			if (thread->siginfo != NULL)
+				free(thread->siginfo);
 			free(thread);
 			thread = NULL;
 		} else {
-			thread->siginfo = calloc(_SIG_MAXSIG,
-				sizeof(siginfo_t));
 			/*
 			 * Initialize thread locking.
 			 * Lock initializing needs malloc, so don't
