@@ -537,8 +537,11 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 		p = devtoname(dev);
 		i = strlen(p) + 1;
 		if (i > fgn->len)
-			return (EINVAL);
-		return (copyout(p, fgn->buf, i));
+			error = EINVAL;
+		else
+			error = copyout(p, fgn->buf, i);
+		dev_relthread(dev);
+		return (error);
 	}
 	error = dsw->d_ioctl(dev, com, data, fp->f_flag, td);
 	dev_relthread(dev);
@@ -1375,7 +1378,6 @@ static int
 devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct cdev *dev;
-	struct vnode *vp;
 	int error, ioflag, resid;
 	struct cdevsw *dsw;
 
@@ -1383,7 +1385,6 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 	if (error)
 		return (error);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p", uio->uio_td, td));
-	vp = fp->f_vnode;
 	ioflag = fp->f_flag & (O_NONBLOCK | O_DIRECT | O_FSYNC);
 	if (ioflag & O_DIRECT)
 		ioflag |= IO_DIRECT;
