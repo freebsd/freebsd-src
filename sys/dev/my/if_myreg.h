@@ -359,7 +359,6 @@ struct my_softc {
 	struct resource		*my_res;
 	struct resource		*my_irq;
 	void			*my_intrhand;
-        u_int8_t                my_unit;        /* interface number */
         u_int8_t                my_phy_addr;    /* PHY address */
         u_int8_t                my_tx_pend;     /* TX pending */
         u_int8_t                my_want_auto;
@@ -370,7 +369,6 @@ struct my_softc {
         struct my_list_data     *my_ldata;
         struct my_chain_data    my_cdata;
 	device_t		my_miibus;
-	struct callout_handle	my_stat_ch;
 /* Add by Surfer 2001/12/2 */
 	struct mtx		my_mtx;	
 
@@ -379,6 +377,7 @@ struct my_softc {
 /* Add by Surfer 2001/12/2 */
 #define	MY_LOCK(_sc)		mtx_lock(&(_sc)->my_mtx)
 #define	MY_UNLOCK(_sc)		mtx_unlock(&(_sc)->my_mtx)
+#define	MY_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->my_mtx, MA_OWNED)
 
 /*
  * register space access macros
