@@ -317,7 +317,6 @@ MAN=	aac.4 \
 	ti.4 \
 	tl.4 \
 	trm.4 \
-	ttcp.4 \
 	tty.4 \
 	tun.4 \
 	twa.4 \
