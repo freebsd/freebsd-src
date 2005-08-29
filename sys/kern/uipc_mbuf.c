@@ -558,6 +558,151 @@ nospace:
 }
 
 /*
+ * Returns mbuf chain with new head for the prepending case.
+ * Copies from mbuf (chain) n from off for len to mbuf (chain) m
+ * either prepending or appending the data.
+ * The resulting mbuf (chain) m is fully writeable.
+ * m is destination (is made writeable)
+ * n is source, off is offset in source, len is len from offset
+ * dir, 0 append, 1 prepend
+ * how, wait or nowait
+ */
+
+static int
+m_bcopyxxx(void *s, void *t, u_int len)
+{
+	bcopy(s, t, (size_t)len);
+	return 0;
+}
+
+struct mbuf *
+m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
+    int prep, int how)
+{
+	struct mbuf *mm, *x, *z;
+	caddr_t p;
+	int i, mlen, nlen = 0;
+	caddr_t buf[MLEN];
+
+	KASSERT(m != NULL && n != NULL, ("m_copymdata, no target or source"));
+	KASSERT(off >= 0, ("m_copymdata, negative off %d", off));
+	KASSERT(len >= 0, ("m_copymdata, negative len %d", len));
+	KASSERT(prep == 0 || prep == 1, ("m_copymdata, unknown direction %d", prep));
+
+	/* Make sure environment is sane. */
+	for (z = m; z != NULL; z = z->m_next) {
+		mlen += z->m_len;
+		if (!M_WRITABLE(z)) {
+			/* Make clusters writeable. */
+			if (z->m_flags & M_RDONLY)
+				return NULL;	/* Can't handle ext ref. */
+			x = m_getcl(how, MT_DATA, 0);
+			if (!x)
+				return NULL;
+			bcopy(z->m_ext.ext_buf, x->m_ext.ext_buf, x->m_ext.ext_size);
+			p = x->m_ext.ext_buf + (z->m_data - z->m_ext.ext_buf);
+			MEXT_REM_REF(z);	/* XXX */
+			z->m_data = p;
+			x->m_flags &= ~M_EXT;
+			(void)m_free(x);
+		}
+	}
+	mm = prep ? m : z;
+	for (z = n; z != NULL; z = z->m_next)
+		nlen += z->m_len;
+	if (len == M_COPYALL)
+		len = nlen - off;
+	if (off + len > nlen || len < 1)
+		return NULL;
+
+	/*
+	 * Append/prepend the data.  Allocating mbufs as necessary.
+	 */
+	/* Shortcut if enough free space in first/last mbuf. */
+	if (!prep && M_TRAILINGSPACE(mm) >= len) {
+		m_apply(n, off, len, m_bcopyxxx, mtod(mm, caddr_t) +
+			 mm->m_len);
+		mm->m_len += len;
+		mm->m_pkthdr.len += len;
+		return m;
+	}
+	if (prep && M_LEADINGSPACE(mm) >= len) {
+		mm->m_data = mtod(mm, caddr_t) - len;
+		m_apply(n, off, len, m_bcopyxxx, mtod(mm, caddr_t));
+		mm->m_len += len;
+		mm->m_pkthdr.len += len;
+		return mm;
+	}
+
+	/* Expand first/last mbuf to cluster if possible. */
+	if (!prep && !(mm->m_flags & M_EXT) && len > M_TRAILINGSPACE(mm)) {
+		bcopy(mm->m_data, &buf, mm->m_len);
+		m_clget(mm, how);
+		if (!(mm->m_flags & M_EXT))
+			return NULL;
+		bcopy(&buf, mm->m_ext.ext_buf, mm->m_len);
+		mm->m_data = mm->m_ext.ext_buf;
+		mm->m_pkthdr.header = NULL;
+	}
+	if (prep && !(mm->m_flags & M_EXT) && len > M_LEADINGSPACE(mm)) {
+		bcopy(mm->m_data, &buf, mm->m_len);
+		m_clget(mm, how);
+		if (!(mm->m_flags & M_EXT))
+			return NULL;
+		bcopy(&buf, (caddr_t *)mm->m_ext.ext_buf +
+		       mm->m_ext.ext_size - mm->m_len, mm->m_len);
+		mm->m_data = (caddr_t)mm->m_ext.ext_buf +
+			      mm->m_ext.ext_size - mm->m_len;
+		mm->m_pkthdr.header = NULL;
+	}
+
+	/* Append/prepend as many mbuf (clusters) as necessary to fit len. */
+	if (!prep && len > M_TRAILINGSPACE(mm)) {
+		if (!m_getm(mm, len - M_TRAILINGSPACE(mm), how, MT_DATA))
+			return NULL;
+	}
+	if (prep && len > M_LEADINGSPACE(mm)) {
+		if (!(z = m_getm(NULL, len - M_LEADINGSPACE(mm), how, MT_DATA)))
+			return NULL;
+		i = 0;
+		for (x = z; x != NULL; x = x->m_next) {
+			i += x->m_flags & M_EXT ? x->m_ext.ext_size :
+			      (x->m_flags & M_PKTHDR ? MHLEN : MLEN);
+			if (!x->m_next)
+				break;
+		}
+		z->m_data += i - len;
+		m_move_pkthdr(mm, z);
+		x->m_next = mm;
+		mm = z;
+	}
+
+	/* Seek to start position in source mbuf. Optimization for long chains. */
+	while (off > 0) {
+		if (off < n->m_len)
+			break;
+		off -= n->m_len;
+		n = n->m_next;
+	}
+
+	/* Copy data into target mbuf. */
+	z = mm;
+	while (len > 0) {
+		KASSERT(z != NULL, ("m_copymdata, falling off target edge"));
+		i = M_TRAILINGSPACE(z);
+		m_apply(n, off, i, m_bcopyxxx, mtod(z, caddr_t) + z->m_len);
+		z->m_len += i;
+		/* fixup pkthdr.len if necessary */
+		if ((prep ? mm : m)->m_flags & M_PKTHDR)
+			(prep ? mm : m)->m_pkthdr.len += i;
+		off += i;
+		len -= i;
+		z = z->m_next;
+	}
+	return (prep ? mm : m);
+}
+
+/*
  * Copy an entire packet, including header (which must be present).
  * An optimization of the common case `m_copym(m, 0, M_COPYALL, how)'.
  * Note that the copy is read-only, because clusters are not copied,
