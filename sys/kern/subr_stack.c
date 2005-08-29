@@ -115,7 +115,8 @@ stack_sbuf_print(struct sbuf *sb, struct stack *st)
 
 #ifdef KTR
 void
-stack_ktr(u_int mask, const char *file, int line, struct stack *st, int cheap)
+stack_ktr(u_int mask, const char *file, int line, struct stack *st, u_int depth,
+    int cheap)
 {
 	const char *name;
 	long offset;
@@ -136,12 +137,15 @@ stack_ktr(u_int mask, const char *file, int line, struct stack *st, int cheap)
 		ktr_tracepoint(mask, file, line, "#2 %p %p %p %p %p %p",
 		    st->pcs[12], st->pcs[13], st->pcs[14], st->pcs[15],
 		    st->pcs[16], st->pcs[17]);
-	} else
-		for (i = 0; i < st->depth; i++) {
+	} else {
+		if (depth == 0 || st->depth < depth)
+			depth = st->depth;
+		for (i = 0; i < depth; i++) {
 			stack_symbol(st->pcs[i], &name, &offset);
 			ktr_tracepoint(mask, file, line, "#%d %p at %s+%#lx",
 			    i, st->pcs[i], (u_long)name, offset, 0, 0);
 		}
+	}
 }
 #endif
 
