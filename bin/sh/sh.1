@@ -355,8 +355,9 @@ The following is a list of valid operators:
 .El
 .Ss Quoting
 Quoting is used to remove the special meaning of certain characters
-or words to the shell, such as operators, whitespace, or
-keywords.
+or words to the shell, such as operators, whitespace, keywords,
+or alias names.
+.Pp
 There are three types of quoting: matched single quotes,
 matched double quotes, and backslash.
 .Bl -tag -width indent
@@ -422,6 +423,15 @@ to create functions with arguments.
 They can also be
 used to create lexically obscure code.
 This use is discouraged.
+.Pp
+An alias name may be escaped in a command line, so that it is not
+replaced by its alias value, by using quoting characters within or
+adjacent to the alias name.  This is most often done by prefixing
+an alias name with a backslash to execute a function, built-in, or
+normal program with the same name.
+See the
+.Sx Quoting
+subsection.
 .Ss Commands
 The shell interprets the words it reads according to a
 language, the specification of which is outside the scope
@@ -1352,8 +1362,7 @@ for the file.
 If it is not found in the
 .Ev PATH ,
 it is sought in the current working directory.
-.It Ic alias Op Ar name ...
-.It Ic alias Op Ar name Ns = Ns Ar string ...
+.It Ic alias Oo Ar name Ns Oo = Ns Ar string Oc ... Oc
 If
 .Ar name Ns = Ns Ar string
 is specified, the shell defines the alias
@@ -1372,6 +1381,9 @@ built-in command prints the names and values of all defined aliases
 .Ic unalias ) .
 Alias values are written with appropriate quoting so that they are
 suitable for re-input to the shell.
+Also see the
+.Sx Aliases
+subsection.
 .It Ic bg Op Ar job ...
 Continue the specified jobs
 (or the current job if no jobs are given)
