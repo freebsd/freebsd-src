@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 2, 2004
+.Dd August 25, 2005
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -87,11 +87,6 @@ call to accept incoming connections.
 Only active sockets may use the
 .Xr connect 2
 call to initiate connections.
-.Tn TCP
-also supports a more datagram-like mode, called Transaction
-.Tn TCP ,
-which is described in
-.Xr ttcp 4 .
 .Pp
 Passive sockets may
 .Dq underspecify
@@ -165,12 +160,6 @@ every user call to
 .Xr write 2
 or
 .Xr writev 2 .
-The
-.Dv TCP_NOPUSH
-option is provided to allow servers to easily make use of Transaction
-.Tn TCP
-(see
-.Xr ttcp 4 ) .
 When this option is set to a non-zero value,
 .Tn TCP
 will delay sending any data at all until either the socket is closed,
