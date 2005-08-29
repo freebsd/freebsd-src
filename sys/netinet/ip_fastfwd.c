@@ -157,8 +157,6 @@ ip_fastforward(struct mbuf *m)
 	struct mbuf *m0 = NULL;
 	struct route ro;
 	struct sockaddr_in *dst = NULL;
-	struct in_ifaddr *ia = NULL;
-	struct ifaddr *ifa = NULL;
 	struct ifnet *ifp;
 	struct in_addr odest, dest;
 	u_short sum, ip_len;
@@ -309,11 +307,13 @@ ip_fastforward(struct mbuf *m)
 	 * let ip_input handle it.  We play safe here and let ip_input
 	 * deal with it until it is proven that we can directly drop it.
 	 */
-	if ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) ||
+	if ((m->m_flags & (M_BCAST|M_MCAST)) ||
+	    (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) ||
 	    ntohl(ip->ip_src.s_addr) == (u_long)INADDR_BROADCAST ||
 	    ntohl(ip->ip_dst.s_addr) == (u_long)INADDR_BROADCAST ||
 	    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 	    IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
+	    ip->ip_src.s_addr == INADDR_ANY ||
 	    ip->ip_dst.s_addr == INADDR_ANY )
 		return 0;
 
@@ -323,22 +323,6 @@ ip_fastforward(struct mbuf *m)
 	if (in_localip(ip->ip_dst))
 		return 0;
 
-	/*
-	 * Or is it for a local IP broadcast address on this host?
-	 */
-	if ((m->m_flags & M_BCAST) &&
-	    (m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST)) {
-	        TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family != AF_INET)
-				continue;
-			ia = ifatoia(ifa);
-			if (ia->ia_netbroadcast.s_addr == ip->ip_dst.s_addr)
-				return 0;
-			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
-			    ip->ip_dst.s_addr)
-				return 0;
-		}
-	}
 	ipstat.ips_total++;
 
 	/*
