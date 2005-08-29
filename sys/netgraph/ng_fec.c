@@ -548,8 +548,8 @@ ng_fec_init(void *arg)
 	struct ifnet		*ifp, *bifp;
 	struct ng_fec_portlist	*p;
 
-	ifp = arg;
-	priv = ifp->if_softc;
+	priv = arg;
+	ifp = &priv->arpcom.ac_if;
 	b = &priv->fec_bundle;
 
 	if (b->fec_ifcnt == 1 || b->fec_ifcnt == 3) {
@@ -719,7 +719,7 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				}
 				ifp->if_flags &= ~(IFF_OACTIVE);
 				ifp->if_flags |= IFF_RUNNING;
-				ng_fec_init(ifp);
+				ng_fec_init(priv);
 			}
 			/*
 			 * Bubble down changes in promisc mode to
