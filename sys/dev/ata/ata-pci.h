@@ -355,6 +355,7 @@ struct ata_connect_task {
 #define NV4OFF          0x08
 #define VIACLK          0x10
 #define VIABUG          0x20
+#define VIABAR          0x40
 
 
 /* global prototypes ata-pci.c */
