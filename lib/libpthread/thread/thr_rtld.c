@@ -160,11 +160,13 @@ _thr_rtld_lock_create(void)
 {
 	struct rtld_kse_lock *l;
 
-	l = malloc(sizeof(struct rtld_kse_lock));
-	_lock_init(&l->lck, LCK_ADAPTIVE, _kse_lock_wait, _kse_lock_wakeup);
-	l->owner = NULL;
-	l->count = 0;
-	l->write = 0;
+	if ((l = malloc(sizeof(struct rtld_kse_lock))) != NULL) {
+		_lock_init(&l->lck, LCK_ADAPTIVE, _kse_lock_wait,
+		    _kse_lock_wakeup);
+		l->owner = NULL;
+		l->count = 0;
+		l->write = 0;
+	}
 	return (l);
 }
 
