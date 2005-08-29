@@ -76,17 +76,17 @@ ep_match(eisa_id_t type)
 {
 	switch (type) {
 	case EISA_DEVICE_ID_3COM_3C509_TP:
-		return ("3Com 3C509-TP Network Adapter");
+		return ("3Com 3C509-TP");
 	case EISA_DEVICE_ID_3COM_3C509_BNC:
-		return ("3Com 3C509-BNC Network Adapter");
+		return ("3Com 3C509-BNC");
 	case EISA_DEVICE_ID_3COM_3C579_TP:
-		return ("3Com 3C579-TP EISA Network Adapter");
+		return ("3Com 3C579-TP");
 	case EISA_DEVICE_ID_3COM_3C579_BNC:
-		return ("3Com 3C579-BNC EISA Network Adapter");
+		return ("3Com 3C579-BNC");
 	case EISA_DEVICE_ID_3COM_3C509_COMBO:
-		return ("3Com 3C509-Combo Network Adapter");
+		return ("3Com 3C509-Combo");
 	case EISA_DEVICE_ID_3COM_3C509_TPO:
-		return ("3Com 3C509-TPO Network Adapter");
+		return ("3Com 3C509-TPO");
 	default:
 		return (NULL);
 	}
