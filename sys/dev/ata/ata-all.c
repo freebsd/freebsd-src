@@ -796,6 +796,7 @@ char *
 ata_mode2str(int mode)
 {
     switch (mode) {
+    case -1: return "UNSUPPORTED";
     case ATA_PIO0: return "PIO0";
     case ATA_PIO1: return "PIO1";
     case ATA_PIO2: return "PIO2";
