@@ -1,4 +1,4 @@
-# @(#)northamerica	7.78
+# @(#)northamerica	7.79
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -109,6 +109,12 @@
 # The Japanese have agreed to our surrender terms."
 #
 # He had scored a 20-second scoop on other broadcasters.
+
+# From Arthur David Olson (2005-08-22):
+# Paul has been careful to use the "US" rules only in those locations
+# that are part of the United States; this reflects the real scope of
+# U.S. government action.  So even though the "US" rules have changed
+# in the latest release, other countries won't be affected.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	US	1918	1919	-	Mar	lastSun	2:00	1:00	D
@@ -225,8 +231,8 @@ Rule	US	2007	max	-	Nov	Sun>=1	2:00	0	S
 # US eastern time, represented by New York
 
 # Connecticut, Delaware, District of Columbia, most of Florida,
-# Georgia, southeast Indiana (Clark, Dearborn, Floyd, Harrison, and
-# Ohio counties), eastern Kentucky, Maine, Maryland, Massachusetts,
+# Georgia, southeast Indiana (Dearborn and Ohio counties), eastern Kentucky
+# (except America/Kentucky/Louisville below), Maine, Maryland, Massachusetts,
 # New Hampshire, New Jersey, New York, North Carolina, Ohio,
 # Pennsylvania, Rhode Island, South Carolina, eastern Tennessee,
 # Vermont, Virginia, West Virginia
@@ -481,27 +487,30 @@ Zone America/Boise	-7:44:49 -	LMT	1883 Nov 18 12:15:11
 # For a map of Indiana's time zone regions, see:
 # <a href="http://www.mccsc.edu/time.html">
 # What time is it in Indiana?
-# </a> (1999-04-06)
+# </a> (2005-05-03)
 #
-# From Paul Eggert (1995-12-19):
-# Indiana generally observes either EST all year, or CST/CDT,
-# but areas near Cincinnati and Louisville use those cities' timekeeping
-# and in 1969 and 1970 the whole state observed daylight time;
-# and there are other exceptions as noted below.
+# From Paul Eggert (2005-08-22):
+# Since 1970, most of Indiana has been like America/Indiana/Indianapolis,
+# with the following exceptions:
+#
+# - Gibson, Jasper, Lake, LaPorte, Newton, Porter, Posey, Spencer,
+#   Vandenburgh, and Warrick counties have been like America/Chicago.
+#
+# - Dearborn and Ohio counties have been like America/New_York.
+#
+# - Clark, Floyd, and Harrison counties have been like
+#   America/Kentucky/Louisville.
+#
+# - Crawford, Starke, and Switzerland counties have their own time zone
+#   histories as noted below.
+#
 # Shanks partitions Indiana into 345 regions, each with its own time history,
 # and writes ``Even newspaper reports present contradictory information.''
 # Fortunately, most of the complexity occurred before our cutoff date of 1970.
 #
-# Since 1970, EST-only Indiana has been like America/Indianapolis,
-# with exceptions noted below for Crawford, Starke, and Switzerland counties.
-# The parts of Indiana not listed below have been like America/Chicago,
-# America/Louisville, or America/New_York.
-#
 # Other than Indianapolis, the Indiana place names are so nondescript
 # that they would be ambiguous if we left them at the `America' level.
 # So we reluctantly put them all in a subdirectory `America/Indiana'.
-#
-# Most of EST-only Indiana last observed DST in 1970.
 
 # From Paul Eggert (2005-08-16):
 # http://www.mccsc.edu/time.html says that Indiana will use DST starting 2006,
@@ -575,7 +584,7 @@ Zone America/Indiana/Vevay -5:40:16 -	LMT	1883 Nov 18 12:19:44
 			-5:00	US	E%sT
 
 # Part of Kentucky left its clocks alone in 1974.
-# This also includes a part of Indiana immediately adjacent to Louisville.
+# This also includes Clark, Floyd, and Harrison counties in Indiana.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule Louisville	1921	only	-	May	1	2:00	1:00	D
 Rule Louisville	1921	only	-	Sep	1	2:00	0	S
@@ -715,17 +724,6 @@ Zone America/Menominee	-5:50:27 -	LMT	1885 Sep 18 12:00
 # see Mark Fineman, ``An Isle Rich in Guano and Discord'',
 # _Los Angeles Times_ (1998-11-10), A1, A10; it cites
 # Jimmy Skaggs, _The Great Guano Rush_ (1994).
-
-# Old names, for S5 users
-
-# Link	LINK-FROM		LINK-TO
-Link	America/New_York	EST5EDT
-Link	America/Chicago		CST6CDT
-Link	America/Denver		MST7MDT
-Link	America/Los_Angeles	PST8PDT
-Link	America/Indianapolis	EST
-Link	America/Phoenix		MST
-Link	Pacific/Honolulu	HST
 
 ################################################################################
 
