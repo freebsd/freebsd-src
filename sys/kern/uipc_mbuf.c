@@ -270,6 +270,30 @@ mb_free_ext(struct mbuf *m)
 }
 
 /*
+ * Clean up mbuf (chain) from any tags and packet headers.
+ * If "all" is set then the first mbuf in the chain will be
+ * cleaned too.
+ */
+void
+m_demote(struct mbuf *m0, int all)
+{
+	struct mbuf *m;
+
+	for (m = all ? m0 : m0->m_next; m != NULL; m = m->m_next) {
+		if (m->m_flags & M_PKTHDR) {
+			m_tag_delete_chain(m, NULL);
+			m->m_flags &= ~M_PKTHDR;
+			bzero(&m->m_pkthdr, sizeof(struct pkthdr));
+		}
+		if (m->m_type & MT_HEADER)
+			m->m_type = MT_DATA;
+		if (m != m0 && m->m_nextpkt)
+			m->m_nextpkt = NULL;
+		m->m_flags = m->m_flags & (M_EXT|M_EOR|M_RDONLY|M_FREELIST);
+	}
+}
+
+/*
  * "Move" mbuf pkthdr from "from" to "to".
  * "from" must have M_PKTHDR set, and "to" must be empty.
  */
