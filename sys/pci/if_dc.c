@@ -139,7 +139,10 @@ MODULE_DEPEND(dc, pci, 1, 1, 1);
 MODULE_DEPEND(dc, ether, 1, 1, 1);
 MODULE_DEPEND(dc, miibus, 1, 1, 1);
 
-/* "device miibus" required.  See GENERIC if you get errors here. */
+/*
+ * "device miibus" is required in kernel config.  See GENERIC if you get
+ * errors here.
+ */
 #include "miibus_if.h"
 
 /*
