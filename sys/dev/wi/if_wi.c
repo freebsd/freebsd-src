@@ -2431,14 +2431,9 @@ static int
 wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 {
 	int			i, s = 0;
-	static volatile int count  = 0;
 	
 	if (sc->wi_gone)
 		return (ENODEV);
-
-	if (count > 0)
-		panic("Hey partner, hold on there!");
-	count++;
 
 	/* wait for the busy bit to clear */
 	for (i = sc->wi_cmd_count; i > 0; i--) {	/* 500ms */
