@@ -32,7 +32,7 @@
 .\"	@(#)split.1	8.3 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2004
+.Dd August 21, 2005
 .Dt SPLIT 1
 .Os
 .Sh NAME
@@ -61,11 +61,11 @@ reads from the standard input.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl a
+.It Fl a Ar suffix_length
 Use
 .Ar suffix_length
 letters to form the suffix of the file name.
-.It Fl b
+.It Fl b Ar byte_count[k|m]
 Create smaller files
 .Ar byte_count
 bytes in length.
@@ -79,7 +79,7 @@ If
 is appended to the number, the file is split into
 .Ar byte_count
 megabyte pieces.
-.It Fl l
+.It Fl l Ar line_count
 Create smaller files
 .Ar n
 lines in length.
@@ -139,12 +139,4 @@ A
 command appeared in
 .At v3 .
 .Sh BUGS
-For historical reasons,
-.Nm
-can only create 676 separate
-files.
-The
-.Fl a
-option can be used to work around this limitation.
-.Pp
 The maximum line length for matching patterns is 65536.
