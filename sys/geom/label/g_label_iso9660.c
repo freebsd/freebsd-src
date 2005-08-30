@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #define G_LABEL_ISO9660_DIR	"iso9660"
 
 #define	ISO9660_MAGIC	"\x01" "CD001" "\x01\x00"
+#define	ISO9660_OFFSET	0x8000
 #define	VOLUME_LEN	32
 
 
@@ -52,7 +53,10 @@ g_label_iso9660_taste(struct g_consumer *cp, char *label, size_t size)
 	pp = cp->provider;
 	label[0] = '\0';
 
-	sector = (char *)g_read_data(cp, 0x8000, pp->sectorsize, &error);
+	if ((ISO9660_OFFSET % pp->sectorsize) != 0)
+		return;
+	sector = (char *)g_read_data(cp, ISO9660_OFFSET, pp->sectorsize,
+	    &error);
 	if (sector == NULL || error != 0)
 		return;
 	if (bcmp(sector, ISO9660_MAGIC, sizeof(ISO9660_MAGIC) - 1) != 0) {
