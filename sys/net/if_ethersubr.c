@@ -292,7 +292,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	 * on the wire). However, we don't do that here for security
 	 * reasons and compatibility with the original behavior.
 	 */
-	if ((ifp->if_flags & IFF_SIMPLEX) && (loop_copy != -1)) {
+	if ((ifp->if_flags & IFF_SIMPLEX) && (loop_copy != -1) &&
+	    m_tag_find(m, PACKET_TAG_PF_ROUTED, NULL) == NULL) {
 		int csum_flags = 0;
 
 		if (m->m_pkthdr.csum_flags & CSUM_IP)
