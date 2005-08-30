@@ -1814,7 +1814,7 @@ do { \
 					break;
 				}
 				/* XXX */
-				MGET(m, sopt->sopt_td ? M_WAIT : M_DONTWAIT, MT_HEADER);
+				MGET(m, sopt->sopt_td ? M_WAIT : M_DONTWAIT, MT_DATA);
 				if (m == 0) {
 					error = ENOBUFS;
 					break;
