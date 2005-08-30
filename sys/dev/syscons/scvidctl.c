@@ -133,7 +133,7 @@ typedef struct old_video_info {
 
 int
 sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
-		 int fontsize)
+		 int fontsize, int fontwidth)
 {
     video_info_t info;
     u_char *font;
@@ -213,6 +213,7 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
     scp->ypixel = scp->ysize*fontsize;
     scp->font = font;
     scp->font_size = fontsize;
+    scp->font_width = fontwidth;
 
     /* allocate buffers */
     sc_alloc_scr_buffer(scp, TRUE, TRUE);
@@ -317,7 +318,7 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 
 int
 sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize, 
-		  int fontsize)
+		  int fontsize, int fontwidth)
 {
 #ifndef SC_PIXEL_MODE
     return ENODEV;
@@ -429,6 +430,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     scp->yoff = (scp->ypixel/fontsize - ysize)/2;
     scp->font = font;
     scp->font_size = fontsize;
+    scp->font_width = fontwidth;
 
     /* allocate buffers */
     sc_alloc_scr_buffer(scp, TRUE, TRUE);
@@ -554,7 +556,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 	if (info.vi_flags & V_INFO_GRAPHICS)
 	    return sc_set_graphics_mode(scp, tp, *(int *)data);
 	else
-	    return sc_set_text_mode(scp, tp, *(int *)data, 0, 0, 0);
+	    return sc_set_text_mode(scp, tp, *(int *)data, 0, 0, 0, 0);
 #endif /* SC_NO_MODE_CHANGE */
 
     case OLD_CONS_MODEINFO:	/* get mode information (old infterface) */
@@ -653,7 +655,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 #endif
 	if (!(adp->va_flags & V_ADP_MODECHANGE))
  	    return ENODEV;
-	return sc_set_text_mode(scp, tp, cmd & 0xff, 0, 0, 0);
+	return sc_set_text_mode(scp, tp, cmd & 0xff, 0, 0, 0, 0);
 
     /* GRAPHICS MODES */
     case SW_BG320:     case SW_BG640:
@@ -746,7 +748,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 		return EINVAL;
 	    if (scp->status & GRAPHICS_MODE)
 		return sc_set_pixel_mode(scp, tp, scp->xsize, scp->ysize, 
-					 scp->font_size);
+					 scp->font_size, scp->font_width);
 	    s = spltty();
 	    if ((error = sc_clean_up(scp))) {
 		splx(s);
@@ -789,7 +791,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 	if (ISUNKNOWNSC(scp) || ISTEXTSC(scp))
 	    return ENODEV;
 	return sc_set_pixel_mode(scp, tp, ((int *)data)[0], ((int *)data)[1], 
-				 ((int *)data)[2]);
+				 ((int *)data)[2], 8);
 #endif /* SC_PIXEL_MODE */
 
     case KDGETMODE:     	/* get current mode of this (virtual) console */
