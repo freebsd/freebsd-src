@@ -1601,7 +1601,7 @@ ip_srcroute(m0)
 
 	if (opts->ip_nhops == 0)
 		return (NULL);
-	m = m_get(M_DONTWAIT, MT_HEADER);
+	m = m_get(M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 
