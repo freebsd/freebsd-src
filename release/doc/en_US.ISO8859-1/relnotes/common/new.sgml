@@ -256,7 +256,7 @@
       the current thread).  &merged;</para>
 
     <para arch="amd64,i386,pc98">The kernel crash dump format has been changed to
-      ELF to support large memory (more than 4GB) environment.</para>
+      ELF to support large memory (more than 4GB) environments.</para>
 
     <para>The &man.ichsmb.4; driver is now available as a loadable
       kernel module.</para>
@@ -316,7 +316,7 @@
       DEBUG_MEMGUARD</literal>, plus small kernel modifications.  It
       is generally intended for use by kernel developers.</para>
 
-    <para><varname>struct ifnet</varname> and network interface API
+    <para><varname>struct ifnet</varname> and the network interface API
       have been changed.  Due to ABI incompatibility, all drivers
       not in the &os; base system need to be updated to use
       the new API and recompiled.</para>
@@ -450,7 +450,7 @@
 	sensors.</para>
 
       <para arch="i386,amd64">The &man.acpi.fujitsu.4; driver for handling
-        &man.acpi.4;-controlled buttons Fujitsu laptops has been added.</para>
+        &man.acpi.4;-controlled buttons on Fujitsu laptops has been added.</para>
 
       <para arch="i386,amd64">The acpi_sony driver,
 	which supports the Sony Notebook Controller on various
@@ -627,7 +627,7 @@
 	<para arch="i386,amd64">Drivers using the &man.ndis.4; device
 	  driver wrapper mechanism are now built and loaded
 	  differently.  The &man.ndis.4; driver can now be pre-built
-	  as module or statically compiled into a kernel.  Individual
+	  as a module or statically compiled into a kernel.  Individual
 	  drivers can now be built with the &man.ndisgen.8; utility;
 	  the result is a kernel module that can be loaded into a
 	  running kernel using &man.kldload.8;. &merged;</para>
@@ -693,7 +693,7 @@
 	originally from NetBSD, has been added.  It supports the IEEE
 	802.1D Spanning Tree Protocol, individual interface devices
 	for each bridge, and filtering of bridged packets.
-	The &man.ifconfig.8; utility now supports to configure
+	The &man.ifconfig.8; utility now supports configuration of
 	&man.if.bridge.4;.</para>
 
       <para>The &man.ipfw.4; <literal>IPDIVERT</literal> option is now
@@ -1040,9 +1040,9 @@
       been changed to be machine-independent.</para>
 
     <para>The <application>libkvm</application> now supports
-      ELF crash dump on amd64 and i386 platforms,
-      large crash dump (more than 4GB) in 32-bit platforms,
-      and PAE crash dump on i386 platform.</para>
+      ELF crash dumps on amd64 and i386 platforms,
+      large crash dumps (more than 4GB) on 32-bit platforms,
+      and PAE crash dumps on i386 platform.</para>
 
     <para>The &man.mixer.8; utility now supports the <option>-S</option>
       option.  This is the same as the <option>-s</option> option
@@ -1274,7 +1274,7 @@
       local denial-of-service attack. &merged;</para>
 
     <para>The &man.syslogd.8; now supports the <option>-S</option> option,
-      which allows to change the pathname of the privileged
+      which changes the pathname of the privileged
       socket.  This is useful for preventing the daemon
       from receiving any messages from the local sockets
       (<filename>/var/run/log</filename> and
@@ -1574,7 +1574,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para>The supported version of the
       <application>GNOME</application> desktop environment has been
-      updated from 2.6.2 to 2.10.1.  More information about
+      updated from 2.6.2 to 2.10.2.  More information about
       running <application>GNOME</application> on &os; can be found on
       the <ulink url="&url.base;/gnome/">FreeBSD GNOME Project</ulink>
       Web page. &merged;
@@ -1599,7 +1599,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para>The supported version of the <application>KDE</application>
       desktop environment has been updated from 3.3.0 to
-      3.4.0.  More information regarding running
+      3.4.2.  More information regarding running
       <application>KDE</application> on &os; can be found on the
       <ulink url="http://freebsd.kde.org/">KDE on FreeBSD</ulink> Web
       page. &merged;
