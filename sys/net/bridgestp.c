@@ -1092,7 +1092,7 @@ bstp_tick(void *arg)
 	struct bridge_softc *sc = arg;
 	struct bridge_iflist *bif;
 
-	BRIDGE_LOCK(sc);
+	BRIDGE_LOCK_ASSERT(sc);
 
 #if 0
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
@@ -1141,8 +1141,6 @@ bstp_tick(void *arg)
 
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		callout_reset(&sc->sc_bstpcallout, hz, bstp_tick, sc);
-
-	BRIDGE_UNLOCK(sc);
 }
 
 void
