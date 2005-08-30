@@ -792,7 +792,7 @@ g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
 
 	sc->sc_id = md->md_id;
 	sc->sc_stripesize = md->md_stripesize;
-	sc->sc_stripebits = BITCOUNT(sc->sc_stripesize - 1);
+	sc->sc_stripebits = bitcount32(sc->sc_stripesize - 1);
 	sc->sc_ndisks = md->md_all;
 	sc->sc_disks = malloc(sizeof(struct g_consumer *) * sc->sc_ndisks,
 	    M_STRIPE, M_WAITOK | M_ZERO);
