@@ -1087,6 +1087,7 @@ int	ng_uncallout(struct callout *c, node_p node);
 int	ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	    ng_item_fn *fn, void * arg1, int arg2);
 #define	ng_callout_init(c)	callout_init(c, CALLOUT_MPSAFE)
+#define	ng_callout_init_mtx(c,mtx)	callout_init_mtx(c, mtx, 0)
 
 /* Flags for netgraph functions. */
 #define	NG_NOFLAGS	0x00000000	/* no special options */
