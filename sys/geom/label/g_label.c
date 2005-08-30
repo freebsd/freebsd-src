@@ -263,20 +263,12 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	} while (0);
 	for (i = 0; g_labels[i] != NULL; i++) {
 		char label[64];
-		char *p;
 
 		g_topology_unlock();
 		g_labels[i]->ld_taste(cp, label, sizeof(label));
 		g_topology_lock();
 		if (label[0] == '\0')
 			continue;
-		/*
-		 * Don't allow / in labels.
-		 */
-		for (p = label; *p != '\0'; p++) {
-			if (*p == '/')
-				*p = '_';
-		}
 		g_label_create(NULL, mp, pp, label, g_labels[i]->ld_dir,
 		    pp->mediasize);
 	}
