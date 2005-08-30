@@ -271,9 +271,11 @@ mb_free_ext(struct mbuf *m)
 
 /*
  * Clean up mbuf (chain) from any tags and packet headers.
+ * If "all" is set then the first mbuf in the chain will be
+ * cleaned too.
  */
 void
-m_demote(struct mbuf *m0)
+m_demote(struct mbuf *m0, int all)
 {
 	struct mbuf *m;
 
