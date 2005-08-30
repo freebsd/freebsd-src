@@ -139,7 +139,9 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
-      <para></para>
+      <para>Support for the PadLock Security Co-processor in VIA C3
+	processors has been added to the &man.crypto.9; subsystem.
+	&merged;</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -150,7 +152,22 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para></para>
+	<para>The &man.dc.4; driver has been marked MPSAFE. &merged;</para>
+
+	<para>The &man.de.4; driver has been converted to the &man.bus.dma.9;
+	  API and marked MPSAFE.</para>
+
+	<para>The &man.ed.4; driver has been marked MPSAFE.</para>
+
+	<para>The &man.el.4; driver has been removed.</para>
+
+	<para>The &man.my.4; driver has been marked MPSAFE. &merged;</para>
+
+	<para>The &man.pcn.4; driver has been marked MPSAFE. &merged;</para>
+
+	<para>The &man.sf.4; driver has been marked MPSAFE. &merged;</para>
+
+	<para>The &man.ste.4; driver has been marked MPSAFE.</para>
       </sect4>
     </sect3>
 
@@ -169,6 +186,11 @@
 	status reporting, and sysctl variables for volume
 	re-synchronization rate, volume member write cache status,
 	and volume transaction queue depth.</para>
+
+      <para>A new GEOM-based disk encryption facility, GEOM_ELI, has been
+	added.  It uses the &man.crypto.9; framework for hardware acceleration
+	and supports different cryptographic algorithms.  See &man.geli.8; for
+	more information. &merged;</para>
     </sect3>
 
     <sect3 id="fs">
@@ -197,7 +219,7 @@
       in tracking kernel memory statistics.  It provides an
       abstracted interface to &man.uma.9; and &man.malloc.9;
       statistics, wrapped around the binary stream sysctl variables
-      for the allocators.</para>
+      for the allocators. &merged;</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
