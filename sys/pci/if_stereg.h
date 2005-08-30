@@ -519,7 +519,7 @@ struct ste_softc {
 	struct ste_chain	*ste_tx_prev;
 	struct ste_list_data	*ste_ldata;
 	struct ste_chain_data	ste_cdata;
-	struct callout_handle	ste_stat_ch;
+	struct callout		ste_stat_callout;
 	struct mtx		ste_mtx;
 	u_int8_t		ste_one_phy;
 #ifdef DEVICE_POLLING
