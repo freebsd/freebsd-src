@@ -153,6 +153,7 @@ struct g_command class_commands[] = {
 	},
 	{ "setkey", G_FLAG_VERBOSE, eli_main,
 	    {
+		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
 		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
 		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
 		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
@@ -160,7 +161,7 @@ struct g_command class_commands[] = {
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    },
-	    "[-pPv] [-n keyno] [-k keyfile] [-K newkeyfile] prov"
+	    "[-pPv] [-n keyno] [-i iterations] [-k keyfile] [-K newkeyfile] prov"
 	},
 	{ "delkey", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -690,16 +691,23 @@ eli_attach(struct gctl_req *req)
 }
 
 static void
-eli_setkey_attached(struct gctl_req *req, const char *prov)
+eli_setkey_attached(struct gctl_req *req, const char *prov,
+ struct g_eli_metadata *md)
 {
-	struct g_eli_metadata md;
 	unsigned char key[G_ELI_USERKEYLEN];
+	intmax_t *valp;
 
-	if (eli_metadata_read(req, prov, &md) == -1)
+	valp = gctl_get_paraml(req, "iterations", sizeof(*valp));
+	if (valp == NULL) {
+		gctl_error(req, "No '%s' argument.", "iterations");
 		return;
+	}
+	/* Check if iterations number should be changed. */
+	if (*valp != -1)
+		md->md_iterations = *valp;
 
 	/* Generate key for Master Key encryption. */
-	if (eli_genkey(req, &md, key, 1) == NULL) {
+	if (eli_genkey(req, md, key, 1) == NULL) {
 		bzero(key, sizeof(key));
 		return;
 	}
@@ -710,29 +718,26 @@ eli_setkey_attached(struct gctl_req *req, const char *prov)
 }
 
 static void
-eli_setkey_detached(struct gctl_req *req, const char *prov)
+eli_setkey_detached(struct gctl_req *req, const char *prov,
+ struct g_eli_metadata *md)
 {
-	struct g_eli_metadata md;
 	unsigned char key[G_ELI_USERKEYLEN], mkey[G_ELI_DATAIVKEYLEN];
 	unsigned char *mkeydst;
 	intmax_t *valp;
 	unsigned nkey;
 	int error;
 
-	if (eli_metadata_read(req, prov, &md) == -1)
-		return;
-
 	/* Generate key for Master Key decryption. */
-	if (eli_genkey(req, &md, key, 0) == NULL) {
+	if (eli_genkey(req, md, key, 0) == NULL) {
 		bzero(key, sizeof(key));
 		return;
 	}
 
 	/* Decrypt Master Key. */
-	error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
+	error = g_eli_mkey_decrypt(md, key, mkey, &nkey);
 	bzero(key, sizeof(key));
 	if (error != 0) {
-		bzero(&md, sizeof(md));
+		bzero(md, sizeof(*md));
 		if (error == -1)
 			gctl_error(req, "Wrong key for %s.", prov);
 		else /* if (error > 0) */ {
@@ -760,37 +765,58 @@ eli_setkey_detached(struct gctl_req *req, const char *prov)
 		return;
 	}
 
-	mkeydst = md.md_mkeys + nkey * G_ELI_MKEYLEN;
-	md.md_keys |= (1 << nkey);
+	valp = gctl_get_paraml(req, "iterations", sizeof(*valp));
+	if (valp == NULL) {
+		gctl_error(req, "No '%s' argument.", "iterations");
+		return;
+	}
+	/* Check if iterations number should and can be changed. */
+	if (*valp != -1) {
+		if (bitcount32(md->md_keys) != 1) {
+			gctl_error(req, "To be able to use '-i' option, only "
+			    "one key can be defined.");
+			return;
+		}
+		if (md->md_keys != (1 << nkey)) {
+			gctl_error(req, "Only already defined key can be "
+			    "changed when '-i' option is used.");
+			return;
+		}
+		md->md_iterations = *valp;
+	}
+
+	mkeydst = md->md_mkeys + nkey * G_ELI_MKEYLEN;
+	md->md_keys |= (1 << nkey);
 
 	bcopy(mkey, mkeydst, sizeof(mkey));
 	bzero(mkey, sizeof(mkey));
 
 	/* Generate key for Master Key encryption. */
-	if (eli_genkey(req, &md, key, 1) == NULL) {
+	if (eli_genkey(req, md, key, 1) == NULL) {
 		bzero(key, sizeof(key));
-		bzero(&md, sizeof(md));
+		bzero(md, sizeof(*md));
 		return;
 	}
 
 	/* Encrypt the Master-Key with the new key. */
-	error = g_eli_mkey_encrypt(md.md_algo, key, md.md_keylen, mkeydst);
+	error = g_eli_mkey_encrypt(md->md_algo, key, md->md_keylen, mkeydst);
 	bzero(key, sizeof(key));
 	if (error != 0) {
-		bzero(&md, sizeof(md));
+		bzero(md, sizeof(*md));
 		gctl_error(req, "Cannot encrypt Master Key: %s.",
 		    strerror(error));
 		return;
 	}
 
 	/* Store metadata with fresh key. */
-	eli_metadata_store(req, prov, &md);
-	bzero(&md, sizeof(md));
+	eli_metadata_store(req, prov, md);
+	bzero(md, sizeof(*md));
 }
 
 static void
 eli_setkey(struct gctl_req *req)
 {
+	struct g_eli_metadata md;
 	const char *prov;
 	int *nargs;
 
@@ -809,10 +835,18 @@ eli_setkey(struct gctl_req *req)
 		return;
 	}
 
+	if (eli_metadata_read(req, prov, &md) == -1)
+		return;
+
+	if (md.md_keys == 0) {
+		gctl_error(req, "No valid keys on %s.", prov);
+		return;
+	}
+
 	if (eli_is_attached(prov))
-		eli_setkey_attached(req, prov);
+		eli_setkey_attached(req, prov, &md);
 	else
-		eli_setkey_detached(req, prov);
+		eli_setkey_detached(req, prov, &md);
 }
 
 static void

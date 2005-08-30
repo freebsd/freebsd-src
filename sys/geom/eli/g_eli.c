@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 #include <sys/uio.h>
 
 #include <vm/uma.h>
@@ -68,7 +69,7 @@ SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RW,
 u_int g_eli_overwrites = 5;
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RW, &g_eli_overwrites,
     0, "Number of overwrites on-disk keys when destroying");
-static u_int g_eli_threads = 1;
+static u_int g_eli_threads = 0;
 TUNABLE_INT("kern.geom.eli.threads", &g_eli_threads);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RW, &g_eli_threads, 0,
     "Number of threads doing crypto work");
@@ -77,7 +78,7 @@ static int g_eli_do_taste = 0;
 
 static int g_eli_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
-static int g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp);
+static void g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp);
 
 static g_taste_t g_eli_taste;
 static g_dumpconf_t g_eli_dumpconf;
@@ -143,7 +144,6 @@ g_eli_read_done(struct bio *bp)
 {
 	struct g_eli_softc *sc;
 	struct bio *pbp;
-	int error;
 
 	G_ELI_LOGREQ(2, bp, "Request done.");
 	pbp = bp->bio_parent;
@@ -157,28 +157,10 @@ g_eli_read_done(struct bio *bp)
 		return;
 	}
 	sc = pbp->bio_to->geom->softc;
-	/*
-	 * If we have hardware acceleration we can call g_eli_crypto_run()
-	 * directly. If not, put it on the queue and wakeup worker thread,
-	 * which will do the work for us, so we don't slow down g_up path.
-	 */
-	if (sc->sc_crypto == G_ELI_CRYPTO_HW) {
-		struct g_eli_worker *wr;
-
-		wr = LIST_FIRST(&sc->sc_workers);
-		error = g_eli_crypto_run(wr, pbp);
-		if (error != 0) {
-			G_ELI_LOGREQ(0, pbp,
-			    "g_eli_crypto_run() failed (error=%d).", error);
-			pbp->bio_completed = 0;
-			g_io_deliver(pbp, error);
-		}
-	} else {
-		mtx_lock(&sc->sc_queue_mtx);
-		bioq_insert_tail(&sc->sc_queue, pbp);
-		mtx_unlock(&sc->sc_queue_mtx);
-		wakeup(sc);
-	}
+	mtx_lock(&sc->sc_queue_mtx);
+	bioq_insert_tail(&sc->sc_queue, pbp);
+	mtx_unlock(&sc->sc_queue_mtx);
+	wakeup(sc);
 }
 
 /*
@@ -385,33 +367,11 @@ g_eli_start(struct bio *bp)
 		 */
 		g_io_request(cbp, cp);
 	} else /* if (bp->bio_cmd == BIO_WRITE) */ {
-		struct g_eli_worker *wr;
-		int error;
-
 		bp->bio_driver1 = cbp;
-		wr = LIST_FIRST(&sc->sc_workers);
-		/*
-		 * If we have hardware acceleration we can call
-		 * g_eli_crypto_run() directly. If not, put it on the queue and
-		 * wakeup worker thread, which will do the work for us, so we
-		 * don't slow down g_down path.
-		 */
-		if (sc->sc_crypto == G_ELI_CRYPTO_HW) {
-			error = g_eli_crypto_run(wr, bp);
-			if (error != 0) {
-				G_ELI_LOGREQ(0, bp,
-				    "g_eli_crypto_run() failed (error=%d).",
-				    error);
-				g_destroy_bio(cbp);
-				bp->bio_completed = 0;
-				g_io_deliver(bp, error);
-			}
-		} else {
-			mtx_lock(&sc->sc_queue_mtx);
-			bioq_insert_tail(&sc->sc_queue, bp);
-			mtx_unlock(&sc->sc_queue_mtx);
-			wakeup(sc);
-		}
+		mtx_lock(&sc->sc_queue_mtx);
+		bioq_insert_tail(&sc->sc_queue, bp);
+		mtx_unlock(&sc->sc_queue_mtx);
+		wakeup(sc);
 	}
 }
 
@@ -427,12 +387,13 @@ g_eli_worker(void *arg)
 	struct g_eli_softc *sc;
 	struct g_eli_worker *wr;
 	struct bio *bp;
-	int error;
 
 	wr = arg;
 	sc = wr->w_softc;
 	mtx_lock_spin(&sched_lock);
 	sched_prio(curthread, PRIBIO);
+	if (sc->sc_crypto == G_ELI_CRYPTO_SW && g_eli_threads == 0)
+		sched_bind(curthread, wr->w_number);
 	mtx_unlock_spin(&sched_lock);
  
 	G_ELI_DEBUG(1, "Thread %s started.", curthread->td_proc->p_comm);
@@ -456,18 +417,7 @@ g_eli_worker(void *arg)
 			continue;
 		}
 		mtx_unlock(&sc->sc_queue_mtx);
-		error = g_eli_crypto_run(wr, bp);
-		if (error != 0) {
-			G_ELI_LOGREQ(0, bp,
-			    "g_eli_crypto_run() failed (error=%d).", error);
-			if (bp->bio_cmd == BIO_WRITE) {
-				g_destroy_bio(bp->bio_driver1);
-				bp->bio_driver1 = NULL;
-			}
-			bp->bio_driver2 = NULL;
-			bp->bio_completed = 0;
-			g_io_deliver(bp, error);
-		}
+		g_eli_crypto_run(wr, bp);
 	}
 }
 
@@ -492,7 +442,7 @@ g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
  * This is the main function responsible for cryptography (ie. communication
  * with crypto(9) subsystem).
  */
-static int
+static void
 g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 {
 	struct g_eli_softc *sc;
@@ -529,9 +479,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	 */
 	if (bp->bio_cmd == BIO_WRITE)
 		size += bp->bio_length;
-	p = malloc(size, M_ELI, M_NOWAIT | M_ZERO);
-	if (p == NULL)
-		return (ENOMEM);
+	p = malloc(size, M_ELI, M_WAITOK);
 
 	bp->bio_inbed = 0;
 	bp->bio_children = nsec;
@@ -588,22 +536,11 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crd->crd_next = NULL;
 
 		err = crypto_dispatch(crp);
-		if (err != 0) {
-			G_ELI_DEBUG(1, "crypto_dispatch() returned %d.", err);
-			bp->bio_children--;
-			if (error == 0)
-				error = err;
-		}
+		if (error == 0)
+			error = err;
 	}
 	if (bp->bio_error == 0)
 		bp->bio_error = error;
-	if (bp->bio_children > 0)
-		error = 0;
-	else {
-		free(bp->bio_driver2, M_ELI);
-		bp->bio_driver2 = NULL;
-	}
-	return (error);
 }
 
 int
@@ -804,10 +741,12 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	cri.cri_key = sc->sc_datakey;
 
 	threads = g_eli_threads;
-	/* There is really no need for too many worker threads. */
-	if (threads > MAXCPU) {
-		G_ELI_DEBUG(0, "Reducing number of threads to %u.", MAXCPU);
-		threads = MAXCPU;
+	if (threads == 0)
+		threads = mp_ncpus;
+	else if (threads > mp_ncpus) {
+		/* There is really no need for too many worker threads. */
+		threads = mp_ncpus;
+		G_ELI_DEBUG(0, "Reducing number of threads to %u.", threads);
 	}
 	for (i = 0; i < threads; i++) {
 		wr = malloc(sizeof(*wr), M_ELI, M_WAITOK | M_ZERO);
@@ -820,14 +759,11 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		 */
 		if (i == 0) {
 			error = crypto_newsession(&wr->w_sid, &cri, 1);
-			if (error == 0) {
+			if (error == 0)
 				sc->sc_crypto = G_ELI_CRYPTO_HW;
-				wr->w_proc = NULL;
-				LIST_INSERT_HEAD(&sc->sc_workers, wr, w_next);
-				break;
-			}
 		}
-		error = crypto_newsession(&wr->w_sid, &cri, 0);
+		if (sc->sc_crypto == G_ELI_CRYPTO_SW)
+			error = crypto_newsession(&wr->w_sid, &cri, 0);
 		if (error != 0) {
 			free(wr, M_ELI);
 			if (req != NULL) {
@@ -840,28 +776,24 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 			goto failed;
 		}
 
-		/*
-		 * If we cannot get hardware acceleration, create dedicated
-		 * thread(s) and do the crypto work in there.
-		 */
-
 		error = kthread_create(g_eli_worker, wr, &wr->w_proc, 0, 0,
 		    "g_eli[%u] %s", i, bpp->name);
 		if (error != 0) {
 			crypto_freesession(wr->w_sid);
 			free(wr, M_ELI);
 			if (req != NULL) {
-				gctl_error(req, "Cannot create kernel "
-				    "thread for %s (error=%d).",
-				    bpp->name, error);
+				gctl_error(req, "Cannot create kernel thread "
+				    "for %s (error=%d).", bpp->name, error);
 			} else {
-				G_ELI_DEBUG(1, "Cannot create kernel "
-				    "thread for %s (error=%d).",
-				    bpp->name, error);
+				G_ELI_DEBUG(1, "Cannot create kernel thread "
+				    "for %s (error=%d).", bpp->name, error);
 			}
 			goto failed;
 		}
 		LIST_INSERT_HEAD(&sc->sc_workers, wr, w_next);
+		/* If we have hardware support, one thread is enough. */
+		if (sc->sc_crypto == G_ELI_CRYPTO_HW)
+			break;
 	}
 
 	/*
@@ -882,22 +814,15 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	    sc->sc_crypto == G_ELI_CRYPTO_SW ? "software" : "hardware");
 	return (gp);
 failed:
-	if (sc->sc_crypto == G_ELI_CRYPTO_SW) {
-		mtx_lock(&sc->sc_queue_mtx);
-		sc->sc_flags |= G_ELI_FLAG_DESTROY;
-		wakeup(sc);
-		/*
-		 * Wait for kernel threads self destruction.
-		 */
-		while (!LIST_EMPTY(&sc->sc_workers)) {
-			msleep(&sc->sc_workers, &sc->sc_queue_mtx, PRIBIO,
-			    "geli:destroy", 0);
-		}
-	} else if (sc->sc_crypto == G_ELI_CRYPTO_HW) {
-		wr = LIST_FIRST(&sc->sc_workers);
-		LIST_REMOVE(wr, w_next);
-		crypto_freesession(wr->w_sid);
-		free(wr, M_ELI);
+	mtx_lock(&sc->sc_queue_mtx);
+	sc->sc_flags |= G_ELI_FLAG_DESTROY;
+	wakeup(sc);
+	/*
+	 * Wait for kernel threads self destruction.
+	 */
+	while (!LIST_EMPTY(&sc->sc_workers)) {
+		msleep(&sc->sc_workers, &sc->sc_queue_mtx, PRIBIO,
+		    "geli:destroy", 0);
 	}
 	mtx_destroy(&sc->sc_queue_mtx);
 	if (cp->provider != NULL) {
@@ -917,7 +842,6 @@ failed:
 int
 g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 {
-	struct g_eli_worker *wr;
 	struct g_geom *gp;
 	struct g_provider *pp;
 
@@ -940,23 +864,12 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 		}
 	}
 
-	/*
-	 * When we do cryptography in software, we have kernel thread hanging
-	 * around, so we need to destroy it first.
-	 */
-	if (sc->sc_crypto == G_ELI_CRYPTO_SW) {
-		mtx_lock(&sc->sc_queue_mtx);
-		sc->sc_flags |= G_ELI_FLAG_DESTROY;
-		wakeup(sc);
-		while (!LIST_EMPTY(&sc->sc_workers)) {
-			msleep(&sc->sc_workers, &sc->sc_queue_mtx, PRIBIO,
-			    "geli:destroy", 0);
-		}
-	} else /* if (sc->sc_crypto == G_ELI_CRYPTO_HW) */ {
-		wr = LIST_FIRST(&sc->sc_workers);
-		LIST_REMOVE(wr, w_next);
-		crypto_freesession(wr->w_sid);
-		free(wr, M_ELI);
+	mtx_lock(&sc->sc_queue_mtx);
+	sc->sc_flags |= G_ELI_FLAG_DESTROY;
+	wakeup(sc);
+	while (!LIST_EMPTY(&sc->sc_workers)) {
+		msleep(&sc->sc_workers, &sc->sc_queue_mtx, PRIBIO,
+		    "geli:destroy", 0);
 	}
 	mtx_destroy(&sc->sc_queue_mtx);
 	gp->softc = NULL;
