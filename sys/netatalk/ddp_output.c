@@ -200,7 +200,7 @@ ddp_route(struct mbuf *m, struct route *ro)
      * packets end up poorly aligned due to the three byte elap header.
      */
     if (!(aa->aa_flags & AFA_PHASE2)) {
-	MGET(m0, M_DONTWAIT, MT_HEADER);
+	MGET(m0, M_DONTWAIT, MT_DATA);
 	if (m0 == NULL) {
 	    m_freem(m);
 	    printf("ddp_route: no buffers\n");
