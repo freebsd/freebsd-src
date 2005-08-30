@@ -719,7 +719,7 @@ ndis_ptom(m0, p)
 		    p, 0, EXT_NDIS);
 		p->np_refcnt++;
 		totlen += m->m_len;
-		if (m->m_flags & MT_HEADER)
+		if (m->m_flags & M_PKTHDR)
 			*m0 = m;
 		else
 			prev->m_next = m;
