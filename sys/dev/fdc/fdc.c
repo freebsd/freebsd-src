@@ -745,7 +745,7 @@ fdc_worker(struct fdc_data *fdc)
 	bp = fdc->bp;
 	fd = fdc->fd;
 	if (bp != NULL &&
-		(fdc->retry >= retries || (fd->flags & FDOPT_NORETRY))) {
+		(fdc->retry >= retries || (fd->options & FDOPT_NORETRY))) {
 		if ((debugflags & 4))
 			printf("Too many retries (EIO)\n");
 		return (fdc_biodone(fdc, EIO));
