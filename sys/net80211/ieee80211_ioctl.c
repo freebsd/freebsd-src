@@ -2090,8 +2090,18 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 				error = ENETRESET;
 			break;
 		}
-		if (error == ENETRESET && ic->ic_opmode == IEEE80211_M_MONITOR)
-			error = IS_UP(ic) ? ic->ic_reset(ic->ic_ifp) : 0;
+		if (error == ENETRESET &&
+			ic->ic_opmode == IEEE80211_M_MONITOR) {
+			if (IS_UP(ic)) {
+				/*
+				 * Monitor mode can switch directly.
+				 */
+				if (ic->ic_des_chan != IEEE80211_CHAN_ANYC)
+					ic->ic_curchan = ic->ic_des_chan;
+				error = ic->ic_reset(ic->ic_ifp);
+			} else
+				error = 0;
+		}
 		break;
 	case IEEE80211_IOC_POWERSAVE:
 		switch (ireq->i_val) {
