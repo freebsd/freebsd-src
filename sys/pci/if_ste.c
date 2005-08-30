@@ -90,6 +90,7 @@ static int ste_probe(device_t);
 static int ste_attach(device_t);
 static int ste_detach(device_t);
 static void ste_init(void *);
+static void ste_init_locked(struct ste_softc *);
 static void ste_intr(void *);
 static void ste_rxeoc(struct ste_softc *);
 static void ste_rxeof(struct ste_softc *);
@@ -101,11 +102,13 @@ static void ste_reset(struct ste_softc *);
 static int ste_ioctl(struct ifnet *, u_long, caddr_t);
 static int ste_encap(struct ste_softc *, struct ste_chain *, struct mbuf *);
 static void ste_start(struct ifnet *);
+static void ste_start_locked(struct ifnet *);
 static void ste_watchdog(struct ifnet *);
 static void ste_shutdown(device_t);
 static int ste_newbuf(struct ste_softc *, struct ste_chain_onefrag *,
 		struct mbuf *);
 static int ste_ifmedia_upd(struct ifnet *);
+static void ste_ifmedia_upd_locked(struct ifnet *);
 static void ste_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static void ste_mii_sync(struct ste_softc *);
@@ -246,8 +249,6 @@ ste_mii_readreg(sc, frame)
 {
 	int			i, ack;
 
-	STE_LOCK(sc);
-
 	/*
 	 * Set up frame for RX.
 	 */
@@ -321,8 +322,6 @@ fail:
 	MII_SET(STE_PHYCTL_MCLK);
 	DELAY(1);
 
-	STE_UNLOCK(sc);
-
 	if (ack)
 		return(1);
 	return(0);
@@ -337,7 +336,6 @@ ste_mii_writereg(sc, frame)
 	struct ste_mii_frame	*frame;
 	
 {
-	STE_LOCK(sc);
 
 	/*
 	 * Set up frame for TX.
@@ -371,8 +369,6 @@ ste_mii_writereg(sc, frame)
 	 * Turn off xmit.
 	 */
 	MII_CLR(STE_PHYCTL_MDIR);
-
-	STE_UNLOCK(sc);
 
 	return(0);
 }
@@ -427,7 +423,7 @@ ste_miibus_statchg(dev)
 	struct mii_data		*mii;
 
 	sc = device_get_softc(dev);
-	STE_LOCK(sc);
+
 	mii = device_get_softc(sc->ste_miibus);
 
 	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
@@ -435,7 +431,6 @@ ste_miibus_statchg(dev)
 	} else {
 		STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
 	}
-	STE_UNLOCK(sc);
 
 	return;
 }
@@ -445,9 +440,24 @@ ste_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct ste_softc	*sc;
+
+	sc = ifp->if_softc;
+	STE_LOCK(sc);
+	ste_ifmedia_upd_locked(ifp);
+	STE_UNLOCK(sc);
+
+	return(0);	
+}
+
+static void
+ste_ifmedia_upd_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct ste_softc	*sc;
 	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
+	STE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->ste_miibus);
 	sc->ste_link = 0;
 	if (mii->mii_instance) {
@@ -456,8 +466,6 @@ ste_ifmedia_upd(ifp)
 			mii_phy_reset(miisc);
 	}
 	mii_mediachg(mii);
-
-	return(0);
 }
 
 static void
@@ -471,9 +479,11 @@ ste_ifmedia_sts(ifp, ifmr)
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->ste_miibus);
 
+	STE_LOCK(sc);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	STE_UNLOCK(sc);
 
 	return;
 }
@@ -603,7 +613,7 @@ ste_setmulti(sc)
 }
 
 #ifdef DEVICE_POLLING
-static poll_handler_t ste_poll;
+static poll_handler_t ste_poll, ste_poll_locked;
 
 static void
 ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
@@ -611,13 +621,23 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct ste_softc *sc = ifp->if_softc;
 
 	STE_LOCK(sc);
+	ste_poll_locked(ifp, cmd, count);
+	STE_UNLOCK(sc);
+}
+
+static void
+ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct ste_softc *sc = ifp->if_softc;
+
+	STE_LOCK_ASSERT(sc);
 	if (!(ifp->if_capenable & IFCAP_POLLING)) {
 		ether_poll_deregister(ifp);
 		cmd = POLL_DEREGISTER;
 	}
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
 		CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
-		goto done;
+		return;
 	}
 
 	sc->rxcycles = count;
@@ -626,7 +646,7 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	ste_rxeof(sc);
 	ste_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		ste_start(ifp);
+		ste_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		u_int16_t status;
@@ -637,7 +657,7 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			ste_txeoc(sc);
 
 		if (status & STE_ISR_STATS_OFLOW) {
-			untimeout(ste_stats_update, sc, sc->ste_stat_ch);
+			callout_stop(&sc->ste_stat_callout);
 			ste_stats_update(sc);
 		}
 
@@ -646,11 +666,9 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & STE_ISR_HOSTERR) {
 			ste_reset(sc);
-			ste_init(sc);
+			ste_init_locked(sc);
 		}
 	}
-done:
-	STE_UNLOCK(sc);
 }
 #endif /* DEVICE_POLLING */
 
@@ -672,7 +690,7 @@ ste_intr(xsc)
 	if ((ifp->if_capenable & IFCAP_POLLING) &&
 	    ether_poll_register(ste_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_2(sc, STE_IMR, 0);
-		ste_poll(ifp, 0, 1);
+		ste_poll_locked(ifp, 0, 1);
 		goto done;
 	}
 #endif /* DEVICE_POLLING */
@@ -701,7 +719,7 @@ ste_intr(xsc)
 			ste_txeoc(sc);
 
 		if (status & STE_ISR_STATS_OFLOW) {
-			untimeout(ste_stats_update, sc, sc->ste_stat_ch);
+			callout_stop(&sc->ste_stat_callout);
 			ste_stats_update(sc);
 		}
 
@@ -711,7 +729,7 @@ ste_intr(xsc)
 
 		if (status & STE_ISR_HOSTERR) {
 			ste_reset(sc);
-			ste_init(sc);
+			ste_init_locked(sc);
 		}
 	}
 
@@ -719,7 +737,7 @@ ste_intr(xsc)
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		ste_start(ifp);
+		ste_start_locked(ifp);
 
 #ifdef DEVICE_POLLING
 done:
@@ -861,7 +879,7 @@ ste_txeoc(sc)
 			if_printf(ifp, "transmission error: %x\n", txstat);
 
 			ste_reset(sc);
-			ste_init(sc);
+			ste_init_locked(sc);
 
 			if (txstat & STE_TXSTATUS_UNDERRUN &&
 			    sc->ste_tx_thresh < STE_PACKET_SIZE) {
@@ -874,7 +892,7 @@ ste_txeoc(sc)
 			CSR_WRITE_2(sc, STE_TX_RECLAIM_THRESH,
 			    (STE_PACKET_SIZE >> 4));
 		}
-		ste_init(sc);
+		ste_init_locked(sc);
 		CSR_WRITE_2(sc, STE_TX_STATUS, txstat);
 	}
 
@@ -920,7 +938,7 @@ ste_stats_update(xsc)
 	struct mii_data		*mii;
 
 	sc = xsc;
-	STE_LOCK(sc);
+	STE_LOCK_ASSERT(sc);
 
 	ifp = sc->ste_ifp;
 	mii = device_get_softc(sc->ste_miibus);
@@ -940,12 +958,11 @@ ste_stats_update(xsc)
 			*/
 			ste_miibus_statchg(sc->ste_dev);
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-				ste_start(ifp);
+				ste_start_locked(ifp);
 		}
 	}
 
-	sc->ste_stat_ch = timeout(ste_stats_update, sc, hz);
-	STE_UNLOCK(sc);
+	callout_reset(&sc->ste_stat_callout, hz, ste_stats_update, sc);
 
 	return;
 }
@@ -1002,7 +1019,7 @@ ste_attach(dev)
 		sc->ste_one_phy = 1;
 
 	mtx_init(&sc->ste_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 	/*
 	 * Map control/status registers.
 	 */
@@ -1031,7 +1048,7 @@ ste_attach(dev)
 		goto fail;
 	}
 
-	callout_handle_init(&sc->ste_stat_ch);
+	callout_init_mtx(&sc->ste_stat_callout, &sc->ste_mtx, 0);
 
 	/* Reset the adapter. */
 	ste_reset(sc);
@@ -1076,8 +1093,7 @@ ste_attach(dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ste_ioctl;
 	ifp->if_start = ste_start;
 	ifp->if_watchdog = ste_watchdog;
@@ -1105,7 +1121,7 @@ ste_attach(dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->ste_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->ste_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    ste_intr, sc, &sc->ste_intrhand);
 
 	if (error) {
@@ -1138,12 +1154,14 @@ ste_detach(dev)
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->ste_mtx), ("ste mutex not initialized"));
-	STE_LOCK(sc);
 	ifp = sc->ste_ifp;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
+		STE_LOCK(sc);
 		ste_stop(sc);
+		STE_UNLOCK(sc);
+		callout_drain(&sc->ste_stat_callout);
 		ether_ifdetach(ifp);
 		if_free(ifp);
 	}
@@ -1163,7 +1181,6 @@ ste_detach(dev)
 		    M_DEVBUF);
 	}
 
-	STE_UNLOCK(sc);
 	mtx_destroy(&sc->ste_mtx);
 
 	return(0);
@@ -1271,11 +1288,21 @@ ste_init(xsc)
 	void			*xsc;
 {
 	struct ste_softc	*sc;
-	int			i;
-	struct ifnet		*ifp;
 
 	sc = xsc;
 	STE_LOCK(sc);
+	ste_init_locked(sc);
+	STE_UNLOCK(sc);
+}
+
+static void
+ste_init_locked(sc)
+	struct ste_softc	*sc;
+{
+	int			i;
+	struct ifnet		*ifp;
+
+	STE_LOCK_ASSERT(sc);
 	ifp = sc->ste_ifp;
 
 	ste_stop(sc);
@@ -1290,7 +1317,6 @@ ste_init(xsc)
 		if_printf(ifp,
 		    "initialization failed: no memory for RX buffers\n");
 		ste_stop(sc);
-		STE_UNLOCK(sc);
 		return;
 	}
 
@@ -1370,13 +1396,12 @@ ste_init(xsc)
 	/* Accept VLAN length packets */
 	CSR_WRITE_2(sc, STE_MAX_FRAMELEN, ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN);
 
-	ste_ifmedia_upd(ifp);
+	ste_ifmedia_upd_locked(ifp);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->ste_stat_ch = timeout(ste_stats_update, sc, hz);
-	STE_UNLOCK(sc);
+	callout_reset(&sc->ste_stat_callout, hz, ste_stats_update, sc);
 
 	return;
 }
@@ -1388,10 +1413,10 @@ ste_stop(sc)
 	int			i;
 	struct ifnet		*ifp;
 
-	STE_LOCK(sc);
+	STE_LOCK_ASSERT(sc);
 	ifp = sc->ste_ifp;
 
-	untimeout(ste_stats_update, sc, sc->ste_stat_ch);
+	callout_stop(&sc->ste_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
@@ -1427,7 +1452,6 @@ ste_stop(sc)
 	}
 
 	bzero(sc->ste_ldata, sizeof(struct ste_list_data));
-	STE_UNLOCK(sc);
 
 	return;
 }
@@ -1470,11 +1494,11 @@ ste_ioctl(ifp, command, data)
 	int			error = 0;
 
 	sc = ifp->if_softc;
-	STE_LOCK(sc);
 	ifr = (struct ifreq *)data;
 
 	switch(command) {
 	case SIOCSIFFLAGS:
+		STE_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
@@ -1492,18 +1516,21 @@ ste_ioctl(ifp, command, data)
 				ste_setmulti(sc);
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				sc->ste_tx_thresh = STE_TXSTART_THRESH;
-				ste_init(sc);
+				ste_init_locked(sc);
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ste_stop(sc);
 		}
 		sc->ste_if_flags = ifp->if_flags;
+		STE_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		STE_LOCK(sc);
 		ste_setmulti(sc);
+		STE_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
@@ -1512,15 +1539,15 @@ ste_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
+		STE_LOCK(sc);
 		ifp->if_capenable &= ~IFCAP_POLLING;
 		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
+		STE_UNLOCK(sc);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
-
-	STE_UNLOCK(sc);
 
 	return(error);
 }
@@ -1580,22 +1607,30 @@ ste_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct ste_softc	*sc;
+
+	sc = ifp->if_softc;
+	STE_LOCK(sc);
+	ste_start_locked(ifp);
+	STE_UNLOCK(sc);
+}
+
+static void
+ste_start_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct ste_softc	*sc;
 	struct mbuf		*m_head = NULL;
 	struct ste_chain	*cur_tx;
 	int			idx;
 
 	sc = ifp->if_softc;
-	STE_LOCK(sc);
+	STE_LOCK_ASSERT(sc);
 
-	if (!sc->ste_link) {
-		STE_UNLOCK(sc);
+	if (!sc->ste_link)
 		return;
-	}
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
-		STE_UNLOCK(sc);
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
-	}
 
 	idx = sc->ste_cdata.ste_tx_prod;
 
@@ -1654,8 +1689,6 @@ ste_start(ifp)
 	}
 	sc->ste_cdata.ste_tx_prod = idx;
 
-	STE_UNLOCK(sc);
-
 	return;
 }
 
@@ -1676,10 +1709,10 @@ ste_watchdog(ifp)
 	ste_rxeoc(sc);
 	ste_rxeof(sc);
 	ste_reset(sc);
-	ste_init(sc);
+	ste_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		ste_start(ifp);
+		ste_start_locked(ifp);
 	STE_UNLOCK(sc);
 
 	return;
@@ -1693,7 +1726,9 @@ ste_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	STE_LOCK(sc);
 	ste_stop(sc);
+	STE_UNLOCK(sc);
 
 	return;
 }
