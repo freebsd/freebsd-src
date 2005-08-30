@@ -58,8 +58,10 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/time.h>
-#include <sys/mbuf.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/errno.h>
 
 #include <netinet/in.h>
@@ -165,6 +167,7 @@ struct ng_pptpgre_private {
 	u_int32_t		xmitAck;	/* last seq # we ack'd */
 	struct timeval		startTime;	/* time node was created */
 	struct ng_pptpgre_stats	stats;		/* node statistics */
+	struct mtx		mtx;		/* node mutex */
 };
 typedef struct ng_pptpgre_private *priv_p;
 
@@ -282,8 +285,9 @@ ng_pptpgre_constructor(node_p node)
 	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Initialize state */
-	ng_callout_init(&priv->ackp.sackTimer);
-	ng_callout_init(&priv->ackp.rackTimer);
+	mtx_init(&priv->mtx, "ng_pptp", NULL, MTX_DEF);
+	ng_callout_init_mtx(&priv->ackp.sackTimer, &priv->mtx);
+	ng_callout_init_mtx(&priv->ackp.rackTimer, &priv->mtx);
 
 	/* Done */
 	return (0);
@@ -387,6 +391,7 @@ ng_pptpgre_rcvdata(hook_p hook, item_p item)
 {
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
+	int rval;
 
 	/* If not configured, reject */
 	if (!priv->conf.enabled) {
@@ -394,12 +399,19 @@ ng_pptpgre_rcvdata(hook_p hook, item_p item)
 		return (ENXIO);
 	}
 
+	mtx_lock(&priv->mtx);
+
 	/* Treat as xmit or recv data */
 	if (hook == priv->upper)
-		return ng_pptpgre_xmit(node, item);
-	if (hook == priv->lower)
-		return ng_pptpgre_recv(node, item);
-	panic("%s: weird hook", __func__);
+		rval = ng_pptpgre_xmit(node, item);
+	else if (hook == priv->lower)
+		rval = ng_pptpgre_recv(node, item);
+	else
+		panic("%s: weird hook", __func__);
+
+	mtx_unlock(&priv->mtx);
+
+	return (rval);
 }
 
 /*
@@ -412,6 +424,8 @@ ng_pptpgre_shutdown(node_p node)
 
 	/* Reset node (stops timers) */
 	ng_pptpgre_reset(node);
+
+	mtx_destroy(&priv->mtx);
 
 	FREE(priv, M_NETGRAPH);
 
@@ -875,6 +889,8 @@ ng_pptpgre_reset(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 
+	mtx_lock(&priv->mtx);
+
 	/* Reset adaptive timeout state */
 	a->ato = PPTP_MAX_TIMEOUT;
 	a->rtt = priv->conf.peerPpd * PPTP_TIME_SCALE / 10;  /* ppd in 10ths */
@@ -903,6 +919,8 @@ ng_pptpgre_reset(node_p node)
 	/* Stop timers */
 	ng_pptpgre_stop_send_ack_timer(node);
 	ng_pptpgre_stop_recv_ack_timer(node);
+
+	mtx_unlock(&priv->mtx);
 }
 
 /*
