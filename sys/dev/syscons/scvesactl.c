@@ -70,7 +70,7 @@ vesa_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *
 	case SW_TEXT_132x60:
 		if (!(scp->sc->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
-		return sc_set_text_mode(scp, tp, cmd & 0xff, 0, 0, 0);
+		return sc_set_text_mode(scp, tp, cmd & 0xff, 0, 0, 0, 0);
 
 	/* text modes */
 	case SW_VESA_C80x60:
@@ -81,7 +81,7 @@ vesa_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *
 		if (!(scp->sc->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
 		mode = (cmd & 0xff) + M_VESA_BASE;
-		return sc_set_text_mode(scp, tp, mode, 0, 0, 0);
+		return sc_set_text_mode(scp, tp, mode, 0, 0, 0, 0);
 
 	/* graphics modes */
 	case SW_VESA_32K_320: 	case SW_VESA_64K_320: 
