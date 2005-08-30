@@ -30,6 +30,7 @@
 
 #include <sys/socket.h>
 #include <net/if.h>
+#include <net/ethernet.h>
 
 #include <net80211/ieee80211.h>
 #include <net80211/ieee80211_crypto.h>
@@ -231,8 +232,11 @@ wpa_driver_bsd_del_key(struct wpa_driver_bsd_data *drv, int key_idx,
 	memset(&wk, 0, sizeof(wk));
 	if (addr != NULL &&
 	    bcmp(addr, "\xff\xff\xff\xff\xff\xff", IEEE80211_ADDR_LEN) != 0) {
+		struct ether_addr ea;
+
+		memcpy(&ea, addr, IEEE80211_ADDR_LEN);
 		wpa_printf(MSG_DEBUG, "%s: addr=%s keyidx=%d",
-			__func__, ether_ntoa(addr), key_idx);
+			__func__, ether_ntoa(&ea), key_idx);
 		memcpy(wk.idk_macaddr, addr, IEEE80211_ADDR_LEN);
 		wk.idk_keyix = (uint8_t) IEEE80211_KEYIX_NONE;
 	} else {
@@ -250,6 +254,7 @@ wpa_driver_bsd_set_key(void *priv, wpa_alg alg,
 {
 	struct wpa_driver_bsd_data *drv = priv;
 	struct ieee80211req_key wk;
+	struct ether_addr ea;
 	char *alg_name;
 	u_int8_t cipher;
 
@@ -275,18 +280,19 @@ wpa_driver_bsd_set_key(void *priv, wpa_alg alg,
 		return -1;
 	}
 
+	memcpy(&ea, addr, IEEE80211_ADDR_LEN);
 	wpa_printf(MSG_DEBUG,
-		"%s: alg=%s addr=%s key_idx=%d set_tx=%d seq_len=%d key_len=%d",
-		__func__, alg_name, ether_ntoa(addr), key_idx, set_tx,
+		"%s: alg=%s addr=%s key_idx=%d set_tx=%d seq_len=%zu key_len=%zu",
+		__func__, alg_name, ether_ntoa(&ea), key_idx, set_tx,
 		seq_len, key_len);
 
 	if (seq_len > sizeof(u_int64_t)) {
-		wpa_printf(MSG_DEBUG, "%s: seq_len %d too big",
+		wpa_printf(MSG_DEBUG, "%s: seq_len %zu too big",
 			__func__, seq_len);
 		return -2;
 	}
 	if (key_len > sizeof(wk.ik_keydata)) {
-		wpa_printf(MSG_DEBUG, "%s: key length %d too big",
+		wpa_printf(MSG_DEBUG, "%s: key length %zu too big",
 			__func__, key_len);
 		return -3;
 	}
