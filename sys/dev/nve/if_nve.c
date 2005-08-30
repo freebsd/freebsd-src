@@ -875,7 +875,6 @@ nve_ifstart(struct ifnet *ifp)
 				sc->tx_errors++;
 				continue;
 			}
-			m_freem(m0);
 			m0 = m;
 
 			error = bus_dmamap_load_mbuf(sc->mtag, buf->map, m,
