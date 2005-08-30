@@ -173,6 +173,7 @@ SUBDIR=	${_3dfx} \
 	${_nwfs} \
 	${_oltr} \
 	${_osf1} \
+	${_padlock} \
 	patm \
 	${_pccard} \
 	${_pcfclock} \
@@ -394,6 +395,11 @@ _iir=		iir
 _ips=		ips
 _mly=		mly
 _nve=		nve
+.if !defined(NO_CRYPT) || defined(ALL_MODULES)
+.if exists(${.CURDIR}/../crypto/via)
+_padlock=	padlock
+.endif
+.endif
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
