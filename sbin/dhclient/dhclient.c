@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #define	alphachar(c) (((c) >= 0x41 && (c) <= 0x5a) || \
 	    ((c) >= 0x61 && (c) <= 0x7a))
 #define	digitchar(c) ((c) >= 0x30 && (c) <= 0x39)
+#define	whitechar(c) ((c) == ' ' || (c) == '\t')
 
 #define	borderchar(c) (alphachar(c) || digitchar(c))
 #define	middlechar(c) (borderchar(c) || hyphenchar(c))
@@ -116,6 +117,7 @@ void		 usage(void);
 int		 check_option(struct client_lease *l, int option);
 int		 ipv4addrs(char * buf);
 int		 res_hnok(const char *dn);
+int		 check_search(const char *srch);
 char		*option_as_string(unsigned int code, unsigned char *data, int len);
 int		 fork_privchld(int, int);
 
@@ -2250,6 +2252,14 @@ check_option(struct client_lease *l, int option)
 		}
 		return (1);
 	case DHO_DOMAIN_NAME:
+		if (!res_hnok(sbuf)) {
+			if (!check_search(sbuf)) {
+				warning("Bogus domain search list %d: %s (%s)",
+				    option, sbuf, opbuf);
+				return (0);
+			}
+		}
+		return (1);
 	case DHO_PAD:
 	case DHO_TIME_OFFSET:
 	case DHO_BOOT_SIZE:
@@ -2323,6 +2333,52 @@ res_hnok(const char *dn)
 		pch = ch, ch = nch;
 	}
 	return (1);
+}
+
+int
+check_search(const char *srch)
+{
+        int pch = PERIOD, ch = *srch++;
+	int domains = 1;
+
+	/* 256 char limit re resolv.conf(5) */
+	if (strlen(srch) > 256)
+		return (0);
+
+	while (whitechar(ch))
+		ch = *srch++;
+
+        while (ch != '\0') {
+                int nch = *srch++;
+
+                if (periodchar(ch) || whitechar(ch)) {
+                        ;
+                } else if (periodchar(pch)) {
+                        if (!borderchar(ch))
+                                return (0);
+                } else if (periodchar(nch) || nch == '\0') {
+                        if (!borderchar(ch))
+                                return (0);
+                } else {
+                        if (!middlechar(ch))
+                                return (0);
+                }
+		if (!whitechar(ch)) {
+			pch = ch;
+		} else {
+			while (whitechar(nch)) {
+				nch = *srch++;
+			}
+			if (nch != '\0')
+				domains++;
+			pch = PERIOD;
+		}
+		ch = nch;
+        }
+	/* 6 domain limit re resolv.conf(5) */
+	if (domains > 6)
+		return (0);
+        return (1);
 }
 
 /* Does buf consist only of dotted decimal ipv4 addrs?
