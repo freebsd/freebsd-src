@@ -83,6 +83,7 @@ utility:
 .Nm
 .Cm setkey
 .Op Fl pPv
+.Op Fl i Ar iterations
 .Op Fl k Ar keyfile
 .Op Fl K Ar newkeyfile
 .Op Fl n Ar keyno
@@ -136,8 +137,6 @@ Utilizes the
 framework, so when there is crypto hardware available,
 .Nm
 will make use of it automatically.
-If cryptography needs to be done in software,
-a dedicated kernel thread will be started to do the crypto work in there.
 .It
 Supports many cryptographic algorithms (currently
 .Nm AES ,
@@ -328,6 +327,12 @@ an old passphrase/keyfile.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl a Ar algo"
+.It Fl i Ar iterations
+Number of iterations to use with PKCS#5v2.
+If 0 is given, PKCS#5v2 will not be used.
+To be able to use this option with
+.Cm setkey
+subcommand, only one key have to be defined and this key has to be changed.
 .It Fl k Ar keyfile
 Specifies a file which contains part of the old key.
 .It Fl K Ar newkeyfile
@@ -440,10 +445,12 @@ passphrase can be logged and exposed via
 .Xr dmesg 8 .
 This variable should be set in
 .Pa /boot/loader.conf .
-.It Va kern.geom.eli.threads : No 1
+.It Va kern.geom.eli.threads : No 0
 Specifies how many kernel threads should be used for doing software
 cryptography.
 Its purpose is to increase performance on SMP systems.
+If hardware acceleration is available, only one thread will be started.
+If set to 0, CPU-bound thread will be started for every active CPU.
 This variable could be set in
 .Pa /boot/loader.conf .
 .El
