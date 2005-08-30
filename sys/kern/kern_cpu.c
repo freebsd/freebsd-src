@@ -650,19 +650,15 @@ cpufreq_expand_set(struct cpufreq_softc *sc, struct cf_setting_array *set_arr)
 
 	CF_MTX_ASSERT(&sc->lock);
 
-	TAILQ_FOREACH(search, &sc->all_levels, link) {
-		/* Skip this level if we've already modified it. */
-		for (i = 0; i < search->rel_count; i++) {
-			if (search->rel_set[i].dev == set_arr->sets[0].dev)
-				break;
-		}
-		if (i != search->rel_count) {
-			CF_DEBUG("skipping modified level, freq %d (dev %s)\n",
-			    search->total_set.freq,
-			    device_get_nameunit(search->rel_set[i].dev));
-			continue;
-		}
-
+	/*
+	 * Walk the set of all existing levels in reverse.  This is so we
+	 * create derived states from the lowest absolute settings first
+	 * and discard duplicates created from higher absolute settings.
+	 * For instance, a level of 50 Mhz derived from 100 Mhz + 50% is
+	 * preferable to 200 Mhz + 25% because absolute settings are more
+	 * efficient since they often change the voltage as well.
+	 */
+	TAILQ_FOREACH_REVERSE(search, &sc->all_levels, cf_level_lst, link) {
 		/* Add each setting to the level, duplicating if necessary. */
 		for (i = 0; i < set_arr->count; i++) {
 			set = &set_arr->sets[i];
@@ -672,15 +668,19 @@ cpufreq_expand_set(struct cpufreq_softc *sc, struct cf_setting_array *set_arr)
 			 * into two and add this setting to the new level.
 			 */
 			fill = search;
-			if (set->freq < 10000)
+			if (set->freq < 10000) {
 				fill = cpufreq_dup_set(sc, search, set);
 
-			/*
-			 * The new level was a duplicate of an existing level
-			 * so we freed it.  Go to the next setting.
-			 */
-			if (fill == NULL)
-				continue;
+				/*
+				 * The new level was a duplicate of an existing
+				 * level or its absolute setting is too high
+				 * so we freed it.  For example, we discard a
+				 * derived level of 1000 MHz/25% if a level
+				 * of 500 MHz/100% already exists.
+				 */
+				if (fill == NULL)
+					break;
+			}
 
 			/* Add this setting to the existing or new level. */
 			KASSERT(fill->rel_count < MAX_SETTINGS,
@@ -747,36 +747,37 @@ cpufreq_dup_set(struct cpufreq_softc *sc, struct cf_level *dup,
 	}
 
 	/*
-	 * Insert the new level in sorted order.  If we find a duplicate,
-	 * free the new level.  We can do this since any existing level will
-	 * be guaranteed to have the same or less settings and thus consume
-	 * less power.  For example, a level with one absolute setting of
-	 * 800 Mhz uses less power than one composed of an absolute setting
-	 * of 1600 Mhz and a relative setting at 50%.
+	 * Insert the new level in sorted order.  If it is a duplicate of an
+	 * existing level (1) or has an absolute setting higher than the
+	 * existing level (2), do not add it.  We can do this since any such
+	 * level is guaranteed use less power.  For example (1), a level with
+	 * one absolute setting of 800 Mhz uses less power than one composed
+	 * of an absolute setting of 1600 Mhz and a relative setting at 50%.
+	 * Also for example (2), a level of 800 Mhz/75% is preferable to
+	 * 1600 Mhz/25% even though the latter has a lower total frequency.
 	 */
 	list = &sc->all_levels;
-	if (TAILQ_EMPTY(list)) {
-		CF_DEBUG("dup done, inserted %d at head\n", fill_set->freq);
-		TAILQ_INSERT_HEAD(list, fill, link);
-	} else {
-		TAILQ_FOREACH_REVERSE(itr, list, cf_level_lst, link) {
-			itr_set = &itr->total_set;
-			if (CPUFREQ_CMP(fill_set->freq, itr_set->freq)) {
-				CF_DEBUG(
-			"dup done, freeing new level %d, matches %d\n",
-				    fill_set->freq, itr_set->freq);
-				free(fill, M_TEMP);
-				fill = NULL;
-				break;
-			} else if (fill_set->freq < itr_set->freq) {
-				CF_DEBUG(
-			"dup done, inserting new level %d after %d\n",
-				    fill_set->freq, itr_set->freq);
-				TAILQ_INSERT_AFTER(list, itr, fill, link);
-				sc->all_count++;
-				break;
-			}
+	KASSERT(!TAILQ_EMPTY(list), ("all levels list empty in dup set"));
+	TAILQ_FOREACH_REVERSE(itr, list, cf_level_lst, link) {
+		itr_set = &itr->total_set;
+		if (fill_set->freq < itr_set->freq &&
+		    !CPUFREQ_CMP(fill_set->freq, itr_set->freq) &&
+		    fill->abs_set.freq <= itr->abs_set.freq) {
+			CF_DEBUG(
+		"dup done, inserting new level %d after %d\n",
+			    fill_set->freq, itr_set->freq);
+			TAILQ_INSERT_AFTER(list, itr, fill, link);
+			sc->all_count++;
+			break;
 		}
+	}
+
+	/* We didn't find a good place for this new level so free it. */
+	if (itr == NULL) {
+		CF_DEBUG("dup set freeing new level %d (not optimal)\n",
+		    fill_set->freq);
+		free(fill, M_TEMP);
+		fill = NULL;
 	}
 
 	return (fill);
