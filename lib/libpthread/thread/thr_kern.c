@@ -2365,6 +2365,11 @@ _thr_alloc(struct pthread *curthread)
 	if ((thread == NULL) &&
 	    ((thread = malloc(sizeof(struct pthread))) != NULL)) {
 		bzero(thread, sizeof(struct pthread));
+		thread->siginfo = calloc(_SIG_MAXSIG, sizeof(siginfo_t));
+		if (thread->siginfo == NULL) {
+			free(thread);
+			return (NULL);
+		}
 		if (curthread) {
 			_pthread_mutex_lock(&_tcb_mutex);
 			thread->tcb = _tcb_ctor(thread, 0 /* not initial tls */);
@@ -2372,27 +2377,23 @@ _thr_alloc(struct pthread *curthread)
 		} else {
 			thread->tcb = _tcb_ctor(thread, 1 /* initial tls */);
 		}
-		thread->siginfo = calloc(_SIG_MAXSIG, sizeof(siginfo_t));
-		if ((thread->tcb == NULL) || (thread->siginfo == NULL)) {
-			if (thread->siginfo != NULL)
-				free(thread->siginfo);
+		if (thread->tcb == NULL) {
+			free(thread->siginfo);
 			free(thread);
-			thread = NULL;
-		} else {
-			/*
-			 * Initialize thread locking.
-			 * Lock initializing needs malloc, so don't
-			 * enter critical region before doing this!
-			 */
-			if (_lock_init(&thread->lock, LCK_ADAPTIVE,
-			    _thr_lock_wait, _thr_lock_wakeup) != 0)
-				PANIC("Cannot initialize thread lock");
-			for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
-				_lockuser_init(&thread->lockusers[i],
-				    (void *)thread);
-				_LCK_SET_PRIVATE2(&thread->lockusers[i],
-				    (void *)thread);
-			}
+			return (NULL);
+		}
+		/*
+		 * Initialize thread locking.
+		 * Lock initializing needs malloc, so don't
+		 * enter critical region before doing this!
+		 */
+		if (_lock_init(&thread->lock, LCK_ADAPTIVE,
+		    _thr_lock_wait, _thr_lock_wakeup) != 0)
+			PANIC("Cannot initialize thread lock");
+		for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
+			_lockuser_init(&thread->lockusers[i], (void *)thread);
+			_LCK_SET_PRIVATE2(&thread->lockusers[i],
+			    (void *)thread);
 		}
 	}
 	return (thread);
