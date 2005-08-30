@@ -330,4 +330,56 @@ int alloc_unr(struct unrhdr *uh);
 int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
 
+/*
+ * This is about as magic as it gets.  fortune(1) has got similar code
+ * for reversing bits in a word.  Who thinks up this stuff??
+ *
+ * Yes, it does appear to be consistently faster than:
+ * while (i = ffs(m)) {
+ *	m >>= i;
+ *	bits++;
+ * }
+ * and
+ * while (lsb = (m & -m)) {	// This is magic too
+ * 	m &= ~lsb;		// or: m ^= lsb
+ *	bits++;
+ * }
+ * Both of these latter forms do some very strange things on gcc-3.1 with
+ * -mcpu=pentiumpro and/or -march=pentiumpro and/or -O or -O2.
+ * There is probably an SSE or MMX popcnt instruction.
+ *
+ * I wonder if this should be in libkern?
+ *
+ * XXX Stop the presses!  Another one:
+ * static __inline u_int32_t
+ * popcnt1(u_int32_t v)
+ * {
+ *	v -= ((v >> 1) & 0x55555555);
+ *	v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+ *	v = (v + (v >> 4)) & 0x0F0F0F0F;
+ *	return (v * 0x01010101) >> 24;
+ * }
+ * The downside is that it has a multiply.  With a pentium3 with
+ * -mcpu=pentiumpro and -march=pentiumpro then gcc-3.1 will use
+ * an imull, and in that case it is faster.  In most other cases
+ * it appears slightly slower.
+ *
+ * Another variant (also from fortune):
+ * #define BITCOUNT(x) (((BX_(x)+(BX_(x)>>4)) & 0x0F0F0F0F) % 255)
+ * #define  BX_(x)     ((x) - (((x)>>1)&0x77777777)            \
+ *                          - (((x)>>2)&0x33333333)            \
+ *                          - (((x)>>3)&0x11111111))
+ */
+static __inline uint32_t
+bitcount32(uint32_t x)
+{
+
+	x = (x & 0x55555555) + ((x & 0xaaaaaaaa) >> 1);
+	x = (x & 0x33333333) + ((x & 0xcccccccc) >> 2);
+	x = (x & 0x0f0f0f0f) + ((x & 0xf0f0f0f0) >> 4);
+	x = (x & 0x00ff00ff) + ((x & 0xff00ff00) >> 8);
+	x = (x & 0x0000ffff) + ((x & 0xffff0000) >> 16);
+	return (x);
+}
+
 #endif /* !_SYS_SYSTM_H_ */
