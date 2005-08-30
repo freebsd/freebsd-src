@@ -512,6 +512,8 @@ rijndael128_setkey(u_int8_t **sched, u_int8_t *key, int len)
 {
 	int err;
 
+	if (len != 16 && len != 24 && len != 32)
+		return (EINVAL);
 	MALLOC(*sched, u_int8_t *, sizeof(rijndael_ctx), M_CRYPTO_DATA,
 	    M_NOWAIT|M_ZERO);
 	if (*sched != NULL) {
