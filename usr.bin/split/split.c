@@ -88,7 +88,7 @@ main(int argc, char **argv)
 
 	setlocale(LC_ALL, "");
 
-	while ((ch = getopt(argc, argv, "-0123456789a:b:l:p:")) != -1)
+	while ((ch = getopt(argc, argv, "0123456789a:b:l:p:")) != -1)
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -107,11 +107,6 @@ main(int argc, char **argv)
 					errx(EX_USAGE,
 					    "%s: illegal line count", optarg);
 			}
-			break;
-		case '-':		/* Undocumented: historic stdin flag. */
-			if (ifd != -1)
-				usage();
-			ifd = 0;
 			break;
 		case 'a':		/* Suffix length */
 			if ((sufflen = strtol(optarg, &ep, 10)) <= 0 || *ep)
@@ -153,14 +148,13 @@ main(int argc, char **argv)
 	argv += optind;
 	argc -= optind;
 
-	if (*argv != NULL)
-		if (ifd == -1) {		/* Input file. */
-			if (strcmp(*argv, "-") == 0)
-				ifd = STDIN_FILENO;
-			else if ((ifd = open(*argv, O_RDONLY, 0)) < 0)
-				err(EX_NOINPUT, "%s", *argv);
-			++argv;
-		}
+	if (*argv != NULL) {			/* Input file. */
+		if (strcmp(*argv, "-") == 0)
+			ifd = STDIN_FILENO;
+		else if ((ifd = open(*argv, O_RDONLY, 0)) < 0)
+			err(EX_NOINPUT, "%s", *argv);
+		++argv;
+	}
 	if (*argv != NULL)			/* File name prefix. */
 		if (strlcpy(fname, *argv++, sizeof(fname)) >= sizeof(fname))
 			errx(EX_USAGE, "file name prefix is too long");
