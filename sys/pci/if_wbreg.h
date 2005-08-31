@@ -370,7 +370,6 @@ struct wb_softc {
 	struct resource		*wb_irq;
 	void			*wb_intrhand;
 	struct wb_type		*wb_info;	/* Winbond adapter info */
-	u_int8_t		wb_unit;	/* interface number */
 	u_int8_t		wb_type;
 	u_int16_t		wb_txthresh;
 	int			wb_cachesize;
