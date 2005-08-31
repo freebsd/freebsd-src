@@ -32,7 +32,7 @@
 .\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2002
+.Dd August 29, 2005
 .Dt LISTEN 2
 .Os
 .Sh NAME
@@ -66,12 +66,26 @@ The
 .Fa backlog
 argument defines the maximum length the queue of
 pending connections may grow to.
+The real maximum queue length will be 1.5 times more than the value
+specified in the
+.Fa backlog
+argument.
+A subsequent
+.Fn listen
+system call on the listening socket allows the caller to change the maximum
+queue length using a new
+.Fa backlog
+argument.
 If a connection
 request arrives with the queue full the client may
 receive an error with an indication of
 .Er ECONNREFUSED ,
 or, in the case of TCP, the connection will be
 silently dropped.
+.Pp
+Current queue lengths of listening sockets can be queried using
+.Xr netstat 1
+command.
 .Pp
 Note that before
 .Fx 4.5
@@ -140,6 +154,7 @@ The socket is not of a type that supports the operation
 .Fn listen .
 .El
 .Sh SEE ALSO
+.Xr netstat 1 ,
 .Xr accept 2 ,
 .Xr connect 2 ,
 .Xr socket 2 ,
