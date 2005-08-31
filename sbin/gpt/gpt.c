@@ -118,13 +118,112 @@ crc32(const void *buf, size_t size)
 	return crc ^ ~0U;
 }
 
-void
-unicode16(short *dst, const wchar_t *src, size_t len)
+uint8_t *
+utf16_to_utf8(uint16_t *s16)
 {
-	while (len-- && *src != 0)
-		*dst++ = *src++;
-	if (len)
-		*dst = 0;
+	static uint8_t *s8 = NULL;
+	static size_t s8len = 0;
+	size_t s8idx, s16idx, s16len;
+	uint32_t utfchar;
+	unsigned int c;
+
+	s16len = 0;
+	while (s16[s16len++] != 0)
+		;
+	if (s8len < s16len * 3) {
+		if (s8 != NULL)
+			free(s8);
+		s8len = s16len * 3;
+		s8 = calloc(s16len, 3);
+	}
+	s8idx = s16idx = 0;
+	while (s16idx < s16len) {
+		utfchar = le16toh(s16[s16idx++]);
+		if ((utfchar & 0xf800) == 0xd800) {
+			c = le16toh(s16[s16idx]);
+			if ((utfchar & 0x400) != 0 || (c & 0xfc00) != 0xdc00)
+				utfchar = 0xfffd;
+			else
+				s16idx++;
+		}
+		if (utfchar < 0x80) {
+			s8[s8idx++] = utfchar;
+		} else if (utfchar < 0x800) {
+			s8[s8idx++] = 0xc0 | (utfchar >> 6);
+			s8[s8idx++] = 0x80 | (utfchar & 0x3f);
+		} else if (utfchar < 0x10000) {
+			s8[s8idx++] = 0xe0 | (utfchar >> 12);
+			s8[s8idx++] = 0x80 | ((utfchar >> 6) & 0x3f);
+			s8[s8idx++] = 0x80 | (utfchar & 0x3f);
+		} else if (utfchar < 0x200000) {
+			s8[s8idx++] = 0xf0 | (utfchar >> 18);
+			s8[s8idx++] = 0x80 | ((utfchar >> 12) & 0x3f);
+			s8[s8idx++] = 0x80 | ((utfchar >> 6) & 0x3f);
+			s8[s8idx++] = 0x80 | (utfchar & 0x3f);
+		}
+	}
+	return (s8);
+}
+
+void
+utf8_to_utf16(const uint8_t *s8, uint16_t *s16, size_t s16len)
+{
+	size_t s16idx, s8idx, s8len;
+	uint32_t utfchar;
+	unsigned int c, utfbytes;
+
+	s8len = 0;
+	while (s8[s8len++] != 0)
+		;
+	s8idx = s16idx = 0;
+	utfbytes = 0;
+	do {
+		c = s8[s8idx++];
+		if ((c & 0xc0) != 0x80) {
+			/* Initial characters. */
+			if (utfbytes != 0) {
+				/* Incomplete encoding. */
+				s16[s16idx++] = 0xfffd;
+				if (s16idx == s16len) {
+					s16[--s16idx] = 0;
+					return;
+				}
+			}
+			if ((c & 0xf8) == 0xf0) {
+				utfchar = c & 0x07;
+				utfbytes = 3;
+			} else if ((c & 0xf0) == 0xe0) {
+				utfchar = c & 0x0f;
+				utfbytes = 2;
+			} else if ((c & 0xe0) == 0xc0) {
+				utfchar = c & 0x1f;
+				utfbytes = 1;
+			} else {
+				utfchar = c & 0x7f;
+				utfbytes = 0;
+			}
+		} else {
+			/* Followup characters. */
+			if (utfbytes > 0) {
+				utfchar = (utfchar << 6) + (c & 0x3f);
+				utfbytes--;
+			} else if (utfbytes == 0)
+				utfbytes = -1;
+		}
+		if (utfbytes == 0) {
+			if (utfchar >= 0x10000 && s16idx + 2 >= s16len)
+				utfchar = 0xfffd;
+			if (utfchar >= 0x10000) {
+				s16[s16idx++] = 0xd800 | ((utfchar>>10)-0x40);
+				s16[s16idx++] = 0xdc00 | (utfchar & 0x3ff);
+			} else
+				s16[s16idx++] = utfchar;
+			if (s16idx == s16len) {
+				s16[--s16idx] = 0;
+				return;
+			}
+		}
+	} while (c != 0);
 }
 
 void
