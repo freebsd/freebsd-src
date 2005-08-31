@@ -151,10 +151,10 @@ extern pid_t childpid;
 /*
  * rpc_util routines
  */
-void reinitialize();
-void crash();
+void reinitialize(void);
+void crash(void);
 void add_type(int len, char *type);
-void storeval();
+void storeval(list **lstp, definition *val);
 void *xmalloc(size_t size);
 void *xrealloc(void *ptr, size_t size);
 char *xstrdup(const char *str);
@@ -162,56 +162,56 @@ char *xstrdup(const char *str);
 #define	STOREVAL(list,item)	\
 	storeval(list,item)
 
-definition *findval();
+definition *findval(list *lst, char *val, int (*cmp)(char *, char *));
 
 #define	FINDVAL(list,item,finder) \
 	findval(list, item, finder)
 
-char *fixtype();
-char *stringfix();
-char *locase();
-void pvname_svc();
-void pvname();
-void ptype();
-int isvectordef();
-int streq();
-void error();
-void expected1();
-void expected2();
-void expected3();
-void tabify();
-void record_open();
-bas_type *find_type();
+char *fixtype(char *type);
+char *stringfix(char *type);
+char *locase(char *str);
+void pvname_svc(char *pname, char *vnum);
+void pvname(char *pname, char *vnum);
+void ptype(char *prefix, char *type, int follow);
+int isvectordef(char *type, relation rel);
+int streq(char *a, char *b);
+void error(char *msg);
+void expected1(tok_kind exp1);
+void expected2(tok_kind exp1, tok_kind exp2);
+void expected3(tok_kind exp1, tok_kind exp2, tok_kind exp3);
+void tabify(FILE *f, int tab);
+void record_open(char *file);
+bas_type *find_type(char *type);
+
 /*
  * rpc_cout routines
  */
-void cprint();
-void emit();
+void emit(definition *def);
 
 /*
  * rpc_hout routines
  */
-void print_datadef();
-void print_funcdef();
-void print_xdr_func_def();
+void print_datadef(definition *def);
+void print_funcdef(definition *def);
+void print_xdr_func_def(char* name, int pointerp, int i);
 
 /*
  * rpc_svcout routines
  */
-void write_most();
-void write_register();
-void write_rest();
-void write_programs();
-void write_svc_aux();
-void write_inetd_register();
-void write_netid_register();
-void write_nettype_register();
+void write_most(char *infile, int netflag, int nomain);
+void write_rest(void);
+void write_programs(char *storage);
+void write_svc_aux(int nomain);
+void write_inetd_register(char *transp);
+void write_netid_register(char *transp);
+void write_nettype_register(char *transp);
+
 /*
  * rpc_clntout routines
  */
-void write_stubs();
+void write_stubs(void);
 
 /*
  * rpc_tblout routines
  */
-void write_tables();
+void write_tables(void);
