@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <rpc/types.h>
 #include "rpc_parse.h"
+#include "rpc_scan.h"
 #include "rpc_util.h"
 
 extern void pdeclaration( char *, declaration *, int, char * );

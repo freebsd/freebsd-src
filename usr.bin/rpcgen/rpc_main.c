@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/stat.h>
 #include "rpc_parse.h"
-#include "rpc_util.h"
 #include "rpc_scan.h"
+#include "rpc_util.h"
 
 extern void write_sample_svc( definition * );
 extern int write_sample_clnt( definition * );
