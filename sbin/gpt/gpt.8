@@ -229,11 +229,25 @@ The type is given as an UUID or by the aliases that the
 command accepts.
 This can cause multiple partitions to be removed.
 .\" ==== show ====
-.It Nm Ic show Ar device ...
+.It Nm Ic show Oo Fl lu Oc Ar device ...
 The
 .Ic show
 command displays the current partitioning on the listed devices and gives
 an overall view of the disk contents.
+With the
+.Fl l
+option the GPT partition label will be displayed instead of the GPT partition
+type.
+The option has no effect on non-GPT partitions.
+With the
+.Fl u
+option the GPT partition type is displayed as an UUID instead of in an
+user friendly form.
+The
+.Fl l
+option takes precedence over the
+.Fl u
+option.
 .El
 .Sh SEE ALSO
 .Xr fdisk 8 ,
