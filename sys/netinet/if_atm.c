@@ -312,7 +312,8 @@ atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
 	struct sockaddr_dl *sdl;
 
 	if (m->m_flags & (M_BCAST | M_MCAST)) {
-		log(LOG_INFO, "atmresolve: BCAST/MCAST packet detected/dumped");
+		log(LOG_INFO,
+		    "atmresolve: BCAST/MCAST packet detected/dumped\n");
 		goto bad;
 	}
 
