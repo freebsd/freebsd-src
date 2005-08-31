@@ -445,9 +445,11 @@ product NWN WLAN_1148		0x0003 NWN 1148 WLAN
 
 /* Olicom Products */
 product OLICOM OC2220		0x0101 GoCard Ethernet
-product OLICOM TR		0x2132 GoCard Token Ring 16/4
+product OLICOM OC3221		0x2132 GoCard Token Ring 16/4
 product OLICOM OC2231		0x3122 GoCard Combo Eth/Modem 288
+product OLICOM OC3231		0x3132 GoCard Token Ring 16/4/Modem 288
 product OLICOM OC2232		0x3222 GoCard Combo Eth/Modem 336
+product OLICOM OC3232		0x3232 GoCard Token Ring 16/4/Modem 336
 
 /* Ositech Products */
 product OSITECH JACK_144	0x0001 Ositech Jack of ??? 14.4
