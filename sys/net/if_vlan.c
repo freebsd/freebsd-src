@@ -502,7 +502,7 @@ vlan_start(struct ifnet *ifp)
 				m_freem(m);
 				continue;
 			}
-			*(u_int*)(mtag + 1) = ifv->ifv_tag;
+			VLAN_TAG_VALUE(mtag) = ifv->ifv_tag;
 			m_tag_prepend(m, mtag);
 			m->m_flags |= M_VLANTAG;
 		} else {
