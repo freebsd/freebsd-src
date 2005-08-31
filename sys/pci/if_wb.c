@@ -664,8 +664,8 @@ wb_setcfg(sc, media)
 		}
 
 		if (i == WB_TIMEOUT)
-			printf("wb%d: failed to force tx and "
-				"rx to idle state\n", sc->wb_unit);
+			if_printf(sc->wb_ifp,
+			    "failed to force tx and rx to idle state\n");
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_10_T)
@@ -705,7 +705,7 @@ wb_reset(sc)
 			break;
 	}
 	if (i == WB_TIMEOUT)
-		printf("wb%d: reset never completed!\n", sc->wb_unit);
+		if_printf(sc->wb_ifp, "reset never completed!\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -790,10 +790,9 @@ wb_attach(dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct wb_softc		*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	int			error = 0, rid;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	mtx_init(&sc->wb_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -806,7 +805,7 @@ wb_attach(dev)
 	sc->wb_res = bus_alloc_resource_any(dev, WB_RES, &rid, RF_ACTIVE);
 
 	if (sc->wb_res == NULL) {
-		printf("wb%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -820,7 +819,7 @@ wb_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->wb_irq == NULL) {
-		printf("wb%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -836,13 +835,11 @@ wb_attach(dev)
 	 */
 	wb_read_eeprom(sc, (caddr_t)&eaddr, 0, 3, 0);
 
-	sc->wb_unit = unit;
-
 	sc->wb_ldata = contigmalloc(sizeof(struct wb_list_data) + 8, M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->wb_ldata == NULL) {
-		printf("wb%d: no memory for list buffers!\n", unit);
+		device_printf(dev, "no memory for list buffers!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -851,7 +848,7 @@ wb_attach(dev)
 
 	ifp = sc->wb_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("wb%d: can not if_alloc()\n", unit);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -886,7 +883,7 @@ wb_attach(dev)
 	    wb_intr, sc, &sc->wb_intrhand);
 
 	if (error) {
-		printf("wb%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		if_free(ifp);
 		goto fail;
@@ -1097,8 +1094,8 @@ wb_rxeof(sc)
 		    !(rxstat & WB_RXSTAT_RXCMP)) {
 			ifp->if_ierrors++;
 			wb_newbuf(sc, cur_rx, m);
-			printf("wb%x: receiver babbling: possible chip "
-				"bug, forcing reset\n", sc->wb_unit);
+			if_printf(ifp, "receiver babbling: possible chip "
+				"bug, forcing reset\n");
 			wb_fixmedia(sc);
 			wb_reset(sc);
 			wb_init(sc);
@@ -1596,8 +1593,8 @@ wb_init(xsc)
 
 	/* Init circular RX list. */
 	if (wb_list_rx_init(sc) == ENOBUFS) {
-		printf("wb%d: initialization failed: no "
-			"memory for rx buffers\n", sc->wb_unit);
+		if_printf(ifp,
+		    "initialization failed: no memory for rx buffers\n");
 		wb_stop(sc);
 		WB_UNLOCK(sc);
 		return;
@@ -1750,11 +1747,10 @@ wb_watchdog(ifp)
 
 	WB_LOCK(sc);
 	ifp->if_oerrors++;
-	printf("wb%d: watchdog timeout\n", sc->wb_unit);
+	if_printf(ifp, "watchdog timeout\n");
 #ifdef foo
 	if (!(wb_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT))
-		printf("wb%d: no carrier - transceiver cable problem?\n",
-								sc->wb_unit);
+		if_printf(ifp, "no carrier - transceiver cable problem?\n");
 #endif
 	wb_stop(sc);
 	wb_reset(sc);
