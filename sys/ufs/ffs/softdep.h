@@ -396,6 +396,7 @@ struct freefrag {
  */
 struct freeblks {
 	struct	worklist fb_list;	/* id_inowait or delayed worklist */
+#	define	fb_state fb_list.wk_state /* inode and dirty block state */
 	ino_t	fb_previousinum;	/* inode of previous owner of blocks */
 	struct	vnode *fb_devvp;	/* filesystem device vnode */
 	struct	fs *fb_fs;		/* addr of superblock */
