@@ -114,24 +114,24 @@ static struct txp_type txp_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int txp_probe	(device_t);
-static int txp_attach	(device_t);
-static int txp_detach	(device_t);
-static void txp_intr	(void *);
-static void txp_tick	(void *);
-static int txp_shutdown	(device_t);
-static int txp_ioctl	(struct ifnet *, u_long, caddr_t);
-static void txp_start	(struct ifnet *);
-static void txp_stop	(struct txp_softc *);
-static void txp_init	(void *);
-static void txp_watchdog	(struct ifnet *);
+static int txp_probe(device_t);
+static int txp_attach(device_t);
+static int txp_detach(device_t);
+static void txp_intr(void *);
+static void txp_tick(void *);
+static int txp_shutdown(device_t);
+static int txp_ioctl(struct ifnet *, u_long, caddr_t);
+static void txp_start(struct ifnet *);
+static void txp_stop(struct txp_softc *);
+static void txp_init(void *);
+static void txp_watchdog(struct ifnet *);
 
 static void txp_release_resources(struct txp_softc *);
 static int txp_chip_init(struct txp_softc *);
 static int txp_reset_adapter(struct txp_softc *);
 static int txp_download_fw(struct txp_softc *);
 static int txp_download_fw_wait(struct txp_softc *);
-static int txp_download_fw_section (struct txp_softc *,
+static int txp_download_fw_section(struct txp_softc *,
     struct txp_fw_section_header *, int);
 static int txp_alloc_rings(struct txp_softc *);
 static int txp_rxring_fill(struct txp_softc *);
@@ -139,14 +139,14 @@ static void txp_rxring_empty(struct txp_softc *);
 static void txp_set_filter(struct txp_softc *);
 
 static int txp_cmd_desc_numfree(struct txp_softc *);
-static int txp_command (struct txp_softc *, u_int16_t, u_int16_t, u_int32_t,
+static int txp_command(struct txp_softc *, u_int16_t, u_int16_t, u_int32_t,
     u_int32_t, u_int16_t *, u_int32_t *, u_int32_t *, int);
-static int txp_command2 (struct txp_softc *, u_int16_t, u_int16_t,
+static int txp_command2(struct txp_softc *, u_int16_t, u_int16_t,
     u_int32_t, u_int32_t, struct txp_ext_desc *, u_int8_t,
     struct txp_rsp_desc **, int);
-static int txp_response (struct txp_softc *, u_int32_t, u_int16_t, u_int16_t,
+static int txp_response(struct txp_softc *, u_int32_t, u_int16_t, u_int16_t,
     struct txp_rsp_desc **);
-static void txp_rsp_fixup (struct txp_softc *, struct txp_rsp_desc *,
+static void txp_rsp_fixup(struct txp_softc *, struct txp_rsp_desc *,
     struct txp_rsp_desc *);
 static void txp_capabilities(struct txp_softc *);
 
@@ -251,23 +251,12 @@ txp_attach(dev)
 
 	if (sc->sc_irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
-		txp_release_resources(sc);
 		error = ENXIO;
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET,
-	    txp_intr, sc, &sc->sc_intrhand);
-
-	if (error) {
-		txp_release_resources(sc);
-		device_printf(dev, "couldn't set up irq\n");
-		goto fail;
-	}
-
 	if (txp_chip_init(sc)) {
-		txp_release_resources(sc);
-		/* XXX: set error to ??? */
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -277,32 +266,27 @@ txp_attach(dev)
 	contigfree(sc->sc_fwbuf, 32768, M_DEVBUF);
 	sc->sc_fwbuf = NULL;
 
-	if (error) {
-		txp_release_resources(sc);
+	if (error)
 		goto fail;
-	}
 
 	sc->sc_ldata = contigmalloc(sizeof(struct txp_ldata), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 	bzero(sc->sc_ldata, sizeof(struct txp_ldata));
 
 	if (txp_alloc_rings(sc)) {
-		txp_release_resources(sc);
-		/* XXX: set error to ??? */
+		error = ENXIO;
 		goto fail;
 	}
 
 	if (txp_command(sc, TXP_CMD_MAX_PKT_SIZE_WRITE, TXP_MAX_PKTLEN, 0, 0,
 	    NULL, NULL, NULL, 1)) {
-		txp_release_resources(sc);
-		/* XXX: set error to ??? */
+		error = ENXIO;
 		goto fail;
 	}
 
 	if (txp_command(sc, TXP_CMD_STATION_ADDRESS_READ, 0, 0, 0,
 	    &p1, &p2, NULL, 1)) {
-		txp_release_resources(sc);
-		/* XXX: set error to ??? */
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -333,7 +317,6 @@ txp_attach(dev)
 
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		txp_release_resources(sc);
 		device_printf(dev, "couldn't set up irq\n");
 		error = ENOSPC;
 		goto fail;
@@ -357,6 +340,16 @@ txp_attach(dev)
 	 */
 	ether_ifattach(ifp, eaddr);
 	callout_handle_init(&sc->sc_tick);
+
+	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET,
+	    txp_intr, sc, &sc->sc_intrhand);
+
+	if (error) {
+		ether_ifdetach(ifp);
+		device_printf(dev, "couldn't set up irq\n");
+		goto fail;
+	}
+
 	return(0);
 
 fail:
