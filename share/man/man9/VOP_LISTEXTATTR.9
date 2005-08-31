@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2003
+.Dd August 19, 2005
 .Os
 .Dt VOP_LISTEXTATTR 9
 .Sh NAME
@@ -56,20 +56,22 @@ from a specified namespace on a file or directory.
 Its arguments are:
 .Bl -tag -width ".Fa attrnamespace"
 .It Fa vp
-the vnode of the file or directory
+The vnode of the file or directory.
 .It Fa attrnamespace
-integer constant indicating which extended attribute namespace the attribute
-name is present in
+Integer constant indicating which extended attribute namespace the attribute
+name is present in.
 .It Fa uio
-the location of the data to be read
+The location of the data to be read.
+The resulting data will be a list of attribute names.
+Each list entry consists of a single byte containing the length of
+the attribute name, followed by the attribute name.
+The attribute name is not terminated by
+.Tn ASCII
+.Dv NUL .
 .It Fa size
-if not
+If not
 .Dv NULL ,
 on return it will contain the number of bytes required to read the list.
-The resulting data will be an
-.Tn ASCII
-.Dv NUL Ns
--separated list of strings.
 In most cases
 .Fa uio
 will be
@@ -78,9 +80,9 @@ when
 .Fa size
 is not, and vise versa.
 .It Fa cred
-the user credentials to use in authorizing the request
+The user credentials to use in authorizing the request.
 .It Fa td
-the thread requesting the extended attribute
+The thread requesting the extended attribute.
 .El
 .Pp
 The
