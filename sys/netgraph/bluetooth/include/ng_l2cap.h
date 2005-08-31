@@ -623,6 +623,7 @@ typedef struct {
 #define NG_L2CAP_CON_OUTGOING		(1 << 2) /* outgoing connection */
 #define NG_L2CAP_CON_LP_TIMO		(1 << 3) /* LP timeout */
 #define NG_L2CAP_CON_AUTO_DISCON_TIMO	(1 << 4) /* auto discon. timeout */
+#define NG_L2CAP_CON_DYING		(1 << 5) /* connection is dying */
 
 typedef struct {
 	u_int8_t	state;      /* connection state */
