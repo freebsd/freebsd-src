@@ -128,7 +128,7 @@ int mtflag = 0;		/* Support for MT */
 #define INLINE 0
 /* length at which to start doing an inline */
 
-int inline = INLINE;
+int inline_size = INLINE;
 /*
  * Length at which to start doing an inline. INLINE = default
  * if 0, no xdr_inline code
@@ -1178,7 +1178,7 @@ parseargs(argc, argv, cmd)
 					if (++i == argc) {
 						return (0);
 					}
-					inline = atoi(argv[i]);
+					inline_size = atoi(argv[i]);
 					goto nextarg;
 				case 'n':
 				case 'o':
