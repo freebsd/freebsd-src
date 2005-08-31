@@ -112,6 +112,8 @@ static g_access_t g_md_access;
 
 static int	mdunits;
 static struct cdev *status_dev = 0;
+static struct mtx md_mtx;
+MTX_SYSINIT(md_mtx, &md_mtx, "md", MTX_DEF);
 
 static d_ioctl_t mdctlioctl;
 
@@ -708,44 +710,54 @@ mdfind(int unit)
 {
 	struct md_s *sc;
 
-	/* XXX: LOCK(unique unit numbers) */
+	mtx_lock(&md_mtx);
 	LIST_FOREACH(sc, &md_softc_list, list) {
 		if (sc->unit == unit)
 			break;
 	}
-	/* XXX: UNLOCK(unique unit numbers) */
+	mtx_unlock(&md_mtx);
 	return (sc);
 }
 
 static struct md_s *
-mdnew(int unit)
+mdnew(int unit, int *errp)
 {
-	struct md_s *sc;
+	struct md_s *sc, *sc2;
 	int error, max = -1;
 
-	/* XXX: LOCK(unique unit numbers) */
-	LIST_FOREACH(sc, &md_softc_list, list) {
-		if (sc->unit == unit) {
-			/* XXX: UNLOCK(unique unit numbers) */
+	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
+	bioq_init(&sc->bio_queue);
+	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
+	mtx_lock(&md_mtx);
+	LIST_FOREACH(sc2, &md_softc_list, list) {
+		if (sc2->unit == unit) {
+			mtx_unlock(&md_mtx);
+			mtx_destroy(&sc->queue_mtx);
+			free(sc, M_MD);
+			if (errp != NULL)
+				*errp = EBUSY;
 			return (NULL);
 		}
-		if (sc->unit > max)
-			max = sc->unit;
+		if (sc2->unit > max)
+			max = sc2->unit;
 	}
 	if (unit == -1)
 		unit = max + 1;
-	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->unit = unit;
-	bioq_init(&sc->bio_queue);
-	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
 	sprintf(sc->name, "md%d", unit);
+	LIST_INSERT_HEAD(&md_softc_list, sc, list);
+	mtx_unlock(&md_mtx);
 	error = kthread_create(md_kthread, sc, &sc->procp, 0, 0,"%s", sc->name);
 	if (error != 0) {
+		mtx_lock(&md_mtx);
+		LIST_REMOVE(sc, list);
+		mtx_unlock(&md_mtx);
+		mtx_destroy(&sc->queue_mtx);
 		free(sc, M_MD);
+		if (errp != NULL)
+			*errp = error;
 		return (NULL);
 	}
-	LIST_INSERT_HEAD(&md_softc_list, sc, list);
-	/* XXX: UNLOCK(unique unit numbers) */
 	return (sc);
 }
 
@@ -955,9 +967,9 @@ mddestroy(struct md_s *sc, struct thread *td)
 	if (sc->uma)
 		uma_zdestroy(sc->uma);
 
-	/* XXX: LOCK(unique unit numbers) */
+	mtx_lock(&md_mtx);
 	LIST_REMOVE(sc, list);
-	/* XXX: UNLOCK(unique unit numbers) */
+	mtx_unlock(&md_mtx);
 	free(sc, M_MD);
 	return (0);
 }
@@ -1061,14 +1073,14 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 		default:
 			return (EINVAL);
 		}
-		if (mdio->md_options & MD_AUTOUNIT) {
-			sc = mdnew(-1);
+		if (mdio->md_options & MD_AUTOUNIT)
+			sc = mdnew(-1, &error);
+		else
+			sc = mdnew(mdio->md_unit, &error);
+		if (sc == NULL)
+			return (error);
+		if (mdio->md_options & MD_AUTOUNIT)
 			mdio->md_unit = sc->unit;
-		} else {
-			sc = mdnew(mdio->md_unit);
-			if (sc == NULL)
-				return (EBUSY);
-		}
 		sc->type = mdio->md_type;
 		sc->mediasize = mdio->md_mediasize;
 		if (mdio->md_sectorsize == 0)
@@ -1142,7 +1154,7 @@ md_preloaded(u_char *image, size_t length)
 {
 	struct md_s *sc;
 
-	sc = mdnew(-1);
+	sc = mdnew(-1, NULL);
 	if (sc == NULL)
 		return;
 	sc->type = MD_PRELOAD;
