@@ -243,24 +243,28 @@ The
 allows the type of DMA operation that will be or has been performed
 to be communicated to the system so that the correct coherency measures
 are taken.
-All operations specified below are performed from the CPU's
-point of view, where a read implies data coming from the device to the CPU, and
-a write implies data going from the CPU to the device.
 The operations are represented as bitfield flags that can be combined together,
 though it only makes sense to combine PRE flags or POST flags, not both.
 See the
 .Fn bus_dmamap_sync
 description below for more details on how to use these operations.
+.Pp
+All operations specified below are performed from the host memory point of view,
+where a read implies data coming from the device to the host memory, and a write
+implies data going from the host memory to the device.
+Alternately, the operations can be thought of in terms of driver operations,
+where reading a network packet or storage sector coresponds to a read operation
+in busdma.
 .Bl -tag -width BUS_DMASYNC_POSTWRITE
 .It Dv BUS_DMASYNC_PREREAD
-Perform any synchronization required prior to an update of memory by the DMA
-operation.
+Perform any synchronization required prior to an update of host memory by the
+DMA read operation.
 .It Dv BUS_DMASYNC_PREWRITE
-Perform any synchronization required after an update of memory by the CPU
+Perform any synchronization required after an update of host memory by the CPU
 and prior to DMA write operations.
 .It Dv BUS_DMASYNC_POSTREAD
 Perform any synchronization required after DMA read operations and prior to
-CPU access to the memory.
+CPU access to host memory.
 .It Dv BUS_DMASYNC_POSTWRITE
 Perform any synchronization required after DMA write operations.
 .El
@@ -652,7 +656,7 @@ operation has been performed.
 .Pp
 If DMA read and write operations are not preceded and followed by the
 appropriate synchronization operations, behavior is undefined.
-.It Fn bus_dmamem_alloc "dmat" "**vaddr" "flags" "mapp"
+.It Fn bus_dmamem_alloc "dmat" "**vaddr" "flags" "*mapp"
 Allocates memory that is mapped into KVA at the address returned
 in
 .Fa vaddr
@@ -689,7 +693,9 @@ these operations.
 Causes the allocated memory to be set to all zeros.
 .El
 .It Fa mapp
-Pointer to storage for the returned DMA map.
+Pointer to a
+.Vt bus_dmamap_t
+where the resulting DMA map will be stored.
 .El
 .Pp
 The size of memory to be allocated is
@@ -701,11 +707,19 @@ The current implementation of
 .Fn bus_dmamem_alloc
 will allocate all requests as a single segment.
 .Pp
-Although no explicit loading is required to access the memory
+An initial load operation is required to obtain the bus address of the allocated
+memory, and an unload operation is required before freeing the memory, as
+described below in
+.Fn bus_dmamem_free .
+Maps are automatically handled by this function and should not be explicitly
+allocated or destroyed.
+.Pp
+Although an explicit load is not required for each access to the memory
 referenced by the returned map, the synchronization requirements
 as described in the
 .Fn bus_dmamap_sync
-section still apply.
+section still apply and should be used to achieve portability on architecutures
+without coherent buses.
 .Pp
 Returns
 .Er ENOMEM
