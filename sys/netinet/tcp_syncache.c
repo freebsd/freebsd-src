@@ -225,9 +225,9 @@ syncache_init(void)
 	    &tcp_syncache.cache_limit);
 	TUNABLE_INT_FETCH("net.inet.tcp.syncache.bucketlimit",
 	    &tcp_syncache.bucket_limit);
-	if (!powerof2(tcp_syncache.hashsize)) {
+	if (!powerof2(tcp_syncache.hashsize) || tcp_syncache.hashsize == 0) {
 		printf("WARNING: syncache hash size is not a power of 2.\n");
-		tcp_syncache.hashsize = 512;	/* safe default */
+		tcp_syncache.hashsize = TCP_SYNCACHE_HASHSIZE;
 	}
 	tcp_syncache.hashmask = tcp_syncache.hashsize - 1;
 
