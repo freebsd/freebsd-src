@@ -43,6 +43,12 @@ utility loads
 into the kernel using the kernel linker.
 Note that if multiple modules are specified then an attempt will
 be made to load them all, even if some fail.
+The
+.Pa .ko
+extension name is not mandatory when loading a given module
+using
+.Nm .
+It doesn't hurt to specify it though.
 .Pp
 The following option is available:
 .Bl -tag -width indent
@@ -59,9 +65,10 @@ Modules must have an extension of
 .Sh EXIT STATUS
 .Ex -std
 .Sh AUTOMATICALLY LOADING MODULES
-Some modules (ipfw, ipf, etc.) may be automatically loaded at boot
-time by having their operation enabled in
-.Xr rc.conf 5 .
+Some modules (lomac, pf, ipfw, ipf, etc.) may be automatically loaded at boot
+time when the corresponding
+.Xr rc.conf 5
+statement is used.
 Modules may also be auto-loaded through their addition to
 .Xr loader.conf 5 .
 .Sh SEE ALSO
