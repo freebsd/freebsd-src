@@ -187,7 +187,7 @@ struct definition {
 };
 typedef struct definition definition;
 
-definition *get_definition();
+definition *get_definition(void);
 
 
 struct bas_type
