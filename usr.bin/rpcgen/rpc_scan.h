@@ -127,10 +127,10 @@ typedef struct token token;
 /*
  * routine interface
  */
-void scan();
-void scan2();
-void scan3();
-void scan_num();
-void peek();
-int peekscan();
-void get_token();
+void scan(tok_kind expect, token *tokp);
+void scan2(tok_kind expect1, tok_kind expect2, token *tokp);
+void scan3(tok_kind expect1, tok_kind expect2, tok_kind expect3, token *tokp);
+void scan_num(token *tokp);
+void peek(token *tokp);
+int peekscan(tok_kind expect, token *tokp);
+void get_token(token *tokp);

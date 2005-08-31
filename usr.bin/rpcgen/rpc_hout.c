@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <ctype.h>
 #include "rpc_parse.h"
+#include "rpc_scan.h"
 #include "rpc_util.h"
 
 void storexdrfuncdecl( char *, int );
