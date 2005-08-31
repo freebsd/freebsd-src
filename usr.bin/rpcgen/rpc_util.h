@@ -134,7 +134,7 @@ extern int newstyle;
 extern int Cflag;     /* ANSI-C/C++ flag */
 extern int CCflag;     /* C++ flag */
 extern int tirpcflag; /* flag for generating tirpc code */
-extern int inline; /* if this is 0, then do not generate inline code */
+extern int inline_size; /* if this is 0, then do not generate inline code */
 extern int mtflag;
 
 /*

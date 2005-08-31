@@ -161,7 +161,7 @@ print_header(def)
 					 def->def.ty.rel));
 	/* Now add Inline support */
 
-	if (inline == 0)
+	if (inline_size == 0)
 		return;
 	/* May cause lint to complain. but  ... */
 	f_print(fout, "\tregister long *buf;\n\n");
@@ -465,10 +465,10 @@ int flag;
 			}
 		} else {
 			if (i > 0) {
-				if (sizestr == NULL && size < inline){
+				if (sizestr == NULL && size < inline_size){
 					/*
 					 * don't expand into inline code
-					 * if size < inline
+					 * if size < inline_size
 					 */
 					while (cur != dl){
 						print_stat(indent + 1, &cur->decl);
@@ -522,8 +522,8 @@ int flag;
 	}
 
 	if (i > 0) {
-		if (sizestr == NULL && size < inline){
-			/* don't expand into inline code if size < inline */
+		if (sizestr == NULL && size < inline_size){
+			/* don't expand into inline code if size < inline_size */
 			while (cur != dl){
 				print_stat(indent + 1, &cur->decl);
 				cur = cur->next;
@@ -570,7 +570,7 @@ emit_struct(def)
 	bas_type *ptr;
 	int can_inline;
 
-	if (inline == 0) {
+	if (inline_size == 0) {
 		/* No xdr_inlining at all */
 		for (dl = def->def.st.decls; dl != NULL; dl = dl->next)
 			print_stat(1, &dl->decl);
@@ -600,13 +600,13 @@ emit_struct(def)
 				break; /* can be inlined */
 			}
 		} else {
-			if (size >= inline){
+			if (size >= inline_size){
 				can_inline = 1;
 				break; /* can be inlined */
 			}
 			size = 0;
 		}
-	if (size >= inline)
+	if (size >= inline_size)
 		can_inline = 1;
 
 	if (can_inline == 0){	/* can not inline, drop back to old mode */
