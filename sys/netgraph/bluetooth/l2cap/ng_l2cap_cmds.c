@@ -226,6 +226,9 @@ ng_l2cap_con_fail(ng_l2cap_con_p con, u_int16_t result)
 "%s: %s - ACL connection failed, result=%d\n",
 		__func__, NG_NODE_NAME(l2cap->node), result);
 
+	/* Connection is dying */
+	con->flags |= NG_L2CAP_CON_DYING;
+
 	/* Clean command queue */
 	while (!TAILQ_EMPTY(&con->cmd_list)) {
 		cmd = TAILQ_FIRST(&con->cmd_list);
