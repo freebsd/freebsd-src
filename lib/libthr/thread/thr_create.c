@@ -33,12 +33,13 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/signalvar.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
 #include <pthread.h>
-#include <sys/signalvar.h>
 
 #include "thr_private.h"
 
