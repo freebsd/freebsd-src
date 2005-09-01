@@ -107,6 +107,8 @@ rem(int fd)
 		if (!uuid_is_nil(&type, NULL) &&
 		    !uuid_equal(&type, &uuid, NULL))
 			continue;
+
+		/* Remove the entry by clearing the partition type. */
 		uuid_create_nil(&ent->ent_type, NULL);
 
 		hdr->hdr_crc_table = htole32(crc32(tbl->map_data,
