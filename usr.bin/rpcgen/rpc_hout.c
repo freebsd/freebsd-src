@@ -51,7 +51,7 @@ void storexdrfuncdecl( char *, int );
 static void pconstdef( definition * );
 static void pstructdef( definition * );
 static void puniondef( definition * );
-static void pprogramdef( definition * );
+static void pprogramdef( definition *, int );
 static void pstructdef( definition * );
 static void penumdef( definition * );
 static void ptypedef( definition * );
@@ -65,8 +65,7 @@ void pdeclaration( char *, declaration *, int, char * );
  * Print the C-version of an xdr definition
  */
 void
-print_datadef(def)
-	definition *def;
+print_datadef(definition *def, int headeronly)
 {
 
 	if (def->def_kind == DEF_PROGRAM)  /* handle data only */
@@ -89,7 +88,7 @@ print_datadef(def)
 		ptypedef(def);
 		break;
 	case DEF_PROGRAM:
-		pprogramdef(def);
+		pprogramdef(def, headeronly);
 		break;
 	case DEF_CONST:
 		pconstdef(def);
@@ -105,13 +104,12 @@ print_datadef(def)
 
 
 void
-print_funcdef(def)
-	definition *def;
+print_funcdef(definition *def, int headeronly)
 {
 	switch (def->def_kind) {
 	case DEF_PROGRAM:
 		f_print(fout, "\n");
-		pprogramdef(def);
+		pprogramdef(def, headeronly);
 		break;
 	default:
 		break;
@@ -316,8 +314,7 @@ pdispatch(char * name, char *vers, int mode)
 }
 
 static void
-pprogramdef(def)
-	definition *def;
+pprogramdef(definition *def, int headeronly)
 {
 	version_list *vers;
 	proc_list *proc;
@@ -345,8 +342,10 @@ pprogramdef(def)
 
 		if(!Cflag){
 			ext = "extern  ";
-			f_print(fout, "%s", ext);
-			pdispatch(def->def_name, vers->vers_num, 2);
+			if (headeronly) {
+				f_print(fout, "%s", ext);
+				pdispatch(def->def_name, vers->vers_num, 2);
+			}
 			for (proc = vers->procs; proc != NULL;
 			     proc = proc->next) {
 				if (!define_printed(proc,
@@ -374,8 +373,11 @@ pprogramdef(def)
 					ext = "extern  ";
 				}
 
-				f_print(fout, "%s", ext);
-				pdispatch(def->def_name, vers->vers_num, i);
+				if (headeronly) {
+					f_print(fout, "%s", ext);
+					pdispatch(def->def_name, vers->vers_num,
+					    i);
+				}
 				for (proc = vers->procs; proc != NULL;
 				     proc = proc->next) {
 					if (!define_printed(proc,
