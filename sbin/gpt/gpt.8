@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2004
+.Dd August 31, 2005
 .Os
 .Dt GPT 8
 .Sh NAME
@@ -165,6 +165,71 @@ The
 option instructs
 .Nm
 to destroy the table in a way that it can be recovered.
+.\" ==== label ====
+.It Xo
+.Nm
+.Ic label
+.Op Fl a
+.Aq Fl f Ar file | Fl l Ar label
+.Ar device ...
+.Xc
+.It Xo
+.Nm
+.Ic label
+.Op Fl b Ar number
+.Op Fl i Ar index
+.Op Fl s Ar count
+.Op Fl t Ar type
+.Aq Fl f Ar file | Fl l Ar label
+.Ar device ...
+.Xc
+The
+.Ic label
+command allows the user to label any partitions that match the selection.
+At least one of the following selection options must be specified.
+.Pp
+The
+.Fl a
+option specifies that all partitions should be labeled.
+It is mutually exclusive with all other selection options.
+.Pp
+The
+.Fl b Ar number
+option selects the partition that starts at the given block number.
+.Pp
+The
+.Fl i Ar index
+option selects the partition with the given partition number.
+.Pp
+The
+.Fl s Ar count
+option selects all partitions that have the given size.
+This can cause multiple partitions to be removed.
+.Pp
+The
+.Fl t Ar type
+option selects all partitions that have the given type.
+The type is given as an UUID or by the aliases that the
+.Ic add
+command accepts.
+This can cause multiple partitions to be removed.
+.Pp
+The
+.Fl f Ar file
+or
+.Fl l Ar label
+options specify the new label to be assigned to the selected partitions.
+The
+.Fl f Ar file
+option is used to read the label from the specified file.
+Only the first line is read from the file and the trailing newline
+character is stripped.
+If the file name is the dash or minus sign (-), the label is read from
+the standard input.
+The
+.Fl l Ar label
+option is used to specify the label in the command line.
+The label is assumed to be encoded in UTF-8.
 .\" ==== migrate ====
 .It Nm Ic migrate Oo Fl fs Oc Ar device ...
 The
@@ -188,7 +253,7 @@ option prevents migrating
 disk labels into GPT partitions by creating
 the GPT equivalent of a slice.
 .\" ==== remove ====
-.It Nm Ic remove Oo Fl a Oc
+.It Nm Ic remove Oo Fl a Oc Ar device ...
 .It Xo
 .Nm
 .Ic remove
@@ -200,34 +265,14 @@ the GPT equivalent of a slice.
 .Xc
 The
 .Ic remove
-command allows the user to remove any partitions that match the selection.
-At least one option must be specified.
-.Pp
-The
-.Fl a
-option specifies that all partitions should be removed.
-It is mutually exclusive with all other options.
-.Pp
-The
-.Fl b Ar number
-option selects the partitions that starts at the given number.
-.Pp
-The
-.Fl i Ar index
-option selects the partition with the given partition number.
-.Pp
-The
-.Fl s Ar count
-option selects all partitions that have the given size.
-This can cause multiple partitions to be removed.
-.Pp
-The
-.Fl t Ar type
-option selects all partitions that have the given type.
-The type is given as an UUID or by the aliases that the
-.Ic add
-command accepts.
-This can cause multiple partitions to be removed.
+command allows the user to remove any and all partitions that match the
+selection.
+It uses the same selection options as the
+.Ic label
+command.
+See above for a description of these options.
+Partitions are removed by clearing the partition type.
+No other information is changed.
 .\" ==== show ====
 .It Nm Ic show Oo Fl lu Oc Ar device ...
 The
