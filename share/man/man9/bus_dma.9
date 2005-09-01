@@ -60,7 +60,7 @@
 .\" $FreeBSD$
 .\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
 .\"
-.Dd May 28, 2003
+.Dd Aug 31, 2005
 .Dt BUS_DMA 9
 .Os
 .Sh NAME
@@ -253,8 +253,9 @@ All operations specified below are performed from the host memory point of view,
 where a read implies data coming from the device to the host memory, and a write
 implies data going from the host memory to the device.
 Alternately, the operations can be thought of in terms of driver operations,
-where reading a network packet or storage sector coresponds to a read operation
-in busdma.
+where reading a network packet or storage sector corresponds to a read operation
+in
+.Nm .
 .Bl -tag -width BUS_DMASYNC_POSTWRITE
 .It Dv BUS_DMASYNC_PREREAD
 Perform any synchronization required prior to an update of host memory by the
