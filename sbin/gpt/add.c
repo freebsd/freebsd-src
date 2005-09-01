@@ -48,7 +48,7 @@ usage_add(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-b lba] [-i index] [-s lba] [-t uuid] device\n",
+	    "usage: %s [-b lba] [-i index] [-s lba] [-t uuid] device ...\n",
 	    getprogname());
 	exit(1);
 }
