@@ -556,6 +556,7 @@ static struct {
 	{ cmd_create, "create" },
 	{ cmd_destroy, "destroy" },
 	{ NULL, "help" },
+	{ cmd_label, "label" },
 	{ cmd_migrate, "migrate" },
 	{ cmd_recover, "recover" },
 	{ cmd_remove, "remove" },
@@ -570,7 +571,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-rv] [-p nparts] command [options] device\n",
+	    "usage: %s [-rv] [-p nparts] command [options] device ...\n",
 	    getprogname());
 	exit(1);
 }
