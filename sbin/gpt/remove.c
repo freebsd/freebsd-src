@@ -49,8 +49,8 @@ usage_remove(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s -a device\n"
-	    "       %s [-b lba] [-i index] [-s lba] [-t uuid] device\n",
+	    "usage: %s -a device ...\n"
+	    "       %s [-b lba] [-i index] [-s lba] [-t uuid] device ...\n",
 	    getprogname(), getprogname());
 	exit(1);
 }
@@ -108,7 +108,7 @@ rem(int fd)
 		    !uuid_equal(&type, &uuid, NULL))
 			continue;
 
-		/* Remove the entry by clearing the partition type. */
+		/* Remove the primary entry by clearing the partition type. */
 		uuid_create_nil(&ent->ent_type, NULL);
 
 		hdr->hdr_crc_table = htole32(crc32(tbl->map_data,
@@ -122,6 +122,8 @@ rem(int fd)
 		hdr = tpg->map_data;
 		ent = (void*)((char*)lbt->map_data + i *
 		    le32toh(hdr->hdr_entsz));
+
+		/* Remove the secundary entry. */
 		uuid_create_nil(&ent->ent_type, NULL);
 
 		hdr->hdr_crc_table = htole32(crc32(lbt->map_data,
