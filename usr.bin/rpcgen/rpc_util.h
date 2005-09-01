@@ -191,8 +191,8 @@ void emit(definition *def);
 /*
  * rpc_hout routines
  */
-void print_datadef(definition *def);
-void print_funcdef(definition *def);
+void print_datadef(definition *def, int headeronly);
+void print_funcdef(definition *def, int headeronly);
 void print_xdr_func_def(char* name, int pointerp, int i);
 
 /*
