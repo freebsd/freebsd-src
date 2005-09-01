@@ -59,7 +59,7 @@ usage_migrate(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-fs] device\n", getprogname());
+	    "usage: %s [-fs] device ...\n", getprogname());
 	exit(1);
 }
 
