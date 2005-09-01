@@ -899,7 +899,7 @@ static int
 pfi_refresh(void)
 {
 	struct pfioc_iface io;
-	struct pfi_if *p;
+	struct pfi_if *p = NULL;
 	struct pfi_entry *e;
 	int i, numifs = 1;
 
@@ -913,19 +913,23 @@ pfi_refresh(void)
 	}
 
 	bzero(&io, sizeof(io));
-	p = malloc(sizeof(struct pfi_if));
 	io.pfiio_flags = PFI_FLAG_INSTANCE;
 	io.pfiio_esize = sizeof(struct pfi_if);
 
 	for (;;) {
-		p = realloc(p, numifs * sizeof(struct pfi_if));
+		p = reallocf(p, numifs * sizeof(struct pfi_if));
+		if (p == NULL) {
+			syslog(LOG_ERR, "pfi_refresh(): reallocf() numifs=%d: %s",
+			    numifs, strerror(errno));
+			goto err2;
+		}
 		io.pfiio_size = numifs;
 		io.pfiio_buffer = p;
 
 		if (ioctl(dev, DIOCIGETIFACES, &io)) {
 			syslog(LOG_ERR, "pfi_refresh(): ioctl(): %s",
 			    strerror(errno));
-			return (-1);
+			goto err2;
 		}
 
 		if (numifs >= io.pfiio_size)
@@ -936,6 +940,8 @@ pfi_refresh(void)
 
 	for (i = 0; i < numifs; i++) {
 		e = malloc(sizeof(struct pfi_entry));
+		if (e == NULL)
+			goto err1;
 		e->index = i + 1;
 		memcpy(&e->pfi, p+i, sizeof(struct pfi_if));
 		TAILQ_INSERT_TAIL(&pfi_table, e, link);
@@ -947,6 +953,16 @@ pfi_refresh(void)
 
 	free(p);
 	return (0);
+
+err1:
+	while (!TAILQ_EMPTY(&pfi_table)) {
+		e = TAILQ_FIRST(&pfi_table);
+		TAILQ_REMOVE(&pfi_table, e, link);
+		free(e);
+	}
+err2:
+	free(p);
+	return(-1);
 }
 
 static int
@@ -978,6 +994,12 @@ pfq_refresh(void)
 
 	for (i = 0; i < numqs; i++) {
 		e = malloc(sizeof(struct pfq_entry));
+		if (e == NULL) {
+			syslog(LOG_ERR, "pfq_refresh(): "
+			    "malloc(): %s",
+			    strerror(errno));
+			goto err;
+		}
 		pa.ticket = ticket;
 		pa.nr = i;
 
@@ -985,7 +1007,7 @@ pfq_refresh(void)
 			syslog(LOG_ERR, "pfq_refresh(): "
 			    "ioctl(DIOCGETALTQ): %s",
 			    strerror(errno));
-			return (-1);
+			goto err;
 		}
 
 		if (pa.altq.qid > 0) {
@@ -1000,6 +1022,14 @@ pfq_refresh(void)
 	pf_tick = this_tick;
 
 	return (0);
+err:
+	free(e);
+	while (!TAILQ_EMPTY(&pfq_table)) {
+		e = TAILQ_FIRST(&pfq_table);
+		TAILQ_REMOVE(&pfq_table, e, link);
+		free(e);
+	}
+	return(-1);
 }
 
 static int
@@ -1024,7 +1054,7 @@ static int
 pft_refresh(void)
 {
 	struct pfioc_table io;
-	struct pfr_tstats *t;
+	struct pfr_tstats *t = NULL;
 	struct pft_entry *e;
 	int i, numtbls = 1;
 
@@ -1038,18 +1068,22 @@ pft_refresh(void)
 	}
 
 	bzero(&io, sizeof(io));
-	t = malloc(sizeof(struct pfr_tstats));
 	io.pfrio_esize = sizeof(struct pfr_tstats);
 
 	for (;;) {
-		t = realloc(t, numtbls * sizeof(struct pfr_tstats));
+		t = reallocf(t, numtbls * sizeof(struct pfr_tstats));
+		if (t == NULL) {
+			syslog(LOG_ERR, "pft_refresh(): reallocf() numtbls=%d: %s",
+			    numtbls, strerror(errno));
+			goto err2;
+		}
 		io.pfrio_size = numtbls;
 		io.pfrio_buffer = t;
 
 		if (ioctl(dev, DIOCRGETTSTATS, &io)) {
 			syslog(LOG_ERR, "pft_refresh(): ioctl(): %s",
 			    strerror(errno));
-			return (-1);
+			goto err2;
 		}
 
 		if (numtbls >= io.pfrio_size)
@@ -1060,6 +1094,8 @@ pft_refresh(void)
 
 	for (i = 0; i < numtbls; i++) {
 		e = malloc(sizeof(struct pfr_tstats));
+		if (e == NULL)
+			goto err1;
 		e->index = i + 1;
 		memcpy(&e->pft, t+i, sizeof(struct pfr_tstats));
 		TAILQ_INSERT_TAIL(&pft_table, e, link);
@@ -1071,6 +1107,15 @@ pft_refresh(void)
 
 	free(t);
 	return (0);
+err1:
+	while (!TAILQ_EMPTY(&pft_table)) {
+		e = TAILQ_FIRST(&pft_table);
+		TAILQ_REMOVE(&pft_table, e, link);
+		free(e);
+	}
+err2:
+	free(t);
+	return(-1);
 }
 
 /*
