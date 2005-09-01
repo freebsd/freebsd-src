@@ -827,7 +827,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 * such entries for the moment.  These will be allocated later if
 	 * the driver specifically requests them.
 	 *
-	 * Similarlly treat maps whose values is the same as the test value
+	 * Similarly treat maps whose values is the same as the test value
 	 * read back.  These maps have had all f's written to them by the
 	 * BIOS in an attempt to disable the resources.
 	 */
