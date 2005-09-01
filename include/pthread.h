@@ -39,20 +39,20 @@
  * Header files.
  */
 #include <sys/cdefs.h>
-#include <sys/types.h>
 #include <sys/_pthreadtypes.h>
-#include <sys/time.h>
-#include <sys/signal.h>
-#include <limits.h>
+#include <machine/_limits.h>
+#include <machine/_types.h>
+#include <sys/_sigset.h>
 #include <sched.h>
+#include <time.h>
 
 /*
  * Run-time invariant values:
  */
 #define PTHREAD_DESTRUCTOR_ITERATIONS		4
 #define PTHREAD_KEYS_MAX			256
-#define PTHREAD_STACK_MIN			MINSIGSTKSZ
-#define PTHREAD_THREADS_MAX			ULONG_MAX
+#define PTHREAD_STACK_MIN			__MINSIGSTKSZ
+#define PTHREAD_THREADS_MAX			__ULONG_MAX
 #define PTHREAD_BARRIER_SERIAL_THREAD		-1
 
 /*
@@ -220,7 +220,7 @@ int		pthread_rwlockattr_setpshared(pthread_rwlockattr_t *, int);
 int		pthread_rwlockattr_destroy(pthread_rwlockattr_t *);
 pthread_t	pthread_self(void);
 int		pthread_setspecific(pthread_key_t, const void *);
-int		pthread_sigmask(int, const sigset_t *, sigset_t *);
+int		pthread_sigmask(int, const __sigset_t *, __sigset_t *);
 
 int		pthread_spin_init(pthread_spinlock_t *, int);
 int		pthread_spin_destroy(pthread_spinlock_t *);
