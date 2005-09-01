@@ -412,12 +412,8 @@ ax88x90_geteprom(struct ed_softc *sc)
 	/* Get Data */
 	for (i = 0; i < 16; i++)
 		prom[i] = ed_asic_inb(sc, 0);
-	sc->enaddr[0] = prom[0] & 0xff;
-	sc->enaddr[1] = prom[0] >> 8;
-	sc->enaddr[2] = prom[1] & 0xff;
-	sc->enaddr[3] = prom[1] >> 8;
-	sc->enaddr[4] = prom[2] & 0xff;
-	sc->enaddr[5] = prom[2] >> 8;
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		sc->enaddr[i] = prom[i];
 }
 
 static int
