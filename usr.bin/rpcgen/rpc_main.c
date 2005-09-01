@@ -61,7 +61,7 @@ extern int write_sample_clnt( definition * );
 extern void write_sample_clnt_main( void );
 extern void add_sample_msg( void );
 static void c_output( char *, char *, int, char * );
-static void h_output( char *, char *, int, char * );
+static void h_output( char *, char *, int, char *, int );
 static void l_output( char *, char *, int, char * );
 static void t_output( char *, char *, int, char * );
 static void clnt_output( char *, char *, int, char * );
@@ -172,7 +172,8 @@ main(argc, argv)
 	if (cmd.cflag) {
 		c_output(cmd.infile, "-DRPC_XDR", DONT_EXTEND, cmd.outfile);
 	} else if (cmd.hflag) {
-		h_output(cmd.infile, "-DRPC_HDR", DONT_EXTEND, cmd.outfile);
+		h_output(cmd.infile, "-DRPC_HDR", DONT_EXTEND, cmd.outfile,
+		    cmd.hflag);
 	} else if (cmd.lflag) {
 		l_output(cmd.infile, "-DRPC_CLNT", DONT_EXTEND, cmd.outfile);
 	} else if (cmd.sflag || cmd.mflag || (cmd.nflag)) {
@@ -192,7 +193,7 @@ main(argc, argv)
 		/* the rescans are required, since cpp may effect input */
 		c_output(cmd.infile, "-DRPC_XDR", EXTEND, "_xdr.c");
 		reinitialize();
-		h_output(cmd.infile, "-DRPC_HDR", EXTEND, ".h");
+		h_output(cmd.infile, "-DRPC_HDR", EXTEND, ".h", cmd.hflag);
 		reinitialize();
 		l_output(cmd.infile, "-DRPC_CLNT", EXTEND, "_clnt.c");
 		reinitialize();
@@ -514,11 +515,7 @@ char *generate_guard(pathname)
 
 
 static void
-h_output(infile, define, extend, outfile)
-	char *infile;
-	char *define;
-	int extend;
-	char *outfile;
+h_output(char *infile, char *define, int extend, char *outfile, int headeronly)
 {
 	definition *def;
 	char *outfilename;
@@ -558,7 +555,7 @@ h_output(infile, define, extend, outfile)
 
 	/* print data definitions */
 	while ( (def = get_definition()) ) {
-		print_datadef(def);
+		print_datadef(def, headeronly);
 	}
 
 	/*
@@ -567,7 +564,7 @@ h_output(infile, define, extend, outfile)
 	 *  arguments for functions
 	 */
 	for (l = defined; l != NULL; l = l->next) {
-		print_funcdef(l->val);
+		print_funcdef(l->val, headeronly);
 	}
 	/* Now  print all xdr func declarations */
 	if (xdrfunc_head != NULL){
