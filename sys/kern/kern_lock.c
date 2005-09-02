@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stack.h>
 #include <sys/sysctl.h>
 #endif
+#include <sys/kdb.h>
 
 /*
  * Locking primitives implementation.
@@ -379,6 +380,12 @@ lockmgr(lkp, flags, interlkp, td)
 			}
 		} else if (lkp->lk_flags & LK_SHARE_NONZERO)
 			shareunlock(td, lkp, 1);
+		else  {
+			printf("lockmgr: thread %p unlocking unheld lock\n",
+			    thr);
+			kdb_backtrace();
+		}
+
 		if (lkp->lk_flags & LK_WAIT_NONZERO)
 			wakeup((void *)lkp);
 		break;
