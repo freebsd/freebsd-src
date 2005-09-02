@@ -87,7 +87,7 @@
 
 /* Trace classes to compile in */
 #ifndef KTR_COMPILE
-#define	KTR_COMPILE	(KTR_GEN)
+#define	KTR_COMPILE	(KTR_ALL)
 #endif
 
 /* Trace classes that can not be used with KTR_ALQ */
