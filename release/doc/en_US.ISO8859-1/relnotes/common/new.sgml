@@ -1481,9 +1481,6 @@ moused_ums0_port="/dev/ums0"</programlisting>
       3.7.</para>
 
     <para><application>sendmail</application> has been updated from
-      version 8.13.1 to version 8.13.3. &merged;</para>
-
-    <para><application>sendmail</application> has been updated from
       version 8.13.3 to version 8.13.4.  It now supports
       <literal>OSTYPE(freebsd6)</literal>.</para>
 
