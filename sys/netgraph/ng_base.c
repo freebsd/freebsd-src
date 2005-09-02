@@ -3101,8 +3101,8 @@ dumpitem(item_p item, char *file, int line)
 	case NGQF_FN:
 		printf(" - fn@%p (%p, %p, %p, %d (%x))\n",
 			item->body.fn.fn_fn,
-			NGI_NODE(item),
-			NGI_HOOK(item),
+			_NGI_NODE(item),
+			_NGI_HOOK(item),
 			item->body.fn.fn_arg1,
 			item->body.fn.fn_arg2,
 			item->body.fn.fn_arg2);
@@ -3112,9 +3112,9 @@ dumpitem(item_p item, char *file, int line)
 	}
 	if (line) {
 		printf(" problem discovered at file %s, line %d\n", file, line);
-		if (NGI_NODE(item)) {
+		if (_NGI_NODE(item)) {
 			printf("node %p ([%x])\n",
-				NGI_NODE(item), ng_node2ID(NGI_NODE(item)));
+				_NGI_NODE(item), ng_node2ID(_NGI_NODE(item)));
 		}
 	}
 }
