@@ -290,7 +290,7 @@ pdispatch(char * name, char *vers)
 
 	f_print(fout, "void ");
 	pvname(name, vers);
-	f_print(fout, "(struct svc_req *rqstp, register SVCXPRT *transp);\n");
+	f_print(fout, "(struct svc_req *rqstp, SVCXPRT *transp);\n");
 }
 
 static void
