@@ -68,11 +68,13 @@ struct sx_args {
 
 #define	SX_SYSINIT(name, sxa, desc)					\
 	static struct sx_args name##_args = {				\
-		sxa,							\
-		desc							\
+		(sxa),							\
+		(desc)							\
 	};								\
 	SYSINIT(name##_sx_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    sx_sysinit, &name##_args)
+	    sx_sysinit, &name##_args);					\
+	SYSUNINIT(name##_sx_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	    sx_destroy, (sxa))
 
 #define	sx_slock(sx)		_sx_slock((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_xlock(sx)		_sx_xlock((sx), LOCK_FILE, LOCK_LINE)
