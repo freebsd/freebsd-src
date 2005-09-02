@@ -91,10 +91,7 @@ write_sample_client(program_name, vp)
 
 	f_print(fout, "\n\nvoid\n");
 	pvname(program_name, vp->vers_num);
-	if(Cflag)
-		f_print(fout,"(char *host)\n{\n");
-	else
-		f_print(fout, "(host)\n\tchar *host;\n{\n");
+	f_print(fout, "(char *host)\n{\n");
 	f_print(fout, "\tCLIENT *clnt;\n");
 
 	i = 0;
@@ -211,10 +208,7 @@ write_sample_server(def)
 				f_print(fout, "*\n");
 			} else
 				f_print(fout, "bool_t\n");
-			if (Cflag || mtflag)
-				pvname_svc(proc->proc_name, vp->vers_num);
-			else
-				pvname(proc->proc_name, vp->vers_num);
+			pvname_svc(proc->proc_name, vp->vers_num);
 			printarglist(proc, "result", RQSTP, "struct svc_req *");
 
 			f_print(fout, "{\n");
@@ -244,14 +238,7 @@ write_sample_server(def)
 		if (mtflag) {
 		f_print(fout, "\nint\n");
 		pvname(def->def_name, vp->vers_num);
-		if (Cflag)
-			f_print(fout,"_freeresult(SVCXPRT *transp, xdrproc_t xdr_result, caddr_t result)\n");
-		else {
-			f_print(fout,"_freeresult(transp, xdr_result, result)\n");
-			f_print(fout,"\tSVCXPRT *transp;\n");
-			f_print(fout,"\txdrproc_t xdr_result;\n");
-			f_print(fout,"\tcaddr_t result;\n");
-		}
+		f_print(fout,"_freeresult(SVCXPRT *transp, xdrproc_t xdr_result, caddr_t result)\n");
 		f_print(fout, "{\n");
 		f_print(fout, "\t(void) xdr_free(xdr_result, result);\n");
 		f_print(fout,
@@ -290,10 +277,7 @@ write_sample_clnt_main()
 	version_list *vp;
 
 	f_print(fout, "\n\n");
-	if(Cflag)
-		f_print(fout,"main(int argc, char *argv[])\n{\n");
-	else
-		f_print(fout, "main(argc, argv)\n\tint argc;\n\tchar *argv[];\n{\n");
+	f_print(fout, "main(int argc, char *argv[])\n{\n");
 
 	f_print(fout, "\tchar *host;");
 	f_print(fout, "\n\n\tif (argc < 2) {");

@@ -58,7 +58,7 @@ static void ptypedef( definition * );
 static void pdefine( char *, char * );
 static int undefined2( char *, char * );
 static void parglist( proc_list *, char * );
-static void pprocdef( proc_list *, version_list *, char *, int, int );
+static void pprocdef( proc_list *, version_list *, char *, int );
 void pdeclaration( char *, declaration *, int, char * );
 
 /*
@@ -144,20 +144,10 @@ int pointerp;
 }
 
 void
-print_xdr_func_def(name, pointerp, i)
-char* name;
-int pointerp;
-int i;
+print_xdr_func_def(char *name, int pointerp)
 {
-	if (i == 2) {
-		f_print(fout, "extern bool_t xdr_%s();\n", name);
-		return;
-	}
-	else
-		f_print(fout, "extern  bool_t xdr_%s(XDR *, %s%s);\n", name,
-			name, pointerp ? "*" : "");
-
-
+	f_print(fout, "extern  bool_t xdr_%s(XDR *, %s%s);\n", name,
+		name, pointerp ? "*" : "");
 }
 
 
@@ -287,30 +277,20 @@ define_printed(stop, start)
 }
 
 static void
-pfreeprocdef(char * name, char *vers, int mode)
+pfreeprocdef(char * name, char *vers)
 {
 	f_print(fout, "extern int ");
 	pvname(name, vers);
-	if (mode == 1)
-		f_print(fout,"_freeresult(SVCXPRT *, xdrproc_t, caddr_t);\n");
-	else
-		f_print(fout,"_freeresult();\n");
-
-
+	f_print(fout, "_freeresult(SVCXPRT *, xdrproc_t, caddr_t);\n");
 }
 
 static void
-pdispatch(char * name, char *vers, int mode)
+pdispatch(char * name, char *vers)
 {
 
 	f_print(fout, "void ");
 	pvname(name, vers);
-	if (mode == 1)
-		f_print(fout,
-		    "(struct svc_req *rqstp, register SVCXPRT *transp);\n");
-	else
-		f_print(fout,"();\n");
-	
+	f_print(fout, "(struct svc_req *rqstp, register SVCXPRT *transp);\n");
 }
 
 static void
@@ -318,7 +298,6 @@ pprogramdef(definition *def, int headeronly)
 {
 	version_list *vers;
 	proc_list *proc;
-	int i;
 	char *ext;
 
 	pargdef(def);
@@ -335,75 +314,27 @@ pprogramdef(definition *def, int headeronly)
 		}
 		puldefine(vers->vers_name, vers->vers_num);
 
-		/*
-		 * Print out 2 definitions, one for ANSI-C, another for
-		 * old K & R C
-		 */
-
-		if(!Cflag){
-			ext = "extern  ";
-			if (headeronly) {
-				f_print(fout, "%s", ext);
-				pdispatch(def->def_name, vers->vers_num, 2);
-			}
-			for (proc = vers->procs; proc != NULL;
-			     proc = proc->next) {
-				if (!define_printed(proc,
-						    def->def.pr.versions)) {
-					puldefine(proc->proc_name,
-						  proc->proc_num);
-				}
-				f_print(fout, "%s", ext);
-				pprocdef(proc, vers, NULL, 0, 2);
-				
-				if (mtflag) {
-					f_print(fout, "%s", ext);
-					pprocdef(proc, vers, NULL, 1, 2);
-				}
-			}
-			pfreeprocdef(def->def_name, vers->vers_num, 2);
-			
-		} else {
-			for (i = 1; i < 3; i++){
-				if (i == 1){
-					f_print(fout, "\n#if defined(__STDC__) || defined(__cplusplus)\n");
-					ext = "extern  ";
-				}else{
-					f_print(fout, "\n#else /* K&R C */\n");
-					ext = "extern  ";
-				}
-
-				if (headeronly) {
-					f_print(fout, "%s", ext);
-					pdispatch(def->def_name, vers->vers_num,
-					    i);
-				}
-				for (proc = vers->procs; proc != NULL;
-				     proc = proc->next) {
-					if (!define_printed(proc,
-							    def->def.pr.versions)) {
-						puldefine(proc->proc_name,
-							  proc->proc_num);
-					}
-					f_print(fout, "%s", ext);
-					pprocdef(proc, vers, "CLIENT *", 0, i);
-					f_print(fout, "%s", ext);
-					pprocdef(proc, vers, "struct svc_req *", 1, i);
-				}
-			pfreeprocdef(def->def_name, vers->vers_num, i);
-			}
-			f_print(fout, "#endif /* K&R C */\n");
+		f_print(fout, "\n");
+		ext = "extern  ";
+		if (headeronly) {
+			f_print(fout, "%s", ext);
+			pdispatch(def->def_name, vers->vers_num);
 		}
+		for (proc = vers->procs; proc != NULL; proc = proc->next) {
+			if (!define_printed(proc, def->def.pr.versions)) {
+				puldefine(proc->proc_name, proc->proc_num);
+			}
+			f_print(fout, "%s", ext);
+			pprocdef(proc, vers, "CLIENT *", 0);
+			f_print(fout, "%s", ext);
+			pprocdef(proc, vers, "struct svc_req *", 1);
+		}
+		pfreeprocdef(def->def_name, vers->vers_num);
 	}
 }
 
 static void
-pprocdef(proc, vp, addargtype, server_p, mode)
-	proc_list *proc;
-	version_list *vp;
-	char* addargtype;
-	int server_p;
-	int mode;
+pprocdef(proc_list *proc, version_list *vp, char *addargtype, int server_p)
 {
 	if (mtflag) {/* Print MT style stubs */
 		if (server_p)
@@ -419,13 +350,7 @@ pprocdef(proc, vp, addargtype, server_p, mode)
 	else
 		pvname(proc->proc_name, vp->vers_num);
 
-	/*
-	 *  mode  1 = ANSI-C, mode 2 = K&R C
-	 */
-	if ( mode == 1)
-		parglist(proc, addargtype);
-	else
-		f_print(fout, "();\n");
+	parglist(proc, addargtype);
 }
 
 
