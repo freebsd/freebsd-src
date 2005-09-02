@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2005
+.Dd September 2, 2005
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2002,10 +2002,8 @@ If the argument is omitted, the current mask value is printed.
 If the
 .Fl S
 option is specified, the output is symbolic, otherwise the output is octal.
-.It Ic unalias Oo Fl a Oc Op Ar name
-If
-.Ar name
-is specified, the shell removes that alias.
+.It Ic unalias Oo Fl a Oc Op Ar name ...
+The specified alias names are removed.
 If
 .Fl a
 is specified, all aliases are removed.
