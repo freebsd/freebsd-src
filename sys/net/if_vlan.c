@@ -504,6 +504,7 @@ vlan_start(struct ifnet *ifp)
 			}
 			*(u_int*)(mtag + 1) = ifv->ifv_tag;
 			m_tag_prepend(m, mtag);
+			m->m_flags |= M_VLANTAG;
 		} else {
 			M_PREPEND(m, ifv->ifv_encaplen, M_DONTWAIT);
 			if (m == NULL) {
