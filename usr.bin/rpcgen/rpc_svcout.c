@@ -423,7 +423,7 @@ write_program(def, storage)
 		pvname(def->def_name, vp->vers_num);
 
 		f_print(fout, "(struct svc_req *%s, ", RQSTP);
-		f_print(fout, "register SVCXPRT *%s)\n", TRANSP);
+		f_print(fout, "SVCXPRT *%s)\n", TRANSP);
 		f_print(fout, "{\n");
 
 		filled = 0;

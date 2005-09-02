@@ -136,7 +136,7 @@ print_generic_header(procname, pointerp)
 	f_print(fout, "\n");
 	f_print(fout, "bool_t\n");
 	f_print(fout, "xdr_%s(", procname);
-	f_print(fout, "register XDR *xdrs, ");
+	f_print(fout, "XDR *xdrs, ");
 	f_print(fout, "%s ", procname);
 	if (pointerp)
 		f_print(fout, "*");
@@ -671,7 +671,7 @@ int flag;
 		tabify(fout, indent);
 		f_print(fout, "{\n");
 		tabify(fout, indent + 1);
-		f_print(fout, "register %s *genp;\n\n", decl->type);
+		f_print(fout, "%s *genp;\n\n", decl->type);
 		tabify(fout, indent + 1);
 		f_print(fout,
 			"for (i = 0, genp = objp->%s;\n", decl->name);
