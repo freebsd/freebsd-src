@@ -760,14 +760,23 @@ cpufreq_dup_set(struct cpufreq_softc *sc, struct cf_level *dup,
 	KASSERT(!TAILQ_EMPTY(list), ("all levels list empty in dup set"));
 	TAILQ_FOREACH_REVERSE(itr, list, cf_level_lst, link) {
 		itr_set = &itr->total_set;
-		if (fill_set->freq < itr_set->freq &&
-		    !CPUFREQ_CMP(fill_set->freq, itr_set->freq) &&
-		    fill->abs_set.freq <= itr->abs_set.freq) {
-			CF_DEBUG(
-		"dup done, inserting new level %d after %d\n",
-			    fill_set->freq, itr_set->freq);
-			TAILQ_INSERT_AFTER(list, itr, fill, link);
-			sc->all_count++;
+		if (CPUFREQ_CMP(fill_set->freq, itr_set->freq)) {
+			CF_DEBUG("dup set rejecting %d (dupe)\n",
+			    fill_set->freq);
+			itr = NULL;
+			break;
+		} else if (fill_set->freq < itr_set->freq) {
+			if (fill->abs_set.freq <= itr->abs_set.freq) {
+				CF_DEBUG(
+			"dup done, inserting new level %d after %d\n",
+				    fill_set->freq, itr_set->freq);
+				TAILQ_INSERT_AFTER(list, itr, fill, link);
+				sc->all_count++;
+			} else {
+				CF_DEBUG("dup set rejecting %d (abs too big)\n",
+				    fill_set->freq);
+				itr = NULL;
+			}
 			break;
 		}
 	}
