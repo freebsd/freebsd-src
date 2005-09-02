@@ -63,7 +63,7 @@ struct hs {
 	int	hs_nusers;
 } *hs;
 struct	whod awhod;
-#define LEFTEARTH(h)		(now - (h)->hs_wd->wd_recvtime > 4*24*60*60)
+#define LEFTEARTH(h)		(now - (h) > 4*24*60*60)
 #define	ISDOWN(h)		(now - (h)->hs_wd->wd_recvtime > 11 * 60)
 #define	WHDRSIZE	(sizeof (awhod) - sizeof (awhod.wd_we))
 
@@ -208,6 +208,8 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 
 		if (cc < WHDRSIZE)
 			continue;
+		if (LEFTEARTH(((struct whod *)buf)->wd_recvtime))
+			continue;
 		if (nhosts == hspace) {
 			if ((hs =
 			    realloc(hs, (hspace += 40) * sizeof(*hs))) == NULL)
@@ -241,8 +243,6 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 	qsort(hs, nhosts, sizeof(hs[0]), cmp);
 	for (i = 0; i < (int)nhosts; i++) {
 		hsp = &hs[i];
-		if (LEFTEARTH(hsp))
-			continue;
 		if (ISDOWN(hsp)) {
 			(void)printf("%-12.12s%s\n", hsp->hs_wd->wd_hostname,
 			    interval(now - hsp->hs_wd->wd_recvtime, "down"));
