@@ -1835,22 +1835,26 @@ void
 priv_script_write_params(char *prefix, struct client_lease *lease)
 {
 	struct interface_info *ip = ifi;
-	u_int8_t dbuf[1500];
-	int i, len = 0;
+	u_int8_t dbuf[1500], *dp = NULL;
+	int i, len;
 	char tbuf[128];
 
 	script_set_env(ip->client, prefix, "ip_address",
 	    piaddr(lease->address));
 
-	if (lease->options[DHO_SUBNET_MASK].len &&
-	    (lease->options[DHO_SUBNET_MASK].len <
-	    sizeof(lease->address.iabuf))) {
+	if (ip->client->config->default_actions[DHO_SUBNET_MASK] ==
+	    ACTION_SUPERSEDE) {
+		dp = ip->client->config->defaults[DHO_SUBNET_MASK].data;
+		len = ip->client->config->defaults[DHO_SUBNET_MASK].len;
+	} else {
+		dp = lease->options[DHO_SUBNET_MASK].data;
+		len = lease->options[DHO_SUBNET_MASK].len;
+	}
+	if (len && (len < sizeof(lease->address.iabuf))) {
 		struct iaddr netmask, subnet, broadcast;
 
-		memcpy(netmask.iabuf, lease->options[DHO_SUBNET_MASK].data,
-		    lease->options[DHO_SUBNET_MASK].len);
-		netmask.len = lease->options[DHO_SUBNET_MASK].len;
-
+		memcpy(netmask.iabuf, dp, len);
+		netmask.len = len;
 		subnet = subnet_number(lease->address, netmask);
 		if (subnet.len) {
 			script_set_env(ip->client, prefix, "network_number",
@@ -1871,7 +1875,7 @@ priv_script_write_params(char *prefix, struct client_lease *lease)
 		script_set_env(ip->client, prefix, "server_name",
 		    lease->server_name);
 	for (i = 0; i < 256; i++) {
-		u_int8_t *dp = NULL;
+		len = 0;
 
 		if (ip->client->config->defaults[i].len) {
 			if (lease->options[i].len) {
