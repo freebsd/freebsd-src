@@ -164,7 +164,7 @@ serviced */\n");
 			if (pmflag) {
 				if (tirpc_socket) {
 					f_print(fout, "\tstruct sockaddr_storage saddr;\n");
-					f_print(fout, "\tint asize = sizeof (saddr);\n\n");
+					f_print(fout, "\tsocklen_t asize = sizeof (saddr);\n\n");
 				} else
 					f_print(fout, "\tchar mname[FMNAMESZ + 1];\n\n");
 			}
@@ -617,11 +617,11 @@ write_inetmost(infile)
 	f_print(fout, "\tint sock;\n");
 	f_print(fout, "\tint proto;\n");
 	f_print(fout, "\tstruct sockaddr_in saddr;\n");
-	f_print(fout, "\tint asize = sizeof (saddr);\n");
+	f_print(fout, "\tsocklen_t asize = sizeof (saddr);\n");
 	f_print(fout, "\n");
 	f_print(fout,
 	"\tif (getsockname(0, (struct sockaddr *)&saddr, &asize) == 0) {\n");
-	f_print(fout, "\t\tint ssize = sizeof (int);\n\n");
+	f_print(fout, "\t\tsocklen_t ssize = sizeof (int);\n\n");
 	f_print(fout, "\t\tif (saddr.sin_family != AF_INET)\n");
 	f_print(fout, "\t\t\texit(1);\n");
 	f_print(fout, "\t\tif (getsockopt(0, SOL_SOCKET, SO_TYPE,\n");
@@ -804,7 +804,7 @@ write_pm_most(infile, netflag)
 	if (tirpc_socket) {
 		f_print(fout,
 		"\tif (getsockname(0, (struct sockaddr *)&saddr, &asize) == 0) {\n");
-		f_print(fout, "\t\tint ssize = sizeof (int);\n");
+		f_print(fout, "\t\tsocklen_t ssize = sizeof (int);\n");
 	} else {
 		f_print(fout, "\tif (!ioctl(0, I_LOOK, mname) &&\n");
 		f_print(fout, "\t\t(!strcmp(mname, \"sockmod\") ||");
