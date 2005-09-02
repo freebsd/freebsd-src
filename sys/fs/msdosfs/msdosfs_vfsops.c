@@ -336,7 +336,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	 */
 	if (vfs_getopt(mp->mnt_optnew, "from", (void **)&from, NULL))
 		return (EINVAL);
-	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, from, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, from, td);
 	error = namei(&ndp);
 	if (error)
 		return (error);
@@ -344,7 +344,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
 
 	if (!vn_isdisk(devvp, &error)) {
-		vrele(devvp);
+		vput(devvp);
 		return (error);
 	}
 	/*
@@ -355,13 +355,11 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 		accessmode = VREAD;
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
 		if (error) {
 			vput(devvp);
 			return (error);
 		}
-		VOP_UNLOCK(devvp, 0, td);
 	}
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
 		error = mountmsdosfs(devvp, mp, td);
@@ -372,7 +370,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 		if (devvp != pmp->pm_devvp)
 			error = EINVAL;	/* XXX needs translation */
 		else
-			vrele(devvp);
+			vput(devvp);
 	}
 	if (error) {
 		vrele(devvp);

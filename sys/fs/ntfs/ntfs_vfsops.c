@@ -191,7 +191,7 @@ ntfs_mount (
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, from, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, from, td);
 	err = namei(&ndp);
 	if (err) {
 		/* can't get devvp!*/
@@ -200,8 +200,11 @@ ntfs_mount (
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
 	devvp = ndp.ni_vp;
 
-	if (!vn_isdisk(devvp, &err)) 
-		goto error_2;
+	if (!vn_isdisk(devvp, &err))  {
+		vput(devvp);
+		return (err);
+	}
+
 	if (mp->mnt_flag & MNT_UPDATE) {
 #if 0
 		/*
@@ -212,8 +215,9 @@ ntfs_mount (
 
 		if (devvp != ntmp->um_devvp)
 			err = EINVAL;	/* needs translation */
-		else
-			vrele(devvp);
+		vput(devvp);
+		if (err)
+			return (err);
 #endif
 	} else {
 		/*
@@ -237,16 +241,11 @@ ntfs_mount (
 		err = ntfs_mountfs(devvp, mp, td);
 	}
 	if (err) {
-		goto error_2;
+		vrele(devvp);
+		return (err);
 	}
 
 	goto success;
-
-
-error_2:	/* error with devvp held*/
-
-	/* release devvp before failing*/
-	vrele(devvp);
 
 error_1:	/* no state to back out*/
 	/* XXX: missing NDFREE(&ndp, ...) */
