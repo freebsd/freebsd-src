@@ -341,7 +341,7 @@ sc_attach_unit(int unit, int flags)
 	    splash_term(sc->adp);
 #endif
 	sc_set_graphics_mode(scp, NULL, M_VESA_800x600);
-	sc_set_pixel_mode(scp, NULL, COL, ROW, 16);
+	sc_set_pixel_mode(scp, NULL, COL, ROW, 16, 8);
 	sc->initial_mode = M_VESA_800x600;
 #ifdef DEV_SPLASH
 	/* put up the splash again! */
@@ -502,7 +502,7 @@ scopen(struct cdev *dev, int flag, int mode, struct thread *td)
     if (scp == NULL) {
 	scp = SC_STAT(dev) = alloc_scp(sc, SC_VTY(dev));
 	if (ISGRAPHSC(scp))
-	    sc_set_pixel_mode(scp, NULL, COL, ROW, 16);
+	    sc_set_pixel_mode(scp, NULL, COL, ROW, 16, 8);
     }
     if (!tp->t_winsize.ws_col && !tp->t_winsize.ws_row) {
 	tp->t_winsize.ws_col = scp->xsize;
