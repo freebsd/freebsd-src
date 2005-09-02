@@ -49,7 +49,7 @@ NANO_MEDIASIZE=1048576
 # Number of code images on media (1 or 2)
 NANO_IMAGES=2
 
-# Size of configuration file system in 512 bytes sectors
+# Size of code file system in 512 bytes sectors
 # If zero, size will be as large as possible.
 NANO_CODESIZE=0
 
