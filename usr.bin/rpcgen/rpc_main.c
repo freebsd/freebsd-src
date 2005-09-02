@@ -138,7 +138,6 @@ int indefinitewait;	/* If started by port monitors, hang till it wants */
 int exitnow;		/* If started by port monitors, exit after the call */
 int timerflag;		/* TRUE if !indefinite && !exitnow */
 int newstyle;		/* newstyle of passing arguments (by value) */
-int Cflag = 0;		/* ANSI C syntax */
 int CCflag = 0;		/* C++ files */
 static int allfiles;   /* generate all files */
 int tirpcflag = 1;    /* generating code for tirpc, by default */
@@ -523,7 +522,6 @@ h_output(char *infile, char *define, int extend, char *outfile, int headeronly)
 	char *guard;
 	list *l;
 	xdrfunc *xdrfuncp;
-	int i;
 
 	open_input(infile, define);
 	outfilename =  extend ? extendfile(infile, outfile) : outfile;
@@ -543,7 +541,7 @@ h_output(char *infile, char *define, int extend, char *outfile, int headeronly)
 		f_print(fout, "#include <pthread.h>\n");
 
 	/* put the C++ support */
-	if (Cflag && !CCflag){
+	if (!CCflag) {
 		f_print(fout, "\n#ifdef __cplusplus\n");
 		f_print(fout, "extern \"C\" {\n");
 		f_print(fout, "#endif\n\n");
@@ -573,35 +571,15 @@ h_output(char *infile, char *define, int extend, char *outfile, int headeronly)
 			"\n/* the xdr functions */\n");
 
 		if (CCflag){
-		f_print(fout, "\n#ifdef __cplusplus\n");
-		f_print(fout, "extern \"C\" {\n");
-		f_print(fout, "#endif\n");
-	}
+			f_print(fout, "\n#ifdef __cplusplus\n");
+			f_print(fout, "extern \"C\" {\n");
+			f_print(fout, "#endif\n");
+		}
 
-		if (!Cflag){
-			xdrfuncp = xdrfunc_head;
-			while (xdrfuncp != NULL){
-				print_xdr_func_def(xdrfuncp->name,
-				xdrfuncp->pointerp, 2);
-				xdrfuncp = xdrfuncp->next;
-			}
-		} else {
-
-			for (i = 1; i < 3; i++){
-				if (i == 1)
-	f_print(fout, "\n#if defined(__STDC__) || defined(__cplusplus)\n");
-
-				else
-					f_print(fout, "\n#else /* K&R C */\n");
-
-				xdrfuncp = xdrfunc_head;
-				while (xdrfuncp != NULL){
-					print_xdr_func_def(xdrfuncp->name,
-	xdrfuncp->pointerp, i);
-					xdrfuncp = xdrfuncp->next;
-				}
-			}
-		f_print(fout, "\n#endif /* K&R C */\n");
+		xdrfuncp = xdrfunc_head;
+		while (xdrfuncp != NULL){
+			print_xdr_func_def(xdrfuncp->name, xdrfuncp->pointerp);
+			xdrfuncp = xdrfuncp->next;
 		}
 	}
 
@@ -611,11 +589,9 @@ h_output(char *infile, char *define, int extend, char *outfile, int headeronly)
 		f_print(fout, rpcgen_table_dcl);
 	}
 
-	if (Cflag){
-		f_print(fout, "\n#ifdef __cplusplus\n");
-		f_print(fout, "}\n");
-		f_print(fout, "#endif\n");
-	}
+	f_print(fout, "\n#ifdef __cplusplus\n");
+	f_print(fout, "}\n");
+	f_print(fout, "#endif\n");
 
 	f_print(fout, "\n#endif /* !_%s */\n", guard);
 }
@@ -651,11 +627,8 @@ s_output(argc, argv, infile, define, extend, outfile, nomain, netflag)
 
 	f_print(fout, "#include <stdio.h>\n");
 	f_print(fout, "#include <stdlib.h> /* getenv, exit */\n");
-	if (Cflag) {
-		f_print (fout,
-		"#include <rpc/pmap_clnt.h> /* for pmap_unset */\n");
-		f_print (fout, "#include <string.h> /* strcmp */\n");
-	}
+	f_print (fout, "#include <rpc/pmap_clnt.h> /* for pmap_unset */\n");
+	f_print (fout, "#include <string.h> /* strcmp */\n");
 	if (tirpcflag)
 		f_print(fout, "#include <rpc/rpc_com.h>\n");
 	if (strcmp(svcclosetime, "-1") == 0)
@@ -669,7 +642,7 @@ s_output(argc, argv, infile, define, extend, outfile, nomain, netflag)
 
 	if (!tirpcflag && inetdflag)
 		f_print(fout, "#include <sys/ttycom.h> /* TIOCNOTTY */\n");
-	if (Cflag && (inetdflag || pmflag)) {
+	if (inetdflag || pmflag) {
 		f_print(fout, "#ifdef __cplusplus\n");
 		f_print(fout,
 			"#include <sysent.h> /* getdtablesize, open */\n");
@@ -694,12 +667,6 @@ s_output(argc, argv, infile, define, extend, outfile, nomain, netflag)
 		f_print(fout, "#include <sys/resource.h> /* rlimit */\n");
 	if (logflag || inetdflag || pmflag || tirpcflag)
 		f_print(fout, "#include <syslog.h>\n");
-
-	/* for ANSI-C */
-	if (Cflag)
-		f_print(fout,
-			"\n#ifndef SIG_PF\n#define	SIG_PF void(*)\
-(int)\n#endif\n");
 
 	f_print(fout, "\n#ifdef DEBUG\n#define	RPC_SVC_FG\n#endif\n");
 	if (timerflag)
@@ -742,8 +709,7 @@ l_output(infile, define, extend, outfile)
 	outfilename = extend ? extendfile(infile, outfile) : outfile;
 	open_output(infile, outfilename);
 	add_warning();
-	if (Cflag)
-		f_print (fout, "#include <string.h> /* for memset */\n");
+	f_print (fout, "#include <string.h> /* for memset */\n");
 	if (infile && (include = extendfile(infile, ".h"))) {
 		f_print(fout, "#include \"%s\"\n", include);
 		free(include);
@@ -1131,7 +1097,6 @@ parseargs(argc, argv, cmd)
 					flag[(int)ch] = 1;
 					break;
 				case 'C': /* ANSI C syntax */
-					Cflag = 1;
 					ch = argv[i][j+1]; /* get next char */
 
 					if (ch != 'C')

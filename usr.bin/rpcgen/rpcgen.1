@@ -2,7 +2,7 @@
 .\" $FreeBSD$
 .\" Copyright 1985-1993 Sun Microsystems, Inc.
 .\"
-.Dd March 28, 1993
+.Dd September 1, 2005
 .Dt RPCGEN 1
 .Os
 .Sh NAME
@@ -258,11 +258,8 @@ Compile into
 .Tn XDR
 routines.
 .It Fl C
-Generate header and stub files which can be used with
-.Tn ANSI
-C compilers.
-Headers generated with this flag can also be
-used with C++ programs.
+Generate ANSI C code.
+This is always done, the flag is only provided for backwards compatibility.
 .It Fl D Ns Ar name
 .It Fl D Ns Ar name=value
 .\".It Fl D Ns Ar name Ns Op Ar =value
