@@ -80,12 +80,8 @@ p_xdrfunc(rname, typename)
 char* rname;
 char* typename;
 {
-	if (Cflag)
-		f_print(fout, "\t\txdr_%s = (xdrproc_t) xdr_%s;\n",
-			rname, stringfix(typename));
-	else
-		f_print(fout, "\t\txdr_%s = xdr_%s;\n",
-			rname, stringfix(typename));
+	f_print(fout, "\t\txdr_%s = (xdrproc_t) xdr_%s;\n",
+	    rname, stringfix(typename));
 }
 
 void
@@ -308,8 +304,7 @@ write_rest()
 		if (timerflag) {
 			f_print(fout, "\tif (_rpcpmstart) {\n");
 			f_print(fout,
-				"\t\t(void) signal(SIGALRM, %s closedown);\n",
-				Cflag? "(SIG_PF)":"(void(*)())");
+				"\t\t(void) signal(SIGALRM, closedown);\n");
 			f_print(fout, "\t\t(void) \
 alarm(_RPCSVC_CLOSEDOWN/2);\n");
 			f_print(fout, "\t}\n");
@@ -373,50 +368,26 @@ write_real_program(def)
 				f_print(fout, "int");
 			f_print(fout, "\n_");
 			pvname(proc->proc_name, vp->vers_num);
-			if (Cflag) {
-				f_print(fout, "(");
-				/* arg name */
-				if (proc->arg_num > 1)
-					f_print(fout, proc->args.argname);
-				else
-					ptype(proc->args.decls->decl.prefix,
-					      proc->args.decls->decl.type, 0);
-				if (mtflag) {
-					f_print(fout, " *argp, void *%s, struct svc_req *%s)\n",
-						RESULT, RQSTP);
+			f_print(fout, "(");
+			/* arg name */
+			if (proc->arg_num > 1)
+				f_print(fout, proc->args.argname);
+			else
+				ptype(proc->args.decls->decl.prefix,
+				      proc->args.decls->decl.type, 0);
+			if (mtflag) {
+				f_print(fout, " *argp, void *%s, struct svc_req *%s)\n",
+					RESULT, RQSTP);
 
 
-				}
-				else
-					f_print(fout, " *argp, struct svc_req *%s)\n",
-						RQSTP);
-
-			} else {
-				if (mtflag)
-					f_print(fout, "(argp, %s, %s)\n", RESULT, RQSTP);
-				else
-					f_print(fout, "(argp, %s)\n", RQSTP);					
-				/* arg name */
-				if (proc->arg_num > 1)
-					f_print(fout, "\t%s *argp;\n",
-						proc->args.argname);
-				else {
-					f_print(fout, "\t");
-					ptype(proc->args.decls->decl.prefix,
-					      proc->args.decls->decl.type, 0);
-					f_print(fout, " *argp;\n");
-				}
-				if (mtflag)
-					f_print(fout, "\tvoid *%s;\n", RESULT);
-				f_print(fout, "\tstruct svc_req *%s;\n", RQSTP);
 			}
+			else
+				f_print(fout, " *argp, struct svc_req *%s)\n",
+					RQSTP);
 
 			f_print(fout, "{\n");
 			f_print(fout, "\treturn (");
-			if (Cflag || mtflag) /* for mtflag, arguments are different */
-				pvname_svc(proc->proc_name, vp->vers_num);
-			else
-				pvname(proc->proc_name, vp->vers_num);
+			pvname_svc(proc->proc_name, vp->vers_num);
 			f_print(fout, "(");
 			if (proc->arg_num < 2) { /* single argument */
 				if (!streq(proc->args.decls->decl.type, "void"))
@@ -451,15 +422,8 @@ write_program(def, storage)
 		f_print(fout, "void\n");
 		pvname(def->def_name, vp->vers_num);
 
-		if (Cflag) {
-			f_print(fout, "(struct svc_req *%s, ", RQSTP);
-			f_print(fout, "register SVCXPRT *%s)\n", TRANSP);
-		} else {
-			f_print(fout, "(%s, %s)\n", RQSTP, TRANSP);
-			f_print(fout, "	struct svc_req *%s;\n", RQSTP);
-			f_print(fout, "	register SVCXPRT *%s;\n", TRANSP);
-		}
-
+		f_print(fout, "(struct svc_req *%s, ", RQSTP);
+		f_print(fout, "register SVCXPRT *%s)\n", TRANSP);
 		f_print(fout, "{\n");
 
 		filled = 0;
@@ -504,26 +468,15 @@ write_program(def, storage)
 		} else
 			f_print(fout, "\tchar *%s;\n", RESULT);
 
-		if (Cflag) {
-			f_print(fout, "\txdrproc_t xdr_%s, xdr_%s;\n",
-				ARG, RESULT);
-			if (mtflag)
-				f_print(fout,
-					"\tbool_t (*%s)(char *, void *, struct svc_req *);\n",
-					ROUTINE);
-			else
-				f_print(fout,
-					"\tchar *(*%s)(char *, struct svc_req *);\n",
-					ROUTINE);
-		} else {
+		f_print(fout, "\txdrproc_t xdr_%s, xdr_%s;\n", ARG, RESULT);
+		if (mtflag)
 			f_print(fout,
-				"\tbool_t (*xdr_%s)(), (*xdr_%s)();\n",
-				ARG, RESULT);
-			if (mtflag)
-				f_print(fout, "\tbool_t (*%s)();\n", ROUTINE);
-			else
-				f_print(fout, "\tchar *(*%s)();\n", ROUTINE);
-		}
+				"\tbool_t (*%s)(char *, void *, struct svc_req *);\n",
+				ROUTINE);
+		else
+			f_print(fout,
+				"\tchar *(*%s)(char *, struct svc_req *);\n",
+				ROUTINE);
 		f_print(fout, "\n");
 
 		if (timerflag) {
@@ -539,11 +492,8 @@ write_program(def, storage)
 		if (!nullproc(vp->procs)) {
 			f_print(fout, "\tcase NULLPROC:\n");
 			f_print(fout,
-				Cflag
-				? "\t\t(void) svc_sendreply(%s,\n\t\t\t\
-(xdrproc_t) xdr_void, (char *)NULL);\n"
-				: "\t\t(void) svc_sendreply(%s, xdr_void,\n\t\t\t\
-(char *)NULL);\n",
+				"\t\t(void) svc_sendreply(%s,\n\t\t\t"
+				"(xdrproc_t) xdr_void, (char *)NULL);\n",
 				TRANSP);
 			print_return("\t\t");
 			f_print(fout, "\n");
@@ -557,27 +507,18 @@ write_program(def, storage)
 			}
 			p_xdrfunc(RESULT, proc->res_type);
 
-			if (Cflag)
-				if (mtflag)
-					f_print(fout,
-						"\t\t%s = (bool_t (*) (char *,  void *,  struct svc_req *))",
-						ROUTINE);
-				else
-					f_print(fout,
-						"\t\t%s = (char *(*)(char *, struct svc_req *)) ",
-						ROUTINE);
+			if (mtflag)
+				f_print(fout,
+					"\t\t%s = (bool_t (*) (char *,  void *,  struct svc_req *))",
+					ROUTINE);
 			else
-				if (mtflag)
-					f_print(fout, "\t\t%s = (bool_t (*)()) ",
-						ROUTINE);
-				else
-
-					f_print(fout, "\t\t%s = (char *(*)()) ",
-						ROUTINE);
+				f_print(fout,
+					"\t\t%s = (char *(*)(char *, struct svc_req *)) ",
+					ROUTINE);
 			if (newstyle) { /* new style: calls internal routine */
 				f_print(fout, "_");
 			}
-			if ((Cflag || mtflag) && !newstyle)
+			if (!newstyle)
 				pvname_svc(proc->proc_name, vp->vers_num);
 			else
 				pvname(proc->proc_name, vp->vers_num);
@@ -592,30 +533,17 @@ write_program(def, storage)
 		f_print(fout,
 			"\t(void) memset((char *)&%s, 0, sizeof (%s));\n",
 			ARG, ARG);
-		if (Cflag)
-			printif("getargs", TRANSP, "(caddr_t) &", ARG);
-		else
-			printif("getargs", TRANSP, "&", ARG);
+		printif("getargs", TRANSP, "(caddr_t) &", ARG);
 		printerr("decode", TRANSP);
 		print_return("\t\t");
 		f_print(fout, "\t}\n");
 
 		if (!mtflag)
-			if (Cflag)
-				f_print(fout, "\t%s = (*%s)((char *)&%s, %s);\n",
-					RESULT, ROUTINE, ARG, RQSTP);
-			else
-				f_print(fout, "\t%s = (*%s)(&%s, %s);\n",
-					RESULT, ROUTINE, ARG, RQSTP);
+			f_print(fout, "\t%s = (*%s)((char *)&%s, %s);\n",
+				RESULT, ROUTINE, ARG, RQSTP);
 		else
-			if (Cflag)
-				f_print(fout, "\t%s = (bool_t) (*%s)((char *)&%s, (void *)&%s, %s);\n",
-					RETVAL, ROUTINE, ARG, RESULT, RQSTP);
-			else
-				f_print(fout, "\t%s = (bool_t) (*%s)(&%s, &%s, %s);\n",
-					RETVAL, ROUTINE, ARG, RESULT, RQSTP);
-
-
+			f_print(fout, "\t%s = (bool_t) (*%s)((char *)&%s, (void *)&%s, %s);\n",
+				RETVAL, ROUTINE, ARG, RESULT, RQSTP);
 
 
 		if (mtflag)
@@ -630,10 +558,7 @@ write_program(def, storage)
 		printerr("systemerr", TRANSP);
 		f_print(fout, "\t}\n");
 
-		if (Cflag)
-			printif("freeargs", TRANSP, "(caddr_t) &", ARG);
-		else
-			printif("freeargs", TRANSP, "&", ARG);
+		printif("freeargs", TRANSP, "(caddr_t) &", ARG);
 		(void) sprintf(_errbuf, "unable to free arguments");
 		print_err_message("\t\t");
 		f_print(fout, "\t\texit(1);\n");
@@ -789,13 +714,7 @@ write_msg_out(void)
  * in the toplevel RPC server code.
  */
 	f_print(fout, "static\n");
-
-	if (!Cflag) {
-		f_print(fout, "void _msgout(msg)\n");
-		f_print(fout, "\tchar *msg;\n");
-	} else {
-		f_print(fout, "void _msgout(const char* msg)\n");
-	}
+	f_print(fout, "void _msgout(const char* msg)\n");
 	f_print(fout, "{\n");
 	f_print(fout, "#ifdef RPC_SVC_FG\n");
 	if (inetdflag || pmflag)
@@ -821,11 +740,7 @@ write_timeout_func(void)
 
 	f_print(fout, "\n");
 	f_print(fout, "static void\n");
-	if (!Cflag) {
-		f_print(fout, "closedown(sig)\n");
-		f_print(fout, "\tint sig;\n");
-	} else
-                f_print(fout, "closedown(int sig)\n");
+	f_print(fout, "closedown(int sig)\n");
 	f_print(fout, "{\n");
 	if (mtflag)
 		f_print(fout, "\tmutex_lock(&_svcstate_lock);\n");
@@ -868,8 +783,7 @@ write_timeout_func(void)
 	if (mtflag)
 		f_print(fout, "\tmutex_unlock(&_svcstate_lock);\n");
 
-	f_print(fout, "\t(void) signal(SIGALRM, %s closedown);\n",
-				Cflag? "(SIG_PF)" : "(void(*)())");
+	f_print(fout, "\t(void) signal(SIGALRM, closedown);\n");
 	f_print(fout, "\t(void) alarm(_RPCSVC_CLOSEDOWN/2);\n");
 	f_print(fout, "}\n");
 
@@ -991,8 +905,7 @@ getenv(\"NLSPROVIDER\")) == NULL) {\n");
 	}
 	if (timerflag) {
 		f_print(fout, "\t\tif (pmclose) {\n");
-		f_print(fout, "\t\t\t(void) signal(SIGALRM, %s closedown);\n",
-				Cflag? "(SIG_PF)" : "(void(*)())");
+		f_print(fout, "\t\t\t(void) signal(SIGALRM, closedown);\n");
 		f_print(fout, "\t\t\t(void) alarm(_RPCSVC_CLOSEDOWN/2);\n");
 		f_print(fout, "\t\t}\n");
 	}

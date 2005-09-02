@@ -131,7 +131,6 @@ extern int pmflag;
 extern int tblflag;
 extern int logflag;
 extern int newstyle;
-extern int Cflag;     /* ANSI-C/C++ flag */
 extern int CCflag;     /* C++ flag */
 extern int tirpcflag; /* flag for generating tirpc code */
 extern int inline_size; /* if this is 0, then do not generate inline code */
@@ -193,7 +192,7 @@ void emit(definition *def);
  */
 void print_datadef(definition *def, int headeronly);
 void print_funcdef(definition *def, int headeronly);
-void print_xdr_func_def(char* name, int pointerp, int i);
+void print_xdr_func_def(char* name, int pointerp);
 
 /*
  * rpc_svcout routines

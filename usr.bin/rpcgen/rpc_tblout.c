@@ -122,7 +122,7 @@ write_table(def)
 			f_print(fout, "\n\t(char *(*)())RPCGEN_ACTION(");
 
 			/* routine to invoke */
-			if( Cflag && !newstyle )
+			if( !newstyle )
 			  pvname_svc(proc->proc_name, vp->vers_num);
 			else {
 			  if( newstyle )
