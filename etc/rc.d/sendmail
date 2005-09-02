@@ -17,6 +17,7 @@
 name="sendmail"
 rcvar=`set_rcvar`
 required_files="/etc/mail/${name}.cf"
+start_precmd="sendmail_precmd"
 
 load_rc_config $name
 command=${sendmail_program:-/usr/sbin/sendmail}
