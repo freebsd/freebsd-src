@@ -1313,6 +1313,8 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		PROC_LOCK(p);
 		if (kg->kg_upsleeps)
 			wakeup(&kg->kg_completed);
+		WITNESS_WARN(WARN_PANIC, &p->p_mtx.mtx_object,
+		    "thread exiting in userret");
 		mtx_lock_spin(&sched_lock);
 		thread_stopped(p);
 		thread_exit();
