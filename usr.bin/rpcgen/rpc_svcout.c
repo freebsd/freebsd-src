@@ -810,7 +810,6 @@ write_pm_most(infile, netflag)
 		f_print(fout, "\t\t(!strcmp(mname, \"sockmod\") ||");
 		f_print(fout, " !strcmp(mname, \"timod\"))) {\n");
 	}
-	f_print(fout, " !strcmp(mname, \"timod\"))) {\n");
 	f_print(fout, "\t\tchar *netid;\n");
 	if (!netflag) {	/* Not included by -n option */
 		f_print(fout, "\t\tstruct netconfig *nconf = NULL;\n");
