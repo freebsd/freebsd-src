@@ -29,11 +29,6 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * TODO:
- * o lock MII
- */
-
-/*
  * Device driver for National Semiconductor DS8390/WD83C690 based ethernet
  *   adapters. By David Greenman, 29-April-1993
  *
