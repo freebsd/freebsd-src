@@ -371,7 +371,6 @@ void
 opentrace(void)
 {
 	char s[100];
-	char *getenv();
 	int flags;
 
 	if (!debug)
