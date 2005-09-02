@@ -27,6 +27,9 @@
  *	$FreeBSD$
  */
 
+#ifndef _DEVINFO_H_INCLUDED
+#define _DEVINFO_H_INCLUDED
+
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
@@ -76,6 +79,8 @@ struct devinfo_res {
 	unsigned long		dr_size;	/* region size */
 	/* XXX add flags */
 };
+
+__BEGIN_DECLS
 
 /*
  * Acquire a coherent copy of the kernel's device and resource tables.
@@ -136,3 +141,7 @@ extern int
 extern int
 	devinfo_foreach_rman(int (* fn)(struct devinfo_rman *rman, void *arg),
 	    void *arg);
+
+__END_DECLS
+
+#endif /* ! _DEVINFO_H_INCLUDED */
