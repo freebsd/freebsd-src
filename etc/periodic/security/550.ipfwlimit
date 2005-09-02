@@ -44,17 +44,25 @@ case "$daily_status_security_ipfwlimit_enable" in
     [Yy][Ee][Ss])
 	TMP=`mktemp -t security`
 	IPFW_LOG_LIMIT=`sysctl -n net.inet.ip.fw.verbose_limit 2> /dev/null`
-	if [ $? -eq 0 ] && [ "${IPFW_LOG_LIMIT}" -ne 0 ]; then
-	    ipfw -a l | grep " log " | \
-	    grep '^[[:digit:]]\+[[:space:]]\+[[:digit:]]\+' | \
-	    awk -v limit="$IPFW_LOG_LIMIT" \
-		'{if ($2 > limit) {print $0}}' > ${TMP}
-	    if [ -s "${TMP}" ]; then
+	if [ $? -ne 0 ]; then
+		exit 0
+	fi
+	ipfw -a list | grep " log " | \
+	grep '^[[:digit:]]\+[[:space:]]\+[[:digit:]]\+' | \
+	awk -v limit="$IPFW_LOG_LIMIT" \
+		'{if ($6 == "logamount") {
+			if ($2 > $7)
+				{print $0}
+		} else {
+			if ($2 > limit)
+				{print $0}}
+		}' > ${TMP}
+
+	if [ -s "${TMP}" ]; then
 		rc=1
 		echo ""
 		echo 'ipfw log limit reached:'
 		cat ${TMP}
-	    fi
 	fi
 	rm -f ${TMP};;
     *)	rc=0;;
