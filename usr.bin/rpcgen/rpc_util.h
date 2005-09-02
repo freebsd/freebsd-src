@@ -161,7 +161,7 @@ char *xstrdup(const char *str);
 #define	STOREVAL(list,item)	\
 	storeval(list,item)
 
-definition *findval(list *lst, char *val, int (*cmp)(char *, char *));
+definition *findval(list *lst, char *val, int (*cmp)(definition *, char *));
 
 #define	FINDVAL(list,item,finder) \
 	findval(list, item, finder)
