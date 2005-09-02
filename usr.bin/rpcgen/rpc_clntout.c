@@ -124,90 +124,39 @@ void printarglist(proc, result, addargname, addargtype)
 
 	if (!newstyle) {
 		/* old style: always pass argument by reference */
-		if (Cflag) {	/* C++ style heading */
-			f_print(fout, "(");
-			ptype(proc->args.decls->decl.prefix,
-			      proc->args.decls->decl.type, 1);
+		f_print(fout, "(");
+		ptype(proc->args.decls->decl.prefix,
+		      proc->args.decls->decl.type, 1);
 
-			if (mtflag) {/* Generate result field */
-				f_print(fout, "*argp, ");
-				ptype(proc->res_prefix, proc->res_type, 1);
-				f_print(fout, "*%s, %s%s)\n",
-					result, addargtype, addargname);
-			} else
-				f_print(fout, "*argp, %s%s)\n", addargtype, addargname);
-		} else {
-			if (!mtflag)
-				f_print(fout, "(argp, %s)\n", addargname);
-			else
-				f_print(fout, "(argp, %s, %s)\n",
-					result, addargname);
-			f_print(fout, "\t");
-			ptype(proc->args.decls->decl.prefix,
-			      proc->args.decls->decl.type, 1);
-			f_print(fout, "*argp;\n");
-			if (mtflag) {
-				f_print(fout, "\t");
-				ptype(proc->res_prefix, proc->res_type, 1);
-				f_print(fout, "*%s;\n", result);
-			}
-		}
+		if (mtflag) {/* Generate result field */
+			f_print(fout, "*argp, ");
+			ptype(proc->res_prefix, proc->res_type, 1);
+			f_print(fout, "*%s, %s%s)\n",
+				result, addargtype, addargname);
+		} else
+			f_print(fout, "*argp, %s%s)\n", addargtype, addargname);
 	} else if (streq(proc->args.decls->decl.type, "void")) {
 		/* newstyle, 0 argument */
 		if (mtflag) {
-				f_print(fout, "(");
-
-				
-			if (Cflag) {
-				ptype(proc->res_prefix, proc->res_type, 1);
-				f_print(fout, "*%s, %s%s)\n",
-					result, addargtype, addargname);
-			}
-			else
-				f_print(fout, "(%s)\n", addargname);			
-
+			f_print(fout, "(");
+			ptype(proc->res_prefix, proc->res_type, 1);
+			f_print(fout, "*%s, %s%s)\n",
+				result, addargtype, addargname);
 		} else
-		if (Cflag)
 			f_print(fout, "(%s%s)\n", addargtype, addargname);
-		else
-			f_print(fout, "(%s)\n", addargname);
 	} else {
 		/* new style, 1 or multiple arguments */
-		if (!Cflag) {
-			f_print(fout, "(");
-			for (l = proc->args.decls;  l != NULL; l = l->next)
-				f_print(fout, "%s, ", l->decl.name);
-			if (mtflag)
-				f_print(fout, "%s, ", result);
-
-			f_print(fout, "%s)\n", addargname);
-			for (l = proc->args.decls; l != NULL; l = l->next) {
-				pdeclaration(proc->args.argname,
-					     &l->decl, 1, ";\n");
-			}
-			if (mtflag) {
-				f_print(fout, "\t");
-				ptype(proc->res_prefix, proc->res_type, 1);
-				f_print(fout, "*%s;\n", result);
-			}
-
-		} else {	/* C++ style header */
-			f_print(fout, "(");
-			for (l = proc->args.decls; l != NULL; l = l->next) {
-				pdeclaration(proc->args.argname, &l->decl, 0,
-					     ", ");
-			}
-			if (mtflag) {
-				ptype(proc->res_prefix, proc->res_type, 1);
-				f_print(fout, "*%s, ", result);
-
-			}
-			f_print(fout, "%s%s)\n", addargtype, addargname);
+		f_print(fout, "(");
+		for (l = proc->args.decls; l != NULL; l = l->next) {
+			pdeclaration(proc->args.argname, &l->decl, 0, ", ");
 		}
-	}
+		if (mtflag) {
+			ptype(proc->res_prefix, proc->res_type, 1);
+			f_print(fout, "*%s, ", result);
 
-	if (!Cflag)
-		f_print(fout, "\t%s%s;\n", addargtype, addargname);
+		}
+		f_print(fout, "%s%s)\n", addargtype, addargname);
+	}
 }
 
 

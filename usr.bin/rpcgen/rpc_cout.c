@@ -135,21 +135,12 @@ print_generic_header(procname, pointerp)
 {
 	f_print(fout, "\n");
 	f_print(fout, "bool_t\n");
-	if (Cflag) {
-	    f_print(fout, "xdr_%s(", procname);
-	    f_print(fout, "register XDR *xdrs, ");
-	    f_print(fout, "%s ", procname);
-	    if (pointerp)
-		    f_print(fout, "*");
-	    f_print(fout, "objp)\n{\n\n");
-	} else {
-	    f_print(fout, "xdr_%s(xdrs, objp)\n", procname);
-	    f_print(fout, "\tregister XDR *xdrs;\n");
-	    f_print(fout, "\t%s ", procname);
-	    if (pointerp)
-		    f_print(fout, "*");
-	    f_print(fout, "objp;\n{\n\n");
-	}
+	f_print(fout, "xdr_%s(", procname);
+	f_print(fout, "register XDR *xdrs, ");
+	f_print(fout, "%s ", procname);
+	if (pointerp)
+		f_print(fout, "*");
+	f_print(fout, "objp)\n{\n\n");
 }
 
 static void
