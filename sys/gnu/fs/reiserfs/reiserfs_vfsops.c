@@ -114,14 +114,14 @@ reiserfs_mount(struct mount *mp, struct thread *td)
 	if (fspec == NULL)
 		return (EINVAL);
 
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec, td);
+	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspec, td);
 	if ((error = namei(ndp)) != 0)
 		return (error);
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	devvp = ndp->ni_vp;
 
 	if (!vn_isdisk(devvp, &error)) {
-		vrele(devvp);
+		vput(devvp);
 		return (error);
 	}
 
@@ -131,13 +131,11 @@ reiserfs_mount(struct mount *mp, struct thread *td)
 		accessmode = VREAD;
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 		if ((error = VOP_ACCESS(devvp,
 		    accessmode, td->td_ucred, td)) != 0) {
 			vput(devvp);
 			return (error);
 		}
-		VOP_UNLOCK(devvp, 0, td);
 	}
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
