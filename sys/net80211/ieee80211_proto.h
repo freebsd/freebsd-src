@@ -61,6 +61,7 @@ int	ieee80211_input(struct ieee80211com *, struct mbuf *,
 		struct ieee80211_node *, int, u_int32_t);
 int	ieee80211_setup_rates(struct ieee80211_node *ni,
 		const u_int8_t *rates, const u_int8_t *xrates, int flags);
+void	ieee80211_saveie(u_int8_t **, const u_int8_t *);
 void	ieee80211_recv_mgmt(struct ieee80211com *, struct mbuf *,
 		struct ieee80211_node *, int, int, u_int32_t);
 int	ieee80211_send_nulldata(struct ieee80211_node *);
@@ -143,6 +144,7 @@ void	ieee80211_authenticator_register(int type,
 void	ieee80211_authenticator_unregister(int type);
 const struct ieee80211_authenticator *ieee80211_authenticator_get(int auth);
 
+struct ieee80211req;
 /*
  * Template for an MAC ACL policy module.  Such modules
  * register with the protocol code and are passed the sender's
@@ -161,6 +163,8 @@ struct ieee80211_aclator {
 	int	(*iac_flush)(struct ieee80211com *);
 	int	(*iac_setpolicy)(struct ieee80211com *, int);
 	int	(*iac_getpolicy)(struct ieee80211com *);
+	int	(*iac_setioctl)(struct ieee80211com *, struct ieee80211req *);
+	int	(*iac_getioctl)(struct ieee80211com *, struct ieee80211req *);
 };
 void	ieee80211_aclator_register(const struct ieee80211_aclator *);
 void	ieee80211_aclator_unregister(const struct ieee80211_aclator *);

@@ -180,7 +180,8 @@ struct ieee80211_stats {
 	u_int32_t	is_ff_split;		/* fast frame rx split error */
 	u_int32_t	is_ff_decap;		/* fast frames decap'd */
 	u_int32_t	is_ff_encap;		/* fast frames encap'd for tx */
-	u_int32_t	is_spare[10];
+	u_int32_t	is_rx_badbintval;	/* rx frame w/ bogus bintval */
+	u_int32_t	is_spare[9];
 };
 
 /*
@@ -251,6 +252,12 @@ enum {
 	IEEE80211_MACCMD_POLICY_DENY	= 2,	/* set policy: deny traffic */
 	IEEE80211_MACCMD_FLUSH		= 3,	/* flush ACL database */
 	IEEE80211_MACCMD_DETACH		= 4,	/* detach ACL policy */
+	IEEE80211_MACCMD_POLICY		= 5,	/* get ACL policy */
+	IEEE80211_MACCMD_LIST		= 6,	/* get ACL database */
+};
+
+struct ieee80211req_maclist {
+	u_int8_t	ml_macaddr[IEEE80211_ADDR_LEN];
 };
 
 /*

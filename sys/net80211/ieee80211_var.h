@@ -65,7 +65,8 @@
 #define	IEEE80211_DTIM_MIN	1	/* min DTIM period */
 #define	IEEE80211_DTIM_DEFAULT	1	/* default DTIM period */
 
-#define	IEEE80211_BINTVAL_MAX	500	/* max beacon interval (TU's) */
+/* NB: min+max come from WiFi requirements */
+#define	IEEE80211_BINTVAL_MAX	1000	/* max beacon interval (TU's) */
 #define	IEEE80211_BINTVAL_MIN	25	/* min beacon interval (TU's) */
 #define	IEEE80211_BINTVAL_DEFAULT 100	/* default beacon interval (TU's) */
 
@@ -135,6 +136,7 @@ struct ieee80211com {
 	struct bpf_if		*ic_rawbpf;	/* packet filter structure */
 	struct ieee80211_node	*ic_bss;	/* information for this node */
 	struct ieee80211_channel *ic_ibss_chan;
+	struct ieee80211_channel *ic_curchan;	/* current channel */
 	int			ic_fixed_rate;	/* index to ic_sup_rates[] */
 	u_int16_t		ic_rtsthreshold;
 	u_int16_t		ic_fragthreshold;
@@ -143,6 +145,7 @@ struct ieee80211com {
 	void			(*ic_node_cleanup)(struct ieee80211_node *);
 	u_int8_t		(*ic_node_getrssi)(const struct ieee80211_node*);
 	u_int16_t		ic_lintval;	/* listen interval */
+	u_int16_t		ic_bintval;	/* beacon interval */
 	u_int16_t		ic_holdover;	/* PM hold over duration */
 	u_int16_t		ic_txmin;	/* min tx retry count */
 	u_int16_t		ic_txmax;	/* max tx retry count */
