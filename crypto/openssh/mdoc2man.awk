@@ -140,6 +140,9 @@ function add(str) {
     } else if(match(words[w],"^Dt$")) {
       id=wtail()
       next
+    } else if(match(words[w],"^Ox$")) {
+      add("OpenBSD")
+      skip=1
     } else if(match(words[w],"^Os$")) {
       add(".TH " id " \"" date "\" \"" wtail() "\"")
     } else if(match(words[w],"^Sh$")) {

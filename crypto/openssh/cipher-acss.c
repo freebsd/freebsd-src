@@ -17,7 +17,7 @@
 #include "includes.h"
 #include <openssl/evp.h>
 
-RCSID("$Id: cipher-acss.c,v 1.2 2004/02/06 04:26:11 dtucker Exp $");
+RCSID("$Id: cipher-acss.c,v 1.3 2005/07/17 07:04:47 djm Exp $");
 
 #if !defined(EVP_CTRL_SET_ACSS_MODE) && (OPENSSL_VERSION_NUMBER >= 0x00907000L)
 
@@ -33,7 +33,7 @@ typedef struct {
 #define EVP_CTRL_SET_ACSS_SUBKEY        0xff07
 
 static int
-acss_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key, 
+acss_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     const unsigned char *iv, int enc)
 {
 	acss_setkey(&data(ctx)->ks,key,enc,ACSS_DATA);
@@ -41,7 +41,7 @@ acss_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 }
 
 static int
-acss_ciph(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, 
+acss_ciph(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in,
     unsigned int inl)
 {
 	acss(&data(ctx)->ks,inl,in,out);

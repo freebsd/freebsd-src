@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.206 2005/03/01 14:59:49 jmc Exp $
+.\" $OpenBSD: sshd.8,v 1.208 2005/06/08 03:50:00 djm Exp $
 .Dd September 25, 1999
 .Dt SSHD 8
 .Os
@@ -80,7 +80,7 @@ supports both SSH protocol version 1 and 2 simultaneously.
 works as follows:
 .Ss SSH protocol version 1
 Each host has a host-specific RSA key
-(normally 1024 bits) used to identify the host.
+(normally 2048 bits) used to identify the host.
 Additionally, when
 the daemon starts, it generates a server RSA key (normally 768 bits).
 This key is normally regenerated every hour if it has been used, and
@@ -350,7 +350,7 @@ If the login is on a tty, and no command has been specified,
 prints last login time and
 .Pa /etc/motd
 (unless prevented in the configuration file or by
-.Pa $HOME/.hushlogin ;
+.Pa ~/.hushlogin ;
 see the
 .Sx FILES
 section).
@@ -367,7 +367,7 @@ Changes to run with normal user privileges.
 Sets up basic environment.
 .It
 Reads the file
-.Pa $HOME/.ssh/environment ,
+.Pa ~/.ssh/environment ,
 if it exists, and users are allowed to change their environment.
 See the
 .Cm PermitUserEnvironment
@@ -377,7 +377,7 @@ option in
 Changes to user's home directory.
 .It
 If
-.Pa $HOME/.ssh/rc
+.Pa ~/.ssh/rc
 exists, runs it; else if
 .Pa /etc/ssh/sshrc
 exists, runs
@@ -390,7 +390,7 @@ authentication protocol and cookie in standard input.
 Runs user's shell or command.
 .El
 .Sh AUTHORIZED_KEYS FILE FORMAT
-.Pa $HOME/.ssh/authorized_keys
+.Pa ~/.ssh/authorized_keys
 is the default file that lists the public keys that are
 permitted for RSA authentication in protocol version 1
 and for public key authentication (PubkeyAuthentication)
@@ -528,7 +528,7 @@ permitopen="10.2.1.55:80",permitopen="10.2.1.56:25" 1024 33 23...2323
 The
 .Pa /etc/ssh/ssh_known_hosts
 and
-.Pa $HOME/.ssh/known_hosts
+.Pa ~/.ssh/known_hosts
 files contain host public keys for all known hosts.
 The global file should
 be prepared by the administrator (optional), and the per-user file is
@@ -639,7 +639,7 @@ listening for connections (if there are several daemons running
 concurrently for different ports, this contains the process ID of the one
 started last).
 The content of this file is not sensitive; it can be world-readable.
-.It Pa $HOME/.ssh/authorized_keys
+.It Pa ~/.ssh/authorized_keys
 Lists the public keys (RSA or DSA) that can be used to log into the user's account.
 This file must be readable by root (which may on some machines imply
 it being world-readable if the user's home directory resides on an NFS
@@ -653,7 +653,7 @@ and/or
 .Pa id_rsa.pub
 files into this file, as described in
 .Xr ssh-keygen 1 .
-.It Pa "/etc/ssh/ssh_known_hosts", "$HOME/.ssh/known_hosts"
+.It Pa "/etc/ssh/ssh_known_hosts", "~/.ssh/known_hosts"
 These files are consulted when using rhosts with RSA host
 authentication or protocol version 2 hostbased authentication
 to check the public key of the host.
@@ -663,12 +663,12 @@ to verify that it is connecting to the correct remote host.
 These files should be writable only by root/the owner.
 .Pa /etc/ssh/ssh_known_hosts
 should be world-readable, and
-.Pa $HOME/.ssh/known_hosts
+.Pa ~/.ssh/known_hosts
 can, but need not be, world-readable.
 .It Pa /etc/motd
 See
 .Xr motd 5 .
-.It Pa $HOME/.hushlogin
+.It Pa ~/.hushlogin
 This file is used to suppress printing the last login time and
 .Pa /etc/motd ,
 if
@@ -691,7 +691,7 @@ The file should be world-readable.
 Access controls that should be enforced by tcp-wrappers are defined here.
 Further details are described in
 .Xr hosts_access 5 .
-.It Pa $HOME/.rhosts
+.It Pa ~/.rhosts
 This file is used during
 .Cm RhostsRSAAuthentication
 and
@@ -709,7 +709,7 @@ It is also possible to use netgroups in the file.
 Either host or user
 name may be of the form +@groupname to specify all hosts or all users
 in the group.
-.It Pa $HOME/.shosts
+.It Pa ~/.shosts
 For ssh,
 this file is exactly the same as for
 .Pa .rhosts .
@@ -758,7 +758,7 @@ This is processed exactly as
 .Pa /etc/hosts.equiv .
 However, this file may be useful in environments that want to run both
 rsh/rlogin and ssh.
-.It Pa $HOME/.ssh/environment
+.It Pa ~/.ssh/environment
 This file is read into the environment at login (if it exists).
 It can only contain empty lines, comment lines (that start with
 .Ql # ) ,
@@ -769,7 +769,7 @@ Environment processing is disabled by default and is
 controlled via the
 .Cm PermitUserEnvironment
 option.
-.It Pa $HOME/.ssh/rc
+.It Pa ~/.ssh/rc
 If this file exists, it is run with
 .Pa /bin/sh
 after reading the
@@ -814,7 +814,7 @@ This file should be writable only by the user, and need not be
 readable by anyone else.
 .It Pa /etc/ssh/sshrc
 Like
-.Pa $HOME/.ssh/rc .
+.Pa ~/.ssh/rc .
 This can be used to specify
 machine-specific login-time initializations globally.
 This file should be writable only by root, and should be world-readable.
