@@ -130,9 +130,7 @@ static void	ipw_free_firmware(struct ipw_softc *);
 static int	ipw_config(struct ipw_softc *);
 static void	ipw_init(void *);
 static void	ipw_stop(void *);
-#ifdef IPW_DEBUG
 static int	ipw_sysctl_stats(SYSCTL_HANDLER_ARGS);
-#endif
 static int	ipw_sysctl_radio(SYSCTL_HANDLER_ARGS);
 static uint32_t	ipw_read_table1(struct ipw_softc *, uint32_t);
 static void	ipw_write_table1(struct ipw_softc *, uint32_t, uint32_t);
@@ -288,8 +286,7 @@ ipw_attach(device_t dev)
 
 	/* set device capabilities */
 	ic->ic_caps = IEEE80211_C_SHPREAMBLE | IEEE80211_C_TXPMGT |
-	    IEEE80211_C_PMGT | IEEE80211_C_IBSS | IEEE80211_C_MONITOR |
-	    IEEE80211_C_WPA;
+	    IEEE80211_C_PMGT | IEEE80211_C_IBSS | IEEE80211_C_MONITOR;
 
 	/* read MAC address from EEPROM */
 	val = ipw_read_prom_word(sc, IPW_EEPROM_MAC + 0);
@@ -348,12 +345,10 @@ ipw_attach(device_t dev)
 	    CTLTYPE_INT | CTLFLAG_RD, sc, 0, ipw_sysctl_radio, "I",
 	    "radio transmitter switch state (0=off, 1=on)");
 
-#ifdef IPW_DEBUG
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "stats",
 	    CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0, ipw_sysctl_stats, "S",
 	    "statistics");
-#endif
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "dwell",
@@ -1002,7 +997,7 @@ ipw_fix_channel(struct ieee80211com *ic, struct mbuf *m)
 #if IEEE80211_CHAN_MAX < 255
 		if (frm[2] <= IEEE80211_CHAN_MAX)
 #endif
-			ic->ic_bss->ni_chan = &ic->ic_channels[frm[2]];
+			ic->ic_curchan = &ic->ic_channels[frm[2]];
 
 		frm += frm[1] + 2;
 	}
@@ -2001,7 +1996,7 @@ ipw_config(struct ipw_softc *sc)
 #endif
 
 	if (ic->ic_opmode == IEEE80211_M_IBSS) {
-		data = htole32(ic->ic_lintval);
+		data = htole32(ic->ic_bintval);
 		DPRINTF(("Setting beacon interval to %u\n", le32toh(data)));
 		error = ipw_cmd(sc, IPW_CMD_SET_BEACON_INTERVAL, &data,
 		    sizeof data);
@@ -2124,7 +2119,6 @@ ipw_stop(void *priv)
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 }
 
-#ifdef IPW_DEBUG
 static int
 ipw_sysctl_stats(SYSCTL_HANDLER_ARGS)
 {
@@ -2144,7 +2138,6 @@ ipw_sysctl_stats(SYSCTL_HANDLER_ARGS)
 
 	return SYSCTL_OUT(req, buf, sizeof buf);
 }
-#endif
 
 static int
 ipw_sysctl_radio(SYSCTL_HANDLER_ARGS)
