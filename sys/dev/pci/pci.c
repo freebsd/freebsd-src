@@ -778,6 +778,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	uint32_t testval;
 	uint16_t cmd;
 	int type;
+	int barlen;
 
 	map = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, 0xffffffff, 4);
@@ -791,6 +792,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	ln2size = pci_mapsize(testval);
 	ln2range = pci_maprange(testval);
 	base = pci_mapbase(map);
+	barlen = ln2range == 64 ? 2 : 1;
 
 	/*
 	 * For I/O registers, if bottom bit is set, and the next bit up
@@ -801,10 +803,10 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 */
 	if ((testval & 0x1) == 0x1 &&
 	    (testval & 0x2) != 0)
-		return (1);
+		return (barlen);
 	if ((type == SYS_RES_MEMORY && ln2size < 5) ||
 	    (type == SYS_RES_IOPORT && ln2size < 2))
-		return (1);
+		return (barlen);
 
 	if (ln2range == 64)
 		/* Read the other half of a 64bit map register */
@@ -832,7 +834,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 * BIOS in an attempt to disable the resources.
 	 */
 	if (base == 0 || map == testval)
-		return 1;
+		return (barlen);
 
 	/*
 	 * This code theoretically does the right thing, but has
@@ -855,9 +857,9 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		}
 	} else {
 		if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f))
-			return (1);
+			return (barlen);
 		if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f))
-			return (1);
+			return (barlen);
 	}
 
 	start = base;
@@ -870,7 +872,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 * since I can postulate several right answers.
 	 */
 	resource_list_alloc(rl, bus, dev, type, &reg, start, end, count, 0);
-	return ((ln2range == 64) ? 2 : 1);
+	return (barlen);
 }
 
 /*
