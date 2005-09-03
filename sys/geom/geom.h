@@ -95,7 +95,7 @@ struct g_class {
 	g_fini_t		*fini;
 	g_ctl_destroy_geom_t	*destroy_geom;
 	/*
-	 * Defaults values for geom methods
+	 * Default values for geom methods
 	 */
 	g_start_t		*start;
 	g_spoiled_t		*spoiled;
