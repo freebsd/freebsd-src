@@ -827,20 +827,22 @@ pmap_remove_vhpt(vm_offset_t va)
 	struct ia64_lpte *pte;
 	struct ia64_lpte *lpte;
 	struct ia64_lpte *vhpte;
-	uint64_t tag;
+	uint64_t chain, tag;
 
 	tag = ia64_ttag(va);
 	vhpte = (struct ia64_lpte *)ia64_thash(va);
 	bckt = (struct ia64_bucket *)vhpte->chain;
 
-	mtx_lock_spin(&bckt->mutex);
 	lpte = NULL;
-	pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(bckt->chain);
-	while (pte != NULL && pte->tag != tag) {
+	mtx_lock_spin(&bckt->mutex);
+	chain = bckt->chain;
+	pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(chain);
+	while (chain != 0 && pte->tag != tag) {
 		lpte = pte;
-		pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->chain);
+		chain = pte->chain;
+		pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(chain);
 	}
-	if (pte == NULL) {
+	if (chain == 0) {
 		mtx_unlock_spin(&bckt->mutex);
 		return (ENOENT);
 	}
@@ -866,21 +868,21 @@ pmap_find_vhpt(vm_offset_t va)
 {
 	struct ia64_bucket *bckt;
 	struct ia64_lpte *pte;
-	uint64_t tag;
+	uint64_t chain, tag;
 
 	tag = ia64_ttag(va);
 	pte = (struct ia64_lpte *)ia64_thash(va);
 	bckt = (struct ia64_bucket *)pte->chain;
-	if (bckt->chain == 0)
-		return (NULL);
 
-	pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(bckt->chain);
-	while (pte->tag != tag) {
-		if (pte->chain == 0)
-			return (NULL);
-		pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->chain);
+	mtx_lock_spin(&bckt->mutex);
+	chain = bckt->chain;
+	pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(chain);
+	while (chain != 0 && pte->tag != tag) {
+		chain = pte->chain;
+		pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(chain);
 	}
-	return (pte);
+	mtx_unlock_spin(&bckt->mutex);
+	return ((chain != 0) ? pte : NULL);
 }
 
 /*
