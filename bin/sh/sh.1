@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2005
+.Dd September 3, 2005
 .Dt SH 1
 .Os
 .Sh NAME
@@ -787,10 +787,15 @@ repeat until the exit status of the first list is zero.
 The syntax of the
 .Ic for
 command is:
-.Dl Ic for Ar variable Ic in Ar word ...
+.Dl Ic for Ar variable Op Ic in Ar word ...
 .Dl Ic do Ar list
 .Dl Ic done
 .Pp
+If
+.Ic in
+and the following words are ommitted,
+.Ic in Li $@
+is used instead.
 The words are expanded, and then the list is executed
 repeatedly with the variable set to each word in turn.
 The
