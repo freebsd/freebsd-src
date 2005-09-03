@@ -569,29 +569,59 @@ vlrureclaim(struct mount *mp)
 		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 		--count;
 		if (!VI_TRYLOCK(vp))
-			continue;
+			goto next_iter;
 		/*
 		 * If it's been deconstructed already, it's still
 		 * referenced, or it exceeds the trigger, skip it.
 		 */
-		if ((vp->v_iflag & VI_DOOMED) != 0 || vp->v_usecount ||
-		    !LIST_EMPTY(&(vp)->v_cache_src) || (vp->v_object != NULL && 
+		if (vp->v_usecount || !LIST_EMPTY(&(vp)->v_cache_src) ||
+		    (vp->v_iflag & VI_DOOMED) != 0 || (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VI_UNLOCK(vp);
-			continue;
+			goto next_iter;
 		}
 		MNT_IUNLOCK(mp);
 		vholdl(vp);
 		if (VOP_LOCK(vp, LK_INTERLOCK|LK_EXCLUSIVE|LK_NOWAIT, td)) {
 			vdrop(vp);
-			MNT_ILOCK(mp);
-			continue;
+			goto next_iter_mntunlocked;
 		}
 		VI_LOCK(vp);
+		/*
+		 * v_usecount may have been bumped after VOP_LOCK() dropped
+		 * the vnode interlock and before it was locked again.
+		 *
+		 * It is not necessary to recheck VI_DOOMED because it can
+		 * only be set by another thread that holds both the vnode
+		 * lock and vnode interlock.  If another thread has the
+		 * vnode lock before we get to VOP_LOCK() and obtains the
+		 * vnode interlock after VOP_LOCK() drops the vnode
+		 * interlock, the other thread will be unable to drop the
+		 * vnode lock before our VOP_LOCK() call fails.
+		 */
+		if (vp->v_usecount || !LIST_EMPTY(&(vp)->v_cache_src) ||
+		    (vp->v_object != NULL && 
+		    vp->v_object->resident_page_count > trigger)) {
+			VOP_UNLOCK(vp, LK_INTERLOCK, td);
+			goto next_iter_mntunlocked;
+		}
+		KASSERT((vp->v_iflag & VI_DOOMED) == 0,
+		    ("VI_DOOMED unexpectedly detected in vlrureclaim()"));
 		vgonel(vp);
 		VOP_UNLOCK(vp, 0, td);
 		vdropl(vp);
 		done++;
+next_iter_mntunlocked:
+		if ((count % 256) != 0)
+			goto relock_mnt;
+		goto yield;
+next_iter:
+		if ((count % 256) != 0)
+			continue;
+		MNT_IUNLOCK(mp);
+yield:
+		uio_yield();
+relock_mnt:
 		MNT_ILOCK(mp);
 	}
 	MNT_IUNLOCK(mp);
@@ -680,11 +710,19 @@ vnlru_proc(void)
 		done = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
+			int vfsunlocked;
 			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
+			if (!VFS_NEEDSGIANT(mp)) {
+				mtx_unlock(&Giant);
+				vfsunlocked = 1;
+			} else
+				vfsunlocked = 0;
 			done += vlrureclaim(mp);
+			if (vfsunlocked)
+				mtx_lock(&Giant);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp, td);
@@ -700,7 +738,8 @@ vnlru_proc(void)
 #endif
 			vnlru_nowhere++;
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
-		}
+		} else 
+			uio_yield();
 	}
 }
 
