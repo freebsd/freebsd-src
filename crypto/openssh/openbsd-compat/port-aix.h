@@ -1,8 +1,9 @@
-/* $Id: port-aix.h,v 1.25 2005/03/21 11:46:34 dtucker Exp $ */
+/* $Id: port-aix.h,v 1.26 2005/05/28 10:28:40 dtucker Exp $ */
 
 /*
  *
  * Copyright (c) 2001 Gert Doering.  All rights reserved.
+ * Copyright (c) 2004, 2005 Darren Tucker.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,23 +48,23 @@
 
 /* These should be in the system headers but are not. */
 int usrinfo(int, char *, int);
-#if (HAVE_DECL_SETAUTHDB == 0)
+#if defined(HAVE_DECL_SETAUTHDB) && (HAVE_DECL_SETAUTHDB == 0)
 int setauthdb(const char *, char *);
 #endif
 /* these may or may not be in the headers depending on the version */
-#if (HAVE_DECL_AUTHENTICATE == 0)
+#if defined(HAVE_DECL_AUTHENTICATE) && (HAVE_DECL_AUTHENTICATE == 0)
 int authenticate(char *, char *, int *, char **);
 #endif
-#if (HAVE_DECL_LOGINFAILED == 0)
+#if defined(HAVE_DECL_LOGINFAILED) && (HAVE_DECL_LOGINFAILED == 0)
 int loginfailed(char *, char *, char *);
 #endif
-#if (HAVE_DECL_LOGINRESTRICTIONS == 0)
+#if defined(HAVE_DECL_LOGINRESTRICTIONS) && (HAVE_DECL_LOGINRESTRICTIONS == 0)
 int loginrestrictions(char *, int, char *, char **);
 #endif
-#if (HAVE_DECL_LOGINSUCCESS == 0)
+#if defined(HAVE_DECL_LOGINSUCCESS) && (HAVE_DECL_LOGINSUCCESS == 0)
 int loginsuccess(char *, char *, char *, char **);
 #endif
-#if (HAVE_DECL_PASSWDEXPIRED == 0)
+#if defined(HAVE_DECL_PASSWDEXPIRED) && (HAVE_DECL_PASSWDEXPIRED == 0)
 int passwdexpired(char *, char **);
 #endif
 

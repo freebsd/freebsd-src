@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.31 2004/08/15 08:41:00 djm Exp $
+# $Id: Makefile.in,v 1.35 2005/08/26 20:15:20 tim Exp $
 
 sysconfdir=@sysconfdir@
 piddir=@piddir@
@@ -16,11 +16,11 @@ RANLIB=@RANLIB@
 INSTALL=@INSTALL@
 LDFLAGS=-L. @LDFLAGS@
 
-OPENBSD=base64.o basename.o bindresvport.o daemon.o dirname.o getcwd.o getgrouplist.o getopt.o getrrsetbyname.o glob.o inet_aton.o inet_ntoa.o inet_ntop.o mktemp.o readpassphrase.o realpath.o rresvport.o setenv.o setproctitle.o sigact.o strlcat.o strlcpy.o strmode.o strsep.o strtoul.o vis.o
+OPENBSD=base64.o basename.o bindresvport.o daemon.o dirname.o getcwd.o getgrouplist.o getopt.o getrrsetbyname.o glob.o inet_aton.o inet_ntoa.o inet_ntop.o mktemp.o readpassphrase.o realpath.o rresvport.o setenv.o setproctitle.o sigact.o strlcat.o strlcpy.o strmode.o strsep.o strtonum.o strtoll.o strtoul.o vis.o
 
-COMPAT=bsd-arc4random.o bsd-closefrom.o bsd-cray.o bsd-cygwin_util.o bsd-getpeereid.o bsd-misc.o bsd-nextstep.o bsd-openpty.o bsd-snprintf.o bsd-waitpid.o fake-rfc2553.o xmmap.o xcrypt.o
+COMPAT=bsd-arc4random.o bsd-closefrom.o bsd-cray.o bsd-cygwin_util.o bsd-getpeereid.o bsd-misc.o bsd-nextstep.o bsd-openpty.o bsd-snprintf.o bsd-waitpid.o fake-rfc2553.o openssl-compat.o xmmap.o xcrypt.o
 
-PORTS=port-irix.o port-aix.o
+PORTS=port-irix.o port-aix.o port-uw.o
 
 .c.o:
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
