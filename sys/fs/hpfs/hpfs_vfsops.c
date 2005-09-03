@@ -194,8 +194,10 @@ hpfs_mount (
 	vfs_mountedfrom(mp, from);
 
 	err = hpfs_mountfs(devvp, mp, td);
-	if (err)
-		goto error_2;
+	if (err) {
+		vrele(devvp);
+		goto error_1;
+	}
 
 	goto success;
 
