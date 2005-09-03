@@ -148,22 +148,21 @@ MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 #define	pmap_set_wired(lpte)		(lpte)->pte |= PTE_WIRED
 
 /*
- * Statically allocated kernel pmap
+ * The VHPT bucket head structure.
  */
-struct pmap kernel_pmap_store;
-
-vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
-vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
-
 struct ia64_bucket {
 	uint64_t	chain;
 	struct mtx	mutex;
 	u_int		length;
 };
 
-struct ia64_bucket *vhpt_bucket;
-uint64_t vhpt_base[MAXCPU];
-size_t vhpt_size;
+/*
+ * Statically allocated kernel pmap
+ */
+struct pmap kernel_pmap_store;
+
+vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
+vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
 /*
  * Kernel virtual memory management.
@@ -209,16 +208,31 @@ int pmap_pagedaemon_waken;
 static uma_zone_t ptezone;
 
 /*
- * VHPT instrumentation.
+ * Virtual Hash Page Table (VHPT) data.
  */
+/* SYSCTL_DECL(_machdep); */
+SYSCTL_NODE(_machdep, OID_AUTO, vhpt, CTLFLAG_RD, 0, "");
+
+struct ia64_bucket *pmap_vhpt_bucket;
+
+int pmap_vhpt_nbuckets;
+SYSCTL_INT(_machdep_vhpt, OID_AUTO, nbuckets, CTLFLAG_RD,
+    &pmap_vhpt_nbuckets, 0, "");
+
+uint64_t pmap_vhpt_base[MAXCPU];
+
+int pmap_vhpt_log2size = 0;
+TUNABLE_INT("machdep.vhpt.log2size", &pmap_vhpt_log2size);
+SYSCTL_INT(_machdep_vhpt, OID_AUTO, log2size, CTLFLAG_RD,
+    &pmap_vhpt_log2size, 0, "");
+
 static int pmap_vhpt_inserts;
-static int pmap_vhpt_resident;
-SYSCTL_DECL(_vm_stats);
-SYSCTL_NODE(_vm_stats, OID_AUTO, vhpt, CTLFLAG_RD, 0, "");
-SYSCTL_INT(_vm_stats_vhpt, OID_AUTO, inserts, CTLFLAG_RD,
-	   &pmap_vhpt_inserts, 0, "");
-SYSCTL_INT(_vm_stats_vhpt, OID_AUTO, resident, CTLFLAG_RD,
-	   &pmap_vhpt_resident, 0, "");
+SYSCTL_INT(_machdep_vhpt, OID_AUTO, inserts, CTLFLAG_RD,
+    &pmap_vhpt_inserts, 0, "");
+
+static int pmap_vhpt_population(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_machdep_vhpt, OID_AUTO, population, CTLTYPE_INT | CTLFLAG_RD,
+    NULL, 0, pmap_vhpt_population, "I", "");
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
@@ -353,17 +367,27 @@ pmap_bootstrap()
 	 * physical memory and try to locate a region which is large
 	 * enough to contain the VHPT (which must be a power of two in
 	 * size and aligned to a natural boundary).
+	 * We silently bump up the VHPT size to the minimum size if the
+	 * user has set the tunable too small. Likewise, the VHPT size
+	 * is silently capped to the maximum allowed.
 	 */
-	vhpt_size = 15;
-	size = 1UL << vhpt_size;
-	while (size < Maxmem * 32) {
-		vhpt_size++;
-		size <<= 1;
-	}
+	TUNABLE_INT_FETCH("machdep.vhpt.log2size", &pmap_vhpt_log2size);
+	if (pmap_vhpt_log2size == 0) {
+		pmap_vhpt_log2size = 15;
+		size = 1UL << pmap_vhpt_log2size;
+		while (size < Maxmem * 32) {
+			pmap_vhpt_log2size++;
+			size <<= 1;
+		}
+	} else if (pmap_vhpt_log2size < 15)
+		pmap_vhpt_log2size = 15;
+	if (pmap_vhpt_log2size > 61)
+		pmap_vhpt_log2size = 61;
 
-	vhpt_base[0] = 0;
+	pmap_vhpt_base[0] = 0;
 	base = limit = 0;
-	while (vhpt_base[0] == 0) {
+	size = 1UL << pmap_vhpt_log2size;
+	while (pmap_vhpt_base[0] == 0) {
 		if (bootverbose)
 			printf("Trying VHPT size 0x%lx\n", size);
 		for (i = 0; i < count; i += 2) {
@@ -377,12 +401,12 @@ pmap_bootstrap()
 		}
 		if (!phys_avail[i]) {
 			/* Can't fit, try next smaller size. */
-			vhpt_size--;
+			pmap_vhpt_log2size--;
 			size >>= 1;
 		} else
-			vhpt_base[0] = IA64_PHYS_TO_RR7(base);
+			pmap_vhpt_base[0] = IA64_PHYS_TO_RR7(base);
 	}
-	if (vhpt_size < 15)
+	if (pmap_vhpt_log2size < 15)
 		panic("Can't find space for VHPT");
 
 	if (bootverbose)
@@ -402,27 +426,29 @@ pmap_bootstrap()
 	} else
 		phys_avail[i] = limit;
 
-	count = size / sizeof(struct ia64_lpte);
+	pmap_vhpt_nbuckets = size / sizeof(struct ia64_lpte);
 
-	vhpt_bucket = (void *)pmap_steal_memory(count * sizeof(struct ia64_bucket));
-	pte = (struct ia64_lpte *)vhpt_base[0];
-	for (i = 0; i < count; i++) {
+	pmap_vhpt_bucket = (void *)pmap_steal_memory(pmap_vhpt_nbuckets *
+	    sizeof(struct ia64_bucket));
+	pte = (struct ia64_lpte *)pmap_vhpt_base[0];
+	for (i = 0; i < pmap_vhpt_nbuckets; i++) {
 		pte[i].pte = 0;
 		pte[i].itir = 0;
 		pte[i].tag = 1UL << 63;	/* Invalid tag */
-		pte[i].chain = (uintptr_t)(vhpt_bucket + i);
+		pte[i].chain = (uintptr_t)(pmap_vhpt_bucket + i);
 		/* Stolen memory is zeroed! */
-		mtx_init(&vhpt_bucket[i].mutex, "VHPT bucket lock", NULL,
+		mtx_init(&pmap_vhpt_bucket[i].mutex, "VHPT bucket lock", NULL,
 		    MTX_SPIN);
 	}
 
 	for (i = 1; i < MAXCPU; i++) {
-		vhpt_base[i] = vhpt_base[i - 1] + size;
-		bcopy((void *)vhpt_base[i - 1], (void *)vhpt_base[i], size);
+		pmap_vhpt_base[i] = pmap_vhpt_base[i - 1] + size;
+		bcopy((void *)pmap_vhpt_base[i - 1], (void *)pmap_vhpt_base[i],
+		    size);
 	}
 
 	__asm __volatile("mov cr.pta=%0;; srlz.i;;" ::
-	    "r" (vhpt_base[0] + (1<<8) + (vhpt_size<<2) + 1));
+	    "r" (pmap_vhpt_base[0] + (1<<8) + (pmap_vhpt_log2size<<2) + 1));
 
 	virtual_avail = VM_MIN_KERNEL_ADDRESS;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
@@ -458,6 +484,19 @@ pmap_bootstrap()
 	pmap_invalidate_all(kernel_pmap);
 
 	map_gateway_page();
+}
+
+static int
+pmap_vhpt_population(SYSCTL_HANDLER_ARGS)
+{
+	int count, error, i;
+
+	count = 0;
+	for (i = 0; i < pmap_vhpt_nbuckets; i++)
+		count += pmap_vhpt_bucket[i].length;
+
+	error = SYSCTL_OUT(req, &count, sizeof(count));
+	return (error);
 }
 
 /*
@@ -568,10 +607,10 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
 		("invalidating TLB for non-current pmap"));
 
-	vhpt_ofs = ia64_thash(va) - vhpt_base[PCPU_GET(cpuid)];
+	vhpt_ofs = ia64_thash(va) - pmap_vhpt_base[PCPU_GET(cpuid)];
 	critical_enter();
 	for (i = 0; i < MAXCPU; i++) {
-		pte = (struct ia64_lpte *)(vhpt_base[i] + vhpt_ofs);
+		pte = (struct ia64_lpte *)(pmap_vhpt_base[i] + vhpt_ofs);
 		if (pte->tag == ia64_ttag(va))
 			pte->tag = 1UL << 63;
 	}
@@ -799,9 +838,10 @@ pmap_enter_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 {
 	struct ia64_bucket *bckt;
 	struct ia64_lpte *vhpte;
+	uint64_t pte_pa;
 
-	pmap_vhpt_inserts++;
-	pmap_vhpt_resident++;
+	/* Can fault, so get it out of the way. */
+	pte_pa = ia64_tpa((vm_offset_t)pte);
 
 	vhpte = (struct ia64_lpte *)ia64_thash(va);
 	bckt = (struct ia64_bucket *)vhpte->chain;
@@ -809,9 +849,9 @@ pmap_enter_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 	mtx_lock_spin(&bckt->mutex);
 	pte->chain = bckt->chain;
 	ia64_mf();
-	bckt->chain = ia64_tpa((vm_offset_t)pte);
-	ia64_mf();
+	bckt->chain = pte_pa;
 
+	pmap_vhpt_inserts++;
 	bckt->length++;
 	mtx_unlock_spin(&bckt->mutex);
 }
@@ -856,7 +896,6 @@ pmap_remove_vhpt(vm_offset_t va)
 
 	bckt->length--;
 	mtx_unlock_spin(&bckt->mutex);
-	pmap_vhpt_resident--;
 	return (0);
 }
 
