@@ -115,6 +115,9 @@ extern vm_offset_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
+extern uint64_t pmap_vhpt_base[];
+extern int pmap_vhpt_log2size;
+
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 
 vm_offset_t pmap_steal_memory(vm_size_t);
