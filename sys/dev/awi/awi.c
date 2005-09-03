@@ -660,7 +660,7 @@ awi_init(struct ifnet *ifp)
 	if (ic->ic_opmode == IEEE80211_M_AHDEMO ||
 	    ic->ic_opmode == IEEE80211_M_HOSTAP) {
 		ni->ni_chan = ic->ic_ibss_chan;
-		ni->ni_intval = ic->ic_lintval;
+		ni->ni_intval = ic->ic_bintval;
 		ni->ni_rssi = 0;
 		ni->ni_rstamp = 0;
 		memset(&ni->ni_tstamp, 0, sizeof(ni->ni_tstamp));
@@ -691,6 +691,7 @@ awi_init(struct ifnet *ifp)
 	} else {
 		/* XXX check sc->sc_cur_chan */
 		ni->ni_chan = &ic->ic_channels[sc->sc_cur_chan];
+		ic->ic_curchan = ni->ni_chan;
 		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 	}
 	return 0;
@@ -1973,19 +1974,19 @@ awi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			if (sc->sc_mib_phy.IEEE_PHY_Type == AWI_PHY_TYPE_FH) {
 				awi_write_1(sc, AWI_CA_SCAN_SET,
 				    IEEE80211_FH_CHANSET(
-				        ieee80211_chan2ieee(ic, ni->ni_chan)));
+				        ieee80211_chan2ieee(ic, ic->ic_curchan)));
 				awi_write_1(sc, AWI_CA_SCAN_PATTERN,
 				    IEEE80211_FH_CHANPAT(
-				        ieee80211_chan2ieee(ic, ni->ni_chan)));
+				        ieee80211_chan2ieee(ic, ic->ic_curchan)));
 				awi_write_1(sc, AWI_CA_SCAN_IDX, 1);
 			} else {
 				awi_write_1(sc, AWI_CA_SCAN_SET,
-				    ieee80211_chan2ieee(ic, ni->ni_chan));
+				    ieee80211_chan2ieee(ic, ic->ic_curchan));
 				awi_write_1(sc, AWI_CA_SCAN_PATTERN, 0);
 				awi_write_1(sc, AWI_CA_SCAN_IDX, 0);
 			}
 			awi_write_1(sc, AWI_CA_SCAN_SUSP, 0);
-			sc->sc_cur_chan = ieee80211_chan2ieee(ic, ni->ni_chan);
+			sc->sc_cur_chan = ieee80211_chan2ieee(ic, ic->ic_curchan);
 			if ((error = awi_cmd(sc, AWI_CMD_SCAN, AWI_NOWAIT))
 			    != 0)
 				break;

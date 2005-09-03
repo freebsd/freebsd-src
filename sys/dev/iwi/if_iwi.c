@@ -145,9 +145,7 @@ static int	iwi_scan(struct iwi_softc *);
 static int	iwi_auth_and_assoc(struct iwi_softc *);
 static void	iwi_init(void *);
 static void	iwi_stop(void *);
-#ifdef IWI_DEBUG
 static int	iwi_sysctl_stats(SYSCTL_HANDLER_ARGS);
-#endif
 static int	iwi_sysctl_radio(SYSCTL_HANDLER_ARGS);
 
 static int iwi_probe(device_t);
@@ -388,12 +386,10 @@ iwi_attach(device_t dev)
 	    CTLTYPE_INT | CTLFLAG_RD, sc, 0, iwi_sysctl_radio, "I",
 	    "radio transmitter switch state (0=off, 1=on)");
 
-#ifdef IWI_DEBUG
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "stats",
 	    CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0, iwi_sysctl_stats, "S",
 	    "statistics");
-#endif
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "dwell",
@@ -1008,7 +1004,7 @@ iwi_fix_channel(struct ieee80211com *ic, struct mbuf *m)
 #if IEEE80211_CHAN_MAX < 255
 		if (frm[2] <= IEEE80211_CHAN_MAX)
 #endif
-			ic->ic_bss->ni_chan = &ic->ic_channels[frm[2]];
+			ic->ic_curchan = &ic->ic_channels[frm[2]];
 
 		frm += frm[1] + 2;
 	}
@@ -1571,7 +1567,8 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	if (error == ENETRESET) {
 		if ((ifp->if_flags & IFF_UP) &&
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING))
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
+		    (ic->ic_roaming != IEEE80211_ROAMING_MANUAL))
 			iwi_init(sc);
 		error = 0;
 	}
@@ -2271,10 +2268,11 @@ iwi_init(void *priv)
 		goto fail;
 	}
 
-	if (ic->ic_opmode == IEEE80211_M_MONITOR)
+	if (ic->ic_opmode != IEEE80211_M_MONITOR) {
+		if (ic->ic_roaming != IEEE80211_ROAMING_MANUAL)
+			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
+	} else
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
-	else
-		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -2308,7 +2306,6 @@ iwi_stop(void *priv)
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 }
 
-#ifdef IWI_DEBUG
 static int
 iwi_sysctl_stats(SYSCTL_HANDLER_ARGS)
 {
@@ -2325,7 +2322,6 @@ iwi_sysctl_stats(SYSCTL_HANDLER_ARGS)
 
 	return SYSCTL_OUT(req, buf, sizeof buf);
 }
-#endif
 
 static int
 iwi_sysctl_radio(SYSCTL_HANDLER_ARGS)
