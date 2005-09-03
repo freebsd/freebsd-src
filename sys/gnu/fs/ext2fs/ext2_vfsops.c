@@ -276,9 +276,10 @@ ext2_mount(mp, td)
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
 		error = ext2_mountfs(devvp, mp, td);
 	} else {
-		if (devvp != ump->um_devvp)
-			error = EINVAL;	/* needs translation */
-		else
+		if (devvp != ump->um_devvp) {
+			vput(devvp);
+			return (EINVAL);	/* needs translation */
+		} else
 			vput(devvp);
 	}
 	if (error) {
