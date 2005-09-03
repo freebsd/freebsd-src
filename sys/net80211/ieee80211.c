@@ -167,6 +167,10 @@ ieee80211_ifattach(struct ieee80211com *ic)
 				ic->ic_modecaps |= 1<<IEEE80211_MODE_TURBO_A;
 			if (IEEE80211_IS_CHAN_108G(c))
 				ic->ic_modecaps |= 1<<IEEE80211_MODE_TURBO_G;
+			if (ic->ic_curchan == NULL) {
+				/* arbitrarily pick the first channel */
+				ic->ic_curchan = &ic->ic_channels[i];
+			}
 		}
 	}
 	/* validate ic->ic_curmode */
@@ -182,12 +186,14 @@ ieee80211_ifattach(struct ieee80211com *ic)
 #endif
 	(void) ieee80211_setmode(ic, ic->ic_curmode);
 
-	if (ic->ic_lintval == 0)
-		ic->ic_lintval = IEEE80211_BINTVAL_DEFAULT;
-	ic->ic_bmisstimeout = 7*ic->ic_lintval;	/* default 7 beacons */
+	if (ic->ic_bintval == 0)
+		ic->ic_bintval = IEEE80211_BINTVAL_DEFAULT;
+	ic->ic_bmisstimeout = 7*ic->ic_bintval;	/* default 7 beacons */
 	ic->ic_dtim_period = IEEE80211_DTIM_DEFAULT;
 	IEEE80211_BEACON_LOCK_INIT(ic, "beacon");
 
+	if (ic->ic_lintval == 0)
+		ic->ic_lintval = ic->ic_bintval;
 	ic->ic_txpowlimit = IEEE80211_TXPOWER_MAX;
 
 	ieee80211_node_attach(ic);

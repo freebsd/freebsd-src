@@ -75,6 +75,7 @@ struct acl {
 struct aclstate {
 	acl_lock_t		as_lock;
 	int			as_policy;
+	int			as_nacls;
 	TAILQ_HEAD(, acl)	as_list;	/* list of all ACL's */
 	LIST_HEAD(, acl)	as_hash[ACL_HASHSIZE];
 	struct ieee80211com	*as_ic;
@@ -94,7 +95,7 @@ acl_attach(struct ieee80211com *ic)
 	struct aclstate *as;
 
 	MALLOC(as, struct aclstate *, sizeof(struct aclstate),
-		M_DEVBUF, M_NOWAIT | M_ZERO);
+		M_80211_ACL, M_NOWAIT | M_ZERO);
 	if (as == NULL)
 		return 0;
 	ACL_LOCK_INIT(as, "acl");
@@ -138,6 +139,7 @@ _acl_free(struct aclstate *as, struct acl *acl)
 	TAILQ_REMOVE(&as->as_list, acl, acl_list);
 	LIST_REMOVE(acl, acl_hash);
 	FREE(acl, M_80211_ACL);
+	as->as_nacls--;
 }
 
 static int
@@ -186,6 +188,7 @@ acl_add(struct ieee80211com *ic, const u_int8_t mac[IEEE80211_ADDR_LEN])
 	IEEE80211_ADDR_COPY(new->acl_macaddr, mac);
 	TAILQ_INSERT_TAIL(&as->as_list, new, acl_list);
 	LIST_INSERT_HEAD(&as->as_hash[hash], new, acl_hash);
+	as->as_nacls++;
 	ACL_UNLOCK(as);
 
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_ACL,
@@ -260,6 +263,53 @@ acl_getpolicy(struct ieee80211com *ic)
 	return as->as_policy;
 }
 
+static int
+acl_setioctl(struct ieee80211com *ic, struct ieee80211req *ireq)
+{
+
+	return EINVAL;
+}
+
+static int
+acl_getioctl(struct ieee80211com *ic, struct ieee80211req *ireq)
+{
+	struct aclstate *as = ic->ic_as;
+	struct acl *acl;
+	struct ieee80211req_maclist *ap;
+	int error, space, i;
+
+	switch (ireq->i_val) {
+	case IEEE80211_MACCMD_POLICY:
+		ireq->i_val = as->as_policy;
+		return 0;
+	case IEEE80211_MACCMD_LIST:
+		space = as->as_nacls * IEEE80211_ADDR_LEN;
+		if (ireq->i_len == 0) {
+			ireq->i_len = space;	/* return required space */
+			return 0;		/* NB: must not error */
+		}
+		MALLOC(ap, struct ieee80211req_maclist *, space,
+			M_TEMP, M_NOWAIT);
+		if (ap == NULL)
+			return ENOMEM;
+		i = 0;
+		ACL_LOCK(as);
+		TAILQ_FOREACH(acl, &as->as_list, acl_list) {
+			IEEE80211_ADDR_COPY(ap[i].ml_macaddr, acl->acl_macaddr);
+			i++;
+		}
+		ACL_UNLOCK(as);
+		if (ireq->i_len >= space) {
+			error = copyout(ap, ireq->i_data, space);
+			ireq->i_len = space;
+		} else
+			error = copyout(ap, ireq->i_data, ireq->i_len);
+		FREE(ap, M_TEMP);
+		return error;
+	}
+	return EINVAL;
+}
+
 static const struct ieee80211_aclator mac = {
 	.iac_name	= "mac",
 	.iac_attach	= acl_attach,
@@ -270,6 +320,8 @@ static const struct ieee80211_aclator mac = {
 	.iac_flush	= acl_free_all,
 	.iac_setpolicy	= acl_setpolicy,
 	.iac_getpolicy	= acl_getpolicy,
+	.iac_setioctl	= acl_setioctl,
+	.iac_getioctl	= acl_getioctl,
 };
 
 /*

@@ -922,7 +922,7 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 			 * beacons on the channel.
 			 */
 			if ((ic->ic_flags & IEEE80211_F_ASCAN) &&
-			    (ni->ni_chan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0) {
+			    (ic->ic_curchan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0) {
 				ieee80211_send_probereq(ni,
 					ic->ic_myaddr, ifp->if_broadcastaddr,
 					ifp->if_broadcastaddr,
@@ -1043,7 +1043,7 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				ieee80211_print_essid(ic->ic_bss->ni_essid,
 				    ni->ni_esslen);
 				printf(" channel %d start %uMb\n",
-					ieee80211_chan2ieee(ic, ni->ni_chan),
+					ieee80211_chan2ieee(ic, ic->ic_curchan),
 					IEEE80211_RATE2MBS(ni->ni_rates.rs_rates[ni->ni_txrate]));
 			}
 #endif
