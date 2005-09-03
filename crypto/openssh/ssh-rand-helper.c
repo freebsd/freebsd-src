@@ -39,7 +39,7 @@
 #include "pathnames.h"
 #include "log.h"
 
-RCSID("$Id: ssh-rand-helper.c,v 1.23 2005/02/16 02:32:30 dtucker Exp $");
+RCSID("$Id: ssh-rand-helper.c,v 1.26 2005/07/17 07:26:44 djm Exp $");
 
 /* Number of bytes we write out */
 #define OUTPUT_SEED_SIZE	48
@@ -123,7 +123,7 @@ get_random_bytes_prngd(unsigned char *buf, int len,
     unsigned short tcp_port, char *socket_path)
 {
 	int fd, addr_len, rval, errors;
-	char msg[2];
+	u_char msg[2];
 	struct sockaddr_storage addr;
 	struct sockaddr_in *addr_in = (struct sockaddr_in *)&addr;
 	struct sockaddr_un *addr_un = (struct sockaddr_un *)&addr;
@@ -135,8 +135,8 @@ get_random_bytes_prngd(unsigned char *buf, int len,
 	if (socket_path != NULL &&
 	    strlen(socket_path) >= sizeof(addr_un->sun_path))
 		fatal("Random pool path is too long");
-	if (len > 255)
-		fatal("Too many bytes to read from PRNGD");
+	if (len <= 0 || len > 255)
+		fatal("Too many bytes (%d) to read from PRNGD", len);
 
 	memset(&addr, '\0', sizeof(addr));
 
@@ -190,7 +190,7 @@ reopen:
 		goto done;
 	}
 
-	if (atomicio(read, fd, buf, len) != len) {
+	if (atomicio(read, fd, buf, len) != (size_t)len) {
 		if (errno == EPIPE && errors < 10) {
 			close(fd);
 			errors++;
@@ -398,8 +398,8 @@ hash_command_output(entropy_cmd_t *src, unsigned char *hash)
 	debug3("Time elapsed: %d msec", msec_elapsed);
 
 	if (waitpid(pid, &status, 0) == -1) {
-	       error("Couldn't wait for child '%s' completion: %s",
-		   src->cmdstring, strerror(errno));
+		error("Couldn't wait for child '%s' completion: %s",
+		    src->cmdstring, strerror(errno));
 		return 0.0;
 	}
 
@@ -600,7 +600,7 @@ prng_write_seedfile(void)
 			save_errno = errno;
 			unlink(tmpseed);
 			fatal("problem renaming PRNG seedfile from %.100s "
-			    "to %.100s (%.100s)", tmpseed, filename, 
+			    "to %.100s (%.100s)", tmpseed, filename,
 			    strerror(save_errno));
 		}
 	}

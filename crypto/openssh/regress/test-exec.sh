@@ -96,9 +96,10 @@ if [ "x$TEST_SSH_SCP" != "x" ]; then
 fi
 
 # Path to sshd must be absolute for rexec
-if [ ! -x /$SSHD ]; then
-	SSHD=`which sshd`
-fi
+case "$SSHD" in
+/*) ;;
+*) SSHD=`which sshd` ;;
+esac
 
 if [ "x$TEST_SSH_LOGFILE" = "x" ]; then
 	TEST_SSH_LOGFILE=/dev/null

@@ -1,4 +1,4 @@
-/*	$OpenBSD: gss-genr.c,v 1.3 2003/11/21 11:57:03 djm Exp $	*/
+/*	$OpenBSD: gss-genr.c,v 1.4 2005/07/17 07:17:55 djm Exp $	*/
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -78,8 +78,8 @@ ssh_gssapi_error(Gssctxt *ctxt)
 }
 
 char *
-ssh_gssapi_last_error(Gssctxt *ctxt,
-		      OM_uint32 *major_status, OM_uint32 *minor_status)
+ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
+    OM_uint32 *minor_status)
 {
 	OM_uint32 lmin;
 	gss_buffer_desc msg = GSS_C_EMPTY_BUFFER;

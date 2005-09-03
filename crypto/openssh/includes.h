@@ -1,4 +1,4 @@
-/*	$OpenBSD: includes.h,v 1.18 2004/06/13 15:03:02 djm Exp $	*/
+/*	$OpenBSD: includes.h,v 1.19 2005/05/19 02:42:26 djm Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -17,10 +17,11 @@
 #define INCLUDES_H
 
 #define RCSID(msg) \
-static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
+static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 
 #include "config.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
@@ -168,6 +169,10 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 # include <ia.h>
 #endif
 
+#ifdef HAVE_IAF_H
+# include <iaf.h>
+#endif
+
 #ifdef HAVE_TMPDIR_H
 # include <tmpdir.h>
 #endif
@@ -179,6 +184,10 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #if defined(KRB5) && defined(USE_AFS)
 # include <krb5.h>
 # include <kafs.h>
+#endif
+
+#if defined(HAVE_SYS_SYSLOG_H)
+# include <sys/syslog.h>
 #endif
 
 /*

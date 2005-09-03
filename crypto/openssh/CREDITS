@@ -3,6 +3,7 @@ Tatu Ylonen <ylo@cs.hut.fi> - Creator of SSH
 Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
 Theo de Raadt, and Dug Song - Creators of OpenSSH
 
+Ahsan Rashid <arms@sco.com> - UnixWare long passwords
 Alain St-Denis <Alain.St-Denis@ec.gc.ca> - Irix fix
 Alexandre Oliva <oliva@lsd.ic.unicamp.br> - AIX fixes
 Andre Lucas <andre@ae-35.com> - new login code, many fixes
@@ -32,6 +33,7 @@ David Del Piero <David.DelPiero@qed.qld.gov.au> - bug fixes
 David Hesprich <darkgrue@gue-tech.org> - Configure fixes
 David Rankin <drankin@bohemians.lexington.ky.us> - libwrap, AIX, NetBSD fixes
 Dag-Erling Smørgrav <des at freebsd.org> - Challenge-Response PAM code.
+Dhiraj Gulati <dgulati@sco.com> - UnixWare long passwords
 Ed Eden <ede370@stl.rural.usda.gov> - configure fixes
 Garrick James <garrick@james.net> - configure fixes
 Gary E. Miller <gem@rellim.com> - SCO support
@@ -98,5 +100,5 @@ Apologies to anyone I have missed.
 
 Damien Miller <djm@mindrot.org>
 
-$Id: CREDITS,v 1.79 2004/05/26 23:59:31 dtucker Exp $
+$Id: CREDITS,v 1.80 2005/08/26 20:15:20 tim Exp $
 

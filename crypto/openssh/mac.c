@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: mac.c,v 1.6 2003/09/18 13:02:21 miod Exp $");
+RCSID("$OpenBSD: mac.c,v 1.7 2005/06/17 02:44:32 djm Exp $");
 
 #include <openssl/hmac.h>
 
@@ -51,12 +51,15 @@ struct {
 int
 mac_init(Mac *mac, char *name)
 {
-	int i;
+	int i, evp_len;
+
 	for (i = 0; macs[i].name; i++) {
 		if (strcmp(name, macs[i].name) == 0) {
 			if (mac != NULL) {
 				mac->md = (*macs[i].mdfunc)();
-				mac->key_len = mac->mac_len = EVP_MD_size(mac->md);
+				if ((evp_len = EVP_MD_size(mac->md)) <= 0)
+					fatal("mac %s len %d", name, evp_len);
+				mac->key_len = mac->mac_len = (u_int)evp_len;
 				if (macs[i].truncatebits != 0)
 					mac->mac_len = macs[i].truncatebits/8;
 			}
@@ -77,7 +80,7 @@ mac_compute(Mac *mac, u_int32_t seqno, u_char *data, int datalen)
 
 	if (mac->key == NULL)
 		fatal("mac_compute: no key");
-	if ((u_int)mac->mac_len > sizeof(m))
+	if (mac->mac_len > sizeof(m))
 		fatal("mac_compute: mac too long");
 	HMAC_Init(&c, mac->key, mac->key_len, mac->md);
 	PUT_32BIT(b, seqno);

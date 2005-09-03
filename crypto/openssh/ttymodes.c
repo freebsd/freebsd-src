@@ -241,6 +241,32 @@ baud_to_speed(int baud)
 }
 
 /*
+ * Encode a special character into SSH line format.
+ */
+static u_int
+special_char_encode(cc_t c)
+{
+#ifdef _POSIX_VDISABLE
+	if (c == _POSIX_VDISABLE)
+		return 255;
+#endif /* _POSIX_VDISABLE */
+	return c;
+}
+
+/*
+ * Decode a special character from SSH line format.
+ */
+static cc_t
+special_char_decode(u_int c)
+{
+#ifdef _POSIX_VDISABLE
+	if (c == 255)
+		return _POSIX_VDISABLE;
+#endif /* _POSIX_VDISABLE */
+	return c;
+}
+
+/*
  * Encodes terminal modes for the terminal referenced by fd
  * or tiop in a portable manner, and appends the modes to a packet
  * being constructed.
@@ -287,7 +313,7 @@ tty_make_modes(int fd, struct termios *tiop)
 #define TTYCHAR(NAME, OP) \
 	debug3("tty_make_modes: %d %d", OP, tio.c_cc[NAME]); \
 	buffer_put_char(&buf, OP); \
-	put_arg(&buf, tio.c_cc[NAME]);
+	put_arg(&buf, special_char_encode(tio.c_cc[NAME]));
 
 #define TTYMODE(NAME, FIELD, OP) \
 	debug3("tty_make_modes: %d %d", OP, ((tio.FIELD & NAME) != 0)); \
@@ -375,7 +401,7 @@ tty_parse_modes(int fd, int *n_bytes_ptr)
 #define TTYCHAR(NAME, OP) \
 	case OP: \
 	  n_bytes += arg_size; \
-	  tio.c_cc[NAME] = get_arg(); \
+	  tio.c_cc[NAME] = special_char_decode(get_arg()); \
 	  debug3("tty_parse_modes: %d %d", OP, tio.c_cc[NAME]); \
 	  break;
 #define TTYMODE(NAME, FIELD, OP) \
