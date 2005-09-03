@@ -132,7 +132,7 @@ struct ieee80211_node {
 	u_int8_t		ni_esslen;
 	u_int8_t		ni_essid[IEEE80211_NWID_LEN];
 	struct ieee80211_rateset ni_rates;	/* negotiated rate set */
-	struct ieee80211_channel *ni_chan;
+	struct ieee80211_channel *ni_chan;	/* XXX multiple uses */
 	u_int16_t		ni_fhdwell;	/* FH only */
 	u_int8_t		ni_fhindex;	/* FH only */
 	u_int8_t		ni_erp;		/* ERP from beacon/probe resp */
@@ -211,6 +211,8 @@ struct ieee80211_node_table {
 	u_int			nt_scangen;	/* gen# for timeout scan */
 	int			nt_inact_timer;	/* inactivity timer */
 	int			nt_inact_init;	/* initial node inact setting */
+	struct ieee80211_node	**nt_keyixmap;	/* key ix -> node map */
+	int			nt_keyixmax;	/* keyixmap size */
 
 	void			(*nt_timeout)(struct ieee80211_node_table *);
 };
@@ -218,6 +220,8 @@ void	ieee80211_node_table_reset(struct ieee80211_node_table *);
 
 struct ieee80211_node *ieee80211_alloc_node(
 		struct ieee80211_node_table *, const u_int8_t *);
+struct ieee80211_node *ieee80211_tmp_node(struct ieee80211com *,
+		const u_int8_t *macaddr);
 struct ieee80211_node *ieee80211_dup_bss(struct ieee80211_node_table *,
 		const u_int8_t *);
 #ifdef IEEE80211_DEBUG_REFCNT
@@ -228,6 +232,10 @@ struct ieee80211_node *ieee80211_find_node_debug(
 		const char *func, int line);
 struct ieee80211_node * ieee80211_find_rxnode_debug(
 		struct ieee80211com *, const struct ieee80211_frame_min *,
+		const char *func, int line);
+struct ieee80211_node * ieee80211_find_rxnode_withkey_debug(
+		struct ieee80211com *,
+		const struct ieee80211_frame_min *, u_int16_t keyix,
 		const char *func, int line);
 struct ieee80211_node *ieee80211_find_txnode_debug(
 		struct ieee80211com *, const u_int8_t *,
@@ -245,6 +253,8 @@ struct ieee80211_node *ieee80211_find_node_with_ssid_debug(
 	ieee80211_find_node_debug(nt, mac, __func__, __LINE__)
 #define	ieee80211_find_rxnode(nt, wh) \
 	ieee80211_find_rxnode_debug(nt, wh, __func__, __LINE__)
+#define	ieee80211_find_rxnode_withkey(nt, wh, keyix) \
+	ieee80211_find_rxnode_withkey_debug(nt, wh, keyix, __func__, __LINE__)
 #define	ieee80211_find_txnode(nt, mac) \
 	ieee80211_find_txnode_debug(nt, mac, __func__, __LINE__)
 #define	ieee80211_find_node_with_channel(nt, mac, c) \
@@ -257,6 +267,8 @@ struct ieee80211_node *ieee80211_find_node(
 		struct ieee80211_node_table *, const u_int8_t *);
 struct ieee80211_node * ieee80211_find_rxnode(
 		struct ieee80211com *, const struct ieee80211_frame_min *);
+struct ieee80211_node * ieee80211_find_rxnode_withkey(struct ieee80211com *,
+		const struct ieee80211_frame_min *, u_int16_t keyix);
 struct ieee80211_node *ieee80211_find_txnode(
 		struct ieee80211com *, const u_int8_t *);
 struct ieee80211_node *ieee80211_find_node_with_channel(
@@ -266,6 +278,7 @@ struct ieee80211_node *ieee80211_find_node_with_ssid(
 		struct ieee80211_node_table *, const u_int8_t *macaddr,
 		u_int ssidlen, const u_int8_t *ssid);
 #endif
+int	ieee80211_node_delucastkey(struct ieee80211_node *);
 
 typedef void ieee80211_iter_func(void *, struct ieee80211_node *);
 void	ieee80211_iterate_nodes(struct ieee80211_node_table *,
@@ -280,4 +293,38 @@ struct ieee80211_node *ieee80211_fakeup_adhoc_node(
 void	ieee80211_node_join(struct ieee80211com *, struct ieee80211_node *,int);
 void	ieee80211_node_leave(struct ieee80211com *, struct ieee80211_node *);
 u_int8_t ieee80211_getrssi(struct ieee80211com *ic);
+
+/*
+ * Parameters supplied when adding/updating an entry in a
+ * scan cache.  Pointer variables should be set to NULL
+ * if no data is available.  Pointer references can be to
+ * local data; any information that is saved will be copied.
+ * All multi-byte values must be in host byte order.
+ */
+struct ieee80211_scanparams {
+	u_int16_t	capinfo;	/* 802.11 capabilities */
+	u_int16_t	fhdwell;	/* FHSS dwell interval */
+	u_int8_t	chan;		/* */
+	u_int8_t	bchan;
+	u_int8_t	fhindex;
+	u_int8_t	erp;
+	u_int16_t	bintval;
+	u_int8_t	timoff;
+	u_int8_t	*tim;
+	u_int8_t	*tstamp;
+	u_int8_t	*country;
+	u_int8_t	*ssid;
+	u_int8_t	*rates;
+	u_int8_t	*xrates;
+	u_int8_t	*wpa;
+	u_int8_t	*wme;
+};
+
+void	ieee80211_add_scan(struct ieee80211com *,
+		const struct ieee80211_scanparams *,
+		const struct ieee80211_frame *,
+		int subtype, int rssi, int rstamp);
+struct ieee80211_node *ieee80211_add_neighbor(struct ieee80211com *,
+		const struct ieee80211_frame *,
+		const struct ieee80211_scanparams *);
 #endif /* _NET80211_IEEE80211_NODE_H_ */
