@@ -56,7 +56,7 @@ skey_query(void *ctx, char **name, char **infotxt,
 	int len;
 	struct skey skey;
 
-	if (_compat_skeychallenge(&skey, authctxt->user, challenge, 
+	if (_compat_skeychallenge(&skey, authctxt->user, challenge,
 	    sizeof(challenge)) == -1)
 		return -1;
 
