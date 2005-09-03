@@ -14,7 +14,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-rsa.c,v 1.62 2004/12/11 01:48:56 dtucker Exp $");
+RCSID("$OpenBSD: auth-rsa.c,v 1.63 2005/06/17 02:44:32 djm Exp $");
 
 #include <openssl/rsa.h>
 #include <openssl/md5.h>
@@ -205,6 +205,7 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 	while (read_keyfile_line(f, file, line, sizeof(line), &linenum) != -1) {
 		char *cp;
 		char *key_options;
+		int keybits;
 
 		/* Skip leading whitespace, empty and comment lines. */
 		for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
@@ -243,7 +244,8 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 			continue;
 
 		/* check the real bits  */
-		if (bits != BN_num_bits(key->rsa->n))
+		keybits = BN_num_bits(key->rsa->n);
+		if (keybits < 0 || bits != (u_int)keybits)
 			logit("Warning: %s, line %lu: keysize mismatch: "
 			    "actual %d vs. announced %d.",
 			    file, linenum, BN_num_bits(key->rsa->n), bits);

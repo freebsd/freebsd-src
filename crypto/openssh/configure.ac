@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.260 2005/04/24 07:52:23 dtucker Exp $
+# $Id: configure.ac,v 1.292 2005/08/31 16:59:49 tim Exp $
 # $FreeBSD$
 #
 # Copyright (c) 1999-2004 Damien Miller
@@ -15,7 +15,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-AC_INIT(OpenSSH, Portable)
+AC_INIT(OpenSSH, Portable, openssh-unix-dev@mindrot.org)
 AC_CONFIG_SRCDIR([ssh.c])
 
 AC_CONFIG_HEADER(config.h)
@@ -78,8 +78,94 @@ fi
 AC_SUBST(LD)
 
 AC_C_INLINE
+
+AC_CHECK_DECL(LLONG_MAX, have_llong_max=1, , [#include <limits.h>])
+
 if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
-	CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wno-uninitialized"
+	CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wuninitialized"
+	GCC_VER=`$CC --version`
+	case $GCC_VER in
+		1.*) ;;
+		2.8* | 2.9*) CFLAGS="$CFLAGS -Wsign-compare" ;;
+		2.*) ;;
+		*) CFLAGS="$CFLAGS -Wsign-compare" ;;
+	esac
+
+	if test -z "$have_llong_max"; then
+		# retry LLONG_MAX with -std=gnu99, needed on some Linuxes
+		unset ac_cv_have_decl_LLONG_MAX
+		saved_CFLAGS="$CFLAGS"
+		CFLAGS="$CFLAGS -std=gnu99"
+		AC_CHECK_DECL(LLONG_MAX,
+		    [have_llong_max=1],
+		    [CFLAGS="$saved_CFLAGS"],
+		    [#include <limits.h>]
+		)
+	fi
+fi
+
+if test -z "$have_llong_max"; then
+	AC_MSG_CHECKING([for max value of long long])
+	AC_RUN_IFELSE(
+		[AC_LANG_SOURCE([[
+#include <stdio.h>
+/* Why is this so damn hard? */
+#ifdef __GNUC__
+# undef __GNUC__
+#endif
+#define __USE_ISOC99
+#include <limits.h>
+#define DATA "conftest.llminmax"
+int main(void) {
+	FILE *f;
+	long long i, llmin, llmax = 0;
+
+	if((f = fopen(DATA,"w")) == NULL)
+		exit(1);
+
+#if defined(LLONG_MIN) && defined(LLONG_MAX)
+	fprintf(stderr, "Using system header for LLONG_MIN and LLONG_MAX\n");
+	llmin = LLONG_MIN;
+	llmax = LLONG_MAX;
+#else
+	fprintf(stderr, "Calculating  LLONG_MIN and LLONG_MAX\n");
+	/* This will work on one's complement and two's complement */
+	for (i = 1; i > llmax; i <<= 1, i++)
+		llmax = i;
+	llmin = llmax + 1LL;	/* wrap */
+#endif
+
+	/* Sanity check */
+	if (llmin + 1 < llmin || llmin - 1 < llmin || llmax + 1 > llmax
+	    || llmax - 1 > llmax) {
+		fprintf(f, "unknown unknown\n");
+		exit(2);
+	}
+
+	if (fprintf(f ,"%lld %lld", llmin, llmax) < 0)
+		exit(3);
+
+	exit(0);
+}
+		]])],
+		[
+			llong_min=`$AWK '{print $1}' conftest.llminmax`
+			llong_max=`$AWK '{print $2}' conftest.llminmax`
+			AC_MSG_RESULT($llong_max)
+			AC_DEFINE_UNQUOTED(LLONG_MAX, [${llong_max}LL],
+			    [max value of long long calculated by configure])
+			AC_MSG_CHECKING([for min value of long long])
+			AC_MSG_RESULT($llong_min)
+			AC_DEFINE_UNQUOTED(LLONG_MIN, [${llong_min}LL],
+			    [min value of long long calculated by configure])
+		],
+		[
+			AC_MSG_RESULT(not found)
+		],
+		[
+			AC_MSG_WARN([cross compiling: not checking])
+		]
+	)
 fi
 
 AC_ARG_WITH(rpath,
@@ -182,26 +268,8 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE(BROKEN_SETREGID)
 	AC_DEFINE_UNQUOTED(BIND_8_COMPAT, 1)
 	;;
-*-*-hpux10.26)
-	if test -z "$GCC"; then
-		CFLAGS="$CFLAGS -Ae"
-	fi
-	CPPFLAGS="$CPPFLAGS -D_HPUX_SOURCE -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED=1"
-	IPADDR_IN_DISPLAY=yes
-	AC_DEFINE(HAVE_SECUREWARE)
-	AC_DEFINE(USE_PIPES)
-	AC_DEFINE(LOGIN_NO_ENDOPT)
-	AC_DEFINE(LOGIN_NEEDS_UTMPX)
-	AC_DEFINE(LOCKED_PASSWD_STRING, "*")
-	AC_DEFINE(SPT_TYPE,SPT_PSTAT)
-	LIBS="$LIBS -lsec -lsecpw"
-	AC_CHECK_LIB(xnet, t_error, ,AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
-	disable_ptmx_check=yes
-	;;
-*-*-hpux10*)
-	if test -z "$GCC"; then
-		CFLAGS="$CFLAGS -Ae"
-	fi
+*-*-hpux*)
+	# first we define all of the options common to all HP-UX releases
 	CPPFLAGS="$CPPFLAGS -D_HPUX_SOURCE -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED=1"
 	IPADDR_IN_DISPLAY=yes
 	AC_DEFINE(USE_PIPES)
@@ -210,23 +278,33 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE(LOCKED_PASSWD_STRING, "*")
 	AC_DEFINE(SPT_TYPE,SPT_PSTAT)
 	LIBS="$LIBS -lsec"
-	AC_CHECK_LIB(xnet, t_error, ,AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
-	;;
-*-*-hpux11*)
-	CPPFLAGS="$CPPFLAGS -D_HPUX_SOURCE -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED=1"
-	IPADDR_IN_DISPLAY=yes
-	AC_DEFINE(PAM_SUN_CODEBASE)
-	AC_DEFINE(USE_PIPES)
-	AC_DEFINE(LOGIN_NO_ENDOPT)
-	AC_DEFINE(LOGIN_NEEDS_UTMPX)
-	AC_DEFINE(DISABLE_UTMP)
-	AC_DEFINE(LOCKED_PASSWD_STRING, "*")
-	AC_DEFINE(SPT_TYPE,SPT_PSTAT)
-	AC_DEFINE(USE_BTMP, 1, [Use btmp to log bad logins])
-	check_for_hpux_broken_getaddrinfo=1
-	check_for_conflicting_getspnam=1
-	LIBS="$LIBS -lsec"
-	AC_CHECK_LIB(xnet, t_error, ,AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
+	AC_CHECK_LIB(xnet, t_error, ,
+	    AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
+
+	# next, we define all of the options specific to major releases
+	case "$host" in
+	*-*-hpux10*)
+		if test -z "$GCC"; then
+			CFLAGS="$CFLAGS -Ae"
+		fi
+		;;
+	*-*-hpux11*)
+		AC_DEFINE(PAM_SUN_CODEBASE)
+		AC_DEFINE(DISABLE_UTMP)
+		AC_DEFINE(USE_BTMP, 1, [Use btmp to log bad logins])
+		check_for_hpux_broken_getaddrinfo=1
+		check_for_conflicting_getspnam=1
+		;;
+	esac
+
+	# lastly, we define options specific to minor releases
+	case "$host" in
+	*-*-hpux10.26)
+		AC_DEFINE(HAVE_SECUREWARE)
+		disable_ptmx_check=yes
+		LIBS="$LIBS -lsecpw"
+		;;
+	esac
 	;;
 *-*-irix5*)
 	PATH="$PATH:/usr/etc"
@@ -270,7 +348,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	esac
 	;;
 mips-sony-bsd|mips-sony-newsos4)
-	AC_DEFINE(HAVE_NEWS4)
+	AC_DEFINE(NEED_SETPRGP, [], [Need setpgrp to acquire controlling tty])
 	SONY=1
 	;;
 *-*-netbsd*)
@@ -296,6 +374,9 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(BROKEN_REALPATH)
 	AC_DEFINE(USE_PIPES)
 	AC_DEFINE(BROKEN_SAVED_UIDS)
+	;;
+*-*-openbsd*)
+	AC_DEFINE(HAVE_ATTRIBUTE__SENTINEL__, 1, [OpenBSD's gcc has sentinel])
 	;;
 *-*-solaris*)
 	if test "x$withval" != "xno" ; then
@@ -366,11 +447,19 @@ mips-sony-bsd|mips-sony-newsos4)
 	;;
 # UnixWare 7.x, OpenUNIX 8
 *-*-sysv5*)
+	check_for_libcrypt_later=1
+	AC_DEFINE(UNIXWARE_LONG_PASSWORDS, 1, [Support passwords > 8 chars])
 	AC_DEFINE(USE_PIPES)
 	AC_DEFINE(SETEUID_BREAKS_SETUID)
 	AC_DEFINE(BROKEN_SETREUID)
 	AC_DEFINE(BROKEN_SETREGID)
 	AC_DEFINE(PASSWD_NEEDS_USERNAME, 1, [must supply username to passwd])
+	case "$host" in
+	*-*-sysv5SCO_SV*)	# SCO OpenServer 6.x
+		TEST_SHELL=/u95/bin/sh
+		AC_DEFINE(BROKEN_LIBIAF, 1, [ia_uinfo routines not supported by OS yet])
+		;;
+	esac
 	;;
 *-*-sysv*)
 	;;
@@ -469,6 +558,19 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(MISSING_HOWMANY)
 	AC_DEFINE(MISSING_FD_MASK)
 	;;
+
+*-*-ultrix*)
+	AC_DEFINE(BROKEN_GETGROUPS, [], [getgroups(0,NULL) will return -1])
+	AC_DEFINE(BROKEN_MMAP, [], [Ultrix mmap can't map files])
+	AC_DEFINE(NEED_SETPRGP, [], [Need setpgrp to acquire controlling tty])
+	AC_DEFINE(HAVE_SYS_SYSLOG_H, 1, [Force use of sys/syslog.h on Ultrix])
+	;;
+
+*-*-lynxos)
+        CFLAGS="$CFLAGS -D__NO_INCLUDE_WARN__"
+        AC_DEFINE(MISSING_HOWMANY)
+        AC_DEFINE(BROKEN_SETVBUF, 1, [LynxOS has broken setvbuf() implementation])
+        ;;
 esac
 
 # Allow user to specify flags
@@ -508,6 +610,17 @@ AC_ARG_WITH(libs,
 		fi
 	]
 )
+AC_ARG_WITH(Werror,
+	[  --with-Werror           Build main code with -Werror],
+	[
+		if test -n "$withval"  &&  test "x$withval" != "xno"; then
+			werror_flags="-Werror"
+			if "x${withval}" != "xyes"; then
+				werror_flags="$withval"
+			fi
+		fi
+	]
+)
 
 AC_MSG_CHECKING(compiler and flags for sanity)
 AC_RUN_IFELSE(
@@ -523,17 +636,67 @@ int main(){exit(0);}
 	[	AC_MSG_WARN([cross compiling: not checking compiler sanity]) ]
 )
 
-# Checks for header files.
-AC_CHECK_HEADERS(bstring.h crypt.h dirent.h endian.h features.h \
-	floatingpoint.h getopt.h glob.h ia.h lastlog.h limits.h login.h \
-	login_cap.h maillock.h ndir.h netdb.h netgroup.h \
-	netinet/in_systm.h pam/pam_appl.h paths.h pty.h readpassphrase.h \
-	rpc/types.h security/pam_appl.h shadow.h stddef.h stdint.h \
-	strings.h sys/dir.h sys/strtio.h sys/audit.h sys/bitypes.h \
-	sys/bsdtty.h sys/cdefs.h sys/mman.h sys/ndir.h sys/prctl.h \
-	sys/pstat.h sys/select.h sys/stat.h sys/stream.h \
-	sys/stropts.h sys/sysmacros.h sys/time.h sys/timers.h sys/un.h \
-	time.h tmpdir.h ttyent.h usersec.h util.h utime.h utmp.h utmpx.h vis.h)
+dnl Checks for header files.
+AC_CHECK_HEADERS( \
+	bstring.h \
+	crypt.h \
+	dirent.h \
+	endian.h \
+	features.h \
+	floatingpoint.h \
+	getopt.h \
+	glob.h \
+	ia.h \
+	iaf.h \
+	lastlog.h \
+	limits.h \
+	login.h \
+	login_cap.h \
+	maillock.h \
+	ndir.h \
+	netdb.h \
+	netgroup.h \
+	netinet/in_systm.h \
+	pam/pam_appl.h \
+	paths.h \
+	pty.h \
+	readpassphrase.h \
+	rpc/types.h \
+	security/pam_appl.h \
+	shadow.h \
+	stddef.h \
+	stdint.h \
+	string.h \
+	strings.h \
+	sys/audit.h \
+	sys/bitypes.h \
+	sys/bsdtty.h \
+	sys/cdefs.h \
+	sys/dir.h \
+	sys/mman.h \
+	sys/ndir.h \
+	sys/prctl.h \
+	sys/pstat.h \
+	sys/select.h \
+	sys/stat.h \
+	sys/stream.h \
+	sys/stropts.h \
+	sys/strtio.h \
+	sys/sysmacros.h \
+	sys/time.h \
+	sys/timers.h \
+	sys/un.h \
+	time.h \
+	tmpdir.h \
+	ttyent.h \
+	unistd.h \
+	usersec.h \
+	util.h \
+	utime.h \
+	utmp.h \
+	utmpx.h \
+	vis.h \
+)
 
 # sys/ptms.h requires sys/stream.h to be included first on Solaris
 AC_CHECK_HEADERS(sys/ptms.h, [], [], [
@@ -661,8 +824,8 @@ int main()
 	if (a == 1 && b == 1 && c >= 4)
 		exit(0);
 
-	/* 1.2.1.2 and up are OK */
-	if (v >= 1020102)
+	/* 1.2.3 and up are OK */
+	if (v >= 1020300)
 		exit(0);
 
 	exit(2);
@@ -676,7 +839,7 @@ Your reported zlib version has known security problems.  It's possible your
 vendor has fixed these problems without changing the version number.  If you
 are sure this is the case, you can disable the check by running
 "./configure --without-zlib-version-check".
-If you are in doubt, upgrade zlib to version 1.2.1.2 or greater.
+If you are in doubt, upgrade zlib to version 1.2.3 or greater.
 See http://www.gzip.org/zlib/ for details.])
 	  else
 		AC_MSG_WARN([zlib version may have security problems])
@@ -912,6 +1075,21 @@ AC_ARG_WITH(libedit,
 			[ AC_MSG_ERROR(libedit not found) ],
 			[ -lcurses ]
 		)
+		AC_MSG_CHECKING(if libedit version is compatible)
+		AC_COMPILE_IFELSE(
+		    [AC_LANG_SOURCE([[
+#include <histedit.h>
+int main(void)
+{
+	int i = H_SETSIZE;
+	el_init("", NULL, NULL, NULL);
+	exit(0);
+}
+		    ]])],
+		    [ AC_MSG_RESULT(yes) ],
+		    [ AC_MSG_RESULT(no)
+		      AC_MSG_ERROR(libedit version is not compatible) ]
+		)
 	fi ]
 )
 
@@ -940,6 +1118,9 @@ AC_ARG_WITH(audit,
 		AC_MSG_RESULT(debug)
 		AC_DEFINE(SSH_AUDIT_EVENTS, [], Use audit debugging module)
 		;;
+	  no)
+		AC_MSG_RESULT(no)
+		;;
 	  *)
 		AC_MSG_ERROR([Unknown audit module $withval])
 		;;
@@ -947,19 +1128,87 @@ AC_ARG_WITH(audit,
 )
 
 dnl    Checks for library functions. Please keep in alphabetical order
-AC_CHECK_FUNCS(\
-	arc4random __b64_ntop b64_ntop __b64_pton b64_pton bcopy \
-	bindresvport_sa clock closefrom dirfd fchdir fchmod fchown \
-	freeaddrinfo futimes getaddrinfo getcwd getgrouplist getnameinfo \
-	getopt getpeereid _getpty getrlimit getttyent glob inet_aton \
-	inet_ntoa inet_ntop innetgr login_getcapbool md5_crypt memmove \
-	mkdtemp mmap ngetaddrinfo nsleep ogetaddrinfo openlog_r openpty \
-	pstat prctl readpassphrase realpath recvmsg rresvport_af sendmsg \
-	setdtablesize setegid setenv seteuid setgroups setlogin setpcred \
-	setproctitle setregid setreuid setrlimit \
-	setsid setvbuf sigaction sigvec snprintf socketpair strerror \
-	strlcat strlcpy strmode strnvis strtoul sysconf tcgetpgrp \
-	truncate unsetenv updwtmpx utimes vhangup vsnprintf waitpid \
+AC_CHECK_FUNCS( \
+	arc4random \
+	b64_ntop \
+	__b64_ntop \
+	b64_pton \
+	__b64_pton \
+	bcopy \
+	bindresvport_sa \
+	clock \
+	closefrom \
+	dirfd \
+	fchmod \
+	fchown \
+	freeaddrinfo \
+	futimes \
+	getaddrinfo \
+	getcwd \
+	getgrouplist \
+	getnameinfo \
+	getopt \
+	getpeereid \
+	_getpty \
+	getrlimit \
+	getttyent \
+	glob \
+	inet_aton \
+	inet_ntoa \
+	inet_ntop \
+	innetgr \
+	login_getcapbool \
+	md5_crypt \
+	memmove \
+	mkdtemp \
+	mmap \
+	ngetaddrinfo \
+	nsleep \
+	ogetaddrinfo \
+	openlog_r \
+	openpty \
+	prctl \
+	pstat \
+	readpassphrase \
+	realpath \
+	recvmsg \
+	rresvport_af \
+	sendmsg \
+	setdtablesize \
+	setegid \
+	setenv \
+	seteuid \
+	setgroups \
+	setlogin \
+	setpcred \
+	setproctitle \
+	setregid \
+	setreuid \
+	setrlimit \
+	setsid \
+	setvbuf \
+	sigaction \
+	sigvec \
+	snprintf \
+	socketpair \
+	strdup \
+	strerror \
+	strlcat \
+	strlcpy \
+	strmode \
+	strnvis \
+	strtonum \
+	strtoll \
+	strtoul \
+	sysconf \
+	tcgetpgrp \
+	truncate \
+	unsetenv \
+	updwtmpx \
+	utimes \
+	vhangup \
+	vsnprintf \
+	waitpid \
 )
 
 # IRIX has a const char return value for gai_strerror()
@@ -980,8 +1229,15 @@ str = gai_strerror(0);],[
 AC_SEARCH_LIBS(nanosleep, rt posix4, AC_DEFINE(HAVE_NANOSLEEP))
 
 dnl Make sure prototypes are defined for these before using them.
-AC_CHECK_DECL(strsep, [AC_CHECK_FUNCS(strsep)])
 AC_CHECK_DECL(getrusage, [AC_CHECK_FUNCS(getrusage)])
+AC_CHECK_DECL(strsep,
+	[AC_CHECK_FUNCS(strsep)],
+	[],
+	[
+#ifdef HAVE_STRING_H
+# include <string.h>
+#endif
+	])
 
 dnl tcsendbreak might be a macro
 AC_CHECK_DECL(tcsendbreak,
@@ -1505,6 +1761,7 @@ if test "x$check_for_libcrypt_later" = "x1"; then
 	AC_CHECK_LIB(crypt, crypt, LIBS="$LIBS -lcrypt")
 fi
 
+AC_CHECK_LIB(iaf, ia_openinfo)
 
 ### Configure cryptographic random number support
 
@@ -2442,6 +2699,9 @@ int main()
 			 AC_MSG_RESULT(no)])
 		    ])
 		AC_CHECK_FUNCS(_getshort _getlong)
+		AC_CHECK_DECLS([_getshort, _getlong], , ,
+		    [#include <sys/types.h>
+		    #include <arpa/nameser.h>])
 		AC_CHECK_MEMBER(HEADER.ad,
 			[AC_DEFINE(HAVE_HEADER_AD)],,
 			[#include <arpa/nameser.h>])
@@ -2545,7 +2805,6 @@ AC_ARG_WITH(kerberos5,
 
 	LIBS="$LIBS $K5LIBS"
 	AC_SEARCH_LIBS(k_hasafs, kafs, AC_DEFINE(USE_AFS))
-	AC_SEARCH_LIBS(krb5_init_ets, $K5LIBS, AC_DEFINE(KRB5_INIT_ETS))
 	]
 )
 
@@ -3183,6 +3442,10 @@ fi
 if test "$ac_cv_lib_pam_pam_set_item" = yes ; then
 	LIBS=`echo $LIBS | sed 's/-ldl //'`
 fi
+
+dnl Adding -Werror to CFLAGS early prevents configure tests from running.
+dnl Add now.
+CFLAGS="$CFLAGS $werror_flags"
 
 AC_EXEEXT
 AC_CONFIG_FILES([Makefile buildpkg.sh opensshd.init openbsd-compat/Makefile \
