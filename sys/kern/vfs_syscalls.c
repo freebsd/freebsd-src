@@ -3215,6 +3215,7 @@ kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 		NDFREE(&fromnd, NDF_ONLY_PNBUF);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
+		vn_finished_write(mp);
 		goto out1;
 	}
 	tvfslocked = NDHASGIANT(&tond);
@@ -3268,8 +3269,8 @@ out:
 		vrele(fvp);
 	}
 	vrele(tond.ni_startdir);
-out1:
 	vn_finished_write(mp);
+out1:
 	if (fromnd.ni_startdir)
 		vrele(fromnd.ni_startdir);
 	VFS_UNLOCK_GIANT(fvfslocked);
