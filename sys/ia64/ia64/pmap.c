@@ -1570,12 +1570,12 @@ validate:
  * 2. Not wired.
  * 3. Read access.
  * 4. No page table pages.
- * 6. Page IS managed.
  * but is *MUCH* faster than pmap_enter...
  */
 
 vm_page_t
-pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
+pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    vm_page_t mpte)
 {
 	struct ia64_lpte *pte;
 	pmap_t oldpmap;
@@ -1613,7 +1613,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 
 		/* Initialise with R/O protection and enter into VHPT. */
 		pmap_enter_vhpt(pte, va);
-		pmap_pte_prot(pmap, pte, VM_PROT_READ);
+		pmap_pte_prot(pmap, pte,
+		    prot & (VM_PROT_READ | VM_PROT_EXECUTE));
 		pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m), FALSE, managed);
 	}
 

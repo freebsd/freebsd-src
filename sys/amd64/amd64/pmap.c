@@ -2036,12 +2036,12 @@ validate:
  * 2. Not wired.
  * 3. Read access.
  * 4. No page table pages.
- * 6. Page IS managed.
  * but is *MUCH* faster than pmap_enter...
  */
 
 vm_page_t
-pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
+pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    vm_page_t mpte)
 {
 	pt_entry_t *pte;
 	vm_paddr_t pa;
@@ -2130,6 +2130,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	pmap->pm_stats.resident_count++;
 
 	pa = VM_PAGE_TO_PHYS(m);
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		pa |= pg_nx;
 
 	/*
 	 * Now validate mapping with RO protection
