@@ -5056,9 +5056,9 @@ key_update(so, m, mhp)
 	}
 
 	/* check SA values to be mature. */
-	if ((mhp->msg->sadb_msg_errno = key_mature(sav)) != 0) {
+	if ((error = key_mature(sav)) != 0) {
 		key_freesav(sav);
-		return key_senderror(so, m, 0);
+		return key_senderror(so, m, error);
 	}
 
     {
