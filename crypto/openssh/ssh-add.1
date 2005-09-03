@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.42 2005/03/01 17:32:19 jmc Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.43 2005/04/21 06:17:50 djm Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -57,10 +57,10 @@
 adds RSA or DSA identities to the authentication agent,
 .Xr ssh-agent 1 .
 When run without arguments, it adds the files
-.Pa $HOME/.ssh/id_rsa ,
-.Pa $HOME/.ssh/id_dsa
+.Pa ~/.ssh/id_rsa ,
+.Pa ~/.ssh/id_dsa
 and
-.Pa $HOME/.ssh/identity .
+.Pa ~/.ssh/identity .
 Alternative file names can be given on the command line.
 If any file requires a passphrase,
 .Nm
@@ -142,11 +142,11 @@ agent.
 .El
 .Sh FILES
 .Bl -tag -width Ds
-.It Pa $HOME/.ssh/identity
+.It Pa ~/.ssh/identity
 Contains the protocol version 1 RSA authentication identity of the user.
-.It Pa $HOME/.ssh/id_dsa
+.It Pa ~/.ssh/id_dsa
 Contains the protocol version 2 DSA authentication identity of the user.
-.It Pa $HOME/.ssh/id_rsa
+.It Pa ~/.ssh/id_rsa
 Contains the protocol version 2 RSA authentication identity of the user.
 .El
 .Pp

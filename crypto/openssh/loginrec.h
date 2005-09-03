@@ -35,7 +35,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-/* RCSID("$Id: loginrec.h,v 1.9 2005/02/02 06:10:11 dtucker Exp $"); */
+/* RCSID("$Id: loginrec.h,v 1.10 2005/06/19 00:19:44 djm Exp $"); */
 
 /**
  ** you should use the login_* calls to work around platform dependencies
@@ -128,7 +128,7 @@ struct logininfo *login_get_lastlog(struct logininfo *li, const int uid);
 unsigned int login_get_lastlog_time(const int uid);
 
 /* produce various forms of the line filename */
-char *line_fullname(char *dst, const char *src, int dstsize);
+char *line_fullname(char *dst, const char *src, u_int dstsize);
 char *line_stripname(char *dst, const char *src, int dstsize);
 char *line_abbrevname(char *dst, const char *src, int dstsize);
 
