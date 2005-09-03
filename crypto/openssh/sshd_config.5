@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.40 2005/03/18 17:05:00 jmc Exp $
+.\" $OpenBSD: sshd_config.5,v 1.44 2005/07/25 11:59:40 markus Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
@@ -176,24 +176,18 @@ The supported ciphers are
 .Dq aes128-ctr ,
 .Dq aes192-ctr ,
 .Dq aes256-ctr ,
+.Dq arcfour128 ,
+.Dq arcfour256 ,
 .Dq arcfour ,
 .Dq blowfish-cbc ,
 and
 .Dq cast128-cbc .
 The default is
 .Bd -literal
-  ``aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,
-    aes192-cbc,aes256-cbc,aes128-ctr,aes192-ctr,aes256-ctr''
+  ``aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour128,
+    arcfour256,arcfour,aes192-cbc,aes256-cbc,aes128-ctr,
+    aes192-ctr,aes256-ctr''
 .Ed
-.It Cm ClientAliveInterval
-Sets a timeout interval in seconds after which if no data has been received
-from the client,
-.Nm sshd
-will send a message through the encrypted
-channel to request a response from the client.
-The default
-is 0, indicating that these messages will not be sent to the client.
-This option applies to protocol version 2 only.
 .It Cm ClientAliveCountMax
 Sets the number of client alive messages (see above) which may be
 sent without
@@ -221,14 +215,25 @@ If
 .Cm ClientAliveCountMax
 is left at the default, unresponsive ssh clients
 will be disconnected after approximately 45 seconds.
+.It Cm ClientAliveInterval
+Sets a timeout interval in seconds after which if no data has been received
+from the client,
+.Nm sshd
+will send a message through the encrypted
+channel to request a response from the client.
+The default
+is 0, indicating that these messages will not be sent to the client.
+This option applies to protocol version 2 only.
 .It Cm Compression
-Specifies whether compression is allowed.
+Specifies whether compression is allowed, or delayed until
+the user has authenticated successfully.
 The argument must be
-.Dq yes
+.Dq yes ,
+.Dq delayed ,
 or
 .Dq no .
 The default is
-.Dq yes .
+.Dq delayed .
 .It Cm DenyGroups
 This keyword can be followed by a list of group name patterns, separated
 by spaces.
@@ -333,7 +338,7 @@ The default is
 Specifies whether
 .Nm sshd
 should ignore the user's
-.Pa $HOME/.ssh/known_hosts
+.Pa ~/.ssh/known_hosts
 during
 .Cm RhostsRSAAuthentication
 or
@@ -720,7 +725,7 @@ The default is
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20050605 .
+.Dq FreeBSD-20050903 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Nm sshd Ns 's
