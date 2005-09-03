@@ -323,7 +323,6 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	struct g_consumer *cp;
 	struct bufobj *bo;
 
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "udf", 0);
