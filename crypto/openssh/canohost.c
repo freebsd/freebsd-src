@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: canohost.c,v 1.42 2005/02/18 03:05:53 djm Exp $");
+RCSID("$OpenBSD: canohost.c,v 1.44 2005/06/17 02:44:32 djm Exp $");
 
 #include "packet.h"
 #include "xmalloc.h"
@@ -143,7 +143,8 @@ check_ip_options(int sock, char *ipaddr)
 	u_char options[200];
 	char text[sizeof(options) * 3 + 1];
 	socklen_t option_size;
-	int i, ipproto;
+	u_int i;
+	int ipproto;
 	struct protoent *ip;
 
 	if ((ip = getprotobyname("ip")) != NULL)
@@ -173,7 +174,7 @@ ipv64_normalise_mapped(struct sockaddr_storage *addr, socklen_t *len)
 	struct in_addr inaddr;
 	u_int16_t port;
 
-	if (addr->ss_family != AF_INET6 || 
+	if (addr->ss_family != AF_INET6 ||
 	    !IN6_IS_ADDR_V4MAPPED(&a6->sin6_addr))
 		return;
 
@@ -346,7 +347,7 @@ get_sock_port(int sock, int local)
 	} else {
 		if (getpeername(sock, (struct sockaddr *)&from, &fromlen) < 0) {
 			debug("getpeername failed: %.100s", strerror(errno));
-			cleanup_exit(255);
+			return -1;
 		}
 	}
 
