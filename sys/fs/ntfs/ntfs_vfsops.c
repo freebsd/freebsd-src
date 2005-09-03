@@ -272,7 +272,6 @@ ntfs_mountfs(devvp, mp, td)
 	char *cs_ntfs, *cs_local;
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ntfs", ronly ? 0 : 1);

@@ -142,7 +142,8 @@ reiserfs_mount(struct mount *mp, struct thread *td)
 		error = reiserfs_mountfs(devvp, mp, td);
 	} else {
 		/* TODO Handle MNT_UPDATE */
-		error = (EOPNOTSUPP);
+		vput(devvp);
+		return (EOPNOTSUPP);
 	}
 
 	if (error) {
@@ -471,7 +472,6 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	if (vcount(devvp) > 1)
 		return (EBUSY);
 
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
 	if (error) {
 		VOP_UNLOCK(devvp, 0, td);

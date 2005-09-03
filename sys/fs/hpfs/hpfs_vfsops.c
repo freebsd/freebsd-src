@@ -231,7 +231,6 @@ hpfs_mountfs(devvp, mp, td)
 		return (EOPNOTSUPP);
 	dprintf(("hpfs_mountfs():\n"));
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	/* XXX: use VOP_ACCESS to check FS perms */
 	DROP_GIANT();
 	g_topology_lock();
