@@ -1,4 +1,4 @@
-/*	$OpenBSD: dns.c,v 1.10 2004/06/21 17:36:31 avsm Exp $	*/
+/*	$OpenBSD: dns.c,v 1.12 2005/06/17 02:44:32 djm Exp $	*/
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -43,7 +43,7 @@
 #include "uuencode.h"
 
 extern char *__progname;
-RCSID("$OpenBSD: dns.c,v 1.10 2004/06/21 17:36:31 avsm Exp $");
+RCSID("$OpenBSD: dns.c,v 1.12 2005/06/17 02:44:32 djm Exp $");
 
 #ifndef LWRES
 static const char *errset_text[] = {
@@ -142,6 +142,26 @@ dns_read_rdata(u_int8_t *algorithm, u_int8_t *digest_type,
 	return success;
 }
 
+/*
+ * Check if hostname is numerical.
+ * Returns -1 if hostname is numeric, 0 otherwise
+ */
+static int
+is_numeric_hostname(const char *hostname)
+{
+	struct addrinfo hints, *ai;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_NUMERICHOST;
+
+	if (getaddrinfo(hostname, "0", &hints, &ai) == 0) {
+		freeaddrinfo(ai);
+		return -1;
+	}
+
+	return 0;
+}
 
 /*
  * Verify the given hostname, address and host key using DNS.
@@ -151,7 +171,7 @@ int
 verify_host_key_dns(const char *hostname, struct sockaddr *address,
     const Key *hostkey, int *flags)
 {
-	int counter;
+	u_int counter;
 	int result;
 	struct rrsetinfo *fingerprints = NULL;
 
@@ -170,6 +190,11 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
 	debug3("verify_hostkey_dns");
 	if (hostkey == NULL)
 		fatal("No key to look up!");
+
+	if (is_numeric_hostname(hostname)) {
+		debug("skipped DNS lookup for numerical hostname");
+		return -1;
+	}
 
 	result = getrrsetbyname(hostname, DNS_RDATACLASS_IN,
 	    DNS_RDATATYPE_SSHFP, 0, &fingerprints);
@@ -249,7 +274,7 @@ export_dns_rr(const char *hostname, const Key *key, FILE *f, int generic)
 	u_char *rdata_digest;
 	u_int rdata_digest_len;
 
-	int i;
+	u_int i;
 	int success = 0;
 
 	if (dns_read_key(&rdata_pubkey_algorithm, &rdata_digest_type,

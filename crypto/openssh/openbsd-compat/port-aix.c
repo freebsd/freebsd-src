@@ -1,7 +1,7 @@
 /*
  *
  * Copyright (c) 2001 Gert Doering.  All rights reserved.
- * Copyright (c) 2003,2004 Darren Tucker.  All rights reserved.
+ * Copyright (c) 2003,2004,2005 Darren Tucker.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,14 +42,12 @@ static char old_registry[REGISTRY_SIZE] = "";
 # endif
 
 /*
- * AIX has a "usrinfo" area where logname and other stuff is stored - 
+ * AIX has a "usrinfo" area where logname and other stuff is stored -
  * a few applications actually use this and die if it's not set
  *
  * NOTE: TTY= should be set, but since no one uses it and it's hard to
  * acquire due to privsep code.  We will just drop support.
  */
-
-
 void
 aix_usrinfo(struct passwd *pw)
 {
@@ -60,7 +58,7 @@ aix_usrinfo(struct passwd *pw)
 	len = sizeof("LOGNAME= NAME= ") + (2 * strlen(pw->pw_name));
 	cp = xmalloc(len);
 
-	i = snprintf(cp, len, "LOGNAME=%s%cNAME=%s%c", pw->pw_name, '\0', 
+	i = snprintf(cp, len, "LOGNAME=%s%cNAME=%s%c", pw->pw_name, '\0',
 	    pw->pw_name, '\0');
 	if (usrinfo(SETUINFO, cp, i) == -1)
 		fatal("Couldn't set usrinfo: %s", strerror(errno));
@@ -153,14 +151,14 @@ aix_valid_authentications(const char *user)
 int
 sys_auth_passwd(Authctxt *ctxt, const char *password)
 {
-	char *authmsg = NULL, *msg, *name = ctxt->pw->pw_name;
+	char *authmsg = NULL, *msg = NULL, *name = ctxt->pw->pw_name;
 	int authsuccess = 0, expired, reenter, result;
 
 	do {
 		result = authenticate((char *)name, (char *)password, &reenter,
 		    &authmsg);
 		aix_remove_embedded_newlines(authmsg);	
-		debug3("AIX/authenticate result %d, msg %.100s", result,
+		debug3("AIX/authenticate result %d, authmsg %.100s", result,
 		    authmsg);
 	} while (reenter);
 
@@ -170,7 +168,7 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
 	if (result == 0) {
 		authsuccess = 1;
 
-	       	/*
+		/*
 		 * Record successful login.  We don't have a pty yet, so just
 		 * label the line as "ssh"
 		 */
@@ -257,7 +255,7 @@ int
 sys_auth_record_login(const char *user, const char *host, const char *ttynm,
     Buffer *loginmsg)
 {
-	char *msg;
+	char *msg = NULL;
 	int success = 0;
 
 	aix_setauthdb(user);

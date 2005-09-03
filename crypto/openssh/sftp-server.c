@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: sftp-server.c,v 1.47 2004/06/25 05:38:48 dtucker Exp $");
+RCSID("$OpenBSD: sftp-server.c,v 1.48 2005/06/17 02:44:33 djm Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
@@ -130,7 +130,7 @@ Handle	handles[100];
 static void
 handle_init(void)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < sizeof(handles)/sizeof(Handle); i++)
 		handles[i].use = HANDLE_UNUSED;
@@ -139,7 +139,7 @@ handle_init(void)
 static int
 handle_new(int use, const char *name, int fd, DIR *dirp)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < sizeof(handles)/sizeof(Handle); i++) {
 		if (handles[i].use == HANDLE_UNUSED) {
@@ -156,7 +156,7 @@ handle_new(int use, const char *name, int fd, DIR *dirp)
 static int
 handle_is_ok(int i, int type)
 {
-	return i >= 0 && i < sizeof(handles)/sizeof(Handle) &&
+	return i >= 0 && (u_int)i < sizeof(handles)/sizeof(Handle) &&
 	    handles[i].use == type;
 }
 
@@ -477,10 +477,10 @@ process_write(void)
 		} else {
 /* XXX ATOMICIO ? */
 			ret = write(fd, data, len);
-			if (ret == -1) {
+			if (ret < 0) {
 				error("process_write: write failed");
 				status = errno_to_portable(errno);
-			} else if (ret == len) {
+			} else if ((size_t)ret == len) {
 				status = SSH2_FX_OK;
 			} else {
 				logit("nothing at all written");

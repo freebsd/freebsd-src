@@ -57,7 +57,7 @@ disproportionate time to execute.
 
 Tuning the random helper can be done by running ./ssh-random-helper in
 very verbose mode ("-vvv") and identifying the commands that are taking
-accessive amounts of time or hanging altogher.  Any problem commands can
+excessive amounts of time or hanging altogher.  Any problem commands can
 be modified or removed from ssh_prng_cmds.
 
 The default entropy collector will timeout programs which take too long
@@ -92,4 +92,4 @@ If you are forced to use ssh-rand-helper consider still downloading
 prngd/egd and configure OpenSSH using --with-prngd-port=xx or
 --with-prngd-socket=xx (refer to INSTALL for more information).
 
-$Id: WARNING.RNG,v 1.7 2004/12/06 11:40:11 dtucker Exp $
+$Id: WARNING.RNG,v 1.8 2005/05/26 01:47:54 djm Exp $

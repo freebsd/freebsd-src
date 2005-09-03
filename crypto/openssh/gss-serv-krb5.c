@@ -65,9 +65,6 @@ ssh_gssapi_krb5_init(void)
 		logit("Cannot initialize krb5 context");
 		return 0;
 	}
-#ifdef KRB5_INIT_ETS
-	krb5_init_ets(krb_context);
-#endif
 
 	return 1;
 }
@@ -131,34 +128,10 @@ ssh_gssapi_krb5_storecreds(ssh_gssapi_client *client)
 		return;
 	}
 #else
-	{
-		int tmpfd;
-		char ccname[40];
-		mode_t old_umask;
-
-		snprintf(ccname, sizeof(ccname),
-		    "FILE:/tmp/krb5cc_%d_XXXXXX", geteuid());
-
-		old_umask = umask(0177);
-		tmpfd = mkstemp(ccname + strlen("FILE:"));
-		umask(old_umask);
-		if (tmpfd == -1) {
-			logit("mkstemp(): %.100s", strerror(errno));
-			problem = errno;
-			return;
-		}
-		if (fchmod(tmpfd, S_IRUSR | S_IWUSR) == -1) {
-			logit("fchmod(): %.100s", strerror(errno));
-			close(tmpfd);
-			problem = errno;
-			return;
-		}
-		close(tmpfd);
-		if ((problem = krb5_cc_resolve(krb_context, ccname, &ccache))) {
-			logit("krb5_cc_resolve(): %.100s",
-			    krb5_get_err_text(krb_context, problem));
-			return;
-		}
+	if ((problem = ssh_krb5_cc_gen(krb_context, &ccache))) {
+		logit("ssh_krb5_cc_gen(): %.100s",
+		    krb5_get_err_text(krb_context, problem));
+		return;
 	}
 #endif	/* #ifdef HEIMDAL */
 

@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: auth-shadow.c,v 1.6 2005/02/16 03:20:06 dtucker Exp $");
+RCSID("$Id: auth-shadow.c,v 1.7 2005/07/17 07:04:47 djm Exp $");
 
 #if defined(USE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
 #include <shadow.h>
@@ -101,7 +101,7 @@ auth_shadow_pwexpired(Authctxt *ctxt)
 #if defined(__hpux) && !defined(HAVE_SECUREWARE)
 	if (iscomsec()) {
 		struct pr_passwd *pr;
-		       
+
 		pr = getprpwnam((char *)user);
 
 		/* Test for Trusted Mode expiry disabled */
