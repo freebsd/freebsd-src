@@ -728,9 +728,17 @@ modes supported.
 Display the list of channels available for use.
 .Dq Li list freq
 is another way of requesting this information.
-.\" not yet implemented
-.\".It Cm list Cm mac
-.\"Display the current MAC Access Control List state.
+.It Cm list Cm mac
+Display the current MAC Access Control List state.
+Each address is prefixed with a character that indicates the
+current policy applied to it:
+.Dq Li +
+indicates the address is allowed access,
+.Dq Li -
+indicates the address is denied access,
+.Dq Li *
+indicates the address is present but the current policy open
+(so the acl is not consulted).
 .It Cm list Cm scan
 Display the access points and/or ad-hoc neighbors
 located in the vicinity.
@@ -1038,11 +1046,10 @@ Delete the specified MAC address from the database.
 .It Cm mac:deny
 Set the ACL policy to deny association only by
 stations registered in the database.
-.\" XXX not yet implemented
-.\".It Cm mac:kick
-.\"Force the specified station to be deauthenticated.
-.\"This typically is done to block a station after updating the
-.\"address database.
+.It Cm mac:kick
+Force the specified station to be deauthenticated.
+This typically is done to block a station after updating the
+address database.
 .It Cm mac:open
 Set the ACL policy to allow all stations to associate.
 .It Cm mac:flush
