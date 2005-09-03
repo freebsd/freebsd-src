@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.10 2005/01/17 03:25:46 dtucker Exp $ */
+/* $OpenBSD: moduli.c,v 1.12 2005/07/17 07:17:55 djm Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -112,22 +112,22 @@
 #define TINY_NUMBER	(1UL<<16)
 
 /* Ensure enough bit space for testing 2*q. */
-#define TEST_MAXIMUM    (1UL<<16)
-#define TEST_MINIMUM    (QSIZE_MINIMUM + 1)
-/* real TEST_MINIMUM    (1UL << (SHIFT_WORD - TEST_POWER)) */
-#define TEST_POWER      (3)	/* 2**n, n < SHIFT_WORD */
+#define TEST_MAXIMUM	(1UL<<16)
+#define TEST_MINIMUM	(QSIZE_MINIMUM + 1)
+/* real TEST_MINIMUM	(1UL << (SHIFT_WORD - TEST_POWER)) */
+#define TEST_POWER	(3)	/* 2**n, n < SHIFT_WORD */
 
 /* bit operations on 32-bit words */
-#define BIT_CLEAR(a,n)  ((a)[(n)>>SHIFT_WORD] &= ~(1L << ((n) & 31)))
-#define BIT_SET(a,n)    ((a)[(n)>>SHIFT_WORD] |= (1L << ((n) & 31)))
-#define BIT_TEST(a,n)   ((a)[(n)>>SHIFT_WORD] & (1L << ((n) & 31)))
+#define BIT_CLEAR(a,n)	((a)[(n)>>SHIFT_WORD] &= ~(1L << ((n) & 31)))
+#define BIT_SET(a,n)	((a)[(n)>>SHIFT_WORD] |= (1L << ((n) & 31)))
+#define BIT_TEST(a,n)	((a)[(n)>>SHIFT_WORD] & (1L << ((n) & 31)))
 
 /*
  * Prime testing defines
  */
 
 /* Minimum number of primality tests to perform */
-#define TRIAL_MINIMUM           (4)
+#define TRIAL_MINIMUM	(4)
 
 /*
  * Sieving data (XXX - move to struct)
@@ -144,7 +144,7 @@ static u_int32_t *LargeSieve, largewords, largetries, largenumbers;
 static u_int32_t largebits, largememory;	/* megabytes */
 static BIGNUM *largebase;
 
-int gen_candidates(FILE *, int, int, BIGNUM *);
+int gen_candidates(FILE *, u_int32_t, u_int32_t, BIGNUM *);
 int prime_test(FILE *, FILE *, u_int32_t, u_int32_t);
 
 /*
@@ -241,19 +241,20 @@ sieve_large(u_int32_t s)
  * The list is checked against small known primes (less than 2**30).
  */
 int
-gen_candidates(FILE *out, int memory, int power, BIGNUM *start)
+gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 {
 	BIGNUM *q;
 	u_int32_t j, r, s, t;
 	u_int32_t smallwords = TINY_NUMBER >> 6;
 	u_int32_t tinywords = TINY_NUMBER >> 6;
 	time_t time_start, time_stop;
-	int i, ret = 0;
+	u_int32_t i;
+	int ret = 0;
 
 	largememory = memory;
 
 	if (memory != 0 &&
-	   (memory < LARGE_MINIMUM || memory > LARGE_MAXIMUM)) {
+	    (memory < LARGE_MINIMUM || memory > LARGE_MAXIMUM)) {
 		error("Invalid memory amount (min %ld, max %ld)",
 		    LARGE_MINIMUM, LARGE_MAXIMUM);
 		return (-1);
@@ -371,8 +372,8 @@ gen_candidates(FILE *out, int memory, int power, BIGNUM *start)
 	 * fencepost errors, the last pass is skipped.
 	 */
 	for (smallbase = TINY_NUMBER + 3;
-	     smallbase < (SMALL_MAXIMUM - TINY_NUMBER);
-	     smallbase += TINY_NUMBER) {
+	    smallbase < (SMALL_MAXIMUM - TINY_NUMBER);
+	    smallbase += TINY_NUMBER) {
 		for (i = 0; i < tinybits; i++) {
 			if (BIT_TEST(TinySieve, i))
 				continue; /* 2*i+3 is composite */
@@ -548,7 +549,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted)
 		 * due to earlier inconsistencies in interpretation, check
 		 * the proposed bit size.
 		 */
-		if (BN_num_bits(p) != (in_size + 1)) {
+		if ((u_int32_t)BN_num_bits(p) != (in_size + 1)) {
 			debug2("%10u: bit size %u mismatch", count_in, in_size);
 			continue;
 		}
