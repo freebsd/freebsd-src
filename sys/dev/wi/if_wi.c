@@ -294,8 +294,10 @@ wi_attach(device_t dev)
 	if (error || IEEE80211_ADDR_EQ(ic->ic_myaddr, empty_macaddr)) {
 		if (error != 0)
 			device_printf(dev, "mac read failed %d\n", error);
-		else
+		else {
 			device_printf(dev, "mac read failed (all zeros)\n");
+			error = ENXIO;
+		}
 		wi_free(dev);
 		return (error);
 	}
@@ -737,7 +739,7 @@ wi_init(void *arg)
 
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	    sc->sc_firmware_type == WI_INTERSIL) {
-		wi_write_val(sc, WI_RID_OWN_BEACON_INT, ic->ic_lintval);
+		wi_write_val(sc, WI_RID_OWN_BEACON_INT, ic->ic_bintval);
 		wi_write_val(sc, WI_RID_BASIC_RATE, 0x03);   /* 1, 2 */
 		wi_write_val(sc, WI_RID_SUPPORT_RATE, 0x0f); /* 1, 2, 5.5, 11 */
 		wi_write_val(sc, WI_RID_DTIM_PERIOD, 1);
@@ -1257,7 +1259,7 @@ wi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	u_int16_t val;
 	int rate, len;
 
-	if (sc->wi_gone || !sc->sc_enabled) {
+	if (sc->wi_gone) {		/* hardware gone (e.g. ejected) */
 		imr->ifm_active = IFM_IEEE80211 | IFM_NONE;
 		imr->ifm_status = 0;
 		return;
@@ -1265,6 +1267,11 @@ wi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 
 	imr->ifm_status = IFM_AVALID;
 	imr->ifm_active = IFM_IEEE80211;
+	if (!sc->sc_enabled) {		/* port !enabled, have no status */
+		imr->ifm_active |= IFM_NONE;
+		imr->ifm_status = IFM_AVALID;
+		return;
+	}
 	if (ic->ic_state == IEEE80211_S_RUN &&
 	    (sc->sc_flags & WI_FLAGS_OUTRANGE) == 0)
 		imr->ifm_status |= IFM_ACTIVE;
@@ -2734,6 +2741,7 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		wi_read_rid(sc, WI_RID_CURRENT_CHAN, &val, &buflen);
 		/* XXX validate channel */
 		ni->ni_chan = &ic->ic_channels[le16toh(val)];
+		ic->ic_curchan = ni->ni_chan;
 		ic->ic_ibss_chan = ni->ni_chan;
 #if NBPFILTER > 0
 		sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
