@@ -64,8 +64,6 @@ MALLOC_DECLARE(M_PMAP);
 
 void ia64_ap_startup(void);
 
-extern uint64_t vhpt_base[];
-extern size_t vhpt_size;
 extern uint64_t ia64_lapic_address;
 
 #define	LID_SAPIC_ID(x)		((int)((x) >> 24) & 0xff)
@@ -93,7 +91,7 @@ ia64_ap_startup(void)
 	ia64_set_k4((intptr_t)pcpup);
 
 	__asm __volatile("mov cr.pta=%0;; srlz.i;;" ::
-	    "r" (ap_vhpt + (1<<8) + (vhpt_size<<2) + 1));
+	    "r" (ap_vhpt + (1<<8) + (pmap_vhpt_log2size<<2) + 1));
 
 	ap_awake = 1;
 	ap_delay = 0;
@@ -248,7 +246,7 @@ cpu_mp_start()
 			ap_pcpu = pc;
 			ap_stack = malloc(KSTACK_PAGES * PAGE_SIZE, M_PMAP,
 			    M_WAITOK);
-			ap_vhpt = vhpt_base[pc->pc_cpuid];
+			ap_vhpt = pmap_vhpt_base[pc->pc_cpuid];
 			ap_delay = 2000;
 			ap_awake = 0;
 
