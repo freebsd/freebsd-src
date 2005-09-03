@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.26 2004/08/15 08:41:00 djm Exp $ */
+/* $Id: openbsd-compat.h,v 1.30 2005/08/26 20:15:20 tim Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -152,6 +152,10 @@ int openpty(int *, int *, char *, struct termios *, struct winsize *);
 int snprintf(char *, size_t, const char *, ...);
 #endif 
 
+#ifndef HAVE_STRTONUM
+long long strtonum(const char *, long long, long long, const char **);
+#endif
+
 #ifndef HAVE_VSNPRINTF
 int vsnprintf(char *, size_t, const char *, va_list);
 #endif
@@ -169,5 +173,6 @@ char *shadow_pw(struct passwd *pw);
 #include "bsd-cygwin_util.h"
 #include "port-irix.h"
 #include "port-aix.h"
+#include "port-uw.h"
 
 #endif /* _OPENBSD_COMPAT_H */

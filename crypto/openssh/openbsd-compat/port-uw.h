@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2005 Anil Madhavapeddy. All rights reserved.
- * Copyright (c) 1995,1999 Theo de Raadt.  All rights reserved.
- * All rights reserved.
+ * Copyright (c) 2005 Tim Rice.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,41 +23,8 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: atomicio.c,v 1.13 2005/05/24 17:32:43 avsm Exp $");
 
-#include "atomicio.h"
-
-/*
- * ensure all of data on socket comes through. f==read || f==vwrite
- */
-size_t
-atomicio(f, fd, _s, n)
-	ssize_t (*f) (int, void *, size_t);
-	int fd;
-	void *_s;
-	size_t n;
-{
-	char *s = _s;
-	size_t pos = 0;
-	ssize_t res;
-
-	while (n > pos) {
-		res = (f) (fd, s + pos, n - pos);
-		switch (res) {
-		case -1:
-#ifdef EWOULDBLOCK
-			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
-#else
-			if (errno == EINTR || errno == EAGAIN)
+#if defined(HAVE_LIBIAF)  &&  !defined(BROKEN_LIBIAF)
+char * get_iaf_password(struct passwd *pw);
 #endif
-				continue;
-			return 0;
-		case 0:
-			errno = EPIPE;
-			return pos;
-		default:
-			pos += (u_int)res;
-		}
-	}
-	return (pos);
-}
+
