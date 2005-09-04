@@ -1,10 +1,10 @@
 # $FreeBSD$
 set -e
 
-# PR 85267
+# PR 77067, 85267
 f() {
-	false || return 1
-	return 0
+	return 1
+	true
 }
 
 f || true
