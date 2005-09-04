@@ -1728,8 +1728,11 @@ again:
 		memset(ifr.ifr_name, 0, sizeof(ifr.ifr_name));
 
 		if (strlcpy(ifr.ifr_name, ifp->if_xname, sizeof(ifr.ifr_name))
-		    >= sizeof(ifr.ifr_name))
+		    >= sizeof(ifr.ifr_name)) {
+			sbuf_delete(sb);
+			IFNET_RUNLOCK();
 			return (ENAMETOOLONG);
+		}
 
 		addrs = 0;
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
