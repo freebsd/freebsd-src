@@ -5,6 +5,8 @@
  * All rights reserved.
  * Copyright (c) 1994 David Greenman
  * All rights reserved.
+ * Copyright (c) 2005 Alan L. Cox <alc@cs.rice.edu>
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
@@ -1853,6 +1855,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	vm_paddr_t opa;
 	pt_entry_t origpte, newpte;
 	vm_page_t mpte, om;
+	boolean_t invlva;
 
 	va &= PG_FRAME;
 #ifdef PMAP_DIAGNOSTIC
@@ -1926,14 +1929,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		else if (!wired && (origpte & PG_W))
 			pmap->pm_stats.wired_count--;
 
-#if defined(PMAP_DIAGNOSTIC)
-		if (pmap_nw_modified((pt_entry_t) origpte)) {
-			printf(
-	"pmap_enter: modified page not writable: va: 0x%x, pte: 0x%x\n",
-			    va, origpte);
-		}
-#endif
-
 		/*
 		 * Remove extra pte reference
 		 */
@@ -2003,17 +1998,29 @@ validate:
 	 * to update the pte.
 	 */
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
-		if (origpte & PG_MANAGED) {
+		if (origpte & PG_V) {
+			invlva = FALSE;
 			origpte = pte_load_store(pte, newpte | PG_A);
-			if ((origpte & PG_M) && pmap_track_modified(va))
-				vm_page_dirty(om);
-			if (origpte & PG_A)
-				vm_page_flag_set(om, PG_REFERENCED);
+			if (origpte & PG_A) {
+				if (origpte & PG_MANAGED)
+					vm_page_flag_set(om, PG_REFERENCED);
+				if (opa != VM_PAGE_TO_PHYS(m))
+					invlva = TRUE;
+			}
+			if (origpte & PG_M) {
+				KASSERT((origpte & PG_RW),
+				    ("pmap_enter: modified page not writable:"
+				     " va: 0x%x, pte: 0x%x", va, origpte));
+				if ((origpte & PG_MANAGED) &&
+				    pmap_track_modified(va))
+					vm_page_dirty(om);
+				if ((prot & VM_PROT_WRITE) == 0)
+					invlva = TRUE;
+			}
+			if (invlva)
+				pmap_invalidate_page(pmap, va);
 		} else
 			pte_store(pte, newpte | PG_A);
-		if (origpte) {
-			pmap_invalidate_page(pmap, va);
-		}
 	}
 	sched_unpin();
 	vm_page_unlock_queues();
