@@ -1872,6 +1872,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	vm_paddr_t opa;
 	pt_entry_t origpte, newpte;
 	vm_page_t mpte, om;
+	boolean_t invlva;
 
 	va = trunc_page(va);
 #ifdef PMAP_DIAGNOSTIC
@@ -1934,14 +1935,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			pmap->pm_stats.wired_count++;
 		else if (!wired && (origpte & PG_W))
 			pmap->pm_stats.wired_count--;
-
-#if defined(PMAP_DIAGNOSTIC)
-		if (pmap_nw_modified((pt_entry_t) origpte)) {
-			printf(
-	"pmap_enter: modified page not writable: va: 0x%lx, pte: 0x%lx\n",
-			    va, origpte);
-		}
-#endif
 
 		/*
 		 * Remove extra pte reference
@@ -2014,17 +2007,30 @@ validate:
 	 * to update the pte.
 	 */
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
-		if (origpte & PG_MANAGED) {
+		if (origpte & PG_V) {
+			invlva = FALSE;
 			origpte = pte_load_store(pte, newpte | PG_A);
-			if ((origpte & PG_M) && pmap_track_modified(va))
-				vm_page_dirty(om);
-			if (origpte & PG_A)
-				vm_page_flag_set(om, PG_REFERENCED);
+			if (origpte & PG_A) {
+				if (origpte & PG_MANAGED)
+					vm_page_flag_set(om, PG_REFERENCED);
+				if (opa != VM_PAGE_TO_PHYS(m) || ((origpte &
+				    PG_NX) == 0 && (newpte & PG_NX)))
+					invlva = TRUE;
+			}
+			if (origpte & PG_M) {
+				KASSERT((origpte & PG_RW),
+				    ("pmap_enter: modified page not writable:"
+				     " va: 0x%lx, pte: 0x%lx", va, origpte));
+				if ((origpte & PG_MANAGED) &&
+				    pmap_track_modified(va))
+					vm_page_dirty(om);
+				if ((newpte & PG_RW) == 0)
+					invlva = TRUE;
+			}
+			if (invlva)
+				pmap_invalidate_page(pmap, va);
 		} else
 			pte_store(pte, newpte | PG_A);
-		if (origpte) {
-			pmap_invalidate_page(pmap, va);
-		}
 	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
