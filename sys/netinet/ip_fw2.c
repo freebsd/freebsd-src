@@ -1515,6 +1515,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		parent = lookup_dyn_parent(&id, rule);
 		if (parent == NULL) {
 			printf("ipfw: add parent failed\n");
+			IPFW_DYN_UNLOCK();
 			return 1;
 		}
 		if (parent->count >= cmd->conn_limit) {
