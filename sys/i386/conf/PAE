@@ -50,7 +50,6 @@ nodevice	pst
 
 nodevice	agp
 
-nodevice	de
 nodevice	txp
 nodevice	vx
 
