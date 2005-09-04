@@ -1,4 +1,4 @@
 # $FreeBSD$
 set -e
-if false; false then
+if false; false; then
 fi
