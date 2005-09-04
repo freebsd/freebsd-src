@@ -1,0 +1,11 @@
+# $FreeBSD$
+set -e
+
+# PR 85267
+f() {
+	false || return 1
+	return 0
+}
+
+f || true
+exit 0
