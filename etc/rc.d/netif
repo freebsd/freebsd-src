@@ -51,7 +51,7 @@ network_start()
 		# We're operating as a general network start routine.
 		#
 
-		# disable SIGINT (Ctrl-c) when running at at startup
+		# disable SIGINT (Ctrl-c) when running at startup
 		trap : 2
 
 		# Create cloned interfaces
