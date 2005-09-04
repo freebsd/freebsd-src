@@ -84,22 +84,30 @@ g_waitidle(void)
 	g_topology_assert_not();
 	mtx_assert(&Giant, MA_NOTOWNED);
 
-	while (g_pending_events)
-		tsleep(&g_pending_events, PPAUSE, "g_waitidle", hz/5);
+	mtx_lock(&g_eventlock);
+	while (!TAILQ_EMPTY(&g_events))
+		msleep(&g_pending_events, &g_eventlock, PPAUSE,
+		    "g_waitidle", hz/5);
+	mtx_unlock(&g_eventlock);
 	curthread->td_pflags &= ~TDP_GEOM;
 }
 
+#if 0
 void
 g_waitidlelock(void)
 {
 
 	g_topology_assert();
-	while (g_pending_events) {
+	mtx_lock(&g_eventlock);
+	while (!TAILQ_EMPTY(&g_events)) {
 		g_topology_unlock();
-		tsleep(&g_pending_events, PPAUSE, "g_waitidle", hz/5);
+		msleep(&g_pending_events, &g_eventlock, PPAUSE,
+		    "g_waitidlel", hz/5);
 		g_topology_lock();
 	}
+	mtx_unlock(&g_eventlock);
 }
+#endif
 
 void
 g_orphan_provider(struct g_provider *pp, int error)
@@ -188,24 +196,24 @@ one_event(void)
 	mtx_lock(&g_eventlock);
 	ep = TAILQ_FIRST(&g_events);
 	if (ep == NULL) {
+		wakeup(&g_pending_events);
 		mtx_unlock(&g_eventlock);
 		g_topology_unlock();
 		return (0);
 	}
-	TAILQ_REMOVE(&g_events, ep, events);
 	mtx_unlock(&g_eventlock);
 	g_topology_assert();
 	ep->func(ep->arg, 0);
 	g_topology_assert();
+	mtx_lock(&g_eventlock);
+	TAILQ_REMOVE(&g_events, ep, events);
+	mtx_unlock(&g_eventlock);
 	if (ep->flag & EV_WAKEUP) {
 		ep->flag |= EV_DONE;
 		wakeup(ep);
 	} else {
 		g_free(ep);
 	}
-	g_pending_events--;
-	if (g_pending_events == 0)
-		wakeup(&g_pending_events);
 	g_topology_unlock();
 	return (1);
 }
@@ -241,27 +249,26 @@ g_cancel_event(void *ref)
 		TAILQ_REMOVE(&g_doorstep, pp, orphan);
 		break;
 	}
-	for (ep = TAILQ_FIRST(&g_events); ep != NULL; ep = epn) {
-		epn = TAILQ_NEXT(ep, events);
+	TAILQ_FOREACH_SAFE(ep, &g_events, events, epn) {
 		for (n = 0; n < G_N_EVENTREFS; n++) {
 			if (ep->ref[n] == NULL)
 				break;
-			if (ep->ref[n] == ref) {
-				TAILQ_REMOVE(&g_events, ep, events);
-				ep->func(ep->arg, EV_CANCEL);
-				if (ep->flag & EV_WAKEUP) {
-					ep->flag |= EV_DONE;
-					ep->flag |= EV_CANCELED;
-					wakeup(ep);
-				} else {
-					g_free(ep);
-				}
-				if (--g_pending_events == 0)
-					wakeup(&g_pending_events);
-				break;
+			if (ep->ref[n] != ref)
+				continue;
+			TAILQ_REMOVE(&g_events, ep, events);
+			ep->func(ep->arg, EV_CANCEL);
+			mtx_assert(&g_eventlock, MA_OWNED);
+			if (ep->flag & EV_WAKEUP) {
+				ep->flag |= (EV_DONE|EV_CANCELED);
+				wakeup(ep);
+			} else {
+				g_free(ep);
 			}
+			break;
 		}
 	}
+	if (TAILQ_EMPTY(&g_events))
+		wakeup(&g_pending_events);
 	mtx_unlock(&g_eventlock);
 }
 
@@ -291,7 +298,6 @@ g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag, struct g_event 
 	ep->func = func;
 	ep->arg = arg;
 	mtx_lock(&g_eventlock);
-	g_pending_events++;
 	TAILQ_INSERT_TAIL(&g_events, ep, events);
 	mtx_unlock(&g_eventlock);
 	wakeup(&g_wait_event);
