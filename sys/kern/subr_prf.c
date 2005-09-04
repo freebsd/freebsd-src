@@ -755,7 +755,8 @@ number:
 			if (neg)
 				tmp++;
 
-			if (!ladjust && width && (width -= tmp) > 0)
+			if (!ladjust && padc != '0' && width
+			    && (width -= tmp) > 0)
 				while (width--)
 					PCHAR(padc);
 			if (neg)
@@ -768,6 +769,9 @@ number:
 					PCHAR('x');
 				}
 			}
+			if (!ladjust && width && (width -= tmp) > 0)
+				while (width--)
+					PCHAR(padc);
 
 			while (*p)
 				PCHAR(*p--);
