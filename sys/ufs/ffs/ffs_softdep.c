@@ -2485,6 +2485,15 @@ check_inode_unwritten(inodedep)
 	    TAILQ_FIRST(&inodedep->id_newextupdt) != NULL ||
 	    inodedep->id_nlinkdelta != 0)
 		return (0);
+
+	/*
+	 * Another process might be in initiate_write_inodeblock_ufs[12]
+	 * trying to allocate memory without holding "Softdep Lock".
+	 */
+	if ((inodedep->id_state & IOSTARTED) != 0 &&
+	    inodedep->id_savedino1 == NULL)
+		return (0);
+
 	inodedep->id_state |= ALLCOMPLETE;
 	LIST_REMOVE(inodedep, id_deps);
 	inodedep->id_buf = NULL;
@@ -3512,6 +3521,21 @@ handle_workitem_freefile(freefile)
 	WORKITEM_FREE(freefile, D_FREEFILE);
 }
 
+
+/*
+ * Helper function which unlinks marker element from work list and returns
+ * the next element on the list.
+ */
+static __inline struct worklist *
+markernext(struct worklist *marker)
+{
+	struct worklist *next;
+	
+	next = LIST_NEXT(marker, wk_list);
+	LIST_REMOVE(marker, wk_list);
+	return next;
+}
+
 /*
  * Disk writes.
  * 
@@ -3538,7 +3562,8 @@ static void
 softdep_disk_io_initiation(bp)
 	struct buf *bp;		/* structure describing disk write to occur */
 {
-	struct worklist *wk, *nextwk;
+	struct worklist *wk;
+	struct worklist marker;
 	struct indirdep *indirdep;
 	struct inodedep *inodedep;
 
@@ -3548,11 +3573,17 @@ softdep_disk_io_initiation(bp)
 	 */
 	if (bp->b_iocmd != BIO_WRITE)
 		panic("softdep_disk_io_initiation: not write");
+
+	marker.wk_type = D_LAST + 1;	/* Not a normal workitem */
+	PHOLD(curproc);			/* Don't swap out kernel stack */
+
 	ACQUIRE_LOCK(&lk);
 	/*
 	 * Do any necessary pre-I/O processing.
 	 */
-	LIST_FOREACH_SAFE(wk, &bp->b_dep, wk_list, nextwk) {
+	for (wk = LIST_FIRST(&bp->b_dep); wk != NULL;
+	     wk = markernext(&marker)) {
+		LIST_INSERT_AFTER(wk, &marker, wk_list);
 		switch (wk->wk_type) {
 
 		case D_PAGEDEP:
@@ -3617,6 +3648,7 @@ softdep_disk_io_initiation(bp)
 		}
 	}
 	FREE_LOCK(&lk);
+	PRELE(curproc);			/* Allow swapout of kernel stack */
 }
 
 /*
@@ -3679,6 +3711,7 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 {
 	struct allocdirect *adp, *lastadp;
 	struct ufs1_dinode *dp;
+	struct ufs1_dinode *sip;
 	struct fs *fs;
 	ufs_lbn_t i, prevlbn = 0;
 	int deplist;
@@ -3697,11 +3730,13 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 		if (inodedep->id_savedino1 != NULL)
 			panic("initiate_write_inodeblock_ufs1: I/O underway");
 		FREE_LOCK(&lk);
-		MALLOC(inodedep->id_savedino1, struct ufs1_dinode *,
+		MALLOC(sip, struct ufs1_dinode *,
 		    sizeof(struct ufs1_dinode), M_SAVEDINO, M_SOFTDEP_FLAGS);
 		ACQUIRE_LOCK(&lk);
+		inodedep->id_savedino1 = sip;
 		*inodedep->id_savedino1 = *dp;
 		bzero((caddr_t)dp, sizeof(struct ufs1_dinode));
+		dp->di_gen = inodedep->id_savedino1->di_gen;
 		return;
 	}
 	/*
@@ -3819,6 +3854,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 {
 	struct allocdirect *adp, *lastadp;
 	struct ufs2_dinode *dp;
+	struct ufs2_dinode *sip;
 	struct fs *fs;
 	ufs_lbn_t i, prevlbn = 0;
 	int deplist;
@@ -3837,11 +3873,13 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		if (inodedep->id_savedino2 != NULL)
 			panic("initiate_write_inodeblock_ufs2: I/O underway");
 		FREE_LOCK(&lk);
-		MALLOC(inodedep->id_savedino2, struct ufs2_dinode *,
+		MALLOC(sip, struct ufs2_dinode *,
 		    sizeof(struct ufs2_dinode), M_SAVEDINO, M_SOFTDEP_FLAGS);
 		ACQUIRE_LOCK(&lk);
+		inodedep->id_savedino2 = sip;
 		*inodedep->id_savedino2 = *dp;
 		bzero((caddr_t)dp, sizeof(struct ufs2_dinode));
+		dp->di_gen = inodedep->id_savedino2->di_gen;
 		return;
 	}
 	/*
