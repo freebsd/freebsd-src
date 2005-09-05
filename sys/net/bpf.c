@@ -390,7 +390,6 @@ bpfopen(dev, flags, fmt, td)
 	d->bd_sig = SIGIO;
 	d->bd_seesent = 1;
 	d->bd_pid = td->td_proc->p_pid;
-	strlcpy(d->bd_pcomm, td->td_proc->p_comm, MAXCOMLEN);
 #ifdef MAC
 	mac_init_bpfdesc(d);
 	mac_create_bpfdesc(td->td_ucred, d);
@@ -694,6 +693,10 @@ bpfioctl(dev, cmd, addr, flags, td)
 	struct bpf_d *d = dev->si_drv1;
 	int error = 0;
 
+	/* 
+	 * Refresh PID associated with this descriptor.
+	 */
+	d->bd_pid = td->td_proc->p_pid;
 	BPFD_LOCK(d);
 	if (d->bd_state == BPF_WAITING)
 		callout_stop(&d->bd_callout);
@@ -1141,6 +1144,10 @@ bpfpoll(dev, events, td)
 	if (d->bd_bif == NULL)
 		return (ENXIO);
 
+	/*
+	 * Refresh PID associated with this descriptor.
+	 */
+	d->bd_pid = td->td_proc->p_pid;
 	revents = events & (POLLOUT | POLLWRNORM);
 	BPFD_LOCK(d);
 	if (events & (POLLIN | POLLRDNORM)) {
@@ -1174,6 +1181,10 @@ bpfkqfilter(dev, kn)
 	if (kn->kn_filter != EVFILT_READ)
 		return (1);
 
+	/* 
+	 * Refresh PID associated with this descriptor.
+	 */
+	d->bd_pid = curthread->td_proc->p_pid;
 	kn->kn_fop = &bpfread_filtops;
 	kn->kn_hook = d;
 	knlist_add(&d->bd_sel.si_note, kn, 0);
@@ -1724,7 +1735,6 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 	d->bd_pid = bd->bd_pid;
 	strlcpy(d->bd_ifname,
 	    bd->bd_bif->bif_ifp->if_xname, IFNAMSIZ);
-	strlcpy(d->bd_pcomm, bd->bd_pcomm, MAXCOMLEN);
 	d->bd_locked = bd->bd_locked;
 }
 
