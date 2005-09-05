@@ -28,7 +28,7 @@
 .\" $Id: sec-doc.7,v 1.7 2001/12/22 00:14:12 rwatson Exp$
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2001
+.Dd September 5, 2005
 .Dt SDOC 7
 .Os
 .Sh NAME
@@ -64,9 +64,7 @@ system.
 Begin by listing
 those general security requirements that can be violated
 through the misuse of the feature.
-As described in
-the FreeBSD Security Architecture (FSA),
-there are four classes of security requirements:
+There are four classes of security requirements:
 .Bl -hang -offset indent
 .It Em integrity
 (example: non-administrators should not modify system binaries),
@@ -81,44 +79,11 @@ information listing functionality described in its documentation - no more,
 no less.)
 .El
 .Pp
-The FSA
-contains a list of integrity, confidentiality, availability,
-and correctness requirements for the base
-.Fx
-system.
-Many commands, tools, and utilities
-documented in sections 1, 6, and 8 of the manual
-are partly responsible for meeting these base system requirements.
-Consequently, borrowing entries from the list in
-the FSA
-is a good way to begin the list of requirements for these commands,
-tools, and utilities.
-.Pp
-Complex servers and subsystems may have their own integrity,
-confidentiality, availability and correctness requirements
-in addition to the system-wide ones listed in
-the FSA.
-Listing these additional requirements will require
-some thought and analysis.
-Correctness requirements will most often
-deal with configuration issues,
-especially in cases of programs that can load modules
-containing arbitrary functionality during run-time.
-.Pp
-For low-level features, such as the individual functions
-documented in sections 2, 3, and 9 of the manual,
-it is generally sufficient to proceed with
-only a single correctness requirement:
-simply that the function behaves as advertised.
-.Pp
 A good security considerations section
 should explain how the feature can be misused
 to violate each general security requirement in the list.
 Each explanation should be accompanied by instructions
 the reader should follow in order to avoid a violation.
-For the sake of brevity, assume the reader is familiar with
-all of the concepts in
-the FSA.
 When referencing potential vulnerabilities
 described in the Secure Programming Practices manual page,
 .Xr sprog 7 ,
@@ -146,15 +111,6 @@ should describe only those issues directly related to the feature
 that is the subject of the manual page.
 Refer to other manual pages
 rather than duplicating the material found there.
-Refer to generalized descriptions of problems in
-the FSA
-rather than referring to specific instances of those problems
-in other manual pages.
-Ideally, each specific security-relevant issue
-should be described in exactly one manual page,
-preferably as a specific instance of a general problem
-described in
-the FSA.
 .Sh EXAMPLES
 Security considerations sections for most individual functions can follow
 this simple formula:
@@ -162,9 +118,7 @@ this simple formula:
 .Bl -enum -offset indent -compact
 .It
 Provide one or two sentences describing each potential security
-problem, referencing
-the FSA
-to provide details whenever possible.
+problem.
 .It
 Provide one or two sentences describing how to avoid each potential
 security problem.
@@ -181,8 +135,6 @@ The
 function is easily misused in a manner which enables malicious users
 to arbitrarily change a running program's functionality
 through a buffer overflow attack.
-(See
-the FSA.)
 .Pp
 Avoid using
 .Fn strcpy .
@@ -254,8 +206,6 @@ of the program by replacing calls to standard library functions
 with calls to their own.
 Although this feature is disabled for set-user-ID and set-group-ID programs,
 it can still be used to create Trojan horses in other programs.
-(See
-the FSA.)
 .Pp
 All users should be aware that the correct operation of non
 set-user-ID/group-ID dynamically-linked programs depends on the proper
@@ -267,10 +217,6 @@ to link in shared libraries of unknown pedigree.
 .Xr groff_mdoc 7 ,
 .Xr security 7 ,
 .Xr sprog 7
-.Rs
-.%T "The FreeBSD Security Architecture"
-.%J file:///usr/share/doc/{to be determined}
-.Re
 .Rs
 .%A "Edward Amoroso, AT&T Bell Laboratories"
 .%B "Fundamentals of Computer Security Technology"
