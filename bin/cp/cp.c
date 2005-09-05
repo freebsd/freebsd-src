@@ -363,7 +363,10 @@ copy(char *argv[], enum op type, int fts_options)
 			 */
 			if (pflag) {
 				if (setfile(curr->fts_statp, -1))
-				    rval = 1;
+					rval = 1;
+				if (preserve_dir_acls(curr->fts_statp,
+				    curr->fts_accpath, to.p_path) != 0)
+					rval = 1;
 			} else {
 				mode = curr->fts_statp->st_mode;
 				if ((mode & (S_ISUID | S_ISGID | S_ISTXT)) ||
