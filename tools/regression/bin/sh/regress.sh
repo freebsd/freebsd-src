@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-echo '1..31'
+echo '1..42'
 
 COUNTER=1
 
@@ -31,12 +31,7 @@ do_test() {
 	rm tmp.stdout tmp.stderr
 }
 
-SUCCESS=$(find . -name "*.0")
-for i in ${SUCCESS} ; do
-	do_test ${i} 0
-done
-	
-FAILURE=$(find . -name "*.1")
-for i in ${FAILURE} ; do
-	do_test ${i} 1
+TESTS=$(find -s . -name "*.[01]")
+for i in ${TESTS} ; do
+	do_test ${i} ${i##*.}
 done
