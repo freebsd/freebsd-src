@@ -95,7 +95,6 @@ struct bpf_d {
 	struct label	*bd_label;	/* MAC label for descriptor */
 	u_long		bd_fcount;	/* number of packets which matched filter */
 	pid_t		bd_pid;		/* PID which created descriptor */
-	char		bd_pcomm[MAXCOMLEN + 1];
 	int		bd_locked;	/* true if descriptor is locked */
 };
 
@@ -148,7 +147,6 @@ struct xbpf_d {
 	int		bd_bufsize;
 	pid_t		bd_pid;
 	char		bd_ifname[IFNAMSIZ];
-	char		bd_pcomm[MAXCOMLEN + 1];
 	int		bd_locked;
 };
 
