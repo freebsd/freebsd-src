@@ -58,6 +58,24 @@ static void	 usage(char *);
 static void	 setwidths(struct colwidths *);
 static int	 diglen(double);
 
+static char *
+pidname(pid_t pid)
+{
+	struct kinfo_proc newkp;
+	int error, mib[4];
+	size_t size;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PID;
+	mib[3] = pid;
+	size = sizeof(newkp);
+	error = sysctl(mib, 4, &newkp, &size, NULL, 0);
+	if (error < 0)
+		return (strdup("??????"));
+	return (strdup(newkp.ki_comm));
+}
+
 static void
 setwidths(struct colwidths *c)
 {
@@ -129,8 +147,9 @@ static void
 bpfd_print_row(struct xbpf_d *bd, struct conf *conf)
 {
 	struct colwidths *c;
-	char flagbuf[8];
+	char *pname, flagbuf[8];
 
+	pname = pidname(bd->bd_pid);
 	c = &conf->cw;
 	bpfd_parse_flags(bd, &flagbuf[0]);
 	printf("%*d %*s %*s %*lu %*lu %*lu %*d %*d %s\n",
@@ -142,7 +161,7 @@ bpfd_print_row(struct xbpf_d *bd, struct conf *conf)
 	    c->fc_width,	bd->bd_fcount,
 	    c->sb_width,	bd->bd_slen,
 	    c->hb_width,	bd->bd_hlen,
-	    bd->bd_pcomm);
+	    pname);
 }
 
 static void
@@ -226,9 +245,6 @@ main(int argc, char *argv [])
 				continue;
 			if (cf.Iflag &&
 			    strcmp(bd->bd_ifname, cf.Iflag) != 0)
-				continue;
-			if (cf.cflag &&
-			    strcmp(bd->bd_pcomm, cf.cflag) != 0)
 				continue;
 			bpfd_print_row(bd, &cf);
 		}
