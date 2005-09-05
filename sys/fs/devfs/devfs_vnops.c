@@ -558,8 +558,11 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 		p = devtoname(dev);
 		i = strlen(p) + 1;
 		if (i > fgn->len)
-			return (EINVAL);
-		return (copyout(p, fgn->buf, i));
+			error = EINVAL;
+		else
+			error = copyout(p, fgn->buf, i);
+		dev_relthread(dev);
+		return (error);
 	}
 	if (dsw->d_flags & D_NEEDGIANT)
 		mtx_lock(&Giant);
