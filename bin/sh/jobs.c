@@ -647,7 +647,7 @@ makejob(union node *node __unused, int nprocs)
 		jp->ps = &jp->ps0;
 	}
 	INTON;
-	TRACE(("makejob(0x%lx, %d) returns %%%d\n", (long)node, nprocs,
+	TRACE(("makejob(%p, %d) returns %%%d\n", (void *)node, nprocs,
 	    jp - jobtab + 1));
 	return jp;
 }
@@ -733,7 +733,7 @@ forkshell(struct job *jp, union node *n, int mode)
 	pid_t pid;
 	pid_t pgrp;
 
-	TRACE(("forkshell(%%%d, 0x%lx, %d) called\n", jp - jobtab, (long)n,
+	TRACE(("forkshell(%%%d, %p, %d) called\n", jp - jobtab, (void *)n,
 	    mode));
 	INTOFF;
 	flushall();
