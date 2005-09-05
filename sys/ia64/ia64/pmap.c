@@ -1065,8 +1065,10 @@ pmap_find_pte(vm_offset_t va)
 		return pmap_find_kpte(va);
 
 	pte = pmap_find_vhpt(va);
-	if (!pte)
+	if (pte == NULL) {
 		pte = uma_zalloc(ptezone, M_NOWAIT | M_ZERO);
+		pte->tag = 1UL << 63;
+	}
 	return (pte);
 }
 
@@ -1145,8 +1147,7 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 	if (error)
 		return (error);
 
-	if (freepte)
-		pmap_invalidate_page(pmap, va);
+	pmap_invalidate_page(pmap, va);
 
 	if (pmap_wired(pte))
 		pmap->pm_stats.wired_count -= 1;
@@ -1160,13 +1161,10 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 		if (pmap_accessed(pte))
 			vm_page_flag_set(m, PG_REFERENCED);
 
-		if (freepte)
-			pmap_free_pte(pte, va);
 		error = pmap_remove_entry(pmap, m, va, pv);
-	} else {
-		if (freepte)
-			pmap_free_pte(pte, va);
 	}
+	if (freepte)
+		pmap_free_pte(pte, va);
 
 	return (error);
 }
@@ -1312,7 +1310,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 		("removing page for non-current pmap"));
 
 	pte = pmap_find_vhpt(va);
-	if (pte)
+	if (pte != NULL)
 		pmap_remove_pte(pmap, pte, va, 0, 1);
 	return;
 }
@@ -1361,7 +1359,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	} else {
 		for (va = sva; va < eva; va = va += PAGE_SIZE) {
 			pte = pmap_find_vhpt(va);
-			if (pte)
+			if (pte != NULL)
 				pmap_remove_pte(pmap, pte, va, 0, 1);
 		}
 	}
@@ -1454,7 +1452,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		 * If page is invalid, skip this page
 		 */
 		pte = pmap_find_vhpt(sva);
-		if (!pte) {
+		if (pte == NULL) {
 			sva += PAGE_SIZE;
 			continue;
 		}
@@ -1984,7 +1982,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	struct ia64_lpte *pte;
 
 	pte = pmap_find_vhpt(addr);
-	if (pte && pmap_present(pte))
+	if (pte != NULL && pmap_present(pte))
 		return (FALSE);
 	return (TRUE);
 }
@@ -2086,7 +2084,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	pmap_install(oldpmap);
 	PMAP_UNLOCK(pmap);
 
-	if (!pte)
+	if (pte == NULL)
 		return 0;
 
 	if (pmap_present(pte)) {
