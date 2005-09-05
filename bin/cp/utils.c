@@ -35,6 +35,8 @@ static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/acl.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
@@ -204,6 +206,8 @@ copy_file(const FTSENT *entp, int dne)
 
 	if (pflag && setfile(fs, to_fd))
 		rval = 1;
+	if (pflag && preserve_fd_acls(from_fd, to_fd) != 0)
+		rval = 1;
 	(void)close(from_fd);
 	if (close(to_fd)) {
 		warn("%s", to.p_path);
@@ -324,6 +328,82 @@ setfile(struct stat *fs, int fd)
 		}
 
 	return (rval);
+}
+
+int
+preserve_fd_acls(int source_fd, int dest_fd)
+{
+	struct acl *aclp;
+	acl_t acl;
+
+	if (fpathconf(source_fd, _PC_ACL_EXTENDED) != 1 ||
+	    fpathconf(dest_fd, _PC_ACL_EXTENDED) != 1)
+		return (0);
+	acl = acl_get_fd(source_fd);
+	if (acl == NULL) {
+		warn("failed to get acl entries while setting %s", to.p_path);
+		return (1);
+	}
+	aclp = &acl->ats_acl;
+	if (aclp->acl_cnt == 3)
+		return (0);
+	if (acl_set_fd(dest_fd, acl) < 0) {
+		warn("failed to set acl entries for %s", to.p_path);
+		return (1);
+	}
+	return (0);
+}
+
+int
+preserve_dir_acls(struct stat *fs, char *source_dir, char *dest_dir)
+{
+	acl_t (*aclgetf)(const char *, acl_type_t);
+	int (*aclsetf)(const char *, acl_type_t, acl_t);
+	struct acl *aclp;
+	acl_t acl;
+
+	if (pathconf(source_dir, _PC_ACL_EXTENDED) != 1 ||
+	    pathconf(dest_dir, _PC_ACL_EXTENDED) != 1)
+		return (0);
+	/*
+	 * If the file is a link we will not follow it
+	 */
+	if (S_ISLNK(fs->st_mode)) {
+		aclgetf = acl_get_link_np;
+		aclsetf = acl_set_link_np;
+	} else {
+		aclgetf = acl_get_file;
+		aclsetf = acl_set_file;
+	}
+	/*
+	 * Even if there is no ACL_TYPE_DEFAULT entry here, a zero
+	 * size ACL will be returned. So it is not safe to simply
+	 * check the pointer to see if the default ACL is present.
+	 */
+	acl = aclgetf(source_dir, ACL_TYPE_DEFAULT);
+	if (acl == NULL) {
+		warn("failed to get default acl entries on %s",
+		    source_dir);
+		return (1);
+	}
+	aclp = &acl->ats_acl;
+	if (aclp->acl_cnt != 0 && aclsetf(dest_dir,
+	    ACL_TYPE_DEFAULT, acl) < 0) {
+		warn("failed to set default acl entries on %s",
+		    dest_dir);
+		return (1);
+	}
+	acl = aclgetf(source_dir, ACL_TYPE_ACCESS);
+	if (acl == NULL) {
+		warn("failed to get acl entries on %s", source_dir);
+		return (1);
+	}
+	aclp = &acl->ats_acl;
+	if (aclsetf(dest_dir, ACL_TYPE_ACCESS, acl) < 0) {
+		warn("failed to set acl entries on %s", dest_dir);
+		return (1);
+	}
+	return (0);
 }
 
 void

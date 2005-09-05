@@ -44,6 +44,8 @@ static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/acl.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/wait.h>
@@ -252,6 +254,7 @@ fastcopy(char *from, char *to, struct stat *sbp)
 	static char *bp;
 	mode_t oldmode;
 	int nread, from_fd, to_fd;
+	acl_t acl;
 
 	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
 		warn("%s", from);
@@ -288,7 +291,6 @@ err:		if (unlink(to))
 		(void)close(to_fd);
 		return (1);
 	}
-	(void)close(from_fd);
 
 	oldmode = sbp->st_mode & ALLPERMS;
 	if (fchown(to_fd, sbp->st_uid, sbp->st_gid)) {
@@ -301,6 +303,21 @@ err:		if (unlink(to))
 			sbp->st_mode &= ~(S_ISUID | S_ISGID);
 		}
 	}
+	/*
+	 * POSIX 1003.2c states that if _POSIX_ACL_EXTENDED is in effect
+	 * for dest_file, then it's ACLs shall reflect the ACLs of the
+	 * source_file.
+	 */
+	if (fpathconf(to_fd, _PC_ACL_EXTENDED) == 1 &&
+	    fpathconf(from_fd, _PC_ACL_EXTENDED) == 1) {
+		acl = acl_get_fd(from_fd);
+		if (acl == NULL)
+			warn("failed to get acl entries while setting %s",
+			    from);
+		else if (acl_set_fd(to_fd, acl) < 0)
+			warn("failed to set acl entries for %s", to);
+	}
+	(void)close(from_fd);
 	if (fchmod(to_fd, sbp->st_mode))
 		warn("%s: set mode (was: 0%03o)", to, oldmode);
 	/*
