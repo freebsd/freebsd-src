@@ -152,22 +152,22 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para>The &man.dc.4; driver has been marked MPSAFE. &merged;</para>
+	<para>The &man.dc.4; driver is now MPSAFE. &merged;</para>
 
 	<para>The &man.de.4; driver has been converted to the &man.bus.dma.9;
-	  API and marked MPSAFE.</para>
+	  API and is now MPSAFE.</para>
 
-	<para>The &man.ed.4; driver has been marked MPSAFE.</para>
+	<para>The &man.ed.4; driver is now MPSAFE.</para>
 
 	<para>The &man.el.4; driver has been removed.</para>
 
-	<para>The &man.my.4; driver has been marked MPSAFE. &merged;</para>
+	<para>The &man.my.4; driver is now MPSAFE. &merged;</para>
 
-	<para>The &man.pcn.4; driver has been marked MPSAFE. &merged;</para>
+	<para>The &man.pcn.4; driver is now MPSAFE. &merged;</para>
 
-	<para>The &man.sf.4; driver has been marked MPSAFE. &merged;</para>
+	<para>The &man.sf.4; driver is now MPSAFE. &merged;</para>
 
-	<para>The &man.ste.4; driver has been marked MPSAFE.</para>
+	<para>The &man.ste.4; driver is now MPSAFE.</para>
       </sect4>
     </sect3>
 
