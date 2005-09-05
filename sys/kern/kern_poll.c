@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/socket.h>			/* needed by net/if.h		*/
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>			/* for IFF_* flags		*/
 #include <net/netisr.h>			/* for NETISR_POLL		*/
@@ -173,16 +174,29 @@ SYSCTL_UINT(_kern_polling, OID_AUTO, idlepoll_sleeping, CTLFLAG_RD,
 struct pollrec {
 	poll_handler_t	*handler;
 	struct ifnet	*ifp;
+#define	PRF_RUNNING	0x1
+#define	PRF_LEAVING	0x2
+	uint32_t	flags;
 };
 
 static struct pollrec pr[POLL_LIST_LEN];
+
+#define	PR_VALID(i)	(pr[(i)].handler != NULL &&			\
+			!(pr[(i)].flags & (PRF_RUNNING|PRF_LEAVING)) &&	\
+			(pr[(i)].ifp->if_drv_flags & IFF_DRV_RUNNING) &&\
+			(pr[(i)].ifp->if_flags & IFF_UP))
+
+static struct mtx	poll_mtx;
 
 static void
 init_device_poll(void)
 {
 
-	netisr_register(NETISR_POLL, (netisr_t *)netisr_poll, NULL, 0);
-	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL, 0);
+	mtx_init(&poll_mtx, "polling", NULL, MTX_DEF);
+	netisr_register(NETISR_POLL, (netisr_t *)netisr_poll, NULL,
+	    NETISR_MPSAFE);
+	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL,
+	    NETISR_MPSAFE);
 }
 SYSINIT(device_poll, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, init_device_poll, NULL)
 
@@ -246,16 +260,23 @@ ether_poll(int count)
 {
 	int i;
 
-	mtx_lock(&Giant);
+	mtx_lock(&poll_mtx);
 
 	if (count > poll_each_burst)
 		count = poll_each_burst;
-	for (i = 0 ; i < poll_handlers ; i++)
-		if (pr[i].handler &&
-		    (pr[i].ifp->if_flags & IFF_UP) &&
-		    (pr[i].ifp->if_drv_flags & IFF_DRV_RUNNING))
-			pr[i].handler(pr[i].ifp, 0, count); /* quick check */
-	mtx_unlock(&Giant);
+
+	for (i = 0 ; i < poll_handlers ; i++) {
+		if (PR_VALID(i)) {
+			pr[i].flags |= PRF_RUNNING;
+			mtx_unlock(&poll_mtx);
+			NET_LOCK_GIANT();
+			pr[i].handler(pr[i].ifp, POLL_ONLY, count);
+			NET_UNLOCK_GIANT();
+			mtx_lock(&poll_mtx);
+			pr[i].flags &= ~PRF_RUNNING;
+		}
+	}
+	mtx_unlock(&poll_mtx);
 }
 
 /*
@@ -281,11 +302,14 @@ netisr_pollmore()
 {
 	struct timeval t;
 	int kern_load;
-	/* XXX run at splhigh() or equivalent */
 
+	NET_ASSERT_GIANT();
+
+	mtx_lock(&poll_mtx);
 	phase = 5;
 	if (residual_burst > 0) {
 		schednetisrbits(1 << NETISR_POLL | 1 << NETISR_POLLMORE);
+		mtx_unlock(&poll_mtx);
 		/* will run immediately on return, followed by netisrs */
 		return;
 	}
@@ -317,12 +341,12 @@ netisr_pollmore()
 		schednetisrbits(1 << NETISR_POLL | 1 << NETISR_POLLMORE);
 		phase = 6;
 	}
+	mtx_unlock(&poll_mtx);
 }
 
 /*
  * netisr_poll is scheduled by schednetisr when appropriate, typically once
- * per tick. It is called at splnet() so first thing to do is to upgrade to
- * splimp(), and call all registered handlers.
+ * per tick.
  */
 static void
 netisr_poll(void)
@@ -330,8 +354,10 @@ netisr_poll(void)
 	static int reg_frac_count;
 	int i, cycles;
 	enum poll_cmd arg = POLL_ONLY;
-	mtx_lock(&Giant);
 
+	NET_ASSERT_GIANT();
+
+	mtx_lock(&poll_mtx);
 	phase = 3;
 	if (residual_burst == 0) { /* first call in this tick */
 		microuptime(&poll_start_t);
@@ -373,26 +399,34 @@ netisr_poll(void)
 	residual_burst -= cycles;
 
 	if (polling) {
-		for (i = 0 ; i < poll_handlers ; i++)
-			if (pr[i].handler &&
-			    (pr[i].ifp->if_flags & IFF_UP) &&
-			    (pr[i].ifp->if_drv_flags & IFF_DRV_RUNNING))
+		for (i = 0 ; i < poll_handlers ; i++) {
+			if (PR_VALID(i)) {
+				pr[i].flags |= PRF_RUNNING;
+				mtx_unlock(&poll_mtx);
 				pr[i].handler(pr[i].ifp, arg, cycles);
+				mtx_lock(&poll_mtx);
+				pr[i].flags &= ~PRF_RUNNING;
+			}
+		}
 	} else {	/* unregister */
 		for (i = 0 ; i < poll_handlers ; i++) {
-			if (pr[i].handler &&
+			if (pr[i].handler != NULL &&
 			    pr[i].ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				pr[i].ifp->if_flags &= ~IFF_POLLING;
+				pr[i].flags |= PRF_LEAVING;
+				mtx_unlock(&poll_mtx);
 				pr[i].handler(pr[i].ifp, POLL_DEREGISTER, 1);
+				mtx_lock(&poll_mtx);
+				pr[i].flags &= ~PRF_LEAVING;
 			}
-			pr[i].handler=NULL;
+			pr[i].handler = NULL;
 		}
 		residual_burst = 0;
 		poll_handlers = 0;
 	}
-	/* on -stable, schednetisr(NETISR_POLLMORE); */
+
 	phase = 4;
-	mtx_unlock(&Giant);
+	mtx_unlock(&poll_mtx);
 }
 
 /*
@@ -401,12 +435,14 @@ netisr_poll(void)
  * A device is not supposed to register itself multiple times.
  *
  * This is called from within the *_intr() functions, so we do not need
- * further locking.
+ * further ifnet locking.
  */
 int
 ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 {
-	int s;
+	int i;
+
+	NET_ASSERT_GIANT();
 
 	if (polling == 0) /* polling disabled, cannot register */
 		return 0;
@@ -417,7 +453,7 @@ ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 	if (ifp->if_flags & IFF_POLLING)	/* already polling	*/
 		return 0;
 
-	s = splhigh();
+	mtx_lock(&poll_mtx);
 	if (poll_handlers >= POLL_LIST_LEN) {
 		/*
 		 * List full, cannot register more entries.
@@ -427,20 +463,28 @@ ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 		 * anyways, so just report a few times and then give up.
 		 */
 		static int verbose = 10 ;
-		splx(s);
 		if (verbose >0) {
-			printf("poll handlers list full, "
-				"maybe a broken driver ?\n");
+			log(LOG_ERR, "poll handlers list full, "
+			    "maybe a broken driver ?\n");
 			verbose--;
 		}
+		mtx_unlock(&poll_mtx);
 		return 0; /* no polling for you */
 	}
+
+	for (i = 0 ; i < poll_handlers ; i++)
+		if (pr[i].ifp == ifp && pr[i].handler != NULL) {
+			mtx_unlock(&poll_mtx);
+			log(LOG_DEBUG, "ether_poll_register: %s: handler"
+			    " already registered\n", ifp->if_xname);
+			return (0);
+		}
 
 	pr[poll_handlers].handler = h;
 	pr[poll_handlers].ifp = ifp;
 	poll_handlers++;
 	ifp->if_flags |= IFF_POLLING;
-	splx(s);
+	mtx_unlock(&poll_mtx);
 	if (idlepoll_sleeping)
 		wakeup(&idlepoll_sleeping);
 	return 1; /* polling enabled in next call */
@@ -457,27 +501,29 @@ ether_poll_deregister(struct ifnet *ifp)
 {
 	int i;
 
-	mtx_lock(&Giant);
+	NET_ASSERT_GIANT();
+
 	if ( !ifp || !(ifp->if_flags & IFF_POLLING) ) {
-		mtx_unlock(&Giant);
 		return 0;
 	}
+	mtx_lock(&poll_mtx);
 	for (i = 0 ; i < poll_handlers ; i++)
 		if (pr[i].ifp == ifp) /* found it */
 			break;
 	ifp->if_flags &= ~IFF_POLLING; /* found or not... */
 	if (i == poll_handlers) {
-		mtx_unlock(&Giant);
-		printf("ether_poll_deregister: ifp not found!!!\n");
-		return 0;
+		mtx_unlock(&poll_mtx);
+		log(LOG_DEBUG, "ether_poll_deregister: %s: not found!\n",
+		    ifp->if_xname);
+		return (0);
 	}
 	poll_handlers--;
 	if (i < poll_handlers) { /* Last entry replaces this one. */
 		pr[i].handler = pr[poll_handlers].handler;
 		pr[i].ifp = pr[poll_handlers].ifp;
 	}
-	mtx_unlock(&Giant);
-	return 1;
+	mtx_unlock(&poll_mtx);
+	return (1);
 }
 
 static void
@@ -497,10 +543,7 @@ poll_idle(void)
 	for (;;) {
 		if (poll_in_idle_loop && poll_handlers > 0) {
 			idlepoll_sleeping = 0;
-			mtx_lock(&Giant);
 			ether_poll(poll_each_burst);
-			mtx_unlock(&Giant);
-			mtx_assert(&Giant, MA_NOTOWNED);
 			mtx_lock_spin(&sched_lock);
 			mi_switch(SW_VOL, NULL);
 			mtx_unlock_spin(&sched_lock);
