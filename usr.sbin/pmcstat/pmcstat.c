@@ -627,8 +627,8 @@ main(int argc, char **argv)
 	/* check for counting mode options without a counting PMC */
 	if ((args.pa_required & FLAG_HAS_COUNTING_PMCS) &&
 	    (args.pa_flags & FLAG_HAS_COUNTING_PMCS) == 0)
-		errx(EX_USAGE, "ERROR: options -C, -o and -W require at least "
-		    "one counting mode PMC to be specified.");
+		errx(EX_USAGE, "ERROR: options -C, -W, -o and -w require at "
+		    "least one counting mode PMC to be specified.");
 
 	/* check for sampling mode options without a sampling PMC spec */
 	if ((args.pa_required & FLAG_HAS_SAMPLING_PMCS) &&
