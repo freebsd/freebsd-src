@@ -190,7 +190,7 @@ evaltree(union node *n, int flags)
 #ifndef NO_HISTORY
 	displayhist = 1;	/* show history substitutions done with fc */
 #endif
-	TRACE(("evaltree(0x%lx: %d) called\n", (long)n, n->type));
+	TRACE(("evaltree(%p: %d) called\n", (void *)n, n->type));
 	switch (n->type) {
 	case NSEMI:
 		evaltree(n->nbinary.ch1, 0);
@@ -457,7 +457,7 @@ evalpipe(union node *n)
 	int prevfd;
 	int pip[2];
 
-	TRACE(("evalpipe(0x%lx) called\n", (long)n));
+	TRACE(("evalpipe(%p) called\n", (void *)n));
 	pipelen = 0;
 	for (lp = n->npipe.cmdlist ; lp ; lp = lp->next)
 		pipelen++;
@@ -596,7 +596,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 #endif
 
 	/* First expand the arguments. */
-	TRACE(("evalcommand(0x%lx, %d) called\n", (long)cmd, flags));
+	TRACE(("evalcommand(%p, %d) called\n", (void *)cmd, flags));
 	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
 	varlist.lastp = &varlist.list;
