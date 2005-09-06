@@ -1279,14 +1279,7 @@ dontblock:
 					so->so_rcv.sb_mb = m_free(m);
 					m = so->so_rcv.sb_mb;
 				}
-				if (m != NULL) {
-					m->m_nextpkt = nextrecord;
-					if (nextrecord == NULL)
-						so->so_rcv.sb_lastrecord = m;
-				} else {
-					so->so_rcv.sb_mb = nextrecord;
-					SB_EMPTY_FIXUP(&so->so_rcv);
-				}
+				sockbuf_pushsync(&so->so_rcv, nextrecord);
 				SBLASTRECORDCHK(&so->so_rcv);
 				SBLASTMBUFCHK(&so->so_rcv);
 			}
