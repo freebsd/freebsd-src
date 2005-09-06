@@ -401,7 +401,8 @@ ax88x90_geteprom(struct ed_softc *sc)
 	struct {
 		unsigned char offset, value;
 	} pg_seq[] = {
-		{ED_P0_CR, ED_CR_RD2|ED_CR_STP},/* Select Page0 */
+						/* Select Page0 */
+		{ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0},
 		{ED_P0_DCR, 0x01},
 		{ED_P0_RBCR0, 0x00},		/* Clear the count regs. */
 		{ED_P0_RBCR1, 0x00},
@@ -413,14 +414,15 @@ ax88x90_geteprom(struct ed_softc *sc)
 		{ED_P0_RBCR1, 0x00},
 		{ED_P0_RSAR0, 0x00},
 		{ED_P0_RSAR1, 0x04},
-		{ED_P0_CR ,ED_CR_RD0 | ED_CR_STA},
+		{ED_P0_CR, ED_CR_RD0 | ED_CR_STA | ED_CR_PAGE_0},
 	};
 
+	/* XXX The Linux axnet_cs driver does the following differently */
 	/* Reset Card */
 	tmp = ed_asic_inb(sc, ED_NOVELL_RESET);
 	ed_asic_outb(sc, ED_NOVELL_RESET, tmp);
 	DELAY(5000);
-	ed_asic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
+	ed_asic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0);
 	DELAY(5000);
 
 	/* Card Settings */
@@ -541,9 +543,10 @@ ed_pccard_ax88x90(device_t dev)
 	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
 	sc->chip_type = ED_CHIP_TYPE_AX88190;
 
-	/*
+	/* XXX
 	 * Set Attribute Memory IOBASE Register.  Is this a deficiency in
-	 * the PC Card layer, or an ax88190 specific issue? xxx
+	 * the PC Card layer, or an ax88190 specific issue?  The card
+	 * definitely doesn't work without it.
 	 */
 	iobase = rman_get_start(sc->port_res);
 	ed_pccard_memwrite(dev, ED_AX88190_IOBASE0, iobase & 0xff);
