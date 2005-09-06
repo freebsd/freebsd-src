@@ -447,6 +447,7 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_softc = sc;
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_mtu = ETHERMTU;
+	ifp->if_flags = IFF_MULTICAST;
 	ifp->if_ioctl = bridge_ioctl;
 	ifp->if_output = bridge_output;
 	ifp->if_start = bridge_start;
@@ -540,6 +541,10 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	BRIDGE_LOCK(sc);
 
 	switch (cmd) {
+
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		break;
 
 	case SIOCGDRVSPEC:
 	case SIOCSDRVSPEC:
@@ -1664,11 +1669,14 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct bridge_softc *sc = ifp->if_bridge;
 	struct bridge_iflist *bif;
+	struct ifnet *bifp;
 	struct ether_header *eh;
-	struct mbuf *mc;
+	struct mbuf *mc, *mc2;
 
 	if ((sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return (m);
+
+	bifp = sc->sc_ifp;
 
 	BRIDGE_LOCK(sc);
 	bif = bridge_lookup_member_if(sc, ifp);
@@ -1679,7 +1687,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 	eh = mtod(m, struct ether_header *);
 
-	if (memcmp(eh->ether_dhost, IFP2ENADDR(sc->sc_ifp),
+	if (memcmp(eh->ether_dhost, IFP2ENADDR(bifp),
 	    ETHER_ADDR_LEN) == 0) {
 		/*
 		 * If the packet is for us, set the packets source as the
@@ -1692,9 +1700,9 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		 */
 
 		/* Mark the packet as arriving on the bridge interface */
-		m->m_pkthdr.rcvif = sc->sc_ifp;
-		BPF_MTAP(sc->sc_ifp, m);
-		sc->sc_ifp->if_ipackets++;
+		m->m_pkthdr.rcvif = bifp;
+		BPF_MTAP(bifp, m);
+		bifp->if_ipackets++;
 
 		BRIDGE_UNLOCK(sc);
 		return (m);
@@ -1734,6 +1742,20 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 		/* Perform the bridge forwarding function with the copy. */
 		bridge_forward(sc, mc);
+
+		/*
+		 * Reinject the mbuf as arriving on the bridge so we have a
+		 * chance at claiming multicast packets. We can not loop back
+		 * here from ether_input as a bridge is never a member of a
+		 * bridge.
+		 */
+		KASSERT(bifp->if_bridge == NULL,
+		    ("loop created in bridge_input"));
+		mc2 = m_dup(m, M_DONTWAIT);
+		if (mc2 != NULL) {
+			mc2->m_pkthdr.rcvif = bifp;
+			(*bifp->if_input)(bifp, mc2);
+		}
 
 		/* Return the original packet for local processing. */
 		return (m);
