@@ -53,8 +53,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/acl.h>
 
-MALLOC_DEFINE(M_ACL, "acl", "access control list");
+#include <vm/uma.h>
 
+uma_zone_t	acl_zone;
 static int	vacl_set_acl(struct thread *td, struct vnode *vp,
 		    acl_type_t type, struct acl *aclp);
 static int	vacl_get_acl(struct thread *td, struct vnode *vp,
@@ -1021,3 +1022,14 @@ __acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 	mtx_unlock(&Giant);
 	return (error);
 }
+
+/* ARGUSED */
+
+static void
+aclinit(void *dummy __unused)
+{
+
+	acl_zone = uma_zcreate("ACL UMA zone", sizeof(struct acl),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+}
+SYSINIT(acls, SI_SUB_ACL, SI_ORDER_FIRST, aclinit, NULL)
