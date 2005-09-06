@@ -192,13 +192,7 @@ readcmd(int argc __unused, char **argv __unused)
 			continue;
 		}
 		startword = 0;
-		if (backslash && c == '\\') {
-			if (read(STDIN_FILENO, &c, 1) != 1) {
-				status = 1;
-				break;
-			}
-			STPUTC(c, p);
-		} else if (ap[1] != NULL && strchr(ifs, c) != NULL) {
+		if (ap[1] != NULL && strchr(ifs, c) != NULL) {
 			STACKSTRNUL(p);
 			setvar(*ap, stackblock(), 0);
 			ap++;
