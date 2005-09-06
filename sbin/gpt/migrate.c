@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Marcel Moolenaar
  * All rights reserved.
  *
@@ -59,7 +59,7 @@ usage_migrate(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-fs] device\n", getprogname());
+	    "usage: %s [-fs] device ...\n", getprogname());
 	exit(1);
 }
 
@@ -100,22 +100,22 @@ migrate_disklabel(int fd, off_t start, struct gpt_ent *ent)
 		case FS_SWAP: {
 			uuid_t swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 			le_uuid_enc(&ent->ent_type, &swap);
-			unicode16(ent->ent_name,
-			    L"FreeBSD swap partition", 36);
+			utf8_to_utf16("FreeBSD swap partition",
+			    ent->ent_name, 36);
 			break;
 		}
 		case FS_BSDFFS: {
 			uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 			le_uuid_enc(&ent->ent_type, &ufs);
-			unicode16(ent->ent_name,
-			    L"FreeBSD UFS partition", 36);
+			utf8_to_utf16("FreeBSD UFS partition",
+			    ent->ent_name, 36);
 			break;
 		}
 		case FS_VINUM: {
 			uuid_t vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
 			le_uuid_enc(&ent->ent_type, &vinum);
-			unicode16(ent->ent_name,
-			    L"FreeBSD vinum partition", 36);
+			utf8_to_utf16("FreeBSD vinum partition",
+			    ent->ent_name, 36);
 			break;
 		}
 		default:
@@ -255,8 +255,8 @@ migrate(int fd)
 				le_uuid_enc(&ent->ent_type, &freebsd);
 				ent->ent_lba_start = htole64((uint64_t)start);
 				ent->ent_lba_end = htole64(start + size - 1LL);
-				unicode16(ent->ent_name,
-				    L"FreeBSD disklabel partition", 36);
+				utf8_to_utf16("FreeBSD disklabel partition",
+				    ent->ent_name, 36);
 				ent++;
 			} else
 				ent = migrate_disklabel(fd, start, ent);
@@ -267,7 +267,8 @@ migrate(int fd)
 			le_uuid_enc(&ent->ent_type, &efi_slice);
 			ent->ent_lba_start = htole64((uint64_t)start);
 			ent->ent_lba_end = htole64(start + size - 1LL);
-			unicode16(ent->ent_name, L"EFI system partition", 36);
+			utf8_to_utf16("EFI system partition",
+			    ent->ent_name, 36);
 			ent++;
 			break;
 		}

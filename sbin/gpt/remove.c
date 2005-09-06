@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
  *
@@ -49,8 +49,8 @@ usage_remove(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s -a device\n"
-	    "       %s [-b lba] [-i index] [-s lba] [-t uuid] device\n",
+	    "usage: %s -a device ...\n"
+	    "       %s [-b lba] [-i index] [-s lba] [-t uuid] device ...\n",
 	    getprogname(), getprogname());
 	exit(1);
 }
@@ -64,7 +64,7 @@ rem(int fd)
 	map_t *m;
 	struct gpt_hdr *hdr;
 	struct gpt_ent *ent;
-	unsigned int i, removed;
+	unsigned int i;
 
 	gpt = map_find(MAP_TYPE_PRI_GPT_HDR);
 	if (gpt == NULL) {
@@ -87,8 +87,6 @@ rem(int fd)
 		return;
 	}
 
-	removed = 0;
-
 	/* Remove all matching entries in the map. */
 	for (m = map_first(); m != NULL; m = m->map_next) {
 		if (m->map_type != MAP_TYPE_GPT_PART || m->map_index < 1)
@@ -109,6 +107,8 @@ rem(int fd)
 		if (!uuid_is_nil(&type, NULL) &&
 		    !uuid_equal(&type, &uuid, NULL))
 			continue;
+
+		/* Remove the primary entry by clearing the partition type. */
 		uuid_create_nil(&ent->ent_type, NULL);
 
 		hdr->hdr_crc_table = htole32(crc32(tbl->map_data,
@@ -122,6 +122,8 @@ rem(int fd)
 		hdr = tpg->map_data;
 		ent = (void*)((char*)lbt->map_data + i *
 		    le32toh(hdr->hdr_entsz));
+
+		/* Remove the secundary entry. */
 		uuid_create_nil(&ent->ent_type, NULL);
 
 		hdr->hdr_crc_table = htole32(crc32(lbt->map_data,
@@ -133,11 +135,7 @@ rem(int fd)
 		gpt_write(fd, tpg);
 
 		printf("%sp%u removed\n", device_name, m->map_index);
-
-		removed++;
 	}
-
-	warnx("%s: %d partition(s) removed", device_name, removed);
 }
 
 int
