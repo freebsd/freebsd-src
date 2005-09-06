@@ -174,6 +174,11 @@ SYSCTL_UINT(_kern_polling, OID_AUTO, idlepoll_sleeping, CTLFLAG_RD,
 struct pollrec {
 	poll_handler_t	*handler;
 	struct ifnet	*ifp;
+	/*
+	 * Flags of polling record (protected by poll_mtx).
+	 * PRF_RUNNING means that the handler is now executing.
+	 * PRF_LEAVING means that the handler is now deregistering.
+	 */
 #define	PRF_RUNNING	0x1
 #define	PRF_LEAVING	0x2
 	uint32_t	flags;
