@@ -893,7 +893,7 @@ numvar:
 		}
 		/* FALLTHROUGH */
 	case '*':
-		if (ifsset() != 0)
+		if (ifsset())
 			sep = ifsval()[0];
 		else
 			sep = ' ';
@@ -1022,8 +1022,7 @@ ifsbreakup(char *string, struct arglist *arglist)
 					p++;
 			}
 		} while ((ifsp = ifsp->next) != NULL);
-		if (*start || (!ifsspc && start > string && 
-			(nulonly || 1))) {
+		if (*start || (!ifsspc && start > string)) {
 			sp = (struct strlist *)stalloc(sizeof *sp);
 			sp->text = start;
 			*arglist->lastp = sp;
@@ -1211,7 +1210,6 @@ expmeta(char *enddir, char *name)
 				scopy(dp->d_name, enddir);
 				addfname(expdir);
 			} else {
-				char *q;
 				for (p = enddir, q = dp->d_name;
 				     (*p++ = *q++) != '\0';)
 					continue;
