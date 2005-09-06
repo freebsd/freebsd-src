@@ -318,7 +318,7 @@ ufs_access(ap)
 
 #ifdef UFS_ACL
 	if ((vp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+		acl = uma_zalloc(acl_zone, M_WAITOK);
 		error = VOP_GETACL(vp, ACL_TYPE_ACCESS, acl, ap->a_cred,
 		    ap->a_td);
 		switch (error) {
@@ -342,7 +342,7 @@ ufs_access(ap)
 			error = vaccess(vp->v_type, ip->i_mode, ip->i_uid,
 			    ip->i_gid, ap->a_mode, ap->a_cred, NULL);
 		}
-		FREE(acl, M_ACL);
+		uma_zfree(acl_zone, acl);
 	} else
 #endif /* !UFS_ACL */
 		error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
@@ -1400,8 +1400,8 @@ ufs_mkdir(ap)
 #ifdef UFS_ACL
 	acl = dacl = NULL;
 	if ((dvp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
-		MALLOC(dacl, struct acl *, sizeof(*dacl), M_ACL, M_WAITOK);
+		acl = uma_zalloc(acl_zone, M_WAITOK);
+		dacl = uma_zalloc(acl_zone, M_WAITOK);
 
 		/*
 		 * Retrieve default ACL from parent, if any.
@@ -1431,16 +1431,16 @@ ufs_mkdir(ap)
 			 */
 			ip->i_mode = dmode;
 			DIP_SET(ip, i_mode, dmode);
-			FREE(acl, M_ACL);
-			FREE(dacl, M_ACL);
+			uma_zfree(acl_zone, acl);
+			uma_zfree(acl_zone, dacl);
 			dacl = acl = NULL;
 			break;
 		
 		default:
 			UFS_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
-			FREE(acl, M_ACL);
-			FREE(dacl, M_ACL);
+			uma_zfree(acl_zone, acl);
+			uma_zfree(acl_zone, dacl);
 			return (error);
 		}
 	} else {
@@ -1510,13 +1510,13 @@ ufs_mkdir(ap)
 			break;
 
 		default:
-			FREE(acl, M_ACL);
-			FREE(dacl, M_ACL);
+			uma_zfree(acl_zone, acl);
+			uma_zfree(acl_zone, dacl);
 			dacl = acl = NULL;
 			goto bad;
 		}
-		FREE(acl, M_ACL);
-		FREE(dacl, M_ACL);
+		uma_zfree(acl_zone, acl);
+		uma_zfree(acl_zone, dacl);
 		dacl = acl = NULL;
 	}
 #endif /* !UFS_ACL */
@@ -1582,9 +1582,9 @@ bad:
 	} else {
 #ifdef UFS_ACL
 		if (acl != NULL)
-			FREE(acl, M_ACL);
+			uma_zfree(acl_zone, acl);
 		if (dacl != NULL)
-			FREE(dacl, M_ACL);
+			uma_zfree(acl_zone, dacl);
 #endif
 		dp->i_effnlink--;
 		dp->i_nlink--;
@@ -2231,7 +2231,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef UFS_ACL
 	acl = NULL;
 	if ((dvp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+		acl = uma_zalloc(acl_zone, M_WAITOK);
 
 		/*
 		 * Retrieve default ACL for parent, if any.
@@ -2266,14 +2266,14 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			 */
 			ip->i_mode = mode;
 			DIP_SET(ip, i_mode, mode);
-			FREE(acl, M_ACL);
+			uma_zfree(acl_zone, acl);
 			acl = NULL;
 			break;
 	
 		default:
 			UFS_VFREE(tvp, ip->i_number, mode);
 			vput(tvp);
-			FREE(acl, M_ACL);
+			uma_zfree(acl_zone, acl);
 			acl = NULL;
 			return (error);
 		}
@@ -2339,10 +2339,10 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			break;
 
 		default:
-			FREE(acl, M_ACL);
+			uma_zfree(acl_zone, acl);
 			goto bad;
 		}
-		FREE(acl, M_ACL);
+		uma_zfree(acl_zone, acl);
 	}
 #endif /* !UFS_ACL */
 	ufs_makedirentry(ip, cnp, &newdir);
