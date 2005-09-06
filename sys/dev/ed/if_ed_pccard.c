@@ -599,8 +599,7 @@ ed_pccard_ax88x90(device_t dev)
     ed_asic_inb(sc, ED_DLINK_MIIBUS) & ~(x))
 
 static void
-ed_pccard_dlink_mii_reset(sc)
-	struct ed_softc *sc;
+ed_pccard_dlink_mii_reset(struct ed_softc *sc)
 {
 	if (sc->chip_type != ED_CHIP_TYPE_DL10022)
 		return;
@@ -619,10 +618,7 @@ ed_pccard_dlink_mii_reset(sc)
 }
 
 static void
-ed_pccard_dlink_mii_writebits(sc, val, nbits)
-	struct ed_softc *sc;
-	u_int val;
-	int nbits;
+ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
 {
 	int i;
 
@@ -645,9 +641,7 @@ ed_pccard_dlink_mii_writebits(sc, val, nbits)
 }
 
 static u_int
-ed_pccard_dlink_mii_readbits(sc, nbits)
-	struct ed_softc *sc;
-	int nbits;
+ed_pccard_dlink_mii_readbits(struct ed_softc *sc, int nbits)
 {
 	int i;
 	u_int val = 0;
@@ -666,7 +660,6 @@ ed_pccard_dlink_mii_readbits(sc, nbits)
 		DLINK_MIICLR(sc, ED_DLINK_MII_CLK);
 		DELAY(10);
 	}
-
 	return val;
 }
 #endif
