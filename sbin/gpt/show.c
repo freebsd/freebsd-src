@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Marcel Moolenaar
  * All rights reserved.
  *
@@ -39,12 +39,15 @@ __FBSDID("$FreeBSD$");
 #include "map.h"
 #include "gpt.h"
 
+static int show_label = 0;
+static int show_uuid = 0;
+
 static void
 usage_show(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s device ...\n", getprogname());
+	    "usage: %s [-lu] device ...\n", getprogname());
 	exit(1);
 }
 
@@ -61,6 +64,9 @@ friendly(uuid_t *t)
 	static uuid_t vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
 	static char buf[80];
 	char *s;
+
+	if (show_uuid)
+		goto unfriendly;
 
 	if (uuid_equal(t, &efi_slice, NULL))
 		return ("EFI System");
@@ -80,6 +86,7 @@ friendly(uuid_t *t)
 	if (uuid_equal(t, &msr, NULL))
 		return ("Windows reserved");
 
+unfriendly:
 	uuid_to_string(t, &s, NULL);
 	strlcpy(buf, s, sizeof buf);
 	free(s);
@@ -148,8 +155,13 @@ show(int fd __unused)
 		case MAP_TYPE_GPT_PART:
 			printf("GPT part ");
 			ent = m->map_data;
-			le_uuid_dec(&ent->ent_type, &type);
-			printf("- %s", friendly(&type));
+			if (show_label) {
+				printf("- \"%s\"",
+				    utf16_to_utf8(ent->ent_name));
+			} else {
+				le_uuid_dec(&ent->ent_type, &type);
+				printf("- %s", friendly(&type));
+			}
 			break;
 		case MAP_TYPE_PMBR:
 			printf("PMBR");
@@ -165,8 +177,14 @@ cmd_show(int argc, char *argv[])
 {
 	int ch, fd;
 
-	while ((ch = getopt(argc, argv, "")) != -1) {
+	while ((ch = getopt(argc, argv, "lu")) != -1) {
 		switch(ch) {
+		case 'l':
+			show_label = 1;
+			break;
+		case 'u':
+			show_uuid = 1;
+			break;
 		default:
 			usage_show();
 		}

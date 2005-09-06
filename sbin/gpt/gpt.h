@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Marcel Moolenaar
  * All rights reserved.
  *
@@ -70,11 +70,14 @@ void	gpt_close(int);
 int	gpt_open(const char *);
 void*	gpt_read(int, off_t, size_t);
 int	gpt_write(int, map_t *);
-void	unicode16(short *, const wchar_t *, size_t);
+
+uint8_t *utf16_to_utf8(uint16_t *);
+void	utf8_to_utf16(const uint8_t *, uint16_t *, size_t);
 
 int	cmd_add(int, char *[]);
 int	cmd_create(int, char *[]);
 int	cmd_destroy(int, char *[]);
+int	cmd_label(int, char *[]);
 int	cmd_migrate(int, char *[]);
 int	cmd_recover(int, char *[]);
 int	cmd_remove(int, char *[]);
