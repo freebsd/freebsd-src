@@ -711,6 +711,9 @@ struct via_raid_conf {
 #define VIA_T_SPAN              0x44
 
     u_int8_t    disk_index;
+#define VIA_D_MASK		0x0f
+#define VIA_D_DEGRADED		0x10
+
     u_int8_t    stripe_layout;
 #define VIA_L_MASK              0x07
 #define VIA_L_SHIFT             4
