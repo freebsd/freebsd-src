@@ -335,7 +335,7 @@ static	ng_ID_t nextID = 1;
 			if (n->m_nextpkt != NULL)			\
 				panic("%s: m_nextpkt", __func__);	\
 		}							\
-
+									\
 		if ((m)->m_pkthdr.len != total) {			\
 			panic("%s: %d != %d",				\
 			    __func__, (m)->m_pkthdr.len, total);	\
