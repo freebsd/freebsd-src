@@ -87,14 +87,48 @@ is used.
 .Pp
 If more than one line of any of the above forms is included in
 .Nm
-then only the last one will take effect.  Any lines not of the above
-forms will be ignored.
+then only the last one will take effect.
+.Pp
+Finally, a line of the form
+.Dl REFUSE foo bar
+will instruct
+.Xr portsnap 8
+to ignore parts of the ports tree with paths starting with
+.Ar foo 
+or
+.Ar bar ,
+which are interpreted as extended regular expressions by
+.Xr egrep 1 .
+This will result in those parts of the tree not being updated
+in the compressed snapshot when the
+.Cm fetch
+and
+.Cm cron
+commands are used and not being extracted when the
+.Cm extract
+command is used (unless a specific
+.Ar path
+is passed to
+.Xr portsnap 8 ) ,
+and if those parts of the ports tree are present they
+will not be updated when the
+.Cm update
+command is used.
+Unlike the other options, the parameters in REFUSE lines
+accumulate and all such lines are considered.
+.Bf Em
+Note that operating with an incomplete ports tree is not
+supported and may cause unexpected results.
+.Ef
+.Pp
+Any lines not of the above forms will be ignored.
 .Sh FILES
 .Bl -tag -width "/etc/portsnap.conf"
 .It /etc/portsnap.conf
 Default location of the portsnap configuration file.
 .El
 .Sh SEE ALSO
+.Xr egrep 1
 .Xr fetch 1
 .Xr portsnap 8
 .Xr sha256 8
