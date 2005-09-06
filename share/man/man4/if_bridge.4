@@ -80,6 +80,9 @@ The
 driver implements the IEEE 802.1D Spanning Tree protocol (STP).
 Spanning Tree is used to detect and remove loops in a network topology.
 .Pp
+Packet filtering can be used with any firewall package that hooks in via the
+.Xr pfil 9
+framework.
 When filtering is enabled, bridged packets will pass through the filter
 inbound on the originating interface, on the bridge interface and outbound on
 the appropriate interfaces.
@@ -171,7 +174,10 @@ ifconfig bridge0 \e
     up
 .Ed
 .Sh SEE ALSO
-.Xr ifconfig 8
+.Xr ifconfig 8 ,
+.Xr ipfw 4 ,
+.Xr ipf 4 ,
+.Xr pf 4
 .Sh HISTORY
 The
 .Nm
