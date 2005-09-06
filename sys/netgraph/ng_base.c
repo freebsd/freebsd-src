@@ -1741,7 +1741,7 @@ static __inline void	ng_queue_rw(struct ng_queue * ngq,
 #define WRITER_ACTIVE	0x00000002
 #define READ_PENDING	0x00000004
 #define READER_INCREMENT 0x00000008
-#define READER_MASK	0xfffffff0	/* Not valid if WRITER_ACTIVE is set */
+#define READER_MASK	0xfffffff8	/* Not valid if WRITER_ACTIVE is set */
 #define SAFETY_BARRIER	0x00100000	/* 64K items queued should be enough */
 
 /* Defines of more elaborate states on the queue */
