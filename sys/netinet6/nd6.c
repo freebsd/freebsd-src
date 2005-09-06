@@ -2014,6 +2014,7 @@ nd6_need_cache(ifp)
 	case IFT_CARP:
 #endif
 	case IFT_GIF:		/* XXX need more cases? */
+	case IFT_BRIDGE:
 		return (1);
 	default:
 		return (0);
@@ -2044,6 +2045,7 @@ nd6_storelladdr(ifp, rt0, m, dst, desten)
 #ifdef IFT_IEEE80211
 		case IFT_IEEE80211:
 #endif
+		case IFT_BRIDGE:
 		case IFT_ISO88025:
 			ETHER_MAP_IPV6_MULTICAST(&SIN6(dst)->sin6_addr,
 						 desten);
