@@ -60,6 +60,7 @@ struct ed_softc {
 	int	irq_rid;	/* resource id for irq */
 	struct resource* irq_res; /* resource for irq */
 	void*	irq_handle;	/* handle for irq handler */
+	int	modem_rid;	/* resource ID for modem part of device */
 	device_t miibus;	/* MII bus for cards with MII. */
 	void	(*mii_writebits)(struct ed_softc *, u_int, int);
 	u_int	(*mii_readbits)(struct ed_softc *, int);
