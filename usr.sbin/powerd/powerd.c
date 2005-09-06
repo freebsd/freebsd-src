@@ -418,27 +418,29 @@ main(int argc, char * argv[])
 			err(1, "read_usage_times");
 
 		/*
-		 * If we're idle less than the active mark, jump the CPU to
-		 * its fastest speed if we're not there yet.  If we're idle
-		 * more than the idle mark, drop down to the first setting
-		 * that is half the current speed (exponential backoff).
+		 * If we're idle less than the active mark, bump up two levels.
+		 * If we're idle more than the idle mark, drop down one level.
 		 */
+		for (i = 0; i < numfreqs - 1; i++) {
+			if (freqs[i] == curfreq)
+				break;
+		}
 		if (idle < (total * cpu_running_mark) / 100 &&
 		    curfreq < freqs[0]) {
+			i -= 2;
+			if (i < 0)
+				i = 0;
 			if (vflag) {
 				printf("idle time < %d%%, increasing clock"
 				    " speed from %d MHz to %d MHz\n",
-				    cpu_running_mark, curfreq, freqs[0]);
+				    cpu_running_mark, curfreq, freqs[i]);
 			}
-			if (set_freq(freqs[0]))
+			if (set_freq(freqs[i]))
 				err(1, "error setting CPU frequency %d",
-				    freqs[0]);
+				    freqs[i]);
 		} else if (idle > (total * cpu_idle_mark) / 100 &&
 		    curfreq > freqs[numfreqs - 1]) {
-			for (i = 0; i < numfreqs - 1; i++) {
-				if (freqs[i] <= curfreq / 2)
-					break;
-			}
+			i++;
 			if (vflag) {
 				printf("idle time > %d%%, decreasing clock"
 				    " speed from %d MHz to %d MHz\n",
