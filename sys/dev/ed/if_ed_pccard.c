@@ -107,8 +107,6 @@ static const struct ed_product {
 #define NE2000DVF_ANYFUNC	0x0008		/* Allow any function type */
 #define NE2000DVF_MODEM		0x0010		/* Has a modem/serial */
 	int enoff;
-	int edrid;
-	int siorid;
 } ed_pccard_products[] = {
 	{ PCMCIA_CARD(ACCTON, EN2212), 0},
 	{ PCMCIA_CARD(ACCTON, EN2216), 0},
@@ -146,7 +144,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(EXP, THINLANCOMBO), 0},
 	{ PCMCIA_CARD(GREY_CELL, TDK3000), 0},
 	{ PCMCIA_CARD(GREY_CELL, DMF650TX),
-	    NE2000DVF_ANYFUNC | NE2000DVF_DL100XX | NE2000DVF_MODEM, -1, 1, 0},
+	    NE2000DVF_ANYFUNC | NE2000DVF_DL100XX | NE2000DVF_MODEM},
 	{ PCMCIA_CARD(IBM, HOME_AND_AWAY), 0},
 	{ PCMCIA_CARD(IBM, INFOMOVER), NE2000DVF_ENADDR, 0xff0},
 	{ PCMCIA_CARD(IODATA3, PCLAT), 0},
@@ -251,9 +249,12 @@ ed_pccard_rom_mac(device_t dev, uint8_t *enaddr)
 }
 
 static int
-ed_pccard_add_modem(device_t dev, int rid)
+ed_pccard_add_modem(device_t dev)
 {
-	device_printf(dev, "Need to write this code: modem rid is %d\n", rid);
+	struct ed_softc *sc = device_get_softc(dev);
+
+	device_printf(dev, "Need to write this code: modem rid is %d\n",
+	    sc->modem_rid);
 	return 0;
 }
 
@@ -265,12 +266,29 @@ ed_pccard_attach(device_t dev)
 	const struct ed_product *pp;
 	int	error, i;
 	struct ed_softc *sc = device_get_softc(dev);
+	u_long size;
 
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) == NULL)
 		return (ENXIO);
-	sc->port_rid = pp->edrid;
+	sc->modem_rid = -1;
+	if (pp->flags & NE2000DVF_MODEM) {
+		sc->port_rid = -1;
+		for (i = 0; i < 4; i++) {
+			size = bus_get_resource_count(dev, SYS_RES_IOPORT, i);
+			if (size == ED_NOVELL_IO_PORTS)
+				sc->port_rid = i;
+			else if (size == 8)
+				sc->modem_rid = i;
+		}
+		if (sc->port_rid == -1) {
+			device_printf(dev, "Cannot locate my ports!\n");
+			return (ENXIO);
+		}
+	} else {
+		sc->port_rid = 0;
+	}
 	if (pp->flags & NE2000DVF_DL100XX) {
 		error = ed_probe_Novell(dev, sc->port_rid, 0);
 		if (error == 0)
@@ -370,8 +388,8 @@ end2:
 		    ed_ifmedia_sts);
 	}
 #endif
-	if (pp->flags & NE2000DVF_MODEM)
-		ed_pccard_add_modem(dev, pp->siorid);
+	if (sc->modem_rid != -1)
+		ed_pccard_add_modem(dev);
 	return (0);
 }
 
