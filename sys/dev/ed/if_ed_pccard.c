@@ -431,9 +431,32 @@ ax88x90_geteprom(struct ed_softc *sc)
 
 	/* Get Data */
 	for (i = 0; i < 16; i++)
-		prom[i] = ed_asic_inb(sc, 0);
+		prom[i] = ed_asic_inw(sc, 0);
+
+	/*
+	 * Work around a bug I've seen on Linksys EC2T cards.  On
+	 * these cards, the node address is contained in the low order
+	 * bytes of the prom, with the upper byte being 0.  On other
+	 * cards, the bytes are packed two per word.  I'm unsure why
+	 * this is the case, and why no other open source OS has a
+	 * similar workaround.  The Linksys EC2T card is still extremely
+	 * popular on E-Bay, fetching way more than any other 10Mbps
+	 * only card.  I might be able to test to see if prom[7] and
+	 * prom[15] == 0x5757, since that appears to be a reliable
+	 * test.  On the EC2T cards, I get 0x0057 in prom[14,15] instead.
+	 */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->enaddr[i] = prom[i];
+		if (prom[i] & 0xff00)
+			break;
+	if (i == ETHER_ADDR_LEN) {
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+			sc->enaddr[i] = prom[i] & 0xff;
+	} else {
+		for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
+			sc->enaddr[i] = prom[i / 2] & 0xff;
+			sc->enaddr[i + 1] = (prom[i / 2] >> 8) & 0xff;
+		}
+	}
 }
 
 static int
