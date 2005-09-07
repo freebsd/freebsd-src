@@ -707,7 +707,7 @@ name2protox(char *name)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-AaLnSW] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -i | -I interface [-abdhnt] [-f address_family]\n"
@@ -717,6 +717,7 @@ usage(void)
 "       netstat -i | -I interface -s [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -m [-M core] [-N system]",
+"       netstat -B [ -I interface]",
 "       netstat -r [-AenW] [-f address_family] [-M core] [-N system]",
 "       netstat -rs [-s] [-M core] [-N system]",
 "       netstat -g [-W] [-f address_family] [-M core] [-N system]",
