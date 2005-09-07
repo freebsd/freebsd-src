@@ -37,6 +37,19 @@ displays only complete word matches.
 really is an extended regular expression, please read
 .Xr grep 1
 manual page for more information about its format.
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev PAGER"
+.It Ev PATH , MANPATH , MANLOCALES
+Used in finding the
+.Nm whatis
+database files.
+See
+.Xr manpath 1 .
+.It Ev PAGER
+Command used to page the output.
+The default is
+.Ic more -s .
+.El
 .Sh EXIT STATUS
 The
 .Nm
