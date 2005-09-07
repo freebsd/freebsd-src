@@ -45,39 +45,60 @@
 .Nd compress and expand data
 .Sh SYNOPSIS
 .Nm
-.Op Fl cfv
+.Op Fl fv
 .Op Fl b Ar bits
 .Op Ar
+.Nm
+.Fl c
+.Op Fl b Ar bits
+.Op Ar file
 .Nm uncompress
-.Op Fl cfv
+.Op Fl f
 .Op Ar
+.Nm uncompress
+.Fl c
+.Op Ar file
 .Sh DESCRIPTION
 The
 .Nm
-utility reduces the size of the named files using adaptive Lempel-Ziv coding.
+utility reduces the size of files using adaptive Lempel-Ziv coding.
 Each
 .Ar file
 is renamed to the same name plus the extension
 .Dq .Z .
-As many of the modification time, access time, file flags, file mode,
-user ID, and group ID as allowed by permissions are retained in the
-new file.
+A
+.Ar file
+argument with a
+.Dq .Z
+extension will be ignored except it will cause an
+error exit after other arguments are processed.
 If compression would not reduce the size of a
 .Ar file ,
 the file is ignored.
 .Pp
 The
 .Nm uncompress
-utility restores the compressed files to their original form, renaming the
+utility restores compressed files to their original form, renaming the
 files by deleting the
 .Dq .Z
+extensions.
+A file specification need not include the file's
+.Dq .Z
 extension.
+If a file's name in its file system does not have a
+.Dq .Z
+extension, it will not be uncompressed and it will cause
+an error exit after other arguments are processed.
 .Pp
 If renaming the files would cause files to be overwritten and the standard
 input device is a terminal, the user is prompted (on the standard error
 output) for confirmation.
 If prompting is not possible or confirmation is not received, the files
 are not overwritten.
+.Pp
+As many of the modification time, access time, file flags, file mode,
+user ID, and group ID as allowed by permissions are retained in the
+new file.
 .Pp
 If no files are specified or a
 .Ar file
@@ -86,24 +107,36 @@ argument is a single dash
 the standard input is compressed or uncompressed to the standard output.
 If either the input and output files are not regular files, the checks for
 reduction in size and file overwriting are not performed, the input file is
-not removed, and the attributes of the input file are not retained.
+not removed, and the attributes of the input file are not retained
+in the output file.
 .Pp
 The options are as follows:
-.Bl -tag -width indent
-.It Fl b
-Specify the
-.Ar bits
-code limit (see below).
+.Bl -tag -width ".Fl b Ar bits"
+.It Fl b Ar bits
+The code size (see below) is limited to
+.Ar bits ,
+which must be in the range 9..16.
+The default is 16.
 .It Fl c
 Compressed or uncompressed output is written to the standard output.
 No files are modified.
+The
+.Fl v
+option is ignored.
+Compression is attempted even if the results will be larger than the
+original.
 .It Fl f
-Force compression of
-.Ar file ,
-even if it is not actually reduced in size.
-Additionally, files are overwritten without prompting for confirmation.
+Files are overwritten without prompting for confirmation.
+Also, for
+.Nm compress ,
+files are compressed even if they are not actually reduced in size.
 .It Fl v
 Print the percentage reduction of each file.
+Ignored by
+.Nm uncompress
+or if the
+.Fl c
+option is also used.
 .El
 .Pp
 The
@@ -114,13 +147,9 @@ When code 512 is reached, the algorithm switches to 10-bit codes and
 continues to use more bits until the
 limit specified by the
 .Fl b
-flag is reached (the default is 16).
-.Ar Bits
-must be between 9 and 16.
+option or its default is reached.
 .Pp
-After the
-.Ar bits
-limit is reached,
+After the limit is reached,
 .Nm
 periodically checks the compression ratio.
 If it is increasing,
@@ -134,7 +163,7 @@ the algorithm to adapt to the next "block" of the file.
 .Pp
 The
 .Fl b
-flag is omitted for
+option is unavailable for
 .Nm uncompress
 since the
 .Ar bits
@@ -157,10 +186,10 @@ time to compute.
 .Pp
 The
 .Nm compress
-utility exits 2 if attempting to compress the file would not reduce its size
+utility exits 2 if attempting to compress a file would not reduce its size
 and the
 .Fl f
-option was not specified.
+option was not specified and if no other error occurs.
 .Sh SEE ALSO
 .Xr gunzip 1 ,
 .Xr gzexe 1 ,
@@ -188,3 +217,42 @@ The
 .Nm
 command appeared in
 .Bx 4.3 .
+.Sh BUGS
+.Pp
+Some of these might be considered otherwise-undocumented features.
+.Pp
+.Nm compress :
+If the utility does not compress a file because doing so would not
+reduce it size, and a file of the same name except with an
+.Dq .Z
+extension exists, the named file is not really ignored as stated above;
+it causes a prompt to confirm the overwriting of the file with the extension.
+If the operation is confirmed, that file is deleted.
+.Pp
+.Nm uncompress :
+If an empty file is compressed (using
+.Fl f ) ,
+the resulting
+.Dq .Z
+file is also empty.
+That seems right, but if
+.Nm uncompress
+is then used on that file, an error will occur.
+.Pp
+Both utilities: If a
+.Sq Fl
+argument is used and the utility prompts the user, the standard input
+is taken as the user's reply to the prompt.
+.Pp
+Both utilities:
+If the specified file does not exist, but a similarly-named one with (for
+.Nm compress )
+or without (for
+.Nm uncompress )
+a
+.Dq .Z
+extension does exist, the utility will waste the user's time by not
+immediately emitting an error message about the missing file and
+continuing.
+Instead, it first asks for confirmation to overwrite
+the existing file and then doesn't overwrite it.
