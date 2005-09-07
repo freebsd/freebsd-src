@@ -185,806 +185,6 @@ static struct callout timeout_handle;
 static int cp_destroy = 0;
 
 /*
- * Print the mbuf chain, for debug purposes only.
- */
-static void printmbuf (struct mbuf *m)
-{
-	printf ("mbuf:");
-	for (; m; m=m->m_next) {
-		if (m->m_flags & M_PKTHDR)
-			printf (" HDR %d:", m->m_pkthdr.len);
-		if (m->m_flags & M_EXT)
-			printf (" EXT:");
-		printf (" %d", m->m_len);
-	}
-	printf ("\n");
-}
-
-/*
- * Make an mbuf from data.
- */
-static struct mbuf *makembuf (void *buf, unsigned len)
-{
-	struct mbuf *m;
-
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
-	if (! m)
-		return 0;
-	MCLGET (m, M_DONTWAIT);
-	if (! (m->m_flags & M_EXT)) {
-		m_freem (m);
-		return 0;
-	}
-	m->m_pkthdr.len = m->m_len = len;
-	bcopy (buf, mtod (m, caddr_t), len);
-	return m;
-}
-
-static int cp_probe (device_t dev)
-{
-	if ((pci_get_vendor (dev) == cp_vendor_id) &&
-	    (pci_get_device (dev) == cp_device_id)) {
-		device_set_desc (dev, "Cronyx-Tau-PCI serial adapter");
-		return BUS_PROBE_DEFAULT;
-	}
-	return ENXIO;
-}
-
-static void cp_timeout (void *arg)
-{
-	drv_t *d;
-	int s, i, k;
-
-	for (i = 0; i < NBRD; ++i) {
-		if (adapter[i] == NULL)
-			continue;
-		for (k = 0; k < NCHAN; ++k) {
-			s = splimp ();
-			if (cp_destroy) {
-				splx (s);
-				return;
-			}
-			d = channel[i * NCHAN + k];
-			if (!d) {
-				splx (s);
-				continue;
-			}
-			CP_LOCK ((bdrv_t *)d->board->sys);
-			switch (d->chan->type) {
-			case T_G703:
-				cp_g703_timer (d->chan);
-				break;
-			case T_E1:
-				cp_e1_timer (d->chan);
-				break;
-			case T_E3:
-			case T_T3:
-			case T_STS1:
-				cp_e3_timer (d->chan);
-				break;
-			default:
-				break;
-			}
-			CP_UNLOCK ((bdrv_t *)d->board->sys);
-			splx (s);
-		}
-	}
-	s = splimp ();
-	if (!cp_destroy)
-		callout_reset (&timeout_handle, hz, cp_timeout, 0);
-	splx (s);
-}
-
-static void cp_led_off (void *arg)
-{
-	cp_board_t *b = arg;
-	bdrv_t *bd = (bdrv_t *) b->sys;
-	int s;
-	s = splimp ();
-	if (cp_destroy) {
-		splx (s);
-		return;
-	}
-	CP_LOCK (bd);
-	cp_led (b, 0);
-	CP_UNLOCK (bd);
-	splx (s);
-}
-
-static void cp_intr (void *arg)
-{
-	bdrv_t *bd = arg;
-	cp_board_t *b = bd->board;
-#ifndef NETGRAPH
-	int i;
-#endif
-	int s = splimp ();
-	if (cp_destroy) {
-		splx (s);
-		return;
-	}
-	CP_LOCK (bd);
-	/* Check if we are ready */
-	if (b->sys == NULL) {
-		/* Not we are not, just cleanup. */
-		cp_interrupt_poll (b, 1);
-		CP_UNLOCK (bd);
-		return;
-	}
-	/* Turn LED on. */
-	cp_led (b, 1);
-
-	cp_interrupt (b);
-
-	/* Turn LED off 50 msec later. */
-	callout_reset (&led_timo[b->num], hz/20, cp_led_off, b);
-	CP_UNLOCK (bd);
-	splx (s);
-
-#ifndef NETGRAPH
-	/* Pass packets in a lock-free state */
-	for (i = 0; i < NCHAN && b->chan[i].type; i++) {
-		drv_t *d = b->chan[i].sys;
-		struct mbuf *m;
-		if (!d || !d->running)
-			continue;
-		while (_IF_QLEN(&d->queue)) {
-			IF_DEQUEUE (&d->queue,m);
-			if (!m)
-				continue;
-			sppp_input (d->ifp, m);	
-		}
-	}
-#endif
-}
-
-extern struct cdevsw cp_cdevsw;
-
-static void
-cp_bus_dmamap_addr (void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	unsigned long *addr;
-
-	if (error)
-		return;
-
-	KASSERT(nseg == 1, ("too many DMA segments, %d should be 1", nseg));
-	addr = arg;
-	*addr = segs->ds_addr;
-}
-
-static int
-cp_bus_dma_mem_alloc (int bnum, int cnum, cp_dma_mem_t *dmem)
-{
-	int error;
-
-	error = bus_dma_tag_create (NULL, 16, 0, BUS_SPACE_MAXADDR_32BIT,
-		BUS_SPACE_MAXADDR, NULL, NULL, dmem->size, 1,
-		dmem->size, 0, NULL, NULL, &dmem->dmat);
-	if (error) {
-		if (cnum >= 0)	printf ("cp%d-%d: ", bnum, cnum);
-		else		printf ("cp%d: ", bnum);
-		printf ("couldn't allocate tag for dma memory\n");
- 		return 0;
-	}
-	error = bus_dmamem_alloc (dmem->dmat, (void **)&dmem->virt,
-		BUS_DMA_NOWAIT | BUS_DMA_ZERO, &dmem->mapp);
-	if (error) {
-		if (cnum >= 0)	printf ("cp%d-%d: ", bnum, cnum);
-		else		printf ("cp%d: ", bnum);
-		printf ("couldn't allocate mem for dma memory\n");
-		bus_dma_tag_destroy (dmem->dmat);
- 		return 0;
-	}
-	error = bus_dmamap_load (dmem->dmat, dmem->mapp, dmem->virt,
-		dmem->size, cp_bus_dmamap_addr, &dmem->phys, 0);
-	if (error) {
-		if (cnum >= 0)	printf ("cp%d-%d: ", bnum, cnum);
-		else		printf ("cp%d: ", bnum);
-		printf ("couldn't load mem map for dma memory\n");
-		bus_dmamem_free (dmem->dmat, dmem->virt, dmem->mapp);
-		bus_dma_tag_destroy (dmem->dmat);
- 		return 0;
-	}
-	return 1;
-}
-
-static void
-cp_bus_dma_mem_free (cp_dma_mem_t *dmem)
-{
-	bus_dmamap_unload (dmem->dmat, dmem->mapp);
-	bus_dmamem_free (dmem->dmat, dmem->virt, dmem->mapp);
-	bus_dma_tag_destroy (dmem->dmat);
-}
-
-/*
- * Called if the probe succeeded.
- */
-static int cp_attach (device_t dev)
-{
-	bdrv_t *bd = device_get_softc (dev);
-	int unit = device_get_unit (dev);
-	char *cp_ln = CP_LOCK_NAME;
-	unsigned short res;
-	vm_offset_t vbase;
-	int rid, error;
-	cp_board_t *b;
-	cp_chan_t *c;
-	drv_t *d;
-	int s = splimp ();
-
-	b = malloc (sizeof(cp_board_t), M_DEVBUF, M_WAITOK);
-	if (!b) {
-		printf ("cp%d: couldn't allocate memory\n", unit);		
-		splx (s);
-		return (ENXIO);
-	}
-	bzero (b, sizeof(cp_board_t));
-
-	bd->board = b;
-	rid = PCIR_BAR(0);
-	bd->cp_res = bus_alloc_resource (dev, SYS_RES_MEMORY, &rid,
-			0, ~0, 1, RF_ACTIVE);
-	if (! bd->cp_res) {
-		printf ("cp%d: cannot map memory\n", unit);
-		free (b, M_DEVBUF);
-		splx (s);
-		return (ENXIO);
-	}
-	vbase = (vm_offset_t) rman_get_virtual (bd->cp_res);
-
-	cp_ln[2] = '0' + unit;
-	mtx_init (&bd->cp_mtx, cp_ln, MTX_NETWORK_LOCK, MTX_DEF|MTX_RECURSE);
-	res = cp_init (b, unit, (u_char*) vbase);
-	if (res) {
-		printf ("cp%d: can't init, error code:%x\n", unit, res);
-		bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->cp_res);
-		free (b, M_DEVBUF);
-		splx (s);
- 		return (ENXIO);
-	}
-
-	bd->dmamem.size = sizeof(cp_qbuf_t);
-	if (! cp_bus_dma_mem_alloc (unit, -1, &bd->dmamem)) {
-		free (b, M_DEVBUF);
-		splx (s);
- 		return (ENXIO);
-	}
-	CP_LOCK (bd);
-	cp_reset (b, bd->dmamem.virt, bd->dmamem.phys);
-	CP_UNLOCK (bd);
-
-	rid = 0;
-	bd->cp_irq = bus_alloc_resource (dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-			RF_SHAREABLE | RF_ACTIVE);
-	if (! bd->cp_irq) {
-		cp_destroy = 1;
-		printf ("cp%d: cannot map interrupt\n", unit);	
-		bus_release_resource (dev, SYS_RES_MEMORY,
-				PCIR_BAR(0), bd->cp_res);
-		mtx_destroy (&bd->cp_mtx);
-		free (b, M_DEVBUF);
-		splx (s);
-		return (ENXIO);
-	}
-	callout_init (&led_timo[unit], cp_mpsafenet ? CALLOUT_MPSAFE : 0);
-	error  = bus_setup_intr (dev, bd->cp_irq,
-				INTR_TYPE_NET|(cp_mpsafenet?INTR_MPSAFE:0),
-				cp_intr, bd, &bd->cp_intrhand);
-	if (error) {
-		cp_destroy = 1;
-		printf ("cp%d: cannot set up irq\n", unit);
-		bus_release_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
-		bus_release_resource (dev, SYS_RES_MEMORY,
-				PCIR_BAR(0), bd->cp_res);
-		mtx_destroy (&bd->cp_mtx);
-		free (b, M_DEVBUF);
-		splx (s);
-		return (ENXIO);
-	}
-	printf ("cp%d: %s, clock %ld MHz\n", unit, b->name, b->osc / 1000000);
-
-	for (c = b->chan; c < b->chan + NCHAN; ++c) {
-		if (! c->type)
-			continue;
-		d = &bd->channel[c->num];
-		d->dmamem.size = sizeof(cp_buf_t);
-		if (! cp_bus_dma_mem_alloc (unit, c->num, &d->dmamem))
-			continue;
-		channel [b->num*NCHAN + c->num] = d;
-		sprintf (d->name, "cp%d.%d", b->num, c->num);
-		d->board = b;
-		d->chan = c;
-		c->sys = d;
-#ifdef NETGRAPH
-		if (ng_make_node_common (&typestruct, &d->node) != 0) {
-			printf ("%s: cannot make common node\n", d->name);
-			d->node = NULL;
-			continue;
-		}
-		NG_NODE_SET_PRIVATE (d->node, d);
-		sprintf (d->nodename, "%s%d", NG_CP_NODE_TYPE,
-			 c->board->num*NCHAN + c->num);
-		if (ng_name_node (d->node, d->nodename)) {
-			printf ("%s: cannot name node\n", d->nodename);
-			NG_NODE_UNREF (d->node);
-			continue;
-		}
-		d->queue.ifq_maxlen = IFQ_MAXLEN;
-		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
-		mtx_init (&d->queue.ifq_mtx, "cp_queue", NULL, MTX_DEF);
-		mtx_init (&d->hi_queue.ifq_mtx, "cp_queue_hi", NULL, MTX_DEF);
-		callout_init (&d->timeout_handle,
-			     cp_mpsafenet ? CALLOUT_MPSAFE : 0);
-#else /*NETGRAPH*/
-		d->ifp = if_alloc(IFT_PPP);
-		if (d->ifp == NULL) {
-			printf ("%s: cannot if_alloc() interface\n", d->name);
-			continue;
-		}
-		d->ifp->if_softc	= d;
-		if_initname (d->ifp, "cp", b->num * NCHAN + c->num);
-		d->ifp->if_mtu		= PP_MTU;
-		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
-		if (!cp_mpsafenet)
-			d->ifp->if_flags |= IFF_NEEDSGIANT;
-		d->ifp->if_ioctl	= cp_sioctl;
-		d->ifp->if_start	= cp_ifstart;
-		d->ifp->if_watchdog	= cp_ifwatchdog;
-		d->ifp->if_init		= cp_initialize;
-		d->queue.ifq_maxlen	= NRBUF;
-		mtx_init (&d->queue.ifq_mtx, "cp_queue", NULL, MTX_DEF);
-		sppp_attach (d->ifp);
-		if_attach (d->ifp);
-		IFP2SP(d->ifp)->pp_tlf	= cp_tlf;
-		IFP2SP(d->ifp)->pp_tls	= cp_tls;
-		/* If BPF is in the kernel, call the attach for it.
-		 * The header size of PPP or Cisco/HDLC is 4 bytes. */
-		bpfattach (d->ifp, DLT_PPP, 4);
-#endif /*NETGRAPH*/
-		cp_start_e1 (c);
-		cp_start_chan (c, 1, 1, d->dmamem.virt, d->dmamem.phys);
-
-		/* Register callback functions. */
-		cp_register_transmit (c, &cp_transmit);
-		cp_register_receive (c, &cp_receive);
-		cp_register_error (c, &cp_error);
-		d->devt = make_dev (&cp_cdevsw, b->num*NCHAN+c->num, UID_ROOT,
-				GID_WHEEL, 0600, "cp%d", b->num*NCHAN+c->num);
-	}
-	CP_LOCK (bd);
-	b->sys = bd;
-	adapter[unit] = b;
-	CP_UNLOCK (bd);
-	splx (s);
-	return 0;
-}
-
-static int cp_detach (device_t dev)
-{
-	bdrv_t *bd = device_get_softc (dev);
-	cp_board_t *b = bd->board;
-	cp_chan_t *c;
-	int s;
-
-	KASSERT (mtx_initialized (&bd->cp_mtx), ("cp mutex not initialized"));
-	s = splimp ();
-	CP_LOCK (bd);
-	/* Check if the device is busy (open). */
-	for (c = b->chan; c < b->chan + NCHAN; ++c) {
-		drv_t *d = (drv_t*) c->sys;
-
-		if (! d || ! d->chan->type)
-			continue;
-		if (d->running) {
-			CP_UNLOCK (bd);
-			splx (s);
-			return EBUSY;
-		}
-	}
-
-	/* Ok, we can unload driver */
-	/* At first we should stop all channels */
-	for (c = b->chan; c < b->chan + NCHAN; ++c) {
-		drv_t *d = (drv_t*) c->sys;
-
-		if (! d || ! d->chan->type)
-			continue;
-
-		cp_stop_chan (c);
-		cp_stop_e1 (c);
-		cp_set_dtr (d->chan, 0);
-		cp_set_rts (d->chan, 0);
-	}
-
-	/* Reset the adapter. */
-	cp_destroy = 1;
-	cp_interrupt_poll (b, 1);
-	cp_led_off (b);
-	cp_reset (b, 0 ,0);
-	callout_stop (&led_timo[b->num]);
-
-	for (c=b->chan; c<b->chan+NCHAN; ++c) {
-		drv_t *d = (drv_t*) c->sys;
-
-		if (! d || ! d->chan->type)
-			continue;
-#ifndef NETGRAPH
-		/* Detach from the packet filter list of interfaces. */
-		bpfdetach (d->ifp);
-
-		/* Detach from the sync PPP list. */
-		sppp_detach (d->ifp);
-
-		/* Detach from the system list of interfaces. */
-		if_detach (d->ifp);
-		if_free (d->ifp);
-		IF_DRAIN (&d->queue);
-		mtx_destroy (&d->queue.ifq_mtx);
-#else
-		if (d->node) {
-			ng_rmnode_self (d->node);
-			NG_NODE_UNREF (d->node);
-			d->node = NULL;
-		}
-		mtx_destroy (&d->queue.ifq_mtx);
-		mtx_destroy (&d->hi_queue.ifq_mtx);
-#endif
-		destroy_dev (d->devt);
-	}
-
-	b->sys = NULL;
-	CP_UNLOCK (bd);
-
-	/* Disable the interrupt request. */
-	bus_teardown_intr (dev, bd->cp_irq, bd->cp_intrhand);
-	bus_deactivate_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
-	bus_release_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
-	bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->cp_res);
-
-	CP_LOCK (bd);
-	cp_led_off (b);
-	CP_UNLOCK (bd);
-	callout_drain (&led_timo[b->num]);
-	splx (s);
-
-	s = splimp ();
-	for (c = b->chan; c < b->chan + NCHAN; ++c) {
-		drv_t *d = (drv_t*) c->sys;
-
-		if (! d || ! d->chan->type)
-			continue;
-		channel [b->num*NCHAN + c->num] = 0;
-		/* Deallocate buffers. */
-		cp_bus_dma_mem_free (&d->dmamem);
-	}
-	adapter [b->num] = 0;
-	cp_bus_dma_mem_free (&bd->dmamem);
-	free (b, M_DEVBUF);
-	splx (s);
-	mtx_destroy (&bd->cp_mtx);
-	return 0;
-}
-
-#ifndef NETGRAPH
-static void cp_ifstart (struct ifnet *ifp)
-{
-	drv_t *d = ifp->if_softc;
-	bdrv_t *bd = d->board->sys;
-
-	CP_LOCK (bd);
-	cp_start (d);
-	CP_UNLOCK (bd);
-}
-
-static void cp_ifwatchdog (struct ifnet *ifp)
-{
-	drv_t *d = ifp->if_softc;
-
-	cp_watchdog (d);
-}
-
-static void cp_tlf (struct sppp *sp)
-{
-	drv_t *d = SP2IFP(sp)->if_softc;
-
-	CP_DEBUG2 (d, ("cp_tlf\n"));
-	/* XXXRIK: Don't forget to protect them by LOCK, or kill them. */
-/*	cp_set_dtr (d->chan, 0);*/
-/*	cp_set_rts (d->chan, 0);*/
-	if (!(sp->pp_flags & PP_FR) && !(d->ifp->if_flags & PP_CISCO))
-		sp->pp_down (sp);
-}
-
-static void cp_tls (struct sppp *sp)
-{
-	drv_t *d = SP2IFP(sp)->if_softc;
-
-	CP_DEBUG2 (d, ("cp_tls\n"));
-	if (!(sp->pp_flags & PP_FR) && !(d->ifp->if_flags & PP_CISCO))
-		sp->pp_up (sp);
-}
-
-/*
- * Process an ioctl request.
- */
-static int cp_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
-{
-	drv_t *d = ifp->if_softc;
-	bdrv_t *bd = d->board->sys;
-	int error, s, was_up, should_be_up;
-
-	was_up = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
-	error = sppp_ioctl (ifp, cmd, data);
-
-	if (error)
-		return error;
-
-	if (! (ifp->if_flags & IFF_DEBUG))
-		d->chan->debug = 0;
-	else if (! d->chan->debug)
-		d->chan->debug = 1;
-
-	switch (cmd) {
-	default:	   CP_DEBUG2 (d, ("ioctl 0x%lx\n", cmd));   return 0;
-	case SIOCADDMULTI: CP_DEBUG2 (d, ("ioctl SIOCADDMULTI\n")); return 0;
-	case SIOCDELMULTI: CP_DEBUG2 (d, ("ioctl SIOCDELMULTI\n")); return 0;
-	case SIOCSIFFLAGS: CP_DEBUG2 (d, ("ioctl SIOCSIFFLAGS\n")); break;
-	case SIOCSIFADDR:  CP_DEBUG2 (d, ("ioctl SIOCSIFADDR\n"));  break;
-	}
-
-	/* We get here only in case of SIFFLAGS or SIFADDR. */
-	s = splimp ();
-	CP_LOCK (bd);
-	should_be_up = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
-	if (! was_up && should_be_up) {
-		/* Interface goes up -- start it. */
-		cp_up (d);
-		cp_start (d);
-	} else if (was_up && ! should_be_up) {
-		/* Interface is going down -- stop it. */
-/*		if ((IFP2SP(ifp)->pp_flags & PP_FR) || (ifp->if_flags & PP_CISCO))*/
-		cp_down (d);
-	}
-	CP_DEBUG (d, ("ioctl 0x%lx p4\n", cmd));
-	CP_UNLOCK (bd);
-	splx (s);
-	return 0;
-}
-
-/*
- * Initialization of interface.
- * It seems to be never called by upper level?
- */
-static void cp_initialize (void *softc)
-{
-	drv_t *d = softc;
-
-	CP_DEBUG (d, ("cp_initialize\n"));
-}
-#endif /*NETGRAPH*/
-
-/*
- * Stop the interface.  Called on splimp().
- */
-static void cp_down (drv_t *d)
-{
-	CP_DEBUG (d, ("cp_down\n"));
-	/* Interface is going down -- stop it. */
-	cp_set_dtr (d->chan, 0);
-	cp_set_rts (d->chan, 0);
-
-	d->running = 0;
-}
-
-/*
- * Start the interface.  Called on splimp().
- */
-static void cp_up (drv_t *d)
-{
-	CP_DEBUG (d, ("cp_up\n"));
-	cp_set_dtr (d->chan, 1);
-	cp_set_rts (d->chan, 1);
-	d->running = 1;
-}
-
-/*
- * Start output on the interface.  Get another datagram to send
- * off of the interface queue, and copy it to the interface
- * before starting the output.
- */
-static void cp_send (drv_t *d)
-{
-	struct mbuf *m;
-	u_short len;
-
-	CP_DEBUG2 (d, ("cp_send, tn=%d te=%d\n", d->chan->tn, d->chan->te));
-
-	/* No output if the interface is down. */
-	if (! d->running)
-		return;
-
-	/* No output if the modem is off. */
-	if (! (d->chan->lloop || d->chan->type != T_SERIAL ||
-		cp_get_dsr (d->chan)))
-		return;
-
-	while (cp_transmit_space (d->chan)) {
-		/* Get the packet to send. */
-#ifdef NETGRAPH
-		IF_DEQUEUE (&d->hi_queue, m);
-		if (! m)
-			IF_DEQUEUE (&d->queue, m);
-#else
-		m = sppp_dequeue (d->ifp);
-#endif
-		if (! m)
-			return;
-#ifndef NETGRAPH
-		if (d->ifp->if_bpf)
-			BPF_MTAP (d->ifp, m);
-#endif
-		len = m_length (m, NULL);
-		if (len >= BUFSZ)
-			printf ("%s: too long packet: %d bytes: ",
-				d->name, len);
-		else if (! m->m_next)
-			cp_send_packet (d->chan, (u_char*) mtod (m, caddr_t), len, 0);
-		else {
-			u_char *buf = d->chan->tbuf[d->chan->te];
-			m_copydata (m, 0, len, buf);
-			cp_send_packet (d->chan, buf, len, 0);
-		}
-		m_freem (m);
-		/* Set up transmit timeout, if the transmit ring is not empty.*/
-#ifdef NETGRAPH
-		d->timeout = 10;
-#else
-		d->ifp->if_timer = 10;
-#endif
-	}
-#ifndef NETGRAPH
-	d->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-#endif
-}
-
-/*
- * Start output on the interface.
- * Always called on splimp().
- */
-static void cp_start (drv_t *d)
-{
-	if (d->running) {
-		if (! d->chan->dtr)
-			cp_set_dtr (d->chan, 1);
-		if (! d->chan->rts)
-			cp_set_rts (d->chan, 1);
-		cp_send (d);
-	}
-}
-
-/*
- * Handle transmit timeouts.
- * Recover after lost transmit interrupts.
- * Always called on splimp().
- */
-static void cp_watchdog (drv_t *d)
-{
-	bdrv_t *bd = d->board->sys;
-	CP_DEBUG (d, ("device timeout\n"));
-	if (d->running) {
-		int s = splimp ();
-
-		CP_LOCK (bd);
-		cp_stop_chan (d->chan);
-		cp_stop_e1 (d->chan);
-		cp_start_e1 (d->chan);
-		cp_start_chan (d->chan, 1, 1, 0, 0);
-		cp_set_dtr (d->chan, 1);
-		cp_set_rts (d->chan, 1);
-		cp_start (d);
-		CP_UNLOCK (bd);
-		splx (s);
-	}
-}
-
-static void cp_transmit (cp_chan_t *c, void *attachment, int len)
-{
-	drv_t *d = c->sys;
-
-#ifdef NETGRAPH
-	d->timeout = 0;
-#else
-	++d->ifp->if_opackets;
-	d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	d->ifp->if_timer = 0;
-#endif
-	cp_start (d);
-}
-
-static void cp_receive (cp_chan_t *c, unsigned char *data, int len)
-{
-	drv_t *d = c->sys;
-	struct mbuf *m;
-#ifdef NETGRAPH
-	int error;
-#endif
-
-	if (! d->running)
-		return;
-
-	m = makembuf (data, len);
-	if (! m) {
-		CP_DEBUG (d, ("no memory for packet\n"));
-#ifndef NETGRAPH
-		++d->ifp->if_iqdrops;
-#endif
-		return;
-	}
-	if (c->debug > 1)
-		printmbuf (m);
-#ifdef NETGRAPH
-	m->m_pkthdr.rcvif = 0;
-	NG_SEND_DATA_ONLY (error, d->hook, m);
-#else
-	++d->ifp->if_ipackets;
-	m->m_pkthdr.rcvif = d->ifp;
-	/* Check if there's a BPF listener on this interface.
-	 * If so, hand off the raw packet to bpf. */
-	if (d->ifp->if_bpf)
-		BPF_TAP (d->ifp, data, len);
-	IF_ENQUEUE (&d->queue, m);
-#endif
-}
-
-static void cp_error (cp_chan_t *c, int data)
-{
-	drv_t *d = c->sys;
-
-	switch (data) {
-	case CP_FRAME:
-		CP_DEBUG (d, ("frame error\n"));
-#ifndef NETGRAPH
-		++d->ifp->if_ierrors;
-#endif
-		break;
-	case CP_CRC:
-		CP_DEBUG (d, ("crc error\n"));
-#ifndef NETGRAPH
-		++d->ifp->if_ierrors;
-#endif
-		break;
-	case CP_OVERRUN:
-		CP_DEBUG (d, ("overrun error\n"));
-#ifndef NETGRAPH
-		++d->ifp->if_collisions;
-		++d->ifp->if_ierrors;
-#endif
-		break;
-	case CP_OVERFLOW:
-		CP_DEBUG (d, ("overflow error\n"));
-#ifndef NETGRAPH
-		++d->ifp->if_ierrors;
-#endif
-		break;
-	case CP_UNDERRUN:
-		CP_DEBUG (d, ("underrun error\n"));
-#ifdef NETGRAPH
-		d->timeout = 0;
-#else
-		++d->ifp->if_oerrors;
-		d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		d->ifp->if_timer = 0;
-#endif
-		cp_start (d);
-		break;
-	default:
-		CP_DEBUG (d, ("error #%d\n", data));
-		break;
-	}
-}
-
-/*
  * You also need read, write, open, close routines.
  * This should get you started
  */
@@ -1028,6 +228,7 @@ static int cp_modem_status (cp_chan_t *c)
 	splx (s);
 	return status;
 }
+
 
 static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
@@ -1818,6 +1019,804 @@ static struct cdevsw cp_cdevsw = {
 	.d_name     = "cp",
 	.d_flags    = D_NEEDGIANT,
 };
+
+/*
+ * Print the mbuf chain, for debug purposes only.
+ */
+static void printmbuf (struct mbuf *m)
+{
+	printf ("mbuf:");
+	for (; m; m=m->m_next) {
+		if (m->m_flags & M_PKTHDR)
+			printf (" HDR %d:", m->m_pkthdr.len);
+		if (m->m_flags & M_EXT)
+			printf (" EXT:");
+		printf (" %d", m->m_len);
+	}
+	printf ("\n");
+}
+
+/*
+ * Make an mbuf from data.
+ */
+static struct mbuf *makembuf (void *buf, unsigned len)
+{
+	struct mbuf *m;
+
+	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	if (! m)
+		return 0;
+	MCLGET (m, M_DONTWAIT);
+	if (! (m->m_flags & M_EXT)) {
+		m_freem (m);
+		return 0;
+	}
+	m->m_pkthdr.len = m->m_len = len;
+	bcopy (buf, mtod (m, caddr_t), len);
+	return m;
+}
+
+static int cp_probe (device_t dev)
+{
+	if ((pci_get_vendor (dev) == cp_vendor_id) &&
+	    (pci_get_device (dev) == cp_device_id)) {
+		device_set_desc (dev, "Cronyx-Tau-PCI serial adapter");
+		return BUS_PROBE_DEFAULT;
+	}
+	return ENXIO;
+}
+
+static void cp_timeout (void *arg)
+{
+	drv_t *d;
+	int s, i, k;
+
+	for (i = 0; i < NBRD; ++i) {
+		if (adapter[i] == NULL)
+			continue;
+		for (k = 0; k < NCHAN; ++k) {
+			s = splimp ();
+			if (cp_destroy) {
+				splx (s);
+				return;
+			}
+			d = channel[i * NCHAN + k];
+			if (!d) {
+				splx (s);
+				continue;
+			}
+			CP_LOCK ((bdrv_t *)d->board->sys);
+			switch (d->chan->type) {
+			case T_G703:
+				cp_g703_timer (d->chan);
+				break;
+			case T_E1:
+				cp_e1_timer (d->chan);
+				break;
+			case T_E3:
+			case T_T3:
+			case T_STS1:
+				cp_e3_timer (d->chan);
+				break;
+			default:
+				break;
+			}
+			CP_UNLOCK ((bdrv_t *)d->board->sys);
+			splx (s);
+		}
+	}
+	s = splimp ();
+	if (!cp_destroy)
+		callout_reset (&timeout_handle, hz, cp_timeout, 0);
+	splx (s);
+}
+
+static void cp_led_off (void *arg)
+{
+	cp_board_t *b = arg;
+	bdrv_t *bd = (bdrv_t *) b->sys;
+	int s;
+	s = splimp ();
+	if (cp_destroy) {
+		splx (s);
+		return;
+	}
+	CP_LOCK (bd);
+	cp_led (b, 0);
+	CP_UNLOCK (bd);
+	splx (s);
+}
+
+static void cp_intr (void *arg)
+{
+	bdrv_t *bd = arg;
+	cp_board_t *b = bd->board;
+#ifndef NETGRAPH
+	int i;
+#endif
+	int s = splimp ();
+	if (cp_destroy) {
+		splx (s);
+		return;
+	}
+	CP_LOCK (bd);
+	/* Check if we are ready */
+	if (b->sys == NULL) {
+		/* Not we are not, just cleanup. */
+		cp_interrupt_poll (b, 1);
+		CP_UNLOCK (bd);
+		return;
+	}
+	/* Turn LED on. */
+	cp_led (b, 1);
+
+	cp_interrupt (b);
+
+	/* Turn LED off 50 msec later. */
+	callout_reset (&led_timo[b->num], hz/20, cp_led_off, b);
+	CP_UNLOCK (bd);
+	splx (s);
+
+#ifndef NETGRAPH
+	/* Pass packets in a lock-free state */
+	for (i = 0; i < NCHAN && b->chan[i].type; i++) {
+		drv_t *d = b->chan[i].sys;
+		struct mbuf *m;
+		if (!d || !d->running)
+			continue;
+		while (_IF_QLEN(&d->queue)) {
+			IF_DEQUEUE (&d->queue,m);
+			if (!m)
+				continue;
+			sppp_input (d->ifp, m);	
+		}
+	}
+#endif
+}
+
+static void
+cp_bus_dmamap_addr (void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	unsigned long *addr;
+
+	if (error)
+		return;
+
+	KASSERT(nseg == 1, ("too many DMA segments, %d should be 1", nseg));
+	addr = arg;
+	*addr = segs->ds_addr;
+}
+
+static int
+cp_bus_dma_mem_alloc (int bnum, int cnum, cp_dma_mem_t *dmem)
+{
+	int error;
+
+	error = bus_dma_tag_create (NULL, 16, 0, BUS_SPACE_MAXADDR_32BIT,
+		BUS_SPACE_MAXADDR, NULL, NULL, dmem->size, 1,
+		dmem->size, 0, NULL, NULL, &dmem->dmat);
+	if (error) {
+		if (cnum >= 0)	printf ("cp%d-%d: ", bnum, cnum);
+		else		printf ("cp%d: ", bnum);
+		printf ("couldn't allocate tag for dma memory\n");
+ 		return 0;
+	}
+	error = bus_dmamem_alloc (dmem->dmat, (void **)&dmem->virt,
+		BUS_DMA_NOWAIT | BUS_DMA_ZERO, &dmem->mapp);
+	if (error) {
+		if (cnum >= 0)	printf ("cp%d-%d: ", bnum, cnum);
+		else		printf ("cp%d: ", bnum);
+		printf ("couldn't allocate mem for dma memory\n");
+		bus_dma_tag_destroy (dmem->dmat);
+ 		return 0;
+	}
+	error = bus_dmamap_load (dmem->dmat, dmem->mapp, dmem->virt,
+		dmem->size, cp_bus_dmamap_addr, &dmem->phys, 0);
+	if (error) {
+		if (cnum >= 0)	printf ("cp%d-%d: ", bnum, cnum);
+		else		printf ("cp%d: ", bnum);
+		printf ("couldn't load mem map for dma memory\n");
+		bus_dmamem_free (dmem->dmat, dmem->virt, dmem->mapp);
+		bus_dma_tag_destroy (dmem->dmat);
+ 		return 0;
+	}
+	return 1;
+}
+
+static void
+cp_bus_dma_mem_free (cp_dma_mem_t *dmem)
+{
+	bus_dmamap_unload (dmem->dmat, dmem->mapp);
+	bus_dmamem_free (dmem->dmat, dmem->virt, dmem->mapp);
+	bus_dma_tag_destroy (dmem->dmat);
+}
+
+/*
+ * Called if the probe succeeded.
+ */
+static int cp_attach (device_t dev)
+{
+	bdrv_t *bd = device_get_softc (dev);
+	int unit = device_get_unit (dev);
+	char *cp_ln = CP_LOCK_NAME;
+	unsigned short res;
+	vm_offset_t vbase;
+	int rid, error;
+	cp_board_t *b;
+	cp_chan_t *c;
+	drv_t *d;
+	int s = splimp ();
+
+	b = malloc (sizeof(cp_board_t), M_DEVBUF, M_WAITOK);
+	if (!b) {
+		printf ("cp%d: couldn't allocate memory\n", unit);		
+		splx (s);
+		return (ENXIO);
+	}
+	bzero (b, sizeof(cp_board_t));
+
+	bd->board = b;
+	rid = PCIR_BAR(0);
+	bd->cp_res = bus_alloc_resource (dev, SYS_RES_MEMORY, &rid,
+			0, ~0, 1, RF_ACTIVE);
+	if (! bd->cp_res) {
+		printf ("cp%d: cannot map memory\n", unit);
+		free (b, M_DEVBUF);
+		splx (s);
+		return (ENXIO);
+	}
+	vbase = (vm_offset_t) rman_get_virtual (bd->cp_res);
+
+	cp_ln[2] = '0' + unit;
+	mtx_init (&bd->cp_mtx, cp_ln, MTX_NETWORK_LOCK, MTX_DEF|MTX_RECURSE);
+	res = cp_init (b, unit, (u_char*) vbase);
+	if (res) {
+		printf ("cp%d: can't init, error code:%x\n", unit, res);
+		bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->cp_res);
+		free (b, M_DEVBUF);
+		splx (s);
+ 		return (ENXIO);
+	}
+
+	bd->dmamem.size = sizeof(cp_qbuf_t);
+	if (! cp_bus_dma_mem_alloc (unit, -1, &bd->dmamem)) {
+		free (b, M_DEVBUF);
+		splx (s);
+ 		return (ENXIO);
+	}
+	CP_LOCK (bd);
+	cp_reset (b, bd->dmamem.virt, bd->dmamem.phys);
+	CP_UNLOCK (bd);
+
+	rid = 0;
+	bd->cp_irq = bus_alloc_resource (dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+			RF_SHAREABLE | RF_ACTIVE);
+	if (! bd->cp_irq) {
+		cp_destroy = 1;
+		printf ("cp%d: cannot map interrupt\n", unit);	
+		bus_release_resource (dev, SYS_RES_MEMORY,
+				PCIR_BAR(0), bd->cp_res);
+		mtx_destroy (&bd->cp_mtx);
+		free (b, M_DEVBUF);
+		splx (s);
+		return (ENXIO);
+	}
+	callout_init (&led_timo[unit], cp_mpsafenet ? CALLOUT_MPSAFE : 0);
+	error  = bus_setup_intr (dev, bd->cp_irq,
+				INTR_TYPE_NET|(cp_mpsafenet?INTR_MPSAFE:0),
+				cp_intr, bd, &bd->cp_intrhand);
+	if (error) {
+		cp_destroy = 1;
+		printf ("cp%d: cannot set up irq\n", unit);
+		bus_release_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
+		bus_release_resource (dev, SYS_RES_MEMORY,
+				PCIR_BAR(0), bd->cp_res);
+		mtx_destroy (&bd->cp_mtx);
+		free (b, M_DEVBUF);
+		splx (s);
+		return (ENXIO);
+	}
+	printf ("cp%d: %s, clock %ld MHz\n", unit, b->name, b->osc / 1000000);
+
+	for (c = b->chan; c < b->chan + NCHAN; ++c) {
+		if (! c->type)
+			continue;
+		d = &bd->channel[c->num];
+		d->dmamem.size = sizeof(cp_buf_t);
+		if (! cp_bus_dma_mem_alloc (unit, c->num, &d->dmamem))
+			continue;
+		channel [b->num*NCHAN + c->num] = d;
+		sprintf (d->name, "cp%d.%d", b->num, c->num);
+		d->board = b;
+		d->chan = c;
+		c->sys = d;
+#ifdef NETGRAPH
+		if (ng_make_node_common (&typestruct, &d->node) != 0) {
+			printf ("%s: cannot make common node\n", d->name);
+			d->node = NULL;
+			continue;
+		}
+		NG_NODE_SET_PRIVATE (d->node, d);
+		sprintf (d->nodename, "%s%d", NG_CP_NODE_TYPE,
+			 c->board->num*NCHAN + c->num);
+		if (ng_name_node (d->node, d->nodename)) {
+			printf ("%s: cannot name node\n", d->nodename);
+			NG_NODE_UNREF (d->node);
+			continue;
+		}
+		d->queue.ifq_maxlen = IFQ_MAXLEN;
+		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
+		mtx_init (&d->queue.ifq_mtx, "cp_queue", NULL, MTX_DEF);
+		mtx_init (&d->hi_queue.ifq_mtx, "cp_queue_hi", NULL, MTX_DEF);
+		callout_init (&d->timeout_handle,
+			     cp_mpsafenet ? CALLOUT_MPSAFE : 0);
+#else /*NETGRAPH*/
+		d->ifp = if_alloc(IFT_PPP);
+		if (d->ifp == NULL) {
+			printf ("%s: cannot if_alloc() interface\n", d->name);
+			continue;
+		}
+		d->ifp->if_softc	= d;
+		if_initname (d->ifp, "cp", b->num * NCHAN + c->num);
+		d->ifp->if_mtu		= PP_MTU;
+		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
+		if (!cp_mpsafenet)
+			d->ifp->if_flags |= IFF_NEEDSGIANT;
+		d->ifp->if_ioctl	= cp_sioctl;
+		d->ifp->if_start	= cp_ifstart;
+		d->ifp->if_watchdog	= cp_ifwatchdog;
+		d->ifp->if_init		= cp_initialize;
+		d->queue.ifq_maxlen	= NRBUF;
+		mtx_init (&d->queue.ifq_mtx, "cp_queue", NULL, MTX_DEF);
+		sppp_attach (d->ifp);
+		if_attach (d->ifp);
+		IFP2SP(d->ifp)->pp_tlf	= cp_tlf;
+		IFP2SP(d->ifp)->pp_tls	= cp_tls;
+		/* If BPF is in the kernel, call the attach for it.
+		 * The header size of PPP or Cisco/HDLC is 4 bytes. */
+		bpfattach (d->ifp, DLT_PPP, 4);
+#endif /*NETGRAPH*/
+		cp_start_e1 (c);
+		cp_start_chan (c, 1, 1, d->dmamem.virt, d->dmamem.phys);
+
+		/* Register callback functions. */
+		cp_register_transmit (c, &cp_transmit);
+		cp_register_receive (c, &cp_receive);
+		cp_register_error (c, &cp_error);
+		d->devt = make_dev (&cp_cdevsw, b->num*NCHAN+c->num, UID_ROOT,
+				GID_WHEEL, 0600, "cp%d", b->num*NCHAN+c->num);
+	}
+	CP_LOCK (bd);
+	b->sys = bd;
+	adapter[unit] = b;
+	CP_UNLOCK (bd);
+	splx (s);
+	return 0;
+}
+
+static int cp_detach (device_t dev)
+{
+	bdrv_t *bd = device_get_softc (dev);
+	cp_board_t *b = bd->board;
+	cp_chan_t *c;
+	int s;
+
+	KASSERT (mtx_initialized (&bd->cp_mtx), ("cp mutex not initialized"));
+	s = splimp ();
+	CP_LOCK (bd);
+	/* Check if the device is busy (open). */
+	for (c = b->chan; c < b->chan + NCHAN; ++c) {
+		drv_t *d = (drv_t*) c->sys;
+
+		if (! d || ! d->chan->type)
+			continue;
+		if (d->running) {
+			CP_UNLOCK (bd);
+			splx (s);
+			return EBUSY;
+		}
+	}
+
+	/* Ok, we can unload driver */
+	/* At first we should stop all channels */
+	for (c = b->chan; c < b->chan + NCHAN; ++c) {
+		drv_t *d = (drv_t*) c->sys;
+
+		if (! d || ! d->chan->type)
+			continue;
+
+		cp_stop_chan (c);
+		cp_stop_e1 (c);
+		cp_set_dtr (d->chan, 0);
+		cp_set_rts (d->chan, 0);
+	}
+
+	/* Reset the adapter. */
+	cp_destroy = 1;
+	cp_interrupt_poll (b, 1);
+	cp_led_off (b);
+	cp_reset (b, 0 ,0);
+	callout_stop (&led_timo[b->num]);
+
+	for (c=b->chan; c<b->chan+NCHAN; ++c) {
+		drv_t *d = (drv_t*) c->sys;
+
+		if (! d || ! d->chan->type)
+			continue;
+#ifndef NETGRAPH
+		/* Detach from the packet filter list of interfaces. */
+		bpfdetach (d->ifp);
+
+		/* Detach from the sync PPP list. */
+		sppp_detach (d->ifp);
+
+		/* Detach from the system list of interfaces. */
+		if_detach (d->ifp);
+		if_free (d->ifp);
+		IF_DRAIN (&d->queue);
+		mtx_destroy (&d->queue.ifq_mtx);
+#else
+		if (d->node) {
+			ng_rmnode_self (d->node);
+			NG_NODE_UNREF (d->node);
+			d->node = NULL;
+		}
+		mtx_destroy (&d->queue.ifq_mtx);
+		mtx_destroy (&d->hi_queue.ifq_mtx);
+#endif
+		destroy_dev (d->devt);
+	}
+
+	b->sys = NULL;
+	CP_UNLOCK (bd);
+
+	/* Disable the interrupt request. */
+	bus_teardown_intr (dev, bd->cp_irq, bd->cp_intrhand);
+	bus_deactivate_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
+	bus_release_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
+	bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->cp_res);
+
+	CP_LOCK (bd);
+	cp_led_off (b);
+	CP_UNLOCK (bd);
+	callout_drain (&led_timo[b->num]);
+	splx (s);
+
+	s = splimp ();
+	for (c = b->chan; c < b->chan + NCHAN; ++c) {
+		drv_t *d = (drv_t*) c->sys;
+
+		if (! d || ! d->chan->type)
+			continue;
+		channel [b->num*NCHAN + c->num] = 0;
+		/* Deallocate buffers. */
+		cp_bus_dma_mem_free (&d->dmamem);
+	}
+	adapter [b->num] = 0;
+	cp_bus_dma_mem_free (&bd->dmamem);
+	free (b, M_DEVBUF);
+	splx (s);
+	mtx_destroy (&bd->cp_mtx);
+	return 0;
+}
+
+#ifndef NETGRAPH
+static void cp_ifstart (struct ifnet *ifp)
+{
+	drv_t *d = ifp->if_softc;
+	bdrv_t *bd = d->board->sys;
+
+	CP_LOCK (bd);
+	cp_start (d);
+	CP_UNLOCK (bd);
+}
+
+static void cp_ifwatchdog (struct ifnet *ifp)
+{
+	drv_t *d = ifp->if_softc;
+
+	cp_watchdog (d);
+}
+
+static void cp_tlf (struct sppp *sp)
+{
+	drv_t *d = SP2IFP(sp)->if_softc;
+
+	CP_DEBUG2 (d, ("cp_tlf\n"));
+	/* XXXRIK: Don't forget to protect them by LOCK, or kill them. */
+/*	cp_set_dtr (d->chan, 0);*/
+/*	cp_set_rts (d->chan, 0);*/
+	if (!(sp->pp_flags & PP_FR) && !(d->ifp->if_flags & PP_CISCO))
+		sp->pp_down (sp);
+}
+
+static void cp_tls (struct sppp *sp)
+{
+	drv_t *d = SP2IFP(sp)->if_softc;
+
+	CP_DEBUG2 (d, ("cp_tls\n"));
+	if (!(sp->pp_flags & PP_FR) && !(d->ifp->if_flags & PP_CISCO))
+		sp->pp_up (sp);
+}
+
+/*
+ * Process an ioctl request.
+ */
+static int cp_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
+{
+	drv_t *d = ifp->if_softc;
+	bdrv_t *bd = d->board->sys;
+	int error, s, was_up, should_be_up;
+
+	was_up = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
+	error = sppp_ioctl (ifp, cmd, data);
+
+	if (error)
+		return error;
+
+	if (! (ifp->if_flags & IFF_DEBUG))
+		d->chan->debug = 0;
+	else if (! d->chan->debug)
+		d->chan->debug = 1;
+
+	switch (cmd) {
+	default:	   CP_DEBUG2 (d, ("ioctl 0x%lx\n", cmd));   return 0;
+	case SIOCADDMULTI: CP_DEBUG2 (d, ("ioctl SIOCADDMULTI\n")); return 0;
+	case SIOCDELMULTI: CP_DEBUG2 (d, ("ioctl SIOCDELMULTI\n")); return 0;
+	case SIOCSIFFLAGS: CP_DEBUG2 (d, ("ioctl SIOCSIFFLAGS\n")); break;
+	case SIOCSIFADDR:  CP_DEBUG2 (d, ("ioctl SIOCSIFADDR\n"));  break;
+	}
+
+	/* We get here only in case of SIFFLAGS or SIFADDR. */
+	s = splimp ();
+	CP_LOCK (bd);
+	should_be_up = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
+	if (! was_up && should_be_up) {
+		/* Interface goes up -- start it. */
+		cp_up (d);
+		cp_start (d);
+	} else if (was_up && ! should_be_up) {
+		/* Interface is going down -- stop it. */
+/*		if ((IFP2SP(ifp)->pp_flags & PP_FR) || (ifp->if_flags & PP_CISCO))*/
+		cp_down (d);
+	}
+	CP_DEBUG (d, ("ioctl 0x%lx p4\n", cmd));
+	CP_UNLOCK (bd);
+	splx (s);
+	return 0;
+}
+
+/*
+ * Initialization of interface.
+ * It seems to be never called by upper level?
+ */
+static void cp_initialize (void *softc)
+{
+	drv_t *d = softc;
+
+	CP_DEBUG (d, ("cp_initialize\n"));
+}
+#endif /*NETGRAPH*/
+
+/*
+ * Stop the interface.  Called on splimp().
+ */
+static void cp_down (drv_t *d)
+{
+	CP_DEBUG (d, ("cp_down\n"));
+	/* Interface is going down -- stop it. */
+	cp_set_dtr (d->chan, 0);
+	cp_set_rts (d->chan, 0);
+
+	d->running = 0;
+}
+
+/*
+ * Start the interface.  Called on splimp().
+ */
+static void cp_up (drv_t *d)
+{
+	CP_DEBUG (d, ("cp_up\n"));
+	cp_set_dtr (d->chan, 1);
+	cp_set_rts (d->chan, 1);
+	d->running = 1;
+}
+
+/*
+ * Start output on the interface.  Get another datagram to send
+ * off of the interface queue, and copy it to the interface
+ * before starting the output.
+ */
+static void cp_send (drv_t *d)
+{
+	struct mbuf *m;
+	u_short len;
+
+	CP_DEBUG2 (d, ("cp_send, tn=%d te=%d\n", d->chan->tn, d->chan->te));
+
+	/* No output if the interface is down. */
+	if (! d->running)
+		return;
+
+	/* No output if the modem is off. */
+	if (! (d->chan->lloop || d->chan->type != T_SERIAL ||
+		cp_get_dsr (d->chan)))
+		return;
+
+	while (cp_transmit_space (d->chan)) {
+		/* Get the packet to send. */
+#ifdef NETGRAPH
+		IF_DEQUEUE (&d->hi_queue, m);
+		if (! m)
+			IF_DEQUEUE (&d->queue, m);
+#else
+		m = sppp_dequeue (d->ifp);
+#endif
+		if (! m)
+			return;
+#ifndef NETGRAPH
+		if (d->ifp->if_bpf)
+			BPF_MTAP (d->ifp, m);
+#endif
+		len = m_length (m, NULL);
+		if (len >= BUFSZ)
+			printf ("%s: too long packet: %d bytes: ",
+				d->name, len);
+		else if (! m->m_next)
+			cp_send_packet (d->chan, (u_char*) mtod (m, caddr_t), len, 0);
+		else {
+			u_char *buf = d->chan->tbuf[d->chan->te];
+			m_copydata (m, 0, len, buf);
+			cp_send_packet (d->chan, buf, len, 0);
+		}
+		m_freem (m);
+		/* Set up transmit timeout, if the transmit ring is not empty.*/
+#ifdef NETGRAPH
+		d->timeout = 10;
+#else
+		d->ifp->if_timer = 10;
+#endif
+	}
+#ifndef NETGRAPH
+	d->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+#endif
+}
+
+/*
+ * Start output on the interface.
+ * Always called on splimp().
+ */
+static void cp_start (drv_t *d)
+{
+	if (d->running) {
+		if (! d->chan->dtr)
+			cp_set_dtr (d->chan, 1);
+		if (! d->chan->rts)
+			cp_set_rts (d->chan, 1);
+		cp_send (d);
+	}
+}
+
+/*
+ * Handle transmit timeouts.
+ * Recover after lost transmit interrupts.
+ * Always called on splimp().
+ */
+static void cp_watchdog (drv_t *d)
+{
+	bdrv_t *bd = d->board->sys;
+	CP_DEBUG (d, ("device timeout\n"));
+	if (d->running) {
+		int s = splimp ();
+
+		CP_LOCK (bd);
+		cp_stop_chan (d->chan);
+		cp_stop_e1 (d->chan);
+		cp_start_e1 (d->chan);
+		cp_start_chan (d->chan, 1, 1, 0, 0);
+		cp_set_dtr (d->chan, 1);
+		cp_set_rts (d->chan, 1);
+		cp_start (d);
+		CP_UNLOCK (bd);
+		splx (s);
+	}
+}
+
+static void cp_transmit (cp_chan_t *c, void *attachment, int len)
+{
+	drv_t *d = c->sys;
+
+#ifdef NETGRAPH
+	d->timeout = 0;
+#else
+	++d->ifp->if_opackets;
+	d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	d->ifp->if_timer = 0;
+#endif
+	cp_start (d);
+}
+
+static void cp_receive (cp_chan_t *c, unsigned char *data, int len)
+{
+	drv_t *d = c->sys;
+	struct mbuf *m;
+#ifdef NETGRAPH
+	int error;
+#endif
+
+	if (! d->running)
+		return;
+
+	m = makembuf (data, len);
+	if (! m) {
+		CP_DEBUG (d, ("no memory for packet\n"));
+#ifndef NETGRAPH
+		++d->ifp->if_iqdrops;
+#endif
+		return;
+	}
+	if (c->debug > 1)
+		printmbuf (m);
+#ifdef NETGRAPH
+	m->m_pkthdr.rcvif = 0;
+	NG_SEND_DATA_ONLY (error, d->hook, m);
+#else
+	++d->ifp->if_ipackets;
+	m->m_pkthdr.rcvif = d->ifp;
+	/* Check if there's a BPF listener on this interface.
+	 * If so, hand off the raw packet to bpf. */
+	if (d->ifp->if_bpf)
+		BPF_TAP (d->ifp, data, len);
+	IF_ENQUEUE (&d->queue, m);
+#endif
+}
+
+static void cp_error (cp_chan_t *c, int data)
+{
+	drv_t *d = c->sys;
+
+	switch (data) {
+	case CP_FRAME:
+		CP_DEBUG (d, ("frame error\n"));
+#ifndef NETGRAPH
+		++d->ifp->if_ierrors;
+#endif
+		break;
+	case CP_CRC:
+		CP_DEBUG (d, ("crc error\n"));
+#ifndef NETGRAPH
+		++d->ifp->if_ierrors;
+#endif
+		break;
+	case CP_OVERRUN:
+		CP_DEBUG (d, ("overrun error\n"));
+#ifndef NETGRAPH
+		++d->ifp->if_collisions;
+		++d->ifp->if_ierrors;
+#endif
+		break;
+	case CP_OVERFLOW:
+		CP_DEBUG (d, ("overflow error\n"));
+#ifndef NETGRAPH
+		++d->ifp->if_ierrors;
+#endif
+		break;
+	case CP_UNDERRUN:
+		CP_DEBUG (d, ("underrun error\n"));
+#ifdef NETGRAPH
+		d->timeout = 0;
+#else
+		++d->ifp->if_oerrors;
+		d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		d->ifp->if_timer = 0;
+#endif
+		cp_start (d);
+		break;
+	default:
+		CP_DEBUG (d, ("error #%d\n", data));
+		break;
+	}
+}
 
 #ifdef NETGRAPH
 static int ng_cp_constructor (node_p node)
