@@ -99,7 +99,7 @@
 
 #include <net/net_osdep.h>
 
-MALLOC_DEFINE(M_IPMADDR, "in6_multi", "internet multicast address");
+MALLOC_DEFINE(M_IP6MADDR, "in6_multi", "internet multicast address");
 
 /*
  * Definitions of some costant IP6 addresses.
@@ -1614,7 +1614,7 @@ in6_joingroup(ifp, addr, errorp)
 {
 	struct in6_multi_mship *imm;
 
-	imm = malloc(sizeof(*imm), M_IPMADDR, M_NOWAIT);
+	imm = malloc(sizeof(*imm), M_IP6MADDR, M_NOWAIT);
 	if (!imm) {
 		*errorp = ENOBUFS;
 		return NULL;
@@ -1622,7 +1622,7 @@ in6_joingroup(ifp, addr, errorp)
 	imm->i6mm_maddr = in6_addmulti(addr, ifp, errorp);
 	if (!imm->i6mm_maddr) {
 		/* *errorp is alrady set */
-		free(imm, M_IPMADDR);
+		free(imm, M_IP6MADDR);
 		return NULL;
 	}
 	return imm;
@@ -1635,7 +1635,7 @@ in6_leavegroup(imm)
 
 	if (imm->i6mm_maddr)
 		in6_delmulti(imm->i6mm_maddr);
-	free(imm,  M_IPMADDR);
+	free(imm,  M_IP6MADDR);
 	return 0;
 }
 
