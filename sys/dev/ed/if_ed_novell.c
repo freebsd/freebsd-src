@@ -64,7 +64,7 @@ static int ed_probe_gwether(device_t);
 /*
  * Probe and vendor-specific initialization routine for NE1000/2000 boards
  */
-static int
+int
 ed_probe_Novell_generic(device_t dev, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
@@ -84,10 +84,7 @@ ed_probe_Novell_generic(device_t dev, int flags)
 	/*
 	 * I don't know if this is necessary; probably cruft leftover from
 	 * Clarkson packet driver code. Doesn't do a thing on the boards I've
-	 * tested. -DG [note that an outb(0x84, 0) seems to work here, and is
-	 * non-invasive...but some boards don't seem to reset and I don't have
-	 * complete documentation on what the 'right' thing to do is...so we
-	 * do the invasive thing for now. Yuck.]
+	 * tested. -DG
 	 */
 	ed_asic_outb(sc, ED_NOVELL_RESET, tmp);
 	DELAY(5000);
