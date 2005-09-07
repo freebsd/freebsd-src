@@ -56,8 +56,15 @@ spans the initial part of the null-terminated string
 .Fa s
 as long as the characters from
 .Fa s
-occur in string
+occur in the null-terminated string
 .Fa charset .
+In other words, it computes the string array index in
+.Fa s
+of the first character of
+.Fa s
+which is not in
+.Fa charset ,
+else the index of the first null character.
 .Sh RETURN VALUES
 The
 .Fn strspn
