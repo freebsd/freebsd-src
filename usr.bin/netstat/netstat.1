@@ -32,7 +32,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2005
+.Dd September 7, 2005
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -191,6 +191,19 @@ or for a single
 Show statistics recorded by the memory management routines
 .Pq Xr mbuf 9 .
 The network manages a private pool of memory buffers.
+.It Xo
+.Bk -words
+.Nm
+.Fl B
+.Op Fl I Ar interface
+.Ek
+.Xc
+Show statistics about
+.Xr bpf 4
+peers. This includes information like
+how many packets have been matched, dropped and recieved by the
+bpf device, also information about current buffer sizes and device
+states.
 .It Xo
 .Bk -words
 .Nm

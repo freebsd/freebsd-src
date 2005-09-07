@@ -154,3 +154,4 @@ void	tp_stats(caddr_t, caddr_t);
 void	ifmalist_dump(void);
 void	mroutepr(u_long, u_long);
 void	mrt_stats(u_long);
+void	bpf_stats(char *);
