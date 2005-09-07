@@ -186,6 +186,547 @@ static drv_t *channel [NCTAU*NCHAN];
 static struct callout led_timo [NCTAU];
 static struct callout timeout_handle;
 
+static int ct_open (struct cdev *dev, int oflags, int devtype, struct thread *td)
+{
+	drv_t *d;
+
+	if (minor(dev) >= NCTAU*NCHAN || ! (d = channel[minor(dev)]))
+		return ENXIO;
+		
+	CT_DEBUG2 (d, ("ct_open\n"));
+	return 0;
+}
+
+static int ct_close (struct cdev *dev, int fflag, int devtype, struct thread *td)
+{
+	drv_t *d = channel [minor(dev)];
+
+	if (!d)
+		return 0;
+
+	CT_DEBUG2 (d, ("ct_close\n"));
+	return 0;
+}
+
+static int ct_modem_status (ct_chan_t *c)
+{
+	drv_t *d = c->sys;
+	bdrv_t *bd;
+	int status, s;
+
+	if (!d)
+		return 0;
+
+	bd = d->bd;
+	
+	status = d->running ? TIOCM_LE : 0;
+	s = splimp ();
+	CT_LOCK (bd);
+	if (ct_get_cd  (c)) status |= TIOCM_CD;
+	if (ct_get_cts (c)) status |= TIOCM_CTS;
+	if (ct_get_dsr (c)) status |= TIOCM_DSR;
+	if (c->dtr)	    status |= TIOCM_DTR;
+	if (c->rts)	    status |= TIOCM_RTS;
+	CT_UNLOCK (bd);
+	splx (s);
+	return status;
+}
+
+/*
+ * Process an ioctl request on /dev/cronyx/ctauN.
+ */
+static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+{
+	drv_t *d = channel [minor (dev)];
+	bdrv_t *bd;
+	ct_chan_t *c;
+	struct serial_statistics *st;
+	struct e1_statistics *opte1;
+	int error, s;
+	char mask[16];
+
+	if (!d || !d->chan)
+		return 0;
+
+	bd = d->bd;
+	c = d->chan;
+
+	switch (cmd) {
+	case SERIAL_GETREGISTERED:
+		bzero (mask, sizeof(mask));
+		for (s=0; s<NCTAU*NCHAN; ++s)
+			if (channel [s])
+				mask [s/8] |= 1 << (s & 7);
+		bcopy (mask, data, sizeof (mask));
+		return 0;
+
+#ifndef NETGRAPH
+	case SERIAL_GETPROTO:
+		strcpy ((char*)data, (IFP2SP(d->ifp)->pp_flags & PP_FR) ? "fr" :
+			(d->ifp->if_flags & PP_CISCO) ? "cisco" : "ppp");
+		return 0;
+
+	case SERIAL_SETPROTO:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (d->ifp->if_drv_flags & IFF_DRV_RUNNING)
+			return EBUSY;
+		if (! strcmp ("cisco", (char*)data)) {
+			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);
+			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
+			d->ifp->if_flags |= PP_CISCO;
+		} else if (! strcmp ("fr", (char*)data)) {
+			d->ifp->if_flags &= ~(PP_CISCO);
+			IFP2SP(d->ifp)->pp_flags |= PP_FR | PP_KEEPALIVE;
+		} else if (! strcmp ("ppp", (char*)data)) {
+			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR | PP_KEEPALIVE);
+			d->ifp->if_flags &= ~(PP_CISCO);
+		} else
+			return EINVAL;
+		return 0;
+
+	case SERIAL_GETKEEPALIVE:
+		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
+			(d->ifp->if_flags & PP_CISCO))
+			return EINVAL;
+		*(int*)data = (IFP2SP(d->ifp)->pp_flags & PP_KEEPALIVE) ? 1 : 0;
+		return 0;
+
+	case SERIAL_SETKEEPALIVE:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
+			(d->ifp->if_flags & PP_CISCO))
+			return EINVAL;
+		if (*(int*)data)
+			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
+		else
+			IFP2SP(d->ifp)->pp_flags &= ~PP_KEEPALIVE;
+		return 0;
+#endif /*NETGRAPH*/
+
+	case SERIAL_GETMODE:
+		*(int*)data = SERIAL_HDLC;
+		return 0;
+
+	case SERIAL_GETCFG:
+		if (c->mode == M_HDLC)
+			return EINVAL;
+		switch (ct_get_config (c->board)) {
+		default:    *(char*)data = 'a'; break;
+		case CFG_B: *(char*)data = 'b'; break;
+		case CFG_C: *(char*)data = 'c'; break;
+		}
+		return 0;
+
+	case SERIAL_SETCFG:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (c->mode == M_HDLC)
+			return EINVAL;
+		s = splimp ();
+		CT_LOCK (bd);
+		switch (*(char*)data) {
+		case 'a': ct_set_config (c->board, CFG_A); break;
+		case 'b': ct_set_config (c->board, CFG_B); break;
+		case 'c': ct_set_config (c->board, CFG_C); break;
+		}
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETSTAT:
+		st = (struct serial_statistics*) data;
+		st->rintr  = c->rintr;
+		st->tintr  = c->tintr;
+		st->mintr  = c->mintr;
+		st->ibytes = c->ibytes;
+		st->ipkts  = c->ipkts;
+		st->ierrs  = c->ierrs;
+		st->obytes = c->obytes;
+		st->opkts  = c->opkts;
+		st->oerrs  = c->oerrs;
+		return 0;
+
+	case SERIAL_GETESTAT:
+		opte1 = (struct e1_statistics*)data;
+		opte1->status	   = c->status;
+		opte1->cursec	   = c->cursec;
+		opte1->totsec	   = c->totsec + c->cursec;
+
+		opte1->currnt.bpv   = c->currnt.bpv;
+		opte1->currnt.fse   = c->currnt.fse;
+		opte1->currnt.crce  = c->currnt.crce;
+		opte1->currnt.rcrce = c->currnt.rcrce;
+		opte1->currnt.uas   = c->currnt.uas;
+		opte1->currnt.les   = c->currnt.les;
+		opte1->currnt.es    = c->currnt.es;
+		opte1->currnt.bes   = c->currnt.bes;
+		opte1->currnt.ses   = c->currnt.ses;
+		opte1->currnt.oofs  = c->currnt.oofs;
+		opte1->currnt.css   = c->currnt.css;
+		opte1->currnt.dm    = c->currnt.dm;
+
+		opte1->total.bpv   = c->total.bpv   + c->currnt.bpv;
+		opte1->total.fse   = c->total.fse   + c->currnt.fse;
+		opte1->total.crce  = c->total.crce  + c->currnt.crce;
+		opte1->total.rcrce = c->total.rcrce + c->currnt.rcrce;
+		opte1->total.uas   = c->total.uas   + c->currnt.uas;
+		opte1->total.les   = c->total.les   + c->currnt.les;
+		opte1->total.es	   = c->total.es    + c->currnt.es;
+		opte1->total.bes   = c->total.bes   + c->currnt.bes;
+		opte1->total.ses   = c->total.ses   + c->currnt.ses;
+		opte1->total.oofs  = c->total.oofs  + c->currnt.oofs;
+		opte1->total.css   = c->total.css   + c->currnt.css;
+		opte1->total.dm	   = c->total.dm    + c->currnt.dm;
+		for (s=0; s<48; ++s) {
+			opte1->interval[s].bpv   = c->interval[s].bpv;
+			opte1->interval[s].fse   = c->interval[s].fse;
+			opte1->interval[s].crce  = c->interval[s].crce;
+			opte1->interval[s].rcrce = c->interval[s].rcrce;
+			opte1->interval[s].uas   = c->interval[s].uas;
+			opte1->interval[s].les   = c->interval[s].les;
+			opte1->interval[s].es	 = c->interval[s].es;
+			opte1->interval[s].bes   = c->interval[s].bes;
+			opte1->interval[s].ses   = c->interval[s].ses;
+			opte1->interval[s].oofs  = c->interval[s].oofs;
+			opte1->interval[s].css   = c->interval[s].css;
+			opte1->interval[s].dm	 = c->interval[s].dm;
+		}
+		return 0;
+
+	case SERIAL_CLRSTAT:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		c->rintr = 0;
+		c->tintr = 0;
+		c->mintr = 0;
+		c->ibytes = 0;
+		c->ipkts = 0;
+		c->ierrs = 0;
+		c->obytes = 0;
+		c->opkts = 0;
+		c->oerrs = 0;
+		bzero (&c->currnt, sizeof (c->currnt));
+		bzero (&c->total, sizeof (c->total));
+		bzero (c->interval, sizeof (c->interval));
+		return 0;
+
+	case SERIAL_GETBAUD:
+		*(long*)data = ct_get_baud(c);
+		return 0;
+
+	case SERIAL_SETBAUD:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_baud (c, *(long*)data);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETLOOP:
+		*(int*)data = ct_get_loop (c);
+		return 0;
+
+	case SERIAL_SETLOOP:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_loop (c, *(int*)data);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETDPLL:
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		*(int*)data = ct_get_dpll (c);
+		return 0;
+
+	case SERIAL_SETDPLL:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_dpll (c, *(int*)data);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETNRZI:
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		*(int*)data = ct_get_nrzi (c);
+		return 0;
+
+	case SERIAL_SETNRZI:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_nrzi (c, *(int*)data);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETDEBUG:
+		*(int*)data = c->debug;
+		return 0;
+
+	case SERIAL_SETDEBUG:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		c->debug = *(int*)data;
+#ifndef	NETGRAPH
+		if (d->chan->debug)
+			d->ifp->if_flags |= IFF_DEBUG;
+		else
+			d->ifp->if_flags &= (~IFF_DEBUG);
+#endif
+		return 0;
+
+	case SERIAL_GETHIGAIN:
+		if (c->mode != M_E1)
+			return EINVAL;
+		*(int*)data = ct_get_higain (c);
+		return 0;
+
+	case SERIAL_SETHIGAIN:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_higain (c, *(int*)data);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETPHONY:
+		CT_DEBUG2 (d, ("ioctl: getphony\n"));
+		if (c->mode != M_E1)
+			return EINVAL;
+		*(int*)data = c->gopt.phony;
+		return 0;
+
+	case SERIAL_SETPHONY:
+		CT_DEBUG2 (d, ("ioctl: setphony\n"));
+		if (c->mode != M_E1)
+			return EINVAL;
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_phony (c, *(int*)data);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETCLK:
+		if (c->mode != M_E1 && c->mode != M_G703)
+			return EINVAL;
+		switch (ct_get_clk(c)) {
+		default:	 *(int*)data = E1CLK_INTERNAL;		break;
+		case GCLK_RCV:   *(int*)data = E1CLK_RECEIVE;		break;
+		case GCLK_RCLKO: *(int*)data = c->num ?
+			E1CLK_RECEIVE_CHAN0 : E1CLK_RECEIVE_CHAN1;	break;
+		}
+		return 0;
+
+	case SERIAL_SETCLK:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		s = splimp ();
+		CT_LOCK (bd);
+		switch (*(int*)data) {
+		default:		    ct_set_clk (c, GCLK_INT);   break;
+		case E1CLK_RECEIVE:	    ct_set_clk (c, GCLK_RCV);   break;
+		case E1CLK_RECEIVE_CHAN0:
+		case E1CLK_RECEIVE_CHAN1:
+					    ct_set_clk (c, GCLK_RCLKO); break;
+		}
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETTIMESLOTS:
+		if (c->mode != M_E1)
+			return EINVAL;
+		*(long*)data = ct_get_ts (c);
+		return 0;
+
+	case SERIAL_SETTIMESLOTS:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_ts (c, *(long*)data);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETSUBCHAN:
+		if (c->mode != M_E1)
+			return EINVAL;
+		*(long*)data = ct_get_subchan (c->board);
+		return 0;
+
+	case SERIAL_SETSUBCHAN:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_subchan (c->board, *(long*)data);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETINVCLK:
+	case SERIAL_GETINVTCLK:
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		*(int*)data = ct_get_invtxc (c);
+		return 0;
+
+	case SERIAL_GETINVRCLK:
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		*(int*)data = ct_get_invrxc (c);
+		return 0;
+
+	case SERIAL_SETINVCLK:
+	case SERIAL_SETINVTCLK:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_invtxc (c, *(int*)data);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_SETINVRCLK:
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_invrxc (c, *(int*)data);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETLEVEL:
+		if (c->mode != M_G703)
+			return EINVAL;
+		s = splimp ();
+		CT_LOCK (bd);
+		*(int*)data = ct_get_lq (c);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCSDTR:	/* Set DTR */
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_dtr (c, 1);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCCDTR:	/* Clear DTR */
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_dtr (c, 0);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCMSET:	/* Set DTR/RTS */
+		s = splimp ();
+		CT_LOCK (bd);
+		ct_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
+		ct_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCMBIS:	/* Add DTR/RTS */
+		s = splimp ();
+		CT_LOCK (bd);
+		if (*(int*)data & TIOCM_DTR) ct_set_dtr (c, 1);
+		if (*(int*)data & TIOCM_RTS) ct_set_rts (c, 1);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCMBIC:	/* Clear DTR/RTS */
+		s = splimp ();
+		CT_LOCK (bd);
+		if (*(int*)data & TIOCM_DTR) ct_set_dtr (c, 0);
+		if (*(int*)data & TIOCM_RTS) ct_set_rts (c, 0);
+		CT_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCMGET:	/* Get modem status */
+		*(int*)data = ct_modem_status (c);
+		return 0;
+	}
+	return ENOTTY;
+}
+
+
+static struct cdevsw ct_cdevsw = {
+	.d_version  = D_VERSION,
+	.d_open     = ct_open,
+	.d_close    = ct_close,
+	.d_ioctl    = ct_ioctl,
+	.d_name     = "ct",
+	.d_flags    = D_NEEDGIANT,
+};
+
 /*
  * Print the mbuf chain, for debug purposes only.
  */
@@ -485,8 +1026,6 @@ static int ct_probe (device_t dev)
 	
 	return 0;
 }
-
-extern struct cdevsw ct_cdevsw;
 
 static void
 ct_bus_dmamap_addr (void *arg, bus_dma_segment_t *segs, int nseg, int error)
@@ -1208,546 +1747,6 @@ static void ct_error (ct_chan_t *c, int data)
 		CT_DEBUG (d, ("error #%d\n", data));
 	}
 }
-
-static int ct_open (struct cdev *dev, int oflags, int devtype, struct thread *td)
-{
-	drv_t *d;
-
-	if (minor(dev) >= NCTAU*NCHAN || ! (d = channel[minor(dev)]))
-		return ENXIO;
-		
-	CT_DEBUG2 (d, ("ct_open\n"));
-	return 0;
-}
-
-static int ct_close (struct cdev *dev, int fflag, int devtype, struct thread *td)
-{
-	drv_t *d = channel [minor(dev)];
-
-	if (!d)
-		return 0;
-
-	CT_DEBUG2 (d, ("ct_close\n"));
-	return 0;
-}
-
-static int ct_modem_status (ct_chan_t *c)
-{
-	drv_t *d = c->sys;
-	bdrv_t *bd;
-	int status, s;
-
-	if (!d)
-		return 0;
-
-	bd = d->bd;
-	
-	status = d->running ? TIOCM_LE : 0;
-	s = splimp ();
-	CT_LOCK (bd);
-	if (ct_get_cd  (c)) status |= TIOCM_CD;
-	if (ct_get_cts (c)) status |= TIOCM_CTS;
-	if (ct_get_dsr (c)) status |= TIOCM_DSR;
-	if (c->dtr)	    status |= TIOCM_DTR;
-	if (c->rts)	    status |= TIOCM_RTS;
-	CT_UNLOCK (bd);
-	splx (s);
-	return status;
-}
-
-/*
- * Process an ioctl request on /dev/cronyx/ctauN.
- */
-static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-{
-	drv_t *d = channel [minor (dev)];
-	bdrv_t *bd;
-	ct_chan_t *c;
-	struct serial_statistics *st;
-	struct e1_statistics *opte1;
-	int error, s;
-	char mask[16];
-
-	if (!d || !d->chan)
-		return 0;
-
-	bd = d->bd;
-	c = d->chan;
-
-	switch (cmd) {
-	case SERIAL_GETREGISTERED:
-		bzero (mask, sizeof(mask));
-		for (s=0; s<NCTAU*NCHAN; ++s)
-			if (channel [s])
-				mask [s/8] |= 1 << (s & 7);
-		bcopy (mask, data, sizeof (mask));
-		return 0;
-
-#ifndef NETGRAPH
-	case SERIAL_GETPROTO:
-		strcpy ((char*)data, (IFP2SP(d->ifp)->pp_flags & PP_FR) ? "fr" :
-			(d->ifp->if_flags & PP_CISCO) ? "cisco" : "ppp");
-		return 0;
-
-	case SERIAL_SETPROTO:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (d->ifp->if_drv_flags & IFF_DRV_RUNNING)
-			return EBUSY;
-		if (! strcmp ("cisco", (char*)data)) {
-			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);
-			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
-			d->ifp->if_flags |= PP_CISCO;
-		} else if (! strcmp ("fr", (char*)data)) {
-			d->ifp->if_flags &= ~(PP_CISCO);
-			IFP2SP(d->ifp)->pp_flags |= PP_FR | PP_KEEPALIVE;
-		} else if (! strcmp ("ppp", (char*)data)) {
-			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR | PP_KEEPALIVE);
-			d->ifp->if_flags &= ~(PP_CISCO);
-		} else
-			return EINVAL;
-		return 0;
-
-	case SERIAL_GETKEEPALIVE:
-		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
-			(d->ifp->if_flags & PP_CISCO))
-			return EINVAL;
-		*(int*)data = (IFP2SP(d->ifp)->pp_flags & PP_KEEPALIVE) ? 1 : 0;
-		return 0;
-
-	case SERIAL_SETKEEPALIVE:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
-			(d->ifp->if_flags & PP_CISCO))
-			return EINVAL;
-		if (*(int*)data)
-			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
-		else
-			IFP2SP(d->ifp)->pp_flags &= ~PP_KEEPALIVE;
-		return 0;
-#endif /*NETGRAPH*/
-
-	case SERIAL_GETMODE:
-		*(int*)data = SERIAL_HDLC;
-		return 0;
-
-	case SERIAL_GETCFG:
-		if (c->mode == M_HDLC)
-			return EINVAL;
-		switch (ct_get_config (c->board)) {
-		default:    *(char*)data = 'a'; break;
-		case CFG_B: *(char*)data = 'b'; break;
-		case CFG_C: *(char*)data = 'c'; break;
-		}
-		return 0;
-
-	case SERIAL_SETCFG:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (c->mode == M_HDLC)
-			return EINVAL;
-		s = splimp ();
-		CT_LOCK (bd);
-		switch (*(char*)data) {
-		case 'a': ct_set_config (c->board, CFG_A); break;
-		case 'b': ct_set_config (c->board, CFG_B); break;
-		case 'c': ct_set_config (c->board, CFG_C); break;
-		}
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETSTAT:
-		st = (struct serial_statistics*) data;
-		st->rintr  = c->rintr;
-		st->tintr  = c->tintr;
-		st->mintr  = c->mintr;
-		st->ibytes = c->ibytes;
-		st->ipkts  = c->ipkts;
-		st->ierrs  = c->ierrs;
-		st->obytes = c->obytes;
-		st->opkts  = c->opkts;
-		st->oerrs  = c->oerrs;
-		return 0;
-
-	case SERIAL_GETESTAT:
-		opte1 = (struct e1_statistics*)data;
-		opte1->status	   = c->status;
-		opte1->cursec	   = c->cursec;
-		opte1->totsec	   = c->totsec + c->cursec;
-
-		opte1->currnt.bpv   = c->currnt.bpv;
-		opte1->currnt.fse   = c->currnt.fse;
-		opte1->currnt.crce  = c->currnt.crce;
-		opte1->currnt.rcrce = c->currnt.rcrce;
-		opte1->currnt.uas   = c->currnt.uas;
-		opte1->currnt.les   = c->currnt.les;
-		opte1->currnt.es    = c->currnt.es;
-		opte1->currnt.bes   = c->currnt.bes;
-		opte1->currnt.ses   = c->currnt.ses;
-		opte1->currnt.oofs  = c->currnt.oofs;
-		opte1->currnt.css   = c->currnt.css;
-		opte1->currnt.dm    = c->currnt.dm;
-
-		opte1->total.bpv   = c->total.bpv   + c->currnt.bpv;
-		opte1->total.fse   = c->total.fse   + c->currnt.fse;
-		opte1->total.crce  = c->total.crce  + c->currnt.crce;
-		opte1->total.rcrce = c->total.rcrce + c->currnt.rcrce;
-		opte1->total.uas   = c->total.uas   + c->currnt.uas;
-		opte1->total.les   = c->total.les   + c->currnt.les;
-		opte1->total.es	   = c->total.es    + c->currnt.es;
-		opte1->total.bes   = c->total.bes   + c->currnt.bes;
-		opte1->total.ses   = c->total.ses   + c->currnt.ses;
-		opte1->total.oofs  = c->total.oofs  + c->currnt.oofs;
-		opte1->total.css   = c->total.css   + c->currnt.css;
-		opte1->total.dm	   = c->total.dm    + c->currnt.dm;
-		for (s=0; s<48; ++s) {
-			opte1->interval[s].bpv   = c->interval[s].bpv;
-			opte1->interval[s].fse   = c->interval[s].fse;
-			opte1->interval[s].crce  = c->interval[s].crce;
-			opte1->interval[s].rcrce = c->interval[s].rcrce;
-			opte1->interval[s].uas   = c->interval[s].uas;
-			opte1->interval[s].les   = c->interval[s].les;
-			opte1->interval[s].es	 = c->interval[s].es;
-			opte1->interval[s].bes   = c->interval[s].bes;
-			opte1->interval[s].ses   = c->interval[s].ses;
-			opte1->interval[s].oofs  = c->interval[s].oofs;
-			opte1->interval[s].css   = c->interval[s].css;
-			opte1->interval[s].dm	 = c->interval[s].dm;
-		}
-		return 0;
-
-	case SERIAL_CLRSTAT:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		c->rintr = 0;
-		c->tintr = 0;
-		c->mintr = 0;
-		c->ibytes = 0;
-		c->ipkts = 0;
-		c->ierrs = 0;
-		c->obytes = 0;
-		c->opkts = 0;
-		c->oerrs = 0;
-		bzero (&c->currnt, sizeof (c->currnt));
-		bzero (&c->total, sizeof (c->total));
-		bzero (c->interval, sizeof (c->interval));
-		return 0;
-
-	case SERIAL_GETBAUD:
-		*(long*)data = ct_get_baud(c);
-		return 0;
-
-	case SERIAL_SETBAUD:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_baud (c, *(long*)data);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETLOOP:
-		*(int*)data = ct_get_loop (c);
-		return 0;
-
-	case SERIAL_SETLOOP:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_loop (c, *(int*)data);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETDPLL:
-		if (c->mode == M_E1 || c->mode == M_G703)
-			return EINVAL;
-		*(int*)data = ct_get_dpll (c);
-		return 0;
-
-	case SERIAL_SETDPLL:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (c->mode == M_E1 || c->mode == M_G703)
-			return EINVAL;
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_dpll (c, *(int*)data);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETNRZI:
-		if (c->mode == M_E1 || c->mode == M_G703)
-			return EINVAL;
-		*(int*)data = ct_get_nrzi (c);
-		return 0;
-
-	case SERIAL_SETNRZI:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (c->mode == M_E1 || c->mode == M_G703)
-			return EINVAL;
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_nrzi (c, *(int*)data);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETDEBUG:
-		*(int*)data = c->debug;
-		return 0;
-
-	case SERIAL_SETDEBUG:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		c->debug = *(int*)data;
-#ifndef	NETGRAPH
-		if (d->chan->debug)
-			d->ifp->if_flags |= IFF_DEBUG;
-		else
-			d->ifp->if_flags &= (~IFF_DEBUG);
-#endif
-		return 0;
-
-	case SERIAL_GETHIGAIN:
-		if (c->mode != M_E1)
-			return EINVAL;
-		*(int*)data = ct_get_higain (c);
-		return 0;
-
-	case SERIAL_SETHIGAIN:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_higain (c, *(int*)data);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETPHONY:
-		CT_DEBUG2 (d, ("ioctl: getphony\n"));
-		if (c->mode != M_E1)
-			return EINVAL;
-		*(int*)data = c->gopt.phony;
-		return 0;
-
-	case SERIAL_SETPHONY:
-		CT_DEBUG2 (d, ("ioctl: setphony\n"));
-		if (c->mode != M_E1)
-			return EINVAL;
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_phony (c, *(int*)data);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETCLK:
-		if (c->mode != M_E1 && c->mode != M_G703)
-			return EINVAL;
-		switch (ct_get_clk(c)) {
-		default:	 *(int*)data = E1CLK_INTERNAL;		break;
-		case GCLK_RCV:   *(int*)data = E1CLK_RECEIVE;		break;
-		case GCLK_RCLKO: *(int*)data = c->num ?
-			E1CLK_RECEIVE_CHAN0 : E1CLK_RECEIVE_CHAN1;	break;
-		}
-		return 0;
-
-	case SERIAL_SETCLK:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		s = splimp ();
-		CT_LOCK (bd);
-		switch (*(int*)data) {
-		default:		    ct_set_clk (c, GCLK_INT);   break;
-		case E1CLK_RECEIVE:	    ct_set_clk (c, GCLK_RCV);   break;
-		case E1CLK_RECEIVE_CHAN0:
-		case E1CLK_RECEIVE_CHAN1:
-					    ct_set_clk (c, GCLK_RCLKO); break;
-		}
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETTIMESLOTS:
-		if (c->mode != M_E1)
-			return EINVAL;
-		*(long*)data = ct_get_ts (c);
-		return 0;
-
-	case SERIAL_SETTIMESLOTS:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_ts (c, *(long*)data);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETSUBCHAN:
-		if (c->mode != M_E1)
-			return EINVAL;
-		*(long*)data = ct_get_subchan (c->board);
-		return 0;
-
-	case SERIAL_SETSUBCHAN:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_subchan (c->board, *(long*)data);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETINVCLK:
-	case SERIAL_GETINVTCLK:
-		if (c->mode == M_E1 || c->mode == M_G703)
-			return EINVAL;
-		*(int*)data = ct_get_invtxc (c);
-		return 0;
-
-	case SERIAL_GETINVRCLK:
-		if (c->mode == M_E1 || c->mode == M_G703)
-			return EINVAL;
-		*(int*)data = ct_get_invrxc (c);
-		return 0;
-
-	case SERIAL_SETINVCLK:
-	case SERIAL_SETINVTCLK:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (c->mode == M_E1 || c->mode == M_G703)
-			return EINVAL;
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_invtxc (c, *(int*)data);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_SETINVRCLK:
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (c->mode == M_E1 || c->mode == M_G703)
-			return EINVAL;
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_invrxc (c, *(int*)data);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETLEVEL:
-		if (c->mode != M_G703)
-			return EINVAL;
-		s = splimp ();
-		CT_LOCK (bd);
-		*(int*)data = ct_get_lq (c);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCSDTR:	/* Set DTR */
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_dtr (c, 1);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCCDTR:	/* Clear DTR */
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_dtr (c, 0);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCMSET:	/* Set DTR/RTS */
-		s = splimp ();
-		CT_LOCK (bd);
-		ct_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
-		ct_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCMBIS:	/* Add DTR/RTS */
-		s = splimp ();
-		CT_LOCK (bd);
-		if (*(int*)data & TIOCM_DTR) ct_set_dtr (c, 1);
-		if (*(int*)data & TIOCM_RTS) ct_set_rts (c, 1);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCMBIC:	/* Clear DTR/RTS */
-		s = splimp ();
-		CT_LOCK (bd);
-		if (*(int*)data & TIOCM_DTR) ct_set_dtr (c, 0);
-		if (*(int*)data & TIOCM_RTS) ct_set_rts (c, 0);
-		CT_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCMGET:	/* Get modem status */
-		*(int*)data = ct_modem_status (c);
-		return 0;
-	}
-	return ENOTTY;
-}
-
-static struct cdevsw ct_cdevsw = {
-	.d_version  = D_VERSION,
-	.d_open     = ct_open,
-	.d_close    = ct_close,
-	.d_ioctl    = ct_ioctl,
-	.d_name     = "ct",
-	.d_flags    = D_NEEDGIANT,
-};
 
 #ifdef NETGRAPH
 static int ng_ct_constructor (node_p node)
