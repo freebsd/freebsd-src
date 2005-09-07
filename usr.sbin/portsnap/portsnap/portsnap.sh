@@ -428,7 +428,7 @@ fetch_snapshot_tagsanity() {
 	if [ `date "+%s"` -gt `expr ${SNAPSHOTDATE} + 31536000` ]; then
 		echo "Snapshot appears to be more than a year old!"
 		echo "(Is the system clock correct?)"
-		echo "Cowarly refusing to proceed any further."
+		echo "Cowardly refusing to proceed any further."
 		return 1
 	fi
 	if [ `date "+%s"` -lt `expr ${SNAPSHOTDATE} - 86400` ]; then
