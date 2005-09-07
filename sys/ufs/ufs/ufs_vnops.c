@@ -1686,12 +1686,11 @@ ufs_rmdir(ap)
 	 * tries to remove a locally mounted on directory).
 	 */
 	error = 0;
-	if (ip->i_flag & IN_RENAME) {
+	if ((ip->i_flag & IN_RENAME) || ip->i_effnlink < 2) {
 		error = EINVAL;
 		goto out;
 	}
-	if (ip->i_effnlink != 2 ||
-	    !ufs_dirempty(ip, dp->i_number, cnp->cn_cred)) {
+	if (!ufs_dirempty(ip, dp->i_number, cnp->cn_cred)) {
 		error = ENOTEMPTY;
 		goto out;
 	}
