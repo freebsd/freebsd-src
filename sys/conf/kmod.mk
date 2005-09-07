@@ -331,7 +331,7 @@ ${_src}: @/tools/makeobjops.awk @/${_srcsrc}
 .endfor # _ext
 .endfor # _srcsrc
 
-.if ${SRCS:Mvnode_if.c} != ""
+.if !empty(SRCS:Mvnode_if.c)
 CLEANFILES+=	vnode_if.c
 .if !exists(@)
 vnode_if.c: @
@@ -341,7 +341,7 @@ vnode_if.c: @/tools/vnode_if.awk @/kern/vnode_if.src
 	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -c
 .endif
 
-.if ${SRCS:Mvnode_if.h} != ""
+.if !empty(SRCS:Mvnode_if.h)
 CLEANFILES+=	vnode_if.h vnode_if_newproto.h vnode_if_typedef.h
 .if !exists(@)
 vnode_if.h vnode_if_newproto.h vnode_if_typedef.h: @
@@ -358,7 +358,7 @@ vnode_if_typedef.h:
 .endif
 
 .for _i in mii pccard
-.if ${SRCS:M${_i}devs.h} != ""
+.if !empty(SRCS:M${_i}devs.h)
 CLEANFILES+=	${_i}devs.h
 .if !exists(@)
 ${_i}devs.h: @
@@ -369,7 +369,7 @@ ${_i}devs.h: @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
 .endif
 .endfor # _i
 
-.if ${SRCS:Musbdevs.h} != ""
+.if !empty(SRCS:Musbdevs.h)
 CLEANFILES+=	usbdevs.h
 .if !exists(@)
 usbdevs.h: @
@@ -379,7 +379,7 @@ usbdevs.h: @/tools/usbdevs2h.awk @/dev/usb/usbdevs
 	${AWK} -f @/tools/usbdevs2h.awk @/dev/usb/usbdevs -h
 .endif
 
-.if ${SRCS:Musbdevs_data.h} != ""
+.if !empty(SRCS:Musbdevs_data.h)
 CLEANFILES+=	usbdevs_data.h
 .if !exists(@)
 usbdevs_data.h: @
@@ -389,7 +389,7 @@ usbdevs_data.h: @/tools/usbdevs2h.awk @/dev/usb/usbdevs
 	${AWK} -f @/tools/usbdevs2h.awk @/dev/usb/usbdevs -d
 .endif
 
-.if ${SRCS:Macpi_quirks.h} != ""
+.if !empty(SRCS:Macpi_quirks.h)
 CLEANFILES+=	acpi_quirks.h
 .if !exists(@)
 acpi_quirks.h: @
@@ -399,7 +399,7 @@ acpi_quirks.h: @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
 	${AWK} -f @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
 .endif
 
-.if ${SRCS:Massym.s} != ""
+.if !empty(SRCS:Massym.s)
 CLEANFILES+=	assym.s genassym.o
 assym.s: genassym.o
 .if !exists(@)
