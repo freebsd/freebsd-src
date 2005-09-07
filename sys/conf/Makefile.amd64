@@ -32,7 +32,7 @@ S=	../../..
 .include "$S/conf/kern.pre.mk"
 
 DDB_ENABLED!=	grep DDB opt_ddb.h || true
-.if ${DDB_ENABLED} != ""
+.if !empty(DDB_ENABLED)
 CFLAGS+=	-fno-omit-frame-pointer
 .endif
 
