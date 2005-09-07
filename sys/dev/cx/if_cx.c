@@ -229,9 +229,461 @@ static cx_board_t *adapter [NCX];
 static drv_t *channel [NCX*NCHAN];
 static struct callout led_timo [NCX];
 static struct callout timeout_handle;
-extern struct cdevsw cx_cdevsw;
 
 static int MY_SOFT_INTR;
+
+static int cx_open (struct cdev *dev, int flag, int mode, struct thread *td)
+{
+	int unit;
+	drv_t *d;
+
+	d = dev->si_drv1;
+	unit = d->chan->num;
+
+	CX_DEBUG2 (d, ("cx_open unit=%d, flag=0x%x, mode=0x%x\n",
+		    unit, flag, mode));
+
+	d->open_dev |= 0x1;
+
+	CX_DEBUG2 (d, ("cx_open done\n"));
+
+	return 0;
+}
+
+static int cx_close (struct cdev *dev, int flag, int mode, struct thread *td)
+{
+	drv_t *d;
+
+	d = dev->si_drv1;
+	CX_DEBUG2 (d, ("cx_close\n"));
+	d->open_dev &= ~0x1;
+	return 0;
+}
+
+static int cx_modem_status (drv_t *d)
+{
+	bdrv_t *bd = d->board->sys;
+	int status = 0, s = splhigh ();
+	CX_LOCK (bd);
+	/* Already opened by someone or network interface is up? */
+	if ((d->chan->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
+	    (d->open_dev|0x2)) || (d->chan->mode != M_ASYNC && d->running))
+		status = TIOCM_LE;	/* always enabled while open */
+
+	if (cx_get_dsr (d->chan)) status |= TIOCM_DSR;
+	if (cx_get_cd  (d->chan)) status |= TIOCM_CD;
+	if (cx_get_cts (d->chan)) status |= TIOCM_CTS;
+	if (d->chan->dtr)	  status |= TIOCM_DTR;
+	if (d->chan->rts)	  status |= TIOCM_RTS;
+	CX_UNLOCK (bd);
+	splx (s);
+	return status;
+}
+
+static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+{
+	drv_t *d;
+	bdrv_t *bd;
+	cx_chan_t *c;
+	struct serial_statistics *st;
+	int error, s;
+	char mask[16];
+
+	d = dev->si_drv1;
+	c = d->chan;
+		
+	bd = d->board->sys;
+	
+	switch (cmd) {
+	case SERIAL_GETREGISTERED:
+		CX_DEBUG2 (d, ("ioctl: getregistered\n"));
+		bzero (mask, sizeof(mask));
+		for (s=0; s<NCX*NCHAN; ++s)
+			if (channel [s])
+				mask [s/8] |= 1 << (s & 7);
+		bcopy (mask, data, sizeof (mask));
+		return 0;
+
+	case SERIAL_GETPORT:
+		CX_DEBUG2 (d, ("ioctl: getport\n"));
+		s = splhigh ();
+		CX_LOCK (bd);
+		*(int *)data = cx_get_port (c);
+		CX_UNLOCK (bd);
+		splx (s);
+		if (*(int *)data<0)
+			return (EINVAL);
+		else
+			return 0;
+
+	case SERIAL_SETPORT:
+		CX_DEBUG2 (d, ("ioctl: setproto\n"));
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+
+		s = splhigh ();
+		CX_LOCK (bd);
+		cx_set_port (c, *(int *)data);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+#ifndef NETGRAPH
+	case SERIAL_GETPROTO:
+		CX_DEBUG2 (d, ("ioctl: getproto\n"));
+		s = splhigh ();
+		CX_LOCK (bd);
+		strcpy ((char*)data, (c->mode == M_ASYNC) ? "async" :
+			(IFP2SP(d->ifp)->pp_flags & PP_FR) ? "fr" :
+			(d->ifp->if_flags & PP_CISCO) ? "cisco" : "ppp");
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_SETPROTO:
+		CX_DEBUG2 (d, ("ioctl: setproto\n"));
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (c->mode == M_ASYNC)
+			return EBUSY;
+		if (d->ifp->if_drv_flags & IFF_DRV_RUNNING)
+			return EBUSY;
+		if (! strcmp ("cisco", (char*)data)) {
+			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);
+			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
+			d->ifp->if_flags |= PP_CISCO;
+		} else if (! strcmp ("fr", (char*)data)) {
+			d->ifp->if_flags &= ~(PP_CISCO);
+			IFP2SP(d->ifp)->pp_flags |= PP_FR | PP_KEEPALIVE;
+		} else if (! strcmp ("ppp", (char*)data)) {
+			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR | PP_KEEPALIVE);
+			d->ifp->if_flags &= ~(PP_CISCO);
+		} else
+			return EINVAL;
+		return 0;
+
+	case SERIAL_GETKEEPALIVE:
+		CX_DEBUG2 (d, ("ioctl: getkeepalive\n"));
+		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
+		    (d->ifp->if_flags & PP_CISCO) ||
+		    (c->mode == M_ASYNC))
+			return EINVAL;
+		s = splhigh ();
+		CX_LOCK (bd);
+		*(int*)data = (IFP2SP(d->ifp)->pp_flags & PP_KEEPALIVE) ? 1 : 0;
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_SETKEEPALIVE:
+		CX_DEBUG2 (d, ("ioctl: setkeepalive\n"));
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
+			(d->ifp->if_flags & PP_CISCO))
+			return EINVAL;
+		s = splhigh ();
+		CX_LOCK (bd);
+		if (*(int*)data)
+			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
+		else
+			IFP2SP(d->ifp)->pp_flags &= ~PP_KEEPALIVE;
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+#endif /*NETGRAPH*/
+
+	case SERIAL_GETMODE:
+		CX_DEBUG2 (d, ("ioctl: getmode\n"));
+		s = splhigh ();
+		CX_LOCK (bd);
+		*(int*)data = (c->mode == M_ASYNC) ?
+			SERIAL_ASYNC : SERIAL_HDLC;
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_SETMODE:
+		CX_DEBUG2 (d, ("ioctl: setmode\n"));
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+
+		/* Somebody is waiting for carrier? */
+		if (d->lock)
+			return EBUSY;
+		/* /dev/ttyXX is already opened by someone? */
+		if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
+		    (d->open_dev|0x2))
+			return EBUSY;
+		/* Network interface is up?
+		 * Cannot change to async mode. */
+		if (c->mode != M_ASYNC && d->running &&
+		    (*(int*)data == SERIAL_ASYNC))
+			return EBUSY;
+
+		s = splhigh ();
+		CX_LOCK (bd);
+		if (c->mode == M_HDLC && *(int*)data == SERIAL_ASYNC) {
+			cx_set_mode (c, M_ASYNC);
+			cx_enable_receive (c, 0);
+			cx_enable_transmit (c, 0);
+		} else if (c->mode == M_ASYNC && *(int*)data == SERIAL_HDLC) {
+			cx_set_mode (c, M_HDLC);
+			cx_enable_receive (c, 1);
+			cx_enable_transmit (c, 1);
+		}
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETSTAT:
+		CX_DEBUG2 (d, ("ioctl: getestat\n"));
+		st = (struct serial_statistics*) data;
+		s = splhigh ();
+		CX_LOCK (bd);
+		st->rintr  = c->rintr;
+		st->tintr  = c->tintr;
+		st->mintr  = c->mintr;
+		st->ibytes = c->ibytes;
+		st->ipkts  = c->ipkts;
+		st->ierrs  = c->ierrs;
+		st->obytes = c->obytes;
+		st->opkts  = c->opkts;
+		st->oerrs  = c->oerrs;
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_CLRSTAT:
+		CX_DEBUG2 (d, ("ioctl: clrstat\n"));
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		s = splhigh ();
+		CX_LOCK (bd);
+		c->rintr = 0;
+		c->tintr = 0;
+		c->mintr = 0;
+		c->ibytes = 0;
+		c->ipkts = 0;
+		c->ierrs = 0;
+		c->obytes = 0;
+		c->opkts = 0;
+		c->oerrs = 0;
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETBAUD:
+		CX_DEBUG2 (d, ("ioctl: getbaud\n"));
+		if (c->mode == M_ASYNC)
+			return EINVAL;
+		s = splhigh ();
+		CX_LOCK (bd);
+		*(long*)data = cx_get_baud(c);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_SETBAUD:
+		CX_DEBUG2 (d, ("ioctl: setbaud\n"));
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (c->mode == M_ASYNC)
+			return EINVAL;
+		s = splhigh ();
+		CX_LOCK (bd);
+		cx_set_baud (c, *(long*)data);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETLOOP:
+		CX_DEBUG2 (d, ("ioctl: getloop\n"));
+		if (c->mode == M_ASYNC)
+			return EINVAL;
+		s = splhigh ();
+		CX_LOCK (bd);
+		*(int*)data = cx_get_loop (c);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_SETLOOP:
+		CX_DEBUG2 (d, ("ioctl: setloop\n"));
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (c->mode == M_ASYNC)
+			return EINVAL;
+		s = splhigh ();
+		CX_LOCK (bd);
+		cx_set_loop (c, *(int*)data);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETDPLL:
+		CX_DEBUG2 (d, ("ioctl: getdpll\n"));
+		if (c->mode == M_ASYNC)
+			return EINVAL;
+		s = splhigh ();
+		CX_LOCK (bd);
+		*(int*)data = cx_get_dpll (c);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_SETDPLL:
+		CX_DEBUG2 (d, ("ioctl: setdpll\n"));
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (c->mode == M_ASYNC)
+			return EINVAL;
+		s = splhigh ();
+		CX_LOCK (bd);
+		cx_set_dpll (c, *(int*)data);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETNRZI:
+		CX_DEBUG2 (d, ("ioctl: getnrzi\n"));
+		if (c->mode == M_ASYNC)
+			return EINVAL;
+		s = splhigh ();
+		CX_LOCK (bd);
+		*(int*)data = cx_get_nrzi (c);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_SETNRZI:
+		CX_DEBUG2 (d, ("ioctl: setnrzi\n"));
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		if (c->mode == M_ASYNC)
+			return EINVAL;
+		s = splhigh ();
+		CX_LOCK (bd);
+		cx_set_nrzi (c, *(int*)data);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_GETDEBUG:
+		CX_DEBUG2 (d, ("ioctl: getdebug\n"));
+		s = splhigh ();
+		CX_LOCK (bd);
+		*(int*)data = c->debug;
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case SERIAL_SETDEBUG:
+		CX_DEBUG2 (d, ("ioctl: setdebug\n"));
+		/* Only for superuser! */
+		error = suser (td);
+		if (error)
+			return error;
+		s = splhigh ();
+		CX_LOCK (bd);
+		c->debug = *(int*)data;
+		CX_UNLOCK (bd);
+		splx (s);
+#ifndef	NETGRAPH
+		if (d->chan->debug)
+			d->ifp->if_flags |= IFF_DEBUG;
+		else
+			d->ifp->if_flags &= (~IFF_DEBUG);
+#endif
+		return 0;
+	}
+
+	switch (cmd) {
+	case TIOCSDTR:	/* Set DTR */
+		CX_DEBUG2 (d, ("ioctl: tiocsdtr\n"));
+		s = splhigh ();
+		CX_LOCK (bd);
+		cx_set_dtr (c, 1);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCCDTR:	/* Clear DTR */
+		CX_DEBUG2 (d, ("ioctl: tioccdtr\n"));
+		s = splhigh ();
+		CX_LOCK (bd);
+		cx_set_dtr (c, 0);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCMSET:	/* Set DTR/RTS */
+		CX_DEBUG2 (d, ("ioctl: tiocmset\n"));
+		s = splhigh ();
+		CX_LOCK (bd);
+		cx_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
+		cx_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCMBIS:	/* Add DTR/RTS */
+		CX_DEBUG2 (d, ("ioctl: tiocmbis\n"));
+		s = splhigh ();
+		CX_LOCK (bd);
+		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 1);
+		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 1);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCMBIC:	/* Clear DTR/RTS */
+		CX_DEBUG2 (d, ("ioctl: tiocmbic\n"));
+		s = splhigh ();
+		CX_LOCK (bd);
+		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 0);
+		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 0);
+		CX_UNLOCK (bd);
+		splx (s);
+		return 0;
+
+	case TIOCMGET:	/* Get modem status */
+		CX_DEBUG2 (d, ("ioctl: tiocmget\n"));
+		*(int*)data = cx_modem_status (d);
+		return 0;
+
+	}
+
+	CX_DEBUG2 (d, ("ioctl: 0x%lx\n", cmd));
+	return ENOTTY;
+}
+
+static struct cdevsw cx_cdevsw = {
+	.d_version  = D_VERSION,
+	.d_open     = cx_open,
+	.d_close    = cx_close,
+	.d_ioctl    = cx_ioctl,
+	.d_name     = "cx",
+	.d_flags    = D_TTY | D_NEEDGIANT,
+};
 
 /*
  * Print the mbuf chain, for debug purposes only.
@@ -1536,450 +1988,6 @@ static int cx_tmodem (struct tty *tp, int sigon, int sigoff)
 	return (0);
 }
 
-static int cx_open (struct cdev *dev, int flag, int mode, struct thread *td)
-{
-	int unit;
-	drv_t *d;
-
-	d = dev->si_drv1;
-	unit = d->chan->num;
-
-	CX_DEBUG2 (d, ("cx_open unit=%d, flag=0x%x, mode=0x%x\n",
-		    unit, flag, mode));
-
-	d->open_dev |= 0x1;
-
-	CX_DEBUG2 (d, ("cx_open done\n"));
-
-	return 0;
-}
-
-static int cx_close (struct cdev *dev, int flag, int mode, struct thread *td)
-{
-	drv_t *d;
-
-	d = dev->si_drv1;
-	CX_DEBUG2 (d, ("cx_close\n"));
-	d->open_dev &= ~0x1;
-	return 0;
-}
-
-static int cx_modem_status (drv_t *d)
-{
-	bdrv_t *bd = d->board->sys;
-	int status = 0, s = splhigh ();
-	CX_LOCK (bd);
-	/* Already opened by someone or network interface is up? */
-	if ((d->chan->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
-	    (d->open_dev|0x2)) || (d->chan->mode != M_ASYNC && d->running))
-		status = TIOCM_LE;	/* always enabled while open */
-
-	if (cx_get_dsr (d->chan)) status |= TIOCM_DSR;
-	if (cx_get_cd  (d->chan)) status |= TIOCM_CD;
-	if (cx_get_cts (d->chan)) status |= TIOCM_CTS;
-	if (d->chan->dtr)	  status |= TIOCM_DTR;
-	if (d->chan->rts)	  status |= TIOCM_RTS;
-	CX_UNLOCK (bd);
-	splx (s);
-	return status;
-}
-
-static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-{
-	drv_t *d;
-	bdrv_t *bd;
-	cx_chan_t *c;
-	struct serial_statistics *st;
-	int error, s;
-	char mask[16];
-
-	d = dev->si_drv1;
-	c = d->chan;
-		
-	bd = d->board->sys;
-	
-	switch (cmd) {
-	case SERIAL_GETREGISTERED:
-		CX_DEBUG2 (d, ("ioctl: getregistered\n"));
-		bzero (mask, sizeof(mask));
-		for (s=0; s<NCX*NCHAN; ++s)
-			if (channel [s])
-				mask [s/8] |= 1 << (s & 7);
-		bcopy (mask, data, sizeof (mask));
-		return 0;
-
-	case SERIAL_GETPORT:
-		CX_DEBUG2 (d, ("ioctl: getport\n"));
-		s = splhigh ();
-		CX_LOCK (bd);
-		*(int *)data = cx_get_port (c);
-		CX_UNLOCK (bd);
-		splx (s);
-		if (*(int *)data<0)
-			return (EINVAL);
-		else
-			return 0;
-
-	case SERIAL_SETPORT:
-		CX_DEBUG2 (d, ("ioctl: setproto\n"));
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-
-		s = splhigh ();
-		CX_LOCK (bd);
-		cx_set_port (c, *(int *)data);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-#ifndef NETGRAPH
-	case SERIAL_GETPROTO:
-		CX_DEBUG2 (d, ("ioctl: getproto\n"));
-		s = splhigh ();
-		CX_LOCK (bd);
-		strcpy ((char*)data, (c->mode == M_ASYNC) ? "async" :
-			(IFP2SP(d->ifp)->pp_flags & PP_FR) ? "fr" :
-			(d->ifp->if_flags & PP_CISCO) ? "cisco" : "ppp");
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_SETPROTO:
-		CX_DEBUG2 (d, ("ioctl: setproto\n"));
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (c->mode == M_ASYNC)
-			return EBUSY;
-		if (d->ifp->if_drv_flags & IFF_DRV_RUNNING)
-			return EBUSY;
-		if (! strcmp ("cisco", (char*)data)) {
-			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);
-			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
-			d->ifp->if_flags |= PP_CISCO;
-		} else if (! strcmp ("fr", (char*)data)) {
-			d->ifp->if_flags &= ~(PP_CISCO);
-			IFP2SP(d->ifp)->pp_flags |= PP_FR | PP_KEEPALIVE;
-		} else if (! strcmp ("ppp", (char*)data)) {
-			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR | PP_KEEPALIVE);
-			d->ifp->if_flags &= ~(PP_CISCO);
-		} else
-			return EINVAL;
-		return 0;
-
-	case SERIAL_GETKEEPALIVE:
-		CX_DEBUG2 (d, ("ioctl: getkeepalive\n"));
-		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
-		    (d->ifp->if_flags & PP_CISCO) ||
-		    (c->mode == M_ASYNC))
-			return EINVAL;
-		s = splhigh ();
-		CX_LOCK (bd);
-		*(int*)data = (IFP2SP(d->ifp)->pp_flags & PP_KEEPALIVE) ? 1 : 0;
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_SETKEEPALIVE:
-		CX_DEBUG2 (d, ("ioctl: setkeepalive\n"));
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
-			(d->ifp->if_flags & PP_CISCO))
-			return EINVAL;
-		s = splhigh ();
-		CX_LOCK (bd);
-		if (*(int*)data)
-			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
-		else
-			IFP2SP(d->ifp)->pp_flags &= ~PP_KEEPALIVE;
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-#endif /*NETGRAPH*/
-
-	case SERIAL_GETMODE:
-		CX_DEBUG2 (d, ("ioctl: getmode\n"));
-		s = splhigh ();
-		CX_LOCK (bd);
-		*(int*)data = (c->mode == M_ASYNC) ?
-			SERIAL_ASYNC : SERIAL_HDLC;
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_SETMODE:
-		CX_DEBUG2 (d, ("ioctl: setmode\n"));
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-
-		/* Somebody is waiting for carrier? */
-		if (d->lock)
-			return EBUSY;
-		/* /dev/ttyXX is already opened by someone? */
-		if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
-		    (d->open_dev|0x2))
-			return EBUSY;
-		/* Network interface is up?
-		 * Cannot change to async mode. */
-		if (c->mode != M_ASYNC && d->running &&
-		    (*(int*)data == SERIAL_ASYNC))
-			return EBUSY;
-
-		s = splhigh ();
-		CX_LOCK (bd);
-		if (c->mode == M_HDLC && *(int*)data == SERIAL_ASYNC) {
-			cx_set_mode (c, M_ASYNC);
-			cx_enable_receive (c, 0);
-			cx_enable_transmit (c, 0);
-		} else if (c->mode == M_ASYNC && *(int*)data == SERIAL_HDLC) {
-			cx_set_mode (c, M_HDLC);
-			cx_enable_receive (c, 1);
-			cx_enable_transmit (c, 1);
-		}
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETSTAT:
-		CX_DEBUG2 (d, ("ioctl: getestat\n"));
-		st = (struct serial_statistics*) data;
-		s = splhigh ();
-		CX_LOCK (bd);
-		st->rintr  = c->rintr;
-		st->tintr  = c->tintr;
-		st->mintr  = c->mintr;
-		st->ibytes = c->ibytes;
-		st->ipkts  = c->ipkts;
-		st->ierrs  = c->ierrs;
-		st->obytes = c->obytes;
-		st->opkts  = c->opkts;
-		st->oerrs  = c->oerrs;
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_CLRSTAT:
-		CX_DEBUG2 (d, ("ioctl: clrstat\n"));
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		s = splhigh ();
-		CX_LOCK (bd);
-		c->rintr = 0;
-		c->tintr = 0;
-		c->mintr = 0;
-		c->ibytes = 0;
-		c->ipkts = 0;
-		c->ierrs = 0;
-		c->obytes = 0;
-		c->opkts = 0;
-		c->oerrs = 0;
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETBAUD:
-		CX_DEBUG2 (d, ("ioctl: getbaud\n"));
-		if (c->mode == M_ASYNC)
-			return EINVAL;
-		s = splhigh ();
-		CX_LOCK (bd);
-		*(long*)data = cx_get_baud(c);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_SETBAUD:
-		CX_DEBUG2 (d, ("ioctl: setbaud\n"));
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (c->mode == M_ASYNC)
-			return EINVAL;
-		s = splhigh ();
-		CX_LOCK (bd);
-		cx_set_baud (c, *(long*)data);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETLOOP:
-		CX_DEBUG2 (d, ("ioctl: getloop\n"));
-		if (c->mode == M_ASYNC)
-			return EINVAL;
-		s = splhigh ();
-		CX_LOCK (bd);
-		*(int*)data = cx_get_loop (c);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_SETLOOP:
-		CX_DEBUG2 (d, ("ioctl: setloop\n"));
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (c->mode == M_ASYNC)
-			return EINVAL;
-		s = splhigh ();
-		CX_LOCK (bd);
-		cx_set_loop (c, *(int*)data);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETDPLL:
-		CX_DEBUG2 (d, ("ioctl: getdpll\n"));
-		if (c->mode == M_ASYNC)
-			return EINVAL;
-		s = splhigh ();
-		CX_LOCK (bd);
-		*(int*)data = cx_get_dpll (c);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_SETDPLL:
-		CX_DEBUG2 (d, ("ioctl: setdpll\n"));
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (c->mode == M_ASYNC)
-			return EINVAL;
-		s = splhigh ();
-		CX_LOCK (bd);
-		cx_set_dpll (c, *(int*)data);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETNRZI:
-		CX_DEBUG2 (d, ("ioctl: getnrzi\n"));
-		if (c->mode == M_ASYNC)
-			return EINVAL;
-		s = splhigh ();
-		CX_LOCK (bd);
-		*(int*)data = cx_get_nrzi (c);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_SETNRZI:
-		CX_DEBUG2 (d, ("ioctl: setnrzi\n"));
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		if (c->mode == M_ASYNC)
-			return EINVAL;
-		s = splhigh ();
-		CX_LOCK (bd);
-		cx_set_nrzi (c, *(int*)data);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_GETDEBUG:
-		CX_DEBUG2 (d, ("ioctl: getdebug\n"));
-		s = splhigh ();
-		CX_LOCK (bd);
-		*(int*)data = c->debug;
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case SERIAL_SETDEBUG:
-		CX_DEBUG2 (d, ("ioctl: setdebug\n"));
-		/* Only for superuser! */
-		error = suser (td);
-		if (error)
-			return error;
-		s = splhigh ();
-		CX_LOCK (bd);
-		c->debug = *(int*)data;
-		CX_UNLOCK (bd);
-		splx (s);
-#ifndef	NETGRAPH
-		if (d->chan->debug)
-			d->ifp->if_flags |= IFF_DEBUG;
-		else
-			d->ifp->if_flags &= (~IFF_DEBUG);
-#endif
-		return 0;
-	}
-
-	switch (cmd) {
-	case TIOCSDTR:	/* Set DTR */
-		CX_DEBUG2 (d, ("ioctl: tiocsdtr\n"));
-		s = splhigh ();
-		CX_LOCK (bd);
-		cx_set_dtr (c, 1);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCCDTR:	/* Clear DTR */
-		CX_DEBUG2 (d, ("ioctl: tioccdtr\n"));
-		s = splhigh ();
-		CX_LOCK (bd);
-		cx_set_dtr (c, 0);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCMSET:	/* Set DTR/RTS */
-		CX_DEBUG2 (d, ("ioctl: tiocmset\n"));
-		s = splhigh ();
-		CX_LOCK (bd);
-		cx_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
-		cx_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCMBIS:	/* Add DTR/RTS */
-		CX_DEBUG2 (d, ("ioctl: tiocmbis\n"));
-		s = splhigh ();
-		CX_LOCK (bd);
-		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 1);
-		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 1);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCMBIC:	/* Clear DTR/RTS */
-		CX_DEBUG2 (d, ("ioctl: tiocmbic\n"));
-		s = splhigh ();
-		CX_LOCK (bd);
-		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 0);
-		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 0);
-		CX_UNLOCK (bd);
-		splx (s);
-		return 0;
-
-	case TIOCMGET:	/* Get modem status */
-		CX_DEBUG2 (d, ("ioctl: tiocmget\n"));
-		*(int*)data = cx_modem_status (d);
-		return 0;
-
-	}
-
-	CX_DEBUG2 (d, ("ioctl: 0x%lx\n", cmd));
-	return ENOTTY;
-}
-
 void cx_softintr (void *unused)
 {
 	drv_t *d;
@@ -2264,15 +2272,6 @@ static void cx_modem (cx_chan_t *c)
 	 * to give both sides some time to initialize. */
 	callout_reset (&d->dcd_timeout_handle, hz/2, cx_carrier, d);
 }
-
-static struct cdevsw cx_cdevsw = {
-	.d_version  = D_VERSION,
-	.d_open     = cx_open,
-	.d_close    = cx_close,
-	.d_ioctl    = cx_ioctl,
-	.d_name     = "cx",
-	.d_flags    = D_TTY | D_NEEDGIANT,
-};
 
 #ifdef NETGRAPH
 static int ng_cx_constructor (node_p node)
