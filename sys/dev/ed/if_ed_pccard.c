@@ -79,25 +79,6 @@ MODULE_DEPEND(ed, ether, 1, 1, 1);
  */
 #define ED_DEFAULT_MAC_OFFSET	0xff0
 
-/*
- *      PC Card (PCMCIA) specific code.
- */
-static int	ed_pccard_probe(device_t);
-static int	ed_pccard_attach(device_t);
-
-static int	ed_pccard_ax88x90(device_t dev);
-
-static void	ax88x90_geteprom(struct ed_softc *);
-static int	ed_pccard_memread(device_t dev, off_t offset, u_char *byte);
-static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
-#ifndef ED_NO_MIIBUS
-static void	ed_pccard_dlink_mii_reset(struct ed_softc *sc);
-static u_int	ed_pccard_dlink_mii_readbits(struct ed_softc *sc, int nbits);
-static void	ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val,
-    int nbits);
-#endif
-static int	ed_pccard_Linksys(device_t dev);
-
 static const struct ed_product {
 	struct pccard_product	prod;
 	int flags;
@@ -194,6 +175,25 @@ static const struct ed_product {
 	{ { NULL } }
 };
 
+/*
+ *      PC Card (PCMCIA) specific code.
+ */
+static int	ed_pccard_probe(device_t);
+static int	ed_pccard_attach(device_t);
+
+static int	ed_pccard_memread(device_t dev, off_t offset, u_char *byte);
+static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
+
+static int	ed_pccard_dl100xx(device_t dev, const struct ed_product *);
+#ifndef ED_NO_MIIBUS
+static void	ed_pccard_dlink_mii_reset(struct ed_softc *sc);
+static u_int	ed_pccard_dlink_mii_readbits(struct ed_softc *sc, int nbits);
+static void	ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val,
+    int nbits);
+#endif
+
+static int	ed_pccard_ax88x90(device_t dev, const struct ed_product *);
+
 static int
 ed_pccard_probe(device_t dev)
 {
@@ -289,36 +289,35 @@ ed_pccard_attach(device_t dev)
 	} else {
 		sc->port_rid = 0;
 	}
-	if (pp->flags & NE2000DVF_DL100XX) {
-		error = ed_probe_Novell(dev, sc->port_rid, 0);
-		if (error == 0)
-			error = ed_pccard_Linksys(dev);
-		if (error == 0)
-			goto end2;
-	}
-	if (pp->flags & NE2000DVF_AX88X90) {
-		error = ed_pccard_ax88x90(dev);
-		if (error == 0)
-			goto end2;
-	}
-	error = ed_probe_Novell(dev, sc->port_rid, 0);
-end2:
-	if (error) {
-		ed_release_resources(dev);
+	/* Allocate the port resource during setup. */
+	error = ed_alloc_port(dev, sc->port_rid, ED_NOVELL_IO_PORTS);
+	if (error)
 		return (error);
-	}
 	error = ed_alloc_irq(dev, 0, 0);
-	if (error) {
-		ed_release_resources(dev);
-		return (error);
-	}
+	if (error)
+		goto bad;
+
+	/*
+	 * Determine which chipset we are.  All the PC Card chipsets have the
+	 * ASIC and NIC offsets in the same place.
+	 */
+	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
+	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
+	error = ENXIO;
+	if (error != 0)
+		error = ed_pccard_dl100xx(dev, pp);
+	if (error != 0 && pp->flags & NE2000DVF_AX88X90)
+		error = ed_pccard_ax88x90(dev, pp);
+	if (error != 0)
+		error = ed_probe_Novell_generic(dev, device_get_flags(dev));
+	if (error)
+		goto bad;
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    edintr, sc, &sc->irq_handle);
 	if (error) {
 		device_printf(dev, "setup intr failed %d \n", error);
-		ed_release_resources(dev);
-		return (error);
+		goto bad;
 	}	      
 
 	/*
@@ -372,10 +371,8 @@ end2:
 	}
 
 	error = ed_attach(dev);
-	if (error) {
-		ed_release_resources(dev);
-		return (error);
-	}
+	if (error)
+		goto bad;
 #ifndef ED_NO_MIIBUS
  	if (sc->chip_type == ED_CHIP_TYPE_DL10019 ||
 	    sc->chip_type == ED_CHIP_TYPE_DL10022) {
@@ -390,72 +387,9 @@ end2:
 	if (sc->modem_rid != -1)
 		ed_pccard_add_modem(dev);
 	return (0);
-}
-
-static void
-ax88x90_geteprom(struct ed_softc *sc)
-{
-	int prom[16],i;
-	u_char tmp;
-	struct {
-		unsigned char offset, value;
-	} pg_seq[] = {
-						/* Select Page0 */
-		{ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0},
-		{ED_P0_DCR, 0x01},
-		{ED_P0_RBCR0, 0x00},		/* Clear the count regs. */
-		{ED_P0_RBCR1, 0x00},
-		{ED_P0_IMR, 0x00},		/* Mask completion irq. */
-		{ED_P0_ISR, 0xff},
-		{ED_P0_RCR, ED_RCR_MON | ED_RCR_INTT}, /* Set To Monitor */
-		{ED_P0_TCR, ED_TCR_LB0},	/* loopback mode. */
-		{ED_P0_RBCR0, 32},
-		{ED_P0_RBCR1, 0x00},
-		{ED_P0_RSAR0, 0x00},
-		{ED_P0_RSAR1, 0x04},
-		{ED_P0_CR, ED_CR_RD0 | ED_CR_STA | ED_CR_PAGE_0},
-	};
-
-	/* XXX The Linux axnet_cs driver does the following differently */
-	/* Reset Card */
-	tmp = ed_asic_inb(sc, ED_NOVELL_RESET);
-	ed_asic_outb(sc, ED_NOVELL_RESET, tmp);
-	DELAY(5000);
-	ed_asic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0);
-	DELAY(5000);
-
-	/* Card Settings */
-	for (i = 0; i < sizeof(pg_seq) / sizeof(pg_seq[0]); i++)
-		ed_nic_outb(sc, pg_seq[i].offset, pg_seq[i].value);
-
-	/* Get Data */
-	for (i = 0; i < 16; i++)
-		prom[i] = ed_asic_inw(sc, 0);
-
-	/*
-	 * Work around a bug I've seen on Linksys EC2T cards.  On
-	 * these cards, the node address is contained in the low order
-	 * bytes of the prom, with the upper byte being 0.  On other
-	 * cards, the bytes are packed two per word.  I'm unsure why
-	 * this is the case, and why no other open source OS has a
-	 * similar workaround.  The Linksys EC2T card is still extremely
-	 * popular on E-Bay, fetching way more than any other 10Mbps
-	 * only card.  I might be able to test to see if prom[7] and
-	 * prom[15] == 0x5757, since that appears to be a reliable
-	 * test.  On the EC2T cards, I get 0x0057 in prom[14,15] instead.
-	 */
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		if (prom[i] & 0xff00)
-			break;
-	if (i == ETHER_ADDR_LEN) {
-		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			sc->enaddr[i] = prom[i] & 0xff;
-	} else {
-		for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
-			sc->enaddr[i] = prom[i / 2] & 0xff;
-			sc->enaddr[i + 1] = (prom[i / 2] >> 8) & 0xff;
-		}
-	}
+bad:
+	ed_release_resources(dev);
+	return (error);
 }
 
 static int
@@ -513,12 +447,18 @@ ed_pccard_memread(device_t dev, off_t offset, u_char *byte)
  * conditionally.
  */
 static int
-ed_pccard_Linksys(device_t dev)
+ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	u_char sum;
 	uint8_t id;
-	int i;
+	int i, error;
+
+	if (!pp->flags & NE2000DVF_DL100XX)
+		return (ENXIO);
+	error = ed_probe_Novell_generic(dev, device_get_flags(dev));
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Linksys registers(offset from ASIC base)
@@ -542,52 +482,6 @@ ed_pccard_Linksys(device_t dev)
 	    ED_CHIP_TYPE_DL10022 : ED_CHIP_TYPE_DL10019;
 	sc->type_str = ((id & 0x90) == 0x90) ? "DL10022" : "DL10019";
 	return (0);
-}
-
-/*
- * Special setup for AX88[17]90
- */
-static int
-ed_pccard_ax88x90(device_t dev)
-{
-	int	error;
-	int	flags = device_get_flags(dev);
-	int	iobase;
-	char *ts;
-	struct	ed_softc *sc = device_get_softc(dev);
-
-	/* Allocate the port resource during setup. */
-	error = ed_alloc_port(dev, sc->port_rid, ED_NOVELL_IO_PORTS);
-	if (error)
-		return (error);
-
-	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
-	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
-	sc->chip_type = ED_CHIP_TYPE_AX88190;
-
-	/* XXX
-	 * Set Attribute Memory IOBASE Register.  Is this a deficiency in
-	 * the PC Card layer, or an ax88190 specific issue?  The card
-	 * definitely doesn't work without it.
-	 */
-	iobase = rman_get_start(sc->port_res);
-	ed_pccard_memwrite(dev, ED_AX88190_IOBASE0, iobase & 0xff);
-	ed_pccard_memwrite(dev, ED_AX88190_IOBASE1, (iobase >> 8) & 0xff);
-	ts = "AX88190";
-	if (ed_asic_inb(sc, ED_ASIX_TEST) != 0) {
-		ed_pccard_memwrite(dev, ED_AX88790_CSR, ED_AX88790_CSR_PWRDWN);
-		ts = "AX88790";
-	}
-	ax88x90_geteprom(sc);
-	ed_release_resources(dev);
-	error = ed_probe_Novell(dev, sc->port_rid, flags);
-	if (error == 0) {
-		sc->vendor = ED_VENDOR_NOVELL;
-		sc->type = ED_TYPE_NE2000;
-		sc->chip_type = ED_CHIP_TYPE_AX88190;
-		sc->type_str = ts;
-	}
-	return (error);
 }
 
 #ifndef ED_NO_MIIBUS
@@ -662,6 +556,110 @@ ed_pccard_dlink_mii_readbits(struct ed_softc *sc, int nbits)
 	return val;
 }
 #endif
+
+static void
+ed_pccard_ax88x90_geteprom(struct ed_softc *sc)
+{
+	int prom[16],i;
+	u_char tmp;
+	struct {
+		unsigned char offset, value;
+	} pg_seq[] = {
+						/* Select Page0 */
+		{ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0},
+		{ED_P0_DCR, 0x01},
+		{ED_P0_RBCR0, 0x00},		/* Clear the count regs. */
+		{ED_P0_RBCR1, 0x00},
+		{ED_P0_IMR, 0x00},		/* Mask completion irq. */
+		{ED_P0_ISR, 0xff},
+		{ED_P0_RCR, ED_RCR_MON | ED_RCR_INTT}, /* Set To Monitor */
+		{ED_P0_TCR, ED_TCR_LB0},	/* loopback mode. */
+		{ED_P0_RBCR0, 32},
+		{ED_P0_RBCR1, 0x00},
+		{ED_P0_RSAR0, 0x00},
+		{ED_P0_RSAR1, 0x04},
+		{ED_P0_CR, ED_CR_RD0 | ED_CR_STA | ED_CR_PAGE_0},
+	};
+
+	/* Reset Card */
+	tmp = ed_asic_inb(sc, ED_NOVELL_RESET);
+	ed_asic_outb(sc, ED_NOVELL_RESET, tmp);
+	DELAY(5000);
+	ed_asic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0);
+	DELAY(5000);
+
+	/* Card Settings */
+	for (i = 0; i < sizeof(pg_seq) / sizeof(pg_seq[0]); i++)
+		ed_nic_outb(sc, pg_seq[i].offset, pg_seq[i].value);
+
+	/* Get Data */
+	for (i = 0; i < 16; i++)
+		prom[i] = ed_asic_inw(sc, 0);
+
+	/*
+	 * Work around a bug I've seen on Linksys EC2T cards.  On
+	 * these cards, the node address is contained in the low order
+	 * bytes of the prom, with the upper byte being 0.  On other
+	 * cards, the bytes are packed two per word.  I'm unsure why
+	 * this is the case, and why no other open source OS has a
+	 * similar workaround.  The Linksys EC2T card is still extremely
+	 * popular on E-Bay, fetching way more than any other 10Mbps
+	 * only card.  I might be able to test to see if prom[7] and
+	 * prom[15] == 0x5757, since that appears to be a reliable
+	 * test.  On the EC2T cards, I get 0x0057 in prom[14,15] instead.
+	 */
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		if (prom[i] & 0xff00)
+			break;
+	if (i == ETHER_ADDR_LEN) {
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+			sc->enaddr[i] = prom[i] & 0xff;
+	} else {
+		for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
+			sc->enaddr[i] = prom[i / 2] & 0xff;
+			sc->enaddr[i + 1] = (prom[i / 2] >> 8) & 0xff;
+		}
+	}
+}
+
+/*
+ * Special setup for AX88[17]90
+ */
+static int
+ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
+{
+	int	error;
+	int	iobase;
+	char *ts;
+	struct	ed_softc *sc = device_get_softc(dev);
+
+	if (!pp->flags & NE2000DVF_AX88X90)
+		return (ENXIO);
+
+	/* XXX
+	 * Set Attribute Memory IOBASE Register.  Is this a deficiency in
+	 * the PC Card layer, or an ax88190 specific issue?  The card
+	 * definitely doesn't work without it.
+	 */
+	iobase = rman_get_start(sc->port_res);
+	ed_pccard_memwrite(dev, ED_AX88190_IOBASE0, iobase & 0xff);
+	ed_pccard_memwrite(dev, ED_AX88190_IOBASE1, (iobase >> 8) & 0xff);
+	ts = "AX88190";
+	if (ed_asic_inb(sc, ED_ASIX_TEST) != 0) {
+		ed_pccard_memwrite(dev, ED_AX88790_CSR, ED_AX88790_CSR_PWRDWN);
+		ts = "AX88790";
+	}
+	sc->chip_type = ED_CHIP_TYPE_AX88190;
+	ed_pccard_ax88x90_geteprom(sc);
+	error = ed_probe_Novell_generic(dev, device_get_flags(dev));
+	if (error == 0) {
+		sc->vendor = ED_VENDOR_NOVELL;
+		sc->type = ED_TYPE_NE2000;
+		sc->chip_type = ED_CHIP_TYPE_AX88190;
+		sc->type_str = ts;
+	}
+	return (error);
+}
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
