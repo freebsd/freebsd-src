@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
+ * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -110,12 +110,15 @@ struct r5_global_data {
 	PUCHAR page_base_virt;
 	PUCHAR page_current;
 #endif
-	struct free_heap_block *free_heap_slots[8];
+	struct free_heap_block *free_heap_slots[10];
 	struct free_page *free_pages;
 	UINT num_free_pages;
 	UINT active_stripes;
 	UINT num_flushing;
 	PCommand cache_wait_list;
+	
+	LBA_T __start[MAX_MEMBERS];
+	USHORT __sectors[MAX_MEMBERS];
 };
 
 

@@ -1,9 +1,13 @@
 RocketRAID 182x Driver for FreeBSD
-Copyright (C) 2003-2004 HighPoint Technologies, Inc. All rights reserved.
+Copyright (C) 2004-2005 HighPoint Technologies, Inc. All rights reserved.
 $FreeBSD$
 
 #############################################################################
 Revision History:
+
+   v1.12 2005-6-10
+         Fix over 4G memory support on amd64.
+         Fix disk flush problem.
 
    v1.1  2004-9-23
          Fix activity LED problem.
@@ -36,22 +40,124 @@ Revision History:
   PRODUCT, INCLUDING THE COSTS OF REPAIRING, REPLACING, OR RECOVERING
   SUCH HARDWARE, OR DATA.
 
-2. Build the driver
----------------------
+
+2. Rebuild the kernel with RR182x support
+--------------------------------------------
+
   1) Install kernel source package and building tools. 
   
-  2) Extract the driver files to somewhere.
+  2) Extract the driver files under the kernel source tree:
 
-  3) Run "make" to build the driver.
+     # cd /usr/src/sys/
+     # tar xvzf /your/path/to/rr182x-opensource-v1.12-bsd.tgz
 
+  3) Update the kernel configuration file to include the HighPoint source.
+     Assume the configure file is GENERIC, and new kernel configure file is 
+     MYKERNEL:
+
+     # cd i386/conf          (or amd64/conf for AMD64)
+     # cp GENERIC MYKERNEL
+
+  4) Edit MYKERNEL, and add the following line under "RAID controllers 
+     interfaced to the SCSI subsystem":
+
+          device  hptmv   #HighPoint RocketRAID 182x
+
+  5) For i386 system, edit /usr/src/sys/conf/files.i386 and append the lines
+     shown below:
+
+          hptmvraid.o optional    hptmv  \
+              dependency  "$S/dev/hptmv/i386-elf.raid.o.uu" \
+              compile-with    "uudecode < $S/dev/hptmv/i386-elf.raid.o.uu" \
+              no-implicit-rule
+
+          dev/hptmv/gui_lib.c     optional        hptmv
+          dev/hptmv/hptproc.c     optional        hptmv
+          dev/hptmv/ioctl.c       optional        hptmv
+          dev/hptmv/entry.c       optional        hptmv
+          dev/hptmv/mv.c          optional        hptmv
+
+     For amd64 system, edit /usr/src/sys/conf/files.amd64 and append the lines
+     shown below:
+
+          hptmvraid.o optional    hptmv  \
+              dependency  "$S/dev/hptmv/amd64-elf.raid.o.uu" \
+              compile-with    "uudecode < $S/dev/hptmv/amd64-elf.raid.o.uu" \
+              no-implicit-rule
+
+          dev/hptmv/gui_lib.c     optional        hptmv
+          dev/hptmv/hptproc.c     optional        hptmv
+          dev/hptmv/ioctl.c       optional        hptmv
+          dev/hptmv/entry.c       optional        hptmv
+          dev/hptmv/mv.c          optional        hptmv
+
+     Note FreeBSD 5.3/5.4 i386 already have a built-in RR182x driver, you should
+     replace the old configuration lines with the lines listed above.
+
+
+  6) Rebuild and install the kernel:
+
+     a) for FreeBSD 5.x-i386:
      
-3. Using the driver
----------------------
-  1) Copy the driver module to /modules/ (FreeBSD 4.x) or /boot/kernel/
-     (FreeBSD 5.x).
-   	
-  2) The driver can't be loaded by kldload command on a running system.
-     Please load the driver during system booting stage. e.g:
+        # cd /usr/src/sys/i386/conf/
+        # /usr/sbin/config MYKERNEL
+        # cd ../compile/MYKERNEL/
+        # make depend
+        # make 
+        # make install
+
+     b) for FreeBSD 5.x-amd64:
+
+        # cd /usr/src/sys/amd64/conf/
+        # /usr/sbin/config MYKERNEL
+        # cd ../compile/MYKERNEL/
+        # make depend
+        # make 
+        # make install
+
+     c) for FreeBSD 4.x:
+     
+        # cd /usr/src/sys/i386/conf/
+        # /usr/sbin/config MYKERNEL
+        # cd ../../compile/MYKERNEL/
+        # make depend
+        # make 
+        # make install
+
+    If the driver was previously configured as an auto-loaded module by
+    /boot/defaults/loader.conf, please remove the entry hptmv_load="YES"
+    from loader.conf to prevent the driver from being loaded twice.
+    
+  7) Reboot from the new kernel.
+
+
+3. Build/Load the driver as a kernel module
+------------------------------------------------
+
+  1) Install kernel source package and building tools. 
+  
+  2) Extract the driver files under the kernel source tree:
+    
+     # cd /usr/src/sys/
+     # tar xvzf /your/path/to/rr182x-opensource-v1.12-bsd.tgz
+
+
+  4) Build the driver module:
+    
+     # cd modules/hptmv
+     # make
+
+  5) Copy the driver module to the kernel module directory
+
+     For FreeBSD 4.x:
+     
+     # cp hptmv.ko /modules/
+
+     For FreeBSD 5.x:
+    
+     # cp hptmv.ko /boot/kernel/
+
+  6) Reboot and load the driver under loader prompt. e.g:
 
         BTX loader 1.00  BTX version is 1.01
         Console: internal video/keyboard
@@ -71,11 +177,18 @@ Revision History:
         Type '?' for a list of commands, 'help' for more detailed help.
         ok load hptmv
         /modules/hptmv.ko text=0xf571 data=0x2c8+0x254
-        ok autoboot
+        ok boot
+        
+     For FreeBSD 5.x, you can select 6 on the boot menu to get a loader prompt.
   
-  Please refer to the installation guide in HighPoint FreeBSD driver release
-  package for more information.
-
+  7) You can add a below line into /boot/defaults/loader.conf to load the
+     driver automatically:
+    
+           hptmv_load="YES"
+    
+     Please refer to the installation guide in HighPoint FreeBSD driver release 
+     package for more information.
+     
 
 #############################################################################
 Technical support and service

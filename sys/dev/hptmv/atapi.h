@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
+ * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -267,39 +267,66 @@ typedef struct _ATAPI_REGISTERS_1 {
 #define ATAPI_FORMAT_UNIT         0x24
 #define ATAPI_INQUIRY             0x12
 #define ATAPI_MODE_SELECT         0x15
+#define ATAPI_RELEASE6            0x17
 #define ATAPI_MODE_SENSE          0x1A
 #define ATAPI_START_STOP_UNIT     0x1B
 #define ATAPI_LOAD_UNLOAD         0x1B
+#define ATAPI_RECEIVE_DIAGNOSTIC  0x1C
+#define ATAPI_SEND_DIAGNOSTIC     0x1D
 #define ATAPI_MEDIUM_REMOVAL      0x1E
+#define ATAPI_READ_FORMAT_CAPACITY 0x23
 #define ATAPI_READ_CAPACITY       0x25
 #define ATAPI_READ                0x28
 #define ATAPI_WRITE               0x2A
 #define ATAPI_SEEK                0x2B
+#define ATAPI_ERASE               0x2C
 #define ATAPI_VERIFY              0x2F
+#define ATAPI_WRITE_VERIFY        0x2E 
+#define ATAPI_SYNCHRONIZE_CACHE   0x35
+#define ATAPI_LOCK_CACHE          0x36
+#define ATAPI_COMPARE             0x39
+#define ATAPI_WRITE_BUFFER        0x3B
 #define ATAPI_READ_DATA_BUFF      0x3C
 #define ATAPI_READ_SUB_CHANNEL    0x42
 #define ATAPI_READ_TOC            0x43
 #define ATAPI_READ_HEADER         0x44
+#define ATAPI_PLAY_AUDIO10        0x45
 #define ATAPI_GET_CONFIGURATION   0x46
 #define ATAPI_PLAY_AUDIO_MSF      0x47
 #define ATAPI_GET_EVENT_STATUS_NOTIFICATION 0x4A
 #define ATAPI_PAUSE_RESUME        0x4B
+#define ATAPI_LOG_SELECT          0x4C
+#define ATAPI_LOG_SENSE           0x4D
 #define ATAPI_STOP_PLAY_SCAN      0x4E
 #define ATAPI_READ_DISK_INFORMATION  0x51
 #define ATAPI_READ_TRACK_INFORMATION 0x52
+#define ATAPI_RESERVE_TRACK_RZONE    0x53
+#define ATAPI_SEND_OPC_INFORMATION   0x54
 #define ATAPI_MODE_SELECT10       0x55
+#define ATAPI_RELEASE10           0x57
+#define ATAPI_REPAIR_ZONE         0x58
 #define ATAPI_MODE_SENSE10        0x5A
 #define ATAPI_CLOSE_TRACK_SESSION 0x5B
 #define ATAPI_READ_BUFFER_CAPACITY   0x5C
+#define ATAPI_SEND_CUE_SHEET      0x5D
 #define ATAPI_BLANK_COMMAND       0xA1 /*Provide the ability to erase any part of a CD-RW disc.*/
+#define ATAPI_SEND_EVENT          0xA2  /* add for DVD */
+#define ATAPI_SEND_KEY            0xA3  /* add for DVD  */
 #define ATAPI_REPORT_KEY          0xA4
 #define ATAPI_PLAY_AUDIO          0xA5
+#define ATAPI_LOAD_UNLOAD_MEDIUM  0xA6
+#define ATAPI_SET_READ_AHEAD      0xA7
 #define ATAPI_READ12              0xA8
 #define ATAPI_READ_DVD_STRUCTURE  0xAD
+#define ATAPI_WRITE12             0xAA
+#define ATAPI_GET_PERFORM_NOTIFICATION  0xAC  /* add for DVD-RW */
+#define ATAPI_SET_STREAM          0xB6        /* add for DVD-RW */
 #define ATAPI_READ_CD_MSF         0xB9
-#define ATAPI_SET_CD_SPEED        0xBB
+#define ATAPI_SCAN                0xBA
+#define ATAPI_SET_SPEED           0xBB        /* no payload  */
 #define ATAPI_MECHANISM_STATUS    0xBD
 #define ATAPI_READ_CD             0xBE
+#define ATAPI_SEND_DVD_STRUCTURE  0xBF        
 #define ATAPI_SET_CDRW_SPEED      0xDA /*WindowsXP need*/
 
 #define MODE_DSP_WRITE_PROTECT  0x80

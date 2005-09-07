@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
+/*
+ * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -162,7 +162,7 @@ typedef DWORD DEVICEID;
  * It would be better if ioctl code are the same on different platforms,
  * but we must not conflict with system defined ioctl code.
  ************************************************************************/
-#if defined(LINUX) || defined(__FreeBSD_version)
+#if defined(LINUX) || defined(__FreeBSD_version) || defined(_MACOSX_)
 #define HPT_CTL_CODE(x) (x+0xFF00)
 #elif defined(_MS_WIN32_) || defined(WIN32)
 
@@ -327,7 +327,6 @@ typedef struct _CHANNEL_INFO {
  * time represented in DWORD format
  */
 #ifndef __KERNEL__
-#error "BAM"
 typedef struct _TIME_RECORD {
    UINT        seconds:6;      /* 0 - 59 */
    UINT        minutes:6;      /* 0 - 59 */
@@ -399,7 +398,6 @@ typedef struct _HPT_ARRAY_INFO_V2 {
  * ATA/ATAPI Device identify data without the Reserved4.
  */
 #ifndef __KERNEL__
-#error "BAM"
 typedef struct _IDENTIFY_DATA2 {
 	USHORT GeneralConfiguration;            /* 00 00 */
 	USHORT NumberOfCylinders;               /* 02  1 */
@@ -781,7 +779,7 @@ HPT_IOCTL_PARAM32, *PHPT_IOCTL_PARAM32;
  * Returns:
  *  interface version. 0 when fail.
  */
-DWORD hpt_get_version(void);
+DWORD hpt_get_version();
 
 /*-------------------------------------------------------------------------- */
 
@@ -807,7 +805,7 @@ int hpt_get_driver_capabilities(PDRIVER_CAPABILITIES cap);
  * Returns:
  *  number of controllers
  */
-int hpt_get_controller_count(void);
+int hpt_get_controller_count();
 
 /*-------------------------------------------------------------------------- */
 
@@ -1049,7 +1047,7 @@ int hpt_set_device_info_v2(DEVICEID idDisk, PALTERABLE_DEVICE_INFO_V2 pInfo);
  * Returns:
  *   0  Success
  */
-int hpt_rescan_devices(void);
+int hpt_rescan_devices();
 /*-------------------------------------------------------------------------- */
 
 /* hpt_get_601_info
@@ -1209,60 +1207,6 @@ int hpt_remove_devices(DWORD ndev, DEVICEID *pIds);
 /*-------------------------------------------------------------------------- */
 
 #endif
-
-#if BITS_PER_LONG > 32
-#define VDEV_TO_ID(pVDev) (DEVICEID)(ULONG_PTR)(pVDev)
-#define ID_TO_VDEV(id) (PVDevice)(((ULONG_PTR)gIal_Adapter & 0xffffffff00000000) | (id))
-#else
-#define VDEV_TO_ID(pVDev) (DEVICEID)(pVDev)
-#define ID_TO_VDEV(id) (PVDevice)(id)
-#endif
-
-#define INVALID_DEVICEID		(-1)
-#define INVALID_STRIPSIZE		(-1)
-
-#define shortswap(w) ((WORD)((w)>>8 | ((w) & 0xFF)<<8))
-
-#ifndef MinBlockSizeShift
-#define MinBlockSizeShift 5
-#define MaxBlockSizeShift 12
-#endif
-
-typedef struct _HPT_IOCTL_TRANSFER_PARAM
-{
-	ULONG nInBufferSize;
-	ULONG nOutBufferSize;
-	UCHAR buffer[0];
-}HPT_IOCTL_TRANSFER_PARAM, *PHPT_IOCTL_TRANSFER_PARAM;
-
-typedef struct _HPT_SET_STATE_PARAM
-{
-	DEVICEID idArray;
-	DWORD state;
-} HPT_SET_STATE_PARAM, *PHPT_SET_STATE_PARAM;
-
-typedef struct _HPT_SET_ARRAY_INFO
-{
-	DEVICEID idArray;
-	ALTERABLE_ARRAY_INFO Info;
-} HPT_SET_ARRAY_INFO, *PHPT_SET_ARRAY_INFO;
-
-typedef struct _HPT_SET_DEVICE_INFO
-{
-	DEVICEID idDisk;
-	ALTERABLE_DEVICE_INFO Info;
-} HPT_SET_DEVICE_INFO, *PHPT_SET_DEVICE_INFO;
-
-typedef struct _HPT_ADD_DISK_TO_ARRAY
-{
-	DEVICEID idArray;
-	DEVICEID idDisk;
-} HPT_ADD_DISK_TO_ARRAY, *PHPT_ADD_DISK_TO_ARRAY;
-
-int check_VDevice_valid(PVDevice);
-int hpt_default_ioctl(_VBUS_ARG DWORD, PVOID, DWORD, PVOID, DWORD, PDWORD);
-
-#define HPT_NULL_ID 0
 
 #pragma pack()
 #endif

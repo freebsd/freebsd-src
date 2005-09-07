@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
+ * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -250,8 +250,8 @@ struct fdisk_partition_table
 	UCHAR 		endhead;  			/* ending head number */
 	UCHAR 		endsect;  			/* ending sector number */
 	UCHAR 		endcyl;   			/* also a 10 bit nmbr, with same high 2 bit trick */
-	UINT		relsect;            /* first sector relative to start of disk */
-	UINT 		numsect;            /* number of sectors in partition */
+	ULONG   	relsect;            /* first sector relative to start of disk */
+	ULONG 		numsect;            /* number of sectors in partition */
 };
 
 typedef struct _Master_Boot_Record 

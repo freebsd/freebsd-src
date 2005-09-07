@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
+/*
+ * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,11 @@
 #include <dev/hptmv/mvSata.h>
 #include <dev/hptmv/mvStorageDev.h>
 
-#define COMPANY			"HighPoint Technologies, Inc."
-#define COPYRIGHT		"(c) 2000-2004. HighPoint Technologies, Inc."
+#define COMPANY      "HighPoint Technologies, Inc."
+#define COPYRIGHT    "(c) 2000-2004. HighPoint Technologies, Inc."
 #define DRIVER_NAME		"RocketRAID 182x SATA Controller driver"
-#define CONTROLLER_NAME		"RocketRAID 182x SATA Controller"
-#define PROC_DIR_NAME		hptmv
+#define CONTROLLER_NAME	"RocketRAID 182x SATA Controller"
+#define PROC_DIR_NAME hptmv
 
 #define HPT_INTERFACE_VERSION 0x01000003
 #define SUPPORT_48BIT_LBA
@@ -45,10 +45,8 @@
 #define _RAID5N_
 #define MAX_QUEUE_COMM 32
 #define MAX_SG_DESCRIPTORS 17
-#define MAX_VBUS 2	/*
-			 * One vbus per adapter in mv linux driver, 
-			 * MAX_VBUS is defined for share code and can not be 1
-			 */
+#define MAX_VBUS 2    /*one vbus per adapter in mv linux driver, 
+                        MAX_VBUS is defined for share code and can not be 1*/
 
 #define SET_VBUS_FOR_EACH_CONTROLLER
 #define MAX_MEMBERS 8
@@ -75,42 +73,42 @@ typedef struct _Device {
 	UCHAR busyCount;
 
 	UCHAR df_tcq_set: 1;
-	UCHAR df_tcq: 1;		/* enable TCQ */
+    UCHAR df_tcq: 1;          /* enable TCQ */
 	UCHAR df_ncq_set: 1;
-	UCHAR df_ncq: 1;		/* enable NCQ */
+    UCHAR df_ncq: 1;          /* enable NCQ */
 	UCHAR df_write_cache_set: 1;
-	UCHAR df_write_cache: 1;	/* enable write cache */
+    UCHAR df_write_cache: 1;  /* enable write cache */
 	UCHAR df_read_ahead_set: 1;
-	UCHAR df_read_ahead: 1;		/* enable read ahead */
-
+    UCHAR df_read_ahead: 1;   /* enable read ahead */
+		
 	UCHAR retryCount;
 	UCHAR resetCount;
 	UCHAR pad1;
-
+		
 	UCHAR df_user_mode_set;
-	UCHAR bDeModeSetting;	/* Current Data Transfer mode: 0-4 PIO 0-4 */
-	UCHAR bDeUsable_Mode;	/* actual maximum data transfer mode */
+    UCHAR bDeModeSetting;    /* Current Data Transfer mode: 0-4 PIO 0-4 */
+    UCHAR bDeUsable_Mode;       /* actual maximum data transfer mode */
 	UCHAR bDeUserSelectMode;
-
+	
 	PVBus pVBus;
 	ULONG dDeRealCapacity;
 	ULONG dDeHiddenLba;
 	ULONG HeadPosition;
 	ULONG QueueLength;
 	MV_SATA_CHANNEL *mv;
-} Device, *PDevice;
+}
+Device, *PDevice;
 
-typedef struct _SCAT_GATH {
-	ULONG_PTR dSgAddress;
-	USHORT wSgSize;
-	USHORT wSgFlag;
+typedef struct _SCAT_GATH
+{
+    ULONG_PTR     dSgAddress;
+    USHORT        wSgSize;
+    USHORT        wSgFlag;
 } SCAT_GATH, FAR *FPSCAT_GATH;
 
 #define OS_VDEV_EXT
-typedef struct _VDevice_Ext {
-#if defined(WIN95) && defined(SUPPORT_HOTSWAP)
-	DCB * pDcb;
-#endif
+typedef struct _VDevice_Ext
+{
 	UCHAR gui_locked; /* the device is locked by GUI */
 	UCHAR reserve[3];
 } VDevice_Ext, *PVDevice_Ext;    
@@ -119,21 +117,12 @@ typedef struct _VDevice_Ext {
 #define SG_FLAG_SKIP        0x4000
 #define SG_FLAG_EOT         0x8000
 
-#if 0 /* MAX_VBUS==1 */
-#define _VBUS_ARG
-#define _VBUS_ARG0 void
-#define _VBUS_P 
-#define _VBUS_P0
-#define _VBUS_INST(x)
-#define _vbus_(x) x
-#else
 #define _VBUS_ARG0 PVBus _vbus_p
 #define _VBUS_ARG PVBus _vbus_p,
 #define _VBUS_P _vbus_p,
 #define _VBUS_P0 _vbus_p
 #define _VBUS_INST(x) PVBus _vbus_p = x;
 #define _vbus_(x) (_vbus_p->x)
-#endif
 
 /*************************************************************************
  * arithmetic functions 
@@ -156,34 +145,36 @@ int HPTLIBAPI os_memcmp(const void *cs, const void *ct, unsigned len);
 void HPTLIBAPI os_memcpy(void *to, const void *from, unsigned len);
 void HPTLIBAPI os_memset(void *s, char c, unsigned len);
 unsigned HPTLIBAPI os_strlen(const char *s);
+
 #ifdef NO_LIBC
 #define memcmp os_memcmp
 #define memcpy os_memcpy
 #define memset os_memset
 #define strlen os_strlen
 #elif (__FreeBSD_version <= 410000) 
-#define	memcpy(d, s, len)	bcopy((s),(d),(len))
-#define	memset(d, s, len)	bzero((d),(len))
+#define	memcpy(d, s, len)     bcopy((s),(d),(len))
+#define	memset(d, s, len)     bzero((d),(len))
 #endif
 #define ZeroMemory(a, b)  	memset((char *)a, 0, b)
 #define MemoryCopy(a,b,c) 	memcpy((char *)(a), (char *)(b), (UINT)(c))
-#define farMemoryCopy(a,b,c)	memcpy((char *)(a), (char *)(b), (UINT)c)
+#define farMemoryCopy(a,b,c) memcpy((char *)(a), (char *)(b), (UINT)c)
 #define StrLen            	strlen
 
 /* 
  * we don't want whole hptintf.h in shared code...
  * some constants must match that in hptintf.h!
  */
-enum _driver_events_t {	
+enum _driver_events_t
+{	
 	ET_DEVICE=0,
-	ET_DEVICE_REMOVED,
-	ET_DEVICE_PLUGGED,
-	ET_DEVICE_ERROR,
-	ET_REBUILD_STARTED,
-	ET_REBUILD_ABORTED,
-	ET_REBUILD_FINISHED,
-	ET_SPARE_TOOK_OVER,
-	ET_REBUILD_FAILED,
+    ET_DEVICE_REMOVED,
+    ET_DEVICE_PLUGGED,
+    ET_DEVICE_ERROR,
+    ET_REBUILD_STARTED,
+    ET_REBUILD_ABORTED,
+    ET_REBUILD_FINISHED,
+    ET_SPARE_TOOK_OVER,
+    ET_REBUILD_FAILED,
 	ET_VERIFY_STARTED,   
 	ET_VERIFY_ABORTED,   
 	ET_VERIFY_FAILED,    
@@ -195,13 +186,13 @@ enum _driver_events_t {
 	ET_VERIFY_DATA_ERROR,    
 };
 
+#define StallExec(x) mvMicroSecondsDelay(x)
 extern void HPTLIBAPI ioctl_ReportEvent(UCHAR event, PVOID param);
-#define StallExec(x)	mvMicroSecondsDelay(x)
-#define fNotifyGUI(WhatHappen, pVDevice)	\
-	ioctl_ReportEvent(WhatHappen, pVDevice)
-#define DECLARE_BUFFER(type, ptr)	\
-	UCHAR ptr##__buf[512];		\
-	type ptr=(type)ptr##__buf
+#define fNotifyGUI(WhatHappen, pVDevice) ioctl_ReportEvent(WhatHappen, pVDevice)
+#define DECLARE_BUFFER(type, ptr) UCHAR ptr##__buf[512]; type ptr=(type)ptr##__buf
+
+int HPTLIBAPI fDeReadWrite(PDevice pDev, ULONG Lba, UCHAR Cmd, void *tmpBuffer);
+void HPTLIBAPI fDeSelectMode(PDevice pDev, UCHAR NewMode);
 
 #include <dev/hptmv/atapi.h>
 #include <dev/hptmv/command.h>
@@ -209,8 +200,10 @@ extern void HPTLIBAPI ioctl_ReportEvent(UCHAR event, PVOID param);
 #include <dev/hptmv/raid5n.h>
 #include <dev/hptmv/vdevice.h>
 
-int HPTLIBAPI fDeReadWrite(PDevice pDev, ULONG Lba, UCHAR Cmd, void *tmpBuffer);
-void HPTLIBAPI fDeSelectMode(PDevice pDev, UCHAR NewMode);
+#if defined(__FreeBSD__) && defined(HPTLIBAPI)
+#undef HPTLIBAPI
+#define HPTLIBAPI 
+#endif
 
 #ifdef SUPPORT_ARRAY
 #define ArrayTables(i) ((PVDevice)&_vbus_(_ArrayTables)[i*ARRAY_VDEV_SIZE])
