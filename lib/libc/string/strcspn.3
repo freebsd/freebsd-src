@@ -63,6 +63,13 @@ spans the
 .Em complement
 of
 .Fa charset ) .
+In other words, it computes the string array index in
+.Fa s
+of the first character of
+.Fa s
+which is also in
+.Fa charset ,
+else the index of the first null character.
 .Sh RETURN VALUES
 The
 .Fn strcspn
