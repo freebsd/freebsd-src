@@ -109,14 +109,12 @@ elif [ -f /bin/domainname ]; then
     /usr/bin/ypcat passwd 2>/dev/null | cat - /etc/passwd | grep "^$LOGNAME:" |
       cut -f5 -d':' | sed -e 's/,.*//' > $TEMP
     ORIGINATOR="`cat $TEMP`"
-    rm -f $TEMP
   fi
 fi
 
 if [ "$ORIGINATOR" = "" ]; then
   grep "^$LOGNAME:" /etc/passwd | cut -f5 -d':' | sed -e 's/,.*//' > $TEMP
   ORIGINATOR="`cat $TEMP`"
-  rm -f $TEMP
 fi
 
 if [ -n "$ORGANIZATION" ]; then
