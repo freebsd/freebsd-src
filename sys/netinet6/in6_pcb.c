@@ -839,7 +839,7 @@ in6_pcbpurgeif0(head, ifp)
 				if (imm->i6mm_maddr->in6m_ifp == ifp) {
 					LIST_REMOVE(imm, i6mm_chain);
 					in6_delmulti(imm->i6mm_maddr);
-					free(imm, M_IPMADDR);
+					free(imm, M_IP6MADDR);
 				}
 			}
 		}
