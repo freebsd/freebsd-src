@@ -145,6 +145,8 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 	return ENODEV;
 
     /* adjust argument values */
+    if (fontwidth <= 0)
+	fontwidth = info.vi_cwidth;
     if (fontsize <= 0)
 	fontsize = info.vi_cheight;
     if (fontsize < 14) {
