@@ -270,6 +270,7 @@ static char *nlistf = NULL, *memf = NULL;
 
 int	Aflag;		/* show addresses of protocol control block */
 int	aflag;		/* show all sockets (including servers) */
+int	Bflag;		/* show information about bpf consumers */
 int	bflag;		/* show i/f total bytes in/out */
 int	dflag;		/* show i/f dropped packets */
 int	gflag;		/* show group (multicast) routing or stats */
@@ -301,13 +302,16 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:ghI:iLlM:mN:np:rSstuWw:z")) != -1)
+	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:rSstuWw:z")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
 			break;
 		case 'a':
 			aflag = 1;
+			break;
+		case 'B':
+			Bflag = 1;
 			break;
 		case 'b':
 			bflag = 1;
@@ -440,6 +444,10 @@ main(int argc, char *argv[])
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
+	if (Bflag) {
+		bpf_stats(interface);
+		exit(0);
+	}
 	if (mflag) {
 		if (memf != NULL) {
 			if (kread(0, 0, 0) == 0)
