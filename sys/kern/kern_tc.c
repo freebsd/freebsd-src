@@ -61,7 +61,7 @@ struct timehands {
 	struct timehands	*th_next;
 };
 
-extern struct timehands th0;
+static struct timehands th0;
 static struct timehands th9 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th0};
 static struct timehands th8 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th9};
 static struct timehands th7 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th8};
