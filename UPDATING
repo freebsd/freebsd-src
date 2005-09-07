@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20050907:	p17	FreeBSD-SA-05:20.cvsbug
+	Correct insecure temporary file usage.
+
 20050629:	p16	FreeBSD-SA-05:14.bzip2, FreeBSD-SA-05:15.tcp
 	Correct bzip2 denial of service and permission race vulnerabilities.
 
