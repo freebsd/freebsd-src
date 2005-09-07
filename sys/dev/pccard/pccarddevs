@@ -71,6 +71,23 @@ $FreeBSD$
  */
 
 /*
+ * "The first 256 identifiers are reserved for manufacturers who have
+ *  JEDEC IDs assigned to them by JEDEC publication 106."
+ *
+ * There's really only 128 of these available, since the first bank of
+ * publication 106 reserves the top bit for parity.
+ */
+vendor FUJITSU			0x0004	Fujitsu Corporation
+vendor INTERSIL			0x000b	Intersil
+vendor PANASONIC		0x0032	Matsushita Electric Industrial Co.
+vendor SANDISK			0x0045	Sandisk Corporation
+vendor NEWMEDIA			0x0057	New Media Corporation
+vendor INTEL			0x0089	Intel
+vendor TOSHIBA2			0x0098	Toshiba
+vendor IBM			0x00a4	IBM Corporation
+vendor SHARP			0x00b0	Sharp Corporation
+
+/*
  * List of known PCMCIA vendors, sorted by numeric ID, as registered with the
  * PCMCIA consortium.
  *
@@ -78,15 +95,6 @@ $FreeBSD$
  * 	0x018c Global Village uses this w/o it appearing in the official list.
  */
 
-vendor FUJITSU			0x0004	Fujitsu Corporation
-vendor INTERSIL			0x000b	Intersil
-vendor PANASONIC		0x0032	Matsushita Electric Industrial Co.
-vendor SANDISK			0x0045	Sandisk Corporation
-vendor NEWMEDIA			0x0057	New Media Corporation
-vendor INTEL			0x0089	Intel
-vendor IBM			0x00a4	IBM Corporation
-vendor SHARP			0x00b0	Sharp Corporation
-vendor TOSHIBA2			0x0098	Toshiba
 vendor DIGITAL			0x0100	Digital Equipment Corporation
 vendor 3COM			0x0101	3Com Corporation
 vendor MEGAHERTZ		0x0102	Megahertz Corporation
@@ -154,7 +162,6 @@ vendor BONDWELL			0x3b01	Bondwell
 vendor LEXARMEDIA		0x4e01	Lexar Media
 vendor COMPEX			0x8a01	Compex Corporation
 vendor ZONET			0x8a01	Zonet Technology Inc.
-vendor ADAPTEC2			0x9005	Adaptec
 vendor ELSA			0xd601	Elsa 
 
 /* 
@@ -177,6 +184,7 @@ vendor AIRVAST			0x50c2	AirVast Technology
 vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
 vendor EDIMAX			0x890f	Edimax Technology Inc.
+vendor ADAPTEC2			0x9005	Adaptec
 vendor CONTEC			0xc001	Contec
 vendor MACNICA			0xc00b	MACNICA
 vendor ROLAND			0xc00c	Roland
