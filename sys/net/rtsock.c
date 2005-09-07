@@ -1254,7 +1254,7 @@ SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
  * Definitions of protocols supported in the ROUTE domain.
  */
 
-extern struct domain routedomain;		/* or at least forward */
+static struct domain routedomain;		/* or at least forward */
 
 static struct protosw routesw[] = {
 { SOCK_RAW,	&routedomain,	0,		PR_ATOMIC|PR_ADDR,
