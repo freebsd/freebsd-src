@@ -116,4 +116,5 @@ bpf_stats(char *interface)
 		    d->bd_slen, d->bd_hlen, pname);
 		free(pname);
 	}
+	free(bd);
 }
