@@ -293,7 +293,6 @@ ed_pccard_attach(device_t dev)
 		error = ed_probe_Novell(dev, sc->port_rid, 0);
 		if (error == 0)
 			error = ed_pccard_Linksys(dev);
-		ed_release_resources(dev);
 		if (error == 0)
 			goto end2;
 	}
@@ -581,7 +580,7 @@ ed_pccard_ax88x90(device_t dev)
 	}
 	ax88x90_geteprom(sc);
 	ed_release_resources(dev);
-	error = ed_probe_Novell(dev, 0, flags);
+	error = ed_probe_Novell(dev, sc->port_rid, flags);
 	if (error == 0) {
 		sc->vendor = ED_VENDOR_NOVELL;
 		sc->type = ED_TYPE_NE2000;
