@@ -157,7 +157,8 @@ set_mouse_pos(scr_stat *scp)
 	    scp->mouse_ypos = (scp->ysize + scp->yoff)*scp->font_size - 1;
     }
 
-    if (scp->mouse_xpos != scp->mouse_oldxpos || scp->mouse_ypos != scp->mouse_oldypos) {
+    if ((scp->mouse_xpos != scp->mouse_oldxpos || scp->mouse_ypos != scp->mouse_oldypos)
+	&& (scp->font_size != 0 && scp->font_width != 0)) {
 	scp->status |= MOUSE_MOVED;
     	scp->mouse_pos =
 	    (scp->mouse_ypos/scp->font_size - scp->yoff)*scp->xsize 
