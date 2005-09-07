@@ -121,7 +121,7 @@ Boolean		allPrecious;	/* .PRECIOUS given on line by itself */
 Boolean		beSilent;	/* -s flag */
 Boolean		beVerbose;	/* -v flag */
 Boolean		compatMake;	/* -B argument */
-Boolean		debug;		/* -d flag */
+int		debug;		/* -d flag */
 Boolean		ignoreErrors;	/* -i flag */
 int		jobLimit;	/* -j argument */
 Boolean		jobsRunning;	/* TRUE if the jobs might be running */
