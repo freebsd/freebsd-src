@@ -180,29 +180,17 @@ using base 2 for sizes.
 .It Fl i
 For each file, print the file's file serial number (inode number).
 .It Fl k
-If the
-.Fl s
-option is specified, print the file size allocation in kilobytes,
-not blocks.
-This option overrides the environment variable
-.Ev BLOCKSIZE .
-Note that
-.Fl k
-is mutually exclusive to
-.Fl h ,
-and later
-.Fl k
-will nullify earlier
-.Fl h .
+This has the same effect as setting environment variable
+.Ev BLOCKSIZE
+to 1024, except that it also nullifies any
+.Fl h
+options to its left.
 .It Fl l
 (The lowercase letter
 .Dq ell . )
-List in long format.
-(See below.)
-A total sum (in blocks, see the
-.Fl s
-option for the block size unit) for all the file
-sizes is output on a line before the long listing.
+List files in the long format, as described in the
+.Sx The Long Format
+subsection below.
 .It Fl m
 Stream output format; list files across the page, separated by commas.
 .It Fl n
@@ -226,13 +214,12 @@ this is the default when output is to a terminal.
 .It Fl r
 Reverse the order of the sort.
 .It Fl s
-Display the number of file system blocks actually used by each file, in units
-of 512 bytes, where partial units are rounded up to the next integer value.
-A total sum for all the file
-sizes is output on a line before the listing.
-The environment variable
-.Ev BLOCKSIZE
-overrides the unit size of 512 bytes.
+Display the number of blocks used in the file system by each file.
+Block sizes and directory totals are handled as described in
+.Sx The Long Format
+subsection below, except (if the long format is not also requested)
+the directory totals are not output when the output is in a
+single column, even if multi-column output is requested.
 .It Fl t
 Sort by time modified (most recently modified
 first) before sorting the operands in lexicographical
@@ -318,10 +305,6 @@ number of bytes in the file, abbreviated
 month, day-of-month file was last modified,
 hour file last modified, minute file last
 modified, and the pathname.
-In addition, for each directory whose contents are displayed, the total
-number of 512-byte blocks used by the files in the directory is displayed
-on a line by itself immediately before the information for the files in the
-directory.
 .Pp
 If the modification time of the file is more than 6 months
 in the past or future, then the year of the last modification
@@ -339,6 +322,24 @@ in the size field.
 If the file is a symbolic link the pathname of the
 linked-to file is preceded by
 .Dq Li -> .
+.Pp
+The listing of a directory's contents is preceded
+by a labeled total number of blocks used in the file system by the files
+which are listed as the directory's contents
+(which may or may not include
+.Pa \&.
+and
+.Pa ..
+and other files which start with a dot, depending on other options).
+.Pp
+The default block size is 512 bytes.
+The block size may be set with option
+.Fl k
+or environment variable
+.Ev BLOCKSIZE .
+Numbers of blocks in the output will have been rounded up so the
+numbers of bytes is at least as many as used by the corresponding
+file system blocks (which might have a different size).
 .Pp
 The file mode printed under the
 .Fl l
@@ -446,12 +447,15 @@ The following environment variables affect the execution of
 .Nm :
 .Bl -tag -width ".Ev CLICOLOR_FORCE"
 .It Ev BLOCKSIZE
-If the environment variable
-.Ev BLOCKSIZE
-is set, the block counts
-(see
-.Fl s )
-will be displayed in units of that size block.
+If this is set, its value, rounded up to 512 or down to a
+multiple of 512, will be used as the block size in bytes by the
+.Fl l
+and
+.Fl s
+options.
+See
+.Sx The Long Format
+subsection for more information.
 .It Ev CLICOLOR
 Use
 .Tn ANSI
@@ -663,3 +667,10 @@ command appeared in
 .Sh BUGS
 To maintain backward compatibility, the relationships between the many
 options are quite complex.
+.Pp
+The exception mentioned in the
+.Fl s
+option description might be a feature that was
+based on the fact that single-column output
+usually goes to something other than a terminal.
+It is debatable whether this is a design bug.
