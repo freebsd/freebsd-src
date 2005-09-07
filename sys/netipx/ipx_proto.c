@@ -53,12 +53,13 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_var.h>
 #include <netipx/spx.h>
 
-extern	struct domain ipxdomain;
 static	struct pr_usrreqs nousrreqs;
 
 /*
  * IPX protocol family: IPX, ERR, PXP, SPX, ROUTE.
  */
+
+static	struct domain ipxdomain;
 
 static struct protosw ipxsw[] = {
 { 0,		&ipxdomain,	0,		0,

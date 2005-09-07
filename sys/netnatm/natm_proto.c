@@ -52,9 +52,9 @@ __FBSDID("$FreeBSD$");
 
 #include <netnatm/natm.h>
 
-extern	struct domain natmdomain;
-
 static	void natm_init(void);
+
+static struct domain natmdomain;
 
 static struct protosw natmsw[] = {
 { SOCK_STREAM,	&natmdomain,	PROTO_NATMAAL5, PR_CONNREQUIRED,
