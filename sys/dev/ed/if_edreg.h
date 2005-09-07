@@ -1108,13 +1108,13 @@ struct ed_ring	{
 #define ED_MII_IDLE_BITS	1
 
 /* Dlink chipset used on some Netgear and Dlink PCMCIA cards */
-#define ED_DLINK_MIIBUS		0x0c	/* MII bus register on ASIC */
+#define ED_DL10XX_MIIBUS	0x0c	/* MII bus register on ASIC */
 
-#define ED_DLINK_MII_RESET1	0x04
-#define ED_DLINK_MII_RESET2	0x08
+#define ED_DL10XX_MII_RESET1	0x04
+#define ED_DL10XX_MII_RESET2	0x08
 
-#define ED_DLINK_MII_DATATIN	0x10
-#define ED_DLINK_MII_DIROUT_22	0x20
-#define ED_DLINK_MII_DIROUT_19	0x10
-#define ED_DLINK_MII_DATAOUT	0x40
-#define ED_DLINK_MII_CLK	0x80
+#define ED_DL10XX_MII_DATATIN	0x10
+#define ED_DL10XX_MII_DIROUT_22	0x20
+#define ED_DL10XX_MII_DIROUT_19	0x10
+#define ED_DL10XX_MII_DATAOUT	0x40
+#define ED_DL10XX_MII_CLK	0x80

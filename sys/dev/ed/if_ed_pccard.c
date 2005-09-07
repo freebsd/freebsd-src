@@ -186,9 +186,9 @@ static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
 
 static int	ed_pccard_dl100xx(device_t dev, const struct ed_product *);
 #ifndef ED_NO_MIIBUS
-static void	ed_pccard_dlink_mii_reset(struct ed_softc *sc);
-static u_int	ed_pccard_dlink_mii_readbits(struct ed_softc *sc, int nbits);
-static void	ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val,
+static void	ed_pccard_dl10xx_mii_reset(struct ed_softc *sc);
+static u_int	ed_pccard_dl10xx_mii_readbits(struct ed_softc *sc, int nbits);
+static void	ed_pccard_dl10xx_mii_writebits(struct ed_softc *sc, u_int val,
     int nbits);
 #endif
 
@@ -377,9 +377,9 @@ ed_pccard_attach(device_t dev)
  	if (sc->chip_type == ED_CHIP_TYPE_DL10019 ||
 	    sc->chip_type == ED_CHIP_TYPE_DL10022) {
 		/* Probe for an MII bus, but ignore errors. */
-		ed_pccard_dlink_mii_reset(sc);
-		sc->mii_readbits = ed_pccard_dlink_mii_readbits;
-		sc->mii_writebits = ed_pccard_dlink_mii_writebits;
+		ed_pccard_dl10xx_mii_reset(sc);
+		sc->mii_readbits = ed_pccard_dl10xx_mii_readbits;
+		sc->mii_writebits = ed_pccard_dl10xx_mii_writebits;
 		mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
 		    ed_ifmedia_sts);
 	}
@@ -486,71 +486,71 @@ ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 
 #ifndef ED_NO_MIIBUS
 /* MII bit-twiddling routines for cards using Dlink chipset */
-#define DLINK_MIISET(sc, x) ed_asic_outb(sc, ED_DLINK_MIIBUS, \
-    ed_asic_inb(sc, ED_DLINK_MIIBUS) | (x))
-#define DLINK_MIICLR(sc, x) ed_asic_outb(sc, ED_DLINK_MIIBUS, \
-    ed_asic_inb(sc, ED_DLINK_MIIBUS) & ~(x))
+#define DL10XX_MIISET(sc, x) ed_asic_outb(sc, ED_DL10XX_MIIBUS, \
+    ed_asic_inb(sc, ED_DL10XX_MIIBUS) | (x))
+#define DL10XX_MIICLR(sc, x) ed_asic_outb(sc, ED_DL10XX_MIIBUS, \
+    ed_asic_inb(sc, ED_DL10XX_MIIBUS) & ~(x))
 
 static void
-ed_pccard_dlink_mii_reset(struct ed_softc *sc)
+ed_pccard_dl10xx_mii_reset(struct ed_softc *sc)
 {
 	if (sc->chip_type != ED_CHIP_TYPE_DL10022)
 		return;
 
-	ed_asic_outb(sc, ED_DLINK_MIIBUS, ED_DLINK_MII_RESET2);
+	ed_asic_outb(sc, ED_DL10XX_MIIBUS, ED_DL10XX_MII_RESET2);
 	DELAY(10);
-	ed_asic_outb(sc, ED_DLINK_MIIBUS,
-	    ED_DLINK_MII_RESET2 | ED_DLINK_MII_RESET1);
+	ed_asic_outb(sc, ED_DL10XX_MIIBUS,
+	    ED_DL10XX_MII_RESET2 | ED_DL10XX_MII_RESET1);
 	DELAY(10);
-	ed_asic_outb(sc, ED_DLINK_MIIBUS, ED_DLINK_MII_RESET2);
+	ed_asic_outb(sc, ED_DL10XX_MIIBUS, ED_DL10XX_MII_RESET2);
 	DELAY(10);
-	ed_asic_outb(sc, ED_DLINK_MIIBUS,
-	    ED_DLINK_MII_RESET2 | ED_DLINK_MII_RESET1);
+	ed_asic_outb(sc, ED_DL10XX_MIIBUS,
+	    ED_DL10XX_MII_RESET2 | ED_DL10XX_MII_RESET1);
 	DELAY(10);
-	ed_asic_outb(sc, ED_DLINK_MIIBUS, 0);
+	ed_asic_outb(sc, ED_DL10XX_MIIBUS, 0);
 }
 
 static void
-ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
+ed_pccard_dl10xx_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
 {
 	int i;
 
 	if (sc->chip_type == ED_CHIP_TYPE_DL10022)
-		DLINK_MIISET(sc, ED_DLINK_MII_DIROUT_22);
+		DL10XX_MIISET(sc, ED_DL10XX_MII_DIROUT_22);
 	else
-		DLINK_MIISET(sc, ED_DLINK_MII_DIROUT_19);
+		DL10XX_MIISET(sc, ED_DL10XX_MII_DIROUT_19);
 
 	for (i = nbits - 1; i >= 0; i--) {
 		if ((val >> i) & 1)
-			DLINK_MIISET(sc, ED_DLINK_MII_DATAOUT);
+			DL10XX_MIISET(sc, ED_DL10XX_MII_DATAOUT);
 		else
-			DLINK_MIICLR(sc, ED_DLINK_MII_DATAOUT);
+			DL10XX_MIICLR(sc, ED_DL10XX_MII_DATAOUT);
 		DELAY(10);
-		DLINK_MIISET(sc, ED_DLINK_MII_CLK);
+		DL10XX_MIISET(sc, ED_DL10XX_MII_CLK);
 		DELAY(10);
-		DLINK_MIICLR(sc, ED_DLINK_MII_CLK);
+		DL10XX_MIICLR(sc, ED_DL10XX_MII_CLK);
 		DELAY(10);
 	}
 }
 
 static u_int
-ed_pccard_dlink_mii_readbits(struct ed_softc *sc, int nbits)
+ed_pccard_dl10xx_mii_readbits(struct ed_softc *sc, int nbits)
 {
 	int i;
 	u_int val = 0;
 
 	if (sc->chip_type == ED_CHIP_TYPE_DL10022)
-		DLINK_MIICLR(sc, ED_DLINK_MII_DIROUT_22);
+		DL10XX_MIICLR(sc, ED_DL10XX_MII_DIROUT_22);
 	else
-		DLINK_MIICLR(sc, ED_DLINK_MII_DIROUT_19);
+		DL10XX_MIICLR(sc, ED_DL10XX_MII_DIROUT_19);
 
 	for (i = nbits - 1; i >= 0; i--) {
-		DLINK_MIISET(sc, ED_DLINK_MII_CLK);
+		DL10XX_MIISET(sc, ED_DL10XX_MII_CLK);
 		DELAY(10);
 		val <<= 1;
-		if (ed_asic_inb(sc, ED_DLINK_MIIBUS) & ED_DLINK_MII_DATATIN)
+		if (ed_asic_inb(sc, ED_DL10XX_MIIBUS) & ED_DL10XX_MII_DATATIN)
 			val++;
-		DLINK_MIICLR(sc, ED_DLINK_MII_CLK);
+		DL10XX_MIICLR(sc, ED_DL10XX_MII_CLK);
 		DELAY(10);
 	}
 	return val;
