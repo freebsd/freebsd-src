@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
+ * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

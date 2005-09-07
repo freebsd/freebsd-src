@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
+ * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,7 @@ typedef struct _RaidArray
     UCHAR   reserve1;
 
     ULONG   dArStamp;          /* array ID. all disks in a array has same ID */
+	ULONG   failedStamp;       /* stamp for failed member */
     USHORT  bStripeWitch;      /* = (1 << BlockSizeShift) */
 
 	USHORT	rf_broken: 1;
@@ -83,7 +84,7 @@ typedef struct _RaidArray
 
 	USHORT  CriticalMembers;   /* tell which member is critial */
 	UCHAR   last_read;       /* for RAID 1 load banlancing */
-	UCHAR   pad1;
+	UCHAR   PrivateFlag1;
 
 	LBA_T   RebuildSectors;  /* how many sectors is OK (LBA on member disk) */
 
@@ -151,7 +152,9 @@ typedef struct _ArrayDescript
 #define ArrayDescript_3_1_size 512
 
 	UCHAR   bCheckSum31;        /* new check sum */
-	UCHAR   reserve2[2];
+	UCHAR   PrivateFlag1;       /* private */
+	UCHAR   reserve1;
+	
 #ifdef __BIG_ENDIAN_BITFIELD
     UCHAR   df_read_ahead: 1;   /* enable read ahead */
 	UCHAR   df_read_ahead_set: 1;
@@ -178,7 +181,12 @@ typedef struct _ArrayDescript
     }
     levelex[2];
 
+	ULONG failedStamp; /* array stamp for failed memebr */
+
 } ArrayDescript;
+
+/* report an error if ArrayDescript size exceed 512 */
+typedef char ArrayDescript_size_should_not_exceed_512[512-sizeof(ArrayDescript)];
 
 #pragma pack()
 
