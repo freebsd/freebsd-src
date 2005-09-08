@@ -2167,7 +2167,7 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 	PBUS_DMAMAP  pmap;
 	_VBUS_INST(&pAdapter->VBus)
 
-	CAM_DEBUG(ccb->ccb_h->path, CAM_DEBUG_TRACE, ("hpt_action\n"));
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("hpt_action\n"));
 	KdPrint(("hpt_action(%lx,%lx{%x})\n", (u_long)sim, (u_long)ccb, ccb->ccb_h.func_code));
 
 	switch (ccb->ccb_h.func_code)
