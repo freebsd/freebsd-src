@@ -3538,7 +3538,7 @@ int
 ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
     ng_item_fn *fn, void * arg1, int arg2)
 {
-	item_p item;
+	item_p item, oitem;
 
 	if ((item = ng_getqblk(NG_NOFLAGS)) == NULL)
 		return (ENOMEM);
@@ -3553,7 +3553,10 @@ ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	NGI_FN(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	callout_reset(c, ticks, &ng_callout_trampoline, item);
+	oitem = c->c_arg;
+	if (callout_reset(c, ticks, &ng_callout_trampoline, item) == 1 &&
+	    oitem != NULL)
+		NG_FREE_ITEM(oitem);
 	return (0);
 }
 
@@ -3579,6 +3582,7 @@ ng_uncallout(struct callout *c, node_p node)
 		 */
 		NG_FREE_ITEM(item);
 	}
+	c->c_arg = NULL;
 
 	return (rval);
 }
