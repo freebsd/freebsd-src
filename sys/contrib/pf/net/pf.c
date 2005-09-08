@@ -3642,7 +3642,7 @@ pf_test_icmp(struct pf_rule **rm, struct pf_state **sm, int direction,
 	struct pf_ruleset	*ruleset = NULL;
 	struct pf_src_node	*nsn = NULL;
 	u_short			 reason;
-	u_int16_t		 icmpid, bport, nport = 0;
+	u_int16_t		 icmpid = 0, bport, nport = 0;
 	sa_family_t		 af = pd->af;
 	u_int8_t		 icmptype = 0;	/* make the compiler happy */
 	u_int8_t		 icmpcode = 0;	/* make the compiler happy */
@@ -3706,7 +3706,8 @@ pf_test_icmp(struct pf_rule **rm, struct pf_state **sm, int direction,
 				pd->hdr.icmp->icmp_cksum = pf_cksum_fixup(
 				    pd->hdr.icmp->icmp_cksum, icmpid, nport, 0);
 				pd->hdr.icmp->icmp_id = nport;
-				m_copyback(m, off, ICMP_MINLEN, pd->hdr.icmp);
+				m_copyback(m, off, ICMP_MINLEN,
+				    (caddr_t)pd->hdr.icmp);
 				break;
 #endif /* INET */
 #ifdef INET6
@@ -4857,7 +4858,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 					pd->hdr.icmp->icmp_id =
 					    (*state)->gwy.port;
 					m_copyback(m, off, ICMP_MINLEN,
-					    pd->hdr.icmp);
+					    (caddr_t)pd->hdr.icmp);
 					break;
 #endif /* INET */
 #ifdef INET6
@@ -4885,7 +4886,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 					pd->hdr.icmp->icmp_id =
 					    (*state)->lan.port;
 					m_copyback(m, off, ICMP_MINLEN,
-					    pd->hdr.icmp);
+					    (caddr_t)pd->hdr.icmp);
 					break;
 #endif /* INET */
 #ifdef INET6
