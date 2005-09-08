@@ -1645,20 +1645,14 @@ ed_miibus_readreg(device_t dev, int phy, int reg)
 	int failed, val;
 
 	sc = device_get_softc(dev);
-
-	/* XXX is this right? */
-	ED_LOCK(sc);
 	(*sc->mii_writebits)(sc, 0xffffffff, 32);
 	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_READOP, ED_MII_OP_BITS);
 	(*sc->mii_writebits)(sc, phy, ED_MII_PHY_BITS);
 	(*sc->mii_writebits)(sc, reg, ED_MII_REG_BITS);
-
 	failed = (*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
 	val = (*sc->mii_readbits)(sc, ED_MII_DATA_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
-	/* XXX is this right? */
-	ED_UNLOCK(sc);
 	return (failed ? 0 : val);
 }
 
@@ -1668,9 +1662,6 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 	struct ed_softc *sc;
 
 	sc = device_get_softc(dev);
-
-	/* XXX is this right? */
-	ED_LOCK(sc);
 	(*sc->mii_writebits)(sc, 0xffffffff, 32);
 	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_WRITEOP, ED_MII_OP_BITS);
@@ -1679,8 +1670,6 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 	(*sc->mii_writebits)(sc, ED_MII_TURNAROUND, ED_MII_TURNAROUND_BITS);
 	(*sc->mii_writebits)(sc, data, ED_MII_DATA_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
-	/* XXX is this right? */
-	ED_UNLOCK(sc);
 }
 
 int
