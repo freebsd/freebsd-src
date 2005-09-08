@@ -151,6 +151,16 @@ add_new_resolv_conf() {
 			cat /etc/resolv.conf.tail >>/etc/resolv.conf.std
 		fi
 
+		# When resolv.conf is not changed actually, we don't
+		# need to update it.
+		# If /usr is not mounted yet, we cannot use cmp, then
+		# the following test fails.  In such case, we simply
+		# ignore an error and do update resolv.conf.
+		if cmp -s /etc/resolv.conf.std /etc/resolv.conf; then
+			rm -f /etc/resolv.conf.std
+			return 0
+		fi 2>/dev/null
+
 		# In case (e.g. during OpenBSD installs) /etc/resolv.conf
 		# is a symbolic link, take care to preserve the link and write
 		# the new data in the correct location.
