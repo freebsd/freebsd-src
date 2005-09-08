@@ -380,12 +380,12 @@ hme_detach(struct hme_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
-	ether_ifdetach(ifp);
-	if_free(ifp);
 	HME_LOCK(sc);
 	hme_stop(sc);
 	HME_UNLOCK(sc);
 	callout_drain(&sc->sc_tick_ch);
+	ether_ifdetach(ifp);
+	if_free(ifp);
 	device_delete_child(sc->sc_dev, sc->sc_miibus);
 
 	for (i = 0; i < HME_NTXQ; i++) {
