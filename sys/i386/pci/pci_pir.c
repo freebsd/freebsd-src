@@ -110,6 +110,7 @@ static int pir_interrupt_weight[NUM_ISA_INTERRUPTS];
 /* sysctl vars */
 SYSCTL_DECL(_hw_pci);
 
+/* XXX this likely should live in a header file */
 #ifdef PC98
 /* IRQs 3, 5, 7, 9, 10, 11, 12, 13 */
 #define PCI_IRQ_OVERRIDE_MASK 0x3e68
