@@ -427,13 +427,14 @@ callout_handle_init(struct callout_handle *handle)
  * callout_pending() - returns truth if callout is still waiting for timeout
  * callout_deactivate() - marks the callout as having been serviced
  */
-void
+int
 callout_reset(c, to_ticks, ftn, arg)
 	struct	callout *c;
 	int	to_ticks;
 	void	(*ftn)(void *);
 	void	*arg;
 {
+	int cancelled = 0;
 
 #ifdef notyet /* Some callers of timeout() do not hold Giant. */
 	if (c->c_mtx != NULL)
@@ -448,14 +449,14 @@ callout_reset(c, to_ticks, ftn, arg)
 		 * can cancel the callout if it has not really started.
 		 */
 		if (c->c_mtx != NULL && !curr_cancelled)
-			curr_cancelled = 1;
+			cancelled = curr_cancelled = 1;
 		if (wakeup_needed) {
 			/*
 			 * Someone has called callout_drain to kill this
 			 * callout.  Don't reschedule.
 			 */
 			mtx_unlock_spin(&callout_lock);
-			return;
+			return (cancelled);
 		}
 	}
 	if (c->c_flags & CALLOUT_PENDING) {
@@ -464,6 +465,8 @@ callout_reset(c, to_ticks, ftn, arg)
 		}
 		TAILQ_REMOVE(&callwheel[c->c_time & callwheelmask], c,
 		    c_links.tqe);
+
+		cancelled = 1;
 
 		/*
 		 * Part of the normal "stop a pending callout" process
@@ -490,6 +493,8 @@ callout_reset(c, to_ticks, ftn, arg)
 	TAILQ_INSERT_TAIL(&callwheel[c->c_time & callwheelmask], 
 			  c, c_links.tqe);
 	mtx_unlock_spin(&callout_lock);
+
+	return (cancelled);
 }
 
 int
