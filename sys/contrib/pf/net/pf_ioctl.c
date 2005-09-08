@@ -1769,6 +1769,9 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 				error = EINVAL;
 			if (pf_anchor_setup(newrule, ruleset, pcr->anchor_call))
 				error = EINVAL;
+			TAILQ_FOREACH(pa, &pf_pabuf, entries)
+				if (pf_tbladdr_setup(ruleset, &pa->addr))
+					error = EINVAL;
 
 			if (newrule->overload_tblname[0]) {
 				if ((newrule->overload_tbl = pfr_attach_table(
@@ -2390,6 +2393,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	case DIOCADDADDR: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
 
+		if (pp->ticket != ticket_pabuf) {
+			error = EBUSY;
+			break;
+		}
 #ifndef INET
 		if (pp->af == AF_INET) {
 			error = EAFNOSUPPORT;
