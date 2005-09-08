@@ -128,8 +128,10 @@ struct iconv_cspair {
 	TAILQ_ENTRY(iconv_cspair)	cp_link;
 };
 
-#define	KICONV_CONVERTER(name,size) 				\
-    static DEFINE_CLASS(iconv_ ## name, iconv_ ## name ## _methods, (size)); \
+#define	KICONV_CONVERTER(name,size) 			\
+    static struct iconv_converter_class iconv_ ## name ## _class = { \
+	"iconv_"#name, iconv_ ## name ## _methods, size, NULL \
+    };							\
     static moduledata_t iconv_ ## name ## _mod = {	\
 	"iconv_"#name, iconv_converter_handler,		\
 	(void*)&iconv_ ## name ## _class		\
