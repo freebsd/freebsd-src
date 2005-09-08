@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
 
-static void	gv_cleanup_pp(void *, int);
 static void	gv_free_sd(struct gv_sd *);
 static int	gv_rm_drive(struct gv_softc *, struct gctl_req *,
 		    struct gv_drive *, int);
@@ -261,12 +260,8 @@ gv_rm_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *s, int flags)
 
 	/* If the subdisk has a provider we need to clean up this one too. */
 	if (pp != NULL) {
+		pp->flags |= G_PF_WITHER;
 		g_orphan_provider(pp, ENXIO);
-		if (LIST_EMPTY(&pp->consumers))
-			g_destroy_provider(pp);
-		else
-			/* Schedule this left-over provider for destruction. */
-			g_post_event(gv_cleanup_pp, pp, M_WAITOK, pp, NULL);
 	}
 
 	return (0);
@@ -348,34 +343,6 @@ gv_rm_drive(struct gv_softc *sc, struct gctl_req *req, struct gv_drive *d, int f
 	g_wither_geom(gp, ENXIO);
 
 	return (err);
-}
-
-/*
- * This function is called from the event queue to clean up left-over subdisk
- * providers.
- */
-static void
-gv_cleanup_pp(void *arg, int flag)
-{
-	struct g_provider *pp;
-
-	g_topology_assert();
-
-	if (flag == EV_CANCEL)
-		return;
-
-	pp = arg;
-	if (pp == NULL) {
-		printf("gv_cleanup_pp: provider has gone\n");
-		return;
-	}
-
-	if (!LIST_EMPTY(&pp->consumers)) {
-		printf("gv_cleanup_pp: provider still not empty\n");
-		return;
-	}
-
-	g_destroy_provider(pp);
 }
 
 static void
