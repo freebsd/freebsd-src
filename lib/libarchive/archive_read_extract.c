@@ -1054,10 +1054,13 @@ set_perm(struct archive *a, int fd, struct archive_entry *entry,
 	 */
 	if (!S_ISLNK(archive_entry_mode(entry))) {
 #ifdef HAVE_FCHMOD
-		if (fd >= 0 && fchmod(fd, mode) != 0) {
-			archive_set_error(a, errno, "Can't set permissions");
-			return (ARCHIVE_WARN);
-		}
+		if (fd >= 0) {
+			if (fchmod(fd, mode) != 0) {
+				archive_set_error(a, errno,
+				    "Can't set permissions");
+				return (ARCHIVE_WARN);
+			}
+		} else
 #endif
 		if (chmod(name, mode) != 0) {
 			archive_set_error(a, errno, "Can't set permissions");
