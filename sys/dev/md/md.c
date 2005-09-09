@@ -363,6 +363,8 @@ g_md_access(struct g_provider *pp, int r, int w, int e)
 	r += pp->acr;
 	w += pp->acw;
 	e += pp->ace;
+	if ((sc->flags & MD_READONLY) != 0 && w > 0)
+		return (EROFS);
 	if ((pp->acr + pp->acw + pp->ace) == 0 && (r + w + e) > 0) {
 		sc->opencount = 1;
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
@@ -892,16 +894,14 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	if (error != 0)
 		return (error);
 	flags = FREAD|FWRITE;
+	/*
+	 * If the user specified that this is a read only device, unset the
+	 * FWRITE mask before trying to open the backing store.
+	 */
+	if ((mdio->md_options & MD_READONLY) != 0)
+		flags &= ~FWRITE;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, -1);
-	if (error != 0) {
-		NDFREE(&nd, NDF_ONLY_PNBUF);
-		if (error != EACCES && error != EPERM && error != EROFS)
-			return (error);
-		flags &= ~FWRITE;
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
-		error = vn_open(&nd, &flags, 0, -1);
-	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0)
 		return (error);
