@@ -443,6 +443,7 @@ carp_clone_destroy(struct ifnet *ifp)
 			CARP_LOCK_DESTROY(cif);
 			FREE(cif, M_CARP);
 			ifpromisc(sc->sc_carpdev, 0);
+			sc->sc_carpdev = NULL;
 		} else {
 			CARP_UNLOCK(cif);
 		}
