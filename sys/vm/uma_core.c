@@ -124,8 +124,8 @@ static struct mtx uma_mtx;
 static LIST_HEAD(,uma_slab) uma_boot_pages =
     LIST_HEAD_INITIALIZER(&uma_boot_pages);
 
-/* Count of free boottime pages */
-static int uma_boot_free = 0;
+/* This mutex protects the boot time pages list */
+static struct mtx uma_boot_pages_mtx;
 
 /* Is the VM done starting up? */
 static int booted = 0;
@@ -905,24 +905,21 @@ static void *
 startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 {
 	uma_keg_t keg;
+	uma_slab_t tmps;
 
 	keg = zone->uz_keg;
 
 	/*
 	 * Check our small startup cache to see if it has pages remaining.
 	 */
-	mtx_lock(&uma_mtx);
-	if (uma_boot_free != 0) {
-		uma_slab_t tmps;
-
-		tmps = LIST_FIRST(&uma_boot_pages);
+	mtx_lock(&uma_boot_pages_mtx);
+	if ((tmps = LIST_FIRST(&uma_boot_pages)) != NULL) {
 		LIST_REMOVE(tmps, us_link);
-		uma_boot_free--;
-		mtx_unlock(&uma_mtx);
+		mtx_unlock(&uma_boot_pages_mtx);
 		*pflag = tmps->us_flags;
 		return (tmps->us_data);
 	}
-	mtx_unlock(&uma_mtx);
+	mtx_unlock(&uma_boot_pages_mtx);
 	if (booted == 0)
 		panic("UMA: Increase UMA_BOOT_PAGES");
 	/*
@@ -1513,17 +1510,7 @@ uma_startup(void *bootmem)
 #ifdef UMA_DEBUG
 	printf("Creating uma keg headers zone and keg.\n");
 #endif
-	/*
-	 * The general UMA lock is a recursion-allowed lock because
-	 * there is a code path where, while we're still configured
-	 * to use startup_alloc() for backend page allocations, we
-	 * may end up in uma_reclaim() which calls zone_foreach(zone_drain),
-	 * which grabs uma_mtx, only to later call into startup_alloc()
-	 * because while freeing we needed to allocate a bucket.  Since
-	 * startup_alloc() also takes uma_mtx, we need to be able to
-	 * recurse on it.
-	 */
-	mtx_init(&uma_mtx, "UMA lock", NULL, MTX_DEF | MTX_RECURSE);
+	mtx_init(&uma_mtx, "UMA lock", NULL, MTX_DEF);
 
 	/*
 	 * Figure out the maximum number of items-per-slab we'll have if
@@ -1617,8 +1604,8 @@ uma_startup(void *bootmem)
 		slab->us_data = (u_int8_t *)slab;
 		slab->us_flags = UMA_SLAB_BOOT;
 		LIST_INSERT_HEAD(&uma_boot_pages, slab, us_link);
-		uma_boot_free++;
 	}
+	mtx_init(&uma_boot_pages_mtx, "UMA boot pages", NULL, MTX_DEF);
 
 #ifdef UMA_DEBUG
 	printf("Creating uma zone headers zone and keg.\n");
