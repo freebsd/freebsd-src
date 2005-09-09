@@ -237,8 +237,10 @@ COMMON ITEMS:
 	To build a kernel
 	-----------------
 	If you are updating from a prior version of FreeBSD (even one just
-	a few days old), you should follow this procedure. With a
-	/usr/obj tree with a fresh buildworld,
+	a few days old), you should follow this procedure.  It is the most
+	failsafe as it uses a /usr/obj tree with a fresh mini-buildworld,
+
+	make kernel-toolchain
 	make -DALWAYS_CHECK_MAKE buildkernel KERNCONF=YOUR_KERNEL_HERE
 	make -DALWAYS_CHECK_MAKE installkernel KERNCONF=YOUR_KERNEL_HERE
 
