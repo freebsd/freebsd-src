@@ -1001,6 +1001,8 @@ ng_ksocket_disconnect(hook_p hook)
  * the request has at least been done, but the 'so' may not be so lucky.
  * handle this by checking the validity of the node in the target function
  * before dereferencing the socket pointer.
+ *
+ * To decouple stack, we use queue version of ng_send_fn().
  */
 
 static void
@@ -1008,7 +1010,7 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 {
 	const node_p node = arg;
 
-	ng_send_fn(node, NULL, &ng_ksocket_incoming2, so, waitflag);
+	ng_queue_fn(node, NULL, &ng_ksocket_incoming2, so, waitflag);
 }
 
 
@@ -1108,10 +1110,17 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 			break;
 		}
 
-		/* Don't trust the various socket layers to get the
-		   packet header and length correct (eg. kern/15175) */
-		for (n = m, m->m_pkthdr.len = 0; n != NULL; n = n->m_next)
+		/*
+		 * Don't trust the various socket layers to get the
+		 * packet header and length correct (e.g. kern/15175).
+		 *
+		 * Also, do not trust that soreceive() will clear m_nextpkt
+		 * for us (e.g. kern/84952, kern/82413).
+		 */
+		for (n = m, m->m_pkthdr.len = 0; n != NULL; n = n->m_next) {
 			m->m_pkthdr.len += n->m_len;
+			n->m_nextpkt = NULL;
+		}
 
 		/* Put peer's socket address (if any) into a tag */
 		if (sa != NULL) {
