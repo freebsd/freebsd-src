@@ -330,8 +330,12 @@ static	ng_ID_t nextID = 1;
 		int total;						\
 									\
 		M_ASSERTPKTHDR(m);					\
-		for (total = 0, n = (m); n != NULL; n = n->m_next)	\
+		for (total = 0, n = (m); n != NULL; n = n->m_next) {	\
 			total += n->m_len;				\
+			if (n->m_nextpkt != NULL)			\
+				panic("%s: m_nextpkt", __func__);	\
+		}							\
+									\
 		if ((m)->m_pkthdr.len != total) {			\
 			panic("%s: %d != %d",				\
 			    __func__, (m)->m_pkthdr.len, total);	\
@@ -3124,8 +3128,8 @@ dumpitem(item_p item, char *file, int line)
 	case NGQF_FN:
 		printf(" - fn@%p (%p, %p, %p, %d (%x))\n",
 			item->body.fn.fn_fn,
-			NGI_NODE(item),
-			NGI_HOOK(item),
+			_NGI_NODE(item),
+			_NGI_HOOK(item),
 			item->body.fn.fn_arg1,
 			item->body.fn.fn_arg2,
 			item->body.fn.fn_arg2);
@@ -3135,9 +3139,9 @@ dumpitem(item_p item, char *file, int line)
 	}
 	if (line) {
 		printf(" problem discovered at file %s, line %d\n", file, line);
-		if (NGI_NODE(item)) {
+		if (_NGI_NODE(item)) {
 			printf("node %p ([%x])\n",
-				NGI_NODE(item), ng_node2ID(NGI_NODE(item)));
+				_NGI_NODE(item), ng_node2ID(_NGI_NODE(item)));
 		}
 	}
 }
