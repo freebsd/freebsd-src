@@ -647,26 +647,26 @@ trap(int vector, struct trapframe *tf)
 			sched_unpin();
 			goto out;
 		} else if (thr != NULL) {
-			mtx_lock(&thr->td_md.md_highfp_mtx);
+			mtx_lock_spin(&thr->td_md.md_highfp_mtx);
 			pcb = thr->td_pcb;
 			save_high_fp(&pcb->pcb_high_fp);
 			pcb->pcb_fpcpu = NULL;
 			PCPU_SET(fpcurthread, NULL);
-			mtx_unlock(&thr->td_md.md_highfp_mtx);
+			mtx_unlock_spin(&thr->td_md.md_highfp_mtx);
 			thr = NULL;
 		}
 
-		mtx_lock(&td->td_md.md_highfp_mtx);
+		mtx_lock_spin(&td->td_md.md_highfp_mtx);
 		pcb = td->td_pcb;
 		pcpu = pcb->pcb_fpcpu;
 
 #ifdef SMP
 		if (pcpu != NULL) {
-			mtx_unlock(&td->td_md.md_highfp_mtx);
+			mtx_unlock_spin(&td->td_md.md_highfp_mtx);
 			ipi_send(pcpu, IPI_HIGH_FP);
 			while (pcb->pcb_fpcpu == pcpu)
 				DELAY(100);
-			mtx_lock(&td->td_md.md_highfp_mtx);
+			mtx_lock_spin(&td->td_md.md_highfp_mtx);
 			pcpu = pcb->pcb_fpcpu;
 			thr = PCPU_GET(fpcurthread);
 		}
@@ -680,7 +680,7 @@ trap(int vector, struct trapframe *tf)
 			tf->tf_special.psr &= ~IA64_PSR_DFH;
 		}
 
-		mtx_unlock(&td->td_md.md_highfp_mtx);
+		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
 		sched_unpin();
 		goto out;
 	}

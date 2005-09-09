@@ -1437,17 +1437,17 @@ ia64_highfp_drop(struct thread *td)
 	struct pcpu *cpu;
 	struct thread *thr;
 
-	mtx_lock(&td->td_md.md_highfp_mtx);
+	mtx_lock_spin(&td->td_md.md_highfp_mtx);
 	pcb = td->td_pcb;
 	cpu = pcb->pcb_fpcpu;
 	if (cpu == NULL) {
-		mtx_unlock(&td->td_md.md_highfp_mtx);
+		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
 		return (0);
 	}
 	pcb->pcb_fpcpu = NULL;
 	thr = cpu->pc_fpcurthread;
 	cpu->pc_fpcurthread = NULL;
-	mtx_unlock(&td->td_md.md_highfp_mtx);
+	mtx_unlock_spin(&td->td_md.md_highfp_mtx);
 
 	/* Post-mortem sanity checking. */
 	KASSERT(thr == td, ("Inconsistent high FP state"));
@@ -1465,18 +1465,18 @@ ia64_highfp_save(struct thread *td)
 	if ((td->td_frame->tf_special.psr & IA64_PSR_MFH) == 0)
 		return (ia64_highfp_drop(td));
 
-	mtx_lock(&td->td_md.md_highfp_mtx);
+	mtx_lock_spin(&td->td_md.md_highfp_mtx);
 	pcb = td->td_pcb;
 	cpu = pcb->pcb_fpcpu;
 	if (cpu == NULL) {
-		mtx_unlock(&td->td_md.md_highfp_mtx);
+		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
 		return (0);
 	}
 #ifdef SMP
 	if (td == curthread)
 		sched_pin();
 	if (cpu != pcpup) {
-		mtx_unlock(&td->td_md.md_highfp_mtx);
+		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
 		ipi_send(cpu, IPI_HIGH_FP);
 		if (td == curthread)
 			sched_unpin();
@@ -1494,7 +1494,7 @@ ia64_highfp_save(struct thread *td)
 	pcb->pcb_fpcpu = NULL;
 	thr = cpu->pc_fpcurthread;
 	cpu->pc_fpcurthread = NULL;
-	mtx_unlock(&td->td_md.md_highfp_mtx);
+	mtx_unlock_spin(&td->td_md.md_highfp_mtx);
 
 	/* Post-mortem sanity cxhecking. */
 	KASSERT(thr == td, ("Inconsistent high FP state"));
