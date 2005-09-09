@@ -209,11 +209,11 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 	} else if (vector == ipi_vector[IPI_HIGH_FP]) {
 		struct thread *thr = PCPU_GET(fpcurthread);
 		if (thr != NULL) {
-			mtx_lock(&thr->td_md.md_highfp_mtx);
+			mtx_lock_spin(&thr->td_md.md_highfp_mtx);
 			save_high_fp(&thr->td_pcb->pcb_high_fp);
 			thr->td_pcb->pcb_fpcpu = NULL;
 			PCPU_SET(fpcurthread, NULL);
-			mtx_unlock(&thr->td_md.md_highfp_mtx);
+			mtx_unlock_spin(&thr->td_md.md_highfp_mtx);
 		}
 	} else if (vector == ipi_vector[IPI_RENDEZVOUS]) {
 		rdvs[PCPU_GET(cpuid)]++;
