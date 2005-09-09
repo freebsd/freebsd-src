@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <inttypes.h>
@@ -233,6 +234,16 @@ main(int argc, char **argv)
 	if (cmdline == 2 && mdio.md_type == MD_VNODE)
 		if (mdio.md_file[0] == '\0')
 			errx(1, "must specify -f for -t vnode");
+	if (mdio.md_type == MD_VNODE &&
+	    (mdio.md_options & MD_READONLY) == 0) {
+		if (access(mdio.md_file, W_OK) < 0 &&
+		    (errno == EACCES || errno == EPERM || errno == EROFS)) {
+			fprintf(stderr,
+			    "WARNING: opening backing store: %s readonly\n",
+			    mdio.md_file);
+			mdio.md_options |= MD_READONLY;
+		}
+	}
 	if (action == LIST) {
 		if (mdio.md_options & MD_AUTOUNIT)
 			list(fd);
