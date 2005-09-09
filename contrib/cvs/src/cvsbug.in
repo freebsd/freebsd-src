@@ -85,9 +85,9 @@ fi
 
 [ -z "$TMPDIR" ] && TMPDIR=/tmp
 
-TEMP=$TMPDIR/p$$
-BAD=$TMPDIR/pbad$$
-REF=$TMPDIR/pf$$
+TEMP="`/usr/bin/mktemp $TMPDIR/p.XXXXXX`"
+BAD="`/usr/bin/mktemp $TMPDIR/pbad.XXXXXX`"
+REF="`/usr/bin/mktemp $TMPDIR/pf.XXXXXX`"
 
 if [ -z "$LOGNAME" -a -n "$USER" ]; then
   LOGNAME=$USER
