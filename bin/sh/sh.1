@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2005
+.Dd September 9, 2005
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1552,7 +1552,8 @@ If
 is given
 it is used as the exit status of the shell;
 otherwise the exit status of the preceding command is used.
-.It Ic export Oo Fl p Oc Op Ar name ...
+.It Ic export Ar name ...
+.It Ic export Op Fl p
 The specified names are exported so that they will
 appear in the environment of subsequent commands.
 The only way to un-export a variable is to
