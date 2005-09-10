@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <machine/pcb.h>
+#include <machine/frame.h>
 #include <err.h>
 #include <kvm.h>
 #include <string.h>
@@ -39,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <inferior.h>
 #include <regcache.h>
 #include <frame-unwind.h>
+#include <amd64-tdep.h>
 
 #include "kgdb.h"
 
@@ -56,15 +58,15 @@ kgdb_trgt_fetch_registers(int regno __unused)
 		memset(&pcb, 0, sizeof(pcb));
 	}
 
-	supply_register(1, (char *)&pcb.pcb_rbx);
-	supply_register(6, (char *)&pcb.pcb_rbp);
-	supply_register(7, (char *)&pcb.pcb_rsp);
-	supply_register(12, (char *)&pcb.pcb_r12);
-	supply_register(13, (char *)&pcb.pcb_r13);
-	supply_register(14, (char *)&pcb.pcb_r14);
-	supply_register(15, (char *)&pcb.pcb_r15);
-	supply_register(16, (char *)&pcb.pcb_rip);
-	supply_register(17, (char *)&pcb.pcb_rflags);
+	supply_register(AMD64_RBX_REGNUM, (char *)&pcb.pcb_rbx);
+	supply_register(AMD64_RBP_REGNUM, (char *)&pcb.pcb_rbp);
+	supply_register(AMD64_RSP_REGNUM, (char *)&pcb.pcb_rsp);
+	supply_register(AMD64_R8_REGNUM + 4, (char *)&pcb.pcb_r12);
+	supply_register(AMD64_R8_REGNUM + 5, (char *)&pcb.pcb_r13);
+	supply_register(AMD64_R8_REGNUM + 6, (char *)&pcb.pcb_r14);
+	supply_register(AMD64_R15_REGNUM, (char *)&pcb.pcb_r15);
+	supply_register(AMD64_RIP_REGNUM, (char *)&pcb.pcb_rip);
+	supply_register(AMD64_EFLAGS_REGNUM, (char *)&pcb.pcb_rflags);
 }
 
 void
@@ -73,10 +75,60 @@ kgdb_trgt_store_registers(int regno __unused)
 	fprintf_unfiltered(gdb_stderr, "XXX: %s\n", __func__);
 }
 
+struct kgdb_frame_cache {
+	CORE_ADDR	pc;
+	CORE_ADDR	sp;
+};
+
+static int kgdb_trgt_frame_offset[20] = {
+	offsetof(struct trapframe, tf_rax),
+	offsetof(struct trapframe, tf_rbx),
+	offsetof(struct trapframe, tf_rcx),
+	offsetof(struct trapframe, tf_rdx),
+	offsetof(struct trapframe, tf_rsi),
+	offsetof(struct trapframe, tf_rdi),
+	offsetof(struct trapframe, tf_rbp),
+	offsetof(struct trapframe, tf_rsp),
+	offsetof(struct trapframe, tf_r8),
+	offsetof(struct trapframe, tf_r9),
+	offsetof(struct trapframe, tf_r10),
+	offsetof(struct trapframe, tf_r11),
+	offsetof(struct trapframe, tf_r12),
+	offsetof(struct trapframe, tf_r13),
+	offsetof(struct trapframe, tf_r14),
+	offsetof(struct trapframe, tf_r15),
+	offsetof(struct trapframe, tf_rip),
+	offsetof(struct trapframe, tf_rflags),
+	offsetof(struct trapframe, tf_cs),
+	offsetof(struct trapframe, tf_ss)
+};
+
+static struct kgdb_frame_cache *
+kgdb_trgt_frame_cache(struct frame_info *next_frame, void **this_cache)
+{
+	char buf[MAX_REGISTER_SIZE];
+	struct kgdb_frame_cache *cache;
+
+	cache = *this_cache;
+	if (cache == NULL) {
+		cache = FRAME_OBSTACK_ZALLOC(struct kgdb_frame_cache);
+		*this_cache = cache;
+		cache->pc = frame_func_unwind(next_frame);
+		frame_unwind_register(next_frame, SP_REGNUM, buf);
+		cache->sp = extract_unsigned_integer(buf,
+		    register_size(current_gdbarch, SP_REGNUM));
+	}
+	return (cache);
+}
+
 static void
 kgdb_trgt_trapframe_this_id(struct frame_info *next_frame, void **this_cache,
     struct frame_id *this_id)
 {
+	struct kgdb_frame_cache *cache;
+
+	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
+	*this_id = frame_id_build(cache->sp, cache->pc);
 }
 
 static void
@@ -84,6 +136,29 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
     void **this_cache, int regnum, int *optimizedp, enum lval_type *lvalp,
     CORE_ADDR *addrp, int *realnump, void *valuep)
 {
+	char dummy_valuep[MAX_REGISTER_SIZE];
+	struct kgdb_frame_cache *cache;
+	int ofs, regsz;
+
+	regsz = register_size(current_gdbarch, regnum);
+
+	if (valuep == NULL)
+		valuep = dummy_valuep;
+	memset(valuep, 0, regsz);
+	*optimizedp = 0;
+	*addrp = 0;
+	*lvalp = not_lval;
+	*realnump = -1;
+
+	ofs = (regnum >= AMD64_RAX_REGNUM && regnum <= AMD64_EFLAGS_REGNUM + 2)
+	    ? kgdb_trgt_frame_offset[regnum] : -1;
+	if (ofs == -1)
+		return;
+
+	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
+	*addrp = cache->sp + ofs;
+	*lvalp = lval_memory;
+	target_read_memory(*addrp, valuep, regsz);
 }
 
 static const struct frame_unwind kgdb_trgt_trapframe_unwind = {
@@ -95,6 +170,16 @@ static const struct frame_unwind kgdb_trgt_trapframe_unwind = {
 const struct frame_unwind *
 kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 {
+	char *pname;
+	CORE_ADDR pc;
 
-        return (NULL);
+	pc = frame_pc_unwind(next_frame);
+	pname = NULL;
+	find_pc_partial_function(pc, &pname, NULL, NULL);
+	if (pname == NULL)
+		return (NULL);
+	if (strcmp(pname, "calltrap") == 0)
+		return (&kgdb_trgt_trapframe_unwind);
+	/* printf("%s: %lx =%s\n", __func__, pc, pname); */
+	return (NULL);
 }
