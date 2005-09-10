@@ -29,11 +29,31 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <errno.h>
+#include <stddef.h>
 /* #include <stdint.h> */ /* See archive_platform.h */
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+/* Obtain suitable wide-character manipulation functions. */
+#ifdef HAVE_WCHAR_H
 #include <wchar.h>
+#else
+static int wcscmp(const wchar_t *s1, const wchar_t *s2)
+{
+	int diff = *s1 - *s2;
+	while(*s1 && diff == 0)
+		diff = (int)*++s1 - (int)*++s2;
+	return diff;
+}
+static size_t wcslen(const wchar_t *s)
+{
+	const wchar_t *p = s;
+	while (*p)
+		p++;
+	return p - s;
+}
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -1079,11 +1099,12 @@ pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
 		}
 
 		/* Null-terminate 'key' value. */
-		key = tar->pax_entry;
+		wp = key = tar->pax_entry;
 		if (key[0] == L'=')
 			return (-1);
-		wp = wcschr(key, L'=');
-		if (wp == NULL) {
+		while (*wp && *wp != L'=')
+			++wp;
+		if (*wp == L'\0' || wp == NULL) {
 			archive_set_error(a, ARCHIVE_ERRNO_MISC,
 			    "Invalid pax extended attributes");
 			return (ARCHIVE_WARN);

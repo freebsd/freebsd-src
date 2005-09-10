@@ -33,11 +33,33 @@ __FBSDID("$FreeBSD$");
 #include <ext2fs/ext2_fs.h>	/* for Linux file flags */
 #endif
 #include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wchar.h>
 
+/* Obtain suitable wide-character manipulation functions. */
+#ifdef HAVE_WCHAR_H
+#include <wchar.h>
+#else
+static size_t wcslen(const wchar_t *s)
+{
+	const wchar_t *p = s;
+	while (*p != L'\0')
+		++p;
+	return p - s;
+}
+static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
+{
+	wchar_t *dest = s1;
+	while((*s1 = *s2) != L'\0')
+		++s1, ++s2;
+	return dest;
+}
+#define wmemcpy(a,b,i)  (wchar_t *)memcpy((a),(b),(i)*sizeof(wchar_t))
+/* Good enough for simple equality testing, but not for sorting. */
+#define wmemcmp(a,b,i)  memcmp((a),(b),(i)*sizeof(wchar_t))
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
