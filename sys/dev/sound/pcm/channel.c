@@ -107,7 +107,9 @@ chn_polltrigger(struct pcm_channel *c)
 			return (sndbuf_getblocks(bs) > sndbuf_getprevblocks(bs))? 1 : 0;
 	} else {
 		amt = (c->direction == PCMDIR_PLAY)? sndbuf_getfree(bs) : sndbuf_getready(bs);
+#if 0
 		lim = (c->flags & CHN_F_HAS_SIZE)? sndbuf_getblksz(bs) : 1;
+#endif
 		lim = 1;
 		return (amt >= lim)? 1 : 0;
 	}
@@ -227,11 +229,13 @@ chn_wrfeed(struct pcm_channel *c)
 	unsigned int ret, amt;
 
 	CHN_LOCKASSERT(c);
-/*    	DEB(
+#if 0
+    	DEB(
 	if (c->flags & CHN_F_CLOSING) {
 		sndbuf_dump(b, "b", 0x02);
 		sndbuf_dump(bs, "bs", 0x02);
-	}) */
+	})
+#endif
 
 	if (c->flags & CHN_F_MAPPED)
 		sndbuf_acquire(bs, NULL, sndbuf_getfree(bs));
@@ -379,6 +383,11 @@ chn_rddump(struct pcm_channel *c, unsigned int cnt)
     	struct snd_dbuf *b = c->bufhard;
 
 	CHN_LOCKASSERT(c);
+#if 0
+	static uint32_t kk = 0;
+	printf("%u: dumping %d bytes\n", ++kk, cnt);
+#endif
+	c->xruns++;
 	sndbuf_setxrun(b, sndbuf_getxrun(b) + cnt);
 	return sndbuf_dispose(b, NULL, cnt);
 }
@@ -401,11 +410,16 @@ chn_rdfeed(struct pcm_channel *c)
 		sndbuf_dump(bs, "bs", 0x02);
 	})
 
+#if 0
 	amt = sndbuf_getready(b);
 	if (sndbuf_getfree(bs) < amt) {
 		c->xruns++;
 		amt = sndbuf_getfree(bs);
 	}
+#endif
+	amt = sndbuf_getfree(bs);
+	if (amt < sndbuf_getready(b))
+		c->xruns++;
 	ret = (amt > 0)? sndbuf_feed(b, bs, c, c->feeder, amt) : 0;
 
 	amt = sndbuf_getready(b);
@@ -555,10 +569,12 @@ chn_start(struct pcm_channel *c, int force)
 		 * fed at the first irq.
 		 */
 		if (c->direction == PCMDIR_PLAY) {
+			/*
+			 * Reduce pops during playback startup.
+			 */
+			sndbuf_fillsilence(b);
 			if (SLIST_EMPTY(&c->children))
 				chn_wrfeed(c);
-			else
-				sndbuf_fillsilence(b);
 		}
 		sndbuf_setrun(b, 1);
 		c->xruns = 0;
@@ -755,10 +771,14 @@ chn_reset(struct pcm_channel *c, u_int32_t fmt)
 
 	r = CHANNEL_RESET(c->methods, c->devinfo);
 	if (fmt != 0) {
+#if 0
 		hwspd = DSP_DEFAULT_SPEED;
 		/* only do this on a record channel until feederbuilder works */
 		if (c->direction == PCMDIR_REC)
 			RANGE(hwspd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
+		c->speed = hwspd;
+#endif
+		hwspd = chn_getcaps(c)->minspeed;
 		c->speed = hwspd;
 
 		if (r == 0)
@@ -955,13 +975,8 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 		if (r)
 			goto out;
 
-		if (!(c->feederflags & (1 << FEEDER_RATE))) {
-			if (c->direction == PCMDIR_PLAY &&
-					!(c->flags & CHN_F_VIRTUAL))
-				r = CHANNEL_SETFORMAT(c->methods, c->devinfo,
-							c->feeder->desc->out);
+		if (!(c->feederflags & (1 << FEEDER_RATE)))
 			goto out;
-		}
 
 		r = EINVAL;
 		f = chn_findfeeder(c, FEEDER_RATE);
@@ -978,18 +993,12 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 		x = (c->direction == PCMDIR_REC)? bs : b;
 		r = FEEDER_SET(f, FEEDRATE_DST, sndbuf_getspd(x));
 		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", sndbuf_getspd(x), r));
-		if (c->direction == PCMDIR_PLAY && !(c->flags & CHN_F_VIRTUAL)
-				&& !((c->format & AFMT_S16_LE) &&
-						(c->format & AFMT_STEREO))) {
-			uint32_t fmt;
-
-			fmt = chn_fmtchain(c, chn_getcaps(c)->fmtlist);
-			if (fmt != 0)
-				r = CHANNEL_SETFORMAT(c->methods, c->devinfo, fmt);
-			else
-				r = EINVAL;
-		}
 out:
+		if (!r)
+			r = CHANNEL_SETFORMAT(c->methods, c->devinfo,
+							sndbuf_getfmt(b));
+		if (!r)
+			sndbuf_setfmt(bs, c->format);
 		DEB(printf("setspeed done, r = %d\n", r));
 		return r;
 	} else
@@ -1095,6 +1104,10 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 	}
 
 	reqblksz = blksz;
+	if (reqblksz < sndbuf_getbps(bs))
+		reqblksz = sndbuf_getbps(bs);
+	if (reqblksz % sndbuf_getbps(bs))
+		reqblksz -= reqblksz % sndbuf_getbps(bs);
 
 	/* adjust for different hw format/speed */
 	irqhz = (sndbuf_getbps(bs) * sndbuf_getspd(bs)) / blksz;
@@ -1158,6 +1171,24 @@ out1:
 	    blksz, maxsize, blkcnt));
 out:
 	c->flags &= ~CHN_F_SETBLOCKSIZE;
+#if 0
+	if (1) {
+		static uint32_t kk = 0;
+		printf("%u: b %d/%d/%d : (%d)%d/0x%0x | bs %d/%d/%d : (%d)%d/0x%0x\n", ++kk,
+			sndbuf_getsize(b), sndbuf_getblksz(b), sndbuf_getblkcnt(b),
+			sndbuf_getbps(b),
+			sndbuf_getspd(b), sndbuf_getfmt(b),
+			sndbuf_getsize(bs), sndbuf_getblksz(bs), sndbuf_getblkcnt(bs),
+			sndbuf_getbps(bs),
+			sndbuf_getspd(bs), sndbuf_getfmt(bs));
+		if (sndbuf_getsize(b) % sndbuf_getbps(b) ||
+				sndbuf_getblksz(b) % sndbuf_getbps(b) ||
+				sndbuf_getsize(bs) % sndbuf_getbps(bs) ||
+				sndbuf_getblksz(b) % sndbuf_getbps(b)) {
+			printf("%u: bps/blksz alignment screwed!\n", kk);
+		}
+	}
+#endif
 	return ret;
 }
 
@@ -1228,7 +1259,7 @@ chn_buildfeeder(struct pcm_channel *c)
 {
 	struct feeder_class *fc;
 	struct pcm_feederdesc desc;
-	u_int32_t tmp[2], type, flags, hwfmt;
+	u_int32_t tmp[2], type, flags, hwfmt, *fmtlist;
 	int err;
 
 	CHN_LOCKASSERT(c);
@@ -1249,8 +1280,13 @@ chn_buildfeeder(struct pcm_channel *c)
 		}
 		c->feeder->desc->out = c->format;
 	} else {
-		desc.type = FEEDER_MIXER;
-		desc.in = 0;
+		if (c->flags & CHN_F_HAS_VCHAN) {
+			desc.type = FEEDER_MIXER;
+			desc.in = 0;
+		} else {
+			DEB(printf("can't decide which feeder type to use!\n"));
+			return EOPNOTSUPP;
+		}
 		desc.out = c->format;
 		desc.flags = 0;
 		fc = feeder_getclass(&desc);
@@ -1268,6 +1304,7 @@ chn_buildfeeder(struct pcm_channel *c)
 		}
 	}
 	flags = c->feederflags;
+	fmtlist = chn_getcaps(c)->fmtlist;
 
 	DEB(printf("feederflags %x\n", flags));
 
@@ -1286,7 +1323,9 @@ chn_buildfeeder(struct pcm_channel *c)
 				return EOPNOTSUPP;
 			}
 
-			if (c->feeder->desc->out != fc->desc->in) {
+			if ((type == FEEDER_RATE &&
+					!fmtvalid(fc->desc->in, fmtlist))
+					|| c->feeder->desc->out != fc->desc->in) {
  				DEB(printf("build fmtchain from 0x%x to 0x%x: ", c->feeder->desc->out, fc->desc->in));
 				tmp[0] = fc->desc->in;
 				tmp[1] = 0;
@@ -1308,28 +1347,23 @@ chn_buildfeeder(struct pcm_channel *c)
 		}
 	}
 
-	if (fmtvalid(c->feeder->desc->out, chn_getcaps(c)->fmtlist)) {
+	if (fmtvalid(c->feeder->desc->out, fmtlist)
+			&& !(c->direction == PCMDIR_REC &&
+				c->format != c->feeder->desc->out))
 		hwfmt = c->feeder->desc->out;
-	} else {
+	else {
 		if (c->direction == PCMDIR_REC) {
 			tmp[0] = c->format;
 			tmp[1] = 0;
 			hwfmt = chn_fmtchain(c, tmp);
-		} else {
-#if 0
-			u_int32_t *x = chn_getcaps(c)->fmtlist;
-			printf("acceptable formats for %s:\n", c->name);
-			while (*x) {
-				printf("[0x%8x] ", *x);
-				x++;
-			}
-#endif
-			hwfmt = chn_fmtchain(c, chn_getcaps(c)->fmtlist);
-		}
+		} else
+			hwfmt = chn_fmtchain(c, fmtlist);
 	}
 
-	if (hwfmt == 0)
+	if (hwfmt == 0 || !fmtvalid(hwfmt, fmtlist)) {
+		DEB(printf("Invalid hardware format: 0x%x\n", hwfmt));
 		return ENODEV;
+	}
 
 	sndbuf_setfmt(c->bufhard, hwfmt);
 
