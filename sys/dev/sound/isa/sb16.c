@@ -494,7 +494,7 @@ static void
 sb_intr(void *arg)
 {
     	struct sb_info *sb = (struct sb_info *)arg;
-    	int reason = 3, c;
+    	int reason, c;
 
     	/*
      	 * The Vibra16X has separate flags for 8 and 16 bit transfers, but
@@ -570,8 +570,9 @@ sb_setup(struct sb_info *sb)
 	sb_reset_dsp(sb);
 
 	if (sb->bd_flags & BD_F_SB16X) {
+		/* full-duplex doesn't work! */
 		pprio = sb->pch.run? 1 : 0;
-		sndbuf_dmasetup(sb->pch.buffer, pprio? sb->drq1 : NULL);
+		sndbuf_dmasetup(sb->pch.buffer, pprio? sb->drq1 : sb->drq2);
 		sb->pch.dch = pprio? 1 : 0;
 		sndbuf_dmasetup(sb->rch.buffer, pprio? sb->drq2 : sb->drq1);
 		sb->rch.dch = pprio? 2 : 1;
