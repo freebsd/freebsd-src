@@ -29,8 +29,6 @@
 #ifndef ARCHIVE_PRIVATE_H_INCLUDED
 #define	ARCHIVE_PRIVATE_H_INCLUDED
 
-#include <wchar.h>
-
 #include "archive.h"
 #include "archive_string.h"
 
