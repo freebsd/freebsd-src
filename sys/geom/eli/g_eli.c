@@ -227,7 +227,7 @@ g_eli_write_done(struct bio *bp)
 	if (pbp->bio_error == 0)
 		pbp->bio_completed = pbp->bio_length;
 	else {
-		G_ELI_LOGREQ(0, pbp, "Crypto READ request failed (error=%d).",
+		G_ELI_LOGREQ(0, pbp, "Crypto WRITE request failed (error=%d).",
 		    pbp->bio_error);
 		pbp->bio_completed = 0;
 	}
