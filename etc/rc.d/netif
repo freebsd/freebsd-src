@@ -51,6 +51,9 @@ network_start()
 		# We're operating as a general network start routine.
 		#
 
+		# disable SIGINT (Ctrl-c) when running at startup
+		trap : 2
+
 		# Create cloned interfaces
 		clone_up
 
@@ -102,9 +105,6 @@ network_common()
 	fi
 	[ -n "$2" ] && _verbose=yes
 
-	# Get a list of network interfaces.
-	_ifn_list="`list_net_interfaces`"
-
 	# Set the scope of the command (all interfaces or just one).
 	#
 	_cooked_list=
@@ -114,7 +114,7 @@ network_common()
 		# kill off wpa_supplicant.
 		_cooked_list="$_cmdifn"
 	else
-		_cooked_list="$_ifn_list"
+		_cooked_list="`list_net_interfaces`"
 	fi
 
 	for ifn in ${_cooked_list}; do
