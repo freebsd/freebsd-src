@@ -82,13 +82,21 @@ feed_vchan_s16(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32
 	struct snd_dbuf *src = source;
 	struct pcmchan_children *cce;
 	struct pcm_channel *ch;
+	uint32_t sz;
 	int16_t *tmp, *dst;
-	unsigned int cnt;
+	unsigned int cnt, rcnt = 0;
 
+	#if 0
 	if (sndbuf_getsize(src) < count)
 		panic("feed_vchan_s16(%s): tmp buffer size %d < count %d, flags = 0x%x",
 		    c->name, sndbuf_getsize(src), count, c->flags);
+	#endif
+	sz = sndbuf_getsize(src);
+	if (sz < count)
+		count = sz;
 	count &= ~1;
+	if (count < 2)
+		return 0;
 	bzero(b, count);
 
 	/*
@@ -107,12 +115,14 @@ feed_vchan_s16(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32
 			if (ch->flags & CHN_F_MAPPED)
 				sndbuf_acquire(ch->bufsoft, NULL, sndbuf_getfree(ch->bufsoft));
 			cnt = FEEDER_FEED(ch->feeder, ch, (u_int8_t *)tmp, count, ch->bufsoft);
-			vchan_mix_s16(dst, tmp, cnt / 2);
+			vchan_mix_s16(dst, tmp, cnt >> 1);
+			if (cnt > rcnt)
+				rcnt = cnt;
 		}
    		CHN_UNLOCK(ch);
 	}
 
-	return count;
+	return rcnt & ~1;
 }
 
 static struct pcm_feederdesc feeder_vchan_s16_desc[] = {
@@ -135,6 +145,8 @@ vchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c,
 
 	KASSERT(dir == PCMDIR_PLAY, ("vchan_init: bad direction"));
 	ch = malloc(sizeof(*ch), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (!ch)
+		return NULL;
 	ch->parent = parent;
 	ch->channel = c;
 	ch->fmt = AFMT_U8;
@@ -171,6 +183,7 @@ vchan_setformat(kobj_t obj, void *data, u_int32_t format)
    	CHN_UNLOCK(channel);
 	chn_notify(parent, CHN_N_FORMAT);
    	CHN_LOCK(channel);
+	sndbuf_setfmt(channel->bufsoft, format);
 	return 0;
 }
 
@@ -192,12 +205,14 @@ static int
 vchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct vchinfo *ch = data;
+	struct pcm_channel *channel = ch->channel;
 	struct pcm_channel *parent = ch->parent;
 	/* struct pcm_channel *channel = ch->channel; */
 	int prate, crate;
 
 	ch->blksz = blocksize;
    	/* CHN_UNLOCK(channel); */
+	sndbuf_setblksz(channel->bufhard, blocksize);
 	chn_notify(parent, CHN_N_BLOCKSIZE);
    	CHN_LOCK(parent);
    	/* CHN_LOCK(channel); */
@@ -264,23 +279,14 @@ sysctl_hw_snd_vchanrate(SYSCTL_HANDLER_ARGS)
 {
 	struct snddev_info *d;
     	struct snddev_channel *sce;
-	struct pcm_channel *c, *fake;
+	struct pcm_channel *c, *ch = NULL, *fake;
 	struct pcmchan_caps *caps;
 	int err = 0;
-	int errcnt = 0;
-	int found = 0;
 	int newspd = 0;
-	int success = 0;
 
 	d = oidp->oid_arg1;
-	if (pcm_inprog(d, 1) != 1) {
-		pcm_inprog(d, -1);
-		return EINPROGRESS;
-	}
-	if (d->vchancount < 1) {
-		pcm_inprog(d, -1);
+	if (!(d->flags & SD_F_AUTOVCHAN) || d->vchancount < 1)
 		return EINVAL;
-	}
 	SLIST_FOREACH(sce, &d->channels, link) {
 		c = sce->channel;
 		CHN_LOCK(c);
@@ -289,75 +295,52 @@ sysctl_hw_snd_vchanrate(SYSCTL_HANDLER_ARGS)
 				if (req->newptr != NULL &&
 						(c->flags & CHN_F_BUSY)) {
 					CHN_UNLOCK(c);
-					pcm_inprog(d, -1);
 					return EBUSY;
 				}
-			} else if (!SLIST_EMPTY(&c->children)) {
-				if (found++ == 0)
-					newspd = c->speed;
+				if (ch == NULL)
+					ch = c->parentchannel;
 			}
 		}
 		CHN_UNLOCK(c);
 	}
-	if (found < 1) {
-		pcm_inprog(d, -1);
-		return EINVAL;
+	if (ch != NULL) {
+		CHN_LOCK(ch);
+		newspd = ch->speed;
+		CHN_UNLOCK(ch);
 	}
 	err = sysctl_handle_int(oidp, &newspd, sizeof(newspd), req);
 	if (err == 0 && req->newptr != NULL) {
-		if (newspd < 1) {
+		if (ch == NULL || newspd < 1 ||
+				newspd < feeder_rate_ratemin ||
+				newspd > feeder_rate_ratemax)
+			return EINVAL;
+		if (pcm_inprog(d, 1) != 1) {
+			pcm_inprog(d, -1);
+			return EINPROGRESS;
+		}
+		CHN_LOCK(ch);
+		caps = chn_getcaps(ch);
+		if (caps == NULL || newspd < caps->minspeed ||
+				newspd > caps->maxspeed) {
+			CHN_UNLOCK(ch);
 			pcm_inprog(d, -1);
 			return EINVAL;
 		}
-		SLIST_FOREACH(sce, &d->channels, link) {
-			c = sce->channel;
-			CHN_LOCK(c);
-			if (c->direction == PCMDIR_PLAY) {
-				if (c->flags & CHN_F_VIRTUAL) {
-					if (c->flags & CHN_F_BUSY) {
-						CHN_UNLOCK(c);
-						pcm_inprog(d, -1);
-						return EBUSY;
-					}
-				} else if (!SLIST_EMPTY(&c->children)) {
-					caps = chn_getcaps(c);
-					if (caps != NULL) {
-						if (newspd < caps->minspeed ||
-								newspd > caps->maxspeed ||
-								newspd < feeder_rate_ratemin ||
-								newspd > feeder_rate_ratemax) {
-							errcnt++;
-						} else {
-							if (newspd != c->speed) {
-								err = chn_setspeed(c, newspd);
-								if (err != 0)
-									errcnt++;
-								else
-									success++;
-							} else
-								success++;
-						}
-					} else
-						errcnt++;
+		if (newspd != ch->speed) {
+			err = chn_setspeed(ch, newspd);
+			CHN_UNLOCK(ch);
+			if (err == 0) {
+				fake = pcm_getfakechan(d);
+				if (fake != NULL) {
+					CHN_LOCK(fake);
+					fake->speed = newspd;
+					CHN_UNLOCK(fake);
 				}
 			}
-			CHN_UNLOCK(c);
-		}
-		/*
-		 * Save new value to fake channel.
-		 */
-		if (success > 0) {
-			fake = pcm_getfakechan(d);
-			if (fake != NULL) {
-				CHN_LOCK(fake);
-				fake->speed = newspd;
-				CHN_UNLOCK(fake);
-			}
-		}
+		} else
+			CHN_UNLOCK(ch);
+		pcm_inprog(d, -1);
 	}
-	pcm_inprog(d, -1);
-	if (errcnt > 0)
-		err = EINVAL;
 	return err;
 }
 #endif
@@ -369,10 +352,15 @@ vchan_create(struct pcm_channel *parent)
 {
     	struct snddev_info *d = parent->parentsnddev;
 	struct pcmchan_children *pce;
-	struct pcm_channel *child;
-	int err, first;
+	struct pcm_channel *child, *fake;
+	struct pcmchan_caps *parent_caps;
+	int err, first, speed = 0;
 
-   	CHN_UNLOCK(parent);
+	if (!(parent->flags & CHN_F_BUSY))
+		return EBUSY;
+
+
+	CHN_UNLOCK(parent);
 
 	pce = malloc(sizeof(*pce), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (!pce) {
@@ -387,16 +375,7 @@ vchan_create(struct pcm_channel *parent)
    		CHN_LOCK(parent);
 		return ENODEV;
 	}
-
-   	CHN_LOCK(parent);
-	if (!(parent->flags & CHN_F_BUSY))
-		return EBUSY;
-
-	first = SLIST_EMPTY(&parent->children);
-	/* add us to our parent channel's children */
 	pce->channel = child;
-	SLIST_INSERT_HEAD(&parent->children, pce, link);
-	CHN_UNLOCK(parent);
 
 	/* add us to our grandparent's channel list */
 	/*
@@ -406,44 +385,55 @@ vchan_create(struct pcm_channel *parent)
 	if (err) {
 		pcm_chn_destroy(child);
 		free(pce, M_DEVBUF);
+		CHN_LOCK(parent);
+		return err;
 	}
 
    	CHN_LOCK(parent);
-	/* XXX gross ugly hack, murder death kill */
-	if (first && !err) {
-		struct pcm_channel *fake;
-		struct pcmchan_caps *parent_caps;
-		int speed = 0;
+	/* add us to our parent channel's children */
+	first = SLIST_EMPTY(&parent->children);
+	SLIST_INSERT_HEAD(&parent->children, pce, link);
+	parent->flags |= CHN_F_HAS_VCHAN;
 
-		err = chn_reset(parent, AFMT_STEREO | AFMT_S16_LE);
-		if (err)
-			printf("chn_reset: %d\n", err);
-
-		fake = pcm_getfakechan(d);
-		if (fake != NULL) {
-			/*
-			 * Trying to avoid querying kernel hint, previous
-			 * value already saved here.
-			 */
-			CHN_LOCK(fake);
-			speed = fake->speed;
-			CHN_UNLOCK(fake);
-		}
-		/*
-		 * This is very sad. Few soundcards advertised as being
-		 * able to do (insanely) higher/lower speed, but in
-		 * reality, they simply can't. At least, we give user chance
-		 * to set sane value via kernel hints file or sysctl.
-		 */
-		if (speed < 1 && resource_int_value(device_get_name(parent->dev),
-				device_get_unit(parent->dev),
-				"vchanrate", &speed) != 0) {
-			speed = VCHAN_DEFAULT_SPEED;
-		}
-
+	if (first) {
 		parent_caps = chn_getcaps(parent);
+		if (parent_caps == NULL)
+			err = EINVAL;
 
-		if (parent_caps != NULL) {
+		if (!err)
+			err = chn_reset(parent, AFMT_STEREO | AFMT_S16_LE);
+
+		if (!err) {
+			fake = pcm_getfakechan(d);
+			if (fake != NULL) {
+				/*
+				 * Avoid querying kernel hint, use saved value
+				 * from fake channel.
+				 */
+				CHN_UNLOCK(parent);
+				CHN_LOCK(fake);
+				speed = fake->speed;
+				CHN_UNLOCK(fake);
+				CHN_LOCK(parent);
+			}
+
+			/*
+			 * This is very sad. Few soundcards advertised as being
+			 * able to do (insanely) higher/lower speed, but in
+			 * reality, they simply can't. At least, we give user chance
+			 * to set sane value via kernel hints or sysctl.
+			 */
+			if (speed < 1) {
+				int r;
+				CHN_UNLOCK(parent);
+				r = resource_int_value(device_get_name(parent->dev),
+							device_get_unit(parent->dev),
+								"vchanrate", &speed);
+				CHN_LOCK(parent);
+				if (r != 0)
+					speed = VCHAN_DEFAULT_SPEED;
+			}
+
 			/*
 			 * Limit speed based on driver caps.
 			 * This is supposed to help fixed rate, non-VRA
@@ -453,35 +443,45 @@ vchan_create(struct pcm_channel *parent)
 				speed = parent_caps->minspeed;
 			if (speed > parent_caps->maxspeed)
 				speed = parent_caps->maxspeed;
-		}
 
-		/*
-		 * We still need to limit the speed between
-		 * feeder_rate_ratemin <-> feeder_rate_ratemax. This is
-		 * just an escape goat if all of the above failed
-		 * miserably.
-		 */
-		if (speed < feeder_rate_ratemin)
-			speed = feeder_rate_ratemin;
-		if (speed > feeder_rate_ratemax)
-			speed = feeder_rate_ratemax;
+			/*
+			 * We still need to limit the speed between
+			 * feeder_rate_ratemin <-> feeder_rate_ratemax. This is
+			 * just an escape goat if all of the above failed
+			 * miserably.
+			 */
+			if (speed < feeder_rate_ratemin)
+				speed = feeder_rate_ratemin;
+			if (speed > feeder_rate_ratemax)
+				speed = feeder_rate_ratemax;
 
-		err = chn_setspeed(parent, speed);
-		if (err)
-			printf("chn_setspeed: %d\n", err);
-		else {
-			if (fake != NULL) {
+			err = chn_setspeed(parent, speed);
+
+			if (!err && fake != NULL) {
 				/*
 				 * Save new value to fake channel.
 				 */
+				CHN_UNLOCK(parent);
 				CHN_LOCK(fake);
 				fake->speed = speed;
 				CHN_UNLOCK(fake);
+				CHN_LOCK(parent);
 			}
+		}
+		
+		if (err) {
+			SLIST_REMOVE(&parent->children, pce, pcmchan_children, link);
+			parent->flags &= ~CHN_F_HAS_VCHAN;
+			CHN_UNLOCK(parent);
+			free(pce, M_DEVBUF);
+			pcm_chn_remove(d, child);
+			pcm_chn_destroy(child);
+			CHN_LOCK(parent);
+			return err;
 		}
 	}
 
-	return err;
+	return 0;
 }
 
 int
@@ -490,6 +490,7 @@ vchan_destroy(struct pcm_channel *c)
 	struct pcm_channel *parent = c->parentchannel;
     	struct snddev_info *d = parent->parentsnddev;
 	struct pcmchan_children *pce;
+	struct snddev_channel *sce;
 	int err, last;
 
 	CHN_LOCK(parent);
@@ -510,23 +511,44 @@ vchan_destroy(struct pcm_channel *c)
 	CHN_UNLOCK(parent);
 	return EINVAL;
 gotch:
+	SLIST_FOREACH(sce, &d->channels, link) {
+		if (sce->channel == c) {
+			if (sce->dsp_devt)
+				destroy_dev(sce->dsp_devt);
+			if (sce->dspW_devt)
+				destroy_dev(sce->dspW_devt);
+			if (sce->audio_devt)
+				destroy_dev(sce->audio_devt);
+			if (sce->dspr_devt)
+				destroy_dev(sce->dspr_devt);
+			break;
+		}
+	}
 	SLIST_REMOVE(&parent->children, pce, pcmchan_children, link);
 	free(pce, M_DEVBUF);
 
 	last = SLIST_EMPTY(&parent->children);
-	if (last)
+	if (last) {
 		parent->flags &= ~CHN_F_BUSY;
+		parent->flags &= ~CHN_F_HAS_VCHAN;
+	}
 
 	/* remove us from our grandparent's channel list */
 	err = pcm_chn_remove(d, c);
-	if (err) {
-		CHN_UNLOCK(parent);
-		return err;
-	}
 
 	CHN_UNLOCK(parent);
 	/* destroy ourselves */
-	err = pcm_chn_destroy(c);
+	if (!err)
+		err = pcm_chn_destroy(c);
+
+#if 0
+	if (!err && last) {
+		CHN_LOCK(parent);
+		chn_reset(parent, chn_getcaps(parent)->fmtlist[0]);
+		chn_setspeed(parent, chn_getcaps(parent)->minspeed);
+		CHN_UNLOCK(parent);
+	}
+#endif
 
 	return err;
 }
@@ -548,5 +570,3 @@ vchan_initsys(device_t dev)
 
 	return 0;
 }
-
-
