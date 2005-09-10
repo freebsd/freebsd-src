@@ -612,6 +612,18 @@ ext2_mountfs(devvp, mp, td)
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
+
+	/* XXX: should we check for some sectorsize or 512 instead? */
+	if (((SBSIZE % cp->provider->sectorsize) != 0) ||
+	    (SBSIZE < cp->provider->sectorsize)) {
+		DROP_GIANT();
+		g_topology_lock();
+		g_vfs_close(cp, td);
+		g_topology_unlock();
+		PICKUP_GIANT();
+		return (EINVAL);
+	}
+
 	bo = &devvp->v_bufobj;
 	bo->bo_private = cp;
 	bo->bo_ops = g_vfs_bufops;
