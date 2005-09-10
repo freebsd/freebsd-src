@@ -320,7 +320,10 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 	i = 0;
 	best = 0;
 	bestmax = 100;
-	while (from[i] != 0) {
+	while (from[i] != 0)
+		i++;
+	while (i > 0) {
+		i--;
 		c->feeder->desc->out = from[i];
 		try = NULL;
 		max = 0;
@@ -338,7 +341,6 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 			try = try->source;
 			feeder_destroy(del);
 		}
-		i++;
 	}
 	if (best == 0)
 		return 0;
@@ -371,7 +373,16 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 	printf("%s [%d]\n", try->class->name, try->desc->idx);
 #endif
 
-	return (c->direction == PCMDIR_REC)? best : c->feeder->desc->out;
+	if (c->direction == PCMDIR_REC) {
+		try = c->feeder;
+		while (try != NULL) {
+			if (try->desc->type == FEEDER_ROOT)
+				return try->desc->out;
+			try = try->source;
+		}
+		return best;
+	} else
+		return c->feeder->desc->out;
 }
 
 void
