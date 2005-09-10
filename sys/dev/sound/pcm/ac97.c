@@ -118,6 +118,11 @@ static const struct ac97_vendorid ac97vendorid[] = {
 	{ 0x57454300, "Winbond" },
 	{ 0x574d4c00, "Wolfson" },
 	{ 0x594d4800, "Yamaha" },
+	/* 
+	 * XXX This is a fluke, really! The real vendor
+	 * should be SigmaTel, not this! This should be
+	 * removed someday!
+	 */
 	{ 0x01408300, "Creative" },
 	{ 0x00000000, NULL }
 };
@@ -211,6 +216,11 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x594d4800, 0x00, 0, "YMF743",	0 },
 	{ 0x594d4802, 0x00, 0, "YMF752",	0 },
 	{ 0x594d4803, 0x00, 0, "YMF753",	0 },
+	/* 
+	 * XXX This is a fluke, really! The real codec
+	 * should be STAC9704, not this! This should be
+	 * removed someday!
+	 */
 	{ 0x01408384, 0x00, 0, "EV1938",	0 },
 	{ 0, 0, 0, NULL, 0 }
 };
@@ -283,6 +293,21 @@ static char *ac97extfeature[] = {
 u_int16_t
 ac97_rdcd(struct ac97_info *codec, int reg)
 {
+	if (codec->flags & AC97_F_RDCD_BUG) {
+		u_int16_t i[2], j = 100;
+
+		i[0] = AC97_READ(codec->methods, codec->devinfo, reg);
+		i[1] = AC97_READ(codec->methods, codec->devinfo, reg);
+		while (i[0] != i[1] && j)
+			i[j-- & 1] = AC97_READ(codec->methods, codec->devinfo, reg);
+#if 0
+		if (j < 100) {
+			device_printf(codec->dev, "%s(): Inconsistent register value at"
+					" 0x%08x (retry: %d)\n", __func__, reg, 100 - j);
+		}
+#endif
+		return i[!(j & 1)];
+	}
 	return AC97_READ(codec->methods, codec->devinfo, reg);
 }
 
@@ -452,14 +477,16 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 		 */
 		snd_mtxlock(codec->lock);
 		if (e->mask) {
-			int cur = ac97_rdcd(codec, e->reg);
+			int cur = ac97_rdcd(codec, reg);
 			val |= cur & ~(mask);
 		}
 		ac97_wrcd(codec, reg, val);
 		snd_mtxunlock(codec->lock);
 		return left | (right << 8);
 	} else {
-		/* printf("ac97_setmixer: reg=%d, bits=%d, enable=%d\n", e->reg, e->bits, e->enable); */
+#if 0
+		printf("ac97_setmixer: reg=%d, bits=%d, enable=%d\n", e->reg, e->bits, e->enable);
+#endif
 		return -1;
 	}
 }
@@ -536,8 +563,9 @@ ac97_initmixer(struct ac97_info *codec)
 	const char *cname, *vname;
 	char desc[80];
 	u_int8_t model, step;
-	unsigned i, j, k, old;
+	unsigned i, j, k, bit, old;
 	u_int32_t id;
+	int reg;
 
 	snd_mtxlock(codec->lock);
 	codec->count = AC97_INIT(codec->methods, codec->devinfo);
@@ -552,6 +580,16 @@ ac97_initmixer(struct ac97_info *codec)
 	ac97_wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 
 	i = ac97_rdcd(codec, AC97_REG_RESET);
+	j = ac97_rdcd(codec, AC97_REG_RESET);
+	/*
+	 * Let see if this codec can return consistent value.
+	 * If not, turn on aggressive read workaround
+	 * (STAC9704 comes in mind).
+	 */
+	if (i != j) {
+		codec->flags |= AC97_F_RDCD_BUG;
+		i = ac97_rdcd(codec, AC97_REG_RESET);
+	}
 	codec->caps = i & 0x03ff;
 	codec->se =  (i & 0x7c00) >> 10;
 
@@ -610,36 +648,55 @@ ac97_initmixer(struct ac97_info *codec)
 
 	for (i = 0; i < 32; i++) {
 		k = codec->noext? codec->mix[i].enable : 1;
-		if (k && (codec->mix[i].reg > 0)) {
-			j = old = ac97_rdcd(codec, codec->mix[i].reg);
-			if (!(j & 0x8000)) {
-				ac97_wrcd(codec, codec->mix[i].reg, j | 0x8000);
-				j = ac97_rdcd(codec, codec->mix[i].reg);
-			}
+		reg = codec->mix[i].reg;
+		if (reg < 0)
+			reg = -reg;
+		if (k && reg) {
+			j = old = ac97_rdcd(codec, reg);
+			/*
+			 * Test for mute bit (except for AC97_MIX_TONE,
+			 * where we simply assume it as available).
+			 */
+			if (codec->mix[i].mute) {
+				ac97_wrcd(codec, reg, j | 0x8000);
+				j = ac97_rdcd(codec, reg);
+			} else
+				j |= 0x8000;
 			if ((j & 0x8000)) {
-				j = ((1 << 6) - 1) << codec->mix[i].ofs;
-				if (codec->mix[i].mute)
-					j |= 0x8000;
-				ac97_wrcd(codec, codec->mix[i].reg, j);
-				j = ac97_rdcd(codec, codec->mix[i].reg) & j;
-				j >>= codec->mix[i].ofs;
-				if (codec->mix[i].reg == AC97_MIX_TONE &&
-						((j & 0x0001) == 0x0000))
-					j >>= 1;
-				for (k = 0; j != 0; k++)
-					j >>= 1;
-				for (j = 0; k != 0; j++)
+				/*
+				 * Test whether the control width should be
+				 * 4, 5 or 6 bit. For 5bit register, we should
+				 * test it whether it's really 5 or 6bit. Leave
+				 * 4bit register alone, because sometimes an
+				 * attempt to write past 4th bit may cause
+				 * incorrect result especially for AC97_MIX_BEEP
+				 * (ac97 2.3).
+				 */
+				bit = codec->mix[i].bits;
+				if (bit == 5)
+					bit++;
+				j = ((1 << bit) - 1) << codec->mix[i].ofs;
+				ac97_wrcd(codec, reg,
+					j | (codec->mix[i].mute ? 0x8000 : 0));
+				k = ac97_rdcd(codec, reg) & j;
+				k >>= codec->mix[i].ofs;
+				if (reg == AC97_MIX_TONE &&
+							((k & 0x0001) == 0x0000))
 					k >>= 1;
+				for (j = 0; k >> j; j++)
+					;
 				if (j != 0) {
-					codec->mix[i].enable = 1;
 #if 0
-					codec->mix[i].bits = j;
+					device_printf(codec->dev, "%2d: [ac97_rdcd() = %d] [Testbit = %d] %d -> %d\n",
+						i, k, bit, codec->mix[i].bits, j);
 #endif
+					codec->mix[i].enable = 1;
+					codec->mix[i].bits = j;
 				} else
 					codec->mix[i].enable = 0;
 			} else
 				codec->mix[i].enable = 0;
-			ac97_wrcd(codec, codec->mix[i].reg, old);
+			ac97_wrcd(codec, reg, old);
 		}
 #if 0
 		printf("mixch %d, en=%d, b=%d\n", i, codec->mix[i].enable, codec->mix[i].bits);
@@ -650,6 +707,8 @@ ac97_initmixer(struct ac97_info *codec)
 		      ac97_hw_desc(codec->id, vname, cname, desc));
 
 	if (bootverbose) {
+		if (codec->flags & AC97_F_RDCD_BUG)
+			device_printf(codec->dev, "Buggy AC97 Codec: aggressive ac97_rdcd() workaround enabled\n");
 		device_printf(codec->dev, "Codec features ");
 		for (i = j = 0; i < 10; i++)
 			if (codec->caps & (1 << i))

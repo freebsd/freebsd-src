@@ -81,6 +81,7 @@
 #define AC97_REG_ID2	0x7e
 
 #define	AC97_F_EAPD_INV		0x00000001
+#define	AC97_F_RDCD_BUG		0x00000002
 
 #define AC97_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))
 #define AC97_CREATE(dev, devinfo, cls) ac97_create(dev, devinfo, &cls ## _class)
