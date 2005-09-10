@@ -347,7 +347,6 @@ archive_read_header_position(struct archive *a)
 ssize_t
 archive_read_data(struct archive *a, void *buff, size_t s)
 {
-	off_t	 remaining;
 	char	*dest;
 	size_t	 bytes_read;
 	size_t	 len;
@@ -364,26 +363,26 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 			    &a->read_data_offset);
 			if (r == ARCHIVE_EOF)
 				return (bytes_read);
-			if (r != ARCHIVE_OK)
+			/*
+			 * Error codes are all negative, so the status
+			 * return here cannot be confused with a valid
+			 * byte count.  (ARCHIVE_OK is zero.)
+			 */
+			if (r < ARCHIVE_OK)
 				return (r);
 		}
 
 		if (a->read_data_offset < a->read_data_output_offset) {
-			remaining =
-			    a->read_data_output_offset - a->read_data_offset;
-			if (remaining > (off_t)s)
-				remaining = (off_t)s;
-			len = (size_t)remaining;
-			memset(dest, 0, len);
-			a->read_data_output_offset += len;
-			s -= len;
-			bytes_read += len;
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Encountered out-of-order sparse blocks");
+			return (ARCHIVE_RETRY);
 		} else {
 			len = a->read_data_remaining;
 			if (len > s)
 				len = s;
 			memcpy(dest, a->read_data_block, len);
 			s -= len;
+			a->read_data_block += len;
 			a->read_data_remaining -= len;
 			a->read_data_output_offset += len;
 			a->read_data_offset += len;
@@ -391,7 +390,7 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 			bytes_read += len;
 		}
 	}
-	return (ARCHIVE_OK);
+	return (bytes_read);
 }
 
 /*
