@@ -43,16 +43,23 @@ ifconfig_up()
 
 	ifconfig_args=`ifconfig_getargs $1`
 	if [ -n "${ifconfig_args}" ]; then
-		ifconfig $1 ${ifconfig_args}
+		ifconfig $1 up
+		eval "ifconfig $1 ${ifconfig_args}"
 		_cfg=0
 	fi
 
 	if wpaif $1; then
+		if [ $_cfg -ne 0 ] ; then
+			ifconfig $1 up
+		fi
 		/etc/rc.d/wpa_supplicant start $1
 		_cfg=0		# XXX: not sure this should count
 	fi
 
 	if dhcpif $1; then
+		if [ $_cfg -ne 0 ] ; then
+			ifconfig $1 up
+		fi
 		/etc/rc.d/dhclient start $1
 		_cfg=0
 	fi
@@ -112,10 +119,7 @@ _ifconfig_getargs()
 		return 1
 	fi
 
-	eval _args=\$ifconfig_$1
-	if [ -z "$_args" ]; then
-		_args=$ifconfig_DEFAULT
-	fi
+	eval _args=\${ifconfig_$1-$ifconfig_DEFAULT}
 
 	echo "$_args"
 }
@@ -135,6 +139,8 @@ ifconfig_getargs()
 		case $_arg in
 		[Dd][Hh][Cc][Pp])
 			;;
+		[Nn][Oo][Aa][Uu][Tt][Oo])
+			;;
 		[Ww][Pp][Aa])
 			;;
 		*)
@@ -144,6 +150,22 @@ ifconfig_getargs()
 	done
 
 	echo $_args
+}
+
+# autoif
+#	Returns 0 if the interface should be automaticly configured at
+#	boot time and 1 otherwise.
+autoif()
+{
+	_tmpargs=`_ifconfig_getargs $1`
+	for _arg in $_tmpargs; do
+		case $_arg in
+		[Nn][Oo][Aa][Uu][Tt][Oo])
+			return 1
+			;;
+		esac
+	done
+	return 0
 }
 
 # dhcpif if
@@ -382,14 +404,27 @@ list_net_interfaces()
 {
 	type=$1
 
-	# Get a list of ALL the interfaces
+	# Get a list of ALL the interfaces and make lo0 first if it's there.
 	#
 	case ${network_interfaces} in
 	[Aa][Uu][Tt][Oo])
-		_tmplist="`ifconfig -l`"
+		_prefix=''
+		_autolist="`ifconfig -l`"
+		_lo=
+		for _if in ${_autolist} ; do
+			if autoif $_if; then
+				if [ "$_if" = "lo0" ]; then
+					_lo="lo0 "
+				else
+					_tmplist="${_tmplist}${_prefix}${_if}"
+					[ -z "$_prefix" ] && _prefix=' '
+				fi
+			fi
+		done
+		_tmplist="${_lo}${_tmplist}"
 		;;
 	*)
-		_tmplist="${network_interfaces} ${removable_interfaces} ${cloned_interfaces}"
+		_tmplist="${network_interfaces} ${cloned_interfaces}"
 		;;
 	esac
 
