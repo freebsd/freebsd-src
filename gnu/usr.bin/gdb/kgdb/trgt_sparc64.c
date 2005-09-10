@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <machine/asm.h>
 #include <machine/pcb.h>
+#include <machine/frame.h>
 #include <err.h>
 #include <kvm.h>
 #include <string.h>
@@ -72,10 +73,42 @@ kgdb_trgt_store_registers(int regno __unused)
 	fprintf_unfiltered(gdb_stderr, "XXX: %s\n", __func__);
 }
 
+struct kgdb_frame_cache {
+	CORE_ADDR	pc;
+	CORE_ADDR	sp;
+	CORE_ADDR	fp;
+};
+
+static struct kgdb_frame_cache *
+kgdb_trgt_frame_cache(struct frame_info *next_frame, void **this_cache)
+{
+	char buf[MAX_REGISTER_SIZE];
+	struct kgdb_frame_cache *cache;
+
+	cache = *this_cache;
+	if (cache == NULL) {
+		cache = FRAME_OBSTACK_ZALLOC(struct kgdb_frame_cache);
+		*this_cache = cache;
+		cache->pc = frame_func_unwind(next_frame);
+		frame_unwind_register(next_frame, SPARC_SP_REGNUM, buf);
+		cache->sp = extract_unsigned_integer(buf,
+		    register_size(current_gdbarch, SPARC_SP_REGNUM));
+		frame_unwind_register(next_frame, SPARC_FP_REGNUM, buf);
+		cache->fp = extract_unsigned_integer(buf,
+		    register_size(current_gdbarch, SPARC_FP_REGNUM));
+		cache->fp += BIAS - sizeof(struct trapframe);
+	}
+	return (cache);
+}
+
 static void
 kgdb_trgt_trapframe_this_id(struct frame_info *next_frame, void **this_cache,
     struct frame_id *this_id)
 {
+	struct kgdb_frame_cache *cache;
+
+	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
+	*this_id = frame_id_build(cache->sp, cache->pc);
 }
 
 static void
@@ -83,6 +116,55 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
     void **this_cache, int regnum, int *optimizedp, enum lval_type *lvalp,
     CORE_ADDR *addrp, int *realnump, void *valuep)
 {
+	char dummy_valuep[MAX_REGISTER_SIZE];
+	struct kgdb_frame_cache *cache;
+	int ofs, regsz;
+
+	regsz = register_size(current_gdbarch, regnum);
+
+	if (valuep == NULL)
+		valuep = dummy_valuep;
+	memset(valuep, 0, regsz);
+	*optimizedp = 0;
+	*addrp = 0;
+	*lvalp = not_lval;
+	*realnump = -1;
+
+	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
+
+	switch (regnum) {
+	case SPARC_SP_REGNUM:
+		ofs = offsetof(struct trapframe, tf_sp);
+		break;
+	case SPARC64_PC_REGNUM:
+		ofs = offsetof(struct trapframe, tf_tpc);
+		break;
+	case SPARC64_NPC_REGNUM:
+		ofs = offsetof(struct trapframe, tf_tnpc);
+		break;
+	case SPARC_O0_REGNUM:
+	case SPARC_O1_REGNUM:
+	case SPARC_O2_REGNUM:
+	case SPARC_O3_REGNUM:
+	case SPARC_O4_REGNUM:
+	case SPARC_O5_REGNUM:
+	case SPARC_O7_REGNUM:
+		ofs = offsetof(struct trapframe, tf_out) +
+		    (regnum - SPARC_O0_REGNUM) * 8;
+		break;
+	default:
+		if (regnum >= SPARC_L0_REGNUM && regnum <= SPARC_I7_REGNUM) {
+			ofs = (regnum - SPARC_L0_REGNUM) * 8;
+			*addrp = cache->sp + BIAS + ofs;
+			*lvalp = lval_memory;
+			target_read_memory(*addrp, valuep, regsz);
+		}
+		return;
+	}
+
+	*addrp = cache->fp + ofs;
+	*lvalp = lval_memory;
+	target_read_memory(*addrp, valuep, regsz);
 }
 
 static const struct frame_unwind kgdb_trgt_trapframe_unwind = {
@@ -94,6 +176,16 @@ static const struct frame_unwind kgdb_trgt_trapframe_unwind = {
 const struct frame_unwind *
 kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 {
+	char *pname;
+	CORE_ADDR pc;
 
-        return (NULL);
+	pc = frame_func_unwind(next_frame);
+	pname = NULL;
+	find_pc_partial_function(pc, &pname, NULL, NULL);
+	if (pname == NULL)
+		return (NULL);
+	if (strcmp(pname, "tl1_trap") == 0)
+		return (&kgdb_trgt_trapframe_unwind);
+	/* printf("%s: %lx =%s\n", __func__, pc, pname); */
+	return (NULL);
 }
