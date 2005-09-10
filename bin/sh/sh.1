@@ -208,13 +208,18 @@ option if it has been set).
 .It Fl e Li errexit
 Exit immediately if any untested command fails in non-interactive mode.
 The exit status of a command is considered to be
-explicitly tested if the command is used to control
-an if, elif, while, or until; or if the command is the left
+explicitly tested if the command is part of the list used to control
+an if, elif, while, or until; if the command is the left
 hand operand of an
 .Dq Li &&
 or
 .Dq Li ||
+operator; or if the command is a pipeline preceded by the
+.Ic !\&
 operator.
+If a shell function is executed and its exit status is explicitly
+tested, all commands of the function are considered to be tested as
+well.
 .It Fl f Li noglob
 Disable pathname expansion.
 .It Fl I Li ignoreeof
