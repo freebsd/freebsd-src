@@ -535,6 +535,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		    sizeof(crd->crd_iv));
 		crd->crd_next = NULL;
 
+		crp->crp_etype = 0;
 		err = crypto_dispatch(crp);
 		if (error == 0)
 			error = err;
