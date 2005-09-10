@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 #include <defs.h>
+#include <frame-unwind.h>
 
 #include "kgdb.h"
 
