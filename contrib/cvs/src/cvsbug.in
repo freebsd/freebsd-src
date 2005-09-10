@@ -85,9 +85,9 @@ fi
 
 [ -z "$TMPDIR" ] && TMPDIR=/tmp
 
-TEMP=$TMPDIR/p$$
-BAD=$TMPDIR/pbad$$
-REF=$TMPDIR/pf$$
+TEMP="`/usr/bin/mktemp $TMPDIR/p.XXXXXX`"
+BAD="`/usr/bin/mktemp $TMPDIR/pbad.XXXXXX`"
+REF="`/usr/bin/mktemp $TMPDIR/pf.XXXXXX`"
 
 if [ -z "$LOGNAME" -a -n "$USER" ]; then
   LOGNAME=$USER
@@ -108,14 +108,12 @@ elif [ -f /bin/domainname ]; then
     /usr/bin/ypcat passwd 2>/dev/null | cat - /etc/passwd | grep "^$LOGNAME:" |
       cut -f5 -d':' | sed -e 's/,.*//' > $TEMP
     ORIGINATOR="`cat $TEMP`"
-    rm -f $TEMP
   fi
 fi
 
 if [ "$ORIGINATOR" = "" ]; then
   grep "^$LOGNAME:" /etc/passwd | cut -f5 -d':' | sed -e 's/,.*//' > $TEMP
   ORIGINATOR="`cat $TEMP`"
-  rm -f $TEMP
 fi
 
 if [ -n "$ORGANIZATION" ]; then
