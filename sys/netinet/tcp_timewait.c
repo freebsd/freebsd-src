@@ -1170,10 +1170,11 @@ tcp_ctlinput(cmd, sa, vip)
 					    /*
 					     * If no alternative MTU was
 					     * proposed, try the next smaller
-					     * one.
+					     * one.  ip->ip_len has already
+					     * been swapped in icmp_input().
 					     */
 					    if (!mtu)
-						mtu = ip_next_mtu(ntohs(ip->ip_len),
+						mtu = ip_next_mtu(ip->ip_len,
 						 1);
 					    if (mtu < max(296, (tcp_minmss)
 						 + sizeof(struct tcpiphdr)))
