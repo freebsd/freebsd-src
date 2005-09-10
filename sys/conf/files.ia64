@@ -96,8 +96,7 @@ ia64/ia64/autoconf.c		standard
 ia64/ia64/busdma_machdep.c	standard
 ia64/ia64/clock.c		standard
 ia64/ia64/context.S		standard
-ia64/ia64/db_interface.c	optional	ddb
-ia64/ia64/db_trace.c		optional	ddb
+ia64/ia64/db_machdep.c		optional	ddb
 ia64/ia64/dump_machdep.c	standard
 ia64/ia64/efi.c			standard
 ia64/ia64/elf_machdep.c		standard

@@ -1,37 +1,34 @@
 /*-
- * Mach Operating System
- * Copyright (c) 1992,1991,1990 Carnegie Mellon University
- * All Rights Reserved.
- * 
- * Permission to use, copy, modify and distribute this software and its
- * documentation is hereby granted, provided that both the copyright
- * notice and this permission notice appear in all copies of the
- * software, derivative works or modified versions, and any portions
- * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
- * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
- * Carnegie Mellon requests users of this software to return to
- * 
- *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
- *  School of Computer Science
- *  Carnegie Mellon University
- *  Pittsburgh PA 15213-3890
- * 
- * any improvements or extensions that they make and grant Carnegie the
- * rights to redistribute these changes.
+ * Copyright (c) 2003-2005 Marcel Moolenaar
+ * Copyright (c) 2000-2001 Doug Rabson
+ * All rights reserved.
  *
- *	db_interface.c,v 2.4 1991/02/05 17:11:13 mrt (CMU)
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
- * Interface to DDB.
- */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/cons.h>
@@ -41,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/smp.h>
+#include <sys/stack.h>
 
 #include <vm/vm.h>
 
@@ -48,10 +46,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/mutex.h>
+#include <machine/pcb.h>
 #include <machine/setjmp.h>
+#include <machine/unwind.h>
+#include <machine/vmparam.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
+#include <ddb/db_output.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
@@ -64,9 +66,14 @@ __FBSDID("$FreeBSD$");
 #define	SLOT_MASK	((1ULL << SLOT_BITS) - 1ULL)
 #define	SLOT_SHIFT(i)	(TMPL_BITS+((i)<<3)+(i))
 
+typedef db_expr_t __db_f(db_expr_t, db_expr_t, db_expr_t, db_expr_t, db_expr_t,
+    db_expr_t, db_expr_t, db_expr_t);
+
+register uint64_t __db_gp __asm__("gp");
+
 static db_varfcn_t db_frame;
-static db_varfcn_t db_getrse;
 static db_varfcn_t db_getip;
+static db_varfcn_t db_getrse;
 
 #define	DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
@@ -213,132 +220,85 @@ struct db_variable db_regs[] = {
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 
 static int
-db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
+db_backtrace(struct thread *td, struct pcb *pcb, int count)
 {
-	uint64_t *reg;
+	struct unw_regstate rs;
+	struct trapframe *tf;
+	const char *name;
+	db_expr_t offset;
+	uint64_t bsp, cfm, ip, pfs, reg, sp;
+	c_db_sym_t sym;
+	int args, error, i, quit;
 
-	if (kdb_frame == NULL)
-		return (0);
-	reg = (uint64_t*)((uintptr_t)kdb_frame + (uintptr_t)vp->valuep);
-	if (op == DB_VAR_GET)
-		*valuep = *reg;
-	else
-		*reg = *valuep;
-	return (1);
-}
+	quit = 0;
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
+	error = unw_create_from_pcb(&rs, pcb);
+	while (!error && count-- && !quit) {
+		error = unw_get_cfm(&rs, &cfm);
+		if (!error)
+			error = unw_get_bsp(&rs, &bsp);
+		if (!error)
+			error = unw_get_ip(&rs, &ip);
+		if (!error)
+			error = unw_get_sp(&rs, &sp);
+		if (error)
+			break;
 
-static int
-db_getrse(struct db_variable *vp, db_expr_t *valuep, int op)
-{
-	u_int64_t *reg;
-	uint64_t bsp;
-	int nats, regno, sof;
+		args = IA64_CFM_SOL(cfm);
+		if (args > 8)
+			args = 8;
 
-	if (kdb_frame == NULL)
-		return (0);
+		error = unw_step(&rs);
+		if (!error) {
+			if (!unw_get_cfm(&rs, &pfs)) {
+				i = IA64_CFM_SOF(pfs) - IA64_CFM_SOL(pfs);
+				if (args > i)
+					args = i;
+			}
+		}
 
-	regno = (int)(intptr_t)valuep;
-	bsp = kdb_frame->tf_special.bspstore + kdb_frame->tf_special.ndirty;
-	sof = (int)(kdb_frame->tf_special.cfm & 0x7f);
+		sym = db_search_symbol(ip, DB_STGY_ANY, &offset);
+		db_symbol_values(sym, &name, NULL);
+		db_printf("%s(", name);
+		if (bsp >= IA64_RR_BASE(5)) {
+			for (i = 0; i < args; i++) {
+				if ((bsp & 0x1ff) == 0x1f8)
+					bsp += 8;
+				db_read_bytes(bsp, sizeof(reg), (void*)&reg);
+				if (i > 0)
+					db_printf(", ");
+				db_printf("0x%lx", reg);
+				bsp += 8;
+			}
+		} else
+			db_printf("...");
+		db_printf(") at ");
 
-	if (regno >= sof)
-		return (0);
+		db_printsym(ip, DB_STGY_PROC);
+		db_printf("\n");
 
-	nats = (sof - regno + 63 - ((int)(bsp >> 3) & 0x3f)) / 63;
-	reg = (void*)(bsp - ((sof - regno + nats) << 3));
-	if (op == DB_VAR_GET)
-		*valuep = *reg;
-	else
-		*reg = *valuep;
-	return (1);
-}
+		if (error != ERESTART)
+			continue;
+		if (sp < IA64_RR_BASE(5))
+			break;
 
-static int
-db_getip(struct db_variable *vp, db_expr_t *valuep, int op)
-{
-	u_long iip, slot;
+		tf = (struct trapframe *)(sp + 16);
+		if ((tf->tf_flags & FRAME_SYSCALL) != 0 ||
+		    tf->tf_special.iip < IA64_RR_BASE(5))
+			break;
 
-	if (kdb_frame == NULL)
-		return (0);
-
-	if (op == DB_VAR_GET) {
-		iip = kdb_frame->tf_special.iip;
-		slot = (kdb_frame->tf_special.psr >> 41) & 3;
-		*valuep = iip + slot;
-	} else {
-		iip = *valuep & ~0xf;
-		slot = *valuep & 0xf;
-		if (slot > 2)
-			return (0);
-		kdb_frame->tf_special.iip = iip;
-		kdb_frame->tf_special.psr &= ~IA64_PSR_RI;
-		kdb_frame->tf_special.psr |= slot << 41;
+		/* XXX ask if we should unwind across the trapframe. */
+		db_printf("--- trapframe at %p\n", tf);
+		unw_delete(&rs);
+		error = unw_create_from_frame(&rs, tf);
 	}
-	return (1);
-}
 
-/*
- * Read bytes from kernel address space for debugger.
- */
-int
-db_read_bytes(vm_offset_t addr, size_t size, char *data)
-{
-	jmp_buf jb;
-	void *prev_jb;
-	char *src;
-	int ret;
-
-	prev_jb = kdb_jmpbuf(jb);
-	ret = setjmp(jb);
-	if (ret == 0) {
-		src = (char *)addr;
-		while (size-- > 0)
-			*data++ = *src++;
-	}
-	(void)kdb_jmpbuf(prev_jb);
-	return (ret);
-}
-
-/*
- * Write bytes to kernel address space for debugger.
- */
-int
-db_write_bytes(vm_offset_t addr, size_t size, char *data)
-{
-	jmp_buf jb;
-	void *prev_jb;
-	char *dst;
-	int ret;
-
-	prev_jb = kdb_jmpbuf(jb);
-	ret = setjmp(jb);
-	if (ret == 0) {
-		dst = (char *)addr;
-		while (size-- > 0)
-			*dst++ = *data++;
-	}
-	(void)kdb_jmpbuf(prev_jb);
-	return (ret);
-}
-
-void
-db_bkpt_write(db_addr_t addr, BKPT_INST_TYPE *storage)
-{
-	BKPT_INST_TYPE tmp;
-	db_addr_t loc;
-	int slot;
-
-	slot = addr & 0xfUL;
-	if (slot >= SLOT_COUNT)
-		return;
-	loc = (addr & ~0xfUL) + (slot << 2);
-
-	db_read_bytes(loc, sizeof(BKPT_INST_TYPE), (char *)&tmp);
-	*storage = (tmp >> SLOT_SHIFT(slot)) & SLOT_MASK;
-
-	tmp &= ~(SLOT_MASK << SLOT_SHIFT(slot));
-	tmp |= (0x84000 << 6) << SLOT_SHIFT(slot);
-	db_write_bytes(loc, sizeof(BKPT_INST_TYPE), (char *)&tmp);
+	unw_delete(&rs);
+	/*
+	 * EJUSTRETURN and ERESTART signal the end of a trace and
+	 * are not really errors.
+	 */
+	return ((error > 0) ? error : 0);
 }
 
 void
@@ -371,6 +331,26 @@ db_bkpt_skip(void)
 		kdb_frame->tf_special.psr &= ~IA64_PSR_RI;
 		kdb_frame->tf_special.iip += 16;
 	}
+}
+
+void
+db_bkpt_write(db_addr_t addr, BKPT_INST_TYPE *storage)
+{
+	BKPT_INST_TYPE tmp;
+	db_addr_t loc;
+	int slot;
+
+	slot = addr & 0xfUL;
+	if (slot >= SLOT_COUNT)
+		return;
+	loc = (addr & ~0xfUL) + (slot << 2);
+
+	db_read_bytes(loc, sizeof(BKPT_INST_TYPE), (char *)&tmp);
+	*storage = (tmp >> SLOT_SHIFT(slot)) & SLOT_MASK;
+
+	tmp &= ~(SLOT_MASK << SLOT_SHIFT(slot));
+	tmp |= (0x84000 << 6) << SLOT_SHIFT(slot);
+	db_write_bytes(loc, sizeof(BKPT_INST_TYPE), (char *)&tmp);
 }
 
 db_addr_t
@@ -444,11 +424,6 @@ out:
 	return (loc + slot);
 }
 
-typedef db_expr_t __db_f(db_expr_t, db_expr_t, db_expr_t, db_expr_t, db_expr_t,
-    db_expr_t, db_expr_t, db_expr_t);
-
-register uint64_t __db_gp __asm__("gp");
-
 int
 db_fncall_ia64(db_expr_t addr, db_expr_t *rv, int nargs, db_expr_t args[])
 {
@@ -463,7 +438,167 @@ db_fncall_ia64(db_expr_t addr, db_expr_t *rv, int nargs, db_expr_t args[])
 	return (1);
 }
 
+static int
+db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+	uint64_t *reg;
+
+	if (kdb_frame == NULL)
+		return (0);
+	reg = (uint64_t*)((uintptr_t)kdb_frame + (uintptr_t)vp->valuep);
+	if (op == DB_VAR_GET)
+		*valuep = *reg;
+	else
+		*reg = *valuep;
+	return (1);
+}
+
+static int
+db_getip(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+	u_long iip, slot;
+
+	if (kdb_frame == NULL)
+		return (0);
+
+	if (op == DB_VAR_GET) {
+		iip = kdb_frame->tf_special.iip;
+		slot = (kdb_frame->tf_special.psr >> 41) & 3;
+		*valuep = iip + slot;
+	} else {
+		iip = *valuep & ~0xf;
+		slot = *valuep & 0xf;
+		if (slot > 2)
+			return (0);
+		kdb_frame->tf_special.iip = iip;
+		kdb_frame->tf_special.psr &= ~IA64_PSR_RI;
+		kdb_frame->tf_special.psr |= slot << 41;
+	}
+	return (1);
+}
+
+static int
+db_getrse(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+	u_int64_t *reg;
+	uint64_t bsp;
+	int nats, regno, sof;
+
+	if (kdb_frame == NULL)
+		return (0);
+
+	regno = (int)(intptr_t)valuep;
+	bsp = kdb_frame->tf_special.bspstore + kdb_frame->tf_special.ndirty;
+	sof = (int)(kdb_frame->tf_special.cfm & 0x7f);
+
+	if (regno >= sof)
+		return (0);
+
+	nats = (sof - regno + 63 - ((int)(bsp >> 3) & 0x3f)) / 63;
+	reg = (void*)(bsp - ((sof - regno + nats) << 3));
+	if (op == DB_VAR_GET)
+		*valuep = *reg;
+	else
+		*reg = *valuep;
+	return (1);
+}
+
+int
+db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
+{
+
+	return (-1);
+}
+
+void
+db_md_list_watchpoints()
+{
+
+	return;
+}
+
+int
+db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
+{
+
+	return (-1);
+}
+
+/*
+ * Read bytes from kernel address space for debugger.
+ */
+int
+db_read_bytes(vm_offset_t addr, size_t size, char *data)
+{
+	jmp_buf jb;
+	void *prev_jb;
+	char *src;
+	int ret;
+
+	prev_jb = kdb_jmpbuf(jb);
+	ret = setjmp(jb);
+	if (ret == 0) {
+		src = (char *)addr;
+		while (size-- > 0)
+			*data++ = *src++;
+	}
+	(void)kdb_jmpbuf(prev_jb);
+	return (ret);
+}
+
+/*
+ * Write bytes to kernel address space for debugger.
+ */
+int
+db_write_bytes(vm_offset_t addr, size_t size, char *data)
+{
+	jmp_buf jb;
+	void *prev_jb;
+	char *dst;
+	int ret;
+
+	prev_jb = kdb_jmpbuf(jb);
+	ret = setjmp(jb);
+	if (ret == 0) {
+		dst = (char *)addr;
+		while (size-- > 0)
+			*dst++ = *data++;
+	}
+	(void)kdb_jmpbuf(prev_jb);
+	return (ret);
+}
+
 void
 db_show_mdpcpu(struct pcpu *pc)
 {
+}
+
+void
+db_trace_self(void)
+{
+	struct pcb pcb;
+
+	savectx(&pcb);
+	db_backtrace(curthread, &pcb, -1);
+}
+
+int
+db_trace_thread(struct thread *td, int count)
+{
+	struct pcb *ctx;
+
+	ctx = kdb_thr_ctx(td);
+	return (db_backtrace(td, ctx, count));
+}
+
+void
+stack_save(struct stack *st)
+{
+
+	stack_zero(st);
+	/*
+	 * Nothing for now.
+	 * Is libuwx reentrant?
+	 * Can unw_create* sleep?
+	 */
 }
