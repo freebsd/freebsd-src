@@ -46,7 +46,7 @@ MALLOC_DEFINE(M_FMTFEEDER, "fmtfeed", "pcm format feeder");
 #define FEEDBUFSZ	8192
 #define FEEDBUF24SZ	8190
 
-#define FMT_TRACE(x...) /* fprintf(stderr, x) */
+#define FMT_TRACE(x...) /* printf(x) */
 #define FMT_TEST(x, y...) /* if (x) FMT_TRACE(y) */
 #define FMT_ALIGNBYTE(x) /* x */
 
@@ -123,6 +123,76 @@ static uint8_t alaw_to_s8_tbl[] = {
     3,    3,    3,    3,    3,    3,    3,    3,
 };
 
+static uint8_t u8_to_ulaw_tbl[] = {
+     0,    0,    0,    0,    0,    1,    1,    1,
+     1,    2,    2,    2,    2,    3,    3,    3,
+     3,    4,    4,    4,    4,    5,    5,    5,
+     5,    6,    6,    6,    6,    7,    7,    7,
+     7,    8,    8,    8,    8,    9,    9,    9,
+     9,   10,   10,   10,   10,   11,   11,   11,
+    11,   12,   12,   12,   12,   13,   13,   13,
+    13,   14,   14,   14,   14,   15,   15,   15,
+    15,   16,   16,   17,   17,   18,   18,   19,
+    19,   20,   20,   21,   21,   22,   22,   23,
+    23,   24,   24,   25,   25,   26,   26,   27,
+    27,   28,   28,   29,   29,   30,   30,   31,
+    31,   32,   33,   34,   35,   36,   37,   38,
+    39,   40,   41,   42,   43,   44,   45,   46,
+    47,   49,   51,   53,   55,   57,   59,   61,
+    63,   66,   70,   74,   78,   84,   92,  104,
+   254,  231,  219,  211,  205,  201,  197,  193,
+   190,  188,  186,  184,  182,  180,  178,  176,
+   175,  174,  173,  172,  171,  170,  169,  168,
+   167,  166,  165,  164,  163,  162,  161,  160,
+   159,  159,  158,  158,  157,  157,  156,  156,
+   155,  155,  154,  154,  153,  153,  152,  152,
+   151,  151,  150,  150,  149,  149,  148,  148,
+   147,  147,  146,  146,  145,  145,  144,  144,
+   143,  143,  143,  143,  142,  142,  142,  142,
+   141,  141,  141,  141,  140,  140,  140,  140,
+   139,  139,  139,  139,  138,  138,  138,  138,
+   137,  137,  137,  137,  136,  136,  136,  136,
+   135,  135,  135,  135,  134,  134,  134,  134,
+   133,  133,  133,  133,  132,  132,  132,  132,
+   131,  131,  131,  131,  130,  130,  130,  130,
+   129,  129,  129,  129,  128,  128,  128,  128,
+};
+
+static uint8_t u8_to_alaw_tbl[] = {
+   42,   42,   42,   42,   42,   43,   43,   43,
+   43,   40,   40,   40,   40,   41,   41,   41,
+   41,   46,   46,   46,   46,   47,   47,   47,
+   47,   44,   44,   44,   44,   45,   45,   45,
+   45,   34,   34,   34,   34,   35,   35,   35,
+   35,   32,   32,   32,   32,   33,   33,   33,
+   33,   38,   38,   38,   38,   39,   39,   39,
+   39,   36,   36,   36,   36,   37,   37,   37,
+   37,   58,   58,   59,   59,   56,   56,   57,
+   57,   62,   62,   63,   63,   60,   60,   61,
+   61,   50,   50,   51,   51,   48,   48,   49,
+   49,   54,   54,   55,   55,   52,   52,   53,
+   53,   10,   11,    8,    9,   14,   15,   12,
+   13,    2,    3,    0,    1,    6,    7,    4,
+    5,   24,   30,   28,   18,   16,   22,   20,
+  106,  110,   98,  102,  122,  114,   75,   90,
+  213,  197,  245,  253,  229,  225,  237,  233,
+  149,  151,  145,  147,  157,  159,  153,  155,
+  133,  132,  135,  134,  129,  128,  131,  130,
+  141,  140,  143,  142,  137,  136,  139,  138,
+  181,  181,  180,  180,  183,  183,  182,  182,
+  177,  177,  176,  176,  179,  179,  178,  178,
+  189,  189,  188,  188,  191,  191,  190,  190,
+  185,  185,  184,  184,  187,  187,  186,  186,
+  165,  165,  165,  165,  164,  164,  164,  164,
+  167,  167,  167,  167,  166,  166,  166,  166,
+  161,  161,  161,  161,  160,  160,  160,  160,
+  163,  163,  163,  163,  162,  162,  162,  162,
+  173,  173,  173,  173,  172,  172,  172,  172,
+  175,  175,  175,  175,  174,  174,  174,  174,
+  169,  169,  169,  169,  168,  168,  168,  168,
+  171,  171,  171,  171,  170,  170,  170,  170,
+};
+
 static int
 feed_table_u8(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 			uint32_t count, void *source)
@@ -155,16 +225,42 @@ feed_table_s16le(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	return k;
 }
 
+static int
+feed_table_xlaw(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
+			uint32_t count, void *source)
+{
+	int j, k = FEEDER_FEED(f->source, c, b, count, source);
+	uint8_t *tbl = (uint8_t *)f->data;
+
+	j = k;
+	while (j > 0) {
+		j--;
+		b[j] = tbl[b[j]];
+	}
+	return k;
+}
+
 static struct pcm_feederdesc feeder_ulawtou8_desc[] = {
 	{FEEDER_FMT, AFMT_MU_LAW, AFMT_U8, 0},
 	{FEEDER_FMT, AFMT_MU_LAW|AFMT_STEREO, AFMT_U8|AFMT_STEREO, 0},
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_ulawtou8_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_table_u8),
+	KOBJMETHOD(feeder_feed, feed_table_u8),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_ulawtou8, 0, ulaw_to_s8_tbl);
+
+static struct pcm_feederdesc feeder_alawtou8_desc[] = {
+	{FEEDER_FMT, AFMT_A_LAW, AFMT_U8, 0},
+	{FEEDER_FMT, AFMT_A_LAW|AFMT_STEREO, AFMT_U8|AFMT_STEREO, 0},
+	{0, 0, 0, 0},
+};
+static kobj_method_t feeder_alawtou8_methods[] = {
+	KOBJMETHOD(feeder_feed, feed_table_u8),
+	{0, 0}
+};
+FEEDER_DECLARE(feeder_alawtou8, 0, alaw_to_s8_tbl);
 
 static struct pcm_feederdesc feeder_ulawtos16le_desc[] = {
 	{FEEDER_FMT, AFMT_MU_LAW, AFMT_S16_LE, 0},
@@ -172,7 +268,7 @@ static struct pcm_feederdesc feeder_ulawtos16le_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_ulawtos16le_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_table_s16le),
+	KOBJMETHOD(feeder_feed, feed_table_s16le),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_ulawtos16le, 0, ulaw_to_s8_tbl);
@@ -183,21 +279,32 @@ static struct pcm_feederdesc feeder_alawtos16le_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_alawtos16le_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_table_s16le),
+	KOBJMETHOD(feeder_feed, feed_table_s16le),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_alawtos16le, 0, alaw_to_s8_tbl);
 
-static struct pcm_feederdesc feeder_alawtou8_desc[] = {
-	{FEEDER_FMT, AFMT_A_LAW, AFMT_U8, 0},
-	{FEEDER_FMT, AFMT_A_LAW|AFMT_STEREO, AFMT_U8|AFMT_STEREO, 0},
+static struct pcm_feederdesc feeder_u8toulaw_desc[] = {
+	{FEEDER_FMT, AFMT_U8, AFMT_MU_LAW, 0},
+	{FEEDER_FMT, AFMT_U8|AFMT_STEREO, AFMT_MU_LAW|AFMT_STEREO, 0},
 	{0, 0, 0, 0},
 };
-static kobj_method_t feeder_alawtou8_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_table_u8),
+static kobj_method_t feeder_u8toulaw_methods[] = {
+	KOBJMETHOD(feeder_feed, feed_table_xlaw),
 	{0, 0}
 };
-FEEDER_DECLARE(feeder_alawtou8, 0, alaw_to_s8_tbl);
+FEEDER_DECLARE(feeder_u8toulaw, 0, u8_to_ulaw_tbl);
+
+static struct pcm_feederdesc feeder_u8toalaw_desc[] = {
+	{FEEDER_FMT, AFMT_U8, AFMT_A_LAW, 0},
+	{FEEDER_FMT, AFMT_U8|AFMT_STEREO, AFMT_A_LAW|AFMT_STEREO, 0},
+	{0, 0, 0, 0},
+};
+static kobj_method_t feeder_u8toalaw_methods[] = {
+	KOBJMETHOD(feeder_feed, feed_table_xlaw),
+	{0, 0}
+};
+FEEDER_DECLARE(feeder_u8toalaw, 0, u8_to_alaw_tbl);
 
 /*
  * Conversion rules:-
@@ -254,7 +361,7 @@ static struct pcm_feederdesc feeder_8to16le_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_8to16le_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_8to16le),
+	KOBJMETHOD(feeder_feed, feed_8to16le),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_8to16le, 0, NULL);
@@ -291,12 +398,50 @@ static struct pcm_feederdesc feeder_16leto8_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_16leto8_methods[] = {
-    	KOBJMETHOD(feeder_init, feed_common_init),
-    	KOBJMETHOD(feeder_free, feed_common_free),
-    	KOBJMETHOD(feeder_feed, feed_16leto8),
+	KOBJMETHOD(feeder_init, feed_common_init),
+	KOBJMETHOD(feeder_free, feed_common_free),
+	KOBJMETHOD(feeder_feed, feed_16leto8),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_16leto8, 0, NULL);
+
+static int
+feed_16leto24le(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
+			uint32_t count, void *source)
+{
+	int i, j, k;
+
+	k = (count / 3) << 1;
+	k = FEEDER_FEED(f->source, c, b, k, source);
+	if (k < 2) {
+		FMT_TRACE("%s: Not enough data (Got: %d bytes)\n",
+				__func__, k);
+		return 0;
+	}
+	FMT_TEST(k & 1, "%s: Bytes not 16bit aligned.\n", __func__);
+	FMT_ALIGNBYTE(k &= ~1);
+	i = k;
+	j = (k >> 1) * 3;
+	k = j;
+	while (i > 0) {
+		b[--j] = b[--i];
+		b[--j] = b[--i];
+		b[--j] = 0;
+	}
+	return k;
+}
+static struct pcm_feederdesc feeder_16leto24le_desc[] = {
+	{FEEDER_FMT, AFMT_U16_LE, AFMT_U24_LE, 0},
+	{FEEDER_FMT, AFMT_U16_LE|AFMT_STEREO, AFMT_U24_LE|AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_S16_LE, AFMT_S24_LE, 0},
+	{FEEDER_FMT, AFMT_S16_LE|AFMT_STEREO, AFMT_S24_LE|AFMT_STEREO, 0},
+	{0, 0, 0, 0},
+};
+static kobj_method_t feeder_16leto24le_methods[] = {
+	KOBJMETHOD(feeder_feed, feed_16leto24le),
+	{0, 0}
+};
+FEEDER_DECLARE(feeder_16leto24le, 0, NULL);
 
 static int
 feed_24leto16le(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
@@ -331,12 +476,48 @@ static struct pcm_feederdesc feeder_24leto16le_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_24leto16le_methods[] = {
-    	KOBJMETHOD(feeder_init, feed_common_init),
-    	KOBJMETHOD(feeder_free, feed_common_free),
-    	KOBJMETHOD(feeder_feed, feed_24leto16le),
+	KOBJMETHOD(feeder_init, feed_common_init),
+	KOBJMETHOD(feeder_free, feed_common_free),
+	KOBJMETHOD(feeder_feed, feed_24leto16le),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_24leto16le, 1, NULL);
+
+static int
+feed_16leto32le(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
+			uint32_t count, void *source)
+{
+	int i, j, k = FEEDER_FEED(f->source, c, b, count >> 1, source);
+	if (k < 2) {
+		FMT_TRACE("%s: Not enough data (Got: %d bytes)\n",
+				__func__, k);
+		return 0;
+	}
+	FMT_TEST(k & 1, "%s: Bytes not 16bit aligned.\n", __func__);
+	FMT_ALIGNBYTE(k &= ~1);
+	i = k;
+	j = k << 1;
+	k = j;
+	while (i > 0) {
+		b[--j] = b[--i];
+		b[--j] = b[--i];
+		b[--j] = 0;
+		b[--j] = 0;
+	}
+	return k;
+}
+static struct pcm_feederdesc feeder_16leto32le_desc[] = {
+	{FEEDER_FMT, AFMT_U16_LE, AFMT_U32_LE, 0},
+	{FEEDER_FMT, AFMT_U16_LE|AFMT_STEREO, AFMT_U32_LE|AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_S16_LE, AFMT_S32_LE, 0},
+	{FEEDER_FMT, AFMT_S16_LE|AFMT_STEREO, AFMT_S32_LE|AFMT_STEREO, 0},
+	{0, 0, 0, 0},
+};
+static kobj_method_t feeder_16leto32le_methods[] = {
+	KOBJMETHOD(feeder_feed, feed_16leto32le),
+	{0, 0}
+};
+FEEDER_DECLARE(feeder_16leto32le, 0, NULL);
 
 static int
 feed_32leto16le(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
@@ -372,9 +553,9 @@ static struct pcm_feederdesc feeder_32leto16le_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_32leto16le_methods[] = {
-    	KOBJMETHOD(feeder_init, feed_common_init),
-    	KOBJMETHOD(feeder_free, feed_common_free),
-    	KOBJMETHOD(feeder_feed, feed_32leto16le),
+	KOBJMETHOD(feeder_init, feed_common_init),
+	KOBJMETHOD(feeder_free, feed_common_free),
+	KOBJMETHOD(feeder_feed, feed_32leto16le),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_32leto16le, 1, NULL);
@@ -405,7 +586,7 @@ static struct pcm_feederdesc feeder_monotostereo8_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_monotostereo8_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_monotostereo8),
+	KOBJMETHOD(feeder_feed, feed_monotostereo8),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_monotostereo8, 0, NULL);
@@ -444,7 +625,7 @@ static struct pcm_feederdesc feeder_monotostereo16_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_monotostereo16_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_monotostereo16),
+	KOBJMETHOD(feeder_feed, feed_monotostereo16),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_monotostereo16, 0, NULL);
@@ -485,9 +666,9 @@ static struct pcm_feederdesc feeder_stereotomono8_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_stereotomono8_methods[] = {
-    	KOBJMETHOD(feeder_init,	feed_common_init),
-    	KOBJMETHOD(feeder_free,	feed_common_free),
-    	KOBJMETHOD(feeder_feed,	feed_stereotomono8),
+	KOBJMETHOD(feeder_init,	feed_common_init),
+	KOBJMETHOD(feeder_free,	feed_common_free),
+	KOBJMETHOD(feeder_feed,	feed_stereotomono8),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_stereotomono8, 0, NULL);
@@ -525,9 +706,9 @@ static struct pcm_feederdesc feeder_stereotomono16_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_stereotomono16_methods[] = {
-    	KOBJMETHOD(feeder_init,	feed_common_init),
-    	KOBJMETHOD(feeder_free,	feed_common_free),
-    	KOBJMETHOD(feeder_feed,	feed_stereotomono16),
+	KOBJMETHOD(feeder_init,	feed_common_init),
+	KOBJMETHOD(feeder_free,	feed_common_free),
+	KOBJMETHOD(feeder_feed,	feed_stereotomono16),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_stereotomono16, 0, NULL);
@@ -557,7 +738,7 @@ static struct pcm_feederdesc feeder_sign8_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_sign8_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_sign8),
+	KOBJMETHOD(feeder_feed, feed_sign8),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_sign8, 0, NULL);
@@ -590,7 +771,7 @@ static struct pcm_feederdesc feeder_sign16le_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_sign16le_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_sign16le),
+	KOBJMETHOD(feeder_feed, feed_sign16le),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_sign16le, 0, NULL);
@@ -635,7 +816,7 @@ static struct pcm_feederdesc feeder_endian16_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_endian16_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_endian16),
+	KOBJMETHOD(feeder_feed, feed_endian16),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_endian16, 0, NULL);
@@ -674,7 +855,7 @@ static struct pcm_feederdesc feeder_endian24_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_endian24_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_endian24),
+	KOBJMETHOD(feeder_feed, feed_endian24),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_endian24, 0, NULL);
@@ -716,7 +897,7 @@ static struct pcm_feederdesc feeder_endian32_desc[] = {
 	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_endian32_methods[] = {
-    	KOBJMETHOD(feeder_feed, feed_endian32),
+	KOBJMETHOD(feeder_feed, feed_endian32),
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_endian32, 0, NULL);
