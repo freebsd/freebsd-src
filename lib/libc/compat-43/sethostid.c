@@ -40,14 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
-long
+#include <unistd.h>
+
+void
 sethostid(long hostid)
 {
 	int mib[2];
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_HOSTID;
-	if (sysctl(mib, 2, NULL, NULL, &hostid, sizeof hostid) == -1)
-		return (-1);
-	return (0);
+	sysctl(mib, 2, NULL, NULL, &hostid, sizeof hostid);
 }
