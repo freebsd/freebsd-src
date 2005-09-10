@@ -154,10 +154,10 @@ least the following fields:
 .Bd -literal
 typedef struct {
 	DBTYPE type;
-	int (*close)(const DB *db);
+	int (*close)(DB *db);
 	int (*del)(const DB *db, const DBT *key, u_int flags);
 	int (*fd)(const DB *db);
-	int (*get)(const DB *db, DBT *key, DBT *data, u_int flags);
+	int (*get)(const DB *db, const DBT *key, DBT *data, u_int flags);
 	int (*put)(const DB *db, DBT *key, const DBT *data,
 	     u_int flags);
 	int (*sync)(const DB *db, u_int flags);
