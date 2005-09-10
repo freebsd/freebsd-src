@@ -91,7 +91,6 @@ ia64/disasm/disasm_extract.c	standard
 ia64/disasm/disasm_format.c	standard
 ia64/ia32/ia32_reg.c		optional	compat_ia32
 ia64/ia32/ia32_signal.c		optional	compat_ia32
-ia64/ia32/ia32_sigtramp.c	optional        compat_ia32
 ia64/ia32/ia32_trap.c		optional	compat_ia32
 ia64/ia64/autoconf.c		standard
 ia64/ia64/busdma_machdep.c	standard
