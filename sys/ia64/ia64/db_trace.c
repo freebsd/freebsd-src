@@ -45,10 +45,6 @@
 #include <ddb/db_variables.h>
 #include <ddb/db_output.h>
 
-int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
-int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
-void db_md_list_watchpoints(void);
-
 static int
 db_backtrace(struct thread *td, struct pcb *pcb, int count)
 {

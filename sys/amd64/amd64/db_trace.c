@@ -202,9 +202,6 @@ static char * watchtype_str(int type);
 int  amd64_set_watch(int watchnum, unsigned int watchaddr, int size, int access,
 		    struct dbreg * d);
 int  amd64_clr_watch(int watchnum, struct dbreg * d);
-int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
-int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
-void db_md_list_watchpoints(void);
 
 /*
  * Figure out how many arguments were passed into the frame at "fp".
