@@ -90,8 +90,8 @@ int exitstatus;			/* exit status of last command */
 int oexitstatus;		/* saved exit status */
 
 
-STATIC void evalloop(union node *);
-STATIC void evalfor(union node *);
+STATIC void evalloop(union node *, int);
+STATIC void evalfor(union node *, int);
 STATIC void evalcase(union node *, int);
 STATIC void evalsubshell(union node *, int);
 STATIC void expredir(union node *);
@@ -241,10 +241,10 @@ evaltree(union node *n, int flags)
 	}
 	case NWHILE:
 	case NUNTIL:
-		evalloop(n);
+		evalloop(n, flags & ~EV_EXIT);
 		break;
 	case NFOR:
-		evalfor(n);
+		evalfor(n, flags & ~EV_EXIT);
 		break;
 	case NCASE:
 		evalcase(n, flags);
@@ -280,7 +280,7 @@ out:
 
 
 STATIC void
-evalloop(union node *n)
+evalloop(union node *n, int flags)
 {
 	int status;
 
@@ -304,7 +304,7 @@ skipping:	  if (evalskip == SKIPCONT && --skipcount <= 0) {
 			if (exitstatus == 0)
 				break;
 		}
-		evaltree(n->nbinary.ch2, 0);
+		evaltree(n->nbinary.ch2, flags);
 		status = exitstatus;
 		if (evalskip)
 			goto skipping;
@@ -316,7 +316,7 @@ skipping:	  if (evalskip == SKIPCONT && --skipcount <= 0) {
 
 
 STATIC void
-evalfor(union node *n)
+evalfor(union node *n, int flags)
 {
 	struct arglist arglist;
 	union node *argp;
@@ -337,7 +337,7 @@ evalfor(union node *n)
 	loopnest++;
 	for (sp = arglist.list ; sp ; sp = sp->next) {
 		setvar(n->nfor.var, sp->text, 0);
-		evaltree(n->nfor.body, 0);
+		evaltree(n->nfor.body, flags);
 		if (evalskip) {
 			if (evalskip == SKIPCONT && --skipcount <= 0) {
 				evalskip = 0;
