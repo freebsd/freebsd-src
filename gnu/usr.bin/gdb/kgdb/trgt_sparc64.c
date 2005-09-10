@@ -34,15 +34,16 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include <string.h>
 
-#include "kgdb.h"
-
 #include <defs.h>
 #include <target.h>
 #include <gdbthread.h>
 #include <inferior.h>
 #include <regcache.h>
+#include <frame-unwind.h>
 #include <sparc-tdep.h>
 #include <sparc64-tdep.h>
+
+#include "kgdb.h"
 
 void
 kgdb_trgt_fetch_registers(int regno __unused)
@@ -69,4 +70,30 @@ void
 kgdb_trgt_store_registers(int regno __unused)
 {
 	fprintf_unfiltered(gdb_stderr, "XXX: %s\n", __func__);
+}
+
+static void
+kgdb_trgt_trapframe_this_id(struct frame_info *next_frame, void **this_cache,
+    struct frame_id *this_id)
+{
+}
+
+static void
+kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
+    void **this_cache, int regnum, int *optimizedp, enum lval_type *lvalp,
+    CORE_ADDR *addrp, int *realnump, void *valuep)
+{
+}
+
+static const struct frame_unwind kgdb_trgt_trapframe_unwind = {
+        UNKNOWN_FRAME,
+        &kgdb_trgt_trapframe_this_id,
+        &kgdb_trgt_trapframe_prev_register
+};
+
+const struct frame_unwind *
+kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
+{
+
+        return (NULL);
 }
