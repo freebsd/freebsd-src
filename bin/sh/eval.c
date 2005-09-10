@@ -182,6 +182,9 @@ evalstring(char *s)
 void
 evaltree(union node *n, int flags)
 {
+	int do_etest;
+
+	do_etest = 0;
 	if (n == NULL) {
 		TRACE(("evaltree(NULL) called\n"));
 		exitstatus = 0;
@@ -219,6 +222,7 @@ evaltree(union node *n, int flags)
 		break;
 	case NSUBSHELL:
 		evalsubshell(n, flags);
+		do_etest = !(flags & EV_TESTED);
 		break;
 	case NBACKGND:
 		evalsubshell(n, flags);
@@ -256,9 +260,11 @@ evaltree(union node *n, int flags)
 
 	case NPIPE:
 		evalpipe(n);
+		do_etest = !(flags & EV_TESTED);
 		break;
 	case NCMD:
 		evalcommand(n, flags, (struct backcmd *)NULL);
+		do_etest = !(flags & EV_TESTED);
 		break;
 	default:
 		out1fmt("Node type = %d\n", n->type);
@@ -268,9 +274,7 @@ evaltree(union node *n, int flags)
 out:
 	if (pendingsigs)
 		dotrap();
-	if ((flags & EV_EXIT) || (eflag && exitstatus 
-	    && !(flags & EV_TESTED) && (n->type == NCMD || 
-	    n->type == NSUBSHELL)))
+	if ((flags & EV_EXIT) || (eflag && exitstatus != 0 && do_etest))
 		exitshell(exitstatus);
 }
 
