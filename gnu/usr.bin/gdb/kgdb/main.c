@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 /* libgdb stuff. */
 #include <defs.h>
 #include <frame.h>
+#include <frame-unwind.h>
 #include <inferior.h>
 #include <interps.h>
 #include <cli-out.h>
@@ -60,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <gdbcore.h>
 
 extern void (*init_ui_hook)(char *);
+
+extern frame_unwind_sniffer_ftype *kgdb_sniffer_kluge;
 
 extern void symbol_file_add_main (char *args, int from_tty);
 
@@ -477,6 +480,8 @@ main(int argc, char *argv[])
 	args.interpreter_p = "kgdb";
 
 	init_ui_hook = kgdb_init;
+
+	kgdb_sniffer_kluge = kgdb_trgt_trapframe_sniffer;
 
 	return (gdb_main(&args));
 }
