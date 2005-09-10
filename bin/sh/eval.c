@@ -196,7 +196,7 @@ evaltree(union node *n, int flags)
 	TRACE(("evaltree(%p: %d) called\n", (void *)n, n->type));
 	switch (n->type) {
 	case NSEMI:
-		evaltree(n->nbinary.ch1, 0);
+		evaltree(n->nbinary.ch1, flags & ~EV_EXIT);
 		if (evalskip)
 			goto out;
 		evaltree(n->nbinary.ch2, flags);
