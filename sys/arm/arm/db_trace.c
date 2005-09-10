@@ -51,9 +51,6 @@ __FBSDID("$FreeBSD$");
 
 #define INKERNEL(va)	(((vm_offset_t)(va)) >= VM_MIN_KERNEL_ADDRESS)
 
-int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
-int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
-void db_md_list_watchpoints(void);
 /*
  * APCS stack frames are awkward beasts, so I don't think even trying to use
  * a structure to represent them is a good idea.

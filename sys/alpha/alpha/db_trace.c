@@ -100,11 +100,6 @@ static struct special_symbol {
 };
 
 
-int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
-int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
-void db_md_list_watchpoints(void);
-
-
 /*
  * Decode the function prologue for the function we're in, and note
  * which registers are stored where, and how large the stack frame is.
