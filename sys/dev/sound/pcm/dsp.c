@@ -241,13 +241,13 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	 */
 	if (flags & FREAD) {
 		/* open for read */
+		pcm_unlock(d);
 		if (devtype == SND_DEV_DSPREC)
 			rdch = pcm_chnalloc(d, PCMDIR_REC, td->td_proc->p_pid, PCMCHAN(i_dev));
 		else
 			rdch = pcm_chnalloc(d, PCMDIR_REC, td->td_proc->p_pid, -1);
 		if (!rdch) {
 			/* no channel available, exit */
-			pcm_unlock(d);
 			splx(s);
 			return EBUSY;
 		}
@@ -255,11 +255,11 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		if (chn_reset(rdch, fmt)) {
 			pcm_chnrelease(rdch);
 			i_dev->si_drv1 = NULL;
-			pcm_unlock(d);
 			splx(s);
 			return ENODEV;
 		}
 
+		pcm_lock(d);
 		if (flags & O_NONBLOCK)
 			rdch->flags |= CHN_F_NBIO;
 		pcm_chnref(rdch, 1);
@@ -272,6 +272,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	if (flags & FWRITE) {
 	    /* open for write */
+	    pcm_unlock(d);
 	    wrch = pcm_chnalloc(d, PCMDIR_PLAY, td->td_proc->p_pid, -1);
 	    error = 0;
 
@@ -280,6 +281,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	    else if (chn_reset(wrch, fmt))
 		error = ENODEV;
 
+	    pcm_lock(d);
 	    if (error != 0) {
 		if (wrch) {
 		    /*
@@ -950,6 +952,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
         		*arg_i = 24;
 		else if (chn->format & AFMT_32BIT)
         		*arg_i = 32;
+		else
+			ret = EINVAL;
 		CHN_UNLOCK(chn);
 		break;
 
