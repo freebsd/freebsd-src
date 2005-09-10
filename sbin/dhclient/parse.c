@@ -1,5 +1,4 @@
 /*	$OpenBSD: parse.c,v 1.11 2004/05/05 23:07:47 deraadt Exp $	*/
-/*	$FreeBSD$	*/
 
 /* Common parser code for dhcpd and dhclient. */
 
@@ -40,6 +39,9 @@
  * see ``http://www.vix.com/isc''.  To learn more about Vixie
  * Enterprises, see ``http://www.vix.com''.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
 #include "dhctoken.h"

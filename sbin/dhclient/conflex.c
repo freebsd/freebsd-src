@@ -40,6 +40,9 @@
  * Enterprises, see ``http://www.vix.com''.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <ctype.h>
 
 #include "dhcpd.h"
@@ -101,7 +104,7 @@ get_char(FILE *cfile)
 			lpos = 1;
 			cur_line[0] = 0;
 		} else if (c != EOF) {
-			if (lpos <= 81) {
+			if (lpos < sizeof(line1)) {
 				cur_line[lpos - 1] = c;
 				cur_line[lpos] = 0;
 			}
@@ -233,6 +236,7 @@ read_string(FILE *cfile)
 		}
 		if (bs) {
 			bs = 0;
+			i--;
 			tokbuf[i] = c;
 		} else if (c == '\\')
 			bs = 1;

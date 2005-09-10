@@ -1,5 +1,4 @@
 /*	$OpenBSD: bpf.c,v 1.13 2004/05/05 14:28:58 deraadt Exp $	*/
-/*	$FreeBSD$	*/
 
 /* BPF socket interface code, originally contributed by Archie Cobbs. */
 
@@ -40,6 +39,9 @@
  * see ``http://www.vix.com/isc''.  To learn more about Vixie
  * Enterprises, see ``http://www.vix.com''.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
 #include <sys/ioctl.h>
