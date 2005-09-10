@@ -40,6 +40,9 @@
  * Enterprises, see ``http://www.vix.com''.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "dhcpd.h"
 
 struct string_list *

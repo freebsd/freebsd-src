@@ -1,5 +1,4 @@
 /*	$OpenBSD: tables.c,v 1.4 2004/05/04 20:28:40 deraadt Exp $	*/
-/*	$FreeBSD$	*/
 
 /* Tables of information... */
 
@@ -40,6 +39,9 @@
  * see ``http://www.vix.com/isc''.  To learn more about Vixie
  * Enterprises, see ``http://www.vix.com''.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
 
