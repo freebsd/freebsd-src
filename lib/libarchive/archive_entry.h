@@ -29,9 +29,8 @@
 #ifndef ARCHIVE_ENTRY_H_INCLUDED
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
+#include <stddef.h>  /* for wchar_t */
 #include <unistd.h>
-#include <wchar.h>
-
 
 #ifdef __cplusplus
 extern "C" {
