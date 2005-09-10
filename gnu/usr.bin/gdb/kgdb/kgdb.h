@@ -29,7 +29,7 @@
 #ifndef _KGDB_H_
 #define	_KGDB_H_
 
-struct	thread_info;
+struct thread_info;
 
 extern kvm_t *kvm;
 extern int verbose;
@@ -49,6 +49,8 @@ extern struct kthr *curkthr;
 void kgdb_target(void);
 void kgdb_trgt_fetch_registers(int);
 void kgdb_trgt_store_registers(int);
+
+frame_unwind_sniffer_ftype kgdb_trgt_trapframe_sniffer;
 
 struct kthr *kgdb_thr_first(void);
 struct kthr *kgdb_thr_init(void);
