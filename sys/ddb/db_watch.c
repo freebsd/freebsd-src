@@ -66,11 +66,6 @@ static void		db_list_watchpoints(void);
 static void		db_set_watchpoint(vm_map_t map, db_addr_t addr,
 				       vm_size_t size);
 
-int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
-int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
-void db_md_list_watchpoints(void);
-
-
 static db_watchpoint_t
 db_watchpoint_alloc()
 {
