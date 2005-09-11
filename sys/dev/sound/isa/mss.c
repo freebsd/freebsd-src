@@ -974,6 +974,7 @@ mss_speed(struct mss_chinfo *ch, int speed)
 			    abs(speed-speeds[i]) < abs(speed-speeds[sel])) sel = i;
         	speed = speeds[sel];
         	ad_write(mss, 8, (ad_read(mss, 8) & 0xf0) | sel);
+		ad_wait_init(mss, 10000);
     	}
     	ad_leave_MCE(mss);
 
@@ -1013,8 +1014,11 @@ mss_format(struct mss_chinfo *ch, u_int32_t format)
     	arg <<= 4;
     	ad_enter_MCE(mss);
     	ad_write(mss, 8, (ad_read(mss, 8) & 0x0f) | arg);
-    	if (ad_read(mss, 12) & 0x40)	/* mode2? */
+	ad_wait_init(mss, 10000);
+    	if (ad_read(mss, 12) & 0x40) {	/* mode2? */
 		ad_write(mss, 28, arg); /* capture mode */
+		ad_wait_init(mss, 10000);
+	}
     	ad_leave_MCE(mss);
     	return format;
 }
