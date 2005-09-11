@@ -37,7 +37,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: bufaux.c,v 1.35 2005/03/10 22:01:05 deraadt Exp $");
+RCSID("$OpenBSD: bufaux.c,v 1.36 2005/06/17 02:44:32 djm Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/bn.h>
@@ -155,7 +155,7 @@ buffer_put_bignum2_ret(Buffer *buffer, const BIGNUM *value)
 	buf[0] = 0x00;
 	/* Get the value of in binary */
 	oi = BN_bn2bin(value, buf+1);
-	if (oi != bytes-1) {
+	if (oi < 0 || (u_int)oi != bytes - 1) {
 		error("buffer_put_bignum2_ret: BN_bn2bin() failed: "
 		    "oi %d != bin_size %d", oi, bytes);
 		xfree(buf);

@@ -18,7 +18,7 @@
 #include "includes.h"
 #include "xmalloc.h"
 
-RCSID("$Id: bsd-misc.c,v 1.26 2005/02/25 23:07:38 dtucker Exp $");
+RCSID("$Id: bsd-misc.c,v 1.27 2005/05/27 11:13:41 dtucker Exp $");
 
 #ifndef HAVE___PROGNAME
 char *__progname;
@@ -212,3 +212,21 @@ mysignal(int sig, mysig_t act)
 	return (signal(sig, act));
 #endif
 }
+
+#ifndef HAVE_STRDUP
+char *
+strdup(const char *str)
+{
+	size_t len;
+	char *cp;
+
+	len = strlen(str) + 1;
+	cp = malloc(len);
+	if (cp != NULL)
+		if (strlcpy(cp, str, len) != len) {
+			free(cp);
+			return NULL;
+		}
+	return cp;
+}
+#endif

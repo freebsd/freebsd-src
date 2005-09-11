@@ -878,8 +878,8 @@ int
 mm_answer_pam_query(int sock, Buffer *m)
 {
 	char *name, *info, **prompts;
-	u_int num, *echo_on;
-	int i, ret;
+	u_int i, num, *echo_on;
+	int ret;
 
 	debug3("%s", __func__);
 	sshpam_authok = NULL;
@@ -912,8 +912,8 @@ int
 mm_answer_pam_respond(int sock, Buffer *m)
 {
 	char **resp;
-	u_int num;
-	int i, ret;
+	u_int i, num;
+	int ret;
 
 	debug3("%s", __func__);
 	sshpam_authok = NULL;

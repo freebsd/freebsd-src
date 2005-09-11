@@ -45,7 +45,7 @@
  * XXX: we should tell the child how many bytes we need.
  */
 
-RCSID("$Id: entropy.c,v 1.48 2003/11/21 12:56:47 djm Exp $");
+RCSID("$Id: entropy.c,v 1.49 2005/07/17 07:26:44 djm Exp $");
 
 #ifndef OPENSSL_PRNG_ONLY
 #define RANDOM_SEED_SIZE 48
@@ -114,8 +114,8 @@ seed_rng(void)
 	close(p[0]);
 
 	if (waitpid(pid, &ret, 0) == -1)
-	       fatal("Couldn't wait for ssh-rand-helper completion: %s",
-		   strerror(errno));
+		fatal("Couldn't wait for ssh-rand-helper completion: %s",
+		    strerror(errno));
 	signal(SIGCHLD, old_sigchld);
 
 	/* We don't mind if the child exits upon a SIGPIPE */

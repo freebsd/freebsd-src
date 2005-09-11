@@ -3,10 +3,10 @@
 
 tid="reexec tests"
 
-DATA=/bin/ls
+DATA=/bin/ls${EXEEXT}
 COPY=${OBJ}/copy
-SSHD_ORIG=$SSHD
-SSHD_COPY=$OBJ/sshd
+SSHD_ORIG=$SSHD${EXEEXT}
+SSHD_COPY=$OBJ/sshd${EXEEXT}
 
 # Start a sshd and then delete it
 start_sshd_copy ()
