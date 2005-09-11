@@ -4170,10 +4170,10 @@ uaudio_mixer_set(device_t dev, unsigned type, unsigned left, unsigned right)
 		if (mc->ctl == type) {
 			if (mc->nchan == 2) {
 				/* set Right */
-				uaudio_ctl_set(sc, SET_CUR, mc, 1, (int)(right*256)/100);
+				uaudio_ctl_set(sc, SET_CUR, mc, 1, (int)(right*255)/100);
 			}
 			/* set Left or Mono */
-			uaudio_ctl_set(sc, SET_CUR, mc, 0, (int)(left*256)/100);
+			uaudio_ctl_set(sc, SET_CUR, mc, 0, (int)(left*255)/100);
 		}
 	}
 	return;
