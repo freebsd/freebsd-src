@@ -55,9 +55,6 @@ INCLUDES+= -I$S/contrib/dev/acpica
 # ... and the same for altq
 INCLUDES+= -I$S/contrib/altq
 
-# ... and the same for ipfilter
-INCLUDES+= -I$S/contrib/ipfilter
-
 # ... and the same for Atheros HAL
 INCLUDES+= -I$S/contrib/dev/ath -I$S/contrib/dev/ath/freebsd
 
