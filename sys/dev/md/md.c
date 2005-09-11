@@ -944,7 +944,6 @@ mddestroy(struct md_s *sc, struct thread *td)
 
 	GIANT_REQUIRED;
 
-	mtx_destroy(&sc->queue_mtx);
 	if (sc->gp) {
 		sc->gp->softc = NULL;
 		g_waitfor_event(md_zapit, sc->gp, M_WAITOK, sc->gp, NULL);
@@ -955,6 +954,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 	wakeup(sc);
 	while (sc->procp != NULL)
 		tsleep(&sc->procp, PRIBIO, "mddestroy", hz / 10);
+	mtx_destroy(&sc->queue_mtx);
 	if (sc->vnode != NULL)
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
 		    FREAD : (FREAD|FWRITE), sc->cred, td);
