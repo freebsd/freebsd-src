@@ -254,28 +254,50 @@ contrib/ipfilter/netinet/ip_pool.c optional ipfilter inet
 contrib/ipfilter/netinet/ip_htable.c optional ipfilter inet
 contrib/ipfilter/netinet/ip_sync.c optional ipfilter inet
 contrib/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet
-contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm
-contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm
-contrib/ngatm/netnatm/api/cc_dump.c optional ngatm_ccatm
-contrib/ngatm/netnatm/api/cc_port.c optional ngatm_ccatm
-contrib/ngatm/netnatm/api/cc_sig.c optional ngatm_ccatm
-contrib/ngatm/netnatm/api/cc_user.c optional ngatm_ccatm
-contrib/ngatm/netnatm/api/unisap.c optional ngatm_ccatm
-contrib/ngatm/netnatm/misc/straddr.c optional ngatm_atmbase
-contrib/ngatm/netnatm/misc/unimsg_common.c optional ngatm_atmbase
-contrib/ngatm/netnatm/msg/traffic.c optional ngatm_atmbase
-contrib/ngatm/netnatm/msg/uni_ie.c optional ngatm_atmbase
-contrib/ngatm/netnatm/msg/uni_msg.c optional ngatm_atmbase
-contrib/ngatm/netnatm/saal/saal_sscfu.c	optional ngatm_sscfu
-contrib/ngatm/netnatm/saal/saal_sscop.c	optional ngatm_sscop
-contrib/ngatm/netnatm/sig/sig_call.c optional ngatm_uni
-contrib/ngatm/netnatm/sig/sig_coord.c optional ngatm_uni
-contrib/ngatm/netnatm/sig/sig_party.c optional ngatm_uni
-contrib/ngatm/netnatm/sig/sig_print.c optional ngatm_uni
-contrib/ngatm/netnatm/sig/sig_reset.c optional ngatm_uni
-contrib/ngatm/netnatm/sig/sig_uni.c optional ngatm_uni
-contrib/ngatm/netnatm/sig/sig_unimsgcpy.c optional ngatm_uni
-contrib/ngatm/netnatm/sig/sig_verify.c optional ngatm_uni
+contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/api/cc_dump.c optional ngatm_ccatm \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/api/cc_port.c optional ngatm_ccatm \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/api/cc_sig.c optional ngatm_ccatm \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/api/cc_user.c optional ngatm_ccatm \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/api/unisap.c optional ngatm_ccatm \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/misc/straddr.c optional ngatm_atmbase \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/misc/unimsg_common.c optional ngatm_atmbase \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/msg/traffic.c optional ngatm_atmbase \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/msg/uni_ie.c optional ngatm_atmbase \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/msg/uni_msg.c optional ngatm_atmbase \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/saal/saal_sscfu.c	optional ngatm_sscfu \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/saal/saal_sscop.c	optional ngatm_sscop \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/sig/sig_call.c optional ngatm_uni \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/sig/sig_coord.c optional ngatm_uni \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/sig/sig_party.c optional ngatm_uni \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/sig/sig_print.c optional ngatm_uni \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/sig/sig_reset.c optional ngatm_uni \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/sig/sig_uni.c optional ngatm_uni \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/sig/sig_unimsgcpy.c optional ngatm_uni \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+contrib/ngatm/netnatm/sig/sig_verify.c optional ngatm_uni \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 contrib/pf/net/if_pflog.c	optional pflog
 contrib/pf/net/if_pfsync.c	optional pfsync
 contrib/pf/net/pf.c		optional pf
@@ -1511,12 +1533,17 @@ netatm/uni/unisig_util.c	optional atm_uni atm_core
 netatm/uni/unisig_vc_state.c	optional atm_uni atm_core
 netgraph/atm/atmpif/ng_atmpif.c	optional netgraph_atm_atmpif
 netgraph/atm/atmpif/ng_atmpif_harp.c optional netgraph_atm_atmpif
-netgraph/atm/ccatm/ng_ccatm.c	optional ngatm_ccatm
+netgraph/atm/ccatm/ng_ccatm.c	optional ngatm_ccatm \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 netgraph/atm/ng_atm.c		optional ngatm_atm
-netgraph/atm/ngatmbase.c		optional ngatm_atmbase
-netgraph/atm/sscfu/ng_sscfu.c	optional ngatm_sscfu
-netgraph/atm/sscop/ng_sscop.c optional ngatm_sscop
-netgraph/atm/uni/ng_uni.c	optional ngatm_uni
+netgraph/atm/ngatmbase.c	optional ngatm_atmbase \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+netgraph/atm/sscfu/ng_sscfu.c	optional ngatm_sscfu \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+netgraph/atm/sscop/ng_sscop.c optional ngatm_sscop \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+netgraph/atm/uni/ng_uni.c	optional ngatm_uni \
+	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 netgraph/bluetooth/common/ng_bluetooth.c optional netgraph_bluetooth
 netgraph/bluetooth/drivers/bt3c/ng_bt3c_pccard.c optional netgraph_bluetooth_bt3c
 netgraph/bluetooth/drivers/h4/ng_h4.c optional netgraph_bluetooth_h4
