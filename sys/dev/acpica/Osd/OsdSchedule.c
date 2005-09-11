@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <machine/clock.h>
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 
 #define _COMPONENT	ACPI_OS_SERVICES
