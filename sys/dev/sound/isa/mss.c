@@ -1013,7 +1013,8 @@ mss_format(struct mss_chinfo *ch, u_int32_t format)
     	arg <<= 4;
     	ad_enter_MCE(mss);
     	ad_write(mss, 8, (ad_read(mss, 8) & 0x0f) | arg);
-    	if (FULL_DUPLEX(mss)) ad_write(mss, 28, arg); /* capture mode */
+    	if (ad_read(mss, 12) & 0x40)	/* mode2? */
+		ad_write(mss, 28, arg); /* capture mode */
     	ad_leave_MCE(mss);
     	return format;
 }
