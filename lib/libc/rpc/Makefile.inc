@@ -48,8 +48,12 @@ MAN+=	bindresvport.3 des_crypt.3 getnetconfig.3 getnetpath.3 getrpcent.3 \
 	rtime.3
 MAN+=	publickey.5 rpc.5 netconfig.5
 MLINKS+=	bindresvport.3 bindresvport_sa.3 \
+		des_crypt.3 ecb_crypt.3 \
+		des_crypt.3 cbc_crypt.3 \
+		des_crypt.3 des_setparity.3 \
 		getnetconfig.3 setnetconfig.3 \
 		getnetconfig.3 getnetconfigent.3 \
+		getnetconfig.3 freenetconfigent.3 \
 		getnetconfig.3 endnetconfig.3 \
 		getnetconfig.3 nc_perror.3 \
 		getnetconfig.3 nc_sperror.3 \
@@ -59,6 +63,8 @@ MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		getrpcent.3 getrpcbynumber.3 \
 		getrpcent.3 endrpcent.3 \
 		getrpcent.3 setrpcent.3 \
+		publickey.3 getpublickey.3 \
+		publickey.3 getsecretkey.3 \
 		rpc_clnt_auth.3 auth_destroy.3 \
 		rpc_clnt_auth.3 authnone_create.3 \
 		rpc_clnt_auth.3 authsys_create.3 \
@@ -87,6 +93,17 @@ MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		rpc_clnt_create.3 clnt_tp_create.3 \
 		rpc_clnt_create.3 clnt_tp_create_timed.3 \
 		rpc_clnt_create.3 clnt_vc_create.3 \
+		rpc_secure.3 authdes_create.3 \
+		rpc_secure.3 authdes_getucred.3 \
+		rpc_secure.3 getnetname.3 \
+		rpc_secure.3 host2netname.3 \
+		rpc_secure.3 key_decryptsession.3 \
+		rpc_secure.3 key_encryptsession.3 \
+		rpc_secure.3 key_gendes.3 \
+		rpc_secure.3 key_setsecret.3 \
+		rpc_secure.3 netname2host.3 \
+		rpc_secure.3 netname2user.3 \
+		rpc_secure.3 user2netname.3 \
 		rpc_svc_calls.3 svc_dg_enablecache.3 \
 		rpc_svc_calls.3 svc_exit.3 \
 		rpc_svc_calls.3 svc_freeargs.3 \
