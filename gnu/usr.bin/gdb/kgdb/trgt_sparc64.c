@@ -184,7 +184,10 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 	find_pc_partial_function(pc, &pname, NULL, NULL);
 	if (pname == NULL)
 		return (NULL);
-	if (strcmp(pname, "tl1_trap") == 0)
+	if (strcmp(pname, "tl0_intr") == 0 ||
+	    strcmp(pname, "tl0_trap") == 0 ||
+	    strcmp(pname, "tl1_intr") == 0 ||
+	    strcmp(pname, "tl1_trap") == 0)
 		return (&kgdb_trgt_trapframe_unwind);
 	/* printf("%s: %lx =%s\n", __func__, pc, pname); */
 	return (NULL);
