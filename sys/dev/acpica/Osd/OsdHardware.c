@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 
 #include <machine/bus.h>
 #include <machine/pci_cfgreg.h>
