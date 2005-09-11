@@ -14,7 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
-# T/TCP retired several months ago
+# 20050831: not implemented
+OLD_FILES+=usr/share/man/man3/getino.3.gz
+OLD_FILES+=usr/share/man/man3/putino.3.gz
+# 20050825: T/TCP retired several months ago
 OLD_FILES+=usr/share/man/man4/ttcp.4.gz
 # 20050805 tn3270 retired long ago
 OLD_FILES+=usr/share/misc/map3270
