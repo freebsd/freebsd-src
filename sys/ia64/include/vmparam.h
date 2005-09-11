@@ -109,7 +109,7 @@
  * by the page replacement algorithm.  Basically this says that if you are
  * swapped in you deserve some resources.  We protect the last SAFERSS
  * pages against paging and will just swap you out rather than paging you.
- * Note that each process has at least UPAGES+CLSIZE pages which are not
+ * Note that each process has at least UPAGES pages which are not
  * paged anyways, in addition to SAFERSS.
  */
 #define	SAFERSS		10		/* nominal ``small'' resident set size
