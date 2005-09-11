@@ -247,19 +247,32 @@ contrib/dev/acpica/utmisc.c	optional acpi
 contrib/dev/acpica/utobject.c	optional acpi
 contrib/dev/acpica/utxface.c	optional acpi
 contrib/dev/ath/freebsd/ah_osdep.c optional ath_hal
-contrib/ipfilter/netinet/fil.c	optional ipfilter inet
-contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet
-contrib/ipfilter/netinet/ip_fil_freebsd.c optional ipfilter inet
-contrib/ipfilter/netinet/ip_frag.c optional ipfilter inet
-contrib/ipfilter/netinet/ip_log.c optional ipfilter inet
-contrib/ipfilter/netinet/ip_nat.c optional ipfilter inet
-contrib/ipfilter/netinet/ip_proxy.c optional ipfilter inet
-contrib/ipfilter/netinet/ip_state.c optional ipfilter inet
-contrib/ipfilter/netinet/ip_lookup.c optional ipfilter inet
-contrib/ipfilter/netinet/ip_pool.c optional ipfilter inet
-contrib/ipfilter/netinet/ip_htable.c optional ipfilter inet
-contrib/ipfilter/netinet/ip_sync.c optional ipfilter inet
-contrib/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet
+contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_fil_freebsd.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_frag.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_log.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_nat.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_proxy.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_state.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_lookup.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_pool.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_htable.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_sync.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm \
