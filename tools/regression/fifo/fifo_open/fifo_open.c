@@ -462,6 +462,8 @@ main(int argc, char *argv[])
 	strcpy(temp_dir, "/tmp/fifo_create.XXXXXXXXXXX");
 	if (mkdtemp(temp_dir) == NULL)
 		err(-1, "mkdtemp");
+	if (chdir(temp_dir) < 0)
+		err(-1, "chdir: %s", temp_dir);
 	atexit(atexit_temp_dir);
 
 	test_non_blocking_reader();
