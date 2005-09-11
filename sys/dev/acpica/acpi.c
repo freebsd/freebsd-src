@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 #include <contrib/dev/acpica/acnamesp.h>
