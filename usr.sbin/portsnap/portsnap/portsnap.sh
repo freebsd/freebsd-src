@@ -790,7 +790,7 @@ extract_indices() {
 # merge the values from any exiting .portsnap.INDEX file.
 extract_metadata() {
 	if [ -z "${REFUSE}" ]; then
-		sort ${WORKDIR}/INDEX > ${PORTDIR}/.portsnap.INDEX
+		sort ${WORKDIR}/INDEX > ${PORTSDIR}/.portsnap.INDEX
 	elif [ -f ${PORTSDIR}/.portsnap.INDEX ]; then
 		grep -E "${REFUSE}" ${PORTSDIR}/.portsnap.INDEX	\
 		    > ${PORTSDIR}/.portsnap.INDEX.tmp
