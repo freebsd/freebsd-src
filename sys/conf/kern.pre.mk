@@ -64,9 +64,6 @@ INCLUDES+= -I$S/contrib/pf
 # ... and the same for Atheros HAL
 INCLUDES+= -I$S/contrib/dev/ath -I$S/contrib/dev/ath/freebsd
 
-# ... and the same for the NgATM stuff
-INCLUDES+= -I$S/contrib/ngatm
-
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}
 CFLAGS+= ${INCLUDES} -D_KERNEL -include opt_global.h
 .if ${CC} != "icc"
