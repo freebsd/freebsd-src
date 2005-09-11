@@ -53,7 +53,7 @@
 #include <machine/endian.h>
 #include <machine/stdarg.h>
 
-#include "tw_osl_types.h"
+#include <dev/twa/tw_osl_types.h>
 #include "opt_twa.h"
 
 
