@@ -167,11 +167,7 @@ static int	isitmydescendant(struct witness *parent, struct witness *child);
 static int	itismychild(struct witness *parent, struct witness *child);
 static void	removechild(struct witness *parent, struct witness *child);
 static int	sysctl_debug_witness_watch(SYSCTL_HANDLER_ARGS);
-static void	witness_displaydescendants(void(*)(const char *fmt, ...),
-					   struct witness *, int indent);
 static const char *fixup_filename(const char *file);
-static void	witness_leveldescendents(struct witness *parent, int level);
-static void	witness_levelall(void);
 static struct	witness *witness_get(void);
 static void	witness_free(struct witness *m);
 static struct	witness_child_list_entry *witness_child_get(void);
@@ -182,10 +178,14 @@ static struct	lock_instance *find_instance(struct lock_list_entry *lock_list,
 					     struct lock_object *lock);
 static void	witness_list_lock(struct lock_instance *instance);
 #ifdef DDB
-static void	witness_list(struct thread *td);
+static void	witness_leveldescendents(struct witness *parent, int level);
+static void	witness_levelall(void);
+static void	witness_displaydescendants(void(*)(const char *fmt, ...),
+					   struct witness *, int indent);
 static void	witness_display_list(void(*prnt)(const char *fmt, ...),
 				     struct witness_list *list);
 static void	witness_display(void(*)(const char *fmt, ...));
+static void	witness_list(struct thread *td);
 #endif
 
 SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, 0, "Witness Locking");
@@ -609,6 +609,87 @@ witness_destroy(struct lock_object *lock)
 }
 
 #ifdef DDB
+static void
+witness_levelall (void)
+{
+	struct witness_list *list;
+	struct witness *w, *w1;
+
+	/*
+	 * First clear all levels.
+	 */
+	STAILQ_FOREACH(w, &w_all, w_list) {
+		w->w_level = 0;
+	}
+
+	/*
+	 * Look for locks with no parent and level all their descendants.
+	 */
+	STAILQ_FOREACH(w, &w_all, w_list) {
+		/*
+		 * This is just an optimization, technically we could get
+		 * away just walking the all list each time.
+		 */
+		if (w->w_class->lc_flags & LC_SLEEPLOCK)
+			list = &w_sleep;
+		else
+			list = &w_spin;
+		STAILQ_FOREACH(w1, list, w_typelist) {
+			if (isitmychild(w1, w))
+				goto skip;
+		}
+		witness_leveldescendents(w, 0);
+	skip:
+		;	/* silence GCC 3.x */
+	}
+}
+
+static void
+witness_leveldescendents(struct witness *parent, int level)
+{
+	struct witness_child_list_entry *wcl;
+	int i;
+
+	if (parent->w_level < level)
+		parent->w_level = level;
+	level++;
+	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next)
+		for (i = 0; i < wcl->wcl_count; i++)
+			witness_leveldescendents(wcl->wcl_children[i], level);
+}
+
+static void
+witness_displaydescendants(void(*prnt)(const char *fmt, ...),
+			   struct witness *parent, int indent)
+{
+	struct witness_child_list_entry *wcl;
+	int i, level;
+
+	level = parent->w_level;
+	prnt("%-2d", level);
+	for (i = 0; i < indent; i++)
+		prnt(" ");
+	if (parent->w_refcount > 0)
+		prnt("%s", parent->w_name);
+	else
+		prnt("(dead)");
+	if (parent->w_displayed) {
+		prnt(" -- (already displayed)\n");
+		return;
+	}
+	parent->w_displayed = 1;
+	if (parent->w_refcount > 0) {
+		if (parent->w_file != NULL)
+			prnt(" -- last acquired @ %s:%d", parent->w_file,
+			    parent->w_line);
+	}
+	prnt("\n");
+	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next)
+		for (i = 0; i < wcl->wcl_count; i++)
+			    witness_displaydescendants(prnt,
+				wcl->wcl_children[i], indent + 1);
+}
+
 static void
 witness_display_list(void(*prnt)(const char *fmt, ...),
 		     struct witness_list *list)
@@ -1491,87 +1572,6 @@ isitmydescendant(struct witness *parent, struct witness *child)
 		j++;
 	}
 	return (0);
-}
-
-static void
-witness_levelall (void)
-{
-	struct witness_list *list;
-	struct witness *w, *w1;
-
-	/*
-	 * First clear all levels.
-	 */
-	STAILQ_FOREACH(w, &w_all, w_list) {
-		w->w_level = 0;
-	}
-
-	/*
-	 * Look for locks with no parent and level all their descendants.
-	 */
-	STAILQ_FOREACH(w, &w_all, w_list) {
-		/*
-		 * This is just an optimization, technically we could get
-		 * away just walking the all list each time.
-		 */
-		if (w->w_class->lc_flags & LC_SLEEPLOCK)
-			list = &w_sleep;
-		else
-			list = &w_spin;
-		STAILQ_FOREACH(w1, list, w_typelist) {
-			if (isitmychild(w1, w))
-				goto skip;
-		}
-		witness_leveldescendents(w, 0);
-	skip:
-		;	/* silence GCC 3.x */
-	}
-}
-
-static void
-witness_leveldescendents(struct witness *parent, int level)
-{
-	struct witness_child_list_entry *wcl;
-	int i;
-
-	if (parent->w_level < level)
-		parent->w_level = level;
-	level++;
-	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next)
-		for (i = 0; i < wcl->wcl_count; i++)
-			witness_leveldescendents(wcl->wcl_children[i], level);
-}
-
-static void
-witness_displaydescendants(void(*prnt)(const char *fmt, ...),
-			   struct witness *parent, int indent)
-{
-	struct witness_child_list_entry *wcl;
-	int i, level;
-
-	level = parent->w_level;
-	prnt("%-2d", level);
-	for (i = 0; i < indent; i++)
-		prnt(" ");
-	if (parent->w_refcount > 0)
-		prnt("%s", parent->w_name);
-	else
-		prnt("(dead)");
-	if (parent->w_displayed) {
-		prnt(" -- (already displayed)\n");
-		return;
-	}
-	parent->w_displayed = 1;
-	if (parent->w_refcount > 0) {
-		if (parent->w_file != NULL)
-			prnt(" -- last acquired @ %s:%d", parent->w_file,
-			    parent->w_line);
-	}
-	prnt("\n");
-	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next)
-		for (i = 0; i < wcl->wcl_count; i++)
-			    witness_displaydescendants(prnt,
-				wcl->wcl_children[i], indent + 1);
 }
 
 #ifdef BLESSING
