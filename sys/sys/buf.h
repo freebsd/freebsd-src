@@ -195,7 +195,7 @@ struct buf {
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_VALIDSUSPWRT	0x00000040	/* Valid write during suspension. */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
-#define	B_00000100	0x00000100	/* Available flag. */
+#define	B_PERSISTENT	0x00000100	/* Perm. ref'ed while EXT2FS mounted. */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
 #define	B_00000800	0x00000800	/* Available flag. */
@@ -220,10 +220,10 @@ struct buf {
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_REMFREE	0x80000000	/* Delayed bremfree */
 
-#define PRINT_BUF_FLAGS "\20\40b31\37cluster\36vmio\35ram\34b27" \
+#define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34b27" \
 	"\33paging\32b25\31b24\30b23\27relbuf\26dirty\25b20" \
-	"\24b19\23phys\22clusterok\21malloc\20nocache\17locked\16inval" \
-	"\15scanned\14nowdrain\13eintr\12done\11b8\10delwri\7validsuspwrt" \
+	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
+	"\15b12\14b11\13eintr\12done\11persist\10delwri\7validsuspwrt" \
 	"\6cache\5deferred\4direct\3async\2needcommit\1age"
 
 /*

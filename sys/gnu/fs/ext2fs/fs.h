@@ -150,19 +150,19 @@ extern u_char *fragtbl[];
 
 /*
  * Historically, ext2fs kept it's metadata buffers on the LOCKED queue.  Now,
- * we simply change the lock owner to kern so that it may be released from
- * another context.  Later, we release the buffer, and conditionally write it
- * when we're done.
+ * we change the lock owner to kern so that we may use it from contexts other
+ * than the one that originally locked it.  When we are finished with the
+ * buffer, we release it, writing it first if it was dirty.
  */
-#define LCK_BUF(bp)	BUF_KERNPROC(bp);
+#define LCK_BUF(bp) { \
+	(bp)->b_flags |= B_PERSISTENT; \
+	BUF_KERNPROC(bp); \
+}
 
 #define ULCK_BUF(bp) { \
 	long flags; \
-	int s; \
-	s = splbio(); \
 	flags = (bp)->b_flags; \
-	(bp)->b_flags &= ~(B_DIRTY); \
-	splx(s); \
+	(bp)->b_flags &= ~(B_DIRTY | B_PERSISTENT); \
 	if (flags & B_DIRTY) \
 		bwrite(bp); \
 	else \
