@@ -42,10 +42,10 @@
  */
 
 
-#include "tw_osl_includes.h"
-#include "tw_cl_fwif.h"
-#include "tw_cl_ioctl.h"
-#include "tw_osl_ioctl.h"
+#include <dev/twa/tw_osl_includes.h>
+#include <dev/twa/tw_cl_fwif.h>
+#include <dev/twa/tw_cl_ioctl.h>
+#include <dev/twa/tw_osl_ioctl.h>
 
 #ifdef TW_OSL_DEBUG
 TW_INT32	TW_DEBUG_LEVEL_FOR_OSL = TW_OSL_DEBUG;
