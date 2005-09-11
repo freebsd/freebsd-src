@@ -246,7 +246,8 @@ contrib/dev/acpica/utmath.c	optional acpi
 contrib/dev/acpica/utmisc.c	optional acpi
 contrib/dev/acpica/utobject.c	optional acpi
 contrib/dev/acpica/utxface.c	optional acpi
-contrib/dev/ath/freebsd/ah_osdep.c optional ath_hal
+contrib/dev/ath/freebsd/ah_osdep.c optional ath_hal \
+	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet \
@@ -480,10 +481,13 @@ dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
 dev/ath/ath_rate/amrr/amrr.c 	optional ath_rate_amrr
-dev/ath/ath_rate/onoe/onoe.c 	optional ath_rate_onoe
+dev/ath/ath_rate/onoe/onoe.c 	optional ath_rate_onoe \
+	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"
 dev/ath/ath_rate/sample/sample.c 	optional ath_rate_sample
-dev/ath/if_ath.c		optional ath
-dev/ath/if_ath_pci.c		optional ath pci
+dev/ath/if_ath.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"
+dev/ath/if_ath_pci.c		optional ath pci \
+	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"
 dev/awi/am79c930.c		optional awi
 dev/awi/awi.c			optional awi
 dev/awi/if_awi_pccard.c		optional awi pccard
