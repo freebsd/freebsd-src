@@ -299,7 +299,7 @@ ntfs_mountfs(devvp, mp, td)
 	brelse( bp );
 	bp = NULL;
 
-	if (strncmp(ntmp->ntm_bootfile.bf_sysid, NTFS_BBID, NTFS_BBIDLEN)) {
+	if (strncmp((const char *)ntmp->ntm_bootfile.bf_sysid, NTFS_BBID, NTFS_BBIDLEN)) {
 		error = EINVAL;
 		dprintf(("ntfs_mountfs: invalid boot block\n"));
 		goto out;
