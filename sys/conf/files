@@ -859,11 +859,16 @@ dev/syscons/star/star_saver.c	optional star_saver
 dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/trm/trm.c			optional trm
-dev/twa/tw_cl_fwimg.c		optional twa
-dev/twa/tw_cl_init.c		optional twa
-dev/twa/tw_cl_intr.c		optional twa
-dev/twa/tw_cl_io.c		optional twa
-dev/twa/tw_cl_misc.c		optional twa
+dev/twa/tw_cl_fwimg.c		optional twa \
+	compile-with "${NORMAL_C} -I$S/dev/twa"
+dev/twa/tw_cl_init.c		optional twa \
+	compile-with "${NORMAL_C} -I$S/dev/twa"
+dev/twa/tw_cl_intr.c		optional twa \
+	compile-with "${NORMAL_C} -I$S/dev/twa"
+dev/twa/tw_cl_io.c		optional twa \
+	compile-with "${NORMAL_C} -I$S/dev/twa"
+dev/twa/tw_cl_misc.c		optional twa \
+	compile-with "${NORMAL_C} -I$S/dev/twa"
 dev/twa/tw_osl_cam.c		optional twa
 dev/twa/tw_osl_freebsd.c	optional twa
 dev/twe/twe.c			optional twe
