@@ -183,10 +183,10 @@ SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
 enable these bits correctly.  We'd like to do this all the time, but there\n\
 are some peripherals that this causes problems with.");
 
-static int pci_do_powerstate = 1;
+static int pci_do_powerstate = 0;
 TUNABLE_INT("hw.pci.do_powerstate", &pci_do_powerstate);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_powerstate, CTLFLAG_RW,
-    &pci_do_powerstate, 1,
+    &pci_do_powerstate, 0,
     "Power down devices into D3 state when no driver attaches to them.\n\
 Otherwise, leave the device in D0 state when no driver attaches.");
 
