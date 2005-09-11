@@ -1367,6 +1367,7 @@ mss_detect(device_t dev, struct mss_info *mss)
     	name = "AD1848";
     	mss->bd_id = MD_AD1848; /* AD1848 or CS4248 */
 
+#ifndef PC98
 	if (opti_detect(dev, mss)) {
 		switch (mss->bd_id) {
 			case MD_OPTI924:
@@ -1379,6 +1380,7 @@ mss_detect(device_t dev, struct mss_info *mss)
 		printf("Found OPTi device %s\n", name);
 		if (opti_init(dev, mss) == 0) goto gotit;
 	}
+#endif
 
    	/*
      	* Check that the I/O address is in use.
