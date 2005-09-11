@@ -111,14 +111,20 @@ coda/coda_venus.c		optional vcoda
 coda/coda_vfsops.c		optional vcoda
 coda/coda_vnops.c		optional vcoda
 compat/linprocfs/linprocfs.c	optional linprocfs
-contrib/altq/altq/altq_cbq.c	optional altq
+contrib/altq/altq/altq_cbq.c	optional altq \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/altq/altq/altq_cdnr.c	optional altq
-contrib/altq/altq/altq_hfsc.c	optional altq
-contrib/altq/altq/altq_priq.c	optional altq
-contrib/altq/altq/altq_red.c	optional altq
-contrib/altq/altq/altq_rio.c	optional altq
+contrib/altq/altq/altq_hfsc.c	optional altq \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/altq/altq/altq_priq.c	optional altq \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/altq/altq/altq_red.c	optional altq \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/altq/altq/altq_rio.c	optional altq \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/altq/altq/altq_rmclass.c optional altq
-contrib/altq/altq/altq_subr.c	optional altq
+contrib/altq/altq/altq_subr.c	optional altq \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/dev/acpica/dbcmds.c	optional acpi acpi_debug
 contrib/dev/acpica/dbdisply.c	optional acpi acpi_debug
 contrib/dev/acpica/dbexec.c	optional acpi acpi_debug
@@ -298,15 +304,24 @@ contrib/ngatm/netnatm/sig/sig_unimsgcpy.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/sig/sig_verify.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
-contrib/pf/net/if_pflog.c	optional pflog
-contrib/pf/net/if_pfsync.c	optional pfsync
-contrib/pf/net/pf.c		optional pf
-contrib/pf/net/pf_if.c		optional pf
-contrib/pf/net/pf_subr.c	optional pf
-contrib/pf/net/pf_ioctl.c	optional pf
-contrib/pf/net/pf_norm.c	optional pf
-contrib/pf/net/pf_table.c	optional pf
-contrib/pf/net/pf_osfp.c	optional pf
+contrib/pf/net/if_pflog.c	optional pflog \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/if_pfsync.c	optional pfsync \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf.c		optional pf \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_if.c		optional pf \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_subr.c	optional pf \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_ioctl.c	optional pf \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_norm.c	optional pf \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_table.c	optional pf \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_osfp.c	optional pf \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/netinet/in4_cksum.c	optional pf inet
 crypto/blowfish/bf_ecb.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_skey.c	optional crypto
@@ -1616,7 +1631,8 @@ netinet/in_gif.c		optional gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
 netinet/in_pcb.c		optional inet
-netinet/in_proto.c		optional inet
+netinet/in_proto.c		optional inet \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
 netinet/in_rmx.c		optional inet
 netinet/ip_divert.c		optional ipdivert
 netinet/ip_dummynet.c		optional dummynet
