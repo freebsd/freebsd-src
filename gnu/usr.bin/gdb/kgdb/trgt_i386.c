@@ -72,6 +72,7 @@ kgdb_trgt_store_registers(int regno __unused)
 }
 
 struct kgdb_frame_cache {
+	int		intrframe;
 	CORE_ADDR	pc;
 	CORE_ADDR	sp;
 };
@@ -99,12 +100,15 @@ kgdb_trgt_frame_cache(struct frame_info *next_frame, void **this_cache)
 {
 	char buf[MAX_REGISTER_SIZE];
 	struct kgdb_frame_cache *cache;
+	char *pname;
 
 	cache = *this_cache;
 	if (cache == NULL) {
 		cache = FRAME_OBSTACK_ZALLOC(struct kgdb_frame_cache);
 		*this_cache = cache;
 		cache->pc = frame_func_unwind(next_frame);
+		find_pc_partial_function(cache->pc, &pname, NULL, NULL);
+		cache->intrframe = (pname[0] == 'X') ? 1 : 0;
 		frame_unwind_register(next_frame, SP_REGNUM, buf);
 		cache->sp = extract_unsigned_integer(buf,
 		    register_size(current_gdbarch, SP_REGNUM));
@@ -147,7 +151,7 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 		return;
 
 	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
-	*addrp = cache->sp + ofs;
+	*addrp = cache->sp + ofs + (cache->intrframe ? 4 : 0);
 	*lvalp = lval_memory;
 	target_read_memory(*addrp, valuep, regsz);
 }
@@ -169,8 +173,9 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 	find_pc_partial_function(pc, &pname, NULL, NULL);
 	if (pname == NULL)
 		return (NULL);
-	if (strcmp(pname, "calltrap") == 0)
+	if (strcmp(pname, "calltrap") == 0 ||
+	    (pname[0] == 'X' && pname[1] != '_'))
 		return (&kgdb_trgt_trapframe_unwind);
 	/* printf("%s: %llx =%s\n", __func__, pc, pname); */
-        return (NULL);
+	return (NULL);
 }
