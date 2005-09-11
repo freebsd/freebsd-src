@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: msg.c,v 1.7 2003/11/17 09:45:39 djm Exp $");
+RCSID("$OpenBSD: msg.c,v 1.8 2005/05/24 17:32:43 avsm Exp $");
 
 #include "buffer.h"
 #include "getput.h"
@@ -55,15 +55,13 @@ int
 ssh_msg_recv(int fd, Buffer *m)
 {
 	u_char buf[4];
-	ssize_t res;
 	u_int msg_len;
 
 	debug3("ssh_msg_recv entering");
 
-	res = atomicio(read, fd, buf, sizeof(buf));
-	if (res != sizeof(buf)) {
-		if (res != 0)
-			error("ssh_msg_recv: read: header %ld", (long)res);
+	if (atomicio(read, fd, buf, sizeof(buf)) != sizeof(buf)) {
+		if (errno != EPIPE)
+			error("ssh_msg_recv: read: header");
 		return (-1);
 	}
 	msg_len = GET_32BIT(buf);
@@ -73,9 +71,8 @@ ssh_msg_recv(int fd, Buffer *m)
 	}
 	buffer_clear(m);
 	buffer_append_space(m, msg_len);
-	res = atomicio(read, fd, buffer_ptr(m), msg_len);
-	if (res != msg_len) {
-		error("ssh_msg_recv: read: %ld != msg_len", (long)res);
+	if (atomicio(read, fd, buffer_ptr(m), msg_len) != msg_len) {
+		error("ssh_msg_recv: read: %s", strerror(errno));
 		return (-1);
 	}
 	return (0);

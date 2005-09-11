@@ -128,10 +128,10 @@ pty_make_controlling_tty(int *ttyfd, const char *tty)
 	if (ioctl(*ttyfd, TIOCSCTTY, NULL) < 0)
 		error("ioctl(TIOCSCTTY): %.100s", strerror(errno));
 #endif /* TIOCSCTTY */
-#ifdef HAVE_NEWS4
+#ifdef NEED_SETPGRP
 	if (setpgrp(0,0) < 0)
 		error("SETPGRP %s",strerror(errno));
-#endif /* HAVE_NEWS4 */
+#endif /* NEED_SETPGRP */
 #ifdef USE_VHANGUP
 	old = signal(SIGHUP, SIG_IGN);
 	vhangup();

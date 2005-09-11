@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: ssh-rsa.c,v 1.31 2003/11/10 16:23:41 jakob Exp $");
+RCSID("$OpenBSD: ssh-rsa.c,v 1.32 2005/06/17 02:44:33 djm Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -238,7 +238,7 @@ openssh_RSA_verify(int type, u_char *hash, u_int hashlen,
 		    ERR_error_string(ERR_get_error(), NULL));
 		goto done;
 	}
-	if (len != hlen + oidlen) {
+	if (len < 0 || (u_int)len != hlen + oidlen) {
 		error("bad decrypted len: %d != %d + %d", len, hlen, oidlen);
 		goto done;
 	}

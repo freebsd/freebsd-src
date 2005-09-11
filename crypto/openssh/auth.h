@@ -1,4 +1,4 @@
-/*	$OpenBSD: auth.h,v 1.50 2004/05/23 23:59:53 dtucker Exp $	*/
+/*	$OpenBSD: auth.h,v 1.51 2005/06/06 11:20:36 djm Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -164,7 +164,6 @@ char	*get_challenge(Authctxt *);
 int	verify_response(Authctxt *, const char *);
 void	abandon_challenge_response(Authctxt *);
 
-char	*expand_filename(const char *, struct passwd *);
 char	*authorized_keys_file(struct passwd *);
 char	*authorized_keys_file2(struct passwd *);
 
@@ -197,6 +196,11 @@ int	 sys_auth_passwd(Authctxt *, const char *);
 #define SKEY_PROMPT "\nOPIE Password: "
 #else
 #define SKEY_PROMPT "\nS/Key Password: "
+
+#if defined(KRB5) && !defined(HEIMDAL)
+#include <krb5.h>
+krb5_error_code ssh_krb5_cc_gen(krb5_context, krb5_ccache *);
+#endif
 #endif
 #endif
 

@@ -1,4 +1,4 @@
-/*	$OpenBSD: readconf.h,v 1.66 2005/03/01 10:40:27 djm Exp $	*/
+/*	$OpenBSD: readconf.h,v 1.67 2005/06/08 11:25:09 djm Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -116,6 +116,11 @@ typedef struct {
 	int	hash_known_hosts;
 }       Options;
 
+#define SSHCTL_MASTER_NO	0
+#define SSHCTL_MASTER_YES	1
+#define SSHCTL_MASTER_AUTO	2
+#define SSHCTL_MASTER_ASK	3
+#define SSHCTL_MASTER_AUTO_ASK	4
 
 void     initialize_options(Options *);
 void     fill_default_options(Options *);

@@ -165,7 +165,7 @@
 # include <libutil.h>
 #endif
 
-RCSID("$Id: loginrec.c,v 1.67 2005/02/15 11:19:28 dtucker Exp $");
+RCSID("$Id: loginrec.c,v 1.70 2005/07/17 07:26:44 djm Exp $");
 RCSID("$FreeBSD$");
 
 /**
@@ -363,7 +363,7 @@ login_init_entry(struct logininfo *li, int pid, const char *username,
 		strlcpy(li->username, username, sizeof(li->username));
 		pw = getpwnam(li->username);
 		if (pw == NULL) {
-			fatal("%s: Cannot find user \"%s\"", __func__, 
+			fatal("%s: Cannot find user \"%s\"", __func__,
 			    li->username);
 		}
 		li->uid = pw->pw_uid;
@@ -375,7 +375,7 @@ login_init_entry(struct logininfo *li, int pid, const char *username,
 	return (1);
 }
 
-/* 
+/*
  * login_set_current_time(struct logininfo *)    - set the current time
  *
  * Set the current time in a logininfo structure. This function is
@@ -444,8 +444,9 @@ login_write(struct logininfo *li)
 	wtmpx_write_entry(li);
 #endif
 #ifdef CUSTOM_SYS_AUTH_RECORD_LOGIN
-	if (li->type == LTYPE_LOGIN && 
-	   !sys_auth_record_login(li->username,li->hostname,li->line, &loginmsg))
+	if (li->type == LTYPE_LOGIN &&
+	    !sys_auth_record_login(li->username,li->hostname,li->line,
+	    &loginmsg))
 		logit("Writing login record failed for %s", li->username);
 #endif
 #ifdef SSH_AUDIT_EVENTS
@@ -535,7 +536,7 @@ getlast_entry(struct logininfo *li)
  * sure dst has enough space, if not just copy src (ugh)
  */
 char *
-line_fullname(char *dst, const char *src, int dstsize)
+line_fullname(char *dst, const char *src, u_int dstsize)
 {
 	memset(dst, '\0', dstsize);
 	if ((strncmp(src, "/dev/", 5) == 0) || (dstsize < (strlen(src) + 5)))
@@ -559,7 +560,7 @@ line_stripname(char *dst, const char *src, int dstsize)
 	return (dst);
 }
 
-/* 
+/*
  * line_abbrevname(): Return the abbreviated (usually four-character)
  * form of the line (Just use the last <dstsize> characters of the
  * full name.)
@@ -809,7 +810,7 @@ utmp_write_library(struct logininfo *li, struct utmp *ut)
 }
 # else /* UTMP_USE_LIBRARY */
 
-/* 
+/*
  * Write a utmp entry direct to the file
  * This is a slightly modification of code in OpenBSD's login.c
  */
@@ -853,7 +854,7 @@ utmp_write_direct(struct logininfo *li, struct utmp *ut)
 			return (0);
 		}
 		if (ret != pos) {
-			logit("%s: Couldn't seek to tty %d slot in %s", 
+			logit("%s: Couldn't seek to tty %d slot in %s",
 			    __func__, tty, UTMP_FILE);
 			return (0);
 		}
@@ -1053,7 +1054,7 @@ utmpx_write_entry(struct logininfo *li)
 
 #ifdef USE_WTMP
 
-/* 
+/*
  * Write a wtmp entry direct to the end of the file
  * This is a slight modification of code in OpenBSD's logwtmp.c
  */
@@ -1114,7 +1115,7 @@ wtmp_write_entry(struct logininfo *li)
 }
 
 
-/* 
+/*
  * Notes on fetching login data from wtmp/wtmpx
  *
  * Logouts are usually recorded with (amongst other things) a blank
@@ -1158,12 +1159,12 @@ wtmp_get_entry(struct logininfo *li)
 	li->tv_sec = li->tv_usec = 0;
 
 	if ((fd = open(WTMP_FILE, O_RDONLY)) < 0) {
-		logit("%s: problem opening %s: %s", __func__, 
+		logit("%s: problem opening %s: %s", __func__,
 		    WTMP_FILE, strerror(errno));
 		return (0);
 	}
 	if (fstat(fd, &st) != 0) {
-		logit("%s: couldn't stat %s: %s", __func__, 
+		logit("%s: couldn't stat %s: %s", __func__,
 		    WTMP_FILE, strerror(errno));
 		close(fd);
 		return (0);
@@ -1178,7 +1179,7 @@ wtmp_get_entry(struct logininfo *li)
 
 	while (!found) {
 		if (atomicio(read, fd, &ut, sizeof(ut)) != sizeof(ut)) {
-			logit("%s: read of %s failed: %s", __func__, 
+			logit("%s: read of %s failed: %s", __func__,
 			    WTMP_FILE, strerror(errno));
 			close (fd);
 			return (0);
@@ -1236,7 +1237,7 @@ wtmpx_write(struct logininfo *li, struct utmpx *utx)
 	int fd, ret = 1;
 
 	if ((fd = open(WTMPX_FILE, O_WRONLY|O_APPEND, 0)) < 0) {
-		logit("%s: problem opening %s: %s", __func__, 
+		logit("%s: problem opening %s: %s", __func__,
 		    WTMPX_FILE, strerror(errno));
 		return (0);
 	}
@@ -1323,12 +1324,12 @@ wtmpx_get_entry(struct logininfo *li)
 	li->tv_sec = li->tv_usec = 0;
 
 	if ((fd = open(WTMPX_FILE, O_RDONLY)) < 0) {
-		logit("%s: problem opening %s: %s", __func__, 
+		logit("%s: problem opening %s: %s", __func__,
 		    WTMPX_FILE, strerror(errno));
 		return (0);
 	}
 	if (fstat(fd, &st) != 0) {
-		logit("%s: couldn't stat %s: %s", __func__, 
+		logit("%s: couldn't stat %s: %s", __func__,
 		    WTMPX_FILE, strerror(errno));
 		close(fd);
 		return (0);
@@ -1343,13 +1344,13 @@ wtmpx_get_entry(struct logininfo *li)
 
 	while (!found) {
 		if (atomicio(read, fd, &utx, sizeof(utx)) != sizeof(utx)) {
-			logit("%s: read of %s failed: %s", __func__, 
+			logit("%s: read of %s failed: %s", __func__,
 			    WTMPX_FILE, strerror(errno));
 			close (fd);
 			return (0);
 		}
 		/*
-		 * Logouts are recorded as a blank username on a particular 
+		 * Logouts are recorded as a blank username on a particular
 		 * line. So, we just need to find the username in struct utmpx
 		 */
 		if (wtmpx_islogin(li, &utx)) {
