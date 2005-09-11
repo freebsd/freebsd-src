@@ -1521,6 +1521,21 @@ pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case PCI_IVAR_FUNCTION:
 		*result = cfg->func;
 		break;
+	case PCI_IVAR_CMDREG:
+		*result = cfg->cmdreg;
+		break;
+	case PCI_IVAR_CACHELNSZ:
+		*result = cfg->cachelnsz;
+		break;
+	case PCI_IVAR_MINGNT:
+		*result = cfg->mingnt;
+		break;
+	case PCI_IVAR_MAXLAT:
+		*result = cfg->maxlat;
+		break;
+	case PCI_IVAR_LATTIMER:
+		*result = cfg->lattimer;
+		break;
 	default:
 		return (ENOENT);
 	}
@@ -1638,17 +1653,19 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	if (pci_maptype(testval) & PCI_MAPMEM) {
 		if (type != SYS_RES_MEMORY) {
 			if (bootverbose)
-				device_printf(child,
-				    "rid %#x is memory, requested %d\n",
-				    *rid, type);
+				device_printf(dev,
+				    "child %s requested type %d for rid %#x,"
+				    " but the BAR says it is an memio\n",
+				    device_get_nameunit(child), type, *rid);
 			goto out;
 		}
 	} else {
 		if (type != SYS_RES_IOPORT) {
 			if (bootverbose)
-				device_printf(child,
-				    "rid %#x is ioport, requested %d\n",
-				    *rid, type);
+				device_printf(dev,
+				    "child %s requested type %d for rid %#x,"
+				    " but the BAR says it is an ioport\n",
+				    device_get_nameunit(child), type, *rid);
 			goto out;
 		}
 	}

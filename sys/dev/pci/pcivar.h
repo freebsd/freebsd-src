@@ -192,6 +192,11 @@ enum pci_device_ivars {
     PCI_IVAR_SLOT,
     PCI_IVAR_FUNCTION,
     PCI_IVAR_ETHADDR,
+    PCI_IVAR_CMDREG,
+    PCI_IVAR_CACHELNSZ,
+    PCI_IVAR_MINGNT,
+    PCI_IVAR_MAXLAT,
+    PCI_IVAR_LATTIMER,
 };
 
 /*
@@ -215,6 +220,11 @@ PCI_ACCESSOR(bus,		BUS,		uint8_t)
 PCI_ACCESSOR(slot,		SLOT,		uint8_t)
 PCI_ACCESSOR(function,		FUNCTION,	uint8_t)
 PCI_ACCESSOR(ether,		ETHADDR,	uint8_t *)
+PCI_ACCESSOR(cmdreg,		CMDREG,		uint8_t)
+PCI_ACCESSOR(cachelnsz,		CACHELNSZ,	uint8_t)
+PCI_ACCESSOR(mingnt,		MINGNT,		uint8_t)
+PCI_ACCESSOR(maxlat,		MAXLAT,		uint8_t)
+PCI_ACCESSOR(lattimer,		LATTIMER,	uint8_t)
 
 #undef PCI_ACCESSOR
 
