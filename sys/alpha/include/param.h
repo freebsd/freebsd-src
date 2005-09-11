@@ -106,13 +106,6 @@
 #define	KERNBASE	0xfffffc0000300000LL	/* start of kernel virtual */
 #define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
 
-#define	CLSIZE		1
-#define	CLSIZELOG2	0
-
-/* NOTE: SSIZE, SINCR and UPAGES must be multiples of CLSIZE */
-#define	SSIZE		1		/* initial stack size/NBPG */
-#define	SINCR		1		/* increment of stack/NBPG */
-
 #ifndef	KSTACK_PAGES
 #define	KSTACK_PAGES	2		/* pages of kstack (with pcb) */
 #endif
