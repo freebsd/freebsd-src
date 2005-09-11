@@ -36,7 +36,7 @@
 #include <netatalk/ddp_var.h>
 #include <netatalk/at_extern.h>
 
-extern struct domain	atalkdomain;
+static struct domain	atalkdomain;
 
 static struct protosw	atalksw[] = {
     {
