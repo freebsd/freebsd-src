@@ -285,7 +285,6 @@ struct ntfsmount {
 #define	ntfs_bpbl	(daddr_t)((ntmp)->ntm_bps)
 
 #ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_NTFSMNT);
 MALLOC_DECLARE(M_NTFSNTNODE);
 MALLOC_DECLARE(M_NTFSFNODE);
 MALLOC_DECLARE(M_NTFSDIR);
