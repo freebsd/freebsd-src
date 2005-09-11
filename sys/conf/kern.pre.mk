@@ -55,8 +55,11 @@ INCLUDES+= -I$S/contrib/dev/acpica
 # ... and the same for altq
 INCLUDES+= -I$S/contrib/altq
 
-# ... and the same for Atheros HAL
-INCLUDES+= -I$S/contrib/dev/ath -I$S/contrib/dev/ath/freebsd
+# ... and the same for Atheros HAL when the author builds it from
+#     non-distributable sources.
+.if defined(ATH_BUILDING_FROM_SOURCE)
+INCLUDES+= -I$S/contrib/dev/ath
+.endif
 
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}
 CFLAGS+= ${INCLUDES} -D_KERNEL -include opt_global.h
