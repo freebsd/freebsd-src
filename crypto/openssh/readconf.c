@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: readconf.c,v 1.139 2005/03/10 22:01:05 deraadt Exp $");
+RCSID("$OpenBSD: readconf.c,v 1.143 2005/07/30 02:03:47 djm Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -698,7 +698,7 @@ parse_int:
 			fwd.listen_host = cleanhostname(fwd.listen_host);
 		} else {
 			fwd.listen_port = a2port(fwd.listen_host);
-			fwd.listen_host = "";
+			fwd.listen_host = NULL;
 		}
 		if (fwd.listen_port == 0)
 			fatal("%.200s line %d: Badly formatted port number.",
@@ -746,6 +746,9 @@ parse_int:
 
 	case oAddressFamily:
 		arg = strdelim(&s);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: missing address family.",
+			    filename, linenum);
 		intptr = &options->address_family;
 		if (strcasecmp(arg, "inet") == 0)
 			value = AF_INET;
@@ -796,7 +799,27 @@ parse_int:
 
 	case oControlMaster:
 		intptr = &options->control_master;
-		goto parse_yesnoask;
+		arg = strdelim(&s);
+		if (!arg || *arg == '\0')
+			fatal("%.200s line %d: Missing ControlMaster argument.",
+			    filename, linenum);
+		value = 0;	/* To avoid compiler warning... */
+		if (strcmp(arg, "yes") == 0 || strcmp(arg, "true") == 0)
+			value = SSHCTL_MASTER_YES;
+		else if (strcmp(arg, "no") == 0 || strcmp(arg, "false") == 0)
+			value = SSHCTL_MASTER_NO;
+		else if (strcmp(arg, "auto") == 0)
+			value = SSHCTL_MASTER_AUTO;
+		else if (strcmp(arg, "ask") == 0)
+			value = SSHCTL_MASTER_ASK;
+		else if (strcmp(arg, "autoask") == 0)
+			value = SSHCTL_MASTER_AUTO_ASK;
+		else
+			fatal("%.200s line %d: Bad ControlMaster argument.",
+			    filename, linenum);
+		if (*activep && *intptr == -1)
+			*intptr = value;
+		break;
 
 	case oHashKnownHosts:
 		intptr = &options->hash_known_hosts;
@@ -826,7 +849,7 @@ parse_int:
 	/* Check that there is no garbage at end of line. */
 	if ((arg = strdelim(&s)) != NULL && *arg != '\0') {
 		fatal("%.200s line %d: garbage at end of line; \"%.200s\".",
-		     filename, linenum, arg);
+		    filename, linenum, arg);
 	}
 	return 0;
 }

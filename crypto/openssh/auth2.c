@@ -264,7 +264,7 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 				packet_write_wait();
 			}
 			fatal("Access denied for user %s by PAM account "
-			   "configuration", authctxt->user);
+			    "configuration", authctxt->user);
 		}
 	}
 #endif

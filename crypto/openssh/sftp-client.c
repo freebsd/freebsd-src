@@ -20,7 +20,7 @@
 /* XXX: copy between two remote sites */
 
 #include "includes.h"
-RCSID("$OpenBSD: sftp-client.c,v 1.53 2005/03/10 22:01:05 deraadt Exp $");
+RCSID("$OpenBSD: sftp-client.c,v 1.57 2005/07/27 10:39:03 dtucker Exp $");
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -64,10 +64,10 @@ send_msg(int fd, Buffer *m)
 
 	/* Send length first */
 	PUT_32BIT(mlen, buffer_len(m));
-	if (atomicio(vwrite, fd, mlen, sizeof(mlen)) <= 0)
+	if (atomicio(vwrite, fd, mlen, sizeof(mlen)) != sizeof(mlen))
 		fatal("Couldn't send packet: %s", strerror(errno));
 
-	if (atomicio(vwrite, fd, buffer_ptr(m), buffer_len(m)) <= 0)
+	if (atomicio(vwrite, fd, buffer_ptr(m), buffer_len(m)) != buffer_len(m))
 		fatal("Couldn't send packet: %s", strerror(errno));
 
 	buffer_clear(m);
@@ -76,26 +76,27 @@ send_msg(int fd, Buffer *m)
 static void
 get_msg(int fd, Buffer *m)
 {
-	ssize_t len;
 	u_int msg_len;
 
 	buffer_append_space(m, 4);
-	len = atomicio(read, fd, buffer_ptr(m), 4);
-	if (len == 0)
-		fatal("Connection closed");
-	else if (len == -1)
-		fatal("Couldn't read packet: %s", strerror(errno));
+	if (atomicio(read, fd, buffer_ptr(m), 4) != 4) {
+		if (errno == EPIPE)
+			fatal("Connection closed");
+		else
+			fatal("Couldn't read packet: %s", strerror(errno));
+	}
 
 	msg_len = buffer_get_int(m);
 	if (msg_len > MAX_MSG_LENGTH)
 		fatal("Received message too long %u", msg_len);
 
 	buffer_append_space(m, msg_len);
-	len = atomicio(read, fd, buffer_ptr(m), msg_len);
-	if (len == 0)
-		fatal("Connection closed");
-	else if (len == -1)
-		fatal("Read packet: %s", strerror(errno));
+	if (atomicio(read, fd, buffer_ptr(m), msg_len) != msg_len) {
+		if (errno == EPIPE)
+			fatal("Connection closed");
+		else
+			fatal("Read packet: %s", strerror(errno));
+	}
 }
 
 static void
@@ -310,7 +311,7 @@ do_lsreaddir(struct sftp_conn *conn, char *path, int printflag,
     SFTP_DIRENT ***dir)
 {
 	Buffer msg;
-	u_int type, id, handle_len, i, expected_id, ents = 0;
+	u_int count, type, id, handle_len, i, expected_id, ents = 0;
 	char *handle;
 
 	id = conn->msg_id++;
@@ -334,8 +335,6 @@ do_lsreaddir(struct sftp_conn *conn, char *path, int printflag,
 	}
 
 	for (; !interrupted;) {
-		int count;
-
 		id = expected_id = conn->msg_id++;
 
 		debug3("Sending SSH2_FXP_READDIR I:%u", id);
@@ -743,10 +742,10 @@ do_download(struct sftp_conn *conn, char *remote_path, char *local_path,
 	Attrib junk, *a;
 	Buffer msg;
 	char *handle;
-	int local_fd, status, num_req, max_req, write_error;
+	int local_fd, status = 0, write_error;
 	int read_error, write_errno;
 	u_int64_t offset, size;
-	u_int handle_len, mode, type, id, buflen;
+	u_int handle_len, mode, type, id, buflen, num_req, max_req;
 	off_t progress_counter;
 	struct request {
 		u_int id;
@@ -1127,7 +1126,7 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 				goto done;
 			}
 			debug3("In write loop, ack for %u %u bytes at %llu",
-			   ack->id, ack->len, (unsigned long long)ack->offset);
+			    ack->id, ack->len, (unsigned long long)ack->offset);
 			++ackid;
 			xfree(ack);
 		}

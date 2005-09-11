@@ -59,7 +59,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: clientloop.c,v 1.136 2005/03/10 22:01:05 deraadt Exp $");
+RCSID("$OpenBSD: clientloop.c,v 1.141 2005/07/16 01:35:24 djm Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -140,6 +140,8 @@ int	session_ident = -1;
 struct confirm_ctx {
 	int want_tty;
 	int want_subsys;
+	int want_x_fwd;
+	int want_agent_fwd;
 	Buffer cmd;
 	char *term;
 	struct termios tio;
@@ -206,6 +208,109 @@ get_current_time(void)
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
 	return (double) tv.tv_sec + (double) tv.tv_usec / 1000000.0;
+}
+
+#define SSH_X11_PROTO "MIT-MAGIC-COOKIE-1"
+void
+client_x11_get_proto(const char *display, const char *xauth_path,
+    u_int trusted, char **_proto, char **_data)
+{
+	char cmd[1024];
+	char line[512];
+	char xdisplay[512];
+	static char proto[512], data[512];
+	FILE *f;
+	int got_data = 0, generated = 0, do_unlink = 0, i;
+	char *xauthdir, *xauthfile;
+	struct stat st;
+
+	xauthdir = xauthfile = NULL;
+	*_proto = proto;
+	*_data = data;
+	proto[0] = data[0] = '\0';
+
+	if (xauth_path == NULL ||(stat(xauth_path, &st) == -1)) {
+		debug("No xauth program.");
+	} else {
+		if (display == NULL) {
+			debug("x11_get_proto: DISPLAY not set");
+			return;
+		}
+		/*
+		 * Handle FamilyLocal case where $DISPLAY does
+		 * not match an authorization entry.  For this we
+		 * just try "xauth list unix:displaynum.screennum".
+		 * XXX: "localhost" match to determine FamilyLocal
+		 *      is not perfect.
+		 */
+		if (strncmp(display, "localhost:", 10) == 0) {
+			snprintf(xdisplay, sizeof(xdisplay), "unix:%s",
+			    display + 10);
+			display = xdisplay;
+		}
+		if (trusted == 0) {
+			xauthdir = xmalloc(MAXPATHLEN);
+			xauthfile = xmalloc(MAXPATHLEN);
+			strlcpy(xauthdir, "/tmp/ssh-XXXXXXXXXX", MAXPATHLEN);
+			if (mkdtemp(xauthdir) != NULL) {
+				do_unlink = 1;
+				snprintf(xauthfile, MAXPATHLEN, "%s/xauthfile",
+				    xauthdir);
+				snprintf(cmd, sizeof(cmd),
+				    "%s -f %s generate %s " SSH_X11_PROTO
+				    " untrusted timeout 1200 2>" _PATH_DEVNULL,
+				    xauth_path, xauthfile, display);
+				debug2("x11_get_proto: %s", cmd);
+				if (system(cmd) == 0)
+					generated = 1;
+			}
+		}
+		snprintf(cmd, sizeof(cmd),
+		    "%s %s%s list %s . 2>" _PATH_DEVNULL,
+		    xauth_path,
+		    generated ? "-f " : "" ,
+		    generated ? xauthfile : "",
+		    display);
+		debug2("x11_get_proto: %s", cmd);
+		f = popen(cmd, "r");
+		if (f && fgets(line, sizeof(line), f) &&
+		    sscanf(line, "%*s %511s %511s", proto, data) == 2)
+			got_data = 1;
+		if (f)
+			pclose(f);
+	}
+
+	if (do_unlink) {
+		unlink(xauthfile);
+		rmdir(xauthdir);
+	}
+	if (xauthdir)
+		xfree(xauthdir);
+	if (xauthfile)
+		xfree(xauthfile);
+
+	/*
+	 * If we didn't get authentication data, just make up some
+	 * data.  The forwarding code will check the validity of the
+	 * response anyway, and substitute this data.  The X11
+	 * server, however, will ignore this fake data and use
+	 * whatever authentication mechanisms it was using otherwise
+	 * for the local connection.
+	 */
+	if (!got_data) {
+		u_int32_t rnd = 0;
+
+		logit("Warning: No xauth data; "
+		    "using fake authentication data for X11 forwarding.");
+		strlcpy(proto, SSH_X11_PROTO, sizeof proto);
+		for (i = 0; i < 16; i++) {
+			if (i % 4 == 0)
+				rnd = arc4random();
+			snprintf(data + 2 * i, sizeof data - 2 * i, "%02x",
+			    rnd & 0xff);
+			rnd >>= 8;
+		}
+	}
 }
 
 /*
@@ -528,6 +633,7 @@ static void
 client_extra_session2_setup(int id, void *arg)
 {
 	struct confirm_ctx *cctx = arg;
+	const char *display;
 	Channel *c;
 	int i;
 
@@ -535,6 +641,24 @@ client_extra_session2_setup(int id, void *arg)
 		fatal("%s: cctx == NULL", __func__);
 	if ((c = channel_lookup(id)) == NULL)
 		fatal("%s: no channel for id %d", __func__, id);
+
+	display = getenv("DISPLAY");
+	if (cctx->want_x_fwd && options.forward_x11 && display != NULL) {
+		char *proto, *data;
+		/* Get reasonable local authentication information. */
+		client_x11_get_proto(display, options.xauth_location,
+		    options.forward_x11_trusted, &proto, &data);
+		/* Request forwarding with authentication spoofing. */
+		debug("Requesting X11 forwarding with authentication spoofing.");
+		x11_request_forwarding_with_spoofing(id, display, proto, data);
+		/* XXX wait for reply */
+	}
+
+	if (cctx->want_agent_fwd && options.forward_agent) {
+		debug("Requesting authentication agent forwarding.");
+		channel_request_start(id, "auth-agent-req@openssh.com", 0);
+		packet_send();
+	}
 
 	client_session2_setup(id, cctx->want_tty, cctx->want_subsys,
 	    cctx->term, &cctx->tio, c->rfd, &cctx->cmd, cctx->env,
@@ -556,12 +680,12 @@ client_process_control(fd_set * readset)
 {
 	Buffer m;
 	Channel *c;
-	int client_fd, new_fd[3], ver, i, allowed;
+	int client_fd, new_fd[3], ver, allowed;
 	socklen_t addrlen;
 	struct sockaddr_storage addr;
 	struct confirm_ctx *cctx;
 	char *cmd;
-	u_int len, env_len, command, flags;
+	u_int i, len, env_len, command, flags;
 	uid_t euid;
 	gid_t egid;
 
@@ -601,7 +725,7 @@ client_process_control(fd_set * readset)
 		buffer_free(&m);
 		return;
 	}
-	if ((ver = buffer_get_char(&m)) != 1) {
+	if ((ver = buffer_get_char(&m)) != SSHMUX_VER) {
 		error("%s: wrong client version %d", __func__, ver);
 		buffer_free(&m);
 		close(client_fd);
@@ -616,13 +740,15 @@ client_process_control(fd_set * readset)
 
 	switch (command) {
 	case SSHMUX_COMMAND_OPEN:
-		if (options.control_master == 2)
+		if (options.control_master == SSHCTL_MASTER_ASK ||
+		    options.control_master == SSHCTL_MASTER_AUTO_ASK)
 			allowed = ask_permission("Allow shared connection "
 			    "to %s? ", host);
 		/* continue below */
 		break;
 	case SSHMUX_COMMAND_TERMINATE:
-		if (options.control_master == 2)
+		if (options.control_master == SSHCTL_MASTER_ASK ||
+		    options.control_master == SSHCTL_MASTER_AUTO_ASK)
 			allowed = ask_permission("Terminate shared connection "
 			    "to %s? ", host);
 		if (allowed)
@@ -633,7 +759,7 @@ client_process_control(fd_set * readset)
 		buffer_clear(&m);
 		buffer_put_int(&m, allowed);
 		buffer_put_int(&m, getpid());
-		if (ssh_msg_send(client_fd, /* version */1, &m) == -1) {
+		if (ssh_msg_send(client_fd, SSHMUX_VER, &m) == -1) {
 			error("%s: client msg_send failed", __func__);
 			close(client_fd);
 			buffer_free(&m);
@@ -653,7 +779,7 @@ client_process_control(fd_set * readset)
 	buffer_clear(&m);
 	buffer_put_int(&m, allowed);
 	buffer_put_int(&m, getpid());
-	if (ssh_msg_send(client_fd, /* version */1, &m) == -1) {
+	if (ssh_msg_send(client_fd, SSHMUX_VER, &m) == -1) {
 		error("%s: client msg_send failed", __func__);
 		close(client_fd);
 		buffer_free(&m);
@@ -674,7 +800,7 @@ client_process_control(fd_set * readset)
 		buffer_free(&m);
 		return;
 	}
-	if ((ver = buffer_get_char(&m)) != 1) {
+	if ((ver = buffer_get_char(&m)) != SSHMUX_VER) {
 		error("%s: wrong client version %d", __func__, ver);
 		buffer_free(&m);
 		close(client_fd);
@@ -685,6 +811,8 @@ client_process_control(fd_set * readset)
 	memset(cctx, 0, sizeof(*cctx));
 	cctx->want_tty = (flags & SSHMUX_FLAG_TTY) != 0;
 	cctx->want_subsys = (flags & SSHMUX_FLAG_SUBSYS) != 0;
+	cctx->want_x_fwd = (flags & SSHMUX_FLAG_X11_FWD) != 0;
+	cctx->want_agent_fwd = (flags & SSHMUX_FLAG_AGENT_FWD) != 0;
 	cctx->term = buffer_get_string(&m, &len);
 
 	cmd = buffer_get_string(&m, &len);
@@ -718,7 +846,7 @@ client_process_control(fd_set * readset)
 
 	/* This roundtrip is just for synchronisation of ttymodes */
 	buffer_clear(&m);
-	if (ssh_msg_send(client_fd, /* version */1, &m) == -1) {
+	if (ssh_msg_send(client_fd, SSHMUX_VER, &m) == -1) {
 		error("%s: client msg_send failed", __func__);
 		close(client_fd);
 		close(new_fd[0]);
@@ -866,7 +994,10 @@ process_escapes(Buffer *bin, Buffer *bout, Buffer *berr, char *buf, int len)
 	u_char ch;
 	char *s;
 
-	for (i = 0; i < len; i++) {
+	if (len <= 0)
+		return (0);
+
+	for (i = 0; i < (u_int)len; i++) {
 		/* Get one character at a time. */
 		ch = buf[i];
 

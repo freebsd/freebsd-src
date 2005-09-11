@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect1.c,v 1.60 2004/07/28 09:40:29 markus Exp $");
+RCSID("$OpenBSD: sshconnect1.c,v 1.61 2005/06/17 02:44:33 djm Exp $");
 
 #include <openssl/bn.h>
 #include <openssl/md5.h>
@@ -162,7 +162,7 @@ respond_to_rsa_challenge(BIGNUM * challenge, RSA * prv)
 	/* Compute the response. */
 	/* The response is MD5 of decrypted challenge plus session id. */
 	len = BN_num_bytes(challenge);
-	if (len <= 0 || len > sizeof(buf))
+	if (len <= 0 || (u_int)len > sizeof(buf))
 		packet_disconnect(
 		    "respond_to_rsa_challenge: bad challenge length %d", len);
 

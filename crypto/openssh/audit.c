@@ -1,4 +1,4 @@
-/* $Id: audit.c,v 1.2 2005/02/08 10:52:48 dtucker Exp $ */
+/* $Id: audit.c,v 1.3 2005/07/17 07:26:44 djm Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Darren Tucker.  All rights reserved.
@@ -120,7 +120,7 @@ void
 audit_connection_from(const char *host, int port)
 {
 	debug("audit connection from %s port %d euid %d", host, port,
-	   (int)geteuid());
+	    (int)geteuid());
 }
 
 /*
@@ -147,7 +147,7 @@ audit_session_open(const char *ttyn)
 	const char *t = ttyn ? ttyn : "(no tty)";
 
 	debug("audit session open euid %d user %s tty name %s", geteuid(),
-	     audit_username(), t);
+	    audit_username(), t);
 }
 
 /*
@@ -163,7 +163,7 @@ audit_session_close(const char *ttyn)
 	const char *t = ttyn ? ttyn : "(no tty)";
 
 	debug("audit session close euid %d user %s tty name %s", geteuid(),
-	     audit_username(), t);
+	    audit_username(), t);
 }
 
 /*

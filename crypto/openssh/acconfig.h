@@ -1,4 +1,4 @@
-/* $Id: acconfig.h,v 1.181 2005/02/25 23:07:38 dtucker Exp $ */
+/* $Id: acconfig.h,v 1.183 2005/07/07 10:33:36 dtucker Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -120,9 +120,6 @@
 /* Define if you are on NeXT */
 #undef HAVE_NEXT
 
-/* Define if you are on NEWS-OS */
-#undef HAVE_NEWS4
-
 /* Define if you want to enable PAM support */
 #undef USE_PAM
 
@@ -205,9 +202,6 @@
 
 /* Define if you don't want to use lastlog in session.c */
 #undef NO_SSH_LASTLOG
-
-/* Define if have krb5_init_ets */
-#undef KRB5_INIT_ETS
 
 /* Define if you don't want to use utmp */
 #undef DISABLE_UTMP
