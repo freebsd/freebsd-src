@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 
 /* Hooks for the ACPI CA debugging infrastructure */

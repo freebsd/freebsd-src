@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/sbuf.h>
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 #include <dev/led/led.h>
 

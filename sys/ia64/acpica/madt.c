@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include <contrib/dev/acpica/actables.h>
 
 #include <machine/md_var.h>

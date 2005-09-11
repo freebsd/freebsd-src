@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <machine/cpufunc.h>
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include "acpi_if.h"
 #include <sys/module.h>
 #include <dev/acpica/acpivar.h>
