@@ -61,6 +61,25 @@ INCLUDES+= -I$S/contrib/altq
 INCLUDES+= -I$S/contrib/dev/ath
 .endif
 
+.if make(depend) || make(kernel-depend)
+
+# ... and the same for ipfilter
+INCLUDES+= -I$S/contrib/ipfilter
+
+# ... and the same for pf
+INCLUDES+= -I$S/contrib/pf
+
+# ... and the same for Atheros HAL
+INCLUDES+= -I$S/contrib/dev/ath/freebsd
+
+# ... and the same for the NgATM stuff
+INCLUDES+= -I$S/contrib/ngatm
+
+# .. and the same for twa
+INCLUDES+= -I$S/dev/twa
+
+.endif
+
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}
 CFLAGS+= ${INCLUDES} -D_KERNEL -include opt_global.h
 .if ${CC} != "icc"
