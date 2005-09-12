@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <errno.h>
+#include <unistd.h>
 
 int
 gethostname(name, namelen)
