@@ -135,4 +135,9 @@ extern const char *__progname;
  */
 extern struct _spinlock *__malloc_lock;
 
+/*
+ * Function to clean up streams, called from abort() and exit().
+ */
+extern void (*__cleanup)(void);
+
 #endif /* _LIBC_PRIVATE_H_ */

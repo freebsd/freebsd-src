@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include "un-namespace.h"
 
-void (*__cleanup)();
+#include "libc_private.h"
 
 void
 abort()
