@@ -37,26 +37,26 @@ typedef struct __mcontext {
 	 * sigcontext. So that we can support sigcontext
 	 * and ucontext_t at the same time.
 	 */
-	int	mc_onstack;		/* XXX - sigcontext compat. */
-	int	mc_gs;			/* machine state (struct trapframe) */
-	int	mc_fs;
-	int	mc_es;
-	int	mc_ds;
-	int	mc_edi;
-	int	mc_esi;
-	int	mc_ebp;
-	int	mc_isp;
-	int	mc_ebx;
-	int	mc_edx;
-	int	mc_ecx;
-	int	mc_eax;
-	int	mc_trapno;
-	int	mc_err;
-	int	mc_eip;
-	int	mc_cs;
-	int	mc_eflags;
-	int	mc_esp;
-	int	mc_ss;
+	__register_t	mc_onstack;	/* XXX - sigcontext compat. */
+	__register_t	mc_gs;		/* machine state (struct trapframe) */
+	__register_t	mc_fs;
+	__register_t	mc_es;
+	__register_t	mc_ds;
+	__register_t	mc_edi;
+	__register_t	mc_esi;
+	__register_t	mc_ebp;
+	__register_t	mc_isp;
+	__register_t	mc_ebx;
+	__register_t	mc_edx;
+	__register_t	mc_ecx;
+	__register_t	mc_eax;
+	__register_t	mc_trapno;
+	__register_t	mc_err;
+	__register_t	mc_eip;
+	__register_t	mc_cs;
+	__register_t	mc_eflags;
+	__register_t	mc_esp;
+	__register_t	mc_ss;
 
 	int	mc_len;			/* sizeof(mcontext_t) */
 #define	_MC_FPFMT_NODEV		0x10000	/* device not present or configured */
@@ -77,28 +77,28 @@ typedef struct __mcontext {
 
 #if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
 struct mcontext4 {
-	int	mc_onstack;		/* XXX - sigcontext compat. */
-	int	mc_gs;			/* machine state (struct trapframe) */
-	int	mc_fs;
-	int	mc_es;
-	int	mc_ds;
-	int	mc_edi;
-	int	mc_esi;
-	int	mc_ebp;
-	int	mc_isp;
-	int	mc_ebx;
-	int	mc_edx;
-	int	mc_ecx;
-	int	mc_eax;
-	int	mc_trapno;
-	int	mc_err;
-	int	mc_eip;
-	int	mc_cs;
-	int	mc_eflags;
-	int	mc_esp;			/* machine state */
-	int	mc_ss;
-	int	mc_fpregs[28];		/* env87 + fpacc87 + u_long */
-	int	__spare__[17];
+	__register_t	mc_onstack;	/* XXX - sigcontext compat. */
+	__register_t	mc_gs;		/* machine state (struct trapframe) */
+	__register_t	mc_fs;
+	__register_t	mc_es;
+	__register_t	mc_ds;
+	__register_t	mc_edi;
+	__register_t	mc_esi;
+	__register_t	mc_ebp;
+	__register_t	mc_isp;
+	__register_t	mc_ebx;
+	__register_t	mc_edx;
+	__register_t	mc_ecx;
+	__register_t	mc_eax;
+	__register_t	mc_trapno;
+	__register_t	mc_err;
+	__register_t	mc_eip;
+	__register_t	mc_cs;
+	__register_t	mc_eflags;
+	__register_t	mc_esp;		/* machine state */
+	__register_t	mc_ss;
+	__register_t	mc_fpregs[28];	/* env87 + fpacc87 + u_long */
+	__register_t	__spare__[17];
 };
 #endif
 
