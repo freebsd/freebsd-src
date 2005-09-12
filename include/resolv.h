@@ -206,9 +206,8 @@ extern struct __res_state *___res(void);
 extern struct __res_state_ext *___res_ext(void);
 __END_DECLS
 #define	_res		(*___res())
-#define	_res_ext	(*___res_ext())
 /* for INET6 */
-extern struct __res_state_ext _res_ext;
+#define	_res_ext	(*___res_ext())
 
 extern const struct res_sym __p_class_syms[];
 extern const struct res_sym __p_type_syms[];
