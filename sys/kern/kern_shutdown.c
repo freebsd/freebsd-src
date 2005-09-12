@@ -249,6 +249,16 @@ doadump(void)
 	dumpsys(&dumper);
 }
 
+static int
+isbufbusy(struct buf *bp)
+{
+	if (((bp->b_flags & (B_INVAL | B_PERSISTENT)) == 0 &&
+	    BUF_REFCNT(bp) > 0) ||
+	    ((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI))
+		return (1);
+	return (0);
+}
+
 /*
  * Shutdown the system cleanly to prepare for reboot, halt, or power off.
  */
@@ -304,16 +314,9 @@ boot(int howto)
 		 */
 		for (iter = pbusy = 0; iter < 20; iter++) {
 			nbusy = 0;
-			for (bp = &buf[nbuf]; --bp >= buf; ) {
-				if ((bp->b_flags & B_INVAL) == 0 &&
-				    BUF_REFCNT(bp) > 0) {
+			for (bp = &buf[nbuf]; --bp >= buf; )
+				if (isbufbusy(bp))
 					nbusy++;
-				} else if ((bp->b_flags & (B_DELWRI | B_INVAL))
-						== B_DELWRI) {
-					/* bawrite(bp);*/
-					nbusy++;
-				}
-			}
 			if (nbusy == 0) {
 				if (first_buf_printf)
 					printf("No buffers busy after final sync");
@@ -359,8 +362,7 @@ boot(int howto)
 		 */
 		nbusy = 0;
 		for (bp = &buf[nbuf]; --bp >= buf; ) {
-			if (((bp->b_flags&B_INVAL) == 0 && BUF_REFCNT(bp)) ||
-			    ((bp->b_flags & (B_DELWRI|B_INVAL)) == B_DELWRI)) {
+			if (isbufbusy(bp)) {
 				if (bp->b_dev == NULL) {
 					TAILQ_REMOVE(&mountlist,
 					    bp->b_vp->v_mount, mnt_list);
