@@ -46,8 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "local.h"
 #include "un-namespace.h"
+
+#include "libc_private.h"
+#include "local.h"
 
 /*
  * Allocate a file buffer, or switch to unbuffered I/O.
