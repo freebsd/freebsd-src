@@ -354,7 +354,7 @@ fifo_kqfilter(ap)
 		sb = &so->so_snd;
 		break;
 	default:
-		return (1);
+		return (EINVAL);
 	}
 
 	ap->a_kn->kn_hook = (caddr_t)so;
@@ -592,7 +592,7 @@ fifo_kqfilter_f(struct file *fp, struct knote *kn)
 		sb = &so->so_snd;
 		break;
 	default:
-		return (1);
+		return (EINVAL);
 	}
 
 	kn->kn_hook = (caddr_t)so;
