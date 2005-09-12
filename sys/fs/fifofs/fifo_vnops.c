@@ -196,6 +196,8 @@ fail1:
 		SOCKBUF_LOCK(&rso->so_rcv);
 		rso->so_rcv.sb_state |= SBS_CANTRCVMORE;
 		SOCKBUF_UNLOCK(&rso->so_rcv);
+		KASSERT(vp->v_fifoinfo == NULL,
+		    ("fifo_open: v_fifoinfo race"));
 		vp->v_fifoinfo = fip;
 	}
 
