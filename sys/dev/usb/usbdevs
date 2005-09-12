@@ -334,7 +334,7 @@ vendor ALCATELT		0x06b9	Alcatel
 vendor AGFA		0x06bd	AGFA-Gevaert
 vendor ASIAMD		0x06be	Asia Microelectronic Development
 vendor BIZLINK		0x06c4	Bizlink
-vendor KEYSPAN		0x06cd	Keyspan
+vendor KEYSPAN		0x06cd	Keyspan / InnoSys Inc.
 vendor AASHIMA		0x06d6	Aashima
 vendor MULTITECH	0x06e0	MultiTech
 vendor ADS		0x06e1	ADS
