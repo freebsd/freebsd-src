@@ -1585,7 +1585,7 @@ sched_sync(void)
 	syncer_final_iter = 0;
 	first_printf = 1;
 	syncer_state = SYNCER_RUNNING;
-	starttime = time_second;
+	starttime = time_uptime;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, syncer_shutdown, td->td_proc,
 	    SHUTDOWN_PRI_LAST);
@@ -1600,14 +1600,14 @@ sched_sync(void)
 		}
 		net_worklist_len = syncer_worklist_len - sync_vnode_count;
 		if (syncer_state != SYNCER_RUNNING &&
-		    starttime != time_second) {
+		    starttime != time_uptime) {
 			if (first_printf) {
 				printf("\nSyncing disks, vnodes remaining...");
 				first_printf = 0;
 			}
 			printf("%d ", net_worklist_len);
 		}
-		starttime = time_second;
+		starttime = time_uptime;
 
 		/*
 		 * Push files whose dirty time has expired.  Be careful
@@ -1696,7 +1696,7 @@ sched_sync(void)
 		if (syncer_state != SYNCER_RUNNING)
 			tsleep(&dummychan, PPAUSE, "syncfnl",
 			    hz / SYNCER_SHUTDOWN_SPEEDUP);
-		else if (time_second == starttime)
+		else if (time_uptime == starttime)
 			tsleep(&lbolt, PPAUSE, "syncer", 0);
 	}
 }
