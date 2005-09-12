@@ -3763,7 +3763,7 @@ vfs_kqfilter(struct vop_kqfilter_args *ap)
 		kn->kn_fop = &vfsvnode_filtops;
 		break;
 	default:
-		return (1);
+		return (EINVAL);
 	}
 
 	kn->kn_hook = (caddr_t)vp;
