@@ -127,9 +127,7 @@ typedef struct {
 } cset;
 
 static int
-CHIN1(cs, ch)
-cset *cs;
-wint_t ch;
+CHIN1(cset *cs, wint_t ch)
 {
 	int i;
 
@@ -150,9 +148,7 @@ wint_t ch;
 }
 
 static __inline int
-CHIN(cs, ch)
-cset *cs;
-wint_t ch;
+CHIN(cset *cs, wint_t ch)
 {
 
 	assert(ch >= 0);
