@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "libc_private.h"
+#include "telldir.h"
 
 /*
  * get next entry in a directory.
