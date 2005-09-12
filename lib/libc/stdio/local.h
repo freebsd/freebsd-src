@@ -65,7 +65,6 @@ extern fpos_t	__sseek(void *, fpos_t, int);
 extern int	__sclose(void *);
 extern void	__sinit(void);
 extern void	_cleanup(void);
-extern void	(*__cleanup)(void);
 extern void	__smakebuf(FILE *);
 extern int	__swhatbuf(FILE *, size_t *, int *);
 extern int	_fwalk(int (*)(FILE *));

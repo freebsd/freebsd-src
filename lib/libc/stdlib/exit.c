@@ -41,9 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 #include "un-namespace.h"
-#include "atexit.h"
 
-void (*__cleanup)();
+#include "atexit.h"
+#include "libc_private.h"
+
+void (*__cleanup)(void);
 
 /*
  * This variable is zero until a process has created a thread.
