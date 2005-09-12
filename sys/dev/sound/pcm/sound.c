@@ -166,8 +166,6 @@ pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid, int chnum)
     	struct snddev_channel *sce;
 	int err;
 
-	snd_mtxassert(d->lock);
-
 	/* scan for a free channel */
 	SLIST_FOREACH(sce, &d->channels, link) {
 		c = sce->channel;
