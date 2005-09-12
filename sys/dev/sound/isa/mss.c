@@ -113,7 +113,9 @@ static void             ad_leave_MCE(struct mss_info *mss);
 /* OPTi-specific functions */
 static void		opti_write(struct mss_info *mss, u_char reg,
 				   u_char data);
+#ifndef PC98
 static u_char		opti_read(struct mss_info *mss, u_char reg);
+#endif
 static int		opti_init(device_t dev, struct mss_info *mss);
 
 /* io primitives */
@@ -2175,6 +2177,7 @@ opti_write(struct mss_info *mss, u_char reg, u_char val)
 	}
 }
 
+#ifndef PC98
 u_char
 opti_read(struct mss_info *mss, u_char reg)
 {
@@ -2198,6 +2201,7 @@ opti_read(struct mss_info *mss, u_char reg)
 	}
 	return -1;
 }
+#endif
 
 static device_method_t pnpmss_methods[] = {
 	/* Device interface */
