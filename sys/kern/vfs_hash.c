@@ -79,7 +79,7 @@ vfs_hash_get(struct mount *mp, u_int hash, int flags, struct thread *td, struct 
 			VI_LOCK(vp);
 			mtx_unlock(&vfs_hash_mtx);
 			error = vget(vp, flags | LK_INTERLOCK, td);
-			if (error == ENOENT)
+			if (error == ENOENT && (flags & LK_NOWAIT) == 0)
 				break;
 			if (error)
 				return (error);
@@ -124,7 +124,7 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 			VI_LOCK(vp2);
 			mtx_unlock(&vfs_hash_mtx);
 			error = vget(vp2, flags | LK_INTERLOCK, td);
-			if (error == ENOENT)
+			if (error == ENOENT && (flags & LK_NOWAIT) == 0)
 				break;
 			mtx_lock(&vfs_hash_mtx);
 			LIST_INSERT_HEAD(&vfs_hash_side, vp, v_hashlist);
