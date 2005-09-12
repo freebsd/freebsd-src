@@ -102,7 +102,6 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 	int upgraded;
 	struct bufobj *bo;
 
-	GIANT_REQUIRED;
 	/* Check for dirty mmap, pending writes and dirty buffers */
 	spl = splbio();
 	VI_LOCK(vp);
@@ -189,7 +188,6 @@ ffs_rawread_readahead(struct vnode *vp,
 	struct inode *ip;
 	ufs2_daddr_t blkno;
 	
-	GIANT_REQUIRED;
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	
 	ip = VTOI(vp);
@@ -268,7 +266,6 @@ ffs_rawread_main(struct vnode *vp,
 	off_t offset;
 	struct thread *td;
 	
-	GIANT_REQUIRED;
 	td = uio->uio_td ? uio->uio_td : curthread;
 	udata = uio->uio_iov->iov_base;
 	resid = uio->uio_resid;
