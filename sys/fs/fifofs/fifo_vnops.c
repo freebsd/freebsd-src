@@ -94,11 +94,15 @@ static void	filt_fifordetach(struct knote *kn);
 static int	filt_fiforead(struct knote *kn, long hint);
 static void	filt_fifowdetach(struct knote *kn);
 static int	filt_fifowrite(struct knote *kn, long hint);
+static void	filt_fifodetach_notsup(struct knote *kn);
+static int	filt_fifo_notsup(struct knote *kn, long hint);
 
 static struct filterops fiforead_filtops =
 	{ 1, NULL, filt_fifordetach, filt_fiforead };
 static struct filterops fifowrite_filtops =
 	{ 1, NULL, filt_fifowdetach, filt_fifowrite };
+static struct filterops fifo_notsup_filtops =
+	{ 1, NULL, filt_fifodetach_notsup, filt_fifo_notsup };
 
 struct vop_vector fifo_specops = {
 	.vop_default =		&default_vnodeops,
@@ -435,6 +439,19 @@ filt_fifowrite(struct knote *kn, long hint)
 	return (result);
 }
 
+static void
+filt_fifodetach_notsup(struct knote *kn)
+{
+
+}
+
+static int
+filt_fifo_notsup(struct knote *kn, long hint)
+{
+
+	return (0);
+}
+
 /*
  * Device close routine
  */
@@ -580,6 +597,22 @@ fifo_kqfilter_f(struct file *fp, struct knote *kn)
 	struct sockbuf *sb;
 
 	fi = fp->f_data;
+
+	/*
+	 * If a filter is requested that is not supported by this file
+	 * descriptor, don't return an error, but also don't ever generate an
+	 * event.
+	 */
+	if ((kn->kn_filter == EVFILT_READ) && !(fp->f_flag & FREAD)) {
+		kn->kn_fop = &fifo_notsup_filtops;
+		return (0);
+	}
+
+	if ((kn->kn_filter == EVFILT_WRITE) && !(fp->f_flag & FWRITE)) {
+		kn->kn_fop = &fifo_notsup_filtops;
+		return (0);
+	}
+
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
 		kn->kn_fop = &fiforead_filtops;
@@ -685,4 +718,3 @@ fifo_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 	error = sosend(fip->fi_writesock, NULL, uio, 0, NULL, sflags, td);
 	return (error);
 }
-
