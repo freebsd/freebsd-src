@@ -459,7 +459,7 @@ main(int argc, char *argv[])
 	if (geteuid() != 0)
 		errx(-1, "must be run as root");
 
-	strcpy(temp_dir, "/tmp/fifo_create.XXXXXXXXXXX");
+	strcpy(temp_dir, "/tmp/fifo_open.XXXXXXXXXXX");
 	if (mkdtemp(temp_dir) == NULL)
 		err(-1, "mkdtemp");
 	if (chdir(temp_dir) < 0)
