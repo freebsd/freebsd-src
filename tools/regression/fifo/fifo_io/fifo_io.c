@@ -1228,7 +1228,7 @@ int
 main(int argc, char *argv[])
 {
 
-	strcpy(temp_dir, "/tmp/fifo_create.XXXXXXXXXXX");
+	strcpy(temp_dir, "/tmp/fifo_io.XXXXXXXXXXX");
 	if (mkdtemp(temp_dir) == NULL)
 		err(-1, "mkdtemp");
 	atexit(atexit_temp_dir);
