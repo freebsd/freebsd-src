@@ -277,7 +277,7 @@ usage(void)
 	fprintf(stderr, "Where:\n");
 	fprintf(stderr, "  -a remote  Specify remote device to ping\n");
 	fprintf(stderr, "  -c count   Number of packets to send\n");
-	fprintf(stderr, "  -f         No delay (soft of flood)\n");
+	fprintf(stderr, "  -f         No delay (sort of flood)\n");
 	fprintf(stderr, "  -h         Display this message\n");
 	fprintf(stderr, "  -i wait    Delay between packets (sec)\n");
 	fprintf(stderr, "  -n         Numeric output only\n");
