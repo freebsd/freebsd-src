@@ -50,10 +50,8 @@
 
 #include "gvinum.h"
 
-void	gvinum_cancelinit(int, char **);
 void	gvinum_create(int, char **);
 void	gvinum_help(void);
-void	gvinum_init(int, char **);
 void	gvinum_list(int, char **);
 void	gvinum_parityop(int, char **, int);
 void	gvinum_printconfig(int, char **);
@@ -104,41 +102,6 @@ main(int argc, char **argv)
 		}
 	}
 	exit(0);
-}
-
-void
-gvinum_cancelinit(int argc, char **argv)
-{
-	struct gctl_req *req;
-	int i;
-	const char *errstr;
-	char buf[20];
-
-	if (argc == 1)
-		return;
-
-	argc--;
-	argv++;
-
-	req = gctl_get_handle();
-	gctl_ro_param(req, "class", -1, "VINUM");
-	gctl_ro_param(req, "verb", -1, "cancelinit");
-	gctl_ro_param(req, "argc", sizeof(int), &argc);
-	if (argc) {
-		for (i = 0; i < argc; i++) {
-			snprintf(buf, sizeof(buf), "argv%d", i);
-			gctl_ro_param(req, buf, -1, argv[i]);
-		}
-	}
-	errstr = gctl_issue(req);
-	if (errstr != NULL) {
-		warnx("can't init: %s", errstr);
-		gctl_free(req);
-		return;
-	}
-
-	gctl_free(req);
-	gvinum_list(0, NULL);
 }
 
 void
@@ -220,121 +183,119 @@ gvinum_create(int argc, char **argv)
 		strncpy(original, buf, sizeof(buf));
 
 		tokens = gv_tokenize(buf, token, GV_MAXARGS);
+		if (tokens <= 0) {
+			line++;
+			continue;
+		}
 
-		if (tokens > 0) {
-			/* Volume definition. */
-			if (!strcmp(token[0], "volume")) {
-				v = gv_new_volume(tokens, token);
-				if (v == NULL) {
-					warnx("line %d: invalid volume "
-					    "definition", line);
-					warnx("line %d: '%s'", line, original);
-					errors++;
-				} else {
-					/* Reset plex count for this volume. */
-					plex_in_volume = 0;
-
-					/*
-					 * Set default volume name for
-					 * following plex definitions.
-					 */
-					strncpy(volume, v->name,
-					    sizeof(volume));
-
-					snprintf(buf1, sizeof(buf1), "volume%d",
-					    volumes);
-					gctl_ro_param(req, buf1, sizeof(*v), v);
-					volumes++;
-				}
-
-			/* Plex definition. */
-			} else if (!strcmp(token[0], "plex")) {
-				p = gv_new_plex(tokens, token);
-				if (p == NULL) {
-					warnx("line %d: invalid plex "
-					    "definition", line);
-					warnx("line %d: '%s'", line, original);
-					errors++;
-				} else {
-					/* Reset subdisk count for this plex. */
-					sd_in_plex = 0;
-
-					/* Default name. */
-					if (strlen(p->name) == 0) {
-						snprintf(p->name,
-						    GV_MAXPLEXNAME,
-						    "%s.p%d", volume,
-						    plex_in_volume++);
-					}
-
-					/* Default volume. */
-					if (strlen(p->volume) == 0) {
-						snprintf(p->volume,
-						    GV_MAXVOLNAME, "%s",
-						    volume);
-					}
-
-					/*
-					 * Set default plex name for following
-					 * subdisk definitions.
-					 */
-					strncpy(plex, p->name, GV_MAXPLEXNAME);
-
-					snprintf(buf1, sizeof(buf1), "plex%d",
-					    plexes);
-					gctl_ro_param(req, buf1, sizeof(*p), p);
-					plexes++;
-				}
-
-			/* Subdisk definition. */
-			} else if (!strcmp(token[0], "sd")) {
-				s = gv_new_sd(tokens, token);
-				if (s == NULL) {
-					warnx("line %d: invalid subdisk "
-					    "definition:", line);
-					warnx("line %d: '%s'", line, original);
-					errors++;
-				} else {
-					/* Default name. */
-					if (strlen(s->name) == 0) {
-						snprintf(s->name, GV_MAXSDNAME,
-						    "%s.s%d", plex,
-						    sd_in_plex++);
-					}
-
-					/* Default plex. */
-					if (strlen(s->plex) == 0) {
-						snprintf(s->plex,
-						    GV_MAXPLEXNAME, "%s", plex);
-					}
-			
-					snprintf(buf1, sizeof(buf1), "sd%d",
-					    subdisks);
-					gctl_ro_param(req, buf1, sizeof(*s), s);
-					subdisks++;
-				}
-
-			/* Subdisk definition. */
-			} else if (!strcmp(token[0], "drive")) {
-				d = gv_new_drive(tokens, token);
-				if (d == NULL) {
-					warnx("line %d: invalid drive "
-					    "definition:", line);
-					warnx("line %d: '%s'", line, original);
-					errors++;
-				} else {
-					snprintf(buf1, sizeof(buf1), "drive%d",
-					    drives);
-					gctl_ro_param(req, buf1, sizeof(*d), d);
-					drives++;
-				}
-
-			/* Everything else is bogus. */
-			} else {
-				warnx("line %d: invalid definition:", line);
+		/* Volume definition. */
+		if (!strcmp(token[0], "volume")) {
+			v = gv_new_volume(tokens, token);
+			if (v == NULL) {
+				warnx("line %d: invalid volume definition",
+				    line);
 				warnx("line %d: '%s'", line, original);
 				errors++;
+				line++;
+				continue;
 			}
+
+			/* Reset plex count for this volume. */
+			plex_in_volume = 0;
+
+			/*
+			 * Set default volume name for following plex
+			 * definitions.
+			 */
+			strncpy(volume, v->name, sizeof(volume));
+
+			snprintf(buf1, sizeof(buf1), "volume%d", volumes);
+			gctl_ro_param(req, buf1, sizeof(*v), v);
+			volumes++;
+
+		/* Plex definition. */
+		} else if (!strcmp(token[0], "plex")) {
+			p = gv_new_plex(tokens, token);
+			if (p == NULL) {
+				warnx("line %d: invalid plex definition", line);
+				warnx("line %d: '%s'", line, original);
+				errors++;
+				line++;
+				continue;
+			}
+
+			/* Reset subdisk count for this plex. */
+			sd_in_plex = 0;
+
+			/* Default name. */
+			if (strlen(p->name) == 0) {
+				snprintf(p->name, GV_MAXPLEXNAME, "%s.p%d",
+				    volume, plex_in_volume++);
+			}
+
+			/* Default volume. */
+			if (strlen(p->volume) == 0) {
+				snprintf(p->volume, GV_MAXVOLNAME, "%s",
+				    volume);
+			}
+
+			/*
+			 * Set default plex name for following subdisk
+			 * definitions.
+			 */
+			strncpy(plex, p->name, GV_MAXPLEXNAME);
+
+			snprintf(buf1, sizeof(buf1), "plex%d", plexes);
+			gctl_ro_param(req, buf1, sizeof(*p), p);
+			plexes++;
+
+		/* Subdisk definition. */
+		} else if (!strcmp(token[0], "sd")) {
+			s = gv_new_sd(tokens, token);
+			if (s == NULL) {
+				warnx("line %d: invalid subdisk "
+				    "definition:", line);
+				warnx("line %d: '%s'", line, original);
+				errors++;
+				line++;
+				continue;
+			}
+
+			/* Default name. */
+			if (strlen(s->name) == 0) {
+				snprintf(s->name, GV_MAXSDNAME, "%s.s%d",
+				    plex, sd_in_plex++);
+			}
+
+			/* Default plex. */
+			if (strlen(s->plex) == 0)
+				snprintf(s->plex, GV_MAXPLEXNAME, "%s", plex);
+
+			snprintf(buf1, sizeof(buf1), "sd%d", subdisks);
+			gctl_ro_param(req, buf1, sizeof(*s), s);
+			subdisks++;
+
+		/* Subdisk definition. */
+		} else if (!strcmp(token[0], "drive")) {
+			d = gv_new_drive(tokens, token);
+			if (d == NULL) {
+				warnx("line %d: invalid drive definition:",
+				    line);
+				warnx("line %d: '%s'", line, original);
+				errors++;
+				line++;
+				continue;
+			}
+
+			snprintf(buf1, sizeof(buf1), "drive%d", drives);
+			gctl_ro_param(req, buf1, sizeof(*d), d);
+			drives++;
+
+		/* Everything else is bogus. */
+		} else {
+			warnx("line %d: invalid definition:", line);
+			warnx("line %d: '%s'", line, original);
+			errors++;
 		}
 		line++;
 	}
@@ -431,55 +392,6 @@ gvinum_help(void)
 	);
 
 	return;
-}
-
-void
-gvinum_init(int argc, char **argv)
-{
-	struct gctl_req *req;
-	int i, initsize, j;
-	const char *errstr;
-	char buf[20];
-
-	initsize = 0;
-	optreset = 1;
-	optind = 1;
-	while ((j = getopt(argc, argv, "S")) != -1) {
-		switch (j) {
-		case 'S':
-			initsize = atoi(optarg);
-			break;
-		case '?':
-		default:
-			return;
-		}
-	}
-	argc -= optind;
-	argv += optind;
-
-	if (!initsize)
-		initsize = 512;
-
-	req = gctl_get_handle();
-	gctl_ro_param(req, "class", -1, "VINUM");
-	gctl_ro_param(req, "verb", -1, "init");
-	gctl_ro_param(req, "argc", sizeof(int), &argc);
-	gctl_ro_param(req, "initsize", sizeof(int), &initsize);
-	if (argc) {
-		for (i = 0; i < argc; i++) {
-			snprintf(buf, sizeof(buf), "argv%d", i);
-			gctl_ro_param(req, buf, -1, argv[i]);
-		}
-	}
-	errstr = gctl_issue(req);
-	if (errstr != NULL) {
-		warnx("can't init: %s", errstr);
-		gctl_free(req);
-		return;
-	}
-
-	gctl_free(req);
-	gvinum_list(0, NULL);
 }
 
 void
@@ -831,16 +743,12 @@ parseline(int argc, char **argv)
 	if (argc <= 0)
 		return;
 
-	if (!strcmp(argv[0], "cancelinit"))
-		gvinum_cancelinit(argc, argv);
-	else if (!strcmp(argv[0], "create"))
+	if (!strcmp(argv[0], "create"))
 		gvinum_create(argc, argv);
 	else if (!strcmp(argv[0], "exit") || !strcmp(argv[0], "quit"))
 		exit(0);
 	else if (!strcmp(argv[0], "help"))
 		gvinum_help();
-	else if (!strcmp(argv[0], "init"))
-		gvinum_init(argc, argv);
 	else if (!strcmp(argv[0], "list") || !strcmp(argv[0], "l"))
 		gvinum_list(argc, argv);
 	else if (!strcmp(argv[0], "ld"))
