@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
+#include <unistd.h>
+
 /*
  * This is unlikely to change over the running time of any
  * program, so we cache the result to save some syscalls.

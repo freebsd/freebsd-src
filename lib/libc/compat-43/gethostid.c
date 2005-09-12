@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
+#include <unistd.h>
+
 long
 gethostid(void)
 {
