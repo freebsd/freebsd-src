@@ -1554,7 +1554,6 @@ cbb_suspend(device_t self)
 	int			error = 0;
 	struct cbb_softc	*sc = device_get_softc(self);
 
-	cbb_power_disable_socket(device_get_parent(self), self);
 	cbb_set(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
 	bus_teardown_intr(self, sc->irq_res, sc->intrhand);
 	sc->flags &= ~CBB_CARD_OK;		/* Card is bogus now */
