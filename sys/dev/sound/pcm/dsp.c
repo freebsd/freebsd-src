@@ -329,7 +329,6 @@ dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	s = spltty();
 	d = dsp_get_info(i_dev);
-	pcm_lock(d);
 	rdch = i_dev->si_drv1;
 	wrch = i_dev->si_drv2;
 
@@ -350,6 +349,8 @@ dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	 * If there are no more references, release the channels.
 	 */
 	if ((rdch || wrch) && refs == 0) {
+
+		pcm_lock(d);
 
 		if (pcm_getfakechan(d))
 			pcm_getfakechan(d)->flags = 0;
@@ -382,8 +383,7 @@ dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 			chn_reset(wrch, 0);
 			pcm_chnrelease(wrch);
 		}
-	} else 
-		pcm_unlock(d);
+	} 
 	splx(s);
 	return 0;
 }
