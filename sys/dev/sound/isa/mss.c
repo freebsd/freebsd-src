@@ -92,7 +92,9 @@ static driver_intr_t 	mss_intr;
 
 /* prototypes for local functions */
 static int 		mss_detect(device_t dev, struct mss_info *mss);
+#ifndef PC98
 static int		opti_detect(device_t dev, struct mss_info *mss);
+#endif
 static char 		*ymf_test(device_t dev, struct mss_info *mss);
 static void		ad_unmute(struct mss_info *mss);
 
@@ -1592,6 +1594,7 @@ no:
     	return ENXIO;
 }
 
+#ifndef PC98
 static int
 opti_detect(device_t dev, struct mss_info *mss)
 {
@@ -1637,6 +1640,7 @@ opti_detect(device_t dev, struct mss_info *mss)
 	}
 	return 0;
 }
+#endif
 
 static char *
 ymf_test(device_t dev, struct mss_info *mss)
