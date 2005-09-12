@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2005
+.Dd September 8, 2005
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -77,7 +77,7 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Fn callout_stop "struct callout *c"
 .Ft int
 .Fn callout_drain "struct callout *c"
-.Ft void
+.Ft int
 .Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
 .Ft int
 .Fn callout_pending "struct callout *c"
@@ -260,6 +260,9 @@ first performs the equivalent of
 to disestablish the callout, and then establishes a new callout in the
 same manner as
 .Fn timeout .
+If there was already a pending callout and it was rescheduled, then
+.Fn callout_reset
+will return a non-zero value.
 If the callout has an associated mutex, then that mutex must be
 held when this function is called.
 .Pp
@@ -346,6 +349,8 @@ before destroying the callout or its associated mutex.
 .It
 The return value from
 .Fn callout_stop
+and
+.Fn callout_reset
 indicates whether or not the callout was removed.
 If it is known that the callout was set and the callout function has
 not yet executed, then a return value of
@@ -366,9 +371,6 @@ if (sc->sc_flags & SCFLG_CALLOUT_RUNNING) {
 }
 .Ed
 .Pp
-Note that there is no equivalent mechanism to determine whether or not
-.Fn callout_reset
-stopped the callout.
 .It
 The
 .Fn callout_pending ,
