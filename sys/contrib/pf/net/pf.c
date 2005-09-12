@@ -2337,6 +2337,11 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 	if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
 		return (1);
 
+	if (proto == IPPROTO_ICMP) {
+		low = 1;
+		high = 65535;
+	}
+
 	do {
 		key.af = af;
 		key.proto = proto;
@@ -2348,7 +2353,8 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 		 * port search; start random, step;
 		 * similar 2 portloop in in_pcbbind
 		 */
-		if (!(proto == IPPROTO_TCP || proto == IPPROTO_UDP)) {
+		if (!(proto == IPPROTO_TCP || proto == IPPROTO_UDP ||
+		    proto == IPPROTO_ICMP)) {
 			key.gwy.port = dport;
 			if (pf_find_state_all(&key, PF_EXT_GWY, NULL) == NULL)
 				return (0);
@@ -2604,6 +2610,11 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 		case PF_RDR: {
 			if (pf_map_addr(pd->af, r, saddr, naddr, NULL, sn))
 				return (NULL);
+			if ((r->rpool.opts & PF_POOL_TYPEMASK) ==
+			    PF_POOL_BITMASK)
+				PF_POOLMASK(naddr, naddr,
+				    &r->rpool.cur->addr.v.a.mask, daddr,
+				    pd->af);
 
 			if (r->rpool.proxy_port[1]) {
 				u_int32_t	tmp_nport;
@@ -3631,7 +3642,7 @@ pf_test_icmp(struct pf_rule **rm, struct pf_state **sm, int direction,
 	struct pf_ruleset	*ruleset = NULL;
 	struct pf_src_node	*nsn = NULL;
 	u_short			 reason;
-	u_int16_t		 icmpid = 0;	/* make the compiler happy */
+	u_int16_t		 icmpid = 0, bport, nport = 0;
 	sa_family_t		 af = pd->af;
 	u_int8_t		 icmptype = 0;	/* make the compiler happy */
 	u_int8_t		 icmpcode = 0;	/* make the compiler happy */
@@ -3681,15 +3692,22 @@ pf_test_icmp(struct pf_rule **rm, struct pf_state **sm, int direction,
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
 
 	if (direction == PF_OUT) {
+		bport = nport = icmpid;
 		/* check outgoing packet for BINAT/NAT */
 		if ((nr = pf_get_translation(pd, m, off, PF_OUT, kif, &nsn,
-		    saddr, icmpid, daddr, icmpid, &pd->naddr, NULL)) != NULL) {
+		    saddr, icmpid, daddr, icmpid, &pd->naddr, &nport)) !=
+		    NULL) {
 			PF_ACPY(&pd->baddr, saddr, af);
 			switch (af) {
 #ifdef INET
 			case AF_INET:
 				pf_change_a(&saddr->v4.s_addr, pd->ip_sum,
 				    pd->naddr.v4.s_addr, 0);
+				pd->hdr.icmp->icmp_cksum = pf_cksum_fixup(
+				    pd->hdr.icmp->icmp_cksum, icmpid, nport, 0);
+				pd->hdr.icmp->icmp_id = nport;
+				m_copyback(m, off, ICMP_MINLEN,
+				    (caddr_t)pd->hdr.icmp);
 				break;
 #endif /* INET */
 #ifdef INET6
@@ -3705,9 +3723,11 @@ pf_test_icmp(struct pf_rule **rm, struct pf_state **sm, int direction,
 			pd->nat_rule = nr;
 		}
 	} else {
+		bport = nport = icmpid;
 		/* check incoming packet for BINAT/RDR */
 		if ((nr = pf_get_translation(pd, m, off, PF_IN, kif, &nsn,
-		    saddr, icmpid, daddr, icmpid, &pd->naddr, NULL)) != NULL) {
+		    saddr, icmpid, daddr, icmpid, &pd->naddr, &nport)) !=
+		    NULL) {
 			PF_ACPY(&pd->baddr, daddr, af);
 			switch (af) {
 #ifdef INET
@@ -3857,24 +3877,28 @@ cleanup:
 		s->af = af;
 		if (direction == PF_OUT) {
 			PF_ACPY(&s->gwy.addr, saddr, af);
-			s->gwy.port = icmpid;
+			s->gwy.port = nport;
 			PF_ACPY(&s->ext.addr, daddr, af);
-			s->ext.port = icmpid;
-			if (nr != NULL)
+			s->ext.port = 0;
+			if (nr != NULL) {
 				PF_ACPY(&s->lan.addr, &pd->baddr, af);
-			else
+				s->lan.port = bport;
+			} else {
 				PF_ACPY(&s->lan.addr, &s->gwy.addr, af);
-			s->lan.port = icmpid;
+				s->lan.port = s->gwy.port;
+			}
 		} else {
 			PF_ACPY(&s->lan.addr, daddr, af);
-			s->lan.port = icmpid;
+			s->lan.port = nport;
 			PF_ACPY(&s->ext.addr, saddr, af);
-			s->ext.port = icmpid;
-			if (nr != NULL)
+			s->ext.port = 0; 
+			if (nr != NULL) {
 				PF_ACPY(&s->gwy.addr, &pd->baddr, af);
-			else
+				s->gwy.port = bport;
+			} else {
 				PF_ACPY(&s->gwy.addr, &s->lan.addr, af);
-			s->gwy.port = icmpid;
+				s->gwy.port = s->lan.port;
+			}
 		}
 		s->creation = time_second;
 		s->expire = time_second;
@@ -4804,13 +4828,13 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		if (direction == PF_IN)	{
 			PF_ACPY(&key.ext.addr, pd->src, key.af);
 			PF_ACPY(&key.gwy.addr, pd->dst, key.af);
-			key.ext.port = icmpid;
+			key.ext.port = 0;
 			key.gwy.port = icmpid;
 		} else {
 			PF_ACPY(&key.lan.addr, pd->src, key.af);
 			PF_ACPY(&key.ext.addr, pd->dst, key.af);
 			key.lan.port = icmpid;
-			key.ext.port = icmpid;
+			key.ext.port = 0;
 		}
 
 		STATE_LOOKUP();
@@ -4819,7 +4843,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		(*state)->timeout = PFTM_ICMP_ERROR_REPLY;
 
 		/* translate source/destination address, if necessary */
-		if (PF_ANEQ(&(*state)->lan.addr, &(*state)->gwy.addr, pd->af)) {
+		if (STATE_TRANSLATE(*state)) {
 			if (direction == PF_OUT) {
 				switch (pd->af) {
 #ifdef INET
@@ -4827,6 +4851,14 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 					pf_change_a(&saddr->v4.s_addr,
 					    pd->ip_sum,
 					    (*state)->gwy.addr.v4.s_addr, 0);
+					pd->hdr.icmp->icmp_cksum =
+					    pf_cksum_fixup(
+					    pd->hdr.icmp->icmp_cksum, icmpid,
+					    (*state)->gwy.port, 0);
+					pd->hdr.icmp->icmp_id =
+					    (*state)->gwy.port;
+					m_copyback(m, off, ICMP_MINLEN,
+					    (caddr_t)pd->hdr.icmp);
 					break;
 #endif /* INET */
 #ifdef INET6
@@ -4847,6 +4879,14 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 					pf_change_a(&daddr->v4.s_addr,
 					    pd->ip_sum,
 					    (*state)->lan.addr.v4.s_addr, 0);
+					pd->hdr.icmp->icmp_cksum =
+					    pf_cksum_fixup(
+					    pd->hdr.icmp->icmp_cksum, icmpid,
+					    (*state)->lan.port, 0);
+					pd->hdr.icmp->icmp_id =
+					    (*state)->lan.port;
+					m_copyback(m, off, ICMP_MINLEN,
+					    (caddr_t)pd->hdr.icmp);
 					break;
 #endif /* INET */
 #ifdef INET6
@@ -5175,13 +5215,13 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			if (direction == PF_IN)	{
 				PF_ACPY(&key.ext.addr, pd2.dst, key.af);
 				PF_ACPY(&key.gwy.addr, pd2.src, key.af);
-				key.ext.port = iih.icmp_id;
+				key.ext.port = 0;
 				key.gwy.port = iih.icmp_id;
 			} else {
 				PF_ACPY(&key.lan.addr, pd2.dst, key.af);
 				PF_ACPY(&key.ext.addr, pd2.src, key.af);
 				key.lan.port = iih.icmp_id;
-				key.ext.port = iih.icmp_id;
+				key.ext.port = 0;
 			}
 
 			STATE_LOOKUP();
@@ -5230,13 +5270,13 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			if (direction == PF_IN)	{
 				PF_ACPY(&key.ext.addr, pd2.dst, key.af);
 				PF_ACPY(&key.gwy.addr, pd2.src, key.af);
-				key.ext.port = iih.icmp6_id;
+				key.ext.port = 0;
 				key.gwy.port = iih.icmp6_id;
 			} else {
 				PF_ACPY(&key.lan.addr, pd2.dst, key.af);
 				PF_ACPY(&key.ext.addr, pd2.src, key.af);
 				key.lan.port = iih.icmp6_id;
-				key.ext.port = iih.icmp6_id;
+				key.ext.port = 0;
 			}
 
 			STATE_LOOKUP();
