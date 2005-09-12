@@ -33,6 +33,10 @@
  *
  *---------------------------------------------------------------------------*/
 
+#ifdef __FreeBSD__
+#include <osreldate.h>
+#endif
+
 #include "isdnd.h"
 
 #define LOGBUFLEN 256
@@ -165,9 +169,6 @@ log(int what, const char *fmt, ...)
  * to write to the last column in the logfilewindow without causing an
  * automatic newline to occur resulting in a blank line in that window.
  */
-#ifdef __FreeBSD__
-#include <osreldate.h>
-#endif
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 400009		
 #warning "FreeBSD ncurses is buggy: write to last column = auto newline!"
 		     COLS-((strlen(dp))+(strlen(logtab[what].text))+3), buffer);
