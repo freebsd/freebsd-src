@@ -213,8 +213,6 @@ void	ed_shmem_readmem8(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
 void	ed_pio_readmem(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
 void	ed_pio_writemem(struct ed_softc *, uint8_t *, uint16_t, uint16_t);
 #ifndef ED_NO_MIIBUS
-int	ed_miibus_readreg(device_t, int, int);
-void	ed_miibus_writereg(device_t, int, int, int);
 int	ed_ifmedia_upd(struct ifnet *);
 void	ed_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 void	ed_child_detached(device_t, device_t);

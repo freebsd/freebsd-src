@@ -1635,43 +1635,6 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 }
 
 #ifndef ED_NO_MIIBUS
-/*
- * MII bus support routines.
- */
-int
-ed_miibus_readreg(device_t dev, int phy, int reg)
-{
-	struct ed_softc *sc;
-	int failed, val;
-
-	sc = device_get_softc(dev);
-	(*sc->mii_writebits)(sc, 0xffffffff, 32);
-	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
-	(*sc->mii_writebits)(sc, ED_MII_READOP, ED_MII_OP_BITS);
-	(*sc->mii_writebits)(sc, phy, ED_MII_PHY_BITS);
-	(*sc->mii_writebits)(sc, reg, ED_MII_REG_BITS);
-	failed = (*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
-	val = (*sc->mii_readbits)(sc, ED_MII_DATA_BITS);
-	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
-	return (failed ? 0 : val);
-}
-
-void
-ed_miibus_writereg(device_t dev, int phy, int reg, int data)
-{
-	struct ed_softc *sc;
-
-	sc = device_get_softc(dev);
-	(*sc->mii_writebits)(sc, 0xffffffff, 32);
-	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
-	(*sc->mii_writebits)(sc, ED_MII_WRITEOP, ED_MII_OP_BITS);
-	(*sc->mii_writebits)(sc, phy, ED_MII_PHY_BITS);
-	(*sc->mii_writebits)(sc, reg, ED_MII_REG_BITS);
-	(*sc->mii_writebits)(sc, ED_MII_TURNAROUND, ED_MII_TURNAROUND_BITS);
-	(*sc->mii_writebits)(sc, data, ED_MII_DATA_BITS);
-	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
-}
-
 int
 ed_ifmedia_upd(struct ifnet *ifp)
 {
