@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/filio.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 
@@ -237,6 +238,81 @@ test_kqueue(void)
 	cleanfifo("testfifo", reader_fd, writer_fd);
 }
 
+static int
+test_ioctl_setclearflag(int fd, int flag, const char *testname,
+    const char *fdname, const char *flagname)
+{
+	int i;
+
+	i = 1;
+	if (ioctl(fd, flag, &i) < 0) {
+		warn("%s:%s: ioctl(%s, %s, 1)", testname, __func__, fdname,
+		    flagname);
+		cleanfifo("testfifo", -1, -1);
+		exit(-1);
+	}
+
+	i = 0;
+	if (ioctl(fd, flag, &i) < 0) {
+		warn("%s:%s: ioctl(%s, %s, 0)", testname, __func__, fdname,
+		    flagname);
+		cleanfifo("testfifo", -1, -1);
+		exit(-1);
+	}
+
+	return (0);
+}
+
+/*
+ * Test that various ioctls can be issued against the file descriptor.  We
+ * don't currently test the semantics of these changes here.
+ */
+static void
+test_ioctl(void)
+{
+	int reader_fd, writer_fd;
+
+	makefifo("testfifo", __func__);
+
+	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd) < 0) {
+		warn("%s: openfifo", __func__);
+		cleanfifo("testfifo", -1, -1);
+		exit(-1);
+	}
+
+	/*
+	 * Set and remove the non-blocking I/O flag.
+	 */
+	if (test_ioctl_setclearflag(reader_fd, FIONBIO, __func__,
+	    "reader_fd", "FIONBIO") < 0) {
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (test_ioctl_setclearflag(writer_fd, FIONBIO, __func__,
+	    "writer_fd", "FIONBIO") < 0) {
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	/*
+	 * Set and remove the async I/O flag.
+	 */
+	if (test_ioctl_setclearflag(reader_fd, FIOASYNC, __func__,
+	    "reader_fd", "FIOASYNC") < 0) {
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (test_ioctl_setclearflag(writer_fd, FIOASYNC, __func__,
+	    "writer_fd", "FIONASYNC") < 0) {
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	cleanfifo("testfifo", reader_fd, writer_fd);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -251,6 +327,7 @@ main(int argc, char *argv[])
 
 	test_lseek();
 	test_kqueue();
+	test_ioctl();
 
 	return (0);
 }
