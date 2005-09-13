@@ -61,79 +61,8 @@ static const struct pccard_product ex_pccard_products[] = {
 };
 
 /* Bus Front End Functions */
-static int	ex_pccard_match(device_t);
 static int	ex_pccard_probe(device_t);
 static int	ex_pccard_attach(device_t);
-
-static device_method_t ex_pccard_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
-	DEVMETHOD(device_detach,	ex_detach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	ex_pccard_match),
-	DEVMETHOD(card_compat_probe,	ex_pccard_probe),
-	DEVMETHOD(card_compat_attach,	ex_pccard_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t ex_pccard_driver = {
-	"ex",
-	ex_pccard_methods,
-	sizeof(struct ex_softc),
-};
-
-DRIVER_MODULE(ex, pccard, ex_pccard_driver, ex_devclass, 0, 0);
-
-static int
-ex_pccard_match(device_t dev)
-{
-	const struct pccard_product *pp;
-	int error;
-	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
-
-	/* Make sure we're a network function */
-	error = pccard_get_function(dev, &fcn);
-	if (error != 0)
-		return (error);
-	if (fcn != PCCARD_FUNCTION_NETWORK)
-		return (ENXIO);
-
-	if ((pp = pccard_product_lookup(dev, ex_pccard_products,
-	    sizeof(ex_pccard_products[0]), NULL)) != NULL) {
-		if (pp->pp_name != NULL)
-			device_set_desc(dev, pp->pp_name);
-		return 0;
-	}
-	return EIO;
-}
-
-static int
-ex_pccard_probe(device_t dev)
-{
-	u_int		iobase;
-	u_int		irq;
-
-	iobase = bus_get_resource_start(dev, SYS_RES_IOPORT, 0);
-	if (!iobase) {
-		printf("ex: no iobase?\n");
-		return(ENXIO);
-	}
-
-	if (bootverbose)
-		printf("ex: ex_pccard_probe() found card at 0x%03x\n", iobase);
-
-	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
-
-	if (irq == 0) {
-		printf("ex: invalid IRQ.\n");
-		return(ENXIO);
-	}
-
-	return(0);
-}
 
 static int
 ex_pccard_enet_ok(u_char *enaddr)
@@ -168,8 +97,30 @@ ex_pccard_silicom_cb(const struct pccard_tuple *tuple, void *arg)
 static void
 ex_pccard_get_silicom_mac(device_t dev, u_char *ether_addr)
 {
-	CARD_CIS_SCAN(device_get_parent(dev), ex_pccard_silicom_cb,
-	    ether_addr);
+	pccard_cis_scan(dev, ex_pccard_silicom_cb, ether_addr);
+}
+
+static int
+ex_pccard_probe(device_t dev)
+{
+	const struct pccard_product *pp;
+	int error;
+	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+
+	/* Make sure we're a network function */
+	error = pccard_get_function(dev, &fcn);
+	if (error != 0)
+		return (error);
+	if (fcn != PCCARD_FUNCTION_NETWORK)
+		return (ENXIO);
+
+	if ((pp = pccard_product_lookup(dev, ex_pccard_products,
+	    sizeof(ex_pccard_products[0]), NULL)) != NULL) {
+		if (pp->pp_name != NULL)
+			device_set_desc(dev, pp->pp_name);
+		return 0;
+	}
+	return EIO;
 }
 
 static int
@@ -225,3 +176,19 @@ bad:
 	ex_release_resources(dev);
 	return (error);
 }
+static device_method_t ex_pccard_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ex_pccard_probe),
+	DEVMETHOD(device_attach,	ex_pccard_attach),
+	DEVMETHOD(device_detach,	ex_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t ex_pccard_driver = {
+	"ex",
+	ex_pccard_methods,
+	sizeof(struct ex_softc),
+};
+
+DRIVER_MODULE(ex, pccard, ex_pccard_driver, ex_devclass, 0, 0);
