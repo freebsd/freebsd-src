@@ -254,7 +254,7 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 void	pccard_read_cis(struct pccard_softc *);
 void	pccard_check_cis_quirks(device_t);
 void	pccard_print_cis(device_t);
-int	pccard_scan_cis(device_t, pccard_scan_t, void *);
+int	pccard_scan_cis(device_t, device_t, pccard_scan_t, void *);
 
 #define	pccard_cis_read_1(tuple, idx0)					\
 	(bus_space_read_1((tuple)->memt, (tuple)->memh, (tuple)->mult*(idx0)))
@@ -301,6 +301,38 @@ static __inline int
 pccard_compat_attach(device_t dev)
 {
 	return (CARD_COMPAT_DO_ATTACH(device_get_parent(dev), dev));
+}
+
+/* Convenience functions */
+
+static __inline int
+pccard_cis_scan(device_t dev, pccard_scan_t fct, void *arg)
+{
+	return (CARD_CIS_SCAN(device_get_parent(dev), dev, fct, arg));
+}
+
+static __inline int
+pccard_attr_read_1(device_t dev, uint32_t offset, uint8_t *val)
+{
+	return (CARD_ATTR_READ(device_get_parent(dev), dev, offset, val));
+}
+
+static __inline int
+pccard_attr_write_1(device_t dev, uint32_t offset, uint8_t val)
+{
+	return (CARD_ATTR_WRITE(device_get_parent(dev), dev, offset, val));
+}
+
+static __inline int
+pccard_ccr_read_1(device_t dev, uint32_t offset, uint8_t *val)
+{
+	return (CARD_CCR_READ(device_get_parent(dev), dev, offset, val));
+}
+
+static __inline int
+pccard_ccr_write_1(device_t dev, uint32_t offset, uint8_t val)
+{
+	return (CARD_CCR_WRITE(device_get_parent(dev), dev, offset, val));
 }
 
 /* ivar interface */
