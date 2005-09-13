@@ -666,9 +666,6 @@ in6_ifattach(ifp, altifp)
 
 	/* some of the interfaces are inherently not IPv6 capable */
 	switch (ifp->if_type) {
-#ifdef IFT_BRIDGE	/* OpenBSD 2.8, NetBSD 1.6 */
-	case IFT_BRIDGE:
-#endif
 	case IFT_PFLOG:
 	case IFT_PFSYNC:
 	case IFT_CARP:
@@ -718,7 +715,7 @@ in6_ifattach(ifp, altifp)
 	/*
 	 * assign a link-local address, if there's none.
 	 */
-	if (ip6_auto_linklocal) {
+	if (ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE) {
 		ia = in6ifa_ifpforlinklocal(ifp, 0);
 		if (ia == NULL) {
 			if (in6_ifattach_linklocal(ifp, altifp) == 0) {
