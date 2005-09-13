@@ -288,27 +288,6 @@ int	pccard_scan_cis(device_t, pccard_scan_t, void *);
 		(STAILQ_FIRST(&(sc)->card.pf_head) &&			\
 		 STAILQ_NEXT(STAILQ_FIRST(&(sc)->card.pf_head),pf_list))
 
-#define	pccard_io_alloc(pf, start, size, align, pciop)			\
-	(pccard_chip_io_alloc((pf)->sc->pct, pf->sc->pch, (start),	\
-	 (size), (align), (pciop)))
-
-#define	pccard_io_free(pf, pciohp)					\
-	(pccard_chip_io_free((pf)->sc->pct, (pf)->sc->pch, (pciohp)))
-
-int	pccard_io_map(struct pccard_function *, int, bus_addr_t,
-	    bus_size_t, struct pccard_io_handle *, int *);
-void	pccard_io_unmap(struct pccard_function *, int);
-
-#define pccard_mem_alloc(pf, size, pcmhp)				\
-	(pccard_chip_mem_alloc((pf)->sc->pct, (pf)->sc->pch, (size), (pcmhp)))
-#define pccard_mem_free(pf, pcmhp)					\
-	(pccard_chip_mem_free((pf)->sc->pct, (pf)->sc->pch, (pcmhp)))
-#define pccard_mem_map(pf, kind, card_addr, size, pcmhp, offsetp, windowp) \
-	(pccard_chip_mem_map((pf)->sc->pct, (pf)->sc->pch, (kind),	\
-	 (card_addr), (size), (pcmhp), (offsetp), (windowp)))
-#define	pccard_mem_unmap(pf, window)					\
-	(pccard_chip_mem_unmap((pf)->sc->pct, (pf)->sc->pch, (window)))
-
 /* compat layer */
 static __inline int
 pccard_compat_probe(device_t dev)
