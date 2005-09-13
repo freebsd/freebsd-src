@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1990, 1993, 1995
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 2005 Robert N. M. Watson
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -296,7 +298,7 @@ fail1:
 }
 
 /*
- * Device ioctl operation.
+ * Now unused vnode ioctl routine.
  */
 /* ARGSUSED */
 static int
@@ -310,35 +312,13 @@ fifo_ioctl(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct file filetmp;	/* Local, so need not be locked. */
-	int error;
 
-	if (ap->a_command == FIONBIO)
-		return (0);
-	if (ap->a_fflag & FREAD) {
-		filetmp.f_data = ap->a_vp->v_fifoinfo->fi_readsock;
-		filetmp.f_cred = ap->a_cred;
-		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data,
-		    ap->a_td->td_ucred, ap->a_td);
-		if (error)
-			return (error);
-	}
-	if (ap->a_fflag & FWRITE) {
-		filetmp.f_data = ap->a_vp->v_fifoinfo->fi_writesock;
-		filetmp.f_cred = ap->a_cred;
-		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data,
-		    ap->a_td->td_ucred, ap->a_td);
-		if (error)
-			return (error);
-	}
-	return (0);
+	printf("WARNING: fifo_ioctl called unexpectedly\n");
+	return (ENOTTY);
 }
 
 /*
- * Currently fifo_kqfilter() isn't reachable beause vop_kqfilter() is only
- * called for open files, in which case the fifo code has redirected the
- * caller to fifo_kqfilter_f() via the file descriptor operations vector.
- * This implementation should be garbage collected.
+ * Now unused vnode kqfilter routine.
  */
 /* ARGSUSED */
 static int
@@ -348,33 +328,9 @@ fifo_kqfilter(ap)
 		struct knote *a_kn;
 	} */ *ap;
 {
-	struct fifoinfo *fi = ap->a_vp->v_fifoinfo;
-	struct socket *so;
-	struct sockbuf *sb;
 
-	switch (ap->a_kn->kn_filter) {
-	case EVFILT_READ:
-		ap->a_kn->kn_fop = &fiforead_filtops;
-		so = fi->fi_readsock;
-		sb = &so->so_rcv;
-		break;
-	case EVFILT_WRITE:
-		ap->a_kn->kn_fop = &fifowrite_filtops;
-		so = fi->fi_writesock;
-		sb = &so->so_snd;
-		break;
-	default:
-		return (EINVAL);
-	}
-
-	ap->a_kn->kn_hook = (caddr_t)so;
-
-	SOCKBUF_LOCK(sb);
-	knlist_add(&sb->sb_sel.si_note, ap->a_kn, 1);
-	sb->sb_flags |= SB_KNOTE;
-	SOCKBUF_UNLOCK(sb);
-
-	return (0);
+	printf("WARNING: fifo_kqfilter called unexpectedly\n");
+	return (EINVAL);
 }
 
 static void
@@ -557,8 +513,25 @@ fifo_close_f(struct file *fp, struct thread *td)
 	return (vnops.fo_close(fp, td));
 }
 
+/*
+ * The implementation of ioctl() for named fifos is complicated by the fact
+ * that we permit O_RDWR fifo file descriptors, meaning that the actions of
+ * ioctls may have to be applied to both the underlying sockets rather than
+ * just one.  The original implementation simply forward the ioctl to one
+ * or both sockets based on fp->f_flag.  We now consider each ioctl
+ * separately, as the composition effect requires careful ordering.
+ *
+ * We do not blindly pass all ioctls through to the socket in order to avoid
+ * providing unnecessary ioctls that might be improperly depended on by
+ * applications (such as socket-specific, routing, and interface ioctls).
+ *
+ * Unlike sys_pipe.c, fifos do not implement the deprecated TIOCSPGRP and
+ * TIOCGPGRP ioctls.  Earlier implementations of fifos did forward SIOCSPGRP
+ * and SIOCGPGRP ioctls, so we might need to re-add those here.
+ */
 static int
-fifo_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struct thread *td)
+fifo_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred,
+    struct thread *td)
 {
 	struct fifoinfo *fi;
 	struct file filetmp;	/* Local, so need not be locked. */
@@ -566,21 +539,58 @@ fifo_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struct
 
 	error = ENOTTY;
 	fi = fp->f_data;
-	if (com == FIONBIO)
+
+	switch (com) {
+	case FIONBIO:
+		/*
+		 * Non-blocking I/O is implemented at the fifo layer using
+		 * MSG_NBIO, so does not need to be forwarded down the stack.
+		 */
 		return (0);
-	if (fp->f_flag & FREAD) {
+
+	case FIOASYNC:
+	case FIOSETOWN:
+	case FIOGETOWN:
+		/*
+		 * These socket ioctls don't have any ordering requirements,
+		 * so are called in an arbitrary order, and only on the
+		 * sockets indicated by the file descriptor rights.
+		 *
+		 * XXXRW: If O_RDWR and the read socket accepts an ioctl but
+		 * the write socket doesn't, the socketpair is left in an
+		 * inconsistent state.
+		 */
+		if (fp->f_flag & FREAD) {
+			filetmp.f_data = fi->fi_readsock;
+			filetmp.f_cred = cred;
+			error = soo_ioctl(&filetmp, com, data, cred, td);
+			if (error)
+				return (error);
+		}
+		if (fp->f_flag & FWRITE) {
+			filetmp.f_data = fi->fi_writesock;
+			filetmp.f_cred = cred;
+			error = soo_ioctl(&filetmp, com, data, cred, td);
+		}
+		return (error);
+
+	case FIONREAD:
+		/*
+		 * FIONREAD will return 0 for non-readable descriptors, and
+		 * the results of FIONREAD on the read socket for readable
+		 * descriptors.
+		 */
+		if (!(fp->f_flag & FREAD)) {
+			*(int *)data = 0;
+			return (0);
+		}
 		filetmp.f_data = fi->fi_readsock;
 		filetmp.f_cred = cred;
-		error = soo_ioctl(&filetmp, com, data, cred, td);
-		if (error)
-			return (error);
+		return (soo_ioctl(&filetmp, com, data, cred, td));
+
+	default:
+		return (ENOTTY);
 	}
-	if (fp->f_flag & FWRITE) {
-		filetmp.f_data = fi->fi_writesock;
-		filetmp.f_cred = cred;
-		error = soo_ioctl(&filetmp, com, data, cred, td);
-	}
-	return (error);
 }
 
 /*
