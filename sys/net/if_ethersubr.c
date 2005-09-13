@@ -668,7 +668,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		goto post_stats;
 #endif
 
-	if (!(BDG_ACTIVE(ifp)) &&
+	if (!(BDG_ACTIVE(ifp)) && !(ifp->if_bridge) &&
 	    !((ether_type == ETHERTYPE_VLAN || m->m_flags & M_VLANTAG) &&
 	    ifp->if_nvlans > 0)) {
 #ifdef DEV_CARP
