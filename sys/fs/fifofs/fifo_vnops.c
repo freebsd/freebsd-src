@@ -334,6 +334,12 @@ fifo_ioctl(ap)
 	return (0);
 }
 
+/*
+ * Currently fifo_kqfilter() isn't reachable beause vop_kqfilter() is only
+ * called for open files, in which case the fifo code has redirected the
+ * caller to fifo_kqfilter_f() via the file descriptor operations vector.
+ * This implementation should be garbage collected.
+ */
 /* ARGSUSED */
 static int
 fifo_kqfilter(ap)
@@ -589,6 +595,12 @@ fifo_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struct
 	return (error);
 }
 
+/*
+ * Because fifos are now a file descriptor layer object, EVFILT_VNODE is not
+ * implemented.  Likely, fifo_kqfilter() should be removed, and
+ * fifo_kqfilter_f() should know how to forward the request to the underling
+ * vnode using f_vnode in the file descriptor here.
+ */
 static int
 fifo_kqfilter_f(struct file *fp, struct knote *kn)
 {
