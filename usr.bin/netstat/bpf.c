@@ -91,6 +91,8 @@ bpf_stats(char *interface)
 		warn("net.bpf.stats");
 		return;
 	}
+	if (size == 0)
+		return;
 	bd = malloc(size);
 	if (bd == NULL) {
 		warn("malloc failed");
