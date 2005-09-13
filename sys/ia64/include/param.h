@@ -83,7 +83,7 @@
 #endif
 
 #ifdef SMP
-#define	MAXCPU		16
+#define	MAXCPU		4
 #else
 #define MAXCPU		1
 #endif
