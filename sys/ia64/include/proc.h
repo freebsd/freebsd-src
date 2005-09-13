@@ -30,8 +30,9 @@
 #define	_MACHINE_PROC_H_
 
 struct mdthread {
+	struct mtx md_highfp_mtx;
 	int	md_spinlock_count;	/* (k) */
-	register_t md_saved_intr;	/* (k) */
+	int	md_saved_intr;		/* (k) */
 };
 
 struct mdproc {

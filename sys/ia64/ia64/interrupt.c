@@ -147,6 +147,8 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 	if (vector == 0) {
 		vector = ib->ib_inta;
 		printf("ExtINT interrupt: vector=%ld\n", vector);
+		if (vector == 15)
+			goto stray;
 	}
 
 	if (vector == CLOCK_VECTOR) {/* clock interrupt */
@@ -207,9 +209,11 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 	} else if (vector == ipi_vector[IPI_HIGH_FP]) {
 		struct thread *thr = PCPU_GET(fpcurthread);
 		if (thr != NULL) {
+			mtx_lock_spin(&thr->td_md.md_highfp_mtx);
 			save_high_fp(&thr->td_pcb->pcb_high_fp);
 			thr->td_pcb->pcb_fpcpu = NULL;
 			PCPU_SET(fpcurthread, NULL);
+			mtx_unlock_spin(&thr->td_md.md_highfp_mtx);
 		}
 	} else if (vector == ipi_vector[IPI_RENDEZVOUS]) {
 		rdvs[PCPU_GET(cpuid)]++;
@@ -239,6 +243,7 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 		ia64_dispatch_intr(tf, vector);
 	}
 
+stray:
 	atomic_subtract_int(&td->td_intr_nesting_level, 1);
 	return (TRAPF_USERMODE(tf));
 }

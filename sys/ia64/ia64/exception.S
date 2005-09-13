@@ -644,6 +644,7 @@ IVT_ENTRY(Instruction_TLB, 0x0400)
 	add	r20=24,r18		// collision chain
 	;; 
 	ld8	r21=[r21]		// check VHPT tag
+	ld8	r20=[r20]		// bucket head
 	;;
 	cmp.ne	p15,p0=r21,r19
 (p15)	br.dpnt.few 1f
@@ -722,6 +723,7 @@ IVT_ENTRY(Data_TLB, 0x0800)
 	add	r20=24,r18		// collision chain
 	;; 
 	ld8	r21=[r21]		// check VHPT tag
+	ld8	r20=[r20]		// bucket head
 	;;
 	cmp.ne	p15,p0=r21,r19
 (p15)	br.dpnt.few 1f
@@ -937,6 +939,8 @@ IVT_ENTRY(Dirty_Bit, 0x2000)
 	ttag	r19=r16
 	add	r20=24,r18		// collision chain
 	;; 
+	ld8	r20=[r20]		// bucket head
+	;;
 	ld8	r20=[r20]		// first entry
 	;; 
 	rsm	psr.dt			// turn off data translations
@@ -1003,6 +1007,8 @@ IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 	ttag	r19=r16
 	add	r20=24,r18		// collision chain
 	;; 
+	ld8	r20=[r20]		// bucket head
+	;;
 	ld8	r20=[r20]		// first entry
 	;;
 	rsm	psr.dt			// turn off data translations
@@ -1068,6 +1074,8 @@ IVT_ENTRY(Data_Access_Bit, 0x2800)
 	;;
 	ttag	r19=r16
 	add	r20=24,r18		// collision chain
+	;;
+	ld8	r20=[r20]		// bucket head
 	;;
 	ld8	r20=[r20]		// first entry
 	;;

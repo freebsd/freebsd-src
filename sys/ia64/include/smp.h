@@ -28,13 +28,15 @@
 
 #ifndef LOCORE
 
+struct pcpu;
+
 extern int ipi_vector[];
 
 void	ipi_all(int ipi);
 void	ipi_all_but_self(int ipi);
-void	ipi_selected(u_int64_t cpus, int ipi);
+void	ipi_selected(cpumask_t cpus, int ipi);
 void	ipi_self(int ipi);
-void	ipi_send(u_int64_t lid, int ipi);
+void	ipi_send(struct pcpu *, int ipi);
 
 #endif /* !LOCORE */
 #endif /* _KERNEL */

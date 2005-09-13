@@ -28,7 +28,7 @@ makeoptions	DEBUG=-g	# Build kernel with debug information.
 
 options 	CD9660		# ISO 9660 Filesystem
 options 	COMPAT_43	# Compatible with BSD 4.3 [KEEP THIS!]
-options		COMPAT_FREEBSD5	# Compatible with FreeBSD5
+options 	COMPAT_FREEBSD5	# Compatible with FreeBSD5
 options 	DDB		# Support DDB
 options 	FFS		# Berkeley Fast Filesystem
 options 	GDB		# Support remote GDB
@@ -46,7 +46,7 @@ options 	PSEUDOFS	# Pseudo-filesystem framework
 options 	SCHED_4BSD	# 4BSD scheduler
 #options 	SCHED_ULE	# ULE scheduler
 options 	SCSI_DELAY=5000	# Delay (in ms) before probing SCSI
-#options 	SMP		# SMP support
+options 	SMP		# Symmetric Multi-Processor support
 options 	SOFTUPDATES	# Enable FFS soft updates support
 options 	SYSVMSG		# SYSV-style message queues
 options 	SYSVSEM		# SYSV-style semaphores

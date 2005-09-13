@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
 #include <sys/sysent.h>
@@ -629,7 +630,7 @@ trap(int vector, struct trapframe *tf)
 		if (!user)
 			trap_panic(vector, tf);
 
-		critical_enter();
+		sched_pin();
 		thr = PCPU_GET(fpcurthread);
 		if (thr == td) {
 			/*
@@ -643,26 +644,29 @@ trap(int vector, struct trapframe *tf)
 			 */
 			printf("XXX: bogusly disabled high FP regs\n");
 			tf->tf_special.psr &= ~IA64_PSR_DFH;
-			critical_exit();
+			sched_unpin();
 			goto out;
 		} else if (thr != NULL) {
+			mtx_lock_spin(&thr->td_md.md_highfp_mtx);
 			pcb = thr->td_pcb;
 			save_high_fp(&pcb->pcb_high_fp);
 			pcb->pcb_fpcpu = NULL;
 			PCPU_SET(fpcurthread, NULL);
+			mtx_unlock_spin(&thr->td_md.md_highfp_mtx);
 			thr = NULL;
 		}
 
+		mtx_lock_spin(&td->td_md.md_highfp_mtx);
 		pcb = td->td_pcb;
 		pcpu = pcb->pcb_fpcpu;
 
 #ifdef SMP
 		if (pcpu != NULL) {
-			ipi_send(pcpu->pc_lid, IPI_HIGH_FP);
-			critical_exit();
-			while (pcb->pcb_fpcpu != pcpu)
+			mtx_unlock_spin(&td->td_md.md_highfp_mtx);
+			ipi_send(pcpu, IPI_HIGH_FP);
+			while (pcb->pcb_fpcpu == pcpu)
 				DELAY(100);
-			critical_enter();
+			mtx_lock_spin(&td->td_md.md_highfp_mtx);
 			pcpu = pcb->pcb_fpcpu;
 			thr = PCPU_GET(fpcurthread);
 		}
@@ -676,7 +680,8 @@ trap(int vector, struct trapframe *tf)
 			tf->tf_special.psr &= ~IA64_PSR_DFH;
 		}
 
-		critical_exit();
+		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
+		sched_unpin();
 		goto out;
 	}
 
