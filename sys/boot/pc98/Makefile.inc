@@ -5,7 +5,8 @@
 BINDIR?=	/boot
 
 LOADER_ADDRESS?=0x100000
-CFLAGS+=	-ffreestanding -mpreferred-stack-boundary=2
+CFLAGS+=	-ffreestanding -mpreferred-stack-boundary=2 \
+		-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
 LDFLAGS+=	-nostdlib
 
 # BTX components
