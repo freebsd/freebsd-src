@@ -64,8 +64,7 @@ MALLOC_DECLARE(M_PMAP);
 
 void ia64_ap_startup(void);
 
-extern vm_offset_t vhpt_base, vhpt_size;
-extern u_int64_t ia64_lapic_address;
+extern uint64_t ia64_lapic_address;
 
 #define	LID_SAPIC_ID(x)		((int)((x) >> 24) & 0xff)
 #define	LID_SAPIC_EID(x)	((int)((x) >> 16) & 0xff)
@@ -74,9 +73,10 @@ extern u_int64_t ia64_lapic_address;
 
 int	mp_ipi_test = 0;
 
-/* Variables used by os_boot_rendez */
-void *ap_stack;
+/* Variables used by os_boot_rendez and ia64_ap_startup */
 struct pcpu *ap_pcpu;
+void *ap_stack;
+uint64_t ap_vhpt;
 volatile int ap_delay;
 volatile int ap_awake;
 volatile int ap_spin;
@@ -86,14 +86,15 @@ static void cpu_mp_unleash(void *);
 void
 ia64_ap_startup(void)
 {
-	ap_awake = 1;
-	ap_delay = 0;
-
-	__asm __volatile("mov cr.pta=%0;; srlz.i;;" ::
-	    "r" (vhpt_base + (1<<8) + (vhpt_size<<2) + 1));
 
 	pcpup = ap_pcpu;
 	ia64_set_k4((intptr_t)pcpup);
+
+	__asm __volatile("mov cr.pta=%0;; srlz.i;;" ::
+	    "r" (ap_vhpt + (1<<8) + (pmap_vhpt_log2size<<2) + 1));
+
+	ap_awake = 1;
+	ap_delay = 0;
 
 	map_pal_code();
 	map_gateway_page();
@@ -102,7 +103,7 @@ ia64_ap_startup(void)
 
 	/* Wait until it's time for us to be unleashed */
 	while (ap_spin)
-		/* spin */;
+		DELAY(0);
 
 	__asm __volatile("ssm psr.i;; srlz.d;;");
 
@@ -119,7 +120,7 @@ ia64_ap_startup(void)
 
 	ap_awake++;
 	while (!smp_started)
-		/* spin */;
+		DELAY(0);
 
 	CTR1(KTR_SMP, "SMP: cpu%d launched", PCPU_GET(cpuid));
 
@@ -242,16 +243,17 @@ cpu_mp_start()
 		pc->pc_current_pmap = kernel_pmap;
 		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
 		if (pc->pc_cpuid > 0) {
+			ap_pcpu = pc;
 			ap_stack = malloc(KSTACK_PAGES * PAGE_SIZE, M_PMAP,
 			    M_WAITOK);
-			ap_pcpu = pc;
+			ap_vhpt = pmap_vhpt_base[pc->pc_cpuid];
 			ap_delay = 2000;
 			ap_awake = 0;
 
 			if (bootverbose)
 				printf("SMP: waking up cpu%d\n", pc->pc_cpuid);
 
-			ipi_send(pc->pc_lid, IPI_AP_WAKEUP);
+			ipi_send(pc, IPI_AP_WAKEUP);
 
 			do {
 				DELAY(1000);
@@ -292,7 +294,7 @@ cpu_mp_unleash(void *dummy)
 	ap_spin = 0;
 
 	while (ap_awake != smp_cpus)
-		/* spin */;
+		DELAY(0);
 
 	if (smp_cpus != cpus || cpus != mp_ncpus) {
 		printf("SMP: %d CPUs found; %d CPUs usable; %d CPUs woken\n",
@@ -307,13 +309,13 @@ cpu_mp_unleash(void *dummy)
  * send an IPI to a set of cpus.
  */
 void
-ipi_selected(u_int64_t cpus, int ipi)
+ipi_selected(cpumask_t cpus, int ipi)
 {
 	struct pcpu *pc;
 
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (cpus & pc->pc_cpumask)
-			ipi_send(pc->pc_lid, ipi);
+			ipi_send(pc, ipi);
 	}
 }
 
@@ -326,7 +328,7 @@ ipi_all(int ipi)
 	struct pcpu *pc;
 
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		ipi_send(pc->pc_lid, ipi);
+		ipi_send(pc, ipi);
 	}
 }
 
@@ -340,7 +342,7 @@ ipi_all_but_self(int ipi)
 
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (pc != pcpup)
-			ipi_send(pc->pc_lid, ipi);
+			ipi_send(pc, ipi);
 	}
 }
 
@@ -351,7 +353,7 @@ void
 ipi_self(int ipi)
 {
 
-	ipi_send(ia64_get_lid(), ipi);
+	ipi_send(pcpup, ipi);
 }
 
 /*
@@ -360,17 +362,18 @@ ipi_self(int ipi)
  * fields are used here.
  */
 void
-ipi_send(u_int64_t lid, int ipi)
+ipi_send(struct pcpu *cpu, int ipi)
 {
-	volatile u_int64_t *pipi;
-	u_int64_t vector;
+	volatile uint64_t *pipi;
+	uint64_t vector;
 
 	pipi = __MEMIO_ADDR(ia64_lapic_address |
-	    ((lid & LID_SAPIC_MASK) >> 12));
-	vector = (u_int64_t)(ipi_vector[ipi] & 0xff);
+	    ((cpu->pc_lid & LID_SAPIC_MASK) >> 12));
+	vector = (uint64_t)(ipi_vector[ipi] & 0xff);
+	KASSERT(vector != 0, ("IPI %d is not assigned a vector", ipi));
+	*pipi = vector;
 	CTR3(KTR_SMP, "ipi_send(%p, %ld), cpuid=%d", pipi, vector,
 	    PCPU_GET(cpuid));
-	*pipi = vector;
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
