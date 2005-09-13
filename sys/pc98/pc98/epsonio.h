@@ -51,43 +51,4 @@ epson_outb(u_int port, u_char data)
 	outb(0x43f, 0x40);
 }
 
-static __inline u_int16_t
-epson_inw(u_int port)
-{
-	u_int16_t data;
-
-	outb(0x43f, 0x42);
-	data = inw(port);
-	outb(0x43f, 0x40);
-	return (data);
-}
-
-static __inline void
-epson_insw(u_int port, void *addr, size_t cnt)
-{
-	int	s;
-
-	s = splbio();
-	outb(0x43f, 0x42);
-	disable_intr();
-	insw((u_int)port, (void *)addr, (size_t)cnt);
-	outb(0x43f, 0x40);
-	enable_intr();
-	splx(s);
-}
-
-static __inline void
-epson_outsw(u_int port, void *addr, size_t cnt)
-{
-	int	s;
-
-	s = splbio();
-	outb(0x43f, 0x42);
-	disable_intr();
-	outsw((u_int)port, (void *)addr, (size_t)cnt);
-	outb(0x43f, 0x40);
-	enable_intr();
-	splx(s);
-}
-
 #endif
