@@ -1314,6 +1314,90 @@ pccard_deactivate_resource(device_t brdev, device_t child, int type,
 	return (bus_generic_deactivate_resource(brdev, child, type, rid, r));
 }
 
+static int
+pccard_attr_read_impl(device_t brdev, device_t child, uint32_t offset,
+    uint8_t *val)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+	struct pccard_function *pf = devi->pf;
+
+	/*
+	 * Optimization.  Most of the time, devices want to access
+	 * the same page of the attribute memory that the CCR is in.
+	 * We take advantage of this fact here.
+	 */
+	if (offset / PCCARD_MEM_PAGE_SIZE ==
+	    pf->ccr_base / PCCARD_MEM_PAGE_SIZE)
+		*val = bus_space_read_1(pf->pf_ccrt, pf->pf_ccrh,
+		    offset % PCCARD_MEM_PAGE_SIZE);
+	else {
+		CARD_SET_MEMORY_OFFSET(brdev, child, pf->ccr_rid, offset,
+		    &offset);
+		*val = bus_space_read_1(pf->pf_ccrt, pf->pf_ccrh, offset);
+		CARD_SET_MEMORY_OFFSET(brdev, child, pf->ccr_rid, pf->ccr_base,
+		    &offset);
+	}
+	return 0;
+}
+
+static int
+pccard_attr_write_impl(device_t brdev, device_t child, uint32_t offset,
+    uint8_t val)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+	struct pccard_function *pf = devi->pf;
+
+	/*
+	 * Optimization.  Most of the time, devices want to access
+	 * the same page of the attribute memory that the CCR is in.
+	 * We take advantage of this fact here.
+	 */
+	if (offset / PCCARD_MEM_PAGE_SIZE ==
+	    pf->ccr_base / PCCARD_MEM_PAGE_SIZE)
+		bus_space_write_1(pf->pf_ccrt, pf->pf_ccrh,
+		    offset % PCCARD_MEM_PAGE_SIZE, val);
+	else {
+		CARD_SET_MEMORY_OFFSET(brdev, child, pf->ccr_rid, offset,
+		    &offset);
+		bus_space_write_1(pf->pf_ccrt, pf->pf_ccrh, offset, val);
+		CARD_SET_MEMORY_OFFSET(brdev, child, pf->ccr_rid, pf->ccr_base,
+		    &offset);
+	}
+
+	return 0;
+}
+
+static int
+pccard_ccr_read_impl(device_t brdev, device_t child, uint32_t offset,
+    uint8_t *val)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+
+	*val = pccard_ccr_read(devi->pf, offset);
+	device_printf(child, "ccr_read of %#x (%#x) is %#x\n", offset,
+	  devi->pf->pf_ccr_offset, *val);
+	return 0;
+}
+
+static int
+pccard_ccr_write_impl(device_t brdev, device_t child, uint32_t offset,
+    uint8_t val)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+	struct pccard_function *pf = devi->pf;
+
+	/*
+	 * Can't use pccard_ccr_write since client drivers may access
+	 * registers not contained in the 'mask' if they are non-standard.
+	 */
+	device_printf(child, "ccr_write of %#x to %#x (%#x)\n", val, offset,
+	  devi->pf->pf_ccr_offset);
+	bus_space_write_1(pf->pf_ccrt, pf->pf_ccrh, pf->pf_ccr_offset + offset,
+	    val);
+	return 0;
+}
+
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
@@ -1346,10 +1430,14 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
 	DEVMETHOD(card_attach_card,	pccard_attach_card),
 	DEVMETHOD(card_detach_card,	pccard_detach_card),
+	DEVMETHOD(card_do_product_lookup, pccard_do_product_lookup),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
 	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
-	DEVMETHOD(card_do_product_lookup, pccard_do_product_lookup),
 	DEVMETHOD(card_cis_scan,	pccard_scan_cis),
+	DEVMETHOD(card_attr_read,	pccard_attr_read_impl),
+	DEVMETHOD(card_attr_write,	pccard_attr_write_impl),
+	DEVMETHOD(card_ccr_read,	pccard_ccr_read_impl),
+	DEVMETHOD(card_ccr_write,	pccard_ccr_write_impl),
 
 	{ 0, 0 }
 };
