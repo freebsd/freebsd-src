@@ -540,7 +540,10 @@ ng_int32_parse(const struct ng_parse_type *type,
 	int32_t val32;
 	char *eptr;
 
-	val = strtol(s + *off, &eptr, 0);
+	if ((intptr_t)type->info == INT_SIGNED)
+		val = strtol(s + *off, &eptr, 0);
+	else
+		val = strtoul(s + *off, &eptr, 0);
 	if (val < (int32_t)0x80000000
 	    || val > (u_int32_t)0xffffffff || eptr == s + *off)
 		return (EINVAL);
