@@ -1073,24 +1073,13 @@ struct ed_ring	{
 #define ED_CHIP_TYPE_DL10022	0x04
 
 /*
- * AX88190 configuration status register.
- */
-#define ED_AX88790_CSR		0x3c2
-#define	ED_AX88790_CSR_PWRDWN	0x04
-/*
- * AX88190 IOBASE registers, I'm pretty sure these don't need to be written
- * to to make the card work by ed.
- */
-#define ED_AX88190_IOBASE0	0x3ca
-#define ED_AX88190_IOBASE1	0x3cc
-
-/*
  * Test for AX88790 vs 88190 cards.
  */
 #define	ED_ASIX_TEST		0x05
 
 /*
- * MII bus definitions.
+ * MII bus definitions.  These are common to both DL100xx and AX88x90
+ * MII definitions, most likely because they are standards based.
  */
 #define ED_MII_STARTDELIM	0x01
 #define ED_MII_WRITEOP		0x01
@@ -1108,13 +1097,21 @@ struct ed_ring	{
 #define ED_MII_IDLE_BITS	1
 
 /* Dlink chipset used on some Netgear and Dlink PCMCIA cards */
-#define ED_DL10XX_MIIBUS	0x0c	/* MII bus register on ASIC */
+#define ED_DL100XX_MIIBUS	0x0c	/* MII bus register on ASIC */
 
-#define ED_DL10XX_MII_RESET1	0x04
-#define ED_DL10XX_MII_RESET2	0x08
+#define ED_DL100XX_MII_RESET1	0x04
+#define ED_DL100XX_MII_RESET2	0x08
 
-#define ED_DL10XX_MII_DATATIN	0x10
-#define ED_DL10XX_MII_DIROUT_22	0x20
-#define ED_DL10XX_MII_DIROUT_19	0x10
-#define ED_DL10XX_MII_DATAOUT	0x40
-#define ED_DL10XX_MII_CLK	0x80
+#define ED_DL100XX_MII_DATATIN	0x10
+#define ED_DL100XX_MII_DIROUT_22	0x20
+#define ED_DL100XX_MII_DIROUT_19	0x10
+#define ED_DL100XX_MII_DATAOUT	0x40
+#define ED_DL100XX_MII_CLK	0x80
+
+/* AX88x90 based miibus defines */
+#define ED_AX88X90_MIIBUS	0x04	/* MII bus register on ASIC */
+
+#define ED_AX88X90_MII_DATAOUT	0x08
+#define ED_AX88X90_MII_DATATIN	0x04
+#define ED_AX88X90_MII_DIROUT	0x02
+#define ED_AX88X90_MII_CLK	0x01
