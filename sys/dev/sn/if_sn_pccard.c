@@ -224,8 +224,7 @@ sn_pccard_megahertz_get_mac(device_t dev, u_char *eaddr)
 	 * '3288 and '3336 cards have.  That tuple specifies an ASCII
 	 * string, ala CIS3 or CIS4 in the 'normal' cards.
 	 */
-	return CARD_CIS_SCAN(device_get_parent(dev), sn_pccard_megahertz_mac,
-	    eaddr);
+	return (pccard_cis_scan(dev, sn_pccard_megahertz_mac, eaddr));
 }
 
 static int
