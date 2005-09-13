@@ -1501,6 +1501,8 @@ m3_config(struct sc_info *sc)
 	int hint;
 
 	M3_LOCK_ASSERT(sc);
+
+	M3_UNLOCK(sc);
 	/*
 	 * The volume buttons can be wired up via two different sets of pins.
 	 * This presents a problem since we can't tell which way it's
@@ -1513,6 +1515,7 @@ m3_config(struct sc_info *sc)
 		hv_cfg = (hint > 0) ? HV_BUTTON_FROM_GD : 0;
 	else
 		hv_cfg = HV_BUTTON_FROM_GD;
+	M3_LOCK(sc);
 
 	data = pci_read_config(sc->dev, PCI_ALLEGRO_CONFIG, 4);
 	data &= ~HV_BUTTON_FROM_GD;
