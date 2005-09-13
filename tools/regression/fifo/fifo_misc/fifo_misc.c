@@ -212,7 +212,6 @@ test_kqueue(void)
 
 	for (i = 0; i < bad_filter_types_len; i++) {
 		bzero(&kev_set, sizeof(kev_set));
-		printf("Trying %s\n", bad_filter_types[i].fe_name);
 		EV_SET(&kev_set, reader_fd, bad_filter_types[i].fe_filter,
 		    EV_ADD, 0, 0, 0);
 		ret = kevent(kqueue_fd, &kev_set, 1, NULL, 0, &timeout);
