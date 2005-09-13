@@ -144,6 +144,9 @@ ng_split_rcvdata(hook_p hook, item_p item)
 		NG_FWD_ITEM_HOOK(error, item, priv->out);
 	}
 
+	if (item)
+		NG_FREE_ITEM(item);
+
 	return (error);
 }
 
