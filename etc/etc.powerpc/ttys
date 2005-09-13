@@ -33,10 +33,10 @@
 console	none				unknown	off secure
 #
 # ofw_console(4)
-screen	"/usr/libexec/getty Pc"		cons25	on  secure
+#screen	"/usr/libexec/getty Pc"		cons25	on  secure
 # zs(4)
-ttyy0	"/usr/libexec/getty std.9600"	cons25	on  secure
-ttyy1	"/usr/libexec/getty std.9600"	cons25	off secure
+#ttyy0	"/usr/libexec/getty std.9600"	cons25	on  secure
+#ttyy1	"/usr/libexec/getty std.9600"	cons25	off secure
 #
 ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
