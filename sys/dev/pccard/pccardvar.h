@@ -73,6 +73,8 @@ struct pccard_mem_handle {
 
 /* pccard itself */
 
+#define PCCARD_MEM_PAGE_SIZE		4096
+
 #define PCCARD_CFE_MWAIT_REQUIRED	0x0001
 #define PCCARD_CFE_RDYBSY_ACTIVE	0x0002
 #define PCCARD_CFE_WP_ACTIVE		0x0004
