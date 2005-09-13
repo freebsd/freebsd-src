@@ -30,6 +30,19 @@ __FBSDID("$FreeBSD$");
 /*
  * Transform a hwpmc(4) log into human readable form and into gprof(1)
  * compatible profiles.
+ *
+ * Each executable object encountered in the log gets one 'gmon.out'
+ * profile per PMC.  We currently track:
+ * 	- program executables
+ *	- shared libraries loaded by the runtime loader
+ *	- the runtime loader itself
+ *	- the kernel.
+ * We do not track shared objects mapped in by dlopen() yet (this
+ * needs additional support from hwpmc(4)).
+ *
+ * 'gmon.out' profiles generated for a given sampling PMC are
+ * aggregates of all the samples for that particular executable
+ * object.
  */
 
 #include <sys/param.h>
@@ -80,7 +93,7 @@ struct pmcstat_string {
 static LIST_HEAD(,pmcstat_string)	pmcstat_string_hash[PMCSTAT_NHASH];
 
 /*
- * 'pmcstat_pmcs' is a mapping for PMC ids to their human-readable
+ * 'pmcstat_pmcrecord' is a mapping from PMC ids to human-readable
  * names.
  */
 
@@ -93,19 +106,23 @@ struct pmcstat_pmcrecord {
 static LIST_HEAD(,pmcstat_pmcrecord)	pmcstat_pmcs =
 	LIST_HEAD_INITIALIZER(&pmcstat_pmcs);
 
+
+/*
+ * struct pmcstat_gmonfile tracks a given 'gmon.out' file.  These
+ * files are mmap()'ed in as needed.
+ */
+
 struct pmcstat_gmonfile {
 	LIST_ENTRY(pmcstat_gmonfile)	pgf_next; /* list of entries */
 	pmc_id_t	pgf_pmcid;	/* id of the associated pmc */
-	size_t		pgf_nsamples;	/* number of samples in this gmon.out */
-	const char	*pgf_name;	/* name of gmon.out file */
+	size_t		pgf_nbuckets;	/* #buckets in this gmon.out */
+	const char	*pgf_name;	/* pathname of gmon.out file */
 	size_t		pgf_ndatabytes;	/* number of bytes mapped */
 	void		*pgf_gmondata;	/* pointer to mmap'ed data */
 };
 
 static TAILQ_HEAD(,pmcstat_gmonfile)	pmcstat_gmonfiles =
 	TAILQ_HEAD_INITIALIZER(pmcstat_gmonfiles);
-
-#define	GM_TO_BUCKETS(GM)	((uint16_t *) ((char *) (GM) + sizeof(*(GM))))
 
 /*
  * A 'pmcstat_image' structure describes an executable program on
@@ -218,7 +235,8 @@ pmcstat_gmon_create_file(struct pmcstat_gmonfile *pgf,
 
 	gm.lpc = image->pi_start;
 	gm.hpc = image->pi_end;
-	gm.ncnt = pgf->pgf_nsamples;
+	gm.ncnt = (pgf->pgf_nbuckets * sizeof(HISTCOUNTER)) +
+	    sizeof(struct gmonhdr);
 	gm.version = GMONVERSION;
 	gm.profrate = 0;		/* use ticks */
 	gm.histcounter_type = 0;	/* compatibility with moncontrol() */
@@ -514,10 +532,10 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 		pgf->pgf_name = pmcstat_gmon_create_name(a->pa_samplesdir,
 		    image, pmcid);
 		pgf->pgf_pmcid = pmcid;
-		pgf->pgf_nsamples = (image->pi_end - image->pi_start) /
+		pgf->pgf_nbuckets = (image->pi_end - image->pi_start) /
 		    FUNCTION_ALIGNMENT;	/* see <machine/profile.h> */
 		pgf->pgf_ndatabytes = sizeof(struct gmonhdr) +
-		    pgf->pgf_nsamples * sizeof(HISTCOUNTER);
+		    pgf->pgf_nbuckets * sizeof(HISTCOUNTER);
 
 		pmcstat_gmon_create_file(pgf, image);
 
@@ -533,11 +551,14 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 
 	bucket = (pc - map->ppm_lowpc) / FUNCTION_ALIGNMENT;
 
-	assert(bucket < pgf->pgf_nsamples);
+	assert(bucket < pgf->pgf_nbuckets);
 
 	hc = (HISTCOUNTER *) ((uintptr_t) pgf->pgf_gmondata +
 	    sizeof(struct gmonhdr));
-	hc[bucket]++;
+
+	/* saturating add */
+	if (hc[bucket] < 0xFFFF)
+		hc[bucket]++;
 
 }
 
