@@ -81,7 +81,6 @@
 #include <pc98/cbus/cbus.h>
 #include <pc98/cbus/fdcreg.h>
 #include <pc98/cbus/fdcvar.h>
-#include <pc98/pc98/epsonio.h>
 #include <pc98/pc98/pc98_machdep.h>
 #else
 #include <isa/isavar.h>
@@ -276,56 +275,6 @@ static devclass_t fd_devclass;
 				 * aka. unit attention */
 #define FD_NO_PROBE	0x20	/* don't probe drive (seek test), just
 				 * assume it is there */
-
-#ifdef EPSON_NRDISK
-typedef unsigned int	nrd_t;
-
-#define	P_NRD_ADDRH	0xc24
-#define	P_NRD_ADDRM	0xc22
-#define	P_NRD_ADDRL	0xc20
-#define	P_NRD_CHECK	0xc20
-#define	P_NRD_DATA	0xc26
-#define	P_NRD_LED	0xc36
-#define	B_NRD_CHK	0x80
-#define	B_NRD_LED	0x40
-#define	A_NRD_INFO	0x2
-#define	A_NRD_BASE	0x400
-#define NRD_STATUS	0x0
-#define NRD_ST0_HD	0x04
-
-static fdu_t nrdu=-1;
-static int nrdsec=0;
-static nrd_t nrdblkn=0;
-static nrd_t nrdaddr=0x0;
-
-#define	nrd_check_ready()	({		\
-	(epson_inb(P_NRD_CHECK) & B_NRD_CHK) ? 0 : 1;	\
-	})
-#define	nrd_LED_on()	epson_outb(P_NRD_LED, B_NRD_LED)
-#define	nrd_LED_off()	epson_outb(P_NRD_LED, ~B_NRD_LED)
-#define	nrd_trac()	((int)(nrd_info(nrdaddr) & 0xff))
-#define	nrd_head()	((int)((nrd_info(nrdaddr) >> 8) & 0xff))
-#define	nrd_sec()	((int)(nrd_info(nrdaddr + 2) & 0xff))
-#define	nrd_secsize()	((int)((nrd_info(A_NRD_INFO) >> 8) & 0xff))
-#define	nrd_addrset(p)	nrd_addr((nrd_t)((nrd_t)p+A_NRD_BASE))
-
-static inline void
-nrd_addr(addr)
-	nrd_t	addr;
-{
-	epson_outb(P_NRD_ADDRH, (u_char)((addr >> 16) & 0x1f));
-	epson_outb(P_NRD_ADDRM, (u_char)((addr >> 8) & 0xff));
-	epson_outb(P_NRD_ADDRL, (u_char)(addr & 0xff));
-}
-
-static inline u_short
-nrd_info(addr)
-	nrd_t	addr;
-{
-	nrd_addr(addr);
-	return (epson_inw(P_NRD_DATA));
-}
-#endif /* EPSON_NRDISK */
 
 /*
  * Throughout this file the following conventions will be used:
@@ -576,15 +525,6 @@ fd_sense_int(fdc_p fdc, int *st0p, int *cylp)
 {
 	int cyl, st0, ret;
 
-#ifdef EPSON_NRDISK
-	if (fdc->fdu == nrdu) {
-		if (fdc->fd->track >= 0) nrdaddr = (fdc->fd->track + 1) * 8;
-		else nrdaddr = 0x0;
-		*st0p = nrd_head() ? NRD_ST0_HD : NRD_STATUS;
-		*cylp = nrd_trac();
-	}
-	else {
-#endif /* EPSON_NRDISK */
 	ret = fd_cmd(fdc, 1, NE7CMD_SENSEI, 1, &st0);
 	if (ret) {
 		(void)fdc_err(fdc,
@@ -609,9 +549,6 @@ fd_sense_int(fdc_p fdc, int *st0p, int *cylp)
 	if (cylp)
 		*cylp = cyl;
 
-#ifdef EPSON_NRDISK
-	}
-#endif /* EPSON_NRDISK */
 	return 0;
 }
 
@@ -629,29 +566,10 @@ fd_read_status(fdc_p fdc)
 		 */
 		int status;
 
-#ifdef EPSON_NRDISK
-		if (fdc->fdu == nrdu) {
-			switch (i) {
-				case 0:	fdc->status[i] = nrd_head()
-					? NRD_ST0_HD : NRD_STATUS; break;
-				case 1:	fdc->status[i] = NRD_STATUS; break;
-				case 2:	fdc->status[i] = NRD_STATUS; break;
-				case 3:	fdc->status[i] = nrd_trac(); break;
-				case 4:	fdc->status[i] = nrd_head(); break;
-				case 5:	fdc->status[i] = nrdsec; break;
-				case 6:	fdc->status[i] = nrd_secsize(); break;
-			}
-			ret = 0;
-		}
-		else {
-#endif /* EPSON_NRDISK */
 		ret = fd_in(fdc, &status);
 		fdc->status[i] = status;
 		if (ret != 0)
 			break;
-#ifdef EPSON_NRDISK
-		}
-#endif /* EPSON_NRDISK */
 	}
 
 	if (ret == 0)
@@ -682,12 +600,6 @@ static int pc98_fd_check_ready(fdu_t fdu)
 	struct fdc_data *fdc = fd->fdc;
 	int retry = 0, status;
 
-#ifdef EPSON_NRDISK
-	if (fdu == nrdu) {
-		if (nrd_check_ready()) return 0;
-		else return -1;
-	}
-#endif
 	while (retry++ < 30000) {
 		set_motor(fdc, fd->fdsu, TURNON);
 		out_fdc(fdc, NE7CMD_SENSED); /* Sense Drive Status */
@@ -736,15 +648,8 @@ static void pc98_fd_check_type(struct fd_data *fd)
 	switch (epson_machine_id) {
 	case 0x20:
 	case 0x27:
-		if ((PC98_SYSTEM_PARAMETER(0x488) >> fd->fdu) & 0x01) {
-#ifdef EPSON_NRDISK
-			if (nrd_check_ready()) {
-				nrd_LED_on();
-				nrdu = fd->fdu;
-			} else
-#endif
-				fd->type = FDT_NONE;
-		}
+		if ((PC98_SYSTEM_PARAMETER(0x488) >> fd->fdu) & 0x01)
+			fd->type = FDT_NONE;
 		break;
 	}
 }
@@ -1123,15 +1028,7 @@ done:
 		device_set_desc(dev, "1.44M FDD");
 		break;
 	case FDT_12M:
-#ifdef EPSON_NRDISK
-		if (fd->fdu == nrdu) {
-			device_set_desc(dev, "EPSON RAM DRIVE");
-			nrd_LED_off();
-		} else
-			device_set_desc(dev, "1M/640K FDD");
-#else
 		device_set_desc(dev, "1M/640K FDD");
-#endif
 		break;
 	default:
 		return (ENXIO);
@@ -1956,20 +1853,6 @@ fdstate(fdc_p fdc)
 		/*
 		 * Maybe if it's not starting, it SHOULD be starting.
 		 */
-#ifdef EPSON_NRDISK
-		if (fdu != nrdu) {
-			if (!(fd->flags & FD_MOTOR))
-			{
-				fdc->state = MOTORWAIT;
-				fd_turnon(fdu);
-				return(0);
-			}
-			else	/* at least make sure we are selected */
-			{
-				set_motor(fdcu, fd->fdsu, TURNON);
-			}
-		}
-#else /* !EPSON_NRDISK */
 		if (!(fd->flags & FD_MOTOR))
 		{
 			fdc->state = MOTORWAIT;
@@ -1980,7 +1863,6 @@ fdstate(fdc_p fdc)
 		{
 			set_motor(fdc, fd->fdsu, TURNON);
 		}
-#endif
 		if (fdc->flags & FDC_NEEDS_RESET) {
 			fdc->state = RESETCTLR;
 			fdc->flags &= ~FDC_NEEDS_RESET;
@@ -2064,9 +1946,6 @@ fdstate(fdc_p fdc)
 				 */
 				if (fd_sense_drive_status(fdc, &st3))
 					failed = 1;
-#ifdef EPSON_NRDISK
-				if (fdu == nrdu) st3 = NE7_ST3_T0;
-#endif /* EPSON_NRDISK */
 				if ((st3 & NE7_ST3_T0) == 0) {
 					printf(
 		"fd%d: Seek to cyl 0, but not really there (ST3 = %b)\n",
@@ -2080,9 +1959,6 @@ fdstate(fdc_p fdc)
 					return (retrier(fdc));
 				}
 			}
-#ifdef EPSON_NRDISK
-			if (fdu == nrdu) cyl = descyl;
-#endif
 
 			if (cyl != descyl) {
 				printf(
@@ -2098,9 +1974,6 @@ fdstate(fdc_p fdc)
 		if (format)
 			fd->skip = (char *)&(finfo->fd_formb_cylno(0))
 			    - (char *)finfo;
-#ifdef EPSON_NRDISK
-		if (fdu != nrdu) {
-#endif /* EPSON_NRDISK */
 		if (!rdsectid && !(fdc->flags & FDC_NODMA))
 			isa_dmastart(idf, bp->bio_data+fd->skip,
 				format ? bp->bio_bcount : fdblk, fdc->dmachan);
@@ -2250,36 +2123,6 @@ fdstate(fdc_p fdc)
 		fdc->state = IOCOMPLETE;
 		fd->tohandle = timeout(fd_iotimeout, fdc, hz);
 		return (0);	/* will return later */
-#ifdef EPSON_NRDISK
-		}
-		else {
-			nrdblkn = (nrd_t)((unsigned long)bp->b_blkno*DEV_BSIZE/fdblk
-				+ fd->skip/fdblk);
-			nrd_LED_on();
-			nrd_addrset(fdblk * nrdblkn);
-			while (!nrd_check_ready()) DELAY(1);
-			if (read) epson_insw(P_NRD_DATA,
-					bp->bio_data + fd->skip,
-					fdblk / sizeof(short));
-			else epson_outsw(P_NRD_DATA,
-				bp->bio_data + fd->skip,
-				(format ? bp->bio_bcount : fdblk)
-					/ sizeof(short));
-
-			blknum = (unsigned long)bp->b_blkno*DEV_BSIZE/fdblk
-				+ fd->skip/fdblk;
-			sectrac = fd->ft->sectrac;
-			sec = blknum %  (sectrac * fd->ft->heads);
-			head = sec / sectrac;
-			sec = sec % sectrac + 1;
-			fd->hddrv = ((head&1)<<2)+fdu;
-
-			if (nrdsec++ >= nrd_sec())
-				nrdaddr = (nrd_t)(fd->track * 8	+ head * 4);
-			nrdsec = sec;
-			fdc->state = IOCOMPLETE;
-		}
-#endif
 
 	case PIOREAD:
 		/* 
@@ -2290,12 +2133,7 @@ fdstate(fdc_p fdc)
 		fdc->state = IOCOMPLETE;
 		/* FALLTHROUGH */
 	case IOCOMPLETE: /* IO done, post-analyze */
-#ifdef EPSON_NRDISK
-		if (fdu != nrdu) 
-			untimeout(fd_iotimeout, fdc, fd->tohandle);
-#else
 		untimeout(fd_iotimeout, fdc, fd->tohandle);
-#endif
 
 		if (fd_read_status(fdc)) {
 			if (!rdsectid && !(fdc->flags & FDC_NODMA))
@@ -2311,16 +2149,9 @@ fdstate(fdc_p fdc)
 
 		/* FALLTHROUGH */
 	case IOTIMEDOUT:
-#ifdef EPSON_NRDISK
-		if (fdu != nrdu) {
-#endif /* EPSON_NRDISK */
 		if (!rdsectid && !(fdc->flags & FDC_NODMA))
 			isa_dmadone(idf, bp->bio_data + fd->skip,
 				format ? bp->bio_bcount : fdblk, fdc->dmachan);
-#ifdef EPSON_NRDISK
-		}
-		else nrd_LED_off();
-#endif /* EPSON_NRDISK */
 		if (fdc->status[0] & NE7_ST0_IC) {
                         if ((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
 			    && fdc->status[1] & NE7_ST1_OR) {
@@ -2422,12 +2253,6 @@ fdstate(fdc_p fdc)
 			   && (st0 & NE7_ST0_IC) == NE7_ST0_IC_RC)
 				return (0); /* hope for a real intr */
 		} while ((st0 & NE7_ST0_IC) == NE7_ST0_IC_RC);
-#ifdef EPSON_NRDISK
-		if (fdu == nrdu) {
-			st0 = NE7_ST0_IC_NT;
-			cyl = 0;
-		}
-#endif
 		if ((st0 & NE7_ST0_IC) != NE7_ST0_IC_NT || cyl != 0)
 		{
 			if(fdc->retry > 3)
