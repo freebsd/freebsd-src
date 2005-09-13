@@ -76,7 +76,13 @@
  * - XXX: blocked reader semantics?
  *
  * - XXX: event behavior on remote close?
+ *
+ * Although behavior of O_RDWR isn't defined for fifos by POSIX, we expect
+ * "reasonable" behavior, and run some additional tests relating to event
+ * management on O_RDWR fifo descriptors.
  */
+
+#define	KQUEUE_MAX_EVENT	8
 
 /*
  * All activity occurs within a temporary directory created early in the
@@ -100,7 +106,7 @@ makefifo(const char *fifoname, const char *testname)
 }
 
 static void
-cleanfifo(const char *fifoname, int fd1, int fd2)
+cleanfifo2(const char *fifoname, int fd1, int fd2)
 {
 
 	if (fd1 != -1)
@@ -111,14 +117,18 @@ cleanfifo(const char *fifoname, int fd1, int fd2)
 }
 
 static void
-cleanfifokq(const char *fifoname, int fd1, int fd2, int fd3)
+cleanfifo3(const char *fifoname, int fd1, int fd2, int fd3)
 {
 
 	if (fd3 != -1)
 		close(fd3);
-	cleanfifo(fifoname, fd1, fd2);
+	cleanfifo2(fifoname, fd1, fd2);
 }
 
+/*
+ * Open two different file descriptors for a fifo: one read, one write.  Do
+ * so using non-blocking opens in order to avoid deadlocking the process.
+ */
 static int
 openfifo(const char *fifoname, const char *testname, int *reader_fdp,
     int *writer_fdp)
@@ -137,6 +147,22 @@ openfifo(const char *fifoname, const char *testname, int *reader_fdp,
 	}
 	*reader_fdp = fd1;
 	*writer_fdp = fd2;
+
+	return (0);
+}
+
+/*
+ * Open one file descriptor for the fifo, supporting both read and write.
+ */
+static int
+openfifo_rw(const char *fifoname, const char *testname, int *fdp)
+{
+	int fd;
+
+	fd = open(fifoname, O_RDWR);
+	if (fd < 0)
+		return (-1);
+	*fdp = fd;
 
 	return (0);
 }
@@ -226,7 +252,7 @@ test_simpleio(void)
 	if (openfifo("testfifo", "test_simpleio", &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_simpleio: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
@@ -236,26 +262,26 @@ test_simpleio(void)
 	len = write(writer_fd, (char *)buffer, sizeof(buffer));
 	if (len < 0) {
 		warn("test_simpleio: write");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != sizeof(buffer)) {
 		warnx("test_simplio: tried %d but wrote %d", sizeof(buffer),
 		    len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
 	len = read(reader_fd, (char *)buffer, sizeof(buffer));
 	if (len < 0) {
 		warn("test_simpleio: read");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != sizeof(buffer)) {
 		warnx("test_simpleio: tried %d but read %d", sizeof(buffer),
 		    len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	for (i = 0; i < 10; i++) {
@@ -263,11 +289,11 @@ test_simpleio(void)
 			continue;
 		warnx("test_simpleio: write byte %d as 0x%02x, but read "
 		    "0x%02x", i, i, buffer[i]);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
-	cleanfifo("testfifo", reader_fd, writer_fd);
+	cleanfifo2("testfifo", reader_fd, writer_fd);
 }
 
 static int alarm_fired;
@@ -385,7 +411,7 @@ test_blocking_read_empty(void)
 	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_blocking_read_empty: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
@@ -394,7 +420,7 @@ test_blocking_read_empty(void)
 	 * data.
 	 */
 	if (set_blocking(reader_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -403,12 +429,12 @@ test_blocking_read_empty(void)
 	if (ret != -1) {
 		warnx("test_blocking_read_empty: timed_read: returned "
 		    "success");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (errno != EINTR) {
 		warn("test_blocking_read_empty: timed_read");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -417,7 +443,7 @@ test_blocking_read_empty(void)
 	 * there is no data.
 	 */
 	if (set_nonblocking(reader_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -426,16 +452,16 @@ test_blocking_read_empty(void)
 	if (ret != -1) {
 		warnx("test_blocking_read_empty: timed_read: returned "
 		    "success");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (errno != EAGAIN) {
 		warn("test_blocking_read_empty: timed_read");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
-	cleanfifo("testfifo", reader_fd, writer_fd);
+	cleanfifo2("testfifo", reader_fd, writer_fd);
 }
 
 /*
@@ -454,16 +480,16 @@ test_blocking_one_byte(void)
 	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_blocking: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
 	if (set_blocking(writer_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (set_blocking(reader_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -472,13 +498,13 @@ test_blocking_one_byte(void)
 	    __func__);
 	if (ret < 0) {
 		warn("test_blocking_one_byte: timed_write");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != sizeof(ch)) {
 		warnx("test_blocking_one_byte: timed_write: tried to write "
 		    "%d, wrote %d", sizeof(ch), len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -487,23 +513,23 @@ test_blocking_one_byte(void)
 	    __func__);
 	if (ret < 0) {
 		warn("test_blocking_one_byte: timed_read");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != sizeof(ch)) {
 		warnx("test_blocking_one_byte: timed_read: wanted %d, "
 		    "read %d", sizeof(ch), len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (ch != 0xfe) {
 		warnx("test_blocking_one_byte: timed_read: expected to read "
 		    "0x%02x, read 0x%02x", 0xfe, ch);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
-	cleanfifo("testfifo", reader_fd, writer_fd);
+	cleanfifo2("testfifo", reader_fd, writer_fd);
 }
 
 /*
@@ -521,12 +547,12 @@ test_nonblocking_one_byte(void)
 	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_nonblocking: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
 	if (set_nonblocking(reader_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -535,13 +561,13 @@ test_nonblocking_one_byte(void)
 	    __func__);
 	if (ret < 0) {
 		warn("test_nonblocking_one_byte: timed_write");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != sizeof(ch)) {
 		warnx("test_nonblocking_one_byte: timed_write: tried to write "
 		    "%d, wrote %d", sizeof(ch), len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -550,23 +576,23 @@ test_nonblocking_one_byte(void)
 	    __func__);
 	if (ret < 0) {
 		warn("test_nonblocking_one_byte: timed_read");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != sizeof(ch)) {
 		warnx("test_nonblocking_one_byte: timed_read: wanted %d, read "
 		    "%d", sizeof(ch), len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (ch != 0xfe) {
 		warnx("test_nonblocking_one_byte: timed_read: expected to read "
 		    "0x%02x, read 0x%02x", 0xfe, ch);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
-	cleanfifo("testfifo", reader_fd, writer_fd);
+	cleanfifo2("testfifo", reader_fd, writer_fd);
 }
 
 /*
@@ -586,19 +612,19 @@ test_blocking_partial_write(void)
 	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_blocking_partial_write: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
 	if (set_blocking(writer_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
 	buffer = malloc(512*1024);
 	if (buffer == NULL) {
 		warn("test_blocking_partial_write: malloc");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	bzero(buffer, 512*1024);
@@ -608,7 +634,7 @@ test_blocking_partial_write(void)
 	if (ret < 0) {
 		warn("test_blocking_partial_write: timed_write");
 		free(buffer);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -616,18 +642,18 @@ test_blocking_partial_write(void)
 		warnx("test_blocking_partial_write: timed_write: blocking "
 		    "socket didn't time out");
 		free(buffer);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
 	free(buffer);
 
 	if (drain_fd(reader_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
-	cleanfifo("testfifo", reader_fd, writer_fd);
+	cleanfifo2("testfifo", reader_fd, writer_fd);
 }
 
 /*
@@ -645,19 +671,19 @@ test_nonblocking_partial_write(void)
 	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_blocking_partial_write: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
 	if (set_nonblocking(writer_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
 	buffer = malloc(512*1024);
 	if (buffer == NULL) {
 		warn("test_blocking_partial_write: malloc");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	bzero(buffer, 512*1024);
@@ -667,7 +693,7 @@ test_nonblocking_partial_write(void)
 	if (ret < 0) {
 		warn("test_blocking_partial_write: timed_write");
 		free(buffer);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -675,7 +701,7 @@ test_nonblocking_partial_write(void)
 		warnx("test_blocking_partial_write: timed_write: "
 		    "non-blocking socket timed out");
 		free(buffer);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -683,18 +709,18 @@ test_nonblocking_partial_write(void)
 		warnx("test_blocking_partial_write: timed_write: requested "
 		    "%d, sent %d", 512*1024, len);
 		free(buffer);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
 	free(buffer);
 
 	if (drain_fd(reader_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
-	cleanfifo("testfifo", reader_fd, writer_fd);
+	cleanfifo2("testfifo", reader_fd, writer_fd);
 }
 
 /*
@@ -713,7 +739,7 @@ test_coalesce_big_read(void)
 	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_coalesce_big_read: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
@@ -724,36 +750,36 @@ test_coalesce_big_read(void)
 	len = write(writer_fd, buffer, 5);
 	if (len < 0) {
 		warn("test_coalesce_big_read: write 5");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != 5) {
 		warnx("test_coalesce_big_read: write 5 wrote %d", len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
 	len = write(writer_fd, buffer + 5, 5);
 	if (len < 0) {
 		warn("test_coalesce_big_read: write 5");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != 5) {
 		warnx("test_coalesce_big_read: write 5 wrote %d", len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
 	len = read(reader_fd, buffer, 10);
 	if (len < 0) {
 		warn("test_coalesce_big_read: read 10");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != 10) {
 		warnx("test_coalesce_big_read: read 10 read %d", len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -762,11 +788,11 @@ test_coalesce_big_read(void)
 			continue;
 		warnx("test_coalesce_big_read: expected to read 0x%02x, "
 		    "read 0x%02x", i, buffer[i]);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
-	cleanfifo("testfifo", -1, -1);
+	cleanfifo2("testfifo", -1, -1);
 }
 
 /*
@@ -785,7 +811,7 @@ test_coalesce_big_write(void)
 	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_coalesce_big_write: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
@@ -796,36 +822,36 @@ test_coalesce_big_write(void)
 	len = write(writer_fd, buffer, 10);
 	if (len < 0) {
 		warn("test_coalesce_big_write: write 10");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != 10) {
 		warnx("test_coalesce_big_write: write 10 wrote %d", len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
 	len = read(reader_fd, buffer, 5);
 	if (len < 0) {
 		warn("test_coalesce_big_write: read 5");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != 5) {
 		warnx("test_coalesce_big_write: read 5 read %d", len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
 	len = read(reader_fd, buffer + 5, 5);
 	if (len < 0) {
 		warn("test_coalesce_big_write: read 5");
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 	if (len != 5) {
 		warnx("test_coalesce_big_write: read 5 read %d", len);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
@@ -834,11 +860,11 @@ test_coalesce_big_write(void)
 			continue;
 		warnx("test_coalesce_big_write: expected to read 0x%02x, "
 		    "read 0x%02x", i, buffer[i]);
-		cleanfifo("testfifo", reader_fd, writer_fd);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
 
-	cleanfifo("testfifo", -1, -1);
+	cleanfifo2("testfifo", -1, -1);
 }
 
 static int
@@ -886,57 +912,46 @@ select_status(int fd, int *readable, int *writable, int *exception,
 	return (0);
 }
 
+/*
+ * Given an existing kqueue, set up read and write event filters for the
+ * passed file descriptor.  Typically called once for the read endpoint, and
+ * once for the write endpoint.
+ */
 static int
-kqueue_setup(int reader_fd, int writer_fd, int *kqueue_fdp,
-    const char *testname)
+kqueue_setup(int kqueue_fd, int fd, const char *testname)
 {
-	struct kevent kevent_changelist[4], kevent_eventlist[4], *kp;
+	struct kevent kevent_changelist[2];
+	struct kevent kevent_eventlist[KQUEUE_MAX_EVENT], *kp;
 	struct timespec timeout;
-	int i, kqueue_fd, ret;
-
-	kqueue_fd = kqueue();
-	if (kqueue_fd < 0) {
-		warn("%s: kevent_setup: kqueue", testname);
-		return (-1);
-	}
+	int i, ret;
 
 	timeout.tv_sec = 0;
 	timeout.tv_nsec = 0;
 
-	/*
-	 * Add events corresponding to read and write on both descriptors.
-	 */
 	bzero(&kevent_changelist, sizeof(kevent_changelist));
-	EV_SET(&kevent_changelist[0], reader_fd, EVFILT_READ, EV_ADD, 0, 0,
-	    0);
-	EV_SET(&kevent_changelist[1], reader_fd, EVFILT_WRITE, EV_ADD, 0, 0,
-	    0);
-	EV_SET(&kevent_changelist[2], writer_fd, EVFILT_READ, EV_ADD, 0, 0,
-	    0);
-	EV_SET(&kevent_changelist[3], writer_fd, EVFILT_WRITE, EV_ADD, 0, 0,
-	    0);
+	EV_SET(&kevent_changelist[0], fd, EVFILT_READ, EV_ADD, 0, 0, 0);
+	EV_SET(&kevent_changelist[1], fd, EVFILT_WRITE, EV_ADD, 0, 0, 0);
 
 	bzero(&kevent_eventlist, sizeof(kevent_eventlist));
-	ret = kevent(kqueue_fd, kevent_changelist, 4, kevent_eventlist, 4,
-	    &timeout);
+	ret = kevent(kqueue_fd, kevent_changelist, 2, kevent_eventlist,
+	    KQUEUE_MAX_EVENT, &timeout);
 	if (ret < 0) {
-		warn("%s: kevent initial register", __func__);
-		cleanfifo("testfifo", reader_fd, writer_fd);
-		exit(-1);
+		warn("%s:%s: kevent initial register", testname, __func__);
+		return (-1);
 	}
 
 	/*
-	 * Verified that the events registered alright.
+	 * Verify that the events registered alright.
 	 */
 	for (i = 0; i < ret; i++) {
 		kp = &kevent_eventlist[i];
 		if (kp->flags != EV_ERROR)
 			continue;
 		errno = kp->data;
-		err(-1, "%s: kevent register index %d", __func__, i);
+		warn("%s:%s: kevent register index %d", testname, __func__,
+		    i);
+		return (-1);
 	}
-
-	*kqueue_fdp = kqueue_fd;
 
 	return (0);
 }
@@ -945,20 +960,22 @@ static int
 kqueue_status(int kqueue_fd, int fd, int *readable, int *writable,
     int *exception, const char *testname)
 {
-	struct kevent kevent_eventlist[4], *kp;
+	struct kevent kevent_eventlist[KQUEUE_MAX_EVENT], *kp;
 	struct timespec timeout;
-	int i;
+	int i, ret;
 
 	timeout.tv_sec = 0;
 	timeout.tv_nsec = 0;
 
-	if (kevent(kqueue_fd, NULL, 0, kevent_eventlist, 4, &timeout) < 0) {
-		warn("%s: kqueue_status: kevent", testname);
+	ret = kevent(kqueue_fd, NULL, 0, kevent_eventlist, KQUEUE_MAX_EVENT,
+	    &timeout);
+	if (ret < 0) {
+		warn("%s: %s: kevent", testname, __func__);
 		return (-1);
 	}
 
 	*readable = *writable = *exception = 0;
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < ret; i++) {
 		kp = &kevent_eventlist[i];
 		if (kp->ident != (u_int)fd)
 			continue;
@@ -988,6 +1005,64 @@ fionread_status(int fd, int *readable, const char *testname)
 	return (0);
 }
 
+#define	READABLE	1
+#define	WRITABLE	1
+#define	EXCEPTION	1
+
+#define	NOT_READABLE	0
+#define	NOT_WRITABLE	0
+#define	NOT_EXCEPTION	0
+
+static int
+assert_status(int fd, int kqueue_fd, int assert_readable,
+    int assert_writable, int assert_exception, const char *testname,
+    const char *conditionname, const char *fdname)
+{
+	int readable, writable, exception;
+
+	if (poll_status(fd, &readable, &writable, &exception, testname) < 0)
+		return (-1);
+
+	if (readable != assert_readable || writable != assert_writable ||
+	    exception != assert_exception) {
+		warnx("%s: %s polls r:%d, w:%d, e:%d on %s", testname,
+		    fdname, readable, writable, exception, conditionname);
+		return (-1);
+	}
+
+	if (select_status(fd, &readable, &writable, &exception, testname) < 0)
+		return (-1);
+
+	if (readable != assert_readable || writable != assert_writable ||
+	    exception != assert_exception) {
+		warnx("%s: %s selects r:%d, w:%d, e:%d on %s", testname,
+		    fdname, readable, writable, exception, conditionname);
+		return (-1);
+	}
+
+	if (kqueue_status(kqueue_fd, fd, &readable, &writable, &exception,
+	    testname) < 0)
+		return (-1);
+
+	if (readable != assert_readable || writable != assert_writable ||
+	    exception != assert_exception) {
+		warnx("%s: %s kevent r:%d, w:%d, e:%d on %s", testname,
+		    fdname, readable, writable, exception, conditionname);
+		return (-1);
+	}
+
+	if (fionread_status(fd, &readable, __func__) < 0)
+		return (-1);
+
+	if (readable != assert_readable) {
+		warnx("%s: %s fionread r:%d on %s", testname, fdname,
+		    readable, conditionname);
+		return (-1);
+	}
+
+	return (0);
+}
+
 /*
  * test_events() uses poll(), select(), and kevent() to query the status of
  * fifo file descriptors and determine whether they match expected state
@@ -1000,19 +1075,29 @@ fionread_status(int fd, int *readable, const char *testname)
 static void
 test_events_outofbox(void)
 {
-	int readable, writable, exception;
 	int kqueue_fd, reader_fd, writer_fd;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
-	    < 0) {
+	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd) < 0) {
 		warn("test_events_outofbox: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
-	if (kqueue_setup(reader_fd, writer_fd, &kqueue_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+	kqueue_fd = kqueue();
+	if (kqueue_fd < 0) {
+		warn("%s: kqueue", __func__);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (kqueue_setup(kqueue_fd, reader_fd, __func__) < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (kqueue_setup(kqueue_fd, writer_fd, __func__) < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
@@ -1022,54 +1107,9 @@ test_events_outofbox(void)
 	 * since it will not be readable (no data in pipe), writable (it's
 	 * a read-only descriptor), and there's no reason for error yet.
 	 */
-	if (poll_status(reader_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || writable || exception) {
-		warnx("test_events_outofbox: reader_fd polls r:%d, w:%d, "
-		    "e:%d on create", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (select_status(reader_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || writable || exception) {
-		warnx("test_events_outofbox: reader_fd selects r:%d, w:%d, "
-		    "e:%d on create", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (kqueue_status(kqueue_fd, reader_fd, &readable, &writable,
-	    &exception, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || writable || exception) {
-		warnx("test_events_outofbox: reader_fd kevent r:%d, w:%d, "
-		    "e:%d on create", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (fionread_status(reader_fd, &readable, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable) {
-		warnx("test_events_outofbox: reader_fd fionread r:%d on "
-		    "create", readable);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	if (assert_status(reader_fd, kqueue_fd, NOT_READABLE, NOT_WRITABLE,
+	    NOT_EXCEPTION, __func__, "create", "reader_fd") < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
@@ -1077,64 +1117,18 @@ test_events_outofbox(void)
 	 * Make sure that fresh, out-of-the-box fifo file descriptors have
 	 * good initial states.  The writer_fd should be ready to write.
 	 */
-	if (poll_status(writer_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	if (assert_status(writer_fd, kqueue_fd, NOT_READABLE, WRITABLE,
+	    NOT_EXCEPTION, __func__, "create", "writer_fd") < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
-	if (readable || !writable || exception) {
-		warnx("test_events_outofbox: writer_fd polls r:%d, w:%d, "
-		    "e:%d on create", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (select_status(writer_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || !writable || exception) {
-		warnx("test_events_outofbox: writer_fd selects r:%d, w:%d, "
-		    "e:%d on create", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (kqueue_status(kqueue_fd, writer_fd, &readable, &writable,
-	    &exception, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || !writable || exception) {
-		warnx("test_events_outofbox: writer_fd kevent r:%d, w:%d, "
-		    "e:%d on create", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (fionread_status(writer_fd, &readable, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable) {
-		warnx("test_events_outofbox: writer_fd fionread r:%d on "
-		    "create", readable);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 }
 
 static void
 test_events_write_read_byte(void)
 {
-	int readable, writable, exception;
 	int kqueue_fd, reader_fd, writer_fd;
 	ssize_t len;
 	u_char ch;
@@ -1143,12 +1137,24 @@ test_events_write_read_byte(void)
 	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_events_write_read_byte: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
-	if (kqueue_setup(reader_fd, writer_fd, &kqueue_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+	kqueue_fd = kqueue();
+	if (kqueue_fd < 0) {
+		warn("%s: kqueue", __func__);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (kqueue_setup(kqueue_fd, reader_fd, __func__) < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (kqueue_setup(kqueue_fd, writer_fd, __func__) < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
@@ -1159,113 +1165,23 @@ test_events_write_read_byte(void)
 	ch = 0x00;
 	len = write(writer_fd, &ch, sizeof(ch));
 	if (len < 0) {
-		warn("test_events_write_read_byte: write");
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		warn("%s: write", __func__);
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
-	if (poll_status(reader_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (!readable || writable || exception) {
-		warnx("test_events_write_read_byte: reader_fd polls r:%d, "
-		    "w:%d, e:%d after write", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (select_status(reader_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (!readable || writable || exception) {
-		warnx("test_events_write_read_byte: reader_fd selects r:%d, "
-		    "w:%d, e:%d after write", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (kqueue_status(kqueue_fd, reader_fd, &readable, &writable,
-	    &exception, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (!readable || writable || exception) {
-		warnx("test_events_write_read_byte: reader_fd kevent r:%d, "
-		    "w:%d, e:%d after write", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (fionread_status(reader_fd, &readable, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (!readable) {
-		warnx("test_events_outofbox: reader_fd fionread r:%d after "
-		    "write", readable);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	if (assert_status(reader_fd, kqueue_fd, READABLE, NOT_WRITABLE,
+	    NOT_EXCEPTION, __func__, "write", "reader_fd") < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
 	/*
-	 * Now the writer_fd.
+	 * the writer_fd should remain writable.
 	 */
-	if (poll_status(writer_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || !writable || exception) {
-		warnx("test_events_write_read_byte: writer_fd polls r:%d, "
-		    "w:%d, e:%d after write", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (select_status(writer_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || !writable || exception) {
-		warnx("test_events_write_read_byte: writer_fd selects r:%d, "
-		    "w:%d, e:%d after write", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (kqueue_status(kqueue_fd, writer_fd, &readable, &writable,
-	    &exception, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || !writable || exception) {
-		warnx("test_events_write_read_byte: writer_fd kevent r:%d, "
-		    "w:%d, e:%d after write", readable, writable, exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (fionread_status(writer_fd, &readable, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable) {
-		warnx("test_events_outofbox: writer_fd fionread r:%d after "
-		    "write", readable);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	if (assert_status(writer_fd, kqueue_fd, NOT_READABLE, WRITABLE,
+	    NOT_EXCEPTION, __func__, "write", "writer_fd") < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
@@ -1275,123 +1191,27 @@ test_events_write_read_byte(void)
 	 */
 	len = read(reader_fd, &ch, sizeof(ch));
 	if (len < 0) {
-		warn("test_events_write_read_byte: read");
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		warn("%s: read", __func__);
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
-	if (poll_status(reader_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || writable || exception) {
-		warnx("test_events_write_read_byte: reader_fd polls r:%d, "
-		    "w:%d, e:%d after write+read", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (select_status(reader_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || writable || exception) {
-		warnx("test_events_write_read_byte: reader_fd selects r:%d, "
-		    "w:%d, e:%d after write+read", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (kqueue_status(kqueue_fd, reader_fd, &readable, &writable,
-	    &exception, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || writable || exception) {
-		warnx("test_events_write_read_byte: reader_fd kevent r:%d, "
-		    "w:%d, e:%d after write+read", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (fionread_status(reader_fd, &readable, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable) {
-		warnx("test_events_outofbox: reader_fd fionread r:%d after "
-		    "write+read", readable);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	if (assert_status(reader_fd, kqueue_fd, NOT_READABLE, NOT_WRITABLE,
+	    NOT_EXCEPTION, __func__, "write+read", "reader_fd") < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
 	/*
-	 * Now the writer_fd.
+	 * The writer_fd should remain writable.
 	 */
-	if (poll_status(writer_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	if (assert_status(writer_fd, kqueue_fd, NOT_READABLE, WRITABLE,
+	    NOT_EXCEPTION, __func__, "write+read", "writer_fd") < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
-	if (readable || !writable || exception) {
-		warnx("test_events_write_read_byte: writer_fd polls r:%d, "
-		    "w:%d, e:%d after write+read", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (select_status(writer_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || !writable || exception) {
-		warnx("test_events_write_read_byte: writer_fd selects r:%d, "
-		    "w:%d, e:%d after write+read", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (kqueue_status(kqueue_fd, writer_fd, &readable, &writable,
-	    &exception, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || !writable || exception) {
-		warnx("test_events_write_read_byte: writer_fd kevent r:%d, "
-		    "w:%d, e:%d after write+read", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (fionread_status(writer_fd, &readable, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable) {
-		warnx("test_events_outofbox: writer_fd fionread r:%d after "
-		    "write+read", readable);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 }
 
 /*
@@ -1402,7 +1222,6 @@ test_events_write_read_byte(void)
 static void
 test_events_partial_write(void)
 {
-	int readable, writable, exception;
 	int kqueue_fd, reader_fd, writer_fd;
 	u_char *buffer;
 	ssize_t len;
@@ -1411,24 +1230,36 @@ test_events_partial_write(void)
 	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_events_partial_write: openfifo: testfifo");
-		cleanfifo("testfifo", -1, -1);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
-	if (kqueue_setup(reader_fd, writer_fd, &kqueue_fd, __func__) < 0) {
-		cleanfifo("testfifo", reader_fd, writer_fd);
+	kqueue_fd = kqueue();
+	if (kqueue_fd < 0) {
+		warn("%s: kqueue", __func__);
+		cleanfifo2("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (kqueue_setup(kqueue_fd, reader_fd, __func__) < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (kqueue_setup(kqueue_fd, writer_fd, __func__) < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
 	if (set_nonblocking(writer_fd, "test_events") < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
 	buffer = malloc(512*1024);
 	if (buffer == NULL) {
 		warn("test_events_partial_write: malloc");
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 	bzero(buffer, 512*1024);
@@ -1437,56 +1268,20 @@ test_events_partial_write(void)
 	if (len < 0) {
 		warn("test_events_partial_write: write");
 		free(buffer);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
 	free(buffer);
 
-	if (poll_status(writer_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || writable || exception) {
-		warnx("test_events_partial_write: writer_fd polls r:%d, "
-		    "w:%d, e:%d after big write", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (select_status(writer_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || writable || exception) {
-		warnx("test_events_partial_write: writer_fd selects r:%d, "
-		    "w:%d, e:%d after big write", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (kqueue_status(kqueue_fd, writer_fd, &readable, &writable,
-	    &exception, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
-		exit(-1);
-	}
-
-	if (readable || writable || exception) {
-		warnx("test_events_partial_write: writer_fd kevent r:%d, "
-		    "w:%d, e:%d after big write", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	if (assert_status(writer_fd, kqueue_fd, NOT_READABLE, NOT_WRITABLE,
+	    NOT_EXCEPTION, __func__, "big write", "writer_fd") < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
 	if (drain_fd(reader_fd, "test_events") < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
@@ -1494,49 +1289,95 @@ test_events_partial_write(void)
 	 * Test that the writer_fd has been restored to writable state after
 	 * draining.
 	 */
-	if (poll_status(writer_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	if (assert_status(writer_fd, kqueue_fd, NOT_READABLE, WRITABLE,
+	    NOT_EXCEPTION, __func__, "big write + drain", "writer_fd") < 0) {
+		cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
 
-	if (readable || !writable || exception) {
-		warnx("test_events_partial_write: writer_fd polls r:%d, "
-		    "w:%d, e:%d after big write + drain", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	cleanfifo3("testfifo", reader_fd, writer_fd, kqueue_fd);
+}
+
+/*
+ * We don't comprehensively test O_RDWR file descriptors, but do run a couple
+ * of event tests to make sure that the fifo implementation doesn't mixed up
+ * status checks.  In particular, at least one past FreeBSD bug exists in
+ * which the FIONREAD test was performed on the wrong socket implementing the
+ * fifo, resulting in the fifo never returning readable.
+ */
+static void
+test_events_rdwr(void)
+{
+	int fd, kqueue_fd;
+	ssize_t len;
+	char ch;
+
+	makefifo("testfifo", __func__);
+	if (openfifo_rw("testfifo", __func__, &fd)
+	    < 0) {
+		warn("%s: openfifo_rw: testfifo", __func__);
+		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
 	}
 
-	if (select_status(writer_fd, &readable, &writable, &exception,
-	    __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	kqueue_fd = kqueue();
+	if (kqueue_fd < 0) {
+		warn("%s: kqueue", __func__);
+		cleanfifo2("testifo", fd, -1);
 		exit(-1);
 	}
 
-	if (readable || !writable || exception) {
-		warnx("test_events_partial_write: writer_fd selects r:%d, "
-		    "w:%d, e:%d after big write + drain", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	if (kqueue_setup(kqueue_fd, fd, __func__) < 0) {
+		cleanfifo2("testfifo", fd, kqueue_fd);
 		exit(-1);
 	}
 
-	if (kqueue_status(kqueue_fd, writer_fd, &readable, &writable,
-	    &exception, __func__) < 0) {
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	/*
+	 * On first creation, the O_RDWR descriptor should be writable but
+	 * not readable.
+	 */
+	if (assert_status(fd, kqueue_fd, NOT_READABLE, WRITABLE,
+	    NOT_EXCEPTION, __func__, "create", "fd") < 0) {
+		cleanfifo2("testfifo", fd, kqueue_fd);
 		exit(-1);
 	}
 
-	if (readable || !writable || exception) {
-		warnx("test_events_partial_write: writer_fd kevent r:%d, "
-		    "w:%d, e:%d after big write + drain", readable, writable,
-		    exception);
-		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	/*
+	 * Write a byte, which should cause the file descriptor to become
+	 * readable and writable.
+	 */
+	ch = 0x00;
+	len = write(fd, &ch, sizeof(ch));
+	if (len < 0) {
+		warn("%s: write", __func__);
+		cleanfifo2("testfifo", fd, kqueue_fd);
 		exit(-1);
 	}
 
-	cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+	if (assert_status(fd, kqueue_fd, READABLE, WRITABLE, NOT_EXCEPTION,
+	    __func__, "write", "fd") < 0) {
+		cleanfifo2("testfifo", fd, kqueue_fd);
+		exit(-1);
+	}
+
+	/*
+	 * Read a byte, which should cause the file descriptor to return to
+	 * simply being writable.
+	 */
+	len = read(fd, &ch, sizeof(ch));
+	if (len < 0) {
+		warn("%s: read", __func__);
+		cleanfifo2("testfifo", fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (assert_status(fd, kqueue_fd, NOT_READABLE, WRITABLE,
+	    NOT_EXCEPTION, __func__, "write+read", "fd") < 0) {
+		cleanfifo2("testfifo", fd, kqueue_fd);
+		exit(-1);
+	}
+
+	cleanfifo2("testfifo", fd, kqueue_fd);
 }
 
 int
@@ -1562,6 +1403,7 @@ main(int argc, char *argv[])
 	test_events_outofbox();
 	test_events_write_read_byte();
 	test_events_partial_write();
+	test_events_rdwr();
 
 	return (0);
 }
