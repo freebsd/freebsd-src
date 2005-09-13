@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -66,16 +67,15 @@
  * - That once 512k (ish) is read from the other end, the blocked writer
  *   wakes up.
  *
- * - When a fifo is empty, poll and select report it is writable but not
- *   readable.
+ * - When a fifo is empty, poll, select, kqueue, and fionread report it is
+ *   writable but not readable.
  *
- * - When a fifo has data in it, poll and select report that it is writable.
+ * - When a fifo has data in it, poll, select, and kqueue report that it is
+ *   writable.
  *
  * - XXX: blocked reader semantics?
  *
- * - XXX: behavior on remote close?
- *
- * - XXX: kqueue
+ * - XXX: event behavior on remote close?
  */
 
 /*
@@ -971,6 +971,23 @@ kqueue_status(int kqueue_fd, int fd, int *readable, int *writable,
 	return (0);
 }
 
+static int
+fionread_status(int fd, int *readable, const char *testname)
+{
+	int i;
+
+	if (ioctl(fd, FIONREAD, &i) < 0) {
+		warn("%s: ioctl(FIONREAD)", testname);
+		return (-1);
+	}
+
+	if (i > 0)
+		*readable = 1;
+	else
+		*readable = 0;
+	return (0);
+}
+
 /*
  * test_events() uses poll(), select(), and kevent() to query the status of
  * fifo file descriptors and determine whether they match expected state
@@ -1044,6 +1061,18 @@ test_events_outofbox(void)
 		exit(-1);
 	}
 
+	if (fionread_status(reader_fd, &readable, __func__) < 0) {
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (readable) {
+		warnx("test_events_outofbox: reader_fd fionread r:%d on "
+		    "create", readable);
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
 	/*
 	 * Make sure that fresh, out-of-the-box fifo file descriptors have
 	 * good initial states.  The writer_fd should be ready to write.
@@ -1083,6 +1112,18 @@ test_events_outofbox(void)
 	if (readable || !writable || exception) {
 		warnx("test_events_outofbox: writer_fd kevent r:%d, w:%d, "
 		    "e:%d on create", readable, writable, exception);
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (fionread_status(writer_fd, &readable, __func__) < 0) {
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (readable) {
+		warnx("test_events_outofbox: writer_fd fionread r:%d on "
+		    "create", readable);
 		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
@@ -1162,6 +1203,18 @@ test_events_write_read_byte(void)
 		exit(-1);
 	}
 
+	if (fionread_status(reader_fd, &readable, __func__) < 0) {
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (!readable) {
+		warnx("test_events_outofbox: reader_fd fionread r:%d after "
+		    "write", readable);
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
 	/*
 	 * Now the writer_fd.
 	 */
@@ -1200,6 +1253,18 @@ test_events_write_read_byte(void)
 	if (readable || !writable || exception) {
 		warnx("test_events_write_read_byte: writer_fd kevent r:%d, "
 		    "w:%d, e:%d after write", readable, writable, exception);
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (fionread_status(writer_fd, &readable, __func__) < 0) {
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (readable) {
+		warnx("test_events_outofbox: writer_fd fionread r:%d after "
+		    "write", readable);
 		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
@@ -1257,6 +1322,18 @@ test_events_write_read_byte(void)
 		exit(-1);
 	}
 
+	if (fionread_status(reader_fd, &readable, __func__) < 0) {
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (readable) {
+		warnx("test_events_outofbox: reader_fd fionread r:%d after "
+		    "write+read", readable);
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
 	/*
 	 * Now the writer_fd.
 	 */
@@ -1298,6 +1375,18 @@ test_events_write_read_byte(void)
 		warnx("test_events_write_read_byte: writer_fd kevent r:%d, "
 		    "w:%d, e:%d after write+read", readable, writable,
 		    exception);
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (fionread_status(writer_fd, &readable, __func__) < 0) {
+		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
+		exit(-1);
+	}
+
+	if (readable) {
+		warnx("test_events_outofbox: writer_fd fionread r:%d after "
+		    "write+read", readable);
 		cleanfifokq("testfifo", reader_fd, writer_fd, kqueue_fd);
 		exit(-1);
 	}
