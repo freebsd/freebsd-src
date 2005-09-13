@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2005, M. Warner Losh
  * Copyright (c) 1995, David Greenman
  * All rights reserved.
  *
@@ -51,6 +52,7 @@
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccard_cis.h>
 #ifndef ED_NO_MIIBUS
 #include <dev/mii/mii.h>
@@ -79,7 +81,9 @@ MODULE_DEPEND(ed, ether, 1, 1, 1);
  *
  * This applies only to the older, NE-2000 compatbile cards.  The newer
  * cards based on the AX88x90 or DL100XX chipsets have a specific place
- * to look for MAC information.
+ * to look for MAC information.  And only to those NE-2000 compatible cards
+ * that don't the NE-2000 compatible thing of placing the PROM contents
+ * starting at location 0 of memory.
  */
 #define ED_DEFAULT_MAC_OFFSET	0xff0
 
@@ -186,15 +190,18 @@ static const struct ed_product {
 static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
 
-static int	ed_pccard_memread(device_t dev, off_t offset, u_char *byte);
-static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
-
 static int	ed_pccard_dl100xx(device_t dev, const struct ed_product *);
 #ifndef ED_NO_MIIBUS
-static void	ed_pccard_dl10xx_mii_reset(struct ed_softc *sc);
-static u_int	ed_pccard_dl10xx_mii_readbits(struct ed_softc *sc, int nbits);
-static void	ed_pccard_dl10xx_mii_writebits(struct ed_softc *sc, u_int val,
+static void	ed_pccard_dl100xx_mii_reset(struct ed_softc *sc);
+static u_int	ed_pccard_dl100xx_mii_readbits(struct ed_softc *sc, int nbits);
+static void	ed_pccard_dl100xx_mii_writebits(struct ed_softc *sc, u_int val,
     int nbits);
+
+static void	ed_pccard_ax88x90_mii_reset(struct ed_softc *sc);
+static u_int	ed_pccard_ax88x90_mii_readbits(struct ed_softc *sc, int nbits);
+static void	ed_pccard_ax88x90_mii_writebits(struct ed_softc *sc, u_int val,
+    int nbits);
+static int	ed_miibus_readreg(device_t dev, int phy, int reg);
 #endif
 
 static int	ed_pccard_ax88x90(device_t dev, const struct ed_product *);
@@ -232,25 +239,50 @@ static int
 ed_pccard_rom_mac(device_t dev, uint8_t *enaddr)
 {
 	struct ed_softc *sc = device_get_softc(dev);
-	uint8_t romdata[16];
+	uint8_t romdata[32];
 	int i;
 
 	/*
-	 * Read in the rom data at location 0.  We should see one of
-	 * two patterns.  Either you'll see odd locations 0xff and
-	 * even locations data, or you'll see odd and even locations
-	 * mirror each other.  In addition, the last two even locations
-	 * should be 0.  If they aren't 0, then we'll assume that
-	 * there's no valid ROM data on this card and try another method
-	 * to recover the MAC address.  Since there are no NE-1000
-	 * based PC Card devices, we'll assume we're 16-bit.
+	 * Read in the rom data at location 0.  Since there are no
+	 * NE-1000 based PC Card devices, we'll assume we're 16-bit.
+	 *
+	 * In researching what format this takes, I've found that the
+	 * following appears to be true for multiple cards based on
+	 * observation as well as datasheet digging.
+	 *
+	 * Data is stored in some ROM and is copied out 8 bits at a time
+	 * into 16-bit wide locations.  This means that the odd locations
+	 * of the ROM are not used (and can be either 0 or ff).
+	 *
+	 * The contents appears to be as follows:
+	 * PROM   RAM
+	 * Offset Offset	What
+	 *  0      0	ENETADDR 0
+	 *  1      2	ENETADDR 1
+	 *  2      4	ENETADDR 2
+	 *  3      6	ENETADDR 3
+	 *  4      8	ENETADDR 4
+	 *  5     10	ENETADDR 5
+	 *  6-13  12-26 Reserved (varies by manufacturer)
+	 * 14     28	0x57
+	 * 15     30    0x57
+	 *
+	 * Some manufacturers have another image of enetaddr from
+	 * PROM offset 0x10 to 0x15 with 0x42 in 0x1e and 0x1f, but
+	 * this doesn't appear to be universally documented in the
+	 * datasheets.  Some manufactuers have a card type, card config
+	 * checksums, etc encoded into PROM offset 6-13, but deciphering it
+	 * requires more knowledge about the exact underlying chipset than
+	 * we possess (and maybe can possess).
 	 */
-	ed_pio_readmem(sc, 0, romdata, 16);
-	if (romdata[12] != 0 || romdata[14] != 0)
-		return 0;
+	ed_pio_readmem(sc, 0, romdata, 32);
+	if (bootverbose)
+		printf("ROM DATA: %32D\n", romdata, " ");
+	if (romdata[28] != 0x57 || romdata[30] != 0x57)
+		return (0);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		enaddr[i] = romdata[i * 2];
-	return 1;
+	return (1);
 }
 
 static int
@@ -311,7 +343,7 @@ ed_pccard_attach(device_t dev)
 	error = ENXIO;
 	if (error != 0)
 		error = ed_pccard_dl100xx(dev, pp);
-	if (error != 0 && pp->flags & NE2000DVF_AX88X90)
+	if (error != 0)
 		error = ed_pccard_ax88x90(dev, pp);
 	if (error != 0)
 		error = ed_probe_Novell_generic(dev, device_get_flags(dev));
@@ -349,17 +381,17 @@ ed_pccard_attach(device_t dev)
 		}
 		if (sum == 0 && pp->flags & NE2000DVF_ENADDR) {
 			for (i = 0; i < ETHER_ADDR_LEN; i++) {
-				ed_pccard_memread(dev, pp->enoff + i * 2,
+				pccard_attr_read_1(dev, pp->enoff + i * 2,
 				    enaddr + i);
 				sum |= enaddr[i];
 			}
 			if (bootverbose)
-				device_printf(dev, "Hint MAC %6D\n", enaddr,
-				    ":");
+				device_printf(dev, "Hint %x MAC %6D\n",
+				    pp->enoff, enaddr, ":");
 		}
 		if (sum == 0) {
 			for (i = 0; i < ETHER_ADDR_LEN; i++) {
-				ed_pccard_memread(dev, ED_DEFAULT_MAC_OFFSET +
+				pccard_attr_read_1(dev, ED_DEFAULT_MAC_OFFSET +
 				    i * 2, enaddr + i);
 				sum |= enaddr[i];
 			}
@@ -382,11 +414,17 @@ ed_pccard_attach(device_t dev)
  	if (sc->chip_type == ED_CHIP_TYPE_DL10019 ||
 	    sc->chip_type == ED_CHIP_TYPE_DL10022) {
 		/* Probe for an MII bus, but ignore errors. */
-		ed_pccard_dl10xx_mii_reset(sc);
-		sc->mii_readbits = ed_pccard_dl10xx_mii_readbits;
-		sc->mii_writebits = ed_pccard_dl10xx_mii_writebits;
+		ed_pccard_dl100xx_mii_reset(sc);
 		mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
 		    ed_ifmedia_sts);
+	} else if (sc->chip_type == ED_CHIP_TYPE_AX88190) {
+		ed_pccard_ax88x90_mii_reset(sc);
+		if ((error = mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
+		     ed_ifmedia_sts)) != 0) {
+			device_printf(dev, "Missing mii!\n");
+			goto bad;
+		}
+		    
 	}
 #endif
 	if (sc->modem_rid != -1)
@@ -395,52 +433,6 @@ ed_pccard_attach(device_t dev)
 bad:
 	ed_release_resources(dev);
 	return (error);
-}
-
-static int
-ed_pccard_memwrite(device_t dev, off_t offset, u_char byte)
-{
-	int cis_rid;
-	struct resource *cis;
-
-	cis_rid = 0;
-	cis = bus_alloc_resource(dev, SYS_RES_MEMORY, &cis_rid, 0, ~0, 
-	    4 << 10, RF_ACTIVE | RF_SHAREABLE);
-	if (cis == NULL)
-		return (ENXIO);
-	CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
-	    cis_rid, PCCARD_A_MEM_ATTR);
-
-	bus_space_write_1(rman_get_bustag(cis), rman_get_bushandle(cis),
-	    offset, byte);
-
-	bus_deactivate_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
-	bus_release_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
-
-	return (0);
-}
-
-static int
-ed_pccard_memread(device_t dev, off_t offset, u_char *byte)
-{
-	int cis_rid;
-	struct resource *cis;
-
-	cis_rid = 0;
-	cis = bus_alloc_resource(dev, SYS_RES_MEMORY, &cis_rid, 0, ~0, 
-	    4 << 10, RF_ACTIVE | RF_SHAREABLE);
-	if (cis == NULL)
-		return (ENXIO);
-	CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
-	    cis_rid, PCCARD_A_MEM_ATTR);
-
-	*byte = bus_space_read_1(rman_get_bustag(cis), rman_get_bushandle(cis),
-	    offset);
-
-	bus_deactivate_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
-	bus_release_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
-
-	return (0);
 }
 
 /*
@@ -459,9 +451,13 @@ ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 	uint8_t id;
 	int i, error;
 
-	if (!pp->flags & NE2000DVF_DL100XX)
+	if (!(pp->flags & NE2000DVF_DL100XX))
 		return (ENXIO);
+	if (bootverbose)
+		device_printf(dev, "Trying DL100xx probing\n");
 	error = ed_probe_Novell_generic(dev, device_get_flags(dev));
+	if (bootverbose && error)
+		device_printf(dev, "Novell generic probe failed: %d\n", error);
 	if (error != 0)
 		return (error);
 
@@ -474,8 +470,13 @@ ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 	 */
 	for (sum = 0, i = 0x04; i < 0x0c; i++)
 		sum += ed_asic_inb(sc, i);
-	if (sum != 0xff)
+	if (sum != 0xff) {
+		if (bootverbose)
+			device_printf(dev, "Bad checksum %#x\n", sum);
 		return (ENXIO);		/* invalid DL10019C */
+	}
+	if (bootverbose)
+		device_printf(dev, "CIR is %d\n", ed_asic_inb(sc, 0xa));
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		sc->enaddr[i] = ed_asic_inb(sc, 0x04 + i);
 	ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
@@ -486,83 +487,85 @@ ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 	sc->chip_type = (id & 0x90) == 0x90 ?
 	    ED_CHIP_TYPE_DL10022 : ED_CHIP_TYPE_DL10019;
 	sc->type_str = ((id & 0x90) == 0x90) ? "DL10022" : "DL10019";
+	sc->mii_readbits = ed_pccard_dl100xx_mii_readbits;
+	sc->mii_writebits = ed_pccard_dl100xx_mii_writebits;
 	return (0);
 }
 
 #ifndef ED_NO_MIIBUS
 /* MII bit-twiddling routines for cards using Dlink chipset */
-#define DL10XX_MIISET(sc, x) ed_asic_outb(sc, ED_DL10XX_MIIBUS, \
-    ed_asic_inb(sc, ED_DL10XX_MIIBUS) | (x))
-#define DL10XX_MIICLR(sc, x) ed_asic_outb(sc, ED_DL10XX_MIIBUS, \
-    ed_asic_inb(sc, ED_DL10XX_MIIBUS) & ~(x))
+#define DL100XX_MIISET(sc, x) ed_asic_outb(sc, ED_DL100XX_MIIBUS, \
+    ed_asic_inb(sc, ED_DL100XX_MIIBUS) | (x))
+#define DL100XX_MIICLR(sc, x) ed_asic_outb(sc, ED_DL100XX_MIIBUS, \
+    ed_asic_inb(sc, ED_DL100XX_MIIBUS) & ~(x))
 
 static void
-ed_pccard_dl10xx_mii_reset(struct ed_softc *sc)
+ed_pccard_dl100xx_mii_reset(struct ed_softc *sc)
 {
 	if (sc->chip_type != ED_CHIP_TYPE_DL10022)
 		return;
 
-	ed_asic_outb(sc, ED_DL10XX_MIIBUS, ED_DL10XX_MII_RESET2);
+	ed_asic_outb(sc, ED_DL100XX_MIIBUS, ED_DL100XX_MII_RESET2);
 	DELAY(10);
-	ed_asic_outb(sc, ED_DL10XX_MIIBUS,
-	    ED_DL10XX_MII_RESET2 | ED_DL10XX_MII_RESET1);
+	ed_asic_outb(sc, ED_DL100XX_MIIBUS,
+	    ED_DL100XX_MII_RESET2 | ED_DL100XX_MII_RESET1);
 	DELAY(10);
-	ed_asic_outb(sc, ED_DL10XX_MIIBUS, ED_DL10XX_MII_RESET2);
+	ed_asic_outb(sc, ED_DL100XX_MIIBUS, ED_DL100XX_MII_RESET2);
 	DELAY(10);
-	ed_asic_outb(sc, ED_DL10XX_MIIBUS,
-	    ED_DL10XX_MII_RESET2 | ED_DL10XX_MII_RESET1);
+	ed_asic_outb(sc, ED_DL100XX_MIIBUS,
+	    ED_DL100XX_MII_RESET2 | ED_DL100XX_MII_RESET1);
 	DELAY(10);
-	ed_asic_outb(sc, ED_DL10XX_MIIBUS, 0);
+	ed_asic_outb(sc, ED_DL100XX_MIIBUS, 0);
 }
 
 static void
-ed_pccard_dl10xx_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
+ed_pccard_dl100xx_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
 {
 	int i;
 
 	if (sc->chip_type == ED_CHIP_TYPE_DL10022)
-		DL10XX_MIISET(sc, ED_DL10XX_MII_DIROUT_22);
+		DL100XX_MIISET(sc, ED_DL100XX_MII_DIROUT_22);
 	else
-		DL10XX_MIISET(sc, ED_DL10XX_MII_DIROUT_19);
+		DL100XX_MIISET(sc, ED_DL100XX_MII_DIROUT_19);
 
 	for (i = nbits - 1; i >= 0; i--) {
 		if ((val >> i) & 1)
-			DL10XX_MIISET(sc, ED_DL10XX_MII_DATAOUT);
+			DL100XX_MIISET(sc, ED_DL100XX_MII_DATAOUT);
 		else
-			DL10XX_MIICLR(sc, ED_DL10XX_MII_DATAOUT);
+			DL100XX_MIICLR(sc, ED_DL100XX_MII_DATAOUT);
 		DELAY(10);
-		DL10XX_MIISET(sc, ED_DL10XX_MII_CLK);
+		DL100XX_MIISET(sc, ED_DL100XX_MII_CLK);
 		DELAY(10);
-		DL10XX_MIICLR(sc, ED_DL10XX_MII_CLK);
+		DL100XX_MIICLR(sc, ED_DL100XX_MII_CLK);
 		DELAY(10);
 	}
 }
 
 static u_int
-ed_pccard_dl10xx_mii_readbits(struct ed_softc *sc, int nbits)
+ed_pccard_dl100xx_mii_readbits(struct ed_softc *sc, int nbits)
 {
 	int i;
 	u_int val = 0;
 
 	if (sc->chip_type == ED_CHIP_TYPE_DL10022)
-		DL10XX_MIICLR(sc, ED_DL10XX_MII_DIROUT_22);
+		DL100XX_MIICLR(sc, ED_DL100XX_MII_DIROUT_22);
 	else
-		DL10XX_MIICLR(sc, ED_DL10XX_MII_DIROUT_19);
+		DL100XX_MIICLR(sc, ED_DL100XX_MII_DIROUT_19);
 
 	for (i = nbits - 1; i >= 0; i--) {
-		DL10XX_MIISET(sc, ED_DL10XX_MII_CLK);
+		DL100XX_MIISET(sc, ED_DL100XX_MII_CLK);
 		DELAY(10);
 		val <<= 1;
-		if (ed_asic_inb(sc, ED_DL10XX_MIIBUS) & ED_DL10XX_MII_DATATIN)
+		if (ed_asic_inb(sc, ED_DL100XX_MIIBUS) & ED_DL100XX_MII_DATATIN)
 			val++;
-		DL10XX_MIICLR(sc, ED_DL10XX_MII_CLK);
+		DL100XX_MIICLR(sc, ED_DL100XX_MII_CLK);
 		DELAY(10);
 	}
 	return val;
 }
 #endif
 
-static void
+static int
 ed_pccard_ax88x90_geteprom(struct ed_softc *sc)
 {
 	int prom[16],i;
@@ -598,33 +601,13 @@ ed_pccard_ax88x90_geteprom(struct ed_softc *sc)
 		ed_nic_outb(sc, pg_seq[i].offset, pg_seq[i].value);
 
 	/* Get Data */
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < ETHER_ADDR_LEN / 2; i++)
 		prom[i] = ed_asic_inw(sc, 0);
-
-	/*
-	 * Work around a bug I've seen on Linksys EC2T cards.  On
-	 * these cards, the node address is contained in the low order
-	 * bytes of the prom, with the upper byte being 0.  On other
-	 * cards, the bytes are packed two per word.  I'm unsure why
-	 * this is the case, and why no other open source OS has a
-	 * similar workaround.  The Linksys EC2T card is still extremely
-	 * popular on E-Bay, fetching way more than any other 10Mbps
-	 * only card.  I might be able to test to see if prom[7] and
-	 * prom[15] == 0x5757, since that appears to be a reliable
-	 * test.  On the EC2T cards, I get 0x0057 in prom[14,15] instead.
-	 */
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		if (prom[i] & 0xff00)
-			break;
-	if (i == ETHER_ADDR_LEN) {
-		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			sc->enaddr[i] = prom[i] & 0xff;
-	} else {
-		for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
-			sc->enaddr[i] = prom[i / 2] & 0xff;
-			sc->enaddr[i + 1] = (prom[i / 2] >> 8) & 0xff;
-		}
+	for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
+		sc->enaddr[i] = prom[i / 2] & 0xff;
+		sc->enaddr[i + 1] = (prom[i / 2] >> 8) & 0xff;
 	}
+	return (0);
 }
 
 /*
@@ -633,30 +616,68 @@ ed_pccard_ax88x90_geteprom(struct ed_softc *sc)
 static int
 ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
 {
-	int	error;
-	int	iobase;
+	int	error, iobase, i, id;
 	char *ts;
 	struct	ed_softc *sc = device_get_softc(dev);
 
-	if (!pp->flags & NE2000DVF_AX88X90)
+	if (!(pp->flags & NE2000DVF_AX88X90))
 		return (ENXIO);
 
-	/* XXX
-	 * Set Attribute Memory IOBASE Register.  Is this a deficiency in
-	 * the PC Card layer, or an ax88190 specific issue?  The card
-	 * definitely doesn't work without it.
+	if (bootverbose)
+		device_printf(dev, "Checking AX88x90\n");
+
+	/*
+	 * Set the IOBASE Register.  The AX88x90 cards are potentially
+	 * multifunction cards, and thus requires a slight workaround.
+	 * We write the address the card is at.
 	 */
 	iobase = rman_get_start(sc->port_res);
-	ed_pccard_memwrite(dev, ED_AX88190_IOBASE0, iobase & 0xff);
-	ed_pccard_memwrite(dev, ED_AX88190_IOBASE1, (iobase >> 8) & 0xff);
+	pccard_ccr_write_1(dev, PCCARD_CCR_IOBASE0, iobase & 0xff);
+	pccard_ccr_write_1(dev, PCCARD_CCR_IOBASE1, (iobase >> 8) & 0xff);
+
+#ifdef ED_NO_MIIBUS
+	return (ENXIO);
+#else
+	/*
+	 * Check to see if we have a MII PHY ID at any of the first 17
+	 * locations.  All AX88x90 devices have MII and a PHY, so we use
+	 * this to weed out chips that would otherwise make it through
+	 * the tests we have after this point.
+	 */
+	sc->mii_readbits = ed_pccard_ax88x90_mii_readbits;
+	sc->mii_writebits = ed_pccard_ax88x90_mii_writebits;
+	for (i = 0; i < 17; i++) {
+		id = ed_miibus_readreg(dev, i, MII_PHYIDR1);
+		if (id != 0 && id != 0xffff)
+			break;
+	}
+	if (i == 17) {
+		sc->mii_readbits = 0;
+		sc->mii_writebits = 0;
+		return (ENXIO);
+	}
+	
+
 	ts = "AX88190";
 	if (ed_asic_inb(sc, ED_ASIX_TEST) != 0) {
-		ed_pccard_memwrite(dev, ED_AX88790_CSR, ED_AX88790_CSR_PWRDWN);
+		/*
+		 * AX88790 (and I think AX88190A) chips need to be
+		 * powered down.  There's an erratum that says we should
+		 * power down the PHY for 2.5s, but this seems to power
+		 * down the whole card.  I'm unsure why this was done, but
+		 * appears to be required for proper operation.
+		 */
+		pccard_ccr_write_1(dev, PCCARD_CCR_STATUS,
+		    PCCARD_CCR_STATUS_PWRDWN);
 		ts = "AX88790";
 	}
 	sc->chip_type = ED_CHIP_TYPE_AX88190;
-	ed_pccard_ax88x90_geteprom(sc);
+	error = ed_pccard_ax88x90_geteprom(sc);
+	if (error)
+		return (error);
 	error = ed_probe_Novell_generic(dev, device_get_flags(dev));
+	if (bootverbose)
+		device_printf(dev, "probe novel returns %d\n", error);
 	if (error == 0) {
 		sc->vendor = ED_VENDOR_NOVELL;
 		sc->type = ED_TYPE_NE2000;
@@ -664,7 +685,115 @@ ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
 		sc->type_str = ts;
 	}
 	return (error);
+#endif
 }
+
+#ifndef ED_NO_MIIBUS
+/* MII bit-twiddling routines for cards using Dlink chipset */
+#define AX88X90_MIISET(sc, x) ed_asic_outb(sc, ED_AX88X90_MIIBUS, \
+    ed_asic_inb(sc, ED_AX88X90_MIIBUS) | (x))
+#define AX88X90_MIICLR(sc, x) ed_asic_outb(sc, ED_AX88X90_MIIBUS, \
+    ed_asic_inb(sc, ED_AX88X90_MIIBUS) & ~(x))
+
+static void
+ed_pccard_ax88x90_mii_reset(struct ed_softc *sc)
+{
+	/* Do nothing! */
+}
+
+static void
+ed_pccard_ax88x90_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
+{
+	int i;
+
+	AX88X90_MIICLR(sc, ED_AX88X90_MII_DIROUT);
+	for (i = nbits - 1; i >= 0; i--) {
+		if ((val >> i) & 1)
+			AX88X90_MIISET(sc, ED_AX88X90_MII_DATAOUT);
+		else
+			AX88X90_MIICLR(sc, ED_AX88X90_MII_DATAOUT);
+		DELAY(10);
+		AX88X90_MIISET(sc, ED_AX88X90_MII_CLK);
+		DELAY(10);
+		AX88X90_MIICLR(sc, ED_AX88X90_MII_CLK);
+		DELAY(10);
+	}
+}
+
+static u_int
+ed_pccard_ax88x90_mii_readbits(struct ed_softc *sc, int nbits)
+{
+	int i;
+	u_int val = 0;
+
+	AX88X90_MIISET(sc, ED_AX88X90_MII_DIROUT);
+	for (i = nbits - 1; i >= 0; i--) {
+		AX88X90_MIISET(sc, ED_AX88X90_MII_CLK);
+		DELAY(10);
+		val <<= 1;
+		if (ed_asic_inb(sc, ED_AX88X90_MIIBUS) & ED_AX88X90_MII_DATATIN)
+			val++;
+		AX88X90_MIICLR(sc, ED_AX88X90_MII_CLK);
+		DELAY(10);
+	}
+	return val;
+}
+#endif
+
+#ifndef ED_NO_MIIBUS
+/*
+ * MII bus support routines.
+ */
+static int
+ed_miibus_readreg(device_t dev, int phy, int reg)
+{
+	struct ed_softc *sc;
+	int failed, val;
+
+	/*
+	 * The AX88790 seem to have phy 0..f external, and 0x10 internal.
+	 * but they also seem to have a bogus one that shows up at phy
+	 * 0x11 through 0x1f.
+	 */
+	if (phy >= 0x11)
+		return (0);
+
+	sc = device_get_softc(dev);
+	(*sc->mii_writebits)(sc, 0xffffffff, 32);
+	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
+	(*sc->mii_writebits)(sc, ED_MII_READOP, ED_MII_OP_BITS);
+	(*sc->mii_writebits)(sc, phy, ED_MII_PHY_BITS);
+	(*sc->mii_writebits)(sc, reg, ED_MII_REG_BITS);
+	failed = (*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
+	val = (*sc->mii_readbits)(sc, ED_MII_DATA_BITS);
+	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
+	return (failed ? 0 : val);
+}
+
+static void
+ed_miibus_writereg(device_t dev, int phy, int reg, int data)
+{
+	struct ed_softc *sc;
+
+	/*
+	 * The AX88790 seem to have phy 0..f external, and 0x10 internal.
+	 * but they also seem to have a bogus one that shows up at phy
+	 * 0x11 through 0x1f.
+	 */
+	if (phy >= 0x11)
+		return;
+
+	sc = device_get_softc(dev);
+	(*sc->mii_writebits)(sc, 0xffffffff, 32);
+	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
+	(*sc->mii_writebits)(sc, ED_MII_WRITEOP, ED_MII_OP_BITS);
+	(*sc->mii_writebits)(sc, phy, ED_MII_PHY_BITS);
+	(*sc->mii_writebits)(sc, reg, ED_MII_REG_BITS);
+	(*sc->mii_writebits)(sc, ED_MII_TURNAROUND, ED_MII_TURNAROUND_BITS);
+	(*sc->mii_writebits)(sc, data, ED_MII_DATA_BITS);
+	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
+}
+#endif
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
