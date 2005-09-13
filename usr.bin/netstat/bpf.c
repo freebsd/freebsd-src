@@ -61,8 +61,10 @@ bpf_pidname(pid_t pid)
 	mib[3] = pid;
 	size = sizeof(newkp);
 	error = sysctl(mib, 4, &newkp, &size, NULL, 0);
-	if (error < 0)
+	if (error < 0) {
+		warn("kern.proc.pid failed");
 		return (strdup("??????"));
+	}
 	return (strdup(newkp.ki_comm));
 }
 
