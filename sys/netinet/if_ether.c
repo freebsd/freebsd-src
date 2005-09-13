@@ -445,6 +445,9 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	 */
 	if ((rt->rt_expire == 0 || rt->rt_expire > time_second) &&
 	    sdl->sdl_family == AF_LINK && sdl->sdl_alen != 0) {
+
+		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
+
 		/*
 		 * If entry has an expiry time and it is approaching,
 		 * see if we need to send an ARP request within this
@@ -452,14 +455,16 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		 */
 		if ((rt->rt_expire != 0) &&
 		    (time_second + la->la_preempt > rt->rt_expire)) {
-			arprequest(ifp,
-				   &SIN(rt->rt_ifa->ifa_addr)->sin_addr,
-				   &SIN(dst)->sin_addr,
-				   IF_LLADDR(ifp));
+			struct in_addr sin = 
+			    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
+
 			la->la_preempt--;
+			RT_UNLOCK(rt);
+			arprequest(ifp, &sin, &SIN(dst)->sin_addr,
+			    IF_LLADDR(ifp));
+			return (0);
 		} 
 
-		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
 		RT_UNLOCK(rt);
 		return (0);
 	}
@@ -487,10 +492,13 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		if (la->la_asked == 0 || rt->rt_expire != time_second) {
 			rt->rt_expire = time_second;
 			if (la->la_asked++ < arp_maxtries) {
-				arprequest(ifp,
-					   &SIN(rt->rt_ifa->ifa_addr)->sin_addr,
-					   &SIN(dst)->sin_addr,
-					   IF_LLADDR(ifp));
+				struct in_addr sin =
+				    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
+
+				RT_UNLOCK(rt);
+				arprequest(ifp, &sin, &SIN(dst)->sin_addr,
+				    IF_LLADDR(ifp));
+				return (EWOULDBLOCK);
 			} else {
 				rt->rt_flags |= RTF_REJECT;
 				rt->rt_expire += arpt_down;
