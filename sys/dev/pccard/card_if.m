@@ -175,6 +175,47 @@ METHOD int compat_match {
 #
 METHOD int cis_scan {
 	device_t bus;
+	device_t dev;
         pccard_scan_t fnp;
 	void *argp;
 };
+
+#
+# Convenience function to read attribute memory.
+#
+METHOD int attr_read {
+	device_t bus;
+	device_t dev;
+	uint32_t offset;
+	uint8_t *val;
+}
+
+#
+# Convenience function to write attribute memory.
+#
+METHOD int attr_write {
+	device_t bus;
+	device_t dev;
+	uint32_t offset;
+	uint8_t val;
+}
+
+#
+# Read the CCR register
+#
+METHOD int ccr_read {
+	device_t bus;
+	device_t dev;
+	uint32_t offset;
+	uint8_t *val;
+}
+
+#
+# Write the CCR register
+#
+METHOD int ccr_write {
+	device_t bus;
+	device_t dev;
+	uint32_t offset;
+	uint8_t val;
+}
