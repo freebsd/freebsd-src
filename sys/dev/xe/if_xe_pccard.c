@@ -137,10 +137,6 @@ static int
 xe_cemfix(device_t dev)
 {
 	struct xe_softc *sc = (struct xe_softc *) device_get_softc(dev);
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
-	struct resource *r;
-	int rid;
 	int ioport;
 
 	DEVPRINTF(2, (dev, "cemfix\n"));
@@ -149,39 +145,21 @@ xe_cemfix(device_t dev)
 		bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
 		bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid)));
 
-	rid = 0;
-	r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0,
-			       ~0, 4 << 10, RF_ACTIVE);
-	if (!r) {
-		device_printf(dev, "cemfix: Can't map in attribute memory\n");
-		return (-1);
-	}
-
-	bsh = rman_get_bushandle(r);
-	bst = rman_get_bustag(r);
-
-	CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY, rid,
-			   PCCARD_A_MEM_ATTR);
-
-	bus_space_write_1(bst, bsh, DINGO_ECOR, DINGO_ECOR_IRQ_LEVEL |
-						DINGO_ECOR_INT_ENABLE |
-						DINGO_ECOR_IOB_ENABLE |
-						DINGO_ECOR_ETH_ENABLE);
+	pccard_attr_write_1(dev, DINGO_ECOR, DINGO_ECOR_IRQ_LEVEL |
+	    DINGO_ECOR_INT_ENABLE | DINGO_ECOR_IOB_ENABLE |
+	    DINGO_ECOR_ETH_ENABLE);
 	ioport = bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid);
-	bus_space_write_1(bst, bsh, DINGO_EBAR0, ioport & 0xff);
-	bus_space_write_1(bst, bsh, DINGO_EBAR1, (ioport >> 8) & 0xff);
+	pccard_attr_write_1(dev, DINGO_EBAR0, ioport & 0xff);
+	pccard_attr_write_1(dev, DINGO_EBAR1, (ioport >> 8) & 0xff);
 
 	if (sc->dingo) {
-		bus_space_write_1(bst, bsh, DINGO_DCOR0, DINGO_DCOR0_SF_INT);
-		bus_space_write_1(bst, bsh, DINGO_DCOR1, DINGO_DCOR1_INT_LEVEL |
-						  DINGO_DCOR1_EEDIO);
-		bus_space_write_1(bst, bsh, DINGO_DCOR2, 0x00);
-		bus_space_write_1(bst, bsh, DINGO_DCOR3, 0x00);
-		bus_space_write_1(bst, bsh, DINGO_DCOR4, 0x00);
+		pccard_attr_write_1(dev, DINGO_DCOR0, DINGO_DCOR0_SF_INT);
+		pccard_attr_write_1(dev, DINGO_DCOR1, DINGO_DCOR1_INT_LEVEL |
+		    DINGO_DCOR1_EEDIO);
+		pccard_attr_write_1(dev, DINGO_DCOR2, 0x00);
+		pccard_attr_write_1(dev, DINGO_DCOR3, 0x00);
+		pccard_attr_write_1(dev, DINGO_DCOR4, 0x00);
 	}
-
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
-
 	/* success! */
 	return (0);
 }
@@ -269,7 +247,6 @@ xe_pccard_attach(device_t dev)
 	const char *cis3_str=NULL;
 	const struct xe_pccard_product *xpp;
 	int err;
-	device_t pdev;
 
 	DEVPRINTF(2, (dev, "pccard_attach\n"));
 
@@ -289,7 +266,6 @@ xe_pccard_attach(device_t dev)
 	DEVPRINTF(1, (dev, "cis3_str = %s\n", cis3_str));
 	DEVPRINTF(1, (dev, "cis4_str = %s\n", cis4_str));
 
-	pdev = device_get_parent(dev);
 	xpp = xe_pccard_get_product(dev);
 	if (xpp == NULL)
 		return (ENXIO);
@@ -312,8 +288,8 @@ xe_pccard_attach(device_t dev)
 	pccard_get_ether(dev, scp->enaddr);
 
 	/* Deal with bogus MAC address */
-	if (xe_bad_mac(scp->enaddr)
-	    && !CARD_CIS_SCAN(pdev, xe_pccard_mac, scp->enaddr)) {
+	if (xe_bad_mac(scp->enaddr) &&
+	    !pccard_cis_scan(dev, xe_pccard_mac, scp->enaddr)) {
 		device_printf(dev,
 		    "Unable to find MAC address for your %s card\n",
 		    device_get_desc(dev));
