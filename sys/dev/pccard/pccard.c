@@ -631,7 +631,7 @@ pccard_function_enable(struct pccard_function *pf)
 	if (tmp == NULL) {
 		pf->ccr_rid = 0;
 		pf->ccr_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-		    &pf->ccr_rid, 0, ~0, 1 << 10, RF_ACTIVE);
+		    &pf->ccr_rid, 0, ~0, PCCARD_MEM_PAGE_SIZE, RF_ACTIVE);
 		if (!pf->ccr_res)
 			goto bad;
 		DEVPRINTF((dev, "ccr_res == %lx-%lx, base=%x\n",
