@@ -2861,6 +2861,7 @@ check_body:
 				/* otherwise no match */
 				break;
 
+#ifdef INET6
 			case O_IP6_SRC:
 				match = is_ipv6 &&
 				    IN6_ARE_ADDR_EQUAL(&args->f_id.src_ip6,
@@ -2892,14 +2893,13 @@ check_body:
 				}
 				break;
 
-#ifdef INET6
 			case O_IP6_SRC_ME:
 				match= is_ipv6 && search_ip6_addr_net(&args->f_id.src_ip6);
-			break;
+				break;
 
 			case O_IP6_DST_ME:
 				match= is_ipv6 && search_ip6_addr_net(&args->f_id.dst_ip6);
-			break;
+				break;
 
 			case O_FLOW6ID:
 				match = is_ipv6 &&
@@ -3575,10 +3575,12 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_VERSRCREACH:
 		case O_ANTISPOOF:
 		case O_IPSEC:
+#ifdef INET6
 		case O_IP6_SRC_ME:
 		case O_IP6_DST_ME:
 		case O_EXT_HDR:
 		case O_IP6:
+#endif
 		case O_IP4:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
@@ -3708,7 +3710,9 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_ACCEPT:
 		case O_DENY:
 		case O_REJECT:
+#ifdef INET6
 		case O_UNREACH6:
+#endif
 		case O_SKIPTO:
 check_size:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
@@ -3728,6 +3732,7 @@ check_action:
 				return EINVAL;
 			}
 			break;
+#ifdef INET6
 		case O_IP6_SRC:
 		case O_IP6_DST:
 			if (cmdlen != F_INSN_SIZE(struct in6_addr) +
@@ -3750,11 +3755,30 @@ check_action:
 			if( cmdlen != F_INSN_SIZE( ipfw_insn_icmp6 ) )
 				goto bad_size;
 			break;
+#endif
 
 		default:
-			printf("ipfw: opcode %d, unknown opcode\n",
-				cmd->opcode);
-			return EINVAL;
+			switch (cmd->opcode) {
+#ifndef INET6
+			case O_IP6_SRC_ME:
+			case O_IP6_DST_ME:
+			case O_EXT_HDR:
+			case O_IP6:
+			case O_UNREACH6:
+			case O_IP6_SRC:
+			case O_IP6_DST:
+			case O_FLOW6ID:
+			case O_IP6_SRC_MASK:
+			case O_IP6_DST_MASK:
+			case O_ICMP6TYPE:
+				printf("ipfw: no IPv6 support in kernel\n");
+				return EPROTONOSUPPORT;
+#endif
+			default:
+				printf("ipfw: opcode %d, unknown opcode\n",
+					cmd->opcode);
+				return EINVAL;
+			}
 		}
 	}
 	if (have_action == 0) {
