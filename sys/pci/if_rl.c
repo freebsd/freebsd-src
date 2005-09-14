@@ -1017,15 +1017,15 @@ rl_detach(device_t dev)
 	attached = device_is_attached(dev);
 	/* These should only be active if attach succeeded */
 	if (attached) {
+		RL_LOCK(sc);
+		rl_stop(sc);
+		RL_UNLOCK(sc);
 		ether_ifdetach(ifp);
 		if_free(ifp);
 	}
-	RL_LOCK(sc);
 #if 0
 	sc->suspended = 1;
 #endif
-	if (attached)
-		rl_stop(sc);
 	if (sc->rl_miibus)
 		device_delete_child(dev, sc->rl_miibus);
 	bus_generic_detach(dev);
@@ -1046,7 +1046,6 @@ rl_detach(device_t dev)
 	if (sc->rl_parent_tag)
 		bus_dma_tag_destroy(sc->rl_parent_tag);
 
-	RL_UNLOCK(sc);
 	mtx_destroy(&sc->rl_mtx);
 
 	return (0);
