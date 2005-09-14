@@ -1633,9 +1633,9 @@ getmemsize(int first)
 #ifdef WB_CACHE
 		default:
 #endif
-		case 0x34:		/* PC-486HX */
-		case 0x35:		/* PC-486HG */
-		case 0x3B:		/* PC-486HA */
+		case EPSON_PC486_HX:
+		case EPSON_PC486_HG:
+		case EPSON_PC486_HA:
 			pg_n = 0;
 			break;
 		}

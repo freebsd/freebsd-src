@@ -72,6 +72,23 @@ extern unsigned char	pc98_system_parameter[]; /* in locore.c */
 
 # define PC98_TYPE_CHECK(x)	((pc98_machine_type & (x)) == (x))
 
+/*
+ * EPSON machine list
+ */
+#define EPSON_PC386_NOTE_A	0x20
+#define EPSON_PC386_NOTE_W	0x22
+#define EPSON_PC386_NOTE_AE	0x27
+#define EPSON_PC386_NOTE_WR	0x2a
+#define EPSON_PC486_GR		0x2b
+#define EPSON_PC486_P		0x30
+#define EPSON_PC486_GR_SUPER	0x31
+#define EPSON_PC486_GR_PLUS	0x32
+#define EPSON_PC486_HX		0x34
+#define EPSON_PC486_HG		0x35
+#define EPSON_PC486_SE		0x37
+#define EPSON_PC486_SR		0x38
+#define EPSON_PC486_HA		0x3b
+
 #endif /* _KERNEL */
 
 #endif /* __PC98_PC98_PC98_MACHDEP_H__ */
