@@ -277,7 +277,7 @@ globexp2(ptr, pattern, pglob, rv, limit)
 {
 	int     i;
 	Char   *lm, *ls;
-	const Char *pe, *pm, *pl;
+	const Char *pe, *pm, *pm1, *pl;
 	Char    patbuf[MAXPATHLEN];
 
 	/* copy part up to the brace */
@@ -318,14 +318,14 @@ globexp2(ptr, pattern, pglob, rv, limit)
 		switch (*pm) {
 		case LBRACKET:
 			/* Ignore everything between [] */
-			for (pl = pm++; *pm != RBRACKET && *pm != EOS; pm++)
+			for (pm1 = pm++; *pm != RBRACKET && *pm != EOS; pm++)
 				continue;
 			if (*pm == EOS) {
 				/*
 				 * We could not find a matching RBRACKET.
 				 * Ignore and just look for RBRACE
 				 */
-				pm = pl;
+				pm = pm1;
 			}
 			break;
 
