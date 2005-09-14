@@ -292,13 +292,13 @@ struct rt_addrinfo {
 	KASSERT((_rt)->rt_refcnt >= 0,				\
 		("negative refcnt %ld", (_rt)->rt_refcnt));	\
 	(_rt)->rt_refcnt++;					\
-} while (0);
+} while (0)
 #define	RT_REMREF(_rt)	do {					\
 	RT_LOCK_ASSERT(_rt);					\
 	KASSERT((_rt)->rt_refcnt > 0,				\
 		("bogus refcnt %ld", (_rt)->rt_refcnt));	\
 	(_rt)->rt_refcnt--;					\
-} while (0);
+} while (0)
 
 #define	RTFREE_LOCKED(_rt) do {					\
 		if ((_rt)->rt_refcnt <= 1)			\
