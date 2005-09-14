@@ -562,9 +562,6 @@ em_detach(device_t dev)
 
 	EM_LOCK_DESTROY(adapter);
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	ifp->if_timer = 0;
-
 	return(0);
 }
 
