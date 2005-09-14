@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 
-#include <pc98/pc98/epsonio.h>
-#include <pc98/pc98/pc98_machdep.h>
-
 #define NMI_PARITY 0x04
 #define NMI_EPARITY 0x02
 
@@ -58,8 +55,6 @@ isa_nmi(int cd)
  	int port = inb(0x33);
 
 	log(LOG_CRIT, "NMI PC98 port = %x\n", port);
-	if (epson_machine_id == 0x20)
-		epson_outb(0xc16, epson_inb(0xc16) | 0x1);
 	if (port & NMI_PARITY) {
 		log(LOG_CRIT, "BASE RAM parity error, likely hardware failure.");
 		retval = 1;
