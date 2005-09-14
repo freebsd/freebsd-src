@@ -313,13 +313,12 @@ static void
 ata_sata_phy_event(void *context, int dummy)
 {
     struct ata_connect_task *tp = (struct ata_connect_task *)context;
+    struct ata_channel *ch = device_get_softc(tp->dev);
     device_t *children;
     int nchildren, i;
 
     mtx_lock(&Giant);   /* newbus suckage it needs Giant */
     if (tp->action == ATA_C_ATTACH) {
-	struct ata_channel *ch = device_get_softc(tp->dev);
-
 	device_printf(tp->dev, "CONNECTED\n");
 	ata_sata_connect(ch);
 	ata_identify(tp->dev);
@@ -331,6 +330,9 @@ ata_sata_phy_event(void *context, int dummy)
 		    device_delete_child(tp->dev, children[i]);
 	    free(children, M_TEMP);
 	}    
+	mtx_lock(&ch->state_mtx);
+	ch->state = ATA_IDLE;
+	mtx_unlock(&ch->state_mtx);
 	device_printf(tp->dev, "DISCONNECTED\n");
     }
     mtx_unlock(&Giant); /* suckage code dealt with, release Giant */
