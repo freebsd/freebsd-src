@@ -360,7 +360,7 @@ digi_init(struct digi_softc *sc)
 	DLOG(DIGIDB_INIT, (sc->dev, "BIOS started after %d us\n", i));
 
 	for (i = 0; vW(ptr) != *(u_short *)"GD"; i++) {
-		if (i > 2*hz) {
+		if (i > 5*hz) {
 			log(LOG_ERR, "digi%d: BIOS boot failed "
 			    "(0x%02x != 0x%02x)\n",
 			    sc->res.unit, vW(ptr), *(u_short *)"GD");
