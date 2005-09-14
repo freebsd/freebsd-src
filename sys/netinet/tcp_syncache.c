@@ -983,7 +983,7 @@ syncache_add(inc, to, th, sop, m)
 	 * attempt to use it in syncache_respond().
 	 */
 	if (to->to_flags & TOF_SIGNATURE)
-		sc->sc_flags = SCF_SIGNATURE;
+		sc->sc_flags |= SCF_SIGNATURE;
 #endif
 
 	if (to->to_flags & TOF_SACK)
