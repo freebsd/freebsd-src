@@ -78,11 +78,11 @@ __FBSDID("$FreeBSD$");
 #define	max(A,B)		((A) > (B) ? (A) : (B))
 
 /*
- * A simple implementation to intern strings.  Each interned string is
- * assigned a unique address, so that subsequent string compares can
- * be done by a simple pointer comparision.
+ * A simple implementation of interned strings.  Each interned string
+ * is assigned a unique address, so that subsequent string compares
+ * can be done by a simple pointer comparision instead of with
+ * strcmp().
  */
-
 struct pmcstat_string {
 	LIST_ENTRY(pmcstat_string)	ps_next;	/* hash link */
 	int		ps_len;
@@ -143,12 +143,14 @@ struct pmcstat_image {
 	LIST_ENTRY(pmcstat_image) pi_next;	/* hash link */
 	TAILQ_ENTRY(pmcstat_image) pi_lru;	/* LRU list */
 	const char	*pi_internedpath;	/* cookie */
-	const char	*pi_samplename;		/* sample file name */
+	const char	*pi_samplename;		/* sample path name */
 
 	enum pmcstat_image_type pi_type;	/* executable type */
 	uintfptr_t	pi_start;		/* start address (inclusive) */
 	uintfptr_t	pi_end;			/* end address (exclusive) */
+	uintfptr_t	pi_entry;		/* entry address */
 	int		pi_isdynamic;		/* whether a dynamic object */
+	const char	*pi_dynlinkerpath;	/* path in .interp section */
 
 	LIST_HEAD(,pmcstat_gmonfile) pi_gmlist;
 };
@@ -172,6 +174,7 @@ struct pmcstat_process {
 	LIST_ENTRY(pmcstat_process) pp_next;	/* hash-next */
 	pid_t			pp_pid;		/* associated pid */
 	int			pp_isactive;	/* whether active */
+	uintfptr_t		pp_entryaddr;	/* entry address */
 	TAILQ_HEAD(,pmcstat_pcmap) pp_map;	/* address range map */
 };
 
@@ -192,8 +195,7 @@ static void	pmcstat_gmon_unmap_file(struct pmcstat_gmonfile *_pgf);
 
 static struct pmcstat_image *pmcstat_image_from_path(const char *_path);
 static enum pmcstat_image_type pmcstat_image_get_type(const char *_p);
-static void	pmcstat_image_get_elf_params(struct pmcstat_image *_image,
-    uintfptr_t *_minp, uintfptr_t *_maxp, int *_isdyn);
+static void pmcstat_image_get_elf_params(struct pmcstat_image *_image);
 static void	pmcstat_image_increment_bucket(struct pmcstat_pcmap *_pcm,
     uintfptr_t _pc, pmc_id_t _pmcid, struct pmcstat_args *_a);
 static void	pmcstat_image_link(struct pmcstat_process *_pp,
@@ -204,12 +206,12 @@ static void	pmcstat_pmcid_add(pmc_id_t _pmcid, const char *_name,
 static const char *pmcstat_pmcid_to_name(pmc_id_t _pmcid);
 
 static void	pmcstat_process_add_elf_image(struct pmcstat_process *_pp,
-    const char *_path);
+    const char *_path, uintfptr_t _entryaddr);
+static void	pmcstat_process_exec(struct pmcstat_process *_pp,
+    const char *_path, uintfptr_t _entryaddr);
 static struct pmcstat_process *pmcstat_process_lookup(pid_t _pid, int _allocate);
 static struct pmcstat_pcmap *pmcstat_process_find_map(
     struct pmcstat_process *_p, uintfptr_t _pc);
-static void	pmcstat_process_new_image(struct pmcstat_process *_pp,
-    const char *_path);
 
 static int	pmcstat_string_compute_hash(const char *_string);
 static const char *pmcstat_string_intern(const char *_s);
@@ -317,8 +319,7 @@ pmcstat_gmon_unmap_file(struct pmcstat_gmonfile *pgf)
 }
 
 static void
-pmcstat_image_get_elf_params(struct pmcstat_image *image, uintfptr_t *minp,
-    uintfptr_t *maxp, int *is_dynamic)
+pmcstat_image_get_elf_params(struct pmcstat_image *image)
 {
 	int fd, i;
 	struct stat st;
@@ -328,6 +329,8 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image, uintfptr_t *minp,
 	const Elf_Phdr *ph;
 	const Elf_Shdr *sh;
 	const char *path;
+
+	assert(image->pi_type == PMCSTAT_IMAGE_UNKNOWN);
 
 	minva = ~(uintfptr_t) 0;
 	maxva = (uintfptr_t) 0;
@@ -353,8 +356,8 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image, uintfptr_t *minp,
 
 	if (h->e_type == ET_EXEC || h->e_type == ET_DYN) {
 		/*
-		 * Some kind of shared object: find the min,max va for
-		 * its executable sections.
+		 * Some kind of executable object: find the min,max va
+		 * for its executable sections.
 		 */
 		for (i = 0; i < h->e_shnum; i++)
 			if (sh[i].sh_flags & SHF_EXECINSTR) { /* code */
@@ -366,13 +369,25 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image, uintfptr_t *minp,
 		err(EX_DATAERR, "ERROR: Unknown file type for \"%s\"",
 		    image->pi_internedpath);
 
-	*is_dynamic = 0;
+	image->pi_type = PMCSTAT_IMAGE_ELF;
+	image->pi_start = minva;
+	image->pi_entry = h->e_entry;
+	image->pi_end = maxva;
+	image->pi_isdynamic = 0;
+	image->pi_dynlinkerpath = NULL;
+
+
 	if (h->e_type == ET_EXEC) {
 		ph = (const Elf_Phdr *)((uintptr_t) mapbase + h->e_phoff);
 		for (i = 0; i < h->e_phnum; i++) {
 			switch (ph[i].p_type) {
 			case PT_DYNAMIC:
-				*is_dynamic = 1;
+				image->pi_isdynamic = 1;
+				break;
+			case PT_INTERP:
+				image->pi_dynlinkerpath =
+				    pmcstat_string_intern((char *) mapbase +
+							      ph[i].p_offset);
 				break;
 			}
 		}
@@ -381,13 +396,12 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image, uintfptr_t *minp,
 	if (munmap(mapbase, st.st_size) < 0)
 		err(EX_OSERR, "ERROR: Cannot unmap \"%s\"", path);
 
-	*minp = minva;
-	*maxp = maxva;
-
 }
 
 /*
- * Locate an image descriptor given an interned path.
+ * Locate an image descriptor given an interned path, adding a fresh
+ * descriptor to the cache if necessary.  This function also finds a
+ * suitable name for this image's sample file.
  */
 
 static struct pmcstat_image *
@@ -400,7 +414,7 @@ pmcstat_image_from_path(const char *internedpath)
 
 	hash = pmcstat_string_compute_hash(internedpath);
 
-	/* look for an existing entry */
+	/* Look for an existing entry. */
 	LIST_FOREACH(pi, &pmcstat_image_hash[hash], pi_next)
 	    if (pi->pi_internedpath == internedpath) {
 		    /* move descriptor to the head of the lru list */
@@ -410,8 +424,8 @@ pmcstat_image_from_path(const char *internedpath)
 	    }
 
 	/*
-	 * allocate a new entry and place at the head of the hash and
-	 * LRU lists
+	 * Allocate a new entry and place at the head of the hash and
+	 * LRU lists.
 	 */
 	pi = malloc(sizeof(*pi));
 	if (pi == NULL)
@@ -420,17 +434,23 @@ pmcstat_image_from_path(const char *internedpath)
 	pi->pi_type = PMCSTAT_IMAGE_UNKNOWN;
 	pi->pi_internedpath = internedpath;
 	pi->pi_start = ~0;
+	pi->pi_entry = ~0;
 	pi->pi_end = 0;
 
-	/* look for a suitable name for the sample files */
+	/*
+	 * Look for a suitable name for the sample files associated
+	 * with this image: if `basename(path)`+".gmon" is available,
+	 * we use that, otherwise we try iterating through
+	 * `basename(path)`+ "~" + NNN + ".gmon" till we get a free
+	 * entry.
+	 */
 	if ((sn = basename(internedpath)) == NULL)
 		err(EX_OSERR, "ERROR: Cannot process \"%s\"", internedpath);
 
 	nlen = strlen(sn);
 	nlen = min(nlen, (int) sizeof(name) - 6);	/* ".gmon\0" */
 
-	snprintf(name, sizeof(name), "%.*s.gmon",
-	    nlen, sn);
+	snprintf(name, sizeof(name), "%.*s.gmon", nlen, sn);
 
 	if (pmcstat_string_lookup(name) == NULL)
 		pi->pi_samplename = pmcstat_string_intern(name);
@@ -532,6 +552,7 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 		pgf->pgf_name = pmcstat_gmon_create_name(a->pa_samplesdir,
 		    image, pmcid);
 		pgf->pgf_pmcid = pmcid;
+		assert(image->pi_end > image->pi_start);
 		pgf->pgf_nbuckets = (image->pi_end - image->pi_start) /
 		    FUNCTION_ALIGNMENT;	/* see <machine/profile.h> */
 		pgf->pgf_ndatabytes = sizeof(struct gmonhdr) +
@@ -659,41 +680,65 @@ pmcstat_pmcid_to_name(pmc_id_t pmcid)
  */
 
 static void
-pmcstat_process_add_elf_image(struct pmcstat_process *pp, const char *path)
+pmcstat_process_add_elf_image(struct pmcstat_process *pp, const char *path,
+    uintfptr_t entryaddr)
 {
-	int isdynamic;
 	size_t linelen;
 	FILE *rf;
 	char *line;
-	uintfptr_t minva, maxva;
 	uintmax_t libstart;
-	struct pmcstat_image *image;
+	struct pmcstat_image *image, *rtldimage;
 	char libpath[PATH_MAX];
 	char command[PATH_MAX + sizeof(PMCSTAT_LDD_COMMAND) + 1];
 
-	minva = ~ (uintfptr_t) 0;
-	maxva = (uintfptr_t) 0;
-	isdynamic = 0;
-
+	/* Look up path in the cache. */
 	if ((image = pmcstat_image_from_path(path)) == NULL)
 		return;
 
-	if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN) {
+	if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
+		pmcstat_image_get_elf_params(image);
 
-		pmcstat_image_get_elf_params(image, &minva, &maxva,
-		    &isdynamic);
+	/* Create a map entry for the base executable. */
+	pmcstat_image_link(pp, image, image->pi_start, image->pi_end);
 
-		image->pi_type = PMCSTAT_IMAGE_ELF;
-		image->pi_start = minva;
-		image->pi_end = maxva;
-		image->pi_isdynamic = isdynamic;
-	}
-
-	/* create a map entry for the base executable */
-	pmcstat_image_link(pp, image, minva, maxva);
-
+	/*
+	 * For dynamically linked executables we need to:
+	 * (a) find where the dynamic linker was mapped to for this
+	 *     process,
+	 * (b) find all the executable objects that the dynamic linker
+	 *     brought in.
+	 */
 	if (image->pi_isdynamic) {
 
+		/*
+		 * The runtime loader gets loaded just after the maximum
+		 * possible heap address.  Like so:
+		 *
+		 * [  TEXT DATA BSS HEAP -->*RTLD  SHLIBS   <--STACK]
+		 * ^					            ^
+		 * 0				   VM_MAXUSER_ADDRESS
+		 *
+		 * The exact address where the loader gets mapped in
+		 * will vary according to the size of the executable
+		 * and the limits on the size of the process'es data
+		 * segment at the time of exec().  The entry address
+		 * recorded at process exec time corresponds to the
+		 * 'start' address inside the dynamic linker.  From
+		 * this we can figure out the address where the
+		 * runtime loader's file object had been mapped to.
+		 */
+		rtldimage = pmcstat_image_from_path(image->pi_dynlinkerpath);
+		if (rtldimage == NULL)
+			err(EX_OSERR, "ERROR: Cannot find image for "
+			    "\"%s\"", image->pi_dynlinkerpath);
+		if (rtldimage->pi_type == PMCSTAT_IMAGE_UNKNOWN)
+			pmcstat_image_get_elf_params(rtldimage);
+
+		libstart = entryaddr - rtldimage->pi_entry;
+		pmcstat_image_link(pp, rtldimage, libstart,
+		    libstart + rtldimage->pi_end - rtldimage->pi_start);
+
+		/* Process all other objects loaded by this executable. */
 		(void) snprintf(command, sizeof(command), "%s %s",
 		    PMCSTAT_LDD_COMMAND, path);
 
@@ -718,16 +763,8 @@ pmcstat_process_add_elf_image(struct pmcstat_process *pp, const char *path)
 				err(EX_OSERR, "ERROR: Cannot process "
 				    "\"%s\"", libpath);
 
-			if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN) {
-
-				pmcstat_image_get_elf_params(image,
-				    &minva, &maxva, &isdynamic);
-
-				image->pi_type = PMCSTAT_IMAGE_ELF;
-				image->pi_start = minva;
-				image->pi_end = maxva;
-				image->pi_isdynamic = isdynamic;
-			}
+			if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
+				pmcstat_image_get_elf_params(image);
 
 			pmcstat_image_link(pp, image, libstart + image->pi_start,
 			    libstart + image->pi_end);
@@ -790,27 +827,12 @@ pmcstat_process_lookup(pid_t pid, int allocate)
 }
 
 /*
- * Find the map entry associated with process 'p' at PC value 'pc'.
- */
-
-static struct pmcstat_pcmap *
-pmcstat_process_find_map(struct pmcstat_process *p, uintfptr_t pc)
-{
-	struct pmcstat_pcmap *ppm;
-
-	TAILQ_FOREACH(ppm, &p->pp_map, ppm_next)
-	    if (pc >= ppm->ppm_lowpc && pc < ppm->ppm_highpc)
-		    return ppm;
-
-	return NULL;
-}
-
-/*
  * Associate an image and a process.
  */
 
 static void
-pmcstat_process_new_image(struct pmcstat_process *pp, const char *path)
+pmcstat_process_exec(struct pmcstat_process *pp, const char *path,
+    uintfptr_t entryaddr)
 {
 	enum pmcstat_image_type filetype;
 	struct pmcstat_image *image;
@@ -825,18 +847,34 @@ pmcstat_process_new_image(struct pmcstat_process *pp, const char *path)
 
 	switch (filetype) {
 	case PMCSTAT_IMAGE_ELF:
-		pmcstat_process_add_elf_image(pp, path);
+		pmcstat_process_add_elf_image(pp, path, entryaddr);
 		break;
 
 	case PMCSTAT_IMAGE_AOUT:
 		break;
 
 	default:
-		err(EX_SOFTWARE, "ERROR: Unsupported executable type \"%s\"",
-		    path);
+		err(EX_SOFTWARE, "ERROR: Unsupported executable type for "
+		    "\"%s\"", path);
 	}
 }
 
+
+/*
+ * Find the map entry associated with process 'p' at PC value 'pc'.
+ */
+
+static struct pmcstat_pcmap *
+pmcstat_process_find_map(struct pmcstat_process *p, uintfptr_t pc)
+{
+	struct pmcstat_pcmap *ppm;
+
+	TAILQ_FOREACH(ppm, &p->pp_map, ppm_next)
+	    if (pc >= ppm->ppm_lowpc && pc < ppm->ppm_highpc)
+		    return ppm;
+
+	return NULL;
+}
 
 
 /*
@@ -983,7 +1021,8 @@ pmcstat_convert_log(struct pmcstat_args *a)
 				ev.pl_u.pl_x.pl_pathname);
 
 			/* link to the new image */
-			pmcstat_process_new_image(pp, image_path);
+			pmcstat_process_exec(pp, image_path,
+			    ev.pl_u.pl_x.pl_entryaddr);
 			break;
 
 		case PMCLOG_TYPE_PROCEXIT:
@@ -1198,10 +1237,9 @@ pmcstat_process_log(struct pmcstat_args *a)
 void
 pmcstat_initialize_logging(struct pmcstat_args *a)
 {
-	int i, isdynamic;
+	int i;
 	const char *kernpath;
 	struct pmcstat_image *img;
-	uintfptr_t minva, maxva;
 
 	/* use a convenient format for 'ldd' output */
 	if (setenv("LD_TRACE_LOADED_OBJECTS_FMT1","%p %x\n",1) != 0)
@@ -1223,12 +1261,8 @@ pmcstat_initialize_logging(struct pmcstat_args *a)
 
 	img = pmcstat_image_from_path(kernpath);
 
-	pmcstat_image_get_elf_params(img, &minva, &maxva, &isdynamic);
-	img->pi_type = PMCSTAT_IMAGE_ELF;
-	img->pi_start = minva;
-	img->pi_end = maxva;
-
-	pmcstat_image_link(pmcstat_kernproc, img, minva, maxva);
+	pmcstat_image_get_elf_params(img);
+	pmcstat_image_link(pmcstat_kernproc, img, img->pi_start, img->pi_end);
 
 	return;
 
