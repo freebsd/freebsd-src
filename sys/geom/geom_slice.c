@@ -339,6 +339,7 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 			return (0);
 		if (bootverbose)
 			printf("GEOM: Deconfigure %s\n", pp->name);
+		pp->flags |= G_PF_WITHER;
 		g_orphan_provider(pp, ENXIO);
 		gsl->provider = NULL;
 		gsp->nprovider--;
