@@ -91,7 +91,7 @@ getcwd(pt, size)
 		}
 		ept = pt + size;
 	} else {
-		if ((pt = malloc(ptsize = 1024 - 4)) == NULL)
+		if ((pt = malloc(ptsize = MAXPATHLEN)) == NULL)
 			return (NULL);
 		ept = pt + ptsize;
 	}
@@ -111,13 +111,13 @@ getcwd(pt, size)
 	*bpt = '\0';
 
 	/*
-	 * Allocate bytes (1024 - malloc space) for the string of "../"'s.
+	 * Allocate MAXPATHLEN bytes for the string of "../"'s.
 	 * Should always be enough (it's 340 levels).  If it's not, allocate
 	 * as necessary.  Special case the first stat, it's ".", not "..".
 	 */
-	if ((up = malloc(upsize = 1024 - 4)) == NULL)
+	if ((up = malloc(upsize = MAXPATHLEN)) == NULL)
 		goto err;
-	eup = up + MAXPATHLEN;
+	eup = up + upsize;
 	bup = up;
 	up[0] = '.';
 	up[1] = '\0';
