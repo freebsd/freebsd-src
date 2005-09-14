@@ -117,7 +117,8 @@ ata_begin_transaction(struct ata_request *request)
 	    /* if write command output the data */
 	    if (write) {
 		if (ata_wait(ch, atadev, (ATA_S_READY | ATA_S_DRQ)) < 0) {
-		    device_printf(request->dev,"timeout waiting for write DRQ");
+		    device_printf(request->dev,
+				  "timeout waiting for write DRQ\n");
 		    request->result = EIO;
 		    goto begin_finished;
 		}
@@ -278,7 +279,8 @@ ata_end_transaction(struct ata_request *request)
 	    /* if read data get it */
 	    if (request->flags & ATA_R_READ) {
 		if (ata_wait(ch, atadev, (ATA_S_READY | ATA_S_DRQ)) < 0) {
-		    device_printf(request->dev, "timeout waiting for read DRQ");
+		    device_printf(request->dev,
+				  "timeout waiting for read DRQ\n");
 		    request->result = EIO;
 		    goto end_finished;
 		}
@@ -302,7 +304,7 @@ ata_end_transaction(struct ata_request *request)
 		    /* if we get an error here we are done with the HW */
 		    if (ata_wait(ch, atadev, (ATA_S_READY | ATA_S_DRQ)) < 0) {
 			device_printf(request->dev,
-				      "timeout waiting for write DRQ");
+				      "timeout waiting for write DRQ\n");
 			request->status = ATA_IDX_INB(ch, ATA_STATUS);
 			goto end_finished;
 		    }
