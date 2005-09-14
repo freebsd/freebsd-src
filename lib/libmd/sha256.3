@@ -27,13 +27,13 @@
 .In sys/types.h
 .In sha256.h
 .Ft void
-.Fn SHA256_Init "SHA_CTX *context"
+.Fn SHA256_Init "SHA256_CTX *context"
 .Ft void
-.Fn SHA256_Update "SHA_CTX *context" "const unsigned char *data" "size_t len"
+.Fn SHA256_Update "SHA256_CTX *context" "const unsigned char *data" "size_t len"
 .Ft void
-.Fn SHA256_Final "unsigned char digest[32]" "SHA_CTX *context"
+.Fn SHA256_Final "unsigned char digest[32]" "SHA256_CTX *context"
 .Ft "char *"
-.Fn SHA256_End "SHA_CTX *context" "char *buf"
+.Fn SHA256_End "SHA256_CTX *context" "char *buf"
 .Ft "char *"
 .Fn SHA256_File "const char *filename" "char *buf"
 .Ft "char *"
