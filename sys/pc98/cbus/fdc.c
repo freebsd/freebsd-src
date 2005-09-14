@@ -644,14 +644,6 @@ static void pc98_fd_check_type(struct fd_data *fd)
 	}
 
 	fd->type = FDT_12M;
-
-	switch (epson_machine_id) {
-	case 0x20:
-	case 0x27:
-		if ((PC98_SYSTEM_PARAMETER(0x488) >> fd->fdu) & 0x01)
-			fd->type = FDT_NONE;
-		break;
-	}
 }
 #endif /* PC98 */
 
