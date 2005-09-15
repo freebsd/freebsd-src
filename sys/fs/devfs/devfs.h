@@ -177,6 +177,8 @@ struct devfs_mount {
 	devfs_rsnum		dm_ruleset;
 };
 
+extern unsigned devfs_rule_depth;
+
 /*
  * This is what we fill in dm_dirent[N] for a deleted entry.
  */
