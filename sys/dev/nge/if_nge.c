@@ -877,6 +877,7 @@ nge_attach(dev)
 	/*
 	 * Do MII setup.
 	 */
+	/* XXX: leaked on error */
 	if (mii_phy_probe(dev, &sc->nge_miibus,
 			  nge_ifmedia_upd, nge_ifmedia_sts)) {
 		if (CSR_READ_4(sc, NGE_CFG) & NGE_CFG_TBI_EN) {
@@ -912,6 +913,7 @@ nge_attach(dev)
 	    
 		} else {
 			printf("nge%d: MII without any PHY!\n", sc->nge_unit);
+			if_free(ifp);
 			bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
 			bus_release_resource(dev, NGE_RES, NGE_RID, 
 					 sc->nge_res);
@@ -933,6 +935,7 @@ nge_attach(dev)
 	    nge_intr, sc, &sc->nge_intrhand);
 	if (error) {
 		/* XXX: resource leaks */
+		if_free(ifp);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
 		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
 		printf("nge%d: couldn't set up irq\n", unit);
