@@ -1234,7 +1234,6 @@ re_attach(dev)
 		printf("re%d: attach aborted due to hardware diag failure\n",
 		    unit);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -1244,7 +1243,6 @@ re_attach(dev)
 	if (error) {
 		printf("re%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
 
 fail:
@@ -1268,27 +1266,19 @@ re_detach(dev)
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
 	int			i;
-	int			attached;
 
 	sc = device_get_softc(dev);
 	ifp = sc->rl_ifp;
 	KASSERT(mtx_initialized(&sc->rl_mtx), ("re mutex not initialized"));
 
-	attached = device_is_attached(dev);
 	/* These should only be active if attach succeeded */
-	if (attached)
-		ether_ifdetach(ifp);
-	if (ifp == NULL)
-		if_free(ifp);
-
-	RL_LOCK(sc);
+	if (device_is_attached(dev)) {
+		RL_LOCK(sc);
 #if 0
-	sc->suspended = 1;
+		sc->suspended = 1;
 #endif
-
-	/* These should only be active if attach succeeded */
-	if (attached) {
 		re_stop(sc);
+		RL_UNLOCK(sc);
 		/*
 		 * Force off the IFF_UP flag here, in case someone
 		 * still had a BPF descriptor attached to this
@@ -1302,6 +1292,7 @@ re_detach(dev)
 		 * anymore.
 		 */
 		ifp->if_flags &= ~IFF_UP;
+		ether_ifdetach(ifp);
 	}
 	if (sc->rl_miibus)
 		device_delete_child(dev, sc->rl_miibus);
@@ -1311,8 +1302,9 @@ re_detach(dev)
 	 * The rest is resource deallocation, so we should already be
 	 * stopped here.
 	 */
-	RL_UNLOCK(sc);
 
+	if (ifp != NULL)
+		if_free(ifp);
 	if (sc->rl_intrhand)
 		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
 	if (sc->rl_irq)
