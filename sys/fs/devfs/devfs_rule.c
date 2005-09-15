@@ -72,6 +72,7 @@
 #include <sys/dirent.h>
 #include <sys/vnode.h>
 #include <sys/ioccom.h>
+#include <sys/sx.h>
 
 #include <fs/devfs/devfs.h>
 
@@ -123,6 +124,7 @@ static void devfs_ruleset_destroy(struct devfs_ruleset **dsp);
 static void devfs_ruleset_reap(struct devfs_ruleset **dsp);
 static int  devfs_ruleset_use(devfs_rsnum rsnum, struct devfs_mount *dm);
 
+static struct sx sx_rules;
 static SLIST_HEAD(, devfs_ruleset) devfs_rulesets;
 
 /*
@@ -135,9 +137,11 @@ devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de)
 {
 	struct devfs_ruleset *ds;
 
+	sx_slock(&sx_rules);
 	ds = devfs_ruleset_bynum(dm->dm_ruleset);
 	KASSERT(ds != NULL, ("mount-point has NULL ruleset"));
 	devfs_ruleset_applyde(ds, de, devfs_rule_depth);
+	sx_sunlock(&sx_rules);
 }
 
 /*
@@ -148,6 +152,7 @@ devfs_rules_init(void *junk __unused)
 {
 	struct devfs_ruleset *ds;
 
+	sx_init(&sx_rules, "devfsrules");
 	SLIST_INIT(&devfs_rulesets);
 
 	ds = devfs_ruleset_create(0);
@@ -179,6 +184,7 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 	if (error != 0)
 		return (error);
 
+	sx_xlock(&sx_rules);
 	switch (cmd) {
 	case DEVFSIO_RADD:
 		dr = (struct devfs_rule *)data;
@@ -310,6 +316,7 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 	}
 
 out:
+	sx_xunlock(&sx_rules);
 	return (error);
 }
 
@@ -327,10 +334,12 @@ devfs_rules_newmount(struct devfs_mount *dm, struct thread *td)
 	 * old ruleset.  Making some value of ds_ruleset "special" to
 	 * mean "don't decrement refcount" is uglier than this.
 	 */
+	sx_slock(&sx_rules);
 	ds = devfs_ruleset_bynum(0);
 	KASSERT(ds != NULL, ("no ruleset 0"));
 	++ds->ds_refcount;
 	dm->dm_ruleset = 0;
+	sx_sunlock(&sx_rules);
 }
 
 /*
@@ -799,4 +808,3 @@ devfs_ruleset_use(devfs_rsnum rsnum, struct devfs_mount *dm)
 	devfs_ruleset_reap(&cds);
 	return (0);
 }
-
