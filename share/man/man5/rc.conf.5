@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2005
+.Dd September 15, 2005
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3170,6 +3170,21 @@ If set, start a watchdog timer in the background which will terminate
 if
 .Xr shutdown 8
 has not completed within the specified time (in seconds).
+Notice that in addition to this soft timeout,
+.Xr init 8
+also applies a hard timeout for the execution of
+.Pa rc.shutdown .
+This is configured via
+.Xr sysctl 8
+variable
+.Va kern.init_shutdown_timeout
+and defaults to 120 seconds. Setting the value of
+.Va rcshutdown_timeout
+to more than 120 seconds will have no effect until the
+.Xr sysctl 8
+variable
+.Va kern.init_shutdown_timeout
+is also increased.
 .It Va virecover_enable
 .Pq Vt bool
 Set to
