@@ -227,7 +227,7 @@ g_eli_write_done(struct bio *bp)
 	if (pbp->bio_error == 0)
 		pbp->bio_completed = pbp->bio_length;
 	else {
-		G_ELI_LOGREQ(0, pbp, "Crypto READ request failed (error=%d).",
+		G_ELI_LOGREQ(0, pbp, "Crypto WRITE request failed (error=%d).",
 		    pbp->bio_error);
 		pbp->bio_completed = 0;
 	}
@@ -535,6 +535,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		    sizeof(crd->crd_iv));
 		crd->crd_next = NULL;
 
+		crp->crp_etype = 0;
 		err = crypto_dispatch(crp);
 		if (error == 0)
 			error = err;
