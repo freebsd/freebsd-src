@@ -2485,8 +2485,7 @@ re_shutdown(dev)
 	/*
 	 * Mark interface as down since otherwise we will panic if
 	 * interrupt comes in later on, which can happen in some
-	 * cases. Another option is to call re_detach() instead of
-	 * re_stop(), like ve(4) does.
+	 * cases.
 	 */
 	sc->rl_ifp->if_flags &= ~IFF_UP;
 	RL_UNLOCK(sc);
