@@ -3749,11 +3749,16 @@ bge_stop(sc)
 	if (!sc->bge_tbi) {
 		itmp = ifp->if_flags;
 		ifp->if_flags |= IFF_UP;
-		ifm = mii->mii_media.ifm_cur;
-		mtmp = ifm->ifm_media;
-		ifm->ifm_media = IFM_ETHER|IFM_NONE;
-		mii_mediachg(mii);
-		ifm->ifm_media = mtmp;
+		/*
+		 * If we are called from bge_detach(), mii is already NULL.
+		 */
+		if (mii != NULL) {
+			ifm = mii->mii_media.ifm_cur;
+			mtmp = ifm->ifm_media;
+			ifm->ifm_media = IFM_ETHER|IFM_NONE;
+			mii_mediachg(mii);
+			ifm->ifm_media = mtmp;
+		}
 		ifp->if_flags = itmp;
 	}
 
