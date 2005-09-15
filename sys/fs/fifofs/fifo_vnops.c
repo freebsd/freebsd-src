@@ -641,11 +641,11 @@ fifo_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 		}
 	}
 	levents = events & (POLLOUT | POLLWRNORM | POLLWRBAND);
-	if (events) {
+	if (levents) {
 		filetmp.f_data = fip->fi_writesock;
 		filetmp.f_cred = cred;
 		if (filetmp.f_data) {
-			revents |= soo_poll(&filetmp, events, cred, td);
+			revents |= soo_poll(&filetmp, levents, cred, td);
 		}
 	}
 	return (revents);
