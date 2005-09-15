@@ -317,7 +317,7 @@ txp_attach(dev)
 
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		device_printf(dev, "couldn't set up irq\n");
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
