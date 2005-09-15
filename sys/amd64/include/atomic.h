@@ -99,8 +99,8 @@ static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(__XSTRING(MPLOCKED) OP		\
-			 : "+m" (*p)			\
-			 : CONS (V));			\
+			 : "=m" (*p)			\
+			 : CONS (V), "m" (*p));		\
 }							\
 struct __hack
 
@@ -119,15 +119,16 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 
 	__asm __volatile (
 	"	" __XSTRING(MPLOCKED) "	"
-	"	cmpxchgl %1,%2 ;	"
+	"	cmpxchgl %2,%1 ;	"
 	"       setz	%%al ;		"
 	"	movzbl	%%al,%0 ;	"
 	"1:				"
 	"# atomic_cmpset_int"
-	: "+a" (res)			/* 0 (result) */
-	: "r" (src),			/* 1 */
-	  "m" (*(dst))			/* 2 */
-	: "memory");				 
+	: "+a" (res), 			/* 0 (result) */
+	  "=m" (*dst)			/* 1 */
+	: "r" (src),			/* 2 */
+	  "m" (*dst)			/* 3 */
+	: "memory");
 
 	return (res);
 }
@@ -139,15 +140,16 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 
 	__asm __volatile (
 	"	" __XSTRING(MPLOCKED) "	"
-	"	cmpxchgq %1,%2 ;	"
+	"	cmpxchgq %2,%1 ;	"
 	"       setz	%%al ;		"
 	"	movzbq	%%al,%0 ;	"
 	"1:				"
 	"# atomic_cmpset_long"
-	: "+a" (res)			/* 0 (result) */
-	: "r" (src),			/* 1 */
-	  "m" (*(dst))			/* 2 */
-	: "memory");				 
+	: "+a" (res),			/* 0 (result) */
+	  "=m" (*dst)			/* 1 */
+	: "r" (src),			/* 2 */
+	  "m" (*dst)			/* 3 */
+	: "memory");
 
 	return (res);
 }
@@ -185,8 +187,9 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 							\
 	__asm __volatile(__XSTRING(MPLOCKED) LOP	\
 	: "=a" (res),			/* 0 (result) */\
-	  "+m" (*p)			/* 1 */		\
-	: : "memory");				 	\
+	  "=m" (*p)			/* 1 */		\
+	: "m" (*p)			/* 2 */		\
+	: "memory");				 	\
 							\
 	return (res);					\
 }							\
@@ -198,9 +201,9 @@ static __inline void					\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(SOP				\
-	: "+m" (*p),			/* 0 */		\
+	: "=m" (*p),			/* 0 */		\
 	  "+r" (v)			/* 1 */		\
-	: : "memory");				 	\
+	: "m" (*p));			/* 2 */		\
 }							\
 struct __hack
 
@@ -246,12 +249,13 @@ atomic_readandclear_int(volatile u_int *addr)
 {
 	u_int result;
 
+	result = 0;
 	__asm __volatile (
-	"	xorl	%0,%0 ;		"
 	"	xchgl	%1,%0 ;		"
 	"# atomic_readandclear_int"
-	: "=&r" (result)		/* 0 (result) */
-	: "m" (*addr));			/* 1 (addr) */
+	: "+r" (result),		/* 0 (result) */
+	  "=m" (*addr)			/* 1 (addr) */
+	: "m" (*addr));
 
 	return (result);
 }
@@ -261,12 +265,13 @@ atomic_readandclear_long(volatile u_long *addr)
 {
 	u_long result;
 
+	result = 0;
 	__asm __volatile (
-	"	xorq	%0,%0 ;		"
 	"	xchgq	%1,%0 ;		"
 	"# atomic_readandclear_long"
-	: "=&r" (result)		/* 0 (result) */
-	: "m" (*addr));			/* 1 (addr) */
+	: "+r" (result),		/* 0 (result) */
+	  "=m" (*addr)			/* 1 (addr) */
+	: "m" (*addr));
 
 	return (result);
 }
