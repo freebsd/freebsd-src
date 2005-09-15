@@ -191,7 +191,7 @@ if [ ${dlv:=0} -ne 0 ] ; then
 	    fi
 	done
 	# Get the values passed with the T134 bootp cookie.
-	class="`/sbin/sysctl -n kern.bootp_cookie`"
+	class="`/sbin/sysctl -qn kern.bootp_cookie`"
 
 	echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca} ${class}"
 fi
