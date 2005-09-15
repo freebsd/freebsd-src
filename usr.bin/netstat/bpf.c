@@ -75,7 +75,7 @@ bpf_flags(struct xbpf_d *bd, char *flagbuf)
 	*flagbuf++ = bd->bd_promisc ? 'p' : '-';
 	*flagbuf++ = bd->bd_immediate ? 'i' : '-';
 	*flagbuf++ = bd->bd_hdrcmplt ? '-' : 'f';
-	*flagbuf++ = bd->bd_seesent ? 's' : '.';
+	*flagbuf++ = bd->bd_seesent ? 's' : '-';
 	*flagbuf++ = bd->bd_async ? 'a' : '-';
 	*flagbuf++ = bd->bd_locked ? 'l' : '-';
 	*flagbuf++ = '\0';
