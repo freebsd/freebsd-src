@@ -61,7 +61,6 @@
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
-#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
 #include <sys/unistd.h>
@@ -746,12 +745,6 @@ devfs_pathconf(struct vop_pathconf_args *ap)
 {
 
 	switch (ap->a_name) {
-	case _PC_NAME_MAX:
-		*ap->a_retval = NAME_MAX;
-		return (0);
-	case _PC_PATH_MAX:
-		*ap->a_retval = PATH_MAX;
-		return (0);
 	case _PC_MAC_PRESENT:
 #ifdef MAC
 		/*
@@ -884,12 +877,10 @@ devfs_readdir(struct vop_readdir_args *ap)
 static int
 devfs_readlink(struct vop_readlink_args *ap)
 {
-	int error;
 	struct devfs_dirent *de;
 
 	de = ap->a_vp->v_data;
-	error = uiomove(de->de_symlink, strlen(de->de_symlink), ap->a_uio);
-	return (error);
+	return (uiomove(de->de_symlink, strlen(de->de_symlink), ap->a_uio));
 }
 
 static int
@@ -938,7 +929,7 @@ devfs_remove(struct vop_remove_args *ap)
 #ifdef MAC
 		mac_destroy_devfsdirent(de);
 #endif
-		FREE(de, M_DEVFS);
+		free(de, M_DEVFS);
 	} else {
 		de->de_flags |= DE_WHITEOUT;
 	}
@@ -981,8 +972,7 @@ devfs_rioctl(struct vop_ioctl_args *ap)
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
 	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
 	devfs_populate(dmp);
-	error = devfs_rules_ioctl(dmp, ap->a_command, ap->a_data,
-	    ap->a_td);
+	error = devfs_rules_ioctl(dmp, ap->a_command, ap->a_data, ap->a_td);
 	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
 	return (error);
 }
@@ -1128,7 +1118,7 @@ devfs_symlink(struct vop_symlink_args *ap)
 	de->de_inode = dmp->dm_inode++;
 	de->de_dirent->d_type = DT_LNK;
 	i = strlen(ap->a_target) + 1;
-	MALLOC(de->de_symlink, char *, i, M_DEVFS, M_WAITOK);
+	de->de_symlink = malloc(i, M_DEVFS, M_WAITOK);
 	bcopy(ap->a_target, de->de_symlink, i);
 	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, td);
 #ifdef MAC
@@ -1251,7 +1241,6 @@ static struct vop_vector devfs_specops = {
 	.vop_symlink =		VOP_PANIC,
 	.vop_write =		VOP_PANIC,
 };
-
 
 /*
  * Our calling convention to the device drivers used to be that we passed
