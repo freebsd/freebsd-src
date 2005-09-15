@@ -71,6 +71,10 @@ SYSCTL_UINT(_vfs_devfs, OID_AUTO, inodes, CTLFLAG_RD,
 SYSCTL_UINT(_vfs_devfs, OID_AUTO, topinode, CTLFLAG_RD,
 	&devfs_topino, 0, "DEVFS highest inode#");
 
+unsigned devfs_rule_depth = 1;
+SYSCTL_UINT(_vfs_devfs, OID_AUTO, rule_depth, CTLFLAG_RW,
+    &devfs_rule_depth, 0, "Max depth of ruleset include");
+
 /*
  * Helper sysctl for devname(3).  We're given a struct cdev * and return
  * the name, if any, registered by the device driver.
