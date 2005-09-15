@@ -75,10 +75,6 @@ main(void)
 	if (listen(listen_sock, -1) < 0)
 		errx(-1, "listen() for listen socket: %s", strerror(errno));
 
-	/* Shutdown(2) on not connected socket has to return ENOTCONN. */
-	if ((shutdown(listen_sock, SHUT_RDWR) != -1) && (errno != ENOTCONN))
-		errx(-1, "shutdown(2) for not connected socket does not "
-		    "return ENOTCONN");
 	connect_sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (connect_sock == -1)
 		errx(-1, "socket(PF_INET, SOCK_STREAM, 0) for connect "
@@ -105,9 +101,6 @@ main(void)
 		errx(-1, "shutdown(SHUT_WR) for connect socket: %s",
 		    strerror(errno));
 
-	if ((shutdown(connect_sock, SHUT_RDWR) != -1) && (errno != ENOTCONN))
-		errx(-1, "shutdown(2) for not connected socket does not "
-		    "return ENOTCONN");
 	close(connect_sock);
 	close(listen_sock);
 
