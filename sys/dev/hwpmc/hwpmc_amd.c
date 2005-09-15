@@ -693,9 +693,14 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 	 *   and which has a valid 'struct pmc' association
 	 *
 	 * If found, we call a helper to process the interrupt.
+	 *
+	 * If multiple PMCs interrupt at the same time, the AMD64
+	 * processor appears to deliver as many NMIs as there are
+	 * outstanding PMC interrupts.  Thus we need to only process
+	 * one interrupt at a time.
 	 */
 
-	for (i = 0; i < AMD_NPMCS-1; i++) {
+	for (i = 0; retval == 0 && i < AMD_NPMCS-1; i++) {
 
 		ri = i + 1;	/* row index; TSC is at ri == 0 */
 
@@ -712,6 +717,8 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 			continue;
 		}
 
+		retval = 1;	/* found an interrupting PMC */
+
 		/* stop the PMC, reload count */
 		evsel   = AMD_PMC_EVSEL_0 + i;
 		perfctr = AMD_PMC_PERFCTR_0 + i;
@@ -726,12 +733,10 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 		wrmsr(evsel, config & ~AMD_PMC_ENABLE);
 		wrmsr(perfctr, AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v));
 
-		/* restart if there was no error during logging */
+		/* restart the counter if there was no error during logging */
 		error = pmc_process_interrupt(cpu, pm, eip, usermode);
 		if (error == 0)
 			wrmsr(evsel, config | AMD_PMC_ENABLE);
-
-		retval = 1;	/* found an interrupting PMC */
 	}
 
 	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
