@@ -979,11 +979,11 @@ devfs_rioctl(struct vop_ioctl_args *ap)
 	struct devfs_mount *dmp;
 
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
-	lockmgr(&dmp->dm_lock, LK_SHARED, 0, curthread);
+	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
 	devfs_populate(dmp);
-	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
-	error = devfs_rules_ioctl(ap->a_vp->v_mount, ap->a_command, ap->a_data,
+	error = devfs_rules_ioctl(dmp, ap->a_command, ap->a_data,
 	    ap->a_td);
+	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
 	return (error);
 }
 

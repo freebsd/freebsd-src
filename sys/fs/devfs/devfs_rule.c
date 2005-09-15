@@ -71,7 +71,6 @@
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/vnode.h>
-#include <sys/mount.h>
 #include <sys/ioccom.h>
 
 #include <fs/devfs/devfs.h>
@@ -162,9 +161,8 @@ SYSINIT(devfs_rules, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_rules_init, NULL);
  * Rule subsystem ioctl hook.
  */
 int
-devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
+devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct thread *td)
 {
-	struct devfs_mount *dm = VFSTODEVFS(mp);
 	struct devfs_ruleset *ds;
 	struct devfs_krule *dk;
 	struct devfs_rule *dr;
@@ -181,8 +179,6 @@ devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
 	if (error != 0)
 		return (error);
 
-	lockmgr(&dm->dm_lock, LK_SHARED, 0, td);
-
 	switch (cmd) {
 	case DEVFSIO_RADD:
 		dr = (struct devfs_rule *)data;
@@ -194,7 +190,6 @@ devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
 			error = EEXIST;
 			goto out;
 		}
-		lockmgr(&dm->dm_lock, LK_UPGRADE, 0, td);
 		error = devfs_rule_insert(dr);
 		break;
 	case DEVFSIO_RAPPLY:
@@ -224,9 +219,7 @@ devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
 		}
 		dk = malloc(sizeof(*dk), M_TEMP, M_WAITOK | M_ZERO);
 		memcpy(&dk->dk_rule, dr, sizeof(*dr));
-		lockmgr(&dm->dm_lock, LK_UPGRADE, 0, td);
 		devfs_rule_applydm(dk, dm);
-		lockmgr(&dm->dm_lock, LK_DOWNGRADE, 0, td);
 		free(dk, M_TEMP);
 		error = 0;
 		break;
@@ -238,7 +231,6 @@ devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
 			error = ENOENT;
 			goto out;
 		}
-		lockmgr(&dm->dm_lock, LK_UPGRADE, 0, td);
 		devfs_rule_applydm(dk, dm);
 		error = 0;
 		break;
@@ -251,7 +243,6 @@ devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
 			goto out;
 		}
 		ds = dk->dk_ruleset;
-		lockmgr(&dm->dm_lock, LK_UPGRADE, 0, td);
 		error = devfs_rule_delete(&dk);
 		devfs_ruleset_reap(&ds);
 		break;
@@ -287,7 +278,6 @@ devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
 		break;
 	case DEVFSIO_SUSE:
 		rsnum = *(devfs_rsnum *)data;
-		lockmgr(&dm->dm_lock, LK_UPGRADE, 0, td);
 		error = devfs_ruleset_use(rsnum, dm);
 		break;
 	case DEVFSIO_SAPPLY:
@@ -298,7 +288,6 @@ devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
 			error = ESRCH;
 			goto out;
 		}
-		lockmgr(&dm->dm_lock, LK_UPGRADE, 0, td);
 		devfs_ruleset_applydm(ds, dm);
 		error = 0;
 		break;
@@ -321,7 +310,6 @@ devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
 	}
 
 out:
-	lockmgr(&dm->dm_lock, LK_RELEASE, 0, td);
 	return (error);
 }
 
@@ -333,7 +321,6 @@ devfs_rules_newmount(struct devfs_mount *dm, struct thread *td)
 {
 	struct devfs_ruleset *ds;
 
-	lockmgr(&dm->dm_lock, LK_EXCLUSIVE, 0, td);
 	/*
 	 * We can't use devfs_ruleset_use() since it will try to
 	 * decrement the refcount for the old ruleset, and there is no
@@ -344,7 +331,6 @@ devfs_rules_newmount(struct devfs_mount *dm, struct thread *td)
 	KASSERT(ds != NULL, ("no ruleset 0"));
 	++ds->ds_refcount;
 	dm->dm_ruleset = 0;
-	lockmgr(&dm->dm_lock, LK_RELEASE, 0, td);
 }
 
 /*
