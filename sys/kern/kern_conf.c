@@ -604,19 +604,6 @@ make_dev_cred(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
 	return (dev);
 }
 
-int
-dev_named(struct cdev *pdev, const char *name)
-{
-	struct cdev *cdev;
-
-	if (strcmp(devtoname(pdev), name) == 0)
-		return (1);
-	LIST_FOREACH(cdev, &pdev->si_children, si_siblings)
-		if (strcmp(devtoname(cdev), name) == 0)
-			return (1);
-	return (0);
-}
-
 void
 dev_depends(struct cdev *pdev, struct cdev *cdev)
 {
