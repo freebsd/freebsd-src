@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/ktr.h>
+#include <sys/proc.h>
 #include <sys/stack.h>
 
 #include <sys/errno.h>
@@ -400,12 +401,6 @@ g_io_schedule_down(struct thread *tp __unused)
 	struct bio *bp;
 	off_t excess;
 	int error;
-#ifdef WITNESS
-	struct mtx mymutex;
- 
-	bzero(&mymutex, sizeof mymutex);
-	mtx_init(&mymutex, "g_xdown", NULL, MTX_DEF);
-#endif
 
 	for(;;) {
 		g_bioq_lock(&g_bio_run_down);
@@ -461,16 +456,12 @@ g_io_schedule_down(struct thread *tp __unused)
 		default:
 			break;
 		}
-#ifdef WITNESS
-		mtx_lock(&mymutex);
-#endif
+		THREAD_NO_SLEEPING();
 		CTR4(KTR_GEOM, "g_down starting bp %p provider %s off %ld "
 		    "len %ld", bp, bp->bio_to->name, bp->bio_offset,
 		    bp->bio_length);
 		bp->bio_to->geom->start(bp);
-#ifdef WITNESS
-		mtx_unlock(&mymutex);
-#endif
+		THREAD_SLEEPING_OK();
 	}
 }
 
@@ -498,40 +489,26 @@ void
 g_io_schedule_up(struct thread *tp __unused)
 {
 	struct bio *bp;
-#ifdef WITNESS
-	struct mtx mymutex;
- 
-	bzero(&mymutex, sizeof mymutex);
-	mtx_init(&mymutex, "g_xup", NULL, MTX_DEF);
-#endif
 	for(;;) {
 		g_bioq_lock(&g_bio_run_up);
 		bp = g_bioq_first(&g_bio_run_task);
 		if (bp != NULL) {
 			g_bioq_unlock(&g_bio_run_up);
-#ifdef WITNESS
-			mtx_lock(&mymutex);
-#endif
+			THREAD_NO_SLEEPING();
 			CTR1(KTR_GEOM, "g_up processing task bp %p", bp);
 			bp->bio_task(bp->bio_task_arg);
-#ifdef WITNESS
-			mtx_unlock(&mymutex);
-#endif
+			THREAD_SLEEPING_OK();
 			continue;
 		}
 		bp = g_bioq_first(&g_bio_run_up);
 		if (bp != NULL) {
 			g_bioq_unlock(&g_bio_run_up);
-#ifdef WITNESS
-			mtx_lock(&mymutex);
-#endif
+			THREAD_NO_SLEEPING();
 			CTR4(KTR_GEOM, "g_up biodone bp %p provider %s off "
 			    "%ld len %ld", bp, bp->bio_to->name,
 			    bp->bio_offset, bp->bio_length);
 			biodone(bp);
-#ifdef WITNESS
-			mtx_unlock(&mymutex);
-#endif
+			THREAD_SLEEPING_OK();
 			continue;
 		}
 		CTR0(KTR_GEOM, "g_up going to sleep");
