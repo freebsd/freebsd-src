@@ -51,6 +51,7 @@ struct upd7210 {
 	bus_space_tag_t		reg_tag[8];
 	u_int			reg_offset[8];
 	int			dmachan;
+	int			unit;
 
 	/* private stuff */
 	struct mtx		mutex;
@@ -72,6 +73,7 @@ struct upd7210 {
 #ifdef UPD7210_HW_DRIVER
 void upd7210intr(void *);
 void upd7210attach(struct upd7210 *);
+void upd7210detach(struct upd7210 *);
 #endif
 
 #ifdef UPD7210_SW_DRIVER
