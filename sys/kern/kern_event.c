@@ -1242,11 +1242,11 @@ start:
 				KQ_GLOBAL_LOCK(&kq_global, haskqglobal);
 			KN_LIST_LOCK(kn);
 			if (kn->kn_fop->f_event(kn, 0) == 0) {
-				KN_LIST_UNLOCK(kn);
 				KQ_LOCK(kq);
 				kn->kn_status &=
 				    ~(KN_QUEUED | KN_ACTIVE | KN_INFLUX);
 				kq->kq_count--;
+				KN_LIST_UNLOCK(kn);
 				continue;
 			}
 			*kevp = kn->kn_kevent;
@@ -1258,8 +1258,10 @@ start:
 				kq->kq_count--;
 			} else
 				TAILQ_INSERT_TAIL(&kq->kq_head, kn, kn_tqe);
-			KN_LIST_UNLOCK(kn);
+			
 			kn->kn_status &= ~(KN_INFLUX);
+			KN_LIST_UNLOCK(kn);
+
 		}
 
 		/* we are returning a copy to the user */
