@@ -56,12 +56,12 @@ static __inline void atomic_set_32(volatile u_int32_t *p, u_int32_t v)
 
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
-		"1:\tldl_l %0, %2\n\t"		/* load old value */
-		"bis %0, %3, %0\n\t"		/* calculate new value */
+		"1:\tldl_l %0, %3\n\t"		/* load old value */
+		"bis %0, %2, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 1b\n"			/* spin if failed */
 		: "=&r" (temp), "=m" (*p)
-		: "m" (*p), "r" (v)
+		: "r" (v), "m" (*p)
 		: "memory");
 #endif
 }
@@ -72,12 +72,12 @@ static __inline void atomic_clear_32(volatile u_int32_t *p, u_int32_t v)
 
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
-		"1:\tldl_l %0, %1\n\t"		/* load old value */
+		"1:\tldl_l %0, %3\n\t"		/* load old value */
 		"bic %0, %2, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 1b\n"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
 		: "memory");
 #endif
 }
@@ -88,12 +88,12 @@ static __inline void atomic_add_32(volatile u_int32_t *p, u_int32_t v)
 
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
-		"1:\tldl_l %0, %1\n\t"		/* load old value */
+		"1:\tldl_l %0, %3\n\t"		/* load old value */
 		"addl %0, %2, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 1b\n"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
 		: "memory");
 #endif
 }
@@ -104,12 +104,12 @@ static __inline void atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
 
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
-		"1:\tldl_l %0, %1\n\t"		/* load old value */
+		"1:\tldl_l %0, %3\n\t"		/* load old value */
 		"subl %0, %2, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 1b\n"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
 		: "memory");
 #endif
 }
@@ -121,12 +121,12 @@ static __inline u_int32_t atomic_readandclear_32(volatile u_int32_t *addr)
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"wmb\n"			/* ensure pending writes have drained */
-		"1:\tldl_l %0,%2\n\t"	/* load current value, asserting lock */
+		"1:\tldl_l %0,%3\n\t"	/* load current value, asserting lock */
 		"ldiq %1,0\n\t"		/* value to store */
 		"stl_c %1,%2\n\t"	/* attempt to store */
 		"beq %1,1b\n"		/* if the store failed, spin */
-		: "=&r"(result), "=&r"(temp), "+m" (*addr)
-		:
+		: "=&r"(result), "=&r"(temp), "=m" (*addr)
+		: "m" (*addr)
 		: "memory");
 #endif
 
@@ -139,12 +139,12 @@ static __inline void atomic_set_64(volatile u_int64_t *p, u_int64_t v)
 
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
-		"1:\tldq_l %0, %1\n\t"		/* load old value */
+		"1:\tldq_l %0, %3\n\t"		/* load old value */
 		"bis %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 1b\n"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
 		: "memory");
 #endif
 }
@@ -155,12 +155,12 @@ static __inline void atomic_clear_64(volatile u_int64_t *p, u_int64_t v)
 
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
-		"1:\tldq_l %0, %1\n\t"		/* load old value */
+		"1:\tldq_l %0, %3\n\t"		/* load old value */
 		"bic %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 1b\n"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
 		: "memory");
 #endif
 }
@@ -171,12 +171,12 @@ static __inline void atomic_add_64(volatile u_int64_t *p, u_int64_t v)
 
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
-		"1:\tldq_l %0, %1\n\t"		/* load old value */
+		"1:\tldq_l %0, %3\n\t"		/* load old value */
 		"addq %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 1b\n"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
 		: "memory");
 #endif
 }
@@ -187,12 +187,12 @@ static __inline void atomic_subtract_64(volatile u_int64_t *p, u_int64_t v)
 
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
-		"1:\tldq_l %0, %1\n\t"		/* load old value */
+		"1:\tldq_l %0, %3\n\t"		/* load old value */
 		"subq %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 1b\n"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
 		: "memory");
 #endif
 }
@@ -204,12 +204,12 @@ static __inline u_int64_t atomic_readandclear_64(volatile u_int64_t *addr)
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"wmb\n"			/* ensure pending writes have drained */
-		"1:\tldq_l %0,%2\n\t"	/* load current value, asserting lock */
+		"1:\tldq_l %0,%3\n\t"	/* load current value, asserting lock */
 		"ldiq %1,0\n\t"		/* value to store */
 		"stq_c %1,%2\n\t"	/* attempt to store */
 		"beq %1,1b\n"		/* if the store failed, spin */
-		: "=&r"(result), "=&r"(temp), "+m" (*addr)
-		:
+		: "=&r"(result), "=&r"(temp), "=m" (*addr)
+		: "m" (*addr)
 		: "memory");
 #endif
 
@@ -289,15 +289,15 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
-		"1:\tldl_l %0, %1\n\t"		/* load old value */
+		"1:\tldl_l %0, %4\n\t"		/* load old value */
 		"cmpeq %0, %2, %0\n\t"		/* compare */
 		"beq %0, 2f\n\t"		/* exit if not equal */
 		"mov %3, %0\n\t"		/* value to store */
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 1b\n\t"		/* if it failed, spin */
 		"2:\n"
-		: "=&r" (ret), "+m" (*p)
-		: "r" ((long)(int)cmpval), "r" (newval)
+		: "=&r" (ret), "=m" (*p)
+		: "r" ((long)(int)cmpval), "r" (newval), "m" (*p)
 		: "memory");
 #endif
 
@@ -316,15 +316,15 @@ atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile (
-		"1:\tldq_l %0, %1\n\t"		/* load old value */
+		"1:\tldq_l %0, %4\n\t"		/* load old value */
 		"cmpeq %0, %2, %0\n\t"		/* compare */
 		"beq %0, 2f\n\t"		/* exit if not equal */
 		"mov %3, %0\n\t"		/* value to store */
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 1b\n\t"		/* if it failed, spin */
 		"2:\n"
-		: "=&r" (ret), "+m" (*p)
-		: "r" (cmpval), "r" (newval)
+		: "=&r" (ret), "=m" (*p)
+		: "r" (cmpval), "r" (newval), "m" (*p)
 		: "memory");
 #endif
 
