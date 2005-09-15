@@ -615,7 +615,7 @@ fifo_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 	fip = fp->f_data;
 	levents = events &
 	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
-	if (levents) {
+	if ((fp->f_flag & FREAD) && levents) {
 		/*
 		 * If POLLIN or POLLRDNORM is requested and POLLINIGNEOF is
 		 * not, then convert the first two to the last one.  This
@@ -641,7 +641,7 @@ fifo_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 		}
 	}
 	levents = events & (POLLOUT | POLLWRNORM | POLLWRBAND);
-	if (levents) {
+	if ((fp->f_flag & FWRITE) && levents) {
 		filetmp.f_data = fip->fi_writesock;
 		filetmp.f_cred = cred;
 		if (filetmp.f_data) {
