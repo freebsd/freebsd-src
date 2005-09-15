@@ -120,6 +120,8 @@ namei(ndp)
 	struct proc *p = td->td_proc;
 	int vfslocked;
 
+	KASSERT((cnp->cn_flags & MPSAFE) != 0 || mtx_owned(&Giant) != 0,
+	    ("NOT MPSAFE and Giant not held"));
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
 	KASSERT(cnp->cn_cred && p, ("namei: bad cred/proc"));
 	KASSERT((cnp->cn_nameiop & (~OPMASK)) == 0,
