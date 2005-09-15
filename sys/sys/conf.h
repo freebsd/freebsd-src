@@ -247,7 +247,6 @@ int	count_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
 struct cdevsw *dev_refthread(struct cdev *_dev);
 void	dev_relthread(struct cdev *_dev);
-int	dev_named(struct cdev *_pdev, const char *_name);
 void	dev_depends(struct cdev *_pdev, struct cdev *_cdev);
 void	dev_ref(struct cdev *dev);
 void	dev_refl(struct cdev *dev);
