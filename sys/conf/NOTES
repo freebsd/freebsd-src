@@ -1999,12 +1999,16 @@ hint.gusc.0.flags="0x13"
 
 #
 # IEEE-488 hardware:
-#	pcii:	PCIIA cards (uPD7210 based isa cards)
+# pcii:		PCIIA cards (uPD7210 based isa cards)
+# tnt4882:	National Instruments PCI-GPIB card.
+
 device	pcii
 hint.pcii.0.at="isa"
 hint.pcii.0.port="0x2e1"
 hint.pcii.0.irq="5"
 hint.pcii.0.drq="1"
+
+device	tnt4882
 
 #
 # Miscellaneous hardware:
