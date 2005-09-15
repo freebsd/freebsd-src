@@ -368,7 +368,7 @@ struct thread {
 #define	TDP_ALTSTACK	0x00000020 /* Have alternate signal stack. */
 #define	TDP_DEADLKTREAT	0x00000040 /* Lock aquisition - deadlock treatment. */
 #define	TDP_SA		0x00000080 /* A scheduler activation based thread. */
-#define	TDP_UNUSED8	0x00000100 /* --available -- */
+#define	TDP_NOSLEEPING	0x00000100 /* Thread is not allowed to sleep on a sq. */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
 #define	TDP_UNUSED10	0x00000400 /* --available -- */
 #define	TDP_CAN_UNBIND	0x00000800 /* Only temporarily bound. */
@@ -792,6 +792,19 @@ MALLOC_DECLARE(M_ZOMBIE);
 
 /* Check whether a thread is safe to be swapped out. */
 #define	thread_safetoswapout(td) (TD_IS_SLEEPING(td) || TD_IS_SUSPENDED(td))
+
+/* Control whether or not it is safe for curthread to sleep. */
+#define	THREAD_NO_SLEEPING() do {					\
+	KASSERT(!(curthread->td_pflags & TDP_NOSLEEPING),		\
+	    ("nested no sleeping"));					\
+	curthread->td_pflags |= TDP_NOSLEEPING;				\
+} while (0)
+
+#define	THREAD_SLEEPING_OK() do {					\
+	KASSERT((curthread->td_pflags & TDP_NOSLEEPING),		\
+	    ("nested sleeping ok"));					\
+	curthread->td_pflags &= ~TDP_NOSLEEPING;			\
+} while (0)
 
 /* Lock and unlock process arguments. */
 #define	PARGS_LOCK(p)		mtx_lock(&pargs_ref_lock)
