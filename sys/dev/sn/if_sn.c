@@ -235,7 +235,7 @@ sn_detach(device_t dev)
 	ether_ifdetach(ifp);
 	if_free(ifp);
 	sn_deactivate(dev);
-	SN_LOCK_DESTORY(sc);
+	SN_LOCK_DESTROY(sc);
 	return 0;
 }
 
