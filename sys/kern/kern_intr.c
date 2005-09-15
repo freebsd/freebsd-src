@@ -521,7 +521,8 @@ ithread_loop(void *arg)
 			 * another pass.
 			 */
 			atomic_store_rel_int(&ithd->it_need, 0);
-			THREAD_NO_SLEEPING();
+			if (!(ithd->it_flags & IT_SOFT))
+				THREAD_NO_SLEEPING();
 restart:
 			TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 				if (ithd->it_flags & IT_SOFT && !ih->ih_need)
@@ -547,7 +548,8 @@ restart:
 				if ((ih->ih_flags & IH_MPSAFE) == 0)
 					mtx_unlock(&Giant);
 			}
-			THREAD_SLEEPING_OK();
+			if (!(ithd->it_flags & IT_SOFT))
+				THREAD_SLEEPING_OK();
 
 			/*
 			 * Interrupt storm handling:
