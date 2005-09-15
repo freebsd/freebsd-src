@@ -520,7 +520,9 @@ devfs_lookupx(struct vop_lookup_args *ap)
 		return (error);
 	}
 
+	lockmgr(&dmp->dm_lock, LK_UPGRADE, 0, curthread);
 	devfs_populate(dmp);
+	lockmgr(&dmp->dm_lock, LK_DOWNGRADE, 0, curthread);
 	dd = dvp->v_data;
 	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
 		if (cnp->cn_namelen != de->de_dirent->d_namlen)
@@ -550,7 +552,9 @@ devfs_lookupx(struct vop_lookup_args *ap)
 	if (cdev == NULL)
 		goto notfound;
 
+	lockmgr(&dmp->dm_lock, LK_UPGRADE, 0, curthread);
 	devfs_populate(dmp);
+	lockmgr(&dmp->dm_lock, LK_DOWNGRADE, 0, curthread);
 
 	dde = devfs_itode(dmp, cdev->si_inode);
 	dev_rel(cdev);
@@ -841,8 +845,9 @@ devfs_readdir(struct vop_readdir_args *ap)
 		return (EINVAL);
 
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
-	lockmgr(&dmp->dm_lock, LK_SHARED, 0, curthread);
+	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
 	devfs_populate(dmp);
+	lockmgr(&dmp->dm_lock, LK_DOWNGRADE, 0, curthread);
 	error = 0;
 	de = ap->a_vp->v_data;
 	off = 0;
