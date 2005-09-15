@@ -2364,11 +2364,17 @@ dc_detach(device_t dev)
 		bus_dmamem_free(sc->dc_stag, sc->dc_cdata.dc_sbuf, sc->dc_smap);
 	if (sc->dc_ldata != NULL)
 		bus_dmamem_free(sc->dc_ltag, sc->dc_ldata, sc->dc_lmap);
-	for (i = 0; i < DC_TX_LIST_CNT; i++)
-		bus_dmamap_destroy(sc->dc_mtag, sc->dc_cdata.dc_tx_map[i]);
-	for (i = 0; i < DC_RX_LIST_CNT; i++)
-		bus_dmamap_destroy(sc->dc_mtag, sc->dc_cdata.dc_rx_map[i]);
-	bus_dmamap_destroy(sc->dc_mtag, sc->dc_sparemap);
+	if (sc->dc_mtag) {
+		for (i = 0; i < DC_TX_LIST_CNT; i++)
+			if (sc->dc_cdata.dc_tx_map[i] != NULL)
+				bus_dmamap_destroy(sc->dc_mtag,
+				    sc->dc_cdata.dc_tx_map[i]);
+		for (i = 0; i < DC_RX_LIST_CNT; i++)
+			if (sc->dc_cdata.dc_rx_map[i] != NULL)
+				bus_dmamap_destroy(sc->dc_mtag,
+				    sc->dc_cdata.dc_rx_map[i]);
+		bus_dmamap_destroy(sc->dc_mtag, sc->dc_sparemap);
+	}
 	if (sc->dc_stag)
 		bus_dma_tag_destroy(sc->dc_stag);
 	if (sc->dc_mtag)
