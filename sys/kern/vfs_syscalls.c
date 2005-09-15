@@ -1423,7 +1423,7 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME, segflg, link, td);
+	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE, segflg, link, td);
 	if ((error = namei(&nd)) == 0) {
 		lvfslocked = NDHASGIANT(&nd);
 		if (nd.ni_vp != NULL) {
