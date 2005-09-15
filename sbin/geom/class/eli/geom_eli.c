@@ -727,6 +727,11 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 	unsigned nkey;
 	int error;
 
+	if (md->md_keys == 0) {
+		gctl_error(req, "No valid keys on %s.", prov);
+		return;
+	}
+
 	/* Generate key for Master Key decryption. */
 	if (eli_genkey(req, md, key, 0) == NULL) {
 		bzero(key, sizeof(key));
@@ -837,11 +842,6 @@ eli_setkey(struct gctl_req *req)
 
 	if (eli_metadata_read(req, prov, &md) == -1)
 		return;
-
-	if (md.md_keys == 0) {
-		gctl_error(req, "No valid keys on %s.", prov);
-		return;
-	}
 
 	if (eli_is_attached(prov))
 		eli_setkey_attached(req, prov, &md);
