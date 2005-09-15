@@ -315,6 +315,12 @@ update_check_params() {
 #
 # We also ignore the Port field, since we are always going to use port 80.
 fetch_pick_server() {
+# Check that host(1) exists (i.e., that the system wasn't built with the
+# NO_BIND flag set) and don't try to find a mirror if it doesn't exist.
+	if ! which -s host; then
+		return
+	fi
+
 	echo -n "Looking up ${SERVERNAME} mirrors..."
 
 # Issue the SRV query and pull out the Priority, Weight, and Target fields.
