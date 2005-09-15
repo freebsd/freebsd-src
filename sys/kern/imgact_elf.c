@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/mman.h>
 #include <sys/namei.h>
@@ -515,7 +516,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	vm_prot_t prot;
 	u_long rbase;
 	u_long base_addr = 0;
-	int error, i, numsegs;
+	int vfslocked, error, i, numsegs;
 
 	if (curthread->td_proc != p)
 		panic("elf_load_file - thread");	/* XXXKSE DIAGNOSTIC */
@@ -536,12 +537,14 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	imgp->execlabel = NULL;
 
 	/* XXXKSE */
-	NDINIT(nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, curthread);
-
+	NDINIT(nd, LOOKUP, MPSAFE|LOCKLEAF|FOLLOW, UIO_SYSSPACE, file,
+	    curthread);
+	vfslocked = 0;
 	if ((error = namei(nd)) != 0) {
 		nd->ni_vp = NULL;
 		goto fail;
 	}
+	vfslocked = NDHASGIANT(nd);
 	NDFREE(nd, NDF_ONLY_PNBUF);
 	imgp->vp = nd->ni_vp;
 
@@ -629,6 +632,7 @@ fail:
 	if (nd->ni_vp)
 		vrele(nd->ni_vp);
 
+	VFS_UNLOCK_GIANT(vfslocked);
 	free(tempdata, M_TEMP);
 
 	return (error);
