@@ -201,7 +201,7 @@ devfs_newdirent(char *name, int namelen)
 
 	d.d_namlen = namelen;
 	i = sizeof (*de) + GENERIC_DIRSIZ(&d);
-	MALLOC(de, struct devfs_dirent *, i, M_DEVFS, M_WAITOK | M_ZERO);
+	de = malloc(i, M_DEVFS, M_WAITOK | M_ZERO);
 	de->de_dirent = (struct dirent *)(de + 1);
 	de->de_dirent->d_namlen = namelen;
 	de->de_dirent->d_reclen = GENERIC_DIRSIZ(&d);
@@ -254,7 +254,7 @@ devfs_delete(struct devfs_dirent *dd, struct devfs_dirent *de)
 {
 
 	if (de->de_symlink) {
-		FREE(de->de_symlink, M_DEVFS);
+		free(de->de_symlink, M_DEVFS);
 		de->de_symlink = NULL;
 	}
 	if (de->de_vnode)
@@ -263,7 +263,7 @@ devfs_delete(struct devfs_dirent *dd, struct devfs_dirent *de)
 #ifdef MAC
 	mac_destroy_devfsdirent(de);
 #endif
-	FREE(de, M_DEVFS);
+	free(de, M_DEVFS);
 }
 
 void
@@ -281,7 +281,7 @@ devfs_purge(struct devfs_dirent *dd)
 }
 
 
-int
+void
 devfs_populate(struct devfs_mount *dm)
 {
 	int i, j;
@@ -291,7 +291,7 @@ devfs_populate(struct devfs_mount *dm)
 	char *q, *s;
 
 	if (dm->dm_generation == devfs_generation)
-		return (0);
+		return;
 	lockmgr(&dm->dm_lock, LK_UPGRADE, 0, curthread);
 	if (devfs_noverflow && dm->dm_overflow == NULL) {
 		i = devfs_noverflow * sizeof (struct devfs_dirent *);
@@ -371,7 +371,6 @@ devfs_populate(struct devfs_mount *dm)
 		}
 	}
 	lockmgr(&dm->dm_lock, LK_DOWNGRADE, 0, curthread);
-	return (0);
 }
 
 /*

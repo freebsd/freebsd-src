@@ -192,7 +192,7 @@ void devfs_rules_newmount(struct devfs_mount *dm, struct thread *td);
 int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct thread *td);
 struct cdev **devfs_itod (int inode);
 struct devfs_dirent **devfs_itode (struct devfs_mount *dm, int inode);
-int devfs_populate (struct devfs_mount *dm);
+void devfs_populate (struct devfs_mount *dm);
 struct devfs_dirent *devfs_newdirent (char *name, int namelen);
 void devfs_purge (struct devfs_dirent *dd);
 struct devfs_dirent *devfs_vmkdir (char *name, int namelen, struct devfs_dirent *dotdot);
