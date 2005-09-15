@@ -124,7 +124,7 @@ struct tl_softc {
 	u_int8_t		tl_txeoc;
 	u_int8_t		tl_bitrate;
 	int			tl_if_flags;
-	struct callout_handle	tl_stat_ch;
+	struct callout		tl_stat_callout;
 	struct mtx		tl_mtx;
 };
 
