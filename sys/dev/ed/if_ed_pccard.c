@@ -593,7 +593,7 @@ ed_pccard_ax88x90_geteprom(struct ed_softc *sc)
 	tmp = ed_asic_inb(sc, ED_NOVELL_RESET);
 	ed_asic_outb(sc, ED_NOVELL_RESET, tmp);
 	DELAY(5000);
-	ed_asic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0);
+	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0);
 	DELAY(5000);
 
 	/* Card Settings */
