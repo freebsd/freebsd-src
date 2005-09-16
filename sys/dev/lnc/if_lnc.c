@@ -212,6 +212,9 @@ lnc_release_resources(device_t dev)
 		}
 		bus_dma_tag_destroy(sc->dmat);
 	}
+
+	if (sc->ifp)
+		if_free(sc->ifp);
 }
 
 /*
@@ -897,7 +900,6 @@ lnc_detach_common(device_t dev) {
 	int s = splimp();
 
 	ether_ifdetach(sc->ifp);
-	if_free(sc->ifp);
 	lnc_stop(sc);
 	lnc_release_resources(dev);
 
