@@ -1534,7 +1534,6 @@ sk_attach(dev)
 		    sc->sk_unit, sc_if->sk_phytype);
 		error = ENODEV;
 		SK_UNLOCK(sc);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -1565,7 +1564,6 @@ sk_attach(dev)
 	    sk_ifmedia_upd, sk_ifmedia_sts)) {
 		printf("skc%d: no PHY found!\n", sc_if->sk_unit);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1922,9 +1920,10 @@ sk_detach(dev)
 		/* Can't hold locks while calling detach */
 		SK_IF_UNLOCK(sc_if);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		SK_IF_LOCK(sc_if);
 	}
+	if (ifp)
+		if_free(ifp);
 	/*
 	 * We're generally called from skc_detach() which is using
 	 * device_delete_child() to get to here. It's already trashed

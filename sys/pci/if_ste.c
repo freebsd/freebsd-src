@@ -1127,7 +1127,6 @@ ste_attach(dev)
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -1163,8 +1162,9 @@ ste_detach(dev)
 		STE_UNLOCK(sc);
 		callout_drain(&sc->ste_stat_callout);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
+	if (ifp)
+		if_free(ifp);
 	if (sc->ste_miibus)
 		device_delete_child(dev, sc->ste_miibus);
 	bus_generic_detach(dev);

@@ -1220,7 +1220,6 @@ sis_attach(device_t dev)
 	if (mii_phy_probe(dev, &sc->sis_miibus,
 	    sis_ifmedia_upd, sis_ifmedia_sts)) {
 		printf("sis%d: MII without any PHY!\n", sc->sis_unit);
-		if_free(ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1248,7 +1247,6 @@ sis_attach(device_t dev)
 	if (error) {
 		printf("sis%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -1282,8 +1280,9 @@ sis_detach(device_t dev)
 		sis_reset(sc);
 		sis_stop(sc);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
+	if (ifp)
+		if_free(ifp);
 	if (sc->sis_miibus)
 		device_delete_child(dev, sc->sis_miibus);
 	bus_generic_detach(dev);
