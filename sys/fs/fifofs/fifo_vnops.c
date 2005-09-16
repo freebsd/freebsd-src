@@ -387,22 +387,16 @@ static int
 filt_fiforead(struct knote *kn, long hint)
 {
 	struct socket *so = (struct socket *)kn->kn_hook;
-	int need_lock, result;
 
-	need_lock = !SOCKBUF_OWNED(&so->so_rcv);
-	if (need_lock)
-		SOCKBUF_LOCK(&so->so_rcv);
+	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	kn->kn_data = so->so_rcv.sb_cc;
 	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		kn->kn_flags |= EV_EOF;
-		result = 1;
+		return (1);
 	} else {
 		kn->kn_flags &= ~EV_EOF;
-		result = (kn->kn_data > 0);
+		return (kn->kn_data > 0);
 	}
-	if (need_lock)
-		SOCKBUF_UNLOCK(&so->so_rcv);
-	return (result);
 }
 
 static void
@@ -421,22 +415,16 @@ static int
 filt_fifowrite(struct knote *kn, long hint)
 {
 	struct socket *so = (struct socket *)kn->kn_hook;
-	int need_lock, result;
 
-	need_lock = !SOCKBUF_OWNED(&so->so_snd);
-	if (need_lock)
-		SOCKBUF_LOCK(&so->so_snd);
+	SOCKBUF_LOCK_ASSERT(&so->so_snd);
 	kn->kn_data = sbspace(&so->so_snd);
 	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF;
-		result = 1;
+		return (1);
 	} else {
 		kn->kn_flags &= ~EV_EOF;
-	        result = (kn->kn_data >= so->so_snd.sb_lowat);
+	        return (kn->kn_data >= so->so_snd.sb_lowat);
 	}
-	if (need_lock)
-		SOCKBUF_UNLOCK(&so->so_snd);
-	return (result);
 }
 
 static void
