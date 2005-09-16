@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
@@ -208,16 +209,31 @@ struct xpt_quirk_entry {
 	u_int mintags;
 	u_int maxtags;
 };
+
+static int cam_srch_hi = 0;
+TUNABLE_INT("kern.cam.cam_srch_hi", &cam_srch_hi);
+static int sysctl_cam_search_luns(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_kern_cam, OID_AUTO, cam_srch_hi, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
+    sysctl_cam_search_luns, "I",
+    "allow search above LUN 7 for SCSI3 and greater devices");
+
 #define	CAM_SCSI2_MAXLUN	8
 /*
  * If we're not quirked to search <= the first 8 luns
  * and we are either quirked to search above lun 8,
- * or we're > SCSI-2, we can look for luns above lun 8.
+ * or we're > SCSI-2 and we've enabled hilun searching,
+ * or we're > SCSI-2 and the last lun was a success,
+ * we can look for luns above lun 8.
  */
-#define	CAN_SRCH_HI(dv)					\
+#define	CAN_SRCH_HI_SPARSE(dv)				\
   (((dv->quirk->quirks & CAM_QUIRK_NOHILUNS) == 0) 	\
   && ((dv->quirk->quirks & CAM_QUIRK_HILUNS)		\
-  || SID_ANSI_REV(&dv->inq_data) > SCSI_REV_2))
+  || (SID_ANSI_REV(&dv->inq_data) > SCSI_REV_2 && cam_srch_hi)))
+
+#define	CAN_SRCH_HI_DENSE(dv)				\
+  (((dv->quirk->quirks & CAM_QUIRK_NOHILUNS) == 0) 	\
+  && ((dv->quirk->quirks & CAM_QUIRK_HILUNS)		\
+  || (SID_ANSI_REV(&dv->inq_data) > SCSI_REV_2)))
 
 typedef enum {
 	XPT_FLAG_OPEN		= 0x01
@@ -5334,7 +5350,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			s = splcam();
 			device = TAILQ_FIRST(&target->ed_entries);
 			if (device != NULL) {
-				phl = CAN_SRCH_HI(device);
+				phl = CAN_SRCH_HI_SPARSE(device);
 				if (device->lun_id == 0)
 					device = TAILQ_NEXT(device, links);
 			}
@@ -5351,7 +5367,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if ((device->quirk->quirks & CAM_QUIRK_NOLUNS) == 0) {
 				/* Try the next lun */
 				if (lun_id < (CAM_SCSI2_MAXLUN-1)
-				  || CAN_SRCH_HI(device))
+				  || CAN_SRCH_HI_DENSE(device))
 					lun_id++;
 			}
 		}
@@ -6113,6 +6129,23 @@ xpt_find_quirk(struct cam_ed *device)
 		panic("xpt_find_quirk: device didn't match wildcard entry!!");
 
 	device->quirk = (struct xpt_quirk_entry *)match;
+}
+
+static int
+sysctl_cam_search_luns(SYSCTL_HANDLER_ARGS)
+{
+	int error, bool;
+
+	bool = cam_srch_hi;
+	error = sysctl_handle_int(oidp, &bool, sizeof(bool), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (bool == 0 || bool == 1) {
+		cam_srch_hi = bool;
+		return (0);
+	} else {
+		return (EINVAL);
+	}
 }
 
 #ifdef CAM_NEW_TRAN_CODE
