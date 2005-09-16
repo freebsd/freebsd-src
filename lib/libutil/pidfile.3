@@ -100,7 +100,7 @@ The following example shows in which order those functions should be used.
 struct pidfh *pfh;
 pid_t otherpid, childpid;
 
-pfh = pidfile_open("/var/run/daemon.pid", 0644, &otherpid);
+pfh = pidfile_open("/var/run/daemon.pid", 0600, &otherpid);
 if (pfh == NULL) {
 	if (errno == EEXIST)
 		errx(EXIT_FAILURE, "Daemon already running, pid: %d.", otherpid);

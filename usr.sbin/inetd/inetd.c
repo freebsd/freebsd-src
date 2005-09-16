@@ -467,7 +467,7 @@ main(int argc, char **argv)
 	if (debug == 0) {
 		pid_t otherpid;
 
-		pfh = pidfile_open(pid_file, 0644, &otherpid);
+		pfh = pidfile_open(pid_file, 0600, &otherpid);
 		if (pfh == NULL) {
 			if (errno == EEXIST) {
 				syslog(LOG_ERR, "%s already running, pid: %d",
