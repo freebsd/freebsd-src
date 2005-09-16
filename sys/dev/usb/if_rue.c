@@ -735,6 +735,7 @@ rue_detach(device_ptr_t dev)
 	untimeout(rue_tick, sc, sc->rue_stat_ch);
 #if __FreeBSD_version >= 500000
 	ether_ifdetach(ifp);
+	if_free(ifp);
 #else
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 #endif
