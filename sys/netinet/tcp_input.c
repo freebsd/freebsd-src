@@ -1912,9 +1912,6 @@ trimthenstep6:
 					callout_stop(tp->tt_rexmt);
 					tp->t_rtttime = 0;
 					if (tp->sack_enable) {
-						KASSERT(tp->sackhint.
-							sack_bytes_rexmit == 0,
-							("sackhint rexmit == 0"));
 						tcpstat.tcps_sack_recovery_episode++;
 						tp->sack_newdata = tp->snd_nxt;
 						tp->snd_cwnd = tp->t_maxseg;
