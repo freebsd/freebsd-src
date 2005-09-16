@@ -986,7 +986,6 @@ rl_attach(device_t dev)
 	if (error) {
 		if_printf(ifp, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
 
 fail:
@@ -1008,24 +1007,23 @@ rl_detach(device_t dev)
 {
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
-	int			attached;
 
 	sc = device_get_softc(dev);
 	ifp = sc->rl_ifp;
 
 	KASSERT(mtx_initialized(&sc->rl_mtx), ("rl mutex not initialized"));
-	attached = device_is_attached(dev);
 	/* These should only be active if attach succeeded */
-	if (attached) {
+	if (device_is_attached(dev)) {
 		RL_LOCK(sc);
 		rl_stop(sc);
 		RL_UNLOCK(sc);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
 #if 0
 	sc->suspended = 1;
 #endif
+	if (ifp)
+		if_free(ifp);
 	if (sc->rl_miibus)
 		device_delete_child(dev, sc->rl_miibus);
 	bus_generic_detach(dev);

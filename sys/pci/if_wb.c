@@ -885,7 +885,6 @@ wb_attach(dev)
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -922,8 +921,9 @@ wb_detach(dev)
 	if (device_is_attached(dev)) {
 		wb_stop(sc);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
+	if (ifp)
+		if_free(ifp);
 	if (sc->wb_miibus)
 		device_delete_child(dev, sc->wb_miibus);
 	bus_generic_detach(dev);

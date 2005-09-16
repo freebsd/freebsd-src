@@ -2292,7 +2292,6 @@ ti_attach(dev)
 	if (error) {
 		printf("ti%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -2328,9 +2327,10 @@ ti_detach(dev)
 	if (device_is_attached(dev)) {
 		ti_stop(sc);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		bus_generic_detach(dev);
 	}
+	if (ifp)
+		if_free(ifp);
 	ifmedia_removeall(&sc->ifmedia);
 
 	if (sc->ti_rdata)
