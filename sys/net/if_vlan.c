@@ -562,16 +562,19 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	struct m_tag *mtag;
 	u_int tag;
 
-	mtag = m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL);
-	if (mtag != NULL) {
+	if (m->m_flags & M_VLANTAG) {
 		/*
 		 * Packet is tagged, m contains a normal
 		 * Ethernet frame; the tag is stored out-of-band.
 		 */
+		mtag = m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL);
+		KASSERT(mtag != NULL,
+			("%s: M_VLANTAG without m_tag", __func__));
 		tag = EVL_VLANOFTAG(VLAN_TAG_VALUE(mtag));
 		m_tag_delete(m, mtag);
 		m->m_flags &= ~M_VLANTAG;
 	} else {
+		mtag = NULL;
 		switch (ifp->if_type) {
 		case IFT_ETHER:
 			if (m->m_len < sizeof(*evl) &&
