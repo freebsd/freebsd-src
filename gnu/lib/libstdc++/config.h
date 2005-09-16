@@ -551,20 +551,26 @@
 /* Define to 1 if you have the `vfwprintf' function. */
 #define HAVE_VFWPRINTF 1
 
+#if __ISO_C_VISIBLE >= 1999
 /* Define to 1 if you have the `vfwscanf' function. */
 #define HAVE_VFWSCANF 1
+#endif
 
 /* Define to 1 if you have the `vswprintf' function. */
 #define HAVE_VSWPRINTF 1
 
+#if __ISO_C_VISIBLE >= 1999
 /* Define to 1 if you have the `vswscanf' function. */
 #define HAVE_VSWSCANF 1
+#endif
 
 /* Define to 1 if you have the `vwprintf' function. */
 #define HAVE_VWPRINTF 1
 
+#if __ISO_C_VISIBLE >= 1999
 /* Define to 1 if you have the `vwscanf' function. */
 #define HAVE_VWSCANF 1
+#endif
 
 /* Define to 1 if you have the <wchar.h> header file. */
 #define HAVE_WCHAR_H 1
@@ -623,8 +629,10 @@
 /* Define to 1 if you have the `wcstod' function. */
 #define HAVE_WCSTOD 1
 
+#if __ISO_C_VISIBLE >= 1999
 /* Define to 1 if you have the `wcstof' function. */
 #define HAVE_WCSTOF 1
+#endif
 
 /* Define to 1 if you have the `wcstok' function. */
 #define HAVE_WCSTOK 1
