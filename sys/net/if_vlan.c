@@ -536,8 +536,8 @@ vlan_start(struct ifnet *ifp)
 			evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
 			evl->evl_tag = htons(ifv->ifv_tag);
 #ifdef DEBUG
-			printf("vlan_start: %*D\n", (int)sizeof(*evl),
-			    (unsigned char *)evl, ":");
+			printf("%s: %*D\n", (int)sizeof(*evl),
+			       __func__, (unsigned char *)evl, ":");
 #endif
 		}
 
@@ -587,8 +587,8 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 			}
 			evl = mtod(m, struct ether_vlan_header *);
 			KASSERT(ntohs(evl->evl_encap_proto) == ETHERTYPE_VLAN,
-				("vlan_input: bad encapsulated protocols (%u)",
-				 ntohs(evl->evl_encap_proto)));
+				("%s: bad encapsulation protocol (%u)",
+				 __func__, ntohs(evl->evl_encap_proto)));
 
 			tag = EVL_VLANOFTAG(ntohs(evl->evl_tag));
 
@@ -601,9 +601,9 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 			break;
 		default:
 			tag = (u_int) -1;
-#ifdef DIAGNOSTIC
-			panic("vlan_input: unsupported if type %u",
-			    ifp->if_type);
+#ifdef INVARIANTS
+			panic("%s: unsupported if_type (%u)",
+			      __func__, ifp->if_type);
 #endif
 			break;
 		}
@@ -619,13 +619,13 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		ifp->if_noproto++;
 #ifdef DEBUG
-		printf("vlan_input: tag %d, no interface\n", tag);
+		printf("%s: tag %d, no interface\n", __func__, tag);
 #endif
 		return;
 	}
 	VLAN_UNLOCK();		/* XXX extend below? */
 #ifdef DEBUG
-	printf("vlan_input: tag %d, parent %s\n", tag, ifv->ifv_p->if_xname);
+	printf("%s: tag %d, parent %s\n", __func__, tag, ifv->ifv_p->if_xname);
 #endif
 
 	if (mtag == NULL) {
