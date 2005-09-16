@@ -743,6 +743,7 @@ fe_attach (device_t dev)
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 			       fe_intr, sc, &sc->irq_handle);
 	if (error) {
+		if_free(ifp);
 		fe_release_resource(dev);
 		return ENXIO;
 	}
