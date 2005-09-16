@@ -918,7 +918,7 @@ moused(void)
 	logerr(1, "cannot open /dev/consolectl");
 
     if (!nodaemon && !background) {
-	pfh = pidfile_open(pidfile, 0644, &mpid);
+	pfh = pidfile_open(pidfile, 0600, &mpid);
 	if (pfh == NULL) {
 	    if (errno == EEXIST)
 		logerrx(1, "moused already running, pid: %d", mpid);
