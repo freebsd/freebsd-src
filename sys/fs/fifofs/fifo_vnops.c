@@ -254,7 +254,7 @@ fail1:
 			SOCKBUF_UNLOCK(&fip->fi_writesock->so_rcv);
 			if (fip->fi_readers > 0) {
 				wakeup(&fip->fi_readers);
-				sorwakeup(fip->fi_writesock);
+				sorwakeup(fip->fi_readsock);
 			}
 		}
 	}
