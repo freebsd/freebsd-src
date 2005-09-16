@@ -564,7 +564,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 
 	if (m->m_flags & M_VLANTAG) {
 		/*
-		 * Packet is tagged, m contains a normal
+		 * Packet is tagged, but m contains a normal
 		 * Ethernet frame; the tag is stored out-of-band.
 		 */
 		mtag = m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL);
@@ -574,6 +574,9 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		m_tag_delete(m, mtag);
 		m->m_flags &= ~M_VLANTAG;
 	} else {
+		/*
+		 * Packet is tagged in-band as specified by 802.1q.
+		 */
 		mtag = NULL;
 		switch (ifp->if_type) {
 		case IFT_ETHER:
