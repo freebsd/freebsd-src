@@ -378,6 +378,7 @@ USB_ATTACH(udav)
 		splx(s);
 #elif defined(__FreeBSD__)
                 UDAV_UNLOCK(sc);
+		mtx_destroy(&sc->sc_mtx);
 #endif
 		goto bad;
 	}
@@ -391,6 +392,7 @@ USB_ATTACH(udav)
 	if (ifp == NULL) {
 		printf("%s: can not if_alloc\n", devname);
                 UDAV_UNLOCK(sc);
+		mtx_destroy(&sc->sc_mtx);
 		goto bad;
 	}
 #else
@@ -447,6 +449,7 @@ USB_ATTACH(udav)
 	if (mii_phy_probe(self, &sc->sc_miibus,
 	    udav_ifmedia_change, udav_ifmedia_status)) {
 		printf("%s: MII without any PHY!\n", USBDEVNAME(sc->sc_dev));
+		if_free(ifp);
 		UDAV_UNLOCK(sc);
 		mtx_destroy(&sc->sc_mtx);
 		USB_ATTACH_ERROR_RETURN;
