@@ -2624,7 +2624,7 @@ ufs_kqfilter(ap)
 		kn->kn_fop = &ufsvnode_filtops;
 		break;
 	default:
-		return (1);
+		return (EINVAL);
 	}
 
 	kn->kn_hook = (caddr_t)vp;

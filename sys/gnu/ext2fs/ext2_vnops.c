@@ -1887,7 +1887,7 @@ ext2_kqfilter(ap)
 		kn->kn_fop = &ext2vnode_filtops;
 		break;
 	default:
-		return (1);
+		return (EINVAL);
 	}
 
 	kn->kn_hook = (caddr_t)vp;
