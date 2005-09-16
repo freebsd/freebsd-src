@@ -322,6 +322,8 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
      */
     if (type == SYS_RES_MEMORY && start == 0UL && end == ~0UL)
 	start = acpi_host_mem_start;
+    if (type == SYS_RES_IOPORT && start == 0UL && end == ~0UL)
+	start = 0x1000;
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));
 }
