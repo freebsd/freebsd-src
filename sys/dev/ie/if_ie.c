@@ -1777,6 +1777,8 @@ ie_release_resources (device_t dev)
 	if (sc->mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 				     sc->mem_rid, sc->mem_res);
+	if (sc->ifp)
+		if_free(sc->ifp);
 
 	return;
 }
@@ -1796,7 +1798,6 @@ ie_detach (device_t dev)
 	ie_stop(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(ifp);
-	if_free(ifp);
 	ie_release_resources(dev);
 
 	return (0);

@@ -252,6 +252,8 @@ ed_release_resources(device_t dev)
 		    sc->irq_rid, sc->irq_res);
 		sc->irq_res = 0;
 	}
+	if (sc->ifp)
+		if_free(sc->ifp);
 }
 
 /*
@@ -374,7 +376,6 @@ ed_detach(device_t dev)
 	ED_UNLOCK(sc);
 	callout_drain(&sc->tick_ch);
 	ether_ifdetach(ifp);
-	if_free(ifp);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
 	ED_LOCK_DESTROY(sc);

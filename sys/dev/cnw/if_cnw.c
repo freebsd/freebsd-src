@@ -1627,6 +1627,7 @@ static int cnw_pccard_attach(device_t dev)
 	error = cnw_alloc(dev);
 	if (error) {
 		device_printf(dev, "cnw_alloc() failed! (%d)\n", error);
+		if_free(ifp);
 		return (error);
 	}
 
@@ -1636,6 +1637,7 @@ static int cnw_pccard_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
 		cnw_free(dev);
+		if_free(ifp);
 		return (error);
 	}
 

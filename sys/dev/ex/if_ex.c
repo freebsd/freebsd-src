@@ -196,6 +196,9 @@ ex_release_resources(device_t dev)
 		sc->irq = NULL;
 	}
 
+	if (sc->ifp)
+		if_free(sc->ifp);
+
 	return;
 }
 
@@ -276,7 +279,6 @@ ex_detach(device_t dev)
 
         ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(ifp);
-	if_free(ifp);
 
 	ex_release_resources(dev);
 
