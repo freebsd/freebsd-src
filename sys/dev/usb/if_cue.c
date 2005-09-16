@@ -505,6 +505,10 @@ USB_ATTACH(cue)
 	ifp = sc->cue_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		printf("cue%d: can not if_alloc()\n", sc->cue_unit);
+		CUE_UNLOCK(sc);
+#if __FreeBSD_version >= 500000
+		mtx_destroy(&sc->cue_mtx);
+#endif
 		USB_ATTACH_ERROR_RETURN;
 	}
 	ifp->if_softc = sc;
@@ -552,9 +556,9 @@ cue_detach(device_ptr_t dev)
 	untimeout(cue_tick, sc, sc->cue_stat_ch);
 #if __FreeBSD_version >= 500000
 	ether_ifdetach(ifp);
+	if_free(ifp);
 #else
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
-	if_free(ifp);
 #endif
 
 	if (sc->cue_ep[CUE_ENDPT_TX] != NULL)
