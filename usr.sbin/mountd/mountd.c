@@ -275,7 +275,7 @@ main(argc, argv)
 	udp6sock = tcp6sock = 0;
 
 	/* Check that another mountd isn't already running. */
-	pfh = pidfile_open(_PATH_MOUNTDPID, 0644, &otherpid);
+	pfh = pidfile_open(_PATH_MOUNTDPID, 0600, &otherpid);
 	if (pfh == NULL) {
 		if (errno == EEXIST)
 			errx(1, "mountd already running, pid: %d.", otherpid);
