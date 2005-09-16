@@ -427,11 +427,8 @@ bfe_attach(device_t dev)
 		goto fail;
 	}
 fail:
-	if(error) {
+	if (error)
 		bfe_release_resources(sc);
-		if (ifp != NULL)
-			if_free(ifp);
-	}
 	return (error);
 }
 
@@ -451,7 +448,6 @@ bfe_detach(device_t dev)
 	if (device_is_attached(dev)) {
 		bfe_stop(sc);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
 
 	bfe_chip_reset(sc);
@@ -938,6 +934,9 @@ bfe_release_resources(struct bfe_softc *sc)
 
 	if (sc->bfe_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0x10, sc->bfe_res);
+
+	if (sc->bfe_ifp != NULL)
+		if_free(sc->bfe_ifp);
 
 	if(sc->bfe_tx_tag != NULL) {
 		bus_dmamap_unload(sc->bfe_tx_tag, sc->bfe_tx_map);
