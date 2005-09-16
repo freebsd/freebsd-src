@@ -199,8 +199,11 @@ en_pci_attach(device_t dev)
 	sc = device_get_softc(dev);
 	scp = (struct en_pci_softc *)sc;
 	sc->ifp = if_alloc(IFT_ATM);
-	if (sc->ifp == NULL)
-		return (ENOSPC);
+	if (sc->ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
 
 	if_initname(sc->ifp, device_get_name(dev),
 	    device_get_unit(dev));
@@ -220,6 +223,7 @@ en_pci_attach(device_t dev)
 	    RF_ACTIVE);
 	if (scp->res == NULL) {
 		device_printf(dev, "could not map memory\n");
+		if_free(sc->ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -237,6 +241,7 @@ en_pci_attach(device_t dev)
 	if (scp->irq == NULL) {
 		device_printf(dev, "could not map interrupt\n");
 		bus_release_resource(dev, SYS_RES_MEMORY, PCI_CBMA, scp->res);
+		if_free(sc->ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -267,6 +272,7 @@ en_pci_attach(device_t dev)
 		bus_teardown_intr(dev, scp->irq, scp->ih);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, scp->irq);
 		bus_release_resource(dev, SYS_RES_MEMORY, PCI_CBMA, scp->res);
+		if_free(sc->ifp);
 		goto fail;
 	}
 
@@ -283,6 +289,7 @@ en_pci_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, scp->irq);
 		bus_release_resource(dev, SYS_RES_MEMORY, PCI_CBMA, scp->res);
 		en_destroy(sc);
+		if_free(sc->ifp);
 		goto fail;
 	}
 
