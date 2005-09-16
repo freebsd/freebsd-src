@@ -2460,7 +2460,6 @@ bge_attach(dev)
 			printf("bge%d: MII without any PHY!\n", sc->bge_unit);
 			bge_release_resources(sc);
 			bge_free_jumbo_mem(sc);
-			if_free(ifp);
 			error = ENXIO;
 			goto fail;
 		}
@@ -2524,7 +2523,6 @@ bge_detach(dev)
 	BGE_UNLOCK(sc);
 
 	ether_ifdetach(ifp);
-	if_free(ifp);
 
 	if (sc->bge_tbi) {
 		ifmedia_removeall(&sc->bge_ifmedia);
@@ -2564,6 +2562,9 @@ bge_release_resources(sc)
 	if (sc->bge_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    BGE_PCI_BAR0, sc->bge_res);
+
+	if (sc->bge_ifp != NULL)
+		if_free(sc->bge_ifp);
 
 	bge_dma_free(sc);
 
