@@ -628,6 +628,7 @@ ath_detach(struct ath_softc *sc)
 	ath_desc_free(sc);
 	ath_tx_cleanup(sc);
 	ath_hal_detach(sc->sc_ah);
+	if_free(ifp);
 
 	return 0;
 }
