@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 		if (watchdog_onoff(1) == -1)
 			exit(EX_SOFTWARE);
 
-		pfh = pidfile_open(pidfile, 0644, &otherpid);
+		pfh = pidfile_open(pidfile, 0600, &otherpid);
 		if (pfh == NULL) {
 			if (errno == EEXIST) {
 				errx(EX_SOFTWARE, "%s already running, pid: %d",

@@ -72,7 +72,7 @@ open_pidfile(void)
 	int	otherpid;
 
 	(void) snprintf(pidfile, sizeof(pidfile), PIDFILE, PIDDIR);
-	pfh = pidfile_open(pidfile, 0644, &otherpid);
+	pfh = pidfile_open(pidfile, 0600, &otherpid);
 	if (pfh == NULL) {
 		if (errno == EEXIST) {
 			snprintf(buf, sizeof(buf),
