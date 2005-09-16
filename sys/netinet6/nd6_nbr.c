@@ -595,7 +595,7 @@ nd6_na_input(m, off, icmp6len)
 
 	taddr6 = nd_na->nd_na_target;
 	if (in6_setscope(&taddr6, ifp, NULL))
-		return;		/* XXX: impossible */
+		goto bad;	/* XXX: impossible */
 
 	if (IN6_IS_ADDR_MULTICAST(&taddr6)) {
 		nd6log((LOG_ERR,
