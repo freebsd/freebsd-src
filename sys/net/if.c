@@ -200,7 +200,7 @@ netkqfilter(struct cdev *dev, struct knote *kn)
 		kn->kn_fop = &netdev_filtops;
 		break;
 	default:
-		return (1);
+		return (EINVAL);
 	}
 
 	idx = minor(dev);
