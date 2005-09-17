@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 PROG=	cmp
-SRCS=	cmp.c misc.c regular.c special.c
+SRCS=	cmp.c link.c misc.c regular.c special.c
 
 .include <bsd.prog.mk>
