@@ -305,15 +305,28 @@ recurse_one(DEP * d, size_t * nd)
 static void
 recurse(PORT * p)
 {
-	if (p->recursed != 0)
+	switch (p->recursed) {
+	case 0:
+		/* First time we've seen this port */
+		p->recursed = 1;
+		break;
+	case 1:
+		/* We're in the middle of recursing this port */
+		errx(1, "Circular dependency loop found: %s"
+		    " depends upon itself.\n", p->pkgname);
+	case 2:
+		/* This port has already been recursed */
 		return;
-	p->recursed = 1;
+	}
 
 	p->edep = recurse_one(p->edep, &p->n_edep);
 	p->pdep = recurse_one(p->pdep, &p->n_pdep);
 	p->fdep = recurse_one(p->fdep, &p->n_fdep);
 	p->bdep = recurse_one(p->bdep, &p->n_bdep);
 	p->rdep = recurse_one(p->rdep, &p->n_rdep);
+
+	/* Finished recursing on this port */
+	p->recursed = 2;
 }
 
 /* Heapify an element in a package list */
