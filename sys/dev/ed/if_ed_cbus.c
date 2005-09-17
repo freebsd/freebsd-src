@@ -42,6 +42,7 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_media.h>
 #include <net/if_mib.h>
 
 #include <isa/isavar.h>
@@ -242,7 +243,7 @@ ed_cbus_attach(dev)
 
 	ed_alloc_irq(dev, sc->irq_rid, 0);
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    edintr, sc, &sc->irq_handle);
 	if (error) {
 		ed_release_resources(dev);
@@ -616,7 +617,7 @@ ed98_alloc_memory(dev, rid)
 	if (error)
 		return (error);
 
-	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
+	sc->mem_start = 0;
 	sc->mem_size  = conf_msize;
 
 	return (0);
@@ -839,9 +840,10 @@ ed_probe_SIC98(device_t dev, int port_rid, int flags)
 	 * type code and ethernet address check out, then we know we have
 	 * an SIC card.
 	 */
-	sum = sc->mem_start[6 * 2];
+	sum = bus_space_read_1(sc->mem_bst, sc->mem_bsh, 6 * 2);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sum ^= (sc->enaddr[i] = sc->mem_start[i * 2]);
+		sum ^= (sc->enaddr[i] =
+		    bus_space_read_1(sc->mem_bst, sc->mem_bsh, i * 2));
 #ifdef ED_DEBUG
 	device_printf(dev, "ed_probe_sic98: got address %6D\n",
 		      sc->enaddr, ":");
@@ -1064,7 +1066,8 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 	/*
 	 * Get station address from on-board ROM
 	 */
-	bcopy(sc->mem_start, sc->enaddr, ETHER_ADDR_LEN);
+	bus_space_read_region_1(sc->mem_bst, sc->mem_bsh, sc->mem_start,
+	    sc->enaddr, ETHER_ADDR_LEN);
 
 	sc->vendor    = ED_VENDOR_MISC;
 	sc->type_str  = "CNET98";
@@ -1577,7 +1580,7 @@ ed_pio_testmem(struct ed_softc *sc, int page_offset, int isa16bit, int flags)
 	}
 #endif
 	sc->mem_size = memsize;
-	sc->mem_start = (char *) page_offset;
+	sc->mem_start = page_offset;
 	sc->mem_end   = sc->mem_start + memsize;
 	sc->tx_page_start = page_offset / ED_PAGE_SIZE;
 
@@ -1602,7 +1605,7 @@ static device_method_t ed_cbus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ed_cbus_probe),
 	DEVMETHOD(device_attach,	ed_cbus_attach),
-	DEVMETHOD(device_attach,	ed_detach),
+	DEVMETHOD(device_detach,	ed_detach),
 
 	{ 0, 0 }
 };
