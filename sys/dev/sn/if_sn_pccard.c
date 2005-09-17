@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h> 
 
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccard_cis.h>
@@ -53,38 +55,77 @@ __FBSDID("$FreeBSD$");
 #include "card_if.h"
 #include "pccarddevs.h"
 
-static const struct pccard_product sn_pccard_products[] = {
-	PCMCIA_CARD(DSPSI, XJACK),
-	PCMCIA_CARD(MOTOROLA, MARINER),
-	PCMCIA_CARD(NEWMEDIA, BASICS),
-	PCMCIA_CARD(OSITECH, TRUMP_SOD),
-	PCMCIA_CARD(OSITECH, TRUMP_JOH),
-	PCMCIA_CARD(PSION, GOLDCARD),
-	PCMCIA_CARD(PSION, NETGLOBAL),
-	PCMCIA_CARD(PSION, NETGLOBAL2),
-	PCMCIA_CARD(SMC, 8020BT),
-	PCMCIA_CARD(SMC, SMC91C96),
-	{ NULL }
+typedef int sn_get_enaddr_t(device_t dev, u_char *eaddr);
+typedef int sn_activate_t(device_t dev);
+
+struct sn_sw
+{
+	int type;
+#define SN_NORMAL 1
+#define SN_MEGAHERTZ 2
+#define SN_OSITECH 3
+#define SN_OSI_SOD 4
+#define SN_MOTO_MARINER 5
+	char *typestr;
+	sn_get_enaddr_t *get_mac;
+	sn_activate_t *activate;
 };
+
+static sn_get_enaddr_t sn_pccard_normal_get_mac;
+static sn_activate_t sn_pccard_normal_activate;
+const static struct sn_sw sn_normal_sw = {
+	SN_NORMAL, "plain",
+	sn_pccard_normal_get_mac,
+	sn_pccard_normal_activate
+};
+
+static sn_get_enaddr_t sn_pccard_megahertz_get_mac;
+static sn_activate_t sn_pccard_megahertz_activate;
+const static struct sn_sw sn_mhz_sw = {
+	SN_MEGAHERTZ, "Megahertz",
+	sn_pccard_megahertz_get_mac,
+	sn_pccard_megahertz_activate
+};
+
+static const struct sn_product {
+	struct pccard_product prod;
+	const struct sn_sw *sw;
+} sn_pccard_products[] = {
+	{ PCMCIA_CARD(DSPSI, XJEM1144), &sn_mhz_sw },
+	{ PCMCIA_CARD(DSPSI, XJACK), &sn_normal_sw },
+/*	{ PCMCIA_CARD(MOTOROLA, MARINER), SN_MOTO_MARINER }, */
+	{ PCMCIA_CARD(NEWMEDIA, BASICS), &sn_normal_sw },
+	{ PCMCIA_CARD(MEGAHERTZ, VARIOUS), &sn_mhz_sw},
+	{ PCMCIA_CARD(MEGAHERTZ, XJEM3336), &sn_mhz_sw},
+/*	{ PCMCIA_CARD(OSITECH, TRUMP_SOD), SN_OSI_SOD }, */
+/*	{ PCMCIA_CARD(OSITECH, TRUMP_JOH), SN_OSITECH }, */
+/*	{ PCMCIA_CARD(PSION, GOLDCARD), SN_OSITECH }, */
+/*	{ PCMCIA_CARD(PSION, NETGLOBAL), SNI_OSI_SOD }, */
+/*	{ PCMCIA_CARD(PSION, NETGLOBAL2), SN_OSITECH }, */
+	{ PCMCIA_CARD(SMC, 8020BT), &sn_normal_sw },
+	{ PCMCIA_CARD(SMC, SMC91C96), &sn_normal_sw },
+	{ { NULL } }
+	
+};
+
+static const struct sn_product *
+sn_pccard_lookup(device_t dev)
+{
+
+	return ((const struct sn_product *)
+	    pccard_product_lookup(dev,
+		(const struct pccard_product *)sn_pccard_products,
+		sizeof(sn_pccard_products[0]), NULL));
+}
 
 static int
 sn_pccard_probe(device_t dev)
 {
-	const struct pccard_product *pp;
-	int		error;
-	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+	const struct sn_product *pp;
 
-	/* Make sure we're a network function */
-	error = pccard_get_function(dev, &fcn);
-	if (error != 0)
-		return (error);
-	if (fcn != PCCARD_FUNCTION_NETWORK)
-		return (ENXIO);
-
-	if ((pp = pccard_product_lookup(dev, sn_pccard_products,
-	    sizeof(sn_pccard_products[0]), NULL)) != NULL) {
-		if (pp->pp_name != NULL)
-			device_set_desc(dev, pp->pp_name);
+	if ((pp = sn_pccard_lookup(dev)) != NULL) {
+		if (pp->prod.pp_name != NULL)
+			device_set_desc(dev, pp->prod.pp_name);
 		return 0;
 	}
 	return EIO;
@@ -95,9 +136,8 @@ sn_pccard_ascii_enaddr(const char *str, u_char *enet)
 {
         uint8_t digit;
 	int i;
-                
+
 	memset(enet, 0, ETHER_ADDR_LEN);
-         
 	for (i = 0, digit = 0; i < (ETHER_ADDR_LEN * 2); i++) {
 		if (str[i] >= '0' && str[i] <= '9')
 			digit |= str[i] - '0';
@@ -105,10 +145,8 @@ sn_pccard_ascii_enaddr(const char *str, u_char *enet)
 			digit |= (str[i] - 'a') + 10;
 		else if (str[i] >= 'A' && str[i] <= 'F')
 			digit |= (str[i] - 'A') + 10;
-		else {
-			/* Bogus digit!! */
-			return (0);
-		}
+		else
+			return (0);		/* Bogus digit!! */
 
 		/* Compensate for ordering of digits. */
 		if (i & 1) {
@@ -122,14 +160,10 @@ sn_pccard_ascii_enaddr(const char *str, u_char *enet)
 }
 
 static int
-sn_pccard_attach(device_t dev)
+sn_pccard_normal_get_mac(device_t dev, u_char *eaddr)
 {
-	struct sn_softc *sc = device_get_softc(dev);
+	int i, sum;
 	const char *cisstr;
-	u_char eaddr[ETHER_ADDR_LEN];
-	int i, err;
-	uint16_t w;
-	u_char sum;
 
 	pccard_get_ether(dev, eaddr);
 	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
@@ -144,16 +178,125 @@ sn_pccard_attach(device_t dev)
 		if (cisstr && strlen(cisstr) == ETHER_ADDR_LEN * 2)
 		    sum = sn_pccard_ascii_enaddr(cisstr, eaddr);
 	}
+	return sum;
+}
 
-	/* Allocate resources so we can program the ether addr */
-	sc->dev = dev;
+static int
+sn_pccard_normal_activate(device_t dev)
+{
+	int err;
+
+	err = sn_activate(dev);
+	if (err)
+		sn_deactivate(dev);
+	return (err);
+}
+
+static int
+sn_pccard_megahertz_mac(const struct pccard_tuple *tuple, void *argp)
+{
+	uint8_t *enaddr = argp;
+	int i;
+	uint8_t buffer[ETHER_ADDR_LEN * 2];
+
+	/* Code 0x81 is Megahertz' special cis node contianing the MAC */
+	if (tuple->code != 0x81)
+		return (0);
+
+	/* Make sure this is a sane node, as ASCII digits */
+	if (tuple->length != ETHER_ADDR_LEN * 2 + 1)
+		return (0);
+
+	/* Copy the MAC ADDR and return success if decoded */
+	for (i = 0; i < ETHER_ADDR_LEN * 2; i++)
+		buffer[i] = pccard_tuple_read_1(tuple, i);
+	return (sn_pccard_ascii_enaddr(buffer, enaddr));
+}
+
+static int
+sn_pccard_megahertz_get_mac(device_t dev, u_char *eaddr)
+{
+
+	if (sn_pccard_normal_get_mac(dev, eaddr))
+		return 1;
+	/*
+	 * If that fails, try the special CIS tuple 0x81 that the
+	 * '3288 and '3336 cards have.  That tuple specifies an ASCII
+	 * string, ala CIS3 or CIS4 in the 'normal' cards.
+	 */
+	return (pccard_cis_scan(dev, sn_pccard_megahertz_mac, eaddr));
+}
+
+static int
+sn_pccard_megahertz_activate(device_t dev)
+{
+	int err;
+	struct sn_softc *sc = device_get_softc(dev);
+	u_long start;
+
 	err = sn_activate(dev);
 	if (err) {
 		sn_deactivate(dev);
 		return (err);
 	}
+	/*
+	 * CIS resource is the modem one, so save it away.
+	 */
+	sc->modem_rid = sc->port_rid;
+	sc->modem_res = sc->port_res;
+
+	/*
+	 * The MHz XJEM/CCEM series of cards just need to have any
+	 * old resource allocated for the ethernet side of things,
+	 * provided bit 0x80 isn't set in the address.  That bit is
+	 * evidentially reserved for modem function and is how the
+	 * card steers the addresses internally.
+	 */
+	sc->port_res = NULL;
+	start = 0;
+	do
+	{
+		sc->port_rid = 1;
+		sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
+		    &sc->port_rid, start, ~0, SMC_IO_EXTENT, RF_ACTIVE);
+		if (sc->port_res == NULL)
+			break;
+		if (!(rman_get_start(sc->port_res) & 0x80))
+			break;
+		start = rman_get_start(sc->port_res) + SMC_IO_EXTENT;
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->port_rid,
+		    sc->port_res);
+	} while (start < 0xff80);
+	if (sc->port_res == NULL) {
+		sn_deactivate(dev);
+		return ENOMEM;
+	}
+	sc->bst = rman_get_bustag(sc->port_res);
+	sc->bsh = rman_get_bushandle(sc->port_res);
+	return 0;
+}
+
+static int
+sn_pccard_attach(device_t dev)
+{
+	struct sn_softc *sc = device_get_softc(dev);
+	u_char eaddr[ETHER_ADDR_LEN];
+	int i, err;
+	uint16_t w;
+	u_char sum;
+	const struct sn_product *pp;
+
+	pp = sn_pccard_lookup(dev);
+	sum = pp->sw->get_mac(dev, eaddr);
+
+	/* Allocate resources so we can program the ether addr */
+	sc->dev = dev;
+	err = pp->sw->activate(dev);
+	if (err != 0)
+		return (err);
 
 	if (sum) {
+		printf("Programming sn card's addr\n");
 		SMC_SELECT_BANK(sc, 1);
 		for (i = 0; i < 3; i++) {
 			w = (uint16_t)eaddr[i * 2] | 

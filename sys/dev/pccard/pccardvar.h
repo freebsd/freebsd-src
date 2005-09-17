@@ -73,6 +73,8 @@ struct pccard_mem_handle {
 
 /* pccard itself */
 
+#define PCCARD_MEM_PAGE_SIZE		4096
+
 #define PCCARD_CFE_MWAIT_REQUIRED	0x0001
 #define PCCARD_CFE_RDYBSY_ACTIVE	0x0002
 #define PCCARD_CFE_WP_ACTIVE		0x0004
@@ -192,7 +194,7 @@ struct pccard_card {
 /* More later? */
 struct pccard_ivar {
 	struct resource_list resources;
-	struct pccard_function *fcn;
+	struct pccard_function *pf;
 };
 
 struct pccard_softc {
@@ -252,7 +254,7 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 void	pccard_read_cis(struct pccard_softc *);
 void	pccard_check_cis_quirks(device_t);
 void	pccard_print_cis(device_t);
-int	pccard_scan_cis(device_t, pccard_scan_t, void *);
+int	pccard_scan_cis(device_t, device_t, pccard_scan_t, void *);
 
 #define	pccard_cis_read_1(tuple, idx0)					\
 	(bus_space_read_1((tuple)->memt, (tuple)->memh, (tuple)->mult*(idx0)))
@@ -288,27 +290,6 @@ int	pccard_scan_cis(device_t, pccard_scan_t, void *);
 		(STAILQ_FIRST(&(sc)->card.pf_head) &&			\
 		 STAILQ_NEXT(STAILQ_FIRST(&(sc)->card.pf_head),pf_list))
 
-#define	pccard_io_alloc(pf, start, size, align, pciop)			\
-	(pccard_chip_io_alloc((pf)->sc->pct, pf->sc->pch, (start),	\
-	 (size), (align), (pciop)))
-
-#define	pccard_io_free(pf, pciohp)					\
-	(pccard_chip_io_free((pf)->sc->pct, (pf)->sc->pch, (pciohp)))
-
-int	pccard_io_map(struct pccard_function *, int, bus_addr_t,
-	    bus_size_t, struct pccard_io_handle *, int *);
-void	pccard_io_unmap(struct pccard_function *, int);
-
-#define pccard_mem_alloc(pf, size, pcmhp)				\
-	(pccard_chip_mem_alloc((pf)->sc->pct, (pf)->sc->pch, (size), (pcmhp)))
-#define pccard_mem_free(pf, pcmhp)					\
-	(pccard_chip_mem_free((pf)->sc->pct, (pf)->sc->pch, (pcmhp)))
-#define pccard_mem_map(pf, kind, card_addr, size, pcmhp, offsetp, windowp) \
-	(pccard_chip_mem_map((pf)->sc->pct, (pf)->sc->pch, (kind),	\
-	 (card_addr), (size), (pcmhp), (offsetp), (windowp)))
-#define	pccard_mem_unmap(pf, window)					\
-	(pccard_chip_mem_unmap((pf)->sc->pct, (pf)->sc->pch, (window)))
-
 /* compat layer */
 static __inline int
 pccard_compat_probe(device_t dev)
@@ -320,6 +301,38 @@ static __inline int
 pccard_compat_attach(device_t dev)
 {
 	return (CARD_COMPAT_DO_ATTACH(device_get_parent(dev), dev));
+}
+
+/* Convenience functions */
+
+static __inline int
+pccard_cis_scan(device_t dev, pccard_scan_t fct, void *arg)
+{
+	return (CARD_CIS_SCAN(device_get_parent(dev), dev, fct, arg));
+}
+
+static __inline int
+pccard_attr_read_1(device_t dev, uint32_t offset, uint8_t *val)
+{
+	return (CARD_ATTR_READ(device_get_parent(dev), dev, offset, val));
+}
+
+static __inline int
+pccard_attr_write_1(device_t dev, uint32_t offset, uint8_t val)
+{
+	return (CARD_ATTR_WRITE(device_get_parent(dev), dev, offset, val));
+}
+
+static __inline int
+pccard_ccr_read_1(device_t dev, uint32_t offset, uint8_t *val)
+{
+	return (CARD_CCR_READ(device_get_parent(dev), dev, offset, val));
+}
+
+static __inline int
+pccard_ccr_write_1(device_t dev, uint32_t offset, uint8_t val)
+{
+	return (CARD_CCR_WRITE(device_get_parent(dev), dev, offset, val));
 }
 
 /* ivar interface */

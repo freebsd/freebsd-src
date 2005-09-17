@@ -43,6 +43,8 @@ struct sn_softc {
 	int		irq_rid;
 	struct resource	*port_res;
 	int		port_rid;
+	struct resource	*modem_res;	/* Extra resource for modem */
+	int		modem_rid;
 };
 
 int	sn_probe(device_t);
@@ -73,7 +75,7 @@ void	sn_deactivate(device_t);
 #define SN_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
 	    MTX_NETWORK_LOCK, MTX_DEF)
-#define SN_LOCK_DESTORY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define SN_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
 #define SN_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define SN_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 

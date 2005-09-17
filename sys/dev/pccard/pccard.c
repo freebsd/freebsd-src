@@ -260,10 +260,10 @@ pccard_attach_card(device_t dev)
 		resource_list_init(&ivar->resources);
 		child = device_add_child(dev, NULL, -1);
 		device_set_ivars(child, ivar);
-		ivar->fcn = pf;
+		ivar->pf = pf;
 		pf->dev = child;
 		/*
-		 * XXX We might want to move the next two lines into
+		 * XXX We might want to move the next three lines into
 		 * XXX the pccard interface layer.  For the moment, this
 		 * XXX is OK, but some drivers want to pick the config
 		 * XXX entry to use as well as some address tweaks (mostly
@@ -631,7 +631,7 @@ pccard_function_enable(struct pccard_function *pf)
 	if (tmp == NULL) {
 		pf->ccr_rid = 0;
 		pf->ccr_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-		    &pf->ccr_rid, 0, ~0, 1 << 10, RF_ACTIVE);
+		    &pf->ccr_rid, 0, ~0, PCCARD_MEM_PAGE_SIZE, RF_ACTIVE);
 		if (!pf->ccr_res)
 			goto bad;
 		DEVPRINTF((dev, "ccr_res == %lx-%lx, base=%x\n",
@@ -878,8 +878,8 @@ pccard_print_child(device_t dev, device_t child)
 		    "%ld");
 		pccard_print_resources(rl, "drq", SYS_RES_DRQ, PCCARD_NDRQ,
 		    "%ld");
-		retval += printf(" function %d config %d", devi->fcn->number,
-		    devi->fcn->cfe->number);
+		retval += printf(" function %d config %d", devi->pf->number,
+		    devi->pf->cfe->number);
 	}
 
 	retval += bus_print_child_footer(dev, child);
@@ -889,7 +889,7 @@ pccard_print_child(device_t dev, device_t child)
 
 static int
 pccard_set_resource(device_t dev, device_t child, int type, int rid,
-		 u_long start, u_long count)
+    u_long start, u_long count)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
@@ -965,14 +965,18 @@ static void
 pccard_probe_nomatch(device_t bus, device_t child)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
-	struct pccard_function *func = devi->fcn;
+	struct pccard_function *pf = devi->pf;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
+	int i;
 
 	device_printf(bus, "<unknown card>");
-	printf(" (manufacturer=0x%04x, product=0x%04x) at function %d\n",
-	  sc->card.manufacturer, sc->card.product, func->number);
-	device_printf(bus, "   CIS info: %s, %s, %s\n", sc->card.cis1_info[0],
-	  sc->card.cis1_info[1], sc->card.cis1_info[2]);
+	printf(" (manufacturer=0x%04x, product=0x%04x, function_type=%d) "
+	    "at function %d\n", sc->card.manufacturer, sc->card.product,
+	    pf->function, pf->number);
+	device_printf(bus, "   CIS info: ");
+	for (i = 0; sc->card.cis1_info[i] != NULL && i < 4; i++)
+		printf("%s%s", i > 0 ? ", " : "", sc->card.cis1_info[i]);
+	printf("\n");
 	return;
 }
 
@@ -981,10 +985,30 @@ pccard_child_location_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
-	struct pccard_function *func = devi->fcn;
+	struct pccard_function *pf = devi->pf;
 
-	snprintf(buf, buflen, "function=%d", func->number);
+	snprintf(buf, buflen, "function=%d", pf->number);
 	return (0);
+}
+
+/* XXX Maybe this should be in subr_bus? */
+static void
+pccard_safe_quote(char *dst, const char *src, size_t len)
+{
+	char *walker = dst, *ep = dst + len - 1;
+
+	if (len == 0)
+		return;
+	while (walker < ep)
+	{
+		if (*src == '"') {
+			if (ep - walker < 2)
+				break;
+			*walker++ = '\\';
+		}
+		*walker++ = *src++;
+	}
+	*walker = '\0';
 }
 
 static int
@@ -992,14 +1016,15 @@ pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
-	struct pccard_function *func = devi->fcn;
+	struct pccard_function *pf = devi->pf;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
+	char cis0[128], cis1[128];
 
-	/* XXX need to make sure that we've quoted the " in strings! */
+	pccard_safe_quote(cis0, sc->card.cis1_info[0], sizeof(cis0));
+	pccard_safe_quote(cis1, sc->card.cis1_info[1], sizeof(cis1));
 	snprintf(buf, buflen, "manufacturer=0x%04x product=0x%04x "
 	    "cisvendor=\"%s\" cisproduct=\"%s\" function_type=%d",
-	    sc->card.manufacturer, sc->card.product, sc->card.cis1_info[0],
-	    sc->card.cis1_info[1], func->function);
+	    sc->card.manufacturer, sc->card.product, cis0, cis1, pf->function);
 	return (0);
 }
 
@@ -1007,44 +1032,43 @@ static int
 pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
-	struct pccard_function *func = devi->fcn;
+	struct pccard_function *pf = devi->pf;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
 
+	if (!pf)
+		panic("No pccard function pointer");
 	switch (which) {
 	default:
+		return (EINVAL);
 	case PCCARD_IVAR_ETHADDR:
-		bcopy(func->pf_funce_lan_nid, result, ETHER_ADDR_LEN);
+		bcopy(pf->pf_funce_lan_nid, result, ETHER_ADDR_LEN);
 		break;
 	case PCCARD_IVAR_VENDOR:
-		*(uint32_t *) result = sc->card.manufacturer;
+		*(uint32_t *)result = sc->card.manufacturer;
 		break;
 	case PCCARD_IVAR_PRODUCT:
-		*(uint32_t *) result = sc->card.product;
+		*(uint32_t *)result = sc->card.product;
 		break;
 	case PCCARD_IVAR_PRODEXT:
-		*(uint16_t *) result = sc->card.prodext;
+		*(uint16_t *)result = sc->card.prodext;
 		break;
 	case PCCARD_IVAR_FUNCTION:
-		*(uint32_t *) result = func->function;
+		*(uint32_t *)result = pf->function;
 		break;
 	case PCCARD_IVAR_FUNCTION_NUMBER:
-		if (!func) {
-			device_printf(bus, "No function number, bug!\n");
-			return (ENOENT);
-		}
-		*(uint32_t *) result = func->number;
+		*(uint32_t *)result = pf->number;
 		break;
 	case PCCARD_IVAR_VENDOR_STR:
-		*(char **) result = sc->card.cis1_info[0];
+		*(const char **)result = sc->card.cis1_info[0];
 		break;
 	case PCCARD_IVAR_PRODUCT_STR:
-		*(char **) result = sc->card.cis1_info[1];
+		*(const char **)result = sc->card.cis1_info[1];
 		break;
 	case PCCARD_IVAR_CIS3_STR:
-		*(char **) result = sc->card.cis1_info[2];
+		*(const char **)result = sc->card.cis1_info[2];
 		break;
 	case PCCARD_IVAR_CIS4_STR:
-		*(char **) result = sc->card.cis1_info[3];
+		*(const char **)result = sc->card.cis1_info[3];
 		break;
 	}
 	return (0);
@@ -1169,7 +1193,7 @@ static void
 pccard_child_detached(device_t parent, device_t dev)
 {
 	struct pccard_ivar *ivar = PCCARD_IVAR(dev);
-	struct pccard_function *pf = ivar->fcn;
+	struct pccard_function *pf = ivar->pf;
 
 	pccard_function_disable(pf);
 }
@@ -1215,21 +1239,21 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 {
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
-	struct pccard_function *func = ivar->fcn;
+	struct pccard_function *pf = ivar->pf;
 	int err;
 
-	if (func->intr_handler != NULL)
+	if (pf->intr_handler != NULL)
 		panic("Only one interrupt handler per function allowed");
 	err = bus_generic_setup_intr(dev, child, irq, flags, pccard_intr,
-	    func, cookiep);
+	    pf, cookiep);
 	if (err != 0)
 		return (err);
-	func->intr_handler = intr;
-	func->intr_handler_arg = arg;
-	func->intr_handler_cookie = *cookiep;
+	pf->intr_handler = intr;
+	pf->intr_handler_arg = arg;
+	pf->intr_handler_cookie = *cookiep;
 	if (pccard_mfc(sc)) {
-		pccard_ccr_write(func, PCCARD_CCR_OPTION,
-		    pccard_ccr_read(func, PCCARD_CCR_OPTION) |
+		pccard_ccr_write(pf, PCCARD_CCR_OPTION,
+		    pccard_ccr_read(pf, PCCARD_CCR_OPTION) |
 		    PCCARD_CCR_OPTION_IREQ_ENABLE);
 	}
 	return (0);
@@ -1241,19 +1265,19 @@ pccard_teardown_intr(device_t dev, device_t child, struct resource *r,
 {
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
-	struct pccard_function *func = ivar->fcn;
+	struct pccard_function *pf = ivar->pf;
 	int ret;
 
 	if (pccard_mfc(sc)) {
-		pccard_ccr_write(func, PCCARD_CCR_OPTION,
-		    pccard_ccr_read(func, PCCARD_CCR_OPTION) &
+		pccard_ccr_write(pf, PCCARD_CCR_OPTION,
+		    pccard_ccr_read(pf, PCCARD_CCR_OPTION) &
 		    ~PCCARD_CCR_OPTION_IREQ_ENABLE);
 	}
 	ret = bus_generic_teardown_intr(dev, child, r, cookie);
 	if (ret == 0) {
-		func->intr_handler = NULL;
-		func->intr_handler_arg = NULL;
-		func->intr_handler_cookie = NULL;
+		pf->intr_handler = NULL;
+		pf->intr_handler_arg = NULL;
+		pf->intr_handler_cookie = NULL;
 	}
 
 	return (ret);
@@ -1264,7 +1288,7 @@ pccard_activate_resource(device_t brdev, device_t child, int type, int rid,
     struct resource *r)
 {
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
-	struct pccard_function *pf = ivar->fcn;
+	struct pccard_function *pf = ivar->pf;
 
 	switch(type) {
 	case SYS_RES_IOPORT:
@@ -1289,6 +1313,90 @@ pccard_deactivate_resource(device_t brdev, device_t child, int type,
 	/* XXX undo pccard_activate_resource? XXX */
 	return (bus_generic_deactivate_resource(brdev, child, type, rid, r));
 }
+
+static int
+pccard_attr_read_impl(device_t brdev, device_t child, uint32_t offset,
+    uint8_t *val)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+	struct pccard_function *pf = devi->pf;
+
+	/*
+	 * Optimization.  Most of the time, devices want to access
+	 * the same page of the attribute memory that the CCR is in.
+	 * We take advantage of this fact here.
+	 */
+	if (offset / PCCARD_MEM_PAGE_SIZE ==
+	    pf->ccr_base / PCCARD_MEM_PAGE_SIZE)
+		*val = bus_space_read_1(pf->pf_ccrt, pf->pf_ccrh,
+		    offset % PCCARD_MEM_PAGE_SIZE);
+	else {
+		CARD_SET_MEMORY_OFFSET(brdev, child, pf->ccr_rid, offset,
+		    &offset);
+		*val = bus_space_read_1(pf->pf_ccrt, pf->pf_ccrh, offset);
+		CARD_SET_MEMORY_OFFSET(brdev, child, pf->ccr_rid, pf->ccr_base,
+		    &offset);
+	}
+	return 0;
+}
+
+static int
+pccard_attr_write_impl(device_t brdev, device_t child, uint32_t offset,
+    uint8_t val)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+	struct pccard_function *pf = devi->pf;
+
+	/*
+	 * Optimization.  Most of the time, devices want to access
+	 * the same page of the attribute memory that the CCR is in.
+	 * We take advantage of this fact here.
+	 */
+	if (offset / PCCARD_MEM_PAGE_SIZE ==
+	    pf->ccr_base / PCCARD_MEM_PAGE_SIZE)
+		bus_space_write_1(pf->pf_ccrt, pf->pf_ccrh,
+		    offset % PCCARD_MEM_PAGE_SIZE, val);
+	else {
+		CARD_SET_MEMORY_OFFSET(brdev, child, pf->ccr_rid, offset,
+		    &offset);
+		bus_space_write_1(pf->pf_ccrt, pf->pf_ccrh, offset, val);
+		CARD_SET_MEMORY_OFFSET(brdev, child, pf->ccr_rid, pf->ccr_base,
+		    &offset);
+	}
+
+	return 0;
+}
+
+static int
+pccard_ccr_read_impl(device_t brdev, device_t child, uint32_t offset,
+    uint8_t *val)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+
+	*val = pccard_ccr_read(devi->pf, offset);
+	device_printf(child, "ccr_read of %#x (%#x) is %#x\n", offset,
+	  devi->pf->pf_ccr_offset, *val);
+	return 0;
+}
+
+static int
+pccard_ccr_write_impl(device_t brdev, device_t child, uint32_t offset,
+    uint8_t val)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+	struct pccard_function *pf = devi->pf;
+
+	/*
+	 * Can't use pccard_ccr_write since client drivers may access
+	 * registers not contained in the 'mask' if they are non-standard.
+	 */
+	device_printf(child, "ccr_write of %#x to %#x (%#x)\n", val, offset,
+	  devi->pf->pf_ccr_offset);
+	bus_space_write_1(pf->pf_ccrt, pf->pf_ccrh, pf->pf_ccr_offset + offset,
+	    val);
+	return 0;
+}
+
 
 static device_method_t pccard_methods[] = {
 	/* Device interface */
@@ -1322,10 +1430,14 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
 	DEVMETHOD(card_attach_card,	pccard_attach_card),
 	DEVMETHOD(card_detach_card,	pccard_detach_card),
+	DEVMETHOD(card_do_product_lookup, pccard_do_product_lookup),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
 	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
-	DEVMETHOD(card_do_product_lookup, pccard_do_product_lookup),
 	DEVMETHOD(card_cis_scan,	pccard_scan_cis),
+	DEVMETHOD(card_attr_read,	pccard_attr_read_impl),
+	DEVMETHOD(card_attr_write,	pccard_attr_write_impl),
+	DEVMETHOD(card_ccr_read,	pccard_ccr_read_impl),
+	DEVMETHOD(card_ccr_write,	pccard_ccr_write_impl),
 
 	{ 0, 0 }
 };
