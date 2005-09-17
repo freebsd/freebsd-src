@@ -715,11 +715,14 @@ get_normal_colors(int argc, char **argv, int *_index)
 	if (*_index < argc && (color = get_color_number(argv[*_index])) != -1) {
 		(*_index)++;
 		fprintf(stderr, "\033[=%dF", color);
+		normal_fore_color=color;
+		colors_changed = 1;
 		if (*_index < argc
 		    && (color = get_color_number(argv[*_index])) != -1
 		    && color < 8) {
 			(*_index)++;
 			fprintf(stderr, "\033[=%dG", color);
+			normal_back_color=color;
 		}
 	}
 }
@@ -736,11 +739,14 @@ get_reverse_colors(int argc, char **argv, int *_index)
 
 	if ((color = get_color_number(argv[*(_index)-1])) != -1) {
 		fprintf(stderr, "\033[=%dH", color);
+		revers_fore_color=color;
+		colors_changed = 1;
 		if (*_index < argc
 		    && (color = get_color_number(argv[*_index])) != -1
 		    && color < 8) {
 			(*_index)++;
 			fprintf(stderr, "\033[=%dI", color);
+			revers_back_color=color;
 		}
 	}
 }
