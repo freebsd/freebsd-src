@@ -253,6 +253,9 @@ ep_free(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->iobase);
 	if (sc->irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+	sc->ep_intrhand = 0;
+	sc->iobase = 0;
+	sc->irq = 0;
 }
 
 static void
@@ -281,7 +284,7 @@ ep_attach(struct ep_softc *sc)
 		error = ep_get_macaddr(sc, sc->eaddr);
 		if (error) {
 			device_printf(sc->dev, "Unable to get MAC address!\n");
-			EP_LOCK_DESTORY(sc);
+			EP_LOCK_DESTROY(sc);
 			return (ENXIO);
 		}
 	}
@@ -289,7 +292,7 @@ ep_attach(struct ep_softc *sc)
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(sc->dev, "if_alloc() failed\n");
-		EP_LOCK_DESTORY(sc);
+		EP_LOCK_DESTROY(sc);
 		return (ENOSPC);
 	}
 
@@ -361,7 +364,7 @@ ep_detach(device_t dev)
 
 	sc->gone = 1;
 	ep_free(dev);
-	EP_LOCK_DESTORY(sc);
+	EP_LOCK_DESTROY(sc);
 
 	return (0);
 }
@@ -420,7 +423,6 @@ epinit_locked(struct ep_softc *sc)
 	CSR_WRITE_2(sc, EP_COMMAND, ACK_INTR | 0xff);
 
 	CSR_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK | S_5_INTS);
-
 	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
 	if (ifp->if_flags & IFF_PROMISC)

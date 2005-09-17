@@ -197,7 +197,7 @@ ep_pccard_attach(device_t dev)
 	 * CIS tuple to the one returned by the card, as it appears that
 	 * only those cards that need it have this special tuple.
 	 */
-	if (CARD_CIS_SCAN(device_get_parent(dev), ep_pccard_mac, sc->eaddr))
+	if (pccard_cis_scan(dev, ep_pccard_mac, sc->eaddr))
 		sc->stat |= F_ENADDR_SKIP;
 	if ((error = ep_attach(sc))) {
 		device_printf(dev, "ep_attach() failed! (%d)\n", error);

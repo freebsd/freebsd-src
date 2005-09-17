@@ -71,17 +71,30 @@ $FreeBSD$
  */
 
 /*
- * List of known PCMCIA vendors, sorted by numeric ID.
+ * "The first 256 identifiers are reserved for manufacturers who have
+ *  JEDEC IDs assigned to them by JEDEC publication 106."
+ *
+ * There's really only 128 of these available, since the first bank of
+ * publication 106 reserves the top bit for parity.
  */
-
 vendor FUJITSU			0x0004	Fujitsu Corporation
 vendor INTERSIL			0x000b	Intersil
 vendor PANASONIC		0x0032	Matsushita Electric Industrial Co.
 vendor SANDISK			0x0045	Sandisk Corporation
 vendor NEWMEDIA			0x0057	New Media Corporation
 vendor INTEL			0x0089	Intel
+vendor TOSHIBA2			0x0098	Toshiba
 vendor IBM			0x00a4	IBM Corporation
 vendor SHARP			0x00b0	Sharp Corporation
+
+/*
+ * List of known PCMCIA vendors, sorted by numeric ID, as registered with the
+ * PCMCIA consortium.
+ *
+ * Exceptions:
+ * 	0x018c Global Village uses this w/o it appearing in the official list.
+ */
+
 vendor DIGITAL			0x0100	Digital Equipment Corporation
 vendor 3COM			0x0101	3Com Corporation
 vendor MEGAHERTZ		0x0102	Megahertz Corporation
@@ -107,6 +120,7 @@ vendor NETGEAR			0x0149	Netgear
 vendor SIMPLETECH		0x014d	Simple Technology
 vendor SYMBOL2			0x014d	Symbol
 vendor LUCENT			0x0156	Lucent Technologies
+vendor AGERE			0x0156	Agere Systems
 vendor GEMPLUS			0x0157	Gemplus
 vendor AIRONET			0x015f	Aironet Wireless Communications
 vendor ERICSSON			0x016b	Ericsson
@@ -116,6 +130,7 @@ vendor COMPAQ2			0x0183	Compaq
 vendor PARALON			0x0183	Paralon Technologies Inc
 vendor KINGSTON			0x0186	Kingston
 vendor MELCO			0x018a	Melco Corporation
+vendor GLOBALVILLAGE		0x018c	Global Village
 vendor DAYNA			0x0194	Dayna Corporation
 vendor RAYTHEON			0x01a6	Raytheon
 vendor RACORE			0x01bf	Racore Computer Products
@@ -134,6 +149,7 @@ vendor BROMAX			0x0274	Bromax communications, Inc
 vendor IODATA2			0x028a	I-O DATA
 vendor ASUS			0x02aa	ASUS
 vendor SIEMENS			0x02ac	Siemens
+vendor UNGERMANN		0x02c0	Ungermann Bass
 vendor MICROSOFT		0x02d2	Microsoft Corporation
 
 /*
@@ -146,7 +162,6 @@ vendor BONDWELL			0x3b01	Bondwell
 vendor LEXARMEDIA		0x4e01	Lexar Media
 vendor COMPEX			0x8a01	Compex Corporation
 vendor ZONET			0x8a01	Zonet Technology Inc.
-vendor ADAPTEC2			0x9005	Adaptec
 vendor ELSA			0xd601	Elsa 
 
 /* 
@@ -169,6 +184,7 @@ vendor AIRVAST			0x50c2	AirVast Technology
 vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
 vendor EDIMAX			0x890f	Edimax Technology Inc.
+vendor ADAPTEC2			0x9005	Adaptec
 vendor CONTEC			0xc001	Contec
 vendor MACNICA			0xc00b	MACNICA
 vendor ROLAND			0xc00c	Roland
@@ -247,7 +263,7 @@ product BREEZECOM BREEZENET	0x0102 BreezeCOM BreezeNET
 product BROMAX IPORT		0x1103 iPort 10/100 Ethernet
 product BROMAX IPORT2		0x1121 iPort 10Mbps Ethernet
 product BROMAX IWN		0x1612 Instant Wireless Network PC Card
-product BROMAX IWN3		0x1613 Instant Wireless Network PC Card, Versin 3
+product BROMAX IWN3		0x1613 Instant Wireless Network PC Card, V3
 product BROMAX WCF11		0x3301 Instant Wireless Network CF Card
 
 /* BUFFALO */
@@ -371,6 +387,8 @@ product LINKSYS COMBO_ECARD	0xc1ab Linksys Combo EthernetCard
 
 /* Lucent WaveLAN/IEEE */
 product LUCENT WAVELAN_IEEE	0x0002 WaveLAN/IEEE
+product AGERE HERMES_II		0x0003 Agere Systems Hermes-II Wireless
+product AGERE HERMES_II_5	0x0004 Agere Systems Hermes-II.5 Wireless
 
 /* MACNICA */
 product MACNICA ME1_JEIDA	0x3300	MACNICA ME1 for JEIDA
@@ -380,6 +398,7 @@ product MACNICA MPS110		0xa041	MACNICA Miracle SCSI-II mPS110
 product MAGICRAM ETHER		0x0000	MagicRAM Ethernet PC Card 933926
 
 /* Megahertz Products */
+product MEGAHERTZ VARIOUS	0x0000 Megahertz X-jack Ethernet
 product MEGAHERTZ XJEM3336 	0x0006 Megahertz X-JACK Ethernet Modem
 product MEGAHERTZ XJ4288	0x0023 Megahertz XJ4288 Modem
 product MEGAHERTZ XJ4336	0x0027 Megahertz XJ4336 Modem
@@ -434,11 +453,16 @@ product NWN WLAN_1148		0x0003 NWN 1148 WLAN
 
 /* Olicom Products */
 product OLICOM OC2220		0x0101 GoCard Ethernet
-product OLICOM TR		0x2132 GoCard Token Ring 16/4
+product OLICOM OC3221		0x2132 GoCard Token Ring 16/4
 product OLICOM OC2231		0x3122 GoCard Combo Eth/Modem 288
+product OLICOM OC3231		0x3132 GoCard Token Ring 16/4/Modem 288
 product OLICOM OC2232		0x3222 GoCard Combo Eth/Modem 336
+product OLICOM OC3232		0x3232 GoCard Token Ring 16/4/Modem 336
 
 /* Ositech Products */
+product OSITECH JACK_144	0x0001 Ositech Jack of ??? 14.4
+product OSITECH JACK_288	0x0002 Ositech Jack of ??? 28.8
+product OSITECH JACK_336	0x0007 Ositech Jack of ??? 33.6
 product OSITECH TRUMP_SOD	0x0008 Ositech Seven of Diamonds Ethernet Card
 product OSITECH TRUMP_JOH	0x000a Ositech Jack of Hearts
 
@@ -446,6 +470,7 @@ product OSITECH TRUMP_JOH	0x000a Ositech Jack of Hearts
 product PANASONIC KXLC002	0x0304 Panasonic 4X CD-ROM Interface Card
 product PANASONIC KXLC003	0x0504 Panasonic 8X CD-ROM Interface Card
 product PANASONIC KXLC004	0x0604 Panasonic KXL-810AN Interface Card
+product PANASONIC KXLC005_2	0x0704 Panasonic 16X CD-ROM Interface Card
 product PANASONIC KME		0x2604 Panasonic CD-R/RW Interface
 product PANASONIC KXLC005	0x2704 Panasonic 16X CD-ROM Interface Card
 product PANASONIC KXLC005_1	0x2904 Panasonic 16X CD-ROM Interface Card
@@ -482,7 +507,7 @@ product QUATECH DUAL_RS232	0x0052 Quatech Dual RS-232
 
 /* RATOC System Inc. Products */
 /* Don't use because both cards have same product id */
-product RATOC REX_R280_9530	0x0001	RATOC REX-R280/REX-9530
+product RATOC REX_R280_9530	0x0001	RATOC REX-R280/REX-9530/CFU01
 
 /* Racore Computer Products */
 product RACORE ACCTON_EN2226	0x010a Accton Fast EtherCard
@@ -540,10 +565,12 @@ product	SYMBOL LA4100		0x0001	Symbol Spectrum24 LA4100 Series WLAN
 
 /* TDK Products */
 product TDK LAK_CD011WL		0x0000 TDK LAK-CD011WL
+product	TDK CFE_10		0x010a Xircom CompactCard CFE-10
 product TDK LAK_CD021BX		0x0200 TDK LAK-CD021BX Ethernet
 product TDK LAK_CF010		0x0900 TDK LAC-CF010
 product TDK DFL9610		0x0d0a TDK DFL9610 Ethernet & Digital Cellular
 product	TDK C6500012		0x410a TDK ELSA MicroLink MC all
+product TDK GN3410		0x4815 TDK GlobalNetworker 3410
 product TDK LAK_CD031		0xc1ab TDK LAK-CD031 Ethernet
 product TDK DFL5610WS		0xea15 TDK DFL5610WS Ethernet/Modem
 
@@ -646,7 +673,6 @@ product COREGA WIRELESS_LAN_PCCL_11    { "corega", "WL&spPCCL-11", NULL, NULL } 
 product DLINK DE650		{ "D-Link", "DE-650", NULL, NULL } D-Link DE-650
 product DLINK DE660		{ "D-Link", "DE-660", NULL, NULL } D-Link DE-660
 product DLINK DE660PLUS		{ "D-Link", "DE-660+", NULL, NULL } D-Link DE-660+
-product DLINK DFE670TXD		{ "D-Link", "DFE-670TXD", NULL, NULL } D-Link DFE-670TXD
 product DLINK DWL650H		{ "D-Link&spCorporation", "D-Link&spDWL-650H&sp11Mbps&spWLAN&spAdapter", NULL, NULL } D-Link DWL-650H
 product	DYNALINK L10C		{ "DYNALINK", "L10C", NULL, NULL } Dynalink L10C
 /*
@@ -685,6 +711,7 @@ product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NU
 product OEM2 CDROM1	{ "PCMCIA", "CD-ROM", NULL, NULL } Generic PCMCIA CD-ROM
 product OEM2 IDE	{ "PCMCIA", "IDE&spCARD", NULL, NULL } Generic PCMCIA IDE CARD
 product OEM2 ETHERNET		{ "PCMCIA", "Ethernet", NULL, NULL } NE2000 PC Card
+product OEM2 NE2000		{ "NE2000&spCompatible&spPC&spCard", "PCMCIA", NULL, NULL } Generic NE2000 PC Card
 product PLANET SMARTCOM2000	{ "PCMCIA", "UE2212", NULL, NULL } Planet SmartCOM 2000
 product RPTI EP400		{ "RPTI&spLTD.", "EP400", "CISV100", NULL } RPTI EP400
 product RPTI EP401		{ "RPTI", "EP401&spEthernet&spNE2000&spCompatible", NULL, NULL } RPTI EP401
@@ -695,6 +722,7 @@ product RATOC REX5536AM		{ "PCMCIA&spSCSI&spMBH10404", "01", NULL, NULL } RATOC 
 product RATOC REX5536M		{ "PCMCIA&spSCSI2&spCARD", "01", NULL, NULL } RATOC REX-5536M
 product RATOC REX5572		{ "RATOC&spSystem&spInc.", "SOUND/SCSI2&spCARD", NULL, NULL } RATOC REX-5572
 product RATOC REX9530		{ "RATOC&spSystem&spInc.", "SCSI2&spCARD&sp37", NULL, NULL } RATOC REX-9530
+product RATOC REX_CFU1		{ "RATOC", "USB&spHOST&spCF+&spCard", NULL, NULL } RATOC REX-CFU1
 product SIMPLETECH SPECTRUM24_ALT	{ "Symbol&spTechnologies", "LA4111&spSpectrum24&spWireless&spLAN&spPC&spCard", NULL, NULL } LA4111 Spectrum24 Wireless LAN PC Card
 product SMC 2632W		{ "SMC", "SMC2632W", "Version&sp01.02", NULL } SMC 2632 EZ Connect Wireless PC Card
 product SMC 8000		{ "SMC8000", "DEV1", NULL, NULL }
@@ -706,7 +734,6 @@ product TAMARACK ETHERNET	{ "TAMARACK", "Ethernet", NULL, NULL } TAMARACK NE2000
 product TEAC IDECARDII		{ NULL, "NinjaATA-", NULL, NULL } TEAC IDE Card/II
 product TOSHIBA CBIDE2         { "LOOKMEET", "CBIDE2&sp&sp&sp&sp&sp&sp", NULL, NULL } TOSHIBA PA2673U CBIDE2/16-bit mode (IO-DATA OEM)
 product WORKBIT2 NINJA_SCSI3	{ "WBT", "NinjaSCSI-3", NULL, NULL } WORKBIT Ninja SCSI series
-product XIRCOM CFE_10		{ "Xircom", "CompactCard&spEthernet", "CFE-10", "1.00" } Xircom CompactCard CFE-10
 product YEDATA EXTERNAL_FDD	{ "Y-E&spDATA", "External&spFDD", NULL, NULL } Y-E DATA External FDD
 product YIS YWL11B	{ "YIS&spCorp.", "YWL-11b", NULL, NULL } YIS Corp. YWL-11b
 product ZOOM AIR_4000		{ "Zoom", "Air-4000", NULL, NULL } Zoom Air-4000

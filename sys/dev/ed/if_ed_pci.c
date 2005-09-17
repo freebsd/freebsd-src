@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_media.h>
 #include <net/if_mib.h>
 
 #include <dev/pci/pcireg.h>
@@ -47,15 +48,15 @@ static struct _pcsid
 	const char	*desc;
 } pci_ids[] =
 {
-	{ 0x802910ec,	"NE2000 PCI Ethernet (RealTek 8029)"	},
-	{ 0x50004a14,	"NE2000 PCI Ethernet (NetVin 5000)"	},
-	{ 0x09401050,	"NE2000 PCI Ethernet (ProLAN)"		},
-	{ 0x140111f6,	"NE2000 PCI Ethernet (Compex)"		},
-	{ 0x30008e2e,	"NE2000 PCI Ethernet (KTI)"		},
-	{ 0x19808c4a,	"NE2000 PCI Ethernet (Winbond W89C940)" },
-	{ 0x0e3410bd,	"NE2000 PCI Ethernet (Surecom NE-34)"	},
-	{ 0x09261106,	"NE2000 PCI Ethernet (VIA VT86C926)"	},
-	{ 0x00000000,	NULL					}
+	{ 0x802910ec, "RealTek 8029" },
+	{ 0x50004a14, "NetVin 5000" },
+	{ 0x09401050, "ProLAN" },
+	{ 0x140111f6, "Compex" },
+	{ 0x30008e2e, "KTI" },
+	{ 0x19808c4a, "Winbond W89C940" },
+	{ 0x0e3410bd, "Surecom NE-34" },
+	{ 0x09261106, "VIA VT86C926" },
+	{ 0x00000000, NULL }
 };
 
 static int	ed_pci_probe(device_t);
@@ -94,7 +95,7 @@ ed_pci_attach(device_t dev)
 		ed_release_resources(dev);
 		return (error);
 	}
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    edintr, sc, &sc->irq_handle);
 	if (error) {
 		ed_release_resources(dev);
@@ -111,7 +112,7 @@ static device_method_t ed_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ed_pci_probe),
 	DEVMETHOD(device_attach,	ed_pci_attach),
-	DEVMETHOD(device_attach,	ed_detach),
+	DEVMETHOD(device_detach,	ed_detach),
 
 	{ 0, 0 }
 };

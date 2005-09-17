@@ -142,7 +142,7 @@ static int sn_getmcf(struct ifnet *ifp, u_char *mcf);
 static const char *chip_ids[15] = {
 	NULL, NULL, NULL,
 	 /* 3 */ "SMC91C90/91C92",
-	 /* 4 */ "SMC91C94",
+	 /* 4 */ "SMC91C94/91C96",
 	 /* 5 */ "SMC91C95",
 	NULL,
 	 /* 7 */ "SMC91C100",
@@ -180,7 +180,7 @@ sn_attach(device_t dev)
 		if (chip_ids[rev])
 			device_printf(dev, " %s ", chip_ids[rev]);
 		else
-			device_printf(dev, " unsupported chip");
+			device_printf(dev, " unsupported chip: rev %d ", rev);
 		SMC_SELECT_BANK(sc, 1);
 		i = CSR_READ_2(sc, CONFIG_REG_W);
 		printf("%s\n", i & CR_AUI_SELECT ? "AUI" : "UTP");
@@ -235,7 +235,7 @@ sn_detach(device_t dev)
 	ether_ifdetach(ifp);
 	if_free(ifp);
 	sn_deactivate(dev);
-	SN_LOCK_DESTORY(sc);
+	SN_LOCK_DESTROY(sc);
 	return 0;
 }
 
@@ -1248,6 +1248,10 @@ sn_deactivate(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->port_rid, 
 		    sc->port_res);
 	sc->port_res = 0;
+	if (sc->modem_res)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->modem_rid, 
+		    sc->modem_res);
+	sc->modem_res = 0;
 	if (sc->irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, 
 		    sc->irq_res);
@@ -1256,7 +1260,7 @@ sn_deactivate(device_t dev)
 }
 
 /*
- * Function: sn_probe( device_t dev)
+ * Function: sn_probe(device_t dev)
  *
  * Purpose:
  *      Tests to see if a given ioaddr points to an SMC9xxx chip.

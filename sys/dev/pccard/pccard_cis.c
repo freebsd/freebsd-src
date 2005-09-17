@@ -93,14 +93,13 @@ pccard_read_cis(struct pccard_softc *sc)
 	STAILQ_INIT(&state.card->pf_head);
 	state.pf = NULL;
 
-	tsleep(&state, 0, "pccard", hz);
-	if (pccard_scan_cis(sc->dev, pccard_parse_cis_tuple,
-	    &state) == -1)
+	if (pccard_scan_cis(device_get_parent(sc->dev), sc->dev,
+	    pccard_parse_cis_tuple, &state) == -1)
 		state.card->error++;
 }
 
 int
-pccard_scan_cis(device_t dev, pccard_scan_t fct, void *arg)
+pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 {
 	struct resource *res;
 	int rid;
@@ -136,8 +135,7 @@ pccard_scan_cis(device_t dev, pccard_scan_t fct, void *arg)
 		device_printf(dev, "can't alloc memory to read attributes\n");
 		return -1;
 	}
-	CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
-	    rid, PCCARD_A_MEM_ATTR);
+	CARD_SET_RES_FLAGS(bus, dev, SYS_RES_MEMORY, rid, PCCARD_A_MEM_ATTR);
 	tuple.memt = rman_get_bustag(res);
 	tuple.memh = rman_get_bushandle(res);
 	tuple.ptr = 0;
@@ -388,8 +386,8 @@ pccard_scan_cis(device_t dev, pccard_scan_t fct, void *arg)
 		 */
 		while (1) {
 			if (longlink_present) {
-				CARD_SET_RES_FLAGS(device_get_parent(dev), dev,
-				    SYS_RES_MEMORY, rid, longlink_common ?
+				CARD_SET_RES_FLAGS(bus, dev, SYS_RES_MEMORY,
+				    rid, longlink_common ?
 				    PCCARD_A_MEM_COM : PCCARD_A_MEM_ATTR);
 				DPRINTF(("cis mem map %x\n",
 				    (unsigned int) tuple.memh));
@@ -399,9 +397,9 @@ pccard_scan_cis(device_t dev, pccard_scan_t fct, void *arg)
 				longlink_common = 1;
 				longlink_addr = 0;
 			} else if (mfc_count && (mfc_index < mfc_count)) {
-				CARD_SET_RES_FLAGS(device_get_parent(dev), dev,
-				    SYS_RES_MEMORY, rid, mfc[mfc_index].common
-				    ? PCCARD_A_MEM_COM : PCCARD_A_MEM_ATTR);
+				CARD_SET_RES_FLAGS(bus, dev, SYS_RES_MEMORY,
+				    rid, mfc[mfc_index].common ?
+				    PCCARD_A_MEM_COM : PCCARD_A_MEM_ATTR);
 				DPRINTF(("cis mem map %x\n",
 				    (unsigned int) tuple.memh));
 				/* set parse state, and point at the next one */
@@ -779,9 +777,8 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 		 * also handle the '6' case.  So far no cards have surfaced
 		 * with a length of '6'.
 		 */
-		if (tuple->length == 5 ) {
+		if (tuple->length == 5 )
 			state->card->prodext = pccard_tuple_read_1(tuple, 4);
-		}
 		DPRINTF(("CISTPL_MANFID\n"));
 		break;
 	case CISTPL_FUNCID:
@@ -1289,17 +1286,6 @@ decode_funce(const struct pccard_tuple *tuple, struct pccard_function *pf)
 					= pccard_tuple_read_1(tuple, i + 2);
 			}
 			pf->pf_funce_lan_nidlen = len;
-		} else if (type == PCCARD_TPLFE_TYPE_LAN_OLD_NID) {
-			/* Some older cards have this format, no idea if it is standard */
-			if (tuple->length != 13)
-				break;
-			len = pccard_tuple_read_1(tuple, 4);
-			if (len != 6)
-				break;
-			for (i = 0; i < len; i++) {
-				pf->pf_funce_lan_nid[i]
-					= pccard_tuple_read_1(tuple, i + 5);
-			}
 		}
 		break;
 	default:
