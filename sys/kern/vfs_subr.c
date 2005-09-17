@@ -1078,6 +1078,8 @@ flushbuflist(bufv, flags, bo, slpflag, slptimeo)
 {
 	struct buf *bp, *nbp;
 	int retval, error;
+	daddr_t lblkno;
+	b_xflags_t xflags;
 
 	ASSERT_BO_LOCKED(bo);
 
@@ -1086,6 +1088,13 @@ flushbuflist(bufv, flags, bo, slpflag, slptimeo)
 		if (((flags & V_NORMAL) && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & V_ALT) && (bp->b_xflags & BX_ALTDATA) == 0)) {
 			continue;
+		}
+		lblkno = 0;
+		xflags = 0;
+		if (nbp != NULL) {
+			lblkno = nbp->b_lblkno;
+			xflags = nbp->b_xflags &
+				(BX_BKGRDMARKER | BX_VNDIRTY | BX_VNCLEAN);
 		}
 		retval = EAGAIN;
 		error = BUF_TIMELOCK(bp,
@@ -1122,6 +1131,12 @@ flushbuflist(bufv, flags, bo, slpflag, slptimeo)
 		bp->b_flags &= ~B_ASYNC;
 		brelse(bp);
 		BO_LOCK(bo);
+		if (nbp != NULL &&
+		    (nbp->b_bufobj != bo || 
+		     nbp->b_lblkno != lblkno ||
+		     (nbp->b_xflags &
+		      (BX_BKGRDMARKER | BX_VNDIRTY | BX_VNCLEAN)) != xflags))
+			break;			/* nbp invalid */
 	}
 	return (retval);
 }
