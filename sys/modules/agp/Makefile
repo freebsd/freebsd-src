@@ -6,7 +6,7 @@ KMOD=	agp
 SRCS=	agp.c agp_if.c
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	agp_i810.c agp_intel.c agp_via.c agp_sis.c agp_ali.c agp_amd.c \
-	agp_nvidia.c
+	agp_nvidia.c agp_ati.c
 .endif
 .if ${MACHINE} == "i386"
 SRCS+=	agp_amd64.c
