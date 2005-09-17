@@ -62,6 +62,7 @@
 #define IWI_CSR_RX_BASE		0x0500
 #define IWI_CSR_TABLE0_SIZE	0x0700
 #define IWI_CSR_TABLE0_BASE	0x0704
+#define IWI_CSR_NODE_BASE	0x0c0c 
 #define IWI_CSR_CMD_WIDX	0x0f80
 #define IWI_CSR_TX1_WIDX	0x0f84
 #define IWI_CSR_TX2_WIDX	0x0f88
@@ -269,6 +270,12 @@ struct iwi_cmd_desc {
 	uint8_t		data[120];
 } __packed;
 
+/* node information (IBSS) */
+struct iwi_node {
+	uint8_t	bssid[IEEE80211_ADDR_LEN];
+	uint8_t	reserved[2];
+} __packed;
+
 /* constants for 'mode' fields */
 #define IWI_MODE_11A	0
 #define IWI_MODE_11B	1
@@ -331,7 +338,9 @@ struct iwi_associate {
 struct iwi_scan {
 	uint8_t		type;
 #define IWI_SCAN_TYPE_PASSIVE	1
+#define IWI_SCAN_TYPE_DIRECTED	2
 #define IWI_SCAN_TYPE_BROADCAST	3
+#define IWI_SCAN_TYPE_BDIRECTED	4
 
 	uint16_t	dwelltime;
 	uint8_t		channels[54];
@@ -423,6 +432,10 @@ struct iwi_wme_params {
 
 #define CSR_WRITE_4(sc, reg, val)					\
 	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
+
+#define CSR_WRITE_REGION_1(sc, offset, datap, count)			\
+	bus_space_write_region_1((sc)->sc_st, (sc)->sc_sh, (offset),	\
+	    (datap), (count))
 
 /*
  * indirect memory space access macros
