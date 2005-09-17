@@ -634,16 +634,17 @@ null_reclaim(struct vop_reclaim_args *ap)
 	VI_LOCK(vp);
 	vp->v_data = NULL;
 	VI_UNLOCK(vp);
-	if (lowervp) {
+	if (lowervp)
 		null_hashrem(xp);
-		vrele(lowervp);
-	}
 
 	vp->v_object = NULL;
 	vnlock = vp->v_vnlock;
 	vp->v_vnlock = &vp->v_lock;
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, curthread);
-	lockmgr(vnlock, LK_RELEASE, NULL, curthread);
+	if (lowervp) {
+		vput(lowervp);
+	} else
+		lockmgr(vnlock, LK_RELEASE, NULL, curthread);
 	FREE(xp, M_NULLFSNODE);
 
 	return (0);
