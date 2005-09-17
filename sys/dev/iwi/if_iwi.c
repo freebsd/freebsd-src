@@ -121,6 +121,7 @@ static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211com *, enum ieee80211_state, int);
 static int	iwi_wme_update(struct ieee80211com *);
 static uint16_t	iwi_read_prom_word(struct iwi_softc *, uint8_t);
+static int	iwi_find_txnode(struct iwi_softc *, const uint8_t *);
 static void	iwi_fix_channel(struct ieee80211com *, struct mbuf *);
 static void	iwi_frame_intr(struct iwi_softc *, struct iwi_rx_data *, int,
 		    struct iwi_frame *);
@@ -130,7 +131,7 @@ static void	iwi_tx_intr(struct iwi_softc *, struct iwi_tx_ring *);
 static void	iwi_intr(void *);
 static int	iwi_cmd(struct iwi_softc *, uint8_t, void *, uint8_t, int);
 static int	iwi_tx_start(struct ifnet *, struct mbuf *,
-		    struct ieee80211_node *);
+		    struct ieee80211_node *, int);
 static void	iwi_start(struct ifnet *);
 static void	iwi_watchdog(struct ifnet *);
 static int	iwi_ioctl(struct ifnet *, u_long, caddr_t);
@@ -316,7 +317,6 @@ iwi_attach(device_t dev)
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
 		goto fail;
-		return (ENOSPC);
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -337,6 +337,7 @@ iwi_attach(device_t dev)
 
 	/* set device capabilities */
 	ic->ic_caps =
+	    IEEE80211_C_IBSS |		/* IBSS mode supported */
 	    IEEE80211_C_MONITOR |	/* monitor mode supported */
 	    IEEE80211_C_TXPMGT |	/* tx power management */
 	    IEEE80211_C_SHPREAMBLE |	/* short preamble supported */
@@ -463,11 +464,11 @@ iwi_detach(device_t dev)
 
 	iwi_free_firmware(sc);
 
-	if (ifp != NULL)
+	if (ifp != NULL) {
 		bpfdetach(ifp);
-	ieee80211_ifdetach(ic);
-	if (ifp != NULL)
+		ieee80211_ifdetach(ic);
 		if_free(ifp);
+	}
 
 	iwi_free_cmd_ring(sc, &sc->cmdq);
 	iwi_free_tx_ring(sc, &sc->txq[0]);
@@ -922,6 +923,7 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		if (sc->flags & IWI_FLAG_SCANNING)
 			break;
 
+		sc->nsta = 0;	/* flush IBSS nodes */
 		ieee80211_node_table_reset(&ic->ic_scan);
 		ic->ic_flags |= IEEE80211_F_SCAN | IEEE80211_F_ASCAN;
 		sc->flags |= IWI_FLAG_SCANNING;
@@ -1074,6 +1076,37 @@ iwi_read_prom_word(struct iwi_softc *sc, uint8_t addr)
 	IWI_EEPROM_CTL(sc, IWI_EEPROM_C);
 
 	return be16toh(val);
+}
+
+/*
+ * This is only used for IBSS mode where the firmware expect an index to an
+ * internal node table instead of a destination address.
+ */
+static int
+iwi_find_txnode(struct iwi_softc *sc, const uint8_t *macaddr)
+{
+	struct iwi_node node;
+	int i;
+
+	for (i = 0; i < sc->nsta; i++)
+		if (IEEE80211_ADDR_EQ(sc->sta[i], macaddr))
+			return i;	/* already existing node */
+
+	if (i == IWI_MAX_NODE)
+		return -1;	/* no place left in neighbor table */
+
+	/* save this new node in our softc table */
+	IEEE80211_ADDR_COPY(sc->sta[i], macaddr);
+	sc->nsta = i;
+
+	/* write node information into NIC memory */
+	memset(&node, 0, sizeof node);
+	IEEE80211_ADDR_COPY(node.bssid, macaddr);
+
+	CSR_WRITE_REGION_1(sc, IWI_CSR_NODE_BASE + i * sizeof node,
+	    (uint8_t *)&node, sizeof node);
+
+	return i;
 }
 
 /*
@@ -1436,41 +1469,38 @@ iwi_cmd(struct iwi_softc *sc, uint8_t type, void *data, uint8_t len, int async)
 }
 
 static int
-iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
+iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
+    int ac)
 {
 	struct iwi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
 	const struct chanAccParams *cap;
-	struct iwi_tx_ring *txq;
+	struct iwi_tx_ring *txq = &sc->txq[ac];
 	struct iwi_tx_data *data;
 	struct iwi_tx_desc *desc;
 	struct mbuf *mnew;
 	bus_dma_segment_t segs[IWI_MAX_NSEG];
-	int error, nsegs, hdrlen, ac, i, noack = 0;
+	int error, nsegs, hdrlen, i, station = 0, noack = 0;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
 	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
 		hdrlen = sizeof (struct ieee80211_qosframe);
-		ac = M_WME_GETAC(m0);
 		cap = &ic->ic_wme.wme_chanParams;
 		noack = cap->cap_wmeParams[ac].wmep_noackPolicy;
-	} else {
+	} else
 		hdrlen = sizeof (struct ieee80211_frame);
-		ac = WME_AC_BE;
-	}
 
-	txq = &sc->txq[ac];
-	if (txq->queued >= IWI_TX_RING_COUNT - 4) {
-		/*
-		 * There is no place left in this ring.  Perhaps in 802.11e,
-		 * we should try to fallback to a lowest priority ring?
-		 */
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		m_freem(m0);
-		return 0;
+	if (ic->ic_opmode == IEEE80211_M_IBSS) {
+		station = iwi_find_txnode(sc, wh->i_addr1);
+		if (station == -1) {
+			m_freem(m0);
+			ieee80211_free_node(ni);
+			ifp->if_oerrors++;
+			return 0;
+		}
 	}
 
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
@@ -1534,6 +1564,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 
 	desc->hdr.type = IWI_HDR_TYPE_DATA;
 	desc->hdr.flags = IWI_HDR_FLAG_IRQ;
+	desc->station = station;
 	desc->cmd = IWI_DATA_CMD_TX;
 	desc->len = htole16(m0->m_pkthdr.len);
 	desc->flags = 0;
@@ -1583,6 +1614,7 @@ iwi_start(struct ifnet *ifp)
 	struct mbuf *m0;
 	struct ether_header *eh;
 	struct ieee80211_node *ni;
+	int ac;
 
 	IWI_LOCK(sc);
 
@@ -1597,31 +1629,50 @@ iwi_start(struct ifnet *ifp)
 			break;
 
 		if (m0->m_len < sizeof (struct ether_header) &&
-		    (m0 = m_pullup(m0, sizeof (struct ether_header))) == NULL)
+		    (m0 = m_pullup(m0, sizeof (struct ether_header))) == NULL) {
+			ifp->if_oerrors++;
 			continue;
-
+		}
 		eh = mtod(m0, struct ether_header *);
 		ni = ieee80211_find_txnode(ic, eh->ether_dhost);
 		if (ni == NULL) {
 			m_freem(m0);
+			ifp->if_oerrors++;
 			continue;
 		}
+
+		/* classify mbuf so we can find which tx ring to use */
 		if (ieee80211_classify(ic, m0, ni) != 0) {
 			m_freem(m0);
+			ieee80211_free_node(ni);
+			ifp->if_oerrors++;
 			continue;
 		}
+
+		/* no QoS encapsulation for EAPOL frames */
+		ac = (eh->ether_type != htons(ETHERTYPE_PAE)) ?
+		    M_WME_GETAC(m0) : WME_AC_BE;
+
+		if (sc->txq[ac].queued > IWI_TX_RING_COUNT - 8) {
+			/* there is no place left in this ring */
+			IFQ_DRV_PREPEND(&ifp->if_snd, m0);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
+
 		BPF_MTAP(ifp, m0);
 
 		m0 = ieee80211_encap(ic, m0, ni);
 		if (m0 == NULL) {
 			ieee80211_free_node(ni);
+			ifp->if_oerrors++;
 			continue;
 		}
 
 		if (ic->ic_rawbpf != NULL)
 			bpf_mtap(ic->ic_rawbpf, m0);
 
-		if (iwi_tx_start(ifp, m0, ni) != 0) {
+		if (iwi_tx_start(ifp, m0, ni, ac) != 0) {
 			ieee80211_free_node(ni);
 			ifp->if_oerrors++;
 			break;
@@ -2148,6 +2199,22 @@ iwi_config(struct iwi_softc *sc)
 	if (error != 0)
 		return error;
 
+	/* if we have a desired ESSID, set it now */
+	if (ic->ic_des_esslen != 0) {
+#ifdef IWI_DEBUG
+		if (iwi_debug > 0) {
+			printf("Setting desired ESSID to ");
+			ieee80211_print_essid(ic->ic_des_essid,
+			    ic->ic_des_esslen);
+			printf("\n");
+		}
+#endif
+		error = iwi_cmd(sc, IWI_CMD_SET_ESSID, ic->ic_des_essid,
+		    ic->ic_des_esslen, 1);
+		if (error != 0)
+			return error;
+	}
+
 	data = htole32(arc4random());
 	DPRINTF(("Setting initialization vector to %u\n", le32toh(data)));
 	error = iwi_cmd(sc, IWI_CMD_SET_IV, &data, sizeof data, 0);
@@ -2201,7 +2268,8 @@ iwi_scan(struct iwi_softc *sc)
 	int i, count;
 
 	memset(&scan, 0, sizeof scan);
-	scan.type = IWI_SCAN_TYPE_BROADCAST;
+	scan.type = (ic->ic_des_esslen != 0) ? IWI_SCAN_TYPE_BDIRECTED :
+	    IWI_SCAN_TYPE_BROADCAST;
 	scan.dwelltime = htole16(sc->dwelltime);
 
 	p = scan.channels;
