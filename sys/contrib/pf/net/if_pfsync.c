@@ -1128,14 +1128,14 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			imo->imo_multicast_ifp = sc->sc_sync_ifp;
 			imo->imo_multicast_ttl = PFSYNC_DFLTTL;
 			imo->imo_multicast_loop = 0;
+#ifdef __FreeBSD__
+			PF_LOCK();
+#endif
 		}
 
 		if (sc->sc_sync_ifp ||
 		    sc->sc_sendaddr.s_addr != INADDR_PFSYNC_GROUP) {
 			/* Request a full state table update. */
-#ifdef __FreeBSD__
-			PF_LOCK();
-#endif
 			sc->sc_ureq_sent = time_uptime;
 #if NCARP > 0
 			if (pfsync_sync_ok)
