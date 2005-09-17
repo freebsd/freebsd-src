@@ -180,6 +180,7 @@
 #include <sys/namei.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/kdb.h>
 
 #include <fs/nullfs/null.h>
 
@@ -545,6 +546,30 @@ null_lock(struct vop_lock_args *ap)
 		 */
 		vholdl(lvp);
 		error = VOP_LOCK(lvp, flags, td);
+
+		/*
+		 * We might have slept to get the lock and someone might have
+		 * clean our vnode already, switching vnode lock from one in
+		 * lowervp to v_lock in our own vnode structure.  Handle this
+		 * case by reacquiring correct lock in requested mode.
+		 */
+		if (VTONULL(vp) == NULL && error == 0) {
+			ap->a_flags &= ~(LK_TYPE_MASK | LK_INTERLOCK);
+			switch (flags & LK_TYPE_MASK) {
+			case LK_SHARED:
+				ap->a_flags |= LK_SHARED;
+				break;
+			case LK_UPGRADE:
+			case LK_EXCLUSIVE:
+				ap->a_flags |= LK_EXCLUSIVE;
+				break;
+			default:
+				panic("Unsupported lock request %d\n",
+				    ap->a_flags);
+			}
+			VOP_LOCK(lvp, LK_RELEASE, td);
+			error = vop_stdlock(ap);
+		}
 		vdrop(lvp);
 	} else
 		error = vop_stdlock(ap);
@@ -633,14 +658,13 @@ null_reclaim(struct vop_reclaim_args *ap)
 	 */
 	VI_LOCK(vp);
 	vp->v_data = NULL;
-	VI_UNLOCK(vp);
+	vnlock = vp->v_vnlock;
+	vp->v_vnlock = &vp->v_lock;
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE|LK_INTERLOCK, VI_MTX(vp), curthread);
 	if (lowervp)
 		null_hashrem(xp);
 
 	vp->v_object = NULL;
-	vnlock = vp->v_vnlock;
-	vp->v_vnlock = &vp->v_lock;
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, curthread);
 	if (lowervp) {
 		vput(lowervp);
 	} else
