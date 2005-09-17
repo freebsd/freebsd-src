@@ -31,6 +31,13 @@
 .Os
 .Sh NAME
 .Nm builtin ,
+.Nm \&! ,
+.Nm \&% ,
+.Nm \&. ,
+.Nm \&: ,
+.Nm \&@ ,
+.Nm \&{ ,
+.Nm \&} ,
 .Nm alias ,
 .Nm alloc ,
 .Nm bg ,
@@ -80,6 +87,7 @@
 .Nm jobs ,
 .Nm kill ,
 .Nm limit ,
+.Nm local ,
 .Nm log ,
 .Nm login ,
 .Nm logout ,
@@ -96,6 +104,7 @@
 .Nm readonly ,
 .Nm rehash ,
 .Nm repeat ,
+.Nm return ,
 .Nm sched ,
 .Nm set ,
 .Nm setenv ,
@@ -127,7 +136,7 @@
 .Nm where ,
 .Nm which ,
 .Nm while
-.Nd shell builtin commands
+.Nd shell built-in commands
 .Sh SYNOPSIS
 .Nm
 .Op Fl options
@@ -147,11 +156,12 @@ of the specified command matches the name of a builtin command.
 Thus, while specifying
 .Dq Ic echo
 causes a builtin command to be executed under shells that support the
-builtin echo command,
+.Nm echo
+builtin command,
 specifying
-.Dq Pa /bin/echo
+.Dq Ic /bin/echo
 or
-.Dq Pa ./echo
+.Dq Ic ./echo
 does not.
 .Pp
 While some builtin commands may exist in more than one shell, their
@@ -164,22 +174,36 @@ Only builtin commands for the
 and
 .Xr sh 1
 shells are listed here.
+Consult a shell's manual page for
+details on the operation its builtin commands.
+Beware that the
+.Xr sh 1
+manual page, at least, calls some of these commands
+.Dq built-in commands
+and some of them
+.Dq reserved words .
+Users of other shells may need to consult an
+.Xr info 1
+page or other sources of documentation.
+.Pp
 Commands marked
 .Dq Li No**
 under
 .Em External
 do exist externally,
 but are implemented as scripts using a builtin command of the same name.
-Consult a shell's manual page for
-details on the operation its builtin commands.
-Users of other shells may need to consult an
-.Xr info 1
-page or other sources of documentation.
 .Bl -column ".Ic uncomplete" ".Em External" ".Xr csh 1" ".Xr sh 1" -offset indent
 .It Xo
 .Em "Command	External" Ta Xr csh 1 Ta Xr sh 1
 .Xc
-.It Ic alias Ta Yes Ta Yes Ta Yes
+.It Ic ! Ta \&No Ta \&No Ta \&Yes
+.It Ic % Ta \&No Ta Yes Ta \&No
+.It Ic . Ta \&No Ta \&No Ta Yes
+.It Ic : Ta \&No Ta Yes Ta Yes
+.It Ic @ Ta \&No Ta Yes Ta Yes
+.It Ic { Ta \&No Ta \&No Ta \&Yes
+.It Ic } Ta \&No Ta \&No Ta \&Yes
+.It Ic alias Ta \&No** Ta Yes Ta Yes
 .It Ic alloc Ta \&No Ta Yes Ta \&No
 .It Ic bg Ta No** Ta Yes Ta Yes
 .It Ic bind Ta \&No Ta \&No Ta Yes
@@ -229,6 +253,7 @@ page or other sources of documentation.
 .It Ic jobs Ta \&No** Ta Yes Ta Yes
 .It Ic kill Ta Yes Ta Yes Ta \&No
 .It Ic limit Ta \&No Ta Yes Ta \&No
+.It Ic local Ta \&No Ta \&No Ta Yes
 .It Ic log Ta \&No Ta Yes Ta \&No
 .It Ic login Ta Yes Ta Yes Ta \&No
 .It Ic logout Ta \&No Ta Yes Ta \&No
@@ -245,6 +270,7 @@ page or other sources of documentation.
 .It Ic readonly Ta \&No Ta \&No Ta Yes
 .It Ic rehash Ta \&No Ta Yes Ta \&No
 .It Ic repeat Ta \&No Ta Yes Ta \&No
+.It Ic return Ta \&No Ta \&No Ta Yes
 .It Ic sched Ta \&No Ta Yes Ta \&No
 .It Ic set Ta \&No Ta Yes Ta \&Yes
 .It Ic setenv Ta \&No Ta Yes Ta \&No
