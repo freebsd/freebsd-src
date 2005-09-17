@@ -130,6 +130,10 @@ struct iwi_softc {
 	struct iwi_tx_ring	txq[WME_NUM_AC];
 	struct iwi_rx_ring	rxq;
 
+#define IWI_MAX_NODE	32
+	uint8_t			sta[IWI_MAX_NODE][IEEE80211_ADDR_LEN];
+	uint8_t			nsta;
+
 	struct resource		*irq;
 	struct resource		*mem;
 	bus_space_tag_t		sc_st;
