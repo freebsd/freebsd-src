@@ -485,7 +485,7 @@ SYSCTL_ULONG(_hw_pci, OID_AUTO, host_mem_start, CTLFLAG_RDTUN,
     "Limit the host bridge memory to being above this address.  Must be\n\
 set at boot via a tunable.");
 
-static struct resource *
+struct resource *
 legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
