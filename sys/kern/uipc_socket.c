@@ -275,7 +275,7 @@ sodealloc(struct socket *so)
  * existing listen socket.  The protocol will call back into the sockets
  * layer using solisten_proto_check() and solisten_proto() to check and set
  * socket-layer listen state.  Call backs are used so that the protocol can
- * acquire both protocol and socket layer locks in whatever order is reuiqred
+ * acquire both protocol and socket layer locks in whatever order is required
  * by the protocol.
  *
  * Protocol implementors are advised to hold the socket lock across the
