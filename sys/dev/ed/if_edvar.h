@@ -61,10 +61,14 @@ struct ed_softc {
 	struct resource* irq_res; /* resource for irq */
 	void*	irq_handle;	/* handle for irq handler */
 	int	modem_rid;	/* resource ID for modem part of device */
+	int	(*sc_media_ioctl)(struct ed_softc *sc, struct ifreq *ifr,
+	    u_long command);
+	void	(*sc_mediachg)(struct ed_softc *);
 	device_t miibus;	/* MII bus for cards with MII. */
 	void	(*mii_writebits)(struct ed_softc *, u_int, int);
 	u_int	(*mii_readbits)(struct ed_softc *, int);
 	struct callout	      tick_ch;
+        void	(*sc_tick)(void *);
 	void (*readmem)(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
 	    uint16_t amount);
 
@@ -212,11 +216,6 @@ void	ed_shmem_readmem16(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
 void	ed_shmem_readmem8(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
 void	ed_pio_readmem(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
 void	ed_pio_writemem(struct ed_softc *, uint8_t *, uint16_t, uint16_t);
-#ifndef ED_NO_MIIBUS
-int	ed_ifmedia_upd(struct ifnet *);
-void	ed_ifmedia_sts(struct ifnet *, struct ifmediareq *);
-void	ed_child_detached(device_t, device_t);
-#endif
 
 /* The following is unsatisfying XXX */
 #ifdef ED_HPP
