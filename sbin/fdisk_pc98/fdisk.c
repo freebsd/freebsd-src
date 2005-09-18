@@ -617,9 +617,12 @@ write_disk(off_t sector, void *buf)
 	gctl_ro_param(grq, "geom", -1, q);
 	gctl_ro_param(grq, "data", secsize, buf);
 	q = gctl_issue(grq);
-	if (q == NULL)
+	if (q == NULL) {
+		gctl_free(grq);
 		return(0);
+	}
 	warnx("%s", q);
+	gctl_free(grq);
 
 	error = pwrite(fd, buf, secsize, (sector * 512));
 	if (error == secsize)
