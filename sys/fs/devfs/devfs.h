@@ -169,7 +169,6 @@ struct devfs_dirent {
 struct devfs_mount {
 	struct mount		*dm_mount;
 	struct devfs_dirent	*dm_rootdir;
-	struct devfs_dirent	*dm_basedir;
 	unsigned		dm_generation;
 	struct devfs_dirent	**dm_dirent;
 	struct devfs_dirent	**dm_overflow;
@@ -177,6 +176,8 @@ struct devfs_mount {
 	struct lock		dm_lock;
 	devfs_rsnum		dm_ruleset;
 };
+
+extern unsigned devfs_rule_depth;
 
 /*
  * This is what we fill in dm_dirent[N] for a deleted entry.
@@ -186,12 +187,12 @@ struct devfs_mount {
 #define VFSTODEVFS(mp)	((struct devfs_mount *)((mp)->mnt_data))
 
 void devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de);
-int devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td);
+int devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct thread *td);
 void devfs_rules_newmount(struct devfs_mount *dm, struct thread *td);
 int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct thread *td);
 struct cdev **devfs_itod (int inode);
 struct devfs_dirent **devfs_itode (struct devfs_mount *dm, int inode);
-int devfs_populate (struct devfs_mount *dm);
+void devfs_populate (struct devfs_mount *dm);
 struct devfs_dirent *devfs_newdirent (char *name, int namelen);
 void devfs_purge (struct devfs_dirent *dd);
 struct devfs_dirent *devfs_vmkdir (char *name, int namelen, struct devfs_dirent *dotdot);
