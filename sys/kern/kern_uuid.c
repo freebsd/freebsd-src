@@ -131,30 +131,12 @@ uuid_time(void)
 	return (time & ((1LL << 60) - 1LL));
 }
 
-#ifndef _SYS_SYSPROTO_H_
-struct uuidgen_args {
-	struct uuid *store;
-	int	count;
-};
-#endif
-
-int
-uuidgen(struct thread *td, struct uuidgen_args *uap)
+struct uuid *
+kern_uuidgen(struct uuid *store, size_t count)
 {
 	struct uuid_private uuid;
 	uint64_t time;
-	int error;
-
-	/*
-	 * Limit the number of UUIDs that can be created at the same time
-	 * to some arbitrary number. This isn't really necessary, but I
-	 * like to have some sort of upper-bound that's less than 2G :-)
-	 * XXX needs to be tunable.
-	 */
-	if (uap->count < 1 || uap->count > 2048)
-		return (EINVAL);
-
-	/* XXX: pre-validate accessibility to the whole of the UUID store? */
+	size_t n;
 
 	mtx_lock(&uuid_mutex);
 
@@ -171,25 +153,53 @@ uuidgen(struct thread *td, struct uuidgen_args *uap)
 		uuid.seq = uuid_last.seq;
 
 	uuid_last = uuid;
-	uuid_last.time.ll = (time + uap->count - 1) & ((1LL << 60) - 1LL);
+	uuid_last.time.ll = (time + count - 1) & ((1LL << 60) - 1LL);
 
 	mtx_unlock(&uuid_mutex);
 
 	/* Set sequence and variant and deal with byte order. */
 	uuid.seq = htobe16(uuid.seq | 0x8000);
 
-	/* XXX: this should copyout larger chunks at a time. */
-	do {
-		/* Set time and version (=1) and deal with byte order. */
+	for (n = 0; n < count; n++) {
+		/* Set time and version (=1). */
 		uuid.time.x.low = (uint32_t)time;
 		uuid.time.x.mid = (uint16_t)(time >> 32);
 		uuid.time.x.hi = ((uint16_t)(time >> 48) & 0xfff) | (1 << 12);
-		error = copyout(&uuid, uap->store, sizeof(uuid));
-		uap->store++;
-		uap->count--;
+		store[n] = *(struct uuid *)&uuid;
 		time++;
-	} while (uap->count > 0 && !error);
+	}
 
+	return (store);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct uuidgen_args {
+	struct uuid *store;
+	int	count;
+};
+#endif
+
+int
+uuidgen(struct thread *td, struct uuidgen_args *uap)
+{
+	struct uuid *store;
+	size_t count;
+	int error;
+
+	/*
+	 * Limit the number of UUIDs that can be created at the same time
+	 * to some arbitrary number. This isn't really necessary, but I
+	 * like to have some sort of upper-bound that's less than 2G :-)
+	 * XXX probably needs to be tunable.
+	 */
+	if (uap->count < 1 || uap->count > 2048)
+		return (EINVAL);
+
+	count = uap->count;
+	store = malloc(count * sizeof(struct uuid), M_TEMP, M_WAITOK);
+	kern_uuidgen(store, count);
+	error = copyout(store, uap->store, count * sizeof(struct uuid));
+	free(store, M_TEMP);
 	return (error);
 }
 
