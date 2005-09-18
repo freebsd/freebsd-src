@@ -25,12 +25,10 @@
 
 /*
  * These are snoop io controls
- * SNPSTTY accepts 'struct snptty' as input.
- * If ever type or  unit set to -1,snoop device
- * detached from its current tty.
+ * SNPSTTY accepts a file descriptor as input.
  */
 
-#define SNPSTTY       _IOW('T', 90, dev_t)
+#define SNPSTTY       _IOW('T', 90, int)
 #define SNPGTTY       _IOR('T', 89, dev_t)
 
 /*
