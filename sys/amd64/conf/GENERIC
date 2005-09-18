@@ -64,18 +64,6 @@ options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~215k to driver.
 options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
 
-# Debugging for use in -current
-options 	KDB			# Enable kernel debugger support.
-options 	DDB			# Support DDB.
-options 	GDB			# Support remote GDB.
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-options 	WITNESS			# Enable checks to detect deadlocks and cycles
-options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-
-# Make an SMP-capable kernel by default
-options 	SMP			# Symmetric MultiProcessor Kernel
-
 # Workarounds for some known-to-be-broken chipsets (nVidia nForce3-Pro150)
 device		atpic			# 8259A compatability
 
