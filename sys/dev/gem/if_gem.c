@@ -137,15 +137,19 @@ gem_attach(sc)
 	int i, error;
 	u_int32_t v;
 
-	GEM_LOCK_ASSERT(sc, MA_NOTOWNED);
-
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL)
 		return (ENOSPC);
 
+	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_mtx, 0);
+#ifdef GEM_RINT_TIMEOUT
+	callout_init_mtx(&sc->sc_rx_ch, &sc->sc_mtx, 0);
+#endif
+
 	/* Make sure the chip is stopped. */
 	ifp->if_softc = sc;
 	GEM_LOCK(sc);
+	gem_stop(ifp, 0);
 	gem_reset(sc);
 	GEM_UNLOCK(sc);
 
@@ -173,7 +177,7 @@ gem_attach(sc)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct gem_control_data), 1,
 	    sizeof(struct gem_control_data), BUS_DMA_ALLOCNOW,
-	    busdma_lock_mutex, &Giant, &sc->sc_cdmatag);
+	    busdma_lock_mutex, &sc->sc_mtx, &sc->sc_cdmatag);
 	if (error)
 		goto fail_ttag;
 
@@ -235,9 +239,7 @@ gem_attach(sc)
 		sc->sc_rxsoft[i].rxs_mbuf = NULL;
 	}
 
-	GEM_LOCK(sc);
 	gem_mifinit(sc);
-	GEM_UNLOCK(sc);
 
 	if ((error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus, gem_mediachange,
 	    gem_mediastatus)) != 0) {
@@ -330,11 +332,6 @@ gem_attach(sc)
 		    "hook\n");
 #endif
 
-	callout_init(&sc->sc_tick_ch, CALLOUT_MPSAFE);
-#ifdef GEM_RINT_TIMEOUT
-	callout_init(&sc->sc_rx_ch, CALLOUT_MPSAFE);
-#endif
-
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
@@ -384,11 +381,13 @@ gem_detach(sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
-	GEM_LOCK_ASSERT(sc, MA_NOTOWNED);
-
 	GEM_LOCK(sc);
 	gem_stop(ifp, 1);
 	GEM_UNLOCK(sc);
+	callout_drain(&sc->sc_tick_ch);
+#ifdef GEM_RINT_TIMEOUT
+	callout_drain(&sc->sc_rx_ch);
+#endif
 	ether_ifdetach(ifp);
 	if_free(ifp);
 	device_delete_child(sc->sc_dev, sc->sc_miibus);
@@ -541,6 +540,7 @@ gem_tick(arg)
 {
 	struct gem_softc *sc = arg;
 
+	GEM_LOCK_ASSERT(sc, MA_OWNED);
 	mii_tick(sc->sc_mii);
 
 	callout_reset(&sc->sc_tick_ch, hz, gem_tick, sc);
@@ -624,6 +624,9 @@ gem_stop(ifp, disable)
 #endif
 
 	callout_stop(&sc->sc_tick_ch);
+#ifdef GEM_RINT_TIMEOUT
+	callout_stop(&sc->sc_rx_ch);
+#endif	
 
 	/* XXX - Should we reset these instead? */
 	gem_disable_tx(sc);
@@ -965,9 +968,7 @@ gem_init_locked(sc)
 	bus_space_write_4(t, h, GEM_RX_BLANKING, (6<<12)|6);
 
 	/* step 11. Configure Media */
-	GEM_UNLOCK(sc);
 	mii_mediachg(sc->sc_mii);
-	GEM_LOCK(sc);
 
 	/* step 12. RX_MAC Configuration Register */
 	v = bus_space_read_4(t, h, GEM_MAC_RX_CONFIG);
@@ -1371,9 +1372,8 @@ gem_rint_timeout(arg)
 {
 	struct gem_softc *sc = (struct gem_softc *)arg;
 
-	GEM_LOCK(sc);
+	GEM_LOCK_ASSERT(sc, MA_OWNED);
 	gem_rint(sc);
-	GEM_UNLOCK(sc);
 }
 #endif
 
@@ -1655,8 +1655,6 @@ gem_mifinit(sc)
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t mif = sc->sc_h;
 
-	GEM_LOCK_ASSERT(sc, MA_OWNED);
-
 	/* Configure the MIF in frame mode */
 	sc->sc_mif_config = bus_space_read_4(t, mif, GEM_MIF_CONFIG);
 	sc->sc_mif_config &= ~GEM_MIF_CONFIG_BB_ENA;
@@ -1688,7 +1686,6 @@ gem_mii_readreg(dev, phy, reg)
 	int n;
 	u_int32_t v;
 
-	GEM_LOCK(sc);
 #ifdef GEM_DEBUG_PHY
 	printf("gem_mii_readreg: phy %d reg %d\n", phy, reg);
 #endif
@@ -1712,14 +1709,11 @@ gem_mii_readreg(dev, phy, reg)
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
 		v = bus_space_read_4(t, mif, GEM_MIF_FRAME);
-		if (v & GEM_MIF_FRAME_TA0) {
-			GEM_UNLOCK(sc);
+		if (v & GEM_MIF_FRAME_TA0)
 			return (v & GEM_MIF_FRAME_DATA);
-		}
 	}
 
 	device_printf(sc->sc_dev, "mii_read timeout\n");
-	GEM_UNLOCK(sc);
 	return (0);
 }
 
@@ -1734,7 +1728,6 @@ gem_mii_writereg(dev, phy, reg, val)
 	int n;
 	u_int32_t v;
 
-	GEM_LOCK(sc);
 #ifdef GEM_DEBUG_PHY
 	printf("gem_mii_writereg: phy %d reg %d val %x\n", phy, reg, val);
 #endif
@@ -1759,14 +1752,11 @@ gem_mii_writereg(dev, phy, reg, val)
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
 		v = bus_space_read_4(t, mif, GEM_MIF_FRAME);
-		if (v & GEM_MIF_FRAME_TA0) {
-			GEM_UNLOCK(sc);
+		if (v & GEM_MIF_FRAME_TA0)
 			return (1);
-		}
 	}
 
 	device_printf(sc->sc_dev, "mii_write timeout\n");
-	GEM_UNLOCK(sc);
 	return (0);
 }
 
@@ -1782,7 +1772,6 @@ gem_mii_statchg(dev)
 	bus_space_handle_t mac = sc->sc_h;
 	u_int32_t v;
 
-	GEM_LOCK(sc);
 #ifdef GEM_DEBUG
 	instance = IFM_INST(sc->sc_mii->mii_media.ifm_cur->ifm_media);
 	if (sc->sc_debug)
@@ -1824,7 +1813,6 @@ gem_mii_statchg(dev)
 		v |= GEM_MAC_XIF_MII_BUF_ENA;
 	}
 	bus_space_write_4(t, mac, GEM_MAC_XIF_CONFIG, v);
-	GEM_UNLOCK(sc);
 }
 
 int
@@ -1832,10 +1820,14 @@ gem_mediachange(ifp)
 	struct ifnet *ifp;
 {
 	struct gem_softc *sc = ifp->if_softc;
+	int error;
 
 	/* XXX Add support for serial media. */
 
-	return (mii_mediachg(sc->sc_mii));
+	GEM_LOCK(sc);
+	error = mii_mediachg(sc->sc_mii);
+	GEM_UNLOCK(sc);
+	return (error);
 }
 
 void
@@ -1851,9 +1843,7 @@ gem_mediastatus(ifp, ifmr)
 		return;
 	}
 
-	GEM_UNLOCK(sc);
 	mii_pollstat(sc->sc_mii);
-	GEM_LOCK(sc);
 	ifmr->ifm_active = sc->sc_mii->mii_media_active;
 	ifmr->ifm_status = sc->sc_mii->mii_media_status;
 	GEM_UNLOCK(sc);
@@ -1872,17 +1862,9 @@ gem_ioctl(ifp, cmd, data)
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
-	GEM_LOCK(sc);
-
 	switch (cmd) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		GEM_UNLOCK(sc);
-		error = ether_ioctl(ifp, cmd, data);
-		GEM_LOCK(sc);
-		break;
 	case SIOCSIFFLAGS:
+		GEM_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if ((sc->sc_ifflags ^ ifp->if_flags) == IFF_PROMISC)
 				gem_setladrf(sc);
@@ -1893,25 +1875,25 @@ gem_ioctl(ifp, cmd, data)
 				gem_stop(ifp, 0);
 		}
 		sc->sc_ifflags = ifp->if_flags;
-		error = 0;
+		GEM_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		GEM_LOCK(sc);
 		gem_setladrf(sc);
-		error = 0;
+		GEM_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		GEM_UNLOCK(sc);
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_mii->mii_media, cmd);
-		GEM_LOCK(sc);
 		break;
 	default:
-		error = ENOTTY;
+		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
 
 	/* Try to get things going again */
+	GEM_LOCK(sc);
 	if (ifp->if_flags & IFF_UP)
 		gem_start_locked(ifp);
 	GEM_UNLOCK(sc);
