@@ -30,6 +30,49 @@
 
 #include "opt_ed.h"
 
+/*
+ * Notes for adding media support.  Each chipset is somewhat different
+ * from the others.  Linux has a table of OIDs that it uses to see what
+ * supports the misc register of the NS83903.  But a sampling of datasheets
+ * I could dig up on cards I own paints a different picture.
+ *
+ * Chipset specific details:
+ * NS 83903/902A paired
+ *    ccr base 0x1020
+ *    id register at 0x1000: 7-3 = 0, 2-0 = 1.
+ *	(maybe this test is too week)
+ *    misc register at 0x018:
+ *	6 WAIT_TOUTENABLE enable watchdog timeout
+ *	3 AUI/TPI 1 AUX, 0 TPI
+ *	2 loopback
+ *      1 gdlink (tpi mode only) 1 tp good, 0 tp bad
+ *	0 0-no mam, 1 mam connected
+ * NS83926 appears to be a NS pcmcia glue chip used on the IBM Ethernet II
+ * and the NEC PC9801N-J12 ccr base 0x2000!
+ *
+ * winbond 289c926
+ *    ccr base 0xfd0
+ *    cfb (am 0xff2):
+ *	0-1 PHY01	00 TPI, 01 10B2, 10 10B5, 11 TPI (reduced squ)
+ *	2 LNKEN		0 - enable link and auto switch, 1 disable
+ *	3 LNKSTS	TPI + LNKEN=0 + link good == 1, else 0
+ *    sr (am 0xff4)
+ *	88 00 88 00 88 00, etc
+ *
+ * TMI tc3299a (cr PHY01 == 0)
+ *    ccr base 0x3f8
+ *    cra (io 0xa)
+ *    crb (io 0xb)
+ *	0-1 PHY01	00 auto, 01 res, 10 10B5, 11 TPI
+ *	2 GDLINK	1 disable checking of link
+ *	6 LINK		0 bad link, 1 good link
+ * TMI tc5299 (not seen in the wild, afaik) 10/100 chip
+ *
+ * EN5017A, EN5020	no data, but very popular
+ * Other chips?
+ * NetBSD supports RTL8019, but none have surfaced that I can see
+ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -54,22 +97,13 @@
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccard_cis.h>
-#ifndef ED_NO_MIIBUS
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#endif
 
 #include "card_if.h"
-#ifndef ED_NO_MIIBUS
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
-#endif
 #include "pccarddevs.h"
-
-#ifndef ED_NO_MIIBUS
-MODULE_DEPEND(ed, miibus, 1, 1, 1);
-#endif
-MODULE_DEPEND(ed, ether, 1, 1, 1);
 
 /*
  * PC Cards should be using a network specific FUNCE in the CIS to
@@ -128,6 +162,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(DLINK, DE660PLUS), 0},
 	{ PCMCIA_CARD(DYNALINK, L10C), 0},
 	{ PCMCIA_CARD(EDIMAX, EP4000A), 0},
+	/* { PCMCIA_CARD(EPSON, EEN10B), NE2000DVF_ENADDR, 0xff0}, */
 	{ PCMCIA_CARD(EPSON, EEN10B), 0},
 	{ PCMCIA_CARD(EXP, THINLANCOMBO), 0},
 	{ PCMCIA_CARD(GREY_CELL, TDK3000), 0},
@@ -159,7 +194,8 @@ static const struct ed_product {
 	{ PCMCIA_CARD(OEM2, NE2000), 0},
 	{ PCMCIA_CARD(PLANET, SMARTCOM2000), 0 },
 	{ PCMCIA_CARD(PREMAX, PE200), 0},
-	{ PCMCIA_CARD(PSION, LANGLOBAL), 0},
+	{ PCMCIA_CARD(PSION, LANGLOBAL),
+	    NE2000DVF_ANYFUNC | NE2000DVF_AX88X90 | NE2000DVF_MODEM},
 	{ PCMCIA_CARD(RACORE, ETHERNET), 0},
 	{ PCMCIA_CARD(RACORE, FASTENET), NE2000DVF_AX88X90},
 	{ PCMCIA_CARD(RACORE, 8041TX), NE2000DVF_AX88X90},
@@ -191,7 +227,6 @@ static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
 
 static int	ed_pccard_dl100xx(device_t dev, const struct ed_product *);
-#ifndef ED_NO_MIIBUS
 static void	ed_pccard_dl100xx_mii_reset(struct ed_softc *sc);
 static u_int	ed_pccard_dl100xx_mii_readbits(struct ed_softc *sc, int nbits);
 static void	ed_pccard_dl100xx_mii_writebits(struct ed_softc *sc, u_int val,
@@ -202,7 +237,8 @@ static u_int	ed_pccard_ax88x90_mii_readbits(struct ed_softc *sc, int nbits);
 static void	ed_pccard_ax88x90_mii_writebits(struct ed_softc *sc, u_int val,
     int nbits);
 static int	ed_miibus_readreg(device_t dev, int phy, int reg);
-#endif
+static int	ed_ifmedia_upd(struct ifnet *);
+static void	ed_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static int	ed_pccard_ax88x90(device_t dev, const struct ed_product *);
 
@@ -296,6 +332,43 @@ ed_pccard_add_modem(device_t dev)
 }
 
 static int
+ed_pccard_media_ioctl(struct ed_softc *sc, struct ifreq *ifr, u_long command)
+{
+	struct mii_data *mii;
+
+	if (sc->miibus == NULL)
+		return (EINVAL);
+	mii = device_get_softc(sc->miibus);
+	return (ifmedia_ioctl(sc->ifp, ifr, &mii->mii_media, command));
+}
+
+
+static void
+ed_pccard_mediachg(struct ed_softc *sc)
+{
+	struct mii_data *mii;
+
+	if (sc->miibus == NULL)
+		return;
+	mii = device_get_softc(sc->miibus);
+	mii_mediachg(mii);
+}
+
+static void
+ed_pccard_tick(void *arg)
+{
+	struct ed_softc *sc = arg;
+	struct mii_data *mii;
+
+	ED_ASSERT_LOCKED(sc);
+	if (sc->miibus != NULL) {
+		mii = device_get_softc(sc->miibus);
+		mii_tick(mii);
+	}
+	callout_reset(&sc->tick_ch, hz, ed_pccard_tick, sc);
+}
+
+static int
 ed_pccard_attach(device_t dev)
 {
 	u_char sum;
@@ -368,6 +441,8 @@ ed_pccard_attach(device_t dev)
 	 * but don't right now.
 	 */
 	if (sc->chip_type == ED_CHIP_TYPE_DP8390) {
+	    ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0);
+	    printf("%#x and %#x", ed_nic_inb(sc, 0xa), ed_nic_inb(sc, 0xb));
 		pccard_get_ether(dev, enaddr);
 		if (bootverbose)
 			device_printf(dev, "CIS MAC %6D\n", enaddr, ":");
@@ -410,7 +485,6 @@ ed_pccard_attach(device_t dev)
 	error = ed_attach(dev);
 	if (error)
 		goto bad;
-#ifndef ED_NO_MIIBUS
  	if (sc->chip_type == ED_CHIP_TYPE_DL10019 ||
 	    sc->chip_type == ED_CHIP_TYPE_DL10022) {
 		/* Probe for an MII bus, but ignore errors. */
@@ -426,7 +500,11 @@ ed_pccard_attach(device_t dev)
 		}
 		    
 	}
-#endif
+	if (sc->miibus != NULL) {
+		sc->sc_tick = ed_pccard_tick;
+		sc->sc_mediachg = ed_pccard_mediachg;
+		sc->sc_media_ioctl = ed_pccard_media_ioctl;
+	}
 	if (sc->modem_rid != -1)
 		ed_pccard_add_modem(dev);
 	return (0);
@@ -492,7 +570,6 @@ ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 	return (0);
 }
 
-#ifndef ED_NO_MIIBUS
 /* MII bit-twiddling routines for cards using Dlink chipset */
 #define DL100XX_MIISET(sc, x) ed_asic_outb(sc, ED_DL100XX_MIIBUS, \
     ed_asic_inb(sc, ED_DL100XX_MIIBUS) | (x))
@@ -563,7 +640,6 @@ ed_pccard_dl100xx_mii_readbits(struct ed_softc *sc, int nbits)
 	}
 	return val;
 }
-#endif
 
 static int
 ed_pccard_ax88x90_geteprom(struct ed_softc *sc)
@@ -635,9 +711,6 @@ ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
 	pccard_ccr_write_1(dev, PCCARD_CCR_IOBASE0, iobase & 0xff);
 	pccard_ccr_write_1(dev, PCCARD_CCR_IOBASE1, (iobase >> 8) & 0xff);
 
-#ifdef ED_NO_MIIBUS
-	return (ENXIO);
-#else
 	/*
 	 * Check to see if we have a MII PHY ID at any of the first 17
 	 * locations.  All AX88x90 devices have MII and a PHY, so we use
@@ -685,10 +758,8 @@ ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
 		sc->type_str = ts;
 	}
 	return (error);
-#endif
 }
 
-#ifndef ED_NO_MIIBUS
 /* MII bit-twiddling routines for cards using Dlink chipset */
 #define AX88X90_MIISET(sc, x) ed_asic_outb(sc, ED_AX88X90_MIIBUS, \
     ed_asic_inb(sc, ED_AX88X90_MIIBUS) | (x))
@@ -738,9 +809,7 @@ ed_pccard_ax88x90_mii_readbits(struct ed_softc *sc, int nbits)
 	}
 	return val;
 }
-#endif
 
-#ifndef ED_NO_MIIBUS
 /*
  * MII bus support routines.
  */
@@ -793,7 +862,46 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 	(*sc->mii_writebits)(sc, data, ED_MII_DATA_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
 }
-#endif
+
+static int
+ed_ifmedia_upd(struct ifnet *ifp)
+{
+	struct ed_softc *sc;
+	struct mii_data *mii;
+
+	sc = ifp->if_softc;
+	if (sc->miibus == NULL)
+		return (ENXIO);
+	
+	mii = device_get_softc(sc->miibus);
+	return mii_mediachg(mii);
+}
+
+static void
+ed_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+{
+	struct ed_softc *sc;
+	struct mii_data *mii;
+
+	sc = ifp->if_softc;
+	if (sc->miibus == NULL)
+		return;
+
+	mii = device_get_softc(sc->miibus);
+	mii_pollstat(mii);
+	ifmr->ifm_active = mii->mii_media_active;
+	ifmr->ifm_status = mii->mii_media_status;
+}
+
+static void
+ed_child_detached(device_t dev, device_t child)
+{
+	struct ed_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (child == sc->miibus)
+		sc->miibus = NULL;
+}
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
@@ -801,14 +909,12 @@ static device_method_t ed_pccard_methods[] = {
 	DEVMETHOD(device_attach,	ed_pccard_attach),
 	DEVMETHOD(device_detach,	ed_detach),
 
-#ifndef ED_NO_MIIBUS
 	/* Bus interface */
 	DEVMETHOD(bus_child_detached,	ed_child_detached),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	ed_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	ed_miibus_writereg),
-#endif
 
 	{ 0, 0 }
 };
@@ -820,6 +926,6 @@ static driver_t ed_pccard_driver = {
 };
 
 DRIVER_MODULE(ed, pccard, ed_pccard_driver, ed_devclass, 0, 0);
-#ifndef ED_NO_MIIBUS
 DRIVER_MODULE(miibus, ed, miibus_driver, miibus_devclass, 0, 0);
-#endif
+MODULE_DEPEND(ed, miibus, 1, 1, 1);
+MODULE_DEPEND(ed, ether, 1, 1, 1);
