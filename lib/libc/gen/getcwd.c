@@ -157,7 +157,7 @@ getcwd(pt, size)
 		 * as necessary.  Max length is 3 for "../", the largest
 		 * possible component name, plus a trailing NUL.
 		 */
-		if (bup + 3  + MAXNAMLEN + 1 >= eup) {
+		while (bup + 3  + MAXNAMLEN + 1 >= eup) {
 			if ((up = reallocf(up, upsize *= 2)) == NULL)
 				goto err;
 			bup = up;
@@ -211,7 +211,7 @@ getcwd(pt, size)
 		 * Check for length of the current name, preceding slash,
 		 * leading slash.
 		 */
-		if (bpt - pt < dp->d_namlen + (first ? 1 : 2)) {
+		while (bpt - pt < dp->d_namlen + (first ? 1 : 2)) {
 			size_t len, off;
 
 			if (!ptsize) {
