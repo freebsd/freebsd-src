@@ -736,6 +736,8 @@ void vfs_hash_rehash(struct vnode *vp, u_int hash);
 void vfs_hash_remove(struct vnode *vp);
 
 int vfs_kqfilter(struct vop_kqfilter_args *);
+struct dirent;
+int vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off);
 
 #endif /* _KERNEL */
 
