@@ -66,6 +66,7 @@ dpt	i386,ia64,amd64
 ed	i386,pc98
 em	i386,pc98,alpha,ia64,amd64
 ep	i386,pc98,amd64
+esp	sparc64
 ex	i386,amd64
 fe	i386,pc98,amd64
 fwohci	i386,sparc64,ia64,amd64
