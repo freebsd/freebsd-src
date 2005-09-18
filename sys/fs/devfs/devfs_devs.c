@@ -46,6 +46,7 @@
 #include <machine/atomic.h>
 
 #include <fs/devfs/devfs.h>
+#include <fs/devfs/devfs_int.h>
 
 static struct cdev *devfs_inot[NDEVFSINO];
 static struct cdev **devfs_overflow;
@@ -69,6 +70,42 @@ SYSCTL_UINT(_vfs_devfs, OID_AUTO, inodes, CTLFLAG_RD,
 	&devfs_numino, 0, "DEVFS inodes");
 SYSCTL_UINT(_vfs_devfs, OID_AUTO, topinode, CTLFLAG_RD,
 	&devfs_topino, 0, "DEVFS highest inode#");
+
+unsigned devfs_rule_depth = 1;
+SYSCTL_UINT(_vfs_devfs, OID_AUTO, rule_depth, CTLFLAG_RW,
+    &devfs_rule_depth, 0, "Max depth of ruleset include");
+
+/*
+ * Helper sysctl for devname(3).  We're given a struct cdev * and return
+ * the name, if any, registered by the device driver.
+ */
+static int
+sysctl_devname(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	dev_t ud;
+	struct cdev *dev, **dp;
+
+	error = SYSCTL_IN(req, &ud, sizeof (ud));
+	if (error)
+		return (error);
+	if (ud == NODEV)
+		return(EINVAL);
+	dp = devfs_itod(ud);
+	if (dp == NULL)
+		return(ENOENT);
+	dev = *dp;
+	if (dev == NULL)
+		return(ENOENT);
+	return(SYSCTL_OUT(req, dev->si_name, strlen(dev->si_name) + 1));
+	return (error);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, devname, CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	NULL, 0, sysctl_devname, "", "devname(3) handler");
+
+SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev, CTLFLAG_RD,
+    0, sizeof(struct cdev), "sizeof(struct cdev)");
 
 static int *
 devfs_itor(int inode)
@@ -164,7 +201,7 @@ devfs_newdirent(char *name, int namelen)
 
 	d.d_namlen = namelen;
 	i = sizeof (*de) + GENERIC_DIRSIZ(&d);
-	MALLOC(de, struct devfs_dirent *, i, M_DEVFS, M_WAITOK | M_ZERO);
+	de = malloc(i, M_DEVFS, M_WAITOK | M_ZERO);
 	de->de_dirent = (struct dirent *)(de + 1);
 	de->de_dirent->d_namlen = namelen;
 	de->de_dirent->d_reclen = GENERIC_DIRSIZ(&d);
@@ -217,7 +254,7 @@ devfs_delete(struct devfs_dirent *dd, struct devfs_dirent *de)
 {
 
 	if (de->de_symlink) {
-		FREE(de->de_symlink, M_DEVFS);
+		free(de->de_symlink, M_DEVFS);
 		de->de_symlink = NULL;
 	}
 	if (de->de_vnode)
@@ -226,7 +263,7 @@ devfs_delete(struct devfs_dirent *dd, struct devfs_dirent *de)
 #ifdef MAC
 	mac_destroy_devfsdirent(de);
 #endif
-	FREE(de, M_DEVFS);
+	free(de, M_DEVFS);
 }
 
 void
@@ -244,7 +281,7 @@ devfs_purge(struct devfs_dirent *dd)
 }
 
 
-int
+void
 devfs_populate(struct devfs_mount *dm)
 {
 	int i, j;
@@ -254,8 +291,7 @@ devfs_populate(struct devfs_mount *dm)
 	char *q, *s;
 
 	if (dm->dm_generation == devfs_generation)
-		return (0);
-	lockmgr(&dm->dm_lock, LK_UPGRADE, 0, curthread);
+		return;
 	if (devfs_noverflow && dm->dm_overflow == NULL) {
 		i = devfs_noverflow * sizeof (struct devfs_dirent *);
 		MALLOC(dm->dm_overflow, struct devfs_dirent **, i,
@@ -284,7 +320,7 @@ devfs_populate(struct devfs_mount *dm)
 				continue;
 			if (!devfs_getref(i))
 				continue;
-			dd = dm->dm_basedir;
+			dd = dm->dm_rootdir;
 			s = dev->si_name;
 			for (;;) {
 				for (q = s; *q != '/' && *q != '\0'; q++)
@@ -333,8 +369,6 @@ devfs_populate(struct devfs_mount *dm)
 			TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 		}
 	}
-	lockmgr(&dm->dm_lock, LK_DOWNGRADE, 0, curthread);
-	return (0);
 }
 
 /*
