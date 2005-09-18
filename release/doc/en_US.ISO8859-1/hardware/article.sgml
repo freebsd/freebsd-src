@@ -64,7 +64,11 @@
       </itemizedlist>
     </para>
 
-    &hwlist.aic;
+    &hwlist.aac;
+
+    &hwlist.adv;
+
+    &hwlist.adw;
 
     &hwlist.aha;
 
@@ -74,21 +78,23 @@
 
     &hwlist.ahd;
 
-    &hwlist.aac;
+    &hwlist.aic;
 
-    &hwlist.ct;
+    &hwlist.amd;
 
-    &hwlist.adv;
+    &hwlist.amr;
 
-    &hwlist.adw;
-
-    &hwlist.bt;
-
-    &hwlist.dpt;
+    &hwlist.arcmsr;
 
     &hwlist.asr;
 
-    &hwlist.amr;
+    &hwlist.bt;
+
+    &hwlist.ciss;
+
+    &hwlist.ct;
+
+    &hwlist.dpt;
       <note>
 	<para arch="i386,amd64">Booting from these controllers is supported.  EISA
 	adapters are not supported.</para>
@@ -97,7 +103,15 @@
 	supported due to SRM limitations.</para>
       </note>
 
-    &hwlist.arcmsr;
+    &hwlist.hptmv;
+
+    &hwlist.ida;
+
+    &hwlist.iir;
+
+    &hwlist.ips;
+
+    &hwlist.isp;
 
     &hwlist.mlx;
 
@@ -115,41 +129,27 @@
 
     &hwlist.mly;
 
-    &hwlist.twe;
-
-    &hwlist.twa;
+    &hwlist.mpt;
 
     &hwlist.ncr;
 
-    &hwlist.sym;
-
     &hwlist.ncv;
-
-    &hwlist.stg;
-
-    &hwlist.isp;
-
-    &hwlist.amd;
 
     &hwlist.nsp;
 
-    &hwlist.vpo;
-
-    &hwlist.ida;
-
-    &hwlist.ciss;
-
-    &hwlist.iir;
-
     &hwlist.pst;
 
-    &hwlist.hptmv;
+    &hwlist.stg;
 
-    &hwlist.ips;
-
-    &hwlist.mpt;
+    &hwlist.sym;
 
     &hwlist.trm;
+
+    &hwlist.twa;
+
+    &hwlist.twe;
+
+    &hwlist.vpo;
 
     <para arch="i386">The wds(4) driver supports the WD7000 SCSI
       controller.</para>
