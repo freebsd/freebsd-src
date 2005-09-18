@@ -103,7 +103,17 @@ file is generated from the
 file by
 .Xr pwd_mkdb 8 ,
 has the class, change, and expire fields removed, and the password
-field replaced by a ``*''.
+field replaced by a
+.Ql *
+character.
+In the
+.Nm master.passwd
+file, a password of
+.Ql *
+is used to indicate that no one can ever log into that account.
+The field only contains encrypted passwords, and
+.Ql *
+can never be the result of encrypting a password.
 .Pp
 The
 .Ar name
