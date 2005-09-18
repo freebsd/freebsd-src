@@ -371,7 +371,6 @@ gctl_get_class(struct gctl_req *req, char const *arg)
 		if (!strcmp(p, cp->name))
 			return (cp);
 	}
-	gctl_error(req, "Class not found");
 	return (NULL);
 }
 
@@ -427,11 +426,16 @@ g_ctl_req(void *arg, int flag __unused)
 		gctl_error(req, "Class not found");
 		return;
 	}
-	verb = gctl_get_param(req, "verb", NULL);
-	if (mp->ctlreq == NULL)
+	if (mp->ctlreq == NULL) {
 		gctl_error(req, "Class takes no requests");
-	else
-		mp->ctlreq(req, mp, verb);
+		return;
+	}
+	verb = gctl_get_param(req, "verb", NULL);
+	if (verb == NULL) {
+		gctl_error(req, "Verb missing");
+		return;
+	}
+	mp->ctlreq(req, mp, verb);
 	g_topology_assert();
 }
 
