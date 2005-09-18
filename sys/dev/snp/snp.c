@@ -30,6 +30,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/snoop.h>
 #include <sys/uio.h>
+#include <sys/file.h>
+#include <sys/vnode.h>
 
 static	l_close_t	snplclose;
 static	l_write_t	snplwrite;
@@ -518,16 +520,22 @@ snpioctl(dev, cmd, data, flags, td)
 	struct snoop *snp;
 	struct tty *tp, *tpo;
 	struct cdev *tdev;
+	struct file *fp;
 	int s;
 
 	snp = dev->si_drv1;
 	switch (cmd) {
 	case SNPSTTY:
-#if 0
-		tdev = findcdev(*((dev_t *)data));
-#else
-		tdev = NULL;
-#endif
+		s = *(int *)data;
+		if (s < 0 || fget(td, s, &fp) != 0)
+			return (EINVAL);
+		if (fp->f_type != DTYPE_VNODE ||
+		    fp->f_vnode->v_type != VCHR) {
+			fdrop(fp, td);
+			return (EINVAL);
+		}
+		tdev = fp->f_vnode->v_rdev;
+		fdrop(fp, td);
 		if (tdev == NULL)
 			return (snp_down(snp));
 
@@ -585,6 +593,7 @@ snpioctl(dev, cmd, data, flags, td)
 			*(int *)data = snp->snp_len;
 		else
 			if (snp->snp_flags & SNOOP_DOWN) {
+				printf("IT IS DOWN\n");
 				if (snp->snp_flags & SNOOP_OFLOW)
 					*(int *)data = SNP_OFLOW;
 				else
