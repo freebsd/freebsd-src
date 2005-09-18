@@ -418,6 +418,7 @@ fifo_close(ap)
 	struct vnode *vp = ap->a_vp;
 	struct fifoinfo *fip = vp->v_fifoinfo;
 
+	ASSERT_VOP_LOCKED(vp, "fifo_close");
 	if (ap->a_fflag & FREAD) {
 		fip->fi_readers--;
 		if (fip->fi_readers == 0)
