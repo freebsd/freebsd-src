@@ -360,10 +360,6 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, vnode, CTLFLAG_RD,
 SYSCTL_INT(_debug_sizeof, OID_AUTO, proc, CTLFLAG_RD,
     0, sizeof(struct proc), "sizeof(struct proc)");
 
-#include <sys/conf.h>
-SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev, CTLFLAG_RD,
-    0, sizeof(struct cdev), "sizeof(struct cdev)");
-
 #include <sys/bio.h>
 #include <sys/buf.h>
 SYSCTL_INT(_debug_sizeof, OID_AUTO, bio, CTLFLAG_RD,
