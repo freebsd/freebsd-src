@@ -334,7 +334,7 @@ ua_attach(device_t dev)
 		return(ENXIO);
 	}
 
-	snprintf(status, SND_STATUSLEN, "at addr ?");
+	snprintf(status, SND_STATUSLEN, "at ? %s", PCM_KLDSTRING(snd_uaudio));
 
 #ifndef NO_RECORDING
 	if (pcm_register(dev, ua, 1, 1)) {
