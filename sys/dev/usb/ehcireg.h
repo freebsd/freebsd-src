@@ -1,4 +1,4 @@
-/*	$NetBSD: ehcireg.h,v 1.17 2004/06/23 06:45:56 mycroft Exp $	*/
+/*	$NetBSD: ehcireg.h,v 1.18 2004/10/22 10:38:17 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*-

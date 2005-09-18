@@ -79,23 +79,65 @@ __FBSDID("$FreeBSD$");
 #define PCI_EHCI_VENDORID_ACERLABS	0x10b9
 #define PCI_EHCI_VENDORID_AMD		0x1022
 #define PCI_EHCI_VENDORID_APPLE		0x106b
+#define PCI_EHCI_VENDORID_ATI		0x1002
 #define PCI_EHCI_VENDORID_CMDTECH	0x1095
 #define PCI_EHCI_VENDORID_INTEL		0x8086
 #define PCI_EHCI_VENDORID_NEC		0x1033
 #define PCI_EHCI_VENDORID_OPTI		0x1045
+#define PCI_EHCI_VENDORID_PHILIPS	0x1131
 #define PCI_EHCI_VENDORID_SIS		0x1039
 #define PCI_EHCI_VENDORID_NVIDIA	0x12D2
 #define PCI_EHCI_VENDORID_NVIDIA2	0x10DE
 #define PCI_EHCI_VENDORID_VIA		0x1106
 
+/* AcerLabs/ALi */
+#define PCI_EHCI_DEVICEID_M5239		0x523910b9
+static const char *ehci_device_m5239 = "ALi M5239 USB 2.0 controller";
+
+/* AMD */
+#define PCI_EHCI_DEVICEID_8111		0x10227463
+static const char *ehci_device_8111 = "AMD 8111 USB 2.0 controller";
+
+/* ATI */
+#define PCI_EHCI_DEVICEID_SB200		0x43451002
+static const char *ehci_device_sb200 = "ATI SB200 USB 2.0 controller";
+#define PCI_EHCI_DEVICEID_SB400		0x43731002
+static const char *ehci_device_sb400 = "ATI SB400 USB 2.0 controller";
+
+/* Intel */
+#define PCI_EHCI_DEVICEID_6300		0x25ad8086
+static const char *ehci_device_6300 = "Intel 6300ESB USB 2.0 controller";
+#define PCI_EHCI_DEVICEID_ICH4		0x24cd8086
+static const char *ehci_device_ich4 = "Intel 82801DB/L/M (ICH4) USB 2.0 controller";
+#define PCI_EHCI_DEVICEID_ICH5		0x24dd8086
+static const char *ehci_device_ich5 = "Intel 82801EB/R (ICH5) USB 2.0 controller";
+#define PCI_EHCI_DEVICEID_ICH6		0x265c8086
+static const char *ehci_device_ich6 = "Intel 82801FB (ICH6) USB 2.0 controller";
+#define PCI_EHCI_DEVICEID_ICH7		0x27cc8086
+static const char *ehci_device_ich7 = "Intel 82801GB/R (ICH7) USB 2.0 controller";
+ 
+/* NEC */
 #define PCI_EHCI_DEVICEID_NEC		0x00e01033
 static const char *ehci_device_nec = "NEC uPD 720100 USB 2.0 controller";
 
+/* NVIDIA */
+#define PCI_EHCI_DEVICEID_NF2		0x006810de
+static const char *ehci_device_nf2 = "NVIDIA nForce2 USB 2.0 controller";
+#define PCI_EHCI_DEVICEID_NF2_400	0x008810de
+static const char *ehci_device_nf2_400 = "NVIDIA nForce2 Ultra 400 USB 2.0 controller";
+#define PCI_EHCI_DEVICEID_NF3		0x00d810de
+static const char *ehci_device_nf3 = "NVIDIA nForce3 USB 2.0 controller";
+#define PCI_EHCI_DEVICEID_NF3_250	0x00e810de
+static const char *ehci_device_nf3_250 = "NVIDIA nForce3 250 USB 2.0 controller";
+#define PCI_EHCI_DEVICEID_NF4		0x005b10de
+static const char *ehci_device_nf4 = "NVIDIA nForce4 USB 2.0 controller";
+
+/* Philips */
+#define PCI_EHCI_DEVICEID_ISP156X	0x15621131
+static const char *ehci_device_isp156x = "Philips ISP156x USB 2.0 controller";
+
 #define PCI_EHCI_DEVICEID_VIA		0x31041106
 static const char *ehci_device_via = "VIA VT6202 USB 2.0 controller";
-
-#define	PCI_EHCI_DEVICEID_ICH4		0x24cd8086
-static const char *ehci_device_ich4 = "Intel 82801DB/DBL/DBM (ICH4) USB 2.0 controller";
 
 static const char *ehci_device_generic = "EHCI (generic) USB 2.0 controller";
 
@@ -164,12 +206,40 @@ ehci_pci_match(device_t self)
 	u_int32_t device_id = pci_get_devid(self);
 
 	switch (device_id) {
-	case PCI_EHCI_DEVICEID_NEC:
-		return (ehci_device_nec);
-	case PCI_EHCI_DEVICEID_VIA:
-		return (ehci_device_via);
+	case PCI_EHCI_DEVICEID_M5239:
+		return (ehci_device_m5239);
+	case PCI_EHCI_DEVICEID_8111:
+		return (ehci_device_8111);
+	case PCI_EHCI_DEVICEID_SB200:
+		return (ehci_device_sb200);
+	case PCI_EHCI_DEVICEID_SB400:
+		return (ehci_device_sb400);
+	case PCI_EHCI_DEVICEID_6300:
+		return (ehci_device_6300);
 	case PCI_EHCI_DEVICEID_ICH4:
 		return (ehci_device_ich4);
+	case PCI_EHCI_DEVICEID_ICH5:
+		return (ehci_device_ich5);
+	case PCI_EHCI_DEVICEID_ICH6:
+		return (ehci_device_ich6);
+	case PCI_EHCI_DEVICEID_ICH7:
+		return (ehci_device_ich7);
+	case PCI_EHCI_DEVICEID_NEC:
+		return (ehci_device_nec);
+	case PCI_EHCI_DEVICEID_NF2:
+		return (ehci_device_nf2);
+	case PCI_EHCI_DEVICEID_NF2_400:
+		return (ehci_device_nf2_400);
+	case PCI_EHCI_DEVICEID_NF3:
+		return (ehci_device_nf3);
+	case PCI_EHCI_DEVICEID_NF3_250:
+		return (ehci_device_nf3_250);
+	case PCI_EHCI_DEVICEID_NF4:
+		return (ehci_device_nf4);
+	case PCI_EHCI_DEVICEID_ISP156X:
+		return (ehci_device_isp156x);
+	case PCI_EHCI_DEVICEID_VIA:
+		return (ehci_device_via);
 	default:
 		if (pci_get_class(self) == PCIC_SERIALBUS
 		    && pci_get_subclass(self) == PCIS_SERIALBUS_USB
