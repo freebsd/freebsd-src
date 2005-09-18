@@ -75,7 +75,7 @@ const char	*opt_snpdev;
 
 char            dev_name[DEV_NAME_LEN];
 int             snp_io;
-dev_t		snp_tty;
+int		snp_tty = 0;
 int             std_in = 0, std_out = 1;
 
 
@@ -187,6 +187,8 @@ cleanup(int signo __unused)
 	if (opt_timestamp)
 		timestamp("Logging Exited.");
 	close(snp_io);
+	if (snp_tty != 0)
+		close(snp_tty);
 	unset_tty();
 	exit(EX_OK);
 }
@@ -253,7 +255,11 @@ set_dev(const char *name)
 	if ((sb.st_mode & S_IFMT) != S_IFCHR)
 		fatal(EX_DATAERR, "must be a character device");
 
-	snp_tty = sb.st_rdev;
+	if (snp_tty != 0)
+		close(snp_tty);
+	snp_tty = open(buf, O_RDONLY);
+	if (snp_tty < 0)
+		fatal(EX_DATAERR, "can't open device");
 	attach_snp();
 }
 
