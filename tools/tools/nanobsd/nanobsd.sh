@@ -177,6 +177,8 @@ setup_diskless ( ) (
 	# create diskless marker file
 	touch etc/diskless
 
+	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
+
 	for d in var etc
 	do
 		# link /$d under /conf
@@ -195,7 +197,6 @@ setup_diskless ( ) (
 	rm tmp || true
 	ln -s var/tmp tmp
 
-	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
 	) > ${MAKEOBJDIRPREFIX}/_.dl 2>&1
 )
 
