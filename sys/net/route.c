@@ -1301,7 +1301,7 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 	/* XXX why are we inspecting rmx_expire? */
 	error = (rt->rt_flags & RTF_REJECT) &&
 		(rt->rt_rmx.rmx_expire == 0 ||
-			time_second < rt->rt_rmx.rmx_expire);
+			time_uptime < rt->rt_rmx.rmx_expire);
 	if (error) {
 		RT_UNLOCK(rt);
 		senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
