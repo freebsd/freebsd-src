@@ -284,6 +284,8 @@ pfattach(void)
 
 	pf_pool_limits[PF_LIMIT_STATES].pp = pf_state_pl;
 	pf_pool_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
+	pf_pool_limits[PF_LIMIT_SRC_NODES].pp = pf_src_tree_pl;
+	pf_pool_limits[PF_LIMIT_SRC_NODES].limit = PFSNODE_HIWAT;
 	pf_pool_limits[PF_LIMIT_FRAGS].pp = pf_frent_pl;
 	pf_pool_limits[PF_LIMIT_FRAGS].limit = PFFRAG_FRENT_HIWAT;
 	uma_zone_set_max(pf_pool_limits[PF_LIMIT_STATES].pp,
