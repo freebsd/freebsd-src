@@ -186,7 +186,9 @@ lca_init_sgmap(void)
 	chipset.sgmap = sgmap_map_create(LCA_SGMAP_BASE,
 					 LCA_SGMAP_BASE + LCA_SGMAP_SIZE,
 					 lca_sgmap_map, sgtable);
-
+	chipset.pci_sgmap = NULL;
+	chipset.dmsize = 1UL * 1024UL * 1024UL * 1024UL;
+	chipset.dmoffset = 1UL * 1024UL * 1024UL * 1024UL;
 	
 	REGVAL64(LCA_IOC_W_T_BASE0) = pmap_kextract((vm_offset_t) sgtable);
 	alpha_mb();
