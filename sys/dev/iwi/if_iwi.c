@@ -116,12 +116,13 @@ static int	iwi_alloc_rx_ring(struct iwi_softc *, struct iwi_rx_ring *,
 		    int);
 static void	iwi_reset_rx_ring(struct iwi_softc *, struct iwi_rx_ring *);
 static void	iwi_free_rx_ring(struct iwi_softc *, struct iwi_rx_ring *);
+static struct	ieee80211_node *iwi_node_alloc(struct ieee80211_node_table *);
+static void	iwi_node_free(struct ieee80211_node *);
 static int	iwi_media_change(struct ifnet *);
 static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211com *, enum ieee80211_state, int);
 static int	iwi_wme_update(struct ieee80211com *);
 static uint16_t	iwi_read_prom_word(struct iwi_softc *, uint8_t);
-static int	iwi_find_txnode(struct iwi_softc *, const uint8_t *);
 static void	iwi_fix_channel(struct ieee80211com *, struct mbuf *);
 static void	iwi_frame_intr(struct iwi_softc *, struct iwi_rx_data *, int,
 		    struct iwi_frame *);
@@ -130,6 +131,7 @@ static void	iwi_rx_intr(struct iwi_softc *);
 static void	iwi_tx_intr(struct iwi_softc *, struct iwi_tx_ring *);
 static void	iwi_intr(void *);
 static int	iwi_cmd(struct iwi_softc *, uint8_t, void *, uint8_t, int);
+static void	iwi_write_ibssnode(struct iwi_softc *, const struct iwi_node *);
 static int	iwi_tx_start(struct ifnet *, struct mbuf *,
 		    struct ieee80211_node *, int);
 static void	iwi_start(struct ifnet *);
@@ -236,6 +238,8 @@ iwi_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
+
+	sc->sc_unr = new_unrhdr(0, IWI_MAX_IBSSNODE, &sc->sc_mtx);
 
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 		device_printf(dev, "chip is in D%d power mode "
@@ -388,6 +392,10 @@ iwi_attach(device_t dev)
 	}
 
 	ieee80211_ifattach(ic);
+	/* override default methods */
+	ic->ic_node_alloc = iwi_node_alloc;
+	sc->sc_node_free = ic->ic_node_free;
+	ic->ic_node_free = iwi_node_free;
 	/* override state transition machine */
 	sc->sc_newstate = ic->ic_newstate;
 	ic->ic_newstate = iwi_newstate;
@@ -486,6 +494,9 @@ iwi_detach(device_t dev)
 
 	if (ifp != NULL)
 		if_free(ifp);
+
+	if (sc->sc_unr != NULL)
+		delete_unrhdr(sc->sc_unr);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -829,6 +840,33 @@ iwi_resume(device_t dev)
 	return 0;
 }
 
+static struct ieee80211_node *
+iwi_node_alloc(struct ieee80211_node_table *nt)
+{
+	struct iwi_node *in;
+
+	in = malloc(sizeof (struct iwi_node), M_80211_NODE, M_NOWAIT | M_ZERO);
+	if (in == NULL)
+		return NULL;
+
+	in->in_station = -1;
+
+	return &in->in_node;
+}
+
+static void
+iwi_node_free(struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct iwi_softc *sc = ic->ic_ifp->if_softc;
+	struct iwi_node *in = (struct iwi_node *)ni;
+
+	if (in->in_station != -1)
+		free_unr(sc->sc_unr, in->in_station);
+
+	sc->sc_node_free(ni);
+}
+
 static int
 iwi_media_change(struct ifnet *ifp)
 {
@@ -852,8 +890,8 @@ iwi_media_change(struct ifnet *ifp)
 }
 
 /*
- * The firmware automaticly adapt the transmit speed. We report the current
- * transmit speed here.
+ * The firmware automatically adapts the transmit speed.  We report its current
+ * value here.
  */
 static void
 iwi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
@@ -925,7 +963,6 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		if (sc->flags & IWI_FLAG_SCANNING)
 			break;
 
-		sc->nsta = 0;	/* flush IBSS nodes */
 		ieee80211_node_table_reset(&ic->ic_scan);
 		ic->ic_flags |= IEEE80211_F_SCAN | IEEE80211_F_ASCAN;
 		sc->flags |= IWI_FLAG_SCANNING;
@@ -1078,37 +1115,6 @@ iwi_read_prom_word(struct iwi_softc *sc, uint8_t addr)
 	IWI_EEPROM_CTL(sc, IWI_EEPROM_C);
 
 	return be16toh(val);
-}
-
-/*
- * This is only used for IBSS mode where the firmware expect an index to an
- * internal node table instead of a destination address.
- */
-static int
-iwi_find_txnode(struct iwi_softc *sc, const uint8_t *macaddr)
-{
-	struct iwi_node node;
-	int i;
-
-	for (i = 0; i < sc->nsta; i++)
-		if (IEEE80211_ADDR_EQ(sc->sta[i], macaddr))
-			return i;	/* already existing node */
-
-	if (i == IWI_MAX_NODE)
-		return -1;	/* no place left in neighbor table */
-
-	/* save this new node in our softc table */
-	IEEE80211_ADDR_COPY(sc->sta[i], macaddr);
-	sc->nsta = i;
-
-	/* write node information into NIC memory */
-	memset(&node, 0, sizeof node);
-	IEEE80211_ADDR_COPY(node.bssid, macaddr);
-
-	CSR_WRITE_REGION_1(sc, IWI_CSR_NODE_BASE + i * sizeof node,
-	    (uint8_t *)&node, sizeof node);
-
-	return i;
 }
 
 /*
@@ -1470,12 +1476,27 @@ iwi_cmd(struct iwi_softc *sc, uint8_t type, void *data, uint8_t len, int async)
 	return async ? 0 : msleep(sc, &sc->sc_mtx, 0, "iwicmd", hz);
 }
 
+static void
+iwi_write_ibssnode(struct iwi_softc *sc, const struct iwi_node *in)
+{
+	struct iwi_ibssnode node;
+
+	/* write node information into NIC memory */
+	memset(&node, 0, sizeof node);
+	IEEE80211_ADDR_COPY(node.bssid, in->in_node.ni_macaddr);
+
+	CSR_WRITE_REGION_1(sc,
+	    IWI_CSR_NODE_BASE + in->in_station * sizeof node,
+	    (uint8_t *)&node, sizeof node);
+}
+
 static int
 iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
     int ac)
 {
 	struct iwi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct iwi_node *in = (struct iwi_node *)ni;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
 	const struct chanAccParams *cap;
@@ -1484,7 +1505,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 	struct iwi_tx_desc *desc;
 	struct mbuf *mnew;
 	bus_dma_segment_t segs[IWI_MAX_NSEG];
-	int error, nsegs, hdrlen, i, station = 0, noack = 0;
+	int error, nsegs, hdrlen, i, noack = 0;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
@@ -1495,14 +1516,19 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 	} else
 		hdrlen = sizeof (struct ieee80211_frame);
 
-	if (ic->ic_opmode == IEEE80211_M_IBSS) {
-		station = iwi_find_txnode(sc, wh->i_addr1);
-		if (station == -1) {
+	/*
+	 * This is only used in IBSS mode where the firmware expect an index
+	 * in a h/w table instead of a destination address.
+	 */
+	if (ic->ic_opmode == IEEE80211_M_IBSS && in->in_station == -1) {
+		in->in_station = alloc_unr(sc->sc_unr);
+		if (in->in_station == -1) {	/* h/w table is full */
 			m_freem(m0);
 			ieee80211_free_node(ni);
 			ifp->if_oerrors++;
 			return 0;
 		}
+		iwi_write_ibssnode(sc, in);
 	}
 
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
@@ -1566,7 +1592,8 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 
 	desc->hdr.type = IWI_HDR_TYPE_DATA;
 	desc->hdr.flags = IWI_HDR_FLAG_IRQ;
-	desc->station = station;
+	desc->station =
+	    (ic->ic_opmode == IEEE80211_M_IBSS) ? in->in_station : 0;
 	desc->cmd = IWI_DATA_CMD_TX;
 	desc->len = htole16(m0->m_pkthdr.len);
 	desc->flags = 0;
