@@ -201,7 +201,9 @@ nospace:
 	}
 	UFS_UNLOCK(ump);
 	ffs_fserr(fs, ip->i_number, "filesystem full");
+	mtx_lock(&Giant);
 	uprintf("\n%s: write failed, filesystem is full\n", fs->fs_fsmnt);
+	mtx_unlock(&Giant);
 	return (ENOSPC);
 }
 
@@ -399,7 +401,9 @@ nospace:
 	if (bp)
 		brelse(bp);
 	ffs_fserr(fs, ip->i_number, "filesystem full");
+	mtx_lock(&Giant);
 	uprintf("\n%s: write failed, filesystem is full\n", fs->fs_fsmnt);
+	mtx_unlock(&Giant);
 	return (ENOSPC);
 }
 
@@ -954,7 +958,9 @@ ffs_valloc(pvp, mode, cred, vpp)
 noinodes:
 	UFS_UNLOCK(ump);
 	ffs_fserr(fs, pip->i_number, "out of inodes");
+	mtx_lock(&Giant);
 	uprintf("\n%s: create/symlink failed, no inodes free\n", fs->fs_fsmnt);
+	mtx_unlock(&Giant);
 	return (ENOSPC);
 }
 

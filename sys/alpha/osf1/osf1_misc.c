@@ -209,8 +209,10 @@ osf1_getsysinfo(td, uap)
 		rpb_size = (unsigned long)&hwrpb->rpb_tbhint -
 		    (unsigned long)hwrpb;
 		if(uap->nbytes < rpb_size){
+			mtx_lock(&Giant);
 			uprintf("nbytes = %ld, sizeof(struct rpb) = %ld\n",
 			    uap->nbytes, rpb_size);
+			mtx_unlock(&Giant);
 			error = EINVAL;
 		}
 		else {
@@ -254,7 +256,9 @@ osf1_setsysinfo(td, uap)
 		break;
 	}
 	default:
+		mtx_lock(&Giant);
 		uprintf("osf1_setsysinfo called with op=%ld\n", uap->op);
+		mtx_unlock(&Giant);
 		/*error = EINVAL;*/
 	}
 	return (error);

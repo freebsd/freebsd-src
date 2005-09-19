@@ -42,7 +42,10 @@
 #include <sys/uio.h>
 
 #ifdef DEBUG_SVR4
-#define DPRINTF(a)	uprintf a;
+#define DPRINTF(a) do {							\
+	mtx_lock(&Giant);						\
+	uprintf a;							\
+} while (0)
 #else
 #define DPRINTF(a)
 #endif
