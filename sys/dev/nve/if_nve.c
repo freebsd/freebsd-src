@@ -559,11 +559,9 @@ nve_detach(device_t dev)
 
 	if (device_is_attached(dev)) {
 		nve_stop(sc);
+		/* XXX shouldn't hold lock over call to ether_ifdetch */
 		ether_ifdetach(ifp);
 	}
-
-	if (ifp)
-		if_free(ifp);
 
 	if (sc->miibus)
 		device_delete_child(dev, sc->miibus);
@@ -601,6 +599,8 @@ nve_detach(device_t dev)
 		bus_dma_tag_destroy(sc->rtag);
 
 	NVE_UNLOCK(sc);
+	if (ifp)
+		if_free(ifp);
 	mtx_destroy(&sc->mtx);
 	mtx_destroy(&sc->osmtx);
 

@@ -392,9 +392,6 @@ txp_release_resources(sc)
 
 	dev = sc->sc_dev;
 
-	if (sc->sc_ifp)
-		if_free(sc->sc_ifp);
-
 	if (sc->sc_intrhand != NULL)
 		bus_teardown_intr(dev, sc->sc_irq, sc->sc_intrhand);
 
@@ -406,6 +403,9 @@ txp_release_resources(sc)
 
 	if (sc->sc_ldata != NULL)
 		contigfree(sc->sc_ldata, sizeof(struct txp_ldata), M_DEVBUF);
+
+	if (sc->sc_ifp)
+		if_free(sc->sc_ifp);
 
 	return;
 }

@@ -360,10 +360,10 @@ ep_detach(device_t dev)
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(ifp);
-	if_free(ifp);
 
 	sc->gone = 1;
 	ep_free(dev);
+	if_free(ifp);
 	EP_LOCK_DESTROY(sc);
 
 	return (0);

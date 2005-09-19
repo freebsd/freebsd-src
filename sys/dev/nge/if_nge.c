@@ -963,7 +963,6 @@ nge_detach(dev)
 	nge_stop(sc);
 	NGE_UNLOCK(sc);
 	ether_ifdetach(ifp);
-	if_free(ifp);
 
 	bus_generic_detach(dev);
 	if (!sc->nge_tbi) {
@@ -974,6 +973,7 @@ nge_detach(dev)
 	bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
 
 	contigfree(sc->nge_ldata, sizeof(struct nge_list_data), M_DEVBUF);
+	if_free(ifp);
 
 	NGE_LOCK_DESTROY(sc);
 

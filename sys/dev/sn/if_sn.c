@@ -233,8 +233,8 @@ sn_detach(device_t dev)
 	snstop(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING; 
 	ether_ifdetach(ifp);
-	if_free(ifp);
 	sn_deactivate(dev);
+	if_free(ifp);
 	SN_LOCK_DESTROY(sc);
 	return 0;
 }

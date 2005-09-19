@@ -1303,10 +1303,10 @@ re_detach(dev)
 	 * stopped here.
 	 */
 
-	if (ifp != NULL)
-		if_free(ifp);
 	if (sc->rl_intrhand)
 		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
+	if (ifp != NULL)
+		if_free(ifp);
 	if (sc->rl_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 	if (sc->rl_res)

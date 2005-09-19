@@ -604,7 +604,6 @@ ray_detach(device_t dev)
 	sc->sc_c.np_havenet = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	ether_ifdetach(ifp);
-	if_free(ifp);
 
 	/*
 	 * Stop the runq and wake up anyone sleeping for us.
@@ -627,6 +626,7 @@ ray_detach(device_t dev)
 	 * Release resources
 	 */
 	ray_res_release(sc);
+	if_free(ifp);
 	RAY_DPRINTF(sc, RAY_DBG_STOP, "unloading complete");
 
 	splx(s);

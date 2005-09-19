@@ -111,10 +111,10 @@ cm_isa_detach(device_t dev)
 
 	s = splimp();
 	arc_ifdetach(ifp);
-	if_free(ifp);
 	splx(s);
 
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
+	if_free(ifp);
 	cm_release_resources(dev);
 
 	return (0);

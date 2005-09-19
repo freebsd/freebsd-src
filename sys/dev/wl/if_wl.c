@@ -589,7 +589,6 @@ wldetach(device_t device)
 
     ifp = sc->ifp;
     ether_ifdetach(ifp);
-    if_free(ifp);
 
     WL_LOCK(sc);
 
@@ -607,6 +606,7 @@ wldetach(device_t device)
     bus_generic_detach(device);
     wl_deallocate_resources(device);
     WL_UNLOCK(sc);
+    if_free(ifp);
     mtx_destroy(&sc->wl_mtx);
     return (0);
 }

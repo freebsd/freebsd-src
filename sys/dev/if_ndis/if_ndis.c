@@ -885,8 +885,6 @@ ndis_detach(dev)
 			ether_ifdetach(ifp);
 	} else
 		NDIS_UNLOCK(sc);
-	if (ifp != NULL)
-		if_free(ifp);
 
 	bus_generic_detach(dev);
 
@@ -903,6 +901,9 @@ ndis_detach(dev)
 	if (sc->ndis_res_altmem)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    sc->ndis_altmem_rid, sc->ndis_res_altmem);
+
+	if (ifp != NULL)
+		if_free(ifp);
 
 	if (sc->ndis_iftype == PCMCIABus)
 		ndis_free_amem(sc);

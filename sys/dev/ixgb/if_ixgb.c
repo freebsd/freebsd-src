@@ -378,10 +378,11 @@ ixgb_detach(device_t dev)
 	ether_ifdetach(adapter->ifp, ETHER_BPF_SUPPORTED);
 #else
 	ether_ifdetach(adapter->ifp);
-	if_free(adapter->ifp);
 #endif
 	ixgb_free_pci_resources(adapter);
-
+#if __FreeBSD_version >= 500000
+	if_free(adapter->ifp);
+#endif
 
 	/* Free Transmit Descriptor ring */
 	if (adapter->tx_desc_base) {
