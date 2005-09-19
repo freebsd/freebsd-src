@@ -457,7 +457,7 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 
 		if (m != NULL) {
 			m->m_ext.ref_cnt = &c0->hdr.ref_cnt;
-			m_extadd(m, (void *)c0, MBUF0_SIZE,
+			MEXTADD(m, (void *)c0, MBUF0_SIZE,
 			    hatm_mbuf0_free, sc, M_PKTHDR, EXT_EXTREF);
 			m->m_data += MBUF0_OFFSET;
 		} else
@@ -481,7 +481,7 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 
 		if (m != NULL) {
 			m->m_ext.ref_cnt = &c1->hdr.ref_cnt;
-			m_extadd(m, (void *)c1, MBUF1_SIZE,
+			MEXTADD(m, (void *)c1, MBUF1_SIZE,
 			    hatm_mbuf1_free, sc, M_PKTHDR, EXT_EXTREF);
 			m->m_data += MBUF1_OFFSET;
 		} else
