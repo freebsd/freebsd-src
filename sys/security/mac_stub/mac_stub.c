@@ -225,13 +225,6 @@ stub_create_mount(struct ucred *cred, struct mount *mp,
 }
 
 static void
-stub_create_root_mount(struct ucred *cred, struct mount *mp,
-    struct label *mntlabel, struct label *fslabel)
-{
-
-}
-
-static void
 stub_relabel_vnode(struct ucred *cred, struct vnode *vp,
     struct label *vnodelabel, struct label *label)
 {
@@ -1438,7 +1431,6 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_create_sysv_shm = stub_create_sysv_shm,
 	.mpo_create_vnode_extattr = stub_create_vnode_extattr,
 	.mpo_create_mount = stub_create_mount,
-	.mpo_create_root_mount = stub_create_root_mount,
 	.mpo_relabel_vnode = stub_relabel_vnode,
 	.mpo_setlabel_vnode_extattr = stub_setlabel_vnode_extattr,
 	.mpo_update_devfsdirent = stub_update_devfsdirent,
