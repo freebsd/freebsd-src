@@ -793,7 +793,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		 * packets.  This is used by some subsystems to detect
 		 * idle lines.
 		 */
-		sp->pp_last_recv = time_second;
+		sp->pp_last_recv = time_uptime;
 }
 
 static void
@@ -1066,7 +1066,7 @@ out:
 	 * network-layer traffic; control-layer traffic is handled
 	 * by sppp_cp_send().
 	 */
-	sp->pp_last_sent = time_second;
+	sp->pp_last_sent = time_uptime;
 	return (0);
 }
 
@@ -1104,7 +1104,7 @@ sppp_attach(struct ifnet *ifp)
 		mtx_init(&sp->pp_cpq.ifq_mtx, "sppp_cpq", NULL, MTX_DEF);
 	if(!mtx_initialized(&sp->pp_fastq.ifq_mtx))
 		mtx_init(&sp->pp_fastq.ifq_mtx, "sppp_fastq", NULL, MTX_DEF);
-	sp->pp_last_recv = sp->pp_last_sent = time_second;
+	sp->pp_last_recv = sp->pp_last_sent = time_uptime;
 	sp->confflags = 0;
 #ifdef INET
 	sp->confflags |= CONF_ENABLE_VJ;
