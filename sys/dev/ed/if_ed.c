@@ -370,7 +370,6 @@ ed_detach(device_t dev)
 	ether_ifdetach(ifp);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
-	if_free(ifp);
 	ED_LOCK_DESTROY(sc);
 	return (0);
 }
