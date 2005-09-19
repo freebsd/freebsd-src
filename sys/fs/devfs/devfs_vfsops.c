@@ -45,9 +45,13 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/sx.h>
 #include <sys/vnode.h>
+#include <sys/limits.h>
 
 #include <fs/devfs/devfs.h>
+
+static struct unrhdr	*devfs_unr;
 
 MALLOC_DEFINE(M_DEVFS, "DEVFS", "DEVFS data");
 
@@ -66,39 +70,35 @@ devfs_mount(struct mount *mp, struct thread *td)
 	struct devfs_mount *fmp;
 	struct vnode *rvp;
 
+	if (devfs_unr == NULL)
+		devfs_unr = new_unrhdr(0, INT_MAX, NULL);
+
 	error = 0;
 
 	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
 		return (EOPNOTSUPP);
 
-	MALLOC(fmp, struct devfs_mount *, sizeof(struct devfs_mount),
-	    M_DEVFS, M_WAITOK | M_ZERO);
-	MALLOC(fmp->dm_dirent, struct devfs_dirent **,
-	    sizeof(struct devfs_dirent *) * NDEVFSINO,
-	    M_DEVFS, M_WAITOK | M_ZERO);
-	lockinit(&fmp->dm_lock, PVFS, "devfs", 0, 0);
+	fmp = malloc(sizeof *fmp, M_DEVFS, M_WAITOK | M_ZERO);
+	fmp->dm_idx = alloc_unr(devfs_unr);
+	sx_init(&fmp->dm_lock, "devfsmount");
 
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= MNTK_MPSAFE;
 #ifdef MAC
 	mp->mnt_flag |= MNT_MULTILABEL;
 #endif
 	fmp->dm_mount = mp;
-	mp->mnt_data = (qaddr_t) fmp;
+	mp->mnt_data = (void *) fmp;
 	vfs_getnewfsid(mp);
 
-	fmp->dm_inode = DEVFSINOMOUNT;
-
-	fmp->dm_rootdir = devfs_vmkdir("(root)", 6, NULL);
-	fmp->dm_rootdir->de_inode = 2;
-#ifdef MAC
-	mac_create_devfs_directory(mp, "", 0, fmp->dm_rootdir);
-#endif
+	fmp->dm_rootdir = devfs_vmkdir(fmp, NULL, 0, NULL, DEVFS_ROOTINO);
 	devfs_rules_newmount(fmp, td);
 
 	error = devfs_root(mp, LK_EXCLUSIVE, &rvp, td);
 	if (error) {
-		lockdestroy(&fmp->dm_lock);
-		FREE(fmp, M_DEVFS);
+		sx_destroy(&fmp->dm_lock);
+		free_unr(devfs_unr, fmp->dm_idx);
+		free(fmp, M_DEVFS);
 		return (error);
 	}
 
@@ -110,10 +110,7 @@ devfs_mount(struct mount *mp, struct thread *td)
 }
 
 static int
-devfs_unmount(mp, mntflags, td)
-	struct mount *mp;
-	int mntflags;
-	struct thread *td;
+devfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 {
 	int error;
 	int flags = 0;
@@ -124,10 +121,12 @@ devfs_unmount(mp, mntflags, td)
 	error = vflush(mp, 1, flags, td);
 	if (error)
 		return (error);
-	devfs_purge(fmp->dm_rootdir);
-	mp->mnt_data = 0;
-	lockdestroy(&fmp->dm_lock);
-	free(fmp->dm_dirent, M_DEVFS);
+	sx_xlock(&fmp->dm_lock);
+	devfs_cleanup(fmp);
+	sx_xunlock(&fmp->dm_lock);
+	mp->mnt_data = NULL;
+	sx_destroy(&fmp->dm_lock);
+	free_unr(devfs_unr, fmp->dm_idx);
 	free(fmp, M_DEVFS);
 	return 0;
 }
@@ -135,11 +134,7 @@ devfs_unmount(mp, mntflags, td)
 /* Return locked reference to root.  */
 
 static int
-devfs_root(mp, flags, vpp, td)
-	struct mount *mp;
-	int flags;
-	struct vnode **vpp;
-	struct thread *td;
+devfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 {
 	int error;
 	struct vnode *vp;
@@ -155,10 +150,7 @@ devfs_root(mp, flags, vpp, td)
 }
 
 static int
-devfs_statfs(mp, sbp, td)
-	struct mount *mp;
-	struct statfs *sbp;
-	struct thread *td;
+devfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 {
 
 	sbp->f_flags = 0;

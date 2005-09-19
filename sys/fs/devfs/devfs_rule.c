@@ -70,12 +70,12 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
-#include <sys/vnode.h>
 #include <sys/ioccom.h>
+#include <sys/lock.h>
 #include <sys/sx.h>
 
 #include <fs/devfs/devfs.h>
-
+#include <fs/devfs/devfs_int.h>
 
 /*
  * Kernel version of devfs_rule.
@@ -176,6 +176,8 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 	devfs_rid rid;
 	int error;
 
+	sx_assert(&dm->dm_lock, SX_XLOCKED);
+
 	/*
 	 * XXX: This returns an error regardless of whether we
 	 * actually support the cmd or not.
@@ -185,6 +187,7 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 		return (error);
 
 	sx_xlock(&sx_rules);
+
 	switch (cmd) {
 	case DEVFSIO_RADD:
 		dr = (struct devfs_rule *)data;
@@ -366,6 +369,7 @@ devfs_rid_input(devfs_rid rid, struct devfs_mount *dm)
  * XXX: This method needs a function call for every nested
  * subdirectory in a devfs mount.  If we plan to have many of these,
  * we might eventually run out of kernel stack space.
+ * XXX: a linear search could be done through the cdev list instead.
  */
 static void
 devfs_rule_applyde_recursive(struct devfs_krule *dk, struct devfs_dirent *de)
@@ -469,18 +473,13 @@ devfs_rule_delete(struct devfs_krule **dkp)
 static struct cdev *
 devfs_rule_getdev(struct devfs_dirent *de)
 {
-	struct cdev **devp, *dev;
 
-	devp = devfs_itod(de->de_inode);
-	if (devp != NULL)
-		dev = *devp;
+	if (de->de_cdp == NULL)
+		return (NULL);
+	if (de->de_cdp->cdp_flags & CDP_ACTIVE)
+		return (&de->de_cdp->cdp_c);
 	else
-		dev = NULL;
-	/* If we think this dirent should have a struct cdev *, alert the user. */
-	if (dev == NULL && de->de_dirent->d_type != DT_LNK &&
-	    de->de_dirent->d_type != DT_DIR)
-		printf("Warning: no struct cdev *for %s\n", de->de_dirent->d_name);
-	return (dev);
+		return (NULL);
 }
 
 /*
