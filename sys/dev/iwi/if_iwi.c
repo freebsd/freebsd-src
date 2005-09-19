@@ -486,6 +486,7 @@ iwi_detach(device_t dev)
 
 	if (ifp != NULL)
 		if_free(ifp);
+
 	mtx_destroy(&sc->sc_mtx);
 
 	return 0;
@@ -2211,7 +2212,7 @@ iwi_config(struct iwi_softc *sc)
 		}
 #endif
 		error = iwi_cmd(sc, IWI_CMD_SET_ESSID, ic->ic_des_essid,
-		    ic->ic_des_esslen, 1);
+		    ic->ic_des_esslen, 0);
 		if (error != 0)
 			return error;
 	}
