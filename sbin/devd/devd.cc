@@ -678,7 +678,7 @@ create_socket(const char *name)
 		err(1, "bind");
 	listen(fd, 4);
 	chown(name, 0, 0);	/* XXX - root.wheel */
-	chmod(name, 0660);
+	chmod(name, 0666);
 	return (fd);
 }
 
