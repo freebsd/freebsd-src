@@ -193,7 +193,9 @@ vm86_emulate(vmf)
 			vmf->vmf_eflags |= PSL_VIF;
 			vmf->vmf_ip += inc_ip;
 			if ((vmf->vmf_eflags & PSL_VIP) == 0) {
+				mtx_lock(&Giant);
 				uprintf("fatal sti\n");
+				mtx_unlock(&Giant);
 				return (SIGKILL);
 			}
 			break;

@@ -1187,7 +1187,9 @@ linux_socketcall(struct thread *td, struct linux_socketcall_args *args)
 		return (linux_recvmsg(td, arg));
 	}
 
+	mtx_lock(&Giant);
 	uprintf("LINUX: 'socket' typ=%d not implemented\n", args->what);
+	mtx_unlock(&Giant);
 	return (ENOSYS);
 }
 #endif	/*!__alpha__*/

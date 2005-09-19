@@ -1060,8 +1060,11 @@ tryagain:
 	 * If there was a successful reply and a tprintf msg.
 	 * tprintf a response.
 	 */
-	if (!error)
+	if (!error) {
+		mtx_lock(&Giant);
 		nfs_up(rep, nmp, rep->r_td, "is alive again", NFSSTA_TIMEO);
+		mtx_unlock(&Giant);
+	}
 	mrep = rep->r_mrep;
 	md = rep->r_md;
 	dpos = rep->r_dpos;
@@ -1182,6 +1185,7 @@ nfs_timer(void *arg)
 
 	getmicrouptime(&now);
 	s = splnet();
+	mtx_lock(&Giant);	/* nfs_down -> tprintf */
 	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(rep, &nfs_reqq, r_chain) {
 		nmp = rep->r_nmp;
@@ -1294,6 +1298,7 @@ nfs_timer(void *arg)
 		}
 	}
 	mtx_unlock(&nfs_reqq_mtx);
+	mtx_unlock(&Giant);	/* nfs_down -> tprintf */
 	splx(s);
 	callout_reset(&nfs_callout, nfs_ticks, nfs_timer, NULL);
 }
@@ -1625,6 +1630,8 @@ nfs_msg(struct thread *td, const char *server, const char *msg, int error)
 {
 	struct proc *p;
 
+	GIANT_REQUIRED;	/* tprintf */
+
 	p = td ? td->td_proc : NULL;
 	if (error) {
 		tprintf(p, LOG_INFO, "nfs server %s: %s, error %d\n", server,
@@ -1643,6 +1650,8 @@ nfs_down(rep, nmp, td, msg, error, flags)
 	const char *msg;
 	int error, flags;
 {
+
+	GIANT_REQUIRED;	/* nfs_msg */
 
 	if (nmp == NULL)
 		return;
@@ -1671,6 +1680,9 @@ nfs_up(rep, nmp, td, msg, flags)
 	const char *msg;
 	int flags;
 {
+
+	GIANT_REQUIRED;	/* nfs_msg */
+
 	if (nmp == NULL)
 		return;
 	if ((rep == NULL) || (rep->r_flags & R_TPRINTFMSG) != 0)
