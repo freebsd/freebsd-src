@@ -373,7 +373,7 @@ pppalloc(pid)
 	sc->sc_npmode[i] = NPMODE_ERROR;
     sc->sc_npqueue = NULL;
     sc->sc_npqtail = &sc->sc_npqueue;
-    sc->sc_last_sent = sc->sc_last_recv = time_second;
+    sc->sc_last_sent = sc->sc_last_recv = time_uptime;
 
     return sc;
 }
@@ -601,7 +601,7 @@ pppioctl(sc, cmd, data, flag, td)
 
     case PPPIOCGIDLE:
 	s = splsoftnet();
-	t = time_second;
+	t = time_uptime;
 	((struct ppp_idle *)data)->xmit_idle = t - sc->sc_last_sent;
 	((struct ppp_idle *)data)->recv_idle = t - sc->sc_last_recv;
 	splx(s);
@@ -918,14 +918,14 @@ pppoutput(ifp, m0, dst, rtp)
 	 */
 	if (sc->sc_active_filt.bf_insns == 0
 	    || bpf_filter(sc->sc_active_filt.bf_insns, (u_char *) m0, len, 0))
-	    sc->sc_last_sent = time_second;
+	    sc->sc_last_sent = time_uptime;
 
 	*mtod(m0, u_char *) = address;
 #else
 	/*
 	 * Update the time we sent the most recent data packet.
 	 */
-	sc->sc_last_sent = time_second;
+	sc->sc_last_sent = time_uptime;
 #endif /* PPP_FILTER */
     }
 
@@ -1557,14 +1557,14 @@ ppp_inproc(sc, m)
 	}
 	if (sc->sc_active_filt.bf_insns == 0
 	    || bpf_filter(sc->sc_active_filt.bf_insns, (u_char *) m, ilen, 0))
-	    sc->sc_last_recv = time_second;
+	    sc->sc_last_recv = time_uptime;
 
 	*mtod(m, u_char *) = adrs;
 #else
 	/*
 	 * Record the time that we received this packet.
 	 */
-	sc->sc_last_recv = time_second;
+	sc->sc_last_recv = time_uptime;
 #endif /* PPP_FILTER */
     }
 
@@ -1607,7 +1607,7 @@ ppp_inproc(sc, m)
 	m->m_data += PPP_HDRLEN;
 	m->m_len -= PPP_HDRLEN;
 	isr = NETISR_IPX;
-	sc->sc_last_recv = time_second;	/* update time of last pkt rcvd */
+	sc->sc_last_recv = time_uptime;	/* update time of last pkt rcvd */
 	break;
 #endif
 
