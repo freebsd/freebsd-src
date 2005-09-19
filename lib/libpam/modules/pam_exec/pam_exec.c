@@ -83,7 +83,7 @@ _pam_exec(pam_handle_t *pamh __unused, int flags __unused,
 	for (envlen = 0; envlist[envlen] != NULL; ++envlen)
 		/* nothing */ ;
 	nitems = sizeof(env_items) / sizeof(*env_items);
-	tmp = realloc(envlist, (envlen + nitems + 1) * sizeof **envlist);
+	tmp = realloc(envlist, (envlen + nitems + 1) * sizeof(*envlist));
 	if (tmp == NULL) {
 		openpam_free_envlist(envlist);
 		return (PAM_BUF_ERR);
