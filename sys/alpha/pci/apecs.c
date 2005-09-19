@@ -235,6 +235,9 @@ apecs_init_sgmap(void)
 	chipset.sgmap = sgmap_map_create(APECS_SGMAP_BASE,
 					 APECS_SGMAP_BASE + APECS_SGMAP_SIZE,
 					 apecs_sgmap_map, sgtable);
+	chipset.pci_sgmap = NULL;
+	chipset.dmsize = 1UL * 1024UL * 1024UL * 1024UL;
+	chipset.dmoffset = 1UL * 1024UL * 1024UL * 1024UL;
 }
 
 void

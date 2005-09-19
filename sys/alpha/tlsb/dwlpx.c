@@ -707,7 +707,12 @@ dwlpx_dma_init(struct dwlpx_softc *sc)
 	 *	SGVA base: 0
 	 */
 	chipset.sgmap = sgmap_map_create(sgwbase, sgwend, dwlpx_sgmap_map, tbl);
+#else
+	chipset.sgmap = NULL;
 #endif
+	chipset.pci_sgmap = NULL;
+	chipset.dmsize = 2UL * 1024UL * 1024UL * 1024UL;
+	chipset.dmoffset = DWLPx_DIRECT_MAPPED_BASE;
 
 	/*
 	 * Set up DMA windows for this DWLPx.
@@ -729,12 +734,6 @@ dwlpx_dma_init(struct dwlpx_softc *sc)
 		    sgwbase | PCIA_WBASE_W_EN | PCIA_WBASE_SG_EN;
 	}
 	alpha_mb();
-
-	/* XXX XXX BEGIN XXX XXX */
-	{							/* XXX */
-		alpha_XXX_dmamap_or = DWLPx_DIRECT_MAPPED_BASE;	/* XXX */
-	}							/* XXX */
-	/* XXX XXX END XXX XXX */
 }
 
 /*

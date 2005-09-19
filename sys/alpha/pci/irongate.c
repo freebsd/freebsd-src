@@ -123,7 +123,6 @@ irongate_init()
 	initted = 1;
 
 	chipset = irongate_chipset;
-	alpha_XXX_dmamap_or = 0UL;
 
 	bwx_init_space(&io_space, KV(IRONGATE_IO));
 	bwx_init_space(&mem_space, KV(IRONGATE_MEM));
@@ -166,6 +165,9 @@ irongate_attach(device_t dev)
 	chipset_dense = IRONGATE_MEM;
 	/* no s/g support in this chipset, must use bounce-buffers */
 	chipset.sgmap = NULL;	
+	chipset.pci_sgmap = NULL;
+	chipset.dmsize = 4UL * 1024UL * 1024UL * 1024UL;
+	chipset.dmoffset = 0;
 
 	bus_generic_attach(dev);
 

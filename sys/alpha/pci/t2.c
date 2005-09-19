@@ -252,6 +252,9 @@ t2_init_sgmap(int h)
 	chipset.sgmap = sgmap_map_create(T2_SGMAP_BASE,
 					 T2_SGMAP_BASE + T2_SGMAP_SIZE,
 					 t2_sgmap_map, sgtable);
+	chipset.pci_sgmap = NULL;
+	chipset.dmsize = 2UL * 1024UL * 1024UL * 1024UL;
+	chipset.dmoffset = 1UL * 1024UL * 1024UL * 1024UL;
 }
 
 static void
