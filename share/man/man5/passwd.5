@@ -110,7 +110,11 @@ In the
 .Nm master.passwd
 file, a password of
 .Ql *
-is used to indicate that no one can ever log into that account.
+is used to indicate that no one can ever log into that account
+using password authentication (logins through other forms of
+authentication, i.e.\& using
+.Xr ssh 1
+keys, will still work).
 The field only contains encrypted passwords, and
 .Ql *
 can never be the result of encrypting a password.
