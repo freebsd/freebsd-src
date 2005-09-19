@@ -696,8 +696,8 @@ cs_detach(device_t dev)
 	cs_stop(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(ifp);
-	if_free(ifp);
 	cs_release_resources(dev);
+	if_free(ifp);
 	return (0);
 }
 

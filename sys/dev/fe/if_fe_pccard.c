@@ -187,8 +187,8 @@ fe_pccard_detach(device_t dev)
 
 	fe_stop(sc);
 	ether_ifdetach(ifp);
-	if_free(ifp);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
+	if_free(ifp);
 	fe_release_resource(dev);
 
 	return 0;

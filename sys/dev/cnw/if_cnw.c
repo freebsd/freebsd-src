@@ -1599,8 +1599,8 @@ static int cnw_pccard_detach(dev)
 	cnw_stop(sc);
 
 	ether_ifdetach(ifp);
-	if_free(ifp);
 	cnw_free(dev);
+	if_free(ifp);
 	sc->cnw_gone = 1;
 
 #if 0

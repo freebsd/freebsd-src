@@ -837,8 +837,8 @@ an_detach(device_t dev)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	AN_UNLOCK(sc);
 	ether_ifdetach(ifp);
-	if_free(ifp);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
+	if_free(ifp);
 	an_release_resources(dev);
 	mtx_destroy(&sc->an_mtx);
 	return (0);
