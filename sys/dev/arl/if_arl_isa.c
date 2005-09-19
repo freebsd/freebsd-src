@@ -324,13 +324,13 @@ arl_isa_detach(device_t dev)
 
 	arl_stop(sc);
 	ifmedia_removeall(&sc->arl_ifmedia);
+	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 #if __FreeBSD_version < 500100
 	ether_ifdetach(sc->arl_ifp, ETHER_BPF_SUPPORTED);
 #else
 	ether_ifdetach(sc->arl_ifp);
 	if_free(sc->arl_ifp);
 #endif
-	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	arl_release_resources(dev);
 
 	return (0);

@@ -44,22 +44,14 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/sio/siovar.h>
 
-#include "pccarddevs.h"
-
 static	int	sio_pccard_attach(device_t dev);
-static	int	sio_pccard_match(device_t self);
 static	int	sio_pccard_probe(device_t dev);
 
 static device_method_t sio_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		sio_pccard_probe),
+	DEVMETHOD(device_attach,	sio_pccard_attach),
 	DEVMETHOD(device_detach,	siodetach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	sio_pccard_match),
-	DEVMETHOD(card_compat_probe,	sio_pccard_probe),
-	DEVMETHOD(card_compat_attach,	sio_pccard_attach),
 
 	{ 0, 0 }
 };
@@ -71,7 +63,7 @@ static driver_t sio_pccard_driver = {
 };
 
 static int
-sio_pccard_match(device_t dev)
+sio_pccard_probe(device_t dev)
 {
 	int		error = 0;
 	u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
@@ -79,6 +71,7 @@ sio_pccard_match(device_t dev)
 	error = pccard_get_function(dev, &fcn);
 	if (error != 0)
 		return (error);
+
 	/*
 	 * If a serial card, we are likely the right driver.  However,
 	 * some serial cards are better servered by other drivers, so
@@ -86,27 +79,22 @@ sio_pccard_match(device_t dev)
 	 */
 	if (fcn == PCCARD_FUNCTION_SERIAL)
 		return (-100);
-
-	return(ENXIO);
-}
-
-static int
-sio_pccard_probe(dev)
-	device_t	dev;
-{
-
-#ifdef PC98
-	SET_FLAG(dev, SET_IFTYPE(COM_IF_MODEM_CARD));
-#endif
-	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
-	/* until bus_setup_intr */
-	return (sioprobe(dev, 0, 0UL, 1));
+	return (ENXIO);
 }
 
 static int
 sio_pccard_attach(dev)
 	device_t	dev;
 {
+	int err;
+
+#ifdef PC98
+	SET_FLAG(dev, SET_IFTYPE(COM_IF_MODEM_CARD));
+#endif
+	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
+	/* until bus_setup_intr */
+	if ((err = sioprobe(dev, 0, 0UL, 1)) != 0)
+		return (err);
 	return (sioattach(dev, 0, 0UL));
 }
 

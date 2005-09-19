@@ -627,7 +627,6 @@ lge_detach(dev)
 	lge_reset(sc);
 	lge_stop(sc);
 	ether_ifdetach(ifp);
-	if_free(ifp);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->lge_miibus);
@@ -637,6 +636,7 @@ lge_detach(dev)
 	bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
 
 	contigfree(sc->lge_ldata, sizeof(struct lge_list_data), M_DEVBUF);
+	if_free(ifp);
 	lge_free_jumbo_mem(sc);
 
 	splx(s);

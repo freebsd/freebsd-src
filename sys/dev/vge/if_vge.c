@@ -1123,8 +1123,6 @@ vge_detach(dev)
 		ifp->if_flags &= ~IFF_UP;
 		ether_ifdetach(ifp);
 	}
-	if (ifp)
-		if_free(ifp);
 	if (sc->vge_miibus)
 		device_delete_child(dev, sc->vge_miibus);
 	bus_generic_detach(dev);
@@ -1136,6 +1134,8 @@ vge_detach(dev)
 	if (sc->vge_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    VGE_PCI_LOMEM, sc->vge_res);
+	if (ifp)
+		if_free(ifp);
 
 	/* Unload and free the RX DMA ring memory and map */
 

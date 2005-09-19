@@ -535,10 +535,12 @@ em_detach(device_t dev)
         ether_ifdetach(adapter->ifp, ETHER_BPF_SUPPORTED);
 #else
         ether_ifdetach(adapter->ifp);
-	if_free(ifp);
 #endif
 	em_free_pci_resources(adapter);
 	bus_generic_detach(dev);
+#if __FreeBSD_version >= 500000
+	if_free(ifp);
+#endif
 
 	/* Free Transmit Descriptor ring */
         if (adapter->tx_desc_base) {
