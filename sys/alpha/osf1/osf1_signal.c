@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
@@ -145,9 +147,12 @@ osf1_to_bsd_sigaction(osa, bsa)
 {
 
 	bsa->sa_handler = osa->osa_handler;
-	if (osf1_sigdbg)
+	if (osf1_sigdbg) {
+		mtx_lock(&Giant);
 		uprintf("%s(%d): handler @0x%lx \n", __FILE__, __LINE__,
 			(unsigned long)osa->osa_handler);
+		mtx_unlock(&Giant);
+	}
 	osf1_to_bsd_sigset(&osa->osa_mask, &bsa->sa_mask);
 	bsa->sa_flags = 0;
 	if ((osa->osa_flags & OSF1_SA_ONSTACK) != 0)
@@ -225,9 +230,12 @@ osf1_sigaction(td, uap)
 	struct sigaction *nbsap;
 	int error;
 
-	if (osf1_sigdbg && uap->sigtramp)
+	if (osf1_sigdbg && uap->sigtramp) {
+		mtx_lock(&Giant);
 		uprintf("osf1_sigaction: trampoline handler at %p\n",
 		    uap->sigtramp);
+		mtx_unlock(&Giant);
+	}
 	td->td_md.osf_sigtramp = uap->sigtramp;
 	if (uap->nsa != NULL) {
 		if ((error = copyin(uap->nsa, &osa, sizeof(osa))) != 0)
@@ -315,8 +323,10 @@ osf1_signal(td, uap)
 #endif
 			error = kern_sigaction(td, signum, &nbsa, &obsa, 0);
 			if (error != 0) {
+				mtx_lock(&Giant);
 				DPRINTF("signal: sigaction failed: %d\n",
 					 error);
+				mtx_unlock(&Giant);
 				td->td_retval[0] = -1;
 				return (error);
 			}
@@ -352,8 +362,11 @@ osf1_signal(td, uap)
 			SIGEMPTYSET(sa.sa_mask);
 			sa.sa_flags = 0;
 			error = kern_sigaction(td, signum, &sa, NULL, 0);
-			if (error != 0)
+			if (error != 0) {
+				mtx_lock(&Giant);
 				DPRINTF(("sigignore: sigaction failed\n"));
+				mtx_unlock(&Giant);
+			}
 			return (error);
 		}
 
@@ -544,8 +557,11 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Set up the registers to return to sigcode.
 	 */
-	if (osf1_sigdbg)
+	if (osf1_sigdbg) {
+		mtx_lock(&Giant);
 		uprintf("attempting to call osf1 sigtramp\n");
+		mtx_unlock(&Giant);
+	}
 	frame->tf_regs[FRAME_PC] = (u_int64_t)td->td_md.osf_sigtramp;
 	frame->tf_regs[FRAME_A0] = sig;
 	frame->tf_regs[FRAME_A1] = code;
@@ -627,7 +643,9 @@ osf1_osigstack(td, uap)
 	} */ *uap;
 {
 
-/*	uprintf("osf1_osigstack: oss = %p, nss = %p",uap->oss, uap->nss);
-	uprintf(" stack ptr = %p\n",p->p_sigacts->ps_sigstk.ss_sp);*/
+/*	mtx_lock(&Giant);
+	uprintf("osf1_osigstack: oss = %p, nss = %p",uap->oss, uap->nss);
+	uprintf(" stack ptr = %p\n",p->p_sigacts->ps_sigstk.ss_sp);
+	mtx_unlock(&Giant); */
 	return(osigstack(td, (struct osigstack_args *)uap));
 }

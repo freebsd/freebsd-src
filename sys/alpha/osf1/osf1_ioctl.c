@@ -33,6 +33,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
@@ -110,9 +112,11 @@ osf1_ioctl(td, uap)
 		break;
 	}
 #ifdef IOCTL_DEBUG
+		mtx_lock(&Giant);
 		uprintf(
 		    "OSF/1 IOCTL: group = %c, cmd = %d, len = %d, dir = %s\n",
 		    group, cmd, len, dirstr);
+		mtx_unlock(&Giant);
 #endif
 
 	a.fd = uap->fd;

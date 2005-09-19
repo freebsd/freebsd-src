@@ -380,7 +380,9 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	 */
 	if ((off_t)filsz + offset > object->un_pager.vnp.vnp_size ||
 	    filsz > memsz) {
+		mtx_lock(&Giant);
 		uprintf("elf_load_section: truncated ELF file\n");
+		mtx_unlock(&Giant);
 		return (ENOEXEC);
 	}
 
@@ -698,8 +700,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	brand_info = __elfN(get_brandinfo)(hdr, interp);
 	if (brand_info == NULL) {
+		mtx_lock(&Giant);
 		uprintf("ELF binary type \"%u\" not known.\n",
 		    hdr->e_ident[EI_OSABI]);
+		mtx_unlock(&Giant);
 		error = ENOEXEC;
 		goto fail;
 	}
@@ -840,7 +844,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		error = __elfN(load_file)(imgp->proc, interp, &addr,
 		    &imgp->entry_addr, sv->sv_pagesize);
 		if (error != 0) {
+			mtx_lock(&Giant);
 			uprintf("ELF interpreter %s not found\n", interp);
+			mtx_unlock(&Giant);
 			goto fail;
 		}
 	}

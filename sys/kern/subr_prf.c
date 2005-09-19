@@ -129,6 +129,10 @@ uprintf(const char *fmt, ...)
 	struct putchar_arg pca;
 	int retval;
 
+	GIANT_REQUIRED;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "uprintf");
+
 	if (td == NULL || td == PCPU_GET(idlethread))
 		return (0);
 
@@ -164,6 +168,10 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	va_list ap;
 	struct putchar_arg pca;
 	struct session *sess = NULL;
+
+	GIANT_REQUIRED;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "tprintf");
 
 	if (pri != -1)
 		flags |= TOLOG;

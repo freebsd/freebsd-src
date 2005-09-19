@@ -238,8 +238,11 @@ svr4_to_bsd_sigaltstack(sss, bss)
 		bss->ss_flags |= SS_DISABLE;
 	if ((sss->ss_flags & SVR4_SS_ONSTACK) != 0)
 		bss->ss_flags |= SS_ONSTACK;
-	if ((sss->ss_flags & ~SVR4_SS_ALLBITS) != 0)
+	if ((sss->ss_flags & ~SVR4_SS_ALLBITS) != 0) {
+		mtx_lock(&Giant);
 	  /*XXX*/ uprintf("svr4_to_bsd_sigaltstack: extra bits ignored\n");
+		mtx_unlock(&Giant);
+	}
 }
 
 void
