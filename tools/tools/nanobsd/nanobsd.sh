@@ -103,7 +103,7 @@ build_world ( ) (
 )
 
 build_kernel ( ) (
-	echo "## build kernel ($NANO_KERNEL"
+	echo "## build kernel ($NANO_KERNEL)"
 	echo "### log: ${MAKEOBJDIRPREFIX}/_.bk"
 
 	if [ -f ${NANO_KERNEL} ] ; then
