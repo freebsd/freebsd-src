@@ -405,11 +405,11 @@ patm_rcv_mbuf(struct patm_softc *sc, void *buf, u_int h, int hdr)
 	}
 
 	if ((h & ~MBUF_HMASK) == MBUF_VHANDLE) {
-		m_extadd(m, (caddr_t)buf, VMBUF_SIZE, mbp_ext_free,
+		MEXTADD(m, (caddr_t)buf, VMBUF_SIZE, mbp_ext_free,
 		    sc->vbuf_pool, M_PKTHDR, EXT_NET_DRV);
 		m->m_data += VMBUF_OFFSET;
 	} else {
-		m_extadd(m, (caddr_t)buf, SMBUF_SIZE, mbp_ext_free,
+		MEXTADD(m, (caddr_t)buf, SMBUF_SIZE, mbp_ext_free,
 		    sc->sbuf_pool, M_PKTHDR, EXT_NET_DRV);
 		m->m_data += SMBUF_OFFSET;
 	}
