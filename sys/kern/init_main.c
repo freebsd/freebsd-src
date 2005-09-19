@@ -533,10 +533,6 @@ start_init(void *dummy)
 
 	vfs_mountroot();
 
-#ifdef MAC
-	mac_create_root_mount(td->td_ucred, TAILQ_FIRST(&mountlist));
-#endif
-
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
 	 */

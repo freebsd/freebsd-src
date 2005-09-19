@@ -921,14 +921,6 @@ mac_create_mount(struct ucred *cred, struct mount *mp)
 	    mp->mnt_fslabel);
 }
 
-void
-mac_create_root_mount(struct ucred *cred, struct mount *mp)
-{
-
-	MAC_PERFORM(create_root_mount, cred, mp, mp->mnt_mntlabel,
-	    mp->mnt_fslabel);
-}
-
 int
 mac_check_mount_stat(struct ucred *cred, struct mount *mount)
 {

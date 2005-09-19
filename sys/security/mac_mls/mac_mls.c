@@ -807,19 +807,6 @@ mac_mls_create_mount(struct ucred *cred, struct mount *mp,
 }
 
 static void
-mac_mls_create_root_mount(struct ucred *cred, struct mount *mp,
-    struct label *mntlabel, struct label *fslabel)
-{
-	struct mac_mls *mac_mls;
-
-	/* Always mount root as high integrity. */
-	mac_mls = SLOT(fslabel);
-	mac_mls_set_effective(mac_mls, MAC_MLS_TYPE_LOW, 0, NULL);
-	mac_mls = SLOT(mntlabel);
-	mac_mls_set_effective(mac_mls, MAC_MLS_TYPE_LOW, 0, NULL);
-}
-
-static void
 mac_mls_relabel_vnode(struct ucred *cred, struct vnode *vp,
     struct label *vnodelabel, struct label *label)
 {
@@ -2860,7 +2847,6 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_create_devfs_directory = mac_mls_create_devfs_directory,
 	.mpo_create_devfs_symlink = mac_mls_create_devfs_symlink,
 	.mpo_create_mount = mac_mls_create_mount,
-	.mpo_create_root_mount = mac_mls_create_root_mount,
 	.mpo_relabel_vnode = mac_mls_relabel_vnode,
 	.mpo_update_devfsdirent = mac_mls_update_devfsdirent,
 	.mpo_associate_vnode_devfs = mac_mls_associate_vnode_devfs,
