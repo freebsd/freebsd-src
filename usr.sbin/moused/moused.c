@@ -476,6 +476,21 @@ static int		mouse_move_delayed;
 
 static jmp_buf env;
 
+static int		drift_distance = 4;   /* max steps X+Y */
+static int		drift_time = 500;   /* in 0.5 sec */
+static struct timeval	drift_time_tv;
+static struct timeval	drift_2time_tv;   /* 2*drift_time */
+static int		drift_after = 4000;   /* 4 sec */
+static struct timeval	drift_after_tv;
+static int		drift_terminate = FALSE;
+static struct timeval	drift_current_tv;
+static struct timeval	drift_tmp;
+static struct timeval	drift_last_activity = {0,0};
+static struct drift_xy {
+	int x; int y; }	drift_last = {0,0};   /* steps in last drift_time */
+static struct timeval	drift_since = {0,0};
+static struct drift_xy  drift_previous={0,0}; /* steps in previous drift_time */
+
 /* function prototypes */
 
 static void	moused(void);
@@ -527,7 +542,7 @@ main(int argc, char *argv[])
     for (i = 0; i < MOUSE_MAXBUTTON; ++i)
 	mstate[i] = &bstate[i];
 
-    while ((c = getopt(argc, argv, "3C:DE:F:HI:PRS:VU:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
+    while ((c = getopt(argc, argv, "3C:DE:F:HI:PRS:T:VU:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
 	switch(c) {
 
 	case '3':
@@ -715,6 +730,24 @@ main(int argc, char *argv[])
 		usage();
 	    }
 	    debug("rodent baudrate %d", rodent.baudrate);
+	    break;
+
+	case 'T':
+	    drift_terminate = TRUE;
+	    sscanf(optarg, "%d,%d,%d", &drift_distance, &drift_time,
+		&drift_after);
+	    if (drift_distance <= 0 || drift_time <= 0 || drift_after <= 0) {
+		warnx("invalid argument `%s'", optarg);
+		usage();
+	    }
+	    debug("terminate drift: distance %d, time %d, after %d",
+		drift_distance, drift_time, drift_after);
+	    drift_time_tv.tv_sec = drift_time/1000;
+	    drift_time_tv.tv_usec = (drift_time%1000)*1000;
+ 	    drift_2time_tv.tv_sec = (drift_time*=2)/1000;
+	    drift_2time_tv.tv_usec = (drift_time%1000)*1000;
+	    drift_after_tv.tv_sec = drift_after/1000;
+	    drift_after_tv.tv_usec = (drift_after%1000)*1000;
 	    break;
 
 	case 't':
@@ -1111,6 +1144,45 @@ moused(void)
 		}
 	    }
 
+	    if (drift_terminate) {
+		if (flags != MOUSE_POSCHANGED || action.dz || action2.dz)
+		    drift_last_activity = drift_current_tv;
+		else {
+		    /* X or/and Y movement only - possibly drift */
+		    timersub(&drift_current_tv,&drift_last_activity,&drift_tmp);
+		    if (timercmp(&drift_tmp, &drift_after_tv, >)) {
+			timersub(&drift_current_tv, &drift_since, &drift_tmp);
+			if (timercmp(&drift_tmp, &drift_time_tv, <)) {
+			    drift_last.x += action2.dx;
+			    drift_last.y += action2.dy;
+			} else {
+			    /* discard old accumulated steps (drift) */
+			    if (timercmp(&drift_tmp, &drift_2time_tv, >))
+				drift_previous.x = drift_previous.y = 0;
+			    else
+				drift_previous = drift_last;
+			    drift_last.x = action2.dx;
+			    drift_last.y = action2.dy;
+			    drift_since = drift_current_tv;
+			}
+			if (abs(drift_last.x) + abs(drift_last.y)
+			  > drift_distance) {
+			    /* real movement, pass all accumulated steps */
+			    action2.dx = drift_previous.x + drift_last.x;
+			    action2.dy = drift_previous.y + drift_last.y;
+			    /* and reset accumulators */
+			    timerclear(&drift_since);
+			    drift_last.x = drift_last.y = 0;
+			    /* drift_previous will be cleared at next movement*/
+			    drift_last_activity = drift_current_tv;
+			} else {
+			    continue;   /* don't pass current movement to
+					 * console driver */
+			}
+		    }
+		}
+	    }
+
 	    if (extioctl) {
 		/* Defer clicks until we aren't VirtualScroll'ing. */
 		if (scroll_state == SCROLL_NOTSCROLLING) 
@@ -1184,10 +1256,11 @@ cleanup(int sig)
 static void
 usage(void)
 {
-    fprintf(stderr, "%s\n%s\n%s\n%s\n",
+    fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: moused [-DRcdfs] [-I file] [-F rate] [-r resolution] [-S baudrate]",
-	"              [-VH [-U threshold]] [-a X [,Y]] [-C threshold] [-m N=M] [-w N]",
-	"              [-z N] [-t <mousetype>] [-l level] [-3 [-E timeout]] -p <port>",
+	"              [-VH [-U threshold]] [-a X[,Y]] [-C threshold] [-m N=M] [-w N]",
+	"              [-z N] [-t <mousetype>] [-l level] [-3 [-E timeout]]",
+	"              [-T distance[,time[,after]]] -p <port>",
 	"       moused [-d] -i <port|if|type|model|all> -p <port>");
     exit(1);
 }
@@ -2373,6 +2446,7 @@ r_timestamp(mousestatus_t *act)
 #endif
 
     gettimeofday(&tv1, NULL);
+    drift_current_tv = tv1;
 
     /* double click threshold */
     tv2.tv_sec = rodent.clickthreshold/1000;
