@@ -123,20 +123,12 @@ static struct Double ratfun_gam(double, double);
 #define Pa7	-1.44705562421428915453880392761e-02
 
 static const double zero = 0., one = 1.0, tiny = 1e-300;
-static int endian;
-
-/*
- * TRUNC sets trailing bits in a floating-point number to zero.
- * is a temporary variable.
- */
-#define TRUNC(x)	*(((int *) &x) + endian) &= 0xf8000000
 
 double
 tgamma(x)
 	double x;
 {
 	struct Double u;
-	endian = (*(int *) &one) ? 1 : 0;
 
 	if (x >= 6) {
 		if(x > 171.63)
