@@ -59,6 +59,7 @@
 #include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
 #include <sys/pipe.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
