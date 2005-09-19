@@ -59,6 +59,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/pipe.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 
 #include <fs/devfs/devfs.h>
