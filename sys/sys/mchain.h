@@ -34,54 +34,6 @@
 #ifndef _SYS_MCHAIN_H_
 #define _SYS_MCHAIN_H_
 
-#include <machine/endian.h>
-
-#ifndef _KERNEL
-/*
- * This macros probably belongs to the endian.h
- */
-#if (BYTE_ORDER == LITTLE_ENDIAN)
-
-#define	htoles(x)	((u_int16_t)(x))
-#define	letohs(x)	((u_int16_t)(x))
-#define	htolel(x)	((u_int32_t)(x))
-#define	letohl(x)	((u_int32_t)(x))
-#define	htoleq(x)	((int64_t)(x))
-#define	letohq(x)	((int64_t)(x))
-
-#define	htobes(x)	(__htons(x))
-#define	betohs(x)	(__ntohs(x))
-#define	htobel(x)	(__htonl(x))
-#define	betohl(x)	(__ntohl(x))
-
-static __inline int64_t
-htobeq(int64_t x)
-{
-	return (int64_t)__htonl((u_int32_t)(x >> 32)) |
-	    (int64_t)__htonl((u_int32_t)(x & 0xffffffff)) << 32;
-}
-
-static __inline int64_t
-betohq(int64_t x)
-{
-	return (int64_t)__ntohl((u_int32_t)(x >> 32)) |
-	    (int64_t)__ntohl((u_int32_t)(x & 0xffffffff)) << 32;
-}
-
-#else	/* (BYTE_ORDER == LITTLE_ENDIAN) */
-
-#error "Macros for Big-Endians are incomplete"
-
-/*
-#define	htoles(x)	((u_int16_t)(x))
-#define	letohs(x)	((u_int16_t)(x))
-#define	htolel(x)	((u_int32_t)(x))
-#define	letohl(x)	((u_int32_t)(x))
-*/
-#endif	/* (BYTE_ORDER == LITTLE_ENDIAN) */
-#endif	/* _KERNEL */
-
-
 #ifdef _KERNEL
 
 /*
