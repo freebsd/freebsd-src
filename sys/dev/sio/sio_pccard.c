@@ -83,8 +83,7 @@ sio_pccard_probe(device_t dev)
 }
 
 static int
-sio_pccard_attach(dev)
-	device_t	dev;
+sio_pccard_attach(device_t dev)
 {
 	int err;
 
