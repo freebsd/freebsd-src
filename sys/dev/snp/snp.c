@@ -527,17 +527,18 @@ snpioctl(dev, cmd, data, flags, td)
 	switch (cmd) {
 	case SNPSTTY:
 		s = *(int *)data;
-		if (s < 0 || fget(td, s, &fp) != 0)
+		if (s < 0)
+			return (snp_down(snp));
+		if (fget(td, s, &fp) != 0)
 			return (EINVAL);
 		if (fp->f_type != DTYPE_VNODE ||
-		    fp->f_vnode->v_type != VCHR) {
+		    fp->f_vnode->v_type != VCHR ||
+		    fp->f_vnode->v_rdev == NULL) {
 			fdrop(fp, td);
 			return (EINVAL);
 		}
 		tdev = fp->f_vnode->v_rdev;
 		fdrop(fp, td);
-		if (tdev == NULL)
-			return (snp_down(snp));
 
 		tp = snpdevtotty(tdev);
 		if (!tp)
@@ -593,7 +594,6 @@ snpioctl(dev, cmd, data, flags, td)
 			*(int *)data = snp->snp_len;
 		else
 			if (snp->snp_flags & SNOOP_DOWN) {
-				printf("IT IS DOWN\n");
 				if (snp->snp_flags & SNOOP_OFLOW)
 					*(int *)data = SNP_OFLOW;
 				else

@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 24, 1995
+.Dd September 18, 2005
 .Dt SNP 4
 .Os
 .Sh NAME
@@ -30,17 +30,20 @@ To associate a given
 .Nm
 device with a tty to be observed, open the
 .Nm
-device and then use the
+device and a tty device, and then issue the
 .Dv SNPSTTY
-ioctl.
+ioctl on
+.Nm
+device.
 The argument passed to the
 .Xr ioctl 2
 is the address of a variable of type
-.Vt udev_t .
+.Vt int ,
+holding the file descriptor of a tty device.
 To detach the
 .Nm
 device from a tty use a pointer to a value of
-.Dv NODEV .
+\-1.
 .Pp
 The
 .Dv SNPGTTY
