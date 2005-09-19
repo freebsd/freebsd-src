@@ -876,15 +876,15 @@ slinput(int c, struct tty *tp)
 			 * this one is within the time limit.
 			 */
 			if (sc->sc_abortcount &&
-			    time_second >= sc->sc_starttime + ABT_WINDOW)
+			    time_uptime >= sc->sc_starttime + ABT_WINDOW)
 				sc->sc_abortcount = 0;
 			/*
 			 * If we see an abort after "idle" time, count it;
 			 * record when the first abort escape arrived.
 			 */
-			if (time_second >= sc->sc_lasttime + ABT_IDLE) {
+			if (time_uptime >= sc->sc_lasttime + ABT_IDLE) {
 				if (++sc->sc_abortcount == 1)
-					sc->sc_starttime = time_second;
+					sc->sc_starttime = time_uptime;
 				if (sc->sc_abortcount >= ABT_COUNT) {
 					slclose(tp,0);
 					return 0;
@@ -892,7 +892,7 @@ slinput(int c, struct tty *tp)
 			}
 		} else
 			sc->sc_abortcount = 0;
-		sc->sc_lasttime = time_second;
+		sc->sc_lasttime = time_uptime;
 	}
 
 	switch (c) {
