@@ -29,35 +29,50 @@
 my $srcdir = `dirname $0`;
 chomp $srcdir;
 
-my $cmd = "/tmp/$$";
+my $cmd = "/tmp/gctl-$$";
 my $out = "$cmd.out";
+my $disk = "/tmp/disk-$$";
+my $unit = "";
 
-my %tests = (
-    "" => "FAIL Verb missing",
-    "-s verb=invalid" => "FAIL 22 verb 'invalid'",
-    # create
-    "-s verb=create" => "FAIL 87 provider",
-    "-s verb=create -s provider=invalid" => "FAIL 22 provider 'invalid'",
+my %steps = (
+    "1" => "gctl",
+    "2" => "gctl",
+    "3" => "gctl",
+    "4" => "gctl",
+    "5" => "mdcfg",
+    "6" => "gctl",
+    "7" => "gctl",
+    "8" => "gctl",
+    "9" => "mdcfg",
 );
 
-sub run ($$) {
-    local ($nr, $test) = @_;
-    local $st;
+my %args = (
+    "1" => "",
+    "2" => "verb=invalid",
+    "3" => "verb=create",
+    "4" => "verb=create provider=invalid",
+    "5" => "create",
+    "6" => "verb=create provider=md%unit% entries=-1",
+    "7" => "verb=create provider=md%unit%",
+    "8" => "verb=create provider=md%unit%",
+    "9" => "destroy",
+);
 
-    if (exists $ENV{'TEST_VERBOSE'}) {
-	system("$cmd -v $test > $out 2>&1");
-	system("cat $out");
-    }
-    else {
-	system("$cmd $test > $out 2>&1");
-    }
-    $st = `tail -1 $out`;
-    if ($st =~ "^$tests{$test}") {
-	print "ok $nr\n";
-    } else {
-	print "not ok $nr # $st\n";
-    }
-    unlink $out;
+my %result = (
+    "1" => "FAIL Verb missing",
+    "2" => "FAIL 22 verb 'invalid'",
+    "3" => "FAIL 87 provider",
+    "4" => "FAIL 22 provider 'invalid'",
+	#
+    "6" => "FAIL 22 entries -1",
+    "7" => "PASS",
+    "8" => "FAIL 17 geom 'md0'",
+	#
+);
+
+my $verbose = "";
+if (exists $ENV{'TEST_VERBOSE'}) {
+    $verbose = "-v";
 }
 
 # Compile the driver...
@@ -74,12 +89,36 @@ if (`$cmd` =~ "^FAIL Permission denied") {
     exit 0;
 }
 
-$count = keys (%tests);
+$count = keys (%steps);
 print "1..$count\n";
 
-my $nr=0;
-foreach $test (keys %tests) {
-    run ++$nr, $test;
+foreach my $nr (sort keys %steps) {
+    my $action = $steps{$nr};
+    my $arg = $args{$nr};
+
+    if ($action =~ "gctl") {
+	$arg =~ s/%unit%/$unit/g;
+	system("$cmd $verbose $arg | tee $out 2>&1");
+	$st = `tail -1 $out`;
+	if ($st =~ "^$result{$nr}") {
+	    print "ok $nr\n";
+	} else {
+	    print "not ok $nr \# $st\n";
+	}
+	unlink $out;
+    } elsif ($action =~ "mdcfg") {
+	if ($arg =~ "create") {
+	    system("dd if=/dev/zero of=$disk count=1024 2>&1");
+	    $unit = `mdconfig -a -t vnode -f $disk`;
+	    chomp $unit;
+	    $unit =~ s/md//g;
+	} elsif ($arg =~ "destroy") {
+	    system("mdconfig -d -u $unit");
+	    unlink $disk;
+	    $unit = "";
+	}
+	print "ok $nr\n";
+    }
 }
 
 unlink $cmd;
