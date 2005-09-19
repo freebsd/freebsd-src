@@ -483,7 +483,8 @@ dev/ata/atapi-tape.c		optional atapist
 dev/ath/ath_rate/amrr/amrr.c 	optional ath_rate_amrr
 dev/ath/ath_rate/onoe/onoe.c 	optional ath_rate_onoe \
 	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"
-dev/ath/ath_rate/sample/sample.c 	optional ath_rate_sample
+dev/ath/ath_rate/sample/sample.c 	optional ath_rate_sample \
+	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"
 dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"
 dev/ath/if_ath_pci.c		optional ath pci \
