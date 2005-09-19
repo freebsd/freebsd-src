@@ -321,7 +321,6 @@ en_pci_detach(device_t dev)
 	 */
 	en_reset(sc);
 	atm_ifdetach(sc->ifp);
-	if_free(sc->ifp);
 
 	/*
 	 * Deallocate resources.
@@ -334,6 +333,7 @@ en_pci_detach(device_t dev)
 	 * Free all the driver internal resources
 	 */
 	en_destroy(sc);
+	if_free(sc->ifp);
 
 	return (0);
 }

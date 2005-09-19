@@ -446,7 +446,6 @@ fail:
 static void
 epic_release(epic_softc_t *sc)
 {
-
 	if (sc->ifp != NULL)
 		if_free(sc->ifp);
 	if (sc->irq)

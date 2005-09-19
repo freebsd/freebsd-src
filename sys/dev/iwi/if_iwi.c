@@ -467,7 +467,6 @@ iwi_detach(device_t dev)
 	if (ifp != NULL) {
 		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
-		if_free(ifp);
 	}
 
 	iwi_free_cmd_ring(sc, &sc->cmdq);
@@ -485,6 +484,8 @@ iwi_detach(device_t dev)
 	if (sc->mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
 
+	if (ifp != NULL)
+		if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
 
 	return 0;

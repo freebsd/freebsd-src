@@ -1438,6 +1438,9 @@ static int cp_detach (device_t dev)
 	cp_reset (b, 0 ,0);
 	callout_stop (&led_timo[b->num]);
 
+	/* Disable the interrupt request. */
+	bus_teardown_intr (dev, bd->cp_irq, bd->cp_intrhand);
+
 	for (c=b->chan; c<b->chan+NCHAN; ++c) {
 		drv_t *d = (drv_t*) c->sys;
 
@@ -1470,8 +1473,6 @@ static int cp_detach (device_t dev)
 	b->sys = NULL;
 	CP_UNLOCK (bd);
 
-	/* Disable the interrupt request. */
-	bus_teardown_intr (dev, bd->cp_irq, bd->cp_intrhand);
 	bus_deactivate_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
 	bus_release_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
 	bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->cp_res);

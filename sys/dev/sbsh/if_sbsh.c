@@ -311,11 +311,12 @@ sbsh_detach(device_t dev)
 
 	sbsh_stop(sc);
 	ether_ifdetach(ifp);
-	if_free(ifp);
 
 	bus_teardown_intr(dev, sc->irq_res, sc->intr_hand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(1), sc->mem_res);
+
+	if_free(ifp);
 
 	splx(s);
 	return (0);

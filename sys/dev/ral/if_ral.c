@@ -531,7 +531,6 @@ ral_detach(device_t dev)
 
 	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
-	if_free(ifp);
 
 	ral_free_tx_ring(sc, &sc->txq);
 	ral_free_tx_ring(sc, &sc->atimq);
@@ -540,6 +539,7 @@ ral_detach(device_t dev)
 	ral_free_rx_ring(sc, &sc->rxq);
 
 	bus_teardown_intr(dev, sc->irq, sc->sc_ih);
+	if_free(ifp);
 	ral_free(dev);
 
 	mtx_destroy(&sc->sc_mtx);
