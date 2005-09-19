@@ -77,9 +77,6 @@ __FBSDID("$FreeBSD$");
  *	+Inf	return +Inf
 */
 
-#define endian		(((*(int *) &one)) ? 1 : 0)
-#define TRUNC(x)	*(((int *) &x) + endian) &= 0xf8000000
-
 #define N 128
 
 /* Table of log(Fj) = logF_head[j] + logF_tail[j], for Fj = 1+j/128.
@@ -438,7 +435,7 @@ __log__D(x) double x;
 #endif
 {
 	int m, j;
-	double F, f, g, q, u, v, u2, one = 1.0;
+	double F, f, g, q, u, v, u2;
 	volatile double u1;
 	struct Double r;
 
