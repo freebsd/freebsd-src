@@ -278,7 +278,11 @@ ata_end_transaction(struct ata_request *request)
 
 	    /* if read data get it */
 	    if (request->flags & ATA_R_READ) {
-		if (ata_wait(ch, atadev, (ATA_S_READY | ATA_S_DRQ)) < 0) {
+		int flags = ATA_S_DRQ;
+
+		if (request->u.ata.command != ATA_ATAPI_IDENTIFY)
+		    flags |= ATA_S_READY;
+		if (ata_wait(ch, atadev, flags) < 0) {
 		    device_printf(request->dev,
 				  "timeout waiting for read DRQ\n");
 		    request->result = EIO;
