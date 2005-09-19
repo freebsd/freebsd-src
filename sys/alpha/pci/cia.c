@@ -314,6 +314,9 @@ cia_init_sgmap(void)
 	chipset.sgmap = sgmap_map_create(CIA_SGMAP_BASE,
 					 CIA_SGMAP_BASE + CIA_SGMAP_SIZE - 1,
 					 cia_sgmap_map, sgtable);
+	chipset.pci_sgmap = NULL;
+	chipset.dmsize = 1UL * 1024UL * 1024UL * 1024UL;
+	chipset.dmoffset = 1UL * 1024UL * 1024UL * 1024UL;
 
 	if (cia_ispyxis) {
 		/*
