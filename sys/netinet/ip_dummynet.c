@@ -862,9 +862,9 @@ expire_queues(struct dn_flow_set *fs)
     struct dn_flow_queue *q, *prev ;
     int i, initial_elements = fs->rq_elements ;
 
-    if (fs->last_expired == time_second)
+    if (fs->last_expired == time_uptime)
 	return 0 ;
-    fs->last_expired = time_second ;
+    fs->last_expired = time_uptime ;
     for (i = 0 ; i <= fs->rq_size ; i++) /* last one is overflow */
 	for (prev=NULL, q = fs->rq[i] ; q != NULL ; )
 	    if (q->head != NULL || q->S != q->F+1) {
