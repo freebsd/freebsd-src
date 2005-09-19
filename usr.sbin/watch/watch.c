@@ -218,10 +218,10 @@ setup_scr(void)
 static void
 detach_snp(void)
 {
-	dev_t		dev;
+	int		fd;
 
-	dev = NODEV;
-	ioctl(snp_io, SNPSTTY, &dev);
+	fd = -1;
+	ioctl(snp_io, SNPSTTY, &fd);
 }
 
 static void
