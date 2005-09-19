@@ -4,6 +4,7 @@ MAN=	acpi_asus.4 \
 	acpi_fujitsu.4 \
 	acpi_ibm.4 \
 	acpi_panasonic.4 \
+	acpi_sony.4 \
 	acpi_toshiba.4 \
 	aic.4 \
 	alpm.4 \
