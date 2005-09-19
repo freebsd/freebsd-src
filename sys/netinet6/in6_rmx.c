@@ -259,7 +259,7 @@ in6_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	 */
 	if (rtq_reallyold != 0) {
 		rt->rt_flags |= RTPRF_OURS;
-		rt->rt_rmx.rmx_expire = time_second + rtq_reallyold;
+		rt->rt_rmx.rmx_expire = time_uptime + rtq_reallyold;
 	} else {
 		rtexpunge(rt);
 	}
@@ -290,7 +290,7 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 	if (rt->rt_flags & RTPRF_OURS) {
 		ap->found++;
 
-		if (ap->draining || rt->rt_rmx.rmx_expire <= time_second) {
+		if (ap->draining || rt->rt_rmx.rmx_expire <= time_uptime) {
 			if (rt->rt_refcnt > 0)
 				panic("rtqkill route really not free");
 
@@ -305,9 +305,9 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 			}
 		} else {
 			if (ap->updating
-			   && (rt->rt_rmx.rmx_expire - time_second
+			   && (rt->rt_rmx.rmx_expire - time_uptime
 			       > rtq_reallyold)) {
-				rt->rt_rmx.rmx_expire = time_second
+				rt->rt_rmx.rmx_expire = time_uptime
 					+ rtq_reallyold;
 			}
 			ap->nextstop = lmin(ap->nextstop,
@@ -391,7 +391,7 @@ in6_mtuexpire(struct radix_node *rn, void *rock)
 		panic("rt == NULL in in6_mtuexpire");
 
 	if (rt->rt_rmx.rmx_expire && !(rt->rt_flags & RTF_PROBEMTU)) {
-		if (rt->rt_rmx.rmx_expire <= time_second) {
+		if (rt->rt_rmx.rmx_expire <= time_uptime) {
 			rt->rt_flags |= RTF_PROBEMTU;
 		} else {
 			ap->nextstop = lmin(ap->nextstop,
