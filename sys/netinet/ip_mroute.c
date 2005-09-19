@@ -1399,8 +1399,8 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	 * Source-route tunnels are no longer supported.
 	 */
 	static int last_log;
-	if (last_log != time_second) {
-	    last_log = time_second;
+	if (last_log != time_uptime) {
+	    last_log = time_uptime;
 	    log(LOG_ERR,
 		"ip_mforward: received source-routed packet from %lx\n",
 		(u_long)ntohl(ip->ip_src.s_addr));

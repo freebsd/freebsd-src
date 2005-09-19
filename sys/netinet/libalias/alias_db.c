@@ -2166,7 +2166,7 @@ HouseKeeping(struct libalias *la)
 	 * waste timeline by making system calls.
 	 */
 #ifdef	_KERNEL
-	la->timeStamp = time_second;
+	la->timeStamp = time_uptime;
 #else
 	gettimeofday(&tv, &tz);
 	la->timeStamp = tv.tv_sec;
@@ -2447,8 +2447,8 @@ LibAliasInit(struct libalias *la)
 		LIST_INSERT_HEAD(&instancehead, la, instancelist);
 
 #ifdef	_KERNEL
-		la->timeStamp = time_second;
-		la->lastCleanupTime = time_second;
+		la->timeStamp = time_uptime;
+		la->lastCleanupTime = time_uptime;
 #else
 		gettimeofday(&tv, &tz);
 		la->timeStamp = tv.tv_sec;
