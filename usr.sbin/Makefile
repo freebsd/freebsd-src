@@ -343,6 +343,10 @@ _pppctl=	pppctl
 _zzz=		zzz
 .endif
 
+.if ${MACHINE_ARCH} == "powerpc"
+_mount_smbfs=	mount_smbfs
+.endif
+
 .if ${MACHINE_ARCH} == "sparc64"
 _eeprom=	eeprom
 _ofwdump=	ofwdump

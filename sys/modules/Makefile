@@ -489,6 +489,7 @@ _xe=		xe
 
 .if ${MACHINE_ARCH} == "powerpc"
 _gem=		gem
+_smbfs=		smbfs
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
