@@ -408,7 +408,10 @@ assym.s: @
 assym.s: @/kern/genassym.sh
 .endif
 	sh @/kern/genassym.sh genassym.o > ${.TARGET}
-genassym.o: @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c @ machine
+.if exists(@)
+genassym.o: @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c
+.endif
+genassym.o: @ machine ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-fno-common} \
 	    @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c
 .endif
