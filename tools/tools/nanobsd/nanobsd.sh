@@ -84,6 +84,7 @@ clean_build ( ) (
 		rm -rf ${MAKEOBJDIRPREFIX}
 	fi
 	mkdir -p ${MAKEOBJDIRPREFIX}
+	printenv > ${MAKEOBJDIRPREFIX}/_.env
 )
 
 make_conf_build ( ) (
@@ -344,6 +345,12 @@ create_i386_diskimage ( ) (
 #######################################################################
 
 #######################################################################
+
+customize_cmd () {
+	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $1"
+}
+
+#######################################################################
 # Parse arguments
 
 args=`getopt c: $*`
@@ -367,7 +374,6 @@ do
 		break;
 	esac
 done
-
 
 #######################################################################
 # Internal variables
@@ -404,7 +410,7 @@ export NANO_SRC
 export NANO_WORLDDIR
 
 #######################################################################
-# Set up object directory
+# As simple as that...
 
 clean_build
 make_conf_build
