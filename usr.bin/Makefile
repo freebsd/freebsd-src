@@ -315,4 +315,8 @@ _ncplogin=	ncplogin
 _smbutil=	smbutil
 .endif
 
+.if ${MACHINE_ARCH} == "powerpc"
+_smbutil=	smbutil
+.endif
+
 .include <bsd.subdir.mk>

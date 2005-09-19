@@ -92,6 +92,10 @@ _libncp=	libncp
 _libsmb=	libsmb
 .endif
 
+.if ${MACHINE_ARCH} == "powerpc"
+_libsmb=	libsmb
+.endif
+
 .if !defined(NO_LIBPTHREAD)
 _libpthread=	libpthread
 .endif
