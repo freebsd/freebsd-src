@@ -838,19 +838,6 @@ mac_biba_create_mount(struct ucred *cred, struct mount *mp,
 }
 
 static void
-mac_biba_create_root_mount(struct ucred *cred, struct mount *mp,
-    struct label *mntlabel, struct label *fslabel)
-{
-	struct mac_biba *mac_biba;
-
-	/* Always mount root as high integrity. */
-	mac_biba = SLOT(fslabel);
-	mac_biba_set_effective(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
-	mac_biba = SLOT(mntlabel);
-	mac_biba_set_effective(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
-}
-
-static void
 mac_biba_relabel_vnode(struct ucred *cred, struct vnode *vp,
     struct label *vnodelabel, struct label *label)
 {
@@ -3086,7 +3073,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_create_devfs_directory = mac_biba_create_devfs_directory,
 	.mpo_create_devfs_symlink = mac_biba_create_devfs_symlink,
 	.mpo_create_mount = mac_biba_create_mount,
-	.mpo_create_root_mount = mac_biba_create_root_mount,
 	.mpo_relabel_vnode = mac_biba_relabel_vnode,
 	.mpo_update_devfsdirent = mac_biba_update_devfsdirent,
 	.mpo_associate_vnode_devfs = mac_biba_associate_vnode_devfs,
