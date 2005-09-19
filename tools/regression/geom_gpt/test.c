@@ -59,58 +59,18 @@ parse(char *arg, char **param, char **value)
 	return (0);
 }
 
-static int
-add_int32(struct gctl_req *req, char *arg)
-{
-	char *param, *nptr, *endptr;
-	uint32_t value;
-	int error;
-
-	error = parse(arg, &param, &nptr);
-	if (error)
-		return (error);
-	if (nptr == NULL)
-		return (EINVAL);
-	value = strtol(nptr, &endptr, 0);
-	if (*endptr)
-		return (EINVAL);
-	gctl_ro_param(req, param, sizeof(value), &value);
-	return (0);
-}
-
-static int
-add_string(struct gctl_req *req, char *arg)
-{
-	char *param, *value;
-	int error;
-
-	error = parse(arg, &param, &value);
-	if (error)
-		return (error);
-	if (value == NULL)
-		return (EINVAL);
-
-	gctl_ro_param(req, param, -1, value);
-	return (0);
-}
-
 int main(int argc, char *argv[])
 {
 	struct gctl_req *req;
+	char *param, *value;
 	const char *s;
 	int c;
 
 	req = gctl_get_handle();
 	gctl_ro_param(req, "class", -1, "GPT");
 
-	while ((c = getopt(argc, argv, "4:s:v")) != -1) {
+	while ((c = getopt(argc, argv, "v")) != -1) {
 		switch (c) {
-		case '4':	/* uint32_t */
-			add_int32(req, optarg);
-			break;
-		case 's':	/* string */
-			add_string(req, optarg);
-			break;
 		case 'v':
 			verbose = 1;
 			break;
@@ -121,8 +81,12 @@ int main(int argc, char *argv[])
 			break;
 		}
 	}
-	if (argc != optind)
-		usage();
+
+	while (optind < argc) {
+		parse(argv[optind++], &param, &value);
+		if (value != NULL)
+			gctl_ro_param(req, param, -1, value);
+	}
 
 	if (verbose)
 		gctl_dump(req, stdout);
