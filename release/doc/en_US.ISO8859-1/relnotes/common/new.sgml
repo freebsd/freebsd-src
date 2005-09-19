@@ -603,6 +603,8 @@
 	<para>The &man.ed.4; driver now supports the &man.altq.4;
 	  framework.  &merged;</para>
 
+	<para>The &man.ed.4; driver is now MPSAFE.</para>
+
 	<para>In the &man.em.4; driver, hardware support for VLAN
 	  tagging is now disabled by default due to some interactions
 	  between this feature and promiscuous mode. &merged;</para>
@@ -1633,10 +1635,12 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <title>Documentation</title>
 
     <para>Documentation of existing functionality has been improved by
-      the addition of the following manual pages: &man.ataraid.4;,
+      the addition of the following manual pages: &man.acpi.ibm.4;,
+      &man.acpi.sony.4;,
+      &man.ataraid.4;,
       &man.bus.space.9;,
       &man.central.4;, &man.clkbrd.4;, &man.creator.4;,
-      &man.devfs.conf.5, &man.devfs.rules.5,
+      &man.devfs.conf.5;, &man.devfs.rules.5;,
       &man.ebus.4;, &man.eeprom.4;,
       &man.fhc.4;,
       &man.machfb.4;,
