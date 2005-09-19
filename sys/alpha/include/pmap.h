@@ -45,8 +45,10 @@
 #ifndef _MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
+#ifdef _KERNEL
 #include <machine/chipset.h>
 #include <sys/systm.h>
+#endif
 
 /*
  * Define meanings for a few software bits in the pte
