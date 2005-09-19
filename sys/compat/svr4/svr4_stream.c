@@ -378,6 +378,8 @@ bufprint(buf, len)
 {
 	size_t i;
 
+	GIANT_REQUIRED;
+
 	uprintf("\n\t");
 	for (i = 0; i < len; i++) {
 		uprintf("%x ", buf[i]);
@@ -394,6 +396,8 @@ show_ioc(str, ioc)
 	u_char *ptr = NULL;
 	int len;
 	int error;
+
+	GIANT_REQUIRED;
 
 	len = ioc->len;
 	if (len > 1024)
@@ -429,6 +433,8 @@ show_strbuf(str)
 	u_char *ptr = NULL;
 	int maxlen = str->maxlen;
 	int len = str->len;
+
+	GIANT_REQUIRED;
 
 	if (maxlen > 8192)
 		maxlen = 8192;
@@ -472,6 +478,8 @@ show_msg(str, fd, ctl, dat, flags)
 {
 	struct svr4_strbuf	buf;
 	int error;
+
+	GIANT_REQUIRED;
 
 	uprintf("%s(%d", str, fd);
 	if (ctl != NULL) {
@@ -1407,8 +1415,12 @@ i_str(fp, td, retval, fd, cmd, dat)
 		return error;
 
 #ifdef DEBUG_SVR4
-	if ((error = show_ioc(">", &ioc)) != 0)
+	mtx_lock(&Giant);
+	if ((error = show_ioc(">", &ioc)) != 0) {
+		mtx_unlock(&Giant);
 		return error;
+	}
+	mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 
 	switch (ioc.cmd & 0xff00) {
@@ -1429,8 +1441,12 @@ i_str(fp, td, retval, fd, cmd, dat)
 	}
 
 #ifdef DEBUG_SVR4
-	if ((error = show_ioc("<", &ioc)) != 0)
+	mtx_lock(&Giant);
+	if ((error = show_ioc("<", &ioc)) != 0) {
+		mtx_lock(&Giant);
 		return error;
+	}
+	mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 	return copyout(&ioc, dat, sizeof(ioc));
 }
@@ -1550,7 +1566,9 @@ svr4_stream_ioctl(fp, td, retval, fd, cmd, dat)
 	case SVR4_I_PUSH:
 		DPRINTF(("I_PUSH %p\n", dat));
 #if defined(DEBUG_SVR4)
+		mtx_lock(&Giant);
 		show_strbuf((struct svr4_strbuf *)dat);
+		mtx_unlock(&Giant);
 #endif
 		return 0;
 
@@ -1743,8 +1761,10 @@ svr4_do_putmsg(td, uap, fp)
 	retval = td->td_retval;
 
 #ifdef DEBUG_SVR4
+	mtx_lock(&Giant);
 	show_msg(">putmsg", uap->fd, uap->ctl,
 		 uap->dat, uap->flags);
+	mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 
 	FILE_LOCK_ASSERT(fp, MA_NOTOWNED);
@@ -1940,8 +1960,10 @@ svr4_do_getmsg(td, uap, fp)
 	memset(&sc, 0, sizeof(sc));
 
 #ifdef DEBUG_SVR4
+	mtx_lock(&Giant);
 	show_msg(">getmsg", uap->fd, uap->ctl,
 		 uap->dat, 0);
+	mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 
 	if (uap->ctl != NULL) {
@@ -2249,8 +2271,10 @@ svr4_do_getmsg(td, uap, fp)
 	*retval = 0;
 
 #ifdef DEBUG_SVR4
+	mtx_lock(&Giant);
 	show_msg("<getmsg", uap->fd, uap->ctl,
 		 uap->dat, fl);
+	mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 	return error;
 }

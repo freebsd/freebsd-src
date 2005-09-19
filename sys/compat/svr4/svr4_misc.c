@@ -485,7 +485,9 @@ again:
 			panic("svr4_sys_getdents64: bad reclen");
 		off = *cookie++;	/* each entry points to the next */
 		if ((off >> 32) != 0) {
+			mtx_lock(&Giant);
 			uprintf("svr4_sys_getdents64: dir offset too large for emulated program");
+			mtx_unlock(&Giant);
 			error = EINVAL;
 			goto out;
 		}
