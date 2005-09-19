@@ -172,6 +172,7 @@ mcpcia_probe(device_t dev)
 	}
 	sc->mcpcia_inst = unit;
 	if ((xc = mcpcia_root) == NULL) {
+		chipset.pci_sgmap = NULL;
 		mcpcia_root = sc;
 	} else {
 		while (xc->next)
@@ -633,10 +634,12 @@ mcbus_get_mid(dev), bus , slot, func, sz, off, paddr, data, new_data);
 static void
 mcpcia_sgmap_map(void *arg, bus_addr_t ba, vm_offset_t pa)
 {
+	struct mcpcia_softc *sc;
 	u_int64_t *sgtable = arg;
 	int index = alpha_btop(ba - MCPCIA_ISA_SG_MAPPED_BASE);
 
 	if (pa) {
+		/* XXX */
 		if (pa > (1L<<32))
 			panic("mcpcia_sgmap_map: can't map address 0x%lx", pa);
 		sgtable[index] = ((pa >> 13) << 1) | 1;
@@ -644,12 +647,18 @@ mcpcia_sgmap_map(void *arg, bus_addr_t ba, vm_offset_t pa)
 		sgtable[index] = 0;
 	}
 	alpha_mb();
-	MCPCIA_SGTLB_INVALIDATE(mcpcia_eisa);
+	if ((struct sgmap*)sgtable == chipset.sgmap) 
+		MCPCIA_SGTLB_INVALIDATE(mcpcia_eisa);
+	else {
+		for (sc = mcpcia_root; sc != NULL; sc = sc->next)
+			MCPCIA_SGTLB_INVALIDATE(sc);
+	}
 }
 
 static void
 mcpcia_dma_init(struct mcpcia_softc *sc)
 {
+	void *sgtable;
 
 	/*
 	 * Disable all windows first.
@@ -672,7 +681,6 @@ mcpcia_dma_init(struct mcpcia_softc *sc)
 	 */
 
 	if (sc == mcpcia_eisa) {
-		void *sgtable;
 		REGVAL(MCPCIA_W0_MASK(sc)) = MCPCIA_WMASK_8M;
 
 		sgtable = contigmalloc(8192, M_DEVBUF,
@@ -699,6 +707,8 @@ mcpcia_dma_init(struct mcpcia_softc *sc)
 	 * Set up window 1 as a 2 GB Direct-mapped window starting at 2GB.
 	 */
 
+	chipset.dmsize = 2UL * 1024UL * 1024UL * 1024UL;
+	chipset.dmoffset = MCPCIA_DIRECT_MAPPED_BASE;
 	REGVAL(MCPCIA_W1_MASK(sc)) = MCPCIA_WMASK_2G;
 	REGVAL(MCPCIA_T1_BASE(sc)) = 0;
 	alpha_mb();
@@ -706,30 +716,33 @@ mcpcia_dma_init(struct mcpcia_softc *sc)
 		MCPCIA_DIRECT_MAPPED_BASE | MCPCIA_WBASE_EN;
 	alpha_mb();
 
-	/*
-	 * When we get around to redoing the 'chipset' stuff to have more
-	 * than one sgmap handler...
-	 */
+	if (alpha_ptob(Maxmem) <= chipset.dmsize)
+		return;
 
-#if	0
 	/*
 	 * Set up window 2 as a 1G SGMAP-mapped window starting at 1G.
 	 */
 
+	if (chipset.pci_sgmap == NULL) {
+		sgtable = contigmalloc(1048576, M_DEVBUF,
+		    M_NOWAIT, 0, 1L<<34, 32<<10, 1L<<34);
+		if (sgtable == NULL) {
+			panic("mcpcia_dma_init: cannot allocate pci_sgmap");
+			/* NOTREACHED */
+		}
+		chipset.pci_sgmap = sgmap_map_create(MCPCIA_PCI_SG_MAPPED_BASE,
+		    MCPCIA_PCI_SG_MAPPED_BASE + MCPCIA_PCI_SG_MAPPED_SIZE - 1,
+		    mcpcia_sgmap_map, sgtable);
+	}
 	REGVAL(MCPCIA_W2_MASK(sc)) = MCPCIA_WMASK_1G;
 	REGVAL(MCPCIA_T2_BASE(sc)) =
-		ccp->cc_pci_sgmap.aps_ptpa >> MCPCIA_TBASEX_SHIFT;
+	    pmap_kextract((vm_offset_t)chipset.pci_sgmap) >>
+	    MCPCIA_TBASEX_SHIFT;
 	alpha_mb();
 	REGVAL(MCPCIA_W2_BASE(sc)) =
 		MCPCIA_WBASE_EN | MCPCIA_WBASE_SG | MCPCIA_PCI_SG_MAPPED_BASE;
 	alpha_mb();
-#endif
-
-	/* XXX XXX BEGIN XXX XXX */
-	{							/* XXX */
-		alpha_XXX_dmamap_or = MCPCIA_DIRECT_MAPPED_BASE;/* XXX */
-	}							/* XXX */
-	/* XXX XXX END XXX XXX */
+	MCPCIA_SGTLB_INVALIDATE(sc);
 }
 
 /*

@@ -45,6 +45,17 @@ typedef struct alpha_chipset {
      * Scatter-Gather map for ISA dma.
      */
     struct sgmap*		sgmap;
+
+    /*
+     * Scatter-Gather map for PCI dma.
+     */
+    struct sgmap*		pci_sgmap;
+
+    /*
+     * direct map
+     */
+    long			dmsize;
+    long			dmoffset;
 } alpha_chipset_t;
 
 extern alpha_chipset_t chipset;

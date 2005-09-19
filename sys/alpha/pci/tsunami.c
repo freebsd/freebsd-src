@@ -234,6 +234,7 @@ tsunami_init_sgmap(void)
 	chipset.sgmap = sgmap_map_create(TSUNAMI_SGMAP_BASE,
 					 TSUNAMI_SGMAP_BASE + TSUNAMI_SGMAP_SIZE,
 					 tsunami_sgmap_map, sgtable);
+	chipset.pci_sgmap = NULL;
 }
 
 void
@@ -258,7 +259,8 @@ tsunami_init()
 	chipset = tsunami_chipset;
 	platform.pci_intr_enable =  tsunami_intr_enable;
 	platform.pci_intr_disable = tsunami_intr_disable;
-	alpha_XXX_dmamap_or = 2UL * 1024UL * 1024UL * 1024UL;
+	chipset.dmsize = 2UL * 1024UL * 1024UL * 1024UL;
+	chipset.dmoffset = 2UL * 1024UL * 1024UL * 1024UL;
 
 	if (platform.pci_intr_init)
 		platform.pci_intr_init();

@@ -45,6 +45,9 @@
 #ifndef _MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
+#include <machine/chipset.h>
+#include <sys/systm.h>
+
 /*
  * Define meanings for a few software bits in the pte
  */
@@ -142,12 +145,16 @@ pmap_kextract(vm_offset_t va)
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
-extern vm_offset_t alpha_XXX_dmamap_or;
-
 static __inline vm_offset_t
 alpha_XXX_dmamap(vm_offset_t va)
 {
-       return (pmap_kextract(va) | alpha_XXX_dmamap_or);
+	vm_offset_t pa = pmap_kextract(va);
+	if (pa >= chipset.dmsize)
+		panic ("driver uses alpha_XXX_dmamap() for an address that"
+		    "is not within direct map");
+	if (chipset.pci_sgmap != NULL)
+		panic ("driver uses alpha_XXX_dmamap() on largemem system");
+	return (pa + chipset.dmoffset);
 }
 
 #endif /* _KERNEL */
