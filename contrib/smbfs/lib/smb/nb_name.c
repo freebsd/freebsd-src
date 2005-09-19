@@ -31,9 +31,13 @@
  *
  * $Id: nb_name.c,v 1.2 2001/08/22 03:31:36 bp Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/socket.h>
-#include <sys/mchain.h>		/* for endiand macros */
 
 #include <ctype.h>
 #include <err.h>
@@ -139,7 +143,7 @@ nb_encname_len(const char *str)
 	return len;
 }
 
-#define	NBENCODE(c)	(htoles((u_short)(((u_char)(c) >> 4) | \
+#define	NBENCODE(c)	(htole16((u_short)(((u_char)(c) >> 4) | \
 			 (((u_char)(c) & 0xf) << 8)) + 0x4141))
 
 static void

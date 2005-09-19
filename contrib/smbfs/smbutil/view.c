@@ -31,6 +31,11 @@
  *
  * $Id: view.c,v 1.9 2002/02/20 09:26:42 bp Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -43,8 +48,6 @@
 #include <sysexits.h>
 
 #include <cflib.h>
-
-#include <sys/mchain.h>
 
 #include <netsmb/smb_lib.h>
 #include <netsmb/smb_conn.h>
@@ -113,7 +116,7 @@ cmd_view(int argc, char *argv[])
 		exit(1);
 	}
 	for (ep = rpbuf, i = 0; i < entries; i++, ep++) {
-		type = letohs(ep->shi1_type);
+		type = le16toh(ep->shi1_type);
 
 		cp = (char*)rpbuf + ep->shi1_remark;
 		printf("%-12s %-10s %s\n", ep->shi1_netname,
