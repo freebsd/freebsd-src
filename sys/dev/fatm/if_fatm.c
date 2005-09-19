@@ -1838,7 +1838,7 @@ fatm_fix_chain(struct fatm_softc *sc, struct mbuf **mp)
 
 			d = mtod(m, u_char *);
 			if ((off = (uintptr_t)(void *)d % 4) != 0) {
-				if (!(m->m_flags & M_EXT) || !MEXT_IS_REF(m)) {
+				if (M_WRITABLE(m)) {
 					sc->istats.fix_addr_copy++;
 					bcopy(d, d - off, m->m_len);
 					m->m_data = (caddr_t)(d - off);
@@ -1857,7 +1857,7 @@ fatm_fix_chain(struct fatm_softc *sc, struct mbuf **mp)
 			}
 
 			if ((off = m->m_len % 4) != 0) {
-				if ((m->m_flags & M_EXT) && MEXT_IS_REF(m)) {
+				if (!M_WRITABLE(m)) {
 					if ((new = copy_mbuf(m)) == NULL) {
 						sc->istats.fix_len_noext++;
 						goto fail;
