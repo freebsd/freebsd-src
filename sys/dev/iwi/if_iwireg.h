@@ -271,7 +271,7 @@ struct iwi_cmd_desc {
 } __packed;
 
 /* node information (IBSS) */
-struct iwi_node {
+struct iwi_ibssnode {
 	uint8_t	bssid[IEEE80211_ADDR_LEN];
 	uint8_t	reserved[2];
 } __packed;
