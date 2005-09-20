@@ -94,7 +94,6 @@ static int	pccard_function_enable(struct pccard_function *pf);
 static void	pccard_function_disable(struct pccard_function *pf);
 static int	pccard_compat_do_probe(device_t bus, device_t dev);
 static int	pccard_compat_do_attach(device_t bus, device_t dev);
-static int	pccard_add_children(device_t dev, int busno);
 static int	pccard_probe(device_t dev);
 static int	pccard_attach(device_t dev);
 static int	pccard_detach(device_t dev);
@@ -787,17 +786,10 @@ pccard_compat_do_attach(device_t bus, device_t dev)
 #define PCCARD_NDRQ	0
 
 static int
-pccard_add_children(device_t dev, int busno)
-{
-	/* Call parent to scan for any current children */
-	return (0);
-}
-
-static int
 pccard_probe(device_t dev)
 {
 	device_set_desc(dev, "16-bit PCCard bus");
-	return (pccard_add_children(dev, device_get_unit(dev)));
+	return (0);
 }
 
 static int
