@@ -144,7 +144,8 @@ getbounds(void) {
 	ret = 0;
 
 	if ((fp = fopen("bounds", "r")) == NULL) {
-		syslog(LOG_WARNING, "unable to open bounds file, using 0");
+		if (verbose)
+			printf("unable to open bounds file, using 0\n");
 		return (ret);
 	}
 
