@@ -2065,6 +2065,15 @@ check_inode_unwritten(inodedep)
 	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL ||
 	    inodedep->id_nlinkdelta != 0)
 		return (0);
+
+	/*
+	 * Another process might be in initiate_write_inodeblock
+	 * trying to allocate memory without holding "Softdep Lock".
+	 */
+	if ((inodedep->id_state & IOSTARTED) != 0 &&
+	    inodedep->id_savedino == NULL)
+		return (0);
+
 	inodedep->id_state |= ALLCOMPLETE;
 	LIST_REMOVE(inodedep, id_deps);
 	inodedep->id_buf = NULL;
@@ -2930,6 +2939,21 @@ handle_workitem_freefile(freefile)
 	WORKITEM_FREE(freefile, D_FREEFILE);
 }
 
+
+/*
+ * Helper function which unlinks marker element from work list and returns
+ * the next element on the list.
+ */
+static __inline struct worklist *
+markernext(struct worklist *marker)
+{
+	struct worklist *next;
+	
+	next = LIST_NEXT(marker, wk_list);
+	LIST_REMOVE(marker, wk_list);
+	return next;
+}
+
 /*
  * Disk writes.
  * 
@@ -2956,7 +2980,8 @@ static void
 softdep_disk_io_initiation(bp)
 	struct buf *bp;		/* structure describing disk write to occur */
 {
-	struct worklist *wk, *nextwk;
+	struct worklist *wk;
+	struct worklist marker;
 	struct indirdep *indirdep;
 
 	/*
@@ -2965,11 +2990,16 @@ softdep_disk_io_initiation(bp)
 	 */
 	if (bp->b_flags & B_READ)
 		panic("softdep_disk_io_initiation: read");
+
+	marker.wk_type = D_LAST + 1;	/* Not a normal workitem */
+	PHOLD(curproc);			/* Don't swap out kernel stack */
+
 	/*
 	 * Do any necessary pre-I/O processing.
 	 */
-	for (wk = LIST_FIRST(&bp->b_dep); wk; wk = nextwk) {
-		nextwk = LIST_NEXT(wk, wk_list);
+	for (wk = LIST_FIRST(&bp->b_dep); wk != NULL;
+	     wk = markernext(&marker)) {
+		LIST_INSERT_AFTER(wk, &marker, wk_list);
 		switch (wk->wk_type) {
 
 		case D_PAGEDEP:
@@ -3024,6 +3054,7 @@ softdep_disk_io_initiation(bp)
 			/* NOTREACHED */
 		}
 	}
+	PRELE(curproc);			/* Allow swapout of kernel stack */
 }
 
 /*
@@ -3107,6 +3138,7 @@ initiate_write_inodeblock(inodedep, bp)
 		    sizeof(struct dinode), M_INODEDEP, M_SOFTDEP_FLAGS);
 		*inodedep->id_savedino = *dp;
 		bzero((caddr_t)dp, sizeof(struct dinode));
+		dp->di_gen = inodedep->id_savedino->di_gen;
 		return;
 	}
 	/*
