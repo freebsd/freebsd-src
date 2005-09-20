@@ -117,8 +117,6 @@ tablefull(const char *tab)
 
 /*
  * Uprintf prints to the controlling terminal for the current process.
- * It may block if the tty queue is overfull.  No message is printed if
- * the queue does not clear in a reasonable time.
  */
 int
 uprintf(const char *fmt, ...)
@@ -130,9 +128,6 @@ uprintf(const char *fmt, ...)
 	int retval;
 
 	GIANT_REQUIRED;
-
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "uprintf");
-
 	if (td == NULL || td == PCPU_GET(idlethread))
 		return (0);
 
@@ -157,8 +152,8 @@ uprintf(const char *fmt, ...)
 }
 
 /*
- * tprintf prints on the controlling terminal associated
- * with the given session, possibly to the log as well.
+ * tprintf prints on the controlling terminal associated with the given
+ * session, possibly to the log as well.
  */
 void
 tprintf(struct proc *p, int pri, const char *fmt, ...)
@@ -170,9 +165,6 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	struct session *sess = NULL;
 
 	GIANT_REQUIRED;
-
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "tprintf");
-
 	if (pri != -1)
 		flags |= TOLOG;
 	if (p != NULL) {
