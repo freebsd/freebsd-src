@@ -1,18 +1,49 @@
 #!/bin/sh
-# Copyright (c) 2005 Poul-Henning Kamp.
 #
-# See /usr/share/examples/etc/bsd-style-copyright for license terms.
+# Copyright (c) 2005 Poul-Henning Kamp.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
 #
 # $FreeBSD$
 #
 
 set -e
 
+#######################################################################
+#
+# Setup default values for all controlling variables.
+# These values can be overridden from the config file(s)
+#
+#######################################################################
+
 # Name of this NanoBSD build.  (Used to construct workdir names)
 NANO_NAME=full
 
 # Source tree directory
 NANO_SRC=/usr/src
+
+# Where nanobsd additional files live under the source tree
+NANO_TOOLS=tools/tools/nanobsd
 
 # Object tree directory
 # default is subdir of /usr/obj
@@ -72,7 +103,11 @@ NANO_HEADS=16
 NANO_ARCH=i386
 
 #######################################################################
-# Functions which can be overridden in configs.
+#
+# The functions which do the real work.
+# Can be overridden from the config file(s)
+#
+#######################################################################
 
 clean_build ( ) (
 	echo "## Clean and create object directory (${MAKEOBJDIRPREFIX})"
@@ -168,8 +203,20 @@ install_kernel ( ) (
 		> ${MAKEOBJDIRPREFIX}/_.ik 2>&1
 )
 
-setup_diskless ( ) (
-	echo "## configure diskless setup"
+run_customize() (
+
+	echo "## run customize scripts"
+	for c in $NANO_CUSTOMIZE
+	do
+		echo "## customize \"$c\""
+		echo "### log: ${MAKEOBJDIRPREFIX}/_.cust.$c"
+		echo "### `type $c`"
+		( $c ) > ${MAKEOBJDIRPREFIX}/_.cust.$c 2>&1
+	done
+)
+
+setup_nanobsd ( ) (
+	echo "## configure nanobsd setup"
 	echo "### log: ${MAKEOBJDIRPREFIX}/_.dl"
 
 	(
@@ -178,7 +225,12 @@ setup_diskless ( ) (
 	# create diskless marker file
 	touch etc/diskless
 
+	# save config file for scripts
+	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
+
 	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
+	echo "/dev/${NANO_DRIVE}s3 /cfg ufs rw,noauto 2 2" >> etc/fstab
+	mkdir -p cfg
 
 	for d in var etc
 	do
@@ -199,18 +251,6 @@ setup_diskless ( ) (
 	ln -s var/tmp tmp
 
 	) > ${MAKEOBJDIRPREFIX}/_.dl 2>&1
-)
-
-run_customize() (
-
-	echo "## run customize scripts"
-	for c in $NANO_CUSTOMIZE
-	do
-		echo "## customize \"$c\""
-		echo "### log: ${MAKEOBJDIRPREFIX}/_.cust.$c"
-		echo "### `type $c`"
-		( $c ) 2>&1 | tee ${MAKEOBJDIRPREFIX}/_.cust.$c
-	done
 )
 
 prune_usr() (
@@ -337,23 +377,62 @@ create_i386_diskimage ( ) (
 	) > ${MAKEOBJDIRPREFIX}/_.di 2>&1
 )
 
-
 #######################################################################
 #
-# Heavy wizardry ahead, no user serviceable parts below.
+# Optional convenience functions.
 #
 #######################################################################
 
 #######################################################################
+# Setup serial console
+
+cust_comconsole () (
+	# Enable getty on console
+	sed -i "" -e /ttyd0/s/off/on/ ${NANO_WORLDDIR}/etc/ttys
+
+	# Disable getty on syscons devices
+	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${NANO_WORLDDIR}/etc/ttys
+
+	# Tell loader to use serial console early.
+	echo " -h" > ${NANO_WORLDDIR}/boot.config
+)
+
+#######################################################################
+# Allow root login via ssh
+
+cust_allow_ssh_root () (
+	sed -i "" -e '/PermitRootLogin/s/.*/PermitRootLogin yes/' \
+	    ${NANO_WORLDDIR}/etc/ssh/sshd_config
+)
+
+#######################################################################
+# Install the stuff under ./Files
+
+cust_install_files () (
+	cd ${NANO_SRC}/${NANO_TOOLS}/Files
+	find . -print | grep -v /CVS | cpio -dumpv ${NANO_WORLDDIR}
+)
+
+#######################################################################
+# Convenience function:
+# 	Register $1 as customize function.
 
 customize_cmd () {
 	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $1"
 }
 
 #######################################################################
+#
+# All set up to go...
+#
+#######################################################################
+
+#######################################################################
 # Parse arguments
 
-args=`getopt c: $*`
+do_build=true
+
+args=`getopt bc:h $*`
 if [ $? -ne 0 ] ; then
 	echo "Usage: $0 [-c config file]" 1>&2
 	exit 2
@@ -364,10 +443,18 @@ for i
 do
 	case "$i" 
 	in
+	-b)
+		shift;
+		do_build=false
+		;;
 	-c)
 		. "$2"
 		shift;
 		shift;
+		;;
+	-h)
+		echo "Usage: $0 [-b] [-c config file]"
+		exit 2
 		;;
 	--)
 		shift;
@@ -375,8 +462,14 @@ do
 	esac
 done
 
+if [ $# -gt 0 ] ; then
+	echo "Extraneous arguments"
+	exit 2
+fi
+
 #######################################################################
-# Internal variables
+# Setup and Export Internal variables
+#
 if [ "x${NANO_OBJ}" = "x" ] ; then
 	MAKEOBJDIRPREFIX=/usr/obj/nanobsd.${NANO_NAME}/
 	NANO_OBJ=${MAKEOBJDIRPREFIX}
@@ -387,8 +480,6 @@ fi
 NANO_WORLDDIR=${MAKEOBJDIRPREFIX}/_.w
 NANO_MAKE_CONF=${MAKEOBJDIRPREFIX}/make.conf
 
-#######################################################################
-#
 export MAKEOBJDIRPREFIX
 
 export NANO_ARCH
@@ -407,15 +498,20 @@ export NANO_OBJ
 export NANO_PMAKE
 export NANO_SECTS
 export NANO_SRC
+export NANO_TOOLS
 export NANO_WORLDDIR
 
 #######################################################################
-# As simple as that...
+# And then it is as simple as that...
 
-clean_build
-make_conf_build
-build_world
-build_kernel
+if $do_build ; then
+	clean_build
+	make_conf_build
+	build_world
+	build_kernel
+else
+	echo "## Skipping build steps (as instructed)"
+fi
 
 clean_world
 make_conf_install
@@ -424,7 +520,7 @@ install_etc
 install_kernel
 
 run_customize
-setup_diskless
+setup_nanobsd
 prune_usr
 create_${NANO_ARCH}_diskimage
 
