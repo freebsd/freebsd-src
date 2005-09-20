@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pccard/pccard_cis.h>
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccardvarp.h>
 
 #include "pccarddevs.h"
 
