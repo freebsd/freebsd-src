@@ -946,7 +946,10 @@ knote_enqueue(struct knote *kn)
 	struct kqueue *kq = kn->kn_kq;
 	int s = splhigh();
 
-	KASSERT((kn->kn_status & KN_QUEUED) == 0, ("knote already queued"));
+	if (kn->kn_status & KN_QUEUED) {
+		splx(s);
+		return;
+	}
 
 	TAILQ_INSERT_TAIL(&kq->kq_head, kn, kn_tqe); 
 	kn->kn_status |= KN_QUEUED;
