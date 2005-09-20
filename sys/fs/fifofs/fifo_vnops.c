@@ -528,9 +528,8 @@ fifo_poll(ap)
 
 		filetmp.f_data = ap->a_vp->v_fifoinfo->fi_readsock;
 		filetmp.f_cred = ap->a_cred;
-		if (filetmp.f_data)
-			revents |= soo_poll(&filetmp, events,
-			    ap->a_td->td_ucred, ap->a_td);
+		revents |= soo_poll(&filetmp, events, ap->a_td->td_ucred,
+		    ap->a_td);
 
 		/* Reverse the above conversion. */
 		if ((revents & POLLINIGNEOF) &&
@@ -543,10 +542,8 @@ fifo_poll(ap)
 	if (events) {
 		filetmp.f_data = ap->a_vp->v_fifoinfo->fi_writesock;
 		filetmp.f_cred = ap->a_cred;
-		if (filetmp.f_data) {
-			revents |= soo_poll(&filetmp, events,
-			    ap->a_td->td_ucred, ap->a_td);
-		}
+		revents |= soo_poll(&filetmp, events, ap->a_td->td_ucred,
+		    ap->a_td);
 	}
 	return (revents);
 }
