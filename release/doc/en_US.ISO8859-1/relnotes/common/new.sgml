@@ -1648,8 +1648,8 @@ moused_ums0_port="/dev/ums0"</programlisting>
       &man.pmap.page.init.9;, &man.pthread.atfork.3;,
       &man.rtc.4;,
       &man.sbus.4;, &man.sched.4bsd.4;, &man.sched.ule.4;, &man.snd.fm801.4;,
-      &man.snd.neomagic.4;, &man.snd.via8233.4;, &man.snd.via82c686.4;,
-      and &man.snd.vibes.4;.</para>
+      &man.snd.neomagic.4;, &man.snd.t4dwave.4;, &man.snd.via8233.4;,
+      &man.snd.via82c686.4;, and &man.snd.vibes.4;.</para>
 
     <para>Manual pages in the base system have received a number of
       cleanups, both for content and presentation.  Cross-references
