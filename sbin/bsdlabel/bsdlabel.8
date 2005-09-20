@@ -105,9 +105,19 @@ the result instead of writing it.
 .Pp
 The
 .Fl m Ar machine
-argument instructs
+argument forces
 .Nm
-to use the layout suitable for the specified machine.
+to use a layout suitable for a different architecture.
+Current valid values are
+.Ar i386 ,
+.Ar amd64 ,
+.Ar ia64 ,
+.Ar pc98 ,
+and
+.Ar alpha .
+If this option is omitted,
+.Nm
+will use a layout suitable for the current machine.
 .Ss Reading the Disk Label
 To examine the label on a disk drive, use
 .Nm
