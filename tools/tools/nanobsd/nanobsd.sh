@@ -384,6 +384,16 @@ create_i386_diskimage ( ) (
 #######################################################################
 
 #######################################################################
+# Common Flash device geometries
+#
+
+FlashDevice () {
+	. ${NANO_SRC}/${NANO_TOOLS}/FlashDevice.sub
+	sub_FlashDevice $1 $2
+}
+
+
+#######################################################################
 # Setup serial console
 
 cust_comconsole () (
