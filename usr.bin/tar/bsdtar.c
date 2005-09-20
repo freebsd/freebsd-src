@@ -206,6 +206,17 @@ main(int argc, char **argv)
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
 
+	/* Need bsdtar->progname before calling bsdtar_warnc. */
+	if (*argv == NULL)
+		bsdtar->progname = "bsdtar";
+	else {
+		bsdtar->progname = strrchr(*argv, '/');
+		if (bsdtar->progname != NULL)
+			bsdtar->progname++;
+		else
+			bsdtar->progname = *argv;
+	}
+
 	if (setlocale(LC_ALL, "") == NULL)
 		bsdtar_warnc(bsdtar, 0, "Failed to set default locale");
 #if defined(HAVE_NL_LANGINFO) && defined(HAVE_D_MD_ORDER)
@@ -224,18 +235,9 @@ main(int argc, char **argv)
 	/* Default: preserve mod time on extract */
 	bsdtar->extract_flags = ARCHIVE_EXTRACT_TIME;
 
+	/* Default for root user: preserve ownership on extract. */
 	if (bsdtar->user_uid == 0)
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
-
-	if (*argv == NULL)
-		bsdtar->progname = "bsdtar";
-	else {
-		bsdtar->progname = strrchr(*argv, '/');
-		if (bsdtar->progname != NULL)
-			bsdtar->progname++;
-		else
-			bsdtar->progname = *argv;
-	}
 
 	/* Rewrite traditional-style tar arguments, if used. */
 	argv = rewrite_argv(bsdtar, &argc, argv, tar_opts);
