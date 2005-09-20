@@ -51,7 +51,6 @@ struct aic_pccard_softc {
 
 static int aic_pccard_alloc_resources(device_t);
 static void aic_pccard_release_resources(device_t);
-static int aic_pccard_match(device_t);
 static int aic_pccard_probe(device_t);
 static int aic_pccard_attach(device_t);
 
@@ -106,7 +105,7 @@ aic_pccard_release_resources(device_t dev)
 }
 
 static int
-aic_pccard_match(device_t dev)
+aic_pccard_probe(device_t dev)
 {
 	const struct pccard_product *pp;
 
@@ -120,10 +119,11 @@ aic_pccard_match(device_t dev)
 }
 
 static int
-aic_pccard_probe(device_t dev)
+aic_pccard_attach(device_t dev)
 {
 	struct aic_pccard_softc *sc = device_get_softc(dev);
 	struct aic_softc *aic = &sc->sc_aic;
+	int error;
 
 	if (aic_pccard_alloc_resources(dev))
 		return (ENXIO);
@@ -131,24 +131,8 @@ aic_pccard_probe(device_t dev)
 		aic_pccard_release_resources(dev);
 		return (ENXIO);
 	}
-	aic_pccard_release_resources(dev);
 
 	device_set_desc(dev, "Adaptec 6260/6360 SCSI controller");
-	return (0);
-}
-
-static int
-aic_pccard_attach(device_t dev)
-{
-	struct aic_pccard_softc *sc = device_get_softc(dev);
-	struct aic_softc *aic = &sc->sc_aic;
-	int error;
-
-	error = aic_pccard_alloc_resources(dev);
-	if (error) {
-		device_printf(dev, "resource allocation failed\n");
-		return (error);
-	}
 
 	error = aic_attach(aic);
 	if (error) {
@@ -191,14 +175,9 @@ aic_pccard_detach(device_t dev)
 
 static device_method_t aic_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		aic_pccard_probe),
+	DEVMETHOD(device_attach,	aic_pccard_attach),
 	DEVMETHOD(device_detach,	aic_pccard_detach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	aic_pccard_match),
-	DEVMETHOD(card_compat_probe,	aic_pccard_probe),
-	DEVMETHOD(card_compat_attach,	aic_pccard_attach),
 
 	{ 0, 0 }
 };
