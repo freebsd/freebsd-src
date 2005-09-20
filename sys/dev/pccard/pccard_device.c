@@ -61,8 +61,11 @@ static struct cdevsw pccard_cdevsw = {
 int
 pccard_device_create(struct pccard_softc *sc)
 {
-	sc->cisdev = make_dev(&pccard_cdevsw, 0, 0, 0, 0666, "pccard%u.cis",
-	    device_get_unit(sc->dev));
+	uint32_t minor;
+
+	minor = device_get_unit(sc->dev) << 16;
+	sc->cisdev = make_dev(&pccard_cdevsw, minor, 0, 0, 0666,
+	    "pccard%u.cis", device_get_unit(sc->dev));
 	sc->cisdev->si_drv1 = sc;
 	return (0);
 }
@@ -70,7 +73,8 @@ pccard_device_create(struct pccard_softc *sc)
 int
 pccard_device_destroy(struct pccard_softc *sc)
 {
-	destroy_dev(sc->cisdev);
+	if (sc->cisdev)
+		destroy_dev(sc->cisdev);
 	return (0);
 }
 
