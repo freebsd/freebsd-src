@@ -466,22 +466,6 @@ struct sis_softc {
 	struct mtx		sis_mtx;
 };
 
-#define	SIS_LOCK(_sc)		mtx_lock(&(_sc)->sis_mtx)
-#define	SIS_UNLOCK(_sc)		mtx_unlock(&(_sc)->sis_mtx)
-#define	SIS_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sis_mtx, MA_OWNED)
-
-/*
- * register space access macros
- */
-#define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->sis_btag, sc->sis_bhandle, reg, val)
-
-#define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->sis_btag, sc->sis_bhandle, reg)
-
-#define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->sis_btag, sc->sis_bhandle, reg)
-
 #define SIS_TIMEOUT		1000
 #define ETHER_ALIGN		2
 #define SIS_RXLEN		1536
