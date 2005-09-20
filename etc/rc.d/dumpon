@@ -33,7 +33,7 @@ dumpon_start()
 	[Nn][Oo] | '')
 		;;
 	[Aa][Uu][Tt][Oo])
-		dev=$(/bin/kenv dumpdev)
+		dev=$(/bin/kenv -q dumpdev)
 		if [ -n "${dev}" ] ; then
 			dumpon_try "${dev}"
 			return $?
