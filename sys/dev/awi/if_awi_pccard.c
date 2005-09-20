@@ -81,7 +81,6 @@ static const struct pccard_product awi_pccard_products[] = {
 	{ NULL }
 };
 
-static int awi_pccard_match(device_t);
 static int awi_pccard_probe(device_t);
 static int awi_pccard_attach(device_t);
 static int awi_pccard_detach(device_t);
@@ -90,7 +89,7 @@ static int awi_pccard_enable(struct awi_softc *);
 static void awi_pccard_disable(struct awi_softc *);
 
 static int
-awi_pccard_match(device_t dev)
+awi_pccard_probe(device_t dev)
 {
 	const struct pccard_product *pp;
 
@@ -107,7 +106,7 @@ awi_pccard_match(device_t dev)
  * Initialize the device - called from Slot manager.
  */
 static int
-awi_pccard_probe(device_t dev)
+awi_pccard_attach(device_t dev)
 {
 	struct awi_pccard_softc *psc = device_get_softc(dev);
 	struct awi_softc *sc = &psc->sc_awi;
@@ -132,21 +131,7 @@ awi_pccard_probe(device_t dev)
 		error = ENXIO;
 	} else
 		device_set_desc(dev, psc->sc_version);
-	bus_release_resource(dev, SYS_RES_IOPORT, psc->sc_port_rid,
-	    psc->sc_port_res);
-	psc->sc_port_res = 0;
 
-	return error;
-}
-
-static int
-awi_pccard_attach(device_t dev)
-{
-	struct awi_pccard_softc *psc = device_get_softc(dev);
-	struct awi_softc *sc = &psc->sc_awi;
-	int error = 0;
-
-	psc->sc_port_res = 0;
 	psc->sc_irq_res = 0;
 	psc->sc_mem_res = 0;
 	psc->sc_intrhand = 0;
@@ -277,15 +262,10 @@ awi_pccard_disable(struct awi_softc *sc)
 
 static device_method_t awi_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		awi_pccard_probe),
+	DEVMETHOD(device_attach,	awi_pccard_attach),
 	DEVMETHOD(device_detach,	awi_pccard_detach),
 	DEVMETHOD(device_shutdown,	awi_pccard_shutdown),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	awi_pccard_match),
-	DEVMETHOD(card_compat_probe,	awi_pccard_probe),
-	DEVMETHOD(card_compat_attach,	awi_pccard_attach),
 
 	{ 0, 0 }
 };
