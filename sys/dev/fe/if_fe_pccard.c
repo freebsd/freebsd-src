@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 static int fe_pccard_probe(device_t);
 static int fe_pccard_attach(device_t);
 static int fe_pccard_detach(device_t);
-static int fe_pccard_match(device_t);
 
 static const struct fe_pccard_product {
         struct pccard_product mpp_product;
@@ -86,7 +85,7 @@ static const struct fe_pccard_product {
 };
 
 static int
-fe_pccard_match(device_t dev)
+fe_pccard_probe(device_t dev)
 {
         const struct pccard_product *pp;
 	int		error;
@@ -111,14 +110,9 @@ fe_pccard_match(device_t dev)
 
 static device_method_t fe_pccard_methods[] = {
         /* Device interface */
-        DEVMETHOD(device_probe,         pccard_compat_probe),
-        DEVMETHOD(device_attach,        pccard_compat_attach),
+        DEVMETHOD(device_probe,         fe_pccard_probe),
+        DEVMETHOD(device_attach,        fe_pccard_attach),
         DEVMETHOD(device_detach,        fe_pccard_detach),
-
-        /* Card interface */
-        DEVMETHOD(card_compat_match,    fe_pccard_match),
-        DEVMETHOD(card_compat_probe,    fe_pccard_probe),
-        DEVMETHOD(card_compat_attach,   fe_pccard_attach),
 
 	{ 0, 0 }
 };
@@ -137,7 +131,7 @@ static int fe_probe_tdk(device_t, const struct fe_pccard_product *);
  *      Initialize the device - called from Slot manager.
  */
 static int
-fe_pccard_probe(device_t dev)
+fe_pccard_attach(device_t dev)
 {
 	struct fe_softc *sc;
         const struct fe_pccard_product *pp;
@@ -157,23 +151,16 @@ fe_pccard_probe(device_t dev)
 		error = fe_probe_mbh(dev, pp);
 	else
 		error = fe_probe_tdk(dev, pp);
-	if (error == 0)
-		error = fe_alloc_irq(dev, 0);
-
-	fe_release_resource(dev);
-	return (error);
-}
-
-static int
-fe_pccard_attach(device_t dev)
-{
-	struct fe_softc *sc = device_get_softc(dev);
-
-	if (sc->port_used)
-		fe_alloc_port(dev, sc->port_used);
-	fe_alloc_irq(dev, 0);
-
-	return fe_attach(dev);
+	if (error != 0) {
+		fe_release_resource(dev);
+		return (error);
+	}
+	error = fe_alloc_irq(dev, 0);
+	if (error != 0) {
+		fe_release_resource(dev);
+		return (error);
+	}
+	return (fe_attach(dev));
 }
 
 /*
