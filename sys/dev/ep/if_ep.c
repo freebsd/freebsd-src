@@ -350,19 +350,17 @@ ep_detach(device_t dev)
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
-	EP_ASSERT_UNLOCKED(sc);
 	ifp = sc->ifp;
-
-	if (sc->gone)
-		return (0);
+	EP_ASSERT_UNLOCKED(sc);
+	EP_LOCK(sc);
 	if (bus_child_present(dev))
 		epstop(sc);
-
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	ether_ifdetach(ifp);
-
 	sc->gone = 1;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	EP_UNLOCK(sc);
+	ether_ifdetach(ifp);
 	ep_free(dev);
+
 	if_free(ifp);
 	EP_LOCK_DESTROY(sc);
 
@@ -964,8 +962,6 @@ epwatchdog(struct ifnet *ifp)
 static void
 epstop(struct ep_softc *sc)
 {
-	if (sc->gone)
-		return;
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISABLE);
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
 	EP_BUSY_WAIT(sc);
