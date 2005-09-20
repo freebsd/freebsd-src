@@ -144,6 +144,19 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 		(STAILQ_FIRST(&(sc)->card.pf_head) &&			\
 		 STAILQ_NEXT(STAILQ_FIRST(&(sc)->card.pf_head),pf_list))
 
+/* compat layer */
+static __inline int
+pccard_compat_probe(device_t dev)
+{
+	return (CARD_COMPAT_DO_PROBE(device_get_parent(dev), dev));
+}
+
+static __inline int
+pccard_compat_attach(device_t dev)
+{
+	return (CARD_COMPAT_DO_ATTACH(device_get_parent(dev), dev));
+}
+
 /* Convenience functions */
 
 static __inline int
