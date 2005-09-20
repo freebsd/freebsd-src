@@ -179,9 +179,11 @@ net_add_domain(void *data)
 	    ("attempt to net_add_domain(%s) after domainfinalize()",
 	    dp->dom_name));
 #else
+#ifdef DIAGNOSTIC
 	if (domain_init_status >= 2)
 		printf("WARNING: attempt to net_add_domain(%s) after "
 		    "domainfinalize()\n", dp->dom_name);
+#endif
 #endif
 	mtx_unlock(&dom_mtx);
 	net_init_domain(dp);
