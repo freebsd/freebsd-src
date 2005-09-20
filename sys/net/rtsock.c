@@ -1070,7 +1070,7 @@ sysctl_iflist(int af, struct walkarg *w)
 	int len, error = 0;
 
 	bzero((caddr_t)&info, sizeof(info));
-	/* IFNET_RLOCK(); */		/* could sleep XXX */
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
@@ -1117,7 +1117,7 @@ sysctl_iflist(int af, struct walkarg *w)
 			info.rti_info[RTAX_BRD] = NULL;
 	}
 done:
-	/* IFNET_RUNLOCK(); */ /* XXX */
+	IFNET_RUNLOCK();
 	return (error);
 }
 
@@ -1131,17 +1131,13 @@ sysctl_ifmalist(int af, struct walkarg *w)
 	struct ifaddr *ifa;
 
 	bzero((caddr_t)&info, sizeof(info));
-	/* IFNET_RLOCK(); */		/* could sleep XXX */
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
 		ifa = ifaddr_byindex(ifp->if_index);
 		info.rti_info[RTAX_IFP] = ifa ? ifa->ifa_addr : NULL;
-
-		/*
-		 * XXXRW: Can't acquire IF_ADDR_LOCK() due to call
-	 	 * to SYSCTL_OUT().
-		 */
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
@@ -1161,13 +1157,16 @@ sysctl_ifmalist(int af, struct walkarg *w)
 				ifmam->ifmam_flags = 0;
 				ifmam->ifmam_addrs = info.rti_addrs;
 				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
-				if (error)
+				if (error) {
+					IF_ADDR_UNLOCK(ifp);
 					goto done;
+				}
 			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 done:
-	/* IFNET_RUNLOCK(); */ /* XXX */
+	IFNET_RUNLOCK();
 	return (error);
 }
 
@@ -1177,7 +1176,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;
 	struct radix_node_head *rnh;
-	int	i, lim, s, error = EINVAL;
+	int	i, lim, error = EINVAL;
 	u_char	af;
 	struct	walkarg w;
 
@@ -1195,7 +1194,9 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	w.w_arg = name[2];
 	w.w_req = req;
 
-	s = splnet();
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error)
+		return (error);
 	switch (w.w_op) {
 
 	case NET_RT_DUMP:
@@ -1207,10 +1208,10 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 			i = lim = af;
 		for (error = 0; error == 0 && i <= lim; i++)
 			if ((rnh = rt_tables[i]) != NULL) {
-				/* RADIX_NODE_HEAD_LOCK(rnh); */
+				RADIX_NODE_HEAD_LOCK(rnh); 
 			    	error = rnh->rnh_walktree(rnh,
-				    sysctl_dumpentry, &w);/* could sleep XXX */
-				/* RADIX_NODE_HEAD_UNLOCK(rnh); */
+				    sysctl_dumpentry, &w);
+				RADIX_NODE_HEAD_UNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
 		break;
@@ -1223,7 +1224,6 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		error = sysctl_ifmalist(af, &w);
 		break;
 	}
-	splx(s);
 	if (w.w_tmem)
 		free(w.w_tmem, M_RTABLE);
 	return (error);
