@@ -293,6 +293,7 @@ MAN=	aac.4 \
 	snd_neomagic.4 \
 	snd_sbc.4 \
 	snd_solo.4 \
+	snd_t4dwave.4 \
 	snd_uaudio.4 \
 	snd_via8233.4 \
 	snd_via82c686.4 \
