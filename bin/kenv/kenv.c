@@ -42,15 +42,16 @@ static int	ksetenv(char *, char *);
 static int	kunsetenv(char *);
 
 static int hflag = 0;
+static int qflag = 0;
 static int uflag = 0;
 
 static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: kenv [-h]",
-	    "       kenv variable[=value]",
-	    "       kenv -u variable");
+	    "usage: kenv [-hq]",
+	    "       kenv [-q] variable[=value]",
+	    "       kenv [-q] -u variable");
 	exit(1);
 }
 
@@ -63,10 +64,13 @@ main(int argc, char **argv)
 	error = 0;
 	val = NULL;
 	env = NULL;
-	while ((ch = getopt(argc, argv, "hu")) != -1) {
+	while ((ch = getopt(argc, argv, "hqu")) != -1) {
 		switch (ch) {
 		case 'h':
 			hflag++;
+			break;
+		case 'q':
+			qflag++;
 			break;
 		case 'u':
 			uflag++;
@@ -93,21 +97,21 @@ main(int argc, char **argv)
 		usage();
 	if (env == NULL) {
 		error = kdumpenv();
-		if (error)
+		if (error && !qflag)
 			warn("kdumpenv");
 	} else if (val == NULL) {
 		if (uflag) {
 			error = kunsetenv(env);
-			if (error)
+			if (error && !qflag)
 				warnx("unable to unset %s", env);
 		} else {
 			error = kgetenv(env);
-			if (error)
+			if (error && !qflag)
 				warnx("unable to get %s", env);
 		}
 	} else {
 		error = ksetenv(env, val);
-		if (error)
+		if (error && !qflag)
 			warnx("unable to set %s to %s", env, val);
 	}
 	return (error);

@@ -32,10 +32,12 @@
 .Nd dump or modify the kernel environment
 .Sh SYNOPSIS
 .Nm
-.Op Fl h
+.Op Fl hq
 .Nm
+.Op Fl q
 .Ar variable Ns Op = Ns Ar value
 .Nm
+.Op Fl q
 .Fl u
 .Ar variable
 .Sh DESCRIPTION
@@ -60,6 +62,11 @@ If the environment variable is followed by an optional
 .Ar value ,
 .Nm
 will set the environment variable to this value.
+.Pp
+If the
+.Fl q
+option is set, warnings normally printed as a result of being unable to
+perform the requested operation will be suppressed.
 .Sh SEE ALSO
 .Xr kenv 2 ,
 .Xr loader 8
