@@ -814,6 +814,7 @@ ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg, struct sockaddr_ng *addr)
 	struct socket *const so = pcbp->ng_socket;
 	struct mbuf *mdata;
 	int msglen;
+	int error = 0;
 
 	/* Copy the message itself into an mbuf chain */
 	msglen = sizeof(struct ng_mesg) + msg->header.arglen;
@@ -833,10 +834,10 @@ ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg, struct sockaddr_ng *addr)
 	    (struct sockaddr *) addr, mdata, NULL) == 0) {
 		TRAP_ERROR;
 		m_freem(mdata);
-		return (ENOBUFS);
+		error = so->so_error = ENOBUFS;
 	}
 	sorwakeup(so);
-	return (0);
+	return (error);
 }
 
 /***************************************************************
