@@ -79,7 +79,7 @@ const struct pccard_product nsp_products[] = {
 };
 
 /*
- * Additional code for FreeBSD new-bus PCCard frontend
+ * Additional code for FreeBSD new-bus PC Card frontend
  */
 
 static void
@@ -89,7 +89,7 @@ nsp_pccard_intr(void * arg)
 }
 
 static void
-nsp_release_resource(DEVPORT_PDEVICE dev)
+nsp_release_resource(device_t dev)
 {
 	struct nsp_softc	*sc = device_get_softc(dev);
 
@@ -107,7 +107,7 @@ nsp_release_resource(DEVPORT_PDEVICE dev)
 }
 
 static int
-nsp_alloc_resource(DEVPORT_PDEVICE dev)
+nsp_alloc_resource(device_t dev)
 {
 	struct nsp_softc	*sc = device_get_softc(dev);
 	u_long			ioaddr, iosize, maddr, msize;
@@ -159,7 +159,8 @@ nsp_alloc_resource(DEVPORT_PDEVICE dev)
 	return(0);
 }
 
-static int nsp_pccard_match(device_t dev)
+static int
+nsp_pccard_probe(device_t dev)
 {
   	const struct pccard_product *pp;
 
@@ -173,8 +174,9 @@ static int nsp_pccard_match(device_t dev)
 }
 
 static int
-nsp_pccard_probe(DEVPORT_PDEVICE dev)
+nsp_pccard_attach(device_t dev)
 {
+	struct nsp_softc	*sc = device_get_softc(dev);
 	int			error;
 
 	error = nsp_alloc_resource(dev);
@@ -184,20 +186,6 @@ nsp_pccard_probe(DEVPORT_PDEVICE dev)
 		nsp_release_resource(dev);
 		return(ENXIO);
 	}
-	nsp_release_resource(dev);
-
-	return(0);
-}
-
-static int
-nsp_pccard_attach(DEVPORT_PDEVICE dev)
-{
-	struct nsp_softc	*sc = device_get_softc(dev);
-	int			error;
-
-	error = nsp_alloc_resource(dev);
-	if (error)
-		return(error);
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 			       nsp_pccard_intr, (void *)sc, &sc->nsp_intrhand);
 	if (error) {
@@ -213,7 +201,7 @@ nsp_pccard_attach(DEVPORT_PDEVICE dev)
 }
 
 static void
-nsp_pccard_detach(DEVPORT_PDEVICE dev)
+nsp_pccard_detach(device_t dev)
 {
 	nsp_card_unload(dev);
 	nsp_release_resource(dev);
@@ -221,15 +209,9 @@ nsp_pccard_detach(DEVPORT_PDEVICE dev)
 
 static device_method_t nsp_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		nsp_pccard_probe),
+	DEVMETHOD(device_attach,	nsp_pccard_attach),
 	DEVMETHOD(device_detach,	nsp_pccard_detach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	nsp_pccard_match),
-	DEVMETHOD(card_compat_probe,	nsp_pccard_probe),
-	DEVMETHOD(card_compat_attach,	nsp_pccard_attach),
-
 	{ 0, 0 }
 };
 

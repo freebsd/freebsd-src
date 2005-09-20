@@ -200,7 +200,8 @@ ncv_alloc_resource(DEVPORT_PDEVICE dev)
 	return(0);
 }
 
-static int ncv_pccard_match(device_t dev)
+static int
+ncv_pccard_probe(device_t dev)
 {
 	const struct ncv_product *pp;
 	const char *vendorstr;
@@ -228,7 +229,7 @@ static int ncv_pccard_match(device_t dev)
 }
 
 static int
-ncv_pccard_probe(DEVPORT_PDEVICE dev)
+ncv_pccard_attach(device_t dev)
 {
 	struct ncv_softc	*sc = device_get_softc(dev);
 	int			error;
@@ -244,23 +245,6 @@ ncv_pccard_probe(DEVPORT_PDEVICE dev)
 		ncv_release_resource(dev);
 		return(ENXIO);
 	}
-
-	ncv_release_resource(dev);
-
-	return(0);
-}
-
-static int
-ncv_pccard_attach(DEVPORT_PDEVICE dev)
-{
-	struct ncv_softc	*sc = device_get_softc(dev);
-	int			error;
-
-	error = ncv_alloc_resource(dev);
-	if (error) {
-		return(error);
-	}
-
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 			       ncv_pccard_intr, (void *)sc, &sc->ncv_intrhand);
 	if (error) {
@@ -277,7 +261,7 @@ ncv_pccard_attach(DEVPORT_PDEVICE dev)
 }
 
 static	void
-ncv_pccard_detach(DEVPORT_PDEVICE dev)
+ncv_pccard_detach(device_t dev)
 {
 	ncv_card_unload(dev);
 	ncv_release_resource(dev);
@@ -285,14 +269,9 @@ ncv_pccard_detach(DEVPORT_PDEVICE dev)
 
 static device_method_t ncv_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		ncv_pccard_probe),
+	DEVMETHOD(device_attach,	ncv_pccard_attach),
 	DEVMETHOD(device_detach,	ncv_pccard_detach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	ncv_pccard_match),
-	DEVMETHOD(card_compat_probe,	ncv_pccard_probe),
-	DEVMETHOD(card_compat_attach,	ncv_pccard_attach),
 
 	{ 0, 0 }
 };
