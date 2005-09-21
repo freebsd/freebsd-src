@@ -2475,10 +2475,12 @@ swapdev_strategy(struct buf *bp, struct swdevt *sp)
 	vp2 = sp->sw_id;
 	vhold(vp2);
 	if (bp->b_iocmd == BIO_WRITE) {
-		if (bp->b_bufobj) /* XXX: should always be true /phk */
+		if (bp->b_bufobj)
 			bufobj_wdrop(bp->b_bufobj);
 		bufobj_wref(&vp2->v_bufobj);
 	}
+	if (bp->b_bufobj != &vp2->v_bufobj)
+		bp->b_bufobj = &vp2->v_bufobj;
 	bp->b_vp = vp2;
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bstrategy(bp);
