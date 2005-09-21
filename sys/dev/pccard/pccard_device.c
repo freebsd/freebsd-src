@@ -95,7 +95,7 @@ pccard_build_cis(const struct pccard_tuple *tuple, void *argp)
 		cis->buffer[cis->len++] = tuple->code;
 		return (0);
 	}
-	if (cis->len + 2 + tuple->code > sizeof(cis->buffer))
+	if (cis->len + 2 + tuple->length > sizeof(cis->buffer))
 		return (ENOSPC);
 	cis->buffer[cis->len++] = tuple->code;
 	cis->buffer[cis->len++] = tuple->length;
