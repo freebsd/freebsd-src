@@ -231,6 +231,7 @@ MAN=	accept_filter.9 \
 	VFS_FHTOVP.9 \
 	vfs_getnewfsid.9 \
 	vfs_getvfs.9 \
+	VFS_LOCK_GIANT.9 \
 	VFS_MOUNT.9 \
 	vfs_mount.9 \
 	vfs_mountedon.9 \
@@ -973,6 +974,7 @@ MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \
 	vfsconf.9 vfs_unregister.9
+MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9
 MLINKS+=vm_map_lock.9 vm_map_lock_downgrade.9 \
