@@ -43,19 +43,14 @@ __FBSDID("$FreeBSD$");
 
 #include "pccarddevs.h"
 
-static	int	uart_pccard_match(device_t self);
 static	int	uart_pccard_probe(device_t dev);
+static	int	uart_pccard_attach(device_t dev);
 
 static device_method_t uart_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		uart_pccard_probe),
+	DEVMETHOD(device_attach,	uart_pccard_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	uart_pccard_match),
-	DEVMETHOD(card_compat_probe,	uart_pccard_probe),
-	DEVMETHOD(card_compat_attach,	uart_bus_attach),
 
 	{ 0, 0 }
 };
@@ -67,7 +62,7 @@ static driver_t uart_pccard_driver = {
 };
 
 static int
-uart_pccard_match(device_t dev)
+uart_pccard_probe(device_t dev)
 {
 	int		error = 0;
 	u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
@@ -83,20 +78,24 @@ uart_pccard_match(device_t dev)
 	if (fcn == PCCARD_FUNCTION_SERIAL)
 		return (-100);
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
-uart_pccard_probe(dev)
-	device_t	dev;
+uart_pccard_attach(device_t dev)
 {
 	struct uart_softc *sc;
+	int err;
+
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
 
 	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
 	/* until bus_setup_intr but how can I do so?*/
-	return (uart_bus_probe(dev, 0, 0, 0, 0));
+	err = uart_bus_probe(dev, 0, 0, 0, 0);
+	if (err)
+		return (err);
+	return (uart_bus_attach(dev));
 }
 
 DRIVER_MODULE(uart, pccard, uart_pccard_driver, uart_devclass, 0, 0);
