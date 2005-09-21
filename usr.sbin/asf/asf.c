@@ -247,6 +247,8 @@ main(int argc, char *argv[])
 	    quad_t bssaddr;
 
 	    tokens = tokenize(buf, token, MAXTOKEN);
+           if (tokens < 4)
+		continue;
 	    base = strtoll(token[2], NULL, 16);
 	    if (!dofind) {
 		strcpy(basetoken, token[4]);
@@ -261,7 +263,7 @@ main(int argc, char *argv[])
 		    debugname);
 	    } else {
 		char *modpath;
-		
+
 		modpath = findmodule(strdup(modules_path), token[4]);
 		if (modpath == NULL)
 		    continue;
@@ -306,7 +308,7 @@ main(int argc, char *argv[])
 			textaddr);
 		} else {
 		    char *modpath;
-		
+
 		    modpath = findmodule(strdup(modules_path), token[4]);
 		    if (modpath == NULL)
 			continue;
