@@ -717,6 +717,7 @@ get_date(char *p)
 	time_t		nowtime;
 	long		tzone;
 
+	memset(&gmt, 0, sizeof(gmt));
 	yyInput = p;
 
 	(void)time (&nowtime);
