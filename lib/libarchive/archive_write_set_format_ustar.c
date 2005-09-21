@@ -230,7 +230,7 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 	}
 
 	p = archive_entry_hardlink(entry);
-	if(p != NULL)
+	if (p != NULL)
 		mytartype = '1';
 	else
 		p = archive_entry_symlink(entry);

@@ -131,7 +131,7 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	archive_string_vsprintf(&(a->error_string), fmt, ap);
-	if(error_number > 0) {
+	if (error_number > 0) {
 		archive_strcat(&(a->error_string), ": ");
 #ifdef HAVE_STRERROR_R
 #ifdef STRERROR_R_CHAR_P

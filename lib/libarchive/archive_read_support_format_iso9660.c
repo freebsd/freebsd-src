@@ -121,7 +121,6 @@ struct iso9660_directory_record {
 	char name[1];
 };
 
-
 /*
  * Our private data.
  */
@@ -203,6 +202,10 @@ archive_read_support_format_iso9660(struct archive *a)
 	int r;
 
 	iso9660 = malloc(sizeof(*iso9660));
+	if (iso9660 == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate iso9660 data");
+		return (ARCHIVE_FATAL);
+	}
 	memset(iso9660, 0, sizeof(*iso9660));
 	iso9660->magic = ISO9660_MAGIC;
 	iso9660->bid = -1; /* We haven't yet bid. */
@@ -465,6 +468,8 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 
 	/* Create a new file entry and copy data from the ISO dir record. */
 	file = malloc(sizeof(*file));
+	if (file == NULL)
+		return (NULL);
 	memset(file, 0, sizeof(*file));
 	file->parent = parent;
 	if (parent != NULL)
@@ -475,6 +480,10 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	file->mtime = isodate7(isodirrec->date);
 	file->ctime = file->atime = file->mtime;
 	file->name = malloc(isodirrec->name_len[0] + 1);
+	if (file->name == NULL) {
+		free(file);
+		return (NULL);
+	}
 	memcpy(file->name, isodirrec->name, isodirrec->name_len[0]);
 	file->name[(int)isodirrec->name_len[0]] = '\0';
 	if (isodirrec->flags[0] & 0x02)
@@ -531,6 +540,8 @@ add_entry(struct iso9660 *iso9660, struct file_info *file)
 		if (new_size < 1024)
 			new_size = 1024;
 		new_pending_files = malloc(new_size * sizeof(new_pending_files[0]));
+		if (new_pending_files == NULL)
+			__archive_errx(1, "Out of memory");
 		memcpy(new_pending_files, iso9660->pending_files,
 		    iso9660->pending_files_allocated * sizeof(new_pending_files[0]));
 		if (iso9660->pending_files != NULL)

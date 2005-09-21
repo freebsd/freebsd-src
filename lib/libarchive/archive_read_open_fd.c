@@ -58,6 +58,11 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 	}
 	mine->block_size = block_size;
 	mine->buffer = malloc(mine->block_size);
+	if (mine->buffer == NULL) {
+		archive_set_error(a, ENOMEM, "No memory");
+		free(mine);
+		return (ARCHIVE_FATAL);
+	}
 	mine->fd = fd;
 	return (archive_read_open(a, mine, file_open, file_read, file_close));
 }
@@ -94,6 +99,7 @@ file_close(struct archive *a, void *client_data)
 	struct read_fd_data *mine = client_data;
 
 	(void)a; /* UNUSED */
+	free(mine->buffer);
 	free(mine);
 	return (ARCHIVE_OK);
 }
