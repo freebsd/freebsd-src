@@ -289,16 +289,22 @@ DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, 0, 0);
 static void
 fxp_scb_wait(struct fxp_softc *sc)
 {
+	union {
+		uint16_t w;
+		uint8_t b[2];
+	} flowctl;
 	int i = 10000;
 
 	while (CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) && --i)
 		DELAY(2);
-	if (i == 0)
+	if (i == 0) {
+		flowctl.b[0] = CSR_READ_1(sc, FXP_CSR_FLOWCONTROL);
+		flowctl.b[1] = CSR_READ_1(sc, FXP_CSR_FLOWCONTROL + 1);
 		device_printf(sc->dev, "SCB timeout: 0x%x 0x%x 0x%x 0x%x\n",
 		    CSR_READ_1(sc, FXP_CSR_SCB_COMMAND),
 		    CSR_READ_1(sc, FXP_CSR_SCB_STATACK),
-		    CSR_READ_1(sc, FXP_CSR_SCB_RUSCUS),
-		    CSR_READ_2(sc, FXP_CSR_FLOWCONTROL));
+		    CSR_READ_1(sc, FXP_CSR_SCB_RUSCUS), flowctl.w);
+	}
 }
 
 static void
