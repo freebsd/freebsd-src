@@ -460,11 +460,11 @@ product OLICOM OC2232		0x3222 GoCard Combo Eth/Modem 336
 product OLICOM OC3232		0x3232 GoCard Token Ring 16/4/Modem 336
 
 /* Ositech Products */
-product OSITECH JACK_144	0x0001 Ositech Jack of ??? 14.4
-product OSITECH JACK_288	0x0002 Ositech Jack of ??? 28.8
-product OSITECH JACK_336	0x0007 Ositech Jack of ??? 33.6
-product OSITECH TRUMP_SOD	0x0008 Ositech Seven of Diamonds Ethernet Card
-product OSITECH TRUMP_JOH	0x000a Ositech Jack of Hearts
+product OSITECH JACK_144	0x0001 Jack of Diamonds Ethernet/Modem 14.4
+product OSITECH JACK_288	0x0002 Jack of Diamonds Ethernet/Modem 28.8
+product OSITECH JACK_336	0x0007 Jack of Diamonds Ethernet/Modem 33.6
+product OSITECH TRUMP_SOD	0x0008 Seven of Diamonds Ethernet Card
+product OSITECH TRUMP_JOH	0x000a Jack of Hearts Ethernet/Modem
 
 /* Panasonic Products */
 product PANASONIC KXLC002	0x0304 Panasonic 4X CD-ROM Interface Card
