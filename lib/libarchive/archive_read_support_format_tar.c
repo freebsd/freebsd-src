@@ -230,6 +230,10 @@ archive_read_support_format_tar(struct archive *a)
 	int r;
 
 	tar = malloc(sizeof(*tar));
+	if (tar == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate tar data");
+		return (ARCHIVE_FATAL);
+	}
 	memset(tar, 0, sizeof(*tar));
 
 	r = __archive_read_register_format(a, tar,
@@ -1080,14 +1084,22 @@ pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
 
 		/* Ensure pax_entry buffer is big enough. */
 		if (tar->pax_entry_length <= line_length) {
+			wchar_t *old_entry = tar->pax_entry;
+
 			if (tar->pax_entry_length <= 0)
 				tar->pax_entry_length = 1024;
 			while (tar->pax_entry_length <= line_length + 1)
 				tar->pax_entry_length *= 2;
 
-			/* XXX Error handling here */
+			old_entry = tar->pax_entry;
 			tar->pax_entry = realloc(tar->pax_entry,
 			    tar->pax_entry_length * sizeof(wchar_t));
+			if (tar->pax_entry == NULL) {
+				free(old_entry);
+				archive_set_error(a, ENOMEM,
+					"No memory");
+				return (ARCHIVE_FATAL);
+			}
 		}
 
 		/* Decode UTF-8 to wchar_t, null-terminate result. */
@@ -1409,6 +1421,8 @@ gnu_parse_sparse_data(struct archive *a, struct tar *tar,
 
 	while (length > 0 && sparse->offset[0] != 0) {
 		p = malloc(sizeof(*p));
+		if (p == NULL)
+			__archive_errx(1, "Out of memory");
 		memset(p, 0, sizeof(*p));
 		if (last != NULL)
 			last->next = p;

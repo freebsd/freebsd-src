@@ -208,6 +208,9 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 	}
 
 	utf8_value = malloc(utf8len + 1);
+	if (utf8_value == NULL)
+		__archive_errx(1, "Not enough memory for attributes");
+
 	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
 		wc = *wp++;
 		if (wc <= 0x7f) {

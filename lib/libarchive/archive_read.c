@@ -58,6 +58,10 @@ archive_read_new(void)
 	char		*nulls;
 
 	a = malloc(sizeof(*a));
+	if (a == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate archive object");
+		return (NULL);
+	}
 	memset(a, 0, sizeof(*a));
 
 	a->user_uid = geteuid();
@@ -66,6 +70,11 @@ archive_read_new(void)
 
 	a->null_length = 1024;
 	nulls = malloc(a->null_length);
+	if (nulls == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate archive object 'nulls' element");
+		free(a);
+		return (NULL);
+	}
 	memset(nulls, 0, a->null_length);
 	a->nulls = nulls;
 
