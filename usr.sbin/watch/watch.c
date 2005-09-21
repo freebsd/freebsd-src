@@ -75,7 +75,6 @@ const char	*opt_snpdev;
 
 char            dev_name[DEV_NAME_LEN];
 int             snp_io;
-int		snp_tty = 0;
 int             std_in = 0, std_out = 1;
 
 
@@ -187,8 +186,6 @@ cleanup(int signo __unused)
 	if (opt_timestamp)
 		timestamp("Logging Exited.");
 	close(snp_io);
-	if (snp_tty != 0)
-		close(snp_tty);
 	unset_tty();
 	exit(EX_OK);
 }
@@ -227,8 +224,14 @@ detach_snp(void)
 static void
 attach_snp(void)
 {
+	int		snp_tty;
+
+	snp_tty = open(dev_name, O_RDONLY | O_NONBLOCK);
+	if (snp_tty < 0)
+		fatal(EX_DATAERR, "can't open device");
 	if (ioctl(snp_io, SNPSTTY, &snp_tty) != 0)
 		fatal(EX_UNAVAILABLE, "cannot attach to tty");
+	close(snp_tty);
 	if (opt_timestamp)
 		timestamp("Logging Started.");
 }
@@ -255,11 +258,8 @@ set_dev(const char *name)
 	if ((sb.st_mode & S_IFMT) != S_IFCHR)
 		fatal(EX_DATAERR, "must be a character device");
 
-	if (snp_tty != 0)
-		close(snp_tty);
-	snp_tty = open(buf, O_RDONLY);
-	if (snp_tty < 0)
-		fatal(EX_DATAERR, "can't open device");
+	strncpy(dev_name, buf, DEV_NAME_LEN);
+
 	attach_snp();
 }
 
