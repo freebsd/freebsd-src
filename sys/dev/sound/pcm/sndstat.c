@@ -369,6 +369,7 @@ sndstat_uninit(void)
 	sndstat_dev = 0;
 
 	splx(s);
+	sx_xunlock(&sndstat_lock);
 	sx_destroy(&sndstat_lock);
 	return 0;
 }
@@ -388,7 +389,10 @@ sndstat_sysinit(void *p)
 static void
 sndstat_sysuninit(void *p)
 {
-	sndstat_uninit();
+	int error;
+
+	error = sndstat_uninit();
+	KASSERT(error == 0, ("%s: error = %d", __func__, error));
 }
 
 SYSINIT(sndstat_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysinit, NULL);
