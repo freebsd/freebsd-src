@@ -255,8 +255,15 @@ static struct witness_child_list_entry w_childdata[WITNESS_CHILDCOUNT];
 static struct lock_list_entry w_locklistdata[LOCK_CHILDCOUNT];
 
 static struct witness_order_list_entry order_lists[] = {
+	/*
+	 * sx locks
+	 */
 	{ "proctree", &lock_class_sx },
 	{ "allproc", &lock_class_sx },
+	{ NULL, NULL },
+	/*
+	 * Various mutexes
+	 */
 	{ "Giant", &lock_class_mtx_sleep },
 	{ "filedesc structure", &lock_class_mtx_sleep },
 	{ "pipe mutex", &lock_class_mtx_sleep },
@@ -870,13 +877,15 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			 * order violation to enfore a general lock order of
 			 * sleepable locks before non-sleepable locks.
 			 */
-			if (!((lock->lo_flags & LO_SLEEPABLE) != 0 &&
+			if (((lock->lo_flags & LO_SLEEPABLE) != 0 &&
 			    (lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0))
-			    /*
-			     * Check the lock order hierarchy for a reveresal.
-			     */
-			    if (!isitmydescendant(w, w1))
+				goto reversal;
+			/*
+			 * Check the lock order hierarchy for a reveresal.
+			 */
+			if (!isitmydescendant(w, w1))
 				continue;
+		reversal:
 			/*
 			 * We have a lock order violation, check to see if it
 			 * is allowed or has already been yelled about.
