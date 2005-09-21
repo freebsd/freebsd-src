@@ -138,6 +138,10 @@ archive_read_support_format_zip(struct archive *a)
 	int r;
 
 	zip = malloc(sizeof(*zip));
+	if (zip == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate zip data");
+		return (ARCHIVE_FATAL);
+	}
 	memset(zip, 0, sizeof(*zip));
 
 	r = __archive_read_register_format(a,

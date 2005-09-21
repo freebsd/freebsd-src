@@ -63,6 +63,7 @@ static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_private.h"
 
 #undef max
 #define	max(a, b)	((a)>(b)?(a):(b))
@@ -185,12 +186,16 @@ aes_copy(struct aes *dest, struct aes *src)
 	if (src->aes_mbs != NULL) {
 		dest->aes_mbs_alloc = strdup(src->aes_mbs);
 		dest->aes_mbs = dest->aes_mbs_alloc;
+		if (dest->aes_mbs == NULL)
+			__archive_errx(1, "No memory for aes_copy()");
 	}
 
 	if (src->aes_wcs != NULL) {
 		dest->aes_wcs_alloc = malloc((wcslen(src->aes_wcs) + 1)
 		    * sizeof(wchar_t));
 		dest->aes_wcs = dest->aes_wcs_alloc;
+		if (dest->aes_wcs == NULL)
+			__archive_errx(1, "No memory for aes_copy()");
 		wcscpy(dest->aes_wcs_alloc, src->aes_wcs);
 	}
 }
@@ -208,6 +213,8 @@ aes_get_mbs(struct aes *aes)
 		int mbs_length = wcslen(aes->aes_wcs) * 3 + 64;
 		aes->aes_mbs_alloc = malloc(mbs_length);
 		aes->aes_mbs = aes->aes_mbs_alloc;
+		if (aes->aes_mbs == NULL)
+			__archive_errx(1, "No memory for aes_get_mbs()");
 		wcstombs(aes->aes_mbs_alloc, aes->aes_wcs, mbs_length - 1);
 		aes->aes_mbs_alloc[mbs_length - 1] = 0;
 	}
@@ -226,6 +233,8 @@ aes_get_wcs(struct aes *aes)
 		aes->aes_wcs_alloc
 		    = malloc((wcs_length + 1) * sizeof(wchar_t));
 		aes->aes_wcs = aes->aes_wcs_alloc;
+		if (aes->aes_wcs == NULL)
+			__archive_errx(1, "No memory for aes_get_wcs()");
 		mbstowcs(aes->aes_wcs_alloc, aes->aes_mbs, wcs_length);
 		aes->aes_wcs_alloc[wcs_length] = 0;
 	}
@@ -259,6 +268,8 @@ aes_copy_mbs(struct aes *aes, const char *mbs)
 		aes->aes_wcs_alloc = NULL;
 	}
 	aes->aes_mbs_alloc = malloc((strlen(mbs) + 1) * sizeof(char));
+	if (aes->aes_mbs_alloc == NULL)
+		__archive_errx(1, "No memory for aes_copy_mbs()");
 	strcpy(aes->aes_mbs_alloc, mbs);
 	aes->aes_mbs = aes->aes_mbs_alloc;
 	aes->aes_wcs = NULL;
@@ -294,6 +305,8 @@ aes_copy_wcs(struct aes *aes, const wchar_t *wcs)
 	}
 	aes->aes_mbs = NULL;
 	aes->aes_wcs_alloc = malloc((wcslen(wcs) + 1) * sizeof(wchar_t));
+	if (aes->aes_wcs_alloc == NULL)
+		__archive_errx(1, "No memory for aes_copy_wcs()");
 	wcscpy(aes->aes_wcs_alloc, wcs);
 	aes->aes_wcs = aes->aes_wcs_alloc;
 }
@@ -319,7 +332,7 @@ archive_entry_clone(struct archive_entry *entry)
 
 	/* Allocate new structure and copy over all of the fields. */
 	entry2 = malloc(sizeof(*entry2));
-	if(entry2 == NULL)
+	if (entry2 == NULL)
 		return (NULL);
 	memset(entry2, 0, sizeof(*entry2));
 	entry2->ae_stat = entry->ae_stat;
@@ -350,7 +363,7 @@ archive_entry_new(void)
 	struct archive_entry *entry;
 
 	entry = malloc(sizeof(*entry));
-	if(entry == NULL)
+	if (entry == NULL)
 		return (NULL);
 	memset(entry, 0, sizeof(*entry));
 	return (entry);
@@ -841,6 +854,8 @@ acl_new_entry(struct archive_entry *entry,
 
 	/* Add a new entry to the list. */
 	ap = malloc(sizeof(*ap));
+	if (ap == NULL)
+		return (NULL);
 	memset(ap, 0, sizeof(*ap));
 	ap->next = entry->acl_head;
 	entry->acl_head = ap;
@@ -1021,6 +1036,8 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 
 	/* Now, allocate the string and actually populate it. */
 	wp = entry->acl_text_w = malloc(length * sizeof(wchar_t));
+	if (wp == NULL)
+		__archive_errx(1, "No memory to generate the text version of the ACL");
 	count = 0;
 	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_USER_OBJ, NULL,
@@ -1274,6 +1291,8 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 				namebuff_length = name_end - name_start + 256;
 				namebuff =
 				    malloc(namebuff_length * sizeof(wchar_t));
+				if (namebuff == NULL)
+					goto fail;
 			}
 			wmemcpy(namebuff, name_start, name_end - name_start);
 			namebuff[name_end - name_start] = L'\0';
