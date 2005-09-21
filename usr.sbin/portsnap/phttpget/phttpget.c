@@ -63,7 +63,7 @@ readenv(void)
 	char * p;
 
 	env_HTTP_PROXY = getenv("HTTP_PROXY");
-	if (env_HTTP_PROXY) {
+	if (env_HTTP_PROXY != NULL) {
 		if (strncmp(env_HTTP_PROXY, "http://", 7) == 0)
 			env_HTTP_PROXY += 7;
 		p = strchr(env_HTTP_PROXY, '/');
