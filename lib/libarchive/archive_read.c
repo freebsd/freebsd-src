@@ -126,8 +126,6 @@ archive_read_open(struct archive *a, void *client_data,
 	a->client_closer = closer;
 	a->client_data = client_data;
 
-	a->state = ARCHIVE_STATE_HEADER;
-
 	/* Open data source. */
 	if (a->client_opener != NULL) {
 		e =(a->client_opener)(a, a->client_data);
@@ -156,6 +154,10 @@ archive_read_open(struct archive *a, void *client_data,
 
 	/* Initialize decompression routine with the first block of data. */
 	e = (a->decompressors[high_bidder].init)(a, buffer, bytes_read);
+
+	if (e == ARCHIVE_OK)
+		a->state = ARCHIVE_STATE_HEADER;
+
 	return (e);
 }
 
