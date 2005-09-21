@@ -567,6 +567,7 @@ fifo_close(ap)
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
+	ASSERT_VOP_LOCKED(vp, "fifo_close");
 	if (ap->a_fflag & FREAD) {
 		fip->fi_readers--;
 		if (fip->fi_readers == 0)
