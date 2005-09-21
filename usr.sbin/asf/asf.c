@@ -242,9 +242,9 @@ main(int argc, char *argv[])
 	if ((!(strstr(buf, "kernel")))
 	    && buf[0] != 'I') {
 	    quad_t base;
-	    quad_t textaddr;
-	    quad_t dataaddr;
-	    quad_t bssaddr;
+	    quad_t textaddr = 0;
+	    quad_t dataaddr = 0;
+	    quad_t bssaddr = 0;
 
 	    tokens = tokenize(buf, token, MAXTOKEN);
            if (tokens < 4)
