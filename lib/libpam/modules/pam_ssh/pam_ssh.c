@@ -151,21 +151,19 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if (pwd->pw_dir == NULL)
 		return (PAM_AUTH_ERR);
 
-	/* switch to user credentials */
-	pam_err = openpam_borrow_cred(pamh, pwd);
-	if (pam_err != PAM_SUCCESS)
-		return (pam_err);
-
 	pass = (pam_get_item(pamh, PAM_AUTHTOK,
 	    (const void **)&passphrase) == PAM_SUCCESS);
  load_keys:
 	/* get passphrase */
 	pam_err = pam_get_authtok(pamh, PAM_AUTHTOK,
 	    &passphrase, pam_ssh_prompt);
-	if (pam_err != PAM_SUCCESS) {
-		openpam_restore_cred(pamh);
+	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
-	}
+
+	/* switch to user credentials */
+	pam_err = openpam_borrow_cred(pamh, pwd);
+	if (pam_err != PAM_SUCCESS)
+		return (pam_err);
 
 	/* try to load keys from all keyfiles we know of */
 	nkeys = 0;
@@ -176,6 +174,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 			++nkeys;
 		}
 	}
+
+	/* switch back to arbitrator credentials */
+	openpam_restore_cred(pamh);
 
 	/*
 	 * If we tried an old token and didn't get anything, and
@@ -188,9 +189,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		pass = 0;
 		goto load_keys;
 	}
-
-	/* switch back to arbitrator credentials before returning */
-	openpam_restore_cred(pamh);
 
 	/* no keys? */
 	if (nkeys == 0)
@@ -255,10 +253,8 @@ pam_ssh_start_agent(pam_handle_t *pamh)
 	FILE *f;
 
 	/* get a pipe which we will use to read the agent's output */
-	if (pipe(agent_pipe) == -1) {
-		openpam_restore_cred(pamh);
+	if (pipe(agent_pipe) == -1)
 		return (PAM_SYSTEM_ERR);
-	}
 
 	/* start the agent */
 	openpam_log(PAM_LOG_DEBUG, "starting an ssh agent");
