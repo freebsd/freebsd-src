@@ -74,10 +74,10 @@ static const struct pccard_product stg_products[] = {
 };
 
 /*
- * Additional code for FreeBSD new-bus PCCard frontend
+ * Additional code for FreeBSD new-bus PC Card frontend
  */
-
-static int stg_pccard_match(device_t dev)
+static int
+stg_pccard_probe(device_t dev)
 {
   	const struct pccard_product *pp;
 
@@ -91,7 +91,7 @@ static int stg_pccard_match(device_t dev)
 }
 
 static int
-stg_pccard_probe(DEVPORT_PDEVICE dev)
+stg_pccard_attach(device_t dev)
 {
 	struct stg_softc	*sc = device_get_softc(dev);
 	int			error;
@@ -107,25 +107,6 @@ stg_pccard_probe(DEVPORT_PDEVICE dev)
 		stg_release_resource(dev);
 		return(ENXIO);
 	}
-
-	stg_release_resource(dev);
-
-	return(0);
-}
-
-static int
-stg_pccard_attach(DEVPORT_PDEVICE dev)
-{
-	struct stg_softc	*sc = device_get_softc(dev);
-	int			error;
-
-	sc->port_rid = 0;
-	sc->irq_rid = 0;
-	error = stg_alloc_resource(dev);
-	if (error) {
-		return(error);
-	}
-
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 			       stg_intr, (void *)sc, &sc->stg_intrhand);
 	if (error) {
@@ -143,15 +124,9 @@ stg_pccard_attach(DEVPORT_PDEVICE dev)
 
 static device_method_t stg_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		stg_pccard_probe),
+	DEVMETHOD(device_attach,	stg_pccard_attach),
 	DEVMETHOD(device_detach,	stg_detach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	stg_pccard_match),
-	DEVMETHOD(card_compat_probe,	stg_pccard_probe),
-	DEVMETHOD(card_compat_attach,	stg_pccard_attach),
-
 	{ 0, 0 }
 };
 
