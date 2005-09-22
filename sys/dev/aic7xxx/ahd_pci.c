@@ -163,6 +163,7 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 		if (bootverbose)
 			device_printf(ahd->dev_softc,
 				      "Defaulting to MEMIO on\n");
+		allow_memio = 1;
 	}
 
 	if ((command & PCIM_CMD_MEMEN) != 0
