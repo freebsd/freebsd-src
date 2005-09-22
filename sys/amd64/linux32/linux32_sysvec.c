@@ -806,6 +806,7 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = ps_strings;
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
+	fpstate_drop(td);
 
 	/* Return via doreti so that we can change to a different %cs */
 	pcb->pcb_flags |= PCB_FULLCTX;
