@@ -92,8 +92,6 @@ static void	pccard_function_init(struct pccard_function *pf);
 static void	pccard_function_free(struct pccard_function *pf);
 static int	pccard_function_enable(struct pccard_function *pf);
 static void	pccard_function_disable(struct pccard_function *pf);
-static int	pccard_compat_do_probe(device_t bus, device_t dev);
-static int	pccard_compat_do_attach(device_t bus, device_t dev);
 static int	pccard_probe(device_t dev);
 static int	pccard_attach(device_t dev);
 static int	pccard_detach(device_t dev);
@@ -758,28 +756,6 @@ pccard_function_disable(struct pccard_function *pf)
 	pf->sc->sc_enabled_count--;
 }
 
-/*
- * simulate the old "probe" routine.  In the new world order, the driver
- * needs to grab devices while in the old they were assigned to the device by
- * the pccardd process.  These symbols are exported to the upper layers.
- */
-static int
-pccard_compat_do_probe(device_t bus, device_t dev)
-{
-	return (CARD_COMPAT_MATCH(dev));
-}
-
-static int
-pccard_compat_do_attach(device_t bus, device_t dev)
-{
-	int err;
-
-	err = CARD_COMPAT_PROBE(dev);
-	if (err <= 0)
-		err = CARD_COMPAT_ATTACH(dev);
-	return (err);
-}
-
 #define PCCARD_NPORT	2
 #define PCCARD_NMEM	5
 #define PCCARD_NIRQ	1
@@ -1428,8 +1404,6 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_attach_card,	pccard_attach_card),
 	DEVMETHOD(card_detach_card,	pccard_detach_card),
 	DEVMETHOD(card_do_product_lookup, pccard_do_product_lookup),
-	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
-	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
 	DEVMETHOD(card_cis_scan,	pccard_scan_cis),
 	DEVMETHOD(card_attr_read,	pccard_attr_read_impl),
 	DEVMETHOD(card_attr_write,	pccard_attr_write_impl),
