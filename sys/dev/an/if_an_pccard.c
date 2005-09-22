@@ -160,19 +160,14 @@ an_pccard_attach(device_t dev)
 	sc->an_dev = dev;
 
 	error = an_attach(sc, device_get_unit(dev), flags);
-	if (error) {
+	if (error)
 		goto fail;
-	}
 	
 	/*
 	 * Must setup the interrupt after the an_attach to prevent racing.
 	 */
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 			       an_intr, sc, &sc->irq_handle);
-	if (error) {
-		goto fail;
-	}
-
 fail:
 	if (error)
 		an_release_resources(dev);
