@@ -60,7 +60,7 @@ static const struct pccard_product slhci_pccard_products[] = {
 };
 
 static int
-slhci_pccard_match(device_t dev)
+slhci_pccard_probe(device_t dev)
 {
 	const struct pccard_product *pp;
 	u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
@@ -84,24 +84,6 @@ slhci_pccard_match(device_t dev)
 }
 
 static int
-slhci_pccard_probe(device_t dev)
-{
-	struct slhci_softc *sc = device_get_softc(dev);
-	int		res = ENXIO;
-	int		rid = 0;
-	if ((sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE)) == NULL) {
-		return ENOMEM;
-	}
-	sc->sc_iot = rman_get_bustag(sc->io_res);
-	sc->sc_ioh = rman_get_bushandle(sc->io_res);
-
-	if (sl811hs_find(sc) != -1) {
-		res = 0;
-	}
-	bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->io_res);
-	return res;
-}
-static int
 slhci_pccard_detach(device_t dev)
 {
 	struct slhci_softc *sc = device_get_softc(dev);
@@ -118,22 +100,27 @@ slhci_pccard_detach(device_t dev)
 	return 0;
 }
 
-static int 
+static int
 slhci_pccard_attach(device_t dev)
 {
 	struct slhci_softc *sc = device_get_softc(dev);
-
-	int		rid;
-	int		error = EINVAL;
-
-	rid = 0;
+	int		error = ENXIO;
+	int		rid = 0;
 	if ((sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE)) == NULL) {
-		printf("CANNOT ALLOC IO\n");
+		return ENOMEM;
+	}
+	sc->sc_iot = rman_get_bustag(sc->io_res);
+	sc->sc_ioh = rman_get_bushandle(sc->io_res);
+
+	if (sl811hs_find(sc) == -1) {
+		error = ENXIO;
 		goto out;
 	}
+
 	rid = 0;
 	if ((sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		printf("CANNOT ALLOC IRQ\n");
+		error = ENOMEM;
 		goto out;
 	}
 	sc->sc_iot = rman_get_bustag(sc->io_res);
@@ -152,6 +139,7 @@ slhci_pccard_attach(device_t dev)
 		printf("MI attach NO\n");
 		goto out;
 	}
+
 	error = device_probe_and_attach(sc->sc_bus.bdev);
 
 	if (error) {
@@ -165,6 +153,7 @@ out:
 	slhci_pccard_detach(dev);
 	return error;
 }
+
 #if 0
 static void
 slhci_pccard_enable_power(void *arg, int mode)
@@ -197,14 +186,9 @@ slhci_pccard_intr(void *arg)
 
 static device_method_t slhci_pccard_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe, pccard_compat_probe),
-	DEVMETHOD(device_attach, pccard_compat_attach),
+	DEVMETHOD(device_probe, slhci_pccard_probe),
+	DEVMETHOD(device_attach, slhci_pccard_attach),
 	DEVMETHOD(device_detach, slhci_pccard_detach),
-
-	/* card interface */
-	DEVMETHOD(card_compat_match, slhci_pccard_match),
-	DEVMETHOD(card_compat_probe, slhci_pccard_probe),
-	DEVMETHOD(card_compat_attach, slhci_pccard_attach),
 
 	{0, 0}
 };
