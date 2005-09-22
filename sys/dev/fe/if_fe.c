@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
  * This version is intended to be a generic template for various
  * MB86960A/MB86965A based Ethernet cards.  It currently supports
  * Fujitsu FMV-180 series for ISA and Allied-Telesis AT1700/RE2000
- * series for ISA, as well as Fujitsu MBH10302 PC card.
+ * series for ISA, as well as Fujitsu MBH10302 PC Card.
  * There are some currently-
  * unused hooks embedded, which are primarily intended to support
  * other types of Ethernet cards, but the author is not sure whether
@@ -108,7 +108,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Maximum loops when interrupt.
  * This option prevents an infinite loop due to hardware failure.
- * (Some laptops make an infinite loop after PC-Card is ejected.)
+ * (Some laptops make an infinite loop after PC Card is ejected.)
  */
 #ifndef FE_MAX_LOOP
 #define FE_MAX_LOOP 0x800
@@ -1095,7 +1095,7 @@ fe_init (void * xsc)
 	 * point in this version.  The following code *must* be
 	 * redundant now.  FIXME.
 	 *
-	 * I've heard a rumore that on some PC card implementation of
+	 * I've heard a rumore that on some PC Card implementation of
 	 * 8696x, the receive buffer can have some data at this point.
 	 * The following message helps discovering the fact.  FIXME.
 	 */

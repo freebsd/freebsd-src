@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "pccarddevs.h"
 
 /*
- *	PC-Card (PCMCIA) specific code.
+ *	PC Card (PCMCIA) specific code.
  */
 static int fe_pccard_probe(device_t);
 static int fe_pccard_attach(device_t);
@@ -255,7 +255,7 @@ fe_probe_mbh(device_t dev, const struct fe_pccard_product *pp)
  * (Contec uses TDK Ethenet chip -- hosokawa)
  *
  * This version of fe_probe_tdk has been rewrote to handle
- * *generic* PC card implementation of Fujitsu MB8696x family.  The
+ * *generic* PC Card implementation of Fujitsu MB8696x family.  The
  * name _tdk is just for a historical reason. :-)
  */
 static int
