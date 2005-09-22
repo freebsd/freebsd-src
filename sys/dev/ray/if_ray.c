@@ -357,7 +357,7 @@ static void	ray_dump_mbuf		(struct ray_softc *sc, struct mbuf *m, char *s);
 #endif /* RAY_DEBUG & RAY_DBG_MBUF */
 
 /*
- * PC-Card (PCMCIA) driver definition
+ * PC Card (PCMCIA) driver definition
  */
 static device_method_t ray_methods[] = {
 	/* Device interface */
