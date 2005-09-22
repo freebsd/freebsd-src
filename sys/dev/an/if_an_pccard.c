@@ -77,21 +77,15 @@ __FBSDID("$FreeBSD$");
 /*
  * Support for PCMCIA cards.
  */
-static int  an_pccard_match(device_t);
 static int  an_pccard_probe(device_t);
 static int  an_pccard_attach(device_t);
 
 static device_method_t an_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		an_pccard_probe),
+	DEVMETHOD(device_attach,	an_pccard_attach),
 	DEVMETHOD(device_detach,	an_detach),
 	DEVMETHOD(device_shutdown,	an_shutdown),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match, 	an_pccard_match),
-	DEVMETHOD(card_compat_probe,	an_pccard_probe),
-	DEVMETHOD(card_compat_attach,	an_pccard_attach),
 
 	{ 0, 0 }
 };
@@ -116,7 +110,7 @@ static const struct pccard_product an_pccard_products[] = {
 };
 
 static int
-an_pccard_match(device_t dev)
+an_pccard_probe(device_t dev)
 {
 	const struct pccard_product *pp;
 
@@ -130,29 +124,21 @@ an_pccard_match(device_t dev)
 }
 
 static int
-an_pccard_probe(device_t dev)
-{
-	int     error;
-
-	error = an_probe(dev); /* 0 is failure for now */
-	if (error != 0) {
-		device_set_desc(dev, "Aironet PC4500/PC4800");
-		error = an_alloc_irq(dev, 0, 0);
-	} else
-	        error = 1;
-	an_release_resources(dev);
-	return (error);
-}
-
-
-static int
 an_pccard_attach(device_t dev)
 {
 	struct an_softc *sc = device_get_softc(dev);
 	int flags = device_get_flags(dev);
-	int error;
+	int     error;
 
-	an_alloc_port(dev, sc->port_rid, AN_IOSIZ);
+	error = an_probe(dev); /* 0 is failure for now */
+	if (error == 0) {
+		error = ENXIO;
+		goto fail;
+	}
+	error = an_alloc_irq(dev, 0, 0);
+	if (error != 0)
+		goto fail;
+
 	an_alloc_irq(dev, sc->irq_rid, 0);
 
 	sc->an_bhandle = rman_get_bushandle(sc->port_res);
