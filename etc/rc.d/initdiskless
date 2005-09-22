@@ -195,7 +195,7 @@ if [ ${dlv:=0} -ne 0 ] ; then
 	done
 	# Insert the directories passed with the T134 bootp cookie
 	# in the list of paths used for templates.
-	i="`/sbin/sysctl -n kern.bootp_cookie`"
+	i="`/sbin/sysctl -qn kern.bootp_cookie`"
 	[ "${i}" != "" ] && bootp_ipbca="${bootp_ipbca} ${i}"
 
 	echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
