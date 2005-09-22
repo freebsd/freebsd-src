@@ -136,7 +136,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	const char **kfn, *passphrase, *user;
 	struct passwd *pwd;
 	struct pam_ssh_key *psk;
-	int nkeys, pam_err, pass;
+	int nkeys, nullok, pam_err, pass;
+
+	nullok = (openpam_get_option(pamh, "nullok") != NULL);
 
 	/* PEM is not loaded by default */
 	OpenSSL_add_all_algorithms();
@@ -151,6 +153,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if (pwd->pw_dir == NULL)
 		return (PAM_AUTH_ERR);
 
+	nkeys = 0;
 	pass = (pam_get_item(pamh, PAM_AUTHTOK,
 	    (const void **)&passphrase) == PAM_SUCCESS);
  load_keys:
@@ -160,13 +163,15 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
 
+	if (*passphrase == '\0' && !nullok)
+		goto skip_keys;
+
 	/* switch to user credentials */
 	pam_err = openpam_borrow_cred(pamh, pwd);
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
 
 	/* try to load keys from all keyfiles we know of */
-	nkeys = 0;
 	for (kfn = pam_ssh_keyfiles; *kfn != NULL; ++kfn) {
 		psk = pam_ssh_load_key(pwd->pw_dir, *kfn, passphrase);
 		if (psk != NULL) {
@@ -178,6 +183,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	/* switch back to arbitrator credentials */
 	openpam_restore_cred(pamh);
 
+ skip_keys:
 	/*
 	 * If we tried an old token and didn't get anything, and
 	 * try_first_pass was specified, try again after prompting the
