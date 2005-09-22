@@ -93,6 +93,11 @@ This option is similar to the
 option,
 except that if the previously obtained password fails,
 the user is prompted for another password.
+.It Cm nullok
+Normally, keys with no passphrase are ignored for authentication
+purposes.
+If this option is set, keys with no passphrase will be taken into
+consideration, allowing the user to log in with a blank password.
 .El
 .Ss SSH Session Management Module
 The
