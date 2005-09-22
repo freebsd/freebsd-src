@@ -603,7 +603,7 @@ bt3c_pccard_probe(device_t dev)
 	device_set_desc(dev, pp->pp_name);
 
 	return (0);
-} /* bt3c_pccacd_match */
+} /* bt3c_pccard_probe */
 
 /*
  * PC Card (PCMCIA) attach routine
