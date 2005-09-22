@@ -1751,7 +1751,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		 */
 		KASSERT(bifp->if_bridge == NULL,
 		    ("loop created in bridge_input"));
-		mc2 = m_dup(m, M_DONTWAIT);
+		mc2 = m_copypacket(m, M_DONTWAIT);
 		if (mc2 != NULL) {
 			mc2->m_pkthdr.rcvif = bifp;
 			(*bifp->if_input)(bifp, mc2);
