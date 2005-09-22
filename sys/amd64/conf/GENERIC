@@ -49,7 +49,7 @@ options 	GEOM_GPT		# GUID Partition Tables.
 options 	COMPAT_43		# Needed by COMPAT_LINUX32
 options 	COMPAT_IA32		# Compatible with i386 binaries
 options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
-options		COMPAT_FREEBSD5		# Compatible with FreeBSD5
+options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 options 	COMPAT_LINUX32		# Compatible with i386 linux binaries 
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
