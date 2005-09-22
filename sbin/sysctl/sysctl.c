@@ -60,7 +60,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static int	aflag, bflag, dflag, eflag, hflag, Nflag, nflag, oflag, xflag;
+static int	aflag, bflag, dflag, eflag, hflag, Nflag, nflag, oflag;
+static int	qflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(char *);
@@ -89,7 +90,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabdehNnowxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabdehNnoqwxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -118,6 +119,9 @@ main(int argc, char **argv)
 			break;
 		case 'o':
 			oflag = 1;
+			break;
+		case 'q':
+			qflag = 1;
 			break;
 		case 'w':
 			/* compatibility */
@@ -181,8 +185,12 @@ parse(char *string)
 	}
 	len = name2oid(bufp, mib);
 
-	if (len < 0)
-		errx(1, "unknown oid '%s'", bufp);
+	if (len < 0) {
+		if (qflag)
+			exit(1);
+		else
+			errx(1, "unknown oid '%s'", bufp);
+	}
 
 	if (oidfmt(mib, len, fmt, &kind))
 		err(1, "couldn't find format of oid '%s'", bufp);
