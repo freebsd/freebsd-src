@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 /*
  *	National Semiconductor  DP8393X SONIC Driver
  *
- *	This is the PC-Card attachment on FreeBSD
+ *	This is the PC Card attachment on FreeBSD
  *		written by Motomichi Matsuzaki <mzaki@e-mail.ne.jp> and
  *			   Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
  */
@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/snc/if_sncreg.h>
 
 /*
- *      PC-Card (PCMCIA) specific code.
+ *      PC Card (PCMCIA) specific code.
  */
 static int	snc_pccard_probe(device_t);
 static int	snc_pccard_attach(device_t);
