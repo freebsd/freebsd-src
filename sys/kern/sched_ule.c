@@ -886,6 +886,7 @@ kseq_choose(struct kseq *kseq)
 		 * of the range that receives slices. 
 		 */
 		nice = ke->ke_proc->p_nice + (0 - kseq->ksq_nicemin);
+#if 0
 		if (ke->ke_slice == 0 || (nice > SCHED_SLICE_NTHRESH &&
 		    ke->ke_proc->p_nice != 0)) {
 			runq_remove(ke->ke_runq, ke);
@@ -894,6 +895,7 @@ kseq_choose(struct kseq *kseq)
 			runq_add(ke->ke_runq, ke, 0);
 			continue;
 		}
+#endif
 		return (ke);
 	}
 
@@ -1088,7 +1090,7 @@ sched_slice(struct kse *ke)
 		else if (kg->kg_proc->p_nice == 0)
 			ke->ke_slice = SCHED_SLICE_MIN;
 		else
-			ke->ke_slice = 0;
+			ke->ke_slice = SCHED_SLICE_MIN; /* 0 */
 	} else
 		ke->ke_slice = SCHED_SLICE_INTERACTIVE;
 
