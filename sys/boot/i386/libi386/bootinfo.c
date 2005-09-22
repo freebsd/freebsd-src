@@ -153,6 +153,16 @@ bi_getboothowto(char *kargs)
     return(howto);
 }
 
+void
+bi_setboothowto(int howto)
+{
+    int		i;
+
+    for (i = 0; howto_names[i].ev != NULL; i++)
+	if (howto & howto_names[i].mask)
+	    setenv(howto_names[i].ev, "YES", 1);
+}
+
 /*
  * Copy the environment into the load area starting at (addr).
  * Each variable is formatted as <name>=<value>, with a single nul
