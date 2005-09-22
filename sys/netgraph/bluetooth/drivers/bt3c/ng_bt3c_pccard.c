@@ -1182,19 +1182,15 @@ bt3c_download_firmware(bt3c_softc_p sc, char const *firmware, int firmware_size)
  ****************************************************************************/
 
 /*
- * PC-Card (PCMCIA) driver
+ * PC Card (PCMCIA) driver
  */
 
 static device_method_t	bt3c_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		bt3c_pccard_probe),
+	DEVMETHOD(device_attach,	bt3c_pccard_attach),
 	DEVMETHOD(device_detach,	bt3c_pccard_detach),
 
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	bt3c_pccard_match),
-	DEVMETHOD(card_compat_probe,	bt3c_pccard_probe),
-        DEVMETHOD(card_compat_attach,	bt3c_pccard_attach),
 	{ 0, 0 }
 };
 
