@@ -63,7 +63,7 @@ static const struct pccard_product ata_pccard_products[] = {
 };
 
 static int
-ata_pccard_match(device_t dev)
+ata_pccard_probe(device_t dev)
 {
     const struct pccard_product *pp;
     u_int32_t fcn = PCCARD_FUNCTION_UNSPEC;
@@ -87,7 +87,7 @@ ata_pccard_match(device_t dev)
 }
 
 static int
-ata_pccard_probe(device_t dev)
+ata_pccard_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct resource *io, *ctlio;
@@ -154,14 +154,9 @@ ata_pccard_detach(device_t dev)
 
 static device_method_t ata_pccard_methods[] = {
     /* device interface */
-    DEVMETHOD(device_probe,             pccard_compat_probe),
-    DEVMETHOD(device_attach,            pccard_compat_attach),
+    DEVMETHOD(device_probe,             ata_pccard_probe),
+    DEVMETHOD(device_attach,            ata_pccard_attach),
     DEVMETHOD(device_detach,            ata_pccard_detach),
-
-    /* card interface */
-    DEVMETHOD(card_compat_match,        ata_pccard_match),
-    DEVMETHOD(card_compat_probe,        ata_pccard_probe),
-    DEVMETHOD(card_compat_attach,       ata_attach),
 
     { 0, 0 }
 };
