@@ -98,6 +98,7 @@
 #define SYSMALLOC
 /* Use LC_MESSAGES locale category to open the message catalog */
 #define MCLoadBySet NL_CAT_LOCALE
+#define BUFSIZE 8192
 #endif
 
 #if defined(__bsdi__)
