@@ -9078,11 +9078,12 @@ ahd_dump_card_state(struct ahd_softc *ahd)
 	}
 	printf("\nTotal %d\n", i);
 
-	printf("Kernel Free SCB list: ");
+	printf("Kernel Free SCB lists: ");
 	i = 0;
 	TAILQ_FOREACH(scb, &ahd->scb_data.free_scbs, links.tqe) {
 		struct scb *list_scb;
 
+		printf("\n  COLIDX[%d]: ", AHD_GET_SCB_COL_IDX(ahd, scb));
 		list_scb = scb;
 		do {
 			printf("%d ", SCB_GET_TAG(list_scb));
@@ -9090,6 +9091,7 @@ ahd_dump_card_state(struct ahd_softc *ahd)
 		} while (list_scb && i++ < AHD_SCB_MAX);
 	}
 
+	printf("\n  Any Device: ");
 	LIST_FOREACH(scb, &ahd->scb_data.any_dev_free_scb_list, links.le) {
 		if (i++ > AHD_SCB_MAX)
 			break;
