@@ -91,13 +91,13 @@ ata_pccard_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct resource *io, *ctlio;
-    int i, rid;
+    int i, rid, err;
 
     /* allocate the io range to get start and length */
     rid = ATA_IOADDR_RID;
     if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 				  ATA_IOSIZE, RF_ACTIVE)))
-	return ENXIO;
+	return (ENXIO);
 
     /* setup the resource vectors */
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
@@ -121,7 +121,7 @@ ata_pccard_attach(device_t dev)
 	    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 	    for (i = ATA_DATA; i < ATA_MAX_RES; i++)
 		ch->r_io[i].res = NULL;
-	    return ENXIO;
+	    return (ENXIO);
 	}
 	ch->r_io[ATA_CONTROL].res = ctlio;
 	ch->r_io[ATA_CONTROL].offset = 0;
@@ -132,7 +132,10 @@ ata_pccard_attach(device_t dev)
     ch->unit = 0;
     ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
     ata_generic_hw(dev);
-    return ata_probe(dev);
+    err = ata_probe(dev);
+    if (err)
+	return (err);
+    return (ata_attach(dev));
 }
 
 static int
