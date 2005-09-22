@@ -404,10 +404,4 @@
                         CSR_READ_2(sc, RECV_CONTROL_REG_W); \
                         CSR_READ_2(sc, RECV_CONTROL_REG_W); }
 
-/* Define flags
- */
-
-#define SN_FLAGS_PCCARD		0x0001	/* PCMCIA (PC-card) */
-#define	SN_FLAGS_XJBT10		0x0002	/* Megahertz XJ-BT10 (PCMCIA) */
-
 #endif	/* _IF_SNREG_H_ */
