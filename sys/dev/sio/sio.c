@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
  * Works for National Semiconductor NS8250-NS16550AF UARTs.
  * COM driver, based on HP dca driver.
  *
- * Changes for PC-Card integration:
- *	- Added PC-Card driver table and handlers
+ * Changes for PC Card integration:
+ *	- Added PC Card driver table and handlers
  */
 #include <sys/param.h>
 #include <sys/systm.h>
