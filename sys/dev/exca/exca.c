@@ -569,7 +569,7 @@ exca_wait_ready(struct exca_softc *sc)
  * do anything but a busy wait here.  One could argue that these
  * such cards are broken, or that the bridge that allows this sort
  * of interrupt through isn't quite what you'd want (and may be a standards
- * violation).  However, such arguing would leave a huge class of pc cards
+ * violation).  However, such arguing would leave a huge class of PC Cards
  * and bridges out of reach for use in the system.
  *
  * Maybe I should reevaluate the above based on the power bug I fixed
@@ -588,7 +588,7 @@ exca_reset(struct exca_softc *sc, device_t child)
 	DELAY(30*1000);
 	/* clear the reset flag */
 	exca_setb(sc, EXCA_INTR, EXCA_INTR_RESET);
-	/* wait 20ms as per pc card standard (r2.01) section 4.3.6 */
+	/* wait 20ms as per PC Card standard (r2.01) section 4.3.6 */
 	DELAY(20*1000);
 
 	exca_wait_ready(sc);

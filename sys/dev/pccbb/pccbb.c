@@ -708,9 +708,9 @@ cbb_o2micro_power_hack(struct cbb_softc *sc)
 
 	/*
 	 * Issue #2: INT# not qualified with IRQ Routing Bit.  An
-	 * unexpected PCI INT# may be generated during PC-Card
+	 * unexpected PCI INT# may be generated during PC Card
 	 * initialization even with the IRQ Routing Bit Set with some
-	 * PC-Cards.
+	 * PC Cards.
 	 *
 	 * This is a two part issue.  The first part is that some of
 	 * our older controllers have an issue in which the slot's PCI
@@ -718,7 +718,7 @@ cbb_o2micro_power_hack(struct cbb_softc *sc)
 	 * bit 7).  Regardless of the IRQ routing bit, if NO ISA IRQ
 	 * is selected (ExCA register 03h bits 3:0, of the slot, are
 	 * cleared) we will generate INT# if IREQ# is asserted.  The
-	 * second part is because some PC-Cards prematurally assert
+	 * second part is because some PC Cards prematurally assert
 	 * IREQ# before the ExCA registers are fully programmed.  This
 	 * in turn asserts INT# because ExCA register 03h bits 3:0
 	 * (ISA IRQ Select) are not yet programmed.
