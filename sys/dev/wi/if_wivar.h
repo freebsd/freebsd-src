@@ -125,6 +125,7 @@ struct wi_softc	{
 	int			sc_nodelen;
 	char			sc_nodename[IEEE80211_NWID_LEN];
 	char			sc_net_name[IEEE80211_NWID_LEN];
+	uint8_t			sc_hintmacaddr[IEEE80211_ADDR_LEN];
 
 	int			sc_buflen;		/* TX buffer size */
 	int			sc_ntxbuf;
