@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2005
+.Dd September 22, 2005
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -370,6 +370,8 @@ Instructs the kernel to try to mount the root file system from CD-ROM.
 .It Va boot_ddb
 Instructs the kernel to start in the DDB debugger, rather than
 proceeding to initialize when booted.
+.It Va boot_dfltroot
+Instructs the kernel to mount the statically compiled-in root file system.
 .It Va boot_gdb
 Selects gdb-remote mode for the kernel debugger by default.
 .It Va boot_multicons
@@ -378,6 +380,13 @@ In a running system, console configuration can be manipulated
 by the
 .Xr conscontrol 8
 utility.
+.It Va boot_mute
+All console output is suppressed when console is muted.
+In a running system, the state of console muting can be manipulated by the
+.Xr conscontrol 8
+utility.
+.It Va boot_pause
+During the device probe, pause after each line is printed.
 .It Va boot_serial
 Force the use of a serial console even when an internal console
 is present.

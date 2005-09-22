@@ -170,6 +170,14 @@
 	proceeding to initialize when booted.
 
 ################################################################################
+# Tset Sboot_dfltroot DUse default root file system
+
+	set boot_dfltroot
+
+	Instructs the kernel to mount the statically compiled-in root
+	file system.
+
+################################################################################
 # Tset Sboot_gdb DSelect gdb-remote mode for the kernel debugger
 
 	set boot_gdb
@@ -184,6 +192,22 @@
 	Enables multiple console support in the kernel early on boot.
 	In a running system, console configuration can be manipulated
 	by the conscontrol(8) utility.
+
+################################################################################
+# Tset Sboot_mute DMute the console
+
+	set boot_mute
+
+	All console output is suppressed when console is muted.
+	In a running system, the state of console muting can be
+	manipulated by the conscontrol(8) utility.
+
+################################################################################
+# Tset Sboot_pause DPause after each line during device probing
+
+	set boot_pause
+
+	During the device probe, pause after each line is printed.
 
 ################################################################################
 # Tset Sboot_serial DUse serial console
