@@ -3121,7 +3121,7 @@ Versions of
 .Nm
 prior to version 3.4.1 did not send the
 .Dq NAS-IP-Address
-atribute as it was reported to break the Radiator RADIUS server.
+attribute as it was reported to break the Radiator RADIUS server.
 As the latest rfc (2865) no longer hints that only one of
 .Dq NAS-IP-Address
 and
