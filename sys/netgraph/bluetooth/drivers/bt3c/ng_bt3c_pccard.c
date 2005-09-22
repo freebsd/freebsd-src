@@ -81,7 +81,6 @@ static ng_rcvmsg_t	ng_bt3c_rcvmsg;
 static ng_rcvdata_t	ng_bt3c_rcvdata;
 
 /* PCMCIA driver methods */
-static int	bt3c_pccard_match	(device_t);
 static int	bt3c_pccard_probe	(device_t);
 static int	bt3c_pccard_attach	(device_t);
 static int	bt3c_pccard_detach	(device_t);
@@ -583,11 +582,11 @@ out:
  ****************************************************************************/
 
 /*
- * PC-Card (PCMCIA) match routine
+ * PC Card (PCMCIA) probe routine
  */
 
 static int
-bt3c_pccard_match(device_t dev)
+bt3c_pccard_probe(device_t dev)
 {
 	static struct pccard_product const	bt3c_pccard_products[] = {
 		PCMCIA_CARD(3COM, 3CRWB609),
@@ -607,18 +606,7 @@ bt3c_pccard_match(device_t dev)
 } /* bt3c_pccacd_match */
 
 /*
- * PC-Card (PCMCIA) probe routine
- * XXX FIXME
- */
-
-static int
-bt3c_pccard_probe(device_t dev)
-{
-	return (0);
-} /* bt3c_pccacd_probe */
-
-/*
- * PC-Card (PCMCIA) attach routine
+ * PC Card (PCMCIA) attach routine
  */
 
 static int
@@ -723,7 +711,7 @@ bad:
 } /* bt3c_pccacd_attach */
 
 /*
- * PC-Card (PCMCIA) detach routine
+ * PC Card (PCMCIA) detach routine
  */
 
 static int
