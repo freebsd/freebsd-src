@@ -66,14 +66,14 @@ __FBSDID("$FreeBSD$");
 /* 0x1f is reserved for log2(RB_BOOTINFO). */
 
 /* pass: -a, -s, -r, -d, -c, -v, -h, -C, -g, -m, -p, -D */
-#define RBX_MASK	0x2005ffff
+#define RBX_MASK	0x2011ffff
 
 #define PATH_CONFIG	"/boot.config"
 #define PATH_BOOT3	"/boot/loader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
-#define NOPT		12
+#define NOPT		11
 #define NDEV		3
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
