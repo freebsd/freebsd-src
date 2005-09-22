@@ -336,6 +336,19 @@ support, the exact level of offloading varies between drivers.
 If the driver supports user-configurable checksum offloading,
 disable receive (or transmit) checksum offloading on the interface.
 These settings may not always be independent of each other.
+.It Cm vlanmtu , vlanhwtag
+If the driver offers user-configurable VLAN support, enable
+reception of extended frames or tag processing in hardware,
+respectively.
+Note that this must be issued on a physical interface associated with
+.Xr vlan 4 ,
+not on a
+.Xr vlan 4
+interface itself.
+.It Fl vlanmtu , vlanhwtag
+If the driver offers user-configurable VLAN support, disable
+reception of extended frames or tag processing in hardware,
+respectively.
 .It Cm polling
 If the driver has user-configurable
 .Xr polling 4
@@ -344,21 +357,6 @@ support, select the polling mode on the interface.
 If the driver has user-configurable
 .Xr polling 4
 support, select the interrupt mode on the interface.
-.It Cm tunnel Ar src_addr dest_addr
-(IP tunnel devices only.)
-Configure the physical source and destination address for IP tunnel
-interfaces
-.Pq Xr gif 4 .
-The arguments
-.Ar src_addr
-and
-.Ar dest_addr
-are interpreted as the outer source/destination for the encapsulating
-IPv4/IPv6 header.
-.It Cm deletetunnel
-Unconfigure the physical source and destination address for IP tunnel
-interfaces previously configured with
-.Cm tunnel .
 .It Cm create
 Create the specified network pseudo-device.
 If the interface is given without a unit number, try to create a new
@@ -384,89 +382,6 @@ parameter.
 Included for
 .Tn Solaris
 compatibility.
-.It Cm vlan Ar vlan_tag
-If the interface is a
-.Xr vlan 4
-pseudo interface, set the VLAN tag value
-to
-.Ar vlan_tag .
-This value is a 16-bit number which is used to create an 802.1Q
-VLAN header for packets sent from the
-.Xr vlan 4
-interface.
-Note that
-.Cm vlan
-and
-.Cm vlandev
-must both be set at the same time.
-.It Cm vlandev Ar iface
-If the interface is a
-.Xr vlan 4
-pseudo device, associate physical interface
-.Ar iface
-with it.
-Packets transmitted through the
-.Xr vlan 4
-interface will be
-diverted to the specified physical interface
-.Ar iface
-with 802.1Q VLAN encapsulation.
-Packets with 802.1Q encapsulation received
-by the parent interface with the correct VLAN tag will be diverted to
-the associated
-.Xr vlan 4
-pseudo-interface.
-The
-.Xr vlan 4
-interface is assigned a
-copy of the parent interface's flags and the parent's ethernet address.
-The
-.Cm vlandev
-and
-.Cm vlan
-must both be set at the same time.
-If the
-.Xr vlan 4
-interface already has
-a physical interface associated with it, this command will fail.
-To
-change the association to another physical interface, the existing
-association must be cleared first.
-.Pp
-Note: if the hardware tagging capability
-is set on the parent interface, the
-.Xr vlan 4
-pseudo
-interface's behavior changes:
-the
-.Xr vlan 4
-interface recognizes that the
-parent interface supports insertion and extraction of VLAN tags on its
-own (usually in firmware) and that it should pass packets to and from
-the parent unaltered.
-.It Fl vlandev Ar iface
-If the driver is a
-.Xr vlan 4
-pseudo device, disassociate the physical interface
-.Ar iface
-from it.
-This breaks the link between the
-.Xr vlan 4
-interface and its parent,
-clears its VLAN tag, flags and its link address and shuts the interface down.
-.It Cm vlanmtu , vlanhwtag
-If the driver offers user-configurable VLAN support, enable
-reception of extended frames or tag processing in hardware,
-respectively.
-Note that this must be issued on a physical interface associated with
-.Xr vlan 4 ,
-not on a
-.Xr vlan 4
-interface itself.
-.It Fl vlanmtu , vlanhwtag
-If the driver offers user-configurable VLAN support, disable
-reception of extended frames or tag processing in hardware,
-respectively.
 .It Cm metric Ar n
 Set the routing metric of the interface to
 .Ar n ,
@@ -1224,6 +1139,97 @@ to
 .Ar value .
 The default is 55.
 The minimum is 0 and the maximum is 65535.
+.El
+.Pp
+The following parameters are specific to IP tunnel interfaces,
+.Xr gif 4 :
+.Bl -tag -width indent
+.It Cm tunnel Ar src_addr dest_addr
+Configure the physical source and destination address for IP tunnel
+interfaces.
+The arguments
+.Ar src_addr
+and
+.Ar dest_addr
+are interpreted as the outer source/destination for the encapsulating
+IPv4/IPv6 header.
+.It Cm deletetunnel
+Unconfigure the physical source and destination address for IP tunnel
+interfaces previously configured with
+.Cm tunnel .
+.El
+.Pp
+The following parameters are specific to
+.Xr vlan 4
+interfaces:
+.Bl -tag -width indent
+.It Cm vlan Ar vlan_tag
+Set the VLAN tag value to
+.Ar vlan_tag .
+This value is a 16-bit number which is used to create an 802.1Q
+VLAN header for packets sent from the
+.Xr vlan 4
+interface.
+Note that
+.Cm vlan
+and
+.Cm vlandev
+must both be set at the same time.
+.It Cm vlandev Ar iface
+Associate the physical interface
+.Ar iface
+with a
+.Xr vlan 4
+interface.
+Packets transmitted through the
+.Xr vlan 4
+interface will be
+diverted to the specified physical interface
+.Ar iface
+with 802.1Q VLAN encapsulation.
+Packets with 802.1Q encapsulation received
+by the parent interface with the correct VLAN tag will be diverted to
+the associated
+.Xr vlan 4
+pseudo-interface.
+The
+.Xr vlan 4
+interface is assigned a
+copy of the parent interface's flags and the parent's ethernet address.
+The
+.Cm vlandev
+and
+.Cm vlan
+must both be set at the same time.
+If the
+.Xr vlan 4
+interface already has
+a physical interface associated with it, this command will fail.
+To
+change the association to another physical interface, the existing
+association must be cleared first.
+.Pp
+Note: if the hardware tagging capability
+is set on the parent interface, the
+.Xr vlan 4
+pseudo
+interface's behavior changes:
+the
+.Xr vlan 4
+interface recognizes that the
+parent interface supports insertion and extraction of VLAN tags on its
+own (usually in firmware) and that it should pass packets to and from
+the parent unaltered.
+.It Fl vlandev Ar iface
+If the driver is a
+.Xr vlan 4
+pseudo device, disassociate the physical interface
+.Ar iface
+from it.
+This breaks the link between the
+.Xr vlan 4
+interface and its parent,
+clears its VLAN tag, flags and its link address and shuts the interface down.
 .El
 .Pp
 The
