@@ -98,8 +98,8 @@ main(void)
      * We can use printf() etc. once this is done.
      * If the previous boot stage has requested a serial console, prefer that.
      */
+    bi_setboothowto(initial_howto);
     if (initial_howto & RB_MULTIPLE) {
-	setenv("boot_multicons", "YES", 1);
 	if (initial_howto & RB_SERIAL)
 	    setenv("console", "comconsole vidconsole", 1);
 	else
