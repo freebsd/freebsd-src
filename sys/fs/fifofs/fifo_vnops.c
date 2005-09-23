@@ -185,6 +185,7 @@ fifo_open(ap)
 	struct file *fp;
 	int error;
 
+	ASSERT_VOP_LOCKED(vp, "fifo_open");
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE,
 		    M_WAITOK | M_ZERO);
