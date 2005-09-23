@@ -46,10 +46,7 @@ geli_start()
 		return
 	fi
 
-	geli load >/dev/null 2>&1
-	if ! kldstat -m g_eli >/dev/null 2>&1; then
-		err 1 'geom_eli module failed to load.'
-	fi
+	kldstat -q -m g_eli || geli load || err 1 'geom_eli module failed to load.'
 
 	if [ -z "${geli_tries}" ]; then
 		if [ -n "${geli_attach_attempts}" ]; then
