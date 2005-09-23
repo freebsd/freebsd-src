@@ -28,8 +28,6 @@
  * $FreeBSD$
  */
 
-#include "opt_ed.h"
-
 /*
  * Notes for adding media support.  Each chipset is somewhat different
  * from the others.  Linux has a table of OIDs that it uses to see what
