@@ -313,13 +313,12 @@ static void
 ata_sata_phy_event(void *context, int dummy)
 {
     struct ata_connect_task *tp = (struct ata_connect_task *)context;
+    struct ata_channel *ch = device_get_softc(tp->dev);
     device_t *children;
     int nchildren, i;
 
     mtx_lock(&Giant);   /* newbus suckage it needs Giant */
     if (tp->action == ATA_C_ATTACH) {
-	struct ata_channel *ch = device_get_softc(tp->dev);
-
 	device_printf(tp->dev, "CONNECTED\n");
 	ata_sata_connect(ch);
 	ata_identify(tp->dev);
@@ -331,6 +330,9 @@ ata_sata_phy_event(void *context, int dummy)
 		    device_delete_child(tp->dev, children[i]);
 	    free(children, M_TEMP);
 	}    
+	mtx_lock(&ch->state_mtx);
+	ch->state = ATA_IDLE;
+	mtx_unlock(&ch->state_mtx);
 	device_printf(tp->dev, "DISCONNECTED\n");
     }
     mtx_unlock(&Giant); /* suckage code dealt with, release Giant */
@@ -3941,7 +3943,7 @@ ata_via_ident(device_t dev)
     static struct ata_chip_id new_ids[] =
     {{ ATA_VIA6410,   0x00, 0,      0x00,   ATA_UDMA6, "VIA 6410" },
      { ATA_VIA6420,   0x00, 7,      0x00,   ATA_SA150, "VIA 6420" },
-     { ATA_VIA6421,   0x00, 6,      0x00,   ATA_SA150, "VIA 6421" },
+     { ATA_VIA6421,   0x00, 6,      VIABAR, ATA_SA150, "VIA 6421" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
@@ -4016,8 +4018,34 @@ ata_via_allocate(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    /* setup the usual register normal pci style */
-    ata_pci_allocate(dev);
+
+    /* newer SATA chips has resources in one BAR for each channel */
+    if (ctlr->chip->cfg2 & VIABAR) {
+	struct resource *r_io;
+	int i, rid;
+		
+	rid = PCIR_BAR(ch->unit);
+	if (!(r_io = bus_alloc_resource_any(device_get_parent(dev),
+	   				    SYS_RES_IOPORT,
+					    &rid, RF_ACTIVE)))
+	    return ENXIO;
+
+	for (i = ATA_DATA; i <= ATA_COMMAND; i ++) {
+	    ch->r_io[i].res = r_io;
+	    ch->r_io[i].offset = i;
+	}
+	ch->r_io[ATA_CONTROL].res = r_io;
+	ch->r_io[ATA_CONTROL].offset = 2 + ATA_IOSIZE;
+	ch->r_io[ATA_IDX_ADDR].res = r_io;
+	ata_default_registers(dev);
+	for (i = ATA_BMCMD_PORT; i <= ATA_BMDTP_PORT; i++) {
+	    ch->r_io[i].res = ctlr->r_res1;
+	    ch->r_io[i].offset = i - ATA_BMCMD_PORT;
+	}
+	ata_generic_hw(dev);
+    }
+    else
+	ata_pci_allocate(dev);
 
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
     ch->r_io[ATA_SSTATUS].offset = (ch->unit << ctlr->chip->cfg1);
