@@ -158,7 +158,7 @@ ata_detach(device_t dev)
     device_t *children;
     int nchildren, i;
 
-    /* check that we have a vaild channel to detach */
+    /* check that we have a valid channel to detach */
     if (!ch->r_irq)
 	return ENXIO;
 
@@ -183,10 +183,11 @@ int
 ata_reinit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
+    struct ata_request *request;
     device_t *children;
     int nchildren, i;
 
-    /* check that we have a vaild channel to reinit */
+    /* check that we have a valid channel to reinit */
     if (!ch || !ch->r_irq)
 	return ENXIO;
 
@@ -216,12 +217,25 @@ ata_reinit(device_t dev)
 		     * this child we need to inform the request that the 
 		     * device is gone and remove it from ch->running
 		     */
+		    mtx_lock(&ch->state_mtx);
 		    if (ch->running && ch->running->dev == children[i]) {
-			device_printf(ch->running->dev,
-				      "FAILURE - device detached\n");
-			ch->running->dev = NULL;
-			ch->running = NULL;
+			callout_stop(&ch->running->callout);
+			request = ch->running;
+    			ch->running = NULL;
 		    }
+		    else
+			request = NULL;
+    		    mtx_unlock(&ch->state_mtx);
+
+		    if (request) {
+			request->result = ENXIO;
+			device_printf(request->dev,
+				      "FAILURE - device detached\n");
+
+			/* if not timeout finish request here */
+			if (!(request->flags & ATA_R_TIMEOUT))
+			    ata_finish(request);
+                    }
 		    device_delete_child(dev, children[i]);
 		}
 	}
@@ -230,7 +244,23 @@ ata_reinit(device_t dev)
     }
 
     /* catch request in ch->running if we havn't already */
-    ata_catch_inflight(dev);
+    mtx_lock(&ch->state_mtx);
+    if ((request = ch->running))
+	callout_stop(&request->callout);
+    ch->running = NULL;
+    mtx_unlock(&ch->state_mtx);
+
+    /* if we got one put it on the queue again */
+    if (request) {
+	device_printf(request->dev,
+		      "WARNING - %s requeued due to channel reset",
+		      ata_cmd2str(request));
+	if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
+	    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+	printf("\n");
+	request->flags |= ATA_R_REQUEUE;
+	ata_queue_request(request);
+    }
 
     /* we're done release the channel for new work */
     mtx_lock(&ch->state_mtx);
@@ -297,7 +327,7 @@ ata_interrupt(void *data)
     mtx_lock(&ch->state_mtx);
     do {
 	/* do we have a running request */
-	if (!(request = ch->running) || (request->flags & ATA_R_TIMEOUT))
+	if (!(request = ch->running))
 	    break;
 
 	ATA_DEBUG_RQ(request, "interrupt");
@@ -311,8 +341,7 @@ ata_interrupt(void *data)
 
 	/* check for the right state */
 	if (ch->state != ATA_ACTIVE && ch->state != ATA_STALL_QUEUE) {
-	    device_printf(request->dev,
-			  "interrupt state=%d unexpected\n", ch->state);
+	    device_printf(request->dev, "interrupt on idle channel ignored\n");
 	    break;
 	}
 
@@ -796,6 +825,7 @@ char *
 ata_mode2str(int mode)
 {
     switch (mode) {
+    case -1: return "UNSUPPORTED";
     case ATA_PIO0: return "PIO0";
     case ATA_PIO1: return "PIO1";
     case ATA_PIO2: return "PIO2";

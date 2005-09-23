@@ -3064,7 +3064,7 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 
 	for (disk = 0; disk < 8; disk++) {
 	    if ((meta->disks[disk] == meta->disk_id) &&
-		((disk << 2) == meta->disk_index)) {
+		((disk * sizeof(int32_t)) == (meta->disk_index & VIA_D_MASK))) {
 		raid->disks[disk].dev = parent;
 		raid->disks[disk].sectors = meta->total_sectors / raid->width;
 		raid->disks[disk].flags =
