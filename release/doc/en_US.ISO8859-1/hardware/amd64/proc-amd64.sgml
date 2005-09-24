@@ -14,7 +14,7 @@
   <para>Note that there are two names for this architecture,
     AMD64 (AMD) and Intel EM64T (Extended Memory 64-bit Technology).
     64-bit mode of the two architectures are almost compatible
-    with each other, and &os;/&arch; should support the both.</para>
+    with each other, and &os;/&arch; should support them both.</para>
 
   <para>As of this writing, the following processors are
     supported:</para>
