@@ -125,7 +125,9 @@ typedef struct ehci_softc {
 	usb_dma_t sc_fldma;
 	ehci_link_t *sc_flist;
 	u_int sc_flsize;
+#ifndef __FreeBSD__
 	u_int sc_rand;			/* XXX need proper intr scheduling */
+#endif
 
 	struct ehci_soft_islot sc_islots[EHCI_INTRQHS];
 
