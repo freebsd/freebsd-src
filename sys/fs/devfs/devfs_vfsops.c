@@ -92,7 +92,6 @@ devfs_mount(struct mount *mp, struct thread *td)
 	vfs_getnewfsid(mp);
 
 	fmp->dm_rootdir = devfs_vmkdir(fmp, NULL, 0, NULL, DEVFS_ROOTINO);
-	devfs_rules_newmount(fmp, td);
 
 	error = devfs_root(mp, LK_EXCLUSIVE, &rvp, td);
 	if (error) {
@@ -123,6 +122,7 @@ devfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 		return (error);
 	sx_xlock(&fmp->dm_lock);
 	devfs_cleanup(fmp);
+	devfs_rules_cleanup(fmp);
 	sx_xunlock(&fmp->dm_lock);
 	mp->mnt_data = NULL;
 	sx_destroy(&fmp->dm_lock);
