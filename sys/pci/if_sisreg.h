@@ -431,10 +431,7 @@ struct sis_mii_frame {
 
 struct sis_softc {
 	struct ifnet		*sis_ifp;	/* interface info */
-	bus_space_handle_t	sis_bhandle;
-	bus_space_tag_t		sis_btag;
-	struct resource		*sis_res;
-	struct resource		*sis_irq;
+	struct resource		*sis_res[2];
 	void			*sis_intrhand;
 	device_t		sis_self;
 	device_t		sis_miibus;
