@@ -46,6 +46,7 @@
 #define	RF_WANTED	0x0010	/* somebody is waiting for this resource */
 #define	RF_FIRSTSHARE	0x0020	/* first in sharing list */
 #define	RF_PREFETCHABLE	0x0040	/* resource is prefetchable */
+#define	RF_OPTIONAL	0x0080	/* for bus_alloc_resources() */
 
 #define	RF_ALIGNMENT_SHIFT	10 /* alignment size bit starts bit 10 */
 #define	RF_ALIGNMENT_MASK	(0x003F << RF_ALIGNMENT_SHIFT)
