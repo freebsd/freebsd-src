@@ -26,7 +26,7 @@ extra_commands="resync status"
 pflog_prestart()
 {
 	# load pflog kernel module if needed
-	if ! kldstat -v | grep -q pflog\$; then
+	if ! kldstat -q -m pflog; then
 		if kldload pf; then
 			info 'pflog module loaded.'
 		else
