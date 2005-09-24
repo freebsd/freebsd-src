@@ -82,6 +82,13 @@ AC_CHECK_FUNCS(acl_get_perm_np acl_get_perm,,,
 #endif
 ])
 
+# MacOS has an acl.h that isn't POSIX.  It can be detected by
+# checking for ACL_USER
+AC_CHECK_DECL([ACL_USER],
+		[AC_DEFINE(HAVE_ACL_USER, 1, [True for systems with POSIX ACL support])],
+		[],
+		[#include <sys/acl.h>])
+
 # Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_LSTAT
