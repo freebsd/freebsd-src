@@ -3321,6 +3321,37 @@ bus_generic_child_present(device_t dev, device_t child)
  * to maintain some sort of a list of resources allocated by each device.
  */
 
+int
+bus_alloc_resources(device_t dev, struct resource_spec *rs,
+    struct resource **res)
+{
+	int i;
+
+	for (i = 0; rs[i].type != -1; i++)
+		res[i] = NULL;
+	for (i = 0; rs[i].type != -1; i++) {
+		res[i] = bus_alloc_resource_any(dev,
+		    rs[i].type, &rs[i].rid, rs[i].flags);
+		if (res[i] == NULL && !(rs[i].flags & RF_OPTIONAL)) {
+			bus_release_resources(dev, rs, res);
+			return (ENXIO);
+		}
+	}
+	return (0);
+}
+
+void
+bus_release_resources(device_t dev, struct resource_spec *rs,
+    struct resource **res)
+{
+	int i;
+
+	for (i = 0; rs[i].type != -1; i++)
+		if (res[i] != NULL)
+			bus_release_resource(
+			    dev, rs[i].type, rs[i].rid, res[i]);
+}
+
 /**
  * @brief Wrapper function for BUS_ALLOC_RESOURCE().
  *

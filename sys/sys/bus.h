@@ -85,11 +85,6 @@ void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
 void devctl_queue_data(char *__data);
 
-/*
- * Forward declarations
- */
-typedef struct device		*device_t;
-
 /**
  * @brief A device driver (included mainly for compatibility with
  * FreeBSD 4.x).
@@ -294,6 +289,16 @@ int	bus_generic_write_ivar(device_t dev, device_t child, int which,
  * Wrapper functions for the BUS_*_RESOURCE methods to make client code
  * a little simpler.
  */
+
+struct resource_spec {
+	int	type;
+	int	rid;
+	int	flags;
+};
+
+int bus_alloc_resources(device_t dev, struct resource_spec *rs, struct resource **res);
+void bus_release_resources(device_t dev, struct resource_spec *rs, struct resource **res);
+
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
 				     u_long start, u_long end, u_long count,
 				     u_int flags);
