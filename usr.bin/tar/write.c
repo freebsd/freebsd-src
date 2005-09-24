@@ -643,15 +643,12 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			tree_descend(tree);
 
 		/*
-		 * In -u mode, we need to check whether this
-		 * is newer than what's already in the archive.
-		 * In all modes, we need to obey --newerXXX flags.
+		 * Write the entry.  Note that write_entry() handles
+		 * pathname editing and newness testing.
 		 */
-		if (new_enough(bsdtar, name, lst)) {
-			write_entry(bsdtar, a, lst, name,
-			    tree_current_pathlen(tree),
-			    tree_current_access_path(tree));
-		}
+		write_entry(bsdtar, a, lst, name,
+		    tree_current_pathlen(tree),
+		    tree_current_access_path(tree));
 	}
 	tree_close(tree);
 }
@@ -684,6 +681,13 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	 * fails, skip the entry.
 	 */
 	if (edit_pathname(bsdtar, entry))
+		goto abort;
+
+	/*
+	 * In -u mode, check that the file is newer than what's
+	 * already in the archive; in all modes, obey --newerXXX flags.
+	 */
+	if (!new_enough(bsdtar, archive_entry_pathname(entry), st))
 		goto abort;
 
 	if (!S_ISDIR(st->st_mode) && (st->st_nlink > 1))
@@ -1235,10 +1239,6 @@ new_enough(struct bsdtar *bsdtar, const char *path, const struct stat *st)
 	 */
 	if (bsdtar->archive_dir != NULL &&
 	    bsdtar->archive_dir->head != NULL) {
-		/* Ignore leading './' when comparing names. */
-		if (path[0] == '.' && path[1] == '/' && path[2] != '\0')
-			path += 2;
-
 		for (p = bsdtar->archive_dir->head; p != NULL; p = p->next) {
 			if (strcmp(path, p->name)==0)
 				return (p->mtime_sec < st->st_mtime ||
