@@ -295,7 +295,7 @@ matchbyorigin(const char *origin, int *retval)
 		break;
 	    }
 	}
-	if (cmd != PLIST_ORIGIN)
+	if (cmd != PLIST_ORIGIN && ( Verbose || 0 != strncmp("bsdpan-", installed[i], 7 ) ) )
 	    warnx("package %s has no origin recorded", installed[i]);
 	fclose(fp);
     }
