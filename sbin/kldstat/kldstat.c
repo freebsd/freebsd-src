@@ -77,7 +77,7 @@ static void
 usage(void)
 {
     fprintf(stderr, "usage: kldstat [-v] [-i id] [-n filename]\n");
-    fprintf(stderr, "       kldstat [-m modname]\n");
+    fprintf(stderr, "       kldstat [-q] [-m modname]\n");
     exit(1);
 }
 
