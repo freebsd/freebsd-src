@@ -120,7 +120,7 @@
  * including some variant of the acl_get_perm() function (which was
  * omitted from the POSIX.1e draft)?
  */
-#if HAVE_SYS_ACL_H && HAVE_ACL_PERMSET_T
+#if HAVE_SYS_ACL_H && HAVE_ACL_PERMSET_T && HAVE_ACL_USER
 #if HAVE_ACL_GET_PERM || HAVE_ACL_GET_PERM_NP
 #define	HAVE_POSIX_ACL	1
 #endif
