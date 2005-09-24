@@ -309,7 +309,7 @@ show_cksum(const char *title, Package *plist)
 	else if (p->type == PLIST_FILE) {
 	    snprintf(tmp, FILENAME_MAX, "%s/%s", dir, p->name);
 	    if (!fexists(tmp))
-		warnx("%s doesn't exist\n", tmp);
+		warnx("%s doesn't exist", tmp);
 	    else if (p->next && p->next->type == PLIST_COMMENT &&
 	             (strncmp(p->next->name, "MD5:", 4) == 0)) {
 		char *cp = NULL, buf[33];
