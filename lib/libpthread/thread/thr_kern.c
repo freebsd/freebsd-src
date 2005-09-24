@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include "atomic_ops.h"
 #include "thr_private.h"
 #include "libc_private.h"
+#ifdef NOTYET
+#include "spinlock.h"
+#endif
 
 /* #define DEBUG_THREAD_KERN */
 #ifdef DEBUG_THREAD_KERN
@@ -210,9 +213,9 @@ _kse_single_thread(struct pthread *curthread)
 	struct kse *kse;
 	struct kse_group *kseg;
 	struct pthread *thread;
-	kse_critical_t crit;
-	int i;
 
+	_thr_spinlock_init();
+	*__malloc_lock = (spinlock_t)_SPINLOCK_INITIALIZER;
 	if (__isthreaded) {
 		_thr_rtld_fini();
 		_thr_signal_deinit();
@@ -250,11 +253,8 @@ _kse_single_thread(struct pthread *curthread)
 	curthread->joiner = NULL;		/* no joining threads yet */
 	curthread->refcount = 0;
 	SIGEMPTYSET(curthread->sigpend);	/* clear pending signals */
-	if (curthread->specific != NULL) {
-		free(curthread->specific);
-		curthread->specific = NULL;
-		curthread->specific_data_count = 0;
-	}
+
+	/* Don't free thread-specific data as the caller may require it */
 
 	/* Free the free KSEs: */
 	while ((kse = TAILQ_FIRST(&free_kseq)) != NULL) {
@@ -316,6 +316,9 @@ _kse_single_thread(struct pthread *curthread)
 	 */
 	curthread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
 	curthread->attr.flags |= PTHREAD_SCOPE_PROCESS;
+
+	/* We're no longer part of any lists */
+	curthread->tlflags = 0;
 
 	/*
 	 * After a fork, we are still operating on the thread's original
