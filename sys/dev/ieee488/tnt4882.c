@@ -51,10 +51,15 @@ struct tnt_softc {
 	int foo;
 	struct upd7210		upd7210;
 
-	struct resource		*res0, *res1, *res2;
-	bus_space_tag_t		bt0, bt1;
-	bus_space_handle_t	bh0, bh1;
+	struct resource		*res[3];
 	void			*intr_handler;
+};
+
+static struct resource_spec tnt_res_spec[] = {
+	{ SYS_RES_MEMORY,	PCIR_BAR(0),	RF_ACTIVE},
+	{ SYS_RES_MEMORY,	PCIR_BAR(1),	RF_ACTIVE},
+	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE},
+	{ -1, 0 }
 };
 
 enum tnt4882reg {
@@ -229,10 +234,10 @@ tst_exec(struct tnt_softc *sc, struct tst *tp, const char *name)
 	for (step = 0; tp->action != END; tp++, step++) {
 		switch (tp->action) {
 		case WT:
-			bus_space_write_1(sc->bt1, sc->bh1, tp->reg, tp->val);
+			bus_write_1(sc->res[1], tp->reg, tp->val);
 			break;
 		case RD:
-			u = bus_space_read_1(sc->bt1, sc->bh1, tp->reg);
+			u = bus_read_1(sc->res[1], tp->reg);
 			if (u != tp->val) {
 				printf(
 				    "Test %s, step %d: reg(%02x) = %02x",
@@ -256,56 +261,6 @@ tst_exec(struct tnt_softc *sc, struct tst *tp, const char *name)
 }
 
 static int
-bus_dwiw(device_t dev, ...)
-{
-	va_list ap, ap2;
-	int	rid;
-	int	type;
-	int	flags;
-	struct resource **rp;
-	bus_space_tag_t *bt;
-	bus_space_handle_t *bh;
-
-	va_start(ap, dev);
-	va_copy(ap2, ap);
-	while (1) {
-		type = va_arg(ap, int);
-		if (type == -1) {
-			va_end(ap);
-			return (0);
-		}
-		rid = va_arg(ap, int);
-		flags = va_arg(ap, int);
-		rp = va_arg(ap, struct resource **);
-		*rp = bus_alloc_resource_any(dev, type, &rid, flags);
-		if (*rp == NULL)
-			break;
-		if (type == SYS_RES_IOPORT || type == SYS_RES_MEMORY) {
-			bt = va_arg(ap, bus_space_tag_t *);
-			*bt = rman_get_bustag(*rp);
-			bh = va_arg(ap, bus_space_handle_t *);
-			*bh = rman_get_bushandle(*rp);
-		}
-	}
-	while (1) {
-		type = va_arg(ap2, int);
-		KASSERT(type != -1, ("bus_dwiw() internal mess"));
-		rid = va_arg(ap2, int);
-		flags = va_arg(ap2, int);
-		rp = va_arg(ap2, struct resource **);
-		if (*rp != NULL)
-			bus_release_resource(dev, type, rid, *rp);
-		else {
-			va_end(ap2);
-			return (ENXIO);
-		}
-		if (type == SYS_RES_IOPORT || type == SYS_RES_MEMORY) {
-			bt = va_arg(ap2, bus_space_tag_t *);
-			bh = va_arg(ap2, bus_space_handle_t *);
-		}
-	}
-}
-static int
 tnt_probe(device_t dev)
 {
 
@@ -324,21 +279,15 @@ tnt_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	error = bus_dwiw(dev,
-	    SYS_RES_MEMORY, PCIR_BAR(0), RF_ACTIVE,
-		&sc->res0, &sc->bt0, &sc->bh0,
-	    SYS_RES_MEMORY, PCIR_BAR(1), RF_ACTIVE,
-		&sc->res1, &sc->bt1, &sc->bh1,
-	    SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE, &sc->res2,
-	    -1);
+	error = bus_alloc_resources(dev, tnt_res_spec, sc->res);
 	if (error)
 		return (error);
 
-	error = bus_setup_intr(dev, sc->res2, INTR_TYPE_MISC | INTR_MPSAFE,
+	error = bus_setup_intr(dev, sc->res[2], INTR_TYPE_MISC | INTR_MPSAFE,
 	    upd7210intr, &sc->upd7210, &sc->intr_handler);
 
 	/* Necessary magic for MITE */
-	bus_space_write_4(sc->bt0, sc->bh0, 0xc0, vtophys(sc->bh1) | 0x80);
+	bus_write_4(sc->res[0], 0xc0, rman_get_start(sc->res[1]) | 0x80);
 
 	tst_exec(sc, tst_reset, "Reset");
 	tst_exec(sc, tst_read_reg, "Read registers");
@@ -350,11 +299,10 @@ tnt_attach(device_t dev)
 	tst_exec(sc, tst_reset, "Reset");
 
 	/* pass 7210 interrupts through */
-	bus_space_write_1(sc->bt1, sc->bh1, imr3, 0x02);
+	bus_write_1(sc->res[1], imr3, 0x02);
 
 	for (i = 0; i < 8; i++) {
-		sc->upd7210.reg_tag[i] = sc->bt1;
-		sc->upd7210.reg_handle[i] = sc->bh1;
+		sc->upd7210.reg_res[i] = sc->res[1];
 		sc->upd7210.reg_offset[i] = i * 2;
 	}
 
@@ -372,12 +320,10 @@ tnt_detach(device_t dev)
 	struct tnt_softc *sc;
 
 	sc = device_get_softc(dev);
-	bus_teardown_intr(dev, sc->res2, sc->intr_handler);
+	bus_teardown_intr(dev, sc->res[2], sc->intr_handler);
 	upd7210detach(&sc->upd7210);
 
-	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0), sc->res0);
-	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(1), sc->res1);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->res2);
+	bus_release_resources(dev, tnt_res_spec, sc->res);
 
 	return (0);
 }

@@ -56,8 +56,7 @@ __FBSDID("$FreeBSD$");
 
 struct pcii_softc {
 	int foo;
-	struct resource	*port[8];
-	struct resource	*irq;
+	struct resource	*res[2];
 	struct resource	*dma;
 	void *intr_handler;
 	struct upd7210	upd7210;
@@ -77,6 +76,13 @@ static device_method_t pcii_methods[] = {
 	{ 0, 0 }
 };
 
+static struct resource_spec pcii_res_spec[] = {
+	{ SYS_RES_IRQ,		0, RF_ACTIVE | RF_SHAREABLE},
+	{ SYS_RES_DRQ,		0, RF_ACTIVE | RF_SHAREABLE | RF_OPTIONAL},
+	{ SYS_RES_IOPORT,	0, RF_ACTIVE},
+	{ -1, 0, 0 }
+};
+
 static driver_t pcii_driver = {
 	"pcii",
 	pcii_methods,
@@ -86,12 +92,13 @@ static driver_t pcii_driver = {
 static int
 pcii_probe(device_t dev)
 {
-	struct resource	*port;
-	int rid;
+	int rid, i, j;
 	u_long start, count;
-	int i, j, error = 0;
+	int error = 0;
+	struct pcii_softc *sc;
 
 	device_set_desc(dev, "PCII IEEE-4888 controller");
+	sc = device_get_softc(dev);
 
 	rid = 0;
 	if (bus_get_resource(dev, SYS_RES_IOPORT, rid, &start, &count) != 0)
@@ -101,29 +108,26 @@ pcii_probe(device_t dev)
 	count = 1;
 	if (bus_set_resource(dev, SYS_RES_IOPORT, rid, start, count) != 0)
 		return ENXIO;
+	error = bus_alloc_resources(dev, pcii_res_spec, sc->res);
+	if (error)
+		return (error);
+	error = ENXIO;
 	for (i = 0; i < 8; i++) {
-		j = bus_set_resource(dev, SYS_RES_IOPORT, i,
-		    start + 0x400 * i, 1);
-		if (j) {
-			error = ENXIO;
-			break;
-		}
-		rid = i;
-		port = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-		    &rid, RF_ACTIVE);
-		if (port == NULL)
-			return (ENXIO);
-		else
-			bus_release_resource(dev, SYS_RES_IOPORT, i, port);
+		j = bus_read_1(sc->res[2], i * 0x400);
+		if (j != 0x00 && j != 0xff)
+			error = 0;
 	}
-
-	rid = 0;
-	port = bus_alloc_resource_any(dev,
-	    SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
-	if (port == NULL)
-		return (ENXIO);
-	bus_release_resource(dev, SYS_RES_IRQ, rid, port);
-					   
+	if (!error) {
+		bus_write_1(sc->res[2], 3 * 0x400, 0x55);
+		if (bus_read_1(sc->res[2], 3 * 0x400) != 0x55)
+			error = ENXIO;
+	}
+	if (!error) {
+		bus_write_1(sc->res[2], 3 * 0x400, 0xaa);
+		if (bus_read_1(sc->res[2], 3 * 0x400) != 0xaa)
+			error = ENXIO;
+	}
+	bus_release_resources(dev, pcii_res_spec, sc->res);
 	return (error);
 }
 
@@ -133,7 +137,7 @@ pcii_attach(device_t dev)
 	struct pcii_softc *sc;
 	int		unit;
 	int		rid;
-	int i, error = 0;
+	int		error = 0;
 
 	unit = device_get_unit(dev);
 	sc = device_get_softc(dev);
@@ -141,49 +145,28 @@ pcii_attach(device_t dev)
 
 	device_set_desc(dev, "PCII IEEE-4888 controller");
 
-	for (rid = 0; rid < 8; rid++) {
-		sc->port[rid] = bus_alloc_resource_any(dev,
-		    SYS_RES_IOPORT, &rid, RF_ACTIVE);
-		if (sc->port[rid] == NULL) {
-			error = ENXIO;
-			break;
-		}
-		sc->upd7210.reg_tag[rid] = rman_get_bustag(sc->port[rid]);
-		sc->upd7210.reg_handle[rid] = rman_get_bushandle(sc->port[rid]);
-	}
-	if (!error) {
-		rid = 0;
-		sc->irq = bus_alloc_resource_any(dev,
-		    SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
-		if (sc->irq == NULL) {
-			error = ENXIO;
-		} else {
-			error = bus_setup_intr(dev, sc->irq,
-			    INTR_TYPE_MISC | INTR_MPSAFE,
-			    upd7210intr, &sc->upd7210, &sc->intr_handler);
-		}
-	}
-	if (!error) {
-		rid = 0;
-		sc->dma = bus_alloc_resource_any(dev,
-		    SYS_RES_DRQ, &rid, RF_ACTIVE | RF_SHAREABLE);
-		if (sc->dma == NULL)
-			sc->upd7210.dmachan = -1;
-		else
-			sc->upd7210.dmachan = rman_get_start(sc->dma);
-	}
+	error = bus_alloc_resources(dev, pcii_res_spec, sc->res);
+	if (error)
+		return (error);
+
+	error = bus_setup_intr(dev, sc->res[0],
+	    INTR_TYPE_MISC | INTR_MPSAFE,
+	    upd7210intr, &sc->upd7210, &sc->intr_handler);
 	if (error) {
-		for (i = 0; i < 8; i++) {
-			if (sc->port[i] == NULL)
-				break;
-			bus_release_resource(dev, SYS_RES_IOPORT,
-			    0, sc->port[i]);
-		}
-		if (sc->intr_handler != NULL)
-			bus_teardown_intr(dev, sc->irq, sc->intr_handler);
-		if (sc->irq != NULL)
-			bus_release_resource(dev, SYS_RES_IRQ, i, sc->irq);
+		bus_release_resources(dev, pcii_res_spec, sc->res);
+		return (error);
 	}
+
+	for (rid = 0; rid < 8; rid++) {
+		sc->upd7210.reg_res[rid] = sc->res[2];
+		sc->upd7210.reg_offset[rid] = 0x400 * rid;
+	}
+
+	if (sc->res[1] == NULL)
+		sc->upd7210.dmachan = -1;
+	else
+		sc->upd7210.dmachan = rman_get_start(sc->res[1]);
+
 	upd7210attach(&sc->upd7210);
 	return (error);
 }
