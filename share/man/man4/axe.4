@@ -30,19 +30,33 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2004
+.Dd July 16, 2005
 .Dt AXE 4
 .Os
 .Sh NAME
 .Nm axe
-.Nd ASIX Electronics AX88172 USB Ethernet driver
+.Nd "ASIX Electronics AX88172 USB Ethernet driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ehci"
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device miibus"
 .Cd "device axe"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_axe_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

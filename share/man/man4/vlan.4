@@ -30,11 +30,24 @@
 .Os
 .Sh NAME
 .Nm vlan
-.Nd IEEE 802.1Q VLAN network interface
+.Nd "IEEE 802.1Q VLAN network interface"
 .Sh SYNOPSIS
-.Cd device miibus
-.Cd device vlan
-.\"
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device vlan"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_vlan_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

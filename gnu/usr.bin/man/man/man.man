@@ -184,10 +184,16 @@ This option overrides the
 environment variable.
 .It Fl t
 Use
-.Nm %troff%
+.Dq Li "%troff%"
 to format the manual page, passing the output to stdout.
-The output from
-.Nm %troff%
+The default output format of
+.Xr groff 1
+is Postscript, but see the manual page of
+.Xr groff 1
+for ways to pick an alternate format.
+.Pp
+Depending on the selected format and the availability of printing
+devices, the output
 may need to be passed through some filter or another before being
 printed.
 .It Fl w

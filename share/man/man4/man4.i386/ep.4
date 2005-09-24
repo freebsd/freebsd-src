@@ -29,14 +29,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2005
+.Dd July 16, 2005
 .Dt EP 4 i386
 .Os
 .Sh NAME
 .Nm ep
-.Nd Ethernet driver for 3Com Etherlink III (3c5x9) interfaces
+.Nd "Ethernet driver for 3Com Etherlink III (3c5x9) interfaces"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ep"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ep_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -107,6 +121,8 @@ driver supports Ethernet adapters based on the
 3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B, 3CXEM556B, 3C3FEM556C PCMCIA
 .It
 3Com OfficeConnect 3CXSH572BT, 3CCSH572BT PCMCIA
+.It
+Farallon EtherWave and EtherMac PC Card (P/n 595/895 with BLUE arrow)
 .El
 .Sh NOTES
 The 3c509 card has no jumpers to set the address.
@@ -127,6 +143,17 @@ is sufficient for non-EISA systems.
 Many different companies sold the 3Com PC Cards under their own private
 label.
 These cards also work.
+.Pp
+The Farallon EtherWave and EtherMac card came in two varieties.
+The
+.Nm
+driver supports the 595 and 895 cards.
+These cards have the blue arrow on the front along with a 3Com logo.
+The Farallon 595a cards, which have a red arrow on the front,
+are also called EtherWave and EtherMac.
+They are supported by the
+.Xr sn 4
+driver.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It ep0: reset (status: %x)

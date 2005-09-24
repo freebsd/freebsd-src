@@ -31,14 +31,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2005
+.Dd July 16, 2005
 .Dt EM 4
 .Os
 .Sh NAME
 .Nm em
 .Nd "Intel(R) PRO/1000 Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device em"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_em_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

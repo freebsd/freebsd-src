@@ -25,14 +25,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 1998
+.Dd July 16, 2005
 .Dt CS 4 i386
 .Os
 .Sh NAME
 .Nm cs
-.Nd Ethernet device driver
+.Nd "Ethernet device driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device cs"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cs_load="YES"
+.Ed
 .Pp
 In
 .Pa /boot/device.hints :
