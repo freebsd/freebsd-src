@@ -102,9 +102,7 @@ struct pgstat {
 struct softc {
 	device_t		device;
 	void			*intrhand;
-	struct resource		*r0, *r1, *ri;
-	bus_space_tag_t		t0, t1;
-	bus_space_handle_t	h0, h1;
+	struct resource		*res[3];
 	struct cdev		*dev;
 	off_t			mapvir;
 	int			error;
@@ -134,16 +132,16 @@ adlink_intr(void *arg)
 	uint32_t u;
 
 	sc = arg;
-	u = bus_space_read_4(sc->t0, sc->h0, 0x38);
+	u = bus_read_4(sc->res[0], 0x38);
 	if (!(u & 0x00800000))
 		return;
-	bus_space_write_4(sc->t0, sc->h0, 0x38, u | 0x003f4000);
+	bus_write_4(sc->res[0], 0x38, u | 0x003f4000);
 
 	sc->sample += sc->p0->chunksize / 2;
 	pg = sc->next;
 	*(pg->sample) = sc->sample;
 
-	u = bus_space_read_4(sc->t1, sc->h1, 0x18);
+	u = bus_read_4(sc->res[1], 0x18);
 	if (u & 1)
 		sc->p0->state = EIO;
 
@@ -155,8 +153,8 @@ adlink_intr(void *arg)
 	pg = pg->next;
 	sc->next = pg;
 	*(pg->sample) = 0;
-	bus_space_write_4(sc->t0, sc->h0, 0x24, pg->phys);
-	bus_space_write_4(sc->t0, sc->h0, 0x28, sc->p0->chunksize);
+	bus_write_4(sc->res[0], 0x24, pg->phys);
+	bus_write_4(sc->res[0], 0x28, sc->p0->chunksize);
 	wakeup(sc);
 }
 
@@ -275,28 +273,28 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		}
 
 		/* Enable interrupts on write complete */
-		bus_space_write_4(sc->t0, sc->h0, 0x38, 0x00004000);
+		bus_write_4(sc->res[0], 0x38, 0x00004000);
 
 		/* Sample CH0 only */
-		bus_space_write_4(sc->t1, sc->h1, 0x00, 1);
+		bus_write_4(sc->res[1], 0x00, 1);
 
 		/* Divide clock by four */
-		bus_space_write_4(sc->t1, sc->h1, 0x04, sc->p0->divisor);
+		bus_write_4(sc->res[1], 0x04, sc->p0->divisor);
 
 		/* Software trigger mode: software */
-		bus_space_write_4(sc->t1, sc->h1, 0x08, 0);
+		bus_write_4(sc->res[1], 0x08, 0);
 
 		/* Trigger level zero */
-		bus_space_write_4(sc->t1, sc->h1, 0x0c, 0);
+		bus_write_4(sc->res[1], 0x0c, 0);
 
 		/* Trigger source CH0 (not used) */
-		bus_space_write_4(sc->t1, sc->h1, 0x10, 0);
+		bus_write_4(sc->res[1], 0x10, 0);
 
 		/* Fifo control/status: flush */
-		bus_space_write_4(sc->t1, sc->h1, 0x18, 3);
+		bus_write_4(sc->res[1], 0x18, 3);
 
 		/* Clock source: external sine */
-		bus_space_write_4(sc->t1, sc->h1, 0x20, 2);
+		bus_write_4(sc->res[1], 0x20, 2);
 
 		/* Chipmunks are go! */
 		sc->p0->state = STATE_RUN;
@@ -304,13 +302,13 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		/* Set up Write DMA */
 		pg = sc->next = sc->chunks;
 		*(pg->sample) = 0;
-		bus_space_write_4(sc->t0, sc->h0, 0x24, pg->phys);
-		bus_space_write_4(sc->t0, sc->h0, 0x28, sc->p0->chunksize);
-		u = bus_space_read_4(sc->t0, sc->h0, 0x3c);
-		bus_space_write_4(sc->t0, sc->h0, 0x3c, u | 0x00000600);
+		bus_write_4(sc->res[0], 0x24, pg->phys);
+		bus_write_4(sc->res[0], 0x28, sc->p0->chunksize);
+		u = bus_read_4(sc->res[0], 0x3c);
+		bus_write_4(sc->res[0], 0x3c, u | 0x00000600);
 
 		/* Acquisition Enable Register: go! */
-		bus_space_write_4(sc->t1, sc->h1, 0x1c, 1);
+		bus_write_4(sc->res[1], 0x1c, 1);
 
 		break;
 	case ADLINK_STOP:
@@ -353,60 +351,41 @@ adlink_probe(device_t self)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static struct resource_spec adlink_res_spec[] = {
+	{ SYS_RES_IOPORT,	PCIR_BAR(0),	RF_ACTIVE},
+	{ SYS_RES_IOPORT,	PCIR_BAR(1),	RF_ACTIVE},
+	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE},
+	{ -1, 0, 0 }
+};
+
 static int
 adlink_attach(device_t self)
 {
 	struct softc *sc;
-	int rid, i;
+	int i, error;
 
 	sc = device_get_softc(self);
 	bzero(sc, sizeof *sc);
 	sc->device = self;
 
-	/*
-	 * This is the PCI mapped registers of the AMCC 9535 "matchmaker"
-	 * chip.
-	 */
-	rid = 0x10;
-	sc->r0 = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
-	    0, ~0, 1, RF_ACTIVE);
-	if (sc->r0 == NULL)
-		return(ENODEV);
-	sc->t0 = rman_get_bustag(sc->r0);
-	sc->h0 = rman_get_bushandle(sc->r0);
-	printf("Res0 %x %x\n", sc->t0, sc->h0);
+	error = bus_alloc_resources(self, adlink_res_spec, sc->res);
+	if (error)
+		return (error);
 
-	/*
-	 * This is the PCI mapped registers of the ADC hardware, they
-	 * are described in the manual which comes with the card.
-	 */
-	rid = 0x14;
-	sc->r1 =  bus_alloc_resource(self, SYS_RES_IOPORT, &rid, 
-            0, ~0, 1, RF_ACTIVE);
-	if (sc->r1 == NULL)
-		return(ENODEV);
-	sc->t1 = rman_get_bustag(sc->r1);
-	sc->h1 = rman_get_bushandle(sc->r1);
-	printf("Res1 %x %x\n", sc->t1, sc->h1);
-
-	rid = 0x0;
-	sc->ri =  bus_alloc_resource(self, SYS_RES_IRQ, &rid, 
-            0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (sc->ri == NULL)
-		return (ENODEV);
-
-	i = bus_setup_intr(self, sc->ri,
+	i = bus_setup_intr(self, sc->res[2],
 	    INTR_MPSAFE | INTR_TYPE_MISC | INTR_FAST,
 	    adlink_intr, sc, &sc->intrhand);
 	if (i) {
 		printf("adlink: Couldn't get FAST intr\n");
-		i = bus_setup_intr(self, sc->ri,
+		i = bus_setup_intr(self, sc->res[2],
 		    INTR_MPSAFE | INTR_TYPE_MISC,
 		    adlink_intr, sc, &sc->intrhand);
 	}
 
-	if (i)
+	if (i) {
+		bus_release_resources(self, adlink_res_spec, sc->res);
 		return (ENODEV);
+	}
 
 	sc->p0 = malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->p0->version = PAGE0VERSION;
