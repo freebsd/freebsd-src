@@ -388,7 +388,7 @@ create_i386_diskimage ( ) (
 #
 
 FlashDevice () {
-	. ${NANO_SRC}/${NANO_TOOLS}/FlashDevice.sub
+	. ${NANO_TOOLS}/FlashDevice.sub
 	sub_FlashDevice $1 $2
 }
 
@@ -419,7 +419,7 @@ cust_allow_ssh_root () (
 # Install the stuff under ./Files
 
 cust_install_files () (
-	cd ${NANO_SRC}/${NANO_TOOLS}/Files
+	cd ${NANO_TOOLS}/Files
 	find . -print | grep -v /CVS | cpio -dumpv ${NANO_WORLDDIR}
 )
 
@@ -489,6 +489,15 @@ fi
 
 NANO_WORLDDIR=${MAKEOBJDIRPREFIX}/_.w
 NANO_MAKE_CONF=${MAKEOBJDIRPREFIX}/make.conf
+
+if [ -d ${NANO_TOOLS} ] ; then
+	true
+elif [ -d ${NANO_SRC}/${NANO_TOOLS} ] ; then
+	NANO_TOOLS=${NANO_SRC}/${NANO_TOOLS}
+else
+	echo "NANO_TOOLS directory does not exist" 1>&2
+	exit 1
+fi
 
 export MAKEOBJDIRPREFIX
 
