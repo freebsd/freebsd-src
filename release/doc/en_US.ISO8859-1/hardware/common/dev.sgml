@@ -64,7 +64,11 @@
       </itemizedlist>
     </para>
 
-    &hwlist.aic;
+    &hwlist.aac;
+
+    &hwlist.adv;
+
+    &hwlist.adw;
 
     &hwlist.aha;
 
@@ -74,19 +78,9 @@
 
     &hwlist.ahd;
 
-    &hwlist.aac;
+    &hwlist.aic;
 
-    &hwlist.ct;
-
-    &hwlist.adv;
-
-    &hwlist.adw;
-
-    &hwlist.bt;
-
-    &hwlist.dpt;
-
-    &hwlist.asr;
+    &hwlist.amd;
 
     &hwlist.amr;
       <note>
@@ -98,6 +92,28 @@
       </note>
 
     &hwlist.arcmsr;
+
+    &hwlist.asr;
+
+    &hwlist.bt;
+
+    &hwlist.ciss;
+
+    &hwlist.ct;
+
+    &hwlist.dpt;
+
+    &hwlist.esp;
+
+    &hwlist.hptmv;
+
+    &hwlist.ida;
+
+    &hwlist.iir;
+
+    &hwlist.ips;
+
+    &hwlist.isp;
 
     &hwlist.mlx;
 
@@ -115,41 +131,27 @@
 
     &hwlist.mly;
 
-    &hwlist.twe;
-
-    &hwlist.twa;
+    &hwlist.mpt;
 
     &hwlist.ncr;
 
-    &hwlist.sym;
-
     &hwlist.ncv;
-
-    &hwlist.stg;
-
-    &hwlist.isp;
-
-    &hwlist.amd;
 
     &hwlist.nsp;
 
-    &hwlist.vpo;
-
-    &hwlist.ida;
-
-    &hwlist.ciss;
-
-    &hwlist.iir;
-
     &hwlist.pst;
 
-    &hwlist.hptmv;
+    &hwlist.stg;
 
-    &hwlist.ips;
-
-    &hwlist.mpt;
+    &hwlist.sym;
 
     &hwlist.trm;
+
+    &hwlist.twa;
+
+    &hwlist.twe;
+
+    &hwlist.vpo;
 
     <para arch="i386">The wds(4) driver supports the WD7000 SCSI
       controller.</para>
@@ -195,101 +197,101 @@
   <sect2 id="ethernet">
     <title>Ethernet Interfaces</title>
 
-    &hwlist.sf;
-
-    &hwlist.ti;
-
-    &hwlist.pcn;
-
-    &hwlist.lnc;
-
-    <para arch="i386,pc98,amd64">SMC 83c17x (EPIC)-based Ethernet NICs (&man.tx.4; driver)
-    </para>
-
-    &hwlist.ed;
-
-    &hwlist.rl;
-
-    &hwlist.wb;
-
-    &hwlist.vr;
-
-    &hwlist.sis;
-
-    &hwlist.nge;
-
-    &hwlist.ste;
-
-    &hwlist.sk;
-
-    &hwlist.tl;
-
-    &hwlist.dc;
-
     &hwlist.aue;
-
-    &hwlist.cue;
-
-    &hwlist.kue;
 
     &hwlist.axe;
 
-    &hwlist.rue;
+    <para arch="i386,amd64">Broadcom BCM4401 based Fast Ethernet adapters
+      (&man.bfe.4; driver)</para>
 
-    &hwlist.udav;
+    &hwlist.bge;
 
-    &hwlist.de;
-
-    &hwlist.fe;
-
-    &hwlist.fxp;
-
-    &hwlist.ex;
-
-    &hwlist.ie;
-
-    &hwlist.ep;
-
-    &hwlist.el;
-
-    &hwlist.xl;
-
-    &hwlist.vx;
+    &hwlist.cue;
 
     <para arch="i386,amd64">Crystal Semiconductor CS89x0-based NICs 
     (&man.cs.4; driver)
     </para>
 
-    &hwlist.sn;
+    &hwlist.dc;
 
-    &hwlist.xe;
+    &hwlist.de;
 
-    &hwlist.snc;
+    &hwlist.ed;
 
-    &hwlist.lge;
-
-    &hwlist.txp;
-
-    &hwlist.bge;
+    &hwlist.el;
 
     &hwlist.em;
 
-    &hwlist.hme;
+    &hwlist.ep;
+
+    &hwlist.ex;
+
+    &hwlist.fe;
+
+    &hwlist.fxp;
 
     &hwlist.gem;
 
-    &hwlist.my;
+    &hwlist.hme;
 
-    <para arch="i386,amd64">Broadcom BCM4401 based Fast Ethernet adapters
-      (&man.bfe.4; driver)</para>
-
-    &hwlist.re;
+    &hwlist.ie;
 
     &hwlist.ixgb;
 
-    &hwlist.vge;
+    &hwlist.kue;
+
+    &hwlist.lge;
+
+    &hwlist.lnc;
+
+    &hwlist.my;
+
+    &hwlist.nge;
 
     &hwlist.nve;
+
+    &hwlist.pcn;
+
+    &hwlist.re;
+
+    &hwlist.rl;
+
+    &hwlist.rue;
+
+    &hwlist.sf;
+
+    &hwlist.sis;
+
+    &hwlist.sk;
+
+    &hwlist.sn;
+
+    &hwlist.snc;
+
+    &hwlist.ste;
+
+    &hwlist.ti;
+
+    &hwlist.tl;
+
+    <para arch="i386,pc98,amd64">SMC 83c17x (EPIC)-based Ethernet NICs (&man.tx.4; driver)
+    </para>
+
+    &hwlist.txp;
+
+    &hwlist.udav;
+
+    &hwlist.vge;
+
+    &hwlist.vr;
+
+    &hwlist.vx;
+
+    &hwlist.wb;
+
+    &hwlist.xe;
+
+    &hwlist.xl;
 
   </sect2>
 
