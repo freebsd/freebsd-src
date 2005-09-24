@@ -30,15 +30,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2005
+.Dd July 16, 2005
 .Dt ED 4
 .Os
 .Sh NAME
 .Nm ed
-.Nd NE-2000 and WD-80x3 Ethernet driver
+.Nd "NE-2000 and WD-80x3 Ethernet driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device miibus"
 .Cd "device ed"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ed_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -374,3 +388,8 @@ driver is a bit too aggressive about resetting the card whenever any bad
 packets are received.
 As a result, it may throw out some good packets which
 have been received but not yet transferred from the card to main memory.
+.Pp
+The
+.Nm 
+PC Card attachment supports the D-Link DMF650TX Lan/Modem card's ethernet
+port only at this time.

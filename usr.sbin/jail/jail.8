@@ -269,6 +269,10 @@ Disable the port mapper
 .Li rpcbind_enable="NO" )
 (virtual server only)
 .It
+Configure
+.Pa /etc/resolv.conf
+so that name resolution within the jail will work correctly
+.It
 Run
 .Xr newaliases 1
 to quell
@@ -279,10 +283,6 @@ Disable interface configuration to quell startup warnings about
 .Xr ifconfig 8
 .Pq Li network_interfaces=""
 (virtual server only)
-.It
-Configure
-.Pa /etc/resolv.conf
-so that name resolution within the jail will work correctly
 .It
 Set a root password, probably different from the real host system
 .It

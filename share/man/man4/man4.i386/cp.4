@@ -13,14 +13,28 @@
 .\" Cronyx Id: cp.4,v 1.1.2.5 2004/06/21 17:47:40 rik Exp $
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2004
+.Dd July 16, 2005
 .Dt CP 4 i386
 .Os
 .Sh NAME
 .Nm cp
-.Nd driver for synchronous Cronyx Tau-PCI WAN adapters
+.Nd "driver for synchronous Cronyx Tau-PCI WAN adapters"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device cp"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cp_load="YES"
+.Ed
 .Pp
 Additional options:
 .Cd "device sppp"

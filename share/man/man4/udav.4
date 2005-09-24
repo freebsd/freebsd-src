@@ -32,18 +32,32 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2004
+.Dd July 16, 2005
 .Dt UDAV 4
 .Os
 .Sh NAME
 .Nm udav
-.Nd Davicom DM9601 USB Ethernet driver
+.Nd "Davicom DM9601 USB Ethernet driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device miibus"
 .Cd "device udav"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_udav_load="YES"
+.Ed
 .Sh HARDWARE
 The
 .Nm

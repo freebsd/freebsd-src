@@ -30,18 +30,32 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 1999
+.Dd July 16, 2005
 .Dt AUE 4
 .Os
 .Sh NAME
 .Nm aue
 .Nd ADMtek AN986 Pegasus USB Ethernet driver
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device miibus"
 .Cd "device aue"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_aue_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

@@ -25,20 +25,29 @@
 .\" $FreeBSD$
 .\"
 .\"
-.Dd December 14, 2004
+.Dd July 16, 2005
 .Dt FWE 4
 .Os
 .Sh NAME
 .Nm fwe
-.Nd Ethernet emulation driver for FireWire
+.Nd "Ethernet emulation driver for FireWire"
 .Sh SYNOPSIS
-.Cd "kldload firewire"
-.Cd "kldload if_fwe"
-.Pp
-or
-.Pp
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device firewire"
 .Cd "device fwe"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_fwe_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
