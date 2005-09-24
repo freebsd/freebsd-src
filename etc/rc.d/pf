@@ -30,8 +30,8 @@ extra_commands="check reload resync status"
 pf_prestart()
 {
 	# load pf kernel module if needed
-	if ! kldstat -v | grep -q pf\$; then
-		if kldload pf; then
+	if ! kldstat -q -m pf ; then
+		if kldload pf ; then
 			info 'pf module loaded.'
 		else
 			err 1 'pf module failed to load.'
@@ -84,10 +84,7 @@ pf_reload()
 pf_resync()
 {
 	# Don't resync if pf is not loaded
-	if ! kldstat -v | grep -q pf\$ ; then
-		 return
-	fi
-	${pf_program:-/sbin/pfctl} -f "${pf_rules}" ${pf_flags}
+	kldstat -q -m pf && ${pf_program:-/sbin/pfctl} -f "${pf_rules}" ${pf_flags}
 }
 
 pf_status()
