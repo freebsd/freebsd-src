@@ -81,10 +81,22 @@ static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
 struct	rman_head rman_head;
 static	struct mtx rman_mtx; /* mutex to protect rman_head */
-static	int int_rman_activate_resource(struct rman *rm, struct resource *r,
-				       struct resource **whohas);
-static	int int_rman_deactivate_resource(struct resource *r);
-static	int int_rman_release_resource(struct rman *rm, struct resource *r);
+static	int int_rman_activate_resource(struct rman *rm, struct resource_i *r,
+				       struct resource_i **whohas);
+static	int int_rman_deactivate_resource(struct resource_i *r);
+static	int int_rman_release_resource(struct rman *rm, struct resource_i *r);
+
+static __inline struct resource_i *
+int_alloc_resource(int malloc_flag)
+{
+	struct resource_i *r;
+
+	r = malloc(sizeof *r, M_RMAN, malloc_flag | M_ZERO);
+	if (r != NULL) {
+		r->r_r.__r_i = r;
+	}
+	return (r);
+}
 
 int
 rman_init(struct rman *rm)
@@ -121,11 +133,11 @@ rman_init(struct rman *rm)
 int
 rman_manage_region(struct rman *rm, u_long start, u_long end)
 {
-	struct resource *r, *s;
+	struct resource_i *r, *s;
 
 	DPRINTF(("rman_manage_region: <%s> request: start %#lx, end %#lx\n",
 	    rm->rm_descr, start, end));
-	r = malloc(sizeof *r, M_RMAN, M_NOWAIT | M_ZERO);
+	r = int_alloc_resource(M_NOWAIT);
 	if (r == 0)
 		return ENOMEM;
 	r->r_start = start;
@@ -151,7 +163,7 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 int
 rman_fini(struct rman *rm)
 {
-	struct resource *r;
+	struct resource_i *r;
 
 	mtx_lock(rm->rm_mtx);
 	TAILQ_FOREACH(r, &rm->rm_list, r_link) {
@@ -186,7 +198,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 		      struct device *dev)
 {
 	u_int	want_activate;
-	struct	resource *r, *s, *rv;
+	struct	resource_i *r, *s, *rv;
 	u_long	rstart, rend, amask, bmask;
 
 	rv = 0;
@@ -267,7 +279,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 			 * split it in two.  The first case requires
 			 * two new allocations; the second requires but one.
 			 */
-			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT | M_ZERO);
+			rv = int_alloc_resource(M_NOWAIT);
 			if (rv == 0)
 				goto out;
 			rv->r_start = rstart;
@@ -285,7 +297,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 				/*
 				 * We are allocating in the middle.
 				 */
-				r = malloc(sizeof *r, M_RMAN, M_NOWAIT|M_ZERO);
+				r = int_alloc_resource(M_NOWAIT);
 				if (r == 0) {
 					free(rv, M_RMAN);
 					rv = 0;
@@ -343,7 +355,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 		    && (s->r_end - s->r_start + 1) == count &&
 		    (s->r_start & amask) == 0 &&
 		    ((s->r_start ^ s->r_end) & bmask) == 0) {
-			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT | M_ZERO);
+			rv = int_alloc_resource(M_NOWAIT);
 			if (rv == 0)
 				goto out;
 			rv->r_start = s->r_start;
@@ -383,7 +395,7 @@ out:
 	 * make sense for RF_TIMESHARE-type resources.)
 	 */
 	if (rv && want_activate) {
-		struct resource *whohas;
+		struct resource_i *whohas;
 		if (int_rman_activate_resource(rm, rv, &whohas)) {
 			int_rman_release_resource(rm, rv);
 			rv = 0;
@@ -391,7 +403,7 @@ out:
 	}
 			
 	mtx_unlock(rm->rm_mtx);
-	return (rv);
+	return (&rv->r_r);
 }
 
 struct resource *
@@ -404,10 +416,10 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 }
 
 static int
-int_rman_activate_resource(struct rman *rm, struct resource *r,
-			   struct resource **whohas)
+int_rman_activate_resource(struct rman *rm, struct resource_i *r,
+			   struct resource_i **whohas)
 {
-	struct resource *s;
+	struct resource_i *s;
 	int ok;
 
 	/*
@@ -439,12 +451,13 @@ int_rman_activate_resource(struct rman *rm, struct resource *r,
 }
 
 int
-rman_activate_resource(struct resource *r)
+rman_activate_resource(struct resource *re)
 {
 	int rv;
-	struct resource *whohas;
+	struct resource_i *r, *whohas;
 	struct rman *rm;
 
+	r = re->__r_i;
 	rm = r->r_rm;
 	mtx_lock(rm->rm_mtx);
 	rv = int_rman_activate_resource(rm, r, &whohas);
@@ -453,12 +466,13 @@ rman_activate_resource(struct resource *r)
 }
 
 int
-rman_await_resource(struct resource *r, int pri, int timo)
+rman_await_resource(struct resource *re, int pri, int timo)
 {
 	int	rv;
-	struct	resource *whohas;
+	struct	resource_i *r, *whohas;
 	struct	rman *rm;
 
+	r = re->__r_i;
 	rm = r->r_rm;
 	mtx_lock(rm->rm_mtx);
 	for (;;) {
@@ -478,7 +492,7 @@ rman_await_resource(struct resource *r, int pri, int timo)
 }
 
 static int
-int_rman_deactivate_resource(struct resource *r)
+int_rman_deactivate_resource(struct resource_i *r)
 {
 
 	r->r_flags &= ~RF_ACTIVE;
@@ -494,17 +508,17 @@ rman_deactivate_resource(struct resource *r)
 {
 	struct	rman *rm;
 
-	rm = r->r_rm;
+	rm = r->__r_i->r_rm;
 	mtx_lock(rm->rm_mtx);
-	int_rman_deactivate_resource(r);
+	int_rman_deactivate_resource(r->__r_i);
 	mtx_unlock(rm->rm_mtx);
 	return 0;
 }
 
 static int
-int_rman_release_resource(struct rman *rm, struct resource *r)
+int_rman_release_resource(struct rman *rm, struct resource_i *r)
 {
-	struct	resource *s, *t;
+	struct	resource_i *s, *t;
 
 	if (r->r_flags & RF_ACTIVE)
 		int_rman_deactivate_resource(r);
@@ -595,11 +609,14 @@ out:
 }
 
 int
-rman_release_resource(struct resource *r)
+rman_release_resource(struct resource *re)
 {
 	int	rv;
-	struct	rman *rm = r->r_rm;
+	struct	resource_i *r;
+	struct	rman *rm;
 
+	r = re->__r_i;
+	rm = r->r_rm;
 	mtx_lock(rm->rm_mtx);
 	rv = int_rman_release_resource(rm, r);
 	mtx_unlock(rm->rm_mtx);
@@ -627,37 +644,37 @@ rman_make_alignment_flags(uint32_t size)
 u_long
 rman_get_start(struct resource *r)
 {
-	return (r->r_start);
+	return (r->__r_i->r_start);
 }
 
 u_long
 rman_get_end(struct resource *r)
 {
-	return (r->r_end);
+	return (r->__r_i->r_end);
 }
 
 u_long
 rman_get_size(struct resource *r)
 {
-	return (r->r_end - r->r_start + 1);
+	return (r->__r_i->r_end - r->__r_i->r_start + 1);
 }
 
 u_int
 rman_get_flags(struct resource *r)
 {
-	return (r->r_flags);
+	return (r->__r_i->r_flags);
 }
 
 void
 rman_set_virtual(struct resource *r, void *v)
 {
-	r->r_virtual = v;
+	r->__r_i->r_virtual = v;
 }
 
 void *
 rman_get_virtual(struct resource *r)
 {
-	return (r->r_virtual);
+	return (r->__r_i->r_virtual);
 }
 
 void
@@ -687,37 +704,37 @@ rman_get_bushandle(struct resource *r)
 void
 rman_set_rid(struct resource *r, int rid)
 {
-	r->r_rid = rid;
+	r->__r_i->r_rid = rid;
 }
 
 void
 rman_set_start(struct resource *r, u_long start)
 {
-	r->r_start = start;
+	r->__r_i->r_start = start;
 }
 
 void
 rman_set_end(struct resource *r, u_long end)
 {
-	r->r_end = end;
+	r->__r_i->r_end = end;
 }
 
 int
 rman_get_rid(struct resource *r)
 {
-	return (r->r_rid);
+	return (r->__r_i->r_rid);
 }
 
 struct device *
 rman_get_device(struct resource *r)
 {
-	return (r->r_dev);
+	return (r->__r_i->r_dev);
 }
 
 void
 rman_set_device(struct resource *r, struct device *dev)
 {
-	r->r_dev = dev;
+	r->__r_i->r_dev = dev;
 }
 
 /*
@@ -733,7 +750,7 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	u_int			namelen = arg2;
 	int			rman_idx, res_idx;
 	struct rman		*rm;
-	struct resource		*res;
+	struct resource_i	*res;
 	struct u_rman		urm;
 	struct u_resource	ures;
 	int			error;

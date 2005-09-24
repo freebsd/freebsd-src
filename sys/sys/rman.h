@@ -85,6 +85,21 @@ struct u_rman {
 };
 
 #ifdef _KERNEL
+
+/*
+ * The public (kernel) view of struct resource
+ *
+ * NB: Changing the offset/size/type of existing fields in struct resource
+ * NB: breaks the device driver ABI and is strongly FORBIDDEN.
+ * NB: Appending new fields is probably just misguided.
+ */
+
+struct resource {
+	struct resource_i	*__r_i;
+	bus_space_tag_t		r_bustag; /* bus_space tag */
+	bus_space_handle_t	r_bushandle;	/* bus_space handle */
+};
+
 /*
  * We use a linked list rather than a bitmap because we need to be able to
  * represent potentially huge objects (like all of a processor's physical
@@ -94,18 +109,17 @@ struct u_rman {
  * at some point in the future, particularly if we want to support 36-bit
  * addresses on IA32 hardware.
  */
-TAILQ_HEAD(resource_head, resource);
+TAILQ_HEAD(resource_head, resource_i);
 #ifdef __RMAN_RESOURCE_VISIBLE
-struct resource {
-	TAILQ_ENTRY(resource)	r_link;
-	LIST_ENTRY(resource)	r_sharelink;
-	LIST_HEAD(, resource) 	*r_sharehead;
+struct resource_i {
+	struct resource		r_r;
+	TAILQ_ENTRY(resource_i)	r_link;
+	LIST_ENTRY(resource_i)	r_sharelink;
+	LIST_HEAD(, resource_i)	*r_sharehead;
 	u_long	r_start;	/* index of the first entry in this resource */
 	u_long	r_end;		/* index of the last entry (inclusive) */
 	u_int	r_flags;
 	void	*r_virtual;	/* virtual address of this resource */
-	bus_space_tag_t r_bustag; /* bus_space tag */
-	bus_space_handle_t r_bushandle;	/* bus_space handle */
 	struct	device *r_dev;	/* device which has allocated this resource */
 	struct	rman *r_rm;	/* resource manager from whence this came */
 	void    *r_spare1;	/* Spare pointer 1 */
@@ -113,7 +127,6 @@ struct resource {
 	int	r_rid;		/* optional rid for this resource. */
 };
 #else
-struct resource;
 struct device;
 #endif
 
