@@ -53,7 +53,7 @@ struct archive {
 	ino_t		  skip_file_ino;
 
 	/* Utility:  Pointer to a block of nulls. */
-	const char 		*nulls;
+	const unsigned char	*nulls;
 	size_t			 null_length;
 
 	/*
