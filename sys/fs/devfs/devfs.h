@@ -161,8 +161,8 @@ extern unsigned devfs_rule_depth;
 #define VFSTODEVFS(mp)	((struct devfs_mount *)((mp)->mnt_data))
 
 void devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de);
+void devfs_rules_cleanup (struct devfs_mount *dm);
 int devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct thread *td);
-void devfs_rules_newmount(struct devfs_mount *dm, struct thread *td);
 int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct thread *td);
 struct cdev **devfs_itod (int inode);
 struct devfs_dirent **devfs_itode (struct devfs_mount *dm, int inode);
