@@ -81,21 +81,22 @@
  * Kernel version of devfs_rule.
  */
 struct devfs_krule {
-	SLIST_ENTRY(devfs_krule) dk_list;
-	struct devfs_ruleset *dk_ruleset;
-	struct devfs_rule dk_rule;
+	TAILQ_ENTRY(devfs_krule)	dk_list;
+	struct devfs_ruleset		*dk_ruleset;
+	struct devfs_rule		dk_rule;
 };
+
+TAILQ_HEAD(rulehead, devfs_krule);
+static MALLOC_DEFINE(M_DEVFSRULE, "DEVFS_RULE", "DEVFS rule storage");
 
 /*
  * Structure to describe a ruleset.
  */
 struct devfs_ruleset {
-	SLIST_ENTRY(devfs_ruleset) ds_list;
-	devfs_rsnum ds_number;
-	SLIST_HEAD(, devfs_krule) ds_rules;
-	int	ds_refcount;
-	int	ds_flags;
-#define	DS_IMMUTABLE	0x001
+	TAILQ_ENTRY(devfs_ruleset)	ds_list;
+	struct rulehead			ds_rules;
+	devfs_rsnum			ds_number;
+	int				ds_refcount;
 };
 
 static devfs_rid devfs_rid_input(devfs_rid rid, struct devfs_mount *dm);
@@ -105,7 +106,7 @@ static void devfs_rule_applyde_recursive(struct devfs_krule *dk,
 static void devfs_rule_applydm(struct devfs_krule *dk, struct devfs_mount *dm);
 static int  devfs_rule_autonumber(struct devfs_ruleset *ds, devfs_rnum *rnp);
 static struct devfs_krule *devfs_rule_byid(devfs_rid rid);
-static int  devfs_rule_delete(struct devfs_krule **dkp);
+static int  devfs_rule_delete(struct devfs_krule *dkp);
 static struct cdev *devfs_rule_getdev(struct devfs_dirent *de);
 static int  devfs_rule_input(struct devfs_rule *dr, struct devfs_mount *dm);
 static int  devfs_rule_insert(struct devfs_rule *dr);
@@ -120,12 +121,14 @@ static void devfs_ruleset_applydm(struct devfs_ruleset *ds,
 		struct devfs_mount *dm);
 static struct devfs_ruleset *devfs_ruleset_bynum(devfs_rsnum rsnum);
 static struct devfs_ruleset *devfs_ruleset_create(devfs_rsnum rsnum);
-static void devfs_ruleset_destroy(struct devfs_ruleset **dsp);
-static void devfs_ruleset_reap(struct devfs_ruleset **dsp);
+static void devfs_ruleset_reap(struct devfs_ruleset *dsp);
 static int  devfs_ruleset_use(devfs_rsnum rsnum, struct devfs_mount *dm);
 
 static struct sx sx_rules;
-static SLIST_HEAD(, devfs_ruleset) devfs_rulesets;
+SX_SYSINIT(sx_rules, &sx_rules, "DEVFS ruleset lock");
+
+static TAILQ_HEAD(, devfs_ruleset) devfs_rulesets =
+    TAILQ_HEAD_INITIALIZER(devfs_rulesets);
 
 /*
  * Called to apply the proper rules for 'de' before it can be
@@ -137,30 +140,14 @@ devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de)
 {
 	struct devfs_ruleset *ds;
 
+	if (dm->dm_ruleset == 0)
+		return;
 	sx_slock(&sx_rules);
 	ds = devfs_ruleset_bynum(dm->dm_ruleset);
 	KASSERT(ds != NULL, ("mount-point has NULL ruleset"));
 	devfs_ruleset_applyde(ds, de, devfs_rule_depth);
 	sx_sunlock(&sx_rules);
 }
-
-/*
- * Rule subsystem SYSINIT hook.
- */
-static void
-devfs_rules_init(void *junk __unused)
-{
-	struct devfs_ruleset *ds;
-
-	sx_init(&sx_rules, "devfsrules");
-	SLIST_INIT(&devfs_rulesets);
-
-	ds = devfs_ruleset_create(0);
-	ds->ds_flags |= DS_IMMUTABLE;
-	ds->ds_refcount = 1;		/* Prevent reaping. */
-}
-
-SYSINIT(devfs_rules, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_rules_init, NULL);
 
 /*
  * Rule subsystem ioctl hook.
@@ -193,19 +180,21 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 		dr = (struct devfs_rule *)data;
 		error = devfs_rule_input(dr, dm);
 		if (error != 0)
-			goto out;
+			break;
 		dk = devfs_rule_byid(dr->dr_id);
 		if (dk != NULL) {
 			error = EEXIST;
-			goto out;
+			break;
 		}
+		if (rid2rsn(dr->dr_id) == 0)
+			return (EIO);
 		error = devfs_rule_insert(dr);
 		break;
 	case DEVFSIO_RAPPLY:
 		dr = (struct devfs_rule *)data;
 		error = devfs_rule_input(dr, dm);
 		if (error != 0)
-			goto out;
+			break;
 
 		/*
 		 * This is one of many possible hackish
@@ -224,13 +213,12 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 		if (dr->dr_iacts & DRA_INCSET &&
 		    devfs_ruleset_bynum(dr->dr_incset) == NULL) {
 			error = ESRCH;
-			goto out;
+			break;
 		}
 		dk = malloc(sizeof(*dk), M_TEMP, M_WAITOK | M_ZERO);
 		memcpy(&dk->dk_rule, dr, sizeof(*dr));
 		devfs_rule_applydm(dk, dm);
 		free(dk, M_TEMP);
-		error = 0;
 		break;
 	case DEVFSIO_RAPPLYID:
 		rid = *(devfs_rid *)data;
@@ -238,10 +226,9 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 		dk = devfs_rule_byid(rid);
 		if (dk == NULL) {
 			error = ENOENT;
-			goto out;
+			break;
 		}
 		devfs_rule_applydm(dk, dm);
-		error = 0;
 		break;
 	case DEVFSIO_RDEL:
 		rid = *(devfs_rid *)data;
@@ -249,17 +236,16 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 		dk = devfs_rule_byid(rid);
 		if (dk == NULL) {
 			error = ENOENT;
-			goto out;
+			break;
 		}
 		ds = dk->dk_ruleset;
-		error = devfs_rule_delete(&dk);
-		devfs_ruleset_reap(&ds);
+		error = devfs_rule_delete(dk);
 		break;
 	case DEVFSIO_RGETNEXT:
 		dr = (struct devfs_rule *)data;
 		error = devfs_rule_input(dr, dm);
 		if (error != 0)
-			goto out;
+			break;
 		/*
 		 * We can't use devfs_rule_byid() here since that
 		 * requires the rule specified to exist, but we want
@@ -271,19 +257,18 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 		ds = devfs_ruleset_bynum(rid2rsn(dr->dr_id));
 		if (ds == NULL) {
 			error = ENOENT;
-			goto out;
+			break;
 		}
 		rnum = rid2rn(dr->dr_id);
-		SLIST_FOREACH(dk, &ds->ds_rules, dk_list) {
+		TAILQ_FOREACH(dk, &ds->ds_rules, dk_list) {
 			if (rid2rn(dk->dk_rule.dr_id) > rnum)
 				break;
 		}
 		if (dk == NULL) {
 			error = ENOENT;
-			goto out;
+			break;
 		}
 		memcpy(dr, &dk->dk_rule, sizeof(*dr));
-		error = 0;
 		break;
 	case DEVFSIO_SUSE:
 		rsnum = *(devfs_rsnum *)data;
@@ -295,54 +280,29 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 		ds = devfs_ruleset_bynum(rsnum);
 		if (ds == NULL) {
 			error = ESRCH;
-			goto out;
+			break;
 		}
 		devfs_ruleset_applydm(ds, dm);
-		error = 0;
 		break;
 	case DEVFSIO_SGETNEXT:
 		rsnum = *(devfs_rsnum *)data;
-		SLIST_FOREACH(ds, &devfs_rulesets, ds_list) {
+		TAILQ_FOREACH(ds, &devfs_rulesets, ds_list) {
 			if (ds->ds_number > rsnum)
 				break;
 		}
-		if (ds == NULL)
+		if (ds == NULL) {
 			error = ENOENT;
-		else {
-			*(devfs_rsnum *)data = ds->ds_number;
-			error = 0;
+			break;
 		}
+		*(devfs_rsnum *)data = ds->ds_number;
 		break;
 	default:
 		error = ENOIOCTL;
 		break;
 	}
 
-out:
 	sx_xunlock(&sx_rules);
 	return (error);
-}
-
-/*
- * Called to initialize dm_ruleset when there is a new mount-point.
- */
-void
-devfs_rules_newmount(struct devfs_mount *dm, struct thread *td)
-{
-	struct devfs_ruleset *ds;
-
-	/*
-	 * We can't use devfs_ruleset_use() since it will try to
-	 * decrement the refcount for the old ruleset, and there is no
-	 * old ruleset.  Making some value of ds_ruleset "special" to
-	 * mean "don't decrement refcount" is uglier than this.
-	 */
-	sx_slock(&sx_rules);
-	ds = devfs_ruleset_bynum(0);
-	KASSERT(ds != NULL, ("no ruleset 0"));
-	++ds->ds_refcount;
-	dm->dm_ruleset = 0;
-	sx_sunlock(&sx_rules);
 }
 
 /*
@@ -401,10 +361,7 @@ devfs_rule_autonumber(struct devfs_ruleset *ds, devfs_rnum *rnump)
 	struct devfs_krule *dk;
 
 	/* Find the last rule. */
-	SLIST_FOREACH(dk, &ds->ds_rules, dk_list) {
-		if (SLIST_NEXT(dk, dk_list) == NULL)
-			break;
-	}
+	dk = TAILQ_LAST(&ds->ds_rules, rulehead);
 	if (dk == NULL)
 		*rnump = 100;
 	else {
@@ -432,7 +389,7 @@ devfs_rule_byid(devfs_rid rid)
 	ds = devfs_ruleset_bynum(rid2rsn(rid));
 	if (ds == NULL)
 		return (NULL);
-	SLIST_FOREACH(dk, &ds->ds_rules, dk_list) {
+	TAILQ_FOREACH(dk, &ds->ds_rules, dk_list) {
 		if (rid2rn(dk->dk_rule.dr_id) == rn)
 			return (dk);
 		else if (rid2rn(dk->dk_rule.dr_id) > rn)
@@ -446,20 +403,20 @@ devfs_rule_byid(devfs_rid rid)
  * with it.
  */
 static int
-devfs_rule_delete(struct devfs_krule **dkp)
+devfs_rule_delete(struct devfs_krule *dk)
 {
-	struct devfs_krule *dk = *dkp;
 	struct devfs_ruleset *ds;
 
 	if (dk->dk_rule.dr_iacts & DRA_INCSET) {
 		ds = devfs_ruleset_bynum(dk->dk_rule.dr_incset);
 		KASSERT(ds != NULL, ("DRA_INCSET but bad dr_incset"));
 		--ds->ds_refcount;
-		devfs_ruleset_reap(&ds);
+		devfs_ruleset_reap(ds);
 	}
-	SLIST_REMOVE(&dk->dk_ruleset->ds_rules, dk, devfs_krule, dk_list);
-	free(dk, M_DEVFS);
-	*dkp = NULL;
+	ds = dk->dk_ruleset;
+	TAILQ_REMOVE(&ds->ds_rules, dk, dk_list);
+	devfs_ruleset_reap(ds);
+	free(dk, M_DEVFSRULE);
 	return (0);
 }
 
@@ -506,7 +463,7 @@ static int
 devfs_rule_insert(struct devfs_rule *dr)
 {
 	struct devfs_ruleset *ds, *dsi;
-	struct devfs_krule *k1, *k2;
+	struct devfs_krule *k1;
 	struct devfs_krule *dk;
 	devfs_rsnum rsnum;
 	devfs_rnum dkrn;
@@ -525,19 +482,21 @@ devfs_rule_insert(struct devfs_rule *dr)
 		dsi = NULL;
 
 	rsnum = rid2rsn(dr->dr_id);
+	KASSERT(rsnum != 0, ("Inserting into ruleset zero"));
+
 	ds = devfs_ruleset_bynum(rsnum);
 	if (ds == NULL)
 		ds = devfs_ruleset_create(rsnum);
-	if (ds->ds_flags & DS_IMMUTABLE)
-		return (EIO);
 	dkrn = rid2rn(dr->dr_id);
 	if (dkrn == 0) {
 		error = devfs_rule_autonumber(ds, &dkrn);
-		if (error != 0)
+		if (error != 0) {
+			devfs_ruleset_reap(ds);
 			return (error);
+		}
 	}
 
-	dk = malloc(sizeof(*dk), M_DEVFS, M_WAITOK);
+	dk = malloc(sizeof(*dk), M_DEVFSRULE, M_WAITOK | M_ZERO);
 	dk->dk_ruleset = ds;
 	if (dsi != NULL)
 		++dsi->ds_refcount;
@@ -545,19 +504,14 @@ devfs_rule_insert(struct devfs_rule *dr)
 	memcpy(&dk->dk_rule, dr, sizeof(*dr));
 	dk->dk_rule.dr_id = mkrid(rid2rsn(dk->dk_rule.dr_id), dkrn);
 
-	k1 = SLIST_FIRST(&ds->ds_rules);
-	if (k1 == NULL || rid2rn(k1->dk_rule.dr_id) > dkrn)
-		SLIST_INSERT_HEAD(&ds->ds_rules, dk, dk_list);
-	else {
-		SLIST_FOREACH(k1, &ds->ds_rules, dk_list) {
-			k2 = SLIST_NEXT(k1, dk_list);
-			if (k2 == NULL || rid2rn(k2->dk_rule.dr_id) > dkrn) {
-				SLIST_INSERT_AFTER(k1, dk, dk_list);
-				break;
-			}
+	TAILQ_FOREACH(k1, &ds->ds_rules, dk_list) {
+		if (rid2rn(k1->dk_rule.dr_id) > dkrn) {
+			TAILQ_INSERT_BEFORE(k1, dk, dk_list);
+			break;
 		}
 	}
-
+	if (k1 == NULL)
+		TAILQ_INSERT_TAIL(&ds->ds_rules, dk, dk_list);
 	return (0);
 }
 
@@ -669,7 +623,7 @@ devfs_ruleset_applyde(struct devfs_ruleset *ds, struct devfs_dirent *de, unsigne
 {
 	struct devfs_krule *dk;
 
-	SLIST_FOREACH(dk, &ds->ds_rules, dk_list)
+	TAILQ_FOREACH(dk, &ds->ds_rules, dk_list)
 		devfs_rule_run(dk, de, depth);
 }
 
@@ -697,9 +651,8 @@ devfs_ruleset_applydm(struct devfs_ruleset *ds, struct devfs_mount *dm)
 	 * The end result is obviously the same, but does the order
 	 * matter?
 	 */
-	SLIST_FOREACH(dk, &ds->ds_rules, dk_list) {
+	TAILQ_FOREACH(dk, &ds->ds_rules, dk_list)
 		devfs_rule_applydm(dk, dm);
-	}
 }
 
 /*
@@ -710,7 +663,7 @@ devfs_ruleset_bynum(devfs_rsnum rsnum)
 {
 	struct devfs_ruleset *ds;
 
-	SLIST_FOREACH(ds, &devfs_rulesets, ds_list) {
+	TAILQ_FOREACH(ds, &devfs_rulesets, ds_list) {
 		if (ds->ds_number == rsnum)
 			return (ds);
 	}
@@ -723,50 +676,27 @@ devfs_ruleset_bynum(devfs_rsnum rsnum)
 static struct devfs_ruleset *
 devfs_ruleset_create(devfs_rsnum rsnum)
 {
-	struct devfs_ruleset *s1, *s2;
+	struct devfs_ruleset *s1;
 	struct devfs_ruleset *ds;
+
+	KASSERT(rsnum != 0, ("creating ruleset zero"));
 
 	KASSERT(devfs_ruleset_bynum(rsnum) == NULL,
 	    ("creating already existent ruleset %d", rsnum));
 
-	ds = malloc(sizeof(*ds), M_DEVFS, M_WAITOK | M_ZERO);
+	ds = malloc(sizeof(*ds), M_DEVFSRULE, M_WAITOK | M_ZERO);
 	ds->ds_number = rsnum;
-	ds->ds_refcount = ds->ds_flags = 0;
-	SLIST_INIT(&ds->ds_rules);
+	TAILQ_INIT(&ds->ds_rules);
 
-	s1 = SLIST_FIRST(&devfs_rulesets);
-	if (s1 == NULL || s1->ds_number > rsnum)
-		SLIST_INSERT_HEAD(&devfs_rulesets, ds, ds_list);
-	else {
-		SLIST_FOREACH(s1, &devfs_rulesets, ds_list) {
-			s2 = SLIST_NEXT(s1, ds_list);
-			if (s2 == NULL || s2->ds_number > rsnum) {
-				SLIST_INSERT_AFTER(s1, ds, ds_list);
-				break;
-			}
+	TAILQ_FOREACH(s1, &devfs_rulesets, ds_list) {
+		if (s1->ds_number > rsnum) {
+			TAILQ_INSERT_BEFORE(s1, ds, ds_list);
+			break;
 		}
 	}
-
+	if (s1 == NULL)
+		TAILQ_INSERT_TAIL(&devfs_rulesets, ds, ds_list);
 	return (ds);
-}
-
-/*
- * Remove a ruleset form the system.  The ruleset specified must be
- * empty and not in use.
- */
-static void
-devfs_ruleset_destroy(struct devfs_ruleset **dsp)
-{
-	struct devfs_ruleset *ds = *dsp;
-
-	KASSERT(SLIST_EMPTY(&ds->ds_rules), ("destroying non-empty ruleset"));
-	KASSERT(ds->ds_refcount == 0, ("destroying busy ruleset"));
-	KASSERT((ds->ds_flags & DS_IMMUTABLE) == 0,
-	    ("destroying immutable ruleset"));
-
-	SLIST_REMOVE(&devfs_rulesets, ds, devfs_ruleset, ds_list);
-	free(ds, M_DEVFS);
-	*dsp = NULL;
 }
 
 /*
@@ -775,14 +705,16 @@ devfs_ruleset_destroy(struct devfs_ruleset **dsp)
  * from this ruleset or the reference count is decremented.
  */
 static void
-devfs_ruleset_reap(struct devfs_ruleset **dsp)
+devfs_ruleset_reap(struct devfs_ruleset *ds)
 {
-	struct devfs_ruleset *ds = *dsp;
 
-	if (SLIST_EMPTY(&ds->ds_rules) && ds->ds_refcount == 0) {
-		devfs_ruleset_destroy(&ds);
-		*dsp = ds;
-	}
+	KASSERT(ds->ds_number != 0, ("reaping ruleset zero "));
+
+	if (!TAILQ_EMPTY(&ds->ds_rules) || ds->ds_refcount != 0) 
+		return;
+
+	TAILQ_REMOVE(&devfs_rulesets, ds, ds_list);
+	free(ds, M_DEVFSRULE);
 }
 
 /*
@@ -796,14 +728,28 @@ devfs_ruleset_use(devfs_rsnum rsnum, struct devfs_mount *dm)
 	ds = devfs_ruleset_bynum(rsnum);
 	if (ds == NULL)
 		ds = devfs_ruleset_create(rsnum);
-	cds = devfs_ruleset_bynum(dm->dm_ruleset);
-	KASSERT(cds != NULL, ("mount-point has NULL ruleset"));
+	if (dm->dm_ruleset != 0) {
+		cds = devfs_ruleset_bynum(dm->dm_ruleset);
+		--cds->ds_refcount;
+		devfs_ruleset_reap(cds);
+	}
 
 	/* These should probably be made atomic somehow. */
-	--cds->ds_refcount;
 	++ds->ds_refcount;
 	dm->dm_ruleset = rsnum;
 
-	devfs_ruleset_reap(&cds);
 	return (0);
+}
+
+void
+devfs_rules_cleanup(struct devfs_mount *dm)
+{
+	struct devfs_ruleset *ds;
+
+	sx_assert(&dm->dm_lock, SX_XLOCKED);
+	if (dm->dm_ruleset != 0) {
+		ds = devfs_ruleset_bynum(dm->dm_ruleset);
+		--ds->ds_refcount;
+		devfs_ruleset_reap(ds);
+	}
 }
