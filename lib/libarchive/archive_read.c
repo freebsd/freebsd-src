@@ -55,7 +55,7 @@ struct archive *
 archive_read_new(void)
 {
 	struct archive	*a;
-	char		*nulls;
+	unsigned char	*nulls;
 
 	a = malloc(sizeof(*a));
 	if (a == NULL) {
@@ -412,7 +412,7 @@ archive_read_data_skip(struct archive *a)
 {
 	int r;
 	const void *buff;
-	ssize_t size;
+	size_t size;
 	off_t offset;
 
 	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA, "archive_read_data_skip");
