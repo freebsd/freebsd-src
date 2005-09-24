@@ -173,11 +173,6 @@
 	</listitem>
 
 	<listitem arch="i386">
-	  <para>Matsushita CR-562, CR-563, and compatibles
-	    (&man.matcd.4; driver)</para>
-	</listitem>
-
-	<listitem arch="i386">
 	  <para>Sony proprietary interface (all models) (&man.scd.4;)</para>
 	</listitem>
 
