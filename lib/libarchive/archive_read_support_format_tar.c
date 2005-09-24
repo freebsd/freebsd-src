@@ -1551,7 +1551,7 @@ static int64_t
 tar_atol256(const char *_p, unsigned char_cnt)
 {
 	int64_t	l, upper_limit, lower_limit;
-	const unsigned char *p = _p;
+	const unsigned char *p = (const unsigned char *)_p;
 
 	upper_limit = max_int64 / 256;
 	lower_limit = min_int64 / 256;
