@@ -628,7 +628,7 @@ archive_read_format_zip_read_data_skip(struct archive *a)
 	 * to decompress all the data to find the end marker.
 	 */
 	if (zip->flags & ZIP_LENGTH_AT_END) {
-		ssize_t size;
+		size_t size;
 		off_t offset;
 		int r;
 		do {

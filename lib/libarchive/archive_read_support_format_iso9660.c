@@ -425,6 +425,9 @@ archive_read_format_iso9660_read_data(struct archive *a,
 	}
 
 	bytes_read = (a->compression_read_ahead)(a, buff, 1);
+	if (bytes_read == 0)
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "Truncated input file");
 	if (bytes_read <= 0)
 		return (ARCHIVE_FATAL);
 	if (bytes_read > iso9660->entry_bytes_remaining)
@@ -496,7 +499,8 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 		const unsigned char *rr_start, *rr_end;
 		rr_end = (const unsigned char *)isodirrec
 		    + isodirrec->length[0];
-		rr_start = isodirrec->name + isodirrec->name_len[0];
+		rr_start = (const unsigned char *)isodirrec->name
+		    + isodirrec->name_len[0];
 		if ((isodirrec->name_len[0] & 1) == 0)
 			rr_start++;
 		rr_start += iso9660->suspOffset;
@@ -669,7 +673,8 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 
 					switch(flag) {
 					case 0x01: /* Continue */
-						archive_strncat(&file->symlink, data, nlen);
+						archive_strncat(&file->symlink,
+						    (const char *)data, nlen);
 						cont = 1;
 						break;
 					case 0x02: /* Current */
@@ -686,7 +691,8 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 						archive_strcat(&file->symlink, "hostname");
 						break;
 					case 0:
-						archive_strncat(&file->symlink, data, nlen);
+						archive_strncat(&file->symlink,
+						    (const char *)data, nlen);
 						break;
 					default:
 						/* TODO: issue a warning ? */
