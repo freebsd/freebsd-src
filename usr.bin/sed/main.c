@@ -114,7 +114,6 @@ u_long linenum;
 
 static void add_compunit(enum e_cut, char *);
 static void add_file(char *);
-static int inplace_edit(char **);
 static void usage(void);
 
 int
