@@ -107,14 +107,11 @@ MODULE_DEPEND(sis, miibus, 1, 1, 1);
 /*
  * register space access macros
  */
-#define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->sis_btag, sc->sis_bhandle, reg, val)
+#define CSR_WRITE_4(sc, reg, val)	bus_write_4(sc->sis_res[0], reg, val)
 
-#define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->sis_btag, sc->sis_bhandle, reg)
+#define CSR_READ_4(sc, reg)		bus_read_4(sc->sis_res[0], reg)
 
-#define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->sis_btag, sc->sis_bhandle, reg)
+#define CSR_READ_2(sc, reg)		bus_read_2(sc->sis_res[0], reg)
 
 /*
  * Various supported device vendors/types and their names.
@@ -139,13 +136,16 @@ static void sis_startl(struct ifnet *);
 static void sis_stop(struct sis_softc *);
 static void sis_watchdog(struct ifnet *);
 
+
+static struct resource_spec sis_res_spec[] = {
 #ifdef SIS_USEIOSPACE
-#define SIS_RES			SYS_RES_IOPORT
-#define SIS_RID			SIS_PCI_LOIO
+	{ SYS_RES_IOPORT,	SIS_PCI_LOIO,	RF_ACTIVE},
 #else
-#define SIS_RES			SYS_RES_MEMORY
-#define SIS_RID			SIS_PCI_LOMEM
+	{ SYS_RES_MEMORY,	SIS_PCI_LOMEM,	RF_ACTIVE},
 #endif
+	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE},
+	{ -1, 0 }
+};
 
 #define SIS_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
@@ -919,7 +919,7 @@ sis_attach(device_t dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid, waittime = 0;
+	int			unit, error = 0, waittime = 0;
 
 	waittime = 0;
 	sc = device_get_softc(dev);
@@ -943,28 +943,9 @@ sis_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = SIS_RID;
-	sc->sis_res = bus_alloc_resource_any(dev, SIS_RES, &rid, RF_ACTIVE);
-
-	if (sc->sis_res == NULL) {
-		printf("sis%d: couldn't map ports/memory\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-
-	sc->sis_btag = rman_get_bustag(sc->sis_res);
-	sc->sis_bhandle = rman_get_bushandle(sc->sis_res);
-
-	/* Allocate interrupt */
-	rid = 0;
-	sc->sis_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->sis_irq == NULL) {
-		printf("sis%d: couldn't map interrupt\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
+	error = bus_alloc_resources(dev, sis_res_spec, sc->sis_res);
+	if (error)
+		return (error);
 
 	/* Reset the adapter. */
 	sis_reset(sc);
@@ -1257,7 +1238,7 @@ sis_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->sis_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	error = bus_setup_intr(dev, sc->sis_res[1], INTR_TYPE_NET | INTR_MPSAFE,
 	    sis_intr, sc, &sc->sis_intrhand);
 
 	if (error) {
@@ -1304,11 +1285,8 @@ sis_detach(device_t dev)
 	bus_generic_detach(dev);
 
 	if (sc->sis_intrhand)
-		bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
-	if (sc->sis_irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
-	if (sc->sis_res)
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
+		bus_teardown_intr(dev, sc->sis_res[1], sc->sis_intrhand);
+	bus_release_resources(dev, sis_res_spec, sc->sis_res);
 
 	if (sc->sis_rx_tag) {
 		bus_dmamap_unload(sc->sis_rx_tag,
