@@ -519,6 +519,141 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)		\
 	    ivarp ## _IVAR_ ## ivar, v);				\
 }
 
+/**
+ * Shorthand macros, taking resource argument
+ * Generated with sys/tools/bus_macro.sh
+ */
+
+#define bus_barrier(r, o, l, f) \
+	bus_space_barrier((r)->r_bustag, (r)->r_bushandle, (o), (l), (f))
+#define bus_read_1(r, o) \
+	bus_space_read_1((r)->r_bustag, (r)->r_bushandle, (o))
+#define bus_read_multi_1(r, o, d, c) \
+	bus_space_read_multi_1((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_region_1(r, o, d, c) \
+	bus_space_read_region_1((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_set_multi_1(r, o, v, c) \
+	bus_space_set_multi_1((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_set_region_1(r, o, v, c) \
+	bus_space_set_region_1((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_write_1(r, o, v) \
+	bus_space_write_1((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_write_multi_1(r, o, d, c) \
+	bus_space_write_multi_1((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_write_region_1(r, o, d, c) \
+	bus_space_write_region_1((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_stream_1(r, o) \
+	bus_space_read_stream_1((r)->r_bustag, (r)->r_bushandle, (o))
+#define bus_read_multi_stream_1(r, o, d, c) \
+	bus_space_read_multi_stream_1((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_region_stream_1(r, o, d, c) \
+	bus_space_read_region_stream_1((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_set_multi_stream_1(r, o, v, c) \
+	bus_space_set_multi_stream_1((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_set_region_stream_1(r, o, v, c) \
+	bus_space_set_region_stream_1((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_write_stream_1(r, o, v) \
+	bus_space_write_stream_1((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_write_multi_stream_1(r, o, d, c) \
+	bus_space_write_multi_stream_1((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_write_region_stream_1(r, o, d, c) \
+	bus_space_write_region_stream_1((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_2(r, o) \
+	bus_space_read_2((r)->r_bustag, (r)->r_bushandle, (o))
+#define bus_read_multi_2(r, o, d, c) \
+	bus_space_read_multi_2((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_region_2(r, o, d, c) \
+	bus_space_read_region_2((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_set_multi_2(r, o, v, c) \
+	bus_space_set_multi_2((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_set_region_2(r, o, v, c) \
+	bus_space_set_region_2((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_write_2(r, o, v) \
+	bus_space_write_2((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_write_multi_2(r, o, d, c) \
+	bus_space_write_multi_2((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_write_region_2(r, o, d, c) \
+	bus_space_write_region_2((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_stream_2(r, o) \
+	bus_space_read_stream_2((r)->r_bustag, (r)->r_bushandle, (o))
+#define bus_read_multi_stream_2(r, o, d, c) \
+	bus_space_read_multi_stream_2((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_region_stream_2(r, o, d, c) \
+	bus_space_read_region_stream_2((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_set_multi_stream_2(r, o, v, c) \
+	bus_space_set_multi_stream_2((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_set_region_stream_2(r, o, v, c) \
+	bus_space_set_region_stream_2((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_write_stream_2(r, o, v) \
+	bus_space_write_stream_2((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_write_multi_stream_2(r, o, d, c) \
+	bus_space_write_multi_stream_2((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_write_region_stream_2(r, o, d, c) \
+	bus_space_write_region_stream_2((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_4(r, o) \
+	bus_space_read_4((r)->r_bustag, (r)->r_bushandle, (o))
+#define bus_read_multi_4(r, o, d, c) \
+	bus_space_read_multi_4((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_region_4(r, o, d, c) \
+	bus_space_read_region_4((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_set_multi_4(r, o, v, c) \
+	bus_space_set_multi_4((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_set_region_4(r, o, v, c) \
+	bus_space_set_region_4((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_write_4(r, o, v) \
+	bus_space_write_4((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_write_multi_4(r, o, d, c) \
+	bus_space_write_multi_4((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_write_region_4(r, o, d, c) \
+	bus_space_write_region_4((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_stream_4(r, o) \
+	bus_space_read_stream_4((r)->r_bustag, (r)->r_bushandle, (o))
+#define bus_read_multi_stream_4(r, o, d, c) \
+	bus_space_read_multi_stream_4((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_region_stream_4(r, o, d, c) \
+	bus_space_read_region_stream_4((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_set_multi_stream_4(r, o, v, c) \
+	bus_space_set_multi_stream_4((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_set_region_stream_4(r, o, v, c) \
+	bus_space_set_region_stream_4((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_write_stream_4(r, o, v) \
+	bus_space_write_stream_4((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_write_multi_stream_4(r, o, d, c) \
+	bus_space_write_multi_stream_4((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_write_region_stream_4(r, o, d, c) \
+	bus_space_write_region_stream_4((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_8(r, o) \
+	bus_space_read_8((r)->r_bustag, (r)->r_bushandle, (o))
+#define bus_read_multi_8(r, o, d, c) \
+	bus_space_read_multi_8((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_region_8(r, o, d, c) \
+	bus_space_read_region_8((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_set_multi_8(r, o, v, c) \
+	bus_space_set_multi_8((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_set_region_8(r, o, v, c) \
+	bus_space_set_region_8((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_write_8(r, o, v) \
+	bus_space_write_8((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_write_multi_8(r, o, d, c) \
+	bus_space_write_multi_8((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_write_region_8(r, o, d, c) \
+	bus_space_write_region_8((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_stream_8(r, o) \
+	bus_space_read_stream_8((r)->r_bustag, (r)->r_bushandle, (o))
+#define bus_read_multi_stream_8(r, o, d, c) \
+	bus_space_read_multi_stream_8((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_read_region_stream_8(r, o, d, c) \
+	bus_space_read_region_stream_8((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_set_multi_stream_8(r, o, v, c) \
+	bus_space_set_multi_stream_8((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_set_region_stream_8(r, o, v, c) \
+	bus_space_set_region_stream_8((r)->r_bustag, (r)->r_bushandle, (o), (v), (c))
+#define bus_write_stream_8(r, o, v) \
+	bus_space_write_stream_8((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_write_multi_stream_8(r, o, d, c) \
+	bus_space_write_multi_stream_8((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_write_region_stream_8(r, o, d, c) \
+	bus_space_write_region_stream_8((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
 #endif /* _KERNEL */
 
 #endif /* !_SYS_BUS_H_ */
