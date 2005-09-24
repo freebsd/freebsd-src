@@ -47,8 +47,7 @@ struct ibfoo;
 typedef int upd7210_irq_t(struct upd7210 *, int);
 
 struct upd7210 {
-	bus_space_handle_t	reg_handle[8];
-	bus_space_tag_t		reg_tag[8];
+	struct resource		*reg_res[8];
 	u_int			reg_offset[8];
 	int			dmachan;
 	int			unit;

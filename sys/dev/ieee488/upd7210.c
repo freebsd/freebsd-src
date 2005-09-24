@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -70,10 +71,7 @@ upd7210_rd(struct upd7210 *u, enum upd7210_rreg reg)
 {
 	u_int r;
 
-	r = bus_space_read_1(
-	    u->reg_tag[reg],
-	    u->reg_handle[reg],
-	    u->reg_offset[reg]);
+	r = bus_read_1(u->reg_res[reg], u->reg_offset[reg]);
 	u->rreg[reg] = r;
 	return (r);
 }
@@ -82,10 +80,7 @@ void
 upd7210_wr(struct upd7210 *u, enum upd7210_wreg reg, u_int val)
 {
 
-	bus_space_write_1(
-	    u->reg_tag[reg],
-	    u->reg_handle[reg],
-	    u->reg_offset[reg], val);
+	bus_write_1(u->reg_res[reg], u->reg_offset[reg], val);
 	u->wreg[reg] = val;
 	if (reg == AUXMR)
 		u->wreg[8 + (val >> 5)] = val & 0x1f;
