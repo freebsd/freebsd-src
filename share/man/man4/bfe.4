@@ -25,15 +25,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2003
+.Dd July 16, 2005
 .Dt BFE 4
 .Os
 .Sh NAME
 .Nm bfe
-.Nd Broadcom BCM4401 Ethernet Device Driver
+.Nd "Broadcom BCM4401 Ethernet Device Driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device miibus"
 .Cd "device bfe"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_bfe_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

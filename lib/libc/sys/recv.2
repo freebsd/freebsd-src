@@ -289,6 +289,8 @@ The calls fail if:
 The argument
 .Fa s
 is an invalid descriptor.
+.It Bq Er ECONNRESET
+The remote socket end is forcibly closed.
 .It Bq Er ENOTCONN
 The socket is associated with a connection-oriented protocol
 and has not been connected (see

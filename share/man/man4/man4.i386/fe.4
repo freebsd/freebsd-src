@@ -22,14 +22,28 @@
 .\" for fe driver.
 .\"
 .\" $FreeBSD$
-.Dd January 10, 2005
+.Dd July 16, 2005
 .Dt FE 4 i386
 .Os
 .Sh NAME
 .Nm fe
-.Nd Fujitsu MB86960A/MB86965A based Ethernet adapters
+.Nd "Fujitsu MB86960A/MB86965A based Ethernet adapters"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device fe"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_fe_load="YES"
+.Ed
 .Pp
 In
 .Pa /boot/device.hints :

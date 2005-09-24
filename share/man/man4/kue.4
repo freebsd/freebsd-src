@@ -30,17 +30,31 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 26, 2004
+.Dd July 16, 2005
 .Dt KUE 4
 .Os
 .Sh NAME
 .Nm kue
-.Nd Kawasaki LSI KL5KUSB101B USB Ethernet driver
+.Nd "Kawasaki LSI KL5KUSB101B USB Ethernet driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device kue"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_kue_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

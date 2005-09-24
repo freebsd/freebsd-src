@@ -25,14 +25,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2004
+.Dd July 16, 2005
 .Dt LNC 4 i386
 .Os
 .Sh NAME
 .Nm lnc
-.Nd AMD Lance/PCnet Ethernet device driver
+.Nd "AMD Lance/PCnet Ethernet device driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device lnc"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_lnc_load="YES"
+.Ed
 .Pp
 In
 .Pa /boot/device.hints :
@@ -52,16 +66,6 @@ driver supports the following adapters:
 .Pp
 .Bl -bullet -compact
 .It
-Novell NE2100
-.It
-Novell NE32-VL
-.It
-Isolan AT 4141-0 (16 bit)
-.It
-Isolan BICC
-.It
-Isolink 4110 (8 bit)
-.It
 Diamond HomeFree
 .It
 Digital DEPCA
@@ -69,6 +73,16 @@ Digital DEPCA
 Hewlett Packard Vectra 486/66XM
 .It
 Hewlett Packard Vectra XU
+.It
+Isolan AT 4141-0 (16 bit)
+.It
+Isolan BICC
+.It
+Isolink 4110 (8 bit)
+.It
+Novell NE2100
+.It
+Novell NE32-VL
 .El
 .Pp
 Also supported are adapters working with the

@@ -25,14 +25,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2004
+.Dd July 16, 2005
 .Dt XE 4
 .Os
 .Sh NAME
 .Nm xe
-.Nd Xircom PCMCIA Ethernet device driver
+.Nd "Xircom PCMCIA Ethernet device driver"
 .Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device xe"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_xe_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
