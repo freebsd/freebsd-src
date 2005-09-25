@@ -32,9 +32,6 @@
 
 INTERFACE card;
 
-# WARNING: THIS FILE IS USED BY BOTH OLDCARD AND NEWCARD.  MAKE SURE
-# YOU TEST BOTH KERNELS IF CHANGING THIS FILE.
-
 #
 # Companion interface for pccard.  We need to set attributes for memory
 # and i/o port mappings (as well as other types of attributes) that have
@@ -92,63 +89,6 @@ METHOD int attach_card {
 METHOD int detach_card {
 	device_t  dev;
 }
-
-#
-# Compatibility methods for OLDCARD drivers.  We use these routines to make
-# it possible to call the OLDCARD driver's probe routine in the context that
-# it expects.  For OLDCARD these are implemented as pass throughs to the
-# device_{probe,attach} routines.  For NEWCARD they are implemented such
-# such that probe becomes strictly a matching routine and attach does both
-# the old probe and old attach.
-#
-# compat devices should use the following:
-#
-#	/* Device interface */
-#	DEVMETHOD(device_probe),	pccard_compat_probe),
-#	DEVMETHOD(device_attach),	pccard_compat_attach),
-#	/* Card interface */
-#	DEVMETHOD(card_compat_match,	foo_match),	/* newly written */
-#	DEVMETHOD(card_compat_probe,	foo_probe),	/* old probe */
-#	DEVMETHOD(card_compat_attach,	foo_attach),	/* old attach */
-#
-# This will allow a single driver binary image to be used for both
-# OLDCARD and NEWCARD.
-#
-# Drivers wishing to not retain OLDCARD compatibility needn't do this.
-#
-# The compat_do_* versions are so that we can make the pccard_compat_probe
-# and _attach static lines and have the bus system pick the right version
-# to use so we don't enshrine pccard_* symbols in the driver's module.
-#
-METHOD int compat_probe {
-	device_t dev;
-}
-
-METHOD int compat_attach {
-	device_t dev;
-}
-
-CODE {
-	static int null_do_probe(device_t bus, device_t dev)
-	{
-		return (CARD_COMPAT_DO_PROBE(device_get_parent(bus), dev));
-	}
-
-	static int null_do_attach(device_t bus, device_t dev)
-	{
-		return (CARD_COMPAT_DO_ATTACH(device_get_parent(bus), dev));
-	}
-}
-
-METHOD int compat_do_probe {
-	device_t bus;
-	device_t dev;
-} DEFAULT null_do_probe;
-
-METHOD int compat_do_attach {
-	device_t bus;
-	device_t dev;
-} DEFAULT null_do_attach;
 
 #
 # Find "dev" in the passed table of devices.  Return it or NULL.
