@@ -85,9 +85,9 @@ struct pccard_tuple {
 typedef int (*pccard_scan_t)(const struct pccard_tuple *, void *);
 
 struct pccard_product {
-	const char	*pp_name;		/* NULL if end of table */
+	const char	*pp_name;
 #define PCCARD_VENDOR_ANY (0xffffffff)
-	uint32_t	pp_vendor;
+	uint32_t	pp_vendor;		/* 0 == end of table */
 #define PCCARD_PRODUCT_ANY (0xffffffff)
 	uint32_t	pp_product;
 	const char	*pp_cis[4];
