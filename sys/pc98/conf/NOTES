@@ -357,7 +357,7 @@ hint.mse.0.irq="13"
 #       serial adaptor (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
-#       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
+#       HP PC Lan+, various PC Card devices
 #       (requires miibus)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
@@ -475,17 +475,6 @@ options 	SX_DEBUG
 # power supply dropped, or battery state low) by issuing an NMI:
 
 options 	POWERFAIL_NMI	# make it beep instead of panicing
-
-#
-# PC Card/PCMCIA
-# (OLDCARD)
-#
-# card: pccard slots
-# pcic: isa/pccard bridge
-device		pcic
-hint.pcic.0.at="isa"
-#hint.pcic.1.at="isa"
-device		card
 
 #---------------------------------------------------------------------------
 # ISDN4BSD
