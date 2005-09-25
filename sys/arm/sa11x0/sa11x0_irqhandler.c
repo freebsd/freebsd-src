@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/rman.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -111,7 +113,8 @@ arm_get_next_irq()
 {
 	int irq;
 
-	if ((irq = (bus_space_read_4(sc->sc_iot, sc->sc_ioh, SAIPIC_IP) &
+	if ((irq = (bus_space_read_4(sa11x0_softc->sc_iot, sa11x0_softc->sc_ioh,
+	    SAIPIC_IP) &
 	    sa11x0_irq_mask)) != 0)
 		return (ffs(irq) - 1);
 	return (-1);
