@@ -737,6 +737,13 @@ rman_set_device(struct resource *r, struct device *dev)
 	r->__r_i->r_dev = dev;
 }
 
+int
+rman_is_region_manager(struct resource *r, struct rman *rm)
+{
+
+	return (r->__r_i->r_rm == rm);
+}
+
 /*
  * Sysctl interface for scanning the resource lists.
  *
