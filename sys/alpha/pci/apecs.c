@@ -57,7 +57,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -338,8 +337,9 @@ apecs_setup_intr(device_t dev, device_t child,
 	       struct resource *irq, int flags,
 	       driver_intr_t *intr, void *arg, void **cookiep)
 {
-	int error;
+	int error, start;
 	
+	start = rman_get_start(irq);
 	/* 
 	 *  the avanti routes interrupts through the isa interrupt
 	 *  controller, so we need to special case it 
@@ -353,19 +353,19 @@ apecs_setup_intr(device_t dev, device_t child,
 		return error;
 
 	error = alpha_setup_intr(device_get_nameunit(child ? child : dev),
-			0x900 + (irq->r_start << 4), intr, arg, flags, cookiep,
-			&intrcnt[INTRCNT_EB64PLUS_IRQ + irq->r_start],
+			0x900 + (start << 4), intr, arg, flags, cookiep,
+			&intrcnt[INTRCNT_EB64PLUS_IRQ + start],
 			apecs_disable_intr, apecs_enable_intr);
 	if (error)
 		return error;
 
 	/* Enable PCI interrupt */
 	mtx_lock_spin(&icu_lock);
-	platform.pci_intr_enable(irq->r_start);
+	platform.pci_intr_enable(start);
 	mtx_unlock_spin(&icu_lock);
 
-	device_printf(child, "interrupting at APECS irq %d\n",
-		      (int) irq->r_start);
+	device_printf(child, "interrupting at APECS irq %d\n", start);
+		      
 
 
 	return 0;
