@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/rman.h>
 
 #include <machine/bus.h>
@@ -353,16 +352,9 @@ i80321_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	bus_space_tag_t bt = NULL;
 	bus_space_handle_t bh = 0;
 
-	if (type == SYS_RES_IRQ) {
-		rv = malloc(sizeof(*rv), M_DEVBUF, M_WAITOK);
-		rv->r_start = start;
-		rv->r_end = end;
-		rv->r_rid = *rid;
-		return (rv);
-	}
 	switch (type) {
 	case SYS_RES_IRQ:
-		rm = &sc->sc_mem_rman;
+		rm = &sc->sc_irq_rman;
 		break;
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;

@@ -43,6 +43,7 @@
 
 #include <sys/queue.h>
 #include <dev/pci/pcivar.h>
+#include <sys/rman.h>
 
 /*
  * There are roughly 32 interrupt sources.
@@ -107,6 +108,7 @@ struct i80321_softc {
 	/* GPIO state */
 	uint8_t sc_gpio_dir;    /* GPIO pin direction (1 == output) */
 	uint8_t sc_gpio_val;    /* GPIO output pin value */
+	struct rman sc_irq_rman;
 			
 };
 void	i80321_sdram_bounds(bus_space_tag_t, bus_space_handle_t,

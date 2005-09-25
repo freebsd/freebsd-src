@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
@@ -82,6 +81,11 @@ obio_attach(device_t dev)
 	    rman_manage_region(&sc->oba_rman,
 	    sc->oba_addr, sc->oba_addr + sc->oba_size) != 0)
 		panic("obio_attach: failed to set up I/O rman");
+	sc->oba_irq_rman.rm_type = RMAN_ARRAY;
+	sc->oba_irq_rman.rm_descr = "OBIO IRQ";
+	if (rman_init(&sc->oba_irq_rman) != 0 ||
+	    rman_manage_region(&sc->oba_irq_rman, 28, 28) != 0)
+		panic("obio_attach: failed to set up IRQ rman");
 	device_add_child(dev, "uart", 0);
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -94,34 +98,32 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	struct resource *rv;
 	struct rman *rm;
-	bus_space_tag_t bt;
-	bus_space_handle_t bh;
+	bus_space_tag_t bt = NULL;
+	bus_space_handle_t bh = 0;
 	struct obio_softc *sc = device_get_softc(bus);
 
-	if (type == SYS_RES_IRQ) {
-		rv = malloc(sizeof(*rv), M_DEVBUF, M_WAITOK);
-		rv->r_start = 28;
-		rv->r_end = 28;
-		rv->r_rid = *rid;
-		return (rv);
-	}
 	switch (type) {
+	case SYS_RES_IRQ:
+		rm = &sc->oba_irq_rman;
+		break;
 	case SYS_RES_MEMORY:
 		return (NULL);
 	case SYS_RES_IOPORT:
 		rm = &sc->oba_rman;
 		bt = sc->oba_st;
 		bh = sc->oba_addr;
+		start = bh;
 		break;
 	default:
 		return (NULL);
 	}
 
-	start = bh;
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == NULL) 
 		return (NULL);
+	if (type == SYS_RES_IRQ)
+		return (rv);
 	rman_set_bustag(rv, bt);
 	rman_set_bushandle(rv, bh);
 	

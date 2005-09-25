@@ -45,6 +45,7 @@
 
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <sys/rman.h>
 
 struct sa11x0_softc {
 	device_t sc_dev;
@@ -55,6 +56,7 @@ struct sa11x0_softc {
 	bus_space_handle_t sc_dmach;
 	bus_space_handle_t sc_reseth;
 	u_int32_t sc_intrmask;
+	struct rman sa11x0_rman;
 };
 
 /* Attach args all devices */
