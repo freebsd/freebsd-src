@@ -59,7 +59,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -70,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/sa11x0/sa11x0_ppcreg.h>
 #include <arm/sa11x0/sa11x0_gpioreg.h>
 #include <machine/bus.h>
-#include <sys/rman.h>
 
 extern void sa11x0_activateirqs(void);
 
@@ -105,12 +104,12 @@ sa1110_setup_intr(device_t dev, device_t child,
 	int saved_cpsr;
 	
 	if (flags & INTR_TYPE_TTY) 
-		ires->r_start = 15;
+		rman_set_start(ires, 15);
 	else if (flags & INTR_TYPE_CLK) {
-		if (ires->r_start == 0)
-			ires->r_start = 26;
+		if (rman_get_start(ires) == 0)
+			rman_set_start(ires, 26);
 		else
-			ires->r_start = 27;
+			rman_set_start(ires, 27);
 	}
 	saved_cpsr = SetCPSR(I32_bit, I32_bit);                 
 
@@ -124,9 +123,11 @@ static struct resource *
 sa1110_alloc_resource(device_t bus, device_t child, int type, int *rid,
         u_long start, u_long end, u_long count, u_int flags)
 {
-	struct resource *res = malloc(sizeof(*res), M_DEVBUF, M_WAITOK);
-/* XXX */
-	res->r_start = *rid;
+	struct resource *res;
+	
+	res = rman_reserve_resource(&sa11x0_softc->sa11x0_rman, *rid, *rid,
+	    count, flags, child);
+
 	return (res);
 }
 static int
@@ -227,6 +228,11 @@ sa11x0_attach(device_t dev)
 	/*
 	 *  Attach each devices
 	 */
+	sc->sa11x0_rman.rm_type = RMAN_ARRAY;
+	sc->sa11x0_rman.rm_descr = "SA11x0 IRQs";
+	if (rman_init(&sc->sa11x0_rman) != 0 ||
+	    rman_manage_region(&sc->sa11x0_rman, 0, 32) != 0)
+		panic("sa11x0_attach: failed to set up rman");
 	device_add_child(dev, "uart", 0);
 	device_add_child(dev, "saost", 0);
 	bus_generic_probe(dev);
