@@ -77,6 +77,9 @@ options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
 # To make an SMP kernel, the next line is needed
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+# Alpha's do not appear to react well to probing high EISA slots
+options         EISA_SLOTS=2
+
 # Standard busses
 device		isa
 device		eisa
