@@ -150,9 +150,29 @@ MALLOC_DECLARE(M_IPSBUF);
 #define IPS_RW_NVRAM_CMD		0xBC
 #define IPS_FFDC_CMD			0xD7
 
-/* error information returned by the adapter */
+/* basic_status information returned by the adapter */
 #define IPS_MIN_ERROR			0x02
-#define IPS_ERROR_STATUS		0x13000200 /* ahh, magic numbers */
+#define IPS_BASIC_STATUS_MASK		0xFF
+#define IPS_GSC_STATUS_MASK		0x0F
+#define IPS_CMD_SUCCESS			0x00
+#define IPS_CMD_RECOVERED_ERROR		0x01
+#define IPS_DRV_ERROR			0x02	/* Driver supplied error */
+#define IPS_INVAL_OPCO			0x03
+#define IPS_INVAL_CMD_BLK		0x04
+#define IPS_INVAL_PARM_BLK		0x05
+#define IPS_BUSY			0x08
+#define IPS_CMD_CMPLT_WERROR		0x0C
+#define IPS_LD_ERROR			0x0D
+#define IPS_CMD_TIMEOUT			0x0E
+#define IPS_PHYS_DRV_ERROR		0x0F
+
+/* extended_status information returned by the adapter */
+#define IPS_ERR_SEL_TO			0xF0
+#define IPS_ERR_OU_RUN			0xF2
+#define IPS_ERR_HOST_RESET		0xF7
+#define IPS_ERR_DEV_RESET		0xF8
+#define IPS_ERR_RECOVERY		0xFC
+#define IPS_ERR_CKCOND			0xFF
 
 #define IPS_OS_FREEBSD			8
 #define IPS_VERSION_MAJOR		"0.90"
@@ -207,7 +227,12 @@ MALLOC_DECLARE(M_IPSBUF);
 
 #define ips_read_request(iobuf)		((iobuf)->bio_cmd == BIO_READ)
 
-#define COMMAND_ERROR(status)		(((status)->fields.basic_status & 0x0f) >= IPS_MIN_ERROR)
+#define COMMAND_ERROR(command)		(((command)->status.fields.basic_status & IPS_GSC_STATUS_MASK) >= IPS_MIN_ERROR)
+
+#define ips_set_error(command, error)	do {				\
+	(command)->status.fields.basic_status = IPS_DRV_ERROR;		\
+	(command)->status.fields.reserved = ((error) & 0x0f);		\
+} while (0);
 
 #ifndef IPS_DEBUG
 #define DEVICE_PRINTF(x...)
@@ -216,6 +241,7 @@ MALLOC_DECLARE(M_IPSBUF);
 #define DEVICE_PRINTF(level,x...)	if(IPS_DEBUG >= level)device_printf(x)
 #define PRINTF(level,x...)		if(IPS_DEBUG >= level)printf(x)
 #endif
+
 /*
  *   IPS STRUCTS
  */
