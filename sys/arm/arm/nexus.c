@@ -42,7 +42,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -129,7 +128,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_intr_t *intr, void *arg, void **cookiep)
 {
 	arm_setup_irqhandler(device_get_nameunit(child), 
-	    intr, arg, res->r_start, flags, cookiep);
+	    intr, arg, rman_get_start(res), flags, cookiep);
 	return (0);
 }
 
@@ -138,7 +137,7 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 	int error;
 
-	arm_mask_irq(r->r_start);
+	arm_mask_irq(rman_get_start(r));
 	error = arm_remove_irqhandler(ih);
 	return (error);
 }
@@ -216,7 +215,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return 0;
 
 	rman_set_bustag(rv, (void*)ARM_BUS_SPACE_MEM);
-	rman_set_bushandle(rv, rv->r_start);		
+	rman_set_bushandle(rv, rman_get_start(rv));		
 	
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {

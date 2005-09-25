@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/rman.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -251,6 +250,12 @@ iq80321_attach(device_t dev)
 	busno = PCIXSR_BUSNO(busno);
 	if (busno == 0xff)
 		busno = 0;
+	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
+	sc->sc_irq_rman.rm_descr = "i80321 IRQs";
+	if (rman_init(&sc->sc_irq_rman) != 0 ||
+	    rman_manage_region(&sc->sc_irq_rman, 0, 25) != 0)
+		panic("i80321_attach: failed to set up IRQ rman");
+
 	device_add_child(dev, "obio", 0);
 	device_add_child(dev, "itimer", 0);
 	device_add_child(dev, "iopwdog", 0);
@@ -291,12 +296,11 @@ static struct resource *
 iq80321_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-	if (type == SYS_RES_IRQ) {
-		struct resource *res = malloc(sizeof(*res), M_DEVBUF, M_WAITOK);
-		res->r_start = start;
-		res->r_end = end;
-		return (res);
-	}
+	struct i80321_softc *sc = device_get_softc(dev);
+	
+	if (type == SYS_RES_IRQ) 
+		return (rman_reserve_resource(&sc->sc_irq_rman,
+		    start, end, count, flags, child));
 	return (NULL);
 }
 
@@ -307,7 +311,7 @@ iq80321_setup_intr(device_t dev, device_t child,
 {
 	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, intr, arg,
 	    cookiep);
-	intr_enabled |= 1 << ires->r_start;
+	intr_enabled |= 1 << rman_get_start(ires);
 	i80321_set_intrmask();
 	
 	return (0);
