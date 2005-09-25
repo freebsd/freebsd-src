@@ -1,6 +1,7 @@
 .\"
 .\" Copyright (c) 1998, 1999 Eivind Eklund
 .\" Copyright (c) 2003 Hiten M. Pandya
+.\" Copyright (c) 2005 Robert N. M. Watson
 .\"
 .\" All rights reserved.
 .\"
@@ -38,7 +39,8 @@
 .Sh NAME
 .Nm namei ,
 .Nm NDINIT ,
-.Nm NDFREE
+.Nm NDFREE ,
+.Nm NDHASGIANT
 .Nd pathname translation and lookup operations
 .Sh SYNOPSIS
 .In sys/param.h
@@ -53,6 +55,8 @@
 .Fc
 .Ft void
 .Fn NDFREE "struct nameidata *ndp" "const uint flags"
+.Ft int
+.Fn NDHASGIANT "struct nameidata *ndp"
 .Sh DESCRIPTION
 The
 .Nm
@@ -69,6 +73,16 @@ or
 depending on whether the
 .Dv LOCKLEAF
 flag was specified or not.
+If the
+.Va Giant
+lock is required,
+.Nm
+will acquire it if the caller indicates it is
+.Dv MPSAFE ,
+in which case the caller must later release
+.Va Giant
+based on the results of
+.Fn NDHASGIANT.
 .Pp
 The
 .Fn NDINIT
@@ -154,6 +168,19 @@ This flag allows the
 function to return the parent (directory) vnode in an unlocked state.
 The parent vnode must be released separately by using
 .Xr vrele 9 .
+.It Dv MPSAFE
+With this flag set,
+.Fn namei
+will conditionally acquire
+.Va Giant
+if it is required by a traversed file system.
+MPSAFE callers should pass the results of
+.Fn NDHASGIANT
+to
+.Xr VFS_UNLOCK_GIANT
+in order to conditionally release
+.Va Giant
+if necessary.
 .It Dv NOCACHE
 Avoid
 .Fn namei
@@ -296,6 +323,7 @@ function.
 .Xr uio 9 ,
 .Xr uma 9 ,
 .Xr VFS 9 ,
+.Xr VFS_UNLOCK_GIANT 9 ,
 .Xr vnode 9 ,
 .Xr vput 9 ,
 .Xr vref 9
@@ -317,3 +345,6 @@ In order to solve this for the cases where both
 and
 .Dv LOCKLEAF
 are used, it is necessary to resort to recursive locking.
+.Pp
+Non-MPSAFE file systems exist, requiring callers to conditionally unlock
+.Va Giant .
