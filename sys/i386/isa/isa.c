@@ -57,9 +57,6 @@ __FBSDID("$FreeBSD$");
  * SUCH DAMAGE.
  */
 
-#ifdef PC98 
-#define __RMAN_RESOURCE_VISIBLE
-#endif
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
