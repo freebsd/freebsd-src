@@ -53,7 +53,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -536,12 +535,12 @@ t2_setup_intr(device_t dev, device_t child,
 	       struct resource *irq, int flags,
 	       void *intr, void *arg, void **cookiep)
 {
-	int error, vector, stdio_irq;
+	int error, vector, stdio_irq, start;
 	const char *name;
 	device_t bus, parent;
 
 	name = device_get_nameunit(dev);
-	stdio_irq = irq->r_start;
+	start = stdio_irq = rman_get_start(irq);
 	if (strncmp(name, "eisa", 4) == 0) {
 		if ((stdio_irq != 6 ) && (stdio_irq != 3 )) {
 			stdio_irq = 
@@ -568,7 +567,7 @@ t2_setup_intr(device_t dev, device_t child,
 
 	error = alpha_setup_intr(device_get_nameunit(child ? child : dev),
 			vector, intr, arg, flags, cookiep,
-			&intrcnt[irq->r_start], t2_disable_vec, t2_enable_vec);
+			&intrcnt[start], t2_disable_vec, t2_enable_vec);
 	    
 	if (error)
 		return error;
@@ -579,7 +578,7 @@ t2_setup_intr(device_t dev, device_t child,
 	if (bootverbose != 0) 
 		device_printf(child, 
 		    "interrupting at T2 irq %d (stdio irq %d)\n",
-		      (int) irq->r_start, stdio_irq);
+		     start, stdio_irq);
 	return 0;
 }
 
@@ -589,7 +588,7 @@ t2_teardown_intr(device_t dev, device_t child,
 {
 	int mask;
 	
-	mask = irq_to_mask[irq->r_start];
+	mask = irq_to_mask[rman_get_start(irq)];
 
 	/* Disable interrupt */
 	
