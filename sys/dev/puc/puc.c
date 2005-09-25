@@ -81,7 +81,6 @@ __FBSDID("$FreeBSD$");
  * 'com' and 'lpt' attachments to pci.
  */
 
-#define __RMAN_RESOURCE_VISIBLE	/* Shouldn't be there */
 #include "opt_puc.h"
 #include <sys/param.h>
 #include <sys/systm.h>
