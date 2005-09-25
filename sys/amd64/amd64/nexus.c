@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
  * and I/O memory address space.
  */
 
-#define __RMAN_RESOURCE_VISIBLE
 #include "opt_isa.h"
 
 #include <sys/param.h>
