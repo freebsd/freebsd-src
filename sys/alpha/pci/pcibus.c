@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_isa.h"
 
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -160,7 +159,7 @@ alpha_platform_pci_setup_intr(device_t dev, device_t child,
 	 * XXX - If we aren't the resource manager for this IRQ, assume that
 	 * it is actually handled by the ISA PIC.
 	 */
-	if(irq->r_rm != &irq_rman)
+	if (!rman_is_region_manager(irq, &irq_rman))
 		return isa_setup_intr(dev, child, irq, flags, intr, arg,
 				      cookiep);
 	else
@@ -178,7 +177,7 @@ alpha_platform_pci_teardown_intr(device_t dev, device_t child,
 	 * XXX - If we aren't the resource manager for this IRQ, assume that
 	 * it is actually handled by the ISA PIC.
 	 */
-	if(irq->r_rm != &irq_rman)
+	if (!rman_is_region_manager(irq, &irq_rman))
 		return isa_teardown_intr(dev, child, irq, cookie);
 	else
 #endif
@@ -224,6 +223,7 @@ alpha_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct	rman *rm;
 	struct	resource *rv;
 	void *va;
+	int rstart;
 
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -252,17 +252,18 @@ alpha_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (rv == 0)
 		return 0;
 
+	rstart = rman_get_start(rv);
 	rman_set_bustag(rv, ALPHAPCI_GET_BUSTAG(bus, type));
-	rman_set_bushandle(rv, rv->r_start);
+	rman_set_bushandle(rv, rstart);
 	switch (type) {
 	case SYS_RES_MEMORY:
 		va = 0;
 		if (flags & PCI_RF_DENSE)
-			va = ALPHAPCI_CVT_DENSE(bus, rv->r_start);
+			va = ALPHAPCI_CVT_DENSE(bus, rstart);
 		else if (flags & PCI_RF_BWX)
-			va = ALPHAPCI_CVT_BWX(bus, rv->r_start);
+			va = ALPHAPCI_CVT_BWX(bus, rstart);
 		else
-			va = (void *)ALPHA_PHYS_TO_K0SEG(rv->r_start);
+			va = (void *)ALPHA_PHYS_TO_K0SEG(rstart);
 		rman_set_virtual(rv, va);
 
 		break;

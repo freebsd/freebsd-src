@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -430,7 +429,7 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 	struct mcpcia_softc *sc = MCPCIA_SOFTC(dev);
 	int mid, birq, irq, error, h;
 	
-	irq = ir->r_start;
+	irq = rman_get_start(ir);
 	mid = mcbus_get_mid(dev);
 
 	error = rman_activate_resource(ir);
@@ -469,7 +468,7 @@ mcpcia_teardown_intr(device_t dev, device_t child, struct resource *i, void *c)
 	struct mcpcia_softc *sc = MCPCIA_SOFTC(dev);
 
 	mtx_lock_spin(&icu_lock);
-	mcpcia_disable_intr(sc, i->r_start);
+	mcpcia_disable_intr(sc, rman_get_start(i));
 	mtx_unlock_spin(&icu_lock);
 	alpha_teardown_intr(c);
 	return (rman_deactivate_resource(i));
