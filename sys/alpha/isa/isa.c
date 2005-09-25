@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -359,28 +358,28 @@ isa_setup_intr(device_t dev, device_t child,
 		return ENOMEM;
 	ii->intr = intr;
 	ii->arg = arg;
-	ii->irq = irq->r_start;
+	ii->irq = rman_get_start(irq);
 
 	error = alpha_setup_intr(
 			 device_get_nameunit(child ? child : dev),
-			 0x800 + (irq->r_start << 4), 
+			 0x800 + (ii->irq << 4), 
 			 ((flags & INTR_FAST) ? isa_handle_fast_intr :
 			     isa_handle_intr), ii, flags, &ii->ih,
-			 &intrcnt[INTRCNT_ISA_IRQ + irq->r_start],
+			 &intrcnt[INTRCNT_ISA_IRQ + ii->irq],
 			 isa_disable_intr, isa_enable_intr);
 	if (error) {
 		free(ii, M_DEVBUF);
 		return error;
 	}
 	mtx_lock_spin(&icu_lock);
-	isa_intr_enable(irq->r_start);
+	isa_intr_enable(ii->irq);
 	mtx_unlock_spin(&icu_lock);
 
 	*cookiep = ii;
 
 	if (child)
 		device_printf(child, "interrupting at ISA irq %d\n",
-			      (int)irq->r_start);
+			      (int)ii->irq);
 
 	return 0;
 }
@@ -406,11 +405,10 @@ isa_teardown_intr(device_t dev, device_t child,
 
 	if (num_handlers == 1) {
 		mtx_lock_spin(&icu_lock);
-		isa_intr_disable(irq->r_start);
+		isa_intr_disable(ii->irq);
 		mtx_unlock_spin(&icu_lock);
 		if (platform.isa_teardown_intr) {
-			platform.isa_teardown_intr(dev, child, irq, 
-						   cookie);	
+			platform.isa_teardown_intr(dev, child, irq, cookie);	
 			return 0;
 		}
 
