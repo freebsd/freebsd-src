@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl BFpfny
-.Op Fl b Ar block#
+.Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
 .Ar filesystem
@@ -173,8 +173,8 @@ exits without attempting any further cleaning.
 .It Fl b
 Use the block specified immediately after the flag as
 the super block for the file system.
-Block 32 is usually
-an alternate super block.
+An alternate super block is usually located at block 32 for UFS1,
+and block 160 for UFS2.
 .It Fl c
 Convert the file system to the specified level.
 Note that the level of a file system can only be raised.
@@ -299,9 +299,9 @@ If there is insufficient space its size is increased.
 .It Pa /etc/fstab
 contains default list of file systems to check.
 .El
-.Sh DIAGNOSTICS
+.Sh EXIT STATUS
 .Ex -std
-.Pp
+.Sh DIAGNOSTICS
 The diagnostics produced by
 .Nm
 are fully enumerated and explained in Appendix A of
