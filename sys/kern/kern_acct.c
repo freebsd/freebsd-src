@@ -401,7 +401,7 @@ acctwatch(a)
 			mtx_unlock(&acct_mtx);
 			return;
 		}
-		(void)VFS_STATFS(savacctp->v_mount, &sb, (struct thread *)0);
+		(void)VFS_STATFS(savacctp->v_mount, &sb, curthread);
 		if (sb.f_bavail > acctresume * sb.f_blocks / 100) {
 			acctp = savacctp;
 			acctcred = savacctcred;
@@ -423,7 +423,7 @@ acctwatch(a)
 			mtx_unlock(&acct_mtx);
 			return;
 		}
-		(void)VFS_STATFS(acctp->v_mount, &sb, (struct thread *)0);
+		(void)VFS_STATFS(acctp->v_mount, &sb, curthread);
 		if (sb.f_bavail <= acctsuspend * sb.f_blocks / 100) {
 			savacctp = acctp;
 			savacctflags = acctflags;
