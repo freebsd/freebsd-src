@@ -31,10 +31,10 @@ set -e
 
 trap "umount /cfg" 1 2 15 EXIT
 mount /cfg
-mkdir -p /mnt/ssh
+mkdir -p /cfg/ssh
 (
 cd /etc/ssh
-cp ssh_host_* /mnt/ssh
+cp ssh_host_* /cfg/ssh
 )
 umount /cfg
 trap 1 2 15 EXIT
