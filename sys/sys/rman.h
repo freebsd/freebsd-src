@@ -157,6 +157,7 @@ int	rman_fini(struct rman *rm);
 int	rman_init(struct rman *rm);
 uint32_t rman_make_alignment_flags(uint32_t size);
 int	rman_manage_region(struct rman *rm, u_long start, u_long end);
+int	rman_is_region_manager(struct resource *r, struct rman *rm);
 int	rman_release_resource(struct resource *r);
 struct resource *rman_reserve_resource(struct rman *rm, u_long start,
 					u_long end, u_long count,
