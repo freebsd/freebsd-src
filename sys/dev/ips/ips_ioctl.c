@@ -54,8 +54,7 @@ static void ips_ioctl_callback(void *cmdptr, bus_dma_segment_t *segments,int seg
 	ips_ioctl_t *ioctl_cmd = command->arg;
 	ips_generic_cmd *command_buffer = command->command_buffer;
 	if(error){
-		ioctl_cmd->status.value = IPS_ERROR_STATUS;
-		ips_insert_free_cmd(command->sc, command);
+		ips_set_error(command, error);
 		return;
 	}
 	command_buffer->id = command->id;
@@ -123,7 +122,7 @@ static int ips_ioctl_cmd(ips_softc_t *sc, ips_ioctl_t *ioctl_cmd, ips_user_reque
 	ips_ioctl_start(command);
 	while( ioctl_cmd->status.value == 0xffffffff)
 		msleep(ioctl_cmd, &sc->queue_mtx, 0, "ips", hz/10);
-	if(COMMAND_ERROR(&ioctl_cmd->status))
+	if(COMMAND_ERROR(ioctl_cmd))
 		error = EIO;
 	else
 		error = 0;
@@ -131,6 +130,10 @@ static int ips_ioctl_cmd(ips_softc_t *sc, ips_ioctl_t *ioctl_cmd, ips_user_reque
 	if(copyout(ioctl_cmd->data_buffer, user_request->data_buffer,
 	    ioctl_cmd->datasize))
 		error = EINVAL;
+	mtx_lock(&sc->queue_mtx);
+	ips_insert_free_cmd(sc, command);
+	mtx_unlock(&sc->queue_mtx);
+
 exit:	bus_dmamem_free(ioctl_cmd->dmatag, ioctl_cmd->data_buffer,
 			ioctl_cmd->dmamap);
 	bus_dma_tag_destroy(ioctl_cmd->dmatag);

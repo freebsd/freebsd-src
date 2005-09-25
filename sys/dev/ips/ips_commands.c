@@ -59,9 +59,10 @@ static void ips_io_request_finish(ips_command_t *command)
 				BUS_DMASYNC_POSTWRITE);
 	}
 	bus_dmamap_unload(command->data_dmatag, command->data_dmamap);
-	if(COMMAND_ERROR(&command->status)){
+	if(COMMAND_ERROR(command)){
 		iobuf->bio_flags |=BIO_ERROR;
 		iobuf->bio_error = EIO;
+		printf("ips: io error, status= %d\n", command->status.value);
 	}
 	ips_insert_free_cmd(command->sc, command);
 	ipsd_finish(iobuf);
@@ -174,8 +175,7 @@ static void ips_adapter_info_callback(void *cmdptr, bus_dma_segment_t *segments,
 	ips_adapter_info_cmd *command_struct;
 	sc = command->sc;
 	if(error){
-		command->status.value = IPS_ERROR_STATUS; /* a lovely error value */
-		ips_insert_free_cmd(sc, command);
+		ips_set_error(command, error);
 		printf("ips: error = %d in ips_get_adapter_info\n", error);
 		return;
 	}
@@ -189,6 +189,14 @@ static void ips_adapter_info_callback(void *cmdptr, bus_dma_segment_t *segments,
 	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
 			BUS_DMASYNC_PREREAD);
 	sc->ips_issue_cmd(command);
+	if (sema_timedwait(&sc->cmd_sema, 30*hz) != 0) {
+		ips_set_error(command, ETIMEDOUT);
+		return;
+	}
+
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+			BUS_DMASYNC_POSTREAD);
+	memcpy(&(sc->adapter_info), command->data_buffer, IPS_ADAPTER_INFO_LEN);
 }
 
 
@@ -222,21 +230,13 @@ static int ips_send_adapter_info_cmd(ips_command_t *command)
 		goto exit;
 	}
 	command->callback = ips_wakeup_callback;
-	bus_dmamap_load(command->data_dmatag, command->data_dmamap, 
-			command->data_buffer,IPS_ADAPTER_INFO_LEN, 
-			ips_adapter_info_callback, command, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load(command->data_dmatag, command->data_dmamap, 
+				command->data_buffer,IPS_ADAPTER_INFO_LEN, 
+				ips_adapter_info_callback, command,
+				BUS_DMA_NOWAIT);
 
-	if ((command->status.value == IPS_ERROR_STATUS) ||
-	    (sema_timedwait(&sc->cmd_sema, 30*hz) != 0))
-		error = ETIMEDOUT;
-
-	if (error == 0) {
-		bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
-				BUS_DMASYNC_POSTREAD);
-		memcpy(&(sc->adapter_info), command->data_buffer, 
-			IPS_ADAPTER_INFO_LEN);
-	}
-	bus_dmamap_unload(command->data_dmatag, command->data_dmamap);
+	if (error == 0)
+		bus_dmamap_unload(command->data_dmatag, command->data_dmamap);
 
 exit:
 	/* I suppose I should clean up my memory allocations */
@@ -257,7 +257,7 @@ int ips_get_adapter_info(ips_softc_t *sc)
 		return ENXIO;
 	}
 	ips_send_adapter_info_cmd(command);
-	if (COMMAND_ERROR(&command->status)){
+	if (COMMAND_ERROR(command)){
 		error = ENXIO;
 	}
 	return error;
@@ -272,10 +272,11 @@ static void ips_drive_info_callback(void *cmdptr, bus_dma_segment_t *segments,in
 	ips_softc_t *sc;
 	ips_command_t *command = cmdptr;
 	ips_drive_cmd *command_struct;
+	ips_drive_info_t *driveinfo;
+
 	sc = command->sc;
 	if(error){
-                command->status.value = IPS_ERROR_STATUS;
-		ips_insert_free_cmd(sc, command);
+		ips_set_error(command, error);
 		printf("ips: error = %d in ips_get_drive_info\n", error);
 		return;
 	}
@@ -289,13 +290,23 @@ static void ips_drive_info_callback(void *cmdptr, bus_dma_segment_t *segments,in
 	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
 			BUS_DMASYNC_PREREAD);
 	sc->ips_issue_cmd(command);
+	if (sema_timedwait(&sc->cmd_sema, 10*hz) != 0) {
+		ips_set_error(command, ETIMEDOUT);
+		return;
+	}
+
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+			BUS_DMASYNC_POSTREAD);
+	driveinfo = command->data_buffer;
+	memcpy(sc->drives, driveinfo->drives, sizeof(ips_drive_t) * 8);	
+	sc->drivecount = driveinfo->drivecount;
+	device_printf(sc->dev, "logical drives: %d\n",sc->drivecount);
 }
 
 static int ips_send_drive_info_cmd(ips_command_t *command)
 {
 	int error = 0;
 	ips_softc_t *sc = command->sc;
-	ips_drive_info_t *driveinfo;
 
 	if (bus_dma_tag_create(	/* parent    */	sc->adapter_dmatag,
 				/* alignemnt */	1,
@@ -321,22 +332,12 @@ static int ips_send_drive_info_cmd(ips_command_t *command)
 		goto exit;
 	}
 	command->callback = ips_wakeup_callback;
-	bus_dmamap_load(command->data_dmatag, command->data_dmamap, 
-			command->data_buffer,IPS_DRIVE_INFO_LEN, 
-			ips_drive_info_callback, command, BUS_DMA_NOWAIT);
-	if ((command->status.value == IPS_ERROR_STATUS) ||
-	    (sema_timedwait(&sc->cmd_sema, 10*hz) != 0))
-		error = ETIMEDOUT;
-
-	if (error == 0) {
-		bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
-				BUS_DMASYNC_POSTREAD);
-		driveinfo = command->data_buffer;
-		memcpy(sc->drives, driveinfo->drives, sizeof(ips_drive_t) * 8);	
-		sc->drivecount = driveinfo->drivecount;
-		device_printf(sc->dev, "logical drives: %d\n",sc->drivecount);
-	}
-	bus_dmamap_unload(command->data_dmatag, command->data_dmamap);
+	error = bus_dmamap_load(command->data_dmatag, command->data_dmamap, 
+				command->data_buffer,IPS_DRIVE_INFO_LEN, 
+				ips_drive_info_callback, command,
+				BUS_DMA_NOWAIT);
+	if (error == 0)
+		bus_dmamap_unload(command->data_dmatag, command->data_dmamap);
 
 exit:
 	/* I suppose I should clean up my memory allocations */
@@ -357,7 +358,7 @@ int ips_get_drive_info(ips_softc_t *sc)
 		return ENXIO;
 	}
 	ips_send_drive_info_cmd(command);
-	if(COMMAND_ERROR(&command->status)){
+	if(COMMAND_ERROR(command)){
 		error = ENXIO;
 	}
 	return error;
@@ -378,7 +379,7 @@ static int ips_send_flush_cache_cmd(ips_command_t *command)
 	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
 			BUS_DMASYNC_PREWRITE);
 	sc->ips_issue_cmd(command);
-	if (command->status.value != IPS_ERROR_STATUS)
+	if (COMMAND_ERROR(command) == 0)
 		sema_wait(&sc->cmd_sema);
 	ips_insert_free_cmd(sc, command);
 	return 0;
@@ -393,7 +394,7 @@ int ips_flush_cache(ips_softc_t *sc)
 		device_printf(sc->dev, "ERROR: unable to get a command! can't flush cache!\n");
 	}
 	ips_send_flush_cache_cmd(command);
-	if(COMMAND_ERROR(&command->status)){
+	if(COMMAND_ERROR(command)){
 		device_printf(sc->dev, "ERROR: cache flush command failed!\n");
 	}
 	return 0;
@@ -459,7 +460,7 @@ static int ips_send_ffdc_reset_cmd(ips_command_t *command)
 	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
 			BUS_DMASYNC_PREWRITE);
 	sc->ips_issue_cmd(command);
-	if (command->status.value != IPS_ERROR_STATUS)
+	if (COMMAND_ERROR(command) == 0)
 		sema_wait(&sc->cmd_sema);
 	ips_insert_free_cmd(sc, command);
 	return 0;
@@ -473,7 +474,7 @@ int ips_ffdc_reset(ips_softc_t *sc)
 		device_printf(sc->dev, "ERROR: unable to get a command! can't send ffdc reset!\n");
 	}
 	ips_send_ffdc_reset_cmd(command);
-	if(COMMAND_ERROR(&command->status)){
+	if(COMMAND_ERROR(command)){
 		device_printf(sc->dev, "ERROR: ffdc reset command failed!\n");
 	}
 	return 0;
@@ -512,8 +513,7 @@ static void ips_read_nvram_callback(void *cmdptr, bus_dma_segment_t *segments,in
 	ips_rw_nvram_cmd *command_struct;
 	sc = command->sc;
 	if(error){
-                command->status.value = IPS_ERROR_STATUS;
-		ips_insert_free_cmd(sc, command);
+		ips_set_error(command, error);
 		printf("ips: error = %d in ips_read_nvram_callback\n", error);
 		return;
 	}
@@ -529,6 +529,12 @@ static void ips_read_nvram_callback(void *cmdptr, bus_dma_segment_t *segments,in
 	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
 			BUS_DMASYNC_PREREAD);
 	sc->ips_issue_cmd(command);
+	if (sema_timedwait(&sc->cmd_sema, 30*hz) != 0) {
+		ips_set_error(command, ETIMEDOUT);
+		return;
+	}
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+			BUS_DMASYNC_POSTWRITE);
 }
 
 static int ips_read_nvram(ips_command_t *command)
@@ -560,18 +566,12 @@ static int ips_read_nvram(ips_command_t *command)
 		goto exit;
 	}
 	command->callback = ips_write_nvram;
-	bus_dmamap_load(command->data_dmatag, command->data_dmamap, 
-			command->data_buffer,IPS_NVRAM_PAGE_SIZE, 
-			ips_read_nvram_callback, command, BUS_DMA_NOWAIT);
-	if ((command->status.value == IPS_ERROR_STATUS) ||
-	    (sema_timedwait(&sc->cmd_sema, 30*hz) != 0))
-		error = ETIMEDOUT;
-
-	if (error == 0) {
-		bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
-				BUS_DMASYNC_POSTWRITE);
-	}
-	bus_dmamap_unload(command->data_dmatag, command->data_dmamap);
+	error = bus_dmamap_load(command->data_dmatag, command->data_dmamap, 
+				command->data_buffer,IPS_NVRAM_PAGE_SIZE, 
+				ips_read_nvram_callback, command,
+				BUS_DMA_NOWAIT);
+	if (error == 0)
+		bus_dmamap_unload(command->data_dmatag, command->data_dmamap);
 
 exit:
 	bus_dmamem_free(command->data_dmatag, command->data_buffer, 
@@ -590,7 +590,7 @@ int ips_update_nvram(ips_softc_t *sc)
 		return 1;
 	}
 	ips_read_nvram(command);
-	if(COMMAND_ERROR(&command->status)){
+	if(COMMAND_ERROR(command)){
 		device_printf(sc->dev, "ERROR: nvram update command failed!\n");
 	}
 	return 0;
@@ -613,7 +613,7 @@ static int ips_send_config_sync_cmd(ips_command_t *command)
 	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
 			BUS_DMASYNC_PREWRITE);
 	sc->ips_issue_cmd(command);
-	if (command->status.value != IPS_ERROR_STATUS)
+	if (COMMAND_ERROR(command) == 0)
 		sema_wait(&sc->cmd_sema);
 	ips_insert_free_cmd(sc, command);
 	return 0;
@@ -633,7 +633,7 @@ static int ips_send_error_table_cmd(ips_command_t *command)
 	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
 			BUS_DMASYNC_PREWRITE);
 	sc->ips_issue_cmd(command);
-	if (command->status.value != IPS_ERROR_STATUS)
+	if (COMMAND_ERROR(command) == 0)
 		sema_wait(&sc->cmd_sema);
 	ips_insert_free_cmd(sc, command);
 	return 0;
@@ -650,7 +650,7 @@ int ips_clear_adapter(ips_softc_t *sc)
 		return 1;
 	}
 	ips_send_config_sync_cmd(command);
-	if(COMMAND_ERROR(&command->status)){
+	if(COMMAND_ERROR(command)){
 		device_printf(sc->dev, "ERROR: cache sync command failed!\n");
 		return 1;
 	}
@@ -661,7 +661,7 @@ int ips_clear_adapter(ips_softc_t *sc)
 		return 1;
 	}
 	ips_send_error_table_cmd(command);
-	if(COMMAND_ERROR(&command->status)){
+	if(COMMAND_ERROR(command)){
 		device_printf(sc->dev, "ERROR: etable command failed!\n");
 		return 1;
 	}

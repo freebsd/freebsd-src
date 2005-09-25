@@ -222,7 +222,7 @@ ipsd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 			error = EIO;
 			break;
 		}
-		if (COMMAND_ERROR(&command->status)) {
+		if (COMMAND_ERROR(command)) {
 			error = EIO;
 			break;
 		}
@@ -251,7 +251,7 @@ ipsd_dump_map_sg(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 	if (error) {
 		printf("ipsd_dump_map_sg: error %d\n", error);
-		command->status.value = IPS_ERROR_STATUS;
+		ips_set_error(command, error);
 		return;
 	}
 
@@ -292,7 +292,7 @@ static void
 ipsd_dump_block_complete(ips_command_t *command)
 {
 
-	if (COMMAND_ERROR(&command->status))
+	if (COMMAND_ERROR(command))
 		printf("ipsd_dump completion error= 0x%x\n",
 		    command->status.value);
 
