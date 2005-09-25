@@ -798,7 +798,7 @@ network_pass3() {
 	case ${kerberos5_server_enable} in
 	[Yy][Ee][Ss])
 		echo -n ' kerberos5'
-		${kerberos5_server} &
+		${kerberos5_server} ${kerberos5_server_flags} &
 
 		case ${kadmind5_server_enable} in
 		[Yy][Ee][Ss])
