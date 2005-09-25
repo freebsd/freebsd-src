@@ -308,7 +308,7 @@ static void ips_timeout(void *arg)
 				sc->state |= IPS_TIMEOUT;
 				device_printf(sc->dev, "WARNING: command timeout. Adapter is in toaster mode, resetting to known state\n");
 			}
-			command[i].status.value = IPS_ERROR_STATUS;
+			ips_set_error(&command[i], ETIMEDOUT);
 			command[i].callback(&command[i]);
 			/* hmm, this should be enough cleanup */
 		} else
@@ -554,7 +554,7 @@ void ips_issue_morpheus_cmd(ips_command_t *command)
 {
 	/* hmmm, is there a cleaner way to do this? */
 	if(command->sc->state & IPS_OFFLINE){
-		command->status.value = IPS_ERROR_STATUS;
+		ips_set_error(command, EINVAL);
 		command->callback(command);
 		return;
 	}
@@ -722,7 +722,7 @@ void ips_issue_copperhead_cmd(ips_command_t *command)
 	int i;
 	/* hmmm, is there a cleaner way to do this? */
 	if(command->sc->state & IPS_OFFLINE){
-		command->status.value = IPS_ERROR_STATUS;
+		ips_set_error(command, EINVAL);
 		command->callback(command);
 		return;
 	}
