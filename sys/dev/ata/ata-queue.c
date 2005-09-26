@@ -340,6 +340,7 @@ ata_completed(void *context, int dummy)
 	    request->data = (caddr_t)&request->u.atapi.sense_data;
 	    request->bytecount = sizeof(struct atapi_sense);
 	    request->transfersize = sizeof(struct atapi_sense);
+	    request->donecount = 0;
 	    request->timeout = 5;
 	    request->flags &= (ATA_R_ATAPI | ATA_R_QUIET);
 	    request->flags |= (ATA_R_READ | ATA_R_IMMEDIATE | ATA_R_REQUEUE);
