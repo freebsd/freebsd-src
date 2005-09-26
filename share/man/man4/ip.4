@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2005
+.Dd September 26, 2005
 .Dt IP 4
 .Os
 .Sh NAME
@@ -120,6 +120,20 @@ All packets with a lower TTL are silently dropped.
 This option is only really useful when set to 255 preventing packets
 from outside the directly connected networks reaching local listeners
 on sockets.
+.Pp
+.Dv IP_DONTFRAG
+may be used to set the Don't Fragment flag on IP packets.
+Currently this option is respected only on
+.Xr udp 4
+and Raw
+.Xr ip 4
+sockets, unless the IP_HDRINCL option has been set.
+On
+.Xr tcp 4
+sockets the Don't Fragment flag is controlled by the Path
+MTU Discovery option.
+Sending a packet larger than the MTU size of the egress interface,
+determined by the destination address, returns an EMSGSIZE error.
 .Pp
 If the
 .Dv IP_RECVDSTADDR
