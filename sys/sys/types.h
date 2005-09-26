@@ -270,6 +270,7 @@ typedef	__vm_size_t	vm_size_t;
 #ifdef _KERNEL
 typedef	int		boolean_t;
 typedef	__cpumask_t	cpumask_t;
+typedef	struct device	*device_t;
 typedef	__intfptr_t	intfptr_t;
 
 /*-
@@ -285,7 +286,6 @@ typedef	__uint32_t	intrmask_t;	/* Interrupt mask (spl, xxx_imask...) */
 typedef	__uintfptr_t	uintfptr_t;
 typedef	__uint64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
-typedef struct device	*device_t;
 
 #define offsetof(type, field) __offsetof(type, field)
 
