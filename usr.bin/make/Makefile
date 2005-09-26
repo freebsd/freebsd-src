@@ -17,8 +17,6 @@ CFLAGS+=-DMAKE_VERSION=\"5200408120\"
 CFLAGS+=-D__FBSDID=__RCSID
 .endif
 
-.sinclude <foobarbarf>
-
 # There is no obvious performance improvement currently.
 # CFLAGS+=-DUSE_KQUEUE
 
