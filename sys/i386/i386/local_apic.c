@@ -324,7 +324,7 @@ lapic_setup(void)
 		lapic_timer_enable_intr();
 	}
 
-	/* XXX: Performance counter, error, and thermal LVTs */
+	/* XXX: Error and thermal LVTs */
 
 	intr_restore(eflags);
 }
@@ -928,8 +928,12 @@ lapic_ipi_vectored(u_int vector, int dest)
 	}
 
 	/* Wait for an earlier IPI to finish. */
-	if (!lapic_ipi_wait(BEFORE_SPIN))
-		panic("APIC: Previous IPI is stuck");
+	if (!lapic_ipi_wait(BEFORE_SPIN)) {
+		if (panicstr != NULL)
+			return;
+		else
+			panic("APIC: Previous IPI is stuck");
+	}
 
 	lapic_ipi_raw(icrlo, destfield);
 
