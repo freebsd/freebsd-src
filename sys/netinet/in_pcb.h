@@ -283,6 +283,7 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 #define	INP_MTUDISC		0x100	/* user can do MTU discovery */
 #define	INP_FAITH		0x200	/* accept FAITH'ed connections */
 #define	INP_RECVTTL		0x400	/* receive incoming IP TTL */
+#define	INP_DONTFRAG		0x800	/* don't fragment packet */
 
 #define IN6P_IPV6_V6ONLY	0x008000 /* restrict AF_INET6 socket for v6 */
 
