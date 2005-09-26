@@ -1,7 +1,7 @@
 /*
  * DO NOT EDIT
  * $FreeBSD$
- * auto-generated from FreeBSD: src/usr.bin/make/parse.c,v 1.100 2005/04/29 15:15:28 harti Exp 
+ * auto-generated from FreeBSD: src/usr.bin/make/parse.c,v 1.108 2005/05/24 15:30:03 harti Exp 
  * DO NOT EDIT
  */
 #include <sys/types.h>
@@ -10,8 +10,8 @@
 
 /*
  * d=2
- * n=38
- * m=18
+ * n=40
+ * m=19
  * c=2.09
  * maxlen=1
  * minklen=2
@@ -19,27 +19,27 @@
  * minchar=97
  * maxchar=119
  * loop=0
- * numiter=2
+ * numiter=1
  * seed=
  */
 
 static const signed char directive_g[] = {
-	16, 0, -1, 14, 5, 2, 2, -1, 0, 0,
-	-1, -1, 16, 11, -1, 15, -1, 14, 7, -1,
-	8, 6, 1, -1, -1, 0, 4, 6, -1, 0,
-	0, 2, 0, 13, -1, 14, -1, 0, 
+	8, 0, 0, 5, 6, -1, 17, 15, 10, 6,
+	-1, -1, 10, 0, 0, -1, 18, 2, 3, 0,
+	7, -1, -1, -1, 0, 14, -1, -1, 11, 16,
+	-1, -1, 0, -1, 0, 0, 17, 0, -1, 1,
 };
 
 static const u_char directive_T0[] = {
-	11, 25, 14, 30, 14, 26, 23, 15, 9, 37,
-	27, 32, 27, 1, 17, 27, 35, 13, 8, 22,
-	8, 28, 7, 
+	26, 14, 19, 35, 10, 34, 18, 27, 1, 17,
+	22, 37, 12, 12, 36, 21, 0, 6, 1, 25,
+	9, 4, 19, 
 };
 
 static const u_char directive_T1[] = {
-	19, 20, 31, 17, 29, 2, 7, 12, 1, 31,
-	11, 18, 11, 20, 10, 2, 15, 19, 4, 10,
-	13, 36, 3, 
+	25, 22, 19, 0, 2, 18, 33, 18, 30, 4,
+	30, 9, 21, 19, 16, 12, 35, 34, 4, 19,
+	9, 33, 16, 
 };
 
 
@@ -59,10 +59,10 @@ directive_hash(const u_char *key, size_t len)
 		f1 += directive_T1[-97 + *kp];
 	}
 
-	f0 %= 38;
-	f1 %= 38;
+	f0 %= 40;
+	f1 %= 40;
 
-	return (directive_g[f0] + directive_g[f1]) % 18;
+	return (directive_g[f0] + directive_g[f1]) % 19;
 }
 /*
  * d=2

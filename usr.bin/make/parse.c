@@ -239,6 +239,7 @@ static const struct keyword {
 #define	NKEYWORDS	(sizeof(parseKeywords) / sizeof(parseKeywords[0]))
 
 static void parse_include(char *, int, int);
+static void parse_sinclude(char *, int, int);
 static void parse_message(char *, int, int);
 static void parse_undef(char *, int, int);
 static void parse_for(char *, int, int);
@@ -267,6 +268,7 @@ static const struct directive {
 	{ "ifndef",	COND_IFNDEF,	TRUE,	Cond_If },
 	{ "ifnmake",	COND_IFNMAKE,	TRUE,	Cond_If },
 	{ "include",	0,		FALSE,	parse_include },
+	{ "sinclude",	0,		FALSE,	parse_sinclude },
 	{ "undef",	0,		FALSE,	parse_undef },
 	{ "warning",	0,		FALSE,	parse_message },
 	/* DIRECTIVES-END-TAG */
@@ -2065,7 +2067,7 @@ ParseFinishLine(void)
  *	options
  */
 static void
-parse_include(char *file, int code __unused, int lineno __unused)
+xparse_include(char *file, int sinclude)
 {
 	char	*fullname;	/* full pathname of file */
 	char	endc;		/* the character which ends the file spec */
@@ -2181,7 +2183,8 @@ parse_include(char *file, int code __unused, int lineno __unused)
 
 	if (fullname == NULL) {
 		*cp = endc;
-		Parse_Error(PARSE_FATAL, "Could not find %s", file);
+		if (!sinclude)
+			Parse_Error(PARSE_FATAL, "Could not find %s", file);
 		free(file);
 		return;
 	}
@@ -2193,6 +2196,18 @@ parse_include(char *file, int code __unused, int lineno __unused)
 	 * place.
 	 */
 	ParsePushInput(fullname, NULL, NULL, 0);
+}
+
+static void
+parse_include(char *file, int code __unused, int lineno __unused)
+{
+	xparse_include(file, 0);
+}
+
+static void
+parse_sinclude(char *file, int code __unused, int lineno __unused)
+{
+	xparse_include(file, 1);
 }
 
 /**

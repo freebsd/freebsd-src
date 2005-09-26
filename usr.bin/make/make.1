@@ -578,8 +578,10 @@ to the canonical path given by
 As
 .Nm
 reads various makefiles, including the default files and any
-obtained from the command line and
+obtained from the command line 
 .Ic .include
+and
+.Ic .sinclude
 directives, their names will be automatically appended to the
 .Va .MAKEFILE_LIST
 variable.
@@ -836,6 +838,12 @@ makefile's directory and any directories specified using the
 .Fl I
 option are searched before the system
 makefile directory.
+The 
+.It Ic \&.sinclude Ar <file>
+.It Ic \&.sinclude Ar \*qfile\*q
+Like
+.Ic .include ,
+but silently ignored if the file cannot be found and opened.
 .It Ic .undef Ar variable
 Un-define the specified global variable.
 Only global variables may be un-defined.
