@@ -27,6 +27,8 @@
  * $FreeBSD$
  */
 
+#include "opt_net.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/rtprio.h>
