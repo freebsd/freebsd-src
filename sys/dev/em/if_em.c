@@ -645,7 +645,8 @@ em_start(struct ifnet *ifp)
 	struct adapter *adapter = ifp->if_softc;
 
 	EM_LOCK(adapter);
-	em_start_locked(ifp);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		em_start_locked(ifp);
 	EM_UNLOCK(adapter);
 	return;
 }
