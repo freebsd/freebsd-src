@@ -52,6 +52,7 @@ struct devfs_dirent;
 struct cdevsw;
 
 struct cdev {
+	struct cdev_priv	*si_priv;
 	u_int		si_flags;
 #define SI_ALIAS	0x0002	/* carrier of alias name */
 #define SI_NAMED	0x0004	/* make_dev{_alias} has been called */
@@ -73,11 +74,9 @@ struct cdev {
 	int		si_refcount;
 	LIST_ENTRY(cdev)	si_list;
 	LIST_ENTRY(cdev)	si_clone;
-	LIST_HEAD(,devfs_dirent)si_alist;
 	LIST_HEAD(, cdev)	si_children;
 	LIST_ENTRY(cdev)	si_siblings;
 	struct cdev *si_parent;
-	u_int		si_inode;
 	char		*si_name;
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;
