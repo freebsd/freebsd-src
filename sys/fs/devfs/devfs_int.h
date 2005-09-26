@@ -37,8 +37,30 @@
 
 #ifdef _KERNEL
 
+struct devfs_dirent;
+
+struct cdev_priv {
+	struct cdev		cdp_c;
+	TAILQ_ENTRY(cdev_priv)	cdp_list;
+
+	u_int			cdp_inode;
+
+	u_int			cdp_flags;
+#define CDP_ACTIVE		(1 << 0)
+
+	u_int			cdp_inuse;
+	u_int			cdp_maxdirent;
+	struct devfs_dirent	**cdp_dirents;
+	struct devfs_dirent	*cdp_dirent0;
+};
+
+struct cdev *devfs_alloc(void);
+void devfs_free(struct cdev *);
 void devfs_create(struct cdev *dev);
 void devfs_destroy(struct cdev *dev);
+
+extern struct unrhdr *devfs_inos;
+extern struct mtx devmtx;
 
 #endif /* _KERNEL */
 
