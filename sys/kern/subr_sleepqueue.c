@@ -269,6 +269,10 @@ sleepq_add(void *wchan, struct mtx *lock, const char *wmesg, int flags)
 	MPASS(td->td_sleepqueue != NULL);
 	MPASS(wchan != NULL);
 
+	/* If this thread is not allowed to sleep, die a horrible death. */
+	KASSERT(!(td->td_pflags & TDP_NOSLEEPING),
+	    ("trying to sleep while sleeping is prohibited"));
+
 	/* Look up the sleep queue associated with the wait channel 'wchan'. */
 	sq = sleepq_lookup(wchan);
 
