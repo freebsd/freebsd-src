@@ -37,7 +37,6 @@
 /*
  * TODO:
  *	remove empty directories
- *	mknod: hunt down DE_DELETED, compare name, reinstantiate.
  *	mkdir: want it ?
  */
 
@@ -71,6 +70,8 @@ static struct vop_vector devfs_specops;
 static struct fileops devfs_ops_f;
 
 #include <fs/devfs/devfs.h>
+#include <fs/devfs/devfs_int.h>
+
 static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
 {
@@ -139,9 +140,9 @@ loop:
 		return (0);
 	}
 	if (de->de_dirent->d_type == DT_CHR) {
-		dev = *devfs_itod(de->de_inode);
-		if (dev == NULL)
+		if (!(de->de_cdp->cdp_flags & CDP_ACTIVE))
 			return (ENOENT);
+		dev = &de->de_cdp->cdp_c;
 	} else {
 		dev = NULL;
 	}
@@ -157,7 +158,8 @@ loop:
 		dev_lock();
 		dev_refl(dev);
 		vp->v_rdev = dev;
-		LIST_INSERT_HEAD(&dev->si_alist, de, de_alias);
+		KASSERT(vp->v_usecount == 1,
+		    ("%s %d (%d)\n", __func__, __LINE__, vp->v_usecount));
 		dev->si_usecount += vp->v_usecount;
 		dev_unlock();
 		VI_UNLOCK(vp);
@@ -204,9 +206,6 @@ devfs_access(struct vop_access_args *ap)
 	return (error);
 }
 
-/*
- * Special device advisory byte-level locks.
- */
 /* ARGSUSED */
 static int
 devfs_advlock(struct vop_advlock_args *ap)
@@ -215,9 +214,6 @@ devfs_advlock(struct vop_advlock_args *ap)
 	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
 }
 
-/*
- * Device close routine
- */
 /* ARGSUSED */
 static int
 devfs_close(struct vop_close_args *ap)
@@ -301,9 +297,6 @@ devfs_close_f(struct file *fp, struct thread *td)
 	return (vnops.fo_close(fp, td));
 }
 
-/*
- * Synch buffers associated with a block device
- */
 /* ARGSUSED */
 static int
 devfs_fsync(struct vop_fsync_args *ap)
@@ -370,7 +363,7 @@ devfs_getattr(struct vop_getattr_args *ap)
 		fix(dev->si_ctime);
 		vap->va_ctime = dev->si_ctime;
 
-		vap->va_rdev = dev->si_inode;
+		vap->va_rdev = dev->si_priv->cdp_inode;
 	}
 	vap->va_gen = 0;
 	vap->va_flags = 0;
@@ -380,9 +373,6 @@ devfs_getattr(struct vop_getattr_args *ap)
 	return (error);
 }
 
-/*
- * Device ioctl operation.
- */
 /* ARGSUSED */
 static int
 devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struct thread *td)
@@ -445,7 +435,6 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 	}
 	return (error);
 }
-
 
 /* ARGSUSED */
 static int
@@ -520,65 +509,47 @@ devfs_lookupx(struct vop_lookup_args *ap)
 		return (error);
 	}
 
-	lockmgr(&dmp->dm_lock, LK_UPGRADE, 0, curthread);
 	devfs_populate(dmp);
-	lockmgr(&dmp->dm_lock, LK_DOWNGRADE, 0, curthread);
 	dd = dvp->v_data;
-	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
-		if (cnp->cn_namelen != de->de_dirent->d_namlen)
-			continue;
-		if (bcmp(cnp->cn_nameptr, de->de_dirent->d_name,
-		    de->de_dirent->d_namlen) != 0)
-			continue;
-		if (de->de_flags & DE_WHITEOUT)
-			goto notfound;
-		goto found;
+	de = devfs_find(dd, cnp->cn_nameptr, cnp->cn_namelen);
+	while (de == NULL) {	/* While(...) so we can use break */
+
+		if (nameiop == DELETE)
+			return (ENOENT);
+
+		/*
+		 * OK, we didn't have an entry for the name we were asked for
+		 * so we try to see if anybody can create it on demand.
+		 */
+		pname = devfs_fqpn(specname, dvp, cnp);
+		if (pname == NULL)
+			break;
+
+		cdev = NULL;
+		EVENTHANDLER_INVOKE(dev_clone,
+		    td->td_ucred, pname, strlen(pname), &cdev);
+		if (cdev == NULL)
+			break;
+
+		devfs_populate(dmp);
+
+		dev_lock();
+		dde = &cdev->si_priv->cdp_dirents[dmp->dm_idx];
+		if (dde != NULL && *dde != NULL)
+			de = *dde;
+		dev_unlock();
+		dev_rel(cdev);
+		break;
 	}
 
-	if (nameiop == DELETE)
-		goto notfound;
-
-	/*
-	 * OK, we didn't have an entry for the name we were asked for
-	 * so we try to see if anybody can create it on demand.
-	 */
-	pname = devfs_fqpn(specname, dvp, cnp);
-	if (pname == NULL)
-		goto notfound;
-
-	cdev = NULL;
-	EVENTHANDLER_INVOKE(dev_clone, td->td_ucred, pname, strlen(pname),
-	    &cdev);
-	if (cdev == NULL)
-		goto notfound;
-
-	lockmgr(&dmp->dm_lock, LK_UPGRADE, 0, curthread);
-	devfs_populate(dmp);
-	lockmgr(&dmp->dm_lock, LK_DOWNGRADE, 0, curthread);
-
-	dde = devfs_itode(dmp, cdev->si_inode);
-	dev_rel(cdev);
-
-	if (dde == NULL || *dde == NULL || *dde == DE_DELETED)
-		goto notfound;
-
-	if ((*dde)->de_flags & DE_WHITEOUT)
-		goto notfound;
-
-	de = *dde;
-	goto found;
-
-notfound:
-
-	if ((nameiop == CREATE || nameiop == RENAME) &&
-	    (flags & (LOCKPARENT | WANTPARENT)) && (flags & ISLASTCN)) {
-		cnp->cn_flags |= SAVENAME;
-		return (EJUSTRETURN);
+	if (de == NULL || de->de_flags & DE_WHITEOUT) {
+		if ((nameiop == CREATE || nameiop == RENAME) &&
+		    (flags & (LOCKPARENT | WANTPARENT)) && (flags & ISLASTCN)) {
+			cnp->cn_flags |= SAVENAME;
+			return (EJUSTRETURN);
+		}
+		return (ENOENT);
 	}
-	return (ENOENT);
-
-
-found:
 
 	if ((cnp->cn_nameiop == DELETE) && (flags & ISLASTCN)) {
 		error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, td);
@@ -589,10 +560,6 @@ found:
 			*vpp = dvp;
 			return (0);
 		}
-		error = devfs_allocv(de, dvp->v_mount, vpp, td);
-		if (error)
-			return (error);
-		return (0);
 	}
 	error = devfs_allocv(de, dvp->v_mount, vpp, td);
 	return (error);
@@ -605,9 +572,9 @@ devfs_lookup(struct vop_lookup_args *ap)
 	struct devfs_mount *dmp;
 
 	dmp = VFSTODEVFS(ap->a_dvp->v_mount);
-	lockmgr(&dmp->dm_lock, LK_SHARED, 0, curthread);
+	sx_xlock(&dmp->dm_lock);
 	j = devfs_lookupx(ap);
-	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
+	sx_xunlock(&dmp->dm_lock);
 	return (j);
 }
 
@@ -629,7 +596,7 @@ devfs_mknod(struct vop_mknod_args *ap)
 		return (EOPNOTSUPP);
 	dvp = ap->a_dvp;
 	dmp = VFSTODEVFS(dvp->v_mount);
-	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
+	sx_xlock(&dmp->dm_lock);
 
 	cnp = ap->a_cnp;
 	vpp = ap->a_vpp;
@@ -652,13 +619,10 @@ devfs_mknod(struct vop_mknod_args *ap)
 	de->de_flags &= ~DE_WHITEOUT;
 	error = devfs_allocv(de, dvp->v_mount, vpp, td);
 notfound:
-	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
+	sx_xunlock(&dmp->dm_lock);
 	return (error);
 }
 
-/*
- * Open a special file.
- */
 /* ARGSUSED */
 static int
 devfs_open(struct vop_open_args *ap)
@@ -793,9 +757,6 @@ devfs_print(struct vop_print_args *ap)
 	return (0);
 }
 
-/*
- * Vnode op for read
- */
 /* ARGSUSED */
 static int
 devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
@@ -845,18 +806,14 @@ devfs_readdir(struct vop_readdir_args *ap)
 		return (EINVAL);
 
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
-	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
+	sx_xlock(&dmp->dm_lock);
 	devfs_populate(dmp);
-	lockmgr(&dmp->dm_lock, LK_DOWNGRADE, 0, curthread);
 	error = 0;
 	de = ap->a_vp->v_data;
 	off = 0;
 	oldoff = uio->uio_offset;
-	if (ap->a_ncookies != NULL) {
-		*ap->a_ncookies = 0;
-		*ap->a_cookies = NULL;
-	}
 	TAILQ_FOREACH(dd, &de->de_dlist, de_list) {
+		KASSERT(dd->de_cdp != (void *)0xdeadc0de, ("%s %d\n", __func__, __LINE__));
 		if (dd->de_flags & DE_WHITEOUT)
 			continue;
 		if (dd->de_dirent->d_type == DT_DIR)
@@ -874,7 +831,7 @@ devfs_readdir(struct vop_readdir_args *ap)
 		}
 		off += dp->d_reclen;
 	}
-	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
+	sx_xunlock(&dmp->dm_lock);
 	uio->uio_offset = off;
 	return (error);
 }
@@ -908,8 +865,6 @@ devfs_reclaim(struct vop_reclaim_args *ap)
 		return (0);
 
 	dev_lock();
-	if (de != NULL)
-		LIST_REMOVE(de, de_alias);
 	dev->si_usecount -= vp->v_usecount;
 	dev_unlock();
 	dev_rel(dev);
@@ -924,21 +879,16 @@ devfs_remove(struct vop_remove_args *ap)
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp = VFSTODEVFS(vp->v_mount);
 
-	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
+	sx_xlock(&dmp->dm_lock);
 	dd = ap->a_dvp->v_data;
 	de = vp->v_data;
 	if (de->de_dirent->d_type == DT_LNK) {
 		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
-		if (de->de_vnode)
-			de->de_vnode->v_data = NULL;
-#ifdef MAC
-		mac_destroy_devfsdirent(de);
-#endif
-		free(de, M_DEVFS);
+		devfs_delete(dmp, de);
 	} else {
 		de->de_flags |= DE_WHITEOUT;
 	}
-	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
+	sx_xunlock(&dmp->dm_lock);
 	return (0);
 }
 
@@ -946,24 +896,43 @@ devfs_remove(struct vop_remove_args *ap)
  * Revoke is called on a tty when a terminal session ends.  The vnode
  * is orphaned by setting v_op to deadfs so we need to let go of it
  * as well so that we create a new one next time around.
+ *
+ * XXX: locking :-(
+ * XXX: We mess around with other mountpoints without holding their sxlock.
+ * XXX: We hold the devlock() when we zero their vnode pointer, but is that
+ * XXX: enough ?
  */
 static int
 devfs_revoke(struct vop_revoke_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp, *vp2;
 	struct cdev *dev;
+	struct cdev_priv *cdp;
 	struct devfs_dirent *de;
+	int i;
 
 	KASSERT((ap->a_flags & REVOKEALL) != 0, ("devfs_revoke !REVOKEALL"));
 
 	dev = vp->v_rdev;
+	cdp = dev->si_priv;
 	for (;;) {
 		dev_lock();
-		de = LIST_FIRST(&dev->si_alist);
+		vp2 = NULL;
+		for (i = 0; i <= cdp->cdp_maxdirent; i++) {
+			de = cdp->cdp_dirents[i];
+			if (de == NULL)
+				continue;
+			vp2 = de->de_vnode;
+			de->de_vnode = NULL;
+			if (vp2 != NULL)
+				break;
+		}
 		dev_unlock();
-		if (de == NULL)
-			break;
-		vgone(de->de_vnode);
+		if (vp2 != NULL) {
+			vgone(vp2);
+			continue;
+		}
+		break;
 	}
 	return (0);
 }
@@ -975,10 +944,10 @@ devfs_rioctl(struct vop_ioctl_args *ap)
 	struct devfs_mount *dmp;
 
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
-	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
+	sx_xlock(&dmp->dm_lock);
 	devfs_populate(dmp);
 	error = devfs_rules_ioctl(dmp, ap->a_command, ap->a_data, ap->a_td);
-	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
+	sx_xunlock(&dmp->dm_lock);
 	return (error);
 }
 
@@ -1120,24 +1089,21 @@ devfs_symlink(struct vop_symlink_args *ap)
 	de->de_uid = 0;
 	de->de_gid = 0;
 	de->de_mode = 0755;
-	de->de_inode = dmp->dm_inode++;
+	de->de_inode = alloc_unr(devfs_inos);
 	de->de_dirent->d_type = DT_LNK;
 	i = strlen(ap->a_target) + 1;
 	de->de_symlink = malloc(i, M_DEVFS, M_WAITOK);
 	bcopy(ap->a_target, de->de_symlink, i);
-	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, td);
+	sx_xlock(&dmp->dm_lock);
 #ifdef MAC
 	mac_create_devfs_symlink(ap->a_cnp->cn_cred, dmp->dm_mount, dd, de);
 #endif
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, td);
-	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, td);
+	sx_xunlock(&dmp->dm_lock);
 	return (0);
 }
 
-/*
- * Vnode op for write
- */
 /* ARGSUSED */
 static int
 devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
@@ -1176,7 +1142,7 @@ dev2udev(struct cdev *x)
 {
 	if (x == NULL)
 		return (NODEV);
-	return (x->si_inode);
+	return (x->si_priv->cdp_inode);
 }
 
 static struct fileops devfs_ops_f = {

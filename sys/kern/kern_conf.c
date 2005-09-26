@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/sysctl.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
@@ -49,8 +48,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 
-static struct mtx devmtx;
-static void freedev(struct cdev *dev);
+struct mtx devmtx;
 static void destroy_devl(struct cdev *dev);
 static struct cdev *make_dev_credv(struct cdevsw *devsw, int minornr,
 	    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
@@ -99,15 +97,19 @@ dev_rel(struct cdev *dev)
 	dev->si_refcount--;
 	KASSERT(dev->si_refcount >= 0,
 	    ("dev_rel(%s) gave negative count", devtoname(dev)));
+#if 0
 	if (dev->si_usecount == 0 &&
 	    (dev->si_flags & SI_CHEAPCLONE) && (dev->si_flags & SI_NAMED))
-	if (dev->si_devsw == NULL && dev->si_refcount == 0) {
+		;
+	else 
+#endif
+if (dev->si_devsw == NULL && dev->si_refcount == 0) {
 		LIST_REMOVE(dev, si_list);
 		flag = 1;
 	}
 	dev_unlock();
 	if (flag)
-		freedev(dev);
+		devfs_free(dev);
 }
 
 struct cdevsw *
@@ -389,18 +391,6 @@ unit2minor(int unit)
 }
 
 static struct cdev *
-allocdev(void)
-{
-	struct cdev *si;
-
-	si = malloc(sizeof *si, M_DEVT, M_USE_RESERVE | M_ZERO | M_WAITOK);
-	si->si_name = si->__si_namebuf;
-	LIST_INIT(&si->si_children);
-	LIST_INIT(&si->si_alist);
-	return (si);
-}
-
-static struct cdev *
 newdev(struct cdevsw *csw, int y, struct cdev *si)
 {
 	struct cdev *si2;
@@ -410,22 +400,14 @@ newdev(struct cdevsw *csw, int y, struct cdev *si)
 	udev = y;
 	LIST_FOREACH(si2, &csw->d_devs, si_list) {
 		if (si2->si_drv0 == udev) {
-			freedev(si);
+			devfs_free(si);
 			return (si2);
 		}
 	}
 	si->si_drv0 = udev;
+	si->si_devsw = csw;
 	LIST_INSERT_HEAD(&csw->d_devs, si, si_list);
 	return (si);
-}
-
-static void
-freedev(struct cdev *dev)
-{
-
-	if (dev->si_cred != NULL)
-		crfree(dev->si_cred);
-	free(dev, M_DEVT);
 }
 
 int
@@ -538,12 +520,11 @@ make_dev_credv(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
 
 	if (!(devsw->d_flags & D_INIT)) 
 		prep_cdevsw(devsw);
-	dev = allocdev();
+	dev = devfs_alloc();
 	dev_lock();
 	dev = newdev(devsw, minornr, dev);
 	if (dev->si_flags & SI_CHEAPCLONE &&
-	    dev->si_flags & SI_NAMED &&
-	    dev->si_devsw == devsw) {
+	    dev->si_flags & SI_NAMED) {
 		/*
 		 * This is allowed as it removes races and generally
 		 * simplifies cloning devices.
@@ -562,7 +543,6 @@ make_dev_credv(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
 		    dev->__si_namebuf);
 	}
 		
-	dev->si_devsw = devsw;
 	dev->si_flags |= SI_NAMED;
 	if (cr != NULL)
 		dev->si_cred = crhold(cr);
@@ -604,14 +584,22 @@ make_dev_cred(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
 	return (dev);
 }
 
+static void
+dev_dependsl(struct cdev *pdev, struct cdev *cdev)
+{
+
+	cdev->si_parent = pdev;
+	cdev->si_flags |= SI_CHILD;
+	LIST_INSERT_HEAD(&pdev->si_children, cdev, si_siblings);
+}
+
+
 void
 dev_depends(struct cdev *pdev, struct cdev *cdev)
 {
 
 	dev_lock();
-	cdev->si_parent = pdev;
-	cdev->si_flags |= SI_CHILD;
-	LIST_INSERT_HEAD(&pdev->si_children, cdev, si_siblings);
+	dev_dependsl(pdev, cdev);
 	dev_unlock();
 }
 
@@ -622,7 +610,7 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	va_list ap;
 	int i;
 
-	dev = allocdev();
+	dev = devfs_alloc();
 	dev_lock();
 	dev->si_flags |= SI_ALIAS;
 	dev->si_flags |= SI_NAMED;
@@ -689,7 +677,7 @@ destroy_devl(struct cdev *dev)
 		/* Remove from cdevsw list */
 		LIST_REMOVE(dev, si_list);
 
-		/* If cdevsw has no struct cdev *'s, clean it */
+		/* If cdevsw has no more struct cdev *'s, clean it */
 		if (LIST_EMPTY(&csw->d_devs))
 			fini_cdevsw(csw);
 	}
@@ -698,7 +686,7 @@ destroy_devl(struct cdev *dev)
 	if (dev->si_refcount > 0) {
 		LIST_INSERT_HEAD(&dead_cdevsw.d_devs, dev, si_list);
 	} else {
-		freedev(dev);
+		devfs_free(dev);
 	}
 }
 
@@ -817,7 +805,7 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 	 *       the end of the list.
 	 */
 	unit = *up;
-	ndev = allocdev();
+	ndev = devfs_alloc();
 	dev_lock();
 	low = extra;
 	de = dl = NULL;
@@ -828,7 +816,7 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 		u = dev2unit(dev);
 		if (u == (unit | extra)) {
 			*dp = dev;
-			freedev(ndev);
+			devfs_free(ndev);
 			dev_unlock();
 			return (0);
 		}

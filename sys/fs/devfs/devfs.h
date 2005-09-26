@@ -118,32 +118,12 @@ struct devfs_rule {
 
 #ifdef _KERNEL
 
-/*
- * These are default sizes for the DEVFS inode table and the overflow
- * table.  If the default table overflows we allocate the overflow 
- * table, the size of which can also be set with a sysctl.  If the
- * overflow table fills you're toast.
- */
-#ifndef NDEVFSINO
-#define NDEVFSINO 1024
-#endif
-
-#ifndef NDEVFSOVERFLOW
-#define NDEVFSOVERFLOW 32768
-#endif
-
-/*
- * This is the first "per mount" inode, these are used for directories
- * and symlinks and the like.  Must be larger than the number of "true"
- * device nodes and symlinks.  It is.
- */
-#define DEVFSINOMOUNT	0x2000000
-
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_DEVFS);
 #endif
 
 struct devfs_dirent {
+	struct cdev_priv	*de_cdp;
 	int			de_inode;
 	int			de_flags;
 #define	DE_WHITEOUT	0x1
@@ -152,7 +132,6 @@ struct devfs_dirent {
 	struct dirent 		*de_dirent;
 	TAILQ_ENTRY(devfs_dirent) de_list;
 	TAILQ_HEAD(, devfs_dirent) de_dlist;
-	LIST_ENTRY(devfs_dirent) de_alias;
 	struct devfs_dirent	*de_dir;
 	int			de_links;
 	mode_t			de_mode;
@@ -167,35 +146,32 @@ struct devfs_dirent {
 };
 
 struct devfs_mount {
+	u_int			dm_idx;
 	struct mount		*dm_mount;
 	struct devfs_dirent	*dm_rootdir;
 	unsigned		dm_generation;
-	struct devfs_dirent	**dm_dirent;
-	struct devfs_dirent	**dm_overflow;
-	int			dm_inode;
-	struct lock		dm_lock;
+	struct sx		dm_lock;
 	devfs_rsnum		dm_ruleset;
 };
 
-extern unsigned devfs_rule_depth;
+#define DEVFS_ROOTINO 2
 
-/*
- * This is what we fill in dm_dirent[N] for a deleted entry.
- */
-#define DE_DELETED ((struct devfs_dirent *)sizeof(struct devfs_dirent))
+extern unsigned devfs_rule_depth;
 
 #define VFSTODEVFS(mp)	((struct devfs_mount *)((mp)->mnt_data))
 
 void devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de);
+void devfs_rules_cleanup (struct devfs_mount *dm);
 int devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct thread *td);
-void devfs_rules_newmount(struct devfs_mount *dm, struct thread *td);
 int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct thread *td);
 struct cdev **devfs_itod (int inode);
 struct devfs_dirent **devfs_itode (struct devfs_mount *dm, int inode);
+void devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de);
 void devfs_populate (struct devfs_mount *dm);
+void devfs_cleanup (struct devfs_mount *dm);
 struct devfs_dirent *devfs_newdirent (char *name, int namelen);
-void devfs_purge (struct devfs_dirent *dd);
-struct devfs_dirent *devfs_vmkdir (char *name, int namelen, struct devfs_dirent *dotdot);
+struct devfs_dirent *devfs_vmkdir (struct devfs_mount *, char *name, int namelen, struct devfs_dirent *dotdot, u_int inode);
+struct devfs_dirent *devfs_find (struct devfs_dirent *dd, const char *name, int namelen);
 
 #endif /* _KERNEL */
 
