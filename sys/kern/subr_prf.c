@@ -127,27 +127,31 @@ uprintf(const char *fmt, ...)
 	struct putchar_arg pca;
 	int retval;
 
-	GIANT_REQUIRED;
 	if (td == NULL || td == PCPU_GET(idlethread))
 		return (0);
 
+	mtx_lock(&Giant);
 	p = td->td_proc;
 	PROC_LOCK(p);
 	if ((p->p_flag & P_CONTROLT) == 0) {
 		PROC_UNLOCK(p);
-		return (0);
+		retval = 0;
+		goto out;
 	}
 	SESS_LOCK(p->p_session);
 	pca.tty = p->p_session->s_ttyp;
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
-	if (pca.tty == NULL)
-		return (0);
+	if (pca.tty == NULL) {
+		retval = 0;
+		goto out;
+	}
 	pca.flags = TOTTY;
 	va_start(ap, fmt);
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
-
+out:
+	mtx_unlock(&Giant);
 	return (retval);
 }
 
@@ -164,7 +168,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	struct putchar_arg pca;
 	struct session *sess = NULL;
 
-	GIANT_REQUIRED;
+	mtx_lock(&Giant);
 	if (pri != -1)
 		flags |= TOLOG;
 	if (p != NULL) {
@@ -192,6 +196,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	if (sess != NULL)
 		SESSRELE(sess);
 	msgbuftrigger = 1;
+	mtx_unlock(&Giant);
 }
 
 /*
