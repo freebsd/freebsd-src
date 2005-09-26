@@ -63,8 +63,8 @@ atomic_set_32(volatile uint32_t *p, uint32_t v)
 		"or %0, %3, %0\n\t"		/* calculate new value */
 		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (p), "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (p), "r" (v), "m" (*p)
 		: "cc", "memory");
 #endif
 }
@@ -80,8 +80,8 @@ atomic_clear_32(volatile uint32_t *p, uint32_t v)
 		"andc %0, %0, %3\n\t"		/* calculate new value */
 		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (p), "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (p), "r" (v), "m" (*p)
 		: "cc", "memory");
 #endif
 }
@@ -97,8 +97,8 @@ atomic_add_32(volatile uint32_t *p, uint32_t v)
 		"add %0, %3, %0\n\t"		/* calculate new value */
 		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (p), "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (p), "r" (v), "m" (*p)
 		: "cc", "memory");
 #endif
 }
@@ -114,8 +114,8 @@ atomic_subtract_32(volatile uint32_t *p, uint32_t v)
 		"subf %0, %3, %0\n\t"		/* calculate new value */
 		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		: "=&r" (temp), "+m" (*p)
-		: "r" (p), "r" (v)
+		: "=&r" (temp), "=m" (*p)
+		: "r" (p), "r" (v), "m" (*p)
 		: "cc", "memory");
 #endif
 }
@@ -132,8 +132,8 @@ atomic_readandclear_32(volatile uint32_t *addr)
 		"li %1, 0\n\t"			/* load new value */
 		"stwcx. %1, 0, %3\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		: "=&r"(result), "=&r"(temp), "+m" (*addr)
-		: "r" (addr)
+		: "=&r"(result), "=&r"(temp), "=m" (*addr)
+		: "r" (addr), "m" (*addr)
 		: "cc", "memory");
 #endif
 
@@ -382,8 +382,8 @@ atomic_cmpset_32(volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 		"stwcx. %0, 0, %2\n\t"       	/* clear reservation (74xx) */
 		"li %0, 0\n\t"			/* failure - retval = 0 */
 		"3:\n\t"
-		: "=&r" (ret), "+m" (*p)
-		: "r" (p), "r" (cmpval), "r" (newval)
+		: "=&r" (ret), "=m" (*p)
+		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p)
 		: "cc", "memory");
 #endif
 
