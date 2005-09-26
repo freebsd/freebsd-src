@@ -371,6 +371,7 @@ ed_detach(device_t dev)
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
 	ED_LOCK_DESTROY(sc);
+	bus_generic_detach(dev);
 	return (0);
 }
 
