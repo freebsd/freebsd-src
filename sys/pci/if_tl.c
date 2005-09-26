@@ -276,8 +276,10 @@ static int tl_encap(struct tl_softc *, struct tl_chain *, struct mbuf *);
 
 static void tl_intr(void *);
 static void tl_start(struct ifnet *);
+static void tl_start_locked(struct ifnet *);
 static int tl_ioctl(struct ifnet *, u_long, caddr_t);
 static void tl_init(void *);
+static void tl_init_locked(struct tl_softc *);
 static void tl_stop(struct tl_softc *);
 static void tl_watchdog(struct ifnet *);
 static void tl_shutdown(device_t);
@@ -650,8 +652,6 @@ tl_mii_readreg(sc, frame)
 	int			i, ack;
 	int			minten = 0;
 
-	TL_LOCK(sc);
-
 	tl_mii_sync(sc);
 
 	/*
@@ -730,8 +730,6 @@ fail:
 		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 	}
 
-	TL_UNLOCK(sc);
-
 	if (ack)
 		return(1);
 	return(0);
@@ -744,8 +742,6 @@ tl_mii_writereg(sc, frame)
 	
 {
 	int			minten;
-
-	TL_LOCK(sc);
 
 	tl_mii_sync(sc);
 
@@ -788,8 +784,6 @@ tl_mii_writereg(sc, frame)
 	/* Reenable interrupts */
 	if (minten)
 		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
-
-	TL_UNLOCK(sc);
 
 	return(0);
 }
@@ -840,7 +834,6 @@ tl_miibus_statchg(dev)
 	struct mii_data		*mii;
 
 	sc = device_get_softc(dev);
-	TL_LOCK(sc);
 	mii = device_get_softc(sc->tl_miibus);
 
 	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
@@ -848,7 +841,6 @@ tl_miibus_statchg(dev)
 	} else {
 		tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 	}
-	TL_UNLOCK(sc);
 
 	return;
 }
@@ -1138,7 +1130,7 @@ tl_attach(dev)
 	}
 
 	mtx_init(&sc->tl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 
 	/*
 	 * Map control/status registers.
@@ -1267,15 +1259,14 @@ tl_attach(dev)
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = tl_ioctl;
 	ifp->if_start = tl_start;
 	ifp->if_watchdog = tl_watchdog;
 	ifp->if_init = tl_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = TL_TX_LIST_CNT - 1;
-	callout_handle_init(&sc->tl_stat_ch);
+	callout_init_mtx(&sc->tl_stat_callout, &sc->tl_mtx, 0);
 
 	/* Reset the adapter again. */
 	tl_softreset(sc, 1);
@@ -1310,7 +1301,7 @@ tl_attach(dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->tl_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->tl_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    tl_intr, sc, &sc->tl_intrhand);
 
 	if (error) {
@@ -1343,12 +1334,14 @@ tl_detach(dev)
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->tl_mtx), ("tl mutex not initialized"));
-	TL_LOCK(sc);
 	ifp = sc->tl_ifp;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
+		TL_LOCK(sc);
 		tl_stop(sc);
+		TL_UNLOCK(sc);
+		callout_drain(&sc->tl_stat_callout);
 		ether_ifdetach(ifp);
 		if_free(ifp);
 	}
@@ -1368,7 +1361,6 @@ tl_detach(dev)
 	if (sc->tl_res)
 		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 
-	TL_UNLOCK(sc);
 	mtx_destroy(&sc->tl_mtx);
 
 	return(0);
@@ -1444,15 +1436,9 @@ tl_newbuf(sc, c)
 {
 	struct mbuf		*m_new = NULL;
 
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+	m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m_new == NULL)
 		return(ENOBUFS);
-
-	MCLGET(m_new, M_DONTWAIT);
-	if (!(m_new->m_flags & M_EXT)) {
-		m_freem(m_new);
-		return(ENOBUFS);
-	}
 
 #ifdef __alpha__
 	m_new->m_data += 2;
@@ -1691,7 +1677,7 @@ tl_intvec_adchk(xsc, type)
 
 	tl_softreset(sc, 1);
 	tl_stop(sc);
-	tl_init(sc);
+	tl_init_locked(sc);
 	CMD_SET(sc, TL_CMD_INTSON);
 
 	return(0);
@@ -1784,7 +1770,7 @@ tl_intr(xsc)
 	}
 
 	if (ifp->if_snd.ifq_head != NULL)
-		tl_start(ifp);
+		tl_start_locked(ifp);
 
 	TL_UNLOCK(sc);
 
@@ -1804,7 +1790,7 @@ tl_stats_update(xsc)
 	bzero((char *)&tl_stats, sizeof(struct tl_stats));
 
 	sc = xsc;
-	TL_LOCK(sc);
+	TL_LOCK_ASSERT(sc);
 	ifp = sc->tl_ifp;
 
 	p = (u_int32_t *)&tl_stats;
@@ -1838,14 +1824,12 @@ tl_stats_update(xsc)
 		}
 	}
 
-	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
+	callout_reset(&sc->tl_stat_callout, hz, tl_stats_update, sc);
 
 	if (!sc->tl_bitrate) {
 		mii = device_get_softc(sc->tl_miibus);
 		mii_tick(mii);
 	}
-
-	TL_UNLOCK(sc);
 
 	return;
 }
@@ -1957,12 +1941,24 @@ tl_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct tl_softc		*sc;
+
+	sc = ifp->if_softc;
+	TL_LOCK(sc);
+	tl_start_locked(ifp);
+	TL_UNLOCK(sc);
+}
+
+static void
+tl_start_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct tl_softc		*sc;
 	struct mbuf		*m_head = NULL;
 	u_int32_t		cmd;
 	struct tl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
 
 	sc = ifp->if_softc;
-	TL_LOCK(sc);
+	TL_LOCK_ASSERT(sc);
 
 	/*
 	 * Check for an available queue slot. If there are none,
@@ -1970,7 +1966,6 @@ tl_start(ifp)
 	 */
 	if (sc->tl_cdata.tl_tx_free == NULL) {
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		TL_UNLOCK(sc);
 		return;
 	}
 
@@ -2007,10 +2002,8 @@ tl_start(ifp)
 	/*
 	 * If there are no packets queued, bail.
 	 */
-	if (cur_tx == NULL) {
-		TL_UNLOCK(sc);
+	if (cur_tx == NULL)
 		return;
-	}
 
 	/*
 	 * That's all we can stands, we can't stands no more.
@@ -2040,7 +2033,6 @@ tl_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
-	TL_UNLOCK(sc);
 
 	return;
 }
@@ -2050,10 +2042,20 @@ tl_init(xsc)
 	void			*xsc;
 {
 	struct tl_softc		*sc = xsc;
+
+	TL_LOCK(sc);
+	tl_init_locked(sc);
+	TL_UNLOCK(sc);
+}
+
+static void
+tl_init_locked(sc)
+	struct tl_softc		*sc;
+{
 	struct ifnet		*ifp = sc->tl_ifp;
 	struct mii_data		*mii;
 
-	TL_LOCK(sc);
+	TL_LOCK_ASSERT(sc);
 
 	ifp = sc->tl_ifp;
 
@@ -2098,7 +2100,6 @@ tl_init(xsc)
 		if_printf(ifp,
 		    "initialization failed: no memory for rx buffers\n");
 		tl_stop(sc);
-		TL_UNLOCK(sc);
 		return;
 	}
 
@@ -2128,8 +2129,7 @@ tl_init(xsc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* Start the stats update counter */
-	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
-	TL_UNLOCK(sc);
+	callout_reset(&sc->tl_stat_callout, hz, tl_stats_update, sc);
 
 	return;
 }
@@ -2146,12 +2146,14 @@ tl_ifmedia_upd(ifp)
 
 	sc = ifp->if_softc;
 
+	TL_LOCK(sc);
 	if (sc->tl_bitrate)
 		tl_setmode(sc, sc->ifmedia.ifm_media);
 	else {
 		mii = device_get_softc(sc->tl_miibus);
 		mii_mediachg(mii);
 	}
+	TL_UNLOCK(sc);
 
 	return(0);
 }
@@ -2169,6 +2171,7 @@ tl_ifmedia_sts(ifp, ifmr)
 
 	sc = ifp->if_softc;
 
+	TL_LOCK(sc);
 	ifmr->ifm_active = IFM_ETHER;
 
 	if (sc->tl_bitrate) {
@@ -2187,6 +2190,7 @@ tl_ifmedia_sts(ifp, ifmr)
 		ifmr->ifm_active = mii->mii_media_active;
 		ifmr->ifm_status = mii->mii_media_status;
 	}
+	TL_UNLOCK(sc);
 
 	return;
 }
@@ -2199,12 +2203,11 @@ tl_ioctl(ifp, command, data)
 {
 	struct tl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	int			s, error = 0;
-
-	s = splimp();
+	int			error = 0;
 
 	switch(command) {
 	case SIOCSIFFLAGS:
+		TL_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
@@ -2217,18 +2220,21 @@ tl_ioctl(ifp, command, data)
 				tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_CAF);
 				tl_setmulti(sc);
 			} else
-				tl_init(sc);
+				tl_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				tl_stop(sc);
 			}
 		}
 		sc->tl_if_flags = ifp->if_flags;
+		TL_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		TL_LOCK(sc);
 		tl_setmulti(sc);
+		TL_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCSIFMEDIA:
@@ -2247,8 +2253,6 @@ tl_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
-
 	return(error);
 }
 
@@ -2262,10 +2266,12 @@ tl_watchdog(ifp)
 
 	if_printf(ifp, "device timeout\n");
 
+	TL_LOCK(sc);
 	ifp->if_oerrors++;
 
 	tl_softreset(sc, 1);
-	tl_init(sc);
+	tl_init_locked(sc);
+	TL_UNLOCK(sc);
 
 	return;
 }
@@ -2281,12 +2287,12 @@ tl_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
-	TL_LOCK(sc);
+	TL_LOCK_ASSERT(sc);
 
 	ifp = sc->tl_ifp;
 
 	/* Stop the stats updater. */
-	untimeout(tl_stats_update, sc, sc->tl_stat_ch);
+	callout_stop(&sc->tl_stat_callout);
 
 	/* Stop the transmitter */
 	CMD_CLR(sc, TL_CMD_RT);
@@ -2333,7 +2339,6 @@ tl_stop(sc)
 		sizeof(sc->tl_ldata->tl_tx_list));
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	TL_UNLOCK(sc);
 
 	return;
 }
@@ -2350,7 +2355,9 @@ tl_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	TL_LOCK(sc);
 	tl_stop(sc);
+	TL_UNLOCK(sc);
 
 	return;
 }
