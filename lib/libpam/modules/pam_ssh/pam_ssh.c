@@ -134,6 +134,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
 	const char **kfn, *passphrase, *user;
+	const void *item;
 	struct passwd *pwd;
 	struct pam_ssh_key *psk;
 	int nkeys, nullok, pam_err, pass;
@@ -154,8 +155,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		return (PAM_AUTH_ERR);
 
 	nkeys = 0;
-	pass = (pam_get_item(pamh, PAM_AUTHTOK,
-	    (const void **)&passphrase) == PAM_SUCCESS);
+	pass = (pam_get_item(pamh, PAM_AUTHTOK, &item) == PAM_SUCCESS &&
+	    item != NULL);
  load_keys:
 	/* get passphrase */
 	pam_err = pam_get_authtok(pamh, PAM_AUTHTOK,
@@ -306,6 +307,7 @@ pam_ssh_add_keys_to_agent(pam_handle_t *pamh)
 	AuthenticationConnection *ac;
 	struct pam_ssh_key *psk;
 	const char **kfn;
+	void *item;
 	char **envlist, **env;
 	int pam_err;
 
@@ -324,8 +326,9 @@ pam_ssh_add_keys_to_agent(pam_handle_t *pamh)
 
 	/* look for keys to add to it */
 	for (kfn = pam_ssh_keyfiles; *kfn != NULL; ++kfn) {
-		pam_err = pam_get_data(pamh, *kfn, (void **)&psk);
-		if (pam_err == PAM_SUCCESS && psk != NULL) {
+		pam_err = pam_get_data(pamh, *kfn, &item);
+		if (pam_err == PAM_SUCCESS && item != NULL) {
+			psk = item;
 			if (ssh_add_identity(ac, psk->key, psk->comment))
 				openpam_log(PAM_LOG_DEBUG,
 				    "added %s to ssh agent", psk->comment);
