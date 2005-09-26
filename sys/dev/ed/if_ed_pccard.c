@@ -238,11 +238,27 @@ static void	ed_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static int	ed_pccard_ax88x90(device_t dev, const struct ed_product *);
 
+static void
+ed_pccard_print_entry(const struct ed_product *pp)
+{
+	int i;
+
+	printf("Product entry: ");
+	if (pp->prod.pp_name)
+		printf("name='%s',", pp->prod.pp_name);
+	printf("vendor=%#x,product=%#x", pp->prod.pp_vendor,
+	    pp->prod.pp_product);
+	for (i = 0; i < 4; i++)
+		if (pp->prod.pp_cis[i])
+			printf(",CIS%d='%s'", i, pp->prod.pp_cis[i]);
+	printf("\n");
+}
+
 static int
 ed_pccard_probe(device_t dev)
 {
-	const struct ed_product *pp;
-	int		error;
+	const struct ed_product *pp, *pp2;
+	int		error, first = 1;
 	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
 
 	/* Make sure we're a network function */
@@ -262,6 +278,23 @@ ed_pccard_probe(device_t dev)
 		if (!(pp->flags & NE2000DVF_ANYFUNC) &&
 		    fcn != PCCARD_FUNCTION_NETWORK)
 			return (ENXIO);
+		/*
+		 * Some devices match multiple entries.  Report that
+		 * as a warning to help cull the table
+		 */
+		pp2 = pp;
+		while ((pp2 = (const struct ed_product *)pccard_product_lookup(
+		    dev, (const struct pccard_product *)(pp2 + 1),
+		    sizeof(ed_pccard_products[0]), NULL)) != NULL) {
+			if (first) {
+				device_printf(dev,
+    "Warning: card matches multiple entries.  Report to imp@freebsd.org\n");
+				ed_pccard_print_entry(pp);
+				first = 0;
+			}
+			ed_pccard_print_entry(pp2);
+		}
+		
 		return (0);
 	}
 	return (ENXIO);
