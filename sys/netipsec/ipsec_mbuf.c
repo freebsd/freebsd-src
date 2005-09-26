@@ -92,7 +92,7 @@ m_clone(struct mbuf *m0)
 		/*
 		 * Writable mbufs are left alone (for now).
 		 */
-		if (!MEXT_IS_REF(m)) {
+		if (M_WRITABLE(m)) {
 			mprev = m;
 			continue;
 		}
