@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_types.h>
+#include <net/if_media.h>
 
 #include <net/bpf.h>
 
@@ -91,6 +92,8 @@ Static void	 cdce_init(void *);
 Static void	 cdce_reset(struct cdce_softc *);
 Static void	 cdce_stop(struct cdce_softc *);
 Static void	 cdce_rxstart(struct ifnet *);
+Static int	 cdce_ifmedia_upd(struct ifnet *ifp);
+Static void	 cdce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 
 Static const struct cdce_type cdce_devs[] = {
   {{ USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PL2501 }, CDCE_NO_UNION },
@@ -255,6 +258,7 @@ USB_ATTACH(cdce)
 
 	mtx_init(&sc->cdce_mtx, USBDEVNAME(sc->cdce_dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
+	ifmedia_init(&sc->cdce_ifmedia, 0, cdce_ifmedia_upd, cdce_ifmedia_sts);
 	CDCE_LOCK(sc);
 
 	ue = (const usb_cdc_ethernet_descriptor_t *)usb_find_desc(dev,
@@ -305,6 +309,10 @@ USB_ATTACH(cdce)
 	sc->q.ifp = ifp;
 	sc->q.if_rxstart = cdce_rxstart;
 
+	/* No IFM type for 11Mbps USB, so go with 10baseT */
+	ifmedia_add(&sc->cdce_ifmedia, IFM_ETHER | IFM_10_T, 0, 0);
+	ifmedia_set(&sc->cdce_ifmedia, IFM_ETHER | IFM_10_T);
+
 	ether_ifattach(ifp, eaddr);
 	usb_register_netisr();
 
@@ -329,6 +337,7 @@ USB_DETACH(cdce)
 
 	ether_ifdetach(ifp);
 	if_free(ifp);
+	ifmedia_removeall(&sc->cdce_ifmedia);
 	CDCE_UNLOCK(sc);
 	mtx_destroy(&sc->cdce_mtx);
 
@@ -468,6 +477,7 @@ Static int
 cdce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct cdce_softc	*sc = ifp->if_softc;
+	struct ifreq		*ifr = (struct ifreq *)data;
 	int			 error = 0;
 
 	if (sc->cdce_dying)
@@ -483,6 +493,11 @@ cdce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				cdce_stop(sc);
 		}
 		error = 0;
+		break;
+
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &sc->cdce_ifmedia, command);
 		break;
 
 	default:
@@ -715,4 +730,20 @@ cdce_rxstart(struct ifnet *ifp)
 
 	CDCE_UNLOCK(sc);
 	return;
+}
+
+Static int
+cdce_ifmedia_upd(struct ifnet *ifp)
+{
+
+	/* no-op, cdce has only 1 possible media type */
+	return 0;
+}
+
+Static void
+cdce_ifmedia_sts(struct ifnet * const ifp, struct ifmediareq *req)
+{
+
+	req->ifm_status = IFM_AVALID | IFM_ACTIVE;
+	req->ifm_active = IFM_ETHER | IFM_10_T;
 }
