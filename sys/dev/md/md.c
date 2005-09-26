@@ -68,6 +68,7 @@
 #include <sys/malloc.h>
 #include <sys/mdioctl.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
@@ -112,14 +113,12 @@ static g_access_t g_md_access;
 
 static int	mdunits;
 static struct cdev *status_dev = 0;
-static struct mtx md_mtx;
-MTX_SYSINIT(md_mtx, &md_mtx, "md", MTX_DEF);
+static struct sx md_sx;
 
 static d_ioctl_t mdctlioctl;
 
 static struct cdevsw mdctl_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =	mdctlioctl,
 	.d_name =	MD_NAME,
 };
@@ -166,6 +165,7 @@ struct md_s {
 	struct proc *procp;
 	struct g_geom *gp;
 	struct g_provider *pp;
+	int (*start)(struct md_s *sc, struct bio *bp);
 
 	/* MD_MALLOC related fields */
 	struct indir *indir;
@@ -183,8 +183,6 @@ struct md_s {
 	/* MD_SWAP related fields */
 	vm_object_t object;
 };
-
-static int mddestroy(struct md_s *sc, struct thread *td);
 
 static struct indir *
 new_indir(u_int shift)
@@ -385,8 +383,6 @@ g_md_start(struct bio *bp)
 	wakeup(sc);
 }
 
-
-
 static int
 mdstart_malloc(struct md_s *sc, struct bio *bp)
 {
@@ -481,6 +477,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	struct iovec aiov;
 	struct mount *mp;
 
+	mtx_assert(&Giant, MA_OWNED);
 	/*
 	 * VNODE I/O
 	 *
@@ -652,17 +649,16 @@ md_kthread(void *arg)
 	}
 	
 	for (;;) {
+		if (sc->flags & MD_SHUTDOWN) {
+			sc->procp = NULL;
+			wakeup(&sc->procp);
+			if (hasgiant)
+				mtx_unlock(&Giant);
+			kthread_exit(0);
+		}
 		mtx_lock(&sc->queue_mtx);
 		bp = bioq_takefirst(&sc->bio_queue);
 		if (!bp) {
-			if (sc->flags & MD_SHUTDOWN) {
-				mtx_unlock(&sc->queue_mtx);
-				sc->procp = NULL;
-				wakeup(&sc->procp);
-				if (hasgiant)
-					mtx_unlock(&Giant);
-				kthread_exit(0);
-			}
 			msleep(sc, &sc->queue_mtx, PRIBIO | PDROP, "mdwait", 0);
 			continue;
 		}
@@ -677,25 +673,7 @@ md_kthread(void *arg)
 			else
 				error = EOPNOTSUPP;
 		} else {
-			switch (sc->type) {
-			case MD_MALLOC:
-				error = mdstart_malloc(sc, bp);
-				break;
-			case MD_PRELOAD:
-				error = mdstart_preload(sc, bp);
-				break;
-			case MD_VNODE:
-				mtx_assert(&Giant, MA_OWNED);
-				error = mdstart_vnode(sc, bp);
-				mtx_assert(&Giant, MA_OWNED);
-				break;
-			case MD_SWAP:
-				error = mdstart_swap(sc, bp);
-				break;
-			default:
-				panic("Impossible md(type)");
-				break;
-			}
+			error = sc->start(sc, bp);
 		}
 
 		if (error != -1) {
@@ -710,12 +688,10 @@ mdfind(int unit)
 {
 	struct md_s *sc;
 
-	mtx_lock(&md_mtx);
 	LIST_FOREACH(sc, &md_softc_list, list) {
 		if (sc->unit == unit)
 			break;
 	}
-	mtx_unlock(&md_mtx);
 	return (sc);
 }
 
@@ -725,40 +701,31 @@ mdnew(int unit, int *errp)
 	struct md_s *sc, *sc2;
 	int error, max = -1;
 
-	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
-	bioq_init(&sc->bio_queue);
-	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
-	mtx_lock(&md_mtx);
+	*errp = 0;
 	LIST_FOREACH(sc2, &md_softc_list, list) {
-		if (sc2->unit == unit) {
-			mtx_unlock(&md_mtx);
-			mtx_destroy(&sc->queue_mtx);
-			free(sc, M_MD);
-			if (errp != NULL)
-				*errp = EBUSY;
+		if (unit == sc2->unit) {
+			*errp = EBUSY;
 			return (NULL);
 		}
-		if (sc2->unit > max)
+		if (unit == -1 && sc2->unit > max) 
 			max = sc2->unit;
 	}
 	if (unit == -1)
 		unit = max + 1;
+	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
+	bioq_init(&sc->bio_queue);
+	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
 	sc->unit = unit;
 	sprintf(sc->name, "md%d", unit);
 	LIST_INSERT_HEAD(&md_softc_list, sc, list);
-	mtx_unlock(&md_mtx);
 	error = kthread_create(md_kthread, sc, &sc->procp, 0, 0,"%s", sc->name);
-	if (error != 0) {
-		mtx_lock(&md_mtx);
-		LIST_REMOVE(sc, list);
-		mtx_unlock(&md_mtx);
-		mtx_destroy(&sc->queue_mtx);
-		free(sc, M_MD);
-		if (errp != NULL)
-			*errp = error;
-		return (NULL);
-	}
-	return (sc);
+	if (error == 0)
+		return (sc);
+	LIST_REMOVE(sc, list);
+	mtx_destroy(&sc->queue_mtx);
+	free(sc, M_MD);
+	*errp = error;
+	return (NULL);
 }
 
 static void
@@ -768,7 +735,6 @@ mdinit(struct md_s *sc)
 	struct g_geom *gp;
 	struct g_provider *pp;
 
-	DROP_GIANT();
 	g_topology_lock();
 	gp = g_new_geomf(&g_md_class, "md%d", sc->unit);
 	gp->softc = sc;
@@ -779,7 +745,6 @@ mdinit(struct md_s *sc)
 	sc->pp = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
-	PICKUP_GIANT();
 }
 
 /*
@@ -930,24 +895,16 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	return (0);
 }
 
-static void
-md_zapit(void *p, int cancel)
-{
-	if (cancel)
-		return;
-	g_wither_geom(p, ENXIO);
-}
-
 static int
 mddestroy(struct md_s *sc, struct thread *td)
 {
 
-	GIANT_REQUIRED;
 
-	mtx_destroy(&sc->queue_mtx);
 	if (sc->gp) {
 		sc->gp->softc = NULL;
-		g_waitfor_event(md_zapit, sc->gp, M_WAITOK, sc->gp, NULL);
+		g_topology_lock();
+		g_wither_geom(sc->gp, ENXIO);
+		g_topology_unlock();
 		sc->gp = NULL;
 		sc->pp = NULL;
 	}
@@ -955,9 +912,13 @@ mddestroy(struct md_s *sc, struct thread *td)
 	wakeup(sc);
 	while (sc->procp != NULL)
 		tsleep(&sc->procp, PRIBIO, "mddestroy", hz / 10);
-	if (sc->vnode != NULL)
+	mtx_destroy(&sc->queue_mtx);
+	if (sc->vnode != NULL) {
+		mtx_lock(&Giant);
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
 		    FREAD : (FREAD|FWRITE), sc->cred, td);
+		mtx_unlock(&Giant);
+	}
 	if (sc->cred != NULL)
 		crfree(sc->cred);
 	if (sc->object != NULL)
@@ -967,9 +928,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 	if (sc->uma)
 		uma_zdestroy(sc->uma);
 
-	mtx_lock(&md_mtx);
 	LIST_REMOVE(sc, list);
-	mtx_unlock(&md_mtx);
 	free(sc, M_MD);
 	return (0);
 }
@@ -979,8 +938,6 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 {
 	vm_ooffset_t npage;
 	int error;
-
-	GIANT_REQUIRED;
 
 	/*
 	 * Range check.  Disallow negative sizes or any size less then the
@@ -1020,29 +977,9 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	return (error);
 }
 
-static int
-mddetach(int unit, struct thread *td)
-{
-	struct md_s *sc;
-
-	sc = mdfind(unit);
-	if (sc == NULL)
-		return (ENOENT);
-	if (sc->opencount != 0 && !(sc->flags & MD_FORCE))
-		return (EBUSY);
-	switch(sc->type) {
-	case MD_VNODE:
-	case MD_SWAP:
-	case MD_MALLOC:
-	case MD_PRELOAD:
-		return (mddestroy(sc, td));
-	default:
-		return (EOPNOTSUPP);
-	}
-}
 
 static int
-mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct md_ioctl *mdio;
 	struct md_s *sc;
@@ -1052,6 +989,10 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
 			devtoname(dev), cmd, addr, flags, td);
 
+	mdio = (struct md_ioctl *)addr;
+	if (mdio->md_version != MDIOVERSION)
+		return (EINVAL);
+
 	/*
 	 * We assert the version number in the individual ioctl
 	 * handlers instead of out here because (a) it is possible we
@@ -1059,11 +1000,9 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 	 * mdio, and (b) the correct return value for an unknown ioctl
 	 * is ENOIOCTL, not EINVAL.
 	 */
-	mdio = (struct md_ioctl *)addr;
+	error = 0;
 	switch (cmd) {
 	case MDIOCATTACH:
-		if (mdio->md_version != MDIOVERSION)
-			return (EINVAL);
 		switch (mdio->md_type) {
 		case MD_MALLOC:
 		case MD_PRELOAD:
@@ -1090,15 +1029,19 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 		error = EDOOFUS;
 		switch (sc->type) {
 		case MD_MALLOC:
+			sc->start = mdstart_malloc;
 			error = mdcreate_malloc(sc, mdio);
 			break;
 		case MD_PRELOAD:
+			sc->start = mdstart_preload;
 			error = mdcreate_preload(sc, mdio);
 			break;
 		case MD_VNODE:
+			sc->start = mdstart_vnode;
 			error = mdcreate_vnode(sc, mdio, td);
 			break;
 		case MD_SWAP:
+			sc->start = mdstart_swap;
 			error = mdcreate_swap(sc, mdio, td);
 			break;
 		}
@@ -1106,17 +1049,24 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 			mddestroy(sc, td);
 			return (error);
 		}
+
+		/* Prune off any residual fractional sector */
+		i = sc->mediasize % sc->sectorsize;
+		sc->mediasize -= i;
+
 		mdinit(sc);
 		return (0);
 	case MDIOCDETACH:
-		if (mdio->md_version != MDIOVERSION)
-			return (EINVAL);
 		if (mdio->md_mediasize != 0 || mdio->md_options != 0)
 			return (EINVAL);
-		return (mddetach(mdio->md_unit, td));
+
+		sc = mdfind(mdio->md_unit);
+		if (sc == NULL)
+			return (ENOENT);
+		if (sc->opencount != 0 && !(sc->flags & MD_FORCE))
+			return (EBUSY);
+		return (mddestroy(sc, td));
 	case MDIOCQUERY:
-		if (mdio->md_version != MDIOVERSION)
-			return (EINVAL);
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
 			return (ENOENT);
@@ -1124,16 +1074,11 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 		mdio->md_options = sc->flags;
 		mdio->md_mediasize = sc->mediasize;
 		mdio->md_sectorsize = sc->sectorsize;
-		if (sc->type == MD_VNODE) {
+		if (sc->type == MD_VNODE)
 			error = copyout(sc->file, mdio->md_file,
 			    strlen(sc->file) + 1);
-			if (error != 0)
-				return (error);
-		}
-		return (0);
+		return (error);
 	case MDIOCLIST:
-		if (mdio->md_version != MDIOVERSION)
-			return (EINVAL);
 		i = 1;
 		LIST_FOREACH(sc, &md_softc_list, list) {
 			if (i == MDNPAD - 1)
@@ -1146,15 +1091,26 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 	default:
 		return (ENOIOCTL);
 	};
-	return (ENOIOCTL);
+}
+
+static int
+mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+{
+	int error; 
+
+	sx_xlock(&md_sx);
+	error = xmdctlioctl(dev, cmd, addr, flags, td);
+	sx_xunlock(&md_sx);
+	return (error);
 }
 
 static void
 md_preloaded(u_char *image, size_t length)
 {
 	struct md_s *sc;
+	int error;
 
-	sc = mdnew(-1, NULL);
+	sc = mdnew(-1, &error);
 	if (sc == NULL)
 		return;
 	sc->type = MD_PRELOAD;
@@ -1162,6 +1118,7 @@ md_preloaded(u_char *image, size_t length)
 	sc->sectorsize = DEV_BSIZE;
 	sc->pl_ptr = image;
 	sc->pl_len = length;
+	sc->start = mdstart_preload;
 #ifdef MD_ROOT
 	if (sc->unit == 0)
 		rootdevnames[0] = "ufs:/dev/md0";
@@ -1179,15 +1136,19 @@ g_md_init(struct g_class *mp __unused)
 	unsigned len;
 
 	mod = NULL;
+	sx_init(&md_sx, "MD config lock");
 	g_topology_unlock();
 #ifdef MD_ROOT_SIZE
-	md_preloaded(mfs_root, MD_ROOT_SIZE*1024);
+	sx_xlock(&md_sx);
+	md_preloaded(mfs_root, MD_ROOT_SIZE * 1024);
+	sx_xunlock(&md_sx);
 #endif
+	/* XXX: are preload_* static or do they need Giant ? */
 	while ((mod = preload_search_next_name(mod)) != NULL) {
 		name = (char *)preload_search_info(mod, MODINFO_NAME);
-		type = (char *)preload_search_info(mod, MODINFO_TYPE);
 		if (name == NULL)
 			continue;
+		type = (char *)preload_search_info(mod, MODINFO_TYPE);
 		if (type == NULL)
 			continue;
 		if (strcmp(type, "md_image") && strcmp(type, "mfs_root"))
@@ -1198,7 +1159,9 @@ g_md_init(struct g_class *mp __unused)
 		len = *(size_t *)c;
 		printf("%s%d: Preloaded image <%s> %d bytes at %p\n",
 		    MD_NAME, mdunits, name, len, ptr);
+		sx_xlock(&md_sx);
 		md_preloaded(ptr, len);
+		sx_xunlock(&md_sx);
 	}
 	status_dev = make_dev(&mdctl_cdevsw, MAXMINOR, UID_ROOT, GID_WHEEL,
 	    0600, MDCTL_NAME);
@@ -1209,6 +1172,7 @@ static void
 g_md_fini(struct g_class *mp __unused)
 {
 
+	sx_destroy(&md_sx);
 	if (status_dev != NULL)
 		destroy_dev(status_dev);
 }
