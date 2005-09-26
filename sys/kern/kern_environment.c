@@ -240,8 +240,8 @@ _getenv_dynamic(const char *name, int *idx)
 	sx_assert(&kenv_lock, SX_LOCKED);
 	len = strlen(name);
 	for (cp = kenvp[0], i = 0; cp != NULL; cp = kenvp[++i]) {
-		if ((cp[len] == '=') &&
-		    (strncmp(cp, name, len) == 0)) {
+		if ((strncmp(cp, name, len) == 0) &&
+		    (cp[len] == '=')) {
 			if (idx != NULL)
 				*idx = i;
 			return (cp + len + 1);
