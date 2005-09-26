@@ -31,7 +31,7 @@ CFLAGS+=-D__FBSDID=__RCSID
 main.o shell.o: ${MAKEFILE}
 
 # Directive and keyword tables. We use hash tables. These hash tables have been
-# generated with mph which can be found on the usual GNU mirrors.
+# generated with mph (ports/devel/mph)
 # If you change the directives or keywords (adding, deleting, reordering) you
 # need to create new tables and hash functions (directive_hash, keyword_hash).
 #
