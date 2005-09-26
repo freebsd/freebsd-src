@@ -62,6 +62,7 @@
 #define IWI_CSR_RX_BASE		0x0500
 #define IWI_CSR_TABLE0_SIZE	0x0700
 #define IWI_CSR_TABLE0_BASE	0x0704
+#define IWI_CSR_NODE_BASE	0x0c0c 
 #define IWI_CSR_CMD_WIDX	0x0f80
 #define IWI_CSR_TX1_WIDX	0x0f84
 #define IWI_CSR_TX2_WIDX	0x0f88
@@ -223,6 +224,8 @@ struct iwi_tx_desc {
 #define IWI_DATA_FLAG_NEED_ACK		0x80
 
 	uint8_t		xflags;
+#define IWI_DATA_XFLAG_QOS	0x10
+
 	uint8_t		wep_txkey;
 	uint8_t		wepkey[IEEE80211_KEYBUF_SIZE];
 	uint8_t		rate;
@@ -254,15 +257,23 @@ struct iwi_cmd_desc {
 #define IWI_CMD_ASSOCIATE			21
 #define IWI_CMD_SET_RATES			22
 #define IWI_CMD_ABORT_SCAN			23
+#define IWI_CMD_SET_WME_PARAMS			25
 #define IWI_CMD_SET_OPTIE			31
 #define IWI_CMD_DISABLE				33
 #define IWI_CMD_SET_IV				34
 #define IWI_CMD_SET_TX_POWER			35
 #define IWI_CMD_SET_SENSITIVITY			42
+#define IWI_CMD_SET_WMEIE			84
 
 	uint8_t		len;
 	uint16_t	reserved;
 	uint8_t		data[120];
+} __packed;
+
+/* node information (IBSS) */
+struct iwi_ibssnode {
+	uint8_t	bssid[IEEE80211_ADDR_LEN];
+	uint8_t	reserved[2];
 } __packed;
 
 /* constants for 'mode' fields */
@@ -308,7 +319,8 @@ struct iwi_associate {
 	uint8_t		type;
 	uint8_t		reserved1;
 	uint16_t	policy;
-#define IWI_POLICY_OPTIE	2
+#define IWI_POLICY_WME	1
+#define IWI_POLICY_WPA	2
 
 	uint8_t		plen;
 	uint8_t		mode;
@@ -326,7 +338,9 @@ struct iwi_associate {
 struct iwi_scan {
 	uint8_t		type;
 #define IWI_SCAN_TYPE_PASSIVE	1
+#define IWI_SCAN_TYPE_DIRECTED	2
 #define IWI_SCAN_TYPE_BROADCAST	3
+#define IWI_SCAN_TYPE_BDIRECTED	4
 
 	uint16_t	dwelltime;
 	uint8_t		channels[54];
@@ -371,6 +385,15 @@ struct iwi_wep_key {
 	uint8_t	key[IEEE80211_KEYBUF_SIZE];
 } __packed;
 
+/* structure for command IWI_CMD_SET_WME_PARAMS */
+struct iwi_wme_params {
+	uint16_t	cwmin[WME_NUM_AC];
+	uint16_t	cwmax[WME_NUM_AC];
+	uint8_t		aifsn[WME_NUM_AC];
+	uint8_t		acm[WME_NUM_AC];
+	uint16_t	burst[WME_NUM_AC];
+} __packed;
+
 #define IWI_MEM_EEPROM_CTL	0x00300040
 
 #define IWI_EEPROM_MAC	0x21
@@ -409,6 +432,10 @@ struct iwi_wep_key {
 
 #define CSR_WRITE_4(sc, reg, val)					\
 	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
+
+#define CSR_WRITE_REGION_1(sc, offset, datap, count)			\
+	bus_space_write_region_1((sc)->sc_st, (sc)->sc_sh, (offset),	\
+	    (datap), (count))
 
 /*
  * indirect memory space access macros

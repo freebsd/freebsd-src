@@ -86,6 +86,8 @@ struct iwi_tx_ring {
 	bus_dma_tag_t		data_dmat;
 	bus_dmamap_t		desc_map;
 	bus_addr_t		physaddr;
+	bus_addr_t		csr_ridx;
+	bus_addr_t		csr_widx;
 	struct iwi_tx_desc	*desc;
 	struct iwi_tx_data	*data;
 	int			count;
@@ -108,14 +110,22 @@ struct iwi_rx_ring {
 	int			cur;
 };
 
+struct iwi_node {
+	struct ieee80211_node	in_node;
+	int			in_station;
+#define IWI_MAX_IBSSNODE	32
+};
+
 struct iwi_softc {
 	struct ifnet		*sc_ifp;
 	struct ieee80211com	sc_ic;
 	int			(*sc_newstate)(struct ieee80211com *,
 				    enum ieee80211_state, int);
+	void			(*sc_node_free)(struct ieee80211_node *);
 	device_t		sc_dev;
 
 	struct mtx		sc_mtx;
+	struct unrhdr		*sc_unr;
 
 	struct iwi_firmware	fw;
 	uint32_t		flags;
@@ -125,7 +135,7 @@ struct iwi_softc {
 #define IWI_FLAG_SCANNING	(1 << 3)
 
 	struct iwi_cmd_ring	cmdq;
-	struct iwi_tx_ring	txq;
+	struct iwi_tx_ring	txq[WME_NUM_AC];
 	struct iwi_rx_ring	rxq;
 
 	struct resource		*irq;
