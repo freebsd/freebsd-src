@@ -227,13 +227,15 @@ i386_extend_pcb(struct thread *td)
 	ssd.ssd_limit -= ((unsigned)&ext->ext_tss - (unsigned)ext);
 	ssdtosd(&ssd, &ext->ext_tssd);
 
-	KASSERT(td->td_proc == curthread->td_proc, ("giving TSS to !curproc"));
+	KASSERT(td == curthread, ("giving TSS to !curthread"));
 	KASSERT(td->td_pcb->pcb_ext == 0, ("already have a TSS!"));
+
+	/* Switch to the new TSS. */
 	mtx_lock_spin(&sched_lock);
 	td->td_pcb->pcb_ext = ext;
-	
-	/* switch to the new TSS after syscall completes */
-	td->td_flags |= TDF_NEEDRESCHED;
+	private_tss |= PCPU_GET(cpumask);
+	*PCPU_GET(tss_gdt) = ext->ext_tssd;
+	ltr(GSEL(GPROC0_SEL, SEL_KPL));
 	mtx_unlock_spin(&sched_lock);
 
 	return 0;
