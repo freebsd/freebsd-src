@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <ddb/ddb.h>
 
 static struct pcpu *cpuid_to_pcpu[MAXCPU];
@@ -97,21 +98,12 @@ pcpu_find(u_int cpuid)
 }
 
 #ifdef DDB
-DB_SHOW_COMMAND(pcpu, db_show_pcpu)
-{
-	struct pcpu *pc;
-	struct thread *td;
-	int id;
 
-	if (have_addr)
-		id = ((addr >> 4) % 16) * 10 + (addr % 16);
-	else
-		id = PCPU_GET(cpuid);
-	pc = pcpu_find(id);
-	if (pc == NULL) {
-		db_printf("CPU %d not found\n", id);
-		return;
-	}
+static void
+show_pcpu(struct pcpu *pc)
+{
+	struct thread *td;
+
 	db_printf("cpuid        = %d\n", pc->pc_cpuid);
 	db_printf("curthread    = ");
 	td = pc->pc_curthread;
@@ -141,5 +133,37 @@ DB_SHOW_COMMAND(pcpu, db_show_pcpu)
 	db_printf("spin locks held:\n");
 	witness_list_locks(&pc->pc_spinlocks);
 #endif
+}
+
+DB_SHOW_COMMAND(pcpu, db_show_pcpu)
+{
+	struct pcpu *pc;
+	int id;
+
+	if (have_addr)
+		id = ((addr >> 4) % 16) * 10 + (addr % 16);
+	else
+		id = PCPU_GET(cpuid);
+	pc = pcpu_find(id);
+	if (pc == NULL) {
+		db_printf("CPU %d not found\n", id);
+		return;
+	}
+	show_pcpu(pc);
+}
+
+DB_SHOW_COMMAND(allpcpu, db_show_cpu_all)
+{
+	struct pcpu *pc;
+	int id;
+
+	db_printf("Current CPU: %d\n\n", PCPU_GET(cpuid));
+	for (id = 0; id < mp_maxid; id++) {
+		pc = pcpu_find(id);
+		if (pc != NULL) {
+			show_pcpu(pc);
+			db_printf("\n");
+		}
+	}
 }
 #endif
