@@ -228,9 +228,9 @@ static void
 parse_mode(char *arg, int *mode, int ch)
 {
 
-	if (strcmp(arg, "min") == 0)
+	if (strcmp(arg, "minimum") == 0 || strcmp(arg, "min") == 0)
 		*mode = MODE_MIN;
-	else if (strcmp(arg, "max") == 0)
+	else if (strcmp(arg, "maximum") == 0 || strcmp(arg, "max") == 0)
 		*mode = MODE_MAX;
 	else if (strcmp(arg, "adaptive") == 0)
 		*mode = MODE_ADAPTIVE;
