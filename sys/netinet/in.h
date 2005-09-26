@@ -416,6 +416,7 @@ __END_DECLS
 
 #define	IP_RECVTTL		65   /* bool; receive IP TTL w/dgram */
 #define	IP_MINTTL		66   /* minimum TTL for packet or drop */
+#define	IP_DONTFRAG		67   /* don't fragment packet */
 
 /*
  * Defaults and limits for options
