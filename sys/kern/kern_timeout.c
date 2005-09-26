@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 
 static int avg_depth;
@@ -71,9 +72,6 @@ int callwheelsize, callwheelbits, callwheelmask;
 struct callout_tailq *callwheel;
 int softticks;			/* Like ticks, but for softclock(). */
 struct mtx callout_lock;
-#ifdef DIAGNOSTIC
-struct mtx dont_sleep_in_callout;
-#endif
 
 static struct callout *nextsoftcheck;	/* Next callout to be checked. */
 
@@ -159,9 +157,6 @@ kern_timeout_callwheel_init(void)
 		TAILQ_INIT(&callwheel[i]);
 	}
 	mtx_init(&callout_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
-#ifdef DIAGNOSTIC
-	mtx_init(&dont_sleep_in_callout, "dont_sleep_in_callout", NULL, MTX_DEF);
-#endif
 	mtx_init(&callout_wait_lock, "callout_wait_lock", NULL, MTX_DEF);
 	cv_init(&callout_wait, "callout_wait");
 }
@@ -290,11 +285,11 @@ softclock(void *dummy)
 				}
 #ifdef DIAGNOSTIC
 				binuptime(&bt1);
-				mtx_lock(&dont_sleep_in_callout);
 #endif
+				THREAD_NO_SLEEPING();
 				c_func(c_arg);
+				THREAD_SLEEPING_OK();
 #ifdef DIAGNOSTIC
-				mtx_unlock(&dont_sleep_in_callout);
 				binuptime(&bt2);
 				bintime_sub(&bt2, &bt1);
 				if (bt2.frac > maxdt) {
