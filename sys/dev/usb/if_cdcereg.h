@@ -45,6 +45,7 @@ struct cdce_type {
 struct cdce_softc {
 	struct ifnet		 *cdce_ifp;
 #define GET_IFP(sc) ((sc)->cdce_ifp)
+	struct ifmedia		 cdce_ifmedia;
 
 	usbd_device_handle	 cdce_udev;
 	usbd_interface_handle	 cdce_data_iface;
