@@ -142,6 +142,12 @@ device		npx
 #device		"snd_sb16"	# Sound Blaster 16
 #device		snd_sbc		# Sound Blaster
 
+# PCCARD (PCMCIA) support
+# PCMCIA and cardbus bridge support
+device		cbb		# cardbus (yenta) bridge
+device		pccard		# PC Card (16-bit) bus
+device		cardbus		# CardBus (32-bit) bus
+
 # Serial (COM) ports
 options 	COM_MULTIPORT
 #options 	COM_ESP		# ESP98
