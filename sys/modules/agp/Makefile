@@ -18,7 +18,7 @@ SRCS+=	agp_amd.c
 SRCS+=	agp_amd64.c
 .endif
 SRCS+=	device_if.h bus_if.h agp_if.h pci_if.h
-SRCS+=	opt_bdg.h opt_bus.h
+SRCS+=	opt_bus.h
 MFILES=	kern/device_if.m kern/bus_if.m pci/agp_if.m dev/pci/pci_if.m
 WERROR=
 

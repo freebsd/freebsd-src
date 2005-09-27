@@ -40,7 +40,7 @@
 
 KMOD=	if_ath
 SRCS=	if_ath.c if_ath_pci.c
-SRCS+=	opt_bdg.h device_if.h bus_if.h pci_if.h opt_inet.h
+SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h
 
 HAL=	${.CURDIR}/../../contrib/dev/ath
 CFLAGS+=  -I. -I${HAL}/freebsd -I${HAL}

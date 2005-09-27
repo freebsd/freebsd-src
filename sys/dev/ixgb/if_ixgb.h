@@ -78,7 +78,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
-#include "opt_bdg.h"
 
 #include <dev/ixgb/ixgb_hw.h>
 #include <dev/ixgb/ixgb_ee.h>

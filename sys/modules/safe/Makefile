@@ -30,7 +30,7 @@
 KMOD	= safe
 SRCS	= safe.c opt_safe.h
 SRCS   += device_if.h bus_if.h pci_if.h
-SRCS   += opt_bdg.h opt_bus.h crypto_if.h
+SRCS   += opt_bus.h crypto_if.h
 
 opt_safe.h:
 	echo "#define SAFE_DEBUG 1" > opt_safe.h

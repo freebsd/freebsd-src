@@ -2,6 +2,6 @@
 
 .PATH:  ${.CURDIR}/../../netinet
 KMOD=   dummynet
-SRCS=   ip_dummynet.c opt_bdg.h
+SRCS=   ip_dummynet.c
 
 .include <bsd.kmod.mk>
