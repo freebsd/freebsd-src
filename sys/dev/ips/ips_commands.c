@@ -62,7 +62,7 @@ static void ips_io_request_finish(ips_command_t *command)
 	if(COMMAND_ERROR(command)){
 		iobuf->bio_flags |=BIO_ERROR;
 		iobuf->bio_error = EIO;
-		printf("ips: io error, status= \n", command->status.value);
+		printf("ips: io error, status= 0x%x\n", command->status.value);
 	}
 	ips_insert_free_cmd(command->sc, command);
 	ipsd_finish(iobuf);
