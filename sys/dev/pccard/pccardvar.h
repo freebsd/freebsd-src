@@ -30,8 +30,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-extern int	pccard_verbose;
-
 /*
  * PCCARD_API_LEVEL.  When set to 5, we provide a 5.x compatable API
  * for driver writers that have to share their code between 5.x and 6.x.
@@ -71,153 +69,14 @@ struct pccard_mem_handle {
 	int		kind;
 };
 
-/* pccard itself */
-
-#define PCCARD_MEM_PAGE_SIZE		4096
-
-#define PCCARD_CFE_MWAIT_REQUIRED	0x0001
-#define PCCARD_CFE_RDYBSY_ACTIVE	0x0002
-#define PCCARD_CFE_WP_ACTIVE		0x0004
-#define PCCARD_CFE_BVD_ACTIVE		0x0008
-#define PCCARD_CFE_IO8			0x0010
-#define PCCARD_CFE_IO16			0x0020
-#define PCCARD_CFE_IRQSHARE		0x0040
-#define PCCARD_CFE_IRQPULSE		0x0080
-#define PCCARD_CFE_IRQLEVEL		0x0100
-#define PCCARD_CFE_POWERDOWN		0x0200
-#define PCCARD_CFE_READONLY		0x0400
-#define PCCARD_CFE_AUDIO		0x0800
-
-struct pccard_config_entry {
-	int		number;
-	uint32_t	flags;
-	int		iftype;
-	int		num_iospace;
-
-	/*
-	 * The card will only decode this mask in any case, so we can
-	 * do dynamic allocation with this in mind, in case the suggestions
-	 * below are no good.
-	 */
-	u_long		iomask;
-	struct {
-		u_long	length;
-		u_long	start;
-	} iospace[4];		/* XXX this could be as high as 16 */
-	uint16_t	irqmask;
-	int		num_memspace;
-	struct {
-		u_long	length;
-		u_long	cardaddr;
-		u_long	hostaddr;
-	} memspace[2];		/* XXX this could be as high as 8 */
-	int		maxtwins;
-	STAILQ_ENTRY(pccard_config_entry) cfe_list;
-};
-
-struct pccard_funce_disk {
-	int pfd_interface;
-};
-
-struct pccard_funce_lan {
-	int pfl_nidlen;
-	uint8_t pfl_nid[8];
-};
-
-union pccard_funce {
-	struct pccard_funce_disk pfv_disk;
-	struct pccard_funce_lan pfv_lan;
-};
-
-struct pccard_function {
-	/* read off the card */
-	int		number;
-	int		function;
-	int		last_config_index;
-	uint32_t	ccr_base;	/* Offset with card's memory */
-	uint32_t	ccr_mask;
-	struct resource *ccr_res;
-	int		ccr_rid;
-	STAILQ_HEAD(, pccard_config_entry) cfe_head;
-	STAILQ_ENTRY(pccard_function) pf_list;
-	/* run-time state */
-	struct pccard_softc *sc;
-	struct pccard_config_entry *cfe;
-	struct pccard_mem_handle pf_pcmh;
-	device_t	dev;
-#define	pf_ccrt		pf_pcmh.memt
-#define	pf_ccrh		pf_pcmh.memh
-#define	pf_ccr_realsize	pf_pcmh.realsize
-	uint32_t	pf_ccr_offset;	/* Offset from ccr_base of CIS */
-	int		pf_ccr_window;
-	bus_addr_t	pf_mfc_iobase;
-	bus_addr_t	pf_mfc_iomax;
-	int		pf_flags;
-	driver_intr_t	*intr_handler;
-	void		*intr_handler_arg;
-	void		*intr_handler_cookie;
-
-	union pccard_funce pf_funce; /* CISTPL_FUNCE */
-#define pf_funce_disk_interface pf_funce.pfv_disk.pfd_interface
-#define pf_funce_lan_nid pf_funce.pfv_lan.pfl_nid
-#define pf_funce_lan_nidlen pf_funce.pfv_lan.pfl_nidlen
-};
-
-/* pf_flags */
-#define	PFF_ENABLED	0x0001		/* function is enabled */
-
-struct pccard_card {
-	int		cis1_major;
-	int		cis1_minor;
-	/* XXX waste of space? */
-	char		cis1_info_buf[256];
-	char		*cis1_info[4];
-	/*
-	 * Use int32_t for manufacturer and product so that they can
-	 * hold the id value found in card CIS and special value that
-	 * indicates no id was found.
-	 */
-	int32_t		manufacturer;
-#define	PCMCIA_VENDOR_INVALID	-1
-	int32_t		product;
-#define	PCMCIA_PRODUCT_INVALID		-1
-	int16_t		prodext;
-	uint16_t	error;
-#define	PCMCIA_CIS_INVALID		{ NULL, NULL, NULL, NULL }
-	STAILQ_HEAD(, pccard_function) pf_head;
-};
-
 #define	PCCARD_WIDTH_AUTO	0
 #define	PCCARD_WIDTH_IO8	1
 #define	PCCARD_WIDTH_IO16	2
 
-/* More later? */
-struct pccard_ivar {
-	struct resource_list resources;
-	struct pccard_function *pf;
-};
-
-struct pccard_softc {
-	device_t		dev;
-	/* this stuff is for the socket */
-
-	/* this stuff is for the card */
-	struct pccard_card card;
-	int		sc_enabled_count;	/* num functions enabled */
-};
-
-struct pccard_cis_quirk {
-	int32_t manufacturer;
-	int32_t product;
-	char *cis1_info[4];
-	struct pccard_function *pf;
-	struct pccard_config_entry *cfe;
-};
-
 struct pccard_tuple {
 	unsigned int	code;
 	unsigned int	length;
-	u_long		mult;
+	u_long		mult;		/* dist btn successive bytes */
 	bus_addr_t	ptr;
 	bus_space_tag_t	memt;
 	bus_space_handle_t memh;
@@ -226,9 +85,9 @@ struct pccard_tuple {
 typedef int (*pccard_scan_t)(const struct pccard_tuple *, void *);
 
 struct pccard_product {
-	const char	*pp_name;		/* NULL if end of table */
+	const char	*pp_name;
 #define PCCARD_VENDOR_ANY (0xffffffff)
-	uint32_t	pp_vendor;
+	uint32_t	pp_vendor;		/* 0 == end of table */
 #define PCCARD_PRODUCT_ANY (0xffffffff)
 	uint32_t	pp_product;
 	const char	*pp_cis[4];
@@ -250,11 +109,6 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 	return CARD_DO_PRODUCT_LOOKUP(device_get_parent(dev), dev,
 	    tab, ent_size, matchfn);
 }
-
-void	pccard_read_cis(struct pccard_softc *);
-void	pccard_check_cis_quirks(device_t);
-void	pccard_print_cis(device_t);
-int	pccard_scan_cis(device_t, device_t, pccard_scan_t, void *);
 
 #define	pccard_cis_read_1(tuple, idx0)					\
 	(bus_space_read_1((tuple)->memt, (tuple)->memh, (tuple)->mult*(idx0)))
@@ -375,9 +229,6 @@ enum {
 	PCCARD_A_MEM_8BIT,      /* 8 bit */
 	PCCARD_A_MEM_16BIT      /* 16 bit */
 };
-
-#define PCCARD_SOFTC(d) (struct pccard_softc *) device_get_softc(d)
-#define PCCARD_IVAR(d) (struct pccard_ivar *) device_get_ivars(d)
 
 #define PCCARD_S(a, b) PCMCIA_STR_ ## a ## _ ## b
 #define PCCARD_P(a, b) PCMCIA_PRODUCT_ ## a ## _ ## b
