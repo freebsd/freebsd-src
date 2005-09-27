@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/refcount.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -364,12 +365,11 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		/*
 		 * XXX: This credential should be managed using crget(9)
 		 * and related calls.  Right now, this tramples on any
-		 * extensible data in the ucred, fails to initialize the
-		 * mutex, and worse.  This must be fixed before FreeBSD
-		 * 5.3-RELEASE.
+		 * extensible data in the ucred, and worse.  This wasn't
+		 * fixed before FreeBSD 5.3-RELEASE.
 		 */
 		bzero((caddr_t)&nd->nd_cr, sizeof (struct ucred));
-		nd->nd_cr.cr_ref = 1;
+		refcount_init(&nd->nd_cr.cr_ref, 1);
 		nd->nd_cr.cr_uid = fxdr_unsigned(uid_t, *tl++);
 		nd->nd_cr.cr_gid = fxdr_unsigned(gid_t, *tl++);
 		len = fxdr_unsigned(int, *tl);

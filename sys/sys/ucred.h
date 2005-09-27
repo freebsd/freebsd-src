@@ -55,7 +55,6 @@ struct ucred {
 	struct prison	*cr_prison;	/* jail(2) */
 #define	cr_endcopy	cr_label
 	struct label	*cr_label;	/* MAC label */
-	struct mtx	*cr_mtxp;      	/* protect refcount */
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
