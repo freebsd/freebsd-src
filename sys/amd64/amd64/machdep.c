@@ -189,8 +189,8 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
-	    ptoa((uintmax_t)Maxmem) / 1048576);
+	printf("usable memory  = %ju (%ju MB)\n", ptoa((uintmax_t)physmem),
+	    ptoa((uintmax_t)physmem) / 1048576);
 	realmem = Maxmem;
 	/*
 	 * Display any holes after the first chunk of extended memory.
