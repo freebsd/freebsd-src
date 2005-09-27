@@ -613,16 +613,16 @@
 				    acl_type_t type, struct acl *aclp); }
 354	AUE_NULL	MSTD	{ int __acl_aclcheck_fd(int filedes, \
 				    acl_type_t type, struct acl *aclp); }
-355	AUE_NULL	STD	{ int extattrctl(const char *path, int cmd, \
+355	AUE_NULL	MSTD	{ int extattrctl(const char *path, int cmd, \
 				    const char *filename, int attrnamespace, \
 				    const char *attrname); }
-356	AUE_NULL	STD	{ int extattr_set_file(const char *path, \
+356	AUE_NULL	MSTD	{ int extattr_set_file(const char *path, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
-357	AUE_NULL	STD	{ ssize_t extattr_get_file(const char *path, \
+357	AUE_NULL	MSTD	{ ssize_t extattr_get_file(const char *path, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
-358	AUE_NULL	STD	{ int extattr_delete_file(const char *path, \
+358	AUE_NULL	MSTD	{ int extattr_delete_file(const char *path, \
 				    int attrnamespace, \
 				    const char *attrname); }
 359	AUE_NULL	NOSTD	{ int aio_waitcomplete( \
@@ -644,13 +644,13 @@
 368	AUE_NULL	UNIMPL	__cap_set_fd
 369	AUE_NULL	UNIMPL	__cap_set_file
 370	AUE_NULL	NODEF	lkmressys lkmressys nosys_args int
-371	AUE_NULL	STD	{ int extattr_set_fd(int fd, \
+371	AUE_NULL	MSTD	{ int extattr_set_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
-372	AUE_NULL	STD	{ ssize_t extattr_get_fd(int fd, \
+372	AUE_NULL	MSTD	{ ssize_t extattr_get_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
-373	AUE_NULL	STD	{ int extattr_delete_fd(int fd, \
+373	AUE_NULL	MSTD	{ int extattr_delete_fd(int fd, \
 				    int attrnamespace, \
 				    const char *attrname); }
 374	AUE_NULL	MSTD	{ int __setugid(int flag); }
@@ -713,13 +713,13 @@
 				    struct mac *mac_p); }
 411	AUE_NULL	MSTD	{ int __mac_set_link(const char *path_p, \
 				    struct mac *mac_p); }
-412	AUE_NULL	STD	{ int extattr_set_link(const char *path, \
+412	AUE_NULL	MSTD	{ int extattr_set_link(const char *path, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
-413	AUE_NULL	STD	{ ssize_t extattr_get_link(const char *path, \
+413	AUE_NULL	MSTD	{ ssize_t extattr_get_link(const char *path, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
-414	AUE_NULL	STD	{ int extattr_delete_link(const char *path, \
+414	AUE_NULL	MSTD	{ int extattr_delete_link(const char *path, \
 				    int attrnamespace, \
 				    const char *attrname); }
 415	AUE_NULL	MSTD	{ int __mac_execve(char *fname, char **argv, \
@@ -756,13 +756,13 @@
 434	AUE_NULL	MSTD	{ int _umtx_lock(struct umtx *umtx); }
 435	AUE_NULL	MSTD	{ int _umtx_unlock(struct umtx *umtx); }
 436	AUE_NULL	MSTD	{ int jail_attach(int jid); }
-437	AUE_NULL	STD	{ ssize_t extattr_list_fd(int fd, \
+437	AUE_NULL	MSTD	{ ssize_t extattr_list_fd(int fd, \
 				    int attrnamespace, void *data, \
 				    size_t nbytes); }
-438	AUE_NULL	STD	{ ssize_t extattr_list_file( \
+438	AUE_NULL	MSTD	{ ssize_t extattr_list_file( \
 				    const char *path, int attrnamespace, \
 				    void *data, size_t nbytes); }
-439	AUE_NULL	STD	{ ssize_t extattr_list_link( \
+439	AUE_NULL	MSTD	{ ssize_t extattr_list_link( \
 				    const char *path, int attrnamespace, \
 				    void *data, size_t nbytes); }
 440	AUE_NULL	MSTD	{ int kse_switchin( \
