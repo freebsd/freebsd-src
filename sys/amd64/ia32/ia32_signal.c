@@ -92,38 +92,14 @@ extern int _ucode32sel, _udatasel;
 static void
 ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp)
 {
-	struct savefpu *addr;
 
-	/*
-	 * XXX mc_fpstate might be misaligned, since its declaration is not
-	 * unportabilized using __attribute__((aligned(16))) like the
-	 * declaration of struct savemm, and anyway, alignment doesn't work
-	 * for auto variables since we don't use gcc's pessimal stack
-	 * alignment.  Work around this by abusing the spare fields after
-	 * mcp->mc_fpstate.
-	 *
-	 * XXX unpessimize most cases by only aligning when fxsave might be
-	 * called, although this requires knowing too much about
-	 * fpugetregs()'s internals.
-	 */
-	addr = (struct savefpu *)&mcp->mc_fpstate;
-	if (td == PCPU_GET(fpcurthread) && ((uintptr_t)(void *)addr & 0xF)) {
-		do
-			addr = (void *)((char *)addr + 4);
-		while ((uintptr_t)(void *)addr & 0xF);
-	}
-	mcp->mc_ownedfp = fpugetregs(td, addr);
-	if (addr != (struct savefpu *)&mcp->mc_fpstate) {
-		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
-		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
-	}
+	mcp->mc_ownedfp = fpugetregs(td, (struct savefpu *)&mcp->mc_fpstate);
 	mcp->mc_fpformat = fpuformat();
 }
 
 static int
 ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp)
 {
-	struct savefpu *addr;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
 		return (0);
@@ -134,28 +110,177 @@ ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp)
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		/* XXX align as above. */
-		addr = (struct savefpu *)&mcp->mc_fpstate;
-		if (td == PCPU_GET(fpcurthread) &&
-		    ((uintptr_t)(void *)addr & 0xF)) {
-			do
-				addr = (void *)((char *)addr + 4);
-			while ((uintptr_t)(void *)addr & 0xF);
-			bcopy(&mcp->mc_fpstate, addr, sizeof(mcp->mc_fpstate));
-		}
 		/*
 		 * XXX we violate the dubious requirement that fpusetregs()
 		 * be called with interrupts disabled.
 		 */
-		fpusetregs(td, addr);
-		/*
-		 * Don't bother putting things back where they were in the
-		 * misaligned case, since we know that the caller won't use
-		 * them again.
-		 */
+		fpusetregs(td, (struct savefpu *)&mcp->mc_fpstate);
 	} else
 		return (EINVAL);
 	return (0);
+}
+
+/*
+ * Get machine context.
+ */
+static int
+ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
+{
+	struct trapframe *tp;
+
+	tp = td->td_frame;
+
+	PROC_LOCK(curthread->td_proc);
+	mcp->mc_onstack = sigonstack(tp->tf_rsp);
+	PROC_UNLOCK(curthread->td_proc);
+	mcp->mc_gs = td->td_pcb->pcb_gs;
+	mcp->mc_fs = td->td_pcb->pcb_fs;
+	mcp->mc_es = td->td_pcb->pcb_es;
+	mcp->mc_ds = td->td_pcb->pcb_ds;
+	mcp->mc_edi = tp->tf_rdi;
+	mcp->mc_esi = tp->tf_rsi;
+	mcp->mc_ebp = tp->tf_rbp;
+	mcp->mc_isp = tp->tf_rsp;
+	if (flags & GET_MC_CLEAR_RET) {
+		mcp->mc_eax = 0;
+		mcp->mc_edx = 0;
+	} else {
+		mcp->mc_eax = tp->tf_rax;
+		mcp->mc_edx = tp->tf_rdx;
+	}
+	mcp->mc_ebx = tp->tf_rbx;
+	mcp->mc_ecx = tp->tf_rcx;
+	mcp->mc_eip = tp->tf_rip;
+	mcp->mc_cs = tp->tf_cs;
+	mcp->mc_eflags = tp->tf_rflags;
+	mcp->mc_esp = tp->tf_rsp;
+	mcp->mc_ss = tp->tf_ss;
+	mcp->mc_len = sizeof(*mcp);
+	ia32_get_fpcontext(td, mcp);
+	return (0);
+}
+
+/*
+ * Set machine context.
+ *
+ * However, we don't set any but the user modifiable flags, and we won't
+ * touch the cs selector.
+ */
+static int
+ia32_set_mcontext(struct thread *td, const struct ia32_mcontext *mcp)
+{
+	struct trapframe *tp;
+	long rflags;
+	int ret;
+
+	tp = td->td_frame;
+	if (mcp->mc_len != sizeof(*mcp))
+		return (EINVAL);
+	rflags = (mcp->mc_eflags & PSL_USERCHANGE) |
+	    (tp->tf_rflags & ~PSL_USERCHANGE);
+	ret = ia32_set_fpcontext(td, mcp);
+	if (ret != 0)
+		return (ret);
+#if 0	/* XXX deal with load_fs() and friends */
+	tp->tf_fs = mcp->mc_fs;
+	tp->tf_es = mcp->mc_es;
+	tp->tf_ds = mcp->mc_ds;
+#endif
+	tp->tf_rdi = mcp->mc_edi;
+	tp->tf_rsi = mcp->mc_esi;
+	tp->tf_rbp = mcp->mc_ebp;
+	tp->tf_rbx = mcp->mc_ebx;
+	tp->tf_rdx = mcp->mc_edx;
+	tp->tf_rcx = mcp->mc_ecx;
+	tp->tf_rax = mcp->mc_eax;
+	/* trapno, err */
+	tp->tf_rip = mcp->mc_eip;
+	tp->tf_rflags = rflags;
+	tp->tf_rsp = mcp->mc_esp;
+	tp->tf_ss = mcp->mc_ss;
+#if 0	/* XXX deal with load_gs() and friends */
+	td->td_pcb->pcb_gs = mcp->mc_gs;
+#endif
+	td->td_pcb->pcb_flags |= PCB_FULLCTX;
+	return (0);
+}
+
+/*
+ * The first two fields of a ucontext_t are the signal mask and
+ * the machine context.  The next field is uc_link; we want to
+ * avoid destroying the link when copying out contexts.
+ */
+#define	UC_COPY_SIZE	offsetof(struct ia32_ucontext, uc_link)
+
+int
+freebsd32_getcontext(struct thread *td, struct freebsd32_getcontext_args *uap)
+{
+	struct ia32_ucontext uc;
+	int ret;
+
+	if (uap->ucp == NULL)
+		ret = EINVAL;
+	else {
+		ia32_get_mcontext(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
+		PROC_LOCK(td->td_proc);
+		uc.uc_sigmask = td->td_sigmask;
+		PROC_UNLOCK(td->td_proc);
+		ret = copyout(&uc, uap->ucp, UC_COPY_SIZE);
+	}
+	return (ret);
+}
+
+int
+freebsd32_setcontext(struct thread *td, struct freebsd32_setcontext_args *uap)
+{
+	struct ia32_ucontext uc;
+	int ret;	
+
+	if (uap->ucp == NULL)
+		ret = EINVAL;
+	else {
+		ret = copyin(uap->ucp, &uc, UC_COPY_SIZE);
+		if (ret == 0) {
+			ret = ia32_set_mcontext(td, &uc.uc_mcontext);
+			if (ret == 0) {
+				SIG_CANTMASK(uc.uc_sigmask);
+				PROC_LOCK(td->td_proc);
+				td->td_sigmask = uc.uc_sigmask;
+				PROC_UNLOCK(td->td_proc);
+			}
+		}
+	}
+	return (ret == 0 ? EJUSTRETURN : ret);
+}
+
+int
+freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
+{
+	struct ia32_ucontext uc;
+	int ret;	
+
+	if (uap->oucp == NULL || uap->ucp == NULL)
+		ret = EINVAL;
+	else {
+		ia32_get_mcontext(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
+		PROC_LOCK(td->td_proc);
+		uc.uc_sigmask = td->td_sigmask;
+		PROC_UNLOCK(td->td_proc);
+		ret = copyout(&uc, uap->oucp, UC_COPY_SIZE);
+		if (ret == 0) {
+			ret = copyin(uap->ucp, &uc, UC_COPY_SIZE);
+			if (ret == 0) {
+				ret = ia32_set_mcontext(td, &uc.uc_mcontext);
+				if (ret == 0) {
+					SIG_CANTMASK(uc.uc_sigmask);
+					PROC_LOCK(td->td_proc);
+					td->td_sigmask = uc.uc_sigmask;
+					PROC_UNLOCK(td->td_proc);
+				}
+			}
+		}
+	}
+	return (ret == 0 ? EJUSTRETURN : ret);
 }
 
 /*
