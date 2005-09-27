@@ -365,6 +365,27 @@ atomic_cmpset_rel_64(volatile u_int64_t *p, u_int64_t cmpval, u_int64_t newval)
 	return (atomic_cmpset_64(p, cmpval, newval));
 }
 
+/*
+ * Atomically add the value of v to the integer pointed to by p and return
+ * the previous value of *p.
+ */
+static __inline u_int
+atomic_fetchadd_32(volatile u_int32_t *p, u_int32_t v)
+{
+	u_int32_t value, temp;
+
+#ifdef __GNUCLIKE_ASM
+	__asm __volatile (
+		"1:\tldl_l %0, %1\n\t"		/* load old value */
+		"addl %0, %3, %2\n\t"		/* calculate new value */
+		"stl_c %2, %1\n\t"		/* attempt to store */
+		"beq %2, 1b\n"			/* spin if failed */
+		: "=&r" (value), "=m" (*p), "=r" (temp)
+		: "r" (v), "m" (*p));
+#endif
+	return (value);
+}
+
 /* Operations on chars. */
 #define	atomic_set_char		atomic_set_8
 #define	atomic_set_acq_char	atomic_set_acq_8
@@ -412,6 +433,7 @@ atomic_cmpset_rel_64(volatile u_int64_t *p, u_int64_t cmpval, u_int64_t newval)
 #define	atomic_load_acq_int	atomic_load_acq_32
 #define	atomic_store_rel_int	atomic_store_rel_32
 #define	atomic_readandclear_int	atomic_readandclear_32
+#define	atomic_fetchadd_int	atomic_fetchadd_32
 
 /* Operations on longs. */
 #define	atomic_set_long		atomic_set_64
