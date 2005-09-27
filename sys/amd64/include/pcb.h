@@ -43,7 +43,6 @@
 #include <machine/fpu.h>
 
 struct pcb {
-	register_t	padxx[8];
 	register_t	pcb_cr3;
 	register_t	pcb_r15;
 	register_t	pcb_r14;
