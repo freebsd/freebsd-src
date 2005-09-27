@@ -74,20 +74,14 @@ struct fileops fifo_ops_f = {
 };
 
 /*
- * This structure is associated with the FIFO vnode and stores the state
- * associated with the FIFO.
- *
- * XXXRW: The presence of an sx lock here is undesirable, and exists to avoid
- * exposing threading race conditions in the socket code that have not yet
- * been resolved.  Once those problems are resolved, the sx lock here should
- * be removed.
+ * This structure is associated with the FIFO vnode and stores
+ * the state associated with the FIFO.
  */
 struct fifoinfo {
 	struct socket	*fi_readsock;
 	struct socket	*fi_writesock;
 	long		fi_readers;
 	long		fi_writers;
-	struct sx	fi_sx;
 };
 
 static vop_print_t	fifo_print;
@@ -158,7 +152,6 @@ fifo_cleanup(struct vnode *vp)
 		vp->v_fifoinfo = NULL;
 		(void)soclose(fip->fi_readsock);
 		(void)soclose(fip->fi_writesock);
-		sx_destroy(&fip->fi_sx);
 		FREE(fip, M_VNODE);
 	}
 }
@@ -187,8 +180,7 @@ fifo_open(ap)
 
 	ASSERT_VOP_LOCKED(vp, "fifo_open");
 	if ((fip = vp->v_fifoinfo) == NULL) {
-		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE,
-		    M_WAITOK | M_ZERO);
+		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE, M_WAITOK);
 		error = socreate(AF_LOCAL, &rso, SOCK_STREAM, 0, cred, td);
 		if (error)
 			goto fail1;
@@ -207,7 +199,6 @@ fail1:
 			return (error);
 		}
 		fip->fi_readers = fip->fi_writers = 0;
-		sx_init(&fip->fi_sx, "fifo_sx");
 		wso->so_snd.sb_lowat = PIPE_BUF;
 		SOCKBUF_LOCK(&rso->so_rcv);
 		rso->so_rcv.sb_state |= SBS_CANTRCVMORE;
@@ -714,9 +705,7 @@ fifo_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, str
 	if (uio->uio_resid == 0)
 		return (0);
 	sflags = (fp->f_flag & FNONBLOCK) ? MSG_NBIO : 0;
-	sx_xlock(&fip->fi_sx);
 	error = soreceive(fip->fi_readsock, NULL, uio, NULL, NULL, &sflags);
-	sx_xunlock(&fip->fi_sx);
 	return (error);
 }
 
@@ -736,8 +725,6 @@ fifo_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 	fip = fp->f_data;
 	KASSERT(uio->uio_rw == UIO_WRITE,("fifo_write mode"));
 	sflags = (fp->f_flag & FNONBLOCK) ? MSG_NBIO : 0;
-	sx_xlock(&fip->fi_sx);
 	error = sosend(fip->fi_writesock, NULL, uio, 0, NULL, sflags, td);
-	sx_xunlock(&fip->fi_sx);
 	return (error);
 }
