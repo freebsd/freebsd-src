@@ -757,9 +757,6 @@ nodevice	cm
 nodevice	cs
 nodevice	ex
 nodevice	fea
-nodevice	cbb
-nodevice	pccard
-nodevice	cardbus
 nodevice	intpm
 nodevice	alpm
 nodevice	ichsmb
