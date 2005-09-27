@@ -183,12 +183,20 @@ SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
 enable these bits correctly.  We'd like to do this all the time, but there\n\
 are some peripherals that this causes problems with.");
 
-static int pci_do_powerstate = 0;
-TUNABLE_INT("hw.pci.do_powerstate", &pci_do_powerstate);
-SYSCTL_INT(_hw_pci, OID_AUTO, do_powerstate, CTLFLAG_RW,
-    &pci_do_powerstate, 0,
-    "Power down devices into D3 state when no driver attaches to them.\n\
-Otherwise, leave the device in D0 state when no driver attaches.");
+static int pci_do_power_nodriver = 0;
+TUNABLE_INT("hw.pci.do_power_nodriver", &pci_do_power_nodriver);
+SYSCTL_INT(_hw_pci, OID_AUTO, do_power_nodriver, CTLFLAG_RW,
+    &pci_do_power_nodriver, 0,
+  "Place a function into D3 state when no driver attaches to it.  0 means\n\
+disable.  1 means conservatively place devices into D3 state.  2 means\n\
+agressively place devices into D3 state.  3 means put absolutely everything\n\
+in D3 state.");
+
+static int pci_do_power_resume = 1;
+TUNABLE_INT("hw.pci.do_power_resume", &pci_do_power_resume);
+SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RW,
+    &pci_do_power_resume, 1,
+  "Transition from D3 -> D0 on resume.");
 
 /* Find a device_t by bus/slot/function */
 
@@ -1063,7 +1071,7 @@ pci_suspend(device_t dev)
 	 * device in the appropriate power state for this sleep state.
 	 */
 	acpi_dev = NULL;
-	if (pci_do_powerstate)
+	if (pci_do_power_resume)
 		acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
 	device_get_children(dev, &devlist, &numdevs);
 	for (i = 0; i < numdevs; i++) {
@@ -1110,7 +1118,7 @@ pci_resume(device_t dev)
 	 * Set each child to D0 and restore its PCI configuration space.
 	 */
 	acpi_dev = NULL;
-	if (pci_do_powerstate)
+	if (pci_do_power_resume)
 		acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
 	device_get_children(dev, &devlist, &numdevs);
 	for (i = 0; i < numdevs; i++) {
@@ -1327,7 +1335,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 	}
 	printf(" at device %d.%d (no driver attached)\n",
 	    pci_get_slot(child), pci_get_function(child));
-	if (pci_do_powerstate)
+	if (pci_do_power_nodriver)
 		pci_cfg_save(child,
 		    (struct pci_devinfo *) device_get_ivars(child), 1);
 	return;
@@ -1984,18 +1992,31 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	 * power the device down on a reattach.
 	 */
 	cls = pci_get_class(dev);
-	if (setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY &&
-	    cls != PCIC_BASEPERIPH) {
-		/*
-		 * PCI spec says we can only go into D3 state from D0 state.
-		 * Transition from D[12] into D0 before going to D3 state.
-		 */
-		ps = pci_get_powerstate(dev);
-		if (ps != PCI_POWERSTATE_D0 && ps != PCI_POWERSTATE_D3) {
-			pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-		}
-		if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3) {
-			pci_set_powerstate(dev, PCI_POWERSTATE_D3);
-		}
+	if (!setstate)
+		return;
+	switch (pci_do_power_nodriver)
+	{
+		case 0:		/* NO powerdown at all */
+			return;
+		case 1:		/* Conservative about what to power down */
+			if (cls == PCIC_STORAGE)
+				return;
+			/*FALLTHROUGH*/
+		case 2:		/* Agressive about what to power down */
+			if (cls == PCIC_DISPLAY || cls == PCIC_MEMORY ||
+			    cls == PCIC_BASEPERIPH)
+				return;
+			/*FALLTHROUGH*/
+		case 3:		/* Power down everything */
+			break;
 	}
+	/*
+	 * PCI spec says we can only go into D3 state from D0 state.
+	 * Transition from D[12] into D0 before going to D3 state.
+	 */
+	ps = pci_get_powerstate(dev);
+	if (ps != PCI_POWERSTATE_D0 && ps != PCI_POWERSTATE_D3)
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3)
+		pci_set_powerstate(dev, PCI_POWERSTATE_D3);
 }
