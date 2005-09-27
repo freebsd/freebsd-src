@@ -59,7 +59,7 @@ eintrnames:
 /* done */
 ENTRY(bzero)
 	movq	%rsi,%rcx
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	shrq	$3,%rcx
 	cld
 	rep
@@ -74,7 +74,7 @@ ENTRY(bzero)
 ENTRY(pagezero)
 	movq	$-PAGE_SIZE,%rdx
 	subq	%rdx,%rdi
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 1:
 	movnti	%rax,(%rdi,%rdx)
 	movnti	%rax,8(%rdi,%rdx)
@@ -256,7 +256,7 @@ ENTRY(copyout)
 	movsb
 
 done_copyout:
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rdx
 	movq	%rax,PCB_ONFAULT(%rdx)
 	ret
@@ -301,7 +301,7 @@ ENTRY(copyin)
 	movsb
 
 done_copyin:
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rdx
 	movq	%rax,PCB_ONFAULT(%rdx)
 	ret
@@ -412,7 +412,7 @@ ENTRY(fubyte)
 	ALIGN_TEXT
 fusufault:
 	movq	PCPU(CURPCB),%rcx
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%rcx)
 	decq	%rax
 	ret
@@ -432,7 +432,7 @@ ENTRY(suword)
 	ja	fusufault
 
 	movq	%rsi,(%rdi)
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
@@ -446,7 +446,7 @@ ENTRY(suword32)
 	ja	fusufault
 
 	movl	%esi,(%rdi)
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
@@ -460,7 +460,7 @@ ENTRY(suword16)
 	ja	fusufault
 
 	movw	%si,(%rdi)
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
@@ -475,7 +475,7 @@ ENTRY(subyte)
 
 	movl	%esi, %eax
 	movb	%al,(%rdi)
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
@@ -522,7 +522,7 @@ ENTRY(copyinstr)
 
 	/* Success -- 0 byte reached */
 	decq	%rdx
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	jmp	cpystrflt_x
 3:
 	/* rdx is zero - return ENAMETOOLONG or EFAULT */
@@ -569,7 +569,7 @@ ENTRY(copystr)
 
 	/* Success -- 0 byte reached */
 	decq	%rdx
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	jmp	6f
 4:
 	/* rdx is zero -- return ENAMETOOLONG */
