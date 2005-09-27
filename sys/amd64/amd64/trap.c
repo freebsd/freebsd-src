@@ -220,9 +220,9 @@ trap(frame)
 			    type);
 			/*
 			 * We shouldn't enable interrupts while in a critical
-			 * section.
+			 * section or servicing an NMI.
 			 */
-			if (td->td_critnest == 0)
+			if (type != T_NMI && td->td_critnest == 0)
 				enable_intr();
 		}
 	}
