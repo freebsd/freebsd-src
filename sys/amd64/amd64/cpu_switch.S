@@ -155,7 +155,7 @@ ENTRY(cpu_switch)
 	smsw	%ax
 	orb	$CR0_TS,%al
 	lmsw	%ax
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	movq	%rax,PCPU(FPCURTHREAD)
 1:
 
