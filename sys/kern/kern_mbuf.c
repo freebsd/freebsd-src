@@ -227,7 +227,6 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 #endif
 	} else
 		m->m_data = m->m_dat;
-	mbstat.m_mbufs += 1;	/* XXX */
 	return (0);
 }
 
@@ -245,7 +244,6 @@ mb_dtor_mbuf(void *mem, int size, void *arg)
 #ifdef INVARIANTS
 	trash_dtor(mem, size, arg);
 #endif
-	mbstat.m_mbufs -= 1;	/* XXX */
 }
 
 /* XXX Only because of stats */
@@ -260,8 +258,6 @@ mb_dtor_pack(void *mem, int size, void *arg)
 #ifdef INVARIANTS
 	trash_dtor(m->m_ext.ext_buf, MCLBYTES, arg);
 #endif
-	mbstat.m_mbufs -= 1;	/* XXX */
-	mbstat.m_mclusts -= 1;	/* XXX */
 }
 
 /*
@@ -287,7 +283,6 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 	m->m_ext.ext_size = MCLBYTES;
 	m->m_ext.ext_type = EXT_CLUSTER;
 	m->m_ext.ref_cnt = NULL;	/* Lazy counter assign. */
-	mbstat.m_mclusts += 1;	/* XXX */
 	return (0);
 }
 
@@ -298,7 +293,6 @@ mb_dtor_clust(void *mem, int size, void *arg)
 #ifdef INVARIANTS
 	trash_dtor(mem, size, arg);
 #endif
-	mbstat.m_mclusts -= 1;	/* XXX */
 }
 
 /*
@@ -318,7 +312,6 @@ mb_init_pack(void *mem, int size, int how)
 #ifdef INVARIANTS
 	trash_init(m->m_ext.ext_buf, MCLBYTES, how);
 #endif
-	mbstat.m_mclusts -= 1;	/* XXX */
 	return (0);
 }
 
@@ -337,7 +330,6 @@ mb_fini_pack(void *mem, int size)
 #endif
 	uma_zfree_arg(zone_clust, m->m_ext.ext_buf, NULL);
 	m->m_ext.ext_buf = NULL;
-	mbstat.m_mclusts += 1;	/* XXX */
 #ifdef INVARIANTS
 	trash_dtor(mem, size, NULL);
 #endif
@@ -387,8 +379,6 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 			return (error);
 #endif
 	}
-	mbstat.m_mbufs += 1;	/* XXX */
-	mbstat.m_mclusts += 1;	/* XXX */
 	return (0);
 }
 
@@ -408,7 +398,6 @@ mb_reclaim(void *junk)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK | WARN_PANIC, NULL,
 	    "mb_reclaim()");
 
-	mbstat.m_drain++;
 	for (dp = domains; dp != NULL; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_drain != NULL)
