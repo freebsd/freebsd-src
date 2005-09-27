@@ -133,6 +133,9 @@ typedef	__uid_t		uid_t;
 #if __BSD_VISIBLE
 #define	SO_LABEL	0x1009		/* socket's MAC label */
 #define	SO_PEERLABEL	0x1010		/* socket's peer's MAC label */
+#define	SO_LISTENQLIMIT	0x1011		/* socket's backlog limit */
+#define	SO_LISTENQLEN	0x1012		/* socket's complete queue length */
+#define	SO_LISTENINCQLEN	0x1013	/* socket's incomplete queue length */
 #endif
 
 /*
