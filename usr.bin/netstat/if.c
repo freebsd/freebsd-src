@@ -178,7 +178,7 @@ show_stat(const char *fmt, int width, u_long value, short showvalue)
 
 	if (showvalue == 0) {
 		/* Print just dash. */
-		sprintf(newfmt, "%%%ds", width);
+		sprintf(newfmt, "%%%ds ", width);
 		printf(newfmt, "-");
 		return;
 	}
@@ -189,11 +189,11 @@ show_stat(const char *fmt, int width, u_long value, short showvalue)
 		/* Format in human readable form. */
 		humanize_number(buf, sizeof(buf), (int64_t)value, "",
 		    HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL);
-		sprintf(newfmt, "%%%ds", width);
+		sprintf(newfmt, "%%%ds ", width);
 		printf(newfmt, buf);
 	} else {
 		/* Construct the format string. */
-		sprintf(newfmt, "%%%d%s", width, fmt);
+		sprintf(newfmt, "%%%d%s ", width, fmt);
 		printf(newfmt, value);
 	}
 }
@@ -448,30 +448,22 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 		}
 
 		show_stat("lu", 8, ipackets, link_layer|network_layer);
-		printf(" ");
 		show_stat("lu", 5, ierrors, link_layer);
-		printf(" ");
-		if (bflag) {
+		if (bflag)
 			show_stat("lu", 10, ibytes, link_layer|network_layer);
-			printf(" ");
-		}
+
 		show_stat("lu", 8, opackets, link_layer|network_layer);
-		printf(" ");
 		show_stat("lu", 5, oerrors, link_layer);
-		printf(" ");
-		if (bflag) {
+		if (bflag)
 			show_stat("lu", 10, obytes, link_layer|network_layer);
-			printf(" ");
-		}
+
 		show_stat("lu", 5, collisions, link_layer);
-		if (tflag) {
-			printf(" ");
+		if (tflag)
 			show_stat("d", 3, timer, link_layer);
-		}
-		if (dflag) {
-			printf(" ");
+
+		if (dflag)
 			show_stat("d", 3, drops, link_layer);
-		}
+
 		putchar('\n');
 		if (aflag && ifaddrfound) {
 			/*
@@ -644,16 +636,16 @@ loop:
 			exit(1);
 		};
 		if (!first) {
-			printf("%10lu %5lu %10lu %10lu %5lu %10lu %5lu",
-				ifnet.if_ipackets - ip->ift_ip,
-				ifnet.if_ierrors - ip->ift_ie,
-				ifnet.if_ibytes - ip->ift_ib,
-				ifnet.if_opackets - ip->ift_op,
-				ifnet.if_oerrors - ip->ift_oe,
-				ifnet.if_obytes - ip->ift_ob,
-				ifnet.if_collisions - ip->ift_co);
+			show_stat("lu", 10, ifnet.if_ipackets - ip->ift_ip, 1);
+			show_stat("lu", 5, ifnet.if_ierrors - ip->ift_ie, 1);
+			show_stat("lu", 10, ifnet.if_ibytes - ip->ift_ib, 1);
+			show_stat("lu", 10, ifnet.if_opackets - ip->ift_op, 1);
+			show_stat("lu", 5, ifnet.if_oerrors - ip->ift_oe, 1);
+			show_stat("lu", 10, ifnet.if_obytes - ip->ift_ob, 1);
+			show_stat("lu", 5, ifnet.if_collisions - ip->ift_co, 1);
 			if (dflag)
-				printf(" %5u", ifnet.if_snd.ifq_drops - ip->ift_dr);
+				show_stat("u", 5,
+				    ifnet.if_snd.ifq_drops - ip->ift_dr, 1);
 		}
 		ip->ift_ip = ifnet.if_ipackets;
 		ip->ift_ie = ifnet.if_ierrors;
@@ -690,16 +682,16 @@ loop:
 			off = (u_long)TAILQ_NEXT(&ifnet, if_link);
 		}
 		if (!first) {
-			printf("%10lu %5lu %10lu %10lu %5lu %10lu %5lu",
-				sum->ift_ip - total->ift_ip,
-				sum->ift_ie - total->ift_ie,
-				sum->ift_ib - total->ift_ib,
-				sum->ift_op - total->ift_op,
-				sum->ift_oe - total->ift_oe,
-				sum->ift_ob - total->ift_ob,
-				sum->ift_co - total->ift_co);
+			show_stat("lu", 10, sum->ift_ip - total->ift_ip, 1);
+			show_stat("lu", 5, sum->ift_ie - total->ift_ie, 1);
+			show_stat("lu", 10, sum->ift_ib - total->ift_ib, 1);
+			show_stat("lu", 10, sum->ift_op - total->ift_op, 1);
+			show_stat("lu", 5, sum->ift_oe - total->ift_oe, 1);
+			show_stat("lu", 10, sum->ift_ob - total->ift_ob, 1);
+			show_stat("lu", 5, sum->ift_co - total->ift_co, 1);
 			if (dflag)
-				printf(" %5u", sum->ift_dr - total->ift_dr);
+				show_stat("u", 5,
+				    sum->ift_dr - total->ift_dr, 1);
 		}
 		*total = *sum;
 	}
