@@ -83,8 +83,6 @@ __FBSDID("$FreeBSD$");
  * three of my test boards seems fine.
  */
 
-#include "opt_bdg.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>

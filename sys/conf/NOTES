@@ -765,12 +765,7 @@ options 	TCP_DROP_SYNFIN		#drop TCP packets with SYN+FIN
 # as well.  See dummynet(4) and ipfw(8) for more info.  When you run
 # DUMMYNET it is advisable to also have "options HZ=1000" to achieve a
 # smoother scheduling of the traffic.
-#
-# BRIDGE enables bridging between ethernet cards -- see bridge(4).
-# You can use IPFIREWALL and DUMMYNET together with bridging.
-#
 options 	DUMMYNET
-options 	BRIDGE
 
 # Zero copy sockets support.  This enables "zero copy" for sending and
 # receiving data via a socket.  The send side works for any type of NIC,

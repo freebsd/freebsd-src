@@ -79,7 +79,6 @@
 #include <netinet/ip_var.h>
 
 #include <netinet/if_ether.h> /* for struct arpcom */
-#include <net/bridge.h>
 
 #include <netinet/ip6.h>       /* for ip6_input, ip6_output prototypes */
 #include <netinet6/ip6_var.h>
@@ -486,27 +485,6 @@ transmit_event(struct dn_pipe *pipe)
 	    else
 		printf("dummynet: if_bridge not loaded\n");
 
-	    break;
-
-	case DN_TO_BDG_FWD :
-	    /*
-	     * The bridge requires/assumes the Ethernet header is
-	     * contiguous in the first mbuf header.  Insure this is true.
-	     */
-	    if (BDG_LOADED) {
-		if (m->m_len < ETHER_HDR_LEN &&
-		    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
-		    printf("dummynet/bridge: pullup fail, dropping pkt\n");
-		    break;
-		}
-		m = bdg_forward_ptr(m, pkt->ifp);
-	    } else {
-		/* somebody unloaded the bridge module. Drop pkt */
-		/* XXX rate limit */
-		printf("dummynet: dropping bridged packet trapped in pipe\n");
-	    }
-	    if (m)
-		m_freem(m);
 	    break;
 
 	case DN_TO_ETH_DEMUX:
@@ -1175,7 +1153,6 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
  * m		the mbuf with the packet
  * ifp		the 'ifp' parameter from the caller.
  *		NULL in ip_input, destination interface in ip_output,
- *		real_dst in bdg_forward
  * rule		matching rule, in case of multiple passes
  * flags	flags from the caller, only used in ip_output
  *
