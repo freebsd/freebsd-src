@@ -1687,6 +1687,7 @@ sosetopt(so, sopt)
 				break;
 			}
 			break;
+
 		case SO_LABEL:
 #ifdef MAC
 			error = sooptcopyin(sopt, &extmac, sizeof extmac,
@@ -1699,6 +1700,7 @@ sosetopt(so, sopt)
 			error = EOPNOTSUPP;
 #endif
 			break;
+
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -1845,6 +1847,7 @@ integer:
 			tv.tv_usec = (optval % hz) * tick;
 			error = sooptcopyout(sopt, &tv, sizeof tv);
 			break;
+
 		case SO_LABEL:
 #ifdef MAC
 			error = sooptcopyin(sopt, &extmac, sizeof(extmac),
@@ -1860,6 +1863,7 @@ integer:
 			error = EOPNOTSUPP;
 #endif
 			break;
+
 		case SO_PEERLABEL:
 #ifdef MAC
 			error = sooptcopyin(sopt, &extmac, sizeof(extmac),
@@ -1875,6 +1879,19 @@ integer:
 			error = EOPNOTSUPP;
 #endif
 			break;
+
+		case SO_LISTENQLIMIT:
+			optval = so->so_qlimit;
+			goto integer;
+
+		case SO_LISTENQLEN:
+			optval = so->so_qlen;
+			goto integer;
+
+		case SO_LISTENINCQLEN:
+			optval = so->so_incqlen;
+			goto integer;
+
 		default:
 			error = ENOPROTOOPT;
 			break;
