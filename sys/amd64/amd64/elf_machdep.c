@@ -195,6 +195,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_X86_64_GLOB_DAT:	/* S */
+		case R_X86_64_JMP_SLOT:	/* XXX need addend + offset */
 			addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
