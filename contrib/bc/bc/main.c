@@ -65,7 +65,7 @@ usage (char *progname)
   printf ("usage: %s [options] [file ...]\n%s%s%s%s%s%s%s", progname,
           "  -h  --help         print this usage and exit\n",
 	  "  -i  --interactive  force interactive mode\n",
-	  "  -l  --mathlib      use the predefine math routnes\n",
+	  "  -l  --mathlib      use the predefine math routines\n",
 	  "  -q  --quiet        don't print initial banner\n",
 	  "  -s  --standard     non-standard bc constructs are errors\n",
 	  "  -w  --warn         warn about non-standard bc constructs\n",
