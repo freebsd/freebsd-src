@@ -142,14 +142,10 @@ struct fxp_desc_list {
  */
 struct fxp_softc {
 	struct ifnet *ifp;		/* per-interface network data */
-	struct resource *mem;		/* resource descriptor for registers */
-	int rtp;			/* register resource type */
-	int rgd;			/* register descriptor in use */
-	struct resource *irq;		/* resource descriptor for interrupt */
+	struct resource	*fxp_res[2];	/* I/O and IRQ resources */
+	struct resource_spec *fxp_spec;	/* the resource spec we used */
 	void *ih;			/* interrupt handler cookie */
 	struct mtx sc_mtx;
-	bus_space_tag_t sc_st;		/* bus space tag */
-	bus_space_handle_t sc_sh;	/* bus space handle */
 	bus_dma_tag_t fxp_mtag;		/* bus DMA tag for mbufs */
 	bus_dma_tag_t fxp_stag;		/* bus DMA tag for stats */
 	bus_dmamap_t fxp_smap;		/* bus DMA map for stats */
@@ -198,15 +194,9 @@ struct fxp_softc {
 #define FXP_FLAG_SAVE_BAD	0x0800	/* save bad pkts: bad size, CRC, etc */
 
 /* Macros to ease CSR access. */
-#define	CSR_READ_1(sc, reg)						\
-	bus_space_read_1((sc)->sc_st, (sc)->sc_sh, (reg))
-#define	CSR_READ_2(sc, reg)						\
-	bus_space_read_2((sc)->sc_st, (sc)->sc_sh, (reg))
-#define	CSR_READ_4(sc, reg)						\
-	bus_space_read_4((sc)->sc_st, (sc)->sc_sh, (reg))
-#define	CSR_WRITE_1(sc, reg, val)					\
-	bus_space_write_1((sc)->sc_st, (sc)->sc_sh, (reg), (val))
-#define	CSR_WRITE_2(sc, reg, val)					\
-	bus_space_write_2((sc)->sc_st, (sc)->sc_sh, (reg), (val))
-#define	CSR_WRITE_4(sc, reg, val)					\
-	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
+#define	CSR_READ_1(sc, reg)		bus_read_1(sc->fxp_res[0], reg)
+#define	CSR_READ_2(sc, reg)		bus_read_2(sc->fxp_res[0], reg)
+#define	CSR_READ_4(sc, reg)		bus_read_4(sc->fxp_res[0], reg)
+#define	CSR_WRITE_1(sc, reg, val)	bus_write_1(sc->fxp_res[0], reg, val)
+#define	CSR_WRITE_2(sc, reg, val)	bus_write_2(sc->fxp_res[0], reg, val)
+#define	CSR_WRITE_4(sc, reg, val)	bus_write_4(sc->fxp_res[0], reg, val)
