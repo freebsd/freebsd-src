@@ -127,6 +127,19 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
 	__with_interrupts_disabled(*p -= val);
 }
 
+static __inline uint32_t
+atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
+{
+	uint32_t value;
+
+	__with_interrupts_disabled(
+	{
+	    	value = *p;
+		*p += v;
+	});
+	return (value);
+}
+
 #else /* !_KERNEL */
 
 static __inline u_int32_t
@@ -240,6 +253,30 @@ atomic_clear_32(volatile uint32_t *address, uint32_t clearmask)
 	    : "=r" (ras_start), "=r" (start), "+r" (address), "+r" (clearmask));
 
 }
+
+static __inline uint32_t
+atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
+{
+	uint32_t ras_start, start;
+
+	__asm __volatile("1:\n"
+	    "mov	%0, #0xe0000008\n"
+	    "adr	%1, 2f\n"
+	    "str	%1, [%0]\n"
+	    "adr	%1, 1b\n"
+	    "mov	%0, #0xe0000004\n"
+	    "str	%1, [%0]\n"
+	    "ldr	%1, %2\n"
+	    "add	%3, %1, %3\n"
+	    "str	%3, %2\n"
+	    "2:\n"
+	    "mov	%3, #0\n"
+	    "str	%3, [%0]\n"
+	    : "=r" (ras_start), "=r" (start), "=m" (*p), "+r" (v));
+	return (start);
+}
+
+	    
 #endif /* _KERNEL */
 
 static __inline int
@@ -291,5 +328,6 @@ atomic_readandclear_32(volatile u_int32_t *p)
 #define	atomic_store_ptr		atomic_store_32
 #define	atomic_cmpset_ptr		atomic_cmpset_32
 #define	atomic_set_ptr			atomic_set_32
+#define	atomic_fetchadd_int		atomic_fetchadd_32
 
 #endif /* _MACHINE_ATOMIC_H_ */

@@ -277,6 +277,9 @@ ATOMIC_GEN(64, uint64_t *, uint64_t, uint64_t, 64);
 
 ATOMIC_GEN(ptr, uintptr_t *, uintptr_t, uintptr_t, 64);
 
+#define	atomic_fetchadd_int	atomic_add_int
+#define	atomic_fetchadd_32	atomic_add_32
+
 #undef ATOMIC_GEN
 #undef atomic_cas
 #undef atomic_cas_acq
