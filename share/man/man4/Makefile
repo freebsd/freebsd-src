@@ -34,7 +34,6 @@ MAN=	aac.4 \
 	bktr.4 \
 	blackhole.4 \
 	bpf.4 \
-	bridge.4 \
 	bt.4 \
 	cardbus.4 \
 	carp.4 \

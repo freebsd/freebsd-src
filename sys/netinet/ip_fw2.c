@@ -2076,7 +2076,7 @@ ipfw_chk(struct ip_fw_args *args)
 
 	/*
 	 * oif | args->oif	If NULL, ipfw_chk has been called on the
-	 *	inbound path (ether_input, bdg_forward, ip_input).
+	 *	inbound path (ether_input, ip_input).
 	 *	If non-NULL, ipfw_chk has been called on the outbound path
 	 *	(ether_output, ip_output).
 	 */

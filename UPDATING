@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050927:
+	The old bridge(4) implementation was retired.  The new
+	if_bridge(4) serves as a full functional replacement.
+
 20050722:
 	The ai_addrlen of a struct addrinfo was changed to a socklen_t
 	to conform to POSIX-2001.  This change broke an ABI

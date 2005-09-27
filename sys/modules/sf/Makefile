@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../pci
 
 KMOD=	if_sf
-SRCS=	if_sf.c opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS=	if_sf.c device_if.h bus_if.h pci_if.h
 SRCS+=	miibus_if.h
 
 .include <bsd.kmod.mk>

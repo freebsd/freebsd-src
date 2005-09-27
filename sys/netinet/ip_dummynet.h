@@ -121,7 +121,7 @@ struct dn_pkt_tag {
     int dn_dir;			/* action when packet comes out. */
 #define DN_TO_IP_OUT	1
 #define DN_TO_IP_IN	2
-#define DN_TO_BDG_FWD	3
+/* Obsolete: #define DN_TO_BDG_FWD	3 */
 #define DN_TO_ETH_DEMUX	4
 #define DN_TO_ETH_OUT	5
 #define DN_TO_IP6_IN	6

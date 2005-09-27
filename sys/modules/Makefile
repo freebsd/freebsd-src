@@ -38,7 +38,6 @@ SUBDIR=	${_3dfx} \
 	bge \
 	${_bios} \
 	${_bktr} \
-	bridge \
 	cam \
 	${_canbepm} \
 	${_canbus} \

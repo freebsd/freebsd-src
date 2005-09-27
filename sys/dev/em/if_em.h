@@ -75,7 +75,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <dev/pci/pcireg.h>
 #include <sys/endian.h>
 #include <sys/proc.h>
-#include "opt_bdg.h"
 
 #include <dev/em/if_em_hw.h>
 
