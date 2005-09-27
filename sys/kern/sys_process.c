@@ -788,7 +788,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* deliver or queue signal */
 		if (P_SHOULDSTOP(p)) {
 			p->p_xstat = data;
-			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
 			mtx_lock_spin(&sched_lock);
 			if (saved_pid <= PID_MAX) {
 				p->p_xthread->td_flags &= ~TDF_XSIG;
@@ -808,8 +807,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			 * you should use PT_SUSPEND to suspend it before
 			 * continuing process.
 			 */
-			thread_unsuspend(p);
+			mtx_unlock_spin(&sched_lock);
 			thread_continued(p);
+			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
+			mtx_lock_spin(&sched_lock);
+			thread_unsuspend(p);
 			mtx_unlock_spin(&sched_lock);
 		} else if (data) {
 			psignal(p, data);
