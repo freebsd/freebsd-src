@@ -1443,7 +1443,7 @@ thread_continued(struct proc *p)
 	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(P_SHOULDSTOP(p), ("process not stopped"));
 
 	if (!(p->p_flag & P_SA))
 		return;
@@ -1457,11 +1457,10 @@ thread_continued(struct proc *p)
 			if (!(td->td_pflags & TDP_SA))
 				continue;
 			FOREACH_UPCALL_IN_GROUP(kg, ku) {
+				mtx_lock_spin(&sched_lock);
 				ku->ku_flags |= KUF_DOUPCALL;
+				mtx_unlock_spin(&sched_lock);
 				wakeup(&kg->kg_completed);
-				if (TD_IS_SUSPENDED(ku->ku_owner)) {
-					thread_unsuspend_one(ku->ku_owner);
-				}	
 			}
 		}
 	}
