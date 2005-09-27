@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2005
+.Dd September 26, 2005
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -578,7 +578,7 @@ to the canonical path given by
 As
 .Nm
 reads various makefiles, including the default files and any
-obtained from the command line 
+obtained from the command line and
 .Ic .include
 and
 .Ic .sinclude
@@ -838,7 +838,6 @@ makefile's directory and any directories specified using the
 .Fl I
 option are searched before the system
 makefile directory.
-The 
 .It Ic \&.sinclude Ar <file>
 .It Ic \&.sinclude Ar \*qfile\*q
 Like
