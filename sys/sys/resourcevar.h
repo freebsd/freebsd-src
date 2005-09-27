@@ -78,12 +78,7 @@ struct pstats {
 struct plimit {
 	struct	rlimit pl_rlimit[RLIM_NLIMITS];
 	int	pl_refcnt;		/* number of references */
-	struct	mtx *pl_mtx;
 };
-
-#define	LIM_LOCK(lim)		mtx_lock((lim)->pl_mtx)
-#define	LIM_UNLOCK(lim)		mtx_unlock((lim)->pl_mtx)
-#define	LIM_LOCK_ASSERT(lim, f)	mtx_assert((lim)->pl_mtx, (f))
 
 /*-
  * Per uid resource consumption

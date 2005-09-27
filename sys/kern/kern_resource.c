@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/refcount.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
@@ -901,8 +902,7 @@ lim_alloc()
 	struct plimit *limp;
 
 	limp = malloc(sizeof(struct plimit), M_PLIMIT, M_WAITOK);
-	limp->pl_refcnt = 1;
-	limp->pl_mtx = mtx_pool_alloc(mtxpool_sleep);
+	refcount_init(&limp->pl_refcnt, 1);
 	return (limp);
 }
 
@@ -911,9 +911,7 @@ lim_hold(limp)
 	struct plimit *limp;
 {
 
-	LIM_LOCK(limp);
-	limp->pl_refcnt++;
-	LIM_UNLOCK(limp);
+	refcount_acquire(&limp->pl_refcnt);
 	return (limp);
 }
 
@@ -922,14 +920,9 @@ lim_free(limp)
 	struct plimit *limp;
 {
 
-	LIM_LOCK(limp);
 	KASSERT(limp->pl_refcnt > 0, ("plimit refcnt underflow"));
-	if (--limp->pl_refcnt == 0) {
-		LIM_UNLOCK(limp);
+	if (refcount_release(&limp->pl_refcnt))
 		free((void *)limp, M_PLIMIT);
-		return;
-	}
-	LIM_UNLOCK(limp);
 }
 
 /*
