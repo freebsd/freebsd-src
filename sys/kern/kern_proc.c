@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/refcount.h>
 #include <sys/sysent.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
@@ -90,7 +91,6 @@ struct proclist allproc;
 struct proclist zombproc;
 struct sx allproc_lock;
 struct sx proctree_lock;
-struct mtx pargs_ref_lock;
 struct mtx ppeers_lock;
 uma_zone_t proc_zone;
 uma_zone_t ithread_zone;
@@ -109,7 +109,6 @@ procinit()
 
 	sx_init(&allproc_lock, "allproc");
 	sx_init(&proctree_lock, "proctree");
-	mtx_init(&pargs_ref_lock, "struct pargs.ref", NULL, MTX_DEF);
 	mtx_init(&ppeers_lock, "p_peers", NULL, MTX_DEF);
 	LIST_INIT(&allproc);
 	LIST_INIT(&zombproc);
@@ -1090,7 +1089,7 @@ pargs_alloc(int len)
 
 	MALLOC(pa, struct pargs *, sizeof(struct pargs) + len, M_PARGS,
 		M_WAITOK);
-	pa->ar_ref = 1;
+	refcount_init(&pa->ar_ref, 1);
 	pa->ar_length = len;
 	return (pa);
 }
@@ -1108,9 +1107,7 @@ pargs_hold(struct pargs *pa)
 
 	if (pa == NULL)
 		return;
-	PARGS_LOCK(pa);
-	pa->ar_ref++;
-	PARGS_UNLOCK(pa);
+	refcount_acquire(&pa->ar_ref);
 }
 
 void
@@ -1119,12 +1116,8 @@ pargs_drop(struct pargs *pa)
 
 	if (pa == NULL)
 		return;
-	PARGS_LOCK(pa);
-	if (--pa->ar_ref == 0) {
-		PARGS_UNLOCK(pa);
+	if (refcount_release(&pa->ar_ref))
 		pargs_free(pa);
-	} else
-		PARGS_UNLOCK(pa);
 }
 
 /*
