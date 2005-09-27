@@ -263,3 +263,24 @@ ia32_savectx(struct pcb *pcb)
 	pcb->pcb_ia32_fir = ia64_get_fir();
 	pcb->pcb_ia32_fsr = ia64_get_fsr();
 }
+
+int
+freebsd32_getcontext(struct thread *td, struct freebsd32_getcontext_args *uap)
+{
+
+	return (nosys(td, NULL));
+}
+
+int
+freebsd32_setcontext(struct thread *td, struct freebsd32_setcontext_args *uap)
+{
+
+	return (nosys(td, NULL));
+}
+
+int
+freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
+{
+
+	return (nosys(td, NULL));
+}
