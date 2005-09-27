@@ -282,6 +282,18 @@ DRIVER_MODULE(fxp, pci, fxp_driver, fxp_devclass, 0, 0);
 DRIVER_MODULE(fxp, cardbus, fxp_driver, fxp_devclass, 0, 0);
 DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, 0, 0);
 
+static struct resource_spec fxp_res_spec_mem[] = {
+	{ SYS_RES_MEMORY,	FXP_PCI_MMBA,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
+	{ -1, 0 }
+};
+
+static struct resource_spec fxp_res_spec_io[] = {
+	{ SYS_RES_IOPORT,	FXP_PCI_IOBA,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
+	{ -1, 0 }
+};
+
 /*
  * Wait for the previous command to be accepted (but not necessarily
  * completed).
@@ -381,7 +393,7 @@ fxp_attach(device_t dev)
 	uint32_t val;
 	uint16_t data, myea[ETHER_ADDR_LEN / 2];
 	u_char eaddr[ETHER_ADDR_LEN];
-	int i, rid, m1, m2, prefer_iomap;
+	int i, prefer_iomap;
 	int error;
 
 	error = 0;
@@ -411,48 +423,31 @@ fxp_attach(device_t dev)
 	 * We default to memory mapping. Then we accept an override from the
 	 * command line. Then we check to see which one is enabled.
 	 */
-	m1 = PCIM_CMD_MEMEN;
-	m2 = PCIM_CMD_PORTEN;
 	prefer_iomap = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "prefer_iomap", &prefer_iomap) == 0 && prefer_iomap != 0) {
-		m1 = PCIM_CMD_PORTEN;
-		m2 = PCIM_CMD_MEMEN;
-	}
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "prefer_iomap", &prefer_iomap);
+	if (prefer_iomap)
+		sc->fxp_spec = fxp_res_spec_io;
+	else
+		sc->fxp_spec = fxp_res_spec_mem;
 
-	sc->rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-	sc->rgd = (m1 == PCIM_CMD_MEMEN)? FXP_PCI_MMBA : FXP_PCI_IOBA;
-	sc->mem = bus_alloc_resource_any(dev, sc->rtp, &sc->rgd, RF_ACTIVE);
-	if (sc->mem == NULL) {
-		sc->rtp =
-		    (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-		sc->rgd = (m2 == PCIM_CMD_MEMEN)? FXP_PCI_MMBA : FXP_PCI_IOBA;
-		sc->mem = bus_alloc_resource_any(dev, sc->rtp, &sc->rgd,
-                                            RF_ACTIVE);
+	error = bus_alloc_resources(dev, sc->fxp_spec, sc->fxp_res);
+	if (error) {
+		if (sc->fxp_spec == fxp_res_spec_mem)
+			sc->fxp_spec = fxp_res_spec_io;
+		else
+			sc->fxp_spec = fxp_res_spec_mem;
+		error = bus_alloc_resources(dev, sc->fxp_spec, sc->fxp_res);
 	}
-
-	if (!sc->mem) {
+	if (error) {
+		device_printf(dev, "could not allocate resources\n");
 		error = ENXIO;
 		goto fail;
-        }
+	}
+
 	if (bootverbose) {
 		device_printf(dev, "using %s space register mapping\n",
-		   sc->rtp == SYS_RES_MEMORY? "memory" : "I/O");
-	}
-
-	sc->sc_st = rman_get_bustag(sc->mem);
-	sc->sc_sh = rman_get_bushandle(sc->mem);
-
-	/*
-	 * Allocate our interrupt.
-	 */
-	rid = 0;
-	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-				 RF_SHAREABLE | RF_ACTIVE);
-	if (sc->irq == NULL) {
-		device_printf(dev, "could not map interrupt\n");
-		error = ENXIO;
-		goto fail;
+		   sc->fxp_spec == fxp_res_spec_mem ? "memory" : "I/O");
 	}
 
 	/*
@@ -806,7 +801,7 @@ fxp_attach(device_t dev)
 	/* 
 	 * Hook our interrupt after all initialization is complete.
 	 */
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
+	error = bus_setup_intr(dev, sc->fxp_res[1], INTR_TYPE_NET | INTR_MPSAFE,
 			       fxp_intr, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
@@ -851,10 +846,7 @@ fxp_release(struct fxp_softc *sc)
 		bus_dmamap_unload(sc->mcs_tag, sc->mcs_map);
 		bus_dmamem_free(sc->mcs_tag, sc->mcsp, sc->mcs_map);
 	}
-	if (sc->irq)
-		bus_release_resource(sc->dev, SYS_RES_IRQ, 0, sc->irq);
-	if (sc->mem)
-		bus_release_resource(sc->dev, sc->rtp, sc->rgd, sc->mem);
+	bus_release_resources(sc->dev, sc->fxp_spec, sc->fxp_res);
 	if (sc->fxp_mtag) {
 		for (i = 0; i < FXP_NRFABUFS; i++) {
 			rxp = &sc->fxp_desc.rx_list[i];
@@ -918,7 +910,7 @@ fxp_detach(device_t dev)
 	 * Unhook interrupt before dropping lock. This is to prevent
 	 * races with fxp_intr().
 	 */
-	bus_teardown_intr(sc->dev, sc->irq, sc->ih);
+	bus_teardown_intr(sc->dev, sc->fxp_res[1], sc->ih);
 	sc->ih = NULL;
 
 	/* Release our allocated resources. */
