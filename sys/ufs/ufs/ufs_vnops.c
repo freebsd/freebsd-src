@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
+#include <sys/refcount.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/dirent.h>
@@ -1364,7 +1365,7 @@ ufs_mkdir(ap)
 				 * XXX This seems to never be accessed out of
 				 * our context so a stack variable is ok.
 				 */
-				ucred.cr_ref = 1;
+				refcount_init(&ucred.cr_ref, 1);
 				ucred.cr_uid = ip->i_uid;
 				ucred.cr_ngroups = 1;
 				ucred.cr_groups[0] = dp->i_gid;
@@ -2195,7 +2196,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			 * XXX This seems to never be accessed out of our
 			 * context so a stack variable is ok.
 			 */
-			ucred.cr_ref = 1;
+			refcount_init(&ucred.cr_ref, 1);
 			ucred.cr_uid = ip->i_uid;
 			ucred.cr_ngroups = 1;
 			ucred.cr_groups[0] = pdir->i_gid;
