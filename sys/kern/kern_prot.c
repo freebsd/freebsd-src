@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/refcount.h>
 #include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
@@ -1841,8 +1842,7 @@ crget(void)
 	register struct ucred *cr;
 
 	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
-	cr->cr_ref = 1;
-	cr->cr_mtxp = mtx_pool_find(mtxpool_sleep, cr);
+	refcount_init(&cr->cr_ref, 1);
 #ifdef MAC
 	mac_init_cred(cr);
 #endif
@@ -1857,9 +1857,7 @@ struct ucred *
 crhold(struct ucred *cr)
 {
 
-	mtx_lock(cr->cr_mtxp);
-	cr->cr_ref++;
-	mtx_unlock(cr->cr_mtxp);
+	refcount_acquire(&cr->cr_ref);
 	return (cr);
 }
 
@@ -1871,12 +1869,10 @@ crhold(struct ucred *cr)
 void
 crfree(struct ucred *cr)
 {
-	struct mtx *mtxp = cr->cr_mtxp;
 
-	mtx_lock(mtxp);
 	KASSERT(cr->cr_ref > 0, ("bad ucred refcount: %d", cr->cr_ref));
-	if (--cr->cr_ref == 0) {
-		mtx_unlock(mtxp);
+	KASSERT(cr->cr_ref != 0xdeadc0de, ("dangling reference to ucred"));
+	if (refcount_release(&cr->cr_ref)) {
 		/*
 		 * Some callers of crget(), such as nfs_statfs(),
 		 * allocate a temporary credential, but don't
@@ -1895,8 +1891,6 @@ crfree(struct ucred *cr)
 		mac_destroy_cred(cr);
 #endif
 		FREE(cr, M_CRED);
-	} else {
-		mtx_unlock(mtxp);
 	}
 }
 
@@ -1907,12 +1901,8 @@ crfree(struct ucred *cr)
 int
 crshared(struct ucred *cr)
 {
-	int shared;
 
-	mtx_lock(cr->cr_mtxp);
-	shared = (cr->cr_ref > 1);
-	mtx_unlock(cr->cr_mtxp);
-	return (shared);
+	return (cr->cr_ref > 1);
 }
 
 /*

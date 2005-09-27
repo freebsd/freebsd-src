@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/namei.h>
 #include <sys/mbuf.h>
+#include <sys/refcount.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
@@ -1257,7 +1258,7 @@ nfsrv_setcred(struct ucred *incred, struct ucred *outcred)
 	NFSD_LOCK_DONTCARE();
 
 	bzero((caddr_t)outcred, sizeof (struct ucred));
-	outcred->cr_ref = 1;
+	refcount_init(&outcred->cr_ref, 1);
 	outcred->cr_uid = incred->cr_uid;
 	outcred->cr_ngroups = incred->cr_ngroups;
 	for (i = 0; i < incred->cr_ngroups; i++)
