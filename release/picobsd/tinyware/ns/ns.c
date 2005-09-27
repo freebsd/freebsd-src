@@ -52,12 +52,6 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
-#ifdef BRIDGING
-#include <net/if_types.h>	/* IFT_ETHER */
-#include <net/ethernet.h>
-#include <net/bridge.h>
-#endif
-
 #include <err.h>
 #include <errno.h>
 #include <osreldate.h>
@@ -80,11 +74,7 @@ void
 usage()
 {
 	fprintf(stderr, "\n%s [-nrsil] [-p proto] [-w wait]\n", progname);
-#ifdef BRIDGING
-	fprintf(stderr, "  proto: {ip|tcp|udp|icmp|bdg}\n\n");
-#else
 	fprintf(stderr, "  proto: {ip|tcp|udp|icmp}\n\n");
-#endif
 }
 
 
@@ -720,19 +710,12 @@ stats(char *proto)
 			print_udp_stats();
 		if (strcmp(proto, "tcp") == 0)
 			print_tcp_stats();
-#ifdef BRIDGING
-		if (strcmp(proto, "bdg") == 0)
-			print_bdg_stats();
-#endif
 		return (0);
 	}
 	print_ip_stats();
 	print_icmp_stats();
 	print_udp_stats();
 	print_tcp_stats();
-#ifdef BRIDGING
-	print_bdg_stats();
-#endif
 	return (0);
 }
 
@@ -844,42 +827,3 @@ print_load_stats(void)
 		X(0), X(1), X(2), X(3), X(4) );
 	bcopy(new_cp_time, cp_time, sizeof(cp_time));
 }              
-
-#ifdef BRIDGING
-/* print bridge statistics */
-int
-print_bdg_stats()
-{
-	int	i;
-	int	mib[4];
-	int	slen;
-	struct	bdg_stats s;
-
-	slen = sizeof(s);
-
-	mib[0] = CTL_NET;
-	mib[1] = PF_LINK;
-	mib[2] = IFT_ETHER;
-	mib[3] = PF_BDG;
-	if (sysctl(mib, 4, &s, &slen, NULL, 0) == -1) {
-		return 0;	/* no bridging */
-	}
-	printf("-- Bridging statistics --\n");
-	printf(
-	    "Name          In      Out  Forward     Drop    Bcast"
-	    "Mcast    Local  Unknown\n");
-	for (i = 0; i < 16; i++) {
-		if (s.s[i].name[0])
-			printf("%-6s %9d%9d%9d%9d%9d%9d%9d%9d\n",
-			    s.s[i].name,
-			    s.s[i].p_in[(int)BDG_IN],
-			    s.s[i].p_in[(int)BDG_OUT],
-			    s.s[i].p_in[(int)BDG_FORWARD],
-			    s.s[i].p_in[(int)BDG_DROP],
-			    s.s[i].p_in[(int)BDG_BCAST],
-			    s.s[i].p_in[(int)BDG_MCAST],
-			    s.s[i].p_in[(int)BDG_LOCAL],
-			    s.s[i].p_in[(int)BDG_UNKNOWN]);
-	}
-}
-#endif

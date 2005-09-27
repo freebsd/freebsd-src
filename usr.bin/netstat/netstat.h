@@ -99,8 +99,6 @@ void	inet6print(struct in6_addr *, int, const char *, int);
 void	pfkey_stats(u_long, const char *, int);
 #endif
 
-void	bdg_stats(u_long, const char *, int);
-
 void	mbpr(u_long, u_long, u_long, u_long, u_long, u_long,
 	      u_long, u_long, u_long, u_long, u_long);
 

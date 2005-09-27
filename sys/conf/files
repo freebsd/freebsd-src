@@ -1418,7 +1418,6 @@ libkern/strvalid.c		standard
 net/bpf.c			standard
 net/bpf_filter.c		optional bpf
 net/bpf_filter.c		optional netgraph_bpf
-net/bridge.c			optional bridge
 net/bridgestp.c			optional if_bridge
 net/bsd_comp.c			optional ppp_bsdcomp
 net/if.c			standard

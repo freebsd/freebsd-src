@@ -39,7 +39,7 @@ options		IPDIVERT		# divert (for natd)
 
 # Support for bridging and bandwidth limiting
 options		DUMMYNET
-options		BRIDGE
+device		if_bridge
 options		HZ=1000
 #options		NMBCLUSTERS=4096
 

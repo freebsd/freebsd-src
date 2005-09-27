@@ -34,7 +34,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
-#include "opt_bdg.h"
 #include "opt_mac.h"
 #include "opt_netgraph.h"
 #include "opt_carp.h"
@@ -60,7 +59,6 @@
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
-#include <net/bridge.h>
 #include <net/if_vlan_var.h>
 
 #if defined(INET) || defined(INET6)
@@ -108,12 +106,6 @@ void	(*ng_ether_detach_p)(struct ifnet *ifp);
 void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* bridge support */
-int do_bridge;
-bridge_in_t *bridge_in_ptr;
-bdg_forward_t *bdg_forward_ptr;
-bdgtakeifaces_t *bdgtakeifaces_ptr;
-struct bdg_softc *ifp2sc;
-
 struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *); 
 int	(*bridge_output_p)(struct ifnet *, struct mbuf *, 
 		struct sockaddr *, struct rtentry *);
@@ -378,18 +370,6 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 #endif
 	int error;
 
-	if (rule == NULL && BDG_ACTIVE(ifp)) {
-		/*
-		 * Beware, the bridge code notices the null rcvif and
-		 * uses that identify that it's being called from
-		 * ether_output as opposd to ether_input.  Yech.
-		 */
-		m->m_pkthdr.rcvif = NULL;
-		m = bdg_forward_ptr(m, ifp);
-		if (m != NULL)
-			m_freem(m);
-		return (0);
-	}
 #if defined(INET) || defined(INET6)
 	if (IPFW_LOADED && ether_ipfw != 0) {
 		if (ether_ipfw_chk(&m, ifp, &rule, 0) == 0) {
@@ -414,9 +394,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 /*
  * ipfw processing for ethernet packets (in and out).
  * The second parameter is NULL from ether_demux, and ifp from
- * ether_output_frame. This section of code could be used from
- * bridge.c as well as long as we use some extra info
- * to distinguish that case from ether_output_frame();
+ * ether_output_frame.
  */
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
@@ -635,11 +613,6 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		ifp = m->m_pkthdr.rcvif;
 	}
 
-	/* Check for bridging mode */
-	if (BDG_ACTIVE(ifp) )
-		if ((m = bridge_in_ptr(ifp, m)) == NULL)
-			return;
-
 	/* First chunk of an mbuf contains good entropy */
 	if (harvest.ethernet)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
@@ -672,7 +645,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		goto post_stats;
 #endif
 
-	if (!(BDG_ACTIVE(ifp)) && !(ifp->if_bridge) &&
+	if (!(ifp->if_bridge) &&
 	    !((ether_type == ETHERTYPE_VLAN || m->m_flags & M_VLANTAG) &&
 	    ifp->if_nvlans > 0)) {
 #ifdef DEV_CARP
@@ -929,8 +902,6 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 	bpfattach(ifp, DLT_EN10MB, ETHER_HDR_LEN);
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
-	if (BDG_LOADED)
-		bdgtakeifaces_ptr();
 
 	/* Announce Ethernet MAC address if non-zero. */
 	for (i = 0; i < ifp->if_addrlen; i++)
@@ -955,8 +926,6 @@ ether_ifdetach(struct ifnet *ifp)
 	}
 	bpfdetach(ifp);
 	if_detach(ifp);
-	if (BDG_LOADED)
-		bdgtakeifaces_ptr();
 }
 
 SYSCTL_DECL(_net_link);

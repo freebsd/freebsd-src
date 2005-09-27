@@ -145,7 +145,7 @@ function
 might sleep!
 .Sh SEE ALSO
 .Xr bpf 4 ,
-.Xr bridge 4
+.Xr if_bridge 4
 .Sh HISTORY
 The
 .Nm
@@ -196,10 +196,12 @@ Packets diverted through these hooks have data in
 host byte order contrary to the above statements.
 .Pp
 The
-.Xr bridge 4
-diverts inbound
+.Xr if_bridge 4
+diverts
 .Dv AF_INET
-traffic, but contrary to the above
+and
+.DV AF_INET6
+traffic according to it's sysctl settings, but contrary to the above
 statements, the data is provided in host byte order.
 .Pp
 When a
