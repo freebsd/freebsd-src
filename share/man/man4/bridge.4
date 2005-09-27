@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2003
+.Dd September 27, 2005
 .Dt BRIDGE 4
 .Os
 .Sh NAME
@@ -10,6 +10,14 @@
 .Sh SYNOPSIS
 .Cd "options BRIDGE"
 .Sh DESCRIPTION
+.Bf -symbolic
+This bridge implementation is made obsolete by:
+.Ef
+.Xr if_bridge 4
+.Bf -symbolic
+and will be removed from future releases.
+.Ef
+.Pp
 .Fx
 supports bridging on Ethernet-type interfaces, including VLANs.
 Bridging support can be either compiled into the kernel, or loaded
