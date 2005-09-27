@@ -696,6 +696,7 @@ dev/pccard/card_if.m		standard
 dev/pccard/pccard.c		optional pccard
 dev/pccard/pccard_cis.c		optional pccard
 dev/pccard/pccard_cis_quirks.c	optional pccard
+dev/pccard/pccard_device.c	optional pccard
 dev/pccard/power_if.m		standard
 dev/pccbb/pccbb.c		optional cbb
 dev/pccbb/pccbb_isa.c		optional cbb isa

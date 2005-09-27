@@ -45,6 +45,7 @@
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccardvarp.h>
 #include <dev/pccard/pccard_cis.h>
 
 #include "card_if.h"
@@ -181,6 +182,10 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 					DPRINTF(("TOO MANY CIS_NONE\n"));
 				cis_none_cnt--;
 #endif
+				if ((*fct)(&tuple, arg)) {
+					ret = 1;
+					goto done;
+				}
 				tuple.ptr++;
 				continue;
 			} else if (tuple.code == CISTPL_END) {
@@ -200,6 +205,10 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 			switch (tuple.code) {
 			case CISTPL_LONGLINK_A:
 			case CISTPL_LONGLINK_C:
+				if ((*fct)(&tuple, arg)) {
+					ret = 1;
+					goto done;
+				}
 				if (tuple.length < 4) {
 					DPRINTF(("CISTPL_LONGLINK_%s too "
 					    "short %d\n",
@@ -216,10 +225,18 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 				    longlink_addr));
 				break;
 			case CISTPL_NO_LINK:
+				if ((*fct)(&tuple, arg)) {
+					ret = 1;
+					goto done;
+				}
 				longlink_present = 0;
 				DPRINTF(("CISTPL_NO_LINK\n"));
 				break;
 			case CISTPL_CHECKSUM:
+				if ((*fct)(&tuple, arg)) {
+					ret = 1;
+					goto done;
+				}
 				if (tuple.length < 5) {
 					DPRINTF(("CISTPL_CHECKSUM too "
 					    "short %d\n", tuple.length));
