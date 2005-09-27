@@ -806,10 +806,6 @@ MALLOC_DECLARE(M_ZOMBIE);
 	curthread->td_pflags &= ~TDP_NOSLEEPING;			\
 } while (0)
 
-/* Lock and unlock process arguments. */
-#define	PARGS_LOCK(p)		mtx_lock(&pargs_ref_lock)
-#define	PARGS_UNLOCK(p)		mtx_unlock(&pargs_ref_lock)
-
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
 extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
 extern u_long pidhash;
@@ -820,7 +816,6 @@ extern u_long pgrphash;
 
 extern struct sx allproc_lock;
 extern struct sx proctree_lock;
-extern struct mtx pargs_ref_lock;
 extern struct mtx ppeers_lock;
 extern struct ksegrp ksegrp0;		/* Primary ksegrp in proc0. */
 extern struct proc proc0;		/* Process slot for swapper. */
