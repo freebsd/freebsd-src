@@ -323,7 +323,7 @@ gfb_mouse(scr_stat *scp, int x, int y, int on)
 
 		/* Display the mouse pointer image... */
 		(*vidsw[scp->sc->adapter]->putm)(scp->sc->adp, x, y,
-		    mouse_pointer, 0xffffffff, 16);
+		    mouse_pointer, 0xffffffff, 16, 8);
 	} else {
 
 		/*

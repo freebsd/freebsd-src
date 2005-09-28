@@ -702,16 +702,16 @@ machfb_set_mode(video_adapter_t *adp, int mode)
 }
 
 static int
-machfb_save_font(video_adapter_t *adp, int page, int size, u_char *data,
-    int c, int count)
+machfb_save_font(video_adapter_t *adp, int page, int size, int width,
+    u_char *data, int c, int count)
 {
 
 	return (ENODEV);
 }
 
 static int
-machfb_load_font(video_adapter_t *adp, int page, int size, u_char *data,
-    int c, int count)
+machfb_load_font(video_adapter_t *adp, int page, int size, int width,
+    u_char *data, int c, int count)
 {
 
 	return (ENODEV);
@@ -1124,7 +1124,7 @@ machfb_puts(video_adapter_t *adp, vm_offset_t off, uint16_t *s, int len)
 
 static int
 machfb_putm(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
-    uint32_t pixel_mask, int size)
+    uint32_t pixel_mask, int size, int width)
 {
 	struct machfb_softc *sc;
 	int error;

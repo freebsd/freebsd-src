@@ -1285,7 +1285,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	 * Don't load if the current font size is not 8x8.
 	 */
 	if (ISTEXTSC(sc->cur_scp) && (sc->cur_scp->font_size < 14))
-	    sc_load_font(sc->cur_scp, 0, 8, sc->font_8, 0, 256);
+	    sc_load_font(sc->cur_scp, 0, 8, 8, sc->font_8, 0, 256);
 	return 0;
 
     case GIO_FONT8x8:   	/* get 8x8 dot font */
@@ -1311,7 +1311,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	if (ISTEXTSC(sc->cur_scp)
 	    && (sc->cur_scp->font_size >= 14)
 	    && (sc->cur_scp->font_size < 16))
-	    sc_load_font(sc->cur_scp, 0, 14, sc->font_14, 0, 256);
+	    sc_load_font(sc->cur_scp, 0, 14, 8, sc->font_14, 0, 256);
 	return 0;
 
     case GIO_FONT8x14:  	/* get 8x14 dot font */
@@ -1335,7 +1335,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	 * Don't load if the current font size is not 8x16.
 	 */
 	if (ISTEXTSC(sc->cur_scp) && (sc->cur_scp->font_size >= 16))
-	    sc_load_font(sc->cur_scp, 0, 16, sc->font_16, 0, 256);
+	    sc_load_font(sc->cur_scp, 0, 16, 8, sc->font_16, 0, 256);
 	return 0;
 
     case GIO_FONT8x16:  	/* get 8x16 dot font */
@@ -2752,21 +2752,21 @@ scinit(int unit, int flags)
 	    bcopy(dflt_font_16, sc->font_16, sizeof(dflt_font_16));
 	    sc->fonts_loaded = FONT_16 | FONT_14 | FONT_8;
 	    if (scp->font_size < 14) {
-		sc_load_font(scp, 0, 8, sc->font_8, 0, 256);
+		sc_load_font(scp, 0, 8, 8, sc->font_8, 0, 256);
 	    } else if (scp->font_size >= 16) {
-		sc_load_font(scp, 0, 16, sc->font_16, 0, 256);
+		sc_load_font(scp, 0, 16, 8, sc->font_16, 0, 256);
 	    } else {
-		sc_load_font(scp, 0, 14, sc->font_14, 0, 256);
+		sc_load_font(scp, 0, 14, 8, sc->font_14, 0, 256);
 	    }
 #else /* !SC_DFLT_FONT */
 	    if (scp->font_size < 14) {
-		sc_save_font(scp, 0, 8, sc->font_8, 0, 256);
+		sc_save_font(scp, 0, 8, 8, sc->font_8, 0, 256);
 		sc->fonts_loaded = FONT_8;
 	    } else if (scp->font_size >= 16) {
-		sc_save_font(scp, 0, 16, sc->font_16, 0, 256);
+		sc_save_font(scp, 0, 16, 8, sc->font_16, 0, 256);
 		sc->fonts_loaded = FONT_16;
 	    } else {
-		sc_save_font(scp, 0, 14, sc->font_14, 0, 256);
+		sc_save_font(scp, 0, 14, 8, sc->font_14, 0, 256);
 		sc->fonts_loaded = FONT_14;
 	    }
 #endif /* SC_DFLT_FONT */
@@ -3444,13 +3444,13 @@ set_mode(scr_stat *scp)
 	if (!(scp->status & PIXEL_MODE) && ISFONTAVAIL(scp->sc->adp->va_flags)) {
 	    if (scp->font_size < 14) {
 		if (scp->sc->fonts_loaded & FONT_8)
-		    sc_load_font(scp, 0, 8, scp->sc->font_8, 0, 256);
+		    sc_load_font(scp, 0, 8, 8, scp->sc->font_8, 0, 256);
 	    } else if (scp->font_size >= 16) {
 		if (scp->sc->fonts_loaded & FONT_16)
-		    sc_load_font(scp, 0, 16, scp->sc->font_16, 0, 256);
+		    sc_load_font(scp, 0, 16, 8, scp->sc->font_16, 0, 256);
 	    } else {
 		if (scp->sc->fonts_loaded & FONT_14)
-		    sc_load_font(scp, 0, 14, scp->sc->font_14, 0, 256);
+		    sc_load_font(scp, 0, 14, 8, scp->sc->font_14, 0, 256);
 	    }
 	    /*
 	     * FONT KLUDGE:
@@ -3481,26 +3481,28 @@ sc_set_border(scr_stat *scp, int color)
 
 #ifndef SC_NO_FONT_LOADING
 void
-sc_load_font(scr_stat *scp, int page, int size, u_char *buf,
+sc_load_font(scr_stat *scp, int page, int size, int width, u_char *buf,
 	     int base, int count)
 {
     sc_softc_t *sc;
 
     sc = scp->sc;
     sc->font_loading_in_progress = TRUE;
-    (*vidsw[sc->adapter]->load_font)(sc->adp, page, size, buf, base, count);
+    (*vidsw[sc->adapter]->load_font)(sc->adp, page, size, width, buf, base,
+				     count);
     sc->font_loading_in_progress = FALSE;
 }
 
 void
-sc_save_font(scr_stat *scp, int page, int size, u_char *buf,
+sc_save_font(scr_stat *scp, int page, int size, int width, u_char *buf,
 	     int base, int count)
 {
     sc_softc_t *sc;
 
     sc = scp->sc;
     sc->font_loading_in_progress = TRUE;
-    (*vidsw[sc->adapter]->save_font)(sc->adp, page, size, buf, base, count);
+    (*vidsw[sc->adapter]->save_font)(sc->adp, page, size, width, buf, base,
+				     count);
     sc->font_loading_in_progress = FALSE;
 }
 

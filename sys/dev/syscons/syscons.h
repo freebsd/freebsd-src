@@ -252,9 +252,11 @@ typedef struct sc_softc {
 #define FONT_8		2
 #define FONT_14		4
 #define FONT_16		8
+#define FONT_22		8
 	u_char		*font_8;
 	u_char		*font_14;
 	u_char		*font_16;
+	u_char		*font_22;
 #endif
 
 	u_char		cursor_char;
@@ -542,10 +544,10 @@ int		sc_attach_unit(int unit, int flags);
 int		set_mode(scr_stat *scp);
 
 void		sc_set_border(scr_stat *scp, int color);
-void		sc_load_font(scr_stat *scp, int page, int size, u_char *font,
-			     int base, int count);
-void		sc_save_font(scr_stat *scp, int page, int size, u_char *font,
-			     int base, int count);
+void		sc_load_font(scr_stat *scp, int page, int size, int width,
+			     u_char *font, int base, int count);
+void		sc_save_font(scr_stat *scp, int page, int size, int width,
+			     u_char *font, int base, int count);
 void		sc_show_font(scr_stat *scp, int page);
 
 void		sc_touch_scrn_saver(void);
