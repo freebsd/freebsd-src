@@ -238,9 +238,9 @@ fail1:
 		}
 		fip->fi_writers++;
 		if (fip->fi_writers == 1) {
-			SOCKBUF_LOCK(&fip->fi_writesock->so_rcv);
+			SOCKBUF_LOCK(&fip->fi_readsock->so_rcv);
 			fip->fi_readsock->so_rcv.sb_state &= ~SBS_CANTRCVMORE;
-			SOCKBUF_UNLOCK(&fip->fi_writesock->so_rcv);
+			SOCKBUF_UNLOCK(&fip->fi_readsock->so_rcv);
 			if (fip->fi_readers > 0) {
 				wakeup(&fip->fi_readers);
 				sorwakeup(fip->fi_readsock);
