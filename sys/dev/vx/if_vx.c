@@ -708,7 +708,8 @@ again:
      * bleah!
      */
 
-    if ((eh->ether_dhost[0] & 1) == 0		/* !mcast and !bcast */
+    if (!(ifp->if_flags & IFF_PROMISC)
+      && (eh->ether_dhost[0] & 1) == 0		/* !mcast and !bcast */
       && bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN) != 0) {
 	m_freem(m);
 	return;
