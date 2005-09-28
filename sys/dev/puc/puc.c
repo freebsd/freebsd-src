@@ -316,8 +316,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		if (sc->barmuxed == 0) {
 			rle->res = sc->sc_bar_mappings[bidx].res;
 		} else {
-			rle->res = malloc(sizeof(struct resource), M_DEVBUF,
-			    M_WAITOK | M_ZERO);
+			rle->res = rman_secret_puc_alloc_resource(M_WAITOK);
 			if (rle->res == NULL) {
 				free(pdev, M_DEVBUF);
 				return (ENOMEM);
@@ -352,7 +351,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 			if (sc->barmuxed) {
 				bus_space_unmap(rman_get_bustag(rle->res),
 				    rman_get_bushandle(rle->res), ressz);
-				free(rle->res, M_DEVBUF);
+				rman_secret_puc_free_resource(rle->res);
 				free(pdev, M_DEVBUF);
 			}
 			continue;
@@ -372,7 +371,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 			if (sc->barmuxed) {
 				bus_space_unmap(rman_get_bustag(rle->res),
 				    rman_get_bushandle(rle->res), ressz);
-				free(rle->res, M_DEVBUF);
+				rman_secret_puc_free_resource(rle->res);
 				free(pdev, M_DEVBUF);
 			}
 		}

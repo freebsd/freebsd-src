@@ -98,6 +98,31 @@ int_alloc_resource(int malloc_flag)
 	return (r);
 }
 
+/*
+ * XXX: puc.c is a big hack.
+ * XXX: it should be rewritten to act like a bridge and offer
+ * XXX: its own resource manager.
+ * XXX: until somebody has time, help it out with these two functions
+ */
+
+struct resource *
+rman_secret_puc_alloc_resource(int malloc_flag)
+{
+	struct resource_i *r;
+
+	r = int_alloc_resource(malloc_flag);
+	if (r)
+		return (&r->r_r);
+	return (NULL);
+}
+
+void
+rman_secret_puc_free_resource(struct resource *r)
+{
+
+	free(r->__r_i, M_RMAN);
+}
+
 int
 rman_init(struct rman *rm)
 {

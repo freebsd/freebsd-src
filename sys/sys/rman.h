@@ -174,6 +174,15 @@ void	rman_set_start(struct resource *_r, u_long _start);
 void	rman_set_virtual(struct resource *_r, void *_v);
 
 extern	struct rman_head rman_head;
+
+/*
+ * XXX: puc.c is a big hack.
+ * XXX: it should be rewritten to act like a bridge and offer
+ * XXX: its own resource manager.
+ * XXX: until somebody has time, help it out with these two functions
+ */
+struct resource *rman_secret_puc_alloc_resource(int malloc_flag);
+void rman_secret_puc_free_resource(struct resource *r);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_RMAN_H_ */
