@@ -2139,22 +2139,7 @@ device		nmdm
 device		bktr
 
 #
-# PC Card/PCMCIA
-# (OLDCARD)
-#
-# card: pccard slots
-# pcic: isa/pccard bridge
-#device		pcic
-#hint.pcic.0.at="isa"
-#hint.pcic.1.at="isa"
-#device		card	1
-
-#
 # PC Card/PCMCIA and Cardbus
-# (NEWCARD)
-#
-# Note that NEWCARD and OLDCARD are incompatible.  Do not use both at the same
-# time.
 #
 # pccbb: pci/cardbus bridge implementing YENTA interface
 # pccard: pccard slots
