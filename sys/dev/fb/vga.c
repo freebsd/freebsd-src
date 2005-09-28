@@ -1787,8 +1787,8 @@ set_normal_mode(video_adapter_t *adp, u_char *buf)
  * EGA/VGA
  */
 static int
-vga_save_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
-	      int ch, int count)
+vga_save_font(video_adapter_t *adp, int page, int fontsize, int fontwidth,
+	      u_char *data, int ch, int count)
 {
 #ifndef VGA_NO_FONT_LOADING
     u_char buf[PARAM_BUFSIZE];
@@ -1814,7 +1814,7 @@ vga_save_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
 	fontsize = 14;
     }
 
-    if (page < 0 || page >= 8)
+    if (page < 0 || page >= 8 || fontwidth != 8)
 	return EINVAL;
     segment = FONT_BUF + 0x4000*page;
     if (page > 3)
@@ -1867,8 +1867,8 @@ vga_save_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
  * EGA/VGA
  */
 static int
-vga_load_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
-	      int ch, int count)
+vga_load_font(video_adapter_t *adp, int page, int fontsize, int fontwidth,
+	      u_char *data, int ch, int count)
 {
 #ifndef VGA_NO_FONT_LOADING
     u_char buf[PARAM_BUFSIZE];
@@ -1894,7 +1894,7 @@ vga_load_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
 	fontsize = 14;
     }
 
-    if (page < 0 || page >= 8)
+    if (page < 0 || page >= 8 || fontwidth != 8)
 	return EINVAL;
     segment = FONT_BUF + 0x4000*page;
     if (page > 3)

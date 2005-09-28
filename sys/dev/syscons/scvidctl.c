@@ -694,11 +694,11 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 		 * Don't load fonts for now... XXX
 		 */
 		if (scp->sc->fonts_loaded & FONT_8)
-		    sc_load_font(scp, 0, 8, scp->sc->font_8, 0, 256);
+		    sc_load_font(scp, 0, 8, 8, scp->sc->font_8, 0, 256);
 		if (scp->sc->fonts_loaded & FONT_14)
-		    sc_load_font(scp, 0, 14, scp->sc->font_14, 0, 256);
+		    sc_load_font(scp, 0, 14, 8, scp->sc->font_14, 0, 256);
 		if (scp->sc->fonts_loaded & FONT_16)
-		    sc_load_font(scp, 0, 16, scp->sc->font_16, 0, 256);
+		    sc_load_font(scp, 0, 16, 8, scp->sc->font_16, 0, 256);
 	    }
 #endif /* SC_NO_FONT_LOADING */
 #endif
