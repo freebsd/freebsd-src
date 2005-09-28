@@ -443,16 +443,16 @@ creator_set_mode(video_adapter_t *adp, int mode)
 }
 
 static int
-creator_save_font(video_adapter_t *adp, int page, int size, u_char *data,
-    int c, int count)
+creator_save_font(video_adapter_t *adp, int page, int size, int width,
+    u_char *data, int c, int count)
 {
 
 	return (ENODEV);
 }
 
 static int
-creator_load_font(video_adapter_t *adp, int page, int size, u_char *data,
-    int c, int count)
+creator_load_font(video_adapter_t *adp, int page, int size, int width,
+    u_char *data, int c, int count)
 {
 
 	return (ENODEV);
@@ -738,7 +738,7 @@ creator_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 
 static int
 creator_putm(video_adapter_t *adp, int x, int y, u_int8_t *pixel_image,
-    u_int32_t pixel_mask, int size)
+    u_int32_t pixel_mask, int size, int width)
 {
 	struct creator_softc *sc;
 

@@ -107,9 +107,9 @@ typedef int vi_init_t(int unit, video_adapter_t *adp, int flags);
 typedef int vi_get_info_t(video_adapter_t *adp, int mode, video_info_t *info);
 typedef int vi_query_mode_t(video_adapter_t *adp, video_info_t *info);
 typedef int vi_set_mode_t(video_adapter_t *adp, int mode);
-typedef int vi_save_font_t(video_adapter_t *adp, int page, int size,
+typedef int vi_save_font_t(video_adapter_t *adp, int page, int size, int width,
 			   u_char *data, int c, int count);
-typedef int vi_load_font_t(video_adapter_t *adp, int page, int size,
+typedef int vi_load_font_t(video_adapter_t *adp, int page, int size, int width,
 			   u_char *data, int c, int count);
 typedef int vi_show_font_t(video_adapter_t *adp, int page);
 typedef int vi_save_palette_t(video_adapter_t *adp, u_char *palette);
@@ -148,8 +148,8 @@ typedef int vi_putc_t(video_adapter_t *adp, vm_offset_t off, u_int8_t c,
 		      u_int8_t a);
 typedef int vi_puts_t(video_adapter_t *adp, vm_offset_t off, u_int16_t *s,
 		       int len);
-typedef int vi_putm_t(video_adapter_t *adp, int x, int y,
-		      u_int8_t *pixel_image, u_int32_t pixel_mask, int size);
+typedef int vi_putm_t(video_adapter_t *adp, int x, int y, u_int8_t *pixel_image,
+		      u_int32_t pixel_mask, int size, int width);
 
 typedef struct video_switch {
     vi_probe_t		*probe;
