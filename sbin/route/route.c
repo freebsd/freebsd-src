@@ -174,6 +174,7 @@ main(argc, argv)
 
 		case K_CHANGE:
 		case K_ADD:
+		case K_DEL:
 		case K_DELETE:
 			newroute(argc, argv);
 			/* NOTREACHED */
