@@ -331,7 +331,7 @@ have this picture in mind in order to design a correct ruleset.
        ^                       V
  [ether_demux]        [ether_output_frame]  net.link.ether.ipfw=1
        |                       |
-       +-->--[bdg_forward]-->--+            net.link.ether.bridge_ipfw=1
+       +-->--[bdg_forward]-->--+            net.link.bridge.ipfw=1
        ^                       V
        |      to devices       |
 .Ed
@@ -2041,7 +2041,7 @@ If enabled packets with unknown IPv6 Extension Headers will be denied.
 Controls whether layer-2 packets are passed to
 .Nm .
 Default is no.
-.It Em net.link.ether.bridge_ipfw : No 0
+.It Em net.link.bridge.ipfw : No 0
 Controls whether bridged packets are passed to
 .Nm .
 Default is no.
@@ -2072,7 +2072,7 @@ does not support the -c (compact) flag.
 will silently accept all non-IPv4 packets (which
 .Nm ipfw1
 will only see when
-.Em net.link.ether.bridge_ipfw=1 ) .
+.Em net.link.bridge.ipfw=1 ) .
 .Nm ipfw2
 will filter all packets (including non-IPv4 ones) according to the ruleset.
 To achieve the same behaviour as
@@ -2432,7 +2432,7 @@ the sleep terminates thus restoring the previous situation.
 .Xr cpp 1 ,
 .Xr m4 1 ,
 .Xr altq 4 ,
-.Xr bridge 4 ,
+.Xr if_bridge 4 ,
 .Xr divert 4 ,
 .Xr dummynet 4 ,
 .Xr ip 4 ,
