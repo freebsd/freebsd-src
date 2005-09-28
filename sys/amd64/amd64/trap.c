@@ -486,13 +486,11 @@ trap(frame)
 
 #ifdef DEBUG
 	if (type <= MAX_TRAP_MSG) {
-		mtx_lock(&Giant);
 		uprintf("fatal process exception: %s",
 			trap_msg[type]);
 		if ((type == T_PAGEFLT) || (type == T_PROTFLT))
 			uprintf(", fault VA = 0x%lx", frame.tf_addr);
 		uprintf("\n");
-		mtx_unlock(&Giant);
 	}
 #endif
 
