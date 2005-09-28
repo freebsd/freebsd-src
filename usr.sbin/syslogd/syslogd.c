@@ -2553,19 +2553,25 @@ socksetup(int af, const char *bindhostname)
 	*socks = 0;   /* num of sockets counter at start of array */
 	s = socks + 1;
 	for (r = res; r; r = r->ai_next) {
+		int on = 1;
 		*s = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
 		if (*s < 0) {
 			logerror("socket");
 			continue;
 		}
 		if (r->ai_family == AF_INET6) {
-			int on = 1;
 			if (setsockopt(*s, IPPROTO_IPV6, IPV6_V6ONLY,
 				       (char *)&on, sizeof (on)) < 0) {
 				logerror("setsockopt");
 				close(*s);
 				continue;
 			}
+		}
+		if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR,
+			       (char *)&on, sizeof (on)) < 1) {
+			logerror("setsockopt");
+			close(*s);
+			continue;
 		}
 		if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
 			close(*s);
