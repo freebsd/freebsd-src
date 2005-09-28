@@ -377,10 +377,8 @@ svr4_sys_open(td, uap)
 	free(newpath, M_TEMP);
 
 	if (error) {
-	  /*	        mtx_lock(&Giant);
-			uprintf("svr4_open(%s, 0x%0x, 0%o): %d\n", uap->path,
-			    uap->flags, uap->mode, error);
-			mtx_unlock(&Giant);*/
+	  /*	        uprintf("svr4_open(%s, 0x%0x, 0%o): %d\n", uap->path,
+			uap->flags, uap->mode, error);*/
 		return error;
 	}
 

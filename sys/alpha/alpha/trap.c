@@ -1046,14 +1046,12 @@ unaligned_fixup(va, opcode, reg, td)
 	 * If we're supposed to be noisy, squawk now.
 	 */
 	if (doprint) {
-		mtx_lock(&Giant);
 		uprintf(
 		"pid %d (%s): unaligned access: va=0x%lx pc=0x%lx ra=0x%lx op=",
 		    p->p_pid, p->p_comm, va, td->td_frame->tf_regs[FRAME_PC],
 		    td->td_frame->tf_regs[FRAME_RA]);
 		uprintf(type,opcode);
 		uprintf("\n");
-		mtx_unlock(&Giant);
 	}
 
 	/*

@@ -77,9 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ipc.h>
-#include <sys/lock.h>
 #include <sys/msg.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sem.h>
 #include <sys/shm.h>

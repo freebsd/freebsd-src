@@ -30,8 +30,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
@@ -265,11 +263,9 @@ unaligned_fixup(struct trapframe *tf, struct thread *td)
 	    ((tf->tf_special.psr & IA64_PSR_RI) == IA64_PSR_RI_1) ? 1 : 2;
 
 	if (ia64_unaligned_print) {
-		mtx_lock(&Giant);
 		uprintf("pid %d (%s): unaligned access: va=0x%lx, pc=0x%lx\n",
 		    td->td_proc->p_pid, td->td_proc->p_comm,
 		    tf->tf_special.ifa, tf->tf_special.iip + slot);
-		mtx_unlock(&Giant);
 	}
 
 	/*
