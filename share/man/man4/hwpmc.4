@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 15, 2005
+.Dd September 28, 2005
 .Dt HWPMC 4
 .Os
 .Sh NAME
@@ -33,6 +33,9 @@
 .Sh SYNOPSIS
 .Cd "options HWPMC_HOOKS"
 .Cd "device hwpmc"
+.Pp
+Additionally, for i386 systems:
+.Cd device apic
 .Sh DESCRIPTION
 The
 .Nm
@@ -75,7 +78,7 @@ In counting modes, the PMCs count hardware events.
 These counts are retrievable using the
 .Dv PMC_OP_PMCREAD
 system call on all architectures, though some architectures like the
-x86 and amd64 offer faster methods of reading these counts.
+i386 and amd64 offer faster methods of reading these counts.
 .It Em Sampling
 In sampling modes, where PMCs are configured to sample the CPU
 instruction pointer after a configurable number of hardware events
@@ -446,7 +449,7 @@ via the RDTSC instruction.
 .Ss SMP Symmetry
 The kernel driver requires all physical CPUs in an SMP system to have
 identical performance monitoring counter hardware.
-.Ss i386 TSC Handling
+.Ss x86 TSC Handling
 Historically, on the x86 architecture,
 .Fx
 has permitted user processes running at a processor CPL of 3 to
@@ -734,7 +737,7 @@ On CPUs supporting logical processors, the driver could misbehave if
 logical processors are subsequently enabled or disabled while the
 driver is active.
 .Pp
-On x86 architectures, the driver requires that the local APIC on the
+On the i386 architecture, the driver requires that the local APIC on the
 CPU be enabled for sampling mode to be supported.
 Many single-processor motherboards keep the APIC disabled in BIOS; on
 such systems
