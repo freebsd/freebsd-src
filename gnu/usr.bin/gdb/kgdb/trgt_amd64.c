@@ -66,7 +66,6 @@ kgdb_trgt_fetch_registers(int regno __unused)
 	supply_register(AMD64_R8_REGNUM + 6, (char *)&pcb.pcb_r14);
 	supply_register(AMD64_R15_REGNUM, (char *)&pcb.pcb_r15);
 	supply_register(AMD64_RIP_REGNUM, (char *)&pcb.pcb_rip);
-	supply_register(AMD64_EFLAGS_REGNUM, (char *)&pcb.pcb_rflags);
 }
 
 void
