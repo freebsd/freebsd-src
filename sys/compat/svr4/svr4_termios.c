@@ -30,8 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/file.h>
@@ -158,9 +156,6 @@ print_bsd_termios(bt)
 	const struct termios *bt;
 {
 	int i;
-
-	GIANT_REQUIRED;
-
 	uprintf("BSD\niflag=%o oflag=%o cflag=%o lflag=%o\n",
 	    bt->c_iflag, bt->c_oflag, bt->c_cflag, bt->c_lflag);
 	uprintf("cc: ");
@@ -513,9 +508,7 @@ svr4_term_ioctl(fp, td, retval, fd, cmd, data)
 		bsd_to_svr4_termios(&bt, &st);
 
 #ifdef DEBUG_SVR4
-		mtx_lock(&Giant);
 		print_bsd_termios(&bt);
-		mtx_unlock(&Giant);
 		print_svr4_termios(&st);
 #endif /* DEBUG_SVR4 */
 
@@ -583,9 +576,7 @@ svr4_term_ioctl(fp, td, retval, fd, cmd, data)
 		}
 
 #ifdef DEBUG_SVR4
-		mtx_lock(&Giant);
 		print_bsd_termios(&bt);
-		mtx_unlock(&Giant);
 		print_svr4_termios(&st);
 #endif /* DEBUG_SVR4 */
 

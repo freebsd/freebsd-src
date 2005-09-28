@@ -165,7 +165,6 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 	}
 nospace:
 	ext2_fserr(fs, cred->cr_uid, "file system full");
-	GIANT_REQUIRED;	/* uprintf */
 	uprintf("\n%s: write failed, file system is full\n", fs->fs_fsmnt);
 	return (ENOSPC);
 }
@@ -412,7 +411,6 @@ printf("ext2_valloc: allocated inode %d\n", ino);
 	return (0);
 noinodes:
 	ext2_fserr(fs, cred->cr_uid, "out of inodes");
-	GIANT_REQUIRED;	/* uprintf */
 	uprintf("\n%s: create/symlink failed, no inodes free\n", fs->fs_fsmnt);
 	return (ENOSPC);
 }
