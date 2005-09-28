@@ -40,9 +40,9 @@ MAN=	acct.5 \
 	nsswitch.conf.5 \
 	passwd.5 \
 	pbm.5 \
-	portsnap.conf.5 \
 	periodic.conf.5 \
 	phones.5 \
+	portsnap.conf.5 \
 	procfs.5 \
 	protocols.5 \
 	quota.user.5 \
