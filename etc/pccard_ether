@@ -71,7 +71,7 @@ fi
 case ${startstop} in
 [Ss][Tt][Aa][Rr][Tt] | '')
 	if [ -x /usr/bin/grep ]; then
-		if ifconfig $ifn | grep -s netmask > /dev/null 2>&1; then
+		if ifconfig $ifn | grep -s '[<,]UP[,>]' > /dev/null 2>&1; then
 		    # Interface is already up, so ignore it.
 		    exit 0
 		fi
