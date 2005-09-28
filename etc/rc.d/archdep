@@ -11,7 +11,8 @@
 . /etc/rc.subr
 
 name=archdep
-load_rc_config $name
+start_cmd="archdep_start"
+stop_cmd=":"
 
 # should we print out unaligned access warnings?
 #
@@ -53,18 +54,24 @@ ibcs2_compat()
 	fi
 }
 
-_arch=`${SYSCTL_N} hw.machine`
-echo -n "Initial $_arch initialization:"
-case $_arch in
-i386)
-	ibcs2_compat
-	;;
-alpha)
-	osf1_compat
-	unaligned_warnings
-	;;
-ia64)
-	unaligned_warnings
-	;;
-esac
-echo '.'
+archdep_start()
+{
+	_arch=`${SYSCTL_N} hw.machine`
+	echo -n "Initial $_arch initialization:"
+	case $_arch in
+	i386)
+		ibcs2_compat
+		;;
+	alpha)
+		osf1_compat
+		unaligned_warnings
+		;;
+	ia64)
+		unaligned_warnings
+		;;
+	esac
+	echo '.'
+}
+
+load_rc_config $name
+run_rc_command "$1"
