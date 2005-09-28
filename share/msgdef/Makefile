@@ -32,8 +32,12 @@ LOCALES=	af_ZA.ISO8859-1 \
 		hy_AM.UTF-8 \
 		is_IS.ISO8859-1 \
 		it_IT.ISO8859-1 \
+		ja_JP.eucJP \
+		ja_JP.SJIS \
+		ja_JP.UTF-8 \
 		kk_KZ.PT154 \
 		kk_KZ.UTF-8 \
+		ko_KR.eucKR \
 		lt_LT.ISO8859-13 \
 		nl_NL.ISO8859-1 \
 		no_NO.ISO8859-1 \
@@ -55,10 +59,6 @@ LOCALES=	af_ZA.ISO8859-1 \
 		uk_UA.ISO8859-5 \
 		uk_UA.KOI8-U \
 		uk_UA.UTF-8 \
-		ko_KR.eucKR \
-		ja_JP.eucJP \
-		ja_JP.SJIS \
-		ja_JP.UTF-8 \
 		zh_CN.eucCN \
 		zh_CN.GB18030 \
 		zh_CN.GB2312 \
