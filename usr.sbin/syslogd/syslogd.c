@@ -2568,7 +2568,7 @@ socksetup(int af, const char *bindhostname)
 			}
 		}
 		if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR,
-			       (char *)&on, sizeof (on)) < 1) {
+			       (char *)&on, sizeof (on)) < 0) {
 			logerror("setsockopt");
 			close(*s);
 			continue;
