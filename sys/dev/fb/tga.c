@@ -1308,7 +1308,7 @@ tga_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 
 int
 tga_putm(video_adapter_t *adp, int x, int y, u_int8_t *pixel_image,
-	    gfb_reg_t pixel_mask, int size)
+	    gfb_reg_t pixel_mask, int size, int width)
 {
 	gfb_reg_t gpxr;
 	gfb_reg_t gmor;

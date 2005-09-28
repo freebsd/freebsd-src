@@ -22,8 +22,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -404,16 +402,16 @@ ofwfb_set_mode(video_adapter_t *adp, int mode)
 }
 
 static int
-ofwfb_save_font(video_adapter_t *adp, int page, int size, u_char *data,
-    int c, int count)
+ofwfb_save_font(video_adapter_t *adp, int page, int size, int width,
+    u_char *data, int c, int count)
 {
 	TODO;
 	return (0);
 }
 
 static int
-ofwfb_load_font(video_adapter_t *adp, int page, int size, u_char *data,
-    int c, int count)
+ofwfb_load_font(video_adapter_t *adp, int page, int size, int width,
+    u_char *data, int c, int count)
 {
 	struct ofwfb_softc *sc;
 
@@ -812,7 +810,7 @@ ofwfb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 
 static int
 ofwfb_putm(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
-    uint32_t pixel_mask, int size)
+    uint32_t pixel_mask, int size, int width)
 {
 	struct ofwfb_softc *sc;
 

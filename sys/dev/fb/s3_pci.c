@@ -305,17 +305,19 @@ s3lfb_set_mode(video_adapter_t *adp, int mode)
 }
 
 static int
-s3lfb_save_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
-	       int ch, int count)
+s3lfb_save_font(video_adapter_t *adp, int page, int fontsize, int fontwidth,
+	       u_char *data, int ch, int count)
 {
-	return (*prevvidsw->save_font)(adp, page, fontsize, data, ch, count);
+	return (*prevvidsw->save_font)(adp, page, fontsize, fontwidth, data,
+		ch, count);
 }
 
 static int
-s3lfb_load_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
-	       int ch, int count)
+s3lfb_load_font(video_adapter_t *adp, int page, int fontsize, int fontwidth,
+	       u_char *data, int ch, int count)
 {
-	return (*prevvidsw->load_font)(adp, page, fontsize, data, ch, count);
+	return (*prevvidsw->load_font)(adp, page, fontsize, fontwidth, data,
+		ch, count);
 }
 
 static int
