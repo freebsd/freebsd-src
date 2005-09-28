@@ -422,22 +422,22 @@ MLINKS+=copy.9 copyin.9 \
 	copy.9 copystr.9
 MLINKS+=critical_enter.9 cpu_critical_enter.9 \
 	critical_enter.9 cpu_critical_exit.9 \
-	critical_enter.9 critical_exit.9 \
-	critical_enter.9 critical.9
-MLINKS+=crypto.9 crypto_get_driverid.9 \
-	crypto.9 crypto_register.9 \
-	crypto.9 crypto_kregister.9 \
-	crypto.9 crypto_unregister.9 \
-	crypto.9 crypto_unregister_all.9 \
+	critical_enter.9 critical.9 \
+	critical_enter.9 critical_exit.9
+MLINKS+=crypto.9 crypto_dispatch.9 \
 	crypto.9 crypto_done.9 \
-	crypto.9 crypto_kdone.9 \
-	crypto.9 crypto_newsession.9 \
+	crypto.9 crypto_freereq.9 \
 	crypto.9 crypto_freesession.9 \
-	crypto.9 crypto_dispatch.9 \
-	crypto.9 crypto_kdispatch.9 \
-	crypto.9 crypto_unblock.9 \
+	crypto.9 crypto_get_driverid.9 \
 	crypto.9 crypto_getreq.9 \
-	crypto.9 crypto_freereq.9
+	crypto.9 crypto_kdispatch.9 \
+	crypto.9 crypto_kdone.9 \
+	crypto.9 crypto_kregister.9 \
+	crypto.9 crypto_newsession.9 \
+	crypto.9 crypto_register.9 \
+	crypto.9 crypto_unblock.9 \
+	crypto.9 crypto_unregister.9 \
+	crypto.9 crypto_unregister_all.9
 MLINKS+=devclass_add_driver.9 devclass_delete_driver.9 \
 	devclass_add_driver.9 devclass_find_driver.9
 MLINKS+=device_add_child.9 device_add_child_ordered.9
@@ -475,11 +475,11 @@ MLINKS+=DRIVER_MODULE.9 MULTI_DRIVER_MODULE.9
 MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 EVENTHANDLER_DEREGISTER.9 \
 	EVENTHANDLER.9 eventhandler_deregister.9 \
-	EVENTHANDLER.9 EVENTHANDLER_INVOKE.9 \
-	EVENTHANDLER.9 EVENTHANDLER_REGISTER.9 \
-	EVENTHANDLER.9 eventhandler_register.9 \
 	EVENTHANDLER.9 eventhandler_find_list.9 \
-	EVENTHANDLER.9 eventhandler_prune_list.9
+	EVENTHANDLER.9 EVENTHANDLER_INVOKE.9 \
+	EVENTHANDLER.9 eventhandler_prune_list.9 \
+	EVENTHANDLER.9 EVENTHANDLER_REGISTER.9 \
+	EVENTHANDLER.9 eventhandler_register.9
 MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuswintr.9 \
 	fetch.9 fusword.9 \
@@ -797,8 +797,8 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_set_virtual.9
 MLINKS+=rtalloc.9 rtalloc1.9 \
 	rtalloc.9 rtalloc_ign.9 \
-	rtalloc.9 rtfree.9 \
-	rtalloc.9 RTFREE.9
+	rtalloc.9 RTFREE.9 \
+	rtalloc.9 rtfree.9
 MLINKS+=runqueue.9 chooseproc.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
