@@ -103,6 +103,7 @@ Static const struct cdce_type cdce_devs[] = {
   {{ USB_VENDOR_SHARP, USB_PRODUCT_SHARP_SLC700 }, CDCE_ZAURUS | CDCE_NO_UNION },
   {{ USB_VENDOR_SHARP, USB_PRODUCT_SHARP_SLC750 }, CDCE_ZAURUS | CDCE_NO_UNION },
   {{ USB_VENDOR_GMATE, USB_PRODUCT_GMATE_YP3X00 }, CDCE_NO_UNION },
+  {{ USB_VENDOR_NETCHIP, USB_PRODUCT_NETCHIP_ETHERNETGADGET }, CDCE_NO_UNION },
 };
 #define cdce_lookup(v, p) ((const struct cdce_type *)usb_lookup(cdce_devs, v, p))
 
