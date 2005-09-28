@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20050927: bridge(4) replaced by if_bridge(4)
+OLD_FILES+=/usr/include/net/bridge.h
+OLD_FILES+=/usr/share/man/man4/bridge.4.gz
 # 20050831: not implemented
 OLD_FILES+=usr/share/man/man3/getino.3.gz
 OLD_FILES+=usr/share/man/man3/putino.3.gz
