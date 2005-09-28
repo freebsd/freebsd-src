@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2005
+.Dd September 28, 2005
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -894,29 +894,26 @@ for more information.
 Set to the list of network interfaces to configure on this host or 
 .Dq Li "AUTO"
 (the default) for all current interfaces.
-For example, if the only network devices in the system are the loopback
-device
+For example, if the only active network devices in the system
+are the loopback device
 .Pq Li lo0
 and a NIC using the
 .Xr ed 4
 driver,
 this could be set to
 .Dq Li "lo0 ed0" .
+.Pp
 An
 .Va ifconfig_ Ns Aq Ar interface
 variable is also assumed to exist for each value of
 .Ar interface .
-If the
-.Va ifconfig_ Ns Aq Ar interface
-contains the keyword
-.Dq Li "NOAUTO"
-then the interface will not be configured by
-at boot or by
-.Pa /etc/pccard_ether
-when
-.Va network_interfaces
-is set to
-.Dq Li "AUTO" .
+The variable can contain arguments to
+.Xr ifconfig 8 ,
+as well as special case-insensitive keywords described below.
+Such keywords are removed before passing the value to
+.Xr ifconfig 8
+while the order of the other arguments is preserved.
+.Pp
 It is also possible to add IP alias entries here in cases where
 multiple IP addresses registered against a single interface
 are desired.
@@ -947,7 +944,9 @@ ifconfig_ed0_alias4="inet 127.0.0.254 netmask 0xffffffff"
 Then note that alias4 would
 .Em not
 be added since the search would
-stop with the missing alias3 entry.
+stop with the missing
+.Dq Li alias3
+entry.
 .Pp
 If the
 .Pa /etc/start_if. Ns Aq Ar interface
@@ -959,6 +958,18 @@ before configuring the interface as specified in the
 and
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
 variables.
+.Pp
+If the
+.Va ifconfig_ Ns Aq Ar interface
+contains the keyword
+.Dq Li "NOAUTO"
+then the interface will not be configured
+at boot or by
+.Pa /etc/pccard_ether
+when
+.Va network_interfaces
+is set to
+.Dq Li "AUTO" .
 .Pp
 It is possible to bring up an interface with DHCP by adding
 .Dq Li DHCP
@@ -997,7 +1008,7 @@ In addition to the
 form, a fallback variable
 .Va ifconfig_DEFAULT
 may be configured.
-It will be used for all interfaces no
+It will be used for all interfaces with no
 .Va ifconfig_ Ns Aq Ar interface
 variable.
 This is intended to replace the no longer supported
