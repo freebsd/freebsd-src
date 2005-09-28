@@ -181,6 +181,19 @@ volatile int smp_tlb_wait;
 volatile cpumask_t ipi_nmi_pending;
 #endif 
 
+#ifdef COUNT_IPIS
+/* Interrupt counts. */
+#ifdef IPI_PREEMPTION
+static u_long *ipi_preempt_counts[MAXCPU];
+#endif
+static u_long *ipi_ast_counts[MAXCPU];
+u_long *ipi_invltlb_counts[MAXCPU];
+u_long *ipi_invlrng_counts[MAXCPU];
+u_long *ipi_invlpg_counts[MAXCPU];
+u_long *ipi_rendezvous_counts[MAXCPU];
+u_long *ipi_lazypmap_counts[MAXCPU];
+#endif
+
 /*
  * Local data and functions.
  */
@@ -1130,6 +1143,9 @@ ipi_bitmap_handler(struct clockframe frame)
 
 #ifdef IPI_PREEMPTION
 	if (ipi_bitmap & IPI_PREEMPT) {
+#ifdef COUNT_IPIS
+		*ipi_preempt_counts[cpu]++;
+#endif
 		mtx_lock_spin(&sched_lock);
 		/* Don't preempt the idle thread */
 		if (curthread->td_priority <  PRI_MIN_IDLE) {
@@ -1143,7 +1159,12 @@ ipi_bitmap_handler(struct clockframe frame)
 	}
 #endif
 
-	/* Nothing to do for AST */
+	if (ipi_bitmap & IPI_AST) {
+#ifdef COUNT_IPIS
+		*ipi_ast_counts[cpu]++;
+#endif
+		/* Nothing to do for AST */
+	}
 }
 
 /*
@@ -1445,3 +1466,37 @@ mp_grab_cpu_hlt(void)
 		__asm __volatile("sti; hlt" : : : "memory");
 	return (retval);
 }
+
+#ifdef COUNT_IPIS
+/*
+ * Setup interrupt counters for IPI handlers.
+ */
+static void
+mp_ipi_intrcnt(void *dummy)
+{
+	char buf[64];
+	int i;
+
+	for (i = 0; i < mp_maxid; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		snprintf(buf, sizeof(buf), "cpu%d: invltlb", i);
+		intrcnt_add(buf, &ipi_invltlb_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d: invlrng", i);
+		intrcnt_add(buf, &ipi_invlrng_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d: invlpg", i);
+		intrcnt_add(buf, &ipi_invlpg_counts[i]);
+#ifdef IPI_PREEMPTION
+		snprintf(buf, sizeof(buf), "cpu%d: preempt", i);
+		intrcnt_add(buf, &ipi_preempt_counts[i]);
+#endif
+		snprintf(buf, sizeof(buf), "cpu%d: ast", i);
+		intrcnt_add(buf, &ipi_ast_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d: rendezvous", i);
+		intrcnt_add(buf, &ipi_rendezvous_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d: lazypmap", i);
+		intrcnt_add(buf, &ipi_lazypmap_counts[i]);
+	}		
+}
+SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL)
+#endif
