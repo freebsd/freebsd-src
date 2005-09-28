@@ -1168,7 +1168,7 @@ packets and an ICMP UNREACHABLE for UDP and other packets.
 Options returning ICMP packets currently have no effect if
 .Xr pf 4
 operates on a
-.Xr bridge 4 ,
+.Xr if_bridge 4 ,
 as the code to support this feature has not yet been implemented.
 .It Ar pass
 The packet is passed.
@@ -1935,7 +1935,7 @@ Rules with
 will not work if
 .Xr pf 4
 operates on a
-.Xr bridge 4 .
+.Xr if_bridge 4 .
 .Pp
 Example:
 .Bd -literal -offset indent
