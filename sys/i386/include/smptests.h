@@ -40,9 +40,15 @@
 #define CPUSTOP_ON_DDBBREAK
 
 /*
- * Misc. counters.
+ * TLB counters.
  *
 #define COUNT_XINVLTLB_HITS
+ */
+
+/*
+ * Per-CPU IPI interrupt counters.
+ *
+#define	COUNT_IPIS
  */
 
 /*

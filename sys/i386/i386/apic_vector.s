@@ -151,14 +151,20 @@ IDTVEC(invltlb)
 	movl	$KDSEL, %eax		/* Kernel data selector */
 	movl	%eax, %ds
 
-#ifdef COUNT_XINVLTLB_HITS
+#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
 	pushl	%fs
 	movl	$KPSEL, %eax		/* Private space selector */
 	movl	%eax, %fs
 	movl	PCPU(CPUID), %eax
 	popl	%fs
+#ifdef COUNT_XINVLTLB_HITS
 	incl	xhits_gbl(,%eax,4)
-#endif /* COUNT_XINVLTLB_HITS */
+#endif
+#ifdef COUNT_IPIS
+	movl	ipi_invltlb_counts(,%eax,4),%eax
+	incl	(%eax)
+#endif
+#endif
 
 	movl	%cr3, %eax		/* invalidate the TLB */
 	movl	%eax, %cr3
@@ -184,14 +190,20 @@ IDTVEC(invlpg)
 	movl	$KDSEL, %eax		/* Kernel data selector */
 	movl	%eax, %ds
 
-#ifdef COUNT_XINVLTLB_HITS
+#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
 	pushl	%fs
 	movl	$KPSEL, %eax		/* Private space selector */
 	movl	%eax, %fs
 	movl	PCPU(CPUID), %eax
 	popl	%fs
+#ifdef COUNT_XINVLTLB_HITS
 	incl	xhits_pg(,%eax,4)
-#endif /* COUNT_XINVLTLB_HITS */
+#endif
+#ifdef COUNT_IPIS
+	movl	ipi_invlpg_counts(,%eax,4),%eax
+	incl	(%eax)
+#endif
+#endif
 
 	movl	smp_tlb_addr1, %eax
 	invlpg	(%eax)			/* invalidate single page */
@@ -218,14 +230,20 @@ IDTVEC(invlrng)
 	movl	$KDSEL, %eax		/* Kernel data selector */
 	movl	%eax, %ds
 
-#ifdef COUNT_XINVLTLB_HITS
+#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
 	pushl	%fs
 	movl	$KPSEL, %eax		/* Private space selector */
 	movl	%eax, %fs
 	movl	PCPU(CPUID), %eax
 	popl	%fs
+#ifdef COUNT_XINVLTLB_HITS
 	incl	xhits_rng(,%eax,4)
-#endif /* COUNT_XINVLTLB_HITS */
+#endif
+#ifdef COUNT_IPIS
+	movl	ipi_invlrng_counts(,%eax,4),%eax
+	incl	(%eax)
+#endif
+#endif
 
 	movl	smp_tlb_addr1, %edx
 	movl	smp_tlb_addr2, %eax
@@ -354,6 +372,11 @@ IDTVEC(rendezvous)
 	movl	$KPSEL, %eax
 	movl	%eax, %fs
 
+#ifdef COUNT_IPIS
+	movl	PCPU(CPUID), %eax
+	movl	ipi_rendezvous_counts(,%eax,4), %eax
+	incl	(%eax)
+#endif
 	call	smp_rendezvous_action
 
 	movl	lapic, %eax
@@ -374,6 +397,11 @@ IDTVEC(lazypmap)
 	movl	$KPSEL, %eax
 	movl	%eax, %fs
 
+#ifdef COUNT_IPIS
+	movl	PCPU(CPUID), %eax
+	movl	ipi_lazypmap_counts(,%eax,4), %eax
+	incl	(%eax)
+#endif
 	call	pmap_lazyfix_action
 
 	movl	lapic, %eax	
