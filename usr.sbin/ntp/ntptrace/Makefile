@@ -3,8 +3,7 @@
 .PATH:	${.CURDIR}/../scripts
 
 SCRIPTS=	ntptrace
-
-SCRIPTSNAME=	ntptrace
 NO_MAN=
+NO_OBJ=
 
 .include <bsd.prog.mk>
