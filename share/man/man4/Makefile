@@ -16,8 +16,8 @@ MAN=	aac.4 \
 	altq.4 \
 	amd.4 \
 	amr.4 \
-	arcmsr.4 \
 	an.4 \
+	arcmsr.4 \
 	asr.4 \
 	ata.4 \
 	atapicam.4 \
@@ -98,8 +98,8 @@ MAN=	aac.4 \
 	ida.4 \
 	idt.4 \
 	ieee80211.4 \
-	ifmib.4 \
 	if_bridge.4 \
+	ifmib.4 \
 	iic.4 \
 	iicbb.4 \
 	iicbus.4 \
@@ -189,8 +189,8 @@ MAN=	aac.4 \
 	ng_hole.4 \
 	ng_hub.4 \
 	ng_iface.4 \
-	ng_ip_input.4 \
 	ng_ipfw.4 \
+	ng_ip_input.4 \
 	ng_ksocket.4 \
 	ng_l2cap.4 \
 	ng_l2tp.4 \
