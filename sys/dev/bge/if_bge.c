@@ -192,6 +192,8 @@ static struct bge_type bge_devs[] = {
 static int bge_probe		(device_t);
 static int bge_attach		(device_t);
 static int bge_detach		(device_t);
+static int bge_suspend		(device_t);
+static int bge_resume		(device_t);
 static void bge_release_resources
 				(struct bge_softc *);
 static void bge_dma_map_addr	(void *, bus_dma_segment_t *, int, int);
@@ -272,6 +274,8 @@ static device_method_t bge_methods[] = {
 	DEVMETHOD(device_attach,	bge_attach),
 	DEVMETHOD(device_detach,	bge_detach),
 	DEVMETHOD(device_shutdown,	bge_shutdown),
+	DEVMETHOD(device_suspend,	bge_suspend),
+	DEVMETHOD(device_resume,	bge_resume),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
@@ -3790,4 +3794,36 @@ bge_shutdown(dev)
 	BGE_UNLOCK(sc);
 
 	return;
+}
+
+static int
+bge_suspend(device_t dev)
+{
+	struct bge_softc *sc;
+
+	sc = device_get_softc(dev);
+	BGE_LOCK(sc);
+	bge_stop(sc);
+	BGE_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+bge_resume(device_t dev)
+{
+	struct bge_softc *sc;
+	struct ifnet *ifp;
+
+	sc = device_get_softc(dev);
+	BGE_LOCK(sc);
+	ifp = sc->bge_ifp;
+	if (ifp->if_flags & IFF_UP) {
+		bge_init_locked(sc);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			bge_start_locked(ifp);
+	}
+	BGE_UNLOCK(sc);
+
+	return (0);
 }
