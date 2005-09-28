@@ -32,8 +32,6 @@ __FBSDID("$FreeBSD$");
 #ifndef BURN_BRIDGES
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/file.h>
@@ -71,8 +69,6 @@ print_svr4_sgttyb(str, ss)
 	struct svr4_sgttyb *ss;
 {
 
-	GIANT_REQUIRED;
-
 	uprintf("%s\nispeed=%o ospeed=%o ", str, ss->sg_ispeed, ss->sg_ospeed);
 	uprintf("erase=%o kill=%o flags=%o\n", ss->sg_erase, ss->sg_kill,
 	    ss->sg_flags);
@@ -83,9 +79,6 @@ print_svr4_tchars(str, st)
 	const char *str;
 	struct svr4_tchars *st;
 {
-
-	GIANT_REQUIRED;
-
 	uprintf("%s\nintrc=%o quitc=%o ", str, st->t_intrc, st->t_quitc);
 	uprintf("startc=%o stopc=%o eofc=%o brkc=%o\n", st->t_startc,
 	    st->t_stopc, st->t_eofc, st->t_brkc);
@@ -96,9 +89,6 @@ print_svr4_ltchars(str, sl)
 	const char *str;
 	struct svr4_ltchars *sl;
 {
-
-	GIANT_REQUIRED;
-
 	uprintf("%s\nsuspc=%o dsuspc=%o ", str, sl->t_suspc, sl->t_dsuspc);
 	uprintf("rprntc=%o flushc=%o werasc=%o lnextc=%o\n", sl->t_rprntc,
 	    sl->t_flushc, sl->t_werasc, sl->t_lnextc);
@@ -241,9 +231,7 @@ svr4_ttold_ioctl(fp, td, retval, fd, cmd, data)
 
 			return copyout(&pid, data, sizeof(pid));
 #else
-			mtx_lock(&Giant);
 			uprintf("ioctl(TIOCGSID) for pid %d unsupported\n", td->td_proc->p_pid);
-			mtx_unlock(&Giant);
 			return EINVAL;
 #endif
 		}
@@ -260,9 +248,7 @@ svr4_ttold_ioctl(fp, td, retval, fd, cmd, data)
 
 			bsd_sgttyb_to_svr4_sgttyb(&bs, &ss);
 #ifdef DEBUG_SVR4
-			mtx_lock(&Giant);
 			print_svr4_sgttyb("SVR4_TIOCGETP", &ss);
-			mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 			return copyout(&ss, data, sizeof(ss));
 		}
@@ -278,9 +264,7 @@ svr4_ttold_ioctl(fp, td, retval, fd, cmd, data)
 
 			svr4_sgttyb_to_bsd_sgttyb(&ss, &bs);
 #ifdef DEBUG_SVR4
-			mtx_lock(&Giant);
 			print_svr4_sgttyb("SVR4_TIOCSET{P,N}", &ss);
-			mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 			cmd = (cmd == SVR4_TIOCSETP) ? TIOCSETP : TIOCSETN;
 			return fo_ioctl(fp, cmd, (caddr_t) &bs,
@@ -299,9 +283,7 @@ svr4_ttold_ioctl(fp, td, retval, fd, cmd, data)
 
 			bsd_tchars_to_svr4_tchars(&bt, &st);
 #ifdef DEBUG_SVR4
-			mtx_lock(&Giant);
 			print_svr4_tchars("SVR4_TIOCGETC", &st);
-			mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 			return copyout(&st, data, sizeof(st));
 		}
@@ -316,9 +298,7 @@ svr4_ttold_ioctl(fp, td, retval, fd, cmd, data)
 
 			svr4_tchars_to_bsd_tchars(&st, &bt);
 #ifdef DEBUG_SVR4
-			mtx_lock(&Giant);
 			print_svr4_tchars("SVR4_TIOCSETC", &st);
-			mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 			return fo_ioctl(fp, TIOCSETC, (caddr_t) &bt,
 			    td->td_ucred, td);
@@ -336,9 +316,7 @@ svr4_ttold_ioctl(fp, td, retval, fd, cmd, data)
 
 			bsd_ltchars_to_svr4_ltchars(&bl, &sl);
 #ifdef DEBUG_SVR4
-			mtx_lock(&Giant);
 			print_svr4_ltchars("SVR4_TIOCGLTC", &sl);
-			mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 			return copyout(&sl, data, sizeof(sl));
 		}
@@ -353,9 +331,7 @@ svr4_ttold_ioctl(fp, td, retval, fd, cmd, data)
 
 			svr4_ltchars_to_bsd_ltchars(&sl, &bl);
 #ifdef DEBUG_SVR4
-			mtx_lock(&Giant);
 			print_svr4_ltchars("SVR4_TIOCSLTC", &sl);
-			mtx_unlock(&Giant);
 #endif /* DEBUG_SVR4 */
 			return fo_ioctl(fp, TIOCSLTC, (caddr_t) &bl,
 			    td->td_ucred, td);
