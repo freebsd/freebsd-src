@@ -4,6 +4,6 @@
 
 KMOD=	geom_uzip
 SRCS=	g_uzip.c
-#CFLAGS=	-g
+#CFLAGS=	-g -DINVARIANT_SUPPORT -DINVARIANTS
 
 .include <bsd.kmod.mk>
