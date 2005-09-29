@@ -117,8 +117,6 @@ tablefull(const char *tab)
 
 /*
  * Uprintf prints to the controlling terminal for the current process.
- * It may block if the tty queue is overfull.  No message is printed if
- * the queue does not clear in a reasonable time.
  */
 int
 uprintf(const char *fmt, ...)
@@ -132,29 +130,34 @@ uprintf(const char *fmt, ...)
 	if (td == NULL || td == PCPU_GET(idlethread))
 		return (0);
 
+	mtx_lock(&Giant);
 	p = td->td_proc;
 	PROC_LOCK(p);
 	if ((p->p_flag & P_CONTROLT) == 0) {
 		PROC_UNLOCK(p);
-		return (0);
+		retval = 0;
+		goto out;
 	}
 	SESS_LOCK(p->p_session);
 	pca.tty = p->p_session->s_ttyp;
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
-	if (pca.tty == NULL)
-		return (0);
+	if (pca.tty == NULL) {
+		retval = 0;
+		goto out;
+	}
 	pca.flags = TOTTY;
 	va_start(ap, fmt);
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
-
+out:
+	mtx_unlock(&Giant);
 	return (retval);
 }
 
 /*
- * tprintf prints on the controlling terminal associated
- * with the given session, possibly to the log as well.
+ * tprintf prints on the controlling terminal associated with the given
+ * session, possibly to the log as well.
  */
 void
 tprintf(struct proc *p, int pri, const char *fmt, ...)
@@ -165,6 +168,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	struct putchar_arg pca;
 	struct session *sess = NULL;
 
+	mtx_lock(&Giant);
 	if (pri != -1)
 		flags |= TOLOG;
 	if (p != NULL) {
@@ -195,6 +199,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 		SESS_UNLOCK(sess);
 	}
 	msgbuftrigger = 1;
+	mtx_unlock(&Giant);
 }
 
 /*
