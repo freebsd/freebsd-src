@@ -94,7 +94,7 @@ static void	bpf_detachd(struct bpf_d *d);
 static void	bpf_freed(struct bpf_d *);
 static void	bpf_mcopy(const void *, void *, size_t);
 static int	bpf_movein(struct uio *, int, int,
-		    struct mbuf **, struct sockaddr *);
+		    struct mbuf **, struct sockaddr *, struct bpf_insn *);
 static int	bpf_setif(struct bpf_d *, struct ifreq *);
 static void	bpf_timed_out(void *);
 static __inline void
@@ -102,7 +102,7 @@ static __inline void
 static void	catchpacket(struct bpf_d *, u_char *, u_int,
 		    u_int, void (*)(const void *, void *, size_t));
 static void	reset_d(struct bpf_d *);
-static int	 bpf_setf(struct bpf_d *, struct bpf_program *);
+static int	 bpf_setf(struct bpf_d *, struct bpf_program *, u_long cmd);
 static int	bpf_getdltlist(struct bpf_d *, struct bpf_dltlist *);
 static int	bpf_setdlt(struct bpf_d *, u_int);
 static void	filt_bpfdetach(struct knote *);
@@ -152,17 +152,19 @@ static struct filterops bpfread_filtops =
 	{ 1, NULL, filt_bpfdetach, filt_bpfread };
 
 static int
-bpf_movein(uio, linktype, mtu, mp, sockp)
+bpf_movein(uio, linktype, mtu, mp, sockp, wfilter)
 	struct uio *uio;
 	int linktype;
 	int mtu;
 	struct mbuf **mp;
 	struct sockaddr *sockp;
+	struct bpf_insn *wfilter;
 {
 	struct mbuf *m;
 	int error;
 	int len;
 	int hlen;
+	int slen;
 
 	/*
 	 * Build a sockaddr based on the data link layer type.
@@ -243,10 +245,26 @@ bpf_movein(uio, linktype, mtu, mp, sockp)
 	m->m_pkthdr.rcvif = NULL;
 	*mp = m;
 
+	if (m->m_len < hlen) {
+		error = EPERM;
+		goto bad;
+	}
+
+	error = uiomove(mtod(m, u_char *), len, uio);
+	if (error)
+		goto bad;
+
+	slen = bpf_filter(wfilter, mtod(m, u_char *), len, len);
+	if (slen == 0) {
+		error = EPERM;
+		goto bad;
+	}
+
 	/*
-	 * Make room for link header.
+	 * Make room for link header, and copy it to sockaddr
 	 */
 	if (hlen != 0) {
+		bcopy(m->m_data, sockp->sa_data, hlen);
 		m->m_pkthdr.len -= hlen;
 		m->m_len -= hlen;
 #if BSD >= 199103
@@ -254,13 +272,9 @@ bpf_movein(uio, linktype, mtu, mp, sockp)
 #else
 		m->m_off += hlen;
 #endif
-		error = uiomove(sockp->sa_data, hlen, uio);
-		if (error)
-			goto bad;
 	}
-	error = uiomove(mtod(m, void *), len - hlen, uio);
-	if (!error)
-		return (0);
+
+	return (0);
 bad:
 	m_freem(m);
 	return (error);
@@ -602,7 +616,8 @@ bpfwrite(dev, uio, ioflag)
 		return (0);
 
 	bzero(&dst, sizeof(dst));
-	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, ifp->if_mtu, &m, &dst);
+	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, ifp->if_mtu,
+	    &m, &dst, d->bd_wfilter);
 	if (error)
 		return (error);
 
@@ -650,6 +665,7 @@ reset_d(d)
  *  SIOCGIFADDR		Get interface address - convenient hook to driver.
  *  BIOCGBLEN		Get buffer len [for read()].
  *  BIOCSETF		Set ethernet read filter.
+ *  BIOCSETWF		Set ethernet write filter.
  *  BIOCFLUSH		Flush read packet buffer.
  *  BIOCPROMISC		Put interface into promiscuous mode.
  *  BIOCGDLT		Get link layer type.
@@ -664,6 +680,7 @@ reset_d(d)
  *  BIOCSHDRCMPLT	Set "header already complete" flag
  *  BIOCGSEESENT	Get "see packets sent" flag
  *  BIOCSSEESENT	Set "see packets sent" flag
+ *  BIOCLOCK		Set "locked" flag
  */
 /* ARGSUSED */
 static	int
@@ -683,6 +700,28 @@ bpfioctl(dev, cmd, addr, flags, td)
 	d->bd_state = BPF_IDLE;
 	BPFD_UNLOCK(d);
 
+	if (d->bd_locked == 1) {
+		switch (cmd) {
+		case BIOCGBLEN:
+		case BIOCFLUSH:
+		case BIOCGDLT:
+		case BIOCGDLTLIST: 
+		case BIOCGETIF:
+		case BIOCGRTIMEOUT:
+		case BIOCGSTATS:
+		case BIOCVERSION:
+		case BIOCGRSIG:
+		case BIOCGHDRCMPLT:
+		case FIONREAD:
+		case BIOCLOCK:
+		case BIOCSRTIMEOUT:
+		case BIOCIMMEDIATE:
+		case TIOCGPGRP:
+			break;
+		default:
+			return (EPERM);
+		}
+	}
 	switch (cmd) {
 
 	default:
@@ -747,7 +786,8 @@ bpfioctl(dev, cmd, addr, flags, td)
 	 * Set link layer read filter.
 	 */
 	case BIOCSETF:
-		error = bpf_setf(d, (struct bpf_program *)addr);
+	case BIOCSETWF:
+		error = bpf_setf(d, (struct bpf_program *)addr, cmd);
 		break;
 
 	/*
@@ -894,6 +934,9 @@ bpfioctl(dev, cmd, addr, flags, td)
 		*(u_int *)addr = d->bd_hdrcmplt;
 		break;
 
+	case BIOCLOCK:
+		d->bd_locked = 1;
+		break;
 	/*
 	 * Set "header already complete" flag
 	 */
@@ -964,19 +1007,29 @@ bpfioctl(dev, cmd, addr, flags, td)
  * free it and replace it.  Returns EINVAL for bogus requests.
  */
 static int
-bpf_setf(d, fp)
+bpf_setf(d, fp, cmd)
 	struct bpf_d *d;
 	struct bpf_program *fp;
+	u_long cmd;
 {
 	struct bpf_insn *fcode, *old;
-	u_int flen, size;
+	u_int wfilter, flen, size;
 
+	if (cmd == BIOCSETWF) {
+		old = d->bd_wfilter;
+		wfilter = 1;
+	} else {
+		wfilter = 0;
+		old = d->bd_rfilter;
+	}
 	if (fp->bf_insns == NULL) {
 		if (fp->bf_len != 0)
 			return (EINVAL);
 		BPFD_LOCK(d);
-		old = d->bd_filter;
-		d->bd_filter = NULL;
+		if (wfilter)
+			d->bd_wfilter = NULL;
+		else
+			d->bd_rfilter = NULL;
 		reset_d(d);
 		BPFD_UNLOCK(d);
 		if (old != NULL)
@@ -992,8 +1045,10 @@ bpf_setf(d, fp)
 	if (copyin((caddr_t)fp->bf_insns, (caddr_t)fcode, size) == 0 &&
 	    bpf_validate(fcode, (int)flen)) {
 		BPFD_LOCK(d);
-		old = d->bd_filter;
-		d->bd_filter = fcode;
+		if (wfilter)
+			d->bd_wfilter = fcode;
+		else
+			d->bd_rfilter = fcode;
 		reset_d(d);
 		BPFD_UNLOCK(d);
 		if (old != NULL)
@@ -1185,7 +1240,7 @@ bpf_tap(bp, pkt, pktlen)
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
 		BPFD_LOCK(d);
 		++d->bd_rcount;
-		slen = bpf_filter(d->bd_filter, pkt, pktlen, pktlen);
+		slen = bpf_filter(d->bd_rfilter, pkt, pktlen, pktlen);
 		if (slen != 0) {
 			d->bd_fcount++;
 #ifdef MAC
@@ -1251,7 +1306,7 @@ bpf_mtap(bp, m)
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
-		slen = bpf_filter(d->bd_filter, (u_char *)m, pktlen, 0);
+		slen = bpf_filter(d->bd_rfilter, (u_char *)m, pktlen, 0);
 		if (slen != 0) {
 			d->bd_fcount++;
 #ifdef MAC
@@ -1304,7 +1359,7 @@ bpf_mtap2(bp, data, dlen, m)
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
-		slen = bpf_filter(d->bd_filter, (u_char *)&mb, pktlen, 0);
+		slen = bpf_filter(d->bd_rfilter, (u_char *)&mb, pktlen, 0);
 		if (slen != 0) {
 			d->bd_fcount++;
 #ifdef MAC
@@ -1436,8 +1491,10 @@ bpf_freed(d)
 		if (d->bd_fbuf != NULL)
 			free(d->bd_fbuf, M_BPF);
 	}
-	if (d->bd_filter)
-		free((caddr_t)d->bd_filter, M_BPF);
+	if (d->bd_rfilter)
+		free((caddr_t)d->bd_rfilter, M_BPF);
+	if (d->bd_wfilter)
+		free((caddr_t)d->bd_wfilter, M_BPF);
 	mtx_destroy(&d->bd_mtx);
 }
 
@@ -1664,6 +1721,7 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 	strlcpy(d->bd_ifname,
 	    bd->bd_bif->bif_ifp->if_xname, IFNAMSIZ);
 	strlcpy(d->bd_pcomm, bd->bd_pcomm, MAXCOMLEN);
+	d->bd_locked = bd->bd_locked;
 }
 
 static int
