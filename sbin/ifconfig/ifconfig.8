@@ -1220,16 +1220,17 @@ interface recognizes that the
 parent interface supports insertion and extraction of VLAN tags on its
 own (usually in firmware) and that it should pass packets to and from
 the parent unaltered.
-.It Fl vlandev Ar iface
+.It Fl vlandev Op Ar iface
 If the driver is a
 .Xr vlan 4
-pseudo device, disassociate the physical interface
-.Ar iface
-from it.
+pseudo device, disassociate the parent interface from it.
 This breaks the link between the
 .Xr vlan 4
 interface and its parent,
 clears its VLAN tag, flags and its link address and shuts the interface down.
+The
+.Ar iface
+argument is useless and hence deprecated.
 .El
 .Pp
 The
