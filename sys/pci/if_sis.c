@@ -449,9 +449,7 @@ sis_mii_send(struct sis_softc *sc, uint32_t bits, int cnt)
 static int
 sis_mii_readreg(struct sis_softc *sc, struct sis_mii_frame *frame)
 {
-	int			i, ack, s;
- 
-	s = splimp();
+	int			i, ack;
  
 	/*
 	 * Set up frame for RX.
@@ -525,8 +523,6 @@ fail:
 	SIO_SET(SIS_MII_CLK);
 	DELAY(1);
 
-	splx(s);
-
 	if (ack)
 		return(1);
 	return(0);
@@ -538,9 +534,7 @@ fail:
 static int
 sis_mii_writereg(struct sis_softc *sc, struct sis_mii_frame *frame)
 {
-	int			s;
  
-	 s = splimp();
  	/*
  	 * Set up frame for TX.
  	 */
@@ -573,8 +567,6 @@ sis_mii_writereg(struct sis_softc *sc, struct sis_mii_frame *frame)
  	 * Turn off xmit.
  	 */
  	SIO_CLR(SIS_MII_DIR);
- 
- 	splx(s);
  
  	return(0);
 }
@@ -627,8 +619,7 @@ sis_miibus_readreg(device_t dev, int phy, int reg)
 		}
 
 		if (i == SIS_TIMEOUT) {
-			printf("sis%d: PHY failed to come ready\n",
-			    sc->sis_unit);
+			if_printf(sc->sis_ifp, "PHY failed to come ready\n");
 			return(0);
 		}
 
@@ -686,8 +677,7 @@ sis_miibus_writereg(device_t dev, int phy, int reg, int data)
 		}
 
 		if (i == SIS_TIMEOUT)
-			printf("sis%d: PHY failed to come ready\n",
-			    sc->sis_unit);
+			if_printf(sc->sis_ifp, "PHY failed to come ready\n");
 	} else {
 		bzero((char *)&frame, sizeof(frame));
 
@@ -853,7 +843,7 @@ sis_reset(struct sis_softc *sc)
 	}
 
 	if (i == SIS_TIMEOUT)
-		printf("sis%d: reset never completed\n", sc->sis_unit);
+		if_printf(sc->sis_ifp, "reset never completed\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -903,16 +893,16 @@ sis_attach(device_t dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid, waittime = 0;
+	int			error = 0, rid, waittime = 0;
 
 	waittime = 0;
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	sc->sis_self = dev;
 
 	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+	callout_init_mtx(&sc->sis_stat_ch, &sc->sis_mtx, 0);
 
 	if (pci_get_device(dev) == SIS_DEVICEID_900)
 		sc->sis_type = SIS_TYPE_900;
@@ -931,7 +921,7 @@ sis_attach(device_t dev)
 	sc->sis_res = bus_alloc_resource_any(dev, SIS_RES, &rid, RF_ACTIVE);
 
 	if (sc->sis_res == NULL) {
-		printf("sis%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -945,7 +935,7 @@ sis_attach(device_t dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->sis_irq == NULL) {
-		printf("sis%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1068,12 +1058,6 @@ sis_attach(device_t dev)
 		break;
 	}
 
-	sc->sis_unit = unit;
-	if (debug_mpsafenet)
-		callout_init(&sc->sis_stat_ch, CALLOUT_MPSAFE);
-	else
-		callout_init(&sc->sis_stat_ch, 0);
-
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
@@ -1117,7 +1101,7 @@ sis_attach(device_t dev)
 	    &sc->sis_rx_dmamap);
 
 	if (error) {
-		printf("sis%d: no memory for rx list buffers!\n", unit);
+		device_printf(dev, "no memory for rx list buffers!\n");
 		bus_dma_tag_destroy(sc->sis_rx_tag);
 		sc->sis_rx_tag = NULL;
 		goto fail;
@@ -1129,7 +1113,7 @@ sis_attach(device_t dev)
 	    &sc->sis_rx_paddr, 0);
 
 	if (error) {
-		printf("sis%d: cannot get address of the rx ring!\n", unit);
+		device_printf(dev, "cannot get address of the rx ring!\n");
 		bus_dmamem_free(sc->sis_rx_tag,
 		    sc->sis_rx_list, sc->sis_rx_dmamap);
 		bus_dma_tag_destroy(sc->sis_rx_tag);
@@ -1156,7 +1140,7 @@ sis_attach(device_t dev)
 	    &sc->sis_tx_dmamap);
 
 	if (error) {
-		printf("sis%d: no memory for tx list buffers!\n", unit);
+		device_printf(dev, "no memory for tx list buffers!\n");
 		bus_dma_tag_destroy(sc->sis_tx_tag);
 		sc->sis_tx_tag = NULL;
 		goto fail;
@@ -1168,7 +1152,7 @@ sis_attach(device_t dev)
 	    &sc->sis_tx_paddr, 0);
 
 	if (error) {
-		printf("sis%d: cannot get address of the tx ring!\n", unit);
+		device_printf(dev, "cannot get address of the tx ring!\n");
 		bus_dmamem_free(sc->sis_tx_tag,
 		    sc->sis_tx_list, sc->sis_tx_dmamap);
 		bus_dma_tag_destroy(sc->sis_tx_tag);
@@ -1197,7 +1181,7 @@ sis_attach(device_t dev)
 
 	ifp = sc->sis_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("sis%d: can not if_alloc()\n", sc->sis_unit);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -1219,7 +1203,7 @@ sis_attach(device_t dev)
 	 */
 	if (mii_phy_probe(dev, &sc->sis_miibus,
 	    sis_ifmedia_upd, sis_ifmedia_sts)) {
-		printf("sis%d: MII without any PHY!\n", sc->sis_unit);
+		device_printf(dev, "MII without any PHY!\n");
 		if_free(ifp);
 		error = ENXIO;
 		goto fail;
@@ -1246,7 +1230,7 @@ sis_attach(device_t dev)
 	    sis_intr, sc, &sc->sis_intrhand);
 
 	if (error) {
-		printf("sis%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		if_free(ifp);
 		goto fail;
@@ -1274,13 +1258,15 @@ sis_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->sis_mtx), ("sis mutex not initialized"));
-	SIS_LOCK(sc);
 	ifp = sc->sis_ifp;
 
 	/* These should only be active if attach succeeded. */
 	if (device_is_attached(dev)) {
+		SIS_LOCK(sc);
 		sis_reset(sc);
 		sis_stop(sc);
+		SIS_UNLOCK(sc);
+		callout_drain(&sc->sis_stat_ch);
 		ether_ifdetach(ifp);
 		if_free(ifp);
 	}
@@ -1314,7 +1300,6 @@ sis_detach(device_t dev)
 	if (sc->sis_tag)
 		bus_dma_tag_destroy(sc->sis_tag);
 
-	SIS_UNLOCK(sc);
 	mtx_destroy(&sc->sis_mtx);
 
 	return(0);
@@ -1567,7 +1552,7 @@ sis_tick(void *xsc)
 	struct ifnet		*ifp;
 
 	sc = xsc;
-	SIS_LOCK(sc);
+	SIS_LOCK_ASSERT(sc);
 	sc->in_tick = 1;
 	ifp = sc->sis_ifp;
 
@@ -1583,7 +1568,6 @@ sis_tick(void *xsc)
 
 	callout_reset(&sc->sis_stat_ch, hz,  sis_tick, sc);
 	sc->in_tick = 0;
-	SIS_UNLOCK(sc);
 }
 
 #ifdef DEVICE_POLLING
@@ -1912,8 +1896,8 @@ sis_initl(struct sis_softc *sc)
 
 	/* Init circular TX/RX lists. */
 	if (sis_ring_init(sc) != 0) {
-		printf("sis%d: initialization failed: no "
-			"memory for rx buffers\n", sc->sis_unit);
+		if_printf(ifp,
+		    "initialization failed: no memory for rx buffers\n");
 		sis_stop(sc);
 		return;
 	}
@@ -2086,6 +2070,7 @@ sis_ifmedia_upd(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
+	SIS_LOCK(sc);
 	mii = device_get_softc(sc->sis_miibus);
 	sc->sis_link = 0;
 	if (mii->mii_instance) {
@@ -2094,6 +2079,7 @@ sis_ifmedia_upd(struct ifnet *ifp)
 			mii_phy_reset(miisc);
 	}
 	mii_mediachg(mii);
+	SIS_UNLOCK(sc);
 
 	return(0);
 }
@@ -2109,8 +2095,10 @@ sis_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 
+	SIS_LOCK(sc);
 	mii = device_get_softc(sc->sis_miibus);
 	mii_pollstat(mii);
+	SIS_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 }
@@ -2125,13 +2113,13 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch(command) {
 	case SIOCSIFFLAGS:
+		SIS_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			sis_init(sc);
+			sis_initl(sc);
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			SIS_LOCK(sc);
 			sis_stop(sc);
-			SIS_UNLOCK(sc);
 		}
+		SIS_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
@@ -2147,13 +2135,13 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		mii = device_get_softc(sc->sis_miibus);
-		SIS_LOCK(sc);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
-		SIS_UNLOCK(sc);
 		break;
 	case SIOCSIFCAP:
+		SIS_LOCK(sc);
 		ifp->if_capenable &= ~IFCAP_POLLING;
 		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
+		SIS_UNLOCK(sc);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2177,7 +2165,7 @@ sis_watchdog(struct ifnet *ifp)
 	}
 
 	ifp->if_oerrors++;
-	printf("sis%d: watchdog timeout\n", sc->sis_unit);
+	if_printf(ifp, "watchdog timeout\n");
 
 	sis_stop(sc);
 	sis_reset(sc);
