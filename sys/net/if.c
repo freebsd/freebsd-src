@@ -600,6 +600,9 @@ if_purgeaddrs(struct ifnet *ifp)
 /*
  * Detach an interface, removing it from the
  * list of "active" interfaces and freeing the struct ifnet.
+ *
+ * XXXRW: There are some significant questions about event ordering, and
+ * how to prevent things from starting to use the interface during detach.
  */
 void
 if_detach(struct ifnet *ifp)
@@ -636,6 +639,10 @@ if_detach(struct ifnet *ifp)
 #endif
 
 	if_purgeaddrs(ifp);
+
+#ifdef INET
+	in_ifdetach(ifp);
+#endif
 
 #ifdef INET6
 	/*
