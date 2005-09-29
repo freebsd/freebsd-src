@@ -5,7 +5,7 @@
 #
 
 IMAGE=		test-1.img
-ZIMAGE=		${IMAGE}.gz
+ZIMAGE=		${IMAGE}.uzip
 UZIMAGE=	${ZIMAGE}.uue
 
 test:
@@ -15,7 +15,9 @@ image:
 	makefs -s 1048576 ${IMAGE} etalon
 	printf "#\n# $$" >${UZIMAGE}
 	printf "FreeBSD$$\n#\n\n" >> ${UZIMAGE}
-	create_compressed_fs ${IMAGE} 65536 | uuencode ${ZIMAGE} >>${UZIMAGE}
+	mkuzip -o ${ZIMAGE} ${IMAGE}
+	uuencode ${ZIMAGE} ${ZIMAGE} >>${UZIMAGE}
+	rm ${ZIMAGE}
 
 clean:
 	rm -f ${IMAGE} ${ZIMAGE}

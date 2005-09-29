@@ -6,8 +6,8 @@
 #
 # prepare
 kldload geom_uzip
-uudecode test-1.img.gz.uue
-num=`mdconfig -an -f test-1.img.gz` || exit 1
+uudecode test-1.img.uzip.uue
+num=`mdconfig -an -f test-1.img.uzip` || exit 1
 sleep 1
 
 #
