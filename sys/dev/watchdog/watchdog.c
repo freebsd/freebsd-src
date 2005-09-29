@@ -55,9 +55,13 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 		return (EINVAL);
 	if ((u & (WD_ACTIVE | WD_PASSIVE)) == (WD_ACTIVE | WD_PASSIVE))
 		return (EINVAL);
-	if ((u & WD_INTERVAL) == WD_TO_NEVER)
+
+	if ((u & WD_INTERVAL) == WD_TO_NEVER) {
 		u = 0;
-	error = EOPNOTSUPP;
+		error = 0;
+	} else {
+		error = EOPNOTSUPP;
+	}
 	EVENTHANDLER_INVOKE(watchdog_list, u, &error);
 	return (error);
 }
