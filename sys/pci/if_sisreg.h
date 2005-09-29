@@ -438,7 +438,6 @@ struct sis_softc {
 	void			*sis_intrhand;
 	device_t		sis_self;
 	device_t		sis_miibus;
-	u_int8_t		sis_unit;
 	u_int8_t		sis_type;
 	u_int8_t		sis_rev;
 	u_int8_t		sis_link;
