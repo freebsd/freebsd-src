@@ -320,7 +320,7 @@ pmcc_show_statistics(void)
 #define	PRINT(N,V)	(void) printf("%-40s %d\n", (N), gms.pm_##V)
 	PRINT("interrupts processed:", intr_processed);
 	PRINT("non-PMC interrupts:", intr_ignored);
-	PRINT("interrupts dropped due to lack of space:", intr_bufferfull);
+	PRINT("sampling stalls due to space shortages:", intr_bufferfull);
 	PRINT("system calls:", syscalls);
 	PRINT("system calls with errors:", syscall_errors);
 	PRINT("buffer requests:", buffer_requests);
