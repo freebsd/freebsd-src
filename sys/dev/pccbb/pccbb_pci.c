@@ -195,7 +195,14 @@ static struct yenta_chipinfo {
 	{PCIC_ID_OZ6922, "O2Micro OZ6922 PCI-CardBus Bridge", CB_O2MICRO},
 	{PCIC_ID_OZ6933, "O2Micro OZ6933 PCI-CardBus Bridge", CB_O2MICRO},
 	{PCIC_ID_OZ711E1, "O2Micro OZ711E1 PCI-CardBus Bridge", CB_O2MICRO},
+	{PCIC_ID_OZ711EC1, "O2Micro OZ711EC1/M1 PCI-CardBus Bridge", CB_O2MICRO},
+	{PCIC_ID_OZ711E2, "O2Micro OZ711E2 PCI-CardBus Bridge", CB_O2MICRO},
 	{PCIC_ID_OZ711M1, "O2Micro OZ711M1 PCI-CardBus Bridge", CB_O2MICRO},
+	{PCIC_ID_OZ711M2, "O2Micro OZ711M2 PCI-CardBus Bridge", CB_O2MICRO},
+	{PCIC_ID_OZ711M3, "O2Micro OZ711M3 PCI-CardBus Bridge", CB_O2MICRO},
+
+	/* SMC */
+	{PCIC_ID_SMC34C90, "SMC 34C90 PCI-CardBus Bridge", CB_CIRRUS,
 
 	/* sentinel */
 	{0 /* null id */, "unknown", CB_UNKNOWN},
