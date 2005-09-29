@@ -426,8 +426,6 @@ rl_mii_readreg(struct rl_softc *sc, struct rl_mii_frame *frame)
 {
 	int			i, ack;
 
-	RL_LOCK(sc);
-
 	/* Set up frame for RX. */
 	frame->mii_stdelim = RL_MII_STARTDELIM;
 	frame->mii_opcode = RL_MII_READOP;
@@ -495,8 +493,6 @@ fail:
 	MII_SET(RL_MII_CLK);
 	DELAY(1);
 
-	RL_UNLOCK(sc);
-
 	return (ack ? 1 : 0);
 }
 
@@ -506,8 +502,6 @@ fail:
 static int
 rl_mii_writereg(struct rl_softc *sc, struct rl_mii_frame *frame)
 {
-
-	RL_LOCK(sc);
 
 	/* Set up frame for TX. */
 	frame->mii_stdelim = RL_MII_STARTDELIM;
@@ -534,8 +528,6 @@ rl_mii_writereg(struct rl_softc *sc, struct rl_mii_frame *frame)
 
 	/* Turn off xmit. */
 	MII_CLR(RL_MII_DIR);
-
-	RL_UNLOCK(sc);
 
 	return (0);
 }
@@ -802,6 +794,7 @@ rl_attach(device_t dev)
 
 	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+	callout_init_mtx(&sc->rl_stat_callout, &sc->rl_mtx, 0);
 
 	pci_enable_busmaster(dev);
 
@@ -862,8 +855,6 @@ rl_attach(device_t dev)
 		eaddr[(i * 2) + 0] = as[i] & 0xff;
 		eaddr[(i * 2) + 1] = as[i] >> 8;
 	}
-
-	sc->rl_unit = unit;
 
 	/*
 	 * Now read the exact device type from the EEPROM to find
@@ -973,8 +964,6 @@ rl_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	callout_handle_init(&sc->rl_stat_ch);
-
 	/*
 	 * Call MI attach routine.
 	 */
@@ -1012,11 +1001,13 @@ rl_detach(device_t dev)
 	ifp = sc->rl_ifp;
 
 	KASSERT(mtx_initialized(&sc->rl_mtx), ("rl mutex not initialized"));
+
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		RL_LOCK(sc);
 		rl_stop(sc);
 		RL_UNLOCK(sc);
+		callout_drain(&sc->rl_stat_callout);
 		ether_ifdetach(ifp);
 	}
 #if 0
@@ -1278,12 +1269,11 @@ rl_tick(void *xsc)
 	struct rl_softc		*sc = xsc;
 	struct mii_data		*mii;
 
-	RL_LOCK(sc);
+	RL_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
 
-	sc->rl_stat_ch = timeout(rl_tick, sc, hz);
-	RL_UNLOCK(sc);
+	callout_reset(&sc->rl_stat_callout, hz, rl_tick, sc);
 }
 
 #ifdef DEVICE_POLLING
@@ -1607,7 +1597,7 @@ rl_init_locked(struct rl_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->rl_stat_ch = timeout(rl_tick, sc, hz);
+	callout_reset(&sc->rl_stat_callout, hz, rl_tick, sc);
 }
 
 /*
@@ -1621,7 +1611,9 @@ rl_ifmedia_upd(struct ifnet *ifp)
 
 	mii = device_get_softc(sc->rl_miibus);
 
+	RL_LOCK(sc);
 	mii_mediachg(mii);
+	RL_UNLOCK(sc);
 
 	return (0);
 }
@@ -1637,7 +1629,9 @@ rl_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	mii = device_get_softc(sc->rl_miibus);
 
+	RL_LOCK(sc);
 	mii_pollstat(mii);
+	RL_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 }
@@ -1716,7 +1710,7 @@ rl_stop(struct rl_softc *sc)
 	RL_LOCK_ASSERT(sc);
 
 	ifp->if_timer = 0;
-	untimeout(rl_tick, sc, sc->rl_stat_ch);
+	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
