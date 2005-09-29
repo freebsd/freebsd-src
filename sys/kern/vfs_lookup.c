@@ -972,9 +972,6 @@ kern_alternate_path(struct thread *td, const char *prefix, char *path,
 		goto keeporig;
 	}
 
-	/* XXX: VFS_LOCK_GIANT? */
-	mtx_lock(&Giant);
-
 	/*
 	 * We know that there is a / somewhere in this pathname.
 	 * Search backwards for it, to find the file's parent dir
@@ -987,17 +984,17 @@ kern_alternate_path(struct thread *td, const char *prefix, char *path,
 		for (cp = &ptr[len] - 1; *cp != '/'; cp--);
 		*cp = '\0';
 
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
+		NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, buf, td);
 		error = namei(&nd);
 		*cp = '/';
 		if (error != 0)
-			goto nd_failed;
+			goto keeporig;
 	} else {
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
+		NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, buf, td);
 
 		error = namei(&nd);
 		if (error != 0)
-			goto nd_failed;
+			goto keeporig;
 
 		/*
 		 * We now compare the vnode of the prefix to the one
@@ -1007,7 +1004,8 @@ kern_alternate_path(struct thread *td, const char *prefix, char *path,
 		 * root directory and never finding it, because "/" resolves
 		 * to the emulation root directory. This is expensive :-(
 		 */
-		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, prefix, td);
+		NDINIT(&ndroot, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, prefix,
+		    td);
 
 		/* We shouldn't ever get an error from this namei(). */
 		error = namei(&ndroot);
@@ -1017,15 +1015,13 @@ kern_alternate_path(struct thread *td, const char *prefix, char *path,
 
 			NDFREE(&ndroot, NDF_ONLY_PNBUF);
 			vrele(ndroot.ni_vp);
+			VFS_UNLOCK_GIANT(NDHASGIANT(&ndroot));
 		}
 	}
 
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
-
-nd_failed:
-	/* XXX: VFS_UNLOCK_GIANT? */
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
 
 keeporig:
 	/* If there was an error, use the original path name. */
