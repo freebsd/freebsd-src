@@ -1153,10 +1153,14 @@ and
 .Ar dest_addr
 are interpreted as the outer source/destination for the encapsulating
 IPv4/IPv6 header.
-.It Cm deletetunnel
+.It Fl tunnel
 Unconfigure the physical source and destination address for IP tunnel
 interfaces previously configured with
 .Cm tunnel .
+.It Cm deletetunnel
+Another name for the
+.Fl tunnel
+parameter.
 .El
 .Pp
 The following parameters are specific to
