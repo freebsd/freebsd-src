@@ -202,7 +202,7 @@ static struct yenta_chipinfo {
 	{PCIC_ID_OZ711M3, "O2Micro OZ711M3 PCI-CardBus Bridge", CB_O2MICRO},
 
 	/* SMC */
-	{PCIC_ID_SMC34C90, "SMC 34C90 PCI-CardBus Bridge", CB_CIRRUS,
+	{PCIC_ID_SMC_34C90, "SMC 34C90 PCI-CardBus Bridge", CB_CIRRUS},
 
 	/* sentinel */
 	{0 /* null id */, "unknown", CB_UNKNOWN},
