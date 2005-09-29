@@ -1254,9 +1254,12 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 	 * If there was a successful reply and a tprintf msg. tprintf a
 	 * response.
 	 */
-	if (!error && (task->r_flags & R_TPRINTFMSG))
+	if (!error && (task->r_flags & R_TPRINTFMSG)) {
+		mtx_lock(&Giant);
 		rpcclnt_msg(task->r_td, rpc->rc_prog->prog_name,
 			    "is alive again");
+		mtx_unlock(&Giant);
+	}
 
 	/* free request header (leaving mrest) */
 	mheadend->m_next = NULL;
@@ -1390,6 +1393,7 @@ rpcclnt_timer(arg)
 #else
 	s = splnet();
 #endif
+	mtx_lock(&Giant);	/* rpc_msg -> tprintf */
 	TAILQ_FOREACH(rep, &rpctask_q, r_chain) {
 		rpc = rep->r_rpcclnt;
 		if (rep->r_mrep || (rep->r_flags & R_SOFTTERM))
@@ -1474,6 +1478,7 @@ rpcclnt_timer(arg)
 			}
 		}
 	}
+	mtx_unlock(&Giant);	/* rpc_msg -> tprintf */
 	splx(s);
 
 #ifdef __OpenBSD__
@@ -1775,6 +1780,8 @@ rpcclnt_msg(p, server, msg)
 	tprintf_close(tpr);
 	RPC_RETURN(0);
 #else
+	GIANT_REQUIRED;
+
 	tprintf(p ? p->td_proc : NULL, LOG_INFO,
 		"nfs server %s: %s\n", server, msg);
 	RPC_RETURN(0);
