@@ -459,14 +459,6 @@ in_control(so, cmd, data, ifp, td)
 		 * a routing process they will come back.
 		 */
 		in_ifadown(&ia->ia_ifa, 1);
-		/*
-		 * XXX horrible hack to detect that we are being called
-		 * from if_detach()
-		 */
-		if (ifaddr_byindex(ifp->if_index) == NULL) {
-			in_pcbpurgeif0(&ripcbinfo, ifp);
-			in_pcbpurgeif0(&udbinfo, ifp);
-		}
 		EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		error = 0;
 		break;
@@ -1045,4 +1037,16 @@ in_delmulti(inm)
 	if (my_inm.inm_ifp != NULL)
 		igmp_leavegroup(&my_inm);
 	IN_MULTI_UNLOCK();
+}
+
+/*
+ * On interface removal, clean up IPv4 data structures hung off of the ifnet.
+ */
+void
+in_ifdetach(ifp)
+	struct ifnet *ifp;
+{
+
+	in_pcbpurgeif0(&ripcbinfo, ifp);
+	in_pcbpurgeif0(&udbinfo, ifp);
 }
