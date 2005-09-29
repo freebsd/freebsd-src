@@ -452,11 +452,8 @@ check(char *path, char *name, struct stat *sp)
 		 * talking to a terminal, ask.	Symbolic links are excluded
 		 * because their permissions are meaningless.  Check stdin_ok
 		 * first because we may not have stat'ed the file.
-		 * Also skip this check if the -P option was specified because
-		 * we will not be able to overwrite file contents and will
-		 * barf later.
 		 */
-		if (!stdin_ok || S_ISLNK(sp->st_mode) || Pflag ||
+		if (!stdin_ok || S_ISLNK(sp->st_mode) ||
 		    (!access(name, W_OK) &&
 		    !(sp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
 		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !uid)))
@@ -464,6 +461,10 @@ check(char *path, char *name, struct stat *sp)
 		strmode(sp->st_mode, modep);
 		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
 			err(1, "fflagstostr");
+		if (Pflag)
+			errx(1,
+			    "%s: -P was specified, but file is not writable",
+			    path);
 		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
 		    modep + 1, modep[9] == ' ' ? "" : " ",
 		    user_from_uid(sp->st_uid, 0),
