@@ -98,7 +98,7 @@ static  void adp_get_macaddr(struct en_pci_softc *);
  * address of config base memory address register in PCI config space
  * (this is card specific)
  */
-#define PCI_CBMA        0x10
+#define PCI_CBMA        PCIR_BAR(0)
 
 /*
  * tonga (pci bridge).   ENI cards only!
@@ -193,7 +193,6 @@ en_pci_attach(device_t dev)
 {
 	struct en_softc *sc;
 	struct en_pci_softc *scp;
-	u_long val;
 	int rid, error = 0;
 
 	sc = device_get_softc(dev);
@@ -211,9 +210,7 @@ en_pci_attach(device_t dev)
 	/*
 	 * Enable bus mastering.
 	 */
-	val = pci_read_config(dev, PCIR_COMMAND, 2);
-	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, val, 2);
+	pci_enable_busmaster(dev);
 
 	/*
 	 * Map control/status registers.
@@ -284,7 +281,6 @@ en_pci_attach(device_t dev)
 	if (error) {
 		en_reset(sc);
 		atm_ifdetach(sc->ifp);
-		if_free(sc->ifp);
 		device_printf(dev, "could not setup irq\n");
 		bus_release_resource(dev, SYS_RES_IRQ, 0, scp->irq);
 		bus_release_resource(dev, SYS_RES_MEMORY, PCI_CBMA, scp->res);
