@@ -164,6 +164,18 @@ Toshiba ToPIC97
 .It
 Toshiba ToPIC100
 .El
+.Sh TUNABLES
+The driver supports the following tunable parameters, which may be
+added to 
+.Pa /boot/loader.conf
+or set via the
+.Xr sysctl 8
+command:
+.Bl -tag -width ".Cm hw.cbb.debug" -compact
+.It Cm hw.cbb.debug
+Non-zero values cause more verbose information to be printed to aid in
+debugging problems with the bridge chipset.
+.El
 .Sh SEE ALSO
 .Xr cardbus 4 ,
 .Xr pccard 4
