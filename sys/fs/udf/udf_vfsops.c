@@ -228,19 +228,18 @@ udf_mount(struct mount *mp, struct thread *td)
 	/* Check that the mount device exists */
 	if (fspec == NULL)
 		return (EINVAL);
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec, td);
+	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspec, td);
 	if ((error = namei(ndp)))
 		return (error);
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	devvp = ndp->ni_vp;
 
 	if (vn_isdisk(devvp, &error) == 0) {
-		vrele(devvp);
+		vput(devvp);
 		return (error);
 	}
 
 	/* Check the access rights on the mount device */
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = VOP_ACCESS(devvp, VREAD, td->td_ucred, td);
 	if (error)
 		error = suser(td);
@@ -248,7 +247,6 @@ udf_mount(struct mount *mp, struct thread *td)
 		vput(devvp);
 		return (error);
 	}
-	VOP_UNLOCK(devvp, 0, td);
 
 	if ((error = udf_mountfs(devvp, mp, td))) {
 		vrele(devvp);
@@ -325,7 +323,6 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	struct g_consumer *cp;
 	struct bufobj *bo;
 
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "udf", 0);
