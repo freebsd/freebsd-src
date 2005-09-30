@@ -92,8 +92,7 @@ static void	rgephy_load_dspcode(struct mii_softc *);
 static int	rgephy_mii_model;
 
 static int
-rgephy_probe(dev)
-	device_t		dev;
+rgephy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -109,8 +108,7 @@ rgephy_probe(dev)
 }
 
 static int
-rgephy_attach(dev)
-	device_t		dev;
+rgephy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -166,10 +164,7 @@ rgephy_attach(dev)
 }
 
 static int
-rgephy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+rgephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg, speed, gig;
@@ -325,8 +320,7 @@ setit:
 }
 
 static void
-rgephy_status(sc)
-	struct mii_softc *sc;
+rgephy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr;
@@ -368,8 +362,7 @@ rgephy_status(sc)
 
 
 static int
-rgephy_mii_phy_auto(mii)
-	struct mii_softc *mii;
+rgephy_mii_phy_auto(struct mii_softc *mii)
 {
 	rgephy_loop(mii);
 	rgephy_reset(mii);

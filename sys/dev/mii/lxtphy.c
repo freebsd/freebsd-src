@@ -122,8 +122,7 @@ static void	lxtphy_set_tp(struct mii_softc *);
 static void	lxtphy_set_fx(struct mii_softc *);
 
 static int
-lxtphy_probe(dev)
-	device_t		dev;
+lxtphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -139,8 +138,7 @@ lxtphy_probe(dev)
 }
 
 static int
-lxtphy_attach(dev)
-	device_t		dev;
+lxtphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -185,10 +183,7 @@ lxtphy_attach(dev)
 }
 
 static int
-lxtphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+lxtphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
@@ -270,8 +265,7 @@ lxtphy_service(sc, mii, cmd)
 }
 
 static void
-lxtphy_status(sc)
-	struct mii_softc *sc;
+lxtphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
@@ -317,8 +311,7 @@ lxtphy_status(sc)
 }
 
 static void
-lxtphy_set_tp(sc)
-	struct mii_softc *sc;
+lxtphy_set_tp(struct mii_softc *sc)
 {
 	int cfg;
 
@@ -328,8 +321,7 @@ lxtphy_set_tp(sc)
 }
 
 static void
-lxtphy_set_fx(sc)
-	struct mii_softc *sc;
+lxtphy_set_fx(struct mii_softc *sc)
 {
 	int cfg;
 
