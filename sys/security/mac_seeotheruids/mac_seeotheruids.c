@@ -84,6 +84,14 @@ SYSCTL_INT(_security_mac_seeotheruids, OID_AUTO, primarygroup_enabled,
     "with the same real primary group id");
 
 /*
+ * Exception: allow the root user to be aware of other credentials by virtue
+ * of privilege.
+ */
+static int	suser_privileged = 1;
+SYSCTL_INT(_security_mac_seeotheruids, OID_AUTO, suser_privileged,
+    CTLFLAG_RW, &suser_privileged, 0, "Make an exception for superuser");
+
+/*
  * Exception: allow processes with a specific gid to be exempt from the
  * policy.  One sysctl enables this functionality; the other sets the
  * exempt gid.
@@ -117,8 +125,10 @@ mac_seeotheruids_check(struct ucred *u1, struct ucred *u2)
 	if (u1->cr_ruid == u2->cr_ruid)
 		return (0);
 
-	if (suser_cred(u1, 0) == 0)
-		return (0);
+	if (suser_privileged) {
+		if (suser_cred(u1, 0) == 0)
+			return (0);
+	}
 
 	return (ESRCH);
 }
