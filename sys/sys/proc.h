@@ -378,6 +378,7 @@ struct thread {
 #define	TDP_SCHED4	0x00008000 /* Reserved for scheduler private use */
 #define	TDP_GEOM	0x00010000 /* Settle GEOM before finishing syscall */
 #define	TDP_SOFTDEP	0x00020000 /* Stuck processing softdep worklist */
+#define	TDP_NORUNNINGBUF 0x00040000 /* Ignore runningbufspace check */
 
 /*
  * Reasons that the current thread can not be run yet.
@@ -833,7 +834,6 @@ TAILQ_HEAD(threadqueue, thread);
 extern struct proclist allproc;		/* List of all processes. */
 extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
-extern struct proc *updateproc;		/* Process slot for syncer (sic). */
 
 extern struct uma_zone *proc_zone;
 
