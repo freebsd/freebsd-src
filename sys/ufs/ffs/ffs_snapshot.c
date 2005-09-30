@@ -1998,6 +1998,12 @@ ffs_copyonwrite(devvp, bp)
 		return (0);
 	}
 	/*
+	 * Since I/O on bp isn't yet in progress and it may be blocked
+	 * for a long time waiting on snaplk, back it out of
+	 * runningbufspace, possibly waking other threads waiting for space.
+	 */
+	runningbufwakeup(bp);
+	/*
 	 * Not in the precomputed list, so check the snapshots.
 	 */
 retry:
@@ -2028,7 +2034,7 @@ retry:
 				goto retry;
 			}
 			snapshot_locked = 1;
-			td->td_pflags |= TDP_COWINPROGRESS;
+			td->td_pflags |= TDP_COWINPROGRESS | TDP_NORUNNINGBUF;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			   fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			td->td_pflags &= ~TDP_COWINPROGRESS;
@@ -2065,7 +2071,7 @@ retry:
 			goto retry;
 		}
 		snapshot_locked = 1;
-		td->td_pflags |= TDP_COWINPROGRESS;
+		td->td_pflags |= TDP_COWINPROGRESS | TDP_NORUNNINGBUF;
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
 		td->td_pflags &= ~TDP_COWINPROGRESS;
@@ -2120,10 +2126,16 @@ retry:
 		if (dopersistence && VTOI(vp)->i_effnlink > 0)
 			(void) ffs_syncvnode(vp, MNT_WAIT);
 	}
-	if (snapshot_locked)
+	if (snapshot_locked) {
 		lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
-	else
+		td->td_pflags &= ~TDP_NORUNNINGBUF;
+	} else
 		VI_UNLOCK(devvp);
+	/*
+	 * I/O on bp will now be started, so count it in runningbufspace.
+	 */
+	if (bp->b_runningbufspace)
+		atomic_add_int(&runningbufspace, bp->b_runningbufspace);
 	return (error);
 }
 
