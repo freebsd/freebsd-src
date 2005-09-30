@@ -373,7 +373,7 @@ bufcountwakeup(void)
  *	for earlier writes to complete and generally returns before the
  *	caller's write has reached the device.
  */
-static __inline void
+void
 waitrunningbufspace(void)
 {
 
