@@ -83,8 +83,7 @@ static int	rlphy_service(struct mii_softc *, struct mii_data *, int);
 static void	rlphy_status(struct mii_softc *);
 
 static int
-rlphy_probe(dev)
-	device_t		dev;
+rlphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 	device_t		parent;
@@ -120,8 +119,7 @@ rlphy_probe(dev)
 }
 
 static int
-rlphy_attach(dev)
-	device_t		dev;
+rlphy_attach(device_t dev)
 {
 	struct mii_softc	*sc;
 	struct mii_attach_args	*ma;
@@ -174,10 +172,7 @@ rlphy_attach(dev)
 }
 
 static int
-rlphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
@@ -251,8 +246,7 @@ rlphy_service(sc, mii, cmd)
 }
 
 static void
-rlphy_status(phy)
-	struct mii_softc *phy;
+rlphy_status(struct mii_softc *phy)
 {
 	struct mii_data *mii = phy->mii_pdata;
 	int bmsr, bmcr, anlpar;

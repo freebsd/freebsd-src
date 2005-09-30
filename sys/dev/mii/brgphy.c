@@ -98,8 +98,7 @@ static void	bcm5750_load_dspcode(struct mii_softc *);
 static int	brgphy_mii_model;
 
 static int
-brgphy_probe(dev)
-	device_t		dev;
+brgphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -163,8 +162,7 @@ brgphy_probe(dev)
 }
 
 static int
-brgphy_attach(dev)
-	device_t		dev;
+brgphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -237,10 +235,7 @@ brgphy_attach(dev)
 }
 
 static int
-brgphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg, speed, gig;
@@ -406,8 +401,7 @@ setit:
 }
 
 static void
-brgphy_status(sc)
-	struct mii_softc *sc;
+brgphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
@@ -469,8 +463,7 @@ brgphy_status(sc)
 
 
 static int
-brgphy_mii_phy_auto(mii)
-	struct mii_softc *mii;
+brgphy_mii_phy_auto(struct mii_softc *mii)
 {
 	int ktcr = 0;
 
