@@ -121,8 +121,7 @@ static void	qsphy_reset(struct mii_softc *);
 static void	qsphy_status(struct mii_softc *);
 
 static int
-qsphy_probe(dev)
-	device_t		dev;
+qsphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -138,8 +137,7 @@ qsphy_probe(dev)
 }
 
 static int
-qsphy_attach(dev)
-	device_t		dev;
+qsphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -172,10 +170,7 @@ qsphy_attach(dev)
 }
 
 static int
-qsphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+qsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
@@ -253,8 +248,7 @@ qsphy_service(sc, mii, cmd)
 }
 
 static void
-qsphy_status(sc)
-	struct mii_softc *sc;
+qsphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr, pctl;
@@ -305,8 +299,7 @@ qsphy_status(sc)
 }
 
 static void
-qsphy_reset(sc)
-	struct mii_softc *sc;
+qsphy_reset(struct mii_softc *sc)
 {
 
 	mii_phy_reset(sc);

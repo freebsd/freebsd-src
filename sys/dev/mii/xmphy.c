@@ -84,8 +84,7 @@ static void	xmphy_status(struct mii_softc *);
 static int	xmphy_mii_phy_auto(struct mii_softc *);
 
 static int
-xmphy_probe(dev)
-	device_t		dev;
+xmphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -107,8 +106,7 @@ xmphy_probe(dev)
 }
 
 static int
-xmphy_attach(dev)
-	device_t		dev;
+xmphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -159,10 +157,7 @@ xmphy_attach(dev)
 }
 
 static int
-xmphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
@@ -272,8 +267,7 @@ xmphy_service(sc, mii, cmd)
 }
 
 static void
-xmphy_status(sc)
-	struct mii_softc *sc;
+xmphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr, anlpar;
@@ -327,8 +321,7 @@ xmphy_status(sc)
 
 
 static int
-xmphy_mii_phy_auto(mii)
-	struct mii_softc *mii;
+xmphy_mii_phy_auto(struct mii_softc *mii)
 {
 	int anar = 0;
 

@@ -86,8 +86,7 @@ DRIVER_MODULE(pnaphy, miibus, pnaphy_driver, pnaphy_devclass, 0, 0);
 static int	pnaphy_service(struct mii_softc *, struct mii_data *,int);
 
 static int
-pnaphy_probe(dev)
-	device_t		dev;
+pnaphy_probe(device_t dev)
 {
 
 	struct mii_attach_args	*ma;
@@ -104,8 +103,7 @@ pnaphy_probe(dev)
 }
 
 static int
-pnaphy_attach(dev)
-	device_t		dev;
+pnaphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -155,10 +153,7 @@ pnaphy_attach(dev)
 }
 
 static int
-pnaphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+pnaphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;

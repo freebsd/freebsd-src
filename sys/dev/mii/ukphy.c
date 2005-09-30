@@ -114,8 +114,7 @@ DRIVER_MODULE(ukphy, miibus, ukphy_driver, ukphy_devclass, 0, 0);
 static int	ukphy_service(struct mii_softc *, struct mii_data *, int);
 
 static int
-ukphy_probe(dev)
-	device_t		dev;
+ukphy_probe(device_t dev)
 {
 
 	/*
@@ -126,8 +125,7 @@ ukphy_probe(dev)
 }
 
 static int
-ukphy_attach(dev)
-	device_t		dev;
+ukphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -170,10 +168,7 @@ ukphy_attach(dev)
 }
 
 static int
-ukphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+ukphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
