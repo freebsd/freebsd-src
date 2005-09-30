@@ -220,7 +220,10 @@ void	mii_phy_setmedia(struct mii_softc *sc);
 void	mii_phy_update(struct mii_softc *, int);
 int	mii_phy_tick(struct mii_softc *);
 
-const struct mii_phydesc * mii_phy_match(const struct mii_attach_args *ma, const struct mii_phydesc *mpd);
+const struct mii_phydesc * mii_phy_match(const struct mii_attach_args *ma,
+    const struct mii_phydesc *mpd);
+const struct mii_phydesc * mii_phy_match_gen(const struct mii_attach_args *ma,
+    const struct mii_phydesc *mpd, size_t endlen);
 
 void	ukphy_status(struct mii_softc *);
 #endif /* _KERNEL */
