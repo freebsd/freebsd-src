@@ -101,14 +101,9 @@ static int	nsgphy_service(struct mii_softc *, struct mii_data *,int);
 static void	nsgphy_status(struct mii_softc *);
 
 const struct mii_phydesc gphyters[] = {
-	{ MII_OUI_NATSEMI,		MII_MODEL_NATSEMI_DP83861,
-	  MII_STR_NATSEMI_DP83861 },
-
-	{ MII_OUI_NATSEMI,		MII_MODEL_NATSEMI_DP83891,
-	  MII_STR_NATSEMI_DP83891 },
-
-	{ 0,				0,
-	  NULL },
+	MII_PHY_DESC(NATSEMI, DP83861),
+	MII_PHY_DESC(NATSEMI, DP83891),
+	MII_PHY_END
 };
 
 static int
