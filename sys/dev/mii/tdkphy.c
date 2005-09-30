@@ -38,9 +38,9 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * The TDK 78Q2120 is found on some Xircom X3201 based cardbus cards.  It's just
- * like any other normal phy, except it does auto negotiation in a different
- * way.
+ * The TDK 78Q2120 is found on some Xircom X3201 based cardbus cards,
+ * also spotted on some 3C575 cards.  It's just like any other normal
+ * phy, except it does auto negotiation in a different way.
  */
 
 #include <sys/param.h>
