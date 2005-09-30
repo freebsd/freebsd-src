@@ -161,7 +161,7 @@ hpfs_mount (
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, from, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, from, td);
 	err = namei(&ndp);
 	if (err) {
 		/* can't get devvp!*/
@@ -170,8 +170,10 @@ hpfs_mount (
 
 	devvp = ndp.ni_vp;
 
-	if (!vn_isdisk(devvp, &err)) 
-		goto error_2;
+	if (!vn_isdisk(devvp, &err)) {
+		vput(devvp);
+		return (err);
+	}
 
 	/*
 	 ********************
@@ -192,16 +194,12 @@ hpfs_mount (
 	vfs_mountedfrom(mp, from);
 
 	err = hpfs_mountfs(devvp, mp, td);
-	if (err)
-		goto error_2;
+	if (err) {
+		vrele(devvp);
+		goto error_1;
+	}
 
 	goto success;
-
-
-error_2:	/* error with devvp held*/
-
-	/* release devvp before failing*/
-	vrele(devvp);
 
 error_1:	/* no state to back out*/
 	/* XXX: Missing NDFREE(&ndp, ...) */
@@ -233,7 +231,6 @@ hpfs_mountfs(devvp, mp, td)
 		return (EOPNOTSUPP);
 	dprintf(("hpfs_mountfs():\n"));
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	/* XXX: use VOP_ACCESS to check FS perms */
 	DROP_GIANT();
 	g_topology_lock();
