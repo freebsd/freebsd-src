@@ -115,8 +115,7 @@ static int	exphy_service(struct mii_softc *, struct mii_data *, int);
 static void	exphy_reset(struct mii_softc *);
 
 static int
-exphy_probe(dev)
-	device_t		dev;
+exphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 	device_t		parent;
@@ -148,8 +147,7 @@ exphy_probe(dev)
 }
 
 static int
-exphy_attach(dev)
-	device_t		dev;
+exphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -202,10 +200,7 @@ exphy_attach(dev)
 }
 
 static int
-exphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+exphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 

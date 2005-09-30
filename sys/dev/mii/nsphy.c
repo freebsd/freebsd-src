@@ -119,8 +119,7 @@ static int	nsphy_service(struct mii_softc *, struct mii_data *, int);
 static void	nsphy_status(struct mii_softc *);
 
 static int
-nsphy_probe(dev)
-	device_t		dev;
+nsphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -136,8 +135,7 @@ nsphy_probe(dev)
 }
 
 static int
-nsphy_attach(dev)
-	device_t		dev;
+nsphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -189,10 +187,7 @@ nsphy_attach(dev)
 }
 
 static int
-nsphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
@@ -311,8 +306,7 @@ nsphy_service(sc, mii, cmd)
 }
 
 static void
-nsphy_status(sc)
-	struct mii_softc *sc;
+nsphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr, par, anlpar;
