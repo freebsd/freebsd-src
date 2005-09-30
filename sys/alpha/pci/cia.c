@@ -870,15 +870,19 @@ cia_init()
 
 	if (alpha_implver() != ALPHA_IMPLVER_EV5
 	    || alpha_amask(ALPHA_AMASK_BWX)
-	    || !(cia_config & CNFG_BWEN))
+	    || !(cia_config & CNFG_BWEN)) {
 		chipset = cia_swiz_chipset;
-	else
+		chipset_bwx = 0;
+	} else {
 		chipset = cia_bwx_chipset;
+		chipset_bwx = 1;
+	}
 	cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
 
 #if 0
 	chipset = cia_swiz_chipset; /* XXX */
 	cia_ispyxis = 0;
+	chipset_bwx = 0;
 #endif
 
 	if (platform.pci_intr_init)
@@ -910,12 +914,11 @@ cia_attach(device_t dev)
 
 	cia_init();
 
-	name = cia_ispyxis ? "Pyxis" : "ALCOR/ALCOR2";
 	if (cia_ispyxis) {
 		name = "Pyxis";
 		pass = cia_rev;
 	} else {
-		name = "ALCOR/ALCOR2";
+		name = chipset_bwx ? "Alcor 2" : "Alcor";
 		pass = cia_rev+1;
 	}
 	printf("cia0: %s, pass %d\n", name, pass);
@@ -960,15 +963,16 @@ cia_attach(device_t dev)
 	if (!platform.iointr)	/* XXX */
 		set_iointr(alpha_dispatch_intr);
 
-	if (cia_ispyxis) {
-		snprintf(chipset_type, sizeof(chipset_type), "pyxis");
-		chipset_bwx = 1;
+	if (chipset_bwx) {
+		if (cia_ispyxis)
+			snprintf(chipset_type, sizeof(chipset_type), "pyxis");
+		else
+			snprintf(chipset_type, sizeof(chipset_type), "alcor2");
 		chipset_ports = CIA_EV56_BWIO;
 		chipset_memory = CIA_EV56_BWMEM;
 		chipset_dense = CIA_PCI_DENSE;
 	} else {
 		snprintf(chipset_type, sizeof(chipset_type), "cia");
-		chipset_bwx = 0;
 		chipset_ports = CIA_PCI_SIO1;
 		chipset_memory = CIA_PCI_SMEM1;
 		chipset_dense = CIA_PCI_DENSE;
