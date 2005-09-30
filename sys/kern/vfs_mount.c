@@ -1309,7 +1309,6 @@ vfs_mountroot_try(const char *mountfrom)
 		 */
 		mp = TAILQ_FIRST(&mountlist);
 		KASSERT(mp != NULL, ("%s: mountlist is empty", __func__));
-		vfs_unbusy(mp, curthread);
 
 		/*
 		 * Iterate over all currently mounted file systems and use
