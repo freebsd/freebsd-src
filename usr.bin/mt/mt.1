@@ -44,30 +44,39 @@
 .Op Fl f Ar tapename
 .Ar command
 .Op Ar count
+.Nm
+.Op Fl f Ar tapename
+.Ar command
+.Ar argument
 .Sh DESCRIPTION
 The
 .Nm
-utility is used to give commands to a magnetic tape drive.
-By default
-.Nm
-performs the requested operation once.
-Operations
-may be performed multiple times by specifying
-.Ar count .
+utility is used to command a magnetic tape drive for operations
+other than reading or writing data.
+.Pp
+The
+.Fl f
+option's
+.Ar tapename
+overrides the TAPE environment variable described below.
 .Pp
 The available commands are listed below.
 Only as many
 characters as are required to uniquely identify a command
 need be specified.
-.Bl -tag -width "eof, weof"
+.Pp
+The following commands optionally take a
+.Ar count ,
+which defaults to 1.
+.Bl -tag -width "erase"
 .It Cm weof
 Write
 .Ar count
-end-of-file marks at the current position on the tape.
+end-of-file (EOF) marks at the current position.
 .It Cm smk
 Write
 .Ar count
-setmarks at the current position on the tape.
+setmarks at the current position.
 .It Cm fsf
 Forward space
 .Ar count
@@ -92,107 +101,111 @@ records.
 Backward space
 .Ar count
 setmarks.
+.It Cm erase
+Erase the tape using a long (often very long) method.
+With a
+.Ar count
+of 0, it will erase the tape using a quick method.
+Operation is not guaranteed if the tape is not at its beginning.
+The tape will be at its beginning upon completion.
+.El
+.Pp
+The following commands ignore
+.Ar count .
+.Bl -tag -width "geteotmodel"
 .It Cm rdhpos
-Read Hardware block position.
-Some drives do not support this.
+Read the hardware block position.
 The block
 number reported is specific for that hardware only.
-The count argument is
-ignored.
+With drive data compression especially,
+this position may have more to do with the amount of data
+sent to the drive than the amount of data written to tape.
+Some drives do not support this.
 .It Cm rdspos
-Read SCSI logical block position.
+Read the SCSI logical block position.
+This typically is greater than the hardware position
+by the number of end-of-file marks.
 Some drives do not support this.
-The
-count argument is ignored.
-.It Cm sethpos
-Set Hardware block position.
-Some drives do not support this.
-The count
-argument is interpreted as a hardware block to which to position the tape.
-.It Cm setspos
-Set SCSI logical block position.
-Some drives do not support this.
-The count
-argument is interpreted as a SCSI logical block to which to position the tape.
 .It Cm rewind
-Rewind the tape
-(Count is ignored).
+Rewind the tape.
 .It Cm offline , rewoffl
-Rewind the tape and place the tape unit off-line
-(Count is ignored).
-.It Cm erase
-Erase the tape.
-A count of 0 disables long erase, which is on by default.
+Rewind the tape and place the drive off line.
+Some drives are never off line.
 .It Cm retension
-Re-tension the tape
-(one full wind forth and back, Count is ignored).
+Re-tension the tape.
+This winds the tape from the current position to the end
+and then to the beginning.
+This sometimes improves subsequent reading and writing,
+particularly for streaming drives.
+Some drives do not support this.
 .It Cm status
-Print status information about the tape unit.
+Output status information about the drive.
 For SCSI magnetic tape devices,
 the current operating modes of density, blocksize, and whether compression
 is enabled is reported.
 The current state of the driver (what it thinks that
 it is doing with the device) is reported.
 If the driver knows the relative
-position from BOT (in terms of filemarks and records), it prints that.
+position from BOT (in terms of filemarks and records), it outputs that.
 Note
 that this information is not definitive (only BOT, End of Recorded Media, and
 hardware or SCSI logical block position (if the drive supports such) are
 considered definitive tape positions).
 .It Cm errstat
-Print (and clear) error status information about this device.
+Output (and clear) error status information about this device.
 For every normal
 operation (e.g., a read or a write) and every control operation (e.g,, a
 rewind), the driver stores up the last command executed and it is associated
 status and any residual counts (if any).
-This command retrieves and prints this
+This command retrieves and outputs this
 information.
 If possible, this also clears any latched error information.
-.It Cm blocksize
-Set the block size for the tape unit.
-Zero means variable-length
-blocks.
-.It Cm density
-Set the density for the tape unit.
-For the density codes, see below.
-The density value could be given either numerically, or as a string,
-corresponding to the
-.Dq Reference
-field.
-If the string is abbreviated, it will be resolved in the order
-shown in the table, and the first matching entry will be used.
-If the
-given string and the resulting canonical density name do not match
-exactly, an informational message is printed about what the given
-string has been taken for.
 .It Cm geteotmodel
-Fetch and print out the current EOT filemark model.
+Output the current EOT filemark model.
 The model states how
 many filemarks will be written at close if a tape was being written.
+.It Cm eod , eom
+Wind the tape to the end of the recorded data,
+typically after an EOF mark where another file may be written.
+.El
+.Pp
+The following commands require an
+.Ar argument .
+.Bl -tag -width "seteotmodel"
+.It Cm sethpos
+Set the hardware block position.
+The
+.Ar argument
+is a hardware block number to which to position the tape.
+Some drives do not support this.
+.It Cm setspos
+Set the SCSI logical block position.
+The
+.Ar argument
+is a SCSI logical block number to which to position the tape.
+Some drives do not support this.
+.It Cm blocksize
+Set the block size for the drive.
+The
+.Ar argument
+is the number of bytes per block,
+except 0 commands the drive to use variable-length blocks.
 .It Cm seteotmodel
-Set (from the
-.Ar count
-argument)
-and print out the current and EOT filemark model.
-Typically this will be
-.Ar 2
+Set the EOT filemark model to
+.Ar argument
+and output the old and new models.
+Typically this will be 2
 filemarks, but some devices (typically QIC cartridge drives) can
-only write
-.Ar 1
-filemark.
-Currently you can only choose a value of
+only write 1 filemark.
+You may only choose a value of
 .Ar 1
 or
 .Ar 2 .
-.It Cm eom
-Forward space to end of recorded medium
-(Count is ignored).
-.It Cm eod
-Forward space to end of data, identical to
-.Cm eom .
 .It Cm comp
-Set compression mode.
-There are currently several possible values for the compression mode:
+Set the drive's compression mode.
+The non-numeric values of
+.Ar argument
+are:
 .Pp
 .Bl -tag -width 9n -compact
 .It off
@@ -212,7 +225,7 @@ DCLZ compression algorithm (0x20).
 .El
 .Pp
 In addition to the above recognized compression keywords, the user can
-supply a numeric compression algorithm for the tape drive to use.
+supply a numeric compression algorithm for the drive to use.
 In most
 cases, simply turning the compression
 .Sq on
@@ -222,31 +235,32 @@ If this is not the case (see the
 .Cm status
 display to see which compression algorithm is currently in use), the user
 can manually specify one of the supported compression keywords (above), or
-supply a numeric compression value.
+supply a numeric compression value from the drive's specifications.
+.It Cm density
+Set the density for the drive.
+For the density codes, see below.
+The density value could be given either numerically, or as a string,
+corresponding to the
+.Dq Reference
+field.
+If the string is abbreviated, it will be resolved in the order
+shown in the table, and the first matching entry will be used.
+If the
+given string and the resulting canonical density name do not match
+exactly, an informational message is output about what the given
+string has been taken for.
 .El
-.Pp
-If a tape name is not specified, and the environment variable
-.Ev TAPE
-does not exist;
-.Nm
-uses the device
-.Pa /dev/nsa0 .
-.Pp
-The
-.Nm
-utility returns a 0 exit status when the operation(s) were successful,
-1 if the command was unrecognized, and 2 if an operation failed.
 .Pp
 The following density table was taken from the
 .Sq Historical sequential access density codes
 table (A-1) in Revision 11 of the SCSI-3 Stream Device Commands (SSC)
 working draft, dated November 11, 1997.
 .Pp
-The different density codes are as follows:
-.Pp
-.Dl "0x0	default for device
-.Dl "0xE	reserved for ECMA
+The density codes are:
 .Bd -literal -offset 3n
+0x0    default for device
+0xE    reserved for ECMA
+.Dl ""
 Value  Width        Tracks    Density         Code Type Reference   Note
         mm    in              bpmm       bpi
 0x01   12.7  (0.5)    9         32     (800)  NRZI  R   X3.22-1983   2
@@ -320,18 +334,14 @@ NOTES
    8 physical tracks each.
 .Ed
 .Sh ENVIRONMENT
-If the following environment variable exists, it is utilized by
-.Nm .
-.Bl -tag -width Fl
+.Bl -tag -width TAPE
 .It Ev TAPE
-The
-.Nm
-utility checks the
-.Ev TAPE
-environment variable if the
-argument
-.Ar tapename
-is not given.
+This is the pathname of the tape drive.
+The default (if the variable is unset, but not if it is null) is
+.Pa /dev/nsa0 .
+It may be overridden with the
+.Fl f
+option.
 .El
 .Sh FILES
 .Bl -tag -width /dev/*sa[0-9]*xx -compact
@@ -340,6 +350,13 @@ QIC-02/QIC-36 magnetic tape interface
 .It Pa /dev/*sa[0-9]*
 SCSI magnetic tape interface
 .El
+.Sh DIAGNOSTICS
+.Pp
+The exit status will be 0 when the drive operations were successful,
+2 when the drive operations were unsuccessful, and 1 for other
+problems like an unrecognized command or a missing drive device.
+.Sh COMPATIBILITY
+Some undocumented commands support old software.
 .Sh SEE ALSO
 .Xr dd 1 ,
 .Xr ioctl 2 ,
@@ -373,3 +390,14 @@ has been abandoned in
 since it was often confused with
 .Cm eom ,
 which is fairly dangerous.
+.Sh BUGS
+The utility cannot be interrupted or killed during a long erase
+(which can be longer than an hour), and it is easy to forget
+that the default erase is long.
+.Pp
+Hardware block numbers do not always correspond to blocks on the tape
+when the drive uses internal compression.
+.Pp
+Erasure is not guaranteed if the tape is not at its beginning.
+.Pp
+Tape-related documentation is poor, here and elsewhere.
