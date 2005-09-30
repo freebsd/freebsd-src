@@ -161,6 +161,9 @@ struct mii_phydesc {
 	u_int32_t mpd_model;		/* the PHY's model */
 	const char *mpd_name;		/* the PHY's name */
 };
+#define MII_PHY_DESC(a, b) { MII_OUI_ ## a, MII_MODEL_ ## a ## _ ## b, \
+	MII_STR_ ## a ## _ ## b }
+#define MII_PHY_END	{ 0, 0, NULL }
 
 /*
  * An array of these structures map MII media types to BMCR/ANAR settings.
