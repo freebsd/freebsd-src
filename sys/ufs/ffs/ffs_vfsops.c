@@ -306,13 +306,13 @@ ffs_mount(struct mount *mp, struct thread *td)
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible disk device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspec, td);
 	if ((error = namei(&ndp)) != 0)
 		return (error);
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
 	devvp = ndp.ni_vp;
 	if (!vn_isdisk(devvp, &error)) {
-		vrele(devvp);
+		vput(devvp);
 		return (error);
 	}
 
@@ -324,12 +324,10 @@ ffs_mount(struct mount *mp, struct thread *td)
 		accessmode = VREAD;
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 		if ((error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td))!= 0){
 			vput(devvp);
 			return (error);
 		}
-		VOP_UNLOCK(devvp, 0, td);
 	}
 
 	if (mp->mnt_flag & MNT_UPDATE) {
@@ -342,7 +340,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 
 		if (devvp->v_rdev != ump->um_devvp->v_rdev)
 			error = EINVAL;	/* needs translation */
-		vrele(devvp);
+		vput(devvp);
 		if (error)
 			return (error);
 	} else {
