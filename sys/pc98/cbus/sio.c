@@ -43,8 +43,8 @@
  * Works for National Semiconductor NS8250-NS16550AF UARTs.
  * COM driver, based on HP dca driver.
  *
- * Changes for PC-Card integration:
- *	- Added PC-Card driver table and handlers
+ * Changes for PC Card integration:
+ *	- Added PC Card driver table and handlers
  */
 /*===============================================================
  * 386BSD(98),FreeBSD-1.1x(98) com driver.
