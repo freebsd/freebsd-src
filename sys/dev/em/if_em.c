@@ -197,6 +197,9 @@ static int  em_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
 static void em_add_int_delay_sysctl(struct adapter *, const char *,
 				    const char *, struct em_int_delay_info *,
 				    int, int);
+#ifdef DEVICE_POLLING
+static poll_handler_t em_poll;
+#endif
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points                    
@@ -526,6 +529,11 @@ em_detach(device_t dev)
 
 	INIT_DEBUGOUT("em_detach: begin");
 
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
+
 	EM_LOCK(adapter);
 	adapter->in_detach = 1;
 	em_stop(adapter);
@@ -717,7 +725,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				em_initialize_receive_unit(adapter);
 			}
 #ifdef DEVICE_POLLING
-                        if (!(ifp->if_flags & IFF_POLLING))
+                        if (!(ifp->if_capenable & IFCAP_POLLING))
 #endif
 				em_enable_intr(adapter);
 			EM_UNLOCK(adapter);
@@ -732,8 +740,26 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFCAP (Set Capabilities)");
 		reinit = 0;
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_POLLING)
-			ifp->if_capenable ^= IFCAP_POLLING;
+#ifdef DEVICE_POLLING
+		if (mask & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING) {
+				error = ether_poll_register(em_poll, ifp);
+				if (error)
+					return(error);
+				EM_LOCK(adapter);
+				em_disable_intr(adapter);
+				ifp->if_capenable |= IFCAP_POLLING;
+				EM_UNLOCK(adapter);
+			} else {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupt even in error case */
+				EM_LOCK(adapter);
+				em_enable_intr(adapter);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				EM_UNLOCK(adapter);
+			}
+		}
+#endif
 		if (mask & IFCAP_HWCSUM) {
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			reinit = 1;
@@ -895,7 +921,7 @@ em_init_locked(struct adapter * adapter)
          * Only enable interrupts if we are not polling, make sure
          * they are off otherwise.
          */
-        if (ifp->if_flags & IFF_POLLING)
+        if (ifp->if_capenable & IFCAP_POLLING)
                 em_disable_intr(adapter);
         else
 #endif /* DEVICE_POLLING */
@@ -920,8 +946,6 @@ em_init(void *arg)
 
 
 #ifdef DEVICE_POLLING
-static poll_handler_t em_poll;
-        
 static void     
 em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
@@ -930,14 +954,6 @@ em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	mtx_assert(&adapter->mtx, MA_OWNED);
 
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-        if (cmd == POLL_DEREGISTER) {       /* final call, enable interrupts */
-                em_enable_intr(adapter);
-                return;
-        }
         if (cmd == POLL_AND_CHECK_STATUS) {
                 reg_icr = E1000_READ_REG(&adapter->hw, ICR);
                 if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
@@ -948,13 +964,10 @@ em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			callout_reset(&adapter->timer, hz, em_local_timer, adapter);
                 }
         }
-        if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-                em_process_receive_interrupts(adapter, count);
-                em_clean_transmit_interrupts(adapter);
-        }
+	em_process_receive_interrupts(adapter, count);
+	em_clean_transmit_interrupts(adapter);
 	
-        if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+        if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
                 em_start_locked(ifp);
 }
         
@@ -964,7 +977,8 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
         struct adapter *adapter = ifp->if_softc;
 
 	EM_LOCK(adapter);
-	em_poll_locked(ifp, cmd, count);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		em_poll_locked(ifp, cmd, count);
 	EM_UNLOCK(adapter);
 }
 #endif /* DEVICE_POLLING */
@@ -987,18 +1001,10 @@ em_intr(void *arg)
         ifp = adapter->ifp;  
 
 #ifdef DEVICE_POLLING
-        if (ifp->if_flags & IFF_POLLING) {
+        if (ifp->if_capenable & IFCAP_POLLING) {
 		EM_UNLOCK(adapter);
                 return;
 	}
-
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(em_poll, ifp)) {
-                em_disable_intr(adapter);
-                em_poll_locked(ifp, 0, 1);
-		EM_UNLOCK(adapter);
-                return;
-        }
 #endif /* DEVICE_POLLING */
 
 	reg_icr = E1000_READ_REG(&adapter->hw, ICR);
@@ -1718,9 +1724,7 @@ em_stop(void *arg)
 	mtx_assert(&adapter->mtx, MA_OWNED);
 
 	INIT_DEBUGOUT("em_stop: begin");
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif
+
 	em_disable_intr(adapter);
 	em_reset_hw(&adapter->hw);
 	callout_stop(&adapter->timer);
@@ -1976,7 +1980,6 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
-	ifp->if_capenable |= IFCAP_POLLING;
 #endif
 
 	/* 

@@ -196,18 +196,17 @@ all PRO/10GbE adapters.
         options DEVICE_POLLING
         options HZ=1000
 
-  At runtime, use the following command to turn on polling mode. Similarly,
-  turn off polling mode by setting the variable to 0:
+  At runtime, use the following command to turn on polling mode.
 
-        sysctl kern.polling.enable=1
+	ifconfig ixgb0 polling
 
+  Similarly, turn off polling mode by removing IFCAP_POLLING flag from
+  interface:
 
-  NOTES: DEVICE POLLING is only valid for non-SMP kernels.
+        ifconfig ixgb0 -polling
 
-         The driver has to be built into the kernel for DEVICE POLLING to be
-         enabled in the driver.
-
-
+  The driver has to be built into the kernel for DEVICE POLLING to be
+  enabled in the driver.
 
 Support
 =======
