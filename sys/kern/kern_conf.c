@@ -824,8 +824,10 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 			low++;
 			de = dev;
 			continue;
-		}
-		if (u > (unit | extra)) {
+		} else if (u < (unit | extra)) {
+			de = dev;
+			continue;
+		} else if (u > (unit | extra)) {
 			dl = dev;
 			break;
 		}
@@ -835,7 +837,7 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 	dev = newdev(csw, unit2minor(unit | extra), ndev);
 	if (dev->si_flags & SI_CLONELIST) {
 		printf("dev %p (%s) is on clonelist\n", dev, dev->si_name);
-		printf("unit=%d\n", unit);
+		printf("unit=%d, low=%d, extra=0x%x\n", unit, low, extra);
 		LIST_FOREACH(dev, &cd->head, si_clone) {
 			printf("\t%p %s\n", dev, dev->si_name);
 		}
