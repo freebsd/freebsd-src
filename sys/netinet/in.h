@@ -415,6 +415,7 @@ __END_DECLS
 #define	IP_DUMMYNET_GET		64   /* get entire dummynet pipes */
 
 #define	IP_RECVTTL		65   /* bool; receive IP TTL w/dgram */
+#define	IP_MINTTL		66   /* minimum TTL for packet or drop */
 
 /*
  * Defaults and limits for options

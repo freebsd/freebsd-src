@@ -1189,6 +1189,7 @@ ip_ctloutput(so, sopt)
 
 		case IP_TOS:
 		case IP_TTL:
+		case IP_MINTTL:
 		case IP_RECVOPTS:
 		case IP_RECVRETOPTS:
 		case IP_RECVDSTADDR:
@@ -1209,6 +1210,14 @@ ip_ctloutput(so, sopt)
 			case IP_TTL:
 				inp->inp_ip_ttl = optval;
 				break;
+
+			case IP_MINTTL:
+				if (optval > 0 && optval <= MAXTTL)
+					inp->inp_ip_minttl = optval;
+				else
+					error = EINVAL;
+				break;
+
 #define	OPTSET(bit) do {						\
 	INP_LOCK(inp);							\
 	if (optval)							\
@@ -1333,6 +1342,7 @@ ip_ctloutput(so, sopt)
 
 		case IP_TOS:
 		case IP_TTL:
+		case IP_MINTTL:
 		case IP_RECVOPTS:
 		case IP_RECVRETOPTS:
 		case IP_RECVDSTADDR:
@@ -1349,6 +1359,10 @@ ip_ctloutput(so, sopt)
 
 			case IP_TTL:
 				optval = inp->inp_ip_ttl;
+				break;
+
+			case IP_MINTTL:
+				optval = inp->inp_ip_minttl;
 				break;
 
 #define	OPTBIT(bit)	(inp->inp_flags & bit ? 1 : 0)
