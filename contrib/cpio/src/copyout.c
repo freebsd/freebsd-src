@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* copyout.c - create a cpio archive
    Copyright (C) 1990, 1991, 1992, 2001, 2003, 2004 Free Software Foundation, Inc.
 
@@ -26,6 +28,8 @@
 #include "extern.h"
 #include "defer.h"
 #include <rmt.h>
+
+static int check_rdev ();
 
 /* Read FILE_SIZE bytes of FILE_NAME from IN_FILE_DES and
    compute and return a checksum for them.  */
@@ -540,8 +544,32 @@ process_copy_out ()
 	  file_hdr.c_uid = file_stat.st_uid;
 	  file_hdr.c_gid = file_stat.st_gid;
 	  file_hdr.c_nlink = file_stat.st_nlink;
-	  file_hdr.c_rdev_maj = major (file_stat.st_rdev);
-	  file_hdr.c_rdev_min = minor (file_stat.st_rdev);
+
+	  /* The rdev is meaningless except for block and character
+	     special files (POSIX standard) and perhaps fifos and
+	     sockets.  Clear it for other types of files so that
+	     check_rdev() doesn't reject files just because stat()
+	     put garbage in st_rdev and so that the output doesn't
+	     depend on the garbage.  */
+	  switch (file_hdr.c_mode & CP_IFMT)
+	    {
+	      case CP_IFBLK:
+	      case CP_IFCHR:
+#ifdef CP_IFIFO
+	      case CP_IFIFO:
+#endif
+#ifdef CP_IFSOCK
+	      case CP_IFSOCK:
+#endif
+		file_hdr.c_rdev_maj = major (file_stat.st_rdev);
+		file_hdr.c_rdev_min = minor (file_stat.st_rdev);
+		break;
+	      default:
+	      	file_hdr.c_rdev_maj = 0;
+		file_hdr.c_rdev_min = 0;
+		break;
+	    }
+
 	  file_hdr.c_mtime = file_stat.st_mtime;
 	  file_hdr.c_filesize = file_stat.st_size;
 	  file_hdr.c_chksum = 0;
@@ -599,6 +627,22 @@ process_copy_out ()
 	      error (0, 0, _("%s: file name too long"),
 		     file_hdr.c_name);
 	      continue;
+	    }
+
+	  switch (check_rdev (&file_hdr))
+	    {
+	      case 1:
+		error (0, 0, "%s not dumped: major number would be truncated",
+		       file_hdr.c_name);
+		continue;
+	      case 2:
+		error (0, 0, "%s not dumped: minor number would be truncated",
+		       file_hdr.c_name);
+		continue;
+	      case 4:
+		error (0, 0, "%s not dumped: device number would be truncated",
+		       file_hdr.c_name);
+		continue;
 	    }
 	  
 	  /* Copy the named file to the output.  */
@@ -800,4 +844,97 @@ process_copy_out ()
     }
 }
 
+static int
+check_rdev (file_hdr)
+     struct new_cpio_header *file_hdr;
+{
+  if (archive_format == arf_newascii || archive_format == arf_crcascii)
+    {
+      if ((file_hdr->c_rdev_maj & 0xFFFFFFFF) != file_hdr->c_rdev_maj)
+        return 1;
+      if ((file_hdr->c_rdev_min & 0xFFFFFFFF) != file_hdr->c_rdev_min)
+        return 2;
+    }
+  else if (archive_format == arf_oldascii || archive_format == arf_hpoldascii)
+    {
+#ifndef __MSDOS__
+      dev_t rdev;
 
+      rdev = makedev (file_hdr->c_rdev_maj, file_hdr->c_rdev_min);
+      if (archive_format == arf_oldascii)
+	{
+	  if ((rdev & 0xFFFF) != rdev)
+	    return 4;
+	}
+      else
+	{
+	  switch (file_hdr->c_mode & CP_IFMT)
+	    {
+	      case CP_IFCHR:
+	      case CP_IFBLK:
+#ifdef CP_IFSOCK
+	      case CP_IFSOCK:
+#endif
+#ifdef CP_IFIFO
+	      case CP_IFIFO:
+#endif
+		/* We could handle one more bit if longs are >= 33 bits.  */
+		if ((rdev & 037777777777) != rdev)
+		  return 4;
+		break;
+	      default:
+		if ((rdev & 0xFFFF) != rdev)
+		  return 4;
+		break;
+	    }
+	}
+#endif
+    }
+  else if (archive_format == arf_tar || archive_format == arf_ustar)
+    {
+      /* The major and minor formats are limited to 7 octal digits in ustar
+	 format, and to_oct () adds a gratuitous trailing blank to further
+	 limit the format to 6 octal digits.  */
+      if ((file_hdr->c_rdev_maj & 0777777) != file_hdr->c_rdev_maj)
+        return 1;
+      if ((file_hdr->c_rdev_min & 0777777) != file_hdr->c_rdev_min)
+        return 2;
+    }
+  else
+    {
+#ifndef __MSDOS__
+      dev_t rdev;
+
+      rdev = makedev (file_hdr->c_rdev_maj, file_hdr->c_rdev_min);
+      if (archive_format != arf_hpbinary)
+	{
+	  if ((rdev & 0xFFFF) != rdev)
+	return 4;
+    }
+  else
+    {
+      switch (file_hdr->c_mode & CP_IFMT)
+	{
+	  case CP_IFCHR:
+	  case CP_IFBLK:
+#ifdef CP_IFSOCK
+	  case CP_IFSOCK:
+#endif
+#ifdef CP_IFIFO
+	  case CP_IFIFO:
+#endif
+	    if ((rdev & 0xFFFFFFFF) != rdev)
+	      return 4;
+	    file_hdr->c_filesize = rdev;
+	    rdev = makedev (0, 1);
+	    break;
+	  default:
+	    if ((rdev & 0xFFFF) != rdev)
+	      return 4;
+	    break;
+	}
+    }
+#endif
+  }
+  return 0;
+}
