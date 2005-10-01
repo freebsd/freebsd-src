@@ -2141,7 +2141,7 @@ retry:
 		    prev_norunningbuf;
 	} else
 		VI_UNLOCK(devvp);
-	if (launched_async_io && (td->td_pflags & TDP_NORUNNINGBUF))
+	if (launched_async_io && (td->td_pflags & TDP_NORUNNINGBUF) == 0)
 		waitrunningbufspace();
 	/*
 	 * I/O on bp will now be started, so count it in runningbufspace.
