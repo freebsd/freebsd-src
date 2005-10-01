@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>			/* needed by net/if.h		*/
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 
@@ -44,14 +45,15 @@ __FBSDID("$FreeBSD$");
 
 static void netisr_poll(void);		/* the two netisr handlers      */
 static void netisr_pollmore(void);
+static int poll_switch(SYSCTL_HANDLER_ARGS);
 
 void hardclock_device_poll(void);	/* hook from hardclock		*/
-void ether_poll(int);			/* polling while in trap	*/
+void ether_poll(int);			/* polling in idle loop		*/
 
 /*
  * Polling support for [network] device drivers.
  *
- * Drivers which support this feature try to register with the
+ * Drivers which support this feature can register with the
  * polling code.
  *
  * If registration is successful, the driver must disable interrupts,
@@ -64,10 +66,6 @@ void ether_poll(int);			/* polling while in trap	*/
  *  POLL_AND_CHECK_STATUS: as above, plus check status registers or do
  *	other more expensive operations. This command is issued periodically
  *	but less frequently than POLL_ONLY.
- *  POLL_DEREGISTER: deregister and return to interrupt mode.
- *
- * The first two commands are only issued if the interface is marked as
- * 'IFF_UP and IFF_DRV_RUNNING', the last one only if IFF_DRV_RUNNING is set.
  *
  * The count limit specifies how much work the handler can do during the
  * call -- typically this is the number of packets to be received, or
@@ -75,11 +73,9 @@ void ether_poll(int);			/* polling while in trap	*/
  * as the max time spent in the function grows roughly linearly with the
  * count).
  *
- * Deregistration can be requested by the driver itself (typically in the
- * *_stop() routine), or by the polling code, by invoking the handler.
- *
- * Polling can be globally enabled or disabled with the sysctl variable
- * kern.polling.enable (default is 0, disabled)
+ * Polling is enabled and disabled via setting IFCAP_POLLING flag on
+ * the interface. The driver ioctl handler should register interface
+ * with polling and disable interrupts, if registration was successful.
  *
  * A second variable controls the sharing of CPU between polling/kernel
  * network processing, and other activities (typically userlevel tasks):
@@ -91,7 +87,7 @@ void ether_poll(int);			/* polling while in trap	*/
  * The following constraints hold
  *
  *	1 <= poll_each_burst <= poll_burst <= poll_burst_max
- *	0 <= poll_in_trap <= poll_each_burst
+ *	0 <= poll_each_burst
  *	MIN_POLL_BURST_MAX <= poll_burst_max <= MAX_POLL_BURST_MAX
  */
 
@@ -116,10 +112,6 @@ SYSCTL_UINT(_kern_polling, OID_AUTO, burst_max, CTLFLAG_RW,
 static u_int32_t poll_in_idle_loop=0;	/* do we poll in idle loop ? */
 SYSCTL_UINT(_kern_polling, OID_AUTO, idle_poll, CTLFLAG_RW,
 	&poll_in_idle_loop, 0, "Enable device polling in idle loop");
-
-u_int32_t poll_in_trap;			/* used in trap.c */
-SYSCTL_UINT(_kern_polling, OID_AUTO, poll_in_trap, CTLFLAG_RW,
-	&poll_in_trap, 0, "Poll burst size during a trap");
 
 static u_int32_t user_frac = 50;
 SYSCTL_UINT(_kern_polling, OID_AUTO, user_frac, CTLFLAG_RW,
@@ -149,9 +141,9 @@ static u_int32_t poll_handlers; /* next free entry in pr[]. */
 SYSCTL_UINT(_kern_polling, OID_AUTO, handlers, CTLFLAG_RD,
 	&poll_handlers, 0, "Number of registered poll handlers");
 
-static int polling = 0;		/* global polling enable */
-SYSCTL_UINT(_kern_polling, OID_AUTO, enable, CTLFLAG_RW,
-	&polling, 0, "Polling enabled");
+static int polling = 0;
+SYSCTL_PROC(_kern_polling, OID_AUTO, enable, CTLTYPE_UINT | CTLFLAG_RW,
+	0, sizeof(int), poll_switch, "I", "Switch polling for all interfaces");
 
 static u_int32_t phase;
 SYSCTL_UINT(_kern_polling, OID_AUTO, phase, CTLFLAG_RW,
@@ -174,23 +166,9 @@ SYSCTL_UINT(_kern_polling, OID_AUTO, idlepoll_sleeping, CTLFLAG_RD,
 struct pollrec {
 	poll_handler_t	*handler;
 	struct ifnet	*ifp;
-	/*
-	 * Flags of polling record (protected by poll_mtx).
-	 * PRF_RUNNING means that the handler is now executing.
-	 * PRF_LEAVING means that the handler is now deregistering.
-	 */
-#define	PRF_RUNNING	0x1
-#define	PRF_LEAVING	0x2
-	uint32_t	flags;
 };
 
 static struct pollrec pr[POLL_LIST_LEN];
-
-#define	PR_VALID(i)	(pr[(i)].handler != NULL &&			\
-			!(pr[(i)].flags & (PRF_RUNNING|PRF_LEAVING)) &&	\
-			(pr[(i)].ifp->if_drv_flags & IFF_DRV_RUNNING) &&\
-			(pr[(i)].ifp->if_flags & IFF_UP))
-
 static struct mtx	poll_mtx;
 
 static void
@@ -258,30 +236,24 @@ hardclock_device_poll(void)
 }
 
 /*
- * ether_poll is called from the idle loop or from the trap handler.
+ * ether_poll is called from the idle loop.
  */
 void
 ether_poll(int count)
 {
 	int i;
 
+	NET_LOCK_GIANT();
 	mtx_lock(&poll_mtx);
 
 	if (count > poll_each_burst)
 		count = poll_each_burst;
 
-	for (i = 0 ; i < poll_handlers ; i++) {
-		if (PR_VALID(i)) {
-			pr[i].flags |= PRF_RUNNING;
-			mtx_unlock(&poll_mtx);
-			NET_LOCK_GIANT();
-			pr[i].handler(pr[i].ifp, POLL_ONLY, count);
-			NET_UNLOCK_GIANT();
-			mtx_lock(&poll_mtx);
-			pr[i].flags &= ~PRF_RUNNING;
-		}
-	}
+	for (i = 0 ; i < poll_handlers ; i++)
+		pr[i].handler(pr[i].ifp, POLL_ONLY, count);
+
 	mtx_unlock(&poll_mtx);
+	NET_UNLOCK_GIANT();
 }
 
 /*
@@ -403,60 +375,29 @@ netisr_poll(void)
 		residual_burst : poll_each_burst;
 	residual_burst -= cycles;
 
-	if (polling) {
-		for (i = 0 ; i < poll_handlers ; i++) {
-			if (PR_VALID(i)) {
-				pr[i].flags |= PRF_RUNNING;
-				mtx_unlock(&poll_mtx);
-				pr[i].handler(pr[i].ifp, arg, cycles);
-				mtx_lock(&poll_mtx);
-				pr[i].flags &= ~PRF_RUNNING;
-			}
-		}
-	} else {	/* unregister */
-		for (i = 0 ; i < poll_handlers ; i++) {
-			if (pr[i].handler != NULL &&
-			    pr[i].ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				pr[i].ifp->if_flags &= ~IFF_POLLING;
-				pr[i].flags |= PRF_LEAVING;
-				mtx_unlock(&poll_mtx);
-				pr[i].handler(pr[i].ifp, POLL_DEREGISTER, 1);
-				mtx_lock(&poll_mtx);
-				pr[i].flags &= ~PRF_LEAVING;
-			}
-			pr[i].handler = NULL;
-		}
-		residual_burst = 0;
-		poll_handlers = 0;
-	}
+	for (i = 0 ; i < poll_handlers ; i++)
+		pr[i].handler(pr[i].ifp, arg, cycles);
 
 	phase = 4;
 	mtx_unlock(&poll_mtx);
 }
 
 /*
- * Try to register routine for polling. Returns 1 if successful
- * (and polling should be enabled), 0 otherwise.
+ * Try to register routine for polling. Returns 0 if successful
+ * (and polling should be enabled), error code otherwise.
  * A device is not supposed to register itself multiple times.
  *
- * This is called from within the *_intr() functions, so we do not need
- * further ifnet locking.
+ * This is called from within the *_ioctl() functions.
  */
 int
 ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 {
 	int i;
 
-	NET_ASSERT_GIANT();
+	KASSERT(h != NULL, ("%s: handler is NULL", __func__));
+	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
 
-	if (polling == 0) /* polling disabled, cannot register */
-		return 0;
-	if (h == NULL || ifp == NULL)		/* bad arguments	*/
-		return 0;
-	if ( !(ifp->if_flags & IFF_UP) )	/* must be up		*/
-		return 0;
-	if (ifp->if_flags & IFF_POLLING)	/* already polling	*/
-		return 0;
+	NET_ASSERT_GIANT();
 
 	mtx_lock(&poll_mtx);
 	if (poll_handlers >= POLL_LIST_LEN) {
@@ -474,7 +415,7 @@ ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 			verbose--;
 		}
 		mtx_unlock(&poll_mtx);
-		return 0; /* no polling for you */
+		return (ENOMEM); /* no polling for you */
 	}
 
 	for (i = 0 ; i < poll_handlers ; i++)
@@ -482,45 +423,39 @@ ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 			mtx_unlock(&poll_mtx);
 			log(LOG_DEBUG, "ether_poll_register: %s: handler"
 			    " already registered\n", ifp->if_xname);
-			return (0);
+			return (EEXIST);
 		}
 
 	pr[poll_handlers].handler = h;
 	pr[poll_handlers].ifp = ifp;
 	poll_handlers++;
-	ifp->if_flags |= IFF_POLLING;
 	mtx_unlock(&poll_mtx);
 	if (idlepoll_sleeping)
 		wakeup(&idlepoll_sleeping);
-	return 1; /* polling enabled in next call */
+	return (0);
 }
 
 /*
- * Remove interface from the polling list. Normally called by *_stop().
- * It is not an error to call it with IFF_POLLING clear, the call is
- * sufficiently rare to be preferable to save the space for the extra
- * test in each driver in exchange of one additional function call.
+ * Remove interface from the polling list. Called from *_ioctl(), too.
  */
 int
 ether_poll_deregister(struct ifnet *ifp)
 {
 	int i;
 
-	NET_ASSERT_GIANT();
+	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
 
-	if ( !ifp || !(ifp->if_flags & IFF_POLLING) ) {
-		return 0;
-	}
+	NET_ASSERT_GIANT();
 	mtx_lock(&poll_mtx);
+
 	for (i = 0 ; i < poll_handlers ; i++)
 		if (pr[i].ifp == ifp) /* found it */
 			break;
-	ifp->if_flags &= ~IFF_POLLING; /* found or not... */
 	if (i == poll_handlers) {
-		mtx_unlock(&poll_mtx);
 		log(LOG_DEBUG, "ether_poll_deregister: %s: not found!\n",
 		    ifp->if_xname);
-		return (0);
+		mtx_unlock(&poll_mtx);
+		return (ENOENT);
 	}
 	poll_handlers--;
 	if (i < poll_handlers) { /* Last entry replaces this one. */
@@ -528,7 +463,60 @@ ether_poll_deregister(struct ifnet *ifp)
 		pr[i].ifp = pr[poll_handlers].ifp;
 	}
 	mtx_unlock(&poll_mtx);
-	return (1);
+	return (0);
+}
+
+/*
+ * Legacy interface for turning polling on all interfaces at one time.
+ */
+static int
+poll_switch(SYSCTL_HANDLER_ARGS)
+{
+	struct ifnet *ifp;
+	int error;
+	int val;
+
+	mtx_lock(&poll_mtx);
+	val = polling;
+	mtx_unlock(&poll_mtx);
+
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error || !req->newptr )
+		return (error);
+
+	if (val == polling)
+		return (0);
+
+	if (val < 0 || val > 1)
+		return (EINVAL);
+
+	mtx_lock(&poll_mtx);
+	polling = val;
+	mtx_unlock(&poll_mtx);
+
+	NET_LOCK_GIANT();
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		if (ifp->if_capabilities & IFCAP_POLLING) {
+			struct ifreq ifr;
+
+			if (val == 1)
+				ifr.ifr_reqcap =
+				    ifp->if_capenable | IFCAP_POLLING;
+			else
+				ifr.ifr_reqcap =
+				    ifp->if_capenable & ~IFCAP_POLLING;
+			IFF_LOCKGIANT(ifp);	/* LOR here */
+			(void) (*ifp->if_ioctl)(ifp, SIOCSIFCAP, (caddr_t)&ifr);
+			IFF_UNLOCKGIANT(ifp);
+		}
+	}
+	IFNET_RUNLOCK();
+	NET_UNLOCK_GIANT();
+
+	log(LOG_ERR, "kern.polling.enable is deprecated. Use ifconfig(8)");
+
+	return (0);
 }
 
 static void

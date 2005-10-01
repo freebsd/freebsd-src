@@ -107,19 +107,6 @@ SYSCTL_INT(_hw_firewire_fwip, OID_AUTO, rx_queue_len, CTLFLAG_RW, &rx_queue_len,
 TUNABLE_INT("hw.firewire.fwip.rx_queue_len", &rx_queue_len);
 
 #ifdef DEVICE_POLLING
-#define FWIP_POLL_REGISTER(func, fwip, ifp)			\
-	if (ether_poll_register(func, ifp)) {			\
-		struct firewire_comm *fc = (fwip)->fd.fc;	\
-		fc->set_intr(fc, 0);				\
-	}
-
-#define FWIP_POLL_DEREGISTER(fwip, ifp)				\
-	do {							\
-		struct firewire_comm *fc = (fwip)->fd.fc;	\
-		ether_poll_deregister(ifp);			\
-		fc->set_intr(fc, 1);				\
-	} while(0)						\
-
 static poll_handler_t fwip_poll;
 
 static void
@@ -128,19 +115,15 @@ fwip_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct fwip_softc *fwip;
 	struct firewire_comm *fc;
 
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+		return;
+
 	fwip = ((struct fwip_eth_softc *)ifp->if_softc)->fwip;
 	fc = fwip->fd.fc;
-	if (cmd == POLL_DEREGISTER) {
-		/* enable interrupts */
-		fc->set_intr(fc, 1);
-		return;
-	}
 	fc->poll(fc, (cmd == POLL_AND_CHECK_STATUS)?0:1, count);
 }
-#else
-#define FWIP_POLL_REGISTER(func, fwip, ifp)
-#define FWIP_POLL_DEREGISTER(fwip, ifp)
-#endif
+#endif /* DEVICE_POLLING */
+
 static void
 fwip_identify(driver_t *driver, device_t parent)
 {
@@ -214,6 +197,9 @@ fwip_attach(device_t dev)
 	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST|
 	    IFF_NEEDSGIANT);
 	ifp->if_snd.ifq_maxlen = TX_MAX_QUEUE;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 
 	s = splimp();
 	firewire_ifattach(ifp, hwaddr);
@@ -233,8 +219,6 @@ fwip_stop(struct fwip_softc *fwip)
 	int i;
 
 	fc = fwip->fd.fc;
-
-	FWIP_POLL_DEREGISTER(fwip, ifp);
 
 	if (fwip->dma_ch >= 0) {
 		xferq = fc->ir[fwip->dma_ch];
@@ -279,14 +263,22 @@ static int
 fwip_detach(device_t dev)
 {
 	struct fwip_softc *fwip;
+	struct ifnet *ifp;
 	int s;
 
 	fwip = (struct fwip_softc *)device_get_softc(dev);
+	ifp = fwip->fw_softc.fwip_ifp;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
+
 	s = splimp();
 
 	fwip_stop(fwip);
-	firewire_ifdetach(fwip->fw_softc.fwip_ifp);
-	if_free(fwip->fw_softc.fwip_ifp);
+	firewire_ifdetach(ifp);
+	if_free(ifp);
 
 	splx(s);
 	return 0;
@@ -408,7 +400,6 @@ found:
 	ifp->if_flags &= ~IFF_OACTIVE;
 #endif
 
-	FWIP_POLL_REGISTER(fwip_poll, fwip, ifp);
 #if 0
 	/* attempt to start output */
 	fwip_start(ifp);
@@ -444,7 +435,34 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;
+	case SIOCSIFCAP:
+#ifdef DEVICE_POLLING
+	    {
+		struct ifreq *ifr = (struct ifreq *) data;
+		struct firewire_comm *fc = fc = fwip->fd.fc;
 
+		if (ifr->ifr_reqcap & IFCAP_POLLING &&
+		    !(ifp->if_capenable & IFCAP_POLLING)) {
+			error = ether_poll_register(fwip_poll, ifp);
+			if (error)
+				return(error);
+			/* Disable interrupts */
+			fc->set_intr(fc, 0);
+			ifp->if_capenable |= IFCAP_POLLING;
+			return (error);
+			
+		}
+		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
+		    ifp->if_capenable & IFCAP_POLLING) {
+			error = ether_poll_deregister(ifp);
+			/* Enable interrupts. */
+			fc->set_intr(fc, 1);
+			ifp->if_capenable &= ~IFCAP_POLLING;
+			return (error);
+		}
+	    }
+#endif /* DEVICE_POLLING */
+		break;
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	default:
 #else
@@ -757,9 +775,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 
 	fwip = (struct fwip_softc *)xferq->sc;
 	ifp = fwip->fw_softc.fwip_ifp;
-#if 0
-	FWIP_POLL_REGISTER(fwip_poll, fwip, ifp);
-#endif
+
 	while ((sxfer = STAILQ_FIRST(&xferq->stvalid)) != NULL) {
 		STAILQ_REMOVE_HEAD(&xferq->stvalid, link);
 		fp = mtod(sxfer->mbuf, struct fw_pkt *);

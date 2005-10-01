@@ -2265,10 +2265,10 @@ dc_attach(device_t dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
-	ifp->if_capenable = ifp->if_capabilities;
 
 	callout_init_mtx(&sc->dc_stat_ch, &sc->dc_mtx, 0);
 
@@ -2338,6 +2338,11 @@ dc_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->dc_mtx), ("dc mutex not initialized"));
 
 	ifp = sc->dc_ifp;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
@@ -2704,7 +2709,7 @@ dc_rxeof(struct dc_softc *sc)
 	while (!(le32toh(sc->dc_ldata->dc_rx_list[i].dc_status) &
 	    DC_RXSTAT_OWN)) {
 #ifdef DEVICE_POLLING
-		if (ifp->if_flags & IFF_POLLING) {
+		if (ifp->if_capenable & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -3038,16 +3043,13 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct dc_softc *sc = ifp->if_softc;
 
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
-		/* Re-enable interrupts. */
-		CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
+	DC_LOCK(sc);
+
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		DC_UNLOCK(sc);
 		return;
 	}
-	DC_LOCK(sc);
+
 	sc->rxcycles = count;
 	dc_rxeof(sc);
 	dc_txeof(sc);
@@ -3111,12 +3113,9 @@ dc_intr(void *arg)
 	DC_LOCK(sc);
 	ifp = sc->dc_ifp;
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING)
-		goto done;
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(dc_poll, ifp)) { /* ok, disable interrupts */
-		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
-		goto done;
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		DC_UNLOCK(sc);
+		return;
 	}
 #endif
 
@@ -3182,10 +3181,6 @@ dc_intr(void *arg)
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		dc_start_locked(ifp);
-
-#ifdef DEVICE_POLLING
-done:
-#endif
 
 	DC_UNLOCK(sc);
 }
@@ -3534,7 +3529,7 @@ dc_init_locked(struct dc_softc *sc)
 	 * the case of polling. Some cards (e.g. fxp) turn interrupts on
 	 * after a reset.
 	 */
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_capenable & IFCAP_POLLING)
 		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 	else
 #endif
@@ -3686,10 +3681,31 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 #endif
 		break;
 	case SIOCSIFCAP:
-		DC_LOCK(sc);
-		ifp->if_capenable &= ~IFCAP_POLLING;
-		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
-		DC_UNLOCK(sc);
+#ifdef DEVICE_POLLING
+		if (ifr->ifr_reqcap & IFCAP_POLLING &&
+		    !(ifp->if_capenable & IFCAP_POLLING)) {
+			error = ether_poll_register(dc_poll, ifp);
+			if (error)
+				return(error);
+			DC_LOCK(sc);
+			/* Disable interrupts */
+			CSR_WRITE_4(sc, DC_IMR, 0x00000000);
+			ifp->if_capenable |= IFCAP_POLLING;
+			DC_UNLOCK(sc);
+			return (error);
+			
+		}
+		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
+		    ifp->if_capenable & IFCAP_POLLING) {
+			error = ether_poll_deregister(ifp);
+			/* Enable interrupts. */
+			DC_LOCK(sc);
+			CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
+			ifp->if_capenable &= ~IFCAP_POLLING;
+			DC_UNLOCK(sc);
+			return (error);
+		}
+#endif /* DEVICE_POLLING */
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -3744,9 +3760,6 @@ dc_stop(struct dc_softc *sc)
 	callout_stop(&sc->dc_stat_ch);
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif
 
 	DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_RX_ON | DC_NETCFG_TX_ON));
 	CSR_WRITE_4(sc, DC_IMR, 0x00000000);

@@ -660,7 +660,7 @@ void	if_deregister_com_alloc(u_char type);
     LLADDR((struct sockaddr_dl *) ifaddr_byindex((ifp)->if_index)->ifa_addr)
 
 #ifdef DEVICE_POLLING
-enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS, POLL_DEREGISTER };
+enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS };
 
 typedef	void poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
 int    ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
