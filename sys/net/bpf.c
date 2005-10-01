@@ -694,6 +694,10 @@ bpfioctl(dev, cmd, addr, flags, td)
 	struct bpf_d *d = dev->si_drv1;
 	int error = 0;
 
+	/* 
+	 * Refresh PID associated with this descriptor.
+	 */
+	d->bd_pid = td->td_proc->p_pid;
 	BPFD_LOCK(d);
 	if (d->bd_state == BPF_WAITING)
 		callout_stop(&d->bd_callout);
@@ -1141,6 +1145,10 @@ bpfpoll(dev, events, td)
 	if (d->bd_bif == NULL)
 		return (ENXIO);
 
+	/*
+	 * Refresh PID associated with this descriptor.
+	 */
+	d->bd_pid = td->td_proc->p_pid;
 	revents = events & (POLLOUT | POLLWRNORM);
 	BPFD_LOCK(d);
 	if (events & (POLLIN | POLLRDNORM)) {
@@ -1174,6 +1182,10 @@ bpfkqfilter(dev, kn)
 	if (kn->kn_filter != EVFILT_READ)
 		return (1);
 
+	/* 
+	 * Refresh PID associated with this descriptor.
+	 */
+	d->bd_pid = curthread->td_proc->p_pid;
 	kn->kn_fop = &bpfread_filtops;
 	kn->kn_hook = d;
 	knlist_add(&d->bd_sel.si_note, kn, 0);
