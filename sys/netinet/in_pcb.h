@@ -133,6 +133,7 @@ struct inpcb {
 #define	INP_ONESBCAST	0x10		/* send all-ones broadcast */
 	u_char	inp_ip_ttl;		/* time to live proto */
 	u_char	inp_ip_p;		/* protocol proto */
+	u_char	inp_ip_minttl;		/* minimum TTL or drop */
 
 	/* protocol dependent part; options */
 	struct {
