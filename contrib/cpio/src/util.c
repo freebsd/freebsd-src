@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* util.c - Several utility routines for cpio.
    Copyright (C) 1990, 1991, 1992, 2001, 2004 Free Software Foundation, Inc.
 
@@ -871,9 +873,9 @@ get_next_reel (int tape_des)
     fprintf (tty_out, "%s%d%s", new_media_message_with_number, reel_number,
 	     new_media_message_after_number);
   else if (archive_name)
-    fprintf (tty_out, _("Found end of tape.  Load next tape and press RETURN. "));
+    fprintf (tty_out, _("Found end of volume.  Load next volume and press RETURN. "));
   else
-    fprintf (tty_out, _("Found end of tape.  To continue, type device/file name when ready.\n"));
+    fprintf (tty_out, _("Found end of volume.  To continue, type device/file name when ready.\n"));
 
   fflush (tty_out);
 
