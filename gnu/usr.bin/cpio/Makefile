@@ -56,6 +56,7 @@ getopt.h: getopt_.h
 alloca.h: alloca_.h
 	ln -fs ${.ALLSRC} ${.TARGET}
 
-CFLAGS+=-I${.OBJDIR} -I${.CURDIR} -I${CPIODIR}/lib -DHAVE_CONFIG_H
+CFLAGS+=-I${.OBJDIR} -I${.CURDIR} -I${CPIODIR}/lib -DHAVE_CONFIG_H \
+	-DHAVE_MKFIFO -DHAVE_SETLOCALE
 
 .include <bsd.prog.mk>
