@@ -100,19 +100,6 @@ TUNABLE_INT("hw.firewire.fwe.tx_speed", &tx_speed);
 TUNABLE_INT("hw.firewire.fwe.rx_queue_len", &rx_queue_len);
 
 #ifdef DEVICE_POLLING
-#define FWE_POLL_REGISTER(func, fwe, ifp)			\
-	if (ether_poll_register(func, ifp)) {			\
-		struct firewire_comm *fc = (fwe)->fd.fc;	\
-		fc->set_intr(fc, 0);				\
-	}
-
-#define FWE_POLL_DEREGISTER(fwe, ifp)				\
-	do {							\
-		struct firewire_comm *fc = (fwe)->fd.fc;	\
-		ether_poll_deregister(ifp);			\
-		fc->set_intr(fc, 1);				\
-	} while(0)						\
-
 static poll_handler_t fwe_poll;
 
 static void
@@ -121,19 +108,15 @@ fwe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct fwe_softc *fwe;
 	struct firewire_comm *fc;
 
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+		return;
+
 	fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
 	fc = fwe->fd.fc;
-	if (cmd == POLL_DEREGISTER) {
-		/* enable interrupts */
-		fc->set_intr(fc, 1);
-		return;
-	}
 	fc->poll(fc, (cmd == POLL_AND_CHECK_STATUS)?0:1, count);
 }
-#else
-#define FWE_POLL_REGISTER(func, fwe, ifp)
-#define FWE_POLL_DEREGISTER(fwe, ifp)
-#endif
+#endif /* DEVICE_POLLING */
+
 static void
 fwe_identify(driver_t *driver, device_t parent)
 {
@@ -242,7 +225,7 @@ fwe_attach(device_t dev)
         /* Tell the upper layer(s) we support long frames. */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU & IFCAP_POLLING;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
 #endif
 
@@ -261,8 +244,6 @@ fwe_stop(struct fwe_softc *fwe)
 	int i;
 
 	fc = fwe->fd.fc;
-
-	FWE_POLL_DEREGISTER(fwe, ifp);
 
 	if (fwe->dma_ch >= 0) {
 		xferq = fc->ir[fwe->dma_ch];
@@ -305,6 +286,11 @@ fwe_detach(device_t dev)
 
 	fwe = device_get_softc(dev);
 	ifp = fwe->eth_softc.ifp;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 	s = splimp();
 
 	fwe_stop(fwe);
@@ -416,7 +402,6 @@ found:
 	ifp->if_flags &= ~IFF_OACTIVE;
 #endif
 
-	FWE_POLL_REGISTER(fwe_poll, fwe, ifp);
 #if 0
 	/* attempt to start output */
 	fwe_start(ifp);
@@ -467,6 +452,34 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					"\tch %d dma %d\n",
 						fwe->stream_ch, fwe->dma_ch);
 			splx(s);
+			break;
+		case SIOCSIFCAP:
+#ifdef DEVICE_POLLING
+		    {
+			struct ifreq *ifr = (struct ifreq *) data;
+			struct firewire_comm *fc = fc = fwe->fd.fc;
+
+			if (ifr->ifr_reqcap & IFCAP_POLLING &&
+			    !(ifp->if_capenable & IFCAP_POLLING)) {
+				error = ether_poll_register(fwe_poll, ifp);
+				if (error)
+					return(error);
+				/* Disable interrupts */
+				fc->set_intr(fc, 0);
+				ifp->if_capenable |= IFCAP_POLLING;
+				return (error);
+				
+			}
+			if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
+			    ifp->if_capenable & IFCAP_POLLING) {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupts. */
+				fc->set_intr(fc, 1);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				return (error);
+			}
+		    }
+#endif /* DEVICE_POLLING */
 			break;
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 		default:
@@ -634,9 +647,7 @@ fwe_as_input(struct fw_xferq *xferq)
 
 	fwe = (struct fwe_softc *)xferq->sc;
 	ifp = fwe->eth_softc.ifp;
-#if 0
-	FWE_POLL_REGISTER(fwe_poll, fwe, ifp);
-#endif
+
 	while ((sxfer = STAILQ_FIRST(&xferq->stvalid)) != NULL) {
 		STAILQ_REMOVE_HEAD(&xferq->stvalid, link);
 		fp = mtod(sxfer->mbuf, struct fw_pkt *);
