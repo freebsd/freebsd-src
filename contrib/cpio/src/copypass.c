@@ -469,7 +469,7 @@ link_to_name (char *link_name, char *link_target)
     }
   else if (link_flag)
     {
-      error (0, errno, _("cannot link %s to %s"),
+      error (0, errno, _("cannot link %s to %s (will copy instead)"),
 	     link_target, link_name);
     }
   return res;
