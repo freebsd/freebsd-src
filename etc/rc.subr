@@ -515,7 +515,7 @@ run_rc_command()
 	fi
 
 	if [ -z "$rc_arg" ]; then
-		rc_usage "$_keywords"
+		rc_usage $_keywords
 	fi
 
 	if [ -n "$flags" ]; then	# allow override from environment
@@ -797,7 +797,7 @@ $command $rc_flags $command_args"
 			;;
 
 		*)
-			rc_usage "$_keywords"
+			rc_usage $_keywords
 			;;
 
 		esac
@@ -805,7 +805,7 @@ $command $rc_flags $command_args"
 	done
 
 	echo 1>&2 "$0: unknown directive '$rc_arg'."
-	rc_usage "$_keywords"
+	rc_usage $_keywords
 	exit 1
 }
 
