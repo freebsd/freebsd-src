@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* main.c - main program and argument processing for cpio.
    Copyright (C) 1990, 1991, 1992, 2001, 2003, 2004 Free Software Foundation, Inc.
 
@@ -740,8 +742,7 @@ main (int argc, char *argv[])
   textdomain (PACKAGE);
 
   program_name = argv[0];
-  umask (0);
-
+  
 #ifdef __TURBOC__
   _fmode = O_BINARY;		/* Put stdin and stdout in binary mode.  */
 #endif
@@ -751,6 +752,7 @@ main (int argc, char *argv[])
 #endif
 
   process_args (argc, argv);
+  umask (0);
 
   initialize_buffers ();
 
