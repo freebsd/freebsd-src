@@ -157,6 +157,9 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 	if (!policyfail && mac_check_inpcb_deliver(last, n) != 0)
 		policyfail = 1;
 #endif
+	/* Check the minimum TTL for socket. */
+	if (last->inp_ip_minttl && last->inp_ip_minttl > ip->ip_ttl)
+		policyfail = 1;
 	if (!policyfail) {
 		struct mbuf *opts = NULL;
 		struct socket *so;
