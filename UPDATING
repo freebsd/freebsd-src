@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20051001:
+	kern.polling.enable sysctl MIB is now deprecated. Use ifconfig(8)
+	to turn polling(4) on your interfaces.
+
 20050927:
 	The old bridge(4) implementation was retired.  The new
 	if_bridge(4) serves as a full functional replacement.
