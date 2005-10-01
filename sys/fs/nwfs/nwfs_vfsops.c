@@ -175,7 +175,7 @@ static int nwfs_mount(struct mount *mp, struct thread *td)
 		nwfs_printf("MNT_UPDATE not implemented");
 		return (EOPNOTSUPP);
 	}
-	error = vfs_copyopt(mp->mnt_optnew, "nwfw_args", &args, sizeof args);
+	error = vfs_copyopt(mp->mnt_optnew, "nwfs_args", &args, sizeof args);
 	if (error)
 		return (error);
 	if (args.version != NWFS_VERSION) {
