@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* copypass.c - cpio copy pass sub-function.
    Copyright (C) 1990, 1991, 1992, 2001, 2003, 2004 Free Software Foundation, Inc.
 
@@ -311,13 +313,23 @@ process_copy_pass ()
 
 	  if (link_res < 0)
 	    {
-	      res = mknod (output_name.ds_string, in_file_stat.st_mode,
-			   in_file_stat.st_rdev);
+#ifdef S_ISFIFO
+	      if (S_ISFIFO (in_file_stat.st_mode))
+		res = mkfifo (output_name.ds_string, in_file_stat.st_mode);
+	      else
+#endif
+		res = mknod (output_name.ds_string, in_file_stat.st_mode,
+			     in_file_stat.st_rdev);
 	      if (res < 0 && create_dir_flag)
 		{
 		  create_all_directories (output_name.ds_string);
-		  res = mknod (output_name.ds_string, in_file_stat.st_mode,
-			       in_file_stat.st_rdev);
+#ifdef S_ISFIFO
+		  if (S_ISFIFO (in_file_stat.st_mode))
+		    res = mkfifo (output_name.ds_string, in_file_stat.st_mode);
+		  else
+#endif
+		    res = mknod (output_name.ds_string, in_file_stat.st_mode,
+				 in_file_stat.st_rdev);
 		}
 	      if (res < 0)
 		{
