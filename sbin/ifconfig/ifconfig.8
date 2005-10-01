@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2005
+.Dd October 1, 2005
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -350,13 +350,14 @@ If the driver offers user-configurable VLAN support, disable
 reception of extended frames or tag processing in hardware,
 respectively.
 .It Cm polling
-If the driver has user-configurable
+Turn on
 .Xr polling 4
-support, select the polling mode on the interface.
+feature and disable interrupts on the interface, if driver supports
+this mode.
 .It Fl polling
-If the driver has user-configurable
+Turn off
 .Xr polling 4
-support, select the interrupt mode on the interface.
+feature and enable interrupt mode on the interface.
 .It Cm create
 Create the specified network pseudo-device.
 If the interface is given without a unit number, try to create a new
