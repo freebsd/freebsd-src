@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* userspec.c -- Parse a user and group string.
    Copyright (C) 1989, 1990, 1991, 1992, 2001, 2004 Free Software Foundation, Inc.
 
@@ -72,7 +74,7 @@ extern struct group *getgrgid (gid_t gid);
    otherwise return 0. */
 
 static int
-isnumber (const char *str)
+cpio_isnumber (const char *str)
 {
   for (; *str; str++)
     if (!isdigit (*str))
@@ -136,7 +138,7 @@ parse_user_spec (const char *spec_arg, uid_t *uid, gid_t *gid,
       if (pwd == NULL)
 	{
 
-	  if (!isnumber (u))
+	  if (!cpio_isnumber (u))
 	    error_msg = _("invalid user");
 	  else
 	    {
@@ -182,7 +184,7 @@ parse_user_spec (const char *spec_arg, uid_t *uid, gid_t *gid,
       grp = getgrnam (g);
       if (grp == NULL)
 	{
-	  if (!isnumber (g))
+	  if (!cpio_isnumber (g))
 	    error_msg = _("invalid group");
 	  else
 	    *gid = atoi (g);
