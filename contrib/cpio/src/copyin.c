@@ -31,6 +31,7 @@
 #ifndef	FNM_PATHNAME
 #include <fnmatch.h>
 #endif
+#include <langinfo.h>
 
 #ifndef HAVE_LCHOWN
 #define lchown chown
@@ -893,23 +894,25 @@ long_format (struct new_cpio_header *file_hdr, char *link_name)
   char mbuf[11];
   char tbuf[40];
   time_t when;
+  char *ptbuf;
+  static int d_first = -1;
 
   mode_string (file_hdr->c_mode, mbuf);
   mbuf[10] = '\0';
 
   /* Get time values ready to print.  */
   when = file_hdr->c_mtime;
-  strcpy (tbuf, ctime (&when));
+  if (d_first < 0)
+    d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
   if (current_time - when > 6L * 30L * 24L * 60L * 60L
       || current_time - when < 0L)
-    {
-      /* The file is older than 6 months, or in the future.
-	 Show the year instead of the time of day.  */
-      strcpy (tbuf + 11, tbuf + 19);
-    }
-  tbuf[16] = '\0';
+	ptbuf = d_first ? "%e %b  %Y" : "%b %e  %Y";
+  else
+	ptbuf = d_first ? "%e %b %R" : "%b %e %R";
+  strftime(tbuf, sizeof(tbuf), ptbuf, localtime(&when));
+  ptbuf = tbuf;
 
-  printf ("%s %3u ", mbuf, file_hdr->c_nlink);
+  printf ("%s %3lu ", mbuf, file_hdr->c_nlink);
 
   if (numeric_uid)
     printf ("%-8u %-8u ", (unsigned int) file_hdr->c_uid,
@@ -920,12 +923,12 @@ long_format (struct new_cpio_header *file_hdr, char *link_name)
 
   if ((file_hdr->c_mode & CP_IFMT) == CP_IFCHR
       || (file_hdr->c_mode & CP_IFMT) == CP_IFBLK)
-    printf ("%3u, %3u ", file_hdr->c_rdev_maj,
+    printf ("%3lu, %3lu ", file_hdr->c_rdev_maj,
 	    file_hdr->c_rdev_min);
   else
     printf ("%8lu ", file_hdr->c_filesize);
 
-  printf ("%s ", tbuf + 4);
+  printf ("%s ", ptbuf);
 
   print_name_with_quoting (file_hdr->c_name);
   if (link_name)
@@ -978,7 +981,7 @@ print_name_with_quoting (register char *p)
 	  break;
 
 	default:
-	  if (c > 040 && c < 0177)
+	  if (isprint (c))
 	    putchar (c);
 	  else
 	    printf ("\\%03o", (unsigned int) c);
