@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2005
+.Dd October 1, 2005
 .Dt POLLING 4
 .Os
 .Sh NAME
@@ -32,7 +32,6 @@
 .Nd device polling support
 .Sh SYNOPSIS
 .Cd "options DEVICE_POLLING"
-.Cd "options HZ=1000"
 .Sh DESCRIPTION
 Device polling
 .Nm (
@@ -69,7 +68,7 @@ persistently processing interrupts without being able to
 complete other work, either in the kernel or in userland.
 .Pp
 Device polling disables interrupts by polling devices at appropriate
-times, i.e., on clock interrupts, system calls and within the idle loop.
+times, i.e., on clock interrupts and within the idle loop.
 This way, the context switch overhead is removed.
 Furthermore,
 the operating system can control accurately how much work to spend
@@ -81,6 +80,13 @@ Enabling
 also changes the way software network interrupts
 are scheduled, so there is never the risk of livelock because
 packets are not processed to completion.
+.Ss Enabling polling
+Currently only network interface drivers support the
+.Nm
+feature.
+It is turned on and off with help of
+.Xr ifconfig 8
+command.
 .Ss MIB Variables
 The operation of
 .Nm
@@ -89,11 +95,6 @@ is controlled by the following
 MIB variables:
 .Pp
 .Bl -tag -width indent -compact
-.It Va kern.polling.enable
-If set to non-zero,
-.Nm
-is enabled.
-Default is disabled.
 .Pp
 .It Va kern.polling.user_frac
 When
@@ -142,16 +143,6 @@ Controls if
 is enabled in the idle loop.
 There are no reasons (other than power saving or bugs in the scheduler's
 handling of idle priority kernel threads) to disable this.
-Note that -CURRENT apparently has some problems in this respect now,
-so default is disabled.
-.Pp
-.It Va kern.polling.poll_in_trap
-Controls if
-.Nm
-is enabled during hardware traps.
-Enabling this can be useful to improve the network responsiveness
-of boxes with 100% CPU usage.
-Default is disabled.
 .Pp
 .It Va kern.polling.reg_frac
 Controls how often (every
@@ -165,6 +156,15 @@ Default is 20.
 .It Va kern.polling.handlers
 How many active devices have registered for
 .Nm .
+.Pp
+.It Va kern.polling.enable
+Legacy MIB, that was used to enable or disable polling globally.
+Currently if set to 1,
+.Nm
+is enabled on all capable interfaces.
+If set to 0,
+.Nm
+is disabled on all interfaces.
 .Pp
 .It Va kern.polling.short_ticks
 .It Va kern.polling.lost_polls
@@ -205,10 +205,9 @@ to probe the device for events and process them.
 conditionally compiled sections of the devices mentioned above
 for more details.)
 .Pp
-As in the worst case the devices are only polled on
-clock interrupts, in order to reduce the latency in processing
-packets, it is advisable to increase the frequency of the clock
-to at least 1000 HZ.
+As in the worst case the devices are only polled on clock interrupts,
+in order to reduce the latency in processing packets, it is advisable
+do not to decrease the frequency of the clock below 1000 Hz.
 .Sh HISTORY
 Device polling first appeared in
 .Fx 4.6
