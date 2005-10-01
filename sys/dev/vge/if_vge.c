@@ -1051,16 +1051,14 @@ vge_attach(dev)
 	ifp->if_start = vge_start;
 	ifp->if_hwassist = VGE_CSUM_FEATURES;
 	ifp->if_capabilities |= IFCAP_HWCSUM|IFCAP_VLAN_HWTAGGING;
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
-#ifdef IFCAP_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
-#endif
 #endif
 	ifp->if_watchdog = vge_watchdog;
 	ifp->if_init = vge_init;
 	ifp->if_baudrate = 1000000000;
 	ifp->if_snd.ifq_maxlen = VGE_IFQ_MAXLEN;
-	ifp->if_capenable = ifp->if_capabilities;
 
 	TASK_INIT(&sc->vge_txtask, 0, vge_tx_task, ifp);
 
@@ -1104,6 +1102,11 @@ vge_detach(dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->vge_mtx), ("vge mutex not initialized"));
 	ifp = sc->vge_ifp;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
@@ -1351,12 +1354,12 @@ vge_rxeof(sc)
 	while (!VGE_OWN(&sc->vge_ldata.vge_rx_list[i])) {
 
 #ifdef DEVICE_POLLING
-		if (ifp->if_flags & IFF_POLLING) {
+		if (ifp->if_capenable & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
 		}
-#endif /* DEVICE_POLLING */
+#endif
 
 		cur_rx = &sc->vge_ldata.vge_rx_list[i];
 		m = sc->vge_ldata.vge_rx_mbuf[i];
@@ -1617,18 +1620,8 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct vge_softc *sc = ifp->if_softc;
 
 	VGE_LOCK(sc);
-#ifdef IFCAP_POLLING
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-#endif
-	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
-		CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS);
-		CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
-		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		goto done;
-	}
 
 	sc->rxcycles = count;
 	vge_rxeof(sc);
@@ -1692,20 +1685,11 @@ vge_intr(arg)
 	}
 
 #ifdef DEVICE_POLLING
-	if  (ifp->if_flags & IFF_POLLING)
-		goto done;
-	if (
-#ifdef IFCAP_POLLING
-	    (ifp->if_capenable & IFCAP_POLLING) &&
-#endif
-	    ether_poll_register(vge_poll, ifp)) { /* ok, disable interrupts */
-		CSR_WRITE_4(sc, VGE_IMR, 0);
-		CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
-		vge_poll(ifp, 0, 1);
-		goto done;
+	if  (ifp->if_capenable & IFCAP_POLLING) {
+		VGE_UNLOCK(sc);
+		return;
 	}
-
-#endif /* DEVICE_POLLING */
+#endif
 
 	/* Disable interrupts */
 	CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
@@ -1745,9 +1729,6 @@ vge_intr(arg)
 	/* Re-enable interrupts */
 	CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 
-#ifdef DEVICE_POLLING
-done:
-#endif
 	VGE_UNLOCK(sc);
 
 #if __FreeBSD_version < 502114
@@ -2104,11 +2085,11 @@ vge_init(xsc)
 	/*
 	 * Disable interrupts if we are polling.
 	 */
-	if (ifp->if_flags & IFF_POLLING) {
+	if (ifp->if_capenable & IFCAP_POLLING) {
 		CSR_WRITE_4(sc, VGE_IMR, 0);
 		CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
 	} else	/* otherwise ... */
-#endif /* DEVICE_POLLING */
+#endif
 	{
 	/*
 	 * Enable interrupts.
@@ -2268,23 +2249,42 @@ vge_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-#ifdef IFCAP_POLLING
-		ifp->if_capenable &= ~(IFCAP_HWCSUM | IFCAP_POLLING);
-#else
-		ifp->if_capenable &= ~(IFCAP_HWCSUM);
-#endif
-		ifp->if_capenable |=
-#ifdef IFCAP_POLLING
-		    ifr->ifr_reqcap & (IFCAP_HWCSUM | IFCAP_POLLING);
-#else
-		    ifr->ifr_reqcap & (IFCAP_HWCSUM);
-#endif
-		if (ifp->if_capenable & IFCAP_TXCSUM)
-			ifp->if_hwassist = VGE_CSUM_FEATURES;
-		else
-			ifp->if_hwassist = 0;
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			vge_init(sc);
+	    {
+		int mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+#ifdef DEVICE_POLLING
+		if (mask & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING) {
+				error = ether_poll_register(vge_poll, ifp);
+				if (error)
+					return(error);
+				VGE_LOCK(sc);
+					/* Disable interrupts */
+				CSR_WRITE_4(sc, VGE_IMR, 0);
+				CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
+				ifp->if_capenable |= IFCAP_POLLING;
+				VGE_UNLOCK(sc);
+			} else {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupts. */
+				VGE_LOCK(sc);
+				CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS);
+				CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
+				CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				VGE_UNLOCK(sc);
+			}
+		}
+#endif /* DEVICE_POLLING */
+		if (mask & IFCAP_HWCSUM) {
+			ifp->if_capenable |= ifr->ifr_reqcap & (IFCAP_HWCSUM);
+			if (ifp->if_capenable & IFCAP_TXCSUM)
+				ifp->if_hwassist = VGE_CSUM_FEATURES;
+			else
+				ifp->if_hwassist = 0;
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				vge_init(sc);
+		}
+	    }
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2331,9 +2331,6 @@ vge_stop(sc)
 	ifp->if_timer = 0;
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif /* DEVICE_POLLING */
 
 	CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
 	CSR_WRITE_1(sc, VGE_CRS0, VGE_CR0_STOP);

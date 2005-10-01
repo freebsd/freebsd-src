@@ -773,7 +773,6 @@ fxp_attach(device_t dev)
 #ifdef DEVICE_POLLING
 	/* Inform the world we support polling. */
 	ifp->if_capabilities |= IFCAP_POLLING;
-	ifp->if_capenable |= IFCAP_POLLING;
 #endif
 
 	/*
@@ -890,6 +889,11 @@ static int
 fxp_detach(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
+
+#ifdef DEVICE_POLLING
+	if (sc->ifp->if_capenable & IFCAP_POLLING)   
+		ether_poll_deregister(sc->ifp);
+#endif
 
 	FXP_LOCK(sc);
 	sc->suspended = 1;	/* Do same thing as we do for suspend */
@@ -1448,15 +1452,11 @@ fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	uint8_t statack;
 
 	FXP_LOCK(sc);
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
-		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		FXP_UNLOCK(sc);
 		return;
 	}
+
 	statack = FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA |
 	    FXP_SCB_STATACK_FR;
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -1495,16 +1495,8 @@ fxp_intr(void *xsc)
 	}
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING) {
+	if (ifp->if_capenable & IFCAP_POLLING) {
 		FXP_UNLOCK(sc);
-		return;
-	}
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(fxp_poll, ifp)) {
-		/* disable interrupts */
-		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
-		FXP_UNLOCK(sc);
-		fxp_poll(ifp, 0, 1);
 		return;
 	}
 #endif
@@ -1837,9 +1829,6 @@ fxp_stop(struct fxp_softc *sc)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	ifp->if_timer = 0;
 
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif
 	/*
 	 * Cancel stats updater.
 	 */
@@ -2163,7 +2152,7 @@ fxp_init_body(struct fxp_softc *sc)
 	 * ... but only do that if we are not polling. And because (presumably)
 	 * the default is interrupts on, we need to disable them explicitly!
 	 */
-	if ( ifp->if_flags & IFF_POLLING )
+	if (ifp->if_capenable & IFCAP_POLLING )
 		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
 	else
 #endif /* DEVICE_POLLING */
@@ -2418,11 +2407,30 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCSIFCAP:
-		FXP_LOCK(sc);
 		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
-		if (mask & IFCAP_POLLING)
-			ifp->if_capenable ^= IFCAP_POLLING;
+#ifdef DEVICE_POLLING
+		if (mask & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING) {
+				error = ether_poll_register(fxp_poll, ifp);
+				if (error)
+					return(error);
+				FXP_LOCK(sc);
+				CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL,
+				    FXP_SCB_INTR_DISABLE);
+				ifp->if_capenable |= IFCAP_POLLING;
+				FXP_UNLOCK(sc);
+			} else {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupts in any case */
+				FXP_LOCK(sc);
+				CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				FXP_UNLOCK(sc);
+			}
+		}
+#endif
 		if (mask & IFCAP_VLAN_MTU) {
+			FXP_LOCK(sc);
 			ifp->if_capenable ^= IFCAP_VLAN_MTU;
 			if (sc->revision != FXP_REV_82557)
 				flag = FXP_FLAG_LONG_PKT_EN;
@@ -2431,8 +2439,8 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			sc->flags ^= flag;
 			if (ifp->if_flags & IFF_UP)
 				fxp_init_body(sc);
+			FXP_UNLOCK(sc);
 		}
-		FXP_UNLOCK(sc);
 		break;
 
 	default:

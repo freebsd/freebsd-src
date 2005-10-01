@@ -1202,6 +1202,7 @@ re_attach(dev)
 	ifp->if_start = re_start;
 	ifp->if_hwassist = /*RE_CSUM_FEATURES*/0;
 	ifp->if_capabilities |= IFCAP_HWCSUM|IFCAP_VLAN_HWTAGGING;
+	ifp->if_capenable = ifp->if_capabilities & ~IFCAP_HWCSUM;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
@@ -1214,7 +1215,6 @@ re_attach(dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd,  RL_IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = RL_IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_capenable = ifp->if_capabilities & ~IFCAP_HWCSUM;
 
 	/*
 	 * Call MI attach routine.
@@ -1263,6 +1263,11 @@ re_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = sc->rl_ifp;
 	KASSERT(mtx_initialized(&sc->rl_mtx), ("re mutex not initialized"));
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
@@ -1756,7 +1761,8 @@ re_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct rl_softc *sc = ifp->if_softc;
 
 	RL_LOCK(sc);
-	re_poll_locked(ifp, cmd, count);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		re_poll_locked(ifp, cmd, count);
 	RL_UNLOCK(sc);
 }
 
@@ -1766,15 +1772,6 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct rl_softc *sc = ifp->if_softc;
 
 	RL_LOCK_ASSERT(sc);
-
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
-		CSR_WRITE_2(sc, RL_IMR, RL_INTRS_CPLUS);
-		return;
-	}
 
 	sc->rxcycles = count;
 	re_rxeof(sc);
@@ -1822,15 +1819,9 @@ re_intr(arg)
 		goto done_locked;
 
 #ifdef DEVICE_POLLING
-	if  (ifp->if_flags & IFF_POLLING)
+	if  (ifp->if_capenable & IFCAP_POLLING)
 		goto done_locked;
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(re_poll, ifp)) { /* ok, disable interrupts */
-		CSR_WRITE_2(sc, RL_IMR, 0x0000);
-		re_poll_locked(ifp, 0, 1);
-		goto done_locked;
-	}
-#endif /* DEVICE_POLLING */
+#endif
 
 	for (;;) {
 
@@ -2171,10 +2162,10 @@ re_init_locked(sc)
 	/*
 	 * Disable interrupts if we are polling.
 	 */
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_capenable & IFCAP_POLLING)
 		CSR_WRITE_2(sc, RL_IMR, 0);
 	else	/* otherwise ... */
-#endif /* DEVICE_POLLING */
+#endif
 	/*
 	 * Enable interrupts.
 	 */
@@ -2289,7 +2280,7 @@ re_ioctl(ifp, command, data)
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			error;
+	int			error = 0;
 
 	switch (command) {
 	case SIOCSIFMTU:
@@ -2298,7 +2289,6 @@ re_ioctl(ifp, command, data)
 			error = EINVAL;
 		ifp->if_mtu = ifr->ifr_mtu;
 		RL_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCSIFFLAGS:
 		RL_LOCK(sc);
@@ -2307,14 +2297,12 @@ re_ioctl(ifp, command, data)
 		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			re_stop(sc);
 		RL_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		RL_LOCK(sc);
 		re_setmulti(sc);
 		RL_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -2322,18 +2310,42 @@ re_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		RL_LOCK(sc);
-		ifp->if_capenable &= ~(IFCAP_HWCSUM | IFCAP_POLLING);
-		ifp->if_capenable |=
-		    ifr->ifr_reqcap & (IFCAP_HWCSUM | IFCAP_POLLING);
-		if (ifp->if_capenable & IFCAP_TXCSUM)
-			ifp->if_hwassist = RE_CSUM_FEATURES;
-		else
-			ifp->if_hwassist = 0;
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			re_init_locked(sc);
-		RL_UNLOCK(sc);
-		error = 0;
+	    {
+		int mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+#ifdef DEVICE_POLLING
+		if (mask & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING) {
+				error = ether_poll_register(re_poll, ifp);
+				if (error)
+					return(error);
+				RL_LOCK(sc);
+				/* Disable interrupts */
+				CSR_WRITE_2(sc, RL_IMR, 0x0000);
+				ifp->if_capenable |= IFCAP_POLLING;
+				RL_UNLOCK(sc);
+				
+			} else {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupts. */
+				RL_LOCK(sc);
+				CSR_WRITE_2(sc, RL_IMR, RL_INTRS_CPLUS);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				RL_UNLOCK(sc);
+			}
+		}
+#endif /* DEVICE_POLLING */
+		if (mask & IFCAP_HWCSUM) {
+			RL_LOCK(sc);
+			ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_HWCSUM;
+			if (ifp->if_capenable & IFCAP_TXCSUM)
+				ifp->if_hwassist = RE_CSUM_FEATURES;
+			else
+				ifp->if_hwassist = 0;
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				re_init_locked(sc);
+			RL_UNLOCK(sc);
+		}
+	    }
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2379,9 +2391,6 @@ re_stop(sc)
 
 	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif /* DEVICE_POLLING */
 
 	CSR_WRITE_1(sc, RL_COMMAND, 0x00);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);

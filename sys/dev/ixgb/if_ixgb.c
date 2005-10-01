@@ -141,6 +141,9 @@ static int
 ixgb_dma_malloc(struct adapter *, bus_size_t,
 		struct ixgb_dma_alloc *, int);
 static void     ixgb_dma_free(struct adapter *, struct ixgb_dma_alloc *);
+#ifdef DEVICE_POLLING
+static poll_handler_t ixgb_poll;
+#endif
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
@@ -368,6 +371,11 @@ ixgb_detach(device_t dev)
 
 	INIT_DEBUGOUT("ixgb_detach: begin");
 
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
+
 	IXGB_LOCK(adapter);
 	adapter->in_detach = 1;
 
@@ -557,6 +565,26 @@ ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 	case SIOCSIFCAP:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFCAP (Set Capabilities)");
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+#ifdef DEVICE_POLLING
+		if (mask & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING) {
+				error = ether_poll_register(ixgb_poll, ifp);
+				if (error)
+					return(error);
+				IXGB_LOCK(adapter);
+				ixgb_disable_intr(adapter);
+				ifp->if_capenable |= IFCAP_POLLING;
+				IXGB_UNLOCK(adapter);
+			} else {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupt even in error case */
+				IXGB_LOCK(adapter);
+				ixgb_enable_intr(adapter);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				IXGB_UNLOCK(adapter);
+			}
+		}
+#endif /* DEVICE_POLLING */
 		if (mask & IFCAP_HWCSUM) {
 			if (IFCAP_HWCSUM & ifp->if_capenable)
 				ifp->if_capenable &= ~IFCAP_HWCSUM;
@@ -695,10 +723,10 @@ ixgb_init_locked(struct adapter *adapter)
 	 * Only disable interrupts if we are polling, make sure they are on
 	 * otherwise.
 	 */
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_capenable & IFCAP_POLLING)
 		ixgb_disable_intr(adapter);
 	else
-#endif				/* DEVICE_POLLING */
+#endif
 		ixgb_enable_intr(adapter);
 
 	return;
@@ -716,8 +744,6 @@ ixgb_init(void *arg)
 }
 
 #ifdef DEVICE_POLLING
-static poll_handler_t ixgb_poll;
-
 static void
 ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 {
@@ -726,15 +752,6 @@ ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 
 	IXGB_LOCK_ASSERT(adapter);
 
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-
-	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
-		ixgb_enable_intr(adapter);
-		return;
-	}
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		reg_icr = IXGB_READ_REG(&adapter->hw, ICR);
 		if (reg_icr & (IXGB_INT_RXSEQ | IXGB_INT_LSC)) {
@@ -745,12 +762,10 @@ ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 			    adapter);
 		}
 	}
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		ixgb_process_receive_interrupts(adapter, count);
-		ixgb_clean_transmit_interrupts(adapter);
-	}
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-	    ifp->if_snd.ifq_head != NULL)
+	ixgb_process_receive_interrupts(adapter, count);
+	ixgb_clean_transmit_interrupts(adapter);
+
+	if (ifp->if_snd.ifq_head != NULL)
 		ixgb_start_locked(ifp);
 }
 
@@ -760,10 +775,11 @@ ixgb_poll(struct ifnet * ifp, enum poll_cmd cmd, int count)
 	struct adapter *adapter = ifp->if_softc;
 
 	IXGB_LOCK(adapter);
-	ixgb_poll_locked(ifp, cmd, count);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ixgb_poll_locked(ifp, cmd, count);
 	IXGB_UNLOCK(adapter);
 }
-#endif				/* DEVICE_POLLING */
+#endif /* DEVICE_POLLING */
 
 /*********************************************************************
  *
@@ -785,19 +801,11 @@ ixgb_intr(void *arg)
 	ifp = adapter->ifp;
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING) {
+	if (ifp->if_capenable & IFCAP_POLLING) {
 		IXGB_UNLOCK(adapter);
 		return;
 	}
-
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(ixgb_poll, ifp)) {
-		ixgb_disable_intr(adapter);
-		ixgb_poll_locked(ifp, 0, 1);
-		IXGB_UNLOCK(adapter);
-		return;
-	}
-#endif				/* DEVICE_POLLING */
+#endif
 
 	reg_icr = IXGB_READ_REG(&adapter->hw, ICR);
 	if (reg_icr == 0) {
@@ -1355,9 +1363,6 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 #endif
 
 	ifp->if_capabilities = IFCAP_HWCSUM;
-#ifdef DEVICE_POLLING
-	ifp->if_capabilities |= IFCAP_POLLING;
-#endif
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -1369,6 +1374,10 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 #endif
 
 	ifp->if_capenable = ifp->if_capabilities;
+
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 
 	/*
 	 * Specify the media types supported by this adapter and register
