@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* copyin.c - extract or list a cpio archive
    Copyright (C) 1990,1991,1992,2001,2002,2003,2004 Free Software Foundation, Inc.
 
@@ -742,13 +744,23 @@ copyin_device(struct new_cpio_header* file_hdr)
       return;
     }
   
-  res = mknod (file_hdr->c_name, file_hdr->c_mode,
-	    makedev (file_hdr->c_rdev_maj, file_hdr->c_rdev_min));
+#ifdef CP_IFIFO
+  if ((file_hdr->c_mode & CP_IFMT) == CP_IFIFO)
+    res = mkfifo (file_hdr->c_name, file_hdr->c_mode);
+  else
+#endif
+    res = mknod (file_hdr->c_name, file_hdr->c_mode,
+	      makedev (file_hdr->c_rdev_maj, file_hdr->c_rdev_min));
   if (res < 0 && create_dir_flag)
     {
       create_all_directories (file_hdr->c_name);
-      res = mknod (file_hdr->c_name, file_hdr->c_mode,
-	    makedev (file_hdr->c_rdev_maj, file_hdr->c_rdev_min));
+#ifdef CP_IFIFO
+      if ((file_hdr->c_mode & CP_IFMT) == CP_IFIFO)
+	res = mkfifo (file_hdr->c_name, file_hdr->c_mode);
+      else
+#endif
+	res = mknod (file_hdr->c_name, file_hdr->c_mode,
+	      makedev (file_hdr->c_rdev_maj, file_hdr->c_rdev_min));
     }
   if (res < 0)
     {
