@@ -1,17 +1,29 @@
 $FreeBSD$
 
-GNU cpio 2.4.2
-	originals can be found at: ftp://prep.ai.mit.edu/pub/gnu
+GNU cpio:
 
-	removed files:
-		INSTALL         cpio.info       mkdir.c
-		Makefile.in                     mkinstalldirs
-		argmatch.c      fnmatch.c       mt.1
-		bcopy.c         fnmatch.h       mt.c
-		configure       install-sh      rmt.c
-		configure.in    makefile.os2    strdup.c
-		cpio.def        makefile.pc     tcexparg.c
-		getopt*                         texinfo.tex
+	Originals can be found at: ftp://ftp.gnu.org/pub/gnu/cpio
 
+Configure by:
 
-	obrien@FreeBSD.org
+	./configure --disable-nls --without-libiconv-prefix \
+		--without-libintl-prefix
+
+Trim by:
+
+	rm Makefile.am Makefile.in aclocal.m4 config.h.in configure \
+		configure.ac
+	rm -r headers m4 rmt tests scripts po
+	rm doc/Makefile.am doc/Makefile.in doc/mt.1 doc/cpio.info
+	rm src/Makefile.am src/Makefile.in
+	rm src/mt.c
+	rm lib/Makefile.am lib/Makefile.in lib/Makefile.tmpl lib/alloca.c \
+		lib/argmatch.[ch] lib/bcopy.c lib/fnmatch.c lib/fnmatch_.h \
+		lib/fnmatch_loop.c lib/mkdir.c lib/quote.[ch] \
+		lib/quotearg.[ch] lib/stdbool_.h lib/strcasecmp.c \
+		lib/strdup.c lib/strerror.c lib/strncasecmp.c lib/sysexit_.h
+
+Import by:
+
+         cvs import -m "Import GNU cpio 2.6 (trimmed)" src/contrib/cpio \
+		GNU v2_6
