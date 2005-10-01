@@ -1046,6 +1046,7 @@ product NEODIO ND5010		0x5010	Multi-format Flash Controller
 
 /* NetChip Technology Products */
 product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
+product NETCHIP ETHERNETGADGET	0xa4a2	Linux Ethernet/RNDIS gadget on pxa210/25x/26x
 
 /* Netgear products */
 product NETGEAR EA101		0x1001	Ethernet adapter
