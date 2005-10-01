@@ -1,0 +1,356 @@
+Following is the list of cpio-related reports to bug-gnu-utils.
+Many of them appear to be fixed, but quite a number of them is
+probably still waiting for being handled. The list is sorted
+in reverse chronological order.
+
+   4. copyin.c cpio probably questions/rfc (score: 35)
+          Author: Grzegorz Jaskiewicz <gj@pointblue.com.pl>
+          Date: Tue, 24 Jun 2003 17:12:45 +0100
+          Hi! I am currently working on module that (in GNU software)
+          will be able to read/write cpio format (only ascii). Thus i am
+          separating some of cpio structures into libcpio. I've been
+          going through cop
+          /archive/html/bug-gnu-utils/2003-06/msg00422.html (5,430 bytes)
+          
+   5. RE: Problem when building on HP-UX 11i(11.11) (score: 4)
+          Author: "Leon Strydom" <leon.strydom@tasima.co.za>
+          Date: Thu, 13 Mar 2003 09:10:02 +0200
+          Hi Bob, I got it to compile, thanks. The reason why I had to
+          try GNU-Tar is because of the 2GB file size limit problems:
+          Here are the errors I got: With TAR(hp-ux 11i tar): CMD: tar
+          cvf backup.tar /a
+          /archive/html/bug-gnu-utils/2003-03/msg00106.html (5,191 bytes)
+          
+   6. cpio - large file support (score: 35)
+          Author: "Keith Ansell" <keitha@edp.fastfreenet.com>
+          Date: Tue, 4 Mar 2003 16:24:37 -0000
+          Can you help. I need to archive a large database, this will
+          create a cpio file greater than 2 Gigabytes. Have you added
+          large file support to the build of cpio. Regards Keith
+          Ansell.....
+          /archive/html/bug-gnu-utils/2003-03/msg00024.html (4,329 bytes)
+          
+   7. cpio-2.5 typos (score: 36)
+          Author: Thomas Klausner <wiz@danbala.ifoer.tuwien.ac.at>
+          Date: Sat, 21 Dec 2002 23:53:38 +0100
+          In cpio-2.5, in cpio.texi (and thus cpio.1) and main.c the word
+          'compatibility' is misspelled as 'compatability'. Please fix,
+          thanks. Thomas -- Thomas Klausner - wiz@bogus.example.com What
+          is wanted
+          /archive/html/bug-gnu-utils/2002-12/msg00200.html (3,783 bytes)
+          
+   9. Re: bug in cpio with tapechange in copy-in-mode (score: 46)
+          Author: Paul Eggert <eggert@twinsun.com>
+          Date: Mon, 5 Aug 2002 12:28:33 -0700 (PDT)
+          Thanks for your bug report. Can you please verify that the bug
+          still exists in the latest CPIO version
+          <ftp://ftp.gnu.org/gnu/cpio/cpio-2.5.tar.gz>, and if so, please
+          send a patch to <bug-cpio@bogus.
+          /archive/html/bug-gnu-utils/2002-08/msg00127.html (4,275 bytes)
+          
+   10. bug in cpio with tapechange in copy-in-mode (score: 34)
+          Author: Bernd =?ISO-8859-1?Q?Sch=FCler?=
+          <b.schueler@eckert-buerotechnik.de>
+          Date: 05 Aug 2002 18:37:56 +0200
+          Hello, last i made a restore from tape, and no request for next
+          tape happend, only an read-error occured. Here is an quick
+          patch, please verify the problem and the patch-code. I'm not
+          sure, if the pr
+          /archive/html/bug-gnu-utils/2002-08/msg00122.html (4,518 bytes)
+          
+   11. Re: CPIO Bug ? (score: 36)
+          Author: Albert Chin <bug-gnu-utils@lists.thewrittenword.com>
+          Date: Thu, 4 Jul 2002 19:31:04 -0500
+          I think the default CPIO format understands only 16-bit inodes.
+          Look at the -H option. '-H newc' should work better for you. --
+          albert chin (china@bogus.example.com)
+          /archive/html/bug-gnu-utils/2002-07/msg00091.html (4,286 bytes)
+          
+   14. Re: bug in cpio? (score: 40)
+          Author: kasal@matsrv.math.cas.cz (Stepan Kasal)
+          Date: Thu, 13 Jun 2002 07:44:14 +0000 (UTC)
+          Hallo, the following option should help: -d, --make-directories
+          Create leading directories where needed. Details: cpio won't
+          create the directory for the file. Observe: kasal$ echo
+          /home/kasal/tmp/db
+          /archive/html/bug-gnu-utils/2002-06/msg00306.html (4,862 bytes)
+          
+   15. bug in cpio? (score: 34)
+          Author: "Jeff Holt" <jeff.holt@hotsos.com>
+          Date: Wed, 12 Jun 2002 14:07:59 -0500
+          According to the man page, I should be able to extract an
+          absolute pathname from an archive and have the file created
+          relative to the current directory (by removing the leading
+          &#8216;/&#8217;).<o:p>
+          /archive/html/bug-gnu-utils/2002-06/msg00296.html (5,331 bytes)
+          
+   16. CPIO Bug ? (score: 35)
+          Author: =?iso-8859-1?Q?Gr=E9goire_Fiot?=
+          <gfiot@eiffageconstruction.fr>
+          Date: Tue, 14 May 2002 17:01:18 +0200
+          Hello, We ve got a problem here using cpio: many "troncating
+          inode number" appear during the process: cpio -ocv Is that a
+          real problem? Does it corrupt files? Well.. what does that
+          mean? We have look
+          /archive/html/bug-gnu-utils/2002-05/msg00333.html (3,855 bytes)
+          
+   23. [cpio texinfo] typo (score: 2)
+          Author: fabrice bauzac <fabrice.bauzac@wanadoo.fr>
+          Date: Tue, 7 May 2002 16:37:28 +0200
+          Good afternoon, There is a typo in the Texinfo documentation of
+          GNU cpio, node "Copy-in mode": [--format=format]
+          [--owner=[user][:.][group]] [--no- preserve-owner]
+          [--message=message] [--help] [--ver
+          /archive/html/bug-gnu-utils/2002-05/msg00153.html (4,040 bytes)
+          
+   26. cpio: memory exhausted (score: 43)
+          Author: Thomas McLaughlin <tamm@scotlegal.com>
+          Date: Thu, 18 Apr 2002 09:51:18 +0100
+          This is probably not the place for my query, but I have
+          exhausted other avenues and would be glad of some help. I can't
+          work out what's going on with my nightly cpio backup. If I do:
+          cd / find . -pri
+          /archive/html/bug-gnu-utils/2002-04/msg00406.html (4,988 bytes)
+          
+   30. cpio 2.4.2 bug? (score: 40)
+          Author: "H.J. Thomassen" <H.J.Thomassen@ATComputing.nl>
+          Date: Thu, 10 Jan 2002 18:09:10 +0100 (CET)
+          Hello, We use GNU-cpio 2.4.2 and have the following problem:
+          Short: Assume I have a directory with two filenames, which are
+          hardlinks to the same i-node. I make a crc-cpio archive with
+          both files; th
+          /archive/html/bug-gnu-utils/2002-01/msg00161.html (5,624 bytes)
+          
+   32. GNU cpio suggestion (score: 42)
+          Author: "H.J.Thomassen" <hjt@ATComputing.nl>
+          Date: Mon, 17 Dec 2001 11:27:11 +0100
+          Re: suggestion for GNU-cpio extension (plus reference
+          implementation) We use cpio for our backup purposes. The backup
+          is started automatically in the middle of the night. To chase
+          away all users we d
+          /archive/html/bug-gnu-utils/2001-12/msg00244.html (7,474 bytes)
+          
+   35. GNU cpio compile problem (score: 34)
+          Author: Daniel Savard <dsavard@videotron.ca>
+          Date: Wed, 14 Nov 2001 12:43:11 -0500
+          Hi, I am trying to make the GNU cpio utility (version 2.4.2)
+          using the gcc 3.0.2 compiler. The make failed on the userspec.c
+          file compilation. I then tried to compile with gcc 2.95.3 with
+          the followi
+          /archive/html/bug-gnu-utils/2001-11/msg00180.html (5,518 bytes)
+          
+   36. cpio -d bug (fwd) (score: 47)
+          Author: Christian Smith <csmith@micromuse.com>
+          Date: Wed, 14 Nov 2001 02:06:46 +0000 (GMT)
+          This was bounced from bug-cpio@bogus.example.com I guess that
+          isn't set up yet. -- /"\ \ / ASCII RIBBON CAMPAIGN - AGAINST
+          HTML MAIL X - AGAINST MS ATTACHMENTS / \ $ cpio --version GNU
+          cpio version 2
+          /archive/html/bug-gnu-utils/2001-11/msg00170.html (4,548 bytes)
+          
+   38. [cpio] man page enhancement: a Example section ? (score: 5)
+          Author: Yannick Patois <patois@calvix.org>
+          Date: Wed, 24 Oct 2001 12:48:33 +0200 (CEST)
+          Hello, I seldom use cpio (as I think many people) and only had
+          to use it once or twice. IMHA, would be good to have a small
+          section with an example of most often performed actions
+          (creating an archiv
+          /archive/html/bug-gnu-utils/2001-10/msg00270.html (4,336 bytes)
+          
+   39. Patch to cpio to enable verbose *skipping* of files (score: 40)
+          Author: Tomas Pospisek <tpo@sourcepole.ch>
+          Date: Mon, 8 Oct 2001 13:54:14 +0200 (CEST)
+          This patch enables cpio to be verbose about the files that it
+          does not copy, which is very handy for seeing cpio's progress
+          through a tape or simply for debuging. The patch along with a
+          Debian packag
+          /archive/html/bug-gnu-utils/2001-10/msg00083.html (4,548 bytes)
+          
+   40. cpio-2.4.2 patch (score: 39)
+          Author: Alex Efros <powerman@sky.net.ua>
+          Date: Wed, 29 Aug 2001 07:36:31 +0300 (EEST)
+          Hi. Linux-2.4.9, GCC-3.0, GLIBC-2.2.4, cpio-2.4.2. Compile-time
+          errors: --cut-- gcc -c -DRETSIGTYPE=void -DHAVE_SYS_MTIO_H=1
+          -DHAVE_NETDB_H=1 -DSTDC_HEADERS=1 -DHAVE_UNISTD_H=1
+          -DHAVE_STRING_H=1 -DHA
+          /archive/html/bug-gnu-utils/2001-08/msg00264.html (5,259 bytes)
+          
+   41. cpio copy-in and multiply-linked files (score: 35)
+          Author: Chris Jaeger <cjaeger@ensim.com>
+          Date: Tue, 07 Aug 2001 23:46:04 -0700
+          Hi, I was wondering whether it was a bug or a feature that GNU
+          cpio, while in copy-in mode, will create a multiply-linked set
+          of files all of size 0 if the last linked file is not copied in
+          due to th
+          /archive/html/bug-gnu-utils/2001-08/msg00074.html (4,142 bytes)
+          
+   42. Re: minor problems with slackware-current (score: 7)
+          Author: Cezary Sliwa <sliwa@cft.edu.pl>
+          Date: Wed, 1 Aug 2001 10:43:37 +0200
+          "cpio --sparse" corrupts data. A fix attached. C.S. Attachment:
+          cpio-2.4.2-sparse.diff Description: Text document
+          /archive/html/bug-gnu-utils/2001-08/msg00000.html (3,989 bytes)
+          
+   43. (no subject) (score: 2)
+          Author: brian@debian.org (Brian Mays)
+          Date: Sat, 07 Jul 2001 16:35:13 -0400
+          When hard-linked files (along with many other files) are
+          archived to a cpio ustar format archive, the files are _not_
+          all archived as hard links to each other in the archive. When
+          the same set of fil
+          /archive/html/bug-gnu-utils/2001-07/msg00080.html (5,666 bytes)
+          
+   44. gnu cpio and files over 2G (score: 37)
+          Author: J.S.Peatfield@damtp.cam.ac.uk
+          Date: Wed, 2 May 2001 06:28:18 +0100
+          As an increasing number of opertaing systems now support files
+          over 2G I took a look at the cpio (2.4.2) source to see how
+          hard it would be to make it cope, and was slightly shocked at
+          the number of
+          /archive/html/bug-gnu-utils/2001-05/msg00010.html (4,802 bytes)
+          
+   45. cpio suggestion + patch (score: 38)
+          Author: Taylor Gautier <tgautier@s8.com>
+          Date: Fri, 20 Apr 2001 09:40:05 -0700
+          I have a suggestion for cpio. The suggestion is to make it copy
+          files into a temporary name and then rename the file as the
+          last operation. Since UNIX filesystems are supposed to
+          gaurantee atomicity
+          /archive/html/bug-gnu-utils/2001-04/msg00169.html (10,674
+          bytes)
+          
+   46. [cpio 2.4.2] rmt build fails (score: 8)
+          Author: Gert <n8w8@n8w8.wox.org>
+          Date: Thu, 29 Mar 2001 21:28:52 +0200 (CEST)
+          Hi, The cpio 2.4.2 rmt tool fails to build on my system. I run
+          the following software: - Linux 2.4.2 - GCC 2.95.2 - GNU Make
+          3.79.1 - GNU ld 2.10 (with BFD 2.10) - glibc 2.1.3 The build
+          fails like th
+          /archive/html/bug-gnu-utils/2001-03/msg00262.html (5,498 bytes)
+          
+   47. cpio --sparse (score: 34)
+          Author: Cezary Sliwa <sliwa@cft.edu.pl>
+          Date: Mon, 26 Mar 2001 10:43:34 +0200 (CEST)
+          the '--sparse' option of gnu cpio causes data corruption
+          (blocks of zeros are lost or appended to other files). C.S.
+          /archive/html/bug-gnu-utils/2001-03/msg00235.html (3,671 bytes)
+          
+   49. Re: bug with gnu cpio 2.4.2 (score: 38)
+          Author: Hans-Bernhard Broeker <broeker@physik.rwth-aachen.de>
+          Date: 6 Mar 2001 15:19:34 GMT
+          This would happen if cpio want to do any user interaction (ask
+          for the next tape cartridge, because the current one is full,
+          e.g.). Cron jobs don't have access to a terminal (/dev/tty), so
+          this will
+          /archive/html/bug-gnu-utils/2001-03/msg00029.html (5,062 bytes)
+          
+   50. bug with gnu cpio 2.4.2 (score: 37)
+          Author: dominique.bieber@sagem.com
+          Date: Tue, 6 Mar 2001 12:27:14 +0100
+          Hi, I have a problem using cpio with a Red Hat 6.2 whith a
+          2.2.14-5.0smp kernel. The backup device is a HP DAT DDS4 20/40
+          with the right cartridge. The cpio is launched by the cron.
+          During the backup
+          /archive/html/bug-gnu-utils/2001-03/msg00024.html (4,315 bytes)
+          
+   52. [PATCH] cpio 2.4.2 does not compile with libc 2.2, gcc 2.95
+          (score: 38)
+          Author: "John Fremlin" <chief@bandits.org>
+          Date: 11 Feb 2001 22:19:09 +0000
+          In fact it violates the GNU coding standards by declaring stuff
+          when it shouldn't. Tsk, tsk. Attachment: cpio-2.4.2-build.patch
+          Description: Text Data -- http://www.penguinpowered.com/~vii
+          /archive/html/bug-gnu-utils/2001-02/msg00065.html (4,169 bytes)
+          
+   53. cpio-2.4.2: data corruption bug (score: 35)
+          Author: Todd Kelley <toddk@oeone.com>
+          Date: Fri, 09 Feb 2001 17:00:06 -0500
+          Hello, Recently at OEone we fixed a bug in GNU cpio-2.4.2: When
+          a file over about 0.5 megabyes grows while it is being
+          archived, it and all files following it in the archive are
+          corrupted. The crc do
+          /archive/html/bug-gnu-utils/2001-02/msg00062.html (4,297 bytes)
+          
+   54. cpio 2.4.2 unconditionally takes the tape drive offline (score:
+          39)
+          Author: Scott Larson <scowl@plaza.ds.adp.com>
+          Date: Thu, 11 Jan 2001 13:15:52 -0800
+          We have been copying multiple volumes to a single tape with the
+          System 5 version of cpio. The gnu version of cpio doesn't
+          support this since it takes the tape offline (i.e. ejects the
+          tape) after rea
+          /archive/html/bug-gnu-utils/2001-01/msg00087.html (4,264 bytes)
+          
+   55. cpio -t can see international filenames, find -ls also suffers
+          (score: 35)
+          Author: "Dan Jacobson" <jidanni@kimo.FiXcomTHiS.tw>
+          Date: Tue, 26 Dec 2000 07:38:53 +0800
+          GNU cpio version 2.4.2 with cpio -t I can see Chinese [big5]
+          filenames. with -tv, they become \267\247 etc Just like what
+          happens with find . -print vs. find . -ls --
+          http://www.geocities.com/jidanni
+          /archive/html/bug-gnu-utils/2000-12/msg00143.html (4,084 bytes)
+          
+   56. cpio-2.4.2 compilation problems (score: 34)
+          Author: Thomas =?iso-8859-1?q?K=F6ller?= <tkoeller@gmx.net>
+          Date: Wed, 20 Dec 2000 02:50:24 +0100
+          I encountered several problems building cpio-2.4.2. I am
+          running linux-2.2.17, glibc-2.1.3 and gcc 2.95.2. The errors I
+          received were mostly due to the source files re-declaring
+          things unconditionall
+          /archive/html/bug-gnu-utils/2000-12/msg00109.html (5,782 bytes)
+          
+   58. cpio-2.4.2 & glibc-2.* (score: 46)
+          Author: Florian Wunderlich <fwunderlich@devbrain.de>
+          Date: Mon, 18 Dec 2000 16:25:00 +0100
+          I still do not see a new version of cpio or at least extra
+          patches that fix it so it works with the glibc. Thus, here is a
+          simple patch to make it compile with glibc: diff -u
+          cpio-2.4.2-old/rmt.c cpi
+          /archive/html/bug-gnu-utils/2000-12/msg00098.html (4,846 bytes)
+          
+   60. cpio-2.4.2 signed-unsigned int disagreement with malloc (score:
+          39)
+          Author: Antonomasia <ant@notatla.demon.co.uk>
+          Date: Mon, 27 Nov 2000 07:05:01 GMT
+          copyin.c: 534 link_name = (char *) xmalloc ((unsigned int)
+          file_hdr.c_filesize + 1); 535 link_name[file_hdr.c_filesize] =
+          '\0'; file_hdr.c_filesize can be a large negative number as
+          seen here then th
+          /archive/html/bug-gnu-utils/2000-11/msg00171.html (4,718 bytes)
+          
+   61. gnu CPIO (score: 38)
+          Author: Clark Cooper <Clark.Cooper@vc3.com>
+          Date: Mon, 13 Nov 2000 13:21:07 -0500 (EST)
+          The gnu version of CPIO appears to send all output to stderr.
+          Take for instance a need to have the list of files copied and
+          any errors separated as should be produced by the following:
+          find . -print
+          /archive/html/bug-gnu-utils/2000-11/msg00089.html (3,903 bytes)
+          
+   62. Desire enhancement to GNU cpio 2.4.2 (score: 35)
+          Author: Dave Dykstra <dwd@bell-labs.com>
+          Date: Mon, 13 Nov 2000 10:24:56 -0600
+          I have a new GNU/Linux system with large disks on which I need
+          to generate cpio files for many different systems including
+          older ones that don't support the "newc" format, only the "odc"
+          format. The
+          /archive/html/bug-gnu-utils/2000-11/msg00087.html (5,115 bytes)
+          
+   65. cpio pass-through can corrupt files (score: 36)
+          Author: "Parrott, Jeff" <Jeff.Parrott@sea.siemens.com>
+          Date: Mon, 16 Oct 2000 13:32:57 -0400
+          I have seen corrupted files as a result of using the
+          pass-through option in cpio. The corruption occurs when
+          active/in-use (and growing) files are being copied. The problem
+          is that the file size has
+          /archive/html/bug-gnu-utils/2000-10/msg00087.html (4,974 bytes)
+          
+   66. [Bug-gnu-utils] A small problem with cpio (score: 36)
+          Author: Chris Hall <Chris@clapham.org>
+          Date: Fri, 15 Sep 2000 11:05:56 +0100
+          Hi, I'm running cpio 2.4.2 on AIX 4.3.3 and have a problem with
+          very large files, I get this output when running the command: $
+          ls -l total 2867988 drwxrwxrwx 2 root sys 512 Sep 14 17:05
+          chris/ -rw-r
+          /archive/html/bug-gnu-utils/2000-09/msg00004.html (4,481 bytes)

@@ -9,7 +9,8 @@ operations, respectively.
 
 See the file INSTALL for compilation and installation instructions for Unix.
 
-For non-Unix systems:
+For non-Unix systems [ Note:  The non-Unix makefiles have not been tested
+                       for this release ]
 
 makefile.pc is a makefile for Turbo C or C++ or Borland C++ on MS-DOS.
 
@@ -67,5 +68,4 @@ than 100 characters.  That's why it's not an official part of GNU tar.
                 *stdp = 1;
                 if (wantug) {
 
-Mail suggestions and bug reports for GNU cpio to
-bug-gnu-utils@prep.ai.mit.edu.
+Mail suggestions and bug reports for GNU cpio to bug-cpio@gnu.org.
