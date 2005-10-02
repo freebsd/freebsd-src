@@ -238,9 +238,9 @@ g_uzip_start(struct bio *bp)
 
 	start_blk = bp->bio_offset / sc->blksz;
 	end_blk = (bp->bio_offset + bp->bio_length + sc->blksz - 1) / sc->blksz;
-	KASSERT(start_blk <= sc->nblocks,
+	KASSERT(start_blk < sc->nblocks,
 		("start_blk out of range"));
-	KASSERT(end_blk < sc->nblocks,
+	KASSERT(end_blk <= sc->nblocks,
 		("end_blk out of range"));
 
 	sc->req_total++;
@@ -320,6 +320,9 @@ g_uzip_access(struct g_provider *pp, int dr, int dw, int de)
 	gp = pp->geom;
 	cp = LIST_FIRST(&gp->consumer);
 	KASSERT (cp != NULL, ("g_uzip_access but no consumer"));
+
+	if (cp->acw + dw > 0)
+		return EROFS;
 
 	return (g_access(cp, dr, dw, de));
 }
