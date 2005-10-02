@@ -29,3 +29,4 @@ typedef void (*ac97_patch)(struct ac97_info*);
 
 void ad1886_patch(struct ac97_info*);
 void ad198x_patch(struct ac97_info*);
+void cmi9739_patch(struct ac97_info*);
