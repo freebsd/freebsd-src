@@ -655,8 +655,10 @@ release.6:
 	  -czf ${RD}/dists/ports/ports.tgz -C /usr ports
 	@cp ${.CURDIR}/scripts/ports-install.sh ${RD}/dists/ports/install.sh
 	@(cd ${RD}/dists/ports; \
-	  rm -f CHECKSUM.MD5; \
-	  md5 * > CHECKSUM.MD5)
+	  rm -f .CHECKSUM.MD5 CHECKSUM.SHA256; \
+	  md5 * > .CHECKSUM.MD5; \
+	  sha256 * > CHECKSUM.SHA256; \
+	  mv .CHECKSUM.MD5 CHECKSUM.MD5)
 	@echo "ports distribution is finished."
 .endif
 	touch ${.TARGET}
@@ -687,7 +689,11 @@ release.7:
 		fi && shift && shift ; \
 	done
 .endif
-	(cd ${RD}/dists/src; rm -f CHECKSUM.MD5; md5 * > CHECKSUM.MD5)
+	(cd ${RD}/dists/src; \
+	  rm -f .CHECKSUM.MD5 CHECKSUM.SHA256; \
+	  md5 * > .CHECKSUM.MD5; \
+	  sha256 * > CHECKSUM.SHA256; \
+	  mv .CHECKSUM.MD5 CHECKSUM.MD5)
 	@echo "src distribution is finished."
 .endif
 	touch ${.TARGET}
@@ -850,8 +856,10 @@ floppies.3:
 	@cp ${RND}/${RELNOTES_LANG}/installation/${TARGET}/article.txt \
 	    ${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
+	@(cd ${RD}/floppies; sha256 README.TXT *.flp > CHECKSUM.SHA256)
 .else
 	@(cd ${RD}/floppies; md5 *.flp > CHECKSUM.MD5)
+	@(cd ${RD}/floppies; sha256 *.flp > CHECKSUM.SHA256)
 .endif
 	touch ${.TARGET}
 
@@ -1017,8 +1025,9 @@ iso.1:
 	    FreeBSD_LiveFS \
 	    ${CD}/${BUILDNAME}-${TARGET}-livefs.iso ${CD_LIVEFS}
 .endif
-	@echo "Generating MD5 sums..."
+	@echo "Generating MD5 and SHA256 sums..."
 	@(cd ${CD} && md5 *.iso > ${BUILDNAME}-${TARGET}-iso.CHECKSUM.MD5)
+	@(cd ${CD} && sha256 *.iso > ${BUILDNAME}-${TARGET}-iso.CHECKSUM.SHA256)
 	touch ${.TARGET}
 .else
 	@echo "Do not know how to create an ISO for ${TARGET_ARCH}."
@@ -1086,8 +1095,10 @@ doTARBALL:
 			true; \
 		fi; \
 		( cd ${RD}/dists/${TD}; \
-		rm -f CHECKSUM.MD5; \
-		md5 * > CHECKSUM.MD5 ) \
+		rm -f .CHECKSUM.MD5 CHECKSUM.SHA256; \
+		md5 * > .CHECKSUM.MD5; \
+		sha256 * > CHECKSUM.SHA256; \
+		mv .CHECKSUM.MD5 CHECKSUM.MD5) \
 	)
 
 doRELEASE: release.1 release.2 ${DOCREL} release.3 release.4 \
