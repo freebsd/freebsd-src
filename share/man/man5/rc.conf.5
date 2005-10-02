@@ -785,6 +785,38 @@ Empty by default.
 This variable contains additional flags passed to the
 .Xr pflogd 8
 program.
+.It Va pfsync_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+Setting this to
+.Dq Li YES
+enables exposing
+.Xr pf 4
+state changes to other hosts over the network by means of
+.Xr pfsync 4 .
+The
+.Va pfsync_syncdev
+variable
+must also be set then.
+.It Va pfsync_syncdev
+.Pq Vt str
+Empty by default.
+This variable specifies the name of the network interface
+.Xr pfsync 4
+should operate through.
+It must be set accordingly if
+.Va pfsync_enable
+is set to
+.Dq Li YES .
+.It Va pfsync_ifconfig
+.Pq Vt str
+Empty by default.
+This variable can contain additional options to be passed to the
+.Xr ifconfig 8
+command used to set up
+.Xr pfsync 4 .
 .It Va tcp_extensions
 .Pq Vt bool
 Set to
@@ -3323,6 +3355,7 @@ device and the mount point will be changed.
 .Xr kld 4 ,
 .Xr pf 4 ,
 .Xr pflog 4 ,
+.Xr pfsync 4 ,
 .Xr tcp 4 ,
 .Xr udp 4 ,
 .Xr exports 5 ,
