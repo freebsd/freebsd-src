@@ -130,7 +130,8 @@ nomenclature:
 #define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 
 #define SD_F_SIMPLEX		0x00000001
-#define	SD_F_AUTOVCHAN		0x00000002
+#define SD_F_AUTOVCHAN		0x00000002
+#define SD_F_SOFTVOL		0x00000004
 #define SD_F_PRIO_RD		0x10000000
 #define SD_F_PRIO_WR		0x20000000
 #define SD_F_PRIO_SET		(SD_F_PRIO_RD | SD_F_PRIO_WR)
@@ -238,11 +239,12 @@ void snd_mtxassert(void *m);
 int sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS);
 
 typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
+int sndstat_acquire(void);
+int sndstat_release(void);
 int sndstat_register(device_t dev, char *str, sndstat_handler handler);
 int sndstat_registerfile(char *str);
 int sndstat_unregister(device_t dev);
 int sndstat_unregisterfile(char *str);
-int sndstat_busy(void);
 
 #define SND_DECLARE_FILE(version) \
 	_SND_DECLARE_FILE(__LINE__, version)

@@ -719,7 +719,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->inprog = 0;
 
 	SLIST_INIT(&d->channels);
-	SLIST_INIT(&d->channels);
 
 	if (((numplay == 0) || (numrec == 0)) && (numplay != numrec))
 		d->flags |= SD_F_SIMPLEX;
@@ -758,24 +757,25 @@ pcm_unregister(device_t dev)
     	struct snddev_channel *sce;
 	struct pcm_channel *ch;
 
+	if (sndstat_acquire() != 0) {
+		device_printf(dev, "unregister: sndstat busy\n");
+		return EBUSY;
+	}
+
 	snd_mtxlock(d->lock);
 	if (d->inprog) {
 		device_printf(dev, "unregister: operation in progress\n");
 		snd_mtxunlock(d->lock);
+		sndstat_release();
 		return EBUSY;
 	}
-	if (sndstat_busy() != 0) {
-		device_printf(dev, "unregister: sndstat busy\n");
-		snd_mtxunlock(d->lock);
-		return EBUSY;
-	}
-
 
 	SLIST_FOREACH(sce, &d->channels, link) {
 		ch = sce->channel;
 		if (ch->refcount > 0) {
 			device_printf(dev, "unregister: channel %s busy (pid %d)\n", ch->name, ch->pid);
 			snd_mtxunlock(d->lock);
+			sndstat_release();
 			return EBUSY;
 		}
 	}
@@ -783,6 +783,7 @@ pcm_unregister(device_t dev)
 	if (mixer_uninit(dev)) {
 		device_printf(dev, "unregister: mixer busy\n");
 		snd_mtxunlock(d->lock);
+		sndstat_release();
 		return EBUSY;
 	}
 
@@ -807,9 +808,10 @@ pcm_unregister(device_t dev)
 	chn_kill(d->fakechan);
 	fkchan_kill(d->fakechan);
 
-	sndstat_unregister(dev);
 	snd_mtxunlock(d->lock);
 	snd_mtxfree(d->lock);
+	sndstat_unregister(dev);
+	sndstat_release();
 	return 0;
 }
 
@@ -905,7 +907,8 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 					sbuf_printf(s, "(0x%08x -> 0x%08x)", f->desc->in, f->desc->out);
 				if (f->desc->type == FEEDER_RATE)
 					sbuf_printf(s, "(%d -> %d)", FEEDER_GET(f, FEEDRATE_SRC), FEEDER_GET(f, FEEDRATE_DST));
-				if (f->desc->type == FEEDER_ROOT || f->desc->type == FEEDER_MIXER)
+				if (f->desc->type == FEEDER_ROOT || f->desc->type == FEEDER_MIXER ||
+						f->desc->type == FEEDER_VOLUME)
 					sbuf_printf(s, "(0x%08x)", f->desc->out);
 				sbuf_printf(s, " -> ");
 				f = f->parent;
