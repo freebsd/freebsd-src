@@ -420,6 +420,7 @@ fifo_close(ap)
 	struct fifoinfo *fip = vp->v_fifoinfo;
 
 	ASSERT_VOP_LOCKED(vp, "fifo_close");
+	KASSERT(fip != NULL, ("fifo_close: no v_fifoinfo"));
 	if (ap->a_fflag & FREAD) {
 		fip->fi_readers--;
 		if (fip->fi_readers == 0)
