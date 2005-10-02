@@ -126,6 +126,9 @@ static void wi_tx_intr(struct wi_softc *);
 static void wi_tx_ex_intr(struct wi_softc *);
 static void wi_info_intr(struct wi_softc *);
 
+static int  wi_key_alloc(struct ieee80211com *, const struct ieee80211_key *,
+		ieee80211_keyix *, ieee80211_keyix *);
+
 static int  wi_get_cfg(struct ifnet *, u_long, caddr_t);
 static int  wi_set_cfg(struct ifnet *, u_long, caddr_t);
 static int  wi_write_txrate(struct wi_softc *);
@@ -485,6 +488,8 @@ wi_attach(device_t dev)
 	ieee80211_ifattach(ic);
 	/* override state transition method */
 	sc->sc_newstate = ic->ic_newstate;
+	sc->sc_key_alloc = ic->ic_crypto.cs_key_alloc;
+	ic->ic_crypto.cs_key_alloc = wi_key_alloc;
 	ic->ic_newstate = wi_newstate;
 	ieee80211_media_init(ic, wi_media_change, wi_media_status);
 
@@ -764,7 +769,8 @@ wi_init(void *arg)
 	if (ic->ic_caps & IEEE80211_C_WEP) {
 		sc->sc_cnfauthmode = ic->ic_bss->ni_authmode;
 		wi_write_wep(sc);
-	}
+	} else
+		sc->sc_encryption = 0;
 
 	/* Set multicast filter. */
 	wi_write_multi(sc);
@@ -965,8 +971,8 @@ wi_start(struct ifnet *ifp)
 #endif
 		frmhdr.wi_tx_ctl = htole16(WI_ENC_TX_802_11|WI_TXCNTL_TX_EX);
 		/* XXX check key for SWCRYPT instead of using operating mode */
-		if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
-		    (wh->i_fc[1] & IEEE80211_FC1_WEP)) {
+		if ((wh->i_fc[1] & IEEE80211_FC1_WEP) &&
+		    (sc->sc_encryption & HOST_ENCRYPT)) {
 			struct ieee80211_key *k;
 
 			k = ieee80211_crypto_encap(ic, ni, m0);
@@ -2330,6 +2336,24 @@ wi_write_txrate(struct wi_softc *sc)
 }
 
 static int
+wi_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k,
+	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
+{
+	struct wi_softc *sc = ic->ic_ifp->if_softc;
+
+	/*
+	 * When doing host encryption of outbound frames fail requests
+	 * for keys that are not marked w/ the SWCRYPT flag so the
+	 * net80211 layer falls back to s/w crypto.  Note that we also
+	 * fixup existing keys below to handle mode changes.
+	 */
+	if ((sc->sc_encryption & HOST_ENCRYPT) &&
+	    (k->wk_flags & IEEE80211_KEY_SWCRYPT) == 0)
+		return 0;
+	return sc->sc_key_alloc(ic, k, keyix, rxkeyix);
+}
+
+static int
 wi_write_wep(struct wi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -2358,6 +2382,7 @@ wi_write_wep(struct wi_softc *sc)
 		}
 		error = wi_write_rid(sc, WI_RID_DEFLT_CRYPT_KEYS,
 		    wkey, sizeof(wkey));
+		sc->sc_encryption = 0;
 		break;
 
 	case WI_INTERSIL:
@@ -2379,6 +2404,7 @@ wi_write_wep(struct wi_softc *sc)
 			}
 			wi_write_val(sc, WI_RID_CNFAUTHMODE,
 			    sc->sc_cnfauthmode);
+			/* XXX should honor IEEE80211_F_DROPUNENC */
 			val = PRIVACY_INVOKED | EXCLUDE_UNENCRYPTED;
 			/*
 			 * Encryption firmware has a bug for HostAP mode.
@@ -2394,6 +2420,7 @@ wi_write_wep(struct wi_softc *sc)
 		error = wi_write_val(sc, WI_RID_P2_ENCRYPTION, val);
 		if (error)
 			break;
+		sc->sc_encryption = val;
 		if ((val & PRIVACY_INVOKED) == 0)
 			break;
 		error = wi_write_val(sc, WI_RID_P2_TX_CRYPT_KEY,
@@ -2423,6 +2450,19 @@ wi_write_wep(struct wi_softc *sc)
 				break;
 		}
 		break;
+	}
+	/*
+	 * XXX horrible hack; insure pre-existing keys are
+	 * setup properly to do s/w crypto.
+	 */
+	for (i = 0; i < IEEE80211_WEP_NKID; i++) {
+		struct ieee80211_key *k = &ic->ic_nw_keys[i];
+		if (k->wk_flags & IEEE80211_KEY_XMIT) {
+			if (sc->sc_encryption & HOST_ENCRYPT)
+				k->wk_flags |= IEEE80211_KEY_SWCRYPT;
+			else
+				k->wk_flags &= ~IEEE80211_KEY_SWCRYPT;
+		}
 	}
 	return error;
 }
@@ -2741,19 +2781,19 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags =
 			htole16(ni->ni_chan->ic_flags);
 #endif
+		/*
+		 * XXX hack; unceremoniously clear 
+		 * IEEE80211_F_DROPUNENC when operating with
+		 * wep enabled so we don't drop unencoded frames
+		 * at the 802.11 layer.  This is necessary because
+		 * we must strip the WEP bit from the 802.11 header
+		 * before passing frames to ieee80211_input because
+		 * the card has already stripped the WEP crypto 
+		 * header from the packet.
+		 */
+		if (ic->ic_flags & IEEE80211_F_PRIVACY)
+			ic->ic_flags &= ~IEEE80211_F_DROPUNENC;
 		if (ic->ic_opmode != IEEE80211_M_HOSTAP) {
-			/*
-			 * XXX hack; unceremoniously clear 
-			 * IEEE80211_F_DROPUNENC when operating with
-			 * wep enabled so we don't drop unencoded frames
-			 * at the 802.11 layer.  This is necessary because
-			 * we must strip the WEP bit from the 802.11 header
-			 * before passing frames to ieee80211_input because
-			 * the card has already stripped the WEP crypto 
-			 * header from the packet.
-			 */
-			if (ic->ic_flags & IEEE80211_F_PRIVACY)
-				ic->ic_flags &= ~IEEE80211_F_DROPUNENC;
 			/* XXX check return value */
 			buflen = sizeof(ssid);
 			wi_read_rid(sc, WI_RID_CURRENT_SSID, &ssid, &buflen);
