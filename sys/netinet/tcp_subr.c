@@ -2150,6 +2150,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	struct sockaddr_storage addrs[2];
 	struct inpcb *inp;
 	struct tcpcb *tp;
+	struct tcptw *tw;
 	struct sockaddr_in *fin, *lin;
 #ifdef INET6
 	struct sockaddr_in6 *fin6, *lin6;
@@ -2224,7 +2225,10 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	}
 	if (inp != NULL) {
 		INP_LOCK(inp);
-		if ((tp = intotcpcb(inp)) &&
+		if ((tw = intotw(inp)) &&
+		    (inp->inp_vflag & INP_TIMEWAIT) != 0) {
+			(void) tcp_twclose(tw, 0);
+		} else if ((tp = intotcpcb(inp)) &&
 		    ((inp->inp_socket->so_options & SO_ACCEPTCONN) == 0)) {
 			tp = tcp_drop(tp, ECONNABORTED);
 			if (tp != NULL)
