@@ -16,22 +16,12 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "5.2.1-RELEASE">
+<!ENTITY release.bugfix "6.0-RELEASE">
 ]>
 
 <article>
   <articleinfo>
-    <title>&os;
-<![ %release.type.current [
-    &release.current;
-]]>
-<![ %release.type.snapshot [
-    &release.prev;
-]]>
-<![ %release.type.release [
-    &release.current;
-]]>
-    Errata</title>
+    <title>&os; &release.bugfix; Errata</title>
 
     <corpauthor>
     The &os; Project
@@ -58,16 +48,7 @@
   </articleinfo>
 
   <abstract>
-    <para>This document lists errata items for &os;
-<![ %release.type.current [
-      &release.current;,
-]]>
-<![ %release.type.snapshot [
-      &release.prev;,
-]]>
-<![ %release.type.release [
-      &release.current;,
-]]>
+    <para>This document lists errata items for &os; &release.bugfix;,
       containing significant information discovered after the release
       or too late in the release cycle to be otherwise included in the
       release documentation.
@@ -77,16 +58,7 @@
       should always be consulted before installing this version of
       &os;.</para>
 
-    <para>This errata document for &os;
-<![ %release.type.current [
-      &release.current;
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
+    <para>This errata document for &os; &release.bugfix;
       will be maintained until the release of &os; &release.next;.</para>
   </abstract>
 
@@ -94,16 +66,7 @@
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
-      about &os;
-<![ %release.type.current [
-      &release.current;.
-]]>
-<![ %release.type.snapshot [
-      &release.prev;.
-]]>
-<![ %release.type.release [
-      &release.current;.
-]]>
+      about &os; &release.bugfix;.
       Before installing this version, it is important to consult this
       document to learn about any post-release discoveries or problems
       that may already have been found and fixed.</para>
@@ -127,54 +90,45 @@
 
   </sect1>
 
+  <sect1 id="late-news">
+    <title>Update Information</title>
+
+    <para>No news.</para>
+  </sect1>
+
   <sect1 id="security">
     <title>Security Advisories</title>
 
-<![ %release.type.release [
     <para>No advisories.</para>
-]]>
-
-<![ %release.type.current [
-    <para>No advisories.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>No advisories.</para>
-]]>
-
   </sect1>
 
-  <sect1 id="open-issues">
-    <title>Open Issues</title>
+  <sect1 id="known-problems">
+    <title>Known Problems and Solutions</title>
 
-<![ %release.type.current [
-    <para>No open issues.</para>
-]]>
+    <para>(2005/10/3)
+      At boot time the &os;/sparc64 GENERIC kernel may
+      output the following messages when the machine has
+      no framebuffer:</para>
 
-<![ %release.type.release [
-    <para>No open issues.</para>
-]]>
+    <screen>Aug 26 19:31:27 hostname getty[429]: open /dev/ttyv1: No such file or directory</screen>
 
-<![ %release.type.snapshot [
-    <para>No open issues.</para>
-]]>
+    <para>This is because the machine with no supported
+      graphics hardware does not recognize &man.syscons.4; and
+      <filename>/dev/ttyv*</filename> device nodes are not created.
+      This is not a harmful error and can be suppressed by disabling
+      <filename>/dev/ttyv*</filename> entries in
+      <filename>/etc/ttys</filename>.</para>
 
-  </sect1>
+    <para>(2005/10/3)
+      Kernel modules do not work on &os;/sparc64
+      when the machine has more than 4GB memory.  There is no workaround
+      for this issue except for compiling the modules statically into
+      your custom kernel in advance.</para>
 
-  <sect1 id="late-news">
-    <title>Late-Breaking News</title>
-
-<![ %release.type.current [
-    <para>No news.</para>
-]]>
-
-<![ %release.type.release [
-    <para>No news.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>No news.</para>
-]]>
+    <para>(2005/10/3)
+      The &man.kgdb.1; utility does not work properly
+      on &os;/sparc64 for debugging panics which include traps.
+      As a workaround you can use <filename>devel/gdb53</filename>.</para>
   </sect1>
 
 </article>
