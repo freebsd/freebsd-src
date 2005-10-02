@@ -165,7 +165,7 @@ chn_sleep(struct pcm_channel *c, char *str, int timeout)
 
 /*
  * chn_dmaupdate() tracks the status of a dma transfer,
- * updating pointers. It must be called at spltty().
+ * updating pointers.
  */
 
 static unsigned int
@@ -394,7 +394,6 @@ chn_rddump(struct pcm_channel *c, unsigned int cnt)
 
 /*
  * Feed new data from the read buffer. Can be called in the bottom half.
- * Hence must be called at spltty.
  */
 int
 chn_rdfeed(struct pcm_channel *c)
@@ -785,8 +784,10 @@ chn_reset(struct pcm_channel *c, u_int32_t fmt)
 			r = chn_setformat(c, fmt);
 		if (r == 0)
 			r = chn_setspeed(c, hwspd);
+#if 0
 		if (r == 0)
 			r = chn_setvolume(c, 100, 100);
+#endif
 	}
 	if (r == 0)
 		r = chn_setblocksize(c, 0, 0);
@@ -926,7 +927,15 @@ chn_setvolume(struct pcm_channel *c, int left, int right)
 {
 	CHN_LOCKASSERT(c);
 	/* should add a feeder for volume changing if channel returns -1 */
-	c->volume = (left << 8) | right;
+	if (left > 100)
+		left = 100;
+	if (left < 0)
+		left = 0;
+	if (right > 100)
+		right = 100;
+	if (right < 0)
+		right = 0;
+	c->volume = left | (right << 8);
 	return 0;
 }
 
@@ -1303,6 +1312,12 @@ chn_buildfeeder(struct pcm_channel *c)
 			return err;
 		}
 	}
+	c->feederflags &= ~(1 << FEEDER_VOLUME);
+	if (c->direction == PCMDIR_PLAY &&
+			!(c->flags & CHN_F_VIRTUAL) &&
+			c->parentsnddev && (c->parentsnddev->flags & SD_F_SOFTVOL) &&
+			c->parentsnddev->mixer_dev)
+		c->feederflags |= 1 << FEEDER_VOLUME;
 	flags = c->feederflags;
 	fmtlist = chn_getcaps(c)->fmtlist;
 
@@ -1366,6 +1381,22 @@ chn_buildfeeder(struct pcm_channel *c)
 	}
 
 	sndbuf_setfmt(c->bufhard, hwfmt);
+
+	if ((flags & (1 << FEEDER_VOLUME))) {
+		int vol = 100 | (100 << 8);
+
+		CHN_UNLOCK(c);
+		/*
+		 * XXX This is ugly! The way mixer subs being so secretive
+		 * about its own internals force us to use this silly
+		 * monkey trick.
+		 */
+		if (mixer_ioctl(c->parentsnddev->mixer_dev,
+				MIXER_READ(SOUND_MIXER_PCM), (caddr_t)&vol, -1, NULL) != 0)
+			device_printf(c->dev, "Soft Volume: Failed to read default value\n");
+		CHN_LOCK(c);
+		chn_setvolume(c, vol & 0x7f, (vol >> 8) & 0x7f);
+	}
 
 	return 0;
 }

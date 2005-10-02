@@ -161,8 +161,11 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x43525940, 0x07, 0, "CS4201",	0 },
 	{ 0x43525958, 0x07, 0, "CS4205",	0 },
 	{ 0x43525960, 0x07, 0, "CS4291A",	0 },
-	{ 0x434d4961, 0x00, 0, "CMI9739",	0 },
+	{ 0x434d4961, 0x00, 0, "CMI9739",	cmi9739_patch },
 	{ 0x434d4941, 0x00, 0, "CMI9738",	0 },
+	{ 0x434d4978, 0x00, 0, "CMI9761",	0 },
+	{ 0x434d4982, 0x00, 0, "CMI9761",	0 },
+	{ 0x434d4983, 0x00, 0, "CMI9761",	0 },
 	{ 0x43585421, 0x00, 0, "HSD11246",	0 },
 	{ 0x43585428, 0x07, 0, "CX20468",	0 },
 	{ 0x44543000, 0x00, 0, "DT0398",	0 },
@@ -197,6 +200,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x83847658, 0x00, 0, "STAC9758/59",	0 },
 	{ 0x83847660, 0x00, 0, "STAC9760/61",	0 }, /* Extrapolated */
 	{ 0x83847662, 0x00, 0, "STAC9762/63",	0 }, /* Extrapolated */
+	{ 0x83847666, 0x00, 0, "STAC9766/67",	0 },
 	{ 0x53494c22, 0x00, 0, "Si3036",	0 },
 	{ 0x53494c23, 0x00, 0, "Si3038",	0 },
 	{ 0x54524103, 0x00, 0, "TR28023",	0 }, /* Extrapolated */
@@ -538,6 +542,40 @@ ac97_fix_tone(struct ac97_info *codec)
 	}
 }
 
+static void
+ac97_fix_volume(struct ac97_info *codec)
+{
+    	struct snddev_info *d = device_get_softc(codec->dev);
+
+#if 0
+	/* XXX For the sake of debugging purposes */
+	ac97_wrcd(codec, AC97_MIX_PCM, 0);
+	bzero(&codec->mix[SOUND_MIXER_PCM],
+		sizeof(codec->mix[SOUND_MIXER_PCM]));
+	codec->flags |= AC97_F_SOFTVOL;
+	if (d)
+		d->flags |= SD_F_SOFTVOL;
+	return;
+#endif
+	switch (codec->id) {
+		case 0x434d4941:	/* CMI9738 */
+		case 0x434d4961:	/* CMI9739 */
+		case 0x434d4978:	/* CMI9761 */
+		case 0x434d4982:	/* CMI9761 */
+		case 0x434d4983:	/* CMI9761 */
+			ac97_wrcd(codec, AC97_MIX_PCM, 0);
+			break;
+		default:
+			return;
+			break;
+	}
+	bzero(&codec->mix[SOUND_MIXER_PCM],
+			sizeof(codec->mix[SOUND_MIXER_PCM]));
+	codec->flags |= AC97_F_SOFTVOL;
+	if (d)
+		d->flags |= SD_F_SOFTVOL;
+}
+
 static const char*
 ac97_hw_desc(u_int32_t id, const char* vname, const char* cname, char* buf)
 {
@@ -643,6 +681,7 @@ ac97_initmixer(struct ac97_info *codec)
 	}
 	ac97_fix_auxout(codec);
 	ac97_fix_tone(codec);
+	ac97_fix_volume(codec);
 	if (codec_patch)
 		codec_patch(codec);
 
@@ -709,6 +748,8 @@ ac97_initmixer(struct ac97_info *codec)
 	if (bootverbose) {
 		if (codec->flags & AC97_F_RDCD_BUG)
 			device_printf(codec->dev, "Buggy AC97 Codec: aggressive ac97_rdcd() workaround enabled\n");
+		if (codec->flags & AC97_F_SOFTVOL)
+			device_printf(codec->dev, "Soft PCM volume\n");
 		device_printf(codec->dev, "Codec features ");
 		for (i = j = 0; i < 10; i++)
 			if (codec->caps & (1 << i))
