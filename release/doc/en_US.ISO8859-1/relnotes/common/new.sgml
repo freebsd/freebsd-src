@@ -139,14 +139,41 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
+      <para>The &man.acpi.thermal.4; driver now supports
+	passive cooling.</para>
+
       <para>Support for the PadLock Security Co-processor in VIA C3
 	processors has been added to the &man.crypto.9; subsystem.
 	&merged;</para>
 
+      <para>A bug which prevents the &man.ichsmb.4; kernel module
+	from unloading has been fixed.</para>
+
+      <para arch="amd64">The smbios(4) driver support for amd64 has been
+	added.</para>
+
+      <para arch="i386">A new loader tunable
+	<varname>hw.apic.enable_extint</varname> has been added.
+	This tunable can be used not to mask the ExtINT pin on the first
+	I/O APIC.  At least one chipset for Intel Pentium III seems
+	to need this even though all of the pins in the 8259A's are masked.
+	The default is still to mask the ExtINT pin.</para>
+
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
-	<para></para>
+	<para>The &man.sound.4; driver now supports
+	  wider range sampling rate, multiple precisions choice,
+	  and 24/32 bit PCM format conversion.</para>
+
+	<para>The &man.snd.als4000.4; driver is now MPSAFE.</para>
+
+	<para>The &man.snd.cmi.4; driver is now MPSAFE.</para>
+
+	<para>The &man.snd.via8233.4; driver is now MPSAFE.</para>
+
+	<para>The &man.snd.via82c686.4; driver is now MPSAFE.</para>
+
       </sect4>
 
       <sect4 id="net-if">
@@ -174,11 +201,18 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>The &man.natm.4; Native Mode ATM protocol layer is now MPSAFE.</para>
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
+
+      <para>A new GEOM class <literal>GEOM_ZERO</literal> has been added.
+	It creates very huge provider (41PB) <filename>/dev/gzero</filename>
+	and mainly for performance testing.
+	On <literal>BIO_READ</literal> request it zero-fills
+	<varname>bio_data</varname> and on <literal>BIO_WRITE</literal>
+	it does nothing.</para>
 
       <para>The &man.mpt.4; driver has been updated to support
 	various new features such as RAID volume and RAID member
@@ -191,12 +225,21 @@
 	added.  It uses the &man.crypto.9; framework for hardware acceleration
 	and supports different cryptographic algorithms.  See &man.geli.8; for
 	more information. &merged;</para>
+
+      <para>The &man.umass.4; driver now supports
+	<literal>PLAY_MSF</literal>,
+	<literal>PLAY_TRACK</literal>,
+	<literal>PLAY_TRACK_REL</literal>,
+	<literal>PAUSE</literal>,
+	<literal>PLAY_12</literal> commands so that
+	the &man.cdcontrol.1; utility can handle USB CD drive.</para>
     </sect3>
 
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para></para>
+      <para>A part of the FreeBSD NFS subsystem (the interface with
+	the protocol stack and callouts) is now MPSAFE.</para>
     </sect3>
 
     <sect3>
@@ -209,6 +252,13 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>Padding of <varname>ai_addrlen</varname>
+      in <varname>struct addrinfo</varname> has been removed,
+      which was originally for the ABI compatibility.
+      For example, this change break the ABI compatibility of
+      &man.getaddrinfo.3; function on 64-bit architecture including
+      &os;/alpha, &os;/amd64, &os;/ia64, and &os;/sparc64.</para>
+
     <para>The &man.ifconfig.8; utility now supports
       a <option>-k</option> flag to allow printing
       potentially sensitive keying material to standard output.
@@ -220,6 +270,22 @@
       abstracted interface to &man.uma.9; and &man.malloc.9;
       statistics, wrapped around the binary stream sysctl variables
       for the allocators. &merged;</para>
+
+    <para>The &man.moused.8; now supports an <option>-H</option> flag
+      to enable horizontal virtual scrolling similar to a
+      <option>-V</option> flag for vertical virtual scrolling.</para>
+
+    <para>The shared library version number of all libraries have
+      been updated due to some possible ABI changes.  The libraries
+      include: snmp_*, libdialog, libg2c, libobjc,
+      libreadline, libregex, libstdc++, libkrb5, libalias, libarchive,
+      libbegemot, libbluetooth, libbsnmp, libbz2, libc_r, libcrypt,
+      libdevstat, libedit, libexpat, libfetch, libftpio, libgpib,
+      libipsec, libkiconv, libmagic, libmp, libncp, libncurses,
+      libnetgraph, libngatm, libopie, libpam, libpthread, libradius,
+      libsdp, libsmb, libtacplus, libthr, libthread_db, libugidfw,
+      libusbhid, libutil, libvgl, libwrap, libypclnt, libm, libcrypto,
+      libssh, and libssl.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -244,7 +310,10 @@
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para></para>
+    <para>The &man.pkg.version.1; now supports an <option>-o</option>
+      flag to show the origin recorded on package generation
+      instead of the package name, and an <option>-O</option> flag
+      to list packages whose registered origin is origin only.</para>
   </sect2>
 
   <sect2 id="releng">
