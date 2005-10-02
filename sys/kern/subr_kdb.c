@@ -98,7 +98,7 @@ TUNABLE_INT("debug.kdb.stop_cpus", &kdb_stop_cpus);
  * disabled interrupts the conventional STOP IPI will be blocked. This 
  * NMI-based stop should get through in that case.
  */
-static int kdb_stop_cpus_with_nmi = 0;
+static int kdb_stop_cpus_with_nmi = 1;
 SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus_with_nmi, CTLTYPE_INT | CTLFLAG_RW,
     &kdb_stop_cpus_with_nmi, 0, "");
 TUNABLE_INT("debug.kdb.stop_cpus_with_nmi", &kdb_stop_cpus_with_nmi);
