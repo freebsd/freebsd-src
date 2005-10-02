@@ -107,7 +107,8 @@ printheader(FILE *f, const struct kerneldumpheader *h, const char *device,
 
 	fprintf(f, "Dump header from device %s\n", device);
 	fprintf(f, "  Architecture: %s\n", h->architecture);
-	fprintf(f, "  Architecture Version: %u\n", h->architectureversion);
+	fprintf(f, "  Architecture Version: %u\n",
+	    dtoh32(h->architectureversion));
 	dumplen = dtoh64(h->dumplength);
 	fprintf(f, "  Dump Length: %lldB (%lld MB)\n", (long long)dumplen,
 	    (long long)(dumplen >> 20));
