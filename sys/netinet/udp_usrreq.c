@@ -846,6 +846,15 @@ udp_output(inp, m, addr, control, td)
 	ui->ui_dport = fport;
 	ui->ui_ulen = htons((u_short)len + sizeof(struct udphdr));
 
+	/*
+	 * Set the Don't Fragment bit in the IP header.
+	 */
+	if (inp->inp_flags & INP_DONTFRAG) {
+		struct ip *ip;
+		ip = (struct ip *)&ui->ui_i;
+		ip->ip_off |= IP_DF;
+	}
+
 	ipflags = 0;
 	if (inp->inp_socket->so_options & SO_DONTROUTE)
 		ipflags |= IP_ROUTETOIF;
