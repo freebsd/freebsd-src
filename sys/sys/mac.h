@@ -209,7 +209,6 @@ void	mac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 int	mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 	    struct vnode *dvp, struct vnode *vp, struct componentname *cnp);
 void	mac_create_mount(struct ucred *cred, struct mount *mp);
-void	mac_create_root_mount(struct ucred *cred, struct mount *mp);
 void	mac_relabel_vnode(struct ucred *cred, struct vnode *vp,
 	    struct label *newlabel);
 void	mac_update_devfsdirent(struct mount *mp, struct devfs_dirent *de,
