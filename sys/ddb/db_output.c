@@ -186,11 +186,14 @@ db_putchar(c, arg)
 void
 db_setup_paging(db_page_calloutfcn_t *callout, void *arg, int maxlines)
 {
-
-	db_page_callout = callout;
-	db_page_callout_arg = arg;
-	db_maxlines = maxlines;
-	db_newlines = 0;
+	
+	if (db_page_callout == NULL || callout == NULL || arg ==
+	    db_page_callout_arg) {
+		db_page_callout = callout;
+		db_page_callout_arg = arg;
+		db_maxlines = maxlines;
+		db_newlines = 0;
+	}
 }
 
 /*

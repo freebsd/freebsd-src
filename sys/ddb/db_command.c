@@ -684,12 +684,17 @@ db_stack_trace_all(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3,
 {
 	struct proc *p;
 	struct thread *td;
+	int quit;
 
+	quit = 0;
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	for (p = LIST_FIRST(&allproc); p != NULL; p = LIST_NEXT(p, p_list)) {
 		FOREACH_THREAD_IN_PROC(p, td) {
 			db_printf("\nTracing command %s pid %d tid %ld td %p\n",
 			    p->p_comm, p->p_pid, (long)td->td_tid, td);
 			db_trace_thread(td, -1);
+			if (quit)
+				return;
 		}
 	}
 }
