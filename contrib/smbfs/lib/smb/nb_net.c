@@ -66,7 +66,7 @@ nb_getlocalname(char *name)
 }
 
 int
-nb_resolvehost_in(const char *name, struct sockaddr **dest)
+nb_resolvehost_in(const char *name, struct sockaddr **dest, long smbtcpport)
 {
 	struct hostent* h;
 	struct sockaddr_in *sinp;
@@ -94,7 +94,7 @@ nb_resolvehost_in(const char *name, struct sockaddr **dest)
 	sinp->sin_len = len;
 	sinp->sin_family = h->h_addrtype;
 	memcpy(&sinp->sin_addr.s_addr, h->h_addr, 4);
-	sinp->sin_port = htons(SMB_TCP_PORT);
+	sinp->sin_port = htons(smbtcpport);
 	*dest = (struct sockaddr*)sinp;
 	return 0;
 }
@@ -164,7 +164,7 @@ nb_hostlookup(struct nb_name *np, const char *server, const char *hint,
 		return error;
 	do {
 		if (hint) {
-			error = nb_resolvehost_in(host, snb);
+			error = nb_resolvehost_in(host, snb, SMB_TCP_PORT);
 			if (error)
 				break;
 		} else {

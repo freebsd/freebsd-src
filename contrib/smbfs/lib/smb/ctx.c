@@ -77,6 +77,7 @@ smb_ctx_init(struct smb_ctx *ctx, int argc, char *argv[],
 	ctx->ct_parsedlevel = SMBL_NONE;
 	ctx->ct_minlevel = minlevel;
 	ctx->ct_maxlevel = maxlevel;
+	ctx->ct_smbtcpport = SMB_TCP_PORT;
 
 	ctx->ct_ssn.ioc_opt = SMBVOPT_CREATE;
 	ctx->ct_ssn.ioc_timeout = 15;
@@ -167,14 +168,14 @@ getsubstring(const char *p, u_char sep, char *dest, int maxlen, const char **nex
 }
 
 /*
- * Here we expect something like "[proto:]//[user@]host[/share][/path]"
+ * Here we expect something like "[proto:]//[user@]host[:psmb[:pnb]][/share][/path]"
  */
 int
 smb_ctx_parseunc(struct smb_ctx *ctx, const char *unc, int sharetype,
 	const char **next)
 {
 	const char *p = unc;
-	char *p1;
+	char *p1, *psmb, *pnb;
 	char tmp[1024];
 	int error ;
 
@@ -210,6 +211,27 @@ smb_ctx_parseunc(struct smb_ctx *ctx, const char *unc, int sharetype,
 	if (*p1 == 0) {
 		smb_error("empty server name", 0);
 		return EINVAL;
+	}
+	/*
+	 * Check for port number specification.
+	 */
+	psmb = strchr(tmp, ':');
+	if (psmb) {
+		*psmb++ = '\0';
+		pnb = strchr(psmb, ':');
+		if (pnb) {
+			*pnb++ = '\0';
+			error = smb_ctx_setnbport(ctx, atoi(pnb));
+			if (error) {
+				smb_error("Invalid NetBIOS port number", 0);
+				return error;
+			}
+		}
+		error = smb_ctx_setsmbport(ctx, atoi(psmb));
+		if (error) {
+			smb_error("Invalid SMB port number", 0);
+			return error;
+		}
 	}
 	error = smb_ctx_setserver(ctx, tmp);
 	if (error)
@@ -280,6 +302,25 @@ smb_ctx_setserver(struct smb_ctx *ctx, const char *name)
 		return ENAMETOOLONG;
 	}
 	nls_str_upper(ctx->ct_ssn.ioc_srvname, name);
+	return 0;
+}
+
+int
+smb_ctx_setnbport(struct smb_ctx *ctx, int port)
+{
+	if (port < 1 || port > 0xffff)
+		return EINVAL;
+	ctx->ct_nb->nb_nmbtcpport = port;
+	return 0;
+}
+
+int
+smb_ctx_setsmbport(struct smb_ctx *ctx, int port)
+{
+	if (port < 1 || port > 0xffff)
+		return EINVAL;
+	ctx->ct_smbtcpport = port;
+	ctx->ct_nb->nb_smbtcpport = port;
 	return 0;
 }
 
@@ -507,7 +548,7 @@ smb_ctx_resolve(struct smb_ctx *ctx)
 		if (error) return error;
 	}
 	if (ctx->ct_srvaddr) {
-		error = nb_resolvehost_in(ctx->ct_srvaddr, &sap);
+		error = nb_resolvehost_in(ctx->ct_srvaddr, &sap, ctx->ct_smbtcpport);
 	} else {
 		error = nbns_resolvename(ssn->ioc_srvname, ctx->ct_nb, &sap);
 	}

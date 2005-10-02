@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: nbns_rq.c,v 1.5 2001/02/17 03:07:24 bp Exp $
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -86,7 +87,7 @@ nbns_resolvename(const char *name, struct nb_ctx *ctx, struct sockaddr **adpp)
 	dest->sin_family = AF_INET;
 	dest->sin_len = sizeof(*dest);
 	if (dest->sin_port == 0)
-		dest->sin_port = htons(137);
+		dest->sin_port = htons(ctx->nb_nmbtcpport);
 	if (dest->sin_addr.s_addr == INADDR_ANY)
 		dest->sin_addr.s_addr = htonl(INADDR_BROADCAST);
 	if (dest->sin_addr.s_addr == INADDR_BROADCAST)
@@ -131,7 +132,7 @@ nbns_resolvename(const char *name, struct nb_ctx *ctx, struct sockaddr **adpp)
 		dest->sin_len = len;
 		dest->sin_family = AF_INET;
 		bcopy(rr.rr_data + 2, &dest->sin_addr.s_addr, 4);
-		dest->sin_port = htons(SMB_TCP_PORT);
+		dest->sin_port = htons(ctx->nb_smbtcpport);
 		*adpp = (struct sockaddr*)dest;
 		ctx->nb_lastns = rqp->nr_sender;
 		break;
