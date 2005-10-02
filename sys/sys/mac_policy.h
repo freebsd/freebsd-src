@@ -217,8 +217,6 @@ struct mac_policy_ops {
 		    struct componentname *cnp);
 	void	(*mpo_create_mount)(struct ucred *cred, struct mount *mp,
 		    struct label *mntlabel, struct label *fslabel);
-	void	(*mpo_create_root_mount)(struct ucred *cred, struct mount *mp,
-		    struct label *mountlabel, struct label *fslabel);
 	void	(*mpo_relabel_vnode)(struct ucred *cred, struct vnode *vp,
 		    struct label *vnodelabel, struct label *label);
 	int	(*mpo_setlabel_vnode_extattr)(struct ucred *cred,
