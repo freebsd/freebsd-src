@@ -271,7 +271,10 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		INP_LOCK(inp);
 		ip = mtod(m, struct ip *);
 		ip->ip_tos = inp->inp_ip_tos;
-		ip->ip_off = 0;
+		if (inp->inp_flags & INP_DONTFRAG)
+			ip->ip_off = IP_DF;
+		else
+			ip->ip_off = 0;
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = m->m_pkthdr.len;
 		if (jailed(inp->inp_socket->so_cred))

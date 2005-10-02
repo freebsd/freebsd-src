@@ -1197,6 +1197,7 @@ ip_ctloutput(so, sopt)
 		case IP_RECVIF:
 		case IP_FAITH:
 		case IP_ONESBCAST:
+		case IP_DONTFRAG:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1253,6 +1254,9 @@ ip_ctloutput(so, sopt)
 
 			case IP_ONESBCAST:
 				OPTSET(INP_ONESBCAST);
+				break;
+			case IP_DONTFRAG:
+				OPTSET(INP_DONTFRAG);
 				break;
 			}
 			break;
@@ -1351,6 +1355,7 @@ ip_ctloutput(so, sopt)
 		case IP_PORTRANGE:
 		case IP_FAITH:
 		case IP_ONESBCAST:
+		case IP_DONTFRAG:
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1402,6 +1407,9 @@ ip_ctloutput(so, sopt)
 
 			case IP_ONESBCAST:
 				optval = OPTBIT(INP_ONESBCAST);
+				break;
+			case IP_DONTFRAG:
+				optval = OPTBIT(INP_DONTFRAG);
 				break;
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
