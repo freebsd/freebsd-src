@@ -1726,11 +1726,15 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		 * check for undefined settings.  Setting these bit patterns
 		 * result in undefined behaviour and can lead to an unexpected
 		 * TRCTRAP or a general protection fault right here.
+		 * Upper bits of dr6 and dr7 must not be set
 		 */
 		for (i = 0, mask1 = 0x3<<16, mask2 = 0x2<<16; i < 8;
 		     i++, mask1 <<= 2, mask2 <<= 2)
 			if ((dbregs->dr[7] & mask1) == mask2)
 				return (EINVAL);
+		if ((dbregs->dr[6] & 0xffffffff00000000ul) != 0 ||
+		    (dbregs->dr[7] & 0xffffffff00000000ul) != 0)
+			return (EINVAL);
 
 		pcb = td->td_pcb;
 
