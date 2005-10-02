@@ -95,7 +95,6 @@ is controlled by the following
 MIB variables:
 .Pp
 .Bl -tag -width indent -compact
-.Pp
 .It Va kern.polling.user_frac
 When
 .Nm
@@ -206,8 +205,8 @@ conditionally compiled sections of the devices mentioned above
 for more details.)
 .Pp
 As in the worst case the devices are only polled on clock interrupts,
-in order to reduce the latency in processing packets, it is advisable
-do not to decrease the frequency of the clock below 1000 Hz.
+in order to reduce the latency in processing packets, it is not advisable
+to decrease the frequency of the clock below 1000 Hz.
 .Sh HISTORY
 Device polling first appeared in
 .Fx 4.6
