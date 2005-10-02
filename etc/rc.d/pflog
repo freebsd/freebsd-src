@@ -5,81 +5,60 @@
 
 # PROVIDE: pflog
 # REQUIRE: root mountcritlocal netif cleanvar
-# BEFORE:  DAEMON LOGIN
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="pflog"
 rcvar=`set_rcvar`
-load_rc_config $name
-stop_precmd="test -x ${pflog_program}"
+command="/sbin/pflogd"
+pidfile="/var/run/pflogd.pid"
 start_precmd="pflog_prestart"
-start_cmd="pflog_start"
-stop_cmd="pflog_stop"
-resync_precmd="$stop_precmd"
+stop_postcmd="pflog_poststop"
+extra_commands="reload resync"
+
+# for backward compatibility
 resync_cmd="pflog_resync"
-status_precmd="$stop_precmd"
-status_cmd="pflog_status"
-extra_commands="resync status"
 
 pflog_prestart()
 {
 	# load pflog kernel module if needed
 	if ! kldstat -q -m pflog; then
 		if kldload pf; then
-			info 'pflog module loaded.'
+			info 'pf module loaded.'
 		else
-			err 1 'pflog module failed to load.'
+			warn 'pf module failed to load.'
+			return 1
 		fi
 	fi
 
 	# set pflog0 interface to up state
 	if ! ifconfig pflog0 up; then
-		warn 'pflog: COULD NOT SET UP pflog0'
-	fi
-
-	# check for pflogd binary
-	if [ ! -x "${pflog_program:-/sbin/pflogd}" ]
-	then
-		warn 'pflog: NO PFLOGD BINARY FOUND'
+		warn 'could not not bring up pflog0.'
 		return 1
 	fi
+
+	# prepare the command line for pflogd
+	rc_flags="-f $pflog_logfile $rc_flags"
+
+	# report we're ready to run pflogd
+	return 0
 }
 
-pflog_start()
+pflog_poststop()
 {
-	echo -n "Enabling pflogd"
-	if ! ${pflog_program:-/sbin/pflogd} ${pflog_flags} \
-	    -f ${pflog_logfile:-/var/log/pflog}; then
-		echo " failed!"
-	else
-		echo "."
+	if ! ifconfig pflog0 down; then
+		warn 'could not bring down pflog0.'
+		return 1
 	fi
+	return 0
 }
 
-pflog_stop()
-{
-	if [ -r /var/run/pflogd.pid ]; then
-		echo "Stopping pflogd."
-		kill `cat /var/run/pflogd.pid`
-	fi
-}
-
+# for backward compatibility
 pflog_resync()
 {
-	if [ -r /var/run/pflogd.pid ]; then
-		kill -SIGHUP `cat /var/run/pflogd.pid`
-	fi
+	run_rc_command reload
 }
 
-pflog_status()
-{
-	if [ -r /var/run/pflogd.pid ]; then
-		ps -p `cat /var/run/pflogd.pid` | tail -n 1
-	else
-		echo 'pflogd not running.'
-	fi
-}
-
+load_rc_config $name
 run_rc_command "$1"
