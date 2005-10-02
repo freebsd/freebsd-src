@@ -882,6 +882,7 @@ dev/sound/pcm/feeder.c		optional sound
 dev/sound/pcm/feeder_fmt.c	optional sound
 dev/sound/pcm/feeder_if.m	optional sound
 dev/sound/pcm/feeder_rate.c	optional sound
+dev/sound/pcm/feeder_volume.c	optional sound
 dev/sound/pcm/mixer.c		optional sound
 dev/sound/pcm/mixer_if.m	optional sound
 dev/sound/pcm/sndstat.c		optional sound
