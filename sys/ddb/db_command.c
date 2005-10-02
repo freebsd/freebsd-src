@@ -71,6 +71,7 @@ static db_cmdfcn_t	db_gdb;
 static db_cmdfcn_t	db_kill;
 static db_cmdfcn_t	db_reset;
 static db_cmdfcn_t	db_stack_trace;
+static db_cmdfcn_t	db_stack_trace_all;
 static db_cmdfcn_t	db_watchdog;
 
 /*
@@ -114,6 +115,7 @@ static struct command db_command_table[] = {
 	{ "next",	db_trace_until_matching_cmd,0,	0 },
 	{ "match",	db_trace_until_matching_cmd,0,	0 },
 	{ "trace",	db_stack_trace,		CS_OWN,	0 },
+	{ "traceall",	db_stack_trace_all,	0,	0 },
 	{ "where",	db_stack_trace,		CS_OWN,	0 },
 	{ "call",	db_fncall,		CS_OWN,	0 },
 	{ "show",	0,			0,	db_show_cmds },
@@ -674,4 +676,20 @@ db_stack_trace(db_expr_t tid, boolean_t hastid, db_expr_t count, char *modif)
 		pid = -1;
 	db_printf("Tracing pid %d tid %ld td %p\n", pid, (long)td->td_tid, td);
 	db_trace_thread(td, count);
+}
+
+static void
+db_stack_trace_all(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3,
+    char *dummy4)
+{
+	struct proc *p;
+	struct thread *td;
+
+	for (p = LIST_FIRST(&allproc); p != NULL; p = LIST_NEXT(p, p_list)) {
+		FOREACH_THREAD_IN_PROC(p, td) {
+			db_printf("\nTracing command %s pid %d tid %ld td %p\n",
+			    p->p_comm, p->p_pid, (long)td->td_tid, td);
+			db_trace_thread(td, -1);
+		}
+	}
 }
