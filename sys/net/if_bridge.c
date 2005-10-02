@@ -194,7 +194,8 @@ void	bridge_forward(struct bridge_softc *, struct mbuf *m);
 
 void	bridge_timer(void *);
 
-void	bridge_broadcast(struct bridge_softc *, struct ifnet *, struct mbuf *);
+void	bridge_broadcast(struct bridge_softc *, struct ifnet *, struct mbuf *,
+	    int);
 
 int	bridge_rtupdate(struct bridge_softc *, const uint8_t *,
 	    struct ifnet *, int, uint8_t);
@@ -1476,21 +1477,9 @@ bridge_start(struct ifnet *ifp)
 		}
 
 		if (dst_if == NULL)
-			bridge_broadcast(sc, ifp, m);
+			bridge_broadcast(sc, ifp, m, 0);
 		else {
 			BRIDGE_UNLOCK(sc);
-
-			if (inet_pfil_hook.ph_busy_count >= 0
-#ifdef INET6
-			    || inet6_pfil_hook.ph_busy_count >= 0
-#endif
-	    		    ) {
-				if (bridge_pfil(&m, sc->sc_ifp, dst_if, PFIL_OUT) != 0)
-					return;
-				if (m == NULL)
-					return;
-			}
-
 			bridge_enqueue(sc, dst_if, m);
 		}
 	}
@@ -1608,7 +1597,7 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 		/* tap off packets passing the bridge */
 		BPF_MTAP(ifp, m);
 
-		bridge_broadcast(sc, src_if, m);
+		bridge_broadcast(sc, src_if, m, 1);
 		return;
 	}
 
@@ -1812,7 +1801,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
  */
 void
 bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
-    struct mbuf *m)
+    struct mbuf *m, int runfilt)
 {
 	struct bridge_iflist *bif;
 	struct mbuf *mc;
@@ -1827,11 +1816,11 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 	}
 
 	/* Filter on the bridge interface before broadcasting */
-	if (inet_pfil_hook.ph_busy_count >= 0
+	if (runfilt && (inet_pfil_hook.ph_busy_count >= 0
 #ifdef INET6
 	    || inet6_pfil_hook.ph_busy_count >= 0
 #endif
-	    ) {
+	    )) {
 		if (bridge_pfil(&m, sc->sc_ifp, NULL, PFIL_OUT) != 0)
 			return;
 		if (m == NULL)
@@ -1874,11 +1863,11 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		 * pointer so we do not redundantly filter on the bridge for 
 		 * each interface we broadcast on.
 		 */
-		if (inet_pfil_hook.ph_busy_count >= 0
+		if (runfilt && (inet_pfil_hook.ph_busy_count >= 0
 #ifdef INET6
 		    || inet6_pfil_hook.ph_busy_count >= 0
 #endif
-		    ) {
+		    )) {
 			if (bridge_pfil(&m, NULL, dst_if, PFIL_OUT) != 0)
 				return;
 			if (m == NULL)
