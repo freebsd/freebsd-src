@@ -24,7 +24,9 @@
 .Op Fl n Ar opt
 .Op Fl u Ar uid
 .Sm off
-.No // Ar user No @ Ar server No / Ar share
+.No // Ar user No @ Ar server
+.Op Ar :port1 Op Ar :port2
+.No / Ar share
 .Sm on
 .Ar node
 .Sh DESCRIPTION
@@ -110,7 +112,7 @@ server.
 User ID and group ID assigned to files.
 The default are owner and group IDs from
 the directory where the volume is mounted.
-.It No // Ns Ar user Ns @ Ns Ar server Ns / Ns Ar share
+.It No // Ns Ar user Ns @ Ns Ar server Ns Oo Ar :port1 Ns Oo Ar :port2 Oc Oc Ns No / Ns Ar share
 The
 .Nm
 command will use
@@ -120,6 +122,17 @@ as the NetBIOS name of remote computer,
 as the remote user name and
 .Ar share
 as the resource name on a remote server.
+Optional
+.Ar port1
+and
+.Ar port2
+arguments can be used to override default values of port numbers used
+by communication protocols.
+For SMB over NetBIOS default value for
+.Ar port1
+are 139, and
+.Ar port2
+are 137.
 .It Ar node
 Path to mount point.
 .El
