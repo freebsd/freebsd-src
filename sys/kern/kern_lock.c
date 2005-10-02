@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/kdb.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
@@ -575,8 +576,13 @@ lockstatus(lkp, td)
 	struct thread *td;
 {
 	int lock_type = 0;
+	int interlocked;
 
-	mtx_lock(lkp->lk_interlock);
+	if (!kdb_active) {
+		interlocked = 1;
+		mtx_lock(lkp->lk_interlock);
+	} else
+		interlocked = 0;
 	if (lkp->lk_exclusivecount != 0) {
 		if (td == NULL || lkp->lk_lockholder == td)
 			lock_type = LK_EXCLUSIVE;
@@ -584,7 +590,8 @@ lockstatus(lkp, td)
 			lock_type = LK_EXCLOTHER;
 	} else if (lkp->lk_sharecount != 0)
 		lock_type = LK_SHARED;
-	mtx_unlock(lkp->lk_interlock);
+	if (interlocked)
+		mtx_unlock(lkp->lk_interlock);
 	return (lock_type);
 }
 
