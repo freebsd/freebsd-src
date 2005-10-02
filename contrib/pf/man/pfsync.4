@@ -129,7 +129,25 @@ dedicated to pfsync messages such as a crossover cable between two firewalls,
 or specify a peer address and protect the traffic with
 .Xr ipsec 4 .
 .Pp
+For
+.Nm
+to start its operation automatically at the system boot time,
+.Va pfsync_enable
+and
+.Va pfsync_syncdev
+variables should be used in
+.Xr rc.conf 5 .
+It is not advisable to set up
+.Nm
+with common network interface configuration variables of
+.Xr rc.conf 5
+because
+.Nm
+must start after its
+.Cm syncdev ,
+which cannot be always ensured in the latter case.
 .\" XXX: not yet!
+.\" .Pp
 .\" There is a one-to-one correspondence between packets seen by
 .\" .Xr bpf 4
 .\" on the
@@ -167,14 +185,15 @@ indicated):
 Interfaces configuration in
 .Pa /etc/rc.conf :
 .Bd -literal -offset indent
+network_interfaces="lo0 sis0 sis1 sis2"
 cloned_interfaces="carp0 carp1"
-network_interfaces="lo0 sis0 sis1 sis2 carp0 carp1 pfsync0"
 ifconfig_sis0="10.0.0.254/24"
 ifconfig_sis1="192.168.0.254/24"
 ifconfig_sis2="192.168.254.254/24"
 ifconfig_carp0="vhid 1 pass foo 10.0.0.1/24"
 ifconfig_carp1="vhid 2 pass bar 192.168.0.1/24"
-ifconfig_pfsync0="up syncif sis2"
+pfsync_enable="YES"
+pfsync_syncdev="sis2"
 .Ed
 .Pp
 .Xr pf 4
