@@ -50,6 +50,8 @@ static int poll_switch(SYSCTL_HANDLER_ARGS);
 void hardclock_device_poll(void);	/* hook from hardclock		*/
 void ether_poll(int);			/* polling in idle loop		*/
 
+static struct mtx	poll_mtx;
+
 /*
  * Polling support for [network] device drivers.
  *
@@ -94,50 +96,133 @@ void ether_poll(int);			/* polling in idle loop		*/
 #define MIN_POLL_BURST_MAX	10
 #define MAX_POLL_BURST_MAX	1000
 
+static uint32_t poll_burst = 5;
+static uint32_t poll_burst_max = 150;	/* good for 100Mbit net and HZ=1000 */
+static uint32_t poll_each_burst = 5;
+
 SYSCTL_NODE(_kern, OID_AUTO, polling, CTLFLAG_RW, 0,
 	"Device polling parameters");
 
-static u_int32_t poll_burst = 5;
-SYSCTL_UINT(_kern_polling, OID_AUTO, burst, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, burst, CTLFLAG_RD,
 	&poll_burst, 0, "Current polling burst size");
 
-static u_int32_t poll_each_burst = 5;
-SYSCTL_UINT(_kern_polling, OID_AUTO, each_burst, CTLFLAG_RW,
-	&poll_each_burst, 0, "Max size of each burst");
+static int poll_burst_max_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val = poll_burst_max;
+	int error;
 
-static u_int32_t poll_burst_max = 150;	/* good for 100Mbit net and HZ=1000 */
-SYSCTL_UINT(_kern_polling, OID_AUTO, burst_max, CTLFLAG_RW,
-	&poll_burst_max, 0, "Max Polling burst size");
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error || !req->newptr )
+		return (error);
+	if (val < MIN_POLL_BURST_MAX || val > MAX_POLL_BURST_MAX)
+		return (EINVAL);
 
-static u_int32_t poll_in_idle_loop=0;	/* do we poll in idle loop ? */
+	mtx_lock(&poll_mtx);
+	poll_burst_max = val;
+	if (poll_burst > poll_burst_max)
+		poll_burst = poll_burst_max;
+	if (poll_each_burst > poll_burst_max)
+		poll_each_burst = MIN_POLL_BURST_MAX;
+	mtx_unlock(&poll_mtx);
+
+	return (0);
+}
+SYSCTL_PROC(_kern_polling, OID_AUTO, burst_max, CTLTYPE_UINT | CTLFLAG_RW,
+	0, sizeof(uint32_t), poll_burst_max_sysctl, "I", "Max Polling burst size");
+
+static int poll_each_burst_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val = poll_each_burst;
+	int error;
+
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error || !req->newptr )
+		return (error);
+	if (val < 1)
+		return (EINVAL);
+
+	mtx_lock(&poll_mtx);
+	if (val > poll_burst_max) {
+		mtx_unlock(&poll_mtx);
+		return (EINVAL);
+	}
+	poll_each_burst = val;
+	mtx_unlock(&poll_mtx);
+
+	return (0);
+}
+SYSCTL_PROC(_kern_polling, OID_AUTO, each_burst, CTLTYPE_UINT | CTLFLAG_RW,
+	0, sizeof(uint32_t), poll_each_burst_sysctl, "I",
+	"Max size of each burst");
+
+static uint32_t poll_in_idle_loop=0;	/* do we poll in idle loop ? */
 SYSCTL_UINT(_kern_polling, OID_AUTO, idle_poll, CTLFLAG_RW,
 	&poll_in_idle_loop, 0, "Enable device polling in idle loop");
 
-static u_int32_t user_frac = 50;
-SYSCTL_UINT(_kern_polling, OID_AUTO, user_frac, CTLFLAG_RW,
-	&user_frac, 0, "Desired user fraction of cpu time");
+static uint32_t user_frac = 50;
+static int user_frac_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val = user_frac;
+	int error;
 
-static u_int32_t reg_frac = 20 ;
-SYSCTL_UINT(_kern_polling, OID_AUTO, reg_frac, CTLFLAG_RW,
-	&reg_frac, 0, "Every this many cycles poll register");
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error || !req->newptr )
+		return (error);
+	if (val < 0 || val > 99)
+		return (EINVAL);
 
-static u_int32_t short_ticks;
-SYSCTL_UINT(_kern_polling, OID_AUTO, short_ticks, CTLFLAG_RW,
+	mtx_lock(&poll_mtx);
+	user_frac = val;
+	mtx_unlock(&poll_mtx);
+
+	return (0);
+}
+SYSCTL_PROC(_kern_polling, OID_AUTO, user_frac, CTLTYPE_UINT | CTLFLAG_RW,
+	0, sizeof(uint32_t), user_frac_sysctl, "I",
+	"Desired user fraction of cpu time");
+
+static uint32_t reg_frac_count = 0;
+static uint32_t reg_frac = 20 ;
+static int reg_frac_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val = reg_frac;
+	int error;
+
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error || !req->newptr )
+		return (error);
+	if (val < 1 || val > hz)
+		return (EINVAL);
+
+	mtx_lock(&poll_mtx);
+	reg_frac = val;
+	if (reg_frac_count >= reg_frac)
+		reg_frac_count = 0;
+	mtx_unlock(&poll_mtx);
+
+	return (0);
+}
+SYSCTL_PROC(_kern_polling, OID_AUTO, reg_frac, CTLTYPE_UINT | CTLFLAG_RW,
+	0, sizeof(uint32_t), reg_frac_sysctl, "I",
+	"Every this many cycles check registers");
+
+static uint32_t short_ticks;
+SYSCTL_UINT(_kern_polling, OID_AUTO, short_ticks, CTLFLAG_RD,
 	&short_ticks, 0, "Hardclock ticks shorter than they should be");
 
-static u_int32_t lost_polls;
-SYSCTL_UINT(_kern_polling, OID_AUTO, lost_polls, CTLFLAG_RW,
+static uint32_t lost_polls;
+SYSCTL_UINT(_kern_polling, OID_AUTO, lost_polls, CTLFLAG_RD,
 	&lost_polls, 0, "How many times we would have lost a poll tick");
 
-static u_int32_t pending_polls;
-SYSCTL_UINT(_kern_polling, OID_AUTO, pending_polls, CTLFLAG_RW,
+static uint32_t pending_polls;
+SYSCTL_UINT(_kern_polling, OID_AUTO, pending_polls, CTLFLAG_RD,
 	&pending_polls, 0, "Do we need to poll again");
 
 static int residual_burst = 0;
-SYSCTL_INT(_kern_polling, OID_AUTO, residual_burst, CTLFLAG_RW,
+SYSCTL_INT(_kern_polling, OID_AUTO, residual_burst, CTLFLAG_RD,
 	&residual_burst, 0, "# of residual cycles in burst");
 
-static u_int32_t poll_handlers; /* next free entry in pr[]. */
+static uint32_t poll_handlers; /* next free entry in pr[]. */
 SYSCTL_UINT(_kern_polling, OID_AUTO, handlers, CTLFLAG_RD,
 	&poll_handlers, 0, "Number of registered poll handlers");
 
@@ -145,19 +230,19 @@ static int polling = 0;
 SYSCTL_PROC(_kern_polling, OID_AUTO, enable, CTLTYPE_UINT | CTLFLAG_RW,
 	0, sizeof(int), poll_switch, "I", "Switch polling for all interfaces");
 
-static u_int32_t phase;
-SYSCTL_UINT(_kern_polling, OID_AUTO, phase, CTLFLAG_RW,
+static uint32_t phase;
+SYSCTL_UINT(_kern_polling, OID_AUTO, phase, CTLFLAG_RD,
 	&phase, 0, "Polling phase");
 
-static u_int32_t suspect;
-SYSCTL_UINT(_kern_polling, OID_AUTO, suspect, CTLFLAG_RW,
+static uint32_t suspect;
+SYSCTL_UINT(_kern_polling, OID_AUTO, suspect, CTLFLAG_RD,
 	&suspect, 0, "suspect event");
 
-static u_int32_t stalled;
-SYSCTL_UINT(_kern_polling, OID_AUTO, stalled, CTLFLAG_RW,
+static uint32_t stalled;
+SYSCTL_UINT(_kern_polling, OID_AUTO, stalled, CTLFLAG_RD,
 	&stalled, 0, "potential stalls");
 
-static u_int32_t idlepoll_sleeping; /* idlepoll is sleeping */
+static uint32_t idlepoll_sleeping; /* idlepoll is sleeping */
 SYSCTL_UINT(_kern_polling, OID_AUTO, idlepoll_sleeping, CTLFLAG_RD,
 	&idlepoll_sleeping, 0, "idlepoll is sleeping");
 
@@ -169,7 +254,6 @@ struct pollrec {
 };
 
 static struct pollrec pr[POLL_LIST_LEN];
-static struct mtx	poll_mtx;
 
 static void
 init_device_poll(void)
@@ -328,7 +412,6 @@ netisr_pollmore()
 static void
 netisr_poll(void)
 {
-	static int reg_frac_count;
 	int i, cycles;
 	enum poll_cmd arg = POLL_ONLY;
 
@@ -338,37 +421,11 @@ netisr_poll(void)
 	phase = 3;
 	if (residual_burst == 0) { /* first call in this tick */
 		microuptime(&poll_start_t);
-		/*
-		 * Check that paremeters are consistent with runtime
-		 * variables. Some of these tests could be done at sysctl
-		 * time, but the savings would be very limited because we
-		 * still have to check against reg_frac_count and
-		 * poll_each_burst. So, instead of writing separate sysctl
-		 * handlers, we do all here.
-		 */
-
-		if (reg_frac > hz)
-			reg_frac = hz;
-		else if (reg_frac < 1)
-			reg_frac = 1;
-		if (reg_frac_count > reg_frac)
-			reg_frac_count = reg_frac - 1;
-		if (reg_frac_count-- == 0) {
+		if (++reg_frac_count == reg_frac) {
 			arg = POLL_AND_CHECK_STATUS;
-			reg_frac_count = reg_frac - 1;
+			reg_frac_count = 0;
 		}
-		if (poll_burst_max < MIN_POLL_BURST_MAX)
-			poll_burst_max = MIN_POLL_BURST_MAX;
-		else if (poll_burst_max > MAX_POLL_BURST_MAX)
-			poll_burst_max = MAX_POLL_BURST_MAX;
 
-		if (poll_each_burst < 1)
-			poll_each_burst = 1;
-		else if (poll_each_burst > poll_burst_max)
-			poll_each_burst = poll_burst_max;
-
-		if (poll_burst > poll_burst_max)
-			poll_burst = poll_burst_max;
 		residual_burst = poll_burst;
 	}
 	cycles = (residual_burst < poll_each_burst) ?
@@ -474,11 +531,7 @@ poll_switch(SYSCTL_HANDLER_ARGS)
 {
 	struct ifnet *ifp;
 	int error;
-	int val;
-
-	mtx_lock(&poll_mtx);
-	val = polling;
-	mtx_unlock(&poll_mtx);
+	int val = polling;
 
 	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
 	if (error || !req->newptr )
@@ -490,9 +543,7 @@ poll_switch(SYSCTL_HANDLER_ARGS)
 	if (val < 0 || val > 1)
 		return (EINVAL);
 
-	mtx_lock(&poll_mtx);
 	polling = val;
-	mtx_unlock(&poll_mtx);
 
 	NET_LOCK_GIANT();
 	IFNET_RLOCK();
