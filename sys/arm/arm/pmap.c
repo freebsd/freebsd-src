@@ -220,6 +220,7 @@ vm_offset_t avail_end;		/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 vm_offset_t pmap_curmaxkvaddr;
+vm_paddr_t kernel_l1pa;
 
 extern void *end;
 vm_offset_t kernel_vm_end = 0;
@@ -2435,6 +2436,7 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	virtual_avail = firstaddr;
 	kernel_pmap = &kernel_pmap_store;
 	kernel_pmap->pm_l1 = l1;
+	kernel_l1pa = l1pt->pv_pa;
 	
 	/*
 	 * Scan the L1 translation table created by initarm() and create
@@ -2633,8 +2635,7 @@ pmap_grow_map(vm_offset_t va, pt_entry_t cache_mode, vm_paddr_t *pap)
 	vm_paddr_t pa;
 	struct vm_page *pg;
 	
-	pg = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_ZERO |
-	    VM_ALLOC_WIRED);
+	pg = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
 	if (pg == NULL)
 		return (1);
 	pa = VM_PAGE_TO_PHYS(pg);
@@ -2701,6 +2702,7 @@ pmap_grow_l2_bucket(pmap_t pm, vm_offset_t va)
 		 * Link it into the parent pmap
 		 */
 		pm->pm_l2[L2_IDX(l1idx)] = l2;
+		memset(l2, 0, sizeof(*l2));
 	}
 
 	l2b = &l2->l2_bucket[L2_BUCKET(l1idx)];
@@ -2726,7 +2728,7 @@ pmap_grow_l2_bucket(pmap_t pm, vm_offset_t va)
 				return (NULL);
 			PTE_SYNC_RANGE(ptep, PAGE_SIZE / sizeof(pt_entry_t));
 		}
-
+		memset(ptep, 0, L2_TABLE_SIZE_REAL);
 		l2->l2_occupancy++;
 		l2b->l2b_kva = ptep;
 		l2b->l2b_l1idx = l1idx;
@@ -2844,6 +2846,8 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		PTE_SYNC(pt);
 		npv = TAILQ_NEXT(pv, pv_plist);
 		pmap_nuke_pv(m, pmap, pv);
+		if (TAILQ_EMPTY(&m->md.pv_list))
+			vm_page_flag_clear(m, PG_WRITEABLE);
 		pmap_free_pv_entry(pv);
 	}
 	vm_page_unlock_queues();
@@ -2993,15 +2997,23 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 }
 
 static void
-pmap_wb_page(vm_page_t m, boolean_t do_inv)
+pmap_wb_page(vm_page_t m)
 {
 	struct pv_entry *pv;
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list)
-	    pmap_dcache_wb_range(pv->pv_pmap, pv->pv_va, PAGE_SIZE, do_inv,
+	    pmap_dcache_wb_range(pv->pv_pmap, pv->pv_va, PAGE_SIZE, FALSE,
 		(pv->pv_flags & PVF_WRITE) == 0);
 }
 
+static void
+pmap_inv_page(vm_page_t m)
+{
+	struct pv_entry *pv;
+
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list)
+	    pmap_dcache_wb_range(pv->pv_pmap, pv->pv_va, PAGE_SIZE, TRUE, TRUE);
+}
 /*
  * Add a list of wired pages to the kva
  * this routine is only used for temporary
@@ -3016,7 +3028,7 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		pmap_wb_page(m[i], TRUE);
+		pmap_wb_page(m[i]);
 		pmap_kenter_internal(va, VM_PAGE_TO_PHYS(m[i]), 
 		    KENTER_CACHE);
 		va += PAGE_SIZE;
@@ -3037,7 +3049,7 @@ pmap_qremove(vm_offset_t va, int count)
 	for (i = 0; i < count; i++) {
 		pa = vtophys(va);
 		if (pa) {
-			pmap_wb_page(PHYS_TO_VM_PAGE(pa), TRUE);
+			pmap_inv_page(PHYS_TO_VM_PAGE(pa));
 			pmap_kremove(va);
 		}
 		va += PAGE_SIZE;
@@ -3186,6 +3198,7 @@ pmap_remove_all(vm_page_t m)
 		else
 			pmap_tlb_flushD(curpm);
 	}
+	vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
 
@@ -3462,7 +3475,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 						    (oflags & PVF_WRITE) == 0);
 					}
 			}
-		} else if (m)
+		} else if (m && !(m->flags & (PG_UNMANAGED | PG_FICTITIOUS)))
 			if ((pve = pmap_get_pv_entry()) == NULL) {
 				panic("pmap_enter: no pv entries");	
 			}
@@ -3549,7 +3562,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	VM_OBJECT_UNLOCK(m->object);
 	mtx_lock(&Giant);
 	pmap_enter(pmap, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
-	pmap_idcache_wbinv_all(pmap);
 	mtx_unlock(&Giant);
 	VM_OBJECT_LOCK(m->object);
 	vm_page_lock_queues();
@@ -3693,15 +3705,17 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 
 		if (l2 == NULL ||
 		    (ptep = l2->l2_bucket[L2_BUCKET(l1idx)].l2b_kva) == NULL) {
+			vm_page_unlock_queues();
 			return (NULL);
 		}
 
 		ptep = &ptep[l2pte_index(va)];
 		pte = *ptep;
 
-		if (pte == 0)
+		if (pte == 0) {
+			vm_page_unlock_queues();
 			return (NULL);
-
+		}
 		if (pte & L2_S_PROT_W || (prot & VM_PROT_WRITE) == 0) {
 			switch (pte & L2_TYPE_MASK) {
 			case L2_TYPE_L:
@@ -3999,6 +4013,10 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 		panic("pmap_zero_page: page has mappings");
 #endif
 
+	if (_arm_bzero && 
+	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
+		return;
+
 
 	/*
 	 * Hook in the page, zero it, and purge the cache for that
@@ -4021,6 +4039,10 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 void
 pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 {
+	
+	if (_arm_bzero && 
+	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
+		return;
 	/*
 	 * Hook in the page, zero it, and purge the cache for that
 	 * zeroed page. Invalidate the TLB as needed.
@@ -4119,6 +4141,7 @@ pmap_zero_page_idle(vm_page_t m)
 	pmap_zero_page(m);
 }
 
+#if 0
 /*
  * pmap_clean_page()
  *
@@ -4205,6 +4228,7 @@ pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
 	}
 	return (0);
 }
+#endif
 
 /*
  *	pmap_copy_page copies the specified (machine independent)
@@ -4241,8 +4265,13 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 #if 0
 	mtx_lock(&src_pg->md.pvh_mtx);
 #endif
+#if 0
+	/*
+	 * XXX: Not needed while we call cpu_dcache_wbinv_all() in
+	 * pmap_copy_page().
+	 */
 	(void) pmap_clean_page(TAILQ_FIRST(&src_pg->md.pv_list), TRUE);
-
+#endif
 	/*
 	 * Map the pages into the page hook points, copy them, and purge
 	 * the cache for the appropriate page. Invalidate the TLB
@@ -4270,7 +4299,10 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 void
 pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 {
+#if 0
+	/* XXX: Only needed for pmap_clean_page(), which is commented out. */
 	struct vm_page *src_pg = PHYS_TO_VM_PAGE(src);
+#endif
 #ifdef DEBUG
 	struct vm_page *dst_pg = PHYS_TO_VM_PAGE(dst);
 
@@ -4284,8 +4316,13 @@ pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 	 * the duration of the copy so that no other mappings can
 	 * be created while we have a potentially aliased mapping.
 	 */
+#if 0
+	/*
+	 * XXX: Not needed while we call cpu_dcache_wbinv_all() in
+	 * pmap_copy_page().
+	 */
 	(void) pmap_clean_page(TAILQ_FIRST(&src_pg->md.pv_list), TRUE);
-
+#endif
 	/*
 	 * Map the pages into the page hook points, copy them, and purge
 	 * the cache for the appropriate page. Invalidate the TLB
@@ -4311,6 +4348,10 @@ void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
 	cpu_dcache_wbinv_all();
+	if (_arm_memcpy && 
+	    _arm_memcpy((void *)VM_PAGE_TO_PHYS(dst), 
+	    (void *)VM_PAGE_TO_PHYS(src), PAGE_SIZE, IS_PHYSICAL) == 0)
+		return;
 	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
 }
 
