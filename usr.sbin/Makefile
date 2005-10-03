@@ -72,6 +72,7 @@ SUBDIR=	ac \
 	lastlogin \
 	${_lpr} \
 	${_lptcontrol} \
+	lmcconfig \
 	${_mailstats} \
 	mailwrapper \
 	${_makemap} \
