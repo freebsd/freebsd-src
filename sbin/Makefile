@@ -126,6 +126,10 @@ _sconfig=	sconfig
 _fdisk=		fdisk
 .endif
 
+.if ${MACHINE_ARCH} == "arm"
+_fdisk=		fdisk
+.endif
+
 .if ${MACHINE_ARCH} == "ia64"
 _fdisk=		fdisk
 _mca=		mca
