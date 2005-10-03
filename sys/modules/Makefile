@@ -131,6 +131,7 @@ SUBDIR=	${_3dfx} \
 	libmchain \
 	${_linprocfs} \
 	${_linux} \
+	lmc \
 	${_lnc} \
 	lpt \
 	mac_biba \

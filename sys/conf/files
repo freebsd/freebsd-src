@@ -689,6 +689,7 @@ dev/joy/joy_pccard.c		optional joy pccard
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/led/led.c			standard
 dev/lge/if_lge.c		optional lge
+dev/lmc/if_lmc.c		optional lmc
 dev/lnc/if_lnc.c		optional lnc
 dev/lnc/if_lnc_pci.c		optional lnc pci
 dev/mc146818/mc146818.c		optional mc146818
