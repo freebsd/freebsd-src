@@ -57,12 +57,17 @@ __FBSDID("$FreeBSD$");
  */
 #define CF_MAX_LEVELS	64
 
+struct cf_saved_freq {
+	struct cf_level			level;
+	int				priority;
+	SLIST_ENTRY(cf_saved_freq)	link;
+};
+
 struct cpufreq_softc {
 	struct sx			lock;
 	struct cf_level			curr_level;
 	int				curr_priority;
-	struct cf_level			saved_level;
-	int				saved_priority;
+	SLIST_HEAD(, cf_saved_freq)	saved_freq;
 	struct cf_level_lst		all_levels;
 	int				all_count;
 	int				max_mhz;
@@ -149,7 +154,7 @@ cpufreq_attach(device_t dev)
 	TAILQ_INIT(&sc->all_levels);
 	CF_MTX_INIT(&sc->lock);
 	sc->curr_level.total_set.freq = CPUFREQ_VAL_UNKNOWN;
-	sc->saved_level.total_set.freq = CPUFREQ_VAL_UNKNOWN;
+	SLIST_INIT(&sc->saved_freq);
 	sc->max_mhz = CPUFREQ_VAL_UNKNOWN;
 
 	/*
@@ -181,11 +186,17 @@ static int
 cpufreq_detach(device_t dev)
 {
 	struct cpufreq_softc *sc;
+	struct cf_saved_freq *saved_freq;
 	int numdevs;
 
 	CF_DEBUG("shutdown %s\n", device_get_nameunit(dev));
 	sc = device_get_softc(dev);
 	sysctl_ctx_free(&sc->sysctl_ctx);
+
+	while ((saved_freq = SLIST_FIRST(&sc->saved_freq)) != NULL) {
+		SLIST_REMOVE_HEAD(&sc->saved_freq, link);
+		free(saved_freq, M_TEMP);
+	}
 
 	/* Only clean up these resources when the last device is detaching. */
 	numdevs = devclass_get_count(cpufreq_dc);
@@ -208,12 +219,14 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 {
 	struct cpufreq_softc *sc;
 	const struct cf_setting *set;
+	struct cf_saved_freq *saved_freq, *curr_freq;
 	struct pcpu *pc;
 	int cpu_id, error, i;
 
 	sc = device_get_softc(dev);
 	error = 0;
 	set = NULL;
+	saved_freq = NULL;
 
 	/*
 	 * Check that the TSC isn't being used as a timecounter.
@@ -223,29 +236,34 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	if (strcmp(timecounter->tc_name, "TSC") == 0)
 		return (EBUSY);
 
-	/*
-	 * If the caller didn't specify a level and one is saved, prepare to
-	 * restore the saved level.  If none has been saved, return an error.
-	 * If they did specify one, but the requested level has a lower
-	 * priority, don't allow the new level right now.
-	 */
 	CF_MTX_LOCK(&sc->lock);
-	if (level == NULL) {
-		if (sc->saved_level.total_set.freq != CPUFREQ_VAL_UNKNOWN) {
-			level = &sc->saved_level;
-			priority = sc->saved_priority;
-			CF_DEBUG("restoring saved level, freq %d prio %d\n",
-			    level->total_set.freq, priority);
-		} else {
-			CF_DEBUG("NULL level, no saved level\n");
-			error = ENXIO;
-			goto out;
-		}
-	} else if (priority < sc->curr_priority) {
+
+	/*
+	 * If the requested level has a lower priority, don't allow
+	 * the new level right now.
+	 */
+	if (priority < sc->curr_priority) {
 		CF_DEBUG("ignoring, curr prio %d less than %d\n", priority,
 		    sc->curr_priority);
 		error = EPERM;
 		goto out;
+	}
+
+	/*
+	 * If the caller didn't specify a level and one is saved, prepare to
+	 * restore the saved level.  If none has been saved, return an error.
+	 */
+	if (level == NULL) {
+		saved_freq = SLIST_FIRST(&sc->saved_freq);
+		if (saved_freq == NULL) {
+			CF_DEBUG("NULL level, no saved level\n");
+			error = ENXIO;
+			goto out;
+		}
+		level = &saved_freq->level;
+		priority = saved_freq->priority;
+		CF_DEBUG("restoring saved level, freq %d prio %d\n",
+		    level->total_set.freq, priority);
 	}
 
 	/* Reject levels that are below our specified threshold. */
@@ -323,28 +341,33 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	}
 
 skip:
-	/* If we were restoring a saved state, reset it to "unused". */
-	if (level == &sc->saved_level) {
-		CF_DEBUG("resetting saved level\n");
-		sc->saved_level.total_set.freq = CPUFREQ_VAL_UNKNOWN;
-		sc->saved_priority = 0;
-	}
-
 	/*
 	 * Before recording the current level, check if we're going to a
-	 * higher priority and have not saved a level yet.  If so, save the
-	 * previous level and priority.
+	 * higher priority.  If so, save the previous level and priority.
 	 */
 	if (sc->curr_level.total_set.freq != CPUFREQ_VAL_UNKNOWN &&
-	    sc->saved_level.total_set.freq == CPUFREQ_VAL_UNKNOWN &&
-	    priority > CPUFREQ_PRIO_USER && priority > sc->curr_priority) {
+	    priority > sc->curr_priority) {
 		CF_DEBUG("saving level, freq %d prio %d\n",
 		    sc->curr_level.total_set.freq, sc->curr_priority);
-		sc->saved_level = sc->curr_level;
-		sc->saved_priority = sc->curr_priority;
+		curr_freq = malloc(sizeof(*curr_freq), M_TEMP, M_NOWAIT);
+		if (curr_freq == NULL) {
+			error = ENOMEM;
+			goto out;
+		}
+		curr_freq->level = sc->curr_level;
+		curr_freq->priority = sc->curr_priority;
+		SLIST_INSERT_HEAD(&sc->saved_freq, curr_freq, link);
 	}
 	sc->curr_level = *level;
 	sc->curr_priority = priority;
+
+	/* If we were restoring a saved state, reset it to "unused". */
+	if (saved_freq != NULL) {
+		CF_DEBUG("resetting saved level\n");
+		sc->curr_level.total_set.freq = CPUFREQ_VAL_UNKNOWN;
+		SLIST_REMOVE_HEAD(&sc->saved_freq, link);
+		free(saved_freq, M_TEMP);
+	}
 
 out:
 	CF_MTX_UNLOCK(&sc->lock);
