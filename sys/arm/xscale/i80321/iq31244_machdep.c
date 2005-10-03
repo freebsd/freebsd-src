@@ -46,6 +46,7 @@
  */
 
 #include "opt_msgbuf.h"
+#include "opt_ddb.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -134,8 +135,7 @@ struct pcpu *pcpup = &__pcpu;
 /* Physical and virtual addresses for some global pages */
 
 vm_paddr_t phys_avail[10];
-vm_paddr_t physical_start;
-vm_paddr_t physical_end;
+vm_paddr_t dump_avail[4];
 vm_offset_t physical_pages;
 vm_offset_t clean_sva, clean_eva;
 
@@ -191,6 +191,10 @@ static const struct pmap_devmap iq80321_devmap[] = {
 
 #define SDRAM_START 0xa0000000
 
+#ifdef DDB
+extern vm_offset_t ksym_start, ksym_end;
+#endif
+
 extern vm_offset_t xscale_cache_clean_addr;
 
 void *
@@ -198,12 +202,13 @@ initarm(void *arg, void *arg2)
 {
 	struct pv_addr  kernel_l1pt;
 	int loop;
-	u_int kerneldatasize, symbolsize;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
 	vm_offset_t freemem_pt;
 	vm_offset_t afterkern;
 	vm_offset_t freemem_after;
+	vm_offset_t lastaddr;
+	vm_offset_t zstart = 0, zend = 0;
 	int i = 0;
 	uint32_t fake_preload[35];
 	uint32_t memsize, memstart;
@@ -225,6 +230,23 @@ initarm(void *arg, void *arg2)
 	fake_preload[i++] = MODINFO_SIZE;
 	fake_preload[i++] = sizeof(uint32_t);
 	fake_preload[i++] = (uint32_t)&end - KERNBASE - 0x00200000;
+#ifdef DDB
+	if (*(uint32_t *)KERNVIRTADDR != 0) {
+		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_SSYM;
+		fake_preload[i++] = sizeof(vm_offset_t);
+		fake_preload[i++] = *(uint32_t *)KERNVIRTADDR;
+		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_ESYM;
+		fake_preload[i++] = sizeof(vm_offset_t);
+		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 4);
+		lastaddr = *(uint32_t *)(KERNVIRTADDR + 4);
+		zend = lastaddr;
+		zstart = *(uint32_t *)KERNVIRTADDR;
+		ksym_start = zstart;
+		ksym_end = zend;
+	} else
+#endif
+		lastaddr = (vm_offset_t)&end;
+
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
@@ -233,11 +255,7 @@ initarm(void *arg, void *arg2)
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
-	physical_start = (vm_offset_t) SDRAM_START;
-	physical_end =  (vm_offset_t) &end + SDRAM_START - 0xc0000000;
 #define KERNEL_TEXT_BASE (KERNBASE + 0x00200000)
-	kerneldatasize = (u_int32_t)&end - (u_int32_t)KERNEL_TEXT_BASE;
-	symbolsize = 0;
 	freemempos = 0xa0200000;
 	/* Define a macro to simplify memory allocation */
 #define	valloc_pages(var, np)			\
@@ -323,10 +341,10 @@ initarm(void *arg, void *arg2)
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x100000, SDRAM_START + 0x100000,
 	    0x100000, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
-	   (((uint32_t)(&end) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
+	   (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	freemem_after = ((int)&end + PAGE_SIZE) & ~(PAGE_SIZE - 1);
-	afterkern = round_page(((vm_offset_t)&end + L1_S_SIZE) & ~(L1_S_SIZE 
+	freemem_after = ((int)lastaddr + PAGE_SIZE) & ~(PAGE_SIZE - 1);
+	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
 	    - 1));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
@@ -444,6 +462,10 @@ initarm(void *arg, void *arg2)
 	phys_avail[i++] = trunc_page(0xa0000000 + memsize - 1);
 	phys_avail[i++] = 0;
 	phys_avail[i] = 0;
+	dump_avail[0] = 0xa0000000;
+	dump_avail[1] = 0xa0000000 + memsize;
+	dump_avail[2] = 0;
+	dump_avail[3] = 0;
 	
 	/* Do basic tuning, hz etc */
 	init_param1();
