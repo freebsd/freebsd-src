@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 	.align	0
 .globl kernbase
 .set kernbase,KERNBASE
+.globl physaddr
+.set physaddr,PHYSADDR
 
 ENTRY_NP(btext)
 
@@ -157,7 +159,7 @@ mmu_done:
 	mov	r3, #0
 
 .L1:
-	str	r3, [r1], #0x0004	/* Zero the bss */
+	str	r3, [r1], #0x0004	/* get zero init data */
 	subs	r2, r2, #4
 	bgt	.L1
 
@@ -177,7 +179,8 @@ mmu_done:
 	sub	pc, pc, r4
 #endif
 virt_done:
-	ldr	fp, =KERNVIRTADDR	/* trace back starts here */
+	nop
+	mov	fp, #0		/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
 	/* init arm will return the new stack pointer. */
@@ -194,6 +197,10 @@ virt_done:
 	.word	4*((va)>>L1_S_SHIFT)			    ; \
 	.word	(pa)|(attr)				    ;
 
+Lvirtaddr:
+	.word	KERNVIRTADDR
+Lphysaddr:
+	.word	KERNPHYSADDR
 Lstartup_pagetable:
 	.word	STARTUP_PAGETABLE_ADDR
 mmu_init_table:
