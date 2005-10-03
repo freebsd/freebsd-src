@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 #include <net/if_bridgevar.h>
 
+#define sc_if ifb_ac.ac_if
+
 /* BPDU message types */
 #define	BSTP_MSGTYPE_CFG	0x00		/* Configuration */
 #define	BSTP_MSGTYPE_TCN	0x80		/* Topology chg notification */
@@ -228,7 +230,7 @@ bstp_send_config_bpdu(struct bridge_softc *sc, struct bridge_iflist *bif,
 
 	ifp = bif->bif_ifp;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -370,7 +372,7 @@ bstp_transmit_tcn(struct bridge_softc *sc)
 
 	BRIDGE_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -1037,28 +1039,6 @@ bstp_disable_change_detection(struct bridge_iflist *bif)
 }
 
 void
-bstp_linkstate(struct ifnet *ifp, int state)
-{
-	struct bridge_softc *sc;
-	struct bridge_iflist *bif;
-
-	sc = ifp->if_bridge;
-	BRIDGE_LOCK(sc);
-
-	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
-		if ((bif->bif_flags & IFBIF_STP) == 0)
-			continue;
-
-		if (bif->bif_ifp == ifp) {
-			bstp_ifupdstatus(sc, bif);
-			break;
-		}
-	}
-
-	BRIDGE_UNLOCK(sc);
-}
-
-void
 bstp_ifupdstatus(struct bridge_softc *sc, struct bridge_iflist *bif)
 {
 	struct ifnet *ifp = bif->bif_ifp;
@@ -1092,9 +1072,8 @@ bstp_tick(void *arg)
 	struct bridge_softc *sc = arg;
 	struct bridge_iflist *bif;
 
-	BRIDGE_LOCK_ASSERT(sc);
+	BRIDGE_LOCK(sc);
 
-#if 0
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		if ((bif->bif_flags & IFBIF_STP) == 0)
 			continue;
@@ -1107,7 +1086,6 @@ bstp_tick(void *arg)
 		 */
 		bstp_ifupdstatus(sc, bif);
 	}
-#endif
 
 	if (bstp_timer_expired(&sc->sc_hello_timer, sc->sc_hello_time))
 		bstp_hello_timer_expiry(sc);
@@ -1139,8 +1117,10 @@ bstp_tick(void *arg)
 			bstp_hold_timer_expiry(sc, bif);
 	}
 
-	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (sc->sc_if.if_flags & IFF_RUNNING)
 		callout_reset(&sc->sc_bstpcallout, hz, bstp_tick, sc);
+
+	BRIDGE_UNLOCK(sc);
 }
 
 void

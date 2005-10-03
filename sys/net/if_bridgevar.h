@@ -262,7 +262,7 @@ struct bridge_rtnode {
  * Software state for each bridge.
  */
 struct bridge_softc {
-	struct ifnet		*sc_ifp;	/* make this an interface */
+	struct arpcom		ifb_ac;		/* make this an interface */
 	LIST_ENTRY(bridge_softc) sc_list;
 	struct mtx		sc_mtx;
 	struct cv		sc_cv;

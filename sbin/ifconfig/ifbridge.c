@@ -14,8 +14,8 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed for the NetBSD Project by
- *	Wasabi Systems, Inc.
+ *      This product includes software developed for the NetBSD Project by
+ *      Wasabi Systems, Inc.
  * 4. The name of Wasabi Systems, Inc. may not be used to endorse
  *    or promote products derived from this software without specific prior
  *    written permission.
@@ -61,56 +61,44 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
-static int
-get_val(const char *cp, u_long *valp)
+extern void printb(const char *s, unsigned value, const char *bits);
+int  get_val(const char *, u_long *);
+int  do_cmd(int, u_long, void *, size_t, int);
+void do_bridgeflag(int, const char *, int, int);
+
+void
+bridge_status(int s, struct rt_addrinfo * info)
 {
-	char *endptr;
-	u_long val;
+	struct ifbrparam param;
+	u_int16_t pri;
+	u_int8_t ht, fd, ma;
 
-	errno = 0;
-	val = strtoul(cp, &endptr, 0);
-	if (cp[0] == '\0' || endptr[0] != '\0' || errno == ERANGE)
-		return (-1);
+	if (do_cmd(s, BRDGGPRI, &param, sizeof(param), 0) < 0)
+		return;
+	pri = param.ifbrp_prio;
 
-	*valp = val;
-	return (0);
+	if (do_cmd(s, BRDGGHT, &param, sizeof(param), 0) < 0)
+		return;
+	ht = param.ifbrp_hellotime;
+
+	if (do_cmd(s, BRDGGFD, &param, sizeof(param), 0) < 0)
+		return;
+	fd = param.ifbrp_fwddelay;
+
+	if (do_cmd(s, BRDGGMA, &param, sizeof(param), 0) < 0)
+		return;
+	ma = param.ifbrp_maxage;
+
+	printf("\tpriority %u hellotime %u fwddelay %u maxage %u\n",
+	    pri, ht, fd, ma);
+
+	bridge_interfaces(s, "\tmember: ", 0);
+
+	return;
+
 }
 
-static int
-do_cmd(int sock, u_long op, void *arg, size_t argsize, int set)
-{
-	struct ifdrv ifd;
-
-	memset(&ifd, 0, sizeof(ifd));
-
-	strlcpy(ifd.ifd_name, ifr.ifr_name, sizeof(ifd.ifd_name));
-	ifd.ifd_cmd = op;
-	ifd.ifd_len = argsize;
-	ifd.ifd_data = arg;
-
-	return (ioctl(sock, set ? SIOCSDRVSPEC : SIOCGDRVSPEC, &ifd));
-}
-
-static void
-do_bridgeflag(int sock, const char *ifs, int flag, int set)
-{
-	struct ifbreq req;
-
-	strlcpy(req.ifbr_ifsname, ifs, sizeof(req.ifbr_ifsname));
-
-	if (do_cmd(sock, BRDGGIFFLGS, &req, sizeof(req), 0) < 0)
-		err(1, "unable to get bridge flags");
-
-	if (set)
-		req.ifbr_ifsflags |= flag;
-	else
-		req.ifbr_ifsflags &= ~flag;
-
-	if (do_cmd(sock, BRDGSIFFLGS, &req, sizeof(req), 1) < 0)
-		err(1, "unable to set bridge flags");
-}
-
-static void
+void
 bridge_interfaces(int s, const char *prefix, int flags)
 {
 	static const char *stpstates[] = {
@@ -164,7 +152,7 @@ bridge_interfaces(int s, const char *prefix, int flags)
 	free(inbuf);
 }
 
-static void
+void
 bridge_addresses(int s, const char *prefix)
 {
 	struct ifbaconf ifbac;
@@ -199,39 +187,8 @@ bridge_addresses(int s, const char *prefix)
 	free(inbuf);
 }
 
-static void
-bridge_status(int s)
-{
-	struct ifbrparam param;
-	u_int16_t pri;
-	u_int8_t ht, fd, ma;
 
-	if (do_cmd(s, BRDGGPRI, &param, sizeof(param), 0) < 0)
-		return;
-	pri = param.ifbrp_prio;
-
-	if (do_cmd(s, BRDGGHT, &param, sizeof(param), 0) < 0)
-		return;
-	ht = param.ifbrp_hellotime;
-
-	if (do_cmd(s, BRDGGFD, &param, sizeof(param), 0) < 0)
-		return;
-	fd = param.ifbrp_fwddelay;
-
-	if (do_cmd(s, BRDGGMA, &param, sizeof(param), 0) < 0)
-		return;
-	ma = param.ifbrp_maxage;
-
-	printf("\tpriority %u hellotime %u fwddelay %u maxage %u\n",
-	    pri, ht, fd, ma);
-
-	bridge_interfaces(s, "\tmember: ", 0);
-
-	return;
-
-}
-
-static void
+void
 setbridge_add(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct ifbreq req;
@@ -242,7 +199,7 @@ setbridge_add(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGADD %s",  val);
 }
 
-static void
+void
 setbridge_delete(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct ifbreq req;
@@ -253,49 +210,49 @@ setbridge_delete(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGDEL %s",  val);
 }
 
-static void
+void
 setbridge_discover(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	do_bridgeflag(s, val, IFBIF_DISCOVER, 1);
 }
 
-static void
+void
 unsetbridge_discover(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	do_bridgeflag(s, val, IFBIF_DISCOVER, 0);
 }
 
-static void
+void
 setbridge_learn(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	do_bridgeflag(s, val, IFBIF_LEARNING,  1);
 }
 
-static void
+void
 unsetbridge_learn(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	do_bridgeflag(s, val, IFBIF_LEARNING,  0);
 }
 
-static void
+void
 setbridge_stp(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	do_bridgeflag(s, val, IFBIF_STP, 1);
 }
 
-static void
+void
 unsetbridge_stp(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	do_bridgeflag(s, val, IFBIF_STP, 0);
 }
 
-static void
+void
 setbridge_flush(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct ifbreq req;
@@ -306,7 +263,7 @@ setbridge_flush(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGFLUSH");
 }
 
-static void
+void
 setbridge_flushall(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct ifbreq req;
@@ -317,9 +274,8 @@ setbridge_flushall(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGFLUSH");
 }
 
-static void
-setbridge_static(const char *val, const char *mac, int s,
-    const struct afswtch *afp)
+void
+setbridge_static(const char *val, const char *mac, int s, const struct afswtch *afp)
 {
 	struct ifbareq req;
 	struct ether_addr *ea;
@@ -338,7 +294,7 @@ setbridge_static(const char *val, const char *mac, int s,
 		err(1, "BRDGSADDR %s",  val);
 }
 
-static void
+void
 setbridge_deladdr(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct ifbareq req;
@@ -356,14 +312,14 @@ setbridge_deladdr(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGDADDR %s",  val);
 }
 
-static void
+void
 setbridge_addr(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	bridge_addresses(s, "");
 }
 
-static void
+void
 setbridge_maxaddr(const char *arg, int d, int s, const struct afswtch *afp)
 {
 	struct ifbrparam param;
@@ -378,7 +334,7 @@ setbridge_maxaddr(const char *arg, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGSCACHE %s",  arg);
 }
 
-static void
+void
 setbridge_hellotime(const char *arg, int d, int s, const struct afswtch *afp)
 {
 	struct ifbrparam param;
@@ -393,7 +349,7 @@ setbridge_hellotime(const char *arg, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGSHT %s",  arg);
 }
 
-static void
+void
 setbridge_fwddelay(const char *arg, int d, int s, const struct afswtch *afp)
 {
 	struct ifbrparam param;
@@ -408,7 +364,7 @@ setbridge_fwddelay(const char *arg, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGSFD %s",  arg);
 }
 
-static void
+void
 setbridge_maxage(const char *arg, int d, int s, const struct afswtch *afp)
 {
 	struct ifbrparam param;
@@ -423,7 +379,7 @@ setbridge_maxage(const char *arg, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGSMA %s",  arg);
 }
 
-static void
+void
 setbridge_priority(const char *arg, int d, int s, const struct afswtch *afp)
 {
 	struct ifbrparam param;
@@ -438,9 +394,8 @@ setbridge_priority(const char *arg, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGSPRI %s",  arg);
 }
 
-static void
-setbridge_ifpriority(const char *ifn, const char *pri, int s,
-    const struct afswtch *afp)
+void
+setbridge_ifpriority(const char *ifn, const char *pri, int s, const struct afswtch *afp)
 {
 	struct ifbreq req;
 	u_long val;
@@ -457,9 +412,8 @@ setbridge_ifpriority(const char *ifn, const char *pri, int s,
 		err(1, "BRDGSIFPRIO %s",  pri);
 }
 
-static void
-setbridge_ifpathcost(const char *ifn, const char *cost, int s,
-    const struct afswtch *afp)
+void
+setbridge_ifpathcost(const char *ifn, const char *cost, int s, const struct afswtch *afp)
 {
 	struct ifbreq req;
 	u_long val;
@@ -476,7 +430,7 @@ setbridge_ifpathcost(const char *ifn, const char *cost, int s,
 		err(1, "BRDGSIFCOST %s",  cost);
 }
 
-static void
+void
 setbridge_timeout(const char *arg, int d, int s, const struct afswtch *afp)
 {
 	struct ifbrparam param;
@@ -491,43 +445,51 @@ setbridge_timeout(const char *arg, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGSTO %s",  arg);
 }
 
-static struct cmd bridge_cmds[] = {
-	DEF_CMD_ARG("addm",		setbridge_add),
-	DEF_CMD_ARG("deletem",		setbridge_delete),
-	DEF_CMD_ARG("discover",		setbridge_discover),
-	DEF_CMD_ARG("-discover",	unsetbridge_discover),
-	DEF_CMD_ARG("learn",		setbridge_learn),
-	DEF_CMD_ARG("-learn",		unsetbridge_learn),
-	DEF_CMD_ARG("stp",		setbridge_stp),
-	DEF_CMD_ARG("-stp",		unsetbridge_stp),
-	DEF_CMD("flush", 0,		setbridge_flush),
-	DEF_CMD("flushall", 0,		setbridge_flushall),
-	DEF_CMD_ARG2("static",		setbridge_static),
-	DEF_CMD_ARG("deladdr",		setbridge_deladdr),
-	DEF_CMD("addr",	 1,		setbridge_addr),
-	DEF_CMD_ARG("maxaddr",		setbridge_maxaddr),
-	DEF_CMD_ARG("hellotime",	setbridge_hellotime),
-	DEF_CMD_ARG("fwddelay",		setbridge_fwddelay),
-	DEF_CMD_ARG("maxage",		setbridge_maxage),
-	DEF_CMD_ARG("priority",		setbridge_priority),
-	DEF_CMD_ARG2("ifpriority",	setbridge_ifpriority),
-	DEF_CMD_ARG2("ifpathcost",	setbridge_ifpathcost),
-	DEF_CMD_ARG("timeout",		setbridge_timeout),
-};
-static struct afswtch af_bridge = {
-	.af_name	= "af_bridge",
-	.af_af		= AF_UNSPEC,
-	.af_other_status = bridge_status,
-};
-
-static __constructor void
-bridge_ctor(void)
+int
+get_val(const char *cp, u_long *valp)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	char *endptr;
+	u_long val;
 
-	for (i = 0; i < N(bridge_cmds);  i++)
-		cmd_register(&bridge_cmds[i]);
-	af_register(&af_bridge);
-#undef N
+	errno = 0;
+	val = strtoul(cp, &endptr, 0);
+	if (cp[0] == '\0' || endptr[0] != '\0' || errno == ERANGE)
+		return (-1);
+
+	*valp = val;
+	return (0);
+}
+
+int
+do_cmd(int sock, u_long op, void *arg, size_t argsize, int set)
+{
+	struct ifdrv ifd;
+
+	memset(&ifd, 0, sizeof(ifd));
+
+	strlcpy(ifd.ifd_name, ifr.ifr_name, sizeof(ifd.ifd_name));
+	ifd.ifd_cmd = op;
+	ifd.ifd_len = argsize;
+	ifd.ifd_data = arg;
+
+	return (ioctl(sock, set ? SIOCSDRVSPEC : SIOCGDRVSPEC, &ifd));
+}
+
+void
+do_bridgeflag(int sock, const char *ifs, int flag, int set)
+{
+	struct ifbreq req;
+
+	strlcpy(req.ifbr_ifsname, ifs, sizeof(req.ifbr_ifsname));
+
+	if (do_cmd(sock, BRDGGIFFLGS, &req, sizeof(req), 0) < 0)
+		err(1, "unable to get bridge flags");
+
+	if (set)
+		req.ifbr_ifsflags |= flag;
+	else
+		req.ifbr_ifsflags &= ~flag;
+
+	if (do_cmd(sock, BRDGSIFFLGS, &req, sizeof(req), 1) < 0)
+		err(1, "unable to set bridge flags");
 }
