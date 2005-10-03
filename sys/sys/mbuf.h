@@ -561,6 +561,7 @@ void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct	mbuf	*m_copym(struct mbuf *, int, int, int);
 struct	mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
+struct	mbuf	*m_copyup(struct mbuf *n, int len, int dstoff);
 struct	mbuf	*m_defrag(struct mbuf *, int);
 struct	mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
