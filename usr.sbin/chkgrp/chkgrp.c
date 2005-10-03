@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sysexits.h>
 
+static char empty[] = { 0 };
+
 static void
 usage(void)
 {
@@ -105,6 +107,13 @@ main(int argc, char *argv[])
 	    line[i++] = 0;
 	}
 
+        if (k < 4) {
+            warnx("%s: line %d: missing field(s)", gfn, n);
+	    for ( ; k < 4; k++)
+		f[k] = empty;
+            e++;
+        }
+
 	for (cp = f[0] ; *cp ; cp++) {
 	    if (!isalnum(*cp) && *cp != '.' && *cp != '_' && *cp != '-') {
 		warnx("%s: line %d: '%c' invalid character", gfn, n, *cp);
@@ -118,11 +127,6 @@ main(int argc, char *argv[])
 		warnx("%s: line %d: '%c' invalid character", gfn, n, *cp);
 		e++;
 	    }
-	}
-
-	if (k < 4) {
-	    warnx("%s: line %d: missing field(s)", gfn, n);
-	    e++;
 	}
 
 	/* check if fourth field ended with a colon */
