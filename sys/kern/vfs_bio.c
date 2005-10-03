@@ -2882,14 +2882,16 @@ allocbuf(struct buf *bp, int size)
 void
 biodone(struct bio *bp)
 {
+	void (*done)(struct bio *);
 
 	mtx_lock(&bdonelock);
 	bp->bio_flags |= BIO_DONE;
-	if (bp->bio_done == NULL)
+	done = bp->bio_done;
+	if (done == NULL)
 		wakeup(bp);
 	mtx_unlock(&bdonelock);
-	if (bp->bio_done != NULL)
-		bp->bio_done(bp);
+	if (done != NULL)
+		done(bp);
 }
 
 /*
