@@ -32,9 +32,8 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define	TXP_PCI_LOMEM			0x14	/* pci conf, memory map BAR */
-#define	TXP_PCI_LOIO			0x10	/* pci conf, IO map BAR */
-#define TXP_PCI_INTLINE			0x3C
+#define	TXP_PCI_LOMEM			PCIR_BAR(1)	/* memory map BAR */
+#define	TXP_PCI_LOIO			PCIR_BAR(0)	/* IO map BAR */
 
 /*
  * Typhoon registers.
@@ -617,8 +616,6 @@ struct txp_softc {
 	int			sc_cold;
 	u_int32_t		sc_rx_capability, sc_tx_capability;
 };
-
-#define	TXP_DEVNAME(sc)		((sc)->sc_cold ? "" : (sc)->sc_dev.dv_xname)
 
 struct txp_fw_file_header {
 	u_int8_t	magicid[8];	/* TYPHOON\0 */
