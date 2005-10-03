@@ -130,7 +130,20 @@
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para></para>
+      <para>A new option <option>-S</option>,
+	which allows setting the <filename>boot2</filename>
+	serial console speed in the <filename>/boot.config</filename>
+	file or on the <prompt>boot:</prompt> prompt line,
+	has been added.</para>
+
+      <para arch="i386,amd64">A new loader tunable
+	<varname>comconsole_speed</varname> to change
+	the serial console speed has been added.
+	If the previous stage boot loader requested a serial console
+	then the default speed is determined from the current serial port
+	speed, and otherwise it is set to 9600 or the value of
+	the kernel option <literal>BOOT_COMCONSOLE_SPEED</literal>
+	at compile time.</para>
 
       <!-- Above this line, order boot loader changes by keyword-->
 
@@ -148,6 +161,9 @@
 
       <para>A bug which prevents the &man.ichsmb.4; kernel module
 	from unloading has been fixed.</para>
+
+      <para arch="ia64">The loader tunable <varname>debug.mpsafevfs</varname>
+	is set to <literal>1</literal> by default.</para>
 
       <para arch="amd64">The smbios(4) driver support for amd64 has been
 	added.</para>
@@ -172,8 +188,10 @@
 
 	<para>The &man.snd.via8233.4; driver is now MPSAFE.</para>
 
-	<para>The &man.snd.via82c686.4; driver is now MPSAFE.</para>
+	<para arch="amd64">The &man.snd.via8233.4; driver is now supported
+	  on &os;/amd64.</para>
 
+	<para>The &man.snd.via82c686.4; driver is now MPSAFE.</para>
       </sect4>
 
       <sect4 id="net-if">
@@ -204,11 +222,52 @@
       <para>The &man.gre.4; driver, which is for GRE encapsulation
 	found in RFC 1701 and RFC 1702 now supports IPv6 over GRE.</para>
 
+      <para>The path MTU discovery for multicast packets in the &os;
+	&man.ip6.4; stack has been disabled by default because
+	notifying path MTU by a lot of routers in multicast
+	can be a kind of distributed Denial-of-Service attack to a router.
+	This feature can be enabled by using a new sysctl variable
+	<varname>net.inet6.ip6.mcast_pmtu</varname>.</para>
+
       <para>The &man.ipfw.4;, IP packet filter now supports IPv6.
 	The &man.ip6fw.8; is deprecated and will be removed
 	in the future releases.</para>
 
       <para>The &man.natm.4;, Native Mode ATM protocol layer is now MPSAFE.</para>
+
+      <para>A new sysctl variable <varname>net.inet.icmp.reply_from_interface</varname>
+	has been added.  This allows the &man.icmp.4;
+	reply to non-local packets generated with
+	the IP address the packet came through in.
+	This is useful for routers to show in &man.traceroute.8;
+	the actual path a packet has taken instead of
+	the possibly different return path.</para>
+
+      <para>A new sysctl variable <varname>net.inet.icmp.quotelen</varname>
+	has been added.  This allows to change length of
+	the quotation of the original packet in an ICMP reply.
+	The minimum of 8 bytes is internally enforced.
+	The maximum quotation is the remaining space in the
+	reply mbuf.  This option is added in response to the
+	issues raised in I-D
+	<filename>draft-gont-icmp-payload-00.txt</filename>.</para>
+
+      <para>The &man.icmp.4; now always quotes the entire TCP header
+	when responding and allocate an mbuf cluster if needed.
+	This change fixes the TCP issues raised in I-D
+	<filename>draft-gont-icmp-payload-00.txt</filename>.</para>
+
+      <para>A new socket option <literal>IP_MINTTL</literal> has been added.
+	This may be used to set the minimum acceptable
+	TTL a packet must have when received on a socket.
+	All packets with a lower TTL are silently dropped,
+	and this works on already connected/connecting and
+	listening sockets for RAW, UDP, and TCP.  This option
+	is only really useful when set to 255 preventing packets
+	from outside the directly connected networks reaching
+	local listeners on sockets.  Also, this option allows
+	userland implementation of <quote>The Generalized TTL
+	  Security Mechanism (GTSM)</quote> found in RFC 3682.</para>
 
       <para>The stealth forwarding now supports IPv6 as well as IPv4.
 	This behavior can be controlled by using a new sysctl variable
@@ -217,6 +276,11 @@
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
+
+      <para>The &man.ata.4; driver now supports a workaround
+	for some controllers whose DMA does not work properly
+	in 48bit mode.  For the suspicious controllers
+	the PIO mode will be used for access to over 137GB areas.</para>
 
       <para>A new GEOM class <literal>GEOM_ZERO</literal> has been added.
 	It creates very huge provider (41PB) <filename>/dev/gzero</filename>
@@ -277,6 +341,10 @@
       have been added.  These are tools for constructing and
       applying binary patches.</para>
 
+    <para>The &man.cmp.1; utility now supports an <option>-h</option>
+      flag to compare the symbolic link itself rather than the
+      file that the link points to.</para>
+
     <para>The &man.ifconfig.8; utility now supports
       a <option>-k</option> flag to allow printing
       potentially sensitive keying material to standard output.
@@ -289,15 +357,37 @@
       statistics, wrapped around the binary stream sysctl variables
       for the allocators. &merged;</para>
 
+    <para>A new function &man.memmem.3; has been implemented in
+      <filename>libc</filename>.  This is the binary equivalent to
+      &man.strstr.3; and found in <filename>glibc</filename>.</para>
+
     <para>The &man.moused.8; now supports an <option>-H</option> flag
       to enable horizontal virtual scrolling similar to a
       <option>-V</option> flag for vertical virtual scrolling.</para>
+
+    <para>The &man.netstat.1; utility now supports an
+      <option>-h</option> flag for interface stats mode,
+      which prints all interface statistics in human readable form.</para>
+
+    <para>A new functions, &man.pidfile.3;, which allow reliable
+      pidfiles handling have been implemented in
+      <filename>libutil</filename>.</para>
 
     <para>The &man.ping.8; utility now supports <quote>a sweeping
 	ping</quote> in which &man.icmp.4; payload of
       packets being sent is increased with given step.
       This is useful for testing problematic channels, MTU issues
       or traffic policing functions in networks.</para>
+
+    <para>The &man.pkill.1; utility now supports a
+      <option>-F</option> option which allows to
+      restrict matches to a process whose PID is stored in the
+      pidfile file.  When another new option <option>-L</option>
+      is also specified, the pidfile file must be locked with the
+      &man.flock.2; syscall or created with &man.pidfile.3;.</para>
+
+    <para>The &man.powerd.8; program now supports a
+      <option>-P</option> option which allows to specify pidfile.</para>
 
     <para>The shared library version number of all libraries have
       been updated due to some possible ABI changes.  The libraries
@@ -326,6 +416,15 @@
       <para>The <filename>geli</filename> and <filename>geli2</filename>
 	scripts has been added for &man.geli.8; device
 	configuration on boot.</para>
+
+      <para>The <varname>removable_interfaces</varname> variable
+	has been removed.</para>
+
+      <para>A new variable <varname>ifconfig_<replaceable>ifn</replaceable></varname>
+	has been added. This allows
+	<filename>/etc/rc.d/netif</filename>
+	to be used to start and stop an interface
+	on a purely manual basis.</para>
     </sect3>
   </sect2>
 
@@ -359,7 +458,69 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The default partition sizing algorithm of the
+      &man.sysinstall.8; utility has been changed.</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>On systems where the disk capacity is larger than (3 * RAMsize + 10GB),
+	  the default sizes will now be as follows:</para>
+
+	<informaltable frame="none" pgwide="0">
+	  <tgroup cols="2">
+	    <colspec colwidth="1*">
+	    <colspec colwidth="2*">
+	    <thead>
+	      <row>
+		<entry>Partition</entry>
+		<entry>Size</entry>
+	      </row>
+	    </thead>
+
+	    <tbody>
+	      <row><entry>swap</entry><entry>RAMsize * 2</entry></row>
+	      <row><entry><filename>/</filename></entry><entry>512 MB</entry></row>
+	      <row><entry><filename>/tmp</filename></entry><entry>512 MB</entry></row>
+	      <row><entry><filename>/var</filename></entry><entry>1024 MB + RAMsize</entry></row>
+	      <row><entry><filename>/usr</filename></entry><entry>the rest (8GB or more)</entry></row>
+	    </tbody>
+	  </tgroup>
+	</informaltable>
+      </listitem>
+
+      <listitem>
+	<para>On systems where the disk capacity is larger than
+	  (RAMsize / 8 + 2 GB), the default sizes will be
+	  in the following ranges, with space allocated
+	  proportionally:</para>
+
+	<informaltable frame="none" pgwide="0">
+	  <tgroup cols="2">
+	    <colspec colwidth="1*">
+	    <colspec colwidth="2*">
+	    <thead>
+	      <row>
+		<entry>Partition</entry>
+		<entry>Size</entry>
+	      </row>
+	    </thead>
+
+	    <tbody>
+	      <row><entry>swap</entry><entry>from RAMsize / 8 to RAMsize * 2</entry></row>
+	      <row><entry><filename>/</filename></entry><entry>from 256MB to 512MB</entry></row>
+	      <row><entry><filename>/tmp</filename></entry><entry>from 128MB to 512MB</entry></row>
+	      <row><entry><filename>/var</filename></entry><entry>from 128MB to 1024MB</entry></row>
+	      <row><entry><filename>/usr</filename></entry><entry>from 1536MB to 8192MB</entry></row>
+	    </tbody>
+	  </tgroup>
+	</informaltable>
+      </listitem>
+
+      <listitem>
+	<para>On systems with even less disk space, the existing behavior is not
+	  changed.</para>
+      </listitem>
+    </itemizedlist>
   </sect2>
 
   <sect2 id="doc">
