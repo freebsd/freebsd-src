@@ -73,7 +73,7 @@ static unsigned i80321_timer_get_timecount(struct timecounter *tc);
 static uint32_t counts_per_hz;
 
 static uint32_t offset = 0;
-static int32_t last = -1;
+static uint32_t last = -1;
 static int ticked = 0;
 
 #define	COUNTS_PER_SEC		200000000	/* 200MHz */
@@ -236,7 +236,7 @@ tisr_read(void)
 static unsigned
 i80321_timer_get_timecount(struct timecounter *tc)
 {
-	int32_t cur = tcr0_read();
+	uint32_t cur = tcr0_read();
 	
 	if (cur > last && last != -1) {
 		offset += counts_per_hz;
@@ -250,6 +250,7 @@ i80321_timer_get_timecount(struct timecounter *tc)
 	last = cur;
 	return (counts_per_hz - cur + offset);
 }
+
 /*
  * i80321_calibrate_delay:
  *
