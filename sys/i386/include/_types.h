@@ -64,6 +64,8 @@ typedef	long long		__int64_t;
 typedef	unsigned long long	__uint64_t;
 #endif
 
+#define __NO_STRICT_ALIGNMENT
+
 /*
  * Standard type definitions.
  */

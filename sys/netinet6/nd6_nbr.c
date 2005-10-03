@@ -966,6 +966,7 @@ nd6_ifptomac(ifp)
 #ifdef IFT_CARP
 	case IFT_CARP:
 #endif
+	case IFT_BRIDGE:
 	case IFT_ISO88025:
 		return ((caddr_t)(ifp + 1));
 	default:

@@ -121,6 +121,8 @@ static struct dn_flow_set *all_flow_sets = NULL ;/* list of all flow_sets */
 
 static struct callout dn_timeout;
 
+extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
+
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet,
 		CTLFLAG_RW, 0, "Dummynet");
@@ -497,6 +499,14 @@ transmit_event(struct dn_pipe *pipe)
 
 	case DN_TO_ETH_OUT:
 	    ether_output_frame(pkt->ifp, m);
+	    break;
+
+	case DN_TO_IFB_FWD:
+	    if (bridge_dn_p != NULL)
+	        ((*bridge_dn_p)(m, pkt->ifp));
+	    else
+		printf("dummynet: if_bridge not loaded\n");
+
 	    break;
 
 	default:

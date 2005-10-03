@@ -178,7 +178,7 @@ struct ifnet {
 		(void *);
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
 		(struct ifnet *, struct sockaddr **, struct sockaddr *);
-	void	*if_spare1;		/* spare pointer 1 */
+	void	*if_bridge;		/* bridge glue */
 	void	*if_spare2;		/* spare pointer 2 */
 	void	*if_spare3;		/* spare pointer 3 */
 	u_int	if_spare_flags1;	/* spare flags 1 */

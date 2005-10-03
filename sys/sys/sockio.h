@@ -105,6 +105,11 @@
 #define	SIOCGPRIVATE_0	_IOWR('i', 80, struct ifreq)	/* device private 0 */
 #define	SIOCGPRIVATE_1	_IOWR('i', 81, struct ifreq)	/* device private 1 */
 
+#define	SIOCSDRVSPEC	_IOW('i', 123, struct ifdrv)	/* set driver-specific
+								  parameters */
+#define	SIOCGDRVSPEC	_IOWR('i', 123, struct ifdrv)	/* get driver-specific
+								  parameters */
+
 #define	SIOCIFCREATE	_IOWR('i', 122, struct ifreq)	/* create clone if */
 #define	SIOCIFDESTROY	 _IOW('i', 121, struct ifreq)	/* destroy clone if */
 #define	SIOCIFGCLONERS	_IOWR('i', 120, struct if_clonereq) /* get cloners */

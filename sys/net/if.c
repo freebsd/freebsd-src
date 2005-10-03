@@ -324,6 +324,7 @@ if_findindex(struct ifnet *ifp)
 	case IFT_XETHER:
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
+	case IFT_BRIDGE:
 		snprintf(eaddr, 18, "%6D", IFP2AC(ifp)->ac_enaddr, ":");
 		break;
 	default:
@@ -1847,6 +1848,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_XETHER:
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
+	case IFT_BRIDGE:
 		bcopy(lladdr, IFP2AC(ifp)->ac_enaddr, len);
 		/*
 		 * XXX We also need to store the lladdr in LLADDR(sdl),
