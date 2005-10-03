@@ -48,6 +48,8 @@
         ..
         iicbus
         ..
+	lmc
+	..
         ofw
         ..
         pbio
