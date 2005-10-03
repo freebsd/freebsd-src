@@ -139,6 +139,7 @@ struct pcpu *pcpup = &__pcpu;
 /* Physical and virtual addresses for some global pages */
 
 vm_paddr_t phys_avail[10];
+vm_paddr_t dump_avail[4];
 vm_paddr_t physical_start;
 vm_paddr_t physical_end;
 vm_paddr_t physical_freestart;
@@ -407,10 +408,10 @@ initarm(void *arg, void *arg2)
 	mutex_init();
 	
 	
-	phys_avail[0] = round_page(virtual_avail);
-	phys_avail[1] = 0xc0000000 + 0x02000000 - 1;
-	phys_avail[2] = 0;
-	phys_avail[3] = 0;
+	dump_avail[0] = phys_avail[0] = round_page(virtual_avail);
+	dump_avail[1] = phys_avail[1] = 0xc0000000 + 0x02000000 - 1;
+	dump_avail[2] = phys_avail[2] = 0;
+	dump_avail[3] = phys_avail[3] = 0;
 	
 	/* Do basic tuning, hz etc */
 	init_param1();
