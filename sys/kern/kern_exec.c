@@ -230,6 +230,13 @@ __mac_execve(td, uap)
 #endif
 }
 
+/*
+ * XXX: kern_execve has the astonishing property of not always
+ * returning to the caller.  If sufficiently bad things happen during
+ * the call to do_execve(), it can end up calling exit1(); as a result,
+ * callers must avoid doing anything which they might need to undo
+ * (e.g., allocating memory).
+ */
 int
 kern_execve(td, args, mac_p)
 	struct thread *td;
@@ -782,6 +789,7 @@ exec_fail:
 			mac_vnode_label_free(interplabel);
 #endif
 		VFS_UNLOCK_GIANT(vfslocked);
+		exec_free_args(args);
 		exit1(td, W_EXITCODE(0, SIGABRT));
 		/* NOT REACHED */
 		error = 0;
