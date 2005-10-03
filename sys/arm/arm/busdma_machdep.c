@@ -189,7 +189,8 @@ _busdma_alloc_dmamap(void)
 
 	mtx_lock(&busdma_mtx);
 	map = TAILQ_FIRST(&dmamap_freelist);
-	TAILQ_REMOVE(&dmamap_freelist, map, freelist);
+	if (map)
+		TAILQ_REMOVE(&dmamap_freelist, map, freelist);
 	mtx_unlock(&busdma_mtx);
 	if (!map) {
 		map = malloc(sizeof(*map), M_DEVBUF, M_NOWAIT);
@@ -493,10 +494,14 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
 				} else {
 					curaddr = (pte & L2_S_FRAME) |
 					    (vaddr & L2_S_OFFSET);
+					pmap_uncache(ptep);
+					map->flags |= DMAMAP_UNCACHED;
+#if 0
 					if (pte & L2_S_CACHE_MASK) {
 						map->flags &=
 						    ~DMAMAP_COHERENT;
 					}
+#endif
 				}
 			}
 		} else {
@@ -769,7 +774,43 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
  */
 void
 _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
-{
+{	
+	struct mbuf *m;
+	struct uio *uio;
+	int resid;
+	struct iovec *iov;
+
+	if (map->flags & DMAMAP_UNCACHED) {
+		switch(map->flags & DMAMAP_TYPE_MASK) {
+		case DMAMAP_LINEAR:
+			pmap_recache(map->buffer, len);
+			break;
+		case DMAMAP_MBUF:
+			m = map->buffer;
+			while (m) {
+				if (m->m_len > 0)
+					pmap_recache(m->m_data, len);
+				m = m->m_next;
+			}
+			break;
+		case DMAMAP_UIO:
+			uio = map->buffer;
+			iov = uio->uio_iov;
+			resid = uio->uio_resid;
+			for (int i = 0; i < uio->uio_iovcnt && resid != 0; i++) {
+				bus_size_t minlen = resid < iov[i].iov_len ? resid :
+				    iov[i].iov_len;
+				if (minlen > 0) {
+					pmap_recache(iov[i].iov_base, minlen);
+					resid -= minlen;
+				}
+			}
+			break;
+		default:
+			break;
+		}
+		
+	}
 	map->flags &= ~DMAMAP_TYPE_MASK;
 	return;
 }
@@ -799,9 +840,11 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	
 	if (!(op & (BUS_DMASYNC_PREWRITE | BUS_DMASYNC_POSTREAD)))
 		return;
-	if (map->flags & DMAMAP_COHERENT)
+	if (map->flags & DMAMAP_COHERENT) {
+		printf("COHERENT\n");
 		return;
-	if ((op && BUS_DMASYNC_POSTREAD) && (map->len > PAGE_SIZE)) {
+	}
+	if ((op && BUS_DMASYNC_POSTREAD) && (map->len >= 2 * PAGE_SIZE)) {
 		cpu_dcache_wbinv_all();
 		return;
 	}
