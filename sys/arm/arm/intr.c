@@ -108,6 +108,7 @@ arm_handler_execute(void *frame, int irqnb)
 
 	td->td_intr_nesting_level++;
 	while ((i = arm_get_next_irq()) != -1) {
+		arm_mask_irq(i);
 		intrcnt[intrcnt_tab[i]]++;
 		ithd = ithreads[i];
 		if (!ithd)
@@ -119,10 +120,9 @@ arm_handler_execute(void *frame, int irqnb)
 				ih->ih_handler(ih->ih_argument ?
 				    ih->ih_argument : frame);
 			}
-		} else if (ih) {
-			arm_mask_irq(i);
+			arm_unmask_irq(i);
+		} else if (ih)
 			ithread_schedule(ithd);
-		}
 	}
 	td->td_intr_nesting_level--;
 }
