@@ -529,7 +529,6 @@ struct lge_softc {
 	struct resource		*lge_irq;
 	void			*lge_intrhand;
 	device_t		lge_miibus;
-	u_int8_t		lge_unit;
 	u_int8_t		lge_type;
 	u_int8_t		lge_link;
 	u_int8_t		lge_pcs;
