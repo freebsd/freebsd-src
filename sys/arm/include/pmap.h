@@ -516,6 +516,8 @@ struct arm_small_page {
 	void *addr;
 	TAILQ_ENTRY(arm_small_page) pg_list;
 };
+
+extern vm_paddr_t dump_avail[];
 #endif
 #endif	/* _KERNEL */
 
