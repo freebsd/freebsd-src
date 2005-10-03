@@ -78,6 +78,7 @@ struct vlan_mc_entry {
 struct	ifvlan {
 	struct	ifnet *ifv_ifp;
 	struct	ifnet *ifv_p;	/* parent inteface of this vlan */
+	int	ifv_pflags;	/* special flags we have set on parent */
 	struct	ifv_linkmib {
 		int	ifvm_parent;
 		int	ifvm_encaplen;	/* encapsulation length */
@@ -88,14 +89,21 @@ struct	ifvlan {
 	}	ifv_mib;
 	SLIST_HEAD(__vlan_mchead, vlan_mc_entry)	vlan_mc_listhead;
 	LIST_ENTRY(ifvlan) ifv_list;
-	int	ifv_flags;
 };
 #define	ifv_tag	ifv_mib.ifvm_tag
 #define	ifv_encaplen	ifv_mib.ifvm_encaplen
 #define	ifv_mtufudge	ifv_mib.ifvm_mtufudge
 #define	ifv_mintu	ifv_mib.ifvm_mintu
 
-#define	IFVF_PROMISC	0x01		/* promiscuous mode enabled */
+/* Special flags we should propagate to parent */
+static struct {
+	int flag;
+	int (*func)(struct ifnet *, int);
+} vlan_pflags[] = {
+	{IFF_PROMISC, ifpromisc},
+	{IFF_ALLMULTI, if_allmulti},
+	{0, NULL}
+};
 
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0, "IEEE 802.1Q VLAN");
@@ -120,11 +128,13 @@ static	void vlan_start(struct ifnet *ifp);
 static	void vlan_ifinit(void *foo);
 static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
 static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
+static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
+    int (*func)(struct ifnet *, int));
+static	int vlan_setflags(struct ifnet *ifp, int status);
 static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_unconfig(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p);
 static	void vlan_link_state(struct ifnet *ifp, int link);
-static	int vlan_set_promisc(struct ifnet *ifp);
 
 static	struct ifnet *vlan_clone_match_ethertag(struct if_clone *,
     const char *, int *);
@@ -416,8 +426,8 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		VLAN_UNLOCK();
 
-		/* Update promiscuous mode, if necessary. */
-		vlan_set_promisc(ifp);
+		/* Update flags on the parent, if necessary. */
+		vlan_setflags(ifp, 1);
 	}
 
 	return (0);
@@ -651,18 +661,19 @@ static int
 vlan_config(struct ifvlan *ifv, struct ifnet *p)
 {
 	struct ifaddr *ifa1, *ifa2;
+	struct ifnet *ifp;
 	struct sockaddr_dl *sdl1, *sdl2;
 
 	VLAN_LOCK_ASSERT();
 
-	if (p->if_data.ifi_type != IFT_ETHER)
+	if (p->if_type != IFT_ETHER)
 		return (EPROTONOSUPPORT);
 	if (ifv->ifv_p)
 		return (EBUSY);
 
 	ifv->ifv_encaplen = ETHER_VLAN_ENCAP_LEN;
 	ifv->ifv_mintu = ETHERMIN;
-	ifv->ifv_flags = 0;
+	ifv->ifv_pflags = 0;
 
 	/*
 	 * The active VLAN counter on the parent is used
@@ -694,14 +705,19 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	}
 
 	ifv->ifv_p = p;
-	ifv->ifv_ifp->if_mtu = p->if_mtu - ifv->ifv_mtufudge;
+	ifp = ifv->ifv_ifp;
+	ifp->if_mtu = p->if_mtu - ifv->ifv_mtufudge;
 	/*
 	 * Copy only a selected subset of flags from the parent.
 	 * Other flags are none of our business.
 	 */
-	ifv->ifv_ifp->if_flags = (p->if_flags &
-	    (IFF_BROADCAST | IFF_MULTICAST | IFF_SIMPLEX | IFF_POINTOPOINT));
-	ifv->ifv_ifp->if_link_state = p->if_link_state;
+#define VLAN_COPY_FLAGS \
+    (IFF_BROADCAST | IFF_MULTICAST | IFF_SIMPLEX | IFF_POINTOPOINT)
+	ifp->if_flags &= ~VLAN_COPY_FLAGS;
+	ifp->if_flags |= p->if_flags & VLAN_COPY_FLAGS;
+#undef VLAN_COPY_FLAGS
+
+	ifp->if_link_state = p->if_link_state;
 
 #if 0
 	/*
@@ -715,27 +731,27 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	 * assisted checksumming flags.
 	 */
 	if (p->if_capabilities & IFCAP_VLAN_HWTAGGING)
-		ifv->ifv_ifpif_capabilities |= p->if_capabilities & IFCAP_HWCSUM;
+		ifp->if_capabilities |= p->if_capabilities & IFCAP_HWCSUM;
 #endif
 
 	/*
 	 * Set up our ``Ethernet address'' to reflect the underlying
 	 * physical interface's.
 	 */
-	ifa1 = ifaddr_byindex(ifv->ifv_ifp->if_index);
+	ifa1 = ifaddr_byindex(ifp->if_index);
 	ifa2 = ifaddr_byindex(p->if_index);
 	sdl1 = (struct sockaddr_dl *)ifa1->ifa_addr;
 	sdl2 = (struct sockaddr_dl *)ifa2->ifa_addr;
 	sdl1->sdl_type = IFT_ETHER;
 	sdl1->sdl_alen = ETHER_ADDR_LEN;
 	bcopy(LLADDR(sdl2), LLADDR(sdl1), ETHER_ADDR_LEN);
-	bcopy(LLADDR(sdl2), IFP2ENADDR(ifv->ifv_ifp), ETHER_ADDR_LEN);
+	bcopy(LLADDR(sdl2), IFP2ENADDR(ifp), ETHER_ADDR_LEN);
 
 	/*
 	 * Configure multicast addresses that may already be
 	 * joined on the vlan device.
 	 */
-	(void)vlan_setmulti(ifv->ifv_ifp); /* XXX: VLAN lock held */
+	(void)vlan_setmulti(ifp); /* XXX: VLAN lock held */
 
 	return (0);
 }
@@ -781,13 +797,15 @@ vlan_unconfig(struct ifnet *ifp)
 			free(mc, M_VLAN);
 		}
 
+		vlan_setflags(ifp, 0); /* clear special flags on parent */
 		p->if_nvlans--;
 	}
 
 	/* Disconnect from parent. */
+	if (ifv->ifv_pflags)
+		if_printf(ifp, "%s: ifv_pflags unclean\n", __func__);
 	ifv->ifv_p = NULL;
 	ifv->ifv_ifp->if_mtu = ETHERMTU;		/* XXX why not 0? */
-	ifv->ifv_flags = 0;
 	ifv->ifv_ifp->if_link_state = LINK_STATE_UNKNOWN;
 
 	/* Clear our MAC address. */
@@ -801,27 +819,56 @@ vlan_unconfig(struct ifnet *ifp)
 	return (0);
 }
 
+/* Handle a reference counted flag that should be set on the parent as well */
 static int
-vlan_set_promisc(struct ifnet *ifp)
+vlan_setflag(struct ifnet *ifp, int flag, int status,
+	     int (*func)(struct ifnet *, int))
 {
-	struct ifvlan *ifv = ifp->if_softc;
-	int error = 0;
+	struct ifvlan *ifv;
+	int error;
 
-	if ((ifp->if_flags & IFF_PROMISC) != 0) {
-		if ((ifv->ifv_flags & IFVF_PROMISC) == 0) {
-			error = ifpromisc(ifv->ifv_p, 1);
-			if (error == 0)
-				ifv->ifv_flags |= IFVF_PROMISC;
-		}
-	} else {
-		if ((ifv->ifv_flags & IFVF_PROMISC) != 0) {
-			error = ifpromisc(ifv->ifv_p, 0);
-			if (error == 0)
-				ifv->ifv_flags &= ~IFVF_PROMISC;
-		}
+	/* XXX VLAN_LOCK_ASSERT(); */
+
+	ifv = ifp->if_softc;
+	status = status ? (ifp->if_flags & flag) : 0;
+	/* Now "status" contains the flag value or 0 */
+
+	/*
+	 * See if recorded parent's status is different from what
+	 * we want it to be.  If it is, flip it.  We record parent's
+	 * status in ifv_pflags so that we won't clear parent's flag
+	 * we haven't set.  In fact, we don't clear or set parent's
+	 * flags directly, but get or release references to them.
+	 * That's why we can be sure that recorded flags still are
+	 * in accord with actual parent's flags.
+	 */
+	if (status != (ifv->ifv_pflags & flag)) {
+		error = (*func)(ifv->ifv_p, status);
+		if (error)
+			return (error);
+		ifv->ifv_pflags &= ~flag;
+		ifv->ifv_pflags |= status;
 	}
+	return (0);
+}
 
-	return (error);
+/*
+ * Handle IFF_* flags that require certain changes on the parent:
+ * if "status" is true, update parent's flags respective to our if_flags;
+ * if "status" is false, forcedly clear the flags set on parent.
+ */
+static int
+vlan_setflags(struct ifnet *ifp, int status)
+{
+	int error, i;
+	
+	for (i = 0; vlan_pflags[i].flag; i++) {
+		error = vlan_setflag(ifp, vlan_pflags[i].flag,
+				     status, vlan_pflags[i].func);
+		if (error)
+			return (error);
+	}
+	return (0);
 }
 
 /* Inform all vlans that their parent has changed link state */
@@ -960,8 +1007,8 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		VLAN_UNLOCK();
 
-		/* Update promiscuous mode, if necessary. */
-		vlan_set_promisc(ifp);
+		/* Update flags on the parent, if necessary. */
+		vlan_setflags(ifp, 1);
 		break;
 
 	case SIOCGETVLAN:
@@ -978,11 +1025,11 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		
 	case SIOCSIFFLAGS:
 		/*
-		 * For promiscuous mode, we enable promiscuous mode on
-		 * the parent if we need promiscuous on the VLAN interface.
+		 * We should propagate selected flags to the parent,
+		 * e.g., promiscuous mode.
 		 */
 		if (ifv->ifv_p != NULL)
-			error = vlan_set_promisc(ifp);
+			error = vlan_setflags(ifp, 1);
 		break;
 
 	case SIOCADDMULTI:
