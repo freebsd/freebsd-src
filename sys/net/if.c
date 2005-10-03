@@ -1266,14 +1266,18 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			if_up(ifp);
 			splx(s);
 		}
+		/* See if permanently promiscuous mode bit is about to flip */
+		if ((ifp->if_flags ^ new_flags) & IFF_PPROMISC) {
+			if (new_flags & IFF_PPROMISC)
+				ifp->if_flags |= IFF_PROMISC;
+			else if (ifp->if_pcount == 0)
+				ifp->if_flags &= ~IFF_PROMISC;
+			log(LOG_INFO, "%s: permanently promiscuous mode %s\n",
+			    ifp->if_xname,
+			    (new_flags & IFF_PPROMISC) ? "enabled" : "disabled");
+		}
 		ifp->if_flags = (ifp->if_flags & IFF_CANTCHANGE) |
 			(new_flags &~ IFF_CANTCHANGE);
-		if (new_flags & IFF_PPROMISC) {
-			/* Permanently promiscuous mode requested */
-			ifp->if_flags |= IFF_PROMISC;
-		} else if (ifp->if_pcount == 0) {
-			ifp->if_flags &= ~IFF_PROMISC;
-		}
 		if (ifp->if_ioctl) {
 			IFF_LOCKGIANT(ifp);
 			(void) (*ifp->if_ioctl)(ifp, cmd, data);
