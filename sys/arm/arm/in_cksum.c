@@ -90,18 +90,6 @@ in_addword(u_short a, u_short b)
 }
 
 u_short
-in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
-{
-	u_int64_t sum;
-	union q_util q_util;
-	union l_util l_util;
-		    
-	sum = (u_int64_t) a + b + c;
-	REDUCE16;
-	return (sum);
-}
-
-u_short
 in_cksum_skip(struct mbuf *m, int len, int skip)
 {
 	u_int64_t sum = 0;
