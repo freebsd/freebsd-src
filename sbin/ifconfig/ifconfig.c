@@ -288,6 +288,29 @@ struct	cmd {
 	{ "pass",	NEXTARG,	setcarp_passwd },
 	{ "vhid",	NEXTARG,	setcarp_vhid },
 #endif
+#ifdef USE_BRIDGE
+	{ "addm",	NEXTARG,	setbridge_add },
+	{ "deletem",	NEXTARG,	setbridge_delete },
+	{ "discover",	NEXTARG,	setbridge_discover },
+	{ "-discover",	NEXTARG,	unsetbridge_discover },
+	{ "learn",	NEXTARG,	setbridge_learn },
+	{ "-learn",	NEXTARG,	unsetbridge_learn },
+	{ "stp",	NEXTARG,	setbridge_stp },
+	{ "-stp",	NEXTARG,	unsetbridge_stp },
+	{ "flush",	0,		setbridge_flush },
+	{ "flushall",	0,		setbridge_flushall },
+	{ "static",	NEXTARG2,	NULL,	setbridge_static },
+	{ "deladdr",	NEXTARG,	setbridge_deladdr },
+	{ "addr",	1,		setbridge_addr },
+	{ "maxaddr",	NEXTARG,	setbridge_maxaddr },
+	{ "hellotime",	NEXTARG,	setbridge_hellotime },
+	{ "fwddelay",	NEXTARG,	setbridge_fwddelay },
+	{ "maxage",	NEXTARG,	setbridge_maxage },
+	{ "priority",	NEXTARG,	setbridge_priority },
+	{ "ifpriority",	NEXTARG2,	NULL,	setbridge_ifpriority },
+	{ "ifpathcost",	NEXTARG2,	NULL,	setbridge_ifpathcost },
+	{ "timeout",	NEXTARG,	setbridge_timeout },
+#endif
 	{ "rxcsum",	IFCAP_RXCSUM,	setifcap },
 	{ "-rxcsum",	-IFCAP_RXCSUM,	setifcap },
 	{ "txcsum",	IFCAP_TXCSUM,	setifcap },
@@ -379,6 +402,9 @@ struct	afswtch {
 #endif
 #ifdef USE_MAC
 	{ "maclabel", AF_UNSPEC, maclabel_status, NULL, NULL, },
+#endif
+#ifdef USE_BRIDGE
+	{ "bridge", AF_UNSPEC, bridge_status, NULL, NULL, },
 #endif
 #endif
 	{ 0,	0,	    0,		0 }
@@ -1192,6 +1218,10 @@ status(const struct afswtch *afp, int addrcount, struct	sockaddr_dl *sdl,
 #ifdef USE_CARP
 	if (allfamilies || afp->af_status == carp_status)
 		carp_status(s, NULL);
+#endif
+#ifdef USE_BRIDGE
+	if (allfamilies || afp->af_status == bridge_status)
+		bridge_status(s, NULL);
 #endif
 #ifdef USE_MAC
 	if (allfamilies || afp->af_status == maclabel_status)

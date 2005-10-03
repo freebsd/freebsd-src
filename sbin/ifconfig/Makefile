@@ -31,6 +31,10 @@ SRCS+=	ifpfsync.c
 CFLAGS+=-DUSE_PFSYNC
 .endif
 
+#comment out to exclude if_bridge support
+SRCS+=	ifbridge.c
+CFLAGS+=-DUSE_BRIDGE
+
 MAN=	ifconfig.8
 
 .if defined(RELEASE_CRUNCH)

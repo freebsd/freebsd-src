@@ -583,6 +583,7 @@ device		tap			#Virtual Ethernet driver
 device		tun			#Tunnel driver (ppp(8), nos-tun(8))
 device		sl			#Serial Line IP
 device		gre			#IP over IP tunneling
+device		if_bridge		#Bridge interface
 device		pf			#PF OpenBSD packet-filter firewall
 device		pflog			#logging support interface for PF
 device		pfsync			#synchronization interface for PF
