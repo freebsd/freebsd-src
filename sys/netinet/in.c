@@ -1044,8 +1044,8 @@ in_delmulti(inm)
 	if_delmulti(ifma->ifma_ifp, ifma->ifma_addr);
 	if (my_inm.inm_ifp != NULL)
 		igmp_leavegroup(&my_inm);
-	IFF_UNLOCKGIANT(ifp);
 	IN_MULTI_UNLOCK();
+	IFF_UNLOCKGIANT(ifp);
 }
 
 /*
