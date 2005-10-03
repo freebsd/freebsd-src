@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20051004:
+	if_bridge has been merged which provides more advanced Ethernet
+	bridging and 802.1d spanning tree support. See if_bridge(4) for
+	configuration details.
+
 20050513:
 	Intel Hyper-Threading is now disabled by default due to a
 	security issue, but can be re-enabled by setting the
