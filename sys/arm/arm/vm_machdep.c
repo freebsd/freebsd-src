@@ -8,7 +8,7 @@
  * the Systems Programming Group of the University of Utah Computer
  * Science Department, and William Jolitz.
  *
- * Redistribution and use in source and binary forms, with or without
+ * Redistribution and use in source and binary :forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
@@ -242,7 +242,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	sf->m = m;
 	nsfbufsused++;
 	nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-	pmap_qenter(sf->kva, &sf->m, 1);
+	pmap_kenter(sf->kva, VM_PAGE_TO_PHYS(sf->m));
 done:
 	mtx_unlock(&sf_buf_lock);
 	return (sf);
@@ -409,7 +409,6 @@ arm_uma_do_alloc(struct arm_small_page **pglist, int bytes, int pagetable)
 {
 	void *ret;
 	vm_page_t page_array = NULL;
-
 	    
 	*pglist = (void *)kmem_malloc(kmem_map, (0x100000 / PAGE_SIZE) *
 	    sizeof(struct arm_small_page), M_WAITOK);
@@ -430,8 +429,6 @@ arm_uma_do_alloc(struct arm_small_page **pglist, int bytes, int pagetable)
 		mtx_unlock(&smallalloc_mtx);
 		pmap_kenter_section((vm_offset_t)ret, pa
 		    , pagetable);
-
-		
 	} else {
 		kmem_free(kmem_map, (vm_offset_t)*pglist, 
 		    (0x100000 / PAGE_SIZE) * sizeof(struct arm_small_page));
@@ -447,6 +444,8 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	void *ret;
 	struct arm_small_page *sp, *tmp;
 	TAILQ_HEAD(,arm_small_page) *head;
+	static int in_alloc;
+	static int in_sleep;
 	
 	*flags = UMA_SLAB_PRIV;
 	/*
@@ -459,12 +458,24 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		head = (void *)&pages_normal;
 
 	mtx_lock(&smallalloc_mtx);
+retry:
 	sp = TAILQ_FIRST(head);
 
 	if (!sp) {
 		/* No more free pages, need to alloc more. */
+		if (in_alloc && (wait & M_WAITOK)) {
+			/* Somebody else is already doing the allocation. */
+			in_sleep++;
+			msleep(&in_alloc, &smallalloc_mtx, PWAIT, 
+			    "smallalloc", 0);
+			in_sleep--;
+			goto retry;
+		}
+		if (wait & M_WAITOK)
+			in_alloc = 1;
 		mtx_unlock(&smallalloc_mtx);
 		if (!(wait & M_WAITOK)) {
+			*flags = UMA_SLAB_KMEM;
 			ret = (void *)kmem_malloc(kmem_map, bytes, wait);
 			return (ret);
 		}
@@ -482,7 +493,8 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 			ret = (char *)ret + 0x100000 - PAGE_SIZE;
 			TAILQ_INSERT_HEAD(&free_pgdesc, &sp[(0x100000 / (
 			    PAGE_SIZE)) - 1], pg_list);
-		}
+		} else
+			*flags = UMA_SLAB_KMEM;
 			
 	} else {
 		sp = TAILQ_FIRST(head);
@@ -490,6 +502,9 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		TAILQ_INSERT_HEAD(&free_pgdesc, sp, pg_list);
 		ret = sp->addr;
 	}
+	in_alloc = 0;
+	if (in_sleep)
+		wakeup(&in_alloc);
 	mtx_unlock(&smallalloc_mtx);
 	if ((wait & M_ZERO))
 		bzero(ret, bytes);
@@ -502,7 +517,7 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	pd_entry_t *pd;
 	pt_entry_t *pt;
 
-	if (mem < (void *)alloc_firstaddr)
+	if (flags & UMA_SLAB_KMEM)
 		kmem_free(kmem_map, (vm_offset_t)mem, size);
 	else {
 		struct arm_small_page *sp;
