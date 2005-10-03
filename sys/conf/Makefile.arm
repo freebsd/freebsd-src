@@ -44,6 +44,15 @@ SYSTEM_LD += -EB
 .if !defined(DEBUG)
 CFLAGS += -mno-apcs-frame
 .endif
+
+DDB_ENABLED!=	grep DDB opt_ddb.h || true
+
+.if defined(DDB_ENABLED)
+SYSTEM_LD_TAIL += ;echo "\#define KERNNAME \"${KERNEL_KO}\"" >opt_kernname.h ; \
+	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.arm \
+	$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S -o ${KERNEL_KO}.tramp
+.endif
+
 %BEFORE_DEPEND
 
 %OBJS
