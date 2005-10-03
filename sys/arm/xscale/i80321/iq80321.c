@@ -261,6 +261,9 @@ iq80321_attach(device_t dev)
 	device_add_child(dev, "iopwdog", 0);
 	device_add_child(dev, "iqseg", 0);
 	device_add_child(dev, "pcib", busno);
+	device_add_child(dev, "i80321_dma", 0);
+	device_add_child(dev, "i80321_dma", 1);
+	device_add_child(dev, "i80321_aau", 0);
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
