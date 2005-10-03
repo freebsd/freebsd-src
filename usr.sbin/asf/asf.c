@@ -242,11 +242,13 @@ main(int argc, char *argv[])
 	if ((!(strstr(buf, "kernel")))
 	    && buf[0] != 'I') {
 	    quad_t base;
-	    quad_t textaddr;
-	    quad_t dataaddr;
-	    quad_t bssaddr;
+	    quad_t textaddr = 0;
+	    quad_t dataaddr = 0;
+	    quad_t bssaddr = 0;
 
 	    tokens = tokenize(buf, token, MAXTOKEN);
+           if (tokens < 4)
+		continue;
 	    base = strtoll(token[2], NULL, 16);
 	    if (!dofind) {
 		strcpy(basetoken, token[4]);
@@ -261,7 +263,7 @@ main(int argc, char *argv[])
 		    debugname);
 	    } else {
 		char *modpath;
-		
+
 		modpath = findmodule(strdup(modules_path), token[4]);
 		if (modpath == NULL)
 		    continue;
@@ -306,7 +308,7 @@ main(int argc, char *argv[])
 			textaddr);
 		} else {
 		    char *modpath;
-		
+
 		    modpath = findmodule(strdup(modules_path), token[4]);
 		    if (modpath == NULL)
 			continue;
