@@ -1720,6 +1720,7 @@ device		miibus
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
+# lmc:	Support for the LMC/SBE wide-area network interface cards.
 # my:	Myson Fast Ethernet (MTD80X, MTD89X)
 # nge:	Support for PCI gigabit ethernet adapters based on the National
 #	Semiconductor DP83820 and DP83821 chipset. This includes the
@@ -1844,6 +1845,9 @@ device		nge
 device		sk
 device		ti
 device		fpa
+
+# PCI WAN adapters.
+device		lmc
 
 # Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
 # This option is incompatible with the TI_JUMBO_HDRSPLIT option below.
