@@ -88,6 +88,8 @@ options		ATA_STATIC_ID   # Static device numbering
 
 device		pty
 device		iopwdog			# I80321 Watchdog
+device		dma			# I80321 DMA Controller
+device		aau			# I80321 Application Accelerator Unit
 device		"iq31244_7seg"		# IQ31244 7 seg
 #options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
