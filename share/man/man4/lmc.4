@@ -1,0 +1,1485 @@
+.\"
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 2002-2005 David Boggs. (boggs@boggs.palo-alto.ca.us)
+.\" All rights reserved.
+.\"
+.\" BSD License:
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" GNU General Public License:
+.\"
+.\" This program is free software; you can redistribute it and/or modify it 
+.\" under the terms of the GNU General Public License as published by the Free 
+.\" Software Foundation; either version 2 of the License, or (at your option) 
+.\" any later version.
+.\" 
+.\" This program is distributed in the hope that it will be useful, but WITHOUT 
+.\" ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+.\" FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
+.\" more details.
+.\"
+.\" You should have received a copy of the GNU General Public License along with
+.\" this program; if not, write to the Free Software Foundation, Inc., 59 
+.\" Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+.\"
+.\" I forget these things:
+.\" groff -Tascii -mdoc lmc.4 > lmc.0
+.\" groff -Tps    -mdoc lmc.4 > lmc.ps
+.\" groff -Thtml  -mdoc lmc.4 > lmc.html (buggy)
+.\"
+.Dd June 2005
+.Dt LMC 4
+.Os \" sets \*(oS or \*[operating-system]
+.
+.\" substring works differently before minor version 19
+.ie (\n(.y < 19) .nr ssfix 1
+.el .nr ssfix 0
+.
+.ie "\*[operating-system]"" .ds aa \*(oS
+.el .ds aa \*[operating-system]
+.substring aa (0+\n[ssfix] (6+\n[ssfix])
+.ie "\*(aa"FreeBSD" .nr fbsd 1
+.el .nr fbsd 0
+.
+.ie "\*[operating-system]"" .ds aa \*(oS
+.el .ds aa \*[operating-system]
+.substring aa (0+\n[ssfix]) (5+\n[ssfix])
+.ie "\*(aa"NetBSD" .nr nbsd 1
+.el .nr nbsd 0
+.
+.ie "\*[operating-system]"" .ds aa \*(oS
+.el .ds aa \*[operating-system]
+.substring aa (0+\n[ssfix]) (7+\n[ssfix])
+.ie "\*(aa"OpenBSD" .nr obsd 1
+.el .nr obsd 0
+.
+.ie "\*[operating-system]"" .ds aa \*(oS
+.el .ds aa \*[operating-system]
+.substring aa (0+\n[ssfix]) (4+\n[ssfix])
+.ie "\*(aa"BSDI" .nr bsdi 1
+.el .nr bsdi 0
+.
+.ie "\*[operating-system]"" .ds aa \*(oS
+.el .ds aa \*[operating-system]
+.ie "\*(aa"BSD" .nr linux 1
+.el .nr linux 0
+.
+.\" if no operating system matched, select all OSs
+.if !(\n[fbsd] : \n[nbsd] : \n[obsd] : \n[bsdi] : \n[linux]) \{\
+.nr fbsd  1
+.nr nbsd  1
+.nr obsd  1
+.nr bsdi  1
+.nr linux 1 \}
+.
+.Sp
+.Sh NAME
+.Sp
+.Nm lmc
+.Nd device driver for
+.Tn LMC
+(now
+.Tn SBE )
+wide-area network interface cards.
+.Sp
+.Sh SYNOPSIS
+.Sp
+.if \n[fbsd] \{\
+.Cd "device lmc" \}
+.if (\n[nbsd] : \n[obsd] : \n[bsdi]) \{\
+.Cd "lmc* at pci?" \}
+.if \n[linux] \{\
+.Cd "CONFIG_LANMEDIA=m" \}
+.Sp
+.Sh DESCRIPTION
+.Sp
+This is an open-source Unix device driver for PCI-bus WAN interface cards.
+It sends and receives packets in HDLC frames over synchronous circuits.
+A generic PC plus Unix plus some
+.Tn "LMC" /
+.Tn "SBE"
+cards makes an
+.Em open
+router.
+This driver works with FreeBSD, NetBSD, OpenBSD, BSD/OS and Linux OSs.
+It has been tested on i386 (SMP 32-bit little-end), Sparc (64-bit big-end),
+and Alpha (64-bit little-end) architectures.
+.Pp
+The
+.Nm
+driver works with the following cards:
+.Bd -literal -offset 2m
+SBE wanADAPT-HSSI       High Speed Serial Interface,
+    (LMC5200)           EIA612/613, 50-pin connector,
+                        0 to 52 Mb/s, DTE only.
+SBE wanADAPT-T3         T3: two 75-ohm BNC connectors,
+    (LMC5245)           C-Parity or M13 Framing,
+                        44.736 Mb/s, up to 950 ft.
+SBE wanADAPT-SSI        Synchronous Serial Interface,
+    (LMC1000)           V.35, X.21, EIA449, EIA530(A), EIA232,
+                        0 to 10 Mb/s, DTE or DCE.
+SBE wanADAPT-T1E1       T1 or E1: RJ45 conn, 100 or 120 ohms,
+    (LMC1200)           T1-ESF-B8ZS, T1-SF-AMI, E1-(many)-HDB3,
+                        1.544 Mb/s or 2.048 Mb/s, up to 6 Kft.
+.Ed
+.Pp
+Cards contain a high-performance
+.Sy "PCI"
+interface, an
+.Sy "HDLC"
+function and
+either integrated
+.Sy "modems"
+(T1, T3) or
+.Sy "modem"
+interfaces (HSSI and SSI).
+.Bl -tag -width "Modem"
+.It Sy "PCI"
+The PCI interface is a DEC 21140A "Tulip" Fast Ethernet chip.
+This chip has an efficient PCI implementation with scatter/gather DMA,
+and can run at 100 Mb/s full duplex (twice as fast as needed here).
+.It Sy "HDLC"
+The HDLC functions (ISO-3309: flags, bit-stuffing, CRC) are implemented
+in a Field Programmable Gate Array (FPGA) which talks to the Ethernet
+chip through a Media Independent Interface (MII).
+The hardware in the FPGA translates between Ethernet packets and
+HDLC frames on-the-fly; think it as a WAN PHY chip for Ethernet.
+.It Sy "Modem"
+The modem chips are the main differences between cards.
+HSSI cards use ECL10K chips to implement the EIA-612/613 interface.
+T3 cards use a TranSwitch TXC-03401 framer chip.
+SSI cards use Linear Technology LTC1343 modem interface chips.
+T1 cards use a BrookTree/Conexant/Mindspeed Bt8370 framer
+and line interface chip.
+.El
+.Pp
+Line protocols exist above device drivers and below internet protocols.
+They typically encapsulate packets in HDLC frames and deal with
+higher-level issues like protocol multiplexing and security.
+This driver is compatible with several line protocol packages:
+.Bl -tag -width "Generic HDLC"
+.if (\n[fbsd] : \n[nbsd]) \{\
+.It Sy "Netgraph"
+.Xr Netgraph 4
+implements many basic packet-handling functions as kernel loadable modules.
+They can be interconnected in a graph to implement many protocols.
+Configuration is done from userland without rebuilding the kernel.
+Packets are sent and received through this interface if the driver's
+.Em rawdata
+hook is connected, otherwise the ifnet interface (SPPP and RawIP) is used.
+ASCII configuration control messages are
+.Em not
+currently supported. \}
+.if (\n[fbsd]) \{\
+.It Sy "SPPP"
+.Xr sppp 4
+implements Synchronous-PPP, Frame-Relay and Cisco-HDLC in the kernel. \}
+.if (\n[nbsd] : \n[obsd]) \{\
+.It Sy "SPPP"
+.Xr sppp 4
+implements Synchronous-PPP and Cisco-HDLC in the kernel. \}
+.if \n[bsdi] \{\
+.It Sy "P2P"
+.Xr p2p 4
+implements Synchronous-PPP, Frame-Relay and Cisco-HDLC in the kernel. \}
+.if \n[linux] \{\
+.It Sy "Generic HDLC"
+implements Synchronous-PPP, Frame-Relay, Cisco-HDLC,
+Ether-in-HDLC, and IP-in-HDLC (aka RAWIP) in the kernel. \}
+.It Sy "RawIP"
+This null line protocol, built into the driver, sends and receives
+raw IPv4 and IPv6 packets in HDLC frames (aka IP-in-HDLC) with
+no extra bytes of overhead and no state at the end points.
+.El
+.Sp
+.Sh EXAMPLES
+.Sp
+.Ss ifconfig and lmcconfig
+.Sp
+The program
+.Xr lmcconfig 8
+manipulates interface parameters beyond the scope of
+.Xr ifconfig 8 .
+In normal operation only a few arguments are needed:
+.Bl -inset -offset 4n -compact
+.It Sy "-X\0\0"
+selects the external
+.if (\n[fbsd] : \n[nbsd] : \n[obsd]) SPPP
+.if \n[bsdi] P2P
+.if \n[linus] Generic-HDLC
+line protocol package.
+.It Sy "-x\0\0"
+selects the built-in RawIP line protocol package.
+.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
+.It Sy "-Z\0\0"
+selects PPP line protocol.
+.It Sy "-z\0\0"
+selects Cisco-HDLC line protocol.
+.It Sy "-F\0\0"
+selects Frame-Relay line protocol.\}
+.El
+.Pp
+.Ic "lmcconfig lmc0"
+.br
+displays interface configuration and status.
+.if \n[obsd] \{\
+.Pp
+Some configuration options are available through
+.Ic "ifconfig"
+as well as
+.Ic "lmcconfig" .
+.Pp
+.Ic "ifconfig lmc0 media e1 timeslot all
+.br
+selects E1 format using all 32 timeslots.
+.br
+.Ic "ifconfig -m lmc0"
+.br
+lists the available media options.
+.Pp
+.Ic "ifconfig lmc0 -mediaopt hdlc-crc16"
+.br
+deselects 16-bit CRCs, thereby selecting 32-bit CRCs.
+.br
+.Ic "ifconfig lmc0 mediaopt loopback"
+.br
+loops the interface transmitter to the receiver for testing.
+Some cards have up to six loopback paths through the hardware.
+.Ic "ifconfig"
+selects a simple loopback present in every card type, but
+.Ic "lmcconfig"
+can select them all.\}
+.Pp
+.Ic "lmcconfig lmc0 -D"
+.br
+enables debugging output from the device driver only.
+.br
+.Ic "ifconfig lmc0 debug"
+.br
+enables debugging output from the device driver and from
+the line protocol module above it.
+Debugging messages that appear on the console are also
+written to file
+.Ic "/var/log/messages" .
+.Em Caution :
+when things go very wrong, a torrent of debugging messages
+can swamp the console and bring a machine to its knees.
+.if (\n[fbsd] : \n[nbsd] : \n[obsd] : \n[bsdi]) \{\
+.Sp
+.Ss Patching Ethernet Drivers
+.Sp
+Since these cards use DEC 21140A Tulip Ethernet chips,
+be aware that an Ethernet driver may mistake one for an
+Ethernet card and try to drive it.
+For some versions of some operating systems, it is
+sufficient to list the
+.Nm
+cards before any Ethernet cards in the kernel configuration.
+Another solution is to unplug all 21140-based Ethernet cards
+and remove their device drivers from the kernel configuration.
+Finally, one can patch the Ethernet drivers to ignore
+.Nm
+cards.
+In any case, you must make a custom kernel.
+.if \n[fbsd] \{\
+Chapter 9 of the FreeBSD Handbook \}
+.if \n[nbsd] \{\
+Chapter 6 of the NetBSD Guide \}
+.if \n[obsd] \{\
+Chapter 5 of the OpenBSD FAQ \}
+.if \n[bsdi] \{\
+"Rebuilding the Kernel" in the BSD/OS Administrator's Guide \}
+explains how to configure and build custom kernels.
+.Pp
+To patch an Ethernet device driver:
+.if \n[fbsd] \{\
+.br
+add this line to
+.Ic "tulip_pci_probe()"
+in
+.Ic "sys/pci/if_de.c" : \}
+.if (\n[nbsd] : \n[obsd]) \{\
+.br
+add this line to
+.Ic "tulip_pci_probe()"
+in
+.Ic "/sys/dev/pci/if_de.c" :
+.br
+add this line to
+.Ic "dc_pci_match()   "
+in
+.Ic "/sys/dev/pci/if_dc_pci.c" :
+.if \n[nbsd] \{\
+.br
+add this line to
+.Ic "tlp_pci_match()  "
+in
+.Ic "/sys/dev/pci/if_tlp_pci.c" : \} \}
+.if \n[bsdi] \{\
+.br
+add this line to
+.Ic "tulip_pci_match()"
+in
+.Ic "/sys/i386/pci/if_de.c" : \}
+.br
+.if \n[fbsd] \{\
+.Ic "if (pci_get_subvendor(dev)==0x1376)"
+.br
+.Ic "   return ENXIO;"
+.br
+This driver should already be patched. \}
+.if (\n[nbsd] : \n[obsd]) \{\
+.Ic "if ((pci_conf_read(pa->pa_pc, pa->pa_tag, 0x2C) & 0xFFFF)==0x1376)"
+.br
+.Ic "	return 0;"
+.br \}
+.if \n[bsdi] \{\
+.Ic "if ((pci_inl(pa, 0x2C) & 0xFFFF)==0x1376)"
+.br
+.Ic "	return 0;"
+.br \}
+Make sure you patch the correct routine: many Ethernet drivers
+contain probe/match routines for several operating systems inside
+.Ic "#ifdefs" .
+.Pp
+.Ic "/var/log/messages"
+should contain a boot message like this:
+.br
+.if \n[fbsd] \{\
+.Ic "freebsd-4: pci0: <unknown card> (vendor=0x1011, dev=0x0009) at 18.0 irq 9"
+.br
+.Ic "freebsd-5: pci0: <network, ethernet> at device 18.0 (no driver attached)" \}
+.if \n[nbsd] \{\
+.Ic "vendor 0x1011 product 0x0009 (ethernet network, revision 0x22)
+.br
+.Ic "at pci0 dev 18 function 0 not configured" \}
+.if \n[obsd] \{\
+.Ic "DEC 21140 rev 0x22 at pci0 dev 18 function 0 not configured" \}
+.if \n[bsdi] \{\
+.Ic "lmc0 at pci0 iobase 0xe880 irq 10 maddr 0xfebeff00-0xfebeff7f" \}
+.if (\n[nbsd] : \n[obsd] : \n[bsdi]) \{\
+.Pp
+If the boot message looks like this:
+.br
+.if \n[obsd] \{\
+.Ic "de1 at pci0 dev 18 function 0 DEC 21140 rev 0x22:"
+.br
+.Ic "de1: can't read ENET ROM (why=-4) (76130600000 ..."
+.br
+.Ic "de1: 21140A [10-100Mb/s] pass 2.2 address unknown"
+.br \}
+.if \n[nbsd] \{\
+.Ic "tlp0 at pci0 dev 18 function 0: DECchip 21140A Ethernet, pass 2.2"
+.br
+.Ic "tlp0: sorry, unable to handle your board"
+.br \}
+.if \n[bsdi] \{\
+.Ic "stray interrupt on irq 9"
+.br \}
+then the Ethernet driver needs patching. \} \}
+.if \n[fbsd] \{\
+.Sp
+.Ss FreeBSD Configuration
+.Sp
+Put the source files in
+.Ic "/sys/dev/lmc" .
+You may need to create the directory.
+.Pp
+Add the following line to
+.Ic "/sys/conf/files" :
+.br
+.Ic "dev/lmc/if_lmc.c	optional	lmc pci"
+.br
+Put it near other
+.Ic "dev/l*"
+entries.
+.br
+For FreeBSD-5, change
+.Ic optional
+to
+.Ic count
+in the entry for sppp:
+.br
+.Ic "net/if_spppsubr.c	count	sppp"
+.Pp
+To wire this driver into your kernel:
+Add the following line to
+.Ic "/sys/ARCH/conf/YOURKERNEL" :
+.br
+.Ic "device	lmc	# LMC/SBE WAN cards"
+.br
+Put this line near lines for other network devices.
+To load the driver into a running kernel, see KLD below.
+.Pp
+To wire a line protocol into your kernel, add:
+.br
+.Ic "options	netgraph	# wired into the kernel"
+.br
+.Ic "pseudo-device	sppp	# FreeBSD-4"
+.br
+.Ic "device		sppp	# FreeBSD-5"
+.br
+It is not necessary to wire line protocols into your kernel.
+This driver and line protocols can be loaded later with kldload(8).
+The driver can send and receive raw IP packets even if neither
+SPPP nor Netgraph are configured into the kernel.
+Netgraph and SPPP can both be enabled; netgraph will be used if the
+.Em "rawdata"
+hook is connected. \}
+.if \n[fbsd] \{\
+.Sp
+.Ss FreeBSD Kernel Loadable Modules ("KLD" mechanism)
+.Sp
+To make this driver into a standard kernel loadable module:
+.br
+Make a directory named
+.Ic "/sys/modules/lmc" .
+.br
+Copy
+.Ic "/sys/dev/lmc/Makefile"
+to
+.Ic "/sys/modules/lmc/Makefile" .
+.br
+Add
+.Ic "lmc"
+to
+.Ic "/sys/modules/Makefile"
+for your machine architecture.
+.Pp
+While standing in
+.Ic /sys/ARCH/compile/YOURKERNEL:
+.br
+.Ic "make modules-depend"
+generates all module dependencies.
+.br
+.Ic "make modules"
+creates all modules.
+.br
+.Ic "make modules-install"
+installs all modules.
+.Pp
+To make this driver into a kernel loadable module "by hand":
+.br
+While standing in
+.Ic "/sys/dev/lmc" :
+.br
+.Ic "make depend"
+generates lmc module dependencies.
+.br
+.Ic "make all"
+creates the lmc module.
+.br
+.Ic "make install"
+installs the lmc module.
+.br
+.Ic "make depend all install"
+does everything.
+.Pp
+While standing anywhere (as root):
+.br
+.Ic "kldload if_lmc"
+loads the driver and starts it.
+.br
+.Ic "kldunload if_lmc"
+stops the driver and unloads it.
+.br
+.Ic "kldstat"
+displays status of loaded modules.
+.Pp
+.Ic "securelevel"
+must be 0 to load modules; see
+.Xr init 8 .
+.Pp
+To load this module at boot time, add
+.br
+.Ic "if_lmc_load=""YES"""
+.br
+to
+.Ic "/boot/loader.conf"; see
+.Xr loader.conf 5 . \}
+.if \n[fbsd] \{\
+.Sp
+.Ss FreeBSD Operation
+.Sp
+Activate a PPP link using SPPP and Netgraph with:
+.br
+.Ic "ngctl mkpeer lmc0: sppp rawdata downstream"
+.br
+.Ic "ifconfig sppp0 10.0.0.1 10.0.0.2"
+.Pp
+Activate a PPP link using only SPPP with:
+.br
+.Ic "lmcconfig lmc0 -XYZ"
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
+.Pp
+Activate a Cisco-HDLC link using SPPP and Netgraph with:
+.br
+.Ic "ngctl mkpeer lmc0: sppp rawdata downstream"
+.br
+.Ic "ifconfig sppp0 10.0.0.1 10.0.0.2 link2"
+.Pp
+Activate a Cisco-HDLC link using only SPPP with:
+.br
+.Ic "lmcconfig lmc0 -XYz"
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
+.Pp
+Activate a Cisco-HDLC link using only Netgraph with:
+.br
+.Ic "ngctl mkpeer lmc0: cisco rawdata downstream"
+.br
+.Ic "ngctl mkpeer lmc0:rawdata iface inet inet"
+.br
+.Ic "ifconfig ng0 10.0.0.1 10.0.0.2"
+.Pp
+Activate a Frame-Relay DTE link using SPPP with:
+.br
+.Ic "lmcconfig lmc0 -XYF"
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
+.br
+SPPP implements the ANSI T1.617 annex D LMI.
+.Pp
+Activate a Frame-Relay DTE link using Netgraph with:
+.br
+.Ic "ngctl mkpeer  lmc0: frame_relay rawdata downstream"
+.br
+.Ic "ngctl mkpeer  lmc0:rawdata lmi dlci0 auto0"
+.br
+.Ic "ngctl connect lmc0:rawdata dlci0 dlci1023 auto1023"
+.br
+.Ic "ngctl mkpeer  lmc0:rawdata rfc1490 dlci500 downstream"
+.br
+.Ic "ngctl mkpeer  lmc0:rawdata.dlci500 iface inet inet"
+.br
+.Ic "ifconfig ng0 10.0.0.1 10.0.0.2"
+.br
+This is
+.Em "ONE"
+possible Frame Relay configuration; there are many.
+.Pp
+Activate a RAWIP link using only the driver with:
+.br
+.Ic "lmcconfig lmc0 -x"
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
+.Pp
+Activate a RAWIP link using Netgraph with:
+.br
+.Ic "ngctl mkpeer lmc0: iface rawdata inet"
+.br
+.Ic "ifconfig ng0 10.0.0.1 10.0.0.2"
+.br
+If the driver is kldunloaded and then kldloaded, reconnect hooks by:
+.br
+.Ic "ngctl connect lmc0: ng0: rawdata inet" \}
+.if (\n[nbsd] : \n[obsd]) \{\
+.Sp
+.if \n[nbsd] .Ss NetBSD Configuration
+.if \n[obsd] .Ss OpenBSD Configuration
+.Sp
+Put the source files in
+.Ic "/sys/dev/pci/" .
+.Pp
+Add the following lines to
+.Ic "/sys/dev/pci/files.pci" :
+.br
+.Ic "device   lmc: ifnet, sppp"
+.if \n[obsd] .Ic ", ifmedia"
+.br
+.Ic "attach   lmc at pci"
+.br
+.Ic "file     dev/pci/if_lmc.c   lmc"
+.br
+Put them near other
+.Ic "dev/pci/if_*.c"
+entries.
+.Pp
+In file
+.Ic "/sys/conf/files" ,
+append
+.Ic "needs-count"
+to the end of this line:
+.br
+.Ic "file   net/if_spppsubr.c   sppp   needs-count"
+.Pp
+To wire this driver into your kernel,
+add the following line to
+.Ic "/sys/arch/ARCH/conf/YOURKERNEL" :
+.br
+.Ic "lmc* at pci?   # LMC/SBE WAN cards"
+.br
+Put this line near lines for other network devices.
+To load the driver into a running kernel, see LKM below.
+.Pp
+To wire SPPP into your kernel:
+.br
+.Ic "pseudo-device sppp   1   # wired into the kernel"
+.br
+The driver can send and receive raw IP packets even if
+SPPP is not configured into the kernel. \}
+.if (\n[nbsd] : \n[obsd]) \{\
+.Sp
+.if \n[nbsd] .Ss NetBSD Loadable Kernel Modules ("LKM" mechanism)
+.if \n[obsd] .Ss OpenBSD Loadable Kernel Modules ("LKM" mechanism)
+.Sp
+Add the following line to
+.Ic "/sys/arch/ARCH/conf/YOURKERNEL" :
+.br
+.Ic "options   LKM   # loadable kernel modules"
+.Pp
+Install symbolic links from the kernel compilation directory
+to the source directory:
+.br
+.Ic "ln -s /sys/dev/pci/if_lmc.c"
+.br
+.Ic "ln -s /sys/dev/pci/if_lmc.h"
+.Pp
+While standing in
+.Ic "/sys/arch/ARCH/compile/YOURKENEL" :
+.br
+.Ic "make if_lmc.o"
+compiles the driver module.
+.br
+.Ic "modload if_lmc.o"
+loads the driver and starts it.
+.Pp
+while standing anywhere (as root):
+.br
+.Ic "modunload -n if_lmc.o"
+stops the driver and unloads it.
+.br
+.Ic "modstat"
+displays status of loaded modules.
+.Pp
+When the driver module is loaded, if you get a message like this:
+.br
+.Ic lmc1: bus_space_map failed; error 35
+.br
+then the Ethernet device driver needs patching.
+.Pp
+.Ic "securelevel"
+must be 0 to load modules; see
+.Xr init 8 .
+.br
+One way is to include in
+.Ic "/sys/arch/ARCH/conf/YOURKERNEL" :
+.br
+.Ic "options INSECURE	# disable kernel security levels"
+.if \n[obsd] \{\
+.Pp
+LKM only works for PCI bus 0 on an i386 machine. \} \}
+.Sp
+.if \n[nbsd] .Ss NetBSD Operation
+.if \n[obsd] .Ss OpenBSD Operation
+.Sp
+.if (\n[nbsd] : \n[obsd]) \{\
+Activate a PPP link using SPPP with:
+.br
+.Ic "lmcconfig lmc0 -XYZ"
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
+.Pp
+Activate a Cisco-HDLC link using SPPP with:
+.br
+.Ic "lmcconfig lmc0 -XYz"
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
+.Pp
+Activate a RAWIP link with:
+.br
+.Ic "lmcconfig lmc0 -x"
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2" \}
+.if \n[bsdi] \{\
+.Sp
+.Ss BSD/OS Configuration
+.Sp
+Put the source files in
+.Ic "/sys/i386/pci/" .
+.Pp
+Add the following lines to
+.Ic "/sys/i386/conf/files.i386" :
+.br
+.Ic "device	lmc at pci: pcisubr, p2p"
+.br
+.Ic "file		i386/pci/if_lmc.c	lmc	device-driver"
+.br
+Put them near other
+.Ic "i386/pci/if_*.c entries" .
+.Pp
+Add the following lines to
+.Ic "/sys/i386/conf/YOURKERNEL" :
+.br
+.Ic "lmc*		at pci?	# LMC/SBE WAN cards"
+.br
+Put the above line before any Ethernet devices.
+.br
+.Ic "options	PPP		# include PPP code"
+.br
+.Ic "options	FR		# include Frame-Relay code"
+.br
+.Ic "options	CISCO_HDLC	# include Cisco-HDLC code"
+.br \}
+.if \n[bsdi] \{\
+.Sp
+.Ss BSD/OS Operation
+.Sp
+To activate a PPP link, create file
+.Ic "/etc/ppp.sys"
+containing:
+.br
+.Ic "Plmc0:	:device=lmc0:\e"
+.br
+.Ic "		:local-addr=10.0.0.1:\e"
+.br
+.Ic "		:remote-addr=10.0.0.2:\e"
+.br
+.Ic "		:immediate:dialout:direct:\e"
+.br
+.Ic "		:-pfc:-acfc:-tcpc:"
+.br
+Then run
+.Xr ppp 8 :
+.Ic "ppp -bd Plmc0" .
+.br
+Add
+.Ic "-X debug-all"
+to watch protocol events happen.
+.Pp
+Activate a Cisco-HDLC link by setting LINKTYPE with ifconfig:
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2 linktype chdlc"
+.Pp
+Activate a Fame-Relay link with:
+.br
+.Ic "ifconfig lmc0 linktype fr"
+.br
+By default the port is a DTE; add the next line to make it a DCE:
+.br
+.Ic "frconfig lmc0 type dce"
+.br
+.Ic "frconfig lmc0 lmi ansi"
+.br
+.Ic "frconfig lmc0 dlci 500 10.0.0.2"
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
+.Pp
+Activate a RAWIP link with:
+.br
+.Ic "ifconfig lmc0 down -remove"
+.br
+.Ic "lmcconfig lmc0 -x"
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
+.br \}
+.if \n[linux] \{\
+.Sp
+.Ss Linux Configuration
+.Sp
+The source files are in
+.Ic "/usr/src/linux/drivers/net/wan/lmc/" .
+.Pp
+Configure the driver and line protocol into your kernel with
+.Ic make menuconfig ,
+navigating through the menus, select this device driver and the
+generic HDLC layer as loadable kernel modules or wired into the kernel:
+.br
+.Ic "Device Drivers --->"
+.br
+.Ic "Networking Support --->"
+.br
+.Ic "Wan interfaces --->"
+.br
+.Ic "<M> SBE Inc. LMC1000/1200/5200/5245 support"
+.br
+.Ic "<M> Generic HDLC layer"
+.br
+.Ic "<M>\|"
+configures code as a module and
+.Ic "<*>"
+wires it into the kernel.
+.Pp
+Selecting the Generic HDLC layer selects all available protocols.
+Raw, Cisco and Frame-Relay are in the generic-hdlc module;
+PPP is a separate module.
+.br
+.Ic "[*]  Raw HDLC support"
+.br
+.Ic "[*]  Raw HDLC Ethernet device support"
+.br
+.Ic "[*]  Cisco HDLC support"
+.br
+.Ic "[*]  Frame Relay support"
+.br
+.Ic "[*]  Synchronous Point-to-Point Protocol (PPP) support"
+.br
+.Ic "[*]\|"
+includes support for a protocol and
+.Ic "[\0]"
+excludes it.
+.Pp
+The driver can send and receive raw IP packets even if
+Generic-HDLC is not configured into the kernel.
+The device name will be 
+.Ic "hdlc<n>"
+if the generic HDLC code is used, or
+.Ic "lmc<n>"
+otherwise. \}
+.if \n[linux] \{\
+.Sp
+.Ss Linux Loadable Kernel Modules
+.Sp
+If configured as above, the kernel will recognize an LMC/SBE card
+when it boots and load this driver and the Generic-HDLC code.
+Messages similar to the following will appear in /var/log/messages:
+.br
+.Ic "Cronyx Ltd, Synchronous PPP and CISCO HDLC (c) 1994"
+.br
+.Ic "Linux port (c) 1998 Building Number Three Ltd & Jan 'Yenya' Kasprzak."
+.br
+.Ic "HDLC support module revision 1.16"
+.br
+.Ic "hdlc0: <SBE/LMC T3 Card> io 0xe880/9 mem 0xfebeff00/25"
+.Ic "rom 0xfeb40000/14 irq 11 pci 0000:00:13.0"
+.br
+The driver registers itself under the name
+.Ic "hdlc<n>"
+rather than
+.Ic "lmc<n>"
+because the generic-HDLC code requires it.
+.Pp
+When the card and line protocol are configured these messages will appear:
+.br
+.Ic "hdlc0: PCI rev 2.2, MII rev 3.5,
+.Ic "IEEE addr 00:60:99:00:13:c4, TXC03401 rev B"
+.br
+.Ic "hdlc0: Driver rev 2004.6.17, Options IO_CSR LITTLE_END"
+.br
+.Ic "hdlc0: protocol up"
+.Pp
+While standing in /usr/src/linux/drivers/net/wan/lmc:
+.br
+.Ic "make -C /usr/src/linux SUBDIRS=/usr/src/linux/drivers/net/wan/lmc \e"
+.br
+.Ic "  modules modules-install "
+compiles and installs the driver.
+.br
+.Ic "modprobe if_lmc "
+loads the module into the kernel.
+.br
+.Ic "modprobe -r if_lmc "
+removes the module from the kernel.
+.br
+.Ic "lsmod "
+displays status of loaded modules.
+.br \}
+.if \n[linux] \{\
+.Sp
+.Ss Linux Operation
+.Sp
+The program
+.Ic "sethdlc"
+configures the generic-HDLC code.
+.br
+.Ic "sethdlc hdlc0 (or pvc0 for frame relay)"
+.br
+displays the current settings of a given device.
+Note that
+.Ic "sethdlc"
+must be run before
+.Ic "ifconfig" .
+.Ic "Sethdlc"
+and the generic-hdlc kernel code are documented in
+.Ic "/usr/src/linux/Documentation/networking/generic-hdlc.txt"
+and at
+.Ic "http://hq.pm.waw.pl/hdlc" 
+.Pp
+Activate a PPP link with:
+.br
+.Ic "sethdlc hdlc0 ppp"
+.br
+.Ic "ifconfig hdlc0 10.0.0.1 pointopoint 10.0.0.2"
+.Pp
+Activate a Cisco-HDLC link with:
+.br
+.Ic "sethdlc hdlc0 cisco"
+.br
+.Ic "ifconfig hdlc0 10.0.0.1 pointopoint 10.0.0.2"
+.Pp
+Activate a Frame-Relay DTE link with:
+.br
+.Ic "sethdlc hdlc0 fr lmi ansi [dce]"
+.br
+.Ic "sethdlc hdlc0 create 500"
+.br
+.Ic "ifconfig hdlc0 up"
+.br
+.Ic "ifconfig pvc0 10.0.0.1 pointopoint 10.0.0.2"
+.br
+This is
+.Em "ONE"
+possible Frame Relay configuration; there are many.
+Adding "dce" after "ansi" configures it as a DCE (switch).
+.Pp
+Activate a RAWIP link with:
+.br
+.Ic "sethdlc hdlc0 hdlc"
+.br
+.Ic "ifconfig hdlc0 10.0.0.1 pointopoint 10.0.0.2"
+.br \}
+.Sp
+.Sh TESTING
+.Sp
+.Ss Testing with Loopbacks
+.Sp
+Testing with loopbacks requires only one card.
+Packets can be looped back at many points: in the PCI chip,
+in the modem chips, through a loopback plug, in the
+local external equipment, or at the far end of a circuit.
+.if \n[linux] \{\
+Testing with loopbacks does not work on Linux because the
+kernel detects that an outgoing packet is destined for "self"
+and loops it back without ever giving it to the hardware. \}
+.Pp
+Activate the card with ifconfig:
+.br
+.Ic "ifconfig lmc0 10.0.0.1 10.0.0.1"
+.Pp
+All cards can be looped through the PCI chip.
+Cards with internal modems can be looped through
+the modem framer and the modem line interface.
+Cards for external modems can be looped through
+the driver/receiver chips.
+See
+.Xr lmcconfig 8
+for details.
+.Pp
+Loopback plugs test everything on the card.
+.Bl -tag -width "T1/E1" -offset 2m -compact
+.It Sy "HSSI"
+Loopback plugs can be ordered from SBE (and others).
+Transmit clock is normally supplied by the external modem.
+When an HSSI card is operated with a loopback plug, the PCI bus
+clock must be used as the transmit clock, typically 33 MHz.
+When testing an HSSI card with a loopback plug,
+configure it with lmcconfig:
+.br
+.Ic "lmcconfig lmc0 -a 2
+.br
+.Ic "-a 2  "
+selects the PCI bus clock as the transmit clock.
+.It Sy "T3"
+Connect the two BNC jacks with a short coax cable.
+.It Sy "SSI"
+Loopback plugs can be ordered from SBE (only).
+Transmit clock is normally supplied by the external modem.
+When an SSI card is operated with a loopback plug,
+the on-board clock synthesizer must be used.
+When testing an SSI card with a loopback plug,
+configure it with lmcconfig:
+.br
+.Ic "lmcconfig lmc0 -E -f 10000000"
+.br
+.Ic "-E  "
+puts the card in DCE mode to source a transmit clock.
+.br
+.Ic "-f 10000000  "
+sets the internal clock source to 10 Mb/s.
+.br
+.It Sy "T1/E1"
+A loopback plug is a modular plug with two wires
+connecting pin 1 to pin 4 and pin 2 to pin 5.
+.El
+.Pp
+One can also test by connecting to a local modem (HSSI and SSI)
+or NI (T1 and T3) configured to loop back.
+Cards can generate signals to loopback remote equipment
+so that complete circuits can be tested; see
+.Xr lmcconfig 8
+for details.
+.Sp
+.Ss Testing with a Modem
+.Sp
+Testing with a modem requires two cards of different types.
+.Bl -tag -width "T3/HSSI"
+.It Sy "T3/HSSI"
+If you have a T3 modem with an HSSI interface
+(made by Digital Link, Larscom, Kentrox etc.)
+then use an HSSI card in one machine and a T3 card in the other machine.
+The T3 coax cables must use the null modem configuration (see below).
+.It Sy "T1/V.35"
+If you have a T1 (or E1) modem with a V.35, X.21 or EIA530 interface,
+then use an SSI card in one machine and a T1 card in the other machine.
+Use a T1 null modem cable (see below).
+.El
+.Sp
+.Ss Testing with a Null Modem Cable
+.Sp
+Testing with a null modem cable requires two cards of the same type.
+.Bl -tag -width "T1/E1"
+.It Sy "HSSI"
+Three-meter HSSI null-modem cables can be ordered from SBE.
+In a pinch, a 50-pin SCSI-II cable up to a few meters will
+work as a straight HSSI cable (not a null modem cable).
+Longer cables should be purpose-built HSSI cables because
+the cable impedance is different.
+Transmit clock is normally supplied by the external modem.
+When an HSSI card is connected by a null modem cable, the PCI bus
+clock can be used as the transmit clock, typically 33 MHz.
+When testing an HSSI card with a null modem cable, configure it
+with lmcconfig:
+.br
+.Ic "lmcconfig lmc0 -a 2
+.br
+.Ic "-a 2  "
+selects the PCI bus clock as the transmit clock.
+.It Sy "T3"
+T3 null modem cables are just 75-ohm coax cables with BNC connectors.
+TX OUT on one card should be connected to RX IN on the other card.
+In a pinch, 50-ohm thin Ethernet cables
+.Em usually
+work up to a few meters, but they will
+.Em not
+work for longer runs -- 75-ohm coax is
+.Em required .
+.It Sy "SSI"
+Three-meter SSI null modem cables can be ordered from SBE.
+An SSI null modem cable reports a cable type of V.36/EIA449.
+Transmit clock is normally supplied by the external modem.
+When an SSI card is connected by a null modem cable,
+an on-board clock synthesizer is used.
+When testing an SSI card with a null modem cable, configure it
+with lmcconfig:
+.br
+.Ic "lmcconfig lmc0 -E -f 10000000"
+.br
+.Ic "-E  "
+puts the card in DCE mode to source a transmit clock.
+.br
+.Ic "-f 10000000  "
+sets the internal clock source to 10 Mb/s.
+.br
+.Pp
+.It Sy "T1/E1"
+A T1 null modem cable has two twisted pairs that connect
+pins 1 and 2 on one plug to pins 4 and 5 on the other plug.
+Looking into the cable entry hole of a plug,
+with the locking tab oriented down,
+pin 1 is on the left.
+A twisted pair Ethernet cable makes an excellent straight T1 cable.
+Alas, Ethernet cross-over cables do not work as T1 null modem cables.
+.El
+.Sp
+.Sh OPERATION NOTES
+.Sp
+.Ss Packet Lengths
+Maximum transmit and receive packet length is unlimited.
+.br
+Minimum transmit and receive packet length is one byte.
+.Pp
+Cleaning up after one packet and setting up for the next
+packet involves making several DMA references.
+This can take longer than the duration of a short packet,
+causing the adapter to fall behind.
+For typical PCI bus traffic levels and memory system latencies,
+back-to-back packets longer than about 20 bytes will always
+work (53 byte cells work), but a burst of several hundred
+back-to-back packets shorter than 20 bytes will cause packets
+to be dropped.
+This usually isn't a problem since an IPv4 packet header is
+at least 20 bytes long.
+.Pp
+This device driver imposes no constraints on packet size.
+Most operating systems set the default Maximum Transmission
+Unit (MTU) to 1500 bytes; the legal range is usually (72..65535).
+This can be changed with
+.br
+.Ic "ifconfig lmc0 mtu 2000" .
+.br
+.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
+SPPP enforces an MTU of (128..far-end-MRU) for PPP
+and 1500 bytes for Cisco-HDLC. \}
+.if \n[bsdi] \{\
+P2P enforces an MTU of 1500 bytes for PPP and Cisco-HDLC
+and 4000 bytes for Frame Relay. \}
+.if \n[linux] \{\
+Generic-HDLC enforces an MTU range of (68..1500) bytes. \}
+RAWIP sets the default MTU to 4032 bytes,
+but it can be changed to anything.
+.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
+.Sp
+.Ss ALTQ - Alternate Output Queue Disciplines
+.Sp
+This driver has hooks for
+.Xr altq 4 ,
+the Alternate Queueing package.
+To see Altq in action, use your favorite traffic generation
+program to generate three flows sending down one T3 circuit.
+Without Altq, the speeds of the three connections will vary chaotically.
+Turn on Altq and two of the connections will run at 21 Mb/s and
+the third will run at 1.5 Mb/s.
+.Pp
+To include ALTQ in your kernel,
+add the following line to
+.Ic "conf/YOURKERNEL" :
+.br
+.Ic "options ALTQ        # ALTQ enabled"
+.br
+The example below requires the Hierarchical
+Fair Service Curve (HSFC) queue discipline:
+.br
+.Ic "options ALTQ_HFSC   # queue discipline"
+.Pp
+Enable
+.Xr altqd 8
+and create file
+.Ic "/etc/altq.conf"
+containing:
+.br
+.Bd -literal -offset 2m -compact
+.Ic "interface lmc0 bandwidth 44M hfsc"
+.br
+.Ic "class hfsc lmc0 a root pshare 49"
+.br
+.Ic "filter lmc0 a 10.0.0.2 12345 10.0.0.1 0 6"
+.br
+.Ic "filter lmc0 a 10.0.0.1 0 10.0.0.2 12345 6"
+.br
+.Ic "class hfsc lmc0 b root pshare 49"
+.br
+.Ic "filter lmc0 b 10.0.0.2 12346 10.0.0.1 0 6"
+.br
+.Ic "filter lmc0 b 10.0.0.1 0 10.0.0.2 12346 6"
+.br
+.Ic "class hfsc lmc0 c root pshare 2 default"
+.br
+.Ic "filter lmc0 c 10.0.0.2 12347 10.0.0.1 0 6"
+.br
+.Ic "filter lmc0 c 10.0.0.1 0 10.0.0.2 12347 6"
+.br
+.Ed \}
+.if (\n[fbsd] : \n[nbsd] : \n[obsd] : \n[bsdi]) \{\
+.Sp
+.Ss BPF - Berkeley Packet Filter
+.Sp
+This driver has hooks for
+.Xr bpf 4 ,
+the Berkeley Packet Filter.
+The line protocol header length reported to BPF is four bytes
+for SPPP and P2P line protocols and zero bytes for RawIP.
+.Pp
+To include BPF for ifnet in your kernel,
+add the following line to
+.Ic "conf/YOURKERNEL" :
+.br
+.Ic "pseudo-device	bpf	# FreeBSD-4, NetBSD, OpenBSD, BSD/OS"
+.br
+.Ic "device		bpf	# FreeBSD-5"
+.Pp
+To test the BPF kernel interface,
+bring up a link between two machines, then run
+.Xr ping 8
+and
+.Xr tcpdump 1 :
+.br
+.Ic "ping 10.0.0.1"
+.br
+and in a different window:
+.br
+.Ic "tcpdump -i lmc0"
+.br
+The output from tcpdump should look like this:
+.br
+.Ic "03:54:35.979965 10.0.0.2 > 10.0.0.1: icmp: echo request"
+.br
+.Ic "03:54:35.981423 10.0.0.1 > 10.0.0.2: icmp: echo reply"
+.br
+Line protocol control packets will appear among the 
+ping packets occasionally. \}
+.if (\n[fbsd] : \n[linux]) \{\
+.Sp
+.Ss Device Polling
+.Sp
+A T3 receiver can generate over 100K interrupts per second,
+This can cause a system to "live-lock": spend all of its
+time servicing interrupts.
+Linux and FreeBSD have polling mechanisms to prevent live-lock.
+.if \n[linux] \{\
+.Pp
+Linux's mechanism disables a card's interrupt when it interrupts,
+calls the card's interrupt service routine with kernel interrupts
+enabled, and then reenables the card's interrupt.
+The driver is permitted to process a limited number of packets each
+time it is called by the kernel.
+Card interrupts are left disabled if more packets arrive than are
+permitted to be processed, which in extreme cases will result in
+packets being dropped in hardware at no cost to software. \}
+.if \n[fbsd] \{\
+.Pp
+FreeBSD's mechanism permanently disables interrupts from the card
+and instead the card's interrupt service routine is called each
+time the kernel is entered (syscall, timer interrupt, etc) and
+from the kernel idle loop; this adds some latency.
+The driver is permitted to process a limited number of packets.
+The percentage of the CPU that can be consumed this way is settable.
+.Pp
+FreeBSD's
+.Xr polling 4
+mechanism is enabled with:
+.br
+.Ic "sysctl kern.polling.enable=1"
+.br
+The kernel must be built with polling enabled:
+.br
+.Ic "options DEVICE_POLLING"
+.br
+.Ic "options HZ=1000" \} \}
+.Sp
+.Ss SNMP: Simple Network Management Protocol
+.Sp
+This driver is aware of what is required to be a Network Interface
+Object managed by an Agent of the Simple Network Management Protocol.
+The driver exports SNMP-formatted configuration and status
+information sufficient for an SNMP Agent to create MIBs for:
+.Bl -inset -compact -offset 2m
+.It RFC-2233: Interfaces group,
+.It RFC-2496: DS3 interfaces,
+.It RFC-2495: DS1/E1 interfaces,
+.It RFC-1659: RS232-like interfaces.
+.El
+.Pp
+An SNMP Agent is a user program, not a kernel function.
+Agents can retrieve configuration and status information
+by using
+.if \n[fbsd] \{\
+Netgraph control messages or \}
+.Xr ioctl 2
+system calls.
+User programs should poll
+.Ic sc->cfg.ticks
+which increments once per second after the SNMP state has been updated.
+.Sp
+.Ss HSSI and SSI LEDs
+.Sp
+The card should be operational if all three green LEDs are on
+(the upper-left one should be blinking) and the red LED is off.
+All four LEDs turn on at power-on and module-unload.
+.Bl -column -compact -offset 2m "YELLOW" "upper-right" "Software"
+.It "RED"   Ta "upper-right" Ta "No Transmit clock"
+.It "GREEN" Ta "upper-left"  Ta "Device driver is alive if blinking"
+.It "GREEN" Ta "lower-right" Ta "Modem signals are good"
+.It "GREEN" Ta "lower-left"  Ta "Cable is plugged in (SSI only)"
+.El
+.Sp
+.Ss T1E1 and T3 LEDs
+.Sp
+The card should be operational if the upper-left green LED is blinking
+and all other LEDs are off.  For the T3 card, if other LEDs are on or
+blinking, try swapping the coax cables!
+All four LEDs turn on at power-on and module-unload.
+.Bl -column -compact -offset 2m "YELLOW" "upper-right" "Received"
+.It "RED"    Ta "upper-right" Ta "Received signal is wrong"
+.It "GREEN"  Ta "upper-left"  Ta "Device driver is alive if blinking"
+.It "BLUE"   Ta "lower-right" Ta "Alarm Information Signal (AIS)"
+.It "YELLOW" Ta "lower-left"  Ta "Remote Alarm Indication (RAI)"
+.El \" YELLOW
+.Bl -column -compact "The yellow" "LED"
+.It "The green"  Ta "LED blinks if the device driver is alive."
+.It "The red"    Ta "LED blinks if an outward loopback is active."
+.It "The blue"   Ta "LED blinks if sending AIS, on solid if receiving AIS."
+.It "The yellow" Ta "LED blinks if sending RAI, on solid if receiving RAI."
+.El \" LED
+.Sp
+.Ss E1 Framing
+.Sp
+Phone companies usually insist that customers put a
+.Em Frame Alignment Signal
+(FAS) in time slot 0.
+A Cyclic Redundancy Checksum (CRC) can also ride in time slot 0.
+.Em Channel Associated Signalling
+(CAS) uses Time Slot 16.
+In telco-speak
+.Em signalling
+is on/off hook, ringing, busy, etc.
+Signalling is not needed here and consumes 64 Kb/s.
+Only use E1-CAS formats if the other end insists on it!
+Use E1-FAS+CRC framing format on a public circuit.
+Depending on the equipment installed in a private circuit,
+it may be possible to use all 32 time slots for data (E1-NONE).
+.Sp
+.Ss T3 Framing
+.Sp
+M13 is a technique for multiplexing 28 T1s into a T3.
+Muxes use the C-bits for speed-matching the tributaries.
+Muxing is not needed here and usurps the FEBE and FEAC bits.
+Only use T3-M13 format if the other end insists on it!
+Use T3-CParity framing format if possible.
+Loop Timing, Fractional T3, and HDLC packets in
+the Facility Data Link are
+.Em not
+supported.
+.Sp
+.Ss T1 & T3 Frame Overhead Functions
+.Sp
+Performance Report Messages (PRMs) are enabled in T1-ESF.
+.br
+Bit Oriented Protocol (BOP) messages are enabled in T1-ESF.
+.br
+In-band loopback control (framed or not) is enabled in T1-SF.
+.br
+Far End Alarm and Control (FEAC) msgs are enabled in T3-CPar.
+.br
+Far End Block Error (FEBE) reports are enabled in T3-CPar.
+.br
+Remote Alarm Indication (RAI) is enabled in T3-Any.
+.br
+Loopbacks initiated remotely time out after 300 seconds.
+.Sp
+.Ss T1/E1 'Fractional' 64 kb/s Time Slots
+.Sp
+T1 uses time slots 24..1; E1 uses time slots 31..0.
+E1 uses TS0 for FAS overhead and TS16 for CAS overhead.
+E1-NONE has
+.Em no
+overhead, so all 32 TSs are available for data.
+Enable/disable time slots by setting 32 1s/0s in a config param.
+Enabling an E1 overhead time slot,
+or enabling TS0 or TS25-TS31 for T1,
+is ignored by the driver, which knows better.
+The default TS param, 0xFFFFFFFF, enables the maximum number
+of time slots for whatever frame format is selected.
+56 Kb/s time slots are
+.Em not
+supported.
+.Sp
+.Ss T1 Raw Mode
+.Sp
+Special gate array microcode exists for the T1/E1 card.
+Each T1 frame of 24 bytes is treated as a packet.
+A raw T1 byte stream can be delivered to main memory
+and transmitted from main memory.
+The T1 card adds or deletes framing bits but does not
+touch the data.
+ATM cells can be transmitted and received this way, with
+the software doing all the work.
+But that's not hard; after all it's only 1.5 Mb/s second!
+.Sp
+.Ss T3 Circuit Emulation Mode
+.Sp
+Special gate array microcode exists for the T3 card.
+Each T3 frame of 595 bytes is treated as a packet.
+A raw T3 signal can be
+.Em packetized ,
+transported through a
+packet network (using some protocol) and then
+.Em reconstituted
+as a T3 signal at the far end.  The output transmitter's
+bit rate can be controlled from software so that it can be
+.Em frequency locked
+to the distant input signal.
+.Sp
+.Ss HSSI and SSI Transmit Clocks
+.Sp
+Synchronous interfaces use two transmit clocks to eliminate
+.Em skew
+caused by speed-of-light delays in the modem cable.
+DCEs (modems) drive ST, Send Timing. the first transmit clock.
+DTEs (hosts) receive ST and use it to clock transmit data, TD,
+onto the modem cable.
+DTEs also drive a copy of ST back towards the DCE and call it TT,
+Transmit Timing. the second trasmit clock.
+DCEs receive TT and TD and use TT to clock TD into a flip flop.
+TT experiences the same delay as (and has no
+.Em skew
+relative to) TD.
+Thus, cable length does not affect data/clock timing.
+.Sp
+.Sh SEE ALSO
+.Sp
+.Xr tcpdump 1 ,
+.Xr ioctl 2 ,
+.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
+.Xr altq 4 , \}
+.if (\n[fbsd] : \n[nbsd] : \n[obsd] : \n[bsdi]) \{\
+.Xr bpf 4 , \}
+.if \n[fbsd] \{\
+.Xr kld 4 ,
+.Xr loader.conf 5 ,
+.Xr netgraph 4 , \}
+.if \n[bsdi] \{\
+.Xr p2p 4 , \}
+.if \n[fbsd] \{\
+.Xr polling 4 , \}
+.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
+.Xr sppp 4 ,
+.Xr altqd 8 , \}
+.if \n[bsdi] \{\
+.Xr frconfig 8 , \}
+.Xr ifconfig 8 ,
+.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
+.Xr init 8 , \}
+.if (\n[nbsd] : \n[obsd]) \{\
+.Xr lkm 8 , \}
+.if \n[fbsd] \{\
+.Xr mpd 8 ,
+.Xr ngctl 8 , \}
+.Xr ping 8 ,
+.if \n[bsdi] \{\
+.Xr ppp 8 , \}
+.Xr lmcconfig 8 ,
+.if (\n[fbsd] : \n[nbsd] : \n[obsd] : \n[bsdi]) \{\
+.Xr ifnet 9 . \}
+.if \n[fbsd] \{\
+.Pp
+.Pa /usr/ports/net/mpd . \}
+.if \n[linux] \{\
+.Pp
+.Pa http://hq.pm.waw.pl/hdlc . \}
+.Pp
+.Pa http://www.sbei.com .
+.Sp
+.Sh HISTORY
+.Sp
+Ron Crane had the idea to use a Fast Ethernet chip as a PCI interface
+and add an Ethernet-to-HDLC gate array to make a WAN card.
+David Boggs designed the Ethernet-to-HDLC gate array and PC cards.
+We did this at our company, LAN Media Corporation
+.Tn (LMC) .
+.Tn SBE
+Corp aquired
+.Tn LMC
+and continues to make the cards.
+.Pp
+Since the cards use Tulip Ethernet chips, we started with Matt Thomas'
+ubiquitous "de" driver.  Michael Graff stripped out the Ethernet stuff
+and added HSSI stuff.  Basil Gunn ported it to Solaris (lost) and
+Rob Braun ported it to Linux.  Andrew Stanley-Jones added support
+for three more cards and wrote the first version of lmcconfig.
+David Boggs rewrote everything and now feels responsible for it.
+.Sp
+.Sh AUTHOR
+.Sp
+.An "David Boggs" Aq boggs@boggs.palo-alto.ca.us .
