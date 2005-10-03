@@ -1594,7 +1594,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 /*
  * The code common to handling reference counted flags,
  * e.g., in ifpromisc() and if_allmulti().
- * The "pflag" argument can specify a permanent mode flag,
+ * The "pflag" argument can specify a permanent mode flag to check,
  * such as IFF_PPROMISC for promiscuous mode; should be 0 if none.
  *
  * Only to be used on stack-owned flags, not driver-owned flags.
@@ -1606,25 +1606,18 @@ if_setflag(struct ifnet *ifp, int flag, int pflag, int *refcount, int onswitch)
 	int error;
 	int oldflags, oldcount;
 
-	KASSERT((flag & (IFF_DRV_OACTIVE|IFF_DRV_RUNNING)) == 0,
-	    ("if_setflag: setting driver-ownded flag %d", flag));
-
 	/* Sanity checks to catch programming errors */
-	if (onswitch) {
-		if (*refcount < 0) {
-			if_printf(ifp,
-			    "refusing to increment negative refcount %d "
-			    "for interface flag %d\n", *refcount, flag);
-			return (EINVAL);
-		}
-	} else {
-		if (*refcount <= 0) {
-			if_printf(ifp,
-			    "refusing to decrement non-positive refcount %d"
-			    "for interface flag %d\n", *refcount, flag);
-			return (EINVAL);
-		}
-	}
+	KASSERT((flag & (IFF_DRV_OACTIVE|IFF_DRV_RUNNING)) == 0,
+	    ("%s: setting driver-owned flag %d", __func__, flag));
+
+	if (onswitch)
+		KASSERT(*refcount >= 0,
+		    ("%s: increment negative refcount %d for flag %d",
+		    __func__, *refcount, flag));
+	else
+		KASSERT(*refcount > 0,
+		    ("%s: decrement non-positive refcount %d for flag %d",
+		    __func__, *refcount, flag));
 
 	/* In case this mode is permanent, just touch refcount */
 	if (ifp->if_flags & pflag) {
