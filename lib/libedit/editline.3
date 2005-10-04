@@ -1,4 +1,4 @@
-.\"	$NetBSD: editline.3,v 1.48 2005/07/14 15:02:37 wiz Exp $
+.\"	$NetBSD: editline.3,v 1.49 2005/09/09 22:32:56 wiz Exp $
 .\"
 .\" Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2005
+.Dd October 4, 2005
 .Os
 .Dt EDITLINE 3
 .Sh NAME
@@ -631,11 +631,11 @@ Load the history list stored in
 Save the history list to
 .Fa file .
 .It Dv H_SETUNIQUE , Fa "int unique"
-Set if the adjacent identical event strings should not be entered into
-the history.
+Set flag that adjacent identical event strings should not be entered
+into the history.
 .It Dv H_GETUNIQUE
-Retrieve the current setting if if adjacent elements should be entered into
-the history.
+Retrieve the current setting if adjacent identical elements should
+be entered into the history.
 .It Dv H_DEL , Fa "int num"
 Delete the event numbered
 .Fa e .
