@@ -553,8 +553,12 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
 	msg = malloc(len, M_BUS, M_NOWAIT);
 	if (msg == NULL)
 		return;		/* Drop it on the floor */
-	snprintf(msg, len, "!system=%s subsystem=%s type=%s %s\n", system,
-	    subsystem, type, data);
+	if (data != NULL)
+		snprintf(msg, len, "!system=%s subsystem=%s type=%s %s\n",
+		    system, subsystem, type, data);
+	else
+		snprintf(msg, len, "!system=%s subsystem=%s type=%s\n",
+		    system, subsystem, type);
 	devctl_queue_data(msg);
 }
 
