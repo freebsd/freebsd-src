@@ -91,7 +91,7 @@ getcwd(pt, size)
 		}
 		ept = pt + size;
 	} else {
-		if ((pt = malloc(ptsize = 1024 - 4)) == NULL)
+		if ((pt = malloc(ptsize = PATH_MAX)) == NULL)
 			return (NULL);
 		ept = pt + ptsize;
 	}
@@ -111,13 +111,13 @@ getcwd(pt, size)
 	*bpt = '\0';
 
 	/*
-	 * Allocate bytes (1024 - malloc space) for the string of "../"'s.
-	 * Should always be enough (it's 340 levels).  If it's not, allocate
+	 * Allocate 1024 bytes for the string of "../"'s.
+	 * Should always be enough.  If it's not, allocate
 	 * as necessary.  Special case the first stat, it's ".", not "..".
 	 */
-	if ((up = malloc(upsize = 1024 - 4)) == NULL)
+	if ((up = malloc(upsize = 1024)) == NULL)
 		goto err;
-	eup = up + MAXPATHLEN;
+	eup = up + upsize;
 	bup = up;
 	up[0] = '.';
 	up[1] = '\0';
@@ -157,7 +157,7 @@ getcwd(pt, size)
 		 * as necessary.  Max length is 3 for "../", the largest
 		 * possible component name, plus a trailing NUL.
 		 */
-		if (bup + 3  + MAXNAMLEN + 1 >= eup) {
+		while (bup + 3  + MAXNAMLEN + 1 >= eup) {
 			if ((up = reallocf(up, upsize *= 2)) == NULL)
 				goto err;
 			bup = up;
@@ -211,7 +211,7 @@ getcwd(pt, size)
 		 * Check for length of the current name, preceding slash,
 		 * leading slash.
 		 */
-		if (bpt - pt < dp->d_namlen + (first ? 1 : 2)) {
+		while (bpt - pt < dp->d_namlen + (first ? 1 : 2)) {
 			size_t len, off;
 
 			if (!ptsize) {
