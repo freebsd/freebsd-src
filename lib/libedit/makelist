@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$NetBSD: makelist,v 1.9 2005/05/16 13:14:43 lukem Exp $
+#	$NetBSD: makelist,v 1.10 2005/08/08 14:04:49 christos Exp $
 # $FreeBSD$
 #
 # Copyright (c) 1992, 1993
@@ -119,7 +119,6 @@ case $FLAG in
 	    }
 	}
 	END {
-	    printf("    { NULL, 0, NULL }\n");
 	    printf("};\n");
 	    printf("\nprotected const el_bindings_t* help__get()");
 	    printf("{ return el_func_help; }\n");
