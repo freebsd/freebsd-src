@@ -58,7 +58,8 @@
 static const char rcsid[] =
   "$FreeBSD$";
 #endif
-static int			__tag = 0;
+static struct vlanreq		__vreq;
+static int			__have_dev = 0;
 static int			__have_tag = 0;
 
 static void
@@ -82,47 +83,26 @@ vlan_status(int s)
 static void
 setvlantag(const char *val, int d, int s, const struct afswtch	*afp)
 {
-	u_int16_t		tag;
-	struct vlanreq		vreq;
+	char			*endp;
+	u_long			ul;
 
-	__tag = tag = atoi(val);
+	ul = strtoul(val, &endp, 0);
+	if (*endp != '\0')
+		errx(1, "invalid value for vlan");
+	__vreq.vlr_tag = ul;
+	/* check if the value can be represented in vlr_tag */
+	if (__vreq.vlr_tag != ul)
+		errx(1, "value for vlan out of range");
+	/* the kernel will do more specific checks on vlr_tag */
 	__have_tag = 1;
-
-	bzero((char *)&vreq, sizeof(struct vlanreq));
-	ifr.ifr_data = (caddr_t)&vreq;
-
-	if (ioctl(s, SIOCGETVLAN, (caddr_t)&ifr) == -1)
-		err(1, "SIOCGETVLAN");
-
-	vreq.vlr_tag = tag;
-
-	if (ioctl(s, SIOCSETVLAN, (caddr_t)&ifr) == -1)
-		err(1, "SIOCSETVLAN");
-
-	return;
 }
 
 static void
 setvlandev(const char *val, int d, int s, const struct afswtch	*afp)
 {
-	struct vlanreq		vreq;
 
-	if (!__have_tag)
-		errx(1, "must specify both vlan tag and device");
-
-	bzero((char *)&vreq, sizeof(struct vlanreq));
-	ifr.ifr_data = (caddr_t)&vreq;
-
-	if (ioctl(s, SIOCGETVLAN, (caddr_t)&ifr) == -1)
-		err(1, "SIOCGETVLAN");
-
-	strncpy(vreq.vlr_parent, val, sizeof(vreq.vlr_parent));
-	vreq.vlr_tag = __tag;
-
-	if (ioctl(s, SIOCSETVLAN, (caddr_t)&ifr) == -1)
-		err(1, "SIOCSETVLAN");
-
-	return;
+	strncpy(__vreq.vlr_parent, val, sizeof(__vreq.vlr_parent));
+	__have_dev = 1;
 }
 
 static void
@@ -140,12 +120,25 @@ unsetvlandev(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "SIOCGETVLAN");
 
 	bzero((char *)&vreq.vlr_parent, sizeof(vreq.vlr_parent));
-	vreq.vlr_tag = 0;
+	vreq.vlr_tag = 0; /* XXX clear parent only (no kernel support now) */
 
 	if (ioctl(s, SIOCSETVLAN, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSETVLAN");
+	__have_dev = __have_tag = 0;
+}
 
-	return;
+static void
+vlan_cb(int s, void *arg)
+{
+
+	if (__have_tag ^ __have_dev)
+		errx(1, "both vlan and vlandev must be specified");
+
+	if (__have_tag && __have_dev) {
+		ifr.ifr_data = (caddr_t)&__vreq;
+		if (ioctl(s, SIOCSETVLAN, (caddr_t)&ifr) == -1)
+			err(1, "SIOCSETVLAN");
+	}
 }
 
 static struct cmd vlan_cmds[] = {
@@ -173,5 +166,6 @@ vlan_ctor(void)
 	for (i = 0; i < N(vlan_cmds);  i++)
 		cmd_register(&vlan_cmds[i]);
 	af_register(&af_vlan);
+	callback_register(vlan_cb, NULL);
 #undef N
 }
