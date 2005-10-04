@@ -18,7 +18,7 @@ opt_netgraph.h:
 	echo "#define NETGRAPH 1" > ${.TARGET}
 opt_global.h:
 	echo "#define ALTQ 1"     > ${.TARGET}
-	echo "#define DEVICE_POLLING 1" >> ${.TARGET}
+	echo "#define DEVICE_POLLING 0" >> ${.TARGET}
 opt_bpf.h: # FreeBSD-5:
 	echo "#define DEV_BPF 1"  > ${.TARGET}
 
