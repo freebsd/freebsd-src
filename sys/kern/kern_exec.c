@@ -479,8 +479,11 @@ interpret:
 	newcred = crget();
 	euip = uifind(attr.va_uid);
 	i = imgp->args->begin_envv - imgp->args->begin_argv;
-	if (ps_arg_cache_limit >= i + sizeof(struct pargs))
+	/* Cache arguments if they fit inside our allowance */
+	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
 		newargs = pargs_alloc(i);
+		bcopy(imgp->args->begin_argv, newargs->ar_args, i);
+	}
 
 	/* close files on exec */
 	fdcloseexec(td);
@@ -661,16 +664,13 @@ interpret:
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;
 
-	/* Free any previous argument cache */
+	/*
+	 * Free any previous argument cache and replace it with
+	 * the new argument cache, if any.
+	 */
 	oldargs = p->p_args;
-	p->p_args = NULL;
-
-	/* Cache arguments if they fit inside our allowance */
-	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
-		bcopy(imgp->args->begin_argv, newargs->ar_args, i);
-		p->p_args = newargs;
-		newargs = NULL;
-	}
+	p->p_args = newargs;
+	newargs = NULL;
 
 #ifdef	HWPMC_HOOKS
 	/*
