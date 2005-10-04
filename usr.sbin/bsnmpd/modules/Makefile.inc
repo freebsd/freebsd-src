@@ -8,6 +8,8 @@ SHLIB_NAME=	snmp_${MOD}.so.${SHLIB_MAJOR}
 SRCS+=		${MOD}_oid.h ${MOD}_tree.c ${MOD}_tree.h
 CLEANFILES+=	${MOD}_oid.h ${MOD}_tree.c ${MOD}_tree.h
 CFLAGS+=	-I${CONTRIB}/lib -I${CONTRIB}/snmpd -I.
+CFLAGS+=	-DQUADFMT='"llu"' -DQUADXFMT='"llx"' -DHAVE_STDINT_H
+CFLAGS+=	-DHAVE_INTTYPES_H
 
 ${MOD}_oid.h: ${MOD}_tree.def ${EXTRAMIBDEFS}
 	cat ${.ALLSRC} | gensnmptree -e ${XSYM} > ${.TARGET}
