@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpclient.c,v 1.31 2005/05/23 11:10:13 brandt_h Exp $
+ * $Begemot: bsnmp/lib/snmpclient.c,v 1.34 2005/10/04 14:32:42 brandt_h Exp $
  *
  * Support functions for SNMP clients.
  */
@@ -48,7 +48,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <netdb.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#elif defined(HAVE_INTTYPES_H)
+#include <inttypes.h>
+#endif
 #include <limits.h>
 #ifdef HAVE_ERR_H
 #include <err.h>
@@ -549,7 +553,7 @@ table_check_cons(struct tabwork *work)
 
 /*
  * Fetch a table. Returns 0 if ok, -1 on errors.
- * This is the synchronuous variant.
+ * This is the synchronous variant.
  */
 int
 snmp_table_fetch(const struct snmp_table *descr, void *list)
@@ -1561,7 +1565,7 @@ ok_get(const struct snmp_pdu * req, const struct snmp_pdu * resp)
 }
 
 /*
- * Check the reponse to a SET PDU. We check: - the error status must be 0 -
+ * Check the response to a SET PDU. We check: - the error status must be 0 -
  * the number of bindings must be equal in response and request - the
  * syntaxes must be the same in response and request - the OIDs must be the
  * same in response and request

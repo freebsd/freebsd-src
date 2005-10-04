@@ -1,4 +1,7 @@
 .\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt
+.\"	All rights reserved.
 .\" Copyright (c) 2001-2003
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
@@ -26,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/snmp_mibII/snmp_mibII.3,v 1.7 2005/05/23 09:11:21 brandt_h Exp $
+.\" $Begemot: bsnmp/snmp_mibII/snmp_mibII.3,v 1.10 2005/10/04 08:46:52 brandt_h Exp $
 .\"
-.Dd May 23, 2005
+.Dd October 4, 2005
 .Dt SNMP_MIBII 3
 .Os
 .Sh NAME
@@ -56,7 +59,7 @@
 .Nm mib_rcvaddr_delete ,
 .Nm mibif_notify ,
 .Nm mibif_unnotify
-.Nd "mib-2 module for snmpd.
+.Nd "mib-2 module for bsnmpd."
 .Sh LIBRARY
 .Pq begemotSnmpdModulePath."mibII" = "@MODPATH@snmp_mibII.so"
 .Sh SYNOPSIS
@@ -110,27 +113,31 @@
 .Sh DESCRIPTION
 The
 .Nm snmp_mibII
-module implements parts of the internet standard MIB-2. Most of the relevant
-MIBs are implemented. Some of the tables are restricted to be read-only
-instead of read-write. The exact current implementation can be found in
+module implements parts of the internet standard MIB-2.
+Most of the relevant MIBs are implemented.
+Some of the tables are restricted to be read-only instead of read-write.
+The exact current implementation can be found in
 .Pa @DEFPATH@mibII_tree.def .
 The module also exports a number of functions and global variables for use
-by other modules, that need to handle network interfaces. This man page describes
-these functions.
+by other modules, that need to handle network interfaces.
+This man page describes these functions.
 .Ss DIRECT NETWORK ACCESS
 The
 .Nm
 module opens a socket that is used to execute all network related
 .Xr ioctl 2
-functions. This socket is globally available under the name
+functions.
+This socket is globally available under the name
 .Va mib_netsock .
 .Ss NETWORK INTERFACES
 The
 .Nm
-module handles a list of all currently existing network interfaces. It allows
+module handles a list of all currently existing network interfaces.
+It allows
 other modules to handle their own interface lists with special information
 by providing a mechanism to register to events that change the interface list
-(see below). The basic data structure is the interface structure:
+(see below).
+The basic data structure is the interface structure:
 .Bd -literal -offset indent
 struct mibif {
 	TAILQ_ENTRY(mibif) link;
@@ -159,35 +166,39 @@ The
 .Nm
 module tries to implement the semantic if
 .Va ifIndex
-as described in RFC-2863. This RFC states, that an interface indexes may not
-be reused. That means, for example, if
+as described in RFC-2863.
+This RFC states, that an interface indexes may not be reused.
+That means, for example, if
 .Pa tun
 is a synthetic interface type and the system creates the interface
 .Pa tun0 ,
 destroys this interfaces and again creates a
 .Pa tun 0 ,
 then these interfaces must have different interface indexes, because in fact
-they are different interfaces. If, on the other hand, there is a hardware
-interface
+they are different interfaces.
+If, on the other hand, there is a hardware interface
 .Pa xl0
 and this interface disappears, because its driver is unloaded and appears
 again, because the driver is loaded again, the interface index must stay
 the same.
 .Nm
 implements this by differentiating between real and synthetic (dynamic)
-interfaces. An interface type can be declared dynamic by calling the function
+interfaces.
+An interface type can be declared dynamic by calling the function
 .Fn mib_if_set_dyn
 with the name if the interface type (for example
 .Qq tun ).
 For real interfaces, the module keeps the mapping between the interface name
 and its
 .Va ifIndex
-in a special list, if the interface is unloaded. For dynamic interfaces
+in a special list, if the interface is unloaded.
+For dynamic interfaces
 a new
 .Va ifIndex
-is generated each time the interface comes into existance. This
-means, that the interface index as seen by SNMP is not the same index
-as used by the system. The SNMP
+is generated each time the interface comes into existence.
+This means, that the interface index as seen by SNMP is not the same index
+as used by the system.
+The SNMP
 .Va ifIndex
 is held in field
 .Va index ,
@@ -212,8 +223,8 @@ finds an interface by searching for an SNMP
 .Fn mib_find_if_sys
 finds an interface by searching for a system interface index and
 .Fn mib_find_if_name
-finds an interface by looking for an interface name. Each of the
-function returns
+finds an interface by looking for an interface name.
+Each of the function returns
 .Li NULL
 if the interface cannot be found.
 .Pp
@@ -227,17 +238,18 @@ can be used to change the interface administrative state to up
 (argument is 1) or down (argument is 0).
 .Ss INTERFACE EVENTS
 A module can register itself to receive a notification when a new entry is
-created in the interface list. This is done by calling
+created in the interface list.
+This is done by calling
 .Fn mib_register_newif .
 A module can register only one function, a second call to
 .Fn mib_register_newif
-causes the registration to be overwritten. The registration can be removed
-with a call to
+causes the registration to be overwritten.
+The registration can be removed with a call to
 .Fn mib_unregister_newif .
-If is unregistered automatically, when the registering module is unloaded.
+It is unregistered automatically, when the registering module is unloaded.
 .Pp
-A module can also register to events on a specific interface. This is done
-by calling
+A module can also register to events on a specific interface.
+This is done by calling
 .Fn mibif_notify .
 This causes the given callback
 .Fa func
@@ -251,7 +263,8 @@ The interface is destroyed.
 .El
 .Pp
 This mechanism can be used to implement interface type specific MIB parts
-in other modules. The registration can be removed with
+in other modules.
+The registration can be removed with
 .Fn mib_unnotify
 which the return value from
 .Fa mib_notify .
@@ -261,8 +274,8 @@ is destroyed or the registering module is unloaded.
 .Ss INTERFACE ADDRESSES
 The
 .Nm
-module handles a table of interface IP-addresses. These addresses are held
-in a
+module handles a table of interface IP-addresses.
+These addresses are held in a
 .Bd -literal -offset indent
 struct mibifa {
 	TAILQ_ENTRY(mibifa) link;
@@ -282,8 +295,8 @@ and
 .Fn mib_next_ififa .
 The list should not be considered read-only.
 .Ss INTERFACE RECEIVE ADDRESSES
-The internet MIB-2 contains a table of interface receive addresses. These
-addresses are handled in:
+The internet MIB-2 contains a table of interface receive addresses.
+These addresses are handled in:
 .Bd -literal -offset indent
 struct mibrcvaddr {
 	TAILQ_ENTRY(mibrcvaddr) link;
@@ -302,8 +315,9 @@ enum {
 .Pp
 Note, that the assignment of
 .Li MIBRCVADDR_BCAST
-is based on a list of known interface types. The flags should be handled
-by modules inplementing interface type specific MIBs.
+is based on a list of known interface types.
+The flags should be handled
+by modules implementing interface type specific MIBs.
 .Pp
 A receive address can be created with
 .Fn mib_rcvaddr_create
@@ -317,9 +331,11 @@ A receive address can be found with
 .Ss INTERFACE STACK TABLE
 The
 .Nm
-module maintains also the interface stack table. Because for complex stacks,
+module maintains also the interface stack table.
+Because for complex stacks,
 there is no system supported generic way of getting this information, interface
-type specific modules need to help setting up stack entries. The
+type specific modules need to help setting up stack entries.
+The
 .Nm
 module handles only the top and bottom entries.
 .Pp
@@ -327,8 +343,10 @@ A table entry is created with
 .Fn mib_ifstack_create
 and deleted with
 .Fn mib_ifstack_delete .
-Both functions need the pointers to the interfaces. Entries are automatically
-deleted if any of the interfaces of the entry is destroyed. The functions handle
+Both functions need the pointers to the interfaces.
+Entries are automatically
+deleted if any of the interfaces of the entry is destroyed.
+The functions handle
 both the stack table and the reverse stack table.
 .Sh FILES
 .Bl -tag -width ".It Pa @DEFPATH@mibII_tree.def" -compact

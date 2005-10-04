@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/asn1.h,v 1.18 2004/08/06 08:46:50 brandt Exp $
+ * $Begemot: bsnmp/lib/asn1.h,v 1.19 2005/10/04 11:21:31 brandt_h Exp $
  *
  * ASN.1 for SNMP
  */
@@ -178,5 +178,15 @@ enum {
 	ASN_EXCEPT_NOSUCHINSTANCE = 0x01,
 	ASN_EXCEPT_ENDOFMIBVIEW	= 0x02,
 };
+
+#if !defined(INT32_MIN)
+#define	INT32_MIN	(-0x7fffffff-1)
+#endif
+#if !defined(INT32_MAX)
+#define	INT32_MAX	(0x7fffffff)
+#endif
+#if !defined(UINT32_MAX)
+#define	UINT32_MAX	(0xffffffff)
+#endif
 
 #endif
