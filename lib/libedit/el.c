@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: el.c,v 1.40 2005/08/01 23:00:15 christos Exp $
+ *	$NetBSD: el.c,v 1.41 2005/08/19 04:21:47 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -301,11 +301,11 @@ el_get(EditLine *el, int op, void *ret)
 	switch (op) {
 	case EL_PROMPT:
 	case EL_RPROMPT:
-		rv = prompt_get(el, (void *) &ret, op);
+		rv = prompt_get(el, (el_pfunc_t *) ret, op);
 		break;
 
 	case EL_EDITOR:
-		rv = map_get_editor(el, (void *) &ret);
+		rv = map_get_editor(el, (const char **)ret);
 		break;
 
 	case EL_SIGNAL:
