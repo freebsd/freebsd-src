@@ -29,8 +29,13 @@
 #ifndef ARCHIVE_ENTRY_H_INCLUDED
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
+#include <stddef.h>  /* for wchar_t */
 #include <unistd.h>
-#include <wchar.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * Description of an archive entry.
@@ -66,6 +71,8 @@ struct archive_entry	*archive_entry_new(void);
 
 time_t			 archive_entry_atime(struct archive_entry *);
 long			 archive_entry_atime_nsec(struct archive_entry *);
+time_t			 archive_entry_ctime(struct archive_entry *);
+long			 archive_entry_ctime_nsec(struct archive_entry *);
 dev_t			 archive_entry_dev(struct archive_entry *);
 void			 archive_entry_fflags(struct archive_entry *,
 			     unsigned long *set, unsigned long *clear);
@@ -96,6 +103,8 @@ const char		*archive_entry_uname(struct archive_entry *);
  */
 
 void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
+void	archive_entry_set_atime(struct archive_entry *, time_t, long);
+void	archive_entry_set_ctime(struct archive_entry *, time_t, long);
 void	archive_entry_set_fflags(struct archive_entry *,
 	    unsigned long set, unsigned long clear);
 /* Returns pointer to start of first invalid token, or NULL if none. */
@@ -210,5 +219,10 @@ int	 archive_entry_acl_count(struct archive_entry *, int want_type);
  */
 int		 __archive_entry_acl_parse_w(struct archive_entry *,
 		     const wchar_t *, int type);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !ARCHIVE_ENTRY_H_INCLUDED */

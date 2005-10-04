@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <wchar.h>
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -209,6 +208,9 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 	}
 
 	utf8_value = malloc(utf8len + 1);
+	if (utf8_value == NULL)
+		__archive_errx(1, "Not enough memory for attributes");
+
 	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
 		wc = *wp++;
 		if (wc <= 0x7f) {
@@ -636,6 +638,8 @@ archive_write_pax_header(struct archive *a,
 	if (archive_strlen(&(pax->pax_header)) > 0) {
 		struct stat st;
 		struct archive_entry *pax_attr_entry;
+		time_t s;
+		long ns;
 
 		memset(&st, 0, sizeof(st));
 		pax_attr_entry = archive_entry_new();
@@ -643,19 +647,48 @@ archive_write_pax_header(struct archive *a,
 		archive_entry_set_pathname(pax_attr_entry,
 		    build_pax_attribute_name(pax_entry_name, p));
 		st.st_size = archive_strlen(&(pax->pax_header));
+		/* Copy uid/gid (but clip to ustar limits). */
 		st.st_uid = st_main->st_uid;
 		if (st.st_uid >= 1 << 18)
 			st.st_uid = (1 << 18) - 1;
 		st.st_gid = st_main->st_gid;
 		if (st.st_gid >= 1 << 18)
 			st.st_gid = (1 << 18) - 1;
+		/* Copy mode over (but not setuid/setgid bits) */
 		st.st_mode = st_main->st_mode;
+#ifdef S_ISUID
+		st.st_mode &= ~S_ISUID;
+#endif
+#ifdef S_ISGID
+		st.st_mode &= ~S_ISGID;
+#endif
+#ifdef S_ISVTX
+		st.st_mode &= ~S_ISVTX;
+#endif
 		archive_entry_copy_stat(pax_attr_entry, &st);
 
+		/* Copy uname/gname. */
 		archive_entry_set_uname(pax_attr_entry,
 		    archive_entry_uname(entry_main));
 		archive_entry_set_gname(pax_attr_entry,
 		    archive_entry_gname(entry_main));
+
+		/* Copy mtime, but clip to ustar limits. */
+		s = archive_entry_mtime(entry_main);
+		ns = archive_entry_mtime_nsec(entry_main);
+		if (s < 0) { s = 0; ns = 0; }
+		if (s > 0x7fffffff) { s = 0x7fffffff; ns = 0; }
+		archive_entry_set_mtime(pax_attr_entry, s, ns);
+
+		/* Ditto for atime. */
+		s = archive_entry_atime(entry_main);
+		ns = archive_entry_atime_nsec(entry_main);
+		if (s < 0) { s = 0; ns = 0; }
+		if (s > 0x7fffffff) { s = 0x7fffffff; ns = 0; }
+		archive_entry_set_atime(pax_attr_entry, s, ns);
+
+		/* Standard ustar doesn't support ctime. */
+		archive_entry_set_ctime(pax_attr_entry, 0, 0);
 
 		ret = __archive_write_format_header_ustar(a, paxbuff,
 		    pax_attr_entry, 'x', 1);

@@ -55,9 +55,13 @@ struct archive *
 archive_read_new(void)
 {
 	struct archive	*a;
-	char		*nulls;
+	unsigned char	*nulls;
 
 	a = malloc(sizeof(*a));
+	if (a == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate archive object");
+		return (NULL);
+	}
 	memset(a, 0, sizeof(*a));
 
 	a->user_uid = geteuid();
@@ -66,6 +70,11 @@ archive_read_new(void)
 
 	a->null_length = 1024;
 	nulls = malloc(a->null_length);
+	if (nulls == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate archive object 'nulls' element");
+		free(a);
+		return (NULL);
+	}
 	memset(nulls, 0, a->null_length);
 	a->nulls = nulls;
 
@@ -85,7 +94,7 @@ archive_read_new(void)
 int
 archive_read_set_bytes_per_block(struct archive *a, int bytes_per_block)
 {
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_set_bytes_per_block");
 	if (bytes_per_block < 1)
 		bytes_per_block = 1;
 	a->bytes_per_block = bytes_per_block;
@@ -106,7 +115,7 @@ archive_read_open(struct archive *a, void *client_data,
 	int high_bidder;
 	int e;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_open");
 
 	if (reader == NULL)
 		__archive_errx(1,
@@ -116,8 +125,6 @@ archive_read_open(struct archive *a, void *client_data,
 	a->client_opener = opener;
 	a->client_closer = closer;
 	a->client_data = client_data;
-
-	a->state = ARCHIVE_STATE_HEADER;
 
 	/* Open data source. */
 	if (a->client_opener != NULL) {
@@ -147,6 +154,10 @@ archive_read_open(struct archive *a, void *client_data,
 
 	/* Initialize decompression routine with the first block of data. */
 	e = (a->decompressors[high_bidder].init)(a, buffer, bytes_read);
+
+	if (e == ARCHIVE_OK)
+		a->state = ARCHIVE_STATE_HEADER;
+
 	return (e);
 }
 
@@ -207,8 +218,8 @@ archive_read_next_header(struct archive *a, struct archive_entry **entryp)
 	struct archive_entry *entry;
 	int slot, ret;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA, "archive_read_next_header");
 
 	*entryp = NULL;
 	entry = a->entry;
@@ -347,7 +358,6 @@ archive_read_header_position(struct archive *a)
 ssize_t
 archive_read_data(struct archive *a, void *buff, size_t s)
 {
-	off_t	 remaining;
 	char	*dest;
 	size_t	 bytes_read;
 	size_t	 len;
@@ -364,26 +374,26 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 			    &a->read_data_offset);
 			if (r == ARCHIVE_EOF)
 				return (bytes_read);
-			if (r != ARCHIVE_OK)
+			/*
+			 * Error codes are all negative, so the status
+			 * return here cannot be confused with a valid
+			 * byte count.  (ARCHIVE_OK is zero.)
+			 */
+			if (r < ARCHIVE_OK)
 				return (r);
 		}
 
 		if (a->read_data_offset < a->read_data_output_offset) {
-			remaining =
-			    a->read_data_output_offset - a->read_data_offset;
-			if (remaining > (off_t)s)
-				remaining = (off_t)s;
-			len = (size_t)remaining;
-			memset(dest, 0, len);
-			a->read_data_output_offset += len;
-			s -= len;
-			bytes_read += len;
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Encountered out-of-order sparse blocks");
+			return (ARCHIVE_RETRY);
 		} else {
 			len = a->read_data_remaining;
 			if (len > s)
 				len = s;
 			memcpy(dest, a->read_data_block, len);
 			s -= len;
+			a->read_data_block += len;
 			a->read_data_remaining -= len;
 			a->read_data_output_offset += len;
 			a->read_data_offset += len;
@@ -391,7 +401,7 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 			bytes_read += len;
 		}
 	}
-	return (ARCHIVE_OK);
+	return (bytes_read);
 }
 
 /*
@@ -402,10 +412,10 @@ archive_read_data_skip(struct archive *a)
 {
 	int r;
 	const void *buff;
-	ssize_t size;
+	size_t size;
 	off_t offset;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA, "archive_read_data_skip");
 
 	if (a->format->read_data_skip != NULL)
 		r = (a->format->read_data_skip)(a);
@@ -434,7 +444,7 @@ int
 archive_read_data_block(struct archive *a,
     const void **buff, size_t *size, off_t *offset)
 {
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA, "archive_read_data_block");
 
 	if (a->format->read_data == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
@@ -456,7 +466,7 @@ archive_read_data_block(struct archive *a,
 int
 archive_read_close(struct archive *a)
 {
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_close");
 	a->state = ARCHIVE_STATE_CLOSED;
 
 	/* Call cleanup functions registered by optional components. */
@@ -480,7 +490,7 @@ archive_read_finish(struct archive *a)
 	int i;
 	int slots;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_finish");
 	if (a->state != ARCHIVE_STATE_CLOSED)
 		archive_read_close(a);
 
@@ -516,7 +526,7 @@ __archive_read_register_format(struct archive *a,
 {
 	int i, number_slots;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "__archive_read_register_format");
 
 	number_slots = sizeof(a->formats) / sizeof(a->formats[0]);
 
@@ -549,7 +559,7 @@ __archive_read_register_compression(struct archive *a,
 {
 	int i, number_slots;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "__archive_read_register_compression");
 
 	number_slots = sizeof(a->decompressors) / sizeof(a->decompressors[0]);
 

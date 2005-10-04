@@ -49,7 +49,7 @@ struct archive_none {
 int
 archive_write_set_compression_none(struct archive *a)
 {
-	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW, "archive_write_set_compression_none");
 	a->compression_init = &archive_compressor_none_init;
 	a->compression_code = ARCHIVE_COMPRESSION_NONE;
 	a->compression_name = "none";

@@ -56,7 +56,7 @@ struct archive *
 archive_write_new(void)
 {
 	struct archive *a;
-	char *nulls;
+	unsigned char *nulls;
 
 	a = malloc(sizeof(*a));
 	if (a == NULL)
@@ -95,7 +95,7 @@ archive_write_new(void)
 int
 archive_write_set_bytes_per_block(struct archive *a, int bytes_per_block)
 {
-	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW, "archive_write_set_bytes_per_block");
 	a->bytes_per_block = bytes_per_block;
 	return (ARCHIVE_OK);
 }
@@ -108,7 +108,7 @@ archive_write_set_bytes_per_block(struct archive *a, int bytes_per_block)
 int
 archive_write_set_bytes_in_last_block(struct archive *a, int bytes)
 {
-	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY);
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY, "archive_write_set_bytes_in_last_block");
 	a->bytes_in_last_block = bytes;
 	return (ARCHIVE_OK);
 }
@@ -125,7 +125,7 @@ archive_write_open(struct archive *a, void *client_data,
 	int ret;
 
 	ret = ARCHIVE_OK;
-	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW);
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW, "archive_write_open");
 	archive_string_empty(&a->error_string);
 	a->state = ARCHIVE_STATE_HEADER;
 	a->client_data = client_data;
@@ -149,7 +149,7 @@ archive_write_open(struct archive *a, void *client_data,
 int
 archive_write_close(struct archive *a)
 {
-	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY);
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY, "archive_write_close");
 
 	/* Finish the last entry. */
 	if (a->state & ARCHIVE_STATE_DATA)
@@ -173,7 +173,7 @@ archive_write_close(struct archive *a)
 void
 archive_write_finish(struct archive *a)
 {
-	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY);
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY, "archive_write_finish");
 	if (a->state != ARCHIVE_STATE_CLOSED)
 		archive_write_close(a);
 
@@ -193,8 +193,8 @@ archive_write_header(struct archive *a, struct archive_entry *entry)
 {
 	int ret;
 
-	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA);
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA, "archive_write_header");
 	archive_string_empty(&a->error_string);
 
 	/* Finish last entry. */
@@ -222,7 +222,7 @@ int
 archive_write_data(struct archive *a, const void *buff, size_t s)
 {
 	int ret;
-	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_DATA);
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_DATA, "archive_write_data");
 	archive_string_empty(&a->error_string);
 	ret = (a->format_write_data)(a, buff, s);
 	return (ret == ARCHIVE_OK ? (ssize_t)s : -1);

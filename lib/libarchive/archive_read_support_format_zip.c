@@ -138,6 +138,10 @@ archive_read_support_format_zip(struct archive *a)
 	int r;
 
 	zip = malloc(sizeof(*zip));
+	if (zip == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate zip data");
+		return (ARCHIVE_FATAL);
+	}
 	memset(zip, 0, sizeof(*zip));
 
 	r = __archive_read_register_format(a,
@@ -624,7 +628,7 @@ archive_read_format_zip_read_data_skip(struct archive *a)
 	 * to decompress all the data to find the end marker.
 	 */
 	if (zip->flags & ZIP_LENGTH_AT_END) {
-		ssize_t size;
+		size_t size;
 		off_t offset;
 		int r;
 		do {

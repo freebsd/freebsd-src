@@ -134,6 +134,10 @@ archive_read_support_format_cpio(struct archive *a)
 	int r;
 
 	cpio = malloc(sizeof(*cpio));
+	if (cpio == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate cpio data");
+		return (ARCHIVE_FATAL);
+	}
 	memset(cpio, 0, sizeof(*cpio));
 	cpio->magic = CPIO_MAGIC;
 
@@ -576,6 +580,8 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry,
         }
 
         le = malloc(sizeof(struct links_entry));
+	if (le == NULL)
+		__archive_errx(1, "Out of memory adding file to list");
         if (cpio->links_head != NULL)
                 cpio->links_head->previous = le;
         le->next = cpio->links_head;
@@ -585,4 +591,6 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry,
         le->ino = st->st_ino;
         le->links = st->st_nlink - 1;
         le->name = strdup(archive_entry_pathname(entry));
+	if (le->name == NULL)
+		__archive_errx(1, "Out of memory adding file to list");
 }

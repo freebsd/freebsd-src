@@ -29,11 +29,31 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <errno.h>
+#include <stddef.h>
 /* #include <stdint.h> */ /* See archive_platform.h */
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+/* Obtain suitable wide-character manipulation functions. */
+#ifdef HAVE_WCHAR_H
 #include <wchar.h>
+#else
+static int wcscmp(const wchar_t *s1, const wchar_t *s2)
+{
+	int diff = *s1 - *s2;
+	while(*s1 && diff == 0)
+		diff = (int)*++s1 - (int)*++s2;
+	return diff;
+}
+static size_t wcslen(const wchar_t *s)
+{
+	const wchar_t *p = s;
+	while (*p)
+		p++;
+	return p - s;
+}
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -210,6 +230,10 @@ archive_read_support_format_tar(struct archive *a)
 	int r;
 
 	tar = malloc(sizeof(*tar));
+	if (tar == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate tar data");
+		return (ARCHIVE_FATAL);
+	}
 	memset(tar, 0, sizeof(*tar));
 
 	r = __archive_read_register_format(a, tar,
@@ -361,6 +385,22 @@ static int
 archive_read_format_tar_read_header(struct archive *a,
     struct archive_entry *entry)
 {
+	/*
+	 * When converting tar archives to cpio archives, it is
+	 * essential that each distinct file have a distinct inode
+	 * number.  To simplify this, we keep a static count here to
+	 * assign fake dev/inode numbers to each tar entry.  Note that
+	 * pax format archives may overwrite this with something more
+	 * useful.
+	 *
+	 * Ideally, we would track every file read from the archive so
+	 * that we could assign the same dev/ino pair to hardlinks,
+	 * but the memory required to store a complete lookup table is
+	 * probably not worthwhile just to support the relatively
+	 * obscure tar->cpio conversion case.
+	 */
+	static int default_inode;
+	static int default_dev;
 	struct stat st;
 	struct tar *tar;
 	const char *p;
@@ -368,6 +408,15 @@ archive_read_format_tar_read_header(struct archive *a,
 	size_t l;
 
 	memset(&st, 0, sizeof(st));
+	/* Assign default device/inode values. */
+	st.st_dev = 1 + default_dev; /* Don't use zero. */
+	st.st_ino = ++default_inode; /* Don't use zero. */
+	/* Limit generated st_ino number to 16 bits. */
+	if (default_inode >= 0xffff) {
+		++default_dev;
+		default_inode = 0;
+	}
+
 	tar = *(a->pformat_data);
 	tar->entry_offset = 0;
 
@@ -1035,14 +1084,22 @@ pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
 
 		/* Ensure pax_entry buffer is big enough. */
 		if (tar->pax_entry_length <= line_length) {
+			wchar_t *old_entry = tar->pax_entry;
+
 			if (tar->pax_entry_length <= 0)
 				tar->pax_entry_length = 1024;
 			while (tar->pax_entry_length <= line_length + 1)
 				tar->pax_entry_length *= 2;
 
-			/* XXX Error handling here */
+			old_entry = tar->pax_entry;
 			tar->pax_entry = realloc(tar->pax_entry,
 			    tar->pax_entry_length * sizeof(wchar_t));
+			if (tar->pax_entry == NULL) {
+				free(old_entry);
+				archive_set_error(a, ENOMEM,
+					"No memory");
+				return (ARCHIVE_FATAL);
+			}
 		}
 
 		/* Decode UTF-8 to wchar_t, null-terminate result. */
@@ -1054,11 +1111,12 @@ pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
 		}
 
 		/* Null-terminate 'key' value. */
-		key = tar->pax_entry;
+		wp = key = tar->pax_entry;
 		if (key[0] == L'=')
 			return (-1);
-		wp = wcschr(key, L'=');
-		if (wp == NULL) {
+		while (*wp && *wp != L'=')
+			++wp;
+		if (*wp == L'\0' || wp == NULL) {
 			archive_set_error(a, ARCHIVE_ERRNO_MISC,
 			    "Invalid pax extended attributes");
 			return (ARCHIVE_WARN);
@@ -1363,6 +1421,8 @@ gnu_parse_sparse_data(struct archive *a, struct tar *tar,
 
 	while (length > 0 && sparse->offset[0] != 0) {
 		p = malloc(sizeof(*p));
+		if (p == NULL)
+			__archive_errx(1, "Out of memory");
 		memset(p, 0, sizeof(*p));
 		if (last != NULL)
 			last->next = p;
@@ -1491,7 +1551,7 @@ static int64_t
 tar_atol256(const char *_p, unsigned char_cnt)
 {
 	int64_t	l, upper_limit, lower_limit;
-	const unsigned char *p = _p;
+	const unsigned char *p = (const unsigned char *)_p;
 
 	upper_limit = max_int64 / 256;
 	lower_limit = min_int64 / 256;

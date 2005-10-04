@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2005 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,9 +94,6 @@ struct extract {
 	 * Cached stat data from disk for the current entry.
 	 * If this is valid, pst points to st.  Otherwise,
 	 * pst is null.
-	 *
-	 * TODO: Have all of the stat calls use this cached data
-	 * if possible.
 	 */
 	struct stat		 st;
 	struct stat		*pst;
@@ -130,19 +127,20 @@ static int	create_dir_mutable(struct archive *, char *, int flags);
 static int	create_dir_recursive(struct archive *, char *, int flags);
 static int	create_parent_dir(struct archive *, const char *, int flags);
 static int	create_parent_dir_mutable(struct archive *, char *, int flags);
-static int	restore_metadata(struct archive *, struct archive_entry *,
-		    int flags);
+static int	restore_metadata(struct archive *, int fd,
+		    struct archive_entry *, int flags);
 #ifdef HAVE_POSIX_ACL
-static int	set_acl(struct archive *, struct archive_entry *,
+static int	set_acl(struct archive *, int fd, struct archive_entry *,
 		    acl_type_t, int archive_entry_acl_type, const char *tn);
 #endif
-static int	set_acls(struct archive *, struct archive_entry *);
-static int	set_fflags(struct archive *, const char *name, mode_t mode,
+static int	set_acls(struct archive *, int fd, struct archive_entry *);
+static int	set_fflags(struct archive *, int fd, const char *name, mode_t,
 		    unsigned long fflags_set, unsigned long fflags_clear);
-static int	set_ownership(struct archive *, struct archive_entry *, int);
-static int	set_perm(struct archive *, struct archive_entry *, int mode,
+static int	set_ownership(struct archive *, int fd, struct archive_entry *,
 		    int flags);
-static int	set_time(struct archive *, struct archive_entry *, int);
+static int	set_perm(struct archive *, int fd, struct archive_entry *,
+		    int mode, int flags);
+static int	set_time(struct archive *, int fd, struct archive_entry *, int);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
 
 
@@ -183,6 +181,8 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 	restore_pwd = -1;
 	original_filename = NULL;
 
+	/* The following is not possible without fchdir.  <sigh> */
+#ifdef HAVE_FCHDIR
 	/*
 	 * If pathname is longer than PATH_MAX, record starting directory
 	 * and chdir to a suitable intermediate dir.
@@ -190,13 +190,19 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 	if (strlen(archive_entry_pathname(entry)) > PATH_MAX) {
 		char *intdir, *tail;
 
+		restore_pwd = open(".", O_RDONLY);
+		if (restore_pwd < 0) {
+				archive_set_error(a, errno,
+				    "Unable to restore long pathname");
+				return (ARCHIVE_WARN);
+		}
+
 		/*
 		 * Yes, the copy here is necessary because we edit
 		 * the pathname in-place to create intermediate dirnames.
 		 */
 		original_filename = strdup(archive_entry_pathname(entry));
 
-		restore_pwd = open(".", O_RDONLY);
 		/*
 		 * "intdir" points to the initial dir section we're going
 		 * to remove, "tail" points to the remainder of the path.
@@ -230,6 +236,7 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 		}
 		archive_entry_set_pathname(entry, tail);
 	}
+#endif
 
 	if (stat(archive_entry_pathname(entry), &extract->st) == 0)
 		extract->pst = &extract->st;
@@ -269,6 +276,7 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 
 
 cleanup:
+#ifdef HAVE_FCHDIR
 	/* If we changed directory above, restore it here. */
 	if (restore_pwd >= 0 && original_filename != NULL) {
 		fchdir(restore_pwd);
@@ -276,6 +284,7 @@ cleanup:
 		archive_entry_copy_pathname(entry, original_filename);
 		free(original_filename);
 	}
+#endif
 
 	return (ret);
 }
@@ -287,7 +296,7 @@ cleanup:
  *     dir, so we restore the dir 0700 first, then correct the
  *     mode at the end.
  *   * Similarly, the act of restoring a file touches the directory
- *     and changes the timestamp on the dir, so we have to touch-up the
+ *     and changes the timestamp on the dir, so we have to touch-up dir
  *     timestamps at the end as well.
  *   * Some file flags can interfere with the restore by, for example,
  *     preventing the creation of hardlinks to those files.
@@ -316,7 +325,7 @@ archive_extract_cleanup(struct archive *a)
 	p = sort_dir_list(extract->fixup_list);
 
 	while (p != NULL) {
-		extract->pst = NULL; /* Mark stat buff as out-of-date. */
+		extract->pst = NULL; /* Mark stat cache as out-of-date. */
 		if (p->fixup & FIXUP_TIMES) {
 			struct timeval times[2];
 			times[1].tv_sec = p->mtime;
@@ -329,7 +338,7 @@ archive_extract_cleanup(struct archive *a)
 			chmod(p->name, p->mode);
 
 		if (p->fixup & FIXUP_FFLAGS)
-			set_fflags(a, p->name, p->mode, p->fflags_set, 0);
+			set_fflags(a, -1, p->name, p->mode, p->fflags_set, 0);
 
 		next = p->next;
 		free(p->name);
@@ -482,9 +491,9 @@ extract_file(struct archive *a, struct archive_entry *entry, int flags)
 		return (ARCHIVE_WARN);
 	}
 	r = archive_read_data_into_fd(a, fd);
-	close(fd);
 	extract->pst = NULL; /* Cached stat data no longer valid. */
-	r2 = restore_metadata(a, entry, flags);
+	r2 = restore_metadata(a, fd, entry, flags);
+	close(fd);
 	return (err_combine(r, r2));
 }
 
@@ -503,28 +512,40 @@ extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 	    archive_entry_pathname(entry));
 	path = extract->create_parent_dir.s;
 
+	if (*path == '\0') {
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "Invalid empty pathname");
+		return (ARCHIVE_WARN);
+	}
+
 	/* Deal with any troublesome trailing path elements. */
+	/* TODO: Someday, generalize this to remove '//' or '/./' from
+	 * the middle of paths.  But, it should not compress '..' from
+	 * the middle of paths.  It's a feature that restoring
+	 * "a/../b" creates both 'a' and 'b' directories. */
 	for (;;) {
-		if (*path == '\0')
-			return (ARCHIVE_OK);
-		/* Locate last element; trim trailing '/'. */
+		/* Locate last element. */
 		p = strrchr(path, '/');
-		if (p != NULL) {
-			if (p[1] == '\0') {
-				*p = '\0';
-				continue;
-			}
+		if (p != NULL)
 			p++;
-		} else
+		else
 			p = path;
-		/* Trim trailing '.'. */
-		if (p[0] == '.' && p[1] == '\0') {
+		/* Trim trailing '/' unless that's the entire path. */
+		if (p[0] == '\0' && p - 1 > path) {
+			p[-1] = '\0';
+			continue;
+		}
+		/* Trim trailing '.' unless that's the entire path. */
+		if (p > path && p[0] == '.' && p[1] == '\0') {
 			p[0] = '\0';
 			continue;
 		}
 		/* Just exit on trailing '..'. */
-		if (p[0] == '.' && p[1] == '.' && p[2] == '\0')
-			return (ARCHIVE_OK);
+		if (p[0] == '.' && p[1] == '.' && p[2] == '\0') {
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			    "Can't restore directory '..'");
+			return (ARCHIVE_WARN);
+		}
 		break;
 	}
 
@@ -570,7 +591,7 @@ success:
 	}
 	/* For now, set the mode to SECURE_DIR_MODE. */
 	archive_entry_set_mode(entry, SECURE_DIR_MODE);
-	return (restore_metadata(a, entry, flags));
+	return (restore_metadata(a, -1, entry, flags));
 }
 
 
@@ -762,7 +783,7 @@ extract_hard_link(struct archive *a, struct archive_entry *entry, int flags)
 	}
 
 	/* Set ownership, time, permission information. */
-	r = restore_metadata(a, entry, flags);
+	r = restore_metadata(a, -1, entry, flags);
 	return (r);
 }
 
@@ -798,7 +819,7 @@ extract_symlink(struct archive *a, struct archive_entry *entry, int flags)
 		return (ARCHIVE_WARN);
 	}
 
-	r = restore_metadata(a, entry, flags);
+	r = restore_metadata(a, -1, entry, flags);
 	return (r);
 }
 
@@ -830,7 +851,7 @@ extract_device(struct archive *a, struct archive_entry *entry,
 		return (ARCHIVE_WARN);
 	}
 
-	r = restore_metadata(a, entry, flags);
+	r = restore_metadata(a, -1, entry, flags);
 	return (r);
 }
 
@@ -879,24 +900,25 @@ extract_fifo(struct archive *a, struct archive_entry *entry, int flags)
 		return (ARCHIVE_WARN);
 	}
 
-	r = restore_metadata(a, entry, flags);
+	r = restore_metadata(a, -1, entry, flags);
 	return (r);
 }
 
 static int
-restore_metadata(struct archive *a, struct archive_entry *entry, int flags)
+restore_metadata(struct archive *a, int fd, struct archive_entry *entry, int flags)
 {
 	int r, r2;
 
-	r = set_ownership(a, entry, flags);
-	r2 = set_time(a, entry, flags);
+	r = set_ownership(a, fd, entry, flags);
+	r2 = set_time(a, fd, entry, flags);
 	r = err_combine(r, r2);
-	r2 = set_perm(a, entry, archive_entry_mode(entry), flags);
+	r2 = set_perm(a, fd, entry, archive_entry_mode(entry), flags);
 	return (err_combine(r, r2));
 }
 
 static int
-set_ownership(struct archive *a, struct archive_entry *entry, int flags)
+set_ownership(struct archive *a, int fd,
+    struct archive_entry *entry, int flags)
 {
 	uid_t uid;
 	gid_t gid;
@@ -914,6 +936,11 @@ set_ownership(struct archive *a, struct archive_entry *entry, int flags)
 	if (a->user_uid != 0  &&  a->user_uid != uid)
 		return (ARCHIVE_OK);
 
+#ifdef HAVE_FCHOWN
+	if (fd >= 0 && fchown(fd, uid, gid) == 0)
+		return (ARCHIVE_OK);
+#endif
+
 #ifdef HAVE_LCHOWN
 	if (lchown(archive_entry_pathname(entry), uid, gid))
 #else
@@ -930,7 +957,7 @@ set_ownership(struct archive *a, struct archive_entry *entry, int flags)
 }
 
 static int
-set_time(struct archive *a, struct archive_entry *entry, int flags)
+set_time(struct archive *a, int fd, struct archive_entry *entry, int flags)
 {
 	const struct stat *st;
 	struct timeval times[2];
@@ -949,6 +976,11 @@ set_time(struct archive *a, struct archive_entry *entry, int flags)
 
 	times[0].tv_sec = st->st_atime;
 	times[0].tv_usec = ARCHIVE_STAT_ATIME_NANOS(st) / 1000;
+
+#ifdef HAVE_FUTIMES
+	if (fd >= 0 && futimes(fd, times) == 0)
+		return (ARCHIVE_OK);
+#endif
 
 #ifdef HAVE_LUTIMES
 	if (lutimes(archive_entry_pathname(entry), times) != 0) {
@@ -973,7 +1005,8 @@ set_time(struct archive *a, struct archive_entry *entry, int flags)
 }
 
 static int
-set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
+set_perm(struct archive *a, int fd, struct archive_entry *entry,
+    int mode, int flags)
 {
 	struct extract *extract;
 	struct fixup_entry *le;
@@ -990,11 +1023,20 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 	name = archive_entry_pathname(entry);
 
 	if (mode & (S_ISUID | S_ISGID)) {
-		if (extract->pst == NULL && stat(name, &extract->st) != 0) {
-			archive_set_error(a, errno, "Can't check ownership");
+		if (extract->pst != NULL) {
+			/* Already have stat() data available. */
+#ifdef HAVE_FSTAT
+		} else if (fd >= 0 && fstat(fd, &extract->st) == 0) {
+			extract->pst = &extract->st;
+#endif
+		} else if (stat(name, &extract->st) == 0) {
+			extract->pst = &extract->st;
+		} else {
+			archive_set_error(a, errno,
+			    "Couldn't stat file");
 			return (ARCHIVE_WARN);
 		}
-		extract->pst = &extract->st;
+
 		/*
 		 * TODO: Use the uid/gid looked up in set_ownership
 		 * above rather than the uid/gid stored in the entry.
@@ -1011,6 +1053,15 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 	 * the way.
 	 */
 	if (!S_ISLNK(archive_entry_mode(entry))) {
+#ifdef HAVE_FCHMOD
+		if (fd >= 0) {
+			if (fchmod(fd, mode) != 0) {
+				archive_set_error(a, errno,
+				    "Can't set permissions");
+				return (ARCHIVE_WARN);
+			}
+		} else
+#endif
 		if (chmod(name, mode) != 0) {
 			archive_set_error(a, errno, "Can't set permissions");
 			return (ARCHIVE_WARN);
@@ -1030,7 +1081,7 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 	}
 
 	if (flags & ARCHIVE_EXTRACT_ACL) {
-		r = set_acls(a, entry);
+		r = set_acls(a, fd, entry);
 		if (r != ARCHIVE_OK)
 			return (r);
 	}
@@ -1086,7 +1137,7 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 			if ((le->fixup & FIXUP_MODE) == 0)
 				le->mode = mode;
 		} else {
-			r = set_fflags(a, archive_entry_pathname(entry),
+			r = set_fflags(a, fd, archive_entry_pathname(entry),
 			    mode, set, clear);
 			if (r != ARCHIVE_OK)
 				return (r);
@@ -1095,24 +1146,18 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 	return (ARCHIVE_OK);
 }
 
+
+#if ( defined(HAVE_LCHFLAGS) || defined(HAVE_CHFLAGS) || defined(HAVE_FCHFLAGS) ) && !defined(__linux)
 static int
-set_fflags(struct archive *a, const char *name, mode_t mode,
+set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
     unsigned long set, unsigned long clear)
 {
 	struct extract *extract;
-	int		 ret;
-#ifdef linux
-	int		 fd;
-	int		 err;
-	unsigned long newflags, oldflags;
-#endif
 
 	extract = a->extract;
-	ret = ARCHIVE_OK;
 	if (set == 0  && clear == 0)
-		return (ret);
+		return (ARCHIVE_OK);
 
-#ifdef HAVE_CHFLAGS
 	(void)mode; /* UNUSED */
 	/*
 	 * XXX Is the stat here really necessary?  Or can I just use
@@ -1120,65 +1165,136 @@ set_fflags(struct archive *a, const char *name, mode_t mode,
 	 * about the correct approach if we're overwriting an existing
 	 * file that already has flags on it. XXX
 	 */
-	if (stat(name, &extract->st) == 0) {
-		extract->st.st_flags &= ~clear;
-		extract->st.st_flags |= set;
-		if (chflags(name, extract->st.st_flags) != 0) {
-			archive_set_error(a, errno,
-			    "Failed to set file flags");
-			ret = ARCHIVE_WARN;
-		}
+	if (extract->pst != NULL) {
+		/* Already have stat() data available. */
+	} else if (fd >= 0 && fstat(fd, &extract->st) == 0)
 		extract->pst = &extract->st;
+	else if (stat(name, &extract->st) == 0)
+		extract->pst = &extract->st;
+	else {
+		archive_set_error(a, errno,
+		    "Couldn't stat file");
+		return (ARCHIVE_WARN);
 	}
-#else
-#ifdef linux
-	/* Linux has flags too, but no chflags syscall */
+
+	extract->st.st_flags &= ~clear;
+	extract->st.st_flags |= set;
+#ifdef HAVE_FCHFLAGS
+	/* If platform has fchflags() and we were given an fd, use it. */
+	if (fd >= 0 && fchflags(fd, extract->st.st_flags) == 0)
+		return (ARCHIVE_OK);
+#endif
+	/*
+	 * If we can't use the fd to set the flags, we'll use the
+	 * pathname to set flags.  We prefer lchflags() but will use
+	 * chflags() if we must.
+	 */
+#ifdef HAVE_LCHFLAGS
+	if (lchflags(name, extract->st.st_flags) == 0)
+		return (ARCHIVE_OK);
+#elif defined(HAVE_CHFLAGS)
+	if (chflags(name, extract->st.st_flags) == 0)
+		return (ARCHIVE_OK);
+#endif
+	archive_set_error(a, errno,
+	    "Failed to set file flags");
+	return (ARCHIVE_WARN);
+}
+
+#elif defined(__linux)
+
+/*
+ * Linux has flags too, but uses ioctl() to access them instead of
+ * having a separate chflags() system call.
+ */
+static int
+set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
+    unsigned long set, unsigned long clear)
+{
+	struct extract *extract;
+	int		 ret;
+	int		 myfd = fd;
+	int		 err;
+	unsigned long newflags, oldflags;
+
+	extract = a->extract;
+	if (set == 0  && clear == 0)
+		return (ARCHIVE_OK);
+	/* Only regular files and dirs can have flags. */
+	if (!S_ISREG(mode) && !S_ISDIR(mode))
+		return (ARCHIVE_OK);
+
+	/* If we weren't given an fd, open it ourselves. */
+	if (myfd < 0)
+		myfd = open(name, O_RDONLY|O_NONBLOCK);
+	if (myfd < 0)
+		return (ARCHIVE_OK);
+
 	/*
 	 * Linux has no define for the flags that are only settable
 	 * by the root user...
 	 */
 #define	SF_MASK                 (EXT2_IMMUTABLE_FL|EXT2_APPEND_FL)
-
 	/*
 	 * XXX As above, this would be way simpler if we didn't have
 	 * to read the current flags from disk. XXX
 	 */
-	if ((S_ISREG(mode) || S_ISDIR(mode)) &&
-	    ((fd = open(name, O_RDONLY|O_NONBLOCK)) >= 0)) {
-		err = 1;
-		if (fd >= 0 && (ioctl(fd, EXT2_IOC_GETFLAGS, &oldflags) >= 0)) {
-			newflags = (oldflags & ~clear) | set;
-			if (ioctl(fd, EXT2_IOC_SETFLAGS, &newflags) >= 0) {
-				err = 0;
-			} else if (errno == EPERM) {
-				if (ioctl(fd, EXT2_IOC_GETFLAGS, &oldflags) >= 0) {
-					newflags &= ~SF_MASK;
-					oldflags &= SF_MASK;
-					newflags |= oldflags;
-					if (ioctl(fd, EXT2_IOC_SETFLAGS, &newflags) >= 0)
-						err = 0;
-				}
-			}
-		}
-		close(fd);
-		if (err) {
-			archive_set_error(a, errno,
-			    "Failed to set file flags");
-			ret = ARCHIVE_WARN;
-		}
+	ret = ARCHIVE_OK;
+	/* Try setting the flags as given. */
+	if (ioctl(myfd, EXT2_IOC_GETFLAGS, &oldflags) >= 0) {
+		newflags = (oldflags & ~clear) | set;
+		if (ioctl(myfd, EXT2_IOC_SETFLAGS, &newflags) >= 0)
+			goto cleanup;
+		if (errno != EPERM)
+			goto fail;
 	}
-#endif /* linux */
-#endif /* HAVE_CHFLAGS */
-
+	/* If we couldn't set all the flags, try again with a subset. */
+	if (ioctl(myfd, EXT2_IOC_GETFLAGS, &oldflags) >= 0) {
+		newflags &= ~SF_MASK;
+		oldflags &= SF_MASK;
+		newflags |= oldflags;
+		if (ioctl(myfd, EXT2_IOC_SETFLAGS, &newflags) >= 0)
+			goto cleanup;
+	}
+	/* We couldn't set the flags, so report the failure. */
+fail:
+	archive_set_error(a, errno,
+	    "Failed to set file flags");
+	ret = ARCHIVE_WARN;
+cleanup:
+	if (fd < 0)
+		close(myfd);
 	return (ret);
 }
+
+#else /* Not HAVE_CHFLAGS && Not __linux */
+
+/*
+ * Of course, some systems have neither BSD chflags() nor Linux' flags
+ * support through ioctl().
+ */
+static int
+set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
+    unsigned long set, unsigned long clear)
+{
+	(void)a;
+	(void)fd;
+	(void)name;
+	(void)mode;
+	(void)set;
+	(void)clear;
+	return (ARCHIVE_OK);
+}
+
+#endif /* __linux */
 
 #ifndef HAVE_POSIX_ACL
 /* Default empty function body to satisfy mainline code. */
 static int
-set_acls(struct archive *a, struct archive_entry *entry)
+set_acls(struct archive *a, int fd, struct archive_entry *entry)
 {
 	(void)a;
+	(void)fd;
 	(void)entry;
 
 	return (ARCHIVE_OK);
@@ -1190,23 +1306,23 @@ set_acls(struct archive *a, struct archive_entry *entry)
  * XXX TODO: What about ACL types other than ACCESS and DEFAULT?
  */
 static int
-set_acls(struct archive *a, struct archive_entry *entry)
+set_acls(struct archive *a, int fd, struct archive_entry *entry)
 {
 	int		 ret;
 
-	ret = set_acl(a, entry, ACL_TYPE_ACCESS,
+	ret = set_acl(a, fd, entry, ACL_TYPE_ACCESS,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, "access");
 	if (ret != ARCHIVE_OK)
 		return (ret);
-	ret = set_acl(a, entry, ACL_TYPE_DEFAULT,
+	ret = set_acl(a, fd, entry, ACL_TYPE_DEFAULT,
 	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT, "default");
 	return (ret);
 }
 
 
 static int
-set_acl(struct archive *a, struct archive_entry *entry, acl_type_t acl_type,
-    int ae_requested_type, const char *typename)
+set_acl(struct archive *a, int fd, struct archive_entry *entry,
+    acl_type_t acl_type, int ae_requested_type, const char *typename)
 {
 	acl_t		 acl;
 	acl_entry_t	 acl_entry;
@@ -1268,6 +1384,17 @@ set_acl(struct archive *a, struct archive_entry *entry, acl_type_t acl_type,
 
 	name = archive_entry_pathname(entry);
 
+	/* Try restoring the ACL through 'fd' if we can. */
+#if HAVE_ACL_SET_FD
+	if (fd >= 0 && acl_type == ACL_TYPE_ACCESS && acl_set_fd(fd, acl) == 0)
+		ret = ARCHIVE_OK;
+	else
+#endif
+#if HAVE_ACL_SET_FD_NP
+	if (fd >= 0 && acl_set_fd_np(fd, acl, acl_type) == 0)
+		ret = ARCHIVE_OK;
+	else
+#endif
 	if (acl_set_file(name, acl_type, acl) != 0) {
 		archive_set_error(a, errno, "Failed to set %s acl", typename);
 		ret = ARCHIVE_WARN;
