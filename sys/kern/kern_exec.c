@@ -672,7 +672,7 @@ interpret:
 	p->p_acflag &= ~AFORK;
 
 	/*
-	 * Free any previous argument cache and it with
+	 * Free any previous argument cache and replace it with
 	 * the new argument cache, if any.
 	 */
 	oldargs = p->p_args;
