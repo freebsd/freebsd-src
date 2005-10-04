@@ -354,9 +354,12 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		object = vme->object.vm_object;
 		if (object == NULL)
 			continue;
+		/* XXXCSJP We need to lock the object before walking
+		 * the backing object list.
+		 */
 		while (object->backing_object != NULL) {
-			object = object->backing_object;
 			offset += object->backing_object_offset;
+			object = object->backing_object;
 		}
 		/*
 		 * At the moment, vm_maps and objects aren't considered
