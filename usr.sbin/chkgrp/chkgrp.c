@@ -115,7 +115,8 @@ main(int argc, char *argv[])
         }
 
 	for (cp = f[0] ; *cp ; cp++) {
-	    if (!isalnum(*cp) && *cp != '.' && *cp != '_' && *cp != '-') {
+	    if (!isalnum(*cp) && *cp != '.' && *cp != '_' && *cp != '-' &&
+		(cp > f[0] || *cp != '+')) {
 		warnx("%s: line %d: '%c' invalid character", gfn, n, *cp);
 		e++;
 	    }
