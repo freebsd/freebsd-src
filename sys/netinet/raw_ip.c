@@ -166,7 +166,7 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 
 		so = last->inp_socket;
 		if ((last->inp_flags & INP_CONTROLOPTS) ||
-		    (so->so_options & SO_TIMESTAMP))
+		    (so->so_options & SO_TIMESTAMP | SO_BINTIME))
 			ip_savecontrol(last, &opts, ip, n);
 		SOCKBUF_LOCK(&so->so_rcv);
 		if (sbappendaddr_locked(&so->so_rcv,
