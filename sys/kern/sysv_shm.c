@@ -726,12 +726,14 @@ shmget_existing(td, uap, mode, segnum)
 	}
 	if ((uap->shmflg & (IPC_CREAT | IPC_EXCL)) == (IPC_CREAT | IPC_EXCL))
 		return (EEXIST);
-	error = ipcperm(td, &shmseg->u.shm_perm, mode);
 #ifdef MAC
 	error = mac_check_sysv_shmget(td->td_ucred, shmseg, uap->shmflg);
-	if (error != 0)
+	if (error != 0) {
 		MPRINTF(("mac_check_sysv_shmget returned %d\n", error));
+		return (error);
+	}
 #endif
+	error = ipcperm(td, &shmseg->u.shm_perm, mode);
 	if (error)
 		return (error);
 	if (uap->size && uap->size > shmseg->u.shm_segsz)
