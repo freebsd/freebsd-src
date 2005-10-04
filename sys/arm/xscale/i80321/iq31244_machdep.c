@@ -208,7 +208,9 @@ initarm(void *arg, void *arg2)
 	vm_offset_t afterkern;
 	vm_offset_t freemem_after;
 	vm_offset_t lastaddr;
+#ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
+#endif
 	int i = 0;
 	uint32_t fake_preload[35];
 	uint32_t memsize, memstart;
