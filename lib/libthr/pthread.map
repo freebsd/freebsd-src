@@ -91,6 +91,7 @@ global:
 	_pthread_getschedparam;
 	_pthread_getspecific;
 	_pthread_join;
+	_pthread_timedjoin_np;
 	_pthread_key_create;
 	_pthread_key_delete;
 	_pthread_kill;
@@ -246,6 +247,7 @@ global:
 	pthread_getschedparam;
 	pthread_getspecific;
 	pthread_join;
+	pthread_timedjoin_np;
 	pthread_key_create;
 	pthread_key_delete;
 	pthread_kill;
