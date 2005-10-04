@@ -493,13 +493,6 @@ thread_exit(void)
 			sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
 
 			/*
-			 * as we are exiting there is room for another
-			 * to be created.
-			 */
-			if (p->p_maxthrwaits)
-				wakeup(&p->p_numthreads);
-
-			/*
 			 * The test below is NOT true if we are the
 			 * sole exiting thread. P_STOPPED_SNGL is unset
 			 * in exit1() after it is the only survivor.
