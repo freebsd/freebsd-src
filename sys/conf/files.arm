@@ -15,7 +15,7 @@ arm/arm/cpufunc_asm_sa11x0.S 	standard
 arm/arm/db_disasm.c		optional	ddb
 arm/arm/db_interface.c		optional	ddb
 arm/arm/db_trace.c		optional	ddb
-arm/arm/disassem.c		standard
+arm/arm/disassem.c		optional	ddb
 arm/arm/dump_machdep.c		standard
 arm/arm/elf_machdep.c		standard
 arm/arm/exception.S		standard
@@ -23,8 +23,8 @@ arm/arm/fiq.c			standard
 arm/arm/fiq_subr.S		standard
 arm/arm/fusu.S			standard
 arm/arm/identcpu.c		standard
-arm/arm/in_cksum.c		standard
-arm/arm/in_cksum_arm.S		standard
+arm/arm/in_cksum.c		optional	inet
+arm/arm/in_cksum_arm.S		optional	inet
 arm/arm/intr.c			standard
 arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard
