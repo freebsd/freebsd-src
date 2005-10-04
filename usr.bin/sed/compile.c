@@ -547,6 +547,7 @@ static char *
 compile_flags(char *p, struct s_subst *s)
 {
 	int gn;			/* True if we have seen g or n */
+	unsigned long nval;
 	char wfile[_POSIX2_LINE_MAX + 1], *q;
 
 	s->n = 1;				/* Default */
@@ -577,8 +578,13 @@ compile_flags(char *p, struct s_subst *s)
 				errx(1,
 "%lu: %s: more than one number or 'g' in substitute flags", linenum, fname);
 			gn = 1;
-			/* XXX Check for overflow */
-			s->n = (int)strtol(p, &p, 10);
+			errno = 0;
+			nval = strtol(p, &p, 10);
+			if (errno == ERANGE || nval > INT_MAX)
+				errx(1,
+"%lu: %s: overflow in the 'N' substitute flag", linenum, fname);
+			s->n = nval;
+			p--;
 			break;
 		case 'w':
 			p++;
