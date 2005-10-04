@@ -1341,7 +1341,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 				break;
 			mtx_unlock_spin(&sched_lock);
 			if (msleep(&p->p_numthreads, &p->p_mtx, PPAUSE|PCATCH,
-			    "maxthreads", 0)) {
+			    "maxthreads", hz/10) != EWOULDBLOCK) {
 				mtx_lock_spin(&sched_lock);
 				break;
 			} else {
