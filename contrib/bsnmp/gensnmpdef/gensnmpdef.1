@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (C) 2004
+.\" Copyright (C) 2004-2005
 .\"	Hartmut Brandt.
 .\"	All rights reserved.
 .\"
@@ -26,9 +26,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/gensnmpdef/gensnmpdef.1,v 1.3 2005/02/25 11:55:54 brandt_h Exp $
+.\" $Begemot: bsnmp/gensnmpdef/gensnmpdef.1,v 1.5 2005/10/04 08:46:46 brandt_h Exp $
 .\"
-.Dd April 14, 2004
+.Dd June 14, 2005
 .Dt GENSNMPDEF 1
 .Os
 .Sh NAME
@@ -43,7 +43,8 @@
 The
 .Nm
 utility is used to create an initial MIB description file from
-one or more MIBs. The description file must be edited to be actually useful
+one or more MIBs.
+The description file must be edited to be actually useful
 for feeding it into
 .Xr gensnmptree 1 .
 .Pp
@@ -57,13 +58,13 @@ of 3 is just correct in most cases.
 .Pp
 .Nm
 does no attempt on sorting the OID tree so in case of complex and
-non-standard MIBs it is necessay to sort the tree in the resulting definition
+non-standard MIBs it is necessary to sort the tree in the resulting definition
 file by hand.
 .Sh SEE ALSO
 .Xr snmpd 1
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@freebsd.org
 .Sh BUGS
 The utility is by no means bullet-proof and may fail for complex
 or non-standard MIBs.
 Its output is expected to be edited by hand.
-.Sh AUTHORS
-.An Hartmut Brandt Aq harti@freebsd.org

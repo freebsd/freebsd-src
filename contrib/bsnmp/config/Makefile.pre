@@ -1,0 +1,66 @@
+# Copyright (c) 2004-2005
+#	Hartmut Brandt.
+#	All rights reserved.
+# Copyright (c) 2001-2003
+#	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+#	All rights reserved.
+#
+# Author: Harti Brandt <harti@freebsd.org>
+#
+# $Begemot: bsnmp/config/Makefile.pre,v 1.5 2005/10/04 11:21:28 brandt_h Exp $
+#
+
+@SET_MAKE@
+
+VPATH+=	@srcdir@
+
+srcdir=	@srcdir@
+top_builddir= @top_builddir@
+builddir= @builddir@
+prefix=	@prefix@
+exec_prefix= @exec_prefix@
+bindir=	@bindir@
+sbindir= @sbindir@
+libdir= @libdir@
+includedir= @includedir@
+mandir= @mandir@
+datadir= @datadir@
+
+INSTALL= @INSTALL@
+INSTALL_PROGRAM= @INSTALL_PROGRAM@
+INSTALL_DATA= @INSTALL_DATA@
+INSTALL_SCRIPT= @INSTALL_SCRIPT@
+
+ifndef BSD_INSTALL_MAN
+BSD_INSTALL_MAN = ${INSTALL_DATA}
+endif
+ifndef BSD_INSTALL_DATA
+BSD_INSTALL_DATA = ${INSTALL_DATA}
+endif
+ifndef BSD_INSTALL_PROGRAM
+BSD_INSTALL_PROGRAM = ${INSTALL_PROGRAM}
+endif
+
+LIBTOOL= @LIBTOOL@
+CC=	@CC@
+DEFINES=@DEFS@
+CFLAGS=	@CFLAGS@
+LDFLAGS= @LDFLAGS@
+
+LIBEV=	@LIBEV@
+LIBWRAP= @LIBWRAP@
+
+# Assume a Posix-ish make that passes MAKEFLAGS in the environment.
+SUBMAKE= $(MAKE) --no-print-directory
+
+WARNS=	-Wsystem-headers -Werror -Wall -Wno-format-y2k -W	\
+	-Wstrict-prototypes -Wmissing-prototypes		\
+	-Wpointer-arith -Wreturn-type -Wcast-qual		\
+	-Wwrite-strings -Wswitch -Wshadow -Wcast-align		\
+	-Wbad-function-cast -Wchar-subscripts -Winline		\
+	-Wnested-externs -Wredundant-decls -std=c99
+
+CFLAGS+= $(WARNS) -Wp,-MD,.deps/$(*F).d
+CFLAGS+= $(DEFINES)
+
+HAVE_LIBSMI=@HAVE_LIBSMI@

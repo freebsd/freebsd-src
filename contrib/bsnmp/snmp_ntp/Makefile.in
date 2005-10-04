@@ -1,0 +1,38 @@
+# Copyright (c) 2005
+#	Hartmut Brandt.
+#	All rights reserved.
+#
+# Author: Harti Brandt <harti@freebsd.org>
+#
+# $Begemot: bsnmp/snmp_ntp/Makefile.in,v 1.2 2005/05/23 09:03:47 brandt_h Exp $
+#
+MOD=	ntp
+SRCS=	${MOD}_tree.c snmp_ntp.c
+DEFS=	ntp_tree.def
+BMIBS=	BEGEMOT-NTP-MIB.txt NTP-MIB.txt NTP-PROXY-MIB.txt
+# MAN3=	snmp_ntp.3
+MANFILTER=	sed -e 's%@MODPATH@%${LIBDIR}/%g'		\
+		    -e 's%@DEFPATH@%${DEFSDIR}/%g'		\
+		    -e 's%@MIBSPATH@%${MIBSDIR}/%g'
+
+XSYM=	ntpMIB
+
+LIB=	snmp_${MOD}.la
+SHLIB_MAJOR= 3
+SHLIB_MINOR= 0
+
+CFLAGS+= -I$(srcdir) -I$(srcdir)/../lib -I$(builddir) -I$(srcdir)/../snmpd
+
+CLEANFILES += ${MOD}_oid.h ${MOD}_tree.c ${MOD}_tree.h
+
+# for bootstrapping
+GENSNMPTREE= ${builddir}/../gensnmptree/gensnmptree
+
+$(LIB): ${MOD}_oid.h ${MOD}_tree.h $(SRCS:.c=.lo) 
+	$(LIBTOOL) --mode=link $(CC) $(LDLAGS) -module -o $@ $(SRCS:.c=.lo) -rpath $(libdir) -version-info $(SHLIB_MAJOR):$(SHLIB_MINOR)
+
+${MOD}_oid.h: ${MOD}_tree.def
+	${GENSNMPTREE} <${srcdir}/${MOD}_tree.def -e ${XSYM} >$@
+
+${MOD}_tree.h ${MOD}_tree.c : ${MOD}_tree.def
+	${GENSNMPTREE} <${srcdir}/${MOD}_tree.def -l -p ${MOD}_
