@@ -1,0 +1,17 @@
+# Copyright (c) 2004
+#	Hartmut Brandt
+#	All rights reserved.
+#
+# Author: Harti Brandt <harti@freebsd.org>
+#
+# $Begemot: bsnmp/gensnmpdef/Makefile.in,v 1.2 2004/04/14 09:54:51 novo Exp $
+#
+
+PROG=	gensnmpdef
+SRCS=	gensnmpdef.c
+MAN1=	gensnmpdef.1
+
+CFLAGS+= -I/usr/local/include
+
+$(PROG): $(SRCS:.c=.lo)
+	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -o $@ $(SRCS:.c=.lo) -lsmi

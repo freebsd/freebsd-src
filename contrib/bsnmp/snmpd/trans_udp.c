@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/trans_udp.c,v 1.4 2004/08/06 08:47:16 brandt Exp $
+ * $Begemot: bsnmp/snmpd/trans_udp.c,v 1.5 2005/10/04 08:46:56 brandt_h Exp $
  *
  * UDP transport
  */
@@ -137,7 +137,7 @@ udp_init_port(struct tport *tp)
 
 /*
  * Create a new SNMP Port object and start it, if we are not
- * in initialisation mode. The arguments are in host byte order.
+ * in initialization mode. The arguments are in host byte order.
  */
 static int
 udp_open_port(u_int8_t *addr, u_int32_t udp_port, struct udp_port **pp)

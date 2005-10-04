@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/snmpmod.h,v 1.28 2005/05/23 09:03:59 brandt_h Exp $
+ * $Begemot: bsnmp/snmpd/snmpmod.h,v 1.31 2005/10/04 13:30:36 brandt_h Exp $
  *
  * SNMP daemon data and functions exported to modules.
  */
@@ -46,7 +46,8 @@
 /*
  * These macros help to handle object lists for SNMP tables. They use
  * tail queues to hold the objects in ascending order in the list.
- * ordering can be done either on an integer/unsigned field or and asn_oid.
+ * ordering can be done either on an integer/unsigned field, an asn_oid
+ * or an ordering function.
  */
 #define INSERT_OBJECT_OID_LINK_INDEX(PTR, LIST, LINK, INDEX) do {	\
 	__typeof (PTR) _lelem;						\
@@ -58,7 +59,7 @@
 		TAILQ_INSERT_TAIL((LIST), (PTR), LINK);			\
 	else								\
 		TAILQ_INSERT_BEFORE(_lelem, (PTR), LINK);		\
-    } while(0)
+    } while (0)
 
 #define INSERT_OBJECT_INT_LINK_INDEX(PTR, LIST, LINK, INDEX) do {	\
 	__typeof (PTR) _lelem;						\
@@ -70,7 +71,31 @@
 		TAILQ_INSERT_TAIL((LIST), (PTR), LINK);			\
 	else								\
 		TAILQ_INSERT_BEFORE(_lelem, (PTR), LINK);		\
-    } while(0)
+    } while (0)
+
+#define	INSERT_OBJECT_FUNC_LINK(PTR, LIST, LINK, FUNC) do {		\
+	__typeof (PTR) _lelem;						\
+									\
+	TAILQ_FOREACH(_lelem, (LIST), LINK)				\
+		if ((FUNC)(_lelem, (PTR)) > 0)				\
+			break;						\
+	if (_lelem == NULL)						\
+		TAILQ_INSERT_TAIL((LIST), (PTR), LINK);			\
+	else								\
+		TAILQ_INSERT_BEFORE(_lelem, (PTR), LINK);		\
+    } while (0)
+
+#define	INSERT_OBJECT_FUNC_LINK_REV(PTR, LIST, HEAD, LINK, FUNC) do {	\
+	__typeof (PTR) _lelem;						\
+									\
+	TAILQ_FOREACH_REVERSE(_lelem, (LIST), HEAD, LINK)		\
+		if ((FUNC)(_lelem, (PTR)) < 0)				\
+			break;						\
+	if (_lelem == NULL)						\
+		TAILQ_INSERT_HEAD((LIST), (PTR), LINK);			\
+	else								\
+		TAILQ_INSERT_AFTER((LIST), _lelem, (PTR), LINK);	\
+    } while (0)
 
 #define FIND_OBJECT_OID_LINK_INDEX(LIST, OID, SUB, LINK, INDEX) ({	\
 	__typeof (TAILQ_FIRST(LIST)) _lelem;				\
@@ -114,6 +139,24 @@
 	(_lelem);							\
     })
 
+#define FIND_OBJECT_FUNC_LINK(LIST, OID, SUB, LINK, FUNC) ({		\
+	__typeof (TAILQ_FIRST(LIST)) _lelem;				\
+									\
+	TAILQ_FOREACH(_lelem, (LIST), LINK)				\
+		if ((FUNC)(OID, SUB, _lelem) == 0)			\
+			break;						\
+	(_lelem);							\
+    })
+
+#define NEXT_OBJECT_FUNC_LINK(LIST, OID, SUB, LINK, FUNC) ({		\
+	__typeof (TAILQ_FIRST(LIST)) _lelem;				\
+									\
+	TAILQ_FOREACH(_lelem, (LIST), LINK)				\
+		if ((FUNC)(OID, SUB, _lelem) < 0)			\
+			break;						\
+	(_lelem);							\
+    })
+
 /*
  * Macros for the case where the index field is called 'index'
  */
@@ -145,17 +188,26 @@
 #define INSERT_OBJECT_INT(PTR, LIST)					\
     INSERT_OBJECT_INT_LINK_INDEX(PTR, LIST, link, index)
 
+#define	INSERT_OBJECT_FUNC_REV(PTR, LIST, HEAD, FUNC)			\
+    INSERT_OBJECT_FUNC_LINK_REV(PTR, LIST, HEAD, link, FUNC)
+
 #define FIND_OBJECT_OID(LIST, OID, SUB)					\
     FIND_OBJECT_OID_LINK_INDEX(LIST, OID, SUB, link, index)
 
 #define FIND_OBJECT_INT(LIST, OID, SUB)					\
     FIND_OBJECT_INT_LINK_INDEX(LIST, OID, SUB, link, index)
 
+#define	FIND_OBJECT_FUNC(LIST, OID, SUB, FUNC)				\
+    FIND_OBJECT_FUNC_LINK(LIST, OID, SUB, link, FUNC)
+
 #define NEXT_OBJECT_OID(LIST, OID, SUB)					\
     NEXT_OBJECT_OID_LINK_INDEX(LIST, OID, SUB, link, index)
 
 #define NEXT_OBJECT_INT(LIST, OID, SUB)					\
     NEXT_OBJECT_INT_LINK_INDEX(LIST, OID, SUB, link, index)
+
+#define	NEXT_OBJECT_FUNC(LIST, OID, SUB, FUNC)				\
+    NEXT_OBJECT_FUNC_LINK(LIST, OID, SUB, link, FUNC)
 
 struct lmodule;
 
@@ -214,7 +266,7 @@ struct snmp_module {
 	/* a comment describing what this module implements */
 	const char *comment;
 
-	/* the initialisation function */
+	/* the initialization function */
 	int (*init)(struct lmodule *, int argc, char *argv[]);
 
 	/* the finalisation function */
@@ -301,6 +353,8 @@ u_int reqid_type(int32_t reqid);
  * Timers.
  */
 void *timer_start(u_int, void (*)(void *), void *, struct lmodule *);
+void *timer_start_repeat(u_int, u_int, void (*)(void *), void *,
+    struct lmodule *);
 void timer_stop(void *);
 
 /*

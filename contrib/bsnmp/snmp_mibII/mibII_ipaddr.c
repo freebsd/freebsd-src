@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_ipaddr.c,v 1.9 2004/08/06 08:47:02 brandt Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_ipaddr.c,v 1.10 2005/10/04 11:21:35 brandt_h Exp $
  *
  * IP address table. This table is writeable!
  *
@@ -84,10 +84,13 @@ create(struct update *upd)
 	}
 
 	bcast.s_addr = upd->addr.s_addr & upd->mask.s_addr;
-	if (!(upd->set & UPD_BCAST) || upd->bcast)
-		bcast.s_addr |= htonl(0xffffffff & ~ntohl(upd->mask.s_addr));
+	if (!(upd->set & UPD_BCAST) || upd->bcast) {
+		uint32_t tmp = ~ntohl(upd->mask.s_addr);
+		bcast.s_addr |= htonl(0xffffffff & ~tmp);
+	}
 
-	if ((ifa = mib_create_ifa(upd->ifindex, upd->addr, upd->mask, bcast)) == NULL)
+	if ((ifa = mib_create_ifa(upd->ifindex, upd->addr, upd->mask, bcast))
+	    == NULL)
 		return (SNMP_ERR_GENERR);
 
 	upd->rb |= RB_CREATE;
