@@ -7,5 +7,7 @@ CONTRIB=${.CURDIR}/../../../contrib/bsnmp
 
 PROG=	gensnmptree
 CFLAGS+= -I${CONTRIB}/lib
+CFLAGS+= -DQUADFMT='"llu"' -DQUADXFMT='"llx"' -DHAVE_STDINT_H
+CFLAGS+= -DHAVE_INTTYPES_H
 
 .include <bsd.prog.mk>
