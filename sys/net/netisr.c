@@ -200,10 +200,10 @@ static struct isrstat isrstat;
 
 SYSCTL_NODE(_net, OID_AUTO, isr, CTLFLAG_RW, 0, "netisr counters");
 
-static int	netisr_enable = 0;
-SYSCTL_INT(_net_isr, OID_AUTO, enable, CTLFLAG_RW, 
-    &netisr_enable, 0, "enable direct dispatch");
-TUNABLE_INT("net.isr.enable", &netisr_enable);
+static int	netisr_direct = 0;
+SYSCTL_INT(_net_isr, OID_AUTO, direct, CTLFLAG_RW, 
+    &netisr_direct, 0, "enable direct dispatch");
+TUNABLE_INT("net.isr.direct", &netisr_direct);
 
 SYSCTL_INT(_net_isr, OID_AUTO, count, CTLFLAG_RD,
     &isrstat.isrs_count, 0, "");
@@ -265,7 +265,7 @@ netisr_dispatch(int num, struct mbuf *m)
 	 * between multiple places in the system (e.g. IP
 	 * dispatched from interfaces vs. IP queued from IPSec).
 	 */
-	if (netisr_enable && (ni->ni_flags & NETISR_MPSAFE)) {
+	if (netisr_direct && (ni->ni_flags & NETISR_MPSAFE)) {
 		isrstat.isrs_directed++;
 		/*
 		 * NB: We used to drain the queue before handling
