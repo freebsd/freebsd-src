@@ -2909,12 +2909,14 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 						       adapter->fmp = NULL);
  
                                 if (adapter->fmp != NULL) {
+					struct mbuf *m = adapter->fmp;
+
+					adapter->fmp = NULL;
 					EM_UNLOCK(adapter);
-                                        (*ifp->if_input)(ifp, adapter->fmp);
+                                        (*ifp->if_input)(ifp, m);
 					EM_LOCK(adapter);
 				}
 #endif
-                                adapter->fmp = NULL;
                                 adapter->lmp = NULL;
                         }
 		} else {
