@@ -2600,7 +2600,8 @@ create_ring(softc_t *sc, struct desc_ring *ring, int num_descs)
   /* The DMA descriptor array must not cross a page boundary. */
   if (size_descs > PAGE_SIZE)
     {
-    printf("%s: DMA descriptor array > PAGE_SIZE (%d)\n", NAME_UNIT, PAGE_SIZE);
+    printf("%s: DMA descriptor array > PAGE_SIZE (%d)\n", NAME_UNIT, 
+     (u_int)PAGE_SIZE);
     return EINVAL;
     }
 
@@ -3952,7 +3953,7 @@ fbsd_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
   {
   softc_t *sc = IFP2SC(ifp);
 
-#if (__FreeBSD_version < 500000)
+#if (__FreeBSD_version < 700000)
   if ((ifp->if_capenable & IFCAP_POLLING) == 0)
     {
     ether_poll_deregister(ifp);
