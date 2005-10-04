@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 1998
+.Dd May 26, 2005
 .Dt CHKGRP 8
 .Os
 .Sh NAME
@@ -44,7 +44,8 @@ errors.
 Specifically, it checks that every non-blank, non-comment
 entry is composed of four colon-separated fields, that none of them
 contains whitespace, and that the third field (the group ID) is
-numeric. It will also check for invalid characters in the group names
+numeric.
+It will also check for invalid characters in the group names
 and group members.
 .Sh FILES
 .Bl -tag -width /etc/group -compact
@@ -74,11 +75,11 @@ The
 utility appeared in
 .Fx 3.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 utility and this manual page were written by
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
-.Pp
 Further functionality was added by
 .An Liam J. Foy Aq liamfoy@dragonflybsd.org .
 .Sh BUGS
