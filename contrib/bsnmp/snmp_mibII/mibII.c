@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.22 2005/05/23 09:03:37 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.23 2005/06/09 12:36:52 brandt_h Exp $
  *
  * Implementation of the standard interfaces and ip MIB.
  */
@@ -941,6 +941,10 @@ handle_rtmsg(struct rt_msghdr *rtm)
 			process_arp(rtm,
 			    (struct sockaddr_dl *)(void *)addrs[RTAX_GATEWAY],
 			    (struct sockaddr_in *)(void *)addrs[RTAX_DST]);
+		} else {
+			if (rtm->rtm_errno == 0 && (rtm->rtm_flags & RTF_UP))
+				mib_sroute_process(rtm, addrs[RTAX_GATEWAY],
+				    addrs[RTAX_DST], addrs[RTAX_NETMASK]);
 		}
 		break;
 
@@ -955,9 +959,68 @@ handle_rtmsg(struct rt_msghdr *rtm)
 			process_arp(rtm,
 			    (struct sockaddr_dl *)(void *)addrs[RTAX_GATEWAY],
 			    (struct sockaddr_in *)(void *)addrs[RTAX_DST]);
+		} else {
+			if (rtm->rtm_errno == 0 && (rtm->rtm_flags & RTF_UP))
+				mib_sroute_process(rtm, addrs[RTAX_GATEWAY],
+				    addrs[RTAX_DST], addrs[RTAX_NETMASK]);
 		}
 		break;
+
+	  case RTM_DELETE:
+		mib_extract_addrs(rtm->rtm_addrs, (u_char *)(rtm + 1), addrs);
+		if (rtm->rtm_errno == 0 && !(rtm->rtm_flags & RTF_LLINFO))
+			mib_sroute_process(rtm, addrs[RTAX_GATEWAY],
+			    addrs[RTAX_DST], addrs[RTAX_NETMASK]);
+		break;
 	}
+}
+
+/*
+ * send a routing message
+ */
+void
+mib_send_rtmsg(struct rt_msghdr *rtm, struct sockaddr *gw,
+    struct sockaddr *dst, struct sockaddr *mask)
+{
+	size_t len;
+	struct rt_msghdr *msg;
+	char *cp;
+	ssize_t sent;
+
+	len = sizeof(*rtm) + SA_SIZE(gw) + SA_SIZE(dst) + SA_SIZE(mask);
+	if ((msg = malloc(len)) == NULL) {
+		syslog(LOG_ERR, "%s: %m", __func__);
+		return;
+	}
+	cp = (char *)(msg + 1);
+
+	memset(msg, 0, sizeof(*msg));
+	msg->rtm_flags = 0;
+	msg->rtm_version = RTM_VERSION;
+	msg->rtm_addrs = RTA_DST | RTA_GATEWAY;
+
+	memcpy(cp, dst, SA_SIZE(dst));
+	cp += SA_SIZE(dst);
+	memcpy(cp, gw, SA_SIZE(gw));
+	cp += SA_SIZE(gw);
+	if (mask != NULL) {
+		memcpy(cp, mask, SA_SIZE(mask));
+		cp += SA_SIZE(mask);
+		msg->rtm_addrs |= RTA_NETMASK;
+	}
+	msg->rtm_msglen = cp - (char *)msg;
+	msg->rtm_type = RTM_GET;
+	if ((sent = write(route, msg, msg->rtm_msglen)) == -1) {
+		syslog(LOG_ERR, "%s: write: %m", __func__);
+		free(msg);
+		return;
+	}
+	if (sent != msg->rtm_msglen) {
+		syslog(LOG_ERR, "%s: short write", __func__);
+		free(msg);
+		return;
+	}
+	free(msg);
 }
 
 /*
@@ -1428,6 +1491,7 @@ mibII_start(void)
 	mib_refresh_iflist();
 	update_ifa_info();
 	mib_arp_update();
+	(void)mib_fetch_route();
 	mib_iftable_last_change = 0;
 	mib_ifstack_last_change = 0;
 
@@ -1474,7 +1538,6 @@ mibII_init(struct lmodule *mod, int argc __unused, char *argv[] __unused)
 		syslog(LOG_ERR, "PF_ROUTE: %m");
 		return (-1);
 	}
-	(void)shutdown(route, SHUT_WR);
 
 	if ((mib_netsock = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
 		syslog(LOG_ERR, "PF_INET: %m");

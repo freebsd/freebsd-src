@@ -1,0 +1,126 @@
+# Copyright (c) 2001-2003
+#	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+#	All rights reserved.
+#
+# Author: Harti Brandt <harti@freebsd.org>
+#
+# $Begemot: bsnmp/config/Makefile.post,v 1.4 2005/10/04 11:21:28 brandt_h Exp $
+#
+
+.SUFFIXES: .lo
+.c.lo:
+	@test -d .deps || mkdir .deps >/dev/null 2>&1
+	$(LIBTOOL) --mode=compile $(CC) -c $(CFLAGS) -o $@ $<
+
+LIBTOOL_DEPS= @LIBTOOL_DEPS@
+$(LIBTOOL): $(LIBTOOL_DEPS)
+	$(SHELL) ../config.status --recheck
+
+clean:
+	rm -rf *.o .libs .deps *.a *.la *.lo $(PROG) $(LIB) core $(PROG).core $(CLEANFILES)
+
+DEPENDS=$(patsubst %.c,.deps/%.d, $(patsubst %.h,, $(SRCS)))
+
+ifndef MANFILTER
+MANFILTER=cat
+endif
+
+ifneq "$(MAN1)" ""
+build-man1: $(MAN1:%.1=%.1out)
+
+install-man1:
+	@$(srcdir)/../config/mkinstalldirs $(mandir)/man1
+	for f in $(MAN1) ; do \
+		$(BSD_INSTALL_MAN) $${f}out $(mandir)/man1/$${f} ; \
+	done
+
+%.1out: %.1
+	cat $< | $(MANFILTER) >$@
+
+else
+build-man1:
+install-man1:
+endif
+
+ifneq "$(MAN3)" ""
+build-man3: $(MAN3:%.3=%.3out)
+
+install-man3:
+	@$(srcdir)/../config/mkinstalldirs $(mandir)/man3
+	for f in $(MAN3) ; do \
+		$(BSD_INSTALL_MAN) $${f}out $(mandir)/man3/$${f} ; \
+	done
+
+%.3out: %.3
+	cat $< | $(MANFILTER) >$@
+else
+build-man3:
+install-man3:
+endif
+
+ifneq "$(DEFS)" ""
+install-defs:
+	@$(srcdir)/../config/mkinstalldirs $(DEFSDIR)
+	$(BSD_INSTALL_DATA) $(DEFS:%=$(srcdir)/%) $(DEFSDIR)
+
+DEFSDIR= ${datadir}/snmp/defs
+
+else
+install-defs:
+endif
+
+ifneq "$(INCS)" ""
+
+INCDIR= $(includedir)/bsnmp
+
+install-incs:
+	@$(srcdir)/../config/mkinstalldirs $(INCDIR)
+	for f in $(INCS) ; do \
+		$(BSD_INSTALL_DATA) $(srcdir)/$$f $(INCDIR) ; \
+	done
+
+else
+install-incs:
+endif
+
+ifneq "$(BMIBS)" ""
+
+BMIBSDIR= ${datadir}/snmp/mibs
+
+install-mibs:
+	@$(srcdir)/../config/mkinstalldirs $(BMIBSDIR)
+	for f in $(BMIBS) ; do \
+		$(BSD_INSTALL_DATA) $(srcdir)/$$f $(BMIBSDIR) ; \
+	done
+
+else
+install-mibs:
+endif
+
+ifneq "$(PROG)" ""
+build-prog: $(PROG)
+
+install-prog:
+	@$(srcdir)/../config/mkinstalldirs $(bindir)
+	$(LIBTOOL) --mode=install $(BSD_INSTALL_PROGRAM) $(builddir)/$(PROG) $(bindir)/$(PROG)
+
+else
+build-prog:
+install-prog:
+endif
+
+ifneq "$(LIB)" ""
+build-lib: $(LIB)
+
+install-lib:
+	@$(srcdir)/../config/mkinstalldirs $(libdir)
+	$(LIBTOOL) --mode=install $(BSD_INSTALL_DATA) $(LIB) $(libdir)
+
+else
+build-lib:
+install-lib:
+endif
+
+install: install-prog install-lib install-incs install-man1 install-man3 install-defs install-mibs
+
+-include /dev/null $(DEPENDS)

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.42 2005/04/26 16:26:19 brandt_h Exp $
+ * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.43 2005/10/04 11:21:29 brandt_h Exp $
  *
  * Generate OID table from table description.
  *
@@ -595,7 +595,9 @@ gen_table(struct node *node)
 
 	fprintf(fp, "#include <sys/types.h>\n");
 	fprintf(fp, "#include <stdio.h>\n");
+#ifdef HAVE_STDINT_H
 	fprintf(fp, "#include <stdint.h>\n");
+#endif
 	if (localincs) {
 		fprintf(fp, "#include \"asn1.h\"\n");
 		fprintf(fp, "#include \"snmp.h\"\n");

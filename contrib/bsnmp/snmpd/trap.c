@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/trap.c,v 1.8 2004/08/06 08:47:17 brandt Exp $
+ * $Begemot: bsnmp/snmpd/trap.c,v 1.9 2005/10/04 11:21:39 brandt_h Exp $
  *
  * TrapSinkTable
  */
@@ -107,7 +107,7 @@ trapsink_create(struct trapsink_dep *tdep)
 
 	if (connect(t->socket, (struct sockaddr *)&sa, sa.sin_len) == -1) {
 		syslog(LOG_ERR, "connect(%s,%u): %m",
-		    inet_ntoa(sa.sin_addr), ntohl(sa.sin_port));
+		    inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
 		(void)close(t->socket);
 		free(t);
 		return (SNMP_ERR_GENERR);

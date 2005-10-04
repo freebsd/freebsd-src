@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII.h,v 1.14 2005/05/23 09:03:38 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII.h,v 1.15 2005/06/09 12:36:53 brandt_h Exp $
  *
  * Implementation of the interfaces and IP groups of MIB-II.
  */
@@ -230,5 +230,16 @@ void mib_arp_update(void);
 /* fetch routing table */
 u_char *mib_fetch_rtab(int af, int info, int arg, size_t *lenp);
 
+/* process routing message */
+void mib_sroute_process(struct rt_msghdr *, struct sockaddr *,
+    struct sockaddr *, struct sockaddr *);
+
+/* send a routing message */
+void mib_send_rtmsg(struct rt_msghdr *, struct sockaddr *,
+    struct sockaddr *, struct sockaddr *);
+
 /* extract addresses from routing message */
 void mib_extract_addrs(int, u_char *, struct sockaddr **);
+
+/* fetch routing table */
+int mib_fetch_route(void);
