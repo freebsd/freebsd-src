@@ -1969,6 +1969,7 @@ ffs_copyonwrite(devvp, bp)
 	struct vnode *vp = 0;
 	ufs2_daddr_t lbn, blkno, *snapblklist;
 	int lower, upper, mid, indiroff, snapshot_locked = 0, error = 0;
+	int launched_async_io, prev_norunningbuf;
 
 	if (td->td_pflags & TDP_COWINPROGRESS)
 		panic("ffs_copyonwrite: recursive call");
@@ -1997,6 +1998,14 @@ ffs_copyonwrite(devvp, bp)
 		VI_UNLOCK(devvp);
 		return (0);
 	}
+	launched_async_io = 0;
+	prev_norunningbuf = td->td_pflags & TDP_NORUNNINGBUF;
+	/*
+	 * Since I/O on bp isn't yet in progress and it may be blocked
+	 * for a long time waiting on snaplk, back it out of
+	 * runningbufspace, possibly waking other threads waiting for space.
+	 */
+	runningbufwakeup(bp);
 	/*
 	 * Not in the precomputed list, so check the snapshots.
 	 */
@@ -2028,7 +2037,7 @@ retry:
 				goto retry;
 			}
 			snapshot_locked = 1;
-			td->td_pflags |= TDP_COWINPROGRESS;
+			td->td_pflags |= TDP_COWINPROGRESS | TDP_NORUNNINGBUF;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			   fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			td->td_pflags &= ~TDP_COWINPROGRESS;
@@ -2065,7 +2074,7 @@ retry:
 			goto retry;
 		}
 		snapshot_locked = 1;
-		td->td_pflags |= TDP_COWINPROGRESS;
+		td->td_pflags |= TDP_COWINPROGRESS | TDP_NORUNNINGBUF;
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
 		td->td_pflags &= ~TDP_COWINPROGRESS;
@@ -2095,6 +2104,8 @@ retry:
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
 				(void) ffs_syncvnode(vp, MNT_WAIT);
+			else
+				launched_async_io = 1;
 			continue;
 		}
 		/*
@@ -2105,6 +2116,8 @@ retry:
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
 				(void) ffs_syncvnode(vp, MNT_WAIT);
+			else
+				launched_async_io = 1;
 			break;
 		}
 		savedcbp = cbp;
@@ -2119,11 +2132,22 @@ retry:
 		bawrite(savedcbp);
 		if (dopersistence && VTOI(vp)->i_effnlink > 0)
 			(void) ffs_syncvnode(vp, MNT_WAIT);
+		else
+			launched_async_io = 1;
 	}
-	if (snapshot_locked)
+	if (snapshot_locked) {
 		lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
-	else
+		td->td_pflags = (td->td_pflags & ~TDP_NORUNNINGBUF) |
+		    prev_norunningbuf;
+	} else
 		VI_UNLOCK(devvp);
+	if (launched_async_io && (td->td_pflags & TDP_NORUNNINGBUF) == 0)
+		waitrunningbufspace();
+	/*
+	 * I/O on bp will now be started, so count it in runningbufspace.
+	 */
+	if (bp->b_runningbufspace)
+		atomic_add_int(&runningbufspace, bp->b_runningbufspace);
 	return (error);
 }
 
