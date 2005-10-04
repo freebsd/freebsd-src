@@ -26,13 +26,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/main.c,v 1.93 2005/05/23 11:10:16 brandt_h Exp $
+ * $Begemot: bsnmp/snmpd/main.c,v 1.97 2005/10/04 14:32:45 brandt_h Exp $
  *
  * SNMPd main stuff.
  */
 #include <sys/param.h>
 #include <sys/un.h>
 #include <sys/ucred.h>
+#include <sys/uio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -734,7 +735,7 @@ check_priv(struct port_input *pi, struct msghdr *msg)
 	pi->priv = 0;
 
 	if (msg->msg_controllen == sizeof(*cmsg)) {
-		/* process explicitely sends credentials */
+		/* process explicitly sends credentials */
 
 		cmsg = (struct credmsg *)msg->msg_control;
 		pi->priv = (cmsg->cred.cmcred_euid == 0);
@@ -1611,6 +1612,10 @@ get_ticks()
 /*
  * Timer support
  */
+
+/*
+ * Trampoline for the non-repeatable timers.
+ */
 #ifdef USE_LIBBEGEMOT
 static void
 tfunc(int tid __unused, void *uap)
@@ -1628,7 +1633,24 @@ tfunc(evContext ctx __unused, void *uap, struct timespec due __unused,
 }
 
 /*
- * Start a timer
+ * Trampoline for the repeatable timers.
+ */
+#ifdef USE_LIBBEGEMOT
+static void
+trfunc(int tid __unused, void *uap)
+#else
+static void
+trfunc(evContext ctx __unused, void *uap, struct timespec due __unused,
+	struct timespec inter __unused)
+#endif
+{
+	struct timer *tp = uap;
+
+	tp->func(tp->udata);
+}
+
+/*
+ * Start a one-shot timer
  */
 void *
 timer_start(u_int ticks, void (*func)(void *), void *udata, struct lmodule *mod)
@@ -1669,6 +1691,55 @@ timer_start(u_int ticks, void (*func)(void *), void *udata, struct lmodule *mod)
 	return (tp);
 }
 
+/*
+ * Start a repeatable timer. When used with USE_LIBBEGEMOT the first argument
+ * is currently ignored and the initial number of ticks is set to the
+ * repeat number of ticks.
+ */
+void *
+timer_start_repeat(u_int ticks __unused, u_int repeat_ticks,
+    void (*func)(void *), void *udata, struct lmodule *mod)
+{
+	struct timer *tp;
+#ifndef USE_LIBBEGEMOT
+	struct timespec due;
+	struct timespec inter;
+#endif
+
+	if ((tp = malloc(sizeof(struct timer))) == NULL) {
+		syslog(LOG_CRIT, "out of memory for timer");
+		exit(1);
+	}
+
+#ifndef USE_LIBBEGEMOT
+	due = evAddTime(evNowTime(),
+	    evConsTime(ticks / 100, (ticks % 100) * 10000));
+	inter = evConsTime(repeat_ticks / 100, (repeat_ticks % 100) * 10000);
+#endif
+
+	tp->udata = udata;
+	tp->owner = mod;
+	tp->func = func;
+
+	LIST_INSERT_HEAD(&timer_list, tp, link);
+
+#ifdef USE_LIBBEGEMOT
+	if ((tp->id = poll_start_timer(repeat_ticks * 10, 1, trfunc, tp)) < 0) {
+		syslog(LOG_ERR, "cannot set timer: %m");
+		exit(1);
+	}
+#else
+	if (evSetTimer(evctx, trfunc, tp, due, inter, &tp->id) == -1) {
+		syslog(LOG_ERR, "cannot set timer: %m");
+		exit(1);
+	}
+#endif
+	return (tp);
+}
+
+/*
+ * Stop a timer.
+ */
 void
 timer_stop(void *p)
 {
@@ -2157,7 +2228,7 @@ lm_load(const char *path, const char *section)
 	av[ac] = NULL;
 
 	/*
-	 * Run the initialisation function
+	 * Run the initialization function
 	 */
 	if ((err = (*m->config->init)(m, ac, av)) != 0) {
 		syslog(LOG_ERR, "lm_load: init failed: %d", err);

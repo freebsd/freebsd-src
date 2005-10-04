@@ -1,3 +1,25 @@
+1.11	Make the Mib2 routing table use red-black tree. This vastly
+	reduces loading and access time. Load the table only every 10
+	minutes. In the meantime process message from the routing socket
+	to update the table.
+
+	Lot of man-page fixes from ru@freebsd.org.
+
+	Fixes to command line macros and macro redefinition.
+
+	Trap variables for ntp (still need trap definition and code).
+
+	Periodic timers from Victor Cruceru.
+
+	Man-page fixes from Christian Brueffer.
+
+	Lots of spelling fixes from Giorgios Keramidas.
+
+	A number of changes to facilitate building on FreeBSD-4 from
+	Andrey Elsukov.
+
+	Add repeatable timers.
+
 1.10
 	Change all the tick handling in the daemon from 32-bit to 64-bit.
 	Bump the modules' major version number to 3.
@@ -34,7 +56,7 @@
 	Maxim Konovalov)
 
 1.7
-	snmpd: Move event library initialisation before reading of
+	snmpd: Move event library initialization before reading of
 	config file (thanks to phk).
 
 	gensnmptree: can now read more than one tree and merge them.

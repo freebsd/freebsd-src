@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_ntp/snmp_ntp.c,v 1.4 2005/05/23 09:03:48 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_ntp/snmp_ntp.c,v 1.7 2005/10/04 11:21:36 brandt_h Exp $
  *
  * NTP interface for SNMPd.
  */
@@ -40,7 +40,11 @@
 #include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#elif defined(HAVE_INTTYPES_H)
+#include <inttypes.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -173,7 +177,7 @@ static uint32_t ntp_timeout;
 static void ntpd_input(int, void *);
 static int open_socket(void);
 
-/* the initialisation function */
+/* the initialization function */
 static int
 ntp_init(struct lmodule *mod, int argc, char *argv[] __unused)
 {
@@ -360,6 +364,7 @@ ntpd_request(u_int op, u_int associd, const char *vars)
 		free(rpkt);
 		return (-1);
 	}
+	return (0);
 }
 
 /*
@@ -431,7 +436,7 @@ ntpd_read(uint16_t *op, uint16_t *associd, u_char **data, size_t *datalen)
 	}
 
 	ptr = pkt;
-	if (*ptr != ((NTPC_VERSION << 3) | NTPC_MODE)) {
+	if ((*ptr & 0x3f) != ((NTPC_VERSION << 3) | NTPC_MODE)) {
 		syslog(LOG_ERR, "unexpected packet version 0x%x", *ptr);
 		free(*data);
 		return (-1);
@@ -720,7 +725,7 @@ val_parse_ip(const char *val, u_char ip[4])
 {
 	int r, n, error;
 	struct addrinfo hints, *res0;
-	struct sockaddr_in *sin;
+	struct sockaddr_in *sin_local;
 
 	r = sscanf(val, "%hhd.%hhd.%hhd.%hhd%n",
 	    &ip[0], &ip[1], &ip[2], &ip[3], &n);
@@ -743,11 +748,11 @@ val_parse_ip(const char *val, u_char ip[4])
 		return (-1);
 	}
 
-	sin = (struct sockaddr_in *)(void *)res0->ai_addr;
-	ip[3] = sin->sin_addr.s_addr >> 24;
-	ip[2] = sin->sin_addr.s_addr >> 16;
-	ip[1] = sin->sin_addr.s_addr >>  8;
-	ip[0] = sin->sin_addr.s_addr >>  0;
+	sin_local = (struct sockaddr_in *)(void *)res0->ai_addr;
+	ip[3] = sin_local->sin_addr.s_addr >> 24;
+	ip[2] = sin_local->sin_addr.s_addr >> 16;
+	ip[1] = sin_local->sin_addr.s_addr >>  8;
+	ip[0] = sin_local->sin_addr.s_addr >>  0;
 
 	freeaddrinfo(res0);
 	return (0);
@@ -1517,7 +1522,7 @@ op_begemot_ntp(struct snmp_context *ctx __unused, struct snmp_value *value,
 		switch (which) {
 
 		  case LEAF_begemotNtpHost:
-			/* only at initialisation */
+			/* only at initialization */
 			if (community != COMM_INITIALIZE)
 				return (SNMP_ERR_NOT_WRITEABLE);
 
@@ -1527,7 +1532,7 @@ op_begemot_ntp(struct snmp_context *ctx __unused, struct snmp_value *value,
 			return (SNMP_ERR_NOERROR);
 
 		  case LEAF_begemotNtpPort:
-			/* only at initialisation */
+			/* only at initialization */
 			if (community != COMM_INITIALIZE)
 				return (SNMP_ERR_NOT_WRITEABLE);
 

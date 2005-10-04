@@ -1,4 +1,7 @@
 .\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
 .\" Copyright (c) 2001-2003
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
@@ -26,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/lib/asn1.3,v 1.6 2005/02/25 11:55:57 brandt_h Exp $
+.\" $Begemot: bsnmp/lib/asn1.3,v 1.9 2005/10/04 08:46:49 brandt_h Exp $
 .\"
-.Dd August 15, 2002
+.Dd October 4, 2005
 .Dt ASN1 3
 .Os
 .Sh NAME
@@ -142,8 +145,8 @@ Begemot SNMP library
 .Fn asn_oid2str "const struct asn_oid *oid"
 .Sh DESCRIPTION
 The ASN.1 library contains routines to handle ASN.1 encoding for SNMP.
-It supports only the restricted form of ASN.1 as required by SNMP. There
-are two basic structures used throughout the library:
+It supports only the restricted form of ASN.1 as required by SNMP.
+There are two basic structures used throughout the library:
 .Bd -literal -offset indent
 /* these restrictions are in the SMI */
 #define ASN_MAXID	0xffffffff
@@ -176,17 +179,18 @@ struct asn_buf {
 #define asn_ptr	asn_u.ptr
 .Ed
 .Pp
-This structure is used to encode and decode ASN.1. It describes the output
+This structure is used to encode and decode ASN.1.
+It describes the output
 buffer for encoding routines and the input buffer for decoding routines.
 For encoding
 .Fa asn_len
-holds the number of remaining free octets in the buffer. The first free byte
-is pointed to by
+holds the number of remaining free octets in the buffer.
+The first free byte is pointed to by
 .Fa asn_ptr .
 For decoding
 .Fa asn_len
-holds the number of remaining bytes to decode. The next byte to decode is pointed
-to by
+holds the number of remaining bytes to decode.
+The next byte to decode is pointed to by
 .Fa asn_cptr .
 .Pp
 Most of the functions return an error code
@@ -216,20 +220,20 @@ of error.
 .Pp
 The function
 .Fn asn_get_header
-reads the next header from the input octet stream. It returns the tag
-in the variable pointed to by
+reads the next header from the input octet stream.
+It returns the tag in the variable pointed to by
 .Fa type
 (note that only single byte tags are supported) and the decoded length field
 in the value pointed to by
 .Fa lenp
-(this is restricted to a unsigned 32-bit value). All errors in this function
-are fatal and stop processing.
+(this is restricted to a unsigned 32-bit value).
+All errors in this function are fatal and stop processing.
 .Pp
 The function
 .Fn asn_put_header
 writes an ASN.1 header.
 .Fa type
-is the tag to write and is restricted to one byte tags (i.e. tags
+is the tag to write and is restricted to one byte tags (i.e., tags
 lesser or equal than 0x30).
 .Fa len
 is the length of the value and is restricted to 16-bit.
@@ -246,15 +250,18 @@ writes a header with the given tag
 and space for the maximum supported length field and sets the pointer pointed
 to by
 .Fa ptr
-to the begin of this length field. This pointer must then be fed into
+to the begin of this length field.
+This pointer must then be fed into
 .Fn asn_commit_header
-directly after writing the value to the buffer. The function will compute the
+directly after writing the value to the buffer.
+The function will compute the
 length, insert it into the right place and shift the value if the resulting
 length field is shorter than the estimated one.
 .Pp
 The function
 .Fn asn_get_integer_raw
-is used to decode a signed integer value (32-bit). It assumes, that the
+is used to decode a signed integer value (32-bit).
+It assumes, that the
 header of the integer has been decoded already.
 .Fa len
 is the length obtained from the ASN.1 header and the integer will be returned
@@ -263,8 +270,8 @@ in the value pointed to by
 .Pp
 The function
 .Fn asn_get_integer
-decodes a complete 32-bit signed integer including the header. If the
-tag is wrong
+decodes a complete 32-bit signed integer including the header.
+If the tag is wrong
 .Li ASN_ERR_TAG
 is returned.
 The function
@@ -273,14 +280,16 @@ encodes a 32-bit signed integer.
 .Pp
 The function
 .Fn asn_get_octetstring_raw
-decodes the value field of an ASN.1 octet string. The length obtained from the
-header must be fed into the
+decodes the value field of an ASN.1 octet string.
+The length obtained from the header must be fed into the
 .Fa len
 argument and
 .Fa out
-must point to a buffer to receive the octet string. On entry to the function
+must point to a buffer to receive the octet string.
+On entry to the function
 .Fa outsize
-must point to the size of the buffer. On exit
+must point to the size of the buffer.
+On exit
 .Fa outsize
 will point to the number of octets decoded (if no error occurs this will be
 equal to
@@ -291,7 +300,8 @@ decodes an octetstring including the header.
 .Fa out
 must point to a buffer to receive the string,
 .Fa outsize
-must point to the size of the buffer. On exit of the function
+must point to the size of the buffer.
+On exit of the function
 .Fa outsize
 will point to the number of octets decoded.
 The function
@@ -316,7 +326,8 @@ encodes a null.
 .Pp
 The function
 .Fn asn_put_exception
-is used to encode an SNMPv2 exception. The exception type is
+is used to encode an SNMPv2 exception.
+The exception type is
 .Fa type .
 .Pp
 The function
@@ -369,8 +380,8 @@ The function
 .Fn asn_get_counter64_raw
 decodes an unsigned 64-bit integer value.
 .Fa len
-must be the value length from the header. The resulting value is
-stored into the variable pointed to by
+must be the value length from the header.
+The resulting value is stored into the variable pointed to by
 .Fa res .
 The function
 .Fn asn_put_counter64
@@ -392,12 +403,12 @@ bytes in the input buffer.
 .Pp
 The function
 .Fn asn_slice_oid
-splits a part out from an OID. It takes all the subids from the OID
-pointed to by
+splits a part out from an OID.
+It takes all the subids from the OID pointed to by
 .Fa src
 starting with the subid at position
 .Fa from
-(the first subid beeing subid 0) up to, but not including, subid
+(the first subid being subid 0) up to, but not including, subid
 .Fa to
 and generates a new OID in
 .Fa dest .
@@ -413,8 +424,8 @@ appends the OID
 .Fa from
 to the OID
 .Fa to
-given that the resulting OID is not too long. If the maximum length is exceeded
-the result is undefined.
+given that the resulting OID is not too long.
+If the maximum length is exceeded the result is undefined.
 .Pp
 The function
 .Fn asn_compare_oid
@@ -442,7 +453,8 @@ makes a printable string from
 .Fa oid .
 The buffer pointed to by
 .Fa str
-must be large enough to hold the result. The constant
+must be large enough to hold the result.
+The constant
 .Li ASN_OIDSTRLEN
 is defined to be the length of the maximum string generated by this function
 (including the trailing NUL).
@@ -452,7 +464,7 @@ makes a printable string from
 .Fa oid
 into a private buffer that is overwritten by each call.
 .Sh DIAGNOSTICS
-When an error occures in any of the function the function pointed to
+When an error occurs in any of the function the function pointed to
 by the global pointer
 .Bd -literal -offset indent
 extern void (*asn_error)(const struct asn_buf *, const char *, ...);
@@ -469,7 +481,7 @@ starting with
 followed by the error message and an optional dump of the buffer.
 .Sh SEE ALSO
 .Xr gensnmptree 1 ,
-.Xr snmpd 1 ,
+.Xr bsnmpd 1 ,
 .Xr bsnmpagent 3 ,
 .Xr bsnmpclient 3 ,
 .Xr bsnmplib 3
