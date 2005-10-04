@@ -1520,7 +1520,7 @@ runshutdown(void)
 	}
 
 	len = sizeof(shutdowntimeout);
-	if (sysctlbyname("kern.shutdown_timeout",
+	if (sysctlbyname("kern.init_shutdown_timeout",
 			 &shutdowntimeout,
 			 &len, NULL, 0) == -1 || shutdowntimeout < 2)
 	    shutdowntimeout = DEATH_SCRIPT;
