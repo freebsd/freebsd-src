@@ -458,7 +458,6 @@ ENTRY(savectx)
 	add	r2, r0, #(PCB_R8)
 	stmia	r2, {r8-r13}
 	ldmfd	sp!, {r4-r7, pc}
-	RET
 
 ENTRY(fork_trampoline)
 	mov	r1, r5
