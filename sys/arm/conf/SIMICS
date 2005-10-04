@@ -71,7 +71,6 @@ device		uart
 					# output.  Adds ~215k to driver.
 
 # Debugging for use in -current
-options 	DDB			#Enable the kernel debugger
 #options 	INVARIANTS		#Enable calls of extra sanity checking
 #options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
