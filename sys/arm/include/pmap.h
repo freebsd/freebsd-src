@@ -517,8 +517,8 @@ struct arm_small_page {
 	TAILQ_ENTRY(arm_small_page) pg_list;
 };
 
-extern vm_paddr_t dump_avail[];
 #endif
+extern vm_paddr_t dump_avail[];
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */
