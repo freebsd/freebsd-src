@@ -47,7 +47,7 @@ CFLAGS += -mno-apcs-frame
 
 DDB_ENABLED!=	grep DDB opt_ddb.h || true
 
-.if defined(DDB_ENABLED)
+.if ${DDB_ENABLED} != ""
 SYSTEM_LD_TAIL += ;echo "\#define KERNNAME \"${KERNEL_KO}\"" >opt_kernname.h ; \
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.arm \
 	$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S -o ${KERNEL_KO}.tramp
@@ -65,6 +65,9 @@ SYSTEM_LD_TAIL += ;echo "\#define KERNNAME \"${KERNEL_KO}\"" >opt_kernname.h ; \
 
 %CLEAN
 
+.if ${DDB_ENABLED} != ""
+CLEAN+=	kernel.tramp
+.endif
 ldscript.$M: $S/conf/ldscript.$M
 	cat $S/conf/ldscript.$M|sed s/KERNPHYSADDR/${KERNPHYSADDR}/g| \
 	  sed s/KERNVIRTADDR/${KERNVIRTADDR}/g > ldscript.$M
