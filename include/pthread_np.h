@@ -57,6 +57,7 @@ void pthread_suspend_all_np(void);
 int pthread_suspend_np(pthread_t);
 int pthread_switch_add_np(pthread_switch_routine_t);
 int pthread_switch_delete_np(pthread_switch_routine_t);
+int pthread_timedjoin_np(pthread_t, void **, const struct timespec *);
 __END_DECLS
 
 #endif
