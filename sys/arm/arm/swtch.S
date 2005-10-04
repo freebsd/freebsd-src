@@ -455,14 +455,8 @@ ENTRY(savectx)
 	 * r0 = pcb
 	 */
 	/* Store all the registers in the process's pcb */
-#ifndef __XSCALE__
 	add	r2, r0, #(PCB_R8)
 	stmia	r2, {r8-r13}
-#else
-	strd	r8, [r0, #(PCB_R8)]
-	strd	r10, [r0, #(PCB_R10)]
-	strd	r12, [r0, #(PCB_R12)]
-#endif
 	ldmfd	sp!, {r4-r7, pc}
 	RET
 
