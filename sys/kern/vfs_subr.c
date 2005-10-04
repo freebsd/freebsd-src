@@ -1522,7 +1522,7 @@ sysctl_vfs_worklist_len(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_vfs, OID_AUTO, worklist_len, CTLTYPE_INT | CTLFLAG_RD, NULL, 0,
     sysctl_vfs_worklist_len, "I", "Syncer thread worklist length");
 
-struct  proc *updateproc;
+static struct proc *updateproc;
 static void sched_sync(void);
 static struct kproc_desc up_kp = {
 	"syncer",
@@ -1599,6 +1599,7 @@ sched_sync(void)
 	first_printf = 1;
 	syncer_state = SYNCER_RUNNING;
 	starttime = time_second;
+	td->td_pflags |= TDP_NORUNNINGBUF;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, syncer_shutdown, td->td_proc,
 	    SHUTDOWN_PRI_LAST);

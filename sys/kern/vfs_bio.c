@@ -318,7 +318,7 @@ bufspacewakeup(void)
  * runningbufwakeup() - in-progress I/O accounting.
  *
  */
-static __inline void
+void
 runningbufwakeup(struct buf *bp)
 {
 
@@ -373,7 +373,7 @@ bufcountwakeup(void)
  *	for earlier writes to complete and generally returns before the
  *	caller's write has reached the device.
  */
-static __inline void
+void
 waitrunningbufspace(void)
 {
 
@@ -847,8 +847,7 @@ bufwrite(struct buf *bp)
 		 * or syncer daemon trying to clean up as that can lead
 		 * to deadlock.
 		 */
-		if (curthread->td_proc != bufdaemonproc &&
-		    curthread->td_proc != updateproc)
+		if ((curthread->td_pflags & TDP_NORUNNINGBUF) == 0)
 			waitrunningbufspace();
 	}
 
@@ -1964,6 +1963,7 @@ buf_daemon()
 	/*
 	 * This process is allowed to take the buffer cache to the limit
 	 */
+	curthread->td_pflags |= TDP_NORUNNINGBUF;
 	mtx_lock(&bdlock);
 	for (;;) {
 		bd_request = 0;
