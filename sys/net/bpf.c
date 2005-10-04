@@ -696,8 +696,8 @@ bpfioctl(dev, cmd, addr, flags, td)
 	/* 
 	 * Refresh PID associated with this descriptor.
 	 */
-	d->bd_pid = td->td_proc->p_pid;
 	BPFD_LOCK(d);
+	d->bd_pid = td->td_proc->p_pid;
 	if (d->bd_state == BPF_WAITING)
 		callout_stop(&d->bd_callout);
 	d->bd_state = BPF_IDLE;
@@ -1147,9 +1147,9 @@ bpfpoll(dev, events, td)
 	/*
 	 * Refresh PID associated with this descriptor.
 	 */
-	d->bd_pid = td->td_proc->p_pid;
 	revents = events & (POLLOUT | POLLWRNORM);
 	BPFD_LOCK(d);
+	d->bd_pid = td->td_proc->p_pid;
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (bpf_ready(d))
 			revents |= events & (POLLIN | POLLRDNORM);
@@ -1184,10 +1184,12 @@ bpfkqfilter(dev, kn)
 	/* 
 	 * Refresh PID associated with this descriptor.
 	 */
+	BPFD_LOCK(d);
 	d->bd_pid = curthread->td_proc->p_pid;
 	kn->kn_fop = &bpfread_filtops;
 	kn->kn_hook = d;
 	knlist_add(&d->bd_sel.si_note, kn, 0);
+	BPFD_UNLOCK(d);
 
 	return (0);
 }
@@ -1198,7 +1200,9 @@ filt_bpfdetach(kn)
 {
 	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
 
+	BPFD_LOCK(d);
 	knlist_remove(&d->bd_sel.si_note, kn, 0);
+	BPFD_UNLOCK(d);
 }
 
 static int
