@@ -33,6 +33,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 /*$FreeBSD$*/
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <dev/ixgb/if_ixgb.h>
 
 /*********************************************************************
