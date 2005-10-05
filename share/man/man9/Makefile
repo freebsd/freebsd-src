@@ -420,9 +420,7 @@ MLINKS+=copy.9 copyin.9 \
 	copy.9 copyinstr.9 \
 	copy.9 copyout.9 \
 	copy.9 copystr.9
-MLINKS+=critical_enter.9 cpu_critical_enter.9 \
-	critical_enter.9 cpu_critical_exit.9 \
-	critical_enter.9 critical.9 \
+MLINKS+=critical_enter.9 critical.9 \
 	critical_enter.9 critical_exit.9
 MLINKS+=crypto.9 crypto_dispatch.9 \
 	crypto.9 crypto_done.9 \
