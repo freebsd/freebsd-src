@@ -77,11 +77,13 @@
 # include "opt_inet.h"	/* INET */
 # include "opt_inet6.h"	/* INET6 */
 # include "opt_netgraph.h" /* NETGRAPH */
+# ifdef HAVE_KERNEL_OPTION_HEADERS
+# include "opt_device_polling.h" /* DEVICE_POLLING */
+# endif
 # ifndef NETGRAPH
 #  define NETGRAPH 0
 # endif
 # define  P2P 0		/* not in FreeBSD */
-# include "opt_global.h"/* ALTQ, DEVICE_POLLING */
 # if (__FreeBSD_version >= 500000)
 #  define NSPPP 1	/* No count devices in FreeBSD 5 */
 #  include "opt_bpf.h"	/* DEV_BPF */
