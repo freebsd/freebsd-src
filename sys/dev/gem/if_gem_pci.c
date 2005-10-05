@@ -40,7 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 
@@ -175,12 +177,14 @@ gem_pci_attach(dev)
 	sc->sc_dev = dev;
 	sc->sc_pci = 1;		/* XXX */
 
+	GEM_LOCK_INIT(sc, device_get_nameunit(dev));
+
 	gsc->gsc_srid = PCI_GEM_BASEADDR;
 	gsc->gsc_sres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &gsc->gsc_srid, RF_ACTIVE);
 	if (gsc->gsc_sres == NULL) {
 		device_printf(dev, "failed to allocate bus space resource\n");
-		return (ENXIO);
+		goto fail_mtx;
 	}
 
 	gsc->gsc_irid = 0;
@@ -205,8 +209,8 @@ gem_pci_attach(dev)
 		goto fail_ires;
 	}
 
-	if (bus_setup_intr(dev, gsc->gsc_ires, INTR_TYPE_NET, gem_intr, sc,
-	    &gsc->gsc_ih) != 0) {
+	if (bus_setup_intr(dev, gsc->gsc_ires, INTR_TYPE_NET | INTR_MPSAFE,
+	    gem_intr, sc, &gsc->gsc_ih) != 0) {
 		device_printf(dev, "failed to set up interrupt\n");
 		gem_detach(sc);
 		goto fail_ires;
@@ -217,6 +221,8 @@ fail_ires:
 	bus_release_resource(dev, SYS_RES_IRQ, gsc->gsc_irid, gsc->gsc_ires);
 fail_sres:
 	bus_release_resource(dev, SYS_RES_MEMORY, gsc->gsc_srid, gsc->gsc_sres);
+fail_mtx:
+	GEM_LOCK_DESTROY(sc);
 	return (ENXIO);
 }
 
@@ -227,11 +233,11 @@ gem_pci_detach(dev)
 	struct gem_pci_softc *gsc = device_get_softc(dev);
 	struct gem_softc *sc = &gsc->gsc_gem;
 
-	gem_detach(sc);
-
 	bus_teardown_intr(dev, gsc->gsc_ires, gsc->gsc_ih);
+	gem_detach(sc);
 	bus_release_resource(dev, SYS_RES_IRQ, gsc->gsc_irid, gsc->gsc_ires);
 	bus_release_resource(dev, SYS_RES_MEMORY, gsc->gsc_srid, gsc->gsc_sres);
+	GEM_LOCK_DESTROY(sc);
 	return (0);
 }
 
