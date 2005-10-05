@@ -27,6 +27,7 @@
  * $FreeBSD$
  */
 
+#include "opt_device_polling.h"
 #include "opt_net.h"
 
 #include <sys/param.h>

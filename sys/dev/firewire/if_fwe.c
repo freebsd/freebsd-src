@@ -34,7 +34,10 @@
  * $FreeBSD$
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
 #include "opt_inet.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/kernel.h>
