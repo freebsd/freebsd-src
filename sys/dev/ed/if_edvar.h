@@ -194,6 +194,7 @@ int	ed_alloc_irq(device_t, int, int);
 int	ed_probe_generic8390(struct ed_softc *);
 int	ed_probe_WD80x3(device_t, int, int);
 int	ed_probe_WD80x3_generic(device_t, int, uint16_t *[]);
+int	ed_probe_RTL80x9(device_t, int, int);
 #ifdef ED_3C503
 int	ed_probe_3Com(device_t, int, int);
 #endif
