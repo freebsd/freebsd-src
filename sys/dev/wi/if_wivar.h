@@ -66,6 +66,9 @@ struct wi_softc	{
 	struct ieee80211com	sc_ic;
 	int			(*sc_newstate)(struct ieee80211com *,
 					enum ieee80211_state, int);
+	int			(*sc_key_alloc)(struct ieee80211com *,
+					const struct ieee80211_key *,
+					ieee80211_keyix *, ieee80211_keyix *);
 	device_t		sc_dev;
 #if __FreeBSD_version >= 500000
 	struct mtx		sc_mtx;
@@ -121,6 +124,7 @@ struct wi_softc	{
 	u_int16_t		sc_roaming_mode;
 	u_int16_t		sc_microwave_oven;
 	u_int16_t		sc_authtype;
+	u_int16_t		sc_encryption;
 
 	int			sc_nodelen;
 	char			sc_nodename[IEEE80211_NWID_LEN];
