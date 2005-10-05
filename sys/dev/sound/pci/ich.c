@@ -222,7 +222,12 @@ ich_resetchan(struct sc_info *sc, int num)
 		return ENXIO;
 
 	ich_wr(sc, regbase + ICH_REG_X_CR, 0, 1);
+#if 1
+	/* This may result in no sound output on NForce 2 MBs, see PR 73987 */
 	DELAY(100);
+#else
+	(void)ich_rd(sc, regbase + ICH_REG_X_CR, 1);
+#endif
 	ich_wr(sc, regbase + ICH_REG_X_CR, ICH_X_CR_RR, 1);
 	for (i = 0; i < ICH_TIMEOUT; i++) {
 		cr = ich_rd(sc, regbase + ICH_REG_X_CR, 1);
