@@ -174,7 +174,7 @@
  *	 0   0		0
  *	 0   1		1
  *	 1   0		2
- *	 1   1		reserved
+ *	 1   1		3 (some chips it is reserved)
  */
 #define ED_CR_PS0	0x40
 #define ED_CR_PS1	0x80
@@ -182,6 +182,7 @@
 #define ED_CR_PAGE_0	0x00 /* (for consistency) */
 #define ED_CR_PAGE_1	0x40
 #define ED_CR_PAGE_2	0x80
+#define ED_CR_PAGE_3	0xc0
 
 /*
  *		Interrupt Status Register (ISR) definitions
@@ -1066,16 +1067,14 @@ struct ed_ring	{
  * Chip types.
  */
 
-#define ED_CHIP_TYPE_DP8390	0x00
-#define ED_CHIP_TYPE_WD790	0x01
-#define ED_CHIP_TYPE_AX88190	0x02
-#define ED_CHIP_TYPE_DL10019	0x03
-#define ED_CHIP_TYPE_DL10022	0x04
-
-/*
- * Test for AX88790 vs 88190 cards.
- */
-#define	ED_ASIX_TEST		0x05
+#define ED_CHIP_TYPE_DP8390	0
+#define ED_CHIP_TYPE_WD790	1
+#define ED_CHIP_TYPE_AX88190	2
+#define ED_CHIP_TYPE_DL10019	3
+#define ED_CHIP_TYPE_DL10022	4
+#define ED_CHIP_TYPE_TC5299J	5
+#define ED_CHIP_TYPE_RTL8019	6
+#define ED_CHIP_TYPE_RTL8029	7
 
 /*
  * MII bus definitions.  These are common to both DL100xx and AX88x90
@@ -1095,23 +1094,3 @@ struct ed_ring	{
 #define ED_MII_DATA_BITS	16
 #define ED_MII_ACK_BITS		1
 #define ED_MII_IDLE_BITS	1
-
-/* Dlink chipset used on some Netgear and Dlink PCMCIA cards */
-#define ED_DL100XX_MIIBUS	0x0c	/* MII bus register on ASIC */
-
-#define ED_DL100XX_MII_RESET1	0x04
-#define ED_DL100XX_MII_RESET2	0x08
-
-#define ED_DL100XX_MII_DATATIN	0x10
-#define ED_DL100XX_MII_DIROUT_22	0x20
-#define ED_DL100XX_MII_DIROUT_19	0x10
-#define ED_DL100XX_MII_DATAOUT	0x40
-#define ED_DL100XX_MII_CLK	0x80
-
-/* AX88x90 based miibus defines */
-#define ED_AX88X90_MIIBUS	0x04	/* MII bus register on ASIC */
-
-#define ED_AX88X90_MII_DATAOUT	0x08
-#define ED_AX88X90_MII_DATATIN	0x04
-#define ED_AX88X90_MII_DIROUT	0x02
-#define ED_AX88X90_MII_CLK	0x01
