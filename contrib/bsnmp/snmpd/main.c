@@ -57,6 +57,10 @@
 #include "tree.h"
 #include "oid.h"
 
+#if !defined(INT32_MAX)
+#define	INT32_MAX	(0x7fffffff)
+#endif
+
 #define	PATH_PID	"/var/run/%s.pid"
 #define PATH_CONFIG	"/etc/%s.config"
 

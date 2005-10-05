@@ -64,6 +64,14 @@
 #include "snmpclient.h"
 #include "snmppriv.h"
 
+#if !defined(INT32_MAX)
+#define	INT32_MAX	(0x7fffffff)
+#endif
+#if !defined(UINT32_MAX)
+#define	UINT32_MAX	(0xffffffff)
+#endif
+
+
 /* global context */
 struct snmp_client snmp_client;
 
