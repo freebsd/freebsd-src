@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/malloc.h>
 #include <isa/isavar.h>
 #include <isa/pnpreg.h>
@@ -114,10 +115,12 @@ static int    pnp_isolation_protocol(device_t parent);
 char *
 pnp_eisaformat(uint32_t id)
 {
-	uint8_t *data = (uint8_t *) &id;
+	uint8_t *data;
 	static char idbuf[8];
 	const char  hextoascii[] = "0123456789abcdef";
 
+	id = htole32(id);
+	data = (uint8_t *)&id;
 	idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
 	idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
 	idbuf[2] = '@' + (data[1] & 0x1f);
