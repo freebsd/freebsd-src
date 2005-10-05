@@ -55,6 +55,16 @@
 #include "ntp_tree.h"
 #include "ntp_oid.h"
 
+#if !defined(INT32_MIN)
+#define	INT32_MIN	(-0x7fffffff-1)
+#endif
+#if !defined(INT32_MAX)
+#define	INT32_MAX	(0x7fffffff)
+#endif
+#if !defined(UINT32_MAX)
+#define	UINT32_MAX	(0xffffffff)
+#endif
+
 #define	NTPC_MAX	576
 #define	NTPC_VERSION	3
 #define	NTPC_MODE	6
