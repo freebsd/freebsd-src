@@ -38,15 +38,14 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-static int acquire_lock(const char *name);
 static void cleanup(void);
 static void killed(int sig);
 static void timeout(int sig);
 static void usage(void);
-static void wait_for_lock(const char *name);
+static int wait_for_lock(const char *name);
 
 static const char *lockname;
-static int lockfd;
+static int lockfd = -1;
 static int keep;
 static volatile sig_atomic_t timed_out;
 
@@ -106,11 +105,8 @@ main(int argc, char **argv)
 	alarm(waitsec);
     }
 
-    lockfd = acquire_lock(lockname);
-    while (lockfd == -1 && !timed_out && waitsec != 0) {
-	wait_for_lock(lockname);
-	lockfd = acquire_lock(lockname);
-    }
+    while (lockfd == -1 && !timed_out && waitsec != 0)
+	lockfd = wait_for_lock(lockname);
 
     if (waitsec > 0)
 	alarm(0);
@@ -146,23 +142,6 @@ main(int argc, char **argv)
 	err(EX_OSERR, "waitpid failed");
 
     return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
-}
-
-/*
- * Try to acquire a lock on the given file, but don't wait for it.  Returns
- * an open file descriptor on success, or -1 on failure.
- */
-static int
-acquire_lock(const char *name)
-{
-    int fd;
-
-    if ((fd = open(name, O_RDONLY|O_CREAT|O_EXLOCK|O_NONBLOCK, 0666)) == -1) {
-	if (errno == EAGAIN || errno == EINTR)
-	    return -1;
-	err(EX_CANTCREAT, "cannot open %s", name);
-    }
-    return fd;
 }
 
 /*
@@ -210,16 +189,15 @@ usage(void)
 /*
  * Wait until it might be possible to acquire a lock on the given file.
  */
-static void
+static int
 wait_for_lock(const char *name)
 {
     int fd;
 
-    if ((fd = open(name, O_RDONLY|O_EXLOCK)) == -1) {
+    if ((fd = open(name, O_CREAT|O_RDONLY|O_EXLOCK, 0666)) == -1) {
 	if (errno == ENOENT || errno == EINTR)
-	    return;
+	    return (-1);
 	err(EX_CANTCREAT, "cannot open %s", name);
     }
-    close(fd);
-    return;
+    return (fd);
 }
