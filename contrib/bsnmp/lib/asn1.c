@@ -43,6 +43,16 @@
 #include <assert.h>
 #include "asn1.h"
 
+#if !defined(INT32_MIN)
+#define	INT32_MIN	(-0x7fffffff-1)
+#endif
+#if !defined(INT32_MAX)
+#define	INT32_MAX	(0x7fffffff)
+#endif
+#if !defined(UINT32_MAX)
+#define	UINT32_MAX	(0xffffffff)
+#endif
+
 static void asn_error_func(const struct asn_buf *, const char *, ...);
 
 void (*asn_error)(const struct asn_buf *, const char *, ...) = asn_error_func;
