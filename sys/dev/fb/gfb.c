@@ -161,7 +161,7 @@ gfb_init(int unit, video_adapter_t *adp, int flags)
 
 		/* Prepare the default font... */
 		(*vidsw[adp->va_index]->load_font)(adp, 0, bold8x16.height,
-		    bold8x16.data, 0, 256);
+		    bold8x16.width, bold8x16.data, 0, 256);
 		adp->va_info.vi_cwidth = gfbc->fonts[0].width;
 		adp->va_info.vi_cheight = gfbc->fonts[0].height;
 
@@ -213,8 +213,8 @@ gfb_set_mode(video_adapter_t *adp, int mode)
 }
 
 int
-gfb_save_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
-    int ch, int count)
+gfb_save_font(video_adapter_t *adp, int page, int fontsize, int fontwidth,
+    u_char *data, int ch, int count)
 {
 	struct gfb_softc *sc;
 	int error;
@@ -225,7 +225,7 @@ gfb_save_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
 
 	/* Check the font information... */
 	if((sc->gfbc->fonts[page].height != fontsize) ||
-	   (sc->gfbc->fonts[page].width != 8))
+	   (sc->gfbc->fonts[page].width != fontwidth))
 		error = EINVAL;
 	else
 
@@ -242,8 +242,8 @@ gfb_save_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
 }
 
 int
-gfb_load_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
-    int ch, int count)
+gfb_load_font(video_adapter_t *adp, int page, int fontsize, int fontwidth,
+    u_char *data, int ch, int count)
 {
 	struct gfb_softc *sc;
 	int error;
@@ -259,7 +259,7 @@ gfb_load_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
 
 	/* Save the font information... */
 	sc->gfbc->fonts[page].height = fontsize;
-	sc->gfbc->fonts[page].width = 8;
+	sc->gfbc->fonts[page].width = fontwidth;
 
 	return(error);
 }
@@ -912,7 +912,7 @@ gfb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 
 int
 gfb_putm(video_adapter_t *adp, int x, int y, u_int8_t *pixel_image,
-    u_int32_t pixel_mask, int size)
+    u_int32_t pixel_mask, int size, int width)
 {
 	vm_offset_t poff;
 	int i, pixel_size;
