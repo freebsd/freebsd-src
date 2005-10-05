@@ -93,8 +93,10 @@
 #endif
 #include <sys/cdefs.h>
 #include <sys/errno.h>
+#ifndef LOCORE
 #include <sys/time.h>
 #include <sys/priority.h>
+#endif
 
 #define	FALSE	0
 #define	TRUE	1
@@ -260,6 +262,7 @@
 /*
  * Basic byte order function prototypes for non-inline functions.
  */
+#ifndef LOCORE
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
 __BEGIN_DECLS
@@ -268,6 +271,7 @@ __uint16_t	 htons(__uint16_t);
 __uint32_t	 ntohl(__uint32_t);
 __uint16_t	 ntohs(__uint16_t);
 __END_DECLS
+#endif
 #endif
 
 #ifndef lint
