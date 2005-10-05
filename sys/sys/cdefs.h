@@ -74,17 +74,14 @@
 #  undef __GNUCLIKE_BUILTIN_CONSTANT_P
 # endif
 
-#if __GNUC_MINOR__ > 95 || __GNUC__ >= 3 || defined(__INTEL_COMPILER)
+#if (__GNUC_MINOR__ > 95 || __GNUC__ >= 3) && !defined(__INTEL_COMPILER)
 # define __GNUCLIKE_BUILTIN_VARARGS 1
+# define __GNUCLIKE_BUILTIN_STDARG 1
+# define __GNUCLIKE_BUILTIN_VAALIST 1
 #endif
-#define __GNUCLIKE_BUILTIN_VAALIST 1
 
 #if defined(__GNUC__)
 # define __GNUC_VA_LIST_COMPATIBILITY 1
-#endif
-
-#if (__GNUC_MINOR__ > 95 || __GNUC__ >= 3) && !defined(__INTEL_COMPILER)
-# define __GNUCLIKE_BUILTIN_STDARG 1
 #endif
 
 #ifndef __INTEL_COMPILER
