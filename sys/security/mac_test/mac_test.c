@@ -919,16 +919,6 @@ mac_test_create_mount(struct ucred *cred, struct mount *mp,
 }
 
 static void
-mac_test_create_root_mount(struct ucred *cred, struct mount *mp,
-    struct label *mntlabel, struct label *fslabel)
-{
-
-	ASSERT_CRED_LABEL(cred->cr_label);
-	ASSERT_MOUNT_LABEL(mntlabel);
-	ASSERT_MOUNT_LABEL(fslabel);
-}
-
-static void
 mac_test_relabel_vnode(struct ucred *cred, struct vnode *vp,
     struct label *vnodelabel, struct label *label)
 {
@@ -2473,7 +2463,6 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_create_devfs_symlink = mac_test_create_devfs_symlink,
 	.mpo_create_vnode_extattr = mac_test_create_vnode_extattr,
 	.mpo_create_mount = mac_test_create_mount,
-	.mpo_create_root_mount = mac_test_create_root_mount,
 	.mpo_relabel_vnode = mac_test_relabel_vnode,
 	.mpo_setlabel_vnode_extattr = mac_test_setlabel_vnode_extattr,
 	.mpo_update_devfsdirent = mac_test_update_devfsdirent,
