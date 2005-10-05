@@ -42,7 +42,7 @@ static void cleanup(void);
 static void killed(int sig);
 static void timeout(int sig);
 static void usage(void);
-static int wait_for_lock(const char *name);
+static int wait_for_lock(const char *name, int flags);
 
 static const char *lockname;
 static int lockfd = -1;
@@ -105,8 +105,9 @@ main(int argc, char **argv)
 	alarm(waitsec);
     }
 
+    lockfd = wait_for_lock(lockname, O_NONBLOCK);
     while (lockfd == -1 && !timed_out && waitsec != 0)
-	lockfd = wait_for_lock(lockname);
+	lockfd = wait_for_lock(lockname, 0);
 
     if (waitsec > 0)
 	alarm(0);
@@ -190,12 +191,12 @@ usage(void)
  * Wait until it might be possible to acquire a lock on the given file.
  */
 static int
-wait_for_lock(const char *name)
+wait_for_lock(const char *name, int flags)
 {
     int fd;
 
-    if ((fd = open(name, O_CREAT|O_RDONLY|O_EXLOCK, 0666)) == -1) {
-	if (errno == ENOENT || errno == EINTR)
+    if ((fd = open(name, O_CREAT|O_RDONLY|O_EXLOCK|flags, 0666)) == -1) {
+	if (errno == ENOENT || errno == EINTR || errno == EAGAIN)
 	    return (-1);
 	err(EX_CANTCREAT, "cannot open %s", name);
     }
