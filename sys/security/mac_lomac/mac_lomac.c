@@ -960,19 +960,6 @@ mac_lomac_create_mount(struct ucred *cred, struct mount *mp,
 }
 
 static void
-mac_lomac_create_root_mount(struct ucred *cred, struct mount *mp,
-    struct label *mntlabel, struct label *fslabel)
-{
-	struct mac_lomac *mac_lomac;
-
-	/* Always mount root as high integrity. */
-	mac_lomac = SLOT(fslabel);
-	mac_lomac_set_single(mac_lomac, MAC_LOMAC_TYPE_HIGH, 0);
-	mac_lomac = SLOT(mntlabel);
-	mac_lomac_set_single(mac_lomac, MAC_LOMAC_TYPE_HIGH, 0);
-}
-
-static void
 mac_lomac_relabel_vnode(struct ucred *cred, struct vnode *vp,
     struct label *vnodelabel, struct label *label)
 {
@@ -2618,7 +2605,6 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_create_devfs_directory = mac_lomac_create_devfs_directory,
 	.mpo_create_devfs_symlink = mac_lomac_create_devfs_symlink,
 	.mpo_create_mount = mac_lomac_create_mount,
-	.mpo_create_root_mount = mac_lomac_create_root_mount,
 	.mpo_relabel_vnode = mac_lomac_relabel_vnode,
 	.mpo_update_devfsdirent = mac_lomac_update_devfsdirent,
 	.mpo_associate_vnode_devfs = mac_lomac_associate_vnode_devfs,
