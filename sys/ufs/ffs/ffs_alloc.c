@@ -950,6 +950,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 		ip->i_din2->di_birthtime = ts.tv_sec;
 		ip->i_din2->di_birthnsec = ts.tv_nsec;
 	}
+	ip->i_flag = 0;
 	return (0);
 noinodes:
 	UFS_UNLOCK(ump);
