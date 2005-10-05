@@ -99,7 +99,7 @@ static u_int32_t via_fmt[] = {
 static struct pcmchan_caps via_vracaps = {4000, 48000, via_fmt, 0};
 static struct pcmchan_caps via_caps = {48000, 48000, via_fmt, 0};
 
-static u_int32_t
+static __inline u_int32_t
 via_rd(struct via_info *via, int regno, int size)
 {
 
@@ -116,7 +116,7 @@ via_rd(struct via_info *via, int regno, int size)
 }
 
 
-static void
+static __inline void
 via_wr(struct via_info *via, int regno, u_int32_t data, int size)
 {
 
@@ -290,10 +290,12 @@ viachan_setformat(kobj_t obj, void *data, u_int32_t format)
 		mode_set |= VIA_RPMODE_16BIT;
 
 	DEB(printf("set format: dir = %d, format=%x\n", ch->dir, format));
+	snd_mtxlock(via->lock);
 	mode = via_rd(via, ch->mode, 1);
 	mode &= ~(VIA_RPMODE_16BIT | VIA_RPMODE_STEREO);
 	mode |= mode_set;
 	via_wr(via, ch->mode, mode, 1);
+	snd_mtxunlock(via->lock);
 
 	return 0;
 }
@@ -346,12 +348,14 @@ viachan_trigger(kobj_t obj, void *data, int go)
 	ado = ch->sgd_table;
 	DEB(printf("ado located at va=%p pa=%x\n", ado, sgd_addr));
 
+	snd_mtxlock(via->lock);
 	if (go == PCMTRIG_START) {
 		via_buildsgdt(ch);
 		via_wr(via, ch->base, sgd_addr, 4);
 		via_wr(via, ch->ctrl, VIA_RPCTRL_START, 1);
 	} else
 		via_wr(via, ch->ctrl, VIA_RPCTRL_TERMINATE, 1);
+	snd_mtxunlock(via->lock);
 
 	DEB(printf("viachan_trigger: go=%d\n", go));
 	return 0;
@@ -367,11 +371,13 @@ viachan_getptr(kobj_t obj, void *data)
 	int ptr, base, base1, len, seg;
 
 	ado = ch->sgd_table;
+	snd_mtxlock(via->lock);
 	base1 = via_rd(via, ch->base, 4);
 	len = via_rd(via, ch->count, 4);
 	base = via_rd(via, ch->base, 4);
 	if (base != base1) 	/* Avoid race hazard */
 		len = via_rd(via, ch->count, 4);
+	snd_mtxunlock(via->lock);
 
 	DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
 

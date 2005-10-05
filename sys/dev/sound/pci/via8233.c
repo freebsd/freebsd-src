@@ -100,7 +100,7 @@ struct via_info {
 	struct ac97_info *codec;
 
 	unsigned int bufsz;
-	int spdif_en, dxs_src;
+	int dxs_src;
 
 	struct via_chinfo pch[NDXSCHANS + NMSGDCHANS];
 	struct via_chinfo rch[NWRCHANS];
@@ -127,13 +127,15 @@ sysctl_via8233_spdif_enable(SYSCTL_HANDLER_ARGS)
 {
 	struct via_info *via;
 	device_t dev;
-	int err, new_en, r;
+	uint32_t r;
+	int err, new_en;
 
 	dev = oidp->oid_arg1;
 	via = pcm_getdevinfo(dev);
 	snd_mtxlock(via->lock);
-	new_en = via->spdif_en;
+	r = pci_read_config(dev, VIA_PCI_SPDIF, 1);
 	snd_mtxunlock(via->lock);
+	new_en = (r & VIA_SPDIF_EN) ? 1 : 0;
 	err = sysctl_handle_int(oidp, &new_en, sizeof(new_en), req);
 
 	if (err || req->newptr == NULL)
@@ -141,12 +143,11 @@ sysctl_via8233_spdif_enable(SYSCTL_HANDLER_ARGS)
 	if (new_en < 0 || new_en > 1)
 		return EINVAL;
 
-	snd_mtxlock(via->lock);
-	via->spdif_en = new_en;
-
-	r = pci_read_config(dev, VIA_PCI_SPDIF, 1) & ~VIA_SPDIF_EN;
 	if (new_en)
 		r |= VIA_SPDIF_EN;
+	else
+		r &= ~VIA_SPDIF_EN;
+	snd_mtxlock(via->lock);
 	pci_write_config(dev, VIA_PCI_SPDIF, r, 1);
 	snd_mtxunlock(via->lock);
 
@@ -184,13 +185,6 @@ static void
 via_init_sysctls(device_t dev)
 {
 #ifdef SND_DYNSYSCTL
-	struct via_info *via;
-	int r;
-
-	via = pcm_getdevinfo(dev);
-	r = pci_read_config(dev, VIA_PCI_SPDIF, 1);
-	via->spdif_en = (r & VIA_SPDIF_EN) ? 1 : 0;
-
 	SYSCTL_ADD_PROC(snd_sysctl_tree(dev),
 			SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
 			OID_AUTO, "spdif_enabled", 
@@ -206,7 +200,7 @@ via_init_sysctls(device_t dev)
 #endif
 }
 
-static u_int32_t
+static __inline u_int32_t
 via_rd(struct via_info *via, int regno, int size)
 {
 	switch (size) {
@@ -221,7 +215,7 @@ via_rd(struct via_info *via, int regno, int size)
 	}
 }
 
-static void
+static __inline void
 via_wr(struct via_info *via, int regno, u_int32_t data, int size)
 {
 
@@ -347,7 +341,9 @@ via8233wr_setformat(kobj_t obj, void *data, u_int32_t format)
 		f |= WR_FORMAT_STEREO;
 	if (format & AFMT_S16_LE)
 		f |= WR_FORMAT_16BIT;
+	snd_mtxlock(via->lock);
 	via_wr(via, VIA_WR0_FORMAT, f, 4);
+	snd_mtxunlock(via->lock);
 
 	return 0;
 }
@@ -360,6 +356,7 @@ via8233dxs_setformat(kobj_t obj, void *data, u_int32_t format)
 	u_int32_t r, v;
 
 	r = ch->rbase + VIA8233_RP_DXS_RATEFMT;
+	snd_mtxlock(via->lock);
 	v = via_rd(via, r, 4);
 
 	v &= ~(VIA8233_DXS_RATEFMT_STEREO | VIA8233_DXS_RATEFMT_16BIT);
@@ -368,6 +365,7 @@ via8233dxs_setformat(kobj_t obj, void *data, u_int32_t format)
 	if (format & AFMT_16BIT)  
 		v |= VIA8233_DXS_RATEFMT_16BIT;
 	via_wr(via, r, v, 4);
+	snd_mtxunlock(via->lock);
 
 	return 0;
 }
@@ -389,8 +387,10 @@ via8233msgd_setformat(kobj_t obj, void *data, u_int32_t format)
 		s |= SLOT3(1) | SLOT4(1);
 	}
 
+	snd_mtxlock(via->lock);
 	via_wr(via, VIA_MC_SLOT_SELECT, s, 4);
 	via_wr(via, VIA_MC_SGD_FORMAT, v, 1);
+	snd_mtxunlock(via->lock);
 
 	return 0;
 }
@@ -418,12 +418,14 @@ via8233dxs_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	u_int32_t r, v;
 
 	r = ch->rbase + VIA8233_RP_DXS_RATEFMT;
+	snd_mtxlock(via->lock);
 	v = via_rd(via, r, 4) & ~VIA8233_DXS_RATEFMT_48K;
 
 	/* Careful to avoid overflow (divide by 48 per vt8233c docs) */
 
 	v |= VIA8233_DXS_RATEFMT_48K * (speed / 48) / (48000 / 48);
 	via_wr(via, r, v, 4);
+	snd_mtxunlock(via->lock);
 
 	return speed;
 }
@@ -505,7 +507,9 @@ via8233chan_getptr(kobj_t obj, void *data)
 	u_int32_t v, index, count;
 	int ptr;
 
+	snd_mtxlock(via->lock);
 	v = via_rd(via, ch->rbase + VIA_RP_CURRENT_COUNT, 4);
+	snd_mtxunlock(via->lock);
 	index = v >> 24;		/* Last completed buffer */
 	count = v & 0x00ffffff;	/* Bytes remaining */
 	ptr = (index + 1) * ch->blksz - count;
@@ -540,13 +544,13 @@ via8233wr_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	struct via_info *via = devinfo;
 	struct via_chinfo *ch = &via->rch[c->num];
 
-	snd_mtxlock(via->lock);
 	ch->parent = via;
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
 
 	ch->rbase = VIA_WR_BASE(c->num);
+	snd_mtxlock(via->lock);
 	via_wr(via, ch->rbase + VIA_WR_RP_SGD_FORMAT, WR_FIFO_ENABLE, 1);
 	snd_mtxunlock(via->lock);
 
@@ -568,7 +572,6 @@ via8233dxs_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	struct via_info *via = devinfo;
 	struct via_chinfo *ch = &via->pch[c->num];
 
-	snd_mtxlock(via->lock);
 	ch->parent = via;
 	ch->channel = c;
 	ch->buffer = b;
@@ -579,6 +582,7 @@ via8233dxs_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	 * channels.  We therefore want to align first DXS channel to
 	 * DXS3.
 	 */
+	snd_mtxlock(via->lock);
 	ch->rbase = VIA_DXS_BASE(NDXSCHANS - 1 - via->n_dxs_registered);
 	via->n_dxs_registered++;
 	snd_mtxunlock(via->lock);
@@ -601,13 +605,11 @@ via8233msgd_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	struct via_info *via = devinfo;
 	struct via_chinfo *ch = &via->pch[c->num];
 
-	snd_mtxlock(via->lock);
 	ch->parent = via;
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
 	ch->rbase = VIA_MC_SGD_STATUS;
-	snd_mtxunlock(via->lock);
 
 	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0)
 		return NULL;
@@ -642,6 +644,7 @@ via8233chan_trigger(kobj_t obj, void* data, int go)
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
 
+	snd_mtxlock(via->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		via_buildsgdt(ch);
@@ -658,6 +661,7 @@ via8233chan_trigger(kobj_t obj, void* data, int go)
 		via8233chan_reset(via, ch);
 		break;
 	}
+	snd_mtxunlock(via->lock);
 	return 0;
 }
 
