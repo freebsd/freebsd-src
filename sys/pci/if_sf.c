@@ -79,6 +79,10 @@ __FBSDID("$FreeBSD$");
  * registers inside the 256-byte I/O window.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>

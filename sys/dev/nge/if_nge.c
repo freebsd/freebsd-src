@@ -88,6 +88,10 @@ __FBSDID("$FreeBSD$");
  * if the user selects an MTU larger than 8152 (8170 - 18).
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
