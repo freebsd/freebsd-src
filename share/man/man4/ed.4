@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd October 5, 2005
 .Dt ED 4
 .Os
 .Sh NAME
@@ -59,6 +59,13 @@ The
 driver provides support for 8 and 16bit Ethernet cards that are based on
 the National Semiconductor DS8390 and similar NICs manufactured by
 other companies.
+The
+.Nm
+driver also supports many PC Card chips which interface via MII to a PHY.
+Axiom's AX88790, AX88190 and AX88190A;
+DLink's DL10019 and DL10022; and
+Tamarack's TC5299J chips all support internal or external MII/PHY combinations.
+For these chipsets, autonegotiation and status reporting are supported.
 .Pp
 The
 .Nm
@@ -165,6 +172,8 @@ Corega Ether98-T (flags 0x000000) (PC-98)
 .It
 Corega Ether PCC-T/EtherII PCC-T/FEther PCC-TXF/PCC-TXD
 .It
+Corega LAPCCTXD (TC5299J)
+.It
 CyQ've ELA-010
 .It
 DEC EtherWorks DE305
@@ -269,7 +278,7 @@ SMC EtherEZ98 (flags 0x000000) (PC-98)
 .It
 SMC WD8003E/WD8003EBT/WD8003S/WD8003SBT/WD8003W/WD8013EBT/WD8013W and clones
 .It
-SMC EZCard PC Card, 8040-TX, 8041-TX
+SMC EZCard PC Card, 8040-TX, 8041-TX, 8041-TX V.2
 .It
 Socket LP-E, ES-1000 Ethernet/Serial, LP-E CF, LP-FE CF
 .It
