@@ -406,8 +406,6 @@ ed_pccard_tick(void *arg)
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    media != mii->mii_media_status && 0 &&
 		    sc->chip_type == ED_CHIP_TYPE_DL10022) {
-			printf("'22: state change up: %x %x\n",
-			    mii->mii_media_status, mii->mii_media_active);
 			ed_asic_outb(sc, ED_DL100XX_DIAG,
 			    (mii->mii_media_active & IFM_FDX) ?
 			    ED_DL100XX_COLLISON_DIS : 0);
@@ -492,8 +490,6 @@ ed_pccard_attach(device_t dev)
 	 * but don't right now.
 	 */
 	if (sc->chip_type == ED_CHIP_TYPE_DP8390) {
-	    ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0);
-	    printf("%#x and %#x", ed_nic_inb(sc, 0xa), ed_nic_inb(sc, 0xb));
 		pccard_get_ether(dev, enaddr);
 		if (bootverbose)
 			device_printf(dev, "CIS MAC %6D\n", enaddr, ":");
