@@ -312,7 +312,7 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 			font[i] ^= 0xff;
 		}
 		/* XXX */
-		(*vidsw[sc->adapter]->load_font)(sc->adp, 0, h, font,
+		(*vidsw[sc->adapter]->load_font)(sc->adp, 0, h, 8, font,
 						 sc->cursor_char, 1);
 		sc_vtb_putc(&scp->scr, at, sc->cursor_char, a);
 	} else
@@ -438,7 +438,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 	while (!(inb(crtc_addr + 6) & 0x08)) /* idle */ ;
 #endif
 	c = scp->sc->mouse_char;
-	(*vidsw[scp->sc->adapter]->load_font)(scp->sc->adp, 0, 32, font_buf,
+	(*vidsw[scp->sc->adapter]->load_font)(scp->sc->adp, 0, 32, 8, font_buf,
 					      c, 4); 
 
 	sc_vtb_putc(&scp->scr, pos, c, sc_vtb_geta(&scp->scr, pos));
