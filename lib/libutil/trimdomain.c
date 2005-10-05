@@ -75,18 +75,16 @@ trimdomain(char *fullhost, int hostsize)
 
 	s = fullhost;
 	end = s + hostsize + 1;
-	for (; (s = memchr(s, '.', (size_t)(end - s))) != NULL; s++) {
+	if ((s = memchr(s, '.', (size_t)(end - s))) != NULL) {
 		if (strncasecmp(s + 1, domain, dlen) == 0) {
 			if (s[dlen + 1] == '\0') {
 				/* Found -- lose the domain. */
 				*s = '\0';
-				break;
 			} else if (s[dlen + 1] == ':' &&
 			    isDISP(s + dlen + 2) &&
 			    (len = strlen(s + dlen + 1)) < (size_t)(end - s)) {
 				/* Found -- shuffle the DISPLAY back. */
 				memmove(s, s + dlen + 1, len + 1);
-				break;
 			}
 		}
 	}
