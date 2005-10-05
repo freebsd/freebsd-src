@@ -4,7 +4,7 @@
 
 KMOD=	if_ed
 SRCS=	if_ed.c
-SRCS+=	if_ed_novell.c if_ed_wd80x3.c isa_if.h
+SRCS+=	if_ed_novell.c if_ed_wd80x3.c if_ed_rtl80x9.c isa_if.h
 .if ${MACHINE} == "pc98"
 SRCS+=	if_ed_cbus.c
 .else
