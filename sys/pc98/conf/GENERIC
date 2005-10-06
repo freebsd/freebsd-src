@@ -133,10 +133,6 @@ device		npx
 #device		"snd_sb16"	# Sound Blaster 16
 #device		snd_sbc		# Sound Blaster
 
-# PCMCIA support
-device		card		# pccard bus
-device		pcic		# PCMCIA bridge
-
 # Serial (COM) ports
 options 	COM_MULTIPORT
 #options 	COM_ESP		# ESP98
