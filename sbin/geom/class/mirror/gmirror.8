@@ -247,7 +247,8 @@ gmirror stop data
 gmirror unload
 .Ed
 .Pp
-Create a mirror on disk with valid data.
+Create a mirror on disk with valid data (note that the last sector of the disk
+will be overwritten).
 Add another disk to this mirror,
 so it will be synchronized with existing disk:
 .Bd -literal -offset indent
