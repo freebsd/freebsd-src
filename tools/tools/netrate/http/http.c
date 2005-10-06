@@ -48,7 +48,6 @@
 #define	THREADS	128
 #define	SECONDS	20
 #define	BUFFER	(48*1024)
-#define	HTTP	8000
 #define	QUIET	1
 
 struct http_worker_description {
@@ -153,15 +152,15 @@ main(int argc, char *argv[])
 	u_int64_t total;
 	int i;
 
-	if (argc != 3)
-		errx(-1, "usage: http [IP] [PATH]");
+	if (argc != 4)
+		errx(-1, "usage: http [ip] [port] [path]");
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
-	sin.sin_port = htons(HTTP);
 	sin.sin_addr.s_addr = inet_addr(argv[1]);
-	path = argv[2];
+	sin.sin_port = htons(atoi(argv[2]));
+	path = argv[3];
 
 	/*
 	 * Do one test retrieve so we can report the error from it, if any.
