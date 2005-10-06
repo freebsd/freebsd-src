@@ -66,7 +66,6 @@ static int ata_ahci_begin_transaction(struct ata_request *request);
 static int ata_ahci_end_transaction(struct ata_request *request);
 static void ata_ahci_intr(void *data);
 static void ata_ahci_reset(device_t dev);
-static void ata_ahci_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
 static void ata_ahci_dmainit(device_t dev);
 static int ata_acard_chipinit(device_t dev);
 static void ata_acard_intr(void *data);
@@ -3426,7 +3425,7 @@ ata_sii_allocate(device_t dev)
     if ((ctlr->chip->cfg2 & SIIBUG) && ch->dma) {
 	/* work around errata in early chips */
 	ch->dma->boundary = 16 * DEV_BSIZE;
-	ch->dma->max_iosize = 15 * DEV_BSIZE;
+	ch->dma->segsize = 15 * DEV_BSIZE;
     }
 
     ata_generic_hw(dev);
@@ -3552,6 +3551,13 @@ ata_sii_reset(device_t dev)
 
     /* disable PHY state change interrupt */
     ATA_OUTL(ctlr->r_res2, 0x148 + offset, ~(1 << 16));
+
+    /* reset controller part for this channel */
+    ATA_OUTL(ctlr->r_res2, 0x48,
+	     ATA_INL(ctlr->r_res2, 0x48) | (0xc0 >> ch->unit));
+    DELAY(1000);
+    ATA_OUTL(ctlr->r_res2, 0x48,
+	     ATA_INL(ctlr->r_res2, 0x48) & ~(0xc0 >> ch->unit));
 
     ata_sata_phy_enable(ch);
 

@@ -448,10 +448,11 @@ struct ata_dma {
     u_int8_t                    *work;          /* workspace */
     bus_addr_t                  work_bus;       /* bus address of dmatab */
 
-    u_int32_t                   alignment;      /* DMA engine alignment */
-    u_int32_t                   boundary;       /* DMA engine boundary */
-    u_int32_t                   max_iosize;     /* DMA engine max IO size */
-    u_int32_t                   cur_iosize;     /* DMA engine current IO size */
+    u_int32_t                   alignment;      /* DMA SG list alignment */
+    u_int32_t                   boundary;       /* DMA SG list boundary */
+    u_int32_t                   segsize;        /* DMA SG list segment size */
+    u_int32_t                   max_iosize;     /* DMA data max IO size */
+    u_int32_t                   cur_iosize;     /* DMA data current IO size */
     int                         flags;
 #define ATA_DMA_READ                    0x01    /* transaction is a read */
 #define ATA_DMA_LOADED                  0x02    /* DMA tables etc loaded */
