@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 
@@ -167,6 +168,8 @@ vx_pci_attach(device_t dev)
 
 bad_mtx:
 	mtx_destroy(&sc->vx_mtx);
+	ether_ifdetach(sc->vx_ifp);
+	if_free(sc->vx_ifp);
 bad:
 	if (sc->vx_intrhand != NULL)
 		bus_teardown_intr(dev, sc->vx_irq, sc->vx_intrhand);
