@@ -427,6 +427,13 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	atomic_add_long(i->cntp, 1);
 
 	/*
+	 * It seems that we need to return from an interrupt back to PAL
+	 * on the same CPU that received the interrupt, so pin the interrupted
+	 * thread to the current CPU until we return from the interrupt.
+	 */
+	sched_pin();
+
+	/*
 	 * Handle a fast interrupt if there is no actual thread for this
 	 * interrupt by calling the handler directly without Giant.  Note
 	 * that this means that any fast interrupt handler must be MP safe.
@@ -435,26 +442,18 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	if ((ih->ih_flags & IH_FAST) != 0) {
 		critical_enter();
 		ih->ih_handler(ih->ih_argument);
-		/* XXX */
-		curthread->td_owepreempt = 0;
 		critical_exit();
-		return;
-	}
+	} else {
+		if (ithd->it_disable) {
+			CTR1(KTR_INTR,
+			    "alpha_dispatch_intr: disabling vector 0x%x",
+			    i->vector);
+			ithd->it_disable(ithd->it_vector);
+		}
 
-	if (ithd->it_disable) {
-		CTR1(KTR_INTR,
-		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
-		ithd->it_disable(ithd->it_vector);
+		error = ithread_schedule(ithd);
+		KASSERT(error == 0, ("got an impossible stray interrupt"));
 	}
-
-	/*
-	 * It seems that we need to return from an interrupt back to PAL
-	 * on the same CPU that received the interrupt, so pin the interrupted
-	 * thread to the current CPU until we return from the interrupt.
-	 */
-	sched_pin();
-	error = ithread_schedule(ithd);
-	KASSERT(error == 0, ("got an impossible stray interrupt"));
 	sched_unpin();
 }
 
