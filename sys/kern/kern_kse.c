@@ -707,8 +707,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * Make the new upcall available to the ksegrp.
 	 * It may or may not use it, but it's available.
 	 */
-	PROC_UNLOCK(p);
 	upcall_link(newku, newkg);
+	PROC_UNLOCK(p);
 	if (mbx.km_quantum)
 		newkg->kg_upquantum = max(1, mbx.km_quantum / tick);
 
