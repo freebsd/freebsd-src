@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
+ * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,10 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
+#ifndef __KERNEL__
+#define __KERNEL__
+#endif
+
 #include <dev/hptmv/global.h>
 #include <dev/hptmv/hptintf.h>
 #include <dev/hptmv/osbsd.h>
@@ -59,7 +63,8 @@ static int hpt_remove_spare_disk(_VBUS_ARG DEVICEID idDisk);
 static int hpt_set_array_info(_VBUS_ARG DEVICEID idArray, PALTERABLE_ARRAY_INFO pInfo);
 static int hpt_set_device_info(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO pInfo);
 
-int check_VDevice_valid(PVDevice p)
+int
+check_VDevice_valid(PVDevice p)
 {
 	int i;
 	PVDevice pVDevice;
@@ -228,7 +233,7 @@ ignore_info:
 
 	for(i = 0; i < pVDevice->u.array.bArnMember; i++)
 	{
-		if(pVDevice->u.array.pMember[i] != NULL)
+		if(pVDevice->u.array.pMember[i] != 0)
 		{
 			pInfo->u.array.Members[pInfo->u.array.nDisk] = VDEV_TO_ID(pVDevice->u.array.pMember[i]);
 			pInfo->u.array.nDisk++;
@@ -318,7 +323,7 @@ static int get_disk_info(PVDevice pVDevice, PLOGICAL_DEVICE_INFO pInfo)
 	return 0;
 }
 
-static int hpt_get_driver_capabilities(PDRIVER_CAPABILITIES cap)
+int hpt_get_driver_capabilities(PDRIVER_CAPABILITIES cap)
 {
 	ZeroMemory(cap, sizeof(DRIVER_CAPABILITIES));
 	cap->dwSize = sizeof(DRIVER_CAPABILITIES);
@@ -336,9 +341,6 @@ static int hpt_get_driver_capabilities(PDRIVER_CAPABILITIES cap)
 	cap->MaximumArrayNameLength = MAX_ARRAY_NAME - 1;
 	cap->SupportDedicatedSpare = 0;
 	
-#ifdef SUPPORT_HOTSWAP
-	cap->SupportHotSwap = 1;
-#endif
 
 #ifdef SUPPORT_ARRAY
 	/* Stripe */
@@ -350,7 +352,7 @@ static int hpt_get_driver_capabilities(PDRIVER_CAPABILITIES cap)
 	/* Mirror + Stripe */
 #ifdef ARRAY_V2_ONLY
 	cap->SupportedRAIDTypes[2] = (AT_RAID1<<4)|AT_RAID0; /* RAID0/1 */
-#else
+#else 
 	cap->SupportedRAIDTypes[2] = (AT_RAID0<<4)|AT_RAID1; /* RAID1/0 */
 #endif
 	cap->MaximumArrayMembers[2] = MAX_MEMBERS;
@@ -362,16 +364,11 @@ static int hpt_get_driver_capabilities(PDRIVER_CAPABILITIES cap)
 	cap->SupportedRAIDTypes[4] = AT_RAID5;
 	cap->MaximumArrayMembers[4] = MAX_MEMBERS;
 #endif
-#if 0 /* don't let GUI create RAID 0/1. */
-	/* Stripe + Mirror */
-	cap->SupportedRAIDTypes[5] = (AT_RAID1<<4)|AT_RAID0;
-	cap->MaximumArrayMembers[5] = 4;
 #endif
-#endif /* SUPPORT_ARRAY */
 	return 0;
 }
 
-static int hpt_get_controller_count(void)
+int hpt_get_controller_count(void)
 {
 	IAL_ADAPTER_T    *pAdapTemp = gIal_Adapter;
 	int iControllerCount = 0;
@@ -385,7 +382,7 @@ static int hpt_get_controller_count(void)
 	return iControllerCount;
 }
 
-static int hpt_get_controller_info(int id, PCONTROLLER_INFO pInfo)
+int hpt_get_controller_info(int id, PCONTROLLER_INFO pInfo)
 {
 	IAL_ADAPTER_T    *pAdapTemp;
 	int iControllerCount = 0;
@@ -403,7 +400,7 @@ static int hpt_get_controller_info(int id, PCONTROLLER_INFO pInfo)
 #endif
 			strcpy(pInfo->szProductID, GUI_CONTROLLER_NAME);
 #define _set_product_id(x)
-#else
+#else 
 #define _set_product_id(x) strcpy(pInfo->szProductID, x)
 #endif
 			_set_product_id("RocketRAID 182x SATA Controller");			
@@ -416,7 +413,7 @@ static int hpt_get_controller_info(int id, PCONTROLLER_INFO pInfo)
 }
 
 
-static int hpt_get_channel_info(int id, int bus, PCHANNEL_INFO pInfo)
+int hpt_get_channel_info(int id, int bus, PCHANNEL_INFO pInfo)
 {
 	IAL_ADAPTER_T    *pAdapTemp = gIal_Adapter;
 	int i,iControllerCount = 0;
@@ -449,7 +446,7 @@ found:
 
 }
 
-static int hpt_get_logical_devices(DEVICEID * pIds, int nMaxCount)
+int hpt_get_logical_devices(DEVICEID * pIds, int nMaxCount)
 {
 	int count = 0;
 	int	i,j;
@@ -482,11 +479,11 @@ done:
 	return count;
 }
 
-static int hpt_get_device_info(DEVICEID id, PLOGICAL_DEVICE_INFO pInfo)
+int hpt_get_device_info(DEVICEID id, PLOGICAL_DEVICE_INFO pInfo)
 {
 	PVDevice pVDevice = ID_TO_VDEV(id);
 
-	if((id == HPT_NULL_ID) || check_VDevice_valid(pVDevice))
+	if((id == 0) || check_VDevice_valid(pVDevice))
 		return -1;
 
 #ifdef SUPPORT_ARRAY
@@ -500,15 +497,12 @@ static int hpt_get_device_info(DEVICEID id, PLOGICAL_DEVICE_INFO pInfo)
 }
 
 #ifdef SUPPORT_ARRAY
-static DEVICEID hpt_create_array(_VBUS_ARG PCREATE_ARRAY_PARAMS pParam)
+DEVICEID hpt_create_array(_VBUS_ARG PCREATE_ARRAY_PARAMS pParam)
 {
 	ULONG Stamp = GetStamp();
 	int	i,j;
 	ULONG  capacity = MAX_LBA_T;
 	PVDevice pArray,pChild;
-#if MAX_VBUS==1
-	PVBus	_vbus_p = NULL;
-#endif
 	int		Loca = -1;
 
 	for(i = 0; i < pParam->nDisk; i++)
@@ -758,9 +752,7 @@ int old_add_disk_to_raid01(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk)
 	int	i;
 	IAL_ADAPTER_T *pAdapter = gIal_Adapter;
 
-#if MAX_VBUS>1
 	if (pArray1->pVBus!=_vbus_p) { HPT_ASSERT(0); return -1;}
-#endif
 	
 	if(pDisk->u.disk.dDeRealCapacity < (pArray1->VDeviceCapacity / 2))
 		return -1;
@@ -834,7 +826,7 @@ int hpt_add_disk_to_array(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk)
 	PVDevice pArray = ID_TO_VDEV(idArray);
 	PVDevice pDisk	= ID_TO_VDEV(idDisk);
 
-	if((idArray == HPT_NULL_ID) || (idDisk == HPT_NULL_ID))	return -1;
+	if((idArray == 0) || (idDisk == 0))	return -1;
 	if(check_VDevice_valid(pArray) || check_VDevice_valid(pDisk))	return -1;
 	if(!pArray->u.array.rf_broken)	return -1;
 
@@ -864,9 +856,7 @@ int hpt_add_disk_to_array(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk)
 	else
 		if(pDisk->VDeviceCapacity < Capacity) return -1;
 	
-#if MAX_VBUS>1
 	if (pArray->pVBus!=_vbus_p) { HPT_ASSERT(0); return -1;}
-#endif
 
 	for(i = 0; i < pArray->u.array.bArnMember; i++)
 		if((pArray->u.array.pMember[i] == NULL) || !pArray->u.array.pMember[i]->vf_online)
@@ -907,19 +897,16 @@ find:
 	return 0;
 }
 
-static int hpt_add_spare_disk(_VBUS_ARG DEVICEID idDisk)
+int hpt_add_spare_disk(_VBUS_ARG DEVICEID idDisk)
 {
 	PVDevice pVDevice = ID_TO_VDEV(idDisk);
 	DECLARE_BUFFER(PUCHAR, pbuffer);
 
-	if(idDisk == HPT_NULL_ID || check_VDevice_valid(pVDevice))
-		return -1;
+	if(idDisk == 0 || check_VDevice_valid(pVDevice))	return -1;
 	if (pVDevice->VDeviceType != VD_SINGLE_DISK || pVDevice->pParent)
 		return -1;
 
-#if MAX_VBUS>1
 	if (pVDevice->u.disk.pVBus!=_vbus_p) return -1;
-#endif
 
 	UnregisterVDevice(pVDevice);
 	pVDevice->VDeviceType = VD_SPARE;
@@ -931,15 +918,13 @@ static int hpt_add_spare_disk(_VBUS_ARG DEVICEID idDisk)
 	return 0;
 }
 
-static int hpt_remove_spare_disk(_VBUS_ARG DEVICEID idDisk)
+int hpt_remove_spare_disk(_VBUS_ARG DEVICEID idDisk)
 {
 	PVDevice pVDevice = ID_TO_VDEV(idDisk);
 
 	if(idDisk == 0 || check_VDevice_valid(pVDevice))	return -1;
 
-#if MAX_VBUS>1
 	if (pVDevice->u.disk.pVBus!=_vbus_p) return -1;
-#endif
 
 	pVDevice->VDeviceType = VD_SINGLE_DISK;
 
@@ -948,19 +933,17 @@ static int hpt_remove_spare_disk(_VBUS_ARG DEVICEID idDisk)
 	return 0;
 }
 
-static int hpt_set_array_info(_VBUS_ARG DEVICEID idArray, PALTERABLE_ARRAY_INFO pInfo)
+int hpt_set_array_info(_VBUS_ARG DEVICEID idArray, PALTERABLE_ARRAY_INFO pInfo)
 {
 	PVDevice pVDevice = ID_TO_VDEV(idArray);
 
-	if(idArray == HPT_NULL_ID || check_VDevice_valid(pVDevice)) return -1;
+	if(idArray == 0 || check_VDevice_valid(pVDevice)) return -1;
 	if (!mIsArray(pVDevice)) return -1;
 
 	/* if the pVDevice isn't a top level, return -1; */
 	if(pVDevice->pParent != NULL) return -1;
 
-#if MAX_VBUS>1
 	if (pVDevice->pVBus!=_vbus_p) { HPT_ASSERT(0); return -1;}
-#endif
 
 	if (pInfo->ValidFields & AAIF_NAME) {
 		memset(pVDevice->u.array.ArrayName, 0, MAX_ARRAY_NAME);
@@ -978,12 +961,12 @@ static int hpt_set_array_info(_VBUS_ARG DEVICEID idArray, PALTERABLE_ARRAY_INFO 
 	return 0;
 }
 
-static int hpt_set_device_info(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO pInfo)
+int hpt_set_device_info(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO pInfo)
 {
 	PVDevice pVDevice = ID_TO_VDEV(idDisk);
 
 	/* stop buzzer. */
-	if(idDisk == HPT_NULL_ID) {
+	if(idDisk == 0) {
 #ifndef FOR_DEMO
 		IAL_ADAPTER_T *pAdapter;
 		for (pAdapter=gIal_Adapter; pAdapter; pAdapter=pAdapter->next) {
@@ -1000,9 +983,7 @@ static int hpt_set_device_info(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO
 	if (mIsArray(pVDevice))
 		return -1;
 
-#if MAX_VBUS>1
 	if (pVDevice->u.disk.pVBus!=_vbus_p) return -1;
-#endif
 
 /*	if (pInfo->ValidFields & ADIF_MODE) {
 		pVDevice->u.disk.bDeModeSetting = pInfo->DeviceModeSetting;
@@ -1013,7 +994,7 @@ static int hpt_set_device_info(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO
 	}*/
 	return 0;
 }
-#endif /* SUPPORT_ARRAY */
+#endif
 
 #ifdef SUPPORT_HPT601
 int hpt_get_601_info(DEVICEID idDisk, PHPT601_INFO pInfo)
@@ -1257,12 +1238,10 @@ int hpt_default_ioctl(_VBUS_ARG
 			while(pAdapter != 0)
 			{
 				pVBus = &pAdapter->VBus;
-				for(i = 0; i < MAX_VDEVICE_PER_VBUS; i++)
+				for(i = 0; i < MAX_ARRAY_PER_VBUS; i++)
 				{
 					if(!(pTop = pVBus->pVDevice[i])) continue;
-#if MAX_VBUS>1
 					if (pTop->pVBus!=_vbus_p) return -1;
-#endif
 					while (pTop->pParent) pTop = pTop->pParent;
 					if (id==0 && pTop->vf_bootmark)
 						pTop->vf_bootmark = 0;
@@ -1277,10 +1256,9 @@ int hpt_default_ioctl(_VBUS_ARG
 			}
 		}
 		break;
-#endif /* SUPPORT_ARRAY */
+#endif
 	case HPT_IOCTL_RESCAN_DEVICES:
 		{
-			fRescanAllDevice(_VBUS_P0);
 			if (nInBufferSize!=0) return -1;
 			if (nOutBufferSize!=0) return -1;
 			fRescanAllDevice(_VBUS_P0);

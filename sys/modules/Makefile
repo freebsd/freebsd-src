@@ -434,6 +434,7 @@ _digi=		digi
 _drm=		drm
 _em=		em
 _ext2fs=	ext2fs
+_hptmv=		hptmv
 _i2c=		i2c
 _ichwd=		ichwd
 _ida=		ida

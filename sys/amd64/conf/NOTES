@@ -278,7 +278,7 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 #
 # Highpoint RocketRAID 182x.  This is really just software RAID on a
 # Marvell SATA chip.
-#device		hptmv	# Broken, i386-only binary.
+device		hptmv
 
 #
 # IBM (now Adaptec) ServeRAID controllers

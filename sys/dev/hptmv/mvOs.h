@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
+/*
+ * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,19 +28,6 @@
 #ifndef __INCmvOsBsdh
 #define __INCmvOsBsdh
 
-/* Taken out of the Makefile magic */
-#define __KERNEL__ 1
-#define KERNEL 1
-#define _KERNEL 1
-#define _FREEBSD_ 1
-
-/*
- * This binary object core for this driver is only for x86, so this constant
- * will not change.
- */
-#define BITS_PER_LONG 32
-#define DRIVER_VERSION "1.1"
-
 #if DBG
 #define MV_DEBUG_LOG
 #endif
@@ -49,22 +36,24 @@
 #define ENABLE_WRITE_CACHE
 
 /* Typedefs    */
-#define HPTLIBAPI __attribute__((regparm(0)))
+/*#define HPTLIBAPI __attribute__((regparm(0))) */
+#define HPTLIBAPI 
 #define FAR
+#define SS_SEG
 #ifdef FASTCALL
 #undef FASTCALL
 #endif
 #define FASTCALL HPTLIBAPI
 #define PASCAL HPTLIBAPI
 
-typedef u_short USHORT;
-typedef u_char  UCHAR;
-typedef u_char *PUCHAR;
-typedef u_short *PUSHORT;
-typedef u_char  BOOLEAN;
-typedef u_short WORD;
-typedef u_int UINT, BOOL;
-typedef u_char BYTE;
+typedef unsigned short USHORT;
+typedef unsigned char  UCHAR;
+typedef unsigned char *PUCHAR;
+typedef unsigned short *PUSHORT;
+typedef unsigned char  BOOLEAN;
+typedef unsigned short WORD;
+typedef unsigned int   UINT, BOOL;
+typedef unsigned char  BYTE;
 typedef void *PVOID, *LPVOID;
 typedef void *ADDRESS;
 
@@ -72,23 +61,28 @@ typedef int  LONG;
 typedef unsigned int ULONG, *PULONG, LBA_T;
 typedef unsigned int DWORD, *LPDWORD, *PDWORD;
 typedef unsigned long ULONG_PTR, UINT_PTR, BUS_ADDR;
+typedef unsigned long long HPT_U64;
 
 typedef enum mvBoolean{MV_FALSE, MV_TRUE} MV_BOOLEAN;
 
 #define FALSE 0
 #define TRUE  1
 
+#ifndef NULL
+#define NULL  0
+#endif
+
 /* System dependant typedefs */
-typedef void		MV_VOID;
-typedef uint32_t 	MV_U32;
-typedef uint16_t	MV_U16;
-typedef uint8_t		MV_U8;
-typedef void		*MV_VOID_PTR;
-typedef MV_U32		*MV_U32_PTR;
-typedef MV_U16 		*MV_U16_PTR;
-typedef MV_U8		*MV_U8_PTR;
-typedef char		*MV_CHAR_PTR;
-typedef void		*MV_BUS_ADDR_T;
+typedef void			MV_VOID;
+typedef unsigned int 	MV_U32;
+typedef unsigned short	MV_U16;
+typedef unsigned char	MV_U8;
+typedef void			*MV_VOID_PTR;
+typedef MV_U32			*MV_U32_PTR;
+typedef MV_U16 			*MV_U16_PTR;
+typedef MV_U8			*MV_U8_PTR;
+typedef char			*MV_CHAR_PTR;
+typedef void			*MV_BUS_ADDR_T;
 
 /* System dependent macro for flushing CPU write cache */
 #define MV_CPU_WRITE_BUFFER_FLUSH()
@@ -101,12 +95,9 @@ typedef void		*MV_BUS_ADDR_T;
 #define MV_LE32_TO_CPU(x)	(x)
 
 /* System dependent register read / write in byte/word/dword variants */
-extern void HPTLIBAPI MV_REG_WRITE_BYTE(MV_BUS_ADDR_T base, MV_U32 offset,
-    MV_U8 val);
-extern void HPTLIBAPI MV_REG_WRITE_WORD(MV_BUS_ADDR_T base, MV_U32 offset,
-    MV_U16 val);
-extern void HPTLIBAPI MV_REG_WRITE_DWORD(MV_BUS_ADDR_T base, MV_U32 offset,
-    MV_U32 val);
+extern void HPTLIBAPI MV_REG_WRITE_BYTE(MV_BUS_ADDR_T base, MV_U32 offset, MV_U8 val);
+extern void HPTLIBAPI MV_REG_WRITE_WORD(MV_BUS_ADDR_T base, MV_U32 offset, MV_U16 val);
+extern void HPTLIBAPI MV_REG_WRITE_DWORD(MV_BUS_ADDR_T base, MV_U32 offset, MV_U32 val);
 extern MV_U8  HPTLIBAPI MV_REG_READ_BYTE(MV_BUS_ADDR_T base, MV_U32 offset);
 extern MV_U16 HPTLIBAPI MV_REG_READ_WORD(MV_BUS_ADDR_T base, MV_U32 offset);
 extern MV_U32 HPTLIBAPI MV_REG_READ_DWORD(MV_BUS_ADDR_T base, MV_U32 offset);
@@ -121,25 +112,9 @@ typedef struct mvOsSemaphore
 ULONG_PTR HPTLIBAPI fOsPhysicalAddress(void *addr);
 
 /* Semaphore init, take and release */
-static __inline int
-mvOsSemInit(MV_OS_SEMAPHORE *p)
-{
-	return (MV_TRUE);
-}
-
-static __inline int
-mvOsSemTake(MV_OS_SEMAPHORE *p)
-{
-	return (MV_TRUE);
-}
-
-static __inline int
-mvOsSemRelease(MV_OS_SEMAPHORE *p)
-{
-	return (MV_TRUE);
-}
-
-#define MV_MAX_SEGMENTS		255
+#define mvOsSemInit(p)		(MV_TRUE)
+#define mvOsSemTake(p)		(MV_TRUE)
+#define mvOsSemRelease(p)	(MV_TRUE)
 
 /* Delay function in micro seconds resolution */
 void HPTLIBAPI mvMicroSecondsDelay(MV_U32);
@@ -148,7 +123,7 @@ void HPTLIBAPI mvMicroSecondsDelay(MV_U32);
 #ifdef MV_DEBUG_LOG
 int mvLogMsg(MV_U8, MV_CHAR_PTR, ...);
 #define _mvLogMsg(x) mvLogMsg x
-#else
+#else 
 #define mvLogMsg(x...) 
 #define _mvLogMsg(x)
 #endif
@@ -156,16 +131,17 @@ int mvLogMsg(MV_U8, MV_CHAR_PTR, ...);
 /*************************************************************************
  * Debug support
  *************************************************************************/
-#ifdef DEBUG
-#define HPT_ASSERT(x)	\
-	KASSERT((x), ("ASSERT fail at %s line %d", __FILE__, __LINE__))
-
+#if DEBUG
+#define HPT_ASSERT(x) do { if (!(x)) { \
+						printf("ASSERT fail at %s line %d", __FILE__, __LINE__); \
+						while (1); \
+					  }} while (0)
 extern int hpt_dbg_level;
 #define KdPrintI(_x_) do{ if (hpt_dbg_level>2) printf _x_; }while(0)
 #define KdPrintW(_x_) do{ if (hpt_dbg_level>1) printf _x_; }while(0)
 #define KdPrintE(_x_) do{ if (hpt_dbg_level>0) printf _x_; }while(0)
 #define KdPrint(x) KdPrintI(x)
-#else
+#else 
 #define HPT_ASSERT(x)
 #define KdPrint(x) 
 #define KdPrintI(x) 
@@ -173,4 +149,4 @@ extern int hpt_dbg_level;
 #define KdPrintE(x) 
 #endif
 
-#endif /* __INCmvOsBsdh */
+#endif
