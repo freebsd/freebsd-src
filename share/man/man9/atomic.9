@@ -30,6 +30,7 @@
 .Nm atomic_add ,
 .Nm atomic_clear ,
 .Nm atomic_cmpset ,
+.Nm atomic_fetchadd ,
 .Nm atomic_load ,
 .Nm atomic_readandclear ,
 .Nm atomic_set ,
@@ -49,6 +50,8 @@
 .Fa "<type> old"
 .Fa "<type> new"
 .Fc
+.Ft <type>
+.Fn atomic_fetchadd_<type> "volatile <type> *p" "<type> v"
 .Ft <type>
 .Fn atomic_load_acq_<type> "volatile <type> *p"
 .Ft <type>
@@ -197,6 +200,22 @@ functions are not implemented for the types
 and
 .Dq Li 16 .
 .Bl -hang
+.It Fn atomic_fetchadd p v
+.Bd -literal -compact
+tmp = *p;
+*p += v;
+return tmp;
+.Ed
+.El
+.Pp
+The
+.Fn atomic_fetchadd
+functions are only implemented for the types
+.Dq Li int
+and
+.Dq Li 32
+and do not have any variants with memory barriers at this time.
+.Bl -hang
 .It Fn atomic_load addr
 .Bd -literal -compact
 return (*addr)
@@ -248,15 +267,19 @@ functions always have release semantics.
 The type
 .Dq Li 64
 is currently not implemented for any of the atomic operations on the
-.Tn i386
-architecture.
+.Tn arm ,
+.Tn i386 ,
+and
+.Tn powerpc
+architectures.
 .Sh RETURN VALUES
 The
 .Fn atomic_cmpset
 function
 returns the result of the compare operation.
 The
-.Fn atomic_load
+.Fn atomic_fetchadd ,
+.Fn atomic_load ,
 and
 .Fn atomic_readandclear
 functions
@@ -275,14 +298,17 @@ is a pointer, the
 .Dq Li ptr
 type is used.
 .Bd -literal
+/* Try to obtain mtx_lock once. */
 #define _obtain_lock(mp, tid)						\\
-	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, (void *)MTX_UNOWNED, (tid))
+	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, MTX_UNOWNED, (tid))
 
 /* Get a sleep lock, deal with recursion inline. */
-#define	_getlock_sleep(mp, tid, type) do {				\\
+#define _get_sleep_lock(mp, tid, opts, file, line) do {			\\
+	uintptr_t _tid = (uintptr_t)(tid);				\\
+									\\
 	if (!_obtain_lock(mp, tid)) {					\\
-		if (((mp)->mtx_lock & MTX_FLAGMASK) != ((uintptr_t)(tid)))\\
-			mtx_enter_hard(mp, (type) & MTX_HARDOPTS, 0);	\\
+		if (((mp)->mtx_lock & MTX_FLAGMASK) != _tid)		\\
+			_mtx_lock_sleep((mp), _tid, (opts), (file), (line));\\
 		else {							\\
 			atomic_set_ptr(&(mp)->mtx_lock, MTX_RECURSE);	\\
 			(mp)->mtx_recurse++;				\\
@@ -319,8 +345,12 @@ The types
 .Dq Li 32 ,
 .Dq Li 64 ,
 and
-.Dq Li ptr ,
+.Dq Li ptr
 and all of the acquire and release variants
 were added in
 .Fx 5.0
 as well.
+The
+.Fn atomic_fetchadd
+operations were added in
+.Fx 6.0 .

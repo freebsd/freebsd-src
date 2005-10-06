@@ -342,4 +342,23 @@ atomic_readandclear_64(volatile uint64_t* p)
 #define	atomic_readandclear_int		atomic_readandclear_32
 #define	atomic_readandclear_long	atomic_readandclear_64
 
+/*
+ * Atomically add the value of v to the integer pointed to by p and return
+ * the previous value of *p.
+ *
+ * XXX: Should we use the fetchadd instruction here?
+ */
+static __inline uint32_t
+atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
+{
+	uint32_t value;
+
+	do {
+		value = *p;
+	} while (!atomic_cmpset_32(p, value, value + v));
+	return (value);
+}
+
+#define	atomic_fetchadd_int		atomic_fetchadd_32
+
 #endif /* ! _MACHINE_ATOMIC_H_ */
