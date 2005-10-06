@@ -228,7 +228,7 @@ lge_eeprom_getword(sc, addr, dest)
 			break;
 
 	if (i == LGE_TIMEOUT) {
-		printf("lge%d: EEPROM read timed out\n", sc->lge_unit);
+		if_printf(sc->lge_ifp, "EEPROM read timed out\n");
 		return;
 	}
 
@@ -293,7 +293,7 @@ lge_miibus_readreg(dev, phy, reg)
 			break;
 
 	if (i == LGE_TIMEOUT) {
-		printf("lge%d: PHY read timed out\n", sc->lge_unit);
+		if_printf(sc->lge_ifp, "PHY read timed out\n");
 		return(0);
 	}
 
@@ -318,7 +318,7 @@ lge_miibus_writereg(dev, phy, reg, data)
 			break;
 
 	if (i == LGE_TIMEOUT) {
-		printf("lge%d: PHY write timed out\n", sc->lge_unit);
+		if_printf(sc->lge_ifp, "PHY write timed out\n");
 		return(0);
 	}
 
@@ -423,7 +423,7 @@ lge_reset(sc)
 	}
 
 	if (i == LGE_TIMEOUT)
-		printf("lge%d: reset never completed\n", sc->lge_unit);
+		if_printf(sc->lge_ifp, "reset never completed\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -466,14 +466,13 @@ lge_attach(dev)
 	int			s;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct lge_softc	*sc;
-	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	struct ifnet		*ifp = NULL;
+	int			error = 0, rid;
 
 	s = splimp();
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct lge_softc));
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -483,7 +482,7 @@ lge_attach(dev)
 	sc->lge_res = bus_alloc_resource_any(dev, LGE_RES, &rid, RF_ACTIVE);
 
 	if (sc->lge_res == NULL) {
-		printf("lge%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -497,8 +496,7 @@ lge_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->lge_irq == NULL) {
-		printf("lge%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -507,9 +505,7 @@ lge_attach(dev)
 	    lge_intr, sc, &sc->lge_intrhand);
 
 	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);
-		bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
-		printf("lge%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		goto fail;
 	}
 
@@ -523,17 +519,13 @@ lge_attach(dev)
 	lge_read_eeprom(sc, (caddr_t)&eaddr[2], LGE_EE_NODEADDR_1, 1, 0);
 	lge_read_eeprom(sc, (caddr_t)&eaddr[4], LGE_EE_NODEADDR_2, 1, 0);
 
-	sc->lge_unit = unit;
 	callout_handle_init(&sc->lge_stat_ch);
 
 	sc->lge_ldata = contigmalloc(sizeof(struct lge_list_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->lge_ldata == NULL) {
-		printf("lge%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->lge_irq, sc->lge_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);
-		bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
+		device_printf(dev, "no memory for list buffers!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -541,26 +533,15 @@ lge_attach(dev)
 
 	/* Try to allocate memory for jumbo buffers. */
 	if (lge_alloc_jumbo_mem(sc)) {
-		printf("lge%d: jumbo buffer allocation failed\n",
-                    sc->lge_unit);
-		contigfree(sc->lge_ldata,
-		    sizeof(struct lge_list_data), M_DEVBUF);
-		bus_teardown_intr(dev, sc->lge_irq, sc->lge_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);
-		bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
+		device_printf(dev, "jumbo buffer allocation failed\n");
 		error = ENXIO;
 		goto fail;
 	}
 
 	ifp = sc->lge_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("lge%d: can not if_alloc()\n", sc->lge_unit);
-		contigfree(sc->lge_ldata,
-		    sizeof(struct lge_list_data), M_DEVBUF);
+		device_printf(dev, "can not if_alloc()\n");
 		lge_free_jumbo_mem(sc);
-		bus_teardown_intr(dev, sc->lge_irq, sc->lge_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);
-		bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
 		error = ENOSPC;
 		goto fail;
 	}
@@ -588,14 +569,8 @@ lge_attach(dev)
 	 */
 	if (mii_phy_probe(dev, &sc->lge_miibus,
 	    lge_ifmedia_upd, lge_ifmedia_sts)) {
-		printf("lge%d: MII without any PHY!\n", sc->lge_unit);
-		contigfree(sc->lge_ldata,
-		    sizeof(struct lge_list_data), M_DEVBUF);
+		device_printf(dev, "MII without any PHY!\n");
 		lge_free_jumbo_mem(sc);
-		bus_teardown_intr(dev, sc->lge_irq, sc->lge_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);
-		bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
-		if_free(ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -604,9 +579,20 @@ lge_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
-	callout_handle_init(&sc->lge_stat_ch);
+	return (0);
 
 fail:
+	if (sc->lge_ldata)
+		contigfree(sc->lge_ldata,
+		    sizeof(struct lge_list_data), M_DEVBUF);
+	if (ifp)
+		if_free(ifp);
+	if (sc->lge_intrhand)
+		bus_teardown_intr(dev, sc->lge_irq, sc->lge_intrhand);
+	if (sc->lge_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);
+	if (sc->lge_res)
+		bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
 	splx(s);
 	return(error);
 }
@@ -716,8 +702,8 @@ lge_newbuf(sc, c, m)
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			printf("lge%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->lge_unit);
+			if_printf(sc->lge_ifp, "no memory for rx list "
+			    "-- packet dropped!\n");
 			return(ENOBUFS);
 		}
 
@@ -725,8 +711,8 @@ lge_newbuf(sc, c, m)
 		buf = lge_jalloc(sc);
 		if (buf == NULL) {
 #ifdef LGE_VERBOSE
-			printf("lge%d: jumbo allocation failed "
-			    "-- packet dropped!\n", sc->lge_unit);
+			if_printf(sc->lge_ifp, "jumbo allocation failed "
+			    "-- packet dropped!\n");
 #endif
 			m_freem(m_new);
 			return(ENOBUFS);
@@ -786,7 +772,7 @@ lge_alloc_jumbo_mem(sc)
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->lge_cdata.lge_jumbo_buf == NULL) {
-		printf("lge%d: no memory for jumbo buffers!\n", sc->lge_unit);
+		if_printf(sc->lge_ifp, "no memory for jumbo buffers!\n");
 		return(ENOBUFS);
 	}
 
@@ -801,11 +787,11 @@ lge_alloc_jumbo_mem(sc)
 	for (i = 0; i < LGE_JSLOTS; i++) {
 		sc->lge_cdata.lge_jslots[i] = ptr;
 		ptr += LGE_JLEN;
-		entry = malloc(sizeof(struct lge_jpool_entry), 
+		entry = malloc(sizeof(struct lge_jpool_entry),
 		    M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
-			printf("lge%d: no memory for jumbo "
-			    "buffer queue!\n", sc->lge_unit);
+			if_printf(sc->lge_ifp, "no memory for jumbo "
+			    "buffer queue!\n");
 			return(ENOBUFS);
 		}
 		entry->slot = i;
@@ -847,7 +833,7 @@ lge_jalloc(sc)
 	
 	if (entry == NULL) {
 #ifdef LGE_VERBOSE
-		printf("lge%d: no free jumbo buffers\n", sc->lge_unit);
+		if_printf(sc->lge_ifp, "no free jumbo buffers\n");
 #endif
 		return(NULL);
 	}
@@ -943,9 +929,8 @@ lge_rxeof(sc, cnt)
 			    ifp, NULL);
 			lge_newbuf(sc, &LGE_RXTAIL(sc), m);
 			if (m0 == NULL) {
-				printf("lge%d: no receive buffers "
-				    "available -- packet dropped!\n",
-				    sc->lge_unit);
+				if_printf(ifp, "no receive buffers "
+				    "available -- packet dropped!\n");
 				ifp->if_ierrors++;
 				continue;
 			}
@@ -1067,8 +1052,7 @@ lge_tick(xsc)
 			if (bootverbose &&
 		  	    (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX||
 			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T))
-				printf("lge%d: gigabit link up\n",
-				    sc->lge_unit);
+				if_printf(ifp, "gigabit link up\n");
 			if (ifp->if_snd.ifq_head != NULL)
 				lge_start(ifp);
 		}
@@ -1266,8 +1250,8 @@ lge_init(xsc)
 
 	/* Init circular RX list. */
 	if (lge_list_rx_init(sc) == ENOBUFS) {
-		printf("lge%d: initialization failed: no "
-		    "memory for rx buffers\n", sc->lge_unit);
+		if_printf(ifp, "initialization failed: no "
+		    "memory for rx buffers\n");
 		lge_stop(sc);
 		(void)splx(s);
 		return;
@@ -1492,7 +1476,7 @@ lge_watchdog(ifp)
 	sc = ifp->if_softc;
 
 	ifp->if_oerrors++;
-	printf("lge%d: watchdog timeout\n", sc->lge_unit);
+	if_printf(ifp, "watchdog timeout\n");
 
 	lge_stop(sc);
 	lge_reset(sc);
