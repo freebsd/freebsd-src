@@ -39,37 +39,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <machine/bus.h>
-#include <machine/resource.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 
 #include <isa/isavar.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-#define	ELCR_IOADDR	0x4d0	/* Interrupt Edge/Level Control Registers */
-#define	ELCR_IOLEN	2
-
-struct isab_softc {
-    struct resource *elcr_res;
-    u_char saved_elcr[ELCR_IOLEN];
-};
-
 static int	isab_probe(device_t dev);
-static int	pci_isab_attach(device_t dev);
-static int	isab_detach(device_t dev);
-static int	isab_resume(device_t dev);
-static int	isab_suspend(device_t dev);
 
 static device_method_t isab_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,		isab_probe),
-    DEVMETHOD(device_attach,		pci_isab_attach),
-    DEVMETHOD(device_detach,		isab_detach),
+    DEVMETHOD(device_attach,		isab_attach),
+    DEVMETHOD(device_detach,		bus_generic_detach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
-    DEVMETHOD(device_suspend,		isab_suspend),
-    DEVMETHOD(device_resume,		isab_resume),
+    DEVMETHOD(device_suspend,		bus_generic_suspend),
+    DEVMETHOD(device_resume,		bus_generic_resume),
 
     /* Bus interface */
     DEVMETHOD(bus_print_child,		bus_generic_print_child),
@@ -86,7 +71,7 @@ static device_method_t isab_methods[] = {
 static driver_t isab_driver = {
     "isab",
     isab_methods,
-    sizeof(struct isab_softc),
+    0,
 };
 
 DRIVER_MODULE(isab, pci, isab_driver, isab_devclass, 0, 0);
@@ -153,84 +138,4 @@ isab_probe(device_t dev)
 	return(-10000);
     }
     return(ENXIO);
-}
-
-static int
-pci_isab_attach(device_t dev)
-{
-    struct isab_softc *sc = device_get_softc(dev);
-    int error, rid;
-
-    /*
-     * Attach an ISA bus.  Note that we can only have one ISA bus.
-     */
-    error = isab_attach(dev);
-    if (error)
-	    return (error);
-
-    switch (pci_get_devid(dev)) {
-    case 0x71108086: /* Intel 82371AB */
-	/*
-	 * Sometimes the ELCR (Edge/Level Control Register) is not restored
-	 * correctly on resume by the BIOS, so we handle it ourselves.
-	 */
-	rid = 0;
-	bus_set_resource(dev, SYS_RES_IOPORT, rid, ELCR_IOADDR, ELCR_IOLEN);
-	sc->elcr_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
-	    RF_ACTIVE);
-	if (sc->elcr_res == NULL)
-	    device_printf(dev, "failed to allocate ELCR resource\n");
-        break;
-    }
-
-    return(0);
-}
-
-static int
-isab_detach(device_t dev)
-{
-    struct isab_softc *sc = device_get_softc(dev);
-
-    if (sc->elcr_res != NULL)
-	bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->elcr_res);
-
-    return (bus_generic_detach(dev));
-}
-
-static int
-isab_suspend(device_t dev)
-{
-    struct isab_softc *sc = device_get_softc(dev);
-    bus_space_tag_t bst;
-    bus_space_handle_t bsh;
-    int i;
-
-    /* Save the ELCR if required. */
-    if (sc->elcr_res != NULL) {
-	bst = rman_get_bustag(sc->elcr_res);
-	bsh = rman_get_bushandle(sc->elcr_res);
-	for (i = 0; i < ELCR_IOLEN; i++)
-	    sc->saved_elcr[i] = bus_space_read_1(bst, bsh, i);
-    }
-
-    return (bus_generic_suspend(dev));
-}
-
-static int
-isab_resume(device_t dev)
-{
-    struct isab_softc *sc = device_get_softc(dev);
-    bus_space_tag_t bst;
-    bus_space_handle_t bsh;
-    int i;
-
-    /* Restore the ELCR if required. */
-    if (sc->elcr_res != NULL) {
-	bst = rman_get_bustag(sc->elcr_res);
-	bsh = rman_get_bushandle(sc->elcr_res);
-	for (i = 0; i < ELCR_IOLEN; i++)
-	    bus_space_write_1(bst, bsh, i, sc->saved_elcr[i]);
-    }
-
-    return (bus_generic_resume(dev));
 }
