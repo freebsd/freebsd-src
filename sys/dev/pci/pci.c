@@ -76,6 +76,8 @@ static void		pci_fixancient(pcicfgregs *cfg);
 
 static int		pci_porten(device_t pcib, int b, int s, int f);
 static int		pci_memen(device_t pcib, int b, int s, int f);
+static void		pci_assign_interrupt(device_t bus, device_t dev,
+			    int force_route);
 static int		pci_add_map(device_t pcib, device_t bus, device_t dev,
 			    int b, int s, int f, int reg,
 			    struct resource_list *rl);
@@ -935,13 +937,60 @@ pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
 }
 
 static void
+pci_assign_interrupt(device_t bus, device_t dev, int force_route)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+	char tunable_name[64];
+	int irq;
+
+	/* Has to have an intpin to have an interrupt. */
+	if (cfg->intpin == 0)
+		return;
+
+	/* Let the user override the IRQ with a tunable. */
+	irq = PCI_INVALID_IRQ;
+	snprintf(tunable_name, sizeof(tunable_name), "hw.pci%d.%d.INT%c.irq",
+	    cfg->bus, cfg->slot, cfg->intpin + 'A' - 1);
+	if (TUNABLE_INT_FETCH(tunable_name, &irq) && (irq >= 255 || irq <= 0))
+		irq = PCI_INVALID_IRQ;
+
+	/*
+	 * If we didn't get an IRQ via the tunable, then we either use the
+	 * IRQ value in the intline register or we ask the bus to route an
+	 * interrupt for us.  If force_route is true, then we only use the
+	 * value in the intline register if the bus was unable to assign an
+	 * IRQ.
+	 */
+	if (!PCI_INTERRUPT_VALID(irq)) {
+		if (!PCI_INTERRUPT_VALID(cfg->intline) || force_route)
+			irq = PCI_ASSIGN_INTERRUPT(bus, dev);
+		if (!PCI_INTERRUPT_VALID(irq))
+			irq = cfg->intline;
+	}
+
+	/* If after all that we don't have an IRQ, just bail. */
+	if (!PCI_INTERRUPT_VALID(irq))
+		return;
+
+	/* Update the config register if it changed. */
+	if (irq != cfg->intline) {
+		cfg->intline = irq;
+		pci_write_config(dev, PCIR_INTLINE, irq, 1);
+	}
+
+	/* Add this IRQ as rid 0 interrupt resource. */
+	resource_list_add(&dinfo->resources, SYS_RES_IRQ, 0, irq, irq, 1);
+}
+
+static void
 pci_add_resources(device_t pcib, device_t bus, device_t dev)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list *rl = &dinfo->resources;
 	struct pci_quirk *q;
-	int b, i, irq, f, s;
+	int b, i, f, s;
 
 	b = cfg->bus;
 	s = cfg->slot;
@@ -972,14 +1021,10 @@ pci_add_resources(device_t pcib, device_t bus, device_t dev)
 		 * If the re-route fails, then just stick with what we
 		 * have.
 		 */
-		irq = PCI_ASSIGN_INTERRUPT(bus, dev);
-		if (PCI_INTERRUPT_VALID(irq)) {
-			pci_write_config(dev, PCIR_INTLINE, irq, 1);
-			cfg->intline = irq;
-		} else
+		pci_assign_interrupt(bus, dev, 1);
+#else
+		pci_assign_interrupt(bus, dev, 0);
 #endif
-			irq = cfg->intline;
-		resource_list_add(rl, SYS_RES_IRQ, 0, irq, irq, 1);
 	}
 }
 
@@ -1718,15 +1763,8 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			 * interrupt, try to assign it one.
 			 */
 			if (!PCI_INTERRUPT_VALID(cfg->intline) &&
-			    (cfg->intpin != 0)) {
-				cfg->intline = PCI_ASSIGN_INTERRUPT(dev, child);
-				if (PCI_INTERRUPT_VALID(cfg->intline)) {
-					pci_write_config(child, PCIR_INTLINE,
-					    cfg->intline, 1);
-					resource_list_add(rl, SYS_RES_IRQ, 0,
-					    cfg->intline, cfg->intline, 1);
-				}
-			}
+			    (cfg->intpin != 0))
+				pci_assign_interrupt(dev, child, 0);
 			break;
 		case SYS_RES_IOPORT:
 		case SYS_RES_MEMORY:
