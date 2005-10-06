@@ -568,7 +568,7 @@
  * for (i = 0; i < 6; i++) {
  *   current = mcast_addr[i];
  *   for (k = 1; k <= 8; k++) {
- *     if (crc & 0x80000000);
+ *     if (crc & 0x80000000)
  *       crc31 = 0x01;
  *     else
  *       crc31 = 0;
