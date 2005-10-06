@@ -289,7 +289,7 @@ boot(int howto)
 
 		waittime = 0;
 
-		sync(&thread0, NULL);
+		sync(curthread, NULL);
 
 		/*
 		 * With soft updates, some buffers that are
@@ -314,7 +314,7 @@ boot(int howto)
 			if (nbusy < pbusy)
 				iter = 0;
 			pbusy = nbusy;
-			sync(&thread0, NULL);
+			sync(curthread, NULL);
 
 #ifdef PREEMPTION
 			/*
