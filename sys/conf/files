@@ -1413,7 +1413,6 @@ libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/strsep.c		standard
 libkern/strspn.c		standard
-libkern/strtok.c		standard
 libkern/strtol.c		standard
 libkern/strtoq.c		standard
 libkern/strtoul.c		standard
