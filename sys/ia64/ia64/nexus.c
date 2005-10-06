@@ -40,8 +40,6 @@
  * and I/O memory address space.
  */
 
-#define __RMAN_RESOURCE_VISIBLE
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -408,7 +406,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	} else if (type == SYS_RES_IOPORT) {
 		rman_set_bustag(rv, IA64_BUS_SPACE_IO);
 		/* IBM-PC: the type of bus_space_handle_t is u_int */
-		rman_set_bushandle(rv, rv->r_start);
+		rman_set_bushandle(rv, rman_get_start(rv));
 	}
 
 	if (needactivate) {
@@ -478,7 +476,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		panic("nexus_setup_intr: NULL irq resource!");
 
 	*cookiep = 0;
-	if ((irq->r_flags & RF_SHAREABLE) == 0)
+	if ((rman_get_flags(irq) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
 	driver = device_get_driver(child);
@@ -490,8 +488,8 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	if (error)
 		return (error);
 
-	error = ia64_setup_intr(device_get_nameunit(child), irq->r_start,
-	    ihand, arg, flags, cookiep, 0);
+	error = ia64_setup_intr(device_get_nameunit(child),
+	    rman_get_start(irq), ihand, arg, flags, cookiep, 0);
 
 	return (error);
 }
