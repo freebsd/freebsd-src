@@ -47,7 +47,6 @@
  */
 #define	THREADS	128
 #define	BUFFER	(48*1024)
-#define	HTTP	8000
 
 #define	HTTP_OK	"HTTP/1.1 200 OK\n"
 #define	HTTP_SERVER "Server rwatson_httpd/1.0 (FreeBSD)\n"
@@ -128,8 +127,8 @@ main(int argc, char *argv[])
 	struct sockaddr_in sin;
 	int i;
 
-	if (argc != 2)
-		errx(-1, "usage: http [PATH]");
+	if (argc != 3)
+		errx(-1, "usage: http [port] [path]");
 
 	listen_sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (listen_sock < 0)
@@ -138,9 +137,9 @@ main(int argc, char *argv[])
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
-	sin.sin_port = htons(HTTP);
+	sin.sin_port = htons(atoi(argv[1]));
 
-	path = argv[1];
+	path = argv[2];
 	data_file = open(path, O_RDONLY);
 	if (data_file < 0)
 		err(-1, "open: %s", path);
