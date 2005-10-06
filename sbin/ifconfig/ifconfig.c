@@ -1026,6 +1026,7 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD_ARG("broadcast",		setifbroadaddr),
 	DEF_CMD_ARG("ipdst",			setifipdst),
 	DEF_CMD_ARG2("tunnel",			settunnel),
+	DEF_CMD("-tunnel", 0,			deletetunnel),
 	DEF_CMD("deletetunnel", 0,		deletetunnel),
 	DEF_CMD("link0",	IFF_LINK0,	setifflags),
 	DEF_CMD("-link0",	-IFF_LINK0,	setifflags),

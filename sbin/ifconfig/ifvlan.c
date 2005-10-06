@@ -130,6 +130,9 @@ unsetvlandev(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct vlanreq		vreq;
 
+	if (val != NULL)
+		warnx("argument to -vlandev is useless and hence deprecated");
+
 	bzero((char *)&vreq, sizeof(struct vlanreq));
 	ifr.ifr_data = (caddr_t)&vreq;
 
@@ -148,7 +151,8 @@ unsetvlandev(const char *val, int d, int s, const struct afswtch *afp)
 static struct cmd vlan_cmds[] = {
 	DEF_CMD_ARG("vlan",				setvlantag),
 	DEF_CMD_ARG("vlandev",				setvlandev),
-	DEF_CMD_ARG("-vlandev",				unsetvlandev),
+	/* XXX For compatibility.  Should become DEF_CMD() some day. */
+	DEF_CMD_OPTARG("-vlandev",			unsetvlandev),
 	DEF_CMD("vlanmtu",	IFCAP_VLAN_MTU,		setifcap),
 	DEF_CMD("-vlanmtu",	-IFCAP_VLAN_MTU,	setifcap),
 	DEF_CMD("vlanhwtag",	IFCAP_VLAN_HWTAGGING,	setifcap),
