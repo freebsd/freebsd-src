@@ -289,7 +289,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	*/
 	if (ifp->if_bridge) {
 		KASSERT(bridge_output_p != NULL,
-		    ("ether_input: if_bridge not loaded!"));
+		    ("%s: if_bridge not loaded!", __func__));
 		return ((*bridge_output_p)(ifp, m, NULL, NULL));
 	}
 
@@ -587,7 +587,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 */
 	if (ifp->if_bridge) {
 		KASSERT(bridge_input_p != NULL,
-		    ("ether_input: if_bridge not loaded!"));
+		    ("%s: if_bridge not loaded!", __func__));
 
 		/* Mark the packet as broadcast or multicast. This is also set
 		 * further down the code in ether_demux() but since the bridge
