@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 
 #include <netinet/in.h>
 
@@ -48,6 +49,11 @@
 #define	BUFFER	(48*1024)
 #define	HTTP	8000
 
+#define	HTTP_OK	"HTTP/1.1 200 OK\n"
+#define	HTTP_SERVER "Server rwatson_httpd/1.0 (FreeBSD)\n"
+#define	HTTP_CONNECTION "Connection: close\n"
+#define	HTTP_CONTENT "Content-Type: text/html\n"
+
 static const char	*path;
 static int		 listen_sock;
 static int		 data_file;
@@ -58,6 +64,8 @@ static int		 data_file;
 static int
 http_serve(int sock)
 {
+	struct iovec header_iovec[4];
+	struct sf_hdtr sf_hdtr;
 	ssize_t len;
 	int ncount;
 	char ch;
@@ -78,7 +86,22 @@ http_serve(int sock)
 			break;
 	}
 
-	if (sendfile(data_file, sock, 0, 0, NULL, NULL, 0) < 0)
+	bzero(&sf_hdtr, sizeof(sf_hdtr));
+	bzero(&header_iovec, sizeof(header_iovec));
+	header_iovec[0].iov_base = HTTP_OK;
+	header_iovec[0].iov_len = strlen(HTTP_OK);
+	header_iovec[1].iov_base = HTTP_SERVER;
+	header_iovec[1].iov_len = strlen(HTTP_SERVER);
+	header_iovec[2].iov_base = HTTP_CONNECTION;
+	header_iovec[2].iov_len = strlen(HTTP_CONNECTION);
+	header_iovec[3].iov_base = HTTP_CONTENT;
+	header_iovec[3].iov_len = strlen(HTTP_CONTENT);
+	sf_hdtr.headers = header_iovec;
+	sf_hdtr.hdr_cnt = 4;
+	sf_hdtr.trailers = NULL;
+	sf_hdtr.trl_cnt = 0;
+
+	if (sendfile(data_file, sock, 0, 0, &sf_hdtr, NULL, 0) < 0)
 		warn("sendfile");
 
 	return (0);
