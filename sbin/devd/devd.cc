@@ -221,11 +221,19 @@ media::~media()
 bool
 media::do_match(config &c)
 {
-	string value = c.get_variable("device-name");
+	string value;
 	struct ifmediareq ifmr;
 	bool retval;
 	int s;
 
+	// Since we can be called from both a device attach/detach
+	// context where device-name is defined and what we want,
+	// as well as from a link status context, where subsystem is
+	// the name of interest, first try device-name and fall back
+	// to subsystem if none exists.
+	value = c.get_variable("device-name");
+	if (value.length() == 0)
+		string value = c.get_variable("subsystem");
 	if (Dflag)
 		fprintf(stderr, "Testing media type of %s against 0x%x\n",
 		    value.c_str(), _type);
