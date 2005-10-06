@@ -46,6 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/pc/bios.h>
 
 /*
+ * System Management BIOS Reference Specification, v2.4 Final
+ * http://www.dmtf.org/standards/published_documents/DSP0134.pdf
+ */
+
+/*
  * SMBIOS Entry Point Structure
  */
 struct smbios_eps {
@@ -55,9 +60,9 @@ struct smbios_eps {
 
 	u_int8_t	SMBIOS_Major;
 	u_int8_t	SMBIOS_Minor;
-	u_int8_t	Max_Size;
+	u_int16_t	Max_Size;
 	u_int8_t	Revision;
-	u_int8_t	Formatted_Area;
+	u_int8_t	Formatted_Area[5];
 
 	u_int8_t	Intermediate_Anchor[5];	/* '_DMI_' */
 	u_int8_t	Intermediate_Checksum;
@@ -112,6 +117,19 @@ smbios_identify (driver_t *driver, device_t parent)
 	if (addr != 0) {
 		rid = 0;
 		length = ADDR2EPS(addr)->Length;
+
+		if (length != 0x1f) {
+			u_int8_t major, minor;
+
+			major = ADDR2EPS(addr)->SMBIOS_Major;
+			minor = ADDR2EPS(addr)->SMBIOS_Minor;
+
+			/* SMBIOS v2.1 implementation might use 0x1e. */
+			if (length == 0x1e && major == 2 && minor == 1)
+				length = 0x1f;
+			else
+				return;
+		}
 
 		child = BUS_ADD_CHILD(parent, 0, "smbios", -1);
 		device_set_driver(child, driver);
@@ -170,10 +188,10 @@ smbios_attach (device_t dev)
 	}
 	sc->eps = RES2EPS(sc->res);
 
-	device_printf(dev, "Version: %d.%02d",
+	device_printf(dev, "Version: %u.%u",
 		sc->eps->SMBIOS_Major, sc->eps->SMBIOS_Minor);
 	if (bcd2bin(sc->eps->SMBIOS_BCD_Revision))
-		printf(", Revision: %d.%02d",
+		printf(", BCD Revision: %u.%u",
 			bcd2bin(sc->eps->SMBIOS_BCD_Revision >> 4),
 			bcd2bin(sc->eps->SMBIOS_BCD_Revision & 0x0f));
 	printf("\n");
