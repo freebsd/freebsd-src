@@ -696,7 +696,7 @@ mdfind(int unit)
 }
 
 static struct md_s *
-mdnew(int unit, int *errp)
+mdnew(int unit, int *errp, enum md_types type)
 {
 	struct md_s *sc, *sc2;
 	int error, max = -1;
@@ -713,6 +713,7 @@ mdnew(int unit, int *errp)
 	if (unit == -1)
 		unit = max + 1;
 	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
+	sc->type = type;
 	bioq_init(&sc->bio_queue);
 	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
 	sc->unit = unit;
@@ -1013,14 +1014,13 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 			return (EINVAL);
 		}
 		if (mdio->md_options & MD_AUTOUNIT)
-			sc = mdnew(-1, &error);
+			sc = mdnew(-1, &error, mdio->md_type);
 		else
-			sc = mdnew(mdio->md_unit, &error);
+			sc = mdnew(mdio->md_unit, &error, mdio->md_type);
 		if (sc == NULL)
 			return (error);
 		if (mdio->md_options & MD_AUTOUNIT)
 			mdio->md_unit = sc->unit;
-		sc->type = mdio->md_type;
 		sc->mediasize = mdio->md_mediasize;
 		if (mdio->md_sectorsize == 0)
 			sc->sectorsize = DEV_BSIZE;
@@ -1110,10 +1110,9 @@ md_preloaded(u_char *image, size_t length)
 	struct md_s *sc;
 	int error;
 
-	sc = mdnew(-1, &error);
+	sc = mdnew(-1, &error, MD_PRELOAD);
 	if (sc == NULL)
 		return;
-	sc->type = MD_PRELOAD;
 	sc->mediasize = length;
 	sc->sectorsize = DEV_BSIZE;
 	sc->pl_ptr = image;
