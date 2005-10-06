@@ -253,11 +253,11 @@ struct iwi_cmd_desc {
 #define IWI_CMD_SET_FRAG_THRESHOLD		16
 #define IWI_CMD_SET_POWER_MODE			17
 #define IWI_CMD_SET_WEP_KEY			18
-#define IWI_CMD_SCAN				20
 #define IWI_CMD_ASSOCIATE			21
 #define IWI_CMD_SET_RATES			22
 #define IWI_CMD_ABORT_SCAN			23
 #define IWI_CMD_SET_WME_PARAMS			25
+#define IWI_CMD_SCAN				26
 #define IWI_CMD_SET_OPTIE			31
 #define IWI_CMD_DISABLE				33
 #define IWI_CMD_SET_IV				34
@@ -289,7 +289,7 @@ struct iwi_rateset {
 	uint8_t	mode;
 	uint8_t	nrates;
 	uint8_t	type;
-#define IWI_RATESET_TYPE_NEGOCIATED	0
+#define IWI_RATESET_TYPE_NEGOTIATED	0
 #define IWI_RATESET_TYPE_SUPPORTED	1
 
 	uint8_t	reserved;
@@ -336,18 +336,23 @@ struct iwi_associate {
 
 /* structure for command IWI_CMD_SCAN */
 struct iwi_scan {
-	uint8_t		type;
-#define IWI_SCAN_TYPE_PASSIVE	1
-#define IWI_SCAN_TYPE_DIRECTED	2
-#define IWI_SCAN_TYPE_BROADCAST	3
-#define IWI_SCAN_TYPE_BDIRECTED	4
-
-	uint16_t	dwelltime;
+	uint32_t	index;
 	uint8_t		channels[54];
 #define IWI_CHAN_5GHZ	(0 << 6)
 #define IWI_CHAN_2GHZ	(1 << 6)
 
-	uint8_t		reserved[3];
+	uint8_t		type[26];
+#define IWI_SCAN_TYPE_PASSIVE	0x11
+#define IWI_SCAN_TYPE_DIRECTED	0x22
+#define IWI_SCAN_TYPE_BROADCAST	0x33
+#define IWI_SCAN_TYPE_BDIRECTED	0x44
+
+	uint8_t		reserved1[2];
+	uint16_t	reserved2;
+	uint16_t	passive;	/* dwell time */
+	uint16_t	directed;	/* dwell time */
+	uint16_t	broadcast;	/* dwell time */
+	uint16_t	bdirected;	/* dwell time */
 } __packed;
 
 /* structure for command IWI_CMD_SET_CONFIG */
