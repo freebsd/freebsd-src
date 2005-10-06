@@ -63,15 +63,14 @@ static int decode_nfshandle(char *ev, u_char *fh);
 static void
 nfs_parse_options(const char *envopts, struct nfs_diskless *nd)
 {
-	char *opts, *o;
+	char *opts, *o, *otmp;
 
 	opts = strdup(envopts, M_TEMP);
-	if (opts == NULL) {
-		printf("nfs_diskless: cannot allocate memory for options\n");
-		return;
-	}
-	for (o = strtok(opts, ":;, "); o != NULL; o = strtok(NULL, ":;, ")) {
-		if (strcmp(o, "soft") == 0)
+	otmp = opts;
+	while ((o = strsep(&otmp, ":;, ")) != NULL) {
+		if (*o == '\0')
+			; /* Skip empty options. */
+		else if (strcmp(o, "soft") == 0)
 			nd->root_args.flags |= NFSMNT_SOFT;
 		else if (strcmp(o, "intr") == 0)
 			nd->root_args.flags |= NFSMNT_INT;
