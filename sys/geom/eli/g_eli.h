@@ -153,7 +153,7 @@ struct g_eli_metadata {
 			/* Encrypted master key (IV-key, Data-key, HMAC). */
 	uint8_t		md_mkeys[G_ELI_MAXMKEYS * G_ELI_MKEYLEN];
 	u_char		md_hash[16];	/* MD5 hash. */
-};
+} __packed;
 #ifndef _OpenSSL_
 static __inline void
 eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
