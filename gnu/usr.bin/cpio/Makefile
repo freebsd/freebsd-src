@@ -57,6 +57,6 @@ alloca.h: alloca_.h
 	ln -fs ${.ALLSRC} ${.TARGET}
 
 CFLAGS+=-I${.OBJDIR} -I${.CURDIR} -I${CPIODIR}/lib -DHAVE_CONFIG_H \
-	-DHAVE_MKFIFO -DHAVE_SETLOCALE
+	-DHAVE_MKFIFO -DHAVE_SETLOCALE -DHAVE_LSTAT
 
 .include <bsd.prog.mk>
