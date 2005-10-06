@@ -219,7 +219,6 @@ static void re_poll_locked	(struct ifnet *, enum poll_cmd, int);
 #endif
 static void re_intr		(void *);
 static void re_tick		(void *);
-static void re_tick_locked	(struct rl_softc *);
 static void re_start		(struct ifnet *);
 static void re_start_locked	(struct ifnet *);
 static int re_ioctl		(struct ifnet *, u_long, caddr_t);
@@ -422,7 +421,7 @@ re_gmii_readreg(dev, phy, reg)
 	}
 
 	if (i == RL_TIMEOUT) {
-		printf ("re%d: PHY read failed\n", sc->rl_unit);
+		if_printf(sc->rl_ifp, "PHY read failed\n");
 		return (0);
 	}
 
@@ -452,7 +451,7 @@ re_gmii_writereg(dev, phy, reg, data)
 	}
 
 	if (i == RL_TIMEOUT) {
-		printf ("re%d: PHY write failed\n", sc->rl_unit);
+		if_printf(sc->rl_ifp, "PHY write failed\n");
 		return (0);
 	}
 
@@ -508,7 +507,7 @@ re_miibus_readreg(dev, phy, reg)
 		rval = CSR_READ_1(sc, RL_MEDIASTAT);
 		return (rval);
 	default:
-		printf("re%d: bad phy register\n", sc->rl_unit);
+		if_printf(sc->rl_ifp, "bad phy register\n");
 		return (0);
 	}
 	rval = CSR_READ_2(sc, re8139_reg);
@@ -556,7 +555,7 @@ re_miibus_writereg(dev, phy, reg, data)
 		return (0);
 		break;
 	default:
-		printf("re%d: bad phy register\n", sc->rl_unit);
+		if_printf(sc->rl_ifp, "bad phy register\n");
 		return (0);
 	}
 	CSR_WRITE_2(sc, re8139_reg, data);
@@ -643,7 +642,7 @@ re_reset(sc)
 			break;
 	}
 	if (i == RL_TIMEOUT)
-		printf("re%d: reset never completed!\n", sc->rl_unit);
+		if_printf(sc->rl_ifp, "reset never completed!\n");
 
 	CSR_WRITE_1(sc, 0x82, 1);
 }
@@ -737,8 +736,8 @@ re_diag(sc)
 	}
 
 	if (i == RL_TIMEOUT) {
-		printf("re%d: diagnostic failed, failed to receive packet "
-		    "in loopback mode\n", sc->rl_unit);
+		if_printf(ifp, "diagnostic failed, failed to receive packet "
+		    "in loopback mode\n");
 		error = EIO;
 		goto done;
 	}
@@ -766,8 +765,7 @@ re_diag(sc)
 	rxstat = le32toh(cur_rx->rl_cmdstat);
 
 	if (total_len != ETHER_MIN_LEN) {
-		printf("re%d: diagnostic failed, received short packet\n",
-		    sc->rl_unit);
+		if_printf(ifp, "diagnostic failed, received short packet\n");
 		error = EIO;
 		goto done;
 	}
@@ -777,18 +775,17 @@ re_diag(sc)
 	if (bcmp((char *)&eh->ether_dhost, (char *)&dst, ETHER_ADDR_LEN) ||
 	    bcmp((char *)&eh->ether_shost, (char *)&src, ETHER_ADDR_LEN) ||
 	    ntohs(eh->ether_type) != ETHERTYPE_IP) {
-		printf("re%d: WARNING, DMA FAILURE!\n", sc->rl_unit);
-		printf("re%d: expected TX data: %6D/%6D/0x%x\n", sc->rl_unit,
+		if_printf(ifp, "WARNING, DMA FAILURE!\n");
+		if_printf(ifp, "expected TX data: %6D/%6D/0x%x\n",
 		    dst, ":", src, ":", ETHERTYPE_IP);
-		printf("re%d: received RX data: %6D/%6D/0x%x\n", sc->rl_unit,
+		if_printf(ifp, "received RX data: %6D/%6D/0x%x\n",
 		    eh->ether_dhost, ":",  eh->ether_shost, ":",
 		    ntohs(eh->ether_type));
-		printf("re%d: You may have a defective 32-bit NIC plugged "
-		    "into a 64-bit PCI slot.\n", sc->rl_unit);
-		printf("re%d: Please re-install the NIC in a 32-bit slot "
-		    "for proper operation.\n", sc->rl_unit);
-		printf("re%d: Read the re(4) man page for more details.\n",
-		    sc->rl_unit);
+		if_printf(ifp, "You may have a defective 32-bit NIC plugged "
+		    "into a 64-bit PCI slot.\n");
+		if_printf(ifp, "Please re-install the NIC in a 32-bit slot "
+		    "for proper operation.\n");
+		if_printf(ifp, "Read the re(4) man page for more details.\n");
 		error = EIO;
 	}
 
@@ -1067,13 +1064,14 @@ re_attach(dev)
 	struct rl_hwrev		*hw_rev;
 	int			hwrev;
 	u_int16_t		re_did = 0;
-	int			unit, error = 0, rid, i;
+	int			error = 0, rid, i;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+	callout_init_mtx(&sc->rl_stat_callout, &sc->rl_mtx, 0);
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -1084,7 +1082,7 @@ re_attach(dev)
 	    RF_ACTIVE);
 
 	if (sc->rl_res == NULL) {
-		printf ("re%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1098,7 +1096,7 @@ re_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->rl_irq == NULL) {
-		printf("re%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1133,7 +1131,7 @@ re_attach(dev)
 			DELAY(100);
 		}
 		if (i == RL_TIMEOUT)
-			printf ("re%d: eeprom autoload timed out\n", unit);
+			device_printf(dev, "eeprom autoload timed out\n");
 
 			for (i = 0; i < ETHER_ADDR_LEN; i++)
 				eaddr[i] = CSR_READ_1(sc, RL_IDR0 + i);
@@ -1157,8 +1155,6 @@ re_attach(dev)
 			eaddr[(i * 2) + 1] = as[i] >> 8;
 		}
 	}
-
-	sc->rl_unit = unit;
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
@@ -1184,7 +1180,7 @@ re_attach(dev)
 
 	ifp = sc->rl_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("re%d: can not if_alloc()\n", sc->rl_unit);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -1192,7 +1188,7 @@ re_attach(dev)
 	/* Do MII setup */
 	if (mii_phy_probe(dev, &sc->rl_miibus,
 	    re_ifmedia_upd, re_ifmedia_sts)) {
-		printf("re%d: MII without any phy!\n", sc->rl_unit);
+		device_printf(dev, "MII without any phy!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1220,8 +1216,6 @@ re_attach(dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capenable = ifp->if_capabilities & ~IFCAP_HWCSUM;
 
-	callout_handle_init(&sc->rl_stat_ch);
-
 	/*
 	 * Call MI attach routine.
 	 */
@@ -1231,10 +1225,8 @@ re_attach(dev)
 	error = re_diag(sc);
 
 	if (error) {
-		printf("re%d: attach aborted due to hardware diag failure\n",
-		    unit);
+		device_printf(dev, "attach aborted due to hardware diag failure\n");
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -1242,9 +1234,8 @@ re_attach(dev)
 	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    re_intr, sc, &sc->rl_intrhand);
 	if (error) {
-		printf("re%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
 
 fail:
@@ -1268,27 +1259,20 @@ re_detach(dev)
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
 	int			i;
-	int			attached;
 
 	sc = device_get_softc(dev);
 	ifp = sc->rl_ifp;
 	KASSERT(mtx_initialized(&sc->rl_mtx), ("re mutex not initialized"));
 
-	attached = device_is_attached(dev);
 	/* These should only be active if attach succeeded */
-	if (attached)
-		ether_ifdetach(ifp);
-	if (ifp == NULL)
-		if_free(ifp);
-
-	RL_LOCK(sc);
+	if (device_is_attached(dev)) {
+		RL_LOCK(sc);
 #if 0
-	sc->suspended = 1;
+		sc->suspended = 1;
 #endif
-
-	/* These should only be active if attach succeeded */
-	if (attached) {
 		re_stop(sc);
+		RL_UNLOCK(sc);
+		callout_drain(&sc->rl_stat_callout);
 		/*
 		 * Force off the IFF_UP flag here, in case someone
 		 * still had a BPF descriptor attached to this
@@ -1302,6 +1286,7 @@ re_detach(dev)
 		 * anymore.
 		 */
 		ifp->if_flags &= ~IFF_UP;
+		ether_ifdetach(ifp);
 	}
 	if (sc->rl_miibus)
 		device_delete_child(dev, sc->rl_miibus);
@@ -1311,10 +1296,11 @@ re_detach(dev)
 	 * The rest is resource deallocation, so we should already be
 	 * stopped here.
 	 */
-	RL_UNLOCK(sc);
 
 	if (sc->rl_intrhand)
 		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
+	if (ifp != NULL)
+		if_free(ifp);
 	if (sc->rl_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 	if (sc->rl_res)
@@ -1750,18 +1736,9 @@ re_tick(xsc)
 	void			*xsc;
 {
 	struct rl_softc		*sc;
+	struct mii_data		*mii;
 
 	sc = xsc;
-	RL_LOCK(sc);
-	re_tick_locked(sc);
-	RL_UNLOCK(sc);
-}
-
-static void
-re_tick_locked(sc)
-	struct rl_softc		*sc;
-{
-	struct mii_data		*mii;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -1769,7 +1746,7 @@ re_tick_locked(sc)
 
 	mii_tick(mii);
 
-	sc->rl_stat_ch = timeout(re_tick, sc, hz);
+	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
 }
 
 #ifdef DEVICE_POLLING
@@ -1882,8 +1859,8 @@ re_intr(arg)
 		}
 
 		if (status & RL_ISR_LINKCHG) {
-			untimeout(re_tick, sc, sc->rl_stat_ch);
-			re_tick_locked(sc);
+			callout_stop(&sc->rl_stat_callout);
+			re_tick(sc);
 		}
 	}
 
@@ -1939,7 +1916,7 @@ re_encap(sc, m_head, idx)
 	    *m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
 
 	if (error && error != EFBIG) {
-		printf("re%d: can't map mbuf (error %d)\n", sc->rl_unit, error);
+		if_printf(sc->rl_ifp, "can't map mbuf (error %d)\n", error);
 		return (ENOBUFS);
 	}
 
@@ -1960,8 +1937,8 @@ re_encap(sc, m_head, idx)
 		error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag, map,
 		    *m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
 		if (error) {
-			printf("re%d: can't map mbuf (error %d)\n",
-			    sc->rl_unit, error);
+			if_printf(sc->rl_ifp, "can't map mbuf (error %d)\n",
+			    error);
 			return (EFBIG);
 		}
 	}
@@ -2260,7 +2237,7 @@ re_init_locked(sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->rl_stat_ch = timeout(re_tick, sc, hz);
+	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
 }
 
 /*
@@ -2275,7 +2252,9 @@ re_ifmedia_upd(ifp)
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->rl_miibus);
+	RL_LOCK(sc);
 	mii_mediachg(mii);
+	RL_UNLOCK(sc);
 
 	return (0);
 }
@@ -2294,7 +2273,9 @@ re_ifmedia_sts(ifp, ifmr)
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->rl_miibus);
 
+	RL_LOCK(sc);
 	mii_pollstat(mii);
+	RL_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 }
@@ -2308,13 +2289,16 @@ re_ioctl(ifp, command, data)
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			error = 0;
+	int			error;
 
 	switch (command) {
 	case SIOCSIFMTU:
+		RL_LOCK(sc);
 		if (ifr->ifr_mtu > RL_JUMBO_MTU)
 			error = EINVAL;
 		ifp->if_mtu = ifr->ifr_mtu;
+		RL_UNLOCK(sc);
+		error = 0;
 		break;
 	case SIOCSIFFLAGS:
 		RL_LOCK(sc);
@@ -2338,6 +2322,7 @@ re_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
+		RL_LOCK(sc);
 		ifp->if_capenable &= ~(IFCAP_HWCSUM | IFCAP_POLLING);
 		ifp->if_capenable |=
 		    ifr->ifr_reqcap & (IFCAP_HWCSUM | IFCAP_POLLING);
@@ -2346,7 +2331,9 @@ re_ioctl(ifp, command, data)
 		else
 			ifp->if_hwassist = 0;
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			re_init(sc);
+			re_init_locked(sc);
+		RL_UNLOCK(sc);
+		error = 0;
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2364,7 +2351,7 @@ re_watchdog(ifp)
 
 	sc = ifp->if_softc;
 	RL_LOCK(sc);
-	printf("re%d: watchdog timeout\n", sc->rl_unit);
+	if_printf(ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
 
 	re_txeof(sc);
@@ -2390,7 +2377,7 @@ re_stop(sc)
 	ifp = sc->rl_ifp;
 	ifp->if_timer = 0;
 
-	untimeout(re_tick, sc, sc->rl_stat_ch);
+	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
