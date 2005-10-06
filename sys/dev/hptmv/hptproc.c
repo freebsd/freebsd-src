@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
+ * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,10 @@
 #include <sys/sysctl.h>
 #include <machine/stdarg.h>
 
+#ifndef __KERNEL__
+#define __KERNEL__
+#endif
+
 #include <dev/hptmv/global.h>
 #include <dev/hptmv/hptintf.h>
 #include <dev/hptmv/osbsd.h>
@@ -45,13 +49,15 @@ int hpt_rescan_all(void);
 /***************************************************************************/
 
 static char hptproc_buffer[256];
+extern char DRIVER_VERSION[];
 
 #define FORMAL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1, int arg2, \
 	struct sysctl_req *req
 #define REAL_HANDLER_ARGS oidp, arg1, arg2, req
 typedef struct sysctl_req HPT_GET_INFO;
 
-static int hpt_set_asc_info(IAL_ADAPTER_T *pAdapter, char *buffer,int length)
+static int
+hpt_set_asc_info(IAL_ADAPTER_T *pAdapter, char *buffer,int length)
 {
 	int orig_length = length+4;
 	PVBus _vbus_p = &pAdapter->VBus;
@@ -118,7 +124,7 @@ rebuild:
 			    if(pVDev == _vbus_p->pVDevice[i])
 			    {
 					periph = hpt_get_periph(pAdapter->mvSataAdapter.adapterId,i);
-					if (periph != NULL && periph->refcount == 1)
+					if (periph != NULL && periph->refcount >= 1)
 					{
 						hpt_printk(("Can not use disk used by OS!\n"));
 	                    return -EINVAL;	
@@ -138,9 +144,9 @@ loop:
 						unlock_driver(oldspl);
 						return -EINVAL;
 					}
-					pArray->u.array.rf_auto_rebuild = 0;
-					pArray->u.array.rf_abort_rebuild = 0;
-					hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pArray, DUPLICATE);
+					pSubArray->u.array.rf_auto_rebuild = 0;
+					pSubArray->u.array.rf_abort_rebuild = 0;
+					hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pSubArray, DUPLICATE);
 					unlock_driver(oldspl);
 					break;
 				}
@@ -225,7 +231,7 @@ loop:
 	}
 	else
 #endif
-#endif /* SUPPORT_ARRAY */
+#endif
 	if (0) {} /* just to compile */
 #if DBGUG
 	else if (length>=9 && strncmp(buffer, "dbglevel ", 9)==0) {
@@ -239,7 +245,7 @@ loop:
 	else if (length>=8 && strncmp(buffer, "disable ", 8)==0) {
 		/* TO DO */
 	}
-#endif		
+#endif
 
 	return -EINVAL;
 }
@@ -248,7 +254,8 @@ loop:
  * Since we have only one sysctl node, add adapter ID in the command 
  * line string: e.g. "hpt 0 rebuild start"
  */
-static int hpt_set_info(int length)
+static int
+hpt_set_info(int length)
 {
 	int retval;
 
@@ -256,7 +263,7 @@ static int hpt_set_info(int length)
 	PUCHAR ke_area;
 	int err;
 	DWORD dwRet;
-	PHPT_IOCTL_PARAM32 piop;
+	PHPT_IOCTL_PARAM piop;
 #endif
 	char *buffer = hptproc_buffer;
 	if (length >= 6) {
@@ -270,14 +277,14 @@ static int hpt_set_info(int length)
 			return -EINVAL;
 		}
 #ifdef SUPPORT_IOCTL	
-		piop = (PHPT_IOCTL_PARAM32)buffer;
+		piop = (PHPT_IOCTL_PARAM)buffer;
 		if (piop->Magic == HPT_IOCTL_MAGIC) 	{
-			KdPrintE(("ioctl=%d in=%x len=%d out=%x len=%ld\n", 
+			KdPrintE(("ioctl=%d in=%p len=%d out=%p len=%d\n", 
 				piop->dwIoControlCode,
         			piop->lpInBuffer,
         			piop->nInBufferSize,
         			piop->lpOutBuffer,
-	        		(u_long)piop->nOutBufferSize));
+	        		piop->nOutBufferSize));
 
 			/*
         	 	 * map buffer to kernel.
@@ -293,28 +300,22 @@ static int hpt_set_info(int length)
 					return -EINVAL;
 				}
 
-			err = 0;
 			if (piop->nInBufferSize)
-				err = copyin((void*)(ULONG_PTR)piop->lpInBuffer, ke_area, piop->nInBufferSize);
+				copyin((void*)(ULONG_PTR)piop->lpInBuffer, ke_area, piop->nInBufferSize);
 
 			/*
 			  * call kernel handler.
 			  */    
-			if (err==0)
-				err = Kernel_DeviceIoControl(&gIal_Adapter->VBus,
-					piop->dwIoControlCode, ke_area, piop->nInBufferSize,
-					ke_area + piop->nInBufferSize, piop->nOutBufferSize, &dwRet);    
+			err = Kernel_DeviceIoControl(&gIal_Adapter->VBus,
+				piop->dwIoControlCode, ke_area, piop->nInBufferSize,
+				ke_area + piop->nInBufferSize, piop->nOutBufferSize, &dwRet);    
 			
 			if (err==0) {
-				if (piop->nOutBufferSize) {
-					err = copyout(ke_area + piop->nInBufferSize, (void*)(ULONG_PTR)piop->lpOutBuffer, piop->nOutBufferSize);
-					if (err) KdPrintW(("Kernel_ioctl(): copyout (1) return %d\n", err));
-				}
+				if (piop->nOutBufferSize)
+					copyout(ke_area + piop->nInBufferSize, (void*)(ULONG_PTR)piop->lpOutBuffer, piop->nOutBufferSize);
 				
-				if (piop->lpBytesReturned) {
-					err = copyout(&dwRet, (void*)(ULONG_PTR)piop->lpBytesReturned, sizeof(DWORD));
-					if (err) KdPrintW(("Kernel_ioctl(): copyout (2) return %d\n", err));
-				}
+				if (piop->lpBytesReturned)
+					copyout(&dwRet, (void*)(ULONG_PTR)piop->lpBytesReturned, sizeof(DWORD));
 			
 				free(ke_area, M_DEVBUF);
 				return length;
@@ -335,7 +336,8 @@ static int hpt_set_info(int length)
 
 #define shortswap(w) ((WORD)((w)>>8 | ((w) & 0xFF)<<8))
 
-static void get_disk_name(char *name, PDevice pDev)
+static void
+get_disk_name(char *name, PDevice pDev)
 {
 	int i;
 	MV_SATA_CHANNEL *pMvSataChannel = pDev->mv;
@@ -346,7 +348,8 @@ static void get_disk_name(char *name, PDevice pDev)
 	name[20] = '\0';
 }
 
-static int hpt_copy_info(HPT_GET_INFO *pinfo, char *fmt, ...) 
+static int
+hpt_copy_info(HPT_GET_INFO *pinfo, char *fmt, ...) 
 {
 	int printfretval;
 	va_list ap;
@@ -364,28 +367,38 @@ static int hpt_copy_info(HPT_GET_INFO *pinfo, char *fmt, ...)
 	}
 }
 
-static void hpt_copy_disk_info(HPT_GET_INFO *pinfo, PVDevice pVDev, UINT iChan)
+static void
+hpt_copy_disk_info(HPT_GET_INFO *pinfo, PVDevice pVDev, UINT iChan)
 {
-	char name[32], arrayname[16];
-	
-	get_disk_name(name, &pVDev->u.disk);
+	char name[32], arrayname[16], *status;
 
-#ifdef SUPPORT_ARRAY	
-	if(pVDev->pParent) 
+	get_disk_name(name, &pVDev->u.disk);
+	
+	if (!pVDev->u.disk.df_on_line)
+		status = "Disabled";
+	else if (pVDev->VDeviceType==VD_SPARE)
+		status = "Spare   ";
+	else
+		status = "Normal  ";
+
+#ifdef SUPPORT_ARRAY
+	if(pVDev->pParent) {
 		memcpy(arrayname, pVDev->pParent->u.array.ArrayName, MAX_ARRAY_NAME);
+		if (pVDev->pParent->u.array.CriticalMembers & (1<<pVDev->bSerialNumber))
+			status = "Degraded";
+	}
 	else
 #endif
-	    arrayname[0]=0;
+		arrayname[0]=0;
 	
 	hpt_copy_info(pinfo, "Channel %d  %s  %5dMB  %s %s\n",
 		iChan+1, 
-		name, pVDev->VDeviceCapacity>>11, 
-		((!pVDev->u.disk.df_on_line)? "Disabled" : 
-		((pVDev->VDeviceType != VD_SPARE)?"Normal  ":"Spare   ")), arrayname);
+		name, pVDev->VDeviceCapacity>>11, status, arrayname);
 }
 
 #ifdef SUPPORT_ARRAY
-static void hpt_copy_array_info(HPT_GET_INFO *pinfo, int nld, PVDevice pArray)
+static void
+hpt_copy_array_info(HPT_GET_INFO *pinfo, int nld, PVDevice pArray)
 {
 	int i;
 	char *sType=0, *sStatus=0;
@@ -438,7 +451,7 @@ static void hpt_copy_array_info(HPT_GET_INFO *pinfo, int nld, PVDevice pArray)
 			if (pTmpArray->u.array.rf_rebuilding) {
 #ifdef DEBUG
 				sprintf(buf, "Rebuilding %dMB", (pTmpArray->u.array.RebuildSectors>>11));
-#else
+#else 
 				sprintf(buf, "Rebuilding %d%%", (pTmpArray->u.array.RebuildSectors>>11)*100/((pTmpArray->VDeviceCapacity/(pTmpArray->u.array.bArnMember-1))>>11));
 #endif
 				sStatus = buf;
@@ -463,7 +476,8 @@ out:
 }
 #endif
 
-static int hpt_get_info(IAL_ADAPTER_T *pAdapter, HPT_GET_INFO *pinfo)
+static int
+hpt_get_info(IAL_ADAPTER_T *pAdapter, HPT_GET_INFO *pinfo)
 {
 	PVBus _vbus_p = &pAdapter->VBus;
 	struct cam_periph *periph = NULL;
@@ -535,7 +549,8 @@ static int hpt_get_info(IAL_ADAPTER_T *pAdapter, HPT_GET_INFO *pinfo)
 	return 0;
 }
 
-static inline int hpt_proc_in(FORMAL_HANDLER_ARGS, int *len)
+static __inline int
+hpt_proc_in(FORMAL_HANDLER_ARGS, int *len)
 {
 	int i, error=0;
 
@@ -552,7 +567,8 @@ static inline int hpt_proc_in(FORMAL_HANDLER_ARGS, int *len)
 	return (error);
 }
 
-static int hpt_status(FORMAL_HANDLER_ARGS)
+static int
+hpt_status(FORMAL_HANDLER_ARGS)
 {
 	int length, error=0, retval=0;
 	IAL_ADAPTER_T *pAdapter;
@@ -598,7 +614,7 @@ out:
 	SYSCTL_NODE(, OID_AUTO,	name, CTLFLAG_RW, 0, "Get/Set " #name " state root node") \
 	SYSCTL_OID(_ ## name, OID_AUTO, status, CTLTYPE_STRING|CTLFLAG_RW, \
 	NULL, 0, hpt_status, "A", "Get/Set " #name " state")
-#else
+#else 
 #define hptregister_node(name) \
 	SYSCTL_NODE(, OID_AUTO,	name, CTLFLAG_RW, 0, "Get/Set " #name " state root node"); \
 	SYSCTL_OID(_ ## name, OID_AUTO, status, CTLTYPE_STRING|CTLFLAG_RW, \
