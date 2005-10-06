@@ -687,14 +687,13 @@ struct rl_softc {
 	device_t		rl_miibus;
 	bus_dma_tag_t		rl_parent_tag;
 	bus_dma_tag_t		rl_tag;
-	uint8_t			rl_unit;	/* interface number */
 	uint8_t			rl_type;
 	int			rl_eecmd_read;
 	uint8_t			rl_stats_no_timeout;
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct rl_list_data	rl_ldata;
-	struct callout_handle	rl_stat_ch;
+	struct callout		rl_stat_callout;
 	struct mtx		rl_mtx;
 	struct mbuf		*rl_head;
 	struct mbuf		*rl_tail;
