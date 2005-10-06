@@ -67,7 +67,7 @@ vlan_status(int s)
 {
 	struct vlanreq		vreq;
 
-	bzero((char *)&vreq, sizeof(struct vlanreq));
+	bzero((char *)&vreq, sizeof(vreq));
 	ifr.ifr_data = (caddr_t)&vreq;
 
 	if (ioctl(s, SIOCGETVLAN, (caddr_t)&ifr) == -1)
@@ -76,8 +76,6 @@ vlan_status(int s)
 	printf("\tvlan: %d parent interface: %s\n",
 	    vreq.vlr_tag, vreq.vlr_parent[0] == '\0' ?
 	    "<none>" : vreq.vlr_parent);
-
-	return;
 }
 
 static void
@@ -108,20 +106,19 @@ setvlandev(const char *val, int d, int s, const struct afswtch	*afp)
 static void
 unsetvlandev(const char *val, int d, int s, const struct afswtch *afp)
 {
-	struct vlanreq		vreq;
 
 	if (val != NULL)
 		warnx("argument to -vlandev is useless and hence deprecated");
 
-	bzero((char *)&vreq, sizeof(struct vlanreq));
-	ifr.ifr_data = (caddr_t)&vreq;
-
+	bzero((char *)&__vreq, sizeof(__vreq));
+	ifr.ifr_data = (caddr_t)&__vreq;
+#if 0	/* this code will be of use when we can alter vlan or vlandev only */
 	if (ioctl(s, SIOCGETVLAN, (caddr_t)&ifr) == -1)
 		err(1, "SIOCGETVLAN");
 
-	bzero((char *)&vreq.vlr_parent, sizeof(vreq.vlr_parent));
-	vreq.vlr_tag = 0; /* XXX clear parent only (no kernel support now) */
-
+	bzero((char *)&__vreq.vlr_parent, sizeof(__vreq.vlr_parent));
+	__vreq.vlr_tag = 0; /* XXX clear parent only (no kernel support now) */
+#endif
 	if (ioctl(s, SIOCSETVLAN, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSETVLAN");
 	__have_dev = __have_tag = 0;
