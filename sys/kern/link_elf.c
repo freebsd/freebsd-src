@@ -742,10 +742,14 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	/*
 	 * Wire down the pages
 	 */
-	vm_map_wire(kernel_map,
+	error = vm_map_wire(kernel_map,
 		    (vm_offset_t) segbase,
 		    (vm_offset_t) segbase + segs[i]->p_memsz,
 		    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
+	if (error != KERN_SUCCESS) {
+	    error = ENOMEM;
+	    goto out;
+	}
 #endif
     }
 
