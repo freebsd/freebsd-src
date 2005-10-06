@@ -108,6 +108,8 @@ int	 strncmp(const char *, const char *, size_t);
 char	*strncpy(char * __restrict, const char * __restrict, size_t);
 char	*strsep(char **, const char *delim);
 size_t	 strspn(const char *, const char *);
+char	*strtok_r(char *s, const char *delim, char **last);
+char	*strtok(char *s, const char *delim);
 int	 strvalid(const char *, size_t);
 
 extern uint32_t crc32_tab[];
