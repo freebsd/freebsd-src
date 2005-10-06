@@ -73,6 +73,7 @@ void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
 int atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src);
+u_int atomic_fetchadd_int(volatile u_int *p, u_int v);
 
 #define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)			\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p);	\
@@ -152,6 +153,25 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 	: "memory");
 
 	return (res);
+}
+
+/*
+ * Atomically add the value of v to the integer pointed to by p and return
+ * the previous value of *p.
+ */
+static __inline u_int
+atomic_fetchadd_int(volatile u_int *p, u_int v)
+{
+
+	__asm __volatile (
+	"	" __XSTRING(MPLOCKED) "	"
+	"	xaddl	%0, %1 ;	"
+	"# atomic_fetchadd_int"
+	: "+r" (v),			/* 0 (result) */
+	  "=m" (*p)			/* 1 */
+	: "m" (*p));			/* 2 */
+
+	return (v);
 }
 
 #define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
@@ -348,6 +368,7 @@ u_long	atomic_readandclear_long(volatile u_long *);
 #define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
 #define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
 #define	atomic_readandclear_32	atomic_readandclear_int
+#define	atomic_fetchadd_32	atomic_fetchadd_int
 
 /* Operations on 64-bit quad words. */
 #define	atomic_set_64		atomic_set_long
