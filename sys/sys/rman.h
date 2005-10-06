@@ -100,35 +100,9 @@ struct resource {
 	bus_space_handle_t	r_bushandle;	/* bus_space handle */
 };
 
-/*
- * We use a linked list rather than a bitmap because we need to be able to
- * represent potentially huge objects (like all of a processor's physical
- * address space).  That is also why the indices are defined to have type
- * `unsigned long' -- that being the largest integral type in ISO C (1990).
- * The 1999 version of C allows `long long'; we may need to switch to that
- * at some point in the future, particularly if we want to support 36-bit
- * addresses on IA32 hardware.
- */
+struct resource_i;
+
 TAILQ_HEAD(resource_head, resource_i);
-#ifdef __RMAN_RESOURCE_VISIBLE
-struct resource_i {
-	struct resource		r_r;
-	TAILQ_ENTRY(resource_i)	r_link;
-	LIST_ENTRY(resource_i)	r_sharelink;
-	LIST_HEAD(, resource_i)	*r_sharehead;
-	u_long	r_start;	/* index of the first entry in this resource */
-	u_long	r_end;		/* index of the last entry (inclusive) */
-	u_int	r_flags;
-	void	*r_virtual;	/* virtual address of this resource */
-	struct	device *r_dev;	/* device which has allocated this resource */
-	struct	rman *r_rm;	/* resource manager from whence this came */
-	void    *r_spare1;	/* Spare pointer 1 */
-	void    *r_spare2;	/* Spare pointer 2 */
-	int	r_rid;		/* optional rid for this resource. */
-};
-#else
-struct device;
-#endif
 
 struct rman {
 	struct	resource_head 	rm_list;
