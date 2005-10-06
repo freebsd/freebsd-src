@@ -92,29 +92,19 @@ crypto/des/arch/i386/des_enc.S	optional crypto
 crypto/des/des_ecb.c		optional crypto
 crypto/des/des_setkey.c		optional crypto
 dev/aic/aic_cbus.c		optional aic isa
-dev/aic/aic_pccard.c		optional aic card
-dev/an/if_an_pccard.c		optional an card
 dev/ar/if_ar.c			optional ar
 dev/ar/if_ar_pci.c		optional ar pci
-dev/ata/ata-card.c		optional ata card
-dev/awi/if_awi_pccard.c		optional awi card
-dev/cnw/if_cnw.c		optional cnw card
 dev/cp/cpddk.c			optional cp
 dev/cp/if_cp.c			optional cp
-dev/cs/if_cs_pccard.c		optional cs card
 dev/ct/bshw_machdep.c		optional ct
 dev/ct/ct.c			optional ct
 dev/ct/ct_isa.c			optional ct isa
 dev/ed/if_ed_cbus.c		optional ed isa
-dev/ed/if_ed_pccard.c		optional ed card
 dev/ed/if_ed_wd80x3.c		optional ed isa
-dev/ep/if_ep_pccard.c		optional ep card
-dev/ex/if_ex_pccard.c		optional ex card
 dev/fb/fb.c			optional fb
 dev/fb/fb.c			optional gdc
 dev/fb/splash.c			optional splash
 dev/fe/if_fe_cbus.c		optional fe isa
-dev/fe/if_fe_pccard.c		optional fe card
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
 dev/hwpmc/hwpmc_pentium.c	optional hwpmc
 dev/hwpmc/hwpmc_piv.c		optional hwpmc
@@ -128,20 +118,14 @@ dev/lnc/if_lnc_cbus.c		optional lnc isa
 dev/mem/memutil.c		optional mem
 dev/mse/mse.c			optional mse
 dev/mse/mse_cbus.c		optional mse isa
-dev/ncv/ncr53c500_pccard.c	optional ncv card
-dev/nsp/nsp_pccard.c		optional nsp card
 dev/ppc/ppc_puc.c		optional ppc puc pci
-dev/ray/if_ray.c		optional ray card
 dev/sbni/if_sbni.c		optional sbni
 dev/sbni/if_sbni_pci.c		optional sbni pci
-dev/sio/sio_pccard.c		optional sio card
-dev/sn/if_sn_pccard.c		optional sn card
 dev/snc/dp83932.c		optional snc
 dev/snc/dp83932subr.c		optional snc
 dev/snc/if_snc.c		optional snc
 dev/snc/if_snc_cbus.c		optional snc isa
-dev/snc/if_snc_pccard.c		optional snc card
-dev/stg/tmc18c30_pccard.c	optional stg card
+dev/snc/if_snc_pccard.c		optional snc pccard
 dev/syscons/apm/apm_saver.c	optional apm_saver apm
 dev/syscons/schistory.c		optional sc
 dev/syscons/scmouse.c		optional sc
@@ -151,8 +135,6 @@ dev/syscons/scvidctl.c		optional sc
 dev/syscons/syscons.c		optional sc
 dev/syscons/sysmouse.c		optional sc
 dev/uart/uart_cpu_pc98.c	optional uart
-dev/wi/if_wi_pccard.c		optional wi card
-dev/xe/if_xe_pccard.c		optional xe card
 geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_pc98.c		standard
@@ -369,13 +351,6 @@ pc98/pc98/canbus.c		optional canbus
 pc98/pc98/canbus_if.m		optional canbus
 pc98/pc98/machdep.c		standard
 pc98/pc98/pc98_machdep.c	standard
-pccard/pccard.c			optional card
-pccard/pccard_beep.c		optional card
-pccard/pccard_nbk.c		optional card
-pccard/pcic.c			optional pcic card
-pccard/pcic_isa.c		optional pcic card isa
-pccard/pcic_pci.c		optional pcic card pci
-pccard/mecia.c			optional mecia card
 pci/agp_ali.c			optional agp
 pci/agp_amd.c			optional agp
 pci/agp_i810.c			optional agp
