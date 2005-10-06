@@ -359,7 +359,6 @@ iwi_attach(device_t dev)
 	ic->ic_myaddr[4] = val >> 8;
 	ic->ic_myaddr[5] = val & 0xff;
 
-#if 0
 	if (pci_get_device(dev) >= 0x4223) {
 		/* set supported .11a rates (2915ABG only) */
 		ic->ic_sup_rates[IEEE80211_MODE_11A] = iwi_rateset_11a;
@@ -376,7 +375,6 @@ iwi_attach(device_t dev)
 			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_A;
 		}
 	}
-#endif
 
 	/* set supported .11b and .11g rates */
 	ic->ic_sup_rates[IEEE80211_MODE_11B] = iwi_rateset_11b;
@@ -2278,10 +2276,10 @@ iwi_set_chan(struct iwi_softc *sc, struct ieee80211_channel *chan)
 	struct iwi_scan scan;
 
 	memset(&scan, 0, sizeof scan);
-	scan.type = IWI_SCAN_TYPE_PASSIVE;
-	scan.dwelltime = htole16(2000);
-	scan.channels[0] = 1 | (IEEE80211_IS_CHAN_5GHZ(chan) ? IWI_CHAN_5GHZ :
-	    IWI_CHAN_2GHZ);
+	memset(scan.type, 26, IWI_SCAN_TYPE_PASSIVE);
+	scan.passive = htole16(2000);
+	scan.channels[0] = 1 |
+	    (IEEE80211_IS_CHAN_5GHZ(chan) ? IWI_CHAN_5GHZ : IWI_CHAN_2GHZ);
 	scan.channels[1] = ieee80211_chan2ieee(ic, chan);
 
 	DPRINTF(("Setting channel to %u\n", ieee80211_chan2ieee(ic, chan)));
@@ -2297,9 +2295,14 @@ iwi_scan(struct iwi_softc *sc)
 	int i, count;
 
 	memset(&scan, 0, sizeof scan);
-	scan.type = (ic->ic_des_esslen != 0) ? IWI_SCAN_TYPE_BDIRECTED :
-	    IWI_SCAN_TYPE_BROADCAST;
-	scan.dwelltime = htole16(sc->dwelltime);
+
+	if (ic->ic_des_esslen != 0) {
+		scan.bdirected = htole16(sc->dwelltime);
+		memset(scan.type, 26, IWI_SCAN_TYPE_BDIRECTED);
+	} else {
+		scan.broadcast = htole16(sc->dwelltime);
+		memset(scan.type, 26, IWI_SCAN_TYPE_BROADCAST);
+	}
 
 	p = scan.channels;
 	count = 0;
@@ -2368,10 +2371,10 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	if (error != 0)
 		return error;
 
-	/* the rate set has already been "negociated" */
+	/* the rate set has already been "negotiated" */
 	rs.mode = IEEE80211_IS_CHAN_5GHZ(ni->ni_chan) ? IWI_MODE_11A :
 	    IWI_MODE_11G;
-	rs.type = IWI_RATESET_TYPE_NEGOCIATED;
+	rs.type = IWI_RATESET_TYPE_NEGOTIATED;
 	rs.nrates = ni->ni_rates.rs_nrates;
 	memcpy(rs.rates, ni->ni_rates.rs_rates, rs.nrates);
 	DPRINTF(("Setting negociated rates (%u)\n", rs.nrates));
