@@ -60,6 +60,31 @@ static int inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa);
 static int hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa);
 static int decode_nfshandle(char *ev, u_char *fh);
 
+static void
+nfs_parse_options(const char *envopts, struct nfs_diskless *nd)
+{
+	char *opts, *o;
+
+	opts = strdup(envopts, M_TEMP);
+	if (opts == NULL) {
+		printf("nfs_diskless: cannot allocate memory for options\n");
+		return;
+	}
+	for (o = strtok(opts, ":;, "); o != NULL; o = strtok(NULL, ":;, ")) {
+		if (strcmp(o, "soft") == 0)
+			nd->root_args.flags |= NFSMNT_SOFT;
+		else if (strcmp(o, "intr") == 0)
+			nd->root_args.flags |= NFSMNT_INT;
+		else if (strcmp(o, "conn") == 0)
+			nd->root_args.flags |= NFSMNT_NOCONN;
+		else if (strcmp(o, "lockd") == 0)
+			nd->root_args.flags |= NFSMNT_NOLOCKD;
+		else
+			printf("nfs_diskless: unknown option: %s\n", o);
+	}
+	free(opts, M_TEMP);
+}
+
 /*
  * Populate the essential fields in the nfsv3_diskless structure.
  *
@@ -73,6 +98,7 @@ static int decode_nfshandle(char *ev, u_char *fh);
  * boot.nfsroot.server		IP address of root filesystem server
  * boot.nfsroot.path		path of the root filesystem on server
  * boot.nfsroot.nfshandle	NFS handle for root filesystem on server
+ * boot.nfsroot.options		NFS options for the root filesystem
  */
 void
 nfs_setup_diskless(void)
@@ -146,6 +172,10 @@ match_done:
 	}
 	if ((cp = getenv("boot.nfsroot.path")) != NULL) {
 		strncpy(nd->root_hostnam, cp, MNAMELEN - 1);
+		freeenv(cp);
+	}
+	if ((cp = getenv("boot.nfsroot.options")) != NULL) {
+		nfs_parse_options(cp, nd);
 		freeenv(cp);
 	}
 
