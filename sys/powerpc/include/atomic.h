@@ -444,4 +444,17 @@ atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 #define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_32
 #define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_32
 
+static __inline uint32_t
+atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
+{
+	uint32_t value;
+
+	do {
+		value = *p;
+	} while (!atomic_cmpset_32(p, value, value + v));
+	return (value);
+}
+
+#define	atomic_fetchadd_int	atomic_fetchadd_32
+
 #endif /* ! _MACHINE_ATOMIC_H_ */
