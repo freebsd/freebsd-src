@@ -650,9 +650,13 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	}
 
 	/* Wire the pages */
-	vm_map_wire(kernel_map, mapbase,
+	error = vm_map_wire(kernel_map, mapbase,
 	    mapbase + round_page(mapsize),
 	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
+	if (error != KERN_SUCCESS) {
+		error = ENOMEM;
+		goto out;
+	}
 
 	/* Inform the kld system about the situation */
 	lf->address = ef->address = (caddr_t)mapbase;
