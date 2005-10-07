@@ -105,7 +105,7 @@ void	(*ng_ether_detach_p)(struct ifnet *ifp);
 
 void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
-/* bridge support */
+/* if_bridge(4) support. XXX: should go into some include. */
 struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *); 
 int	(*bridge_output_p)(struct ifnet *, struct mbuf *, 
 		struct sockaddr *, struct rtentry *);
@@ -584,6 +584,9 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 * it gets processed as normal.  Note that bridge_input()
 	 * will always return the original packet if we need to
 	 * process it locally.
+	 * 
+	 * XXX: When changing the below block, please also look
+	 * at the src/sys/netgraph/ng_ether.c:ng_ether_rcv_upper()
 	 */
 	if (ifp->if_bridge) {
 		KASSERT(bridge_input_p != NULL,
