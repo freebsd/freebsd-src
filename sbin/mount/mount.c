@@ -121,9 +121,7 @@ remountable_fs_names[] = {
 };
 
 int
-main(argc, argv)
-	int argc;
-	char * const argv[];
+main(int argc, char *argv[])
 {
 	const char *mntfromname, **vfslist, *vfstype;
 	struct fstab *fs;
@@ -330,10 +328,7 @@ main(argc, argv)
 }
 
 int
-ismounted(fs, mntbuf, mntsize)
-	struct fstab *fs;
-	struct statfs *mntbuf;
-	int mntsize;
+ismounted(struct fstab *fs, struct statfs *mntbuf, int mntsize)
 {
 	int i;
 
@@ -350,8 +345,7 @@ ismounted(fs, mntbuf, mntsize)
 }
 
 int
-isremountable(vfsname)
-	const char *vfsname;
+isremountable(const char *vfsname)
 {
 	const char **cp;
 
@@ -362,8 +356,7 @@ isremountable(vfsname)
 }
 
 int
-hasopt(mntopts, option)
-	const char *mntopts, *option;
+hasopt(const char *mntopts, const char *option)
 {
 	int negative, found;
 	char *opt, *optbuf;
@@ -387,9 +380,8 @@ hasopt(mntopts, option)
 }
 
 int
-mountfs(vfstype, spec, name, flags, options, mntopts)
-	const char *vfstype, *spec, *name, *options, *mntopts;
-	int flags;
+mountfs(const char *vfstype, const char *spec, const char *name, int flags,
+	const char *options, const char *mntopts)
 {
 	const char *argv[100];
 	struct statfs sf;
@@ -505,8 +497,7 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 }
 
 void
-prmount(sfp)
-	struct statfs *sfp;
+prmount(struct statfs *sfp)
 {
 	int flags, i;
 	struct opt *o;
@@ -551,8 +542,7 @@ prmount(sfp)
 }
 
 struct statfs *
-getmntpt(name)
-	const char *name;
+getmntpt(const char *name)
 {
 	struct statfs *mntbuf;
 	int i, mntsize;
@@ -567,9 +557,7 @@ getmntpt(name)
 }
 
 char *
-catopt(s0, s1)
-	char *s0;
-	const char *s1;
+catopt(char *s0, const char *s1)
 {
 	size_t i;
 	char *cp;

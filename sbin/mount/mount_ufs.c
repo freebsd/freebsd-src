@@ -68,9 +68,7 @@ static struct mntopt mopts[] = {
 };
 
 int
-mount_ufs(argc, argv)
-	int argc;
-	char * const argv[];
+mount_ufs(int argc, char * const argv[])
 {
 	struct ufs_args args;
 	int ch, mntflags;
