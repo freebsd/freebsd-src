@@ -32,7 +32,7 @@
 .\"	@(#)gprof.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2004
+.Dd October 7, 2005
 .Dt GPROF 1
 .Os
 .Sh NAME
@@ -111,9 +111,19 @@ Second, a flat profile is given,
 similar to that provided by
 .Xr prof 1 .
 This listing gives the total execution times, the call counts,
-the time in msec or usec the call spent in the routine itself, and
-the time in msec or usec the call spent in the routine itself including
+the time that the call spent in the routine itself, and
+the time that the call spent in the routine itself including
 its descendants.
+The units for the per-call times are normally milliseconds,
+but they are nanoseconds if the profiling clock frequency
+is 10 million or larger,
+and if a function appears to be never called then its total self time
+is printed as a percentage in the self time per call column.
+The very high profiling clock frequencies needed to get sufficient
+accuracy in the per-call times for short-lived programs are only
+implemented for
+.Dq high resolution
+(non-statistical) kernel profiling.
 .Pp
 Finally, an index of the function names is provided.
 .Pp
