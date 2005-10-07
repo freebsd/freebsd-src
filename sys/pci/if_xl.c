@@ -101,6 +101,10 @@ __FBSDID("$FreeBSD$");
  * PCI-based NICs.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -249,7 +253,7 @@ static int xl_resume(device_t);
 #ifdef DEVICE_POLLING
 static void xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 static void xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count);
-#endif /* DEVICE_POLLING */
+#endif
 
 static int xl_ifmedia_upd(struct ifnet *);
 static void xl_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -1482,9 +1486,10 @@ xl_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_HWCSUM;
 #endif
 	}
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
-#endif /* DEVICE_POLLING */
+#endif
 	ifp->if_start = xl_start;
 	ifp->if_watchdog = xl_watchdog;
 	ifp->if_init = xl_init;
@@ -1492,7 +1497,6 @@ xl_attach(device_t dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, XL_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = XL_TX_LIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
 	 * Now we have to see what sort of media we have.
@@ -1685,6 +1689,11 @@ xl_detach(device_t dev)
 	ifp = sc->xl_ifp;
 
 	KASSERT(mtx_initialized(&sc->xl_mtx), ("xl mutex not initialized"));
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 
 	if (sc->xl_flags & XL_FLAG_USE_MMIO) {
 		rid = XL_PCI_LOMEM;
@@ -1955,12 +1964,12 @@ again:
 	    BUS_DMASYNC_POSTREAD);
 	while ((rxstat = le32toh(sc->xl_cdata.xl_rx_head->xl_ptr->xl_status))) {
 #ifdef DEVICE_POLLING
-		if (ifp->if_flags & IFF_POLLING) {
+		if (ifp->if_capenable & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
 		}
-#endif /* DEVICE_POLLING */
+#endif
 		cur_rx = sc->xl_cdata.xl_rx_head;
 		sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
 		total_len = rxstat & XL_RXSTAT_LENMASK;
@@ -2270,24 +2279,11 @@ xl_intr(void *arg)
 	XL_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING) {
+	if (ifp->if_capenable & IFCAP_POLLING) {
 		XL_UNLOCK(sc);
 		return;
 	}
-
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(xl_poll, ifp)) {
-		/* Disable interrupts. */
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|0xFF);
-		if (sc->xl_flags & XL_FLAG_FUNCREG)
-			bus_space_write_4(sc->xl_ftag, sc->xl_fhandle,
-			    4, 0x8000);
-		xl_poll_locked(ifp, 0, 1);
-		XL_UNLOCK(sc);
-		return;
-	}
-#endif /* DEVICE_POLLING */
+#endif
 
 	while ((status = CSR_READ_2(sc, XL_STATUS)) & XL_INTRS &&
 	    status != 0xFFFF) {
@@ -2346,7 +2342,8 @@ xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct xl_softc *sc = ifp->if_softc;
 
 	XL_LOCK(sc);
-	xl_poll_locked(ifp, cmd, count);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		xl_poll_locked(ifp, cmd, count);
 	XL_UNLOCK(sc);
 }
 
@@ -2356,21 +2353,6 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct xl_softc *sc = ifp->if_softc;
 
 	XL_LOCK_ASSERT(sc);
-
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-
-	if (cmd == POLL_DEREGISTER) {
-		/* Final call; enable interrupts. */
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|0xFF);
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|XL_INTRS);
-		if (sc->xl_flags & XL_FLAG_FUNCREG)
-			bus_space_write_4(sc->xl_ftag, sc->xl_fhandle,
-			    4, 0x8000);
-		return;
-	}
 
 	sc->rxcycles = count;
 	xl_rxeof(sc);
@@ -2984,10 +2966,10 @@ xl_init_locked(struct xl_softc *sc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STAT_ENB|XL_INTRS);
 #ifdef DEVICE_POLLING
 	/* Disable interrupts if we are polling. */
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_capenable & IFCAP_POLLING)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
 	else
-#endif /* DEVICE_POLLING */
+#endif
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|XL_INTRS);
 	if (sc->xl_flags & XL_FLAG_FUNCREG)
 	    bus_space_write_4(sc->xl_ftag, sc->xl_fhandle, 4, 0x8000);
@@ -3199,6 +3181,35 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
+#ifdef DEVICE_POLLING
+		if (ifr->ifr_reqcap & IFCAP_POLLING &&
+		    !(ifp->if_capenable & IFCAP_POLLING)) {
+			error = ether_poll_register(xl_poll, ifp);
+			if (error)
+				return(error);
+			XL_LOCK(sc);
+			/* Disable interrupts */
+			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
+			ifp->if_capenable |= IFCAP_POLLING;
+			XL_UNLOCK(sc);
+			return (error);
+			
+		}
+		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
+		    ifp->if_capenable & IFCAP_POLLING) {
+			error = ether_poll_deregister(ifp);
+			/* Enable interrupts. */
+			XL_LOCK(sc);
+			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|0xFF);
+			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|XL_INTRS);
+			if (sc->xl_flags & XL_FLAG_FUNCREG)
+				bus_space_write_4(sc->xl_ftag, sc->xl_fhandle,
+				    4, 0x8000);
+			ifp->if_capenable &= ~IFCAP_POLLING;
+			XL_UNLOCK(sc);
+			return (error);
+		}
+#endif /* DEVICE_POLLING */
 		XL_LOCK(sc);
 		ifp->if_capenable = ifr->ifr_reqcap;
 		if (ifp->if_capenable & IFCAP_TXCSUM)
@@ -3263,9 +3274,6 @@ xl_stop(struct xl_softc *sc)
 	XL_LOCK_ASSERT(sc);
 
 	ifp->if_timer = 0;
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif /* DEVICE_POLLING */
 
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_DISABLE);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);

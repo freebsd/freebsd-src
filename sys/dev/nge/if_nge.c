@@ -88,6 +88,10 @@ __FBSDID("$FreeBSD$");
  * if the user selects an MTU larger than 8152 (8170 - 18).
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -869,10 +873,10 @@ nge_attach(dev)
 	ifp->if_snd.ifq_maxlen = NGE_TX_LIST_CNT - 1;
 	ifp->if_hwassist = NGE_CSUM_FEATURES;
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING;
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
-	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
 	 * Do MII setup.
@@ -955,6 +959,10 @@ nge_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = sc->nge_ifp;
 
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 	NGE_LOCK(sc);
 	nge_reset(sc);
 	nge_stop(sc);
@@ -1123,12 +1131,12 @@ nge_rxeof(sc)
 		u_int32_t		extsts;
 
 #ifdef DEVICE_POLLING
-		if (ifp->if_flags & IFF_POLLING) {
+		if (ifp->if_capenable & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
 		}
-#endif /* DEVICE_POLLING */
+#endif
 
 		cur_rx = &sc->nge_ldata->nge_rx_list[i];
 		rxstat = cur_rx->nge_rxstat;
@@ -1373,12 +1381,7 @@ nge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct  nge_softc *sc = ifp->if_softc;
 
 	NGE_LOCK(sc);
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
-		CSR_WRITE_4(sc, NGE_IER, 1);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		NGE_UNLOCK(sc);
 		return;
 	}
@@ -1430,18 +1433,11 @@ nge_intr(arg)
 
 	NGE_LOCK(sc);
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING) {
+	if (ifp->if_capenable & IFCAP_POLLING) {
 		NGE_UNLOCK(sc);
 		return;
 	}
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(nge_poll, ifp)) { /* ok, disable interrupts */
-		CSR_WRITE_4(sc, NGE_IER, 0);
-		NGE_UNLOCK(sc);
-		nge_poll(ifp, 0, 1);
-		return;
-	}
-#endif /* DEVICE_POLLING */
+#endif
 
 	/* Supress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
@@ -1837,10 +1833,10 @@ nge_init_locked(sc)
 	 * ... only enable interrupts if we are not polling, make sure
 	 * they are off otherwise.
 	 */
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_capenable & IFCAP_POLLING)
 		CSR_WRITE_4(sc, NGE_IER, 0);
 	else
-#endif /* DEVICE_POLLING */
+#endif
 	CSR_WRITE_4(sc, NGE_IER, 1);
 
 	/* Enable receiver and transmitter. */
@@ -2044,8 +2040,31 @@ nge_ioctl(ifp, command, data)
 		}
 		break;
 	case SIOCSIFCAP:
-		ifp->if_capenable &= ~IFCAP_POLLING;
-		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
+#ifdef DEVICE_POLLING
+		if (ifr->ifr_reqcap & IFCAP_POLLING &&
+		    !(ifp->if_capenable & IFCAP_POLLING)) {
+			error = ether_poll_register(nge_poll, ifp);
+			if (error)
+				return(error);
+			NGE_LOCK(sc);
+			/* Disable interrupts */
+			CSR_WRITE_4(sc, NGE_IER, 0);
+			ifp->if_capenable |= IFCAP_POLLING;
+			NGE_UNLOCK(sc);
+			return (error);
+			
+		}
+		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
+		    ifp->if_capenable & IFCAP_POLLING) {
+			error = ether_poll_deregister(ifp);
+			/* Enable interrupts. */
+			NGE_LOCK(sc);
+			CSR_WRITE_4(sc, NGE_IER, 1);
+			ifp->if_capenable &= ~IFCAP_POLLING;
+			NGE_UNLOCK(sc);
+			return (error);
+		}
+#endif /* DEVICE_POLLING */
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2102,9 +2121,6 @@ nge_stop(sc)
 	}
 
 	callout_stop(&sc->nge_stat_ch);
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif
 	CSR_WRITE_4(sc, NGE_IER, 0);
 	CSR_WRITE_4(sc, NGE_IMR, 0);
 	NGE_SETBIT(sc, NGE_CSR, NGE_CSR_TX_DISABLE|NGE_CSR_RX_DISABLE);

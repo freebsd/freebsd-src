@@ -83,6 +83,10 @@ __FBSDID("$FreeBSD$");
  * to select which interface to use depending on the chip type.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
@@ -195,10 +199,8 @@ static int rl_miibus_readreg(device_t, int, int);
 static void rl_miibus_statchg(device_t);
 static int rl_miibus_writereg(device_t, int, int, int);
 #ifdef DEVICE_POLLING
-static void rl_poll(struct ifnet *ifp, enum poll_cmd cmd,
-				 int count);
-static void rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd,
-				 int count);
+static void rl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static void rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
 static int rl_probe(device_t);
 static void rl_read_eeprom(struct rl_softc *, uint8_t *, int, int, int);
@@ -956,10 +958,10 @@ rl_attach(device_t dev)
 	ifp->if_init = rl_init;
 	ifp->if_baudrate = 10000000;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
-	ifp->if_capenable = ifp->if_capabilities;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
@@ -1001,7 +1003,10 @@ rl_detach(device_t dev)
 	ifp = sc->rl_ifp;
 
 	KASSERT(mtx_initialized(&sc->rl_mtx), ("rl mutex not initialized"));
-
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		RL_LOCK(sc);
@@ -1115,12 +1120,12 @@ rl_rxeof(struct rl_softc *sc)
 
 	while((CSR_READ_1(sc, RL_COMMAND) & RL_CMD_EMPTY_RXBUF) == 0) {
 #ifdef DEVICE_POLLING
-		if (ifp->if_flags & IFF_POLLING) {
+		if (ifp->if_capenable & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
 		}
-#endif /* DEVICE_POLLING */
+#endif
 		rxbufpos = sc->rl_cdata.rl_rx_buf + cur_rx;
 		rxstat = le32toh(*(uint32_t *)rxbufpos);
 
@@ -1283,7 +1288,8 @@ rl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct rl_softc *sc = ifp->if_softc;
 
 	RL_LOCK(sc);
-	rl_poll_locked(ifp, cmd, count);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		rl_poll_locked(ifp, cmd, count);
 	RL_UNLOCK(sc);
 }
 
@@ -1293,17 +1299,6 @@ rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct rl_softc *sc = ifp->if_softc;
 
 	RL_LOCK_ASSERT(sc);
-
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-
-	if (cmd == POLL_DEREGISTER) {
-		/* Final call; enable interrupts. */
-		CSR_WRITE_2(sc, RL_IMR, RL_INTRS);
-		return;
-	}
 
 	sc->rxcycles = count;
 	rl_rxeof(sc);
@@ -1345,17 +1340,9 @@ rl_intr(void *arg)
 		goto done_locked;
 
 #ifdef DEVICE_POLLING
-	if  (ifp->if_flags & IFF_POLLING)
+	if  (ifp->if_capenable & IFCAP_POLLING)
 		goto done_locked;
-
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(rl_poll, ifp)) {
-		/* Disable interrupts. */
-		CSR_WRITE_2(sc, RL_IMR, 0x0000);
-		rl_poll_locked(ifp, 0, 1);
-		goto done_locked;
-	}
-#endif /* DEVICE_POLLING */
+#endif
 
 	for (;;) {
 		status = CSR_READ_2(sc, RL_ISR);
@@ -1574,10 +1561,10 @@ rl_init_locked(struct rl_softc *sc)
 
 #ifdef DEVICE_POLLING
 	/* Disable interrupts if we are polling. */
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_capenable & IFCAP_POLLING)
 		CSR_WRITE_2(sc, RL_IMR, 0);
 	else
-#endif /* DEVICE_POLLING */
+#endif
 	/* Enable interrupts. */
 	CSR_WRITE_2(sc, RL_IMR, RL_INTRS);
 
@@ -1669,8 +1656,31 @@ rl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		ifp->if_capenable &= ~IFCAP_POLLING;
-		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
+#ifdef DEVICE_POLLING
+		if (ifr->ifr_reqcap & IFCAP_POLLING &&
+		    !(ifp->if_capenable & IFCAP_POLLING)) {
+			error = ether_poll_register(rl_poll, ifp);
+			if (error)
+				return(error);
+			RL_LOCK(sc);
+			/* Disable interrupts */
+			CSR_WRITE_2(sc, RL_IMR, 0x0000);
+			ifp->if_capenable |= IFCAP_POLLING;
+			RL_UNLOCK(sc);
+			return (error);
+			
+		}
+		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
+		    ifp->if_capenable & IFCAP_POLLING) {
+			error = ether_poll_deregister(ifp);
+			/* Enable interrupts. */
+			RL_LOCK(sc);
+			CSR_WRITE_2(sc, RL_IMR, RL_INTRS);
+			ifp->if_capenable &= ~IFCAP_POLLING;
+			RL_UNLOCK(sc);
+			return (error);
+		}
+#endif /* DEVICE_POLLING */
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -1712,9 +1722,6 @@ rl_stop(struct rl_softc *sc)
 	ifp->if_timer = 0;
 	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif /* DEVICE_POLLING */
 
 	CSR_WRITE_1(sc, RL_COMMAND, 0x00);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
