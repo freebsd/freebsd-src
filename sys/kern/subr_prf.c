@@ -505,7 +505,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	int cflag, hflag, jflag, tflag, zflag;
 	int dwidth;
 	char padc;
-	int retval = 0;
+	int stop = 0, retval = 0;
 
 	num = 0;
 	if (!func)
@@ -522,7 +522,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	for (;;) {
 		padc = ' ';
 		width = 0;
-		while ((ch = (u_char)*fmt++) != '%') {
+		while ((ch = (u_char)*fmt++) != '%' || stop) {
 			if (ch == '\0')
 				return (retval);
 			PCHAR(ch);
@@ -789,6 +789,13 @@ number:
 		default:
 			while (percent < fmt)
 				PCHAR(*percent++);
+			/*
+			 * Since we ignore an formatting argument it is no 
+			 * longer safe to obey the remaining formatting
+			 * arguments as the arguments will no longer match
+			 * the format specs.
+			 */
+			stop = 1;
 			break;
 		}
 	}
