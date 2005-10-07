@@ -305,22 +305,44 @@ _listmatch(const char *list, const char *group, int len)
 }
 
 static int
-_buildkey(char *key, const char *str, const char *dom, int *rotation)
+_revnetgr_lookup(char* lookupdom, char* map, const char* str,
+		 const char* dom, const char* group)
 {
-	(*rotation)++;
-	if (*rotation > 4)
-		return(0);
-	switch(*rotation) {
-		case(1): sprintf((char *)key, "%s.%s", str, dom ? dom : "*");
-			 break;
-		case(2): sprintf((char *)key, "%s.*", str);
-			 break;
-		case(3): sprintf((char *)key, "*.%s", dom ? dom : "*");
-			 break;
-		case(4): sprintf((char *)key, "*.*");
-			 break;
+	int y, rv, rot;
+	char key[MAXHOSTNAMELEN];
+	char *result;
+	int resultlen;
+
+	for (rot = 0; ; rot++) {
+		switch (rot) {
+			case(0): snprintf(key, MAXHOSTNAMELEN, "%s.%s",
+					  str, dom?dom:lookupdom);
+				 break;
+			case(1): snprintf(key, MAXHOSTNAMELEN, "%s.*",
+					  str);
+				 break;
+			case(2): snprintf(key, MAXHOSTNAMELEN, "*.%s",
+					  dom?dom:lookupdom);
+				 break;
+			case(3): snprintf(key, MAXHOSTNAMELEN, "*.*");
+				 break;
+			default: return(0);
+		}
+		y = yp_match(lookupdom, map, key, strlen(key), &result,
+			     &resultlen);
+		if (y == 0) {
+			rv = _listmatch(result, group, resultlen);
+			free(result);
+			if (rv) return(1);
+		} else if (y != YPERR_KEY) {
+			/*
+			 * If we get an error other than 'no
+			 * such key in map' then something is
+			 * wrong and we should stop the search.
+			 */
+			return(-1);
+		}
 	}
-	return(1);
 }
 #endif
 
@@ -331,11 +353,6 @@ int
 innetgr(const char *group, const char *host, const char *user, const char *dom)
 {
 	char *hst, *usr, *dm;
-#ifdef YP
-	char *result;
-	int resultlen;
-	int rv;
-#endif
 	/* Sanity check */
 	
 	if (group == NULL || !strlen(group))
@@ -350,44 +367,36 @@ innetgr(const char *group, const char *host, const char *user, const char *dom)
 	/*
 	 * If we're in NIS-only mode, do the search using
 	 * NIS 'reverse netgroup' lookups.
+	 * 
+	 * What happens with 'reverse netgroup' lookups:
+	 * 
+	 * 1) try 'reverse netgroup' lookup
+	 *    1.a) if host is specified and user is null:
+	 *         look in netgroup.byhost
+	 *         (try host.domain, host.*, *.domain or *.*)
+	 *         if found, return yes
+	 *    1.b) if user is specified and host is null:
+	 *         look in netgroup.byuser
+	 *         (try host.domain, host.*, *.domain or *.*)
+	 *         if found, return yes
+	 *    1.c) if both host and user are specified,
+	 *         don't do 'reverse netgroup' lookup.  It won't work.
+	 *    1.d) if neither host ane user are specified (why?!?)
+	 *         don't do 'reverse netgroup' lookup either.
+	 * 2) if domain is specified and 'reverse lookup' is done:
+	 *    'reverse lookup' was authoritative.  bye bye.
+	 * 3) otherwise, too bad, try it the slow way.
 	 */
-	if (_use_only_yp) {
-		char _key[MAXHOSTNAMELEN];
-		int rot = 0, y = 0;
-
+	if (_use_only_yp && (host == NULL) != (user == NULL)) {
+		int ret;
 		if(yp_get_default_domain(&_netgr_yp_domain))
 			return(0);
-		while(_buildkey(_key, user ? user : host, dom, &rot)) {
-			y = yp_match(_netgr_yp_domain, user? "netgroup.byuser":
-			    "netgroup.byhost", _key, strlen(_key), &result,
-			    	&resultlen);
-			if (y) {
-				/*
-				 * If we get an error other than 'no
-				 * such key in map' then something is
-				 * wrong and we should stop the search.
-				 */
-				if (y != YPERR_KEY)
-					break;
-			} else {
-				rv = _listmatch(result, group, resultlen);
-				free(result);
-				if (rv)
-					return(1);
-				else
-					return(0);
-			}
-		}
-		/*
-		 * Couldn't match using NIS-exclusive mode. If the error
-	 	 * was YPERR_MAP, then the failure happened because there
-	 	 * was no netgroup.byhost or netgroup.byuser map. The odds
-		 * are we are talking to a Sun NIS+ server in YP emulation
-		 * mode; if this is the case, then we have to do the check
-		 * the 'old-fashioned' way by grovelling through the netgroup
-		 * map and resolving memberships on the fly.
-		 */
-		if (y != YPERR_MAP)
+		ret = _revnetgr_lookup(_netgr_yp_domain, 
+				      host?"netgroup.byhost":"netgroup.byuser",
+				      host?host:user, dom, group);
+		if (ret == 1)
+			return(1);
+		else if (ret == 0 && dom != NULL)
 			return(0);
 	}
 
