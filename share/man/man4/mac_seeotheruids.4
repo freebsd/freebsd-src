@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2002
+.Dd October 06, 2005
 .Os
 .Dt MAC_SEEOTHERUIDS 4
 .Sh NAME
@@ -66,6 +66,10 @@ To enable
 .Nm ,
 set the sysctl OID
 .Va security.mac.seeotheruids.enabled
+to 1.
+To permit superuser awareness of other credentials by virtue of privilege,
+set the sysctl OID
+.Va security.mac.seeotheruids.suser_privileged
 to 1.
 .Pp
 To allow users to see processes and sockets owned by the same primary group,
