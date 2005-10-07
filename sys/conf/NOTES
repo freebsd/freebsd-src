@@ -1931,7 +1931,8 @@ device		sound
 # snd_ds1:		Yamaha DS-1 PCI.
 # snd_emu10k1:		Creative EMU10K1 PCI and EMU10K2 (Audigy) PCI.
 # snd_es137x:		Ensoniq AudioPCI ES137x PCI.
-# snd_ess:		Ensoniq ESS ISA PnP/non-PnP.
+# snd_ess:		Ensoniq ESS ISA PnP/non-PnP, to be used in
+#			conjunction with snd_sbc.
 # snd_fm801:		Forte Media FM801 PCI.
 # snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
 # snd_ich:		Intel ICH PCI and some more audio controllers
