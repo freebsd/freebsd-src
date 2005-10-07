@@ -55,94 +55,74 @@ static volatile sig_atomic_t timed_out;
 int
 main(int argc, char **argv)
 {
-    int ch;
-    int silent;
-    int status;
-    int waitsec;
-    pid_t child;
+	int ch, silent, status, waitsec;
+	pid_t child;
 
-    silent = 0;
-    keep = 0;
-    waitsec = -1;	/* Infinite. */
-    while ((ch = getopt(argc, argv, "skt:")) != -1) {
-	switch (ch) {
-
-	case 'k':
-	    keep = 1;
-	    break;
-
-	case 's':
-	    silent = 1;
-	    break;
-
-	case 't':
-	    {
-		char *endptr;
-		waitsec = strtol(optarg, &endptr, 0);
-		if (*optarg == '\0' || *endptr != '\0' || waitsec < 0)
-		    errx(EX_USAGE, "invalid timeout \"%s\"", optarg);
-	    }
-	    break;
-
-	default:
-	    usage();
+	silent = keep = 0;
+	waitsec = -1;	/* Infinite. */
+	while ((ch = getopt(argc, argv, "skt:")) != -1) {
+		switch (ch) {
+		case 'k':
+			keep = 1;
+			break;
+		case 's':
+			silent = 1;
+			break;
+		case 't':
+		{
+			char *endptr;
+			waitsec = strtol(optarg, &endptr, 0);
+			if (*optarg == '\0' || *endptr != '\0' || waitsec < 0)
+				errx(EX_USAGE,
+				    "invalid timeout \"%s\"", optarg);
+		}
+			break;
+		default:
+			usage();
+		}
 	}
-    }
-    if (argc - optind < 2)
-	usage();
-    lockname = argv[optind++];
-    argc -= optind;
-    argv += optind;
+	if (argc - optind < 2)
+		usage();
+	lockname = argv[optind++];
+	argc -= optind;
+	argv += optind;
+	if (waitsec > 0) {		/* Set up a timeout. */
+		struct sigaction act;
 
-    if (waitsec > 0) {		/* Set up a timeout. */
-	struct sigaction act;
-
-	act.sa_handler = timeout;
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;	/* Note that we do not set SA_RESTART. */
-
-	sigaction(SIGALRM, &act, NULL);
-	alarm(waitsec);
-    }
-
-    lockfd = wait_for_lock(lockname, O_NONBLOCK);
-    while (lockfd == -1 && !timed_out && waitsec != 0)
-	lockfd = wait_for_lock(lockname, 0);
-
-    if (waitsec > 0)
-	alarm(0);
-
-    if (lockfd == -1) {		/* We failed to acquire the lock. */
-	if (silent)
-	    exit(EX_TEMPFAIL);
-	errx(EX_TEMPFAIL, "%s: already locked", lockname);
-    }
-
-    /* At this point, we own the lock. */
-
-    if (atexit(cleanup) == -1)
-	err(EX_OSERR, "atexit failed");
-
-    if ((child = fork()) == -1)
-	err(EX_OSERR, "cannot fork");
-
-    if (child == 0) {	/* The child process. */
-	close(lockfd);
-	execvp(argv[0], argv);
-	warn("%s", argv[0]);
-	_exit(1);
-    }
-
-    /* This is the parent process. */
-
-    signal(SIGINT, SIG_IGN);
-    signal(SIGQUIT, SIG_IGN);
-    signal(SIGTERM, killed);
-
-    if (waitpid(child, &status, 0) == -1)
-	err(EX_OSERR, "waitpid failed");
-
-    return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+		act.sa_handler = timeout;
+		sigemptyset(&act.sa_mask);
+		act.sa_flags = 0;	/* Note that we do not set SA_RESTART. */
+		sigaction(SIGALRM, &act, NULL);
+		alarm(waitsec);
+	}
+	lockfd = wait_for_lock(lockname, O_NONBLOCK);
+	while (lockfd == -1 && !timed_out && waitsec != 0)
+		lockfd = wait_for_lock(lockname, 0);
+	if (waitsec > 0)
+		alarm(0);
+	if (lockfd == -1) {		/* We failed to acquire the lock. */
+		if (silent)
+			exit(EX_TEMPFAIL);
+		errx(EX_TEMPFAIL, "%s: already locked", lockname);
+	}
+	/* At this point, we own the lock. */
+	if (atexit(cleanup) == -1)
+		err(EX_OSERR, "atexit failed");
+	if ((child = fork()) == -1)
+		err(EX_OSERR, "cannot fork");
+	if (child == 0) {	/* The child process. */
+		close(lockfd);
+		execvp(argv[0], argv);
+		warn("%s", argv[0]);
+		_exit(1);
+	}
+	/* This is the parent process. */
+	signal(SIGINT, SIG_IGN);
+	signal(SIGQUIT, SIG_IGN);
+	signal(SIGTERM, killed);
+	if (waitpid(child, &status, 0) == -1)
+		err(EX_OSERR, "waitpid failed");
+	return (WIFEXITED(status) ? WEXITSTATUS(status) : 1);
 }
 
 /*
@@ -196,7 +176,7 @@ wait_for_lock(const char *name, int flags)
     int fd;
 
     if ((fd = open(name, O_CREAT|O_RDONLY|O_EXLOCK|flags, 0666)) == -1) {
-	if (errno == ENOENT || errno == EINTR || errno == EAGAIN)
+	if (errno == EINTR || errno == EAGAIN)
 	    return (-1);
 	err(EX_CANTCREAT, "cannot open %s", name);
     }
