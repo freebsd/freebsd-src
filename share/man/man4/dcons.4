@@ -24,19 +24,32 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2003
+.Dd October 7, 2005
 .Dt DCONS 4
 .Os
 .Sh NAME
 .Nm dcons
 .Nd dumb console device driver
 .Sh SYNOPSIS
-.Cd device dcons
+To compile support for the driver into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options GDB"
+.Cd "device firewire"
+.Cd "device dcons"
+.Ed
 .Pp
-.Cd options DDB
-.Cd options ALT_BREAK_TO_DEBUGGER
+Alternatively, to load the driver at boot time,
+place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options GDB"
+.Ed
 .Pp
-.Cd device firewire
+and in
+.Xr loader.conf 5 :
+.Bd -ragged -offset indent
+dcons_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
