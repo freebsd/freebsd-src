@@ -29,6 +29,8 @@ hcomp		Compress header files by removing comments and whitespace.
 html-mv         Rename HTML generated filenames to human readable filenames.
 ifinfo		Uses the interface MIB to print out all the information
 		an interface exports in an ugly form.
+iwi		Tools specific to the Intel PRO/Wireless 2200BG/2225BG/2915ABG
+		support.
 kdrv		KernelDriver; add/list/remove third-party kernel driver
 		source to/in/from a kernel source tree.
 kernelcruft	Shellscript to find orphaned *.c files in /sys
