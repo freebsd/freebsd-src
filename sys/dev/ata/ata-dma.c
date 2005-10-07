@@ -77,8 +77,9 @@ ata_dmainit(device_t dev)
 	ch->dma->load = ata_dmaload;
 	ch->dma->unload = ata_dmaunload;
 	ch->dma->alignment = 2;
-	ch->dma->max_iosize = 128 * DEV_BSIZE;
 	ch->dma->boundary = 128 * DEV_BSIZE;
+	ch->dma->segsize = 128 * DEV_BSIZE;
+	ch->dma->max_iosize = 128 * DEV_BSIZE;
     }
 }
 
@@ -99,8 +100,8 @@ ata_dmaalloc(device_t dev)
 
     if (bus_dma_tag_create(NULL, ch->dma->alignment, 0,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			   NULL, NULL, 256 * DEV_BSIZE,
-			   ATA_DMA_ENTRIES, ch->dma->max_iosize,
+			   NULL, NULL, ch->dma->max_iosize,
+			   ATA_DMA_ENTRIES, ch->dma->segsize,
 			   0, NULL, NULL, &ch->dma->dmatag))
 	goto error;
 
@@ -112,8 +113,8 @@ ata_dmaalloc(device_t dev)
 
     if (bus_dma_tag_create(ch->dma->dmatag,ch->dma->alignment,ch->dma->boundary,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			   NULL, NULL, 256 * DEV_BSIZE,
-			   ATA_DMA_ENTRIES, ch->dma->max_iosize,
+			   NULL, NULL, ch->dma->max_iosize,
+			   ATA_DMA_ENTRIES, ch->dma->segsize,
 			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->data_tag))
 	goto error;
 
