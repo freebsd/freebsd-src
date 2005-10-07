@@ -111,7 +111,7 @@ do_bridgeflag(int sock, const char *ifs, int flag, int set)
 }
 
 static void
-bridge_interfaces(int s, const char *prefix, int flags)
+bridge_interfaces(int s, const char *prefix)
 {
 	static const char *stpstates[] = {
 		"disabled",
@@ -123,7 +123,17 @@ bridge_interfaces(int s, const char *prefix, int flags)
 	struct ifbifconf bifc;
 	struct ifbreq *req;
 	char *inbuf = NULL, *ninbuf;
+	char *p, *pad;
 	int i, len = 8192;
+
+	pad = strdup(prefix);
+	if (pad == NULL)
+		err(1, "strdup");
+	/* replace the prefix with whitespace */
+	for (p = pad; *p != '\0'; p++) {
+		if(isprint(*p))
+			*p = ' ';
+	}
 
 	for (;;) {
 		ninbuf = realloc(inbuf, len);
@@ -144,12 +154,10 @@ bridge_interfaces(int s, const char *prefix, int flags)
 		printb("flags", req->ifbr_ifsflags, IFBIFBITS);
 		printf("\n");
 		
-		if (!flags) continue;
-		
-		printf("%s\t", prefix);
-		printf("port %u priority %u",
-		    req->ifbr_portno, req->ifbr_priority);
 		if (req->ifbr_ifsflags & IFBIF_STP) {
+			printf("%s", pad);
+			printf("port %u priority %u",
+			    req->ifbr_portno, req->ifbr_priority);
 			printf(" path cost %u", req->ifbr_path_cost);
 			if (req->ifbr_state <
 			    sizeof(stpstates) / sizeof(stpstates[0]))
@@ -157,8 +165,8 @@ bridge_interfaces(int s, const char *prefix, int flags)
 			else
 				printf(" <unknown state %d>",
 				    req->ifbr_state);
+			printf("\n");
 		}
-		printf("\n");
 	}
 
 	free(inbuf);
@@ -225,7 +233,7 @@ bridge_status(int s)
 	printf("\tpriority %u hellotime %u fwddelay %u maxage %u\n",
 	    pri, ht, fd, ma);
 
-	bridge_interfaces(s, "\tmember: ", 0);
+	bridge_interfaces(s, "\tmember: ");
 
 	return;
 
