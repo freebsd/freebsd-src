@@ -215,7 +215,6 @@ udf_mount(struct mount *mp, struct thread *td)
 		return (EINVAL);
 
 	if (mp->mnt_flag & MNT_UPDATE) {
-		imp = VFSTOUDFFS(mp);
 		if (fspec == NULL) {
 			error = vfs_getopt(opts, "export", (void **)&export,
 			    &len);
