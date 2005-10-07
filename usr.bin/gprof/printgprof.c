@@ -130,7 +130,8 @@ flatprofline( np )
     register nltype	*np;
 {
 
-    if ( zflag == 0 && np -> ncall == 0 && np -> time == 0 ) {
+    if ( zflag == 0 && np -> ncall == 0 && np -> time == 0 &&
+	 np -> childtime == 0 ) {
 	return;
     }
     actime += np -> time;
@@ -153,6 +154,9 @@ flatprofline( np )
 	    printf( " %8ld %8.2f %8.2f  " , np -> ncall ,
 		1000 * np -> time / hz / np -> ncall ,
 		1000 * ( np -> time + np -> childtime ) / hz / np -> ncall );
+    } else if ( np -> time != 0 || np -> childtime != 0 ) {
+	printf( " %8ld %7.2f%% %8.8s  " , np -> ncall ,
+	    100 * np -> time / ( np -> time + np -> childtime ) , "" );
     } else {
 	printf( " %8.8s %8.8s %8.8s  " , "" , "" , "" );
     }
