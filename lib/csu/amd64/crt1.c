@@ -86,15 +86,10 @@ _start(char **ap, void (*cleanup)(void))
 	atexit(_fini);
 #ifdef GCRT
 	monstartup(&eprol, &etext);
+__asm__("eprol:");
 #endif
 	_init();
 	exit( main(argc, argv, env) );
 }
-
-#ifdef GCRT
-__asm__(".text");
-__asm__("eprol:");
-__asm__(".previous");
-#endif
 
 __asm__(".ident\t\"$FreeBSD$\"");
