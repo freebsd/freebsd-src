@@ -146,11 +146,6 @@ SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 extern char *syscallnames[];
 #endif
 
-#ifdef DEVICE_POLLING
-extern u_int32_t poll_in_trap;
-extern int ether_poll(int count);
-#endif /* DEVICE_POLLING */
-
 /*
  * Exception, fault, and trap interface to the FreeBSD kernel.
  * This common code is called from assembly language IDT gate entry
@@ -240,11 +235,6 @@ trap(frame)
 		if (td->td_critnest != 0)
 			trap_fatal(&frame, frame.tf_addr);
 	}
-
-#ifdef	DEVICE_POLLING
-	if (poll_in_trap)
-		ether_poll(poll_in_trap);
-#endif	/* DEVICE_POLLING */
 
         if (ISPL(frame.tf_cs) == SEL_UPL) {
 		/* user trap */

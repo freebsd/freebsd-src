@@ -28,11 +28,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_device_polling.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>			/* needed by net/if.h		*/
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>			/* for IFF_* flags		*/
 #include <net/netisr.h>			/* for NETISR_POLL		*/
@@ -43,14 +47,17 @@ __FBSDID("$FreeBSD$");
 
 static void netisr_poll(void);		/* the two netisr handlers      */
 static void netisr_pollmore(void);
+static int poll_switch(SYSCTL_HANDLER_ARGS);
 
 void hardclock_device_poll(void);	/* hook from hardclock		*/
-void ether_poll(int);			/* polling while in trap	*/
+void ether_poll(int);			/* polling in idle loop		*/
+
+static struct mtx	poll_mtx;
 
 /*
  * Polling support for [network] device drivers.
  *
- * Drivers which support this feature try to register with the
+ * Drivers which support this feature can register with the
  * polling code.
  *
  * If registration is successful, the driver must disable interrupts,
@@ -63,10 +70,6 @@ void ether_poll(int);			/* polling while in trap	*/
  *  POLL_AND_CHECK_STATUS: as above, plus check status registers or do
  *	other more expensive operations. This command is issued periodically
  *	but less frequently than POLL_ONLY.
- *  POLL_DEREGISTER: deregister and return to interrupt mode.
- *
- * The first two commands are only issued if the interface is marked as
- * 'IFF_UP and IFF_DRV_RUNNING', the last one only if IFF_DRV_RUNNING is set.
  *
  * The count limit specifies how much work the handler can do during the
  * call -- typically this is the number of packets to be received, or
@@ -74,11 +77,9 @@ void ether_poll(int);			/* polling while in trap	*/
  * as the max time spent in the function grows roughly linearly with the
  * count).
  *
- * Deregistration can be requested by the driver itself (typically in the
- * *_stop() routine), or by the polling code, by invoking the handler.
- *
- * Polling can be globally enabled or disabled with the sysctl variable
- * kern.polling.enable (default is 0, disabled)
+ * Polling is enabled and disabled via setting IFCAP_POLLING flag on
+ * the interface. The driver ioctl handler should register interface
+ * with polling and disable interrupts, if registration was successful.
  *
  * A second variable controls the sharing of CPU between polling/kernel
  * network processing, and other activities (typically userlevel tasks):
@@ -90,81 +91,160 @@ void ether_poll(int);			/* polling while in trap	*/
  * The following constraints hold
  *
  *	1 <= poll_each_burst <= poll_burst <= poll_burst_max
- *	0 <= poll_in_trap <= poll_each_burst
+ *	0 <= poll_each_burst
  *	MIN_POLL_BURST_MAX <= poll_burst_max <= MAX_POLL_BURST_MAX
  */
 
 #define MIN_POLL_BURST_MAX	10
 #define MAX_POLL_BURST_MAX	1000
 
+static uint32_t poll_burst = 5;
+static uint32_t poll_burst_max = 150;	/* good for 100Mbit net and HZ=1000 */
+static uint32_t poll_each_burst = 5;
+
 SYSCTL_NODE(_kern, OID_AUTO, polling, CTLFLAG_RW, 0,
 	"Device polling parameters");
 
-static u_int32_t poll_burst = 5;
-SYSCTL_UINT(_kern_polling, OID_AUTO, burst, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, burst, CTLFLAG_RD,
 	&poll_burst, 0, "Current polling burst size");
 
-static u_int32_t poll_each_burst = 5;
-SYSCTL_UINT(_kern_polling, OID_AUTO, each_burst, CTLFLAG_RW,
-	&poll_each_burst, 0, "Max size of each burst");
+static int poll_burst_max_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val = poll_burst_max;
+	int error;
 
-static u_int32_t poll_burst_max = 150;	/* good for 100Mbit net and HZ=1000 */
-SYSCTL_UINT(_kern_polling, OID_AUTO, burst_max, CTLFLAG_RW,
-	&poll_burst_max, 0, "Max Polling burst size");
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error || !req->newptr )
+		return (error);
+	if (val < MIN_POLL_BURST_MAX || val > MAX_POLL_BURST_MAX)
+		return (EINVAL);
 
-static u_int32_t poll_in_idle_loop=0;	/* do we poll in idle loop ? */
+	mtx_lock(&poll_mtx);
+	poll_burst_max = val;
+	if (poll_burst > poll_burst_max)
+		poll_burst = poll_burst_max;
+	if (poll_each_burst > poll_burst_max)
+		poll_each_burst = MIN_POLL_BURST_MAX;
+	mtx_unlock(&poll_mtx);
+
+	return (0);
+}
+SYSCTL_PROC(_kern_polling, OID_AUTO, burst_max, CTLTYPE_UINT | CTLFLAG_RW,
+	0, sizeof(uint32_t), poll_burst_max_sysctl, "I", "Max Polling burst size");
+
+static int poll_each_burst_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val = poll_each_burst;
+	int error;
+
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error || !req->newptr )
+		return (error);
+	if (val < 1)
+		return (EINVAL);
+
+	mtx_lock(&poll_mtx);
+	if (val > poll_burst_max) {
+		mtx_unlock(&poll_mtx);
+		return (EINVAL);
+	}
+	poll_each_burst = val;
+	mtx_unlock(&poll_mtx);
+
+	return (0);
+}
+SYSCTL_PROC(_kern_polling, OID_AUTO, each_burst, CTLTYPE_UINT | CTLFLAG_RW,
+	0, sizeof(uint32_t), poll_each_burst_sysctl, "I",
+	"Max size of each burst");
+
+static uint32_t poll_in_idle_loop=0;	/* do we poll in idle loop ? */
 SYSCTL_UINT(_kern_polling, OID_AUTO, idle_poll, CTLFLAG_RW,
 	&poll_in_idle_loop, 0, "Enable device polling in idle loop");
 
-u_int32_t poll_in_trap;			/* used in trap.c */
-SYSCTL_UINT(_kern_polling, OID_AUTO, poll_in_trap, CTLFLAG_RW,
-	&poll_in_trap, 0, "Poll burst size during a trap");
+static uint32_t user_frac = 50;
+static int user_frac_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val = user_frac;
+	int error;
 
-static u_int32_t user_frac = 50;
-SYSCTL_UINT(_kern_polling, OID_AUTO, user_frac, CTLFLAG_RW,
-	&user_frac, 0, "Desired user fraction of cpu time");
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error || !req->newptr )
+		return (error);
+	if (val < 0 || val > 99)
+		return (EINVAL);
 
-static u_int32_t reg_frac = 20 ;
-SYSCTL_UINT(_kern_polling, OID_AUTO, reg_frac, CTLFLAG_RW,
-	&reg_frac, 0, "Every this many cycles poll register");
+	mtx_lock(&poll_mtx);
+	user_frac = val;
+	mtx_unlock(&poll_mtx);
 
-static u_int32_t short_ticks;
-SYSCTL_UINT(_kern_polling, OID_AUTO, short_ticks, CTLFLAG_RW,
+	return (0);
+}
+SYSCTL_PROC(_kern_polling, OID_AUTO, user_frac, CTLTYPE_UINT | CTLFLAG_RW,
+	0, sizeof(uint32_t), user_frac_sysctl, "I",
+	"Desired user fraction of cpu time");
+
+static uint32_t reg_frac_count = 0;
+static uint32_t reg_frac = 20 ;
+static int reg_frac_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val = reg_frac;
+	int error;
+
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error || !req->newptr )
+		return (error);
+	if (val < 1 || val > hz)
+		return (EINVAL);
+
+	mtx_lock(&poll_mtx);
+	reg_frac = val;
+	if (reg_frac_count >= reg_frac)
+		reg_frac_count = 0;
+	mtx_unlock(&poll_mtx);
+
+	return (0);
+}
+SYSCTL_PROC(_kern_polling, OID_AUTO, reg_frac, CTLTYPE_UINT | CTLFLAG_RW,
+	0, sizeof(uint32_t), reg_frac_sysctl, "I",
+	"Every this many cycles check registers");
+
+static uint32_t short_ticks;
+SYSCTL_UINT(_kern_polling, OID_AUTO, short_ticks, CTLFLAG_RD,
 	&short_ticks, 0, "Hardclock ticks shorter than they should be");
 
-static u_int32_t lost_polls;
-SYSCTL_UINT(_kern_polling, OID_AUTO, lost_polls, CTLFLAG_RW,
+static uint32_t lost_polls;
+SYSCTL_UINT(_kern_polling, OID_AUTO, lost_polls, CTLFLAG_RD,
 	&lost_polls, 0, "How many times we would have lost a poll tick");
 
-static u_int32_t pending_polls;
-SYSCTL_UINT(_kern_polling, OID_AUTO, pending_polls, CTLFLAG_RW,
+static uint32_t pending_polls;
+SYSCTL_UINT(_kern_polling, OID_AUTO, pending_polls, CTLFLAG_RD,
 	&pending_polls, 0, "Do we need to poll again");
 
 static int residual_burst = 0;
-SYSCTL_INT(_kern_polling, OID_AUTO, residual_burst, CTLFLAG_RW,
+SYSCTL_INT(_kern_polling, OID_AUTO, residual_burst, CTLFLAG_RD,
 	&residual_burst, 0, "# of residual cycles in burst");
 
-static u_int32_t poll_handlers; /* next free entry in pr[]. */
+static uint32_t poll_handlers; /* next free entry in pr[]. */
 SYSCTL_UINT(_kern_polling, OID_AUTO, handlers, CTLFLAG_RD,
 	&poll_handlers, 0, "Number of registered poll handlers");
 
-static int polling = 0;		/* global polling enable */
-SYSCTL_UINT(_kern_polling, OID_AUTO, enable, CTLFLAG_RW,
-	&polling, 0, "Polling enabled");
+static int polling = 0;
+SYSCTL_PROC(_kern_polling, OID_AUTO, enable, CTLTYPE_UINT | CTLFLAG_RW,
+	0, sizeof(int), poll_switch, "I", "Switch polling for all interfaces");
 
-static u_int32_t phase;
-SYSCTL_UINT(_kern_polling, OID_AUTO, phase, CTLFLAG_RW,
+static uint32_t phase;
+SYSCTL_UINT(_kern_polling, OID_AUTO, phase, CTLFLAG_RD,
 	&phase, 0, "Polling phase");
 
-static u_int32_t suspect;
-SYSCTL_UINT(_kern_polling, OID_AUTO, suspect, CTLFLAG_RW,
+static uint32_t suspect;
+SYSCTL_UINT(_kern_polling, OID_AUTO, suspect, CTLFLAG_RD,
 	&suspect, 0, "suspect event");
 
-static u_int32_t stalled;
-SYSCTL_UINT(_kern_polling, OID_AUTO, stalled, CTLFLAG_RW,
+static uint32_t stalled;
+SYSCTL_UINT(_kern_polling, OID_AUTO, stalled, CTLFLAG_RD,
 	&stalled, 0, "potential stalls");
 
-static u_int32_t idlepoll_sleeping; /* idlepoll is sleeping */
+static uint32_t idlepoll_sleeping; /* idlepoll is sleeping */
 SYSCTL_UINT(_kern_polling, OID_AUTO, idlepoll_sleeping, CTLFLAG_RD,
 	&idlepoll_sleeping, 0, "idlepoll is sleeping");
 
@@ -181,8 +261,11 @@ static void
 init_device_poll(void)
 {
 
-	netisr_register(NETISR_POLL, (netisr_t *)netisr_poll, NULL, 0);
-	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL, 0);
+	mtx_init(&poll_mtx, "polling", NULL, MTX_DEF);
+	netisr_register(NETISR_POLL, (netisr_t *)netisr_poll, NULL,
+	    NETISR_MPSAFE);
+	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL,
+	    NETISR_MPSAFE);
 }
 SYSINIT(device_poll, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, init_device_poll, NULL)
 
@@ -239,23 +322,24 @@ hardclock_device_poll(void)
 }
 
 /*
- * ether_poll is called from the idle loop or from the trap handler.
+ * ether_poll is called from the idle loop.
  */
 void
 ether_poll(int count)
 {
 	int i;
 
-	mtx_lock(&Giant);
+	NET_LOCK_GIANT();
+	mtx_lock(&poll_mtx);
 
 	if (count > poll_each_burst)
 		count = poll_each_burst;
+
 	for (i = 0 ; i < poll_handlers ; i++)
-		if (pr[i].handler &&
-		    (pr[i].ifp->if_flags & IFF_UP) &&
-		    (pr[i].ifp->if_drv_flags & IFF_DRV_RUNNING))
-			pr[i].handler(pr[i].ifp, 0, count); /* quick check */
-	mtx_unlock(&Giant);
+		pr[i].handler(pr[i].ifp, POLL_ONLY, count);
+
+	mtx_unlock(&poll_mtx);
+	NET_UNLOCK_GIANT();
 }
 
 /*
@@ -281,11 +365,14 @@ netisr_pollmore()
 {
 	struct timeval t;
 	int kern_load;
-	/* XXX run at splhigh() or equivalent */
 
+	NET_ASSERT_GIANT();
+
+	mtx_lock(&poll_mtx);
 	phase = 5;
 	if (residual_burst > 0) {
 		schednetisrbits(1 << NETISR_POLL | 1 << NETISR_POLLMORE);
+		mtx_unlock(&poll_mtx);
 		/* will run immediately on return, followed by netisrs */
 		return;
 	}
@@ -317,107 +404,61 @@ netisr_pollmore()
 		schednetisrbits(1 << NETISR_POLL | 1 << NETISR_POLLMORE);
 		phase = 6;
 	}
+	mtx_unlock(&poll_mtx);
 }
 
 /*
  * netisr_poll is scheduled by schednetisr when appropriate, typically once
- * per tick. It is called at splnet() so first thing to do is to upgrade to
- * splimp(), and call all registered handlers.
+ * per tick.
  */
 static void
 netisr_poll(void)
 {
-	static int reg_frac_count;
 	int i, cycles;
 	enum poll_cmd arg = POLL_ONLY;
-	mtx_lock(&Giant);
 
+	NET_ASSERT_GIANT();
+
+	mtx_lock(&poll_mtx);
 	phase = 3;
 	if (residual_burst == 0) { /* first call in this tick */
 		microuptime(&poll_start_t);
-		/*
-		 * Check that paremeters are consistent with runtime
-		 * variables. Some of these tests could be done at sysctl
-		 * time, but the savings would be very limited because we
-		 * still have to check against reg_frac_count and
-		 * poll_each_burst. So, instead of writing separate sysctl
-		 * handlers, we do all here.
-		 */
-
-		if (reg_frac > hz)
-			reg_frac = hz;
-		else if (reg_frac < 1)
-			reg_frac = 1;
-		if (reg_frac_count > reg_frac)
-			reg_frac_count = reg_frac - 1;
-		if (reg_frac_count-- == 0) {
+		if (++reg_frac_count == reg_frac) {
 			arg = POLL_AND_CHECK_STATUS;
-			reg_frac_count = reg_frac - 1;
+			reg_frac_count = 0;
 		}
-		if (poll_burst_max < MIN_POLL_BURST_MAX)
-			poll_burst_max = MIN_POLL_BURST_MAX;
-		else if (poll_burst_max > MAX_POLL_BURST_MAX)
-			poll_burst_max = MAX_POLL_BURST_MAX;
 
-		if (poll_each_burst < 1)
-			poll_each_burst = 1;
-		else if (poll_each_burst > poll_burst_max)
-			poll_each_burst = poll_burst_max;
-
-		if (poll_burst > poll_burst_max)
-			poll_burst = poll_burst_max;
 		residual_burst = poll_burst;
 	}
 	cycles = (residual_burst < poll_each_burst) ?
 		residual_burst : poll_each_burst;
 	residual_burst -= cycles;
 
-	if (polling) {
-		for (i = 0 ; i < poll_handlers ; i++)
-			if (pr[i].handler &&
-			    (pr[i].ifp->if_flags & IFF_UP) &&
-			    (pr[i].ifp->if_drv_flags & IFF_DRV_RUNNING))
-				pr[i].handler(pr[i].ifp, arg, cycles);
-	} else {	/* unregister */
-		for (i = 0 ; i < poll_handlers ; i++) {
-			if (pr[i].handler &&
-			    pr[i].ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				pr[i].ifp->if_flags &= ~IFF_POLLING;
-				pr[i].handler(pr[i].ifp, POLL_DEREGISTER, 1);
-			}
-			pr[i].handler=NULL;
-		}
-		residual_burst = 0;
-		poll_handlers = 0;
-	}
-	/* on -stable, schednetisr(NETISR_POLLMORE); */
+	for (i = 0 ; i < poll_handlers ; i++)
+		pr[i].handler(pr[i].ifp, arg, cycles);
+
 	phase = 4;
-	mtx_unlock(&Giant);
+	mtx_unlock(&poll_mtx);
 }
 
 /*
- * Try to register routine for polling. Returns 1 if successful
- * (and polling should be enabled), 0 otherwise.
+ * Try to register routine for polling. Returns 0 if successful
+ * (and polling should be enabled), error code otherwise.
  * A device is not supposed to register itself multiple times.
  *
- * This is called from within the *_intr() functions, so we do not need
- * further locking.
+ * This is called from within the *_ioctl() functions.
  */
 int
 ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 {
-	int s;
+	int i;
 
-	if (polling == 0) /* polling disabled, cannot register */
-		return 0;
-	if (h == NULL || ifp == NULL)		/* bad arguments	*/
-		return 0;
-	if ( !(ifp->if_flags & IFF_UP) )	/* must be up		*/
-		return 0;
-	if (ifp->if_flags & IFF_POLLING)	/* already polling	*/
-		return 0;
+	KASSERT(h != NULL, ("%s: handler is NULL", __func__));
+	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
 
-	s = splhigh();
+	NET_ASSERT_GIANT();
+
+	mtx_lock(&poll_mtx);
 	if (poll_handlers >= POLL_LIST_LEN) {
 		/*
 		 * List full, cannot register more entries.
@@ -427,57 +468,108 @@ ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 		 * anyways, so just report a few times and then give up.
 		 */
 		static int verbose = 10 ;
-		splx(s);
 		if (verbose >0) {
-			printf("poll handlers list full, "
-				"maybe a broken driver ?\n");
+			log(LOG_ERR, "poll handlers list full, "
+			    "maybe a broken driver ?\n");
 			verbose--;
 		}
-		return 0; /* no polling for you */
+		mtx_unlock(&poll_mtx);
+		return (ENOMEM); /* no polling for you */
 	}
+
+	for (i = 0 ; i < poll_handlers ; i++)
+		if (pr[i].ifp == ifp && pr[i].handler != NULL) {
+			mtx_unlock(&poll_mtx);
+			log(LOG_DEBUG, "ether_poll_register: %s: handler"
+			    " already registered\n", ifp->if_xname);
+			return (EEXIST);
+		}
 
 	pr[poll_handlers].handler = h;
 	pr[poll_handlers].ifp = ifp;
 	poll_handlers++;
-	ifp->if_flags |= IFF_POLLING;
-	splx(s);
+	mtx_unlock(&poll_mtx);
 	if (idlepoll_sleeping)
 		wakeup(&idlepoll_sleeping);
-	return 1; /* polling enabled in next call */
+	return (0);
 }
 
 /*
- * Remove interface from the polling list. Normally called by *_stop().
- * It is not an error to call it with IFF_POLLING clear, the call is
- * sufficiently rare to be preferable to save the space for the extra
- * test in each driver in exchange of one additional function call.
+ * Remove interface from the polling list. Called from *_ioctl(), too.
  */
 int
 ether_poll_deregister(struct ifnet *ifp)
 {
 	int i;
 
-	mtx_lock(&Giant);
-	if ( !ifp || !(ifp->if_flags & IFF_POLLING) ) {
-		mtx_unlock(&Giant);
-		return 0;
-	}
+	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
+
+	NET_ASSERT_GIANT();
+	mtx_lock(&poll_mtx);
+
 	for (i = 0 ; i < poll_handlers ; i++)
 		if (pr[i].ifp == ifp) /* found it */
 			break;
-	ifp->if_flags &= ~IFF_POLLING; /* found or not... */
 	if (i == poll_handlers) {
-		mtx_unlock(&Giant);
-		printf("ether_poll_deregister: ifp not found!!!\n");
-		return 0;
+		log(LOG_DEBUG, "ether_poll_deregister: %s: not found!\n",
+		    ifp->if_xname);
+		mtx_unlock(&poll_mtx);
+		return (ENOENT);
 	}
 	poll_handlers--;
 	if (i < poll_handlers) { /* Last entry replaces this one. */
 		pr[i].handler = pr[poll_handlers].handler;
 		pr[i].ifp = pr[poll_handlers].ifp;
 	}
-	mtx_unlock(&Giant);
-	return 1;
+	mtx_unlock(&poll_mtx);
+	return (0);
+}
+
+/*
+ * Legacy interface for turning polling on all interfaces at one time.
+ */
+static int
+poll_switch(SYSCTL_HANDLER_ARGS)
+{
+	struct ifnet *ifp;
+	int error;
+	int val = polling;
+
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error || !req->newptr )
+		return (error);
+
+	if (val == polling)
+		return (0);
+
+	if (val < 0 || val > 1)
+		return (EINVAL);
+
+	polling = val;
+
+	NET_LOCK_GIANT();
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		if (ifp->if_capabilities & IFCAP_POLLING) {
+			struct ifreq ifr;
+
+			if (val == 1)
+				ifr.ifr_reqcap =
+				    ifp->if_capenable | IFCAP_POLLING;
+			else
+				ifr.ifr_reqcap =
+				    ifp->if_capenable & ~IFCAP_POLLING;
+			IFF_LOCKGIANT(ifp);	/* LOR here */
+			(void) (*ifp->if_ioctl)(ifp, SIOCSIFCAP, (caddr_t)&ifr);
+			IFF_UNLOCKGIANT(ifp);
+		}
+	}
+	IFNET_RUNLOCK();
+	NET_UNLOCK_GIANT();
+
+	log(LOG_ERR, "kern.polling.enable is deprecated. Use ifconfig(8)");
+
+	return (0);
 }
 
 static void
@@ -497,10 +589,7 @@ poll_idle(void)
 	for (;;) {
 		if (poll_in_idle_loop && poll_handlers > 0) {
 			idlepoll_sleeping = 0;
-			mtx_lock(&Giant);
 			ether_poll(poll_each_burst);
-			mtx_unlock(&Giant);
-			mtx_assert(&Giant, MA_NOTOWNED);
 			mtx_lock_spin(&sched_lock);
 			mi_switch(SW_VOL, NULL);
 			mtx_unlock_spin(&sched_lock);

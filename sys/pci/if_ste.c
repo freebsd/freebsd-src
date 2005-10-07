@@ -33,6 +33,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -621,7 +625,8 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct ste_softc *sc = ifp->if_softc;
 
 	STE_LOCK(sc);
-	ste_poll_locked(ifp, cmd, count);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ste_poll_locked(ifp, cmd, count);
 	STE_UNLOCK(sc);
 }
 
@@ -631,14 +636,6 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct ste_softc *sc = ifp->if_softc;
 
 	STE_LOCK_ASSERT(sc);
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
-		CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
-		return;
-	}
 
 	sc->rxcycles = count;
 	if (cmd == POLL_AND_CHECK_STATUS)
@@ -685,15 +682,11 @@ ste_intr(xsc)
 	ifp = sc->ste_ifp;
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING)
-		goto done;
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(ste_poll, ifp)) { /* ok, disable interrupts */
-		CSR_WRITE_2(sc, STE_IMR, 0);
-		ste_poll_locked(ifp, 0, 1);
-		goto done;
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		STE_UNLOCK(sc);
+		return;
 	}
-#endif /* DEVICE_POLLING */
+#endif
 
 	/* See if this is really our interrupt. */
 	if (!(CSR_READ_2(sc, STE_ISR) & STE_ISR_INTLATCH)) {
@@ -739,9 +732,6 @@ ste_intr(xsc)
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ste_start_locked(ifp);
 
-#ifdef DEVICE_POLLING
-done:
-#endif /* DEVICE_POLLING */
 	STE_UNLOCK(sc);
 
 	return;
@@ -791,12 +781,12 @@ ste_rxeof(sc)
 	while((rxstat = sc->ste_cdata.ste_rx_head->ste_ptr->ste_status)
 	      & STE_RXSTAT_DMADONE) {
 #ifdef DEVICE_POLLING
-		if (ifp->if_flags & IFF_POLLING) {
+		if (ifp->if_capenable & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
 		}
-#endif /* DEVICE_POLLING */
+#endif
 		if ((STE_RX_LIST_CNT - count) < 3) {
 			break;
 		}
@@ -1115,10 +1105,10 @@ ste_attach(dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
-	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->ste_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -1155,6 +1145,11 @@ ste_detach(dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->ste_mtx), ("ste mutex not initialized"));
 	ifp = sc->ste_ifp;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
@@ -1386,10 +1381,10 @@ ste_init_locked(sc)
 	CSR_WRITE_2(sc, STE_ISR, 0xFFFF);
 #ifdef DEVICE_POLLING
 	/* Disable interrupts if we are polling. */
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_capenable & IFCAP_POLLING)
 		CSR_WRITE_2(sc, STE_IMR, 0);
 	else   
-#endif /* DEVICE_POLLING */
+#endif
 	/* Enable interrupts. */
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 
@@ -1418,9 +1413,6 @@ ste_stop(sc)
 
 	callout_stop(&sc->ste_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif /* DEVICE_POLLING */
 
 	CSR_WRITE_2(sc, STE_IMR, 0);
 	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_TX_DISABLE);
@@ -1539,10 +1531,31 @@ ste_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		STE_LOCK(sc);
-		ifp->if_capenable &= ~IFCAP_POLLING;
-		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
-		STE_UNLOCK(sc);
+#ifdef DEVICE_POLLING
+		if (ifr->ifr_reqcap & IFCAP_POLLING &&
+		    !(ifp->if_capenable & IFCAP_POLLING)) {
+			error = ether_poll_register(ste_poll, ifp);
+			if (error)
+				return(error);
+			STE_LOCK(sc);
+			/* Disable interrupts */
+			CSR_WRITE_2(sc, STE_IMR, 0);
+			ifp->if_capenable |= IFCAP_POLLING;
+			STE_UNLOCK(sc);
+			return (error);
+			
+		}
+		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
+		    ifp->if_capenable & IFCAP_POLLING) {
+			error = ether_poll_deregister(ifp);
+			/* Enable interrupts. */
+			STE_LOCK(sc);
+			CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
+			ifp->if_capenable &= ~IFCAP_POLLING;
+			STE_UNLOCK(sc);
+			return (error);
+		}
+#endif /* DEVICE_POLLING */
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);

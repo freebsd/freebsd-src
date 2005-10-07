@@ -58,6 +58,10 @@ __FBSDID("$FreeBSD$");
  * longword aligned.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -1219,11 +1223,10 @@ sis_attach(device_t dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
-	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sis_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -1259,6 +1262,11 @@ sis_detach(device_t dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->sis_mtx), ("sis mutex not initialized"));
 	ifp = sc->sis_ifp;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 
 	/* These should only be active if attach succeeded. */
 	if (device_is_attached(dev)) {
@@ -1409,12 +1417,12 @@ sis_rxeof(struct sis_softc *sc)
 	    cur_rx = cur_rx->sis_nextdesc) {
 
 #ifdef DEVICE_POLLING
-		if (ifp->if_flags & IFF_POLLING) {
+		if (ifp->if_capenable & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
 		}
-#endif /* DEVICE_POLLING */
+#endif
 		rxstat = cur_rx->sis_rxstat;
 		bus_dmamap_sync(sc->sis_tag,
 		    cur_rx->sis_map, BUS_DMASYNC_POSTWRITE);
@@ -1579,13 +1587,9 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct	sis_softc *sc = ifp->if_softc;
 
 	SIS_LOCK(sc);
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
-		CSR_WRITE_4(sc, SIS_IER, 1);
-		goto done;
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		SIS_UNLOCK(sc);
+		return;
 	}
 
 	/*
@@ -1618,7 +1622,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			sis_initl(sc);
 		}
 	}
-done:
+
 	SIS_UNLOCK(sc);
 }
 #endif /* DEVICE_POLLING */
@@ -1638,14 +1642,11 @@ sis_intr(void *arg)
 
 	SIS_LOCK(sc);
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING)
-		goto done;
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(sis_poll, ifp)) { /* ok, disable interrupts */
-		CSR_WRITE_4(sc, SIS_IER, 0);
-		goto done;
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		SIS_UNLOCK(sc);
+		return;
 	}
-#endif /* DEVICE_POLLING */
+#endif
 
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, SIS_IER, 0);
@@ -1684,9 +1685,6 @@ sis_intr(void *arg)
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sis_startl(ifp);
 
-#ifdef DEVICE_POLLING
-done:
-#endif /* DEVICE_POLLING */
 	SIS_UNLOCK(sc);
 }
 
@@ -2038,10 +2036,10 @@ sis_initl(struct sis_softc *sc)
 	 * ... only enable interrupts if we are not polling, make sure
 	 * they are off otherwise.
 	 */
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_capenable & IFCAP_POLLING)
 		CSR_WRITE_4(sc, SIS_IER, 0);
 	else
-#endif /* DEVICE_POLLING */
+#endif
 	CSR_WRITE_4(sc, SIS_IER, 1);
 
 	/* Enable receiver and transmitter. */
@@ -2138,10 +2136,32 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		SIS_LOCK(sc);
-		ifp->if_capenable &= ~IFCAP_POLLING;
-		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
-		SIS_UNLOCK(sc);
+		/* ok, disable interrupts */
+#ifdef DEVICE_POLLING
+		if (ifr->ifr_reqcap & IFCAP_POLLING &&
+		    !(ifp->if_capenable & IFCAP_POLLING)) {
+			error = ether_poll_register(sis_poll, ifp);
+			if (error)
+				return(error);
+			SIS_LOCK(sc);
+			/* Disable interrupts */
+			CSR_WRITE_4(sc, SIS_IER, 0);
+			ifp->if_capenable |= IFCAP_POLLING;
+			SIS_UNLOCK(sc);
+			return (error);
+			
+		}
+		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
+		    ifp->if_capenable & IFCAP_POLLING) {
+			error = ether_poll_deregister(ifp);
+			/* Enable interrupts. */
+			SIS_LOCK(sc);
+			CSR_WRITE_4(sc, SIS_IER, 1);
+			ifp->if_capenable &= ~IFCAP_POLLING;
+			SIS_UNLOCK(sc);
+			return (error);
+		}
+#endif /* DEVICE_POLLING */
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2197,9 +2217,6 @@ sis_stop(struct sis_softc *sc)
 	callout_stop(&sc->sis_stat_ch);
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif
 	CSR_WRITE_4(sc, SIS_IER, 0);
 	CSR_WRITE_4(sc, SIS_IMR, 0);
 	CSR_READ_4(sc, SIS_ISR); /* clear any interrupts already pending */

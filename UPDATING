@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20051001:
+	kern.polling.enable sysctl MIB is now deprecated. Use ifconfig(8)
+	to turn polling(4) on your interfaces.
+
 20050722:
 	The ai_addrlen of a struct addrinfo was changed to a socklen_t
 	to conform to POSIX-2001.  This change broke an ABI

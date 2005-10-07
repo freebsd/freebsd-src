@@ -60,6 +60,10 @@ __FBSDID("$FreeBSD$");
  * transmission.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -742,10 +746,10 @@ vr_attach(dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, VR_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_maxlen = VR_TX_LIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
-	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Do MII setup. */
 	if (mii_phy_probe(dev, &sc->vr_miibus,
@@ -794,6 +798,11 @@ vr_detach(device_t dev)
 	struct ifnet		*ifp = sc->vr_ifp;
 
 	KASSERT(mtx_initialized(&sc->vr_mtx), ("vr mutex not initialized"));
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 
 	VR_LOCK(sc);
 
@@ -952,12 +961,12 @@ vr_rxeof(struct vr_softc *sc)
 	while (!((rxstat = sc->vr_cdata.vr_rx_head->vr_ptr->vr_status) &
 	    VR_RXSTAT_OWN)) {
 #ifdef DEVICE_POLLING
-		if (ifp->if_flags & IFF_POLLING) {
+		if (ifp->if_capenable & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
 		}
-#endif /* DEVICE_POLLING */
+#endif
 		m0 = NULL;
 		cur_rx = sc->vr_cdata.vr_rx_head;
 		sc->vr_cdata.vr_rx_head = cur_rx->vr_nextdesc;
@@ -1151,7 +1160,8 @@ vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct vr_softc *sc = ifp->if_softc;
 
 	VR_LOCK(sc);
-	vr_poll_locked(ifp, cmd, count);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		vr_poll_locked(ifp, cmd, count);
 	VR_UNLOCK(sc);
 }
 
@@ -1161,17 +1171,6 @@ vr_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct vr_softc *sc = ifp->if_softc;
 
 	VR_LOCK_ASSERT(sc);
-
-	if (!(ifp->if_capenable & IFCAP_POLLING)) {
-		ether_poll_deregister(ifp);
-		cmd = POLL_DEREGISTER;
-	}
-
-	if (cmd == POLL_DEREGISTER) {
-		/* Final call, enable interrupts. */
-		CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
-		return;
-	}
 
 	sc->rxcycles = count;
 	vr_rxeof(sc);
@@ -1249,17 +1248,9 @@ vr_intr(void *arg)
 	}
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_capenable & IFCAP_POLLING)
 		goto done_locked;
-
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(vr_poll, ifp)) {
-		/* OK, disable interrupts. */
-		CSR_WRITE_2(sc, VR_IMR, 0x0000);
-		vr_poll_locked(ifp, 0, 1);
-		goto done_locked;
-	}
-#endif /* DEVICE_POLLING */
+#endif
 
 	/* Suppress unwanted interrupts. */
 	if (!(ifp->if_flags & IFF_UP)) {
@@ -1534,10 +1525,10 @@ vr_init_locked(struct vr_softc *sc)
 	/*
 	 * Disable interrupts if we are polling.
 	 */
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_capenable & IFCAP_POLLING)
 		CSR_WRITE_2(sc, VR_IMR, 0);
 	else
-#endif /* DEVICE_POLLING */
+#endif
 	/*
 	 * Enable interrupts.
 	 */
@@ -1615,7 +1606,31 @@ vr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		ifp->if_capenable = ifr->ifr_reqcap;
+#ifdef DEVICE_POLLING
+		if (ifr->ifr_reqcap & IFCAP_POLLING &&
+		    !(ifp->if_capenable & IFCAP_POLLING)) {
+			error = ether_poll_register(vr_poll, ifp);
+			if (error)
+				return(error);
+			VR_LOCK(sc);
+			/* Disable interrupts */
+			CSR_WRITE_2(sc, VR_IMR, 0x0000);
+			ifp->if_capenable |= IFCAP_POLLING;
+			VR_UNLOCK(sc);
+			return (error);
+			
+		}
+		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
+		    ifp->if_capenable & IFCAP_POLLING) {
+			error = ether_poll_deregister(ifp);
+			/* Enable interrupts. */
+			VR_LOCK(sc);
+			CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
+			ifp->if_capenable &= ~IFCAP_POLLING;
+			VR_UNLOCK(sc);
+			return (error);
+		}
+#endif /* DEVICE_POLLING */
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -1662,9 +1677,6 @@ vr_stop(struct vr_softc *sc)
 
 	untimeout(vr_tick, sc, sc->vr_stat_ch);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-#ifdef DEVICE_POLLING
-	ether_poll_deregister(ifp);
-#endif /* DEVICE_POLLING */
 
 	VR_SETBIT16(sc, VR_COMMAND, VR_CMD_STOP);
 	VR_CLRBIT16(sc, VR_COMMAND, (VR_CMD_RX_ON|VR_CMD_TX_ON));
