@@ -499,7 +499,8 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 void
 prmount(struct statfs *sfp)
 {
-	int flags, i;
+	int flags;
+	unsigned int i;
 	struct opt *o;
 	struct passwd *pw;
 
