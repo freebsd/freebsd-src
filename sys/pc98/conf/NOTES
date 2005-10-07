@@ -476,17 +476,6 @@ options 	SX_DEBUG
 
 options 	POWERFAIL_NMI	# make it beep instead of panicing
 
-#
-# PC Card/PCMCIA
-# (OLDCARD)
-#
-# card: pccard slots
-# pcic: isa/pccard bridge
-device		pcic
-hint.pcic.0.at="isa"
-#hint.pcic.1.at="isa"
-device		card
-
 #---------------------------------------------------------------------------
 # ISDN4BSD
 #
@@ -768,9 +757,6 @@ nodevice	cm
 nodevice	cs
 nodevice	ex
 nodevice	fea
-nodevice	cbb
-nodevice	pccard
-nodevice	cardbus
 nodevice	intpm
 nodevice	alpm
 nodevice	ichsmb
