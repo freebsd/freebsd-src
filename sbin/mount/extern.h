@@ -31,4 +31,4 @@ int checkvfsname(const char *, const char **);
 const char **makevfslist(char *);
 
 /* mount_ufs.c */
-int mount_ufs(int, char *const *);
+int mount_ufs(int, char * const []);
