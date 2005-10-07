@@ -36,17 +36,15 @@
 .Nm ep
 .Nd "Ethernet driver for 3Com Etherlink III (3c5x9) interfaces"
 .Sh SYNOPSIS
-To compile support for the
-.Nm
-driver into your kernel, place the following line in your
+To compile this driver into the kernel,
+place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ep"
 .Ed
 .Pp
-Alternatively, to load the
-.Nm
-driver at boot time, place the following line in
+Alternatively, to load the driver as a
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_ep_load="YES"
