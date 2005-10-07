@@ -229,10 +229,10 @@ options 	PERFMON
 # potential increase in response times.
 # It is strongly recommended to use HZ=1000 or 2000 with DEVICE_POLLING
 # to achieve smoother behaviour.
-# Additionally, you can enable/disable polling at runtime with the
-# sysctl variable kern.polling.enable (defaults off), and select
-# the CPU fraction reserved to userland with the sysctl variable
-# kern.polling.user_frac (default 50, range 0..100).
+# Additionally, you can enable/disable polling at runtime with help of
+# the ifconfig(8) utility, and select the CPU fraction reserved to
+# userland with the sysctl variable kern.polling.user_frac
+# (default 50, range 0..100).
 #
 # Not all device drivers support this mode of operation at the time of
 # this writing.  See polling(4) for more details.
