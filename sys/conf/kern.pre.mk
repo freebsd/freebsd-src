@@ -71,7 +71,7 @@ INCLUDES+= -I$S/contrib/ngatm
 INCLUDES+= -I$S/dev/twa
 
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}
-CFLAGS+= ${INCLUDES} -D_KERNEL -include opt_global.h
+CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
 .if ${CC} != "icc"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
