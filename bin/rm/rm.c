@@ -64,6 +64,7 @@ uid_t uid;
 int	check(char *, char *, struct stat *);
 int	check2(char **);
 void	checkdot(char **);
+void	checkslash(char **);
 void	rm_file(char **);
 int	rm_overwrite(char *, struct stat *);
 void	rm_tree(char **);
@@ -72,9 +73,9 @@ void	usage(void);
 /*
  * rm --
  *	This rm is different from historic rm's, but is expected to match
- *	POSIX 1003.2 behavior.  The most visible difference is that -f
+ *	POSIX 1003.2 behavior.	The most visible difference is that -f
  *	has two specific effects now, ignore non-existent files and force
- * 	file removal.
+ *	file removal.
  */
 int
 main(int argc, char *argv[])
@@ -145,6 +146,8 @@ main(int argc, char *argv[])
 	}
 
 	checkdot(argv);
+	if (getenv("POSIXLY_CORRECT") == NULL)
+		checkslash(argv);
 	uid = geteuid();
 
 	if (*argv) {
@@ -189,8 +192,11 @@ rm_tree(char **argv)
 		flags |= FTS_NOSTAT;
 	if (Wflag)
 		flags |= FTS_WHITEOUT;
-	if (!(fts = fts_open(argv, flags, NULL)))
+	if (!(fts = fts_open(argv, flags, NULL))) {
+		if (fflag && errno == ENOENT)
+			return;
 		err(1, "fts_open");
+	}
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
 		case FTS_DNR:
@@ -443,14 +449,11 @@ check(char *path, char *name, struct stat *sp)
 	else {
 		/*
 		 * If it's not a symbolic link and it's unwritable and we're
-		 * talking to a terminal, ask.  Symbolic links are excluded
+		 * talking to a terminal, ask.	Symbolic links are excluded
 		 * because their permissions are meaningless.  Check stdin_ok
 		 * first because we may not have stat'ed the file.
-		 * Also skip this check if the -P option was specified because
-		 * we will not be able to overwrite file contents and will
-		 * barf later.
 		 */
-		if (!stdin_ok || S_ISLNK(sp->st_mode) || Pflag ||
+		if (!stdin_ok || S_ISLNK(sp->st_mode) ||
 		    (!access(name, W_OK) &&
 		    !(sp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
 		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !uid)))
@@ -458,11 +461,15 @@ check(char *path, char *name, struct stat *sp)
 		strmode(sp->st_mode, modep);
 		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
 			err(1, "fflagstostr");
+		if (Pflag)
+			errx(1,
+			    "%s: -P was specified, but file is not writable",
+			    path);
 		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
 		    modep + 1, modep[9] == ' ' ? "" : " ",
 		    user_from_uid(sp->st_uid, 0),
 		    group_from_gid(sp->st_gid, 0),
-		    *flagsp ? flagsp : "", *flagsp ? " " : "", 
+		    *flagsp ? flagsp : "", *flagsp ? " " : "",
 		    path);
 		free(flagsp);
 	}
@@ -472,6 +479,27 @@ check(char *path, char *name, struct stat *sp)
 	while (ch != '\n' && ch != EOF)
 		ch = getchar();
 	return (first == 'y' || first == 'Y');
+}
+
+#define ISSLASH(a)	((a)[0] == '/' && (a)[1] == '\0')
+void
+checkslash(char **argv)
+{
+	char **t, **u;
+	int complained;
+
+	complained = 0;
+	for (t = argv; *t;) {
+		if (ISSLASH(*t)) {
+			if (!complained++)
+				warnx("\"/\" may not be removed");
+			eval = 1;
+			for (u = t; u[0] != NULL; ++u)
+				u[0] = u[1];
+		} else {
+			++t;
+		}
+	}
 }
 
 int

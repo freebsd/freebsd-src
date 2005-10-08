@@ -1,3 +1,4 @@
+.\"-
 .\" Copyright (c) 1990, 1993, 1994
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -31,7 +32,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd January 28, 1999
+.Dd September 29, 2005
 .Dt RM 1
 .Os
 .Sh NAME
@@ -40,7 +41,8 @@
 .Nd remove directory entries
 .Sh SYNOPSIS
 .Nm
-.Op Fl dfiIPRrvW
+.Op Fl f | i
+.Op Fl dIPRrvW
 .Ar
 .Nm unlink
 .Ar file
@@ -86,6 +88,10 @@ yet provides almost the same level of protection against mistakes.
 Overwrite regular files before deleting them.
 Files are overwritten three times, first with the byte pattern 0xff,
 then 0x00, and then 0xff again, before they are deleted.
+Specifying this flag for a read only file will cause
+.Nm
+to generate an error message and exit.
+The file wil not be removed or overwritten.
 .It Fl R
 Attempt to remove the file hierarchy rooted in each file argument.
 The
@@ -117,9 +123,10 @@ The
 utility removes symbolic links, not the files referenced by the links.
 .Pp
 It is an error to attempt to remove the files
-.Dq .\&
+.Pa / ,
+.Pa .\&
 or
-.Dq .. .
+.Pa .. .
 .Pp
 When the utility is called as
 .Nm unlink ,
@@ -161,22 +168,6 @@ path reference.
 For example:
 .Dl rm /home/user/-filename
 .Dl rm ./-filename
-.Sh SEE ALSO
-.Xr chflags 1 ,
-.Xr rmdir 1 ,
-.Xr undelete 2 ,
-.Xr unlink 2 ,
-.Xr fts 3 ,
-.Xr getopt 3 ,
-.Xr symlink 7
-.Sh BUGS
-The
-.Fl P
-option assumes that the underlying file system is a fixed-block file
-system.
-UFS is a fixed-block file system, LFS is not.
-In addition, only regular files are overwritten, other types of files
-are not.
 .Sh COMPATIBILITY
 The
 .Nm
@@ -192,6 +183,14 @@ Also, historical
 .Bx
 implementations prompted on the standard output,
 not the standard error output.
+.Sh SEE ALSO
+.Xr chflags 1 ,
+.Xr rmdir 1 ,
+.Xr undelete 2 ,
+.Xr unlink 2 ,
+.Xr fts 3 ,
+.Xr getopt 3 ,
+.Xr symlink 7
 .Sh STANDARDS
 The
 .Nm
@@ -207,3 +206,11 @@ A
 .Nm
 command appeared in
 .At v1 .
+.Sh BUGS
+The
+.Fl P
+option assumes that the underlying file system is a fixed-block file
+system.
+UFS is a fixed-block file system, LFS is not.
+In addition, only regular files are overwritten, other types of files
+are not.

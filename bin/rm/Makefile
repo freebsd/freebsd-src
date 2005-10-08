@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	rm
-SRCS=	rm.c
 
 LINKS=	${BINDIR}/rm ${BINDIR}/unlink
 MLINKS=	rm.1 unlink.1
