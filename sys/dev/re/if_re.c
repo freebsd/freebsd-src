@@ -2283,7 +2283,7 @@ re_ioctl(ifp, command, data)
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			error;
+	int			error = 0;
 
 	switch (command) {
 	case SIOCSIFMTU:
