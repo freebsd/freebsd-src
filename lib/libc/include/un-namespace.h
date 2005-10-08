@@ -105,6 +105,7 @@
 #undef		sigsuspend
 #undef		socket
 #undef		socketpair
+#undef		usleep
 #undef		wait4
 #undef		waitpid
 #undef		write
