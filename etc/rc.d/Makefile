@@ -25,7 +25,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	network_ipv6 newsyslog nfsclient nfsd \
 	nfslocking nfsserver nisdomain nsswitch ntpd ntpdate \
 	othermta \
-	pccard pcvt pf pflog \
+	pccard pcvt pf pflog pfsync \
 	powerd power_profile ppp-user pppoed pwcheck \
 	quota \
 	ramdisk ramdisk-own random rarpd rcconf.sh resolv root \
