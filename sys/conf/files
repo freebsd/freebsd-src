@@ -525,6 +525,7 @@ dev/ed/if_ed.c			optional ed
 dev/ed/if_ed_novell.c		optional ed
 dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
+dev/ed/if_ed_rtl80x9.c		optional ed
 dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
 dev/em/if_em.c			optional em

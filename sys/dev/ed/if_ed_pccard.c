@@ -28,7 +28,49 @@
  * $FreeBSD$
  */
 
-#include "opt_ed.h"
+/*
+ * Notes for adding media support.  Each chipset is somewhat different
+ * from the others.  Linux has a table of OIDs that it uses to see what
+ * supports the misc register of the NS83903.  But a sampling of datasheets
+ * I could dig up on cards I own paints a different picture.
+ *
+ * Chipset specific details:
+ * NS 83903/902A paired
+ *    ccr base 0x1020
+ *    id register at 0x1000: 7-3 = 0, 2-0 = 1.
+ *	(maybe this test is too week)
+ *    misc register at 0x018:
+ *	6 WAIT_TOUTENABLE enable watchdog timeout
+ *	3 AUI/TPI 1 AUX, 0 TPI
+ *	2 loopback
+ *      1 gdlink (tpi mode only) 1 tp good, 0 tp bad
+ *	0 0-no mam, 1 mam connected
+ * NS83926 appears to be a NS pcmcia glue chip used on the IBM Ethernet II
+ * and the NEC PC9801N-J12 ccr base 0x2000!
+ *
+ * winbond 289c926
+ *    ccr base 0xfd0
+ *    cfb (am 0xff2):
+ *	0-1 PHY01	00 TPI, 01 10B2, 10 10B5, 11 TPI (reduced squ)
+ *	2 LNKEN		0 - enable link and auto switch, 1 disable
+ *	3 LNKSTS	TPI + LNKEN=0 + link good == 1, else 0
+ *    sr (am 0xff4)
+ *	88 00 88 00 88 00, etc
+ *
+ * TMI tc3299a (cr PHY01 == 0)
+ *    ccr base 0x3f8
+ *    cra (io 0xa)
+ *    crb (io 0xb)
+ *	0-1 PHY01	00 auto, 01 res, 10 10B5, 11 TPI
+ *	2 GDLINK	1 disable checking of link
+ *	6 LINK		0 bad link, 1 good link
+ * TMI tc5299 10/100 chip, has a different MII interaction than
+ * dl100xx and ax88x90.
+ *
+ * EN5017A, EN5020	no data, but very popular
+ * Other chips?
+ * NetBSD supports RTL8019, but none have surfaced that I can see
+ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,39 +93,30 @@
 
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
+#include <dev/ed/ax88x90reg.h>
+#include <dev/ed/dl100xxreg.h>
+#include <dev/ed/tc5299jreg.h>
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccard_cis.h>
-#ifndef ED_NO_MIIBUS
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#endif
 
 #include "card_if.h"
-#ifndef ED_NO_MIIBUS
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
-#endif
 #include "pccarddevs.h"
 
-#ifndef ED_NO_MIIBUS
-MODULE_DEPEND(ed, miibus, 1, 1, 1);
-#endif
-MODULE_DEPEND(ed, ether, 1, 1, 1);
-
 /*
- * PC Cards should be using a network specific FUNCE in the CIS to
- * communicate their MAC address to the driver.  However, there are a
- * large number of NE-2000ish PC Cards that don't do this.  Nearly all
- * of them store the MAC address at a fixed offset into attribute
- * memory, without any reference at all appearing in the CIS.  And
- * nearly all of those store it at the same location.
+ * NE-2000 based PC Cards have a number of ways to get the MAC address.
+ * Some cards encode this as a FUNCE.  Others have this in the ROMs the
+ * same way that ISA cards do.  Some have it encoded in the attribute
+ * memory somewhere that isn't in the CIS.  Some new chipsets have it
+ * in special registers in the ASIC part of the chip.
  *
- * This applies only to the older, NE-2000 compatbile cards.  The newer
- * cards based on the AX88x90 or DL100XX chipsets have a specific place
- * to look for MAC information.  And only to those NE-2000 compatible cards
- * that don't the NE-2000 compatible thing of placing the PROM contents
- * starting at location 0 of memory.
+ * For those cards that have the MAC adress stored in attribute memory,
+ * nearly all of them have it at a fixed offset (0xff0).  We use that
+ * offset as a source of last resource if other offsets have failed.
  */
 #define ED_DEFAULT_MAC_OFFSET	0xff0
 
@@ -92,9 +125,10 @@ static const struct ed_product {
 	int flags;
 #define	NE2000DVF_DL100XX	0x0001		/* chip is D-Link DL10019/22 */
 #define	NE2000DVF_AX88X90	0x0002		/* chip is ASIX AX88[17]90 */
-#define NE2000DVF_ENADDR	0x0004		/* Get MAC from attr mem */
-#define NE2000DVF_ANYFUNC	0x0008		/* Allow any function type */
-#define NE2000DVF_MODEM		0x0010		/* Has a modem/serial */
+#define NE2000DVF_TC5299J	0x0004		/* chip is Tamarack TC5299J */
+#define NE2000DVF_ENADDR	0x0100		/* Get MAC from attr mem */
+#define NE2000DVF_ANYFUNC	0x0200		/* Allow any function type */
+#define NE2000DVF_MODEM		0x0400		/* Has a modem/serial */
 	int enoff;
 } ed_pccard_products[] = {
 	{ PCMCIA_CARD(ACCTON, EN2212), 0},
@@ -123,12 +157,11 @@ static const struct ed_product {
 	{ PCMCIA_CARD(COREGA, FETHER_PCC_TXF), NE2000DVF_DL100XX},
 	{ PCMCIA_CARD(DAYNA, COMMUNICARD_E_1), 0},
 	{ PCMCIA_CARD(DAYNA, COMMUNICARD_E_2), 0},
-	{ PCMCIA_CARD(DLINK, DE650), 0},
 	{ PCMCIA_CARD(DLINK, DE660), 0 },
 	{ PCMCIA_CARD(DLINK, DE660PLUS), 0},
 	{ PCMCIA_CARD(DYNALINK, L10C), 0},
 	{ PCMCIA_CARD(EDIMAX, EP4000A), 0},
-	{ PCMCIA_CARD(EPSON, EEN10B), 0},
+	{ PCMCIA_CARD(EPSON, EEN10B), NE2000DVF_ENADDR, 0xff0},
 	{ PCMCIA_CARD(EXP, THINLANCOMBO), 0},
 	{ PCMCIA_CARD(GREY_CELL, TDK3000), 0},
 	{ PCMCIA_CARD(GREY_CELL, DMF650TX),
@@ -159,10 +192,11 @@ static const struct ed_product {
 	{ PCMCIA_CARD(OEM2, NE2000), 0},
 	{ PCMCIA_CARD(PLANET, SMARTCOM2000), 0 },
 	{ PCMCIA_CARD(PREMAX, PE200), 0},
-	{ PCMCIA_CARD(PSION, LANGLOBAL), 0},
+	{ PCMCIA_CARD(PSION, LANGLOBAL),
+	    NE2000DVF_ANYFUNC | NE2000DVF_AX88X90 | NE2000DVF_MODEM},
 	{ PCMCIA_CARD(RACORE, ETHERNET), 0},
 	{ PCMCIA_CARD(RACORE, FASTENET), NE2000DVF_AX88X90},
-	{ PCMCIA_CARD(RACORE, 8041TX), NE2000DVF_AX88X90},
+	{ PCMCIA_CARD(RACORE, 8041TX), NE2000DVF_AX88X90 | NE2000DVF_TC5299J},
 	{ PCMCIA_CARD(RELIA, COMBO), 0},
 	{ PCMCIA_CARD(RPTI, EP400), 0},
 	{ PCMCIA_CARD(RPTI, EP401), 0},
@@ -191,26 +225,48 @@ static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
 
 static int	ed_pccard_dl100xx(device_t dev, const struct ed_product *);
-#ifndef ED_NO_MIIBUS
 static void	ed_pccard_dl100xx_mii_reset(struct ed_softc *sc);
 static u_int	ed_pccard_dl100xx_mii_readbits(struct ed_softc *sc, int nbits);
 static void	ed_pccard_dl100xx_mii_writebits(struct ed_softc *sc, u_int val,
     int nbits);
 
+static int	ed_pccard_ax88x90(device_t dev, const struct ed_product *);
 static void	ed_pccard_ax88x90_mii_reset(struct ed_softc *sc);
 static u_int	ed_pccard_ax88x90_mii_readbits(struct ed_softc *sc, int nbits);
 static void	ed_pccard_ax88x90_mii_writebits(struct ed_softc *sc, u_int val,
     int nbits);
-static int	ed_miibus_readreg(device_t dev, int phy, int reg);
-#endif
 
-static int	ed_pccard_ax88x90(device_t dev, const struct ed_product *);
+static int	ed_miibus_readreg(device_t dev, int phy, int reg);
+static int	ed_ifmedia_upd(struct ifnet *);
+static void	ed_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+
+static int	ed_pccard_tc5299j(device_t dev, const struct ed_product *);
+static void	ed_pccard_tc5299j_mii_reset(struct ed_softc *sc);
+static u_int	ed_pccard_tc5299j_mii_readbits(struct ed_softc *sc, int nbits);
+static void	ed_pccard_tc5299j_mii_writebits(struct ed_softc *sc, u_int val,
+    int nbits);
+
+static void
+ed_pccard_print_entry(const struct ed_product *pp)
+{
+	int i;
+
+	printf("Product entry: ");
+	if (pp->prod.pp_name)
+		printf("name='%s',", pp->prod.pp_name);
+	printf("vendor=%#x,product=%#x", pp->prod.pp_vendor,
+	    pp->prod.pp_product);
+	for (i = 0; i < 4; i++)
+		if (pp->prod.pp_cis[i])
+			printf(",CIS%d='%s'", i, pp->prod.pp_cis[i]);
+	printf("\n");
+}
 
 static int
 ed_pccard_probe(device_t dev)
 {
-	const struct ed_product *pp;
-	int		error;
+	const struct ed_product *pp, *pp2;
+	int		error, first = 1;
 	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
 
 	/* Make sure we're a network function */
@@ -230,6 +286,23 @@ ed_pccard_probe(device_t dev)
 		if (!(pp->flags & NE2000DVF_ANYFUNC) &&
 		    fcn != PCCARD_FUNCTION_NETWORK)
 			return (ENXIO);
+		/*
+		 * Some devices match multiple entries.  Report that
+		 * as a warning to help cull the table
+		 */
+		pp2 = pp;
+		while ((pp2 = (const struct ed_product *)pccard_product_lookup(
+		    dev, (const struct pccard_product *)(pp2 + 1),
+		    sizeof(ed_pccard_products[0]), NULL)) != NULL) {
+			if (first) {
+				device_printf(dev,
+    "Warning: card matches multiple entries.  Report to imp@freebsd.org\n");
+				ed_pccard_print_entry(pp);
+				first = 0;
+			}
+			ed_pccard_print_entry(pp2);
+		}
+		
 		return (0);
 	}
 	return (ENXIO);
@@ -296,6 +369,53 @@ ed_pccard_add_modem(device_t dev)
 }
 
 static int
+ed_pccard_media_ioctl(struct ed_softc *sc, struct ifreq *ifr, u_long command)
+{
+	struct mii_data *mii;
+
+	if (sc->miibus == NULL)
+		return (EINVAL);
+	mii = device_get_softc(sc->miibus);
+	return (ifmedia_ioctl(sc->ifp, ifr, &mii->mii_media, command));
+}
+
+
+static void
+ed_pccard_mediachg(struct ed_softc *sc)
+{
+	struct mii_data *mii;
+
+	if (sc->miibus == NULL)
+		return;
+	mii = device_get_softc(sc->miibus);
+	mii_mediachg(mii);
+}
+
+static void
+ed_pccard_tick(void *arg)
+{
+	struct ed_softc *sc = arg;
+	struct mii_data *mii;
+	int media = 0;
+
+	ED_ASSERT_LOCKED(sc);
+	if (sc->miibus != NULL) {
+		mii = device_get_softc(sc->miibus);
+		media = mii->mii_media_status;
+		mii_tick(mii);
+		if (mii->mii_media_status & IFM_ACTIVE &&
+		    media != mii->mii_media_status && 0 &&
+		    sc->chip_type == ED_CHIP_TYPE_DL10022) {
+			ed_asic_outb(sc, ED_DL100XX_DIAG,
+			    (mii->mii_media_active & IFM_FDX) ?
+			    ED_DL100XX_COLLISON_DIS : 0);
+		}
+		
+	}
+	callout_reset(&sc->tick_ch, hz, ed_pccard_tick, sc);
+}
+
+static int
 ed_pccard_attach(device_t dev)
 {
 	u_char sum;
@@ -345,6 +465,8 @@ ed_pccard_attach(device_t dev)
 		error = ed_pccard_dl100xx(dev, pp);
 	if (error != 0)
 		error = ed_pccard_ax88x90(dev, pp);
+	if (error != 0)
+		error = ed_pccard_tc5299j(dev, pp);
 	if (error != 0)
 		error = ed_probe_Novell_generic(dev, device_get_flags(dev));
 	if (error)
@@ -410,7 +532,6 @@ ed_pccard_attach(device_t dev)
 	error = ed_attach(dev);
 	if (error)
 		goto bad;
-#ifndef ED_NO_MIIBUS
  	if (sc->chip_type == ED_CHIP_TYPE_DL10019 ||
 	    sc->chip_type == ED_CHIP_TYPE_DL10022) {
 		/* Probe for an MII bus, but ignore errors. */
@@ -425,8 +546,20 @@ ed_pccard_attach(device_t dev)
 			goto bad;
 		}
 		    
+	} else if (sc->chip_type == ED_CHIP_TYPE_TC5299J) {
+		ed_pccard_tc5299j_mii_reset(sc);
+		if ((error = mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
+		     ed_ifmedia_sts)) != 0) {
+			device_printf(dev, "Missing mii!\n");
+			goto bad;
+		}
+		    
 	}
-#endif
+	if (sc->miibus != NULL) {
+		sc->sc_tick = ed_pccard_tick;
+		sc->sc_mediachg = ed_pccard_mediachg;
+		sc->sc_media_ioctl = ed_pccard_media_ioctl;
+	}
 	if (sc->modem_rid != -1)
 		ed_pccard_add_modem(dev);
 	return (0);
@@ -492,7 +625,6 @@ ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 	return (0);
 }
 
-#ifndef ED_NO_MIIBUS
 /* MII bit-twiddling routines for cards using Dlink chipset */
 #define DL100XX_MIISET(sc, x) ed_asic_outb(sc, ED_DL100XX_MIIBUS, \
     ed_asic_inb(sc, ED_DL100XX_MIIBUS) | (x))
@@ -556,14 +688,13 @@ ed_pccard_dl100xx_mii_readbits(struct ed_softc *sc, int nbits)
 		DL100XX_MIISET(sc, ED_DL100XX_MII_CLK);
 		DELAY(10);
 		val <<= 1;
-		if (ed_asic_inb(sc, ED_DL100XX_MIIBUS) & ED_DL100XX_MII_DATATIN)
+		if (ed_asic_inb(sc, ED_DL100XX_MIIBUS) & ED_DL100XX_MII_DATAIN)
 			val++;
 		DL100XX_MIICLR(sc, ED_DL100XX_MII_CLK);
 		DELAY(10);
 	}
 	return val;
 }
-#endif
 
 static int
 ed_pccard_ax88x90_geteprom(struct ed_softc *sc)
@@ -635,9 +766,24 @@ ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
 	pccard_ccr_write_1(dev, PCCARD_CCR_IOBASE0, iobase & 0xff);
 	pccard_ccr_write_1(dev, PCCARD_CCR_IOBASE1, (iobase >> 8) & 0xff);
 
-#ifdef ED_NO_MIIBUS
-	return (ENXIO);
-#else
+	ts = "AX88190";
+	if (ed_asic_inb(sc, ED_AX88X90_TEST) != 0) {
+		/*
+		 * AX88790 (and I think AX88190A) chips need to be
+		 * powered down.  There's an erratum that says we should
+		 * power down the PHY for 2.5s, but this seems to power
+		 * down the whole card.  I'm unsure why this was done, but
+		 * appears to be required for proper operation.
+		 */
+		pccard_ccr_write_1(dev, PCCARD_CCR_STATUS,
+		    PCCARD_CCR_STATUS_PWRDWN);
+		/*
+		 * Linux axnet driver selects the internal phy for the ax88790
+		 */
+		ed_asic_outb(sc, ED_AX88X90_GPIO, ED_AX88X90_GPIO_INT_PHY);
+		ts = "AX88790";
+	}
+
 	/*
 	 * Check to see if we have a MII PHY ID at any of the first 17
 	 * locations.  All AX88x90 devices have MII and a PHY, so we use
@@ -657,20 +803,6 @@ ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
 		return (ENXIO);
 	}
 	
-
-	ts = "AX88190";
-	if (ed_asic_inb(sc, ED_ASIX_TEST) != 0) {
-		/*
-		 * AX88790 (and I think AX88190A) chips need to be
-		 * powered down.  There's an erratum that says we should
-		 * power down the PHY for 2.5s, but this seems to power
-		 * down the whole card.  I'm unsure why this was done, but
-		 * appears to be required for proper operation.
-		 */
-		pccard_ccr_write_1(dev, PCCARD_CCR_STATUS,
-		    PCCARD_CCR_STATUS_PWRDWN);
-		ts = "AX88790";
-	}
 	sc->chip_type = ED_CHIP_TYPE_AX88190;
 	error = ed_pccard_ax88x90_geteprom(sc);
 	if (error)
@@ -685,11 +817,9 @@ ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
 		sc->type_str = ts;
 	}
 	return (error);
-#endif
 }
 
-#ifndef ED_NO_MIIBUS
-/* MII bit-twiddling routines for cards using Dlink chipset */
+/* MII bit-twiddling routines for cards using AX88x90 chipset */
 #define AX88X90_MIISET(sc, x) ed_asic_outb(sc, ED_AX88X90_MIIBUS, \
     ed_asic_inb(sc, ED_AX88X90_MIIBUS) | (x))
 #define AX88X90_MIICLR(sc, x) ed_asic_outb(sc, ED_AX88X90_MIIBUS, \
@@ -731,16 +861,125 @@ ed_pccard_ax88x90_mii_readbits(struct ed_softc *sc, int nbits)
 		AX88X90_MIISET(sc, ED_AX88X90_MII_CLK);
 		DELAY(10);
 		val <<= 1;
-		if (ed_asic_inb(sc, ED_AX88X90_MIIBUS) & ED_AX88X90_MII_DATATIN)
+		if (ed_asic_inb(sc, ED_AX88X90_MIIBUS) & ED_AX88X90_MII_DATAIN)
 			val++;
 		AX88X90_MIICLR(sc, ED_AX88X90_MII_CLK);
 		DELAY(10);
 	}
 	return val;
 }
-#endif
 
-#ifndef ED_NO_MIIBUS
+/*
+ * Special setup for TC5299J
+ */
+static int
+ed_pccard_tc5299j(device_t dev, const struct ed_product *pp)
+{
+	int	error, i, id;
+	char *ts;
+	struct	ed_softc *sc = device_get_softc(dev);
+
+	if (!(pp->flags & NE2000DVF_TC5299J))
+		return (ENXIO);
+
+	if (bootverbose)
+		device_printf(dev, "Checking Tc5299j\n");
+
+	/*
+	 * Check to see if we have a MII PHY ID at any of the first 32
+	 * locations.  All TC5299J devices have MII and a PHY, so we use
+	 * this to weed out chips that would otherwise make it through
+	 * the tests we have after this point.
+	 */
+	sc->mii_readbits = ed_pccard_tc5299j_mii_readbits;
+	sc->mii_writebits = ed_pccard_tc5299j_mii_writebits;
+	for (i = 0; i < 32; i++) {
+		id = ed_miibus_readreg(dev, i, MII_PHYIDR1);
+		if (id != 0 && id != 0xffff)
+			break;
+	}
+	if (i == 32) {
+		sc->mii_readbits = 0;
+		sc->mii_writebits = 0;
+		return (ENXIO);
+	}
+
+	ts = "TC5299J";
+	error = ed_probe_Novell_generic(dev, device_get_flags(dev));
+	if (bootverbose)
+		device_printf(dev, "probe novel returns %d\n", error);
+	if (error != 0) {
+		sc->mii_readbits = 0;
+		sc->mii_writebits = 0;
+		return (error);
+	}
+	if (ed_pccard_rom_mac(dev, sc->enaddr) == 0) {
+		sc->mii_readbits = 0;
+		sc->mii_writebits = 0;
+		return (ENXIO);
+	}
+	sc->vendor = ED_VENDOR_NOVELL;
+	sc->type = ED_TYPE_NE2000;
+	sc->chip_type = ED_CHIP_TYPE_TC5299J;
+	sc->type_str = ts;
+	return (0);
+}
+
+/* MII bit-twiddling routines for cards using TC5299J chipset */
+#define TC5299J_MIISET(sc, x) ed_nic_outb(sc, ED_TC5299J_MIIBUS, \
+    ed_nic_inb(sc, ED_TC5299J_MIIBUS) | (x))
+#define TC5299J_MIICLR(sc, x) ed_nic_outb(sc, ED_TC5299J_MIIBUS, \
+    ed_nic_inb(sc, ED_TC5299J_MIIBUS) & ~(x))
+
+static void
+ed_pccard_tc5299j_mii_reset(struct ed_softc *sc)
+{
+	/* Do nothing! */
+}
+
+static void
+ed_pccard_tc5299j_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
+{
+	int i;
+	uint8_t cr;
+
+	cr = ed_nic_inb(sc, ED_P0_CR);
+	ed_nic_outb(sc, ED_P0_CR, cr | ED_CR_PAGE_3);
+
+	TC5299J_MIICLR(sc, ED_TC5299J_MII_DIROUT);
+	for (i = nbits - 1; i >= 0; i--) {
+		if ((val >> i) & 1)
+			TC5299J_MIISET(sc, ED_TC5299J_MII_DATAOUT);
+		else
+			TC5299J_MIICLR(sc, ED_TC5299J_MII_DATAOUT);
+		TC5299J_MIISET(sc, ED_TC5299J_MII_CLK);
+		TC5299J_MIICLR(sc, ED_TC5299J_MII_CLK);
+	}
+	ed_nic_outb(sc, ED_P0_CR, cr);
+}
+
+static u_int
+ed_pccard_tc5299j_mii_readbits(struct ed_softc *sc, int nbits)
+{
+	int i;
+	u_int val = 0;
+	uint8_t cr;
+
+	cr = ed_nic_inb(sc, ED_P0_CR);
+	ed_nic_outb(sc, ED_P0_CR, cr | ED_CR_PAGE_3);
+
+	TC5299J_MIISET(sc, ED_TC5299J_MII_DIROUT);
+	for (i = nbits - 1; i >= 0; i--) {
+		TC5299J_MIISET(sc, ED_TC5299J_MII_CLK);
+		val <<= 1;
+		if (ed_nic_inb(sc, ED_TC5299J_MIIBUS) & ED_TC5299J_MII_DATAIN)
+			val++;
+		TC5299J_MIICLR(sc, ED_TC5299J_MII_CLK);
+	}
+	ed_nic_outb(sc, ED_P0_CR, cr);
+	return val;
+}
+
 /*
  * MII bus support routines.
  */
@@ -793,7 +1032,46 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 	(*sc->mii_writebits)(sc, data, ED_MII_DATA_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
 }
-#endif
+
+static int
+ed_ifmedia_upd(struct ifnet *ifp)
+{
+	struct ed_softc *sc;
+	struct mii_data *mii;
+
+	sc = ifp->if_softc;
+	if (sc->miibus == NULL)
+		return (ENXIO);
+	
+	mii = device_get_softc(sc->miibus);
+	return mii_mediachg(mii);
+}
+
+static void
+ed_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+{
+	struct ed_softc *sc;
+	struct mii_data *mii;
+
+	sc = ifp->if_softc;
+	if (sc->miibus == NULL)
+		return;
+
+	mii = device_get_softc(sc->miibus);
+	mii_pollstat(mii);
+	ifmr->ifm_active = mii->mii_media_active;
+	ifmr->ifm_status = mii->mii_media_status;
+}
+
+static void
+ed_child_detached(device_t dev, device_t child)
+{
+	struct ed_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (child == sc->miibus)
+		sc->miibus = NULL;
+}
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
@@ -801,14 +1079,12 @@ static device_method_t ed_pccard_methods[] = {
 	DEVMETHOD(device_attach,	ed_pccard_attach),
 	DEVMETHOD(device_detach,	ed_detach),
 
-#ifndef ED_NO_MIIBUS
 	/* Bus interface */
 	DEVMETHOD(bus_child_detached,	ed_child_detached),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	ed_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	ed_miibus_writereg),
-#endif
 
 	{ 0, 0 }
 };
@@ -820,6 +1096,6 @@ static driver_t ed_pccard_driver = {
 };
 
 DRIVER_MODULE(ed, pccard, ed_pccard_driver, ed_devclass, 0, 0);
-#ifndef ED_NO_MIIBUS
 DRIVER_MODULE(miibus, ed, miibus_driver, miibus_devclass, 0, 0);
-#endif
+MODULE_DEPEND(ed, miibus, 1, 1, 1);
+MODULE_DEPEND(ed, ether, 1, 1, 1);
