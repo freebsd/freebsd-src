@@ -350,11 +350,11 @@ typedef void (*uma_free)(void *item, int size, u_int8_t pflag);
  * Discussion:
  *	This memory is used for zones which allocate things before the
  *	backend page supplier can give us pages.  It should be
- *	UMA_SLAB_SIZE * UMA_BOOT_PAGES bytes. (see uma_int.h)
+ *	UMA_SLAB_SIZE * boot_pages bytes. (see uma_int.h)
  *
  */
 
-void uma_startup(void *bootmem);
+void uma_startup(void *bootmem, int boot_pages);
 
 /*
  * Finishes starting up the allocator.  This should
