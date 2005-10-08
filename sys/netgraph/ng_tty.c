@@ -331,14 +331,17 @@ ngt_tioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *td
 static int
 ngt_input(int c, struct tty *tp)
 {
-	const sc_p sc = (sc_p) tp->t_lsc;
-	const node_p node = sc->node;
+	sc_p sc;
+	node_p node;
 	struct mbuf *m;
 	int error = 0;
 
+	sc = (sc_p) tp->t_lsc;
 	if (sc == NULL)
 		/* No node attached */
 		return (0);
+
+	node = sc->node;
 
 	if (tp != sc->tp)
 		panic("ngt_input");
