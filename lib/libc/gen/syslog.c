@@ -285,7 +285,7 @@ vsyslog(int pri, const char *fmt, va_list ap)
 			connectlog();
 		}
 		do {
-			usleep(1);
+			_usleep(1);
 			if (send(LogFile, tbuf, cnt, 0) >= 0) {
 				THREAD_UNLOCK();
 				return;
