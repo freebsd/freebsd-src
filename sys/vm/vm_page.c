@@ -229,8 +229,8 @@ vm_page_startup(vm_offset_t vaddr)
 	new_end = trunc_page(new_end);
 	mapped = pmap_map(&vaddr, new_end, end,
 	    VM_PROT_READ | VM_PROT_WRITE);
-	bzero((caddr_t) mapped, end - new_end);
-	uma_startup((caddr_t)mapped);
+	bzero((void *)mapped, end - new_end);
+	uma_startup((void *)mapped, boot_pages);
 
 	/*
 	 * Compute the number of pages of memory that will be available for
