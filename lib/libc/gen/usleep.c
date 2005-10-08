@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 int
-usleep(useconds)
+__usleep(useconds)
 	useconds_t useconds;
 {
 	struct timespec time_to_sleep;
@@ -52,3 +52,6 @@ usleep(useconds)
 	time_to_sleep.tv_sec = useconds / 1000000;
 	return (_nanosleep(&time_to_sleep, NULL));
 }
+
+__weak_reference(__usleep, usleep);
+__weak_reference(__usleep, _usleep);
