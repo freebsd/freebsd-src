@@ -124,6 +124,7 @@
 #define		sigsuspend			_sigsuspend
 #define		socket				_socket
 #define		socketpair			_socketpair
+#define		usleep				_usleep
 #define		wait4				_wait4
 #define		waitpid				_waitpid
 #define		write				_write
