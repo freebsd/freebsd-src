@@ -1269,13 +1269,13 @@ cbb_pcic_power_disable_socket(device_t brdev, device_t child)
 
 	DPRINTF(("cbb_pcic_socket_disable\n"));
 
-	/* reset signal asserting... */
-	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
+	/* Turn off the card's interrupt and leave it in reset */
+	exca_putb(&sc->exca[0], EXCA_INTR, 0);
 	tsleep(sc, PZERO, "cbbP1", hz / 100);
 
 	/* power down the socket */
-	exca_clrb(&sc->exca[0], EXCA_PWRCTL, EXCA_PWRCTL_OE);
 	cbb_power(brdev, CARD_OFF);
+	exca_putb(&sc->exca[0], EXCA_PWRCTL, 0);
 
 	/* wait 300ms until power fails (Tpf). */
 	tsleep(sc, PZERO, "cbbP1", hz * 300 / 1000);
