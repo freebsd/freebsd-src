@@ -389,8 +389,8 @@ inet6_insert_padopt(u_char *p, int len)
 }
 
 /*
- * The following functions are defined in a successor of RFC2292, aka
- * rfc2292bis.
+ * The following functions are defined in RFC3542, which is a successor
+ * of RFC2292.
  */
 
 int
