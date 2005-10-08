@@ -62,11 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 
-#ifndef ED_NO_MIIBUS
-#include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
-#endif
-
 #include <net/bpf.h>
 
 #include <dev/ed/if_edreg.h>
@@ -82,9 +77,6 @@ static void	ed_start(struct ifnet *);
 static void	ed_start_locked(struct ifnet *);
 static void	ed_reset(struct ifnet *);
 static void	ed_watchdog(struct ifnet *);
-#ifndef ED_NO_MIIBUS
-static void	ed_tick(void *);
-#endif
 
 static void	ed_ds_getmcaf(struct ed_softc *, uint32_t *);
 
@@ -379,6 +371,7 @@ ed_detach(device_t dev)
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
 	ED_LOCK_DESTROY(sc);
+	bus_generic_detach(dev);
 	return (0);
 }
 
@@ -425,9 +418,8 @@ void
 ed_stop(struct ed_softc *sc)
 {
 	ED_ASSERT_LOCKED(sc);
-#ifndef ED_NO_MIIBUS
-	callout_stop(&sc->tick_ch);
-#endif
+	if (sc->sc_tick)
+		callout_stop(&sc->tick_ch);
 	ed_stop_hw(sc);
 }
 
@@ -447,22 +439,6 @@ ed_watchdog(struct ifnet *ifp)
 	ed_reset(ifp);
 	ED_UNLOCK(sc);
 }
-
-#ifndef ED_NO_MIIBUS
-static void
-ed_tick(void *arg)
-{
-	struct ed_softc *sc = arg;
-	struct mii_data *mii;
-
-	ED_ASSERT_LOCKED(sc);
-	if (sc->miibus != NULL) {
-		mii = device_get_softc(sc->miibus);
-		mii_tick(mii);
-	}
-	callout_reset(&sc->tick_ch, hz, ed_tick, sc);
-}
-#endif
 
 /*
  * Initialize device.
@@ -605,13 +581,9 @@ ed_init_locked(struct ed_softc *sc)
 			ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
 	}
 #endif
-#ifndef ED_NO_MIIBUS
-	if (sc->miibus != NULL) {
-		struct mii_data *mii;
-		mii = device_get_softc(sc->miibus);
-		mii_mediachg(mii);
-	}
-#endif
+	if (sc->sc_mediachg)
+	    sc->sc_mediachg(sc);
+
 	/*
 	 * Set 'running' flag, and clear output active flag.
 	 */
@@ -623,9 +595,8 @@ ed_init_locked(struct ed_softc *sc)
 	 */
 	ed_start_locked(ifp);
 
-#ifndef ED_NO_MIIBUS
-	callout_reset(&sc->tick_ch, hz, ed_tick, sc);
-#endif
+	if (sc->sc_tick)
+		callout_reset(&sc->tick_ch, hz, sc->sc_tick, sc);
 }
 
 /*
@@ -991,12 +962,10 @@ edintr(void *arg)
 	int	count;
 
 	ED_LOCK(sc);
-#if 0
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		ED_UNLOCK(sc);
 		return;
 	}
-#endif
 	/*
 	 * Set NIC to page 0 registers
 	 */
@@ -1239,10 +1208,7 @@ static int
 ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ed_softc *sc = ifp->if_softc;
-#ifndef ED_NO_MIIBUS
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct mii_data *mii;
-#endif
 	int     error = 0;
 
 	/*
@@ -1279,8 +1245,6 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * An unfortunate hack to provide the (required) software
 		 * control of the tranceiver for 3Com/HP boards.
 		 * The ALTPHYS flag disables the tranceiver if set.
-		 *
-		 * XXX - should use ifmedia.
 		 */
 #ifdef ED_3C503
 		if (sc->vendor == ED_VENDOR_3COM) {
@@ -1311,15 +1275,12 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		if (sc->miibus == NULL) {
+		if (sc->sc_media_ioctl == NULL) {
 			error = EINVAL;
 			break;
 		}
-#ifndef ED_NO_MIIBUS
-		mii = device_get_softc(sc->miibus);
-		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		sc->sc_media_ioctl(sc, ifr, command);
 		break;
-#endif
 
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -1634,48 +1595,6 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 	}
 	return (total_len);
 }
-
-#ifndef ED_NO_MIIBUS
-int
-ed_ifmedia_upd(struct ifnet *ifp)
-{
-	struct ed_softc *sc;
-	struct mii_data *mii;
-
-	sc = ifp->if_softc;
-	if (sc->miibus == NULL)
-		return (ENXIO);
-	
-	mii = device_get_softc(sc->miibus);
-	return mii_mediachg(mii);
-}
-
-void
-ed_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
-{
-	struct ed_softc *sc;
-	struct mii_data *mii;
-
-	sc = ifp->if_softc;
-	if (sc->miibus == NULL)
-		return;
-
-	mii = device_get_softc(sc->miibus);
-	mii_pollstat(mii);
-	ifmr->ifm_active = mii->mii_media_active;
-	ifmr->ifm_status = mii->mii_media_status;
-}
-
-void
-ed_child_detached(device_t dev, device_t child)
-{
-	struct ed_softc *sc;
-
-	sc = device_get_softc(dev);
-	if (child == sc->miibus)
-		sc->miibus = NULL;
-}
-#endif
 
 static void
 ed_setrcr(struct ed_softc *sc)
