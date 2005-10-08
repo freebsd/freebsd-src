@@ -2292,7 +2292,6 @@ re_ioctl(ifp, command, data)
 			error = EINVAL;
 		ifp->if_mtu = ifr->ifr_mtu;
 		RL_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCSIFFLAGS:
 		RL_LOCK(sc);
