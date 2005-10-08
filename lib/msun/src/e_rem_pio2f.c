@@ -109,6 +109,7 @@ pio2_3t =  6.1232342629e-17; /* 0x248d3132 */
 		y[0] = z + pio2_2t;
 		y[1] = (z-y[0])+pio2_2t;
 		return -1;
+	    }
 	}
 	if(ix<=0x43490f80) { /* |x| ~<= 2^7*(pi/2), medium size */
 	    t  = fabsf(x);
