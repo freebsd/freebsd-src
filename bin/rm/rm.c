@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,6 +27,7 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993, 1994\n\
@@ -38,10 +35,9 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
 static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
-#endif
 #endif /* not lint */
+#endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -53,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <grp.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,26 +58,29 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
+int rflag, Iflag;
 uid_t uid;
 
 int	check(char *, char *, struct stat *);
+int	check2(char **);
 void	checkdot(char **);
+void	checkslash(char **);
 void	rm_file(char **);
-void	rm_overwrite(char *, struct stat *);
+int	rm_overwrite(char *, struct stat *);
 void	rm_tree(char **);
 void	usage(void);
 
 /*
  * rm --
  *	This rm is different from historic rm's, but is expected to match
- *	POSIX 1003.2 behavior.  The most visible difference is that -f
+ *	POSIX 1003.2 behavior.	The most visible difference is that -f
  *	has two specific effects now, ignore non-existent files and force
- * 	file removal.
+ *	file removal.
  */
 int
 main(int argc, char *argv[])
 {
-	int ch, rflag;
+	int ch;
 	char *p;
 
 	/*
@@ -103,7 +104,7 @@ main(int argc, char *argv[])
 	}
 
 	Pflag = rflag = 0;
-	while ((ch = getopt(argc, argv, "dfiPRrvW")) != -1)
+	while ((ch = getopt(argc, argv, "dfiIPRrvW")) != -1)
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -115,6 +116,9 @@ main(int argc, char *argv[])
 		case 'i':
 			fflag = 0;
 			iflag = 1;
+			break;
+		case 'I':
+			Iflag = 1;
 			break;
 		case 'P':
 			Pflag = 1;
@@ -137,16 +141,22 @@ main(int argc, char *argv[])
 
 	if (argc < 1) {
 		if (fflag)
-			return 0;
+			return (0);
 		usage();
 	}
 
 	checkdot(argv);
+	if (getenv("POSIXLY_CORRECT") == NULL)
+		checkslash(argv);
 	uid = geteuid();
 
 	if (*argv) {
 		stdin_ok = isatty(STDIN_FILENO);
 
+		if (Iflag) {
+			if (check2(argv) == 0)
+				exit (1);
+		}
 		if (rflag)
 			rm_tree(argv);
 		else
@@ -182,8 +192,11 @@ rm_tree(char **argv)
 		flags |= FTS_NOSTAT;
 	if (Wflag)
 		flags |= FTS_WHITEOUT;
-	if (!(fts = fts_open(argv, flags, NULL)))
-		err(1, NULL);
+	if (!(fts = fts_open(argv, flags, NULL))) {
+		if (fflag && errno == ENOENT)
+			return;
+		err(1, "fts_open");
+	}
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
 		case FTS_DNR:
@@ -197,8 +210,8 @@ rm_tree(char **argv)
 			errx(1, "%s: %s", p->fts_path, strerror(p->fts_errno));
 		case FTS_NS:
 			/*
-			 * FTS_NS: assume that if can't stat the file, it
-			 * can't be unlinked.
+			 * Assume that since fts_read() couldn't stat the
+			 * file, it can't be unlinked.
 			 */
 			if (!needstat)
 				break;
@@ -267,9 +280,18 @@ rm_tree(char **argv)
 				}
 				break;
 
+			case FTS_NS:
+				/*
+				 * Assume that since fts_read() couldn't stat
+				 * the file, it can't be unlinked.
+				 */
+				if (fflag)
+					continue;
+				/* FALLTHROUGH */
 			default:
 				if (Pflag)
-					rm_overwrite(p->fts_accpath, NULL);
+					if (!rm_overwrite(p->fts_accpath, NULL))
+						continue;
 				rval = unlink(p->fts_accpath);
 				if (rval == 0 || (fflag && errno == ENOENT)) {
 					if (rval == 0 && vflag)
@@ -335,7 +357,8 @@ rm_file(char **argv)
 				rval = rmdir(f);
 			else {
 				if (Pflag)
-					rm_overwrite(f, &sb);
+					if (!rm_overwrite(f, &sb))
+						continue;
 				rval = unlink(f);
 			}
 		}
@@ -355,11 +378,11 @@ rm_file(char **argv)
  * XXX
  * This is a cheap way to *really* delete files.  Note that only regular
  * files are deleted, directories (and therefore names) will remain.
- * Also, this assumes a fixed-block filesystem (like FFS, or a V7 or a
- * System V filesystem).  In a logging filesystem, you'll have to have
+ * Also, this assumes a fixed-block file system (like FFS, or a V7 or a
+ * System V file system).  In a logging file system, you'll have to have
  * kernel support.
  */
-void
+int
 rm_overwrite(char *file, struct stat *sbp)
 {
 	struct stat sb;
@@ -375,14 +398,14 @@ rm_overwrite(char *file, struct stat *sbp)
 		sbp = &sb;
 	}
 	if (!S_ISREG(sbp->st_mode))
-		return;
+		return (1);
 	if ((fd = open(file, O_WRONLY, 0)) == -1)
 		goto err;
 	if (fstatfs(fd, &fsb) == -1)
 		goto err;
 	bsize = MAX(fsb.f_iosize, 1024);
 	if ((buf = malloc(bsize)) == NULL)
-		err(1, "malloc");
+		err(1, "%s: malloc", file);
 
 #define	PASS(byte) {							\
 	memset(buf, byte, bsize);					\
@@ -401,13 +424,16 @@ rm_overwrite(char *file, struct stat *sbp)
 	PASS(0xff);
 	if (!fsync(fd) && !close(fd)) {
 		free(buf);
-		return;
+		return (1);
 	}
 
 err:	eval = 1;
 	if (buf)
 		free(buf);
+	if (fd != -1)
+		close(fd);
 	warn("%s", file);
+	return (0);
 }
 
 
@@ -423,7 +449,7 @@ check(char *path, char *name, struct stat *sp)
 	else {
 		/*
 		 * If it's not a symbolic link and it's unwritable and we're
-		 * talking to a terminal, ask.  Symbolic links are excluded
+		 * talking to a terminal, ask.	Symbolic links are excluded
 		 * because their permissions are meaningless.  Check stdin_ok
 		 * first because we may not have stat'ed the file.
 		 */
@@ -434,12 +460,16 @@ check(char *path, char *name, struct stat *sp)
 			return (1);
 		strmode(sp->st_mode, modep);
 		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
-			err(1, NULL);
+			err(1, "fflagstostr");
+		if (Pflag)
+			errx(1,
+			    "%s: -P was specified, but file is not writable",
+			    path);
 		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
 		    modep + 1, modep[9] == ' ' ? "" : " ",
 		    user_from_uid(sp->st_uid, 0),
 		    group_from_gid(sp->st_gid, 0),
-		    *flagsp ? flagsp : "", *flagsp ? " " : "", 
+		    *flagsp ? flagsp : "", *flagsp ? " " : "",
 		    path);
 		free(flagsp);
 	}
@@ -448,6 +478,77 @@ check(char *path, char *name, struct stat *sp)
 	first = ch = getchar();
 	while (ch != '\n' && ch != EOF)
 		ch = getchar();
+	return (first == 'y' || first == 'Y');
+}
+
+#define ISSLASH(a)	((a)[0] == '/' && (a)[1] == '\0')
+void
+checkslash(char **argv)
+{
+	char **t, **u;
+	int complained;
+
+	complained = 0;
+	for (t = argv; *t;) {
+		if (ISSLASH(*t)) {
+			if (!complained++)
+				warnx("\"/\" may not be removed");
+			eval = 1;
+			for (u = t; u[0] != NULL; ++u)
+				u[0] = u[1];
+		} else {
+			++t;
+		}
+	}
+}
+
+int
+check2(char **argv)
+{
+	struct stat st;
+	int first;
+	int ch;
+	int fcount = 0;
+	int dcount = 0;
+	int i;
+	const char *dname = NULL;
+
+	for (i = 0; argv[i]; ++i) {
+		if (lstat(argv[i], &st) == 0) {
+			if (S_ISDIR(st.st_mode)) {
+				++dcount;
+				dname = argv[i];    /* only used if 1 dir */
+			} else {
+				++fcount;
+			}
+		}
+	}
+	first = 0;
+	while (first != 'n' && first != 'N' && first != 'y' && first != 'Y') {
+		if (dcount && rflag) {
+			fprintf(stderr, "recursively remove");
+			if (dcount == 1)
+				fprintf(stderr, " %s", dname);
+			else
+				fprintf(stderr, " %d dirs", dcount);
+			if (fcount == 1)
+				fprintf(stderr, " and 1 file");
+			else if (fcount > 1)
+				fprintf(stderr, " and %d files", fcount);
+		} else if (dcount + fcount > 3) {
+			fprintf(stderr, "remove %d files", dcount + fcount);
+		} else {
+			return(1);
+		}
+		fprintf(stderr, "? ");
+		fflush(stderr);
+
+		first = ch = getchar();
+		while (ch != '\n' && ch != EOF)
+			ch = getchar();
+		if (ch == EOF)
+			break;
+	}
 	return (first == 'y' || first == 'Y');
 }
 
@@ -481,7 +582,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: rm [-f | -i] [-dPRrvW] file ...",
+	    "usage: rm [-f | -i] [-dIPRrvW] file ...",
 	    "       unlink file");
 	exit(EX_USAGE);
 }
