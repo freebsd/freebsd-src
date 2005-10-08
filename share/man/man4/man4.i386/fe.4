@@ -29,17 +29,15 @@
 .Nm fe
 .Nd "Fujitsu MB86960A/MB86965A based Ethernet adapters"
 .Sh SYNOPSIS
-To compile support for the
-.Nm
-driver into your kernel, place the following line in your
+To compile this driver into the kernel,
+place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device fe"
 .Ed
 .Pp
-Alternatively, to load the
-.Nm
-driver at boot time, place the following line in
+Alternatively, to load the driver as a
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_fe_load="YES"
@@ -179,60 +177,6 @@ TDK LAK-CD021, LAK-CD021A, LAK-CD021BX
 .It
 Ungermann-Bass Access/PC N98C+(PC85152, PC85142), Access/NOTE
 N98(PC86132) (110-pin)
-.El
-.Sh OPTIONS
-The
-.Nm
-driver has some private options,
-which can be specified with an
-.Dq option
-statement in the kernel configuration file.
-The following lists the private options.
-The driver also accepts some other undocumented options,
-all of whose names start with a fixed prefix
-.Dv "FE_" .
-Consult the source program for undocumented options.
-.Bl -tag -width "FE_"
-.It Dv "FE_DEBUG=" Ns Ar level
-This option takes a numeric value
-.Ar level
-which controls the debugging level for the device and/or the driver.
-Setting the
-.Dv "FE_DEBUG"
-option to a value which is not listed here
-may cause undocumented behavior.
-The default setting of this option is 1.
-.Bl -bullet
-.It
-Setting
-.Dv "FE_DEBUG=0"
-makes most of debugging codes,
-including sanity check,
-be excluded from the object code of the driver.
-It generates fastest and smallest object code.
-Some emergency messages are logged even under this setting, though.
-.It
-Setting
-.Dv "FE_DEBUG=1"
-makes minimum debugging codes be included,
-setting the amount of logged messages minimum.
-Only fatal error messages are logged under this setting.
-.It
-Setting
-.Dv "FE_DEBUG=2"
-makes standard debugging codes be included,
-setting the amount of logged messages middle.
-Messages on lair events and/or questionable conditions
-are logged under this setting.
-.It
-Setting
-.Dv "FE_DEBUG=3"
-makes all debugging codes be included,
-and sets the amount of logged messages to the maximum possible.
-Redundant messages such as those reporting usual actions
-or dumping register values
-are logged under this setting.
-.El
 .El
 .Sh FEATURES SPECIFIC TO HARDWARE MODELS
 The
