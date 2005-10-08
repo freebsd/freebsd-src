@@ -32,7 +32,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2004
+.Dd September 29, 2005
 .Dt RM 1
 .Os
 .Sh NAME
@@ -88,6 +88,10 @@ yet provides almost the same level of protection against mistakes.
 Overwrite regular files before deleting them.
 Files are overwritten three times, first with the byte pattern 0xff,
 then 0x00, and then 0xff again, before they are deleted.
+Specifying this flag for a read only file will cause
+.Nm
+to generate an error message and exit.
+The file wil not be removed or overwritten.
 .It Fl R
 Attempt to remove the file hierarchy rooted in each file argument.
 The
