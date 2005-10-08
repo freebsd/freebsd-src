@@ -389,7 +389,6 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 		free(ih, M_DEVBUF);
 		return (err);
 	}
-	STAILQ_INSERT_TAIL(&sc->intr_handlers, ih, entries);
 	cbb_enable_func_intr(sc);
 	sc->flags |= CBB_CARD_OK;
 	return 0;
@@ -400,7 +399,6 @@ cbb_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie)
 {
 	struct cbb_intrhand *ih;
-	struct cbb_softc *sc = device_get_softc(dev);
 	int err;
 
 	/* XXX Need to do different things for ISA interrupts. */
@@ -409,7 +407,6 @@ cbb_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	    ih->cookie);
 	if (err != 0)
 		return (err);
-	STAILQ_REMOVE(&sc->intr_handlers, ih, cbb_intrhand, entries);
 	free(ih, M_DEVBUF);
 	return (0);
 }
