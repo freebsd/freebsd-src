@@ -1447,10 +1447,9 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 		 hdr.PageNumber, hdr.PageType);
 
 	len = hdr.PageLength * sizeof(uint32_t);
-	mpt->ioc_page2 = malloc(len, M_DEVBUF, M_NOWAIT);
+	mpt->ioc_page2 = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (mpt->ioc_page2 == NULL)
 		return (ENOMEM);
-	memset(mpt->ioc_page2, 0, sizeof(*mpt->ioc_page2));
 	memcpy(&mpt->ioc_page2->Header, &hdr, sizeof(hdr));
 	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
 				   &mpt->ioc_page2->Header, len,
@@ -1555,10 +1554,9 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 	if (mpt->ioc_page3 != NULL)
 		free(mpt->ioc_page3, M_DEVBUF);
 	len = hdr.PageLength * sizeof(uint32_t);
-	mpt->ioc_page3 = malloc(len, M_DEVBUF, M_NOWAIT);
+	mpt->ioc_page3 = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (mpt->ioc_page3 == NULL)
 		return (-1);
-	memset(mpt->ioc_page3, 0, sizeof(*mpt->ioc_page3));
 	memcpy(&mpt->ioc_page3->Header, &hdr, sizeof(hdr));
 	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
 				   &mpt->ioc_page3->Header, len,
