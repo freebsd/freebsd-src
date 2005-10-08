@@ -36,7 +36,6 @@ struct cbb_intrhand {
 	void 		*arg;
 	struct cbb_softc *sc;
 	void		*cookie;
-	STAILQ_ENTRY(cbb_intrhand) entries;
 };
 
 struct cbb_reslist {
