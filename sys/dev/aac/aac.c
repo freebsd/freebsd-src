@@ -1623,9 +1623,9 @@ aac_check_firmware(struct aac_softc *sc)
 		device_printf(sc->aac_dev, "Enabling 64-bit address support\n");
 		sc->flags |= AAC_FLAGS_SG_64BIT;
 	}
-    if ((options & AAC_SUPPORTED_NEW_COMM) && sc->aac_if.aif_send_command)
+	if ((options & AAC_SUPPORTED_NEW_COMM) && sc->aac_if.aif_send_command)
 		sc->flags |= AAC_FLAGS_NEW_COMM;
-    if (options & AAC_SUPPORTED_64BIT_ARRAYSIZE)
+	if (options & AAC_SUPPORTED_64BIT_ARRAYSIZE)
 		sc->flags |= AAC_FLAGS_ARRAY_64BIT;
 
 	/* Check for broken hardware that does a lower number of commands */
@@ -1646,7 +1646,7 @@ aac_check_firmware(struct aac_softc *sc)
 				&sc->aac_regs_rid, RF_ACTIVE);
 			if (sc->aac_regs_resource == NULL) {
 				device_printf(sc->aac_dev,
-						  "couldn't allocate register window\n");
+				    "couldn't allocate register window\n");
 				return (ENXIO);
 			}
 			sc->flags &= ~AAC_FLAGS_NEW_COMM;
@@ -2972,7 +2972,7 @@ aac_ioctl_event(struct aac_softc *sc, struct aac_event *event, void *arg)
 			return;
 		}
 		free(event, M_AACBUF);
-		wakeup(aac_ioctl_sendfib);
+		wakeup(arg);
 		mtx_unlock(&sc->aac_io_lock);
 		break;
 	default:
@@ -3010,7 +3010,7 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 		event->ev_callback = aac_ioctl_event;
 		event->ev_arg = &cm;
 		aac_add_event(sc, event);
-		msleep(aac_ioctl_sendfib, &sc->aac_io_lock, 0, "sendfib", 0);
+		msleep(&cm, &sc->aac_io_lock, 0, "sendfib", 0);
 	}
 
 	/*
