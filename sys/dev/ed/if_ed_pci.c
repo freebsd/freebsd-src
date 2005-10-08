@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <dev/ed/if_edvar.h>
+#include <dev/ed/rtl80x9reg.h>
 
 static struct _pcsid
 {
@@ -48,7 +49,7 @@ static struct _pcsid
 	const char	*desc;
 } pci_ids[] =
 {
-	{ 0x802910ec, "RealTek 8029" },
+	{ ED_RTL8029_PCI_ID, "RealTek 8029" },
 	{ 0x50004a14, "NetVin 5000" },
 	{ 0x09401050, "ProLAN" },
 	{ 0x140111f6, "Compex" },
@@ -83,7 +84,10 @@ ed_pci_attach(device_t dev)
 	int	flags = 0;
 	int	error;
 
-	error = ed_probe_Novell(dev, PCIR_BAR(0), flags);
+	if (pci_get_devid(dev) == ED_RTL8029_PCI_ID)
+		error = ed_probe_RTL80x9(dev, PCIR_BAR(0), flags);
+	else
+		error = ed_probe_Novell(dev, PCIR_BAR(0), flags);
 	if (error) {
 		ed_release_resources(dev);
 		return (error);
