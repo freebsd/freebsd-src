@@ -3410,6 +3410,8 @@ handle_workitem_remove(dirrem, xp)
 	}
 	WORKLIST_INSERT(&inodedep->id_inowait, &dirrem->dm_list);
 	FREE_LOCK(&lk);
+	ip->i_flag |= IN_CHANGE;
+	ffs_update(vp, 0);
 	vput(vp);
 }
 
