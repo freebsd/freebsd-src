@@ -306,6 +306,14 @@ cbb_detach(device_t brdev)
 	 * XXX buggy client drivers?
 	 */
 	bus_teardown_intr(brdev, sc->irq_res, sc->intrhand);
+	/*
+	 * Wait for the thread to die.  kthread_exit will do a wakeup
+	 * on the event thread's struct thread * so that we know it is
+	 * save to proceed.  IF the thread is running, set the please
+	 * die flag and wait for it to comply.  Since the wakeup on
+	 * the event thread happens only in kthread_exit, we don't
+	 * need to loop here.
+	 */
 	sc->flags |= CBB_KTHREAD_DONE;
 	if (sc->flags & CBB_KTHREAD_RUNNING) {
 		cv_broadcast(&sc->cv);
