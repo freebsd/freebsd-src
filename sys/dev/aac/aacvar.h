@@ -36,6 +36,9 @@
 #include <sys/selinfo.h>
 #include <geom/geom_disk.h>
 
+#ifndef AAC_DRIVER_BUILD
+# define AAC_DRIVER_BUILD 1
+#endif
 
 /*
  * Driver Parameter Definitions
@@ -56,9 +59,8 @@
  * FIBs are allocated in page-size chunks and can grow up to the 512
  * limit imposed by the hardware.
  */
-#define AAC_FIB_COUNT		(PAGE_SIZE/sizeof(struct aac_fib))
 #define AAC_PREALLOCATE_FIBS	128
-#define AAC_MAX_FIBS		504
+#define AAC_NUM_MGT_FIB		8
 
 /*
  * The controller reports status events in AIFs.  We hang on to a number of
@@ -146,7 +148,7 @@ struct aac_command
 
 	struct aac_fib		*cm_fib;	/* FIB associated with this
 						 * command */
-	u_int32_t		cm_fibphys;	/* bus address of the FIB */
+	u_int64_t		cm_fibphys;	/* bus address of the FIB */
 	struct bio		*cm_data;	/* pointer to data in kernel
 						 * space */
 	u_int32_t		cm_datalen;	/* data length */
@@ -165,7 +167,9 @@ struct aac_command
 #define AAC_ON_AACQ_FREE	(1<<5)
 #define AAC_ON_AACQ_READY	(1<<6)
 #define AAC_ON_AACQ_BUSY	(1<<7)
-#define AAC_ON_AACQ_MASK	((1<<5)|(1<<6)|(1<<7))
+#define AAC_ON_AACQ_AIF		(1<<8)
+#define AAC_ON_AACQ_NORM	(1<<10)
+#define AAC_ON_AACQ_MASK	((1<<5)|(1<<6)|(1<<7)|(1<<8)|(1<<10))
 #define AAC_QUEUE_FRZN		(1<<9)		/* Freeze the processing of
 						 * commands on the queue. */
 
@@ -228,6 +232,9 @@ struct aac_interface
 				   u_int32_t arg2, u_int32_t arg3);
 	int	(*aif_get_mailbox)(struct aac_softc *sc, int mb);
 	void	(*aif_set_interrupts)(struct aac_softc *sc, int enable);
+	int (*aif_send_command)(struct aac_softc *sc, struct aac_command *cm);
+	int (*aif_get_outb_queue)(struct aac_softc *sc);
+	void (*aif_set_outb_queue)(struct aac_softc *sc, int index);
 };
 extern struct aac_interface	aac_rx_interface;
 extern struct aac_interface	aac_sa_interface;
@@ -248,6 +255,9 @@ extern struct aac_interface	aac_rkt_interface;
 					0))
 #define AAC_UNMASK_INTERRUPTS(sc)	((sc)->aac_if.aif_set_interrupts((sc), \
 					1))
+#define AAC_SEND_COMMAND(sc, cm)	((sc)->aac_if.aif_send_command((sc), (cm)))
+#define AAC_GET_OUTB_QUEUE(sc)		((sc)->aac_if.aif_get_outb_queue((sc)))
+#define AAC_SET_OUTB_QUEUE(sc, idx)	((sc)->aac_if.aif_set_outb_queue((sc), (idx)))
 
 #define AAC_SETREG4(sc, reg, val)	bus_space_write_4(sc->aac_btag, \
 					sc->aac_bhandle, reg, val)
@@ -317,6 +327,11 @@ struct aac_softc
 	TAILQ_HEAD(,aac_command) aac_ready;	/* commands on hold for
 						 * controller resources */
 	TAILQ_HEAD(,aac_command) aac_busy;
+	TAILQ_HEAD(,aac_command) aac_aif;
+#if 0
+	TAILQ_HEAD(,aac_command) aac_norm;
+#endif
+	TAILQ_HEAD(,aac_event)	aac_ev_cmfree;
 	struct bio_queue_head	aac_bioq;
 	struct aac_queue_table	*aac_queues;
 	struct aac_queue_entry	*aac_qentries[AAC_QUEUE_COUNT];
@@ -366,13 +381,39 @@ struct aac_softc
 #define	AAC_FLAGS_NO4GB		(1 << 6)	/* Can't access host mem >2GB */
 #define	AAC_FLAGS_256FIBS	(1 << 7)	/* Can only do 256 commands */
 #define	AAC_FLAGS_BROKEN_MEMMAP (1 << 8)	/* Broken HostPhysMemPages */
+#define AAC_FLAGS_SLAVE	(1 << 9)
+#define AAC_FLAGS_MASTER	(1 << 10)
+#define AAC_FLAGS_NEW_COMM	(1 << 11)	/* New comm. interface supported */
+#define AAC_FLAGS_RAW_IO	(1 << 12)	/* Raw I/O interface */
+#define AAC_FLAGS_ARRAY_64BIT	(1 << 13)	/* 64-bit array size */
 
 	u_int32_t		supported_options;
-	int			aac_max_fibs;
 	u_int32_t		scsi_method_id;
 	TAILQ_HEAD(,aac_sim)	aac_sim_tqh;
+
+	u_int32_t	aac_max_fibs;           /* max. FIB count */
+	u_int32_t	aac_max_fibs_alloc;		/* max. alloc. per alloc_commands() */
+	u_int32_t	aac_max_fib_size;		/* max. FIB size */
+	u_int32_t	aac_sg_tablesize;		/* max. sg count from host */
+	u_int32_t	aac_max_sectors;		/* max. I/O size from host (blocks) */
 };
 
+/*
+ * Event callback mechanism for the driver
+ */
+#define AAC_EVENT_NONE		0x00
+#define AAC_EVENT_CMFREE	0x01
+#define	AAC_EVENT_MASK		0xff
+#define AAC_EVENT_REPEAT	0x100
+
+typedef void aac_event_cb_t(struct aac_softc *sc, struct aac_event *event,
+    void *arg);
+struct aac_event {
+	TAILQ_ENTRY(aac_event)	ev_links;
+	int			ev_type;
+	aac_event_cb_t		*ev_callback;
+	void			*ev_arg;
+};
 
 /*
  * Public functions
@@ -383,7 +424,8 @@ extern int		aac_detach(device_t dev);
 extern int		aac_shutdown(device_t dev);
 extern int		aac_suspend(device_t dev); 
 extern int		aac_resume(device_t dev);
-extern void		aac_intr(void *arg);
+extern void		aac_new_intr(void *arg);
+extern void		aac_fast_intr(void *arg);
 extern void		aac_submit_bio(struct bio *bp);
 extern void		aac_biodone(struct bio *bp);
 extern void		aac_startio(struct aac_softc *sc);
@@ -393,6 +435,8 @@ extern void		aac_release_command(struct aac_command *cm);
 extern int		aac_sync_fib(struct aac_softc *sc, u_int32_t command,
 				     u_int32_t xferstate, struct aac_fib *fib,
 				     u_int16_t datasize);
+extern void		aac_add_event(struct aac_softc *sc, struct aac_event
+				      *event);
 
 /*
  * Debugging levels:
@@ -571,7 +615,7 @@ static __inline int
 aac_alloc_sync_fib(struct aac_softc *sc, struct aac_fib **fib)
 {
 
-	mtx_lock(&sc->aac_io_lock);
+	mtx_assert(&sc->aac_io_lock, MA_OWNED);
 	*fib = &sc->aac_common->ac_sync_fib;
 	return (0);
 }
@@ -580,6 +624,6 @@ static __inline void
 aac_release_sync_fib(struct aac_softc *sc)
 {
 
-	mtx_unlock(&sc->aac_io_lock);
+	mtx_assert(&sc->aac_io_lock, MA_OWNED);
 }
 
