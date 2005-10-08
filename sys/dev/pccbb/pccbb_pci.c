@@ -316,7 +316,6 @@ cbb_pci_attach(device_t brdev)
 	sc->secbus = pci_read_config(brdev, PCIR_SECBUS_2, 1);
 	sc->subbus = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 	SLIST_INIT(&sc->rl);
-	STAILQ_INIT(&sc->intr_handlers);
 	cbb_powerstate_d0(brdev);
 
 	rid = CBBR_SOCKBASE;
