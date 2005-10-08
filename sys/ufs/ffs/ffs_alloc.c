@@ -910,6 +910,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 		ip->i_din2->di_birthtime = ts.tv_sec;
 		ip->i_din2->di_birthnsec = ts.tv_nsec;
 	}
+	ip->i_flag &= IN_HASHED;
 	return (0);
 noinodes:
 	ffs_fserr(fs, pip->i_number, "out of inodes");
