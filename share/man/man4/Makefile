@@ -418,6 +418,7 @@ MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
 MLINKS+=idt.4 if_idt.4
+MLINKS+=if_bridge.4 bridge.4
 MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
 	ipfirewall.4 ipacct.4 \
