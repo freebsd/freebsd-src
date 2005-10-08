@@ -175,6 +175,7 @@ global:
 	_spinunlock;
 	_system;
 	_tcdrain;
+	_usleep;
 	_vfork;
 	_wait;
 	_waitpid;
@@ -334,6 +335,7 @@ global:
 	sleep;
 	system;
 	tcdrain;
+	usleep;
 	vfork;
 	wait;
 	wait4;
