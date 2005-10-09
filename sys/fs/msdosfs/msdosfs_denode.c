@@ -131,7 +131,7 @@ deget(pmp, dirclust, diroffset, depp)
 	 * entry that represented the file happens to be reused while the
 	 * deleted file is still open.
 	 */
-	inode = pmp->pm_bpcluster * dirclust + diroffset;
+	inode = (uint64_t)pmp->pm_bpcluster * dirclust + diroffset;
 
 	error = vfs_hash_get(mntp, inode, LK_EXCLUSIVE, curthread, &nvp,
 	    de_vncmpf, &inode);
@@ -527,7 +527,7 @@ reinsert(dep)
 		return;
 #endif
 	vp = DETOV(dep);
-	dep->de_inode = dep->de_pmp->pm_bpcluster * dep->de_dirclust +
+	dep->de_inode = (uint64_t)dep->de_pmp->pm_bpcluster * dep->de_dirclust +
 	     dep->de_diroffset;
 	vfs_hash_rehash(vp, dep->de_inode);
 }
