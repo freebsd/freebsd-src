@@ -35,39 +35,53 @@ my $disk = "/tmp/disk-$$";
 my $unit = "";
 
 my %steps = (
-    "1" => "gctl",
-    "2" => "gctl",
-    "3" => "gctl",
-    "4" => "gctl",
-    "5" => "mdcfg",
-    "6" => "gctl",
-    "7" => "gctl",
-    "8" => "gctl",
-    "9" => "mdcfg",
-);
-
-my %args = (
-    "1" => "",
-    "2" => "verb=invalid",
-    "3" => "verb=create",
-    "4" => "verb=create provider=invalid",
-    "5" => "create",
-    "6" => "verb=create provider=md%unit% entries=-1",
-    "7" => "verb=create provider=md%unit%",
-    "8" => "verb=create provider=md%unit%",
-    "9" => "destroy",
+    "000" => "gctl",
+    "001" => "gctl verb=bogus",
+    "010" => "gctl verb=create",
+    "011" => "gctl verb=create provider=bogus",
+    "020" => "mdcfg create pristine",
+    "021" => "gctl verb=create provider=md%unit% entries=-1",
+    "022" => "gctl verb=create provider=md%unit% entries=128",
+    "023" => "gctl verb=create provider=md%unit%",
+    "024" => "conf",
+    "030" => "gctl verb=add",
+    "031" => "gctl verb=add geom=bogus",
+    "032" => "gctl verb=add geom=md%unit%",
+    "033" => "gctl verb=add geom=md%unit% type=bogus",
+    "034" => "gctl verb=add geom=md%unit% type=ed0101b0-2a71-11da-ba81-003048416ace",
+    "035" => "gctl verb=add geom=md%unit% type=ed0101b0-2a71-11da-ba81-003048416ace start=1",
+    "036" => "gctl verb=add geom=md%unit% type=ed0101b0-2a71-11da-ba81-003048416ace start=34",
+    "037" => "gctl verb=add geom=md%unit% type=ed0101b0-2a71-11da-ba81-003048416ace start=34 end=12345678",
+    "038" => "gctl verb=add geom=md%unit% type=ed0101b0-2a71-11da-ba81-003048416ace start=34 end=546",
+    "100" => "mdcfg destroy",
+    "110" => "mdcfg create corrupted",
+    "111" => "gctl verb=add geom=md%unit%",
+    "120" => "mdcfg destroy",
 );
 
 my %result = (
-    "1" => "FAIL Verb missing",
-    "2" => "FAIL 22 verb 'invalid'",
-    "3" => "FAIL 87 provider",
-    "4" => "FAIL 22 provider 'invalid'",
-	#
-    "6" => "FAIL 22 entries -1",
-    "7" => "PASS",
-    "8" => "FAIL 17 geom 'md0'",
-	#
+    "000" => "FAIL Verb missing",
+    "001" => "FAIL 22 verb 'bogus'",
+    "010" => "FAIL 87 provider",
+    "011" => "FAIL 22 provider 'bogus'",
+    "020" => "",
+    "021" => "FAIL 22 entries -1",
+    "022" => "PASS",
+    "023" => "FAIL 17 geom 'md%unit%'",
+    "024" => "",
+    "030" => "FAIL 87 geom",
+    "031" => "FAIL 22 geom 'bogus'",
+    "032" => "FAIL 87 type",
+    "033" => "FAIL 22 type 'bogus'",
+    "034" => "FAIL 87 start",
+    "035" => "FAIL 22 start 1",
+    "036" => "FAIL 87 end",
+    "037" => "FAIL 22 end 12345678",
+    "038" => "PASS",
+    "100" => "",
+    "110" => "",
+    "111" => "FAIL 6 geom 'md%unit%'",
+    "120" => "",
 );
 
 my $verbose = "";
@@ -92,33 +106,42 @@ if (`$cmd` =~ "^FAIL Permission denied") {
 $count = keys (%steps);
 print "1..$count\n";
 
-foreach my $nr (sort keys %steps) {
-    my $action = $steps{$nr};
-    my $arg = $args{$nr};
-
+my $nr = 1;
+foreach my $key (sort keys %steps) {
+    my ($action, $args) = split(/ /, $steps{$key}, 2);
+    $args = "" if (not defined $args);
     if ($action =~ "gctl") {
-	$arg =~ s/%unit%/$unit/g;
-	system("$cmd $verbose $arg | tee $out 2>&1");
+	$args =~ s/%unit%/$unit/g;
+	system("$cmd $verbose $args | tee $out 2>&1");
 	$st = `tail -1 $out`;
-	if ($st =~ "^$result{$nr}") {
-	    print "ok $nr\n";
+	my $res = $result{$key};
+	$res =~ s/%unit%/$unit/g;
+	if ($st =~ "^$res") {
+	    print "ok $nr \# gctl($key)\n";
 	} else {
-	    print "not ok $nr \# $st\n";
+	    print "not ok $nr \# gctl($key) - $st\n";
 	}
 	unlink $out;
     } elsif ($action =~ "mdcfg") {
-	if ($arg =~ "create") {
+	if ($args =~ "create") {
 	    system("dd if=/dev/zero of=$disk count=1024 2>&1");
+	    if ($args =~ "corrupted") {
+		system("gpt create -p $disk");
+	    }
 	    $unit = `mdconfig -a -t vnode -f $disk`;
 	    chomp $unit;
 	    $unit =~ s/md//g;
-	} elsif ($arg =~ "destroy") {
+	} elsif ($args =~ "destroy") {
 	    system("mdconfig -d -u $unit");
 	    unlink $disk;
 	    $unit = "";
 	}
-	print "ok $nr\n";
+	print "ok $nr \# mdcfg($key)\n";
+    } elsif ($action =~ "conf") {
+	`sysctl -b kern.geom.confxml 2>&1`;
+	print "ok $nr \# conf($key)\n";
     }
+    $nr += 1;
 }
 
 unlink $cmd;

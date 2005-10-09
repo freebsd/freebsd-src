@@ -117,6 +117,170 @@ static struct uuid g_gpt_unused = GPT_ENT_TYPE_UNUSED;
  * Support functions.
  */
 
+static void g_gpt_wither(struct g_geom *, int);
+
+static struct g_provider *
+g_gpt_ctl_add(struct gctl_req *req, struct g_geom *gp, struct uuid *type,
+    uint64_t start, uint64_t end)
+{
+	struct g_provider *pp;
+	struct g_gpt_softc *softc;
+	struct g_gpt_part *last, *part;
+	int idx;
+
+	G_GPT_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
+	g_topology_assert();
+
+	pp = LIST_FIRST(&gp->consumer)->provider;
+	softc = gp->softc;
+
+	last = NULL;
+	idx = 0;
+	LIST_FOREACH(part, &softc->parts, parts) {
+		if (part->index == idx) {
+			idx = part->index + 1;
+			last = part;
+		}
+		/* XXX test for overlap */
+	}
+
+	part = g_malloc(sizeof(struct g_gpt_part), M_WAITOK | M_ZERO);
+	part->index = idx;
+	part->offset = start * pp->sectorsize;
+	if (last == NULL)
+		LIST_INSERT_HEAD(&softc->parts, part, parts);
+	else
+		LIST_INSERT_AFTER(last, part, parts);
+	part->ent.ent_type = *type;
+	kern_uuidgen(&part->ent.ent_uuid, 1);
+	part->ent.ent_lba_start = start;
+	part->ent.ent_lba_end = end;
+
+	/* XXX ent_attr */
+	/* XXX ent_name */
+
+	part->provider = g_new_providerf(gp, "%s%c%d", gp->name,
+	    !memcmp(type, &g_gpt_freebsd, sizeof(struct uuid)) ? 's' : 'p',
+	    idx + 1);
+	part->provider->index = idx;
+	part->provider->private = part;		/* Close the circle. */
+	part->provider->mediasize = (end - start + 1) * pp->sectorsize;
+	part->provider->sectorsize = pp->sectorsize;
+	part->provider->flags = pp->flags & G_PF_CANDELETE;
+	if (pp->stripesize > 0) {
+		part->provider->stripesize = pp->stripesize;
+		part->provider->stripeoffset =
+		    (pp->stripeoffset + part->offset) % pp->stripesize;
+	}
+	g_error_provider(part->provider, 0);
+
+	if (bootverbose) {
+		printf("GEOM: %s: partition ", part->provider->name);
+		printf_uuid(&part->ent.ent_uuid);
+		printf(".\n");
+	}
+
+	return (part->provider);
+}
+
+static struct g_geom *
+g_gpt_ctl_create(struct gctl_req *req, struct g_class *mp,
+    struct g_provider *pp, uint32_t entries)
+{
+	struct uuid uuid;
+	struct g_consumer *cp;
+	struct g_geom *gp;
+	struct g_gpt_softc *softc;
+	struct gpt_hdr *hdr;
+	uint64_t last;
+	size_t tblsz;
+	int error, i;
+
+	G_GPT_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, pp->name));
+	g_topology_assert();
+
+	tblsz = (entries * sizeof(struct gpt_ent) + pp->sectorsize - 1) /
+	    pp->sectorsize;
+
+	/*
+	 * Sanity-check the size of the provider. This test is very similar
+	 * to the one in g_gpt_taste(). Here we want to make sure that the
+	 * size of the provider is large enough to hold a GPT that has the
+	 * requested number of entries, plus as many available sectors for
+	 * partitions of minimal size. The latter test is not exactly needed
+	 * but it helps keep the table size proportional to the media size.
+	 * Thus, a GPT with 128 entries must at least have 128 sectors of
+	 * usable partition space. Therefore, the absolute minimal size we
+	 * allow is (1 + 2 * (1 + 32) + 128) = 195 sectors. This is more
+	 * restrictive than what g_gpt_taste() requires.
+	 */
+	if (pp->sectorsize < 512 ||
+	    pp->sectorsize % sizeof(struct gpt_ent) != 0 ||
+	    pp->mediasize < (3 + 2 * tblsz + entries) * pp->sectorsize) {
+		gctl_error(req, "%d provider", ENOSPC);
+		return (NULL);
+	}
+
+	/* We don't nest. See also g_gpt_taste(). */
+	if (pp->geom->class == &g_gpt_class) {
+		gctl_error(req, "%d provider", ENODEV);
+		return (NULL);
+	}
+
+	/* Create a GEOM. */
+	gp = g_new_geomf(mp, "%s", pp->name);
+	softc = g_malloc(sizeof(struct g_gpt_softc), M_WAITOK | M_ZERO);
+	gp->softc = softc;
+	LIST_INIT(&softc->parts);
+	cp = g_new_consumer(gp);
+	error = g_attach(cp, pp);
+	if (error == 0)
+		error = g_access(cp, 1, 0, 0);
+	if (error != 0) {
+		g_gpt_wither(gp, error);
+		gctl_error(req, "%d geom '%s'", error, pp->name);
+		return (NULL);
+	}
+
+	last = (pp->mediasize / pp->sectorsize) - 1;
+	kern_uuidgen(&uuid, 1);
+
+	/* Construct an in-memory GPT. */
+	for (i = GPT_HDR_PRIMARY; i < GPT_HDR_COUNT; i++) {
+		hdr = softc->hdr + i;
+		bcopy(GPT_HDR_SIG, hdr->hdr_sig, sizeof(hdr->hdr_sig));
+		hdr->hdr_revision = GPT_HDR_REVISION;
+		hdr->hdr_size = offsetof(struct gpt_hdr, padding);
+		hdr->hdr_lba_self = (i == GPT_HDR_PRIMARY) ? 1 : last;
+		hdr->hdr_lba_alt = (i == GPT_HDR_PRIMARY) ? last : 1;
+		hdr->hdr_lba_start = 2 + tblsz;
+		hdr->hdr_lba_end = last - (1 + tblsz);
+		hdr->hdr_uuid = uuid;
+		hdr->hdr_lba_table = (i == GPT_HDR_PRIMARY) ? 2 : last - tblsz;
+		hdr->hdr_entries = entries;
+		hdr->hdr_entsz = sizeof(struct gpt_ent);
+		softc->state[i] = GPT_HDR_OK;
+	}
+
+	if (0)
+		goto fail;
+
+	if (bootverbose) {
+		printf("GEOM: %s: GPT ", pp->name);
+		printf_uuid(&softc->hdr[GPT_HDR_PRIMARY].hdr_uuid);
+		printf(".\n");
+	}
+
+	g_access(cp, -1, 0, 0);
+	return (gp);
+
+fail:
+	g_access(cp, -1, 0, 0);
+	g_gpt_wither(gp, error);
+	gctl_error(req, "%d geom '%s'", error, pp->name);
+	return (NULL);
+}
+
 static int
 g_gpt_has_pmbr(struct g_consumer *cp, int *error)
 {
@@ -391,7 +555,132 @@ g_gpt_wither(struct g_geom *gp, int error)
 static void
 g_gpt_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
-	/* XXX todo */
+	struct uuid type;
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct g_gpt_softc *softc;
+	char const *s;
+	uint64_t start, end;
+	long entries;
+	int error;
+
+	G_GPT_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, verb));
+	g_topology_assert();
+
+	if (!strcmp(verb, "add")) {
+		/*
+		 * Add a partition entry to a GPT.
+		 *	Required parameters/attributes:
+		 *		geom
+		 *		type
+		 *		start
+		 *		end
+		 *	Optional parameters/attributes:
+		 *		label
+		 */
+		s = gctl_get_asciiparam(req, "geom");
+		if (s == NULL) {
+			gctl_error(req, "%d geom", ENOATTR);
+			return;
+		}
+		/* Get the GPT geom with the given name. */
+		LIST_FOREACH(gp, &mp->geom, geom) {
+			if (!strcmp(s, gp->name))
+				break;
+		}
+		if (gp == NULL) {
+			gctl_error(req, "%d geom '%s'", EINVAL, s);
+			return;
+		}
+		softc = gp->softc;
+		if (softc->state[GPT_HDR_PRIMARY] != GPT_HDR_OK ||
+		    softc->state[GPT_HDR_SECONDARY] != GPT_HDR_OK) {
+			gctl_error(req, "%d geom '%s'", ENXIO, s);
+			return;
+		}
+		s = gctl_get_asciiparam(req, "type");
+		if (s == NULL) {
+			gctl_error(req, "%d type", ENOATTR);
+			return;
+		}
+		error = parse_uuid(s, &type);
+		if (error != 0) {
+			gctl_error(req, "%d type '%s'", error, s);
+			return;
+		}
+		s = gctl_get_asciiparam(req, "start");
+		if (s == NULL) {
+			gctl_error(req, "%d start", ENOATTR);
+			return;
+		}
+		start = strtoq(s, (char **)(uintptr_t)&s, 0);
+		if (start < softc->hdr[GPT_HDR_PRIMARY].hdr_lba_start ||
+		    start > softc->hdr[GPT_HDR_PRIMARY].hdr_lba_end ||
+		    *s != '\0') {
+			gctl_error(req, "%d start %jd", EINVAL,
+			    (intmax_t)start);
+			return;
+		}
+		s = gctl_get_asciiparam(req, "end");
+		if (s == NULL) {
+			gctl_error(req, "%d end", ENOATTR);
+			return;
+		}
+		end = strtoq(s, (char **)(uintptr_t)&s, 0);
+		if (end < start ||
+		    end > softc->hdr[GPT_HDR_PRIMARY].hdr_lba_end ||
+		    *s != '\0') {
+			gctl_error(req, "%d end %jd", EINVAL,
+			    (intmax_t)end);
+			return;
+		}
+		pp = g_gpt_ctl_add(req, gp, &type, start, end);
+	} else if (!strcmp(verb, "create")) {
+		/*
+		 * Create a GPT on a pristine disk-like provider.
+		 *	Required parameters/attributes:
+		 *		provider
+		 *	Optional parameters/attributes:
+		 *		entries
+		 */
+		s = gctl_get_asciiparam(req, "provider");
+		if (s == NULL) {
+			gctl_error(req, "%d provider", ENOATTR);
+			return;
+		}
+		pp = g_provider_by_name(s);
+		if (pp == NULL) {
+			gctl_error(req, "%d provider '%s'", EINVAL, s);
+			return;
+		}
+		/* Check that there isn't already a GPT on the provider. */
+		LIST_FOREACH(gp, &mp->geom, geom) {
+			if (!strcmp(s, gp->name)) {
+				gctl_error(req, "%d geom '%s'", EEXIST, s);
+				return;
+                        }
+		}
+		s = gctl_get_asciiparam(req, "entries");
+		if (s != NULL) {
+			entries = strtol(s, (char **)(uintptr_t)&s, 0);
+			if (entries < 128 || *s != '\0') {
+				gctl_error(req, "%d entries %ld", EINVAL,
+				    entries);
+				return;
+			}
+		} else
+			entries = 128;	/* Documented mininum */
+		gp = g_gpt_ctl_create(req, mp, pp, entries);
+	} else if (!strcmp(verb, "destroy")) {
+		/* Destroy a GPT completely. */
+	} else if (!strcmp(verb, "modify")) {
+		/* Modify a partition entry. */
+	} else if (!strcmp(verb, "recover")) {
+		/* Recover a downgraded GPT. */
+	} else if (!strcmp(verb, "remove")) {
+		/* Remove a partition entry from a GPT. */
+	} else
+		gctl_error(req, "%d verb '%s'", EINVAL, verb);
 }
 
 static int
@@ -400,7 +689,6 @@ g_gpt_destroy_geom(struct gctl_req *req, struct g_class *mp,
 {
 
 	G_GPT_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, gp->name));
-
 	g_topology_assert();
 
 	g_gpt_wither(gp, EINVAL);
