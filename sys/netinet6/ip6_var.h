@@ -369,9 +369,9 @@ int	ip6_output __P((struct mbuf *, struct ip6_pktopts *,
 			struct inpcb *));
 int	ip6_ctloutput __P((struct socket *, struct sockopt *));
 int	ip6_raw_ctloutput __P((struct socket *, struct sockopt *));
-void	init_ip6pktopts __P((struct ip6_pktopts *));
-int	ip6_setpktoptions __P((struct mbuf *, struct ip6_pktopts *,
-			       struct ip6_pktopts *, int, int, int));
+void	ip6_initpktopts __P((struct ip6_pktopts *));
+int	ip6_setpktopts __P((struct mbuf *, struct ip6_pktopts *,
+	struct ip6_pktopts *, int, int, int));
 void	ip6_clearpktopts __P((struct ip6_pktopts *, int));
 struct ip6_pktopts *ip6_copypktopts __P((struct ip6_pktopts *, int));
 int	ip6_optlen __P((struct inpcb *));
