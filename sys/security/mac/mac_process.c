@@ -327,7 +327,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 	struct vm_map_entry *vme;
 	int vfslocked, result;
 	vm_prot_t revokeperms;
-	vm_object_t object;
+	vm_object_t backing_object, object;
 	vm_ooffset_t offset;
 	struct vnode *vp;
 
@@ -354,13 +354,14 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		object = vme->object.vm_object;
 		if (object == NULL)
 			continue;
-		/* XXXCSJP We need to lock the object before walking
-		 * the backing object list.
-		 */
-		while (object->backing_object != NULL) {
+		VM_OBJECT_LOCK(object);
+		while ((backing_object = object->backing_object) != NULL) {
+			VM_OBJECT_LOCK(backing_object);
 			offset += object->backing_object_offset;
-			object = object->backing_object;
+			VM_OBJECT_UNLOCK(object);
+			object = backing_object;
 		}
+		VM_OBJECT_UNLOCK(object);
 		/*
 		 * At the moment, vm_maps and objects aren't considered
 		 * by the MAC system, so only things with backing by a
