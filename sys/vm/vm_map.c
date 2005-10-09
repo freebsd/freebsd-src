@@ -2518,7 +2518,7 @@ vmspace_fork(struct vmspace *vm1)
 				object = vm_object_allocate(OBJT_DEFAULT,
 					atop(old_entry->end - old_entry->start));
 				old_entry->object.vm_object = object;
-				old_entry->offset = (vm_offset_t) 0;
+				old_entry->offset = 0;
 			}
 
 			/*
