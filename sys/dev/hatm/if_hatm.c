@@ -497,6 +497,9 @@ hatm_destroy(struct hatm_softc *sc)
 	cv_destroy(&sc->cv_rcclose);
 	cv_destroy(&sc->vcc_cv);
 	mtx_destroy(&sc->mtx);
+
+	if (sc->ifp != NULL)
+		if_free(sc->ifp);
 }
 
 /*
@@ -1631,7 +1634,6 @@ hatm_detach(device_t dev)
 	mtx_unlock(&sc->mtx);
 
 	atm_ifdetach(sc->ifp);
-	if_free(sc->ifp);
 
 	hatm_destroy(sc);
 
@@ -1655,8 +1657,7 @@ hatm_attach(device_t dev)
 	ifp = sc->ifp = if_alloc(IFT_ATM);
 	if (ifp == NULL) {
 		device_printf(dev, "could not if_alloc()\n");
-		error = ENOSPC;
-		goto failed;
+		return (ENOSPC);
 	}
 
 	sc->dev = dev;
