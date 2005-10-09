@@ -477,7 +477,6 @@ patm_detach(device_t dev)
 	mtx_unlock(&sc->mtx);
 
 	atm_ifdetach(sc->ifp);
-	if_free(sc->ifp);
 
 	patm_destroy(sc);
 
@@ -562,6 +561,9 @@ patm_destroy(struct patm_softc *sc)
 	cv_destroy(&sc->vcc_cv);
 	mtx_destroy(&sc->tst_lock);
 	mtx_destroy(&sc->mtx);
+
+	if (sc->ifp != NULL)
+		if_free(sc->ifp);
 }
 
 /*
