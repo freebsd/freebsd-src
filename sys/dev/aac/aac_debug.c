@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef AAC_DEBUG
 void	aac_printstate0(void);
-void	aac_intr0(void);
 
 /*
  * Dump the command queue indices
@@ -151,19 +150,6 @@ aac_printstate0(void)
 		/* XXX implement */
 		break;
 	}
-}
-
-/*
- * simulate an interrupt for controller 0
- */
-void
-aac_intr0(void)
-{
-	struct aac_softc *sc;
-
-	sc = devclass_get_softc(devclass_find("aac"), 0);
-
-	aac_intr(sc);
 }
 
 /*
