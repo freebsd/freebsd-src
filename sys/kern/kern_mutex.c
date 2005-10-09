@@ -407,6 +407,9 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 	int rval;
 
 	MPASS(curthread != NULL);
+	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_sleep,
+	    ("mtx_trylock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
+	    file, line));
 
 	if (mtx_owned(m) && (m->mtx_object.lo_flags & LO_RECURSABLE) != 0) {
 		m->mtx_recurse++;
@@ -594,7 +597,7 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 			}
 			if (i < 60000000)
 				DELAY(1);
-			else if (!kdb_active) {
+			else if (!kdb_active && !panicstr) {
 				printf("spin lock %s held by %p for > 5 seconds\n",
 				    m->mtx_object.lo_name, (void *)m->mtx_lock);
 #ifdef WITNESS
