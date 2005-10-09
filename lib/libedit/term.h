@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)term.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: term.h,v 1.11 2000/11/11 22:18:58 christos Exp $
+ *	$NetBSD: term.h,v 1.16 2005/03/15 00:10:40 christos Exp $
  * $FreeBSD$
  */
 
@@ -47,13 +43,14 @@
 #include "histedit.h"
 
 typedef struct {		/* Symbolic function key bindings	*/
-	char		*name;	/* name of the key			*/
+	const char	*name;	/* name of the key			*/
 	int		 key;	/* Index in termcap table		*/
 	key_value_t	 fun;	/* Function bound to it			*/
 	int		 type;	/* Type of function			*/
 } fkey_t;
 
 typedef struct {
+	const char *t_name;		/* the terminal name	*/
 	coord_t	  t_size;		/* # lines and cols	*/
 	int	  t_flags;
 #define	TERM_CAN_INSERT		0x001	/* Has insert cap	*/
@@ -87,7 +84,7 @@ typedef struct {
 protected void	term_move_to_line(EditLine *, int);
 protected void	term_move_to_char(EditLine *, int);
 protected void	term_clear_EOL(EditLine *, int);
-protected void	term_overwrite(EditLine *, char *, int);
+protected void	term_overwrite(EditLine *, const char *, int);
 protected void	term_insertwrite(EditLine *, char *, int);
 protected void	term_deletechars(EditLine *, int);
 protected void	term_clear_screen(EditLine *);
@@ -96,14 +93,15 @@ protected int	term_change_size(EditLine *, int, int);
 protected int	term_get_size(EditLine *, int *, int *);
 protected int	term_init(EditLine *);
 protected void	term_bind_arrow(EditLine *);
-protected void	term_print_arrow(EditLine *, char *);
-protected int	term_clear_arrow(EditLine *, char *);
-protected int	term_set_arrow(EditLine *, char *, key_value_t *, int);
+protected void	term_print_arrow(EditLine *, const char *);
+protected int	term_clear_arrow(EditLine *, const char *);
+protected int	term_set_arrow(EditLine *, const char *, key_value_t *, int);
 protected void	term_end(EditLine *);
-protected int	term_set(EditLine *, char *);
-protected int	term_settc(EditLine *, int, char **);
-protected int	term_telltc(EditLine *, int, char **);
-protected int	term_echotc(EditLine *, int, char **);
+protected void	term_get(EditLine *, const char **);
+protected int	term_set(EditLine *, const char *);
+protected int	term_settc(EditLine *, int, const char **);
+protected int	term_telltc(EditLine *, int, const char **);
+protected int	term_echotc(EditLine *, int, const char **);
 protected int	term__putc(int);
 protected void	term__flush(void);
 
@@ -117,6 +115,7 @@ protected void	term__flush(void);
 #define	EL_CAN_CEOL		(EL_FLAGS & TERM_CAN_CEOL)
 #define	EL_CAN_TAB		(EL_FLAGS & TERM_CAN_TAB)
 #define	EL_CAN_ME		(EL_FLAGS & TERM_CAN_ME)
+#define EL_CAN_UP		(EL_FLAGS & TERM_CAN_UP)
 #define	EL_HAS_META		(EL_FLAGS & TERM_HAS_META)
 #define	EL_HAS_AUTO_MARGINS	(EL_FLAGS & TERM_HAS_AUTO_MARGINS)
 #define	EL_HAS_MAGIC_MARGINS	(EL_FLAGS & TERM_HAS_MAGIC_MARGINS)
