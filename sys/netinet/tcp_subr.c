@@ -377,7 +377,7 @@ tcpip_maketemplate(inp)
 	struct mbuf *m;
 	struct tcptemp *n;
 
-	m = m_get(M_DONTWAIT, MT_HEADER);
+	m = m_get(M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (0);
 	m->m_len = sizeof(struct tcptemp);
