@@ -560,8 +560,10 @@ nve_detach(device_t dev)
 	if (device_is_attached(dev)) {
 		nve_stop(sc);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
+
+	if (ifp)
+		if_free(ifp);
 
 	if (sc->miibus)
 		device_delete_child(dev, sc->miibus);
