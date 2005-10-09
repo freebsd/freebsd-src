@@ -2311,7 +2311,6 @@ dc_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -2353,8 +2352,9 @@ dc_detach(device_t dev)
 		DC_UNLOCK(sc);
 		callout_drain(&sc->dc_stat_ch);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
+	if (ifp)
+		if_free(ifp);
 	if (sc->dc_miibus)
 		device_delete_child(dev, sc->dc_miibus);
 	bus_generic_detach(dev);

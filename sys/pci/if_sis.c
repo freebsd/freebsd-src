@@ -1235,7 +1235,6 @@ sis_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -1276,8 +1275,9 @@ sis_detach(device_t dev)
 		SIS_UNLOCK(sc);
 		callout_drain(&sc->sis_stat_ch);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
+	if (ifp)
+		if_free(ifp);
 	if (sc->sis_miibus)
 		device_delete_child(dev, sc->sis_miibus);
 	bus_generic_detach(dev);
