@@ -760,7 +760,7 @@ acd_geom_start(struct bio *bp)
     }
     else {
 	u_int pos, size = cdp->iomax - cdp->iomax % bp->bio_to->sectorsize;
-	struct bio *bp2;
+	struct bio *bp2, *first, **next = &first;
 
 	for (pos = 0; pos < bp->bio_length; pos += size) {
 	    if (!(bp2 = g_clone_bio(bp))) {
@@ -773,6 +773,12 @@ acd_geom_start(struct bio *bp)
 	    bp2->bio_data += pos;
 	    bp2->bio_length = MIN(size, bp->bio_length - pos);
 	    bp2->bio_pblkno = bp2->bio_offset / bp2->bio_to->sectorsize;
+	    *next = bp2;
+	    next = (struct bio **)&bp2->bio_driver1;
+	}
+	*next = NULL;
+	while ((bp2 = first) != NULL) {
+	    first = (struct bio *)bp2->bio_driver1;
 	    acd_strategy(bp2);
 	}
     }
