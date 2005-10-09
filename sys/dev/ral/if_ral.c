@@ -508,9 +508,8 @@ ral_attach(device_t dev)
 
 fail7:	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
-fail6:	if_free(ifp);
-
-	ral_free_rx_ring(sc, &sc->rxq);
+	if_free(ifp);
+fail6:	ral_free_rx_ring(sc, &sc->rxq);
 fail5:	ral_free_tx_ring(sc, &sc->bcnq);
 fail4:	ral_free_tx_ring(sc, &sc->prioq);
 fail3:	ral_free_tx_ring(sc, &sc->atimq);
