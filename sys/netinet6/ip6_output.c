@@ -3005,7 +3005,7 @@ ip6_setpktoptions(control, opt, stickyopt, priv, needcopy, uproto)
 {
 	struct cmsghdr *cm = 0;
 
-	if (control == 0 || opt == 0)
+	if (control == NULL || opt == NULL)
 		return (EINVAL);
 
 	if (stickyopt) {
