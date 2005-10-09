@@ -681,6 +681,17 @@ out1:
 	VI_UNLOCK(devvp);
 	if (space != NULL)
 		FREE(space, M_UFSMNT);
+	/*
+	 * If another process is currently writing the buffer containing
+	 * the inode for this snapshot then a deadlock can occur. Drop
+	 * the snapshot lock until the buffer has been written.
+	 */
+	VOP_UNLOCK(vp, 0, td);
+	(void) bread(ip->i_devvp,
+		     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+		     (int) fs->fs_bsize, NOCRED, &nbp);
+	brelse(nbp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 done:
 	FREE(copy_fs->fs_csp, M_UFSMNT);
 	bawrite(sbp);
