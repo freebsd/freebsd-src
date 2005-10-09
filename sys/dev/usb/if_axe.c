@@ -485,6 +485,10 @@ USB_ATTACH(axe)
 	ifp = sc->axe_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		printf("axe%d: can not if_alloc()\n", sc->axe_unit);
+		AXE_UNLOCK(sc);
+#if __FreeBSD_version >= 500000
+		mtx_destroy(&sc->axe_mtx);
+#endif
 		USB_ATTACH_ERROR_RETURN;
 	}
 	ifp->if_softc = sc;
@@ -505,6 +509,7 @@ USB_ATTACH(axe)
 	if (mii_phy_probe(self, &sc->axe_miibus,
 	    axe_ifmedia_upd, axe_ifmedia_sts)) {
 		printf("axe%d: MII without any PHY!\n", sc->axe_unit);
+		if_free(ifp);
 		AXE_UNLOCK(sc);
 #if __FreeBSD_version >= 500000
 		mtx_destroy(&sc->axe_mtx);
@@ -545,9 +550,9 @@ axe_detach(device_ptr_t dev)
 	untimeout(axe_tick, sc, sc->axe_stat_ch);
 #if __FreeBSD_version >= 500000
 	ether_ifdetach(ifp);
+	if_free(ifp);
 #else
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
-	if_free(ifp);
 #endif
 
 	if (sc->axe_ep[AXE_ENDPT_TX] != NULL)
