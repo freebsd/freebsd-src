@@ -287,6 +287,8 @@ USB_ATTACH(cdce)
 	ifp = GET_IFP(sc) = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		printf("%s: can not if_alloc()\n", USBDEVNAME(sc->cdce_dev));
+		CDCE_UNLOCK(sc);
+		mtx_destroy(&sc->cdce_mtx);
 		USB_ATTACH_ERROR_RETURN;
 	}
 	ifp->if_softc = sc;
