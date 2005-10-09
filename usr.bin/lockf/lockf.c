@@ -131,10 +131,11 @@ main(int argc, char **argv)
 static void
 cleanup(void)
 {
-    if (keep)
-	flock(lockfd, LOCK_UN);
-    else
-	unlink(lockname);
+
+	if (keep)
+		flock(lockfd, LOCK_UN);
+	else
+		unlink(lockname);
 }
 
 /*
@@ -144,10 +145,11 @@ cleanup(void)
 static void
 killed(int sig)
 {
-    cleanup();
-    signal(sig, SIG_DFL);
-    if (kill(getpid(), sig) == -1)
-	err(EX_OSERR, "kill failed");
+
+	cleanup();
+	signal(sig, SIG_DFL);
+	if (kill(getpid(), sig) == -1)
+		err(EX_OSERR, "kill failed");
 }
 
 /*
@@ -156,15 +158,17 @@ killed(int sig)
 static void
 timeout(int sig __unused)
 {
-    timed_out = 1;
+
+	timed_out = 1;
 }
 
 static void
 usage(void)
 {
-    fprintf(stderr,
-      "usage: lockf [-ks] [-t seconds] file command [arguments]\n");
-    exit(EX_USAGE);
+
+	fprintf(stderr,
+	    "usage: lockf [-ks] [-t seconds] file command [arguments]\n");
+	exit(EX_USAGE);
 }
 
 /*
@@ -173,12 +177,12 @@ usage(void)
 static int
 wait_for_lock(const char *name, int flags)
 {
-    int fd;
+	int fd;
 
-    if ((fd = open(name, O_CREAT|O_RDONLY|O_EXLOCK|flags, 0666)) == -1) {
-	if (errno == EINTR || errno == EAGAIN)
-	    return (-1);
-	err(EX_CANTCREAT, "cannot open %s", name);
-    }
-    return (fd);
+	if ((fd = open(name, O_CREAT|O_RDONLY|O_EXLOCK|flags, 0666)) == -1) {
+		if (errno == EINTR || errno == EAGAIN)
+			return (-1);
+		err(EX_CANTCREAT, "cannot open %s", name);
+	}
+	return (fd);
 }
