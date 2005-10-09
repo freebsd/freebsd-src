@@ -152,12 +152,14 @@ oltr_attach(device_t dev)
 		RF_ACTIVE | RF_SHAREABLE : RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
+		if_free(ifp);
 		return (-1);
 	}
 	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, oltr_intr,
 			sc, &sc-> oltr_intrhand)) {
 		device_printf(dev, "couldn't setup interrupt\n");
                 bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+		if_free(ifp);
                 return (-1);
 	}
 
