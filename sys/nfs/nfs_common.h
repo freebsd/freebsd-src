@@ -127,4 +127,10 @@ do { \
 	nfsm_dcheck(t1, mrep); \
 } while (0)
 
+#ifdef __NO_STRICT_ALIGNMENT
+#define nfsm_aligned(p, t)	1
+#else
+#define nfsm_aligned(p, t)	((((u_long)(p)) & (sizeof(t) - 1)) == 0)
+#endif
+
 #endif
