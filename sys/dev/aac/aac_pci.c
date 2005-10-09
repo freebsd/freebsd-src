@@ -139,6 +139,59 @@ struct aac_ident
 	 "Adaptec SCSI RAID 2230S"},
 	{0x9005, 0x0286, 0x9005, 0x028d, AAC_HWIF_RKT, 0,
 	 "Adaptec SCSI RAID 2130S"},
+
+	{0x9005, 0x0285, 0x9005, 0x0287, AAC_HWIF_I960RX, AAC_FLAGS_NO4GB |
+	 AAC_FLAGS_256FIBS, "Adaptec SCSI RAID 2200S"},
+	{0x9005, 0x0285, 0x17aa, 0x0286, AAC_HWIF_I960RX, AAC_FLAGS_NO4GB |
+	 AAC_FLAGS_256FIBS, "Legend S220"},
+	{0x9005, 0x0285, 0x17aa, 0x0287, AAC_HWIF_I960RX, AAC_FLAGS_NO4GB |
+	 AAC_FLAGS_256FIBS, "Legend S230"},
+	{0x9005, 0x0285, 0x9005, 0x0288, AAC_HWIF_I960RX, 0,
+	 "Adaptec SCSI RAID 3230S"},
+	{0x9005, 0x0285, 0x9005, 0x0289, AAC_HWIF_I960RX, 0,
+	 "Adaptec SCSI RAID 3240S"},
+	{0x9005, 0x0285, 0x9005, 0x028a, AAC_HWIF_I960RX, 0,
+	 "Adaptec SCSI RAID 2020ZCR"},
+	{0x9005, 0x0285, 0x9005, 0x028b, AAC_HWIF_I960RX, 0,
+	 "Adaptec SCSI RAID 2025ZCR"},
+	{0x9005, 0x0286, 0x9005, 0x029b, AAC_HWIF_RKT, 0,
+	 "Adaptec SATA RAID 2820SA"},
+	{0x9005, 0x0286, 0x9005, 0x029c, AAC_HWIF_RKT, 0,
+	 "Adaptec SATA RAID 2620SA"},
+	{0x9005, 0x0286, 0x9005, 0x029d, AAC_HWIF_RKT, 0,
+	 "Adaptec SATA RAID 2420SA"},
+	{0x9005, 0x0286, 0x9005, 0x029e, AAC_HWIF_RKT, 0,
+	 "ICP9024RO SATA RAID"},
+	{0x9005, 0x0286, 0x9005, 0x029f, AAC_HWIF_RKT, 0,
+	 "ICP9014RO SATA RAID"},
+	{0x9005, 0x0285, 0x9005, 0x0294, AAC_HWIF_I960RX, 0,
+	 "Adaptec SATA RAID 2026ZCR"},
+	{0x9005, 0x0285, 0x103c, 0x3227, AAC_HWIF_I960RX, 0,
+	 "Adaptec SATA RAID 2610SA"},
+	{0x9005, 0x0285, 0x9005, 0x0296, AAC_HWIF_I960RX, 0,
+	 "Adaptec SCSI RAID 2240S"},
+	{0x9005, 0x0285, 0x9005, 0x0297, AAC_HWIF_I960RX, 0,
+	 "Adaptec SAS RAID 4005SAS"},
+	{0x9005, 0x0285, 0x1014, 0x02f2, AAC_HWIF_I960RX, 0,
+	 "IBM ServeRAID 8i"},
+	{0x9005, 0x0285, 0x9005, 0x0298, AAC_HWIF_I960RX, 0,
+	 "Adaptec SAS RAID 4000SAS"},
+	{0x9005, 0x0285, 0x9005, 0x0299, AAC_HWIF_I960RX, 0,
+	 "Adaptec SAS RAID 4800SAS"},
+	{0x9005, 0x0285, 0x9005, 0x029a, AAC_HWIF_I960RX, 0,
+	 "Adaptec SAS RAID 4805SAS"},
+	{0x9005, 0x0285, 0x9005, 0x028e, AAC_HWIF_I960RX, 0,
+	 "Adaptec SATA RAID 2020SA ZCR"},
+	{0x9005, 0x0285, 0x9005, 0x028f, AAC_HWIF_I960RX, 0,
+	 "Adaptec SATA RAID 2025SA ZCR"},
+	{0x9005, 0x0285, 0x9005, 0x02a4, AAC_HWIF_I960RX, 0,
+	 "ICP 9085LI SAS RAID"},
+	{0x9005, 0x0285, 0x9005, 0x02a5, AAC_HWIF_I960RX, 0,
+	 "ICP 5085BR SAS RAID"},
+	{0x9005, 0x0286, 0x9005, 0x02a0, AAC_HWIF_RKT, 0,
+	 "ICP9047MA SATA RAID"},
+	{0x9005, 0x0286, 0x9005, 0x02a1, AAC_HWIF_RKT, 0,
+	 "ICP9087MA SATA RAID"},
 	{0, 0, 0, 0, 0, 0, 0}
 };
 
@@ -221,30 +274,6 @@ aac_pci_attach(device_t dev)
 	sc->aac_btag = rman_get_bustag(sc->aac_regs_resource);
 	sc->aac_bhandle = rman_get_bushandle(sc->aac_regs_resource);
 
-	/* 
-	 * Allocate and connect our interrupt.
-	 */
-	sc->aac_irq_rid = 0;
-	if ((sc->aac_irq = bus_alloc_resource_any(sc->aac_dev, SYS_RES_IRQ,
-			   			  &sc->aac_irq_rid,
-			   			  RF_SHAREABLE |
-						  RF_ACTIVE)) == NULL) {
-		device_printf(sc->aac_dev, "can't allocate interrupt\n");
-		goto out;
-	}
-	if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-			   INTR_FAST|INTR_TYPE_BIO, aac_intr,
-			   sc, &sc->aac_intr)) {
-		device_printf(sc->aac_dev, "can't set up FAST interrupt\n");
-		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_MPSAFE|INTR_ENTROPY|INTR_TYPE_BIO,
-				   aac_intr, sc, &sc->aac_intr)) {
-			device_printf(sc->aac_dev,
-				      "can't set up MPSAFE interrupt\n");
-			goto out;
-		}
-	}
-
 	/* assume failure is 'out of memory' */
 	error = ENOMEM;
 
@@ -259,7 +288,7 @@ aac_pci_attach(device_t dev)
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
-			       AAC_MAXSGENTRIES,	/* nsegments */
+			       BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
 			       NULL, NULL,		/* No locking needed */
@@ -292,7 +321,7 @@ aac_pci_attach(device_t dev)
 				sc->aac_if = aac_fa_interface;
 				break;
 			case AAC_HWIF_RKT:
-				debug(2, "setu hardware up for Rocket/MIPS");
+				debug(2, "set hardware up for Rocket/MIPS");
 				sc->aac_if = aac_rkt_interface;
 				break;
 			default:
@@ -317,7 +346,7 @@ aac_pci_attach(device_t dev)
 	 * Do bus-independent initialisation.
 	 */
 	error = aac_attach(sc);
-	
+
 out:
 	if (error)
 		aac_free(sc);
