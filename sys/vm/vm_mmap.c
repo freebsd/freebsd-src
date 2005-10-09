@@ -1236,14 +1236,13 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	boolean_t fitit;
 	vm_object_t object;
 	int rv = KERN_SUCCESS;
-	vm_ooffset_t objsize;
 	int docow, error;
 	struct thread *td = curthread;
 
 	if (size == 0)
 		return (0);
 
-	objsize = size = round_page(size);
+	size = round_page(size);
 
 	PROC_LOCK(td->td_proc);
 	if (td->td_proc->p_vmspace->vm_map.size + size >
