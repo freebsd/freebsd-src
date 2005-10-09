@@ -2396,8 +2396,7 @@ loop:
 					bp->b_flags |= B_NOCACHE;
 					bwrite(bp);
 				} else {
-					if ((bp->b_flags & B_VMIO) &&
-					   (LIST_FIRST(&bp->b_dep) == NULL)) {
+					if (LIST_FIRST(&bp->b_dep) == NULL) {
 						bp->b_flags |= B_RELBUF;
 						brelse(bp);
 					} else {
