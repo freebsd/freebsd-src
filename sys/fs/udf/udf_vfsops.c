@@ -314,6 +314,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	struct fileset_desc *fsd;
 	struct file_entry *root_fentry;
 	uint32_t sector, size, mvds_start, mvds_end;
+	uint32_t logical_secsize;
 	uint32_t fsd_offset = 0;
 	uint16_t part_num = 0, fsd_part = 0;
 	int error = EINVAL;
@@ -356,16 +357,31 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 #if 0
 	udfmp->im_l2d = NULL;
 #endif
+	/*
+	 * The UDF specification defines a logical sectorsize of 2048
+	 * for DVD media.
+	 */
+	logical_secsize = 2048;
 
-	bsize = 2048;	/* XXX Should probe the media for it's size */
+	if (((logical_secsize % cp->provider->sectorsize) != 0) ||
+	    (logical_secsize < cp->provider->sectorsize)) {
+		DROP_GIANT();
+		g_topology_lock();
+		g_vfs_close(cp, td);
+		g_topology_unlock();
+		PICKUP_GIANT();
+		return (EINVAL);
+	}
+
+	bsize = cp->provider->sectorsize;
 
 	/* 
 	 * Get the Anchor Volume Descriptor Pointer from sector 256.
 	 * XXX Should also check sector n - 256, n, and 512.
 	 */
 	sector = 256;
-	if ((error = bread(devvp, sector * btodb(bsize), bsize, NOCRED,
-			   &bp)) != 0)
+	if ((error = bread(devvp, sector * btodb(logical_secsize), bsize,
+			   NOCRED, &bp)) != 0)
 		goto bail;
 	if ((error = udf_checktag((struct desc_tag *)bp->b_data, TAGID_ANCHOR)))
 		goto bail;
@@ -383,8 +399,8 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	mvds_start = le32toh(avdp.main_vds_ex.loc);
 	mvds_end = mvds_start + (le32toh(avdp.main_vds_ex.len) - 1) / bsize;
 	for (sector = mvds_start; sector < mvds_end; sector++) {
-		if ((error = bread(devvp, sector * btodb(bsize), bsize, 
-				   NOCRED, &bp)) != 0) {
+		if ((error = bread(devvp, sector * btodb(logical_secsize),
+				   bsize, NOCRED, &bp)) != 0) {
 			printf("Can't read sector %d of VDS\n", sector);
 			goto bail;
 		}
