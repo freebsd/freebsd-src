@@ -1484,6 +1484,8 @@ ffs_snapremove(vp)
 	 */
 	for (blkno = 1; blkno < NDADDR; blkno++) {
 		dblk = DIP(ip, i_db[blkno]);
+		if (dblk == 0)
+			continue;
 		if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
 			DIP_SET(ip, i_db[blkno], 0);
 		else if ((dblk == blkstofrags(fs, blkno) &&
@@ -1507,6 +1509,8 @@ ffs_snapremove(vp)
 		for (loc = 0; loc < last; loc++) {
 			if (ip->i_ump->um_fstype == UFS1) {
 				dblk = ((ufs1_daddr_t *)(ibp->b_data))[loc];
+				if (dblk == 0)
+					continue;
 				if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
 					((ufs1_daddr_t *)(ibp->b_data))[loc]= 0;
 				else if ((dblk == blkstofrags(fs, blkno) &&
@@ -1519,6 +1523,8 @@ ffs_snapremove(vp)
 				continue;
 			}
 			dblk = ((ufs2_daddr_t *)(ibp->b_data))[loc];
+			if (dblk == 0)
+				continue;
 			if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
 				((ufs2_daddr_t *)(ibp->b_data))[loc] = 0;
 			else if ((dblk == blkstofrags(fs, blkno) &&
@@ -1570,7 +1576,7 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 	struct vnode *vp = NULL;
 	ufs_lbn_t lbn;
 	ufs2_daddr_t blkno;
-	int indiroff = 0, snapshot_locked = 0, error = 0, claimedblk = 0;
+	int indiroff = 0, error = 0, claimedblk = 0;
 	struct snapdata *sn;
 
 	lbn = fragstoblks(fs, bno);
@@ -1581,6 +1587,10 @@ retry:
 		VI_UNLOCK(devvp);
 		return (0);
 	}
+	if (lockmgr(&sn->sn_lock,
+		    LK_INTERLOCK | LK_EXCLUSIVE | LK_SLEEPFAIL,
+		    VI_MTX(devvp), td) != 0)
+		goto retry;
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
 		/*
@@ -1589,12 +1599,6 @@ retry:
 		if (lbn < NDADDR) {
 			blkno = DIP(ip, i_db[lbn]);
 		} else {
-			if (snapshot_locked == 0 &&
-			    lockmgr(vp->v_vnlock,
-			      LK_INTERLOCK | LK_EXCLUSIVE | LK_SLEEPFAIL,
-			      VI_MTX(devvp), td) != 0)
-				goto retry;
-			snapshot_locked = 1;
 			td->td_pflags |= TDP_COWINPROGRESS;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
@@ -1624,16 +1628,6 @@ retry:
 			 */
 			if (claimedblk)
 				panic("snapblkfree: inconsistent block type");
-			if (snapshot_locked == 0 &&
-			    lockmgr(vp->v_vnlock,
-			      LK_INTERLOCK | LK_EXCLUSIVE | LK_NOWAIT,
-			      VI_MTX(devvp), td) != 0) {
-				if (lbn >= NDADDR)
-					bqrelse(ibp);
-				vn_lock(vp, LK_EXCLUSIVE | LK_SLEEPFAIL, td);
-				goto retry;
-			}
-			snapshot_locked = 1;
 			if (lbn < NDADDR) {
 				DIP_SET(ip, i_db[lbn], BLK_NOCOPY);
 				ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -1664,16 +1658,6 @@ retry:
 		 * routine as to why only a single snapshot needs to
 		 * claim this block.
 		 */
-		if (snapshot_locked == 0 &&
-		    lockmgr(vp->v_vnlock,
-		      LK_INTERLOCK | LK_EXCLUSIVE | LK_NOWAIT,
-		      VI_MTX(devvp), td) != 0) {
-			if (lbn >= NDADDR)
-				bqrelse(ibp);
-			vn_lock(vp, LK_EXCLUSIVE | LK_SLEEPFAIL, td);
-			goto retry;
-		}
-		snapshot_locked = 1;
 		if (size == fs->fs_bsize) {
 #ifdef DEBUG
 			if (snapdebug)
@@ -1758,10 +1742,7 @@ retry:
 	 * not be freed. Although space will be lost, the snapshot
 	 * will stay consistent.
 	 */
-	if (snapshot_locked)
-		lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
-	else
-		VI_UNLOCK(devvp);
+	lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
 	return (error);
 }
 
@@ -1968,7 +1949,7 @@ ffs_copyonwrite(devvp, bp)
 	struct inode *ip;
 	struct vnode *vp = 0;
 	ufs2_daddr_t lbn, blkno, *snapblklist;
-	int lower, upper, mid, indiroff, snapshot_locked = 0, error = 0;
+	int lower, upper, mid, indiroff, error = 0;
 	int launched_async_io, prev_norunningbuf;
 
 	if (td->td_pflags & TDP_COWINPROGRESS)
@@ -1979,6 +1960,11 @@ ffs_copyonwrite(devvp, bp)
 	 */
 	VI_LOCK(devvp);
 	sn = devvp->v_rdev->si_snapdata;
+	if (sn == NULL ||
+	    TAILQ_FIRST(&sn->sn_head) == NULL) {
+		VI_UNLOCK(devvp);
+		return (0);		/* No snapshot */
+	}
 	ip = TAILQ_FIRST(&sn->sn_head);
 	fs = ip->i_fs;
 	lbn = fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
@@ -2009,7 +1995,20 @@ ffs_copyonwrite(devvp, bp)
 	/*
 	 * Not in the precomputed list, so check the snapshots.
 	 */
-retry:
+	while (lockmgr(&sn->sn_lock,
+		       LK_INTERLOCK | LK_EXCLUSIVE | LK_SLEEPFAIL,
+		       VI_MTX(devvp), td) != 0) {
+		VI_LOCK(devvp);
+		sn = devvp->v_rdev->si_snapdata;
+		if (sn == NULL ||
+		    TAILQ_FIRST(&sn->sn_head) == NULL) {
+			VI_UNLOCK(devvp);
+			if (bp->b_runningbufspace)
+				atomic_add_int(&runningbufspace,
+					       bp->b_runningbufspace);
+			return (0);		/* Snapshot gone */
+		}
+	}
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
 		/*
@@ -2029,14 +2028,6 @@ retry:
 		if (lbn < NDADDR) {
 			blkno = DIP(ip, i_db[lbn]);
 		} else {
-			if (snapshot_locked == 0 &&
-			    lockmgr(vp->v_vnlock,
-			      LK_INTERLOCK | LK_EXCLUSIVE | LK_SLEEPFAIL,
-			      VI_MTX(devvp), td) != 0) {
-				VI_LOCK(devvp);
-				goto retry;
-			}
-			snapshot_locked = 1;
 			td->td_pflags |= TDP_COWINPROGRESS | TDP_NORUNNINGBUF;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			   fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
@@ -2066,14 +2057,6 @@ retry:
 		 * lock, we ensure that we will never be in competition
 		 * with another process to allocate a block.
 		 */
-		if (snapshot_locked == 0 &&
-		    lockmgr(vp->v_vnlock,
-		      LK_INTERLOCK | LK_EXCLUSIVE | LK_SLEEPFAIL,
-		      VI_MTX(devvp), td) != 0) {
-			VI_LOCK(devvp);
-			goto retry;
-		}
-		snapshot_locked = 1;
 		td->td_pflags |= TDP_COWINPROGRESS | TDP_NORUNNINGBUF;
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
@@ -2135,12 +2118,9 @@ retry:
 		else
 			launched_async_io = 1;
 	}
-	if (snapshot_locked) {
-		lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
-		td->td_pflags = (td->td_pflags & ~TDP_NORUNNINGBUF) |
-		    prev_norunningbuf;
-	} else
-		VI_UNLOCK(devvp);
+	lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
+	td->td_pflags = (td->td_pflags & ~TDP_NORUNNINGBUF) |
+		prev_norunningbuf;
 	if (launched_async_io && (td->td_pflags & TDP_NORUNNINGBUF) == 0)
 		waitrunningbufspace();
 	/*
