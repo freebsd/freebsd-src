@@ -815,7 +815,8 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			}
 			if (mp == NULL)
 				panic("nfs_clnt_tcp_soupcall: Got empty mbuf chain from sorecv\n");
-			len = ntohl(*mtod(mp, u_int32_t *)) & ~0x80000000;
+			bcopy(mtod(mp, u_int32_t *), &len, sizeof(len));
+			len = ntohl(len) & ~0x80000000;
 			m_freem(mp);
 			/*
 			 * This is SERIOUS! We are out of sync with the sender
