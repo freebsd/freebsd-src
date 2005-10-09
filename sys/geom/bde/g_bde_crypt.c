@@ -64,7 +64,7 @@
  * from the comparatively small key material in our mkey, in such a way that
  * if one, more or even many of the kkeys are compromised, this does not
  * significantly help an attack on other kkeys and in particular does not
- * weaken or compromised the mkey.
+ * weaken or compromise the mkey.
  *
  * First we MD5 hash the sectornumber with the salt from the lock sector.
  * The salt prevents the precalculation and statistical analysis of the MD5
