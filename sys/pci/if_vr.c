@@ -773,7 +773,6 @@ vr_attach(dev)
 	if (error) {
 		printf("vr%d: couldn't set up irq\n", unit);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -813,9 +812,10 @@ vr_detach(device_t dev)
 		vr_stop(sc);
 		VR_UNLOCK(sc);		/* XXX: Avoid recursive acquire. */
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		VR_LOCK(sc);
 	}
+	if (ifp)
+		if_free(ifp);
 	if (sc->vr_miibus)
 		device_delete_child(dev, sc->vr_miibus);
 	bus_generic_detach(dev);

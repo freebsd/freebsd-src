@@ -623,7 +623,6 @@ pcn_attach(dev)
 	if (mii_phy_probe(dev, &sc->pcn_miibus,
 	    pcn_ifmedia_upd, pcn_ifmedia_sts)) {
 		printf("pcn%d: MII without any PHY!\n", sc->pcn_unit);
-		if_free(ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -677,8 +676,9 @@ pcn_detach(dev)
 		PCN_UNLOCK(sc);
 		callout_drain(&sc->pcn_stat_callout);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
+	if (ifp)
+		if_free(ifp);
 	if (sc->pcn_miibus)
 		device_delete_child(dev, sc->pcn_miibus);
 	bus_generic_detach(dev);

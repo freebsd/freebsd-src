@@ -1607,7 +1607,6 @@ done:
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -1712,8 +1711,9 @@ xl_detach(device_t dev)
 		taskqueue_drain(taskqueue_swi, &sc->xl_task);
 		callout_drain(&sc->xl_stat_callout);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
+	if (ifp)
+		if_free(ifp);
 	if (sc->xl_miibus)
 		device_delete_child(dev, sc->xl_miibus);
 	bus_generic_detach(dev);

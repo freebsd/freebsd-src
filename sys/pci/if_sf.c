@@ -789,7 +789,6 @@ sf_attach(dev)
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
-		if_free(ifp);
 		goto fail;
 	}
 
@@ -830,8 +829,9 @@ sf_detach(dev)
 		SF_UNLOCK(sc);
 		callout_drain(&sc->sf_stat_callout);
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
+	if (ifp)
+		if_free(ifp);
 	if (sc->sf_miibus)
 		device_delete_child(dev, sc->sf_miibus);
 	bus_generic_detach(dev);
