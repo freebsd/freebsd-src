@@ -2528,6 +2528,8 @@ JobInterrupt(int runINTERRUPT, int signo)
 			}
 		}
 	}
+	if (fifoMaster)
+		unlink(fifoName);
 }
 
 /**
