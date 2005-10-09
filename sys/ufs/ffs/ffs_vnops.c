@@ -454,7 +454,7 @@ ffs_read(ap)
 			 * doing sequential access.
 			 */
 			error = cluster_read(vp, ip->i_size, lbn,
-				size, NOCRED, uio->uio_resid, seqcount, &bp);
+				size, NOCRED, blkoffset + uio->uio_resid, seqcount, &bp);
 		} else if (seqcount > 1) {
 			/*
 			 * If we are NOT allowed to cluster, then
