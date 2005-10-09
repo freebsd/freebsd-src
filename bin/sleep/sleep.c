@@ -88,7 +88,7 @@ main(int argc, char *argv[])
 		if (l > INT_MAX) {
 			/*
 			 * Avoid overflow when `seconds' is huge.  This assumes
-			 * that the maximum value for a time_t is >= INT_MAX.
+			 * that the maximum value for a time_t is <= INT_MAX.
 			 */
 			l = INT_MAX;
 		}
