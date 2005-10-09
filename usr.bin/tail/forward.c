@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 static const char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 #endif
 
+#include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -267,6 +269,7 @@ set_events(file_info_t *files)
 	int i, n = 0;
 	file_info_t *file;
 	struct timespec ts;
+	struct statfs sf;
 
 	ts.tv_sec = 0;
 	ts.tv_nsec = 0;
@@ -275,6 +278,13 @@ set_events(file_info_t *files)
 	for (i = 0, file = files; i < no_files; i++, file++) {
 		if (! file->fp)
 			continue;
+
+		if (fstatfs(fileno(file->fp), &sf) == 0 &&
+		    (sf.f_flags & MNT_LOCAL) == 0) {
+			action = USE_SLEEP;
+			return;
+		}
+
 		if (Fflag && fileno(file->fp) != STDIN_FILENO) {
 			EV_SET(&ev[n], fileno(file->fp), EVFILT_VNODE,
 			    EV_ADD | EV_ENABLE | EV_CLEAR,
