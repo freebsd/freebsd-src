@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: kerberos
+# REQUIRE: NETWORKING
+
+. /etc/rc.subr
+
+name="kerberos5"
+load_rc_config $name
+rcvar="kerberos5_server_enable"
+command="${kerberos5_server}"
+command_args="${kerberos5_server_flags} &"
+
+run_rc_command "$1"

@@ -1,0 +1,24 @@
+$FreeBSD$
+
+WPA Supplicant
+	originals can be found at: http://hostap.epitest.fi/releases/
+
+
+For the import files and directories were pruned by:
+
+	tar -X FREEBSD-Xlist -zxf wpa_supplicant-0.3.8.tar.gz
+
+then imported by:
+
+	cvs import -m 'Import of WPA supplicant 0.3.8' \
+		src/contrib/wpa_supplicant MALINEN v0_3_8
+
+To make local changes to wpa_supplcaint, simply patch and commit
+to the main branch (aka HEAD).  Never make local changes on the
+vendor (MALINEN) branch.
+
+All local changes should be submitted to Jouni Malinen for inclusion in
+the next vendor release.
+
+sam@FreeBSD.org
+4-June-2005

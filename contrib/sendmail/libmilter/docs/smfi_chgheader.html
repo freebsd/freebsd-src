@@ -1,0 +1,120 @@
+<html>
+<head><title>smfi_chgheader</title></head>
+<body>
+<!--
+$Id: smfi_chgheader.html,v 1.15 2003/04/30 22:10:53 ca Exp $
+-->
+<h1>smfi_chgheader</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_chgheader(
+	SMFICTX *ctx,
+	char *headerf,
+	mi_int32 hdridx,
+	char *headerv
+);
+</pre>
+Change or delete a message header.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>Called only from <a href="xxfi_eom.html">xxfi_eom</a>.</td>
+</tr>
+<tr align="left" valign=top>
+<th width="80">Effects</th>
+<td>Changes a header's value for the current message.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>ctx</td>
+	<td>Opaque context structure.
+	</td></tr>
+    <tr valign="top"><td>headerf</td>
+	<td>The header name, a non-NULL, null-terminated string.
+	</td></tr>
+    <tr valign="top"><td>hdridx</td>
+	<td>Header index value (1-based). A hdridx value of 1 will modify the first occurrence of a header named headerf.  If hdridx is greater than the number of times headerf appears, a new copy of headerf will be added.
+	</td></tr>
+    <tr valign="top"><td>headerv</td>
+	<td>The new value of the given header.  headerv == NULL implies that the header should be deleted.
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Return values ---------->
+<tr>
+<th valign="top" align=left>RETURN VALUES</th> 
+
+<td>
+smfi_chgheader will return MI_FAILURE if
+<ul><li>headerf is NULL
+    <li>Modifying headers in the current connection state is invalid.
+    <li>Memory allocation fails.
+    <li>A network error occurs.
+    <li>SMFIF_CHGHDRS was not set when <a href="smfi_register.html">smfi_register</a> was called.
+</ul>
+Otherwise, it returns MI_SUCCESS.
+</tr>
+
+<!----------- Notes ---------->
+<tr align="left" valign=top>
+<th>NOTES</th> 
+<td>
+<ul><li>While smfi_chgheader may be used to add new headers, it is more efficient and far safer to use <a href="smfi_addheader.html">smfi_addheader</a>.
+    <li>A filter which calls smfi_chgheader must have set the SMFIF_CHGHDRS flag in the smfiDesc_str passed to <a href="smfi_register.html">smfi_register</a>.
+    <li>For smfi_chgheader, filter order is important.  <b>Later filters will see the header changes made by earlier ones.</b>
+    <li>Neither the name nor the value of the header is checked for
+    standards compliance.  However, each line of the header must be under
+    2048 characters and should be under 998 characters.  If longer headers
+    are needed, make them multi-line.  To make a multi-line header, insert
+    a line feed (ASCII 0x0a, or <tt>\n</tt> in C) followed by at least
+    one whitespace character such as a space (ASCII 0x20) or tab (ASCII 0x09,
+    or <tt>\t</tt> in C).  The line feed should NOT be preceded by a
+    carriage return (ASCII 0x0d); the MTA will add this automatically.
+    <b>It is the filter writer's responsibility to ensure that no standards
+    are violated.</b>
+</ul>
+</td>
+</tr>
+
+<!----------- Example code ---------->
+<tr>
+<th valign="top" align=left>EXAMPLE</th> 
+
+<td>
+ <pre>
+  int ret;
+  SMFICTX *ctx;
+
+  ...
+
+  ret = smfi_chgheader(ctx, "Content-Type", 1,
+                       "multipart/mixed;\n\tboundary=\"foobar\"");
+ </pre>
+</td>
+</tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body>
+</html>

@@ -1,0 +1,555 @@
+.\" $FreeBSD$
+.\" $Id: file.man,v 1.54 2003/10/27 18:09:08 christos Exp $
+.Dd October 27, 2003
+.Dt FILE 1 "Copyright but distributable"
+.Os
+.Sh NAME
+.Nm file
+.Nd determine file type
+.Sh SYNOPSIS
+.Nm
+.Op Fl bcikLnNprsvz
+.Op Fl f Ar namefile
+.Op Fl F Ar separator
+.Op Fl m Ar magicfiles
+.Ar
+.Nm
+.Fl C
+.Op Fl m Ar magicfile
+.Sh DESCRIPTION
+This manual page documents version 4.12 of the
+.Nm
+utility which tests each argument in an attempt to classify it.
+There are three sets of tests, performed in this order:
+file system tests, magic number tests, and language tests.
+The
+.Em first
+test that succeeds causes the file type to be printed.
+.Pp
+The type printed will usually contain one of the words
+.Dq Li text
+(the file contains only
+printing characters and a few common control
+characters and is probably safe to read on an
+.Tn ASCII
+terminal),
+.Dq Li executable
+(the file contains the result of compiling a program
+in a form understandable to some
+.Ux
+kernel or another),
+or
+.Dq Li data
+meaning anything else (data is usually
+.Sq binary
+or non-printable).
+Exceptions are well-known file formats (core files, tar archives)
+that are known to contain binary data.
+When modifying the file
+.Pa /usr/share/misc/magic
+or the program itself,
+.Em "preserve these keywords" .
+People depend on knowing that all the readable files in a directory
+have the word
+.Dq Li text
+printed.
+Do not do as Berkeley did and change
+.Dq Li "shell commands text"
+to
+.Dq Li "shell script" .
+Note that the file
+.Pa /usr/share/misc/magic
+is built mechanically from a large number of small files in
+the subdirectory
+.Pa Magdir
+in the source distribution of this program.
+.Pp
+The file system tests are based on examining the return from a
+.Xr stat 2
+system call.
+The program checks to see if the file is empty,
+or if it is some sort of special file.
+Any known file types appropriate to the system you are running on
+(sockets, symbolic links, or named pipes (FIFOs) on those systems that
+implement them)
+are intuited if they are defined in
+the system header file
+.In sys/stat.h .
+.Pp
+The magic number tests are used to check for files with data in
+particular fixed formats.
+The canonical example of this is a binary executable (compiled program)
+.Pa a.out
+file, whose format is defined in
+.In a.out.h
+and possibly
+.In exec.h
+in the standard include directory.
+These files have a
+.Sq "magic number"
+stored in a particular place
+near the beginning of the file that tells the
+.Ux
+operating system
+that the file is a binary executable, and which of several types thereof.
+The concept of
+.Sq "magic number"
+has been applied by extension to data files.
+Any file with some invariant identifier at a small fixed
+offset into the file can usually be described in this way.
+The information identifying these files is read from the compiled
+magic file
+.Pa /usr/share/misc/magic.mgc ,
+or
+.Pa /usr/share/misc/magic
+if the compile file does not exist.
+.Pp
+If a file does not match any of the entries in the magic file,
+it is examined to see if it seems to be a text file.
+ASCII, ISO-8859-x, non-ISO 8-bit extended-ASCII character sets
+(such as those used on Macintosh and IBM PC systems),
+UTF-8-encoded Unicode, UTF-16-encoded Unicode, and EBCDIC
+character sets can be distinguished by the different
+ranges and sequences of bytes that constitute printable text
+in each set.
+If a file passes any of these tests, its character set is reported.
+ASCII, ISO-8859-x, UTF-8, and extended-ASCII files are identified
+as
+.Dq Li text
+because they will be mostly readable on nearly any terminal;
+UTF-16 and EBCDIC are only
+.Dq Li "character data"
+because, while
+they contain text, it is text that will require translation
+before it can be read.
+In addition,
+.Nm
+will attempt to determine other characteristics of text-type files.
+If the lines of a file are terminated by CR, CRLF, or NEL, instead
+of the
+.Ux Ns -standard
+LF, this will be reported.
+Files that contain embedded escape sequences or overstriking
+will also be identified.
+.Pp
+Once
+.Nm
+has determined the character set used in a text-type file,
+it will
+attempt to determine in what language the file is written.
+The language tests look for particular strings (cf
+.Pa names.h )
+that can appear anywhere in the first few blocks of a file.
+For example, the keyword
+.Ic .br
+indicates that the file is most likely a
+.Xr troff 1
+input file, just as the keyword
+.Ic struct
+indicates a C program.
+These tests are less reliable than the previous
+two groups, so they are performed last.
+The language test routines also test for some miscellany
+(such as
+.Xr tar 1
+archives).
+.Pp
+Any file that cannot be identified as having been written
+in any of the character sets listed above is simply said to be
+.Dq Li data .
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl b , -brief
+Do not prepend filenames to output lines (brief mode).
+.It Fl c , -checking-printout
+Cause a checking printout of the parsed form of the magic file.
+This is usually used in conjunction with
+.Fl m
+to debug a new magic file before installing it.
+.It Fl C , -compile
+Write a
+.Pa magic.mgc
+output file that contains a pre-parsed version of
+file.
+.It Fl f , -files-from Ar namefile
+Read the names of the files to be examined from
+.Ar namefile
+(one per line)
+before the argument list.
+Either
+.Ar namefile
+or at least one filename argument must be present;
+to test the standard input, use
+.Dq Fl
+as a filename argument.
+.It Fl F , -separator Ar separator
+Use the specified string as the separator between the filename and the
+file result returned.
+Defaults to
+.Ql \&: .
+.It Fl i , -mime
+Causes the file command to output mime type strings rather than the more
+traditional human readable ones.
+Thus it may say
+.Dq Li "text/plain; charset=us-ascii"
+rather than
+.Dq Li "ASCII text" .
+In order for this option to work, file changes the way
+it handles files recognised by the command itself (such as many of the
+text file types, directories etc), and makes use of an alternative
+.Pa magic
+file.
+(See
+.Sx FILES
+section, below).
+.It Fl k , -keep-going
+Do not stop at the first match, keep going.
+.It Fl L , -dereference
+option causes symlinks to be followed, as the like-named option in
+.Xr ls 1 .
+(on systems that support symbolic links).
+.It Fl m , -magic-file Ar list
+Specify an alternate list of files containing magic numbers.
+This can be a single file, or a colon-separated list of files.
+If a compiled magic file is found alongside, it will be used instead.
+With the
+.Fl i
+or
+.Fl -mime
+option, the program adds
+.Pa .mime
+to each file name.
+.It Fl n , -no-buffer
+Force stdout to be flushed after checking each file.
+This is only useful if checking a list of files.
+It is intended to be used by programs that want
+filetype output from a pipe.
+.It Fl N , -no-pad
+Do not pad filenames so that they align in the output.
+.It Fl p , -preserve-date
+On systems that support
+.Xr utime 3
+or
+.Xr utimes 2 ,
+attempt to preserve the access time of files analyzed, to pretend that
+.Nm
+never read them.
+.It Fl r , -raw
+Do not translate unprintable characters to \eooo.
+Normally
+.Nm
+translates unprintable characters to their octal representation.
+.It Fl s , -special-files
+Normally,
+.Nm
+only attempts to read and determine the type of argument files which
+.Xr stat 2
+reports are ordinary files.
+This prevents problems, because reading special files may have peculiar
+consequences.
+Specifying the
+.Fl s
+option causes
+.Nm
+to also read argument files which are block or character special files.
+This is useful for determining the file system types of the data in raw
+disk partitions, which are block special files.
+This option also causes
+.Nm
+to disregard the file size as reported by
+.Xr stat 2
+since on some systems it reports a zero size for raw disk partitions.
+.It Fl v , -version
+Print the version of the program and exit.
+.It Fl z , -uncompress
+Try to look inside compressed files.
+.It Fl -help
+Print a help message and exit.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/misc/magic.mime" -compact
+.It Pa /usr/share/misc/magic.mgc
+Default compiled list of magic numbers
+.It Pa /usr/share/misc/magic
+Default list of magic numbers
+.It Pa /usr/share/misc/magic.mime.mgc
+Default compiled list of magic numbers, used to output mime types when
+the
+.Fl i
+option is specified.
+.It Pa /usr/share/misc/magic.mime
+Default list of magic numbers, used to output mime types when the
+.Fl i
+option is specified.
+.It Pa /etc/magic
+Local additions to magic wisdom.
+.El
+.Sh ENVIRONMENT
+The environment variable
+.Ev MAGIC
+can be used to set the default magic number file name.
+.Nm
+adds
+.Pa .mime
+and/or
+.Pa .mgc
+to the value of this variable as appropriate.
+.Sh SEE ALSO
+.Xr hexdump 1 ,
+.Xr od 1 ,
+.Xr strings 1 ,
+.Xr magic 5
+.Sh STANDARDS CONFORMANCE
+This program is believed to exceed the
+.St -svid4
+of FILE(CMD), as near as one can determine from the vague language
+contained therein.
+Its behaviour is mostly compatible with the System V program of the same name.
+This version knows more magic, however, so it will produce
+different (albeit more accurate) output in many cases.
+.Pp
+The one significant difference
+between this version and System V
+is that this version treats any white space
+as a delimiter, so that spaces in pattern strings must be escaped.
+For example,
+.Pp
+.Dl ">10	string	language impress\ 	(imPRESS data)"
+.Pp
+in an existing magic file would have to be changed to
+.Pp
+.Dl ">10	string	language\e impress	(imPRESS data)"
+.Pp
+In addition, in this version, if a pattern string contains a backslash,
+it must be escaped.
+For example
+.Pp
+.Dl "0	string		\ebegindata	Andrew Toolkit document"
+.Pp
+in an existing magic file would have to be changed to
+.Pp
+.Dl "0	string		\e\ebegindata	Andrew Toolkit document"
+.Pp
+SunOS releases 3.2 and later from Sun Microsystems include a
+.Xr file 1
+command derived from the System V one, but with some extensions.
+My version differs from Sun's only in minor ways.
+It includes the extension of the
+.Sq Ic &
+operator, used as,
+for example,
+.Pp
+.Dl ">16	long&0x7fffffff	>0		not stripped"
+.Sh MAGIC DIRECTORY
+The magic file entries have been collected from various sources,
+mainly USENET, and contributed by various authors.
+.An Christos Zoulas
+(address below) will collect additional
+or corrected magic file entries.
+A consolidation of magic file entries
+will be distributed periodically.
+.Pp
+The order of entries in the magic file is significant.
+Depending on what system you are using, the order that
+they are put together may be incorrect.
+If your old
+.Nm
+command uses a magic file,
+keep the old magic file around for comparison purposes
+(rename it to
+.Pa /usr/share/misc/magic.orig ) .
+.Sh EXAMPLES
+.Bd -literal
+$ file file.c file /dev/{wd0a,hda}
+file.c:    C program text
+file:      ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV),
+           dynamically linked (uses shared libs), stripped
+/dev/wd0a: block special (0/0)
+/dev/hda:  block special (3/0)
+$ file -s /dev/wd0{b,d}
+/dev/wd0b: data
+/dev/wd0d: x86 boot sector
+$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
+/dev/hda:   x86 boot sector
+/dev/hda1:  Linux/i386 ext2 filesystem
+/dev/hda2:  x86 boot sector
+/dev/hda3:  x86 boot sector, extended partition table
+/dev/hda4:  Linux/i386 ext2 filesystem
+/dev/hda5:  Linux/i386 swap file
+/dev/hda6:  Linux/i386 swap file
+/dev/hda7:  Linux/i386 swap file
+/dev/hda8:  Linux/i386 swap file
+/dev/hda9:  empty
+/dev/hda10: empty
+
+$ file -i file.c file /dev/{wd0a,hda}
+file.c:    text/x-c
+file:      application/x-executable, dynamically linked (uses shared libs),
+           not stripped
+/dev/hda:  application/x-not-regular-file
+/dev/wd0a: application/x-not-regular-file
+.Ed
+.Sh HISTORY
+There has been a
+.Nm
+command in every
+.Ux
+since at least Research Version 4
+(man page dated November, 1973).
+The System V version introduced one significant major change:
+the external list of magic number types.
+This slowed the program down slightly but made it a lot more flexible.
+.Pp
+This program, based on the System V version,
+was written by
+.An Ian Darwin Aq ian@darwinsys.com
+without looking at anybody else's source code.
+.Pp
+.An John Gilmore
+revised the code extensively, making it better than
+the first version.
+.An Geoff Collyer
+found several inadequacies
+and provided some magic file entries.
+Contributions by the
+.Sq Ic &
+operator by
+.An Rob McMahon Aq cudcv@warwick.ac.uk ,
+1989.
+.Pp
+.An Guy Harris Aq guy@netapp.com ,
+made many changes from 1993 to the present.
+.Pp
+Primary development and maintenance from 1990 to the present by
+.An Christos Zoulas Aq christos@astron.com .
+.Pp
+Altered by
+.An Chris Lowth Aq chris@lowth.com ,
+2000:
+Handle the
+.Fl i
+option to output mime type strings and using an alternative
+magic file and internal logic.
+.Pp
+Altered by
+.An Eric Fischer Aq enf@pobox.com ,
+July, 2000,
+to identify character codes and attempt to identify the languages
+of
+.No non- Ns Tn ASCII
+files.
+.Pp
+The list of contributors to the
+.Pa Magdir
+directory (source for the
+.Pa /usr/share/misc/magic
+file) is too long to include here.
+You know who you are; thank you.
+.Sh LEGAL NOTICE
+Copyright (c)
+.An Ian F. Darwin ,
+Toronto, Canada, 1986-1999.
+Covered by the standard Berkeley Software Distribution copyright; see the file
+.Pa LEGAL.NOTICE
+in the source distribution.
+.Pp
+The files
+.Pa tar.h
+and
+.Pa is_tar.c
+were written by
+.An John Gilmore
+from his public-domain
+.Nm tar
+program, and are not covered by the above license.
+.Sh BUGS
+There must be a better way to automate the construction of the
+.Pa Magic
+file from all the glop in
+.Pa Magdir .
+What is it?
+Better yet, the magic file should be compiled into binary (say,
+.Xr ndbm 3
+or, better yet, fixed-length
+.Tn ASCII
+strings for use in heterogenous network environments) for faster startup.
+Then the program would run as fast as the Version 7 program of the same name,
+with the flexibility of the System V version.
+.Pp
+The
+.Nm
+utility uses several algorithms that favor speed over accuracy,
+thus it can be misled about the contents of
+text
+files.
+.Pp
+The support for
+text
+files (primarily for programming languages)
+is simplistic, inefficient and requires recompilation to update.
+.Pp
+There should be an
+.Ic else
+clause to follow a series of continuation lines.
+.Pp
+The magic file and keywords should have regular expression support.
+Their use of
+.Tn "ASCII TAB"
+as a field delimiter is ugly and makes
+it hard to edit the files, but is entrenched.
+.Pp
+It might be advisable to allow upper-case letters in keywords
+for e.g.,
+.Xr troff 1
+commands vs man page macros.
+Regular expression support would make this easy.
+.Pp
+The program does not grok
+.Tn FORTRAN .
+It should be able to figure
+.Tn FORTRAN
+by seeing some keywords which
+appear indented at the start of line.
+Regular expression support would make this easy.
+.Pp
+The list of keywords in
+.Pa ascmagic
+probably belongs in the
+.Pa Magic
+file.
+This could be done by using some keyword like
+.Sq Ic *
+for the offset value.
+.Pp
+Another optimisation would be to sort
+the magic file so that we can just run down all the
+tests for the first byte, first word, first long, etc, once we
+have fetched it.
+Complain about conflicts in the magic file entries.
+Make a rule that the magic entries sort based on file offset rather
+than position within the magic file?
+.Pp
+The program should provide a way to give an estimate
+of
+.Dq how good
+a guess is.
+We end up removing guesses (e.g.\&
+.Dq Li "From "
+as first 5 chars of file) because
+they are not as good as other guesses (e.g.\&
+.Dq Li "Newsgroups:"
+versus
+.Dq Li "Return-Path:" ) .
+Still, if the others do not pan out, it should be possible to use the
+first guess.
+.Pp
+This program is slower than some vendors' file commands.
+The new support for multiple character codes makes it even slower.
+.Pp
+This manual page, and particularly this section, is too long.
+.Sh AVAILABILITY
+You can obtain the original author's latest version by anonymous FTP
+on
+.Pa ftp.astron.com
+in the directory
+.Pa /pub/file/file-X.YZ.tar.gz

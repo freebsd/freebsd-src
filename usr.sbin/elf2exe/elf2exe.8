@@ -1,0 +1,56 @@
+.\" Copyright (c) 1999 Stefan Esser
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 26, 1999
+.Dt ELF2EXE 8 Alpha
+.Os
+.Sh NAME
+.Nm elf2exe
+.Nd convert Alpha ELF executable to AlphaBIOS / ARCS format
+.Sh SYNOPSIS
+.Nm
+.Ar infile
+.Ar outfile
+.Sh DESCRIPTION
+The
+.Nm
+utility
+creates an executable that can be loaded by the AlphaBIOS or ARCS consoles
+as found on systems designed for
+.Tn Windows/NT .
+The input file must have been
+created as a non-relocatable standalone binary with a load address within
+the memory range available for user programs (0x80000000 to 0x806fdfff
+and 0x80900000 to at least 0x80ffffff).
+.Pp
+The command prints a list of sections found in the ELF executable and the
+section sizes and offsets of the output file for diagnostic purposes.
+.Pp
+Given an object file
+.Pa src.o
+the following two commands will create a binary for ARCS:
+.Bd -literal -offset indent
+ld -o a.out -M -N -Ttext 0x80900000 src.o
+elf2exe a.out a.exe
+.Ed
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 4.0 .
+.Sh BUGS
+The
+.Nm
+utility
+does not even attempt to verify that the input file matches the requirements
+for an ARC executable.

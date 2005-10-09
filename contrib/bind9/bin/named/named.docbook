@@ -1,0 +1,370 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+<!--
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
+ -
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: named.docbook,v 1.5.98.3 2004/06/03 02:24:57 marka Exp $ -->
+
+<refentry>
+  <refentryinfo>
+    <date>June 30, 2000</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle><application>named</application></refentrytitle>
+    <manvolnum>8</manvolnum>
+    <refmiscinfo>BIND9</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><application>named</application></refname>
+    <refpurpose>Internet domain name server</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>named</command>
+      <arg><option>-4</option></arg>
+      <arg><option>-6</option></arg>
+      <arg><option>-c <replaceable class="parameter">config-file</replaceable></option></arg>
+      <arg><option>-d <replaceable class="parameter">debug-level</replaceable></option></arg>
+      <arg><option>-f</option></arg>
+      <arg><option>-g</option></arg>
+      <arg><option>-n <replaceable class="parameter">#cpus</replaceable></option></arg>
+      <arg><option>-p <replaceable class="parameter">port</replaceable></option></arg>
+      <arg><option>-s</option></arg>
+      <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg><option>-u <replaceable class="parameter">user</replaceable></option></arg>
+      <arg><option>-v</option></arg>
+      <arg><option>-x <replaceable class="parameter">cache-file</replaceable></option></arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+    <para>
+	<command>named</command> is a Domain Name System (DNS) server,
+	part of the BIND 9 distribution from ISC.  For more
+	information on the DNS, see RFCs 1033, 1034, and 1035.
+    </para>
+    <para>
+	When invoked without arguments, <command>named</command> will
+	read the default configuration file
+	<filename>/etc/named.conf</filename>, read any initial
+	data, and listen for queries.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>OPTIONS</title>
+
+    <variablelist>
+      <varlistentry>
+	<term>-4</term>
+	<listitem>
+	  <para>
+		Use IPv4 only even if the host machine is capable of IPv6.
+		<option>-4</option> and <option>-6</option> are mutually
+		exclusive.
+          </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-6</term>
+	<listitem>
+	  <para>
+		Use IPv6 only even if the host machine is capable of IPv4.
+		<option>-4</option> and <option>-6</option> are mutually
+		exclusive.
+          </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>-c <replaceable class="parameter">config-file</replaceable></term>
+	<listitem>
+	  <para>
+		Use <replaceable
+		class="parameter">config-file</replaceable> as the
+		configuration file instead of the default,
+		<filename>/etc/named.conf</filename>.  To
+		ensure that reloading the configuration file continues
+		to work after the server has changed its working
+		directory due to to a possible
+		<option>directory</option> option in the configuration
+		file, <replaceable
+		class="parameter">config-file</replaceable> should be
+		an absolute pathname.
+          </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-d <replaceable class="parameter">debug-level</replaceable></term>
+	<listitem>
+	  <para>
+		Set the daemon's debug level to <replaceable
+		class="parameter">debug-level</replaceable>.
+		Debugging traces from <command>named</command> become
+		more verbose as the debug level increases.
+          </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-f</term>
+	<listitem>
+	  <para>
+		Run the server in the foreground (i.e. do not daemonize).
+          </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-g</term>
+	<listitem>
+	  <para>
+		Run the server in the foreground and force all logging
+		to <filename>stderr</filename>.
+          </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-n <replaceable class="parameter">#cpus</replaceable></term>
+	<listitem>
+	  <para>
+		Create <replaceable
+		class="parameter">#cpus</replaceable> worker threads
+		to take advantage of multiple CPUs.  If not specified,
+		<command>named</command> will try to determine the
+		number of CPUs present and create one thread per CPU.
+		If it is unable to determine the number of CPUs, a
+		single worker thread will be created.
+          </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-p <replaceable class="parameter">port</replaceable></term>
+	<listitem>
+	  <para>
+		Listen for queries on port <replaceable
+		class="parameter">port</replaceable>.  If not
+		specified, the default is port 53.
+          </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-s</term>
+	<listitem>
+	  <para>
+		Write memory usage statistics to <filename>stdout</filename> on exit.
+          </para>
+	  <note>
+	    <para>
+		This option is mainly of interest to BIND 9 developers
+		and may be removed or changed in a future release.
+	    </para>
+	  </note>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-t <replaceable class="parameter">directory</replaceable></term>
+	<listitem>
+	  <para>
+		<function>chroot()</function> to <replaceable
+		class="parameter">directory</replaceable> after
+		processing the command line arguments, but before
+		reading the configuration file.
+          </para>
+	  <warning>
+	    <para>
+		This option should be used in conjunction with the
+		<option>-u</option> option, as chrooting a process
+		running as root doesn't enhance security on most
+		systems; the way <function>chroot()</function> is
+		defined allows a process with root privileges to
+		escape a chroot jail.
+	    </para>
+	  </warning>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-u <replaceable class="parameter">user</replaceable></term>
+	<listitem>
+	  <para>
+		<function>setuid()</function> to <replaceable
+		class="parameter">user</replaceable> after completing
+		privileged operations, such as creating sockets that
+		listen on privileged ports.
+          </para>
+	  <note>
+	    <para>
+		On Linux, <command>named</command> uses the kernel's
+		capability mechanism to drop all root privileges
+		except the ability to <function>bind()</function> to a
+		privileged port and set process resource limits.
+		Unfortunately, this means that the <option>-u</option>
+		option only works when <command>named</command> is run
+		on kernel 2.2.18 or later, or kernel 2.3.99-pre3 or
+		later, since previous kernels did not allow privileges
+		to be retained after <function>setuid()</function>.
+	    </para>
+	  </note>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-v</term>
+	<listitem>
+	  <para>
+		Report the version number and exit.
+          </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-x <replaceable class="parameter">cache-file</replaceable></term>
+	<listitem>
+	  <para>
+		Load data from <replaceable
+		class="parameter">cache-file</replaceable> into the
+		cache of the default view.
+          </para>
+	  <warning>
+	    <para>
+		This option must not be used.  It is only of interest
+		to BIND 9 developers and may be removed or changed in a
+		future release.
+	    </para>
+	  </warning>
+	</listitem>
+      </varlistentry>
+
+    </variablelist>
+
+  </refsect1>
+
+  <refsect1>
+    <title>SIGNALS</title>
+    <para>
+	In routine operation, signals should not be used to control
+	the nameserver; <command>rndc</command> should be used
+	instead.
+    </para>
+
+    <variablelist>
+
+      <varlistentry>
+	<term>SIGHUP</term>
+	<listitem>
+	  <para>
+		Force a reload of the server.
+          </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>SIGINT, SIGTERM</term>
+	<listitem>
+	  <para>
+		Shut down the server.
+          </para>
+	</listitem>
+      </varlistentry>
+
+    </variablelist>
+
+    <para>
+	The result of sending any other signals to the server is undefined.
+    </para>
+
+  </refsect1>
+
+  <refsect1>
+    <title>CONFIGURATION</title>
+    <para>
+	The <command>named</command> configuration file is too complex
+	to describe in detail here.  A complete description is
+	provided in the <citetitle>BIND 9 Administrator Reference
+	Manual</citetitle>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <variablelist>
+
+      <varlistentry>
+	<term><filename>/etc/named.conf</filename></term>
+	<listitem>
+	  <para>
+		The default configuration file.
+          </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term><filename>/var/run/named.pid</filename></term>
+	<listitem>
+	  <para>
+		The default process-id file.
+          </para>
+	</listitem>
+      </varlistentry>
+
+    </variablelist>
+
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para>
+	<citetitle>RFC 1033</citetitle>,
+	<citetitle>RFC 1034</citetitle>,
+	<citetitle>RFC 1035</citetitle>,
+	<citerefentry>
+	  <refentrytitle>rndc</refentrytitle>
+	  <manvolnum>8</manvolnum>
+        </citerefentry>,
+	<citerefentry>
+	  <refentrytitle>lwresd</refentrytitle>
+	  <manvolnum>8</manvolnum>
+        </citerefentry>,
+	<citetitle>BIND 9 Administrator Reference Manual</citetitle>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para>
+	<corpauthor>Internet Systems Consortium</corpauthor>
+    </para>
+  </refsect1>
+
+</refentry>
+
+
+<!--
+ - Local variables:
+ - mode: sgml
+ - End:
+-->

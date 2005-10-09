@@ -1,0 +1,26 @@
+#
+# /etc/locate.rc -  command script for updatedb(8)
+#
+# $FreeBSD$
+
+#
+# All commented values are the defaults
+#
+# temp directory
+#TMPDIR="/tmp"
+
+# the actual database
+#FCODES="/var/db/locate.database"
+
+# directories to be put in the database
+#SEARCHPATHS="/"
+
+# directories unwanted in output
+#PRUNEPATHS="/tmp /usr/tmp /var/tmp /var/db/portsnap"
+
+# filesystems allowed. Beware: a non-listed filesystem will be pruned
+# and if the SEARCHPATHS starts in such a filesystem locate will build
+# an empty database.
+#
+# be careful if you add 'nfs'
+#FILESYSTEMS="ufs" 

@@ -1,0 +1,322 @@
+
+#------------------------------------------------------------------------------
+# archive:  file(1) magic for archive formats (see also "msdos" for self-
+#           extracting compressed archives)
+#
+# cpio, ar, arc, arj, hpack, lha/lharc, rar, squish, uc2, zip, zoo, etc.
+# pre-POSIX "tar" archives are handled in the C code.
+
+# POSIX tar archives
+257	string		ustar\0		POSIX tar archive
+257	string		ustar\040\040\0	GNU tar archive
+
+# cpio archives
+#
+# Yes, the top two "cpio archive" formats *are* supposed to just be "short".
+# The idea is to indicate archives produced on machines with the same
+# byte order as the machine running "file" with "cpio archive", and
+# to indicate archives produced on machines with the opposite byte order
+# from the machine running "file" with "byte-swapped cpio archive".
+#
+# The SVR4 "cpio(4)" hints that there are additional formats, but they
+# are defined as "short"s; I think all the new formats are
+# character-header formats and thus are strings, not numbers.
+0	short		070707		cpio archive
+0	short		0143561		byte-swapped cpio archive
+0	string		070707		ASCII cpio archive (pre-SVR4 or odc)
+0	string		070701		ASCII cpio archive (SVR4 with no CRC)
+0	string		070702		ASCII cpio archive (SVR4 with CRC)
+
+# Debian package (needs to go before regular portable archives)
+#
+0	string		!<arch>\ndebian
+>8	string		debian-split	part of multipart Debian package
+>8	string		debian-binary	Debian binary package
+>68	string		>\0		(format %s)
+>81	string		bz2		\b, uses bzip2 compression
+>84	string		gz		\b, uses gzip compression
+#>136	ledate		x		created: %s
+
+# other archives
+0	long		0177555		very old archive
+0	short		0177555		very old PDP-11 archive
+0	long		0177545		old archive
+0	short		0177545		old PDP-11 archive
+0	long		0100554		apl workspace
+0	string		=<ar>		archive
+
+# MIPS archive (needs to go before regular portable archives)
+#
+0	string	!<arch>\n__________E	MIPS archive
+>20	string	U			with MIPS Ucode members
+>21	string	L			with MIPSEL members
+>21	string	B			with MIPSEB members
+>19	string	L			and an EL hash table
+>19	string	B			and an EB hash table
+>22	string	X			-- out of date
+
+0	string		-h-		Software Tools format archive text
+
+#
+# XXX - why are there multiple <ar> thingies?  Note that 0x213c6172 is
+# "!<ar", so, for new-style (4.xBSD/SVR2andup) archives, we have:
+#
+# 0	string		!<arch>		current ar archive
+# 0	long		0x213c6172	archive file
+#
+# and for SVR1 archives, we have:
+#
+# 0	string		\<ar>		System V Release 1 ar archive
+# 0	string		=<ar>		archive
+#
+# XXX - did Aegis really store shared libraries, breakpointed modules,
+# and absolute code program modules in the same format as new-style
+# "ar" archives?
+#
+0	string		!<arch>		current ar archive
+>8	string		__.SYMDEF	random library
+>0	belong		=65538		- pre SR9.5
+>0	belong		=65539		- post SR9.5
+>0	beshort		2		- object archive
+>0	beshort		3		- shared library module
+>0	beshort		4		- debug break-pointed module
+>0	beshort		5		- absolute code program module
+0	string		\<ar>		System V Release 1 ar archive
+0	string		=<ar>		archive
+#
+# XXX - from "vax", which appears to collect a bunch of byte-swapped
+# thingies, to help you recognize VAX files on big-endian machines;
+# with "leshort", "lelong", and "string", that's no longer necessary....
+#
+0	belong		0x65ff0000	VAX 3.0 archive
+0	belong		0x3c61723e	VAX 5.0 archive
+#
+0	long		0x213c6172	archive file
+0	lelong		0177555		very old VAX archive
+0	leshort		0177555		very old PDP-11 archive
+#
+# XXX - "pdp" claims that 0177545 can have an __.SYMDEF member and thus
+# be a random library (it said 0xff65 rather than 0177545).
+#
+0	lelong		0177545		old VAX archive
+>8	string		__.SYMDEF	random library
+0	leshort		0177545		old PDP-11 archive
+>8	string		__.SYMDEF	random library
+#
+# From "pdp" (but why a 4-byte quantity?)
+#
+0	lelong		0x39bed		PDP-11 old archive
+0	lelong		0x39bee		PDP-11 4.0 archive
+
+# ARC archiver, from Daniel Quinlan (quinlan@yggdrasil.com)
+#
+# The first byte is the magic (0x1a), byte 2 is the compression type for
+# the first file (0x01 through 0x09), and bytes 3 to 15 are the MS-DOS
+# filename of the first file (null terminated).  Since some types collide
+# we only test some types on basis of frequency: 0x08 (83%), 0x09 (5%),
+# 0x02 (5%), 0x03 (3%), 0x04 (2%), 0x06 (2%).  0x01 collides with terminfo.
+0	lelong&0x8080ffff	0x0000081a	ARC archive data, dynamic LZW
+0	lelong&0x8080ffff	0x0000091a	ARC archive data, squashed
+0	lelong&0x8080ffff	0x0000021a	ARC archive data, uncompressed
+0	lelong&0x8080ffff	0x0000031a	ARC archive data, packed
+0	lelong&0x8080ffff	0x0000041a	ARC archive data, squeezed
+0	lelong&0x8080ffff	0x0000061a	ARC archive data, crunched
+
+# Acorn archive formats (Disaster prone simpleton, m91dps@ecs.ox.ac.uk)
+# I can't create either SPARK or ArcFS archives so I have not tested this stuff
+# [GRR:  the original entries collide with ARC, above; replaced with combined
+#  version (not tested)]
+#0	byte		0x1a		RISC OS archive
+#>1	string		archive		(ArcFS format)
+#0	string		\032archive	RISC OS archive (ArcFS format)
+0       string          \032            RISC OS archive (spark format)
+0       string          Archive\000     RISC OS archive (ArcFS format)
+
+# ARJ archiver (jason@jarthur.Claremont.EDU)
+0	leshort		0xea60		ARJ archive data
+>5	byte		x		\b, v%d,
+>8	byte		&0x04		multi-volume,
+>8	byte		&0x10		slash-switched,
+>8	byte		&0x20		backup,
+>34	string		x		original name: %s,
+>7	byte		0		os: MS-DOS
+>7	byte		1		os: PRIMOS
+>7	byte		2		os: Unix
+>7	byte		3		os: Amiga
+>7	byte		4		os: Macintosh
+>7	byte		5		os: OS/2
+>7	byte		6		os: Apple ][ GS
+>7	byte		7		os: Atari ST
+>7	byte		8		os: NeXT
+>7	byte		9		os: VAX/VMS
+>3	byte		>0		%d]
+
+# HA archiver (Greg Roelofs, newt@uchicago.edu)
+# This is a really bad format. A file containing HAWAII will match this...
+#0	string		HA		HA archive data,
+#>2	leshort		=1		1 file,
+#>2	leshort		>1		%u files,
+#>4	byte&0x0f	=0		first is type CPY
+#>4	byte&0x0f	=1		first is type ASC
+#>4	byte&0x0f	=2		first is type HSC
+#>4	byte&0x0f	=0x0e		first is type DIR
+#>4	byte&0x0f	=0x0f		first is type SPECIAL
+
+# HPACK archiver (Peter Gutmann, pgut1@cs.aukuni.ac.nz)
+0	string		HPAK		HPACK archive data
+
+# JAM Archive volume format, by Dmitry.Kohmanyuk@UA.net
+0	string		\351,\001JAM\		JAM archive,
+>7	string		>\0			version %.4s
+>0x26	byte		=0x27			-
+>>0x2b	string          >\0			label %.11s,
+>>0x27	lelong		x			serial %08x,
+>>0x36	string		>\0			fstype %.8s
+
+# LHARC/LHA archiver (Greg Roelofs, newt@uchicago.edu)
+2	string		-lh0-		LHarc 1.x archive data [lh0]
+2	string		-lh1-		LHarc 1.x archive data [lh1]
+2	string		-lz4-		LHarc 1.x archive data [lz4]
+2	string		-lz5-		LHarc 1.x archive data [lz5]
+#	[never seen any but the last; -lh4- reported in comp.compression:]
+2	string		-lzs-		LHa 2.x? archive data [lzs]
+2	string		-lh\40-		LHa 2.x? archive data [lh ]
+2	string		-lhd-		LHa 2.x? archive data [lhd]
+2	string		-lh2-		LHa 2.x? archive data [lh2]
+2	string		-lh3-		LHa 2.x? archive data [lh3]
+2	string		-lh4-		LHa (2.x) archive data [lh4]
+2	string		-lh5-		LHa (2.x) archive data [lh5]
+2	string		-lh6-		LHa (2.x) archive data [lh6]
+2	string		-lh7-		LHa (2.x) archive data [lh7]
+>20	byte		x		- header level %d
+
+# RAR archiver (Greg Roelofs, newt@uchicago.edu)
+0	string		Rar!		RAR archive data,
+>44	byte		x		v%0x,
+>35	byte		0		os: MS-DOS
+>35	byte		1		os: OS/2
+>35	byte		2		os: Win32
+>35	byte		3		os: Unix
+
+# SQUISH archiver (Greg Roelofs, newt@uchicago.edu)
+0	string		SQSH		squished archive data (Acorn RISCOS)
+
+# UC2 archiver (Greg Roelofs, newt@uchicago.edu)
+# I can't figure out the self-extracting form of these buggers...
+0	string		UC2\x1a		UC2 archive data
+
+# ZIP archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
+0	string		PK\003\004	Zip archive data
+>4	byte		0x09		\b, at least v0.9 to extract
+>4	byte		0x0a		\b, at least v1.0 to extract
+>4	byte		0x0b		\b, at least v1.1 to extract
+>4	byte		0x14		\b, at least v2.0 to extract
+
+# Zoo archiver
+20	lelong		0xfdc4a7dc	Zoo archive data
+>4	byte		>48		\b, v%c.
+>>6	byte		>47		\b%c
+>>>7	byte		>47		\b%c
+>32	byte		>0		\b, modify: v%d
+>>33	byte		x		\b.%d+
+>42	lelong		0xfdc4a7dc	\b,
+>>70	byte		>0		extract: v%d
+>>>71	byte		x		\b.%d+
+
+# Shell archives
+10	string		#\ This\ is\ a\ shell\ archive	shell archive text
+
+#
+# LBR. NB: May conflict with the questionable 
+#          "binary Computer Graphics Metafile" format.
+#
+0       string  \0\ \ \ \ \ \ \ \ \ \ \ \0\0    LBR archive data
+#
+# PMA (CP/M derivative of LHA)
+#
+2       string          -pm0-           PMarc archive data [pm0]
+2       string          -pm1-           PMarc archive data [pm1]
+2       string          -pm2-           PMarc archive data [pm2]
+2       string          -pms-           PMarc SFX archive (CP/M, DOS)
+5       string          -pc1-           PopCom compressed executable (CP/M)
+
+# From Rafael Laboissiere <rafael@laboissiere.net>
+# The Project Revision Control System (see
+# http://prcs.sourceforge.net) generates a packaged project
+# file which is recognized by the following entry: 
+0	leshort		0xeb81	PRCS packaged project
+
+# Microsoft cabinets 
+# by David Necas (Yeti) <yeti@physics.muni.cz>
+#0	string	MSCF\0\0\0\0	Microsoft cabinet file data,
+#>25	byte	x		v%d
+#>24	byte	x		\b.%d
+# MPi: All CABs have version 1.3, so this is pointless.
+# Better magic in debian-additions.
+
+# GTKtalog catalogs 
+# by David Necas (Yeti) <yeti@physics.muni.cz>
+4	string	gtktalog\ 	GTKtalog catalog data,
+>13	string	3		version 3
+>>14	beshort	0x677a		(gzipped)
+>>14	beshort	!0x677a		(not gzipped)
+>13	string	>3		version %s
+
+############################################################################
+# Parity archive reconstruction file, the 'par' file format now used on Usenet.
+0       string          PAR\0	PARity archive data
+>48	leshort		=0	- Index file
+>48	leshort		>0	- file number %d
+
+# Felix von Leitner <felix-file@fefe.de>
+0	string	d8:announce	BitTorrent file
+
+# Atari MSA archive - Teemu Hukkanen <tjhukkan@iki.fi>
+0       beshort 0x0e0f          Atari MSA archive data
+>2      beshort x       	\b, %d sectors per track
+>4      beshort 0       	\b, 1 sided
+>4      beshort 1       	\b, 2 sided
+>6      beshort x       	\b, starting track: %d
+>8      beshort x       	\b, ending track: %d
+
+# Alternate ZIP string (amc@arwen.cs.berkeley.edu)
+0	string	PK00PK\003\004	Zip archive data
+
+# ACE archive (from http://www.wotsit.org/download.asp?f=ace)
+# by Stefan `Sec` Zehl <sec@42.org>
+7	string		**ACE**		ACE compressed archive
+>15	byte	>0		version %d
+>16	byte	=0x00		\b, from MS-DOS
+>16	byte	=0x01		\b, from OS/2
+>16	byte	=0x02		\b, from Win/32
+>16	byte	=0x03		\b, from Unix
+>16	byte	=0x04		\b, from MacOS
+>16	byte	=0x05		\b, from WinNT
+>16	byte	=0x06		\b, from Primos
+>16	byte	=0x07		\b, from AppleGS
+>16	byte	=0x08		\b, from Atari
+>16	byte	=0x09		\b, from Vax/VMS
+>16	byte	=0x0A		\b, from Amiga
+>16	byte	=0x0B		\b, from Next
+>14	byte	x		\b, version %d to extract
+>5	leshort &0x0080		\b, multiple volumes,
+>>17	byte	x		\b (part %d),
+>5	leshort &0x0002		\b, contains comment
+>5	leshort	&0x0200		\b, sfx
+>5	leshort	&0x0400		\b, small dictionary
+>5	leshort	&0x0800		\b, multi-volume
+>5	leshort	&0x1000		\b, contains AV-String
+>>30	string\x16*UNREGISTERED\x20VERSION*	(unregistered)
+>5	leshort &0x2000		\b, with recovery record
+>5	leshort &0x4000		\b, locked
+>5	leshort &0x8000		\b, solid
+# Date in MS-DOS format (whatever that is)
+#>18	lelong	x		Created on
+
+# sfArk : compression program for Soundfonts (sf2) by Dirk Jagdmann
+# <doj@cubic.org>
+0x1A	string	sfArk		sfArk compressed Soundfont
+>0x15	string	2
+>>0x1	string	>\0		Version %s
+>>0x2A	string	>\0		: %s
+

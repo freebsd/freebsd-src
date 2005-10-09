@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# $NetBSD: newsyslog,v 1.5 2002/03/24 15:51:26 lukem Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: newsyslog
+# REQUIRE: cleanvar mountcritremote
+# BEFORE: syslogd
+
+. /etc/rc.subr
+
+name="newsyslog"
+rcvar=`set_rcvar`
+required_files="/etc/newsyslog.conf"
+command="/usr/sbin/newsyslog"
+start_cmd="newsyslog_start"
+stop_cmd=":"
+
+newsyslog_start()
+{
+	echo -n "Creating and/or trimming log files:"
+	${command} ${rc_flags}
+	echo "."
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,12 @@
+
+# -----------------------------------------------------------
+# VMware specific files (deducted from version 1.1 and log file entries)
+# Anthon van der Neut (anthon@mnt.org)
+0	belong	0x4d52564e	VMware nvram 
+0	belong	0x434f5744	VMware
+>4	byte	3	 	virtual disk 
+>>32	lelong	x		(%d/
+>>36	lelong	x		\b%d/
+>>40	lelong	x		\b%d)
+>4	byte	2	 	undoable disk
+>>32	string  >\0		(%s)

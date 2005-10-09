@@ -1,0 +1,1835 @@
+# $FreeBSD$
+#
+# The long compile-with and dependency lines are required because of
+# limitations in config: backslash-newline doesn't work in strings, and
+# dependency lines other than the first are silently ignored.
+#
+acpi_quirks.h			optional acpi				   \
+	dependency	"$S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
+	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"acpi_quirks.h"
+aicasm				optional ahc				   \
+	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
+	compile-with	"CC=${CC} ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
+	no-obj no-implicit-rule						   \
+	clean		"aicasm* y.tab.h"
+aicasm				optional ahd				   \
+	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
+	compile-with	"CC=${CC} ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
+	no-obj no-implicit-rule						   \
+	clean		"aicasm* y.tab.h"
+aic7xxx_seq.h			optional ahc				   \
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"   \
+	no-obj no-implicit-rule before-depend local			   \
+	clean		"aic7xxx_seq.h"					   \
+	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
+aic7xxx_reg.h			optional ahc				   \
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"   \
+	no-obj no-implicit-rule before-depend local			   \
+	clean		"aic7xxx_reg.h"					   \
+	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
+aic7xxx_reg_print.c		optional ahc				   \
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"   \
+	no-obj no-implicit-rule local					   \
+	clean		"aic7xxx_reg_print.c"				   \
+	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
+aic7xxx_reg_print.o		optional ahc ahc_reg_pretty_print	   \
+	compile-with	"${NORMAL_C}"					   \
+	no-implicit-rule local
+aic79xx_seq.h		optional ahd pci				   \
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"   \
+	no-obj no-implicit-rule before-depend local			   \
+	clean		"aic79xx_seq.h"					   \
+	dependency	"$S/dev/aic7xxx/aic79xx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
+aic79xx_reg.h		optional ahd pci				   \
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"   \
+	no-obj no-implicit-rule before-depend local			   \
+	clean		"aic79xx_reg.h"					   \
+	dependency	"$S/dev/aic7xxx/aic79xx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
+aic79xx_reg_print.c	optional ahd pci				   \
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"   \
+	no-obj no-implicit-rule local					   \
+	clean		"aic79xx_reg_print.c"				   \
+	dependency	"$S/dev/aic7xxx/aic79xx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
+aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
+	compile-with	"${NORMAL_C}"					   \
+	no-implicit-rule local
+emu10k1-alsa%diked.h		optional snd_emu10k1 pci			   \
+	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
+	compile-with	"CC=${CC} AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"emu10k1-alsa%diked.h"
+miidevs.h			optional miibus				   \
+	dependency	"$S/tools/miidevs2h.awk $S/dev/mii/miidevs"	   \
+	compile-with	"${AWK} -f $S/tools/miidevs2h.awk $S/dev/mii/miidevs" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"miidevs.h"
+pccarddevs.h			standard				   \
+	dependency	"$S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
+	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"pccarddevs.h"
+usbdevs.h			optional usb				   \
+	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
+	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -h" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"usbdevs.h"
+usbdevs_data.h			optional usb				   \
+	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
+	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -d" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"usbdevs_data.h"
+cam/cam.c			optional scbus
+cam/cam_periph.c		optional scbus
+cam/cam_queue.c			optional scbus
+cam/cam_sim.c			optional scbus
+cam/cam_xpt.c			optional scbus
+cam/scsi/scsi_all.c		optional scbus
+cam/scsi/scsi_cd.c		optional cd
+cam/scsi/scsi_ch.c		optional ch
+cam/scsi/scsi_da.c		optional da
+cam/scsi/scsi_low.c		optional ct
+cam/scsi/scsi_low.c		optional ncv
+cam/scsi/scsi_low.c		optional nsp
+cam/scsi/scsi_low.c		optional stg
+cam/scsi/scsi_low_pisa.c	optional ct
+cam/scsi/scsi_low_pisa.c	optional ncv
+cam/scsi/scsi_low_pisa.c	optional nsp
+cam/scsi/scsi_low_pisa.c	optional stg
+cam/scsi/scsi_pass.c		optional pass
+cam/scsi/scsi_pt.c		optional pt
+cam/scsi/scsi_sa.c		optional sa
+cam/scsi/scsi_ses.c		optional ses
+cam/scsi/scsi_targ_bh.c		optional targbh
+cam/scsi/scsi_target.c		optional targ
+coda/coda_fbsd.c		optional vcoda
+coda/coda_namecache.c		optional vcoda
+coda/coda_psdev.c		optional vcoda
+coda/coda_subr.c		optional vcoda
+coda/coda_venus.c		optional vcoda
+coda/coda_vfsops.c		optional vcoda
+coda/coda_vnops.c		optional vcoda
+compat/linprocfs/linprocfs.c	optional linprocfs
+contrib/altq/altq/altq_cbq.c	optional altq
+contrib/altq/altq/altq_cdnr.c	optional altq
+contrib/altq/altq/altq_hfsc.c	optional altq
+contrib/altq/altq/altq_priq.c	optional altq
+contrib/altq/altq/altq_red.c	optional altq
+contrib/altq/altq/altq_rio.c	optional altq
+contrib/altq/altq/altq_rmclass.c optional altq
+contrib/altq/altq/altq_subr.c	optional altq
+contrib/dev/acpica/dbcmds.c	optional acpi acpi_debug
+contrib/dev/acpica/dbdisply.c	optional acpi acpi_debug
+contrib/dev/acpica/dbexec.c	optional acpi acpi_debug
+contrib/dev/acpica/dbfileio.c	optional acpi acpi_debug
+contrib/dev/acpica/dbhistry.c	optional acpi acpi_debug
+contrib/dev/acpica/dbinput.c	optional acpi acpi_debug
+contrib/dev/acpica/dbstats.c	optional acpi acpi_debug
+contrib/dev/acpica/dbutils.c	optional acpi acpi_debug
+contrib/dev/acpica/dbxface.c	optional acpi acpi_debug
+contrib/dev/acpica/dmbuffer.c	optional acpi acpi_debug
+contrib/dev/acpica/dmnames.c	optional acpi acpi_debug
+contrib/dev/acpica/dmopcode.c	optional acpi acpi_debug
+contrib/dev/acpica/dmobject.c	optional acpi acpi_debug
+contrib/dev/acpica/dmresrc.c	optional acpi acpi_debug
+contrib/dev/acpica/dmresrcl.c	optional acpi acpi_debug
+contrib/dev/acpica/dmresrcs.c	optional acpi acpi_debug
+contrib/dev/acpica/dmutils.c	optional acpi acpi_debug
+contrib/dev/acpica/dmwalk.c	optional acpi acpi_debug
+contrib/dev/acpica/dsfield.c	optional acpi
+contrib/dev/acpica/dsinit.c	optional acpi
+contrib/dev/acpica/dsmethod.c	optional acpi
+contrib/dev/acpica/dsmthdat.c	optional acpi
+contrib/dev/acpica/dsobject.c	optional acpi
+contrib/dev/acpica/dsopcode.c	optional acpi
+contrib/dev/acpica/dsutils.c	optional acpi
+contrib/dev/acpica/dswexec.c	optional acpi
+contrib/dev/acpica/dswload.c	optional acpi
+contrib/dev/acpica/dswscope.c	optional acpi
+contrib/dev/acpica/dswstate.c	optional acpi
+contrib/dev/acpica/evevent.c	optional acpi
+contrib/dev/acpica/evgpe.c	optional acpi
+contrib/dev/acpica/evgpeblk.c	optional acpi
+contrib/dev/acpica/evmisc.c	optional acpi
+contrib/dev/acpica/evregion.c	optional acpi
+contrib/dev/acpica/evrgnini.c	optional acpi
+contrib/dev/acpica/evsci.c	optional acpi
+contrib/dev/acpica/evxface.c	optional acpi
+contrib/dev/acpica/evxfevnt.c	optional acpi
+contrib/dev/acpica/evxfregn.c	optional acpi
+contrib/dev/acpica/exconfig.c	optional acpi
+contrib/dev/acpica/exconvrt.c	optional acpi
+contrib/dev/acpica/excreate.c	optional acpi
+contrib/dev/acpica/exdump.c	optional acpi
+contrib/dev/acpica/exfield.c	optional acpi
+contrib/dev/acpica/exfldio.c	optional acpi
+contrib/dev/acpica/exmisc.c	optional acpi
+contrib/dev/acpica/exmutex.c	optional acpi
+contrib/dev/acpica/exnames.c	optional acpi
+contrib/dev/acpica/exoparg1.c	optional acpi
+contrib/dev/acpica/exoparg2.c	optional acpi
+contrib/dev/acpica/exoparg3.c	optional acpi
+contrib/dev/acpica/exoparg6.c	optional acpi
+contrib/dev/acpica/exprep.c	optional acpi
+contrib/dev/acpica/exregion.c	optional acpi
+contrib/dev/acpica/exresnte.c	optional acpi
+contrib/dev/acpica/exresolv.c	optional acpi
+contrib/dev/acpica/exresop.c	optional acpi
+contrib/dev/acpica/exstore.c	optional acpi
+contrib/dev/acpica/exstoren.c	optional acpi
+contrib/dev/acpica/exstorob.c	optional acpi
+contrib/dev/acpica/exsystem.c	optional acpi
+contrib/dev/acpica/exutils.c	optional acpi
+contrib/dev/acpica/hwacpi.c	optional acpi
+contrib/dev/acpica/hwgpe.c	optional acpi
+contrib/dev/acpica/hwregs.c	optional acpi
+contrib/dev/acpica/hwsleep.c	optional acpi
+contrib/dev/acpica/hwtimer.c	optional acpi
+contrib/dev/acpica/nsaccess.c	optional acpi
+contrib/dev/acpica/nsalloc.c	optional acpi
+contrib/dev/acpica/nsdump.c	optional acpi
+contrib/dev/acpica/nseval.c	optional acpi
+contrib/dev/acpica/nsinit.c	optional acpi
+contrib/dev/acpica/nsload.c	optional acpi
+contrib/dev/acpica/nsnames.c	optional acpi
+contrib/dev/acpica/nsobject.c	optional acpi
+contrib/dev/acpica/nsparse.c	optional acpi
+contrib/dev/acpica/nssearch.c	optional acpi
+contrib/dev/acpica/nsutils.c	optional acpi
+contrib/dev/acpica/nswalk.c	optional acpi
+contrib/dev/acpica/nsxfeval.c	optional acpi
+contrib/dev/acpica/nsxfname.c	optional acpi
+contrib/dev/acpica/nsxfobj.c	optional acpi
+contrib/dev/acpica/psargs.c	optional acpi
+contrib/dev/acpica/psopcode.c	optional acpi
+contrib/dev/acpica/psparse.c	optional acpi
+contrib/dev/acpica/psscope.c	optional acpi
+contrib/dev/acpica/pstree.c	optional acpi
+contrib/dev/acpica/psutils.c	optional acpi
+contrib/dev/acpica/pswalk.c	optional acpi
+contrib/dev/acpica/psxface.c	optional acpi
+contrib/dev/acpica/rsaddr.c	optional acpi
+contrib/dev/acpica/rscalc.c	optional acpi
+contrib/dev/acpica/rscreate.c	optional acpi
+contrib/dev/acpica/rsdump.c	optional acpi
+contrib/dev/acpica/rsio.c	optional acpi
+contrib/dev/acpica/rsirq.c	optional acpi
+contrib/dev/acpica/rslist.c	optional acpi
+contrib/dev/acpica/rsmemory.c	optional acpi
+contrib/dev/acpica/rsmisc.c	optional acpi
+contrib/dev/acpica/rsutils.c	optional acpi
+contrib/dev/acpica/rsxface.c	optional acpi
+contrib/dev/acpica/tbconvrt.c	optional acpi
+contrib/dev/acpica/tbget.c	optional acpi
+contrib/dev/acpica/tbgetall.c	optional acpi
+contrib/dev/acpica/tbinstal.c	optional acpi
+contrib/dev/acpica/tbrsdt.c	optional acpi
+contrib/dev/acpica/tbutils.c	optional acpi
+contrib/dev/acpica/tbxface.c	optional acpi
+contrib/dev/acpica/tbxfroot.c	optional acpi
+contrib/dev/acpica/utalloc.c	optional acpi
+contrib/dev/acpica/utclib.c	optional acpi
+contrib/dev/acpica/utcopy.c	optional acpi
+contrib/dev/acpica/utdebug.c	optional acpi
+contrib/dev/acpica/utdelete.c	optional acpi
+contrib/dev/acpica/uteval.c	optional acpi
+contrib/dev/acpica/utglobal.c	optional acpi
+contrib/dev/acpica/utinit.c	optional acpi
+contrib/dev/acpica/utmath.c	optional acpi
+contrib/dev/acpica/utmisc.c	optional acpi
+contrib/dev/acpica/utobject.c	optional acpi
+contrib/dev/acpica/utxface.c	optional acpi
+contrib/dev/ath/freebsd/ah_osdep.c optional ath_hal
+contrib/ipfilter/netinet/fil.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet
+contrib/ipfilter/netinet/ip_fil_freebsd.c optional ipfilter inet
+contrib/ipfilter/netinet/ip_frag.c optional ipfilter inet
+contrib/ipfilter/netinet/ip_log.c optional ipfilter inet
+contrib/ipfilter/netinet/ip_nat.c optional ipfilter inet
+contrib/ipfilter/netinet/ip_proxy.c optional ipfilter inet
+contrib/ipfilter/netinet/ip_state.c optional ipfilter inet
+contrib/ipfilter/netinet/ip_lookup.c optional ipfilter inet
+contrib/ipfilter/netinet/ip_pool.c optional ipfilter inet
+contrib/ipfilter/netinet/ip_htable.c optional ipfilter inet
+contrib/ipfilter/netinet/ip_sync.c optional ipfilter inet
+contrib/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet
+contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_dump.c optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_port.c optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_sig.c optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_user.c optional ngatm_ccatm
+contrib/ngatm/netnatm/api/unisap.c optional ngatm_ccatm
+contrib/ngatm/netnatm/misc/straddr.c optional ngatm_atmbase
+contrib/ngatm/netnatm/misc/unimsg_common.c optional ngatm_atmbase
+contrib/ngatm/netnatm/msg/traffic.c optional ngatm_atmbase
+contrib/ngatm/netnatm/msg/uni_ie.c optional ngatm_atmbase
+contrib/ngatm/netnatm/msg/uni_msg.c optional ngatm_atmbase
+contrib/ngatm/netnatm/saal/saal_sscfu.c	optional ngatm_sscfu
+contrib/ngatm/netnatm/saal/saal_sscop.c	optional ngatm_sscop
+contrib/ngatm/netnatm/sig/sig_call.c optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_coord.c optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_party.c optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_print.c optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_reset.c optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_uni.c optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_unimsgcpy.c optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_verify.c optional ngatm_uni
+contrib/pf/net/if_pflog.c	optional pflog
+contrib/pf/net/if_pfsync.c	optional pfsync
+contrib/pf/net/pf.c		optional pf
+contrib/pf/net/pf_if.c		optional pf
+contrib/pf/net/pf_subr.c	optional pf
+contrib/pf/net/pf_ioctl.c	optional pf
+contrib/pf/net/pf_norm.c	optional pf
+contrib/pf/net/pf_table.c	optional pf
+contrib/pf/net/pf_osfp.c	optional pf
+contrib/pf/netinet/in4_cksum.c	optional pf inet
+crypto/blowfish/bf_ecb.c	optional ipsec ipsec_esp
+crypto/blowfish/bf_skey.c	optional crypto
+crypto/blowfish/bf_skey.c	optional ipsec ipsec_esp
+crypto/des/des_ecb.c		optional crypto
+crypto/des/des_ecb.c		optional ipsec ipsec_esp
+crypto/des/des_ecb.c		optional netsmbcrypto
+crypto/des/des_setkey.c		optional crypto
+crypto/des/des_setkey.c		optional ipsec ipsec_esp
+crypto/des/des_setkey.c		optional netsmbcrypto
+crypto/rc4/rc4.c		optional netgraph_mppc_encryption
+crypto/rijndael/rijndael-alg-fst.c optional crypto
+crypto/rijndael/rijndael-alg-fst.c optional geom_bde
+crypto/rijndael/rijndael-alg-fst.c optional ipsec
+crypto/rijndael/rijndael-alg-fst.c optional random
+crypto/rijndael/rijndael-alg-fst.c optional wlan_ccmp
+crypto/rijndael/rijndael-api-fst.c optional geom_bde
+crypto/rijndael/rijndael-api-fst.c optional random
+crypto/rijndael/rijndael-api.c	optional crypto
+crypto/rijndael/rijndael-api.c	optional ipsec
+crypto/rijndael/rijndael-api.c	optional wlan_ccmp
+crypto/sha1.c			optional carp
+crypto/sha1.c			optional netgraph_mppc_encryption
+crypto/sha1.c			optional crypto
+crypto/sha1.c			optional ipsec
+crypto/sha2/sha2.c		optional crypto
+crypto/sha2/sha2.c		optional geom_bde
+crypto/sha2/sha2.c		optional ipsec
+crypto/sha2/sha2.c		optional random
+ddb/db_access.c			optional	ddb
+ddb/db_break.c			optional	ddb
+ddb/db_command.c		optional	ddb
+ddb/db_examine.c		optional	ddb
+ddb/db_expr.c			optional	ddb
+ddb/db_input.c			optional	ddb
+ddb/db_lex.c			optional	ddb
+ddb/db_main.c			optional	ddb
+ddb/db_output.c			optional	ddb
+ddb/db_print.c			optional	ddb
+ddb/db_ps.c			optional	ddb
+ddb/db_run.c			optional	ddb
+ddb/db_sym.c			optional	ddb
+ddb/db_thread.c			optional	ddb
+ddb/db_variables.c		optional	ddb
+ddb/db_watch.c			optional	ddb
+ddb/db_write_cmd.c		optional	ddb
+#dev/dpt/dpt_control.c		optional dpt
+dev/aac/aac.c			optional aac
+dev/aac/aac_cam.c		optional aacp aac
+dev/aac/aac_debug.c		optional aac
+dev/aac/aac_disk.c		optional aac
+dev/aac/aac_linux.c		optional aac compat_linux
+dev/aac/aac_pci.c		optional aac pci
+dev/acpi_support/acpi_asus.c	optional acpi_asus acpi
+dev/acpi_support/acpi_fujitsu.c	optional acpi_fujitsu acpi
+dev/acpi_support/acpi_ibm.c	optional acpi_ibm acpi
+dev/acpi_support/acpi_panasonic.c optional acpi_panasonic acpi
+dev/acpi_support/acpi_sony.c	optional acpi_sony acpi
+dev/acpi_support/acpi_toshiba.c	optional acpi_toshiba acpi
+dev/acpica/Osd/OsdDebug.c	optional acpi
+dev/acpica/Osd/OsdHardware.c	optional acpi
+dev/acpica/Osd/OsdInterrupt.c	optional acpi
+dev/acpica/Osd/OsdMemory.c	optional acpi
+dev/acpica/Osd/OsdSchedule.c	optional acpi
+dev/acpica/Osd/OsdStream.c	optional acpi
+dev/acpica/Osd/OsdSynch.c	optional acpi
+dev/acpica/Osd/OsdTable.c	optional acpi
+dev/acpica/acpi.c		optional acpi
+dev/acpica/acpi_acad.c		optional acpi
+dev/acpica/acpi_battery.c	optional acpi
+dev/acpica/acpi_button.c	optional acpi
+dev/acpica/acpi_cmbat.c		optional acpi
+dev/acpica/acpi_cpu.c		optional acpi
+dev/acpica/acpi_ec.c		optional acpi
+dev/acpica/acpi_isab.c		optional acpi isa
+dev/acpica/acpi_lid.c		optional acpi
+dev/acpica/acpi_package.c	optional acpi
+dev/acpica/acpi_pci.c		optional acpi pci
+dev/acpica/acpi_pci_link.c	optional acpi pci
+dev/acpica/acpi_pcib.c		optional acpi pci
+dev/acpica/acpi_pcib_acpi.c	optional acpi pci
+dev/acpica/acpi_pcib_pci.c	optional acpi pci
+dev/acpica/acpi_perf.c		optional acpi
+dev/acpica/acpi_powerres.c	optional acpi
+dev/acpica/acpi_quirk.c		optional acpi
+dev/acpica/acpi_resource.c	optional acpi
+dev/acpica/acpi_thermal.c	optional acpi
+dev/acpica/acpi_throttle.c	optional acpi
+dev/acpica/acpi_timer.c		optional acpi
+dev/acpica/acpi_video.c		optional acpi_video acpi
+dev/adlink/adlink.c		optional adlink
+dev/advansys/adv_eisa.c		optional adv eisa
+dev/advansys/adv_pci.c		optional adv pci
+dev/advansys/advansys.c		optional adv
+dev/advansys/advlib.c		optional adv
+dev/advansys/advmcode.c		optional adv
+dev/advansys/adw_pci.c		optional adw pci
+dev/advansys/adwcam.c		optional adw
+dev/advansys/adwlib.c		optional adw
+dev/advansys/adwmcode.c		optional adw
+dev/aha/aha.c			optional aha
+dev/aha/aha_isa.c		optional aha isa
+dev/aha/aha_mca.c		optional aha mca
+dev/ahb/ahb.c			optional ahb eisa
+dev/aic/aic.c			optional aic
+dev/aic/aic_pccard.c		optional aic pccard
+dev/aic7xxx/ahc_eisa.c		optional ahc eisa
+dev/aic7xxx/ahc_isa.c		optional ahc isa
+dev/aic7xxx/ahc_pci.c		optional ahc pci
+dev/aic7xxx/ahd_pci.c		optional ahd pci
+dev/aic7xxx/aic7770.c		optional ahc
+dev/aic7xxx/aic79xx.c		optional ahd pci
+dev/aic7xxx/aic79xx_osm.c	optional ahd pci
+dev/aic7xxx/aic79xx_pci.c	optional ahd pci
+dev/aic7xxx/aic7xxx.c		optional ahc
+dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
+dev/aic7xxx/aic7xxx_osm.c	optional ahc
+dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
+dev/amd/amd.c			optional amd
+dev/amr/amr.c			optional amr
+dev/amr/amr_cam.c		optional amr
+dev/amr/amr_disk.c		optional amr
+dev/amr/amr_pci.c		optional amr pci
+dev/an/if_an.c			optional an
+dev/an/if_an_isa.c		optional an isa
+dev/an/if_an_pccard.c		optional an pccard
+dev/an/if_an_pci.c		optional an pci
+dev/asr/asr.c			optional asr pci
+dev/ata/ata_if.m		optional ata
+dev/ata/ata-all.c		optional ata
+dev/ata/ata-card.c		optional ata pccard
+dev/ata/ata-cbus.c		optional ata pc98
+dev/ata/ata-chipset.c		optional ata pci
+dev/ata/ata-disk.c		optional atadisk
+dev/ata/ata-dma.c		optional ata pci
+dev/ata/ata-isa.c		optional ata isa
+dev/ata/ata-lowlevel.c		optional ata
+dev/ata/ata-pci.c		optional ata pci
+dev/ata/ata-queue.c		optional ata
+dev/ata/ata-raid.c		optional ataraid
+dev/ata/atapi-cam.c		optional atapicam
+dev/ata/atapi-cd.c		optional atapicd
+dev/ata/atapi-fd.c		optional atapifd
+dev/ata/atapi-tape.c		optional atapist
+dev/ath/ath_rate/amrr/amrr.c 	optional ath_rate_amrr
+dev/ath/ath_rate/onoe/onoe.c 	optional ath_rate_onoe
+dev/ath/ath_rate/sample/sample.c 	optional ath_rate_sample
+dev/ath/if_ath.c		optional ath
+dev/ath/if_ath_pci.c		optional ath pci
+dev/awi/am79c930.c		optional awi
+dev/awi/awi.c			optional awi
+dev/awi/if_awi_pccard.c		optional awi pccard
+dev/bfe/if_bfe.c		optional bfe
+dev/bge/if_bge.c		optional bge
+dev/bktr/bktr_audio.c		optional bktr pci
+dev/bktr/bktr_card.c		optional bktr pci
+dev/bktr/bktr_core.c		optional bktr pci
+dev/bktr/bktr_i2c.c		optional bktr pci smbus
+dev/bktr/bktr_os.c		optional bktr pci
+dev/bktr/bktr_tuner.c		optional bktr pci
+dev/bktr/msp34xx.c		optional bktr pci
+dev/buslogic/bt.c		optional bt
+dev/buslogic/bt_eisa.c		optional bt eisa
+dev/buslogic/bt_isa.c		optional bt isa
+dev/buslogic/bt_mca.c		optional bt mca
+dev/buslogic/bt_pci.c		optional bt pci
+dev/cardbus/cardbus.c		optional cardbus
+dev/cardbus/cardbus_cis.c	optional cardbus
+dev/ciss/ciss.c			optional ciss
+dev/cm/smc90cx6.c		optional cm
+dev/cnw/if_cnw.c		optional cnw pccard
+dev/cpufreq/ichss.c		optional cpufreq
+dev/cs/if_cs.c			optional cs
+dev/cs/if_cs_isa.c		optional cs isa
+dev/cs/if_cs_pccard.c		optional cs pccard
+dev/cy/cy.c			optional cy
+dev/cy/cy_isa.c			optional cy isa
+dev/cy/cy_pci.c			optional cy pci
+dev/dcons/dcons.c		optional dcons
+dev/dcons/dcons_crom.c		optional dcons_crom
+dev/dcons/dcons_os.c		optional dcons
+dev/digi/CX.c			optional digi_CX
+dev/digi/CX_PCI.c		optional digi_CX_PCI
+dev/digi/EPCX.c			optional digi_EPCX
+dev/digi/EPCX_PCI.c		optional digi_EPCX_PCI
+dev/digi/Xe.c			optional digi_Xe
+dev/digi/Xem.c			optional digi_Xem
+dev/digi/Xr.c			optional digi_Xr
+dev/digi/digi.c			optional digi
+dev/digi/digi_isa.c		optional digi isa
+dev/digi/digi_pci.c		optional digi pci
+dev/dpt/dpt_eisa.c		optional dpt eisa
+dev/dpt/dpt_pci.c		optional dpt pci
+dev/dpt/dpt_scsi.c		optional dpt
+dev/drm/ati_pcigart.c		optional drm
+dev/drm/drm_agpsupport.c	optional drm
+dev/drm/drm_auth.c		optional drm
+dev/drm/drm_bufs.c		optional drm
+dev/drm/drm_context.c		optional drm
+dev/drm/drm_dma.c		optional drm
+dev/drm/drm_drawable.c		optional drm
+dev/drm/drm_drv.c		optional drm
+dev/drm/drm_fops.c		optional drm
+dev/drm/drm_ioctl.c		optional drm
+dev/drm/drm_irq.c		optional drm
+dev/drm/drm_lock.c		optional drm
+dev/drm/drm_memory.c		optional drm
+dev/drm/drm_pci.c		optional drm
+dev/drm/drm_scatter.c		optional drm
+dev/drm/drm_sysctl.c		optional drm
+dev/drm/drm_vm.c		optional drm
+dev/drm/mach64_dma.c		optional mach64drm
+dev/drm/mach64_drv.c		optional mach64drm
+dev/drm/mach64_irq.c		optional mach64drm
+dev/drm/mach64_state.c		optional mach64drm
+dev/drm/mga_dma.c		optional mgadrm
+dev/drm/mga_drv.c		optional mgadrm
+dev/drm/mga_irq.c		optional mgadrm
+dev/drm/mga_state.c		optional mgadrm \
+	compile-with "${NORMAL_C} -finline-limit=13500"
+dev/drm/mga_warp.c		optional mgadrm
+dev/drm/r128_cce.c		optional r128drm
+dev/drm/r128_drv.c		optional r128drm
+dev/drm/r128_irq.c		optional r128drm
+dev/drm/r128_state.c		optional r128drm \
+	compile-with "${NORMAL_C} -finline-limit=13500"
+dev/drm/r300_cmdbuf.c		optional radeondrm
+dev/drm/radeon_cp.c		optional radeondrm
+dev/drm/radeon_drv.c		optional radeondrm
+dev/drm/radeon_irq.c		optional radeondrm
+dev/drm/radeon_mem.c		optional radeondrm
+dev/drm/radeon_state.c		optional radeondrm
+dev/drm/sis_drv.c		optional sisdrm
+dev/drm/sis_ds.c		optional sisdrm
+dev/drm/sis_mm.c		optional sisdrm
+dev/drm/tdfx_drv.c		optional tdfxdrm
+dev/ed/if_ed.c			optional ed
+dev/ed/if_ed_novell.c		optional ed
+dev/ed/if_ed_pccard.c		optional ed pccard
+dev/ed/if_ed_pci.c		optional ed pci
+dev/ed/if_ed_rtl80x9.c		optional ed
+dev/eisa/eisa_if.m		standard
+dev/eisa/eisaconf.c		optional eisa
+dev/em/if_em.c			optional em
+dev/em/if_em_hw.c		optional em
+dev/en/if_en_pci.c		optional en pci
+dev/en/midway.c			optional en
+dev/ep/if_ep.c			optional ep
+dev/ep/if_ep_eisa.c		optional ep eisa
+dev/ep/if_ep_isa.c		optional ep isa
+dev/ep/if_ep_mca.c		optional ep mca
+dev/ep/if_ep_pccard.c		optional ep pccard
+dev/esp/ncr53c9x.c		optional esp
+dev/ex/if_ex.c			optional ex
+dev/ex/if_ex_isa.c		optional ex isa
+#dev/ex/if_ex_pccard.c		optional ex pccard
+dev/exca/exca.c			optional cbb
+dev/fatm/if_fatm.c		optional fatm pci
+dev/fe/if_fe.c			optional fe
+dev/fe/if_fe_pccard.c		optional fe pccard
+dev/firewire/firewire.c		optional firewire
+dev/firewire/fwcrom.c		optional firewire
+dev/firewire/fwdev.c		optional firewire
+dev/firewire/fwdma.c		optional firewire
+dev/firewire/fwmem.c		optional firewire
+dev/firewire/fwohci.c		optional firewire
+dev/firewire/fwohci_pci.c	optional firewire pci
+dev/firewire/if_fwe.c		optional fwe
+dev/firewire/if_fwip.c		optional fwip
+dev/firewire/sbp.c		optional sbp
+dev/firewire/sbp_targ.c		optional sbp_targ
+dev/fxp/if_fxp.c		optional fxp
+dev/gem/if_gem.c		optional gem
+dev/gem/if_gem_pci.c		optional gem pci
+dev/harp/if_harp.c		optional harp pci
+dev/hatm/if_hatm.c		optional hatm pci
+dev/hatm/if_hatm_intr.c		optional hatm pci
+dev/hatm/if_hatm_ioctl.c	optional hatm pci
+dev/hatm/if_hatm_rx.c		optional hatm pci
+dev/hatm/if_hatm_tx.c		optional hatm pci
+dev/hfa/fore_buffer.c		optional hfa
+dev/hfa/fore_command.c		optional hfa
+dev/hfa/fore_globals.c		optional hfa
+dev/hfa/fore_if.c		optional hfa
+dev/hfa/fore_init.c		optional hfa
+dev/hfa/fore_intr.c		optional hfa
+dev/hfa/fore_output.c		optional hfa
+dev/hfa/fore_receive.c		optional hfa
+dev/hfa/fore_stats.c		optional hfa
+dev/hfa/fore_timer.c		optional hfa
+dev/hfa/fore_transmit.c		optional hfa
+dev/hfa/fore_vcm.c		optional hfa
+#dev/hfa/hfa_eisa.c		optional hfa eisa
+dev/hfa/hfa_freebsd.c		optional hfa
+dev/hfa/hfa_pci.c		optional hfa pci
+#dev/hfa/hfa_sbus.c		optional hfa sbus
+dev/hifn/hifn7751.c		optional hifn
+dev/hme/if_hme.c		optional hme
+dev/hme/if_hme_pci.c		optional hme pci
+dev/hme/if_hme_sbus.c		optional hme sbus
+dev/hwpmc/hwpmc_logging.c	optional hwpmc
+dev/hwpmc/hwpmc_mod.c		optional hwpmc
+dev/ichsmb/ichsmb.c		optional ichsmb
+dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
+dev/ida/ida.c			optional ida
+dev/ida/ida_disk.c		optional ida
+dev/ida/ida_eisa.c		optional ida eisa
+dev/ida/ida_pci.c		optional ida pci
+dev/ie/if_ie.c			optional ie isa nowerror
+dev/ie/if_ie_isa.c		optional ie isa
+dev/ieee488/ibfoo.c		optional pcii
+dev/ieee488/pcii.c		optional pcii
+dev/ieee488/upd7210.c		optional pcii
+dev/iicbus/if_ic.c		optional ic
+dev/iicbus/iic.c		optional iic
+dev/iicbus/iicbb.c		optional iicbb
+dev/iicbus/iicbb_if.m		optional iicbb
+dev/iicbus/iicbus.c		optional iicbus
+dev/iicbus/iicbus_if.m		optional iicbus
+dev/iicbus/iiconf.c		optional iicbus
+dev/iicbus/iicsmb.c		optional iicsmb				\
+	dependency	"iicbus_if.h"
+dev/iir/iir.c			optional iir
+dev/iir/iir_ctrl.c		optional iir
+dev/iir/iir_pci.c		optional iir pci
+dev/ips/ips.c			optional ips
+dev/ips/ips_commands.c		optional ips
+dev/ips/ips_disk.c		optional ips
+dev/ips/ips_ioctl.c		optional ips
+dev/ips/ips_pci.c		optional ips pci
+dev/ipw/if_ipw.c		optional ipw
+dev/isp/isp.c			optional isp
+dev/isp/isp_freebsd.c		optional isp
+dev/isp/isp_pci.c		optional isp pci
+dev/isp/isp_sbus.c		optional isp sbus
+dev/isp/isp_target.c		optional isp
+dev/ispfw/ispfw.c		optional ispfw
+dev/iwi/if_iwi.c		optional iwi
+dev/ixgb/if_ixgb.c		optional ixgb
+dev/ixgb/ixgb_ee.c		optional ixgb
+dev/ixgb/ixgb_hw.c		optional ixgb
+dev/joy/joy.c			optional joy
+dev/joy/joy_isa.c		optional joy isa
+dev/joy/joy_pccard.c		optional joy pccard
+dev/kbdmux/kbdmux.c		optional kbdmux
+dev/led/led.c			standard
+dev/lge/if_lge.c		optional lge
+dev/lnc/if_lnc.c		optional lnc
+dev/lnc/if_lnc_pci.c		optional lnc pci
+dev/mc146818/mc146818.c		optional mc146818
+dev/mca/mca_bus.c		optional mca
+dev/mcd/mcd.c			optional mcd isa nowerror
+dev/mcd/mcd_isa.c		optional mcd isa nowerror
+dev/md/md.c			optional md
+dev/mem/memdev.c		optional mem
+dev/mii/acphy.c			optional miibus
+dev/mii/amphy.c			optional miibus
+dev/mii/bmtphy.c		optional miibus
+dev/mii/brgphy.c		optional miibus
+dev/mii/ciphy.c			optional miibus
+dev/mii/dcphy.c			optional miibus pci
+dev/mii/e1000phy.c		optional miibus
+dev/mii/exphy.c			optional miibus
+dev/mii/inphy.c			optional miibus
+dev/mii/lxtphy.c		optional miibus
+dev/mii/mii.c			optional miibus
+dev/mii/mii_physubr.c		optional miibus
+dev/mii/miibus_if.m		optional miibus
+dev/mii/mlphy.c			optional miibus
+dev/mii/nsgphy.c		optional miibus
+dev/mii/nsphy.c			optional miibus
+dev/mii/pnaphy.c		optional miibus
+dev/mii/pnphy.c			optional miibus
+dev/mii/qsphy.c			optional miibus
+dev/mii/rgephy.c		optional miibus
+dev/mii/rlphy.c			optional miibus
+dev/mii/ruephy.c		optional miibus
+dev/mii/tdkphy.c		optional miibus
+dev/mii/tlphy.c			optional miibus
+dev/mii/ukphy.c			optional miibus
+dev/mii/ukphy_subr.c		optional miibus
+dev/mii/xmphy.c			optional miibus
+dev/mk48txx/mk48txx.c		optional mk48txx
+dev/mlx/mlx.c			optional mlx
+dev/mlx/mlx_disk.c		optional mlx
+dev/mlx/mlx_pci.c		optional mlx pci
+dev/mly/mly.c			optional mly
+dev/mpt/mpt.c			optional mpt
+dev/mpt/mpt_cam.c		optional mpt
+dev/mpt/mpt_debug.c		optional mpt
+dev/mpt/mpt_pci.c		optional mpt pci
+dev/mpt/mpt_raid.c		optional mpt
+dev/my/if_my.c			optional my
+dev/ncv/ncr53c500.c		optional ncv
+dev/ncv/ncr53c500_pccard.c	optional ncv pccard
+dev/nge/if_nge.c		optional nge
+dev/nmdm/nmdm.c			optional nmdm
+dev/nsp/nsp.c			optional nsp
+dev/nsp/nsp_pccard.c		optional nsp pccard
+dev/null/null.c			standard
+dev/patm/if_patm.c		optional patm pci
+dev/patm/if_patm_attach.c	optional patm pci
+dev/patm/if_patm_intr.c		optional patm pci
+dev/patm/if_patm_ioctl.c	optional patm pci
+dev/patm/if_patm_rtables.c	optional patm pci
+dev/patm/if_patm_rx.c		optional patm pci
+dev/patm/if_patm_tx.c		optional patm pci
+dev/pbio/pbio.c			optional pbio isa
+dev/pccard/card_if.m		standard
+dev/pccard/pccard.c		optional pccard
+dev/pccard/pccard_cis.c		optional pccard
+dev/pccard/pccard_cis_quirks.c	optional pccard
+dev/pccard/pccard_device.c	optional pccard
+dev/pccard/power_if.m		standard
+dev/pccbb/pccbb.c		optional cbb
+dev/pccbb/pccbb_isa.c		optional cbb isa
+dev/pccbb/pccbb_pci.c		optional cbb pci
+dev/pci/eisa_pci.c		optional pci eisa
+dev/pci/fixup_pci.c		optional pci
+dev/pci/ignore_pci.c		optional pci
+dev/pci/isa_pci.c		optional pci isa
+dev/pci/pci.c			optional pci
+dev/pci/pci_if.m		standard
+dev/pci/pci_pci.c		optional pci
+dev/pci/pci_user.c		optional pci
+dev/pci/pcib_if.m		standard
+dev/pdq/if_fea.c		optional fea eisa
+dev/pdq/if_fpa.c		optional fpa pci
+dev/pdq/pdq.c			optional fea eisa nowerror
+dev/pdq/pdq.c			optional fpa pci nowerror
+dev/pdq/pdq_ifsubr.c		optional fea eisa nowerror
+dev/pdq/pdq_ifsubr.c		optional fpa pci nowerror
+dev/ppbus/if_plip.c		optional plip
+dev/ppbus/immio.c		optional vpo
+dev/ppbus/lpbb.c		optional lpbb
+dev/ppbus/lpt.c			optional lpt
+dev/ppbus/pcfclock.c		optional pcfclock
+dev/ppbus/ppb_1284.c		optional ppbus
+dev/ppbus/ppb_base.c		optional ppbus
+dev/ppbus/ppb_msq.c		optional ppbus
+dev/ppbus/ppbconf.c		optional ppbus
+dev/ppbus/ppbus_if.m		optional ppbus
+dev/ppbus/ppi.c			optional ppi
+dev/ppbus/pps.c			optional pps
+dev/ppbus/vpo.c			optional vpo
+dev/ppbus/vpoio.c		optional vpo
+dev/pst/pst-iop.c		optional pst
+dev/pst/pst-pci.c		optional pst pci
+dev/pst/pst-raid.c		optional pst
+dev/puc/puc.c			optional puc
+dev/puc/puc_ebus.c		optional puc ebus
+dev/puc/puc_pccard.c		optional puc pccard
+dev/puc/puc_pci.c		optional puc pci
+dev/puc/puc_sbus.c		optional puc fhc
+dev/puc/puc_sbus.c		optional puc sbus
+dev/puc/pucdata.c		optional puc pci
+dev/ral/if_ral.c		optional ral
+dev/ral/if_ralrate.c		optional ral
+dev/ral/if_ral_pccard.c		optional ral pccard
+dev/ral/if_ral_pci.c		optional ral pci
+dev/random/harvest.c		standard
+dev/random/hash.c		optional random
+dev/random/probe.c		optional random
+dev/random/randomdev.c		optional random
+dev/random/randomdev_soft.c	optional random
+dev/random/yarrow.c		optional random
+dev/ray/if_ray.c		optional ray pccard
+dev/rc/rc.c			optional rc
+dev/re/if_re.c			optional re
+dev/rndtest/rndtest.c		optional rndtest
+dev/rp/rp.c			optional rp
+dev/rp/rp_isa.c			optional rp isa
+dev/rp/rp_pci.c			optional rp pci
+dev/sab/sab.c			optional sab ebus
+dev/safe/safe.c			optional safe
+dev/sbsh/if_sbsh.c      	optional sbsh
+dev/scd/scd.c			optional scd isa
+dev/scd/scd_isa.c		optional scd isa
+dev/si/si.c			optional si
+dev/si/si2_z280.c		optional si
+dev/si/si3_t225.c		optional si
+dev/si/si_eisa.c		optional si eisa
+dev/si/si_isa.c			optional si isa
+dev/si/si_pci.c			optional si pci
+dev/sio/sio_pccard.c		optional sio pccard
+dev/sio/sio_pci.c		optional sio pci
+dev/sio/sio_puc.c		optional sio puc pci
+dev/smbus/smb.c			optional smb
+dev/smbus/smbconf.c		optional smbus
+dev/smbus/smbus.c		optional smbus
+dev/smbus/smbus_if.m		optional smbus
+dev/sn/if_sn.c			optional sn
+dev/sn/if_sn_isa.c		optional sn isa
+dev/sn/if_sn_pccard.c		optional sn pccard
+dev/snp/snp.c			optional snp
+dev/sound/isa/ad1816.c		optional snd_ad1816 isa
+dev/sound/isa/es1888.c		optional snd_ess isa
+dev/sound/isa/ess.c		optional snd_ess isa
+dev/sound/isa/gusc.c		optional snd_gusc isa
+dev/sound/isa/mss.c		optional snd_mss isa
+dev/sound/isa/sb16.c		optional snd_sb16 isa
+dev/sound/isa/sb8.c		optional snd_sb8 isa
+dev/sound/isa/sbc.c		optional snd_sbc isa
+dev/sound/isa/sndbuf_dma.c	optional sound isa
+dev/sound/pci/als4000.c		optional snd_als4000 pci
+#dev/sound/pci/au88x0.c		optional snd_au88x0 pci
+dev/sound/pci/cmi.c		optional snd_cmi pci
+dev/sound/pci/cs4281.c		optional snd_cs4281 pci
+dev/sound/pci/csa.c		optional snd_csa pci
+dev/sound/pci/csapcm.c		optional snd_csa pci
+dev/sound/pci/ds1.c		optional snd_ds1 pci
+dev/sound/pci/emu10k1.c		optional snd_emu10k1 pci \
+	dependency "emu10k1-alsa%diked.h"
+dev/sound/pci/es137x.c		optional snd_es137x pci
+dev/sound/pci/fm801.c		optional snd_fm801 pci
+dev/sound/pci/ich.c		optional snd_ich pci
+dev/sound/pci/maestro.c 	optional snd_maestro pci
+dev/sound/pci/maestro3.c	optional snd_maestro3 pci
+dev/sound/pci/neomagic.c	optional snd_neomagic pci
+dev/sound/pci/solo.c		optional snd_solo pci
+dev/sound/pci/t4dwave.c		optional snd_t4dwave pci
+dev/sound/pci/via8233.c		optional snd_via8233 pci
+dev/sound/pci/via82c686.c	optional snd_via82c686 pci
+dev/sound/pci/vibes.c		optional snd_vibes pci
+#dev/sound/pci/vortex1.c	optional snd_vortex1 pci
+dev/sound/pcm/ac97.c		optional sound
+dev/sound/pcm/ac97_if.m		optional sound
+dev/sound/pcm/ac97_patch.c	optional sound
+dev/sound/pcm/buffer.c		optional sound
+dev/sound/pcm/channel.c		optional sound
+dev/sound/pcm/channel_if.m	optional sound
+dev/sound/pcm/dsp.c		optional sound
+dev/sound/pcm/fake.c		optional sound
+dev/sound/pcm/feeder.c		optional sound
+dev/sound/pcm/feeder_fmt.c	optional sound
+dev/sound/pcm/feeder_if.m	optional sound
+dev/sound/pcm/feeder_rate.c	optional sound
+dev/sound/pcm/mixer.c		optional sound
+dev/sound/pcm/mixer_if.m	optional sound
+dev/sound/pcm/sndstat.c		optional sound
+dev/sound/pcm/sound.c		optional sound
+dev/sound/pcm/vchan.c		optional sound
+#dev/sound/usb/upcm.c		optional snd_upcm usb
+dev/sound/usb/uaudio.c		optional snd_uaudio usb
+dev/sound/usb/uaudio_pcm.c	optional snd_uaudio usb
+dev/sr/if_sr.c			optional sr
+dev/sr/if_sr_pci.c		optional sr pci
+dev/stg/tmc18c30.c		optional stg
+dev/stg/tmc18c30_isa.c		optional stg isa
+dev/stg/tmc18c30_pccard.c	optional stg pccard
+dev/stg/tmc18c30_pci.c		optional stg pci
+dev/stg/tmc18c30_subr.c		optional stg
+dev/streams/streams.c		optional streams
+dev/sx/sx.c			optional sx
+#dev/sx/sx_isa.c		optional sx isa
+dev/sx/sx_util.c		optional sx
+dev/sx/sx_pci.c			optional sx pci
+dev/sym/sym_hipd.c		optional sym				\
+	dependency	"$S/dev/sym/sym_{conf,defs}.h"
+dev/syscons/blank/blank_saver.c	optional blank_saver
+dev/syscons/daemon/daemon_saver.c optional daemon_saver
+dev/syscons/dragon/dragon_saver.c optional dragon_saver
+dev/syscons/fade/fade_saver.c	optional fade_saver
+dev/syscons/fire/fire_saver.c	optional fire_saver
+dev/syscons/green/green_saver.c	optional green_saver
+dev/syscons/logo/logo.c		optional logo_saver
+dev/syscons/logo/logo_saver.c	optional logo_saver
+dev/syscons/rain/rain_saver.c	optional rain_saver
+dev/syscons/snake/snake_saver.c	optional snake_saver
+dev/syscons/star/star_saver.c	optional star_saver
+dev/syscons/warp/warp_saver.c	optional warp_saver
+dev/tdfx/tdfx_pci.c		optional tdfx pci
+dev/trm/trm.c			optional trm
+dev/twa/tw_cl_fwimg.c		optional twa
+dev/twa/tw_cl_init.c		optional twa
+dev/twa/tw_cl_intr.c		optional twa
+dev/twa/tw_cl_io.c		optional twa
+dev/twa/tw_cl_misc.c		optional twa
+dev/twa/tw_osl_cam.c		optional twa
+dev/twa/tw_osl_freebsd.c	optional twa
+dev/twe/twe.c			optional twe
+dev/twe/twe_freebsd.c		optional twe
+dev/tx/if_tx.c			optional tx
+dev/txp/if_txp.c		optional txp
+dev/uart/uart_bus_acpi.c	optional	uart acpi
+#dev/uart/uart_bus_cbus.c	optional	uart cbus
+dev/uart/uart_bus_ebus.c	optional	uart ebus
+dev/uart/uart_bus_isa.c		optional	uart isa
+dev/uart/uart_bus_pccard.c	optional	uart pccard
+dev/uart/uart_bus_pci.c		optional	uart pci
+dev/uart/uart_bus_puc.c		optional	uart puc
+dev/uart/uart_core.c		optional	uart
+dev/uart/uart_dbg.c		optional	uart gdb
+dev/uart/uart_dev_ns8250.c	optional	uart
+dev/uart/uart_dev_sab82532.c	optional	uart
+dev/uart/uart_dev_z8530.c	optional	uart
+dev/uart/uart_if.m		optional	uart
+dev/uart/uart_subr.c		optional	uart
+dev/uart/uart_tty.c		optional	uart
+dev/ubsec/ubsec.c		optional ubsec
+#
+# USB support
+dev/usb/ehci.c			optional ehci
+dev/usb/ehci_pci.c		optional ehci pci
+dev/usb/hid.c			optional usb
+dev/usb/if_aue.c		optional aue
+dev/usb/if_axe.c		optional axe
+dev/usb/if_cdce.c		optional cdce
+dev/usb/if_cue.c		optional cue
+dev/usb/if_kue.c		optional kue
+dev/usb/if_ural.c		optional ural
+dev/usb/if_rue.c		optional rue
+dev/usb/if_udav.c		optional udav
+dev/usb/ohci.c			optional ohci
+dev/usb/ohci_pci.c		optional ohci pci
+dev/usb/ubsa.c			optional ubsa ucom
+dev/usb/ubser.c			optional ubser
+dev/usb/ucom.c			optional ucom
+dev/usb/ucycom.c		optional ucycom ucom
+dev/usb/udbp.c			optional udbp
+dev/usb/ufm.c			optional ufm
+dev/usb/uftdi.c			optional uftdi ucom
+dev/usb/ugen.c			optional ugen
+dev/usb/uhci.c			optional uhci
+dev/usb/uhci_pci.c		optional uhci pci
+dev/usb/uhid.c			optional uhid
+dev/usb/uhub.c			optional usb
+dev/usb/ukbd.c			optional ukbd
+dev/usb/ulpt.c			optional ulpt
+dev/usb/umass.c			optional umass
+dev/usb/umct.c			optional umct
+dev/usb/umodem.c		optional umodem
+dev/usb/ums.c			optional ums
+dev/usb/uplcom.c		optional uplcom ucom
+dev/usb/urio.c			optional urio
+dev/usb/usb.c			optional usb
+dev/usb/usb_ethersubr.c		optional usb
+dev/usb/usb_if.m		optional usb
+dev/usb/usb_mem.c		optional usb
+dev/usb/usb_quirks.c		optional usb
+dev/usb/usb_subr.c		optional usb
+dev/usb/usbdi.c			optional usb
+dev/usb/usbdi_util.c		optional usb
+dev/usb/uscanner.c		optional uscanner
+dev/usb/uvisor.c		optional uvisor ucom
+dev/usb/uvscom.c		optional uvscom ucom
+dev/utopia/idtphy.c		optional utopia
+dev/utopia/suni.c		optional utopia
+dev/utopia/utopia.c		optional utopia
+dev/vge/if_vge.c		optional vge
+dev/vkbd/vkbd.c			optional vkbd
+dev/vx/if_vx.c			optional vx
+dev/vx/if_vx_eisa.c		optional vx eisa
+dev/vx/if_vx_pci.c		optional vx pci
+dev/watchdog/watchdog.c		standard
+dev/wds/wd7000.c		optional wds isa
+dev/wi/if_wi.c			optional wi
+dev/wi/if_wi_pccard.c		optional wi pccard
+dev/wi/if_wi_pci.c		optional wi pci
+dev/wl/if_wl.c			optional wl isa
+dev/xe/if_xe.c			optional xe
+dev/xe/if_xe_pccard.c		optional xe pccard
+dev/zs/zs.c			optional zs
+fs/deadfs/dead_vnops.c		standard
+fs/devfs/devfs_devs.c		standard
+fs/devfs/devfs_rule.c		standard
+fs/devfs/devfs_vfsops.c		standard
+fs/devfs/devfs_vnops.c		standard
+fs/fdescfs/fdesc_vfsops.c	optional fdescfs
+fs/fdescfs/fdesc_vnops.c	optional fdescfs
+fs/fifofs/fifo_vnops.c		standard
+fs/hpfs/hpfs_alsubr.c		optional hpfs
+fs/hpfs/hpfs_lookup.c		optional hpfs
+fs/hpfs/hpfs_subr.c		optional hpfs
+fs/hpfs/hpfs_vfsops.c		optional hpfs
+fs/hpfs/hpfs_vnops.c		optional hpfs
+fs/msdosfs/msdosfs_conv.c	optional msdosfs
+fs/msdosfs/msdosfs_denode.c	optional msdosfs
+fs/msdosfs/msdosfs_fat.c	optional msdosfs
+fs/msdosfs/msdosfs_fileno.c	optional msdosfs_large
+fs/msdosfs/msdosfs_iconv.c	optional msdosfs_iconv
+fs/msdosfs/msdosfs_lookup.c	optional msdosfs
+fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
+fs/msdosfs/msdosfs_vnops.c	optional msdosfs
+fs/ntfs/ntfs_compr.c		optional ntfs
+fs/ntfs/ntfs_iconv.c		optional ntfs_iconv
+fs/ntfs/ntfs_ihash.c		optional ntfs
+fs/ntfs/ntfs_subr.c		optional ntfs
+fs/ntfs/ntfs_vfsops.c		optional ntfs
+fs/ntfs/ntfs_vnops.c		optional ntfs
+fs/nullfs/null_subr.c		optional nullfs
+fs/nullfs/null_vfsops.c		optional nullfs
+fs/nullfs/null_vnops.c		optional nullfs
+fs/nwfs/nwfs_io.c		optional nwfs
+fs/nwfs/nwfs_ioctl.c		optional nwfs
+fs/nwfs/nwfs_node.c		optional nwfs
+fs/nwfs/nwfs_subr.c		optional nwfs
+fs/nwfs/nwfs_vfsops.c		optional nwfs
+fs/nwfs/nwfs_vnops.c		optional nwfs
+fs/portalfs/portal_vfsops.c	optional portalfs
+fs/portalfs/portal_vnops.c	optional portalfs
+fs/procfs/procfs.c		optional procfs
+fs/procfs/procfs_ctl.c		optional procfs
+fs/procfs/procfs_dbregs.c	optional procfs
+fs/procfs/procfs_fpregs.c	optional procfs
+fs/procfs/procfs_ioctl.c	optional procfs
+fs/procfs/procfs_map.c		optional procfs
+fs/procfs/procfs_mem.c		optional procfs
+fs/procfs/procfs_note.c		optional procfs
+fs/procfs/procfs_regs.c		optional procfs
+fs/procfs/procfs_rlimit.c	optional procfs
+fs/procfs/procfs_status.c	optional procfs
+fs/procfs/procfs_type.c		optional procfs
+fs/pseudofs/pseudofs.c		optional pseudofs
+fs/pseudofs/pseudofs_fileno.c	optional pseudofs
+fs/pseudofs/pseudofs_vncache.c	optional pseudofs
+fs/pseudofs/pseudofs_vnops.c	optional pseudofs
+fs/smbfs/smbfs_io.c		optional smbfs
+fs/smbfs/smbfs_node.c		optional smbfs
+fs/smbfs/smbfs_smb.c		optional smbfs
+fs/smbfs/smbfs_subr.c		optional smbfs
+fs/smbfs/smbfs_vfsops.c		optional smbfs
+fs/smbfs/smbfs_vnops.c		optional smbfs
+fs/udf/osta.c			optional udf
+fs/udf/udf_iconv.c		optional udf_iconv
+fs/udf/udf_vfsops.c		optional udf
+fs/udf/udf_vnops.c		optional udf
+fs/umapfs/umap_subr.c		optional umapfs
+fs/umapfs/umap_vfsops.c		optional umapfs
+fs/umapfs/umap_vnops.c		optional umapfs
+fs/unionfs/union_subr.c		optional unionfs
+fs/unionfs/union_vfsops.c	optional unionfs
+fs/unionfs/union_vnops.c	optional unionfs
+gdb/gdb_main.c			optional gdb
+gdb/gdb_packet.c		optional gdb
+geom/bde/g_bde.c		optional geom_bde
+geom/bde/g_bde_crypt.c		optional geom_bde
+geom/bde/g_bde_lock.c		optional geom_bde
+geom/bde/g_bde_work.c		optional geom_bde
+geom/concat/g_concat.c		optional geom_concat
+geom/eli/g_eli.c		optional geom_eli
+geom/eli/g_eli_crypto.c		optional geom_eli
+geom/eli/g_eli_ctl.c		optional geom_eli
+geom/eli/g_eli_key.c		optional geom_eli
+geom/eli/pkcs5v2.c		optional geom_eli
+geom/gate/g_gate.c		optional geom_gate
+geom/geom_aes.c			optional geom_aes
+geom/geom_apple.c		optional geom_apple
+geom/geom_bsd.c			optional geom_bsd
+geom/geom_bsd_enc.c		optional geom_bsd
+geom/geom_ccd.c			optional ccd
+geom/geom_ccd.c			optional geom_ccd
+geom/geom_ctl.c			standard
+geom/geom_dev.c			standard
+geom/geom_disk.c		standard
+geom/geom_dump.c		standard
+geom/geom_event.c		standard
+geom/geom_fox.c			optional geom_fox
+geom/geom_gpt.c			optional geom_gpt
+geom/geom_io.c			standard
+geom/geom_kern.c		standard
+geom/geom_mbr.c			optional geom_mbr
+geom/geom_mbr_enc.c		optional geom_mbr
+geom/geom_pc98.c		optional geom_pc98
+geom/geom_pc98_enc.c		optional geom_pc98
+geom/geom_slice.c		standard
+geom/geom_subr.c		standard
+geom/geom_sunlabel.c		optional geom_sunlabel
+geom/geom_sunlabel_enc.c	optional geom_sunlabel
+geom/geom_vfs.c			standard
+geom/geom_vol_ffs.c		optional geom_vol
+geom/label/g_label.c		optional geom_label
+geom/label/g_label_ext2fs.c	optional geom_label
+geom/label/g_label_iso9660.c	optional geom_label
+geom/label/g_label_msdosfs.c	optional geom_label
+geom/label/g_label_reiserfs.c	optional geom_label
+geom/label/g_label_ufs.c	optional geom_label
+geom/mirror/g_mirror.c		optional geom_mirror
+geom/mirror/g_mirror_ctl.c	optional geom_mirror
+geom/nop/g_nop.c		optional geom_nop
+geom/raid3/g_raid3.c		optional geom_raid3
+geom/raid3/g_raid3_ctl.c	optional geom_raid3
+geom/shsec/g_shsec.c		optional geom_shsec
+geom/stripe/g_stripe.c		optional geom_stripe
+geom/uzip/g_uzip.c		optional geom_uzip
+geom/zero/g_zero.c		optional geom_zero
+gnu/fs/ext2fs/ext2_alloc.c		optional ext2fs \
+	warning "kernel contains GPL contaminated ext2fs filesystem"
+gnu/fs/ext2fs/ext2_balloc.c	optional ext2fs
+gnu/fs/ext2fs/ext2_bmap.c		optional ext2fs
+gnu/fs/ext2fs/ext2_inode.c		optional ext2fs
+gnu/fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
+gnu/fs/ext2fs/ext2_linux_balloc.c	optional ext2fs
+gnu/fs/ext2fs/ext2_linux_ialloc.c	optional ext2fs
+gnu/fs/ext2fs/ext2_lookup.c	optional ext2fs
+gnu/fs/ext2fs/ext2_subr.c		optional ext2fs
+gnu/fs/ext2fs/ext2_vfsops.c	optional ext2fs
+gnu/fs/ext2fs/ext2_vnops.c		optional ext2fs
+gnu/fs/reiserfs/reiserfs_hashes.c	optional reiserfs \
+	warning "kernel contains GPL contaminated ReiserFS filesystem"
+gnu/fs/reiserfs/reiserfs_inode.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_item_ops.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_namei.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_prints.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_stree.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_vfsops.c	optional reiserfs
+gnu/fs/reiserfs/reiserfs_vnops.c	optional reiserfs
+#
+# isdn4bsd device drivers
+#
+i4b/driver/i4b_trace.c		optional i4btrc
+i4b/driver/i4b_rbch.c		optional i4brbch
+i4b/driver/i4b_tel.c		optional i4btel
+i4b/driver/i4b_ipr.c		optional i4bipr
+net/slcompress.c		optional i4bipr
+i4b/driver/i4b_ctl.c		optional i4bctl
+i4b/driver/i4b_ing.c		optional i4bing
+i4b/driver/i4b_isppp.c		optional i4bisppp
+net/slcompress.c		optional i4bisppp
+#
+# isdn4bsd CAPI driver
+#
+i4b/capi/capi_l4if.c		optional i4bcapi
+i4b/capi/capi_llif.c		optional i4bcapi
+i4b/capi/capi_msgs.c		optional i4bcapi
+#
+# isdn4bsd AVM B1/T1 CAPI driver
+#
+i4b/capi/iavc/iavc_pci.c	optional iavc i4bcapi pci
+i4b/capi/iavc/iavc_isa.c	optional iavc i4bcapi isa
+i4b/capi/iavc/iavc_lli.c	optional iavc i4bcapi
+i4b/capi/iavc/iavc_card.c	optional iavc i4bcapi
+#
+# isdn4bsd support
+#
+i4b/layer2/i4b_mbuf.c		optional i4btrc
+#
+# isdn4bsd Q.921 handler
+#
+i4b/layer2/i4b_l2.c		optional i4bq921
+i4b/layer2/i4b_l2fsm.c		optional i4bq921
+i4b/layer2/i4b_uframe.c		optional i4bq921
+i4b/layer2/i4b_tei.c		optional i4bq921
+i4b/layer2/i4b_sframe.c		optional i4bq921
+i4b/layer2/i4b_iframe.c		optional i4bq921
+i4b/layer2/i4b_l2timer.c	optional i4bq921
+i4b/layer2/i4b_util.c		optional i4bq921
+i4b/layer2/i4b_lme.c		optional i4bq921
+#
+# isdn4bsd Q.931 handler
+#
+i4b/layer3/i4b_q931.c		optional i4bq931
+i4b/layer3/i4b_l3fsm.c		optional i4bq931
+i4b/layer3/i4b_l3timer.c	optional i4bq931
+i4b/layer3/i4b_l2if.c		optional i4bq931
+i4b/layer3/i4b_l4if.c		optional i4bq931
+i4b/layer3/i4b_q932fac.c	optional i4bq931
+#
+# isdn4bsd control device driver, interface to isdnd
+#
+i4b/layer4/i4b_i4bdrv.c		optional i4b
+i4b/layer4/i4b_l4.c		optional i4b
+i4b/layer4/i4b_l4mgmt.c		optional i4b
+i4b/layer4/i4b_l4timer.c	optional i4b
+#
+isa/isa_if.m			standard
+isa/isa_common.c		optional isa
+isa/isahint.c			optional isa
+isa/orm.c			optional isa
+isa/pnp.c			optional isa
+isa/pnpparse.c			optional isa
+isofs/cd9660/cd9660_bmap.c	optional cd9660
+isofs/cd9660/cd9660_lookup.c	optional cd9660
+isofs/cd9660/cd9660_node.c	optional cd9660
+isofs/cd9660/cd9660_rrip.c	optional cd9660
+isofs/cd9660/cd9660_util.c	optional cd9660
+isofs/cd9660/cd9660_vfsops.c	optional cd9660
+isofs/cd9660/cd9660_vnops.c	optional cd9660
+isofs/cd9660/cd9660_iconv.c	optional cd9660_iconv
+kern/bus_if.m			standard
+kern/clock_if.m			optional genclock
+kern/cpufreq_if.m		standard
+kern/device_if.m		standard
+kern/imgact_elf.c		standard
+kern/imgact_shell.c		standard
+kern/inflate.c			optional gzip
+kern/init_main.c		standard
+kern/init_sysent.c		standard
+kern/kern_acct.c		standard
+kern/kern_acl.c			standard
+kern/kern_alq.c			optional alq
+kern/kern_clock.c		standard
+kern/kern_condvar.c		standard
+kern/kern_conf.c		standard
+kern/kern_cpu.c			standard
+kern/kern_context.c		standard
+kern/kern_descrip.c		standard
+kern/kern_environment.c		standard
+kern/kern_event.c		standard
+kern/kern_exec.c		standard
+kern/kern_exit.c		standard
+kern/kern_fork.c		standard
+kern/kern_idle.c		standard
+kern/kern_intr.c		standard
+kern/kern_jail.c		standard
+kern/kern_kse.c			standard
+kern/kern_kthread.c		standard
+kern/kern_ktr.c			optional ktr
+kern/kern_ktrace.c		standard
+kern/kern_linker.c		standard
+kern/kern_lock.c		standard
+kern/kern_lockf.c		standard
+kern/kern_mac.c			standard
+kern/kern_malloc.c		standard
+kern/kern_mbuf.c		standard
+kern/kern_mib.c			standard
+kern/kern_module.c		standard
+kern/kern_mtxpool.c		standard
+kern/kern_mutex.c		standard
+kern/kern_ntptime.c		standard
+kern/kern_physio.c		standard
+kern/kern_pmc.c			standard
+kern/kern_poll.c		optional device_polling
+kern/kern_proc.c		standard
+kern/kern_prot.c		standard
+kern/kern_resource.c		standard
+kern/kern_sema.c		standard
+kern/kern_shutdown.c		standard
+kern/kern_sig.c			standard
+kern/kern_subr.c		standard
+kern/kern_sx.c			standard
+kern/kern_synch.c		standard
+kern/kern_syscalls.c		standard
+kern/kern_sysctl.c		standard
+kern/kern_tc.c			standard
+kern/kern_thr.c			standard
+kern/kern_thread.c		standard
+kern/kern_time.c		standard
+kern/kern_timeout.c		standard
+kern/kern_umtx.c		standard
+kern/kern_uuid.c		standard
+kern/kern_xxx.c			standard
+kern/link_elf.c			standard
+kern/linker_if.m		standard
+kern/md4c.c			optional netsmb
+kern/md5c.c			standard
+kern/sched_4bsd.c		optional sched_4bsd
+kern/sched_ule.c		optional sched_ule
+kern/subr_autoconf.c		standard
+kern/subr_blist.c		standard
+kern/subr_bus.c			standard
+kern/subr_clock.c		optional genclock
+kern/subr_devstat.c		standard
+kern/subr_disk.c		standard
+kern/subr_eventhandler.c	standard
+kern/subr_hints.c		standard
+kern/subr_kdb.c			standard
+kern/subr_kobj.c		standard
+kern/subr_log.c			standard
+kern/subr_mbpool.c		optional libmbpool
+kern/subr_mchain.c		optional libmchain
+kern/subr_module.c		standard
+kern/subr_msgbuf.c		standard
+kern/subr_param.c		standard
+kern/subr_pcpu.c		standard
+kern/subr_power.c		standard
+kern/subr_prf.c			standard
+kern/subr_prof.c		standard
+kern/subr_rman.c		standard
+kern/subr_sbuf.c		standard
+kern/subr_scanf.c		standard
+kern/subr_sleepqueue.c		standard
+kern/subr_smp.c			standard
+kern/subr_taskqueue.c		standard
+kern/subr_trap.c		standard
+kern/subr_turnstile.c		standard
+kern/subr_unit.c		standard
+kern/subr_witness.c		optional witness
+kern/sys_generic.c		standard
+kern/sys_pipe.c			standard
+kern/sys_process.c		standard
+kern/sys_socket.c		standard
+kern/syscalls.c			optional witness
+kern/sysv_ipc.c			standard
+kern/sysv_msg.c			optional sysvmsg
+kern/sysv_sem.c			optional sysvsem
+kern/sysv_shm.c			optional sysvshm
+kern/tty.c			standard
+kern/tty_compat.c		standard
+kern/tty_conf.c			standard
+kern/tty_cons.c			standard
+kern/tty_pty.c			optional pty
+kern/tty_subr.c			standard
+kern/tty_tty.c			standard
+kern/uipc_accf.c		optional inet
+kern/uipc_cow.c			optional zero_copy_sockets
+kern/uipc_domain.c		standard
+kern/uipc_mbuf.c		standard
+kern/uipc_mbuf2.c		standard
+kern/uipc_proto.c		standard
+kern/uipc_sem.c			optional p1003_1b_semaphores
+kern/uipc_socket.c		standard
+kern/uipc_socket2.c		standard
+kern/uipc_syscalls.c		standard
+kern/uipc_usrreq.c		standard
+kern/vfs_aio.c			optional vfs_aio
+kern/vfs_bio.c			standard
+kern/vfs_cache.c		standard
+kern/vfs_cluster.c		standard
+kern/vfs_default.c		standard
+kern/vfs_export.c		standard
+kern/vfs_hash.c			standard
+kern/vfs_init.c			standard
+kern/vfs_lookup.c		standard
+kern/vfs_mount.c		standard
+kern/vfs_subr.c			standard
+kern/vfs_syscalls.c		standard
+kern/vfs_vnops.c		standard
+#
+# These files in libkern/ are those needed by all architectures.  Some
+# of the files in libkern/ are only needed on some architectures, e.g.,
+# libkern/divdi3.c is needed by i386 but not alpha.  Also, some of these
+# routines may be optimized for a particular platform.  In either case,
+# the file should be moved to conf/files.<arch> from here.
+#
+libkern/arc4random.c		standard
+libkern/bcd.c			standard
+libkern/bsearch.c		standard
+libkern/crc32.c			standard
+libkern/fnmatch.c		standard
+libkern/gets.c			standard
+libkern/iconv.c			optional libiconv
+libkern/iconv_converter_if.m	optional libiconv
+libkern/iconv_xlat.c		optional libiconv
+libkern/iconv_xlat16.c		optional libiconv
+libkern/index.c			standard
+libkern/inet_ntoa.c		standard
+libkern/mcount.c		optional profiling-routine
+libkern/qsort.c			standard
+libkern/qsort_r.c		standard
+libkern/random.c		standard
+libkern/rindex.c		standard
+libkern/scanc.c			standard
+libkern/skpc.c			standard
+libkern/strcasecmp.c		standard
+libkern/strcat.c		standard
+libkern/strcmp.c		standard
+libkern/strcpy.c		standard
+libkern/strdup.c		standard
+libkern/strlcat.c		standard
+libkern/strlcpy.c		standard
+libkern/strlen.c		standard
+libkern/strncmp.c		standard
+libkern/strncpy.c		standard
+libkern/strsep.c		standard
+libkern/strspn.c		standard
+libkern/strtol.c		standard
+libkern/strtoq.c		standard
+libkern/strtoul.c		standard
+libkern/strtouq.c		standard
+libkern/strvalid.c		standard
+net/bpf.c			standard
+net/bpf_filter.c		optional bpf
+net/bpf_filter.c		optional netgraph_bpf
+net/bridge.c			optional bridge
+net/bridgestp.c			optional if_bridge
+net/bsd_comp.c			optional ppp_bsdcomp
+net/if.c			standard
+net/if_arcsubr.c		optional arcnet
+net/if_atmsubr.c		optional atm
+net/if_bridge.c			optional if_bridge
+net/if_clone.c			standard
+net/if_disc.c			optional disc
+net/if_ef.c			optional ef
+net/if_ethersubr.c		optional ether
+net/if_faith.c			optional faith
+net/if_fddisubr.c		optional fddi
+net/if_fwsubr.c			optional fwip
+net/if_gif.c			optional gif
+net/if_gre.c			optional gre
+net/if_iso88025subr.c		optional token
+net/if_loop.c			optional loop
+net/if_media.c			standard
+net/if_mib.c			standard
+net/if_ppp.c			optional ppp
+net/if_sl.c			optional sl
+net/if_spppfr.c			optional sppp
+net/if_spppfr.c			optional i4bisppp
+net/if_spppsubr.c		optional sppp
+net/if_spppsubr.c		optional i4bisppp
+net/if_stf.c			optional stf
+net/if_tun.c			optional tun
+net/if_tap.c			optional tap
+net/if_vlan.c			optional vlan
+net/netisr.c			standard
+net/ppp_deflate.c		optional ppp_deflate
+net/ppp_tty.c			optional ppp
+net/pfil.c			optional ether
+net/pfil.c			optional inet
+net/radix.c			standard
+net/raw_cb.c			standard
+net/raw_usrreq.c		standard
+net/route.c			standard
+net/rtsock.c			standard
+net/slcompress.c		optional netgraph_vjc
+net/slcompress.c		optional ppp
+net/slcompress.c		optional sl
+net/slcompress.c		optional sppp
+net/zlib.c			optional ppp_deflate
+net/zlib.c			optional ipsec
+net/zlib.c			optional crypto
+net/zlib.c			optional geom_uzip
+net80211/ieee80211.c		optional wlan
+net80211/ieee80211_acl.c	optional wlan_acl
+net80211/ieee80211_crypto.c	optional wlan
+net80211/ieee80211_crypto_ccmp.c optional wlan_ccmp
+net80211/ieee80211_crypto_none.c optional wlan
+net80211/ieee80211_crypto_tkip.c optional wlan_tkip
+net80211/ieee80211_crypto_wep.c	optional wlan_wep
+net80211/ieee80211_freebsd.c	optional wlan
+net80211/ieee80211_input.c	optional wlan
+net80211/ieee80211_ioctl.c	optional wlan
+net80211/ieee80211_node.c	optional wlan
+net80211/ieee80211_output.c	optional wlan
+net80211/ieee80211_proto.c	optional wlan
+net80211/ieee80211_xauth.c	optional wlan_xauth
+netatalk/aarp.c			optional netatalk
+netatalk/at_control.c		optional netatalk
+netatalk/at_proto.c		optional netatalk
+netatalk/at_rmx.c		optional netatalkdebug
+netatalk/ddp_input.c		optional netatalk
+netatalk/ddp_output.c		optional netatalk
+netatalk/ddp_pcb.c		optional netatalk
+netatalk/ddp_usrreq.c		optional netatalk
+netatm/atm_aal5.c		optional atm_core
+netatm/atm_cm.c			optional atm_core
+netatm/atm_device.c		optional atm_core
+netatm/atm_if.c			optional atm_core
+netatm/atm_proto.c		optional atm_core
+netatm/atm_signal.c		optional atm_core
+netatm/atm_socket.c		optional atm_core
+netatm/atm_subr.c		optional atm_core
+netatm/atm_usrreq.c		optional atm_core
+netatm/ipatm/ipatm_event.c	optional atm_ip atm_core
+netatm/ipatm/ipatm_if.c		optional atm_ip atm_core
+netatm/ipatm/ipatm_input.c	optional atm_ip atm_core
+netatm/ipatm/ipatm_load.c	optional atm_ip atm_core
+netatm/ipatm/ipatm_output.c	optional atm_ip atm_core
+netatm/ipatm/ipatm_usrreq.c	optional atm_ip atm_core
+netatm/ipatm/ipatm_vcm.c	optional atm_ip atm_core
+netatm/sigpvc/sigpvc_if.c	optional atm_sigpvc atm_core
+netatm/sigpvc/sigpvc_subr.c	optional atm_sigpvc atm_core
+netatm/spans/spans_arp.c	optional atm_spans atm_core	\
+	dependency	"spans_xdr.h"
+netatm/spans/spans_cls.c	optional atm_spans atm_core
+netatm/spans/spans_if.c		optional atm_spans atm_core
+netatm/spans/spans_kxdr.c	optional atm_spans atm_core
+netatm/spans/spans_msg.c	optional atm_spans atm_core
+netatm/spans/spans_print.c	optional atm_spans atm_core
+netatm/spans/spans_proto.c	optional atm_spans atm_core
+netatm/spans/spans_subr.c	optional atm_spans atm_core
+netatm/spans/spans_util.c	optional atm_spans atm_core
+spans_xdr.h			optional atm_spans atm_core	\
+        before-depend						\
+        dependency      "$S/netatm/spans/spans_xdr.x"		\
+        compile-with    "rpcgen -h -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.h" \
+        clean           "spans_xdr.h"				\
+        no-obj no-implicit-rule
+spans_xdr.c			optional atm_spans atm_core	\
+        before-depend						\
+        dependency      "$S/netatm/spans/spans_xdr.x"		\
+        compile-with    "rpcgen -c -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.c" \
+        clean           "spans_xdr.c"				\
+        no-obj no-implicit-rule local
+spans_xdr.o			optional atm_spans atm_core	\
+        dependency      "$S/netatm/spans/spans_xdr.x"		\
+	compile-with	"${NORMAL_C}"				\
+	no-implicit-rule local
+netatm/uni/q2110_sigaa.c	optional atm_uni atm_core
+netatm/uni/q2110_sigcpcs.c	optional atm_uni atm_core
+netatm/uni/q2110_subr.c		optional atm_uni atm_core
+netatm/uni/qsaal1_sigaa.c	optional atm_uni atm_core
+netatm/uni/qsaal1_sigcpcs.c	optional atm_uni atm_core
+netatm/uni/qsaal1_subr.c	optional atm_uni atm_core
+netatm/uni/sscf_uni.c		optional atm_uni atm_core
+netatm/uni/sscf_uni_lower.c	optional atm_uni atm_core
+netatm/uni/sscf_uni_upper.c	optional atm_uni atm_core
+netatm/uni/sscop.c		optional atm_uni atm_core
+netatm/uni/sscop_lower.c	optional atm_uni atm_core
+netatm/uni/sscop_pdu.c		optional atm_uni atm_core
+netatm/uni/sscop_sigaa.c	optional atm_uni atm_core
+netatm/uni/sscop_sigcpcs.c	optional atm_uni atm_core
+netatm/uni/sscop_subr.c		optional atm_uni atm_core
+netatm/uni/sscop_timer.c	optional atm_uni atm_core
+netatm/uni/sscop_upper.c	optional atm_uni atm_core
+netatm/uni/uni_load.c		optional atm_uni atm_core
+netatm/uni/uniarp.c		optional atm_uni atm_core
+netatm/uni/uniarp_cache.c	optional atm_uni atm_core
+netatm/uni/uniarp_input.c	optional atm_uni atm_core
+netatm/uni/uniarp_output.c	optional atm_uni atm_core
+netatm/uni/uniarp_timer.c	optional atm_uni atm_core
+netatm/uni/uniarp_vcm.c		optional atm_uni atm_core
+netatm/uni/uniip.c		optional atm_uni atm_core
+netatm/uni/unisig_decode.c	optional atm_uni atm_core
+netatm/uni/unisig_encode.c	optional atm_uni atm_core
+netatm/uni/unisig_if.c		optional atm_uni atm_core
+netatm/uni/unisig_mbuf.c	optional atm_uni atm_core
+netatm/uni/unisig_msg.c		optional atm_uni atm_core
+netatm/uni/unisig_print.c	optional atm_uni atm_core
+netatm/uni/unisig_proto.c	optional atm_uni atm_core
+netatm/uni/unisig_sigmgr_state.c optional atm_uni atm_core
+netatm/uni/unisig_subr.c	optional atm_uni atm_core
+netatm/uni/unisig_util.c	optional atm_uni atm_core
+netatm/uni/unisig_vc_state.c	optional atm_uni atm_core
+netgraph/atm/atmpif/ng_atmpif.c	optional netgraph_atm_atmpif
+netgraph/atm/atmpif/ng_atmpif_harp.c optional netgraph_atm_atmpif
+netgraph/atm/ccatm/ng_ccatm.c	optional ngatm_ccatm
+netgraph/atm/ng_atm.c		optional ngatm_atm
+netgraph/atm/ngatmbase.c		optional ngatm_atmbase
+netgraph/atm/sscfu/ng_sscfu.c	optional ngatm_sscfu
+netgraph/atm/sscop/ng_sscop.c optional ngatm_sscop
+netgraph/atm/uni/ng_uni.c	optional ngatm_uni
+netgraph/bluetooth/common/ng_bluetooth.c optional netgraph_bluetooth
+netgraph/bluetooth/drivers/bt3c/ng_bt3c_pccard.c optional netgraph_bluetooth_bt3c
+netgraph/bluetooth/drivers/h4/ng_h4.c optional netgraph_bluetooth_h4
+netgraph/bluetooth/drivers/ubt/ng_ubt.c optional netgraph_bluetooth_ubt
+netgraph/bluetooth/drivers/ubtbcmfw/ubtbcmfw.c optional netgraph_bluetooth_ubtbcmfw
+netgraph/bluetooth/hci/ng_hci_cmds.c optional netgraph_bluetooth_hci
+netgraph/bluetooth/hci/ng_hci_evnt.c optional netgraph_bluetooth_hci
+netgraph/bluetooth/hci/ng_hci_main.c optional netgraph_bluetooth_hci
+netgraph/bluetooth/hci/ng_hci_misc.c optional netgraph_bluetooth_hci
+netgraph/bluetooth/hci/ng_hci_ulpi.c optional netgraph_bluetooth_hci
+netgraph/bluetooth/l2cap/ng_l2cap_cmds.c optional netgraph_bluetooth_l2cap
+netgraph/bluetooth/l2cap/ng_l2cap_evnt.c optional netgraph_bluetooth_l2cap
+netgraph/bluetooth/l2cap/ng_l2cap_llpi.c optional netgraph_bluetooth_l2cap
+netgraph/bluetooth/l2cap/ng_l2cap_main.c optional netgraph_bluetooth_l2cap
+netgraph/bluetooth/l2cap/ng_l2cap_misc.c optional netgraph_bluetooth_l2cap
+netgraph/bluetooth/l2cap/ng_l2cap_ulpi.c optional netgraph_bluetooth_l2cap
+netgraph/bluetooth/socket/ng_btsocket.c optional netgraph_bluetooth_socket
+netgraph/bluetooth/socket/ng_btsocket_hci_raw.c	optional netgraph_bluetooth_socket
+netgraph/bluetooth/socket/ng_btsocket_l2cap.c optional netgraph_bluetooth_socket
+netgraph/bluetooth/socket/ng_btsocket_l2cap_raw.c optional netgraph_bluetooth_socket
+netgraph/bluetooth/socket/ng_btsocket_rfcomm.c optional netgraph_bluetooth_socket
+netgraph/netflow/netflow.c	optional netgraph_netflow
+netgraph/netflow/ng_netflow.c	optional netgraph_netflow
+netgraph/ng_UI.c		optional netgraph_UI
+netgraph/ng_async.c		optional netgraph_async
+netgraph/ng_atmllc.c		optional netgraph_atmllc
+netgraph/ng_base.c		optional netgraph
+netgraph/ng_bpf.c		optional netgraph_bpf
+netgraph/ng_bridge.c		optional netgraph_bridge
+netgraph/ng_cisco.c		optional netgraph_cisco
+netgraph/ng_device.c		optional netgraph_device
+netgraph/ng_echo.c		optional netgraph_echo
+netgraph/ng_eiface.c		optional netgraph_eiface
+netgraph/ng_ether.c		optional netgraph_ether
+netgraph/ng_fec.c		optional netgraph_fec
+netgraph/ng_frame_relay.c	optional netgraph_frame_relay
+netgraph/ng_gif.c		optional netgraph_gif
+netgraph/ng_gif_demux.c		optional netgraph_gif_demux
+netgraph/ng_hole.c		optional netgraph_hole
+netgraph/ng_iface.c		optional netgraph_iface
+netgraph/ng_ip_input.c		optional netgraph_ip_input
+netgraph/ng_ipfw.c		optional netgraph_ipfw
+netgraph/ng_ksocket.c		optional netgraph_ksocket
+netgraph/ng_l2tp.c		optional netgraph_l2tp
+netgraph/ng_lmi.c		optional netgraph_lmi
+netgraph/ng_mppc.c		optional netgraph_mppc_compression
+netgraph/ng_mppc.c		optional netgraph_mppc_encryption
+netgraph/ng_nat.c		optional netgraph_nat
+netgraph/ng_one2many.c		optional netgraph_one2many
+netgraph/ng_parse.c		optional netgraph
+netgraph/ng_ppp.c		optional netgraph_ppp
+netgraph/ng_pppoe.c		optional netgraph_pppoe
+netgraph/ng_pptpgre.c		optional netgraph_pptpgre
+netgraph/ng_rfc1490.c		optional netgraph_rfc1490
+netgraph/ng_socket.c		optional netgraph_socket
+netgraph/ng_split.c		optional netgraph_split
+netgraph/ng_sppp.c		optional netgraph_sppp
+netgraph/ng_tcpmss.c		optional netgraph_tcpmss
+netgraph/ng_tee.c		optional netgraph_tee
+netgraph/ng_tty.c		optional netgraph_tty
+netgraph/ng_vjc.c		optional netgraph_vjc
+netinet/accf_data.c		optional accept_filter_data
+netinet/accf_http.c		optional accept_filter_http
+netinet/if_atm.c		optional atm
+netinet/if_ether.c		optional ether
+netinet/igmp.c			optional inet
+netinet/in.c			optional inet
+netinet/ip_carp.c		optional carp
+netinet/in_gif.c		optional gif inet
+netinet/ip_gre.c		optional gre inet
+netinet/ip_id.c			optional inet
+netinet/in_pcb.c		optional inet
+netinet/in_proto.c		optional inet
+netinet/in_rmx.c		optional inet
+netinet/ip_divert.c		optional ipdivert
+netinet/ip_dummynet.c		optional dummynet
+netinet/ip_ecn.c		optional inet
+netinet/ip_ecn.c		optional inet6
+netinet/ip_encap.c		optional inet
+netinet/ip_encap.c		optional inet6
+netinet/ip_fastfwd.c		optional inet
+netinet/ip_fw2.c		optional ipfirewall
+netinet/ip_fw_pfil.c		optional ipfirewall
+netinet/ip_icmp.c		optional inet
+netinet/ip_input.c		optional inet
+netinet/ip_mroute.c		optional mrouting
+netinet/ip_output.c		optional inet
+netinet/raw_ip.c		optional inet
+netinet/tcp_debug.c		optional tcpdebug
+netinet/tcp_hostcache.c		optional inet
+netinet/tcp_input.c		optional inet
+netinet/tcp_output.c		optional inet
+netinet/tcp_sack.c		optional inet
+netinet/tcp_subr.c		optional inet
+netinet/tcp_syncache.c		optional inet
+netinet/tcp_timer.c		optional inet
+netinet/tcp_usrreq.c		optional inet
+netinet/udp_usrreq.c		optional inet
+netinet/libalias/alias.c	optional libalias
+netinet/libalias/alias_cuseeme.c optional libalias
+netinet/libalias/alias_db.c	optional libalias
+netinet/libalias/alias_ftp.c	optional libalias
+netinet/libalias/alias_irc.c	optional libalias
+netinet/libalias/alias_nbt.c	optional libalias
+netinet/libalias/alias_pptp.c	optional libalias
+netinet/libalias/alias_proxy.c	optional libalias
+netinet/libalias/alias_skinny.c	optional libalias
+netinet/libalias/alias_skinny.c	optional libalias
+netinet/libalias/alias_smedia.c	optional libalias
+netinet/libalias/alias_util.c	optional libalias
+netinet6/ah_aesxcbcmac.c	optional ipsec
+netinet6/ah_core.c		optional ipsec
+netinet6/ah_input.c		optional ipsec
+netinet6/ah_output.c		optional ipsec
+netinet6/dest6.c		optional inet6
+netinet6/esp_aesctr.c		optional ipsec ipsec_esp
+netinet6/esp_core.c		optional ipsec ipsec_esp
+netinet6/esp_input.c		optional ipsec ipsec_esp
+netinet6/esp_output.c		optional ipsec ipsec_esp
+netinet6/esp_rijndael.c		optional ipsec ipsec_esp
+netinet6/frag6.c		optional inet6
+netinet6/icmp6.c		optional inet6
+netinet6/in6.c			optional inet6
+netinet6/in6_cksum.c		optional inet6
+netinet6/in6_gif.c		optional gif inet6
+netinet6/in6_ifattach.c		optional inet6
+netinet6/in6_pcb.c		optional inet6
+netinet6/in6_proto.c		optional inet6
+netinet6/in6_rmx.c		optional inet6
+netinet6/in6_src.c		optional inet6
+netinet6/ip6_forward.c		optional inet6
+netinet6/ip6_fw.c		optional inet6 ipv6firewall
+netinet6/ip6_id.c		optional inet6
+netinet6/ip6_input.c		optional inet6
+netinet6/ip6_mroute.c		optional inet6
+netinet6/ip6_output.c		optional inet6
+netinet6/ipcomp_core.c		optional ipsec
+netinet6/ipcomp_input.c		optional ipsec
+netinet6/ipcomp_output.c	optional ipsec
+netinet6/ipsec.c		optional ipsec
+netinet6/mld6.c			optional inet6
+netinet6/nd6.c			optional inet6
+netinet6/nd6_nbr.c		optional inet6
+netinet6/nd6_rtr.c		optional inet6
+netinet6/raw_ip6.c		optional inet6
+netinet6/route6.c		optional inet6
+netinet6/scope6.c		optional inet6
+netinet6/udp6_output.c		optional inet6
+netinet6/udp6_usrreq.c		optional inet6
+netipsec/ipsec.c		optional fast_ipsec
+netipsec/ipsec_input.c		optional fast_ipsec
+netipsec/ipsec_mbuf.c		optional fast_ipsec
+netipsec/ipsec_output.c		optional fast_ipsec
+netipsec/key.c			optional fast_ipsec
+netipsec/key_debug.c		optional fast_ipsec
+netipsec/keysock.c		optional fast_ipsec
+netipsec/xform_ah.c		optional fast_ipsec
+netipsec/xform_esp.c		optional fast_ipsec
+netipsec/xform_ipcomp.c		optional fast_ipsec
+netipsec/xform_ipip.c		optional fast_ipsec
+netipsec/xform_tcp.c		optional fast_ipsec tcp_signature
+netipx/ipx.c			optional ipx
+netipx/ipx_cksum.c		optional ipx
+netipx/ipx_input.c		optional ipx
+netipx/ipx_ip.c			optional ipx
+netipx/ipx_outputfl.c		optional ipx
+netipx/ipx_pcb.c		optional ipx
+netipx/ipx_proto.c		optional ipx
+netipx/ipx_usrreq.c		optional ipx
+netipx/spx_debug.c		optional ipx
+netipx/spx_usrreq.c		optional ipx
+netkey/key.c			optional ipsec
+netkey/key_debug.c		optional ipsec
+netkey/keydb.c			optional ipsec
+netkey/keysock.c		optional ipsec
+netnatm/natm.c			optional natm
+netnatm/natm_pcb.c		optional natm
+netnatm/natm_proto.c		optional natm
+netncp/ncp_conn.c		optional ncp
+netncp/ncp_crypt.c		optional ncp
+netncp/ncp_login.c		optional ncp
+netncp/ncp_mod.c		optional ncp
+netncp/ncp_ncp.c		optional ncp
+netncp/ncp_nls.c		optional ncp
+netncp/ncp_rq.c			optional ncp
+netncp/ncp_sock.c		optional ncp
+netncp/ncp_subr.c		optional ncp
+netsmb/smb_conn.c		optional netsmb
+netsmb/smb_crypt.c		optional netsmb
+netsmb/smb_dev.c		optional netsmb
+netsmb/smb_iod.c		optional netsmb
+netsmb/smb_rq.c			optional netsmb
+netsmb/smb_smb.c		optional netsmb
+netsmb/smb_subr.c		optional netsmb
+netsmb/smb_trantcp.c		optional netsmb
+netsmb/smb_usr.c		optional netsmb
+nfs/nfs_common.c		optional nfsclient
+nfs/nfs_common.c		optional nfsserver
+nfs4client/nfs4_dev.c		optional nfsclient
+nfs4client/nfs4_idmap.c		optional nfsclient
+nfs4client/nfs4_socket.c	optional nfsclient
+nfs4client/nfs4_subs.c		optional nfsclient
+nfs4client/nfs4_vfs_subs.c	optional nfsclient
+nfs4client/nfs4_vfsops.c	optional nfsclient
+nfs4client/nfs4_vn_subs.c	optional nfsclient
+nfs4client/nfs4_vnops.c		optional nfsclient
+nfsclient/bootp_subr.c		optional bootp nfsclient
+nfsclient/krpc_subr.c		optional bootp nfsclient
+nfsclient/nfs_bio.c		optional nfsclient
+nfsclient/nfs_diskless.c	optional nfsclient nfs_root
+nfsclient/nfs_node.c		optional nfsclient
+nfsclient/nfs_socket.c		optional nfsclient
+nfsclient/nfs_subs.c		optional nfsclient
+nfsclient/nfs_nfsiod.c		optional nfsclient
+nfsclient/nfs_vfsops.c		optional nfsclient
+nfsclient/nfs_vnops.c		optional nfsclient
+nfsclient/nfs_lock.c		optional nfsclient
+nfsserver/nfs_serv.c		optional nfsserver
+nfsserver/nfs_srvsock.c		optional nfsserver
+nfsserver/nfs_srvcache.c	optional nfsserver
+nfsserver/nfs_srvsubs.c		optional nfsserver
+nfsserver/nfs_syscalls.c	optional nfsserver
+# crypto support
+opencrypto/cast.c		optional crypto
+opencrypto/cast.c		optional ipsec ipsec_esp
+opencrypto/criov.c		optional crypto
+opencrypto/crypto.c		optional crypto
+opencrypto/cryptodev.c		optional cryptodev
+opencrypto/cryptosoft.c		optional crypto
+opencrypto/deflate.c		optional crypto
+opencrypto/rmd160.c		optional crypto
+opencrypto/rmd160.c		optional ipsec
+opencrypto/skipjack.c		optional crypto
+opencrypto/xform.c		optional crypto
+pci/agp.c			optional agp pci
+pci/agp_if.m			optional agp pci
+pci/alpm.c			optional alpm pci
+pci/amdpm.c			optional amdpm pci
+pci/amdpm.c			optional nfpm pci
+pci/if_dc.c			optional dc pci
+pci/if_de.c			optional de pci
+pci/if_mn.c			optional mn pci
+pci/if_pcn.c			optional pcn pci
+pci/if_rl.c			optional rl pci
+pci/if_sf.c			optional sf pci
+pci/if_sis.c			optional sis pci
+pci/if_sk.c			optional sk pci
+pci/if_ste.c			optional ste pci
+pci/if_ti.c			optional ti pci
+pci/if_tl.c			optional tl pci
+pci/if_vr.c			optional vr pci
+pci/if_wb.c			optional wb pci
+pci/if_xl.c			optional xl pci
+pci/intpm.c			optional intpm pci
+pci/ncr.c			optional ncr pci
+pci/viapm.c			optional viapm pci
+pci/xrpu.c			optional xrpu pci
+posix4/ksched.c			optional _kposix_priority_scheduling
+posix4/p1003_1b.c		standard
+posix4/posix4_mib.c		standard
+rpc/rpcclnt.c			optional nfsclient
+security/mac/mac_inet.c		optional mac inet
+security/mac/mac_label.c	optional mac
+security/mac/mac_net.c		optional mac
+security/mac/mac_pipe.c		optional mac
+security/mac/mac_posix_sem.c	optional mac
+security/mac/mac_process.c	optional mac
+security/mac/mac_socket.c	optional mac
+security/mac/mac_system.c	optional mac
+security/mac/mac_sysv_msg.c	optional mac
+security/mac/mac_sysv_sem.c	optional mac
+security/mac/mac_sysv_shm.c	optional mac
+security/mac/mac_vfs.c		optional mac
+security/mac_biba/mac_biba.c	optional mac_biba
+security/mac_bsdextended/mac_bsdextended.c optional mac_bsdextended
+security/mac_ifoff/mac_ifoff.c	optional mac_ifoff
+security/mac_lomac/mac_lomac.c	optional mac_lomac
+security/mac_mls/mac_mls.c	optional mac_mls
+security/mac_none/mac_none.c	optional mac_none
+security/mac_partition/mac_partition.c optional mac_partition
+security/mac_portacl/mac_portacl.c optional mac_portacl
+security/mac_seeotheruids/mac_seeotheruids.c optional mac_seeotheruids
+security/mac_stub/mac_stub.c	optional mac_stub
+security/mac_test/mac_test.c	optional mac_test
+ufs/ffs/ffs_alloc.c		optional ffs
+ufs/ffs/ffs_balloc.c		optional ffs
+ufs/ffs/ffs_inode.c		optional ffs
+ufs/ffs/ffs_snapshot.c		optional ffs
+ufs/ffs/ffs_softdep.c		optional ffs
+ufs/ffs/ffs_subr.c		optional ffs
+ufs/ffs/ffs_tables.c		optional ffs
+ufs/ffs/ffs_vfsops.c		optional ffs
+ufs/ffs/ffs_vnops.c		optional ffs
+ufs/ffs/ffs_rawread.c		optional directio
+ufs/ufs/ufs_acl.c		optional ffs
+ufs/ufs/ufs_bmap.c		optional ffs
+ufs/ufs/ufs_dirhash.c		optional ffs
+ufs/ufs/ufs_extattr.c		optional ffs
+ufs/ufs/ufs_inode.c		optional ffs
+ufs/ufs/ufs_lookup.c		optional ffs
+ufs/ufs/ufs_quota.c		optional ffs
+ufs/ufs/ufs_vfsops.c		optional ffs
+ufs/ufs/ufs_vnops.c		optional ffs
+vm/default_pager.c		standard
+vm/device_pager.c		standard
+vm/phys_pager.c			standard
+vm/swap_pager.c			standard
+vm/uma_core.c			standard
+vm/uma_dbg.c			standard
+vm/vm_contig.c			standard
+vm/memguard.c			optional DEBUG_MEMGUARD
+vm/vm_fault.c			standard
+vm/vm_glue.c			standard
+vm/vm_init.c			standard
+vm/vm_kern.c			standard
+vm/vm_map.c			standard
+vm/vm_meter.c			standard
+vm/vm_mmap.c			standard
+vm/vm_object.c			standard
+vm/vm_page.c			standard
+vm/vm_pageout.c			standard
+vm/vm_pageq.c			standard
+vm/vm_pager.c			standard
+vm/vm_unix.c			standard
+vm/vm_zeroidle.c		standard
+vm/vnode_pager.c		standard

@@ -1,0 +1,178 @@
+.\"
+.\" Copyright (c) 1999 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: isdnmonitor.8,v 1.8 1999/12/13 22:11:55 hm Exp $
+.\"
+.\" $FreeBSD$
+.\"
+.\"	last edit-date: [Mon Dec 13 23:04:25 1999]
+.\"
+.Dd September 25, 1999
+.Dt ISDNMONITOR 8
+.Os
+.Sh NAME
+.Nm isdnmonitor
+.Nd isdn4bsd / isdnd remote monitoring tool
+.Sh SYNOPSIS
+.Nm
+.Op Fl c
+.Op Fl d Ar debuglevel
+.Op Fl f Ar filename
+.Op Fl h Ar hostspec
+.Op Fl l Ar pathname
+.Op Fl p Ar portspec
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to remotely monitor the operation of the isdn daemon,
+.Xr isdnd 8 ,
+which manages all ISDN related connection and disconnection of ISDN
+devices supported by the isdn4bsd package.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c
+Switch to (curses-) fullscreen mode of operation.
+In this mode,
+.Nm
+behaves nearly exactly as
+.Xr isdnd 8
+in fullscreen mode.
+In fullscreen mode, entering the control character
+.Em Control-L
+causes the display to be refreshed and entering
+.Em Carriage-Return
+or
+.Em Enter
+will pop-up a command window.
+Because
+.Nm
+will not listen to messages while the command window is active,
+this command window will disappear automatically after 5 seconds without
+any command key press.
+.Pp
+While the command window is active,
+.Em Tab
+or
+.Em Space
+advances to the next menu item.
+To execute a command, press
+.Em Return
+or
+.Em Enter
+for the highlighted menu item, or enter the number corresponding to the
+item to be executed or enter the capitalized character in the menu item
+description.
+.It Fl d
+If debugging support is compiled into
+.Nm
+this option is used to specify the debugging level.
+.\" The debugging level is the sum of the
+.\" following values:
+.\" .Pp
+.\" .Bl -tag -width Ds -compact -offset indent
+.\" .It Ar 0x001
+.\" general debugging.
+.\" .It Ar 0x002
+.\" rates calculation.
+.\" .It Ar 0x004
+.\" timing calculations.
+.\" .It Ar 0x008
+.\" state transitions.
+.\" .It Ar 0x010
+.\" retry handling.
+.\" .It Ar 0x020
+.\" dialing.
+.\" .It Ar 0x040
+.\" process handling.
+.\" .It Ar 0x080
+.\" isdn4bsd kernel i/o calls.
+.\" .It Ar 0x100
+.\" controller and channel busy/free messages.
+.\" .It Ar 0x200
+.\" isdnmonitor.rc configuration file processing.
+.\" .El
+.\" .Pp
+.\" The value can be specified in any number base supported by the
+.\" .Xr sscanf 3
+.\" library routine.
+.Pp
+In addition, this option accepts also the character 'n' as an argument to
+disable displaying debug messages on the full-screen display.
+.Pp
+.It Fl f
+Specifying this option causes
+.Nm
+to write its normal output and - if enabled - debugging output to a file
+which name is specified as the argument.
+.It Fl l
+is used to specify a Unix local domain socket name to be used for communication
+between
+.Xr isdnd 8
+and
+.Nm .
+.It Fl h
+is used to specify a hostname or a dotted-quad IP address of a machine
+where an
+.Xr isdnd 8
+is running which should be monitored.
+.It Fl p
+This option may be used to specify a remote port number in conjunction
+with the
+.Fl h
+option.
+.El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width Ds
+.It Ev TERM
+The terminal type when running in full-screen display mode.
+See
+.Xr environ 7
+for more information.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, 1 on error.
+.Sh EXAMPLES
+For a first try, the following command should be used to start
+.Nm
+to monitor a locally running isdnd:
+.Bd -literal -offset indent
+isdnmonitor -h localhost
+.Ed
+.Sh SEE ALSO
+.Xr isdnd 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Martin Husemann
+and
+.An Hellmuth Michaelis Aq hm@kts.org .
+This manual page was written by
+.An Hellmuth Michaelis .
+.Sh BUGS
+Still one (or) more left.

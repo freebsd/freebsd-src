@@ -1,0 +1,124 @@
+.\"
+.\" Copyright (c) 1994 Wilko Bulte
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 4, 2004
+.Dt AHA 4
+.Os
+.Sh NAME
+.Nm aha
+.Nd Adaptec SCSI host adapter driver
+.Sh SYNOPSIS
+.Cd device aha
+.Cd device scbus
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.aha.0.at="isa"
+.Sh DESCRIPTION
+This driver provides access to the
+.Tn SCSI
+bus connected to the Adaptec AHA-154x and AHA-1640 SCSI host adapters.
+x is 0 for controllers without a floppy drive and 2 for controllers
+that have them.
+For optimum
+performance, Adaptec AHA-174x controllers should be configured in
+enhanced mode and attached via the
+.Xr ahb 4
+driver.
+.Pp
+One device hint entry for every card to be attached by the system is
+required.
+Specific values for the port address, IRQ, and DRQ may be specified.
+If wildcard values are used, the driver will query the device for its
+current settings and use those.
+If the port address
+is a wildcard, the driver consults an internal table of possible port address
+locations and attaches to the first unattached card it finds.
+The possible
+port addresses for this card are 0x330, 0x334, 0x230, 0x234, 0x130, and
+0x134.
+.Pp
+The AHA-1640 is an MCA bus card.
+Since the MCA bus is a self-identifying bus, no setting of hints is
+required.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following SCSI host adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec AHA-154xB
+.It
+Adaptec AHA-154xC
+.It
+Adaptec AHA-154xCF
+.It
+Adaptec AHA-154xCP
+.It
+Adaptec AHA-1640
+.It
+Adaptec AHA-174x in 154x emulation mode
+.It
+DTC 3290 SCSI controller in 1542 emulation mode
+.It
+Tekram SCSI controllers in 154x emulation mode
+.El
+.Sh SEE ALSO
+.Xr ahb 4 ,
+.Xr ahc 4 ,
+.Xr aic 4 ,
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.\"
+.\" .Sh DIAGNOSTICS
+.\"
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was ported by
+.An M. Warner Losh
+from the
+.Nm bt
+driver written by
+.An Justin T. Gibbs .
+.Sh BUGS
+The AHA-154xA card does not support residuals on data transfers.
+As a result, this card is no longer supported.
+.Pp
+There have been some reports that the AHA-154xB does not work well
+under heavy load.
+.Pp
+The AHA-154xCP is a plug and play controller.
+However, its resources are set using the on-board BIOS and cannot be
+moved.
+Failures to attached for this card are often caused when the resources
+set in the BIOS conflict.

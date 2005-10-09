@@ -1,0 +1,102 @@
+** README for file(1) Command **
+@(#) $Id: README,v 1.33 2003/05/23 21:31:56 christos Exp $
+
+This is Release 4.x of Ian Darwin's (copyright but distributable)
+file(1) command. This version is the standard "file" command for Linux,
+*BSD, and other systems. (See "patchlevel.h" for the exact release number).
+
+The major feature of 4.x is the refactoring of the code into a library,
+and the re-write of the file command in terms of that library. The library
+itself, libmagic can be used by 3rd party programs that wish to identify
+file types without having to fork() and exec() file. The prime contributor
+for 4.0 was M\xe5ns Rullg\xe5rd.
+
+UNIX is a trademark of UNIX System Laboratories.
+
+The prime contributor to Release 3.8 was Guy Harris, who put in megachanges
+including byte-order independence.
+
+The prime contributor to Release 3.0 was Christos Zoulas, who put
+in hundreds of lines of source code changes, including his own
+ANSIfication of the code (I liked my own ANSIfication better, but
+his (__P()) is the "Berkeley standard" way of doing it, and I wanted UCB
+to include the code...), his HP-like "indirection" (a feature of
+the HP file command, I think), and his mods that finally got the
+uncompress (-z) mode finished and working.
+
+This release has compiled in numerous environments; see PORTING
+for a list and problems.
+
+This fine freeware file(1) follows the USG (System V) model of the file
+command, rather than the Research (V7) version or the V7-derived 4.[23]
+Berkeley one. That is, the file /etc/magic contains much of the ritual
+information that is the source of this program's power. My version
+knows a little more magic (including tar archives) than System V; the
+/etc/magic parsing seems to be compatible with the (poorly documented)
+System V /etc/magic format (with one exception; see the man page).
+
+In addition, the /etc/magic file is built from a subdirectory
+for easier(?) maintenance.  I will act as a clearinghouse for
+magic numbers assigned to all sorts of data files that
+are in reasonable circulation. Send your magic numbers,
+in magic(5) format please, to the maintainer, Christos Zoulas.
+
+LEGAL.NOTICE - read this first.
+README - read this second (you are currently reading this file).
+PORTING - read this only if the program won't compile.
+Makefile - read this next, adapt it as needed (particularly
+	the location of the old existing file command and
+	the man page layouts), type "make" to compile, 
+	"make try" to try it out against your old version.
+	Expect some diffs, particularly since your original
+	file(1) may not grok the embedded-space ("\ ") in
+	the current magic file, or may even not use the
+	magic file.
+apprentice.c - parses /etc/magic to learn magic
+ascmagic.c - third & last set of tests, based on hardwired assumptions.
+core - not included in distribution due to mailer limitations.
+debug.c - includes -c printout routine
+file.1 - man page for the command
+magic.4 - man page for the magic file, courtesy Guy Harris.
+	Install as magic.4 on USG and magic.5 on V7 or Berkeley; cf Makefile.
+file.c - main program
+file.h - header file
+fsmagic.c - first set of tests the program runs, based on filesystem info
+is_tar.c, tar.h - knows about tarchives (courtesy John Gilmore).
+magdir - directory of /etc/magic pieces
+	magdir/Makefile - ADJUST THIS FOR YOUR CONFIGURATION
+names.h - header file for ascmagic.c
+softmagic.c - 2nd set of tests, based on /etc/magic
+readelf.[ch] - Stand-alone elf parsing code.
+compress.c - on-the-fly decompression.
+print.c - print results, errors, warnings.
+
+If your gzip sometimes fails to decompress things complaining about a short
+file, apply this patch [which is going to be in the next version of gzip]:
+*** -   Tue Oct 29 02:06:35 1996
+--- util.c      Sun Jul 21 21:51:38 1996
+*** 106,111 ****
+--- 108,114 ----
+  
+      if (insize == 0) {
+        if (eof_ok) return EOF;
++       flush_window();
+        read_error();
+      }
+      bytes_in += (ulg)insize;
+
+E-mail: christos@astron.com
+
+Phone: Do not even think of telephoning me about this program. Send cash first!
+
+Parts of this software were developed at SoftQuad Inc., developers
+of SGML/HTML/XML publishing software, in Toronto, Canada.
+SoftQuad was swallowed up by Corel in 2002
+and does not exist any longer.
+
+From: Kees Zeelenberg
+
+An MS-Windows (Win32) port of File-3.36 is available from
+http://gnuwin32.sourceforge.net/
+File is an implementation of the Unix File(1) command.
+It knows the 'magic number' of several thousands of file types.

@@ -1,0 +1,209 @@
+Release 1.1.5
+-------------
+
+***NEW***
+
+Added James Ramsey's CHAPTER_TITLE macro as well as control macros to
+go with it.  Thanks James.  Also from James came a patch to handle
+START differenty which has been incorporated into om.tmac.  Thanks
+again, James.
+
+Some bits and pieces of the docs have been tweaked, but nothing
+changed.  Hopefully, the changes will make parts of the docs easier to
+read and navigate.
+
+***FIXES***
+
+o \*[RULE]
+
+o broken draft and revision in docheaders
+
+o post-epigraph spacing in TYPEWRITE
+
+o header spacing in TYPEWRITE
+
+------------------------------------------------------------------------
+
+Release 1.1.4
+-------------
+
+***SIGNIFICANT CHANGE***
+.IX is now deprecated, although it will continue to work as before.
+The new form is .IQ (Indent Quit).  Groff will emit a message advising
+users to update their docs.
+
+***NEW***
+Four new inlines to deal with horizontal and vertical movements:
+
+    o \*[FWD n]
+    o \*[BCK n]
+    o \*[UP n]
+    o \*[DOWN n]
+
+All four require a unit of measure after n.  These inlines are similar
+to the older \*[FPn], \*[BPn], \*[ALDn] and \*[RLDn], however they're
+not restricted to points, and any value can be entered for n (the older
+forms -- which still work -- were restricted to 1 - 36).
+
+***CHANGED***
+Inline kerning can now be accomplished with \*[BU n] and \*[FU n], where
+n, after the space, is the desired number of kern units.  The older
+forms \*[BUn] and \*[FUn] still work, up to 36 units.
+
+------------------------------------------------------------------------
+
+Release 1.1.3c
+--------------
+
+***NEW***
+A new macro -- ENDNOTES_HDRFTR_CENTER -- added so that mom's default
+behaviour of not printing the header center string when DOCTYPE is
+CHAPTER can be disabled (i.e. she will print the center string).  The
+macro is user-called with ENDNOTES_HEADER_CENTER or
+ENDNOTES_FOOTER_CENTER.
+
+***FIXES***
+PAD now works as advertised when fill mode is on.
+
+ENDNOTES no longer disables printing of footnotes on last page of
+document body.
+
+Release 1.1.3
+-------------
+
+***SIGNIFICANT CHANGE -- PLEASE TAKE NOTE***
+As of 1.1.3, groff must be >= 1.18.
+
+***NEW***
+Added endnotes functionality to mom, along with a slew of macros to
+control how mom prints endnotes pages.  See the html documentation.
+
+***NEW***
+Added inline \*[RULE], which draws a rule to the full measure of the
+current line length ( to be used in place of \h'\n(.lu' ).  Weight of the
+rule is dependent on the point size of type when \#[RULE] is called.
+
+***FIXES***
+PAD -- works more intuitively now when the pad string contains inline
+escapes for font, point size, etc.
+
+UNDERLINE -- fixed character translations of digraphs so they get
+underlined properly.  Also fixed a bug that was causing some footnotes
+to get underlined when UNDERLINE was on in the body of the document.
+
+***UPDATES***
+Html documentation
+elvis_syn
+
+Release 1.1.2a
+--------------
+
+***SIGNIFICANT CHANGE -- PLEASE TAKE NOTE***
+In order to help mom toward full groffship, the macro .PS has been
+renamed to .PT_SIZE, and the alias .TS (for .TAB_SET) has been removed.
+.PS and .TS are keywords used by pic and tbl respectively, and the mom
+macros of the same name were in conflict.
+
+Release 1.1.2
+-------------
+
+***IT'S OFFICIAL!***
+mom is now an official part of the groff.  New releases will be
+incorporated into the groff package.  I'll still be posting each new
+release on the mom homepage, so there's no need to download all of the
+most recent version of groff just to get a newer mom. :)
+
+***CHANGES***
+Fixed default footer separator rule adjustment so that it's closer to
+the advertised "4 points above the tallest ascender in the footer."
+
+Added more stuff to the elvis_syn file.  Still wouldn't mind someone
+contributing some vim/emacs syntax highlighting.
+
+Added .cflags 4 /\(em to om.tmac.  By default, mom now obligingly
+breaks after / and \(en.
+
+***NEW***
+Macro(s): HEADER_RECTO
+          HEADER_VERSO
+With these macros, users can now define single-string recto/verso
+headers/footers.  HEADER_RECTO (or FOOTER_RECTO) can be used to create
+a one-part header/footer (instead of mom's default three-parters) that
+appears on every page if RECTO_VERSO is OFF or, if RECTO_VERSO is on, if
+no HEADER_VERSO (or FOOTER_VERSO) has been defined.  If a HEADER_VERSO
+(or FOOTER_VERSO) is defined and RECTO_VERSO is on, _RECTO prints on
+even pages and _VERSO on odd pages.
+
+Added macro DRAFT_WITH_PAGENUMBER so user can have draft/revision
+info attached to the pagenumber in COPYSTYLE DRAFT, instead of having
+it HEADER center.  Always having it HEADER center was creating problems
+with long doc titles, esp. with PRINTSTYLE TYPEWRITE (which is when
+COPYSTYLE DRAFT is most likely to be used).
+
+***FIXES***
+No more "can't break line" warnings in DOCTYPE LETTER.
+
+If no REVISION number is given, Rev. 0 no longer appears HEADER_CENTER
+in COPYSTYLE DRAFT
+
+PAGENUM_STYLE now works as advertised.
+
+Release 1.1.1
+-------------
+
+***CHANGES***
+Main macro file renamed to om.tmac, in keeping with current groff
+policy.
+
+Now okay to use groff mailing list for mom-related posts
+
+***NEW***
+Toggle macro -- BR_AT_LINE_KERN.  When on, automatically deposits
+a break whenever .RW or .EW are invoked.  Very useful when kerning
+whole lines of rag copy.
+
+***NEW***
+Toggle macro -- PAGENUM_ON_FIRST_PAGE.  Normally, when FOOTERS are
+being used instead of HEADERS, mom doesn't print the page number at
+the top of the first page of a doc, or the first page of collated docs.
+PAGENUM_ON_FIRST_PAGE allows user to get mom to put the page number on
+"first" pages if that's desired.
+
+***NEW***
+Macro -- BREAK_QUOTE -- to deal with problem of footnoted quotes and
+blockquotes that cross a page or column.
+
+***NEW***
+New argument to AUTOLEAD -- FACTOR.  With FACTOR, you can, if you
+wish, enter a factor by which AUTOLEAD multiplies the point size when
+calculating lead automatically.
+
+Improvements
+------------
+
+PAPER now has a much larger selection of common paper sizes.
+
+\*[ALD], \*[RLD], \*[FP] and \*[BP] now accept increments of quarter
+points (expressed as decimal fractions).  \*[RLD1.75], for example,
+reverses 1-3/4 points up on the line.
+
+HEADER_SIZE now available to PRINTSTYLE TYPEWRITE.  This was necessary
+to deal with the problem of excessively long HEADER_LEFT, _CENTER or
+_RIGHT strings.
+
+Fixes
+-----
+
+T_MARGIN -- can be set before or after LS or AUTOLEAD
+SS       -- remains constant regardless of WS
+WS       -- no longer affects SS
+TI       -- now works as expected even when called while another indent
+            type is in effect
+COLLATE  -- small fixes
+
+Broken .RW and .EW fixed.
+
+String tabs now behave properly when set from within tabs.
+
+UNDERLINE_QUOTES (for PRINTSTYLE TYPEWRITE) are now, in fact, on by
+default as the docs state.

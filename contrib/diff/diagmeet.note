@@ -1,0 +1,71 @@
+Here is a comparison matrix which shows a case in which
+it is possible for the forward and backward scan in `diag'
+to meet along a nonzero length of diagonal simultaneous
+(so that bdiag[d] and fdiag[d] are not equal)
+even though there is no snake on that diagonal at the meeting point.
+
+
+     85   1   1   1  159  1   1   17
+        1   2   3   4
+60
+    1   2
+1
+    2  	    2   3   4
+71
+    3       3  	4   5
+85
+    4  	3   4	5
+17
+    5  	4   5
+1
+    6       4  	5   6
+183
+    7       5   6   7
+10
+    8  	    6  	7
+1
+    9           6   7  	8
+12
+                7   8   9  10
+13
+       10       8   9  10
+14
+           10   9  10
+17
+       10      10
+1
+   10   9  10
+1
+	8      10      10      10
+183
+    8   7	9       9      	9
+10
+    7   6	8   9   8      	8
+1
+    6   5    		7       7
+1
+            5          	6      	6
+1
+	       	5      	5      	5
+50
+	    5   4      	4      	4
+1
+	            4   3	3
+85
+	    5   4   3   2       2
+1
+	                    2   1
+17
+	    5   4   3   2   1       1
+1
+		                1   0
+     85   1   1   1  159  1   1  17
+
+
+
+
+
+
+
+
+

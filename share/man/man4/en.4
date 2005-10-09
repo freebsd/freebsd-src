@@ -1,0 +1,80 @@
+.\" $FreeBSD$
+.\"
+.Dd July 16, 2005
+.Dt EN 4
+.Os
+.Sh NAME
+.Nm en
+.Nd "device driver for Midway-based ATM interfaces"
+.Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device en"
+.Cd "device atm"
+.Cd "device utopia"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following liness in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_en_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports Midway-based ATM interfaces including the
+Efficient Networks, Inc.\& ENI-155 and Adaptec ANA-59x0.
+Midway is an AAL5 SAR (Segmentation and Reassembly) chip.
+.Pp
+For configuring the card for IP see
+.Xr natmip 4 .
+.Pp
+The following sysctls are recognized by the driver additionally to those
+handled by
+.Xr utopia 4 :
+.Bl -tag -width indent
+.It Va hw.atm.enX.istats
+Contains an array of
+.Vt uint32_t
+with internal driver statistics.
+.It Va hw.atm.enX.debug
+This is a bit map of debugging options.
+This variable is only available when the driver is compiled with debugging
+support.
+.El
+.Pp
+The driver supports the media options
+.Cm sdh ,
+.Cm noscramb
+and
+.Cm unassigned
+(see
+.Xr utopia 4 ) .
+.Sh DIAGNOSTICS
+.Bd -literal
+en0 <Efficient Networks ENI-155p> rev 0 int a irq 5 on pci0:16
+en0: ATM midway v0, board IDs 6.0, Utopia (pipelined), 512KB on-board RAM
+en0: maximum DMA burst length = 64 bytes
+en0: 7 32KB receive buffers, 8 32KB transmit buffers allocated
+.Ed
+.Sh CAVEATS
+The driver extensively uses DMA on PCI.
+The first
+generation PCI chipsets do not work or exhibit poor performance.
+.Sh SEE ALSO
+.Xr natm 4 ,
+.Xr natmip 4 ,
+.Xr utopia 4 ,
+.Xr ifconfig 8 ,
+.Xr route 8
+.Sh AUTHORS
+.An Chuck Cranor
+of Washington University implemented
+.Nm
+driver in 1996 for
+.Nx .

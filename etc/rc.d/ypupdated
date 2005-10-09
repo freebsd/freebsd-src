@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ypupdated
+# REQUIRE: rpcbind ypserv
+
+. /etc/rc.subr
+
+name="ypupdated"
+rcvar="rpc_ypupdated_enable"
+command="/usr/sbin/rpc.${name}"
+start_precmd="rpc_ypupdated_precmd"
+
+rpc_ypupdated_precmd()
+{
+	if ! checkyesno rpcbind_enable  && \
+	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend rpcbind || return 1
+	fi
+	if ! checkyesno nis_server_enable && \
+	    ! /etc/rc.d/ypserv forcestatus 1>/dev/null 2>&1
+	then
+		force_depend ypserv || return 1
+	fi
+
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "NIS domainname(1) is not set."
+		return 1
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,64 @@
+$Id: README,v 1.3 2004/01/07 23:09:27 sam Exp $
+
+
+WARNING: THIS IS A BETA DISTRIBUTION.  THIS SOFTWARE HAS KNOWN PROBLEMS AND
+WARNING: LIMITATIONS THAT WILL BE CORRECTED BEFORE A PRODUCTION RELEASE.
+WARNING: USE AT YOUR OWN RISK!
+
+
+Atheros Hardware Access Layer (HAL)
+===================================
+
+* Copyright (c) 2002-2004 Sam Leffler.
+* Copyright (c) 2002-2004 Atheros Communications, Inc.
+* All rights reserved.
+
+Read the file COPYRIGHT for the complete copyright.
+
+This code manages much of the chip-specific operation of the Atheros driver.
+The HAL is provided in a binary-only form in order to comply with FCC
+regulations.  In particular, a radio transmitter can only be operated at
+power levels and on frequency channels for which it is approved.  The FCC
+requires that a software-defined radio cannot be configured by a user
+to operate outside the approved power levels and frequency channels.
+This makes it difficult to open-source code that enforces limits on
+the power levels, frequency channels and other parameters of the radio
+transmitter.  See
+
+http://ftp.fcc.gov/Bureaus/Engineering_Technology/Orders/2001/fcc01264.pdf
+
+for the specific FCC regulation.  Because the module is provided in a
+binary-only form it is marked "Proprietary"; this means when you load
+it you will see messages that your system is now "tainted".
+
+If you wish to use this driver on a platform for which an ath_hal
+module is not already provided please contact the author.  Note that
+this is only necessary for new _architectures_; the HAL is not tied to
+any specific version of your operating system.
+
+
+Atheros Hardware
+================
+There are currently 3 generations of Atheros 802.11 wireless devices:
+
+5210	supports 11a only
+5211	supports both 11a and 11b
+5212	supports 11a, 11b, and 11g
+
+These parts have been incorporated in a variety of retail products
+including cardbus cards from DLink, Linksys, Netgear, and Proxim; and
+mini-pci cards from some of these same vendors.  In addition many
+laptop vendors use Atheros mini-pci cards for their builtin wireless
+support.  An (incomplete) list of products that use Atheros parts is:
+
+Netgear WAG511		D-Link DWL-AG520	Linksys WPC55AG
+Netgear WAB501		D-Link DWL-AG650	Linksys WMP55AG
+			D-Link DWL-AB650	Linksys WPC51AB
+
+In general, if a device is identified as ``11a only'' it is almost
+certain to contain an Atheros 5210 part in it.  All retail a+b
+products use the 5211.  The latest generation of universal a+b+g
+combo products use the 5212.  When in doubt check the PCI vendor
+id with a tool like lspci, the Atheros vendor id is 0x168c; e.g.
+
+   00:13.0 Ethernet controller: Unknown device 168c:0012 (rev 01)

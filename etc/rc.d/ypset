@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ypset
+# REQUIRE: ypbind
+
+. /etc/rc.subr
+
+name="ypset"
+rcvar="nis_ypset_enable"
+command="/usr/sbin/${name}"
+start_precmd="ypset_precmd"
+load_rc_config $name
+command_args="${nis_ypset_flags}"
+
+ypset_precmd()
+{
+	if ! checkyesno rpcbind_enable  && \
+	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend rpcbind || return 1
+	fi
+	if ! checkyesno nis_client_enable && \
+	    ! /etc/rc.d/ypbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend ypbind || return 1
+	fi
+
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "NIS domainname(1) is not set."
+		return 1
+	fi
+}
+
+run_rc_command "$1"

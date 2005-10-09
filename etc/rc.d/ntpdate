@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# $NetBSD: ntpdate,v 1.8 2002/03/22 04:16:39 lukem Exp $
+# $FreeBSD$
+#
+
+# BEFORE: ntpd
+# PROVIDE: ntpdate
+# REQUIRE: NETWORKING syslogd
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ntpdate"
+rcvar=`set_rcvar`
+stop_cmd=":"
+start_cmd="ntpdate_start"
+
+ntpdate_start()
+{
+	if [ -z "$ntpdate_hosts" -a -f /etc/ntp.conf ]; then
+		ntpdate_hosts=`awk '
+			/^server[ \t]*127.127/      {next}
+			/^(server|peer)/            {print $2}
+		' </etc/ntp.conf`
+	fi
+	if [ -n "$ntpdate_hosts" -o -n "$rc_flags" ]; then
+		echo "Setting date via ntp."
+		${ntpdate_program:-ntpdate} $rc_flags $ntpdate_hosts
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

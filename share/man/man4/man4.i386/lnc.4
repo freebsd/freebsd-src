@@ -1,0 +1,170 @@
+.\"
+.\" Copyright (c) 1997 David E. O'Brien
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 16, 2005
+.Dt LNC 4 i386
+.Os
+.Sh NAME
+.Nm lnc
+.Nd "AMD Lance/PCnet Ethernet device driver"
+.Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device lnc"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_lnc_load="YES"
+.Ed
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.lnc.0.at="isa"
+.Cd hint.lnc.0.port="0x280"
+.Cd hint.lnc.0.irq="10"
+.Cd hint.lnc.0.drq="0"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the AMD family of Lance/PCnet Ethernet NICs
+including the Am7990 and Am79C960.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Diamond HomeFree
+.It
+Digital DEPCA
+.It
+Hewlett Packard Vectra 486/66XM
+.It
+Hewlett Packard Vectra XU
+.It
+Isolan AT 4141-0 (16 bit)
+.It
+Isolan BICC
+.It
+Isolink 4110 (8 bit)
+.It
+Novell NE2100
+.It
+Novell NE32-VL
+.El
+.Pp
+Also supported are adapters working with the
+.Xr pcn 4
+driver.
+The
+.Nm
+driver runs these in compatibility mode, thus the
+.Xr pcn 4
+driver should be preferred.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "lnc%d: Framing error"
+A framing error occurred.
+This means a CRC error also occurred.
+This caused the driver to drop the packet that contained the framing error.
+.It "lnc%d: Receive CRC error
+The received Ethernet frame failed the CRC checksum.
+This caused the driver to drop the packet that failed the checksum.
+.It "lnc%d: Packet dropped, no mbufs"
+The driver ran out of mbuf's.
+This may suggest a resource problem.
+.It "lnc%d: Couldn't allocate memory for NIC"
+This is a fatal error.
+The driver will not attach to the card under this
+circumstance.
+.It "lnc%d: Memory allocated above 16Mb limit"
+ISA and ESIA cards require bounce buffers for DMA transfers above 16mb.
+The Am7990 and Am79C960 only have 24 address lines and so can only access
+the lower 16Mb of physical memory.
+The
+.Nm
+driver assumes the memory it allocates is within the lower 16Mb range.
+This is not a very valid assumption but there is nothing that can be done
+about it yet.
+For shared memory NICs this is not relevant.
+.It "lnc%d: Device timeout -- Resetting"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+Make sure the network connection in use
+is the same one the card is configured for.
+.It "lnc%d: Transmit late collision  -- Net error?"
+.It "lnc%d: Loss of carrier during transmit -- Net error?"
+.It "lnc%d: Transmit of packet failed after 16 attempts -- TDR = %d"
+.It "lnc%d: Heartbeat error -- SQE test failed"
+.It "lnc%d: Babble error - more than 1519 bytes transmitted"
+.It "lnc%d: Missed packet -- no receive buffer"
+.It "lnc%d: Memory error  -- Resetting"
+.It "lnc%d: Couldn't get mbuf for transmit packet -- Resetting"
+.It "lnc%d: Receive buffer error"
+.It "lnc%d: Receive overflow error"
+.It "lnc%d: Receive interrupt with buffer still owned by controller -- Resetting"
+.It "lnc%d: Receive interrupt but not start of packet -- Resetting"
+.It "lnc%d: Start of packet found before end of previous in receive ring -- Resetting"
+.It "lnc%d: End of received packet not found -- Resetting"
+.It "lnc%d: Transmit interrupt with buffer still owned by controller -- Resetting"
+.It "lnc%d: Transmit interrupt but not start of packet -- Resetting"
+.It "lnc%d: Start of packet found before end of previous in transmit ring -- Resetting"
+.It "lnc%d: End of transmitted packet not found -- Resetting"
+.It "lnc%d: Transmit buffer error -- Resetting"
+.It "lnc%d: Transmit underflow error -- Resetting"
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An Paul Richards .
+Support for the AMD PCHome phone-line based network added by
+.An Robert Watson .
+This manual page was written by
+.An David E. O'Brien .
+.Sh BUGS
+This driver has the potential of being the most verbose of any of the
+Ethernet device drivers.

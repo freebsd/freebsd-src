@@ -1,0 +1,23 @@
+$Begemot: bsnmp/oid-list,v 1.3 2005/05/23 09:03:22 brandt_h Exp $
+
+This file documents the OID assignments under BSNMP's private OID.
+
+While I was at Fraunhofer Fokus (www.fokus.fraunhofer.de) I registered
+an official OID for Fokus: enterprises 12325 and assigned the sub-OID 1
+to the software I develop. Under this OID there are:
+
+enterprises
+  12325		FOKUS
+    1		BEGEMOT
+      1		BEGEMOT-SNMPD
+      2		BEGEMOT-NETGRAPH	snmpd netgraph module
+      100	BEGEMOT-ILMID		snmpd ILMID module
+      101	BEGEMOT-ATM		snmpd ATM module
+      200	BEGEMOT-PF		snmpd PF module (phillip@freebsd.org)
+      201	BEGEMOT-NTP		snmpd NTP module
+      300	BEGEMOT-ACM		DLR ACM project
+
+If you need an OID and don't know where to stuck it in, I can assign you one -
+just drop me a mail.
+
+harti

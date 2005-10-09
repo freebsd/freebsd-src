@@ -1,0 +1,116 @@
+#!/bin/sh -
+#
+# $FreeBSD$
+#
+# pccard_ether interfacename [start|stop]
+#
+# example: pccard_ether fxp0 start
+#
+
+. /etc/rc.subr
+. /etc/network.subr
+
+usage()
+{
+	err 3 'USAGE: $0 interface (start|stop)'
+}
+
+setup_routes()
+{
+	# Add default route into $static_routes
+	case ${defaultrouter} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		static_routes="default ${static_routes}"
+		route_default="default ${defaultrouter}"
+		;;
+	esac
+
+	# Add private route for this interface into $static_routes
+	eval ifx_routes=\$static_routes_${ifn}
+	if [ -n "${ifx_routes}" ]; then
+		static_routes="${ifx_routes} ${static_routes}"
+	fi
+
+	# Set up any static routes if specified
+	if [ -n "${static_routes}" ]; then
+		for i in ${static_routes}; do
+			eval route_args=\$route_${i}
+			route add ${route_args}
+		done
+	fi
+}
+
+remove_routes()
+{
+	# Delete static route if specified
+	eval ifx_routes=\$static_routes_${ifn}
+	if [ -n "${ifx_routes}" ]; then
+		for i in ${ifx_routes}; do
+			eval route_args=\$route_${i}
+			route delete ${route_args}
+		done
+	fi
+}
+
+ifn=$1
+shift
+startstop=$1
+shift
+
+load_rc_config pccard_ether
+
+# Ignore interfaces with the NOAUTO keyword
+autoif $ifn || exit 0
+
+if [ -n "$1" ]; then
+	usage
+fi
+
+case ${startstop} in
+[Ss][Tt][Aa][Rr][Tt] | '')
+	if [ -x /usr/bin/grep ]; then
+		if ifconfig $ifn | grep -s netmask > /dev/null 2>&1; then
+		    # Interface is already up, so ignore it.
+		    exit 0
+		fi
+	fi
+
+	/etc/rc.d/netif start $ifn
+
+	# Do route configuration if needed.
+	# XXX: should probably do this by calling rc.d/routing.
+	if [ -n "`ifconfig_getargs $ifn`" ]; then
+		if ! dhcpif $ifn; then
+			setup_routes
+		fi
+	fi
+
+	# IPv6 setup
+	if checkyesno ipv6_enable; then
+		network6_interface_setup $ifn
+	fi
+	;;
+
+# Stop the interface
+[Ss][Tt][Oo][Pp])
+	if [ -n "`ifconfig_getargs $ifn`" ]; then
+		if ! dhcpif $ifn; then
+			remove_routes
+		fi
+	fi
+
+	/etc/rc.d/netif stop $ifn
+
+	# clean ARP table
+	arp -d -a
+
+	# Clean the routing table
+	if checkyesno removable_route_flush; then
+		route -n flush -inet > /dev/null
+	fi
+	;;
+*)
+	usage
+esac

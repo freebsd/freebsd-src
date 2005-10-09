@@ -1,0 +1,65 @@
+$FreeBSD$
+
+This contains a couple of examples for using the portal filing system.
+
+The portal file system provides a way of obtaining a file descriptor
+to a filesystem object (i.e. something that is accessed by open(2),
+pipe(2), socket(2) or socketpair(2)) via the filesystem namespace.
+At present the only file descriptor supported are TCP sockets and
+files.
+
+NOTE!!!! The portal file system is experimental in nature and should
+not be considered secure, use with caution.
+
+First off mount the filesystem using something like:
+
+# mount_portalfs /usr/share/examples/portal/portal.conf /p
+
+Then you should be able to do things like
+# cat /p/tcp/localhost/daytime
+Sun Nov 22 17:50:09 1998
+(assuming inetd is running the daytime service, by default it is off)
+
+Welcome to FreeBSD!
+
+# mkdir -p /tmp/root
+# cd /tmp/root
+# mkdir bin p
+# cp /bin/sh /bin/cat bin
+# mount_portalfs /usr/share/examples/portal/portal.conf /tmp/root/p
+# chroot /tmp/root
+# pwd
+/
+# echo *
+bin p
+# cat /etc/motd
+cat: /etc/motd: No such file or directory
+# cat /p/fs/etc/motd
+FreeBSD 2.2.6-RELEASE (COMPUTER) #0: Sat Aug 22 17:11:37 BST 1998
+
+Welcome to FreeBSD!
+
+Finally, a very simple example of the listening server is available,
+fire up two xterms. In the first
+
+xterm-1$ cat /p/tcplisten/ANY/6666
+(the ANY is a wildcard just like using INADDR_ANY, any resolvable host
+can be used).
+
+In the second xterm
+xterm-2$ echo "hello there" >/p/tcp/localhost/6666
+
+You should see the "hello there" string appear on the first terminal.
+
+Unprivilged users can't create servers on privalged ports.
+xterm-1$ cat /p/tcplisten/ANY/666
+cat: /p/tcplisten/ANY/666: Operation not permitted
+
+but root can
+xterm-1# cat /p/tcplisten/ANY/666
+
+In the second
+xterm-2$ echo "hello there" >/p/tcp/localhost/666
+should produce the expected response.
+
+You can also swap the client/server read and write commands etc.

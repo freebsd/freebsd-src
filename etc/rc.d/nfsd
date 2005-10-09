@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# $NetBSD: nfsd,v 1.4 2001/06/16 06:13:10 lukem Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: nfsd
+# REQUIRE: mountd
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="nfsd"
+rcvar=`set_rcvar nfs_server`
+command="/usr/sbin/${name}"
+
+load_rc_config $name
+command_args="${nfs_server_flags}"
+start_precmd="nfsd_precmd"
+sig_stop="USR1"
+
+nfsd_precmd()
+{
+	if ! sysctl vfs.nfsrv >/dev/null 2>&1; then
+		force_depend nfsserver || return 1
+	fi
+
+	if ! checkyesno rpcbind_enable  && \
+	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend rpcbind || return 1
+	fi
+
+	if ! checkyesno mountd_enable  && \
+	    ! /etc/rc.d/mountd forcestatus 1>/dev/null 2>&1
+	then
+		force_depend mountd || return 1
+	fi
+
+	if checkyesno nfs_reserved_port_only; then
+		echo 'NFS on reserved port only=YES'
+		sysctl vfs.nfsrv.nfs_privport=1 > /dev/null
+	fi
+	return 0
+}
+
+run_rc_command "$1"

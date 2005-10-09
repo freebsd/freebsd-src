@@ -1,0 +1,24 @@
+*** files.newconf.orig	Sun Jun 25 02:17:29 1995
+--- files.newconf	Sun Jun 25 02:19:10 1995
+***************
+*** 161,166 ****
+--- 161,179 ----
+  file	netinet/ip_input.c	inet
+  file	netinet/ip_mroute.c	inet
+  file	netinet/ip_output.c	inet
++ file	netinet/ip_fil.c	ipfilter
++ file	netinet/fil.c		ipfilter
++ file	netinet/ip_nat.c	ipfilter
++ file	netinet/ip_frag.c	ipfilter
++ file	netinet/ip_state.c	ipfilter
++ file	netinet/ip_proxy.c	ipfilter
++ file	netinet/ip_auth.c	ipfilter
++ file	netinet/ip_log.c	ipfilter
++ file	netinet/mlf_ipl.c	ipfilter
++ file	netinet/ip_scan.c	ipfilter
++ file	netinet/ip_sync.c	ipfilter
++ file	netinet/ip_pool.c	ipfilter_pool
++ file	netinet/ip_rules.c	ipfilter_compiled
+  file	netinet/raw_ip.c	inet
+  file	netinet/tcp_debug.c	inet
+  file	netinet/tcp_input.c	inet

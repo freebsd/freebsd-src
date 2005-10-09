@@ -1,0 +1,10 @@
+$FreeBSD$
+.cvsignore
+driver.c
+driver_bsd.c
+driver_madwifi.c
+driver_prism54.c
+l2_packet.c
+prism54.h
+priv_netlink.h
+wireless_copy.h

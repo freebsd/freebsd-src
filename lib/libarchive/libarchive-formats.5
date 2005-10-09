@@ -1,0 +1,244 @@
+.\" Copyright (c) 2003-2004 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 27, 2004
+.Dt libarchive-formats 3
+.Os
+.Sh NAME
+.Nm libarchive-formats
+.Nd archive formats supported by the libarchive library
+.Sh DESCRIPTION
+The
+.Xr libarchive 3
+library reads and writes a variety of streaming archive formats.
+Generally speaking, all of these archive formats consist of a series of
+.Dq entries .
+Each entry stores a single file system object, such as a file, directory,
+or symbolic link.
+.Pp
+The following provides a brief description of each format supported
+by libarchive, with some information about recognized extensions or
+limitations of the current library support.
+Note that just because a format is supported by libarchive does not
+imply that a program that uses libarchive will support that format.
+Applications that use libarchive specify which formats they wish
+to support.
+.Ss Tar Formats
+The
+.Xr libarchive 3
+library can read most tar archives.
+However, it only writes POSIX-standard
+.Dq ustar
+and
+.Dq pax interchange
+formats.
+.Pp
+All tar formats store each entry in one or more 512-byte records.
+The first record is used for file metadata, including filename,
+timestamp, and mode information, and the file data is stored in
+subsequent records.
+Later variants have extended this by either appropriating undefined
+areas of the header record, extending the header to multiple records,
+or by storing special entries that modify the interpretation of
+subsequent entries.
+.Pp
+.Bl -tag -width indent
+.It Cm gnutar
+The
+.Xr libarchive 3
+library can read GNU-format tar archives.
+It currently supports the most popular GNU extensions, including
+modern long filename and linkname support, as well as atime and ctime data.
+The libarchive library does not support sparse files, multi-volume
+archives, nor the old GNU long filename format.
+.It Cm pax
+The
+.Xr libarchive 3
+library can read and write POSIX-compliant pax interchange format
+archives.
+Pax interchange format archives are an extension of the older ustar
+format that adds a separate entry with additional attributes stored
+as key/value pairs.
+The presence of this additional entry is the only difference between
+pax interchange format and the older ustar format.
+The extended attributes are of unlimited length and are stored
+as UTF-8 Unicode strings.
+Keywords defined in the standard are in all lowercase; vendors are allowed
+to define custom keys by preceding them with the vendor name in all uppercase.
+When writing pax archives, libarchive uses many of the SCHILY keys
+defined by Joerg Schilling's
+.Dq star
+archiver.
+The libarchive library can read most of the SCHILY keys.
+It ignores any keywords that it does not understand.
+.It Cm restricted pax
+The libarchive library can also write pax archives in which it
+attempts to suppress the extended attributes entry whenever
+possible.
+The result will be identical to a ustar archive unless the
+extended attributes entry is required to store a long file
+name, long linkname, extended ACL, file flags, or if any of the standard
+ustar data (user name, group name, UID, GID, etc) cannot be fully
+represented in the ustar header.
+In all cases, the result can be dearchived by any program that
+can read POSIX-compliant pax interchange format archives.
+.It Cm ustar
+The libarchive library can both read and write this format.
+This format has the following limitations:
+.Bl -bullet -compact
+.It
+Device major and minor numbers are limited to 21 bits.
+Nodes with larger numbers will not be added to the archive.
+.It
+Path names in the archive are limited to 255 bytes.
+(Shorter if there is no / character in exactly the right place.)
+.It
+Symbolic links and hard links are stored in the archive with
+the name of the referenced file.
+This name is limited to 100 bytes.
+.It
+Extended attributes, file flags, and other extended
+security information cannot be stored.
+.It
+Archive entries are limited to 2 gigabytes in size.
+.El
+Note that the pax interchange format has none of these restrictions.
+.El
+.Pp
+The libarchive library can also read a variety of commonly-used extensions to
+the basic tar format.
+In particular, it supports base-256 values in certain numeric fields.
+This essentially removes the limitations on file size, modification time,
+and device numbers.
+.Pp
+The first tar program appeared in Sixth Edition Unix (circa 1976).
+This makes the tar format one of the oldest and most widely-supported
+archive formats.
+The first official standard for the tar file format was the
+.Dq ustar
+(Unix Standard Tar) format defined by POSIX in 1988.
+POSIX.1-2001 extended the ustar format to create the
+.Dq pax interchange
+format.
+There have also been many custom variations.
+.Ss Cpio Formats
+The libarchive library can read a number of common cpio variants and can write
+.Dq odc
+format archives.
+A cpio archive stores each entry as a fixed-size header followed
+by a variable-length filename and variable-length data.
+Unlike tar, cpio does only minimal padding of the header or file data.
+There are a variety of cpio formats, which differ primarily in
+how they store the initial header: some store the values as
+octal or hexadecimal numbers in ASCII, others as binary values of
+varying byte order and length.
+.Bl -tag -width indent
+.It Cm binary
+The libarchive library can read both big-endian and little-endian
+variants of the original binary cpio format.
+This format used 32-bit binary values for file size and mtime,
+and 16-bit binary values for the other fields.
+.It Cm odc
+The libarchive library can both read and write this
+POSIX-standard format.
+This format stores the header contents as octal values in ASCII.
+It is standard, portable, and immune from byte-order confusion.
+File sizes and mtime are limited to 33 bits (8GB file size),
+other fields are limited to 18 bits.
+.It Cm SVR4
+The libarchive library can read both CRC and non-CRC variants of
+this format.
+The SVR4 format uses eight-digit hexadecimal values for
+all header fields.
+This limits file size to 4GB, and also limits the mtime and
+other fields to 32 bits.
+The SVR4 format can optionally include a CRC of the file
+contents, although libarchive does not currently verify this CRC.
+.El
+.Pp
+Cpio is an old format that was widely used because of its simplicity
+and its support for very long filenames.
+Unfortunately, it has many limitations that make it unsuitable
+for widespread use.
+Only the POSIX format permits files over 4GB, and its 18-bit
+limit for most other fields makes it unsuitable for modern systems.
+In addition, cpio formats only store numeric UID/GID values (not
+usernames and group names), which can make it very difficult to correctly
+transfer archives across systems.
+Finally, there is no good way to extend the format, which means that
+ACLs, file flags, character encoding information, and non-standard file
+types can not be added except by breaking compatibility with existing
+implementations.
+.Ss Shar Formats
+A
+.Dq shell archive
+is a shell script that, when executed on a POSIX-compliant
+system, will recreate a collection of file system objects.
+The libarchive library can write two different kinds of shar archives:
+.Bl -tag -width indent
+.It Cm shar
+The traditional shar format uses a limited set of POSIX
+commands, including
+.Xr echo 1 ,
+.Xr mkdir 1 ,
+and
+.Xr sed 1 .
+It is suitable for portably archiving small collections of plain text files.
+However, it is not generally well-suited for large archives
+(many implementations of
+.Xr sh 1
+have limits on the size of a script) nor should it be used with non-text files.
+.It Cm shardump
+This format is similar to shar but encodes files using
+.Xr uuencode 1
+so that the result will be a plain text file regardless of the file contents.
+It also includes additional shell commands that attempt to reproduce as
+many file attributes as possible, including owner, mode, and flags.
+The additional commands used to restore file attributes make
+shardump archives less portable than plain shar archives.
+.El
+.Ss ISO9660 format
+Libarchive can read and extract from files containing ISO9660-compliant
+CDROM images.
+It also has partial support for Rockridge extensions.
+In many cases, this can remove the need to burn a physical CDROM.
+It also avoids security and complexity issues that come with
+virtual mounts and loopback devices.
+.Ss Zip format
+Libarchive can extract from most zip format archives.
+It currently only supports uncompressed entries and entries
+compressed with the
+.Dq deflate
+algorithm.
+Older zip compression algorithms are not supported.
+.Sh SEE ALSO
+.Xr cpio 1 ,
+.Xr mkisofs 1 ,
+.Xr shar 1 ,
+.Xr tar 1 ,
+.Xr zip 1 ,
+.Xr zlib 3 ,
+.Xr tar 5

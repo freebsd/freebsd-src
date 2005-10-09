@@ -1,0 +1,34 @@
+Unused message id's (this is okay):
+001
+047
+050
+051
+052
+081
+176
+229
+288
+=========================
+MISSING ERROR MESSAGES (Please add!):
+=========================
+Extra error messages (just delete them):
+=========================
+MESSAGES WITH THE SAME MESSAGE ID's (FIX!):
+=========================
+Duplicate messages, both id and message (this is okay):
+   2 209 "Le fichier est vide"
+   2 304 "L'expansion du shell a ‚chou‚"
+=========================
+Duplicate messages, just message (this is okay):
+   2 %s : Fichier de r‚cup‚ration malform‚X
+   2 %s: %lu lignes, %lu caractŠresX
+   2 Aucune connexion n'‚tant effectu‚e, impossible d'annulerX
+   2 Copie en cours du fichier pour r‚cup‚ration...X
+   2 D‚finition : l'option %s n'est pas bool‚enneX
+   2 Impossible de r‚cup‚rer les modifications si la session ‚choueX
+   2 InterrompuX
+   2 La recherche est revenue … son point de d‚partX
+   2 Pas de motif de recherche pr‚c‚dentX
+   3 %s: supprimerX
+   4 Utilisation : %sX
+=========================

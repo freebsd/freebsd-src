@@ -1,0 +1,109 @@
+.\" Copyright (c) 1997
+.\"	Steve Passe <fsmp@FreeBSD.ORG>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the developer may NOT be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 17, 2004
+.Dt SMP 4
+.Os
+.Sh NAME
+.Nm SMP
+.Nd description of the FreeBSD Symmetric Multi-Processor kernel
+.Sh SYNOPSIS
+.Cd options SMP
+.Sh DESCRIPTION
+The
+.Nm
+kernel implements symmetric multi-processor support.
+.Sh COMPATIBILITY
+Support for multi-processor systems is present for all Tier-1
+architectures on
+.Fx .
+Currently, this includes alpha, amd64, i386, ia64, and sparc64.
+Support is enabled using
+.Cd options SMP .
+It is permissible to use the SMP kernel configuration on non-SMP equipped
+motherboards.
+.Sh I386 NOTES
+For i386 systems, the
+.Nm
+kernel supports motherboards that follow the Intel MP specification,
+version 1.4.
+In addition to
+.Cd options SMP ,
+i386 also requires
+.Cd device apic .
+The
+.Xr mptable 1
+command may be used to view the status of multi-processor support.
+.Pp
+The number of CPUs detected by the system is available in
+the read-only sysctl variable
+.Va hw.ncpu .
+.Pp
+.Fx
+allows specific CPUs on a multi-processor system to be disabled.
+The sysctl variable
+.Va machdep.hlt_cpus
+is an integer bitmask denoting CPUs to halt, counting from 0.
+Setting a bit to 1 will result in the corresponding CPU being
+disabled.
+.Pp
+.Fx
+supports hyperthreading on Intel CPU's on the i386 platform.
+Since using logical CPUs can cause performance penalties under certain loads,
+the logical CPUs can be disabled by setting the
+.Va machdep.hlt_logical_cpus
+sysctl to one.
+.Sh SEE ALSO
+.Xr mptable 1 ,
+.Xr sysctl 8 ,
+.Xr condvar 9 ,
+.Xr msleep 9 ,
+.Xr mtx_pool 9 ,
+.Xr mutex 9 ,
+.Xr sema 9 ,
+.Xr sx 9
+.Sh HISTORY
+The
+.Nm
+kernel's early history is not (properly) recorded.
+It was developed
+in a separate CVS branch until April 26, 1997, at which point it was
+merged into 3.0-current.
+By this date 3.0-current had already been
+merged with Lite2 kernel code.
+.Pp
+.Fx 5.0
+introduced support for a host of new synchronization primitives, and
+a move towards fine-grained kernel locking rather than reliance on
+a Giant kernel lock.
+The SMPng Project relied heavily on the support of BSDi, who provided
+reference source code from the fine-grained SMP implementation found
+in
+.Bsx .
+.Pp
+.Fx 5.0
+also introduced support for SMP on the alpha, ia64, and sparc64 architectures.
+.Sh AUTHORS
+.An Steve Passe Aq fsmp@FreeBSD.org

@@ -1,0 +1,94 @@
+#!/usr/bin/perl -w
+
+# $Id: cidrexpand,v 8.4 2002/11/22 21:13:14 ca Exp $
+#
+# v 0.4
+#
+# 17 July 2000 Derek J. Balling (dredd@megacity.org)
+# 
+# Acts as a preparser on /etc/mail/access_db to allow you to use address/bit
+# notation. 
+#
+# If you have two overlapping CIDR blocks with conflicting actions
+# e.g.   10.2.3.128/25 REJECT and 10.2.3.143 ACCEPT
+# make sure that the exceptions to the more general block are specified
+# later in the access_db.
+#
+# the -r flag to makemap will make it "do the right thing"
+#
+# Modifications
+# -------------
+# 26 Jul 2001 Derek Balling (dredd@megacity.org)
+#     Now uses Net::CIDR because it makes life a lot easier.
+#
+#  5 Nov 2002 Richard Rognlie (richard@sendmail.com)
+#     Added code to deal with the prefix tags that may now be included in
+#     the access_db
+#
+#     Added clarification in the notes for what to do if you have 
+#     exceptions to a larger CIDR block.
+#
+# usage: 
+#  cidrexpand < /etc/mail/access | makemap -r hash /etc/mail/access
+#
+#
+# Report bugs to: <dredd@megacity.org>
+#
+
+
+use strict;
+use Net::CIDR;
+
+my $spaceregex = '\s+';
+
+while (my $arg = shift @ARGV)
+{
+    if ($arg eq '-t')
+    {
+	$spaceregex = shift;
+    }
+}
+
+use strict;
+
+my $SENDMAIL = 1;
+
+while (<>)
+{
+    my ($prefix,$left,$right,$space);
+
+    if (! /^(|\S\S*:)(\d+\.){3}\d+\/\d\d?$spaceregex.*/ )
+    {
+	print;
+    }
+    else
+    {
+	($prefix,$left,$space,$right) = /^(|\S\S*:)((?:\d+\.){3}\d+\/\d\d?)($spaceregex)(.*)$/;
+	
+	my @new_lefts = expand_network($left);
+	foreach my $nl (@new_lefts)
+	{
+	    print "$prefix$nl$space$right\n";
+	}
+    }
+}
+    
+sub expand_network
+{
+    my $left_input = shift;
+    my @rc = ($left_input);
+    my ($network,$mask) = split /\//, $left_input;
+    if (defined $mask)
+    {
+	my @parts = split /\./, $network;
+	while ($#parts < 3)
+	{
+	    push @parts, "0";
+	}
+	my $clean_input = join '.', @parts;
+	$clean_input .= "/$mask";
+	my @octets = Net::CIDR::cidr2octets($clean_input);
+	@rc = @octets;
+    }
+    return @rc;
+}

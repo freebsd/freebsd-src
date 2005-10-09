@@ -1,0 +1,286 @@
+.\"	$KAME: ipsec_set_policy.3,v 1.15 2001/08/17 07:21:36 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 5, 1998
+.Dt IPSEC_SET_POLICY 3
+.Os
+.Sh NAME
+.Nm ipsec_set_policy ,
+.Nm ipsec_get_policylen ,
+.Nm ipsec_dump_policy
+.Nd manipulate IPsec policy specification structure from readable string
+.\"
+.Sh LIBRARY
+.Lb libipsec
+.Sh SYNOPSIS
+.In netinet6/ipsec.h
+.Ft "char *"
+.Fn ipsec_set_policy "char *policy" "int len"
+.Ft int
+.Fn ipsec_get_policylen "char *buf"
+.Ft "char *"
+.Fn ipsec_dump_policy "char *buf" "char *delim"
+.Sh DESCRIPTION
+The
+.Fn ipsec_set_policy
+function generates IPsec policy specification structure, namely
+.Li struct sadb_x_policy
+and/or
+.Li struct sadb_x_ipsecrequest
+from human-readable policy specification.
+Policy specification must be given as C string
+.Fa policy
+and length
+.Fa len
+of
+.Fa policy .
+The
+.Fn ipsec_set_policy
+function will return the buffer of IPsec policy specification structure.
+The buffer is dynamically allocated, and must be freed by the caller by calling
+.Xr free 3 .
+.Pp
+You may want the length of the generated buffer such when calling
+.Xr setsockopt 2 .
+The
+.Fn ipsec_get_policylen
+function will return the length.
+.Pp
+The
+.Fn ipsec_dump_policy
+function converts IPsec policy structure into readable form.
+Therefore,
+.Fn ipsec_dump_policy
+can be regarded as inverse conversion of
+.Fn ipsec_set_policy .
+.Fa buf
+points to an IPsec policy structure,
+.Li struct sadb_x_policy .
+.Fa delim
+is a delimiter string, which is usually a blank character.
+If you set
+.Fa delim
+to
+.Dv NULL ,
+single whitespace is assumed.
+The
+.Fn ipsec_dump_policy
+function returns a pointer to dynamically allocated string.
+It is caller's responsibility to reclaim the region, by using
+.Xr free 3 .
+.Pp
+.Fa policy
+is formatted as either of the following:
+.Bl -tag  -width "discard"
+.It Ar direction Li discard
+.Ar direction
+must be
+.Li in
+or
+.Li out .
+.Ar direction
+specifies which direction the policy needs to be applied.
+With
+.Li discard
+policy, packets will be dropped if they match the policy.
+.It Ar direction Li entrust
+.Li entrust
+means to consult to SPD defined by
+.Xr setkey 8 .
+.It Ar direction Li bypass
+.Li bypass
+means to be bypassed the IPsec processing.
+(packet will be transmitted in clear).
+This is for privileged socket.
+.It Xo
+.Ar direction
+.Li ipsec
+.Ar request ...
+.Xc
+.Li ipsec
+means that the matching packets are subject to IPsec processing.
+.Li ipsec
+can be followed by one or more
+.Ar request
+string, which is formatted as below:
+.Bl -tag  -width "discard"
+.It Xo
+.Ar protocol
+.Li /
+.Ar mode
+.Li /
+.Ar src
+.Li -
+.Ar dst
+.Op Ar /level
+.Xc
+.Ar protocol
+is either
+.Li ah ,
+.Li esp
+or
+.Li ipcomp .
+.Pp
+.Ar mode
+is either
+.Li transport
+or
+.Li tunnel .
+.Pp
+.Ar src
+and
+.Ar dst
+specifies IPsec endpoint.
+.Ar src
+always means
+.Dq sending node
+and
+.Ar dst
+always means
+.Dq receiving node .
+Therefore, when
+.Ar direction
+is
+.Li in ,
+.Ar dst
+is this node
+and
+.Ar src
+is the other node
+(peer).
+If
+.Ar mode
+is
+.Li transport ,
+Both
+.Ar src
+and
+.Ar dst
+can be omitted.
+.Pp
+.Ar level
+must be set to one of the following:
+.Li default , use , require
+or
+.Li unique .
+.Li default
+means that the kernel should consult the system default policy
+defined by
+.Xr sysctl 8 ,
+such as
+.Li net.inet.ipsec.esp_trans_deflev .
+See
+.Xr ipsec 4
+regarding the system default.
+.Li use
+means that a relevant SA can be used when available,
+since the kernel may perform IPsec operation against packets when possible.
+In this case, packets can be transmitted in clear
+(when SA is not available),
+or encrypted
+(when SA is available).
+.Li require
+means that a relevant SA is required,
+since the kernel must perform IPsec operation against packets.
+.Li unique
+is the same as
+.Li require ,
+but adds the restriction that the SA for outbound traffic is used
+only for this policy.
+You may need the identifier in order to relate the policy and the SA
+when you define the SA by manual keying.
+You can put the decimal number as the identifier after
+.Li unique
+like
+.Li unique : number .
+.Li number
+must be between 1 and 32767 .
+If the
+.Ar request
+string is kept unambiguous,
+.Ar level
+and slash prior to
+.Ar level
+can be omitted.
+However, it is encouraged to specify them explicitly
+to avoid unintended behaviors.
+If
+.Ar level
+is omitted, it will be interpreted as
+.Li default .
+.El
+.El
+.Pp
+Note that there is a bit difference of specification from
+.Xr setkey 8 .
+In specification by
+.Xr setkey 8 ,
+both entrust and bypass are not used.
+Refer to
+.Xr setkey 8
+for detail.
+.Pp
+Here are several examples
+(long lines are wrapped for readability):
+.Bd -literal -offset indent
+in discard
+out ipsec esp/transport//require
+in ipsec ah/transport//require
+out ipsec esp/tunnel/10.1.1.2-10.1.1.1/use
+in ipsec ipcomp/transport//use
+        esp/transport//use
+.Ed
+.Sh RETURN VALUES
+The
+.Fn ipsec_set_policy
+function returns a pointer to the allocated buffer of policy specification if
+successful; otherwise a NULL pointer is returned.
+The
+.Fn ipsec_get_policylen
+function returns with positive value
+(meaning the buffer size)
+on success, and negative value on errors.
+The
+.Fn ipsec_dump_policy
+function returns a pointer to dynamically allocated region on success,
+and
+.Dv NULL
+on errors.
+.Sh SEE ALSO
+.Xr ipsec_strerror 3 ,
+.Xr ipsec 4 ,
+.Xr setkey 8
+.Sh HISTORY
+The functions first appeared in WIDE/KAME IPv6 protocol stack kit.
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initially integrated into
+.Fx 4.0

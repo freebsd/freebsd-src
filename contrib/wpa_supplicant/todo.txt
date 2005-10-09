@@ -1,0 +1,54 @@
+To do:
+- add WPA support to Linux Wireless Extensions
+- add support for other drivers
+- implement GUI for WPA Supplicant/Xsupplicant/iwconfig/iwlist
+  (easy to use configuration and network stats, etc.)
+- add support for opportunistic PMKSA caching
+- hostap: try other roaming modes
+  NOTE: current mode (manual roaming) does not really roam at all..
+  Firmware did not notice the current AP disappearing..
+- EAP-MSCHAPv2: add support for password changing
+- add support for WPA with ap_scan=0 (update selected cipher etc. based on
+  AssocInfo; make sure these match with configuration)
+- add driver interface for using wpa_supplicant with wired interface
+  (or a separate program using EAPOL library)
+- wpa_supplicant.conf g+rw so that frontend can change wpa_supplicant.conf
+  and RECONFIG wpa_supplicant  (?)
+	(or wpa_supplicant changes .conf and ctrl interface gets support for
+	changing config?)
+- optional security separation (build time option): run EAPOL state machines
+  as non-root (need to add something like socketpair between privileged root
+  process and non-root handler; send EAPOL packets between processes
+  and send keying data from non-root -> privileged)
+  EAPOL-Key processing (WPA & WEP keys) could be in privileged part
+  at least in the beginning; some parts might end up being moved to
+  non-root part eventually
+- consider closing smart card / PCSC connection when EAP-SIM/EAP-AKA
+  authentication has been completed (cache scard data based on serial#(?)
+  and try to optimize next connection if the same card is present for next
+  auth)
+- EAP-AKA: AT_CHECKCODE
+- EAP-SIM/AKA: AT_RESULT_IND
+- abort auth if EAP method initialization fails and there no other
+  accepted methods (i.e., do not send NAK for the same method that just
+  failed)
+- on disconnect event, could try to associate with another AP if one is
+  present in scan results; would need to update scan results periodically..
+- add flag scan_requested and only try to re-associate if this is set when
+  new scan results are received; this would allow background scans without
+  triggering re-assoc..
+- if driver/hw is not WPA2 capable, must remove WPA_PROTO_RSN flag from
+  ssid->proto fields to avoid detecting downgrade attacks when the driver
+  is not reporting RSN IE, but msg 3/4 has one
+- read CA certs from PFX file
+- EAP-SIM/AKA: if SIM reader initialization fails, do not start authentication
+- Cisco AP and non-zero keyidx for unicast -> map to broadcast
+  (actually, this already works with driver_ndis; so maybe just change
+  driver_*.c to do the mapping for drivers that cannot handle non-zero keyidx
+  for unicast)
+- IEEE 802.1X and key update with driver_ndis?? wpa_supplicant did not seem
+  to see unencrypted EAPOL-Key frames at all..
+- update developer.txt to match with current implementation
+  (driver API updates, EAP methods)
+- driver_wext.c and driver that does not support WPA -> fix plaintext, WEP, and
+  IEEE 802.1X operation (e.g., use capabilities to report no support for WPA)

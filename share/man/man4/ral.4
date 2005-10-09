@@ -1,0 +1,196 @@
+.\" Copyright (c) 2005
+.\"     Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 16, 2005
+.Os
+.Dt RAL 4
+.Sh NAME
+.Nm ral
+.Nd "Ralink Technology RT2500 IEEE 802.11 driver"
+.Sh SYNOPSIS
+To compile support for the
+.Nm
+driver into your kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ral"
+.Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the
+.Nm
+driver at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ral_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports PCI/CardBus wireless adapters based on the Ralink RT2500
+chipset.
+.Pp
+The RT2500 chipset consists of two integrated chips, a RT2560 MAC/BBP and a
+radio transceiver (the model of which depends on the card revision).
+.Pp
+The RT2522, RT2523, RT2524, RT2525, RT2525e and RT2526 radio transceivers
+operate in the 2.4GHz band (802.11b/g) whereas the RT5222 is a dual-band radio
+transceiver that can operate in the 2.4GHz and 5.2GHz bands (802.11a).
+.Pp
+The transmit speed is user-selectable or can be adapted automatically by the
+driver depending on the received-signal strength.
+.Sh HARDWARE
+The following adapters should work:
+.Pp
+.Bl -column -compact ".Li Atlantis Land A02-PCM-W54" "Bus"
+.It Em Card Ta Em Bus
+.It Li "A-Link WL54H" Ta PCI
+.It Li "A-Link WL54PC" Ta CardBus
+.It Li "Amigo AWI-914W" Ta CardBus
+.It Li "Amigo AWI-922W" Ta mini-PCI
+.It Li "Amigo AWI-926W" Ta PCI
+.It Li "AMIT WL531C" Ta CardBus
+.It Li "AMIT WL531P" Ta PCI
+.It Li "AOpen AOI-831" Ta PCI
+.It Li "ASUS WL-107G" Ta CardBus
+.It Li "ASUS WL-130g" Ta PCI
+.It Li "Atlantis Land A02-PCI-W54" Ta PCI
+.It Li "Atlantis Land A02-PCM-W54" Ta CardBus
+.It Li "Belkin F5D7000 v3" Ta PCI
+.It Li "Belkin F5D7010 v2" Ta CardBus
+.It Li "Billionton MIWLGRL" Ta mini-PCI
+.It Li "Canyon CN-WF511" Ta PCI
+.It Li "Canyon CN-WF513" Ta CardBus
+.It Li "CC&C WL-2102" Ta CardBus
+.It Li "CNet CWC-854" Ta CardBus
+.It Li "CNet CWP-854" Ta PCI
+.It Li "Compex WL54G" Ta CardBus
+.It Li "Compex WLP54G" Ta PCI
+.It Li "Conceptronic C54RC" Ta CardBus
+.It Li "Conceptronic C54Ri" Ta PCI
+.It Li "Digitus DN-7001G-RA" Ta CardBus
+.It Li "Digitus DN-7006G-RA" Ta PCI
+.It Li "E-Tech WGPC02" Ta CardBus
+.It Li "E-Tech WGPI02" Ta PCI
+.It Li "Edimax EW-7108PCg" Ta CardBus
+.It Li "Edimax EW-7128g" Ta PCI
+.It Li "Eminent EM3036" Ta CardBus
+.It Li "Eminent EM3037" Ta PCI
+.It Li "Encore ENLWI-G-RLAM" Ta PCI
+.It Li "Encore ENPWI-G-RLAM" Ta CardBus
+.It Li "Fiberline WL-400P" Ta PCI
+.It Li "Fibreline WL-400X" Ta CardBus
+.It Li "Gigabyte GN-WIKG" Ta mini-PCI
+.It Li "Gigabyte GN-WMKG" Ta CardBus
+.It Li "Gigabyte GN-WPKG" Ta PCI
+.It Li "Hawking HWC54GR" Ta CardBus
+.It Li "Hawking HWP54GR" Ta PCI
+.It Li "iNexQ CR054g-009 (R03)" Ta PCI
+.It Li "JAHT WN-4054P" Ta CardBus
+.It Li "JAHT WN-4054PCI" Ta PCI
+.It Li "LevelOne WNC-0301 v2" Ta PCI
+.It Li "LevelOne WPC-0301 v2" Ta CardBus
+.It Li "Linksys WMP54G v4" Ta PCI
+.It Li "Micronet SP906GK" Ta PCI
+.It Li "Micronet SP908GK V3" Ta CardBus
+.It Li "Minitar MN54GCB-R" Ta CardBus
+.It Li "Minitar MN54GPC-R" Ta PCI
+.It Li "MSI CB54G2" Ta CardBus
+.It Li "MSI MP54G2" Ta mini-PCI
+.It Li "MSI PC54G2" Ta PCI
+.It Li "OvisLink EVO-W54PCI" Ta PCI
+.It Li "PheeNet HWL-PCIG/RA" Ta PCI
+.It Li "Pro-Nets CB80211G" Ta CardBus
+.It Li "Pro-Nets PC80211G" Ta PCI
+.It Li "Repotec RP-WB7108" Ta CardBus
+.It Li "Repotec RP-WP0854" Ta PCI
+.It Li "SATech SN-54C" Ta CardBus
+.It Li "SATech SN-54P" Ta PCI
+.It Li "Sitecom WL-112" Ta CardBus
+.It Li "Sitecom WL-115" Ta PCI
+.It Li "SparkLAN WL-685R" Ta CardBus
+.It Li "Surecom EP-9321-g" Ta PCI
+.It Li "Surecom EP-9321-g1" Ta PCI
+.It Li "Surecom EP-9428-g" Ta CardBus
+.It Li "Sweex LC500050" Ta CardBus
+.It Li "Sweex LC700030" Ta PCI
+.It Li "TekComm NE-9321-g" Ta PCI
+.It Li "TekComm NE-9428-g" Ta CardBus
+.It Li "Unex CR054g-R02" Ta PCI
+.It Li "Unex MR054g-R02" Ta CardBus
+.It Li "Zinwell ZWX-G160" Ta CardBus
+.It Li "Zinwell ZWX-G360" Ta mini-PCI
+.It Li "Zinwell ZWX-G361" Ta PCI
+.It Li "Zonet ZEW1500" Ta CardBus
+.It Li "Zonet ZEW1600" Ta PCI
+.El
+.Pp
+An up to date list can be found at
+.Pa http://damien.bergamini.free.fr/ral/list.html .
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Pp
+.Dl "ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00"
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
+.Pp
+Join a specific BSS network with 40-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+    wepmode on wepkey 0x1234567890
+.Ed
+.Pp
+Join a specific BSS network with 104-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+    wepmode on wepkey 0x01020304050607080910111213
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ral%d: device timeout"
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cardbus 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr wlan 4 ,
+.Xr ifconfig 8
+.Rs
+.%T "Ralink Technology"
+.%O http://www.ralinktech.com/
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.7 .
+.Sh CAVEATS
+PCI
+.Nm
+adapters seem to require a PCI 2.2 compliant motherboard and will likely not
+work with PCI 2.1 only motherboard.
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq damien@FreeBSD.org .

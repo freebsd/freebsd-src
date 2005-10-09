@@ -1,0 +1,87 @@
+# $FreeBSD$
+
+#Process this file with autoconf to produce a configure script.
+AC_INIT(libarchive, @VERSION@, kientzle@freebsd.org)
+AM_INIT_AUTOMAKE(libarchive, @VERSION@)
+AC_CONFIG_SRCDIR([archive_write_set_format_ustar.c])
+AM_CONFIG_HEADER([config.h])
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_RANLIB
+AC_CHECK_TOOL([STRIP],[strip])
+
+# Checks for libraries.
+# Since libarchive is a library, we don't need this for linkage,
+# but we do need it for later ACL function tests.
+AC_CHECK_LIB(acl,acl_set_file)
+
+# Checks for header files.
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS([bzlib.h errno.h ext2fs/ext2_fs.h fcntl.h])
+AC_CHECK_HEADERS([inttypes.h limits.h linux/ext2_fs.h])
+AC_CHECK_HEADERS([stdint.h stdlib.h string.h sys/acl.h sys/ioctl.h])
+AC_CHECK_HEADERS([sys/time.h unistd.h wchar.h zlib.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_UID_T
+AC_TYPE_MODE_T
+AC_CHECK_TYPE(off_t, [int64_t])
+AC_TYPE_SIZE_T
+AC_CHECK_TYPE(id_t, [unsigned long])
+
+#
+# If any of the common 64-bit types is defined, set "int64_t"
+#
+AC_CHECK_TYPE(__int64_t, [long long])
+AC_CHECK_TYPE(_int64_t, [__int64_t])
+AC_CHECK_TYPE(int64_t, [_int64_t])
+
+# Likewise, consider defining "intmax_t" in terms of int64_t
+AC_CHECK_TYPE(intmax_t, [int64_t])
+
+#
+# If any of the common 64-bit unsigned types is defined, set "uint64_t"
+#
+AC_CHECK_TYPE(__uint64_t, [unsigned long long])
+AC_CHECK_TYPE(_uint64_t, [__uint64_t])
+AC_CHECK_TYPE(u_int64_t, [_uint64_t])
+AC_CHECK_TYPE(uint64_t, [u_int64_t])
+
+# Likewise, consider defining "uintmax_t" in terms of uint64_t
+AC_CHECK_TYPE(uintmax_t, [uint64_t])
+
+AC_CHECK_MEMBERS([struct stat.st_rdev, struct stat.st_mtimespec.tv_nsec, struct stat.st_mtim.tv_nsec])
+
+AC_CHECK_DECL([EFTYPE],
+		[AC_DEFINE(HAVE_EFTYPE, 1, [A possible errno value for invalid file format errors])],
+		[],
+		[#include <errno.h>])
+AC_CHECK_DECL([EILSEQ],
+		[AC_DEFINE(HAVE_EILSEQ, 1, [A possible errno value for invalid file format errors])],
+		[],
+		[#include <errno.h>])
+AC_HEADER_TIME
+
+# Checks for library functions.
+AC_PROG_GCC_TRADITIONAL
+AC_HEADER_MAJOR
+AC_FUNC_MALLOC
+AC_FUNC_MEMCMP
+AC_FUNC_STAT
+AC_FUNC_STRERROR_R
+AC_CHECK_FUNCS([acl_create_entry acl_init acl_set_fd acl_set_fd_np acl_set_file])
+AC_CHECK_FUNCS([chflags fchdir fchflags fchmod fchown futimes])
+AC_CHECK_FUNCS([lchflags lchmod lchown lutimes memmove])
+AC_CHECK_FUNCS([memset mkdir mkfifo strchr strdup strerror strrchr])
+
+# Additional requirements
+AC_SYS_LARGEFILE
+AC_SUBST(ARCHIVE_API_VERSION,[1])
+AC_SUBST(ARCHIVE_API_FEATURE,[1])
+
+AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([archive.h])
+AC_OUTPUT
