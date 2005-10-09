@@ -1,0 +1,53 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: pfsync
+# REQUIRE: root mountcritlocal netif
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="pfsync"
+rcvar=`set_rcvar`
+start_precmd="pfsync_prestart"
+start_cmd="pfsync_start"
+stop_cmd="pfsync_stop"
+
+pfsync_prestart()
+{
+	case "$pfsync_syncdev" in
+	'')
+		warn "pfsync_syncdev is not set."
+		return 1
+		;;
+	esac
+
+	# load pf kernel module if needed
+	if ! kldstat -q -m pf ; then
+		if kldload pf ; then
+			info "pf module loaded."
+		else
+			warn "pf module failed to load."
+			return 1
+		fi
+	fi
+
+	return 0
+}
+
+pfsync_start()
+{
+	echo "Enabling pfsync."
+	ifconfig pfsync0 syncdev $pfsync_syncdev $pfsync_ifconfig up
+}
+
+pfsync_stop()
+{
+	echo "Disabling pfsync."
+	ifconfig pfsync0 -syncdev down
+}
+
+load_rc_config $name
+run_rc_command "$1"

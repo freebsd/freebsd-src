@@ -1,0 +1,89 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: localpkg
+# REQUIRE: abi
+# BEFORE:  securelevel
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="localpkg"
+start_cmd="pkg_start"
+stop_cmd="pkg_stop"
+
+pkg_start()
+{
+	# For each dir in $local_startup, search for init scripts matching *.sh
+	#
+	case ${local_startup} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n 'Local package initialization:'
+		slist=""
+		if [ -z "${script_name_sep}" ]; then
+			script_name_sep=" "
+		fi
+		for dir in ${local_startup}; do
+			if [ -d "${dir}" ]; then
+				for script in ${dir}/*.sh; do
+					slist="${slist}${script_name_sep}${script}"
+				done
+			fi
+		done
+		script_save_sep="$IFS"
+		IFS="${script_name_sep}"
+		for script in ${slist}; do
+			if [ -x "${script}" ]; then
+				(set -T
+				trap 'exit 1' 2
+				${script} start)
+			elif [ -f "${script}" -o -L "${script}" ]; then
+				echo -n " (skipping ${script##*/}, not executable)"
+			fi
+		done
+		IFS="${script_save_sep}"
+		echo '.'
+		;;
+	esac
+}
+
+pkg_stop()
+{
+	# For each dir in $local_startup, search for init scripts matching *.sh
+	case ${local_startup} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n 'Shutting down daemon processes:'
+		slist=""
+		if [ -z "${script_name_sep}" ]; then
+			script_name_sep=" "
+		fi
+		for dir in ${local_startup}; do
+			if [ -d "${dir}" ]; then
+				for script in ${dir}/*.sh; do
+					slist="${slist}${script_name_sep}${script}"
+				done
+			fi
+		done
+		script_save_sep="$IFS"
+		IFS="${script_name_sep}"
+		for script in `reverse_list ${slist}`; do
+			if [ -x "${script}" ]; then
+				(set -T
+				trap 'exit 1' 2
+				${script} stop)
+			fi
+		done
+		IFS="${script_save_sep}"
+		echo '.'
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,42 @@
+This is a log of changes that the ncurses C++ binding has gone
+through starting with the integration of menu and forms integration
+into the binding.
+
+990731  + Improve support for pads. A viewport window may now be added to
+          a pad. It will then be possible to use a builtin panning mechanism
+          to view the pad.
+
+970908	+ Improve NCursesWindow class: added additional methods to
+	  cover more ncurses functionality. Make refresh() and 
+	  noutrefresh() virtual members to allow different implementation
+	  in the NCursesPanel class.
+	+ CAUTION: changed order of parameters in vline() and hline() of
+	  NCursesWindow class.
+	+ Make refresh() in NCursesPanel non-static, it is now a
+	  reimplementation  of refresh() in the base class. Added 
+	  noutrefresh() to NCursesPanel.
+	+ Added NCursesForm and related classes to support libform
+	  functionality.
+	+ Moved most of configuration related stuff from cursesw.h to
+	  etip.h
+	+ Added NCursesApplication class to support easy configuration 
+	  of menu and forms related attributes as well as ripped of
+	  title lines and Soft-Label-Keys for an application.
+	+ Support of Auto-Cleanup for a menus fieldlist.
+	+ Change of return type for current_item() and operator[] for
+	  menus.
+	+ Enhanced demo.
+970502
+	+ Introduced the THROW and THROWS functions/macros to prepare
+	  a smoother transition to real exception handling.
+	+ Exception classes provided in etip.h
+	+ Added the NCursesMenu class to support libmenu functionality.
+	+ The inheritace relation between NCursesWindow and NCursesColorWindow
+	  was kind of brain damage. Monochrome is a special case of colored, so
+	  the relation should be just the opposite. This would allow all 
+	  derived classes like NCursesPanel, NCursesMenu or NCursesForm to 
+	  have colors.
+	  To resolve that design flaw I put the color functionality into the 
+	  NCursesWindow class and it can be switched on by the static member
+	  useColors(). NCursesColorWindow is still there for compatibility
+	  reasons.

@@ -1,0 +1,166 @@
+.\" Copyright (c) 2000
+.\"	Mike W. Meyer
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 23, 2005
+.Dt BUILD 7
+.Os
+.Sh NAME
+.Nm build
+.Nd information on how to build the system
+.Sh DESCRIPTION
+The source for the
+.Fx
+system and applications are contained in three different directories,
+normally
+.Pa /usr/src ,
+.Pa /usr/doc ,
+and
+.Pa /usr/ports .
+.Pa /usr/src
+contains the
+.Dq "base system"
+sources, which is loosely defined as the things required to rebuild
+the system to a useful state.
+.Pa /usr/doc
+contains the source for the system documentation, excluding the manual
+pages.
+.Pa /usr/ports
+is a tree that provides a consistent interface for building and
+installing third party applications.
+.Pp
+The
+.Xr make 1
+command is used in each of these directories to build and install the
+things in that directory.
+Issuing the
+.Xr make 1
+command in any directory or
+subdirectory of those directories has the same effect as issuing the
+same command in all subdirectories of that directory.
+With no target specified, the things in that directory are just built.
+The following
+list provides the names and actions for other targets:
+.Bl -tag -width indent-two
+.It Cm clean
+Removes any files created during the build process.
+.It Cm install
+Installs the results of the build for this directory.
+.It Cm update
+Gets updated sources as configured in
+.Pa /etc/make.conf .
+.El
+.Pp
+The other
+.Pa /usr/src
+make targets are:
+.Bl -tag -width indent-two
+.It Cm buildworld
+Rebuild everything but the kernel, configure files in
+.Pa /etc ,
+and release.
+.It Cm installworld
+Install everything built by
+.Cm buildworld .
+.It Cm buildkernel
+Rebuild the kernel and the kernel modules.
+.It Cm installkernel
+Install the kernel and the kernel modules.
+.It Cm reinstallkernel .
+Reinstall the kernel and the kernel modules.
+.It Cm kernel
+Equivalent to
+.Cm buildkernel
+followed by
+.Cm installkernel
+.El
+.Pp
+For more information about the ports build process, see
+.Xr ports 7 .
+.Sh ENVIRONMENT
+.Bl -tag -width ".Va TARGET_ARCH"
+.It Va TARGET_ARCH
+The target machine processor architecture.
+This is analogous to the
+.Dq Nm uname Fl p
+output.
+Set this to cross-build for a different architecture.
+.It Va TARGET
+The target hardware platform.
+This is analogous to the
+.Dq Nm uname Fl m
+output.
+This is necessary to cross-build some target architectures.
+For example, cross-building for PC98 machines requires
+.Va TARGET_ARCH Ns = Ns Li i386
+and
+.Va TARGET Ns = Ns Li pc98 .
+.It Va NO_WERROR
+If defined, warnings will not cause the build to halt, even if the
+makefile says otherwise.
+.It Va DESTDIR
+The directory hierarchy where the resulting binaries will be
+installed.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
+.It Pa /etc/make.conf
+.It Pa /usr/doc/Makefile
+.It Pa /usr/doc/share/mk/doc.project.mk
+.It Pa /usr/ports/Mk/bsd.port.mk
+.It Pa /usr/ports/Mk/bsd.sites.mk
+.It Pa /usr/share/examples/etc/make.conf
+.It Pa /usr/src/Makefile
+.It Pa /usr/src/Makefile.inc1
+.El
+.Sh EXAMPLES
+For an
+.Dq approved
+method of updating your system from the latest sources,
+please see the
+.Sx COMMON ITEMS
+section in
+.Pa src/UPDATING .
+.Pp
+The following sequence of commands can be used to cross-build the
+system for the Alpha architecture on an i386 host:
+.Bd -literal -offset indent
+cd /usr/src
+make TARGET_ARCH=alpha buildworld
+make TARGET_ARCH=alpha DESTDIR=/clients/axp installworld
+.Ed
+.Sh SEE ALSO
+.Xr cc 1 ,
+.Xr install 1 ,
+.Xr make 1 ,
+.Xr make.conf 5 ,
+.Xr ports 7 ,
+.Xr release 7 ,
+.Xr config 8 ,
+.Xr mergemaster 8 ,
+.Xr reboot 8 ,
+.Xr shutdown 8
+.Sh AUTHORS
+.An Mike W. Meyer Aq mwm@mired.org .

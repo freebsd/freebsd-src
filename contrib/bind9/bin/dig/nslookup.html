@@ -1,0 +1,617 @@
+<!--
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: nslookup.html,v 1.1.6.3 2004/08/22 23:38:58 marka Exp $ -->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>nslookup</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
+><BODY
+CLASS="REFENTRY"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><H1
+><A
+NAME="AEN1"
+></A
+>nslookup</H1
+><DIV
+CLASS="REFNAMEDIV"
+><A
+NAME="AEN8"
+></A
+><H2
+>Name</H2
+>nslookup&nbsp;--&nbsp;query Internet name servers interactively</DIV
+><DIV
+CLASS="REFSYNOPSISDIV"
+><A
+NAME="AEN11"
+></A
+><H2
+>Synopsis</H2
+><P
+><B
+CLASS="COMMAND"
+>nslookup</B
+>  [<VAR
+CLASS="OPTION"
+>-option</VAR
+>] [name | -] [server]</P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN18"
+></A
+><H2
+>DESCRIPTION</H2
+><P
+><B
+CLASS="COMMAND"
+>Nslookup</B
+>
+is a program to query Internet domain name servers.  <B
+CLASS="COMMAND"
+>Nslookup</B
+>
+has two modes: interactive and non-interactive.  Interactive mode allows
+the user to query name servers for information about various hosts and
+domains or to print a list of hosts in a domain.  Non-interactive mode is
+used to print just the name and requested information for a host or
+domain.</P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN23"
+></A
+><H2
+>ARGUMENTS</H2
+><P
+>Interactive mode is entered in the following cases:
+<P
+></P
+><OL
+TYPE="a"
+><LI
+><P
+>when no arguments are given (the default name server will be used)</P
+></LI
+><LI
+><P
+>when the first argument is a hyphen (-) and the second argument is
+the host name or Internet address of a name server.</P
+></LI
+></OL
+></P
+><P
+>Non-interactive mode is used when the name or Internet address of the
+host to be looked up is given as the first argument. The optional second
+argument specifies the host name or address of a name server.</P
+><P
+>Options can also be specified on the command line if they precede the
+arguments and are prefixed with a hyphen.  For example, to
+change the default query type to host information, and the initial timeout to 10 seconds, type:
+<DIV
+CLASS="INFORMALEXAMPLE"
+><P
+></P
+><A
+NAME="AEN33"
+></A
+><PRE
+CLASS="PROGRAMLISTING"
+>nslookup -query=hinfo  -timeout=10</PRE
+><P
+></P
+></DIV
+></P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN35"
+></A
+><H2
+>INTERACTIVE COMMANDS</H2
+><P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>host [<SPAN
+CLASS="OPTIONAL"
+>server</SPAN
+>]</DT
+><DD
+><P
+>Look up information for host using the current default server or
+using server, if specified.  If host is an Internet address and
+the query type is A or PTR, the name of the host is returned.
+If host is a name and does not have a trailing period, the
+search list is used to qualify the name.</P
+><P
+>To look up a host not in the current domain, append a period to
+the name.</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>server</CODE
+> <VAR
+CLASS="REPLACEABLE"
+>domain</VAR
+></DT
+><DD
+><P
+></P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>lserver</CODE
+> <VAR
+CLASS="REPLACEABLE"
+>domain</VAR
+></DT
+><DD
+><P
+>Change the default server to <VAR
+CLASS="REPLACEABLE"
+>domain</VAR
+>; <CODE
+CLASS="CONSTANT"
+>lserver</CODE
+> uses the initial
+server to look up information about <VAR
+CLASS="REPLACEABLE"
+>domain</VAR
+>, while <CODE
+CLASS="CONSTANT"
+>server</CODE
+> uses
+the current default server.  If an authoritative answer can't be
+found, the names of servers that might have the answer are
+returned.</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>root</CODE
+></DT
+><DD
+><P
+>not implemented</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>finger</CODE
+></DT
+><DD
+><P
+>not implemented</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>ls</CODE
+></DT
+><DD
+><P
+>not implemented</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>view</CODE
+></DT
+><DD
+><P
+>not implemented</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>help</CODE
+></DT
+><DD
+><P
+>not implemented</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>?</CODE
+></DT
+><DD
+><P
+>not implemented</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>exit</CODE
+></DT
+><DD
+><P
+>Exits the program.</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>set</CODE
+> <VAR
+CLASS="REPLACEABLE"
+>keyword[<SPAN
+CLASS="OPTIONAL"
+>=value</SPAN
+>]</VAR
+></DT
+><DD
+><P
+>This command is used to change state information that affects
+the lookups.  Valid keywords are:
+ <P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+><CODE
+CLASS="CONSTANT"
+>all</CODE
+></DT
+><DD
+><P
+>Prints the current values of the frequently used
+  options to <B
+CLASS="COMMAND"
+>set</B
+>.  Information about the  current default
+  server and host is also printed.
+  </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>class=</CODE
+><VAR
+CLASS="REPLACEABLE"
+>value</VAR
+></DT
+><DD
+><P
+>   Change the query class to one of:
+   <P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+><CODE
+CLASS="CONSTANT"
+>IN</CODE
+></DT
+><DD
+><P
+>the Internet class</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>CH</CODE
+></DT
+><DD
+><P
+>the Chaos class</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>HS</CODE
+></DT
+><DD
+><P
+>the Hesiod class</P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>ANY</CODE
+></DT
+><DD
+><P
+>wildcard</P
+></DD
+></DL
+></DIV
+>
+   The class specifies the protocol group of the information.
+   </P
+><P
+>   (Default = IN; abbreviation = cl)
+   </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+><VAR
+CLASS="REPLACEABLE"
+>[<SPAN
+CLASS="OPTIONAL"
+>no</SPAN
+>]</VAR
+>debug</CODE
+></DT
+><DD
+><P
+>  Turn debugging mode on.  A lot more information is
+  printed about the packet sent to the server and the
+  resulting answer.
+  </P
+><P
+>  (Default = nodebug; abbreviation = [<SPAN
+CLASS="OPTIONAL"
+>no</SPAN
+>]deb)
+  </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+><VAR
+CLASS="REPLACEABLE"
+>[<SPAN
+CLASS="OPTIONAL"
+>no</SPAN
+>]</VAR
+>d2</CODE
+></DT
+><DD
+><P
+>  Turn debugging mode on.  A lot more information is
+  printed about the packet sent to the server and the
+  resulting answer.
+  </P
+><P
+>  (Default = nod2)
+  </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>domain=</CODE
+><VAR
+CLASS="REPLACEABLE"
+>name</VAR
+></DT
+><DD
+><P
+>  Sets the search list to <VAR
+CLASS="REPLACEABLE"
+>name</VAR
+>.
+  </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+><VAR
+CLASS="REPLACEABLE"
+>[<SPAN
+CLASS="OPTIONAL"
+>no</SPAN
+>]</VAR
+>search</CODE
+></DT
+><DD
+><P
+>  If the lookup request contains at least one period but
+  doesn't end with a trailing period, append the domain
+  names in the domain search list to the request until an
+  answer is received.
+  </P
+><P
+>  (Default = search)
+  </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>port=</CODE
+><VAR
+CLASS="REPLACEABLE"
+>value</VAR
+></DT
+><DD
+><P
+>  Change the default TCP/UDP name server port to <VAR
+CLASS="REPLACEABLE"
+>value</VAR
+>.
+  </P
+><P
+>  (Default = 53; abbreviation = po)
+  </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>querytype=</CODE
+><VAR
+CLASS="REPLACEABLE"
+>value</VAR
+></DT
+><DD
+><P
+></P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>type=</CODE
+><VAR
+CLASS="REPLACEABLE"
+>value</VAR
+></DT
+><DD
+><P
+>  Change the top of the information query.
+  </P
+><P
+>  (Default = A; abbreviations = q, ty)
+  </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+><VAR
+CLASS="REPLACEABLE"
+>[<SPAN
+CLASS="OPTIONAL"
+>no</SPAN
+>]</VAR
+>recurse</CODE
+></DT
+><DD
+><P
+>  Tell the name server to query other servers if it does not have the
+  information.
+  </P
+><P
+>  (Default = recurse; abbreviation = [no]rec)
+  </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>retry=</CODE
+><VAR
+CLASS="REPLACEABLE"
+>number</VAR
+></DT
+><DD
+><P
+>  Set the number of retries to number.
+  </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+>timeout=</CODE
+><VAR
+CLASS="REPLACEABLE"
+>number</VAR
+></DT
+><DD
+><P
+>  Change the initial timeout interval for waiting for a
+  reply to number seconds.
+  </P
+></DD
+><DT
+><CODE
+CLASS="CONSTANT"
+><VAR
+CLASS="REPLACEABLE"
+>[<SPAN
+CLASS="OPTIONAL"
+>no</SPAN
+>]</VAR
+>vc</CODE
+></DT
+><DD
+><P
+>  Always use a virtual circuit when sending requests to the server.
+  </P
+><P
+>  (Default = novc)
+  </P
+></DD
+></DL
+></DIV
+></P
+></DD
+></DL
+></DIV
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN218"
+></A
+><H2
+>FILES</H2
+><P
+><TT
+CLASS="FILENAME"
+>/etc/resolv.conf</TT
+></P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN222"
+></A
+><H2
+>SEE ALSO</H2
+><P
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dig</SPAN
+>(1)</SPAN
+>,
+<SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>host</SPAN
+>(1)</SPAN
+>,
+<SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>named</SPAN
+>(8)</SPAN
+>.</P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN234"
+></A
+><H2
+>Author</H2
+><P
+>Andrew Cherenson</P
+></DIV
+></BODY
+></HTML
+>

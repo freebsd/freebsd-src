@@ -1,0 +1,91 @@
+$FreeBSD$
+
+libarchive: a library for reading and writing streaming archives
+
+This is all under a BSD license.  Use, enjoy, but don't blame me if it breaks!
+
+Documentation:
+ * libarchive.3 gives an overview of the library as a whole
+ * archive_read.3 and archive_write.3 provide detailed calling
+   sequences for the read and write APIs
+ * archive_entry.3 details the "struct archive_entry" utility class
+ * libarchive-formats.5 documents the file formats supported by the library
+ * tar.5 provides some detailed information about a variety of different
+   "tar" formats.
+
+You should also read the copious comments in "archive.h" and the source
+code for the sample "bsdtar" program for more details.  Please let me know
+about any errors or omissions you find.
+
+Currently, the library automatically detects and reads the following:
+  * gzip compression
+  * bzip2 compression
+  * compress/LZW compression
+  * GNU tar format (including GNU long filenames, long link names, and
+    sparse files)
+  * Solaris 9 extended tar format (including ACLs)
+  * Old V7 tar archives
+  * POSIX ustar
+  * POSIX pax interchange format
+  * POSIX octet-oriented cpio
+  * SVR4 ASCII cpio
+  * Binary cpio (big-endian or little-endian)
+  * ISO9660 CD-ROM images (with optional Rockridge extensions)
+  * ZIP archives (with uncompressed or "deflate" compressed entries)
+
+The library can write:
+  * gzip compression
+  * bzip2 compression
+  * POSIX ustar
+  * POSIX pax interchange format
+  * "restricted" pax format, which will create ustar archives except for
+    entries that require pax extensions (for long filenames, ACLs, etc).
+  * POSIX octet-oriented cpio
+  * shar archives
+
+Notes:
+ * This is a heavily stream-oriented system.  There is no direct
+   support for in-place modification or random access and no intention
+   of ever adding such support.  Adding such support would require
+   sacrificing a lot of other features, so don't bother asking.
+
+ * The library is designed to be extended with new compression and
+   archive formats.  The only requirement is that the format be
+   readable or writable as a stream and that each archive entry be
+   independent.
+
+ * On read, compression and format are always detected automatically.
+
+ * I've attempted to minimize static link pollution.  If you don't
+   explicitly invoke a particular feature (such as support for a
+   particular compression or format), it won't get pulled in.
+   In particular, if you don't explicitly enable a particular
+   compression or decompression support, you won't need to link
+   against the corresponding compression or decompression libraries.
+   This also reduces the size of statically-linked binaries in
+   environments where that matters.
+
+ * On read, the library accepts whatever blocks you hand it.
+   Your read callback is free to pass the library a byte at a time
+   or mmap the entire archive and give it to the library at once.
+   On write, the library always produces correctly-blocked
+   output.
+
+ * The object-style approach allows you to have multiple archive streams
+   open at once.  bsdtar uses this in its "@archive" extension.
+
+ * The archive itself is read/written using callback functions.
+   You can read an archive directly from an in-memory buffer or
+   write it to a socket, if you wish.  There are some utility
+   functions to provide easy-to-use "open file," etc, capabilities.
+
+ * The read/write APIs are designed to allow individual entries
+   to be read or written to any data source:  You can create
+   a block of data in memory and add it to a tar archive without
+   first writing a temporary file.  You can also read an entry from
+   an archive and write the data directly to a socket.  If you want
+   to read/write entries to disk, there are convenience functions to
+   make this especially easy.
+
+ * Note: "pax interchange format" is really an extended tar format,
+   despite what the name says.

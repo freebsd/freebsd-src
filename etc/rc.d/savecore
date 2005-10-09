@@ -1,0 +1,66 @@
+#!/bin/sh
+#
+# $NetBSD: savecore,v 1.5 2002/03/22 04:34:00 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: savecore
+# REQUIRE: syslogd
+# BEFORE:  SERVERS
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="savecore"
+start_cmd="savecore_start"
+start_precmd="savecore_prestart"
+stop_cmd=":"
+
+savecore_prestart()
+{
+	#	${DUMPDIR} should be a directory or a symbolic link
+	#	to the crash directory if core dumps are to be saved.
+	#
+	DUMPDIR="${dumpdir:-/var/crash}"
+
+	# Quit if we have no dump device
+	case ${dumpdev} in
+	[Nn][Oo] | '')
+		debug 'No dump device. Quitting.'
+		return 1
+		;;
+	[Aa][Uu][Tt][Oo])
+		dumpdev=`/bin/realpath /dev/dumpdev`
+		;;
+	esac
+
+	# If there is no crash directory set it now
+	case ${dumpdir} in
+	'')
+		dumpdir='/var/crash'
+		;;
+	[Nn][Oo])
+		dumpdir='NO'
+		;;
+	esac
+
+	if [ ! -c "${dumpdev}" ]; then
+		warn "Dump device does not exist.  Savecore not run."
+		return 1
+	fi
+
+	if [ ! -d "${dumpdir}" ]; then
+		warn "Dump directory does not exist.  Savecore not run."
+		return 1
+	fi
+	return 0
+}
+
+savecore_start()
+{
+	echo "Checking for core dump on ${dumpdev}..."
+	savecore ${savecore_flags} ${DUMPDIR} ${dumpdev}
+}
+
+load_rc_config $name
+run_rc_command "$1"

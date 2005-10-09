@@ -1,0 +1,485 @@
+   DNSOP Working Group                               Paul Vixie, ISC (Ed.)
+   INTERNET-DRAFT                                         Akira Kato, WIDE
+   <draft-ietf-dnsop-respsize-01.txt>                           July, 2004
+
+
+                           DNS Response Size Issues
+
+
+   Status of this Memo
+      This document is an Internet-Draft and is subject to all provisions
+      of section 3 of RFC 3667.  By submitting this Internet-Draft, each
+      author represents that any applicable patent or other IPR claims of
+      which we are aware have been or will be disclosed, and any of which
+      we become aware will be disclosed, in accordance with RFC 3668.
+
+
+      Internet-Drafts are working documents of the Internet Engineering
+      Task Force (IETF), its areas, and its working groups.  Note that
+      other groups may also distribute working documents as Internet-
+      Drafts.
+
+
+      Internet-Drafts are draft documents valid for a maximum of six months
+      and may be updated, replaced, or obsoleted by other documents at any
+      time.  It is inappropriate to use Internet-Drafts as reference
+      material or to cite them other than as "work in progress."
+
+
+      The list of current Internet-Drafts can be accessed at
+      http://www.ietf.org/ietf/1id-abstracts.txt
+
+
+      The list of Internet-Draft Shadow Directories can be accessed at
+      http://www.ietf.org/shadow.html.
+
+
+   Copyright Notice
+
+
+      Copyright (C) The Internet Society (2003-2004).  All Rights Reserved.
+
+
+
+
+
+                                    Abstract
+
+
+      With a mandated default minimum maximum message size of 512 octets,
+      the DNS protocol presents some special problems for zones wishing to
+      expose a moderate or high number of authority servers (NS RRs).  This
+      document explains the operational issues caused by, or related to
+      this response size limit.
+
+
+
+
+
+
+   Expires December 2004                                           [Page 1]
+   INTERNET-DRAFT                  June 2003                       RESPSIZE
+
+
+
+   1 - Introduction and Overview
+
+
+   1.1. The DNS standard (see [RFC1035 4.2.1]) limits message size to 512
+   octets.  Even though this limitation was due to the required minimum UDP
+   reassembly limit for IPv4, it is a hard DNS protocol limit and is not
+   implicitly relaxed by changes in transport, for example to IPv6.
+
+
+   1.2. The EDNS0 standard (see [RFC2671 2.3, 4.5]) permits larger
+   responses by mutual agreement of the requestor and responder.  However,
+   deployment of EDNS0 cannot be expected to reach every Internet resolver
+   in the short or medium term.  The 512 octet message size limit remains
+   in practical effect at this time.
+
+
+   1.3. Since DNS responses include a copy of the request, the space
+   available for response data is somewhat less than the full 512 octets.
+   For negative responses, there is rarely a space constraint.  For
+   positive and delegation responses, though, every octet must be carefully
+   and sparingly allocated.  This document specifically addresses
+   delegation response sizes.
+
+
+   2 - Delegation Details
+
+
+   2.1. A delegation response will include the following elements:
+
+
+      Header Section: fixed length (12 octets)
+      Question Section: original query (name, class, type)
+      Answer Section: (empty)
+      Authority Section: NS RRset (nameserver names)
+      Additional Section: A and AAAA RRsets (nameserver addresses)
+
+
+   2.2. If the total response size would exceed 512 octets, and if the data
+   that would not fit was in the question, answer, or authority section,
+   then the TC bit will be set (indicating truncation) which may cause the
+   requestor to retry using TCP, depending on what information was present
+   and what was omitted.  If a retry using TCP is needed, the total cost of
+   the transaction is much higher.
+
+
+   2.3. RRsets are never sent partially, so if truncation occurs, entire
+   RRsets are omitted.  Note that the authority section consists of a
+   single RRset.  It is absolutely essential that truncation not occur in
+   the authority section.
+
+
+
+
+
+
+
+
+   Expires December 2004                                           [Page 2]
+   INTERNET-DRAFT                  June 2003                       RESPSIZE
+
+
+
+   2.4. DNS label compression allows a domain name to be instantiated only
+   once per DNS message, and then referenced with a two-octet "pointer"
+   from other locations in that same DNS message.  If all nameserver names
+   in a message are similar (for example, all ending in ".ROOT-
+   SERVERS.NET"), then more space will be available for uncompressable data
+   (such as nameserver addresses).
+
+
+   2.5. The query name can be as long as 255 characters of presentation
+   data, which can be up to 256 octets of network data.  In this worst case
+   scenario, the question section will be 260 octets in size, which would
+   leave only 240 octets for the authority and additional sections (after
+   deducting 12 octets for the fixed length header.)
+
+
+   2.6. Average and maximum question section sizes can be predicted by the
+   zone owner, since they will know what names actually exist, and can
+   measure which ones are queried for most often.  For cost and performance
+   reasons, the majority of requests should be satisfied without truncation
+   or TCP retry.
+
+
+   2.7. Requestors who deliberately send large queries to force truncation
+   are only increasing their own costs, and cannot effectively attack the
+   resources of an authority server since the requestor would have to retry
+   using TCP to complete the attack.  An attack that always used TCP would
+   have a lower cost.
+
+
+   2.8. The minimum useful number of address records is two, since with
+   only one address, the probability that it would refer to an unreachable
+   server is too high.  Truncation which occurs after two address records
+   have been added to the additional data section is therefore less
+   operationally significant than truncation which occurs earlier.
+
+
+   2.9. The best case is no truncation.  (This is because many requestors
+   will retry using TCP by reflex, without considering whether the omitted
+   data was actually necessary.)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   Expires December 2004                                           [Page 3]
+   INTERNET-DRAFT                  June 2003                       RESPSIZE
+
+
+
+   3 - Analysis
+
+
+   3.1. An instrumented protocol trace of a best case delegation response
+   follows.  Note that 13 servers are named, and 13 addresses are given.
+   This query was artificially designed to exactly reach the 512 octet
+   limit.
+
+
+      ;; flags: qr rd; QUERY: 1, ANS: 0, AUTH: 13, ADDIT: 13
+      ;; QUERY SECTION:
+      ;;  [23456789.123456789.123456789.\
+           123456789.123456789.123456789.com A IN]        ;; @80
+
+
+      ;; AUTHORITY SECTION:
+      com.                 86400 NS  E.GTLD-SERVERS.NET.  ;; @112
+      com.                 86400 NS  F.GTLD-SERVERS.NET.  ;; @128
+      com.                 86400 NS  G.GTLD-SERVERS.NET.  ;; @144
+      com.                 86400 NS  H.GTLD-SERVERS.NET.  ;; @160
+      com.                 86400 NS  I.GTLD-SERVERS.NET.  ;; @176
+      com.                 86400 NS  J.GTLD-SERVERS.NET.  ;; @192
+      com.                 86400 NS  K.GTLD-SERVERS.NET.  ;; @208
+      com.                 86400 NS  L.GTLD-SERVERS.NET.  ;; @224
+      com.                 86400 NS  M.GTLD-SERVERS.NET.  ;; @240
+      com.                 86400 NS  A.GTLD-SERVERS.NET.  ;; @256
+      com.                 86400 NS  B.GTLD-SERVERS.NET.  ;; @272
+      com.                 86400 NS  C.GTLD-SERVERS.NET.  ;; @288
+      com.                 86400 NS  D.GTLD-SERVERS.NET.  ;; @304
+
+
+      ;; ADDITIONAL SECTION:
+      A.GTLD-SERVERS.NET.  86400 A   192.5.6.30           ;; @320
+      B.GTLD-SERVERS.NET.  86400 A   192.33.14.30         ;; @336
+      C.GTLD-SERVERS.NET.  86400 A   192.26.92.30         ;; @352
+      D.GTLD-SERVERS.NET.  86400 A   192.31.80.30         ;; @368
+      E.GTLD-SERVERS.NET.  86400 A   192.12.94.30         ;; @384
+      F.GTLD-SERVERS.NET.  86400 A   192.35.51.30         ;; @400
+      G.GTLD-SERVERS.NET.  86400 A   192.42.93.30         ;; @416
+      H.GTLD-SERVERS.NET.  86400 A   192.54.112.30        ;; @432
+      I.GTLD-SERVERS.NET.  86400 A   192.43.172.30        ;; @448
+      J.GTLD-SERVERS.NET.  86400 A   192.48.79.30         ;; @464
+      K.GTLD-SERVERS.NET.  86400 A   192.52.178.30        ;; @480
+      L.GTLD-SERVERS.NET.  86400 A   192.41.162.30        ;; @496
+      M.GTLD-SERVERS.NET.  86400 A   192.55.83.30         ;; @512
+
+
+      ;; MSG SIZE  sent: 80  rcvd: 512
+
+
+
+
+
+
+   Expires December 2004                                           [Page 4]
+   INTERNET-DRAFT                  June 2003                       RESPSIZE
+
+
+
+   3.2. For longer query names, the number of address records supplied will
+   be lower.  Furthermore, it is only by using a common parent name (which
+   is GTLD-SERVERS.NET in this example) that all 13 addresses are able to
+   fit.  The following output from a response simulator demonstrates these
+   properties:
+
+
+      % perl respsize.pl 13 13 0
+        common name, average case: msg:303    nsaddr#13 (green)
+        common name,   worst case: msg:495    nsaddr# 1 (red)
+      uncommon name, average case: msg:457    nsaddr# 3 (orange)
+      uncommon name,   worst case: msg:649(*) nsaddr# 0 (red)
+      % perl respsize.pl 13 13 2
+        common name, average case: msg:303    nsaddr#11 (orange)
+        common name,   worst case: msg:495    nsaddr# 1 (red)
+      uncommon name, average case: msg:457    nsaddr# 2 (orange)
+      uncommon name,   worst case: msg:649(*) nsaddr# 0 (red)
+
+
+   (Note: The response simulator program is shown in Section 5.)
+
+
+   Here we use the term "green" if all address records could fit, or
+   "orange" if two or more could fit, or "red" if fewer than two could fit.
+   It's clear that without a common parent for nameserver names, much space
+   would be lost.
+
+
+   We're assuming an average query name size of 64 since that is the
+   typical average maximum size seen in trace data at the time of this
+   writing.  If Internationalized Domain Name (IDN) or any other technology
+   which results in larger query names be deployed significantly in advance
+   of EDNS, then more new measurements and new estimates will have to be
+   made.
+
+
+   4 - Conclusions
+
+
+   4.1. The current practice of giving all nameserver names a common parent
+   (such as GTLD-SERVERS.NET or ROOT-SERVERS.NET) saves space in DNS
+   responses and allows for more nameservers to be enumerated than would
+   otherwise be possible.  (Note that in this case it is wise to serve the
+   common parent domain's zone from the same servers that are named within
+   it, in order to limit external dependencies when all your eggs are in a
+   single basket.)
+
+
+   4.2. Thirteen (13) seems to be the effective maximum number of
+   nameserver names usable traditional (non-extended) DNS, assuming a
+   common parent domain name, and assuming that additional-data truncation
+   is undesirable in the average case.
+
+
+
+
+   Expires December 2004                                           [Page 5]
+   INTERNET-DRAFT                  June 2003                       RESPSIZE
+
+
+
+   4.3. Adding two to five IPv6 nameserver address records (AAAA RRs) to a
+   prototypical delegation that currently contains thirteen (13) IPv4
+   nameserver addresses (A RRs) for thirteen (13) nameserver names under a
+   common parent, would not have a significant negative operational impact
+   on the domain name system.
+
+
+   5 - Source Code
+
+
+   #!/usr/bin/perl -w
+
+
+   $asize = 2+2+2+4+2+4;
+   $aaaasize = 2+2+2+4+2+16;
+   ($nns, $na, $naaaa) = @ARGV;
+   test("common", "average", common_name_average($nns),
+        $na, $naaaa);
+   test("common", "worst", common_name_worst($nns),
+        $na, $naaaa);
+   test("uncommon", "average", uncommon_name_average($nns),
+        $na, $naaaa);
+   test("uncommon", "worst", uncommon_name_worst($nns),
+        $na, $naaaa);
+   exit 0;
+
+
+   sub test { my ($namekind, $casekind, $msg, $na, $naaaa) = @_;
+        my $nglue = numglue($msg, $na, $naaaa);
+        printf "%8s name, %7s case: msg:%3d%s nsaddr#%2d (%s)\n",
+             $namekind, $casekind,
+             $msg, ($msg > 512) ? "(*)" : "   ",
+             $nglue, ($nglue == $na + $naaaa) ? "green"
+                  : ($nglue >= 2) ? "orange"
+                       : "red";
+   }
+
+
+   sub pnum { my ($num, $tot) = @_;
+        return sprintf "%3d%s",
+   }
+
+
+   sub numglue { my ($msg, $na, $naaaa) = @_;
+        my $space = ($msg > 512) ? 0 : (512 - $msg);
+        my $num = 0;
+
+
+        while ($space && ($na || $naaaa )) {
+             if ($na) {
+                  if ($space >= $asize) {
+                       $space -= $asize;
+
+
+
+
+   Expires December 2004                                           [Page 6]
+   INTERNET-DRAFT                  June 2003                       RESPSIZE
+
+
+
+                       $num++;
+                  }
+                  $na--;
+             }
+             if ($naaaa) {
+                  if ($space >= $aaaasize) {
+                       $space -= $aaaasize;
+                       $num++;
+                  }
+                  $naaaa--;
+             }
+        }
+        return $num;
+   }
+
+
+   sub msgsize { my ($qname, $nns, $nsns) = @_;
+        return  12 +                            # header
+                $qname+2+2 +                    # query
+                0 +                             # answer
+                $nns * (4+2+2+4+2+$nsns);       # authority
+   }
+
+
+   sub average_case { my ($nns, $nsns) = @_;
+        return msgsize(64, $nns, $nsns);
+   }
+
+
+   sub worst_case { my ($nns, $nsns) = @_;
+        return msgsize(256, $nns, $nsns);
+   }
+
+
+   sub common_name_average { my ($nns) = @_;
+        return 15 + average_case($nns, 2);
+   }
+
+
+   sub common_name_worst { my ($nns) = @_;
+        return 15 + worst_case($nns, 2);
+   }
+
+
+   sub uncommon_name_average { my ($nns) = @_;
+        return average_case($nns, 15);
+   }
+
+
+   sub uncommon_name_worst { my ($nns) = @_;
+        return worst_case($nns, 15);
+   }
+
+
+
+
+   Expires December 2004                                           [Page 7]
+   INTERNET-DRAFT                  June 2003                       RESPSIZE
+
+
+
+   Security Considerations
+
+
+   The recommendations contained in this document have no known security
+   implications.
+
+
+   IANA Considerations
+
+
+   This document does not call for changes or additions to any IANA
+   registry.
+
+
+   IPR Statement
+
+
+   Copyright (C) The Internet Society (2003-2004).  This document is
+   subject to the rights, licenses and restrictions contained in BCP 78,
+   and except as set forth therein, the authors retain all their rights.
+
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS OR
+   IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE INTERNET
+   ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+   INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+   Authors' Addresses
+
+
+   Paul Vixie
+      950 Charter Street
+      Redwood City, CA 94063
+      +1 650 423 1301
+      vixie@isc.org
+
+
+   Akira Kato
+      University of Tokyo, Information Technology Center
+      2-11-16 Yayoi Bunkyo
+      Tokyo 113-8658, JAPAN
+      +81 3 5841 2750
+      kato@wide.ad.jp
+
+
+
+
+
+
+
+
+
+
+   Expires December 2004                                           [Page 8] 

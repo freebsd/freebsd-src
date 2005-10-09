@@ -1,0 +1,34 @@
+
+#------------------------------------------------------------------------------
+# sgml:  file(1) magic for Standard Generalized Markup Language
+# HyperText Markup Language (HTML) is an SGML document type,
+# from Daniel Quinlan (quinlan@yggdrasil.com)
+# adapted to string extenstions by Anthon van der Neut <anthon@mnt.org)
+0   string/cB	\<!DOCTYPE\ html	HTML document text
+0   string/cb	\<head			HTML document text
+0   string/cb	\<title			HTML document text
+0   string/cb	\<html			HTML document text
+
+# Extensible markup language (XML), a subset of SGML
+# from Marc Prud'hommeaux (marc@apocalypse.org)
+0	string/cb	\<?xml			XML document text
+0	string		\<?xml\ version "	XML
+0	string		\<?xml\ version="	XML
+>15	string		>\0			%.3s document text
+>>23	string		\<xsl:stylesheet	(XSL stylesheet)
+>>24	string		\<xsl:stylesheet	(XSL stylesheet)
+0	string/b	\<?xml			XML document text
+0	string/cb	\<?xml			broken XML document text
+
+
+# SGML, mostly from rph@sq
+0   string/cb	\<!doctype		exported SGML document text
+0   string/cb	\<!subdoc		exported SGML subdocument text
+0   string/cb	\<!--			exported SGML document text
+
+# Web browser cookie files
+# (Mozilla, Galeon, Netscape 4, Konqueror..)
+# Ulf Harnhammar <ulfh@update.uu.se>
+0	string	#\ HTTP\ Cookie\ File	Web browser cookie text
+0	string	#\ Netscape\ HTTP\ Cookie\ File	Netscape cookie text
+0	string	#\ KDE\ Cookie\ File	Konqueror cookie text

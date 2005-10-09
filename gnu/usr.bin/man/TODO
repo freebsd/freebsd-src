@@ -1,0 +1,123 @@
+Things that would be nice but aren't really necessary:
+
+0.  Update the documentation.
+
+XX  Come up with an easier way to install this thing.  There are now
+    lots of options and dependent flags to set.  Should I worry too
+    much about this?
+
+XX  Properly handle commands like `man 3f intro' when the name of the
+    file we want is something like .../man3/intro.3f.  The way this is
+    done right now seems sort of kludgey but it mostly works.  See
+    man.c for details.
+
+2.  Malloc everything instead of having fixed limits... Or at least
+    check the limits everywhere.  If you're paranoid about this, make
+    the limits big (famous last words: really, there aren't that many
+    things that could go wrong :-).
+
+3.  Try to do a little better job of memory management.  There are a
+    lot of little temporary strings that are malloc'd and never freed.
+    This is probably ok for a standalone program but not so good if
+    you wanted to call man() from another program.
+
+XX  Come up with a clear view of the cat directory file permissions
+    problem.  What's a good solution, other than having man run setuid
+    to some special user?  (Make directories writable by all, cat
+    files 666.)
+
+XX  Allow a compile time option that makes man run setuid to some
+    other user that owns all the cat pages, so that they don't have to
+    be world writable.
+
+XX  Allow man to deal with compressed (.Z) frozen (.F) and yabba (.Y)
+    cat files.  Frozen files are compressed files using freeze/melt,
+    some combination of LZW and tree coding.  Sources for it came out
+    on comp.sources.misc or alt.sources or ... a few months ago.
+    Yabba files are compressed using yabba/unyabba, a data compression
+    scheme posted to alt.sources by Dan Bernstein.
+
+XX  Choose a more reasonable default for the search order.  Perhaps
+    this: 1, n, l, 6, 8, 2, 3, 4, 5, 7, p, o
+
+XX  Fix glob.c so it doesn't need alloca, and/or fix it so that it can
+    work on a Sun:
+
+        #ifdef __GNUC__
+        #define alloca __builtin_alloca
+        #else /* !__GNUC__ */
+        #ifdef sparc
+        #include <alloca.h>
+        #endif /* sparc */
+        #endif /* __GNUC__ */
+
+XX  Add some way to automatically to run preprocessors.  The Sun man
+    program has a convention that the first line of the man page can
+    indicate which preprocessors should be run.  Here's an excerpt from
+    its man page:
+
+    Preprocessing Manual Pages
+      If the first line is a string of the form:
+
+          '\"  X
+
+      where  X is separated from the the `"' by a single SPACE and
+      consists of any combination of characters in  the  following
+      list,  man  pipes  its input to troff(1) or nroff(1) through
+      the corresponding preprocessors.
+
+          e    eqn(1), or neqn for nroff
+          r    refer(1)
+          t    tbl(1), and col(1V) for nroff
+          v    vgrind(1)
+
+      If eqn or neqn is invoked, it will  automatically  read  the
+      file /usr/pub/eqnchar (see eqnchar(7)).
+
+XX  Have manpath stat() the directories in MANPATH to avoid including
+    directories that don't exist.  Some versions of man and whatis
+    complain when the directories (like /usr/new/man) don't exist.
+
+XX  Pipe the output of apropos and whatis through a pager.
+
+XX  I've been using your man(1) package for a while now and I ran into
+    a problem with the X man pages that use tbl commands.  Is it
+    possible to configure your man(1) package to use a general command
+    string.  For example, a user could set an environment variable:
+
+    setenv ROFFLINE 'pic $* | tbl | nroff -man'
+
+13. Fix makewhatis so that it can handle stuff like this (from the
+    Motif 1.1 man pages):
+
+      .TH XmRowColumn 3X "" "" "" ""
+      .SH NAME
+      .mc |
+      \fBXmRowColumn \(em the RowColumn widget class.\fP
+      .mc
+      .iX "XmRowColumn"
+      .iX "widget class" "RowColumn"
+      .sp 1
+      .SH SYNOPSIS
+
+14. Consider changing the format of the awk command's printf to use
+    "%s" instead of the standard 20.20s to accomodate the extra long
+    file names used by Motif.  Maybe there's a better way to handle
+    this?
+
+15. Add ability to run man on a local file
+
+16. Handle per-tree tmac macros
+    
+XX  Allow user-definable section search order via -S or $MANSECT.
+    Thus programmers can get stty(3) before stty(1).
+
+XX  Show all the places you would find a man page (-w option) and in
+    what order.
+
+19. Support for multi-char sections like man1m/*.1m or manavs/*.avs
+    (can I have a section that doesn't start with a numeral?)
+
+20. Implement man -K for regexp apropos
+
+21. An option to grep through all the man pages in $MANPATH

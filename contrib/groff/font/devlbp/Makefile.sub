@@ -1,0 +1,21 @@
+DEV=lbp
+LBPPRINT=$(PSPRINT)
+DEVFILES=DESC \
+  HB HBI HI HR \
+  HNB HNBI HNI HNR \
+  TB TBI TI TR \
+  CR CB CI \
+  ER EB EI
+
+CLEANADD=DESC
+
+DESC: DESC.in
+	-rm -f DESC
+	cat $(srcdir)/DESC.in >>DESC
+	if test "$(PAGE)" = A4; then \
+	  echo "papersize a4" >>DESC; \
+	else \
+	  echo "papersize letter" >>DESC; \
+	fi
+	test -z '$(LBPPRINT)' || echo print '$(LBPPRINT)' >>DESC
+

@@ -1,0 +1,9 @@
+  -- FreeBSD SGML Public Identifiers --
+  -- Language-specific --
+
+  -- $FreeBSD$ --
+
+PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
+       "release.dsl"
+
+

@@ -1,0 +1,15 @@
+These shell scripts demonstrate possibilities of the dialog(1) tool.
+
+checklist	- checkbox list
+ftreebox	- file tree box
+infobox		- info box
+inputbox	- input box
+menubox		- menu
+msgbox		- message box
+prgbox		- program box
+radiolist	- radio button list
+textbox		- simple text box
+treebox		- tree box
+yesno		- yes/no dialog
+
+$FreeBSD$

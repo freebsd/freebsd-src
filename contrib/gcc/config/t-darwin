@@ -1,0 +1,24 @@
+darwin.o: $(srcdir)/config/darwin.c $(CONFIG_H) $(SYSTEM_H) coretypes.h     \
+  $(TM_H) $(RTL_H) $(REGS_H) hard-reg-set.h $(REAL_H) insn-config.h         \
+  conditions.h insn-flags.h output.h insn-attr.h flags.h $(TREE_H) expr.h   \
+  reload.h function.h $(GGC_H) langhooks.h $(TM_P_H) gt-darwin.h
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/darwin.c
+
+darwin-c.o: $(srcdir)/config/darwin-c.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  $(TM_H) $(CPPLIB_H) tree.h c-pragma.h $(C_TREE_H) toplev.h $(TM_P_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/darwin-c.c
+
+gt-darwin.h : s-gtype ; @true
+
+# Explain how to build crt2.o
+$(T)crt2$(objext): $(srcdir)/config/darwin-crt2.c $(GCC_PASSES) \
+	$(TCONFIG_H) stmp-int-hdrs tsystem.h
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(INCLUDES) $(MULTILIB_CFLAGS) \
+	  -c $(srcdir)/config/darwin-crt2.c -o $(T)crt2$(objext)
+
+# Use unwind-dw2-fde-darwin
+LIB2ADDEH = $(srcdir)/unwind-dw2.c $(srcdir)/unwind-dw2-fde-darwin.c \
+  $(srcdir)/unwind-sjlj.c $(srcdir)/unwind-c.c
+LIB2ADDEHDEP = unwind.inc unwind-dw2-fde.h unwind-dw2-fde.c
+
+TARGET_LIBGCC2_CFLAGS = -fPIC

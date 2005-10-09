@@ -1,0 +1,135 @@
+.\" Copyright (c) 1998 John D. Polstra
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 7, 1998
+.Dt GETOBJFORMAT 3
+.Os
+.Sh NAME
+.Nm getobjformat
+.Nd get preferred object file format
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In objformat.h
+.Ft int
+.Fn getobjformat "char *buf" "size_t bufsize" "int *argcp" "char **argv"
+.Sh DESCRIPTION
+The
+.Fn getobjformat
+function
+queries several sources to determine the preferred object file
+format, and copies its name into a buffer provided by the caller.
+.Pp
+The object file format is determined as follows.
+If
+.Va argv
+is
+.No non- Ns Ev NULL
+and an explicit command line argument such as
+.Fl aout
+or
+.Fl elf
+is present, then that determines the object file format.
+.Pp
+Otherwise, if the variable
+.Ev OBJFORMAT
+is set in the environment, the object file format is taken from its
+value.
+.Pp
+Otherwise, if the file
+.Pa /etc/objformat
+is readable and contains a line of the form
+.Ql OBJFORMAT=xxx ,
+the object file format is taken from there.
+.Pp
+Otherwise, a built-in system default object file format is returned.
+.Pp
+.Va buf
+points to a user-supplied buffer into which the name of the object
+file format is copied.
+.Va bufsize
+gives the size of the buffer in bytes.
+The string placed in
+.Va buf
+is always null-terminated.
+It is an error if the buffer is too
+small to hold the null-terminated name.
+.Pp
+.Va argv
+points to a
+.Dv NULL Ns -terminated
+argument vector to be scanned for object
+format options.
+.Va argv
+may be
+.Dv NULL ,
+in which case the argument vector is not scanned.
+.Pp
+If
+.Va argcp
+is non-NULL, any object format options are deleted from the
+argument vector, and the updated argument count is stored into
+the integer referenced by
+.Va argcp .
+If
+.Va argcp
+is
+.Dv NULL ,
+the argument vector is left unchanged.
+.Sh RETURN VALUES
+On success,
+.Fn getobjformat
+returns the length of the object file format name, not counting the
+null terminator.
+If the supplied buffer is too small to hold the object file format
+and its null terminator,
+.Fn getobjformat
+returns -1.
+In that case, the contents of the buffer and argument
+vector supplied by the caller are indeterminate.
+.Sh ENVIRONMENT
+.Bl -tag -width OBJFORMAT
+.It Ev OBJFORMAT
+If the environment variable
+.Ev OBJFORMAT
+is set, it overrides the default object file format.
+.Ev OBJFORMAT takes precedence over
+.Pa /etc/objformat .
+.El
+.Sh FILES
+.Bl -tag -width /etc/objformat -compact
+.It Pa /etc/objformat
+If present, specifies the object file format to use.
+Syntax is
+.Ql OBJFORMAT=xxx .
+.El
+.Sh SEE ALSO
+.Xr objformat 1
+.Sh HISTORY
+The
+.Fn getobjformat
+function first appeared in
+.Fx 3.0 .

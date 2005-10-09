@@ -1,0 +1,216 @@
+<!--
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2001, 2002  Internet Software Consortium.
+ -
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: named-checkconf.html,v 1.5.2.1.4.5 2004/08/22 23:38:57 marka Exp $ -->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>named-checkconf</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
+><BODY
+CLASS="REFENTRY"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><H1
+><A
+NAME="AEN1"
+></A
+><SPAN
+CLASS="APPLICATION"
+>named-checkconf</SPAN
+></H1
+><DIV
+CLASS="REFNAMEDIV"
+><A
+NAME="AEN9"
+></A
+><H2
+>Name</H2
+><SPAN
+CLASS="APPLICATION"
+>named-checkconf</SPAN
+>&nbsp;--&nbsp;named configuration file syntax checking tool</DIV
+><DIV
+CLASS="REFSYNOPSISDIV"
+><A
+NAME="AEN13"
+></A
+><H2
+>Synopsis</H2
+><P
+><B
+CLASS="COMMAND"
+>named-checkconf</B
+>  [<VAR
+CLASS="OPTION"
+>-v</VAR
+>] [<VAR
+CLASS="OPTION"
+>-j</VAR
+>] [<VAR
+CLASS="OPTION"
+>-t <VAR
+CLASS="REPLACEABLE"
+>directory</VAR
+></VAR
+>] {filename} [<VAR
+CLASS="OPTION"
+>-z</VAR
+>]</P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN26"
+></A
+><H2
+>DESCRIPTION</H2
+><P
+>        <B
+CLASS="COMMAND"
+>named-checkconf</B
+> checks the syntax, but not
+	the semantics, of a named configuration file.
+    </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN30"
+></A
+><H2
+>OPTIONS</H2
+><P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>-t <VAR
+CLASS="REPLACEABLE"
+>directory</VAR
+></DT
+><DD
+><P
+>	      chroot to <TT
+CLASS="FILENAME"
+>directory</TT
+> so that include
+	      directives in the configuration file are processed as if
+	      run by a similarly chrooted named.
+	  </P
+></DD
+><DT
+>-v</DT
+><DD
+><P
+>	      Print the version of the <B
+CLASS="COMMAND"
+>named-checkconf</B
+>
+	      program and exit.
+	  </P
+></DD
+><DT
+>-z</DT
+><DD
+><P
+>	      Perform a check load the master zonefiles found in
+	      <TT
+CLASS="FILENAME"
+>named.conf</TT
+>.
+	  </P
+></DD
+><DT
+>-j</DT
+><DD
+><P
+>	      When loading a zonefile read the journal if it exists.
+	  </P
+></DD
+><DT
+>filename</DT
+><DD
+><P
+>	       The name of the configuration file to be checked.  If not
+	       specified, it defaults to <TT
+CLASS="FILENAME"
+>/etc/named.conf</TT
+>.
+	  </P
+></DD
+></DL
+></DIV
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN58"
+></A
+><H2
+>RETURN VALUES</H2
+><P
+>        <B
+CLASS="COMMAND"
+>named-checkconf</B
+> returns an exit status of 1 if
+	errors were detected and 0 otherwise.
+  </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN62"
+></A
+><H2
+>SEE ALSO</H2
+><P
+>      <SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>named</SPAN
+>(8)</SPAN
+>,
+      <I
+CLASS="CITETITLE"
+>BIND 9 Administrator Reference Manual</I
+>.
+    </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN69"
+></A
+><H2
+>AUTHOR</H2
+><P
+>        Internet Systems Consortium
+    </P
+></DIV
+></BODY
+></HTML
+>

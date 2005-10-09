@@ -1,0 +1,224 @@
+.\" Copyright (c) 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Copyright (c) 1995 John Hay.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 11, 1995
+.Dt IPXROUTED 8
+.Os
+.Sh NAME
+.Nm IPXrouted
+.Nd IPX Routing Information Protocol daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl N
+.Op Fl q
+.Op Fl s
+.Op Fl S
+.Op Fl t
+.Op Ar logfile
+.Sh DESCRIPTION
+The
+.Nm
+utility is invoked at boot time to manage the
+.Tn IPX
+routing tables.
+The
+.Tn IPX
+routing daemon uses the Novell
+.Tn IPX
+Routing Information Protocol in maintaining up to date kernel routing
+table entries.
+.Pp
+Available options:
+.Bl -tag -width logfile
+.It Fl N
+Do not reply on GetNearestServer
+.Tn SAP
+request.
+.It Fl q
+Do not supply routing information (opposite of
+.Fl s
+option below).
+.It Fl s
+Forces
+.Nm
+to supply routing information whether it is acting as an internetwork
+router or not.
+.It Fl S
+Do not supply Service Advertising Protocol
+.Pq Tn SAP
+information.
+The default is to supply
+.Tn SAP
+information.
+.It Fl t
+All packets sent or received are
+printed on the standard output.
+In addition,
+.Nm
+will not divorce itself from the controlling terminal
+so that interrupts from the keyboard will kill the process.
+.It Ar logfile
+Name of file in which
+.Nm Ns 's
+actions should be logged.
+This log contains information
+about any changes to the routing tables and a history of
+recent messages sent and received which are related to
+the changed route.
+.El
+.Pp
+In normal operation
+.Nm
+listens
+for routing information packets.
+If the host is connected to
+multiple
+.Tn IPX
+networks, it periodically supplies copies
+of its routing tables to any directly connected hosts
+and networks.
+.Pp
+When
+.Nm
+is started, it uses the
+.Dv SIOCGIFCONF
+.Xr ioctl 2
+to find those
+directly connected interfaces configured into the
+system and marked
+.Dq up
+(the software loopback interface is ignored).
+If multiple interfaces
+are present, it is assumed the host will forward packets
+between networks.
+The
+.Nm
+utility then transmits a
+.Em request
+packet on each interface (using a broadcast packet if
+the interface supports it) and enters a loop, listening
+for
+.Em request
+and
+.Em response
+packets from other hosts.
+.Pp
+When a
+.Em request
+packet is received,
+.Nm
+formulates a reply based on the information maintained in its
+internal tables.
+The
+.Em response
+packet generated contains a list of known routes, each marked
+with a
+.Dq hop count
+metric (a count of 16, or greater, is
+considered
+.Dq infinite ) .
+The metric associated with each
+route returned provides a metric
+.Em relative to the sender .
+.Pp
+.Em Response
+packets received by
+.Nm
+are used to update the routing tables if one of the following
+conditions is satisfied:
+.Bl -bullet
+.It
+No routing table entry exists for the destination network
+or host, and the metric indicates the destination is
+.Dq reachable
+(i.e., the hop count is not infinite).
+.It
+The source host of the packet is the same as the router in the
+existing routing table entry.
+That is, updated information is
+being received from the very internetwork router through which
+packets for the destination are being routed.
+.It
+The existing entry in the routing table has not been updated for
+some time (defined to be 90 seconds) and the route is at least
+as cost effective as the current route.
+.It
+The new route describes a shorter route to the destination than
+the one currently stored in the routing tables; the metric of
+the new route is compared against the one stored in the table
+to decide this.
+.El
+.Pp
+When an update is applied,
+.Nm
+records the change in its internal tables and generates a
+.Em response
+packet to all directly connected hosts and networks.
+The
+.Xr routed 8
+utility waits a short period
+of time (no more than 30 seconds) before modifying the kernel's
+routing tables to allow possible unstable situations to settle.
+.Pp
+In addition to processing incoming packets,
+.Nm
+also periodically checks the routing table entries.
+If an entry has not been updated for 3 minutes, the entry's metric
+is set to infinity and marked for deletion.
+Deletions are delayed
+an additional 60 seconds to insure the invalidation is propagated
+to other routers.
+.Pp
+Hosts acting as internetwork routers gratuitously supply their
+routing tables every 30 seconds to all directly connected hosts
+and networks.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal the current contents of the
+.Tn RIP
+and
+.Tn SAP
+tables are appended to the file
+.Pa /var/log/ipxrouted.dmp .
+.Sh SEE ALSO
+.Xr ipx 3
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 2.2 .

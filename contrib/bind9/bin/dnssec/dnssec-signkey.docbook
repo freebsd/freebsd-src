@@ -1,0 +1,237 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+<!--
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2001, 2003  Internet Software Consortium.
+ -
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: dnssec-signkey.docbook,v 1.2.2.2.4.2 2004/06/03 02:24:55 marka Exp $ -->
+
+<refentry>
+  <refentryinfo>
+    <date>June 30, 2000</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle><application>dnssec-signkey</application></refentrytitle>
+    <manvolnum>8</manvolnum>
+    <refmiscinfo>BIND9</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><application>dnssec-signkey</application></refname>
+    <refpurpose>DNSSEC key set signing tool</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>dnssec-signkey</command>
+      <arg><option>-a</option></arg>
+      <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg><option>-s <replaceable class="parameter">start-time</replaceable></option></arg>
+      <arg><option>-e <replaceable class="parameter">end-time</replaceable></option></arg>
+      <arg><option>-h</option></arg>
+      <arg><option>-p</option></arg>
+      <arg><option>-r <replaceable class="parameter">randomdev</replaceable></option></arg>
+      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg choice="req">keyset</arg>
+      <arg choice="req" rep="repeat">key</arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+    <para>
+        <command>dnssec-signkey</command> signs a keyset.  Typically
+	the keyset will be for a child zone, and will have been generated
+	by <command>dnssec-makekeyset</command>.  The child zone's keyset
+	is signed with the zone keys for its parent zone.  The output file
+	is of the form <filename>signedkey-nnnn.</filename>, where
+	<filename>nnnn</filename> is the zone name.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>OPTIONS</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>-a</term>
+	<listitem>
+	  <para>
+	      Verify all generated signatures.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-c <replaceable class="parameter">class</replaceable></term>
+	<listitem>
+	  <para>
+	       Specifies the DNS class of the key sets.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-s <replaceable class="parameter">start-time</replaceable></term>
+	<listitem>
+	  <para>
+	       Specify the date and time when the generated SIG records
+	       become valid.  This can be either an absolute or relative
+	       time.  An absolute start time is indicated by a number
+	       in YYYYMMDDHHMMSS notation; 20000530144500 denotes
+	       14:45:00 UTC on May 30th, 2000.  A relative start time is
+	       indicated by +N, which is N seconds from the current time.
+	       If no <option>start-time</option> is specified, the current
+	       time is used.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-e <replaceable class="parameter">end-time</replaceable></term>
+	<listitem>
+	  <para>
+	       Specify the date and time when the generated SIG records
+	       expire.  As with <option>start-time</option>, an absolute
+	       time is indicated in YYYYMMDDHHMMSS notation.  A time relative
+	       to the start time is indicated with +N, which is N seconds from
+	       the start time.  A time relative to the current time is
+	       indicated with now+N.  If no <option>end-time</option> is
+	       specified, 30 days from the start time is used as a default.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-h</term>
+	<listitem>
+	  <para>
+	       Prints a short summary of the options and arguments to
+	       <command>dnssec-signkey</command>.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-p</term>
+	<listitem>
+	  <para>
+	       Use pseudo-random data when signing the zone.  This is faster,
+	       but less secure, than using real random data.  This option
+	       may be useful when signing large zones or when the entropy
+	       source is limited.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-r <replaceable class="parameter">randomdev</replaceable></term>
+	<listitem>
+	  <para>
+	       Specifies the source of randomness.  If the operating
+	       system does not provide a <filename>/dev/random</filename>
+	       or equivalent device, the default source of randomness
+	       is keyboard input.  <filename>randomdev</filename> specifies
+	       the name of a character device or file containing random
+	       data to be used instead of the default.  The special value
+	       <filename>keyboard</filename> indicates that keyboard
+	       input should be used.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-v <replaceable class="parameter">level</replaceable></term>
+	<listitem>
+	  <para>
+	       Sets the debugging level.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>keyset</term>
+	  <listitem>
+	    <para>
+	        The file containing the child's keyset.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>key</term>
+	  <listitem>
+	    <para>
+	        The keys used to sign the child's keyset.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>EXAMPLE</title>
+    <para>
+        The DNS administrator for a DNSSEC-aware <userinput>.com</userinput>
+	zone would use the following command to sign the
+	<filename>keyset</filename> file for <userinput>example.com</userinput>
+	created by <command>dnssec-makekeyset</command> with a key generated
+	by <command>dnssec-keygen</command>:
+    </para>
+    <para>
+        <userinput>dnssec-signkey keyset-example.com. Kcom.+003+51944</userinput>
+    </para>
+    <para>
+        In this example, <command>dnssec-signkey</command> creates
+	the file <filename>signedkey-example.com.</filename>, which
+	contains the <userinput>example.com</userinput> keys and the
+	signatures by the <userinput>.com</userinput> keys.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para>
+      <citerefentry>
+        <refentrytitle>dnssec-keygen</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>dnssec-makekeyset</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>dnssec-signzone</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para>
+        <corpauthor>Internet Systems Consortium</corpauthor>
+    </para>
+  </refsect1>
+
+</refentry>
+
+<!--
+ - Local variables:
+ - mode: sgml
+ - End:
+-->

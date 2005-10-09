@@ -1,0 +1,1148 @@
+.\"  -*- nroff -*-
+.\"
+.\" Author: Tatu Ylonen <ylo@cs.hut.fi>
+.\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+.\"                    All rights reserved
+.\"
+.\" As far as I am concerned, the code I have written for this software
+.\" can be used freely for any purpose.  Any derived versions of this
+.\" software must be clearly marked as such, and if the derived work is
+.\" incompatible with the protocol description in the RFC file, it must be
+.\" called by a name other than "ssh" or "Secure Shell".
+.\"
+.\" Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell.  All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $OpenBSD: ssh.1,v 1.209 2005/07/06 09:33:05 dtucker Exp $
+.\" $FreeBSD$
+.Dd September 25, 1999
+.Dt SSH 1
+.Os
+.Sh NAME
+.Nm ssh
+.Nd OpenSSH SSH client (remote login program)
+.Sh SYNOPSIS
+.Nm ssh
+.Op Fl 1246AaCfgkMNnqsTtVvXxY
+.Op Fl b Ar bind_address
+.Op Fl c Ar cipher_spec
+.Bk -words
+.Op Fl D Ar port
+.Op Fl e Ar escape_char
+.Op Fl F Ar configfile
+.Op Fl i Ar identity_file
+.Oo Fl L Xo
+.Sm off
+.Ar port :
+.Ar host :
+.Ar hostport
+.Sm on
+.Xc
+.Oc
+.Ek
+.Op Fl l Ar login_name
+.Op Fl m Ar mac_spec
+.Op Fl o Ar option
+.Bk -words
+.Op Fl p Ar port
+.Ek
+.Oo Fl R Xo
+.Sm off
+.Ar port :
+.Ar host :
+.Ar hostport
+.Sm on
+.Xc
+.Oc
+.Op Fl S Ar ctl
+.Oo Ar user Ns @ Oc Ns Ar hostname
+.Op Ar command
+.Sh DESCRIPTION
+.Nm
+(SSH client) is a program for logging into a remote machine and for
+executing commands on a remote machine.
+It is intended to replace rlogin and rsh,
+and provide secure encrypted communications between
+two untrusted hosts over an insecure network.
+X11 connections and arbitrary TCP/IP ports
+can also be forwarded over the secure channel.
+.Pp
+.Nm
+connects and logs into the specified
+.Ar hostname
+(with optional
+.Ar user
+name).
+The user must prove
+his/her identity to the remote machine using one of several methods
+depending on the protocol version used.
+.Pp
+If
+.Ar command
+is specified,
+.Ar command
+is executed on the remote host instead of a login shell.
+.Ss SSH protocol version 1
+First, if the machine the user logs in from is listed in
+.Pa /etc/hosts.equiv
+or
+.Pa /etc/ssh/shosts.equiv
+on the remote machine, and the user names are
+the same on both sides, the user is immediately permitted to log in.
+Second, if
+.Pa .rhosts
+or
+.Pa .shosts
+exists in the user's home directory on the
+remote machine and contains a line containing the name of the client
+machine and the name of the user on that machine, the user is
+permitted to log in.
+This form of authentication alone is normally not
+allowed by the server because it is not secure.
+.Pp
+The second authentication method is the
+.Em rhosts
+or
+.Em hosts.equiv
+method combined with RSA-based host authentication.
+If the machine the user logs in from is listed in
+.Pa /etc/hosts.equiv
+or
+.Pa /etc/shosts.equiv
+on the remote machine, and the user names are
+the same on both sides, or if the files
+.Pa ~/.rhosts
+or
+.Pa ~/.shosts
+exist in the user's home directory on the
+remote machine and contain a line containing the name of the client
+machine and the name of the user on that machine, the user is
+considered for log in.
+Additionally, if the server can verify the client's
+host key (see
+.Pa /etc/ssh/ssh_known_hosts
+and
+.Pa ~/.ssh/known_hosts
+in the
+.Sx FILES
+section), only then is login permitted.
+This authentication method closes security holes due to IP
+spoofing, DNS spoofing and routing spoofing.
+[Note to the administrator:
+.Pa /etc/hosts.equiv ,
+.Pa ~/.rhosts ,
+and the rlogin/rsh protocol in general, are inherently insecure and should be
+disabled if security is desired.]
+.Pp
+As a third authentication method,
+.Nm
+supports RSA based authentication.
+The scheme is based on public-key cryptography: there are cryptosystems
+where encryption and decryption are done using separate keys, and it
+is not possible to derive the decryption key from the encryption key.
+RSA is one such system.
+The idea is that each user creates a public/private
+key pair for authentication purposes.
+The server knows the public key, and only the user knows the private key.
+.Pp
+The file
+.Pa ~/.ssh/authorized_keys
+lists the public keys that are permitted for logging in.
+When the user logs in, the
+.Nm
+program tells the server which key pair it would like to use for
+authentication.
+The server checks if this key is permitted, and if so,
+sends the user (actually the
+.Nm
+program running on behalf of the user) a challenge, a random number,
+encrypted by the user's public key.
+The challenge can only be decrypted using the proper private key.
+The user's client then decrypts the challenge using the private key,
+proving that he/she knows the private key
+but without disclosing it to the server.
+.Pp
+.Nm
+implements the RSA authentication protocol automatically.
+The user creates his/her RSA key pair by running
+.Xr ssh-keygen 1 .
+This stores the private key in
+.Pa ~/.ssh/identity
+and stores the public key in
+.Pa ~/.ssh/identity.pub
+in the user's home directory.
+The user should then copy the
+.Pa identity.pub
+to
+.Pa ~/.ssh/authorized_keys
+in his/her home directory on the remote machine (the
+.Pa authorized_keys
+file corresponds to the conventional
+.Pa ~/.rhosts
+file, and has one key
+per line, though the lines can be very long).
+After this, the user can log in without giving the password.
+RSA authentication is much more secure than
+.Em rhosts
+authentication.
+.Pp
+The most convenient way to use RSA authentication may be with an
+authentication agent.
+See
+.Xr ssh-agent 1
+for more information.
+.Pp
+If other authentication methods fail,
+.Nm
+prompts the user for a password.
+The password is sent to the remote
+host for checking; however, since all communications are encrypted,
+the password cannot be seen by someone listening on the network.
+.Ss SSH protocol version 2
+When a user connects using protocol version 2,
+similar authentication methods are available.
+Using the default values for
+.Cm PreferredAuthentications ,
+the client will try to authenticate first using the hostbased method;
+if this method fails, public key authentication is attempted,
+and finally if this method fails, keyboard-interactive and
+password authentication are tried.
+.Pp
+The public key method is similar to RSA authentication described
+in the previous section and allows the RSA or DSA algorithm to be used:
+The client uses his private key,
+.Pa ~/.ssh/id_dsa
+or
+.Pa ~/.ssh/id_rsa ,
+to sign the session identifier and sends the result to the server.
+The server checks whether the matching public key is listed in
+.Pa ~/.ssh/authorized_keys
+and grants access if both the key is found and the signature is correct.
+The session identifier is derived from a shared Diffie-Hellman value
+and is only known to the client and the server.
+.Pp
+If public key authentication fails or is not available, a password
+can be sent encrypted to the remote host to prove the user's identity.
+.Pp
+Additionally,
+.Nm
+supports hostbased or challenge response authentication.
+.Pp
+Protocol 2 provides additional mechanisms for confidentiality
+(the traffic is encrypted using AES, 3DES, Blowfish, CAST128 or Arcfour)
+and integrity (hmac-md5, hmac-sha1, hmac-ripemd160).
+Note that protocol 1 lacks a strong mechanism for ensuring the
+integrity of the connection.
+.Ss Login session and remote execution
+When the user's identity has been accepted by the server, the server
+either executes the given command, or logs into the machine and gives
+the user a normal shell on the remote machine.
+All communication with
+the remote command or shell will be automatically encrypted.
+.Pp
+If a pseudo-terminal has been allocated (normal login session), the
+user may use the escape characters noted below.
+.Pp
+If no pseudo-tty has been allocated,
+the session is transparent and can be used to reliably transfer binary data.
+On most systems, setting the escape character to
+.Dq none
+will also make the session transparent even if a tty is used.
+.Pp
+The session terminates when the command or shell on the remote
+machine exits and all X11 and TCP/IP connections have been closed.
+The exit status of the remote program is returned as the exit status of
+.Nm ssh .
+.Ss Escape Characters
+When a pseudo-terminal has been requested,
+.Nm
+supports a number of functions through the use of an escape character.
+.Pp
+A single tilde character can be sent as
+.Ic ~~
+or by following the tilde by a character other than those described below.
+The escape character must always follow a newline to be interpreted as
+special.
+The escape character can be changed in configuration files using the
+.Cm EscapeChar
+configuration directive or on the command line by the
+.Fl e
+option.
+.Pp
+The supported escapes (assuming the default
+.Ql ~ )
+are:
+.Bl -tag -width Ds
+.It Cm ~.
+Disconnect.
+.It Cm ~^Z
+Background
+.Nm ssh .
+.It Cm ~#
+List forwarded connections.
+.It Cm ~&
+Background
+.Nm
+at logout when waiting for forwarded connection / X11 sessions to terminate.
+.It Cm ~?
+Display a list of escape characters.
+.It Cm ~B
+Send a BREAK to the remote system
+(only useful for SSH protocol version 2 and if the peer supports it).
+.It Cm ~C
+Open command line.
+Currently this allows the addition of port forwardings using the
+.Fl L
+and
+.Fl R
+options (see below).
+It also allows the cancellation of existing remote port-forwardings
+using
+.Fl KR Ar hostport .
+Basic help is available, using the
+.Fl h
+option.
+.It Cm ~R
+Request rekeying of the connection
+(only useful for SSH protocol version 2 and if the peer supports it).
+.El
+.Ss X11 and TCP forwarding
+If the
+.Cm ForwardX11
+variable is set to
+.Dq yes
+(or see the description of the
+.Fl X
+and
+.Fl x
+options described later)
+and the user is using X11 (the
+.Ev DISPLAY
+environment variable is set), the connection to the X11 display is
+automatically forwarded to the remote side in such a way that any X11
+programs started from the shell (or command) will go through the
+encrypted channel, and the connection to the real X server will be made
+from the local machine.
+The user should not manually set
+.Ev DISPLAY .
+Forwarding of X11 connections can be
+configured on the command line or in configuration files.
+.Pp
+The
+.Ev DISPLAY
+value set by
+.Nm
+will point to the server machine, but with a display number greater than zero.
+This is normal, and happens because
+.Nm
+creates a
+.Dq proxy
+X server on the server machine for forwarding the
+connections over the encrypted channel.
+.Pp
+.Nm
+will also automatically set up Xauthority data on the server machine.
+For this purpose, it will generate a random authorization cookie,
+store it in Xauthority on the server, and verify that any forwarded
+connections carry this cookie and replace it by the real cookie when
+the connection is opened.
+The real authentication cookie is never
+sent to the server machine (and no cookies are sent in the plain).
+.Pp
+If the
+.Cm ForwardAgent
+variable is set to
+.Dq yes
+(or see the description of the
+.Fl A
+and
+.Fl a
+options described later) and
+the user is using an authentication agent, the connection to the agent
+is automatically forwarded to the remote side.
+.Pp
+Forwarding of arbitrary TCP/IP connections over the secure channel can
+be specified either on the command line or in a configuration file.
+One possible application of TCP/IP forwarding is a secure connection to an
+electronic purse; another is going through firewalls.
+.Ss Server authentication
+.Nm
+automatically maintains and checks a database containing
+identifications for all hosts it has ever been used with.
+Host keys are stored in
+.Pa ~/.ssh/known_hosts
+in the user's home directory.
+Additionally, the file
+.Pa /etc/ssh/ssh_known_hosts
+is automatically checked for known hosts.
+Any new hosts are automatically added to the user's file.
+If a host's identification ever changes,
+.Nm
+warns about this and disables password authentication to prevent a
+trojan horse from getting the user's password.
+Another purpose of this mechanism is to prevent man-in-the-middle attacks
+which could otherwise be used to circumvent the encryption.
+The
+.Cm StrictHostKeyChecking
+option can be used to prevent logins to machines whose
+host key is not known or has changed.
+.Pp
+.Nm
+can be configured to verify host identification using fingerprint resource
+records (SSHFP) published in DNS.
+The
+.Cm VerifyHostKeyDNS
+option can be used to control how DNS lookups are performed.
+SSHFP resource records can be generated using
+.Xr ssh-keygen 1 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 1
+Forces
+.Nm
+to try protocol version 1 only.
+.It Fl 2
+Forces
+.Nm
+to try protocol version 2 only.
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl A
+Enables forwarding of the authentication agent connection.
+This can also be specified on a per-host basis in a configuration file.
+.Pp
+Agent forwarding should be enabled with caution.
+Users with the ability to bypass file permissions on the remote host
+(for the agent's Unix-domain socket)
+can access the local agent through the forwarded connection.
+An attacker cannot obtain key material from the agent,
+however they can perform operations on the keys that enable them to
+authenticate using the identities loaded into the agent.
+.It Fl a
+Disables forwarding of the authentication agent connection.
+.It Fl b Ar bind_address
+Use
+.Ar bind_address
+on the local machine as the source address
+of the connection.
+Only useful on systems with more than one address.
+.It Fl C
+Requests compression of all data (including stdin, stdout, stderr, and
+data for forwarded X11 and TCP/IP connections).
+The compression algorithm is the same used by
+.Xr gzip 1 ,
+and the
+.Dq level
+can be controlled by the
+.Cm CompressionLevel
+option for protocol version 1.
+Compression is desirable on modem lines and other
+slow connections, but will only slow down things on fast networks.
+The default value can be set on a host-by-host basis in the
+configuration files; see the
+.Cm Compression
+option.
+.It Fl c Ar cipher_spec
+Selects the cipher specification for encrypting the session.
+.Pp
+Protocol version 1 allows specification of a single cipher.
+The suported values are
+.Dq 3des ,
+.Dq blowfish
+and
+.Dq des .
+.Ar 3des
+(triple-des) is an encrypt-decrypt-encrypt triple with three different keys.
+It is believed to be secure.
+.Ar blowfish
+is a fast block cipher; it appears very secure and is much faster than
+.Ar 3des .
+.Ar des
+is only supported in the
+.Nm
+client for interoperability with legacy protocol 1 implementations
+that do not support the
+.Ar 3des
+cipher.
+Its use is strongly discouraged due to cryptographic weaknesses.
+The default is
+.Dq 3des .
+.Pp
+For protocol version 2
+.Ar cipher_spec
+is a comma-separated list of ciphers
+listed in order of preference.
+The supported ciphers are
+.Dq 3des-cbc ,
+.Dq aes128-cbc ,
+.Dq aes192-cbc ,
+.Dq aes256-cbc ,
+.Dq aes128-ctr ,
+.Dq aes192-ctr ,
+.Dq aes256-ctr ,
+.Dq arcfour128 ,
+.Dq arcfour256 ,
+.Dq arcfour ,
+.Dq blowfish-cbc ,
+and
+.Dq cast128-cbc .
+The default is
+.Bd -literal
+  ``aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour128,
+    arcfour256,arcfour,aes192-cbc,aes256-cbc,aes128-ctr,
+    aes192-ctr,aes256-ctr''
+.Ed
+.It Fl D Ar port
+Specifies a local
+.Dq dynamic
+application-level port forwarding.
+This works by allocating a socket to listen to
+.Ar port
+on the local side, and whenever a connection is made to this port, the
+connection is forwarded over the secure channel, and the application
+protocol is then used to determine where to connect to from the
+remote machine.
+Currently the SOCKS4 and SOCKS5 protocols are supported, and
+.Nm
+will act as a SOCKS server.
+Only root can forward privileged ports.
+Dynamic port forwardings can also be specified in the configuration file.
+.It Fl e Ar ch | ^ch | none
+Sets the escape character for sessions with a pty (default:
+.Ql ~ ) .
+The escape character is only recognized at the beginning of a line.
+The escape character followed by a dot
+.Pq Ql \&.
+closes the connection;
+followed by control-Z suspends the connection;
+and followed by itself sends the escape character once.
+Setting the character to
+.Dq none
+disables any escapes and makes the session fully transparent.
+.It Fl F Ar configfile
+Specifies an alternative per-user configuration file.
+If a configuration file is given on the command line,
+the system-wide configuration file
+.Pq Pa /etc/ssh/ssh_config
+will be ignored.
+The default for the per-user configuration file is
+.Pa ~/.ssh/config .
+.It Fl f
+Requests
+.Nm
+to go to background just before command execution.
+This is useful if
+.Nm
+is going to ask for passwords or passphrases, but the user
+wants it in the background.
+This implies
+.Fl n .
+The recommended way to start X11 programs at a remote site is with
+something like
+.Ic ssh -f host xterm .
+.It Fl g
+Allows remote hosts to connect to local forwarded ports.
+.It Fl I Ar smartcard_device
+Specifies which smartcard device to use.
+The argument is the device
+.Nm
+should use to communicate with a smartcard used for storing the user's
+private RSA key.
+.It Fl i Ar identity_file
+Selects a file from which the identity (private key) for
+RSA or DSA authentication is read.
+The default is
+.Pa ~/.ssh/identity
+for protocol version 1, and
+.Pa ~/.ssh/id_rsa
+and
+.Pa ~/.ssh/id_dsa
+for protocol version 2.
+Identity files may also be specified on
+a per-host basis in the configuration file.
+It is possible to have multiple
+.Fl i
+options (and multiple identities specified in
+configuration files).
+.It Fl k
+Disables forwarding (delegation) of GSSAPI credentials to the server.
+.It Fl L Xo
+.Sm off
+.Ar port : host : hostport
+.Sm on
+.Xc
+Specifies that the given port on the local (client) host is to be
+forwarded to the given host and port on the remote side.
+This works by allocating a socket to listen to
+.Ar port
+on the local side, and whenever a connection is made to this port, the
+connection is forwarded over the secure channel, and a connection is
+made to
+.Ar host
+port
+.Ar hostport
+from the remote machine.
+Port forwardings can also be specified in the configuration file.
+Only root can forward privileged ports.
+IPv6 addresses can be specified with an alternative syntax:
+.Sm off
+.Xo
+.Ar port No / Ar host No /
+.Ar hostport .
+.Xc
+.Sm on
+.It Fl l Ar login_name
+Specifies the user to log in as on the remote machine.
+This also may be specified on a per-host basis in the configuration file.
+.It Fl M
+Places the
+.Nm
+client into
+.Dq master
+mode for connection sharing.
+Refer to the description of
+.Cm ControlMaster
+in
+.Xr ssh_config 5
+for details.
+.It Fl m Ar mac_spec
+Additionally, for protocol version 2 a comma-separated list of MAC
+(message authentication code) algorithms can
+be specified in order of preference.
+See the
+.Cm MACs
+keyword for more information.
+.It Fl N
+Do not execute a remote command.
+This is useful for just forwarding ports
+(protocol version 2 only).
+.It Fl n
+Redirects stdin from
+.Pa /dev/null
+(actually, prevents reading from stdin).
+This must be used when
+.Nm
+is run in the background.
+A common trick is to use this to run X11 programs on a remote machine.
+For example,
+.Ic ssh -n shadows.cs.hut.fi emacs &
+will start an emacs on shadows.cs.hut.fi, and the X11
+connection will be automatically forwarded over an encrypted channel.
+The
+.Nm
+program will be put in the background.
+(This does not work if
+.Nm
+needs to ask for a password or passphrase; see also the
+.Fl f
+option.)
+.It Fl o Ar option
+Can be used to give options in the format used in the configuration file.
+This is useful for specifying options for which there is no separate
+command-line flag.
+For full details of the options listed below, and their possible values, see
+.Xr ssh_config 5 .
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It AddressFamily
+.It BatchMode
+.It BindAddress
+.It ChallengeResponseAuthentication
+.It CheckHostIP
+.It Cipher
+.It Ciphers
+.It ClearAllForwardings
+.It Compression
+.It CompressionLevel
+.It ConnectionAttempts
+.It ConnectTimeout
+.It ControlMaster
+.It ControlPath
+.It DynamicForward
+.It EscapeChar
+.It ForwardAgent
+.It ForwardX11
+.It ForwardX11Trusted
+.It GatewayPorts
+.It GlobalKnownHostsFile
+.It GSSAPIAuthentication
+.It GSSAPIDelegateCredentials
+.It Host
+.It HostbasedAuthentication
+.It HostKeyAlgorithms
+.It HostKeyAlias
+.It HostName
+.It IdentityFile
+.It IdentitiesOnly
+.It LocalForward
+.It LogLevel
+.It MACs
+.It NoHostAuthenticationForLocalhost
+.It NumberOfPasswordPrompts
+.It PasswordAuthentication
+.It Port
+.It PreferredAuthentications
+.It Protocol
+.It ProxyCommand
+.It PubkeyAuthentication
+.It RemoteForward
+.It RhostsRSAAuthentication
+.It RSAAuthentication
+.It SendEnv
+.It ServerAliveInterval
+.It ServerAliveCountMax
+.It SmartcardDevice
+.It StrictHostKeyChecking
+.It TCPKeepAlive
+.It UsePrivilegedPort
+.It User
+.It UserKnownHostsFile
+.It VerifyHostKeyDNS
+.It XAuthLocation
+.El
+.It Fl p Ar port
+Port to connect to on the remote host.
+This can be specified on a
+per-host basis in the configuration file.
+.It Fl q
+Quiet mode.
+Causes all warning and diagnostic messages to be suppressed.
+.It Fl R Xo
+.Sm off
+.Ar port : host : hostport
+.Sm on
+.Xc
+Specifies that the given port on the remote (server) host is to be
+forwarded to the given host and port on the local side.
+This works by allocating a socket to listen to
+.Ar port
+on the remote side, and whenever a connection is made to this port, the
+connection is forwarded over the secure channel, and a connection is
+made to
+.Ar host
+port
+.Ar hostport
+from the local machine.
+Port forwardings can also be specified in the configuration file.
+Privileged ports can be forwarded only when
+logging in as root on the remote machine.
+IPv6 addresses can be specified with an alternative syntax:
+.Sm off
+.Xo
+.Ar port No / Ar host No /
+.Ar hostport .
+.Xc
+.Sm on
+.It Fl S Ar ctl
+Specifies the location of a control socket for connection sharing.
+Refer to the description of
+.Cm ControlPath
+and
+.Cm ControlMaster
+in
+.Xr ssh_config 5
+for details.
+.It Fl s
+May be used to request invocation of a subsystem on the remote system.
+Subsystems are a feature of the SSH2 protocol which facilitate the use
+of SSH as a secure transport for other applications (eg.\&
+.Xr sftp 1 ) .
+The subsystem is specified as the remote command.
+.It Fl T
+Disable pseudo-tty allocation.
+.It Fl t
+Force pseudo-tty allocation.
+This can be used to execute arbitrary
+screen-based programs on a remote machine, which can be very useful,
+e.g., when implementing menu services.
+Multiple
+.Fl t
+options force tty allocation, even if
+.Nm
+has no local tty.
+.It Fl V
+Display the version number and exit.
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+to print debugging messages about its progress.
+This is helpful in
+debugging connection, authentication, and configuration problems.
+Multiple
+.Fl v
+options increase the verbosity.
+The maximum is 3.
+.It Fl X
+Enables X11 forwarding.
+This can also be specified on a per-host basis in a configuration file.
+.Pp
+X11 forwarding should be enabled with caution.
+Users with the ability to bypass file permissions on the remote host
+(for the user's X authorization database)
+can access the local X11 display through the forwarded connection.
+An attacker may then be able to perform activities such as keystroke monitoring.
+.It Fl x
+Disables X11 forwarding.
+.It Fl Y
+Enables trusted X11 forwarding.
+.El
+.Sh CONFIGURATION FILES
+.Nm
+may additionally obtain configuration data from
+a per-user configuration file and a system-wide configuration file.
+The file format and configuration options are described in
+.Xr ssh_config 5 .
+.Sh ENVIRONMENT
+.Nm
+will normally set the following environment variables:
+.Bl -tag -width LOGNAME
+.It Ev DISPLAY
+The
+.Ev DISPLAY
+variable indicates the location of the X11 server.
+It is automatically set by
+.Nm
+to point to a value of the form
+.Dq hostname:n
+where hostname indicates
+the host where the shell runs, and n is an integer \*(Ge 1.
+.Nm
+uses this special value to forward X11 connections over the secure
+channel.
+The user should normally not set
+.Ev DISPLAY
+explicitly, as that
+will render the X11 connection insecure (and will require the user to
+manually copy any required authorization cookies).
+.It Ev HOME
+Set to the path of the user's home directory.
+.It Ev LOGNAME
+Synonym for
+.Ev USER ;
+set for compatibility with systems that use this variable.
+.It Ev MAIL
+Set to the path of the user's mailbox.
+.It Ev PATH
+Set to the default
+.Ev PATH ,
+as specified when compiling
+.Nm ssh .
+.It Ev SSH_ASKPASS
+If
+.Nm
+needs a passphrase, it will read the passphrase from the current
+terminal if it was run from a terminal.
+If
+.Nm
+does not have a terminal associated with it but
+.Ev DISPLAY
+and
+.Ev SSH_ASKPASS
+are set, it will execute the program specified by
+.Ev SSH_ASKPASS
+and open an X11 window to read the passphrase.
+This is particularly useful when calling
+.Nm
+from a
+.Pa .Xsession
+or related script.
+(Note that on some machines it
+may be necessary to redirect the input from
+.Pa /dev/null
+to make this work.)
+.It Ev SSH_AUTH_SOCK
+Identifies the path of a unix-domain socket used to communicate with the
+agent.
+.It Ev SSH_CONNECTION
+Identifies the client and server ends of the connection.
+The variable contains
+four space-separated values: client ip-address, client port number,
+server ip-address and server port number.
+.It Ev SSH_ORIGINAL_COMMAND
+The variable contains the original command line if a forced command
+is executed.
+It can be used to extract the original arguments.
+.It Ev SSH_TTY
+This is set to the name of the tty (path to the device) associated
+with the current shell or command.
+If the current session has no tty,
+this variable is not set.
+.It Ev TZ
+The timezone variable is set to indicate the present timezone if it
+was set when the daemon was started (i.e., the daemon passes the value
+on to new connections).
+.It Ev USER
+Set to the name of the user logging in.
+.El
+.Pp
+Additionally,
+.Nm
+reads
+.Pa ~/.ssh/environment ,
+and adds lines of the format
+.Dq VARNAME=value
+to the environment if the file exists and if users are allowed to
+change their environment.
+For more information, see the
+.Cm PermitUserEnvironment
+option in
+.Xr sshd_config 5 .
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa ~/.ssh/known_hosts
+Records host keys for all hosts the user has logged into that are not
+in
+.Pa /etc/ssh/ssh_known_hosts .
+See
+.Xr sshd 8 .
+.It Pa ~/.ssh/identity, ~/.ssh/id_dsa, ~/.ssh/id_rsa
+Contains the authentication identity of the user.
+They are for protocol 1 RSA, protocol 2 DSA, and protocol 2 RSA, respectively.
+These files
+contain sensitive data and should be readable by the user but not
+accessible by others (read/write/execute).
+Note that
+.Nm
+ignores a private key file if it is accessible by others.
+It is possible to specify a passphrase when
+generating the key; the passphrase will be used to encrypt the
+sensitive part of this file using 3DES.
+.It Pa ~/.ssh/identity.pub, ~/.ssh/id_dsa.pub, ~/.ssh/id_rsa.pub
+Contains the public key for authentication (public part of the
+identity file in human-readable form).
+The contents of the
+.Pa ~/.ssh/identity.pub
+file should be added to the file
+.Pa ~/.ssh/authorized_keys
+on all machines
+where the user wishes to log in using protocol version 1 RSA authentication.
+The contents of the
+.Pa ~/.ssh/id_dsa.pub
+and
+.Pa ~/.ssh/id_rsa.pub
+file should be added to
+.Pa ~/.ssh/authorized_keys
+on all machines
+where the user wishes to log in using protocol version 2 DSA/RSA authentication.
+These files are not
+sensitive and can (but need not) be readable by anyone.
+These files are
+never used automatically and are not necessary; they are only provided for
+the convenience of the user.
+.It Pa ~/.ssh/config
+This is the per-user configuration file.
+The file format and configuration options are described in
+.Xr ssh_config 5 .
+Because of the potential for abuse, this file must have strict permissions:
+read/write for the user, and not accessible by others.
+.It Pa ~/.ssh/authorized_keys
+Lists the public keys (RSA/DSA) that can be used for logging in as this user.
+The format of this file is described in the
+.Xr sshd 8
+manual page.
+In the simplest form the format is the same as the
+.Pa .pub
+identity files.
+This file is not highly sensitive, but the recommended
+permissions are read/write for the user, and not accessible by others.
+.It Pa /etc/ssh/ssh_known_hosts
+Systemwide list of known host keys.
+This file should be prepared by the
+system administrator to contain the public host keys of all machines in the
+organization.
+This file should be world-readable.
+This file contains
+public keys, one per line, in the following format (fields separated
+by spaces): system name, public key and optional comment field.
+When different names are used
+for the same machine, all such names should be listed, separated by
+commas.
+The format is described in the
+.Xr sshd 8
+manual page.
+.Pp
+The canonical system name (as returned by name servers) is used by
+.Xr sshd 8
+to verify the client host when logging in; other names are needed because
+.Nm
+does not convert the user-supplied name to a canonical name before
+checking the key, because someone with access to the name servers
+would then be able to fool host authentication.
+.It Pa /etc/ssh/ssh_config
+Systemwide configuration file.
+The file format and configuration options are described in
+.Xr ssh_config 5 .
+.It Pa /etc/ssh/ssh_host_key, /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_rsa_key
+These three files contain the private parts of the host keys
+and are used for
+.Cm RhostsRSAAuthentication
+and
+.Cm HostbasedAuthentication .
+If the protocol version 1
+.Cm RhostsRSAAuthentication
+method is used,
+.Nm
+must be setuid root, since the host key is readable only by root.
+For protocol version 2,
+.Nm
+uses
+.Xr ssh-keysign 8
+to access the host keys for
+.Cm HostbasedAuthentication .
+This eliminates the requirement that
+.Nm
+be setuid root when that authentication method is used.
+By default
+.Nm
+is not setuid root.
+.It Pa ~/.rhosts
+This file is used in
+.Em rhosts
+authentication to list the
+host/user pairs that are permitted to log in.
+(Note that this file is
+also used by rlogin and rsh, which makes using this file insecure.)
+Each line of the file contains a host name (in the canonical form
+returned by name servers), and then a user name on that host,
+separated by a space.
+On some machines this file may need to be
+world-readable if the user's home directory is on a NFS partition,
+because
+.Xr sshd 8
+reads it as root.
+Additionally, this file must be owned by the user,
+and must not have write permissions for anyone else.
+The recommended
+permission for most machines is read/write for the user, and not
+accessible by others.
+.Pp
+Note that by default
+.Xr sshd 8
+will be installed so that it requires successful RSA host
+authentication before permitting
+.Em rhosts
+authentication.
+If the server machine does not have the client's host key in
+.Pa /etc/ssh/ssh_known_hosts ,
+it can be stored in
+.Pa ~/.ssh/known_hosts .
+The easiest way to do this is to
+connect back to the client from the server machine using ssh; this
+will automatically add the host key to
+.Pa ~/.ssh/known_hosts .
+.It Pa ~/.shosts
+This file is used exactly the same way as
+.Pa .rhosts .
+The purpose for
+having this file is to be able to use rhosts authentication with
+.Nm
+without permitting login with
+.Xr rlogin
+or
+.Xr rsh 1 .
+.It Pa /etc/hosts.equiv
+This file is used during
+.Em rhosts
+authentication.
+It contains
+canonical hosts names, one per line (the full format is described in the
+.Xr sshd 8
+manual page).
+If the client host is found in this file, login is
+automatically permitted provided client and server user names are the
+same.
+Additionally, successful RSA host authentication is normally
+required.
+This file should only be writable by root.
+.It Pa /etc/ssh/shosts.equiv
+This file is processed exactly as
+.Pa /etc/hosts.equiv .
+This file may be useful to permit logins using
+.Nm
+but not using rsh/rlogin.
+.It Pa /etc/ssh/sshrc
+Commands in this file are executed by
+.Nm
+when the user logs in just before the user's shell (or command) is started.
+See the
+.Xr sshd 8
+manual page for more information.
+.It Pa ~/.ssh/rc
+Commands in this file are executed by
+.Nm
+when the user logs in just before the user's shell (or command) is
+started.
+See the
+.Xr sshd 8
+manual page for more information.
+.It Pa ~/.ssh/environment
+Contains additional definitions for environment variables, see section
+.Sx ENVIRONMENT
+above.
+.El
+.Sh DIAGNOSTICS
+.Nm
+exits with the exit status of the remote command or with 255
+if an error occurred.
+.Sh SEE ALSO
+.Xr gzip 1 ,
+.Xr rsh 1 ,
+.Xr scp 1 ,
+.Xr sftp 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-agent 1 ,
+.Xr ssh-keygen 1 ,
+.Xr telnet 1 ,
+.Xr hosts.equiv 5 ,
+.Xr ssh_config 5 ,
+.Xr ssh-keysign 8 ,
+.Xr sshd 8
+.Rs
+.%A T. Ylonen
+.%A T. Kivinen
+.%A M. Saarinen
+.%A T. Rinne
+.%A S. Lehtinen
+.%T "SSH Protocol Architecture"
+.%N draft-ietf-secsh-architecture-12.txt
+.%D January 2002
+.%O work in progress material
+.Re
+.Sh AUTHORS
+OpenSSH is a derivative of the original and free
+ssh 1.2.12 release by Tatu Ylonen.
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
+Theo de Raadt and Dug Song
+removed many bugs, re-added newer features and
+created OpenSSH.
+Markus Friedl contributed the support for SSH
+protocol versions 1.5 and 2.0.

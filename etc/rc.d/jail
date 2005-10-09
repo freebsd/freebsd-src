@@ -1,0 +1,251 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: jail
+# REQUIRE: LOGIN cleanvar
+# BEFORE: securelevel
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="jail"
+rcvar=`set_rcvar`
+start_cmd="jail_start"
+stop_cmd="jail_stop"
+
+# init_variables _j
+#	Initialize the various jail variables for jail _j.
+#
+init_variables()
+{
+	_j="$1"
+
+	if [ -z "$_j" ]; then
+		warn "init_variables: you must specify a jail"
+		return
+	fi
+
+	eval jail_rootdir=\"\$jail_${_j}_rootdir\"
+	jail_devdir="${jail_rootdir}/dev"
+	jail_fdescdir="${jail_devdir}/fd"
+	jail_procdir="${jail_rootdir}/proc"
+	eval jail_hostname=\"\$jail_${_j}_hostname\"
+	eval jail_ip=\"\$jail_${_j}_ip\"
+	eval jail_exec=\"\$jail_${_j}_exec\"
+	eval jail_exec_start=\"\$jail_${_j}_exec_start\"
+	eval jail_exec_stop=\"\$jail_${_j}_exec_stop\"
+	if [ -n "${jail_exec}" ]; then
+		#   simple/backward-compatible execution
+		jail_exec_start="${jail_exec}"
+		jail_exec_stop=""
+	else
+		#   flexible execution
+		if [ -z "${jail_exec_start}" ]; then
+			jail_exec_start="/bin/sh /etc/rc"
+			if [ -z "${jail_exec_stop}" ]; then
+				jail_exec_stop="/bin/sh /etc/rc.shutdown"
+			fi
+		fi
+	fi
+
+	# The default jail ruleset will be used by rc.subr if none is specified.
+	eval jail_ruleset=\"\$jail_${_j}_devfs_ruleset\"
+	eval jail_devfs=\"\$jail_${_j}_devfs_enable\"
+	[ -z "${jail_devfs}" ] && jail_devfs="NO"
+	eval jail_fdescfs=\"\$jail_${_j}_fdescfs_enable\"
+	[ -z "${jail_fdescfs}" ] && jail_fdescfs="NO"
+	eval jail_procfs=\"\$jail_${_j}_procfs_enable\"
+	[ -z "${jail_procfs}" ] && jail_procfs="NO"
+
+	eval jail_mount=\"\$jail_${_j}_mount_enable\"
+	[ -z "${jail_mount}" ] && jail_mount="NO"
+	# "/etc/fstab.${_j}" will be used for {,u}mount(8) if none is specified.
+	eval jail_fstab=\"\$jail_${_j}_fstab\"
+	[ -z "${jail_fstab}" ] && jail_fstab="/etc/fstab.${_j}"
+	eval jail_flags=\"\$jail_${_j}_flags\"
+	[ -z "${jail_flags}" ] && jail_flags="-l -U root"
+
+	# Debugging aid
+	#
+	debug "$_j devfs enable: $jail_devfs"
+	debug "$_j fdescfs enable: $jail_fdescfs"
+	debug "$_j procfs enable: $jail_procfs"
+	debug "$_j mount enable: $jail_mount"
+	debug "$_j hostname: $jail_hostname"
+	debug "$_j ip: $jail_ip"
+	debug "$_j root: $jail_rootdir"
+	debug "$_j devdir: $jail_devdir"
+	debug "$_j fdescdir: $jail_fdescdir"
+	debug "$_j procdir: $jail_procdir"
+	debug "$_j ruleset: $jail_ruleset"
+	debug "$_j fstab: $jail_fstab"
+	debug "$_j exec start: $jail_exec_start"
+	debug "$_j exec stop: $jail_exec_stop"
+	debug "$_j flags: $jail_flags"
+}
+
+# set_sysctl rc_knob mib msg
+#	If the mib sysctl is set according to what rc_knob
+#	specifies, this function does nothing. However if
+#	rc_knob is set differently than mib, then the mib
+#	is set accordingly and msg is displayed followed by
+#	an '=" sign and the word 'YES' or 'NO'.
+#
+set_sysctl()
+{
+	_knob="$1"
+	_mib="$2"
+	_msg="$3"
+
+	_current=`${SYSCTL} -n $_mib 2>/dev/null`
+	if checkyesno $_knob ; then
+		if [ "$_current" -ne 1 ]; then
+			echo -n " ${_msg}=YES"
+			${SYSCTL_W} 1>/dev/null ${_mib}=1
+		fi
+	else
+		if [ "$_current" -ne 0 ]; then
+			echo -n " ${_msg}=NO"
+			${SYSCTL_W} 1>/dev/null ${_mib}=0
+		fi
+	fi
+}
+
+# jail_umount_fs
+#	This function unmounts certain special filesystems in the
+#	currently selected jail. The caller must call the init_variables()
+#	routine before calling this one.
+#
+jail_umount_fs()
+{
+	if checkyesno jail_fdescfs; then
+		if [ -d "${jail_fdescdir}" ] ; then
+			umount -f ${jail_fdescdir} >/dev/null 2>&1
+		fi
+	fi
+	if checkyesno jail_devfs; then
+		if [ -d "${jail_devdir}" ] ; then
+			umount -f ${jail_devdir} >/dev/null 2>&1
+		fi
+	fi
+	if checkyesno jail_procfs; then
+		if [ -d "${jail_procdir}" ] ; then
+			umount -f ${jail_procdir} >/dev/null 2>&1
+		fi
+	fi
+	if checkyesno jail_mount; then
+		[ -f "${jail_fstab}" ] || warn "${jail_fstab} does not exist"
+		umount -a -F "${jail_fstab}" >/dev/null 2>&1
+	fi
+}
+
+jail_start()
+{
+	echo -n 'Configuring jails:'
+	set_sysctl jail_set_hostname_allow security.jail.set_hostname_allowed \
+	    set_hostname_allow
+	set_sysctl jail_socket_unixiproute_only \
+	    security.jail.socket_unixiproute_only unixiproute_only
+	set_sysctl jail_sysvipc_allow security.jail.sysvipc_allowed \
+	    sysvipc_allow
+	echo '.'
+
+	echo -n 'Starting jails:'
+	_tmp_dir=`mktemp -d /tmp/jail.XXXXXXXX` || \
+	    err 3 "$name: Can't create temp dir, exiting..."
+	for _jail in ${jail_list}
+	do
+		init_variables $_jail
+		if [ -f /var/run/jail_${_jail}.id ]; then
+			echo -n " [${jail_hostname} already running (/var/run/jail_${_jail}.id exists)]"
+			continue;
+		fi
+		if checkyesno jail_mount; then
+			info "Mounting fstab for jail ${_jail} (${jail_fstab})"
+			if [ ! -f "${jail_fstab}" ]; then
+				err 3 "$name: ${jail_fstab} does not exist"
+			fi
+			mount -a -F "${jail_fstab}"
+		fi
+		if checkyesno jail_devfs; then
+			# If devfs is already mounted here, skip it.
+			df -t devfs "${jail_devdir}" >/dev/null
+			if [ $? -ne 0 ]; then
+				info "Mounting devfs on ${jail_devdir}"
+				devfs_mount_jail "${jail_devdir}" ${jail_ruleset}
+				# Transitional symlink for old binaries
+				if [ ! -L "${jail_devdir}/log" ]; then
+					__pwd="`pwd`"
+					cd "${jail_devdir}"
+					ln -sf ../var/run/log log
+					cd "$__pwd"
+				fi
+			fi
+
+			# XXX - It seems symlinks don't work when there
+			#	is a devfs(5) device of the same name.
+			# Jail console output
+			#	__pwd="`pwd`"
+			#	cd "${jail_devdir}"
+			#	ln -sf ../var/log/console console
+			#	cd "$__pwd"
+		fi
+		if checkyesno jail_fdescfs; then
+			info "Mounting fdescfs on ${jail_fdescdir}"
+			mount -t fdescfs fdesc "${jail_fdescdir}"
+		fi
+		if checkyesno jail_procfs; then
+			info "Mounting procfs onto ${jail_procdir}"
+			if [ -d "${jail_procdir}" ] ; then
+				mount -t procfs proc "${jail_procdir}"
+			fi
+		fi
+		_tmp_jail=${_tmp_dir}/jail.$$
+		eval jail ${jail_flags} -i ${jail_rootdir} ${jail_hostname} \
+			${jail_ip} ${jail_exec_start} > ${_tmp_jail} 2>&1
+		[ "$?" -eq 0 ] && echo -n " $jail_hostname"
+		_jail_id=$(head -1 ${_tmp_jail})
+		tail +2 ${_tmp_jail} >${jail_rootdir}/var/log/console.log
+		rm -f ${_tmp_jail}
+		echo ${_jail_id} > /var/run/jail_${_jail}.id
+	done
+	rmdir ${_tmp_dir}
+	echo '.'
+}
+
+jail_stop()
+{
+	echo -n 'Stopping jails:'
+	for _jail in ${jail_list}
+	do
+		if [ -f "/var/run/jail_${_jail}.id" ]; then
+			_jail_id=$(cat /var/run/jail_${_jail}.id)
+			if [ ! -z "${_jail_id}" ]; then
+				init_variables $_jail
+				if [ -n "${jail_exec_stop}" ]; then
+					eval env -i /usr/sbin/jexec ${_jail_id} ${jail_exec_stop} \
+						>> ${jail_rootdir}/var/log/console.log 2>&1
+				fi
+				killall -j ${_jail_id} -TERM > /dev/null 2>&1
+				sleep 1
+				killall -j ${_jail_id} -KILL > /dev/null 2>&1
+				jail_umount_fs
+				echo -n " $jail_hostname"
+			fi
+			rm /var/run/jail_${_jail}.id
+		else
+			echo "cannot stop jail ${_jail}. No jail id in /var/run"
+		fi
+	done
+	echo '.'
+}
+
+load_rc_config $name
+cmd="$1"
+if [ $# -gt 0 ]; then
+	shift
+fi
+[ -n "$*" ] && jail_list="$*"
+run_rc_command "${cmd}"

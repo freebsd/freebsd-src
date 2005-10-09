@@ -1,0 +1,204 @@
+.\"     $NetBSD: isp.4,v 1.5 1999/12/18 18:33:05 mjacob Exp $
+.\"
+.\" Copyright (c) 1998, 1999, 2001
+.\"     Matthew Jacob, for NASA/Ames Research Center
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 14, 2000
+.Dt ISP 4
+.Os
+.Sh NAME
+.Nm isp
+.Nd Qlogic based SCSI and FibreChannel SCSI Host Adapters
+.Sh SYNOPSIS
+.Cd "device isp"
+.Pp
+For one or more SCSI busses:
+.Cd device scbus0
+.Sh DESCRIPTION
+This driver provides access to
+.Tn SCSI
+or
+.Tn FibreChannel
+devices.
+.Pp
+SCSI features include support for Ultra SCSI and wide mode transactions
+for
+.Tn SCSI ,
+Ultra2 LVD (for the ISP1080 and ISP1280), and Ultra3 LVD (for the
+ISP12160).
+.Pp
+Fibre Channel support uses FCP SCSI profile for
+.Tn FibreChannel .
+and utilizes Class 3 and Class 2 connections (Qlogic 2100 is Class
+3 only, minor patches to the Qlogic 2200 to force Class 2 mode).
+Support is available for Public and Private loops, and for
+point-to-point connections (Qlogic 2200 only).
+The newer 2-Gigabit cards (2300, 2312) are also supported.
+Command tagging is
+supported for all (in fact,
+.Tn FibreChannel
+requires tagging).
+Fabric support is enabled by default (but may
+be contingent upon the correct firmware being loaded).
+.Sh FIRMWARE
+Firmware is now available if the
+.Xr ispfw 4
+module is loaded during bootstrap (q.v.).
+.Pp
+It is very strongly recommended that you use the firmware available
+from
+.Xr ispfw 4
+as it is the most likely to have been tested with this driver.
+.Sh HARDWARE
+Cards supported by the
+.Nm
+driver include:
+.Pp
+.Bl -tag -width xxxxxx -offset indent
+.It ISP1000
+SBus Fast Wide, Ultra Fast Wide cards, Single Ended or Differential
+cards.
+.It PTI SBS440
+Performance Technology ISP1000 variants.
+.It ISP1020
+Qlogic 1020 Fast Wide and Differential Fast Wide PCI cards.
+.It ISP1040
+Qlogic 1040 Ultra Wide and Differential Ultra Wide PCI cards.
+Also known as the DEC KZPBA-CA (single ended) and KZPBA-CB (HVD differential).
+.It PTI SBS450
+Performance Technology ISP1040 variants.
+.It Qlogic 1240
+Qlogic 1240 Dual Bus Ultra Wide and Differential Ultra Wide PCI
+cards.
+.It Qlogic 1020
+Qlogic 1020 SCSI cards.
+.It Qlogic 1040
+Qlogic 1040 Ultra SCSI cards.
+.It Qlogic 1080
+Qlogic 1280 LVD Ultra2 Wide PCI cards.
+.It Qlogic 1280
+Qlogic 1280 Dual Bus LVD Ultra2 Wide PCI cards.
+.It Qlogic 12160
+Qlogic 12160 Dual Bus LVD Ultra3 Wide PCI cards.
+.It Qlogic 2100
+Qlogic 2100 and 2100A Copper and Optical Fibre Channel Arbitrated
+Loop
+.It Qlogic 2102
+Qlogic Dual Loop 2100A Optical Fibre Channel Arbitrated Loop PCI
+cards.
+.It Qlogic 2200
+Qlogic 2200 Copper and Optical Fibre Channel Arbitrated Loop PCI
+cards.
+.It Qlogic 2202
+Qlogic 2200 Dual Bus Optical Fibre Channel Arbitrated Loop PCI
+cards.
+.It Qlogic 2204
+Qlogic 2200 Dual Bus Optical Fibre Channel Arbitrated Loop PCI
+cards.
+.It Qlogic 2300
+Qlogic 2300 Optical Fibre Channel PCI cards.
+.It Qlogic 2312
+Qlogic 2312 Optical Fibre Channel PCI cards.
+.It PTI SBS470
+Performance Technology ISP2100 variants.
+.It Antares P-0033
+Antares Microsystems ISP2100 variants.
+.El
+.Sh CONFIGURATION OPTIONS
+.Pp
+Target mode support may be enabled with the
+.Pp
+.Cd options ISP_TARGET_MODE
+.Pp
+option.
+.Sh BOOT OPTIONS
+The following options are switchable by setting values in the loader
+configuration file (see the
+.Xr loader 8
+manual page).
+They are:
+.Pp
+.Bl -tag -width "isp_no_fwload" -compact
+.It isp_disable
+A bit mask of units to skip configuration for.
+.It isp_mem_map
+A bit mask of units to use PCI Memory space instead of I/O space
+access for.
+.It isp_io_map
+A bit mask of units to use PCI I/O space instead of Memory space
+access for.
+.It isp_no_nvram
+A bit mask of units that you wish to ignore board NVRAM settings
+for.
+.It isp_nvram
+A bit mask of units that you wish to specifically use board NVRAM
+settings for.
+.It isp_fcduplex
+A bit mask of units that you wish to specifically to set into full
+duplex mode.
+.It isp_no_fcduplex
+A bit mask of units that you wish to specifically to not set into
+full duplex mode.
+.It isp_wwn
+This should be the full 64 bit World Wide Node Name you would like
+to use, overriding the value in NVRAM for the card.
+.It isp_debug
+This is a driver debug level- meaningful from 0 through 7.
+.It isp_tdebug
+This is a driver target mode debug level- meaningful from 0 through
+5.
+.El
+.Sh SEE ALSO
+.Xr da 4 ,
+.Xr intro 4 ,
+.Xr ispfw 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh AUTHORS
+The
+.Nm
+driver was written by Matthew Jacob for NASA/Ames Research Center.
+.Sh BUGS
+The driver currently ignores some NVRAM settings.
+.Pp
+The driver currently does not do error recovery for timed out commands
+very gracefully.
+.Pp
+Target mode support is not completely debugged yet.
+It works reasonably
+well for Fibre Channel, somewhat well for Qlogic 1040 cards, but
+does not yet work for the other cards (due to last minute unannounced
+changes in firmware interfaces).
+.Pp
+Sometimes, when booting, the driver gets stuck waiting for the
+Fibre Channel f/w to tell it that the loop port database is ready,
+or waiting for a good loop to be seen (this does not yet support
+booting without being connected to a fibre channel device).
+To
+unwedge the system, unplug and replug the fibre channel connection,
+or otherwise cause a LIP (Loop Initialization Primitive sequence)-
+this will kick the f/w into getting unstuck.

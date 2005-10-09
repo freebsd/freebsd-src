@@ -1,0 +1,75 @@
+.\" Copyright (c) 1992, 2000 Hellmuth Michaelis
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Last Edit-Date: [Mon Mar 27 16:33:23 2000]
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2000
+.Dt CURSOR 1
+.Os
+.Sh NAME
+.Nm cursor
+.Nd set cursor shape for the pcvt VT220 video driver
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar device
+.Op Fl n Ar screenno
+.Op Fl s Ar lineno
+.Op Fl e Ar lineno
+.Sh DESCRIPTION
+The
+.Nm
+utility allows the user to set the cursor shape in a given virtual screen
+of the above mentioned driver.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Specifies a device for which the cursor shape is set.
+.It Fl n
+Sets the virtual screen number to apply the following parameters to.
+Not
+specifying this parameter implies the current virtual screen or the screen
+referenced by the -d parameter.
+.It Fl s
+Specifies the starting (top) scanline the cursor should have.
+.It Fl e
+Specifies the last (bottom) scanline the cursor should have.
+.El
+.Pp
+Be aware of the fact that the parameters need to be adjusted for the current
+size of the characterfont in use, on EGA and VGA boards sizes of 8, 14 and
+16 scanlines are currently supported.
+.Sh EXAMPLES
+The command
+.Dq Li cursor -s3 -e10
+sets the cursor on the current virtual screen to a rectangular shape on a
+14 line VGA screen.
+.Sh SEE ALSO
+.Xr loadfont 1 ,
+.Xr scon 1 ,
+.Xr pcvt 4
+.Sh BUGS
+No known bugs

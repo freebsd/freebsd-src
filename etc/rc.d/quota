@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# Enable/Check the quotas (must be after ypbind if using NIS)
+#
+
+# PROVIDE: quota
+# REQUIRE: mountcritremote
+# BEFORE: DAEMON
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="quota"
+rcvar="enable_quotas"
+start_cmd="quota_start"
+stop_cmd="/usr/sbin/quotaoff -a"
+
+quota_start()
+{
+	if checkyesno check_quotas; then
+		echo -n 'Checking quotas:'
+		quotacheck -a
+		echo ' done.'
+	fi
+
+	echo -n 'Enabling quotas:'
+	quotaon -a
+	echo ' done.'
+}
+
+load_rc_config $name
+run_rc_command "$1"

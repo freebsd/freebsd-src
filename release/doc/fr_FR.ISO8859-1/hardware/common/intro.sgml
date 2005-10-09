@@ -1,0 +1,28 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.3
+-->
+
+<sect1>
+  <title>Introduction</title>
+
+  <para>Ce document contient la liste de mat&eacute;riel compatible avec 
+  &os; &release.current; sur la plateforme mat&eacute;rielle &arch.print; 
+  (dont on fait souvent r&eacute;f&eacute;rence comme &os;/&arch; 
+  &release.current;). Il liste les p&eacute;riph&eacute;riques connus pour 
+  fonctionner sur cette plate-forme, tout comme certaines notes sur la 
+  configuration du noyau au moment du d&eacute;marrage, qui peuvent etre 
+  utiles lorsque l'on veut configurer certains nouveaux 
+  p&eacute;riph&eacute;riques.</para>
+
+  <note>
+    <para>Ce document inclue des informations sp&eacute;cifique &agrave; 
+    l'architecture mat&eacute;rielle &arch.print;. Les versions de ces notes 
+    de compatibilit&eacute; mat&eacute;rielle pour d'autres architectures 
+    peuvent comporter des diff&eacute;rences.</para>
+  </note>
+</sect1>

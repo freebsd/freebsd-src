@@ -1,0 +1,144 @@
+<!--
+	The FreeBSD Simplified Chinese Project
+
+	Original Revision: 1.10
+	$FreeBSD$
+
+	This section contains the contents of the old LAYOUT.TXT file.
+-->
+<sect1 id="layout">
+  <title>发行版本所采用的格式</title>
+
+  <para>典型的 &os; 发布目录的样子和下面列出的类似
+    (具体细节可能随版本、 硬件架构和其他因素而有微小变化)：</para>
+
+<screen>ERRATA.HTM      README.TXT      compat1x        dict            kernel
+ERRATA.TXT      RELNOTES.HTM    compat20        doc             manpages
+HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     packages
+HARDWARE.TXT    base            compat22        filename.txt    ports
+INSTALL.HTM     boot            compat3x        floppies        proflibs
+INSTALL.TXT     catpages        compat4x        games           src
+README.HTM      cdrom.inf       crypto          info            tools</screen>
+
+  <para>这些文件也可以在多碟组的第一张 CDROM 上找到，
+    只是格局略有不同。 在多数平台上， 安装 CDROM 在安装包文件之外，
+    也提供了一个 <quote>现场文件系统</quote>。 现场文件系统，
+    对于修复或排出现有的 &os; 安装的问题非常有用 (参见 <xref
+    linkend="trouble"> 以了解如何完成这项工作)。</para>
+
+  <para>对于无法从 CDROM 介质引导系统 (但可以通过其它手段来读取 CDROM)
+  的用户来说， 应关注一下 <filename>floppies</filename> 目录。
+  很容易从 <filename>floppies</filename> 提供的文件来自行制作 1.44MB 引导盘
+  (参见 <xref linkend="floppies"> 以了解如何这样做)， 并用它来开始从 CDROM、
+  FTP， 或者 NFS 的安装。 在安装过程中所需要的其他数据，
+  将自动地根据您的选择获得。 如果您之前从未安装过 &os;，
+  则应完整地阅读这份文档 (安装指引)。</para>
+
+  <para>如果您在尝试进行某种其他类型的安装，
+  或对于发布目录是如何组织的感到好奇， 请参考下面的说明以了解进一步的内容：
+    <orderedlist>
+      <listitem>
+	<para><filename>*.TXT</filename> 和
+	<filename>*.HTM</filename> 文件包含了文档
+	(举例来说， 这份文档可以在
+	<filename>INSTALL.TXT</filename> 和
+	<filename>INSTALL.HTM</filename> 中找到)，
+	您应该在开始安装之前阅读它们。
+	<filename>*.TXT</filename> 文件是普通的文本文件， 而
+	<filename>*.HTM</filename> 文件则是 HTML 文件，
+	可以使用几乎任何一种 Web 浏览器来阅读。
+	某些发布可能还包其他格式的文档， 例如 PDF 或 PostScript。</para>
+      </listitem>
+      <listitem>
+        <para><filename>docbook.css</filename> 是层次样式表
+        (CSS) 文件， 它会被 Web 浏览器用以完成
+        HTML 文档的排版。</para>
+      </listitem>
+      <listitem>
+	<para><filename>base</filename>,
+	<filename>catpages</filename>,
+	<filename>crypto</filename>, 
+	<filename>dict</filename>,
+	<filename>doc</filename>,
+	<filename>games</filename>,
+	<filename>info</filename>, 
+	<filename>manpages</filename>,
+	<filename>proflibs</filename>, 以及
+	<filename>src</filename> 这些目录中包含了 &os; 本身的发布版本组件，
+	它们被分割为更小的文件， 以便放进软盘中 (如果需要的话)。</para>
+      </listitem>
+      <listitem>
+	<para><filename>compat1x</filename>,
+	<filename>compat20</filename>,
+	<filename>compat21</filename>,
+	<filename>compat22</filename>,
+	<filename>compat3x</filename>, 以及
+	<filename>compat4x</filename>
+	目录包含了用于与先前版本兼容的文件， 它们以单个的 gzip 压缩的
+	tar 文件的形式发布 - 在安装过程中或之后可以通过
+	<filename>install.sh</filename> 脚本来安装它们。</para>
+      </listitem>
+      <listitem>
+	<para><filename>floppies/</filename> 子目录中包含了安装用的软盘镜像；
+	关于它们的更多信息可以在 <xref linkend="floppies"> 找到。</para>
+      </listitem>
+      <listitem>
+	<para><filename>packages</filename> 和 <filename>ports</filename> 目录提供了 &os;
+	的 Packages 和 Ports Collections。 Packages 可以从其目录中通过下面的命令安装：</para>
+
+	<screen>&prompt.root;<userinput>/stand/sysinstall configPackages</userinput></screen>
+
+	<para>Packages 也可以通过将
+	<filename>packages</filename>/ 下的文件名交给 &man.pkg.add.1;
+	命令来完成。</para>
+
+	<para>Ports Collection 可以通过与其他组件相同的方法来安装，
+	解压缩后它需要大约 190MB 的磁盘空间。 关于
+	ports collection 的更多资料可以在
+	<ulink url="&url.base;/ports/">http://www.FreeBSD.org/ports/</ulink>
+	或本地的
+	<filename>/usr/share/doc/handbook</filename> 找到，
+	当然， 后者的前提是您安装了 <filename>doc</filename>
+	发布。</para>
+      </listitem>
+      <listitem>
+	<para>最后， <filename>tools</filename> 目录中提供了各种用以测试磁盘尺寸、
+	安装引导管理器等的 DOS 工具。 这些工具纯粹是可选的，
+	提供它们是为了方便用户。</para>
+      </listitem>
+    </orderedlist>
+  </para>
+
+  <para>典型的发布目录 (举例来说， <filename>info</filename> 发布) 在内部应该是这样：</para>
+
+<screen>CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
+info.aa         info.ac         info.ae         info.mtree</screen>
+
+  <para><filename>CHECKSUM.MD5</filename> 文件包含了每个文件的 MD5 签名。
+  这主要是为了手工检测数据是否有损坏用的， 实际的安装过程并不会用到它。
+  <filename>info.a*</filename> 文件是分割过的经过 gzip 压缩的 tar
+  文件， 其内容可以通过下面的命令来显示：</para>
+
+  <screen>&prompt.root; <userinput>cat info.a* | tar tvzf -</userinput></screen>
+
+  <para>在安装过程中， 这些文件会被自动地重组并根据需要展开。</para>
+
+  <para><filename>info.inf</filename> 文件也是必要的，
+  因为它会被安装程序读取以了解需要为安装包复制多少片。 当把安装包放到软盘上时，
+  <filename>.inf</filename> 文件 <emphasis>必须</emphasis>
+  放在每一个安装包的第一张软盘上!</para>
+
+  <para><filename>info.mtree</filename> 文件是另一个供用户参考而非必需的文件。
+  它包括了 <emphasis>未压缩的</emphasis> 安装包中的每个文件的 MD5 签名，
+  并可在其后通过使用 &man.mtree.8;
+  程序来验证安装权限和校验和以了解这些文件是否有过改动。
+  当和 <filename>base</filename> 安装包联用时，
+  这是一种检测木马攻击的很好的手段。</para>
+
+  <para>最后， <filename>install.sh</filename>
+  文件是用来方便用户在安装之后安装某个安装包的。 要在装完系统之后从 CDROM
+  安装某个安装包， 您可以按照下面的例子来完成：</para>
+
+  <screen>&prompt.root; <userinput>cd /cdrom/info</userinput>
+&prompt.root; <userinput>sh install.sh</userinput></screen>
+</sect1>

@@ -1,0 +1,129 @@
+<sect1 id="support-dev">
+  <sect1info>
+    <pubdate>$FreeBSD$</pubdate>
+  </sect1info>
+
+  <title>Supported Devices</title>
+
+  <para>This section describes the devices currently known to be
+    supported by with &os; on the &arch.print; platform.  Other
+    configurations may also work, but simply have not been tested yet.
+    Feedback, updates, and corrections to this list are
+    encouraged.</para>
+
+  <para>Where possible, the drivers applicable to each device or class
+    of devices is listed.  If the driver in question has a manual page
+    in the &os; base distribution (most should), it is referenced
+    here.</para>
+
+  <sect2>
+    <title>PCI Hardware</title>
+
+    <para>In general, any device for which there is a driver can be
+      made to work on sparc64. Some drivers might just work, others
+      might require some changes (because this is the first big-endian
+      architecture to be supported by &os;).</para>
+
+    <para>The following drivers are known to work:</para>
+
+    <itemizedlist>
+      <listitem><para><literal>apb</literal> (Sun PCI-PCI
+        bridge)</para></listitem>
+      <listitem><para>generic PCI-PCI bridges</para></listitem>
+      <listitem><para>&man.ahc.4; (coming real soon).</para></listitem>
+      <listitem><para>&man.ata.4;, <devicename>atadisk</devicename>,
+        <devicename>atapicd</devicename> (but not atapifd,
+        atapist)</para></listitem>
+      <listitem><para>&man.gem.4; (Sun GEM/ERI ethernet,
+        on-board on Blade 100)</para></listitem>
+      <listitem><para>&man.hme.4; (Sun HME ethernet,
+        on-board on Ultra 5, 10)</para></listitem>
+      <listitem><para>&man.sio.4;</para></listitem>
+      <listitem><para>&man.sym.4;</para></listitem>
+    </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>SBus Hardware</title>
+
+    <para>The following drivers have SBus front ends:</para>
+
+    <itemizedlist>
+      <listitem><para><literal>hme</literal> Ethernet</para></listitem>
+      <listitem><para><literal>mk48txx</literal>
+	  (<quote>eeprom</quote> device; time-of-day clock)</para></listitem>
+    </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>ISA Hardware</title>
+
+    <para>The paragraph about PCI drivers apply to ISA drivers as
+      well, but with the notable exception that ISA DMA is not yet
+      supported.  This are generally on-board devices; there are no
+      &tm.ultrasparc; boxes with ISA slots that the authors are aware
+      of.</para>
+
+    <para>The following drivers are known to work:</para>
+      <itemizedlist>
+        <listitem><para>&man.sio.4;</para></listitem>
+      </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>EBus Hardware</title>
+
+    <para>The EBus is specific to Sun hardware, so drivers need to
+      have support added to work with these devices. It is quite
+      similar to ISA, so that ISA drivers can usually be easily
+      ported, provided that they use the bus space interface, and not
+      in[bwl]/out[bwl] and related functions. DMA is not yet
+      supported.</para>
+
+    <para>The following drivers are known to work:</para>
+      <itemizedlist>
+        <listitem><para>&man.sio.4;</para></listitem>
+        <listitem><para><literal>mk48txx</literal> ('eeprom' device;
+          time-of-day clock)</para></listitem>
+      </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>Unsupported Hardware</title>
+
+    <para>The following hardware, which is built-in in Sun &tm.ultrasparc;
+      boxes, is not currently supported:</para>
+
+    <itemizedlist>
+      <listitem><para>graphics/frame buffer devices, keyboards (except
+        indirectly in text mode using the
+        <devicename>ofw_console</devicename> device)</para></listitem>
+
+      <listitem><para>Siemens sab82532 serial ports (Ultra 5/10; the
+        keyboard/mouse ports are also RS232 ones and supported by the
+        sio driver though; a driver, 'se', is being worked
+        on).</para></listitem>
+
+      <listitem><para>serial keyboards (except indirectly using the
+        <devicename>ofw_console</devicename> device)</para></listitem>
+
+      <listitem><para>Zilog z8530 serial ports (keyboard/mouse, ttya
+        and ttyb in Ultra 1 and Ultra 2 boxen)</para></listitem>
+
+      <listitem><para>fas (Fast SCSI controller builtin in most Ultra
+        1 and Ultra 2 boxen)</para></listitem>
+
+      <listitem><para>USB ports (have issues, should be easy to get to
+        work though)</para></listitem>
+
+      <listitem><para>all floppy drives/controllers</para></listitem>
+
+      <listitem><para>smart card readers (the Blade 100 has one, don't
+        know much about it)</para></listitem>
+
+      <listitem><para>FireWire/IEEE1394</para></listitem>
+      <listitem><para>sound cards</para></listitem>
+      <listitem><para>parallel ports</para></listitem>
+    </itemizedlist>
+  </sect2>
+</sect1>

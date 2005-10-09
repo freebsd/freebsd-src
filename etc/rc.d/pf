@@ -1,0 +1,98 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: pf
+# REQUIRE: root mountcritlocal netif pflog pfsync
+# BEFORE:  routing
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="pf"
+rcvar=`set_rcvar`
+load_rc_config $name
+stop_precmd="test -f ${pf_rules}"
+start_precmd="pf_prestart"
+start_cmd="pf_start"
+stop_cmd="pf_stop"
+check_precmd="$stop_precmd"
+check_cmd="pf_check"
+reload_precmd="$stop_precmd"
+reload_cmd="pf_reload"
+resync_precmd="$stop_precmd"
+resync_cmd="pf_resync"
+status_precmd="$stop_precmd"
+status_cmd="pf_status"
+extra_commands="check reload resync status"
+
+pf_prestart()
+{
+	# load pf kernel module if needed
+	if ! kldstat -v | grep -q pf\$; then
+		if kldload pf; then
+			info 'pf module loaded.'
+		else
+			err 1 'pf module failed to load.'
+		fi
+	fi
+
+	# check for pf rules
+	if [ ! -r "${pf_rules}" ]; then
+		warn 'pf: NO PF RULESET FOUND'
+		return 1
+	fi
+}
+
+pf_start()
+{
+	echo "Enabling pf."
+	${pf_program:-/sbin/pfctl} -Fa > /dev/null 2>&1
+	${pf_program:-/sbin/pfctl} -f "${pf_rules}" ${pf_flags}
+	if ! ${pf_program:-/sbin/pfctl} -si | grep -q "Enabled" ; then
+		${pf_program:-/sbin/pfctl} -e
+	fi
+}
+
+pf_stop()
+{
+	if ${pf_program:-/sbin/pfctl} -si | grep -q "Enabled" ; then
+		echo "Disabling pf."
+		${pf_program:-/sbin/pfctl} -d
+	fi
+}
+
+pf_check()
+{
+	echo "Checking pf rules."
+
+	${pf_program:-/sbin/pfctl} -n -f "${pf_rules}"
+}
+
+pf_reload()
+{
+	echo "Reloading pf rules."
+
+	${pf_program:-/sbin/pfctl} -n -f "${pf_rules}" || return 1
+	# Flush everything but existing state entries that way when
+	# rules are read in, it doesn't break established connections.
+	${pf_program:-/sbin/pfctl} -Fnat -Fqueue -Frules -FSources -Finfo -FTables -Fosfp > /dev/null 2>&1
+	${pf_program:-/sbin/pfctl} -f "${pf_rules}" ${pf_flags}
+}
+
+pf_resync()
+{
+	# Don't resync if pf is not loaded
+	if ! kldstat -v | grep -q pf\$ ; then
+		 return
+	fi
+	${pf_program:-/sbin/pfctl} -f "${pf_rules}" ${pf_flags}
+}
+
+pf_status()
+{
+	${pf_program:-/sbin/pfctl} -si
+}
+
+run_rc_command "$1"

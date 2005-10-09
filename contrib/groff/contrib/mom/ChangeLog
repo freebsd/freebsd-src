@@ -1,0 +1,430 @@
+*Sun Feb 16 2003
+
+o Added James Ramsey's proposed CHAPTER_TITLE macro, along with his
+  rewritten START macro and his utility macros to make START easier
+  to read.
+
+o Expanded handling of CHAPTER_TITLE to encompass TYPEWRITE, as well as
+  plugging it into the docheaders.  Made CHAPTER_TITLE backwardly
+  compatible so that pre-1.1.5 docs using CHAPTER_STRING to create a
+  chapter title remain unaffected when groffed with 1.1.5.
+
+o Created control macros for CHAPTER_TITLE FAMILY, FONT and SIZE.
+  Added defaults for handling of CHAPTER title to DEFAULTS.  Documented
+  CHAPTER_TITLE and everything that goes along with it.
+
+o Fixed broken draft and revision in headers/footers.
+
+o Fixed \*[RULE] so that it behaves properly with indents and justified
+  copy.
+
+o Fixed/tweaked handling of epigraph spacing in TYPEWRITE.
+
+o Fixed broken spacing of docheaders in TYPEWRITE.
+
+*Mon Feb 3 2003
+
+o Fixed an oversight in CLOSING for DOCTYPE LETTER (closing wasn't
+  being set flush left)
+
+*Sun Sep 29 2002
+
+o Changed .ne in .HEAD when PRINTSTYLE TYPESET from 5 to 4.  With 5,
+  heads required at least 2 lines of text underneath or they'd be
+  defered to the next page, which created too much whitespace at the
+  end of the page.  Heads will now be processed on the same page if the
+  head plus at least one line of text underneath fits.  I figure it's
+  easier for the user to break to a new page manually if this behaviour
+  is unsatisfactory than to massage the page to fix the excess
+  whitespace.
+
+*Sun Aug 25 2002
+
+o Changed .IX to .IQ.  The older form still works, but emits a message
+  advising the user to update to the newer.  (The macro in om.tmac
+  still remains IX; IQ is an alias.)  Docs updated to reflect the
+  change.
+
+*Tue Aug 20 2002
+
+o Added new (better) way to handle inline kerning.  \*[BU #] and
+  \*[FU #] allow passing an argument to the inline string.  The older
+  forms \*[BU#] and \*[FU#] still work, though.
+
+o Changed handling of inline horizontal and vertical movements.
+  Horizontal movements are now done with \*[BCK #<unit>] and
+  \*[FWD #<unit>]; verticals with \*[UP #<unit>] and \*[DOWN #<unit>].
+  The older forms \*[FP#] and \*[BP#] still work (horizontals), as do
+  \*[ALD#] and \*[RLD#] (verticals).
+
+*Mon Aug 19 2002
+
+o Fixed ENDNOTES so footnotes output properly when ENDNOTES is called
+
+o Added ENDNOTES_HDRFTR_CENTER so that default no-print of header
+  center string on endnotes page(s) when DOCTYPE is CHAPTER can
+  be disabled (i.e. header center will be printed).
+
+*Sat Aug 10 2002
+
+o Added .nf to top of PAD, with a test beforehand for current fill
+  mode.  If fill mode was on, it's restored after PAD completes
+  processing.  Updated reserved.html to include number register
+  #FILL_MODE.
+
+*Mon Jul 29 2002
+
+o Makefile.sub (FFLAG, TFLAG): Add paths to source directories.
+
+*Wed Jul 24 2002
+
+o Makefile.sub (groff_bin_path): Don't use ' \+' but '  *' for sed.
+  (GROFF): Set GROFF_COMMAND_PREFIX to empty value.
+
+*Fri Jul 12 2002
+
+o More fixes to underlining.
+
+*Fri Jul 5 2002
+
+o Added capability of endnotes and pertinent control macros to om.tmac.
+
+o Added document entries pertaining to endnote macros.
+
+o Incorporated endnote macros into elvis_syntax.
+
+o Small doc fixes.
+
+o Tidied up indenting of om.tmac.
+
+o Fixed handling of underlining of italics in PRINTSTYLE TYPEWRITE
+  (there was a problem with footnotes getting underlined when they
+  shouldn't have been).
+
+o Removed ENDNOTES from TODO
+
+o Fixed the character translations for UNDERLINE so they work properly
+  with digraphs.
+
+*Mon Jul 1 2002
+
+o Expanded docprocessing.html entry "Special Note on Chapters".  Tidied
+  up html a bit.
+
+*Tue Jun 18 2002
+
+o examples/macros.mom: Fix path to penguin.ps.
+
+*Sat Jun 15 2002
+
+o Small fix to PAD to make the use of inlines within the pad string
+  more intuitive.
+
+o Added \*[RULE] ( = \l'\n(.lu' ) so that full measure rules (either to
+  full line length or within tabs) are easier to set.
+
+*Sat Jun  8 2002
+
+o Macro .PS renamed to .PT_SIZE.  Alias .TS removed.
+
+o .tr bits in .CAPS rewritten in the form .tr é\['E].
+
+o General cleanup of docs to reflect changes.
+
+o Small changes/additions to `elvis_syntax'.
+
+*Thu Jun  6 2002
+
+o In DOCTYPE, in .if '\\$1'LETTER', added .FOOTER_RIGHT_SIZE +0.
+  Without it, the suite page was printing at the default
+  FOOTER_RIGHT_SIZE of -.5, which didn't look good.
+
+*Wed Jun  5 2002
+
+o Makefile.sub (TFLAG): Add `$(top_builddir)/tmac'.
+
+*Tue Jun  4 2002
+
+o Makefile.sub (groff_bin_dirs): Fix typo (forgotten `src' element).
+
+*Mon Jun  3 2002
+
+o Makefile.sub (uninstall_sub): Don't use `momdocdir' but `htmldocdir'.
+  Add missing backslash.
+
+*Sat Jun  1 2002
+
+o Makefile.in (prepare_make_examples): Test for `penguin.ps', not
+  `examples/penguin.ps'.
+
+*Wed May 29 2002
+
+o Rewrote portions of PAGENUM_STYLE and COPYSTYLE so that PAGENUM_STYLE
+  behaves as advertised.
+
+*Fri May 24 2002
+
+o /Makefile.sub (momdocdir): Removed.
+  (HTMLDOCFILES): Prepend `momdoc/'.
+  (EXTRAEXAMPLEFILES): Removed.  Added entries to...
+  (EXAMPLEFILES): This.
+  (.SUFFIXES, .mom.ps): New.
+  (prepare_make_examples): Updated.
+  (examples/*.ps): Removed; .mom.ps will handle this.
+  (install_data): Updated.  
+
+*Thu May 23 2002
+
+o Applied two small bug fixes to om.tmac (patches 1.1.1a and 1.1.1b).
+
+o mom is now part of groff.
+
+o Some renaming to avoid problems with 8+3 filesystems:
+
+    examples/docprocessing_typeset.mom   -> examples/typeset.mom
+    examples/docprocessing_typewrite.mom -> examples/typewrite.mom
+    examples/typesetting_macros.mom      -> examples/macros.mom
+    examples/penguin_small2_bw.ps        -> examples/penguin.ps
+
+o Removed `INSTALL' and `README' since groff takes care of installation
+  now.
+
+o Added Makefile.sub.
+
+o Added mom.tmac (which simply calls om.tmac).
+
+o Added groff_mom.man for orthogonality; it simply points to the HTML
+  documentation.
+
+*Thu May 16 2002
+
+o Added macro DRAFT_WITH_PAGENUMBER so user can have draft/revision
+  info attached to the pagenumber in COPYSTYLE DRAFT, instead of having
+  it HEADER center.  Always having it HEADER center was creating problems
+  with long doc titles, esp. with PRINTSTYLE TYPEWRITE (which is when
+  COPYSTYLE DRAFT is most likely to be used).  Now user has the choice,
+  in these circumstances, either to reduce HEADER_SIZE, or to displace
+  the draft/revision info.  Also rewrote portions of COPYSTYLE so that
+  if no revision number is given in the reference macros, "Rev. #"
+  doesn't appear when COPYSTYLE DRAFT.
+
+*Fri May 10 2002
+
+o Added capability of user-defined, single string recto/verso
+  headers/footers.
+
+o Added new entries to docs about the above.  Made some additional
+  small changes to toc.html, rectoverso.html, and headfootpage.html
+  to supplement the new entries.
+
+o Small fix to handling of footer separator rule -- was 1 point too low
+  owing to fuzziness of #CAP_HEIGHT as returned by SIZESPECS.
+
+o Added some more useful stuff to elvis_syntax.
+
+*Sun May 05 2002
+
+o Fix to DEFAULTS so that L_MARGIN and R_MARGIN are reprocessed if
+  DOCTYPE LETTER.  R_MARGIN, as set by DOCTYPE LETTER had no preceding
+  PAGEWIDTH or PAPER from which to get #PAGE_WIDTH for figuring out
+  line length.
+
+o Additional fix to DEFAULTS in handling DOCTYPE LETTER so that if user
+  sets line length prior to START, no reprocessing of R_MARGIN occurs.
+  This necessitated adding a new number register: #USER_SET_L_LENGTH
+
+*Sat May 04 23:48:05 EDT 2002
+
+o Added .cflags 4 /\(en -- was driving me nuts that lines wouldn't
+  break after these characters; I'm assuming others feel the same way
+
+* Fri May 03 2002
+
+o Made some small fixes to space handling around quotes, mostly to do
+  with quotes immediately after START and quotes after (sub)heads.
+
+* Wed May 01 2002
+
+o Fixed a small bug that was causing the first .PP after START to begin
+  at the top margin of the page regardless of any type that preceded
+  .PP when docheaders were off.
+
+o Fixed HEADER so that when HEADERS are off the first line of type on
+  pages after the first falls properly at the top margin
+
+*Sat Apr 27 2002
+
+o Renamed docprocessing_macros.mom in /examples to
+  docprocessing_typeset.mom.  Added docprocessing_typewrite.mom, as
+  well as a README file.
+
+o Fixed UNDERLINE_QUOTES (for PRINTSTYLE TYPEWRITE) so they really are
+  on by default as the docs say.
+
+o Changes to doc entry on COLLATE:
+
+    - removed bit about using COLLATE after a cover page (I wrote the
+      entry *before* I wrote the macro!).  Cover pages should be
+      followed by NEWPAGE, not COLLATE.
+
+    - added caution about mixing PRINTSTYLEs
+
+    - added caution about using DOC_FAMILY to change family of all
+      document elements after COLLATE
+
+o Made HEADER_SIZE (and, by extension, FOOTER_SIZE) available to
+  PRINTSTYLE TYPEWRITE.  Changed appropriate doc entries to reflect
+  this.
+
+*Wed Apr 24 2002
+
+o Small change to DO_QUOTE to correct a problem with quotes and
+  blockquotes that fall in the middle of paragraphs (i.e. text after
+  the quote is not a new para).  Basically, added a bit that stores the
+  current para indent, sets para indent to 0, invokes a PP, then
+  restores the original para indent.
+
+o Added new macro, BREAK_QUOTE, to deal with the problem of
+  footnotes in quotes and blockquotes that cross pages or columns.
+
+  Quotes and blockquotes are read into diversions, which means they
+  get their footnote information from the page/column on which they
+  were started.  If a footnoted quote crosses a page/column, what
+  sometimes happens is that the footnote itself is output at the
+  bottom of page/column where the quote started, whereas the text
+  marker for the footnote appears on the next page/column where the
+  quote ends.  Furthermore, the text marker is the one appropriate
+  to the previous page.  BREAK_QUOTE is a workaround.
+
+o Added directory /examples to archive.
+
+o Added typesetting_macros.mom, docprocessing_macros.mom, elvis_syntax
+  and penguin_small2_bw.ps to /examples.
+
+o Added BREAK_QUOTE to docs, made some additions to reserved words
+  list, and corrected a few little doc errors.
+
+*Mon Apr 22 2002
+
+o Added default .L_MARGIN 1i and .R_MARGIN 1i to PAPER, PAGE, and
+  PAGEWIDTH.  L_MARGIN is essential otherwise left indents and tabs
+  don't have a register #L_MARGIN to work with.  The default right
+  margin is a convenience only.  Updated the doc entries for L_MARGIN
+  and R_MARGIN to reflect the change.
+
+*Sun Apr 21 2002
+
+o Changes to COLLATE:
+
+    - added some "resets" (LL, LS, QUAD)
+    - added a check for whether pagination is at page top (either
+      because FOOTERS are on or because PAGENUM_POS was user set).
+      If pagination is on, and PAGENUM_POS is TOP, it's turned off
+      for next page (start of next collated document) and restored
+      for subsequent pages unless PAGENUM_ON_FIRST_PAGE is on, in
+      which case the page number appears at page top.
+
+o The macro TRAPS is always invoked at the end of DEFAULTS (which is
+  called by START).  Formerly, TRAPS was only invoked at the start
+  of a doc, not after COLLATE.  Now runs after COLLATE as well.
+
+o Distance from $DOC_TYPE in DOCTYPE NAMED "<string>" to start of
+  running text was one linespace too deep.  Fixed (in START).
+
+o When 1st arg to PAGENUM_POS was user set to TOP, running text was
+  printing 1 linespace too high, even when PAGINATION was OFF.  Same
+  problem when HEADERS were OFF (i.e. nothing in the header margin at
+  all).  Fixed by removing -\\n[#DOC_LEAD]u from all .sp |\\n[#T_MARGIN]u
+  calls of .el portion after .ie \\n[#HEADERS_ON].
+
+o Added new macro: PAGENUM_ON_FIRST_PAGE.  Normally, when FOOTERS are
+  being used instead of HEADERS, mom doesn't print the page number at
+  the top of the first page of a doc, or the first page of collated
+  docs.  New macro allows user to get mom to put the page number on
+  "first" pages if that's desired.  Updated docs to include the macro.
+
+o More little fixes to docs.
+
+*Thu Apr 18 2002
+
+o Fixed TI (temporary indent) so that it continues to work as expected,
+  even when called while another type of indent is in effect.
+
+*Tue Apr 16 2002
+
+o String tabs weren't working as advertised when set from within
+  a tab.  Fixed.  Two new registers added: #ST_OFFSET and #IN_TAB.
+  String tabs now behave poperly and intuitively when set within tabs.
+
+o Added a note to docs about surrounding \w'...' escape with double-
+  quotes when it's used as an argument to macros
+
+o Added a note to docs that SILENT does not deposit a .br
+
+*Mon Apr 15  2002
+
+o Added new macro BR_AT_LINE_KERN if user wants mom to deposit .br's
+  before .RW and/or .EW.
+
+o Added 1/4 points to inline escapes \*[ALD] and \*[RLD].
+
+o Added 1/4 points to inline escapes \*[FP] and \*[BP]
+
+o Updated docs to reflect the above changes.
+
+*Fri Apr 12 2002
+
+o Fixed .RW and .EW which weren't working because of a missing \ in
+  \\n(.f register.  Also made it so that .RW and .EW affect all fonts
+  in positions 1, 2, 3, and 4 at once, hence line kerning now affects
+  all fonts that appear after it, not just the font that was current at
+  the time of the macros' invocation.
+
+o .SS and .WS now working properly.  .WS no longer has any effect on
+  .SS, which remains constant regardless of .WS.  Furthermore, .SS no
+  longer gets its value by adding \*[$SS_VAR] + \n[.ss].  Instead,
+  it remains constant.  Don't know what I was thinking when I wrote
+  the routine in the first place.
+
+o Updated and rewrote doc entry pertaining to SS
+
+*Wed Apr 10 2002
+
+o Renamed tmac.om to om.tmac to bring macro file's name into line
+  with current groff policy
+
+o Added more standard paper sizes to PAPER.
+
+o Fixed T_MARGIN, LS, and AUTOLEAD so that if T_MARGIN is set before LS
+  or AUTOLEAD at the top of a file, the first line of type falls
+  properly on the baseline set by T_MARGIN.  Previously, LS and
+  AUTOLEAD automatically advanced by the value passed to them before
+  setting the first line of type, meaning that the first line of type
+  fell at T_MARGINu+1v instead of T_MARGIN.
+
+o Updated docs to reflect changes.
+
+o Removed #TEST_FOR_NUMERIC from list of reserved words.
+
+o Added "t" and #T_MARGIN_SET to list of reserved words.
+
+*Sat Apr 6 2002
+
+o Added FACTOR arg to AUTOLEAD, so if user wants autolead to be a factor
+  of point size, instead of being the sum of pointsize + autolead, s/he
+  has the choice.  Incorporated appropriate changes to PS and LS.
+
+o Added new register #AUTOLEAD_FACTOR to reserved words.  Modified
+  comments for AUTOLEAD, PS, and LS to reflect changes.  Also
+  corrected an error where #AUTOLEAD_VALUE had mistakenly been written
+  $AUTOLEAD_VALUE in comments in the macro file, and removed erroneous
+  | <anything>.  Updated AUTOLEAD entry in momdoc/typesetting.html
+  to reflect the changes.
+
+*Wed Apr 3 2002
+
+o Cleaned up html errors in the docs.
+
+o Added "Next," "Prev" and "Top" links to top and bottom of doc files.
+
+o Fixed some typos in the docs.

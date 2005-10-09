@@ -1,0 +1,3708 @@
+.\" This is the man page for CVS.  It is auto-generated from the
+.\" cvs.man.header, cvs.texinfo, & cvs.man.footer files.  Please make changes
+.\" there.  A full copyright & license notice may also be found in cvs.texinfo.
+.\"
+.\" Copyright 2004 The Free Software Foundation,
+.\"                Derek R. Price,
+.\"                & Ximbiot <http://ximbiot.com>
+.\"
+.\" This documentation is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2, or (at your option)
+.\" any later version.
+.\"
+.\" This documentation is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this documentation; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.TH CVS 1 "\*(Dt"
+.\" Full space in nroff; half space in troff
+.de SP
+.if n .sp
+.if t .sp .5
+..
+.\" quoted command
+.de `
+.RB ` "\|\\$1\|" '\\$2
+..
+.SH "NAME"
+cvs \- Concurrent Versions System
+.SH "SYNOPSIS"
+.TP
+\fBcvs\fP [ \fIcvs_options\fP ]
+.I cvs_command
+[
+.I command_options
+] [
+.I command_args
+]
+.SH "NOTE"
+.IX "revision control system" "\fLcvs\fR"
+.IX  cvs  ""  "\fLcvs\fP \- concurrent versions system"
+.IX  "concurrent versions system \- \fLcvs\fP"
+.IX  "release control system"  "cvs command"  ""  "\fLcvs\fP \- concurrent versions system"
+.IX  "source control system"  "cvs command"  ""  "\fLcvs\fP \- concurrent versions system"
+.IX  revisions  "cvs command"  ""  "\fLcvs\fP \- source control"
+This manpage is a summary of some of the features of
+\fBcvs\fP.  It is auto-generated from an appendix of the CVS manual.
+For more in-depth documentation, please consult the
+Cederqvist manual (via the
+.B info CVS
+command or otherwise,
+as described in the SEE ALSO section of this manpage).  Cross-references
+in this man page refer to nodes in the same.
+.SH "CVS commands"
+.SS "Guide to CVS commands"
+.SP
+This appendix describes the overall structure of
+\fBcvs\fR commands, and describes some commands in
+detail (others are described elsewhere; for a quick
+reference to \fBcvs\fR commands, see node `Invoking CVS\(aq in the CVS manual).
+.SP
+.SH "Structure"
+.SS "Overall structure of CVS commands"
+.IX "Structure"
+.IX "CVS command structure"
+.IX "Command structure"
+.IX "Format of CVS commands"
+.SP
+The overall format of all \fBcvs\fR commands is:
+.SP
+.PD 0
+.SP
+.IP "" 2
+cvs [ cvs_options ] cvs_command [ command_options ] [ command_args ]
+
+.PD
+.IP "" 0
+.SP
+.IP "" 0
+\fBcvs\fR
+.IP "" 2
+The name of the \fBcvs\fR program.
+.SP
+.IP "" 0
+\fBcvs_options\fR
+.IP "" 2
+Some options that affect all sub-commands of \fBcvs\fR.  These are
+described below.
+.SP
+.IP "" 0
+\fBcvs_command\fR
+.IP "" 2
+One of several different sub-commands.  Some of the commands have
+aliases that can be used instead; those aliases are noted in the
+reference manual for that command.  There are only two situations
+where you may omit \fBcvs_command\fR: \fBcvs -H\fR elicits a
+list of available commands, and \fBcvs -v\fR displays version
+information on \fBcvs\fR itself.
+.SP
+.IP "" 0
+\fBcommand_options\fR
+.IP "" 2
+Options that are specific for the command.
+.SP
+.IP "" 0
+\fBcommand_args\fR
+.IP "" 2
+Arguments to the commands.
+.SP
+There is unfortunately some confusion between
+\fBcvs_options\fR and \fBcommand_options\fR.
+When given as a \fBcvs_option\fR, some options only
+affect some of the commands.  When given as a
+\fBcommand_option\fR it may have a different meaning, and
+be accepted by more commands.  In other words, do not
+take the above categorization too seriously.  Look at
+the documentation instead.
+.SP
+.SH "Exit status"
+.SS "CVS\(aqs exit status"
+.IX "Exit status, of CVS"
+.SP
+\fBcvs\fR can indicate to the calling environment whether it
+succeeded or failed by setting its \fIexit status\fR.
+The exact way of testing the exit status will vary from
+one operating system to another.  For example in a unix
+shell script the \fB$?\fR variable will be 0 if the
+last command returned a successful exit status, or
+greater than 0 if the exit status indicated failure.
+.SP
+If \fBcvs\fR is successful, it returns a successful status;
+if there is an error, it prints an error message and
+returns a failure status.  The one exception to this is
+the \fBcvs diff\fR command.  It will return a
+successful status if it found no differences, or a
+failure status if there were differences or if there
+was an error.  Because this behavior provides no good
+way to detect errors, in the future it is possible that
+\fBcvs diff\fR will be changed to behave like the
+other \fBcvs\fR commands.
+.SP
+.SH "~/.cvsrc"
+.SS "Default options and the ~/.cvsrc file"
+.IX "\&.cvsrc file"
+.IX "Option defaults"
+.SP
+There are some \fBcommand_options\fR that are used so
+often that you might have set up an alias or some other
+means to make sure you always specify that option.  One
+example (the one that drove the implementation of the
+\fB.cvsrc\fR support, actually) is that many people find the
+default output of the \fBdiff\fR command to be very
+hard to read, and that either context diffs or unidiffs
+are much easier to understand.
+.SP
+The \fB~/.cvsrc\fR file is a way that you can add
+default options to \fBcvs_commands\fR within cvs,
+instead of relying on aliases or other shell scripts.
+.SP
+The format of the \fB~/.cvsrc\fR file is simple.  The
+file is searched for a line that begins with the same
+name as the \fBcvs_command\fR being executed.  If a
+match is found, then the remainder of the line is split
+up (at whitespace characters) into separate options and
+added to the command arguments \fIbefore\fR any
+options from the command line.
+.SP
+If a command has two names (e.g., \fBcheckout\fR and
+\fBco\fR), the official name, not necessarily the one
+used on the command line, will be used to match against
+the file.  So if this is the contents of the user\(aqs
+\fB~/.cvsrc\fR file:
+.SP
+.PD 0
+.SP
+.IP "" 2
+log -N
+.IP "" 2
+diff -uN
+.IP "" 2
+rdiff -u
+.IP "" 2
+update -Pd
+.IP "" 2
+checkout -P
+.IP "" 2
+release -d
+
+.PD
+.IP "" 0
+.SP
+the command \fBcvs checkout foo\fR would have the
+\fB-P\fR option added to the arguments, as well as
+\fBcvs co foo\fR.
+.SP
+With the example file above, the output from \fBcvs
+diff foobar\fR will be in unidiff format.  \fBcvs diff
+-c foobar\fR will provide context diffs, as usual.
+Getting "old" format diffs would be slightly more
+complicated, because \fBdiff\fR doesn\(aqt have an option
+to specify use of the "old" format, so you would need
+\fBcvs -f diff foobar\fR.
+.SP
+In place of the command name you can use \fBcvs\fR to
+specify global options (see node `Global options\(aq in the CVS manual).  For
+example the following line in \fB.cvsrc\fR
+.SP
+.PD 0
+.SP
+.IP "" 2
+cvs -z6
+
+.PD
+.IP "" 0
+.SP
+causes \fBcvs\fR to use compression level 6.
+.SP
+.SH "Global options"
+.IX "Options, global"
+.IX "Global options"
+.IX "Left-hand options"
+.SP
+The available \fBcvs_options\fR (that are given to the
+left of \fBcvs_command\fR) are:
+.SP
+.IP "" 0
+\fB--allow-root=\fIrootdir\fB\fR
+.IP "" 2
+Specify legal \fBcvsroot\fR directory.  See
+see node `Password authentication server\(aq in the CVS manual.
+.SP
+.IX "Authentication, stream"
+.IX "Stream authentication"
+.IP "" 0
+\fB-a\fR
+.IP "" 2
+Authenticate all communication between the client and
+the server.  Only has an effect on the \fBcvs\fR client.
+As of this writing, this is only implemented when using
+a GSSAPI connection (see node `GSSAPI authenticated\(aq in the CVS manual).
+Authentication prevents certain sorts of attacks
+involving hijacking the active \fBtcp\fR connection.
+Enabling authentication does not enable encryption.
+.SP
+.IX "RCSBIN, overriding"
+.IX "Overriding RCSBIN"
+.IP "" 0
+\fB-b \fIbindir\fB\fR
+.IP "" 2
+In \fBcvs\fR 1.9.18 and older, this specified that
+\fBrcs\fR programs are in the \fIbindir\fR directory.
+Current versions of \fBcvs\fR do not run \fBrcs\fR
+programs; for compatibility this option is accepted,
+but it does nothing.
+.SP
+.IX "TMPDIR, overriding"
+.IX "Overriding TMPDIR"
+.IP "" 0
+\fB-T \fItempdir\fB\fR
+.IP "" 2
+Use \fItempdir\fR as the directory where temporary files are
+located.  Overrides the setting of the \fB$TMPDIR\fR environment
+variable and any precompiled directory.  This parameter should be
+specified as an absolute pathname.
+(When running client/server, \fB-T\fR affects only the local process;
+specifying \fB-T\fR for the client has no effect on the server and
+vice versa.)
+.SP
+.IX "CVSROOT, overriding"
+.IX "Overriding CVSROOT"
+.IP "" 0
+\fB-d \fIcvs_root_directory\fB\fR
+.IP "" 2
+Use \fIcvs_root_directory\fR as the root directory
+pathname of the repository.  Overrides the setting of
+the \fB$CVSROOT\fR environment variable.  see node `Repository\(aq in the CVS manual.
+.SP
+.IX "EDITOR, overriding"
+.IX "Overriding EDITOR"
+.IP "" 0
+\fB-e \fIeditor\fB\fR
+.IP "" 2
+Use \fIeditor\fR to enter revision log information.  Overrides the
+setting of the \fB$CVSEDITOR\fR and \fB$EDITOR\fR
+environment variables.  For more information, see
+see node `Committing your changes\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-f\fR
+.IP "" 2
+Do not read the \fB~/.cvsrc\fR file.  This
+option is most often used because of the
+non-orthogonality of the \fBcvs\fR option set.  For
+example, the \fBcvs log\fR option \fB-N\fR (turn off
+display of tag names) does not have a corresponding
+option to turn the display on.  So if you have
+\fB-N\fR in the \fB~/.cvsrc\fR entry for \fBlog\fR,
+you may need to use \fB-f\fR to show the tag names.
+.SP
+.IP "" 0
+\fB-H\fR
+.IP "" 2
+.IP "" 0
+\fB--help\fR
+.IP "" 2
+Display usage information about the specified \fBcvs_command\fR
+(but do not actually execute the command).  If you don\(aqt specify
+a command name, \fBcvs -H\fR displays overall help for
+\fBcvs\fR, including a list of other help options.
+.SP
+.IX "Read-only mode"
+.IP "" 0
+\fB-n\fR
+.IP "" 2
+Do not change any files.  Attempt to execute the
+\fBcvs_command\fR, but only to issue reports; do not remove,
+update, or merge any existing files, or create any new files.
+.SP
+Note that \fBcvs\fR will not necessarily produce exactly
+the same output as without \fB-n\fR.  In some cases
+the output will be the same, but in other cases
+\fBcvs\fR will skip some of the processing that would
+have been required to produce the exact same output.
+.SP
+.IP "" 0
+\fB-Q\fR
+.IP "" 2
+Cause the command to be really quiet; the command will only
+generate output for serious problems.
+.SP
+.IP "" 0
+\fB-q\fR
+.IP "" 2
+Cause the command to be somewhat quiet; informational messages,
+such as reports of recursion through subdirectories, are
+suppressed.
+.SP
+.IX "Read-only files, and -r"
+.IP "" 0
+\fB-r\fR
+.IP "" 2
+Make new working files read-only.  Same effect
+as if the \fB$CVSREAD\fR environment variable is set
+(see node `Environment variables\(aq in the CVS manual).  The default is to
+make working files writable, unless watches are on
+(see node `Watches\(aq in the CVS manual).
+.SP
+.IP "" 0
+\fB-s \fIvariable\fB=\fIvalue\fB\fR
+.IP "" 2
+Set a user variable (see node `Variables\(aq in the CVS manual).
+.SP
+.IX "Trace"
+.IP "" 0
+\fB-t\fR
+.IP "" 2
+Trace program execution; display messages showing the steps of
+\fBcvs\fR activity.  Particularly useful with \fB-n\fR to explore the
+potential impact of an unfamiliar command.
+.SP
+.IP "" 0
+\fB-v\fR
+.IP "" 2
+.IP "" 0
+\fB--version\fR
+.IP "" 2
+Display version and copyright information for \fBcvs\fR.
+.SP
+.IX "CVSREAD, overriding"
+.IX "Overriding CVSREAD"
+.IP "" 0
+\fB-w\fR
+.IP "" 2
+Make new working files read-write.  Overrides the
+setting of the \fB$CVSREAD\fR environment variable.
+Files are created read-write by default, unless \fB$CVSREAD\fR is
+set or \fB-r\fR is given.
+.SP
+.IP "" 0
+\fB-x\fR
+.IP "" 2
+.IX "Encryption"
+Encrypt all communication between the client and the
+server.  Only has an effect on the \fBcvs\fR client.  As
+of this writing, this is only implemented when using a
+GSSAPI connection (see node `GSSAPI authenticated\(aq in the CVS manual) or a
+Kerberos connection (see node `Kerberos authenticated\(aq in the CVS manual).
+Enabling encryption implies that message traffic is
+also authenticated.  Encryption support is not
+available by default; it must be enabled using a
+special configure option, \fB--enable-encryption\fR,
+when you build \fBcvs\fR.
+.SP
+.IP "" 0
+\fB-z \fIgzip-level\fB\fR
+.IP "" 2
+.IX "Compression"
+.IX "Gzip"
+Set the compression level.
+Valid levels are 1 (high speed, low compression) to
+9 (low speed, high compression), or 0 to disable
+compression (the default).
+Only has an effect on the \fBcvs\fR client.
+.SP
+.SP
+.SH "Common options"
+.SS "Common command options"
+.IX "Common options"
+.IX "Right-hand options"
+.SP
+This section describes the \fBcommand_options\fR that
+are available across several \fBcvs\fR commands.  These
+options are always given to the right of
+\fBcvs_command\fR. Not all
+commands support all of these options; each option is
+only supported for commands where it makes sense.
+However, when a command has one of these options you
+can almost always count on the same behavior of the
+option as in other commands.  (Other command options,
+which are listed with the individual commands, may have
+different behavior from one \fBcvs\fR command to the other).
+.SP
+\fBNote: the \fBhistory\fB command is an exception; it supports
+many options that conflict even with these standard options.\fR
+.SP
+.IX "Dates"
+.IX "Time"
+.IX "Specifying dates"
+.IP "" 0
+\fB-D \fIdate_spec\fB\fR
+.IP "" 2
+Use the most recent revision no later than \fIdate_spec\fR.
+\fIdate_spec\fR is a single argument, a date description
+specifying a date in the past.
+.SP
+The specification is \fIsticky\fR when you use it to make a
+private copy of a source file; that is, when you get a working
+file using \fB-D\fR, \fBcvs\fR records the date you specified, so that
+further updates in the same directory will use the same date
+(for more information on sticky tags/dates, see node `Sticky tags\(aq in the CVS manual).
+.SP
+\fB-D\fR is available with the \fBannotate\fR, \fBcheckout\fR,
+\fBdiff\fR, \fBexport\fR, \fBhistory\fR,
+\fBrdiff\fR, \fBrtag\fR, and \fBupdate\fR commands.
+(The \fBhistory\fR command uses this option in a
+slightly different way; see node `history options\(aq in the CVS manual).
+.SP
+.IX "Timezone, in input"
+.IX "Zone, time, in input"
+A wide variety of date formats are supported by
+\fBcvs\fR.  The most standard ones are ISO8601 (from the
+International Standards Organization) and the Internet
+e-mail standard (specified in RFC822 as amended by
+RFC1123).
+.SP
+ISO8601 dates have many variants but a few examples
+are:
+.SP
+.PD 0
+.SP
+.IP "" 4
+1972-09-24
+.IP "" 4
+1972-09-24 20:05
+
+.PD
+.IP "" 2
+.SP
+There are a lot more ISO8601 date formats, and \fBcvs\fR
+accepts many of them, but you probably don\(aqt want to
+hear the \fIwhole\fR long story :-).
+.SP
+In addition to the dates allowed in Internet e-mail
+itself, \fBcvs\fR also allows some of the fields to be
+omitted.  For example:
+.SP
+.PD 0
+.SP
+.IP "" 4
+24 Sep 1972 20:05
+.IP "" 4
+24 Sep
+
+.PD
+.IP "" 2
+.SP
+The date is interpreted as being in the
+local timezone, unless a specific timezone is
+specified.
+.SP
+These two date formats are preferred.  However,
+\fBcvs\fR currently accepts a wide variety of other date
+formats.  They are intentionally not documented here in
+any detail, and future versions of \fBcvs\fR might not
+accept all of them.
+.SP
+One such format is
+\fB\fImonth\fB/\fIday\fB/\fIyear\fB\fR.  This may
+confuse people who are accustomed to having the month
+and day in the other order; \fB1/4/96\fR is January 4,
+not April 1.
+.SP
+Remember to quote the argument to the \fB-D\fR
+flag so that your shell doesn\(aqt interpret spaces as
+argument separators.  A command using the \fB-D\fR
+flag can look like this:
+.SP
+.PD 0
+.SP
+.IP "" 4
+$ cvs diff -D "1 hour ago" cvs.texinfo
+
+.PD
+.IP "" 2
+.SP
+.IX "Forcing a tag match"
+.IP "" 0
+\fB-f\fR
+.IP "" 2
+When you specify a particular date or tag to \fBcvs\fR commands, they
+normally ignore files that do not contain the tag (or did not
+exist prior to the date) that you specified.  Use the \fB-f\fR option
+if you want files retrieved even when there is no match for the
+tag or date.  (The most recent revision of the file
+will be used).
+.SP
+Note that even with \fB-f\fR, a tag that you specify
+must exist (that is, in some file, not necessary in
+every file).  This is so that \fBcvs\fR will continue to
+give an error if you mistype a tag name.
+.SP
+\fB-f\fR is available with these commands:
+\fBannotate\fR, \fBcheckout\fR, \fBexport\fR,
+\fBrdiff\fR, \fBrtag\fR, and \fBupdate\fR.
+.SP
+\fBWARNING:  The \fBcommit\fB and \fBremove\fB
+commands also have a
+\fB-f\fB option, but it has a different behavior for
+those commands.  See see node `commit options\(aq in the CVS manual, and
+see node `Removing files\(aq in the CVS manual.\fR
+.SP
+.IP "" 0
+\fB-k \fIkflag\fB\fR
+.IP "" 2
+Alter the default processing of keywords.
+see node `Keyword substitution\(aq in the CVS manual, for the meaning of
+\fIkflag\fR.  Your \fIkflag\fR specification is
+\fIsticky\fR when you use it to create a private copy
+of a source file; that is, when you use this option
+with the \fBcheckout\fR or \fBupdate\fR commands,
+\fBcvs\fR associates your selected \fIkflag\fR with the
+file, and continues to use it with future update
+commands on the same file until you specify otherwise.
+.SP
+The \fB-k\fR option is available with the \fBadd\fR,
+\fBcheckout\fR, \fBdiff\fR, \fBimport\fR and
+\fBupdate\fR commands.
+.SP
+.IP "" 0
+\fB-l\fR
+.IP "" 2
+Local; run only in current working directory, rather than
+recursing through subdirectories.
+.SP
+Available with the following commands: \fBannotate\fR, \fBcheckout\fR,
+\fBcommit\fR, \fBdiff\fR, \fBedit\fR, \fBeditors\fR, \fBexport\fR,
+\fBlog\fR, \fBrdiff\fR, \fBremove\fR, \fBrtag\fR,
+\fBstatus\fR, \fBtag\fR, \fBunedit\fR, \fBupdate\fR, \fBwatch\fR,
+and \fBwatchers\fR.
+.SP
+.IX "Editor, avoiding invocation of"
+.IX "Avoiding editor invocation"
+.IP "" 0
+\fB-m \fImessage\fB\fR
+.IP "" 2
+Use \fImessage\fR as log information, instead of
+invoking an editor.
+.SP
+Available with the following commands: \fBadd\fR,
+\fBcommit\fR and \fBimport\fR.
+.SP
+.IP "" 0
+\fB-n\fR
+.IP "" 2
+Do not run any tag program.  (A program can be
+specified to run in the modules
+database (see node `modules\(aq in the CVS manual); this option bypasses it).
+.SP
+\fBNote: this is not the same as the \fBcvs -n\fB
+program option, which you can specify to the left of a cvs command!\fR
+.SP
+Available with the \fBcheckout\fR, \fBcommit\fR, \fBexport\fR,
+and \fBrtag\fR commands.
+.SP
+.IP "" 0
+\fB-P\fR
+.IP "" 2
+Prune empty directories.  See see node `Removing directories\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-p\fR
+.IP "" 2
+Pipe the files retrieved from the repository to standard output,
+rather than writing them in the current directory.  Available
+with the \fBcheckout\fR and \fBupdate\fR commands.
+.SP
+.IP "" 0
+\fB-R\fR
+.IP "" 2
+Process directories recursively.  This is on by default.
+.SP
+Available with the following commands: \fBannotate\fR, \fBcheckout\fR,
+\fBcommit\fR, \fBdiff\fR, \fBedit\fR, \fBeditors\fR, \fBexport\fR,
+\fBrdiff\fR, \fBremove\fR, \fBrtag\fR,
+\fBstatus\fR, \fBtag\fR, \fBunedit\fR, \fBupdate\fR, \fBwatch\fR,
+and \fBwatchers\fR.
+.SP
+.IP "" 0
+\fB-r \fItag\fB\fR
+.IP "" 2
+.IX "HEAD, special tag"
+.IX "BASE, special tag"
+Use the revision specified by the \fItag\fR argument instead of the
+default \fIhead\fR revision.  As well as arbitrary tags defined
+with the \fBtag\fR or \fBrtag\fR command, two special tags are
+always available: \fBHEAD\fR refers to the most recent version
+available in the repository, and \fBBASE\fR refers to the
+revision you last checked out into the current working directory.
+.SP
+The tag specification is sticky when you use this
+with \fBcheckout\fR or \fBupdate\fR to make your own
+copy of a file: \fBcvs\fR remembers the tag and continues to use it on
+future update commands, until you specify otherwise (for more information
+on sticky tags/dates, see node `Sticky tags\(aq in the CVS manual).
+.SP
+The tag can be either a symbolic or numeric tag, as
+described in see node `Tags\(aq in the CVS manual, or the name of a branch, as
+described in see node `Branching and merging\(aq in the CVS manual.
+.SP
+Specifying the \fB-q\fR global option along with the
+\fB-r\fR command option is often useful, to suppress
+the warning messages when the \fBrcs\fR file
+does not contain the specified tag.
+.SP
+\fBNote: this is not the same as the overall \fBcvs -r\fB option,
+which you can specify to the left of a \fBcvs\fB command!\fR
+.SP
+\fB-r\fR is available with the \fBcheckout\fR, \fBcommit\fR,
+\fBdiff\fR, \fBhistory\fR, \fBexport\fR, \fBrdiff\fR,
+\fBrtag\fR, and \fBupdate\fR commands.
+.SP
+.IP "" 0
+\fB-W\fR
+.IP "" 2
+Specify file names that should be filtered.  You can
+use this option repeatedly.  The spec can be a file
+name pattern of the same type that you can specify in
+the \fB.cvswrappers\fR file.
+Available with the following commands: \fBimport\fR,
+and \fBupdate\fR.
+.SP
+.SP
+.SH "admin"
+.SS "Administration"
+.IX "Admin (subcommand)"
+.SP
+.IP "\(bu" 2
+Requires: repository, working directory.
+.IP "\(bu" 2
+Changes: repository.
+.IP "\(bu" 2
+Synonym: rcs
+.SP
+This is the \fBcvs\fR interface to assorted
+administrative facilities.  Some of them have
+questionable usefulness for \fBcvs\fR but exist for
+historical purposes.  Some of the questionable options
+are likely to disappear in the future.  This command
+\fIdoes\fR work recursively, so extreme care should be
+used.
+.SP
+.IX "cvsadmin"
+On unix, if there is a group named \fBcvsadmin\fR,
+only members of that group can run \fBcvs admin\fR
+(except for the \fBcvs admin -k\fR command, which can
+be run by anybody).  This group should exist on the
+server, or any system running the non-client/server
+\fBcvs\fR.  To disallow \fBcvs admin\fR for all users,
+create a group with no users in it.  On NT, the
+\fBcvsadmin\fR feature does not exist and all users
+can run \fBcvs admin\fR.
+.SP
+.SH "admin options"
+.SP
+Some of these options have questionable usefulness for
+\fBcvs\fR but exist for historical purposes.  Some even
+make it impossible to use \fBcvs\fR until you undo the
+effect!
+.SP
+.IP "" 0
+\fB-A\fIoldfile\fB\fR
+.IP "" 2
+Might not work together with \fBcvs\fR.  Append the
+access list of \fIoldfile\fR to the access list of the
+\fBrcs\fR file.
+.SP
+.IP "" 0
+\fB-a\fIlogins\fB\fR
+.IP "" 2
+Might not work together with \fBcvs\fR.  Append the
+login names appearing in the comma-separated list
+\fIlogins\fR to the access list of the \fBrcs\fR file.
+.SP
+.IP "" 0
+\fB-b[\fIrev\fB]\fR
+.IP "" 2
+Set the default branch to \fIrev\fR.  In \fBcvs\fR, you
+normally do not manipulate default branches; sticky
+tags (see node `Sticky tags\(aq in the CVS manual) are a better way to decide
+which branch you want to work on.  There is one reason
+to run \fBcvs admin -b\fR: to revert to the vendor\(aqs
+version when using vendor branches (see node `Reverting
+local changes\(aq in the CVS manual).
+There can be no space between \fB-b\fR and its argument.
+.SP
+.IX "Comment leader"
+.IP "" 0
+\fB-c\fIstring\fB\fR
+.IP "" 2
+Sets the comment leader to \fIstring\fR.  The comment
+leader is not used by current versions of \fBcvs\fR or
+\fBrcs\fR 5.7.  Therefore, you can almost surely not
+worry about it.  see node `Keyword substitution\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-e[\fIlogins\fB]\fR
+.IP "" 2
+Might not work together with \fBcvs\fR.  Erase the login
+names appearing in the comma-separated list
+\fIlogins\fR from the access list of the RCS file.  If
+\fIlogins\fR is omitted, erase the entire access list.
+There can be no space between \fB-e\fR and its argument.
+.SP
+.IP "" 0
+\fB-I\fR
+.IP "" 2
+Run interactively, even if the standard input is not a
+terminal.  This option does not work with the
+client/server \fBcvs\fR and is likely to disappear in
+a future release of \fBcvs\fR.
+.SP
+.IP "" 0
+\fB-i\fR
+.IP "" 2
+Useless with \fBcvs\fR.  This creates and initializes a
+new \fBrcs\fR file, without depositing a revision.  With
+\fBcvs\fR, add files with the \fBcvs add\fR command
+(see node `Adding files\(aq in the CVS manual).
+.SP
+.IP "" 0
+\fB-k\fIsubst\fB\fR
+.IP "" 2
+Set the default keyword
+substitution to \fIsubst\fR.  see node `Keyword
+substitution\(aq in the CVS manual.  Giving an explicit \fB-k\fR option to
+\fBcvs update\fR, \fBcvs export\fR, or \fBcvs
+checkout\fR overrides this default.
+.SP
+.IP "" 0
+\fB-l[\fIrev\fB]\fR
+.IP "" 2
+Lock the revision with number \fIrev\fR.  If a branch
+is given, lock the latest revision on that branch.  If
+\fIrev\fR is omitted, lock the latest revision on the
+default branch.  There can be no space between
+\fB-l\fR and its argument.
+.SP
+This can be used in conjunction with the
+\fBrcslock.pl\fR script in the \fBcontrib\fR
+directory of the \fBcvs\fR source distribution to
+provide reserved checkouts (where only one user can be
+editing a given file at a time).  See the comments in
+that file for details (and see the \fBREADME\fR file
+in that directory for disclaimers about the unsupported
+nature of contrib).  According to comments in that
+file, locking must set to strict (which is the default).
+.SP
+.IP "" 0
+\fB-L\fR
+.IP "" 2
+Set locking to strict.  Strict locking means that the
+owner of an RCS file is not exempt from locking for
+checkin.  For use with \fBcvs\fR, strict locking must be
+set; see the discussion under the \fB-l\fR option above.
+.SP
+.IX "Changing a log message"
+.IX "Replacing a log message"
+.IX "Correcting a log message"
+.IX "Fixing a log message"
+.IX "Log message, correcting"
+.IP "" 0
+\fB-m\fIrev\fB:\fImsg\fB\fR
+.IP "" 2
+Replace the log message of revision \fIrev\fR with
+\fImsg\fR.
+.SP
+.IP "" 0
+\fB-N\fIname\fB[:[\fIrev\fB]]\fR
+.IP "" 2
+Act like \fB-n\fR, except override any previous
+assignment of \fIname\fR.  For use with magic branches,
+see see node `Magic branch numbers\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-n\fIname\fB[:[\fIrev\fB]]\fR
+.IP "" 2
+Associate the symbolic name \fIname\fR with the branch
+or revision \fIrev\fR.  It is normally better to use
+\fBcvs tag\fR or \fBcvs rtag\fR instead.  Delete the
+symbolic name if both \fB:\fR and \fIrev\fR are
+omitted; otherwise, print an error message if
+\fIname\fR is already associated with another number.
+If \fIrev\fR is symbolic, it is expanded before
+association.  A \fIrev\fR consisting of a branch number
+followed by a \fB.\fR stands for the current latest
+revision in the branch.  A \fB:\fR with an empty
+\fIrev\fR stands for the current latest revision on the
+default branch, normally the trunk.  For example,
+\fBcvs admin -n\fIname\fB:\fR associates \fIname\fR with the
+current latest revision of all the RCS files;
+this contrasts with \fBcvs admin -n\fIname\fB:$\fR which
+associates \fIname\fR with the revision numbers
+extracted from keyword strings in the corresponding
+working files.
+.SP
+.IX "Deleting revisions"
+.IX "Outdating revisions"
+.IX "Saving space"
+.IP "" 0
+\fB-o\fIrange\fB\fR
+.IP "" 2
+Deletes (\fIoutdates\fR) the revisions given by
+\fIrange\fR.
+.SP
+Note that this command can be quite dangerous unless
+you know \fIexactly\fR what you are doing (for example
+see the warnings below about how the
+\fIrev1\fR:\fIrev2\fR syntax is confusing).
+.SP
+If you are short on disc this option might help you.
+But think twice before using it\(emthere is no way short
+of restoring the latest backup to undo this command!
+If you delete different revisions than you planned,
+either due to carelessness or (heaven forbid) a \fBcvs\fR
+bug, there is no opportunity to correct the error
+before the revisions are deleted.  It probably would be
+a good idea to experiment on a copy of the repository
+first.
+.SP
+Specify \fIrange\fR in one of the following ways:
+.SP
+.IP "" 2
+\fB\fIrev1\fB::\fIrev2\fB\fR
+.IP "" 4
+Collapse all revisions between rev1 and rev2, so that
+\fBcvs\fR only stores the differences associated with going
+from rev1 to rev2, not intermediate steps.  For
+example, after \fB-o 1.3::1.5\fR one can retrieve
+revision 1.3, revision 1.5, or the differences to get
+from 1.3 to 1.5, but not the revision 1.4, or the
+differences between 1.3 and 1.4.  Other examples:
+\fB-o 1.3::1.4\fR and \fB-o 1.3::1.3\fR have no
+effect, because there are no intermediate revisions to
+remove.
+.SP
+.IP "" 2
+\fB::\fIrev\fB\fR
+.IP "" 4
+Collapse revisions between the beginning of the branch
+containing \fIrev\fR and \fIrev\fR itself.  The
+branchpoint and \fIrev\fR are left intact.  For
+example, \fB-o ::1.3.2.6\fR deletes revision 1.3.2.1,
+revision 1.3.2.5, and everything in between, but leaves
+1.3 and 1.3.2.6 intact.
+.SP
+.IP "" 2
+\fB\fIrev\fB::\fR
+.IP "" 4
+Collapse revisions between \fIrev\fR and the end of the
+branch containing \fIrev\fR.  Revision \fIrev\fR is
+left intact but the head revision is deleted.
+.SP
+.IP "" 2
+\fB\fIrev\fB\fR
+.IP "" 4
+Delete the revision \fIrev\fR.  For example, \fB-o
+1.3\fR is equivalent to \fB-o 1.2::1.4\fR.
+.SP
+.IP "" 2
+\fB\fIrev1\fB:\fIrev2\fB\fR
+.IP "" 4
+Delete the revisions from \fIrev1\fR to \fIrev2\fR,
+inclusive, on the same branch.  One will not be able to
+retrieve \fIrev1\fR or \fIrev2\fR or any of the
+revisions in between.  For example, the command
+\fBcvs admin -oR_1_01:R_1_02 \&.\fR is rarely useful.
+It means to delete revisions up to, and including, the
+tag R_1_02.  But beware!  If there are files that have not
+changed between R_1_02 and R_1_03 the file will have
+\fIthe same\fR numerical revision number assigned to
+the tags R_1_02 and R_1_03.  So not only will it be
+impossible to retrieve R_1_02; R_1_03 will also have to
+be restored from the tapes!  In most cases you want to
+specify \fIrev1\fR::\fIrev2\fR instead.
+.SP
+.IP "" 2
+\fB:\fIrev\fB\fR
+.IP "" 4
+Delete revisions from the beginning of the
+branch containing \fIrev\fR up to and including
+\fIrev\fR.
+.SP
+.IP "" 2
+\fB\fIrev\fB:\fR
+.IP "" 4
+Delete revisions from revision \fIrev\fR, including
+\fIrev\fR itself, to the end of the branch containing
+\fIrev\fR.
+.SP
+None of the revisions to be deleted may have
+branches or locks.
+.SP
+If any of the revisions to be deleted have symbolic
+names, and one specifies one of the \fB::\fR syntaxes,
+then \fBcvs\fR will give an error and not delete any
+revisions.  If you really want to delete both the
+symbolic names and the revisions, first delete the
+symbolic names with \fBcvs tag -d\fR, then run
+\fBcvs admin -o\fR.  If one specifies the
+non-\fB::\fR syntaxes, then \fBcvs\fR will delete the
+revisions but leave the symbolic names pointing to
+nonexistent revisions.  This behavior is preserved for
+compatibility with previous versions of \fBcvs\fR, but
+because it isn\(aqt very useful, in the future it may
+change to be like the \fB::\fR case.
+.SP
+Due to the way \fBcvs\fR handles branches \fIrev\fR
+cannot be specified symbolically if it is a branch.
+see node `Magic branch numbers\(aq in the CVS manual, for an explanation.
+.SP
+Make sure that no-one has checked out a copy of the
+revision you outdate.  Strange things will happen if he
+starts to edit it and tries to check it back in.  For
+this reason, this option is not a good way to take back
+a bogus commit; commit a new revision undoing the bogus
+change instead (see node `Merging two revisions\(aq in the CVS manual).
+.SP
+.IP "" 0
+\fB-q\fR
+.IP "" 2
+Run quietly; do not print diagnostics.
+.SP
+.IP "" 0
+\fB-s\fIstate\fB[:\fIrev\fB]\fR
+.IP "" 2
+Useful with \fBcvs\fR.  Set the state attribute of the
+revision \fIrev\fR to \fIstate\fR.  If \fIrev\fR is a
+branch number, assume the latest revision on that
+branch.  If \fIrev\fR is omitted, assume the latest
+revision on the default branch.  Any identifier is
+acceptable for \fIstate\fR.  A useful set of states is
+\fBExp\fR (for experimental), \fBStab\fR (for
+stable), and \fBRel\fR (for released).  By default,
+the state of a new revision is set to \fBExp\fR when
+it is created.  The state is visible in the output from
+\fIcvs log\fR (see node `log\(aq in the CVS manual), and in the
+\fB$\fP\fPLog$\fR and \fB$\fP\fPState$\fR keywords
+(see node `Keyword substitution\(aq in the CVS manual).  Note that \fBcvs\fR
+uses the \fBdead\fR state for its own purposes; to
+take a file to or from the \fBdead\fR state use
+commands like \fBcvs remove\fR and \fBcvs add\fR, not
+\fBcvs admin -s\fR.
+.SP
+.IP "" 0
+\fB-t[\fIfile\fB]\fR
+.IP "" 2
+Useful with \fBcvs\fR.  Write descriptive text from the
+contents of the named \fIfile\fR into the RCS file,
+deleting the existing text.  The \fIfile\fR pathname
+may not begin with \fB-\fR.  The descriptive text can be seen in the
+output from \fBcvs log\fR (see node `log\(aq in the CVS manual).
+There can be no space between \fB-t\fR and its argument.
+.SP
+If \fIfile\fR is omitted,
+obtain the text from standard input, terminated by
+end-of-file or by a line containing \fB.\fR by itself.
+Prompt for the text if interaction is possible; see
+\fB-I\fR.
+.SP
+.IP "" 0
+\fB-t-\fIstring\fB\fR
+.IP "" 2
+Similar to \fB-t\fIfile\fB\fR. Write descriptive text
+from the \fIstring\fR into the \fBrcs\fR file, deleting
+the existing text.
+There can be no space between \fB-t\fR and its argument.
+.SP
+.IP "" 0
+\fB-U\fR
+.IP "" 2
+Set locking to non-strict.  Non-strict locking means
+that the owner of a file need not lock a revision for
+checkin.  For use with \fBcvs\fR, strict locking must be
+set; see the discussion under the \fB-l\fR option
+above.
+.SP
+.IP "" 0
+\fB-u[\fIrev\fB]\fR
+.IP "" 2
+See the option \fB-l\fR above, for a discussion of
+using this option with \fBcvs\fR.  Unlock the revision
+with number \fIrev\fR.  If a branch is given, unlock
+the latest revision on that branch.  If \fIrev\fR is
+omitted, remove the latest lock held by the caller.
+Normally, only the locker of a revision may unlock it;
+somebody else unlocking a revision breaks the lock.
+This causes the original locker to be sent a \fBcommit\fR
+notification (see node `Getting Notified\(aq in the CVS manual).
+There can be no space between \fB-u\fR and its argument.
+.SP
+.IP "" 0
+\fB-V\fIn\fB\fR
+.IP "" 2
+In previous versions of \fBcvs\fR, this option meant to
+write an \fBrcs\fR file which would be acceptable to
+\fBrcs\fR version \fIn\fR, but it is now obsolete and
+specifying it will produce an error.
+.SP
+.IP "" 0
+\fB-x\fIsuffixes\fB\fR
+.IP "" 2
+In previous versions of \fBcvs\fR, this was documented
+as a way of specifying the names of the \fBrcs\fR
+files.  However, \fBcvs\fR has always required that the
+\fBrcs\fR files used by \fBcvs\fR end in \fB,v\fR, so
+this option has never done anything useful.
+.SP
+.SP
+.SH "annotate"
+.SS "What revision modified each line of a file?"
+.IX "annotate (subcommand)"
+.SP
+.IP "\(bu" 2
+Synopsis: annotate [options] files\&...
+.IP "\(bu" 2
+Requires: repository.
+.IP "\(bu" 2
+Changes: nothing.
+.SP
+For each file in \fIfiles\fR, print the head revision
+of the trunk, together with information on the last
+modification for each line.  
+.SP
+.SH "annotate options"
+.SP
+These standard options are supported by \fBannotate\fR
+(see node `Common options\(aq in the CVS manual, for a complete description of
+them):
+.SP
+.IP "" 0
+\fB-l\fR
+.IP "" 2
+Local directory only, no recursion.
+.SP
+.IP "" 0
+\fB-R\fR
+.IP "" 2
+Process directories recursively.
+.SP
+.IP "" 0
+\fB-f\fR
+.IP "" 2
+Use head revision if tag/date not found.
+.SP
+.IP "" 0
+\fB-F\fR
+.IP "" 2
+Annotate binary files.
+.SP
+.IP "" 0
+\fB-r \fIrevision\fB\fR
+.IP "" 2
+Annotate file as of specified revision/tag.
+.SP
+.IP "" 0
+\fB-D \fIdate\fB\fR
+.IP "" 2
+Annotate file as of specified date.
+.SP
+.SH "annotate example"
+.SP
+For example:
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs annotate ssfile
+.IP "" 2
+Annotations for ssfile
+.IP "" 2
+***************
+.IP "" 2
+1.1          (mary     27-Mar-96): ssfile line 1
+.IP "" 2
+1.2          (joe      28-Mar-96): ssfile line 2
+
+.PD
+.IP "" 0
+.SP
+The file \fBssfile\fR currently contains two lines.
+The \fBssfile line 1\fR line was checked in by
+\fBmary\fR on March 27.  Then, on March 28, \fBjoe\fR
+added a line \fBssfile line 2\fR, without modifying
+the \fBssfile line 1\fR line.  This report doesn\(aqt
+tell you anything about lines which have been deleted
+or replaced; you need to use \fBcvs diff\fR for that
+(see node `diff\(aq in the CVS manual).
+.SP
+The options to \fBcvs annotate\fR are listed in
+see node `Invoking CVS\(aq in the CVS manual, and can be used to select the files
+and revisions to annotate.  The options are described
+in more detail there and in see node `Common options\(aq in the CVS manual.
+.SP
+.SH "checkout"
+.SS "Check out sources for editing"
+.IX "checkout (subcommand)"
+.IX "co (subcommand)"
+.SP
+.IP "\(bu" 2
+Synopsis: checkout [options] modules\&...
+.IP "\(bu" 2
+Requires: repository.
+.IP "\(bu" 2
+Changes: working directory.
+.IP "\(bu" 2
+Synonyms: co, get
+.SP
+Create or update a working directory containing copies of the
+source files specified by \fImodules\fR.  You must execute
+\fBcheckout\fR before using most of the other \fBcvs\fR
+commands, since most of them operate on your working
+directory.
+.SP
+The \fImodules\fR are either
+symbolic names for some
+collection of source directories and files, or paths to
+directories or files in the repository.  The symbolic
+names are defined in the \fBmodules\fR file.
+see node `modules\(aq in the CVS manual.
+.SP
+Depending on the modules you specify, \fBcheckout\fR may
+recursively create directories and populate them with
+the appropriate source files.  You can then edit these
+source files at any time (regardless of whether other
+software developers are editing their own copies of the
+sources); update them to include new changes applied by
+others to the source repository; or commit your work as
+a permanent change to the source repository.
+.SP
+Note that \fBcheckout\fR is used to create
+directories.  The top-level directory created is always
+added to the directory where \fBcheckout\fR is
+invoked, and usually has the same name as the specified
+module.  In the case of a module alias, the created
+sub-directory may have a different name, but you can be
+sure that it will be a sub-directory, and that
+\fBcheckout\fR will show the relative path leading to
+each file as it is extracted into your private work
+area (unless you specify the \fB-Q\fR global option).
+.SP
+The files created by \fBcheckout\fR are created
+read-write, unless the \fB-r\fR option to \fBcvs\fR
+(see node `Global options\(aq in the CVS manual) is specified, the
+\fBCVSREAD\fR environment variable is specified
+(see node `Environment variables\(aq in the CVS manual), or a watch is in
+effect for that file (see node `Watches\(aq in the CVS manual).
+.SP
+Note that running \fBcheckout\fR on a directory that was already
+built by a prior \fBcheckout\fR is also permitted.
+This is similar to specifying the \fB-d\fR option
+to the \fBupdate\fR command in the sense that new
+directories that have been created in the repository
+will appear in your work area.
+However, \fBcheckout\fR takes a module name whereas
+\fBupdate\fR takes a directory name.  Also
+to use \fBcheckout\fR this way it must be run from the
+top level directory (where you originally ran
+\fBcheckout\fR from), so before you run
+\fBcheckout\fR to update an existing directory, don\(aqt
+forget to change your directory to the top level
+directory.
+.SP
+For the output produced by the \fBcheckout\fR command
+see see node `update output\(aq in the CVS manual.
+.SP
+.SH "checkout options"
+.SP
+These standard options are supported by \fBcheckout\fR
+(see node `Common options\(aq in the CVS manual, for a complete description of
+them):
+.SP
+.IP "" 0
+\fB-D \fIdate\fB\fR
+.IP "" 2
+Use the most recent revision no later than \fIdate\fR.
+This option is sticky, and implies \fB-P\fR.  See
+see node `Sticky tags\(aq in the CVS manual, for more information on sticky tags/dates.
+.SP
+.IP "" 0
+\fB-f\fR
+.IP "" 2
+Only useful with the \fB-D \fIdate\fB\fR or \fB-r
+\fItag\fB\fR flags.  If no matching revision is found,
+retrieve the most recent revision (instead of ignoring
+the file).
+.SP
+.IP "" 0
+\fB-k \fIkflag\fB\fR
+.IP "" 2
+Process keywords according to \fIkflag\fR.  See
+see node `Keyword substitution\(aq in the CVS manual.
+This option is sticky; future updates of
+this file in this working directory will use the same
+\fIkflag\fR.  The \fBstatus\fR command can be viewed
+to see the sticky options.  See see node `Invoking CVS\(aq in the CVS manual, for
+more information on the \fBstatus\fR command.
+.SP
+.IP "" 0
+\fB-l\fR
+.IP "" 2
+Local; run only in current working directory.
+.SP
+.IP "" 0
+\fB-n\fR
+.IP "" 2
+Do not run any checkout program (as specified
+with the \fB-o\fR option in the modules file;
+see node `modules\(aq in the CVS manual).
+.SP
+.IP "" 0
+\fB-P\fR
+.IP "" 2
+Prune empty directories.  See see node `Moving directories\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-p\fR
+.IP "" 2
+Pipe files to the standard output.
+.SP
+.IP "" 0
+\fB-R\fR
+.IP "" 2
+Checkout directories recursively.  This option is on by default.
+.SP
+.IP "" 0
+\fB-r \fItag\fB\fR
+.IP "" 2
+Use revision \fItag\fR.  This option is sticky, and implies \fB-P\fR.
+See see node `Sticky tags\(aq in the CVS manual, for more information on sticky tags/dates.
+.SP
+In addition to those, you can use these special command
+options with \fBcheckout\fR:
+.SP
+.IP "" 0
+\fB-A\fR
+.IP "" 2
+Reset any sticky tags, dates, or \fB-k\fR options.
+See see node `Sticky tags\(aq in the CVS manual, for more information on sticky tags/dates.
+.SP
+.IP "" 0
+\fB-c\fR
+.IP "" 2
+Copy the module file, sorted, to the standard output,
+instead of creating or modifying any files or
+directories in your working directory.
+.SP
+.IP "" 0
+\fB-d \fIdir\fB\fR
+.IP "" 2
+Create a directory called \fIdir\fR for the working
+files, instead of using the module name.  In general,
+using this flag is equivalent to using \fBmkdir
+\fIdir\fB; cd \fIdir\fB\fR followed by the checkout
+command without the \fB-d\fR flag.
+.SP
+There is an important exception, however.  It is very
+convenient when checking out a single item to have the
+output appear in a directory that doesn\(aqt contain empty
+intermediate directories.  In this case \fIonly\fR,
+\fBcvs\fR tries to \`\`shorten\(aq\(aq pathnames to avoid those empty
+directories.
+.SP
+For example, given a module \fBfoo\fR that contains
+the file \fBbar.c\fR, the command \fBcvs co -d dir
+foo\fR will create directory \fBdir\fR and place
+\fBbar.c\fR inside.  Similarly, given a module
+\fBbar\fR which has subdirectory \fBbaz\fR wherein
+there is a file \fBquux.c\fR, the command \fBcvs co
+-d dir bar/baz\fR will create directory \fBdir\fR and
+place \fBquux.c\fR inside.
+.SP
+Using the \fB-N\fR flag will defeat this behavior.
+Given the same module definitions above, \fBcvs co
+-N -d dir foo\fR will create directories \fBdir/foo\fR
+and place \fBbar.c\fR inside, while \fBcvs co -N -d
+dir bar/baz\fR will create directories \fBdir/bar/baz\fR
+and place \fBquux.c\fR inside.
+.SP
+.IP "" 0
+\fB-j \fItag\fB\fR
+.IP "" 2
+With two \fB-j\fR options, merge changes from the
+revision specified with the first \fB-j\fR option to
+the revision specified with the second \fBj\fR option,
+into the working directory.
+.SP
+With one \fB-j\fR option, merge changes from the
+ancestor revision to the revision specified with the
+\fB-j\fR option, into the working directory.  The
+ancestor revision is the common ancestor of the
+revision which the working directory is based on, and
+the revision specified in the \fB-j\fR option.
+.SP
+In addition, each -j option can contain an optional
+date specification which, when used with branches, can
+limit the chosen revision to one within a specific
+date.  An optional date is specified by adding a colon
+(:) to the tag:
+\fB-j\fISymbolic_Tag\fB:\fIDate_Specifier\fB\fR.
+.SP
+see node `Branching and merging\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-N\fR
+.IP "" 2
+Only useful together with \fB-d \fIdir\fB\fR.  With
+this option, \fBcvs\fR will not \`\`shorten\(aq\(aq module paths
+in your working directory when you check out a single
+module.  See the \fB-d\fR flag for examples and a
+discussion.
+.SP
+.IP "" 0
+\fB-s\fR
+.IP "" 2
+Like \fB-c\fR, but include the status of all modules,
+and sort it by the status string.  see node `modules\(aq in the CVS manual, for
+info about the \fB-s\fR option that is used inside the
+modules file to set the module status.
+.SP
+.SH "checkout examples"
+.SP
+Get a copy of the module \fBtc\fR:
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs checkout tc
+
+.PD
+.IP "" 0
+.SP
+Get a copy of the module \fBtc\fR as it looked one day
+ago:
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs checkout -D yesterday tc
+
+.PD
+.IP "" 0
+.SP
+.SH "commit"
+.SS "Check files into the repository"
+.IX "commit (subcommand)"
+.SP
+.IP "\(bu" 2
+Synopsis: commit [-lnRf] [-m \(aqlog_message\(aq |
+-F file] [-r revision] [files\&...]
+.IP "\(bu" 2
+Requires: working directory, repository.
+.IP "\(bu" 2
+Changes: repository.
+.IP "\(bu" 2
+Synonym: ci
+.SP
+Use \fBcommit\fR when you want to incorporate changes
+from your working source files into the source
+repository.
+.SP
+If you don\(aqt specify particular files to commit, all of
+the files in your working current directory are
+examined.  \fBcommit\fR is careful to change in the
+repository only those files that you have really
+changed.  By default (or if you explicitly specify the
+\fB-R\fR option), files in subdirectories are also
+examined and committed if they have changed; you can
+use the \fB-l\fR option to limit \fBcommit\fR to the
+current directory only.
+.SP
+\fBcommit\fR verifies that the selected files are up
+to date with the current revisions in the source
+repository; it will notify you, and exit without
+committing, if any of the specified files must be made
+current first with \fBupdate\fR (see node `update\(aq in the CVS manual).
+\fBcommit\fR does not call the \fBupdate\fR command
+for you, but rather leaves that for you to do when the
+time is right.
+.SP
+When all is well, an editor is invoked to allow you to
+enter a log message that will be written to one or more
+logging programs (see node `modules\(aq in the CVS manual, and see node `loginfo\(aq in the CVS manual)
+and placed in the \fBrcs\fR file inside the
+repository.  This log message can be retrieved with the
+\fBlog\fR command; see see node `log\(aq in the CVS manual.  You can specify the
+log message on the command line with the \fB-m
+\fImessage\fB\fR option, and thus avoid the editor invocation,
+or use the \fB-F \fIfile\fB\fR option to specify
+that the argument file contains the log message.
+.SP
+.SH "commit options"
+.SP
+These standard options are supported by \fBcommit\fR
+(see node `Common options\(aq in the CVS manual, for a complete description of
+them):
+.SP
+.IP "" 0
+\fB-l\fR
+.IP "" 2
+Local; run only in current working directory.
+.SP
+.IP "" 0
+\fB-R\fR
+.IP "" 2
+Commit directories recursively.  This is on by default.
+.SP
+.IP "" 0
+\fB-r \fIrevision\fB\fR
+.IP "" 2
+Commit to \fIrevision\fR.  \fIrevision\fR must be
+either a branch, or a revision on the main trunk that
+is higher than any existing revision number
+(see node `Assigning revisions\(aq in the CVS manual).  You
+cannot commit to a specific revision on a branch.
+.SP
+\fBcommit\fR also supports these options:
+.SP
+.IP "" 0
+\fB-F \fIfile\fB\fR
+.IP "" 2
+Read the log message from \fIfile\fR, instead
+of invoking an editor.
+.SP
+.IP "" 0
+\fB-f\fR
+.IP "" 2
+Note that this is not the standard behavior of
+the \fB-f\fR option as defined in see node `Common options\(aq in the CVS manual.
+.SP
+Force \fBcvs\fR to commit a new revision even if you haven\(aqt
+made any changes to the file.  If the current revision
+of \fIfile\fR is 1.7, then the following two commands
+are equivalent:
+.SP
+.PD 0
+.SP
+.IP "" 4
+$ cvs commit -f \fIfile\fR
+.IP "" 4
+$ cvs commit -r 1.8 \fIfile\fR
+
+.PD
+.IP "" 2
+.SP
+The \fB-f\fR option disables recursion (i.e., it
+implies \fB-l\fR).  To force \fBcvs\fR to commit a new
+revision for all files in all subdirectories, you must
+use \fB-f -R\fR.
+.SP
+.IP "" 0
+\fB-m \fImessage\fB\fR
+.IP "" 2
+Use \fImessage\fR as the log message, instead of
+invoking an editor.
+.SP
+.SH "commit examples"
+.SP
+.SS "Committing to a branch"
+.SP
+You can commit to a branch revision (one that has an
+even number of dots) with the \fB-r\fR option.  To
+create a branch revision, use the \fB-b\fR option
+of the \fBrtag\fR or \fBtag\fR commands
+(see node `Branching and merging\(aq in the CVS manual).  Then, either \fBcheckout\fR or
+\fBupdate\fR can be used to base your sources on the
+newly created branch.  From that point on, all
+\fBcommit\fR changes made within these working sources
+will be automatically added to a branch revision,
+thereby not disturbing main-line development in any
+way.  For example, if you had to create a patch to the
+1.2 version of the product, even though the 2.0 version
+is already under development, you might do:
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs rtag -b -r FCS1_2 FCS1_2_Patch product_module
+.IP "" 2
+$ cvs checkout -r FCS1_2_Patch product_module
+.IP "" 2
+$ cd product_module
+.IP "" 2
+[[ hack away ]]
+.IP "" 2
+$ cvs commit
+
+.PD
+.IP "" 0
+.SP
+This works automatically since the \fB-r\fR option is
+sticky.
+.SP
+.SS "Creating the branch after editing"
+.SP
+Say you have been working on some extremely
+experimental software, based on whatever revision you
+happened to checkout last week.  If others in your
+group would like to work on this software with you, but
+without disturbing main-line development, you could
+commit your change to a new branch.  Others can then
+checkout your experimental stuff and utilize the full
+benefit of \fBcvs\fR conflict resolution.  The scenario might
+look like:
+.SP
+.PD 0
+.SP
+.IP "" 2
+[[ hacked sources are present ]]
+.IP "" 2
+$ cvs tag -b EXPR1
+.IP "" 2
+$ cvs update -r EXPR1
+.IP "" 2
+$ cvs commit
+
+.PD
+.IP "" 0
+.SP
+The \fBupdate\fR command will make the \fB-r
+EXPR1\fR option sticky on all files.  Note that your
+changes to the files will never be removed by the
+\fBupdate\fR command.  The \fBcommit\fR will
+automatically commit to the correct branch, because the
+\fB-r\fR is sticky.  You could also do like this:
+.SP
+.PD 0
+.SP
+.IP "" 2
+[[ hacked sources are present ]]
+.IP "" 2
+$ cvs tag -b EXPR1
+.IP "" 2
+$ cvs commit -r EXPR1
+
+.PD
+.IP "" 0
+.SP
+but then, only those files that were changed by you
+will have the \fB-r EXPR1\fR sticky flag.  If you hack
+away, and commit without specifying the \fB-r EXPR1\fR
+flag, some files may accidentally end up on the main
+trunk.
+.SP
+To work with you on the experimental change, others
+would simply do
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs checkout -r EXPR1 whatever_module
+
+.PD
+.IP "" 0
+.SP
+.SH "diff"
+.SS "Show differences between revisions"
+.IX "diff (subcommand)"
+.SP
+.IP "\(bu" 2
+Synopsis: diff [-lR] [-k kflag] [format_options] [[-r rev1 | -D date1] [-r rev2 |  -D date2]] [files\&...]
+.IP "\(bu" 2
+Requires: working directory, repository.
+.IP "\(bu" 2
+Changes: nothing.
+.SP
+The \fBdiff\fR command is used to compare different
+revisions of files.  The default action is to compare
+your working files with the revisions they were based
+on, and report any differences that are found.
+.SP
+If any file names are given, only those files are
+compared.  If any directories are given, all files
+under them will be compared.
+.SP
+The exit status for diff is different than for other
+\fBcvs\fR commands; for details see node `Exit status\(aq in the CVS manual.
+.SP
+.SH "diff options"
+.SP
+These standard options are supported by \fBdiff\fR
+(see node `Common options\(aq in the CVS manual, for a complete description of
+them):
+.SP
+.IP "" 0
+\fB-D \fIdate\fB\fR
+.IP "" 2
+Use the most recent revision no later than \fIdate\fR.
+See \fB-r\fR for how this affects the comparison.
+.SP
+.IP "" 0
+\fB-k \fIkflag\fB\fR
+.IP "" 2
+Process keywords according to \fIkflag\fR.  See
+see node `Keyword substitution\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-l\fR
+.IP "" 2
+Local; run only in current working directory.
+.SP
+.IP "" 0
+\fB-R\fR
+.IP "" 2
+Examine directories recursively.  This option is on by
+default.
+.SP
+.IP "" 0
+\fB-r \fItag\fB\fR
+.IP "" 2
+Compare with revision \fItag\fR.  Zero, one or two
+\fB-r\fR options can be present.  With no \fB-r\fR
+option, the working file will be compared with the
+revision it was based on.  With one \fB-r\fR, that
+revision will be compared to your current working file.
+With two \fB-r\fR options those two revisions will be
+compared (and your working file will not affect the
+outcome in any way).
+.SP
+One or both \fB-r\fR options can be replaced by a
+\fB-D \fIdate\fB\fR option, described above.
+.SP
+The following options specify the format of the
+output.  They have the same meaning as in GNU diff.
+Most options have two equivalent names, one of which is a single letter
+preceded by \fB-\fR, and the other of which is a long name preceded by
+\fB--\fR.
+.SP
+.IP "" 0
+\fB-\fIlines\fB\fR
+.IP "" 2
+Show \fIlines\fR (an integer) lines of context.  This option does not
+specify an output format by itself; it has no effect unless it is
+combined with \fB-c\fR or \fB-u\fR.  This option is obsolete.  For proper
+operation, \fBpatch\fR typically needs at least two lines of context.
+.SP
+.IP "" 0
+\fB-a\fR
+.IP "" 2
+Treat all files as text and compare them line-by-line, even if they
+do not seem to be text.
+.SP
+.IP "" 0
+\fB-b\fR
+.IP "" 2
+Ignore trailing white space and consider all other sequences of one or
+more white space characters to be equivalent.
+.SP
+.IP "" 0
+\fB-B\fR
+.IP "" 2
+Ignore changes that just insert or delete blank lines.
+.SP
+.IP "" 0
+\fB--binary\fR
+.IP "" 2
+Read and write data in binary mode.
+.SP
+.IP "" 0
+\fB--brief\fR
+.IP "" 2
+Report only whether the files differ, not the details of the
+differences.
+.SP
+.IP "" 0
+\fB-c\fR
+.IP "" 2
+Use the context output format.
+.SP
+.IP "" 0
+\fB-C \fIlines\fB\fR
+.IP "" 2
+.IP "" 0
+\fB--context\fR[\fB=\fIlines\fB\fR]\fB\fR
+.IP "" 2
+Use the context output format, showing \fIlines\fR (an integer) lines of
+context, or three if \fIlines\fR is not given.
+For proper operation, \fBpatch\fR typically needs at least two lines of
+context.
+.SP
+.IP "" 0
+\fB--changed-group-format=\fIformat\fB\fR
+.IP "" 2
+Use \fIformat\fR to output a line group containing differing lines from
+both files in if-then-else format.  see node `Line group formats\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-d\fR
+.IP "" 2
+Change the algorithm to perhaps find a smaller set of changes.  This makes
+\fBdiff\fR slower (sometimes much slower).
+.SP
+.IP "" 0
+\fB-e\fR
+.IP "" 2
+.IP "" 0
+\fB--ed\fR
+.IP "" 2
+Make output that is a valid \fBed\fR script.
+.SP
+.IP "" 0
+\fB--expand-tabs\fR
+.IP "" 2
+Expand tabs to spaces in the output, to preserve the alignment of tabs
+in the input files.
+.SP
+.IP "" 0
+\fB-f\fR
+.IP "" 2
+Make output that looks vaguely like an \fBed\fR script but has changes
+in the order they appear in the file.
+.SP
+.IP "" 0
+\fB-F \fIregexp\fB\fR
+.IP "" 2
+In context and unified format, for each hunk of differences, show some
+of the last preceding line that matches \fIregexp\fR.
+.SP
+.IP "" 0
+\fB--forward-ed\fR
+.IP "" 2
+Make output that looks vaguely like an \fBed\fR script but has changes
+in the order they appear in the file.
+.SP
+.IP "" 0
+\fB-H\fR
+.IP "" 2
+Use heuristics to speed handling of large files that have numerous
+scattered small changes.
+.SP
+.IP "" 0
+\fB--horizon-lines=\fIlines\fB\fR
+.IP "" 2
+Do not discard the last \fIlines\fR lines of the common prefix
+and the first \fIlines\fR lines of the common suffix.
+.SP
+.IP "" 0
+\fB-i\fR
+.IP "" 2
+Ignore changes in case; consider upper- and lower-case letters
+equivalent.
+.SP
+.IP "" 0
+\fB-I \fIregexp\fB\fR
+.IP "" 2
+Ignore changes that just insert or delete lines that match \fIregexp\fR.
+.SP
+.IP "" 0
+\fB--ifdef=\fIname\fB\fR
+.IP "" 2
+Make merged if-then-else output using \fIname\fR.
+.SP
+.IP "" 0
+\fB--ignore-all-space\fR
+.IP "" 2
+Ignore white space when comparing lines.
+.SP
+.IP "" 0
+\fB--ignore-blank-lines\fR
+.IP "" 2
+Ignore changes that just insert or delete blank lines.
+.SP
+.IP "" 0
+\fB--ignore-case\fR
+.IP "" 2
+Ignore changes in case; consider upper- and lower-case to be the same.
+.SP
+.IP "" 0
+\fB--ignore-matching-lines=\fIregexp\fB\fR
+.IP "" 2
+Ignore changes that just insert or delete lines that match \fIregexp\fR.
+.SP
+.IP "" 0
+\fB--ignore-space-change\fR
+.IP "" 2
+Ignore trailing white space and consider all other sequences of one or
+more white space characters to be equivalent.
+.SP
+.IP "" 0
+\fB--initial-tab\fR
+.IP "" 2
+Output a tab rather than a space before the text of a line in normal or
+context format.  This causes the alignment of tabs in the line to look
+normal.
+.SP
+.IP "" 0
+\fB-L \fIlabel\fB\fR
+.IP "" 2
+Use \fIlabel\fR instead of the file name in the context format
+and unified format headers.
+.SP
+.IP "" 0
+\fB--label=\fIlabel\fB\fR
+.IP "" 2
+Use \fIlabel\fR instead of the file name in the context format
+and unified format headers.
+.SP
+.IP "" 0
+\fB--left-column\fR
+.IP "" 2
+Print only the left column of two common lines in side by side format.
+.SP
+.IP "" 0
+\fB--line-format=\fIformat\fB\fR
+.IP "" 2
+Use \fIformat\fR to output all input lines in if-then-else format.
+see node `Line formats\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB--minimal\fR
+.IP "" 2
+Change the algorithm to perhaps find a smaller set of changes.  This
+makes \fBdiff\fR slower (sometimes much slower).
+.SP
+.IP "" 0
+\fB-n\fR
+.IP "" 2
+Output RCS-format diffs; like \fB-f\fR except that each command
+specifies the number of lines affected.
+.SP
+.IP "" 0
+\fB-N\fR
+.IP "" 2
+.IP "" 0
+\fB--new-file\fR
+.IP "" 2
+In directory comparison, if a file is found in only one directory,
+treat it as present but empty in the other directory.
+.SP
+.IP "" 0
+\fB--new-group-format=\fIformat\fB\fR
+.IP "" 2
+Use \fIformat\fR to output a group of lines taken from just the second
+file in if-then-else format.  see node `Line group formats\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB--new-line-format=\fIformat\fB\fR
+.IP "" 2
+Use \fIformat\fR to output a line taken from just the second file in
+if-then-else format.  see node `Line formats\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB--old-group-format=\fIformat\fB\fR
+.IP "" 2
+Use \fIformat\fR to output a group of lines taken from just the first
+file in if-then-else format.  see node `Line group formats\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB--old-line-format=\fIformat\fB\fR
+.IP "" 2
+Use \fIformat\fR to output a line taken from just the first file in
+if-then-else format.  see node `Line formats\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-p\fR
+.IP "" 2
+Show which C function each change is in.
+.SP
+.IP "" 0
+\fB--rcs\fR
+.IP "" 2
+Output RCS-format diffs; like \fB-f\fR except that each command
+specifies the number of lines affected.
+.SP
+.IP "" 0
+\fB--report-identical-files\fR
+.IP "" 2
+.IP "" 0
+\fB-s\fR
+.IP "" 2
+Report when two files are the same.
+.SP
+.IP "" 0
+\fB--show-c-function\fR
+.IP "" 2
+Show which C function each change is in.
+.SP
+.IP "" 0
+\fB--show-function-line=\fIregexp\fB\fR
+.IP "" 2
+In context and unified format, for each hunk of differences, show some
+of the last preceding line that matches \fIregexp\fR.
+.SP
+.IP "" 0
+\fB--side-by-side\fR
+.IP "" 2
+Use the side by side output format.
+.SP
+.IP "" 0
+\fB--speed-large-files\fR
+.IP "" 2
+Use heuristics to speed handling of large files that have numerous
+scattered small changes.
+.SP
+.IP "" 0
+\fB--suppress-common-lines\fR
+.IP "" 2
+Do not print common lines in side by side format.
+.SP
+.IP "" 0
+\fB-t\fR
+.IP "" 2
+Expand tabs to spaces in the output, to preserve the alignment of tabs
+in the input files.
+.SP
+.IP "" 0
+\fB-T\fR
+.IP "" 2
+Output a tab rather than a space before the text of a line in normal or
+context format.  This causes the alignment of tabs in the line to look
+normal.
+.SP
+.IP "" 0
+\fB--text\fR
+.IP "" 2
+Treat all files as text and compare them line-by-line, even if they
+do not appear to be text.
+.SP
+.IP "" 0
+\fB-u\fR
+.IP "" 2
+Use the unified output format.
+.SP
+.IP "" 0
+\fB--unchanged-group-format=\fIformat\fB\fR
+.IP "" 2
+Use \fIformat\fR to output a group of common lines taken from both files
+in if-then-else format.  see node `Line group formats\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB--unchanged-line-format=\fIformat\fB\fR
+.IP "" 2
+Use \fIformat\fR to output a line common to both files in if-then-else
+format.  see node `Line formats\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-U \fIlines\fB\fR
+.IP "" 2
+.IP "" 0
+\fB--unified\fR[\fB=\fIlines\fB\fR]\fB\fR
+.IP "" 2
+Use the unified output format, showing \fIlines\fR (an integer) lines of
+context, or three if \fIlines\fR is not given.
+For proper operation, \fBpatch\fR typically needs at least two lines of
+context.
+.SP
+.IP "" 0
+\fB-w\fR
+.IP "" 2
+Ignore white space when comparing lines.
+.SP
+.IP "" 0
+\fB-W \fIcolumns\fB\fR
+.IP "" 2
+.IP "" 0
+\fB--width=\fIcolumns\fB\fR
+.IP "" 2
+Use an output width of \fIcolumns\fR in side by side format.
+.SP
+.IP "" 0
+\fB-y\fR
+.IP "" 2
+Use the side by side output format.
+.SP
+.SH "Line group formats"
+.SP
+Line group formats let you specify formats suitable for many
+applications that allow if-then-else input, including programming
+languages and text formatting languages.  A line group format specifies
+the output format for a contiguous group of similar lines.
+.SP
+For example, the following command compares the TeX file \fBmyfile\fR
+with the original version from the repository,
+and outputs a merged file in which old regions are
+surrounded by \fB\\begin{em}\fR-\fB\\end{em}\fR lines, and new
+regions are surrounded by \fB\\begin{bf}\fR-\fB\\end{bf}\fR lines.
+.SP
+.PD 0
+.SP
+.IP "" 2
+cvs diff \\
+.IP "" 2
+   --old-group-format=\(aq\\begin{em}
+.IP "" 2
+%<\\end{em}
+.IP "" 2
+\(aq \\
+.IP "" 2
+   --new-group-format=\(aq\\begin{bf}
+.IP "" 2
+%>\\end{bf}
+.IP "" 2
+\(aq \\
+.IP "" 2
+   myfile
+
+.PD
+.IP "" 0
+.SP
+The following command is equivalent to the above example, but it is a
+little more verbose, because it spells out the default line group formats.
+.SP
+.PD 0
+.SP
+.IP "" 2
+cvs diff \\
+.IP "" 2
+   --old-group-format=\(aq\\begin{em}
+.IP "" 2
+%<\\end{em}
+.IP "" 2
+\(aq \\
+.IP "" 2
+   --new-group-format=\(aq\\begin{bf}
+.IP "" 2
+%>\\end{bf}
+.IP "" 2
+\(aq \\
+.IP "" 2
+   --unchanged-group-format=\(aq%=\(aq \\
+.IP "" 2
+   --changed-group-format=\(aq\\begin{em}
+.IP "" 2
+%<\\end{em}
+.IP "" 2
+\\begin{bf}
+.IP "" 2
+%>\\end{bf}
+.IP "" 2
+\(aq \\
+.IP "" 2
+   myfile
+
+.PD
+.IP "" 0
+.SP
+Here is a more advanced example, which outputs a diff listing with
+headers containing line numbers in a \`\`plain English\(aq\(aq style.
+.SP
+.PD 0
+.SP
+.IP "" 2
+cvs diff \\
+.IP "" 2
+   --unchanged-group-format=\(aq\(aq \\
+.IP "" 2
+   --old-group-format=\(aq-------- %dn line%(n=1?:s) deleted at %df:
+.IP "" 2
+%<\(aq \\
+.IP "" 2
+   --new-group-format=\(aq-------- %dN line%(N=1?:s) added after %de:
+.IP "" 2
+%>\(aq \\
+.IP "" 2
+   --changed-group-format=\(aq-------- %dn line%(n=1?:s) changed at %df:
+.IP "" 2
+%<-------- to:
+.IP "" 2
+%>\(aq \\
+.IP "" 2
+   myfile
+
+.PD
+.IP "" 0
+.SP
+To specify a line group format, use one of the options
+listed below.  You can specify up to four line group formats, one for
+each kind of line group.  You should quote \fIformat\fR, because it
+typically contains shell metacharacters.
+.SP
+.IP "" 0
+\fB--old-group-format=\fIformat\fB\fR
+.IP "" 2
+These line groups are hunks containing only lines from the first file.
+The default old group format is the same as the changed group format if
+it is specified; otherwise it is a format that outputs the line group as-is.
+.SP
+.IP "" 0
+\fB--new-group-format=\fIformat\fB\fR
+.IP "" 2
+These line groups are hunks containing only lines from the second
+file.  The default new group format is same as the changed group
+format if it is specified; otherwise it is a format that outputs the
+line group as-is.
+.SP
+.IP "" 0
+\fB--changed-group-format=\fIformat\fB\fR
+.IP "" 2
+These line groups are hunks containing lines from both files.  The
+default changed group format is the concatenation of the old and new
+group formats.
+.SP
+.IP "" 0
+\fB--unchanged-group-format=\fIformat\fB\fR
+.IP "" 2
+These line groups contain lines common to both files.  The default
+unchanged group format is a format that outputs the line group as-is.
+.SP
+In a line group format, ordinary characters represent themselves;
+conversion specifications start with \fB%\fR and have one of the
+following forms.
+.SP
+.IP "" 0
+\fB%<\fR
+.IP "" 2
+stands for the lines from the first file, including the trailing newline.
+Each line is formatted according to the old line format (see node `Line formats\(aq in the CVS manual).
+.SP
+.IP "" 0
+\fB%>\fR
+.IP "" 2
+stands for the lines from the second file, including the trailing newline.
+Each line is formatted according to the new line format.
+.SP
+.IP "" 0
+\fB%=\fR
+.IP "" 2
+stands for the lines common to both files, including the trailing newline.
+Each line is formatted according to the unchanged line format.
+.SP
+.IP "" 0
+\fB%%\fR
+.IP "" 2
+stands for \fB%\fR.
+.SP
+.IP "" 0
+\fB%c\(aq\fIC\fB\(aq\fR
+.IP "" 2
+where \fIC\fR is a single character, stands for \fIC\fR.
+\fIC\fR may not be a backslash or an apostrophe.
+For example, \fB%c\(aq:\(aq\fR stands for a colon, even inside
+the then-part of an if-then-else format, which a colon would
+normally terminate.
+.SP
+.IP "" 0
+\fB%c\(aq\\\fIO\fB\(aq\fR
+.IP "" 2
+where \fIO\fR is a string of 1, 2, or 3 octal digits,
+stands for the character with octal code \fIO\fR.
+For example, \fB%c\(aq\\0\(aq\fR stands for a null character.
+.SP
+.IP "" 0
+\fB\fIF\fB\fIn\fB\fR
+.IP "" 2
+where \fIF\fR is a \fBprintf\fR conversion specification and \fIn\fR is one
+of the following letters, stands for \fIn\fR\(aqs value formatted with \fIF\fR.
+.SP
+.IP "" 2
+\fBe\fR
+.IP "" 4
+The line number of the line just before the group in the old file.
+.SP
+.IP "" 2
+\fBf\fR
+.IP "" 4
+The line number of the first line in the group in the old file;
+equals \fIe\fR + 1.
+.SP
+.IP "" 2
+\fBl\fR
+.IP "" 4
+The line number of the last line in the group in the old file.
+.SP
+.IP "" 2
+\fBm\fR
+.IP "" 4
+The line number of the line just after the group in the old file;
+equals \fIl\fR + 1.
+.SP
+.IP "" 2
+\fBn\fR
+.IP "" 4
+The number of lines in the group in the old file; equals \fIl\fR - \fIf\fR + 1.
+.SP
+.IP "" 2
+\fBE, F, L, M, N\fR
+.IP "" 4
+Likewise, for lines in the new file.
+.SP
+.SP
+The \fBprintf\fR conversion specification can be \fB%d\fR,
+\fB%o\fR, \fB%x\fR, or \fB%X\fR, specifying decimal, octal,
+lower case hexadecimal, or upper case hexadecimal output
+respectively.  After the \fB%\fR the following options can appear in
+sequence: a \fB-\fR specifying left-justification; an integer
+specifying the minimum field width; and a period followed by an
+optional integer specifying the minimum number of digits.
+For example, \fB%5dN\fR prints the number of new lines in the group
+in a field of width 5 characters, using the \fBprintf\fR format \fB"%5d"\fR.
+.SP
+.IP "" 0
+\fB(\fIA\fB=\fIB\fB?\fIT\fB:\fIE\fB)\fR
+.IP "" 2
+If \fIA\fR equals \fIB\fR then \fIT\fR else \fIE\fR.
+\fIA\fR and \fIB\fR are each either a decimal constant
+or a single letter interpreted as above.
+This format spec is equivalent to \fIT\fR if
+\fIA\fR\(aqs value equals \fIB\fR\(aqs; otherwise it is equivalent to \fIE\fR.
+.SP
+For example, \fB%(N=0?no:%dN) line%(N=1?:s)\fR is equivalent to
+\fBno lines\fR if \fIN\fR (the number of lines in the group in the
+new file) is 0, to \fB1 line\fR if \fIN\fR is 1, and to \fB%dN lines\fR
+otherwise.
+.SP
+.SH "Line formats"
+.SP
+Line formats control how each line taken from an input file is
+output as part of a line group in if-then-else format.
+.SP
+For example, the following command outputs text with a one-column
+change indicator to the left of the text.  The first column of output
+is \fB-\fR for deleted lines, \fB|\fR for added lines, and a space
+for unchanged lines.  The formats contain newline characters where
+newlines are desired on output.
+.SP
+.PD 0
+.SP
+.IP "" 2
+cvs diff \\
+.IP "" 2
+   --old-line-format=\(aq-%l
+.IP "" 2
+\(aq \\
+.IP "" 2
+   --new-line-format=\(aq|%l
+.IP "" 2
+\(aq \\
+.IP "" 2
+   --unchanged-line-format=\(aq %l
+.IP "" 2
+\(aq \\
+.IP "" 2
+   myfile
+
+.PD
+.IP "" 0
+.SP
+To specify a line format, use one of the following options.  You should
+quote \fIformat\fR, since it often contains shell metacharacters.
+.SP
+.IP "" 0
+\fB--old-line-format=\fIformat\fB\fR
+.IP "" 2
+formats lines just from the first file.
+.SP
+.IP "" 0
+\fB--new-line-format=\fIformat\fB\fR
+.IP "" 2
+formats lines just from the second file.
+.SP
+.IP "" 0
+\fB--unchanged-line-format=\fIformat\fB\fR
+.IP "" 2
+formats lines common to both files.
+.SP
+.IP "" 0
+\fB--line-format=\fIformat\fB\fR
+.IP "" 2
+formats all lines; in effect, it sets all three above options simultaneously.
+.SP
+In a line format, ordinary characters represent themselves;
+conversion specifications start with \fB%\fR and have one of the
+following forms.
+.SP
+.IP "" 0
+\fB%l\fR
+.IP "" 2
+stands for the contents of the line, not counting its trailing
+newline (if any).  This format ignores whether the line is incomplete.
+.SP
+.IP "" 0
+\fB%L\fR
+.IP "" 2
+stands for the contents of the line, including its trailing newline
+(if any).  If a line is incomplete, this format preserves its
+incompleteness.
+.SP
+.IP "" 0
+\fB%%\fR
+.IP "" 2
+stands for \fB%\fR.
+.SP
+.IP "" 0
+\fB%c\(aq\fIC\fB\(aq\fR
+.IP "" 2
+where \fIC\fR is a single character, stands for \fIC\fR.
+\fIC\fR may not be a backslash or an apostrophe.
+For example, \fB%c\(aq:\(aq\fR stands for a colon.
+.SP
+.IP "" 0
+\fB%c\(aq\\\fIO\fB\(aq\fR
+.IP "" 2
+where \fIO\fR is a string of 1, 2, or 3 octal digits,
+stands for the character with octal code \fIO\fR.
+For example, \fB%c\(aq\\0\(aq\fR stands for a null character.
+.SP
+.IP "" 0
+\fB\fIF\fBn\fR
+.IP "" 2
+where \fIF\fR is a \fBprintf\fR conversion specification,
+stands for the line number formatted with \fIF\fR.
+For example, \fB%.5dn\fR prints the line number using the
+\fBprintf\fR format \fB"%.5d"\fR.  see node `Line group formats\(aq in the CVS manual, for
+more about printf conversion specifications.
+.SP
+.SP
+The default line format is \fB%l\fR followed by a newline character.
+.SP
+If the input contains tab characters and it is important that they line
+up on output, you should ensure that \fB%l\fR or \fB%L\fR in a line
+format is just after a tab stop (e.g. by preceding \fB%l\fR or
+\fB%L\fR with a tab character), or you should use the \fB-t\fR or
+\fB--expand-tabs\fR option.
+.SP
+Taken together, the line and line group formats let you specify many
+different formats.  For example, the following command uses a format
+similar to \fBdiff\fR\(aqs normal format.  You can tailor this command
+to get fine control over \fBdiff\fR\(aqs output.
+.SP
+.PD 0
+.SP
+.IP "" 2
+cvs diff \\
+.IP "" 2
+   --old-line-format=\(aq< %l
+.IP "" 2
+\(aq \\
+.IP "" 2
+   --new-line-format=\(aq> %l
+.IP "" 2
+\(aq \\
+.IP "" 2
+   --old-group-format=\(aq%df%(f=l?:,%dl)d%dE
+.IP "" 2
+%<\(aq \\
+.IP "" 2
+   --new-group-format=\(aq%dea%dF%(F=L?:,%dL)
+.IP "" 2
+%>\(aq \\
+.IP "" 2
+   --changed-group-format=\(aq%df%(f=l?:,%dl)c%dF%(F=L?:,%dL)
+.IP "" 2
+%<\(em
+.IP "" 2
+%>\(aq \\
+.IP "" 2
+   --unchanged-group-format=\(aq\(aq \\
+.IP "" 2
+   myfile
+
+.PD
+.IP "" 0
+.SP
+.SH "diff examples"
+.SP
+The following line produces a Unidiff (\fB-u\fR flag)
+between revision 1.14 and 1.19 of
+\fBbackend.c\fR.  Due to the \fB-kk\fR flag no
+keywords are substituted, so differences that only depend
+on keyword substitution are ignored.
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs diff -kk -u -r 1.14 -r 1.19 backend.c
+
+.PD
+.IP "" 0
+.SP
+Suppose the experimental branch EXPR1 was based on a
+set of files tagged RELEASE_1_0.  To see what has
+happened on that branch, the following can be used:
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs diff -r RELEASE_1_0 -r EXPR1
+
+.PD
+.IP "" 0
+.SP
+A command like this can be used to produce a context
+diff between two releases:
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs diff -c -r RELEASE_1_0 -r RELEASE_1_1 > diffs
+
+.PD
+.IP "" 0
+.SP
+If you are maintaining ChangeLogs, a command like the following
+just before you commit your changes may help you write
+the ChangeLog entry.  All local modifications that have
+not yet been committed will be printed.
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs diff -u | less
+
+.PD
+.IP "" 0
+.SP
+.SH "export"
+.SS "Export sources from CVS, similar to checkout"
+.IX "export (subcommand)"
+.SP
+.IP "\(bu" 2
+Synopsis: export [-flNnR] [-r rev|-D date] [-k subst] [-d dir] module\&...
+.IP "\(bu" 2
+Requires: repository.
+.IP "\(bu" 2
+Changes: current directory.
+.SP
+This command is a variant of \fBcheckout\fR; use it
+when you want a copy of the source for module without
+the \fBcvs\fR administrative directories.  For example, you
+might use \fBexport\fR to prepare source for shipment
+off-site.  This command requires that you specify a
+date or tag (with \fB-D\fR or \fB-r\fR), so that you
+can count on reproducing the source you ship to others
+(and thus it always prunes empty directories).
+.SP
+One often would like to use \fB-kv\fR with \fBcvs
+export\fR.  This causes any keywords to be
+expanded such that an import done at some other site
+will not lose the keyword revision information.  But be
+aware that doesn\(aqt handle an export containing binary
+files correctly.  Also be aware that after having used
+\fB-kv\fR, one can no longer use the \fBident\fR
+command (which is part of the \fBrcs\fR suite\(emsee
+ident(1)) which looks for keyword strings.  If
+you want to be able to use \fBident\fR you must not
+use \fB-kv\fR.
+.SP
+.SH "export options"
+.SP
+These standard options are supported by \fBexport\fR
+(see node `Common options\(aq in the CVS manual, for a complete description of
+them):
+.SP
+.IP "" 0
+\fB-D \fIdate\fB\fR
+.IP "" 2
+Use the most recent revision no later than \fIdate\fR.
+.SP
+.IP "" 0
+\fB-f\fR
+.IP "" 2
+If no matching revision is found, retrieve the most
+recent revision (instead of ignoring the file).
+.SP
+.IP "" 0
+\fB-l\fR
+.IP "" 2
+Local; run only in current working directory.
+.SP
+.IP "" 0
+\fB-n\fR
+.IP "" 2
+Do not run any checkout program.
+.SP
+.IP "" 0
+\fB-R\fR
+.IP "" 2
+Export directories recursively.  This is on by default.
+.SP
+.IP "" 0
+\fB-r \fItag\fB\fR
+.IP "" 2
+Use revision \fItag\fR.
+.SP
+In addition, these options (that are common to
+\fBcheckout\fR and \fBexport\fR) are also supported:
+.SP
+.IP "" 0
+\fB-d \fIdir\fB\fR
+.IP "" 2
+Create a directory called \fIdir\fR for the working
+files, instead of using the module name.
+see node `checkout options\(aq in the CVS manual, for complete details on how
+\fBcvs\fR handles this flag.
+.SP
+.IP "" 0
+\fB-k \fIsubst\fB\fR
+.IP "" 2
+Set keyword expansion mode (see node `Substitution modes\(aq in the CVS manual).
+.SP
+.IP "" 0
+\fB-N\fR
+.IP "" 2
+Only useful together with \fB-d \fIdir\fB\fR.
+see node `checkout options\(aq in the CVS manual, for complete details on how
+\fBcvs\fR handles this flag.
+.SP
+.SH "history"
+.SS "Show status of files and users"
+.IX "history (subcommand)"
+.SP
+.IP "\(bu" 2
+Synopsis:     history [-report] [-flags] [-options args] [files\&...]
+.IP "\(bu" 2
+Requires: the file \fB$CVSROOT/CVSROOT/history\fR
+.IP "\(bu" 2
+Changes: nothing.
+.SP
+\fBcvs\fR can keep a history file that tracks each use of the
+\fBcheckout\fR, \fBcommit\fR, \fBrtag\fR,
+\fBupdate\fR, and \fBrelease\fR commands.  You can
+use \fBhistory\fR to display this information in
+various formats.
+.SP
+Logging must be enabled by creating the file
+\fB$CVSROOT/CVSROOT/history\fR.
+.SP
+\fBNote: \fBhistory\fB uses \fB-f\fB, \fB-l\fB,
+\fB-n\fB, and \fB-p\fB in ways that conflict with the
+normal use inside \fBcvs\fB (see node `Common options\(aq in the CVS manual).\fR
+.SP
+.SH "history options"
+.SP
+Several options (shown above as \fB-report\fR)  control  what
+kind of report is generated:
+.SP
+.IP "" 0
+\fB-c\fR
+.IP "" 2
+Report on each time commit was used (i.e., each time
+the repository was modified).
+.SP
+.IP "" 0
+\fB-e\fR
+.IP "" 2
+Everything (all record types).  Equivalent to
+specifying \fB-x\fR with all record types.  Of course,
+\fB-e\fR will also include record types which are
+added in a future version of \fBcvs\fR; if you are
+writing a script which can only handle certain record
+types, you\(aqll want to specify \fB-x\fR.
+.SP
+.IP "" 0
+\fB-m \fImodule\fB\fR
+.IP "" 2
+Report on a particular module.  (You can meaningfully
+use \fB-m\fR more than once on the command line.)
+.SP
+.IP "" 0
+\fB-o\fR
+.IP "" 2
+Report on checked-out modules.  This is the default report type.
+.SP
+.IP "" 0
+\fB-T\fR
+.IP "" 2
+Report on all tags.
+.SP
+.IP "" 0
+\fB-x \fItype\fB\fR
+.IP "" 2
+Extract a particular set of record types \fItype\fR from the \fBcvs\fR
+history.  The types are indicated by single letters,
+which you may specify in combination.
+.SP
+Certain commands have a single record type:
+.SP
+.IP "" 2
+\fBF\fR
+.IP "" 4
+release
+.IP "" 2
+\fBO\fR
+.IP "" 4
+checkout
+.IP "" 2
+\fBE\fR
+.IP "" 4
+export
+.IP "" 2
+\fBT\fR
+.IP "" 4
+rtag
+.SP
+One of five record types may result from an update:
+.SP
+.IP "" 2
+\fBC\fR
+.IP "" 4
+A merge was necessary but collisions were
+detected (requiring manual merging).
+.IP "" 2
+\fBG\fR
+.IP "" 4
+A merge was necessary and it succeeded.
+.IP "" 2
+\fBU\fR
+.IP "" 4
+A working file was copied from the repository.
+.IP "" 2
+\fBP\fR
+.IP "" 4
+A working file was patched to match the repository.
+.IP "" 2
+\fBW\fR
+.IP "" 4
+The working copy of a file was deleted during
+update (because it was gone from the repository).
+.SP
+One of three record types results from commit:
+.SP
+.IP "" 2
+\fBA\fR
+.IP "" 4
+A file was added for the first time.
+.IP "" 2
+\fBM\fR
+.IP "" 4
+A file was modified.
+.IP "" 2
+\fBR\fR
+.IP "" 4
+A file was removed.
+.SP
+The options shown as \fB-flags\fR constrain or expand
+the report without requiring option arguments:
+.SP
+.IP "" 0
+\fB-a\fR
+.IP "" 2
+Show data for all users (the default is to show data
+only for the user executing \fBhistory\fR).
+.SP
+.IP "" 0
+\fB-l\fR
+.IP "" 2
+Show last modification only.
+.SP
+.IP "" 0
+\fB-w\fR
+.IP "" 2
+Show only the records for modifications done from the
+same working directory where \fBhistory\fR is
+executing.
+.SP
+The options shown as \fB-options \fIargs\fB\fR constrain the report
+based on an argument:
+.SP
+.IP "" 0
+\fB-b \fIstr\fB\fR
+.IP "" 2
+Show data back to a record containing  the  string
+\fIstr\fR  in  either the module name, the file name, or
+the repository path.
+.SP
+.IP "" 0
+\fB-D \fIdate\fB\fR
+.IP "" 2
+Show data since \fIdate\fR.  This is slightly different
+from the normal use of \fB-D \fIdate\fB\fR, which
+selects the newest revision older than \fIdate\fR.
+.SP
+.IP "" 0
+\fB-f \fIfile\fB\fR
+.IP "" 2
+Show data for a particular file
+(you can specify several \fB-f\fR options on the same command line).
+This is equivalent to specifying the file on the command line.
+.SP
+.IP "" 0
+\fB-n \fImodule\fB\fR
+.IP "" 2
+Show data for a particular module
+(you can specify several \fB-n\fR options on the same command line).
+.SP
+.IP "" 0
+\fB-p \fIrepository\fB\fR
+.IP "" 2
+Show data for a particular source repository  (you
+can specify several \fB-p\fR options on the same command
+line).
+.SP
+.IP "" 0
+\fB-r \fIrev\fB\fR
+.IP "" 2
+Show records referring to revisions since the revision
+or tag named \fIrev\fR appears in individual \fBrcs\fR
+files.  Each \fBrcs\fR file is searched for the revision or
+tag.
+.SP
+.IP "" 0
+\fB-t \fItag\fB\fR
+.IP "" 2
+Show records since tag \fItag\fR was last added to the
+history file.  This differs from the \fB-r\fR flag
+above in that it reads only the history file, not the
+\fBrcs\fR files, and is much faster.
+.SP
+.IP "" 0
+\fB-u \fIname\fB\fR
+.IP "" 2
+Show records for user \fIname\fR.
+.SP
+.IP "" 0
+\fB-z \fItimezone\fB\fR
+.IP "" 2
+Show times in the selected records using the specified
+time zone instead of UTC.
+.SP
+.SH "import"
+.SS "Import sources into CVS, using vendor branches"
+.IX "import (subcommand)"
+.SP
+.IP "\(bu" 2
+Synopsis: import [-options] repository vendortag releasetag\&...
+.IP "\(bu" 2
+Requires: Repository, source distribution directory.
+.IP "\(bu" 2
+Changes: repository.
+.SP
+Use \fBimport\fR to incorporate an entire source
+distribution from an outside source (e.g., a source
+vendor) into your source repository directory.  You can
+use this command both for initial creation of a
+repository, and for wholesale updates to the module
+from the outside source.  see node `Tracking sources\(aq in the CVS manual, for
+a discussion on this subject.
+.SP
+The \fIrepository\fR argument gives a directory name
+(or a path to a directory) under the \fBcvs\fR root directory
+for repositories; if the directory did not exist,
+import creates it.
+.SP
+When you use import for updates to source that has been
+modified in your source repository (since a prior
+import), it will notify you of any files that conflict
+in the two branches of development; use \fBcheckout
+-j\fR to reconcile the differences, as import instructs
+you to do.
+.SP
+If \fBcvs\fR decides a file should be ignored
+(see node `cvsignore\(aq in the CVS manual), it does not import it and prints
+\fBI \fR followed by the filename (see node `import output\(aq in the CVS manual, for a
+complete description of the output).
+.SP
+If the file \fB$CVSROOT/CVSROOT/cvswrappers\fR exists,
+any file whose names match the specifications in that
+file will be treated as packages and the appropriate
+filtering will be performed on the file/directory
+before being imported.  see node `Wrappers\(aq in the CVS manual.
+.SP
+The outside source is saved in a first-level
+branch, by default 1.1.1.  Updates are leaves of this
+branch; for example, files from the first imported
+collection of source will be revision 1.1.1.1, then
+files from the first imported update will be revision
+1.1.1.2, and so on.
+.SP
+At least three arguments are required.
+\fIrepository\fR is needed to identify the collection
+of source.  \fIvendortag\fR is a tag for the entire
+branch (e.g., for 1.1.1).  You must also specify at
+least one \fIreleasetag\fR to identify the files at
+the leaves created each time you execute \fBimport\fR.
+.SP
+Note that \fBimport\fR does \fInot\fR change the
+directory in which you invoke it.  In particular, it
+does not set up that directory as a \fBcvs\fR working
+directory; if you want to work with the sources import
+them first and then check them out into a different
+directory (see node `Getting the source\(aq in the CVS manual).
+.SP
+.SH "import options"
+.SP
+This standard option is supported by \fBimport\fR
+(see node `Common options\(aq in the CVS manual, for a complete description):
+.SP
+.IP "" 0
+\fB-m \fImessage\fB\fR
+.IP "" 2
+Use \fImessage\fR as log information, instead of
+invoking an editor.
+.SP
+There are the following additional special options.
+.SP
+.IP "" 0
+\fB-b \fIbranch\fB\fR
+.IP "" 2
+See see node `Multiple vendor branches\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-k \fIsubst\fB\fR
+.IP "" 2
+Indicate the keyword expansion mode desired.  This
+setting will apply to all files created during the
+import, but not to any files that previously existed in
+the repository.  See see node `Substitution modes\(aq in the CVS manual, for a
+list of valid \fB-k\fR settings.
+.SP
+.IP "" 0
+\fB-I \fIname\fB\fR
+.IP "" 2
+Specify file names that should be ignored during
+import.  You can use this option repeatedly.  To avoid
+ignoring any files at all (even those ignored by
+default), specify \`-I !\(aq.
+.SP
+\fIname\fR can be a file name pattern of the same type
+that you can specify in the \fB.cvsignore\fR file.
+see node `cvsignore\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-W \fIspec\fB\fR
+.IP "" 2
+Specify file names that should be filtered during
+import.  You can use this option repeatedly.
+.SP
+\fIspec\fR can be a file name pattern of the same type
+that you can specify in the \fB.cvswrappers\fR
+file. see node `Wrappers\(aq in the CVS manual.
+.SP
+.SH "import output"
+.SP
+\fBimport\fR keeps you informed of its progress by printing a line
+for each file, preceded by one character indicating the status of the file:
+.SP
+.IP "" 0
+\fBU \fIfile\fB\fR
+.IP "" 2
+The file already exists in the repository and has not been locally
+modified; a new revision has been created (if necessary).
+.SP
+.IP "" 0
+\fBN \fIfile\fB\fR
+.IP "" 2
+The file is a new file which has been added to the repository.
+.SP
+.IP "" 0
+\fBC \fIfile\fB\fR
+.IP "" 2
+The file already exists in the repository but has been locally modified;
+you will have to merge the changes.
+.SP
+.IP "" 0
+\fBI \fIfile\fB\fR
+.IP "" 2
+The file is being ignored (see node `cvsignore\(aq in the CVS manual).
+.SP
+.IX "Symbolic link, importing"
+.IX "Link, symbolic, importing"
+.IP "" 0
+\fBL \fIfile\fB\fR
+.IP "" 2
+The file is a symbolic link; \fBcvs import\fR ignores symbolic links.
+People periodically suggest that this behavior should
+be changed, but if there is a consensus on what it
+should be changed to, it doesn\(aqt seem to be apparent.
+(Various options in the \fBmodules\fR file can be used
+to recreate symbolic links on checkout, update, etc.;
+see node `modules\(aq in the CVS manual.)
+.SP
+.SH "import examples"
+.SP
+See see node `Tracking sources\(aq in the CVS manual, and see node `From files\(aq in the CVS manual.
+.SP
+.SH "log"
+.SS "Print out log information for files"
+.IX "log (subcommand)"
+.SP
+.IP "\(bu" 2
+Synopsis: log [options] [files\&...]
+.IP "\(bu" 2
+Requires: repository, working directory.
+.IP "\(bu" 2
+Changes: nothing.
+.SP
+Display log information for files.  \fBlog\fR used to
+call the \fBrcs\fR utility \fBrlog\fR.  Although this
+is no longer true in the current sources, this history
+determines the format of the output and the options,
+which are not quite in the style of the other \fBcvs\fR
+commands.
+.SP
+.IX "Timezone, in output"
+.IX "Zone, time, in output"
+The output includes the location of the \fBrcs\fR file,
+the \fIhead\fR revision (the latest revision on the
+trunk), all symbolic names (tags) and some other
+things.  For each revision, the revision number, the
+author, the number of lines added/deleted and the log
+message are printed.  All times are displayed in
+Coordinated Universal Time (UTC).  (Other parts of
+\fBcvs\fR print times in the local timezone).
+.SP
+\fBNote: \fBlog\fB uses \fB-R\fB in a way that conflicts
+with the normal use inside \fBcvs\fB (see node `Common options\(aq in the CVS manual).\fR
+.SP
+.SH "log options"
+.SP
+By default, \fBlog\fR prints all information that is
+available.  All other options restrict the output.
+.SP
+.IP "" 0
+\fB-b\fR
+.IP "" 2
+Print information about the revisions on the default
+branch, normally the highest branch on the trunk.
+.SP
+.IP "" 0
+\fB-d \fIdates\fB\fR
+.IP "" 2
+Print information about revisions with a checkin
+date/time in the range given by the
+semicolon-separated list of dates.  The date formats
+accepted are those accepted by the \fB-D\fR option to
+many other \fBcvs\fR commands (see node `Common options\(aq in the CVS manual).
+Dates can be combined into ranges as follows:
+.SP
+.IP "" 2
+\fB\fId1\fB<\fId2\fB\fR
+.IP "" 4
+.IP "" 2
+\fB\fId2\fB>\fId1\fB\fR
+.IP "" 4
+Select the revisions that were deposited between
+\fId1\fR and \fId2\fR.
+.SP
+.IP "" 2
+\fB<\fId\fB\fR
+.IP "" 4
+.IP "" 2
+\fB\fId\fB>\fR
+.IP "" 4
+Select all revisions dated \fId\fR or earlier.
+.SP
+.IP "" 2
+\fB\fId\fB<\fR
+.IP "" 4
+.IP "" 2
+\fB>\fId\fB\fR
+.IP "" 4
+Select all revisions dated \fId\fR or later.
+.SP
+.IP "" 2
+\fB\fId\fB\fR
+.IP "" 4
+Select the single, latest revision dated \fId\fR or
+earlier.
+.SP
+The \fB>\fR or \fB<\fR characters may be followed by
+\fB=\fR to indicate an inclusive range rather than an
+exclusive one.
+.SP
+Note that the separator is a semicolon (;).
+.SP
+.IP "" 0
+\fB-h\fR
+.IP "" 2
+Print only the name of the \fBrcs\fR file, name
+of the file in the working directory, head,
+default branch, access list, locks, symbolic names, and
+suffix.
+.SP
+.IP "" 0
+\fB-l\fR
+.IP "" 2
+Local; run only in current working directory.  (Default
+is to run recursively).
+.SP
+.IP "" 0
+\fB-N\fR
+.IP "" 2
+Do not print the list of tags for this file.  This
+option can be very useful when your site uses a lot of
+tags, so rather than "more"\(aqing over 3 pages of tag
+information, the log information is presented without
+tags at all.
+.SP
+.IP "" 0
+\fB-R\fR
+.IP "" 2
+Print only the name of the \fBrcs\fR file.
+.SP
+.IP "" 0
+\fB-r\fIrevisions\fB\fR
+.IP "" 2
+Print information about revisions given in the
+comma-separated list \fIrevisions\fR of revisions and
+ranges.  The following table explains the available
+range formats:
+.SP
+.IP "" 2
+\fB\fIrev1\fB:\fIrev2\fB\fR
+.IP "" 4
+Revisions \fIrev1\fR to \fIrev2\fR (which must be on
+the same branch).
+.SP
+.IP "" 2
+\fB\fIrev1\fB::\fIrev2\fB\fR
+.IP "" 4
+The same, but excluding \fIrev1\fR.
+.SP
+.IP "" 2
+\fB:\fIrev\fB\fR
+.IP "" 4
+.IP "" 2
+\fB::\fIrev\fB\fR
+.IP "" 4
+Revisions from the beginning of the branch up to
+and including \fIrev\fR.
+.SP
+.IP "" 2
+\fB\fIrev\fB:\fR
+.IP "" 4
+Revisions starting with \fIrev\fR to the end of the
+branch containing \fIrev\fR.
+.SP
+.IP "" 2
+\fB\fIrev\fB::\fR
+.IP "" 4
+Revisions starting just after \fIrev\fR to the end of the
+branch containing \fIrev\fR.
+.SP
+.IP "" 2
+\fB\fIbranch\fB\fR
+.IP "" 4
+An argument that is a branch means all revisions on
+that branch.
+.SP
+.IP "" 2
+\fB\fIbranch1\fB:\fIbranch2\fB\fR
+.IP "" 4
+.IP "" 2
+\fB\fIbranch1\fB::\fIbranch2\fB\fR
+.IP "" 4
+A range of branches means all revisions
+on the branches in that range.
+.SP
+.IP "" 2
+\fB\fIbranch\fB.\fR
+.IP "" 4
+The latest revision in \fIbranch\fR.
+.SP
+A bare \fB-r\fR with no revisions means the latest
+revision on the default branch, normally the trunk.
+There can be no space between the \fB-r\fR option and
+its argument.
+.SP
+.IP "" 0
+\fB-S\fR
+.IP "" 2
+Suppress the header if no revisions are selected.
+.SP
+.IP "" 0
+\fB-s \fIstates\fB\fR
+.IP "" 2
+Print information about revisions whose state
+attributes match one of the states given in the
+comma-separated list \fIstates\fR.
+.SP
+.IP "" 0
+\fB-t\fR
+.IP "" 2
+Print the same as \fB-h\fR, plus the descriptive text.
+.SP
+.IP "" 0
+\fB-w\fIlogins\fB\fR
+.IP "" 2
+Print information about revisions checked in by users
+with login names appearing in the comma-separated list
+\fIlogins\fR.  If \fIlogins\fR is omitted, the user\(aqs
+login is assumed.  There can be no space between the
+\fB-w\fR option and its argument.
+.SP
+\fBlog\fR prints the intersection of the revisions
+selected with the options \fB-d\fR, \fB-s\fR, and
+\fB-w\fR, intersected with the union of the revisions
+selected by \fB-b\fR and \fB-r\fR.
+.SP
+.SH "log examples"
+.SP
+Contributed examples are gratefully accepted.
+.SP
+.SH "rdiff"
+.SS "\(aqpatch\(aq format diffs between releases"
+.IX "rdiff (subcommand)"
+.SP
+.IP "\(bu" 2
+rdiff [-flags] [-V vn] [-r t|-D d [-r t2|-D d2]] modules\&...
+.IP "\(bu" 2
+Requires: repository.
+.IP "\(bu" 2
+Changes: nothing.
+.IP "\(bu" 2
+Synonym: patch
+.SP
+Builds a Larry Wall format patch(1) file between two
+releases, that can be fed directly into the \fBpatch\fR
+program to bring an old release up-to-date with the new
+release.  (This is one of the few \fBcvs\fR commands that
+operates directly from the repository, and doesn\(aqt
+require a prior checkout.) The diff output is sent to
+the standard output device.
+.SP
+You can specify (using the standard \fB-r\fR and
+\fB-D\fR options) any combination of one or two
+revisions or dates.  If only one revision or date is
+specified, the patch file reflects differences between
+that revision or date and the current head revisions in
+the \fBrcs\fR file.
+.SP
+Note that if the software release affected is contained
+in more than one directory, then it may be necessary to
+specify the \fB-p\fR option to the \fBpatch\fR command when
+patching the old sources, so that \fBpatch\fR is able to find
+the files that are located in other directories.
+.SP
+.SH "rdiff options"
+.SP
+These standard options are supported by \fBrdiff\fR
+(see node `Common options\(aq in the CVS manual, for a complete description of
+them):
+.SP
+.IP "" 0
+\fB-D \fIdate\fB\fR
+.IP "" 2
+Use the most recent revision no later than \fIdate\fR.
+.SP
+.IP "" 0
+\fB-f\fR
+.IP "" 2
+If no matching revision is found, retrieve the most
+recent revision (instead of ignoring the file).
+.SP
+.IP "" 0
+\fB-l\fR
+.IP "" 2
+Local; don\(aqt descend subdirectories.
+.SP
+.IP "" 0
+\fB-R\fR
+.IP "" 2
+Examine directories recursively.  This option is on by default.
+.SP
+.IP "" 0
+\fB-r \fItag\fB\fR
+.IP "" 2
+Use revision \fItag\fR.
+.SP
+In addition to the above, these options are available:
+.SP
+.IP "" 0
+\fB-c\fR
+.IP "" 2
+Use the context diff format.  This is the default format.
+.SP
+.IP "" 0
+\fB-s\fR
+.IP "" 2
+Create a summary change report instead of a patch.  The
+summary includes information about files that were
+changed or added between the releases.  It is sent to
+the standard output device.  This is useful for finding
+out, for example, which files have changed between two
+dates or revisions.
+.SP
+.IP "" 0
+\fB-t\fR
+.IP "" 2
+A diff of the top two revisions is sent to the standard
+output device.  This is most useful for seeing what the
+last change to a file was.
+.SP
+.IP "" 0
+\fB-u\fR
+.IP "" 2
+Use the unidiff format for the context diffs.
+Remember that old versions
+of the \fBpatch\fR program can\(aqt handle the unidiff
+format, so if you plan to post this patch to the net
+you should probably not use \fB-u\fR.
+.SP
+.IP "" 0
+\fB-V \fIvn\fB\fR
+.IP "" 2
+Expand keywords according to the rules current in
+\fBrcs\fR version \fIvn\fR (the expansion format changed with
+\fBrcs\fR version 5).  Note that this option is no
+longer accepted.  \fBcvs\fR will always expand keywords the
+way that \fBrcs\fR version 5 does.
+.SP
+.SH "rdiff examples"
+.SP
+Suppose you receive mail from \fRfoo@example.net\fR asking for an
+update from release 1.2 to 1.4 of the tc compiler.  You
+have no such patches on hand, but with \fBcvs\fR that can
+easily be fixed with a command such as this:
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs rdiff -c -r FOO1_2 -r FOO1_4 tc | \\
+.IP "" 2
+$$ Mail -s \(aqThe patches you asked for\(aq foo@example.net
+
+.PD
+.IP "" 0
+.SP
+Suppose you have made release 1.3, and forked a branch
+called \fBR_1_3fix\fR for bug fixes.  \fBR_1_3_1\fR
+corresponds to release 1.3.1, which was made some time
+ago.  Now, you want to see how much development has been
+done on the branch.  This command can be used:
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cvs patch -s -r R_1_3_1 -r R_1_3fix module-name
+.IP "" 2
+cvs rdiff: Diffing module-name
+.IP "" 2
+File ChangeLog,v changed from revision 1.52.2.5 to 1.52.2.6
+.IP "" 2
+File foo.c,v changed from revision 1.52.2.3 to 1.52.2.4
+.IP "" 2
+File bar.h,v changed from revision 1.29.2.1 to 1.2
+
+.PD
+.IP "" 0
+.SP
+.SH "release"
+.SS "Indicate that a Module is no longer in use"
+.IX "release (subcommand)"
+.SP
+.IP "\(bu" 2
+release [-d] directories\&...
+.IP "\(bu" 2
+Requires: Working directory.
+.IP "\(bu" 2
+Changes: Working directory, history log.
+.SP
+This command is meant to safely cancel the effect of
+\fBcvs checkout\fR.  Since \fBcvs\fR doesn\(aqt lock files, it
+isn\(aqt strictly necessary to use this command.  You can
+always simply delete your working directory, if you
+like; but you risk losing changes you may have
+forgotten, and you leave no trace in the \fBcvs\fR history
+file (see node `history file\(aq in the CVS manual) that you\(aqve abandoned your
+checkout.
+.SP
+Use \fBcvs release\fR to avoid these problems.  This
+command checks that no uncommitted changes are
+present; that you are executing it from immediately
+above a \fBcvs\fR working directory; and that the repository
+recorded for your files is the same as the repository
+defined in the module database.
+.SP
+If all these conditions are true, \fBcvs release\fR
+leaves a record of its execution (attesting to your
+intentionally abandoning your checkout) in the \fBcvs\fR
+history log.
+.SP
+.SH "release options"
+.SP
+The \fBrelease\fR command supports one command option:
+.SP
+.IP "" 0
+\fB-d\fR
+.IP "" 2
+Delete your working copy of the file if the release
+succeeds.  If this flag is not given your files will
+remain in your working directory.
+.SP
+\fBWARNING:  The \fBrelease\fB command deletes
+all directories and files recursively.  This
+has the very serious side-effect that any directory
+that you have created inside your checked-out sources,
+and not added to the repository (using the \fBadd\fB
+command; see node `Adding files\(aq in the CVS manual) will be silently deleted\(emeven
+if it is non-empty!\fR
+.SP
+.SH "release output"
+.SP
+Before \fBrelease\fR releases your sources it will
+print a one-line message for any file that is not
+up-to-date.
+.SP
+.IP "" 0
+\fBU \fIfile\fB\fR
+.IP "" 2
+.IP "" 0
+\fBP \fIfile\fB\fR
+.IP "" 2
+There exists a newer revision of this file in the
+repository, and you have not modified your local copy
+of the file (\fBU\fR and \fBP\fR mean the same thing).
+.SP
+.IP "" 0
+\fBA \fIfile\fB\fR
+.IP "" 2
+The file has been added to your private copy of the
+sources, but has not yet been committed to the
+repository.  If you delete your copy of the sources
+this file will be lost.
+.SP
+.IP "" 0
+\fBR \fIfile\fB\fR
+.IP "" 2
+The file has been removed from your private copy of the
+sources, but has not yet been removed from the
+repository, since you have not yet committed the
+removal.  see node `commit\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fBM \fIfile\fB\fR
+.IP "" 2
+The file is modified in your working directory.  There
+might also be a newer revision inside the repository.
+.SP
+.IP "" 0
+\fB? \fIfile\fB\fR
+.IP "" 2
+\fIfile\fR is in your working directory, but does not
+correspond to anything in the source repository, and is
+not in the list of files for \fBcvs\fR to ignore (see the
+description of the \fB-I\fR option, and
+see node `cvsignore\(aq in the CVS manual).  If you remove your working
+sources, this file will be lost.
+.SP
+.SH "release examples"
+.SP
+Release the \fBtc\fR directory, and delete your local working copy
+of the files.
+.SP
+.PD 0
+.SP
+.IP "" 2
+$ cd \&..         # \fRYou must stand immediately above the\fR
+.IP "" 2
+                # \fRsources when you issue \fBcvs release\fR.\fR
+.IP "" 2
+$ cvs release -d tc
+.IP "" 2
+You have [0] altered files in this repository.
+.IP "" 2
+Are you sure you want to release (and delete) directory \`tc\(aq: y
+.IP "" 2
+$
+
+.PD
+.IP "" 0
+.SP
+.SH "update"
+.SS "Bring work tree in sync with repository"
+.IX "update (subcommand)"
+.SP
+.IP "\(bu" 2
+update [-ACdflPpR] [-I name] [-j rev [-j rev]] [-k kflag] [-r tag|-D date] [-W spec] files\&...
+.IP "\(bu" 2
+Requires: repository, working directory.
+.IP "\(bu" 2
+Changes: working directory.
+.SP
+After you\(aqve run checkout to create your private copy
+of source from the common repository, other developers
+will continue changing the central source.  From time
+to time, when it is convenient in your development
+process, you can use the \fBupdate\fR command from
+within your working directory to reconcile your work
+with any revisions applied to the source repository
+since your last checkout or update.
+.SP
+.SH "update options"
+.SP
+These standard options are available with \fBupdate\fR
+(see node `Common options\(aq in the CVS manual, for a complete description of
+them):
+.SP
+.IP "" 0
+\fB-D date\fR
+.IP "" 2
+Use the most recent revision no later than \fIdate\fR.
+This option is sticky, and implies \fB-P\fR.
+See see node `Sticky tags\(aq in the CVS manual, for more information on sticky tags/dates.
+.SP
+.IP "" 0
+\fB-f\fR
+.IP "" 2
+Only useful with the \fB-D \fIdate\fB\fR or \fB-r
+\fItag\fB\fR flags.  If no matching revision is found,
+retrieve the most recent revision (instead of ignoring
+the file).
+.SP
+.IP "" 0
+\fB-k \fIkflag\fB\fR
+.IP "" 2
+Process keywords according to \fIkflag\fR.  See
+see node `Keyword substitution\(aq in the CVS manual.
+This option is sticky; future updates of
+this file in this working directory will use the same
+\fIkflag\fR.  The \fBstatus\fR command can be viewed
+to see the sticky options.  See see node `Invoking CVS\(aq in the CVS manual, for
+more information on the \fBstatus\fR command.
+.SP
+.IP "" 0
+\fB-l\fR
+.IP "" 2
+Local; run only in current working directory.  see node `Recursive behavior\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-P\fR
+.IP "" 2
+Prune empty directories.  See see node `Moving directories\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-p\fR
+.IP "" 2
+Pipe files to the standard output.
+.SP
+.IP "" 0
+\fB-R\fR
+.IP "" 2
+Update directories recursively (default).  see node `Recursive
+behavior\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-r rev\fR
+.IP "" 2
+Retrieve revision/tag \fIrev\fR.  This option is sticky,
+and implies \fB-P\fR.
+See see node `Sticky tags\(aq in the CVS manual, for more information on sticky tags/dates.
+.SP
+These special options are also available with
+\fBupdate\fR.
+.SP
+.IP "" 0
+\fB-A\fR
+.IP "" 2
+Reset any sticky tags, dates, or \fB-k\fR options.
+See see node `Sticky tags\(aq in the CVS manual, for more information on sticky tags/dates.
+.SP
+.IP "" 0
+\fB-C\fR
+.IP "" 2
+Overwrite locally modified files with clean copies from
+the repository (the modified file is saved in
+\fB.#\fIfile\fB.\fIrevision\fB\fR, however).
+.SP
+.IP "" 0
+\fB-d\fR
+.IP "" 2
+Create any directories that exist in the repository if
+they\(aqre missing from the working directory.  Normally,
+\fBupdate\fR acts only on directories and files that
+were already enrolled in your working directory.
+.SP
+This is useful for updating directories that were
+created in the repository since the initial checkout;
+but it has an unfortunate side effect.  If you
+deliberately avoided certain directories in the
+repository when you created your working directory
+(either through use of a module name or by listing
+explicitly the files and directories you wanted on the
+command line), then updating with \fB-d\fR will create
+those directories, which may not be what you want.
+.SP
+.IP "" 0
+\fB-I \fIname\fB\fR
+.IP "" 2
+Ignore files whose names match \fIname\fR (in your
+working directory) during the update.  You can specify
+\fB-I\fR more than once on the command line to specify
+several files to ignore.  Use \fB-I !\fR to avoid
+ignoring any files at all.  see node `cvsignore\(aq in the CVS manual, for other
+ways to make \fBcvs\fR ignore some files.
+.SP
+.IP "" 0
+\fB-W\fIspec\fB\fR
+.IP "" 2
+Specify file names that should be filtered during
+update.  You can use this option repeatedly.
+.SP
+\fIspec\fR can be a file name pattern of the same type
+that you can specify in the \fB.cvswrappers\fR
+file. see node `Wrappers\(aq in the CVS manual.
+.SP
+.IP "" 0
+\fB-j\fIrevision\fB\fR
+.IP "" 2
+With two \fB-j\fR options, merge changes from the
+revision specified with the first \fB-j\fR option to
+the revision specified with the second \fBj\fR option,
+into the working directory.
+.SP
+With one \fB-j\fR option, merge changes from the
+ancestor revision to the revision specified with the
+\fB-j\fR option, into the working directory.  The
+ancestor revision is the common ancestor of the
+revision which the working directory is based on, and
+the revision specified in the \fB-j\fR option.
+.SP
+Note that using a single \fB-j \fItagname\fB\fR option rather than
+\fB-j \fIbranchname\fB\fR to merge changes from a branch will
+often not remove files which were removed on the branch.
+see node `Merging adds and removals\(aq in the CVS manual, for more.
+.SP
+In addition, each \fB-j\fR option can contain an optional
+date specification which, when used with branches, can
+limit the chosen revision to one within a specific
+date.  An optional date is specified by adding a colon
+(:) to the tag:
+\fB-j\fISymbolic_Tag\fB:\fIDate_Specifier\fB\fR.
+.SP
+see node `Branching and merging\(aq in the CVS manual.
+.SP
+.SP
+.SH "update output"
+.SP
+\fBupdate\fR and \fBcheckout\fR keep you informed of
+their progress by printing a line for each file, preceded
+by one character indicating the status of the file:
+.SP
+.IP "" 0
+\fBU \fIfile\fB\fR
+.IP "" 2
+The file was brought up to date with respect to the
+repository.  This is done for any file that exists in
+the repository but not in your source, and for files
+that you haven\(aqt changed but are not the most recent
+versions available in the repository.
+.SP
+.IP "" 0
+\fBP \fIfile\fB\fR
+.IP "" 2
+Like \fBU\fR, but the \fBcvs\fR server sends a patch instead of an entire
+file.  This accomplishes the same thing as \fBU\fR using less bandwidth.
+.SP
+.IP "" 0
+\fBA \fIfile\fB\fR
+.IP "" 2
+The file has been added to your private copy of the
+sources, and will be added to the source repository
+when you run \fBcommit\fR on the file.  This is a
+reminder to you that the file needs to be committed.
+.SP
+.IP "" 0
+\fBR \fIfile\fB\fR
+.IP "" 2
+The file has been removed from your private copy of the
+sources, and will be removed from the source repository
+when you run \fBcommit\fR on the file.  This is a
+reminder to you that the file needs to be committed.
+.SP
+.IP "" 0
+\fBM \fIfile\fB\fR
+.IP "" 2
+The file is modified in  your  working  directory.
+.SP
+\fBM\fR can indicate one of two states for a file
+you\(aqre working on: either there were no modifications
+to the same file in the repository, so that your file
+remains as you last saw it; or there were modifications
+in the repository as well as in your copy, but they
+were merged successfully, without conflict, in your
+working directory.
+.SP
+\fBcvs\fR will print some messages if it merges your work,
+and a backup copy of your working file (as it looked
+before you ran \fBupdate\fR) will be made.  The exact
+name of that file is printed while \fBupdate\fR runs.
+.SP
+.IP "" 0
+\fBC \fIfile\fB\fR
+.IP "" 2
+.IX "\&.# files"
+.IX "__ files (VMS)"
+A conflict was detected while trying to merge your
+changes to \fIfile\fR with changes from the source
+repository.  \fIfile\fR (the copy in your working
+directory) is now the result of attempting to merge
+the two revisions; an unmodified copy of your file
+is also in your working directory, with the name
+\fB.#\fIfile\fB.\fIrevision\fB\fR where \fIrevision\fR
+is the revision that your modified file started
+from.  Resolve the conflict as described in
+see node `Conflicts example\(aq in the CVS manual.
+(Note that some systems automatically purge
+files that begin with \fB.#\fR if they have not been
+accessed for a few days.  If you intend to keep a copy
+of your original file, it is a very good idea to rename
+it.)  Under \fBvms\fR, the file name starts with
+\fB__\fR rather than \fB.#\fR.
+.SP
+.IP "" 0
+\fB? \fIfile\fB\fR
+.IP "" 2
+\fIfile\fR is in your working directory, but does not
+correspond to anything in the source repository, and is
+not in the list of files for \fBcvs\fR to ignore (see the
+description of the \fB-I\fR option, and
+see node `cvsignore\(aq in the CVS manual).
+.SH "AUTHORS"
+.TP
+Dick Grune
+Original author of the
+.B cvs
+shell script version posted to
+.B comp.sources.unix
+in the volume6 release of December, 1986.
+Credited with much of the
+.B cvs
+conflict resolution algorithms.
+.TP
+Brian Berliner
+Coder and designer of the
+.B cvs
+program itself in April, 1989, based on the original work done by Dick.
+.TP
+Jeff Polk
+Helped Brian with the design of the
+.B cvs
+module and vendor branch support and author of the
+.BR checkin ( 1 )
+shell script (the ancestor of \fBcvs import\fP).
+.TP
+Larry Jones, Derek R. Price, and Mark D. Baushke
+Have helped maintain
+.B cvs
+for many years.
+.TP
+And many others too numerous to mention here.
+.SH "SEE ALSO"
+The most comprehensive manual for CVS is
+Version Management with CVS by Per Cederqvist et al.  Depending on
+your system, you may be able to get it with the
+.B info CVS
+command or it may be available as cvs.pdf (Portable Document Format),
+cvs.ps (PostScript), cvs.texinfo (Texinfo source), or cvs.html.
+.SP
+For CVS updates, more information on documentation, software related
+to CVS, development of CVS, and more, see:
+.in +1i
+.SP
+.PD 0
+.IP "" 4
+.B http://cvshome.org
+.IP "" 4
+.B http://www.loria.fr/~molli/cvs-index.html
+.in -1i
+.SP
+.BR ci ( 1 ),
+.BR co ( 1 ),
+.BR cvs ( 5 ),
+.BR cvsbug ( 8 ),
+.BR diff ( 1 ),
+.BR grep ( 1 ),
+.BR patch ( 1 ),
+.BR rcs ( 1 ),
+.BR rcsdiff ( 1 ),
+.BR rcsmerge ( 1 ),
+.BR rlog ( 1 ).

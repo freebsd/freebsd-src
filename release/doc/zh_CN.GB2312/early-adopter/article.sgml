@@ -1,0 +1,764 @@
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+
+<!ENTITY release.4x "4.<replaceable>X</replaceable>">
+<!ENTITY release.5x "5.<replaceable>X</replaceable>">
+<!ENTITY release.4last "4.10-RELEASE">
+<!ENTITY release.5branchpoint "5.3-RELEASE">
+]>
+<!-- The FreeBSD Simplified Chinese Project
+     Original Revision: 1.21.2.4 -->
+
+<article>
+  <articleinfo>
+    <title>&os; &release.current; 迁移指南</title>
+
+    <authorgroup>
+      <corpauthor>The &os; Release Engineering Team</corpauthor>
+    </authorgroup>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2002</year>
+      <year>2003</year>
+      <year>2004</year>
+      <holder role="mailto:re@FreeBSD.org">The &os; Release
+        Engineering Team</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.apple;
+      &tm-attrib.ibm;
+      &tm-attrib.ieee;
+      &tm-attrib.intel;
+      &tm-attrib.microsoft;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+
+    <abstract>
+      <para>这篇文章从用户或管理员的视角描述了 &os;
+	&release.4x; 和 &os; &release.5branchpoint; 的主要区别，
+	并给出了针对现有系统的升级方案。 它对 &os;
+	的发行版制作工程进行了介绍， 随后描述了一些
+	&os; &release.5x; 的新特性， 以及熟悉 &release.4x;
+	系列发行版本的用户应关注的一些变化。
+	这篇文章同时分别描述了对现有系统基于预编译发行包以及源代码的升级过程。
+	这篇文章在较早的 &os; &release.5x; 版本中被称为 <quote>Early Adopters
+	Guide</quote>。</para>
+    </abstract>
+  </articleinfo>
+
+  <sect1 id="intro">
+    <title>介绍</title>
+
+    <para>&os; &release.5branchpoint; 标志着新的
+      <quote>&os.stable;</quote> 系列发行版的开始。
+      这个版本以及其后的 &release.5x; 系列版本主要面向生产环境中的使用，
+      类似之前 &release.4x; 系列发行版那样。</para>
+
+    <para>这篇文章介绍了一系列从 &release.4x; 升级到
+      &release.5branchpoint; 的用户会感兴趣的问题。
+      它首先介绍了目前的发布工程实践， 随后描述了一些 &os; &release.5x;
+      系列的新特性。 最重要的， 这篇文章列举了所进行的重大修改，
+      用户可见的行为变化， 或修改的外部软件接口。
+      最后是一些通过源代码或预编译包将现有的 &os; &release.4x; 升级到
+      &os; &release.5branchpoint; 需要注意的问题。</para>
+
+  </sect1>
+
+  <sect1 id="release-overview">
+    <title>&os; 发布流程概览</title>
+
+    <para>&os; 采用了一种依赖于代码库中多个分支的开发模式。 主分支被称为
+      <quote>CURRENT</quote>， 在 CVS 代码库中记为
+      <literal>HEAD</literal>。 新的特性首先被提交到这个分支；
+      虽然 CURRENT 是最先看到新功能的分支， 它也因此偶尔会在调试新功能时存在问题。</para>
+
+    <para>绝大多数 &os; 发行版本来自一个或多个
+      <quote>STABLE</quote> 分支。 新功能加入到 CURRENT
+      一段时间之后才会合并到这些分支。 在过去两年中，
+      唯一处于持续开发中的 STABLE 分支是
+      <quote>4-STABLE</quote>， 所有的
+      &os; &release.4x; 发行版本都基于它。
+      这个分支在 CVS 代码库中的 tag 是 <literal>RELENG_4</literal>。</para>
+
+    <para>过去的两个 STABLE 分支 (3-STABLE 和 4-STABLE)
+      是在它们开发周期非常早的时候创建的
+      (相应的分支起点是 3.1 和 4.0)。 现在看来，
+      这样的方法没有在创建新的分支时为相应的 CURRENT
+      分支留出足够的时间来变得稳定。 因而，
+      这导致了时间被浪费在不同分支之间移植对错误的修正上，
+      并产生了一些完全无法在分支间移植的架构变动。</para>
+
+    <para>&release.5x; 系列发行版对此作了略有不同的处理。
+      &os; 5.0, 5.1, 以及 5.2 都基于 CURRENT 分支。
+      第一个发行版是在进行了两年的开发之后发布的
+      (在此之前， 最后一个来自 HEAD 的发行版是 &os; 4.0，
+      在 2000 年 3 月发布)。</para>
+
+    <para>与之前的 <quote>STABLE</quote> 分支不同， CVS 中的
+      <quote>5-STABLE</quote> 分支 (分支 tag
+      <literal>RELENG_5</literal>) 是在第一个 &release.5x;
+      发行版发布一年多之后才建立的 (具体而言， 是在 5.3
+      发行版本的发布工程中)。
+      这个延期给了开发团队时间来完成必要的架构修改， 使系统更加稳定，
+      完善各式各样的接口， 以及为后续的
+      &release.5x; 版本打下良好的基础。</para>
+
+    <para>除了一般的改进和错误修正之外， 5-STABLE
+      分支的一项优先考虑的目标是保持应用二进制接口 (ABI)
+      和应用编程接口 (API) 的兼容性。 任何可能破坏向前兼容性
+      (包括内核或库接口) 的修改都是被强烈反对的，
+      只有当这是解决某个重大问题的最后办法时，
+      才可能被允许。</para>
+
+    <para>下一个 CURRENT 分支的发行版应该是 6.0-RELEASE，
+      它将从 CVS <literal>HEAD</literal> 构建。
+      对于 6.0 没有确定的发布日期， 这一点同
+      5.3 不同， 不过尽管如此， 应该是 2006 年的某个时候。</para>
+
+    <para>在 4-STABLE 开发分支上还将进行一些有限的开发，
+      并且有计划在 5.3-RELEASE 之后的某个时候推出它的下一个版本 (4.11)。
+      对于那些非常保守的用户， 继续使用一段时间的
+      &release.4x; 版本可能看起来更为合理一些。
+      &a.security-officer; 将按照他们公布的方针继续支持
+      4-STABLE 一段时间， 您可以在 &os; 网站的 <ulink
+      url="&url.base;/security/index.html">安全主页</ulink> 找到相关信息。</para>
+
+    <para>关于 &os; 发布工程过程的进一步详情可以在
+      <ulink
+      url="&url.base;/releng/index.html">Release
+      Engineering 主页</ulink> 和 <ulink
+      url="&url.articles.releng;/index.html"><quote>&os; 发布工程</quote></ulink>
+      一文中找到。</para>
+
+  </sect1>
+
+  <sect1 id="new">
+    <title>新特性</title>
+
+    <para>&os; &release.5x; 最吸引人的地方就是一系列全新的功能，
+      这些功能基本上都和无法移植回 &os; 4-STABLE
+      开发分支的那些大幅度的架构调整有关。 (与此相反， 许多独立的改进，
+      例如新的设备驱动或对于一些用户级应用的更新等，
+      则已经移植回去了。)  这里是一份简明的列表， 它并不包含全部内容：</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>SMPng: <quote>新一代</quote> 对并行多处理器 (SMP) 机器的支持。
+ 	  正在进行的开发的主要目标是对内核的各个子系统进行细粒度的上锁，
+ 	  以增加内核能够同时运行的线程数目。 特别注意了网络协议栈的性能。
+ 	  可以在
+	  <ulink url="&url.base;/smp/index.html">FreeBSD SMP
+ 	  Project</ulink> 的网站找到更多信息。</para>
+      </listitem>
+
+      <listitem>
+	<para>KSE:  内核调度实体 允许一个进程拥有多个内核级线程，
+	  类似 调度器激活 (Scheduler
+	  Activations)。 <filename>libpthread</filename>
+	  和 <filename>libthr</filename> 两个线程库使得多线程的用户程序能够使用这些特性，
+	  它们使用了 &man.pthread.3; API。
+	  <filename>libpthread</filename> 现在是默认的线程库。</para>
+      </listitem>
+
+      <listitem>
+	<para>新的硬件架构支持： 现在能够支持 amd64、ia64、pc98 以及 sparc64
+	  硬件架构， 以及 i386 和 alpha。 其他正在活跃地开发的架构包括 powerpc
+	  (运行于基于 &powerpc; 的各类 &macintosh; 平台) 和 arm。</para>
+      </listitem>
+
+      <listitem>
+	<para>GCC： 编译工具集现在是基于 GCC
+	  3.4.<replaceable>X</replaceable>， 而不是先前的 GCC
+	  2.95.<replaceable>X</replaceable> 了。</para>
+      </listitem>
+
+      <listitem>
+	<para>MAC： 支持可扩展的， 可加载的强制访问控制策略。</para>
+      </listitem>
+
+      <listitem>
+        <para>GEOM： 灵活的， 模块化的 I/O 请求变换框架。
+	  这个系统提供了对于磁盘和卷的一系列功能支持， 例如：
+	  识别磁盘分区， &man.gbde.4; 磁盘加密机制，
+	  各级 RAID 功能支持， 通过网络导出磁盘设备
+	  (使用 &man.ggated.8; 和相关工具)， 以及透明的磁盘解压缩。</para>
+      </listitem>
+
+      <listitem>
+	<para>FFS： 现在 FFS 文件系统提供了后台
+          &man.fsck.8; 操作 (以便更快地从崩溃中恢复) 和文件系统快照的支持。</para>
+      </listitem>
+
+      <listitem>
+	<para>UFS2： 增加了新的磁盘文件系统格式 UFS2，
+	  它支持扩展的文件属性和更大的文件。 UFS2 是 &man.newfs.8; 默认的文件格式。
+	  除了 pc98 之外， 从 &man.sysinstall.8; 创建的文件系统都默认使用
+	  UFS2 格式。</para>
+      </listitem>
+
+      <listitem>
+	<para>新的网络特性： 增加了一系列新的网络特性，
+	  它们在 &release.5x; 中首次出现， 包括
+	  TCP SACK (选择性确认) 的支持， 来自 OpenBSD 的
+	  &man.pf.4; 包过滤器， 以及 ALTQ 包队列系统。
+      </listitem>
+
+      <listitem>
+        <para>新硬件支持： 支持更多的硬件设备， 例如
+	  Cardbus， 蓝牙设备， 以及基于 Atheros 的 IEEE 802.11a/b/g
+	  网络接口。 同时， 在 i386 平台上， &os;
+	  驱动程序明确不支持的那些网络设备则可能可以通过 &man.ndis.4;
+	  兼容层来使用制造商的 &microsoft; &windows; 驱动程序来驱动。</para> </listitem>
+
+    </itemizedlist>
+
+    <para>更详细的新功能列表可以在 &os; &release.5x; 的发行版发布说明中找到。</para>
+
+  </sect1>
+
+  <sect1 id="drawbacks">
+    <title>值得注意的变化</title>
+
+    <para>一些 &os; &release.4x; 到
+      &release.5x; 的变化需要给予特别的关注， 因为它们涉及到了主要的架构变动，
+      或在某些方面破坏了向下兼容性。 尽管这些变动通常不会造成数据丢失，
+      但是它可能会给那些不太注意的人带来困惑。 最明显的例子包括：</para>
+
+    <itemizedlist>
+
+<!-- General stuff -->
+
+      <listitem>
+        <para>&os; 的基本系统中的许多功能转移到了 &os; Ports Collection
+          中， 这样做的原因主要是以这种方式可能更便于维护，
+          或者它们不是系统中的必要组件。 其中最值得关注的是
+          <application>Perl</application> (可以从 &os; Ports
+          Collection 的 <filename
+          role="package">lang/perl5.8</filename> 安装)，
+          它的存在曾经使基本系统的升级充满问题。 基本系统中依赖
+          <application>Perl</application> 的实用工具都已经被重写
+          (如果可能) 或删除 (如果已经过时)。<para>
+
+	<para>另一些例子包括 <application>UUCP</application>
+          (可以通过 Ports Collection 中的 <filename
+          role="package">net/freebsd-uucp</filename> 来安装)， <command>doscmd</command>
+          工具 (<filename
+          role="package">emulators/doscmd</filename>)， 以及许多传统的游戏
+          (<filename
+          role="package">games/freebsd-games</filename>)。</para>
+          </listitem>
+
+<!-- Kernel ABI changes -->
+
+      <listitem>
+        <para>一些内核数据结构和 ABIs/API
+	  的修改会导致许多第三方的预编译设备驱动无法不经修改地在
+	  &os; &release.5x; 中正常运行。 某些情况 (当然这种情况非常少)
+	  下， 用户可见的数据结构发生了变化，
+	  这就需要重新编译应用程序或者重新安装 ports/packages。
+	  在 &release.4x; 系列中， &os; 开发团队的目标是不允许后续的
+	  &release.5x; 分支上破坏兼容性的修改进入它。</para>
+      </listitem>
+
+      <listitem>
+	<para>由于 &os; 某些组件的用户太少而且无人维护，
+	  基本系统中的一些部分变得年久失修并被最终删掉。
+	  例子之一是生成 <filename>a.out</filename> 格式的可执行文件。
+	    <footnote>
+	      <para>应当说明的是在 i386 和 pc98 上执行 <filename>a.out</filename>
+	        格式的可执行文件仍然可以通过 <literal>COMPAT_AOUT</literal>
+	        内核选项来支持。 Ports Collection 中的某些编译器
+		(例如，
+		<filename role="package">lang/gcc28</filename>)
+		仍然能够生成 <filename>a.out</filename>
+		格式的可执行文件。</para>
+	    </footnote>
+	  XNS 网络支持， 以及 X-10 控制器驱动。 大量的旧式基于
+	  ISA 的设备驱动被证明无法正常工作并被删除。 更多信息请参见发布说明。</para>
+      </listitem>
+
+      <listitem>
+	<para>在 &os;/i386
+	  &release.4x; 中， 对于 ISA 设备的配置最初是在内核编译配置中完成的。
+	  这些设置可以在启动时通过交互式的
+	  <application>UserConfig</application> 程序来改变。 在 &os;
+	  &release.5x; 中， 这两种机制都被
+	  &man.device.hints.5; 机制所取代， 它消除了在内核中硬编码进
+	  ISA 配置参数的需要。 引导时 ISA 配置不再是菜单驱动的，
+	  而改为使用引导加载器的命令行提示来完成。</para>
+      </listitem>
+
+      <listitem>
+	<para><filename>MAKEDEV</filename> 不再提供， 也不再需要了。
+	  &os; &release.5x; 使用了一种设备文件系统，
+	  它能够在需要时自动创建设备节点。
+	  对于设备文件系统中项目的配置可以通过 &man.devfs.8; 工具或使用
+	  <filename>/etc/devfs.conf</filename> 机制来完成。
+	  更详细的情况可以在 &man.devfs.5; 联机手册中找到。</para>
+      </listitem>
+
+      <listitem>
+	<para>UFS2 成为了 &man.newfs.8; 默认创建的磁盘文件系统格式。
+	  在除 pc98 之外的所有平台上， 它也是在磁盘 &man.sysinstall.8;
+	  分区界面上的默认格式。 由于
+	  &os; &release.4x; 只能支持 UFS1 (而不支持 UFS2)，
+	  必须同时在 &release.5x; 和
+	  &release.4x; 中访问的文件系统必须采用 UFS1。 这可以通过
+	  &man.newfs.8; 的 <option>-O1</option> 选项，
+	  或者在 &man.sysinstall.8; 的磁盘分区的界面中按 1 来指定。
+	  这一状况通常发生在饱含双启动的  &os; &release.4x; 和 &os;
+	  &release.5x; 的系统中。 另外请注意没有办法在两种格式之间进行转换
+	  (除非备份， 重建文件系统， 然后恢复数据)。</para>
+      </listitem>
+
+<!-- Userland -->
+
+      <listitem>
+	<para>由于 <application>GCC</application> 编译器的升级，
+	  C++ 程序基本上都需要重新编译和安装。 这是因为 C++
+	  ABI 的变动。</para>
+      </listitem>
+
+      <listitem>
+        <para>运行为 &os; &release.4x; 编译的程序可能需要依赖于
+	  <filename>compat4x</filename> 软件包 (或与之等价的
+	  <filename role="package">misc/compat4x</filename>
+	  package/port) 的帮助。 不过， 如果系统中的任何
+	  ports 或 packages 需要升级， 则通常建议重新联编并安装
+	  <emphasis>所有</emphasis> 已经安装的 port。
+	  这将防止一些程序在与新旧的库同时连接时可能出现的问题。
+	  <filename role="package">sysutils/portupgrade</filename>
+	  对您重新安装 ports 会有很大的帮助。</para>
+
+        <para>注意还是有一些不兼容的情形。 例如，
+          <filename
+          role="package">devel/gnomevfs2</filename>, <filename
+          role="package">mail/postfix</filename>, 以及 <filename
+          role="package">security/cfs</filename> 这些 ports
+          需要重新编译， 因为 <literal>statfs</literal>
+          结构发生了变化。</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>host.conf</filename> 解析器服务的配置文件被
+	  (更为通用的) &man.nsswitch.conf.5; 名字服务开关配置机制所取代。</para>
+      </listitem>
+
+      <listitem>
+	<para><application>BIND</application> 从版本 8 升级到了版本 9。
+	  在 BIND 8 和 9 之间有很多差别。 运行关键 &man.named.8;
+	  服务的用户应该阅读
+	  <filename>/usr/share/doc/bind9/misc/migration</filename>
+	  这份迁移指南。 此外在
+	  <filename>/usr/share/doc/bind9/arm</filename>
+	  也有一份安装手册。 在运行 &man.named.8; 的系统上，
+	  它会默认在 <filename>/var/named</filename> 的 &man.chroot.8;
+	  环境中运行。 在 <filename>/var/named</filename> 中有既存的
+	  &man.named.8; 配置的用户应该首先备份它， 以避免这些设置被
+	  &man.named.8; 的启动脚本所覆盖。</para>
+      </listitem>
+
+<!-- Ports -->
+
+      <listitem>
+	<para>来自 <application>&xorg;</application> 的
+	  X Window System 实现从 5.3-RELEASE 开始成为了
+	  &os; &release.5x; 的默认。 撰写本文时，
+	  <application>&xfree86;</application> 依然是
+	  &os; &release.4x; 默认的 X Window 系统。
+	  关于这两个版本的差异的详情， 以及如何升级现有系统，
+	  可以在 &os; 使用手册的 <ulink
+	  url="&url.books.handbook;/x11.html">X Window System</ulink>
+	  一章中找到。</para>
+      </listitem>
+
+<!-- Documentation -->
+
+      <listitem>
+	<para>文档 (例如 &os; <ulink
+          url="&url.books.handbook;/index.html">使用手册</ulink>
+          和 <ulink
+          url="&url.books.faq;/index.html">FAQ</ulink>)
+          仍然在持续更新以反映 &os; &release.5x; 的最新变化。</para>
+      </listitem>
+
+    </itemizedlist>
+
+    <para>更详细的资料可以在 &os; &release.5x; 发行版本的发布说明， 以及 &os; 源代码中的
+      <filename>src/UPDATING</filename> 中找到。 重要的
+      &os; Ports Collection 变动会在 <filename>ports/UPDATING</filename> 和
+      <filename>ports/CHANGES</filename> 两个文件中列出并说明。</para>
+
+  </sect1>
+
+  <sect1 id="upgrade">
+    <title>从 &os; &release.4x; 升级需要注意的事项</title>
+
+    <para>对于那些使用现有的 &os; 系统的用户， 这一节提供了一些将现有的 &os;
+      &release.4x; 系统升级到
+      &release.5x; 的说明。 同任何 &os; 升级一样，
+      阅读发布说明以及那个版本的发行版勘误， 以及在源代码升级时阅读
+      <filename>src/UPDATING</filename> 文件都是至关重要的。</para>
+
+    <sect2>
+      <title>使用预编译的版本升级</title>
+
+      <para><quote>备份全部数据， 重新格式化， 重新安装， 然后恢复用户数据</quote>
+        可能是最为简单的升级方式。
+        这会消除任何不兼容或由于过时的可执行文件和配置文件的污染造成的问题。
+        这也使得您能够创建新的文件系统并利用它们的提供的功能
+        (最值得关注的是默认的 UFS2)。</para>
+
+      <para>撰写本文时， &man.sysinstall.8;
+        中使用预编译版本升级的选项还没有针对跨主要版本的升级进行严格的测试。
+        不推荐您使用这个功能。</para>
+
+      <para>一些变化对于那些使用软盘引导和安装 &os; &release.4x;
+	的用户来说相当振奋人心。 安装软盘 (当然是在支持它们的平台上，
+        例如 i386)， 在组织结构上与过去相比作了大幅度改进。
+        在 &release.4x; 版本中，
+        软盘中包含一个只提供了足以将系统安装上的功能的内核。
+        这个设计使得内河能够放在一张软盘之内，
+        但缺少了某些硬件配置所需要的设备驱动程序。 从 &os;
+        5.3-RELEASE 开始， 安装软盘中也采用了标准的
+        <literal>GENERIC</literal> 内核， 它被切分成多个片断放在多张软盘上，
+        引导加载器会在需要时提示插入需要的其他磁盘。 下载软盘镜像的用户
+        (可能准备进行网络安装) 需要注意启动软盘现在变成了三张：
+        <filename>boot.flp</filename>，
+        <filename>kern1.flp</filename>， 以及
+        <filename>kern2.flp</filename>。</para>
+
+      <para>在 i386 架构上的 CDROM 现在采用了
+        <quote>no-emulation</quote> 引导加载器。 除了其他好处之外，
+        这样使得直接使用 <literal>GENERIC</literal>
+        内核而不是先前版本中软盘镜像的那个削减过的内核成为可能。
+        一般来说， 能够从 &microsoft;
+        &windowsnt;&nbsp;4, &windows2k;, 或 &windowsxp; 安装
+	CDROM 的机器应该能够正确使用 &os; &release.5x; CDROM。</para>
+
+    </sect2>
+
+    <sect2>
+      <title>源代码升级</title>
+
+      <note>
+      <para>许多用户和开发人员会觉得备份全部数据和配置文件
+	(这是预防任何意外的好习惯)， 完成使用预编译版本的升级，
+	(例如从 CDROM)， 然后恢复数据是一种更方便的做法。
+	与源代码升级相比， 这种方式不需要处理磁盘上遗留的文件，
+	并使得系统能够从新的文件系统， 如 UFS2 中受益。</para>
+
+	<para>不熟悉
+	  <literal>buildworld</literal>/<literal>installworld</literal>
+	  过程的用户在升级 &os; 的时候 <emphasis>不</emphasis>
+	  应该尝试源代码升级， 他们应该考虑使用预编译版本的升级。</para>
+      </note>
+
+      <para>从源代码升级的过程实际上就是联编一系列源代码并生成本机上的可执行文件。
+	这一操作是通过
+	<literal>buildworld</literal>/<literal>installworld</literal>
+	来完成的， 通常被熟练的 &os; 用户用以追踪开发分支 (例如 &os.stable; 或者
+	&os.current;)。 一般来说， 这一过程要比从预编译的安装包升级麻烦一些，
+	但对于系统配置文件较为复杂或进行了大量定制的用户可能会比较有用。
+	源代码升级对于只能从远程操纵服务器的管理员也尤为有用
+	(因为这种情况无法使用安装介质)。</para>
+
+      <para>一定要记得阅读 <filename>src/UPDATING</filename>。
+        标题为 <quote>To upgrade in-place from
+        4.x-stable to current</quote> 的部分包含了如何一步一步地进行更新的过程，
+        必须严格地按照它来操作， 而不要走某些用户偶尔会用的 <quote>捷径</quote>。
+        下面是一个带注释的升级步骤概述：</para>
+
+      <orderedlist>
+        <listitem>
+	  <para>制作备份。</para>
+
+	  <para>这一步的重要性绝不是夸大其辞。 备份所有用户数据和配置文件非常的重要。
+	    通过 &man.dump.8; 进行零级的转储是一个完成这项工作的好办法，
+	    当然， 也还有很多可用的其他方法。</para>
+        </listitem>
+
+	<listitem>
+	  <para>确保有 30MB 的剩余磁盘空间在
+	    <filename>/</filename> 文件系统上。</para>
+
+	  <para>&os; &release.5x; 需要使用比 &os;
+	    &release.4x; 更多的磁盘空间。 如果 <filename>/tmp</filename>
+	    目录是在 <filename>/</filename> 文件系统上的 (这是非常常见的情况)，
+	    删除其中的所有内容将会有助于释放所需的空间。</para>
+	</listitem>
+
+        <listitem>
+	  <para>如果需要， 修正 <filename>/etc/fstab</filename>。</para>
+
+	  <para>这只影响到较老的 &os;/i386 系统。 这些系统采用
+	    MBR-风格的磁盘 slice， &os; 过去支持 <quote>兼容
+	    slices</quote>， 也就是可以使用形如
+	    <filename>/dev/ad0a</filename> 的名字 (而不明确指定
+	    slice 的名字)。 这一特性不再被支持了；
+	    磁盘分区的名字必须符合类似
+	    <filename>/dev/ad0s1a</filename> 的样子。 换言之，
+	    现在磁盘分区必须明确指定磁盘设备、 slice 号，
+	    以及分区字母。</para>
+
+	  <para>请注意 <quote>兼容 slices</quote>
+	    从 &os; 2.2.6-RELEASE 开始已经不是默认的了。
+	    这一内容也不适用于 &os;/alpha， 或使用
+	    <quote>危险独占 (dangerously dediated)</quote> 模式。</para>
+        </listitem>
+
+	<listitem>
+	  <para>使用 &man.cvs.1; 或其他等价的工具来获取
+	    &os; 基本系统源代码的副本
+	    (<filename>src/</filename> 模块)。 要从 CVS 代码库提取
+	    5.3-RELEASE， 使用
+	    <literal>RELENG_5_3_0_RELEASE</literal> tag。
+	    如果想得到 5.3 发行版和安全分支的更新， 使用
+	    <literal>RELENG_5_3</literal> tag。 要是用 &os;
+	    5-STABLE 开发分支， 则应采用 <literal>RELENG_5</literal> 分支 tag。
+	    当使用 CVS 提取代码树时， 使用 CVS 的
+	    <option>-P</option> 参数很有用， 它将自动删除空的目录。</para>
+	</listitem>
+
+        <listitem>
+	  <para>&os; &release.5x; 需要在系统的口令和用户组描述文件中增加一些新的项，
+	    以适应各种系统服务的需要。 这些应该使用：</para>
+
+	  <screen>&prompt.root; <userinput>mergemaster -p</userinput></screen>
+
+	  <para>来安装。 这一步骤是必须的， 它将确保系统中有所需的用户和组身份。</para>
+
+	  <para>注意在 &os; &release.5x; 中，
+	    &man.nologin.8; 工具的位置从
+	    <filename>/sbin/nologin</filename> 变成了
+	    <filename>/usr/sbin/nologin</filename>。 由于许多伪用户使用
+	    &man.nologin.8; 作为它们的登录 shell， 这一变动需要对
+	    <filename>/etc/passwd</filename> 进行更多的修改。</para>
+
+        </listitem>
+
+        <listitem>
+	  <para>联编整个系统所需的执行文件和库：</para>
+
+	  <screen>&prompt.root; <userinput>cd /usr/src</userinput>
+&prompt.root; <userinput>make buildworld</userinput></screen>
+
+	  <para>如果 <varname>CPUTYPE</varname> 在
+	    <filename>/etc/make.conf</filename> 中进行了定义，
+	    则应采用 <literal>?=</literal> 操作符， 这样
+	    <literal>buildworld</literal> 过程能够在需要时采用其他设置。</para>
+
+	  <para>注意 <varname>MAKEOBJDIRPREFIX</varname> 绝对
+	    <emphasis>不能够</emphasis> 在
+	    <filename>/etc/make.conf</filename> 中定义。</para>
+
+	  <para>基本上， 绝大多数 <filename>/etc/make.conf</filename>
+	    中定义的 <quote>开关</quote> 都应被注释掉或删除。
+	    特别是可能会影响 &os; 联编或基本操作的那些， 例如
+	    <varname>NO_TOOLCHAIN</varname>。</para>
+
+        </listitem>
+
+        <listitem>
+	  <para>使用下面的命令联编并安装新的内核：</para>
+
+	  <screen>&prompt.root; <userinput>make buildkernel</userinput></screen>
+
+	  <para>注意您必须使用 <literal>buildkernel</literal>
+	    &man.make.1; 对象来确保编译的内核采用了上面
+	    <literal>buildworld</literal> 过程中生成的编译工具。
+	    手工使用 &man.config.8;
+	    来创建内核联编区域并尝试联编它可能会不正常。</para>
+
+	  <para>虽然联编 (以及在安装之后) 一个定制的内核是可行的， 但使用
+	    <literal>GENERIC</literal> 内核并随后安装定制的内核配置能够规避风险。
+	    当尝试首次定制内核时， 强烈建议采用 &os; &release.5x;
+	    的 <literal>GENERIC</literal> 作为模板，
+	    因为大量的设备和选项和 &release.4x; 中有相当大的不同。
+	    在配置文件中加入 <literal>COMPAT_FREEBSD4</literal>
+	    对于成功的升级至关重要。</para>
+        </listitem>
+
+        <listitem>
+	  <para>使用下面的命令为 ISA 设备配置设备线索文件。
+	    您需要使用适当的硬件架构名称
+	    (例如 <literal>i386</literal>) 来换掉
+	    <replaceable>MACHINE</replaceable>。</para>
+
+	  <screen>&prompt.root; <userinput>cp sys/<replaceable>MACHINE</replaceable>/conf/GENERIC.hints /boot/device.hints</userinput></screen>
+
+	  <para>虽然说空的设备线索文件对于现代的硬件应该是足够了，
+	    ISA 线索对于适用定制的 ISA 非PNP卡
+	    (可能还需要定制的线索) 来说仍然是需要的，
+	    特别是那些没有采用 PNPBIOS 的系统， 或者软驱无法配合
+	    PNPBIOS 系统正常工作的机器上。</para>
+
+        </listitem>
+
+	<listitem>
+	  <para>用下面的命令安装新内核：</para>
+
+	  <screen>&prompt.root; <userinput>make installkernel</userinput></screen>
+
+	  <para>请注意尽管 &os; &release.4x; 内核默认会安装成
+	    <filename>/kernel</filename>， &os;
+	    &release.5x; 的内核会安装到
+	    <filename>/boot/kernel/kernel</filename>。 在
+	    &release.4x; 中内核模块一般是安装到
+	    <filename>/modules</filename> 目录， 而在
+	    &release.5x; 中它们会被安装到
+	    <filename>/boot/kernel</filename>。</para>
+
+	</listitem>
+
+        <listitem>
+	  <para>使用下面的命令来安装 &os; &release.5x; 引导加载器：</para>
+
+	  <screen>&prompt.root; <userinput>cd /usr/src/sys/boot</userinput>
+&prompt.root; <userinput>make STRIP="" install</userinput></screen>
+
+	  <para>虽然这一步是可选的， 但强烈建议您这么做。</para>
+	</listitem>
+
+	<listitem>
+	  <para>禁用第三方模块 (例如用于 VMware 的那些) 以避免由于内核
+	    ABIs 或其他不兼容所造成的崩溃。</para>
+        </listitem>
+
+        <listitem>
+	  <para>重新引导进入单用户模式。 此时必须重新启动，
+	    因为新的内核是运行新联编好的应用程序所必须的。
+	    在单用户模式能够极大地减少在其他程序正在运行的同时进行升级所可能带来的问题。</para>
+	</listitem>
+
+	<listitem>
+	  <para>用下面的命令来挂接需要的文件系统：</para>
+
+	  <screen>&prompt.root; <userinput>fsck -p</userinput>
+&prompt.root; <userinput>mount -uw /</userinput>
+&prompt.root; <userinput>mount -at ufs</userinput></screen>
+
+	  <para>请注意执行 &man.fsck.8; 是升级到
+	    &os; &release.5x; 所必须的步骤， 它将修改磁盘的超级块中的统计数据。
+	    如果系统时钟使用的是本地时间而非 UTC 时间， 您还需要执行：</para>
+
+	  <screen>&prompt.root; <userinput>adjkerntz -i</userinput></screen>
+
+	  <para>这一步中， 您可能会在控制台上看到这样的信息
+	    (会有很多次)：</para>
+
+<screen>WARNING: userland calling deprecated sysctl, please rebuild world</screen>
+
+	  <para>您可以简单地忽略它们。</para>
+
+        </listitem>
+
+        <listitem>
+	  <para>使用下面的命令删除 C++ 头文件：</para>
+
+	  <screen>&prompt.root; <userinput>rm -rf /usr/include/g++</userinput></screen>
+
+	  <para>这将防止以后的编译过程错误地使用
+	    <application>GCC</application> 2.95 C++ 编译器附带的旧的头文件。</para>
+        </listitem>
+
+        <listitem>
+	  <para>安装新的可执行文件和库以及其他数据：</para>
+
+	  <screen>&prompt.root; <userinput>cd /usr/src</userinput>
+&prompt.root; <userinput>make installworld</userinput></screen>
+        </listitem>
+
+	<listitem>
+	  <para>在运行 &man.named.8; 的系统上， 它的配置文件需要挪到
+	    <filename>/var/named</filename> 的 &man.chroot.8; 区域中。 如果在
+	    <filename>/var/named</filename> 中有有用的文件， 则应该进行备份。</para>
+
+	  <screen>&prompt.root; <userinput>cd /etc</userinput>
+&prompt.root; <userinput>mv named named.bak</userinput>
+&prompt.root; <userinput>mkdir -p /var/named/etc/namedb</userinput>
+&prompt.root; <userinput>cp -Rp named.bak/* /var/named/etc/namedb</userinput></screen>
+
+	  <para>如果配置中使用了生成的
+	    <filename>localhost</filename> 文件， 需要用下面的命令来重新生成它们：</para>
+
+	  <screen>&prompt.root; <userinput>cd /var/named/etc/namedb</userinput>
+&prompt.root; <userinput>/bin/sh make-localhost</userinput>
+&prompt.root; <userinput>rm -f localhost-v6.rev localhost.rev</userinput></screen>
+
+	<listitem>
+	  <para>运行下面的命令更新系统配置文件：</para>
+
+	  <screen>&prompt.root; <userinput>mergemaster -i</userinput></screen>
+
+	  <para>这步不是可选的。 必须让
+	    <filename>/etc</filename> 中的启动脚本和配置文件与新的内核及用户执行文件匹配。</para>
+
+	  <para>在执行了 &man.mergemaster.8; 之后，
+	    最好是看一看 (并适当地修改)
+	    <filename>/etc/rc.conf</filename>。
+	    这个文件中所定义的许多变量的默认值发生了变化；
+	    特别是许多在 &release.4x; 中默认开启的服务在
+	    &release.5x; 中不再默认开启了。</para>
+	</listitem>
+
+	<listitem>
+
+	  <para>删除遗留的 <application>BIND 8</application>
+	    文件：</para>
+
+	    <screen>&prompt.root; <userinput>rm /usr/bin/dnskeygen /usr/bin/dnsquery</userinput>
+&prompt.root; <userinput>rm /usr/libexec/named-xfer</userinput>
+&prompt.root; <userinput>rm /usr/sbin/named.restart /usr/sbin/ndc</userinput></screen>
+	</listitem>
+
+        <listitem>
+	  <para>重新启动。</para>
+        </listitem>
+      </orderedlist>
+
+      <para>升级了基本系统之后，
+	您通常还需要升级一些非基本系统的组件才能够完全使系统恢复正常。
+	<application>Perl</application> 现在不再是基本系统的一部分了，
+	需要从 Ports Collection (具体来说， <filename
+	role="package">lang/perl5.8</filename> port) 或
+	package 安装。 安装之后， 所有依赖
+	<application>Perl</application> 的应用程序都应重新安装。</para>
+
+      <para>运行 &os; &release.4x; 的可执行文件需要一系列兼容库。
+	它们可以通过使用 <filename
+	role="package">misc/compat4x</filename> package/port
+	来安装。</para>
+
+      <para>就像前一节中所提到的那样，
+	<application>&xorg;</application> 是系统中默认的 X Window
+	System 实现。 Ports Collection
+	(以及 packages) 都可能会依赖它。
+	要将现有的窗口系统从 <application>&xfree86;</application> 转到
+	<application>&xorg;</application>， 请参考 &os; 手册中的 <ulink
+	url="&url.books.handbook;/x-install.html">安装
+	X11</ulink> 一节。</para>
+
+    </sect2>
+  </sect1>
+
+  <sect1 id="summary">
+
+    <title>总结</title>
+
+    <para>这篇文档介绍了 &os; &release.5x; 中最值得注意的新特性，
+      并列举了一些在升级现有的 &os; &release.4x; 系统时需要注意的问题。
+      它还展示了两组升级方法， 一种是从安装介质中使用预编译的版本，
+      而另一种则是从源代码重新编译整个基本系统。</para>
+
+  </sect1>
+</article>

@@ -1,0 +1,497 @@
+<!--
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000, 2001  Internet Software Consortium.
+ -
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: lwresd.html,v 1.4.2.1.4.3 2004/08/22 23:38:59 marka Exp $ -->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>lwresd</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
+><BODY
+CLASS="REFENTRY"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><H1
+><A
+NAME="AEN1"
+></A
+><SPAN
+CLASS="APPLICATION"
+>lwresd</SPAN
+></H1
+><DIV
+CLASS="REFNAMEDIV"
+><A
+NAME="AEN9"
+></A
+><H2
+>Name</H2
+><SPAN
+CLASS="APPLICATION"
+>lwresd</SPAN
+>&nbsp;--&nbsp;lightweight resolver daemon</DIV
+><DIV
+CLASS="REFSYNOPSISDIV"
+><A
+NAME="AEN13"
+></A
+><H2
+>Synopsis</H2
+><P
+><B
+CLASS="COMMAND"
+>lwresd</B
+>  [<VAR
+CLASS="OPTION"
+>-C <VAR
+CLASS="REPLACEABLE"
+>config-file</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-d <VAR
+CLASS="REPLACEABLE"
+>debug-level</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-f</VAR
+>] [<VAR
+CLASS="OPTION"
+>-g</VAR
+>] [<VAR
+CLASS="OPTION"
+>-i <VAR
+CLASS="REPLACEABLE"
+>pid-file</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-n <VAR
+CLASS="REPLACEABLE"
+>#cpus</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-P <VAR
+CLASS="REPLACEABLE"
+>port</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-p <VAR
+CLASS="REPLACEABLE"
+>port</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-s</VAR
+>] [<VAR
+CLASS="OPTION"
+>-t <VAR
+CLASS="REPLACEABLE"
+>directory</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-u <VAR
+CLASS="REPLACEABLE"
+>user</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-v</VAR
+>]</P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN48"
+></A
+><H2
+>DESCRIPTION</H2
+><P
+>	<B
+CLASS="COMMAND"
+>lwresd</B
+> is the daemon providing name lookup
+	services to clients that use the BIND 9 lightweight resolver
+	library.  It is essentially a stripped-down, caching-only name
+	server that answers queries using the BIND 9 lightweight
+	resolver protocol rather than the DNS protocol.
+    </P
+><P
+>	<B
+CLASS="COMMAND"
+>lwresd</B
+> listens for resolver queries on a
+	UDP port on the IPv4 loopback interface, 127.0.0.1.  This
+	means that <B
+CLASS="COMMAND"
+>lwresd</B
+> can only be used by
+	processes running on the local machine.  By default UDP port
+	number 921 is used for lightweight resolver requests and
+	responses.
+    </P
+><P
+>	Incoming lightweight resolver requests are decoded by the
+	server which then resolves them using the DNS protocol.  When
+	the DNS lookup completes, <B
+CLASS="COMMAND"
+>lwresd</B
+> encodes
+	the answers in the lightweight resolver format and returns
+	them to the client that made the request.
+    </P
+><P
+>	If <TT
+CLASS="FILENAME"
+>/etc/resolv.conf</TT
+> contains any
+	<VAR
+CLASS="OPTION"
+>nameserver</VAR
+> entries, <B
+CLASS="COMMAND"
+>lwresd</B
+>
+	sends recursive DNS queries to those servers.  This is similar
+	to the use of forwarders in a caching name server.  If no
+	<VAR
+CLASS="OPTION"
+>nameserver</VAR
+> entries are present, or if
+	forwarding fails, <B
+CLASS="COMMAND"
+>lwresd</B
+> resolves the
+	queries autonomously starting at the root name servers, using
+	a built-in list of root server hints.
+    </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN63"
+></A
+><H2
+>OPTIONS</H2
+><P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>-C <VAR
+CLASS="REPLACEABLE"
+>config-file</VAR
+></DT
+><DD
+><P
+>		Use <VAR
+CLASS="REPLACEABLE"
+>config-file</VAR
+> as the
+		configuration file instead of the default,
+		<TT
+CLASS="FILENAME"
+>/etc/resolv.conf</TT
+>.
+          </P
+></DD
+><DT
+>-d <VAR
+CLASS="REPLACEABLE"
+>debug-level</VAR
+></DT
+><DD
+><P
+>		Set the daemon's debug level to <VAR
+CLASS="REPLACEABLE"
+>debug-level</VAR
+>.
+		Debugging traces from <B
+CLASS="COMMAND"
+>lwresd</B
+> become
+		more verbose as the debug level increases.
+          </P
+></DD
+><DT
+>-f</DT
+><DD
+><P
+>		Run the server in the foreground (i.e. do not daemonize).
+          </P
+></DD
+><DT
+>-g</DT
+><DD
+><P
+>		Run the server in the foreground and force all logging
+		to <TT
+CLASS="FILENAME"
+>stderr</TT
+>.
+          </P
+></DD
+><DT
+>-n <VAR
+CLASS="REPLACEABLE"
+>#cpus</VAR
+></DT
+><DD
+><P
+>		Create <VAR
+CLASS="REPLACEABLE"
+>#cpus</VAR
+> worker threads
+		to take advantage of multiple CPUs.  If not specified,
+		<B
+CLASS="COMMAND"
+>lwresd</B
+> will try to determine the
+		number of CPUs present and create one thread per CPU.
+		If it is unable to determine the number of CPUs, a
+		single worker thread will be created.
+          </P
+></DD
+><DT
+>-P <VAR
+CLASS="REPLACEABLE"
+>port</VAR
+></DT
+><DD
+><P
+>		Listen for lightweight resolver queries on port
+		<VAR
+CLASS="REPLACEABLE"
+>port</VAR
+>.  If
+		not specified, the default is port 921.
+          </P
+></DD
+><DT
+>-p <VAR
+CLASS="REPLACEABLE"
+>port</VAR
+></DT
+><DD
+><P
+>		Send DNS lookups to port <VAR
+CLASS="REPLACEABLE"
+>port</VAR
+>.  If not
+		specified, the default is port 53.  This provides a
+		way of testing the lightweight resolver daemon with a
+		name server that listens for queries on a non-standard
+		port number.
+          </P
+></DD
+><DT
+>-s</DT
+><DD
+><P
+>		Write memory usage statistics to <TT
+CLASS="FILENAME"
+>stdout</TT
+>
+		on exit.
+          </P
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>		This option is mainly of interest to BIND 9 developers
+		and may be removed or changed in a future release.
+	    </P
+></BLOCKQUOTE
+></DIV
+></DD
+><DT
+>-t <VAR
+CLASS="REPLACEABLE"
+>directory</VAR
+></DT
+><DD
+><P
+>		<CODE
+CLASS="FUNCTION"
+>chroot()</CODE
+> to <VAR
+CLASS="REPLACEABLE"
+>directory</VAR
+> after
+		processing the command line arguments, but before
+		reading the configuration file.
+          </P
+><DIV
+CLASS="WARNING"
+><P
+></P
+><TABLE
+CLASS="WARNING"
+BORDER="1"
+WIDTH="90%"
+><TR
+><TD
+ALIGN="CENTER"
+><B
+>Warning</B
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+><P
+>		This option should be used in conjunction with the
+		<VAR
+CLASS="OPTION"
+>-u</VAR
+> option, as chrooting a process
+		running as root doesn't enhance security on most
+		systems; the way <CODE
+CLASS="FUNCTION"
+>chroot()</CODE
+> is
+		defined allows a process with root privileges to
+		escape a chroot jail.
+	    </P
+></TD
+></TR
+></TABLE
+></DIV
+></DD
+><DT
+>-u <VAR
+CLASS="REPLACEABLE"
+>user</VAR
+></DT
+><DD
+><P
+>		<CODE
+CLASS="FUNCTION"
+>setuid()</CODE
+> to <VAR
+CLASS="REPLACEABLE"
+>user</VAR
+> after completing
+		privileged operations, such as creating sockets that
+		listen on privileged ports.
+          </P
+></DD
+><DT
+>-v</DT
+><DD
+><P
+>		Report the version number and exit.
+          </P
+></DD
+></DL
+></DIV
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN137"
+></A
+><H2
+>FILES</H2
+><P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+><TT
+CLASS="FILENAME"
+>/etc/resolv.conf</TT
+></DT
+><DD
+><P
+>		The default configuration file.
+          </P
+></DD
+><DT
+><TT
+CLASS="FILENAME"
+>/var/run/lwresd.pid</TT
+></DT
+><DD
+><P
+>		The default process-id file.
+          </P
+></DD
+></DL
+></DIV
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN150"
+></A
+><H2
+>SEE ALSO</H2
+><P
+>	<SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>named</SPAN
+>(8)</SPAN
+>,
+	<SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>lwres</SPAN
+>(3)</SPAN
+>,
+	<SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>resolver</SPAN
+>(5)</SPAN
+>.
+    </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN162"
+></A
+><H2
+>AUTHOR</H2
+><P
+>	Internet Systems Consortium
+    </P
+></DIV
+></BODY
+></HTML
+>

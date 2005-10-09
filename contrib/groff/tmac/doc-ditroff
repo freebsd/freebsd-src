@@ -1,0 +1,334 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by the University of
+.\"      California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)doc-ditroff	8.1 (Berkeley) 06/08/93
+.\"
+.\"     %beginstrip%
+.
+.
+.eo
+.
+.\" use -rD=1 for double-sided printing
+.
+.if !r D .nr D 0
+.
+.\" use -rcR=1 to force the creation of a single, very long page
+.
+.if !r cR .nr cR 0
+.
+.\" use -rS={11,12} to change the font size from 10pt to 11pt or 12pt.
+.
+.if !r S .nr S 10
+.
+.
+.ec
+.
+.
+.ie        (\n[S] == 11) \{\
+.  ps 10.95z
+.  vs 13.6p
+.\}
+.el \{ .ie (\n[S] == 12) \{\
+.  ps 12z
+.  vs 14.5p
+.\}
+.el \{\
+.  ps 10z
+.  vs 12p
+.\}\}
+.
+.
+.\" the `doc-xx-font' strings must not be empty!
+.
+.ds doc-caption-font \f[R]\s[\n[.ps]u]
+.ds doc-caption-font2 \f[R]\s[\n[.ps]u]
+.ds doc-Ad-font \f[I]\s[\n[.ps]u]
+.ds doc-Ar-font \f[CO]\s[\n[.ps]u]
+.ds doc-Cm-font \f[CB]\s[\n[.ps]u]
+.ds doc-Em-font \f[I]\s[\n[.ps]u]
+.ds doc-Er-font \f[C]\s[\n[.ps]u]
+.ds doc-Ev-font \f[C]\s[\n[.ps]u]
+.ds doc-Fa-font \f[CO]\s[\n[.ps]u]
+.ds doc-Fd-font \f[CB]\s[\n[.ps]u]
+.ds doc-Fl-font \f[CB]\s[\n[.ps]u]
+.ds doc-Fn-font \f[CB]\s[\n[.ps]u]
+.ds doc-Ft-font \f[CO]\s[\n[.ps]u]
+.ds doc-Ic-font \f[CB]\s[\n[.ps]u]
+.ds doc-Li-font \f[C]
+.ds doc-Me-font \f[B]\s[\n[.ps]u]
+.ds doc-Nm-font \f[CB]\s[\n[.ps]u]
+.ds doc-No-font \f[R]\s[\n[.ps]u]
+.ds doc-Pa-font \f[C]\s[\n[.ps]u]
+.ds doc-Sh-font \f[B]\s[\n[.ps]u]
+.ds doc-Sy-font \f[B]\s[\n[.ps]u]
+.ds doc-Sx-font \f[B]\s[\n[.ps]u]
+.ds doc-Tn-font-shape \f[R]
+\# XXX: adapt to discrete LaTeX font sizes
+.ds doc-Tn-font-size \s[(\n[.ps]u - 1z)]
+.ds doc-Va-font \f[I]\s[\n[.ps]u]
+.ds doc-Xr-font \f[C]\s[\n[.ps]u]
+.
+.ds doc-left-parenthesis \f[R]\|(\|\f[]\s[\n[.ps]u]
+.ds doc-right-parenthesis \f[R]\|)\|\f[]\s[\n[.ps]u]
+.ds lp \f[R](\f[]\s[\n[.ps]u]
+.ds rp \f[R])\f[]\s[\n[.ps]u]
+.ds doc-left-bracket \f[R]\^[\^\f[]\s[\n[.ps]u]
+.ds doc-right-bracket \f[R]\^]\f[]\s[\n[.ps]u]
+.
+.tr *\[**]
+.
+.\" miscellaneous
+.nr doc-subheader-indent (\w\f[C],u * 5u)
+.nr doc-paragraph-space .5v
+.
+.nr doc-digit-width \w'\0'u
+.nr doc-fixed-width \w\f[C]0
+.
+.eo
+.
+.
+.\" NS doc-header-space global register
+.\" NS   the space between header and body
+.
+.nr doc-header-space .5i
+.
+.
+.\" NS doc-footer-space global register
+.\" NS   the space between body and footer
+.
+.nr doc-footer-space .5i
+.
+.
+.\" NS doc-display-vertical global register
+.\" NS   vertical space between list elements etc.
+.
+.nr doc-display-vertical 0
+.
+.
+.\" NS doc-setup-page-layout macro
+.\" NS   set up page layout
+.\" NS
+.\" NS modifies:
+.\" NS   doc-display-vertical
+.
+.de doc-setup-page-layout
+.  ie r LL \
+.    ll \n[LL]u
+.  el \
+.    ll 6.5i
+.
+.  ie r LT \
+.    lt \n[LT]u
+.  el \
+.    lt 6.5i
+.
+.  po 1i
+.
+.  nr doc-display-vertical .5v
+..
+.
+.
+.ds doc-left-singlequote \[oq]
+.ds doc-right-singlequote \[cq]
+.
+.\" the following strings are `official'
+.ds <= \[<=]
+.ds >= \[>=]
+.ds Lq \[lq]
+.ds Rq \[rq]
+.ds ua \[ua]
+.ds aa \[aa]
+.ds ga \[ga]
+.ds q \[dq]
+.ds Pi \[*p]
+.ds Ne \[!=]
+.ds Le \[<=]
+.ds Ge \[>=]
+.ds Lt <
+.ds Gt >
+.ds Pm \[+-]
+.ds If \[if]
+.ds Na \f[I]NaN\f[]
+.ds Ba \f[R]|\f[]
+.ds Am &
+.
+.
+.\" NS doc-header-string global string
+.\" NS   the final string used for the manual page header
+.
+.ds doc-header-string
+.
+.
+.\" NS doc-setup-header macro
+.\" NS   install and initialize header and footer support
+.\" NS
+.\" NS modifies:
+.\" NS   doc-header-string
+.
+.de doc-setup-header
+.  ds doc-header-string "\*[doc-document-title]
+.  if !"\*[doc-section]"Null" \
+.    as doc-header-string \|(\*[doc-section])
+.
+.  wh 0 doc-header
+.  wh -1.25i doc-footer
+.
+.  br
+.
+.  e@ doc-end-macro
+..
+.
+.
+.\" NS doc-get-width macro
+.\" NS   computes the width of a string as a multiple of `doc-fixed-width':
+.\" NS   `.doc-get-width string'
+.\" NS
+.\" NS modifies:
+.\" NS   doc-width
+.
+.de doc-get-width
+.  nr doc-width \w\f[C]\$1
+.  ie (\n[doc-width] >= \n[doc-fixed-width]) \{\
+.    ie (\n[doc-width] % \n[doc-fixed-width]) \
+.      nr doc-width ((\n[doc-width] / \n[doc-fixed-width]) + 1)
+.    el \
+.      nr doc-width (\n[doc-width] / \n[doc-fixed-width])
+.  \}
+.  el \{\
+.    ie \n[doc-width] \
+.      nr doc-width 1
+.    el \
+.      nr doc-width 0
+.  \}
+..
+.
+.
+.\" NS doc-get-arg-width macro
+.\" NS   computes the width of an argument as a multiple of
+.\" NS   `doc-fixed-width': `.doc-get-arg-width arg-index'
+.\" NS
+.\" NS modifies:
+.\" NS   doc-width
+.
+.de doc-get-arg-width
+.  nr doc-width \w\f[C]\*[doc-arg\$1]
+.  ie (\n[doc-width] >= \n[doc-fixed-width]) \{\
+.    ie (\n[doc-width] % \n[doc-fixed-width]) \
+.      nr doc-width ((\n[doc-width] / \n[doc-fixed-width]) + 1)
+.    el \
+.      nr doc-width (\n[doc-width] / \n[doc-fixed-width])
+.  \}
+.  el \{\
+.    ie \n[doc-width] \
+.      nr doc-width 1
+.    el \
+.      nr doc-width 0
+.  \}
+..
+.
+.
+.\" NS Ql user macro
+.\" NS   quoted literal define
+.\" NS
+.\" NS modifies:
+.\" NS   doc-argXXX
+.\" NS   doc-arg-limit
+.\" NS   doc-arg-ptr
+.\" NS   doc-macro-name
+.\" NS   doc-spaceXXX
+.\" NS   doc-typeXXX
+.\" NS   doc-quote-left
+.\" NS   doc-quote-right
+.\" NS
+.\" NS local variables:
+.\" NS   doc-reg-Ql
+.\" NS   doc-reg-Ql1
+.\" NS   doc-reg-Ql2
+.\" NS
+.\" NS width register `Ql' set in doc-common
+.
+.de Ql
+.  if !\n[doc-arg-limit] \{\
+.    ie \n[.$] \{\
+.      ds doc-macro-name Ql
+.      doc-parse-args \$@
+.    \}
+.    el \
+.      tm Usage: .Ql argument ... (#\n[.c])
+.  \}
+.
+.  nr doc-reg-Ql (\n[doc-arg-ptr] + 1)
+.  doc-get-arg-width \n[doc-reg-Ql]
+.
+.  \" don't use quotes if we have more than two succeeding string arguments
+.  nr doc-reg-Ql +1
+.  if (\n[doc-arg-limit] >= \n[doc-reg-Ql]) \
+.    if (\n[doc-type\n[doc-reg-Ql]] == 2) \
+.      nr doc-width 3
+.
+.  \" make a difference in quotation style for strings longer
+.  \" than two characters
+.  ie (\n[doc-width] > 2) \
+.    Li
+.  el \{\
+.    ie \n[doc-arg-ptr] \{\
+.      \" we replace `Ql' with `Li'
+.      ds doc-arg\n[doc-arg-ptr] Li
+.      nr doc-arg-ptr -1
+.    \}
+.    el \{\
+.      \" if .Ql has been called directly, we must shift all elements in
+.      \" the argument vector to the right so that we can insert `Li'
+.      nr doc-reg-Ql \n[doc-arg-limit]
+.      nr doc-reg-Ql1 (\n[doc-arg-limit] + 1)
+.      while \n[doc-reg-Ql] \{\
+.        rn doc-arg\n[doc-reg-Ql] doc-arg\n[doc-reg-Ql1]
+.        rnn doc-type\n[doc-reg-Ql] doc-type\n[doc-reg-Ql1]
+.        rn doc-space\n[doc-reg-Ql] doc-space\n[doc-reg-Ql1]
+.        nr doc-reg-Ql -1
+.        nr doc-reg-Ql1 -1
+.      \}
+.      ds doc-arg1 Li
+.      nr doc-type1 1
+.      ds doc-space1
+.      nr doc-arg-limit +1
+.    \}
+.
+.    ds doc-quote-left "\*[doc-left-singlequote]
+.    ds doc-quote-right "\*[doc-right-singlequote]
+.    doc-enclose-string
+.  \}
+..
+.
+.
+.ec
+.
+.\" EOF
