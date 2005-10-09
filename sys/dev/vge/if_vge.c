@@ -1129,8 +1129,9 @@ vge_detach(dev)
 		 */
 		ifp->if_flags &= ~IFF_UP;
 		ether_ifdetach(ifp);
-		if_free(ifp);
 	}
+	if (ifp)
+		if_free(ifp);
 	if (sc->vge_miibus)
 		device_delete_child(dev, sc->vge_miibus);
 	bus_generic_detach(dev);
