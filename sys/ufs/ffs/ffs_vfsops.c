@@ -1660,9 +1660,7 @@ ffs_bufwrite(struct buf *bp)
 	}
 
 	/* Let the normal bufwrite do the rest for us */
-	bufwrite(bp);
-
-	return (0);
+	return (bufwrite(bp));
 }
 
 
