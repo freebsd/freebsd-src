@@ -1134,7 +1134,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 	 * actually shadow anything - we copy the pages directly.)
 	 */
 	dst_object = vm_object_allocate(OBJT_DEFAULT,
-	    (vm_size_t) OFF_TO_IDX(dst_entry->end - dst_entry->start));
+	    OFF_TO_IDX(dst_entry->end - dst_entry->start));
 
 	VM_OBJECT_LOCK(dst_object);
 	dst_entry->object.vm_object = dst_object;
