@@ -481,7 +481,7 @@ bindcmd(int argc, char **argv)
 
 	if (el == NULL)
 		error("line editing is disabled");
-	return (el_parse(el, argc, argv));
+	return (el_parse(el, argc, (const char **)argv));
 }
 
 #else
