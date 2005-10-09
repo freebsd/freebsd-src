@@ -752,6 +752,8 @@ cgaccount(cg, vp, nbp, passno)
 	if (fs->fs_cgsize < fs->fs_bsize)
 		bzero(&nbp->b_data[fs->fs_cgsize],
 		    fs->fs_bsize - fs->fs_cgsize);
+	cgp = (struct cg *)nbp->b_data;
+	bqrelse(bp);
 	if (passno == 2)
 		nbp->b_flags |= B_VALIDSUSPWRT;
 	numblks = howmany(fs->fs_size, fs->fs_frag);
@@ -773,7 +775,6 @@ cgaccount(cg, vp, nbp, passno)
 	error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(base + loc)),
 	    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 	if (error) {
-		brelse(bp);
 		return (error);
 	}
 	indiroff = (base + loc - NDADDR) % NINDIR(fs);
@@ -786,7 +787,6 @@ cgaccount(cg, vp, nbp, passno)
 			    lblktosize(fs, (off_t)(base + loc)),
 			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			if (error) {
-				brelse(bp);
 				return (error);
 			}
 			indiroff = 0;
@@ -812,7 +812,6 @@ cgaccount(cg, vp, nbp, passno)
 		    ((ufs2_daddr_t *)(ibp->b_data)) [indiroff] == BLK_NOCOPY)
 			panic("ffs_snapshot: lost indirect block");
 	}
-	bqrelse(bp);
 	if (passno == 2)
 		ibp->b_flags |= B_VALIDSUSPWRT;
 	bdwrite(ibp);
