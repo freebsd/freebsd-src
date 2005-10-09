@@ -25,13 +25,15 @@ __FBSDID("$FreeBSD$");
 #include "version.h"
 #include <err.h>
 
-static char Options[] = "dhIl:L:s:XtTv";
+static char Options[] = "dIhl:L:s:XtTO:ov";
 
 char	*LimitChars = NULL;
 char	*PreventChars = NULL;
 char	*MatchName = NULL;
+char	*LookUpOrigin = NULL;
 Boolean RegexExtended = FALSE;
 Boolean UseINDEXOnly = FALSE;
+Boolean ShowOrigin = FALSE;
 
 static void usage __P((void));
 
@@ -71,6 +73,14 @@ main(int argc, char **argv)
 	    MatchName = optarg;
 	    break;
 
+	case 'O':
+	    LookUpOrigin = optarg;
+	    break;
+
+	case 'o':
+	    ShowOrigin = TRUE;
+	    break;
+
 	case 't':
 	    errx(2, "Invalid -t usage.");
 	    break;
@@ -101,7 +111,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: pkg_version [-hIv] [-l limchar] [-L limchar] [[-X] -s string] index",
+	"usage: pkg_version [-hIov] [-l limchar] [-L limchar] [[-X] -s string] [-O origin] index",
 	"       pkg_version -t v1 v2",
 	"       pkg_version -T name pattern");
     exit(1);

@@ -31,7 +31,7 @@ FILE *IndexFile;
 struct index_head Index = SLIST_HEAD_INITIALIZER(Index);
 
 static int pkg_do(char *);
-static void show_version(const char *, const char *, const char *);
+static void show_version(Package, const char *, const char *);
 
 /*
  * This is the traditional pkg_perform, except that the argument is _not_
@@ -68,28 +68,36 @@ pkg_perform(char **indexarg)
 	pat[1] = NULL;
 	MatchType = RegexExtended ? MATCH_EREGEX : MATCH_REGEX;
 	patterns = pat;
-    }
-    else {
+    } else {
 	MatchType = MATCH_ALL;
 	patterns = NULL;
     }
-    pkgs = matchinstalled(MatchType, patterns, &err_cnt);
+
+    if (LookUpOrigin != NULL)
+	pkgs = matchbyorigin(LookUpOrigin, &err_cnt);
+    else
+	pkgs = matchinstalled(MatchType, patterns, &err_cnt);
 
     if (err_cnt != 0)
 	errx(2, "Unable to find package database directory!");
     if (pkgs == NULL) {
+	if (LookUpOrigin != NULL) {
+	    warnx("no packages recorded with this origin");
+	    return (1);
+    } else {
 	switch (MatchType) {
 	case MATCH_ALL:
-	    warnx("no packages installed");
-	    return (0);
-	case MATCH_EREGEX:
-	case MATCH_REGEX:
-	    warnx("no packages match pattern");
-	    return (1);
-	default:
-	    break;
+		warnx("no packages installed");
+		return (0);
+			case MATCH_EREGEX:
+			case MATCH_REGEX:
+				warnx("no packages match pattern");
+				return (1);
+			default:
+			break;
+			}
+		}
 	}
-    }
 
     for (i = 0; pkgs[i] != NULL; i++)
 	err_cnt += pkg_do(pkgs[i]);
@@ -153,7 +161,7 @@ pkg_do(char *pkg)
 	    if ((latest = vpipe("/usr/bin/make -V PKGNAME", tmp)) == NULL)
 		warnx("Failed to get PKGNAME from %s/Makefile!", tmp);
 	    else
-		show_version(plist.name, latest, "port");
+		show_version(plist, latest, "port");
 	}
     }
     if (latest == NULL) {
@@ -219,9 +227,9 @@ pkg_do(char *pkg)
 	    }
 	}
 	if (latest == NULL)
-	    show_version(plist.name, NULL, plist.origin);
+	    show_version(plist, NULL, plist.origin);
 	else
-	    show_version(plist.name, latest, "index");
+	    show_version(plist, latest, "index");
     }
     if (latest != NULL)
 	free(latest);
@@ -238,15 +246,18 @@ pkg_do(char *pkg)
  * You get when you try to match perl output in C ;-).
  */
 void
-show_version(const char *installed, const char *latest, const char *source)
+show_version(Package plist, const char *latest, const char *source)
 {
     char *ch, tmp[PATH_MAX];
     const char *ver;
     int cmp = 0;
 
-    if (!installed || strlen(installed) == 0)
+    if (!plist.name || strlen(plist.name) == 0)
 	return;
-    strlcpy(tmp, installed, PATH_MAX);
+    if (ShowOrigin != FALSE)
+	strlcpy(tmp, plist.origin, PATH_MAX);
+    else
+	strlcpy(tmp, plist.name, PATH_MAX);
     if (!Verbose) {
 	if ((ch = strrchr(tmp, '-')) != NULL)
 	    ch[0] = '\0';
@@ -257,10 +268,10 @@ show_version(const char *installed, const char *latest, const char *source)
 	    if (Verbose)
 		printf("   Comparison failed");
 	    printf("\n");
-	} else if (source != NULL && OUTPUT('?')) {
+	} else if (OUTPUT('?')) {
 	    printf("%-34s  ?", tmp);
 	    if (Verbose)
-		printf("   orphaned: %s", source);
+		printf("   orphaned: %s", plist.origin);
 	    printf("\n");
 	}
     } else if (strchr(latest,'|') != NULL) {
@@ -286,7 +297,7 @@ show_version(const char *installed, const char *latest, const char *source)
 	    printf("\n");
 	}
     } else {
-	cmp = version_cmp(installed, latest);
+	cmp = version_cmp(plist.name, latest);
 	ver = strrchr(latest, '-');
 	ver = ver ? &ver[1] : latest;
 	if (cmp < 0 && OUTPUT('<')) {
