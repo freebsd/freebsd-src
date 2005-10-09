@@ -111,9 +111,9 @@ struct icmp6_hdr {
 #endif
 
 #define ND_ROUTER_SOLICIT		133	/* router solicitation */
-#define ND_ROUTER_ADVERT		134	/* router advertisment */
+#define ND_ROUTER_ADVERT		134	/* router advertisement */
 #define ND_NEIGHBOR_SOLICIT		135	/* neighbor solicitation */
-#define ND_NEIGHBOR_ADVERT		136	/* neighbor advertisment */
+#define ND_NEIGHBOR_ADVERT		136	/* neighbor advertisement */
 #define ND_REDIRECT			137	/* redirect */
 
 #define ICMP6_ROUTER_RENUMBERING	138	/* router renumbering */

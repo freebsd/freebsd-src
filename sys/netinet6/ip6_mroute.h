@@ -166,7 +166,7 @@ struct omrt6msg {
  * like igmpmsg{} used for IPv4 implementation). This is because this
  * structure will be passed via an IPv6 raw socket, on which an application
  * will only receive the payload i.e. the data after the IPv6 header and all
- * the extension headers. (see Section 3 of draft-ietf-ipngwg-2292bis-01)
+ * the extension headers. (see Section 3 of RFC3542)
  */
 struct mrt6msg {
 #define MRT6MSG_NOCACHE		1
