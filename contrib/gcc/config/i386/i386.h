@@ -614,8 +614,8 @@ extern int x86_prefetch_sse;
       else if (TARGET_ATHLON)					\
 	{							\
 	  builtin_define ("__tune_athlon__");			\
-	  /* Only plain "athlon" lacks SSE.  */			\
-	  if (last_tune_char != 'n')				\
+	  /* Plain "athlon" & "athlon-tbird" lacks SSE.  */	\
+	  if (last_tune_char != 'n' && last_tune_char != 'd')	\
 	    builtin_define ("__tune_athlon_sse__");		\
 	}							\
       else if (TARGET_K8)					\
@@ -679,8 +679,8 @@ extern int x86_prefetch_sse;
 	{							\
 	  builtin_define ("__athlon");				\
 	  builtin_define ("__athlon__");			\
-	  /* Only plain "athlon" lacks SSE.  */			\
-	  if (last_arch_char != 'n')				\
+	  /* Plain "athlon" & "athlon-tbird" lacks SSE.  */	\
+	  if (last_tune_char != 'n' && last_tune_char != 'd')	\
 	    builtin_define ("__athlon_sse__");			\
 	}							\
       else if (ix86_arch == PROCESSOR_K8)			\
