@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)search.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: search.h,v 1.4 1999/07/02 15:21:27 simonb Exp $
+ *	$NetBSD: search.h,v 1.8 2003/10/18 23:27:36 christos Exp $
  * $FreeBSD$
  */
 
@@ -52,6 +48,7 @@ typedef struct el_search_t {
 	int	 patdir;		/* Direction of the last search	*/
 	int	 chadir;		/* Character search direction	*/
 	char	 chacha;		/* Character we are looking for	*/
+	char	 chatflg;		/* 0 if f, 1 if t */
 } el_search_t;
 
 
@@ -62,9 +59,8 @@ protected int		c_hmatch(EditLine *, const char *);
 protected void		c_setpat(EditLine *);
 protected el_action_t	ce_inc_search(EditLine *, int);
 protected el_action_t	cv_search(EditLine *, int);
-protected el_action_t	ce_search_line(EditLine *, char *, int);
+protected el_action_t	ce_search_line(EditLine *, int);
 protected el_action_t	cv_repeat_srch(EditLine *, int);
-protected el_action_t	cv_csearch_back(EditLine *, int, int, int);
-protected el_action_t	cv_csearch_fwd(EditLine *, int, int, int);
+protected el_action_t	cv_csearch(EditLine *, int, int, int, int);
 
 #endif /* _h_el_search */

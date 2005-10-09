@@ -1,6 +1,6 @@
-.\"	$NetBSD: editline.3,v 1.20 2000/02/28 17:41:05 chopps Exp $
+.\"	$NetBSD: editline.3,v 1.49 2005/09/09 22:32:56 wiz Exp $
 .\"
-.\" Copyright (c) 1997-1999 The NetBSD Foundation, Inc.
+.\" Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This file was contributed to The NetBSD Foundation by Luke Mewburn.
@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 1999
+.Dd October 4, 2005
 .Os
 .Dt EDITLINE 3
 .Sh NAME
@@ -55,8 +55,13 @@
 .Nm el_deletestr ,
 .Nm history_init ,
 .Nm history_end ,
-.Nm history
-.Nd line editor and history functions
+.Nm history ,
+.Nm tok_init ,
+.Nm tok_end ,
+.Nm tok_reset ,
+.Nm tok_line ,
+.Nm tok_str
+.Nd line editor, history and tokenization functions
 .Sh LIBRARY
 .Lb libedit
 .Sh SYNOPSIS
@@ -74,7 +79,7 @@
 .Ft void
 .Fn el_push "EditLine *e" "const char *str"
 .Ft int
-.Fn el_parse "EditLine *e" "int argc" "char *argv[]"
+.Fn el_parse "EditLine *e" "int argc" "const char *argv[]"
 .Ft int
 .Fn el_set "EditLine *e" "int op" "..."
 .Ft int
@@ -95,10 +100,20 @@
 .Fn history_end "History *h"
 .Ft int
 .Fn history "History *h" "HistEvent *ev" "int op" "..."
+.Ft Tokenizer *
+.Fn tok_init "const char *IFS"
+.Ft void
+.Fn tok_end "Tokenizer *t"
+.Ft void
+.Fn tok_reset "Tokenizer *t"
+.Ft int
+.Fn tok_line "Tokenizer *t" "const LineInfo *li" "int *argc" "const char **argv[]" "int *cursorc" "int *cursoro"
+.Ft int
+.Fn tok_str "Tokenizer *t" "const char *str" "int *argc" "const char **argv[]"
 .Sh DESCRIPTION
 The
 .Nm
-library provides generic line editing and history functions,
+library provides generic line editing, history and tokenization functions,
 similar to those found in
 .Xr sh 1 .
 .Pp
@@ -154,7 +169,7 @@ if no characters were read or if an error occurred.
 Read a character from the tty.
 .Fa ch
 is modified to contain the character read.
-Returns the number of characters read if successful, -1 otherwise.
+Returns the number of characters read if successful, \-1 otherwise.
 .It Fn el_push
 Pushes
 .Fa str
@@ -176,7 +191,7 @@ to execute builtin
 .Nm
 commands.
 If the command is prefixed with
-.Dq prog:
+.Dq prog :
 then
 .Fn el_parse
 will only execute the command if
@@ -186,7 +201,7 @@ matches the
 argument supplied to
 .Fn el_init .
 The return value is
--1 if the command is unknown,
+\-1 if the command is unknown,
 0 if there was no error or
 .Dq prog
 did not match, or
@@ -305,7 +320,7 @@ for more information.
 .It Dv EL_ADDFN , Xo
 .Fa "const char *name" ,
 .Fa "const char *help" ,
-.Fa "unsigned char (*func)(EditLine *e, int ch)
+.Fa "unsigned char (*func)(EditLine *e, int ch)"
 .Xc
 Add a user defined function,
 .Fn func ,
@@ -370,6 +385,24 @@ check this
 (using
 .Fn el_get )
 to determine if editing should be enabled or not.
+.It Dv EL_GETCFN , Fa "int (*f)(EditLine *, char *c)"
+Define the character reading function as
+.Fa f ,
+which is to return the number of characters read and store them in
+.Fa c .
+This function is called internally by
+.Fn el_gets
+and
+.Fn el_getc .
+The builtin function can be set or restored with the special function
+name ``EL_BUILTIN_GETCFN''.
+.It Dv EL_CLIENTDATA , Fa "void *data"
+Register
+.Fa data
+to be associated with this EditLine structure.
+It can be retrieved with the corresponding
+.Fn el_get
+call.
 .El
 .It Fn el_get
 Get
@@ -378,6 +411,7 @@ parameters.
 .Fa op
 determines which parameter to retrieve into
 .Fa result .
+Returns 0 if successful, \-1 otherwise.
 .Pp
 The following values for
 .Fa op
@@ -401,6 +435,22 @@ has installed private signal handlers (see
 above).
 .It Dv EL_EDITMODE, Fa "int *"
 Return non-zero if editing is enabled.
+.It Dv EL_GETCFN, Fa "int (**f)(EditLine *, char *)"
+Return a pointer to the function that read characters, which is equal to
+``EL_BUILTIN_GETCFN'' in the case of the default builtin function.
+.It Dv EL_CLIENTDATA , Fa "void **data"
+Retrieve
+.Fa data
+previously registered with the corresponding
+.Fn el_set
+call.
+.It Dv EL_UNBUFFERED, Fa "int"
+Sets or clears unbuffered mode.
+In this mode,
+.Fn el_gets
+will return immediately after processing a single character.
+.It Dv EL_PREP_TERM, Fa "int"
+Sets or clears terminal editing mode.
 .El
 .It Fn el_source
 Initialise
@@ -443,11 +493,21 @@ typedef struct lineinfo {
     const char *lastchar;  /* address of last character */
 } LineInfo;
 .Ed
+.Pp
+.Fa buffer
+is not NUL terminated.
+This function may be called after
+.Fn el_gets
+to obtain the
+.Fa LineInfo
+structure pertaining to line returned by that function,
+and from within user defined functions added with
+.Dv EL_ADDFN .
 .It Fn el_insertstr
 Insert
 .Fa str
 into the line at the cursor.
-Returns -1 if
+Returns \-1 if
 .Fa str
 is empty or will not fit, and 0 otherwise.
 .It Fn el_deletestr
@@ -527,7 +587,11 @@ Set the cursor to point to the requested element.
 .It Dv H_ADD , Fa "const char *str"
 Append
 .Fa str
-to the current element of the history, or create an element with
+to the current element of the history, or perform the
+.Dv H_ENTER
+operation with argument
+.Fa str
+if there is no current element.
 .It Dv H_APPEND , Fa "const char *str"
 Append
 .Fa str
@@ -537,6 +601,17 @@ Add
 .Fa str
 as a new element to the history, and, if necessary,
 removing the oldest entry to keep the list to the created size.
+If
+.Dv H_SETUNIQUE
+was has been called with a non-zero arguments, the element
+will not be entered into the history if its contents match
+the ones of the current history element.
+If the element is entered
+.Fn history
+returns 1, if it is ignored as a duplicate returns 0.
+Finally
+.Fn history
+returns \-1 if an error occurred.
 .It Dv H_PREV_STR , Fa "const char *str"
 Return the closest previous event that starts with
 .Fa str .
@@ -555,17 +630,103 @@ Load the history list stored in
 .It Dv H_SAVE , Fa "const char *file"
 Save the history list to
 .Fa file .
+.It Dv H_SETUNIQUE , Fa "int unique"
+Set flag that adjacent identical event strings should not be entered
+into the history.
+.It Dv H_GETUNIQUE
+Retrieve the current setting if adjacent identical elements should
+be entered into the history.
+.It Dv H_DEL , Fa "int num"
+Delete the event numbered
+.Fa e .
+This function is only provided for
+.Xr readline 3
+compatibility.
+The caller is responsible for free'ing the string in the returned
+.Fa HistEvent .
 .El
 .Pp
 The
 .Fn history
-function returns 0 if the operation
+function returns \*[Gt]= 0 if the operation
 .Fa op
 succeeds.
 Otherwise, \-1 is returned and
 .Fa ev
 is updated to contain more details about the error.
 .El
+.Sh TOKENIZATION FUNCTIONS
+The tokenization functions use a common data structure,
+.Fa Tokenizer ,
+which is created by
+.Fn tok_init
+and freed by
+.Fn tok_end .
+.Pp
+The following functions are available:
+.Bl -tag -width 4n
+.It Fn tok_init
+Initialise the tokenizer, and return a data structure
+to be used by all other tokenizer functions.
+.Fa IFS
+contains the Input Field Separators, which defaults to
+.Aq space ,
+.Aq tab ,
+and
+.Aq newline
+if
+.Dv NULL .
+.It Fn tok_end
+Clean up and finish with
+.Fa t ,
+assumed to have been created with
+.Fn tok_init .
+.It Fn tok_reset
+Reset the tokenizer state.
+Use after a line has been successfully tokenized
+by
+.Fn tok_line
+or
+.Fn tok_str
+and before a new line is to be tokenized.
+.It Fn tok_line
+Tokenize
+.Fa li ,
+If successful, modify:
+.Fa argv
+to contain the words,
+.Fa argc
+to contain the number of words,
+.Fa cursorc
+(if not
+.Dv NULL )
+to contain the index of the word containing the cursor,
+and
+.Fa cursoro
+(if not
+.Dv NULL )
+to contain the offset within
+.Fa argv[cursorc]
+of the cursor.
+.Pp
+Returns
+0 if successful,
+\-1 for an internal error,
+1 for an unmatched single quote,
+2 for an unmatched double quote,
+and
+3 for a backslash quoted
+.Aq newline .
+A positive exit code indicates that another line should be read
+and tokenization attempted again.
+.
+.It Fn tok_str
+A simpler form of
+.Fn tok_line ;
+.Fa str
+is a NUL terminated string to tokenize.
+.El
+.
 .\"XXX.Sh EXAMPLES
 .\"XXX: provide some examples
 .Sh SEE ALSO
@@ -603,9 +764,6 @@ wrote this manual and implemented
 and
 .Dv EL_RPROMPT .
 .Sh BUGS
-The tokenization functions are not publically defined in
-.In histedit.h .
-.Pp
 At this time, it is the responsibility of the caller to
 check the result of the
 .Dv EL_EDITMODE

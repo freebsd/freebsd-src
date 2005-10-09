@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: read.c,v 1.18 2000/11/11 22:18:58 christos Exp $
+ *	$NetBSD: read.c,v 1.39 2005/08/02 12:11:14 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -57,8 +53,48 @@ __FBSDID("$FreeBSD$");
 
 private int	read__fixio(int, int);
 private int	read_preread(EditLine *);
-private int	read_getcmd(EditLine *, el_action_t *, char *);
 private int	read_char(EditLine *, char *);
+private int	read_getcmd(EditLine *, el_action_t *, char *);
+
+/* read_init():
+ *	Initialize the read stuff
+ */
+protected int
+read_init(EditLine *el)
+{
+	/* builtin read_char */
+	el->el_read.read_char = read_char;
+	return 0;
+}
+
+
+/* el_read_setfn():
+ *	Set the read char function to the one provided.
+ *	If it is set to EL_BUILTIN_GETCFN, then reset to the builtin one.
+ */
+protected int
+el_read_setfn(EditLine *el, el_rfunc_t rc)
+{
+	el->el_read.read_char = (rc == EL_BUILTIN_GETCFN) ? read_char : rc;
+	return 0;
+}
+
+
+/* el_read_getfn():
+ *	return the current read char function, or EL_BUILTIN_GETCFN
+ *	if it is the default one
+ */
+protected el_rfunc_t
+el_read_getfn(EditLine *el)
+{
+       return (el->el_read.read_char == read_char) ?
+	    EL_BUILTIN_GETCFN : el->el_read.read_char;
+}
+
+
+#ifndef MIN
+#define MIN(A,B) ((A) < (B) ? (A) : (B))
+#endif
 
 #ifdef DEBUG_EDIT
 private void
@@ -84,7 +120,7 @@ read_debug(EditLine *el)
  */
 /* ARGSUSED */
 private int
-read__fixio(int fd, int e)
+read__fixio(int fd __unused, int e)
 {
 
 	switch (e) {
@@ -149,10 +185,6 @@ read_preread(EditLine *el)
 {
 	int chrs = 0;
 
-	if (el->el_chared.c_macro.nline) {
-		el_free((ptr_t) el->el_chared.c_macro.nline);
-		el->el_chared.c_macro.nline = NULL;
-	}
 	if (el->el_tty.t_mode == ED_IO)
 		return (0);
 
@@ -165,8 +197,7 @@ read_preread(EditLine *el)
 		    (size_t) MIN(chrs, EL_BUFSIZ - 1));
 		if (chrs > 0) {
 			buf[chrs] = '\0';
-			el->el_chared.c_macro.nline = strdup(buf);
-			el_push(el, el->el_chared.c_macro.nline);
+			el_push(el, buf);
 		}
 	}
 #endif /* FIONREAD */
@@ -179,18 +210,18 @@ read_preread(EditLine *el)
  *	Push a macro
  */
 public void
-el_push(EditLine *el, const char *str)
+el_push(EditLine *el, char *str)
 {
 	c_macro_t *ma = &el->el_chared.c_macro;
 
 	if (str != NULL && ma->level + 1 < EL_MAXMACRO) {
 		ma->level++;
-		/* LINTED const cast */
-		ma->macro[ma->level] = (char *) str;
-	} else {
-		term_beep(el);
-		term__flush();
+		if ((ma->macro[ma->level] = el_strdup(str)) != NULL)
+			return;
+		ma->level--;
 	}
+	term_beep(el);
+	term__flush();
 }
 
 
@@ -200,10 +231,10 @@ el_push(EditLine *el, const char *str)
 private int
 read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch)
 {
-	el_action_t cmd = ED_UNASSIGNED;
+	el_action_t cmd;
 	int num;
 
-	while (cmd == ED_UNASSIGNED || cmd == ED_SEQUENCE_LEAD_IN) {
+	do {
 		if ((num = el_getc(el, ch)) != 1)	/* if EOF or error */
 			return (num);
 
@@ -242,7 +273,7 @@ read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch)
 		}
 		if (el->el_map.alt == NULL)
 			el->el_map.current = el->el_map.key;
-	}
+	} while (cmd == ED_SEQUENCE_LEAD_IN);
 	*cmdnum = cmd;
 	return (OKCMD);
 }
@@ -287,14 +318,16 @@ el_getc(EditLine *el, char *cp)
 		if (ma->level < 0)
 			break;
 
-		if (*ma->macro[ma->level] == 0) {
-			ma->level--;
+		if (ma->macro[ma->level][ma->offset] == '\0') {
+			el_free(ma->macro[ma->level--]);
+			ma->offset = 0;
 			continue;
 		}
-		*cp = *ma->macro[ma->level]++ & 0377;
-		if (*ma->macro[ma->level] == 0) {	/* Needed for QuoteMode
-							 * On */
-			ma->level--;
+		*cp = ma->macro[ma->level][ma->offset++] & 0377;
+		if (ma->macro[ma->level][ma->offset] == '\0') {
+			/* Needed for QuoteMode On */
+			el_free(ma->macro[ma->level--]);
+			ma->offset = 0;
 		}
 		return (1);
 	}
@@ -308,13 +341,42 @@ el_getc(EditLine *el, char *cp)
 #ifdef DEBUG_READ
 	(void) fprintf(el->el_errfile, "Reading a character\n");
 #endif /* DEBUG_READ */
-	num_read = read_char(el, cp);
+	num_read = (*el->el_read.read_char)(el, cp);
 #ifdef DEBUG_READ
 	(void) fprintf(el->el_errfile, "Got it %c\n", *cp);
 #endif /* DEBUG_READ */
 	return (num_read);
 }
 
+protected void
+read_prepare(EditLine *el)
+{
+	if (el->el_flags & HANDLE_SIGNALS)
+		sig_set(el);
+	if (el->el_flags & NO_TTY)
+		return;
+	if ((el->el_flags & (UNBUFFERED|EDIT_DISABLED)) == UNBUFFERED)
+		tty_rawmode(el);
+
+	/* This is relatively cheap, and things go terribly wrong if
+	   we have the wrong size. */
+	el_resize(el);
+	re_clear_display(el);	/* reset the display stuff */
+	ch_reset(el, 0);
+	re_refresh(el);		/* print the prompt */
+
+	if (el->el_flags & UNBUFFERED)
+		term__flush();
+}
+
+protected void
+read_finish(EditLine *el)
+{
+	if ((el->el_flags & UNBUFFERED) == 0)
+		(void) tty_cookedmode(el);
+	if (el->el_flags & HANDLE_SIGNALS)
+		sig_clr(el);
+}
 
 public const char *
 el_gets(EditLine *el, int *nread)
@@ -323,18 +385,16 @@ el_gets(EditLine *el, int *nread)
 	el_action_t cmdnum = 0;
 	int num;		/* how many chars we have read at NL */
 	char ch;
+	int crlf = 0;
 #ifdef FIONREAD
 	c_macro_t *ma = &el->el_chared.c_macro;
 #endif /* FIONREAD */
-
-	if (el->el_flags & HANDLE_SIGNALS)
-		sig_set(el);
 
 	if (el->el_flags & NO_TTY) {
 		char *cp = el->el_line.buffer;
 		size_t idx;
 
-		while (read_char(el, cp) == 1) {
+		while ((*el->el_read.read_char)(el, cp) == 1) {
 			/* make sure there is space for next character */
 			if (cp + 1 >= el->el_line.limit) {
 				idx = (cp - el->el_line.buffer);
@@ -343,6 +403,8 @@ el_gets(EditLine *el, int *nread)
 				cp = &el->el_line.buffer[idx];
 			}
 			cp++;
+			if (el->el_flags & UNBUFFERED)
+				break;
 			if (cp[-1] == '\r' || cp[-1] == '\n')
 				break;
 		}
@@ -353,8 +415,7 @@ el_gets(EditLine *el, int *nread)
 			*nread = el->el_line.cursor - el->el_line.buffer;
 		return (el->el_line.buffer);
 	}
-	re_clear_display(el);	/* reset the display stuff */
-	ch_reset(el);
+
 
 #ifdef FIONREAD
 	if (el->el_tty.t_mode == EX_IO && ma->level < 0) {
@@ -371,15 +432,20 @@ el_gets(EditLine *el, int *nread)
 	}
 #endif /* FIONREAD */
 
-	re_refresh(el);		/* print the prompt */
+	if ((el->el_flags & UNBUFFERED) == 0)
+		read_prepare(el);
 
 	if (el->el_flags & EDIT_DISABLED) {
-		char *cp = el->el_line.buffer;
+		char *cp;
 		size_t idx;
+		if ((el->el_flags & UNBUFFERED) == 0)
+			cp = el->el_line.buffer;
+		else
+			cp = el->el_line.lastchar;
 
 		term__flush();
 
-		while (read_char(el, cp) == 1) {
+		while ((*el->el_read.read_char)(el, cp) == 1) {
 			/* make sure there is space next character */
 			if (cp + 1 >= el->el_line.limit) {
 				idx = (cp - el->el_line.buffer);
@@ -387,8 +453,13 @@ el_gets(EditLine *el, int *nread)
 					break;
 				cp = &el->el_line.buffer[idx];
 			}
+			if (*cp == 4)	/* ought to be stty eof */
+				break;
 			cp++;
-			if (cp[-1] == '\r' || cp[-1] == '\n')
+			crlf = cp[-1] == '\r' || cp[-1] == '\n';
+			if (el->el_flags & UNBUFFERED)
+				break;
+			if (crlf)
 				break;
 		}
 
@@ -398,6 +469,7 @@ el_gets(EditLine *el, int *nread)
 			*nread = el->el_line.cursor - el->el_line.buffer;
 		return (el->el_line.buffer);
 	}
+
 	for (num = OKCMD; num == OKCMD;) {	/* while still editing this
 						 * line */
 #ifdef DEBUG_EDIT
@@ -411,7 +483,7 @@ el_gets(EditLine *el, int *nread)
 #endif /* DEBUG_READ */
 			break;
 		}
-		if ((int) cmdnum >= el->el_map.nfunc) {	/* BUG CHECK command */
+		if ((unsigned int)cmdnum >= el->el_map.nfunc) {	/* BUG CHECK command */
 #ifdef DEBUG_EDIT
 			(void) fprintf(el->el_errfile,
 			    "ERROR: illegal command from key 0%o\r\n", ch);
@@ -433,7 +505,24 @@ el_gets(EditLine *el, int *nread)
 				    "Error command = %d\n", cmdnum);
 		}
 #endif /* DEBUG_READ */
+		/* vi redo needs these way down the levels... */
+		el->el_state.thiscmd = cmdnum;
+		el->el_state.thisch = ch;
+		if (el->el_map.type == MAP_VI &&
+		    el->el_map.current == el->el_map.key &&
+		    el->el_chared.c_redo.pos < el->el_chared.c_redo.lim) {
+			if (cmdnum == VI_DELETE_PREV_CHAR &&
+			    el->el_chared.c_redo.pos != el->el_chared.c_redo.buf
+			    && isprint((unsigned char)el->el_chared.c_redo.pos[-1]))
+				el->el_chared.c_redo.pos--;
+			else
+				*el->el_chared.c_redo.pos++ = ch;
+		}
 		retval = (*el->el_map.func[cmdnum]) (el, ch);
+#ifdef DEBUG_READ
+		(void) fprintf(el->el_errfile,
+			"Returned state %d\n", retval );
+#endif /* DEBUG_READ */
 
 		/* save the last command here */
 		el->el_state.lastcmd = cmdnum;
@@ -441,8 +530,6 @@ el_gets(EditLine *el, int *nread)
 		/* use any return value */
 		switch (retval) {
 		case CC_CURSOR:
-			el->el_state.argument = 1;
-			el->el_state.doingarg = 0;
 			re_refresh_cursor(el);
 			break;
 
@@ -452,29 +539,29 @@ el_gets(EditLine *el, int *nread)
 			/* FALLTHROUGH */
 
 		case CC_REFRESH:
-			el->el_state.argument = 1;
-			el->el_state.doingarg = 0;
 			re_refresh(el);
 			break;
 
 		case CC_REFRESH_BEEP:
-			el->el_state.argument = 1;
-			el->el_state.doingarg = 0;
 			re_refresh(el);
 			term_beep(el);
 			break;
 
 		case CC_NORM:	/* normal char */
-			el->el_state.argument = 1;
-			el->el_state.doingarg = 0;
 			break;
 
 		case CC_ARGHACK:	/* Suggested by Rich Salz */
 			/* <rsalz@pineapple.bbn.com> */
-			break;	/* keep going... */
+			continue;	/* keep going... */
 
 		case CC_EOF:	/* end of file typed */
-			num = 0;
+			if ((el->el_flags & UNBUFFERED) == 0)
+				num = 0;
+			else if (num == -1) {
+				*el->el_line.lastchar++ = CONTROL('d');
+				el->el_line.cursor = el->el_line.lastchar;
+				num = 1;
+			}
 			break;
 
 		case CC_NEWLINE:	/* normal end of line */
@@ -488,10 +575,8 @@ el_gets(EditLine *el, int *nread)
 #endif /* DEBUG_READ */
 			/* put (real) cursor in a known place */
 			re_clear_display(el);	/* reset the display stuff */
-			ch_reset(el);	/* reset the input pointers */
+			ch_reset(el, 1);	/* reset the input pointers */
 			re_refresh(el);	/* print the prompt again */
-			el->el_state.argument = 1;
-			el->el_state.doingarg = 0;
 			break;
 
 		case CC_ERROR:
@@ -500,20 +585,26 @@ el_gets(EditLine *el, int *nread)
 			(void) fprintf(el->el_errfile,
 			    "*** editor ERROR ***\r\n\n");
 #endif /* DEBUG_READ */
-			el->el_state.argument = 1;
-			el->el_state.doingarg = 0;
 			term_beep(el);
 			term__flush();
 			break;
 		}
+		el->el_state.argument = 1;
+		el->el_state.doingarg = 0;
+		el->el_chared.c_vcmd.action = NOP;
+		if (el->el_flags & UNBUFFERED)
+			break;
 	}
 
 	term__flush();		/* flush any buffered output */
-				/* make sure the tty is set up correctly */
-	(void) tty_cookedmode(el);
-	if (el->el_flags & HANDLE_SIGNALS)
-		sig_clr(el);
-	if (nread)
-		*nread = num;
+	/* make sure the tty is set up correctly */
+	if ((el->el_flags & UNBUFFERED) == 0) {
+		read_finish(el);
+		if (nread)
+			*nread = num;
+	} else {
+		if (nread)
+			*nread = el->el_line.lastchar - el->el_line.buffer;
+	}
 	return (num ? el->el_line.buffer : NULL);
 }

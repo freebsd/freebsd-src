@@ -1,4 +1,4 @@
-.\"	$NetBSD: editrc.5,v 1.10 2000/11/08 00:09:38 lukem Exp $
+.\"	$NetBSD: editrc.5,v 1.19 2003/11/01 23:35:33 christos Exp $
 .\"
 .\" Copyright (c) 1997-2000 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2000
+.Dd October 18, 2003
 .Os
 .Dt EDITRC 5
 .Sh NAME
@@ -64,7 +64,7 @@ for more information.
 .Ar prog
 is the program name string that a program defines when it calls
 .Xr el_init 3
-to setup
+to set up
 .Xr editline 3 ,
 which is usually
 .Va argv[0] .
@@ -230,8 +230,24 @@ causes messages to be verbose.
 Enable or disable the
 .Nm editline
 functionality in a program.
-.It Ic history
-List the history.
+.It Ic history Ar list | Ar size Dv n | Ar unique Dv n
+The 
+.Ar list
+command lists all entries in the history.
+The
+.Ar size
+command sets the history size to
+.Dv n
+entries.
+The
+.Ar unique
+command controls if history should keep duplicate entries.
+If
+.Dv n
+is non zero, only keep unique history entries.
+If
+.Dv n
+is zero, then keep all entries (the default).
 .It Ic telltc
 List the values of all the terminal capabilities (see
 .Xr termcap 5 ) .
@@ -251,6 +267,7 @@ No sanity checking is done.
 .Op Ar +mode
 .Op Ar -mode
 .Op Ar mode
+.Op Ar char=c
 .Xc
 Control which tty modes that
 .Nm
@@ -287,6 +304,15 @@ fixes
 on or off or removes control of
 .Ar mode
 in the chosen set.
+.Pp
+.Ic Setty
+can also be used to set tty characters to particular values using
+.Ar char=value .
+If
+.Ar value
+is empty
+then the character is set to
+.Dv _POSIX_VDISABLE .
 .El
 .Sh EDITOR COMMANDS
 The following editor commands are available for use in key bindings:

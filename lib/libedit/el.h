@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)el.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: el.h,v 1.7 2000/11/11 22:18:57 christos Exp $
+ *	$NetBSD: el.h,v 1.16 2003/10/18 23:48:42 christos Exp $
  * $FreeBSD$
  */
 
@@ -55,9 +51,10 @@
 
 #define	EL_BUFSIZ	1024		/* Maximum line size		*/
 
-#define	HANDLE_SIGNALS	1<<0
-#define	NO_TTY		1<<1
-#define	EDIT_DISABLED	1<<2
+#define	HANDLE_SIGNALS	0x01
+#define	NO_TTY		0x02
+#define	EDIT_DISABLED	0x04
+#define	UNBUFFERED	0x08
 
 typedef int bool_t;			/* True or not			*/
 
@@ -72,7 +69,7 @@ typedef struct el_line_t {
 	char	*buffer;		/* Input line			*/
 	char	*cursor;		/* Cursor position		*/
 	char	*lastchar;		/* Last character		*/
-	const char	*limit;			/* Max position			*/
+	const char	*limit;		/* Max position			*/
 } el_line_t;
 
 /*
@@ -84,14 +81,16 @@ typedef struct el_state_t {
 	int		argument;	/* Numeric argument		*/
 	int		metanext;	/* Is the next char a meta char */
 	el_action_t	lastcmd;	/* Previous command		*/
+	el_action_t	thiscmd;	/* this command 		*/
+	char		thisch;		/* char that generated it	*/
 } el_state_t;
 
 /*
  * Until we come up with something better...
  */
+#define	el_strdup(a)	strdup(a)
 #define	el_malloc(a)	malloc(a)
 #define	el_realloc(a,b)	realloc(a, b)
-#define el_reallocf(a,b) reallocf(a, b)
 #define	el_free(a)	free(a)
 
 #include "tty.h"
@@ -107,6 +106,7 @@ typedef struct el_state_t {
 #include "parse.h"
 #include "sig.h"
 #include "help.h"
+#include "read.h"
 
 struct editline {
 	char		 *el_prog;	/* the program name		*/
@@ -117,6 +117,7 @@ struct editline {
 	coord_t		  el_cursor;	/* Cursor location		*/
 	char		**el_display;	/* Real screen image = what is there */
 	char		**el_vdisplay;	/* Virtual screen image = what we see */
+	void		 *el_data;	/* Client data			*/
 	el_line_t	  el_line;	/* The current line information	*/
 	el_state_t	  el_state;	/* Current editor state		*/
 	el_term_t	  el_term;	/* Terminal dependent stuff	*/
@@ -130,15 +131,18 @@ struct editline {
 	el_history_t	  el_history;	/* History stuff		*/
 	el_search_t	  el_search;	/* Search stuff			*/
 	el_signal_t	  el_signal;	/* Signal handling stuff	*/
-
-	void		 *data;		/* user data */
+	el_read_t	  el_read;	/* Character reading stuff	*/
 };
 
-protected int	el_editmode(EditLine *, int, char **);
+protected int	el_editmode(EditLine *, int, const char **);
 
 #ifdef DEBUG
-#define EL_ABORT(a)	(void) (fprintf(el->el_errfile, "%s, %d: ", \
-				__FILE__, __LINE__), fprintf a, abort())
+#define	EL_ABORT(a)	do { \
+				fprintf(el->el_errfile, "%s, %d: ", \
+					 __FILE__, __LINE__); \
+				fprintf a; \
+				abort(); \
+			} while( /*CONSTCOND*/0);
 #else
 #define EL_ABORT(a)	abort()
 #endif

@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: el.c,v 1.20 2000/11/11 22:18:57 christos Exp $
+ *	$NetBSD: el.c,v 1.41 2005/08/19 04:21:47 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -54,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include "el.h"
 
+#define	HAVE_ISSETUGID
+
 /* el_init():
  *	Initialize editline and set default parameters.
  */
@@ -62,9 +60,6 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 {
 
 	EditLine *el = (EditLine *) el_malloc(sizeof(EditLine));
-#ifdef DEBUG
-	char *tty;
-#endif
 
 	if (el == NULL)
 		return (NULL);
@@ -74,14 +69,21 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 	el->el_infd = fileno(fin);
 	el->el_outfile = fout;
 	el->el_errfile = ferr;
-	el->el_prog = strdup(prog);
+	if ((el->el_prog = el_strdup(prog)) == NULL) {
+		el_free(el);
+		return NULL;
+	}
 
 	/*
          * Initialize all the modules. Order is important!!!
          */
 	el->el_flags = 0;
 
-	(void) term_init(el);
+	if (term_init(el) == -1) {
+		el_free(el->el_prog);
+		el_free(el);
+		return NULL;
+	}
 	(void) key_init(el);
 	(void) map_init(el);
 	if (tty_init(el) == -1)
@@ -91,7 +93,7 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 	(void) hist_init(el);
 	(void) prompt_init(el);
 	(void) sig_init(el);
-	el->data = NULL;
+	(void) read_init(el);
 
 	return (el);
 }
@@ -132,7 +134,7 @@ el_reset(EditLine *el)
 {
 
 	tty_cookedmode(el);
-	ch_reset(el);		/* XXX: Do we want that? */
+	ch_reset(el, 0);		/* XXX: Do we want that? */
 }
 
 
@@ -143,11 +145,12 @@ public int
 el_set(EditLine *el, int op, ...)
 {
 	va_list va;
-	int rv;
-	va_start(va, op);
+	int rv = 0;
 
 	if (el == NULL)
 		return (-1);
+	va_start(va, op);
+
 	switch (op) {
 	case EL_PROMPT:
 	case EL_RPROMPT:
@@ -167,7 +170,6 @@ el_set(EditLine *el, int op, ...)
 			el->el_flags |= HANDLE_SIGNALS;
 		else
 			el->el_flags &= ~HANDLE_SIGNALS;
-		rv = 0;
 		break;
 
 	case EL_BIND:
@@ -176,7 +178,7 @@ el_set(EditLine *el, int op, ...)
 	case EL_ECHOTC:
 	case EL_SETTY:
 	{
-		char *argv[20];
+		const char *argv[20];
 		int i;
 
 		for (i = 1; i < 20; i++)
@@ -244,8 +246,41 @@ el_set(EditLine *el, int op, ...)
 		rv = 0;
 		break;
 
+	case EL_GETCFN:
+	{
+		el_rfunc_t rc = va_arg(va, el_rfunc_t);
+		rv = el_read_setfn(el, rc);
+		break;
+	}
+
+	case EL_CLIENTDATA:
+		el->el_data = va_arg(va, void *);
+		break;
+
+	case EL_UNBUFFERED:
+		rv = va_arg(va, int);
+		if (rv && !(el->el_flags & UNBUFFERED)) {
+			el->el_flags |= UNBUFFERED;
+			read_prepare(el);
+		} else if (!rv && (el->el_flags & UNBUFFERED)) {
+			el->el_flags &= ~UNBUFFERED;
+			read_finish(el);
+		}
+		rv = 0;
+		break;
+
+	case EL_PREP_TERM:
+		rv = va_arg(va, int);
+		if (rv)
+			(void) tty_rawmode(el);
+		else
+			(void) tty_cookedmode(el);
+		rv = 0;
+		break;
+
 	default:
 		rv = -1;
+		break;
 	}
 
 	va_end(va);
@@ -266,11 +301,11 @@ el_get(EditLine *el, int op, void *ret)
 	switch (op) {
 	case EL_PROMPT:
 	case EL_RPROMPT:
-		rv = prompt_get(el, (el_pfunc_t *) & ret, op);
+		rv = prompt_get(el, (el_pfunc_t *) ret, op);
 		break;
 
 	case EL_EDITOR:
-		rv = map_get_editor(el, (const char **) &ret);
+		rv = map_get_editor(el, (const char **)ret);
 		break;
 
 	case EL_SIGNAL:
@@ -283,21 +318,22 @@ el_get(EditLine *el, int op, void *ret)
 		rv = 0;
 		break;
 
-#if 0				/* XXX */
 	case EL_TERMINAL:
-		rv = term_get(el, (const char *) &ret);
+		term_get(el, (const char **)ret);
+		rv = 0;
 		break;
 
+#if 0				/* XXX */
 	case EL_BIND:
 	case EL_TELLTC:
 	case EL_SETTC:
 	case EL_ECHOTC:
 	case EL_SETTY:
 	{
-		char *argv[20];
+		const char *argv[20];
 		int i;
 
-		for (i = 1; i < 20; i++)
+ 		for (i = 1; i < sizeof(argv) / sizeof(argv[0]); i++)
 			if ((argv[i] = va_arg(va, char *)) == NULL)
 				break;
 
@@ -354,6 +390,21 @@ el_get(EditLine *el, int op, void *ret)
 		break;
 #endif /* XXX */
 
+	case EL_GETCFN:
+		*((el_rfunc_t *)ret) = el_read_getfn(el);
+		rv = 0;
+		break;
+
+	case EL_CLIENTDATA:
+		*((void **)ret) = el->el_data;
+		rv = 0;
+		break;
+
+	case EL_UNBUFFERED:
+		*((int *) ret) = (!(el->el_flags & UNBUFFERED));
+		rv = 0;
+		break;
+
 	default:
 		rv = -1;
 	}
@@ -369,7 +420,7 @@ el_data_set (el, data)
     EditLine *el;
     void *data;
 {
-    el->data = data;
+    el->el_data = data;
 
     return;
 }
@@ -381,8 +432,8 @@ public void *
 el_data_get (el)
     EditLine *el;
 {
-    if (el->data)
-	return (el->data);
+    if (el->el_data)
+	return (el->el_data);
     return (NULL);
 }
 
@@ -396,7 +447,6 @@ el_line(EditLine *el)
 	return (const LineInfo *) (void *) &el->el_line;
 }
 
-static const char elpath[] = "/.editrc";
 
 /* el_source():
  *	Source a file
@@ -406,10 +456,14 @@ el_source(EditLine *el, const char *fname)
 {
 	FILE *fp;
 	size_t len;
-	char *ptr, path[MAXPATHLEN];
+	char *ptr;
 
 	fp = NULL;
 	if (fname == NULL) {
+#ifdef HAVE_ISSETUGID
+		static const char elpath[] = "/.editrc";
+		char path[MAXPATHLEN];
+
 		if (issetugid())
 			return (-1);
 		if ((ptr = getenv("HOME")) == NULL)
@@ -419,6 +473,14 @@ el_source(EditLine *el, const char *fname)
 		if (strlcat(path, elpath, sizeof(path)) >= sizeof(path))
 			return (-1);
 		fname = path;
+#else
+		/*
+		 * If issetugid() is missing, always return an error, in order
+		 * to keep from inadvertently opening up the user to a security
+		 * hole.
+		 */
+		return (-1);
+#endif
 	}
 	if (fp == NULL)
 		fp = fopen(fname, "r");
@@ -477,7 +539,7 @@ el_beep(EditLine *el)
  */
 protected int
 /*ARGSUSED*/
-el_editmode(EditLine *el, int argc, char **argv)
+el_editmode(EditLine *el, int argc, const char **argv)
 {
 	const char *how;
 
@@ -485,10 +547,13 @@ el_editmode(EditLine *el, int argc, char **argv)
 		return (-1);
 
 	how = argv[1];
-	if (strcmp(how, "on") == 0)
+	if (strcmp(how, "on") == 0) {
 		el->el_flags &= ~EDIT_DISABLED;
-	else if (strcmp(how, "off") == 0)
+		tty_rawmode(el);
+	} else if (strcmp(how, "off") == 0) {
+		tty_cookedmode(el);
 		el->el_flags |= EDIT_DISABLED;
+	}
 	else {
 		(void) fprintf(el->el_errfile, "edit: Bad value `%s'.\n", how);
 		return (-1);
