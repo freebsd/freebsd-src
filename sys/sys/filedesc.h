@@ -105,7 +105,7 @@ struct filedesc_to_leader {
 		(fd)->fd_locked = 2;							\
 		(fd)->fd_wanted--;							\
 		mtx_unlock(&(fd)->fd_mtx);						\
-	} while (0);
+	} while (0)
 
 #define	FILEDESC_UNLOCK(fd)								\
 	do {										\
@@ -116,7 +116,7 @@ struct filedesc_to_leader {
 		if ((fd)->fd_wanted)							\
 			wakeup(&(fd)->fd_locked);					\
 		mtx_unlock(&(fd)->fd_mtx);						\
-	} while (0);
+	} while (0)
 
 #define	FILEDESC_LOCK_FAST(fd)								\
 	do {										\
@@ -126,7 +126,7 @@ struct filedesc_to_leader {
 			msleep(&(fd)->fd_locked, &(fd)->fd_mtx, PLOCK, "fdesc", 0);	\
 		(fd)->fd_locked = 1;							\
 		(fd)->fd_wanted--;							\
-	} while (0);
+	} while (0)
 
 #define	FILEDESC_UNLOCK_FAST(fd)							\
 	do {										\
@@ -136,7 +136,7 @@ struct filedesc_to_leader {
 		if ((fd)->fd_wanted)							\
 			wakeup(&(fd)->fd_locked);					\
 		mtx_unlock(&(fd)->fd_mtx);						\
-	} while (0);
+	} while (0)
 
 #ifdef INVARIANT_SUPPORT
 #define	FILEDESC_LOCK_ASSERT(fd, arg)							\
@@ -145,7 +145,7 @@ struct filedesc_to_leader {
 			KASSERT((fd)->fd_locked != 0, ("fdesc locking mistake"));	\
 		else									\
 			KASSERT((fd)->fd_locked == 0, ("fdesc locking mistake"));	\
-	} while (0);
+	} while (0)
 #else
 #define	FILEDESC_LOCK_ASSERT(fd, arg)
 #endif
