@@ -98,7 +98,6 @@
  */
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 #include "opt_tcp_input.h"
 #include "opt_tcp_sack.h"
@@ -147,16 +146,6 @@
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
 
-#ifdef FAST_IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif
-
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netinet6/ipsec6.h>
-#include <netkey/key.h>
-#endif /*IPSEC*/
 #include <machine/in_cksum.h>
 
 extern struct uma_zone *sack_hole_zone;
