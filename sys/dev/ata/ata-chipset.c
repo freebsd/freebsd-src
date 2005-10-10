@@ -915,8 +915,10 @@ ata_ali_allocate(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    ata_pci_allocate(dev);
+    if (ata_pci_allocate(dev))
+	return ENXIO;
 
+    /* older chips can't do 48bit DMA transfers */
     if (ctlr->chip->chiprev <= 0xc4)
 	ch->flags |= ATA_NO_48BIT_DMA;
 
@@ -2137,7 +2139,8 @@ ata_nvidia_allocate(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    ata_pci_allocate(dev);
+    if (ata_pci_allocate(dev))
+	return ENXIO;
 
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
     ch->r_io[ATA_SSTATUS].offset = (ch->unit << 6);
@@ -3819,7 +3822,8 @@ ata_sis_allocate(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    ata_pci_allocate(dev);
+    if (ata_pci_allocate(dev))
+	return ENXIO;
 
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
     ch->r_io[ATA_SSTATUS].offset = (ch->unit << 4);
@@ -4024,7 +4028,6 @@ ata_via_allocate(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-
     /* newer SATA chips has resources in one BAR for each channel */
     if (ctlr->chip->cfg2 & VIABAR) {
 	struct resource *r_io;
@@ -4050,8 +4053,10 @@ ata_via_allocate(device_t dev)
 	}
 	ata_generic_hw(dev);
     }
-    else
-	ata_pci_allocate(dev);
+    else {
+        if (ata_pci_allocate(dev))
+	    return ENXIO;
+    }
 
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
     ch->r_io[ATA_SSTATUS].offset = (ch->unit << ctlr->chip->cfg1);
