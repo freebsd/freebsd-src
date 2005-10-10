@@ -268,7 +268,7 @@ is softlinked into what will be read-only on all of your
 clients, you have to tell the ports system to use a different working
 directory to hold ports builds.
 You want to add a line to your
-.Pa /etc/make.conf
+.Xr make.conf 5
 file on the master server
 and on all your clients:
 .Bd -literal -offset 4n
@@ -494,7 +494,7 @@ the install tried to write into the read-only
 .Pa /usr/obj ,
 then it is likely
 that the
-.Pa /etc/make.conf
+.Xr make.conf 5
 file on the client does not match the one on the
 master server closely enough and the install is trying to install something
 that was not built.
@@ -681,6 +681,7 @@ My recommendation is to only keep the CVS repository synchronized via
 .Sh SEE ALSO
 .Xr crontab 1 ,
 .Xr crontab 5 ,
+.Xr make.conf 5 ,
 .Xr build 7 ,
 .Xr firewall 7 ,
 .Xr release 7 ,
