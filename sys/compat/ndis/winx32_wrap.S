@@ -82,6 +82,13 @@
  * we only know the absolute addresses of the thunk and unthunk
  * routines. So we need to make sure the templates have enough
  * room in them for the full address.
+ *
+ * Also note that when we call the a thunk/unthunk routine after
+ * invoking a wrapped function, we have to make sure to preserve
+ * the value returned from that function. Most functions return
+ * a 32-bit value in %eax, however some routines return 64-bit
+ * values, which span both %eax and %edx. Consequently, we have
+ * to preserve both registers.
  */
 
 /*
@@ -114,13 +121,16 @@ ENTRY(x86_stdcall_wrap)
 x86_stdcall_wrap_call:
         movl    $0,%eax
 	call	*%eax		# jump to routine
-	mov	%eax,%esi	# preserve return val
+	push	%eax		# preserve return val
+	push	%edx
 
 	movl	$ctxsw_utow, %eax
 	call	*%eax		# thunk
 
+	pop	%edx
+	pop	%eax		# restore return val
+
 	add	$64,%esp	# clean the stack
-	mov	%esi,%eax	# restore return val
 	pop	%edi
 	pop	%esi
 x86_stdcall_wrap_arg:
@@ -151,12 +161,14 @@ ENTRY(x86_stdcall_call)
 	call	ctxsw_utow	# thunk
 
 	call	*12(%edi)	# branch to stdcall routine
-	mov	%eax,%esi	# preserve return val
+	push	%eax		# preserve return val
+	push	%edx
 
 	call	ctxsw_wtou	# unthunk
 
+	pop	%edx
+	pop	%eax		# restore return val
 	mov	%edi,%esp	# restore stack
-	mov	%esi,%eax	# restore return val
 	pop	%edi		# restore %edi
 	pop	%esi		# and %esi
 	ret
@@ -188,10 +200,12 @@ x86_fastcall_wrap_call:
 	mov	$0,%eax
 	call	*%eax		# branch to fastcall routine
 	push	%eax		# preserve return val
+	push	%edx
 
 	movl	$ctxsw_utow, %eax
 	call	*%eax		# thunk
 
+	pop	%edx
 	pop	%eax		# restore return val
 	add	$12,%esp	# clean the stack
 x86_fastcall_wrap_arg:
@@ -215,9 +229,11 @@ ENTRY(x86_fastcall_call)
 	mov	16(%esp),%edx
 	call	*8(%esp)	# branch to fastcall routine
 	push	%eax		# preserve return val
+	push	%edx
 
 	call	ctxsw_wtou	# unthunk
 
+	pop	%edx
 	pop	%eax		# restore return val
 	add	$4,%esp		# clean the stack
 	ret
