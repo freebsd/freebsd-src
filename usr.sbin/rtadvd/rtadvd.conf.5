@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$KAME: rtadvd.conf.5,v 1.49 2003/07/24 21:51:26 jinmei Exp $
+.\"	$KAME: rtadvd.conf.5,v 1.50 2005/01/14 05:30:59 jinmei Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -227,14 +227,14 @@ doublequote character.
 .Pq unit: seconds .
 The default value is 2592000 (30 days).
 .It Cm \&vltimedecr
-(bool) This item means the advertised valid lifetime will decrements
+(bool) This item means the advertised valid lifetime will decrement
 in real time, which is disabled by default.
 .It Cm \&pltime
 (num) Preferred lifetime field
 .Pq unit: seconds .
 The default value is 604800 (7 days).
 .It Cm \&pltimedecr
-(bool) This item means the advertised preferred lifetime will decrements
+(bool) This item means the advertised preferred lifetime will decrement
 in real time, which is disabled by default.
 .El
 .Pp
