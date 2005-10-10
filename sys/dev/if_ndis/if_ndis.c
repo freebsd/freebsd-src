@@ -2747,8 +2747,10 @@ ndis_ioctl(ifp, command, data)
 			error = copyout(sc->ndis_evt[sc->ndis_evtcidx].ne_buf,
 			    ifr->ifr_data + (sizeof(uint32_t) * 2),
 			    sc->ndis_evt[sc->ndis_evtcidx].ne_len);
-			if (error)
+			if (error) {
+				NDIS_UNLOCK(sc);
 				break;
+			}
 			free(sc->ndis_evt[sc->ndis_evtcidx].ne_buf, M_TEMP);
 			sc->ndis_evt[sc->ndis_evtcidx].ne_buf = NULL;
 		}
