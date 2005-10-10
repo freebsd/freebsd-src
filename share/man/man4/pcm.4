@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2005
+.Dd October 10, 2005
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -273,17 +273,9 @@ driver supports the following sound cards:
 .Pp
 .Bl -bullet -compact
 .It
-CS4231, CS4232, CS4236, CS4237 (ISA)
-.It
 Creative Labs SoundBlaster PCI
 .It
 Intel 443MX, 810, 815, and 815E integrated sound devices
-.It
-MSS/WSS Compatible DSPs
-.It
-OPTi931/82C931 (ISA)
-.It
-Yamaha OPL-SAx (ISA)
 .El
 .Sh FILES
 The
@@ -344,6 +336,7 @@ A device node is not created properly.
 .Xr snd_ich 4 ,
 .Xr snd_maestro 4 ,
 .Xr snd_maestro3 4 ,
+.Xr snd_mss 4 ,
 .Xr snd_neomagic 4 ,
 .Xr snd_sbc 4 ,
 .Xr snd_solo 4 ,
