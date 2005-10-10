@@ -48,6 +48,14 @@ struct unicode_string {
 
 typedef struct unicode_string unicode_string;
 
+struct ansi_string {
+	uint16_t		as_len;
+	uint16_t		as_maxlen;
+	char			*as_buf;
+};
+
+typedef struct ansi_string ansi_string;
+
 /*
  * Windows memory descriptor list. In Windows, it's possible for
  * buffers to be passed between user and kernel contexts without
@@ -197,43 +205,54 @@ struct list_entry {
 
 typedef struct list_entry list_entry;
 
-#define INIT_LIST_HEAD(l)	\
+#define InitializeListHead(l)			\
 	(l)->nle_flink = (l)->nle_blink = (l)
 
-#define REMOVE_LIST_ENTRY(e)			\
+#define IsListEmpty(h)				\
+	((h)->nle_flink == (h))
+
+#define RemoveEntryList(e)			\
 	do {					\
 		list_entry		*b;	\
 		list_entry		*f;	\
 						\
-		f = e->nle_flink;		\
-		b = e->nle_blink;		\
+		f = (e)->nle_flink;		\
+		b = (e)->nle_blink;		\
 		b->nle_flink = f;		\
 		f->nle_blink = b;		\
 	} while (0)
 
-#define REMOVE_LIST_HEAD(l)			\
-	do {					\
-		list_entry		*f;	\
-		list_entry		*e;	\
-						\
-		e = l->nle_flink;		\
-		f = e->nle_flink;		\
-		l->nle_flink = f;		\
-		f->nle_blink = l;		\
-	} while (0)
+/* These two have to be inlined since they return things. */
 
-#define REMOVE_LIST_TAIL(l)			\
-	do {					\
-		list_entry		*b;	\
-		list_entry		*e;	\
-						\
-		e = l->nle_blink;		\
-		b = e->nle_blink;		\
-		l->nle_blink = b;		\
-		b->nle_flink = l;		\
-	} while (0)
+static __inline__ list_entry *
+RemoveHeadList(list_entry *l)
+{
+	list_entry		*f;
+	list_entry		*e;
 
-#define INSERT_LIST_TAIL(l, e)			\
+	e = l->nle_flink;
+	f = e->nle_flink;
+	l->nle_flink = f;
+	f->nle_blink = l;
+
+	return (e);
+}
+
+static __inline__ list_entry *
+RemoveTailList(list_entry *l)
+{
+	list_entry		*b;
+	list_entry		*e;
+
+	e = l->nle_blink;
+	b = e->nle_blink;
+	l->nle_blink = b;
+	b->nle_flink = l;
+
+	return (e);
+}
+
+#define InsertTailList(l, e)			\
 	do {					\
 		list_entry		*b;	\
 						\
@@ -244,7 +263,7 @@ typedef struct list_entry list_entry;
 		l->nle_blink = (e);		\
 	} while (0)
 
-#define INSERT_LIST_HEAD(l, e)			\
+#define InsertHeadList(l, e)			\
 	do {					\
 		list_entry		*f;	\
 						\
@@ -263,11 +282,23 @@ struct nt_dispatch_header {
 	uint8_t			dh_abs;
 	uint8_t			dh_size;
 	uint8_t			dh_inserted;
-	uint32_t		dh_sigstate;
+	int32_t			dh_sigstate;
 	list_entry		dh_waitlisthead;
 };
 
 typedef struct nt_dispatch_header nt_dispatch_header;
+
+/* Dispatcher object types */
+
+#define DISP_TYPE_NOTIFICATION_EVENT	0	/* KEVENT */
+#define DISP_TYPE_SYNCHRONIZATION_EVENT	1	/* KEVENT */
+#define DISP_TYPE_MUTANT		2	/* KMUTANT/KMUTEX */
+#define DISP_TYPE_PROCESS		3	/* KPROCESS */
+#define DISP_TYPE_QUEUE			4	/* KQUEUE */
+#define DISP_TYPE_SEMAPHORE		5	/* KSEMAPHORE */
+#define DISP_TYPE_THREAD		6	/* KTHREAD */
+#define DISP_TYPE_NOTIFICATION_TIMER	8	/* KTIMER */
+#define DISP_TYPE_SYNCHRONIZATION_TIMER	9	/* KTIMER */
 
 #define OTYPE_EVENT		0
 #define OTYPE_MUTEX		1
@@ -334,14 +365,14 @@ struct ktimer {
 	uint64_t		k_duetime;
 	union {
 		list_entry		k_timerlistentry;
-		struct callout_handle	k_handle;
+		struct callout		*k_callout;
 	} u;
 	void			*k_dpc;
 	uint32_t		k_period;
 };
 
 #define k_timerlistentry	u.k_timerlistentry
-#define k_handle		u.k_handle
+#define k_callout		u.k_callout
 
 typedef struct ktimer ktimer;
 
@@ -389,17 +420,11 @@ typedef struct kdpc kdpc;
  */
 struct kmutant {
 	nt_dispatch_header	km_header;
-	union {
-		list_entry		km_listentry;
-		uint32_t		km_acquirecnt;
-	} u;
+	list_entry		km_listentry;
 	void			*km_ownerthread;
 	uint8_t			km_abandoned;
 	uint8_t			km_apcdisable;
 };
-
-#define km_listentry		u.km_listentry
-#define km_acquirecnt		u.km_acquirecnt
 
 typedef struct kmutant kmutant;
 
@@ -485,17 +510,27 @@ struct wait_block {
 	void			*wb_kthread;
 	nt_dispatch_header	*wb_object;
 	struct wait_block	*wb_next;
+#ifdef notdef
 	uint16_t		wb_waitkey;
 	uint16_t		wb_waittype;
+#endif
+	uint8_t			wb_waitkey;
+	uint8_t			wb_waittype;
+	uint8_t			wb_awakened;
+	uint8_t			wb_oldpri;
 };
 
 typedef struct wait_block wait_block;
+
+#define wb_ext wb_kthread
 
 #define THREAD_WAIT_OBJECTS	3
 #define MAX_WAIT_OBJECTS	64
 
 #define WAITTYPE_ALL		0
 #define WAITTYPE_ANY		1
+
+#define WAITKEY_VALID		0x8000
 
 struct thread_context {
 	void			*tc_thrctx;
@@ -531,6 +566,23 @@ struct custom_extension {
 };
 
 typedef struct custom_extension custom_extension;
+
+/*
+ * The KINTERRUPT structure in Windows is opaque to drivers.
+ * We define our own custom version with things we need.
+ */
+
+struct kinterrupt {
+	device_t		ki_dev;
+	void			*ki_cookie;
+	struct resource		*ki_irq;
+	kspin_lock		ki_lock_priv;
+	kspin_lock		*ki_lock;
+	void			*ki_svcfunc;
+	void			*ki_svcctx;
+};
+
+typedef struct kinterrupt kinterrupt;
 
 /*
  * In Windows, there are Physical Device Objects (PDOs) and
@@ -1199,7 +1251,7 @@ typedef struct work_queue_item work_queue_item;
 	do {						\
 		(w)->wqi_func = (func);			\
 		(w)->wqi_ctx = (ctx);			\
-		INIT_LIST_HEAD(&((w)->wqi_entry));	\
+		InitializeListHead(&((w)->wqi_entry));	\
 	} while (0);					\
 
 
@@ -1251,6 +1303,16 @@ extern void ctxsw_wtou(void);
 
 extern int ntoskrnl_libinit(void);
 extern int ntoskrnl_libfini(void);
+
+extern uint32_t RtlUnicodeStringToAnsiString(ansi_string *,
+	unicode_string *, uint8_t);
+extern uint32_t RtlAnsiStringToUnicodeString(unicode_string *,
+	ansi_string *, uint8_t);
+extern void RtlInitAnsiString(ansi_string *, char *);
+extern void RtlInitUnicodeString(unicode_string *,
+	uint16_t *);
+extern void RtlFreeUnicodeString(unicode_string *);
+extern void RtlFreeAnsiString(ansi_string *);
 extern void KeInitializeDpc(kdpc *, void *, void *);
 extern uint8_t KeInsertQueueDpc(kdpc *, void *, void *);
 extern uint8_t KeRemoveQueueDpc(kdpc *);
@@ -1280,10 +1342,16 @@ extern void KeAcquireSpinLockAtDpcLevel(kspin_lock *);
 extern void KeReleaseSpinLockFromDpcLevel(kspin_lock *);
 #endif
 extern void KeInitializeSpinLock(kspin_lock *);
+extern uint8_t KeSynchronizeExecution(kinterrupt *, void *, void *);
 extern uintptr_t InterlockedExchange(volatile uint32_t *,
 	uintptr_t);
 extern void *ExAllocatePoolWithTag(uint32_t, size_t, uint32_t);
 extern void ExFreePool(void *);
+extern uint32_t IoConnectInterrupt(kinterrupt **, void *, void *,
+	kspin_lock *, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t,
+	uint32_t, uint8_t);
+extern void MmBuildMdlForNonPagedPool(mdl *);
+extern void IoDisconnectInterrupt(kinterrupt *);
 extern uint32_t IoAllocateDriverObjectExtension(driver_object *,
 	void *, uint32_t, void **);
 extern void *IoGetDriverObjectExtension(driver_object *, void *);
