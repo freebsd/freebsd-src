@@ -284,7 +284,7 @@ inet6_rthdr_getflags(cmsg, idx)
 }
 
 /*
- * RFC3542 (2292bis) API
+ * RFC3542 API
  */
 
 socklen_t
