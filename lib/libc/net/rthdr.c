@@ -417,19 +417,18 @@ inet6_rth_getaddr(const void *bp, int idx)
 {
 	struct ip6_rthdr *rh = (struct ip6_rthdr *)bp;
 	struct ip6_rthdr0 *rh0;
-	int rthlen, addrs;
+	int addrs;
 
 	switch (rh->ip6r_type) {
 	case IPV6_RTHDR_TYPE_0:
 		 rh0 = (struct ip6_rthdr0 *)bp;
-		 rthlen = (rh0->ip6r0_len + 1) << 3;
 
 		/*
 		 * Validation for a type-0 routing header.
 		 * Is this too strict?
 		 */
-		if ((rthlen % 2) != 0 ||
-		    (addrs = (rthlen >> 1)) < rh0->ip6r0_segleft)
+		if ((rh0->ip6r0_len % 2) != 0 ||
+		    (addrs = (rh0->ip6r0_len >> 1)) < rh0->ip6r0_segleft)
 			return (NULL);
 
 		if (idx < 0 || addrs <= idx)
