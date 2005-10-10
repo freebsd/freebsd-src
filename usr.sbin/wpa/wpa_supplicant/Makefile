@@ -6,12 +6,14 @@ WPA_SUPPLICANT_DISTDIR?= ${.CURDIR}/../../../contrib/wpa_supplicant
 PROG=	wpa_supplicant
 SRCS=	config.c eloop.c common.c md5.c rc4.c sha1.c aes_wrap.c \
 	wpa_supplicant.c wpa.c \
-	ctrl_iface.c l2_packet.c drivers.c driver_freebsd.c
+	ctrl_iface.c l2_packet.c drivers.c driver_freebsd.c \
+	driver_ndis.c driver_ndis_.c Packet32.c
 
 MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
 
 CFLAGS+= -I${.CURDIR} -I${WPA_SUPPLICANT_DISTDIR}
 CFLAGS+= -DCONFIG_DRIVER_BSD
+CFLAGS+= -DCONFIG_DRIVER_NDIS
 CFLAGS+= -DCONFIG_CTRL_IFACE
 CFLAGS+= -g
 DPADD+=	${LIBPCAP}
