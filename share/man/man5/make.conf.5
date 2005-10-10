@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2005
+.Dd October 10, 2005
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -33,47 +33,77 @@
 .Sh DESCRIPTION
 The file
 .Nm
-contains settings that control the compilation of the
-.Fx
-sources
-and ported applications.
+contains system-wide settings that will apply to every build using
+.Xr make 1
+and the standard
+.Pa sys.mk
+file.
+This is achieved as follows:
+.Xr make 1
+processes the system makefile
+.Pa sys.mk
+before any other file by default, and
+.Pa sys.mk
+includes
+.Nm .
+.Pp
 The file
 .Nm
-is generally created by the system administrator when the values need
-to be changed from their defaults.
-.Pp
-The purpose of
+uses the standard makefile syntax.
+However,
 .Nm
-is not to run commands or perform compilation actions
-directly.
-Instead, it is included by the
-various makefiles in
+should not specify any dependencies to
+.Xr make 1 .
+Instead,
+.Nm
+is to set
+.Xr make 1
+variables that control the actions of other makefiles.
+.Pp
+The default location of
+.Nm
+is
+.Pa /etc/make.conf ,
+though an alternative location can be specified in the
+.Xr make 1
+variable
+.Va __MAKE_CONF .
+You may need to override the location of
+.Nm
+if the system-wide settings are not suitable for a particular build.
+For instance, setting
+.Va __MAKE_CONF
+to
+.Pa /dev/null
+effectively resets all build controls to their defaults.
+.Pp
+The primary purpose of
+.Nm
+is to control the compilation of the
+.Fx
+sources, documentation, and ported applications,
+which are usually found in
 .Pa /usr/src ,
-.Pa /usr/ports
+.Pa /usr/doc ,
 and
-.Pa /usr/doc
-which conditionalize their
-internal actions according to the settings found there.
+.Pa /usr/ports .
+As a rule, the system administrator creates
+.Nm
+when the values of certain control variables need to be changed
+from their defaults.
 .Pp
-The
-.Pa /etc/make.conf
-file is included from the appropriate
-.Pa Makefile
-which specifies the default settings for all the available options.
-Options need only be specified in
-.Pa /etc/make.conf
-when the system administrator wishes to override these defaults.
-.Pp
-The build procedures occur in four broad areas: the world, the kernel,
-documentations and ports.
+The system build procedures occur in four broad areas:
+the world, the kernel, documentation and ports.
 Variables set in
 .Nm
-may be applicable during builds in one, two, or all four of these
-areas.
-They may be specified for a particular build via the
+may be applicable in one, two, or all four of these areas.
+In addition, control variables can be specified
+for a particular build via the
 .Fl D
 option of
-.Xr make 1 .
+.Xr make 1
+or in
+.Xr environ 7 .
 .Pp
 The following lists provide a name and short description for each
 variable you can use during the indicated builds.
@@ -834,6 +864,7 @@ This option is ignored if NO_CRYPTO or NO_OPENSSL are configured.
 .It Pa /etc/make.conf
 .It Pa /usr/doc/Makefile
 .It Pa /usr/share/examples/etc/make.conf
+.It Pa /usr/share/mk/sys.mk
 .It Pa /usr/src/Makefile
 .It Pa /usr/src/Makefile.inc1
 .El
@@ -841,6 +872,7 @@ This option is ignored if NO_CRYPTO or NO_OPENSSL are configured.
 .Xr gcc 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
+.Xr environ 7 ,
 .Xr ports 7 ,
 .Xr lpd 8 ,
 .Xr sendmail 8
