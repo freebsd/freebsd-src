@@ -99,27 +99,28 @@ __FBSDID("$FreeBSD$");
  *
  * HTT Detection
  *
- * Not all HTT capable systems will have HTT enabled since users may
- * have turned HTT support off using the appropriate sysctls
- * (machdep.hlt_logical_cpus or machdep.logical_cpus_mask).  We detect
- * the presence of HTT by remembering if 'p4_init()' was called for a
- * logical CPU.  Note that hwpmc(4) cannot deal with a change in HTT
- * status once it is loaded.
+ * Not all HTT capable systems will have HTT enabled.  We detect the
+ * presence of HTT by detecting if 'p4_init()' was called for a secondary
+ * CPU in a HTT pair.
+ *
+ * Note that hwpmc(4) cannot currently deal with a change in HTT status once
+ * loaded.
  *
  * Handling HTT READ / WRITE / START / STOP
  *
- * PMC resources are shared across multiple logical CPUs.  In each
- * physical CPU's state we keep track of a 'runcount' which reflects
- * the number of PMC-using processes that have been scheduled on the
- * logical CPUs of this physical CPU.  Process-mode PMC operations
- * will actually 'start' or 'stop' hardware only if these are the
- * first or last processes respectively to use the hardware.  PMC
- * values written by a 'write' operation are saved and are transferred
- * to hardware at PMC 'start' time if the runcount is 0.  If the
- * runcount is greater than 0 at the time of a 'start' operation, we
- * keep track of the actual hardware value at the time of the 'start'
- * operation and use this to adjust the final readings at PMC 'stop'
- * or 'read' time.
+ * PMC resources are shared across the CPUs in an HTT pair.  We
+ * designate the lower numbered CPU in a HTT pair as the 'primary'
+ * CPU.  In each primary CPU's state we keep track of a 'runcount'
+ * which reflects the number of PMC-using processes that have been
+ * scheduled on its secondary CPU.  Process-mode PMC operations will
+ * actually 'start' or 'stop' hardware only if these are the first or
+ * last processes respectively to use the hardware.  PMC values
+ * written by a 'write' operation are saved and are transferred to
+ * hardware at PMC 'start' time if the runcount is 0.  If the runcount
+ * is greater than 0 at the time of a 'start' operation, we keep track
+ * of the actual hardware value at the time of the 'start' operation
+ * and use this to adjust the final readings at PMC 'stop' or 'read'
+ * time.
  *
  * Execution sequences:
  *
@@ -147,6 +148,11 @@ __FBSDID("$FreeBSD$");
  * the two logical processors in the package.  We keep track of config
  * and de-config operations using the CFGFLAGS fields of the per-physical
  * cpu state.
+ *
+ * Handling TSCs
+ *
+ * TSCs are architectural state and each CPU in a HTT pair has its own
+ * TSC register.
  */
 
 #define	P4_PMCS()				\
@@ -418,8 +424,6 @@ static struct p4pmc_descr p4_pmcdesc[P4_NPMCS] = {
 
 /* HTT support */
 #define	P4_NHTT					2 /* logical processors/chip */
-#define	P4_HTT_CPU_INDEX_0			0
-#define	P4_HTT_CPU_INDEX_1			1
 
 static int p4_system_has_htt;
 
@@ -487,7 +491,7 @@ struct p4_logicalcpu {
 #define	P4_PCPU_GET_CFGFLAGS(PC,RI)	(P4_PCPU_GET_FLAGS(PC,RI,0xF0) >> 4)
 #define	P4_PCPU_SET_CFGFLAGS(PC,RI,C)	P4_PCPU_SET_FLAGS(PC,RI,0xF0,((C) <<4))
 
-#define	P4_CPU_TO_FLAG(C)		(pmc_cpu_is_logical(cpu) ? 0x2 : 0x1)
+#define	P4_CPU_TO_FLAG(C)		(P4_CPU_IS_HTT_SECONDARY(cpu) ? 0x2 : 0x1)
 
 #define	P4_PCPU_GET_INTRFLAG(PC,I)	((PC)->pc_intrflag & (1 << (I)))
 #define	P4_PCPU_SET_INTRFLAG(PC,I,V)	do {		\
@@ -541,14 +545,16 @@ static int p4_escrdisp[P4_NESCR];
 
 #define	P4_ESCR_UNMARK_ROW_THREAD(E) do {				 \
 	atomic_add_int(&p4_escrdisp[(E)], -1);				 \
-	KASSERT(p4_escrdisp[(E)] >= 0, ("[p4,%d] row disposition error",\
+	KASSERT(p4_escrdisp[(E)] >= 0, ("[p4,%d] row disposition error", \
 		    __LINE__));						 \
 } while (0)
 
 #define	P4_PMC_IS_STOPPED(cccr)	((rdmsr(cccr) & P4_CCCR_ENABLE) == 0)
 
-#define	P4_TO_PHYSICAL_CPU(cpu) (pmc_cpu_is_logical(cpu) ?		\
-    ((cpu) & ~1) : (cpu))
+#define	P4_CPU_IS_HTT_SECONDARY(cpu)					\
+	(p4_system_has_htt ? ((cpu) & 1) : 0)
+#define	P4_TO_HTT_PRIMARY(cpu) 						\
+	(p4_system_has_htt ? ((cpu) & ~1) : (cpu))
 
 #define	P4_CCCR_Tx_MASK	(~(P4_CCCR_OVF_PMI_T0|P4_CCCR_OVF_PMI_T1|	\
 			     P4_CCCR_ENABLE|P4_CCCR_OVF))
@@ -592,13 +598,22 @@ p4_init(int cpu)
 	    pmc_cpu_is_logical(cpu) != 0);
 
 	/*
-	 * A 'logical' CPU shares its per-cpu state with its physical
-	 * CPU.  The physical CPU would have been initialized prior to
-	 * the initialization for this cpu.
+	 * The two CPUs in an HT pair share their per-cpu state.
+	 *
+	 * For HT capable CPUs, we assume that the two logical
+	 * processors in the HT pair get two consecutive CPU ids
+	 * starting with an even id #.
+	 *
+	 * The primary CPU (the even numbered CPU of the pair) would
+	 * have been initialized prior to the initialization for the
+	 * secondary.
 	 */
 
-	if (pmc_cpu_is_logical(cpu)) {
-		phycpu = P4_TO_PHYSICAL_CPU(cpu);
+	if (pmc_cpu_is_logical(cpu) && (cpu & 1)) {
+
+		p4_system_has_htt = 1;
+
+		phycpu = P4_TO_HTT_PRIMARY(cpu);
 		pcs = (struct p4_cpu *) pmc_pcpu[phycpu];
 		PMCDBG(MDP,INI,1, "p4-init cpu=%d phycpu=%d pcs=%p",
 		    cpu, phycpu, pcs);
@@ -607,8 +622,6 @@ p4_init(int cpu)
 			cpu, phycpu));
 		if (pcs == NULL) /* decline to init */
 			return ENXIO;
-
-		p4_system_has_htt = 1;
 
 		MALLOC(plcs, struct p4_logicalcpu *,
 		    sizeof(struct p4_logicalcpu), M_PMC, M_WAITOK|M_ZERO);
@@ -672,7 +685,7 @@ p4_cleanup(int cpu)
 	 * If the CPU is physical we need to teardown the
 	 * full MD state.
 	 */
-	if (!pmc_cpu_is_logical(cpu))
+	if (!P4_CPU_IS_HTT_SECONDARY(cpu))
 		mtx_destroy(&pcs->pc_mtx);
 
 	FREE(pcs, M_PMC);
@@ -762,7 +775,7 @@ p4_read_pmc(int cpu, int ri, pmc_value_t *v)
 		return 0;
 	}
 
-	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
+	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 	phw = pc->pc_hwpmcs[ri];
 	pd  = &p4_pmcdesc[ri];
 	pm  = phw->phw_pmc;
@@ -841,7 +854,7 @@ p4_write_pmc(int cpu, int ri, pmc_value_t v)
 	}
 
 	/* Shared PMCs */
-	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
+	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 	phw = pc->pc_hwpmcs[ri];
 	pm  = phw->phw_pmc;
 	pd  = &p4_pmcdesc[ri];
@@ -908,7 +921,7 @@ p4_config_pmc(int cpu, int ri, struct pmc *pm)
 
 	/* Shared PMCs */
 
-	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
+	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 	phw = pc->pc_hwpmcs[ri];
 
 	KASSERT(pm == NULL || phw->phw_pmc == NULL ||
@@ -966,7 +979,7 @@ p4_get_config(int cpu, int ri, struct pmc **ppm)
 	struct pmc_hw *phw;
 	int cfgflags;
 
-	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
+	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 	phw = pc->pc_hwpmcs[ri];
 
 	mtx_lock_spin(&pc->pc_mtx);
@@ -1091,7 +1104,7 @@ p4_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	    p4_system_has_htt)
 		return EINVAL;
 
-	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
+	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 
 	found   = 0;
 
@@ -1242,7 +1255,7 @@ p4_release_pmc(int cpu, int ri, struct pmc *pm)
 	PMCDBG(MDP,REL,1, "p4-release cpu=%d ri=%d escr=%d", cpu, ri, escr);
 
 	if (PMC_IS_SYSTEM_MODE(PMC_TO_MODE(pm))) {
-		pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
+		pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 		phw = pc->pc_hwpmcs[ri];
 
 		KASSERT(phw->phw_pmc == NULL,
@@ -1278,7 +1291,7 @@ p4_start_pmc(int cpu, int ri)
 	KASSERT(ri >= 0 && ri < P4_NPMCS,
 	    ("[p4,%d] illegal row-index %d", __LINE__, ri));
 
-	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
+	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 	phw = pc->pc_hwpmcs[ri];
 	pm  = phw->phw_pmc;
 	pd  = &p4_pmcdesc[ri];
@@ -1307,7 +1320,7 @@ p4_start_pmc(int cpu, int ri)
 	cccrvalue &= ~P4_CCCR_OVF_PMI_T0;
 	escrvalue &= ~(P4_ESCR_T0_OS|P4_ESCR_T0_USR);
 
-	if (pmc_cpu_is_logical(cpu)) { /* shift T0 bits to T1 position */
+	if (P4_CPU_IS_HTT_SECONDARY(cpu)) { /* shift T0 bits to T1 position */
 		cccrtbits <<= 1;
 		escrtbits >>= 2;
 	}
@@ -1435,7 +1448,7 @@ p4_stop_pmc(int cpu, int ri)
 	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
 		return 0;
 
-	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
+	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 	phw = pc->pc_hwpmcs[ri];
 
 	KASSERT(phw != NULL,
@@ -1468,7 +1481,7 @@ p4_stop_pmc(int cpu, int ri)
 	/* bits to mask */
 	cccrtbits = P4_CCCR_OVF_PMI_T0;
 	escrtbits = P4_ESCR_T0_OS | P4_ESCR_T0_USR;
-	if (pmc_cpu_is_logical(cpu)) {
+	if (P4_CPU_IS_HTT_SECONDARY(cpu)) {
 		cccrtbits <<= 1;
 		escrtbits >>= 2;
 	}
@@ -1553,13 +1566,13 @@ p4_intr(int cpu, uintptr_t eip, int usermode)
 
 	PMCDBG(MDP,INT, 1, "cpu=%d eip=%p um=%d", cpu, (void *) eip, usermode);
 
-	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_PHYSICAL_CPU(cpu)];
+	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 
-	ovf_mask = pmc_cpu_is_logical(cpu) ?
+	ovf_mask = P4_CPU_IS_HTT_SECONDARY(cpu) ?
 	    P4_CCCR_OVF_PMI_T1 : P4_CCCR_OVF_PMI_T0;
 	ovf_mask |= P4_CCCR_OVF;
 	if (p4_system_has_htt)
-		ovf_partner = pmc_cpu_is_logical(cpu) ? P4_CCCR_OVF_PMI_T0 :
+		ovf_partner = P4_CPU_IS_HTT_SECONDARY(cpu) ? P4_CCCR_OVF_PMI_T0 :
 		    P4_CCCR_OVF_PMI_T1;
 	else
 		ovf_partner = 0;
@@ -1701,7 +1714,7 @@ p4_describe(int cpu, int ri, struct pmc_info *pi,
 
 	PMCDBG(MDP,OPS,1,"p4-describe cpu=%d ri=%d", cpu, ri);
 
-	if (pmc_cpu_is_logical(cpu))
+	if (P4_CPU_IS_HTT_SECONDARY(cpu))
 		return EINVAL;
 
 	phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
