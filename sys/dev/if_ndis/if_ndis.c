@@ -2730,8 +2730,10 @@ ndis_ioctl(ifp, command, data)
 			break;
 		}
 		error =  copyin(ifr->ifr_data, &evt, sizeof(evt));
-		if (error)
+		if (error) {
+			NDIS_UNLOCK(sc);
 			break;
+		}
 		if (evt.ne_len < sc->ndis_evt[sc->ndis_evtcidx].ne_len) {
 			error = ENOSPC;
 			NDIS_UNLOCK(sc);
