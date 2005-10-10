@@ -140,7 +140,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 	/* Initialise hooks in the thread structure: */
 	if (new_thread->attr.suspend == THR_CREATE_SUSPENDED)
-		new_thread->flags = THR_FLAGS_SUSPENDED;
+		new_thread->flags = THR_FLAGS_NEED_SUSPEND;
 	new_thread->state = PS_RUNNING;
 
 	/* Add the new thread. */
