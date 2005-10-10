@@ -7,9 +7,6 @@ driver_bsd.c
 driver_hostap.c
 driver_ipw.c
 driver_madwifi.c
-driver_ndis.c
-driver_ndis.h
-driver_ndis_.c
 driver_ndiswrapper.c
 driver_prism54.c
 driver_test.c
