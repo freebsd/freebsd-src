@@ -54,8 +54,23 @@ static const int32_t two_over_pi[] = {
 0x73, 0xA8, 0xC9, 0x60, 0xE2, 0x7B, 0xC0, 0x8C, 0x6B,
 };
 
-/* This array is like the one in e_rem_pio2.c, but the numbers are
-   single precision and the last 8 bits are forced to 0.  */
+/*
+ * This array is like the one in e_rem_pio2.c, but the numbers are
+ * single precision and the last few bits (8 here) are ignored by
+ * masking them off in the float word instead of by omitting the low
+ * word.
+ * 
+ * Masking off 8 bits is not enough, but we defer further masking to
+ * runtime so that the mask is easy to change.  We now mask off 21
+ * bits, which is the smallest number that makes the "quick check no
+ * cancellation" detect all cancellations for cases that it is used.
+ * It doesn't detect all non-cancellations, especiallly for small
+ * multiples of pi/2, but then the non-quick code selects the best
+ * approximation of pi/2 to use.  The result is that arg reduction is
+ * always done with between 8 or 9 and 17 bits of extra precision in
+ * the medium-multiple case.  With only 8 bits masked of we had
+ * negative extra precision in some cases starting near +-13*pi/2.
+ */
 static const int32_t npio2_hw[] = {
 0x3fc90f00, 0x40490f00, 0x4096cb00, 0x40c90f00, 0x40fb5300, 0x4116cb00,
 0x412fed00, 0x41490f00, 0x41623100, 0x417b5300, 0x418a3a00, 0x4196cb00,
@@ -128,7 +143,7 @@ pio2_3t =  6.1232342629e-17; /* 0x248d3132 */
 	    fn = (float)n;
 	    r  = t-fn*pio2_1;
 	    w  = fn*pio2_1t;	/* 1st round good to 40 bit */
-	    if(n<32&&(ix&0xffffff00)!=npio2_hw[n-1]) {
+	    if(n<32&&(ix&0xffe00000)!=(npio2_hw[n-1]&0xffe00000)) {
 		y[0] = r-w;	/* quick check no cancellation */
 	    } else {
 	        u_int32_t high;
