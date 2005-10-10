@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2005
+.Dd October 10, 2005
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -188,8 +188,8 @@ Continue processing after errors are encountered, but only on those targets
 that do not depend on the target whose creation caused the error.
 .It Fl m Ar directory
 Specify a directory in which to search for
-.Pa sys.mk
-and makefiles included via the <...> style.
+the system makefile to process before any other file,
+as well as for makefiles included via the <...> style.
 Multiple directories can be added to form a search path.
 This path will override the default system include path:
 .Pa /usr/share/mk .
@@ -210,7 +210,7 @@ is used too.
 Do not execute any commands, but exit 0 if the specified targets are
 up-to-date and 1, otherwise.
 .It Fl r
-Do not use the built-in rules specified in the system makefile.
+Do not process the system makefile.
 .It Fl S
 Stop processing when an error is encountered.
 Default behaviour.
@@ -670,6 +670,12 @@ Makefiles may assign a colon-delimited list of directories to
 These directories will be searched for source files by
 .Nm
 after it has finished parsing all input makefiles.
+.It Va __MAKE_CONF
+This variable can specify an alternative location of
+.Xr make.conf 5
+for
+.Pa sys.mk
+to include.
 .El
 .Pp
 Variable expansion may be modified to select or modify each word of the
@@ -1451,6 +1457,9 @@ system makefile (processed before any other file, including
 .Pa makefile
 and
 .Pa Makefile )
+.It Pa /etc/make.conf
+default location of
+.Xr make.conf 5
 .It Pa /usr/share/mk
 system makefile directory
 .It /usr/share/doc/psd/12.make
