@@ -50,7 +50,7 @@ test-pv ( ) { \
 test-pv 0.10 "=" 0.10_0 coercion
 test-pv 0.10 "=" 0.10,0 coercion
 test-pv 0.10 "=" 0.10_0,0 coercion
-  
+
 # Test various comparisons
 test-pv 1.0 "=" 1.0 equality
 test-pv 2.15a "=" 2.15a equality
