@@ -137,8 +137,8 @@ windrv_libfini(void)
 	}
 	mtx_unlock(&drvdb_mtx);
 
-	free(fake_pci_driver.dro_drivername.us_buf, M_DEVBUF);
-	free(fake_pccard_driver.dro_drivername.us_buf, M_DEVBUF);
+	RtlFreeUnicodeString(&fake_pci_driver.dro_drivername);
+	RtlFreeUnicodeString(&fake_pccard_driver.dro_drivername);
 
 	mtx_destroy(&drvdb_mtx);
 
@@ -161,16 +161,16 @@ windrv_lookup(img, name)
 {
 	struct drvdb_ent	*d;
 	unicode_string		us;
+	ansi_string		as;
 
 	bzero((char *)&us, sizeof(us));
 
 	/* Damn unicode. */
 
 	if (name != NULL) {
-	 	us.us_len = strlen(name) * 2;
-		us.us_maxlen = strlen(name) * 2;
-		us.us_buf = NULL;
-		ndis_ascii_to_unicode(name, &us.us_buf);
+		RtlInitAnsiString(&as, name);
+		if (RtlAnsiStringToUnicodeString(&us, &as, TRUE))
+			return(NULL);
 	}
 
 	mtx_lock(&drvdb_mtx); 
@@ -187,7 +187,7 @@ windrv_lookup(img, name)
 	mtx_unlock(&drvdb_mtx);
 
 	if (name != NULL)
-		ExFreePool(us.us_buf);
+		RtlFreeUnicodeString(&us);
 
 	return(NULL);
 }
@@ -230,7 +230,7 @@ windrv_unload(mod, img, len)
 	driver_object		*drv;
 	device_object		*d, *pdo;
 	device_t		dev;
-	list_entry		*e, *c;
+	list_entry		*e;
 
 	drv = windrv_lookup(img, NULL);
 
@@ -267,7 +267,7 @@ windrv_unload(mod, img, len)
 			mtx_lock(&drvdb_mtx);
 		}
 	}
- 
+
 	STAILQ_FOREACH(db, &drvdb_head, link) {
 		if (db->windrv_object->dro_driverstart == (void *)img) {
 			r = db;
@@ -280,23 +280,23 @@ windrv_unload(mod, img, len)
 	if (r == NULL)
 		return (ENOENT);
 
+	if (drv == NULL)
+		return(ENOENT);
+
         /*
 	 * Destroy any custom extensions that may have been added.
 	 */
 	drv = r->windrv_object;
-	e = drv->dro_driverext->dre_usrext.nle_flink;
-	while (e != &drv->dro_driverext->dre_usrext) {
-		c = e->nle_flink;
-		REMOVE_LIST_ENTRY(e);
+	while (!IsListEmpty(&drv->dro_driverext->dre_usrext)) {
+		e = RemoveHeadList(&drv->dro_driverext->dre_usrext);
 		ExFreePool(e);
-		e = c;
 	}
 
 	/* Free the driver extension */
 	free(drv->dro_driverext, M_DEVBUF);
 
 	/* Free the driver name */
-	free(drv->dro_drivername.us_buf, M_DEVBUF);
+	RtlFreeUnicodeString(&drv->dro_drivername);
 
 	/* Free driver object */
 	free(drv, M_DEVBUF);
@@ -330,6 +330,7 @@ windrv_load(mod, img, len, bustype, devlist, regvals)
 	struct driver_object	*drv;
 	int			status;
 	uint32_t		*ptr;
+	ansi_string		as;
 
 	/*
 	 * First step: try to relocate and dynalink the executable
@@ -396,16 +397,17 @@ skipreloc:
 		return(ENOMEM);
 	}
 
-	INIT_LIST_HEAD((&drv->dro_driverext->dre_usrext));
+	InitializeListHead((&drv->dro_driverext->dre_usrext));
 
 	drv->dro_driverstart = (void *)img;
 	drv->dro_driversize = len;
 
-	drv->dro_drivername.us_len = strlen(DUMMY_REGISTRY_PATH) * 2;
-        drv->dro_drivername.us_maxlen = strlen(DUMMY_REGISTRY_PATH) * 2;
-        drv->dro_drivername.us_buf = NULL;
-        ndis_ascii_to_unicode(DUMMY_REGISTRY_PATH,
-	    &drv->dro_drivername.us_buf);
+	RtlInitAnsiString(&as, DUMMY_REGISTRY_PATH);
+	if (RtlAnsiStringToUnicodeString(&drv->dro_drivername, &as, TRUE)) {
+		free(new, M_DEVBUF);
+		free(drv, M_DEVBUF);
+		return(ENOMEM);
+	}
 
 	new->windrv_object = drv;
 	new->windrv_regvals = regvals;
@@ -417,7 +419,7 @@ skipreloc:
 	status = MSCALL2(entry, drv, &drv->dro_drivername);
 
 	if (status != STATUS_SUCCESS) {
-		free(drv->dro_drivername.us_buf, M_DEVBUF);
+		RtlFreeUnicodeString(&drv->dro_drivername);
 		free(drv, M_DEVBUF);
 		free(new, M_DEVBUF);
 		return(ENODEV);
@@ -517,15 +519,15 @@ windrv_bus_attach(drv, name)
 	char			*name;
 {
 	struct drvdb_ent	*new;
+	ansi_string		as;
 
 	new = malloc(sizeof(struct drvdb_ent), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (new == NULL)
 		return (ENOMEM);
 
-	drv->dro_drivername.us_len = strlen(name) * 2;
-        drv->dro_drivername.us_maxlen = strlen(name) * 2;
-        drv->dro_drivername.us_buf = NULL;
-        ndis_ascii_to_unicode(name, &drv->dro_drivername.us_buf);
+	RtlInitAnsiString(&as, name);
+	if (RtlAnsiStringToUnicodeString(&drv->dro_drivername, &as, TRUE))
+		return(ENOMEM);
 
 	/*
 	 * Set up a fake image pointer to avoid false matches
@@ -674,7 +676,7 @@ ctxsw_utow(void)
 	 * hasn't, we need to do it right now or else things will
 	 * explode.
 	 */
- 
+
 	if (t->tid_self != t)
 		x86_newldt(NULL);
 
