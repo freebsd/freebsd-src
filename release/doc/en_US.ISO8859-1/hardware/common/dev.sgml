@@ -691,6 +691,8 @@
 
     &hwlist.snd.maestro3;
 
+    &hwlist.snd.mss;
+
     &hwlist.snd.neomagic;
 
     &hwlist.snd.sbc;
