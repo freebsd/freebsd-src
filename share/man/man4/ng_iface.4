@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_iface.8,v 1.5 1999/01/25 23:46:26 archie Exp $
 .\"
-.Dd February 3, 2005
+.Dd October 10, 2005
 .Dt NG_IFACE 4
 .Os
 .Sh NAME
@@ -138,7 +138,24 @@ node does
 go away when all hooks have been disconnected; rather, and explicit
 .Dv NGM_SHUTDOWN
 control message is required.
+.Sh ALTQ Support
+The
+.Nm
+interface supports ALTQ bandwidth management feature.
+However,
+.Nm
+is a special case, since it is not a physical interface with limited bandwidth.
+One should not turn ALTQ on
+.Nm
+if the latter corresponds to some tunneled connection, e.g. PPPoE or PPTP.
+In this case ALTQ should be configured on the interface, that is used to
+trasmit the encapsulated packets.
+In case when your graph ends up with some kind of serial line, either
+synchronous or modem, then
+.Nm
+is the right place to turn ALTQ on.
 .Sh SEE ALSO
+.Xr altq 4 ,
 .Xr bpf 4 ,
 .Xr netgraph 4 ,
 .Xr ng_cisco 4 ,
