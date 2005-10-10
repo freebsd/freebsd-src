@@ -188,6 +188,10 @@ case ${ipv6_firewall_type} in
 	${fw6cmd} add deny all from ${inet}/${iprefixlen} to any in via ${oif}
 	${fw6cmd} add deny all from ${onet}/${oprefixlen} to any in via ${iif}
 
+	# Stop unique local unicast address on the outside interface
+	${fw6cmd} add deny all from fc00::/7 to any via ${oif}
+	${fw6cmd} add deny all from any to fc00::/7 via ${oif}
+
 	# Stop site-local on the outside interface
 	${fw6cmd} add deny all from fec0::/10 to any via ${oif}
 	${fw6cmd} add deny all from any to fec0::/10 via ${oif}
