@@ -268,6 +268,31 @@ typedef uint8_t ndis_kirql;
 #define OID_PNP_WAKE_UP_PATTERN_LIST		0xFD010105
 #define OID_PNP_ENABLE_WAKE_UP			0xFD010106
 
+/*
+ * These are the possible power states for
+ * OID_PNP_SET_POWER and OID_PNP_QUERY_POWER.
+ */
+#define NDIS_POWERSTATE_UNSPEC			0
+#define NDIS_POWERSTATE_D0			1
+#define NDIS_POWERSTATE_D1			2
+#define NDIS_POWERSTATE_D2			3
+#define NDIS_POWERSTATE_D3			4
+
+/*
+ * These are used with the MiniportPnpEventNotify() method.
+ */
+
+#define NDIS_POWERPROFILE_BATTERY		0
+#define NDIS_POWERPROFILE_ACONLINE		1
+
+#define NDIS_PNP_EVENT_QUERY_REMOVED		0
+#define NDIS_PNP_EVENT_REMOVED			1
+#define NDIS_PNP_EVENT_SURPRISE_REMOVED		2
+#define NDIS_PNP_EVENT_QUERY_STOPPED		3
+#define NDIS_PNP_EVENT_STOPPED			4
+#define NDIS_PNP_EVENT_PROFILECHANGED		5
+
+
 /* PnP/PM Statistics (Optional). */
 #define OID_PNP_WAKE_UP_OK			0xFD020200
 #define OID_PNP_WAKE_UP_ERROR			0xFD020201
@@ -310,6 +335,8 @@ typedef uint8_t ndis_kirql;
 #define OID_802_11_REMOVE_KEY			0x0D01011E
 #define OID_802_11_ASSOCIATION_INFORMATION	0x0D01011F
 #define OID_802_11_TEST				0x0D010120
+#define OID_802_11_CAPABILITY			0x0D010122
+#define OID_802_11_PMKID			0x0D010123
 
 /* structures/definitions for 802.11 */
 #define NDIS_80211_NETTYPE_11FH		0x00000000
@@ -390,6 +417,8 @@ typedef struct ndis_80211_wep ndis_80211_wep;
 #define NDIS_80211_AUTHMODE_WPA		0x00000003
 #define NDIS_80211_AUTHMODE_WPAPSK	0x00000004
 #define NDIS_80211_AUTHMODE_WPANONE	0x00000005
+#define NDIS_80211_AUTHMODE_WPA2	0x00000006
+#define NDIS_80211_AUTHMODE_WPA2PSK	0x00000007
 
 typedef uint8_t ndis_80211_rates[8];
 typedef uint8_t ndis_80211_rates_ex[16];
@@ -483,12 +512,18 @@ typedef uint32_t ndis_80211_antenna;
 #define NDIS_80211_RELOADDEFAULT_WEP	0x00000000
 
 #define NDIS_80211_STATUSTYPE_AUTH	0x00000000
+#define NDIS_80211_STATUSTYPE_PMKIDLIST	0x00000001
 
 struct ndis_80211_status_indication {
 	uint32_t		nsi_type;
 };
 
 typedef struct ndis_80211_status_indication ndis_80211_status_indication;
+
+#define NDIS_802_11_AUTH_REQUEST_REAUTH		0x01
+#define NDIS_802_11_AUTH_REQUEST_KEYUPDATE	0x02
+#define NDIS_802_11_AUTH_REQUEST_PAIRWISE_ERROR	0x06
+#define NDIS_802_11_AUTH_REQUEST_GROUP_ERROR	0x0E
 
 struct ndis_80211_auth_request {
 	uint32_t		nar_len;
@@ -503,8 +538,9 @@ struct ndis_80211_key {
 	uint32_t		nk_keyidx;
 	uint32_t		nk_keylen;
 	ndis_80211_macaddr	nk_bssid;
+	uint8_t			nk_pad[6];
 	uint64_t		nk_keyrsc;
-	uint8_t			nk_keydata[256];
+	uint8_t			nk_keydata[32];
 };
 
 typedef struct ndis_80211_key ndis_80211_key;
@@ -572,6 +608,61 @@ struct ndis_80211_test {
 };
 
 typedef struct ndis_80211_test ndis_80211_test;
+
+struct ndis_80211_auth_encrypt {
+	uint32_t		ne_authmode;
+	uint32_t		ne_cryptstat;
+};
+
+typedef struct ndis_80211_auth_encrypt ndis_80211_auth_encrypt;
+	
+struct ndis_80211_caps {
+	uint32_t		nc_len;
+	uint32_t		nc_ver;
+	uint32_t		nc_numpmkids;
+	ndis_80211_auth_encrypt	nc_authencs[1];
+};
+
+typedef struct ndis_80211_caps ndis_80211_caps;
+
+struct ndis_80211_bssidinfo {
+	ndis_80211_macaddr	nb_bssid;
+	uint8_t			nb_pmkid[16];
+};
+
+typedef struct ndis_80211_bssidinfo ndis_80211_bssidinfo;
+
+struct ndis_80211_pmkid {
+	uint32_t		np_len;
+	uint32_t		np_bssidcnt;
+	ndis_80211_bssidinfo	np_bssidinfo[1];
+};
+
+typedef struct ndis_80211_pmkid ndis_80211_pmkid;
+
+struct ndis_80211_pmkid_cand {
+	ndis_80211_macaddr	npc_bssid;
+	uint32_t		npc_flags;
+};
+
+typedef struct ndis_80211_pmkid_cand ndis_80211_pmkid_cand;
+
+#define NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED (0x01)
+
+struct ndis_80211_pmkid_candidate_list {
+	uint32_t		npcl_version;
+	uint32_t		npcl_numcandidates;
+	ndis_80211_pmkid_cand	npcl_candidatelist[1];
+};
+
+typedef struct ndis_80211_pmkid_candidate_list ndis_80211_pmkid_candidate_list;
+
+struct ndis_80211_enc_indication {
+	uint32_t		nei_statustype;
+	ndis_80211_pmkid_candidate_list nei_pmkidlist;
+};
+
+typedef struct ndis_80211_enc_indication ndis_80211_enc_indication;
 
 /* TCP OIDs. */
 
@@ -682,6 +773,7 @@ typedef struct ndis_task_ipsec ndis_task_ipsec;
  * all attributes.
  */
 
+#define NDIS_ATTRIBUTE_IGNORE_PACKET_TIMEOUT		0x00000001
 #define NDIS_ATTRIBUTE_IGNORE_REQUEST_TIMEOUT		0x00000002
 #define NDIS_ATTRIBUTE_IGNORE_TOKEN_RING_ERRORS		0x00000004
 #define NDIS_ATTRIBUTE_BUS_MASTER			0x00000008
@@ -805,7 +897,19 @@ struct ndis_config_parm {
 	} ncp_parmdata;
 };
 
+/*
+ * Not part of Windows NDIS spec; we uses this to keep a
+ * list of ndis_config_parm structures that we've allocated.
+ */
+
 typedef struct ndis_config_parm ndis_config_parm;
+
+struct ndis_parmlist_entry {
+	list_entry		np_list;
+	ndis_config_parm	np_parm;
+};
+
+typedef struct ndis_parmlist_entry ndis_parmlist_entry;
 
 #ifdef notdef
 struct ndis_list_entry {
@@ -952,16 +1056,16 @@ typedef struct ndis_request ndis_request;
  * Filler, not used.
  */
 struct ndis_miniport_interrupt {
-	void			*ni_introbj;
+	kinterrupt		*ni_introbj;
 	ndis_kspin_lock		ni_dpccountlock;
 	void			*ni_rsvd;
 	void			*ni_isrfunc;
 	void			*ni_dpcfunc;
-	struct ndis_kdpc	ni_dpc;
+	kdpc			ni_dpc;
 	ndis_miniport_block	*ni_block;
 	uint8_t			ni_dpccnt;
 	uint8_t			ni_filler1;
-	struct ndis_kevent	ni_dpcsdoneevent;
+	struct nt_kevent	ni_dpcevt;
 	uint8_t			ni_shared;
 	uint8_t			ni_isrreq;
 };
@@ -1506,8 +1610,7 @@ struct ndis_miniport_block {
 	 * End of windows-specific portion of miniport block. Everything
 	 * below is BSD-specific.
 	 */
-	uint8_t			nmb_dummybuf[128];
-	ndis_config_parm	nmb_replyparm;
+	list_entry		nmb_parmlist;
 	ndis_resource_list	*nmb_rlist;
 	ndis_status		nmb_getstat;
 	ndis_status		nmb_setstat;
@@ -1600,8 +1703,6 @@ extern image_patch_table ndis_functbl[];
 __BEGIN_DECLS
 extern int ndis_libinit(void);
 extern int ndis_libfini(void);
-extern int ndis_ascii_to_unicode(char *, uint16_t **);
-extern int ndis_unicode_to_ascii(uint16_t *, int, char **);
 extern int ndis_load_driver(vm_offset_t, void *);
 extern int ndis_unload_driver(void *);
 extern int ndis_mtop(struct mbuf *, ndis_packet **);
@@ -1629,8 +1730,6 @@ extern int ndis_destroy_dma(void *);
 extern int ndis_create_sysctls(void *);
 extern int ndis_add_sysctl(void *, char *, char *, char *, int);
 extern int ndis_flush_sysctls(void *);
-extern int ndis_thsuspend(struct proc *, struct mtx *, int);
-extern void ndis_thresume(struct proc *);
 extern int ndis_strcasecmp(const char *, const char *);
 extern int ndis_strncasecmp(const char *, const char *, size_t);
 

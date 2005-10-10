@@ -104,6 +104,13 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/ndis_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/uma.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+
 static char ndis_filepath[MAXPATHLEN];
 extern struct nd_head ndis_devhead;
 
@@ -124,17 +131,17 @@ static ndis_status NdisMSetAttributesEx(ndis_handle, ndis_handle,
 static void NdisOpenConfiguration(ndis_status *,
 	ndis_handle *, ndis_handle);
 static void NdisOpenConfigurationKeyByIndex(ndis_status *,
-	ndis_handle, uint32_t, ndis_unicode_string *, ndis_handle *);
+	ndis_handle, uint32_t, unicode_string *, ndis_handle *);
 static void NdisOpenConfigurationKeyByName(ndis_status *,
-	ndis_handle, ndis_unicode_string *, ndis_handle *);
+	ndis_handle, unicode_string *, ndis_handle *);
 static ndis_status ndis_encode_parm(ndis_miniport_block *,
 	struct sysctl_oid *, ndis_parm_type, ndis_config_parm **);
 static ndis_status ndis_decode_parm(ndis_miniport_block *,
 	ndis_config_parm *, char *);
 static void NdisReadConfiguration(ndis_status *, ndis_config_parm **,
-	ndis_handle, ndis_unicode_string *, ndis_parm_type);
+	ndis_handle, unicode_string *, ndis_parm_type);
 static void NdisWriteConfiguration(ndis_status *, ndis_handle,
-	ndis_unicode_string *, ndis_config_parm *);
+	unicode_string *, ndis_config_parm *);
 static void NdisCloseConfiguration(ndis_handle);
 static void NdisAllocateSpinLock(ndis_spin_lock *);
 static void NdisFreeSpinLock(ndis_spin_lock *);
@@ -213,11 +220,10 @@ static void NdisInitializeEvent(ndis_event *);
 static void NdisSetEvent(ndis_event *);
 static void NdisResetEvent(ndis_event *);
 static uint8_t NdisWaitEvent(ndis_event *, uint32_t);
-static ndis_status NdisUnicodeStringToAnsiString(ndis_ansi_string *,
-	ndis_unicode_string *);
+static ndis_status NdisUnicodeStringToAnsiString(ansi_string *,
+	unicode_string *);
 static ndis_status
-	NdisAnsiStringToUnicodeString(ndis_unicode_string *,
-	ndis_ansi_string *);
+	NdisAnsiStringToUnicodeString(unicode_string *, ansi_string *);
 static ndis_status NdisMPciAssignResources(ndis_handle,
 	uint32_t, ndis_resource_list **);
 static ndis_status NdisMRegisterInterrupt(ndis_miniport_interrupt *,
@@ -248,11 +254,10 @@ static uint8_t
 	void *, void *);
 static void NdisGetCurrentSystemTime(uint64_t *);
 static void NdisGetSystemUpTime(uint32_t *);
-static void NdisInitializeString(ndis_unicode_string *, char *);
-static void NdisInitAnsiString(ndis_ansi_string *, char *);
-static void NdisInitUnicodeString(ndis_unicode_string *,
-	uint16_t *);
-static void NdisFreeString(ndis_unicode_string *);
+static void NdisInitializeString(unicode_string *, char *);
+static void NdisInitAnsiString(ansi_string *, char *);
+static void NdisInitUnicodeString(unicode_string *, uint16_t *);
+static void NdisFreeString(unicode_string *);
 static ndis_status NdisMRemoveMiniport(ndis_handle *);
 static void NdisTerminateWrapper(ndis_handle, void *);
 static void NdisMGetDeviceProperty(ndis_handle, device_object **,
@@ -264,7 +269,7 @@ static void NdisGetFirstBufferFromPacketSafe(ndis_packet *,
 	ndis_buffer **, void **, uint32_t *, uint32_t *, uint32_t);
 static int ndis_find_sym(linker_file_t, char *, char *, caddr_t *);
 static void NdisOpenFile(ndis_status *, ndis_handle *, uint32_t *,
-	ndis_unicode_string *, ndis_physaddr);
+	unicode_string *, ndis_physaddr);
 static void NdisMapFile(ndis_status *, void **, ndis_handle);
 static void NdisUnmapFile(ndis_handle);
 static void NdisCloseFile(ndis_handle);
@@ -272,18 +277,19 @@ static uint8_t NdisSystemProcessorCount(void);
 static void NdisMIndicateStatusComplete(ndis_handle);
 static void NdisMIndicateStatus(ndis_handle, ndis_status,
         void *, uint32_t);
+static void ndis_intr(void *);
+static void ndis_intrhand(kdpc *, ndis_miniport_interrupt *, void *, void *);
 static funcptr ndis_findwrap(funcptr);
 static void NdisCopyFromPacketToPacket(ndis_packet *,
 	uint32_t, uint32_t, ndis_packet *, uint32_t, uint32_t *);
 static void NdisCopyFromPacketToPacketSafe(ndis_packet *,
 	uint32_t, uint32_t, ndis_packet *, uint32_t, uint32_t *, uint32_t);
 static ndis_status NdisMRegisterDevice(ndis_handle,
-	ndis_unicode_string *, ndis_unicode_string *, driver_dispatch **,
+	unicode_string *, unicode_string *, driver_dispatch **,
 	void **, ndis_handle *);
 static ndis_status NdisMDeregisterDevice(ndis_handle);
 static ndis_status
-	NdisMQueryAdapterInstanceName(ndis_unicode_string *,
-	ndis_handle);
+	NdisMQueryAdapterInstanceName(unicode_string *, ndis_handle);
 static void NdisMRegisterUnloadHandler(ndis_handle, void *);
 static void dummy(void);
 
@@ -343,57 +349,6 @@ ndis_findwrap(func)
 	}
 
 	return(NULL);
-}
-
-/*
- * NDIS deals with strings in unicode format, so we have
- * do deal with them that way too. For now, we only handle
- * conversion between unicode and ASCII since that's all
- * that device drivers care about.
- */
-
-int
-ndis_ascii_to_unicode(ascii, unicode)
-	char			*ascii;
-	uint16_t		**unicode;
-{
-	uint16_t		*ustr;
-	int			i;
-
-	if (*unicode == NULL)
-		*unicode = malloc(strlen(ascii) * 2, M_DEVBUF, M_NOWAIT);
-
-	if (*unicode == NULL)
-		return(ENOMEM);
-	ustr = *unicode;
-	for (i = 0; i < strlen(ascii); i++) {
-		*ustr = (uint16_t)ascii[i];
-		ustr++;
-	}
-
-	return(0);
-}
-
-int
-ndis_unicode_to_ascii(unicode, ulen, ascii)
-	uint16_t		*unicode;
-	int			ulen;
-	char			**ascii;
-{
-	uint8_t			*astr;
-	int			i;
-
-	if (*ascii == NULL)
-		*ascii = malloc((ulen / 2) + 1, M_DEVBUF, M_NOWAIT|M_ZERO);
-	if (*ascii == NULL)
-		return(ENOMEM);
-	astr = *ascii;
-	for (i = 0; i < ulen / 2; i++) {
-		*astr = (uint8_t)unicode[i];
-		astr++;
-	}
-
-	return(0);
 }
 
 /*
@@ -465,8 +420,10 @@ NdisMRegisterMiniport(handle, characteristics, len)
 
 	if (IoAllocateDriverObjectExtension(drv, (void *)1,
 	    sizeof(ndis_miniport_characteristics), (void **)&ch) !=
-	    STATUS_SUCCESS)
+	    STATUS_SUCCESS) {
+		printf("register error\n");
 		return(NDIS_STATUS_RESOURCES);
+	}
 
 	bzero((char *)ch, sizeof(ndis_miniport_characteristics));
 
@@ -489,10 +446,10 @@ NdisAllocateMemoryWithTag(vaddr, len, tag)
 {
 	void			*mem;
 
-
 	mem = ExAllocatePoolWithTag(NonPagedPool, len, tag);
-	if (mem == NULL)
+	if (mem == NULL) {
 		return(NDIS_STATUS_RESOURCES);
+	}
 	*vaddr = mem;
 
 	return(NDIS_STATUS_SUCCESS);
@@ -568,7 +525,7 @@ static void
 NdisOpenConfigurationKeyByName(status, cfg, subkey, subhandle)
 	ndis_status		*status;
 	ndis_handle		cfg;
-	ndis_unicode_string	*subkey;
+	unicode_string		*subkey;
 	ndis_handle		*subhandle;
 {
 	*subhandle = cfg;
@@ -582,7 +539,7 @@ NdisOpenConfigurationKeyByIndex(status, cfg, idx, subkey, subhandle)
 	ndis_status		*status;
 	ndis_handle		cfg;
 	uint32_t		idx;
-	ndis_unicode_string	*subkey;
+	unicode_string		*subkey;
 	ndis_handle		*subhandle;
 {
 	*status = NDIS_STATUS_FAILURE;
@@ -597,36 +554,58 @@ ndis_encode_parm(block, oid, type, parm)
 	ndis_parm_type		type;
 	ndis_config_parm	**parm;
 {
-	uint16_t		*unicode;
-	ndis_unicode_string	*ustr;
+	ndis_config_parm	*p;
+	ndis_parmlist_entry	*np;
+	unicode_string		*us;
+	ansi_string		as;
 	int			base = 0;
+	uint32_t		val;
+	char			tmp[32];
 
-	unicode = (uint16_t *)&block->nmb_dummybuf;
+	np = ExAllocatePoolWithTag(NonPagedPool,
+	    sizeof(ndis_parmlist_entry), 0);
+	if (np == NULL)
+		return(NDIS_STATUS_RESOURCES);
+	InsertHeadList((&block->nmb_parmlist), (&np->np_list));
+	*parm = p = &np->np_parm;
 
 	switch(type) {
 	case ndis_parm_string:
-		ndis_ascii_to_unicode((char *)oid->oid_arg1, &unicode);
-		(*parm)->ncp_type = ndis_parm_string;
-		ustr = &(*parm)->ncp_parmdata.ncp_stringdata;
-		ustr->us_len = strlen((char *)oid->oid_arg1) * 2;
-		ustr->us_buf = unicode;
+		/* See if this might be a number. */
+		val = strtoul((char *)oid->oid_arg1, NULL, 10);
+		us = &p->ncp_parmdata.ncp_stringdata;
+		p->ncp_type = ndis_parm_string;
+		if (val) {
+			snprintf(tmp, 32, "%x", val);
+			RtlInitAnsiString(&as, tmp);
+		} else {
+			RtlInitAnsiString(&as, (char *)oid->oid_arg1);
+		}
+
+		if (RtlAnsiStringToUnicodeString(us, &as, TRUE)) {
+			ExFreePool(np);
+			return(NDIS_STATUS_RESOURCES);
+		}
 		break;
 	case ndis_parm_int:
 		if (strncmp((char *)oid->oid_arg1, "0x", 2) == 0)
 			base = 16;
 		else
 			base = 10;
-		(*parm)->ncp_type = ndis_parm_int;
-		(*parm)->ncp_parmdata.ncp_intdata =
+		p->ncp_type = ndis_parm_int;
+		p->ncp_parmdata.ncp_intdata =
 		    strtol((char *)oid->oid_arg1, NULL, base);
 		break;
 	case ndis_parm_hexint:
+#ifdef notdef
 		if (strncmp((char *)oid->oid_arg1, "0x", 2) == 0)
 			base = 16;
 		else
 			base = 10;
-		(*parm)->ncp_type = ndis_parm_hexint;
-		(*parm)->ncp_parmdata.ncp_intdata =
+#endif
+		base = 16;
+		p->ncp_type = ndis_parm_hexint;
+		p->ncp_parmdata.ncp_intdata =
 		    strtoul((char *)oid->oid_arg1, NULL, base);
 		break;
 	default:
@@ -689,15 +668,15 @@ NdisReadConfiguration(status, parm, cfg, key, type)
 	ndis_status		*status;
 	ndis_config_parm	**parm;
 	ndis_handle		cfg;
-	ndis_unicode_string	*key;
+	unicode_string		*key;
 	ndis_parm_type		type;
 {
 	char			*keystr = NULL;
-	uint16_t		*unicode;
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
         struct sysctl_oid	*oidp;
 	struct sysctl_ctx_entry	*e;
+	ansi_string		as;
 
 	block = (ndis_miniport_block *)cfg;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
@@ -707,10 +686,12 @@ NdisReadConfiguration(status, parm, cfg, key, type)
 		return;
 	}
 
-	ndis_unicode_to_ascii(key->us_buf, key->us_len, &keystr);
-	*parm = &block->nmb_replyparm;
-	bzero((char *)&block->nmb_replyparm, sizeof(ndis_config_parm));
-	unicode = (uint16_t *)&block->nmb_dummybuf;
+	if (RtlUnicodeStringToAnsiString(&as, key, TRUE)) {
+		*status = NDIS_STATUS_RESOURCES;
+		return;
+	}
+
+	keystr = as.as_buf;
 
 	/*
 	 * See if registry key is already in a list of known keys
@@ -724,12 +705,13 @@ NdisReadConfiguration(status, parm, cfg, key, type)
 		oidp = e->entry;
 		if (ndis_strcasecmp(oidp->oid_name, keystr) == 0) {
 			if (strcmp((char *)oidp->oid_arg1, "UNSET") == 0) {
-				free(keystr, M_DEVBUF);
+				RtlFreeAnsiString(&as);
 				*status = NDIS_STATUS_FAILURE;
 				return;
 			}
+
 			*status = ndis_encode_parm(block, oidp, type, parm);
-			free(keystr, M_DEVBUF);
+			RtlFreeAnsiString(&as);
 			return;
 		}
 	}
@@ -753,7 +735,7 @@ NdisReadConfiguration(status, parm, cfg, key, type)
 		ndis_add_sysctl(sc, keystr, "(dynamic string key)",
 		    "UNSET", CTLFLAG_RW);
 
-	free(keystr, M_DEVBUF);
+	RtlFreeAnsiString(&as);
 	*status = NDIS_STATUS_FAILURE;
 
 	return;
@@ -765,15 +747,16 @@ ndis_decode_parm(block, parm, val)
 	ndis_config_parm	*parm;
 	char			*val;
 {
-	ndis_unicode_string	*ustr;
-	char			*astr = NULL;
+	unicode_string		*ustr;
+	ansi_string		as;
 
 	switch(parm->ncp_type) {
 	case ndis_parm_string:
 		ustr = &parm->ncp_parmdata.ncp_stringdata;
-		ndis_unicode_to_ascii(ustr->us_buf, ustr->us_len, &astr);
-		bcopy(astr, val, 254);
-		free(astr, M_DEVBUF);
+		if (RtlUnicodeStringToAnsiString(&as, ustr, TRUE))
+			return(NDIS_STATUS_RESOURCES);
+		bcopy(as.as_buf, val, as.as_len);
+		RtlFreeAnsiString(&as);
 		break;
 	case ndis_parm_int:
 		sprintf(val, "%d", parm->ncp_parmdata.ncp_intdata);
@@ -792,9 +775,10 @@ static void
 NdisWriteConfiguration(status, cfg, key, parm)
 	ndis_status		*status;
 	ndis_handle		cfg;
-	ndis_unicode_string	*key;
+	unicode_string		*key;
 	ndis_config_parm	*parm;
 {
+	ansi_string		as;
 	char			*keystr = NULL;
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
@@ -805,13 +789,18 @@ NdisWriteConfiguration(status, cfg, key, parm)
 	block = (ndis_miniport_block *)cfg;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
-	ndis_unicode_to_ascii(key->us_buf, key->us_len, &keystr);
+	if (RtlUnicodeStringToAnsiString(&as, key, TRUE)) {
+		*status = NDIS_STATUS_RESOURCES;
+		return;
+	}
+
+	keystr = as.as_buf;
 
 	/* Decode the parameter into a string. */
 	bzero(val, sizeof(val));
 	*status = ndis_decode_parm(block, parm, val);
 	if (*status != NDIS_STATUS_SUCCESS) {
-		free(keystr, M_DEVBUF);
+		RtlFreeAnsiString(&as);
 		return;
 	}
 
@@ -826,7 +815,7 @@ NdisWriteConfiguration(status, cfg, key, parm)
 		if (ndis_strcasecmp(oidp->oid_name, keystr) == 0) {
 			/* Found it, set the value. */
 			strcpy((char *)oidp->oid_arg1, val);
-			free(keystr, M_DEVBUF);
+			RtlFreeAnsiString(&as);
 			return;
 		}
 	}
@@ -835,7 +824,7 @@ NdisWriteConfiguration(status, cfg, key, parm)
 	ndis_add_sysctl(sc, keystr, "(dynamically set key)",
 		    val, CTLFLAG_RW);
 
-	free(keystr, M_DEVBUF);
+	RtlFreeAnsiString(&as);
 	*status = NDIS_STATUS_SUCCESS;
 	return;
 }
@@ -844,6 +833,22 @@ static void
 NdisCloseConfiguration(cfg)
 	ndis_handle		cfg;
 {
+	list_entry		*e;
+	ndis_parmlist_entry	*pe;
+	ndis_miniport_block	*block;
+	ndis_config_parm	*p;
+
+	block = (ndis_miniport_block *)cfg;
+
+	while (!IsListEmpty(&block->nmb_parmlist)) {
+                e = RemoveHeadList(&block->nmb_parmlist);
+                pe = CONTAINING_RECORD(e, ndis_parmlist_entry, np_list);
+		p = &pe->np_parm;
+		if (p->ncp_type == ndis_parm_string)
+			RtlFreeUnicodeString(&p->ncp_parmdata.ncp_stringdata);
+		ExFreePool(e);
+	}
+
 	return;
 }
 
@@ -1038,6 +1043,7 @@ NdisWritePciSlotInformation(adapter, slot, offset, buf, len)
  * The errorlog routine uses a variable argument list, so we
  * have to declare it this way.
  */
+
 #define ERRMSGLEN 512
 static void
 NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
@@ -1046,13 +1052,15 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	ndis_miniport_block	*block;
 	va_list			ap;
 	int			i, error;
-	char			*str = NULL, *ustr = NULL;
+	char			*str = NULL;
 	uint16_t		flags;
 	char			msgbuf[ERRMSGLEN];
 	device_t		dev;
 	driver_object		*drv;
 	struct ndis_softc	*sc;
 	struct ifnet		*ifp;
+	unicode_string		us;
+	ansi_string		as;
 
 	block = (ndis_miniport_block *)adapter;
 	dev = block->nmb_physdeviceobj->do_devext;
@@ -1064,10 +1072,10 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	    code, &str, &i, &flags);
 	if (error == 0 && flags & MESSAGE_RESOURCE_UNICODE &&
 	    ifp->if_flags & IFF_DEBUG) {
-		ustr = msgbuf;
-		ndis_unicode_to_ascii((uint16_t *)str,
-		    ((i / 2)) > (ERRMSGLEN - 1) ? ERRMSGLEN : i, &ustr);
-		str = ustr;
+		RtlInitUnicodeString(&us, (uint16_t *)msgbuf);
+		if (RtlUnicodeStringToAnsiString(&as, &us, TRUE))
+			return;
+		str = as.as_buf;
 	}
 
 	device_printf (dev, "NDIS ERROR: %x (%s)\n", code,
@@ -1081,6 +1089,9 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 			    va_arg(ap, void *));
 		va_end(ap);
 	}
+
+	if (str != NULL)
+		RtlFreeAnsiString(&as);
 
 	return;
 }
@@ -1404,10 +1415,18 @@ NdisReadNetworkAddress(status, addr, addrlen, adapter)
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
+#ifdef IFP2ENADDR
 	if (bcmp(IFP2ENADDR(sc->ifp), empty, ETHER_ADDR_LEN) == 0)
+#else
+	if (bcmp(sc->arpcom.ac_enaddr, empty, ETHER_ADDR_LEN) == 0)
+#endif
 		*status = NDIS_STATUS_FAILURE;
 	else {
+#ifdef IFP2ENADDR
 		*addr = IFP2ENADDR(sc->ifp);
+#else
+		*addr = sc->arpcom.ac_enaddr;
+#endif
 		*addrlen = ETHER_ADDR_LEN;
 		*status = NDIS_STATUS_SUCCESS;
 	}
@@ -1530,6 +1549,8 @@ NdisMAllocateSharedMemory(adapter, len, cached, vaddr, paddr)
 	if (sh == NULL)
 		return;
 
+	InitializeListHead(&sh->ndis_list);
+
 	/*
 	 * When performing shared memory allocations, create a tag
 	 * with a lowaddr limit that restricts physical memory mappings
@@ -1582,10 +1603,11 @@ NdisMAllocateSharedMemory(adapter, len, cached, vaddr, paddr)
 	 * searching based on the virtual address fails.
 	 */
 
+	NDIS_LOCK(sc);
 	sh->ndis_paddr.np_quad = paddr->np_quad;
 	sh->ndis_saddr = *vaddr;
-	sh->ndis_next = sc->ndis_shlist;
-	sc->ndis_shlist = sh;
+	InsertHeadList((&sc->ndis_shlist), (&sh->ndis_list));
+	NDIS_UNLOCK(sc);
 
 	return;
 }
@@ -1674,21 +1696,24 @@ NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
-	struct ndis_shmem	*sh, *prev;
+	struct ndis_shmem	*sh = NULL;
+	list_entry		*l;
 
 	if (vaddr == NULL || adapter == NULL)
 		return;
 
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	sh = prev = sc->ndis_shlist;
 
 	/* Sanity check: is list empty? */
 
-	if (sh == NULL)
+	if (IsListEmpty(&sc->ndis_shlist))
 		return;
 
-	while (sh) {
+	NDIS_LOCK(sc);
+	l = sc->ndis_shlist.nle_flink;
+	while (l != &sc->ndis_shlist) {
+		sh = CONTAINING_RECORD(l, struct ndis_shmem, ndis_list);
 		if (sh->ndis_saddr == vaddr)
 			break;
 		/*
@@ -1697,25 +1722,24 @@ NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
 		 */
 		if (sh->ndis_paddr.np_quad == paddr.np_quad)
 			break;
-		prev = sh;
-		sh = sh->ndis_next;
+		l = l->nle_flink;
 	}
 
 	if (sh == NULL) {
+		NDIS_UNLOCK(sc);
 		printf("NDIS: buggy driver tried to free "
 		    "invalid shared memory: vaddr: %p paddr: 0x%jx\n",
 		    vaddr, (uintmax_t)paddr.np_quad);
 		return;
 	}
 
+	RemoveEntryList(&sh->ndis_list);
+
+	NDIS_UNLOCK(sc);
+
 	bus_dmamap_unload(sh->ndis_stag, sh->ndis_smap);
 	bus_dmamem_free(sh->ndis_stag, sh->ndis_saddr, sh->ndis_smap);
 	bus_dma_tag_destroy(sh->ndis_stag);
-
-	if (sh == sc->ndis_shlist)
-		sc->ndis_shlist = sh->ndis_next;
-	else
-		prev->ndis_next = sh->ndis_next;
 
 	free(sh, M_DEVBUF);
 
@@ -2077,6 +2101,7 @@ NdisAllocateBufferPool(status, pool, descnum)
 	ndis_handle		*pool;
 	uint32_t		descnum;
 {
+
 	/*
 	 * The only thing we can really do here is verify that descnum
 	 * is a reasonable value, but I really don't know what to check
@@ -2110,6 +2135,8 @@ NdisAllocateBuffer(status, buffer, pool, vaddr, len)
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
+
+	MmBuildMdlForNonPagedPool(buf);
 
 	*buffer = buf;
 	*status = NDIS_STATUS_SUCCESS;
@@ -2260,37 +2287,35 @@ NdisWaitEvent(event, msecs)
 
 static ndis_status
 NdisUnicodeStringToAnsiString(dstr, sstr)
-	ndis_ansi_string	*dstr;
-	ndis_unicode_string	*sstr;
+	ansi_string		*dstr;
+	unicode_string		*sstr;
 {
-	if (dstr == NULL || sstr == NULL)
+	uint32_t		rval;
+
+	rval = RtlUnicodeStringToAnsiString(dstr, sstr, FALSE);
+
+	if (rval == STATUS_INSUFFICIENT_RESOURCES)
+		return(NDIS_STATUS_RESOURCES);
+	if (rval)
 		return(NDIS_STATUS_FAILURE);
-	if (ndis_unicode_to_ascii(sstr->us_buf,
-	    sstr->us_len, &dstr->nas_buf))
-		return(NDIS_STATUS_FAILURE);
-	dstr->nas_len = dstr->nas_maxlen = strlen(dstr->nas_buf);
+
 	return (NDIS_STATUS_SUCCESS);
 }
 
 static ndis_status
 NdisAnsiStringToUnicodeString(dstr, sstr)
-	ndis_unicode_string	*dstr;
-	ndis_ansi_string	*sstr;
+	unicode_string		*dstr;
+	ansi_string		*sstr;
 {
-	char			*str;
-	if (dstr == NULL || sstr == NULL)
+	uint32_t		rval;
+
+	rval = RtlAnsiStringToUnicodeString(dstr, sstr, FALSE);
+
+	if (rval == STATUS_INSUFFICIENT_RESOURCES)
+		return(NDIS_STATUS_RESOURCES);
+	if (rval)
 		return(NDIS_STATUS_FAILURE);
-	str = malloc(sstr->nas_len + 1, M_DEVBUF, M_NOWAIT);
-	if (str == NULL)
-		return(NDIS_STATUS_FAILURE);
-	strncpy(str, sstr->nas_buf, sstr->nas_len);
-	*(str + sstr->nas_len) = '\0';
-	if (ndis_ascii_to_unicode(str, &dstr->us_buf)) {
-		free(str, M_DEVBUF);
-		return(NDIS_STATUS_FAILURE);
-	}
-	dstr->us_len = dstr->us_maxlen = sstr->nas_len * 2;
-	free(str, M_DEVBUF);
+
 	return (NDIS_STATUS_SUCCESS);
 }
 
@@ -2311,6 +2336,77 @@ NdisMPciAssignResources(adapter, slot, list)
 	return (NDIS_STATUS_SUCCESS);
 }
 
+static void  
+ndis_intr(arg)
+        void                    *arg;
+{
+	struct ndis_softc	*sc;
+	struct ifnet		*ifp;
+	int			is_our_intr = 0;
+	int			call_isr = 0;
+	ndis_miniport_interrupt	*intr;
+
+	sc = arg;
+	ifp = sc->ifp;
+	intr = sc->ndis_block->nmb_interrupt;
+
+	if (intr == NULL || sc->ndis_block->nmb_miniportadapterctx == NULL)
+		return;
+
+	if (sc->ndis_block->nmb_interrupt->ni_isrreq == TRUE)
+		ndis_isr(sc, &is_our_intr, &call_isr);
+	else {
+		ndis_disable_intr(sc);
+		call_isr = 1;
+	}
+ 
+	if ((is_our_intr || call_isr))
+		IoRequestDpc(sc->ndis_block->nmb_deviceobj, NULL, sc);
+
+	return;
+}
+
+static void
+ndis_intrhand(dpc, intr, sysarg1, sysarg2)
+	kdpc			*dpc;
+	ndis_miniport_interrupt	*intr;
+	void			*sysarg1;
+	void			*sysarg2;
+{
+	struct ndis_softc	*sc;
+	ndis_miniport_block	*block;
+        ndis_handle             adapter;
+
+	block = intr->ni_block;
+        adapter = block->nmb_miniportadapterctx;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+
+        if (NDIS_SERIALIZED(sc->ndis_block))
+                KeAcquireSpinLockAtDpcLevel(&block->nmb_lock);
+
+        MSCALL1(intr->ni_isrfunc, adapter);
+
+        /* If there's a MiniportEnableInterrupt() routine, call it. */
+
+        ndis_enable_intr(sc);
+
+        if (NDIS_SERIALIZED(sc->ndis_block))
+                KeReleaseSpinLockFromDpcLevel(&block->nmb_lock);
+
+	/*
+	 * Set the completion event if we've drained all
+	 * pending interrupts.
+	 */
+
+	KeAcquireSpinLockAtDpcLevel(&intr->ni_dpccountlock);
+	intr->ni_dpccnt--;
+	if (intr->ni_dpccnt == 0)
+		KeSetEvent(&intr->ni_dpcevt, IO_NO_INCREMENT, FALSE);
+	KeReleaseSpinLockFromDpcLevel(&intr->ni_dpccountlock);
+
+        return;
+}
+
 static ndis_status
 NdisMRegisterInterrupt(intr, adapter, ivec, ilevel, reqisr, shared, imode)
 	ndis_miniport_interrupt	*intr;
@@ -2322,15 +2418,40 @@ NdisMRegisterInterrupt(intr, adapter, ivec, ilevel, reqisr, shared, imode)
 	ndis_interrupt_mode	imode;
 {
 	ndis_miniport_block	*block;
+	ndis_miniport_characteristics *ch;
+	struct ndis_softc	*sc;
+	int			error;
 
 	block = adapter;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	ch = IoGetDriverObjectExtension(block->nmb_deviceobj->do_drvobj,
+	    (void *)1);
+
+	intr->ni_rsvd = ExAllocatePoolWithTag(NonPagedPool,
+	    sizeof(struct mtx), 0);
+	if (intr->ni_rsvd == NULL)
+		return(NDIS_STATUS_RESOURCES);
 
 	intr->ni_block = adapter;
 	intr->ni_isrreq = reqisr;
 	intr->ni_shared = shared;
-	block->nmb_interrupt = intr;
+	intr->ni_dpccnt = 0;
+	intr->ni_isrfunc = ch->nmc_interrupt_func;
+	intr->ni_dpcfunc = ch->nmc_isr_func;
 
-	KeInitializeSpinLock(&intr->ni_dpccountlock);
+        KeInitializeEvent(&intr->ni_dpcevt, EVENT_TYPE_NOTIFY, TRUE);
+        KeInitializeDpc(&intr->ni_dpc,
+	    ndis_findwrap((funcptr)ndis_intrhand), intr);
+        KeSetImportanceDpc(&intr->ni_dpc, KDPC_IMPORTANCE_LOW);
+
+	error = IoConnectInterrupt(&intr->ni_introbj,
+	    ndis_findwrap((funcptr)ndis_intr), sc, NULL,
+	    ivec, ilevel, 0, imode, shared, 0, FALSE);
+
+	if (error != STATUS_SUCCESS)
+		return(NDIS_STATUS_FAILURE);
+
+	block->nmb_interrupt = intr;
 
 	return(NDIS_STATUS_SUCCESS);
 }	
@@ -2339,6 +2460,29 @@ static void
 NdisMDeregisterInterrupt(intr)
 	ndis_miniport_interrupt	*intr;
 {
+	ndis_miniport_block	*block;
+	struct ndis_softc	*sc;
+	uint8_t			irql;
+
+	block = intr->ni_block;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+
+	/* Should really be KeSynchronizeExecution() */
+
+	KeAcquireSpinLock(intr->ni_introbj->ki_lock, &irql);
+	block->nmb_interrupt = NULL;
+	KeReleaseSpinLock(intr->ni_introbj->ki_lock, irql);
+/*
+	KeFlushQueuedDpcs();
+*/
+	/* Disconnect our ISR */
+
+	IoDisconnectInterrupt(intr->ni_introbj);
+
+	KeWaitForSingleObject((nt_dispatch_header *)&intr->ni_dpcevt,
+	    0, 0, FALSE, NULL);
+	KeResetEvent(&intr->ni_dpcevt);
+
 	return;
 }
 
@@ -2429,23 +2573,22 @@ static void
 NdisMSleep(usecs)
 	uint32_t		usecs;
 {
-	struct timeval		tv;
+	ktimer			timer;
 
 	/*
 	 * During system bootstrap, (i.e. cold == 1), we aren't
-	 * allowed to msleep(), so calling ndis_thsuspend() here
-	 * will return 0, and we won't actually have delayed. This
-	 * is a problem because some drivers expect NdisMSleep()
-	 * to always wait, and might fail if the expected delay
-	 * period does not in fact elapse. As a workaround, if the
-	 * attempt to sleep delay fails, we do a hard DELAY() instead.
+	 * allowed to sleep, so we have to do a hard DELAY()
+	 * instead.
 	 */
-	tv.tv_sec = 0;
-	tv.tv_usec = usecs;
 
-	if (ndis_thsuspend(curthread->td_proc, NULL, tvtohz(&tv)) == 0)
+	if (cold)
 		DELAY(usecs);
-
+	else {
+		KeInitializeTimer(&timer);
+		KeSetTimer(&timer, ((int64_t)usecs * -10), NULL);
+		KeWaitForSingleObject((nt_dispatch_header *)&timer,
+		    0, 0, FALSE, NULL);
+	}
 	return;
 }
 
@@ -2571,19 +2714,7 @@ NdisMSynchronizeWithInterrupt(intr, syncfunc, syncctx)
 	void			*syncfunc;
 	void			*syncctx;
 {
-	uint8_t (*sync)(void *);
-	uint8_t			rval;
-	uint8_t			irql;
-
-	if (syncfunc == NULL || syncctx == NULL)
-		return(0);
-
-	sync = syncfunc;
-	KeAcquireSpinLock(&intr->ni_dpccountlock, &irql);
-	rval = MSCALL1(sync, syncctx);
-	KeReleaseSpinLock(&intr->ni_dpccountlock, irql);
-
-	return(rval);
+	return(KeSynchronizeExecution(intr->ni_introbj, syncfunc, syncctx));
 }
 
 /*
@@ -2620,28 +2751,20 @@ NdisGetSystemUpTime(tval)
 
 static void
 NdisInitializeString(dst, src)
-	ndis_unicode_string	*dst;
+	unicode_string		*dst;
 	char			*src;
 {
-	ndis_unicode_string	*u;
-
-	u = dst;
-	u->us_buf = NULL;
-	if (ndis_ascii_to_unicode(src, &u->us_buf))
-		return;
-	u->us_len = u->us_maxlen = strlen(src) * 2;
+	ansi_string		as;
+	RtlInitAnsiString(&as, src);
+	RtlAnsiStringToUnicodeString(dst, &as, TRUE);
 	return;
 }
 
 static void
 NdisFreeString(str)
-	ndis_unicode_string	*str;
+	unicode_string		*str;
 {
-	if (str == NULL)
-		return;
-	if (str->us_buf != NULL)
-		free(str->us_buf, M_DEVBUF);
-	free(str, M_DEVBUF);
+	RtlFreeUnicodeString(str);
 	return;
 }
 
@@ -2654,47 +2777,19 @@ NdisMRemoveMiniport(adapter)
 
 static void
 NdisInitAnsiString(dst, src)
-	ndis_ansi_string	*dst;
+	ansi_string		*dst;
 	char			*src;
 {
-	ndis_ansi_string	*a;
-
-	a = dst;
-	if (a == NULL)
-		return;
-	if (src == NULL) {
-		a->nas_len = a->nas_maxlen = 0;
-		a->nas_buf = NULL;
-	} else {
-		a->nas_buf = src;
-		a->nas_len = a->nas_maxlen = strlen(src);
-	}
-
+	RtlInitAnsiString(dst, src);
 	return;
 }
 
 static void
 NdisInitUnicodeString(dst, src)
-	ndis_unicode_string	*dst;
+	unicode_string		*dst;
 	uint16_t		*src;
 {
-	ndis_unicode_string	*u;
-	int			i;
-
-	u = dst;
-	if (u == NULL)
-		return;
-	if (src == NULL) {
-		u->us_len = u->us_maxlen = 0;
-		u->us_buf = NULL;
-	} else {
-		i = 0;
-		while(src[i] != 0)
-			i++;
-		u->us_buf = src;
-		u->us_len = u->us_maxlen = i * 2;
-	}
-
+	RtlInitUnicodeString(dst, src);
 	return;
 }
 
@@ -2806,9 +2901,10 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	ndis_status		*status;
 	ndis_handle		*filehandle;
 	uint32_t		*filelength;
-	ndis_unicode_string	*filename;
+	unicode_string		*filename;
 	ndis_physaddr		highestaddr;
 {
+	ansi_string		as;
 	char			*afilename = NULL;
 	struct thread		*td = curthread;
 	struct nameidata	nd;
@@ -2820,8 +2916,13 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	linker_file_t		head, lf;
 	caddr_t			kldstart, kldend;
 
-	ndis_unicode_to_ascii(filename->us_buf,
-	    filename->us_len, &afilename);
+	if (RtlUnicodeStringToAnsiString(&as, filename, TRUE)) {
+		*status = NDIS_STATUS_RESOURCES;
+		return;
+	}
+
+	afilename = strdup(as.as_buf, M_DEVBUF);
+	RtlFreeAnsiString(&as);
 
 	fh = ExAllocatePoolWithTag(NonPagedPool, sizeof(ndis_fh), 0);
 	if (fh == NULL) {
@@ -3120,6 +3221,7 @@ NdisScheduleWorkItem(work)
 	ExInitializeWorkItem(wqi,
 	    (work_item_func)work->nwi_func, work->nwi_ctx);
 	ExQueueWorkItem(wqi, WORKQUEUE_DELAYED);
+
 	return(NDIS_STATUS_SUCCESS);
 }
 
@@ -3230,8 +3332,8 @@ NdisCopyFromPacketToPacketSafe(dpkt, doff, reqlen, spkt, soff, cpylen, prio)
 static ndis_status
 NdisMRegisterDevice(handle, devname, symname, majorfuncs, devobj, devhandle)
 	ndis_handle		handle;
-	ndis_unicode_string	*devname;
-	ndis_unicode_string	*symname;
+	unicode_string		*devname;
+	unicode_string		*symname;
 	driver_dispatch		*majorfuncs[];
 	void			**devobj;
 	ndis_handle		*devhandle;
@@ -3260,18 +3362,19 @@ NdisMDeregisterDevice(handle)
 
 static ndis_status
 NdisMQueryAdapterInstanceName(name, handle)
-	ndis_unicode_string	*name;
+	unicode_string		*name;
 	ndis_handle		handle;
 {
 	ndis_miniport_block	*block;
 	device_t		dev;
+	ansi_string		as;
 
 	block = (ndis_miniport_block *)handle;
 	dev = block->nmb_physdeviceobj->do_devext;
 
-	ndis_ascii_to_unicode(__DECONST(char *,
-	    device_get_nameunit(dev)), &name->us_buf);
-	name->us_len = strlen(device_get_nameunit(dev)) * 2;
+	RtlInitAnsiString(&as, __DECONST(char *, device_get_nameunit(dev)));
+	if (RtlAnsiStringToUnicodeString(name, &as, TRUE))
+		return(NDIS_STATUS_RESOURCES);
 
 	return(NDIS_STATUS_SUCCESS);
 }
@@ -3422,6 +3525,8 @@ image_patch_table ndis_functbl[] = {
 	IMPORT_SFUNC(NdisMRegisterUnloadHandler, 2),
 	IMPORT_SFUNC(ndis_timercall, 4),
 	IMPORT_SFUNC(ndis_asyncmem_complete, 2),
+	IMPORT_SFUNC(ndis_intr, 1),
+	IMPORT_SFUNC(ndis_intrhand, 4),
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
