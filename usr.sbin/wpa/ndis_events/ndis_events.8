@@ -41,6 +41,7 @@ drivers to
 .Xr wpa_supplicant 8
 .Sh SYNOPSIS
 .Nm
+.Op Fl a
 .Op Fl d
 .Op Fl v
 .Sh DESCRIPTION
@@ -90,6 +91,16 @@ The
 .Nm
 daemon supports the following options:
 .Bl -tag -width indent
+.It Fl a
+Process all events. By default,
+.Nm
+will only process and forward media-specific events, which contain
+PMKID candidate information, and not bother forwarding connect and
+disconnect events, since
+.Xr wpa_supplicant 8
+normally can determine the current link state on its own. In some
+cases, the additional connect and disconnect events only confuse it
+and make the association and authentication process take longer.
 .It Fl d
 Run in debug mode. This causes
 .Nm
