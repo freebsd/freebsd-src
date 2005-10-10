@@ -272,7 +272,7 @@ set the speed of the serial console to
 The default is 9600 unless it has been overridden by setting
 .Va BOOT_COMCONSOLE_SPEED
 in
-.Pa /etc/make.conf
+.Xr make.conf 5
 and recompiling the boot blocks.
 .It Fl v
 be verbose during device probing (and later).
@@ -343,6 +343,7 @@ is reported by the second-stage bootstrap, it generally means that this
 requirement has not been adhered to.
 .Sh SEE ALSO
 .Xr ddb 4 ,
+.Xr make.conf 5 ,
 .Xr ttys 5 ,
 .Xr boot0cfg 8 ,
 .Xr bsdlabel 8 ,
