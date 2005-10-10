@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 static int verbose = 0;
 static int debug = 0;
+static int all_events = 0;
 
 #define PROGNAME "ndis_events"
 
@@ -189,7 +190,7 @@ announce_event(ifname, sock, dst)
 
 	if (ioctl(s, SIOCGPRIVATE_0, &ifr) < 0) {
 		close(s);
-		dbgmsg("failed to read event info from %s\n", ifname);
+		dbgmsg("failed to read event info from %s: %d", ifname, errno);
 		return;
 	}
 
@@ -197,11 +198,15 @@ announce_event(ifname, sock, dst)
 		type = EVENT_CONNECT;
 		if (verbose)
 			dbgmsg("Received a connect event for %s", ifname);
+		if (!all_events)
+			return;
 	}
 	if (e->ne_sts == NDIS_STATUS_MEDIA_DISCONNECT) {
 		type = EVENT_DISCONNECT;
 		if (verbose)
 			dbgmsg("Received a disconnect event for %s", ifname);
+		if (!all_events)
+			return;
 	}
 	if (e->ne_sts == NDIS_STATUS_MEDIA_SPECIFIC_INDICATION) {
 		type = EVENT_MEDIA_SPECIFIC;
@@ -244,7 +249,7 @@ static void
 usage(progname)
 	char			*progname;
 {
-	fprintf(stderr, "Usage: ndis_events [-d] [-v]\n", progname);
+	fprintf(stderr, "Usage: ndis_events [-a] [-d] [-v]\n", progname);
 	exit(1);
 }
 
@@ -261,13 +266,16 @@ main(argc, argv)
 	char			ifname[IFNAMSIZ];
 	int			ch;
 
-	while ((ch = getopt(argc, argv, "dv")) != -1) {
+	while ((ch = getopt(argc, argv, "dva")) != -1) {
 		switch(ch) {
 		case 'd':
 			debug++;
 			break;
 		case 'v':
 			verbose++;
+			break;
+		case 'a':
+			all_events++;
 			break;
 		default:
 			usage(PROGNAME);
