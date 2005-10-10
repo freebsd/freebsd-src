@@ -71,48 +71,6 @@
 
 #include <net/pfvar.h>
 
-#if defined(__FreeBSD__) && defined(INET6)
-/*
- * XXX: This should go to netinet/ip6.h (KAME)
- */
-/* IPv6 options: common part */
-struct ip6_opt {
-	u_int8_t ip6o_type;
-	u_int8_t ip6o_len;
-} __packed;
-
-/* Jumbo Payload Option */
-struct ip6_opt_jumbo {
-	u_int8_t ip6oj_type;
-	u_int8_t ip6oj_len;
-	u_int8_t ip6oj_jumbo_len[4];
-} __packed;
-
-/* NSAP Address Option */
-struct ip6_opt_nsap {
-	u_int8_t ip6on_type;
-	u_int8_t ip6on_len;
-	u_int8_t ip6on_src_nsap_len;
-	u_int8_t ip6on_dst_nsap_len;
-	/* followed by source NSAP */
-	/* followed by destination NSAP */
-} __packed;
-
-/* Tunnel Limit Option */
-struct ip6_opt_tunnel {
-	u_int8_t ip6ot_type;
-	u_int8_t ip6ot_len;
-	u_int8_t ip6ot_encap_limit;
-} __packed;
-
-/* Router Alert Option */
-struct ip6_opt_router {
-	u_int8_t ip6or_type;
-	u_int8_t ip6or_len;
-	u_int8_t ip6or_value[2];
-} __packed;
-#endif /* __FreeBSD__ && INET6 */
-
 #ifndef __FreeBSD__
 struct pf_frent {
 	LIST_ENTRY(pf_frent) fr_next;
