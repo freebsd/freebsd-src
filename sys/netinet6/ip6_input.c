@@ -1204,7 +1204,7 @@ ip6_savecontrol(in6p, m, mp)
 			 * jumbo payload option is included, the option which
 			 * is to be removed before returning according to
 			 * RFC2292.
-			 * Note: this constraint is removed in 2292bis.
+			 * Note: this constraint is removed in RFC3542
 			 */
 			*mp = sbcreatecontrol((caddr_t)hbh, hbhlen,
 			    IS2292(IPV6_2292HOPOPTS, IPV6_HOPOPTS),
