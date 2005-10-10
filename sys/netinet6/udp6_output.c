@@ -140,8 +140,8 @@ udp6_output(in6p, m, addr6, control, td)
 	if (td && !suser(td))
 		priv = 1;
 	if (control) {
-		if ((error = ip6_setpktoptions(control, &opt, stickyopt, priv,
-					       0, IPPROTO_UDP)) != 0)
+		if ((error = ip6_setpktopts(control, &opt,
+		    stickyopt, priv, 0, IPPROTO_UDP)) != 0)
 			goto release;
 		in6p->in6p_outputopts = &opt;
 	}

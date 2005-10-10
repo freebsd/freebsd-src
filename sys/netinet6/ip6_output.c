@@ -126,7 +126,7 @@ static int ip6_pcbopt __P((int, u_char *, int, struct ip6_pktopts **,
 static int ip6_pcbopts __P((struct ip6_pktopts **, struct mbuf *,
 	struct socket *, struct sockopt *));
 static int ip6_getpcbopt __P((struct ip6_pktopts *, int, struct sockopt *));
-static int ip6_setpktoption __P((int, u_char *, int, struct ip6_pktopts *, int,
+static int ip6_setpktopt __P((int, u_char *, int, struct ip6_pktopts *, int,
 	int, int, int));
 
 static int ip6_setmoptions __P((int, struct ip6_moptions **, struct mbuf *));
@@ -2332,7 +2332,7 @@ ip6_pcbopts(pktopt, m, so, sopt)
 	/*  set options specified by user. */
 	if (td && !suser(td))
 		priv = 1;
-	if ((error = ip6_setpktoptions(m, opt, NULL, priv, 1,
+	if ((error = ip6_setpktopts(m, opt, NULL, priv, 1,
 	    so->so_proto->pr_protocol)) != 0) {
 		ip6_clearpktopts(opt, -1); /* XXX: discard all options */
 		free(opt, M_IP6OPT);
@@ -2347,7 +2347,7 @@ ip6_pcbopts(pktopt, m, so, sopt)
  * the struct.
  */
 void
-init_ip6pktopts(opt)
+ip6_initpktopts(opt)
 	struct ip6_pktopts *opt;
 {
 
@@ -2370,12 +2370,12 @@ ip6_pcbopt(optname, buf, len, pktopt, priv, uproto)
 	if (*pktopt == NULL) {
 		*pktopt = malloc(sizeof(struct ip6_pktopts), M_IP6OPT,
 		    M_WAITOK);
-		init_ip6pktopts(*pktopt);
+		ip6_initpktopts(*pktopt);
 		(*pktopt)->needfree = 1;
 	}
 	opt = *pktopt;
 
-	return (ip6_setpktoption(optname, buf, len, opt, priv, 1, 0, uproto));
+	return (ip6_setpktopt(optname, buf, len, opt, priv, 1, 0, uproto));
 }
 
 static int
@@ -2972,7 +2972,7 @@ ip6_freemoptions(im6o)
  * Set IPv6 outgoing packet options based on advanced API.
  */
 int
-ip6_setpktoptions(control, opt, stickyopt, priv, needcopy, uproto)
+ip6_setpktopts(control, opt, stickyopt, priv, needcopy, uproto)
 	struct mbuf *control;
 	struct ip6_pktopts *opt, *stickyopt;
 	int priv, needcopy, uproto;
@@ -2997,7 +2997,7 @@ ip6_setpktoptions(control, opt, stickyopt, priv, needcopy, uproto)
 			RT_UNLOCK(opt->ip6po_nextroute.ro_rt);
 		}
 	} else
-		init_ip6pktopts(opt);
+		ip6_initpktopts(opt);
 	opt->needfree = needcopy;
 
 	/*
@@ -3020,7 +3020,7 @@ ip6_setpktoptions(control, opt, stickyopt, priv, needcopy, uproto)
 		if (cm->cmsg_level != IPPROTO_IPV6)
 			continue;
 
-		error = ip6_setpktoption(cm->cmsg_type, CMSG_DATA(cm),
+		error = ip6_setpktopt(cm->cmsg_type, CMSG_DATA(cm),
 		    cm->cmsg_len - CMSG_LEN(0), opt, priv, needcopy, 1, uproto);
 		if (error)
 			return (error);
@@ -3039,7 +3039,7 @@ ip6_setpktoptions(control, opt, stickyopt, priv, needcopy, uproto)
  * "sticky=1, cmsg=1": RFC2292 socket option
  */
 static int
-ip6_setpktoption(optname, buf, len, opt, priv, sticky, cmsg, uproto)
+ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 	int optname, len, priv, sticky, cmsg, uproto;
 	u_char *buf;
 	struct ip6_pktopts *opt;
@@ -3048,7 +3048,7 @@ ip6_setpktoption(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 
 	if (!sticky && !cmsg) {
 #ifdef DIAGNOSTIC
-		printf("ip6_setpktoption: impossible case\n");
+		printf("ip6_setpktopt: impossible case\n");
 #endif
 		return (EINVAL);
 	}
