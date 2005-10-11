@@ -21,6 +21,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20051011:		FreeBSD-SA-05:21.openssl
+	Correct a man-in-the-middle SSL version rollback vulnerability.
+
 20051001:
 	kern.polling.enable sysctl MIB is now deprecated. Use ifconfig(8)
 	to turn polling(4) on your interfaces.
