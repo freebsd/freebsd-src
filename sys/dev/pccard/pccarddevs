@@ -229,7 +229,8 @@ product AIRONET PC4800		0x0007 Aironet PC4800 Wireless LAN Adapter
 product AIRONET 350		0x000a Aironet 350 Wireless LAN Adapter
 
 /* AirVast */
-product AIRVAST WN_100          0x7300 AirVast WN-100 
+product AIRVAST WN_100B         0x0001 AirVast WN-100 (alt)
+product AIRVAST WN_100          0x7300 AirVast WN-100
 
 /* Allied Telesis K.K. */
 product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
@@ -272,6 +273,7 @@ product	BUFFALO	LPC3_CLX	0x0301	BUFFALO LPC3-CLX Ethernet Adapter
 product BUFFALO LPC4_TX		0x0303	BUFFALO LPC4-TX Fast Ethernet
 product BUFFALO WLI_PCM_S11	0x0305	BUFFALO AirStation 11Mbps WLAN
 product BUFFALO LPC_CF_CLT	0x0307	BUFFALO LPC-CF-CLT
+product BUFFALO LPC4_CLX	0x0309	BUFFALO LPC4-CLX
 product	BUFFALO	LPC3_CLT	0x030a	BUFFALO LPC3-CLT Ethernet Adapter
 product BUFFALO WLI_CF_S11G	0x030b	BUFFALO AirStation 11Mbps CF WLAN
 
@@ -312,6 +314,7 @@ product ELSA MC2_IEEE		0x0001 AirLancer MC-2 IEEE
 product ELSA XI300_IEEE		0x0002 XI300 Wireless LAN
 product ELSA XI800_IEEE		0x0004 XI800 CF Wireless LAN
 product ELSA XI325_IEEE		0x0005 XI325 Wireless LAN
+product ELSA WNB11CFZ		0x0010 I-O DATA WN-B11/CFZ
 product ELSA WIFI_FLASH		0x0101 802.11b plus 128MB Flash
 
 /* EMTAC */
@@ -710,6 +713,7 @@ product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NU
 product OEM2 CDROM1	{ "PCMCIA", "CD-ROM", NULL, NULL } Generic PCMCIA CD-ROM
 product OEM2 IDE	{ "PCMCIA", "IDE&spCARD", NULL, NULL } Generic PCMCIA IDE CARD
 product OEM2 ETHERNET		{ "PCMCIA", "Ethernet", NULL, NULL } NE2000 PC Card
+product OEM2 FAST_ETHERNET	{ "PCMCIA", "FAST&spETHERNET&spCARD", NULL, NULL } NE2000 PC Card
 product OEM2 NE2000		{ "NE2000&spCompatible&spPC&spCard", "PCMCIA", NULL, NULL } Generic NE2000 PC Card
 product PLANET SMARTCOM2000	{ "PCMCIA", "UE2212", NULL, NULL } Planet SmartCOM 2000
 product RPTI EP400		{ "RPTI&spLTD.", "EP400", "CISV100", NULL } RPTI EP400
