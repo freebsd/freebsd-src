@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20051011:	p19	FreeBSD-SA-05:21.openssl
+	Correct a man-in-the-middle SSL version rollback vulnerability.
+
 20050909:	p18	FreeBSD-SA-05:20.cvsbug [revised]
 	Correct additional temporary file usage issues.
 
