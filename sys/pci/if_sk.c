@@ -1459,6 +1459,12 @@ sk_attach(dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	/*
+	 * The hardware should be ready for VLAN_MTU by default:
+	 * XMAC II has 0x8100 in VLAN Tag Level 1 register initially;
+	 * YU_SMR_MFL_VLAN is set by this driver in Yukon.
+	 */
+	ifp->if_capabilities = ifp->if_capenable = IFCAP_VLAN_MTU;
 	ifp->if_ioctl = sk_ioctl;
 	ifp->if_start = sk_start;
 	ifp->if_watchdog = sk_watchdog;
