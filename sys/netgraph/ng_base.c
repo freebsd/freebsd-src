@@ -188,7 +188,7 @@ static ng_ID_t	ng_decodeidname(const char *name);
 static int	ngb_mod_event(module_t mod, int event, void *data);
 static void	ng_worklist_remove(node_p node);
 static void	ngintr(void);
-static int	ng_apply_item(node_p node, item_p item);
+static int	ng_apply_item(node_p node, item_p item, int rw);
 static void	ng_flush_input_queue(struct ng_queue * ngq);
 static void	ng_setisr(node_p node);
 static node_p	ng_ID2noderef(ng_ID_t ID);
@@ -1703,7 +1703,7 @@ ng_path2noderef(node_p here, const char *address,
 * read-write queue locking inline functions			*
 \***************************************************************/
 
-static __inline item_p ng_dequeue(struct ng_queue * ngq);
+static __inline item_p ng_dequeue(struct ng_queue * ngq, int *rw);
 static __inline item_p ng_acquire_read(struct ng_queue * ngq,
 					item_p  item);
 static __inline item_p ng_acquire_write(struct ng_queue * ngq,
@@ -1762,6 +1762,9 @@ static __inline void	ng_queue_rw(struct ng_queue * ngq,
 /* Is there a chance of getting ANY work off the queue? */
 #define CAN_GET_WORK(flag)	(CAN_GET_READ(flag) || CAN_GET_WRITE(flag))
 
+#define NGQRW_R 0
+#define NGQRW_W 1
+
 /*
  * Taking into account the current state of the queue and node, possibly take
  * the next entry off the queue and return it. Return NULL if there was
@@ -1772,7 +1775,7 @@ static __inline void	ng_queue_rw(struct ng_queue * ngq,
  * This MUST MUST MUST be called with the mutex held.
  */
 static __inline item_p
-ng_dequeue(struct ng_queue *ngq)
+ng_dequeue(struct ng_queue *ngq, int *rw)
 {
 	item_p item;
 	u_int		add_arg;
@@ -1787,6 +1790,7 @@ ng_dequeue(struct ng_queue *ngq)
 		 * Add the correct increment for the reader count as well.
 		 */
 		add_arg = (READER_INCREMENT - READ_PENDING);
+		*rw = NGQRW_R;
 	} else if (CAN_GET_WRITE(ngq->q_flags)) {
 		/*
 		 * There is a pending write, no readers and no active writer.
@@ -1825,6 +1829,7 @@ ng_dequeue(struct ng_queue *ngq)
 		 * and for the new active writer.
 		 */
 		add_arg = (WRITER_ACTIVE - WRITE_PENDING);
+		*rw = NGQRW_W;
 		/*
 		 * We want to write "active writer, no readers " Now go make
 		 * it true. In fact there may be a number in the readers
@@ -1868,15 +1873,22 @@ ng_dequeue(struct ng_queue *ngq)
 		atomic_add_long(&ngq->q_flags, add_arg);
 		ng_worklist_remove(ngq->q_node);
 	} else {
+		item_p item = ngq->queue;
+		hook_p hook = NGI_HOOK(item);
+		node_p node = NGI_NODE(item);
+
 		/* 
 		 * Since there is something on the queue, note what it is
-		 * in the flags word.
+		 * in the flags word. Don't forget about overrides, too.
 		 */
-		if ((ngq->queue->el_flags & NGQF_RW) == NGQF_READER) {
+		if ((node->nd_flags & NGF_FORCE_WRITER)
+		    || (hook && (hook->hk_flags & HK_FORCE_WRITER)))
+                        add_arg += WRITE_PENDING;
+		else if ((item->el_flags & NGQF_RW) == NGQF_READER)
 			add_arg += READ_PENDING;
-		} else {
+		else
 			add_arg += WRITE_PENDING;
-		}
+
 		atomic_add_long(&ngq->q_flags, add_arg);
 		/*
 		 * If we see more doable work, make sure we are
@@ -1898,10 +1910,7 @@ ng_dequeue(struct ng_queue *ngq)
  * Queue a packet to be picked up by someone else.
  * We really don't care who, but we can't or don't want to hang around
  * to process it ourselves. We are probably an interrupt routine..
- * 1 = writer, 0 = reader
  */
-#define NGQRW_R 0
-#define NGQRW_W 1
 static __inline void
 ng_queue_rw(struct ng_queue * ngq, item_p  item, int rw)
 {
@@ -2180,15 +2189,11 @@ ng_snd_item(item_p item, int flags)
 	/*
 	 * If the node specifies single threading, force writer semantics.
 	 * Similarly, the node may say one hook always produces writers.
-	 * These are overrides. Modify the item itself, so that if it
-	 * is queued now, it would be dequeued later with corrected
-	 * read/write flags.
+	 * These are overrides.
 	 */
 	if ((node->nd_flags & NGF_FORCE_WRITER)
-	    || (hook && (hook->hk_flags & HK_FORCE_WRITER))) {
+	    || (hook && (hook->hk_flags & HK_FORCE_WRITER)))
 			rw = NGQRW_W;
-			item->el_flags &= ~NGQF_READER;
-	}
 
 	if (queue) {
 		/* Put it on the queue for that node*/
@@ -2254,7 +2259,7 @@ ng_snd_item(item_p item, int flags)
 	 */
 	NGI_GET_NODE(item, node); /* zaps stored node */
 
-	ierror = ng_apply_item(node, item); /* drops r/w lock when done */
+	ierror = ng_apply_item(node, item, rw); /* drops r/w lock when done */
 
 	/* only return an error if it was our initial item.. (compat hack) */
 	if (oitem == item) {
@@ -2284,10 +2289,9 @@ ng_snd_item(item_p item, int flags)
  * to run it on the appropriate node/hook.
  */
 static int
-ng_apply_item(node_p node, item_p item)
+ng_apply_item(node_p node, item_p item, int rw)
 {
 	hook_p  hook;
-	int	was_reader = ((item->el_flags & NGQF_RW));
 	int	error = 0;
 	ng_rcvdata_t *rcvdata;
 	ng_rcvmsg_t *rcvmsg;
@@ -2420,7 +2424,7 @@ ng_apply_item(node_p node, item_p item)
 		NG_HOOK_UNREF(hook);
 	}
 
-	if (was_reader) {
+ 	if (rw == NGQRW_R) {
 		ng_leave_read(&node->nd_input_queue);
 	} else {
 		ng_leave_write(&node->nd_input_queue);
@@ -3224,15 +3228,17 @@ ngintr(void)
 		 * future.
 		 */
 		for (;;) {
+			int rw;
+
 			mtx_lock_spin(&node->nd_input_queue.q_mtx);
-			item = ng_dequeue(&node->nd_input_queue);
+			item = ng_dequeue(&node->nd_input_queue, &rw);
 			if (item == NULL) {
 				mtx_unlock_spin(&node->nd_input_queue.q_mtx);
 				break; /* go look for another node */
 			} else {
 				mtx_unlock_spin(&node->nd_input_queue.q_mtx);
 				NGI_GET_NODE(item, node); /* zaps stored node */
-				ng_apply_item(node, item);
+				ng_apply_item(node, item, rw);
 				NG_NODE_UNREF(node);
 			}
 		}
