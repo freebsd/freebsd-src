@@ -917,8 +917,6 @@ ndis_detach(dev)
 	driver_object		*drv;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->ndis_mtx),
-	    ("ndis mutex not initialized"));
 	NDIS_LOCK(sc);
 	ifp = sc->ifp;
 	ifp->if_flags &= ~IFF_UP;
