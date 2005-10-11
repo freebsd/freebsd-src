@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: hcsecd
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="hcsecd"
+config="${hcsecd_config:-/etc/bluetooth/${name}.conf}"
+command="/usr/sbin/${name}"
+command_args="-f ${config}"
+pidfile="/var/run/${name}.pid"
+required_files="${config}"
+rcvar=`set_rcvar`
+
+load_rc_config $name
+run_rc_command "$1"
