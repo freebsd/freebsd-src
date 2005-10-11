@@ -883,7 +883,7 @@ bstp_initialization(struct bridge_softc *sc)
 
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		if (bif->bif_flags & IFBIF_STP)
-			bstp_enable_port(sc, bif);
+			bstp_ifupdstatus(sc, bif);
 		else
 			bstp_disable_port(sc, bif);
 	}
