@@ -354,7 +354,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 		struct sockaddr *dst, struct rtentry *rt0)
 {
 	uint32_t af;
-	int error = 0;
+	int error;
 
 	/* Check interface flags */
 	if (!((ifp->if_flags & IFF_UP) &&
@@ -375,7 +375,9 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		M_PREPEND(m, sizeof(sa_family_t), M_DONTWAIT);
 		if (m == NULL) {
-			ifp->if_iqdrops++;
+			IFQ_LOCK(&ifp->if_snd);
+			IFQ_INC_DROPS(&ifp->if_snd);
+			IFQ_UNLOCK(&ifp->if_snd);
 			ifp->if_oerrors++;
 			return (ENOBUFS);
 		}
@@ -388,7 +390,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 }
 
 /*
- * Start method is used only when ALTQ is on.
+ * Start method is used only when ALTQ is enabled.
  */
 static void
 ng_iface_start(struct ifnet *ifp)
@@ -396,9 +398,9 @@ ng_iface_start(struct ifnet *ifp)
 	struct mbuf *m;
 	sa_family_t sa;
 
-	KASSERT(ALTQ_IS_ENABLED(&ifp->if_snd),("ng_iface_start without ALTQ"));
+	KASSERT(ALTQ_IS_ENABLED(&ifp->if_snd), ("%s without ALTQ", __func__));
 
-	while (1) {
+	for(;;) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
@@ -425,14 +427,14 @@ ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, sa_family_t family)
 /*
  * This routine does actual delivery of the packet into the
  * netgraph(4). It is called from ng_iface_start() and
- * nf_iface_output().
+ * ng_iface_output().
  */
 static int
 ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
 {
 	const priv_p priv = (priv_p) ifp->if_softc;
 	const iffam_p iffam = get_iffam_from_af(sa);
-	int error = 0;
+	int error;
 	int len;
 
 	/* Check address family to determine hook (if known) */
