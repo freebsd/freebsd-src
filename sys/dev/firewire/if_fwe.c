@@ -228,7 +228,7 @@ fwe_attach(device_t dev)
         /* Tell the upper layer(s) we support long frames. */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
-	ifp->if_capabilities |= IFCAP_VLAN_MTU & IFCAP_POLLING;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_POLLING;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
 #endif
 
@@ -471,7 +471,6 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				fc->set_intr(fc, 0);
 				ifp->if_capenable |= IFCAP_POLLING;
 				return (error);
-				
 			}
 			if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
 			    ifp->if_capenable & IFCAP_POLLING) {
