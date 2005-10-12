@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20051012: setkey(8) moved to /sbin/
+OLD_FILES+=usr/sbin/setkey
 # 20050927: bridge(4) replaced by if_bridge(4)
 OLD_FILES+=usr/include/net/bridge.h
 # 20050831: not implemented
