@@ -450,24 +450,34 @@ archive_read_format_tar_read_data(struct archive *a,
 	struct sparse_block *p;
 
 	tar = *(a->pformat_data);
+	if (tar->sparse_list != NULL) {
+		/* Remove exhausted entries from sparse list. */
+		while (tar->sparse_list != NULL &&
+		    tar->sparse_list->remaining == 0) {
+			p = tar->sparse_list;
+			tar->sparse_list = p->next;
+			free(p);
+		}
+		if (tar->sparse_list == NULL) {
+			/* We exhausted the entire sparse list. */
+			tar->entry_bytes_remaining = 0;
+		}
+	}
+
 	if (tar->entry_bytes_remaining > 0) {
 		bytes_read = (a->compression_read_ahead)(a, buff, 1);
 		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
 		if (bytes_read > tar->entry_bytes_remaining)
 			bytes_read = tar->entry_bytes_remaining;
-		while (tar->sparse_list != NULL &&
-		    tar->sparse_list->remaining == 0) {
-			p = tar->sparse_list;
-			tar->sparse_list = p->next;
-			free(p);
-			if (tar->sparse_list != NULL)
-				tar->entry_offset = tar->sparse_list->offset;
-		}
 		if (tar->sparse_list != NULL) {
+			/* Don't read more than is available in the
+			 * current sparse block. */
 			if (tar->sparse_list->remaining < bytes_read)
 				bytes_read = tar->sparse_list->remaining;
+			tar->entry_offset = tar->sparse_list->offset;
 			tar->sparse_list->remaining -= bytes_read;
+			tar->sparse_list->offset += bytes_read;
 		}
 		*size = bytes_read;
 		*offset = tar->entry_offset;
