@@ -97,6 +97,14 @@ struct ata_connect_task {
 #define ATA_ALI_5288            0x528810b9
 #define ATA_ALI_5289            0x528910b9
 
+#define ATA_ATI_ID		0x1002
+#define ATA_ATI_IXP200		0x43491002
+#define ATA_ATI_IXP300		0x43691002
+#define ATA_ATI_IXP400		0x43761002
+#define ATA_ATI_IXP300_S1	0x436e1002
+#define ATA_ATI_IXP400_S1	0x43791002
+#define ATA_ATI_IXP400_S2	0x437a1002
+
 #define ATA_CENATEK_ID          0x16ca
 #define ATA_CENATEK_ROCKET      0x000116ca
 
@@ -373,6 +381,7 @@ int ata_generic_ident(device_t);
 int ata_acard_ident(device_t);
 int ata_ali_ident(device_t);
 int ata_amd_ident(device_t);
+int ata_ati_ident(device_t);
 int ata_cyrix_ident(device_t);
 int ata_cypress_ident(device_t);
 int ata_highpoint_ident(device_t);
