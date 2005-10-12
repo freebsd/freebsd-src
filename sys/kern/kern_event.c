@@ -247,6 +247,7 @@ static struct {
 	{ &timer_filtops },			/* EVFILT_TIMER */
 	{ &file_filtops },			/* EVFILT_NETDEV */
 	{ &fs_filtops },			/* EVFILT_FS */
+	{ &null_filtops },			/* EVFILT_LIO */
 };
 
 /*
@@ -633,6 +634,8 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 		changes = keva;
 		for (i = 0; i < n; i++) {
 			kevp = &changes[i];
+			if (!kevp->filter)
+				continue;
 			kevp->flags &= ~EV_SYSFLAGS;
 			error = kqueue_register(kq, kevp, td, 1);
 			if (error) {
@@ -1828,7 +1831,7 @@ knote_attach(struct knote *kn, struct kqueue *kq)
 }
 
 /*
- * knote must already have been detatched using the f_detach method.
+ * knote must already have been detached using the f_detach method.
  * no lock need to be held, it is assumed that the KN_INFLUX flag is set
  * to prevent other removal.
  */
@@ -1850,7 +1853,8 @@ knote_drop(struct knote *kn, struct thread *td)
 	else
 		list = &kq->kq_knhash[KN_HASH(kn->kn_id, kq->kq_knhashmask)];
 
-	SLIST_REMOVE(list, kn, knote, kn_link);
+	if (!SLIST_EMPTY(list))
+		SLIST_REMOVE(list, kn, knote, kn_link);
 	if (kn->kn_status & KN_QUEUED)
 		knote_dequeue(kn);
 	KQ_UNLOCK_FLUX(kq);
