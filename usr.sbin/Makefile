@@ -148,7 +148,6 @@ SUBDIR=	ac \
 	sa \
 	${_sendmail} \
 	setfmac \
-	setkey \
 	setpmac \
 	${_sicontrol} \
 	sliplogin \
