@@ -1326,7 +1326,7 @@ extern uint8_t KeSetTimer(ktimer *, int64_t, kdpc *);
 extern uint8_t KeSetTimerEx(ktimer *, int64_t, uint32_t, kdpc *);
 extern uint8_t KeCancelTimer(ktimer *);
 extern uint8_t KeReadStateTimer(ktimer *);
-extern uint32_t KeWaitForSingleObject(nt_dispatch_header *, uint32_t,
+extern uint32_t KeWaitForSingleObject(void *, uint32_t,
 	uint32_t, uint8_t, int64_t *);
 extern void KeInitializeEvent(nt_kevent *, uint32_t, uint8_t);
 extern void KeClearEvent(nt_kevent *);

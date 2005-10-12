@@ -1609,8 +1609,8 @@ ntoskrnl_time(tval)
  */
 
 uint32_t
-KeWaitForSingleObject(obj, reason, mode, alertable, duetime)
-	nt_dispatch_header	*obj;
+KeWaitForSingleObject(arg, reason, mode, alertable, duetime)
+	void			*arg;
 	uint32_t		reason;
 	uint32_t		mode;
 	uint8_t			alertable;
@@ -1622,6 +1622,9 @@ KeWaitForSingleObject(obj, reason, mode, alertable, duetime)
 	int			error = 0;
 	uint64_t		curtime;
 	wb_ext			we;
+	nt_dispatch_header	*obj;
+
+	obj = arg;
 
 	if (obj == NULL)
 		return(STATUS_INVALID_PARAMETER);
@@ -2587,8 +2590,7 @@ ntoskrnl_workitem_thread(arg)
 	KeInitializeEvent(&kq->kq_dead, EVENT_TYPE_SYNC, FALSE);
 
 	while (1) {
-		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_proc,
-		    0, 0, TRUE, NULL);
+		KeWaitForSingleObject(&kq->kq_proc, 0, 0, TRUE, NULL);
 
 		mtx_lock_spin(&kq->kq_lock);
 
@@ -2632,8 +2634,7 @@ ntoskrnl_destroy_workitem_threads(void)
 		kq = wq_queues + i;
 		kq->kq_exit = 1;
 		KeSetEvent(&kq->kq_proc, IO_NO_INCREMENT, FALSE);	
-		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_dead,
-	    	    0, 0, TRUE, NULL);
+		KeWaitForSingleObject(&kq->kq_dead, 0, 0, TRUE, NULL);
 	}
 
 	return;
@@ -3490,8 +3491,7 @@ ntoskrnl_dpc_thread(arg)
 	mtx_unlock_spin(&sched_lock);
 
 	while (1) {
-		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_proc,
-		    0, 0, TRUE, NULL);
+		KeWaitForSingleObject(&kq->kq_proc, 0, 0, TRUE, NULL);
 
 		mtx_lock_spin(&kq->kq_lock);
 
@@ -3567,8 +3567,7 @@ ntoskrnl_destroy_dpc_threads(void)
 		KeInitializeDpc(&dpc, NULL, NULL);
 		KeSetTargetProcessorDpc(&dpc, i);
 		KeInsertQueueDpc(&dpc, NULL, NULL);
-		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_dead,
-		    0, 0, TRUE, NULL);
+		KeWaitForSingleObject(&kq->kq_dead, 0, 0, TRUE, NULL);
 	}
 
 	return;
@@ -3735,8 +3734,7 @@ KeFlushQueuedDpcs(void)
 	for (i = 0; i < mp_ncpus; i++) {
 		kq = kq_queues + i;
 		KeSetEvent(&kq->kq_proc, IO_NO_INCREMENT, FALSE);
-		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_done,
-		    0, 0, TRUE, NULL);
+		KeWaitForSingleObject(&kq->kq_done, 0, 0, TRUE, NULL);
 	}
 
 	return;
