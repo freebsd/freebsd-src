@@ -81,6 +81,7 @@ SUBDIR=	adjkerntz \
 	rtsol \
 	savecore \
 	${_sconfig} \
+	setkey \
 	shutdown \
 	slattach \
 	spppcontrol \
