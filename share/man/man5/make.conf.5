@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2005
+.Dd October 12, 2005
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -542,6 +542,11 @@ utility.
 Set to not build
 .Xr NIS 8
 support and related programs.
+If set, you might need to adopt your
+.Xr nsswitch.conf 5
+and remove
+.Sq nis
+entries.
 .It Va NO_OBJC
 .Pq Vt bool
 Set to not build Objective C support.
