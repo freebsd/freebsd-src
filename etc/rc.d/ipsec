@@ -6,7 +6,7 @@
 
 # PROVIDE: ipsec
 # REQUIRE: root mountcritlocal
-# BEFORE:  DAEMON
+# BEFORE:  DAEMON mountcritremote
 # KEYWORD: nojail
 
 #	it does not really require beforenetlkm.
