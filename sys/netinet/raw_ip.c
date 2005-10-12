@@ -316,7 +316,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		ipstat.ips_rawout++;
 	}
 
-	if (inp->inp_flags & INP_ONESBCAST)
+	if (inp->inp_vflag & INP_ONESBCAST)
 		flags |= IP_SENDONES;
 
 #ifdef MAC
