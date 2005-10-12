@@ -251,6 +251,7 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 	cnp.cn_flags = ISLASTCN;
 	if (lockparent == UE_GETDIR_LOCKPARENT)
 		cnp.cn_flags |= LOCKPARENT;
+	cnp.cn_lkflags = LK_EXCLUSIVE;
 	cnp.cn_thread = td;
 	cnp.cn_cred = td->td_ucred;
 	cnp.cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
