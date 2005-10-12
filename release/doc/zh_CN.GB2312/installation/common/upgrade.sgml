@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.12
+	Original Revision: 1.13
 	$FreeBSD$
 
 	This section contains the contents of the old UPGRADE.TXT
@@ -187,7 +187,7 @@
 
     <para>那些对允许更复杂、诡异的升级方法感兴趣的人应该看看
     &os; 使用手册的 <ulink
-    url="http://www.FreeBSD.org/doc/zh_CN.GB2312/books/handbook/cutting-edge.html">
+    url="&url.books.handbook;/cutting-edge.html">
     最前沿</ulink> 一章。这个过程包括了从源代码重建整个 &os;。
     这依赖于可靠的网络连接、额外的磁盘空间和时间，
     但是有网络以及其它更复杂安装的优势。
