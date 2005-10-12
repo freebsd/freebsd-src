@@ -62,6 +62,7 @@ static int		 archive_write_pax_header(struct archive *,
 static char		*build_pax_attribute_name(char *dest, const char *src);
 static char		*build_ustar_entry_name(char *dest, const char *src, const char *insert);
 static char		*format_int(char *dest, int64_t);
+static int		 has_non_ASCII(const wchar_t *);
 static int		 write_nulls(struct archive *, size_t);
 
 /*
@@ -315,7 +316,7 @@ archive_write_pax_header(struct archive *a,
 	struct archive_entry *entry_main;
 	const char *linkname, *p;
 	const char *hardlink;
-	const wchar_t *wp, *wp2;
+	const wchar_t *wp;
 	const char *suffix_start;
 	int need_extension, r, ret;
 	struct pax *pax;
@@ -375,36 +376,42 @@ archive_write_pax_header(struct archive *a,
 		/* Find the largest suffix that fits in 'name' field. */
 		suffix_start = strchr(p + strlen(p) - 100 - 1, '/');
 
-	/* Find non-ASCII character, if any. */
-	wp2 = wp;
-	while (*wp2 != L'\0' && *wp2 < 128)
-		wp2++;
-
 	/*
 	 * If name is too long, or has non-ASCII characters, add
 	 * 'path' to pax extended attrs.
 	 */
-	if (suffix_start == NULL || suffix_start - p > 155 || *wp2 != L'\0') {
+	if (suffix_start == NULL || suffix_start - p > 155 || has_non_ASCII(wp)) {
 		add_pax_attr_w(&(pax->pax_header), "path", wp);
 		archive_entry_set_pathname(entry_main,
 		    build_ustar_entry_name(ustar_entry_name, p, NULL));
 		need_extension = 1;
 	}
 
-	/* If link name is too long, add 'linkpath' to pax extended attrs. */
+	/* If link name is too long or has non-ASCII characters, add
+	 * 'linkpath' to pax extended attrs. */
 	linkname = hardlink;
 	if (linkname == NULL)
 		linkname = archive_entry_symlink(entry_main);
 
-	if (linkname != NULL && strlen(linkname) > 100) {
-		add_pax_attr(&(pax->pax_header), "linkpath", linkname);
+	if (linkname != NULL) {
+		/* There is a link name, get the wide version as well. */
 		if (hardlink != NULL)
-			archive_entry_set_hardlink(entry_main,
-			    "././@LongHardLink");
+			wp = archive_entry_hardlink_w(entry_main);
 		else
-			archive_entry_set_symlink(entry_main,
-			    "././@LongSymLink");
-		need_extension = 1;
+			wp = archive_entry_symlink_w(entry_main);
+
+		/* If the link is long or has a non-ASCII character,
+		 * store it as a pax extended attribute. */
+		if (strlen(linkname) > 100 || has_non_ASCII(wp)) {
+			add_pax_attr_w(&(pax->pax_header), "linkpath", wp);
+			if (hardlink != NULL)
+				archive_entry_set_hardlink(entry_main,
+				    "././@LongHardLink");
+			else
+				archive_entry_set_symlink(entry_main,
+				    "././@LongSymLink");
+			need_extension = 1;
+		}
 	}
 
 	/* If file size is too large, add 'size' to pax extended attrs. */
@@ -419,11 +426,12 @@ archive_write_pax_header(struct archive *a,
 		need_extension = 1;
 	}
 
-	/* If group name is too large, add 'gname' to pax extended attrs. */
-	/* TODO: If gname has non-ASCII characters, use pax attribute. */
+	/* If group name is too large or has non-ASCII characters, add
+	 * 'gname' to pax extended attrs. */
 	p = archive_entry_gname(entry_main);
-	if (p != NULL && strlen(p) > 31) {
-		add_pax_attr(&(pax->pax_header), "gname", p);
+	wp = archive_entry_gname_w(entry_main);
+	if (p != NULL && (strlen(p) > 31 || has_non_ASCII(wp))) {
+		add_pax_attr_w(&(pax->pax_header), "gname", wp);
 		archive_entry_set_gname(entry_main, NULL);
 		need_extension = 1;
 	}
@@ -437,8 +445,9 @@ archive_write_pax_header(struct archive *a,
 	/* If user name is too large, add 'uname' to pax extended attrs. */
 	/* TODO: If uname has non-ASCII characters, use pax attribute. */
 	p = archive_entry_uname(entry_main);
-	if (p != NULL && strlen(p) > 31) {
-		add_pax_attr(&(pax->pax_header), "uname", p);
+	wp = archive_entry_uname_w(entry_main);
+	if (p != NULL && (strlen(p) > 31 || has_non_ASCII(wp))) {
+		add_pax_attr_w(&(pax->pax_header), "uname", wp);
 		archive_entry_set_uname(entry_main, NULL);
 		need_extension = 1;
 	}
@@ -1000,4 +1009,12 @@ archive_write_pax_data(struct archive *a, const void *buff, size_t s)
 	ret = (a->compression_write)(a, buff, s);
 	pax->entry_bytes_remaining -= s;
 	return (ret);
+}
+
+static int
+has_non_ASCII(const wchar_t *wp)
+{
+	while (*wp != L'\0' && *wp < 128)
+		wp++;
+	return (*wp != L'\0');
 }
