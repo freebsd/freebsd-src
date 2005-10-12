@@ -111,17 +111,6 @@ disc_clone_create(struct if_clone *ifc, int unit)
 }
 
 static void
-disc_destroy(struct disc_softc *sc)
-{
-
-	bpfdetach(sc->sc_ifp);
-	if_detach(sc->sc_ifp);
-	if_free(sc->sc_ifp);
-
-	free(sc, M_DISC);
-}
-
-static void
 disc_clone_destroy(struct ifnet *ifp)
 {
 	struct disc_softc	*sc;
@@ -131,7 +120,11 @@ disc_clone_destroy(struct ifnet *ifp)
 	LIST_REMOVE(sc, sc_list);
 	mtx_unlock(&disc_mtx);
 
-	disc_destroy(sc);
+	bpfdetach(ifp);
+	if_detach(ifp);
+	if_free(ifp);
+
+	free(sc, M_DISC);
 }
 
 static int
@@ -150,9 +143,8 @@ disc_modevent(module_t mod, int type, void *data)
 
 		mtx_lock(&disc_mtx);
 		while ((sc = LIST_FIRST(&disc_softc_list)) != NULL) {
-			LIST_REMOVE(sc, sc_list);
 			mtx_unlock(&disc_mtx);
-			disc_destroy(sc);
+			ifc_simple_destroy(&disc_cloner, sc->sc_ifp);
 			mtx_lock(&disc_mtx);
 		}
 		mtx_unlock(&disc_mtx);

@@ -252,30 +252,23 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len)
 	return (0);
 }
 
-static void
-stf_destroy(struct stf_softc *sc)
-{
-	int err;
-
-	err = encap_detach(sc->encap_cookie);
-	KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
-	bpfdetach(STF2IFP(sc));
-	if_detach(STF2IFP(sc));
-	if_free(STF2IFP(sc));
-
-	free(sc, M_STF);
-}
-
 static int
 stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
 	struct stf_softc *sc = ifp->if_softc;
+	int err;
 
 	mtx_lock(&stf_mtx);
 	LIST_REMOVE(sc, sc_list);
 	mtx_unlock(&stf_mtx);
 
-	stf_destroy(sc);
+	err = encap_detach(sc->encap_cookie);
+	KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
+	bpfdetach(ifp);
+	if_detach(ifp);
+	if_free(ifp);
+
+	free(sc, M_STF);
 	ifc_free_unit(ifc, STFUNIT);
 
 	return (0);
@@ -301,9 +294,8 @@ stfmodevent(mod, type, data)
 
 		mtx_lock(&stf_mtx);
 		while ((sc = LIST_FIRST(&stf_softc_list)) != NULL) {
-			LIST_REMOVE(sc, sc_list);
 			mtx_unlock(&stf_mtx);
-			stf_destroy(sc);
+			stf_clone_destroy(&stf_cloner, STF2IFP(sc));
 			mtx_lock(&stf_mtx);
 		}
 		mtx_unlock(&stf_mtx);

@@ -357,7 +357,8 @@ bridge_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		if_clone_detach(&bridge_cloner);
 		while (!LIST_EMPTY(&bridge_list))
-			bridge_clone_destroy(LIST_FIRST(&bridge_list)->sc_ifp);
+			ifc_simple_destroy(&bridge_cloner,
+			    LIST_FIRST(&bridge_list)->sc_ifp);
 		uma_zdestroy(bridge_rtnode_zone);
 		bridge_input_p = NULL;
 		bridge_output_p = NULL;
