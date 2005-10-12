@@ -148,9 +148,9 @@ struct tar {
 
 static size_t	UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n);
 static int	archive_block_is_null(const unsigned char *p);
-int		gnu_read_sparse_data(struct archive *, struct tar *,
+static int	gnu_read_sparse_data(struct archive *, struct tar *,
 		    const struct archive_entry_header_gnutar *header);
-void		gnu_parse_sparse_data(struct archive *, struct tar *,
+static void	gnu_parse_sparse_data(struct archive *, struct tar *,
 		    const struct gnu_sparse *sparse, int length);
 static int	header_Solaris_ACL(struct archive *,  struct tar *,
 		    struct archive_entry *, struct stat *, const void *);
@@ -1380,7 +1380,7 @@ header_gnutar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	return (0);
 }
 
-int
+static int
 gnu_read_sparse_data(struct archive *a, struct tar *tar,
     const struct archive_entry_header_gnutar *header)
 {
@@ -1416,7 +1416,7 @@ gnu_read_sparse_data(struct archive *a, struct tar *tar,
 	return (ARCHIVE_OK);
 }
 
-void
+static void
 gnu_parse_sparse_data(struct archive *a, struct tar *tar,
     const struct gnu_sparse *sparse, int length)
 {
