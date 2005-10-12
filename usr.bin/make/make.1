@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2005
+.Dd October 12, 2005
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -670,12 +670,6 @@ Makefiles may assign a colon-delimited list of directories to
 These directories will be searched for source files by
 .Nm
 after it has finished parsing all input makefiles.
-.It Va __MAKE_CONF
-This variable can specify an alternative location of
-.Xr make.conf 5
-for
-.Pa sys.mk
-to include.
 .El
 .Pp
 Variable expansion may be modified to select or modify each word of the
@@ -1457,9 +1451,6 @@ system makefile (processed before any other file, including
 .Pa makefile
 and
 .Pa Makefile )
-.It Pa /etc/make.conf
-default location of
-.Xr make.conf 5
 .It Pa /usr/share/mk
 system makefile directory
 .It /usr/share/doc/psd/12.make
