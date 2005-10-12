@@ -49,7 +49,7 @@
 #define	HAVE_ACL_SET_FD 1
 #define	HAVE_ACL_SET_FD_NP 1
 #define	HAVE_ACL_SET_FILE 1
-#define HAVE_ACL_USER 1
+#define	HAVE_ACL_USER 1
 #endif
 #define	HAVE_BZLIB_H 1
 #define	HAVE_CHFLAGS 1
