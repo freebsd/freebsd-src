@@ -2106,9 +2106,8 @@ ng_snd_item(item_p item, int flags)
 	hook_p hook = NGI_HOOK(item);
 	node_p node = NGI_NODE(item);
 	int queue, rw;
-	int error = 0, ierror;
-	item_p	oitem;
 	struct ng_queue * ngq = &node->nd_input_queue;
+	int error = 0;
 
 #ifdef	NETGRAPH_DEBUG
         _ngi_check(item, __FILE__, __LINE__);
@@ -2220,23 +2219,15 @@ ng_snd_item(item_p item, int flags)
 		else
 			return (0);
 	}
-	/*
-	 * Take a queue item and a node and see if we can apply the item to
-	 * the node. We may end up getting a different item to apply instead.
-	 * Will allow for a piggyback reply only in the case where
-	 * there is no queueing.
-	 */
 
-	oitem = item;
 	/*
 	 * We already decided how we will be queueud or treated.
 	 * Try get the appropriate operating permission.
 	 */
- 	if (rw == NGQRW_R) {
+ 	if (rw == NGQRW_R)
 		item = ng_acquire_read(ngq, item);
-	} else {
+	else
 		item = ng_acquire_write(ngq, item);
-	}
 
 	/*
 	 * May have come back with a different item.
@@ -2259,12 +2250,7 @@ ng_snd_item(item_p item, int flags)
 	 */
 	NGI_GET_NODE(item, node); /* zaps stored node */
 
-	ierror = ng_apply_item(node, item, rw); /* drops r/w lock when done */
-
-	/* only return an error if it was our initial item.. (compat hack) */
-	if (oitem == item) {
-		error = ierror;
-	}
+	error = ng_apply_item(node, item, rw); /* drops r/w lock when done */
 
 	/*
 	 * If the node goes away when we remove the reference, 
