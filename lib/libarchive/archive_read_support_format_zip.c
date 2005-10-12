@@ -98,7 +98,7 @@ struct zip_file_header {
 	char	extra_length[2];
 };
 
-const char *compression_names[] = {
+static const char *compression_names[] = {
 	"uncompressed",
 	"shrinking",
 	"reduced-1",
