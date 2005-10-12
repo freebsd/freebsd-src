@@ -1164,18 +1164,8 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	}
 	*objp = obj;
 	*flagsp = flags;
+	vfs_mark_atime(vp, td);
 
-	/* Update access time. */
-	if ((vp->v_mount->mnt_flag & MNT_NOATIME) == 0) {
-		struct vattr vattr;
-		struct timespec ts;
-
-		VATTR_NULL(&vattr);
-		vfs_timestamp(&ts);
-		vattr.va_atime = ts;
-		(void)VOP_SETATTR(vp, &vattr, td->td_ucred, td);
-
-	}
 done:
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
