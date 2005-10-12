@@ -1613,7 +1613,10 @@ struct ndis_miniport_block {
 	list_entry		nmb_parmlist;
 	ndis_resource_list	*nmb_rlist;
 	ndis_status		nmb_getstat;
+	nt_kevent		nmb_getevent;
 	ndis_status		nmb_setstat;
+	nt_kevent		nmb_setevent;
+	nt_kevent		nmb_resetevent;
 	ndis_miniport_timer	*nmb_timerlist;
 	ndis_handle		nmb_rxpool;
 	TAILQ_ENTRY(ndis_miniport_block)	link;
