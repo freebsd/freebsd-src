@@ -242,21 +242,6 @@ ppp_clone_create(struct if_clone *ifc, int unit)
 }
 
 static void
-ppp_destroy(struct ppp_softc *sc)
-{
-	struct ifnet *ifp;
-
-	ifp = PPP2IFP(sc);
-	bpfdetach(ifp);
-	if_detach(ifp);
-	if_free(ifp);
-	mtx_destroy(&sc->sc_rawq.ifq_mtx);
-	mtx_destroy(&sc->sc_fastq.ifq_mtx);
-	mtx_destroy(&sc->sc_inq.ifq_mtx);
-	free(sc, M_PPP);
-}
-
-static void
 ppp_clone_destroy(struct ifnet *ifp)
 {
 	struct ppp_softc *sc;
@@ -265,7 +250,14 @@ ppp_clone_destroy(struct ifnet *ifp)
 	PPP_LIST_LOCK();
 	LIST_REMOVE(sc, sc_list);
 	PPP_LIST_UNLOCK();
-	ppp_destroy(sc);
+
+	bpfdetach(ifp);
+	if_detach(ifp);
+	if_free(ifp);
+	mtx_destroy(&sc->sc_rawq.ifq_mtx);
+	mtx_destroy(&sc->sc_fastq.ifq_mtx);
+	mtx_destroy(&sc->sc_inq.ifq_mtx);
+	free(sc, M_PPP);
 }
 
 static int
@@ -296,9 +288,8 @@ ppp_modevent(module_t mod, int type, void *data)
 
 		PPP_LIST_LOCK();
 		while ((sc = LIST_FIRST(&ppp_softc_list)) != NULL) {
-			LIST_REMOVE(sc, sc_list);
 			PPP_LIST_UNLOCK();
-			ppp_destroy(sc);
+			ifc_simple_destroy(&ppp_cloner, PPP2IFP(sc));
 			PPP_LIST_LOCK();
 		}
 		PPP_LIST_LOCK_DESTROY();

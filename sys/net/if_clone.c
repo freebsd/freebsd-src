@@ -124,7 +124,6 @@ if_clone_create(char *name, size_t len)
 	IF_CLONERS_LOCK();
 	LIST_FOREACH(ifc, &if_cloners, ifc_list) {
 		if (ifc->ifc_match(ifc, name)) {
-			IF_CLONE_ADDREF(ifc);
 			break;
 		}
 	}
@@ -134,7 +133,6 @@ if_clone_create(char *name, size_t len)
 		return (EINVAL);
 
 	err = (*ifc->ifc_create)(ifc, name, len);
-	IF_CLONE_REMREF(ifc);
 	return (err);
 }
 
@@ -156,7 +154,6 @@ if_clone_destroy(const char *name)
 	IF_CLONERS_LOCK();
 	LIST_FOREACH(ifc, &if_cloners, ifc_list) {
 		if (strcmp(ifc->ifc_name, ifp->if_dname) == 0) {
-			IF_CLONE_ADDREF(ifc);
 			break;
 		}
 	}
@@ -172,7 +169,6 @@ if_clone_destroy(const char *name)
 	err =  (*ifc->ifc_destroy)(ifc, ifp);
 
 done:
-	IF_CLONE_REMREF(ifc);
 	return (err);
 }
 
@@ -212,11 +208,16 @@ if_clone_attach(struct if_clone *ifc)
 void
 if_clone_detach(struct if_clone *ifc)
 {
+	struct ifc_simple_data *ifcs = ifc->ifc_data;
 
 	IF_CLONERS_LOCK();
 	LIST_REMOVE(ifc, ifc_list);
 	if_cloners_count--;
 	IF_CLONERS_UNLOCK();
+
+	/* Allow all simples to be destroyed */
+	if (ifc->ifc_attach == ifc_simple_attach)
+		ifcs->ifcs_minifs = 0;
 
 	IF_CLONE_REMREF(ifc);
 }
@@ -224,6 +225,10 @@ if_clone_detach(struct if_clone *ifc)
 static void
 if_clone_free(struct if_clone *ifc)
 {
+	for (int bytoff = 0; bytoff < ifc->ifc_bmlen; bytoff++) {
+		KASSERT(ifc->ifc_units[bytoff] == 0x00,
+		    ("ifc_units[%d] is not empty", bytoff));
+	}
 
 	IF_CLONE_LOCK_DESTROY(ifc);
 	free(ifc->ifc_units, M_CLONE);
@@ -352,7 +357,10 @@ ifc_alloc_unit(struct if_clone *ifc, int *unit)
 	/*
 	 * Allocate the unit in the bitmap.
 	 */
+	KASSERT((ifc->ifc_units[bytoff] & (1 << bitoff)) == 0,
+	    ("%s: bit is already set", __func__));
 	ifc->ifc_units[bytoff] |= (1 << bitoff);
+	IF_CLONE_ADDREF_LOCKED(ifc);
 
 done:
 	IF_CLONE_UNLOCK(ifc);
@@ -375,7 +383,7 @@ ifc_free_unit(struct if_clone *ifc, int unit)
 	KASSERT((ifc->ifc_units[bytoff] & (1 << bitoff)) != 0,
 	    ("%s: bit is already cleared", __func__));
 	ifc->ifc_units[bytoff] &= ~(1 << bitoff);
-	IF_CLONE_UNLOCK(ifc);
+	IF_CLONE_REMREF_LOCKED(ifc);	/* releases lock */
 }
 
 void

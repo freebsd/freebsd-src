@@ -186,10 +186,15 @@ gifattach0(sc)
 }
 
 static void
-gif_destroy(struct gif_softc *sc)
+gif_clone_destroy(ifp)
+	struct ifnet *ifp;
 {
-	struct ifnet *ifp = GIF2IFP(sc);
 	int err;
+	struct gif_softc *sc = ifp->if_softc;
+
+	mtx_lock(&gif_mtx);
+	LIST_REMOVE(sc, gif_list);
+	mtx_unlock(&gif_mtx);
 
 	gif_delete_tunnel(ifp);
 #ifdef INET6
@@ -212,18 +217,6 @@ gif_destroy(struct gif_softc *sc)
 	if_free(ifp);
 
 	free(sc, M_GIF);
-}
-
-static void
-gif_clone_destroy(ifp)
-	struct ifnet *ifp;
-{
-	struct gif_softc *sc = ifp->if_softc;
-
-	mtx_lock(&gif_mtx);
-	LIST_REMOVE(sc, gif_list);
-	mtx_unlock(&gif_mtx);
-	gif_destroy(sc);
 }
 
 static int
@@ -250,9 +243,8 @@ gifmodevent(mod, type, data)
 
 		mtx_lock(&gif_mtx);
 		while ((sc = LIST_FIRST(&gif_softc_list)) != NULL) {
-			LIST_REMOVE(sc, gif_list);
 			mtx_unlock(&gif_mtx);
-			gif_destroy(sc);
+			ifc_simple_destroy(&gif_cloner, GIF2IFP(sc));
 			mtx_lock(&gif_mtx);
 		}
 		mtx_unlock(&gif_mtx);

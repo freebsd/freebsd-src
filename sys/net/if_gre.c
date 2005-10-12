@@ -202,20 +202,6 @@ gre_clone_create(ifc, unit)
 }
 
 static void
-gre_destroy(struct gre_softc *sc)
-{
-
-#ifdef INET
-	if (sc->encap != NULL)
-		encap_detach(sc->encap);
-#endif
-	bpfdetach(GRE2IFP(sc));
-	if_detach(GRE2IFP(sc));
-	if_free(GRE2IFP(sc));
-	free(sc, M_GRE);
-}
-
-static void
 gre_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
@@ -224,7 +210,15 @@ gre_clone_destroy(ifp)
 	mtx_lock(&gre_mtx);
 	LIST_REMOVE(sc, sc_list);
 	mtx_unlock(&gre_mtx);
-	gre_destroy(sc);
+
+#ifdef INET
+	if (sc->encap != NULL)
+		encap_detach(sc->encap);
+#endif
+	bpfdetach(ifp);
+	if_detach(ifp);
+	if_free(ifp);
+	free(sc, M_GRE);
 }
 
 /*
@@ -791,9 +785,8 @@ gremodevent(module_t mod, int type, void *data)
 
 		mtx_lock(&gre_mtx);
 		while ((sc = LIST_FIRST(&gre_softc_list)) != NULL) {
-			LIST_REMOVE(sc, sc_list);
 			mtx_unlock(&gre_mtx);
-			gre_destroy(sc);
+			ifc_simple_destroy(&gre_cloner, GRE2IFP(sc));
 			mtx_lock(&gre_mtx);
 		}
 		mtx_unlock(&gre_mtx);
