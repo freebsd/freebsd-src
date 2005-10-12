@@ -103,7 +103,6 @@ static LIST_HEAD(, faith_softc) faith_softc_list;
 
 static int	faith_clone_create(struct if_clone *, int);
 static void	faith_clone_destroy(struct ifnet *);
-static void	faith_destroy(struct faith_softc *);
 
 IFC_SIMPLE_DECLARE(faith, 0);
 
@@ -137,9 +136,8 @@ faithmodevent(mod, type, data)
 
 		mtx_lock(&faith_mtx);
 		while ((sc = LIST_FIRST(&faith_softc_list)) != NULL) {
-			LIST_REMOVE(sc, sc_list);
 			mtx_unlock(&faith_mtx);
-			faith_destroy(sc);
+			ifc_simple_destroy(&faith_cloner, sc->sc_ifp);
 			mtx_lock(&faith_mtx);
 		}
 		mtx_unlock(&faith_mtx);
@@ -195,16 +193,6 @@ faith_clone_create(ifc, unit)
 }
 
 static void
-faith_destroy(struct faith_softc *sc)
-{
-
-	bpfdetach(sc->sc_ifp);
-	if_detach(sc->sc_ifp);
-	if_free(sc->sc_ifp);
-	free(sc, M_FAITH);
-}
-
-static void
 faith_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
@@ -214,7 +202,10 @@ faith_clone_destroy(ifp)
 	LIST_REMOVE(sc, sc_list);
 	mtx_unlock(&faith_mtx);
 
-	faith_destroy(sc);
+	bpfdetach(ifp);
+	if_detach(ifp);
+	if_free(ifp);
+	free(sc, M_FAITH);
 }
 
 int
