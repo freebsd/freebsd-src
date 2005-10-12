@@ -38,7 +38,7 @@
 #define EVFILT_TIMER		(-7)	/* timers */
 #define EVFILT_NETDEV		(-8)	/* network devices */
 #define EVFILT_FS		(-9)	/* filesystem events */
-#define EVFILT_LIO		(-10)	/* timers */
+#define EVFILT_LIO		(-10)	/* attached to lio requests */
 #define EVFILT_SYSCOUNT		10
 
 #define EV_SET(kevp_, a, b, c, d, e, f) do {	\
