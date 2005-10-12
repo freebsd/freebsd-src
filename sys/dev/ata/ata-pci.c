@@ -90,6 +90,10 @@ ata_pci_probe(device_t dev)
 	if (!ata_amd_ident(dev))
 	    return 0;
 	break;
+    case ATA_ATI_ID:
+	if (!ata_ati_ident(dev))
+	    return 0;
+	break;
     case ATA_CYRIX_ID:
 	if (!ata_cyrix_ident(dev))
 	    return 0;
