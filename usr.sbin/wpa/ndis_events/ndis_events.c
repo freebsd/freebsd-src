@@ -92,7 +92,7 @@ struct ndis_evt {
 };
 
 static int find_ifname(int, char *);
-static void announce_event(char *, int, struct sockaddr_in *);
+static int announce_event(char *, int, struct sockaddr_in *);
 static void usage(char *);
 
 static void
@@ -104,7 +104,7 @@ dbgmsg(const char *fmt, ...)
 	if (debug)
 		vwarnx(fmt, ap);
 	else
-		vsyslog(LOG_INFO, fmt, ap);
+		vsyslog(LOG_ERR, fmt, ap);
 	va_end(ap);
 
 	return;
@@ -163,7 +163,7 @@ find_ifname(idx, name)
 	return(ENOENT);
 }
 
-static void
+static int 
 announce_event(ifname, sock, dst)
 	char			*ifname;
 	int			sock;
@@ -178,8 +178,10 @@ announce_event(ifname, sock, dst)
 
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 
-	if (s < 0)
-                return;
+	if (s < 0) {
+		dbgmsg("socket creation failed");
+                return(EINVAL);
+	}
 
         bzero((char *)&ifr, sizeof(ifr));
 	e = (struct ndis_evt *)indication;
@@ -190,23 +192,31 @@ announce_event(ifname, sock, dst)
 
 	if (ioctl(s, SIOCGPRIVATE_0, &ifr) < 0) {
 		close(s);
-		dbgmsg("failed to read event info from %s: %d", ifname, errno);
-		return;
+		if (errno == ENOENT)
+			dbgmsg("drained all events from %s", ifname, errno);
+		else
+			dbgmsg("failed to read event info from %s: %d",
+			    ifname, errno);
+		return(ENOENT);
 	}
 
 	if (e->ne_sts == NDIS_STATUS_MEDIA_CONNECT) {
 		type = EVENT_CONNECT;
 		if (verbose)
 			dbgmsg("Received a connect event for %s", ifname);
-		if (!all_events)
-			return;
+		if (!all_events) {
+			close(s);
+			return(0);
+		}
 	}
 	if (e->ne_sts == NDIS_STATUS_MEDIA_DISCONNECT) {
 		type = EVENT_DISCONNECT;
 		if (verbose)
 			dbgmsg("Received a disconnect event for %s", ifname);
-		if (!all_events)
-			return;
+		if (!all_events) {
+			close(s);
+			return(0);
+		}
 	}
 	if (e->ne_sts == NDIS_STATUS_MEDIA_SPECIFIC_INDICATION) {
 		type = EVENT_MEDIA_SPECIFIC;
@@ -221,8 +231,10 @@ announce_event(ifname, sock, dst)
 	pos = buf + sizeof(_type);
 
 	len = snprintf(pos + 1, end - pos - 1, "%s", ifname);
-	if (len < 0)
-		return;
+	if (len < 0) {
+		close(s);
+		return(ENOSPC);
+	}
 	if (len > 255)
 		len = 255;
 	*pos = (unsigned char) len;
@@ -231,7 +243,8 @@ announce_event(ifname, sock, dst)
 		if (e->ne_len > 255 || 1 + e->ne_len > end - pos) {
 			dbgmsg("Not enough room for send_event data (%d)\n",
 			    e->ne_len);
-			return;
+			close(s);
+			return(ENOSPC);
  		}
 		*pos++ = (unsigned char) e->ne_len;
 		memcpy(pos, (indication) + sizeof(struct ndis_evt), e->ne_len);
@@ -242,7 +255,7 @@ announce_event(ifname, sock, dst)
 	    sizeof(struct sockaddr_in));
 
 	close(s);
-	return;
+	return(0);
 }
 
 static void
@@ -324,9 +337,10 @@ main(argc, argv)
 		ifm = (struct if_msghdr *)msg;
 		if (find_ifname(ifm->ifm_index, ifname))
 			continue;
-		if (strstr(ifname, "ndis"))
-			announce_event(ifname, s, &sin);
-		else {
+		if (strstr(ifname, "ndis")) {
+			while(announce_event(ifname, s, &sin) == 0)
+				;
+		} else {
 			if (verbose)
 				dbgmsg("Skipping ifinfo message from %s",
 				    ifname);
