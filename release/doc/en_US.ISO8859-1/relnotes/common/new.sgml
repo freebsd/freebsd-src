@@ -528,7 +528,7 @@
 
     <para>Documentation of existing functionality has been improved by
       the addition of the following manual pages:
-      &man.acpi.sony.4;, &man.snd.t4dwave.4;.</para>
+      &man.acpi.sony.4;, &man.snd.mss.4;, &man.snd.t4dwave.4;.</para>
   </sect2>
 </sect1>
 
