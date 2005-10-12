@@ -203,6 +203,8 @@ aes_copy(struct aes *dest, struct aes *src)
 static const char *
 aes_get_mbs(struct aes *aes)
 {
+	if (aes->aes_mbs == NULL && aes->aes_wcs == NULL)
+		return NULL;
 	if (aes->aes_mbs == NULL && aes->aes_wcs != NULL) {
 		/*
 		 * XXX Need to estimate the number of byte in the
@@ -224,6 +226,8 @@ aes_get_mbs(struct aes *aes)
 static const wchar_t *
 aes_get_wcs(struct aes *aes)
 {
+	if (aes->aes_wcs == NULL && aes->aes_mbs == NULL)
+		return NULL;
 	if (aes->aes_wcs == NULL && aes->aes_mbs != NULL) {
 		/*
 		 * No single byte will be more than one wide character,
@@ -457,10 +461,22 @@ archive_entry_gname(struct archive_entry *entry)
 	return (aes_get_mbs(&entry->ae_gname));
 }
 
+const wchar_t *
+archive_entry_gname_w(struct archive_entry *entry)
+{
+	return (aes_get_wcs(&entry->ae_gname));
+}
+
 const char *
 archive_entry_hardlink(struct archive_entry *entry)
 {
 	return (aes_get_mbs(&entry->ae_hardlink));
+}
+
+const wchar_t *
+archive_entry_hardlink_w(struct archive_entry *entry)
+{
+	return (aes_get_wcs(&entry->ae_hardlink));
 }
 
 ino_t
@@ -536,6 +552,12 @@ archive_entry_symlink(struct archive_entry *entry)
 	return (aes_get_mbs(&entry->ae_symlink));
 }
 
+const wchar_t *
+archive_entry_symlink_w(struct archive_entry *entry)
+{
+	return (aes_get_wcs(&entry->ae_symlink));
+}
+
 uid_t
 archive_entry_uid(struct archive_entry *entry)
 {
@@ -546,6 +568,12 @@ const char *
 archive_entry_uname(struct archive_entry *entry)
 {
 	return (aes_get_mbs(&entry->ae_uname));
+}
+
+const wchar_t *
+archive_entry_uname_w(struct archive_entry *entry)
+{
+	return (aes_get_wcs(&entry->ae_uname));
 }
 
 /*
