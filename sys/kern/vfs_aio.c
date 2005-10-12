@@ -1987,7 +1987,6 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 	int error, runningcode;
 	int nerror;
 	int i;
-	int s;
 
 	if ((uap->mode != LIO_NOWAIT) && (uap->mode != LIO_WAIT))
 		return (EINVAL);
@@ -2040,7 +2039,6 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 			    (kq_fp = p->p_fd->fd_ofiles[kev.ident]) == NULL ||
 			    (kq_fp->f_type != DTYPE_KQUEUE)) {
 				uma_zfree(aiolio_zone, lj);
-				splx(s);
 				return (EBADF);
 			}
 			kq = (struct kqueue *)kq_fp->f_data;
@@ -2051,12 +2049,10 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 			error = kqueue_register(kq, &kev, td, 1);
 			if (error) {
 				uma_zfree(aiolio_zone, lj);
-				splx(s);
 				return (error);
 			}
 		} else 	if (!_SIG_VALID(lj->lioj_signal.sigev_signo)) {
 			uma_zfree(aiolio_zone, lj);
-			splx(s);
 			return EINVAL;
 		} else {
 			lj->lioj_flags |= LIOJ_SIGNAL;
@@ -2145,7 +2141,6 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 					}
 				}
 
-				s = splbio();
 				TAILQ_FOREACH(cb, &ki->kaio_bufdone, plist) {
 					if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo)
 					    == jobref) {
@@ -2153,7 +2148,6 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 						break;
 					}
 				}
-				splx(s);
 			}
 
 			/*
