@@ -523,14 +523,14 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 	/*
 	 * Byte swap the encapsulation header manually.
 	 */
-	enc->ul[0] = htonl(enc->ul[0]);
+	enc->ul[0] = ntohl(enc->ul[0]);
 
 	if (enc->unfrag.lf != 0) {
 		m = m_pullup(m, 2*sizeof(uint32_t));
 		if (!m)
 			return;
 		enc = mtod(m, union fw_encap *);
-		enc->ul[1] = htonl(enc->ul[1]);
+		enc->ul[1] = ntohl(enc->ul[1]);
 		m = firewire_input_fragment(fc, m, src);
 		if (!m)
 			return;
