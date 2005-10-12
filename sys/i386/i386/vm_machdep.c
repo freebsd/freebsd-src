@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -672,6 +673,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 			}
 #ifdef SMP
+			sched_pin();
 			cpumask = PCPU_GET(cpumask);
 			if ((sf->cpumask & cpumask) == 0) {
 				sf->cpumask |= cpumask;
@@ -686,6 +688,8 @@ sf_buf_alloc(struct vm_page *m, int flags)
 					mtx_unlock_spin(&smp_ipi_mtx);
 				}
 			}
+			sched_unpin();
+		
 #endif
 			goto done;
 		}
@@ -716,28 +720,24 @@ sf_buf_alloc(struct vm_page *m, int flags)
 
 	/*
 	 * Update the sf_buf's virtual-to-physical mapping, flushing the
-	 * virtual address from the TLB only if the PTE implies that the old
-	 * mapping has been used.  Since the reference count for the sf_buf's
-	 * old mapping was zero, that mapping is not currently in use.
-	 * Consequently, there is no need to exchange the old and new PTEs
-	 * atomically, even under PAE.
+	 * virtual address from the TLB. Since the reference count for 
+	 * the sf_buf's old mapping was zero, that mapping is not 
+	 * currently in use. Consequently, there is no need to exchange 
+	 * the old and new PTEs atomically, even under PAE.
 	 */
 	ptep = vtopte(sf->kva);
 	opte = *ptep;
-	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
+	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V | PG_A | PG_M;
 #ifdef SMP
 	if (flags & SFB_CPUPRIVATE) {
-		if ((opte & (PG_A | PG_V)) == (PG_A | PG_V)) {
-			sf->cpumask = PCPU_GET(cpumask);
-			invlpg(sf->kva);
-		} else
-			sf->cpumask = all_cpus;
+		sf->cpumask = PCPU_GET(cpumask);
+		invlpg(sf->kva);
 		goto done;
-	} else
-		sf->cpumask = all_cpus;
+	}
+       
+	sf->cpumask = all_cpus;
 #endif
-	if ((opte & (PG_A | PG_V)) == (PG_A | PG_V))
-		pmap_invalidate_page(kernel_pmap, sf->kva);
+	pmap_invalidate_page(kernel_pmap, sf->kva);
 done:
 	mtx_unlock(&sf_buf_lock);
 	return (sf);
