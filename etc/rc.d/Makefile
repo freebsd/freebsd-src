@@ -11,6 +11,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	early.sh encswap \
 	fsck \
 	gbde geli geli2 \
+	hcsecd \
 	hostname \
 	ike \
 	inetd initrandom \
@@ -30,7 +31,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	quota \
 	ramdisk ramdisk-own random rarpd rcconf.sh resolv root \
 	route6d routed routing rpcbind rtadvd rwho \
-	savecore securelevel sendmail \
+	savecore sdpd securelevel sendmail \
 	serial sppp swap1 \
 	syscons sysctl syslogd \
 	timed tmp \
