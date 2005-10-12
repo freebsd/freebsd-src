@@ -2,7 +2,7 @@
 	The FreeBSD Documentation Project
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.31.2.2
+	Original Revision: 1.37
 -->
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
 <!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
@@ -26,6 +26,7 @@
       <year>2002</year>
       <year>2003</year>
       <year>2004</year>
+      <year>2005</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -103,6 +104,25 @@
 	技术感兴趣的人来说，正式的发行版
 	(比如 &release.prev.stable;) 往往更合适。
 	这些版本经历了一定时期的测试和质量保证检测来确保高可用性和可靠性。</para>
+
+]]>
+
+<![ %release.type.current; [
+
+      <para>这个 &release.type; 主要针对追求最新功能，
+	以及希望参与正在进行的 &os; 开发活动的用户。 尽管 &os;
+	的开发团队会尽最大努力确保每一个 &release.type;
+	都能够如宣传的那样工作， 但 &release.branch; 仍然是一个开发中的分支。</para>
+
+      <para>使用这个 &release.type; 的基本要求是对 &os; 技术的熟练性，
+	以及对正在进行的 &os; &release.branch; 开发过程的理解 (这些，
+	都会在 &a.current; 中进行讨论)。</para>
+
+      <para>对于那些希望用 &os; 来处理日常业务，
+	而不是尝试最新 &os; 技术的用户来说， 正式的发行版本
+	(例如 &release.prev.stable;) 通常更为合适。
+	发行版本经过了一段时间的测试和质量保障检察，
+	以确保其高可靠性。</para>
 
 ]]>
 
@@ -278,16 +298,9 @@
 	  </listitem>
 
 	  <listitem>
-	    <para><filename>EARLY.TXT</filename>: 为从
-	      &os; 4.<replaceable>X</replaceable> 迁移到
-	      &os; 5.<replaceable>X</replaceable>
-	      系列发行版的新用户准备的指南。</para>
-	  </listitem>
-
-	  <listitem>
-	    <para><filename>RELNOTES.TXT</filename>：发行说明，
-	      展示了与前一版本 (&os; &release.prev;) 相比在
-	      &os; &release.current; 中的创新和区别。</para>
+	    <para><filename>RELNOTES.TXT</filename>： 发行说明，
+	      展示了相对于前一版本 (&os; &release.prev;)，
+	      &os; &release.current; 中的创新和差异。</para>
 	  </listitem>
 
 	  <listitem>
