@@ -1189,7 +1189,7 @@
       字符， 现在可以关闭选项协商， 并允许发出置了高位的字符了。
       这一特性能够帮助利用 &man.telnet.1; 作为协议测试工具来使用。</para>
 
-    <para>增加了用于关闭选定的 TCp 连接的 &man.tcpdrop.8; 命令。
+    <para>增加了用于关闭选定的 TCP 连接的 &man.tcpdrop.8; 命令。
       它来自 OpenBSD. &merged;</para>
 
     <para>&man.what.1; 新增了 <option>-q</option> 选项， 其功能是，
