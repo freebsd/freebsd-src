@@ -362,14 +362,10 @@ bad:			if (m != NULL)
 int
 ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
+	int error;
 #if defined(INET) || defined(INET6)
 	struct ip_fw *rule = ip_dn_claim_rule(m);
-#else
-	void *rule = NULL;
-#endif
-	int error;
 
-#if defined(INET) || defined(INET6)
 	if (IPFW_LOADED && ether_ipfw != 0) {
 		if (ether_ipfw_chk(&m, ifp, &rule, 0) == 0) {
 			if (m) {
