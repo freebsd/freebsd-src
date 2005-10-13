@@ -105,8 +105,6 @@ static int	ng_ether_rcv_upper(node_p node, struct mbuf *m);
 
 /* if_bridge(4) support. XXX: should go into some include. */
 extern struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
-static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
-			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_ether_constructor;
@@ -653,25 +651,8 @@ ng_ether_rcv_upper(node_p node, struct mbuf *m)
 	 * XXX: This is a copy'and'paste from if_ethersubr.c:ether_input()
 	 */
 	if (ifp->if_bridge) {
-		struct ether_header *eh;
-
 		KASSERT(bridge_input_p != NULL,
 		    ("%s: if_bridge not loaded!", __func__));
-
-		eh = mtod(m, struct ether_header *);
-
-		/* Mark the packet as broadcast or multicast. This is also set
-		 * further down the code in ether_demux() but since the bridge
-		 * input routine rarely returns a mbuf for further processing,
-		 * it is an acceptable duplication.
-		 */
-		if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-			if (bcmp(etherbroadcastaddr, eh->ether_dhost,
-				sizeof(etherbroadcastaddr)) == 0)
-				m->m_flags |= M_BCAST;
-			else
-				m->m_flags |= M_MCAST;
-		}
 
 		m = (*bridge_input_p)(ifp, m);
 		if (m == NULL)
