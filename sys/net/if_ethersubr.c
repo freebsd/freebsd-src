@@ -592,19 +592,6 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		KASSERT(bridge_input_p != NULL,
 		    ("%s: if_bridge not loaded!", __func__));
 
-		/* Mark the packet as broadcast or multicast. This is also set
-		 * further down the code in ether_demux() but since the bridge
-		 * input routine rarely returns a mbuf for further processing,
-		 * it is an acceptable duplication.
-		 */
-		if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-			if (bcmp(etherbroadcastaddr, eh->ether_dhost,
-				sizeof(etherbroadcastaddr)) == 0)
-				m->m_flags |= M_BCAST;
-			else
-				m->m_flags |= M_MCAST;
-		}
-	
 		m = (*bridge_input_p)(ifp, m);
 		if (m == NULL)
 			return;
