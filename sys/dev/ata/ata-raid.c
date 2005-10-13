@@ -69,7 +69,6 @@ static int ata_raid_adaptec_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_hptv2_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_hptv2_write_meta(struct ar_softc *rdp);
 static int ata_raid_hptv3_read_meta(device_t dev, struct ar_softc **raidp);
-//static int ata_raid_hptv3_write_meta(struct ar_softc *rdp);
 static int ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_ite_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_lsiv2_read_meta(device_t dev, struct ar_softc **raidp);
@@ -116,8 +115,14 @@ ata_raid_attach(struct ar_softc *rdp, int writeback)
     char buffer[32];
     int disk;
 
-    buffer[0] = '\0';
     mtx_init(&rdp->lock, "ATA PseudoRAID metadata lock", NULL, MTX_DEF);
+
+    /* bail out on RAID5 as that is not properly supported yet */
+    if (rdp->type == AR_T_RAID5) {
+	printf("ar%d: RAID5 not supported\n", rdp->lun);
+	return;
+    }
+
     ata_raid_config_changed(rdp, writeback);
 
     /* sanitize arrays total_size % (width * interleave) == 0 */
@@ -128,6 +133,8 @@ ata_raid_attach(struct ar_softc *rdp, int writeback)
 	sprintf(buffer, " (stripe %d KB)",
 		(rdp->interleave * DEV_BSIZE) / 1024);
     }
+    else
+	buffer[0] = '\0';
     rdp->disk = disk_alloc();
     rdp->disk->d_strategy = ata_raid_strategy;
     //rdp->disk->d_dump = ata_raid_dump;
@@ -1804,21 +1811,6 @@ hptv3_out:
     free(meta, M_AR);
     return retval;
 }
-#if 0
-static int
-ata_raid_hptv3_write_meta(struct ar_softc *rdp)
-{
-    struct hptv3_raid_conf *meta;
-    int error = 0;
-
-    if (!(meta = (struct hptv3_raid_conf *)
-	  malloc(sizeof(struct hptv3_raid_conf), M_AR, M_NOWAIT | M_ZERO))) {
-	printf("ar%d: failed to allocate metadata storage\n", rdp->lun);
-	return ENOMEM;
-    }
-    return error;
-}
-#endif
 
 /* Intel MatrixRAID Metadata */
 static int
