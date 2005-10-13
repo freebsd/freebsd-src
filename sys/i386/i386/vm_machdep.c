@@ -673,25 +673,10 @@ sf_buf_alloc(struct vm_page *m, int flags)
 				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 			}
 #ifdef SMP
-			sched_pin();
-			cpumask = PCPU_GET(cpumask);
-			if ((sf->cpumask & cpumask) == 0) {
-				sf->cpumask |= cpumask;
-				invlpg(sf->kva);
-			}
-			if ((flags & SFB_CPUPRIVATE) == 0) {
-				other_cpus = PCPU_GET(other_cpus) & ~sf->cpumask;
-				if (other_cpus != 0) {
-					sf->cpumask |= other_cpus;
-					mtx_lock_spin(&smp_ipi_mtx);
-					smp_masked_invlpg(other_cpus, sf->kva);
-					mtx_unlock_spin(&smp_ipi_mtx);
-				}
-			}
-			sched_unpin();
-		
-#endif
+			goto shootdown;	
+#else
 			goto done;
+#endif
 		}
 	}
 	while ((sf = TAILQ_FIRST(&sf_buf_freelist)) == NULL) {
@@ -727,17 +712,31 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	 */
 	ptep = vtopte(sf->kva);
 	opte = *ptep;
-	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V | PG_A | PG_M;
+	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
 #ifdef SMP
-	if (flags & SFB_CPUPRIVATE) {
-		sf->cpumask = PCPU_GET(cpumask);
+	if ((opte & (PG_V | PG_A)) ==  (PG_V | PG_A))
+		sf->cpumask = 0;
+shootdown:
+	sched_pin();
+	cpumask = PCPU_GET(cpumask);
+	if ((sf->cpumask & cpumask) == 0) {
+		sf->cpumask |= cpumask;
 		invlpg(sf->kva);
-		goto done;
 	}
-       
-	sf->cpumask = all_cpus;
-#endif
+
+	if ((flags & SFB_CPUPRIVATE) == 0) {
+		other_cpus = PCPU_GET(other_cpus) & ~sf->cpumask;
+		if (other_cpus != 0) {
+			sf->cpumask |= other_cpus;
+			mtx_lock_spin(&smp_ipi_mtx);
+			smp_masked_invlpg(other_cpus, sf->kva);
+			mtx_unlock_spin(&smp_ipi_mtx);
+		}
+	}
+	sched_unpin();	
+#else
 	pmap_invalidate_page(kernel_pmap, sf->kva);
+#endif
 done:
 	mtx_unlock(&sf_buf_lock);
 	return (sf);
