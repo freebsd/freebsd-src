@@ -1,13 +1,13 @@
 # $FreeBSD$
 
-lib_LIBRARIES=	libarchive.a
+lib_LTLIBRARIES=	libarchive.la
 
 include_HEADERS= archive_entry.h
 # Note: archive.h is built from archive.h.in, so don't
 # include archive.h in the distfile, but do install it.
 nodist_include_HEADERS= archive.h
 
-libarchive_a_SOURCES=					\
+libarchive_la_SOURCES=					\
 	archive_check_magic.c				\
 	archive_entry.c					\
 	archive_entry.h					\
@@ -45,6 +45,9 @@ libarchive_a_SOURCES=					\
 	archive_write_set_format_pax.c			\
 	archive_write_set_format_shar.c			\
 	archive_write_set_format_ustar.c
+
+libarchive_la_LIBADD=-lz -lbz2
+libarchive_la_LDFLAGS= -version-info $(LIBTOOL_VERSION)
 
 dist_man_MANS=	archive_entry.3				\
 	archive_read.3					\

@@ -29,6 +29,11 @@
 #ifndef ARCHIVE_H_INCLUDED
 #define	ARCHIVE_H_INCLUDED
 
+/*
+ * This header file corresponds to:
+ *   Library version @VERSION@
+ *   Shared library version @SHLIB_MAJOR@
+ */
 
 #include <sys/types.h>  /* Linux requires this for off_t */
 #include <inttypes.h>  /* For int64_t */
@@ -54,11 +59,12 @@ extern "C" {
  *    1 - Version tests are available.
  *    2 - archive_{read,write}_close available separately from _finish.
  */
-#define	ARCHIVE_API_VERSION	@ARCHIVE_API_VERSION@
+#define	ARCHIVE_API_VERSION	@ARCHIVE_API_MAJOR@
 int		archive_api_version(void);
-#define	ARCHIVE_API_FEATURE	@ARCHIVE_API_FEATURE@
+#define	ARCHIVE_API_FEATURE	@ARCHIVE_API_MINOR@
 int		archive_api_feature(void);
 /* Textual name/version of the library. */
+#define	ARCHIVE_LIBRARY_VERSION	"libarchive @VERSION@"
 const char *	archive_version(void);
 
 #define	ARCHIVE_BYTES_PER_RECORD	  512
