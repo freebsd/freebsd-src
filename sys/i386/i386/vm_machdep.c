@@ -705,14 +705,21 @@ sf_buf_alloc(struct vm_page *m, int flags)
 
 	/*
 	 * Update the sf_buf's virtual-to-physical mapping, flushing the
-	 * virtual address from the TLB. Since the reference count for 
+	 * virtual address from the TLB.  Since the reference count for 
 	 * the sf_buf's old mapping was zero, that mapping is not 
-	 * currently in use. Consequently, there is no need to exchange 
+	 * currently in use.  Consequently, there is no need to exchange 
 	 * the old and new PTEs atomically, even under PAE.
 	 */
 	ptep = vtopte(sf->kva);
 	opte = *ptep;
 	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
+
+	/*
+	 * Avoid unnecessary TLB invalidations: If the sf_buf's old
+	 * virtual-to-physical mapping was not used, then any processor
+	 * that has invalidated the sf_buf's virtual address from its TLB
+	 * since the last used mapping need not invalidate again.
+	 */
 #ifdef SMP
 	if ((opte & (PG_V | PG_A)) ==  (PG_V | PG_A))
 		sf->cpumask = 0;
@@ -723,7 +730,6 @@ shootdown:
 		sf->cpumask |= cpumask;
 		invlpg(sf->kva);
 	}
-
 	if ((flags & SFB_CPUPRIVATE) == 0) {
 		other_cpus = PCPU_GET(other_cpus) & ~sf->cpumask;
 		if (other_cpus != 0) {
@@ -735,7 +741,8 @@ shootdown:
 	}
 	sched_unpin();	
 #else
-	pmap_invalidate_page(kernel_pmap, sf->kva);
+	if ((opte & (PG_V | PG_A)) ==  (PG_V | PG_A))
+		pmap_invalidate_page(kernel_pmap, sf->kva);
 #endif
 done:
 	mtx_unlock(&sf_buf_lock);
