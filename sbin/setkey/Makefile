@@ -56,6 +56,8 @@ CLEANFILES+=	scriptdump y.tab.h
 
 LOCALPREFIX=	/usr
 
+WARNS=	1
+
 scriptdump: scriptdump.pl
 	sed -e 's#@LOCALPREFIX@#${LOCALPREFIX}#' < $> > scriptdump
 
