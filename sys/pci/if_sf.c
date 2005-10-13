@@ -830,8 +830,6 @@ sf_detach(dev)
 		callout_drain(&sc->sf_stat_callout);
 		ether_ifdetach(ifp);
 	}
-	if (ifp)
-		if_free(ifp);
 	if (sc->sf_miibus)
 		device_delete_child(dev, sc->sf_miibus);
 	bus_generic_detach(dev);
@@ -842,6 +840,9 @@ sf_detach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sf_irq);
 	if (sc->sf_res)
 		bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
+
+	if (ifp)
+		if_free(ifp);
 
 	if (sc->sf_ldata)
 		contigfree(sc->sf_ldata, sizeof(struct sf_list_data), M_DEVBUF);
