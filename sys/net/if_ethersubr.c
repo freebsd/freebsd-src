@@ -110,6 +110,7 @@ struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
 int	(*bridge_output_p)(struct ifnet *, struct mbuf *, 
 		struct sockaddr *, struct rtentry *);
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
+void	(*bridge_detach_p)(struct ifnet *ifp);
 
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -909,6 +910,13 @@ ether_ifdetach(struct ifnet *ifp)
 		    ("ng_ether_detach_p is NULL"));
 		(*ng_ether_detach_p)(ifp);
 	}
+
+	if (ifp->if_bridge) {
+		KASSERT(bridge_detach_p != NULL,
+		    ("bridge_detach_p is NULL"));
+		(*bridge_detach_p)(ifp);
+	}
+
 	bpfdetach(ifp);
 	if_detach(ifp);
 }
