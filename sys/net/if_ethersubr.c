@@ -134,7 +134,6 @@ static int ether_ipfw;
  * Encapsulate a packet of type family for the local net.
  * Use trailer local net encapsulation if enough data in first
  * packet leaves a multiple of 512 bytes of data in remainder.
- * Assumes that ifp is actually pointer to arpcom structure.
  */
 int
 ether_output(struct ifnet *ifp, struct mbuf *m,
