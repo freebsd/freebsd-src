@@ -160,7 +160,6 @@ static void nge_rxeof(struct nge_softc *);
 static void nge_txeof(struct nge_softc *);
 static void nge_intr(void *);
 static void nge_tick(void *);
-static void nge_tick_locked(struct nge_softc *);
 static void nge_start(struct ifnet *);
 static void nge_start_locked(struct ifnet *);
 static int nge_ioctl(struct ifnet *, u_long, caddr_t);
@@ -170,6 +169,7 @@ static void nge_stop(struct nge_softc *);
 static void nge_watchdog(struct ifnet *);
 static void nge_shutdown(device_t);
 static int nge_ifmedia_upd(struct ifnet *);
+static void nge_ifmedia_upd_locked(struct ifnet *);
 static void nge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static void nge_delay(struct nge_softc *);
@@ -742,7 +742,7 @@ nge_reset(sc)
 	}
 
 	if (i == NGE_TIMEOUT)
-		printf("nge%d: reset never completed\n", sc->nge_unit);
+		if_printf(sc->nge_ifp, "reset never completed\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -791,15 +791,14 @@ nge_attach(dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct nge_softc	*sc;
-	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
-	const char		*sep = "";
+	struct ifnet		*ifp = NULL;
+	int			error = 0, rid;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct nge_softc));
 
 	NGE_LOCK_INIT(sc, device_get_nameunit(dev));
+	callout_init_mtx(&sc->nge_stat_ch, &sc->nge_mtx, 0);
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -809,7 +808,7 @@ nge_attach(dev)
 	sc->nge_res = bus_alloc_resource_any(dev, NGE_RES, &rid, RF_ACTIVE);
 
 	if (sc->nge_res == NULL) {
-		printf("nge%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -823,8 +822,7 @@ nge_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->nge_irq == NULL) {
-		printf("nge%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -839,25 +837,18 @@ nge_attach(dev)
 	nge_read_eeprom(sc, (caddr_t)&eaddr[2], NGE_EE_NODEADDR + 1, 1, 0);
 	nge_read_eeprom(sc, (caddr_t)&eaddr[0], NGE_EE_NODEADDR + 2, 1, 0);
 
-	sc->nge_unit = unit;
-
-	/* XXX: leaked on error */
 	sc->nge_ldata = contigmalloc(sizeof(struct nge_list_data), M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT|M_ZERO, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->nge_ldata == NULL) {
-		printf("nge%d: no memory for list buffers!\n", unit);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
-		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
+		device_printf(dev, "no memory for list buffers!\n");
 		error = ENXIO;
 		goto fail;
 	}
 
 	ifp = sc->nge_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("nge%d: can not if_alloc()\n", unit);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
-		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -893,19 +884,13 @@ nge_attach(dev)
 			ifmedia_init(&sc->nge_ifmedia, 0, nge_ifmedia_upd, 
 				nge_ifmedia_sts);
 #define	ADD(m, c)	ifmedia_add(&sc->nge_ifmedia, (m), (c), NULL)
-#define PRINT(s)	printf("%s%s", sep, s); sep = ", "
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, 0), 0);
-			device_printf(dev, " ");
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, 0, 0), 0);
-			PRINT("1000baseSX");
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, 0),0);
-			PRINT("1000baseSX-FDX");
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, 0), 0);
-			PRINT("auto");
-	    
-			printf("\n");
 #undef ADD
-#undef PRINT
+			device_printf(dev, " 1000baseSX, 1000baseSX-FDX, auto\n");
+			
 			ifmedia_set(&sc->nge_ifmedia, 
 				IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, 0));
 	    
@@ -916,11 +901,7 @@ nge_attach(dev)
 				| NGE_GPIO_GP3_IN | NGE_GPIO_GP4_IN);
 	    
 		} else {
-			printf("nge%d: MII without any PHY!\n", sc->nge_unit);
-			if_free(ifp);
-			bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
-			bus_release_resource(dev, NGE_RES, NGE_RID, 
-					 sc->nge_res);
+			device_printf(dev, "MII without any PHY!\n");
 			error = ENXIO;
 			goto fail;
 		}
@@ -930,7 +911,6 @@ nge_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
-	callout_init(&sc->nge_stat_ch, CALLOUT_MPSAFE);
 
 	/*
 	 * Hookup IRQ last.
@@ -938,17 +918,23 @@ nge_attach(dev)
 	error = bus_setup_intr(dev, sc->nge_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    nge_intr, sc, &sc->nge_intrhand);
 	if (error) {
-		/* XXX: resource leaks */
-		if_free(ifp);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
-		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
-		printf("nge%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
+		goto fail;
 	}
 
-fail:
+	return (0);
 
-	if (error)
-		NGE_LOCK_DESTROY(sc);
+fail:
+	if (sc->nge_ldata)
+		contigfree(sc->nge_ldata,
+		  sizeof(struct nge_list_data), M_DEVBUF);
+	if (ifp)
+		if_free(ifp);
+	if (sc->nge_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
+	if (sc->nge_res)
+		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
+	NGE_LOCK_DESTROY(sc);
 	return(error);
 }
 
@@ -970,6 +956,7 @@ nge_detach(dev)
 	nge_reset(sc);
 	nge_stop(sc);
 	NGE_UNLOCK(sc);
+	callout_drain(&sc->nge_stat_ch);
 	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
@@ -1322,21 +1309,10 @@ nge_tick(xsc)
 	void			*xsc;
 {
 	struct nge_softc	*sc;
-
-	sc = xsc;
-
-	NGE_LOCK(sc);
-	nge_tick_locked(sc);
-	NGE_UNLOCK(sc);
-}
-
-static void
-nge_tick_locked(sc)
-	struct nge_softc	*sc;
-{
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
 
+	sc = xsc;
 	NGE_LOCK_ASSERT(sc);
 	ifp = sc->nge_ifp;
 
@@ -1345,8 +1321,8 @@ nge_tick_locked(sc)
 			if (CSR_READ_4(sc, NGE_TBI_BMSR) 
 			    & NGE_TBIBMSR_ANEG_DONE) {
 				if (bootverbose)
-					printf("nge%d: gigabit link up\n",
-					    sc->nge_unit);
+					if_printf(sc->nge_ifp, 
+					    "gigabit link up\n");
 				nge_miibus_statchg(sc->nge_miibus);
 				sc->nge_link++;
 				if (ifp->if_snd.ifq_head != NULL)
@@ -1363,8 +1339,8 @@ nge_tick_locked(sc)
 				sc->nge_link++;
 				if (IFM_SUBTYPE(mii->mii_media_active) 
 				    == IFM_1000_T && bootverbose)
-					printf("nge%d: gigabit link up\n",
-					    sc->nge_unit);
+					if_printf(sc->nge_ifp, 
+					    "gigabit link up\n");
 				if (ifp->if_snd.ifq_head != NULL)
 					nge_start_locked(ifp);
 			}
@@ -1495,7 +1471,7 @@ nge_intr(arg)
 		 */
 		if (status & NGE_IMR_PHY_INTR) {
 			sc->nge_link = 0;
-			nge_tick_locked(sc);
+			nge_tick(sc);
 		}
 #endif
 	}
@@ -1702,8 +1678,8 @@ nge_init_locked(sc)
 
 	/* Init circular RX list. */
 	if (nge_list_rx_init(sc) == ENOBUFS) {
-		printf("nge%d: initialization failed: no "
-			"memory for rx buffers\n", sc->nge_unit);
+		if_printf(sc->nge_ifp, "initialization failed: no "
+			"memory for rx buffers\n");
 		nge_stop(sc);
 		return;
 	}
@@ -1808,7 +1784,7 @@ nge_init_locked(sc)
 		}
 	}
 
-	nge_tick_locked(sc);
+	nge_tick(sc);
 
 	/*
 	 * Enable the delivery of PHY interrupts based on
@@ -1846,7 +1822,7 @@ nge_init_locked(sc)
 	NGE_CLRBIT(sc, NGE_CSR, NGE_CSR_TX_DISABLE|NGE_CSR_RX_DISABLE);
 	NGE_SETBIT(sc, NGE_CSR, NGE_CSR_RX_ENABLE);
 
-	nge_ifmedia_upd(ifp);
+	nge_ifmedia_upd_locked(ifp);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1862,9 +1838,23 @@ nge_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct nge_softc	*sc;
+
+	sc = ifp->if_softc;
+	NGE_LOCK(sc);
+	nge_ifmedia_upd_locked(ifp);
+	NGE_UNLOCK(sc);
+	return (0);
+}
+
+static void
+nge_ifmedia_upd_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct nge_softc	*sc;
 	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
+	NGE_LOCK_ASSERT(sc);
 
 	if (sc->nge_tbi) {
 		if (IFM_SUBTYPE(sc->nge_ifmedia.ifm_cur->ifm_media) 
@@ -1900,14 +1890,12 @@ nge_ifmedia_upd(ifp)
 		sc->nge_link = 0;
 		if (mii->mii_instance) {
 			struct mii_softc	*miisc;
-			for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-			    miisc = LIST_NEXT(miisc, mii_list))
+
+			LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 				mii_phy_reset(miisc);
 		}
 		mii_mediachg(mii);
 	}
-
-	return(0);
 }
 
 /*
@@ -1923,6 +1911,7 @@ nge_ifmedia_sts(ifp, ifmr)
 
 	sc = ifp->if_softc;
 
+	NGE_LOCK(sc);
 	if (sc->nge_tbi) {
 		ifmr->ifm_status = IFM_AVALID;
 		ifmr->ifm_active = IFM_ETHER;
@@ -1935,6 +1924,7 @@ nge_ifmedia_sts(ifp, ifmr)
 		if (!CSR_READ_4(sc, NGE_TBI_BMSR) & NGE_TBIBMSR_ANEG_DONE) {
 			ifmr->ifm_active |= IFM_NONE;
 			ifmr->ifm_status = 0;
+			NGE_UNLOCK(sc);
 			return;
 		} 
 		ifmr->ifm_active |= IFM_1000_SX;
@@ -1960,6 +1950,7 @@ nge_ifmedia_sts(ifp, ifmr)
 		ifmr->ifm_active = mii->mii_media_active;
 		ifmr->ifm_status = mii->mii_media_status;
 	}
+	NGE_UNLOCK(sc);
 
 	return;
 }
@@ -1980,6 +1971,7 @@ nge_ioctl(ifp, command, data)
 		if (ifr->ifr_mtu > NGE_JUMBO_MTU)
 			error = EINVAL;
 		else {
+			NGE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
 			/*
 			 * Workaround: if the MTU is larger than
@@ -1993,6 +1985,7 @@ nge_ioctl(ifp, command, data)
 				ifp->if_capenable |= IFCAP_TXCSUM;
 				ifp->if_hwassist = NGE_CSUM_FEATURES;
 			}
+			NGE_UNLOCK(sc);
 		}
 		break;
 	case SIOCSIFFLAGS:
@@ -2086,7 +2079,7 @@ nge_watchdog(ifp)
 	sc = ifp->if_softc;
 
 	ifp->if_oerrors++;
-	printf("nge%d: watchdog timeout\n", sc->nge_unit);
+	if_printf(sc->nge_ifp, "watchdog timeout\n");
 
 	NGE_LOCK(sc);
 	nge_stop(sc);
