@@ -656,7 +656,6 @@ struct nge_softc {
 	void			*nge_intrhand;
 	device_t		nge_miibus;
 	int			nge_if_flags;
-	u_int8_t		nge_unit;
 	u_int8_t		nge_type;
 	u_int8_t		nge_link;
 	u_int8_t		nge_width;
