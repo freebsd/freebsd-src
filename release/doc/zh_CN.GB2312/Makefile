@@ -1,14 +1,13 @@
 # The FreeBSD Simplified Chinese Project
 #
-# Original Revision: 1.3
+# Original Revision: 1.7
 # $FreeBSD$
 
 RELN_ROOT?= ${.CURDIR}/..
 
-SUBDIR = early-adopter
+SUBDIR = relnotes
 SUBDIR+= hardware
 SUBDIR+= readme
-SUBDIR+= relnotes
 SUBDIR+= errata
 SUBDIR+= installation
 

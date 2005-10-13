@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.277
+	Original Revision: 1.282.2.3
 -->
 
 <!--
@@ -58,7 +58,7 @@
     <title>磁盘控制器</title>
 
     <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA 控制器 (&man.ata.4; 驱动程序)</para>
-    <para arch="pc98">IDE/ATA 控制器 (wdc driver)
+    <para arch="pc98">IDE/ATA 控制器 (wdc 驱动程序)
       <itemizedlist>
         <listitem>
 	  <para>板载 IDE 控制器</para>
@@ -66,7 +66,11 @@
       </itemizedlist>
     </para>
 
-    &hwlist.aic;
+    &hwlist.aac;
+
+    &hwlist.adv;
+
+    &hwlist.adw;
 
     &hwlist.aha;
 
@@ -76,64 +80,9 @@
 
     &hwlist.ahd;
 
-    &hwlist.aac;
+    &hwlist.aic;
 
-    &hwlist.ct;
-
-    <para arch="pc98">NEC PC-9801-55, 92 以及兼容的 C-Bus SCSI 接口 (bs 驱动)
-      <itemizedlist>
-        <listitem>
-          <para>NEC PC-9801-55, 92 及其兼容</para>
-          <para>ICM IF-2660</para>
-          <para>Midori-Denshi MDC-554NA</para>
-          <para>Logitec LHA-N151</para>
-          <note>
-            <para>DMA 传输模式需要在内核配置中指定 "flags 0x00000"。</para>
-          </note>
-        </listitem>
-        <listitem>
-          <para>I-O DATA SC-98II</para>
-          <note>
-            <para>DMA 传输模式需要在内核配置中指定 "flags 0x10000"。</para>
-          </note>
-        </listitem>
-        <listitem>
-          <para>TEXA HA-55BS2 和更新</para>
-          <para>Midori-Denshi MDC-926Rs</para>
-          <note>
-            <para>Bus-master 传输模式需要在内核配置中指定 "flags 0x20000"。</para>
-          </note>
-        </listitem>
-        <listitem>
-          <para>ELECOM Bus-master SCSI 接口</para>
-          <note>
-            <para>Bus-master 传输模式需要在内核配置中指定 "flags 0x30000"。</para>
-          </note>
-        </listitem>
-        <listitem>
-          <para>所有 SMIT 传输类型的 SCSI 接口</para>
-          <note>
-            <para>SMIT 传输模式需要在内核配置中指定 "flags 0x40000"。</para>
-          </note>
-        </listitem>
-        <listitem>
-          <para>Logitec LHA-20x 系列</para>
-          <para>ICM IF-2766, IF-2766ET, IF-2767 和 IF-2769</para>
-          <note>
-            <para>Bus-master 传输模式需要在内核配置中指定 "flags 0x50000"。</para>
-          </note>
-        </listitem>
-      </itemizedlist>
-    </para>
-    &hwlist.adv;
-
-    &hwlist.adw;
-
-    &hwlist.bt;
-
-    &hwlist.dpt;
-
-    &hwlist.asr;
+    &hwlist.amd;
 
     &hwlist.amr;
       <note>
@@ -144,6 +93,28 @@
       </note>
 
     &hwlist.arcmsr;
+
+    &hwlist.asr;
+
+    &hwlist.bt;
+
+    &hwlist.ciss;
+
+    &hwlist.ct;
+
+    &hwlist.dpt;
+
+    &hwlist.esp;
+
+    &hwlist.hptmv;
+
+    &hwlist.ida;
+
+    &hwlist.iir;
+
+    &hwlist.ips;
+
+    &hwlist.isp;
 
     &hwlist.mlx;
 
@@ -159,41 +130,27 @@
 
     &hwlist.mly;
 
-    &hwlist.twe;
-
-    &hwlist.twa;
+    &hwlist.mpt;
 
     &hwlist.ncr;
 
-    &hwlist.sym;
-
     &hwlist.ncv;
-
-    &hwlist.stg;
-
-    &hwlist.isp;
-
-    &hwlist.amd;
 
     &hwlist.nsp;
 
-    &hwlist.vpo;
-
-    &hwlist.ida;
-
-    &hwlist.ciss;
-
-    &hwlist.iir;
-
     &hwlist.pst;
 
-    &hwlist.hptmv;
+    &hwlist.stg;
 
-    &hwlist.ips;
-
-    &hwlist.mpt;
+    &hwlist.sym;
 
     &hwlist.trm;
+
+    &hwlist.twa;
+
+    &hwlist.twe;
+
+    &hwlist.vpo;
 
     <para arch="i386">wds(4) 驱动程序支持 WD7000 SCSI 控制器</para>
 
@@ -212,11 +169,6 @@
         <listitem>
           <para>SCSI 接口 (也包括 ProAudio Spectrum 和
           SoundBlaster SCSI) (&man.cd.4;)</para>
-	</listitem>
-
-	<listitem arch="i386">
-	  <para>Matsushita CR-562, CR-563, 及兼容
-	    (&man.matcd.4; 驱动程序)</para>
 	</listitem>
 
 	<listitem arch="i386">
@@ -241,99 +193,101 @@
   <sect2 id="ethernet">
     <title>以太网接口</title>
 
-    &hwlist.sf;
-
-    &hwlist.ti;
-
-    &hwlist.pcn;
-
-    &hwlist.lnc;
-
-    <para arch="i386,pc98,amd64">基于 SMC 83c17x (EPIC) 的以太网 NIC (&man.tx.4; 驱动程序)
-    </para>
-
-    &hwlist.ed;
-
-    &hwlist.rl;
-
-    &hwlist.wb;
-
-    &hwlist.vr;
-
-    &hwlist.sis;
-
-    &hwlist.nge;
-
-    &hwlist.ste;
-
-    &hwlist.sk;
-
-    &hwlist.tl;
-
-    &hwlist.dc;
-
     &hwlist.aue;
-
-    &hwlist.cue;
-
-    &hwlist.kue;
 
     &hwlist.axe;
 
-    &hwlist.rue;
+    <para arch="i386,amd64">基于 Broadcom BCM4401 的高速以太网适配器
+      (&man.bfe.4; 驱动程序)</para>
 
-    &hwlist.udav;
+    &hwlist.bge;
 
-    &hwlist.de;
-
-    &hwlist.fe;
-
-    &hwlist.fxp;
-
-    &hwlist.ex;
-
-    &hwlist.ie;
-
-    &hwlist.ep;
-
-    &hwlist.el;
-
-    &hwlist.xl;
-
-    &hwlist.vx;
+    &hwlist.cue;
 
     <para arch="i386,amd64">基于 Crystal Semiconductor CS89x0 的 NIC
     (&man.cs.4; 驱动程序)
     </para>
 
-    &hwlist.sn;
+    &hwlist.dc;
 
-    &hwlist.xe;
+    &hwlist.de;
 
-    &hwlist.snc;
+    &hwlist.ed;
 
-    &hwlist.lge;
-
-    &hwlist.txp;
-
-    &hwlist.bge;
+    &hwlist.el;
 
     &hwlist.em;
 
-    &hwlist.hme;
+    &hwlist.ep;
+
+    &hwlist.ex;
+
+    &hwlist.fe;
+
+    &hwlist.fxp;
 
     &hwlist.gem;
 
-    &hwlist.my;
+    &hwlist.hme;
 
-    <para arch="i386,amd64">基于 Broadcom BCM4401 的高速以太网适配器
-      (&man.bfe.4; 驱动程序)</para>
-
-    &hwlist.re;
+    &hwlist.ie;
 
     &hwlist.ixgb;
 
+    &hwlist.kue;
+
+    &hwlist.lge;
+
+    &hwlist.lnc;
+
+    &hwlist.my;
+
+    &hwlist.nge;
+
+    &hwlist.nve;
+
+    &hwlist.pcn;
+
+    &hwlist.re;
+
+    &hwlist.rl;
+
+    &hwlist.rue;
+
+    &hwlist.sf;
+
+    &hwlist.sis;
+
+    &hwlist.sk;
+
+    &hwlist.sn;
+
+    &hwlist.snc;
+
+    &hwlist.ste;
+
+    &hwlist.ti;
+
+    &hwlist.tl;
+
+    <para arch="i386,pc98,amd64">基于 SMC 83c17x (EPIC) 的以太网 NIC (&man.tx.4; 驱动程序)
+    </para>
+
+    &hwlist.txp;
+
+    &hwlist.udav;
+
     &hwlist.vge;
+
+    &hwlist.vr;
+
+    &hwlist.vx;
+
+    &hwlist.wb;
+
+    &hwlist.xe;
+
+    &hwlist.xl;
 
   </sect2>
 
@@ -697,53 +651,54 @@
       </note>
 
   </sect2>
-  <sect2 id="audio">
-    <title>Audio Devices</title>
+  <sect2 id="sound">
+    <title>声音设备</title>
+
+    &hwlist.sound;
 
     &hwlist.snd.ad1816;
-    &hwlist.snd.cs4281;
-    &hwlist.snd.solo;
 
-    &hwlist.snd.sbc;
+    &hwlist.snd.als4000;
+
+    &hwlist.snd.audiocs;
 
     &hwlist.snd.cmi;
 
+    &hwlist.snd.cs4281;
+
     &hwlist.snd.csa;
+
+    &hwlist.snd.ds1;
+
+    &hwlist.snd.emu10k1;
 
     &hwlist.snd.es137x;
 
     &hwlist.snd.ess;
 
+    &hwlist.snd.fm801;
+
+    &hwlist.snd.gusc;
+
+    &hwlist.snd.ich;
+
     &hwlist.snd.maestro;
 
     &hwlist.snd.maestro3;
 
-    <para arch="i386,amd64">ForteMedia fm801</para>
-
-    &hwlist.snd.gusc;
-
-    <para arch="i386,amd64">Intel 443MX, 810, 815, 和 815E 集成声音设备
-    (&man.pcm.4; 驱动程序)</para>
-
-    <para arch="i386,alpha,amd64">MSS/WSS 兼容的 DSP (&man.pcm.4; 驱动程序)</para>
-
     &hwlist.snd.neomagic;
 
-    <para arch="i386,amd64">OPTi 931/82C931 (&man.pcm.4; 驱动程序)</para>
+    &hwlist.snd.sbc;
 
-    &hwlist.snd.vibes;
+    &hwlist.snd.solo;
 
-    &hwlist.snd.emu10k1;
+    &hwlist.snd.t4dwave;
 
-    <para arch="i386,amd64">Trident 4DWave DX/NX (&man.pcm.4; driver)</para>
+    &hwlist.snd.via8233;
 
     &hwlist.snd.via82c686;
 
-    &hwlist.snd.ds1;
-
-    &hwlist.snd.ich;
-
-    &hwlist.snd.audiocs;
+    &hwlist.snd.vibes;
 
     <para arch="pc98">NEC PC-9801-73, 86 及兼容 (nss 驱动程序)
       <itemizedlist>
