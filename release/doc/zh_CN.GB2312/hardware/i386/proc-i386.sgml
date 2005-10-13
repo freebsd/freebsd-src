@@ -35,7 +35,7 @@
 
   <para>&os; 能够利用 Intel CPU 的超线程 (HTT) 支持并从中受益。 启用了
     <literal>options&nbsp;SMP</literal> 的内核能够自动检测到附加的逻辑处理器。
-    默认的 &os; 调度器将逻辑处理器等同于一些额外的物理处理爱；
+    默认的 &os; 调度器将逻辑处理器等同于一些额外的物理处理器；
     换言之， 它不会尝试根据同一 CPU 上的逻辑处理器对调度决策实施优化。
     由于这种简单的调度策略会导致性能不够理想， 某些情况下通过设置
     <varname>machdep.hlt_logical_cpus</varname> sysctl
