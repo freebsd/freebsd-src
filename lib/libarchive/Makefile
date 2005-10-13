@@ -1,31 +1,55 @@
 # $FreeBSD$
 
-#
-# Use "make distfile" to build a conventional tar.gz archive
-# complete with autoconf/automake-generated build system.
-#
-
+# This Makefile is for use with the FreeBSD buid system.  For
+# non-FreeBSD systems, you should first "make distfile" on FreeBSD,
+# then use the resulting tar.gz archive--which contains a portable
+# autoconf/automake-generated build system--on the other system.
 
 LIB=	archive
-VERSION=	1.02.033
-ARCHIVE_API_FEATURE=	2
-ARCHIVE_API_VERSION=	2
-SHLIB_MAJOR=	${ARCHIVE_API_VERSION}
+
+# Versioning <sigh>.  There are three distinct sets of version
+# numbers:
+#    * libarchive version
+#    * libtool version (for shared libs built using configure script)
+#    * FreeBSD SHLIB_MAJOR
+# The following logic helps ensure that there is some consistency across
+# these three:
+
+# First, the libarchive version is in three parts:
+# Bumped ONLY when API/ABI breakage happens (non-backwards-compatible change).
+ARCHIVE_API_MAJOR=	1
+# Bumped when significant new features are added.
+# Also used to bump SHLIB_MAJOR for reasons other than API/ABI breakage.
+# Note: Do NOT reset this to zero after bumping ARCHIVE_API_MAJOR!
+ARCHIVE_API_MINOR=	2
+# Bumped often. ;-)
+ARCHIVE_API_REVISION=	36
+# Full libarchive version combines the above three numbers.
+VERSION!=printf "%d.%02d.%03d" ${ARCHIVE_API_MAJOR} ${ARCHIVE_API_MINOR} ${ARCHIVE_API_REVISION}
+
+# The FreeBSD SHLIB_MAJOR is computed from the above values.
+SHLIB_MAJOR!= expr ${ARCHIVE_API_MAJOR} + ${ARCHIVE_API_MINOR}
+
+# The SHLIB_MAJOR computation above helps ensure that the libtool
+# version (computed in configure.ac.in) provides the same
+# shared library number as is used on FreeBSD.
+
 CFLAGS+=	-DPACKAGE_NAME=\"lib${LIB}\"
 CFLAGS+=	-DPACKAGE_VERSION=\"${VERSION}\"
 CFLAGS+=	-I${.OBJDIR}
 
+# FreeBSD/arm has some limitations.
 .if ${MACHINE_ARCH} == "arm"
 WARNS?= 3
 .else
 WARNS?=	6
 .endif
 
+# Headers to be installed in /usr/include
 INCS=	archive.h archive_entry.h
 
-# Note: archive.h does need to be listed here, since it's built
-SRCS=	archive.h					\
-	archive_check_magic.c				\
+# C sources to be compiled.  This is one part of SRCS below.
+BASE_SRCS= archive_check_magic.c			\
 	archive_entry.c					\
 	archive_read.c					\
 	archive_read_data_into_buffer.c			\
@@ -59,6 +83,12 @@ SRCS=	archive.h					\
 	archive_write_set_format_shar.c			\
 	archive_write_set_format_ustar.c
 
+# Note: archive.h does need to be in SRCS, since it is built
+# from archive.h.in.  But it does not get included in DIST_FILES
+# below, so I build up SRCS in two steps.
+SRCS=	${BASE_SRCS} archive.h
+
+# Man pages to be installed.
 MAN=	archive_entry.3					\
 	archive_read.3					\
 	archive_util.3					\
@@ -67,6 +97,7 @@ MAN=	archive_entry.3					\
 	libarchive-formats.5				\
 	tar.5
 
+# Symlink the man pages under each function name.
 MLINKS+=	archive_entry.3 archive_entry_acl_add_entry.3
 MLINKS+=	archive_entry.3 archive_entry_acl_add_entry_w.3
 MLINKS+=	archive_entry.3 archive_entry_acl_clear.3
@@ -169,11 +200,14 @@ MLINKS+=	archive_write.3 archive_write_set_format_shar.3
 MLINKS+=	archive_write.3 archive_write_set_format_ustar.3
 MLINKS+=	libarchive.3 archive.3
 
-# Build archive.h from archive.h.in
+# Build archive.h from archive.h.in by substituting version information.
 archive.h:	archive.h.in Makefile
 	cat ${.CURDIR}/archive.h.in |					\
-		sed 's/@ARCHIVE_API_VERSION@/${ARCHIVE_API_VERSION}/' |	\
-		sed 's/@ARCHIVE_API_FEATURE@/${ARCHIVE_API_FEATURE}/' |	\
+		sed 's/@VERSION@/${VERSION}/g' | 			\
+		sed 's/@SHLIB_MAJOR@/${SHLIB_MAJOR}/g' |		\
+		sed 's/@ARCHIVE_API_MAJOR@/${ARCHIVE_API_MAJOR}/g' |	\
+		sed 's/@ARCHIVE_API_MINOR@/${ARCHIVE_API_MINOR}/g' |	\
+		sed 's/@ARCHIVE_API_REVISION@/${ARCHIVE_API_REVISION}/g' | \
 		cat > archive.h
 
 # archive.h needs to be cleaned
@@ -187,7 +221,8 @@ CLEANFILES+=	archive.h
 DIST_WORK_DIR=	${.OBJDIR}/lib${LIB}-${VERSION}
 CLEANDIRS+=	${DIST_WORK_DIR}
 DISTFILE=	lib${LIB}-${VERSION}.tar.gz
-DIST_FILES=	${SRCS}
+# DIST_FILES is the list of files to include in the distribution.
+DIST_FILES=	${BASE_SRCS}
 DIST_FILES+=	${MAN}
 DIST_FILES+=	archive.h.in
 DIST_FILES+=	archive_entry.h archive_platform.h
@@ -197,15 +232,24 @@ DIST_FILES+=	Makefile.am
 distfile:
 	rm -rf ${DIST_WORK_DIR}
 	mkdir ${DIST_WORK_DIR}
-	for f in ${DIST_FILES};					\
-	do							\
-		cat ${.CURDIR}/$$f >${DIST_WORK_DIR}/$$f || true;	\
+	# Copy the DIST_FILES; ignore errors, don't preserve permissions.
+	for f in ${DIST_FILES}; do				\
+		cat ${.CURDIR}/$$f >${DIST_WORK_DIR}/$$f || true; \
 	done
-	cat ${.CURDIR}/configure.ac.in |			\
-		sed 's/@VERSION@/${VERSION}/' |			\
+	# Build configure.ac from configure.ac.in
+	cat ${.CURDIR}/configure.ac.in |				\
+		sed 's/@VERSION@/${VERSION}/g' |			\
+		sed 's/@SHLIB_MAJOR@/${SHLIB_MAJOR}/g' | 		\
+		sed 's/@ARCHIVE_API_MAJOR@/${ARCHIVE_API_MAJOR}/g' |	\
+		sed 's/@ARCHIVE_API_MINOR@/${ARCHIVE_API_MINOR}/g' |	\
+		sed 's/@ARCHIVE_API_REVISION@/${ARCHIVE_API_REVISION}/g' | \
 		cat > ${DIST_WORK_DIR}/configure.ac
+	# Prepare some auxiliary files.
+	(cd ${DIST_WORK_DIR} && libtoolize)
 	(cd ${DIST_WORK_DIR} && aclocal && autoheader)
+	# Build the configure script and portable Makefile
 	(cd ${DIST_WORK_DIR} && autoconf && automake -a --foreign)
+	# Now, use automake-generated Makefile to build the final dist file.
 	(cd ${DIST_WORK_DIR} && ./configure && make distcheck && make dist)
 	mv ${DIST_WORK_DIR}/${DISTFILE} ${.OBJDIR}
 	@echo ==================================================
