@@ -165,6 +165,10 @@ pkg_do(char *pkg)
 	}
     }
     if (latest == NULL) {
+	/* Report package as not found in INDEX if the INDEX is not required. */
+	if (IndexFile == NULL && !UseINDEXOnly)
+		show_version(plist, NULL, plist.origin);
+	else {
 	/* We only pull in the INDEX once, if needed. */
 	if (SLIST_EMPTY(&Index)) {
 	    if (!IndexFile)
@@ -230,6 +234,7 @@ pkg_do(char *pkg)
 	    show_version(plist, NULL, plist.origin);
 	else
 	    show_version(plist, latest, "index");
+	}
     }
     if (latest != NULL)
 	free(latest);
@@ -331,13 +336,13 @@ version_match(char *pattern, const char *pkgname)
 	fp = fetchGetURL(pkgname, "");
 	isTMP = TRUE;
 	matchstream = 1;
-	if (fp == NULL) 
+	if (fp == NULL)
 	    errx(2, "Unable to open %s.", pkgname);
     } else if (pkgname[0] == '/') {
 	fp = fopen(pkgname, "r");
 	isTMP = TRUE;
 	matchstream = 1;
-	if (fp == NULL) 
+	if (fp == NULL)
 	    errx(2, "Unable to open %s.", pkgname);
     } else if (strcmp(pkgname, "-") == 0) {
 	fp = stdin;
@@ -346,13 +351,13 @@ version_match(char *pattern, const char *pkgname)
 	fp = fetchGetURL(pattern, "");
 	isTMP = TRUE;
 	matchstream = -1;
-	if (fp == NULL) 
+	if (fp == NULL)
 	    errx(2, "Unable to open %s.", pattern);
     } else if (pattern[0] == '/') {
 	fp = fopen(pattern, "r");
 	isTMP = TRUE;
 	matchstream = -1;
-	if (fp == NULL) 
+	if (fp == NULL)
 	    errx(2, "Unable to open %s.", pattern);
     } else if (strcmp(pattern, "-") == 0) {
 	fp = stdin;
