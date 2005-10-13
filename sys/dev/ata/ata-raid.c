@@ -1225,6 +1225,7 @@ ata_raid_read_metadata(device_t subdisk)
 		return 0;
 	    break;
 
+	case ATA_ATI_ID:
 	case ATA_SILICON_IMAGE_ID:
 	    if (ata_raid_sii_read_meta(subdisk, ata_raid_arrays))
 		return 0;
