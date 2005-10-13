@@ -333,6 +333,9 @@ const struct bridge_control bridge_control_table[] = {
 const int bridge_control_table_size =
     sizeof(bridge_control_table) / sizeof(bridge_control_table[0]);
 
+static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
+			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
 LIST_HEAD(, bridge_softc) bridge_list;
 
 IFC_SIMPLE_DECLARE(bridge, 0);
@@ -1698,7 +1701,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		return (m);
 	}
 
-	if (m->m_flags & (M_BCAST|M_MCAST)) {
+	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
 		/* Tap off 802.1D packets; they do not get forwarded. */
 		if (memcmp(eh->ether_dhost, bstp_etheraddr,
 		    ETHER_ADDR_LEN) == 0) {
@@ -1718,6 +1721,12 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 				return (m);
 			}
 		}
+
+		if (bcmp(etherbroadcastaddr, eh->ether_dhost,
+		    sizeof(etherbroadcastaddr)) == 0)
+			m->m_flags |= M_BCAST;
+		else
+			m->m_flags |= M_MCAST;
 
 		/*
 		 * Make a deep copy of the packet and enqueue the copy
