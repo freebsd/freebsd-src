@@ -6,9 +6,13 @@ AM_INIT_AUTOMAKE(libarchive, @VERSION@)
 AC_CONFIG_SRCDIR([archive_write_set_format_ustar.c])
 AM_CONFIG_HEADER([config.h])
 
+# Yes, libtool version numbering is somewhat strange.
+LIBTOOL_VERSION=@SHLIB_MAJOR@:@ARCHIVE_API_REVISION@:@ARCHIVE_API_MINOR@
+AC_SUBST(LIBTOOL_VERSION)
+
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_RANLIB
+AC_PROG_LIBTOOL
 AC_CHECK_TOOL([STRIP],[strip])
 
 # Checks for libraries.
@@ -87,8 +91,8 @@ AC_CHECK_DECL([ACL_USER],
 
 # Additional requirements
 AC_SYS_LARGEFILE
-AC_SUBST(ARCHIVE_API_VERSION,[1])
-AC_SUBST(ARCHIVE_API_FEATURE,[1])
+AC_SUBST(ARCHIVE_API_MAJOR,[@ARCHIVE_API_MAJOR@])
+AC_SUBST(ARCHIVE_API_MINOR,[@ARCHIVE_API_MINOR@])
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([archive.h])
