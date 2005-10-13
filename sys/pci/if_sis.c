@@ -1274,8 +1274,6 @@ sis_detach(device_t dev)
 		callout_drain(&sc->sis_stat_ch);
 		ether_ifdetach(ifp);
 	}
-	if (ifp)
-		if_free(ifp);
 	if (sc->sis_miibus)
 		device_delete_child(dev, sc->sis_miibus);
 	bus_generic_detach(dev);
@@ -1283,6 +1281,9 @@ sis_detach(device_t dev)
 	if (sc->sis_intrhand)
 		bus_teardown_intr(dev, sc->sis_res[1], sc->sis_intrhand);
 	bus_release_resources(dev, sis_res_spec, sc->sis_res);
+
+	if (ifp)
+		if_free(ifp);
 
 	if (sc->sis_rx_tag) {
 		bus_dmamap_unload(sc->sis_rx_tag,

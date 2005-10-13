@@ -2330,8 +2330,6 @@ ti_detach(dev)
 		ether_ifdetach(ifp);
 		bus_generic_detach(dev);
 	}
-	if (ifp)
-		if_free(ifp);
 	ifmedia_removeall(&sc->ifmedia);
 
 	if (sc->ti_rdata)
@@ -2349,6 +2347,8 @@ ti_detach(dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, TI_PCI_LOMEM,
 		    sc->ti_res);
 	}
+	if (ifp)
+		if_free(ifp);
 
 #ifdef TI_PRIVATE_JUMBOS
 	if (sc->ti_cdata.ti_jumbo_buf)

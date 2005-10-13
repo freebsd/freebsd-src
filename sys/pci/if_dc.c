@@ -2356,8 +2356,6 @@ dc_detach(device_t dev)
 		callout_drain(&sc->dc_stat_ch);
 		ether_ifdetach(ifp);
 	}
-	if (ifp)
-		if_free(ifp);
 	if (sc->dc_miibus)
 		device_delete_child(dev, sc->dc_miibus);
 	bus_generic_detach(dev);
@@ -2368,6 +2366,9 @@ dc_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
 	if (sc->dc_res)
 		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
+
+	if (ifp)
+		if_free(ifp);
 
 	if (sc->dc_cdata.dc_sbuf != NULL)
 		bus_dmamem_free(sc->dc_stag, sc->dc_cdata.dc_sbuf, sc->dc_smap);

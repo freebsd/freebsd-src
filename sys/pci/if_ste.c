@@ -1158,8 +1158,6 @@ ste_detach(dev)
 		callout_drain(&sc->ste_stat_callout);
 		ether_ifdetach(ifp);
 	}
-	if (ifp)
-		if_free(ifp);
 	if (sc->ste_miibus)
 		device_delete_child(dev, sc->ste_miibus);
 	bus_generic_detach(dev);
@@ -1170,6 +1168,9 @@ ste_detach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
 	if (sc->ste_res)
 		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
+
+	if (ifp)
+		if_free(ifp);
 
 	if (sc->ste_ldata) {
 		contigfree(sc->ste_ldata, sizeof(struct ste_list_data),
