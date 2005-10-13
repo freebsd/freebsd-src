@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.17
+	Original Revision: 1.19
 	$FreeBSD$
 
 	This file contains the comments of the old TROUBLE.TXT file.
@@ -66,7 +66,8 @@
             或者安装时行为异常， 或者软驱没有检测到。</para>
         </question>
         <answer>
-          <para>&os; 5.0 以及更高版本大量地使用了 i386 平台上的系统 ACPI
+          <para>&os; 5.0 以及更高版本大量地使用了 i386、 amd64 
+            以及 ia64 平台上的系统 ACPI
             服务以帮助检测系统在启动过程中检测到的设备。
             不幸的是， ACPI 驱动程序以及主板及其 BIOS 仍然存在一些 bug。
             ACPI 可以通过在启动加载的第三阶段通过设置
@@ -96,7 +97,7 @@
 	  </para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386,pc98,alpha,sparc64">
         <question>
           <para>先前版本的 &os; 能够识别我的旧式 ISA 设备，
             而新版本不能了。 发生了什么问题？</para>
@@ -202,7 +203,7 @@
 	  </blockquote>
  	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>&man.mcd.4; 驱动总是认为它发现了一个设备， 而这导致我的
 	  Intel EtherExpress 网卡无法正常工作。</para>
@@ -237,7 +238,7 @@
           您就不应使用 IRQ 2 或 9。</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>我从软盘引导安装我的 IBM ThinkPad (tm)膝上型电脑，
           键盘的输入一团糟。</para>
@@ -249,7 +250,7 @@
           hint <quote>hint.atkbd.0.flags="4"</quote> 应该能让其正常工作。</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386,pc98,alpha,sparc64">
         <question>
 	  <para>我的系统找不到我的 Intel EtherExpress 16 卡。</para>
         </question>
@@ -259,7 +260,7 @@
           程序进行设置， 让使映射后的内存大小为 32K </para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>在 EISA HP Netserver 上安装时，我的
 	  AIC-7xxx SCSI 控制器检测不到。</para>
@@ -270,7 +271,7 @@
           需要在加载器第三阶段设置 hint <quote>hw.eisa_slots="12"</quote>。</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>我有一台 Panasonic AL-N1 或 Rios Chandler Pentium
           机器， 我发现每当进入安装时系统都会挂机。</para>
@@ -290,7 +291,7 @@
 	  <para>&os; 不支持这种控制器。</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>在一台 Compaq Aero 笔记本上， 当尝试从软盘安装时， 提示 <quote>No
           floppy devices found!  Please check ...</quote>。</para>
@@ -302,7 +303,7 @@
           这样驱动程序将认为第一个软驱存在， 而不去查询 CMOS。</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>在安装一台 Dell Poweredge XE 时， 无法识别 Dell
           自有的 RAID 控制器 DSA (Dell SCSI Array)。</para>
@@ -329,7 +330,7 @@
           唯一的解决办法是安装一个不同品牌的网卡。</para>
 	</answer>
       </qandaentry>
-      <qandaentry>
+      <qandaentry arch="i386">
         <question>
 	  <para>当我在配置网络服务期间安装了一个
           IBM Netfinity 3500， 系统停止了响应。</para>

@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.6
+	Original Revision: 1.7
 	$FreeBSD$
 -->
 
@@ -18,7 +18,7 @@
   </note>
 
   <para arch="ia64">关于 &os;/&arch; 的更多信息可以在
-    <ulink url="http://www.FreeBSD.org/platforms/ia64/index.html">&os;/&arch;
+    <ulink url="&url.base;/platforms/ia64/index.html">&os;/&arch; 
     Project</ulink> 上找到。</para>
 
 </sect1>
