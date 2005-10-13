@@ -1019,8 +1019,6 @@ rl_detach(device_t dev)
 #if 0
 	sc->suspended = 1;
 #endif
-	if (ifp)
-		if_free(ifp);
 	if (sc->rl_miibus)
 		device_delete_child(dev, sc->rl_miibus);
 	bus_generic_detach(dev);
@@ -1031,6 +1029,9 @@ rl_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 	if (sc->rl_res)
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
+
+	if (ifp)
+		if_free(ifp);
 
 	if (sc->rl_tag) {
 		bus_dmamap_unload(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap);

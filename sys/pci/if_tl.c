@@ -1343,8 +1343,6 @@ tl_detach(dev)
 		callout_drain(&sc->tl_stat_callout);
 		ether_ifdetach(ifp);
 	}
-	if (ifp)
-		if_free(ifp);
 	if (sc->tl_miibus)
 		device_delete_child(dev, sc->tl_miibus);
 	bus_generic_detach(dev);
@@ -1360,6 +1358,9 @@ tl_detach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
 	if (sc->tl_res)
 		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
+
+	if (ifp)
+		if_free(ifp);
 
 	mtx_destroy(&sc->tl_mtx);
 

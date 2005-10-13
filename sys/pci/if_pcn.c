@@ -677,8 +677,6 @@ pcn_detach(dev)
 		callout_drain(&sc->pcn_stat_callout);
 		ether_ifdetach(ifp);
 	}
-	if (ifp)
-		if_free(ifp);
 	if (sc->pcn_miibus)
 		device_delete_child(dev, sc->pcn_miibus);
 	bus_generic_detach(dev);
@@ -689,6 +687,9 @@ pcn_detach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pcn_irq);
 	if (sc->pcn_res)
 		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
+
+	if (ifp)
+		if_free(ifp);
 
 	if (sc->pcn_ldata) {
 		contigfree(sc->pcn_ldata, sizeof(struct pcn_list_data),

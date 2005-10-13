@@ -814,8 +814,6 @@ vr_detach(device_t dev)
 		ether_ifdetach(ifp);
 		VR_LOCK(sc);
 	}
-	if (ifp)
-		if_free(ifp);
 	if (sc->vr_miibus)
 		device_delete_child(dev, sc->vr_miibus);
 	bus_generic_detach(dev);
@@ -826,6 +824,9 @@ vr_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vr_irq);
 	if (sc->vr_res)
 		bus_release_resource(dev, VR_RES, VR_RID, sc->vr_res);
+
+	if (ifp)
+		if_free(ifp);
 
 	if (sc->vr_ldata)
 		contigfree(sc->vr_ldata, sizeof(struct vr_list_data), M_DEVBUF);
