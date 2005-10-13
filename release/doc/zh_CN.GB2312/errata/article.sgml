@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.72
+	Original Revision: 1.73.2.1
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -19,21 +19,12 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+<!ENTITY release.bugfix "6.0-RELEASE">
 ]>
 
 <article>
   <articleinfo>
-    <title>&os;
-<![ %release.type.current [
-    &release.current;
-]]>
-<![ %release.type.snapshot [
-    &release.prev;
-]]>
-<![ %release.type.release [
-    &release.current;
-]]>
-    发行版勘误</title>
+    <title>&os; &release.bugfix; 发行版勘误</title>
 
     <corpauthor>
     The &os; Project
@@ -60,51 +51,24 @@
   </articleinfo>
 
   <abstract>
-    <para>这份文档列出了  &os;
-<![ %release.type.current [
-      &release.current;
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
-      的勘误内容， 其中包括在发行版发布之后发现的重大问题，
+    <para>这份文档列出了 &os; &release.bugfix; 的勘误内容，
+      其中包括在发行版发布之后发现的重大问题，
       以及在发行版的交付工程后期本应写进发行版文档，
       而没有来得及加入的重要信息。 这些信息可能包括安全公告，
       以及关于可能影响软件和文档的操作或可用性的新闻。
       在安装此版本的 &os; 之前， 应首先阅读此文档的最新版本。</para>
 
-    <para>这份 &os;
-<![ %release.type.current [
-      &release.current;
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
-      的勘误文档将被持续地维护，
-      直到 &os; 的 &release.next; 发布为止。</para>
+    <para>这份 &os; &release.bugfix; 的勘误文档将持续地维护，
+      直到 &os; &release.next; 发布为止。</para>
   </abstract>
 
   <sect1 id="intro">
     <title>介绍</title>
 
-    <para>这份勘误文档包含了关于 &os;
-<![ %release.type.current [
-      &release.current;
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
+    <para>这份勘误文档包含了关于 &os; &release.bugfix;
       的 <quote>最新重大新闻</quote>。 在安装这一版本之前，
-      参考这份文档以了解在发布之后已经发现并修正了哪些问题非常重要。</para>
+      通过参考这份文档来了解在发布之后，
+      可能已经发现并修正的问题非常重要。</para>
 
     <para>随发行版本而发布的这份文档 (例如， 在 CDROM 上附带的)
       一般来说已经过时了， 但在 Internet 上的其他副本会被持续更新，
@@ -122,54 +86,40 @@
 
   </sect1>
 
+  <sect1 id="late-news">
+    <title>更新消息</title>
+
+    <para>暂时没有相关消息。</para>
+  </sect1>
+
   <sect1 id="security">
     <title>安全公告</title>
 
-<![ %release.type.release [
     <para>暂时还没有新的安全公告。</para>
-]]>
-
-<![ %release.type.current [
-    <para>暂时还没有新的安全公告。</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>暂时还没有新的安全公告。</para>
-]]>
-
   </sect1>
 
-  <sect1 id="open-issues">
-    <title>存在的问题</title>
+  <sect1 id="known-problems">
+    <title>已知问题和解决办法</title>
 
-<![ %release.type.current [
-    <para>暂时还没有新的已知问题。</para>
-]]>
+    <para>(2005/10/3)
+      在机器没有帧缓存时， 引导时 &os;/sparc64 GENERIC
+      内核可能会输出下列消息：</para>
 
-<![ %release.type.release [
-    <para>暂时还没有新的已知问题。</para>
-]]>
+    <screen>Aug 26 19:31:27 hostname getty[429]: open /dev/ttyv1: No such file or directory</screen>
 
-<![ %release.type.snapshot [
-    <para>暂时还没有新的已知问题。</para>
-]]>
+    <para>这是由于计算机没有可以被 &man.syscons.4; 识别的图形硬件设备， 因此
+      <filename>/dev/ttyv*</filename> 设备节点也就不会自动创建。
+      这是一个无害的错误提示， 您可以通过禁用
+      <filename>/etc/ttys</filename> 中的
+      <filename>/dev/ttyv*</filename> 项来屏蔽它。</para>
 
-  </sect1>
+    <para>(2005/10/3)
+      在内存超过 4GB 的运行 &os;/sparc64 的计算机上， 无法加载和使用内核模块。
+      目前没有办法绕过这个问题， 您只能将这些模块静态联编到定制的内核才行。</para>
 
-  <sect1 id="late-news">
-    <title>重大新闻</title>
-
-<![ %release.type.current [
-    <para>暂时还没有新闻。</para>
-]]>
-
-<![ %release.type.release [
-    <para>暂时还没有新闻。</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>暂时还没有新闻。</para>
-]]>
+    <para>(2005/10/3)
+      &man.kgdb.1; 工具无法在 &os;/sparc64 用于调试包含 trap 的 panic。
+      绕过此问题的临时方法是使用 <filename>devel/gdb53</filename>。</para>
   </sect1>
 
 </article>
