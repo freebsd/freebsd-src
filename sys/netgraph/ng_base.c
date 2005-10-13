@@ -2067,6 +2067,10 @@ ng_flush_input_queue(struct ng_queue * ngq)
 		atomic_add_long(&ngq->q_flags, add_arg);
 
 		mtx_unlock_spin(&ngq->q_mtx);
+		if (item->apply != NULL) {
+			(item->apply)(item->context, ENOENT);
+			item->apply = NULL;
+		}
 		NG_FREE_ITEM(item);
 		mtx_lock_spin(&ngq->q_mtx);
 	}
@@ -2898,6 +2902,8 @@ ng_getqblk(int flags)
 void
 ng_free_item(item_p item)
 {
+	KASSERT(item->apply == NULL, ("%s: leaking apply callback", __func__));
+
 	/*
 	 * The item may hold resources on it's own. We need to free
 	 * these before we can free the item. What they are depends upon
