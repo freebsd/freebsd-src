@@ -42,8 +42,11 @@
 .Sh DESCRIPTION
 Return the driver-specific state of
 .Fa dev .
-The softc is automatically allocated and zeroed the first
-time it is requested.
+The softc is automatically allocated and zeroed when the device is
+attached.
+The softc is also initialized and present when a device is probed,
+but is subject to caveats as described in
+.Xr DEVICE_PROBE 9 .
 The size of the allocation is determined by the device's
 .Vt driver_t
 information used to define the driver.
@@ -53,10 +56,11 @@ device.
 Driver writers are discouraged from using their own softc management
 mechanisms.
 Driver writers should not copy such mechanisms found in drivers in the
-tree that predates this function.
+tree that predate this function.
 .Sh RETURN VALUES
 The pointer to the driver-specific instance variable is returned.
 .Sh SEE ALSO
+.Xr DEVICE_PROBE 9 ,
 .Xr device 9 ,
 .Xr device_set_softc 9 ,
 .Xr driver 9
