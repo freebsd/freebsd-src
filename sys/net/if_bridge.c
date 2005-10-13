@@ -177,6 +177,7 @@ extern	struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
 extern	int (*bridge_output_p)(struct ifnet *, struct mbuf *,
 		struct sockaddr *, struct rtentry *);
 extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
+extern	void (*bridge_detach_p)(struct ifnet *);
 
 int	bridge_rtable_prune_period = BRIDGE_RTABLE_PRUNE_PERIOD;
 
@@ -355,6 +356,7 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_input_p = bridge_input;
 		bridge_output_p = bridge_output;
 		bridge_dn_p = bridge_dummynet;
+		bridge_detach_p = bridge_ifdetach;
 		bstp_linkstate_p = bstp_linkstate;
 		break;
 	case MOD_UNLOAD:
@@ -366,6 +368,7 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_input_p = NULL;
 		bridge_output_p = NULL;
 		bridge_dn_p = NULL;
+		bridge_detach_p = NULL;
 		bstp_linkstate_p = NULL;
 		mtx_destroy(&bridge_list_mtx);
 		break;
@@ -1204,12 +1207,13 @@ bridge_ifdetach(struct ifnet *ifp)
 	struct bridge_softc *sc = ifp->if_bridge;
 	struct ifbreq breq;
 
-	BRIDGE_LOCK_ASSERT(sc);
+	BRIDGE_LOCK(sc);
 
 	memset(&breq, 0, sizeof(breq));
 	snprintf(breq.ifbr_ifsname, sizeof(breq.ifbr_ifsname), ifp->if_xname);
 
 	(void) bridge_ioctl_del(sc, &breq);
+	BRIDGE_UNLOCK(sc);
 }
 
 /*
