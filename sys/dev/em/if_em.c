@@ -543,16 +543,11 @@ em_detach(device_t dev)
 	em_stop(adapter);
 	em_phy_hw_reset(&adapter->hw);
 	EM_UNLOCK(adapter);
-#if __FreeBSD_version < 500000
-        ether_ifdetach(adapter->ifp, ETHER_BPF_SUPPORTED);
-#else
         ether_ifdetach(adapter->ifp);
-#endif
+
 	em_free_pci_resources(adapter);
 	bus_generic_detach(dev);
-#if __FreeBSD_version >= 500000
 	if_free(ifp);
-#endif
 
 	/* Free Transmit Descriptor ring */
         if (adapter->tx_desc_base) {
@@ -636,12 +631,7 @@ em_start_locked(struct ifnet *ifp)
                 }
 
 		/* Send a copy of the frame to the BPF listener */
-#if __FreeBSD_version < 500000
-                if (ifp->if_bpf)
-                        bpf_mtap(ifp, m_head);
-#else
 		BPF_MTAP(ifp, m_head);
-#endif
         
                 /* Set timeout in case hardware has problems transmitting */
                 ifp->if_timer = EM_TX_TIMEOUT;
@@ -1094,11 +1084,7 @@ em_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 			ifmr->ifm_active |= IFM_100_TX;
 			break;
 		case 1000:
-#if __FreeBSD_version < 500000 
-			ifmr->ifm_active |= IFM_1000_TX;
-#else
 			ifmr->ifm_active |= IFM_1000_T;
-#endif
 			break;
 		}
 		if (adapter->link_duplex == FULL_DUPLEX)
@@ -1134,11 +1120,7 @@ em_media_change(struct ifnet *ifp)
 		adapter->hw.autoneg_advertised = AUTONEG_ADV_DEFAULT;
 		break;
 	case IFM_1000_SX:
-#if __FreeBSD_version < 500000 
-	case IFM_1000_TX:
-#else
 	case IFM_1000_T:
-#endif
 		adapter->hw.autoneg = DO_AUTO_NEG;
 		adapter->hw.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
@@ -1192,12 +1174,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	DESC_ARRAY              desc_array;
 	u_int32_t               array_elements;
 	u_int32_t               counter;
-
-#if __FreeBSD_version < 500000
-        struct ifvlan *ifv = NULL;
-#else
         struct m_tag    *mtag;
-#endif   
 	bus_dma_segment_t	segs[EM_MAX_SCATTER];
 	bus_dmamap_t		map;
 	int			nsegs;
@@ -1250,14 +1227,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 
 
         /* Find out if we are in vlan mode */
-#if __FreeBSD_version < 500000
-        if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
-            m_head->m_pkthdr.rcvif != NULL &&
-            m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
-                ifv = m_head->m_pkthdr.rcvif->if_softc;
-#else
         mtag = VLAN_OUTPUT_TAG(ifp, m_head);
-#endif
 
 	/*
 	 * When operating in promiscuous mode, hardware encapsulation for
@@ -1360,15 +1330,9 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		adapter->num_tx_desc_avail -= nsegs;
 	}
 
-#if __FreeBSD_version < 500000
-        if (ifv != NULL) {
-                /* Set the vlan id */
-                current_tx_desc->upper.fields.special = htole16(ifv->ifv_tag);
-#else
         if (mtag != NULL) {
                 /* Set the vlan id */
                 current_tx_desc->upper.fields.special = htole16(VLAN_TAG_VALUE(mtag));
-#endif
 
                 /* Tell hardware to add tag */
                 current_tx_desc->lower.data |= htole32(E1000_TXD_CMD_VLE);
@@ -1610,11 +1574,7 @@ em_set_multi(struct adapter * adapter)
         }
 
 	IF_ADDR_LOCK(ifp);
-#if __FreeBSD_version < 500000
-        LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#else
         TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#endif  
                 if (ifma->ifma_addr->sa_family != AF_LINK)
                         continue;
  
@@ -1960,11 +1920,7 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_snd.ifq_drv_maxlen = adapter->num_tx_desc - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
-#if __FreeBSD_version < 500000
-        ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-#else
         ether_ifattach(ifp, adapter->hw.mac_addr);
-#endif
 
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
@@ -1977,10 +1933,8 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	 * Tell the upper layer(s) we support long frames.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
-#if __FreeBSD_version >= 500000
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
-#endif
 
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -2005,15 +1959,9 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 			    0, NULL);
 		ifmedia_add(&adapter->media, IFM_ETHER | IFM_100_TX | IFM_FDX, 
 			    0, NULL);
-#if __FreeBSD_version < 500000 
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_TX | IFM_FDX, 
-			    0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_TX, 0, NULL);
-#else
 		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_T | IFM_FDX, 
 			    0, NULL);
 		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_T, 0, NULL);
-#endif
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
@@ -2786,9 +2734,6 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 {
 	struct ifnet        *ifp;
 	struct mbuf         *mp;
-#if __FreeBSD_version < 500000
-        struct ether_header *eh;
-#endif
 	u_int8_t            accept_frame = 0;
  	u_int8_t            eop = 0;
 	u_int16_t           len, desc_len, prev_len_adj;
@@ -2893,22 +2838,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 
                         if (eop) {
                                 adapter->fmp->m_pkthdr.rcvif = ifp;
-                                 ifp->if_ipackets++;
-
-#if __FreeBSD_version < 500000
-                                eh = mtod(adapter->fmp, struct ether_header *);
-                                /* Remove ethernet header from mbuf */
-                                m_adj(adapter->fmp, sizeof(struct ether_header));
-                                em_receive_checksum(adapter, current_desc,
-                                                    adapter->fmp);
-                                if (current_desc->status & E1000_RXD_STAT_VP)
-                                        VLAN_INPUT_TAG(eh, adapter->fmp,
-                                                       (current_desc->special & 
-							E1000_RXD_SPC_VLAN_MASK));
-                                else
-                                        ether_input(ifp, eh, adapter->fmp);
-#else
-
+				ifp->if_ipackets++;
                                 em_receive_checksum(adapter, current_desc,
                                                     adapter->fmp);
                                 if (current_desc->status & E1000_RXD_STAT_VP)
@@ -2925,7 +2855,6 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
                                         (*ifp->if_input)(ifp, m);
 					EM_LOCK(adapter);
 				}
-#endif
                                 adapter->lmp = NULL;
                         }
 		} else {
