@@ -153,6 +153,7 @@ ufs_lookup(ap)
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	struct thread *td = cnp->cn_thread;
+	u_int32_t saved_ino;
 
 	bp = NULL;
 	slotoffset = -1;
@@ -557,8 +558,9 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
+		saved_ino = dp->i_ino;
 		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
-		error = VFS_VGET(pdp->v_mount, dp->i_ino,
+		error = VFS_VGET(pdp->v_mount, saved_ino,
 		    cnp->cn_lkflags, &tdp);
 		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (error)
