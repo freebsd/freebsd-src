@@ -286,7 +286,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 #ifdef DEBUG
 	if (ldebug(rt_sendsig))
-		printf(ARGS(rt_sendsig, "%p, %d, %p, %lu"),
+		printf(ARGS(rt_sendsig, "%p, %d, %p, %u"),
 		    catcher, sig, (void*)mask, code);
 #endif
 	/*
@@ -428,7 +428,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 #ifdef DEBUG
 	if (ldebug(sendsig))
-		printf(ARGS(sendsig, "%p, %d, %p, %lu"),
+		printf(ARGS(sendsig, "%p, %d, %p, %u"),
 		    catcher, sig, (void*)mask, code);
 #endif
 
