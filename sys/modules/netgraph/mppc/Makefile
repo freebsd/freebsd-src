@@ -18,6 +18,7 @@ SRCS+=	mppcc.c mppcd.c
 SRCS+= sha1.c
 .endif
 
+.if !defined(KERNBUILDDIR)
 opt_netgraph.h:
 	touch ${.TARGET}
 .if ${NETGRAPH_MPPC_COMPRESSION} > 0
@@ -25,6 +26,7 @@ opt_netgraph.h:
 .endif
 .if ${NETGRAPH_MPPC_ENCRYPTION} > 0
 	echo "#define NETGRAPH_MPPC_ENCRYPTION 1" >> ${.TARGET}
+.endif
 .endif
 
 .include <bsd.kmod.mk>
