@@ -12,6 +12,7 @@ SRCS = 	pf.c pf_if.c pf_subr.c pf_osfp.c pf_ioctl.c pf_norm.c pf_table.c \
 
 CFLAGS+=  -I${.CURDIR}/../../contrib/pf
 
+.if !defined(KERNBUILDDIR)
 opt_pf.h:
 	echo "#define DEV_PF 1" > opt_pf.h
 	echo "#define DEV_PFLOG 1" >> opt_pf.h
@@ -26,5 +27,6 @@ opt_inet6.h:
 
 opt_bpf.h:
 	echo "#define DEV_BPF 1" > opt_bpf.h
+.endif
 
 .include <bsd.kmod.mk>

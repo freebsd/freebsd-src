@@ -8,7 +8,9 @@ SRCS=	vnode_if.h \
 	coda_venus.c coda_vfsops.c coda_vnops.c \
 	opt_coda.h
 
+.if !defined(KERNBUILDDIR)
 opt_coda.h:
 	echo "#define CODA_COMPAT_5" > ${.TARGET}
+.endif
 
 .include <bsd.kmod.mk>
