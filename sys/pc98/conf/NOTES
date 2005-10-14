@@ -460,9 +460,6 @@ device		pmc
 hint.pmc.0.at="isa"
 hint.pmc.0.port="0x8f0"
 device		pmtimer			# Adjust system timer at wakeup time
-# sx device is i386 and pc98 only at the moment.
-device		sx
-options 	SX_DEBUG
 
 #
 # Laptop/Notebook options:
