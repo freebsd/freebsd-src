@@ -77,6 +77,8 @@ static int ata_ali_sata_allocate(device_t dev);
 static void ata_ali_reset(device_t dev);
 static void ata_ali_setmode(device_t dev, int mode);
 static int ata_amd_chipinit(device_t dev);
+static int ata_ati_chipinit(device_t dev);
+static void ata_ati_setmode(device_t dev, int mode);
 static int ata_cyrix_chipinit(device_t dev);
 static void ata_cyrix_setmode(device_t dev, int mode);
 static int ata_cypress_chipinit(device_t dev);
@@ -915,8 +917,10 @@ ata_ali_allocate(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    ata_pci_allocate(dev);
+    if (ata_pci_allocate(dev))
+	return ENXIO;
 
+    /* older chips can't do 48bit DMA transfers */
     if (ctlr->chip->chiprev <= 0xc4)
 	ch->flags |= ATA_NO_48BIT_DMA;
 
@@ -1107,6 +1111,115 @@ ata_amd_chipinit(device_t dev)
     return 0;
 }
 
+
+/*
+ * ATI chipset support functions
+ */
+int
+ata_ati_ident(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    struct ata_chip_id *idx;
+    static struct ata_chip_id ids[] =
+    {{ ATA_ATI_IXP200,    0x00, 0,        0, ATA_UDMA5, "ATI IXP200" },
+     { ATA_ATI_IXP300,    0x00, 0,        0, ATA_UDMA6, "ATI IXP300" },
+     { ATA_ATI_IXP400,    0x00, 0,        0, ATA_UDMA6, "ATI IXP400" },
+     { ATA_ATI_IXP300_S1, 0x00, SIIMEMIO, 0, ATA_SA150, "ATI IXP300" },
+     { ATA_ATI_IXP400_S1, 0x00, SIIMEMIO, 0, ATA_SA150, "ATI IXP400" },
+     { ATA_ATI_IXP400_S2, 0x00, SIIMEMIO, 0, ATA_SA150, "ATI IXP400" },
+     { 0, 0, 0, 0, 0, 0}};
+    char buffer[64];
+
+    if (!(idx = ata_match_chip(dev, ids)))
+	return ENXIO;
+
+    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    device_set_desc_copy(dev, buffer);
+    ctlr->chip = idx;
+
+    /* the ATI SATA controller is actually a SiI 3112 controller*/
+    if (ctlr->chip->cfg1 & SIIMEMIO)
+	ctlr->chipinit = ata_sii_chipinit;
+    else
+	ctlr->chipinit = ata_ati_chipinit;
+    return 0;
+}
+
+static int
+ata_ati_chipinit(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    if (ata_setup_interrupt(dev))
+	return ENXIO;
+
+    ctlr->setmode = ata_ati_setmode;
+    return 0;
+}
+
+static void
+ata_ati_setmode(device_t dev, int mode)
+{
+    device_t gparent = GRANDPARENT(dev);
+    struct ata_pci_controller *ctlr = device_get_softc(gparent);
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_device *atadev = device_get_softc(dev);
+    int devno = (ch->unit << 1) + ATA_DEV(atadev->unit);
+    int offset = (devno ^ 0x01) << 3;
+    int error;
+    u_int8_t piotimings[] = { 0x5d, 0x47, 0x34, 0x22, 0x20, 0x34, 0x22, 0x20,
+			      0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+    u_int8_t dmatimings[] = { 0x77, 0x21, 0x20 };
+
+    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
+
+    mode = ata_check_80pin(dev, mode);
+
+    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
+
+    if (bootverbose)
+	device_printf(dev, "%ssetting %s on %s chip\n",
+		      (error) ? "FAILURE " : "",
+		      ata_mode2str(mode), ctlr->chip->text);
+    if (!error) {
+	if (mode >= ATA_UDMA0) {
+	    pci_write_config(gparent, 0x56, 
+			     (pci_read_config(gparent, 0x56, 2) &
+			      ~(0xf << (devno << 2))) |
+			     ((mode & ATA_MODE_MASK) << (devno << 2)), 2);
+	    pci_write_config(gparent, 0x54,
+			     pci_read_config(gparent, 0x54, 1) |
+			     (0x01 << devno), 1);
+	    pci_write_config(gparent, 0x44, 
+			     (pci_read_config(gparent, 0x44, 4) &
+			      ~(0xff << offset)) |
+			     (dmatimings[2] << offset), 4);
+	}
+	else if (mode >= ATA_WDMA0) {
+	    pci_write_config(gparent, 0x54,
+			     pci_read_config(gparent, 0x54, 1) &
+			      ~(0x01 << devno), 1);
+	    pci_write_config(gparent, 0x44, 
+			     (pci_read_config(gparent, 0x44, 4) &
+			      ~(0xff << offset)) |
+			     (dmatimings[mode & ATA_MODE_MASK] << offset), 4);
+	}
+	else
+	    pci_write_config(gparent, 0x54,
+			     pci_read_config(gparent, 0x54, 1) &
+			     ~(0x01 << devno), 1);
+
+	pci_write_config(gparent, 0x4a,
+			 (pci_read_config(gparent, 0x4a, 2) &
+			  ~(0xf << (devno << 2))) |
+			 (((mode - ATA_PIO0) & ATA_MODE_MASK) << (devno<<2)),2);
+	pci_write_config(gparent, 0x40, 
+			 (pci_read_config(gparent, 0x40, 4) &
+			  ~(0xff << offset)) |
+			 (piotimings[ata_mode2idx(mode)] << offset), 4);
+	atadev->mode = mode;
+    }
+}
 
 /*
  * Cyrix chipset support functions
@@ -2137,7 +2250,8 @@ ata_nvidia_allocate(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    ata_pci_allocate(dev);
+    if (ata_pci_allocate(dev))
+	return ENXIO;
 
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
     ch->r_io[ATA_SSTATUS].offset = (ch->unit << 6);
@@ -3257,7 +3371,7 @@ ata_serverworks_setmode(device_t dev, int mode)
 	    pci_write_config(gparent, 0x44, 
 			     (pci_read_config(gparent, 0x44, 4) &
 			      ~(0xff << offset)) |
-			     (dmatimings[mode & ATA_MODE_MASK] << offset),4);
+			     (dmatimings[mode & ATA_MODE_MASK] << offset), 4);
 	}
 	else
 	    pci_write_config(gparent, 0x54,
@@ -3819,7 +3933,8 @@ ata_sis_allocate(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    ata_pci_allocate(dev);
+    if (ata_pci_allocate(dev))
+	return ENXIO;
 
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
     ch->r_io[ATA_SSTATUS].offset = (ch->unit << 4);
@@ -4024,7 +4139,6 @@ ata_via_allocate(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-
     /* newer SATA chips has resources in one BAR for each channel */
     if (ctlr->chip->cfg2 & VIABAR) {
 	struct resource *r_io;
@@ -4050,8 +4164,10 @@ ata_via_allocate(device_t dev)
 	}
 	ata_generic_hw(dev);
     }
-    else
-	ata_pci_allocate(dev);
+    else {
+        if (ata_pci_allocate(dev))
+	    return ENXIO;
+    }
 
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
     ch->r_io[ATA_SSTATUS].offset = (ch->unit << ctlr->chip->cfg1);
