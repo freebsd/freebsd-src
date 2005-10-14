@@ -396,7 +396,8 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 			LIST_FOREACH(list_scb, &ahc->pending_scbs,
 				     pending_links) {
 
-				aic_scb_timer_reset(scb, aic_get_timeout(scb));
+				aic_scb_timer_reset(list_scb,
+						    aic_get_timeout(scb));
 			}
 
 			ahc_print_path(ahc, scb);
