@@ -104,6 +104,11 @@
 #define DEVICEID_LINKSYS_EG1032	0x1032
 
 /*
+ * Linksys gigabit ethernet rev 2 sub-device ID
+ */
+#define SUBDEVICEID_LINKSYS_EG1032_REV2	0x0015
+
+/*
  * D-Link PCI vendor ID
  */
 #define	VENDORID_DLINK		0x1186
