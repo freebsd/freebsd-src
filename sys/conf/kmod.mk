@@ -80,16 +80,12 @@ CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
 
 # Don't use any standard or source-relative include directories.
-# Since -nostdinc will annull any previous -I paths, we repeat all
-# such paths after -nostdinc.  It doesn't seem to be possible to
-# add to the front of `make' variable.
-_ICFLAGS:=	${CFLAGS:M-I*}
 .if ${CC} == "icc"
 NOSTDINC=	-X
 .else
 NOSTDINC=	-nostdinc
 .endif
-CFLAGS+=	${NOSTDINC} -I- ${INCLMAGIC} ${_ICFLAGS}
+CFLAGS:=	${CFLAGS:N-I*} ${NOSTDINC} -I- ${INCLMAGIC} ${CFLAGS:M-I*}
 .if defined(KERNBUILDDIR)
 CFLAGS+=	-DHAVE_KERNEL_OPTION_HEADERS -include ${KERNBUILDDIR}/opt_global.h
 .endif
