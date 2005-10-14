@@ -126,7 +126,16 @@
 #define AMDID_SYSCALL	0x00000800
 #define AMDID_MP	0x00080000
 #define AMDID_NX	0x00100000
+#define AMDID_EXT_MMX	0x00400000
+#define AMDID_FFXSR	0x01000000
+#define AMDID_RDTSCP	0x08000000
 #define AMDID_LM	0x20000000
+#define AMDID_EXT_3DNOW	0x40000000
+#define AMDID_3DNOW	0x80000000
+
+#define AMDID2_LAHF	0x00000001
+#define AMDID2_CMP	0x00000002
+#define AMDID2_CR8	0x00000010
 
 /*
  * CPUID instruction 1 ebx info
@@ -135,6 +144,11 @@
 #define	CPUID_CLFUSH_SIZE	0x0000ff00
 #define	CPUID_HTT_CORES		0x00ff0000
 #define	CPUID_LOCAL_APIC_ID	0xff000000
+
+/*
+ * AMD extended function 8000_0008h ecx info
+ */
+#define AMDID_CMP_CORES		0x000000ff
 
 /*
  * Model-specific registers for the i386 family
