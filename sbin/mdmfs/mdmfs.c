@@ -497,6 +497,10 @@ do_newfs(const char *args)
  *
  * In other words, this derives a user and group id from a string
  * formatted like the last argument to chown(1).
+ *
+ * Notice: At this point we don't support only a username or only a
+ * group name. do_mtptsetup already does, so when this feature is
+ * desired, this is the only routine that needs to be changed.
  */
 static void
 extract_ugid(const char *str, struct mtpt_info *mip)
@@ -530,8 +534,8 @@ extract_ugid(const char *str, struct mtpt_info *mip)
 		if (pw == NULL)
 			errx(1, "invalid user: %s", user);
 		*uid = pw->pw_uid;
-		mip->mi_have_uid = true;
 	}
+	mip->mi_have_uid = true;
 
 	/* Derive gid. */
 	*gid = strtoul(group, &p, 10);
@@ -542,18 +546,10 @@ extract_ugid(const char *str, struct mtpt_info *mip)
 		if (gr == NULL)
 			errx(1, "invalid group: %s", group);
 		*gid = gr->gr_gid;
-		mip->mi_have_gid = true;
 	}
+	mip->mi_have_gid = true;
 
 	free(ug);
-	/*
-	 * At this point we don't support only a username or only a
-	 * group name.  do_mtptsetup already does, so when this
-	 * feature is desired, this is the only routine that needs to
-	 * be changed.
-	 */
-	assert(mip->mi_have_uid);
-	assert(mip->mi_have_gid);
 }
 
 /*
