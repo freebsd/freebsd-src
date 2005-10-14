@@ -188,9 +188,6 @@
 
 	<para>The &man.snd.via8233.4; driver is now MPSAFE.</para>
 
-	<para arch="amd64">The &man.snd.via8233.4; driver is now supported
-	  on &os;/amd64.</para>
-
 	<para>The &man.snd.via82c686.4; driver is now MPSAFE.</para>
       </sect4>
 
