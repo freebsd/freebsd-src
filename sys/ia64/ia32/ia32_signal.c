@@ -98,9 +98,9 @@ int sz_ia32_sigcode = sizeof(ia32_sigcode);
  * sendsig() means that at least untrapped signals will work.
  */
 void
-ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
-	sendsig(catcher, sig, mask, code);
+	sendsig(catcher, ksi, mask);
 }
 
 #ifdef COMPAT_FREEBSD4

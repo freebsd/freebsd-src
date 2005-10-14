@@ -459,7 +459,7 @@ osf1_kill(td, uap)
  */
 
 void
-osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+osf1_sendsig(sig_t catcher, ksiginfo_t *kp, sigset_t *mask)
 {
 	int fsize, oonstack, rndfsize;
 	struct thread *td;
@@ -467,10 +467,14 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	osiginfo_t *sip, ksi;
 	struct trapframe *frame;
 	struct sigacts *psp;
+	int sig;
+	int code;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = kp->ksi_signo;
+	code = kp->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 
@@ -526,7 +530,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* Fill in POSIX parts */
 	ksi.si_signo = sig;
 	ksi.si_code = code;
-	ksi.si_value.sigval_ptr = NULL;				/* XXX */
+	ksi.si_value = kp->ksi_value;
 
 	/*
 	 * copy the frame out to userland.

@@ -447,7 +447,7 @@ set_openfirm_callback(ofw_vec_t *vec)
 }
 
 void
-sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct trapframe *tf;
 	struct sigframe *sfp;
@@ -458,11 +458,15 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct proc *p;
 	int oonstack;
 	u_long sp;
+	int sig;
+	int code;
 
 	oonstack = 0;
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
+	code = ksi->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	tf = td->td_frame;
@@ -513,9 +517,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	tf->tf_out[2] = (register_t)&sfp->sf_uc;
 	tf->tf_out[4] = (register_t)catcher;
 	/* Fill siginfo structure. */
-	sf.sf_si.si_signo = sig;
-	sf.sf_si.si_code = code;
-	sf.sf_si.si_addr = (void *)tf->tf_sfar;
+	sf.sf_si = ksi->ksi_info;
+	sf.sf_si.si_addr = (void *)tf->tf_sfar; /* XXX */
 
 	/* Copy the sigframe out to the user's stack. */
 	if (rwindow_save(td) != 0 || copyout(&sf, sfp, sizeof(*sfp)) != 0 ||
@@ -539,25 +542,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
-}
-
-/*
- * Build siginfo_t for SA thread
- */
-void
-cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
-{
-	struct proc *p;
-	struct thread *td;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	bzero(si, sizeof(*si));
-	si->si_signo = sig;
-	si->si_code = code;
-	/* XXXKSE fill other fields */
 }
 
 #ifndef	_SYS_SYSPROTO_H_

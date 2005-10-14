@@ -61,6 +61,7 @@ ia32_syscall(struct trapframe *tf)
 	register_t eflags;
 	u_int code;
 	int error, i, narg;
+	ksiginfo_t ksi;
 
 	PCPU_LAZY_INC(cnt.v_syscall);
 
@@ -168,7 +169,11 @@ ia32_syscall(struct trapframe *tf)
 	 */
 	if ((eflags & PSL_T) && !(eflags & PSL_VM)) {
 		ia64_set_eflag(ia64_get_eflag() & ~PSL_T);
-		trapsignal(td, SIGTRAP, 0);
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGTRAP;
+		ksi.ksi_code = TRAP_TRACE;
+		ksi.ksi_addr = (void *)tf->tf_special.iip;
+		trapsignal(td, &ksi);
 	}
 
 #ifdef KTRACE
@@ -201,6 +206,7 @@ ia32_trap(int vector, struct trapframe *tf)
 	uint64_t ucode;
 	int sig;
 	u_int sticks;
+	ksiginfo_t ksi;
 
 	KASSERT(TRAPF_USERMODE(tf), ("%s: In kernel mode???", __func__));
 
@@ -284,7 +290,11 @@ ia32_trap(int vector, struct trapframe *tf)
 
 	KASSERT(sig != 0, ("%s: signal not set", __func__));
 
-	trapsignal(td, sig, ucode);
+	ksiginfo_init_trap(&ksi);
+	ksi.ksi_signo = sig;
+	ksi.ksi_code = (int)ucode; /* XXX */
+	/* ksi.ksi_addr */
+	trapsignal(td, &ksi);
 
 out:
 	userret(td, tf, sticks);

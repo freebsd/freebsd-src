@@ -134,11 +134,17 @@ static int
 gdb_trapper(u_int addr, u_int insn, struct trapframe *frame, int code)
 {
 	struct thread *td;
+	ksiginfo_t ksi;
+
 	td = (curthread == NULL) ? &thread0 : curthread;
 
 	if (insn == GDB_BREAKPOINT || insn == GDB5_BREAKPOINT) {
 		if (code == FAULT_USER) {
-			trapsignal(td, SIGTRAP, 0);
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGTRAP;
+			ksi.ksi_code = TRAP_BRKPT;
+			ksi.ksi_addr = (u_int32_t *)addr;
+			trapsignal(td, &ksi);
 			return 0;
 		}
 #if 0
@@ -179,6 +185,7 @@ undefinedinstruction(trapframe_t *frame)
 #ifdef VERBOSE_ARM32
 	int s;
 #endif
+	ksiginfo_t ksi;
 
 	/* Enable interrupts if they were enabled before the exception. */
 	if (!(frame->tf_spsr & I32_bit))
@@ -200,7 +207,11 @@ undefinedinstruction(trapframe_t *frame)
 	 * don't take an alignment fault trying to read the opcode.
 	 */
 	if (__predict_false((fault_pc & 3) != 0)) {
-		trapsignal(td, SIGILL, 0);
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGILL;
+		ksi.ksi_code = ILL_ILLADR;
+		ksi.ksi_addr = (u_int32_t *)(intptr_t) fault_pc;
+		trapsignal(td, &ksi);
 		userret(td, frame, 0);
 		return;
 	}
@@ -256,7 +267,11 @@ undefinedinstruction(trapframe_t *frame)
 
 	if (uh == NULL && (fault_code & FAULT_USER)) {
 		/* Fault has not been handled */
-		trapsignal(td, SIGILL, 0);
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGILL;
+		ksi.ksi_code = ILL_ILLOPC;
+		ksi.ksi_addr = (u_int32_t *)(intptr_t) fault_pc;
+		trapsignal(td, &ksi);
 	}
 
 	if ((fault_code & FAULT_USER) == 0) {

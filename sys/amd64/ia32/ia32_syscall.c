@@ -101,6 +101,7 @@ ia32_syscall(struct trapframe frame)
 	u_int32_t args[8];
 	u_int64_t args64[8];
 	u_int code;
+	ksiginfo_t ksi;
 
 	/*
 	 * note: PCPU_LAZY_INC() can only be used if we can afford
@@ -227,7 +228,11 @@ ia32_syscall(struct trapframe frame)
 	 */
 	if (orig_tf_rflags & PSL_T) {
 		frame.tf_rflags &= ~PSL_T;
-		trapsignal(td, SIGTRAP, 0);
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGTRAP;
+		ksi.ksi_code = TRAP_TRACE;
+		ksi.ksi_addr = (void *)frame.tf_rip;
+		trapsignal(td, &ksi);
 	}
 
 	/*

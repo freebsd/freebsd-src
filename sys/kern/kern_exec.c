@@ -666,7 +666,7 @@ interpret:
 	 * single thread mode.
 	 */
 	if (p->p_flag & P_TRACED)
-		tdsignal(td, SIGTRAP, SIGTARGET_TD);
+		tdsignal(td, SIGTRAP, NULL, SIGTARGET_TD);
 
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;

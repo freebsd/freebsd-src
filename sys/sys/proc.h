@@ -51,6 +51,7 @@
 #include <sys/runq.h>
 #include <sys/sigio.h>
 #include <sys/signal.h>
+#include <sys/signalvar.h>
 #ifndef _KERNEL
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #else
@@ -253,6 +254,8 @@ struct thread {
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
 	struct umtx_q   *td_umtxq;	/* (c?) Link for when we're blocked. */
 	lwpid_t		td_tid;		/* (b) Thread ID. */
+	sigqueue_t	td_sigqueue;	/* (c) Sigs arrived, not delivered. */
+#define	td_siglist	td_sigqueue.sq_signals
 
 /* Cleared during fork1() or thread_schedule_upcall(). */
 #define	td_startzero td_flags
@@ -283,7 +286,6 @@ struct thread {
 	int		td_intrval;	/* (j) Return value of TDF_INTERRUPT. */
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
-	sigset_t	td_siglist;	/* (c) Sigs arrived, not delivered. */
 	volatile u_int	td_generation;	/* (k) For detection of preemption */
 	stack_t		td_sigstk;	/* (k) Stack ptr and on-stack flag. */
 	int		td_kflags;	/* (c) Flags for KSE threading. */
@@ -544,6 +546,8 @@ struct proc {
 	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
 	struct mtx	p_mtx;		/* (n) Lock for this struct. */
+	sigqueue_t	p_sigqueue;	/* (c) Sigs not delivered to a td. */
+#define p_siglist	p_sigqueue.sq_signals
 
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
@@ -559,7 +563,6 @@ struct proc {
 	struct vnode	*p_tracevp;	/* (c + o) Trace to vnode. */
 	struct ucred	*p_tracecred;	/* (o) Credentials to trace with. */
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
-	sigset_t	p_siglist;	/* (c) Sigs not delivered to a td. */
 	char		p_lock;		/* (c) Proclock (prevent swap) count. */
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
 	int		p_sigparent;	/* (c) Signal to parent on exit. */
@@ -576,6 +579,7 @@ struct proc {
 	struct thread	*p_xthread;	/* (c) Trap thread */
 	int		p_boundary_count;/* (c) Num threads at user boundary */
 	struct ksegrp	*p_procscopegrp;
+	int		p_pendingcnt;	/* how many signals are pending */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -908,7 +912,6 @@ int	cpu_set_user_tls(struct thread *, void *tls_base);
 void	cpu_thread_clean(struct thread *);
 void	cpu_thread_exit(struct thread *);
 void	cpu_thread_setup(struct thread *td);
-void	cpu_thread_siginfo(int sig, u_long code, siginfo_t *si);
 void	cpu_thread_swapin(struct thread *);
 void	cpu_thread_swapout(struct thread *);
 void	ksegrp_link(struct ksegrp *kg, struct proc *p);
@@ -921,7 +924,7 @@ void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct ksegrp *kg);
 void	thread_reap(void);
 struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
-void	thread_signal_add(struct thread *td, int sig);
+void	thread_signal_add(struct thread *td, ksiginfo_t *);
 int	thread_single(int how);
 void	thread_single_end(void);
 int	thread_sleep_check(struct thread *td);
