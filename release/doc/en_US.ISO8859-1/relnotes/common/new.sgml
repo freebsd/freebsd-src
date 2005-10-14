@@ -350,6 +350,15 @@
       potentially sensitive keying material to standard output.
       This sensitive information will not be printed by default.</para>
 
+    <para>The &man.ifconfig.8; utility now supports a <option>-tunnel</option>
+      parameter, which is just an alias for <option>deletetunnel</option>,
+      yet is more convenient and easier to type.</para>
+
+    <para>The <option>-vlandev</option> parameter to &man.ifconfig.8;
+      no longer requires a network interface as its argument.  The
+      argument still is supported for backward compatibility, but now
+      it is deprecated and its use is discouraged.</para>
+
     <para>The &man.libmemstat.3; library has been added.
       This is for use by debugging and monitoring applications
       in tracking kernel memory statistics.  It provides an
