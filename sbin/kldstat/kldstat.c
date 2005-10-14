@@ -77,7 +77,7 @@ static void
 usage(void)
 {
     fprintf(stderr, "usage: kldstat [-v] [-i id] [-n filename]\n");
-    fprintf(stderr, "       kldstat [-m modname]\n");
+    fprintf(stderr, "       kldstat [-q] [-m modname]\n");
     exit(1);
 }
 
@@ -87,11 +87,12 @@ main(int argc, char** argv)
     int c;
     int verbose = 0;
     int fileid = 0;
+    int quiet = 0;
     char* filename = NULL;
     char* modname = NULL;
     char* p;
 
-    while ((c = getopt(argc, argv, "i:m:n:v")) != -1)
+    while ((c = getopt(argc, argv, "i:m:n:qv")) != -1)
 	switch (c) {
 	case 'i':
 	    fileid = (int)strtoul(optarg, &p, 10);
@@ -103,6 +104,9 @@ main(int argc, char** argv)
 	    break;
 	case 'n':
 	    filename = optarg;
+	    break;
+	case 'q':
+	    quiet = 1;
 	    break;
 	case 'v':
 	    verbose = 1;
@@ -120,8 +124,13 @@ main(int argc, char** argv)
 	int modid;
 	struct module_stat stat;
 
-	if ((modid = modfind(modname)) < 0)
-	    err(1, "can't find module %s", modname);
+	if ((modid = modfind(modname)) < 0) {
+	    if (!quiet)
+		warn("can't find module %s", modname);
+	    return 1;
+	} else if (quiet) {
+	    return 0;
+	}
 
 	stat.version = sizeof(struct module_stat);
 	if (modstat(modid, &stat) < 0)
