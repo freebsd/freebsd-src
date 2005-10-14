@@ -37,6 +37,7 @@
 .Op Fl i Ar id
 .Op Fl n Ar filename
 .Nm
+.Op Fl q
 .Op Fl m Ar modname
 .Sh DESCRIPTION
 The
@@ -52,6 +53,8 @@ Be more verbose.
 Display the status of only the file with this ID.
 .It Fl n Ar filename
 Display the status of only the file with this filename.
+.It Fl q
+Only check if module is loaded or compiled into the kernel.
 .It Fl m Ar modname
 Display the status of only the module with this modname.
 .El
