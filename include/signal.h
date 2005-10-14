@@ -77,15 +77,8 @@ int	sigwait(const sigset_t * __restrict, int * __restrict);
 #endif
 
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 600
-#if 0
-/*
- * PR: 35924
- * XXX we don't actually have these.  We set _POSIX_REALTIME_SIGNALS to
- * -1 to show that we don't have them, but this symbol is not necessarily
- * in scope (in the current implementation), so we can't use it here.
- */
-int	sigqueue(__pid_t, int, const union sigval);
-#endif
+int	sigqueue(pid_t, int, const union sigval);
+
 struct timespec;
 int	sigtimedwait(const sigset_t * __restrict, siginfo_t * __restrict,
 	    const struct timespec * __restrict);
