@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2005
+.Dd October 14, 2005
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -62,25 +62,52 @@ utility is a program designed to simplify the maintenance of other programs.
 Its input is a list of specifications
 describing dependency relationships between the generation of
 files and programs.
-The first of
+.Pp
+First of all, the initial list of specifications will be read
+from the system makefile,
+.Pa sys.mk ,
+unless inhibited with the
+.Fl r
+option.
+The standard
+.Pa sys.mk
+as shipped with
+.Fx
+also handles
+.Xr make.conf 5 ,
+the default path to which
+can be altered via the
+.Nm
+variable
+.Va __MAKE_CONF .
+.Pp
+Then the first of
 .Pa BSDmakefile ,
-.Pa makefile
+.Pa makefile ,
 and
 .Pa Makefile
-that can be found in either the current directory or a special object directory
-(see
-.Va .OBJDIR )
-will be read for this list of specifications.
-If the file
+that can be found in the current directory, object directory (see
+.Va .OBJDIR ) ,
+or search path (see the
+.Fl I
+option)
+will be read for the main list of dependency specifications.
+A different makefile or list of them can be supplied via the
+.Fl f
+option(s).
+Finally, if the file
 .Pa .depend
-can be found, it is also read (see
+can be found in any of the aforesaid locations, it will also be read (see
 .Xr mkdep 1 ) .
 .Pp
-This manual page is intended as a reference document only.
-For a more thorough introduction to
+When
 .Nm
-and makefiles, please refer to
-.%T "Make \- A Tutorial" .
+searches for a makefile, its name takes precedence over its location.
+For instance,
+.Pa BSDmakefile
+in the object directory will be favored over
+.Pa Makefile
+in the current directory.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -156,21 +183,29 @@ macro assignments within makefiles.
 Specify that environment values override macro assignments within
 makefiles for all variables.
 .It Fl f Ar makefile
-Specify a makefile to read instead of the default
-.Pa makefile
-and
-.Pa Makefile .
+Specify a makefile to read instead of the default one.
 If
+.Ar makefile
+is not an absolute pathname,
+.Nm
+will search for it as described above.
+In case
 .Ar makefile
 is
 .Sq Fl ,
 standard input is read.
-Multiple makefiles may be specified, and are read in the order specified.
+Multiple
+.Fl f
+options can be supplied,
+and the makefiles will be read in that order.
 .It Fl I Ar directory
 Specify a directory in which to search for makefiles and included makefiles.
+Multiple
+.Fl I
+options can be specified to form a search path.
 The system makefile directory (or directories, see the
 .Fl m
-option) is automatically included as part of this list.
+option) is automatically appended at the tail of this path.
 .It Fl i
 Ignore non-zero exit of shell commands in the makefile.
 Equivalent to specifying
@@ -188,13 +223,14 @@ Continue processing after errors are encountered, but only on those targets
 that do not depend on the target whose creation caused the error.
 .It Fl m Ar directory
 Specify a directory in which to search for
-the system makefile to process before any other file,
-as well as for makefiles included via the <...> style.
-Multiple directories can be added to form a search path.
-This path will override the default system include path:
+the system makefile and makefiles included via the <...> style.
+Multiple
+.Fl m
+options can be specified to form a search path.
+This path will override the default system include path,
 .Pa /usr/share/mk .
-Furthermore, the system include path will be appended to the search path used
-for "..."-style inclusions (see the
+The system include path will always be appended to the search path used
+for "..."-style inclusions and makefile searches (see the
 .Fl I
 option).
 .It Fl n
@@ -1444,21 +1480,21 @@ list of dependencies
 list of dependencies
 .It Pa makefile
 list of dependencies
-.It obj
+.It Pa obj
 object directory
 .It Pa sys.mk
-system makefile (processed before any other file, including
-.Pa makefile
-and
-.Pa Makefile )
+system makefile
 .It Pa /usr/share/mk
-system makefile directory
-.It /usr/share/doc/psd/12.make
+default system makefile directory
+.It Pa /usr/share/doc/psd/12.make
 PMake tutorial
 .It Pa /usr/obj
 default
 .Ev MAKEOBJDIRPREFIX
 directory.
+.It Pa /etc/make.conf
+default path to
+.Xr make.conf 5
 .El
 .Sh EXAMPLES
 List all included makefiles in order visited:
