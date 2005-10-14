@@ -211,11 +211,10 @@ vm_offset_t phys_avail[10];
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
 #ifdef COMPAT_43
-void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
+void osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 #endif
 #ifdef COMPAT_FREEBSD4
-static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
-    u_long code);
+static void freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 #endif
 
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
@@ -1107,7 +1106,7 @@ DELAY(int n)
  */
 #ifdef COMPAT_43
 void
-osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+osendsig(sig_t catcher, ksiginfo_t *kp, sigset_t *mask)
 {
 	struct proc *p;
 	struct thread *td;
@@ -1115,10 +1114,14 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct trapframe *frame;
 	struct sigacts *psp;
 	int oonstack, fsize, rndfsize;
+	int sig;
+	int code;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = kp->ksi_signo;
+	code = kp->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 
@@ -1177,7 +1180,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* Fill in POSIX parts */
 	ksi.si_signo = sig;
 	ksi.si_code = code;
-	ksi.si_value.sigval_ptr = NULL;				/* XXX */
+	ksi.si_value = kp->ksi_value;
 
 	/*
 	 * copy the frame out to userland.
@@ -1212,7 +1215,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 #ifdef COMPAT_FREEBSD4
 static void
-freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+freebsd4_sendsig(sig_t catcher, ksiginfo_t *kp, sigset_t *mask)
 {
 	struct proc *p;
 	struct thread *td;
@@ -1220,10 +1223,14 @@ freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct sigacts *psp;
 	struct sigframe4 sf, *sfp;
 	int oonstack, rndfsize;
+	int sig;
+	int code;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = kp->ksi_signo;
+	code = kp->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 
@@ -1308,9 +1315,7 @@ freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		frame->tf_regs[FRAME_A1] = (u_int64_t)&(sfp->sf_si);
 
 		/* Fill in POSIX parts */
-		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void*)frame->tf_regs[FRAME_TRAPARG_A0];
+		sf.sf_si = kp->ksi_info;
 	}
 	else
 		frame->tf_regs[FRAME_A1] = code;
@@ -1323,7 +1328,7 @@ freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #endif	/* COMPAT_FREEBSD4 */
 
 void
-sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+sendsig(sig_t catcher, ksiginfo_t *kp, sigset_t *mask)
 {
 	struct proc *p;
 	struct thread *td;
@@ -1331,21 +1336,25 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct sigacts *psp;
 	struct sigframe sf, *sfp;
 	int oonstack, rndfsize;
+	int sig;
+	int code;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = kp->ksi_signo;
+	code = kp->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 #ifdef COMPAT_FREEBSD4
 	if (SIGISMEMBER(psp->ps_freebsd4, sig)) {
-		freebsd4_sendsig(catcher, sig, mask, code);
+		freebsd4_sendsig(catcher, kp, mask);
 		return;
 	}
 #endif
 #ifdef COMPAT_43
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
-		osendsig(catcher, sig, mask, code);
+		osendsig(catcher, kp, mask);
 		return;
 	}
 #endif
@@ -1432,9 +1441,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		frame->tf_regs[FRAME_A1] = (u_int64_t)&(sfp->sf_si);
 
 		/* Fill in POSIX parts */
-		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void*)frame->tf_regs[FRAME_TRAPARG_A0];
+		sf.sf_si = kp->ksi_info;
 	}
 	else
 		frame->tf_regs[FRAME_A1] = code;
@@ -1443,25 +1450,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
 	frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 	alpha_pal_wrusp((unsigned long)sfp);
-}
-
-/*
- * Build siginfo_t for SA thread
- */
-void
-cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
-{
-	struct proc *p;
-	struct thread *td;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	bzero(si, sizeof(*si));
-	si->si_signo = sig;
-	si->si_code = code;
-	/* XXXKSE fill other fields */
 }
 
 /*

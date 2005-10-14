@@ -61,7 +61,7 @@ void bsd_to_osf1_sigaltstack(const struct sigaltstack *, struct osf1_sigaltstack
 void bsd_to_osf1_sigset(const sigset_t *, osf1_sigset_t *);
 void osf1_to_bsd_sigaltstack(const struct osf1_sigaltstack *, struct sigaltstack *);
 void osf1_to_bsd_sigset(const osf1_sigset_t *, sigset_t *);
-void osf1_sendsig(sig_t, int , sigset_t *, u_long );
+void osf1_sendsig(sig_t, struct ksiginfo *, sigset_t *);
 
 
 #endif /* !_OSF1_SIGNAL_H */

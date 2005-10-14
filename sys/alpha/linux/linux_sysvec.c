@@ -77,7 +77,7 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
-void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
+void osendsig(sig_t catcher, ksiginfo_t *kp, sigset_t *mask);
 
 static int	elf_linux_fixup(register_t **stack_base,
     struct image_params *iparams);

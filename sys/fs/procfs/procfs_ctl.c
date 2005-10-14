@@ -215,7 +215,7 @@ out:
 		p->p_flag &= ~P_TRACED;
 
 		/* remove pending SIGTRAP, else the process will die */
-		SIGDELSET(p->p_siglist, SIGTRAP);
+		sigqueue_delete_proc(p, SIGTRAP);
 		PROC_UNLOCK(p);
 
 		/* give process back to original parent */

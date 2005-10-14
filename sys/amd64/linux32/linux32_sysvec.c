@@ -120,8 +120,7 @@ static int	elf_linux_fixup(register_t **stack_base,
 static register_t *linux_copyout_strings(struct image_params *imgp);
 static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
 		    caddr_t *params);
-static void     linux_sendsig(sig_t catcher, int sig, sigset_t *mask,
-		    u_long code);
+static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td, u_long entry,
 				   u_long stack, u_long ps_strings);
 static void	linux32_fixlimits(struct image_params *imgp);
@@ -275,7 +274,7 @@ extern int _ucodesel, _ucode32sel, _udatasel;
 extern unsigned long linux_sznonrtsigcode;
 
 static void
-linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
@@ -283,7 +282,11 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct trapframe *regs;
 	struct l_rt_sigframe *fp, frame;
 	int oonstack;
-
+	int sig;
+	int code;
+	
+	sig = ksi->ksi_signo;
+	code = ksi->ksi_code;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
@@ -323,7 +326,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* Fill in POSIX parts */
 	frame.sf_si.lsi_signo = sig;
 	frame.sf_si.lsi_code = code;
-	frame.sf_si.lsi_addr = PTROUT(regs->tf_err);
+	frame.sf_si.lsi_addr = PTROUT(ksi->ksi_addr);
 
 	/*
 	 * Build the signal context to be used by sigreturn.
@@ -411,7 +414,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * specified pc, psl.
  */
 static void
-linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
@@ -420,13 +423,16 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct l_sigframe *fp, frame;
 	l_sigset_t lmask;
 	int oonstack, i;
+	int sig, code;
 
+	sig = ksi->ksi_signo;
+	code = ksi->ksi_code;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
-		linux_rt_sendsig(catcher, sig, mask, code);
+		linux_rt_sendsig(catcher, ksi, mask);
 		return;
 	}
 
@@ -534,6 +540,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	struct trapframe *regs;
 	l_sigset_t lmask;
 	int eflags, i;
+	ksiginfo_t ksi;
 
 	regs = td->td_frame;
 
@@ -574,7 +581,12 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	 */
 #define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
 	if (!CS_SECURE(frame.sf_sc.sc_cs)) {
-		trapsignal(td, SIGBUS, T_PROTFLT);
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGBUS;
+		ksi.ksi_code = BUS_OBJERR;
+		ksi.ksi_trapno = T_PROTFLT;
+		ksi.ksi_addr = (void *)regs->tf_rip;
+		trapsignal(td, &ksi);
 		return(EINVAL);
 	}
 
@@ -627,6 +639,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	stack_t ss;
 	struct trapframe *regs;
 	int eflags;
+	ksiginfo_t ksi;
 
 	regs = td->td_frame;
 
@@ -669,7 +682,12 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	 */
 #define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
 	if (!CS_SECURE(context->sc_cs)) {
-		trapsignal(td, SIGBUS, T_PROTFLT);
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGBUS;
+		ksi.ksi_code = BUS_OBJERR;
+		ksi.ksi_trapno = T_PROTFLT;
+		ksi.ksi_addr = (void *)regs->tf_rip;
+		trapsignal(td, &ksi);
 		return(EINVAL);
 	}
 

@@ -101,11 +101,10 @@ int _min_memcpy_size = 0;
 int _min_bzero_size = 0;
 
 void
-sendsig(catcher, sig, mask, code)
+sendsig(catcher, ksi, mask)
 	sig_t catcher;
-	int sig;
+	ksiginfo_t *ksi;
 	sigset_t *mask;
-	u_long code;
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
@@ -113,9 +112,13 @@ sendsig(catcher, sig, mask, code)
 	struct sigframe *fp, frame;
 	struct sigacts *psp = td->td_proc->p_sigacts;
 	int onstack;
+	int sig;
+	int code;
 
 	onstack = sigonstack(td->td_frame->tf_usr_sp);
 
+	sig = ksi->ksi_signo;
+	code = ksi->ksi_code;
 	if ((td->td_flags & TDP_ALTSTACK) &&
 	    !(onstack) &&
 	    SIGISMEMBER(td->td_proc->p_sigacts->ps_sigonstack, sig)) {
@@ -130,8 +133,7 @@ sendsig(catcher, sig, mask, code)
 	/* make the stack aligned */
 	fp = (struct sigframe *)STACKALIGN(fp);
 	/* Populate the siginfo frame. */
-	frame.sf_si.si_signo = sig;
-	frame.sf_si.si_code = code;
+	frame.sf_si = ksi->ksi_info;
 	frame.sf_uc.uc_sigmask = *mask;
 	frame.sf_uc.uc_link = NULL;
 	frame.sf_uc.uc_flags = (td->td_pflags & TDP_ALTSTACK ) 
@@ -433,17 +435,6 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tf->tf_svc_lr = 0x77777777;
 	tf->tf_pc = entry;
 	tf->tf_spsr = PSR_USR32_MODE;
-}
-
-/*
- * Build siginfo_t for SA thread
- */
-void
-cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
-{
-	bzero(si, sizeof(*si));
-	si->si_signo = sig;
-	si->si_code = code;
 }
 
 /*

@@ -199,10 +199,12 @@ struct ia32_sigframe3 {
 };
 #endif
 
+struct ksiginfo;
 extern char ia32_sigcode[];
 extern char freebsd4_ia32_sigcode[];
 extern int sz_ia32_sigcode;
 extern int sz_freebsd4_ia32_sigcode;
-extern void ia32_sendsig(sig_t, int, sigset_t *, u_long);
+extern void ia32_sendsig(sig_t, struct ksiginfo *, sigset_t *);
 extern void ia32_setregs(struct thread *td, u_long entry, u_long stack,
     u_long ps_strings);
+extern void siginfo_to_ia32siginfo(siginfo_t *src, struct ia32_siginfo *dst);

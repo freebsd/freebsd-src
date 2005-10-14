@@ -277,6 +277,7 @@ proc_linkup(struct proc *p, struct ksegrp *kg, struct thread *td)
 	TAILQ_INIT(&p->p_ksegrps);	     /* all ksegrps in proc */
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	TAILQ_INIT(&p->p_suspended);	     /* Threads suspended */
+	sigqueue_init(&p->p_sigqueue, p);
 	p->p_numksegrps = 0;
 	p->p_numthreads = 0;
 
@@ -454,6 +455,7 @@ thread_exit(void)
 	KASSERT(kg != NULL, ("thread exiting without a kse group"));
 	CTR3(KTR_PROC, "thread_exit: thread %p (pid %ld, %s)", td,
 	    (long)p->p_pid, p->p_comm);
+	KASSERT(TAILQ_EMPTY(&td->td_sigqueue.sq_list), ("signal pending"));
 
 	if (td->td_standin != NULL) {
 		/*
@@ -625,6 +627,7 @@ thread_link(struct thread *td, struct ksegrp *kg)
 	td->td_kflags	= 0;
 
 	LIST_INIT(&td->td_contested);
+	sigqueue_init(&td->td_sigqueue, p);
 	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
 	TAILQ_INSERT_HEAD(&p->p_threads, td, td_plist);
 	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
@@ -874,6 +877,10 @@ thread_suspend_check(int return_instead)
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE &&
 		    (p->p_flag & P_SINGLE_BOUNDARY) && return_instead)
 			return (1);
+
+		/* If thread will exit, flush its pending signals */
+		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td))
+			sigqueue_flush(&td->td_sigqueue);
 
 		mtx_lock_spin(&sched_lock);
 		thread_stopped(p);

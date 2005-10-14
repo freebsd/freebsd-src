@@ -207,8 +207,8 @@ retry:
 	PROC_LOCK(p);
 	stopprofclock(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
-	SIGEMPTYSET(p->p_siglist);
-	SIGEMPTYSET(td->td_siglist);
+	sigqueue_flush(&p->p_sigqueue);
+	sigqueue_flush(&td->td_sigqueue);
 
 	/*
 	 * Stop the real interval timer.  If the handler is currently

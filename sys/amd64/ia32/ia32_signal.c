@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 
 #ifdef COMPAT_FREEBSD4
-static void freebsd4_ia32_sendsig(sig_t, int, sigset_t *, u_long);
+static void freebsd4_ia32_sendsig(sig_t, ksiginfo_t *, sigset_t *);
 #endif
 static void ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp);
 static int ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp);
@@ -295,18 +295,23 @@ freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
  */
 #ifdef COMPAT_FREEBSD4
 static void
-freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct ia32_sigframe4 sf, *sfp;
+	struct ia32_siginfo siginfo;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
 	struct trapframe *regs;
 	int oonstack;
+	int sig;
 
 	td = curthread;
 	p = td->td_proc;
+	siginfo_to_ia32siginfo(&ksi->ksi_info, &siginfo);
+
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = siginfo.si_signo;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
@@ -362,13 +367,12 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
 
 		/* Fill in POSIX parts */
+		sf.sf_si = siginfo;
 		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = regs->tf_addr;
 	} else {
 		/* Old FreeBSD-style arguments. */
-		sf.sf_siginfo = code;
-		sf.sf_addr = regs->tf_addr;
+		sf.sf_siginfo = siginfo.si_code;
+		sf.sf_addr = (u_int32_t)siginfo.si_addr;
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
@@ -400,23 +404,27 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #endif	/* COMPAT_FREEBSD4 */
 
 void
-ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct ia32_sigframe sf, *sfp;
+	struct ia32_siginfo siginfo;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
 	char *sp;
 	struct trapframe *regs;
 	int oonstack;
+	int sig;
 
+	siginfo_to_ia32siginfo(&ksi->ksi_info, &siginfo);
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = siginfo.si_signo;
 	psp = p->p_sigacts;
 #ifdef COMPAT_FREEBSD4
 	if (SIGISMEMBER(psp->ps_freebsd4, sig)) {
-		freebsd4_ia32_sendsig(catcher, sig, mask, code);
+		freebsd4_ia32_sendsig(catcher, ksi, mask);
 		return;
 	}
 #endif
@@ -479,13 +487,12 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
 
 		/* Fill in POSIX parts */
+		sf.sf_si = siginfo;
 		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = regs->tf_addr;
 	} else {
 		/* Old FreeBSD-style arguments. */
-		sf.sf_siginfo = code;
-		sf.sf_addr = regs->tf_addr;
+		sf.sf_siginfo = siginfo.si_code;
+		sf.sf_addr = (u_int32_t)siginfo.si_addr;
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
@@ -540,6 +547,7 @@ freebsd4_freebsd32_sigreturn(td, uap)
 	struct trapframe *regs;
 	const struct ia32_ucontext4 *ucp;
 	int cs, eflags, error;
+	ksiginfo_t ksi;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
@@ -573,7 +581,12 @@ freebsd4_freebsd32_sigreturn(td, uap)
 	cs = ucp->uc_mcontext.mc_cs;
 	if (!CS_SECURE(cs)) {
 		printf("freebsd4_sigreturn: cs = 0x%x\n", cs);
-		trapsignal(td, SIGBUS, T_PROTFLT);
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGBUS;
+		ksi.ksi_code = BUS_OBJERR;
+		ksi.ksi_trapno = T_PROTFLT;
+		ksi.ksi_addr = (void *)regs->tf_rip;
+		trapsignal(td, &ksi);
 		return (EINVAL);
 	}
 
@@ -617,6 +630,7 @@ freebsd32_sigreturn(td, uap)
 	struct trapframe *regs;
 	const struct ia32_ucontext *ucp;
 	int cs, eflags, error, ret;
+	ksiginfo_t ksi;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
@@ -650,7 +664,12 @@ freebsd32_sigreturn(td, uap)
 	cs = ucp->uc_mcontext.mc_cs;
 	if (!CS_SECURE(cs)) {
 		printf("sigreturn: cs = 0x%x\n", cs);
-		trapsignal(td, SIGBUS, T_PROTFLT);
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGBUS;
+		ksi.ksi_code = BUS_OBJERR;
+		ksi.ksi_trapno = T_PROTFLT;
+		ksi.ksi_addr = (void *)regs->tf_rip;
+		trapsignal(td, &ksi);
 		return (EINVAL);
 	}
 
@@ -721,4 +740,19 @@ ia32_setregs(td, entry, stack, ps_strings)
 	/* Return via doreti so that we can change to a different %cs */
 	pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_retval[1] = 0;
+}
+
+void
+siginfo_to_ia32siginfo(siginfo_t *src, struct ia32_siginfo *dst)
+{
+	dst->si_signo = src->si_signo;
+	dst->si_errno = src->si_errno;
+	dst->si_code = src->si_code;
+	dst->si_pid = src->si_pid;
+	dst->si_uid = src->si_uid;
+	dst->si_status = src->si_status;
+	dst->si_addr = dst->si_addr;
+	dst->si_value.sigval_int = src->si_value.sigval_int;
+	dst->si_band = src->si_band;
+	dst->__spare__[0] = src->si_trapno;
 }

@@ -862,7 +862,7 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 
 	p = td->td_proc;
 	PROC_LOCK(p);
-	SIGDELSET(p->p_siglist, SIGCHLD);
+	sigqueue_delete(&p->p_sigqueue, SIGCHLD);
 	PROC_UNLOCK(p);
 
 	if (args->status) {

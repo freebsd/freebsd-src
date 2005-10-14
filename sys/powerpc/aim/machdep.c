@@ -432,7 +432,7 @@ bzero(void *buf, size_t len)
 }
 
 void
-sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct trapframe *tf;
 	struct sigframe *sfp;
@@ -441,10 +441,14 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct thread *td;
 	struct proc *p;
 	int oonstack, rndfsize;
+	int sig;
+	int code;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
+	code = ksi->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	tf = td->td_frame;
@@ -512,9 +516,9 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		/*
 		 * Fill siginfo structure.
 		 */
+		sf.sf_si = ksi->ksi_info;
 		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void *)tf->srr0;
+		sf.sf_si.si_addr = (void *)tf->srr0; /* XXX */
 	} else {
 		/* Old FreeBSD-style arguments. */
 		tf->fixreg[FIRSTARG+1] = code;
@@ -541,25 +545,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
-}
-
-/*
- * Build siginfo_t for SA thread
- */
-void
-cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
-{
-	struct proc *p;
-	struct thread *td;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	bzero(si, sizeof(*si));
-	si->si_signo = sig;
-	si->si_code = code;
-	/* XXXKSE fill other fields */
 }
 
 int

@@ -793,6 +793,6 @@
 				    long id, void *uaddr, void *uaddr2); }
 455	AUE_NULL	MSTD	{ int thr_new(struct thr_param *param, \
 				    int param_size); }
-
+456	AUE_NULL	MSTD	{ int sigqueue(pid_t pid, int signum, void *value); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

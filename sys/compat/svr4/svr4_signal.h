@@ -133,10 +133,12 @@ struct svr4_sigaltstack {
 
 #define	SVR4_MINSIGSTKSZ	8192
 
+struct ksiginfo;
+
 void bsd_to_svr4_sigaltstack(const struct sigaltstack *, struct svr4_sigaltstack *);
 void bsd_to_svr4_sigset(const sigset_t *, svr4_sigset_t *);
 void svr4_to_bsd_sigaltstack(const struct svr4_sigaltstack *, struct sigaltstack *);
 void svr4_to_bsd_sigset(const svr4_sigset_t *, sigset_t *);
-void svr4_sendsig(sig_t, int, sigset_t  *, u_long);
+void svr4_sendsig(sig_t, struct ksiginfo *, sigset_t  *);
 
 #endif /* !_SVR4_SIGNAL_H_ */

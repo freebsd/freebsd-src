@@ -485,4 +485,5 @@ struct sysent sysent[] = {
 	{ SYF_MPSAFE | AS(auditctl_args), (sy_call_t *)lkmressys, AUE_NULL },	/* 453 = auditctl */
 	{ SYF_MPSAFE | AS(_umtx_op_args), (sy_call_t *)_umtx_op, AUE_NULL },	/* 454 = _umtx_op */
 	{ SYF_MPSAFE | AS(thr_new_args), (sy_call_t *)thr_new, AUE_NULL },	/* 455 = thr_new */
+	{ SYF_MPSAFE | AS(sigqueue_args), (sy_call_t *)sigqueue, AUE_NULL },	/* 456 = sigqueue */
 };
