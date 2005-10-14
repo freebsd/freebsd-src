@@ -42,6 +42,7 @@ CFLAGS+= ${KDEBUG}
 CFLAGS+= -DVNPRINT
 .endif
 
+.if !defined(KERNBUILDDIR)
 .if ${SMB_INET} > 0
 opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}
@@ -52,10 +53,11 @@ opt_ipx.h:
 	echo "#define IPX 1" > ${.TARGET}
 .endif
 
-opt_netsmb.h:
-	echo "#define NETSMB	1"  > ${.TARGET}
+# XXX netsmb should be a separate module
 .if defined(NETSMBCRYPTO)
-	echo "#define NETSMBCRYPTO 1" >> ${.TARGET}
+opt_netsmb.h:
+	echo "#define NETSMBCRYPTO 1" > ${.TARGET}
+.endif
 .endif
 
 .include <bsd.kmod.mk>

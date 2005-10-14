@@ -32,7 +32,9 @@ SRCS	= safe.c opt_safe.h
 SRCS   += device_if.h bus_if.h pci_if.h
 SRCS   += opt_bus.h crypto_if.h
 
+.if !defined(KERNBUILDDIR)
 opt_safe.h:
 	echo "#define SAFE_DEBUG 1" > opt_safe.h
+.endif
 
 .include <bsd.kmod.mk>
