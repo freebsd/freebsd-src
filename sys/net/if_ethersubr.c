@@ -59,6 +59,7 @@
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
+#include <net/if_bridgevar.h>
 #include <net/if_vlan_var.h>
 
 #if defined(INET) || defined(INET6)
@@ -105,7 +106,7 @@ void	(*ng_ether_detach_p)(struct ifnet *ifp);
 
 void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
-/* if_bridge(4) support. XXX: should go into some include. */
+/* if_bridge(4) support */
 struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *); 
 int	(*bridge_output_p)(struct ifnet *, struct mbuf *, 
 		struct sockaddr *, struct rtentry *);
@@ -288,9 +289,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	* Bridges require special output handling.
 	*/
 	if (ifp->if_bridge) {
-		KASSERT(bridge_output_p != NULL,
-		    ("%s: if_bridge not loaded!", __func__));
-		return ((*bridge_output_p)(ifp, m, NULL, NULL));
+		BRIDGE_OUTPUT(ifp, m, error);
+		return (error);
 	}
 
 	/*
@@ -585,18 +585,9 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 * at the src/sys/netgraph/ng_ether.c:ng_ether_rcv_upper()
 	 */
 	if (ifp->if_bridge) {
-		KASSERT(bridge_input_p != NULL,
-		    ("%s: if_bridge not loaded!", __func__));
-
-		m = (*bridge_input_p)(ifp, m);
+		BRIDGE_INPUT(ifp, m);
 		if (m == NULL)
 			return;
-		/*
-		 * Bridge has determined that the packet is for us.
-		 * Update our interface pointer -- we may have had
-		 * to "bridge" the packet locally.
-		 */
-		ifp = m->m_pkthdr.rcvif;
 	}
 
 	/* First chunk of an mbuf contains good entropy */
