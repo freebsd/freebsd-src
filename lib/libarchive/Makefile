@@ -25,10 +25,10 @@ ARCHIVE_API_MINOR=	2
 # Bumped often. ;-)
 ARCHIVE_API_REVISION=	36
 # Full libarchive version combines the above three numbers.
-VERSION!=printf "%d.%02d.%03d" ${ARCHIVE_API_MAJOR} ${ARCHIVE_API_MINOR} ${ARCHIVE_API_REVISION}
+VERSION= ${ARCHIVE_API_MAJOR}.${ARCHIVE_API_MINOR}.${ARCHIVE_API_REVISION}
 
 # The FreeBSD SHLIB_MAJOR is computed from the above values.
-SHLIB_MAJOR!= expr ${ARCHIVE_API_MAJOR} + ${ARCHIVE_API_MINOR}
+SHLIB_MAJOR!= echo $$((${ARCHIVE_API_MAJOR} + ${ARCHIVE_API_MINOR}))
 
 # The SHLIB_MAJOR computation above helps ensure that the libtool
 # version (computed in configure.ac.in) provides the same
