@@ -1,5 +1,3 @@
-# $NetBSD: $
-# $OpenBSD: $
 # $FreeBSD$
 #
 # Copyright (c) 2000 by Matthew Jacob
@@ -37,5 +35,4 @@
 UNUSED	= getobjmap getnobj getobjstat
 SUBDIR	= getencstat setencstat setobjstat sesd
 
-.include <bsd.own.mk>
 .include <bsd.subdir.mk>
