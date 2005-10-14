@@ -647,7 +647,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  *
  *	Lookup a bridge member interface.
  */
-struct bridge_iflist *
+static struct bridge_iflist *
 bridge_lookup_member(struct bridge_softc *sc, const char *name)
 {
 	struct bridge_iflist *bif;
@@ -669,7 +669,7 @@ bridge_lookup_member(struct bridge_softc *sc, const char *name)
  *
  *	Lookup a bridge member interface by ifnet*.
  */
-struct bridge_iflist *
+static struct bridge_iflist *
 bridge_lookup_member_if(struct bridge_softc *sc, struct ifnet *member_ifp)
 {
 	struct bridge_iflist *bif;
@@ -1663,7 +1663,7 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
  *	Receive input from a member interface.  Queue the packet for
  *	bridging if it is not for us.
  */
-struct mbuf *
+static struct mbuf *
 bridge_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct bridge_softc *sc = ifp->if_bridge;
@@ -1956,7 +1956,7 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
  *
  *	Lookup the destination interface for an address.
  */
-struct ifnet *
+static struct ifnet *
 bridge_rtlookup(struct bridge_softc *sc, const uint8_t *addr)
 {
 	struct bridge_rtnode *brt;
@@ -2181,7 +2181,7 @@ bridge_rthash(struct bridge_softc *sc, const uint8_t *addr)
  *
  *	Look up a bridge route node for the specified destination.
  */
-struct bridge_rtnode *
+static struct bridge_rtnode *
 bridge_rtnode_lookup(struct bridge_softc *sc, const uint8_t *addr)
 {
 	struct bridge_rtnode *brt;
