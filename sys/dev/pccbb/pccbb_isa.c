@@ -79,6 +79,23 @@ save wires.  Sometimes you need a more restrictive mask because some of the\n\
 hardware in your laptop may not have a driver so its IRQ might not be\n\
 allocated.");
 
+/*
+ * CL-PD6722's VSENSE method
+ *     0: NO VSENSE (assume a 5.0V card always)
+ *     1: 6710's method (default)
+ *     2: 6729's method
+ */
+int pcic_pd6722_vsense = 1;
+TUNABLE_INT("hw.pcic.pd6722_vsense", &pcic_pd6722_vsense);
+SYSCTL_INT(_hw_pcic, OID_AUTO, pd6722_vsense, CTLFLAG_RDTUN,
+    &pcic_pd6722_vsense, 1,
+    "Select CL-PD6722's VSENSE method.  VSENSE is used to determine the\n\
+volatage of inserted cards.  The CL-PD6722 has two methods to determine the\n\
+voltage of the card.  0 means assume a 5.0V card and do not check.  1 means\n\
+use the same method that the CL-PD6710 uses (default).  2 means use the\n\
+same method as the CL-PD6729.  2 is documented in the datasheet as being\n\
+the correct way, but 1 seems to give better results on more laptops.");
+
 /*****************************************************************************
  * End of configurable parameters.
  *****************************************************************************/
@@ -86,6 +103,7 @@ allocated.");
 #define	DPRINTF(x) do { if (cbb_debug) printf x; } while (0)
 #define	DEVPRINTF(x) do { if (cbb_debug) device_printf x; } while (0)
 
+/* XXX Not sure that PNP0E03 should be claimed, except maybe on pc98 */
 static struct isa_pnp_id pcic_ids[] = {
 	{EXCA_PNP_ACTIONTEC,		NULL},		/* AEI0218 */
 	{EXCA_PNP_IBM3765,		NULL},		/* IBM3765 */
@@ -94,6 +112,8 @@ static struct isa_pnp_id pcic_ids[] = {
 	{EXCA_PNP_VLSI_82C146,		NULL},		/* PNP0E02 */
 	{EXCA_PNP_82365_CARDBUS,	NULL},		/* PNP0E03 */
 	{EXCA_PNP_SCM_SWAPBOX,		NULL},		/* SCM0469 */
+	{EXCA_NEC_PC9801_102,		NULL},		/* NEC8091 */
+	{EXCA_NEC_PC9821RA_E01,         NULL},          /* NEC8121 */
 	{0}
 };
 
@@ -101,7 +121,10 @@ static struct isa_pnp_id pcic_ids[] = {
 /* Probe/Attach								*/
 /************************************************************************/
 
-#if 0
+static int
+cbb_isa_activate(device_t dev)
+{
+	struct cbb_softc *sc = device_get_softc(dev);
 	struct resource *res;
 	int rid;
 	int i;
@@ -115,36 +138,39 @@ static struct isa_pnp_id pcic_ids[] = {
 		 * data not specifying any IRQ, or the default kernel not
 		 * assinging an IRQ.
 		 */
-		for (i = 0; i < 16; i++) {
+		for (i = 0; i < 16 && res == NULL; i++) {
 			if (((1 << i) & isa_intr_mask) == 0)
 				continue;
 			res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, i, i,
 			    1, RF_ACTIVE);
-			if (res != NULL)
-				break;
 		}
-		if (res == NULL)
-			return (ENXIO);
-		bus_release_resource(dev, SYS_RES_IRQ, rid, res);	
-		bus_set_resource(dev, SYS_RES_IRQ, 0, i, 1);
-	} else {
-		bus_release_resource(dev, SYS_RES_IRQ, rid, res);
 	}
+	if (res == NULL)
+		return (ENXIO);
+	sc->irq_res = res;
+	rid = 0;
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (res == NULL) {
-		device_printf(dev, "Cannot allocate mem\n");
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+		sc->irq_res = NULL;
+		device_printf(dev, "Cannot allocate I/O\n");
 		return (ENOMEM);
 	}
-#endif
-
-static int
-cbb_isa_activate(device_t dev)
-{
-	return (ENOMEM);
+	sc->base_res = res;
+	return (0);
 }
 
 static void
 cbb_isa_deactivate(device_t dev)
 {
+	struct cbb_softc *sc = device_get_softc(dev);
+
+	if (sc->irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	sc->irq_res = NULL;
+	if (sc->base_res)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->base_res);
+	sc->base_res = NULL;
 }
 
 static int
