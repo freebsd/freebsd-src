@@ -411,11 +411,10 @@ svr4_getsiginfo(si, sig, code, addr)
  * will return to the user pc, psl.
  */
 void
-svr4_sendsig(catcher, sig, mask, code)
+svr4_sendsig(catcher, ksi, mask)
 	sig_t catcher;
-	int sig;
+	ksiginfo_t ksi;
 	sigset_t *mask;
-	u_long code;
 {
 	register struct thread *td = curthread;
 	struct proc *p = td->td_proc;
@@ -423,11 +422,15 @@ svr4_sendsig(catcher, sig, mask, code)
 	struct svr4_sigframe *fp, frame;
 	struct sigacts *psp;
 	int oonstack;
+	int sig;
+	int code;
 
 #if defined(DEBUG_SVR4)
 	printf("svr4_sendsig(%d)\n", sig);
 #endif
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
+	code = ksi->ksi_trapno; /* use trap No. */
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 

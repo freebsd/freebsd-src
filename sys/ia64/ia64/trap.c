@@ -361,6 +361,7 @@ trap(int vector, struct trapframe *tf)
 	uint64_t ucode;
 	int error, sig, user;
 	u_int sticks;
+	ksiginfo_t ksi;
 
 	user = TRAPF_USERMODE(tf) ? 1 : 0;
 
@@ -869,7 +870,10 @@ trap(int vector, struct trapframe *tf)
 	if (print_usertrap)
 		printtrap(vector, tf, 1, user);
 
-	trapsignal(td, sig, ucode);
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = sig;
+	ksi.ksi_code = ucode;
+	trapsignal(td, &ksi);
 
 out:
 	if (user) {

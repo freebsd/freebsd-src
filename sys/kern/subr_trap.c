@@ -155,6 +155,7 @@ ast(struct trapframe *framep)
 	int sig;
 #if defined(DEV_NPX) && !defined(SMP)
 	int ucode;
+	ksiginfo_t ksi;
 #endif
 
 	td = curthread;
@@ -217,7 +218,10 @@ ast(struct trapframe *framep)
 		    PCB_NPXTRAP);
 		ucode = npxtrap();
 		if (ucode != -1) {
-			trapsignal(td, SIGFPE, ucode);
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGFPE;
+			ksi.ksi_code = ucode;
+			trapsignal(td, &ksi);
 		}
 	}
 #endif

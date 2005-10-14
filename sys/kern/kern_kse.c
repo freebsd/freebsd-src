@@ -210,7 +210,7 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 			if (uap->data > 0) {
 				td2->td_flags &= ~TDF_INTERRUPT;
 				mtx_unlock_spin(&sched_lock);
-				tdsignal(td2, (int)uap->data, SIGTARGET_TD);
+				tdsignal(td2, (int)uap->data, NULL, SIGTARGET_TD);
 			} else {
 				mtx_unlock_spin(&sched_lock);
 			}
@@ -342,6 +342,7 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	PROC_LOCK(p);
 	if (error)
 		psignal(p, SIGSEGV);
+	sigqueue_flush(&td->td_sigqueue);
 	mtx_lock_spin(&sched_lock);
 	upcall_remove(td);
 	if (p->p_numthreads != 1) {
@@ -697,8 +698,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * SA threading will make a special thread to handle them.
 	 */
 	if (first && sa) {
-		SIGSETOR(p->p_siglist, td->td_siglist);
-		SIGEMPTYSET(td->td_siglist);
+		sigqueue_move_set(&td->td_sigqueue, &p->p_sigqueue, 
+			&td->td_sigqueue.sq_signals);
 		SIGFILLSET(td->td_sigmask);
 		SIG_CANTMASK(td->td_sigmask);
 	}
@@ -1094,10 +1095,9 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
  * debugged.
  */
 void
-thread_signal_add(struct thread *td, int sig)
+thread_signal_add(struct thread *td, ksiginfo_t *ksi)
 {
 	struct proc *p;
-	siginfo_t siginfo;
 	struct sigacts *ps;
 	int error;
 
@@ -1106,11 +1106,11 @@ thread_signal_add(struct thread *td, int sig)
 	ps = p->p_sigacts;
 	mtx_assert(&ps->ps_mtx, MA_OWNED);
 
-	cpu_thread_siginfo(sig, 0, &siginfo);
 	mtx_unlock(&ps->ps_mtx);
-	SIGADDSET(td->td_sigmask, sig);
+	SIGADDSET(td->td_sigmask, ksi->ksi_signo);
 	PROC_UNLOCK(p);
-	error = copyout(&siginfo, &td->td_mailbox->tm_syncsig, sizeof(siginfo));
+	error = copyout(&ksi->ksi_info, &td->td_mailbox->tm_syncsig,
+			sizeof(siginfo_t));
 	if (error) {
 		PROC_LOCK(p);
 		sigexit(td, SIGSEGV);
@@ -1315,6 +1315,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 			wakeup(&kg->kg_completed);
 		WITNESS_WARN(WARN_PANIC, &p->p_mtx.mtx_object,
 		    "thread exiting in userret");
+		sigqueue_flush(&td->td_sigqueue);
 		mtx_lock_spin(&sched_lock);
 		thread_stopped(p);
 		thread_exit();

@@ -144,6 +144,7 @@ trap(struct trapframe *frame)
 	struct proc	*p;
 	int		sig, type, user;
 	u_int		sticks, ucode;
+	ksiginfo_t	ksi;
 
 	PCPU_LAZY_INC(cnt.v_trap);
 
@@ -254,7 +255,12 @@ trap(struct trapframe *frame)
 	if (sig != 0) {
 		if (p->p_sysent->sv_transtrap != NULL)
 			sig = (p->p_sysent->sv_transtrap)(sig, type);
-		trapsignal(td, sig, ucode);
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = sig;
+		ksi.ksi_code = (int) ucode; /* XXX, not POSIX */
+		/* ksi.ksi_addr = ? */
+		ksi.ksi_trapno = type;
+		trapsignal(td, &ksi);
 	}
 
 	userret(td, frame, sticks);

@@ -279,6 +279,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 		suword((void *)uap->state, 1);
 
 	PROC_LOCK(p);
+	sigqueue_flush(&td->td_sigqueue);
 	mtx_lock_spin(&sched_lock);
 
 	/*
@@ -319,7 +320,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 		error = EINVAL;
 		goto out;
 	}
-	tdsignal(ttd, uap->sig, SIGTARGET_TD);
+	tdsignal(ttd, uap->sig, NULL, SIGTARGET_TD);
 out:
 	PROC_UNLOCK(p);
 	return (error);

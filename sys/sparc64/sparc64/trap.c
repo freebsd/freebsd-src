@@ -233,6 +233,7 @@ trap(struct trapframe *tf)
 	u_int sticks;
 	int error;
 	int sig;
+	ksiginfo_t ksi;
 
 	td = PCPU_GET(curthread);
 
@@ -284,7 +285,12 @@ trap(struct trapframe *tf)
 			if (debugger_on_signal &&
 			    (sig == 4 || sig == 10 || sig == 11))
 				kdb_enter("trapsig");
-			trapsignal(td, sig, tf->tf_type);
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = sig;
+			ksi.ksi_code = (int)tf->tf_type; /* XXX not POSIX */
+			/* ksi.ksi_addr = ? */
+			ksi.ksi_trap = (int)tf->tf_type;
+			trapsignal(td, &ksi);
 		}
 
 		userret(td, tf, sticks);

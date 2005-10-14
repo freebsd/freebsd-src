@@ -878,7 +878,7 @@ DELAY(int n)
  * Send an interrupt (signal) to a process.
  */
 void
-sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct proc *p;
 	struct thread *td;
@@ -887,10 +887,14 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct sigframe sf, *sfp;
 	u_int64_t sbs, sp;
 	int oonstack;
+	int sig;
+	u_long code;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
+	code = ksi->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	tf = td->td_frame;
@@ -926,8 +930,12 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	/* Fill in the siginfo structure for POSIX handlers. */
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
+		sf.sf_si = ksi->ksi_info;
 		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
+		/*
+		 * XXX this shouldn't be here after code in trap.c
+		 * is fixed
+		 */
 		sf.sf_si.si_addr = (void*)tf->tf_special.ifa;
 		code = (u_int64_t)&sfp->sf_si;
 	}
@@ -976,25 +984,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
-}
-
-/*
- * Build siginfo_t for SA thread
- */
-void
-cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
-{
-	struct proc *p;
-	struct thread *td;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	bzero(si, sizeof(*si));
-	si->si_signo = sig;
-	si->si_code = code;
-	/* XXXKSE fill other fields */
 }
 
 /*

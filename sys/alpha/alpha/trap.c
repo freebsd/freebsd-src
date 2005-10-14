@@ -264,6 +264,7 @@ trap(a0, a1, a2, entry, framep)
 #ifdef SMP
 	register_t s;
 #endif
+	ksiginfo_t ksi;
 
 	/*
 	 * Find our per-cpu globals.
@@ -585,7 +586,12 @@ trap(a0, a1, a2, entry, framep)
 	framep->tf_regs[FRAME_TRAPARG_A0] = a0;
 	framep->tf_regs[FRAME_TRAPARG_A1] = a1;
 	framep->tf_regs[FRAME_TRAPARG_A2] = a2;
-	trapsignal(td, i, ucode);
+	ksiginfo_init_trap(&ksi);
+	ksi.ksi_signo = i;
+	ksi.ksi_code = ucode;	/* XXX, Should be POSIX si_code */
+	ksi.ksi_addr = (void *)a0;
+	trapsignal(td, &ksi);
+
 out:
 	if (user) {
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
