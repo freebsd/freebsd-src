@@ -171,11 +171,10 @@ u_int	basemem;
 int cold = 1;
 
 #ifdef COMPAT_43
-static void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
+static void osendsig(sig_t catcher, ksiginfo_t *, sigset_t *mask);
 #endif
 #ifdef COMPAT_FREEBSD4
-static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
-    u_long code);
+static void freebsd4_sendsig(sig_t catcher, ksiginfo_t *, sigset_t *mask);
 #endif
 
 long Maxmem = 0;
@@ -261,22 +260,20 @@ cpu_startup(dummy)
  */
 #ifdef COMPAT_43
 static void
-osendsig(catcher, sig, mask, code)
-	sig_t catcher;
-	int sig;
-	sigset_t *mask;
-	u_long code;
+osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct osigframe sf, *fp;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
 	struct trapframe *regs;
+	int sig;
 	int oonstack;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
@@ -304,12 +301,12 @@ osendsig(catcher, sig, mask, code)
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_arg2 = (register_t)&fp->sf_siginfo;
 		sf.sf_siginfo.si_signo = sig;
-		sf.sf_siginfo.si_code = code;
+		sf.sf_siginfo.si_code = ksi->ksi_code;
 		sf.sf_ahu.sf_action = (__osiginfohandler_t *)catcher;
 	} else {
 		/* Old FreeBSD-style arguments. */
-		sf.sf_arg2 = code;
-		sf.sf_addr = regs->tf_err;
+		sf.sf_arg2 = ksi->ksi_code;
+		sf.sf_addr = (register_t)ksi->ksi_addr;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
@@ -391,22 +388,20 @@ osendsig(catcher, sig, mask, code)
 
 #ifdef COMPAT_FREEBSD4
 static void
-freebsd4_sendsig(catcher, sig, mask, code)
-	sig_t catcher;
-	int sig;
-	sigset_t *mask;
-	u_long code;
+freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct sigframe4 sf, *sfp;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
 	struct trapframe *regs;
+	int sig;
 	int oonstack;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
@@ -447,12 +442,12 @@ freebsd4_sendsig(catcher, sig, mask, code)
 
 		/* Fill in POSIX parts */
 		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void *)regs->tf_err;
+		sf.sf_si.si_code = ksi->ksi_code;
+		sf.sf_si.si_addr = ksi->ksi_addr;
 	} else {
 		/* Old FreeBSD-style arguments. */
-		sf.sf_siginfo = code;
-		sf.sf_addr = regs->tf_err;
+		sf.sf_siginfo = ksi->ksi_code;
+		sf.sf_addr = (register_t)ksi->ksi_addr;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
@@ -512,11 +507,7 @@ freebsd4_sendsig(catcher, sig, mask, code)
 #endif	/* COMPAT_FREEBSD4 */
 
 void
-sendsig(catcher, sig, mask, code)
-	sig_t catcher;
-	int sig;
-	sigset_t *mask;
-	u_long code;
+sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct sigframe sf, *sfp;
 	struct proc *p;
@@ -524,22 +515,24 @@ sendsig(catcher, sig, mask, code)
 	struct sigacts *psp;
 	char *sp;
 	struct trapframe *regs;
+	int sig;
 	int oonstack;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 #ifdef COMPAT_FREEBSD4
 	if (SIGISMEMBER(psp->ps_freebsd4, sig)) {
-		freebsd4_sendsig(catcher, sig, mask, code);
+		freebsd4_sendsig(catcher, ksi, mask);
 		return;
 	}
 #endif
 #ifdef COMPAT_43
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
-		osendsig(catcher, sig, mask, code);
+		osendsig(catcher, ksi, mask);
 		return;
 	}
 #endif
@@ -585,13 +578,12 @@ sendsig(catcher, sig, mask, code)
 		sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher;
 
 		/* Fill in POSIX parts */
-		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void *)regs->tf_err;
+		sf.sf_si = ksi->ksi_info;
+		sf.sf_si.si_signo = sig; /* maybe a translated signal */
 	} else {
 		/* Old FreeBSD-style arguments. */
-		sf.sf_siginfo = code;
-		sf.sf_addr = regs->tf_err;
+		sf.sf_siginfo = ksi->ksi_code;
+		sf.sf_addr = (register_t)ksi->ksi_addr;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
@@ -650,26 +642,6 @@ sendsig(catcher, sig, mask, code)
 }
 
 /*
- * Build siginfo_t for SA thread
- */
-void
-cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
-{
-	struct proc *p;
-	struct thread *td;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	bzero(si, sizeof(*si));
-	si->si_signo = sig;
-	si->si_code = code;
-	si->si_addr = (void *)td->td_frame->tf_err;
-	/* XXXKSE fill other fields */
-}
-
-/*
  * System call to cleanup state after a signal
  * has been taken.  Reset signal mask and
  * stack state from context left by sendsig (above).
@@ -693,6 +665,7 @@ osigreturn(td, uap)
 	struct osigcontext *scp;
 	struct proc *p = td->td_proc;
 	int eflags, error;
+	ksiginfo_t ksi;
 
 	regs = td->td_frame;
 	error = copyin(uap->sigcntxp, &sc, sizeof(sc));
@@ -715,8 +688,13 @@ osigreturn(td, uap)
 			return (EINVAL);
 
 		/* Go back to user mode if both flags are set. */
-		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(td, SIGBUS, 0);
+		if ((eflags & PSL_VIP) && (eflags & PSL_VIF)) {
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
+		}
 
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
@@ -757,7 +735,12 @@ osigreturn(td, uap)
 		 * other selectors, invalid %eip's and invalid %esp's.
 		 */
 		if (!CS_SECURE(scp->sc_cs)) {
-			trapsignal(td, SIGBUS, T_PROTFLT);
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_trapno = T_PROTFLT;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
 			return (EINVAL);
 		}
 		regs->tf_ds = scp->sc_ds;
@@ -811,6 +794,7 @@ freebsd4_sigreturn(td, uap)
 	struct trapframe *regs;
 	const struct ucontext4 *ucp;
 	int cs, eflags, error;
+	ksiginfo_t ksi;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
@@ -833,9 +817,13 @@ freebsd4_sigreturn(td, uap)
 			return (EINVAL);
 
 		/* Go back to user mode if both flags are set. */
-		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(td, SIGBUS, 0);
-
+		if ((eflags & PSL_VIP) && (eflags & PSL_VIF)) {
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
+		}
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
 			    (eflags & VME_USERCHANGE) | PSL_VM;
@@ -880,7 +868,12 @@ freebsd4_sigreturn(td, uap)
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
 			printf("freebsd4_sigreturn: cs = 0x%x\n", cs);
-			trapsignal(td, SIGBUS, T_PROTFLT);
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_trapno = T_PROTFLT;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
 			return (EINVAL);
 		}
 
@@ -918,6 +911,7 @@ sigreturn(td, uap)
 	struct trapframe *regs;
 	const ucontext_t *ucp;
 	int cs, eflags, error, ret;
+	ksiginfo_t ksi;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
@@ -940,8 +934,13 @@ sigreturn(td, uap)
 			return (EINVAL);
 
 		/* Go back to user mode if both flags are set. */
-		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(td, SIGBUS, 0);
+		if ((eflags & PSL_VIP) && (eflags & PSL_VIF)) {
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
+		}
 
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
@@ -987,7 +986,12 @@ sigreturn(td, uap)
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
 			printf("sigreturn: cs = 0x%x\n", cs);
-			trapsignal(td, SIGBUS, T_PROTFLT);
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_trapno = T_PROTFLT;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
 			return (EINVAL);
 		}
 

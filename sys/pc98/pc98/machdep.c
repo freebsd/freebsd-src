@@ -177,11 +177,10 @@ SYSCTL_INT(_machdep, OID_AUTO, ispc98, CTLFLAG_RD, &ispc98, 0, "");
 int cold = 1;
 
 #ifdef COMPAT_43
-static void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
+static void osendsig(sig_t catcher, ksiginfo_t *, sigset_t *mask);
 #endif
 #ifdef COMPAT_FREEBSD4
-static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
-    u_long code);
+static void freebsd4_sendsig(sig_t catcher, ksiginfo_t *, sigset_t *mask)
 #endif
 
 long Maxmem = 0;
@@ -267,11 +266,7 @@ cpu_startup(dummy)
  */
 #ifdef COMPAT_43
 static void
-osendsig(catcher, sig, mask, code)
-	sig_t catcher;
-	int sig;
-	sigset_t *mask;
-	u_long code;
+osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct osigframe sf, *fp;
 	struct proc *p;
@@ -279,10 +274,14 @@ osendsig(catcher, sig, mask, code)
 	struct sigacts *psp;
 	struct trapframe *regs;
 	int oonstack;
+	int sig;
+	int code;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
+	code = ksi->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
@@ -311,6 +310,7 @@ osendsig(catcher, sig, mask, code)
 		sf.sf_arg2 = (register_t)&fp->sf_siginfo;
 		sf.sf_siginfo.si_signo = sig;
 		sf.sf_siginfo.si_code = code;
+		sf.sf_siginfo.sf_value = ksi->ksi_value;
 		sf.sf_ahu.sf_action = (__osiginfohandler_t *)catcher;
 	} else {
 		/* Old FreeBSD-style arguments. */
@@ -721,8 +721,13 @@ osigreturn(td, uap)
 			return (EINVAL);
 
 		/* Go back to user mode if both flags are set. */
-		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(td, SIGBUS, 0);
+		if ((eflags & PSL_VIP) && (eflags & PSL_VIF)) {
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
+		}
 
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
@@ -763,7 +768,12 @@ osigreturn(td, uap)
 		 * other selectors, invalid %eip's and invalid %esp's.
 		 */
 		if (!CS_SECURE(scp->sc_cs)) {
-			trapsignal(td, SIGBUS, T_PROTFLT);
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_trapno = T_PROTFLT;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
 			return (EINVAL);
 		}
 		regs->tf_ds = scp->sc_ds;
@@ -839,8 +849,13 @@ freebsd4_sigreturn(td, uap)
 			return (EINVAL);
 
 		/* Go back to user mode if both flags are set. */
-		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(td, SIGBUS, 0);
+		if ((eflags & PSL_VIP) && (eflags & PSL_VIF)) {
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
+		}
 
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
@@ -886,7 +901,12 @@ freebsd4_sigreturn(td, uap)
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
 			printf("freebsd4_sigreturn: cs = 0x%x\n", cs);
-			trapsignal(td, SIGBUS, T_PROTFLT);
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_trapno = T_PROTFLT;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
 			return (EINVAL);
 		}
 
@@ -946,8 +966,13 @@ sigreturn(td, uap)
 			return (EINVAL);
 
 		/* Go back to user mode if both flags are set. */
-		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(td, SIGBUS, 0);
+		if ((eflags & PSL_VIP) && (eflags & PSL_VIF)) {
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
+		}
 
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
@@ -993,7 +1018,12 @@ sigreturn(td, uap)
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
 			printf("sigreturn: cs = 0x%x\n", cs);
-			trapsignal(td, SIGBUS, T_PROTFLT);
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGBUS;
+			ksi.ksi_code = BUS_OBJERR;
+			ksi.ksi_trapno = T_PROTFLT;
+			ksi.ksi_addr = (void *)regs->tf_eip;
+			trapsignal(td, &ksi);
 			return (EINVAL);
 		}
 

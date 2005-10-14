@@ -35,6 +35,7 @@
 #include <bsm/audit.h>
 
 struct thread;
+struct ksiginfo;
 
 typedef	int	sy_call_t(struct thread *, void *);
 
@@ -64,8 +65,8 @@ struct sysentvec {
 					/* translate trap-to-signal mapping */
 	int		(*sv_fixup)(register_t **, struct image_params *);
 					/* stack fixup function */
-	void		(*sv_sendsig)(void (*)(int), int, struct __sigset *,
-			    u_long);	/* send signal */
+	void		(*sv_sendsig)(void (*)(int), struct ksiginfo *, struct __sigset *);
+			    		/* send signal */
 	char 		*sv_sigcode;	/* start of sigtramp code */
 	int 		*sv_szsigcode;	/* size of sigtramp code */
 	void		(*sv_prepsyscall)(struct trapframe *, int *, u_int *,

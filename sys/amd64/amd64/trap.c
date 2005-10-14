@@ -161,6 +161,8 @@ trap(frame)
 	struct proc *p = td->td_proc;
 	u_int sticks = 0;
 	int i = 0, ucode = 0, type, code;
+	register_t addr = 0;
+	ksiginfo_t ksi;
 
 	PCPU_LAZY_INC(cnt.v_trap);
 	type = frame.tf_trapno;
@@ -241,13 +243,14 @@ trap(frame)
 
 		sticks = td->td_sticks;
 		td->td_frame = &frame;
+		addr = frame.tf_rip;
 		if (td->td_ucred != p->p_ucred) 
 			cred_update_thread(td);
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
-			ucode = type;
 			i = SIGILL;
+			ucode = ILL_PRVOPC;
 			break;
 
 		case T_BPTFLT:		/* bpt instruction fault */
@@ -255,6 +258,7 @@ trap(frame)
 			enable_intr();
 			frame.tf_rflags &= ~PSL_T;
 			i = SIGTRAP;
+			ucode = (type == T_TRCTRAP ? TRAP_TRACE : TRAP_BRKPT);
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
@@ -265,16 +269,26 @@ trap(frame)
 			break;
 
 		case T_PROTFLT:		/* general protection fault */
+			i = SIGBUS;
+			ucode = BUS_OBJERR;
+			break;
 		case T_STKFLT:		/* stack fault */
 		case T_SEGNPFLT:	/* segment not present fault */
+			i = SIGBUS;
+			ucode = BUS_ADRERR;
+			break;
 		case T_TSSFLT:		/* invalid TSS fault */
+			i = SIGBUS;
+			ucode = BUS_OBJERR;
+			break;
 		case T_DOUBLEFLT:	/* double fault */
 		default:
-			ucode = code + BUS_SEGM_FAULT ;
 			i = SIGBUS;
+			ucode = BUS_OBJERR;
 			break;
 
 		case T_PAGEFLT:		/* page fault */
+			addr = frame.tf_addr;
 			if (td->td_pflags & TDP_SA)
 				thread_user_enter(td);
 			i = trap_pfault(&frame, TRUE);
@@ -283,7 +297,12 @@ trap(frame)
 			if (i == 0)
 				goto user;
 
-			ucode = T_PAGEFLT;
+			if (i == SIGSEGV)
+				ucode = SEGV_MAPERR;
+			else {
+				i = SIGSEGV; /* XXX hack */
+				ucode = SEGV_ACCERR;
+			}
 			break;
 
 		case T_DIVIDE:		/* integer divide fault */
@@ -326,12 +345,14 @@ trap(frame)
 			/* transparent fault (due to context switch "late") */
 			if (fpudna())
 				goto userout;
-			i = SIGFPE;
-			ucode = FPE_FPU_NP_TRAP;
+			printf("pid %d killed due to lack of floating point\n",
+				p->p_pid);
+			i = SIGKILL;
+			ucode = 0;
 			break;
 
 		case T_FPOPFLT:		/* FPU operand fetch fault */
-			ucode = T_FPOPFLT;
+			ucode = ILL_COPROC;
 			i = SIGILL;
 			break;
 
@@ -472,7 +493,12 @@ trap(frame)
 	if (*p->p_sysent->sv_transtrap)
 		i = (*p->p_sysent->sv_transtrap)(i, type);
 
-	trapsignal(td, i, ucode);
+	ksiginfo_init_trap(&ksi);
+	ksi.ksi_signo = i;
+	ksi.ksi_code = ucode;
+	ksi.ksi_trapno = type;
+	ksi.ksi_addr = (void *)addr;
+	trapsignal(td, &ksi);
 
 #ifdef DEBUG
 	if (type <= MAX_TRAP_MSG) {
@@ -696,6 +722,7 @@ syscall(frame)
 	register_t *argp;
 	u_int code;
 	int reg, regcnt;
+	ksiginfo_t ksi;
 
 	/*
 	 * note: PCPU_LAZY_INC() can only be used if we can afford
@@ -826,7 +853,12 @@ syscall(frame)
 	 */
 	if (orig_tf_rflags & PSL_T) {
 		frame.tf_rflags &= ~PSL_T;
-		trapsignal(td, SIGTRAP, 0);
+
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGTRAP;
+		ksi.ksi_code = TRAP_TRACE;
+		ksi.ksi_addr = (void *)frame.tf_rip;
+		trapsignal(td, &ksi);
 	}
 
 	/*

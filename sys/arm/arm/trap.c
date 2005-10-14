@@ -184,8 +184,12 @@ static const struct data_abort data_aborts[] = {
 static __inline void
 call_trapsignal(struct thread *td, int sig, u_long code)
 {
+	ksiginfo_t ksi;
 
-	trapsignal(td, sig, code);
+	ksiginfo_init_trap(&ksi);
+	ksi.ksi_signo = sig;
+	ksi.ksi_code = (int)code;
+	trapsignal(td, &ksi);
 }
 
 static __inline int
@@ -875,7 +879,7 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		nap = 4;
 		break;
 	default:
-		trapsignal(td, SIGILL, 0);
+		call_trapsignal(td, SIGILL, 0);
 		userret(td, frame, td->td_sticks);
 		return;
 	}
@@ -993,7 +997,7 @@ swi_handler(trapframe_t *frame)
 	 * don't take an alignment fault trying to read the opcode.
 	 */
 	if (__predict_false(((frame->tf_pc - INSN_SIZE) & 3) != 0)) {
-		trapsignal(td, SIGILL, 0);
+		call_trapsignal(td, SIGILL, 0);
 		userret(td, frame, td->td_sticks);
 		return;
 	}

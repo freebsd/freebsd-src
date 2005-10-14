@@ -237,11 +237,7 @@ cpu_startup(dummy)
  * specified pc, psl.
  */
 void
-sendsig(catcher, sig, mask, code)
-	sig_t catcher;
-	int sig;
-	sigset_t *mask;
-	u_long code;
+sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct sigframe sf, *sfp;
 	struct proc *p;
@@ -250,10 +246,12 @@ sendsig(catcher, sig, mask, code)
 	char *sp;
 	struct trapframe *regs;
 	int oonstack;
+	int sig;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
@@ -297,13 +295,13 @@ sendsig(catcher, sig, mask, code)
 		sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher;
 
 		/* Fill in POSIX parts */
-		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		regs->tf_rcx = regs->tf_addr;	/* arg 4 in %rcx */
+		sf.sf_si = ksi->ksi_info;
+		sf.sf_si.si_signo = sig; /* maybe a translated signal */
+		regs->tf_rcx = (register_t)ksi->ksi_addr; /* arg 4 in %rcx */
 	} else {
 		/* Old FreeBSD-style arguments. */
-		regs->tf_rsi = code;		/* arg 2 in %rsi */
-		regs->tf_rcx = regs->tf_addr;	/* arg 4 in %rcx */
+		regs->tf_rsi = ksi->ksi_code;	/* arg 2 in %rsi */
+		regs->tf_rcx = (register_t)ksi->ksi_addr; /* arg 4 in %rcx */
 		sf.sf_ahu.sf_handler = catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
@@ -326,28 +324,6 @@ sendsig(catcher, sig, mask, code)
 	regs->tf_cs = _ucodesel;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
-}
-
-/*
- * Build siginfo_t for SA thread
- */
-void
-cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
-{
-	struct proc *p;
-	struct thread *td;
-	struct trapframe *regs;
-
-	td = curthread;
-	p = td->td_proc;
-	regs = td->td_frame;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	bzero(si, sizeof(*si));
-	si->si_signo = sig;
-	si->si_code = code;
-	si->si_addr = (void *)regs->tf_addr;
-	/* XXXKSE fill other fields */
 }
 
 /*
@@ -374,6 +350,7 @@ sigreturn(td, uap)
 	const ucontext_t *ucp;
 	long rflags;
 	int cs, error, ret;
+	ksiginfo_t ksi;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
@@ -407,7 +384,12 @@ sigreturn(td, uap)
 	cs = ucp->uc_mcontext.mc_cs;
 	if (!CS_SECURE(cs)) {
 		printf("sigreturn: cs = 0x%x\n", cs);
-		trapsignal(td, SIGBUS, T_PROTFLT);
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGBUS;
+		ksi.ksi_code = BUS_OBJERR;
+		ksi.ksi_trapno = T_PROTFLT;
+		ksi.ksi_addr = (void *)regs->tf_rip;
+		trapsignal(td, &ksi);
 		return (EINVAL);
 	}
 
