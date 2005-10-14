@@ -181,6 +181,8 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	struct mem_map_index_st *map;
 	struct pccard_mem_handle *mem;
 	uint32_t offset;
+	int mem8 = (mem->kind == PCCARD_A_MEM_ATTR);
+	mem8 = 1;
 	
 	map = &mem_map_index[win];
 	mem = &sc->mem[win];
@@ -190,7 +192,8 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	    (mem->addr >> EXCA_SYSMEM_ADDRX_SHIFT) & 0xff);
 	exca_putb(sc, map->sysmem_start_msb,
 	    ((mem->addr >> (EXCA_SYSMEM_ADDRX_SHIFT + 8)) &
-	    EXCA_SYSMEM_ADDRX_START_MSB_ADDR_MASK));
+	    EXCA_SYSMEM_ADDRX_START_MSB_ADDR_MASK) |
+	    (mem8 ? 0 : EXCA_SYSMEM_ADDRX_START_MSB_DATASIZE_16BIT));
 
 	exca_putb(sc, map->sysmem_stop_lsb,
 	    ((mem->addr + mem->realsize - 1) >>
@@ -643,6 +646,7 @@ exca_valid_slot(struct exca_softc *exca)
 	 * IBM clone chips use 0x88 and 0x89, apparently
 	 */
 	c = exca_getb(exca, EXCA_IDENT);
+	DEVPRINTF(exca->dev, "Ident is %x\n", c);
 	if ((c & EXCA_IDENT_IFTYPE_MASK) != EXCA_IDENT_IFTYPE_MEM_AND_IO)
 		return (0);
 	if ((c & EXCA_IDENT_ZERO) != 0)
