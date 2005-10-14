@@ -7,4 +7,3 @@ FILESMODE_hcsecd.conf=	600
 FILESMODE_hosts=	644
 
 .include <bsd.prog.mk>
-.include <bsd.files.mk>
