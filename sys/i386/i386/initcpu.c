@@ -77,10 +77,12 @@ SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
 int	cpu = 0;		/* Are we 386, 386sx, 486, etc? */
 u_int	cpu_feature = 0;	/* Feature flags */
 u_int	cpu_feature2 = 0;	/* Feature flags */
-u_int	amd_feature = 0;	/* Feature flags */
+u_int	amd_feature = 0;	/* AMD feature flags */
+u_int	amd_feature2 = 0;	/* AMD feature flags */
 u_int	cpu_high = 0;		/* Highest arg to CPUID */
 u_int	cpu_id = 0;		/* Stepping ID */
 u_int	cpu_procinfo = 0;	/* HyperThreading Info / Brand Index / CLFUSH */
+u_int	cpu_procinfo2 = 0;	/* Multicore info */
 char	cpu_vendor[20] = "";	/* CPU Origin code */
 
 #ifdef CPU_ENABLE_SSE

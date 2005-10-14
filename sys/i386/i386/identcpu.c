@@ -173,11 +173,17 @@ printcpuinfo(void)
 	}
 
 	/* Detect AMD features (PTE no-execute bit, 3dnow, 64 bit mode etc) */
-	if (cpu_exthigh >= 0x80000001 &&
-	    (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
-	     strcmp(cpu_vendor, "AuthenticAMD") == 0)) {
-		do_cpuid(0x80000001, regs);
-		amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
+	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
+	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+		if (cpu_exthigh >= 0x80000001) {
+			do_cpuid(0x80000001, regs);
+			amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
+			amd_feature2 = regs[2];
+		}
+		if (cpu_exthigh >= 0x80000008) {
+			do_cpuid(0x80000008, regs);
+			cpu_procinfo2 = regs[2];
+		}
 	}
 
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
@@ -649,6 +655,8 @@ printcpuinfo(void)
 		if (strcmp(cpu_vendor, "CyrixInstead") == 0)
 			printf("  DIR=0x%04x", cyrix_did);
 		if (cpu_high > 0) {
+			u_int cmp = 1, htt = 1;
+
 			/*
 			 * Here we should probably set up flags indicating
 			 * whether or not various features are available.
@@ -730,6 +738,16 @@ printcpuinfo(void)
 				"\040<b31>"
 				);
 			}
+
+			/*
+			 * AMD64 Architecture Programmer's Manual Volume 3:
+			 * General-Purpose and System Instructions
+			 * http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/24594.pdf
+			 *
+			 * IA-32 Intel Architecture Software Developer's Manual,
+			 * Volume 2A: Instruction Set Reference, A-M
+			 * ftp://download.intel.com/design/Pentium4/manuals/25366617.pdf
+			 */
 			if (amd_feature != 0) {
 				printf("\n  AMD Features=0x%b", amd_feature,
 				"\020"		/* in hex */
@@ -758,9 +776,9 @@ printcpuinfo(void)
 				"\027MMX+"	/* AMD MMX Extensions */
 				"\030<s23>"	/* Same */
 				"\031<s24>"	/* Same */
-				"\032<b25>"	/* Undefined */
+				"\032FFXSR"	/* Fast FXSAVE/FXRSTOR */
 				"\033<b26>"	/* Undefined */
-				"\034<b27>"	/* Undefined */
+				"\034RDTSCP"	/* RDTSCP */
 				"\035<b28>"	/* Undefined */
 				"\036LM"	/* 64 bit long mode */
 				"\0373DNow+"	/* AMD 3DNow! Extensions */
@@ -768,14 +786,61 @@ printcpuinfo(void)
 				);
 			}
 
+			if (amd_feature2 != 0) {
+				printf("\n  AMD Features2=0x%b", amd_feature2,
+				"\020"
+				"\001LAHF"	/* LAHF/SAHF in long mode */
+				"\002CMP"	/* CMP legacy */
+				"\003<b2>"
+				"\004<b3>"
+				"\005CR8"	/* CR8 in legacy mode */
+				"\006<b5>"
+				"\007<b6>"
+				"\010<b7>"
+				"\011<b8>"
+				"\012<b9>"
+				"\013<b10>"
+				"\014<b11>"
+				"\015<b12>"
+				"\016<b13>"
+				"\017<b14>"
+				"\020<b15>"
+				"\021<b16>"
+				"\022<b17>"
+				"\023<b18>"
+				"\024<b19>"
+				"\025<b20>"
+				"\026<b21>"
+				"\027<b22>"
+				"\030<b23>"
+				"\031<b24>"
+				"\032<b25>"
+				"\033<b26>"
+				"\034<b27>"
+				"\035<b28>"
+				"\036<b29>"
+				"\037<b30>"
+				"\040<b31>"
+				);
+			}
+
 			/*
-			 * If this CPU supports hyperthreading then mention
-			 * the number of logical CPU's it contains.
+			 * If this CPU supports HTT or CMP then mention the
+			 * number of physical/logical cores it contains.
 			 */
-			if (cpu_feature & CPUID_HTT &&
-			    (cpu_procinfo & CPUID_HTT_CORES) >> 16 > 1)
-				printf("\n  Hyperthreading: %d logical CPUs",
-				    (cpu_procinfo & CPUID_HTT_CORES) >> 16);
+			if (cpu_feature & CPUID_HTT)
+				htt = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
+			if (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
+			    (amd_feature2 & AMDID2_CMP))
+				cmp = (cpu_procinfo2 & AMDID_CMP_CORES) + 1;
+			else if (strcmp(cpu_vendor, "GenuineIntel") == 0 &&
+			    (cpu_high >= 4)) {
+				cpuid_count(4, 0, regs);
+				cmp = ((regs[0] & 0xfc000000) >> 26) + 1;
+			}
+			if (htt > 1)
+				printf("\n  Physical/Logical cores: %d/%d",
+				    cmp, htt);
 		}
 	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 		printf("  DIR=0x%04x", cyrix_did);
