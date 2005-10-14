@@ -1312,6 +1312,17 @@ skc_probe(dev)
 	while(t->sk_name != NULL) {
 		if ((pci_get_vendor(dev) == t->sk_vid) &&
 		    (pci_get_device(dev) == t->sk_did)) {
+			/*
+			 * Only attach to rev. 2 of the Linksys EG1032 adapter.
+			 * Rev. 3 is supported by re(4).
+			 */
+			if ((t->sk_vid == VENDORID_LINKSYS) &&
+				(t->sk_did == DEVICEID_LINKSYS_EG1032) &&
+				(pci_get_subdevice(dev) !=
+				 SUBDEVICEID_LINKSYS_EG1032_REV2)) {
+				t++;
+				continue;
+			}
 			device_set_desc(dev, t->sk_name);
 			return (BUS_PROBE_DEFAULT);
 		}
