@@ -9,6 +9,7 @@ SRCS=	if_gif.c in_gif.c opt_inet.h opt_inet6.h opt_mac.h \
 SRCS+=	in6_gif.c
 .endif
 
+.if !defined(KERNBUILDDIR)
 opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}
 
@@ -19,5 +20,6 @@ opt_inet6.h:
 
 opt_mrouting.h:
 	echo "#define MROUTING 1" > ${.TARGET}
+.endif
 
 .include <bsd.kmod.mk>
