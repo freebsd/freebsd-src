@@ -79,7 +79,7 @@ __swp(uint32_t val, volatile uint32_t *ptr)
 {
 	__asm __volatile("swp	%0, %2, [%3]"
 	    : "=&r" (val), "=m" (*ptr)
-	    : "r" (val) , "r" (ptr), "m" (*ptr)
+	    : "r" (val), "r" (ptr), "m" (*ptr)
 	    : "memory");
 	return (val);
 }
