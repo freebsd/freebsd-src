@@ -31,10 +31,6 @@
  *
  * $FreeBSD$
  */
-#include "opt_netsmb.h"
-#ifndef NETSMB
-#error "SMBFS requires option NETSMB"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
