@@ -102,7 +102,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/condvar.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -173,12 +172,6 @@ __FBSDID("$FreeBSD$");
 
 static struct mtx bridge_list_mtx;
 
-extern	struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
-extern	int (*bridge_output_p)(struct ifnet *, struct mbuf *,
-		struct sockaddr *, struct rtentry *);
-extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
-extern	void (*bridge_detach_p)(struct ifnet *);
-
 int	bridge_rtable_prune_period = BRIDGE_RTABLE_PRUNE_PERIOD;
 
 uma_zone_t bridge_rtnode_zone;
@@ -187,9 +180,14 @@ int	bridge_clone_create(struct if_clone *, int);
 void	bridge_clone_destroy(struct ifnet *);
 
 int	bridge_ioctl(struct ifnet *, u_long, caddr_t);
+void	bridge_ifdetach(struct ifnet *);
 static void	bridge_init(void *);
+void	bridge_dummynet(struct mbuf *, struct ifnet *);
 void	bridge_stop(struct ifnet *, int);
 void	bridge_start(struct ifnet *);
+struct mbuf *bridge_input(struct ifnet *, struct mbuf *);
+int	bridge_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+	    struct rtentry *);
 
 void	bridge_forward(struct bridge_softc *, struct mbuf *m);
 
@@ -1887,7 +1885,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 			if (m == NULL)
 				return;
 		}
-		
+
 		bridge_enqueue(sc, dst_if, mc);
 	}
 	if (used == 0)

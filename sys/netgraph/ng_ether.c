@@ -61,6 +61,7 @@
 #include <net/if_arp.h>
 #include <net/if_var.h>
 #include <net/ethernet.h>
+#include <net/if_bridgevar.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -102,9 +103,6 @@ static void	ng_ether_link_state(struct ifnet *ifp, int state);
 /* Other functions */
 static int	ng_ether_rcv_lower(node_p node, struct mbuf *m);
 static int	ng_ether_rcv_upper(node_p node, struct mbuf *m);
-
-/* if_bridge(4) support. XXX: should go into some include. */
-extern struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_ether_constructor;
@@ -647,26 +645,15 @@ ng_ether_rcv_upper(node_p node, struct mbuf *m)
 
 	m->m_pkthdr.rcvif = ifp;
 
-	/*
-	 * XXX: This is a copy'and'paste from if_ethersubr.c:ether_input()
-	 */
+	/* Pass the packet to the bridge, it may come back to us */
 	if (ifp->if_bridge) {
-		KASSERT(bridge_input_p != NULL,
-		    ("%s: if_bridge not loaded!", __func__));
-
-		m = (*bridge_input_p)(ifp, m);
+		BRIDGE_INPUT(ifp, m);
 		if (m == NULL)
 			return (0);
-		/*
-		 * Bridge has determined that the packet is for us.
-		 * Update our interface pointer -- we may have had
-		 * to "bridge" the packet locally.
-		 */
-		ifp = m->m_pkthdr.rcvif;
 	}
 
 	/* Route packet back in */
-	ether_demux(priv->ifp, m);
+	ether_demux(ifp, m);
 	return (0);
 }
 
