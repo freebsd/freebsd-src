@@ -235,9 +235,9 @@ options 	ED_SIC
 
 device		ath
 device		ath_hal		# Atheros HAL (includes binary component)
-device		ath_rate_onoe	# Onoe rate control for ath driver
 #device		ath_rate_amrr	# AMRR rate control for ath driver
-#device		ath_rate_sample	# SampleRate rate control for the ath driver
+#device		ath_rate_onoe	# Onoe rate control for ath driver
+device		ath_rate_sample	# SampleRate rate control for the ath driver
 #device		wlan		# 802.11 layer
 
 #
