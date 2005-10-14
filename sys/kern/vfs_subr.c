@@ -109,7 +109,7 @@ static int	vfs_knllocked(void *arg);
  * build.  Without mpsafevm the buffer cache can not run Giant free.
  */
 #if defined(__alpha__) || defined(__amd64__) || defined(__i386__) || \
-	defined(__ia64__)
+	defined(__ia64__) || defined(__sparc64__)
 int mpsafe_vfs = 1;
 #else
 int mpsafe_vfs;
