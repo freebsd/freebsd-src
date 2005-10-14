@@ -2755,6 +2755,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 	}
 
 	while ((current_desc->status & E1000_RXD_STAT_DD) && (count != 0)) {
+		struct mbuf *m = NULL;
 		
 		mp = adapter->rx_buffer_area[i].m_head;
 		bus_dmamap_sync(adapter->rxtag, adapter->rx_buffer_area[i].map,
@@ -2846,16 +2847,10 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
                                                        (current_desc->special &
 							E1000_RXD_SPC_VLAN_MASK),
 						       adapter->fmp = NULL);
- 
-                                if (adapter->fmp != NULL) {
-					struct mbuf *m = adapter->fmp;
 
-					adapter->fmp = NULL;
-					EM_UNLOCK(adapter);
-                                        (*ifp->if_input)(ifp, m);
-					EM_LOCK(adapter);
-				}
-                                adapter->lmp = NULL;
+				m = adapter->fmp;
+				adapter->fmp = NULL;
+				adapter->lmp = NULL;
                         }
 		} else {
 			adapter->dropped_pkts++;
@@ -2873,11 +2868,16 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
                 E1000_WRITE_REG(&adapter->hw, RDT, i);
 
                 /* Advance our pointers to the next descriptor */
-                if (++i == adapter->num_rx_desc) {
-                        i = 0;
-                        current_desc = adapter->rx_desc_base;
-                } else
-			current_desc++;
+		if (++i == adapter->num_rx_desc)
+			i = 0;
+		if (m != NULL) {
+			adapter->next_rx_desc_to_check = i;
+			EM_UNLOCK(adapter);
+			(*ifp->if_input)(ifp, m);
+			EM_LOCK(adapter);
+			i = adapter->next_rx_desc_to_check;
+		}
+		current_desc = &adapter->rx_desc_base[i];
 	}
 	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
