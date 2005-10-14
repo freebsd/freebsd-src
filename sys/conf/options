@@ -478,7 +478,6 @@ PLIP_DEBUG		opt_plip.h
 LOCKF_DEBUG		opt_debug_lockf.h
 NETATALKDEBUG		opt_atalk.h
 SI_DEBUG		opt_debug_si.h
-SX_DEBUG		opt_debug_sx.h
 
 # Fb options
 FB_DEBUG		opt_fb.h
