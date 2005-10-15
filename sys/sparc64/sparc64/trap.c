@@ -289,7 +289,7 @@ trap(struct trapframe *tf)
 			ksi.ksi_signo = sig;
 			ksi.ksi_code = (int)tf->tf_type; /* XXX not POSIX */
 			/* ksi.ksi_addr = ? */
-			ksi.ksi_trap = (int)tf->tf_type;
+			ksi.ksi_trapno = (int)tf->tf_type;
 			trapsignal(td, &ksi);
 		}
 
