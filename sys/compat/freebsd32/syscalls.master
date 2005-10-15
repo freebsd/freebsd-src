@@ -412,12 +412,12 @@
 231	AUE_NULL	MNOPROTO { int shmget(key_t key, int size, \
 				    int shmflg); }
 ;
-232	AUE_NULL	MNOPROTO { int clock_gettime(clockid_t clock_id, \
-				    struct timespec *tp); }
-233	AUE_NULL	MNOPROTO { int clock_settime(clockid_t clock_id, \
-				    const struct timespec *tp); }
-234	AUE_NULL	MNOPROTO { int clock_getres(clockid_t clock_id, \
-				    struct timespec *tp); }
+232	AUE_NULL	MSTD 	 { int freebsd32_clock_gettime(clockid_t clock_id, \
+				    struct timespec32 *tp); }
+233	AUE_NULL	MSTD	 { int freebsd32_clock_settime(clockid_t clock_id, \
+				    const struct timespec32 *tp); }
+234	AUE_NULL	MSTD	 { int freebsd32_clock_getres(clockid_t clock_id, \
+				    struct timespec32 *tp); }
 235	AUE_NULL	UNIMPL	timer_create
 236	AUE_NULL	UNIMPL	timer_delete
 237	AUE_NULL	UNIMPL	timer_settime
