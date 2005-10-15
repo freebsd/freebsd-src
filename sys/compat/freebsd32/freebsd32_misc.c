@@ -1236,7 +1236,7 @@ freebsd32_nanosleep(struct thread *td, struct freebsd32_nanosleep_args *uap)
 	struct timespec rmt, rqt;
 	int error;
 
-	error = copyin(uap->rqtp, &rqt32, sizeof(rqt));
+	error = copyin(uap->rqtp, &rqt32, sizeof(rqt32));
 	if (error)
 		return (error);
 
@@ -1253,7 +1253,7 @@ freebsd32_nanosleep(struct thread *td, struct freebsd32_nanosleep_args *uap)
 		CP(rmt, rmt32, tv_sec);
 		CP(rmt, rmt32, tv_nsec);
 
-		error2 = copyout(&rmt32, uap->rmtp, sizeof(rmt));
+		error2 = copyout(&rmt32, uap->rmtp, sizeof(rmt32));
 		if (error2)
 			error = error2;
 	}
