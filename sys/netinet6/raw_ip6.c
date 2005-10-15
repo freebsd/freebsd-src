@@ -566,8 +566,10 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	}
 	MALLOC(filter, struct icmp6_filter *,
 	       sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
-	if (filter == NULL)
+	if (filter == NULL) {
+		INP_INFO_WUNLOCK(&ripcbinfo);
 		return ENOMEM;
+	}
 	s = splnet();
 	error = in_pcballoc(so, &ripcbinfo, "raw6inp");
 	splx(s);
