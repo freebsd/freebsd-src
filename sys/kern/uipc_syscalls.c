@@ -922,12 +922,13 @@ sendmsg(td, uap)
 	return (error);
 }
 
-static int
-recvit(td, s, mp, namelenp)
+int
+kern_recvit(td, s, mp, namelenp, segflg)
 	struct thread *td;
 	int s;
 	struct msghdr *mp;
 	void *namelenp;
+	enum uio_seg segflg;
 {
 	struct uio auio;
 	struct iovec *iov;
@@ -964,7 +965,7 @@ recvit(td, s, mp, namelenp)
 
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
-	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_segflg = segflg;
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = td;
 	auio.uio_offset = 0;			/* XXX */
@@ -1080,6 +1081,17 @@ out:
 	if (control)
 		m_freem(control);
 	return (error);
+}
+
+static int
+recvit(td, s, mp, namelenp)
+	struct thread *td;
+	int s;
+	struct msghdr *mp;
+	void *namelenp;
+{
+
+	return (kern_recvit(td, s, mp, namelenp, UIO_USERSPACE));
 }
 
 /*
