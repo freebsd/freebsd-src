@@ -424,8 +424,8 @@
 238	AUE_NULL	UNIMPL	timer_gettime
 239	AUE_NULL	UNIMPL	timer_getoverrun
 240	AUE_NULL	MSTD	{ int freebsd32_nanosleep( \
-				    const struct timespec *rqtp, \
-				    struct timespec *rmtp); }
+				    const struct timespec32 *rqtp, \
+				    struct timespec32 *rmtp); }
 241	AUE_NULL	UNIMPL	nosys
 242	AUE_NULL	UNIMPL	nosys
 243	AUE_NULL	UNIMPL	nosys
