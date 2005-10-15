@@ -155,34 +155,46 @@ int
 clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 {
 	struct timespec ats;
+	int error;
+
+	error = kern_clock_gettime(td, uap->clock_id, &ats);
+	if (error == 0)
+		error = copyout(&ats, uap->tp, sizeof(ats));
+
+	return (error);
+}
+
+int
+kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
+{
 	struct timeval sys, user;
 	struct proc *p;
 
 	p = td->td_proc;
-	switch (uap->clock_id) {
+	switch (clock_id) {
 	case CLOCK_REALTIME:
-		nanotime(&ats);
+		nanotime(ats);
 		break;
 	case CLOCK_VIRTUAL:
 		PROC_LOCK(p);
 		calcru(p, &user, &sys);
 		PROC_UNLOCK(p);
-		TIMEVAL_TO_TIMESPEC(&user, &ats);
+		TIMEVAL_TO_TIMESPEC(&user, ats);
 		break;
 	case CLOCK_PROF:
 		PROC_LOCK(p);
 		calcru(p, &user, &sys);
 		PROC_UNLOCK(p);
 		timevaladd(&user, &sys);
-		TIMEVAL_TO_TIMESPEC(&user, &ats);
+		TIMEVAL_TO_TIMESPEC(&user, ats);
 		break;
 	case CLOCK_MONOTONIC:
-		nanouptime(&ats);
+		nanouptime(ats);
 		break;
 	default:
 		return (EINVAL);
 	}
-	return (copyout(&ats, uap->tp, sizeof(ats)));
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -199,8 +211,18 @@ struct clock_settime_args {
 int
 clock_settime(struct thread *td, struct clock_settime_args *uap)
 {
-	struct timeval atv;
 	struct timespec ats;
+	int error;
+
+	if ((error = copyin(uap->tp, &ats, sizeof(ats))) != 0)
+		return (error);
+	return (kern_clock_settime(td, uap->clock_id, &ats));
+}
+
+int
+kern_clock_settime(struct thread *td, clockid_t clock_id, struct timespec *ats)
+{
+	struct timeval atv;
 	int error;
 
 #ifdef MAC
@@ -210,14 +232,12 @@ clock_settime(struct thread *td, struct clock_settime_args *uap)
 #endif
 	if ((error = suser(td)) != 0)
 		return (error);
-	if (uap->clock_id != CLOCK_REALTIME)
+	if (clock_id != CLOCK_REALTIME)
 		return (EINVAL);
-	if ((error = copyin(uap->tp, &ats, sizeof(ats))) != 0)
-		return (error);
-	if (ats.tv_nsec < 0 || ats.tv_nsec >= 1000000000)
+	if (ats->tv_nsec < 0 || ats->tv_nsec >= 1000000000)
 		return (EINVAL);
 	/* XXX Don't convert nsec->usec and back */
-	TIMESPEC_TO_TIMEVAL(&atv, &ats);
+	TIMESPEC_TO_TIMEVAL(&atv, ats);
 	error = settime(td, &atv);
 	return (error);
 }
@@ -233,9 +253,23 @@ int
 clock_getres(struct thread *td, struct clock_getres_args *uap)
 {
 	struct timespec ts;
+	int error;
 
-	ts.tv_sec = 0;
-	switch (uap->clock_id) {
+	if (uap->tp == NULL)
+		return (0);
+
+	error = kern_clock_getres(td, uap->clock_id, &ts);
+	if (error == 0)
+		error = copyout(&ts, uap->tp, sizeof(ts));
+	return (error);
+}
+
+int
+kern_clock_getres(struct thread *td, clockid_t clock_id, struct timespec *ts)
+{
+
+	ts->tv_sec = 0;
+	switch (clock_id) {
 	case CLOCK_REALTIME:
 	case CLOCK_MONOTONIC:
 		/*
@@ -243,19 +277,17 @@ clock_getres(struct thread *td, struct clock_getres_args *uap)
 		 * Rounding up is especially important if rounding down
 		 * would give 0.  Perfect rounding is unimportant.
 		 */
-		ts.tv_nsec = 1000000000 / tc_getfrequency() + 1;
+		ts->tv_nsec = 1000000000 / tc_getfrequency() + 1;
 		break;
 	case CLOCK_VIRTUAL:
 	case CLOCK_PROF:
 		/* Accurately round up here because we can do so cheaply. */
-		ts.tv_nsec = (1000000000 + hz - 1) / hz;
+		ts->tv_nsec = (1000000000 + hz - 1) / hz;
 		break;
 	default:
 		return (EINVAL);
 	}
-	if (uap->tp == NULL)
-		return (0);
-	return (copyout(&ts, uap->tp, sizeof(ts)));
+	return (0);
 }
 
 static int nanowait;
