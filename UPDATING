@@ -8,6 +8,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20051015:
+	The shared library version number of libarchive was accidentally
+	bumped up during an MFC of other changes on October 4, 2005.  It
+	was reset to the correct value on October 14, 2005.  If you
+	updated a system between those dates you should check to see if
+	/usr/lib/libarchive.so.2 exists and remove it AFTER doing your
+	next update.
+
 20051004:
 	if_bridge has been merged which provides more advanced Ethernet
 	bridging and 802.1d spanning tree support. See if_bridge(4) for
