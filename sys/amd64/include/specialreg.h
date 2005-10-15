@@ -212,14 +212,14 @@
 #define MSR_MC2_STATUS		0x409
 #define MSR_MC2_ADDR		0x40a
 #define MSR_MC2_MISC		0x40b
-#define MSR_MC4_CTL		0x40c
-#define MSR_MC4_STATUS		0x40d
-#define MSR_MC4_ADDR		0x40e
-#define MSR_MC4_MISC		0x40f
-#define MSR_MC3_CTL		0x410
-#define MSR_MC3_STATUS		0x411
-#define MSR_MC3_ADDR		0x412
-#define MSR_MC3_MISC		0x413
+#define MSR_MC3_CTL		0x40c
+#define MSR_MC3_STATUS		0x40d
+#define MSR_MC3_ADDR		0x40e
+#define MSR_MC3_MISC		0x40f
+#define MSR_MC4_CTL		0x410
+#define MSR_MC4_STATUS		0x411
+#define MSR_MC4_ADDR		0x412
+#define MSR_MC4_MISC		0x413
 
 /*
  * Constants related to MSR's.
