@@ -413,7 +413,7 @@ svr4_getsiginfo(si, sig, code, addr)
 void
 svr4_sendsig(catcher, ksi, mask)
 	sig_t catcher;
-	ksiginfo_t ksi;
+	ksiginfo_t *ksi;
 	sigset_t *mask;
 {
 	register struct thread *td = curthread;
