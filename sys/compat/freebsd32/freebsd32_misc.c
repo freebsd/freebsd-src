@@ -797,6 +797,171 @@ freebsd32_pwritev(struct thread *td, struct freebsd32_pwritev_args *uap)
 	return (error);
 }
 
+static int
+freebsd32_copyiniov(struct iovec32 *iovp, u_int iovcnt, struct iovec **iov,
+    int error)
+{
+	struct iovec32 iov32;
+	int i;
+
+	u_int iovlen;
+
+	*iov = NULL;
+	if (iovcnt > UIO_MAXIOV)
+		return (error);
+	iovlen = iovcnt * sizeof(struct iovec);
+	*iov = malloc(iovlen, M_IOV, M_WAITOK);
+	for (i = 0; i < iovcnt; i++) {
+		error = copyin(&iovp[i], &iov32, sizeof(struct iovec32));
+		if (error) {
+			free(*iov, M_IOV);
+			*iov = NULL;
+			return (error);
+		}
+		iov[i]->iov_base = PTRIN(iov32.iov_base);
+		iov[i]->iov_len = iov32.iov_len;
+	}
+	return (0);
+}
+
+struct msghdr32 {
+	u_int32_t	 msg_name;
+	socklen_t	 msg_namelen;
+	u_int32_t	 msg_iov;
+	int		 msg_iovlen;
+	u_int32_t	 msg_control;
+	socklen_t	 msg_controllen;
+	int		 msg_flags;
+};
+CTASSERT(sizeof(struct msghdr32) == 28);
+
+static int
+freebsd32_copyinmsghdr(struct msghdr32 *msg32, struct msghdr *msg)
+{
+	struct msghdr32 m32;
+	int error;
+
+	error = copyin(msg32, &m32, sizeof(m32));
+	if (error)
+		return (error);
+	msg->msg_name = PTRIN(m32.msg_name);
+	msg->msg_namelen = m32.msg_namelen;
+	msg->msg_iov = PTRIN(m32.msg_iov);
+	msg->msg_iovlen = m32.msg_iovlen;
+	msg->msg_control = PTRIN(m32.msg_control);
+	msg->msg_controllen = m32.msg_controllen;
+	msg->msg_flags = m32.msg_flags;
+	return (freebsd32_copyiniov((struct iovec32 *)(uintptr_t)m32.msg_iov, m32.msg_iovlen, &msg->msg_iov,
+	    EMSGSIZE));
+}
+
+static int
+freebsd32_copyoutmsghdr(struct msghdr *msg, struct msghdr32 *msg32)
+{
+	struct msghdr32 m32;
+	int error;
+
+	m32.msg_name = PTROUT(msg->msg_name);
+	m32.msg_namelen = msg->msg_namelen;
+	m32.msg_iov = PTROUT(msg->msg_iov);
+	m32.msg_iovlen = msg->msg_iovlen;
+	m32.msg_control = PTROUT(msg->msg_control);
+	m32.msg_controllen = msg->msg_controllen;
+	m32.msg_flags = msg->msg_flags;
+	error = copyout(&m32, msg32, sizeof(m32));
+	return (error);
+}
+
+int
+freebsd32_recvmsg(td, uap)
+	struct thread *td;
+	struct freebsd32_recvmsg_args /* {
+		int	s;
+		struct	msghdr32 *msg;
+		int	flags;
+	} */ *uap;
+{
+	struct msghdr msg;
+	struct msghdr32 m32;
+	struct iovec *uiov, *iov;
+	int error;
+
+	error = copyin(uap->msg, &m32, sizeof(m32));
+	if (error)
+		return (error);
+	error = freebsd32_copyinmsghdr(uap->msg, &msg);
+	if (error)
+		return (error);
+	error = freebsd32_copyiniov((struct iovec32 *)(uintptr_t)m32.msg_iov,
+	    m32.msg_iovlen, &iov, EMSGSIZE);
+	if (error)
+		return (error);
+	msg.msg_flags = uap->flags;
+	uiov = msg.msg_iov;
+	msg.msg_iov = iov;
+	error = kern_recvit(td, uap->s, &msg, NULL, UIO_SYSSPACE);
+	if (error == 0) {
+		msg.msg_iov = uiov;
+		error = freebsd32_copyoutmsghdr(&msg, uap->msg);
+	}
+	free(iov, M_IOV);
+	free(uiov, M_IOV);
+	return (error);
+}
+
+int
+freebsd32_sendmsg(struct thread *td,
+		  struct freebsd32_sendmsg_args *uap)
+{
+	struct msghdr msg;
+	struct msghdr32 m32;
+	struct iovec *iov;
+	int error;
+
+	error = copyin(uap->msg, &m32, sizeof(m32));
+	if (error)
+		return (error);
+	error = freebsd32_copyinmsghdr(uap->msg, &msg);
+	if (error)
+		return (error);
+	error = freebsd32_copyiniov((struct iovec32 *)(uintptr_t)m32.msg_iov,
+	    m32.msg_iovlen, &iov, EMSGSIZE);
+	if (error)
+		return (error);
+	msg.msg_iov = iov;
+	error = kern_sendit(td, uap->s, &msg, uap->flags, NULL, UIO_SYSSPACE);
+	free(iov, M_IOV);
+	return (error);
+}
+
+int
+freebsd32_recvfrom(struct thread *td,
+		   struct freebsd32_recvfrom_args *uap)
+{
+	struct msghdr msg;
+	struct iovec aiov;
+	int error;
+
+	if (uap->fromlenaddr) {
+		error = copyin((void *)(uintptr_t)uap->fromlenaddr,
+		    &msg.msg_namelen, sizeof(msg.msg_namelen));
+		if (error)
+			return (error);
+	} else {
+		msg.msg_namelen = 0;
+	}
+
+	msg.msg_name = (void *)(uintptr_t)uap->from;
+	msg.msg_iov = &aiov;
+	msg.msg_iovlen = 1;
+	aiov.iov_base = (void *)(uintptr_t)uap->buf;
+	aiov.iov_len = uap->len;
+	msg.msg_control = 0;
+	msg.msg_flags = uap->flags;
+	error = kern_recvit(td, uap->s, &msg, (void *)(uintptr_t)uap->fromlenaddr, UIO_USERSPACE);
+	return (error);
+}
+
 int
 freebsd32_settimeofday(struct thread *td,
 		       struct freebsd32_settimeofday_args *uap)

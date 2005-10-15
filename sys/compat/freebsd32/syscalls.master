@@ -88,12 +88,13 @@
 26	AUE_NULL	MNOPROTO { int ptrace(int req, pid_t pid, \
 				    caddr_t addr, int data); }
 ; XXX implement
-27	AUE_NULL	UNIMPL	recvmsg
-28	AUE_NULL	MNOPROTO { int sendmsg(int s, caddr_t msg, \
+27	AUE_NULL	MSTD	 { int freebsd32_recvmsg(int s, struct msghdr32 *msg, \
 				    int flags); }
-29	AUE_NULL	MNOPROTO { int recvfrom(int s, caddr_t buf, \
-				    size_t len, int flags, caddr_t from, \
-				    int *fromlenaddr); }
+28	AUE_NULL	MSTD	 { int freebsd32_sendmsg(int s, struct msghdr32 *msg, \
+				    int flags); }
+29	AUE_NULL	MSTD	 { int freebsd32_recvfrom(int s, u_int32_t buf, \
+				    u_int32_t len, int flags, u_int32_t from, \
+				    u_int32_t fromlenaddr); }
 30	AUE_NULL	MNOPROTO { int accept(int s, caddr_t name, \
 				    int *anamelen); }
 31	AUE_NULL	MNOPROTO { int getpeername(int fdes, caddr_t asa, \
