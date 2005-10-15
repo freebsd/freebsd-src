@@ -111,6 +111,8 @@ int	kern_pwritev(struct thread *td, int fd, struct uio *auio, off_t offset);
 int	kern_readlink(struct thread *td, char *path, enum uio_seg pathseg,
 	    char *buf, enum uio_seg bufseg, int count);
 int	kern_readv(struct thread *td, int fd, struct uio *auio);
+int	kern_recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp,
+	    enum uio_seg segflg);
 int	kern_rename(struct thread *td, char *from, char *to,
 	    enum uio_seg pathseg);
 int	kern_rmdir(struct thread *td, char *path, enum uio_seg pathseg);
