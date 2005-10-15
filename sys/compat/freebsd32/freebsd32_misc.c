@@ -1260,6 +1260,59 @@ freebsd32_nanosleep(struct thread *td, struct freebsd32_nanosleep_args *uap)
 	return (error);
 }
 
+int
+freebsd32_clock_gettime(struct thread *td,
+			struct freebsd32_clock_gettime_args *uap)
+{
+	struct timespec	ats;
+	struct timespec32 ats32;
+	int error;
+
+	error = kern_clock_gettime(td, uap->clock_id, &ats);
+	if (error == 0) {
+		CP(ats, ats32, tv_sec);
+		CP(ats, ats32, tv_nsec);
+		error = copyout(&ats32, uap->tp, sizeof(ats32));
+	}
+	return (error);
+}
+
+int
+freebsd32_clock_settime(struct thread *td,
+			struct freebsd32_clock_settime_args *uap)
+{
+	struct timespec	ats;
+	struct timespec32 ats32;
+	int error;
+
+	error = copyin(uap->tp, &ats32, sizeof(ats32));
+	if (error)
+		return (error);
+	CP(ats32, ats, tv_sec);
+	CP(ats32, ats, tv_nsec);
+
+	return (kern_clock_settime(td, uap->clock_id, &ats));
+}
+
+int
+freebsd32_clock_getres(struct thread *td,
+		       struct freebsd32_clock_getres_args *uap)
+{
+	struct timespec	ts;
+	struct timespec32 ts32;
+	int error;
+
+	if (uap->tp == NULL)
+		return (0);
+	error = kern_clock_getres(td, uap->clock_id, &ts);
+	if (error == 0) {
+		CP(ts, ts32, tv_sec);
+		CP(ts, ts32, tv_nsec);
+		error = copyout(&ts32, uap->tp, sizeof(ts32));
+	}
+	return (error);
+}
+
 #if 0
 
 int
