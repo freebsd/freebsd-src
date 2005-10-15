@@ -578,15 +578,26 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args, long retval) {
       if (get_struct(fd, (void *)args[sc->offset], (void *)&ss,
 	sizeof(ss.ss_len) + sizeof(ss.ss_family)) == -1)
 	err(1, "get_struct %p", (void *)args[sc->offset]);
-      /* sockaddr_un never have the length filled in! */
-      if (ss.ss_family == AF_UNIX) {
-	if (get_struct(fd, (void *)args[sc->offset], (void *)&ss,
-	  sizeof(*sun))
-	  == -1)
-	  err(2, "get_struct %p", (void *)args[sc->offset]);
-      } else {
-	if (get_struct(fd, (void *)args[sc->offset], (void *)&ss, ss.ss_len)
-	  == -1)
+      /*
+       * If ss_len is 0, then try to guess from the sockaddr type.
+       * AF_UNIX may be initialized incorrectly, so always frob
+       * it by using the "right" size.
+       */
+      if (ss.ss_len == 0 || ss.ss_family == AF_UNIX) {
+	      switch (ss.ss_family) {
+	      case AF_INET:
+		      ss.ss_len = sizeof(*lsin);
+		      break;
+	      case AF_UNIX:
+		      ss.ss_len = sizeof(*sun);
+		      break;
+	      default:
+		      /* hurrrr */
+		      break;
+	      }
+      }
+      if (get_struct(fd, (void *)args[sc->offset], (void *)&ss, ss.ss_len)
+	  == -1) {
 	  err(2, "get_struct %p", (void *)args[sc->offset]);
       }
 
