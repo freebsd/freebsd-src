@@ -510,7 +510,7 @@ parmrk:
 			if (CCEQ(cc[VSTOP], c)) {
 				if (!ISSET(tp->t_state, TS_TTSTOP)) {
 					SET(tp->t_state, TS_TTSTOP);
-					(*tp->t_stop)(tp, 0);
+					tt_stop(tp, 0);
 					return (0);
 				}
 				if (!CCEQ(cc[VSTART], c))
@@ -866,45 +866,33 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		break;
 	}
 
-	if (tp->t_break != NULL) {
-		switch (cmd) {
-		case TIOCSBRK:
-			tp->t_break(tp, 1);
-			return (0);
-		case TIOCCBRK:
-			tp->t_break(tp, 0);
-			return (0);
-		default:
-			break;
-		}
-	}
 
 	if (tp->t_modem != NULL) {
 		switch (cmd) {
 		case TIOCSDTR:
-			tp->t_modem(tp, SER_DTR, 0);
+			tt_modem(tp, SER_DTR, 0);
 			return (0);
 		case TIOCCDTR:
-			tp->t_modem(tp, 0, SER_DTR);
+			tt_modem(tp, 0, SER_DTR);
 			return (0);
 		case TIOCMSET:
 			bits = *(int *)data;
 			sig = (bits & (TIOCM_DTR | TIOCM_RTS)) >> 1;
 			sig2 = ((~bits) & (TIOCM_DTR | TIOCM_RTS)) >> 1;
-			tp->t_modem(tp, sig, sig2);
+			tt_modem(tp, sig, sig2);
 			return (0);
 		case TIOCMBIS:
 			bits = *(int *)data;
 			sig = (bits & (TIOCM_DTR | TIOCM_RTS)) >> 1;
-			tp->t_modem(tp, sig, 0);
+			tt_modem(tp, sig, 0);
 			return (0);
 		case TIOCMBIC:
 			bits = *(int *)data;
 			sig = (bits & (TIOCM_DTR | TIOCM_RTS)) >> 1;
-			tp->t_modem(tp, 0, sig);
+			tt_modem(tp, 0, sig);
 			return (0);
 		case TIOCMGET:
-			sig = tp->t_modem(tp, 0, 0);
+			sig = tt_modem(tp, 0, 0);
 			/* See <sys/serial.h. for the "<< 1" stuff */
 			bits = TIOCM_LE + (sig << 1);
 			*(int *)data = bits;
@@ -1065,7 +1053,8 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 			/*
 			 * Set device hardware.
 			 */
-			if (tp->t_param && (error = (*tp->t_param)(tp, t))) {
+			error = tt_param(tp, t);
+			if (error) {
 				splx(s);
 				return (error);
 			}
@@ -1187,7 +1176,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		s = spltty();
 		if (!ISSET(tp->t_state, TS_TTSTOP)) {
 			SET(tp->t_state, TS_TTSTOP);
-			(*tp->t_stop)(tp, 0);
+			tt_stop(tp, 0);
 		}
 		splx(s);
 		break;
@@ -1260,6 +1249,10 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 	case TIOCGDRAINWAIT:
 		*(int *)data = tp->t_timeout / hz;
 		break;
+	case TIOCSBRK:
+		return (tt_break(tp, 1));
+	case TIOCCBRK:
+		return (tt_break(tp, 0));
 	default:
 #if defined(COMPAT_43)
 #ifndef BURN_BRIDGES
@@ -1422,7 +1415,7 @@ ttywait(struct tty *tp)
 	s = spltty();
 	while ((tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) &&
 	       ISSET(tp->t_state, TS_CONNECTED) && tp->t_oproc) {
-		(*tp->t_oproc)(tp);
+		tt_oproc(tp);
 		if ((tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) &&
 		    ISSET(tp->t_state, TS_CONNECTED)) {
 			SET(tp->t_state, TS_SO_OCOMPLETE);
@@ -1472,7 +1465,7 @@ again:
 		FLUSHQ(&tp->t_outq);
 		CLR(tp->t_state, TS_TTSTOP);
 	}
-	(*tp->t_stop)(tp, rw);
+	tt_stop(tp, rw);
 	if (rw & FREAD) {
 		FLUSHQ(&tp->t_canq);
 		FLUSHQ(&tp->t_rawq);
@@ -1604,8 +1597,7 @@ int
 ttstart(struct tty *tp)
 {
 
-	if (tp->t_oproc != NULL)	/* XXX: Kludge for pty. */
-		(*tp->t_oproc)(tp);
+	tt_oproc(tp);
 	return (0);
 }
 
@@ -1643,7 +1635,7 @@ ttymodem(struct tty *tp, int flag)
 		} else if (!ISSET(tp->t_state, TS_CAR_OFLOW)) {
 			SET(tp->t_state, TS_CAR_OFLOW);
 			SET(tp->t_state, TS_TTSTOP);
-			(*tp->t_stop)(tp, 0);
+			tt_stop(tp, 0);
 		}
 	} else if (flag == 0) {
 		/*
@@ -2993,8 +2985,7 @@ ttygone(struct tty *tp)
 	wakeup(TSA_HUP_OR_INPUT(tp));
 	wakeup(TSA_OCOMPLETE(tp));
 	wakeup(TSA_OLOWAT(tp));
-	if (tp->t_purge != NULL)
-		tp->t_purge(tp);
+	tt_purge(tp);
 }
 
 /*
@@ -3137,16 +3128,15 @@ open_top:
 		tp->t_termios = ISCALLOUT(dev) ? tp->t_init_out : tp->t_init_in;
 		tp->t_cflag = tp->t_termios.c_cflag;
 		if (tp->t_modem != NULL)
-			tp->t_modem(tp, SER_DTR | SER_RTS, 0);
+			tt_modem(tp, SER_DTR | SER_RTS, 0);
 		++tp->t_wopeners;
-		error = tp->t_param(tp, &tp->t_termios);
+		error = tt_param(tp, &tp->t_termios);
 		--tp->t_wopeners;
-		if (error == 0 && tp->t_open != NULL)
-			error = tp->t_open(tp, dev);
+		if (error == 0)
+			error = tt_open(tp, dev);
 		if (error != 0)
 			goto out;
-		if (ISCALLOUT(dev) || (tp->t_modem != NULL &&
-		    (tp->t_modem(tp, 0, 0) & SER_DCD)))
+		if (ISCALLOUT(dev) || (tt_modem(tp, 0, 0) & SER_DCD))
 			ttyld_modem(tp, 1);
 	}
 	/*
@@ -3167,9 +3157,8 @@ open_top:
 		tp->t_actout = TRUE;
 out:
 	splx(s);
-	if (!(tp->t_state & TS_ISOPEN) && tp->t_wopeners == 0 &&
-	    tp->t_close != NULL)
-		tp->t_close(tp);
+	if (!(tp->t_state & TS_ISOPEN) && tp->t_wopeners == 0)
+		tt_close(tp);
 	return (error);
 }
 
@@ -3181,8 +3170,7 @@ ttyclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	tp = dev->si_tty;
 	ttyld_close(tp, flag);
 	ttyldoptim(tp);
-	if (tp->t_close != NULL)
-		tp->t_close(tp);
+	tt_close(tp);
 	tp->t_do_timestamp = 0;
 	if (tp->t_pps != NULL)
 		tp->t_pps->ppsparam.mode = 0;
