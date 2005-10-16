@@ -552,7 +552,7 @@ try_next:
 			tp->t_oproc = si_start;
 			tp->t_param = siparam;
 			tp->t_stop = si_stop;
-			ttycreate(tp, NULL, 0, MINOR_CALLOUT, "A%r%r", unit, x);
+			ttycreate(tp, TS_CALLOUT, "A%r%r", unit, x);
 		}
 try_next2:
 		if (modp->sm_next == 0) {

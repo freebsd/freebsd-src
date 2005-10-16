@@ -898,8 +898,7 @@ static int cx_attach (device_t dev)
 		cx_register_modem (c, &cx_modem);
 		CX_UNLOCK (bd);
 
-		ttycreate(d->tty, NULL, 0, MINOR_CALLOUT,
-		    "x%r%r", b->num, c->num);
+		ttycreate(d->tty, TS_CALLOUT, "x%r%r", b->num, c->num);
 		d->devt = make_dev (&cx_cdevsw, b->num*NCHAN + c->num + 64, UID_ROOT, GID_WHEEL, 0600, "cx%d", b->num*NCHAN + c->num);
 		d->devt->si_drv1 = d;
 		callout_init (&d->dcd_timeout_handle,

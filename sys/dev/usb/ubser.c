@@ -353,7 +353,7 @@ USB_ATTACH(ubser)
 		tp->t_open = ubseropen;
 		tp->t_close = ubserclose;
 		tp->t_modem = ubsermodem;
-		ttycreate(tp, NULL, 0, 0, "y%r%r", USBDEVUNIT(sc->sc_dev), i);
+		ttycreate(tp, 0, "y%r%r", USBDEVUNIT(sc->sc_dev), i);
 	}
 
 
