@@ -2900,9 +2900,11 @@ ttypurge(struct cdev *dev)
  */
 
 int 
-ttycreate(struct tty *tp, struct cdevsw *csw, int unit, int flags, const char *fmt, ...)
+ttycreate(struct tty *tp, int flags, const char *fmt, ...)
 {
 	char namebuf[SPECNAMELEN - 3];		/* XXX space for "tty" */
+	struct cdevsw *csw = NULL;
+	int unit = 0;
 	va_list ap;
 	struct cdev *cp;
 	int i, minor, sminor, sunit;
@@ -2952,7 +2954,7 @@ ttycreate(struct tty *tp, struct cdevsw *csw, int unit, int flags, const char *f
 	cp->si_drv2 = &tp->t_lock_in;
 	cp->si_tty = tp;
 
-	if (flags & MINOR_CALLOUT) {
+	if (flags & TS_CALLOUT) {
 		cp = make_dev(csw, minor | MINOR_CALLOUT,
 		    UID_UUCP, GID_DIALER, 0660, "cua%s", namebuf);
 		dev_depends(tp->t_dev, cp);

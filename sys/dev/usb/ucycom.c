@@ -284,7 +284,7 @@ ucycom_attach(device_t dev)
 	    "output bytes");
 
 	/* create character device node */
-	ttycreate(sc->sc_tty, NULL, 0, 0, "y%r", device_get_unit(sc->sc_dev));
+	ttycreate(sc->sc_tty, 0, "y%r", device_get_unit(sc->sc_dev));
 
 	return (0);
 }

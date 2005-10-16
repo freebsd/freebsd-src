@@ -453,7 +453,7 @@ sabtty_attach(device_t dev)
 	tp->t_stop = sabttystop;
 	tp->t_open = sabttyopen;
 
-	ttycreate(tp, NULL, 0, 0, "z%r", device_get_unit(dev));
+	ttycreate(tp, 0, "z%r", device_get_unit(dev));
 
 	if (sabtty_console(dev, mode, sizeof(mode))) {
 		if (sscanf(mode, "%d,%d,%c,%d,%c", &baud, &clen, &parity,

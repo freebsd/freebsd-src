@@ -253,6 +253,7 @@ struct xtty {
 
 #define TS_DTR_WAIT	0x1000000	/* DTR hold-down between sessions */
 #define TS_GONE		0x2000000	/* Hardware detached */
+#define TS_CALLOUT	0x4000000	/* Callout devices */
 
 /* Character type information. */
 #define	ORDINARY	0
@@ -350,7 +351,7 @@ void	 ttychars(struct tty *tp);
 int	 ttycheckoutq(struct tty *tp, int wait);
 void	 ttyconsolemode(struct tty *tp, int speed);
 int	 tty_close(struct tty *tp);
-int	 ttycreate(struct tty *tp, struct cdevsw *, int unit, int flags, const char *fmt, ...) __printflike(5, 6);
+int	 ttycreate(struct tty *tp, int flags, const char *fmt, ...) __printflike(3, 4);
 int	 ttydtrwaitsleep(struct tty *tp);
 void	 ttydtrwaitstart(struct tty *tp);
 void	 ttyflush(struct tty *tp, int rw);

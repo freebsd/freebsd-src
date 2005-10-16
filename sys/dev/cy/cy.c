@@ -433,7 +433,7 @@ cyattach_common(cy_addr cy_iobase, int cy_align)
 				swi_add(&clk_ithd, "cy", cypoll, NULL, SWI_CLOCK, 0,
 					&cy_slow_ih);
 			}
-			ttycreate(tp, NULL, 0, MINOR_CALLOUT, "c%r%r",
+			ttycreate(tp, TS_CALLOUT, "c%r%r",
 			    adapter, unit % CY_MAX_PORTS);
 		}
 	}
