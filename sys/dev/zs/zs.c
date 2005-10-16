@@ -473,7 +473,6 @@ zsttyopen(struct cdev *dev, int flags, int mode, struct thread *td)
 		tp->t_ospeed = 0;
 		(void)zstty_param(sc, tp, &t);
 		ttychars(tp);
-		ttsetwater(tp);
 
 		/* XXX turn on DTR */
 
