@@ -301,7 +301,7 @@ rc_attach(device_t dev)
 		tp->t_break   = rc_break;
 		tp->t_close   = rc_close;
 		tp->t_stop    = rc_stop;
-		ttycreate(tp, NULL, 0, MINOR_CALLOUT, "m%d", chan + base);
+		ttycreate(tp, TS_CALLOUT, "m%d", chan + base);
 	}
 
 	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_TTY, rc_intr, sc,

@@ -1099,7 +1099,7 @@ determined_type: ;
 	}
 
 	/* We're ready, open the doors... */
-	ttycreate(tp, NULL, unit, MINOR_CALLOUT, "d%r", unit);
+	ttycreate(tp, TS_CALLOUT, "d%r", unit);
 
 	return (0);
 }

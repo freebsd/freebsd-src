@@ -380,7 +380,7 @@ uart_tty_attach(struct uart_softc *sc)
 	swi_add(&tty_ithd, uart_driver_name, uart_tty_intr, sc, SWI_TTY,
 	    INTR_TYPE_TTY, &sc->sc_softih);
 
-	ttycreate(tp, NULL, 0, MINOR_CALLOUT, "u%r", unit);
+	ttycreate(tp, TS_CALLOUT, "u%r", unit);
 
 	return (0);
 }

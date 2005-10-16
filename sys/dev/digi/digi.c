@@ -588,7 +588,7 @@ digi_init(struct digi_softc *sc)
 
 		ttyinitmode(tp, 0, 0);
 		port->send_ring = 1;	/* Default action on signal RI */
-		ttycreate(tp, NULL, 0, MINOR_CALLOUT, "D%r%r", sc->res.unit, i);
+		ttycreate(tp, TS_CALLOUT, "D%r%r", sc->res.unit, i);
 	}
 
 	sc->hidewin(sc);

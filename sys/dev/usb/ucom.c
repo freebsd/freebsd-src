@@ -168,7 +168,7 @@ ucom_attach(struct ucom_softc *sc)
 
 	DPRINTF(("ucom_attach: tty_attach tp = %p\n", tp));
 
-	ttycreate(tp, NULL, unit, MINOR_CALLOUT, "U%d", unit);
+	ttycreate(tp, TS_CALLOUT, "U%d", unit);
 	DPRINTF(("ucom_attach: ttycreate: ttyU%d\n", unit));
 
 	return (0);
