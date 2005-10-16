@@ -60,20 +60,22 @@ __FBSDID("$FreeBSD$");
 /* 0x12 is reserved for boot programs. */
 /* 0x13 is reserved for boot programs. */
 #define RBX_PAUSE	0x14	/* -p */
-#define RBX_NOINTR	0x1c	/* -n */
 /* 0x1d is reserved for log2(RB_MULTIPLE) and is just misnamed here. */
 #define RBX_DUAL	0x1d	/* -D */
 /* 0x1f is reserved for log2(RB_BOOTINFO). */
+/* group of internal options below */
+#define RBX_NOINTR	0x20	/* -n */
+#define RBX_QUIET	0x21	/* -q */
 
 /* pass: -a, -s, -r, -d, -c, -v, -h, -C, -g, -m, -p, -D */
-#define RBX_MASK	0x2011ffff
+#define RBX_MASK	0xffffffff
 
 #define PATH_CONFIG	"/boot.config"
 #define PATH_BOOT3	"/boot/loader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
-#define NOPT		11
+#define NOPT		12
 #define NDEV		3
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
@@ -88,9 +90,11 @@ __FBSDID("$FreeBSD$");
 #define TYPE_MAXHARD	TYPE_DA
 #define TYPE_FD		2
 
+#define OPT_CHECK(opt)	((opts >> (opt)) & 0x1)
+
 extern uint32_t _end;
 
-static const char optstr[NOPT] = "DhaCgmnprsv"; /* Also 'P', 'S' */
+static const char optstr[NOPT] = "DhaCgmnpqrsv"; /* Also 'P', 'S' */
 static const unsigned char flags[NOPT] = {
     RBX_DUAL,
     RBX_SERIAL,
@@ -100,6 +104,7 @@ static const unsigned char flags[NOPT] = {
     RBX_MUTE,
     RBX_NOINTR,
     RBX_PAUSE,
+    RBX_QUIET,
     RBX_DFLTROOT,
     RBX_SINGLE,
     RBX_VERBOSE
@@ -119,7 +124,7 @@ static struct dsk {
 } dsk;
 static char cmd[512];
 static char kname[1024];
-static uint32_t opts;
+static uint64_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
@@ -158,7 +163,7 @@ strcmp(const char *s1, const char *s2)
 
 #include "ufsread.c"
 
-static int
+static inline int
 xfsread(ino_t inode, void *buf, size_t nbyte)
 {
     if ((size_t)fsread(inode, buf, nbyte) != nbyte) {
@@ -244,7 +249,8 @@ main(void)
     if (*cmd) {
 	if (parse())
 	    autoboot = 0;
-	printf("%s: %s", PATH_CONFIG, cmd);
+	if (!OPT_CHECK(RBX_QUIET))
+	    printf("%s: %s", PATH_CONFIG, cmd);
 	/* Do not process this command twice */
 	*cmd = 0;
     }
@@ -265,16 +271,17 @@ main(void)
     /* Present the user with the boot2 prompt. */
 
     for (;;) {
-	printf("\nFreeBSD/i386 boot\n"
-	       "Default: %u:%s(%u,%c)%s\n"
-	       "boot: ",
-	       dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
-	       'a' + dsk.part, kname);
+	if (!autoboot || !OPT_CHECK(RBX_QUIET))
+	    printf("\nFreeBSD/i386 boot\n"
+	           "Default: %u:%s(%u,%c)%s\n"
+	           "boot: ",
+	           dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
+	           'a' + dsk.part, kname);
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
 	if (!autoboot || keyhit(5*SECOND))
 	    getstr();
-	else
+	else if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    putchar('\n');
 	autoboot = 0;
 	if (parse())
@@ -293,12 +300,12 @@ exit(int x)
 static void
 load(void)
 {
-    union {
+    static union {
 	struct exec ex;
 	Elf32_Ehdr eh;
     } hdr;
-    Elf32_Phdr ep[2];
-    Elf32_Shdr es[2];
+    static Elf32_Phdr ep[2];
+    static Elf32_Shdr es[2];
     caddr_t p;
     ino_t ino;
     uint32_t addr, x;
@@ -380,7 +387,7 @@ load(void)
     bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
-    __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
+    __exec((caddr_t)addr, RB_BOOTINFO | (uint32_t)(opts & RBX_MASK),
 	   MAKEBOOTDEV(dev_maj[dsk.type], 0, dsk.slice, dsk.unit, dsk.part),
 	   0, 0, 0, VTOP(&bootinfo));
 }
@@ -407,7 +414,7 @@ parse()
 		    if (*(uint8_t *)PTOV(0x496) & 0x10) {
 			cp = "yes";
 		    } else {
-			opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
+			opts |= (uint64_t)1 << RBX_DUAL | (uint64_t)1 << RBX_SERIAL;
 			cp = "no";
 		    }
 		    printf("Keyboard: %s\n", cp);
@@ -425,10 +432,10 @@ parse()
 		for (i = 0; c != optstr[i]; i++)
 		    if (i == NOPT - 1)
 			return -1;
-		opts ^= 1 << flags[i];
+		opts ^= (uint64_t)1 << flags[i];
 	    }
-	    ioctrl = opts & 1 << RBX_DUAL ? (IO_SERIAL|IO_KEYBOARD) :
-		     opts & 1 << RBX_SERIAL ? IO_SERIAL : IO_KEYBOARD;
+	    ioctrl = opts & (uint64_t)1 << RBX_DUAL ? (IO_SERIAL|IO_KEYBOARD) :
+		     opts & (uint64_t)1 << RBX_SERIAL ? IO_SERIAL : IO_KEYBOARD;
 	    if (ioctrl & IO_SERIAL)
 	        sio_init(115200 / comspeed);
 	} else {
@@ -596,7 +603,8 @@ drvread(void *buf, unsigned lba, unsigned nblk)
 {
     static unsigned c = 0x2d5c7c2f;
 
-    printf("%c\b", c = c << 8 | c >> 24);
+    if (!OPT_CHECK(RBX_QUIET))
+	printf("%c\b", c = c << 8 | c >> 24);
     v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
     v86.addr = XREADORG;		/* call to xread in boot1 */
     v86.es = VTOPSEG(buf);
@@ -618,7 +626,7 @@ keyhit(unsigned ticks)
 {
     uint32_t t0, t1;
 
-    if (opts & 1 << RBX_NOINTR)
+    if (OPT_CHECK(RBX_NOINTR))
 	return 0;
     t0 = 0;
     for (;;) {
@@ -645,7 +653,7 @@ xputc(int c)
 static int
 xgetc(int fn)
 {
-    if (opts & 1 << RBX_NOINTR)
+    if (OPT_CHECK(RBX_NOINTR))
 	return 0;
     for (;;) {
 	if (ioctrl & IO_KEYBOARD && getc(1))
