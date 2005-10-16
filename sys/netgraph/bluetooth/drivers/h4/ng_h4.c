@@ -613,8 +613,7 @@ ng_h4_start2(node_p node, hook_p hook, void *arg1, int arg2)
 	 * being called in lieu of ttstart and must do what it would.
 	 */
 
-	if (sc->tp->t_oproc != NULL)
-		(*sc->tp->t_oproc)(sc->tp);
+	tt_oproc(sc->tp);
 
 	/*
 	 * This timeout is needed for operation on a pseudo-tty, because the
