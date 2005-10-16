@@ -153,7 +153,7 @@ ufs_lookup(ap)
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	struct thread *td = cnp->cn_thread;
-	u_int32_t saved_ino;
+	ino_t saved_ino;
 
 	bp = NULL;
 	slotoffset = -1;
