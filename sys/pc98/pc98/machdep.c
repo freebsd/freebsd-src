@@ -273,15 +273,13 @@ osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct thread *td;
 	struct sigacts *psp;
 	struct trapframe *regs;
-	int oonstack;
 	int sig;
-	int code;
+	int oonstack;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sig = ksi->ksi_signo;
-	code = ksi->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
@@ -309,13 +307,12 @@ osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_arg2 = (register_t)&fp->sf_siginfo;
 		sf.sf_siginfo.si_signo = sig;
-		sf.sf_siginfo.si_code = code;
-		sf.sf_siginfo.si_value = ksi->ksi_value;
+		sf.sf_siginfo.si_code = ksi->ksi_code;
 		sf.sf_ahu.sf_action = (__osiginfohandler_t *)catcher;
 	} else {
 		/* Old FreeBSD-style arguments. */
-		sf.sf_arg2 = code;
-		sf.sf_addr = regs->tf_err;
+		sf.sf_arg2 = ksi->ksi_code;
+		sf.sf_addr = (register_t)ksi->ksi_addr;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
@@ -588,7 +585,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 		/* Fill in POSIX parts */
 		sf.sf_si = ksi->ksi_info;
-		sf.sf_si.si_signo = sig;	/* maybe a translated signal */
+		sf.sf_si.si_signo = sig; /* maybe a translated signal */
 	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_siginfo = ksi->ksi_code;
@@ -833,7 +830,6 @@ freebsd4_sigreturn(td, uap)
 			ksi.ksi_addr = (void *)regs->tf_eip;
 			trapsignal(td, &ksi);
 		}
-
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
 			    (eflags & VME_USERCHANGE) | PSL_VM;
