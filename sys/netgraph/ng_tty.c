@@ -445,8 +445,7 @@ ngt_start(struct tty *tp)
 
 	/* Call output process whether or not there is any output. We are
 	 * being called in lieu of ttstart and must do what it would. */
-	if (tp->t_oproc != NULL)
-		(*tp->t_oproc) (tp);
+	tt_oproc(tp);
 
 	/* This timeout is needed for operation on a pseudo-tty, because the
 	 * pty code doesn't call pppstart after it has drained the t_outq. */
