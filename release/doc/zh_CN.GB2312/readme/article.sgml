@@ -121,7 +121,7 @@
       <para>对于那些希望用 &os; 来处理日常业务，
 	而不是尝试最新 &os; 技术的用户来说， 正式的发行版本
 	(例如 &release.prev.stable;) 通常更为合适。
-	发行版本经过了一段时间的测试和质量保障检察，
+	发行版本经过了一段时间的测试和质量保障检查，
 	以确保其高可靠性。</para>
 
 ]]>
@@ -328,7 +328,7 @@
 	    <filename>RELNOTES.TXT</filename>、
 	    <filename>HARDWARE.TXT</filename> 和
 	    <filename>INSTALL.TXT</filename>) 包含了对特定硬件体系的信息。
-	    比如，alpha 发行说明会包含了不适用于 &i386; 的信息，
+	    比如， alpha 发行说明中可能包含某些不适用于 &i386; 的信息，
 	    反之亦然。 每篇文档适用的体系结构会在文档的标题处列出。</para>
 	</note>
 
