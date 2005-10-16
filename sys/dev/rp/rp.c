@@ -699,7 +699,7 @@ static void rp_handle_port(struct rp_port *rp)
 			if((tp->t_state & TS_CARR_ON)) {
 				(void)ttyld_modem(tp, 0);
 				if(ttyld_modem(tp, 0) == 0) {
-					tp->t_close(tp);
+					rpclose(tp);
 				}
 			}
 		}
