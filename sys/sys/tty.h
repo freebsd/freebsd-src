@@ -371,6 +371,82 @@ int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo);
 int	 ttywait(struct tty *tp);
 int	 unputc(struct clist *q);
 
+static __inline int
+tt_open(struct tty *t, struct cdev *c)
+{
+
+	if (t->t_open == NULL)
+		return (0);
+	return (t->t_open(t, c));
+}
+
+static __inline void
+tt_close(struct tty *t)
+{
+
+	if (t->t_close != NULL)
+		return (t->t_close(t));
+}
+
+static __inline void
+tt_oproc(struct tty *t)
+{
+
+	if (t->t_oproc != NULL)			/* XXX: Kludge for pty. */
+		t->t_oproc(t);
+}
+
+static __inline void
+tt_purge(struct tty *t)
+{
+
+	if (t->t_purge != NULL)
+		t->t_purge(t);
+}
+
+static __inline void
+tt_stop(struct tty *t, int i)
+{
+
+	t->t_stop(t, i);
+}
+
+static __inline int
+tt_param(struct tty *t, struct termios *s)
+{
+
+	if (t->t_param == NULL)
+		return (0);
+	return (t->t_param(t, s));
+}
+
+static __inline int
+tt_modem(struct tty *t, int i, int j)
+{
+
+	if (t->t_modem == NULL)
+		return (0);
+	return (t->t_modem(t, i, j));
+}
+
+static __inline int
+tt_break(struct tty *t, int i)
+{
+
+	if (t->t_break == NULL)
+		return (ENOIOCTL);
+	t->t_break(t, i);
+	return (0);
+}
+
+static __inline int
+tt_ioctl(struct tty *t, u_long cmd, void *data,
+		      int fflag, struct thread *td)
+{
+
+	return (t->t_ioctl(t, cmd, data, fflag, td));
+}
+
 /*
  * XXX: temporary
  */
