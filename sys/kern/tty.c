@@ -3414,6 +3414,7 @@ ttyconsolemode(struct tty *tp, int speed)
 	tp->t_lock_in.c_ispeed = tp->t_lock_in.c_ospeed = speed;
 	tp->t_init_out = tp->t_init_in;
 	tp->t_termios = tp->t_init_in;
+	ttsetwater(tp);
 }
 
 /*

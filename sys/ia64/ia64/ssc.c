@@ -149,7 +149,6 @@ sscopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_state |= TS_CARR_ON;
 		ttyconsolemode(tp, 0);
-		ttsetwater(tp);
 
 		setuptimeout = 1;
 	} else if ((tp->t_state & TS_XCLUDE) && suser(td)) {

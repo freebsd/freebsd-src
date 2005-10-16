@@ -295,7 +295,6 @@ dcons_open(DEV dev, int flag, int mode, THREAD *td)
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_state |= TS_CARR_ON;
 		ttyconsolemode(tp, 0);
-		ttsetwater(tp);
 	} else if ((tp->t_state & TS_XCLUDE) && suser(td)) {
 		splx(s);
 		return (EBUSY);
