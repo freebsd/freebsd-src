@@ -874,34 +874,19 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 	if (error) {		/* name was found */
 		struct vattr vattr;
 
-		vhold(*vpp);
 		vp = *vpp;
-		if (dvp == vp) {	/* lookup on current */
-			vref(vp);
-			error = 0;
-			NCPVNDEBUG("cached '.'");
-		} else if (flags & ISDOTDOT) {
-			VOP_UNLOCK(dvp, 0, td);	/* unlock parent */
-			error = vget(vp, LK_EXCLUSIVE, td);
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
-		} else
-			error = vget(vp, LK_EXCLUSIVE, td);
-		if (!error) {
-			if (!VOP_GETATTR(vp, &vattr, cnp->cn_cred, td)
-			 && vattr.va_ctime.tv_sec == VTONW(vp)->n_ctime) {
-			     if (nameiop != LOOKUP && islastcn)
-				     cnp->cn_flags |= SAVENAME;
-			     NCPVNDEBUG("use cached vnode");
-			     vdrop(vp);
-			     return (0);
-			}
-			cache_purge(vp);
-			if (vp != dvp)
-				vput(vp);
-			else
-				vrele(vp);
+		if (VOP_GETATTR(vp, &vattr, cnp->cn_cred, td) == 0 &&
+		    vattr.va_ctime.tv_sec == VTONW(vp)->n_ctime) {
+			if (nameiop != LOOKUP && islastcn)
+				cnp->cn_flags |= SAVENAME;
+			NCPVNDEBUG("use cached vnode");
+			return (0);
 		}
-		vdrop(vp);
+		cache_purge(vp);
+		if (vp != dvp)
+			vput(vp);
+		else
+			vrele(vp);
 		*vpp = NULLVP;
 	}
 	/* not in cache, so ...  */
