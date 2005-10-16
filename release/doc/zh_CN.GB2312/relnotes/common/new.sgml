@@ -34,7 +34,7 @@
       &release.branch; 开发线上所做的改动。
       本文档列举了自前一发行版本以来所有适用的安全公告， 以及对于
       &os; 内核以及系统附带的应用程序所做的重要修改。
-      在升级时所需要注意的一些问题， 也进行了简略的介绍。</para>
+      对在升级时需要注意的一些问题， 也进行了简略的介绍。</para>
   </abstract>
 </articleinfo>
 
@@ -229,16 +229,17 @@
       已经被删去。 使用这一类型的 CPU 的用户， 应使用 &os;
       5.<replaceable>X</replaceable> 或更早的版本。</para>
 
-    <para>内核调试器 &man.ddb.4; 现在支持用于显示持有休眠互斥体
-    (以及当前线程所持有的自旋互斥体) 的情况的
-      <command>show alllocks</command> 命令了。 &merged;</para>
+    <para>内核调试器 &man.ddb.4; 新增了
+      <command>show alllocks</command> 命令，
+      用以显示持有休眠互斥体
+      (以及当前线程所持有的自旋互斥体) 的情况的了。 &merged;</para>
 
     <para arch="amd64,i386,pc98">将崩溃时的内核转存 (crash dump) 格式改为了
       ELF 以支持大内存 (超过 4GB) 的环境。</para>
 
     <para>&man.ichsmb.4; 驱动现在可以作为可加载内核模块使用了。</para>
 
-    <para>现在 &man.jail.8; 功能支持一个新的 sysctl
+    <para>&man.jail.8; 功能现在支持一个新的 sysctl
       <varname>security.jail.chflags_allowed</varname>，
       用于控制 &man.chflags.1; 在 jail 中的行为。
       如果设置为 <literal>0</literal> (默认值)， jail 中的 <username>root</username>
@@ -361,7 +362,7 @@
       以减少和其他系统时钟之间的同步效果。</para>
 
     <para>shell 命令的最大长度， 从原先的 128
-      变味了 <varname>PAGE_SIZE</varname>。 默认情况下，
+      变为了 <varname>PAGE_SIZE</varname>。 默认情况下，
       这个值应该是 4KB (i386, pc98, amd64, 和 powerpc) 或 8KB (sparc64
       和 ia64)。 其结果是， 兼容模块需要重新编译，
       以便于内核中的数据结构保持同步。</para>
@@ -386,7 +387,7 @@
       <para>加载器命令 <command>autoboot</command>
 	现在支持提示符参数了。</para>
 
-      <para>现在 <command>autoboot</command> 加载器命令能够在
+      <para><command>autoboot</command> 加载器命令现在能够在
 	<varname>autoboot_delay</varname> 变量设置为
 	<literal>-1</literal> 时完全禁止用户打断启动过程了。 &merged;</para>
 
@@ -408,7 +409,7 @@
 	并在恢复时重新打开。 这一行为可以通过将
 	<varname>debug.acpi.do_powerstate</varname> 和
 	<varname>hw.pci.do_powerstate</varname> 这两个 sysctl
-	设置为 <literal>0</literal>。</para>
+	设置为 <literal>0</literal> 来禁用。</para>
 
       <para arch="i386,amd64">加入了用于 IBM 笔记本的 &man.acpi.ibm.4;
 	驱动。 它提供了许多热键， 以及读取风扇状态和温度传感器的能力。</para>
@@ -462,13 +463,13 @@
 	以及有关的其他工具。</para>
 
       <para arch="i386">删去了对于 OLDCARD 子系统的支持。
-	现在， NEWCARD 系统被用于支持所有的 PCCARD 设备了。</para>
+	现在， 所有的 PCCARD 设备都是通过 NEWCARD 系统支持的了。</para>
 
       <para>加入了用于支持 GPIB-PCIIA IEEE-488 卡的 pcii 驱动。 &merged;</para>
 
-      <para>&man.atkbd.4; 驱动现在支持 <literal>0x8</literal>
+      <para>&man.atkbd.4; 驱动新增了 <literal>0x8</literal>
 	(第 3 位) 标志， 用以在设备探测时禁止测试键盘口，
-	以避免在某些型号的机器， 特别是 Compaq R300Z 系列的
+	以避免在某些型号， 特别是 Compaq R300Z 系列的
 	amd64 笔记本上造成挂起的问题。</para>
 
       <para arch="i386">加入了用于支持直接访问以模式0 (简单I/O)
@@ -546,12 +547,12 @@
 	<para>&man.dc.4; 驱动现在支持 &man.altq.4;
 	  框架， 并且是 MPSAFE 的了。 &merged;</para>
 
-	<para>&man.de.4; 驱动现在是 MPSAFE 的了。</para>
+	<para>&man.de.4; 驱动现在 MPSAFE 了。</para>
 
 	<para>&man.ed.4; 驱动现在支持 &man.altq.4; 框架了。
 	  &merged;</para>
 
-	<para>&man.ed.4; 驱动现在是 MPSAFE 的了。</para>
+	<para>&man.ed.4; 驱动现在 MPSAFE 了。</para>
 
 	<para>在 &man.em.4; 驱动程序中， 对于 VLAN 标记 (tagging)
 	  的硬件支持， 由于其和混杂模式之间的一些冲突被默认地禁用。
@@ -594,22 +595,22 @@
 
 	<para>&man.pcn.4; 驱动现在 MPSAFE 了。</para>
 
-	<para>现在 &man.re.4; 驱动能够支持 &man.altq.4;
+	<para>&man.re.4; 驱动现在能够支持 &man.altq.4;
 	  框架， 并且 MPSAFE 了。 &merged;</para>
 
-	<para>现在 &man.sf.4; 驱动支持设备混合轮询 (device polling)
+	<para>&man.sf.4; 驱动现在支持设备混合轮询 (device polling)
 	  和 &man.altq.4; 了。 &merged;</para>
 
 	<para>修正了 &man.sk.4; 驱动中的多处程序设计错误。
 	  这些问题主要影响 SMP 系统， 可能导致系统崩溃、 内核缺页、
-	  SSH 连接中断， 或文件传输问题。
+	  SSH 连接中断， 以及文件传输问题。
 	  更多细节， 可以在勘误公告
 	  <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:02.sk.asc">FreeBSD-EN-05:02.sk</ulink>
 	  上找到。
 	  &merged;</para>
 
-	<para>现在， &man.sk.4; 驱动支持 &man.altq.4; 了。
-	  同时， 此驱动支持基于 Yukon 的网卡的巨型帧能力了。
+	<para>&man.sk.4; 驱动现在支持 &man.altq.4; 了。
+	  同时， 此驱动提供了对于基于 Yukon 的网卡的巨型帧的支持能力。
 	  &merged;</para>
 
 	<para>&man.ste.4; 驱动支持 &man.altq.4; 了。</para>
@@ -648,8 +649,8 @@
 	现在可以用 &man.ifconfig.8; 工具来对
 	&man.if.bridge.4; 进行配置了。</para>
 
-      <para>现在 &man.ipfw.4; <literal>IPDIVERT</literal>
-	选项可以用内核模块的方式来加载了。 如果没有加载模块，
+      <para>&man.ipfw.4; <literal>IPDIVERT</literal>
+	选项现在可以通过内核模块的方式来加载了。 如果没有加载模块，
 	则 &man.ipfw.4; 将拒绝安装 <literal>divert</literal>
 	规则， 而 &man.natd.8; 则会返回错误信息 <quote>protocol not supported</quote>。</para>
 
@@ -661,7 +662,7 @@
 
       <para>&man.ipfw.4; 和 &man.dummynet.4; 系统能够支持 IPv6 了。</para>
 
-      <para>&man.ipfw.8;现在支持通过转发 socket 来区分并标记
+      <para>&man.ipfw.8; 现在支持通过转发 socket 来区分并标记
 	&man.altq.4; 包了。 此外， 还可以通过特定的 payload 尺寸来匹配 TCP 包。</para>
 
       <para>&man.ipfw.8; 现在支持通过转发 socket，
@@ -702,13 +703,13 @@
       <para>加入了 &man.ng.tcpmss.4; NetGraph 节点。
 	它支持改变 TCP 包的 MSS 选项。</para>
 
-      <para>现在 &man.sppp.4; 驱动程序包含了帧转发 (Frame Relay)
+      <para>&man.sppp.4; 驱动程序现在提供了帧转发 (Frame Relay)
 	支持。 &merged;</para>
 
       <para>&man.sppp.4; 驱动现在 MPSAFE 了。</para>
 
       <para>&os; 路由表现在要求路由的网关必须和路由本身同属同一地址族。
-	现在 &man.route.8; 工具会拒绝异种地址族混用了。 例如：</para>
+	现在， &man.route.8; 工具会拒绝异种地址族混用了。 例如：</para>
 
       <screen>&prompt.root; route add 10.1.1.1 -inet6 fe80::1%fxp0</screen>
 
@@ -739,13 +740,13 @@
 	使得拒绝服务攻击变得容易。 这一 TCP 扩展被最近的一个 Internet
 	草案认为是有缺陷的。</para>
 
-      <para>将 KAME IPv4 IPsec 实现集成到了 &os; 中，
-	现在支持 TCP-MD5 了。 &merged;</para>
+      <para>已经将 KAME IPv4 IPsec 实现集成到了 &os; 中，
+	现在它支持 TCP-MD5 了。 &merged;</para>
 
       <para>短期使用端口的随机分配导致了在高连接速率时的端口重用问题。
         这一功能现在在短期内发生大量连接， 即新端口的创建速率快于每秒
         <varname>net.inet.ip.portrange.randomcps</varname> 时，
-        被自动禁用
+        会被自动停用
         <varname>net.inet.ip.portrange.randomtime</varname>
         秒。 这两个 sysctl 变量的默认值，
         分别是 <literal>10</literal> 和 <literal>45</literal>。
@@ -758,9 +759,9 @@
 	<varname>debug.mpsafenet</varname> sysctl 变量设置为
 	<literal>1</literal>)。</para>
 
-      <para>现在 Unix domain socket 提供了
+      <para>Unix domain socket 现在提供了新增的
 	<literal>LOCAL_CREDS</literal> 和
-	<literal>LOCAL_CONNWAIT</literal>。
+	<literal>LOCAL_CONNWAIT</literal> 选项。
 	其中， <literal>LOCAL_CREDS</literal> 选项提供了一种机制，
 	使得接收方能够以 &man.recvmsg.2; 控制消息的形式，
 	收到发送者的进程凭据。
@@ -772,7 +773,7 @@
     <sect3 id="disks">
       <title>磁盘及存储</title>
 
-      <para>现在 &man.amr.4; 可以安全地在使用了
+      <para>&man.amr.4; 现在可以安全地在使用了
 	&man.pae.4; 的系统上使用了。 &merged;</para>
 
       <para arch="i386,ia64">加入了 &man.arcmsr.4; 驱动。
@@ -806,7 +807,7 @@
       <para>加入了用于支持 HighPoint
 	RocketRAID 182x 系列硬件的 &man.hptmv.4; 驱动。 &merged;</para>
 
-      <para>现在 &man.ips.4; 驱动在较新的 ServeRAID 型号上，
+      <para>经过改进的 &man.ips.4; 驱动在较新的 ServeRAID 型号上，
 	能够支持内核崩溃的转储操作了。 &merged;</para>
 
       <para>删去了 &man.matcd.4; 驱动。 &merged;</para>
@@ -835,13 +836,13 @@
       <title>文件系统</title>
 
       <para>原先在挂接时进行的， 重新计算
-	<quote>脏</quote> (即， 上次停机时没有正常卸下) 的 UFS 和 UFS2
+	<quote>脏</quote> 的 (即， 上次停机时没有正常卸下) UFS 和 UFS2
 	文件系统摘要信息的工作， 现在转由后台
 	&man.fsck.8; 进行。
 	这一修改将极大地改善系统崩溃后挂接大文件系统时的速度。
-	如果希望还原原先的行为， 可以通过将
+	如果希望恢复原先的行为， 则可以通过将
 	<varname>vfs.ffs.compute_summary_at_mount</varname> sysctl
-	变量设置为非零值来实现。 &merged;</para>
+	变量设置为非零值来完成。 &merged;</para>
 
       <para>修正了由于 NFS 服务器可能导致的一个内核崩溃。
 	更多细节， 可以在勘误公告
@@ -868,7 +869,7 @@
     <para>加入了用于处理二进制文件补丁的 &man.bsdiff.1; 和 &man.bspatch.1;
       工具。</para>
 
-    <para>现在 &man.burncd.8; 工具能够在光盘定型之后执行命令了 (例如
+    <para>&man.burncd.8; 工具现在能够在光盘定型之后执行命令了 (例如
       <command>eject</command>)。</para>
 
     <para arch="amd64">实现了
@@ -891,19 +892,19 @@
 	<replaceable>altpath</replaceable></option>
       选项， 用以设置命令的搜索路径。</para>
 
-    <para>现在 &man.ftpd.8; 程序会正确地为目录和文件的状态使用 <literal>212</literal>
+    <para>&man.ftpd.8; 程序现在能够正确地为目录和文件的状态使用 <literal>212</literal>
       和 <literal>213</literal> 状态代码了 (过去的版本，
       曾经长期使用 <literal>211</literal>)。
       这一行为在 RFC 959 中进行了描述。
       &merged;</para>
 
     <para>&man.gpt.8; 的 <literal>create</literal> 命令，
-      现在支持一个 <option>-f</option> 命令行标志，
-      以强制创建 GPT， 即使磁盘上原先已经存在了 MBR 记录。
+      新增了 <option>-f</option> 命令行标志，
+      用以在原先已经存在了 MBR 记录的磁盘上强制创建 GPT。
       &merged;</para>
 
     <para>如果指定了 <literal>AF_UNSPEC</literal>，
-      现在 &man.getaddrinfo.3; 函数会在查询 <literal>AAAA</literal>
+      现在的 &man.getaddrinfo.3; 函数会在查询 <literal>AAAA</literal>
       记录之前， 首先查询 <literal>A</literal>
       DNS 资源记录。 一些有问题的 DNS 服务器会在 <literal>AAAA</literal>
       记录不存在时返回 <literal>NXDOMAIN</literal>，
@@ -918,17 +919,17 @@
       <literal>AF_INET6</literal> 记录先于
       <literal>AF_INET</literal> 记录。 &merged;</para>
 
-    <para>现在 &man.gethostbyname.3;, &man.gethostbyname2.3;, 以及
-      &man.gethostbyaddr.3; 函数是线程安全的了。 &merged;</para>
+    <para>&man.gethostbyname.3;, &man.gethostbyname2.3;, 以及
+      &man.gethostbyaddr.3; 函数现在是线程安全的了。 &merged;</para>
 
     <para>&man.getnetent.3;, &man.getnetbyname.3;, 以及
-      &man.getnetbyaddr.3; 函数是线程安全的了。 &merged;</para>
+      &man.getnetbyaddr.3; 函数现在是线程安全的了。 &merged;</para>
 
-    <para>现在 &man.getprotoent.3;， &man.getprotobyname.3;， 以及
-      &man.getprotobynumber.3; 函数是线程安全的了。 &merged;</para>
+    <para>&man.getprotoent.3;， &man.getprotobyname.3;， 以及
+      &man.getprotobynumber.3; 函数现在是线程安全的了。 &merged;</para>
 
-    <para>现在 &man.getservent.3;， &man.getservbyname.3;， 以及
-      &man.getservbyport.3; 函数是线程安全的了。 &merged;</para>
+    <para>&man.getservent.3;， &man.getservbyname.3;， 以及
+      &man.getservbyport.3; 函数现在是线程安全的了。 &merged;</para>
 
     <para>为遵循 IEEE Std 1003.1-2001 标准
       (也称作 POSIX 2001)， <varname>struct netent</varname> 结构的
@@ -948,7 +949,7 @@
       <command>setstate</command>
       这三个子命令了。 &merged;</para>
 
-    <para>对 &man.ifconfig.8; 工具进行了重构。 现在它的模块化更加清晰，
+    <para>对 &man.ifconfig.8; 工具进行了重构。 现在其模块化更为清晰，
       并且在处理某些网络接口专有的功能时更为灵活。 对 802.11 支持进行了更新，
       以便支持最近对于 802.11 子系统和驱动程序所进行的改进。</para>
 
