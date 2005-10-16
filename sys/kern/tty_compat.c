@@ -93,7 +93,7 @@ ttcompatspeedtab(int speed, struct speedtab *table)
 	return (1); /* 50, min and not hangup */
 }
 
-int
+static int
 ttsetcompat(struct tty *tp, u_long *com, caddr_t data, struct termios *term)
 {
 	switch (*com) {
