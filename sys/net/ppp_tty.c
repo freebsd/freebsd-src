@@ -735,8 +735,7 @@ pppstart(tp)
      * Call output process whether or not there is any output.
      * We are being called in lieu of ttstart and must do what it would.
      */
-    if (tp->t_oproc != NULL)
-	(*tp->t_oproc)(tp);
+    tt_oproc(tp);
 
     /*
      * If the transmit queue has drained and the tty has not hung up
@@ -844,14 +843,13 @@ pppinput(c, tp)
 	if (c == tp->t_cc[VSTOP] && tp->t_cc[VSTOP] != _POSIX_VDISABLE) {
 	    if ((tp->t_state & TS_TTSTOP) == 0) {
 		tp->t_state |= TS_TTSTOP;
-		tp->t_stop(tp, 0);
+		tt_stop(tp, 0);
 	    }
 	    return 0;
 	}
 	if (c == tp->t_cc[VSTART] && tp->t_cc[VSTART] != _POSIX_VDISABLE) {
 	    tp->t_state &= ~TS_TTSTOP;
-	    if (tp->t_oproc != NULL)
-		(*tp->t_oproc)(tp);
+	    tt_oproc(tp);
 	    return 0;
 	}
     }

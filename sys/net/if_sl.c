@@ -628,7 +628,7 @@ sltstart(struct tty *tp)
 		 * output queue.  We are being called in lieu of ttstart
 		 * and must do what it would.
 		 */
-		(*tp->t_oproc)(tp);
+		tt_oproc(tp);
 
 		if (tp->t_outq.c_cc != 0) {
 			if (sc != NULL)
@@ -1110,7 +1110,7 @@ sl_outfill(void *chan)
 			s = splimp ();
 			++SL2IFP(sc)->if_obytes;
 			(void) putc(FRAME_END, &tp->t_outq);
-			(*tp->t_oproc)(tp);
+			tt_oproc(tp);
 			splx (s);
 		} else
 			sc->sc_flags |= SC_OUTWAIT;
