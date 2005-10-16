@@ -961,6 +961,7 @@ in_addmulti(ap, ifp)
 	struct sockaddr_in sin;
 	struct ifmultiaddr *ifma;
 
+	IFF_LOCKGIANT(ifp);
 	IN_MULTI_LOCK();
 	/*
 	 * Call generic routine to add membership or increment
@@ -974,6 +975,7 @@ in_addmulti(ap, ifp)
 	error = if_addmulti(ifp, (struct sockaddr *)&sin, &ifma);
 	if (error) {
 		IN_MULTI_UNLOCK();
+		IFF_UNLOCKGIANT(ifp);
 		return 0;
 	}
 
@@ -983,6 +985,7 @@ in_addmulti(ap, ifp)
 	 */
 	if (ifma->ifma_protospec != NULL) {
 		IN_MULTI_UNLOCK();
+		IFF_UNLOCKGIANT(ifp);
 		return ifma->ifma_protospec;
 	}
 
@@ -990,6 +993,7 @@ in_addmulti(ap, ifp)
 	    M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
 		IN_MULTI_UNLOCK();
+		IFF_UNLOCKGIANT(ifp);
 		return (NULL);
 	}
 
@@ -1004,6 +1008,7 @@ in_addmulti(ap, ifp)
 	 */
 	igmp_joingroup(inm);
 	IN_MULTI_UNLOCK();
+	IFF_UNLOCKGIANT(ifp);
 	return (inm);
 }
 
@@ -1016,7 +1021,10 @@ in_delmulti(inm)
 {
 	struct ifmultiaddr *ifma;
 	struct in_multi my_inm;
+	struct ifnet *ifp;
 
+	ifp = inm->inm_ifp;
+	IFF_LOCKGIANT(ifp);
 	IN_MULTI_LOCK();
 	ifma = inm->inm_ifma;
 	my_inm.inm_ifp = NULL ; /* don't send the leave msg */
@@ -1037,6 +1045,7 @@ in_delmulti(inm)
 	if (my_inm.inm_ifp != NULL)
 		igmp_leavegroup(&my_inm);
 	IN_MULTI_UNLOCK();
+	IFF_UNLOCKGIANT(ifp);
 }
 
 /*
