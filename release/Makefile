@@ -18,7 +18,7 @@
 # Set these, release builder!
 #
 # Fixed version:
-#BUILDNAME=6.0-STABLE
+#BUILDNAME=6.0-RELEASE
 #
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
@@ -26,8 +26,8 @@ BASE = 6.0
 BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 #CHROOTDIR=/junk/release
-# If this is a -stable snapshot, then set
-#RELEASETAG=RELENG_4
+# If this is a security/errata branch snapshot, then set
+#RELEASETAG=RELENG_6_0
 #
 # To test a release with a source tree containing patches and
 # other work. This tree will get copied instead of getting the
