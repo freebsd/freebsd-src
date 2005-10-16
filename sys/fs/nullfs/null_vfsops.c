@@ -180,6 +180,7 @@ nullfs_mount(struct mount *mp, struct thread *td)
 
 	if (NULLVPTOLOWERVP(nullm_rootvp)->v_mount->mnt_flag & MNT_LOCAL)
 		mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag | MNTK_MPSAFE;
 	mp->mnt_data = (qaddr_t) xmp;
 	vfs_getnewfsid(mp);
 
