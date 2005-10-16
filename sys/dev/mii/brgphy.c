@@ -388,6 +388,7 @@ setit:
 	    sc->mii_media_status != mii->mii_media_status ||
 	    cmd == MII_MEDIACHG) {
 		switch (brgphy_mii_model) {
+		case MII_MODEL_xxBROADCOM_BCM5400:
 		case MII_MODEL_xxBROADCOM_BCM5401:
 			bcm5401_load_dspcode(sc);
 			break;
@@ -617,6 +618,7 @@ brgphy_reset(struct mii_softc *sc)
 	mii_phy_reset(sc);
 
 	switch (brgphy_mii_model) {
+	case MII_MODEL_xxBROADCOM_BCM5400:
 	case MII_MODEL_xxBROADCOM_BCM5401:
 		bcm5401_load_dspcode(sc);
 		break;
