@@ -77,7 +77,7 @@ int	sigwait(const sigset_t * __restrict, int * __restrict);
 #endif
 
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 600
-int	sigqueue(pid_t, int, const union sigval);
+int	sigqueue(__pid_t, int, const union sigval);
 
 struct timespec;
 int	sigtimedwait(const sigset_t * __restrict, siginfo_t * __restrict,
