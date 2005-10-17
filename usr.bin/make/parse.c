@@ -2130,7 +2130,7 @@ xparse_include(char *file, int sinclude)
 		 * Include files contained in double-quotes are first searched
 		 * for relative to the including file's location. We don't want
 		 * to cd there, of course, so we just tack on the old file's
-		 * leading path components and call Dir_FindFile to see if
+		 * leading path components and call Path_FindFile to see if
 		 * we can locate the beast.
 		 */
 
@@ -2155,28 +2155,27 @@ xparse_include(char *file, int sinclude)
 			fullname = NULL;
 		}
 		free(Fname);
+		if (fullname == NULL) {
+			/*
+			 * Makefile wasn't found in same directory as included
+			 * makefile. Search for it first on the -I search path,
+			 * then on the .PATH search path, if not found in a -I
+			 * directory.
+			 * XXX: Suffix specific?
+			 */
+			fullname = Path_FindFile(file, &parseIncPath);
+			if (fullname == NULL) {
+				fullname = Path_FindFile(file, &dirSearchPath);
+			}
+		}
 	} else {
 		fullname = NULL;
 	}
 
 	if (fullname == NULL) {
 		/*
-		 * System makefile or makefile wasn't found in same directory as
-		 * included makefile. Search for it first on the -I search path,
-		 * then on the .PATH search path, if not found in a -I
-		 * directory.
-		 * XXX: Suffix specific?
-		 */
-		fullname = Path_FindFile(file, &parseIncPath);
-		if (fullname == NULL) {
-			fullname = Path_FindFile(file, &dirSearchPath);
-		}
-	}
-
-	if (fullname == NULL) {
-		/*
-		 * Still haven't found the makefile. Look for it on the system
-		 * path as a last resort.
+		 * System makefile or still haven't found the makefile.
+		 * Look for it on the system path.
 		 */
 		fullname = Path_FindFile(file, &sysIncPath);
 	}
