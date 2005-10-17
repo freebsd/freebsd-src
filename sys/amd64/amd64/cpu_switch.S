@@ -109,22 +109,7 @@ ENTRY(cpu_switch)
 	movl	%es,PCB_ES(%r8)
 	movl	%fs,PCB_FS(%r8)
 	movl	%gs,PCB_GS(%r8)
-	jmp	2f
 1:
-
-	/* Save userland %fs */
-	movl	$MSR_FSBASE,%ecx
-	rdmsr
-	movl	%eax,PCB_FSBASE(%r8)
-	movl	%edx,PCB_FSBASE+4(%r8)
-
-	/* Save userland %gs */
-	movl	$MSR_KGSBASE,%ecx
-	rdmsr
-	movl	%eax,PCB_GSBASE(%r8)
-	movl	%edx,PCB_GSBASE+4(%r8)
-2:
-
 	/* Test if debug registers should be saved. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
 	jz	1f				/* no, skip over */
