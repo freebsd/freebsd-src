@@ -424,9 +424,8 @@ pr_header(time_t *nowp, int nusers)
 {
 	double avenrun[3];
 	time_t uptime;
+	struct timespec tp;
 	int days, hrs, i, mins, secs;
-	int mib[2];
-	size_t size;
 	char buf[256];
 
 	/*
@@ -437,14 +436,9 @@ pr_header(time_t *nowp, int nusers)
 		(void)printf("%s ", buf);
 	/*
 	 * Print how long system has been up.
-	 * (Found by looking getting "boottime" from the kernel)
 	 */
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_BOOTTIME;
-	size = sizeof(boottime);
-	if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
-	    boottime.tv_sec != 0) {
-		uptime = now - boottime.tv_sec;
+	if (clock_gettime(CLOCK_MONOTONIC, &tp) != -1) {
+		uptime = tp.tv_sec;
 		if (uptime > 60)
 			uptime += 30;
 		days = uptime / 86400;

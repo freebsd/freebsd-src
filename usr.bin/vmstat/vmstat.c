@@ -396,26 +396,14 @@ getdrivedata(char **argv)
 static long
 getuptime(void)
 {
-	static struct timeval boottime;
-	static time_t now;
+	struct timespec sp;
 	time_t uptime;
 
-	if (boottime.tv_sec == 0) {
-		if (kd != NULL) {
-			kread(X_BOOTTIME, &boottime, sizeof(boottime));
-		} else {
-			size_t size;
-
-			size = sizeof(boottime);
-			mysysctl("kern.boottime", &boottime, &size, NULL, 0);
-			if (size != sizeof(boottime))
-				errx(1, "kern.boottime size mismatch");
-		}
-	}
-	(void)time(&now);
-	uptime = now - boottime.tv_sec;
+	(void)clock_gettime(CLOCK_MONOTONIC, &sp);
+	uptime = sp.tv_sec;
 	if (uptime <= 0 || uptime > 60*60*24*365*10)
 		errx(1, "time makes no sense; namelist must be wrong");
+
 	return(uptime);
 }
 
