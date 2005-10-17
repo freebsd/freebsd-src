@@ -41,6 +41,7 @@ CC += -mbig-endian
 SYSTEM_LD += -EB
 .endif
 
+
 .if !defined(DEBUG)
 CFLAGS += -mno-apcs-frame
 .endif
@@ -49,6 +50,8 @@ DDB_ENABLED!=	grep DDB opt_ddb.h || true
 
 .if ${DDB_ENABLED} != ""
 SYSTEM_LD_TAIL += ;echo "\#define KERNNAME \"${KERNEL_KO}\"" >opt_kernname.h ; \
+	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
+	--strip-symbol '$$t' ${KERNEL_KO} ;\
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.arm \
 	$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S -o ${KERNEL_KO}.tramp
 .endif
