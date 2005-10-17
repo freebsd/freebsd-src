@@ -199,8 +199,10 @@ udf_mount(struct mount *mp, struct thread *td)
 
 	opts = mp->mnt_optnew;
 
-	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		return (EROFS);
+	/*
+	 * Unconditionally mount as read-only.
+	 */
+	mp->mnt_flag |= MNT_RDONLY;
 
 	/*
 	 * No root filesystem support.  Probably not a big deal, since the
