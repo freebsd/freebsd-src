@@ -663,7 +663,7 @@ union_whiteout(ap)
  * 	union_mknod:
  *
  *	a_dvp is locked on entry and should remain locked on return.
- *	a_vpp is garbagre whether an error occurs or not.
+ *	a_vpp is garbage whether an error occurs or not.
  */
 
 static int
