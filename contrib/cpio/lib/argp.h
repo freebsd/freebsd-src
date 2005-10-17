@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* Hierarchial argument parsing, layered over getopt.
    Copyright (C) 1995-1999,2003,2004 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
@@ -579,7 +581,7 @@ __NTH (__option_is_short (__const struct argp_option *__opt))
   else
     {
       int __key = __opt->key;
-      return __key > 0 && isprint (__key);
+      return __key > 0 && __key < 256 && isprint (__key);
     }
 }
 
