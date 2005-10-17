@@ -357,9 +357,10 @@ printcpuinfo(void)
 				cpuid_count(4, 0, regs);
 				cmp = ((regs[0] & 0xfc000000) >> 26) + 1;
 			}
+			if (cmp > 1)
+				printf("\n  Physical cores: %d", cmp);
 			if (htt > 1)
-				printf("\n  Physical/Logical cores: %d/%d",
-				    cmp, htt);
+				printf("\n  Logical cores: %d", htt);
 		}
 	}
 	/* Avoid ugly blank lines: only print newline when we have to. */
