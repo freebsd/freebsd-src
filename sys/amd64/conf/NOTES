@@ -325,9 +325,6 @@ hint.pbio.0.at="isa"
 hint.pbio.0.port="0x360"
 device		smbios
 device		vpd
-# sx device is i386 and pc98 only at the moment.
-device		sx
-options 	SX_DEBUG
 # HOT1 Xilinx 6200 card (http://www.vcc.com/)
 device		xrpu
 
