@@ -358,9 +358,10 @@ printcpuinfo(void)
 				cmp = ((regs[0] & 0xfc000000) >> 26) + 1;
 			}
 			if (cmp > 1)
-				printf("\n  Physical cores: %d", cmp);
-			if (htt > 1)
-				printf("\n  Logical cores: %d", htt);
+				printf("\n  Cores per package: %d", cmp);
+			if ((htt / cmp) > 1)
+				printf("\n  Logical CPUs per core: %d",
+				    htt / cmp);
 		}
 	}
 	/* Avoid ugly blank lines: only print newline when we have to. */
