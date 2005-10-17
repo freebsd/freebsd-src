@@ -110,6 +110,14 @@
 #define KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 #define PCPU_PAGES		1
 
+/*
+ * Ceiling on size of buffer cache (really only effects write queueing,
+ * the VM page cache is not effected), can be changed via
+ * the kern.maxbcache /boot/loader.conf variable.
+ */
+#ifndef VM_BCACHE_SIZE_MAX
+#define VM_BCACHE_SIZE_MAX      (400 * 1024 * 1024)
+#endif
 
 /*
  * Mach derived conversion macros
