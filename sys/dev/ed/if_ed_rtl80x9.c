@@ -75,13 +75,11 @@ int
 ed_probe_RTL80x9(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
+	char *ts;
 	int error;
 
 	if ((error = ed_alloc_port(dev, port_rid, ED_NOVELL_IO_PORTS)))
 		return (error);
-
-	if (!ed_probe_generic8390(sc))
-		return (ENXIO);
 
 	if (ed_nic_inb(sc, ED_P0_CR) & (ED_CR_PS0 | ED_CR_PS1))
 		ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
@@ -92,9 +90,11 @@ ed_probe_RTL80x9(device_t dev, int port_rid, int flags)
 	switch (ed_nic_inb(sc, ED_RTL80X9_80X9ID1)) {
 	case ED_RTL8019_ID1:
 		sc->chip_type = ED_CHIP_TYPE_RTL8019;
+		ts = "RTL8019";
 		break;
 	case ED_RTL8029_ID1:
 		sc->chip_type = ED_CHIP_TYPE_RTL8029;
+		ts = "RTL8029";
 		break;
 	default:
 		return (ENXIO);
@@ -106,6 +106,7 @@ ed_probe_RTL80x9(device_t dev, int port_rid, int flags)
 	if ((error = ed_probe_Novell_generic(dev, flags)))
 		return (error);
 
+	sc->type_str = ts;
 	sc->sc_media_ioctl = &ed_rtl80x9_media_ioctl;
 	ifmedia_init(&sc->ifmedia, 0, ed_rtl_set_media, ed_rtl_get_media);
 
@@ -129,8 +130,8 @@ ed_probe_RTL80x9(device_t dev, int port_rid, int flags)
 		break;
 	case ED_RTL80X9_CF2_10_T:
 		ifmedia_set(&sc->ifmedia, IFM_ETHER | IFM_10_T |
-			(ed_nic_inb(sc, ED_RTL80X9_CONFIG3)
-				& ED_RTL80X9_CF3_FUDUP) ? IFM_FDX : 0);
+		    ((ed_nic_inb(sc, ED_RTL80X9_CONFIG3)
+		    & ED_RTL80X9_CF3_FUDUP) ? IFM_FDX : 0));
 		break;
 	}
 	return (0);
