@@ -59,6 +59,7 @@ SUBDIR=	ac \
 	inetd \
 	iostat \
 	ip6addrctl \
+	ipfwpcap \
 	IPXrouted \
 	jail \
 	jexec \
