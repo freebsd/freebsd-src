@@ -82,11 +82,18 @@ ed_pci_attach(device_t dev)
 {
 	struct	ed_softc *sc = device_get_softc(dev);
 	int	flags = 0;
-	int	error;
+	int	error = ENXIO;
 
+	/*
+	 * If this card claims to be a RTL8029, probe it as such.
+	 * However, allow that probe to fail.  Some versions of qemu
+	 * claim to be a 8029 in the PCI register, but it doesn't
+	 * implement the 8029 specific registers.  In that case, fall
+	 * back to a normal NE2000.
+	 */
 	if (pci_get_devid(dev) == ED_RTL8029_PCI_ID)
 		error = ed_probe_RTL80x9(dev, PCIR_BAR(0), flags);
-	else
+	if (error)
 		error = ed_probe_Novell(dev, PCIR_BAR(0), flags);
 	if (error) {
 		ed_release_resources(dev);
