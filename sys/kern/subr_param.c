@@ -75,8 +75,8 @@ int	maxfilesperproc;		/* per-proc open files limit */
 int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	nswbuf;
-long	maxswzone;			/* max swmeta KVA storage */
-long	maxbcache;			/* max buffer cache KVA storage */
+int	maxswzone;			/* max swmeta KVA storage */
+int	maxbcache;			/* max buffer cache KVA storage */
 int	maxpipekva;			/* Limit on pipe KVA */
 u_long	maxtsiz;			/* max text size */
 u_long	dfldsiz;			/* initial data size limit */
@@ -106,11 +106,11 @@ init_param1(void)
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
 #endif
-	TUNABLE_LONG_FETCH("kern.maxswzone", &maxswzone);
+	TUNABLE_INT_FETCH("kern.maxswzone", &maxswzone);
 #ifdef VM_BCACHE_SIZE_MAX
 	maxbcache = VM_BCACHE_SIZE_MAX;
 #endif
-	TUNABLE_LONG_FETCH("kern.maxbcache", &maxbcache);
+	TUNABLE_INT_FETCH("kern.maxbcache", &maxbcache);
 
 	maxtsiz = MAXTSIZ;
 	TUNABLE_ULONG_FETCH("kern.maxtsiz", &maxtsiz);
