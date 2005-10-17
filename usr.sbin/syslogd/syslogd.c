@@ -837,7 +837,8 @@ static time_t	now;
  * based on the specification.
  */
 static int
-skip_message(const char *name, const char *spec, int checkcase) {
+skip_message(const char *name, const char *spec, int checkcase)
+{
 	const char *s;
 	char prev, next;
 	int exclude = 0;
