@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #include "linker_if.h"
 
+#define MAXSEGS 4
+
 typedef struct elf_file {
     struct linker_file	lf;		/* Common fields */
     int			preloaded;	/* Was file pre-loaded */
@@ -536,7 +538,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
     int nbytes, i;
     Elf_Phdr *phdr;
     Elf_Phdr *phlimit;
-    Elf_Phdr *segs[2];
+    Elf_Phdr *segs[MAXSEGS];
     int nsegs;
     Elf_Phdr *phdyn;
     Elf_Phdr *phphdr;
@@ -643,7 +645,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	switch (phdr->p_type) {
 
 	case PT_LOAD:
-	    if (nsegs == 2) {
+	    if (nsegs == MAXSEGS) {
 		link_elf_error("Too many sections");
 		error = ENOEXEC;
 		goto out;
@@ -676,8 +678,8 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	error = ENOEXEC;
 	goto out;
     }
-    if (nsegs != 2) {
-	link_elf_error("Too few sections");
+    if (nsegs == 0) {
+	link_elf_error("No sections");
 	error = ENOEXEC;
 	goto out;
     }
@@ -688,7 +690,8 @@ link_elf_load_file(linker_class_t cls, const char* filename,
      */
     base_offset = trunc_page(segs[0]->p_offset);
     base_vaddr = trunc_page(segs[0]->p_vaddr);
-    base_vlimit = round_page(segs[1]->p_vaddr + segs[1]->p_memsz);
+    base_vlimit = round_page(segs[nsegs - 1]->p_vaddr + 
+	segs[nsegs - 1]->p_memsz);
     mapsize = base_vlimit - base_vaddr;
 
     lf = linker_make_file(filename, &link_elf_class);
@@ -726,7 +729,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
     /*
      * Read the text and data sections and zero the bss.
      */
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < nsegs; i++) {
 	caddr_t segbase = mapbase + segs[i]->p_vaddr - base_vaddr;
 	error = vn_rdwr(UIO_READ, nd.ni_vp,
 			segbase, segs[i]->p_filesz, segs[i]->p_offset,
