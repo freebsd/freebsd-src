@@ -247,9 +247,18 @@ iso_mountfs(devvp, mp, td)
 
 	/* This is the "logical sector size".  The standard says this
 	 * should be 2048 or the physical sector size on the device,
-	 * whichever is greater.  For now, we'll just use a constant.
+	 * whichever is greater.
 	 */
-	iso_bsize = ISO_DEFAULT_BLOCK_SIZE;
+	if ((ISO_DEFAULT_BLOCK_SIZE % cp->provider->sectorsize) != 0) {
+		DROP_GIANT();
+		g_topology_lock();
+		g_vfs_close(cp, td);
+		g_topology_unlock();
+                PICKUP_GIANT();
+		return (EINVAL);
+	}
+
+	iso_bsize = cp->provider->sectorsize;
 
 	joliet_level = 0;
 	if (1 != vfs_scanopt(mp->mnt_optnew, "ssector", "%d", &ssector))
@@ -257,7 +266,7 @@ iso_mountfs(devvp, mp, td)
 	for (iso_blknum = 16 + ssector;
 	     iso_blknum < 100 + ssector;
 	     iso_blknum++) {
-		if ((error = bread(devvp, iso_blknum * btodb(iso_bsize),
+		if ((error = bread(devvp, iso_blknum * btodb(ISO_DEFAULT_BLOCK_SIZE),
 				  iso_bsize, NOCRED, &bp)) != 0)
 			goto out;
 
