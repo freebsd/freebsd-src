@@ -171,7 +171,7 @@ ed_isa_attach(device_t dev)
 		return (error);
 	}
 
-	if (sc->chip_type == ED_CHIP_TYPE_RTL8029)
+	if (sc->chip_type == ED_CHIP_TYPE_RTL8019)
 		ed_Novell_read_mac(sc);
 
 #ifdef ED_HPP
