@@ -135,8 +135,10 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	struct nameidata ndp;
 	struct iso_mnt *imp = 0;
 
-	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		return (EROFS);
+	/*
+	 * Unconditionally mount as read-only.
+	 */
+	mp->mnt_flag |= MNT_RDONLY;
 
 	fspec = vfs_getopts(mp->mnt_optnew, "from", &error);
 	if (error)
