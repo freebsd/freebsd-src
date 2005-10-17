@@ -272,7 +272,7 @@ create_i386_diskimage ( ) (
 		$NANO_SECTS $NANO_HEADS \
 		$NANO_CODESIZE $NANO_CONFSIZE $NANO_DATASIZE |
 	awk '
-		{
+	{
 		printf "# %s\n", $0
 
 		# size of cylinder in sectors
@@ -297,7 +297,7 @@ create_i386_diskimage ( ) (
 		# size of config partition in full cylinders
 		csl = int (($6 + cs - 1) / cs)
 
-		if ($3 == 5) {
+		if ($5 == 0) {
 			# size of image partition(s) in full cylinders
 			isl = int ((cyl - dsl - csl) / $2)
 		} else {
@@ -324,8 +324,12 @@ create_i386_diskimage ( ) (
 			print "p 4 165 " c, dsl * cs
 		} else if ($7 < 0 && $1 > $c) {
 			print "p 4 165 " c, $1 - $c
+		} else if ($1 < c) {
+			print "Disk space overcommitted by", \
+			    c - $1, "sectors" > "/dev/stderr"
+			exit 2
 		}
-		}
+	}
 	' > ${MAKEOBJDIRPREFIX}/_.fdisk
 
 	IMG=${MAKEOBJDIRPREFIX}/_.disk.full
@@ -388,7 +392,11 @@ create_i386_diskimage ( ) (
 #
 
 FlashDevice () {
-	. ${NANO_TOOLS}/FlashDevice.sub
+	if [ -d ${NANO_TOOLS} ] ; then
+		. ${NANO_TOOLS}/FlashDevice.sub
+	else
+		. ${NANO_SRC}/${NANO_TOOLS}/FlashDevice.sub
+	fi
 	sub_FlashDevice $1 $2
 }
 
