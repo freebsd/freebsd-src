@@ -120,12 +120,14 @@ static funcptr ndis_linksts_done_wrap;
 static funcptr ndis_ticktask_wrap;
 static funcptr ndis_starttask_wrap;
 static funcptr ndis_resettask_wrap;
+static funcptr ndis_inputtask_wrap;
 
 static void ndis_tick		(void *);
 static void ndis_ticktask	(device_object *, void *);
 static void ndis_start		(struct ifnet *);
 static void ndis_starttask	(device_object *, void *);
 static void ndis_resettask	(device_object *, void *);
+static void ndis_inputtask	(device_object *, void *);
 static int ndis_ioctl		(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_get	(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_set	(struct ifnet *, u_long, caddr_t);
@@ -199,6 +201,8 @@ ndisdrv_modevent(mod, cmd, arg)
 		    2, WINDRV_WRAP_STDCALL);
 		windrv_wrap((funcptr)ndis_resettask, &ndis_resettask_wrap,
 		    2, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_inputtask, &ndis_inputtask_wrap,
+		    2, WINDRV_WRAP_STDCALL);
 		break;
 	case MOD_UNLOAD:
 		ndisdrv_loaded--;
@@ -217,6 +221,7 @@ ndisdrv_modevent(mod, cmd, arg)
 		windrv_unwrap(ndis_ticktask_wrap);
 		windrv_unwrap(ndis_starttask_wrap);
 		windrv_unwrap(ndis_resettask_wrap);
+		windrv_unwrap(ndis_inputtask_wrap);
 		break;
 	default:
 		error = EINVAL;
@@ -488,6 +493,7 @@ ndis_attach(dev)
 	ifp->if_softc = sc;
 
 	KeInitializeSpinLock(&sc->ndis_spinlock);
+	KeInitializeSpinLock(&sc->ndis_rxlock);
 	InitializeListHead(&sc->ndis_shlist);
 
 	if (sc->ndis_iftype == PCMCIABus) {
@@ -571,6 +577,14 @@ ndis_attach(dev)
 		goto fail;
 	}
 
+	/*
+	 * If this is a deserialized miniport, we don't have
+	 * to honor the OID_GEN_MAXIMUM_SEND_PACKETS result.
+	 */
+
+	if (!NDIS_SERIALIZED(sc->ndis_block))
+		sc->ndis_maxpkts = NDIS_TXPKTS;
+
 	/* Enforce some sanity, just in case. */
 
 	if (sc->ndis_maxpkts == 0)
@@ -582,7 +596,7 @@ ndis_attach(dev)
 	/* Allocate a pool of ndis_packets for TX encapsulation. */
 
 	NdisAllocatePacketPool(&i, &sc->ndis_txpool,
-	   sc->ndis_maxpkts, PROTOCOL_RESERVED_SIZE_IN_PACKET);
+	   NDIS_TXPKTS, PROTOCOL_RESERVED_SIZE_IN_PACKET);
 
 	if (i != NDIS_STATUS_SUCCESS) {
 		sc->ndis_txpool = NULL;
@@ -615,6 +629,14 @@ ndis_attach(dev)
 
 	/* Check for task offload support. */
 	ndis_probe_offload(sc);
+
+#if __FreeBSD_version < 502109
+	/*
+	 * An NDIS device was detected. Inform the world.
+	 */
+	device_printf(dev, "%s address: %6D\n",
+	    sc->ndis_80211 ? "802.11" : "Ethernet", eaddr, ":");
+#endif
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -888,6 +910,7 @@ got_crypto:
 	sc->ndis_tickitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	sc->ndis_startitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	sc->ndis_resetitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
+	sc->ndis_inputitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	KeInitializeDpc(&sc->ndis_rxdpc, ndis_rxeof_xfr_wrap, sc->ndis_block);
 
 
@@ -941,6 +964,8 @@ ndis_detach(dev)
 		IoFreeWorkItem(sc->ndis_startitem);
 	if (sc->ndis_resetitem != NULL)
 		IoFreeWorkItem(sc->ndis_resetitem);
+	if (sc->ndis_inputitem != NULL)
+		IoFreeWorkItem(sc->ndis_inputitem);
 
 	bus_generic_detach(dev);
 
@@ -1037,6 +1062,9 @@ ndis_resume(dev)
 /*
  * The following bunch of routines are here to support drivers that
  * use the NdisMEthIndicateReceive()/MiniportTransferData() mechanism.
+ * The NdisMEthIndicateReceive() handler runs at DISPATCH_LEVEL for
+ * serialized miniports, or IRQL <= DISPATCH_LEVEL for deserialized
+ * miniports.
  */
  
 static void
@@ -1103,13 +1131,18 @@ ndis_rxeof_eth(adapter, ctx, addr, hdr, hdrlen, lookahead, lookaheadlen, pktlen)
 
 	KeAcquireSpinLock(&block->nmb_lock, &irql);
 
-	InsertTailList((&block->nmb_packetlist),
-		((list_entry *)&p->u.np_clrsvd.np_miniport_rsvd));
+	InsertTailList((&block->nmb_packetlist), (&p->np_list));
 
 	KeReleaseSpinLock(&block->nmb_lock, irql);
 
 	return;
 }
+
+/*
+ * NdisMEthIndicateReceiveComplete() handler, runs at DISPATCH_LEVEL
+ * for serialized miniports, or IRQL <= DISPATCH_LEVEL for deserialized
+ * miniports.
+ */
 
 static void
 ndis_rxeof_done(adapter)
@@ -1130,7 +1163,7 @@ ndis_rxeof_done(adapter)
 }
 
 /*
- * Runs at DISPATCH_LEVEL.
+ * MiniportTransferData() handler, runs at DISPATCH_LEVEL.
  */
 static void
 ndis_rxeof_xfr(dpc, adapter, sysarg1, sysarg2)
@@ -1157,8 +1190,8 @@ ndis_rxeof_xfr(dpc, adapter, sysarg1, sysarg2)
 	l = block->nmb_packetlist.nle_flink;
 	while(!IsListEmpty(&block->nmb_packetlist)) {
 		l = RemoveHeadList((&block->nmb_packetlist));
-		p = CONTAINING_RECORD(l, ndis_packet,
-		    u.np_clrsvd.np_miniport_rsvd);
+		p = CONTAINING_RECORD(l, ndis_packet, np_list);
+		InitializeListHead((&p->np_list));
 
 		priv = (ndis_ethpriv *)&p->np_protocolreserved;
 		m = p->np_m0;
@@ -1185,8 +1218,12 @@ ndis_rxeof_xfr(dpc, adapter, sysarg1, sysarg2)
 		if (status == NDIS_STATUS_SUCCESS) {
 			IoFreeMdl(p->np_private.npp_head);
 			NdisFreePacket(p);
-			ifp->if_ipackets++;
-			(*ifp->if_input)(ifp, m);
+			KeAcquireSpinLockAtDpcLevel(&sc->ndis_rxlock);
+			_IF_ENQUEUE(&sc->ndis_rxqueue, m);
+			KeReleaseSpinLockFromDpcLevel(&sc->ndis_rxlock);
+			IoQueueWorkItem(sc->ndis_inputitem,
+			    (io_workitem_func)ndis_inputtask_wrap,
+			    WORKQUEUE_CRITICAL, ifp);
 		}
 
 		if (status == NDIS_STATUS_FAILURE)
@@ -1201,6 +1238,9 @@ ndis_rxeof_xfr(dpc, adapter, sysarg1, sysarg2)
 	return;
 }
 
+/*
+ * NdisMTransferDataComplete() handler, runs at DISPATCH_LEVEL.
+ */
 static void
 ndis_rxeof_xfr_done(adapter, packet, status, len)
 	ndis_handle		adapter;
@@ -1228,8 +1268,13 @@ ndis_rxeof_xfr_done(adapter, packet, status, len)
 
 	m->m_len = m->m_pkthdr.len;
 	m->m_pkthdr.rcvif = ifp;
-	ifp->if_ipackets++;
-	(*ifp->if_input)(ifp, m);
+	KeAcquireSpinLockAtDpcLevel(&sc->ndis_rxlock);
+	_IF_ENQUEUE(&sc->ndis_rxqueue, m);
+	KeReleaseSpinLockFromDpcLevel(&sc->ndis_rxlock);
+	IoQueueWorkItem(sc->ndis_inputitem,
+	    (io_workitem_func)ndis_inputtask_wrap,
+	    WORKQUEUE_CRITICAL, ifp);
+
 	return;
 }
 /*
@@ -1311,7 +1356,6 @@ ndis_rxeof(adapter, packets, pktcnt)
 			}
 			m0 = m;
 			m0->m_pkthdr.rcvif = ifp;
-			ifp->if_ipackets++;
 
 			/* Deal with checksum offload. */
 
@@ -1333,9 +1377,51 @@ ndis_rxeof(adapter, packets, pktcnt)
 				}
 			}
 
-			(*ifp->if_input)(ifp, m0);
+			KeAcquireSpinLockAtDpcLevel(&sc->ndis_rxlock);
+			_IF_ENQUEUE(&sc->ndis_rxqueue, m);
+			KeReleaseSpinLockFromDpcLevel(&sc->ndis_rxlock);
+			IoQueueWorkItem(sc->ndis_inputitem,
+			    (io_workitem_func)ndis_inputtask_wrap,
+			    WORKQUEUE_CRITICAL, ifp);
 		}
 	}
+
+	return;
+}
+
+/*
+ * This routine is run at PASSIVE_LEVEL. We use this routine to pass
+ * packets into the stack in order to avoid calling (*ifp->if_input)()
+ * with any locks held (at DISPATCH_LEVEL, we'll be holding the
+ * 'dispatch level' per-cpu sleep lock).
+ */
+
+static void
+ndis_inputtask(dobj, arg)
+	device_object		*dobj;
+	void			*arg;
+{
+	ndis_miniport_block	*block;
+	struct ifnet		*ifp;
+	struct ndis_softc	*sc;
+	struct mbuf		*m;
+	uint8_t			irql;
+
+	ifp = arg;
+	sc = ifp->if_softc;
+	block = dobj->do_devext;
+
+	KeAcquireSpinLock(&sc->ndis_rxlock, &irql);
+	while(1) {
+		_IF_DEQUEUE(&sc->ndis_rxqueue, m);
+		if (m == NULL)
+			break;
+		KeReleaseSpinLock(&sc->ndis_rxlock, irql);
+		ifp->if_ipackets++;
+		(*ifp->if_input)(ifp, m);
+		KeAcquireSpinLock(&sc->ndis_rxlock, &irql);
+	}
+	KeReleaseSpinLock(&sc->ndis_rxlock, irql);
 
 	return;
 }
