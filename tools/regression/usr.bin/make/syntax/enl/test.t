@@ -9,7 +9,7 @@ cd `dirname $0`
 DESC="Test escaped new-lines handling."
 
 # Run
-TEST_N=2
+TEST_N=5
 TEST_2_TODO="bug in parser"
 
 eval_cmd $*
