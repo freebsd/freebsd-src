@@ -769,7 +769,7 @@
 				    struct kse_thr_mailbox *tmbx, \
 				    int flags); }
 441	AUE_NULL	MNOSTD	{ int ksem_timedwait(semid_t id, \
-				    struct timespec *abstime); }
+				    const struct timespec *abstime); }
 442	AUE_NULL	MSTD	{ int thr_suspend( \
 				    const struct timespec *timeout); }
 443	AUE_NULL	MSTD	{ int thr_wake(long id); }

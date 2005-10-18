@@ -58,7 +58,7 @@ int ksem_close(semid_t id);
 int ksem_post(semid_t id);
 int ksem_wait(semid_t id);
 int ksem_trywait(semid_t id);
-int ksem_timedwait(semid_t id, struct timespec *abstime);
+int ksem_timedwait(semid_t id, const struct timespec *abstime);
 int ksem_init(semid_t *idp, unsigned int value);
 int ksem_open(semid_t *idp, const char *name, int oflag, mode_t mode,
     unsigned int value);
