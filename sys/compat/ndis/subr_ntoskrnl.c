@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/smp.h>
 #include <sys/sched.h>
+#include <sys/sysctl.h>
 
 #include <machine/atomic.h>
 #include <machine/clock.h>
@@ -78,12 +79,20 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/ndis_var.h>
 
+#ifdef NTOSKRNL_DEBUG_TIMERS
+static int sysctl_show_timers(SYSCTL_HANDLER_ARGS);
+
+SYSCTL_PROC(_debug, OID_AUTO, ntoskrnl_timers, CTLFLAG_RW, 0, 0,
+	sysctl_show_timers, "I", "Show ntoskrnl timer stats");
+#endif
+
 struct kdpc_queue {
 	list_entry		kq_disp;
 	struct thread		*kq_td;
 	int			kq_cpu;
 	int			kq_exit;
-	struct mtx		kq_lock;
+	int			kq_running;
+	kspin_lock		kq_lock;
 	nt_kevent		kq_proc;
 	nt_kevent		kq_done;
 	nt_kevent		kq_dead;
@@ -99,9 +108,25 @@ struct wb_ext {
 typedef struct wb_ext wb_ext;
 
 #define NTOSKRNL_TIMEOUTS	256
-struct callout ntoskrnl_callout[NTOSKRNL_TIMEOUTS];
-int ntoskrnl_callidx;
-#define CALLOUT_INC(i)	(i) = ((i) + 1) % NTOSKRNL_TIMEOUTS
+#ifdef NTOSKRNL_DEBUG_TIMERS
+static uint64_t ntoskrnl_timer_fires;
+static uint64_t ntoskrnl_timer_sets;
+static uint64_t ntoskrnl_timer_reloads;
+static uint64_t ntoskrnl_timer_cancels;
+#endif
+
+struct callout_entry {
+	struct callout		ce_callout;
+	list_entry		ce_list;
+};
+
+typedef struct callout_entry callout_entry;
+
+static struct list_entry ntoskrnl_calllist;
+static struct mtx ntoskrnl_calllock;
+
+static struct list_entry ntoskrnl_intlist;
+static kspin_lock ntoskrnl_intlock;
 
 static uint8_t RtlEqualUnicodeString(unicode_string *,
 	unicode_string *, uint8_t);
@@ -126,8 +151,12 @@ static void ntoskrnl_waittest(nt_dispatch_header *, uint32_t);
 static void ntoskrnl_satisfy_wait(nt_dispatch_header *, struct thread *);
 static void ntoskrnl_satisfy_multiple_waits(wait_block *);
 static int ntoskrnl_is_signalled(nt_dispatch_header *, struct thread *);
+static void ntoskrnl_insert_timer(ktimer *, int);
+static void ntoskrnl_remove_timer(ktimer *);
+#ifdef NTOSKRNL_DEBUG_TIMERS
+static void ntoskrnl_show_timers(void);
+#endif
 static void ntoskrnl_timercall(void *);
-static void ntoskrnl_run_dpc(void *);
 static void ntoskrnl_dpc_thread(void *);
 static void ntoskrnl_destroy_dpc_threads(void);
 static void ntoskrnl_destroy_workitem_threads(void);
@@ -136,9 +165,6 @@ static void ntoskrnl_workitem(device_object *, void *);
 static void ntoskrnl_unicode_to_ascii(uint16_t *, char *, int);
 static void ntoskrnl_ascii_to_unicode(char *, uint16_t *, int);
 static uint8_t ntoskrnl_insert_dpc(list_entry *, kdpc *);
-static device_t ntoskrnl_finddev(device_t, uint32_t,
-	uint8_t, uint8_t, struct resource **);
-static void ntoskrnl_intr(void *);
 static void WRITE_REGISTER_USHORT(uint16_t *, uint16_t);
 static uint16_t READ_REGISTER_USHORT(uint16_t *);
 static void WRITE_REGISTER_ULONG(uint32_t *, uint32_t);
@@ -166,14 +192,10 @@ static void ExInitializeNPagedLookasideList(npaged_lookaside_list *,
 	uint32_t, size_t, uint32_t, uint16_t);
 static void ExDeleteNPagedLookasideList(npaged_lookaside_list *);
 static slist_entry
-	*InterlockedPushEntrySList(slist_header *, slist_entry *);
-static slist_entry *InterlockedPopEntrySList(slist_header *);
-static slist_entry
 	*ExInterlockedPushEntrySList(slist_header *,
 	slist_entry *, kspin_lock *);
 static slist_entry
 	*ExInterlockedPopEntrySList(slist_header *, kspin_lock *);
-static uint16_t ExQueryDepthSList(slist_header *);
 static uint32_t InterlockedIncrement(volatile uint32_t *);
 static uint32_t InterlockedDecrement(volatile uint32_t *);
 static void ExInterlockedAddLargeStatistic(uint64_t *, uint32_t);
@@ -215,7 +237,7 @@ static void DbgBreakPoint(void);
 static void dummy(void);
 
 static struct mtx ntoskrnl_dispatchlock;
-static kspin_lock ntoskrnl_global;
+static struct mtx ntoskrnl_interlock;
 static kspin_lock ntoskrnl_cancellock;
 static int ntoskrnl_kth = 0;
 static struct nt_objref_head ntoskrnl_reflist;
@@ -232,14 +254,20 @@ ntoskrnl_libinit()
 	int			error;
 	struct proc		*p;
 	kdpc_queue		*kq;
+	callout_entry		*e;
 	int			i;
 	char			name[64];
 
 	mtx_init(&ntoskrnl_dispatchlock,
 	    "ntoskrnl dispatch lock", MTX_NDIS_LOCK, MTX_DEF|MTX_RECURSE);
-	KeInitializeSpinLock(&ntoskrnl_global);
+	mtx_init(&ntoskrnl_interlock, MTX_NTOSKRNL_SPIN_LOCK, NULL, MTX_SPIN);
 	KeInitializeSpinLock(&ntoskrnl_cancellock);
+	KeInitializeSpinLock(&ntoskrnl_intlock);
 	TAILQ_INIT(&ntoskrnl_reflist);
+
+	InitializeListHead(&ntoskrnl_calllist);
+	InitializeListHead(&ntoskrnl_intlist);
+	mtx_init(&ntoskrnl_calllock, MTX_NTOSKRNL_SPIN_LOCK, NULL, MTX_SPIN);
 
 	kq_queues = ExAllocatePoolWithTag(NonPagedPool,
 	    sizeof(kdpc_queue) * mp_ncpus, 0);
@@ -291,8 +319,15 @@ ntoskrnl_libinit()
 		patch++;
 	}
 
-	for (i = 0; i < NTOSKRNL_TIMEOUTS; i++)
-		callout_init(&ntoskrnl_callout[i], CALLOUT_MPSAFE);
+	for (i = 0; i < NTOSKRNL_TIMEOUTS; i++) {
+		e = ExAllocatePoolWithTag(NonPagedPool,
+		    sizeof(callout_entry), 0);
+		if (e == NULL)
+			panic("failed to allocate timeouts");
+		mtx_lock_spin(&ntoskrnl_calllock);
+		InsertHeadList((&ntoskrnl_calllist), (&e->ce_list));
+		mtx_unlock_spin(&ntoskrnl_calllock);
+	}
 
 	/*
 	 * MDLs are supposed to be variable size (they describe
@@ -320,6 +355,8 @@ int
 ntoskrnl_libfini()
 {
 	image_patch_table	*patch;
+	callout_entry		*e;
+	list_entry		*l;
 
 	patch = ntoskrnl_functbl;
 	while (patch->ipt_func != NULL) {
@@ -338,7 +375,19 @@ ntoskrnl_libfini()
 	uma_zdestroy(mdl_zone);
 	uma_zdestroy(iw_zone);
 
+	mtx_lock_spin(&ntoskrnl_calllock);
+	while(!IsListEmpty(&ntoskrnl_calllist)) {
+		l = RemoveHeadList(&ntoskrnl_calllist);
+		e = CONTAINING_RECORD(l, callout_entry, ce_list);
+		mtx_unlock_spin(&ntoskrnl_calllock);
+		ExFreePool(e);
+		mtx_lock_spin(&ntoskrnl_calllock);
+	}
+	mtx_unlock_spin(&ntoskrnl_calllock);
+
 	mtx_destroy(&ntoskrnl_dispatchlock);
+	mtx_destroy(&ntoskrnl_interlock);
+	mtx_destroy(&ntoskrnl_calllock);
 
 	return(0);
 }
@@ -1132,100 +1181,41 @@ IofCompleteRequest(ip, prioboost)
 	return;
 }
 
-static device_t
-ntoskrnl_finddev(dev, vector, irql, shared, res)
-	device_t		dev;
-	uint32_t		vector;
-	uint8_t			irql;
-	uint8_t			shared;
-	struct resource		**res;
-{
-	device_t		*children;
-	device_t		matching_dev;
-	int			childcnt;
-	struct resource		*r;
-	struct resource_list	*rl;
-	struct resource_list_entry	*rle;
-	uint32_t		flags;
-	int			i;
-
-	/* We only want devices that have been successfully probed. */
-
-	if (device_is_alive(dev) == FALSE)
-		return(NULL);
-
-	device_get_children(dev, &children, &childcnt);
-
-	/*
-	 * If this device has no children, it's a leaf: we can
-	 * examine its resources. If the interrupt resource we
-	 * want isn't here, we return NULL, otherwise we return
-	 * the device to terminate the recursive search.
-	 */
-
-	if (childcnt == 0) {
-		rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
-		if (rl == NULL)
-			return(NULL);
-#if __FreeBSD_version < 600022
-		SLIST_FOREACH(rle, rl, link) {
-#else
-		STAILQ_FOREACH(rle, rl, link) {
-#endif
-			r = rle->res;
-
-			if (r == NULL)
-				continue;
-
-			flags = rman_get_flags(r);
-
-			if (!(flags & RF_ACTIVE))
-				continue;
-
-			if (shared == TRUE && !(flags & RF_SHAREABLE))
-				continue;
-
-			if (rle->type == SYS_RES_IRQ &&
-			    rman_get_start(r) == irql) {
-				*res = r;
-				return(dev);
-			}
-		}
-		/* No match. */
-		return (NULL);
-	}
-
-	/*
-	 * If this device has children, do another
-	 * level of recursion to inspect them.
-	 */
-
-	for (i = 0; i < childcnt; i++) {
-		matching_dev = ntoskrnl_finddev(children[i],
-		    vector, irql, shared, res);
-		if (matching_dev != NULL) {
-			free(children, M_TEMP);
-			return(matching_dev);
-		}
-	}
-
-	free(children, M_TEMP);
-	return(NULL);
-}
-
-static void
+void
 ntoskrnl_intr(arg)
 	void			*arg;
 {
 	kinterrupt		*iobj;
 	uint8_t			irql;
+	list_entry		*l;
 
-	iobj = arg;
+	KeAcquireSpinLock(&ntoskrnl_intlock, &irql);
+	l = ntoskrnl_intlist.nle_flink;
+	while (l != &ntoskrnl_intlist) {
+		iobj = CONTAINING_RECORD(l, kinterrupt, ki_list);
+		MSCALL1(iobj->ki_svcfunc, iobj->ki_svcctx);
+		l = l->nle_flink;
+	}
+	KeReleaseSpinLock(&ntoskrnl_intlock, irql);
 
-	KeAcquireSpinLock(iobj->ki_lock, &irql);
-	MSCALL1(iobj->ki_svcfunc, iobj->ki_svcctx);
-	KeReleaseSpinLock(iobj->ki_lock, irql);
+	return;
+}
 
+uint8_t
+KeAcquireInterruptSpinLock(iobj)
+	kinterrupt		*iobj;
+{
+	uint8_t			irql;
+	KeAcquireSpinLock(&ntoskrnl_intlock, &irql);
+	return(irql);
+}
+
+void
+KeReleaseInterruptSpinLock(iobj, irql)
+	kinterrupt		*iobj;
+	uint8_t			irql;
+{
+	KeReleaseSpinLock(&ntoskrnl_intlock, irql);
 	return;
 }
 
@@ -1237,18 +1227,27 @@ KeSynchronizeExecution(iobj, syncfunc, syncctx)
 {
 	uint8_t			irql;
 	
-	KeAcquireSpinLock(iobj->ki_lock, &irql);
+	KeAcquireSpinLock(&ntoskrnl_intlock, &irql);
 	MSCALL1(syncfunc, syncctx);
-	KeReleaseSpinLock(iobj->ki_lock, irql);
+	KeReleaseSpinLock(&ntoskrnl_intlock, irql);
 
 	return(TRUE);
 }
 
 /*
- * This routine is a pain because the only thing we get passed
- * here is the interrupt request level and vector, but bus_setup_intr()
- * needs the device too. We can hack around this for now, but it's
- * awkward.
+ * IoConnectInterrupt() is passed only the interrupt vector and
+ * irql that a device wants to use, but no device-specific tag
+ * of any kind. This conflicts rather badly with FreeBSD's
+ * bus_setup_intr(), which needs the device_t for the device
+ * requesting interrupt delivery. In order to bypass this
+ * inconsistency, we implement a second level of interrupt
+ * dispatching on top of bus_setup_intr(). All devices use
+ * ntoskrnl_intr() as their ISR, and any device requesting
+ * interrupts will be registered with ntoskrnl_intr()'s interrupt
+ * dispatch list. When an interrupt arrives, we walk the list
+ * and invoke all the registered ISRs. This effectively makes all
+ * interrupts shared, but it's the only way to duplicate the
+ * semantics of IoConnectInterrupt() and IoDisconnectInterrupt() properly.
  */
 
 uint32_t
@@ -1266,35 +1265,12 @@ IoConnectInterrupt(iobj, svcfunc, svcctx, lock, vector, irql,
 	uint32_t		affinity;
 	uint8_t			savefloat;
 {
-	devclass_t		nexus_class;
-	device_t		*nexus_devs, devp;
-	int			nexus_count = 0;
-	device_t		matching_dev = NULL;
-	struct resource		*res;
-	int			i, error;
-
-	nexus_class = devclass_find("nexus");
-	devclass_get_devices(nexus_class, &nexus_devs, &nexus_count);
-
-	for (i = 0; i < nexus_count; i++) {
-		devp = nexus_devs[i];
-		matching_dev = ntoskrnl_finddev(devp, vector,
-		    irql, shared, &res);
-		if (matching_dev)
-			break;
-	}
-
-	free(nexus_devs, M_TEMP);
-
-	if (matching_dev == NULL)
-		return(STATUS_INVALID_PARAMETER);
+	uint8_t			curirql;
 
 	*iobj = ExAllocatePoolWithTag(NonPagedPool, sizeof(kinterrupt), 0);
 	if (*iobj == NULL)
 		return(STATUS_INSUFFICIENT_RESOURCES);
 
-	(*iobj)->ki_dev = matching_dev;
-	(*iobj)->ki_irq = res;
 	(*iobj)->ki_svcfunc = svcfunc;
 	(*iobj)->ki_svcctx = svcctx;
 
@@ -1304,13 +1280,9 @@ IoConnectInterrupt(iobj, svcfunc, svcctx, lock, vector, irql,
 	} else
 		(*iobj)->ki_lock = lock;
 
-	error = bus_setup_intr(matching_dev, res, INTR_TYPE_NET | INTR_MPSAFE,
-	    ntoskrnl_intr, *iobj, &(*iobj)->ki_cookie);
-
-	if (error) {
-		ExFreePool(iobj);
-		return (STATUS_INVALID_PARAMETER);
-	}
+	KeAcquireSpinLock(&ntoskrnl_intlock, &curirql);
+	InsertHeadList((&ntoskrnl_intlist), (&(*iobj)->ki_list));
+	KeReleaseSpinLock(&ntoskrnl_intlock, curirql);
 
 	return(STATUS_SUCCESS);
 }
@@ -1319,10 +1291,15 @@ void
 IoDisconnectInterrupt(iobj)
 	kinterrupt		*iobj;
 {
+	uint8_t			irql;
+
 	if (iobj == NULL)
 		return;
 
-	bus_teardown_intr(iobj->ki_dev, iobj->ki_irq, iobj->ki_cookie);
+	KeAcquireSpinLock(&ntoskrnl_intlock, &irql);
+	RemoveEntryList((&iobj->ki_list));
+	KeReleaseSpinLock(&ntoskrnl_intlock, irql);
+
 	ExFreePool(iobj);
 
 	return;
@@ -1537,6 +1514,7 @@ ntoskrnl_waittest(obj, increment)
 		if (satisfied == TRUE)
 			cv_broadcastpri(&we->we_cv, w->wb_oldpri -
 			    (increment * 4));
+
 		e = e->nle_flink;
 	}
 
@@ -2227,25 +2205,29 @@ ExDeleteNPagedLookasideList(lookaside)
 	return;
 }
 
-static slist_entry *
+slist_entry *
 InterlockedPushEntrySList(head, entry)
 	slist_header		*head;
 	slist_entry		*entry;
 {
 	slist_entry		*oldhead;
 
-	oldhead = ExInterlockedPushEntrySList(head, entry, &ntoskrnl_global);
+	mtx_lock_spin(&ntoskrnl_interlock);
+	oldhead = ntoskrnl_pushsl(head, entry);
+	mtx_unlock_spin(&ntoskrnl_interlock);
 
 	return(oldhead);
 }
 
-static slist_entry *
+slist_entry *
 InterlockedPopEntrySList(head)
 	slist_header		*head;
 {
 	slist_entry		*first;
 
-	first = ExInterlockedPopEntrySList(head, &ntoskrnl_global);
+	mtx_lock_spin(&ntoskrnl_interlock);
+	first = ntoskrnl_popsl(head);
+	mtx_unlock_spin(&ntoskrnl_interlock);
 
 	return(first);
 }
@@ -2256,14 +2238,7 @@ ExInterlockedPushEntrySList(head, entry, lock)
 	slist_entry		*entry;
 	kspin_lock		*lock;
 {
-	slist_entry		*oldhead;
-	uint8_t			irql;
-
-	KeAcquireSpinLock(lock, &irql);
-	oldhead = ntoskrnl_pushsl(head, entry);
-	KeReleaseSpinLock(lock, irql);
-
-	return(oldhead);
+	return(InterlockedPushEntrySList(head, entry));
 }
 
 static slist_entry *
@@ -2271,37 +2246,22 @@ ExInterlockedPopEntrySList(head, lock)
 	slist_header		*head;
 	kspin_lock		*lock;
 {
-	slist_entry		*first;
-	uint8_t			irql;
-
-	KeAcquireSpinLock(lock, &irql);
-	first = ntoskrnl_popsl(head);
-	KeReleaseSpinLock(lock, irql);
-
-	return(first);
+	return(InterlockedPopEntrySList(head));
 }
 
-static uint16_t
+uint16_t
 ExQueryDepthSList(head)
 	slist_header		*head;
 {
 	uint16_t		depth;
-	uint8_t			irql;
 
-	KeAcquireSpinLock(&ntoskrnl_global, &irql);
+	mtx_lock_spin(&ntoskrnl_interlock);
 	depth = head->slh_list.slh_depth;
-	KeReleaseSpinLock(&ntoskrnl_global, irql);
+	mtx_unlock_spin(&ntoskrnl_interlock);
 
 	return(depth);
 }
 
-/*
- * The KeInitializeSpinLock(), KefAcquireSpinLockAtDpcLevel()
- * and KefReleaseSpinLockFromDpcLevel() appear to be analagous
- * to splnet()/splx() in their use. We can't create a new mutex
- * lock here because there is no complimentary KeFreeSpinLock()
- * function. Instead, we grab a mutex from the mutex pool.
- */
 void
 KeInitializeSpinLock(lock)
 	kspin_lock		*lock;
@@ -2316,8 +2276,18 @@ void
 KefAcquireSpinLockAtDpcLevel(lock)
 	kspin_lock		*lock;
 {
-	while (atomic_cmpset_acq_int((volatile u_int *)lock, 0, 1) == 0)
+#ifdef NTOSKRNL_DEBUG_SPINLOCKS
+	int			i = 0;
+#endif
+
+	while (atomic_cmpset_acq_int((volatile u_int *)lock, 0, 1) == 0) {
 		/* sit and spin */;
+#ifdef NTOSKRNL_DEBUG_SPINLOCKS
+		i++;
+		if (i > 200000000)
+			panic("DEADLOCK!");
+#endif
+	}
 
 	return;
 }
@@ -2368,13 +2338,12 @@ InterlockedExchange(dst, val)
 	volatile uint32_t	*dst;
 	uintptr_t		val;
 {
-	uint8_t			irql;
 	uintptr_t		r;
 
-	KeAcquireSpinLock(&ntoskrnl_global, &irql);
+	mtx_lock_spin(&ntoskrnl_interlock);
 	r = *dst;
 	*dst = val;
-	KeReleaseSpinLock(&ntoskrnl_global, irql);
+	mtx_unlock_spin(&ntoskrnl_interlock);
 
 	return(r);
 }
@@ -2400,11 +2369,9 @@ ExInterlockedAddLargeStatistic(addend, inc)
 	uint64_t		*addend;
 	uint32_t		inc;
 {
-	uint8_t			irql;
-
-	KeAcquireSpinLock(&ntoskrnl_global, &irql);
+	mtx_lock_spin(&ntoskrnl_interlock);
 	*addend += inc;
-	KeReleaseSpinLock(&ntoskrnl_global, irql);
+	mtx_unlock_spin(&ntoskrnl_interlock);
 
 	return;
 };
@@ -2579,23 +2546,24 @@ ntoskrnl_workitem_thread(arg)
 	kdpc_queue		*kq;
 	list_entry		*l;
 	io_workitem		*iw;
+	uint8_t			irql;
 
 	kq = arg;
 
 	InitializeListHead(&kq->kq_disp);
 	kq->kq_td = curthread;
 	kq->kq_exit = 0;
-	mtx_init(&kq->kq_lock, "NDIS thread lock", NULL, MTX_SPIN);
+	KeInitializeSpinLock(&kq->kq_lock);
 	KeInitializeEvent(&kq->kq_proc, EVENT_TYPE_SYNC, FALSE);
 	KeInitializeEvent(&kq->kq_dead, EVENT_TYPE_SYNC, FALSE);
 
 	while (1) {
 		KeWaitForSingleObject(&kq->kq_proc, 0, 0, TRUE, NULL);
 
-		mtx_lock_spin(&kq->kq_lock);
+		KeAcquireSpinLock(&kq->kq_lock, &irql);
 
 		if (kq->kq_exit) {
-			mtx_unlock_spin(&kq->kq_lock);
+			KeReleaseSpinLock(&kq->kq_lock, irql);
 			KeSetEvent(&kq->kq_dead, IO_NO_INCREMENT, FALSE);
 			break;
 		}
@@ -2607,15 +2575,13 @@ ntoskrnl_workitem_thread(arg)
 			InitializeListHead((&iw->iw_listentry));
 			if (iw->iw_func == NULL)
 				continue;
-			mtx_unlock_spin(&kq->kq_lock);
+			KeReleaseSpinLock(&kq->kq_lock, irql);
 			MSCALL2(iw->iw_func, iw->iw_dobj, iw->iw_ctx);
-			mtx_lock_spin(&kq->kq_lock);
+			KeAcquireSpinLock(&kq->kq_lock, &irql);
 		}
 
-		mtx_unlock_spin(&kq->kq_lock);
+		KeReleaseSpinLock(&kq->kq_lock, irql);
 	}
-
-	mtx_destroy(&kq->kq_lock);
 
 #if __FreeBSD_version < 502113
         mtx_lock(&Giant);
@@ -2679,13 +2645,11 @@ IoQueueWorkItem(iw, iw_func, qtype, ctx)
 	kdpc_queue		*kq;
 	list_entry		*l;
 	io_workitem		*cur;
-
-	iw->iw_func = iw_func;
-	iw->iw_ctx = ctx;
+	uint8_t			irql;
 
 	kq = wq_queues + iw->iw_idx;
 
-	mtx_lock_spin(&kq->kq_lock);
+	KeAcquireSpinLock(&kq->kq_lock, &irql);
 
 	/*
 	 * Traverse the list and make sure this workitem hasn't
@@ -2698,14 +2662,17 @@ IoQueueWorkItem(iw, iw_func, qtype, ctx)
 		cur = CONTAINING_RECORD(l, io_workitem, iw_listentry);
 		if (cur == iw) {
 			/* Already queued -- do nothing. */
-			mtx_unlock_spin(&kq->kq_lock);
+			KeReleaseSpinLock(&kq->kq_lock, irql);
 			return;
 		}
 		l = l->nle_flink;
 	}
 
+	iw->iw_func = iw_func;
+	iw->iw_ctx = ctx;
+
 	InsertTailList((&kq->kq_disp), (&iw->iw_listentry));
-	mtx_unlock_spin(&kq->kq_lock);
+	KeReleaseSpinLock(&kq->kq_lock, irql);
 
 	KeSetEvent(&kq->kq_proc, IO_NO_INCREMENT, FALSE);
 
@@ -2765,6 +2732,7 @@ ExQueueWorkItem(w, qtype)
 	kdpc_queue		*kq;
 	list_entry		*l;
 	io_workitem		*cur;
+	uint8_t			irql;
 
 
 	/*
@@ -2777,18 +2745,18 @@ ExQueueWorkItem(w, qtype)
 	 */
 
 	kq = wq_queues + WORKITEM_LEGACY_THREAD;
-	mtx_lock_spin(&kq->kq_lock);
+	KeAcquireSpinLock(&kq->kq_lock, &irql);
 	l = kq->kq_disp.nle_flink;
 	while (l != &kq->kq_disp) {
 		cur = CONTAINING_RECORD(l, io_workitem, iw_listentry);
 		if (cur->iw_dobj == (device_object *)w) {
 			/* Already queued -- do nothing. */
-			mtx_unlock_spin(&kq->kq_lock);
+			KeReleaseSpinLock(&kq->kq_lock, irql);
 			return;
 		}
 		l = l->nle_flink;
 	}
-	mtx_unlock_spin(&kq->kq_lock);
+	KeReleaseSpinLock(&kq->kq_lock, irql);
 
 	iw = IoAllocateWorkItem((device_object *)w);
 	if (iw == NULL)
@@ -3362,12 +3330,28 @@ ntoskrnl_timercall(arg)
 {
 	ktimer			*timer;
 	struct timeval		tv;
+	kdpc			*dpc;
 
 	mtx_lock(&ntoskrnl_dispatchlock);
 
 	timer = arg;
 
-	callout_init(timer->k_callout, CALLOUT_MPSAFE);
+#ifdef NTOSKRNL_DEBUG_TIMERS
+	ntoskrnl_timer_fires++;
+#endif
+	ntoskrnl_remove_timer(timer);
+
+	/*
+	 * This should never happen, but complain
+	 * if it does.
+	 */
+
+	if (timer->k_header.dh_inserted == FALSE) {
+		mtx_unlock(&ntoskrnl_dispatchlock);
+		printf("NTOS: timer %p fired even though "
+		    "it was canceled\n", timer);
+		return;
+	}
 
 	/* Mark the timer as no longer being on the timer queue. */
 
@@ -3391,18 +3375,111 @@ ntoskrnl_timercall(arg)
 		tv.tv_sec = 0;
 		tv.tv_usec = timer->k_period * 1000;
 		timer->k_header.dh_inserted = TRUE;
-		timer->k_callout = &ntoskrnl_callout[ntoskrnl_callidx];
-		CALLOUT_INC(ntoskrnl_callidx);
-		callout_reset(timer->k_callout, tvtohz(&tv),
-		    ntoskrnl_timercall, timer);
+		ntoskrnl_insert_timer(timer, tvtohz(&tv));
+#ifdef NTOSKRNL_DEBUG_TIMERS
+		ntoskrnl_timer_reloads++;
+#endif
 	}
+
+	dpc = timer->k_dpc;
+
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	/* If there's a DPC associated with the timer, queue it up. */
 
-	if (timer->k_dpc != NULL)
-		KeInsertQueueDpc(timer->k_dpc, NULL, NULL);
+	if (dpc != NULL)
+		KeInsertQueueDpc(dpc, NULL, NULL);
 
-	mtx_unlock(&ntoskrnl_dispatchlock);
+	return;
+}
+
+#ifdef NTOSKRNL_DEBUG_TIMERS
+static int
+sysctl_show_timers(SYSCTL_HANDLER_ARGS)
+{
+	int			ret;
+
+        ret = 0;
+	ntoskrnl_show_timers();
+        return (sysctl_handle_int(oidp, &ret, 0, req));
+}
+
+static void
+ntoskrnl_show_timers()
+{
+	int			i = 0;
+	list_entry		*l;
+
+	mtx_lock_spin(&ntoskrnl_calllock);
+	l = ntoskrnl_calllist.nle_flink;
+	while(l != &ntoskrnl_calllist) {
+		i++;
+		l = l->nle_flink;
+	}
+	mtx_unlock_spin(&ntoskrnl_calllock);
+
+	printf("\n");
+	printf("%d timers available (out of %d)\n", i, NTOSKRNL_TIMEOUTS);
+	printf("timer sets: %qu\n", ntoskrnl_timer_sets);
+	printf("timer reloads: %qu\n", ntoskrnl_timer_reloads);
+	printf("timer cancels: %qu\n", ntoskrnl_timer_cancels);
+	printf("timer fires: %qu\n", ntoskrnl_timer_fires);
+	printf("\n");
+
+	return;
+}
+#endif
+
+/*
+ * Must be called with dispatcher lock held.
+ */
+
+static void
+ntoskrnl_insert_timer(timer, ticks)
+	ktimer			*timer;
+	int			ticks;
+{
+	callout_entry		*e;
+	list_entry		*l;
+	struct callout		*c;
+
+	/*
+	 * Try and allocate a timer.
+	 */
+	mtx_lock_spin(&ntoskrnl_calllock);
+	if (IsListEmpty(&ntoskrnl_calllist)) {
+		mtx_unlock_spin(&ntoskrnl_calllock);
+#ifdef NTOSKRNL_DEBUG_TIMERS
+		ntoskrnl_show_timers();
+#endif
+		panic("out of timers!");
+	}
+	l = RemoveHeadList(&ntoskrnl_calllist);
+	mtx_unlock_spin(&ntoskrnl_calllock);
+
+	e = CONTAINING_RECORD(l, callout_entry, ce_list);
+	c = &e->ce_callout;
+
+	timer->k_callout = c;
+
+	callout_init(c, CALLOUT_MPSAFE);
+	callout_reset(c, ticks, ntoskrnl_timercall, timer);
+
+	return;
+}
+
+static void
+ntoskrnl_remove_timer(timer)
+	ktimer			*timer;
+{
+	callout_entry		*e;
+
+	e = (callout_entry *)timer->k_callout;
+	callout_stop(timer->k_callout);
+
+	mtx_lock_spin(&ntoskrnl_calllock);
+	InsertHeadList((&ntoskrnl_calllist), (&e->ce_list));
+	mtx_unlock_spin(&ntoskrnl_calllock);
 
 	return;
 }
@@ -3465,13 +3542,15 @@ ntoskrnl_dpc_thread(arg)
 	kdpc_queue		*kq;
 	kdpc			*d;
 	list_entry		*l;
+	uint8_t			irql;
 
 	kq = arg;
 
 	InitializeListHead(&kq->kq_disp);
 	kq->kq_td = curthread;
 	kq->kq_exit = 0;
-	mtx_init(&kq->kq_lock, "NDIS thread lock", NULL, MTX_SPIN);
+	kq->kq_running = FALSE;
+	KeInitializeSpinLock(&kq->kq_lock);
 	KeInitializeEvent(&kq->kq_proc, EVENT_TYPE_SYNC, FALSE);
 	KeInitializeEvent(&kq->kq_done, EVENT_TYPE_SYNC, FALSE);
 	KeInitializeEvent(&kq->kq_dead, EVENT_TYPE_SYNC, FALSE);
@@ -3493,63 +3572,38 @@ ntoskrnl_dpc_thread(arg)
 	while (1) {
 		KeWaitForSingleObject(&kq->kq_proc, 0, 0, TRUE, NULL);
 
-		mtx_lock_spin(&kq->kq_lock);
+		KeAcquireSpinLock(&kq->kq_lock, &irql);
 
 		if (kq->kq_exit) {
-			mtx_unlock_spin(&kq->kq_lock);
+			KeReleaseSpinLock(&kq->kq_lock, irql);
 			KeSetEvent(&kq->kq_dead, IO_NO_INCREMENT, FALSE);
 			break;
 		}
+
+		kq->kq_running = TRUE;
 
 		while (!IsListEmpty(&kq->kq_disp)) {
 			l = RemoveHeadList((&kq->kq_disp));
 			d = CONTAINING_RECORD(l, kdpc, k_dpclistentry);
 			InitializeListHead((&d->k_dpclistentry));
-			d->k_lock = NULL;
-			mtx_unlock_spin(&kq->kq_lock);
-			ntoskrnl_run_dpc(d);
-			mtx_lock_spin(&kq->kq_lock);
+			KeReleaseSpinLockFromDpcLevel(&kq->kq_lock);
+			MSCALL4(d->k_deferedfunc, d, d->k_deferredctx,
+			    d->k_sysarg1, d->k_sysarg2);
+			KeAcquireSpinLockAtDpcLevel(&kq->kq_lock);
 		}
 
-		mtx_unlock_spin(&kq->kq_lock);
+		kq->kq_running = FALSE;
+
+		KeReleaseSpinLock(&kq->kq_lock, irql);
 
 		KeSetEvent(&kq->kq_done, IO_NO_INCREMENT, FALSE);
-
 	}
 
-	mtx_destroy(&kq->kq_lock);
 #if __FreeBSD_version < 502113
         mtx_lock(&Giant);
 #endif
         kthread_exit(0);
         return; /* notreached */
-}
-
-
-/*
- * This is a wrapper for Windows deferred procedure calls that
- * have been placed on an NDIS thread work queue. We need it
- * since the DPC could be a _stdcall function. Also, as far as
- * I can tell, defered procedure calls must run at DISPATCH_LEVEL.
- */
-static void
-ntoskrnl_run_dpc(arg)
-	void			*arg;
-{
-	kdpc_func		dpcfunc;
-	kdpc			*dpc;
-	uint8_t			irql;
-
-	dpc = arg;
-	dpcfunc = dpc->k_deferedfunc;
-	if (dpcfunc == NULL)
-		return;
-	irql = KeRaiseIrql(DISPATCH_LEVEL);
-	MSCALL4(dpcfunc, dpc, dpc->k_deferredctx,
-	    dpc->k_sysarg1, dpc->k_sysarg2);
-	KeLowerIrql(irql);
-
-	return;
 }
 
 static void
@@ -3589,10 +3643,10 @@ ntoskrnl_insert_dpc(head, dpc)
 		l = l->nle_flink;
 	}
 
-	if (dpc->k_importance == KDPC_IMPORTANCE_HIGH)
-		InsertHeadList((head), (&dpc->k_dpclistentry));
-	else
+	if (dpc->k_importance == KDPC_IMPORTANCE_LOW)
 		InsertTailList((head), (&dpc->k_dpclistentry));
+	else
+		InsertHeadList((head), (&dpc->k_dpclistentry));
 
 	return (TRUE);
 }
@@ -3611,11 +3665,6 @@ KeInitializeDpc(dpc, dpcfunc, dpcctx)
 	dpc->k_deferredctx = dpcctx;
 	dpc->k_num = KDPC_CPU_DEFAULT;
 	dpc->k_importance = KDPC_IMPORTANCE_MEDIUM;
-	/*
-	 * In case someone tries to dequeue a DPC that
-	 * hasn't been queued yet.
-	 */
-	dpc->k_lock = NULL;
 	InitializeListHead((&dpc->k_dpclistentry));
 
 	return;
@@ -3629,12 +3678,12 @@ KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 {
 	kdpc_queue		*kq;
 	uint8_t			r;
+	uint8_t			irql;
 
 	if (dpc == NULL)
 		return(FALSE);
 
-	dpc->k_sysarg1 = sysarg1;
-	dpc->k_sysarg2 = sysarg2;
+	irql = KeRaiseIrql(DISPATCH_LEVEL);
 
 	/*
 	 * By default, the DPC is queued to run on the same CPU
@@ -3647,16 +3696,13 @@ KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 	else
 		kq += dpc->k_num;
 
-	/*
-	 * Also by default, we put the DPC on the medium
-	 * priority queue.
-	 */
-
-	mtx_lock_spin(&kq->kq_lock);
+	KeAcquireSpinLockAtDpcLevel(&kq->kq_lock);
 	r = ntoskrnl_insert_dpc(&kq->kq_disp, dpc);
-	if (r == TRUE)
-		dpc->k_lock = &kq->kq_lock;
-	mtx_unlock_spin(&kq->kq_lock);
+	if (r == TRUE) {
+		dpc->k_sysarg1 = sysarg1;
+		dpc->k_sysarg2 = sysarg2;
+	}
+	KeReleaseSpinLock(&kq->kq_lock, irql);
 
 	if (r == FALSE)
 		return(r);
@@ -3670,26 +3716,27 @@ uint8_t
 KeRemoveQueueDpc(dpc)
 	kdpc			*dpc;
 {
-	struct mtx		*lock;
+	kdpc_queue		*kq;
+	uint8_t			irql;
 
 	if (dpc == NULL)
 		return(FALSE);
 
-	lock = dpc->k_lock;
+	irql = KeRaiseIrql(DISPATCH_LEVEL);
 
-	if (lock == NULL)
-		return(FALSE);
+	kq = kq_queues + dpc->k_num;
 
-	mtx_lock_spin(lock);
-	dpc->k_lock = NULL;
+	KeAcquireSpinLockAtDpcLevel(&kq->kq_lock);
 	if (dpc->k_dpclistentry.nle_flink == &dpc->k_dpclistentry) {
-		mtx_unlock_spin(lock);
+		KeReleaseSpinLockFromDpcLevel(&kq->kq_lock);
+		KeLowerIrql(irql);
 		return(FALSE);
 	}
 
 	RemoveEntryList((&dpc->k_dpclistentry));
 	InitializeListHead((&dpc->k_dpclistentry));
-	mtx_unlock_spin(lock);
+
+	KeReleaseSpinLock(&kq->kq_lock, irql);
 
 	return(TRUE);
 }
@@ -3763,7 +3810,10 @@ KeSetTimerEx(timer, duetime, period, dpc)
 	mtx_lock(&ntoskrnl_dispatchlock);
 
 	if (timer->k_header.dh_inserted == TRUE) {
-		callout_stop(timer->k_callout);
+		ntoskrnl_remove_timer(timer);
+#ifdef NTOSKRNL_DEBUG_TIMERS
+		ntoskrnl_timer_cancels++;
+#endif
 		timer->k_header.dh_inserted = FALSE;
 		pending = TRUE;
 	} else
@@ -3790,10 +3840,10 @@ KeSetTimerEx(timer, duetime, period, dpc)
 	}
 
 	timer->k_header.dh_inserted = TRUE;
-	timer->k_callout = &ntoskrnl_callout[ntoskrnl_callidx];
-	CALLOUT_INC(ntoskrnl_callidx);
-	callout_reset(timer->k_callout, tvtohz(&tv),
-	    ntoskrnl_timercall, timer);
+	ntoskrnl_insert_timer(timer, tvtohz(&tv));
+#ifdef NTOSKRNL_DEBUG_TIMERS
+	ntoskrnl_timer_sets++;
+#endif
 
 	mtx_unlock(&ntoskrnl_dispatchlock);
 
@@ -3830,7 +3880,10 @@ KeCancelTimer(timer)
 
 	if (timer->k_header.dh_inserted == TRUE) {
 		timer->k_header.dh_inserted = FALSE;
-		callout_stop(timer->k_callout);
+		ntoskrnl_remove_timer(timer);
+#ifdef NTOSKRNL_DEBUG_TIMERS
+		ntoskrnl_timer_cancels++;
+#endif
 	}
 
 	mtx_unlock(&ntoskrnl_dispatchlock);
@@ -3905,6 +3958,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(IoMakeAssociatedIrp, 2),
 	IMPORT_SFUNC(IoFreeIrp, 1),
 	IMPORT_SFUNC(IoInitializeIrp, 3),
+	IMPORT_SFUNC(KeAcquireInterruptSpinLock, 1),
+	IMPORT_SFUNC(KeReleaseInterruptSpinLock, 2),
 	IMPORT_SFUNC(KeSynchronizeExecution, 3),
 	IMPORT_SFUNC(KeWaitForSingleObject, 5),
 	IMPORT_SFUNC(KeWaitForMultipleObjects, 8),

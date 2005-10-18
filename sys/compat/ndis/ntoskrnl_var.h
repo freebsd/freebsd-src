@@ -35,6 +35,8 @@
 #ifndef _NTOSKRNL_VAR_H_
 #define _NTOSKRNL_VAR_H_
 
+#define MTX_NTOSKRNL_SPIN_LOCK "NDIS thread lock"
+
 /*
  * us_buf is really a wchar_t *, but it's inconvenient to include
  * all the necessary header goop needed to define it, and it's a
@@ -573,7 +575,9 @@ typedef struct custom_extension custom_extension;
  */
 
 struct kinterrupt {
+	list_entry		ki_list;
 	device_t		ki_dev;
+	int			ki_rid;
 	void			*ki_cookie;
 	struct resource		*ki_irq;
 	kspin_lock		ki_lock_priv;
@@ -1304,6 +1308,12 @@ extern void ctxsw_wtou(void);
 extern int ntoskrnl_libinit(void);
 extern int ntoskrnl_libfini(void);
 
+extern void ntoskrnl_intr(void *);
+
+extern uint16_t ExQueryDepthSList(slist_header *);
+extern slist_entry
+	*InterlockedPushEntrySList(slist_header *, slist_entry *);
+extern slist_entry *InterlockedPopEntrySList(slist_header *);
 extern uint32_t RtlUnicodeStringToAnsiString(ansi_string *,
 	unicode_string *, uint8_t);
 extern uint32_t RtlAnsiStringToUnicodeString(unicode_string *,
@@ -1342,6 +1352,8 @@ extern void KeAcquireSpinLockAtDpcLevel(kspin_lock *);
 extern void KeReleaseSpinLockFromDpcLevel(kspin_lock *);
 #endif
 extern void KeInitializeSpinLock(kspin_lock *);
+extern uint8_t KeAcquireInterruptSpinLock(kinterrupt *);
+extern void KeReleaseInterruptSpinLock(kinterrupt *, uint8_t);
 extern uint8_t KeSynchronizeExecution(kinterrupt *, void *, void *);
 extern uintptr_t InterlockedExchange(volatile uint32_t *,
 	uintptr_t);
