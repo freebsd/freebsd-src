@@ -322,7 +322,7 @@ __sem_trywait(sem_t *sem)
 
 int
 __sem_timedwait(sem_t * __restrict sem,
-    struct timespec * __restrict abs_timeout)
+    const struct timespec * __restrict abs_timeout)
 {
 	if (sem_check_validity(sem) != 0)
 		return (-1);
