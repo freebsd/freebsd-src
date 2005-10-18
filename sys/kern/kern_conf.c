@@ -57,8 +57,7 @@ static struct cdev *make_dev_credv(struct cdevsw *devsw, int minornr,
 void
 dev_lock(void)
 {
-	if (!mtx_initialized(&devmtx))
-		mtx_init(&devmtx, "cdev", NULL, MTX_DEF);
+
 	mtx_lock(&devmtx);
 }
 
