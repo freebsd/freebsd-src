@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 
-#include <pci/if_dcreg.h>
+#include <dev/dc/if_dcreg.h>
 
 #include "miibus_if.h"
 
