@@ -54,6 +54,9 @@ __FBSDID("$FreeBSD$");
 #define	SMBIOS_SIG		"_SM_"
 #define	SMBIOS_DMI_SIG		"_DMI_"
 
+static u_int8_t	smbios_enabled_sockets = 0;
+static u_int8_t	smbios_populated_sockets = 0;
+
 static u_int8_t	*smbios_parse_table(const u_int8_t *dmi);
 static void	smbios_setenv(const char *env, const u_int8_t *dmi,
 		    const int offset);
@@ -66,6 +69,7 @@ smbios_detect(void)
 	u_int8_t	*smbios, *dmi, *addr;
 	u_int16_t	i, length, count;
 	u_int32_t	paddr;
+	char		buf[4];
 
 	/* locate and validate the SMBIOS */
 	smbios = smbios_sigsearch(PTOV(SMBIOS_START), SMBIOS_LENGTH);
@@ -79,6 +83,10 @@ smbios_detect(void)
 	for (dmi = addr = PTOV(paddr), i = 0;
 	     dmi - addr < length && i < count; i++)
 		dmi = smbios_parse_table(dmi);
+	sprintf(buf, "%d", smbios_enabled_sockets);
+	setenv("smbios.socket.enabled", buf, 1);
+	sprintf(buf, "%d", smbios_populated_sockets);
+	setenv("smbios.socket.populated", buf, 1);
 }
 
 static u_int8_t *
@@ -108,6 +116,30 @@ smbios_parse_table(const u_int8_t *dmi)
 	case 3:		/* Type 3: System Enclosure or Chassis */
 		smbios_setenv("smbios.chassis.maker", dmi, 0x04);
 		smbios_setenv("smbios.chassis.version", dmi, 0x06);
+		break;
+
+	case 4:		/* Type 4: Processor Information */
+		/*
+		 * Offset 18h: Processor Status
+		 *
+		 * Bit 7	Reserved, must be 0
+		 * Bit 6	CPU Socket Populated
+		 *		1 - CPU Socket Populated
+		 *		0 - CPU Socket Unpopulated
+		 * Bit 5:3	Reserved, must be zero
+		 * Bit 2:0	CPU Status
+		 *		0h - Unknown
+		 *		1h - CPU Enabled
+		 *		2h - CPU Disabled by User via BIOS Setup
+		 *		3h - CPU Disabled by BIOS (POST Error)
+		 *		4h - CPU is Idle, waiting to be enabled
+		 *		5-6h - Reserved
+		 *		7h - Other
+		 */
+		if ((dmi[0x18] & 0x07) == 1)
+			smbios_enabled_sockets++;
+		if (dmi[0x18] & 0x40)
+			smbios_populated_sockets++;
 		break;
 
 	default: /* skip other types */
