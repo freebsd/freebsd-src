@@ -2493,7 +2493,8 @@ em_get_buf(int i, struct adapter *adapter,
         }
         rx_buffer->m_head = mp;
         adapter->rx_desc_base[i].buffer_addr = htole64(paddr);
-        bus_dmamap_sync(adapter->rxtag, rx_buffer->map, BUS_DMASYNC_PREREAD);
+        bus_dmamap_sync(adapter->rxtag, rx_buffer->map, BUS_DMASYNC_PREREAD |
+	    BUS_DMASYNC_PREWRITE);
 
         return(0);
 }
@@ -2863,6 +2864,8 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 
 		/* Zero out the receive descriptors status  */
 		current_desc->status = 0;
+		bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
  
 		/* Advance the E1000's Receive Queue #0  "Tail Pointer". */
                 E1000_WRITE_REG(&adapter->hw, RDT, i);
@@ -2879,8 +2882,6 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 		}
 		current_desc = &adapter->rx_desc_base[i];
 	}
-	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	adapter->next_rx_desc_to_check = i;
 	return;
 }
