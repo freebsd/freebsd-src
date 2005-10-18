@@ -343,6 +343,7 @@ typedef uint8_t ndis_kirql;
 #define NDIS_80211_NETTYPE_11DS		0x00000001
 #define NDIS_80211_NETTYPE_11OFDM5	0x00000002
 #define NDIS_80211_NETTYPE_11OFDM24	0x00000003
+#define NDIS_80211_NETTYPE_AUTO		0x00000004
 
 struct ndis_80211_nettype_list {
 	uint32_t		ntl_items;
@@ -1312,11 +1313,23 @@ struct ndis_packet {
 	void			*np_softc;
 	void			*np_m0;
 	int			np_txidx;
-	kdpc			np_dpc;
-	kspin_lock		np_lock;
+	list_entry		np_list;
 };
 
 typedef struct ndis_packet ndis_packet;
+
+struct ndis_packet_pool {
+	slist_header		np_head;
+	int			np_dead;
+	nt_kevent		np_event;
+	kspin_lock		np_lock;
+	int			np_cnt;
+	int			np_len;
+	int			np_protrsvd;
+	void			*np_pktmem;
+};
+
+typedef struct ndis_packet_pool ndis_packet_pool;
 
 /* mbuf ext type for NDIS */
 #define EXT_NDIS		0x999
@@ -1617,8 +1630,11 @@ struct ndis_miniport_block {
 	ndis_status		nmb_setstat;
 	nt_kevent		nmb_setevent;
 	nt_kevent		nmb_resetevent;
+	io_workitem		*nmb_returnitem;
 	ndis_miniport_timer	*nmb_timerlist;
 	ndis_handle		nmb_rxpool;
+	list_entry		nmb_returnlist;
+	kspin_lock		nmb_returnlock;
 	TAILQ_ENTRY(ndis_miniport_block)	link;
 };
 
@@ -1747,7 +1763,7 @@ extern void NdisAllocatePacket(ndis_status *,
 	ndis_packet **, ndis_handle);
 extern void NdisFreePacket(ndis_packet *);
 extern ndis_status NdisScheduleWorkItem(ndis_work_item *);
-
+extern void NdisMSleep(uint32_t);
 __END_DECLS
 
 #endif /* _NDIS_VAR_H_ */
