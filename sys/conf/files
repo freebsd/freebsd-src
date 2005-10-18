@@ -518,6 +518,9 @@ dev/cs/if_cs_pccard.c		optional cs pccard
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
+dev/dc/if_dc.c			optional dc pci
+dev/dc/dcphy.c			optional dc pci
+dev/dc/pnphy.c			optional dc pci
 dev/dcons/dcons.c		optional dcons
 dev/dcons/dcons_crom.c		optional dcons_crom
 dev/dcons/dcons_os.c		optional dcons
@@ -704,7 +707,6 @@ dev/mii/amphy.c			optional miibus
 dev/mii/bmtphy.c		optional miibus
 dev/mii/brgphy.c		optional miibus
 dev/mii/ciphy.c			optional miibus
-dev/mii/dcphy.c			optional miibus pci
 dev/mii/e1000phy.c		optional miibus
 dev/mii/exphy.c			optional miibus
 dev/mii/inphy.c			optional miibus
@@ -716,7 +718,6 @@ dev/mii/mlphy.c			optional miibus
 dev/mii/nsgphy.c		optional miibus
 dev/mii/nsphy.c			optional miibus
 dev/mii/pnaphy.c		optional miibus
-dev/mii/pnphy.c			optional miibus
 dev/mii/qsphy.c			optional miibus
 dev/mii/rgephy.c		optional miibus
 dev/mii/rlphy.c			optional miibus
@@ -1819,7 +1820,6 @@ pci/agp_if.m			optional agp pci
 pci/alpm.c			optional alpm pci
 pci/amdpm.c			optional amdpm pci
 pci/amdpm.c			optional nfpm pci
-pci/if_dc.c			optional dc pci
 pci/if_de.c			optional de pci
 pci/if_mn.c			optional mn pci
 pci/if_pcn.c			optional pcn pci
