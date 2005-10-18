@@ -112,7 +112,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 static char ndis_filepath[MAXPATHLEN];
-extern struct nd_head ndis_devhead;
 
 SYSCTL_STRING(_hw, OID_AUTO, ndis_filepath, CTLFLAG_RW, ndis_filepath,
         MAXPATHLEN, "Path used by NdisOpenFile() to search for files");
@@ -238,7 +237,6 @@ static void NdisGetBufferPhysicalArraySize(ndis_buffer *,
 	uint32_t *);
 static void NdisQueryBufferOffset(ndis_buffer *,
 	uint32_t *, uint32_t *);
-static void NdisMSleep(uint32_t);
 static uint32_t NdisReadPcmciaAttributeMemory(ndis_handle,
 	uint32_t, void *, uint32_t);
 static uint32_t NdisWritePcmciaAttributeMemory(ndis_handle,
@@ -421,7 +419,6 @@ NdisMRegisterMiniport(handle, characteristics, len)
 	if (IoAllocateDriverObjectExtension(drv, (void *)1,
 	    sizeof(ndis_miniport_characteristics), (void **)&ch) !=
 	    STATUS_SUCCESS) {
-		printf("register error\n");
 		return(NDIS_STATUS_RESOURCES);
 	}
 
@@ -1846,27 +1843,43 @@ NdisAllocatePacketPool(status, pool, descnum, protrsvdlen)
 	uint32_t		descnum;
 	uint32_t		protrsvdlen;
 {
-	ndis_packet		*cur;
+	ndis_packet_pool	*p;
+	ndis_packet		*packets;
 	int			i;
 
-	*pool = malloc((sizeof(ndis_packet) + protrsvdlen) *
-	    ((descnum + NDIS_POOL_EXTRA) + 1),
-	    M_DEVBUF, M_NOWAIT|M_ZERO);
-
-	if (*pool == NULL) {
+	p = ExAllocatePoolWithTag(NonPagedPool, sizeof(ndis_packet_pool), 0);
+	if (p == NULL) {
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
 
-	cur = (ndis_packet *)*pool;
-	KeInitializeSpinLock(&cur->np_lock);
-	cur->np_private.npp_flags = 0x1; /* mark the head of the list */
-	cur->np_private.npp_totlen = 0; /* init deletetion flag */
-	for (i = 0; i < (descnum + NDIS_POOL_EXTRA); i++) {
-		cur->np_private.npp_head = (ndis_handle)(cur + 1);
-		cur++;
+	p->np_cnt = descnum + NDIS_POOL_EXTRA;
+	p->np_protrsvd = protrsvdlen;
+	p->np_len = sizeof(ndis_packet) + protrsvdlen;
+
+	packets = ExAllocatePoolWithTag(NonPagedPool, p->np_cnt *
+	    p->np_len, 0);
+
+
+	if (packets == NULL) {
+		ExFreePool(p);
+		*status = NDIS_STATUS_RESOURCES;
+		return;
 	}
 
+	p->np_pktmem = packets;
+
+	for (i = 0; i < p->np_cnt; i++)
+		InterlockedPushEntrySList(&p->np_head,
+		    (struct slist_entry *)&packets[i]);
+
+#ifdef NDIS_DEBUG_PACKETS 
+	p->np_dead = 0; 
+	KeInitializeSpinLock(&p->np_lock);
+        KeInitializeEvent(&p->np_event, EVENT_TYPE_NOTIFY, TRUE);
+#endif
+
+	*pool = p; 
 	*status = NDIS_STATUS_SUCCESS;
 	return;
 }
@@ -1887,41 +1900,42 @@ uint32_t
 NdisPacketPoolUsage(pool)
 	ndis_handle		pool;
 {
-	ndis_packet		*head;
-	uint8_t			irql;
-	uint32_t		cnt;
+	ndis_packet_pool	*p;
 
-	head = (ndis_packet *)pool;
-	KeAcquireSpinLock(&head->np_lock, &irql);
-	cnt = head->np_private.npp_count;
-	KeReleaseSpinLock(&head->np_lock, irql);
-
-	return(cnt);
+	p = (ndis_packet_pool *)pool;
+	return(p->np_cnt - ExQueryDepthSList(&p->np_head));
 }
 
 void
 NdisFreePacketPool(pool)
 	ndis_handle		pool;
 {
-	ndis_packet		*head;
+	ndis_packet_pool	*p;
+	int			usage;
+#ifdef NDIS_DEBUG_PACKETS 
 	uint8_t			irql;
+#endif
 
-	head = pool;
+	p = (ndis_packet_pool *)pool;
 
-	/* Mark this pool as 'going away.' */
+#ifdef NDIS_DEBUG_PACKETS 
+	KeAcquireSpinLock(&p->np_lock, &irql);
+#endif
 
-	KeAcquireSpinLock(&head->np_lock, &irql);
-	head->np_private.npp_totlen = 1;
+	usage = NdisPacketPoolUsage(pool);
 
-	/* If there are no buffers loaned out, destroy the pool. */
+#ifdef NDIS_DEBUG_PACKETS 
+	if (usage) {
+		p->np_dead = 1;
+		KeResetEvent(&p->np_event);
+		KeReleaseSpinLock(&p->np_lock, irql);
+		KeWaitForSingleObject(&p->np_event, 0, 0, FALSE, NULL);
+	} else
+		KeReleaseSpinLock(&p->np_lock, irql);
+#endif
 
-	if (head->np_private.npp_count == 0) {
-		KeReleaseSpinLock(&head->np_lock, irql);
-		free(pool, M_DEVBUF);
-	} else {
-		printf("NDIS: buggy driver deleting active packet pool!\n");
-		KeReleaseSpinLock(&head->np_lock, irql);
-	}
+	ExFreePool(p->np_pktmem);
+	ExFreePool(p);
 
 	return;
 }
@@ -1932,42 +1946,41 @@ NdisAllocatePacket(status, packet, pool)
 	ndis_packet		**packet;
 	ndis_handle		pool;
 {
-	ndis_packet		*head, *pkt;
+	ndis_packet_pool	*p;
+	ndis_packet		*pkt;
+#ifdef NDIS_DEBUG_PACKETS 
 	uint8_t			irql;
+#endif
 
-	head = (ndis_packet *)pool;
-	KeAcquireSpinLock(&head->np_lock, &irql);
+	p = (ndis_packet_pool *)pool;
 
-	if (head->np_private.npp_flags != 0x1) {
-		*status = NDIS_STATUS_FAILURE;
-		KeReleaseSpinLock(&head->np_lock, irql);
+#ifdef NDIS_DEBUG_PACKETS 
+	KeAcquireSpinLock(&p->np_lock, &irql);
+	if (p->np_dead) {
+		KeReleaseSpinLock(&p->np_lock, irql);
+		printf("NDIS: tried to allocate packet from dead pool %p\n",
+		    pool);
+		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
+#endif
 
-	/*
-	 * If this pool is marked as 'going away' don't allocate any
-	 * more packets out of it.
-	 */
+	pkt = (ndis_packet *)InterlockedPopEntrySList(&p->np_head);
 
-	if (head->np_private.npp_totlen) {
-		*status = NDIS_STATUS_FAILURE;
-		KeReleaseSpinLock(&head->np_lock, irql);
-		return;
-	}
-
-	pkt = (ndis_packet *)head->np_private.npp_head;
+#ifdef NDIS_DEBUG_PACKETS 
+	KeReleaseSpinLock(&p->np_lock, irql);
+#endif
 
 	if (pkt == NULL) {
 		*status = NDIS_STATUS_RESOURCES;
-		KeReleaseSpinLock(&head->np_lock, irql);
 		return;
 	}
 
-	head->np_private.npp_head = pkt->np_private.npp_head;
 
-	pkt->np_private.npp_head = pkt->np_private.npp_tail = NULL;
+	bzero((char *)pkt, sizeof(ndis_packet));
+
 	/* Save pointer to the pool. */
-	pkt->np_private.npp_pool = head;
+	pkt->np_private.npp_pool = pool;
 
 	/* Set the oob offset pointer. Lots of things expect this. */
 	pkt->np_private.npp_packetooboffset = offsetof(ndis_packet, np_oob);
@@ -1983,10 +1996,7 @@ NdisAllocatePacket(status, packet, pool)
 
 	*packet = pkt;
 
-	head->np_private.npp_count++;
 	*status = NDIS_STATUS_SUCCESS;
-
-	KeReleaseSpinLock(&head->np_lock, irql);
 
 	return;
 }
@@ -1995,34 +2005,26 @@ void
 NdisFreePacket(packet)
 	ndis_packet		*packet;
 {
-	ndis_packet		*head;
+	ndis_packet_pool	*p;
+#ifdef NDIS_DEBUG_PACKETS 
 	uint8_t			irql;
+#endif
 
-	if (packet == NULL || packet->np_private.npp_pool == NULL)
-		return;
+	p = (ndis_packet_pool *)packet->np_private.npp_pool;
 
-	head = packet->np_private.npp_pool;
-	KeAcquireSpinLock(&head->np_lock, &irql);
+#ifdef NDIS_DEBUG_PACKETS 
+	KeAcquireSpinLock(&p->np_lock, &irql);
+#endif
 
-	if (head->np_private.npp_flags != 0x1) {
-		KeReleaseSpinLock(&head->np_lock, irql);
-		return;
+	InterlockedPushEntrySList(&p->np_head, (slist_entry *)packet);
+
+#ifdef NDIS_DEBUG_PACKETS 
+	if (p->np_dead) {
+		if (ExQueryDepthSList(&p->np_head) == p->np_cnt)
+			KeSetEvent(&p->np_event, IO_NO_INCREMENT, FALSE);
 	}
-
-	packet->np_private.npp_head = head->np_private.npp_head;
-	head->np_private.npp_head = (ndis_buffer *)packet;
-	head->np_private.npp_count--;
-
-	/*
-	 * If the pool has been marked for deletion and there are
-	 * no more packets outstanding, nuke the pool.
-	 */
-
-	if (head->np_private.npp_totlen && head->np_private.npp_count == 0) {
-		KeReleaseSpinLock(&head->np_lock, irql);
-		free(head, M_DEVBUF);
-	} else
-		KeReleaseSpinLock(&head->np_lock, irql);
+	KeReleaseSpinLock(&p->np_lock, irql);
+#endif
 
 	return;
 }
@@ -2255,7 +2257,7 @@ static void
 NdisSetEvent(event)
 	ndis_event		*event;
 {
-	KeSetEvent(&event->ne_event, 0, 0);
+	KeSetEvent(&event->ne_event, IO_NO_INCREMENT, FALSE);
 	return;
 }
 
@@ -2276,7 +2278,7 @@ NdisWaitEvent(event, msecs)
 	uint32_t		rval;
 
 	duetime = ((int64_t)msecs * -10000);
-	rval = KeWaitForSingleObject((nt_dispatch_header *)event,
+	rval = KeWaitForSingleObject(event,
 	    0, 0, TRUE, msecs ? & duetime : NULL);
 
 	if (rval == STATUS_TIMEOUT)
@@ -2479,8 +2481,7 @@ NdisMDeregisterInterrupt(intr)
 
 	IoDisconnectInterrupt(intr->ni_introbj);
 
-	KeWaitForSingleObject((nt_dispatch_header *)&intr->ni_dpcevt,
-	    0, 0, FALSE, NULL);
+	KeWaitForSingleObject(&intr->ni_dpcevt, 0, 0, FALSE, NULL);
 	KeResetEvent(&intr->ni_dpcevt);
 
 	return;
@@ -2569,7 +2570,7 @@ NdisQueryBufferOffset(buf, off, len)
 	return;
 }
 
-static void
+void
 NdisMSleep(usecs)
 	uint32_t		usecs;
 {
@@ -2586,9 +2587,9 @@ NdisMSleep(usecs)
 	else {
 		KeInitializeTimer(&timer);
 		KeSetTimer(&timer, ((int64_t)usecs * -10), NULL);
-		KeWaitForSingleObject((nt_dispatch_header *)&timer,
-		    0, 0, FALSE, NULL);
+		KeWaitForSingleObject(&timer, 0, 0, FALSE, NULL);
 	}
+
 	return;
 }
 

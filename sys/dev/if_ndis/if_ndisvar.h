@@ -85,8 +85,9 @@ TAILQ_HEAD(nch, ndis_cfglist);
 
 #define NDIS_INITIALIZED(sc)	(sc->ndis_block->nmb_devicectx != NULL)
 
+#define NDIS_TXPKTS 64
 #define NDIS_INC(x)		\
-	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % (x)->ndis_maxpkts 
+	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % NDIS_TXPKTS
 
 #if __FreeBSD_version < 600000
 #define arpcom ic.ic_ac
@@ -159,11 +160,9 @@ struct ndis_softc {
 	io_workitem		*ndis_tickitem;
 	io_workitem		*ndis_startitem;
 	io_workitem		*ndis_resetitem;
+	io_workitem		*ndis_inputitem;
 	kdpc			ndis_rxdpc;
 	bus_dma_tag_t		ndis_parent_tag;
-/*
-	struct ndis_shmem	*ndis_shlist;
-*/
 	list_entry		ndis_shlist;
 	bus_dma_tag_t		ndis_mtag;
 	bus_dma_tag_t		ndis_ttag;
@@ -173,6 +172,8 @@ struct ndis_softc {
 	struct ndis_evt		ndis_evt[NDIS_EVENTS];
 	int			ndis_evtpidx;
 	int			ndis_evtcidx;
+	struct ifqueue		ndis_rxqueue;
+	kspin_lock		ndis_rxlock;
 };
 
 #define NDIS_LOCK(_sc)		KeAcquireSpinLock(&(_sc)->ndis_spinlock, \
