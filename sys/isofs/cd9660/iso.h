@@ -277,79 +277,65 @@ u_short sgetrune(const char *, size_t, char const **, int, void *);
  * outside the kernel.  Thus we don't hide them here.
  */
 
-static __inline int isonum_711(u_char *);
-static __inline int
-isonum_711(p)
-	u_char *p;
+/*
+ * 7xy
+ *  x -> 1 = 8 bits, 2 = 16 bits, 3 = 32 bits
+ *   y -> 1 = little-endian, 2 = big-endian, 3 = both (le then be)
+ */
+
+static __inline uint8_t
+isonum_711(unsigned char *p)
 {
-	return *p;
+	return p[0];
 }
 
-static __inline int isonum_712(char *);
-static __inline int
-isonum_712(p)
-	char *p;
+static __inline uint8_t
+isonum_712(unsigned char *p)
 {
-	return *p;
+	return p[0];
 }
 
-#ifndef UNALIGNED_ACCESS
-
-static __inline int isonum_723(u_char *);
-static __inline int
-isonum_723(p)
-	u_char *p;
+static __inline uint8_t
+isonum_713(unsigned char *p)
 {
-	return *p|(p[1] << 8);
+	return p[0];
 }
 
-static __inline int isonum_733(u_char *);
-static __inline int
-isonum_733(p)
-	u_char *p;
+static __inline uint16_t
+isonum_721(unsigned char *p)
 {
-	return *p|(p[1] << 8)|(p[2] << 16)|(p[3] << 24);
+	return (p[0] | p[1] << 8);
 }
 
-#else /* UNALIGNED_ACCESS */
-
-#if BYTE_ORDER == LITTLE_ENDIAN
-
-static __inline int
-isonum_723(p)
-	u_char *p
+static __inline uint16_t
+isonum_722(unsigned char *p)
 {
-	return *(u_int16t *)p;
+	return (p[1] | p[0] << 8);
 }
 
-static __inline int
-isonum_733(p)
-	u_char *p;
+static __inline uint16_t
+isonum_723(unsigned char *p)
 {
-	return *(u_int32t *)p;
+	return (p[0] | p[1] << 8);
 }
 
-#endif
-
-#if BYTE_ORDER == BIG_ENDIAN
-
-static __inline int
-isonum_723(p)
-	u_char *p
+static __inline uint32_t
+isonum_731(unsigned char *p)
 {
-	return *(u_int16t *)(p + 2);
+	return (p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24);
 }
 
-static __inline int
-isonum_733(p)
-	u_char *p;
+static __inline uint32_t
+isonum_732(unsigned char *p)
 {
-	return *(u_int32t *)(p + 4);
+	return (p[3] | p[2] << 8 | p[1] << 16 | p[0] << 24);
 }
 
-#endif
-
-#endif /* UNALIGNED_ACCESS */
+static __inline uint32_t
+isonum_733(unsigned char *p)
+{
+	return (p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24);
+}
 
 /*
  * Associated files have a leading '='.
