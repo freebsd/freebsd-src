@@ -749,7 +749,7 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 				info->bpos += fetch;
 				slot -= fetch;
 				RATE_ASSERT(slot >= 0,
-					("%s: Negative Slot: %d\n", __func__
+					("%s: Negative Slot: %d\n", __func__,
 						slot));
 				if (slot == 0)
 					break;
