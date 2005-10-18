@@ -680,7 +680,7 @@ ksem_wait(td, uap)
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_timedwait_args {
 	semid_t id;
-	struct timespec *abstime;
+	const struct timespec *abstime;
 };
 int ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap);
 #endif
