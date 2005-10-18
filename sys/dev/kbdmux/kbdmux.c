@@ -1283,7 +1283,9 @@ kbdmux_modevent(module_t mod, int type, void *data)
 
 		if ((error = (*sw->enable)(kbd)) != 0) {
 			(*sw->disable)(kbd);
+#ifdef KBD_INSTALL_CDEV
 			kbd_detach(kbd);
+#endif
 			(*sw->term)(kbd);
 			kbd_delete_driver(&kbdmux_kbd_driver);
 			break;
