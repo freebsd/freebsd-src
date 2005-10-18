@@ -195,9 +195,11 @@ vchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	struct pcm_channel *channel = ch->channel;
 
 	ch->spd = speed;
-   	CHN_UNLOCK(channel);
-	chn_notify(parent, CHN_N_RATE);
-   	CHN_LOCK(channel);
+	CHN_UNLOCK(channel);
+	CHN_LOCK(parent);
+	speed = sndbuf_getspd(parent->bufsoft);
+	CHN_UNLOCK(parent);
+	CHN_LOCK(channel);
 	return speed;
 }
 
@@ -218,8 +220,8 @@ vchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
    	/* CHN_LOCK(channel); */
 
 	crate = ch->spd * ch->bps;
-	prate = sndbuf_getspd(parent->bufhard) * sndbuf_getbps(parent->bufhard);
-	blocksize = sndbuf_getblksz(parent->bufhard);
+	prate = sndbuf_getspd(parent->bufsoft) * sndbuf_getbps(parent->bufsoft);
+	blocksize = sndbuf_getblksz(parent->bufsoft);
    	CHN_UNLOCK(parent);
 	blocksize *= prate;
 	blocksize /= crate;
@@ -250,7 +252,7 @@ vchan_getcaps(kobj_t obj, void *data)
 {
 	struct vchinfo *ch = data;
 
-	ch->caps.minspeed = sndbuf_getspd(ch->parent->bufhard);
+	ch->caps.minspeed = sndbuf_getspd(ch->parent->bufsoft);
 	ch->caps.maxspeed = ch->caps.minspeed;
 	ch->caps.fmtlist = vchan_fmt;
 	ch->caps.caps = 0;
@@ -328,6 +330,14 @@ sysctl_hw_snd_vchanrate(SYSCTL_HANDLER_ARGS)
 		}
 		if (newspd != ch->speed) {
 			err = chn_setspeed(ch, newspd);
+			/*
+			 * Try to avoid FEEDER_RATE on parent channel if the
+			 * requested value is not supported by the hardware.
+			 */
+			if (!err && (ch->feederflags & (1 << FEEDER_RATE))) {
+				newspd = sndbuf_getspd(ch->bufhard);
+				err = chn_setspeed(ch, newspd);
+			}
 			CHN_UNLOCK(ch);
 			if (err == 0) {
 				fake = pcm_getfakechan(d);
@@ -456,6 +466,14 @@ vchan_create(struct pcm_channel *parent)
 				speed = feeder_rate_ratemax;
 
 			err = chn_setspeed(parent, speed);
+			/*
+			 * Try to avoid FEEDER_RATE on parent channel if the
+			 * requested value is not supported by the hardware.
+			 */
+			if (!err && (parent->feederflags & (1 << FEEDER_RATE))) {
+				speed = sndbuf_getspd(parent->bufhard);
+				err = chn_setspeed(parent, speed);
+			}
 
 			if (!err && fake != NULL) {
 				/*
