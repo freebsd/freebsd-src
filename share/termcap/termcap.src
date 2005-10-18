@@ -2811,7 +2811,7 @@ xterm-xfree86|XFree86 xterm:\
 #
 # This chunk is used for building the VT220/Sun/PC keyboard variants.
 xterm-basic|xterm common (XFree86):\
-	:li#24:co#80:am:kn#12:km:mi:ms:xn:bl=^G:\
+	:li#24:co#80:am:kn#12:km:mi:ms:xn:AX:bl=^G:\
 	:is=\E[!p\E[?3;4l\E[4l\E>:rs=\E[!p\E[?3;4l\E[4l\E>:le=^H:\
 	:AL=\E[%dL:DL=\E[%dM:DC=\E[%dP:al=\E[L:dc=\E[P:dl=\E[M:\
 	:UP=\E[%dA:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:\
