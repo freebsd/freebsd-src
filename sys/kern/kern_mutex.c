@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 
 #include <ddb/ddb.h>
 
+#include <fs/devfs/devfs_int.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -900,5 +902,6 @@ mutex_init(void)
 	mtx_init(&Giant, "Giant", NULL, MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
+	mtx_init(&devmtx, "cdev", NULL, MTX_DEF);
 	mtx_lock(&Giant);
 }
