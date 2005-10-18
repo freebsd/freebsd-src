@@ -328,6 +328,11 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 	const Elf_Ehdr *h;
 	const Elf_Phdr *ph;
 	const Elf_Shdr *sh;
+#if	defined(__amd64__)
+	const Elf32_Ehdr *h32;
+	const Elf32_Phdr *ph32;
+	const Elf32_Shdr *sh32;
+#endif
 	const char *path;
 
 	assert(image->pi_type == PMCSTAT_IMAGE_UNKNOWN);
@@ -352,46 +357,80 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 	if (!IS_ELF(*h))
 		err(EX_SOFTWARE, "ERROR: \"%s\" not an ELF file", path);
 
-	sh = (const Elf_Shdr *)((uintptr_t) mapbase + h->e_shoff);
-
-	if (h->e_type == ET_EXEC || h->e_type == ET_DYN) {
-		/*
-		 * Some kind of executable object: find the min,max va
-		 * for its executable sections.
-		 */
-		for (i = 0; i < h->e_shnum; i++)
-			if (sh[i].sh_flags & SHF_EXECINSTR) { /* code */
-				minva = min(minva, sh[i].sh_addr);
-				maxva = max(maxva, sh[i].sh_addr +
-				    sh[i].sh_size);
-			}
-	} else
+	/* we only handle executable objects */
+	if (h->e_type != ET_EXEC && h->e_type != ET_DYN)
 		err(EX_DATAERR, "ERROR: Unknown file type for \"%s\"",
 		    image->pi_internedpath);
 
+#define	GET_VA(H, SH, MINVA, MAXVA) do {				\
+		for (i = 0; i < (H)->e_shnum; i++)			\
+			if ((SH)[i].sh_flags & SHF_EXECINSTR) {		\
+				(MINVA) = min((MINVA),(SH)[i].sh_addr);	\
+				(MAXVA) = max((MAXVA),(SH)[i].sh_addr +	\
+				    (SH)[i].sh_size);			\
+			}						\
+	} while (0)
+
+
+#define	GET_PHDR_INFO(H, PH, IMAGE) do {				\
+		for (i = 0; i < (H)->e_phnum; i++) {			\
+			switch ((PH)[i].p_type) {			\
+			case PT_DYNAMIC:				\
+				image->pi_isdynamic = 1;		\
+				break;					\
+			case PT_INTERP:					\
+				image->pi_dynlinkerpath =		\
+				    pmcstat_string_intern(		\
+				        (char *) mapbase +		\
+					(PH)[i].p_offset);		\
+				break;					\
+			}						\
+		}							\
+	} while (0)
+
 	image->pi_type = PMCSTAT_IMAGE_ELF;
-	image->pi_start = minva;
-	image->pi_entry = h->e_entry;
-	image->pi_end = maxva;
 	image->pi_isdynamic = 0;
 	image->pi_dynlinkerpath = NULL;
 
+	switch (h->e_machine) {
+	case EM_386:
+	case EM_486:
+#if	defined(__amd64__)
+		/* a 32 bit executable */
+		h32 = (const Elf32_Ehdr *) h;
+		sh32 = (const Elf32_Shdr *)((uintptr_t) mapbase + h32->e_shoff);
 
-	if (h->e_type == ET_EXEC) {
-		ph = (const Elf_Phdr *)((uintptr_t) mapbase + h->e_phoff);
-		for (i = 0; i < h->e_phnum; i++) {
-			switch (ph[i].p_type) {
-			case PT_DYNAMIC:
-				image->pi_isdynamic = 1;
-				break;
-			case PT_INTERP:
-				image->pi_dynlinkerpath =
-				    pmcstat_string_intern((char *) mapbase +
-							      ph[i].p_offset);
-				break;
-			}
+		GET_VA(h32, sh32, minva, maxva);
+
+		image->pi_entry = h32->e_entry;
+
+		if (h32->e_type == ET_EXEC) {
+			ph32 = (const Elf32_Phdr *)((uintptr_t) mapbase +
+			    h32->e_phoff);
+			GET_PHDR_INFO(h32, ph32, image);
 		}
+		break;
+#endif
+	default:
+		sh = (const Elf_Shdr *)((uintptr_t) mapbase + h->e_shoff);
+
+		GET_VA(h, sh, minva, maxva);
+
+		image->pi_entry = h->e_entry;
+
+		if (h->e_type == ET_EXEC) {
+			ph = (const Elf_Phdr *)((uintptr_t) mapbase +
+			    h->e_phoff);
+			GET_PHDR_INFO(h, ph, image);
+		}
+		break;
 	}
+
+#undef	GET_PHDR_INFO
+#undef	GET_VA
+
+	image->pi_start = minva;
+	image->pi_end = maxva;
 
 	if (munmap(mapbase, st.st_size) < 0)
 		err(EX_OSERR, "ERROR: Cannot unmap \"%s\"", path);
