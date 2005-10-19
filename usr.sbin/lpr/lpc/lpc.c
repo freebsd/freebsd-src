@@ -167,7 +167,7 @@ cmdscanner(void)
 			if (!el) {
 				el = el_init("lpc", stdin, stdout, stderr);
 				hist = history_init();
-				history(hist, &he, H_EVENT, 100);
+				history(hist, &he, H_SETSIZE, 100);
 				el_set(el, EL_HIST, history, hist);
 				el_set(el, EL_EDITOR, "emacs");
 				el_set(el, EL_PROMPT, lpc_prompt);
