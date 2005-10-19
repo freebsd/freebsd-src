@@ -12,31 +12,35 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR``AS IS'' AND ANY EXPRESS OR 
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY 
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libutil.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,12 +75,17 @@ const char *modes[] = {
 
 #define ACPIAC		"hw.acpi.acline"
 #define APMDEV		"/dev/apm"
+#define DEVDPIPE	"/var/run/devd.pipe"
+#define DEVCTL_MAXBUF	1024
 
 static int	read_usage_times(long *idle, long *total);
 static int	read_freqs(int *numfreqs, int **freqs, int **power);
 static int	set_freq(int freq);
 static void	acline_init(void);
 static int	acline_read(void);
+static int	devd_init(void);
+static void	devd_close(void);
+static void	*devd_read(void *arg);
 static void	handle_sigs(int sig);
 static void	parse_mode(char *arg, int *mode, int ch);
 static void	usage(void);
@@ -87,12 +96,18 @@ static int	freq_mib[4];
 static int	levels_mib[4];
 static int	acline_mib[3];
 
+/* devd-cached value provided by our thread. */
+static int	devd_acline;
+
 /* Configuration */
 static int	cpu_running_mark;
 static int	cpu_idle_mark;
 static int	poll_ival;
+static int	vflag;
 
 static int	apm_fd;
+static int	devd_pipe;
+static pthread_t devd_thread;
 static int	exit_requested;
 
 static int
@@ -180,7 +195,8 @@ set_freq(int freq)
 
 /*
  * Try to use ACPI to find the AC line status.  If this fails, fall back
- * to APM.  If nothing succeeds, we'll just run in default mode.
+ * to APM.  If nothing succeeds, we'll just run in default mode.  If we are
+ * using ACPI, try opening a pipe to devd to detect AC line events.
  */
 static void
 acline_init()
@@ -189,11 +205,28 @@ acline_init()
 	size_t len;
 
 	apm_fd = -1;
+	devd_pipe = -1;
 	len = sizeof(acline);
 	if (sysctlbyname(ACPIAC, &acline, &len, NULL, 0) == 0) {
 		len = 3;
 		if (sysctlnametomib(ACPIAC, acline_mib, &len))
 			err(1, "lookup acline");
+
+		/* Read line status once so that we have an initial value. */
+		devd_acline = acline_read();
+
+		/*
+		 * Try connecting to the devd pipe and start a read thread
+		 * if we succeed.
+		 */
+		if ((devd_pipe = devd_init()) >= 0) {
+			if (pthread_create(&devd_thread, NULL, devd_read,
+			    &devd_pipe))
+				err(1, "pthread_create devd thread");
+		} else if (vflag) {
+			warnx(
+		"unable to connect to devd pipe, using polling mode instead");
+		}
 	} else {
 		apm_fd = open(APMDEV, O_RDONLY);
 		if (apm_fd == -1)
@@ -205,23 +238,125 @@ acline_init()
 static int
 acline_read()
 {
-	int acline = SRC_UNKNOWN;
+	int acline;
 	size_t len;
-
 #ifdef __i386__
 	struct apm_info info;
+#endif
 
-	if (apm_fd != -1 && ioctl(apm_fd, APMIO_GETINFO, &info) == 0)
+	acline = SRC_UNKNOWN;
+	len = sizeof(acline);
+
+	/*
+	 * Get state from our devd thread, the ACPI sysctl, or APM.  We
+	 * prefer sources in this order.
+	 */
+	if (devd_pipe >= 0)
+		acline = devd_acline;
+	else if (sysctl(acline_mib, 3, &acline, &len, NULL, 0) == 0)
+		acline = acline ? SRC_AC : SRC_BATTERY;
+#ifdef __i386__
+	else if (apm_fd != -1 && ioctl(apm_fd, APMIO_GETINFO, &info) == 0)
 		acline = info.ai_acline ? SRC_AC : SRC_BATTERY;
 #endif
 
-	if (acline == SRC_UNKNOWN) {
-		len = sizeof(acline);
-		if (sysctl(acline_mib, 3, &acline, &len, NULL, 0) == 0)
-			acline = acline ? SRC_AC : SRC_BATTERY;
+	return (acline);
+}
+
+static int
+devd_init(void)
+{
+	struct sockaddr_un devd_addr;
+	int devd_sock;
+
+	bzero(&devd_addr, sizeof(devd_addr));
+	if ((devd_sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
+		if (vflag)
+			warn("failed to create devd socket");
+		return (-1);
 	}
 
-	return (acline);
+	devd_addr.sun_family = PF_LOCAL;
+	strlcpy(devd_addr.sun_path, DEVDPIPE, sizeof(devd_addr.sun_path));
+	if (connect(devd_sock, (struct sockaddr *)&devd_addr,
+	    sizeof(devd_addr)) == -1) {
+		close(devd_sock);
+		return (-1);
+	}
+
+	return (devd_sock);
+}
+
+static void
+devd_close(void)
+{
+
+	if (devd_pipe < 0)
+		return;
+
+	pthread_kill(devd_thread, SIGTERM);
+	close(devd_pipe);
+}
+
+/*
+ * This loop runs as a separate thread.  It reads events from devd, but
+ * spends most of its time blocked in select(2).
+ */
+static void *
+devd_read(void *arg)
+{
+	char buf[DEVCTL_MAXBUF], *ptr;
+	fd_set fdset;
+	int fd, notify, rlen;
+
+	fd = *(int *)arg;
+	notify = -1;
+	FD_ZERO(&fdset);
+	while (!exit_requested) {
+		FD_SET(fd, &fdset);
+		if (select(fd + 1, &fdset, NULL, NULL, NULL) < 0)
+			break;
+		if (!FD_ISSET(fd, &fdset))
+			continue;
+
+		/* Read the notify string, devd NULL-terminates it. */
+		rlen = read(fd, buf, sizeof(buf));
+		if (rlen <= 0) {
+			close(devd_pipe);
+			devd_pipe = -1;
+			if (vflag)
+				warnx(
+			"devd disappeared, downgrading to polling mode");
+
+			/*
+			 * Keep trying to reconnect to devd but sleep in
+			 * between to avoid wasting CPU cycles.
+			 */
+			while (!exit_requested && (fd = devd_init()) < 0)
+				sleep(300);
+
+			if (fd >= 0) {
+				devd_pipe = fd;
+				if (vflag)
+					warnx(
+				"devd came back, upgrading to event mode");
+			}
+			continue;
+		}
+
+		/* Loosely match the notify string. */
+		if ((ptr = strstr(buf, "system=ACPI")) != NULL &&
+		    (ptr = strstr(ptr, "subsystem=ACAD")) != NULL &&
+		    (ptr = strstr(ptr, "notify=")) != NULL) {
+		        if (sscanf(ptr, "notify=%x", &notify) != 1) {
+				warnx("bad devd notify string");
+				continue;
+			}
+			devd_acline = notify ? SRC_AC : SRC_BATTERY;
+		}
+	}
+
+	return (NULL);
 }
 
 static void
@@ -241,6 +376,7 @@ parse_mode(char *arg, int *mode, int ch)
 static void
 handle_sigs(int __unused sig)
 {
+
 	exit_requested = 1;
 }
 
@@ -259,8 +395,8 @@ main(int argc, char * argv[])
 	struct pidfh *pfh = NULL;
 	const char *pidfile = NULL;
 	long idle, total;
-	int curfreq, *freqs, i, *mwatts, numfreqs;
-	int ch, mode_ac, mode_battery, mode_none, acline, mode, vflag;
+	int acline, curfreq, *freqs, i, *mwatts, numfreqs;
+	int ch, mode, mode_ac, mode_battery, mode_none;
 	uint64_t mjoules_used;
 	size_t len;
 
@@ -321,6 +457,8 @@ main(int argc, char * argv[])
 			usage();
 		}
 
+	mode = mode_none;
+
 	/* Poll interval is in units of ms. */
 	poll_ival *= 1000;
 
@@ -361,6 +499,7 @@ main(int argc, char * argv[])
 	}
 	signal(SIGINT, handle_sigs);
 	signal(SIGTERM, handle_sigs);
+	signal(SIGPIPE, SIG_IGN);
 
 	/* Main loop. */
 	for (;;) {
@@ -394,8 +533,11 @@ main(int argc, char * argv[])
 
 		/* Read the current frequency. */
 		len = sizeof(curfreq);
-		if (sysctl(freq_mib, 4, &curfreq, &len, NULL, 0))
-			err(1, "error reading current CPU frequency");
+		if (sysctl(freq_mib, 4, &curfreq, &len, NULL, 0) != 0) {
+			if (vflag)
+				warn("error reading current CPU frequency");
+			continue;
+		}
 
 		if (vflag) {
 			for (i = 0; i < numfreqs; i++) {
@@ -417,9 +559,11 @@ main(int argc, char * argv[])
 					    "changing frequency to %d MHz\n",
 					    modes[acline], freqs[numfreqs - 1]);
 				}
-				if (set_freq(freqs[numfreqs - 1]))
-					err(1, "error setting CPU freq %d",
+				if (set_freq(freqs[numfreqs - 1]) != 0) {
+					warn("error setting CPU freq %d",
 					    freqs[numfreqs - 1]);
+					continue;
+				}
 			}
 			continue;
 		}
@@ -432,16 +576,21 @@ main(int argc, char * argv[])
 					    "changing frequency to %d MHz\n",
 					    modes[acline], freqs[0]);
 				}
-				if (set_freq(freqs[0]))
-					err(1, "error setting CPU freq %d",
-					    freqs[0]);
+				if (set_freq(freqs[0]) != 0) {
+					warn("error setting CPU freq %d",
+				    	    freqs[0]);
+					continue;
+				}
 			}
 			continue;
 		}
 
 		/* Adaptive mode; get the current CPU usage times. */
-		if (read_usage_times(&idle, &total))
-			err(1, "read_usage_times");
+		if (read_usage_times(&idle, &total)) {
+			if (vflag)
+				warn("read_usage_times() failed");
+			continue;
+		}
 
 		/*
 		 * If we're idle less than the active mark, bump up two levels.
@@ -472,13 +621,14 @@ main(int argc, char * argv[])
 				    " speed from %d MHz to %d MHz\n",
 				    cpu_idle_mark, curfreq, freqs[i]);
 			}
-			if (set_freq(freqs[i]))
-				err(1, "error setting CPU frequency %d",
-				    freqs[i]);
+			if (set_freq(freqs[i]) != 0)
+				warn("error setting CPU frequency %d",
+			    	    freqs[i]);
 		}
 	}
 	free(freqs);
 	free(mwatts);
+	devd_close();
 	if (!vflag)
 		pidfile_remove(pfh);
 
