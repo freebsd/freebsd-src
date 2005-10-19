@@ -1314,10 +1314,10 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 		}
 
 		switch (hdr->nd_opt_type) {
-		case ND_OPT_SOURCE_LINKADDR:
 		case ND_OPT_TARGET_LINKADDR:
 		case ND_OPT_REDIRECTED_HEADER:
 			break;	/* we don't care about these options */
+		case ND_OPT_SOURCE_LINKADDR:
 		case ND_OPT_MTU:
 			if (ndopts->nd_opt_array[hdr->nd_opt_type]) {
 				syslog(LOG_INFO,
