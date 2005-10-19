@@ -166,6 +166,12 @@ in6_ifloop_request(int cmd, struct ifaddr *ifa)
 		    e);
 	}
 
+	/*
+	 * Report the addition/removal of the address to the routing socket.
+	 * XXX: since we called rtinit for a p2p interface with a destination,
+	 *      we end up reporting twice in such a case.  Should we rather
+	 *      omit the second report?
+	 */
 	if (nrt) {
 		RT_LOCK(nrt);
 		/*
@@ -180,14 +186,6 @@ in6_ifloop_request(int cmd, struct ifaddr *ifa)
 			nrt->rt_ifa = ifa;
 		}
 
-		/*
-		 * Report the addition/removal of the address to the routing
-		 * socket.
-		 *
-		 * XXX: since we called rtinit for a p2p interface with a
-		 *      destination, we end up reporting twice in such a case.
-		 *      Should we rather omit the second report?
-		 */
 		rt_newaddrmsg(cmd, ifa, e, nrt);
 		if (cmd == RTM_DELETE) {
 			rtfree(nrt);
@@ -239,8 +237,7 @@ in6_ifremloop(struct ifaddr *ifa)
 	 * (see comments in net/net_osdep.h).  Even for variants that do remove
 	 * cloned routes, they could fail to remove the cloned routes when
 	 * we handle multple addresses that share a common prefix.
-	 * So, we should remove the route corresponding to the deleted address
-	 * regardless of the result of in6_is_ifloop_auto().
+	 * So, we should remove the route corresponding to the deleted address.
 	 */
 
 	/*
@@ -430,8 +427,7 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCSIFNETMASK_IN6:
 		/*
 		 * Since IPv6 allows a node to assign multiple addresses
-		 * on a single interface, SIOCSIFxxx ioctls are not suitable
-		 * and should be unused.
+		 * on a single interface, SIOCSIFxxx ioctls are deprecated.
 		 */
 		/* we decided to obsolete this command (20000704) */
 		return (EINVAL);
@@ -439,10 +435,10 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCDIFADDR_IN6:
 		/*
 		 * for IPv4, we look for existing in_ifaddr here to allow
-		 * "ifconfig if0 delete" to remove first IPv4 address on the
-		 * interface.  For IPv6, as the spec allow multiple interface
-		 * address from the day one, we consider "remove the first one"
-		 * semantics to be not preferable.
+		 * "ifconfig if0 delete" to remove the first IPv4 address on
+		 * the interface.  For IPv6, as the spec allows multiple
+		 * interface address from the day one, we consider "remove the
+		 * first one" semantics to be not preferable.
 		 */
 		if (ia == NULL)
 			return (EADDRNOTAVAIL);
@@ -981,6 +977,7 @@ in6_update_ifa(ifp, ifra, ia)
 	 * not just go to unlink.
 	 */
 
+	/* Join necessary multicast groups */
 	if ((ifp->if_flags & IFF_MULTICAST) != 0) {
 		struct sockaddr_in6 mltaddr, mltmask;
 		struct in6_multi *in6m;
@@ -988,7 +985,7 @@ in6_update_ifa(ifp, ifra, ia)
 
 		/* join solicited multicast addr for new host id */
 		bzero(&llsol, sizeof(struct in6_addr));
-		llsol.s6_addr16[0] = htons(0xff02);
+		llsol.s6_addr32[0] = IPV6_ADDR_INT32_MLL;
 		llsol.s6_addr32[1] = 0;
 		llsol.s6_addr32[2] = htonl(1);
 		llsol.s6_addr32[3] = ifra->ifra_addr.sin6_addr.s6_addr32[3];
@@ -1013,6 +1010,7 @@ in6_update_ifa(ifp, ifra, ia)
 		mltmask.sin6_len = sizeof(struct sockaddr_in6);
 		mltmask.sin6_family = AF_INET6;
 		mltmask.sin6_addr = in6mask32;
+#define	MLTMASK_LEN  4	/* mltmask's masklen (=32bit=4octet) */
 
 		/*
 		 * join link-local all-nodes address
@@ -1033,12 +1031,9 @@ in6_update_ifa(ifp, ifra, ia)
 		 */
 		rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
 		if (rt) {
-			/*
-			 * 32bit came from "mltmask"
-			 */
 			if (memcmp(&mltaddr.sin6_addr,
 			    &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr,
-			    32 / 8)) {
+			    MLTMASK_LEN)) {
 				RTFREE_LOCKED(rt);
 				rt = NULL;
 			}
@@ -1100,10 +1095,9 @@ in6_update_ifa(ifp, ifra, ia)
 		/* XXX: again, do we really need the route? */
 		rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
 		if (rt) {
-			/* 32bit came from "mltmask" */
 			if (memcmp(&mltaddr.sin6_addr,
 			    &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr,
-			    32 / 8)) {
+			    MLTMASK_LEN)) {
 				RTFREE_LOCKED(rt);
 				rt = NULL;
 			}
@@ -1130,6 +1124,7 @@ in6_update_ifa(ifp, ifra, ia)
 				goto cleanup;
 			}
 		}
+#undef	MLTMASK_LEN
 	}
 
 	return (error);
@@ -1187,7 +1182,7 @@ in6_purgeaddr(ifa)
 		struct in6_multi *in6m;
 		struct in6_addr llsol;
 		bzero(&llsol, sizeof(struct in6_addr));
-		llsol.s6_addr16[0] = htons(0xff02);
+		llsol.s6_addr32[0] = IPV6_ADDR_INT32_MLL;
 		llsol.s6_addr32[1] = 0;
 		llsol.s6_addr32[2] = htonl(1);
 		llsol.s6_addr32[3] =

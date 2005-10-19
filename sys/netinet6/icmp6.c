@@ -511,8 +511,10 @@ icmp6_input(mp, offp, proto)
 		icmp6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_timeexceed);
 		switch (code) {
 		case ICMP6_TIME_EXCEED_TRANSIT:
+			code = PRC_TIMXCEED_INTRANS;
+			break;
 		case ICMP6_TIME_EXCEED_REASSEMBLY:
-			code += PRC_TIMXCEED_INTRANS;
+			code = PRC_TIMXCEED_REASS;
 			break;
 		default:
 			goto badcode;
