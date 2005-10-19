@@ -186,8 +186,8 @@ generate_tmp_ifid(seed0, seed1, ret)
 	 * use a random non-zero value as the last resort.
 	 */
 	if (bcmp(nullbuf, ret, sizeof(nullbuf)) == 0) {
-		log(LOG_INFO,
-		    "generate_tmp_ifid: computed MD5 value is zero.\n");
+		nd6log((LOG_INFO,
+		    "generate_tmp_ifid: computed MD5 value is zero.\n"));
 
 		val32 = arc4random();
 		val32 = 1 + (val32 % (0xffffffff - 1));
@@ -467,7 +467,7 @@ in6_ifattach_linklocal(ifp, altifp)
 
 	/*
 	 * Now call in6_update_ifa() to do a bunch of procedures to configure
-	 * a link-local address. We can set NULL to the 3rd argument, because
+	 * a link-local address. We can set the 3rd argument to NULL, because
 	 * we know there's no other link-local address on the interface
 	 * and therefore we are adding one (instead of updating one).
 	 */
@@ -479,10 +479,10 @@ in6_ifattach_linklocal(ifp, altifp)
 		 * suppress it.  (jinmei@kame.net 20010130)
 		 */
 		if (error != EAFNOSUPPORT)
-			log(LOG_NOTICE, "in6_ifattach_linklocal: failed to "
+			nd6log((LOG_NOTICE, "in6_ifattach_linklocal: failed to "
 			    "configure a link-local address on %s "
 			    "(errno=%d)\n",
-			    if_name(ifp), error);
+			    if_name(ifp), error));
 		return (-1);
 	}
 
@@ -590,9 +590,9 @@ in6_ifattach_loopback(ifp)
 	 * NULL to the 3rd arg.
 	 */
 	if ((error = in6_update_ifa(ifp, &ifra, NULL)) != 0) {
-		log(LOG_ERR, "in6_ifattach_loopback: failed to configure "
+		nd6log((LOG_ERR, "in6_ifattach_loopback: failed to configure "
 		    "the loopback address on %s (errno=%d)\n",
-		    if_name(ifp), error);
+		    if_name(ifp), error));
 		return (-1);
 	}
 
@@ -643,7 +643,7 @@ in6_nigroup(ifp, name, namelen, in6)
 	MD5Final(digest, &ctxt);
 
 	bzero(in6, sizeof(*in6));
-	in6->s6_addr16[0] = htons(0xff02);
+	in6->s6_addr16[0] = IPV6_ADDR_INT16_MLL;
 	in6->s6_addr8[11] = 2;
 	bcopy(digest, &in6->s6_addr32[3], sizeof(in6->s6_addr32[3]));
 	if (in6_setscope(in6, ifp, NULL))
@@ -695,9 +695,9 @@ in6_ifattach(ifp, altifp)
 	 * usually, we require multicast capability to the interface
 	 */
 	if ((ifp->if_flags & IFF_MULTICAST) == 0) {
-		log(LOG_INFO, "in6_ifattach: "
+		nd6log((LOG_INFO, "in6_ifattach: "
 		    "%s is not multicast capable, IPv6 not enabled\n",
-		    if_name(ifp));
+		    if_name(ifp)));
 		return;
 	}
 
