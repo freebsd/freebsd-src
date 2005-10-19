@@ -203,14 +203,14 @@ nd6_ns_input(m, off, icmp6len)
 #ifdef DEV_CARP
 	if (ifp->if_carp)
 		ifa = carp_iamatch6(ifp->if_carp, &taddr6);
-	if (!ifa)
+	if (ifa == NULL)
 		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
 #else
 	ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
 #endif
 
 	/* (2) check. */
-	if (!ifa) {
+	if (ifa == NULL) {
 		struct rtentry *rt;
 		struct sockaddr_in6 tsin6;
 		int need_proxy;
@@ -671,7 +671,7 @@ nd6_na_input(m, off, icmp6len)
 		 * If the link-layer has address, and no lladdr option came,
 		 * discard the packet.
 		 */
-		if (ifp->if_addrlen && !lladdr)
+		if (ifp->if_addrlen && lladdr == NULL)
 			goto freeit;
 
 		/*
@@ -704,7 +704,7 @@ nd6_na_input(m, off, icmp6len)
 		/*
 		 * Check if the link-layer address has changed or not.
 		 */
-		if (!lladdr)
+		if (lladdr == NULL)
 			llchange = 0;
 		else {
 			if (sdl->sdl_alen) {
@@ -735,7 +735,7 @@ nd6_na_input(m, off, icmp6len)
 		 *	1	1	y	n	(2a) L *->REACHABLE
 		 *	1	1	y	y	(2a) L *->REACHABLE
 		 */
-		if (!is_override && (lladdr && llchange)) {	   /* (1) */
+		if (!is_override && (lladdr != NULL && llchange)) {   /* (1) */
 			/*
 			 * If state is REACHABLE, make it STALE.
 			 * no other updates should be done.
@@ -746,12 +746,12 @@ nd6_na_input(m, off, icmp6len)
 			}
 			goto freeit;
 		} else if (is_override				   /* (2a) */
-			|| (!is_override && (lladdr && !llchange)) /* (2b) */
-			|| !lladdr) {				   /* (2c) */
+			|| (!is_override && (lladdr != NULL && !llchange)) /* (2b) */
+			|| lladdr == NULL) {			   /* (2c) */
 			/*
 			 * Update link-local address, if any.
 			 */
-			if (lladdr) {
+			if (lladdr != NULL) {
 				sdl->sdl_alen = ifp->if_addrlen;
 				bcopy(lladdr, LLADDR(sdl), ifp->if_addrlen);
 			}
@@ -769,7 +769,7 @@ nd6_na_input(m, off, icmp6len)
 					    ND_IFINFO(ifp)->reachable;
 				}
 			} else {
-				if (lladdr && llchange) {
+				if (lladdr != NULL && llchange) {
 					ln->ln_state = ND6_LLINFO_STALE;
 					ln->ln_expire = time_second + nd6_gctimer;
 				}
@@ -1120,7 +1120,7 @@ nd6_dad_start(ifa, tick)
 		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 		return;
 	}
-	if (!ifa->ifa_ifp)
+	if (ifa->ifa_ifp == NULL)
 		panic("nd6_dad_start: ifa->ifa_ifp == NULL");
 	if (!(ifa->ifa_ifp->if_flags & IFF_UP)) {
 		return;
@@ -1372,7 +1372,7 @@ nd6_dad_ns_input(ifa)
 	struct dadq *dp;
 	int duplicate;
 
-	if (!ifa)
+	if (ifa == NULL)
 		panic("ifa == NULL in nd6_dad_ns_input");
 
 	ia = (struct in6_ifaddr *)ifa;
@@ -1394,7 +1394,7 @@ nd6_dad_ns_input(ifa)
 	 * if I'm yet to start DAD, someone else started using this address
 	 * first.  I have a duplicate and you win.
 	 */
-	if (!dp || dp->dad_ns_ocount == 0)
+	if (dp == NULL || dp->dad_ns_ocount == 0)
 		duplicate++;
 
 	/* XXX more checks for loopback situation - see nd6_dad_timer too */
@@ -1418,7 +1418,7 @@ nd6_dad_na_input(ifa)
 {
 	struct dadq *dp;
 
-	if (!ifa)
+	if (ifa == NULL)
 		panic("ifa == NULL in nd6_dad_na_input");
 
 	dp = nd6_dad_find(ifa);
