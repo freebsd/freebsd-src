@@ -1996,6 +1996,12 @@ again:
 	return (0);
 
   sendpkt:
+	/* discard the packet if IPv6 operation is disabled on the interface */
+	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)) {
+		error = ENETDOWN; /* better error? */
+		goto bad;
+	}
+
 #ifdef IPSEC
 	/* clean ipsec history once it goes out of the node */
 	ipsec_delaux(m);

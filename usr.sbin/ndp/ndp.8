@@ -198,6 +198,19 @@ selection, see the
 .Pa IMPLEMENTATION
 file supplied with the KAME kit.
 .It Xo
+.Ic disabled
+.Xc
+Disable IPv6 operation on the interface.
+When disabled, the interface discards any IPv6 packets
+received on or being sent to the interface.
+In the sending case, an error of ENETDOWN will be returned to the
+application.
+This flag is typically set automatically in the kernel as a result of
+a certain failure of Duplicate Address Detection.
+While the flag can be set or cleared by hand with the
+.Nm
+command, it is not generally advisable to modify this flag manually.
+.It Xo
 .Ic basereachable=(number)
 .Xc
 Specify the BaseReachbleTimer on the interface in millisecond.

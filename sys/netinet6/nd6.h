@@ -88,6 +88,10 @@ struct nd_ifinfo {
 
 #define ND6_IFF_PERFORMNUD	0x1
 #define ND6_IFF_ACCEPT_RTADV	0x2
+#define ND6_IFF_PREFER_SOURCE	0x4 /* XXX: not related to ND. */
+#define ND6_IFF_IFDISABLED	0x8 /* IPv6 operation is disabled due to
+				     * DAD failure.  (XXX: not ND-specific)
+				     */
 
 #ifdef _KERNEL
 #define ND_IFINFO(ifp) \
