@@ -1010,10 +1010,8 @@ after_listen:
 	KASSERT(headlocked, ("tcp_input: after_listen: head not locked"));
 	INP_LOCK_ASSERT(inp);
 
-	/* XXX temp debugging */
-	/* should not happen - syncache should pick up these connections */
-	if (tp->t_state == TCPS_LISTEN)
-		panic("tcp_input: TCPS_LISTEN");
+	/* Syncache takes care of sockets in the listen state. */
+	KASSERT(tp->t_state != TCPS_LISTEN, ("tcp_input: TCPS_LISTEN"));
 
 	/*
 	 * This is the second part of the MSS DoS prevention code (after
