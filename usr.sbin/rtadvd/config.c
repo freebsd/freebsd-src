@@ -46,6 +46,7 @@
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/icmp6.h>
+#include <netinet6/nd6.h>
 
 #include <arpa/inet.h>
 
@@ -406,6 +407,35 @@ getconfig(intface)
 		       IPV6_MMTU, tmp->phymtu);
 		exit(1);
 	}
+
+#ifdef SIOCSIFINFO_IN6
+	{
+		struct in6_ndireq ndi;
+		int s;
+
+		if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+			syslog(LOG_ERR, "<%s> socket: %s", __func__,
+			       strerror(errno));
+			exit(1);
+		}
+		memset(&ndi, 0, sizeof(ndi));
+		strncpy(ndi.ifname, intface, IFNAMSIZ);
+		if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&ndi) < 0) {
+			syslog(LOG_INFO, "<%s> ioctl:SIOCGIFINFO_IN6 at %s: %s",
+			     __func__, intface, strerror(errno));
+		}
+
+		/* reflect the RA info to the host variables in kernel */
+		ndi.ndi.chlim = tmp->hoplimit;
+		ndi.ndi.retrans = tmp->retranstimer;
+		ndi.ndi.basereachable = tmp->reachabletime;
+		if (ioctl(s, SIOCSIFINFO_IN6, (caddr_t)&ndi) < 0) {
+			syslog(LOG_INFO, "<%s> ioctl:SIOCSIFINFO_IN6 at %s: %s",
+			     __func__, intface, strerror(errno));
+		}
+		close(s);
+	}
+#endif
 
 	/* route information */
 #ifdef ROUTEINFO
