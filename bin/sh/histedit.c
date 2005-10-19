@@ -156,7 +156,7 @@ sethistsize(hs)
 		if (hs == NULL || *hs == '\0' ||
 		   (histsize = atoi(hs)) < 0)
 			histsize = 100;
-		history(hist, &he, H_EVENT, histsize);
+		history(hist, &he, H_SETSIZE, histsize);
 	}
 }
 
