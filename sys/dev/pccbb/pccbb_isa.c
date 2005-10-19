@@ -156,6 +156,8 @@ cbb_isa_activate(device_t dev)
 		device_printf(dev, "Cannot allocate I/O\n");
 		return (ENOMEM);
 	}
+	sc->bst = rman_get_bustag(res);
+	sc->bsh = rman_get_bushandle(res);
 	sc->base_res = res;
 	return (0);
 }
