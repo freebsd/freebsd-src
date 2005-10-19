@@ -2755,7 +2755,9 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 		return;
 	}
 
-	while ((current_desc->status & E1000_RXD_STAT_DD) && (count != 0)) {
+	while ((current_desc->status & E1000_RXD_STAT_DD) &&
+		    (count != 0) &&
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		struct mbuf *m = NULL;
 		
 		mp = adapter->rx_buffer_area[i].m_head;
