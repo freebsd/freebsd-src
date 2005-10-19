@@ -116,12 +116,6 @@ nd6_rs_input(m, off, icmp6len)
 	struct in6_addr saddr6 = ip6->ip6_src;
 	char *lladdr = NULL;
 	int lladdrlen = 0;
-#if 0
-	struct sockaddr_dl *sdl = (struct sockaddr_dl *)NULL;
-	struct llinfo_nd6 *ln = (struct llinfo_nd6 *)NULL;
-	struct rtentry *rt = NULL;
-	int is_newentry;
-#endif
 	union nd_opts ndopts;
 
 	/* If I'm not a router, ignore it. */
@@ -206,12 +200,6 @@ nd6_ra_input(m, off, icmp6len)
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct nd_router_advert *nd_ra;
 	struct in6_addr saddr6 = ip6->ip6_src;
-#if 0
-	struct in6_addr daddr6 = ip6->ip6_dst;
-	int flags; /* = nd_ra->nd_ra_flags_reserved; */
-	int is_managed = ((flags & ND_RA_FLAG_MANAGED) != 0);
-	int is_other = ((flags & ND_RA_FLAG_OTHER) != 0);
-#endif
 	union nd_opts ndopts;
 	struct nd_defrouter *dr;
 
@@ -863,14 +851,12 @@ prelist_remove(pr)
 	/* make sure to invalidate the prefix until it is really freed. */
 	pr->ndpr_vltime = 0;
 	pr->ndpr_pltime = 0;
-#if 0
 	/*
 	 * Though these flags are now meaningless, we'd rather keep the value
-	 * not to confuse users when executing "ndp -p".
+	 * of pr->ndpr_raf_onlink and pr->ndpr_raf_auto not to confuse users
+	 * when executing "ndp -p".
 	 */
-	pr->ndpr_raf_onlink = 0;
-	pr->ndpr_raf_auto = 0;
-#endif
+
 	if ((pr->ndpr_stateflags & NDPRF_ONLINK) != 0 &&
 	    (e = nd6_prefix_offlink(pr)) != 0) {
 		nd6log((LOG_ERR, "prelist_remove: failed to make %s/%d offlink "
@@ -1084,16 +1070,7 @@ prelist_update(new, dr, m)
 		if (TWOHOUR < new->ndpr_vltime ||
 		    storedlifetime < new->ndpr_vltime) {
 			lt6_tmp.ia6t_vltime = new->ndpr_vltime;
-		} else if (storedlifetime <= TWOHOUR
-#if 0
-			   /*
-			    * This condition is logically redundant, so we just
-			    * omit it.
-			    * See IPng 6712, 6717, and 6721.
-			    */
-			   && new->ndpr_vltime <= storedlifetime
-#endif
-			) {
+		} else if (storedlifetime <= TWOHOUR) {
 			if (auth) {
 				lt6_tmp.ia6t_vltime = new->ndpr_vltime;
 			}
@@ -1300,7 +1277,7 @@ pfxlist_onlink_check()
 			if ((e = nd6_prefix_offlink(pr)) != 0) {
 				nd6log((LOG_ERR,
 				    "pfxlist_onlink_check: failed to "
-				    "make %s/%d onlink, errno=%d\n",
+				    "make %s/%d offlink, errno=%d\n",
 				    ip6_sprintf(&pr->ndpr_prefix.sin6_addr),
 				    pr->ndpr_plen, e));
 			}
@@ -1311,7 +1288,7 @@ pfxlist_onlink_check()
 			if ((e = nd6_prefix_onlink(pr)) != 0) {
 				nd6log((LOG_ERR,
 				    "pfxlist_onlink_check: failed to "
-				    "make %s/%d offlink, errno=%d\n",
+				    "make %s/%d onlink, errno=%d\n",
 				    ip6_sprintf(&pr->ndpr_prefix.sin6_addr),
 				    pr->ndpr_plen, e));
 			}
@@ -1606,14 +1583,6 @@ in6_ifadd(pr, ifid)
 		ib = (struct in6_ifaddr *)ifa;
 	else
 		return NULL;
-
-#if 0 /* don't care link local addr state, and always do DAD */
-	/* if link-local address is not eligible, do not autoconfigure. */
-	if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_NOTREADY) {
-		printf("in6_ifadd: link-local address not ready\n");
-		return NULL;
-	}
-#endif
 
 	/* prefixlen + ifidlen must be equal to 128 */
 	plen0 = in6_mask2len(&ib->ia_prefixmask.sin6_addr, NULL);
