@@ -965,6 +965,27 @@ ifinfo(ifname, argc, argv)
 				newflags |= (f);\
 		}\
 	} while (0)
+/*
+ * XXX: this macro is not 100% correct, in that it matches "nud" against
+ *      "nudbogus".  But we just let it go since this is minor.
+ */
+#define SETVALUE(f, v) \
+	do { \
+		char *valptr; \
+		unsigned long newval; \
+		v = 0; /* unspecified */ \
+		if (strncmp(cp, f, strlen(f)) == 0) { \
+			valptr = strchr(cp, '='); \
+			if (valptr == NULL) \
+				err(1, "syntax error in %s field", (f)); \
+			errno = 0; \
+			newval = strtoul(++valptr, NULL, 0); \
+			if (errno) \
+				err(1, "syntax error in %s's value", (f)); \
+			v = newval; \
+		} \
+	} while (0)
+
 		SETFLAG("nud", ND6_IFF_PERFORMNUD);
 #ifdef ND6_IFF_ACCEPT_RTADV
 		SETFLAG("accept_rtadv", ND6_IFF_ACCEPT_RTADV);
@@ -972,13 +993,17 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_PREFER_SOURCE
 		SETFLAG("prefer_source", ND6_IFF_PREFER_SOURCE);
 #endif
+		SETVALUE("basereachable", ND.basereachable);
+		SETVALUE("retrans", ND.retrans);
+		SETVALUE("curhlim", ND.chlim);
 
 		ND.flags = newflags;
-		if (ioctl(s, SIOCSIFINFO_FLAGS, (caddr_t)&nd) < 0) {
-			err(1, "ioctl(SIOCSIFINFO_FLAGS)");
+		if (ioctl(s, SIOCSIFINFO_IN6, (caddr_t)&nd) < 0) {
+			err(1, "ioctl(SIOCSIFINFO_IN6)");
 			/* NOTREACHED */
 		}
 #undef SETFLAG
+#undef SETVALUE
 	}
 
 	if (!ND.initialized) {
@@ -986,6 +1011,10 @@ ifinfo(ifname, argc, argv)
 		/* NOTREACHED */
 	}
 
+	if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
+		err(1, "ioctl(SIOCGIFINFO_IN6)");
+		/* NOTREACHED */
+	}
 	printf("linkmtu=%d", ND.linkmtu);
 	printf(", maxmtu=%d", ND.maxmtu);
 	printf(", curhlim=%d", ND.chlim);

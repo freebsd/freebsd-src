@@ -361,6 +361,7 @@ in6_control(so, cmd, data, ifp, td)
 		/* FALLTHROUGH */
 	case OSIOCGIFINFO_IN6:
 	case SIOCGIFINFO_IN6:
+	case SIOCSIFINFO_IN6:
 	case SIOCGDRLST_IN6:
 	case SIOCGPRLST_IN6:
 	case SIOCGNBRINFO_IN6:
