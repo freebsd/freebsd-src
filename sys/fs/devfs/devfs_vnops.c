@@ -882,7 +882,7 @@ devfs_remove(struct vop_remove_args *ap)
 	sx_xlock(&dmp->dm_lock);
 	dd = ap->a_dvp->v_data;
 	de = vp->v_data;
-	if (de->de_dirent->d_type == DT_LNK) {
+	if (de->de_cdp == NULL) {
 		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
 		devfs_delete(dmp, de);
 	} else {
