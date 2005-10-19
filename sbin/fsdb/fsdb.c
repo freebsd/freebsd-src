@@ -223,7 +223,7 @@ cmdloop(void)
     printactive(0);
 
     hist = history_init();
-    history(hist, &he, H_EVENT, 100);	/* 100 elt history buffer */
+    history(hist, &he, H_SETSIZE, 100);	/* 100 elt history buffer */
 
     elptr = el_init("fsdb", stdin, stdout, stderr);
     el_set(elptr, EL_EDITOR, "emacs");
