@@ -314,84 +314,84 @@ svr4_getsiginfo(si, sig, code, addr)
 	u_long			 code;
 	caddr_t			 addr;
 {
-	si->si_signo = bsd_to_svr4_sig[sig];
-	si->si_errno = 0;
-	si->si_addr  = addr;
+	si->svr4_si_signo = bsd_to_svr4_sig[sig];
+	si->svr4_si_errno = 0;
+	si->svr4_si_addr  = addr;
 
 	switch (code) {
 	case T_PRIVINFLT:
-		si->si_code = SVR4_ILL_PRVOPC;
-		si->si_trap = SVR4_T_PRIVINFLT;
+		si->svr4_si_code = SVR4_ILL_PRVOPC;
+		si->svr4_si_trap = SVR4_T_PRIVINFLT;
 		break;
 
 	case T_BPTFLT:
-		si->si_code = SVR4_TRAP_BRKPT;
-		si->si_trap = SVR4_T_BPTFLT;
+		si->svr4_si_code = SVR4_TRAP_BRKPT;
+		si->svr4_si_trap = SVR4_T_BPTFLT;
 		break;
 
 	case T_ARITHTRAP:
-		si->si_code = SVR4_FPE_INTOVF;
-		si->si_trap = SVR4_T_DIVIDE;
+		si->svr4_si_code = SVR4_FPE_INTOVF;
+		si->svr4_si_trap = SVR4_T_DIVIDE;
 		break;
 
 	case T_PROTFLT:
-		si->si_code = SVR4_SEGV_ACCERR;
-		si->si_trap = SVR4_T_PROTFLT;
+		si->svr4_si_code = SVR4_SEGV_ACCERR;
+		si->svr4_si_trap = SVR4_T_PROTFLT;
 		break;
 
 	case T_TRCTRAP:
-		si->si_code = SVR4_TRAP_TRACE;
-		si->si_trap = SVR4_T_TRCTRAP;
+		si->svr4_si_code = SVR4_TRAP_TRACE;
+		si->svr4_si_trap = SVR4_T_TRCTRAP;
 		break;
 
 	case T_PAGEFLT:
-		si->si_code = SVR4_SEGV_ACCERR;
-		si->si_trap = SVR4_T_PAGEFLT;
+		si->svr4_si_code = SVR4_SEGV_ACCERR;
+		si->svr4_si_trap = SVR4_T_PAGEFLT;
 		break;
 
 	case T_ALIGNFLT:
-		si->si_code = SVR4_BUS_ADRALN;
-		si->si_trap = SVR4_T_ALIGNFLT;
+		si->svr4_si_code = SVR4_BUS_ADRALN;
+		si->svr4_si_trap = SVR4_T_ALIGNFLT;
 		break;
 
 	case T_DIVIDE:
-		si->si_code = SVR4_FPE_FLTDIV;
-		si->si_trap = SVR4_T_DIVIDE;
+		si->svr4_si_code = SVR4_FPE_FLTDIV;
+		si->svr4_si_trap = SVR4_T_DIVIDE;
 		break;
 
 	case T_OFLOW:
-		si->si_code = SVR4_FPE_FLTOVF;
-		si->si_trap = SVR4_T_DIVIDE;
+		si->svr4_si_code = SVR4_FPE_FLTOVF;
+		si->svr4_si_trap = SVR4_T_DIVIDE;
 		break;
 
 	case T_BOUND:
-		si->si_code = SVR4_FPE_FLTSUB;
-		si->si_trap = SVR4_T_BOUND;
+		si->svr4_si_code = SVR4_FPE_FLTSUB;
+		si->svr4_si_trap = SVR4_T_BOUND;
 		break;
 
 	case T_DNA:
-		si->si_code = SVR4_FPE_FLTINV;
-		si->si_trap = SVR4_T_DNA;
+		si->svr4_si_code = SVR4_FPE_FLTINV;
+		si->svr4_si_trap = SVR4_T_DNA;
 		break;
 
 	case T_FPOPFLT:
-		si->si_code = SVR4_FPE_FLTINV;
-		si->si_trap = SVR4_T_FPOPFLT;
+		si->svr4_si_code = SVR4_FPE_FLTINV;
+		si->svr4_si_trap = SVR4_T_FPOPFLT;
 		break;
 
 	case T_SEGNPFLT:
-		si->si_code = SVR4_SEGV_MAPERR;
-		si->si_trap = SVR4_T_SEGNPFLT;
+		si->svr4_si_code = SVR4_SEGV_MAPERR;
+		si->svr4_si_trap = SVR4_T_SEGNPFLT;
 		break;
 
 	case T_STKFLT:
-		si->si_code = SVR4_ILL_BADSTK;
-		si->si_trap = SVR4_T_STKFLT;
+		si->svr4_si_code = SVR4_ILL_BADSTK;
+		si->svr4_si_trap = SVR4_T_STKFLT;
 		break;
 
 	default:
-		si->si_code = 0;
-		si->si_trap = 0;
+		si->svr4_si_code = 0;
+		si->svr4_si_trap = 0;
 #if defined(DEBUG_SVR4)
 		printf("sig %d code %ld\n", sig, code);
 /*		panic("svr4_getsiginfo");*/
@@ -425,11 +425,11 @@ svr4_sendsig(catcher, ksi, mask)
 	int sig;
 	int code;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
 #if defined(DEBUG_SVR4)
 	printf("svr4_sendsig(%d)\n", sig);
 #endif
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	sig = ksi->ksi_signo;
 	code = ksi->ksi_trapno; /* use trap No. */
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
@@ -469,7 +469,7 @@ svr4_sendsig(catcher, ksi, mask)
 #if defined(DEBUG_SVR4)
 	printf("obtained siginfo\n");
 #endif
-	frame.sf_signum = frame.sf_si.si_signo;
+	frame.sf_signum = frame.sf_si.svr4_si_signo;
 	frame.sf_sip = &fp->sf_si;
 	frame.sf_ucp = &fp->sf_uc;
 	frame.sf_handler = catcher;
