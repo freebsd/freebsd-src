@@ -591,7 +591,7 @@ ndis_attach(dev)
 		sc->ndis_maxpkts = 10;
 
 	sc->ndis_txarray = malloc(sizeof(ndis_packet *) *
-	    sc->ndis_maxpkts, M_DEVBUF, M_NOWAIT|M_ZERO);
+	    NDIS_TXPKTS, M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	/* Allocate a pool of ndis_packets for TX encapsulation. */
 
