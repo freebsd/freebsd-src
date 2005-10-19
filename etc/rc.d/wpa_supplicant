@@ -20,10 +20,19 @@ if [ -z "$ifn" ]; then
 	return 1
 fi
 
+case ${ifn} in
+ndis*)
+	driver="ndis"
+	;;
+*)
+	driver="bsd"
+	;;
+esac
+
 load_rc_config $name
 
 pid_file="/var/run/${name}/${ifn}.pid"
-command_args="-B -q -i $ifn -P $pid_file -c $conf_file"
+command_args="-B -q -i $ifn -c $conf_file -D $driver -P $pid_file"
 required_files=$conf_file
 
 run_rc_command "$1"
