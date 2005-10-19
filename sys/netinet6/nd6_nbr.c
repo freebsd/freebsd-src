@@ -183,12 +183,6 @@ nd6_ns_input(m, off, icmp6len)
 	 * In implementation, we add target link-layer address by default.
 	 * We do not add one in MUST NOT cases.
 	 */
-#if 0 /* too much! */
-	ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &daddr6);
-	if (ifa && (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST))
-		tlladdr = 0;
-	else
-#endif
 	if (!IN6_IS_ADDR_MULTICAST(&daddr6))
 		tlladdr = 0;
 	else
@@ -238,7 +232,7 @@ nd6_ns_input(m, off, icmp6len)
 			}
 		}
 	}
-	if (!ifa) {
+	if (ifa == NULL) {
 		/*
 		 * We've got an NS packet, and we don't have that adddress
 		 * assigned for us.  We MUST silently ignore it.
@@ -1383,15 +1377,9 @@ nd6_dad_ns_output(dp, ifa)
 
 	dp->dad_ns_tcount++;
 	if ((ifp->if_flags & IFF_UP) == 0) {
-#if 0
-		printf("%s: interface down?\n", if_name(ifp));
-#endif
 		return;
 	}
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-#if 0
-		printf("%s: interface not running?\n", if_name(ifp));
-#endif
 		return;
 	}
 
