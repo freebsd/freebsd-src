@@ -194,7 +194,7 @@ match::do_match(config &c)
 #include <net/if.h>
 #include <net/if_media.h>
 
-media::media(config &c, const char *var, const char *type)
+media::media(config &, const char *var, const char *type)
 	: _var(var), _type(-1)
 {
 	static struct ifmedia_description media_types[] = {
@@ -585,7 +585,7 @@ config::find_and_execute(char type)
 {
 	vector<event_proc *> *l;
 	vector<event_proc *>::const_iterator i;
-	char *s;
+	const char *s;
 
 	switch (type) {
 	default:
