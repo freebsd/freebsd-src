@@ -1182,15 +1182,6 @@ nd6_rtrequest(req, rt, info)
 		 *   (or should we allow proxy ND configuration only for
 		 *   routers?  there's no mention about proxy ND from hosts)
 		 */
-#if 0
-		/* XXX it does not work */
-		if (rt->rt_flags & RTF_ANNOUNCE)
-			nd6_na_output(ifp,
-			      &SIN6(rt_key(rt))->sin6_addr,
-			      &SIN6(rt_key(rt))->sin6_addr,
-			      ip6_forwarding ? ND_NA_FLAG_ROUTER : 0,
-			      1, NULL);
-#endif
 		/* FALLTHROUGH */
 	case RTM_RESOLVE:
 		if ((ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0) {
@@ -1609,12 +1600,6 @@ nd6_cache_lladdr(ifp, from, lladdr, lladdrlen, type, code)
 
 	rt = nd6_lookup(from, 0, ifp);
 	if (rt == NULL) {
-#if 0
-		/* nothing must be done if there's no lladdr */
-		if (!lladdr || !lladdrlen)
-			return NULL;
-#endif
-
 		rt = nd6_lookup(from, 1, ifp);
 		is_newentry = 1;
 	} else {
