@@ -510,7 +510,8 @@ selectroute(dstsock, opts, mopts, ro, retifp, retrt, clone, norouteok)
 		if ((ron->ro_rt &&
 		     (ron->ro_rt->rt_flags & (RTF_UP | RTF_LLINFO)) !=
 		     (RTF_UP | RTF_LLINFO)) ||
-		    !SA6_ARE_ADDR_EQUAL(satosin6(&ron->ro_dst), sin6_next)) {
+		    !IN6_ARE_ADDR_EQUAL(&satosin6(&ron->ro_dst)->sin6_addr,
+		    &sin6_next->sin6_addr)) {
 			if (ron->ro_rt) {
 				RTFREE(ron->ro_rt);
 				ron->ro_rt = NULL;
@@ -967,10 +968,10 @@ add_addrsel_policyent(newpolicy)
 
 	/* duplication check */
 	TAILQ_FOREACH(pol, &addrsel_policytab, ape_entry) {
-		if (SA6_ARE_ADDR_EQUAL(&newpolicy->addr,
-				       &pol->ape_policy.addr) &&
-		    SA6_ARE_ADDR_EQUAL(&newpolicy->addrmask,
-				       &pol->ape_policy.addrmask)) {
+		if (IN6_ARE_ADDR_EQUAL(&newpolicy->addr.sin6_addr,
+				       &pol->ape_policy.addr.sin6_addr) &&
+		    IN6_ARE_ADDR_EQUAL(&newpolicy->addrmask.sin6_addr,
+				       &pol->ape_policy.addrmask.sin6_addr)) {
 			ADDRSEL_UNLOCK();
 			ADDRSEL_XUNLOCK();
 			FREE(new, M_IFADDR);
@@ -1001,9 +1002,10 @@ delete_addrsel_policyent(key)
 
 	/* search for the entry in the table */
 	TAILQ_FOREACH(pol, &addrsel_policytab, ape_entry) {
-		if (SA6_ARE_ADDR_EQUAL(&key->addr, &pol->ape_policy.addr) &&
-		    SA6_ARE_ADDR_EQUAL(&key->addrmask,
-				       &pol->ape_policy.addrmask)) {
+		if (IN6_ARE_ADDR_EQUAL(&key->addr.sin6_addr,
+		    &pol->ape_policy.addr.sin6_addr) &&
+		    IN6_ARE_ADDR_EQUAL(&key->addrmask.sin6_addr,
+		    &pol->ape_policy.addrmask.sin6_addr)) {
 			break;
 		}
 	}
