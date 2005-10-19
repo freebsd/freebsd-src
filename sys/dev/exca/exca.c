@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 #define DPRINTF(fmt, args...)
 #endif
 
-#if 0
 static const char *chip_names[] = 
 {
 	"CardBus socket",
@@ -105,7 +104,6 @@ static const char *chip_names[] =
 	"IBM clone",
 	"IBM KING PCMCIA Controller"
 };
-#endif
 
 static exca_getb_fn exca_mem_getb;
 static exca_putb_fn exca_mem_putb;
@@ -758,8 +756,10 @@ exca_probe_slots(device_t dev, struct exca_softc *exca, bus_space_tag_t iot,
 		exca_init(&exca[i], dev, iot, ioh, i * EXCA_SOCKET_SIZE);
 		exca->getb = exca_io_getb;
 		exca->putb = exca_io_putb;
-		if (exca_valid_slot(&exca[i]))
+		if (exca_valid_slot(&exca[i])) {
+			device_set_desc(dev, chip_names[exca[i].chipset]);
 			err = 0;
+		}
 	}
 	return (err);
 }
