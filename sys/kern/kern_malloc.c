@@ -834,7 +834,7 @@ DB_SHOW_COMMAND(malloc, db_show_malloc)
 			allocs += mtip->mti_stats[i].mts_numallocs;
 			frees += mtip->mti_stats[i].mts_numfrees;
 		}
-		db_printf("%18s %12llu %12llu %12llu\n", mtp->ks_shortdesc,
+		db_printf("%18s %12ju %12ju %12ju\n", mtp->ks_shortdesc,
 		    allocs, frees, allocs - frees);
 	}
 }
