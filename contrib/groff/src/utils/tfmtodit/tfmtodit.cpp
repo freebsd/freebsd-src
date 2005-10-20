@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989-1992, 2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989-1992, 2000, 2001, 2004 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -16,7 +16,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 /* I have tried to incorporate the changes needed for TeX 3.0 tfm files,
 but I haven't tested them. */
@@ -412,7 +412,7 @@ int gf::load(const char *file)
   };
   int got_an_adjustment = 0;
   int pending_adjustment = 0;
-  int left_adj, right_adj;
+  int left_adj = 0, right_adj = 0;	// pacify compiler
   const int gf_id_byte = 131;
   errno = 0;
   FILE *fp = fopen(file, FOPEN_RB);
@@ -650,7 +650,7 @@ lig_chars table. `ch' gives the full-name of the character, `name'
 gives the groff name of the character, `i' gives its index in
 the encoding, which is filled in later  (-1 if it does not appear). */
 
-struct {
+struct S {
   const char *ch;
   int i;
 } lig_chars[] = {
@@ -670,7 +670,7 @@ enum { CH_f, CH_i, CH_l, CH_ff, CH_fi, CH_fl, CH_ffi, CH_ffl };
 
 // Each possible ligature appears in this table.
 
-struct {
+struct S2 {
   unsigned char c1, c2, res;
   const char *ch;
 } lig_table[] = {

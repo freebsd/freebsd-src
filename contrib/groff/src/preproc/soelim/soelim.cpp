@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989-1992, 2000, 2001, 2003 Free Software Foundation, Inc.
+/* Copyright (C) 1989-1992, 2000, 2001, 2003, 2004, 2005
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -16,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "lib.h"
 
@@ -28,36 +29,18 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "error.h"
 #include "stringclass.h"
 #include "nonposix.h"
+#include "searchpath.h"
 
-static size_t include_list_length;
-static const char **include_list;
+// The include search path initially contains only the current directory.
+static search_path include_search_path(0, 0, 0, 1);
 
 int compatible_flag = 0;
 int raw_flag = 0;
 int tex_flag = 0;
 
-extern int interpret_lf_args(const char *);
 extern "C" const char *Version_string;
 
 int do_file(const char *filename);
-
-
-static void
-include_path_append(const char *path)
-{
-  ++include_list_length;
-  size_t nbytes = include_list_length * sizeof(char *);
-  if (include_list)
-    include_list = (const char **)realloc((void *)include_list, nbytes);
-  else
-    include_list = (const char **)malloc(nbytes);
-  if (include_list == NULL)
-    {
-      fprintf(stderr, "%s: out of memory\n", program_name);
-      exit(2);
-    }
-  include_list[include_list_length - 1] = path;
-}
 
 
 void usage(FILE *stream)
@@ -68,7 +51,6 @@ void usage(FILE *stream)
 int main(int argc, char **argv)
 {
   program_name = argv[0];
-  include_path_append(".");
   int opt;
   static const struct option long_options[] = {
     { "help", no_argument, 0, CHAR_MAX + 1 },
@@ -87,7 +69,7 @@ int main(int argc, char **argv)
       compatible_flag = 1;
       break;
     case 'I':
-      include_path_append(optarg);
+      include_search_path.command_line_dir(optarg);
       break;
     case 'r':
       raw_flag = 1;
@@ -172,49 +154,16 @@ void do_so(const char *line)
 
 int do_file(const char *filename)
 {
-  FILE *fp;
-  string whole_filename;
-  if (strcmp(filename, "-") == 0) {
-    fp = stdin;
-    whole_filename = filename;
-    whole_filename += '\0';
-  }
-  else if (IS_ABSOLUTE(filename)) {
-    whole_filename = filename;
-    whole_filename += '\0';
-    errno = 0;
-    fp = fopen(filename, "r");
-    if (fp == 0) {
-      error("can't open `%1': %2", filename, strerror(errno));
-      return 0;
-    }
-  }
-  else {
-    size_t j;
-    for (j = 0; j < include_list_length; ++j)
-    {
-      const char *path = include_list[j];
-      if (0 == strcmp(path, "."))
-	whole_filename = filename;
-      else
-	whole_filename = string(path) + "/" + filename;
-      whole_filename += '\0';
-      errno = 0;
-      fp = fopen(whole_filename.contents(), "r");
-      if (fp != 0)
-	break;
-      if (errno != ENOENT) {
-	error("can't open `%1': %2",
-	      whole_filename.contents(), strerror(errno));
-	return 0;
-      }
-    }
-    if (j >= include_list_length)
-    {
-      errno = ENOENT;
-      error("can't open `%1': %2", filename, strerror(errno));
-      return 0;
-    }
+  char *file_name_in_path = 0;
+  FILE *fp = include_search_path.open_file_cautious(filename,
+						    &file_name_in_path);
+  int err = errno;
+  string whole_filename(file_name_in_path ? file_name_in_path : filename);
+  whole_filename += '\0';
+  a_delete file_name_in_path;
+  if (fp == 0) {
+    error("can't open `%1': %2", whole_filename.contents(), strerror(err));
+    return 0;
   }
   current_filename = whole_filename.contents();
   current_lineno = 1;

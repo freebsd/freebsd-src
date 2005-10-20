@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#! /usr/bin/perl
 # grog -- guess options for groff command
 # Inspired by doctype script in Kernighan & Pike, Unix Programming
 # Environment, pp 306-8.

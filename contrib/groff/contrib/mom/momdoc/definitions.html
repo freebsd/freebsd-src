@@ -1,3 +1,4 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
@@ -10,7 +11,7 @@
 <a href="using.html#TOP">Next</a>&nbsp;&nbsp;
 <a href="intro.html#TOP">Prev</a>&nbsp;&nbsp;
 <a href="toc.html">Back to Table of Contents</a>
-
+<p>
 <a name="TOP"></a>
 <a name="TERMS">
 	<h1 align="center"><u>DEFINITIONS OF TERMS USED IN THIS MANUAL</u></h1>
@@ -26,9 +27,8 @@ I use a number of typesetting-specific and groff-specific terms
 throughout this documentation, as well as a few terms that apply
 to <strong>mom</strong> herself.  To make life easier, I'll explain
 them here.  Refer back to this section should you encounter a word
-or concept you're not familiar with.  Words in these definitions that
-are defined elsewhere in this section are marked with asterisks.
-<br>
+or concept you're not familiar with.
+<p>
 <hr>
 
 <a name="TERMS_TYPESETTING">
@@ -61,14 +61,16 @@ are defined elsewhere in this section are marked with asterisks.
 	<li><a href="#TERMS_PS">Point Size</a>
 	<li><a href="#TERMS_QUAD">Quad</a>
 	<li><a href="#TERMS_RAG">Rag</a>
+	<li><a href="#TERMS_SHAPE">Shape</a>
 	<li><a href="#TERMS_SOLID">Solid/set solid</a>
 	<li><a href="#TERMS_TRACKKERNING">Track kerning/Line kerning</a>
 	<li><a href="#TERMS_UNBREAKABLESPACE">Unbreakable space</a>
+	<li><a href="#TERMS_WEIGHT">Weight</a>
 	<li><a href="#TERMS_WORDSPACE">Word space</a>
 	<li><a href="#TERMS_XHEIGHT">x-height</a>
 </ul>
-<dl>
 
+<dl>
 <dt><a name="TERMS_ASCENDER"><em>Ascender</em></a>
 <dd>The portion of a letter that extends above the bowl.  For example,
 the letters a, c, and e have no ascenders.  The letters b, d, and h
@@ -79,8 +81,9 @@ do.
 bowls of lower case letters rest.
 
 <dt><a name="TERMS_BALLOTBOX"><em>Ballot box</em></a>
-<dd>An unfilled square, usually <strong>*cap-height</strong> in size,
-typically placed beside items in a checklist.
+<dd>An unfilled square, usually
+<a href="#TERMS_CAPHEIGHT">cap-height</a>
+in size, typically placed beside items in a checklist.
 
 <dt><a name="TERMS_BULLET"><em>Bullet</em></a>
 <dd>A small, filled circle typically found beside items or points in
@@ -88,12 +91,14 @@ a list.
 
 <dt><a name="TERMS_CAPHEIGHT"><em>Cap-height</em></a>
 <dd>The height of the tallest capital letter in a given
-<strong>*font</strong> at the current <strong>*point
-size</strong>.
+<a href="#TERMS_FONT">font</a>
+at the current
+<a href="#TERMS_PS">point size</a>.
 
 <dt><a name="TERMS_DESCENDER"><em>Descender</em></a>
 <dd>The portion of a letter that extends beneath the
-<strong>*baseline</strong> (j, q, y are letters with descenders).
+<a href="#TERMS_BASELINE">baseline</a>
+(j, q, y are letters with descenders).
 
 <dt><a name="TERMS_DISCRETIONARYHYPHEN"><em>Discretionary hyphen</em></a>
 <dd>A symbol inserted between two syllables of a word that indicates to a
@@ -121,25 +126,30 @@ letter until the bottom of the drop cap is reached, at which
 point text reverts to the left margin.
 
 <dt><a name="TERMS_EM"><em>Em/en</em></a>
-<dd>A relative measurement equal to the width of the letter M at a
-given <strong>*point size</strong> in a given <strong>*font</strong>.
+<dd>An em is a relative measurement equal to the width of the
+letter M at a given
+<a href="#TERMS_PS">point size</a>
+in a given
+<a href="#TERMS_FONT">font</a>.
 Since most Ms are designed square, an em is usually (but sometimes
-erroneously) considered to be the same size as the current point size
-(i.e. if the point size of the type is 12, one em equals 12 points).
-An en is equal to the width of a letter N (historically 2/3 of an em,
-although groff treats an en as 1/2 of an em).  Typically, ems and
-ens are used to measure indents, or to define the length of dashes
-(long hyphens).
+erroneously) considered to be the same size as the current point
+size (i.e. if the point size of the type is 12, one em equals 12
+points).  An en is equal to the width of a letter N (historically
+2/3 of an em, although groff treats an en as 1/2 of an em).
+Typically, ems and ens are used to measure indents, or to define the
+length of dashes (long hyphens).
 
 <dt><a name="TERMS_FAMILY"><em>Family</em></a>
 <dd>The collective name by which a collection of
-<strong>*fonts</strong> are known, e.g.  Helvetica, Times Roman,
-Garamond.
+<a href="#TERMS_FONT">fonts</a>
+are known, e.g.  Helvetica, Times Roman, Garamond.
 
 <dt><a name="TERMS_FIGURESPACE"><em>Figure space/Digit space</em></a>
-<dd>A <strong>*fixed width space</strong> that has the width of one digit.  Used for
-aligning numerals in, say, columns or numbered lists.  In groff,
-the figure space is entered with
+<dd>A
+<a href="#TERMS_FIXEDWIDTHSPACE">fixed width space</a>
+that has the width of one digit.  Used for aligning numerals in,
+say, columns or numbered lists.  In groff, the figure space is
+entered with
 <p>
 <pre>
 	\0
@@ -148,9 +158,11 @@ the figure space is entered with
 (backslash followed by a zero).
 
 <dt><a name="TERMS_FIXEDWIDTHSPACE"><em>Fixed width space</em></a>
-<dd>Equal to <strong>*word space</strong>, but does not expand or
-contract when text is <strong>*justified</strong>.  In groff, fixed
-width space is entered with
+<dd>Equal to
+<a href="#TERMS_WORDSPACE">word space</a>,
+but does not expand or contract when text is
+<a href="#TERMS_JUST">justified</a>.
+In groff, fixed width space is entered with
 <p>
 <pre>
 	\&lt;space&gt;
@@ -159,17 +171,25 @@ width space is entered with
 where &lt;space&gt; means "hit the spacebar on your keyboard."
 
 <dt><a name="TERMS_FONT"><em>Font</em></a>
-<dd>The specific style of type within a <strong>*family</strong>,
-e.g. roman, italic.  Groff understands four fonts within any given
-family: roman, italic, bold, and bold italic.
+<dd>The specific
+<a href="#TERMS_WEIGHT">weight</a>
+and
+<a href="#TERMS_SHAPE">shape</a>
+of type within a
+<a href="#TERMS_FAMILY">family</a>,
+e.g. light, medium, bold (which are weights), and roman, italic,
+condensed (which are shapes).  By default, groff knows of four fonts
+within its default set of families: R (medium roman), I (medium
+italic), B (bold roman) and BI (bold italic).
 
 <dt><a name="TERMS_FORCE"><em>Force justify
 </em></a>
-<dd>Sometimes, in <strong>*justified</strong> text, a line needs to be
-broken short of the right margin.  Force justifying means telling a
-typesetting program (like groff) that you want the line broken early
-AND that you want the line's word spacing stretched to force the line
-flush with the right margin.
+<dd>Sometimes, in
+<a href="#TERMS_JUST">justified</a>
+text, a line needs to be broken short of the right margin.  Force
+justifying means telling a typesetting program (like groff) that you
+want the line broken early AND that you want the line's word spacing
+stretched to force the line flush with the right margin.
 
 <dt><a name="TERMS_GUTTER"><em>Gutter</em></a>
 <dd>The vertical whitespace separating columns of type.
@@ -179,7 +199,8 @@ flush with the right margin.
 right margins.  Justification is the act of making both margins flush.
 Some people use the terms "left justified" and "right justified"
 to mean type where only the left (or right) margins align.  I don't.
-See <strong>*quad</strong>.
+See
+<a href="#TERMS_QUAD">quad</a>.
 
 <dt><a name="TERMS_KERN"><em>Kerning</em></a>
 <dd>Moving pairs of letters closer together to remove excess
@@ -187,7 +208,7 @@ whitespace between them.  In the days before phototypesetting,
 type was set from small, rectangular blocks of wood or metal, each
 block having exactly one letter.  Because the edge of each block
 determined the edge of each letter, certain letter combinations (TA,
-for example) didn't fit together well and had to be morticed by hand
+for example) didn't fit together well and had to be mortised by hand
 to bring them visually closer.  Modern typesetting systems usually
 take care of kerning automatically, but they're far from perfect.
 Professional typesetters still devote a lot of time to fitting letters
@@ -195,31 +216,37 @@ and punctuation together properly.
 
 <dt><a name="TERMS_KERNUNIT"><em>Kern Units</em></a>
 <dd>A relative distance equal to 1/36 of the current
-<strong>*point size</strong>.  Used between individual letters
-for <strong>*kerning</strong>.  Different typesetting systems use
-different values (1/54 is popular), and sometimes call kern units by
-a different name.
+<a href="#TERMS_PS">point size</a>.
+Used between individual letters
+for
+<a href="#TERMS_KERN">kerning</a>.
+Different typesetting systems use different values (1/54 is
+popular), and sometimes call kern units by a different name.
 <p>
 <strong>Experts:
 <br></strong>A kern unit has nothing to do with groff
 machine units.
 
 <dt><a name="TERMS_LEADING"><em>Lead/leading</em></a>
-<dd>The distance from the <strong>*baseline</strong> of one line of
-type to the line of type immediately beneath it.  Pronounced "ledding."
-Also called line spacing.  Usually measured in <strong>*points</strong>.
+<dd>The distance from the
+<a href="#TERMS_BASELINE">baseline</a>
+of one line of type to the line of type immediately beneath it.
+Pronounced "ledding."  Also called line spacing.  Usually measured
+in
+<a href="#TERMS_PICASPOINTS">points</a>.
 <p>
 <em>In case you're interested...</em> In previous centuries,
-lines of type were separated by thin strips of -- you guessed it
--- lead.  Lines of type that had no lead between them were said to
+lines of type were separated by thin strips of--you guessed
+it--lead.  Lines of type that had no lead between them were said to
 be &quot;set solid.&quot; Once you began separating them with strips
 of lead, they were said to be &quot;leaded&quot;, and the spacing was
-expressed in terms of the number of <strong>*points</strong> of lead.
-For this reason, &quot;leading&quot; and &quot;line spacing&quot;
-aren't, historically speaking, synonymous.  If type was set 10 on 12,
-for example, the leading was 2 points, not 12.  Nowadays, however,
-the two terms are used interchangeably to mean the distance from
-baseline to baseline.
+expressed in terms of the number of
+<a href="#TERMS_PICASPOINTS">points</a>
+of lead.  For this reason, &quot;leading&quot; and &quot;line
+spacing&quot; aren't, historically speaking, synonymous.  If type
+was set 10 on 12, for example, the leading was 2 points, not 12.
+Nowadays, however, the two terms are used interchangeably to mean
+the distance from baseline to baseline.
 
 <dt><a name="TERMS_LEADER"><em>Leaders</em></a>
 <dd>Single characters used to fill lines, usually to their end.
@@ -247,29 +274,60 @@ have always used their own system of measurement for weight (carats),
 typographers have always used their own system of measurement for type.
 
 <dt><a name="TERMS_PS"><em>Point Size</em></a>
-<dd>The nominal size of type, measured in <strong>*points</strong>,
-from the bottom of the longest <strong>*descender</strong> to the top
-of the highest <strong>*ascender</strong>.  In reality, type is always
-fractionally smaller than its point size.
+<dd>The nominal size of type, measured in
+<a href="#TERMS_PICASPOINTS">points</a>
+from the bottom of the longest
+<a href="#TERMS_DESCENDER">descender</a>
+to the top of the highest
+<a href="#TERMS_ASCENDER">ascender</a>.
+In reality, type is always fractionally smaller than its point size.
 
 <dt><a name="TERMS_QUAD"><em>Quad</em></a>
 <dd>When only one margin of type is flush, lines of type are quadded in
 the direction of the flush margin.  Therefore, quad left means the
 left margin is flush, the right isn't.  Quad right means the right
-margin is flush, the left isn't.  Quad center means neither the left
+margin is flush, the left isn't.  Quad centre means neither the left
 nor the right margin is flush; rather, lines of type are quadded on
-both sides so that type appears centered on the page.
+both sides so that type appears centred on the page.
 
 <dt><a name="TERMS_RAG"><em>Rag</em></a>
 <dd>Describes a margin that isn't flush.  Rag right means the right
 margin isn't flush.  Rag left means the left margin isn't flush.
 The expression "flush left/rag right" is sometimes used to describe
-type that is <strong>*quadded</strong> left.
+type that is
+<a href="#TERMS_QUAD">quadded</a>
+left.
+
+<dt><a name="TERMS_SHAPE"><em>Shape</em></a>
+<dd>The degree of slant and/or the width of characters.
+(Technically speaking, this is not a proper typesetting term;
+however, it may help clarify some concepts presented in these
+documents.)
+<p>
+Some typical shapes are:
+<ul>
+	<li>&quot;Roman&quot;, which has no slant, and has letterforms of
+		average width
+	<li>&quot;Italic&quot;, which is slanted, and has letterforms
+		of average width
+	<li>&quot;Condensed&quot;, which has no slant, but has
+		letterforms narrower than the average represented by Roman
+	<li>&quot;Condensed Italic&quot;, which is slanted, with letterforms narrower
+		than average
+</ul>
+The term
+<a href="#TERMS_FONT">font</a>,
+as it is used in these documents, refers to a combination of
+<a href="#TERMS_WEIGHT">weight</a>
+and shape.
 
 <dt><a name="TERMS_SOLID"><em>Solid/set solid</em></a>
-<dd>When no <strong>*lead</strong> is added between lines of type
-(i.e. the <strong>*point size</strong> and linespacing are the
-same), the lines are said to be &quot;set solid.&quot;
+<dd>When no
+<a href="#TERMS_LEADING">lead</a>
+is added between lines of type (i.e. the
+<a href="#TERMS_PS">point size</a>
+and linespacing are the same), the lines are said to be &quot;set
+solid.&quot;
 
 <dt><a name="TERMS_TRACKKERNING"><em>Track kerning/Line kerning</em></a>
 <dd>Sometimes, it's advantageous to increase or decrease the amount of
@@ -279,10 +337,13 @@ The correct term is letter spacing, but track kerning and line kerning
 (and sometimes, just "kerning") have come to mean the same thing.
 
 <dt><a name="TERMS_UNBREAKABLESPACE"><em>Unbreakable space</em></a>
-<dd>Equal to <strong>*word space</strong>, however words separated by
-an unbreakable space will always be kept together on the same line.
-Expands and contracts like word space.  Useful for proper names, which
-should never be broken.  In groff, unbreakable space is entered with
+<dd>Equal to
+<a href="#TERMS_WORDSPACE">word space</a>,
+however words separated by an unbreakable space will always be kept
+together on the same line.  Expands and contracts like word space.
+Useful for proper names, which one should, whenever possible, avoid
+splitting onto two lines.  In groff, unbreakable space is entered
+with
 <p>
 <pre>
 	\~
@@ -290,16 +351,26 @@ should never be broken.  In groff, unbreakable space is entered with
 
 (backslash followed by a tilde).
 
+<dt><a name="TERMS_WEIGHT"><em>Weight</em></a>
+<dd>The thickness of the strokes of letterforms.  Medium and Book
+have average thicknesses and are the weights used for most of the
+text in books, magazines, newspapers, etc.  Light has strokes
+slightly thinner than Medium or Book, but is still acceptable for
+most text.  Semibold, Bold, Heavy and Black all have strokes of
+increasing thickness, making them suitable for heads, subheads,
+headlines and the like.
+
 <dt><a name="TERMS_WORDSPACE"><em>Word space</em></a>
 <dd>The amount of whitespace between words.  When text is
-<strong>*justified</strong>, word space expands or contracts to make
-the margins flush.
+<a href="#TERMS_JUST">justified</a>,
+word space expands or contracts to make the margins flush.
 
 <dt><a name="TERMS_XHEIGHT"><em>x-height</em></a>
 <dd>The height of a lower case letter x in a given font at a given
 point size.  Generally used to mean the average height of the bowl
 of lower case letters.
 </dl>
+<p>
 <hr>
 
 <a name="TERMS_GROFF">
@@ -326,20 +397,23 @@ of lower case letters.
 <dl>
 
 <dt><a name="TERMS_ALIAS"><em>Alias</em></a>
-<dd>A <strong>*macro</strong> invoked by a name different from its
-&quot;official&quot; name.  For example, the official name of the
-macro to change <strong>*family</strong> is <strong>FAMILY</strong>.
-Its alias is <strong>FAM</strong>.  Aliases may be created for any
-macro (via the
+<dd>A
+<a href="#TERMS_MACROS">macro</a>
+invoked by a name different from its &quot;official&quot;
+name.  For example, the official name of the macro to change
+<a href="#TERMS_FAMILY">family</a>
+is <strong>FAMILY</strong>.  Its alias is
+<strong>FAM</strong>.  Aliases may be created for any macro (via the
 <a href="goodies.html#ALIAS">ALIAS</a>
 macro) provided the alias uses a name not already taken
 by the <strong>mom</strong> macros or one of the groff
-<strong>*primitives</strong>.  For a complete list of alias names
-you must not use, see the
+<a href="#TERMS_PRIMITIVES">primitives</a>.
+For a complete list of words or names you must not use, see the
 <a href="reserved.html#RESERVED">list of reserved words</a>.
 
 <dt><a name="TERMS_ARGUMENTS"><em>Arguments</em></a>
-<dd>Parameters or information needed by a <strong>*macro</strong>
+<dd>Parameters or information needed by a
+<a href="#TERMS_MACROS">macro</a>
 to do its job.  For example, in the macro
 <p>
 <pre>
@@ -356,32 +430,42 @@ LEFT is the argument.  Arguments are separated from macros by spaces.
 Some macros require several arguments; each is separated by a space.
 
 <dt><a name="TERMS_COMMENTLINES"><em>Comment Lines</em></a>
-<dd><strong>*Input lines</strong> introduced with the comment character
+<dd><a href="#TERMS_INPUTLINE">Input lines</a>
+introduced with the comment character
 <p>
 <pre>
 	\#
 </pre>
 
-When processing output, groff silently ignores everything on the
-line after the comment character.
+When processing output, groff silently ignores everything on a
+line that begins with the comment character.
 
 <dt><a name="TERMS_CONTROLLINES"><em>Control Lines</em></a>
 <dd>Instructions to groff that appear on a line by themselves,
 which means that &quot;control lines&quot; are either
-<strong>*macros</strong> or <strong>*groff primitives</strong>.
+<a href="#TERMS_MACROS">macros</a>
+or groff
+<a href="#TERMS_PRIMITIVES">primitives</a>.
 Control lines begin with a period or, occasionally, an apostrophe.
 
 <dt><a name="TERMS_FILLED"><em>Filled lines/fill mode</em></a>
-<dd>Automatic <strong>*justification</strong> or
-<strong>*quadding</strong>.  In fill mode, the ends of lines as they
-appear in your text editor are ignored.  Instead, words from adjoining
-<strong>*input lines</strong> are added one at a time to the output
-line until no more words fit.  Then, depending whether text is to
-be <strong>*justified</strong> or <strong>*quadded</strong> (left,
-right, or center), and depending on whether automatic hyphenation
-is turned on, groff attempts to hyphenate the last word, or, barring
-that, spreads and breaks the line (when justification is turned on) or
-breaks and quads the line (when quadding is turned on).
+<dd>Automatic
+<a href="#TERMS_JUST">justification</a>
+or
+<a href="#TERMS_QUAD">quadding</a>.
+In fill mode, the ends of lines as they appear in your text editor
+are ignored.  Instead, words from adjoining
+<a href="#TERMS_INPUTLINE">input lines</a>
+are added one at a time to the output line until no more words fit.
+Then, depending whether text is to be
+<a href="#TERMS_JUST">justified</a>
+or
+<a href="#TERMS_QUAD">quadded</a>
+(left, right, or centre), and depending on whether automatic
+hyphenation is turned on, groff attempts to hyphenate the last word,
+or, barring that, spreads and breaks the line (when justification
+is turned on) or breaks and quads the line (when quadding is turned
+on).
 <p>
 <a name="TERMS_NOFILL"></a>
 Nofill mode (non-filled text) means that groff respects the ends
@@ -389,25 +473,30 @@ of lines as they appear in your text editor.
 
 <dt><a name="TERMS_INLINES"><em>Inline escapes</em></a>
 <dd>Instructions issued to groff that appear as part of an
-<strong>*input line</strong> (as opposed to <strong>*macros</strong>,
-which must appear on a line by themselves).  Inline escapes are always
-introduced by the backslash character.  For example,
+<a href="#TERMS_INPUTLINE">input line</a>
+(as opposed to
+<a href="#TERMS_MACROS">macros</a>,
+which must appear on a line by themselves).  Inline escapes are
+always introduced by the backslash character.  For example,
 <p>
 <pre>
 	A line of text with the word T\*[BU 2]oronto in it
 </pre>
 
 contains the inline escape \*[BU 2] (which means &quot;move the letter
-'o' 2 <strong>*kern units</strong> closer to the letter 'T'&quot;).
+'o' 2
+<a href="#TERMS_KERNUNIT">kern units</a>
+closer to the letter 'T'&quot;).
 <p>
 <strong>Mom</strong>'s inline escapes always take the form
 <strong>\*[</strong><i>ESCAPE</i><strong>]</strong>, where <i>ESCAPE</i>
 is composed of capital letters, sometimes followed immediately
-by a digit, sometimes followed by a space and a <strong>*numeric
-argument</strong>. <strong>Groff</strong>'s escapes begin with the
-backslash character but typically have no star and are in lower case.
-For example, the <strong>mom</strong> escapes to move forward 6 points
-on a line are either
+by a digit, sometimes followed by a space and a
+<a href="#TERMS_NUMERICARGUMENT">numeric argument</a>.
+<strong>Groff</strong>'s escapes begin with the backslash character
+but typically have no star and are in lower case.  For example, the
+<strong>mom</strong> escapes to move forward 6 points on a line are
+either
 <p>
 <pre>
 	\*[FP6]&nbsp;&nbsp;or&nbsp;&nbsp;\*[FWD 6p]
@@ -426,20 +515,26 @@ while the <strong>groff</strong> escape for the same thing is
 <dd>Instructions embedded in a document that determine how groff processes
 the text for output.  <strong>mom</strong>'s macros always begin with a
 period, on a line by themselves, and must be typed in capital letters.
-Typically, macros contain complex commands issued to groff -- behind
-the scenes -- via groff <strong>*primitives</strong>.
+Typically, macros contain complex commands issued to groff--behind
+the scenes--via groff
+<a href="#TERMS_PRIMITIVES">primitives</a>.
 
 <dt><a name="TERMS_UNITS"><em>Machine units</em></a>
-<dd>A machine unit is 1/1000 of a <strong>*point</strong> when the
-groff device is ps.  (&quot;ps&quot; means &quot;PostScript&quot;  --
-the default device for which groff prepares output, and the device for
-which <strong>mom</strong> was specifically designed.)
+<dd>A machine unit is 1/1000 of a
+<a href="#TERMS_PICASPOINTS">point</a>
+when the groff device is ps. (&quot;ps&quot; means
+&quot;PostScript&quot;--the default device for which groff
+prepares output, and the device for which <strong>mom</strong> was
+specifically designed.)
 
 <dt><a name="TERMS_NUMERICARGUMENT"><em>Numeric argument</em></a>
-<dd>An <strong>*argument</strong> that has the form of a digit.
-Numeric arguments can be built out of arithmetic expressions using
-+, -, *, and / for plus, minus, times, and divided-by respectively.
-If a numeric argument requires a <strong>*unit of measure</strong>,
+<dd>An
+<a href="#TERMS_ARGUMENT">argument</a>
+that has the form of a digit.  Numeric arguments can be built out
+of arithmetic expressions using +, -, *, and / for plus, minus,
+times, and divided-by respectively.  If a numeric argument requires
+a
+<a href="#TERMS_UNITOFMEASURE">unit of measure</a>,
 a unit of measure must be appended to <em>every</em> digit in the
 argument.  For example:
 <p>
@@ -461,9 +556,12 @@ or minus sign when using <strong>mom</strong>'s macros is slim.
 native command language, and out of which macros are built.
 
 <dt><a name="TERMS_STRINGARGUMENT"><em>String Argument</em></a>
-<dd>Technically, any <strong>*argument</strong> that is not numeric.
-In this documentation, string argument means an argument that requires
-the user to input text.  For example, in the <strong>*macro</strong>
+<dd>Technically, any
+<a href="#TERMS_ARGUMENTS">argument</a>
+that is not numeric.  In this documentation, string argument means
+an argument that requires the user to input text.  For example, in
+the
+<a href="#TERMS_MACROS">macro</a>
 <p>
 <pre>
 	.TITLE "My Pulitzer Novel"
@@ -473,21 +571,22 @@ the user to input text.  For example, in the <strong>*macro</strong>
 <p>
 Because string arguments must be enclosed by double-quotes, you can't
 use double-quotes as part of the string argument.  If you need
-double-quotes to be part of a string argument, use the <strong>*inline
-escapes</strong> <strong> \(lq</strong> and <strong>\(rq</strong>
-(leftquote and rightquote respectively) in place of the double-quote
-character (").
+double-quotes to be part of a string argument, use the
+<a href="#TERMS_INLINES">inline escapes</a>
+<strong>\(lq</strong> and <strong>\(rq</strong> (leftquote and rightquote
+respectively) in place of the double-quote character (").
 
 <dt><a name="TERMS_UNITOFMEASURE"><em>Unit of measure</em></a>
-<dd>The single letter after a <strong>*numeric argument</strong>
+<dd>The single letter after a
+<a href="#TERMS_NUMERICARGUMENT">numeric argument</a>
 that tells <strong>mom</strong> what measurement scale the argument
-should use.  Commonly valid units are:
+should use.  Common valid units are:
 <p>
 <table valign="baseline" summary="unitsofmeasure">
 <tr><td><strong>i</strong><td> = <td>inches
 <tr><td><strong>p</strong><td> = <td>points
 <tr><td><strong>P</strong><td> = <td>picas
-<tr><td><strong>c</strong><td> = <td>centimeters
+<tr><td><strong>c</strong><td> = <td>centimetres
 <tr><td><strong>m</strong><td> = <td>ems
 <tr><td><strong>n</strong><td> = <td>ens
 <tr><td><strong>v</strong><td> = <td>the current leading (line space)</td></tr>
@@ -510,7 +609,8 @@ that set the size or measure of something MUST be given a unit of
 measure.  <strong>mom</strong>'s macros do not have default units
 of measure.  There are a couple of exceptions, the most notable of
 which are <strong>PT_SIZE</strong> and <strong>LS</strong>.  Both use
-<strong>*points</strong> as the default unit of measure, which means
+<a href="#TERMS_PICASPOINTS">points</a>
+as the default unit of measure, which means
 you don't have to append &quot;p&quot; to their argument.
 <p>
 You can enter decimal values for any unit of measure.  Different units
@@ -523,10 +623,15 @@ and 5 points.  If you want 12 picas and 5 points, you have to
 enter the measure as 12P+5p.
 
 <dt><a name="TERMS_ZEROWIDTHCHARACTER"><em>Zero-width character</em></a>
-<dd>The <strong>*inline escape</strong> that allows you to print a
-literal period, apostrophe and, if <strong>*output lines</strong>
-are <strong>*filled</strong>, a space that falls at the beginning of
-an <strong>*input line</strong>.  It looks like this:
+<dd>The
+<a href="#TERMS_INLINES">inline escape</a>
+that allows you to print a literal period, apostrophe and, if
+<a href="#TERMS_OUTPUTLINE">output lines</a>
+are
+<a href="#TERMS_FILLED">filled</a>,
+a space that falls at the beginning of an
+<a href="#TERMS_INPUTLINE">input line</a>.
+It looks like this:
 <p>
 <pre>
 	\&amp;
@@ -535,15 +640,17 @@ an <strong>*input line</strong>.  It looks like this:
 (backslash followed by an ampersand).
 <p>
 Normally, groff interprets a period (or an apostrophe) at the beginning
-of an input line as meaning that what follows is a <strong>*control
-line</strong>.  In fill modes, groff treats a space at the beginning
-of an input line as meaning &quot;start a new line and put a space
-at the beginning of it.&quot; If you want groff to interpret periods
-and apostrophes at the beginning of input lines literally (ie. print
+of an input line as meaning that what follows is a
+<a href="#TERMS_CONTROLLINES">control line</a>.
+In fill modes, groff treats a space at the beginning of an input
+line as meaning &quot;start a new line and put a space at the
+beginning of it.&quot; If you want groff to interpret periods and
+apostrophes at the beginning of input lines literally (i.e. print
 them), or spaces at the beginning of input lines as just garden
 variety word spaces, you must start the line with the zero-width
 character.
 </dl>
+<p>
 <hr>
 
 <a name="TERMS_MOM">
@@ -567,16 +674,19 @@ character.
 </ul>
 <dl>
 <dt><a name="TERMS_BLOCKQUOTE"><em>Blockquote</em></a>
-<dd>Cited material other than <strong>*quotes</strong>.
+<dd>Cited material other than
+<a href="#TERMS_QUOTE">quotes</a>.
 Typically set at a smaller point size than paragraph text, indented
 from the left and right margins.  Blockquotes are
-<strong>*filled</strong>.
+<a href="#TERMS_FILLED">filled</a>.
 
 <dt><a name="TERMS_CONTROLMACRO"><em>Control macro</em></a>
 <dd>Macros used in
 <a href="docprocessing.html#DOCPROCESSING">document processing</a>
 to control/alter the appearance of document elements (e.g. heads,
-quotes, footnotes, <strong>*headers</strong>, etc.).
+quotes, footnotes,
+<a href="#TERMS_HEADER">headers</a>,
+etc.).
 
 <dt><a name="TERMS_DOCHEADER"><em>Document header/docheader</em></a>
 <dd>Document information (title, subtitle, author, etc) output
@@ -590,7 +700,7 @@ beginning of a chapter, story, or other document.
 <dd>Document information (frequently author and title) output in
 the bottom margin of pages <em>after</em> page one.  Not to be
 confused with footnotes, which are considered part of
-<strong>*running text</strong>.
+<a href="#TERMS_RUNNING">running text</a>.
 
 <dt><a name="TERMS_HEAD"><em>Head</em></a>
 <dd>A title that introduces a major section of a document.
@@ -600,20 +710,23 @@ confused with footnotes, which are considered part of
 the top margin of pages <em>after</em> page one.
 <p>
 <strong>NOTE:</strong> In terms of content and style, headers and
-<strong>*footers</strong> are the same; they differ only in their
-placement on the page.  In most places in this documentation,
-references to the content or style of headers applies equally to
-footers.
+<a href="#TERMS_FOOTER">footers</a>
+are the same; they differ only in their placement on the page.  In
+most places in this documentation, references to the content or
+style of headers applies equally to footers.
 
 <dt><a name="TERMS_LINEBREAK"><em>Linebreak/author linebreak</em></a>
-<dd>A horizontal gap in <strong>*running text</strong>, frequently
-set off by typographic symbols such as asterisks or daggers.  Used to
-indicate a shift in the content of a document (e.g. a scene change in a
-short story).
+<dd>A horizontal gap in
+<a href="#TERMS_RUNNING">running text</a>,
+frequently set off by typographic symbols such as asterisks or
+daggers.  Used to indicate a shift in the content of a document
+(e.g. a scene change in a short story).  Also commonly called a
+scene break or a section break.
 
 <dt><a name="TERMS_PARAHEAD"><em>Paragraph head</em></a>
 <dd>A title joined to the body of a paragraph; hierarchically one
-level beneath <strong>*subheads</strong>.
+level beneath
+<a href="#TERMS_SUBHEAD">subheads</a>.
 
 <dt><a name="TERMS_QUOTE"><em>Quote</em></a>
 <dd>A quote, to <strong>mom</strong>, is a line-for-line setting
@@ -625,14 +738,16 @@ with quotes.
 <dt><a name="TERMS_RUNNING"><em>Running text</em></a>
 <dd>In a document formatted with <strong>mom</strong>, running
 text means text that forms the body of the document, including
-elements such as heads and subheads.  <strong>*Docheaders,
-*headers, *footers</strong> and page numbers are NOT part of
-running text.
+elements such as heads and subheads.
+<a href="#TERMS_DOCHEADER">Docheaders</a>,
+<a href="#TERMS_HEADER">headers</a>,
+<a href="#TERMS_FOOTER">footers</a>
+and page numbers are NOT part of running text.
 
 <dt><a name="TERMS_SUBHEAD"><em>Subhead</em></a>
 <dd>A title used to introduce secondary sections of a document;
 hierarchically one level beneath sections introduced by
-<strong>*heads</strong>.
+<a href="#TERMS_HEAD">heads</a>.
 
 <dt><a name="TERMS_TOGGLE"><em>Toggle</em></a>
 <dd>A macro or tag that, when invoked without an argument,

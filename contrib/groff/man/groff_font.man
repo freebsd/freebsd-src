@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-1995, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 1989-1995, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -17,17 +17,20 @@ translations approved by the Free Software Foundation instead of in
 the original English.
 ..
 .
+.do nr groff_font_C \n[.C]
+.cp 0
+.
 .de TQ
-.br
-.ns
-.TP \\$1
+.  br
+.  ns
+.  TP \\$1
 ..
 .
 .\" Like TP, but if specified indent is more than half
 .\" the current line-length - indent, use the default indent.
 .de Tp
-.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
-.el .TP "\\$1"
+.  ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.  el .TP "\\$1"
 ..
 .
 .
@@ -45,7 +48,8 @@ font format.
 The font files for device
 .I name
 are stored in a directory
-.BI dev name.
+.BI dev name\c
+\&.
 .
 There are two types of file: a
 device description file called
@@ -100,7 +104,18 @@ The horizontal resolution is
 machine units.
 .
 .TP
-.BI paperheight\  n
+.BI image_generator\  string
+Needed for
+.B grohtml
+only.
+It specifies the program to generate PNG images from
+PostScript input.
+Under GNU/Linux this is usually
+.I gs
+but under other systems (notably cygwin) it might be set to another name.
+.
+.TP
+.BI paperlength\  n
 The physical vertical dimension of the output medium in machine units.
 .
 This isn't used by
@@ -271,6 +286,13 @@ Quantities in the font files are given in machine units
 for fonts whose point size is
 .I n 
 scaled points.
+.
+.TP
+.B unscaled_charwidths
+Make the font handling module always return unscaled character widths.
+Needed for the
+.B grohtml
+device.
 .
 .TP
 .B use_charnames_in_special
@@ -519,9 +541,13 @@ field has the form (in one line; it is broken here for the sake of
 readability):
 .
 .IP
-.IR width [\fB, height [\fB, depth [\fB, italic-correction
+.I width\c
+.RI [\fB, height\c
+.RI [\fB, depth\c
+.RI [\fB, italic-correction
 .br
-.RI [\fB, left-italic-correction [\fB, subscript-correction ]]]]]
+.RI [\fB, left-italic-correction\c
+.RI [\fB, subscript-correction ]]]]]
 .
 .LP
 There must not be any spaces between these subfields.
@@ -626,6 +652,8 @@ of device
 .
 .BR groff_out (@MAN5EXT@),
 .BR @g@troff (@MAN1EXT@).
+.
+.cp \n[groff_font_C]
 .
 .\" Local Variables:
 .\" mode: nroff

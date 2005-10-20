@@ -31,4 +31,4 @@ DESC: DESC.proto
 	    -e "s/^vert .*$$/vert `expr $(RES) / $(LPI)`/" \
 	    -e "s/^fonts .*$$/fonts `set $(FONTS); echo $$#` $(FONTS)/" \
 	    $(srcdir)/DESC.proto >$@
-
+	@echo "image_generator $(GHOSTSCRIPT)" >> $@

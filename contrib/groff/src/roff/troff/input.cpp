@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,24 +17,26 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
+
+#define DEBUGGING
 
 #include "troff.h"
-#include "symbol.h"
 #include "dictionary.h"
 #include "hvunits.h"
+#include "stringclass.h"
+#include "mtsm.h"
 #include "env.h"
 #include "request.h"
 #include "node.h"
-#include "reg.h"
 #include "token.h"
 #include "div.h"
+#include "reg.h"
 #include "charinfo.h"
-#include "stringclass.h"
-#include "font.h"
 #include "macropath.h"
-#include "defs.h"
 #include "input.h"
+#include "defs.h"
+#include "font.h"
 #include "unicode.h"
 
 // Needed for getpid() and isatty()
@@ -63,6 +65,7 @@ extern "C" {
 // initial size of buffer for reading names; expanded as necessary
 #define ABUF_SIZE 16
 
+extern "C" const char *program_name;
 extern "C" const char *Version_string;
 
 #ifdef COLUMN
@@ -71,16 +74,13 @@ void init_column_requests();
 
 static node *read_draw_node();
 static void read_color_draw_node(token &);
-void handle_first_page_transition();
 static void push_token(const token &);
 void copy_file();
 #ifdef COLUMN
 void vjustify();
 #endif /* COLUMN */
 void transparent_file();
-void process_input_stack();
 
-const char *program_name = 0;
 token tok;
 int break_flag = 0;
 int color_flag = 1;		// colors are on by default
@@ -105,11 +105,12 @@ static int compatible_flag = 0;
 int ascii_output_flag = 0;
 int suppress_output_flag = 0;
 int is_html = 0;
-int begin_level = 0;		// number of nested .begin requests
+int begin_level = 0;		// number of nested \O escapes
 
 int have_input = 0;		// whether \f, \F, \D'F...', \H, \m, \M,
 				// \R, \s, or \S has been processed in
 				// token::next()
+int old_have_input = 0;		// value of have_input right before \n
 int tcommand_flag = 0;
 int safer_flag = 1;		// safer by default
 
@@ -119,8 +120,12 @@ double spread_limit = -3.0 - 1.0;	// negative means deactivated
 
 double warn_scale;
 char warn_scaling_indicator;
+int debug_state = 0;            // turns on debugging of the html troff state
 
 search_path *mac_path = &safer_macro_path;
+
+// Defaults to the current directory.
+search_path include_search_path(0, 0, 0, 1);
 
 static int get_copy(node**, int = 0);
 static void copy_mode_error(const char *,
@@ -140,18 +145,21 @@ static void interpolate_environment_variable(symbol);
 static symbol composite_glyph_name(symbol);
 static void interpolate_arg(symbol);
 static request_or_macro *lookup_request(symbol);
-static int get_delim_number(units *, int);
-static int get_delim_number(units *, int, units);
+static int get_delim_number(units *, unsigned char);
+static int get_delim_number(units *, unsigned char, units);
 static symbol do_get_long_name(int, char);
-static int get_line_arg(units *res, int si, charinfo **cp);
+static int get_line_arg(units *res, unsigned char si, charinfo **cp);
 static int read_size(int *);
 static symbol get_delim_name();
 static void init_registers();
 static void trapping_blank_line();
 
-struct input_iterator;
+class input_iterator;
 input_iterator *make_temp_iterator(const char *);
 const char *input_char_description(int);
+
+void process_input_stack();
+void chop_macro();		// declare to avoid friend name injection
 
 
 void set_escape_char()
@@ -192,9 +200,12 @@ void restore_escape_char()
 class input_iterator {
 public:
   input_iterator();
+  input_iterator(int is_div);
   virtual ~input_iterator() {}
   int get(node **);
   friend class input_stack;
+  int is_diversion;
+  statem *diversion_state;
 protected:
   const unsigned char *ptr;
   const unsigned char *eptr;
@@ -211,7 +222,6 @@ private:
   virtual int next_file(FILE *, const char *) { return 0; }
   virtual void shift(int) {}
   virtual int is_boundary() {return 0; }
-  virtual int internal_level() { return 0; }
   virtual int is_file() { return 0; }
   virtual int is_macro() { return 0; }
   virtual void save_compatible_flag(int) {}
@@ -219,7 +229,12 @@ private:
 };
 
 input_iterator::input_iterator()
-: ptr(0), eptr(0)
+: is_diversion(0), ptr(0), eptr(0)
+{
+}
+
+input_iterator::input_iterator(int is_div)
+: is_diversion(is_div), ptr(0), eptr(0)
 {
 }
 
@@ -413,16 +428,21 @@ public:
   static int is_return_boundary();
   static void remove_boundary();
   static int get_level();
+  static int get_div_level();
+  static void increase_level();
+  static void decrease_level();
   static void clear();
   static void pop_macro();
   static void save_compatible_flag(int);
   static int get_compatible_flag();
-
+  static statem *get_diversion_state();
+  static void check_end_diversion(input_iterator *t);
   static int limit;
+  static int div_level;
+  static statem *diversion_state;
 private:
   static input_iterator *top;
   static int level;
-
   static int finish_get(node **);
   static int finish_peek();
 };
@@ -430,17 +450,38 @@ private:
 input_iterator *input_stack::top = &nil_iterator;
 int input_stack::level = 0;
 int input_stack::limit = DEFAULT_INPUT_STACK_LIMIT;
+int input_stack::div_level = 0;
+statem *input_stack::diversion_state = NULL;
+int suppress_push=0;
+
 
 inline int input_stack::get_level()
 {
-  return level + top->internal_level();
+  return level;
+}
+
+inline void input_stack::increase_level()
+{
+  level++;
+}
+
+inline void input_stack::decrease_level()
+{
+  level--;
+}
+
+inline int input_stack::get_div_level()
+{
+  return div_level;
 }
 
 inline int input_stack::get(node **np)
 {
   int res = (top->ptr < top->eptr) ? *top->ptr++ : finish_get(np);
-  if (res == '\n')
+  if (res == '\n') {
+    old_have_input = have_input;
     have_input = 0;
+  }
   return res;
 }
 
@@ -453,6 +494,13 @@ int input_stack::finish_get(node **np)
     if (top == &nil_iterator)
       break;
     input_iterator *tem = top;
+    check_end_diversion(tem);
+#if defined(DEBUGGING)
+  if (debug_state)
+    if (tem->is_diversion)
+      fprintf(stderr,
+	      "in diversion level = %d\n", input_stack::get_div_level());
+#endif
     top = top->next;
     level--;
     delete tem;
@@ -468,6 +516,14 @@ inline int input_stack::peek()
   return (top->ptr < top->eptr) ? *top->ptr : finish_peek();
 }
 
+void input_stack::check_end_diversion(input_iterator *t)
+{
+  if (t->is_diversion) {
+    div_level--;
+    diversion_state = t->diversion_state;
+  }
+}
+
 int input_stack::finish_peek()
 {
   for (;;) {
@@ -477,6 +533,7 @@ int input_stack::finish_peek()
     if (top == &nil_iterator)
       break;
     input_iterator *tem = top;
+    check_end_diversion(tem);
     top = top->next;
     level--;
     delete tem;
@@ -506,6 +563,8 @@ void input_stack::remove_boundary()
 {
   assert(top->is_boundary());
   input_iterator *temp = top->next;
+  check_end_diversion(top);
+
   delete top;
   top = temp;
   level--;
@@ -519,6 +578,38 @@ void input_stack::push(input_iterator *in)
     fatal("input stack limit exceeded (probable infinite loop)");
   in->next = top;
   top = in;
+  if (top->is_diversion) {
+    div_level++;
+    in->diversion_state = diversion_state;
+    diversion_state = curenv->construct_state(0);
+#if defined(DEBUGGING)
+    if (debug_state) {
+      curenv->dump_troff_state();
+      fflush(stderr);
+    }
+#endif
+  }
+#if defined(DEBUGGING)
+  if (debug_state)
+    if (top->is_diversion) {
+      fprintf(stderr,
+	      "in diversion level = %d\n", input_stack::get_div_level());
+      fflush(stderr);
+    }
+#endif
+}
+
+statem *get_diversion_state()
+{
+  return input_stack::get_diversion_state();
+}
+
+statem *input_stack::get_diversion_state()
+{
+  if (diversion_state == NULL)
+    return NULL;
+  else
+    return new statem(diversion_state);
 }
 
 input_iterator *input_stack::get_arg(int i)
@@ -597,6 +688,7 @@ void input_stack::end_file()
   for (input_iterator **pp = &top; *pp != &nil_iterator; pp = &(*pp)->next)
     if ((*pp)->is_file()) {
       input_iterator *tem = *pp;
+      check_end_diversion(tem);
       *pp = (*pp)->next;
       delete tem;
       level--;
@@ -611,6 +703,7 @@ void input_stack::clear()
     if (top->is_boundary())
       nboundaries++;
     input_iterator *tem = top;
+    check_end_diversion(tem);
     top = top->next;
     level--;
     delete tem;
@@ -631,6 +724,7 @@ void input_stack::pop_macro()
       nboundaries++;
     is_macro = top->is_macro();
     input_iterator *tem = top;
+    check_end_diversion(tem);
     top = top->next;
     level--;
     delete tem;
@@ -666,7 +760,7 @@ void next_file()
     input_stack::end_file();
   else {
     errno = 0;
-    FILE *fp = fopen(nm.contents(), "r");
+    FILE *fp = include_search_path.open_file_cautious(nm.contents());
     if (!fp)
       error("can't open `%1': %2", nm.contents(), strerror(errno));
     else
@@ -684,7 +778,7 @@ void shift()
   skip_line();
 }
 
-static int get_char_for_escape_name(int allow_space = 0)
+static char get_char_for_escape_name(int allow_space = 0)
 {
   int c = get_copy(0);
   switch (c) {
@@ -734,7 +828,7 @@ static symbol read_long_escape_name(read_mode mode)
   char *buf = abuf;
   int buf_size = ABUF_SIZE;
   int i = 0;
-  int c;
+  char c;
   int have_char = 0;
   for (;;) {
     c = get_char_for_escape_name(have_char && mode == WITH_ARGS);
@@ -784,7 +878,7 @@ static symbol read_long_escape_name(read_mode mode)
 
 static symbol read_escape_name(read_mode mode)
 {
-  int c = get_char_for_escape_name();
+  char c = get_char_for_escape_name();
   if (c == 0)
     return NULL_SYMBOL;
   if (c == '(')
@@ -799,7 +893,7 @@ static symbol read_escape_name(read_mode mode)
 
 static symbol read_increment_and_escape_name(int *incp)
 {
-  int c = get_char_for_escape_name();
+  char c = get_char_for_escape_name();
   switch (c) {
   case 0:
     *incp = 0;
@@ -831,6 +925,28 @@ static int get_copy(node **nd, int defining)
 {
   for (;;) {
     int c = input_stack::get(nd);
+    if (c == PUSH_GROFF_MODE) {
+      input_stack::save_compatible_flag(compatible_flag);
+      compatible_flag = 0;
+      continue;
+    }
+    if (c == PUSH_COMP_MODE) {
+      input_stack::save_compatible_flag(compatible_flag);
+      compatible_flag = 1;
+      continue;
+    }
+    if (c == POP_GROFFCOMP_MODE) {
+      compatible_flag = input_stack::get_compatible_flag();
+      continue;
+    }
+    if (c == BEGIN_QUOTE) {
+      input_stack::increase_level();
+      continue;
+    }
+    if (c == END_QUOTE) {
+      input_stack::decrease_level();
+      continue;
+    }
     if (c == ESCAPE_NEWLINE) {
       if (defining)
 	return c;
@@ -993,6 +1109,7 @@ public:
   int same(node *);
   const char *type();
   int force_tprint();
+  int is_tag();
 };
 
 int non_interpreted_char_node::same(node *nd)
@@ -1006,6 +1123,11 @@ const char *non_interpreted_char_node::type()
 }
 
 int non_interpreted_char_node::force_tprint()
+{
+  return 0;
+}
+
+int non_interpreted_char_node::is_tag()
 {
   return 0;
 }
@@ -1033,7 +1155,6 @@ static node *do_suppress(symbol nm);
 static void do_register();
 
 dictionary color_dictionary(501);
-static symbol default_symbol("default");
 
 static color *lookup_color(symbol nm)
 {
@@ -1057,7 +1178,7 @@ void do_glyph_color(symbol nm)
     if (tem)
       curenv->set_glyph_color(tem);
     else
-      (void)color_dictionary.lookup(nm, new color);
+      (void)color_dictionary.lookup(nm, new color(nm));
   }
 }
 
@@ -1072,7 +1193,7 @@ void do_fill_color(symbol nm)
     if (tem)
       curenv->set_fill_color(tem);
     else
-      (void)color_dictionary.lookup(nm, new color);
+      (void)color_dictionary.lookup(nm, new color(nm));
   }
 }
 
@@ -1256,8 +1377,10 @@ static void define_color()
     skip_line();
     return;
   }
-  if (col)
+  if (col) {
+    col->nm = color_name;
     (void)color_dictionary.lookup(color_name, col);
+  }
   skip_line();
 }
 
@@ -1456,6 +1579,7 @@ public:
   int same(node *);
   const char *type();
   int force_tprint();
+  int is_tag();
 };
 
 token_node::token_node(const token &t) : tk(t)
@@ -1483,6 +1607,11 @@ const char *token_node::type()
 }
 
 int token_node::force_tprint()
+{
+  return 0;
+}
+
+int token_node::is_tag()
 {
   return 0;
 }
@@ -1548,17 +1677,27 @@ void token::next()
   }
   units x;
   for (;;) {
-    node *n;
+    node *n = 0;
     int cc = input_stack::get(&n);
     if (cc != escape_char || escape_char == 0) {
     handle_normal_char:
       switch(cc) {
-      case COMPATIBLE_SAVE:
+      case PUSH_GROFF_MODE:
 	input_stack::save_compatible_flag(compatible_flag);
 	compatible_flag = 0;
 	continue;
-      case COMPATIBLE_RESTORE:
+      case PUSH_COMP_MODE:
+	input_stack::save_compatible_flag(compatible_flag);
+	compatible_flag = 1;
+	continue;
+      case POP_GROFFCOMP_MODE:
 	compatible_flag = input_stack::get_compatible_flag();
+	continue;
+      case BEGIN_QUOTE:
+	input_stack::increase_level();
+	continue;
+      case END_QUOTE:
+	input_stack::decrease_level();
 	continue;
       case EOF:
 	type = TOKEN_EOF;
@@ -1710,7 +1849,7 @@ void token::next()
     }
     else {
     handle_escape_char:
-      cc = input_stack::get(0);
+      cc = input_stack::get(&n);
       switch(cc) {
       case '(':
 	nm = read_two_char_escape_name();
@@ -1904,11 +2043,11 @@ void token::next()
 	  if (s == 0)
 	    s = get_charinfo(cc == 'l' ? "ru" : "br");
 	  type = TOKEN_NODE;
-	  node *n = curenv->make_char_node(s);
+	  node *char_node = curenv->make_char_node(s);
 	  if (cc == 'l')
-	    nd = new hline_node(x, n);
+	    nd = new hline_node(x, char_node);
 	  else
-	    nd = new vline_node(x, n);
+	    nd = new vline_node(x, char_node);
 	  return;
 	}
       case 'm':
@@ -2398,6 +2537,8 @@ void exit_request()
 
 void return_macro_request()
 {
+  if (has_arg() && tok.ch())
+    input_stack::pop_macro();
   input_stack::pop_macro();
   tok.next();
 }
@@ -2528,12 +2669,16 @@ int node::reread(int *)
   return 0;
 }
 
+int global_diverted_space = 0;
+
 int diverted_space_node::reread(int *bolp)
 {
+  global_diverted_space = 1;
   if (curenv->get_fill())
     trapping_blank_line();
   else
     curdiv->space(n);
+  global_diverted_space = 0;
   *bolp = 1;
   return 1;
 }
@@ -2590,10 +2735,33 @@ void process_input_stack()
 	    tok.next();
 	  } while (tok.white_space());
 	  symbol nm = get_name();
+#if defined(DEBUGGING)
+	  if (debug_state) {
+	    if (! nm.is_null()) {
+	      if (strcmp(nm.contents(), "test") == 0) {
+		fprintf(stderr, "found it!\n");
+		fflush(stderr);
+	      }
+	      fprintf(stderr, "interpreting [%s]", nm.contents());
+	      if (strcmp(nm.contents(), "di") == 0 && topdiv != curdiv)
+		fprintf(stderr, " currently in diversion: %s",
+			curdiv->get_diversion_name());
+	      fprintf(stderr, "\n");
+	      fflush(stderr);
+	    }
+	  }
+#endif
 	  if (nm.is_null())
 	    skip_line();
-	  else
+	  else {
 	    interpolate_macro(nm);
+#if defined(DEBUGGING)
+	    if (debug_state) {
+	      fprintf(stderr, "finished interpreting [%s] and environment state is\n", nm.contents());
+	      curenv->dump_troff_state();
+	    }
+#endif
+	  }
 	  suppress_next = 1;
 	}
 	else {
@@ -2601,6 +2769,11 @@ void process_input_stack()
 	    ;
 	  else {
 	    for (;;) {
+#if defined(DEBUGGING)
+	      if (debug_state) {
+		fprintf(stderr, "found [%c]\n", ch); fflush(stderr);
+	      }
+#endif
 	      curenv->add_char(charset_table[ch]);
 	      tok.next();
 	      if (tok.type != token::TOKEN_CHAR)
@@ -2637,7 +2810,7 @@ void process_input_stack()
       }
     case token::TOKEN_NEWLINE:
       {
-	if (bol && !have_input
+	if (bol && !old_have_input
 	    && !curenv->get_prev_line_interrupted())
 	  trapping_blank_line();
 	else {
@@ -2962,7 +3135,7 @@ node_list::~node_list()
   delete_node_list(head);
 }
 
-struct macro_header {
+class macro_header {
 public:
   int count;
   char_list cl;
@@ -2978,6 +3151,7 @@ macro::~macro()
 }
 
 macro::macro()
+: is_a_diversion(0)
 {
   if (!input_stack::get_location(1, &filename, &lineno)) {
     filename = 0;
@@ -2989,11 +3163,28 @@ macro::macro()
 }
 
 macro::macro(const macro &m)
-: p(m.p), filename(m.filename), lineno(m.lineno), len(m.len),
-  empty_macro(m.empty_macro)
+: filename(m.filename), lineno(m.lineno), len(m.len),
+  empty_macro(m.empty_macro), is_a_diversion(m.is_a_diversion), p(m.p)
 {
   if (p != 0)
     p->count++;
+}
+
+macro::macro(int is_div)
+  : is_a_diversion(is_div)
+{
+  if (!input_stack::get_location(1, &filename, &lineno)) {
+    filename = 0;
+    lineno = 0;
+  }
+  len = 0;
+  empty_macro = 1;
+  p = 0;
+}
+
+int macro::is_diversion()
+{
+  return is_a_diversion;
 }
 
 macro &macro::operator=(const macro &m)
@@ -3008,6 +3199,7 @@ macro &macro::operator=(const macro &m)
   lineno = m.lineno;
   len = m.len;
   empty_macro = m.empty_macro;
+  is_a_diversion = m.is_a_diversion;
   return *this;
 }
 
@@ -3024,7 +3216,7 @@ void macro::append(unsigned char c)
   }
   p->cl.append(c);
   ++len;
-  if (c != COMPATIBLE_SAVE && c != COMPATIBLE_RESTORE)
+  if (c != PUSH_GROFF_MODE && c != PUSH_COMP_MODE && c != POP_GROFFCOMP_MODE)
     empty_macro = 0;
 }
 
@@ -3110,7 +3302,7 @@ macro_header *macro_header::copy(int n)
       bp = bp->next;
       ptr = bp->s;
     }
-    int c = *ptr++;
+    unsigned char c = *ptr++;
     p->cl.append(c);
     if (c == 0) {
       p->nl.append(nd->copy());
@@ -3158,11 +3350,12 @@ public:
   void backtrace();
   void save_compatible_flag(int f) { saved_compatible_flag = f; }
   int get_compatible_flag() { return saved_compatible_flag; }
+  int is_diversion();
 };
 
 string_iterator::string_iterator(const macro &m, const char *p, symbol s)
-: mac(m), how_invoked(p),
-  newline_flag(0), lineno(1), nm(s)
+: input_iterator(m.is_a_diversion), mac(m), how_invoked(p), newline_flag(0),
+  lineno(1), nm(s)
 {
   count = mac.len;
   if (count != 0) {
@@ -3188,6 +3381,11 @@ string_iterator::string_iterator()
   count = 0;
 }
 
+int string_iterator::is_diversion()
+{
+  return mac.is_diversion();
+}
+
 int string_iterator::fill(node **np)
 {
   if (newline_flag)
@@ -3201,8 +3399,13 @@ int string_iterator::fill(node **np)
     p = bp->s;
   }
   if (*p == '\0') {
-    if (np)
+    if (np) {
       *np = nd->copy();
+      if (is_diversion())
+	(*np)->div_nest_level = input_stack::get_div_level();
+      else
+	(*np)->div_nest_level = 0;
+    }
     nd = nd->next;
     eptr = ptr = p + 1;
     count--;
@@ -3390,6 +3593,7 @@ public:
   void add_arg(const macro &m);
   void shift(int n);
   int is_macro() { return 1; }
+  int is_diversion();
 };
 
 input_iterator *macro_iterator::get_arg(int i)
@@ -3513,12 +3717,13 @@ static void decode_args(macro_iterator *mi)
       macro arg;
       int quote_input_level = 0;
       int done_tab_warning = 0;
-      if (c == '\"') {
+      if (c == '"') {
 	quote_input_level = input_stack::get_level();
 	c = get_copy(&n);
       }
+      arg.append(compatible_flag ? PUSH_COMP_MODE : PUSH_GROFF_MODE);
       while (c != EOF && c != '\n' && !(c == ' ' && quote_input_level == 0)) {
-	if (quote_input_level > 0 && c == '\"'
+	if (quote_input_level > 0 && c == '"'
 	    && (compatible_flag
 		|| input_stack::get_level() == quote_input_level)) {
 	  c = get_copy(&n);
@@ -3542,6 +3747,7 @@ static void decode_args(macro_iterator *mi)
 	  c = get_copy(&n);
 	}
       }
+      arg.append(POP_GROFFCOMP_MODE);
       mi->add_arg(arg);
     }
   }
@@ -3563,14 +3769,14 @@ static void decode_string_args(macro_iterator *mi)
     macro arg;
     int quote_input_level = 0;
     int done_tab_warning = 0;
-    if (c == '\"') {
+    if (c == '"') {
       quote_input_level = input_stack::get_level();
       c = get_copy(&n);
     }
     while (c != EOF && c != '\n'
 	   && !(c == ']' && quote_input_level == 0)
 	   && !(c == ' ' && quote_input_level == 0)) {
-      if (quote_input_level > 0 && c == '\"'
+      if (quote_input_level > 0 && c == '"'
 	  && input_stack::get_level() == quote_input_level) {
 	c = get_copy(&n);
 	if (c == '"') {
@@ -3615,8 +3821,8 @@ int macro::empty()
   return empty_macro == 1;
 }
 
-macro_iterator::macro_iterator(symbol s, macro &m, const char *how_invoked)
-: string_iterator(m, how_invoked, s), args(0), argc(0)
+macro_iterator::macro_iterator(symbol s, macro &m, const char *how_called)
+: string_iterator(m, how_called, s), args(0), argc(0)
 {
 }
 
@@ -3821,12 +4027,13 @@ void read_request()
 }
 
 enum define_mode { DEFINE_NORMAL, DEFINE_APPEND, DEFINE_IGNORE };
-enum calling_mode { CALLING_NORMAL, CALLING_INDIRECT, CALLING_DISABLE_COMP };
+enum calling_mode { CALLING_NORMAL, CALLING_INDIRECT };
+enum comp_mode { COMP_IGNORE, COMP_DISABLE, COMP_ENABLE };
 
-void do_define_string(define_mode mode, calling_mode calling)
+void do_define_string(define_mode mode, comp_mode comp)
 {
   symbol nm;
-  node *n;
+  node *n = 0;		// pacify compiler
   int c;
   nm = get_name(1);
   if (nm.is_null()) {
@@ -3853,8 +4060,10 @@ void do_define_string(define_mode mode, calling_mode calling)
   macro *mm = rm ? rm->to_macro() : 0;
   if (mode == DEFINE_APPEND && mm)
     mac = *mm;
-  if (calling == CALLING_DISABLE_COMP)
-    mac.append(COMPATIBLE_SAVE);
+  if (comp == COMP_DISABLE)
+    mac.append(PUSH_GROFF_MODE);
+  else if (comp == COMP_ENABLE)
+    mac.append(PUSH_COMP_MODE);
   while (c != '\n' && c != EOF) {
     if (c == 0)
       mac.append(n);
@@ -3866,35 +4075,37 @@ void do_define_string(define_mode mode, calling_mode calling)
     mm = new macro;
     request_dictionary.define(nm, mm);
   }
-  if (calling == CALLING_DISABLE_COMP)
-    mac.append(COMPATIBLE_RESTORE);
+  if (comp == COMP_DISABLE || comp == COMP_ENABLE)
+    mac.append(POP_GROFFCOMP_MODE);
   *mm = mac;
   tok.next();
 }
 
 void define_string()
 {
-  do_define_string(DEFINE_NORMAL, CALLING_NORMAL);
+  do_define_string(DEFINE_NORMAL,
+		   compatible_flag ? COMP_ENABLE: COMP_IGNORE);
 }
 
 void define_nocomp_string()
 {
-  do_define_string(DEFINE_NORMAL, CALLING_DISABLE_COMP);
+  do_define_string(DEFINE_NORMAL, COMP_DISABLE);
 }
 
 void append_string()
 {
-  do_define_string(DEFINE_APPEND, CALLING_NORMAL);
+  do_define_string(DEFINE_APPEND,
+		   compatible_flag ? COMP_ENABLE : COMP_IGNORE);
 }
 
 void append_nocomp_string()
 {
-  do_define_string(DEFINE_APPEND, CALLING_DISABLE_COMP);
+  do_define_string(DEFINE_APPEND, COMP_DISABLE);
 }
 
 void do_define_character(char_mode mode, const char *font_name)
 {
-  node *n;
+  node *n = 0;		// pacify compiler
   int c;
   tok.skip();
   charinfo *ci = tok.get_char(1);
@@ -3996,26 +4207,6 @@ static void interpolate_string_with_args(symbol s)
   }
 }
 
-/* This class is used for the implementation of \$@.  It is used for
-each of the closing double quotes.  It artificially increases the
-input level by 2, so that the closing double quote will appear to have
-the same input level as the opening quote. */
-
-class end_quote_iterator : public input_iterator {
-  unsigned char buf[1];
-public:
-  end_quote_iterator();
-  ~end_quote_iterator() { }
-  int internal_level() { return 2; }
-};
-
-end_quote_iterator::end_quote_iterator()
-{
-  buf[0] = '"';
-  ptr = buf;
-  eptr = buf + 1;
-}
-
 static void interpolate_arg(symbol nm)
 {
   const char *s = nm.contents();
@@ -4024,17 +4215,39 @@ static void interpolate_arg(symbol nm)
   else if (s[1] == 0 && csdigit(s[0]))
     input_stack::push(input_stack::get_arg(s[0] - '0'));
   else if (s[0] == '*' && s[1] == '\0') {
-    for (int i = input_stack::nargs(); i > 0; i--) {
-      input_stack::push(input_stack::get_arg(i));
-      if (i != 1)
-	input_stack::push(make_temp_iterator(" "));
+    int limit = input_stack::nargs();
+    string args;
+    for (int i = 1; i <= limit; i++) {
+      input_iterator *p = input_stack::get_arg(i);
+      int c;
+      while ((c = p->get(0)) != EOF)
+	args += c;
+      if (i != limit)
+	args += ' ';
+    }
+    if (limit > 0) {
+      args += '\0';
+      input_stack::push(make_temp_iterator(args.contents()));
     }
   }
   else if (s[0] == '@' && s[1] == '\0') {
-    for (int i = input_stack::nargs(); i > 0; i--) {
-      input_stack::push(new end_quote_iterator);
-      input_stack::push(input_stack::get_arg(i));
-      input_stack::push(make_temp_iterator(i == 1 ? "\"" : " \""));
+    int limit = input_stack::nargs();
+    string args;
+    for (int i = 1; i <= limit; i++) {
+      args += '"';
+      args += BEGIN_QUOTE;
+      input_iterator *p = input_stack::get_arg(i);
+      int c;
+      while ((c = p->get(0)) != EOF)
+	args += c;
+      args += END_QUOTE;
+      args += '"';
+      if (i != limit)
+	args += ' ';
+    }
+    if (limit > 0) {
+      args += '\0';
+      input_stack::push(make_temp_iterator(args.contents()));
     }
   }
   else {
@@ -4091,7 +4304,7 @@ void handle_initial_title()
 // this should be local to define_macro, but cfront 1.2 doesn't support that
 static symbol dot_symbol(".");
 
-void do_define_macro(define_mode mode, calling_mode calling)
+void do_define_macro(define_mode mode, calling_mode calling, comp_mode comp)
 {
   symbol nm, term;
   if (calling == CALLING_INDIRECT) {
@@ -4140,8 +4353,10 @@ void do_define_macro(define_mode mode, calling_mode calling)
       mac = *mm;
   }
   int bol = 1;
-  if (calling == CALLING_DISABLE_COMP)
-    mac.append(COMPATIBLE_SAVE);
+  if (comp == COMP_DISABLE)
+    mac.append(PUSH_GROFF_MODE);
+  else if (comp == COMP_ENABLE)
+    mac.append(PUSH_COMP_MODE);
   for (;;) {
     while (c == ESCAPE_NEWLINE) {
       if (mode == DEFINE_NORMAL || mode == DEFINE_APPEND)
@@ -4177,8 +4392,8 @@ void do_define_macro(define_mode mode, calling_mode calling)
 	    mm = new macro;
 	    request_dictionary.define(nm, mm);
 	  }
-	  if (calling == CALLING_DISABLE_COMP)
-	    mac.append(COMPATIBLE_RESTORE);
+	  if (comp == COMP_DISABLE || comp == COMP_ENABLE)
+	    mac.append(POP_GROFFCOMP_MODE);
 	  *mm = mac;
 	}
 	if (term != dot_symbol) {
@@ -4228,38 +4443,52 @@ void do_define_macro(define_mode mode, calling_mode calling)
 
 void define_macro()
 {
-  do_define_macro(DEFINE_NORMAL, CALLING_NORMAL);
+  do_define_macro(DEFINE_NORMAL, CALLING_NORMAL,
+		  compatible_flag ? COMP_ENABLE : COMP_IGNORE);
 }
 
 void define_nocomp_macro()
 {
-  do_define_macro(DEFINE_NORMAL, CALLING_DISABLE_COMP);
+  do_define_macro(DEFINE_NORMAL, CALLING_NORMAL, COMP_DISABLE);
 }
 
 void define_indirect_macro()
 {
-  do_define_macro(DEFINE_NORMAL, CALLING_INDIRECT);
+  do_define_macro(DEFINE_NORMAL, CALLING_INDIRECT,
+		  compatible_flag ? COMP_ENABLE : COMP_IGNORE);
+}
+
+void define_indirect_nocomp_macro()
+{
+  do_define_macro(DEFINE_NORMAL, CALLING_INDIRECT, COMP_DISABLE);
 }
 
 void append_macro()
 {
-  do_define_macro(DEFINE_APPEND, CALLING_NORMAL);
-}
-
-void append_indirect_macro()
-{
-  do_define_macro(DEFINE_APPEND, CALLING_INDIRECT);
+  do_define_macro(DEFINE_APPEND, CALLING_NORMAL,
+		  compatible_flag ? COMP_ENABLE : COMP_IGNORE);
 }
 
 void append_nocomp_macro()
 {
-  do_define_macro(DEFINE_APPEND, CALLING_DISABLE_COMP);
+  do_define_macro(DEFINE_APPEND, CALLING_NORMAL, COMP_DISABLE);
+}
+
+void append_indirect_macro()
+{
+  do_define_macro(DEFINE_APPEND, CALLING_INDIRECT,
+		  compatible_flag ? COMP_ENABLE : COMP_IGNORE);
+}
+
+void append_indirect_nocomp_macro()
+{
+  do_define_macro(DEFINE_APPEND, CALLING_INDIRECT, COMP_DISABLE);
 }
 
 void ignore()
 {
   ignoring = 1;
-  do_define_macro(DEFINE_IGNORE, CALLING_NORMAL);
+  do_define_macro(DEFINE_IGNORE, CALLING_NORMAL, COMP_IGNORE);
   ignoring = 0;
 }
 
@@ -4313,11 +4542,12 @@ void chop_macro()
       // we have to check for additional save/restore pairs which could be
       // there due to empty am1 requests.
       for (;;) {
-	if (m->get(m->len - 1) != COMPATIBLE_RESTORE)
+	if (m->get(m->len - 1) != POP_GROFFCOMP_MODE)
           break;
 	have_restore = 1;
 	m->len -= 1;
-	if (m->get(m->len - 1) != COMPATIBLE_SAVE)
+	if (m->get(m->len - 1) != PUSH_GROFF_MODE
+	    && m->get(m->len - 1) != PUSH_COMP_MODE)
           break;
 	have_restore = 0;
 	m->len -= 1;
@@ -4328,7 +4558,7 @@ void chop_macro()
 	error("cannot chop empty macro");
       else {
 	if (have_restore)
-	  m->set(COMPATIBLE_RESTORE, m->len - 1);
+	  m->set(POP_GROFFCOMP_MODE, m->len - 1);
 	else
 	  m->len -= 1;
       }
@@ -4353,7 +4583,9 @@ void substring_request()
 	string_iterator iter1(*m);
 	for (int l = 0; l < m->len; l++) {
 	  int c = iter1.get(0);
-	  if (c == COMPATIBLE_SAVE || c == COMPATIBLE_RESTORE)
+	  if (c == PUSH_GROFF_MODE
+	      || c == PUSH_COMP_MODE
+	      || c == POP_GROFFCOMP_MODE)
 	    continue;
 	  if (c == EOF)
 	    break;
@@ -4395,16 +4627,20 @@ void substring_request()
 	int i;
 	for (i = 0; i < start; i++) {
 	  int c = iter.get(0);
-	  while (c == COMPATIBLE_SAVE || c == COMPATIBLE_RESTORE)
+	  while (c == PUSH_GROFF_MODE
+		 || c == PUSH_COMP_MODE
+		 || c == POP_GROFFCOMP_MODE)
 	    c = iter.get(0);
 	  if (c == EOF)
 	    break;
 	}
 	macro mac;
 	for (; i <= end; i++) {
-	  node *nd;
+	  node *nd = 0;		// pacify compiler
 	  int c = iter.get(&nd);
-	  while (c == COMPATIBLE_SAVE || c == COMPATIBLE_RESTORE)
+	  while (c == PUSH_GROFF_MODE
+		 || c == PUSH_COMP_MODE
+		 || c == POP_GROFFCOMP_MODE)
 	    c = iter.get(0);
 	  if (c == EOF)
 	    break;
@@ -4470,7 +4706,7 @@ void asciify_macro()
       macro am;
       string_iterator iter(*m);
       for (;;) {
-	node *nd;
+	node *nd = 0;		// pacify compiler
 	int c = iter.get(&nd);
 	if (c == EOF)
 	  break;
@@ -4497,7 +4733,7 @@ void unformat_macro()
       macro am;
       string_iterator iter(*m);
       for (;;) {
-	node *nd;
+	node *nd = 0;		// pacify compiler
 	int c = iter.get(&nd);
 	if (c == EOF)
 	  break;
@@ -4538,7 +4774,7 @@ static void interpolate_number_format(symbol nm)
     input_stack::push(make_temp_iterator(r->get_format()));
 }
 
-static int get_delim_number(units *n, int si, int prev_value)
+static int get_delim_number(units *n, unsigned char si, int prev_value)
 {
   token start;
   start.next();
@@ -4553,7 +4789,7 @@ static int get_delim_number(units *n, int si, int prev_value)
   return 0;
 }
 
-static int get_delim_number(units *n, int si)
+static int get_delim_number(units *n, unsigned char si)
 {
   token start;
   start.next();
@@ -4568,7 +4804,7 @@ static int get_delim_number(units *n, int si)
   return 0;
 }
 
-static int get_line_arg(units *n, int si, charinfo **cp)
+static int get_line_arg(units *n, unsigned char si, charinfo **cp)
 {
   token start;
   start.next();
@@ -4605,7 +4841,7 @@ static int read_size(int *x)
     tok.next();
     c = tok.ch();
   }
-  int val;
+  int val = 0;		// pacify compiler
   int bad = 0;
   if (c == '(') {
     tok.next();
@@ -4866,13 +5102,20 @@ public:
   non_interpreted_node(const macro &);
   int interpret(macro *);
   node *copy();
+  int ends_sentence();
   int same(node *);
   const char *type();
   int force_tprint();
+  int is_tag();
 };
 
 non_interpreted_node::non_interpreted_node(const macro &m) : mac(m)
 {
+}
+
+int non_interpreted_node::ends_sentence()
+{
+  return 2;
 }
 
 int non_interpreted_node::same(node *nd)
@@ -4890,6 +5133,11 @@ int non_interpreted_node::force_tprint()
   return 0;
 }
 
+int non_interpreted_node::is_tag()
+{
+  return 0;
+}
+
 node *non_interpreted_node::copy()
 {
   return new non_interpreted_node(mac);
@@ -4898,7 +5146,7 @@ node *non_interpreted_node::copy()
 int non_interpreted_node::interpret(macro *m)
 {
   string_iterator si(mac);
-  node *n;
+  node *n = 0;		// pacify compiler
   for (;;) {
     int c = si.get(&n);
     if (c == EOF)
@@ -5247,6 +5495,24 @@ int do_if_request()
     result = character_exists(ci, curenv);
     tok.next();
   }
+  else if (c == 'F') {
+    tok.next();
+    symbol nm = get_long_name(1);
+    if (nm.is_null()) {
+      skip_alternative();
+      return 0;
+    }
+    result = check_font(curenv->get_family()->nm, nm);
+  }
+  else if (c == 'S') {
+    tok.next();
+    symbol nm = get_long_name(1);
+    if (nm.is_null()) {
+      skip_alternative();
+      return 0;
+    }
+    result = check_style(nm);
+  }
   else if (tok.space())
     result = 0;
   else if (tok.delimiter()) {
@@ -5256,6 +5522,7 @@ int do_if_request()
     environment env2(curenv);
     environment *oldenv = curenv;
     curenv = &env1;
+    suppress_push = 1;
     for (int i = 0; i < 2; i++) {
       for (;;) {
 	tok.next();
@@ -5279,6 +5546,7 @@ int do_if_request()
     delete_node_list(n2);
     curenv = oldenv;
     have_input = 0;
+    suppress_push = 0;
     tok.next();
   }
   else {
@@ -5333,7 +5601,7 @@ void while_request()
   int level = 0;
   mac.append(new token_node(tok));
   for (;;) {
-    node *n;
+    node *n = 0;		// pacify compiler
     int c = input_stack::get(&n);
     if (c == EOF)
       break;
@@ -5424,7 +5692,7 @@ void source()
     while (!tok.newline() && !tok.eof())
       tok.next();
     errno = 0;
-    FILE *fp = fopen(nm.contents(), "r");
+    FILE *fp = include_search_path.open_file_cautious(nm.contents());
     if (fp)
       input_stack::push(new file_iterator(fp, nm.contents()));
     else
@@ -5663,7 +5931,8 @@ void ps_bbox_request()
     errno = 0;
     // PS files might contain non-printable characters, such as ^Z
     // and CRs not followed by an LF, so open them in binary mode.
-    FILE *fp = fopen(nm.contents(), FOPEN_RB);
+    FILE *fp = include_search_path.open_file_cautious(nm.contents(),
+						      0, FOPEN_RB);
     if (fp) {
       do_ps_file(fp, nm.contents());
       fclose(fp);
@@ -5737,8 +6006,9 @@ const char *asciify(int c)
   case ESCAPE_COLON:
     buf[1] = ':';
     break;
-  case COMPATIBLE_SAVE:
-  case COMPATIBLE_RESTORE:
+  case PUSH_GROFF_MODE:
+  case PUSH_COMP_MODE:
+  case POP_GROFFCOMP_MODE:
     buf[0] = '\0';
     break;
   default:
@@ -5787,6 +6057,52 @@ const char *input_char_description(int c)
   }
   sprintf(buf, "character code %d", c);
   return buf;
+}
+
+void tag()
+{
+  if (!tok.newline() && !tok.eof()) {
+    string s;
+    int c;
+    for (;;) {
+      c = get_copy(0);
+      if (c == '"') {
+	c = get_copy(0);
+	break;
+      }
+      if (c != ' ' && c != '\t')
+	break;
+    }
+    s = "x X ";
+    for (; c != '\n' && c != EOF; c = get_copy(0))
+      s += (char)c;
+    s += '\n';
+    curenv->add_node(new tag_node(s, 0));
+  }
+  tok.next();
+}
+
+void taga()
+{
+  if (!tok.newline() && !tok.eof()) {
+    string s;
+    int c;
+    for (;;) {
+      c = get_copy(0);
+      if (c == '"') {
+	c = get_copy(0);
+	break;
+      }
+      if (c != ' ' && c != '\t')
+	break;
+    }
+    s = "x X ";
+    for (; c != '\n' && c != EOF; c = get_copy(0))
+      s += (char)c;
+    s += '\n';
+    curenv->add_node(new tag_node(s, 1));
+  }
+  tok.next();
 }
 
 // .tm, .tm1, and .tmc
@@ -6630,7 +6946,7 @@ void transparent_file()
     curenv->do_break();
   if (!filename.is_null()) {
     errno = 0;
-    FILE *fp = fopen(filename.contents(), "r");
+    FILE *fp = include_search_path.open_file_cautious(filename.contents());
     if (!fp)
       error("can't open `%1': %2", filename.contents(), strerror(errno));
     else {
@@ -6824,7 +7140,7 @@ static void process_input_file(const char *name)
   }
   else {
     errno = 0;
-    fp = fopen(name, "r");
+    fp = include_search_path.open_file_cautious(name);
     if (!fp)
       fatal("can't open `%1': %2", name, strerror(errno));
   }
@@ -6920,7 +7236,7 @@ void usage(FILE *stream, const char *prog)
 {
   fprintf(stream,
 "usage: %s -abcivzCERU -wname -Wname -dcs -ffam -mname -nnum -olist\n"
-"       -rcn -Tname -Fdir -Mdir [files...]\n",
+"       -rcn -Tname -Fdir -Idir -Mdir [files...]\n",
 	  prog);
 }
 
@@ -6938,7 +7254,7 @@ int main(int argc, char **argv)
   int fflag = 0;
   int nflag = 0;
   int no_rc = 0;		// don't process troffrc and troffrc-end
-  int next_page_number;
+  int next_page_number = 0;	// pacify compiler
   opterr = 0;
   hresolution = vresolution = 1;
   // restore $PATH if called from groff
@@ -6957,8 +7273,12 @@ int main(int argc, char **argv)
     { "version", no_argument, 0, 'v' },
     { 0, 0, 0, 0 }
   };
-  while ((c = getopt_long(argc, argv, "abcivw:W:zCEf:m:n:o:r:d:F:M:T:tqs:RU",
-			  long_options, 0))
+#if defined(DEBUGGING)
+#define DEBUG_OPTION "D"
+#endif
+  while ((c = getopt_long(argc, argv,
+			  "abciI:vw:W:zCEf:m:n:o:r:d:F:M:T:tqs:RU"
+			  DEBUG_OPTION, long_options, 0))
 	 != EOF)
     switch(c) {
     case 'v':
@@ -6967,6 +7287,11 @@ int main(int argc, char **argv)
 	exit(0);
 	break;
       }
+    case 'I':
+      // Search path for .psbb files
+      // and most other non-system input files.
+      include_search_path.command_line_dir(optarg);
+      break;
     case 'T':
       device = optarg;
       tflag = 1;
@@ -7046,6 +7371,11 @@ int main(int argc, char **argv)
     case 'U':
       safer_flag = 0;	// unsafe behaviour
       break;
+#if defined(DEBUGGING)
+    case 'D':
+      debug_state = 1;
+      break;
+#endif
     case CHAR_MAX + 1: // --help
       usage(stdout, argv[0]);
       exit(0);
@@ -7214,6 +7544,7 @@ void init_input_requests()
   init_request("am", append_macro);
   init_request("am1", append_nocomp_macro);
   init_request("ami", append_indirect_macro);
+  init_request("ami1", append_indirect_nocomp_macro);
   init_request("as", append_string);
   init_request("as1", append_nocomp_string);
   init_request("asciify", asciify_macro);
@@ -7233,6 +7564,7 @@ void init_input_requests()
   init_request("de1", define_nocomp_macro);
   init_request("defcolor", define_color);
   init_request("dei", define_indirect_macro);
+  init_request("dei1", define_indirect_nocomp_macro);
   init_request("do", do_request);
   init_request("ds", define_string);
   init_request("ds1", define_nocomp_string);
@@ -7279,6 +7611,8 @@ void init_input_requests()
   init_request("spreadwarn", spreadwarn_request);
   init_request("substring", substring_request);
   init_request("sy", system_request);
+  init_request("tag", tag);
+  init_request("taga", taga);
   init_request("tm", terminal);
   init_request("tm1", terminal1);
   init_request("tmc", terminal_continue);
@@ -7305,6 +7639,7 @@ void init_input_requests()
   number_reg_dictionary.define(".g", new constant_reg("1"));
   number_reg_dictionary.define(".H", new constant_int_reg(&hresolution));
   number_reg_dictionary.define(".R", new constant_reg("10000"));
+  number_reg_dictionary.define(".U", new constant_int_reg(&safer_flag));
   number_reg_dictionary.define(".V", new constant_int_reg(&vresolution));
   number_reg_dictionary.define(".warn", new constant_int_reg(&warning_mask));
   extern const char *major_version;
@@ -7514,7 +7849,7 @@ static void read_color_draw_node(token &start)
   }
   unsigned char scheme = tok.ch();
   tok.next();
-  color *col;
+  color *col = 0;
   char end = start.ch();
   switch (scheme) {
   case 'c':

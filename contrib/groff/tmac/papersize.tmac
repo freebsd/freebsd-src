@@ -7,9 +7,9 @@
 .\"   groff ... -dpaper=<format> ...
 .\"
 .\" Possible values for `format' are the same as the predefined `papersize'
-.\" values (only lowercase; see the groff_font man page) except a7-d7.
-.\" An appended `l' (ell) character denotes landscape orientation.
-.\" Examples: `a4', `c3l', `letterl'.
+.\" values (see the groff_font man page) except a7-d7.  An appended `l'
+.\" (ell) character denotes landscape orientation.  Examples: `a4', `c3l',
+.\" `letterl'.
 .\"
 .\" Most output drivers need additional command line switches `-p' and
 .\" `-l' to override the default paper length and orientation as set in
@@ -103,6 +103,18 @@
 .  ds paper-monarch-width 3.875i
 .  ds paper-dl-length 22c
 .  ds paper-dl-width 11c
+.
+.  \" We assume that letters a-z and A-Z aren't mapped during start-up.
+.  tr AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
+.  di lowercase
+.    nop \*[paper]
+.    br
+.  di
+.  asciify lowercase
+.  chop lowercase
+.  tr AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWXXYYZZ
+.  ds paper \*[lowercase]
+.  rm lowercase
 .
 .  ds paper-p \*[paper]
 .  ds paper-l \*[paper]

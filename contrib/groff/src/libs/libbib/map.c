@@ -1,4 +1,4 @@
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2004
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -16,7 +16,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include <stdlib.h>
 
@@ -34,11 +34,13 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #define MAP_FILE 0
 #endif
 
-char *mapread(fd, nbytes)
-     int fd;
-     int nbytes;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+char *mapread(int fd, int nbytes)
 {
-  char *p = (char *)mmap((caddr_t)0, (size_t)nbytes, PROT_READ,
+  char *p = (char *)mmap((void *)0, (size_t)nbytes, PROT_READ,
 			 MAP_FILE|MAP_PRIVATE, fd, (off_t)0);
   if (p == (char *)-1)
     return 0;
@@ -48,31 +50,37 @@ char *mapread(fd, nbytes)
   return p;
 }
 
-int unmap(p, len)
-     char *p;
-     int len;
+int unmap(char *p, int len)
 {
-  return munmap((caddr_t)p, len);
+  return munmap((void *)p, len);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #else /* not HAVE_MMAP */
 
 #include <errno.h>
 
-char *mapread(fd, nbytes)
-     int fd;
-     int nbytes;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+char *mapread(int fd, int nbytes)
 {
   errno = ENODEV;
   return 0;
 }
 
-int unmap(p, len)
-     char *p;
-     int len;
+int unmap(char *p, int len)
 {
   errno = EINVAL;
   return -1;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* not HAVE_MMAP */
