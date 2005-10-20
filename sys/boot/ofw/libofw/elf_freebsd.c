@@ -47,7 +47,6 @@ __elfN(ofw_loadfile)(char *filename, u_int64_t dest,
     struct preloaded_file **result)
 {
 	int	r;
-	void	*addr;
 
 	r = __elfN(loadfile)(filename, dest, result);
 	if (r != 0)
