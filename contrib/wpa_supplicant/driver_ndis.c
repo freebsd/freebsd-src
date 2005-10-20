@@ -1023,7 +1023,7 @@ static void wpa_driver_ndis_poll_timeout(void *eloop_ctx, void *timeout_ctx)
 static void wpa_driver_ndis_poll(void *priv)
 {
 	struct wpa_driver_ndis_data *drv = priv;
-	eloop_cancel_timeout(wpa_driver_ndis_poll_timeout, drv, drv->ctx);
+	eloop_cancel_timeout(wpa_driver_ndis_poll_timeout, drv, NULL);
 	wpa_driver_ndis_poll_timeout(drv, NULL);
 }
 
@@ -1546,7 +1546,7 @@ static void * wpa_driver_ndis_init(void *ctx, const char *ifname)
 static void wpa_driver_ndis_deinit(void *priv)
 {
 	struct wpa_driver_ndis_data *drv = priv;
-	eloop_cancel_timeout(wpa_driver_ndis_poll_timeout, drv, drv->ctx);
+	eloop_cancel_timeout(wpa_driver_ndis_poll_timeout, drv, NULL);
 	wpa_driver_ndis_flush_pmkid(drv);
 	wpa_driver_ndis_disconnect(drv);
 	if (wpa_driver_ndis_radio_off(drv) < 0) {
