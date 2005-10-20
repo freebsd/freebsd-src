@@ -99,6 +99,12 @@ struct adapter {
 	char			name[IFNAMSIZ];
 };
 
+PCHAR
+PacketGetVersion(void)
+{
+	return("FreeBSD WinPcap compatibility shim v1.0");
+}
+
 void *
 PacketOpenAdapter(iface)
 	CHAR			*iface;

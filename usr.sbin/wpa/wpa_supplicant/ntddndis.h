@@ -21,6 +21,7 @@
 #define BOOLEAN uint8_t
 typedef void * LPADAPTER;
 typedef char * PTSTR;
+typedef char * PCHAR;
 
 #define TRUE 1
 #define FALSE 0
