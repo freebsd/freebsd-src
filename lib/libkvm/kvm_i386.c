@@ -280,7 +280,7 @@ _kvm_vatop(kvm_t *kd, u_long va, off_t *pa)
 #define	PG_FRAME4M	(~PAGE4M_MASK)
 		pde_pa = ((u_long)pde & PG_FRAME4M) + (va & PAGE4M_MASK);
 		s = _kvm_pa2off(kd, pde_pa, &ofs);
-		if (s <= sizeof pde) {
+		if (s < sizeof pde) {
 			_kvm_syserr(kd, kd->program,
 			    "_kvm_vatop: pde_pa not found");
 			goto invalid;
@@ -293,7 +293,7 @@ _kvm_vatop(kvm_t *kd, u_long va, off_t *pa)
 	pte_pa = ((u_long)pde & PG_FRAME) + (pteindex * sizeof(pde));
 
 	s = _kvm_pa2off(kd, pte_pa, &ofs);
-	if (s <= sizeof pte) {
+	if (s < sizeof pte) {
 		_kvm_err(kd, kd->program, "_kvm_vatop: pdpe_pa not found");
 		goto invalid;
 	}
@@ -376,7 +376,7 @@ _kvm_vatop_pae(kvm_t *kd, u_long va, off_t *pa)
 #define	PG_FRAME2M	(~PAGE2M_MASK)
 		pde_pa = ((u_long)pde & PG_FRAME2M) + (va & PAGE2M_MASK);
 		s = _kvm_pa2off(kd, pde_pa, &ofs);
-		if (s <= sizeof pde) {
+		if (s < sizeof pde) {
 			_kvm_syserr(kd, kd->program,
 			    "_kvm_vatop_pae: pde_pa not found");
 			goto invalid;
@@ -389,7 +389,7 @@ _kvm_vatop_pae(kvm_t *kd, u_long va, off_t *pa)
 	pte_pa = ((uint64_t)pde & PG_FRAME_PAE) + (pteindex * sizeof(pde));
 
 	s = _kvm_pa2off(kd, pte_pa, &ofs);
-	if (s <= sizeof pte) {
+	if (s < sizeof pte) {
 		_kvm_err(kd, kd->program, "_kvm_vatop_pae: pdpe_pa not found");
 		goto invalid;
 	}
