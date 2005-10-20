@@ -2557,6 +2557,18 @@ ntoskrnl_workitem_thread(arg)
 	KeInitializeEvent(&kq->kq_proc, EVENT_TYPE_SYNC, FALSE);
 	KeInitializeEvent(&kq->kq_dead, EVENT_TYPE_SYNC, FALSE);
 
+	/*
+	 * Boost the priority of the workitem threads,
+	 * though don't boost it as much as the DPC threads.
+	 */
+
+	mtx_lock_spin(&sched_lock);
+        sched_prio(curthread, PRIBIO);
+#if __FreeBSD_version < 600000
+        curthread->td_base_pri = PRIBIO;
+#endif
+	mtx_unlock_spin(&sched_lock);
+
 	while (1) {
 		KeWaitForSingleObject(&kq->kq_proc, 0, 0, TRUE, NULL);
 
@@ -3562,7 +3574,9 @@ ntoskrnl_dpc_thread(arg)
 	 */
 
 	mtx_lock_spin(&sched_lock);
-	sched_pin();
+#if __FreeBSD_version >= 502102
+	sched_bind(curthread, kq->kq_cpu);
+#endif
         sched_prio(curthread, PRI_MIN_KERN);
 #if __FreeBSD_version < 600000
         curthread->td_base_pri = PRI_MIN_KERN;
