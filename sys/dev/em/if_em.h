@@ -282,7 +282,6 @@ struct em_dma_alloc {
         bus_dma_tag_t           dma_tag;
         bus_dmamap_t            dma_map;
         bus_dma_segment_t       dma_seg;
-        bus_size_t              dma_size;
         int                     dma_nseg;
 };
 
@@ -315,8 +314,6 @@ typedef struct _DESCRIPTOR_PAIR
 /* Our adapter structure */
 struct adapter {
 	struct ifnet   *ifp;
-	struct adapter *next;
-	struct adapter *prev;
 	struct em_hw    hw;
 
 	/* FreeBSD operating-system-specific structures */

@@ -45,13 +45,6 @@ POSSIBILITY OF SUCH DAMAGE.
 int             em_display_debug_stats = 0;
 
 /*********************************************************************
- *  Linked list of board private structures for all NICs found
- *********************************************************************/
-
-struct adapter *em_adapter_list = NULL;
-
-
-/*********************************************************************
  *  Driver version
  *********************************************************************/
 
@@ -326,11 +319,6 @@ em_attach(device_t dev)
 	adapter->unit = device_get_unit(dev);
 	EM_LOCK_INIT(adapter, device_get_nameunit(dev));
 
-	if (em_adapter_list != NULL)
-		em_adapter_list->prev = adapter;
-	adapter->next = em_adapter_list;
-	em_adapter_list = adapter;
-
 	/* SYSCTL stuff */
         SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
                         SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -511,6 +499,7 @@ err_rx_desc:
 err_tx_desc:
 err_pci:
         em_free_pci_resources(adapter);
+	EM_LOCK_DESTROY(adapter);
         return(error);
 
 }
@@ -560,14 +549,6 @@ em_detach(device_t dev)
                 em_dma_free(adapter, &adapter->rxdma);
                 adapter->rx_desc_base = NULL;
         }
-
-	/* Remove from the adapter list */
-	if (em_adapter_list == adapter)
-		em_adapter_list = adapter->next;
-	if (adapter->next != NULL)
-		adapter->next->prev = adapter->prev;
-	if (adapter->prev != NULL)
-		adapter->prev->next = adapter->next;
 
 	EM_LOCK_DESTROY(adapter);
 
@@ -786,11 +767,13 @@ em_watchdog(struct ifnet *ifp)
 	struct adapter * adapter;
 	adapter = ifp->if_softc;
 
+	EM_LOCK(adapter);
 	/* If we are in this routine because of pause frames, then
 	 * don't reset the hardware.
 	 */
 	if (E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_TXOFF) {
 		ifp->if_timer = EM_TX_TIMEOUT;
+		EM_UNLOCK(adapter);
 		return;
 	}
 
@@ -798,11 +781,10 @@ em_watchdog(struct ifnet *ifp)
 		printf("em%d: watchdog timeout -- resetting\n", adapter->unit);
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-
-	em_init(adapter);
-
 	ifp->if_oerrors++;
-	return;
+
+	em_init_locked(adapter);
+	EM_UNLOCK(adapter);
 }
 
 /*********************************************************************
@@ -2093,7 +2075,6 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size,
                 goto fail_3;
         }
 
-        dma->dma_size = size;
         return (0);
 
 fail_3:
@@ -3193,10 +3174,6 @@ em_update_stats_counters(struct adapter *adapter)
 	}
 	ifp = adapter->ifp;
 
-	/* Fill out the OS statistics structure */
-	ifp->if_ibytes = adapter->stats.gorcl;
-	ifp->if_obytes = adapter->stats.gotcl;
-	ifp->if_imcasts = adapter->stats.mprc;
 	ifp->if_collisions = adapter->stats.colc;
 
 	/* Rx Errors */
@@ -3358,10 +3335,8 @@ em_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
 	int error;
 	int usecs;
 	int ticks;
-	int s;
 
 	info = (struct em_int_delay_info *)arg1;
-	adapter = info->adapter;
 	usecs = info->value;
 	error = sysctl_handle_int(oidp, &usecs, 0, req);
 	if (error != 0 || req->newptr == NULL)
@@ -3370,8 +3345,10 @@ em_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 	info->value = usecs;
 	ticks = E1000_USECS_TO_TICKS(usecs);
+
+	adapter = info->adapter;
 	
-	s = splimp();
+	EM_LOCK(adapter);
 	regval = E1000_READ_OFFSET(&adapter->hw, info->offset);
 	regval = (regval & ~0xffff) | (ticks & 0xffff);
 	/* Handle a few special cases. */
@@ -3391,7 +3368,7 @@ em_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
 		break;
 	}
 	E1000_WRITE_OFFSET(&adapter->hw, info->offset, regval);
-	splx(s);
+	EM_UNLOCK(adapter);
 	return 0;
 }
 
