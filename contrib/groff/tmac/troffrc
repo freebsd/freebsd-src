@@ -4,6 +4,9 @@
 .\" This is tested by pic.
 .nr 0p 0
 .
+.\" Load composite mappings.
+.do mso composite.tmac
+.
 .\" Use .do here, so that it works with -C.
 .\" The groff command defines the .X string if the -X option was given.
 .ie r.X .do ds troffrc!ps Xps.tmac
@@ -43,9 +46,6 @@ troffrc!X100 troffrc!X100-12 troffrc!lj4 troff!lbp troffrc!html
 .do hpfa hyphenex.us
 .if '\*[.T]'koi8-r' \
 .	do hpfa hyphen.ru
-.
-.\" Load composite mappings.
-.do mso composite.tmac
 .
 .\" Handle paper formats
 .do mso papersize.tmac

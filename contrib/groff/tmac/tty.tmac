@@ -1,4 +1,5 @@
 .\" tty.tmac
+.\" $FreeBSD$
 .\"
 .nr _C \n(.C
 .cp 0
@@ -64,6 +65,9 @@
 .fchar \[Eu] EUR
 .fchar \[.i] i
 .fchar \[bq] ,
+.
+.if '\*[.T]'utf8' \
+.  mso unicode.tmac
 .
 .\" color definitions
 .defcolor black rgb #000000
