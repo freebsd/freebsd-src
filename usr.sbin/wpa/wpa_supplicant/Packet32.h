@@ -47,6 +47,7 @@ struct PACKET_OID_DATA {
 
 typedef struct PACKET_OID_DATA PACKET_OID_DATA;
 
+extern PCHAR PacketGetVersion(void);
 extern void *PacketOpenAdapter(CHAR *);
 extern int PacketRequest(void *, BOOLEAN, PACKET_OID_DATA *);
 extern int PacketGetAdapterNames(CHAR *, ULONG *);
