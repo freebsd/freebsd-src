@@ -364,6 +364,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "ap boot", &lock_class_mtx_spin },
 #endif
 	{ "rm.mutex_mtx", &lock_class_mtx_spin },
+	{ "hptlock", &lock_class_mtx_spin },
 	{ "sio", &lock_class_mtx_spin },
 #ifdef __i386__
 	{ "cy", &lock_class_mtx_spin },
