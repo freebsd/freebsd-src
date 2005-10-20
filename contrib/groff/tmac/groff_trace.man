@@ -36,6 +36,9 @@ FDL in the main directory of the groff source package.
 .\" Setup
 .\" --------------------------------------------------------------------
 .
+.do nr groff_trace_C \n[.C]
+.cp 0
+.
 .mso www.tmac
 .
 .if n \{\
@@ -540,6 +543,7 @@ groff
 .BR info (1)
 file.
 .
+.cp \n[groff_trace_C]
 .
 .\" Local Variables:
 .\" mode: nroff

@@ -1,5 +1,6 @@
 .ig
-Copyright (C) 1989-1995, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989-1995, 2001, 2002, 2003, 2004
+  Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -62,11 +63,13 @@ will cause the standard input to be read.
 .SH OPTIONS
 .TP
 .B \-C
-Recognize
+Enable compatibility mode to
+recognize
 .B .TS
 and
 .B .TE
 even when followed by a character other than space or newline.
+Leader characters (\[rs]a) are handled as interpreted.
 .TP
 .B \-v
 Print the version number.
@@ -287,6 +290,33 @@ If used multiple times to specify the width for a particular column,
 the last entry takes effect.
 .
 .TP
+x,X
+This is a GNU tbl extension.
+Either of these specifiers may be followed by a macro name 
+(either one or two characters long),
+or long name in parentheses.
+A one-letter macro name must be separated by one or more blanks
+from whatever follows.
+The macro which name can be specified here
+must be defined before creating the table.
+It is called just before the table's cell text is output. 
+As implemented currently, this macro is only called if block input is used,
+that is, text between `T{' and `T}'.
+The macro should contain only simple
+.B troff
+requests to change the text block formatting, like text adjustment,
+hyphenation, size, or font.
+The macro is called
+.I after
+other cell modifications like
+.BR b ,
+.B f
+or
+.B v
+are output.
+Thus the macro can overwrite other modification specifiers.
+.
+.TP
 e,E
 Make equally-spaced columns.
 .
@@ -339,6 +369,19 @@ too long as a simple string between tabs.
 It is started with `T{' and closed with `T}'.
 The former must end a line, and the latter must start a line, probably
 followed by other data columns (separated with tabs).
+By default, the text block is formatted with the settings which were
+active before entering the table, possibly overridden by the
+.B v
+and
+.B w
+tbl specifiers.
+For example, to make all text blocks ragged-right, insert
+.B .na
+right before the starting
+.B .TS
+(and
+.B .ad
+after the table).
 .LP
 To change the data format within a table, use the
 .B .T&
@@ -415,7 +458,8 @@ and use
 instead of
 .BR bp .
 .LP
-Using \ea directly in a table to get leaders will not work.
+Using \ea directly in a table to get leaders will not work (except in
+compatibility mode).
 This is correct behaviour: \ea is an
 .B uninterpreted
 leader.

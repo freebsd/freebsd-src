@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2003
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "lib.h"
 
@@ -33,6 +33,13 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #define GROFF_TMPDIR_ENVVAR "GROFF_TMPDIR"
 // otherwise if this is set, create temporary files there
 #define TMPDIR_ENVVAR "TMPDIR"
+// otherwise, on MS-DOS or MS-Windows ...
+#if defined(__MSDOS__) || defined(_WIN32)
+// if either of these is set, create temporary files there
+// (giving priority to WIN32_TMPDIR_ENVVAR)
+#define WIN32_TMPDIR_ENVVAR "TMP"
+#define MSDOS_TMPDIR_ENVVAR "TEMP"
+#endif
 // otherwise if P_tmpdir is defined, create temporary files there
 #ifdef P_tmpdir
 # define DEFAULT_TMPDIR P_tmpdir
@@ -55,12 +62,23 @@ struct temp_init {
 
 temp_init::temp_init()
 {
-  const char *tem = getenv(GROFF_TMPDIR_ENVVAR);
-  if (!tem) {
-    tem = getenv(TMPDIR_ENVVAR);
-    if (!tem)
-      tem = DEFAULT_TMPDIR;
-  }
+  // First, choose a location for creating temporary files...
+  const char *tem;
+  // using the first match for any of the environment specs in listed order.
+  if (
+      (tem = getenv(GROFF_TMPDIR_ENVVAR)) == NULL
+      && (tem = getenv(TMPDIR_ENVVAR)) == NULL
+#if defined(__MSDOS__) || defined(_WIN32)
+      // If we didn't find a match for either of the above
+      // (which are preferred, regardless of the host operating system),
+      // and we are hosted on either MS-Windows or MS-DOS,
+      // then try the Microsoft conventions.
+      && (tem = getenv(WIN32_TMPDIR_ENVVAR)) == NULL
+      && (tem = getenv(MSDOS_TMPDIR_ENVVAR)) == NULL
+#endif
+     )
+    // If we didn't find an environment spec fall back to this default.
+    tem = DEFAULT_TMPDIR;
   size_t tem_len = strlen(tem);
   const char *tem_end = tem + tem_len - 1;
   int need_slash = strchr(DIR_SEPS, *tem_end) == NULL ? 1 : 0;

@@ -1,5 +1,6 @@
 PROG=grolj4$(EXEEXT)
 MAN1=grolj4.n
+MAN5=lj4_font.n
 XLIBS=$(LIBDRIVER) $(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=lj4.$(OBJEXT)

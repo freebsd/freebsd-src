@@ -1,4 +1,4 @@
-# Copyright (C) 1989-2000, 2002 Free Software Foundation, Inc.
+# Copyright (C) 1989-2000, 2002, 2003, 2004 Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 # 
 # This file is part of groff.
@@ -15,11 +15,10 @@
 # 
 # You should have received a copy of the GNU General Public License along
 # with groff; see the file COPYING.  If not, write to the Free Software
-# Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # Makefile.comm
 #
-SHELL=/bin/sh
 INCLUDES=-I. -I$(srcdir) \
   -I$(top_builddir)/src/include -I$(top_srcdir)/src/include
 ALL_CCFLAGS=$(INCLUDES) $(CCDEFINES) $(CCFLAGS) $(CPPFLAGS)
@@ -31,6 +30,7 @@ LINK.c=$(CC) $(CFLAGS) $(LDFLAGS)
 LIBGROFF=$(top_builddir)/src/libs/libgroff/libgroff.$(LIBEXT)
 LIBBIB=$(top_builddir)/src/libs/libbib/libbib.$(LIBEXT)
 LIBDRIVER=$(top_builddir)/src/libs/libdriver/libdriver.$(LIBEXT)
+LIBXUTIL=$(top_builddir)/src/libs/libxutil/libxutil.$(LIBEXT)
 MLIB=
 XLIBS=
 YTABH=
@@ -93,22 +93,22 @@ realclean: distclean
 	-rm -f $(REALCLEANFILES)
 
 extraclean: distclean
-	-rm -f \#* *~ =* core junk grot old temp tmp tem
+	-rm -f \#* *~ =* core junk grot old temp tmp tem *.new *.old *.orig
 
 .SUFFIXES:
 .SUFFIXES: .o .obj .cpp .c .y .man .n
 
 .cpp.o:
-	$(COMPILE.cpp) $<
+	$(COMPILE.cpp) $(EXTRA_CCFLAGS) $<
 
 .c.o:
-	$(COMPILE.c) $<
+	$(COMPILE.c) $(EXTRA_CFLAGS) $<
 
 .cpp.obj:
-	$(COMPILE.cpp) $<
+	$(COMPILE.cpp) $(EXTRA_CCFLAGS) $<
 
 .c.obj:
-	$(COMPILE.c) $<
+	$(COMPILE.c) $(EXTRA_CFLAGS) $<
 
 .y.cpp:
 	if test -n "$(YTABH)"; then \
@@ -119,7 +119,7 @@ extraclean: distclean
 	-test -f y.tab.h && mv y.tab.h y_tab.h
 	-test -f y.tab.c && mv y.tab.c y_tab.c
 	mv y_tab.c $(YTABC)
-	if test -n "$(YTABH)"; then mv y_tab.h $(YTABH); fi
+	test -z "$(YTABH)" || mv y_tab.h $(YTABH)
 
 # The next rule is needed for make of Solaris 2.5.1 to override its
 # built-in .y.o rule (which takes precedence over the .y.cpp rule above).
@@ -132,8 +132,8 @@ extraclean: distclean
 	-test -f y.tab.h && mv y.tab.h y_tab.h
 	-test -f y.tab.c && mv y.tab.c y_tab.c
 	mv y_tab.c $(YTABC)
-	if test -n "$(YTABH)"; then mv y_tab.h $(YTABH); fi
-	$(COMPILE.cpp) $(YTABC)
+	test -z "$(YTABH)" || mv y_tab.h $(YTABH)
+	$(COMPILE.cpp) $(EXTRA_CCFLAGS) $(YTABC)
 
 .man.n:
 	@echo Making $@ from $<
@@ -148,6 +148,7 @@ extraclean: distclean
 	-e "s|@DOCDIR@|$(docdir)|g" \
 	-e "s|@EXAMPLEDIR@|$(exampledir)|g" \
 	-e "s|@HTMLDOCDIR@|$(htmldocdir)|g" \
+	-e "s|@PDFDOCDIR@|$(pdfdocdir)|g" \
 	-e "s|@DEVICE@|$(DEVICE)|g" \
 	-e "s|@DEFAULT_INDEX@|$(indexdir)/$(indexname)|g" \
 	-e "s|@DEFAULT_INDEX_NAME@|$(indexname)|g" \
@@ -235,32 +236,35 @@ install_dev:
 	-test -d $(fontdir) || $(mkinstalldirs) $(fontdir)
 	-test -d $(fontsubdir) || $(mkinstalldirs) $(fontsubdir)
 	-if test -d $(srcdir)/generate; then \
-	  test -d $(fontsubdir)/generate || \
-	    $(mkinstalldirs) $(fontsubdir)/generate; \
+	  test -d $(fontsubdir)/generate \
+	    || $(mkinstalldirs) $(fontsubdir)/generate; \
 	fi
-	-for f in $(DEVFILES); do \
-	  rm -f $(fontsubdir)/$$f; \
-	  if test -f $$f; then \
-	    $(INSTALL_DATA) $$f $(fontsubdir)/$$f; \
-	  else \
-	    $(INSTALL_DATA) $(srcdir)/$$f $(fontsubdir)/$$f; \
-	  fi; \
-	done
-	-for f in $(DEVSCRIPTS); do \
-	  rm -f $(fontsubdir)/$$f; \
-	  if test -f $$f; then \
-	    $(INSTALL_SCRIPT) $$f $(fontsubdir)/$$f; \
-	  else \
-	    $(INSTALL_SCRIPT) $(srcdir)/$$f $(fontsubdir)/$$f; \
-	  fi; \
-	done
+	-test -z "$(DEVFILES)" \
+	  || for f in ""$(DEVFILES); do \
+	       rm -f $(fontsubdir)/$$f; \
+	       if test -f $$f; then \
+		 $(INSTALL_DATA) $$f $(fontsubdir)/$$f; \
+	       else \
+		 $(INSTALL_DATA) $(srcdir)/$$f $(fontsubdir)/$$f; \
+	       fi; \
+	     done
+	-test -z "$(DEVSCRIPTS)" \
+	  || for f in ""$(DEVSCRIPTS); do \
+	       rm -f $(fontsubdir)/$$f; \
+	       if test -f $$f; then \
+		 $(INSTALL_SCRIPT) $$f $(fontsubdir)/$$f; \
+	       else \
+		 $(INSTALL_SCRIPT) $(srcdir)/$$f $(fontsubdir)/$$f; \
+	       fi; \
+	     done
 
 .PHONY: uninstall_dev
 uninstall_dev:
-	-for f in $(DEVFILES) $(DEVSCRIPTS); do rm -f $(fontsubdir)/$$f; done
-	-if test -d $(fontsubdir)/generate; then \
-	  rmdir $(fontsubdir)/generate; \
-	fi
+	-test -z "$(DEVFILES)$(DEVSCRIPTS)" \
+	  || for f in ""$(DEVFILES) $(DEVSCRIPTS); do \
+	       rm -f $(fontsubdir)/$$f; \
+	     done
+	-test -d $(fontsubdir)/generate && rmdir $(fontsubdir)/generate
 	-rmdir $(fontsubdir)
 
 .PHONY: depend_src
@@ -278,10 +282,9 @@ depend.temp: FORCE
 	  || $(CCC) $(ALL_CCFLAGS) -MM $(CCSRCS) $$ytabc >>depend.temp
 	test -z "$(CSRCS)" \
 	  || $(CC) $(ALL_CFLAGS) -MM $(CSRCS) >>depend.temp
-	if test -n "$(YTABH)"; then \
-	  sed -e 's|$(YTABH)|$(YTABC)|g' depend.temp >depend1.temp; \
-	  mv depend1.temp depend.temp; \
-	fi
+	test -z "$(YTABH)" \
+	  || (sed -e 's|$(YTABH)|$(YTABC)|g' depend.temp >depend1.temp; \
+	      mv depend1.temp depend.temp)
 
 .PHONY: TAGS_src
 TAGS_src:

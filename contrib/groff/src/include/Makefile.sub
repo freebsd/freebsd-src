@@ -5,12 +5,14 @@ HDRS=\
   color.h \
   device.h \
   driver.h \
+  DviChar.h \
   errarg.h \
   error.h \
   font.h \
   geometry.h \
   getopt.h \
-  groff-getopt.h \
+  getopt_int.h \
+  gettext.h \
   htmlhint.h \
   index.h \
   lib.h \
@@ -20,9 +22,13 @@ HDRS=\
   printer.h \
   ptable.h \
   refid.h \
+  relocate.h \
   search.h \
   searchpath.h \
-  stringclass.h
+  stringclass.h \
+  symbol.h \
+  unicode.h \
+  XFontName.h
 GENHDRS=defs.h
 
 all depend: $(GENHDRS)
@@ -31,6 +37,7 @@ defs.h: FORCE
 	@$(SHELL) $(top_srcdir)/gendef.sh defs.h \
 	"PROG_PREFIX=\"$(g)\"" \
 	"DEVICE=\"$(DEVICE)\"" \
+	"INSTALLPATH=\"$(prefix)\"" \
 	"BINPATH=\"$(bindir)\"" \
 	"FONTPATH=\"$(fontpath)\"" \
 	"MACROPATH=\"$(tmacpath)\"" \

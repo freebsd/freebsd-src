@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003, 2005
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "pic.h"
 #include "common.h"
@@ -197,7 +197,11 @@ void simple_output::ellipse(const position &cent, const distance &dim,
   case line_type::invisible:
     break;
   case line_type::dotted:
+    dotted_ellipse(cent, dim, lt);
+    break;
   case line_type::dashed:
+    dashed_ellipse(cent, dim, lt);
+    break;
   case line_type::solid:
     simple_ellipse(0, cent, dim);
     break;
@@ -320,7 +324,7 @@ void troff_output::simple_circle(int filled, const position &cent, double rad)
   position c = transform(cent);
   printf("\\h'%.3fi'"
 	 "\\v'%.3fi'"
-	 "\\D'%c%.3fi'"
+	 "\\D'%c %.3fi'"
 	 "\n.sp -1\n",
 	 c.x - rad/scale,
 	 c.y,
@@ -334,7 +338,7 @@ void troff_output::simple_ellipse(int filled, const position &cent,
   position c = transform(cent);
   printf("\\h'%.3fi'"
 	 "\\v'%.3fi'"
-	 "\\D'%c%.3fi %.3fi'"
+	 "\\D'%c %.3fi %.3fi'"
 	 "\n.sp -1\n",
 	 c.x - dim.x/(2.0*scale),
 	 c.y,
@@ -351,7 +355,7 @@ void troff_output::simple_arc(const position &start, const distance &cent,
   distance ev = transform(end) - c;
   printf("\\h'%.3fi'"
 	 "\\v'%.3fi'"
-	 "\\D'a%.3fi %.3fi %.3fi %.3fi'"
+	 "\\D'a %.3fi %.3fi %.3fi %.3fi'"
 	 "\n.sp -1\n",
 	 s.x, s.y, cv.x, cv.y, ev.x, ev.y);
 }
@@ -362,7 +366,7 @@ void troff_output::simple_line(const position &start, const position &end)
   distance ev = transform(end) - s;
   printf("\\h'%.3fi'"
 	 "\\v'%.3fi'"
-	 "\\D'l%.3fi %.3fi'"
+	 "\\D'l %.3fi %.3fi'"
 	 "\n.sp -1\n",
 	 s.x, s.y, ev.x, ev.y);
 }
@@ -374,7 +378,7 @@ void troff_output::simple_spline(const position &start,
   printf("\\h'%.3fi'"
 	 "\\v'%.3fi'",
 	 pos.x, pos.y);
-  fputs("\\D'~", stdout);
+  fputs("\\D'~ ", stdout);
   for (int i = 0; i < n; i++) {
     position temp = transform(v[i]);
     distance d = temp - pos;
@@ -394,7 +398,7 @@ void troff_output::simple_polygon(int filled, const position *v, int n)
   printf("\\h'%.3fi'"
 	 "\\v'%.3fi'",
 	 pos.x, pos.y);
-  printf("\\D'%c", (filled ? 'P' : 'p'));
+  printf("\\D'%c ", (filled ? 'P' : 'p'));
   for (int i = 1; i < n; i++) {
     position temp = transform(v[i]);
     distance d = temp - pos;
@@ -476,13 +480,15 @@ void troff_output::line_thickness(double p)
 void troff_output::set_fill(double f)
 {
   if (driver_extension_flag && f != last_fill) {
-    printf("\\D'Fg %.3f'\n.sp -1\n", 1.0 - f);
+    // \D'Fg ...' emits a node only in compatibility mode,
+    // thus we add a dummy node
+    printf("\\&\\D'Fg %.3f'\n.sp -1\n", 1.0 - f);
     last_fill = f;
   }
   if (last_filled) {
     free(last_filled);
     last_filled = 0;
-    printf("\\M[]\n.sp -1\n");
+    printf(".fcolor\n");
   }
 }
 
@@ -492,12 +498,14 @@ void troff_output::set_color(char *color_fill, char *color_outlined)
     if (last_filled || last_outlined) {
       reset_color();
     }
+    // .gcolor and .fcolor emit a node in compatibility mode only,
+    // but that won't work anyway
     if (color_fill) {
-      printf("\\M[%s]\n.sp -1\n", color_fill);
+      printf(".fcolor %s\n", color_fill);
       last_filled = strsave(color_fill);
     }
     if (color_outlined) {
-      printf("\\m[%s]\n.sp -1\n", color_outlined);
+      printf(".gcolor %s\n", color_outlined);
       last_outlined = strsave(color_outlined);
     }
   }
@@ -507,12 +515,12 @@ void troff_output::reset_color()
 {
   if (driver_extension_flag) {
     if (last_filled) {
-      printf("\\M[]\n.sp -1\n");
+      printf(".fcolor\n");
       a_delete last_filled;
       last_filled = 0;
     }
     if (last_outlined) {
-      printf("\\m[]\n.sp -1\n");
+      printf(".gcolor\n");
       a_delete last_outlined;
       last_outlined = 0;
     }

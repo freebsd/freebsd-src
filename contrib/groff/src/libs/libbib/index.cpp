@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2004
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -16,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "lib.h"
 
@@ -349,7 +350,7 @@ int index_search_item_iterator::next(const linear_searcher &,
 }
 
 int index_search_item_iterator::get_tag(int tagno,
-					const linear_searcher &searcher,
+					const linear_searcher &searchr,
 					const char **pp, int *lenp,
 					reference_id *ridp)
 {
@@ -389,7 +390,6 @@ int index_search_item_iterator::get_tag(int tagno,
     int length = tp->length;
     int err = 0;
     if (length == 0) {
-      struct stat sb;
       if (fstat(fileno(fp), &sb) < 0) {
 	error("can't stat `%1': %2", filename, strerror(errno));
 	err = 1;
@@ -426,7 +426,7 @@ int index_search_item_iterator::get_tag(int tagno,
 	      buf[didx] = buf[sidx];
 	  }
 	buf[length + 1] = '\n';
-	res = searcher.search(buf + 1, buf + 2 + length, pp, lenp);
+	res = searchr.search(buf + 1, buf + 2 + length, pp, lenp);
 	if (res && ridp)
 	  *ridp = reference_id(indx->filename_id + tp->filename_index,
 			       tp->start);

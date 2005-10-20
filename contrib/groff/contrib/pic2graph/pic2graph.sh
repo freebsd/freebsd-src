@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 #
 # pic2graph -- compile PIC image descriptions to bitmap images
 #
@@ -32,7 +32,7 @@
 # We don't have complete option coverage on eqn because this is primarily
 # intended as a pic translator; we can live with eqn defaults. 
 #
-# $Id: pic2graph.sh,v 1.3 2002/12/21 08:32:56 wlemb Exp $
+# $Id: pic2graph.sh,v 1.7 2005/05/18 07:03:07 wl Exp $
 #
 groffpic_opts=""
 gs_opts=""
@@ -68,16 +68,34 @@ then
     eqndelim="delim $eqndelim"
 fi
 
+# create temporary directory
+tmp=
+for d in "$GROFF_TMPDIR" "$TMPDIR" "$TMP" "$TEMP" /tmp; do
+    test -z "$d" && continue
+
+    tmp=`(umask 077 && mktemp -d -q "$d/pic2graph-XXXXXX") 2> /dev/null` \
+    && test -n "$tmp" && test -d "$tmp" \
+    && break
+
+    tmp=$d/pic2graph$$-$RANDOM
+    (umask 077 && mkdir $tmp) 2> /dev/null \
+    && break
+done;
+if test -z "$tmp"; then
+    echo "$0: cannot create temporary directory" >&2
+    { (exit 1); exit 1; }
+fi
+
+trap 'exit_status=$?; rm -rf $tmp && exit $exit_status' 0 2 15 
+
 # Here goes:
 # 1. Wrap the input in dummy .PS/PE macros (and add possibly null .EQ/.EN)
 # 2. Process through eqn and pic to emit troff markup.
 # 3. Process through groff to emit Postscript.
 # 4. Use convert(1) to crop the PostScript and turn it into a bitmap.
-tmp=/usr/tmp/pic2graph-$$
-trap "rm ${tmp}.*" 0 2 15 
 (echo ".EQ"; echo $eqndelim; echo ".EN"; echo ".PS"; cat; echo ".PE") | \
-       groff -e -p $groffpic_opts -Tps >${tmp}.ps \
-       && convert -crop 0x0 $convert_opts ${tmp}.ps ${tmp}.${format} \
-       && cat ${tmp}.${format}
+    groff -e -p $groffpic_opts -Tps -P-pletter > $tmp/pic2graph.ps \
+    && convert -trim -crop 0x0 $convert_opts $tmp/pic2graph.ps $tmp/pic2graph.$format \
+    && cat $tmp/pic2graph.$format
 
 # End
