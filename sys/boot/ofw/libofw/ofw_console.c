@@ -112,7 +112,6 @@ int
 ofw_cons_poll()
 {
 	unsigned char ch;
-	int l;
 
 	if (saved_char != -1)
 		return 1;
