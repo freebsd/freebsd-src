@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989-2001, 2002, 2003, 2005 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -19,9 +19,12 @@ the original English.
 	$FreeBSD$
 
 ..
+.
 .TH @G@NROFF @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.
 .SH NAME
 @g@nroff \- emulate nroff command with groff
+.
 .SH SYNOPSIS
 .nr a \n(.j
 .ad l
@@ -33,8 +36,10 @@ the original English.
 .ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
 .el .RB "[\ " "\\$1" "\ ]"
 ..
+.
 .OP \-CchipStUv
 .OP \-d cs
+.OP \-M dir
 .OP \-m name
 .OP \-n num
 .OP \-o list
@@ -43,6 +48,7 @@ the original English.
 .RI "[\ " "file" "\ .\|.\|.\ ]"
 .br
 .ad \na
+.
 .SH DESCRIPTION
 The
 .B @g@nroff
@@ -93,6 +99,7 @@ The
 .BR \-d ,
 .BR \-C ,
 .BR \-i ,
+.BR \-M ,
 .BR \-m ,
 .BR \-n ,
 .BR \-o ,
@@ -121,6 +128,7 @@ Options
 .BR groff . 
 .B \-v
 shows the version number.
+.
 .SH ENVIRONMENT
 .TP
 .SM
@@ -134,6 +142,7 @@ This shell script is basically intended for use with
 so warnings are suppressed.
 nroff-style character definitions (in the file tty-char.tmac) are also
 loaded to emulate unrepresentable glyphs.
+.
 .SH "SEE ALSO"
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),

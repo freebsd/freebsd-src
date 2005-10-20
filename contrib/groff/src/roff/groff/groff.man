@@ -1,9 +1,9 @@
 .ig
 groff.man
 
-Last update: 18 Mar 2003
+Last update: 01 Jul 2005
 
-Copyright (C) 1989, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 1989, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 Rewritten in 2002 by Bernd Warken <bwarken@mayn.de>
 
 Permission is granted to copy, distribute and/or modify this document
@@ -22,6 +22,9 @@ $FreeBSD$
 .\" --------------------------------------------------------------------
 .\" Setup
 .\" --------------------------------------------------------------------
+.
+.do nr groff_C \n[.C]
+.cp 0
 .
 .mso www.tmac
 .
@@ -188,7 +191,7 @@ $FreeBSD$
 .c Environment variable
 .de EnvVar
 .  SM
-.  BR \$1 \$2
+.  BR \%\$1 \$2
 ..
 .c --------------------------------------------------------------------
 .c a shell command line
@@ -376,8 +379,20 @@ Print a help message.
 .
 .
 .OptDef I "" dir
-Add search directory for
-.BR \%@g@soelim (@MAN1EXT@).
+This option may be used to specify a directory to search for
+files (both those on the command line and those named in
+.B \&.psbb
+and
+.B \&.so
+requests, and
+.B \eX'ps: import'
+and
+.B \eX'ps: file'
+escapes).
+The current directory is always searched first.
+This option may be specified more than once;
+the directories will be searched in the order specified.
+No directory search is performed for files specified using an absolute path.
 This option implies the
 .ShortOpt s
 option.
@@ -449,7 +464,7 @@ or
 because groff does not prepend any dashes before passing it to the
 postprocessor.
 .
-For example, to pass a title to the gxditview postprocessor, the shell
+For example, to pass a title to the \%gxditview postprocessor, the shell
 command
 .IP
 .ShellCommand groff \*[@-]X \*[@-]P \*[@-]title \*[@-]P 'groff it' \f[I]foo\f[]
@@ -508,12 +523,21 @@ Preprocess with
 .OptDef T "" dev
 Set output device to
 .IR dev .
-Contrary to
-.BR @g@troff ,
+For this device,
+.B @g@troff
+generates the
+.I intermediate
+.IR output ;
+see
+.BR \%groff_out (@MAN5EXT@).
+.
+Then
 .B groff
 calls a postprocessor to convert
 .BR @g@troff 's
-intermediate output to its final format.
+.I intermediate output
+to its final format.
+.
 Real devices in
 .B groff
 are
@@ -564,7 +588,7 @@ Unicode character set in \%UTF-8 encoding.
 .
 .IP
 The following arguments select
-.B gxditview
+.B \%gxditview
 as the `postprocessor' (it is rather a viewing program):
 .
 .RS
@@ -604,12 +628,14 @@ to all subprograms.
 .OptDef V
 Output the pipeline that would be run by
 .BR groff
-(as a wrapper program), but do not execute it.
+(as a wrapper program) on the standard output, but do not execute it.
+If given more than once,
+the commands will be both printed on the standard error and run.
 .
 .
 .OptDef X
 Use
-.B gxditview
+.B \%gxditview
 instead of using the usual postprocessor to (pre)view a document.
 .
 The printing spooler behavior as outlined with options
@@ -641,7 +667,7 @@ The default resolution for previewing
 output is 75\|dpi; this can be changed by passing the
 .ShortOpt resolution
 option to
-.BR gxditview ,
+.BR \%gxditview ,
 for example
 .
 .IP
@@ -655,13 +681,19 @@ Only error messages will be printed.
 .
 .
 .OptDef Z
-Do not postprocess the output of
-.B @g@troff
-that is normally
-called automatically by
-.BR groff .
-This will print the intermediate output to standard output; see
+Print the
+.I groff intermediate output
+to standard output; see
 .BR \%groff_out (@MAN5EXT@).
+Normally
+.BR groff
+calls automatically a postprocessor.
+.
+With this option, the output of
+.B @g@troff
+for the device, the so-called
+.I intermediate output
+is issued without postprocessing.
 .
 .
 .\" --------------------------------------------------------------------
@@ -684,6 +716,10 @@ backtrace on error or warning.
 .
 .OptDef c
 disable color output.
+.
+Please consult the
+.BR \%grotty (@MAN1EXT@)
+man page for more details.
 .
 .OptDef C
 enable compatibility mode.
@@ -759,6 +795,48 @@ with groff-specific features.
 .
 This section can be regarded as a guide to the documentation around
 the groff system.
+.
+.
+.\" --------------------------------------------------------------------
+.SS Paper Size
+.\" --------------------------------------------------------------------
+.
+The
+.I virtual
+paper size used by
+.B troff
+to format the input is controlled globally with the requests
+.BR .po ,
+.BR .pl ,
+and
+.BR .ll .
+See
+.BR groff_tmac (@MAN5EXT@)
+for the `papersize' macro package which provides a convenient interface.
+.
+.P
+The
+.I physical
+paper size, giving the actual dimensions of the paper sheets, is
+controlled by output devices like
+.BR grops
+with the command line options
+.B \-p
+and
+.BR \-l .
+See
+.BR groff_font (@MAN5EXT@)
+and the man pages of the output devices for more details.
+.B groff
+uses the command line option
+.B \-P
+to pass options to output devices; for example, the following selects
+A4 paper in landscape orientation for the PS device:
+.
+.RS
+.P
+groff -Tps -P-pa4 -P-l .\|.\|.
+.RE
 .
 .
 .\" --------------------------------------------------------------------
@@ -925,7 +1003,9 @@ HTML-like macros for inclusion in arbitrary groff documents; see
 .P
 Details on the naming of macro files and their placement can be found
 in
-.BR \%groff_tmac (@MAN5EXT@).
+.BR \%groff_tmac (@MAN5EXT@);
+this man page also documents some other, minor auxiliary macro packages
+not mentioned here.
 .
 .
 .\" --------------------------------------------------------------------
@@ -1041,7 +1121,7 @@ encoding; see
 .TP
 .B X75
 75dpi X Window System output suitable for the previewers
-.BR xditview (1x)
+.BR \%xditview (1x)
 and
 .BR \%gxditview (@MAN1EXT@).
 A variant for a 12\|pt document base font is
@@ -1050,7 +1130,7 @@ A variant for a 12\|pt document base font is
 .TP
 .B X100
 100dpi X Window System output suitable for the previewers
-.BR xditview (1x)
+.BR \%xditview (1x)
 and
 .BR \%gxditview (@MAN1EXT@).
 A variant for a 12\|pt document base font is
@@ -1274,8 +1354,16 @@ If this is not set but the environment variable
 .EnvVar TMPDIR
 instead, temporary files will be created in the directory
 .EnvVar $TMPDIR .
+On MS-DOS and Windows\ 32 platforms, the environment variables
+.EnvVar TMP
+and
+.EnvVar TEMP
+(in that order) are searched also, after
+.EnvVar GROFF_TMPDIR
+and
+.EnvVar TMPDIR .
 .
-Otherwise temporary files will be created in
+Otherwise, temporary files will be created in
 .BR /tmp .
 The
 .BR \%@g@refer (@MAN1EXT@),
@@ -1501,7 +1589,7 @@ This is the only grap version supported by groff.
 .SH AUTHORS
 .\" --------------------------------------------------------------------
 .
-Copyright \(co 1989, 2002, 2003 Free Software Foundation, Inc.
+Copyright \(co 1989, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 .
 .P
 This document is distributed under the terms of the FDL (GNU Free
@@ -1516,7 +1604,7 @@ This document is based on the original groff man page written by
 .MTO jjc@jclark.com "James Clark" .
 .
 It was rewritten, enhanced, and put under the FDL license by
-.MTO bwarken@mayn.de "Bernd Warken" .
+\m[blue]Bernd Warken\m[].
 .
 It is maintained by
 .MTO wl@gnu.org "Werner Lemberg" .
@@ -1596,7 +1684,9 @@ Roff formatter programs:
 .BR ditroff (@MAN7EXT@).
 .
 .TP
-The intermediate output language:
+The
+.I intermediate output
+language:
 .BR \%groff_out (@MAN7EXT@).
 .
 .TP
@@ -1605,6 +1695,7 @@ Postprocessors for the output devices:
 .BR \%grohtml (@MAN1EXT@),
 .BR \%grolbp (@MAN1EXT@),
 .BR \%grolj4 (@MAN1EXT@),
+.BR \%lj4_font (@MAN5EXT@),
 .BR \%grops (@MAN1EXT@),
 .BR \%grotty (@MAN1EXT@).
 .
@@ -1627,6 +1718,7 @@ The following utilities are available:
 .BR \%addftinfo (@MAN1EXT@),
 .BR \%afmtodit (@MAN1EXT@),
 .BR \%eqn2graph (@MAN1EXT@),
+.BR \%grap2graph (@MAN1EXT@),
 .BR \%groffer (@MAN1EXT@),
 .BR \%gxditview (@MAN1EXT@),
 .BR \%hpftodit (@MAN1EXT@),
@@ -1636,6 +1728,7 @@ The following utilities are available:
 .BR \%pic2graph (@MAN1EXT@),
 .BR \%tfmtodit (@MAN1EXT@).
 .
+.cp \n[groff_C]
 .
 .\" --------------------------------------------------------------------
 .\" Emacs setup
