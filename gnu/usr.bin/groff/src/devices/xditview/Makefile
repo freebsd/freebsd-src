@@ -29,9 +29,6 @@ FILESDIR=	${X11BASE}/lib/X11/app-defaults
 FILES=		GXditview.ad
 FILESNAME=	GXditview
 
-uninstall_sub:
-		-rm -f $(appresdir)/GXditview
-
 .include <bsd.prog.mk>
 
 .PATH: ${GROFF_DIST}/src/libs/libxutil
