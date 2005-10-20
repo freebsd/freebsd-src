@@ -2,11 +2,11 @@
 .ig
 troff.man
 
-Last update : 09 Dec 2002
+Last update : 12 Oct 2003
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 1989, 2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
 written by James Clark
 
@@ -27,6 +27,9 @@ FDL in the main directory of the groff source package.
 .\" --------------------------------------------------------------------
 .\" Setup
 .\" --------------------------------------------------------------------
+.
+.do nr troff_C \n[.C]
+.cp 0
 .
 .mso www.tmac
 .
@@ -81,6 +84,7 @@ FDL in the main directory of the groff source package.
 .OP \-d cs
 .OP \-f fam
 .OP \-F dir
+.OP \-I dir
 .OP \-m name
 .OP \-M dir
 .OP \-n num
@@ -193,6 +197,17 @@ is scanned before all other font directories.
 .B \-i
 Read the standard input after all the named input files have been
 processed.
+.
+.TP
+.BI \-I dir
+This option may be used to specify a directory to search for
+files (both those on the command line and those named in
+.B \&.psbb
+requests).
+The current directory is always searched first.
+This option may be specified more than once;
+the directories will be searched in the order specified.
+No directory search is performed for files specified using an absolute path.
 .
 .TP
 .BI \-m name
@@ -607,7 +622,7 @@ necessary.
 .SH AUTHOR
 .\" --------------------------------------------------------------------
 .
-Copyright (C) 1989, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989, 2001, 2002, 2003 Free Software Foundation, Inc.
 .
 .P
 This document is distributed under the terms of the FDL (GNU Free
@@ -679,6 +694,7 @@ cf.\&
 .BR info (@MAN1EXT@),
 presents all groff documentation within a single document.
 .
+.cp \n[troff_C]
 .
 .\" --------------------------------------------------------------------
 .\" Emacs variables

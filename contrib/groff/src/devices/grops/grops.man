@@ -1,5 +1,6 @@
 .ig
-Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2002, 2003, 2004, 2005
+  Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -16,6 +17,9 @@ versions, except that this permission notice may be included in
 translations approved by the Free Software Foundation instead of in
 the original English.
 ..
+.
+.do nr grops_C \n[.C]
+.cp 0
 .
 .mso www.tmac
 .
@@ -62,6 +66,7 @@ grops \- PostScript driver for groff
 .OP \-b n
 .OP \-c n
 .OP \-F dir
+.OP \-I dir
 .OP \-p papersize
 .OP \-P prologue
 .OP \-w n
@@ -111,6 +116,15 @@ using the
 .B groff
 .B \-P
 option.
+.
+.PP
+Note that
+.B grops
+doesn't produce a valid document structure (conforming to the Document
+Structuring Convention) if called with multiple file arguments.
+.
+To print such concatenated output it is necessary to deactivate DSC
+handling in the printing program or previewer.
 .
 .
 .SH OPTIONS
@@ -184,6 +198,9 @@ PostScript command).
 This was the behaviour of groff version 1.18.1 and earlier; it is needed
 for older printers which don't understand PostScript LanguageLevel\~2.
 .
+It is also necessary if the output is further processed to get an
+encapsulated PS (EPS) file -- see below.
+.
 .IP
 The default value can be specified by a
 .
@@ -223,6 +240,19 @@ centered on the page.
 .
 This option allows you to generate documents that can be printed
 both on letter (8.5\(mu11) paper and on A4 paper without change.
+.
+.TP
+.BI \-I dir
+This option may be used to specify a directory to search for
+files on the command line and files named in 
+.B \eX'ps: import'
+and
+.B \eX'ps: file'
+escapes.
+The current directory is always searched first.
+This option may be specified more than once;
+the directories will be searched in the order specified.
+No directory search is performed for files specified using an absolute path.
 .
 .TP
 .B \-l
@@ -754,7 +784,7 @@ commands.
 .RS
 .LP
 For example,
-.B gxditview
+.B \%gxditview
 is not able to display a proper
 .B \[rs](em
 character because the standard X11 fonts do not provide it;
@@ -772,7 +802,7 @@ request
 .
 .LP
 In this case,
-.B gxditview
+.B \%gxditview
 will be unable to display the
 .B \[rs](em
 character and will draw the line,
@@ -783,10 +813,10 @@ will print the
 character
 and ignore the line (this code is already in file
 .B Xps.tmac
-which will be loaded if a documented intended for
+which will be loaded if a document intended for
 .B grops
 is previewed with
-.BR gxditview ).
+.BR \%gxditview ).
 .RE
 .
 .LP
@@ -1002,6 +1032,32 @@ comments)
 should be used.
 .
 .
+.SS Encapsulated PostScript
+.B grops
+itself doesn't emit bounding box information.
+.
+With the help of GhostScript the following commands will produce an
+encapsulated PS file
+.B foo.eps
+from input file
+.BR foo :
+.
+.IP
+.B
+groff -P-b16 foo > foo.ps
+.br
+.B
+gs -dNOPAUSE -sDEVICE=bbox -- foo.ps 2> foo.bbox
+.br
+.B
+cat foo.ps | sed \-e '/%%Orientation/rfoo.bbx' > foo.eps
+.br
+.B
+rm foo.bbx
+.br
+.
+.
+.
 .SS TrueType fonts
 TrueType fonts can be used with 
 .B grops 
@@ -1102,6 +1158,12 @@ Temporary file.
 .BR groff_font (@MAN5EXT@),
 .BR groff_char (@MAN7EXT@),
 .BR groff_tmac (@MAN5EXT@)
+.
+.PP
+.URL "http://\:partners.adobe.com/\:public/\:developer/\:en/\:ps/\:5001.DSC_Spec.pdf" \
+     "PostScript Language Document Structuring Conventions Specification"
+.
+.cp \n[grops_C]
 .
 .\" Local Variables:
 .\" mode: nroff

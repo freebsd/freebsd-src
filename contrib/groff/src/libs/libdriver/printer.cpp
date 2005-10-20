@@ -2,11 +2,11 @@
 
 // <groff_src_dir>/src/libs/libdriver/printer.cpp
 
-/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
    Written by James Clark (jjc@jclark.com)
 
-   Last update: 04 Apr 2003
+   Last update: 02 Mar 2005
 
    This file is part of groff.
 
@@ -22,11 +22,60 @@
 
    You should have received a copy of the GNU General Public License
    along with groff; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.
+   Software Foundation, 51 Franklin St - Fifth Floor, Boston, MA
+   02110-1301, USA.
 */
 
 #include "driver.h"
+
+/* If we are sending output to an onscreen pager (as is the normal case
+   when reading man pages), then we may get an error state on the output
+   stream, if the user does not read all the way to the end.
+
+   We normally expect to catch this, and clean up the error context, when
+   the pager exits, because we should get, and handle, a SIGPIPE.
+
+   However ...
+*/
+
+#if (defined(_MSC_VER) || defined(_WIN32)) \
+    && !defined(__CYGWIN__) && !defined(_UWIN)
+
+  /* Native MS-Windows doesn't know about SIGPIPE, so we cannot detect the
+     early exit from the pager, and therefore, cannot clean up the error
+     context; thus we use the following static function to identify this
+     particular error context, and so suppress unwanted diagnostics.
+  */
+
+  static int
+  check_for_output_error (FILE* stream)
+  {
+    /* First, clean up any prior error context on the output stream */
+    if (ferror (stream))
+      clearerr (stream);
+    /* Clear errno, in case clearerr() and fflush() don't */
+    errno = 0;
+    /* Flush the output stream, so we can capture any error context, other
+       than the specific case we wish to suppress.
+       
+       Microsoft doesn't document it, but the error code for the specific
+       context we are trying to suppress seems to be EINVAL -- a strange
+       choice, since it is not normally associated with fflush(); of course,
+       it *should* be EPIPE, but this *definitely* is not used, and *is* so
+       documented.
+    */
+    return ((fflush(stream) < 0) && (errno != EINVAL));
+  }
+
+#else
+
+  /* For other systems, we simply assume that *any* output error context
+     is to be reported.
+  */
+# define check_for_output_error(stream) ferror(stream) || fflush(stream) < 0
+
+#endif
+
 
 font_pointer_list::font_pointer_list(font *f, font_pointer_list *fp)
 : p(f), next(fp)
@@ -47,7 +96,7 @@ printer::~printer()
     delete tem->p;
     delete tem;
   }
-  if (ferror(stdout) || fflush(stdout) < 0)
+  if (check_for_output_error(stdout))
     fatal("output error");
 }
 
@@ -104,6 +153,10 @@ void printer::end_of_line()
 }
 
 void printer::special(char *, const environment *, char)
+{
+}
+
+void printer::devtag(char *, const environment *, char)
 {
 }
 

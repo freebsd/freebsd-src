@@ -61,7 +61,7 @@ eq	"
 *R	556,673,0,7	3	82	Rho
 *S	592,673	3	83	Sigma
 *T	611,673	3	84	Tau
----	690,673,0,4,8	3	85	Upsilon
+u03A5	690,673,0,4,8	3	85	Upsilon
 ts	439,500,233	3	86	sigma1
 *W	768,688	3	87	Omega
 *C	645,673	3	88	Xi
@@ -143,7 +143,7 @@ di	"
 ==	549,443	3	186	equivalence
 ~~	549,394	3	187	approxequal
 ~=	"
----	1000,95,17	3	188	ellipsis
+u2026	1000,95,17	3	188	ellipsis
 arrowvertex	603,1010,120	3	189	arrowvertex
 an	1000,276,0,50,60	3	190	arrowhorizex
 CR	658,629,16	3	191	carriagereturn
@@ -209,9 +209,9 @@ bv	"
 ra	329,746,198	3	241	angleright
 is	274,916,107,67,52,-10	3	242	integral
 integral	"
----	686,921,83,29	3	243	integraltp
----	686,975,88	3	244	integralex
----	686,921,81	3	245	integralbt
+u2320	686,921,83,29	3	243	integraltp
+u23AE	686,975,88	3	244	integralex
+u2321	686,921,81	3	245	integralbt
 parenrighttp	384,926,293,66	3	246	parenrighttp
 parenrightex	384,920,80,66	3	247	parenrightex
 parenrightbt	384,920,293,66	3	248	parenrightbt

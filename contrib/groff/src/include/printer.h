@@ -2,12 +2,12 @@
 
 // <groff_src_dir>/src/include/printer.h
 
-/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
    Written by James Clark (jjc@jclark.com)
 
-   Last update: 12 Apr 2002
+   Last update: 15 Dec 2004
 
    This file is part of groff.
 
@@ -23,8 +23,8 @@
 
    You should have received a copy of the GNU General Public License
    along with groff; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.
+   Software Foundation, 51 Franklin St - Fifth Floor, Boston, MA
+   02110-1301, USA.
 */
 
 /* Description
@@ -49,7 +49,7 @@ struct environment {
   color *fill;
 };
 
-struct font;
+class font;
 
 struct font_pointer_list {
   font *p;
@@ -83,6 +83,9 @@ public:
   virtual void end_of_line();
   virtual void special(char *arg, const environment *env,
 		       char type = 'p');
+  virtual void devtag(char *arg, const environment *env,
+		      char type = 'p');
+
 protected:
   font_pointer_list *font_list;
   font **font_table;

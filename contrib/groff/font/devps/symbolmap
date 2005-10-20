@@ -213,6 +213,8 @@ ij ij
 infinity if
 integral is
 integral integral
+# the next line overrides the (old) PUA value of the AGL
+integralex u23AE
 intersection ca
 less <
 lessequal <=
@@ -307,6 +309,7 @@ ugrave `u
 underscore _
 uni210F -h
 uni210F hbar
+uni2210 coproduct
 uni2213 -+
 uni2243 |=
 uni2262 ne

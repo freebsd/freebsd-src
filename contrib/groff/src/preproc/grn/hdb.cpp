@@ -1,4 +1,4 @@
-/* Last non-groff version: hdb.c  1.8 (Berkeley) 84/10/20
+ /* Last non-groff version: hdb.c  1.8 (Berkeley) 84/10/20
  *
  * Copyright -C- 1982 Barry S. Roitblat
  *
@@ -22,12 +22,13 @@
 extern int linenum;		/* current line number in input file */
 extern char gremlinfile[];	/* name of file currently reading */
 extern int SUNFILE;		/* TRUE if SUN gremlin file */
-extern void savebounds(float x, float y);
+extern int compatibility_flag;	/* TRUE if in compatibility mode */
+extern void savebounds(double x, double y);
 
 /* imports from hpoint.cpp */
 
 extern POINT *PTInit();
-extern POINT *PTMakePoint(float x, float y, POINT ** pplist);
+extern POINT *PTMakePoint(double x, double y, POINT ** pplist);
 
 
 int DBGetType(register char *s);
@@ -79,12 +80,12 @@ DBRead(register FILE *file)
 {
   register int i;
   register int done;		/* flag for input exhausted */
-  register float nx;		/* x holder so x is not set before orienting */
+  register double nx;		/* x holder so x is not set before orienting */
   int type;			/* element type */
   ELT *elist;			/* pointer to the file's elements */
   POINT *plist;			/* pointer for reading in points */
   char string[MAXSTRING], *txt;
-  float x, y;			/* x and y are read in point coords */
+  double x, y;			/* x and y are read in point coords */
   int len, brush, size;
   int lastpoint;
 
@@ -99,7 +100,7 @@ DBRead(register FILE *file)
     SUNFILE = TRUE;
   }
 
-  (void) fscanf(file, "%d%f%f\n", &size, &x, &y);
+  (void) fscanf(file, "%d%lf%lf\n", &size, &x, &y);
   /* ignore orientation and file positioning point */
 
   done = FALSE;
@@ -115,12 +116,11 @@ DBRead(register FILE *file)
     type = DBGetType(string);	/* interpret element type */
     if (type < 0) {		/* no more data */
       done = TRUE;
-      (void) fclose(file);
     } else {
 #ifdef UW_FASTSCAN
       (void) xscanf(file, &x, &y);		/* always one point */
 #else
-      (void) fscanf(file, "%f%f\n", &x, &y);	/* always one point */
+      (void) fscanf(file, "%lf%lf\n", &x, &y);	/* always one point */
 #endif	/* UW_FASTSCAN */
       plist = PTInit();		/* NULL point list */
 
@@ -144,9 +144,13 @@ DBRead(register FILE *file)
 	  if (string[0] == '*') {	/* SUN gremlin file */
 	    lastpoint = TRUE;
 	  } else {
-	    (void) sscanf(string, "%f%f", &x, &y);
+	    (void) sscanf(string, "%lf%lf", &x, &y);
 	    if ((x == -1.00 && y == -1.00) && (!SUNFILE))
 	      lastpoint = TRUE;
+	    else {
+	      if (compatibility_flag)
+		savebounds(xorn(x, y), yorn(x, y));
+	    }
 	  }
 	} while (!lastpoint);
 #endif	/* UW_FASTSCAN */
@@ -170,7 +174,7 @@ DBRead(register FILE *file)
 	  if (string[0] == '*') {	/* SUN gremlin file */
 	    lastpoint = TRUE;
 	  } else {
-	    (void) sscanf(string, "%f%f", &x, &y);
+	    (void) sscanf(string, "%lf%lf", &x, &y);
 	    if ((x == -1.00 && y == -1.00) && (!SUNFILE))
 	      lastpoint = TRUE;
 	  }
@@ -182,7 +186,10 @@ DBRead(register FILE *file)
       (void) getc(file);		/* eat blank */
       txt = (char *) malloc((unsigned) len + 1);
       for (i = 0; i < len; ++i) {	/* read text */
-	txt[i] = getc(file);
+        int c = getc(file);
+        if (c == EOF)
+          break;
+	txt[i] = c;
       }
       txt[len] = '\0';
       (void) DBCreateElt(type, plist, brush, size, txt, &elist);
@@ -281,8 +288,8 @@ DBGetType(register char *s)
  */
 int
 xscanf(FILE *f,
-       float *xp,
-       float *yp)
+       double *xp,
+       double *yp)
 {
   register int c, i, j, m, frac;
   int iscale = 1, jscale = 1;	/* x = i/scale, y=j/jscale */

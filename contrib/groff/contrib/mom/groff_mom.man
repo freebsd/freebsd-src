@@ -1,7 +1,7 @@
 .ig
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2002 Free Software Foundation, Inc.
+Copyright (C) 2002, 2003, 2005 Free Software Foundation, Inc.
 written by Werner Lemberg <wl@gnu.org>
 
 Permission is granted to copy, distribute and/or modify this document
@@ -13,6 +13,9 @@ Front-Cover Texts, and with no Back-Cover Texts.
 A copy of the Free Documentation License is included as a file called
 FDL in the main directory of the groff source package.
 ..
+.
+.do nr groff_mom_C \n[.C]
+.cp 0
 .
 .mso www.tmac
 .
@@ -85,10 +88,13 @@ mom comes with her own (very) complete documentation in HTML format.
 .
 .B mom
 was written by
-.MTO df191@ncf.ca "Peter Schaffter" .
+.MTO peter@faustus.dyn.ca "Peter Schaffter" .
 Please send bug reports to the
 .MTO bug-groff@gnu.org "groff bug mailing list"
-or directly to the author.
+or directly to the author, either at the address above or to
+.MTO ptpi@golden.net "" .
+.
+.cp \n[groff_mom_C]
 .
 .\" Local Variables:
 .\" mode: nroff
