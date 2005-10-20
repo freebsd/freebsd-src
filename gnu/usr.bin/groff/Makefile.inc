@@ -57,6 +57,7 @@ localtmacdir=/usr/share/tmac
 docdir=/usr/src/contrib/groff/doc
 exampledir=XXX
 htmldocdir=XXX
+pdfdocdir=XXX
 indexext=.i
 common_words_file=/usr/share/dict/eign
 indexdir=/usr/share/dict/papers
@@ -102,6 +103,7 @@ revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(GROFF_DIST)/REVISION`
 	-e "s;@DOCDIR@;$(docdir);g" \
 	-e "s;@EXAMPLEDIR@;$(exampledir);g" \
 	-e "s;@HTMLDOCDIR@;$(htmldocdir);g" \
+	-e "s;@PDFDOCDIR@;$(pdfdocdir);g" \
 	-e "s;@DEVICE@;$(DEVICE);g" \
 	-e "s;@DEFAULT_INDEX@;$(indexdir)/$(indexname);g" \
 	-e "s;@DEFAULT_INDEX_NAME@;$(indexname);g" \
@@ -126,6 +128,7 @@ revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(GROFF_DIST)/REVISION`
 .sh .pl:
 	@${ECHO} Making ${.TARGET} from ${.IMPSRC}
 	@sed -e "s|@BINDIR@|${BINDIR}|g" \
+	     -e 's|@GROFF_BIN_PATH_SETUP@|GROFF_RUNTIME="$${GROFF_BIN_PATH=${BINDIR}}:"|g' \
 	     -e "s;@FONTDIR@;$(fontdir);g" \
 	     -e "s|@SEP@|:|g" \
 	     -e "s|@VERSION@|$(version)$(revision)|" \
