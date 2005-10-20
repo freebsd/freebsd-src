@@ -8,6 +8,7 @@ SRCS+=	subr_pe.c
 SRCS+=	inf.c inf-token.l inf-parse.y y.tab.h
 
 MAN8=	ndiscvt.8
+MAN8=	ndisgen.8
 
 WARNS?=	4
 
