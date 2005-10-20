@@ -34,6 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -68,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #if defined(INVARIANTS) && defined(__i386__)
 #include <machine/cpu.h>
 #endif
+
+#include <ddb/ddb.h>
 
 /*
  * When realloc() is called, if the new size is sufficiently smaller than
@@ -812,6 +815,30 @@ SYSCTL_PROC(_kern, OID_AUTO, malloc_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
 
 SYSCTL_INT(_kern, OID_AUTO, malloc_count, CTLFLAG_RD, &kmemcount, 0,
     "Count of kernel malloc types");
+
+#ifdef DDB
+DB_SHOW_COMMAND(malloc, db_show_malloc)
+{
+	struct malloc_type_internal *mtip;
+	struct malloc_type *mtp;
+	u_int64_t allocs, frees;
+	int i;
+
+	db_printf("%18s %12s %12s %12s\n", "Type", "Allocs", "Frees",
+	    "Used");
+	for (mtp = kmemstatistics; mtp != NULL; mtp = mtp->ks_next) {
+		mtip = (struct malloc_type_internal *)mtp->ks_handle;
+		allocs = 0;
+		frees = 0;
+		for (i = 0; i < MAXCPU; i++) {
+			allocs += mtip->mti_stats[i].mts_numallocs;
+			frees += mtip->mti_stats[i].mts_numfrees;
+		}
+		db_printf("%18s %12llu %12llu %12llu\n", mtp->ks_shortdesc,
+		    allocs, frees, allocs - frees);
+	}
+}
+#endif
 
 #ifdef MALLOC_PROFILE
 
