@@ -16,10 +16,9 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93 (groff)";
 #include "lib.h"
 #include "box.h"
 extern int non_empty_flag;
-char *strsave(const char *);
 int yylex();
 void yyerror(const char *);
-#line 32 "eqn.y"
+#line 31 "eqn.y"
 typedef union {
 	char *str;
 	box *b;
@@ -28,7 +27,7 @@ typedef union {
 	int n;
 	column *col;
 } YYSTYPE;
-#line 32 "y.tab.c"
+#line 31 "y.tab.c"
 #define OVER 257
 #define SMALLOVER 258
 #define SQRT 259
@@ -809,15 +808,15 @@ yyreduce:
     switch (yyn)
     {
 case 2:
-#line 126 "eqn.y"
+#line 125 "eqn.y"
 { yyvsp[0].b->top_level(); non_empty_flag = 1; }
 break;
 case 3:
-#line 131 "eqn.y"
+#line 130 "eqn.y"
 { yyval.b = yyvsp[0].b; }
 break;
 case 4:
-#line 133 "eqn.y"
+#line 132 "eqn.y"
 {
 		  list_box *lb = yyvsp[-1].b->to_list_box();
 		  if (!lb)
@@ -827,207 +826,207 @@ case 4:
 		}
 break;
 case 5:
-#line 144 "eqn.y"
+#line 143 "eqn.y"
 { yyval.b = yyvsp[0].b; }
 break;
 case 6:
-#line 146 "eqn.y"
+#line 145 "eqn.y"
 { yyval.b = make_mark_box(yyvsp[0].b); }
 break;
 case 7:
-#line 148 "eqn.y"
+#line 147 "eqn.y"
 { yyval.b = make_lineup_box(yyvsp[0].b); }
 break;
 case 8:
-#line 153 "eqn.y"
+#line 152 "eqn.y"
 { yyval.b = yyvsp[0].b; }
 break;
 case 9:
-#line 155 "eqn.y"
+#line 154 "eqn.y"
 { yyval.b = make_limit_box(yyvsp[-2].b, 0, yyvsp[0].b); }
 break;
 case 10:
-#line 157 "eqn.y"
+#line 156 "eqn.y"
 { yyval.b = make_limit_box(yyvsp[-2].b, yyvsp[0].b, 0); }
 break;
 case 11:
-#line 159 "eqn.y"
+#line 158 "eqn.y"
 { yyval.b = make_limit_box(yyvsp[-4].b, yyvsp[-2].b, yyvsp[0].b); }
 break;
 case 12:
-#line 161 "eqn.y"
+#line 160 "eqn.y"
 { yyval.b = make_limit_box(yyvsp[-4].b, make_limit_box(yyvsp[-2].b, yyvsp[0].b, 0), 0); }
 break;
 case 13:
-#line 166 "eqn.y"
+#line 165 "eqn.y"
 { yyval.b = yyvsp[0].b; }
 break;
 case 14:
-#line 168 "eqn.y"
+#line 167 "eqn.y"
 { yyval.b = make_sqrt_box(yyvsp[0].b); }
 break;
 case 15:
-#line 170 "eqn.y"
+#line 169 "eqn.y"
 { yyval.b = make_over_box(yyvsp[-2].b, yyvsp[0].b); }
 break;
 case 16:
-#line 172 "eqn.y"
+#line 171 "eqn.y"
 { yyval.b = make_small_over_box(yyvsp[-2].b, yyvsp[0].b); }
 break;
 case 17:
-#line 177 "eqn.y"
+#line 176 "eqn.y"
 { yyval.b = yyvsp[0].b; }
 break;
 case 18:
-#line 179 "eqn.y"
+#line 178 "eqn.y"
 { yyval.b = make_script_box(yyvsp[-2].b, 0, yyvsp[0].b); }
 break;
 case 19:
-#line 184 "eqn.y"
+#line 183 "eqn.y"
 { yyval.b = yyvsp[0].b; }
 break;
 case 20:
-#line 186 "eqn.y"
+#line 185 "eqn.y"
 { yyval.b = make_script_box(yyvsp[-2].b, yyvsp[0].b, 0); }
 break;
 case 21:
-#line 188 "eqn.y"
+#line 187 "eqn.y"
 { yyval.b = make_script_box(yyvsp[-4].b, yyvsp[-2].b, yyvsp[0].b); }
 break;
 case 22:
-#line 193 "eqn.y"
+#line 192 "eqn.y"
 { yyval.b = split_text(yyvsp[0].str); }
 break;
 case 23:
-#line 195 "eqn.y"
+#line 194 "eqn.y"
 { yyval.b = new quoted_text_box(yyvsp[0].str); }
 break;
 case 24:
-#line 197 "eqn.y"
+#line 196 "eqn.y"
 { yyval.b = split_text(yyvsp[0].str); }
 break;
 case 25:
-#line 199 "eqn.y"
+#line 198 "eqn.y"
 { yyval.b = new quoted_text_box(yyvsp[0].str); }
 break;
 case 26:
-#line 201 "eqn.y"
+#line 200 "eqn.y"
 { yyval.b = new half_space_box; }
 break;
 case 27:
-#line 203 "eqn.y"
+#line 202 "eqn.y"
 { yyval.b = new space_box; }
 break;
 case 28:
-#line 205 "eqn.y"
+#line 204 "eqn.y"
 { yyval.b = new tab_box; }
 break;
 case 29:
-#line 207 "eqn.y"
+#line 206 "eqn.y"
 { yyval.b = yyvsp[-1].b; }
 break;
 case 30:
-#line 209 "eqn.y"
+#line 208 "eqn.y"
 { yyvsp[0].pb->set_alignment(CENTER_ALIGN); yyval.b = yyvsp[0].pb; }
 break;
 case 31:
-#line 211 "eqn.y"
+#line 210 "eqn.y"
 { yyvsp[0].pb->set_alignment(LEFT_ALIGN); yyval.b = yyvsp[0].pb; }
 break;
 case 32:
-#line 213 "eqn.y"
+#line 212 "eqn.y"
 { yyvsp[0].pb->set_alignment(RIGHT_ALIGN); yyval.b = yyvsp[0].pb; }
 break;
 case 33:
-#line 215 "eqn.y"
+#line 214 "eqn.y"
 { yyvsp[0].pb->set_alignment(CENTER_ALIGN); yyval.b = yyvsp[0].pb; }
 break;
 case 34:
-#line 217 "eqn.y"
+#line 216 "eqn.y"
 { yyval.b = yyvsp[-1].mb; }
 break;
 case 35:
-#line 219 "eqn.y"
+#line 218 "eqn.y"
 { yyval.b = make_delim_box(yyvsp[-3].str, yyvsp[-2].b, yyvsp[0].str); }
 break;
 case 36:
-#line 221 "eqn.y"
+#line 220 "eqn.y"
 { yyval.b = make_delim_box(yyvsp[-1].str, yyvsp[0].b, 0); }
 break;
 case 37:
-#line 223 "eqn.y"
+#line 222 "eqn.y"
 { yyval.b = make_overline_box(yyvsp[-1].b); }
 break;
 case 38:
-#line 225 "eqn.y"
+#line 224 "eqn.y"
 { yyval.b = make_underline_box(yyvsp[-1].b); }
 break;
 case 39:
-#line 227 "eqn.y"
+#line 226 "eqn.y"
 { yyval.b = make_prime_box(yyvsp[-1].b); }
 break;
 case 40:
-#line 229 "eqn.y"
+#line 228 "eqn.y"
 { yyval.b = make_accent_box(yyvsp[-2].b, yyvsp[0].b); }
 break;
 case 41:
-#line 231 "eqn.y"
+#line 230 "eqn.y"
 { yyval.b = make_uaccent_box(yyvsp[-2].b, yyvsp[0].b); }
 break;
 case 42:
-#line 233 "eqn.y"
+#line 232 "eqn.y"
 { yyval.b = new font_box(strsave(get_grfont()), yyvsp[0].b); }
 break;
 case 43:
-#line 235 "eqn.y"
+#line 234 "eqn.y"
 { yyval.b = new font_box(strsave(get_gbfont()), yyvsp[0].b); }
 break;
 case 44:
-#line 237 "eqn.y"
+#line 236 "eqn.y"
 { yyval.b = new font_box(strsave(get_gfont()), yyvsp[0].b); }
 break;
 case 45:
-#line 239 "eqn.y"
+#line 238 "eqn.y"
 { yyval.b = new fat_box(yyvsp[0].b); }
 break;
 case 46:
-#line 241 "eqn.y"
+#line 240 "eqn.y"
 { yyval.b = new font_box(yyvsp[-1].str, yyvsp[0].b); }
 break;
 case 47:
-#line 243 "eqn.y"
+#line 242 "eqn.y"
 { yyval.b = new size_box(yyvsp[-1].str, yyvsp[0].b); }
 break;
 case 48:
-#line 245 "eqn.y"
+#line 244 "eqn.y"
 { yyval.b = new hmotion_box(yyvsp[-1].n, yyvsp[0].b); }
 break;
 case 49:
-#line 247 "eqn.y"
+#line 246 "eqn.y"
 { yyval.b = new hmotion_box(-yyvsp[-1].n, yyvsp[0].b); }
 break;
 case 50:
-#line 249 "eqn.y"
+#line 248 "eqn.y"
 { yyval.b = new vmotion_box(yyvsp[-1].n, yyvsp[0].b); }
 break;
 case 51:
-#line 251 "eqn.y"
+#line 250 "eqn.y"
 { yyval.b = new vmotion_box(-yyvsp[-1].n, yyvsp[0].b); }
 break;
 case 52:
-#line 253 "eqn.y"
+#line 252 "eqn.y"
 { yyvsp[0].b->set_spacing_type(yyvsp[-1].str); yyval.b = yyvsp[0].b; }
 break;
 case 53:
-#line 255 "eqn.y"
+#line 254 "eqn.y"
 { yyval.b = new vcenter_box(yyvsp[0].b); }
 break;
 case 54:
-#line 257 "eqn.y"
+#line 256 "eqn.y"
 { yyval.b = make_special_box(yyvsp[-1].str, yyvsp[0].b); }
 break;
 case 55:
-#line 262 "eqn.y"
+#line 261 "eqn.y"
 {
 		  int n;
 		  if (sscanf(yyvsp[0].str, "%d", &n) == 1)
@@ -1036,82 +1035,82 @@ case 55:
 		}
 break;
 case 56:
-#line 272 "eqn.y"
+#line 271 "eqn.y"
 { yyval.pb = new pile_box(yyvsp[0].b); }
 break;
 case 57:
-#line 274 "eqn.y"
+#line 273 "eqn.y"
 { yyvsp[-2].pb->append(yyvsp[0].b); yyval.pb = yyvsp[-2].pb; }
 break;
 case 58:
-#line 279 "eqn.y"
+#line 278 "eqn.y"
 { yyval.pb = yyvsp[-1].pb; }
 break;
 case 59:
-#line 281 "eqn.y"
+#line 280 "eqn.y"
 { yyvsp[-1].pb->set_space(yyvsp[-3].n); yyval.pb = yyvsp[-1].pb; }
 break;
 case 60:
-#line 286 "eqn.y"
+#line 285 "eqn.y"
 { yyval.mb = new matrix_box(yyvsp[0].col); }
 break;
 case 61:
-#line 288 "eqn.y"
+#line 287 "eqn.y"
 { yyvsp[-1].mb->append(yyvsp[0].col); yyval.mb = yyvsp[-1].mb; }
 break;
 case 62:
-#line 293 "eqn.y"
+#line 292 "eqn.y"
 { yyval.col = new column(yyvsp[0].b); }
 break;
 case 63:
-#line 295 "eqn.y"
+#line 294 "eqn.y"
 { yyvsp[-2].col->append(yyvsp[0].b); yyval.col = yyvsp[-2].col; }
 break;
 case 64:
-#line 300 "eqn.y"
+#line 299 "eqn.y"
 { yyval.col = yyvsp[-1].col; }
 break;
 case 65:
-#line 302 "eqn.y"
+#line 301 "eqn.y"
 { yyvsp[-1].col->set_space(yyvsp[-3].n); yyval.col = yyvsp[-1].col; }
 break;
 case 66:
-#line 307 "eqn.y"
+#line 306 "eqn.y"
 { yyvsp[0].col->set_alignment(CENTER_ALIGN); yyval.col = yyvsp[0].col; }
 break;
 case 67:
-#line 309 "eqn.y"
+#line 308 "eqn.y"
 { yyvsp[0].col->set_alignment(LEFT_ALIGN); yyval.col = yyvsp[0].col; }
 break;
 case 68:
-#line 311 "eqn.y"
+#line 310 "eqn.y"
 { yyvsp[0].col->set_alignment(RIGHT_ALIGN); yyval.col = yyvsp[0].col; }
 break;
 case 69:
-#line 313 "eqn.y"
+#line 312 "eqn.y"
 { yyvsp[0].col->set_alignment(CENTER_ALIGN); yyval.col = yyvsp[0].col; }
 break;
 case 70:
-#line 317 "eqn.y"
+#line 316 "eqn.y"
 { yyval.str = yyvsp[0].str; }
 break;
 case 71:
-#line 319 "eqn.y"
+#line 318 "eqn.y"
 { yyval.str = yyvsp[0].str; }
 break;
 case 72:
-#line 324 "eqn.y"
+#line 323 "eqn.y"
 { yyval.str = yyvsp[0].str; }
 break;
 case 73:
-#line 326 "eqn.y"
+#line 325 "eqn.y"
 { yyval.str = strsave("{"); }
 break;
 case 74:
-#line 328 "eqn.y"
+#line 327 "eqn.y"
 { yyval.str = strsave("}"); }
 break;
-#line 1115 "y.tab.c"
+#line 1114 "y.tab.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

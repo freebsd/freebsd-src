@@ -10,6 +10,7 @@
 .eo
 .
 .rn de !!de
+.rn de1 !!de1
 .
 .
 .!!de de
@@ -17,12 +18,12 @@
 .  ec
 .  do !!de \$1
 .    ie "\$1"\\$0" .do tm1 "\\*[!!sp]*** de trace enter: \\$0 \\$@
-.    el .do tm1 "\*[!!sp]*** trace enter \$1: \\$0 \\$@
+.    el .do tm1 "\\*[!!sp]*** de trace enter \$1: \\$0 \\$@
 .    do as !!sp " \"
 .    do nop \\*[!!\$1]\\
 .    do substring !!sp 1
 .    ie "\$1"\\$0" .do tm1 "\\*[!!sp]*** trace exit: \\$0 \\$@
-.    el .do tm1 "\*[!!sp]*** trace exit \$1: \\$0 \\$@
+.    el .do tm1 "\\*[!!sp]*** trace exit \$1: \\$0 \\$@
 \..
 .
 .  do ds !!d1 !!\$1
@@ -32,19 +33,40 @@
 .  do dei !!d1 !!d2
 ..
 .
-.rn am !!am
-.
-.!!am am
+.!!de de1
 .  do ecs
 .  ec
-.  do !!am \$1
-.    ie "\$1"\\$0" .do tm1 "\\*[!!sp]*** am trace enter: \\$0 \\$@
-.    el .do tm1 "\*[!!sp]*** am trace enter \$1: \\$0 \\$@
-.    as !!sp " \"
+.  do !!de \$1
+.    ie "\$1"\\$0" .do tm1 "\\*[!!sp]*** de1 trace enter: \\$0 \\$@
+.    el .do tm1 "\\*[!!sp]*** de1 trace enter \$1: \\$0 \\$@
+.    do as !!sp " \"
 .    do nop \\*[!!\$1]\\
-.    substring !!sp 1
+.    do substring !!sp 1
 .    ie "\$1"\\$0" .do tm1 "\\*[!!sp]*** trace exit: \\$0 \\$@
-.    el .do tm1 "\*[!!sp]*** trace exit \$1: \\$0 \\$@
+.    el .do tm1 "\\*[!!sp]*** trace exit \$1: \\$0 \\$@
+\..
+.
+.  do ds !!d1 !!\$1
+.  do ds !!d2 \$2
+.
+.  do ecr
+.  do dei1 !!d1 !!d2
+..
+.
+.rn am !!am
+.rn am1 !!am1
+.
+.!!de am
+.  do ecs
+.  ec
+.  do !!de \$1
+.    ie "\$1"\\$0" .do tm1 "\\*[!!sp]*** am trace enter: \\$0 \\$@
+.    el .do tm1 "\\*[!!sp]*** am trace enter \$1: \\$0 \\$@
+.    do as !!sp " \"
+.    do nop \\*[!!\$1]\\
+.    do substring !!sp 1
+.    ie "\$1"\\$0" .do tm1 "\\*[!!sp]*** trace exit: \\$0 \\$@
+.    el .do tm1 "\\*[!!sp]*** trace exit \$1: \\$0 \\$@
 \..
 .
 .  do ds !!a1 !!\$1
@@ -52,6 +74,34 @@
 .
 .  do ecr
 .  do ami !!a1 !!a2
+..
+.
+.!!de am1
+.  do ecs
+.  ec
+.  do !!de \$1
+.    ie "\$1"\\$0" .do tm1 "\\*[!!sp]*** am1 trace enter: \\$0 \\$@
+.    el .do tm1 "\\*[!!sp]*** am1 trace enter \$1: \\$0 \\$@
+.    do as !!sp " \"
+.    do nop \\*[!!\$1]\\
+.    do substring !!sp 1
+.    ie "\$1"\\$0" .do tm1 "\\*[!!sp]*** trace exit: \\$0 \\$@
+.    el .do tm1 "\\*[!!sp]*** trace exit \$1: \\$0 \\$@
+\..
+.
+.  do ds !!a1 !!\$1
+.  do ds !!a2 \$2
+.
+.  do ecr
+.  do ami1 !!a1 !!a2
+..
+.
+.rn return !!return
+.
+.!!de1 return
+.  substring !!sp 1
+.  tm1 "\*[!!sp]*** return
+.  !!return twice
 ..
 .
 .ec

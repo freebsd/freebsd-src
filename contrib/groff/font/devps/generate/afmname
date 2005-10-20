@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 # Fix the path name of an AFM file.
 if test -f "$1"
 then

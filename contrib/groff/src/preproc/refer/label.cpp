@@ -8,7 +8,7 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93 (groff)";
 #define yyerrok (yyerrflag=0)
 #define YYRECOVERING (yyerrflag!=0)
 #define YYPREFIX "yy"
-#line 22 "label.y"
+#line 23 "label.y"
 
 #include "refer.h"
 #include "refid.h"
@@ -206,7 +206,7 @@ static expression *parse_result;
 
 string literals;
 
-#line 221 "label.y"
+#line 222 "label.y"
 typedef union {
   int num;
   expression *expr;
@@ -441,7 +441,7 @@ YYSTYPE yylval;
 short yyss[YYSTACKSIZE];
 YYSTYPE yyvs[YYSTACKSIZE];
 #define yystacksize YYSTACKSIZE
-#line 397 "label.y"
+#line 398 "label.y"
 
 /* bison defines const to be empty unless __STDC__ is defined, which it
 isn't under cfront */
@@ -453,6 +453,20 @@ isn't under cfront */
 const char *spec_ptr;
 const char *spec_end;
 const char *spec_cur;
+
+static char uppercase_array[] = {
+  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+  'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+  'Y', 'Z',
+};
+  
+static char lowercase_array[] = {
+  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+  'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+  'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
+  'y', 'z',
+};
 
 int yylex()
 {
@@ -637,7 +651,8 @@ static const char *format_serial(char c, int n)
 	  d = 26;
 	n -= d;
 	n /= 26;
-	*p++ = c + d - 1;	// ASCII dependent
+	*p++ = c == 'a' ? lowercase_array[d - 1] :
+			       uppercase_array[d - 1];
       }
       *p-- = 0;
       // Reverse it.
@@ -1018,8 +1033,8 @@ label_info *lookup_label(const string &label)
       label_table[i] = 0;
     for (i = 0; i < old_size; i++)
       if (old_table[i]) {
-	unsigned h = hash_string(label_pool.contents() + old_table[i]->start,
-				 old_table[i]->length);
+	h = hash_string(label_pool.contents() + old_table[i]->start,
+			old_table[i]->length);
 	label_info **p;
 	for (p = label_table + (h % label_table_size);
 	     *p != 0;
@@ -1121,10 +1136,10 @@ int same_author_last_name(const reference &r1, const reference &r2, int n)
 {
   const char *ae1;
   const char *as1 = r1.get_sort_field(0, n, 0, &ae1);
-  assert(as1 != 0);
   const char *ae2;
   const char *as2 = r2.get_sort_field(0, n, 0, &ae2);
-  assert(as2 != 0);
+  if (!as1 && !as2) return 1;	// they are the same
+  if (!as1 || !as2) return 0;
   return ae1 - as1 == ae2 - as2 && memcmp(as1, as2, ae1 - as1) == 0;
 }
 
@@ -1132,10 +1147,10 @@ int same_author_name(const reference &r1, const reference &r2, int n)
 {
   const char *ae1;
   const char *as1 = r1.get_sort_field(0, n, -1, &ae1);
-  assert(as1 != 0);
   const char *ae2;
   const char *as2 = r2.get_sort_field(0, n, -1, &ae2);
-  assert(as2 != 0);
+  if (!as1 && !as2) return 1;	// they are the same
+  if (!as1 || !as2) return 0;
   return ae1 - as1 == ae2 - as2 && memcmp(as1, as2, ae1 - as1) == 0;
 }
 
@@ -1223,7 +1238,7 @@ int reference::get_nauthors() const
   }
   return nauthors;
 }
-#line 1227 "y.tab.c"
+#line 1242 "y.tab.c"
 #define YYABORT goto yyabort
 #define YYREJECT goto yyabort
 #define YYACCEPT goto yyaccept
@@ -1369,74 +1384,74 @@ yyreduce:
     switch (yyn)
     {
 case 1:
-#line 250 "label.y"
+#line 251 "label.y"
 { parse_result = (yyvsp[0].expr ? new analyzed_expr(yyvsp[0].expr) : 0); }
 break;
 case 2:
-#line 255 "label.y"
+#line 256 "label.y"
 { yyval.expr = yyvsp[0].expr; }
 break;
 case 3:
-#line 257 "label.y"
+#line 258 "label.y"
 { yyval.expr = new conditional_expr(yyvsp[-4].expr, yyvsp[-2].expr, yyvsp[0].expr); }
 break;
 case 4:
-#line 262 "label.y"
+#line 263 "label.y"
 { yyval.expr = 0; }
 break;
 case 5:
-#line 264 "label.y"
+#line 265 "label.y"
 { yyval.expr = yyvsp[0].expr; }
 break;
 case 6:
-#line 269 "label.y"
+#line 270 "label.y"
 { yyval.expr = yyvsp[0].expr; }
 break;
 case 7:
-#line 271 "label.y"
+#line 272 "label.y"
 { yyval.expr = new alternative_expr(yyvsp[-2].expr, yyvsp[0].expr); }
 break;
 case 8:
-#line 273 "label.y"
+#line 274 "label.y"
 { yyval.expr = new conditional_expr(yyvsp[-2].expr, yyvsp[0].expr, 0); }
 break;
 case 9:
-#line 278 "label.y"
+#line 279 "label.y"
 { yyval.expr = yyvsp[0].expr; }
 break;
 case 10:
-#line 280 "label.y"
+#line 281 "label.y"
 { yyval.expr = new list_expr(yyvsp[-1].expr, yyvsp[0].expr); }
 break;
 case 11:
-#line 285 "label.y"
+#line 286 "label.y"
 { yyval.expr = yyvsp[0].expr; }
 break;
 case 12:
-#line 287 "label.y"
+#line 288 "label.y"
 { yyval.expr = new substitute_expr(yyvsp[-2].expr, yyvsp[0].expr); }
 break;
 case 13:
-#line 292 "label.y"
+#line 293 "label.y"
 { yyval.expr = new at_expr; }
 break;
 case 14:
-#line 294 "label.y"
+#line 295 "label.y"
 {
 		  yyval.expr = new literal_expr(literals.contents() + yyvsp[0].str.start,
 					yyvsp[0].str.len);
 		}
 break;
 case 15:
-#line 299 "label.y"
+#line 300 "label.y"
 { yyval.expr = new field_expr(yyvsp[0].num, 0); }
 break;
 case 16:
-#line 301 "label.y"
+#line 302 "label.y"
 { yyval.expr = new field_expr(yyvsp[-1].num, yyvsp[0].num - 1); }
 break;
 case 17:
-#line 303 "label.y"
+#line 304 "label.y"
 {
 		  switch (yyvsp[0].num) {
 		  case 'I':
@@ -1453,13 +1468,13 @@ case 17:
 		}
 break;
 case 18:
-#line 319 "label.y"
+#line 320 "label.y"
 {
 		  yyval.expr = new format_expr('0', yyvsp[0].dig.ndigits, yyvsp[0].dig.val);
 		}
 break;
 case 19:
-#line 323 "label.y"
+#line 324 "label.y"
 {
 		  switch (yyvsp[-1].num) {
 		  case 'l':
@@ -1491,62 +1506,62 @@ case 19:
 		}
 break;
 case 20:
-#line 354 "label.y"
+#line 355 "label.y"
 { yyval.expr = new truncate_expr(yyvsp[-2].expr, yyvsp[0].num); }
 break;
 case 21:
-#line 356 "label.y"
+#line 357 "label.y"
 { yyval.expr = new truncate_expr(yyvsp[-2].expr, -yyvsp[0].num); }
 break;
 case 22:
-#line 358 "label.y"
+#line 359 "label.y"
 { yyval.expr = new star_expr(yyvsp[-1].expr); }
 break;
 case 23:
-#line 360 "label.y"
+#line 361 "label.y"
 { yyval.expr = yyvsp[-1].expr; }
 break;
 case 24:
-#line 362 "label.y"
+#line 363 "label.y"
 { yyval.expr = new separator_expr(yyvsp[-1].expr); }
 break;
 case 25:
-#line 367 "label.y"
+#line 368 "label.y"
 { yyval.num = -1; }
 break;
 case 26:
-#line 369 "label.y"
+#line 370 "label.y"
 { yyval.num = yyvsp[0].num; }
 break;
 case 27:
-#line 374 "label.y"
+#line 375 "label.y"
 { yyval.num = yyvsp[0].num; }
 break;
 case 28:
-#line 376 "label.y"
+#line 377 "label.y"
 { yyval.num = yyvsp[-1].num*10 + yyvsp[0].num; }
 break;
 case 29:
-#line 381 "label.y"
+#line 382 "label.y"
 { yyval.dig.ndigits = 1; yyval.dig.val = yyvsp[0].num; }
 break;
 case 30:
-#line 383 "label.y"
+#line 384 "label.y"
 { yyval.dig.ndigits = yyvsp[-1].dig.ndigits + 1; yyval.dig.val = yyvsp[-1].dig.val*10 + yyvsp[0].num; }
 break;
 case 31:
-#line 389 "label.y"
+#line 390 "label.y"
 { yyval.num = 0; }
 break;
 case 32:
-#line 391 "label.y"
+#line 392 "label.y"
 { yyval.num = 1; }
 break;
 case 33:
-#line 393 "label.y"
+#line 394 "label.y"
 { yyval.num = -1; }
 break;
-#line 1550 "y.tab.c"
+#line 1565 "y.tab.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,12 +17,13 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "troff.h"
-#include "symbol.h"
 #include "dictionary.h"
 #include "hvunits.h"
+#include "stringclass.h"
+#include "mtsm.h"
 #include "env.h"
 #include "request.h"
 #include "node.h"
@@ -52,6 +53,8 @@ environment *env_table[NENVIRONMENTS];
 dictionary env_dictionary(10);
 environment *curenv;
 static int next_line_number = 0;
+extern int suppress_push;
+extern statem *get_diversion_state();
 
 charinfo *field_delimiter_char;
 charinfo *padding_indicator_char;
@@ -61,6 +64,7 @@ int translate_space_to_dummy = 0;
 class pending_output_line {
   node *nd;
   int no_fill;
+  int was_centered;
   vunits vs;
   vunits post_vs;
   hunits width;
@@ -70,20 +74,21 @@ class pending_output_line {
 public:
   pending_output_line *next;
 
-  pending_output_line(node *, int, vunits, vunits, hunits,
+  pending_output_line(node *, int, vunits, vunits, hunits, int,
 		      pending_output_line * = 0);
   ~pending_output_line();
   int output();
 
 #ifdef WIDOW_CONTROL
   friend void environment::mark_last_line();
-  friend void environment::output(node *, int, vunits, vunits, hunits);
+  friend void environment::output(node *, int, vunits, vunits, hunits, int);
 #endif /* WIDOW_CONTROL */
 };
 
 pending_output_line::pending_output_line(node *n, int nf, vunits v, vunits pv,
-					 hunits w, pending_output_line *p)
-: nd(n), no_fill(nf), vs(v), post_vs(pv), width(w),
+					 hunits w, int ce,
+					 pending_output_line *p)
+: nd(n), no_fill(nf), was_centered(ce), vs(v), post_vs(pv), width(w),
 #ifdef WIDOW_CONTROL
   last_line(0),
 #endif /* WIDOW_CONTROL */
@@ -109,13 +114,15 @@ int pending_output_line::output()
     }
   }
 #endif
+  curenv->construct_format_state(nd, was_centered, !no_fill);
   curdiv->output(nd, no_fill, vs, post_vs, width);
   nd = 0;
   return 1;
 }
 
-void environment::output(node *nd, int no_fill, vunits vs, vunits post_vs,
-			 hunits width)
+void environment::output(node *nd, int no_fill_flag,
+			 vunits vs, vunits post_vs,
+			 hunits width, int was_centered)
 {
 #ifdef WIDOW_CONTROL
   while (pending_lines) {
@@ -132,29 +139,31 @@ void environment::output(node *nd, int no_fill, vunits vs, vunits post_vs,
 #endif /* WIDOW_CONTROL */
   if (!trap_sprung_flag && !pending_lines
 #ifdef WIDOW_CONTROL
-      && (!widow_control || no_fill)
+      && (!widow_control || no_fill_flag)
 #endif /* WIDOW_CONTROL */
       ) {
-    curdiv->output(nd, no_fill, vs, post_vs, width);
-    emitted_node = 1;
+    curenv->construct_format_state(nd, was_centered, !no_fill_flag);
+    curdiv->output(nd, no_fill_flag, vs, post_vs, width);
   } else {
     pending_output_line **p;
     for (p = &pending_lines; *p; p = &(*p)->next)
       ;
-    *p = new pending_output_line(nd, no_fill, vs, post_vs, width);
+    *p = new pending_output_line(nd, no_fill_flag, vs, post_vs, width,
+				 was_centered);
   }
 }
 
 // a line from .tl goes at the head of the queue
 
-void environment::output_title(node *nd, int no_fill, vunits vs,
-			       vunits post_vs, hunits width)
+void environment::output_title(node *nd, int no_fill_flag,
+			       vunits vs, vunits post_vs,
+			       hunits width)
 {
   if (!trap_sprung_flag)
-    curdiv->output(nd, no_fill, vs, post_vs, width);
+    curdiv->output(nd, no_fill_flag, vs, post_vs, width);
   else
-    pending_lines = new pending_output_line(nd, no_fill, vs, post_vs, width,
-					    pending_lines);
+    pending_lines = new pending_output_line(nd, no_fill_flag, vs, post_vs,
+					    width, 0, pending_lines);
 }
 
 void environment::output_pending_lines()
@@ -172,7 +181,8 @@ void environment::mark_last_line()
 {
   if (!widow_control || !pending_lines)
     return;
-  for (pending_output_line *p = pending_lines; p->next; p = p->next)
+  pending_output_line *p;
+  for (p = pending_lines; p->next; p = p->next)
     ;
   if (!p->no_fill)
     p->last_line = 1;
@@ -264,6 +274,7 @@ void leader_character()
 void environment::add_char(charinfo *ci)
 {
   int s;
+  node *gc_np = 0;
   if (interrupted)
     ;
   // don't allow fields in dummy environments
@@ -279,18 +290,40 @@ void environment::add_char(charinfo *ci)
     if (tab_contents == 0)
       tab_contents = new line_start_node;
     if (ci != hyphen_indicator_char)
-      tab_contents = tab_contents->add_char(ci, this, &tab_width, &s);
+      tab_contents = tab_contents->add_char(ci, this, &tab_width, &s, &gc_np);
     else
       tab_contents = tab_contents->add_discretionary_hyphen();
   }
   else {
     if (line == 0)
       start_line();
+#if 0
+    fprintf(stderr, "current line is\n");
+    line->debug_node_list();
+#endif
     if (ci != hyphen_indicator_char)
-      line = line->add_char(ci, this, &width_total, &space_total);
+      line = line->add_char(ci, this, &width_total, &space_total, &gc_np);
     else
       line = line->add_discretionary_hyphen();
   }
+#if 0
+  fprintf(stderr, "now after we have added character the line is\n");
+  line->debug_node_list();
+#endif
+  if ((!suppress_push) && gc_np) {
+    if (gc_np && (gc_np->state == 0)) {
+      gc_np->state = construct_state(0);
+      gc_np->push_state = get_diversion_state();
+    }
+    else if (line && (line->state == 0)) {
+      line->state = construct_state(0);
+      line->push_state = get_diversion_state();
+    }
+  }
+#if 0
+  fprintf(stderr, "now we have possibly added the state the line is\n");
+  line->debug_node_list();
+#endif
 }
 
 node *environment::make_char_node(charinfo *ci)
@@ -302,6 +335,12 @@ void environment::add_node(node *n)
 {
   if (n == 0)
     return;
+  if (!suppress_push) {
+    if (n->is_special && n->state == NULL)
+      n->state = construct_state(0);
+    n->push_state = get_diversion_state();
+  }
+
   if (current_tab || current_field)
     n->freeze_space();
   if (interrupted) {
@@ -325,9 +364,9 @@ void environment::add_node(node *n)
     space_total += n->nspaces();
     n->next = line;
     line = n;
+    construct_new_line_state(line);
   }
 }
-
 
 void environment::add_hyphen_indicator()
 {
@@ -612,7 +651,6 @@ environment::environment(symbol nm)
   width_total(0),
   space_total(0),
   input_line_start(0),
-  tabs(units_per_inch/2, TAB_LEFT),
   line_tabs(0),
   current_tab(TAB_NONE),
   leader_node(0),
@@ -639,12 +677,15 @@ environment::environment(symbol nm)
 #ifdef WIDOW_CONTROL
   widow_control(0),
 #endif /* WIDOW_CONTROL */
-  ignore_next_eol(0),
-  emitted_node(0),
   glyph_color(&default_color),
   prev_glyph_color(&default_color),
   fill_color(&default_color),
   prev_fill_color(&default_color),
+  seen_space(0),
+  seen_eol(0),
+  suppress_next_eol(0),
+  seen_break(0),
+  tabs(units_per_inch/2, TAB_LEFT),
   name(nm),
   control_char('.'),
   no_break_control_char('\''),
@@ -702,7 +743,6 @@ environment::environment(const environment *e)
   width_total(0),
   space_total(0),
   input_line_start(0),
-  tabs(e->tabs),
   line_tabs(e->line_tabs),
   current_tab(TAB_NONE),
   leader_node(0),
@@ -729,12 +769,15 @@ environment::environment(const environment *e)
 #ifdef WIDOW_CONTROL
   widow_control(e->widow_control),
 #endif /* WIDOW_CONTROL */
-  ignore_next_eol(0),
-  emitted_node(0),
   glyph_color(e->glyph_color),
   prev_glyph_color(e->prev_glyph_color),
   fill_color(e->fill_color),
   prev_fill_color(e->prev_fill_color),
+  seen_space(e->seen_space),
+  seen_eol(e->seen_eol),
+  suppress_next_eol(e->suppress_next_eol),
+  seen_break(e->seen_break),
+  tabs(e->tabs),
   name(e->name),		// so that eg `.if "\n[.ev]"0"' works
   control_char(e->control_char),
   no_break_control_char(e->no_break_control_char),
@@ -816,8 +859,6 @@ void environment::copy(const environment *e)
   hyphenation_space = e->hyphenation_space;
   hyphenation_margin = e->hyphenation_margin;
   composite = 0;
-  ignore_next_eol = e->ignore_next_eol;
-  emitted_node = e->emitted_node;
   glyph_color= e->glyph_color;
   prev_glyph_color = e->prev_glyph_color;
   fill_color = e->fill_color;
@@ -1089,7 +1130,13 @@ void environment_switch()
 	error("environment stack underflow");
     }
     else {
+      int seen_space = curenv->seen_space;
+      int seen_eol   = curenv->seen_eol;
+      int suppress_next_eol = curenv->suppress_next_eol;
       curenv = env_stack->env;
+      curenv->seen_space = seen_space;
+      curenv->seen_eol   = seen_eol;
+      curenv->suppress_next_eol = suppress_next_eol;
       env_list *tem = env_stack;
       env_stack = env_stack->next;
       delete tem;
@@ -1123,6 +1170,26 @@ void environment_copy()
   }
   else
     curenv->copy(e);
+  skip_line();
+}
+
+void fill_color_change()
+{
+  symbol s = get_name();
+  if (s.is_null())
+    curenv->set_fill_color(curenv->get_prev_fill_color());
+  else
+    do_fill_color(s);
+  skip_line();
+}
+
+void glyph_color_change()
+{
+  symbol s = get_name();
+  if (s.is_null())
+    curenv->set_glyph_color(curenv->get_prev_glyph_color());
+  else
+    do_glyph_color(s);
   skip_line();
 }
 
@@ -1164,7 +1231,6 @@ void point_size()
     if (n <= 0)
       n = 1;
     curenv->set_size(n);
-    curenv->add_html_tag(0, ".ps", n);
   }
   else
     curenv->set_size(0);
@@ -1232,8 +1298,6 @@ void fill()
   if (break_flag)
     curenv->do_break();
   curenv->fill = 1;
-  curenv->add_html_tag(1, ".fi");
-  curenv->add_html_tag(0, ".br");
   tok.next();
 }
 
@@ -1244,9 +1308,7 @@ void no_fill()
   if (break_flag)
     curenv->do_break();
   curenv->fill = 0;
-  curenv->add_html_tag(1, ".nf");
-  curenv->add_html_tag(0, ".br");
-  curenv->add_html_tag(0, ".po", topdiv->get_page_offset().to_units());
+  curenv->suppress_next_eol = 1;
   tok.next();
 }
 
@@ -1263,7 +1325,7 @@ void center()
     curenv->do_break();
   curenv->right_justify_lines = 0;
   curenv->center_lines = n;
-  curenv->add_html_tag(1, ".ce", n);
+  curdiv->modified_tag.incl(MTSM_CE);
   tok.next();
 }
 
@@ -1280,7 +1342,7 @@ void right_justify()
     curenv->do_break();
   curenv->center_lines = 0;
   curenv->right_justify_lines = n;
-  curenv->add_html_tag(1, ".rj", n);
+  curdiv->modified_tag.incl(MTSM_RJ);
   tok.next();
 }
 
@@ -1297,7 +1359,7 @@ void line_length()
     temp = curenv->prev_line_length;
   curenv->prev_line_length = curenv->line_length;
   curenv->line_length = temp;
-  curenv->add_html_tag(1, ".ll", temp.to_units());
+  curdiv->modified_tag.incl(MTSM_LL);
   skip_line();
 }
 
@@ -1384,8 +1446,7 @@ void indent()
   curenv->have_temporary_indent = 0;
   curenv->prev_indent = curenv->indent;
   curenv->indent = temp;
-  if (break_flag)
-    curenv->add_html_tag(1, ".in", temp.to_units());
+  curdiv->modified_tag.incl(MTSM_IN);
   tok.next();
 }
 
@@ -1406,7 +1467,7 @@ void temporary_indent()
   if (!err) {
     curenv->temporary_indent = temp;
     curenv->have_temporary_indent = 1;
-    curenv->add_html_tag(1, ".ti", temp.to_units());
+    curdiv->modified_tag.incl(MTSM_TI);
   }
   tok.next();
 }
@@ -1623,6 +1684,7 @@ void environment::interrupt()
 
 void environment::newline()
 {
+  int was_centered = 0;
   if (underline_lines > 0) {
     if (--underline_lines == 0) {
       prev_fontno = fontno;
@@ -1661,11 +1723,7 @@ void environment::newline()
     if (x > H0)
       saved_indent += x/2;
     to_be_output = line;
-    if (is_html) {
-      node *n = make_html_tag("eol.ce");
-      n->next = to_be_output;
-      to_be_output = n;
-    }
+    was_centered = 1;
     to_be_output_width = width_total;
     line = 0;
   }
@@ -1688,14 +1746,14 @@ void environment::newline()
   input_line_start = line == 0 ? H0 : width_total;
   if (to_be_output) {
     if (is_html && !fill) {
-      if (curdiv == topdiv) {
-	node *n = make_html_tag("eol");
-
-	n->next = to_be_output;
-	to_be_output = n;
-      }
+      curdiv->modified_tag.incl(MTSM_EOL);
+      if (suppress_next_eol)
+	suppress_next_eol = 0;
+      else
+	seen_eol = 1;
     }
-    output_line(to_be_output, to_be_output_width);
+
+    output_line(to_be_output, to_be_output_width, was_centered);
     hyphen_line_count = 0;
   }
   if (input_trap_count > 0) {
@@ -1705,7 +1763,7 @@ void environment::newline()
   }
 }
 
-void environment::output_line(node *n, hunits width)
+void environment::output_line(node *n, hunits width, int was_centered)
 {
   prev_text_length = width;
   if (margin_character_flags) {
@@ -1764,7 +1822,8 @@ void environment::output_line(node *n, hunits width)
     width += w;
     ++next_line_number;
   }
-  output(nn, !fill, vertical_spacing, total_post_vertical_spacing(), width);
+  output(nn, !fill, vertical_spacing, total_post_vertical_spacing(), width,
+	 was_centered);
 }
 
 void environment::start_line()
@@ -2012,6 +2071,7 @@ static void distribute_space(node *n, int nspaces, hunits desired_space,
 
 void environment::possibly_break_line(int start_here, int forced)
 {
+  int was_centered = center_lines > 0;
   if (!fill || current_tab || current_field || dummy)
     return;
   while (line != 0
@@ -2041,6 +2101,7 @@ void environment::possibly_break_line(int start_here, int forced)
       break;
     case ADJUST_CENTER:
       saved_indent += (target_text_length - bp->width)/2;
+      was_centered = 1;
       break;
     case ADJUST_RIGHT:
       saved_indent += target_text_length - bp->width;
@@ -2078,7 +2139,7 @@ void environment::possibly_break_line(int start_here, int forced)
     }
     // Do output_line() here so that line will be 0 iff the
     // the environment will be empty.
-    output_line(pre, output_width);
+    output_line(pre, output_width, was_centered);
     while (to_be_discarded != 0) {
       tem = to_be_discarded;
       to_be_discarded = to_be_discarded->next;
@@ -2141,16 +2202,8 @@ void environment::final_break()
     do_break();
 }
 
-/*
- *  add_html_tag - emits a special html-tag: to help post-grohtml understand
- *                 the key troff commands
- */
-
-void environment::add_html_tag(int force, const char *name)
+node *environment::make_tag(const char *nm, int i)
 {
-  if (!force && (curdiv != topdiv))
-    return;
-
   if (is_html) {
     /*
      * need to emit tag for post-grohtml
@@ -2159,132 +2212,119 @@ void environment::add_html_tag(int force, const char *name)
     if (curdiv == topdiv && topdiv->before_first_page)
       topdiv->begin_page();
     macro *m = new macro;
-    m->append_str("html-tag:");
-    for (const char *p = name; *p; p++)
-      if (!invalid_input_char((unsigned char)*p))
-	m->append(*p);
-    curdiv->output(new special_node(*m), 1, 0, 0, 0);
-    if (strcmp(name, ".nf") == 0)
-      curenv->ignore_next_eol = 1;
-  }
-}
-
-/*
- *  add_html_tag - emits a special html-tag: to help post-grohtml understand
- *                 the key troff commands, it appends a string representation
- *                 of i.
- */
-
-void environment::add_html_tag(int force, const char *name, int i)
-{
-  if (!force && (curdiv != topdiv))
-    return;
-
-  if (is_html) {
-    /*
-     * need to emit tag for post-grohtml
-     * but we check to see whether we can emit specials
-     */
-    if (curdiv == topdiv && topdiv->before_first_page)
-      topdiv->begin_page();
-    macro *m = new macro;
-    m->append_str("html-tag:");
-    for (const char *p = name; *p; p++)
+    m->append_str("devtag:");
+    for (const char *p = nm; *p; p++)
       if (!invalid_input_char((unsigned char)*p))
 	m->append(*p);
     m->append(' ');
     m->append_int(i);
-    node *n = new special_node(*m);
-    curdiv->output(n, 1, 0, 0, 0);
+    return new special_node(*m);
   }
+  return 0;
 }
 
-/*
- *  add_html_tag_tabs - emits the tab settings for post-grohtml
- */
-
-void environment::add_html_tag_tabs(int force)
+void environment::dump_troff_state()
 {
-  if (!force && (curdiv != topdiv))
-    return;
+#define SPACES "                                            "
+  fprintf(stderr, SPACES "register `in' = %d\n", curenv->indent.to_units());
+  if (curenv->have_temporary_indent)
+    fprintf(stderr, SPACES "register `ti' = %d\n",
+	    curenv->temporary_indent.to_units());
+  fprintf(stderr, SPACES "centered lines `ce' = %d\n", curenv->center_lines);
+  fprintf(stderr, SPACES "register `ll' = %d\n",
+	  curenv->line_length.to_units());
+  fprintf(stderr, SPACES "fill `fi=1/nf=0' = %d\n", curenv->fill);
+  fprintf(stderr, SPACES "page offset `po' = %d\n",
+	  topdiv->get_page_offset().to_units());
+  fprintf(stderr, SPACES "seen_break = %d\n", curenv->seen_break);
+  fprintf(stderr, SPACES "seen_space = %d\n", curenv->seen_space);
+  fflush(stderr);
+#undef SPACES
+}
 
+statem *environment::construct_state(int only_eol)
+{
   if (is_html) {
-    /*
-     * need to emit tag for post-grohtml
-     * but we check to see whether we can emit specials
-     */
-    if (curdiv == topdiv && topdiv->before_first_page)
-      topdiv->begin_page();
-    macro *m = new macro;
-    hunits d, l;
-    enum tab_type t;
-    m->append_str("html-tag:.ta ");  
-    do {
-      t = curenv->tabs.distance_to_next_tab(l, &d);
-      l += d;
-      switch (t) {
-      case TAB_LEFT:
-	m->append_str(" L ");
-	m->append_int(l.to_units());
-	break;
-      case TAB_CENTER:
-	m->append_str(" C ");
-	m->append_int(l.to_units());
-	break;
-      case TAB_RIGHT:
-	m->append_str(" R ");
-	m->append_int(l.to_units());
-	break;
-      case TAB_NONE:
-	break;
+    statem *s = new statem();
+    if (!only_eol) {
+      s->add_tag(MTSM_IN, indent);
+      s->add_tag(MTSM_LL, line_length);
+      s->add_tag(MTSM_PO, topdiv->get_page_offset().to_units());
+      s->add_tag(MTSM_RJ, right_justify_lines);
+      if (have_temporary_indent)
+	s->add_tag(MTSM_TI, temporary_indent);
+      s->add_tag_ta();
+      if (seen_break)
+	s->add_tag(MTSM_BR);
+      if (seen_space != 0)
+	s->add_tag(MTSM_SP, seen_space);
+      seen_break = 0;
+      seen_space = 0;
+    }
+    if (seen_eol) {
+      s->add_tag(MTSM_EOL);
+      s->add_tag(MTSM_CE, center_lines);
+    }
+    seen_eol = 0;
+    return s;
+  }
+  else
+    return NULL;
+}
+
+void environment::construct_format_state(node *n, int was_centered,
+					 int filling)
+{
+  if (is_html) {
+    // find first glyph node which has a state.
+    while (n != 0 && n->state == 0)
+      n = n->next;
+    if (n == 0 || (n->state == 0))
+      return;
+    if (seen_space != 0)
+      n->state->add_tag(MTSM_SP, seen_space);
+    if (seen_eol && topdiv == curdiv)
+      n->state->add_tag(MTSM_EOL);
+    seen_space = 0;
+    seen_eol = 0;
+    if (was_centered)
+      n->state->add_tag(MTSM_CE, center_lines+1);
+    else
+      n->state->add_tag_if_unknown(MTSM_CE, 0);
+    n->state->add_tag_if_unknown(MTSM_FI, filling);
+    n = n->next;
+    while (n != 0) {
+      if (n->state != 0) {
+	n->state->sub_tag_ce();
+	n->state->add_tag_if_unknown(MTSM_FI, filling);
       }
-    } while ((t != TAB_NONE) && (l < get_line_length()));
-    curdiv->output(new special_node(*m), 1, 0, 0, 0);
+      n = n->next;
+    }
   }
 }
 
-node *environment::make_html_tag(const char *name, int i)
+void environment::construct_new_line_state(node *n)
 {
   if (is_html) {
-    /*
-     * need to emit tag for post-grohtml
-     * but we check to see whether we can emit specials
-     */
-    if (curdiv == topdiv && topdiv->before_first_page)
-      topdiv->begin_page();
-    macro *m = new macro;
-    m->append_str("html-tag:");
-    for (const char *p = name; *p; p++)
-      if (!invalid_input_char((unsigned char)*p))
-	m->append(*p);
-    m->append(' ');
-    m->append_int(i);
-    return new special_node(*m);
+    // find first glyph node which has a state.
+    while (n != 0 && n->state == 0)
+      n = n->next;
+    if (n == 0 || n->state == 0)
+      return;
+    if (seen_space != 0)
+      n->state->add_tag(MTSM_SP, seen_space);
+    if (seen_eol && topdiv == curdiv)
+      n->state->add_tag(MTSM_EOL);
+    seen_space = 0;
+    seen_eol = 0;
   }
-  return 0;
 }
 
-node *environment::make_html_tag(const char *name)
-{
-  if (is_html) {
-    /*
-     * need to emit tag for post-grohtml
-     * but we check to see whether we can emit specials
-     */
-    if (curdiv == topdiv && topdiv->before_first_page)
-      topdiv->begin_page();
-    macro *m = new macro;
-    m->append_str("html-tag:");
-    for (const char *p = name; *p; p++)
-      if (!invalid_input_char((unsigned char)*p))
-	m->append(*p);
-    return new special_node(*m);
-  }
-  return 0;
-}
+extern int global_diverted_space;
 
-void environment::do_break(int spread)
+void environment::do_break(int do_spread)
 {
+  int was_centered = 0;
   if (curdiv == topdiv && topdiv->before_first_page) {
     topdiv->begin_page();
     return;
@@ -2295,7 +2335,7 @@ void environment::do_break(int spread)
     // this is so that hyphenation works
     line = new space_node(H0, get_fill_color(), line);
     space_total++;
-    possibly_break_line(0, spread);
+    possibly_break_line(0, do_spread);
   }
   while (line != 0 && line->discardable()) {
     width_total -= line->width();
@@ -2311,6 +2351,7 @@ void environment::do_break(int spread)
       switch (adjust_mode) {
       case ADJUST_CENTER:
 	saved_indent += (target_text_length - width_total)/2;
+	was_centered = 1;
 	break;
       case ADJUST_RIGHT:
 	saved_indent += target_text_length - width_total;
@@ -2319,7 +2360,7 @@ void environment::do_break(int spread)
     }
     node *tem = line;
     line = 0;
-    output_line(tem, width_total);
+    output_line(tem, width_total, was_centered);
     hyphen_line_count = 0;
   }
   prev_line_interrupted = 0;
@@ -2327,6 +2368,10 @@ void environment::do_break(int spread)
   mark_last_line();
   output_pending_lines();
 #endif /* WIDOW_CONTROL */
+  if (!global_diverted_space) {
+    curdiv->modified_tag.incl(MTSM_BR);
+    seen_break = 1;
+  }
 }
 
 int environment::is_empty()
@@ -2338,10 +2383,8 @@ void do_break_request(int spread)
 {
   while (!tok.newline() && !tok.eof())
     tok.next();
-  if (break_flag) {
+  if (break_flag)
     curenv->do_break(spread);
-    curenv->add_html_tag(0, ".br");
-  }
   tok.next();
 }
 
@@ -2389,8 +2432,8 @@ void title()
     tem->next = n;
     n = tem;
   }
-  hunits title_length(curenv->title_length);
-  hunits f = title_length - part_width[1];
+  hunits length_title(curenv->title_length);
+  hunits f = length_title - part_width[1];
   hunits f2 = f/2;
   n = new hmotion_node(f2 - part_width[2], curenv->get_fill_color(), n);
   p = part[1];
@@ -2409,7 +2452,7 @@ void title()
     n = tem;
   }
   curenv->output_title(n, !curenv->fill, curenv->vertical_spacing,
-		       curenv->total_post_vertical_spacing(), title_length);
+		       curenv->total_post_vertical_spacing(), length_title);
   curenv->hyphen_line_count = 0;
   tok.next();
 }  
@@ -2748,7 +2791,7 @@ void set_tabs()
     }
   }
   curenv->tabs = tabs;
-  curenv->add_html_tag_tabs(1);
+  curdiv->modified_tag.incl(MTSM_TA);
   skip_line();
 }
 
@@ -2859,25 +2902,25 @@ node *environment::make_tab_node(hunits d, node *next)
 void environment::handle_tab(int is_leader)
 {
   hunits d;
-  hunits abs;
+  hunits absolute;
   if (current_tab)
     wrap_up_tab();
   charinfo *ci = is_leader ? leader_char : tab_char;
   delete leader_node;
   leader_node = ci ? make_char_node(ci) : 0;
-  tab_type t = distance_to_next_tab(&d, &abs);
+  tab_type t = distance_to_next_tab(&d, &absolute);
   switch (t) {
   case TAB_NONE:
     return;
   case TAB_LEFT:
+    add_node(make_tag("tab L", absolute.to_units()));
     add_node(make_tab_node(d));
-    add_node(make_html_tag("tab L", abs.to_units()));
     return;
   case TAB_RIGHT:
-    add_node(make_html_tag("tab R", abs.to_units()));
+    add_node(make_tag("tab R", absolute.to_units()));
     break;
   case TAB_CENTER:
-    add_node(make_html_tag("tab C", abs.to_units()));
+    add_node(make_tag("tab C", absolute.to_units()));
     break;
   default:
     assert(0);
@@ -3091,9 +3134,25 @@ const char *environment::get_font_family_string()
   return family->nm.contents();
 }
 
+const char *environment::get_glyph_color_string()
+{
+  return glyph_color->nm.contents();
+}
+
+const char *environment::get_fill_color_string()
+{
+  return fill_color->nm.contents();
+}
+
 const char *environment::get_font_name_string()
 {
   symbol f = get_font_name(fontno, this);
+  return f.contents();
+}
+
+const char *environment::get_style_name_string()
+{
+  symbol f = get_style_name(fontno);
   return f.contents();
 }
 
@@ -3188,7 +3247,9 @@ void init_env_requests()
   init_request("fam", family_change);
   init_request("fc", field_characters);
   init_request("fi", fill);
+  init_request("fcolor", fill_color_change);
   init_request("ft", font_change);
+  init_request("gcolor", glyph_color_change);
   init_request("hc", hyphen_char);
   init_request("hlm", hyphen_line_max_request);
   init_request("hy", hyphenate_request);
@@ -3247,6 +3308,8 @@ void init_env_requests()
   init_int_env_reg(".L", get_line_spacing);
   init_hunits_env_reg(".l", get_line_length);
   init_hunits_env_reg(".ll", get_saved_line_length);
+  init_string_env_reg(".M", get_fill_color_string);
+  init_string_env_reg(".m", get_glyph_color_string);
   init_hunits_env_reg(".n", get_prev_text_length);
   init_int_env_reg(".ps", get_point_size);
   init_int_env_reg(".psr", get_requested_point_size);
@@ -3257,6 +3320,7 @@ void init_env_requests()
   init_int_env_reg(".ss", get_space_size);
   init_int_env_reg(".sss", get_sentence_space_size);
   init_string_env_reg(".sr", get_requested_point_size_string);
+  init_string_env_reg(".sty", get_style_name_string);
   init_string_env_reg(".tabs", get_tabs);
   init_int_env_reg(".u", get_fill);
   init_vunits_env_reg(".v", get_vertical_spacing);
@@ -3358,7 +3422,7 @@ static void hyphen_word()
 	  pos[npos++] = i;
       }
       else {
-	int c = ci->get_hyphenation_code();
+	unsigned char c = ci->get_hyphenation_code();
 	if (c == 0)
 	  break;
 	buf[i++] = c;
@@ -3661,7 +3725,8 @@ void hyphen_trie::read_patterns_file(const char *name, int append,
 	  c = hpf_getc(fp);
 	if (c == '{') {
 	  if (have_patterns || have_hyphenation)
-	    error("`{' not allowed inside of \\patterns or \\hyphenation");
+	    error("\\patterns not allowed inside of %1 group",
+		  have_patterns ? "\\patterns" : "\\hyphenation");
 	  else {
 	    have_patterns = 1;
 	    have_keyword = 1;
@@ -3675,7 +3740,8 @@ void hyphen_trie::read_patterns_file(const char *name, int append,
 	  c = hpf_getc(fp);
 	if (c == '{') {
 	  if (have_patterns || have_hyphenation)
-	    error("`{' not allowed inside of \\patterns or \\hyphenation");
+	    error("\\hyphenation not allowed inside of %1 group",
+		  have_patterns ? "\\patterns" : "\\hyphenation");
 	  else {
 	    have_hyphenation = 1;
 	    have_keyword = 1;
@@ -3703,8 +3769,17 @@ void hyphen_trie::read_patterns_file(const char *name, int append,
 	}
 	c = hpf_getc(fp);
       }
-      else if (c == '{')		// skipped if not starting \patterns
-	c = hpf_getc(fp);		// or \hyphenation
+      else if (c == '{') {
+	if (have_patterns || have_hyphenation)
+	  error("`{' not allowed within %1 group",
+		have_patterns ? "\\patterns" : "\\hyphenation");
+	c = hpf_getc(fp);		// skipped if not starting \patterns
+					// or \hyphenation
+      }
+    }
+    else {
+      if (c == '{' || c == '}')
+	c = hpf_getc(fp);
     }
     if (i > 0) {
       if (have_patterns || final_pattern || traditional) {

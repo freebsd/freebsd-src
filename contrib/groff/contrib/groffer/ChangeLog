@@ -1,4 +1,977 @@
-2003-01-22  Bernd Warken  <bwarken@mayn.de>
+	________________________________________________________________
+	* release of groffer 0.9.22
+
+2005-22-04  Bernd Warken
+
+	### `--whatis'
+
+	Produce a `groff' output and allow wild cards on filespec
+	parameters for `--whatis'.
+
+	* groffer2.sh:
+	- $_FILESPEC_ARG: New variable for storing the actual filespec
+	parameter.
+	- main_do_fileargs(): Set $_FILESPEC_ARG and add
+	what_is_filespec().
+        - main_parse_args(): Add --all to --whatis.
+	- to_tmp_line(): New function to write the arguments to the
+	temorary cat file.
+	- whatis_filename(): Rename of what_is().  Construct a better
+	printout using $_FILESPEC_ARG.  Repair the sed sequneces.
+	- whatis_filespec(): New function to print the filespec once
+	during the `whatis' process.
+	- whatis_header(): New funtion for printing the header of the
+	`whatis' output.
+
+	* groffer.man: Revise the documentation of --whatis.
+
+	### `--apropos*'
+
+	Produce `groff' for `--apropos*'.  Allow `--sections' for
+	`--apropos', ignore it  with `--apropos-*'.
+
+	* groffer2.sh:
+	- --apropos*: Make these options without argument.
+	- $_APROPOS_PROG: New variable for the program that is is used for
+	`apropos'.
+	- $_APROPOS_SECTIONS: New variable to determine the sections that
+	are filtered out of `apropos' output depending on `--apropos-*'.
+	- apropos_filespec(): Handling of apropos at the filespec level.
+	- apropos_run(): Remove it.
+	- apropos_setup(): New function.
+	- main_set_mode(): Remove handling of $_OPT_APROPOS*.
+
+	* groffer.man:
+	- Revise the documentation of `--apropos*'.
+	- Split section 'options for GNU man' into two sections `options
+	for man pages' and `long options taken over from GNU man'.
+	- Move `--apropos*', `--whatis', `--man', and `--no-man' to
+	section `options for man pages'.
+
+	### special display (apropos and whatis)
+
+	* groffer2.sh:
+	- special_setup(): New function that chooses the setup between
+	apropos and whatis.
+	- special_filespec(): New function that does the output at the
+	filespec level for apropos or whatis.
+
+	### handle `--sections' for man page searching
+
+	* groffer2.sh:
+	- man_do_filespec(): Use $_OPT_SECTIONS of --sections instead of
+	$_MAN_AUTO_SEC if non-empty.  If a section was given on the
+	filespec parameter $_OPT_SECTIONS is ignored.  This differs from
+	`man' which always uses the restricted sections of --sections.
+	This function works for both normal man page search and whatis.
+	- apropos_filespec(): Use --sections for --apropos, but not for
+	--apropos-* because these provide already their own sections.
+
+	### wildcards in filespec arguments
+
+	* groffer2.sh: Wildcards are now accepted.  In `--apropos*' and
+	`--whatis' they are interpreted as wildcard search elements; but
+	in normal display they are only handled as their own character.
+
+	### development; new option
+
+	* groffer2.sh:
+	- --print: New option that prints just its argument for parameter
+	check.
+	- usage(): Add new option.
+	- $_OPT_DO_NOTHING: New variable for do_nothing().  Handle it at
+	the end of main_parse_Args().
+
+	* groffer.man: Add information on --print.
+
+	### safe exit
+
+	* groffer2.sh:
+	- error(): Always exit with $_ERROR.
+	- exit_test(): New function to exit when first exit was hidden by
+	().  Call it after each $().
+
+	### automatic shell determination
+
+	* groffer.sh:
+	- If no option --shell is given perform a test of several shells
+	to automatically start some shell for groffer2.sh.  `ksh' is used
+	first because it can be safely terminated by Ctrl-C.
+	- This can be cancelled by providing --shell=''.
+	- Add test on `sed' program.
+
+	* groffer.man: Revise information on --shell.
+
+	### trap
+
+	* groffer2.sh:
+	- trap_set(): Remove argument.  Instead of $_ALL_EXIT use only
+	signal 0.
+	- trap_unset(): Rename trap_clean().  Instead of $_ALL_EXIT use
+	only signal 0.
+	- $_ALL_EXIT: Remove this variable.
+	- Replace all direct `trap' calls by trap_set().
+	
+	* README_SH: New section `Bugs' on `trap'..
+
+	### user errors, error output without function stack
+
+	* groffer2.sh:
+	- error_user(): New function for user errors.
+	- error(): Remove call of clean_up() because the trap will do it
+	with the exit.  Remove the `kill' commands.  Create a temporary
+	file `.error' that can be tested by exit_test() for a better exit
+	test (especially for shell `ksh').
+	- $_DEBUG_USER_WITH_STACK: New variable to enable function stack
+	output in error_user().
+	- list_from_cmdline(), list_single_from_abbrev(), main_set_mode():
+	Use error_user().
+
+	### test modes on X and tty
+
+	* groffer2,sh:
+	- is_X(), is_not_X(): New functions for checking on X Window.
+	- $_VIEWER_HTML_TTY, $_VIEWER_HTML_X: New variables that split
+	$_VIEWER_HTML.  Add `galeon'.
+	- main_parse_args(): Allow mode change for graphical modes only
+	when in X Window.
+	- _do_display() of main_display(): Create a special run for
+	viewers that run on the terminal; `lynx' is the only one so far.
+
+	### add $GROFFER_MODE to command line
+
+	* groffer.sh:
+	- After the handling of the configuration files integrate
+	$GROFFER_OPT to the command line.
+	- This makes a `set' in the shell determination unnecessary.
+
+	* groffer2.sh:
+	- The debug test gets simpler because quotes are vanished without
+	$GROFFER_OPT.
+	- main_parse_MANOPT(): Prepend $mpm_list to the command line.
+	- main_parse_args(): `set' is unnecessary.
+
+	### debug; new options
+
+	* groffer2.sh:
+	- --debug-all, --debug-lm, --debug-params, --debug-shell,
+	--debug-stacks, --debug-tmpdir, --debug-user: New options.
+	- --debug: Enable all debug variables except $_DEBUG_STACKS and
+	$_DEBUG_LM.  By the new options the smallest abbreviation is now
+	`--debug'.
+	- $_DEBUG_STACKS: Rename $_DEBUG.
+	- $_DEBUG_PRINT_TMPDIR: New debug variable for printing the name
+	of the temporary directory in main_init().
+	- $_OPT_DEBUG: Remove this variable because debug is handled at
+	the early part of the script.
+	- clean_up(): Enlarge $_DEBUG_KEEP_FILES to not deleting the
+	temporary directory.
+	- usage(): Move all development options on a section of its own.
+	- Move the test of rudimentary shell functionality at the
+	beginning of the script.  Add test on `sed'.
+	- Follow this by the debug section.  The determination of all
+	--debug* options can be done without a function.
+
+	* groffer.man: Revise information on --debug and add new options.
+
+	### variables
+
+	* groffer.sh:
+	- $_ERROR: Move the definition of this variable here.
+	- $_GROFF_VERSION: New variable, is set over @...@ construct.
+	- $_OUTPUT_FILE_NAME: Move this variable to groffer2.sh.
+
+	* groffer2.sh:
+	- $_MAN_AUTO_SEC_LIST: Rename $_MAN_AUTO_SEC because it represents
+	a list.
+	- $_MAN_AUTO_SEC_CHARS: New read-only variable for storing
+	$_MAN_AUTO_SEC_LIST in [] construct.  Use it in man_do_filespec()
+	and whatis_filename().
+	- $_SPACE_CASE: New read-only variable with [] on space characters
+	with \ for `case' patterns.  Use it in several functions.
+	- $_SPACE_SED: New read-only variable with [] on space characters
+	for `sed'.  Use it in several functions.
+
+	### options and display
+
+	* groffer2.sh:
+	- list_from_cmdline(): Add test whether the same abbreviation is
+	part of long options with and without arguments.  Give handling of
+	`=' a `case' pattern of its own.
+	- main_display(): Remove unnecessary calls of `clean_up' in order
+	to use `mozilla' without problems.  In _do_display(): Fix -X by
+	providing a different process when $_DISPLAY_PROG is empty.
+	- main_set_mode(): Accept options for viewers as is, without check
+	for program.  Add test whether no program is given for a mode.
+	This avoids unnecessary empty $_DISPLAY_PROG in main_display().
+
+	### viewer programs that run on the terminal (tty); new options
+
+	* groffer2.sh:
+	- $_VIEWER_TERMINAL: New variable that stores whether a viewer was
+	supposed to run on tty.
+	- --dvi-viewer-tty, --html-viewer-tty, --pdf-viewer-tty,
+	--ps-viewer-tty, --tty-viewer-tty, --X-viewer-tty, --x-viewer-tty,
+	--www-viewer-tty: New options for viewers that run on a terminal.
+	- main_parse_args(), _do_display() of main_display(): Use the new
+	options and the new variable.
+	- usage(): Add the new options.
+
+	* groffer.man: Add information on options --*-viewer-tty.
+
+	### other fixes
+
+	* groffer2.sh:
+	- _do_display() of main_display(): Bear errors of `groff' run.
+	- is_not_file: Fix to have exactly one argument.
+	- is_not_prog(): Handle no arguments.
+	- list_has_not(): Fix.
+	- main_do_fileargs(): Remove $mdfa_exitcode.
+	- register_title(): Limit title to 4 elements.
+	- version(): Print the version information to standard output just
+	like `groff' does.
+	- --no-special: New option to disable former calls of `--all',
+	`--apropos*', and `whatis.
+	- --title: Make it an option with argument.
+
+2005-08-07  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	* contrib/groffer/Makefile.sub (install): Reference groffer2.sh
+	as $(srcdir)/groffer2.sh, so it will install when building in a
+	different directory from the source.
+
+	________________________________________________________________
+	* release of groffer 0.9.21
+
+2005-08-02  Bernd Warken
+
+	### @...@ constructs
+
+	* groffer.sh:
+	- $_AT: New variable for `@'.
+	- @...@: Replace the @...@ constructs by variables _AT_..._AT.
+	These constructs are transformed by `make' to useful information.
+	Keep all of these constructs in the first part of groffer.sh.  For
+	a run before a `make' call, the script sets these variables to
+	special values for testing purpose.
+	- $_GROFFER_LIBDIR: Variable pointing to the groffer library
+	directory @libdir@/groff/groffer.
+
+	### Configuration files
+
+	* groffer.sh:
+	- Add test for `$()' construct.
+	- Read and transform the configuration files and execute the
+	emerging commands.  The `sed' script was heavily enlarged to
+	handle line with spaces and quotes.  The emerging script is now
+	called by `eval', so no temporary file is needed.
+	- $_CONF_FILE_ETC, $_CONF_FILE_HOME: New variables for the config
+	files.
+	- $_SQ, $_SP: Move variables for characters before the handling of
+	the configuration files.  Rename $_SQUOTE to $_SQ and $_SPACE to
+	$_SP.
+	- $GROFFER_OPT: Remove cleaning of this variable before the
+	reading of the configuration files.
+
+	* groffer2.sh:
+	- main_init(): Remove the getting of the configuration files.
+
+	### Rewrite the shell determination
+
+	* groffer.sh:
+	- Get rid of all functions in `groffer.sh'.  Rewrite the shell
+	determination with `` and $().
+	- --shell: Shortest abbreviation is `--sh'.  Allow arguments for
+	the shell name.
+	- Allow an empty argument for --shell as shell name to overwrite a
+	specified shell; an empty shell name gets back to the default
+	shell.
+	- The shell determination now inludes the full handling of the
+	config files.  The `--shell' option needs no longer a line
+	starting with `-'.
+
+	### Test of unset
+
+	* groffer.sh:
+	- Remove test of `unset'.
+	- Remove all calls of `unset'.
+	- Use one character names for all variables that are meant to be
+	local in this script.
+
+	* groffer2.sh:
+	- Move the test of `unset' to the testing of rudimentary shell
+	functionality without change.
+
+        ### Allow abbreviations for long options
+
+	* groffer2.sh:
+	- list_has_abbrev(): New function for checking a list having an
+	element with a given abbreviation.
+	- list_get_single_from_abbrev(): New function to retrieve the
+	element having a given abbreviation.
+	- list_from_cmd_line(): For an option abbreviation determine the
+	corresponding long option.
+	- From the man option lists remove the elements that are also in
+	a groffer list.
+	- Allow abbreviation for the early test of --debug.
+
+	* groffer.sh: Allow abbreviation for the early test on --shell.
+	- get_opt_shell(): Rewrite _get_opt_shell() and the shell test
+	around it.
+	- test_on_shell(): Rename function _test_on_shell().
+	- $_SHELL: global variable for the shell to run groffer2.sh.
+
+	### Get rid of `sh -c'
+
+	* groffer2.sh:
+	- main_display(), _do_display(): Remove the `sh -c' calls.  Make
+	the cleanup working without it.
+	- _do_display(): Extend _do_display() such that	it can be used for
+	the pdf mode as well.
+	- _make_pdf(): New subfunction of main_display() for running the
+	additional parts of pdf mode in _do_display().
+	- rm_file(), rm_file_with_debug(), rm_tree(): New functions for
+	removing files and directories.
+
+	### Change directory
+
+	* groffer2.sh:
+	- $_START_DIR: New variable to store the directory at the starting
+	time of the script.
+	- main_display(): Go to the groffer temporary directory to be able
+	to process internal `groff' data like pictures.
+	- clean_up(): Get back to the starting directory.
+
+	### Compatibility with strange shells
+
+	* groffer2.sh:
+	- clean_up(): `zsh' and `posh' had difficulties with `eval'.
+	- is_*(): Add test on empty argument.  Some shells return true on
+	`test -d' etc. with empty argument, while most shells return
+	false.
+	- echo1(); New function to print single line `cat <<EOF'.  Replace
+	all `echo x' by `echo1'.
+	- list_has_abbrev(), list_from_cmdline(): Correction.
+	- main_parse_MANOPT(): Repair and revise.
+	- --do-nothing: New option without output (for development).
+	- Rewrite rudimentary shell functionality near the beginning of
+	the script.
+
+	* groffer.sh, groffer2.sh:
+	- Remove `;' after the commands `if', `while', and `until'.
+
+	### Debugging information
+
+	* groffer2.sh:
+	- $_DEBUG_PRINT_PARAMS: New variable for printing all parameters
+	from the config files, $GROFFER_OPT, and command line after they
+	have been transformed.
+	- $_DEBUG_PRINT_SHELL: New variable for printing the name of the
+	shell found in groff.sh.
+	- main(): Move the landmarks of main-*() into main().
+
+	### Further checks and additions
+
+	* groffer.sh, groffer2.sh:
+	- $_PROGRAM_NAME: Replace this variable by `groffer'.  The program
+	name is now stable.
+	- $_GROFFER_RUN: Remove this variable.  As `groffer.sh' or
+	`groffer' is no longer rerun, this variable is not necessary any
+	more.
+
+	* groffer2.sh:
+	- main_set_resources(): Make the default viewers capable to use
+	arguments in the list.
+	- leave(): Add an argument for given exit code.  Use it where
+	suitable in main_*().
+	- do_filearg(): Add error messages for non-existing files and man
+	pages.
+	- _do_opt_V(): New subfunction of main_display() to handle the
+	output for option `-V'.  `groff -V' is greatly enlarged by
+	`groffer' specific information.
+	- register_title(): Handle file names with spaces.  Replace spaces
+	by `_'.
+	- is_existing(): Add `test -c' for special files.
+	- usage(): Add `=arg' to the options with an argument.  Add option
+	`--tty-viewer'.
+	- kghostview: In the default viewer list, add option
+	`--scale=1.45'.
+	- $_OPTS_CMDLINE_SHORT_NA: Correct a lacking space.
+
+	* Makefile.sub: Repair the installation instructions for
+	groffer2.sh.
+
+	* groffer.man:
+	- Add paragraph on option handling.
+	- Add option `--do-nothing'.
+	- Reorder option for development and `groff'.
+	- Rewrite documentation for option `-V'.
+	- Expand `--shell'.
+	- Reformulate sections CONFIGURATION FILES, COMPATIBILITY and SEE
+	ALSO.
+	- Make `man' italic where possible.
+	- .copyleft: Adjust the fonts.
+
+	* README: Update sections `Output' and `Compatibility'.
+
+	* README_SH:
+	- Add `mksh' as compatible shell.
+	- Add information on the scripts after the split.
+
+	* TODO: Remove some fulfilled parts.
+
+	* ChangeLog: Remove final spaces.
+
+	________________________________________________________________
+	* release of groffer 0.9.20
+
+2005-07-30  Bernd Warken
+
+	### Split groffer.sh into two files groffer.sh and groffer2.sh.
+
+	* groffer.sh:
+	- Remove the second part of this script.  It is now in
+	groffer2.sh.
+	- $_GROFFER2_SH: New variable to point to the installed position
+	of `groffer2.sh'.  This position is presented using @libdir@.
+
+	* groffer2.sh: New script containing the second part of
+	groffer.sh. This script will be installed in the groffer library
+	directory @libdir@/groff/groffer, this might be
+	/usr/local/lib/groff/groffer/groffer2.sh for example.
+
+	* Makefile.sub:
+	- `groffer': Add replacement of @libdir@.
+	- `install_data': Add the installation of the groffer library
+	directory and groffer2.sh.
+	- `uninstall_sub': Delete the installed `groffer2.sh' and the
+	groffer library directory.
+
+	* README_SH:
+	- Remove the function list.
+	- Add argument options to the list of used commands.
+	- Documentation of the splitting of the script.
+	- Document the possible abbreviation of options.
+
+	________________________________________________________________
+	* release of groffer 0.9.19
+
+2005-07-07  Bernd Warken
+
+	* groffer.sh: extensions
+	- `mode x': Mode for the equivalent options `--x', `--mode x',
+	`--X' `--mode X', and the default mode.  The default assumes a
+	resolution of 75 dpi.  The default device for a resolution of 75
+	dpi is `X75-12', the default device for a resolution of 100 dpi is
+	`X100'.  The default geometry for the resolution of 100 dpi is set
+	to the width 800 dpi.
+	- `mode X': New mode for option -X only.
+	- `-V': Extent the `groff' output of -V by `groffer' specific
+	information (in main_display()).
+	- register_file(): Replace title `-' by `stdin'.
+	- $_DEBUG_KEEP_FILES: If set to `yes' the files in the temporary
+	directory are not deleted before the end trap.
+
+	* groffer.sh: get `zsh' to work as well
+	- tmp_create(): Use `: >file' for generating an empty file.
+	- rmdir: Replace `rmdir' by `rm -f -r'.
+	- eval: Add `eval' to many commands with variable arguments.
+
+	* groffer.sh: repair `debug'
+	- Print all debug output to stderr.
+	- $_FUNC_STACK: Built function call stack even when $_DEBUG is not
+	set.  Now the arguments are not added.
+	- $_DEBUG: If set to `yes' print 3 call stack events: the function
+	that is added with its arguments is printed with `+++ '
+	(func_push()); the call stack after the addition is printed with
+	`>>> ' (func_push()); the call stack after the removing is printed
+	with `<<< ' (func_pop()).
+	- error(): Always print the function call stack on errors.
+
+	* groffer.sh: Corrections
+	- $_groffer_run: Rename to $_GROFFER_RUN.
+	- $unset: Rename to $_UNSET.
+	- Repair test of `unset'.
+	- Repair test for `--shell'.  The script is now rerun under the
+	shell specified in the option argument.  This can increase the
+	speed.
+
+	* README_SH: `zsh' now works.
+
+	* groffer.man:
+	- Reformulate the information for the `groffer' specific details
+	of option `-V'.
+	- Add information on the debug process.
+	- Add information on the default devices in `x mode'.
+	- Minor corrections.
+
+	________________________________________________________________
+	* release of groffer 0.9.18
+
+2005-07-01  Bernd Warken
+
+	* groffer.sh: further shell compatibility
+	- `echo': Remove options and possible options of `echo' by
+	preceding the argument with a character `x' that is removed by
+	`sed' or replace `echo' by `cat <<EOF'.  `echo -n' seems to be not
+	portable, so it is omitted.
+	- `for': Remove `;' from within `for' (because of ksh).
+	- `ls': Old UNIX systems echoed the error message to standard
+	output.  So handle the output with `sed'.  If the output contains
+	`not found' map it to an empty string.
+	- `true': Replace `true' by command `:'.  Remove test of `true'
+	(because `ash' refuses the redefinition of builtins even in an
+	unreachable `if' branch).
+	- `false': Remove test of `false'; it isn't used any more.
+	- `test': As `test -e' does not exist in Solaris 2.5 replace it by
+	`test -f || test -d'.
+	- `unset': `unset' is said to be not portable.  As `ash' protests
+	against the definition of the function `unset()' in the test of
+	`unset' replace the test by defining `$unset' to `unset' if it
+	exists and to `:' otherwise.  Use `eval $unset' instead of the
+	direct command `unset'.
+	- _get_opt_shell(): Replace `for' loop with `shift' by `while'.
+	- man_search_section(): Replace `for f in filename*' by a test on
+	the existence of `filename*'.
+	- `zsh' interprets `$...'  as `"$..."'.  So `eval' must be called;
+	This cannot be used in `for i in $f', so it must be rewritten as
+	`for i in $(eval set x $f; shift; echo "$@")'
+
+	* groffer.sh:
+	- `--X', `--x', `--mode=X', `--mode=x': Make these options
+	equivalent to choosing an X device by setting `-TX75-12'.  `-X' is
+	still equivalent to `groff -X'.
+	- main_init(): Choose the name of the temporary file by adding a
+	number using `expr' if it exists and cannot be removed.
+	- main_parse_args():Repair some options by replacing `$mpa_mode'
+	by `$_OPT_MODE'.
+	- catz(): Rename it to cat_z() to avoid problem with existing
+	programs.
+	- where(): Rename to where_is().
+	- $_CONFFILES: Rename to $_CONF_FILES.
+	- $_HAS_BZIP: export and preset it.
+
+	* groffer.man:
+	- Document the `X mode' changes.
+	- Add `@g@' to `troff'.
+
+	* README, README_SH, TODO:
+	- Add date line `Latest update:'.
+	- Add `...' quoting to essential terms.
+	- Add Emacs mode at the end.
+
+	* README_SH:
+	- Add documentation on the above compatibility changes.
+	- Add documentation on used commands.
+	- Mention the tested shells.
+
+	* Makefile.sub:
+	Readd `@g@'.
+
+	________________________________________________________________
+	* release of groffer 0.9.17
+
+2005-06-23  Bernd Warken
+
+	* groffer.sh: get rid of `local' in functions (it is not POSIX)
+	- Replace local variables by variable names with a special prefix
+	that is an abbreviation of the corresponding function name (quasi-
+	local variables).
+	- Unset the quasi-local function variables before returning.
+	- _t_e_s_t_f_u_n_c_(): Remove tests for local and global
+	variables.
+	- Add quasi-local variables for saving the content of
+	single-character variables.
+	- Remove some unused local and global variables.
+	- Several variables were forgotten to make local.  They are now
+	made quasi-local.
+
+	* groffer.sh: other corrections
+	- $return_var: New function (after `eval') for an arbitrary
+	return value.
+	- obj*(): Add return modes.
+	- Rewrite tests for `true' and `false'.
+	- Add function names to error calls where it was forgotten.
+	- `for': Replace `for x in "$@"' by `for x'.
+	- `set': Replace `set -- ...' by `set x ...; shift'.
+	- `sed': Replace `\|.*|s|...|...|' by `s|...|...|'.
+
+	* README_SH:
+	- Add information on the removing of `local'.
+	- New section for non-POSIX shell restrictions.
+
+2005-06-20 Keith Marshall
+
+	* README-SH: Information of `Portable shells' in info autoconf.
+
+	________________________________________________________________
+	* release of groffer 0.9.16
+
+2005-06-19  Bernd Warken
+
+	* groffer.sh: Place each `then', `else', and `do' on a line of its
+	own because some shells do not support the mixture mode.
+
+	* groffer.man: Add section `BUGS'.
+
+	* README_SH:
+	- Add compatibility information.
+	- Correct documentation for function arguments.
+
+2005-06-18  Keith Marshall
+
+	* groffer.sh: $_NULL_DEV: Replace /dev/null by $_NULL_DEV which is
+	either /dev/null or NUL if /dev/null does not exist.
+
+2005-06-17  Zvezdan Petkovic
+
+	* Makefile.sub: $(RM): Define it to `rm -f' because not all `make'
+	programs have it predefined.
+
+2005-06-16  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.15
+
+	* Makefile.sub:
+	- Use `$(RM)'.
+	- Use `sed -f $(SH_DEPS_SED_SCRIPT)'.
+
+2005-05-20  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.14
+
+	* groffer.man: correction of non-hyphenation
+
+2005-05-17  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.13
+
+	* groffer.sh:
+	- $_VIEWER_DVI: Add `kdvi'.
+	- $_VIEWER_PDF: Add `kghostview', `ggv', and `kpdf'.
+	- $_VIEWER_PS: Add `kghostview' and `ggv'.
+	- $_modefile: For the output file name, add extension .ps for ps
+	mode and .dvi for dvi mode.  This exists already for the html and
+	pdf modes.
+	- Update some parts of the documentation.
+
+	* README, README_SH:
+	- Move some parts on usage from README_SH to README.
+	- Reformulate several parts of both files.
+
+	* groffer.man: update
+
+2005-05-14  Keith Marshall
+
+	* groffer.sh:
+	- first line: Add space to `#! /bin/sh'.
+
+2004-11-15  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.12
+
+	* groffer.sh:
+	- main_init(): Rewriting of the creation of the temporary
+	directory to ensure that it cannot be made writable apart from the
+	user.  If the directory already exists and cannot be removed then
+	append `X' to the directory name.
+	- is_non_empty_file(): fix it to use POSIX `test -s'.
+	- is_existing(): new function.
+	- POSIX `rm -f -r': use this in `clean_up()' and `main_init()'.
+	- `--macro-file': remove this unused long option.
+	- `-V', `--source', `--device': move these from groff options
+	to groffer options.
+	- `$_TMP_DIR_SUB': remove this unused variable.
+
+2004-06-15  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.11
+
+	* groffer.sh:
+	- To the search of the `--apropos-*' options, add man pages with a
+	subsection in their apropos output.
+
+2004-06-02  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.10
+
+	* groffer.sh:
+	- Remove automatic call of `ash' due to inconsistencies of
+	different ash versions.
+	- In the first run, add recognition of `--shell' lines in the
+	groffer configuration files.  To configure an external shell in
+	a configuration file, a line starting with `--shell' is
+	necessary.
+	- list_from_cmdline(): Simplify the arguments.
+	- As $POSIXLY_CORRECT is internally set to `y' by some GNU
+	`/bin/sh' shells the following 2 fixes are necessary:
+	-- `sed': Empty patterns are not allowed with $POSIXLY_CORRECT
+	set; so move the address information before the `s' command to the
+	pattern after the command, and write `.*' to the address field.
+	-- list_from_cmdline(): Remove the strange $POSIXLY_CORRECT style
+	to finish the option processing after the first non-option
+	argument; use the flexible GNU mixing of options and file names
+	instead.
+
+	* groffer.man:
+	- Remove any hints on `ash'.
+	- Add minus line behavior of `--shell' for configuration and add a
+	corresponding example.
+	- Update the information on $POSIXLY_CORRECT.
+
+2004-05-29  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.9
+
+	* groffer.sh:
+	Fix first run section to allow the starting shell to go on if
+	`ash' is not available.
+
+	* groffer.man:
+	Remove unnecessary information on groffer version.
+
+2004-05-12  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.8
+
+	* groffer.sh:
+	Fix problems of `test' by adding subs to arguments.
+
+	* groffer.man:
+	Write the file license as macros that are called in sections
+	AUTHOR and COPYING.
+
+	* .cvsignore:
+	Restore this file.
+
+2004-04-30  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.7
+
+	* groffer.sh:
+	- obj(), obj_data(), obj_from_output(), obj_set(): New object
+	oriented functions to minimize complicated `eval' commands.
+	- list_*(): Corrections.
+	- usage(): Streamlining.
+
+	* groffer.man, README_SH:
+	Corrections.
+
+2004-04-27  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.6
+
+	This version replaces the license of all files except ChangeLog of
+	the groffer source to the GNU General Public License (GPL) of the
+	version described in files COPYING and LICENSE in the groff top
+	source directory.
+
+	* groffer.man:
+	Changement from the GNU Free Documentation License (FDL) to
+	the GNU General Public License (GPL).
+
+	* README, README_SH, TODO:
+	Add license GNU General Public License (GPL).
+
+	* Makefile.sub, groffer.sh:
+	Keep the GNU General Public License (GPL), but refer to the
+	COPYING and LICENSE files.
+
+	* ChangeLog: Add a license in the style of Emacs ChangeLog file,
+	which is weaker than the GPL, but has its flavor.
+
+2004-04-24  Bernd Warken
+	________________________________________________________________
+	* release of groffer 0.9.5
+
+	This version is a rewrite of groffer in many parts, but it is kept
+	in the old single script style.
+
+	Overview of new options:
+	--text, --mode text, --tty-viewer,
+	--X, --mode X, --X-viewer, --html, --mode html, --html-view,
+	--apropos-data, --apropos-devel, --apropos-progs
+
+	New file:
+	<groffer-source>/README_SH
+
+
+	******* Extension of the `apropos' handling
+
+        The output of man's `apropos' has grown immensely meanwhile, so it
+	has become inefficient.  Now `groffer' provides new options to get
+	the a selected information from this output.
+
+	* groffer.sh:
+        `--apropos-progs': new option for displaying only information
+        on programs (man page sections 1, 6, and 8)
+        `--apropos-data': new option for displaying only information
+        on documented data (man page sections 4, 5 and 7)
+        `--apropos-devel': new option for displaying only information
+        on development documentation (man page sections 2, 3 and 9)
+        `--apropos': still displays just the output of man's `apropos'
+	program.
+	- Specify all of these options as a single argument option; that
+	makes groffer's `--apropos' option slightly different because
+	the corresponding `man' option does not have arguments,	but takes
+	all file arguments as apropos targets.  So just ignore the `man'
+	options `-k' and `--apropos' in the parsing of $MANOPT.
+	- Exit after processing one `apropos' call.
+
+
+	******* Quasi object oriented function arguments
+
+	An object is the name of an environment variable.  The value of
+	this variable contains the object's content.  This allows to
+	specify function arguments and the calling syntax in a simpler way
+	by letting the first argument be a variable name, usable for input
+	or output.
+
+	Such an object type is `list', the string value of a shell
+	variable arranged in space-separated single-quoted elements, such
+	as $GROFFER_OPT internally.
+
+	* groffer.sh:
+	- Remove list_from_args(), list_element_from_arg()
+	list_from_lists(), list_length(), and list_prepend().
+	They can be replaced by list_append().
+	- All list*() functions are rearranged such that the first
+	argument is a list object, the name of a variable.
+
+
+	******* Simplification of configuration files
+
+	The new syntax of the groffer configuration files is
+	- all lines starting with a `-' character are interpreted as
+	command line options for all calls of groffer; they are collected
+	and prepended to the actual value of $GROFFER_OPT; optional
+	spaces at the beginning.of the line are omitted.
+	- all other lines are interpreted as a shell command and executed
+	in the current shell of the groffer call.
+
+	Precedence:
+	- The command line and the external environment variables such as
+	$GROFFER_OPT of the groffer call have the highest precedence.
+	- This is overwritten by the configuration file in the user's home
+	directory.
+	- The system configuration file in /etc has the lowest
+	precedence.
+
+	* groffer.sh:
+	The configuration files are now called after the determination of
+	the temporary files in main_init().
+
+
+	******* Script file name
+
+	The file name of the script is needed for the several calls during
+	the search for the optimal shell.
+
+	* groffer.sh:
+	- $_GROFFER_SH: replace $_this by $_GROFFER_SH and use $0 for
+	determining the file name of the script for the following calls,
+	instead of the cumbersome @BINDIR@ construction.
+	- Force the script to be called as an executable file, so $0 must
+	contain the program name.
+
+
+	******* Improved temporary file names
+
+	Just like groff, groffer mixes all file parameters into a single
+	output file.  Its name is now constructed as a comma-separated
+	list built from the file name arguments without a leading comma.
+	So a leading comma can be used for the internal temporary file
+	names.
+
+	* groffer.sh:
+	- $_OUTPUT_FILE_NAME: new global variable as basis for the output
+	file name; it is set in main_set_resources().
+        - tmp_create(): use `,name' for temporary files different from
+	output file because the output file name does not start with a
+	comma.  `$$' is not needed anymore.
+	- main_display(): simplification of $_modefile in _do_display()
+	and single display modes.
+	- Add extension `.html' to output file name in html mode.
+	- base_name(): correction for strange positions of `/'.
+
+
+	******* Mode fixes
+
+	* groffer.sh:
+	- Set the main default mode to `x' with groff's	X Window viewer
+	`gxditview'.
+	- Allow 'x' and 'X' in `--mode' for the X Window mode; the same
+	for `--x' and `X', `--x-viewer' and `--X-viewer'.
+	- Make groff's `-X' equivalent to `mode X'.
+	- Fix `--auto', `--mode auto',  and `--default-modes'.
+	- `html' mode: new mode equivalent to `www', add `konqueror' and
+	`lynx' as viewers.
+	- `pdf' mode: fix zoom options for pdf-viewer `xpdf' in
+	main_set_resources(); in main_display() fix the display structure.
+	- Set default X Window resolution to 75dpi.  This is not optimal,
+	but with a higher value the options and resources for some viewers
+	must be optimized.
+	`--text' and `--mode text': new option for text output without a
+	pager.
+	- `--tty-viewer': new option equivalent to `--pager'.
+	- Correct the pagers for `tty' mode.
+	- Fix `groff' mode in main_set_resources() and main_display().
+	- Harmonize `--mode arg' with the equivalent options `--arg'.
+
+
+	******* Fixes for command line options
+
+	* groffer.sh:
+	- list_from_cmdline(): fix the parsing of options with arguments.
+	- Rename $_OPT_TTY_DEVICE to $_OPT_TEXT_DEVICE.
+	- $_OPTS_X_*: new variables for the inhereted X Window variables.
+	- Improve the distribution of the command line options into
+	$_OPTS_GROFFER_*, $_OPTS_GROFF_*, $_OPTS_X_*, and $_OPTS_MAN_*.
+	- $_OPTS_MANOPT_*: new variables for the parsing of $MANOPT.
+	- Correct $_OPTS_CMDLINE_*.
+	- Remove some unused $_OPTS_*.
+	- `--iconic': new option from `-iconic' of the X Window toolkit.
+	- Correct `--rv' to an option without argument.
+	- Minor fixes of other  X Window toolkit options.
+
+
+	******* Other fixes
+
+	* groffer.sh:
+	- is_prog(): allow 0 arguments.
+	- is_not_writable(): new function.
+	- is_*(): fix trailing return codes.
+        - Replace most `test' calls by is_*() functions.
+	- man_setup(): due to bugs in `manpath', prefer
+	manpath_set_from_path() for the determination of the man page path.
+	- man_search_section(): correction of some `for' loops.
+	- Remove export of external non-groffer variables.
+
+
+	******* Documentation
+
+	* groffer.man:
+	- Reorder the option details according to the option origin as
+	groffer, groff, X, and man options.
+	- Add the programming changes information mentioned above.
+	- Support man pages with a dot in their name
+
+	* README_SH: new file
+	Move large parts of the documentation in `groffer.sh' into this
+	file.
+
+	* groffer.sh: usage():
+	- Change the output for `--help' to standard output.
+	- Restructure the information for this help output.
+
+
+	******* Removement of the author's email address
+
+	Because of the extreme spam attacks, the author removed all
+	occurencies of his email address in every file of the groffer
+	source.
+
+2003-01-22  Bernd Warken
 	________________________________________________________________
 	* release of groffer 0.9.4
 
@@ -15,11 +988,11 @@
 	- Test existence of directory before deleting it in the
 	`clean_up' definitions.
 	- Correct help output in `usage' (called by `--help').
-	
+
 	* TODO:
 	Remove mention of `shoop' and `apropos'.
 
-2002-10-21  Bernd Warken  <bwarken@mayn.de>
+2002-10-21  Bernd Warken
 	________________________________________________________________
 	* release of groffer 0.9.3
 
@@ -42,8 +1015,8 @@
 	* TODO: think about...
 	- writing part of groffer in C/C++.
 	- handling several files with different macro packages.
-	
-2002-10-17  Bernd Warken  <bwarken@mayn.de>
+
+2002-10-17  Bernd Warken
 	________________________________________________________________
 	* fixes of groffer 0.9.2
 
@@ -55,12 +1028,12 @@
 	- New macro ".Header_CB" for CB font in .TP headers; used for
 	definition of variables in option --mode.
 	- Fix some option references to refer to long options.
-	
+
 	* README:
 	New file for general information on the groffer source; it is
 	not installed.
-	
-2002-10-14  Bernd Warken  <bwarken@mayn.de>
+
+2002-10-14  Bernd Warken
 
 	* Makefile.sub:
 	add replacement "@BINDIR@" to "$(bindir)" for "groffer:"
@@ -72,7 +1045,7 @@
 	* groffer.man:
 	Remove double definition of filespec parameters.
 
-2002-10-13  Bernd Warken  <bwarken@mayn.de>
+2002-10-13  Bernd Warken
 	________________________________________________________________
 	* release of groffer 0.9.2
 
@@ -94,16 +1067,16 @@
 	- New macro for file names ".File_name".
 	- "Option Parsing" is moved to section "COMPATIBILITY".
 	- Fix some "EXAMPLES".
-	
-2002-09-30  Bernd Warken  <bwarken@mayn.de>
+
+2002-09-30  Bernd Warken
 	________________________________________________________________
 	* release of groffer 0.9.1
-	
+
 	* TODO: remove done entries
 	- Remove request for different shells.
 	- Remove the 'sed' complaints.
 
-2002-07-15  Bernd Warken  <bwarken@mayn.de>
+2002-07-15  Bernd Warken
 
 	* groffer.sh: replace `sed' interface by direct `sed'
 	- This improves the performance of the shell programming parts
@@ -127,7 +1100,7 @@
 	  groffer was called from the command line, or with the shell
 	  name in the first line of the script, actually `/bin/sh'.
 
-2002-07-12  Bernd Warken  <bwarken@mayn.de>
+2002-07-12  Bernd Warken
 	________________________________________________________________
 	* fixes for groffer 0.9.0
 
@@ -137,7 +1110,7 @@
 	- the string `is part of '
 	- groff's version information (version number and copyright),
 	  but not groff's `called subprograms' information.
-	
+
 	* groffer.sh: minor fixes
 	- Fix the argument parser to process argument `-' correctly.
 	- Some display programs have trouble with empty input; feed a
@@ -147,7 +1120,7 @@
 	* TODO:
 	fix entry `shoop' (not 'shopt').
 
-2002-06-28  Bernd Warken  <bwarken@mayn.de>
+2002-06-28  Bernd Warken
 	________________________________________________________________
 	* release of groffer 0.9.0
 
@@ -160,25 +1133,25 @@
 	- New options `--pdf', `--pdf-viewer', `--mode pdf'.
 	- Standard pdf viewers `xpdf' and `acroread'.
 	- For `xpdf', choose zoom `z 3' for 100 dpi, `z 2' for 75 dpi.
-	
+
 	* groffer.sh: support bzip2 decompression
 	- add test for `bzip2' with necessary options
 	- extend functions `catz()' and `save_stdin()'.
 
 	* TODO
 	remove entry on `bzip' decompression (done).
-	
+
 	* groffer.man:
 	- Document new `pdf' features.
 	- Document new `bzip2' decompression.
 	- Fix documentation for `--auto-modes'.
-	
+
 	* groffer.sh: minor fixes
 	- Improve device tests in `tty' and `dvi' modes.
 	- Internally, map mode `auto' to '' to facilitate tests.
 	- Fix auto mode sequence to: `ps,x,tty' as was intended.
 
-2002-06-25  Bernd Warken  <bwarken@mayn.de>
+2002-06-25  Bernd Warken
 
 	* groffer.sh:
 	Fix `source' mode.
@@ -186,7 +1159,7 @@
 	* groffer.man:
 	Fix some indentations.
 
-2002-06-23  Bernd Warken  <bwarken@mayn.de>
+2002-06-23  Bernd Warken
 	________________________________________________________________
 	* release of groffer 0.8
 
@@ -198,7 +1171,7 @@
 	- Document the configuration files in new section `FILES'.
 	- Redesign section `EXAMPLES'.
 	- Remove documentation for `-W'.
-	
+
 	* groffer.sh: new debugging features
 	- Disabled by default; enabled by environment variables.
 	- Add landmark() to catch typos with quotes.
@@ -210,7 +1183,7 @@
 	- Actually, the groffer script uses only shell builtins found
 	  in `ash' (a subset of POSIX) and POSIX `sed' as the only
 	  external shell utility.
-		
+
 	* groffer.sh: customization of viewers
 	- In `groff' mode, the groffer viewing facilities are disabled.
 	- The postprocessor option `-P' costumizes the viewer only in
@@ -231,7 +1204,7 @@
 	  -> `--title': set viewer window title.
 	  -> `--xrm': set X resource.
 	- Remove misnamed option `--xrdb'.
-	
+
 	* groffer.sh: new mode structure
 	- New Postcript mode `ps' (`--ps'):
 	  -> default viewers: gv,ghostview,gs_x11,gs;
@@ -256,7 +1229,7 @@
 	  -> automatically active with one of `-V', `-X', `-Z'.
 	- Revise `tty' mode:
 	  -> allow several text devices.
-	  -> 
+	  ->
 	- Reorganize the mode management:
 	  -> new mode setting option `--mode'.
 	  -> logically separate source, groff, and display modes.
@@ -269,7 +1242,7 @@
 	- `${HOME}/.groff/groffer.conf' user configuration.
 	- The configuration file are shell scripts for now; later
 	  implementations can identify this from the `#! /bin/sh' line.
-	
+
 	* groffer.sh: new data structure `list':
 	- Implement a `list' data structure as a string consisting of
 	  single-quoted elements, separated by a space character;
@@ -286,18 +1259,18 @@
 	  allow unusual characters in options.
 	- Parse $MANOPT first; translate essential arguments into
 	  groffer options.
-	
+
 	* groffer.man:
 	- determine prompt length for `.Shell_cmd'* dynamically.
 	- naming scheme for static strings and registers changed to
 	  `namespace:macro.variable'.
 
-	
+
 2002-06-16  Werner Lemberg  <wl@gnu.org>
 
 	* groffer.sh:
 	Implement man option `--ascii' by `-mtty-char'.
-           
+
 
 2002-05-31  Werner LEMBERG  <wl@gnu.org>
 
@@ -305,7 +1278,7 @@
 	Increase to 4m (we use `sh#' as the prompt).
 
 
-2002-05-31  Bernd Warken  <bwarken@mayn.de>
+2002-05-31  Bernd Warken
 	________________________________________________________________
 	* release of groffer 0.7
 
@@ -341,14 +1314,14 @@
 	- fix TP_header.
 
 
-2002-05-28  Bernd Warken  <bwarken@mayn.de>
+2002-05-28  Bernd Warken
 	________________________________________________________________
 	* release of groffer 0.6
 
 	This is almost a complete rewrite since groffer 0.5 .
 	________________________________________________________________
 	* Documentation
-	
+
 	* groffer.man:
    	- Apply the changes done in www.tmac (.URL and .MTO)
 	- Replace \fP by \f[].
@@ -381,7 +1354,7 @@
 	- The only external programs used are POSIX `sed' and the
 	  fallback to `apropos'.  All other program calls were
 	  replaced by shell builtins and functions.
-	
+
 	________________________________________________________________
 	* Cosmetics
 
@@ -433,10 +1406,10 @@
 	  characters in file names).
 	- Fix and complement usage().
 	- The filespec parsers gets a function of its own do_manpage().
-	
-	
-2002-01-08  Bernd Warken  <bwarken@mayn.de>
-	
+
+
+2002-01-08  Bernd Warken
+
 	* groffer 0.5 (beta) released
 
 	* groffer.man:
@@ -445,7 +1418,7 @@
 	- Examples of shell commands now print in font CR instead of CB.
 	- Remove documentation for option `-X'.
 	- Add documentation for option `--dpi'.
-	
+
 	* groffer.sh:
 	- New method for creating temporary files, based on process
 	  IDs.  This is reliable enough and suitable for GNU and POSIX.
@@ -462,15 +1435,15 @@
 	- Implement option `--dpi' for setting the resolution for the X
 	  viewer, which had already been documented in earlier versions.
 
-2002-01-07  Bernd Warken  <bwarken@mayn.de>
+2002-01-07  Bernd Warken
 
 	* groffer 0.4 (beta) released (as groff `contrib')
-	
+
 	* groffer.man:
 	- New features documented.
 	- Macros stream-lined.
 	- Section EXAMPLES added.
-	
+
 	* groffer.sh:
 	- System tests added/optimized.
 	- Speed/memory optimizations by defining some shell functions
@@ -501,7 +1474,7 @@
         * groffer.man (OptDef): Add missing backslashes.
         Update copyright.
 
-2001-12-15  Bernd Warken  <bwarken@mayn.de>
+2001-12-15  Bernd Warken
 
 	* groffer 0.3 (alpha) released (still stand-alone package).
 
@@ -519,20 +1492,20 @@
 
 	* Recognize the following filespecs as man-page parameters:
 	  man:name(section), man:name, name.section, name.
-	
-2001-12-03  Bernd Warken  <bwarken@mayn.de>
+
+2001-12-03  Bernd Warken
 
 	* Stand-alone package for groffer 0.2 (alpha) created
 	Files: groffer, groffer.man, Makefile, TODO, ChangeLog
-	
-2001-12-02  Bernd Warken  <bwarken@mayn.de>
+
+2001-12-02  Bernd Warken
 
 	* groffer 0.2 (alpha) program released.
 
 	* Name changed from `groffview' to `groffer'.
 
 	* Comments added.
-	
+
 	* Name changed from `groffview' to `groffer'.
 
 	* Options harmonized with groff.
@@ -544,14 +1517,30 @@
 	* Bugs with temporary files fixed.
 
 	* Code restructured and comments added.
-	
-2001-11-28  Bernd Warken  <bwarken@mayn.de>
+
+2001-11-28  Bernd Warken
 
 	***** groffview 0.1 (experimental) and groffview.man released
 	(predecessor of groffer, shell script)
 
 	* Options : -h --help, -v --version
-	
+
 	* Search for man-pages based on $MANPATH
 
 	* development of `groffview' shell script started
+
+2001-11-28  Bernd Warken
+
+	________________________________________________________________
+	License
+
+	Copyright (C) 2001,2002,2003,2004,2005
+	Free Software Foundation, Inc.
+	Written by Bernd Warken
+
+	Copying and distribution of this file, with or without
+	modification, are permitted provided the copyright notice and this
+	notice are preserved.
+
+	This file is part of `groffer', which is part of the `groff'
+	project.

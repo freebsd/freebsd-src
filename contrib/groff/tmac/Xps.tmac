@@ -3,6 +3,9 @@
 .do mso ps.tmac
 .nr _C \n(.C
 .cp 0
+.
+.\" Use this macro only to replace characters which do really exist in
+.\" the devps font definition files.
 .de Xps-char
 .  char \\$1 \Z"\X'ps: invis'\\$2\X'ps: endinvis'"\\$1
 ..

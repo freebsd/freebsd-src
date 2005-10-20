@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2003
+   Free Software Foundation, Inc.
 Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -16,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
      
 #include "refer.h"
 #include "refid.h"
@@ -420,8 +421,7 @@ void reference::compute_sort_key()
   sort_fields += '\0';
   const char *sf = sort_fields.contents();
   while (*sf != '\0') {
-    if (sf > sort_fields)
-      sort_key += SORT_SEP;
+    sort_key += SORT_SEP;
     char f = *sf++;
     int n = 1;
     if (*sf == '+') {

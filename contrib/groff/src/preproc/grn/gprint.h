@@ -66,7 +66,7 @@
 #define MOD 3
 
 typedef struct point {
-  float x, y;
+  double x, y;
   struct point *nextpt;
 } POINT;
 

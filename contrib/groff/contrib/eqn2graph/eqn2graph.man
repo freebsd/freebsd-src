@@ -1,4 +1,4 @@
-.\" $Id: eqn2graph.man,v 1.2 2002/08/21 17:29:17 wlemb Exp $
+.\" $Id: eqn2graph.man,v 1.4 2003/10/28 07:46:23 wlemb Exp $
 .\" This documentation is released to the public domain.
 .
 .
@@ -31,7 +31,7 @@ Reads an EQN equation (one line) as input; produces an image
 file (by default in Portable Network Graphics format) suitable for the
 Web as output.
 .P
-Your input EQN code should \fInot\fR have the .EQ/.EN preamble that
+Your input EQN code should \fInot\fR have the \&.EQ/.EN preamble that
 that normally precedes it within 
 .BR groff (@MAN1EXT@) 
 macros; nor do you need to have dollar-sign or other delimiters
@@ -82,7 +82,25 @@ The
 initialization file.
 .
 .
+.SH ENVIRONMENT
+.TP
+.B GROFF_TMPDIR
+The directory in which temporary files will be created.
+If this is not set
+.B eqn2graph
+searches the environment variables
+.BR \%TMPDIR ,
+.BR TMP ,
+and
+.B TEMP
+(in that order).
+Otherwise, temporary files will be created in
+.BR /tmp .
+.
+.
 .SH "SEE ALSO"
+.BR pic2graph (@MAN1EXT@),
+.BR grap2graph (@MAN1EXT@),
 .BR @g@eqn (@MAN1EXT@),
 .BR groff (@MAN1EXT@),
 .BR gs (1),

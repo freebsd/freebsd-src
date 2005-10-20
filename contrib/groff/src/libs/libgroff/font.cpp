@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "lib.h"
 
@@ -71,6 +71,7 @@ struct text_file {
   int lineno;
   int size;
   int skip_comments;
+  int silent;
   char *buf;
   text_file(FILE *fp, char *p);
   ~text_file();
@@ -82,7 +83,7 @@ struct text_file {
 };
 
 text_file::text_file(FILE *p, char *s) 
-: fp(p), path(s), lineno(0), size(0), skip_comments(1), buf(0)
+: fp(p), path(s), lineno(0), size(0), skip_comments(1), silent(0), buf(0)
 {
 }
 
@@ -141,7 +142,8 @@ void text_file::error(const char *format,
 		      const errarg &arg2,
 		      const errarg &arg3)
 {
-  error_with_file_and_line(path, lineno, format, arg1, arg2, arg3);
+  if (!silent)
+    error_with_file_and_line(path, lineno, format, arg1, arg2, arg3);
 }
 
 
@@ -272,7 +274,7 @@ int font::get_width(int c, int point_size)
   int i = ch_index[c];
   assert(i >= 0);
 
-  if (point_size == unitwidth)
+  if (point_size == unitwidth || font::unscaled_charwidths)
     return ch[i].width;
 
   if (!widths_cache)
@@ -394,27 +396,32 @@ const char *font::get_internal_name()
 const char *font::get_special_device_encoding(int c)
 {
   assert(c >= 0 && c < nindices && ch_index[c] >= 0);
-  return( ch[ch_index[c]].special_device_coding );
+  return ch[ch_index[c]].special_device_coding;
 }
 
-void font::alloc_ch_index(int index)
+const char *font::get_image_generator()
+{
+  return image_generator;
+}
+
+void font::alloc_ch_index(int idx)
 {
   if (nindices == 0) {
     nindices = 128;
-    if (index >= nindices)
-      nindices = index + 10;
-    ch_index = new short[nindices];
+    if (idx >= nindices)
+      nindices = idx + 10;
+    ch_index = new int[nindices];
     for (int i = 0; i < nindices; i++)
       ch_index[i] = -1;
   }
   else {
     int old_nindices = nindices;
     nindices *= 2;
-    if (index >= nindices)
-      nindices = index + 10;
-    short *old_ch_index = ch_index;
-    ch_index = new short[nindices];
-    memcpy(ch_index, old_ch_index, sizeof(short)*old_nindices);
+    if (idx >= nindices)
+      nindices = idx + 10;
+    int *old_ch_index = ch_index;
+    ch_index = new int[nindices];
+    memcpy(ch_index, old_ch_index, sizeof(int)*old_nindices);
     for (int i = old_nindices; i < nindices; i++)
       ch_index[i] = -1;
     a_delete old_ch_index;
@@ -443,9 +450,9 @@ void font::compact()
       break;
   i++;
   if (i < nindices) {
-    short *old_ch_index = ch_index;
-    ch_index = new short[i];
-    memcpy(ch_index, old_ch_index, i*sizeof(short));
+    int *old_ch_index = ch_index;
+    ch_index = new int[i];
+    memcpy(ch_index, old_ch_index, i*sizeof(int));
     a_delete old_ch_index;
     nindices = i;
   }
@@ -458,16 +465,16 @@ void font::compact()
   }
 }
 
-void font::add_entry(int index, const font_char_metric &metric)
+void font::add_entry(int idx, const font_char_metric &metric)
 {
-  assert(index >= 0);
-  if (index >= nindices)
-    alloc_ch_index(index);
-  assert(index < nindices);
+  assert(idx >= 0);
+  if (idx >= nindices)
+    alloc_ch_index(idx);
+  assert(idx < nindices);
   if (ch_used + 1 >= ch_size)
     extend_ch();
   assert(ch_used + 1 < ch_size);
-  ch_index[index] = ch_used;
+  ch_index[idx] = ch_used;
   ch[ch_used++] = metric;
 }
 
@@ -479,10 +486,10 @@ void font::copy_entry(int new_index, int old_index)
   ch_index[new_index] = ch_index[old_index];
 }
 
-font *font::load_font(const char *s, int *not_found)
+font *font::load_font(const char *s, int *not_found, int head_only)
 {
   font *f = new font(s);
-  if (!f->load(not_found)) {
+  if (!f->load(not_found, head_only)) {
     delete f;
     return 0;
   }
@@ -557,7 +564,7 @@ again:
 // If the font can't be found, then if not_found is non-NULL, it will be set
 // to 1 otherwise a message will be printed.
 
-int font::load(int *not_found)
+int font::load(int *not_found, int head_only)
 {
   char *path;
   FILE *fp;
@@ -570,6 +577,7 @@ int font::load(int *not_found)
   }
   text_file t(fp, path);
   t.skip_comments = 1;
+  t.silent = head_only;
   char *p;
   for (;;) {
     if (!t.next()) {
@@ -638,6 +646,8 @@ int font::load(int *not_found)
     else
       break;
   }
+  if (head_only)
+    return 1;
   char *command = p;
   int had_charset = 0;
   t.skip_comments = 0;
@@ -704,12 +714,12 @@ int font::load(int *not_found)
 	    t.error("unnamed character cannot be duplicate");
 	    return 0;
 	  }
-	  int index = name_to_index(nm);
-	  if (index < 0) {
+	  int idx = name_to_index(nm);
+	  if (idx < 0) {
 	    t.error("invalid character `%1'", nm);
 	    return 0;
 	  }
-	  copy_entry(index, last_index);
+	  copy_entry(idx, last_index);
 	}
 	else {
 	  font_char_metric metric;
@@ -758,9 +768,9 @@ int font::load(int *not_found)
 	    metric.special_device_coding = NULL;
 	  }
 	  else {
-	    char *name = new char[strlen(p) + 1];
-	    strcpy(name, p);
-	    metric.special_device_coding = name;
+	    char *nam = new char[strlen(p) + 1];
+	    strcpy(nam, p);
+	    metric.special_device_coding = nam;
 	  }
 	  if (strcmp(nm, "---") == 0) {
 	    last_index = number_to_index(metric.code);
@@ -810,7 +820,7 @@ static struct {
   { "spare1", &font::biggestfont },
   { "biggestfont", &font::biggestfont },
   { "spare2", &font::spare2 },
-  { "sizescale", &font::sizescale }
+  { "sizescale", &font::sizescale },
   };
 
 int font::load_desc()
@@ -905,6 +915,8 @@ int font::load_desc()
 	return 0;
       }
     }
+    else if (strcmp("unscaled_charwidths", p) == 0)
+      unscaled_charwidths = 1;
     else if (strcmp("pass_filenames", p) == 0)
       pass_filenames = 1;
     else if (strcmp("sizes", p) == 0) {
@@ -981,6 +993,14 @@ int font::load_desc()
       tcommand = 1;
     else if (strcmp("use_charnames_in_special", p) == 0)
       use_charnames_in_special = 1;
+    else if (strcmp("image_generator", p) == 0) {
+      p = strtok(0, WS);
+      if (!p) {
+	t.error("image_generator command requires an argument");
+	return 0;
+      }
+      image_generator = strsave(p);
+    }
     else if (strcmp("charset", p) == 0)
       break;
     else if (unknown_desc_command_handler) {

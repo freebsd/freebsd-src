@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#! /usr/bin/perl
 
 use strict;
 # runs groff in safe mode, that seems to be the default
