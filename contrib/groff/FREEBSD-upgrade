@@ -12,9 +12,9 @@ To upgrade to a newer version of groff, when it is available:
 		cvs import -m 'Virgin import of FSF groff v<version>' \
 			src/contrib/groff FSF v<version>
 
-	   For example, to do the import of version 1.19, I typed:
-		cvs import -m 'Virgin import of FSF groff v1.19' \
-			src/contrib/groff FSF v1_19
+	   For example, to do the import of version 1.19.2, I typed:
+		cvs import -m 'Virgin import of FSF groff v1.19.2' \
+			src/contrib/groff FSF v1_19_2
 
 	3. Follow the instructions printed out in step 2 to resolve any
 	   conflicts between local FreeBSD changes and the newer version.
@@ -28,4 +28,4 @@ All local changes should be submitted to Werner Lemberg <wl@gnu.org> or
 Ted Harding <ted.harding@nessie.mcc.ac.uk> for inclusion in the next
 vendor release.
 
-ru@FreeBSD.org - 2 May 2003
+ru@FreeBSD.org - 20 October 2005
