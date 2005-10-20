@@ -1,182 +1,271 @@
-# Map MSL numbers to troff names for a special font.
-12 pl
-30 eq
-34 *A
-35 *B
-38 *E
-41 *Y
-42 *I
-44 *K
-46 *M
-47 *N
-48 *O
-49 *R
-53 *T
-57 *X
-59 *Z
-96 ap
-183 mi
-191 +-
-194 no
-201 mu
-202 di
-206 DI
-207 CL
-205 HE
-208 SP
-220 va
-224 ua
-225 da
-226 ->
-227 <-
-229 <>
-292 if
-295 ca
-296 ==
-297 >=
-298 <=
-301 ~~
-301 ~=
-302 md
-500 sr
-500 sqrt
-501 pt
-503 *e
-504 3d
-504 tf
-505 *G
-506 *D
-507 *H
-508 *L
-509 *C
-510 *P
-511 *S
-512 *U
-513 *F
-514 *Q
-515 *W
-516 gr
-517 pd
-518 ts
-519 !=
-522 *a
-523 *b
-524 *g
-525 *d
-526 +e
-527 *z
-528 *y
-529 *h
-530 *i
-531 *k
-532 *l
-533 *m
-534 *n
-535 *c
-536 *o
-537 *p
-538 *r
-539 *s
-540 *t
-541 *u
-542 *f
-543 *x
-544 *q
-545 *w
-546 +h
-547 +f
-548 +p
-549 |=
-550 ne
-551 arrowverttp
-551 uA
-552 rA
-552 rh
-553 arrowvertbt
-553 dA
-554 lA
-554 lh
-555 vA
-556 hA
-560 radicalex
-561 fa
-562 te
-564 pp
-565 cu
-566 mo
-568 nm
-569 sb
-570 sp
-571 nb
-572 nc
-573 ib
-574 ip
-575 c+
-577 c*
-580 AN
-581 OR
-584 ci
-587 is
-587 integral
-589 /_
-590 es
-591 Ah
-595 Im
-596 Re
-598 bracketlefttp
-598 lc
-599 bracketleftbt
-599 lf
-600 bracelefttp
-600 parenlefttp
-600 lt
-601 braceleftmid
-601 lk
-602 braceleftbt
-602 parenleftbt
-602 lb
-605 arrowvertex
-608 bracketrighttp
-608 rc
-609 bracketrightbt
-609 rf
-610 bracerighttp
-610 parenrighttp
-610 rt
-611 bracerightmid
-611 rk
-612 bracerightbt
-612 parenrightbt
-612 rb
-613 braceleftex
-613 bracerightex
-613 bv
-613 braceex
-614 barex
-614 bracketleftex
-614 bracketrightex
-614 parenleftex
-614 parenrightex
-620 -+
-621 la
-622 ra
-624 =~
-633 <<
-634 >>
-638 -h
-638 hbar
-641 wp
-654 lz
-663 st
-664 **
-665 an
-680 AN
-1099 CR
+# Map HP MSL numbers and HP Unicode values to troff names for a special font.
+#
+# Created 30 December 2003 -- you need hpftodit from groff 1.19.1 or newer!
 
-#637 digamma
-#655 parenrighttp
-#656 parenrightbt
-#642 sum
-#644 bardblex
-#646 parenlefttp
-#647 parenleftbt
+12	002B	pl
+30	003D	eq
+34	0041	*A
+35	0042	*B
+38	0045	*E
+41	0048	*Y
+42	0049	*I
+44	004B	*K
+46	004D	*M
+47	004E	*N
+48	004F	*O
+49	0050	*R
+53	0054	*T
+57	0058	*X
+59	005A	*Z
+96	007E	ap
+97	2592	u2592
+183	2212	mi
+189	25A0	u25A0
+191	00B1	+-
+194	00AC	no
+201	00D7	mu
+202	00F7	di
+203	263A	u263A
+204	263B	u263B
+205	2665	HE
+206	2666	DI
+207	2663	CL
+208	2660	SP
+209	25CF	u25CF
+210	25D8	u25D8
+212	25D9	u25D9
+213	2642	u2642
+214	2640	u2640
+215	266A	u266A
+216	266B	u266B
+217	263C	u263C
+218	25BA	u25BA
+219	25C4	u25C4
+220	2195	va
+222	25AC	u25AC
+223	21A8	u21A8
+224	2191	ua
+225	2193	da
+226	2192	->
+227	2190	<-
+# U+2319 would be the right code for MSL 228, according to the description
+# and used glyph shape in the PCL 5 comparison guide, but this neither
+# reflects the actual look nor the mapping value used in recent HP printers.
+228	221F	u221F
+229	2194	<>
+230	25B2	u25B2
+231	25BC	u25BC
+233	2310	u2310
+234	2591	u2591
+235	2593	u2593
+236	2502	u2502
+237	2524	u2524
+238	2561	u2561
+239	2562	u2562
+240	2556	u2556
+241	2555	u2555
+242	2563	u2563
+243	2551	u2551
+244	2557	u2557
+245	255D	u255D
+246	255C	u255C
+247	255B	u255B
+248	2510	u2510
+249	2514	u2514
+250	2534	u2534
+251	252C	u252C
+252	251C	u251C
+253	2500	u2500
+254	253C	u253C
+255	255E	u255E
+256	255F	u255F
+257	255A	u255A
+258	2554	u2554
+259	2569	u2569
+260	2566	u2566
+261	2560	u2560
+262	2550	u2550
+263	256C	u256C
+264	2567	u2567
+265	2568	u2568
+266	2564	u2564
+267	2565	u2565
+268	2559	u2559
+269	2558	u2558
+270	2552	u2552
+271	2553	u2553
+272	256B	u256B
+273	256A	u256A
+274	2518	u2518
+275	250C	u250C
+276	2588	u2588
+277	2584	u2584
+278	258C	u258C
+279	2590	u2590
+280	2580	u2580
+292	221E	if
+295	2229	ca
+296	2261	==
+297	2265	>=
+298	2264	<=
+299	2320	u2320
+300	2321	u2321
+301	2248	~= ~~
+302	00B7	md
+303	221A	u221A
+305	25AA	u25AA
+333	2302	u2302
+500	EFBF	sqrt sr
+501	221D	pt
+502	212F	u212F
+503	EFEC	*e
+504	2234	3d tf
+505	0393	*G
+506	2206	*D
+507	0398	*H
+508	039B	*L
+509	039E	*C
+510	03A0	*P
+511	03A3	*S
+512	03A5	*U
+513	03A6	*F
+514	03A8	*Q
+515	03A9	*W
+516	2207	gr
+517	2202	pd
+518	03C2	ts
+519	2260	!=
+521	2235	u2235
+522	03B1	*a
+523	03B2	*b
+524	03B3	*g
+525	03B4	*d
+526	03B5	+e
+527	03B6	*z
+528	03B7	*y
+529	03B8	*h
+530	03B9	*i
+531	03BA	*k
+532	03BB	*l
+533	03BC	*m
+534	03BD	*n
+535	03BE	*c
+536	03BF	*o
+537	03C0	*p
+538	03C1	*r
+539	03C3	*s
+540	03C4	*t
+541	03C5	*u
+542	03C6	*f
+543	03C7	*x
+544	03C8	*q
+545	03C9	*w
+546	03D1	+h
+547	03D5	+f
+548	03D6	+p
+549	2243	|=
+550	2262	ne
+551	21D1	arrowverttp uA
+552	21D2	rA rh
+553	21D3	arrowvertbt dA
+554	21D0	lA lh
+555	21D5	vA
+556	21D4	hA
+557	21C4	u21C4
+558	21C6	u21C6
+559	EFE9	u21C0
+560	EFEA	radicalex
+561	2200	fa
+562	2203	te
+563	22A4	u22A4
+564	22A5	pp
+565	222A	cu
+566	2208	mo
+567	220B	u220B
+568	2209	nm
+569	2282	sb
+570	2283	sp
+571	2284	nb
+572	2285	nc
+573	2286	ib
+574	2287	ip
+575	2295	c+
+576	2299	u2299
+577	2297	c*
+578	2296	u2296
+579	2298	u2298
+580	2227	AN
+581	2228	OR
+582	22BB	u22BB
+583	2218	u2218
+584	20DD	ci
+585	22A3	u22A3
+586	22A2	u22A2
+587	222B	integral is
+588	222E	u222E
+589	2220	/_
+590	2205	es
+591	2135	Ah
+592	2136	u2136
+593	2137	u2137
+594	212D	u212D
+595	2111	Im
+596	211C	Re
+597	2128	u2128
+598	EFE7	bracketlefttp lc
+599	EFE6	bracketleftbt lf
+600	EFE3	bracelefttp lt parenlefttp
+601	EFE2	braceleftmid lk
+602	EFE1	braceleftbt lb parenleftbt
+603	EFD4	integralcrvmid
+605	2225	arrowvertex
+608	EFE5	bracketrighttp rc
+609	EFE4	bracketrightbt rf
+610	EFE0	bracerighttp parenrighttp rt
+611	EFDF	bracerightmid rk
+612	EFDE	bracerightbt parenrightbt rb
+613	EFDD	braceex braceleftex bracerightex bv parenleftex parenrightex
+614	2223	barex bracketleftex bracketrightex
+615	EFDC	u23B7
+620	2213	-+
+621	2329	la
+622	232A	ra
+624	2245	=~
+625	2197	u2197
+626	2198	u2198
+627	2199	u2199
+628	2196	u2196
+629	25B5	u25B5
+630	25B9	u25B9
+631	25BF	u25BF
+632	25C3	u25C3
+633	226A	<<
+634	226B	>>
+635	2237	u2237
+636	EFCA	u225C
+637	EFD5	u03DD
+638	210F	-h hbar
+639	2112	u2112
+641	2118	wp
+642	2211	sum
+643	301A	u27E6
+645	301B	u27E7
+646	256D	u256D
+647	2570	u2570
+654	25C7	lz
+655	256E	u256E
+656	256F	u256F
+662	25C6	u25C6
+663	220D	st
+664	2217	**
+665	EFE8	an
+668	221F	u221F
+669	220F	product
+1099	21B5	CR
+1108	25AB	u25AB
+1109	25E6	u25E6
+1110	25CB	u25CB
+1112	21B5	u21B5
+1114	2423	u2423
+
+# EOF

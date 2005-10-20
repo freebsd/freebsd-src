@@ -9,7 +9,7 @@ MAKEFILEPARTS=\
 all: $(PROG) $(MANPAGES)
 
 $(PROG): $(OBJS) $(XLIBS)
-	$(LINK.cpp) -o $@ $(OBJS) $(XLIBS) $(LIBS) $(MLIB)
+	$(LINK.cpp) -o $@ $(OBJS) $(XLIBS) $(EXTRA_LDFLAGS) $(LIBS) $(MLIB)
 
 install_bin: install_prog
 install_prog: $(PROG)

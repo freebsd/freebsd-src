@@ -1,8 +1,8 @@
 More stuff for groff
 ====================
 
-win32
------
+Windows 32
+----------
 
 Here two ports using the gcc compiler and other GNU tools:
 
@@ -32,7 +32,7 @@ from
   ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2gnu/gro*b.zip
 
 and its mirrors; for installation details please read `arch/djgpp/README'.
-This port also runs on win32 systems, except Win2K.
+This port also runs on Windows 32 systems, except Windows 2000.
 
 grap
 ----
@@ -43,14 +43,15 @@ can be found at
 
   http://www.lunabase.org/~faber/Vault/software/grap/
 
-A djgpp port which runs on dos and most win32 systems (Win95, Win98,
-WinNT) done by Kees Zeelenberg <c.zeelenberg@hccnet.nl> is available from
+A djgpp port which runs on dos and most Windows 32 systems (Windows 95,
+Windows 98, Windows NT) done by Kees Zeelenberg <c.zeelenberg@hccnet.nl>
+is available from
 
   ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2apps/
 
 It is intended to be used with the djgpp port of groff.
 
-A win32 port is included in the groff package available from
+A Windows 32 port is included in the groff package available from
 
     http://gnuwin32.sourceforge.net/
 
@@ -110,14 +111,14 @@ cpp-style #line lines.
 
   http://www.moria.de/deroff/
 
-Version 1.6 compiled with DJGPP (for MS-DOS and all Win32 systems, i.e.
-Win95, Win98, WinNT) is available from
+Version 1.6 compiled with DJGPP (for MS-DOS and all Windows 32 systems,
+i.e. Windows 95, Windows 98, Windows NT) is available from
 
   ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2apps/
 
 and its mirrors.
 
-A win32 port of version 1.8 is available from
+A Windows 32 port of version 1.8 is available from
 
   http://gnuwin32.sourceforge.net/
 

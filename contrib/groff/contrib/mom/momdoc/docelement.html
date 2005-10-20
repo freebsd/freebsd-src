@@ -1,3 +1,4 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
@@ -10,10 +11,10 @@
 <a href="headfootpage.html#TOP">Next</a>&nbsp;&nbsp;
 <a href="docprocessing.html#TOP">Prev</a>&nbsp;&nbsp;
 <a href="toc.html">Back to Table of Contents</a>
-
+<p>
 <a name="TOP"></a>
 <a name="DOCELEMENT">
-	<h2 align="center"><u>THE DOCUMENT ELEMENT TAGS</u></h2>
+	<h1 align="center"><u>THE DOCUMENT ELEMENT TAGS</u></h1>
 </a>
 
 <ul>
@@ -54,16 +55,17 @@ she does things.  This is usually done prior to
 but can, in fact, be done at any time in the course of a document.
 Any change to a tag's style affects all subsequent invocations of
 the tag.
+<p>
 
 <a name="DOCELEMENT_CONTROL"><h3><u>Control macros -- changing defaults</u></h3></a>
 
 <p>
 The control macros for document processing tags let you
 &quot;design&quot; the look of all the parts of your documents --
-should you wish.  At a bare minimum, all tags have macros to
-change <strong>mom</strong>'s defaults for family, font
-and point size.  Where appropriate, there are macros to control 
-leading, indents and quad as well.
+should you wish.  At a bare minimum, all tags have macros to change
+<strong>mom</strong>'s defaults for family, font, point size and
+colour.  Where appropriate, there are macros to control leading,
+indents and quad as well.
 <p>
 In addition, many tags have special macros to control features that
 are pertinent to those tags alone.  Have a look at the section dealing
@@ -88,8 +90,8 @@ Equally,
 can be used in tags that take
 <a href="definitions.html#TERMS_STRINGARGUMENT">string arguments.</a>
 <p>
-<strong>IMPORTANT NOTE:</strong> The family, font, point size and
-leading control macros have no effect in
+<strong>IMPORTANT NOTE:</strong> The family, font, point size,
+colour and leading control macros have no effect in
 <a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
 which sets EVERYTHING in Courier roman, 12/24 (i.e. 12-point type on
 a linespace of 24 points).
@@ -101,7 +103,7 @@ unless a default for <strong>TYPEWRITE</strong> is also given.
 <p>
 <strong>A WORD OF ADVICE:</strong> Get familiar with
 <strong>mom</strong> at her default settings before exploring the
-control macros.  Put her through her paces.  She how she behaves.
+control macros.  Put her through her paces.  See how she behaves.
 Get to know what she feels like and how she looks, both in your text
 editor and on the printed page.  Then, if you don't like something,
 use this documentation to find the precise macro you need to change it.
@@ -109,6 +111,7 @@ There are tons of control macros.  Reading up on them and trying to
 remember them all might lead you to think that <strong>mom</strong>
 is complex and unwieldy, which is not only untrue, but would offend
 her mightily.
+<p>
 
 <a name="CONTROL_MACRO_ARGS"><h3><u>Arguments to the control macros</u></h3></a>
 
@@ -137,6 +140,22 @@ There's no need for a
 <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
 with the <strong>_SIZE</strong> control macros; points is assumed.
 
+<h3>Colour</h3>
+Control macros that end in <strong>_COLOR</strong> take as their
+argument a colour name pre-defined (or &quot;initialized&quot;)
+with
+<a href="color.html#NEWCOLOR">NEWCOLOR</a>
+or
+<a href="color.html#XCOLOR">XCOLOR</a>.
+For example, if you want your heads to be red, once you've defined
+or initialized the color, red,
+<p>
+<pre>
+	.HEAD_COLOR red
+</pre>
+
+will turn your heads red.
+
 <h3>Lead/linespacing</h3>
 Control macros that end in <strong>_AUTOLEAD</strong> take the
 same argument as
@@ -158,7 +177,7 @@ one point greater than the footnote's point size), do
 	.FOOTNOTE_AUTOLEAD 1
 </pre>
 
-<a name="CONTROL_INDENTS"><h3>Indents</h3></a>
+<h3><a name="CONTROL_INDENTS">Indents</a></h3>
 Except for <strong>PARA_INDENT</strong>, the argument to the control
 macros that end
 in <strong>_INDENT</strong> is always a single digit (whole numbers
@@ -172,7 +191,8 @@ correct indent for a particular tag.
 Control macros that end in <strong>_QUAD</strong> take the same
 arguments as
 <a href="typesetting.html#QUAD">QUAD</a>.
-
+<p>
+<hr>
 
 <a name="INDEX_DOCELEMENT"><h3><u>Document element tags list</u></h3></a>
 <ul>
@@ -201,10 +221,11 @@ arguments as
 		<li><a href="#PARAHEAD">PARAHEAD</a>
 		<li><a href="#PARAHEAD_CONTROL">Parahead control</a>
 	</ul>
-	<li><a href="#LINEBREAK_INTRO">Linebreaks (author linebreaks)</a>
+	<li><a href="#LINEBREAK_INTRO">Linebreaks (author linebreaks, section breaks)</a>
 	<ul>
 		<li><a href="#LINEBREAK">LINEBREAK</a>
 		<li><a href="#LINEBREAK_CHAR">Linebreak character</a>
+		<li><a href="#LINEBREAK_COLOR">Linebreak colour</a>
 	</ul>
 	<li><a href="#QUOTE_INTRO">Quotes (line for line)</a>
 	<ul>
@@ -216,6 +237,19 @@ arguments as
 		<li><a href="#BLOCKQUOTE">BLOCKQUOTE</a>
 		<li><a href="#BLOCKQUOTE_CONTROL">Blockquote control</a>
 	</ul>
+	<li><a href="#LIST_INTRO">Nested lists</a>
+	<ul>
+		<li><a href="#LIST">LIST</a>
+		<ul>
+			<li><a href="#ITEM">ITEM</a>
+		</ul>
+		<li><a href="#LIST_CONTROL">List control</a>
+	</ul>
+	<li><a href="#NUMBER_LINES_INTRO">Line numbering</a>
+	<ul>
+		<li><a href="#NUMBER_LINES">NUMBER_LINES</a>
+		<li><a href="#NUMBER_LINES_CONTROL">Control macros</a> (for QUOTE and BLOCKQUOTE)
+	</ul>
 	<li><a href="#FOOTNOTE_INTRO">Footnotes</a>
 	<ul>
 		<li><a href="#FOOTNOTE">FOOTNOTE</a>
@@ -226,10 +260,33 @@ arguments as
 		<li><a href="#ENDNOTE">ENDNOTE</a>
 		<li><a href="#ENDNOTE_CONTROL">Endnote control</a>
 	</ul>
+	<li><a href="#MARGIN_NOTES_INTRO">Margin notes</a>
+	<ul>
+		<li><a href="#MN_INIT">MN_INIT</a> -- initialize margin notes
+		<li><a href="#MN">MN</a> -- start and end a margin note
+	</ul>
+    <li><a href="refer.html#TOP">Bibliographies and references</a>
+    <ul>
+        <li><a href="refer.html#REF">REF</a>
+        <li><a href="refer.html#ENDNOTE_REFS">ENDNOTE_REFS</a>
+        <li><a href="refer.html#FOOTNOTE_REFS">FOOTNOTE_REFS</a>
+        <li><a href="refer.html#BRACKET_REFS">Embedded references</a>
+        <li><a href="refer.html#BIBLIOGRAPHY">BIBLIOGRAPHY</a>
+        <li><a href="refer.html#BIBLIOGRAPHY_TYPE">BIBLIOGRAPHY_TYPE</a>
+    </ul>
+	<li><a href="#BLANK_PAGE_TITLE">Blank pages</a>
+	<li><a href="#TOC_INTRO">Table of contents</a>
+	<ul>
+		<li><a href="#TOC">TOC</a>
+		<li><a href="#TOC_CONTROL">Table of contents control</a>
+	</ul>
 	<li><a href="#FINIS_INTRO">Document termination</a>
 	<ul>
-		<li><a href="#FINIS">FINIS</a>
-		<li><a href="#FINIS_STRING">Finis control</a> -- changing the FINIS string
+		<li><a href="#FINIS">FINIS (Document termination)</a>
+	</ul>
+	<ul>
+		<li><a href="#FINIS_STRING">Changing the FINIS string</a>
+		<li><a href="#FINIS_COLOR">Changing the FINIS colour</a>
 	</ul>
 </ul>
 <hr>
@@ -244,24 +301,24 @@ arguments as
 </ul>
 <p>
 <a href="definitions.html#TERMS_EPIGRAPH">Epigraphs</a>
-color, flavour, or comment on the document they precede.  Typically,
-they are centered at the top of a document's first page (underneath the
+colour, flavour, or comment on the document they precede.  Typically,
+they are centred at the top of a document's first page (underneath the
 title) and set in a smaller point size than that of paragraph text.
 <p>
-By default, <strong>mom</strong> sets epigraphs centered and
+By default, <strong>mom</strong> sets epigraphs centred and
 <a href="definitions.html#TERMS_NOFILL">unfilled</a>;
 this lets you input them on a line for line basis.  This behaviour
 can be changed to accomodate
 <a href="definitions.html#TERMS_FILLED">filled</a>
 epigraph &quot;blocks.&quot;
-<br>
+<p>
 
 <!---EPIGRAPH--->
 
 <hr width="66%" align="left">
 <p>
 <a name="EPIGRAPH">
-	Macro: <strong>EPIGRAPH</strong> <var>&lt;toggle&gt; | [ BLOCK ]</var></a>
+	<nobr>Macro: <strong>EPIGRAPH</strong> &lt;toggle&gt; | [ BLOCK ]</a></nobr>
 </a>
 
 <p>
@@ -298,6 +355,7 @@ want quotes or cited text, use
 <a href="#QUOTE">QUOTE</a>
 or
 <a href="#BLOCKQUOTE">BLOCKQUOTE</a>.
+<p>
 
 <a name="EPIGRAPH_CONTROL"><h3><u>Epigraph control macros</u></h3></a>
 <p>
@@ -308,6 +366,7 @@ See
 .EPIGRAPH_FAMILY    default = prevailing document family; default is Times Roman
 .EPIGRAPH_FONT      default = roman
 .EPIGRAPH_SIZE      default = -1.5 (points)
+.EPIGRAPH_COLOR     default = black
 .EPIGRAPH_AUTOLEAD  default = 2 points
 
 (The next two apply to &quot;block&quot; style epigraphs only)
@@ -337,7 +396,7 @@ and indent appropriate to where you are in your document are taken
 care of automatically.
 <p>
 By default, <strong>mom</strong> does not indent the first paragraph
-of a document, nor paragraphs that fall imediately after
+of a document, nor paragraphs that fall immediately after
 <a href="#HEAD_INTRO">heads</a>
 or
 <a href="#SUBHEAD_INTRO">subheads</a>.
@@ -361,7 +420,7 @@ will break these one-liners -- if they fall at the bottom of the page
 -- to a new page, which is not what you want.
 <p>
 <strong>TIP:</strong> The last thing you want while you're writing
-and editing drafts of a document (particulary stories and chapters)
+and editing drafts of a document (particularly stories and chapters)
 is a text file cluttered up with <strong>PP</strong>'s.  The visual
 interruption in the flow of text is a serious obstacle to creativity
 and critiquing.
@@ -385,7 +444,7 @@ that blank lines should be interpreted as <strong>PP</strong>'s.
 	.blm PP
 </pre>
 tells groff that all blank lines are really the macro <strong>PP</strong>.
-<br>
+<p>
 
 <!---PP--->
 
@@ -416,14 +475,16 @@ element tags.
 <ol>
 	<li><a href="#PP_FAMILY">Family control</a>
 	<li><a href="#PP_FONT">Font control</a>
+	<li><a href="#PP_COLOR">Paragraph colour</a>
 	<li><a href="#PP_LEADING">Leading/linespacing control</a>
 	<li><a href="#PP_JUST_QUAD">Justification/quad control</a>
 	<li><a href="#PARA_INDENT">First-line indent control</a>
-	<li><a href="#PARA_INDENT_FIRST">Intitial paragraphs indent control</a>
+	<li><a href="#PARA_INDENT_FIRST">Initial paragraphs indent control</a>
 	<li><a href="#PP_SPACE">Paragraph spacing control</a>
 </ol>
 
 <a name="PP_FAMILY"><h3><u>1. Family</u></h3></a>
+<p>
 The paragraph
 <a href="definitions.html#TERMS_FAMILY">family</a>
 is set with
@@ -442,8 +503,10 @@ to differ from the prevailing document family.
 <p>
 <strong>Mom</strong>'s default paragraph (and document) family
 is Times Roman.
+<p>
 
 <a name="PP_FONT"><h3><u>2. Font -- PP_FONT</u></h3></a>
+<p>
 To change the
 <a href="definitions.html#TERMS_FONT">font</a>
 used in regular text paragraphs, use <code>.PP_FONT</code>,
@@ -460,8 +523,60 @@ remain at their default setting (medium roman) unless you change them
 with the appropriate control macros.
 <p>
 <strong>Mom</strong>'s default paragraph font is medium roman.
+<p>
 
-<a name="PP_LEADING"><h3><u>3.Leading</u></h3></a>
+<a name="PP_COLOR"><h3><u>3. Paragraph colour</u></h3></a>
+<p>
+<strong>Mom</strong> has no special control macro for colourizing
+paragraphs.  If you wish a colourized paragraph, you must use the
+macro,
+<a href="color.html#COLOR">COLOR</a>,
+or the
+<a href="definitions.html#TERMS_INLINE">inline escape</a>,
+<a href="color.html#COLOR_INLINE">\*[&lt;colorname&gt;]</a>,
+<em>after</em> <strong>.PP</strong>.  The colour must be one
+pre-defined (or &quot;initialized&quot;) with
+<a href="color.html#NEWCOLOR">NEWCOLOR</a>
+or
+<a href="color.html#XCOLOR">XCOLOR</a>.
+<p>
+Please note that unless you change the colour back to it's default
+(usually black) at the end of the paragraph, all subsequent
+paragraphs will be set in the new colour, although most other
+elements of your document will continue to be set in the default
+colour (usually black).
+<p>
+For example, assuming you have defined the colour, blue,
+<p>
+<pre>
+	.PP
+	.COLOR blue
+	&lt;first paragraph&gt;
+	.HEAD "Monty Python"
+	.SUBHEAD "The Origins of Spam"
+	.PP
+	&lt;second paragraph&gt;
+</pre>
+
+the first paragraph will be blue, the head and subhead will be in
+the document's default colour (usually black), and the second
+paragraph will be in blue.
+<p>
+The one document element that is affected by changing the colour
+of paragraphs are
+<a href="#PARAHEAD">paraheads</a>,
+since they are attached directly to the body of paragraphs.  In
+other words, if you change the colour of a paragraph and do not
+reset the paragraph colour back to its default, subsequent paraheads
+will appear in the same colour as your paragraphs unless you have
+explicitly told <strong>mom</strong> you want a pre-defined (or
+&quot;initialized&quot;) color (usually black) for your paraheads.
+<p>
+See the footnote to
+<a href="#PARAHEAD_COLOR">.PARAHEAD_COLOR</a>.
+
+<a name="PP_LEADING"><h3><u>4. Leading</u></h3></a>
+<p>
 The paragraph
 <a href="definitions.html#TERMS_LEADING">leading</a>
 is set with
@@ -483,19 +598,25 @@ EVERY paragraph whose leading you wish to change.
 <strong>HYPER-IMPORTANT NOTE:</strong> It is extremely unwise to change
 paragraph leading with <strong>LS</strong>, as it will, in all cases,
 screw up <strong>mom</strong>'s ability to balance the bottom margin
-of pages.
+of pages.  Should you absolutely need to change paragraph leading
+with <strong>LS</strong>, and subsequently want <strong>mom</strong>
+to get back on the right leading track, use the
+<a href="docprocessing.html#SHIM">SHIM</a>
+macro.
 <p>
 <strong>Mom</strong>'s default paragraph leading (document leading)
 is 16 points, adjusted to fill the page.
+<p>
 
-<a name="PP_JUST_QUAD"><h3><u>4. Justification/quad</u></h3></a>
+<a name="PP_JUST_QUAD"><h3><u>5. Justification/quad</u></h3></a>
+<p>
 The justification/quad-direction of regular text paragraphs (i.e.
 <a href="definitions.html#TERMS_JUST">justified</a>,
 or
 <a href="definitions.html#TERMS_FILLED">filled</a>
 and
 <a href="definitions.html#TERMS_QUAD">quadded</a>
-left/right/center) is set with
+left/right/centre) is set with
 <a href="typesetting.html#JUSTIFY">JUSTIFY</a>
 or
 <a href="typesetting.html#QUAD">QUAD</a>
@@ -524,12 +645,17 @@ Only the paragraph in question gets justified or quadded
 differently;  subsequent paragraphs remain unaffected.
 <p>
 <strong>Mom</strong>'s default justification/quad-direction for
-paragraphs is justified for
-<a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE_TYPESET</a>
-and quad left for
-<a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE_TYPEWRITE</a>.
-
-<a name="PARA_INDENT"><h3><u>5. First-line indent -- PARA_INDENT</u></h3></a>
+paragraphs is
+<br>
+<ul>
+    <li>justified, for
+        <a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE_TYPESET</a>
+    <li>quad left, for
+        <a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE_TYPEWRITE</a>
+</ul>
+<p>
+<a name="PARA_INDENT"><h3><u>6. First-line indent -- PARA_INDENT</u></h3></a>
+<p>
 The first-line indent of paragraphs is controlled by
 <strong>PARA_INDENT</strong>, which takes one argument: the size
 of the indent.  <strong>PARA_INDENT</strong> may be used before
@@ -551,7 +677,7 @@ paragraphs, <strong>PARA_INDENT</strong> also affects
 <a href="#QUOTE_INTRO">quotes</a>
 and
 <a href="#BLOCKQUOTE_INTRO">blockquotes</a>,
-whose overal indenting from the left and (where applicable) right
+whose overall indenting from the left and (where applicable) right
 margins is relative to <strong>PARA_INDENT</strong>.  Furthermore, the
 first-line indent of paragraphs within these document elements (as well
 as footnotes) is also relative to <strong>PARA_INDENT</strong> (always
@@ -562,8 +688,10 @@ ems for
 <a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE_TYPESET</a>
 and 3 picas (1/2 inch) for
 <a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE_TYPEWRITE</a>.
+<p>
 
-<a name="PARA_INDENT_FIRST"><h3><u>6. Indenting initial paragraphs -- INDENT_FIRST_PARAS</u></h3></a>
+<a name="PARA_INDENT_FIRST"><h3><u>7. Indenting initial paragraphs -- INDENT_FIRST_PARAS</u></h3></a>
+<p>
 By default, <strong>mom</strong> does not indent the first paragraph
 of a document, nor the first paragraph after a head or
 subhead, nor the first paragraphs of 
@@ -582,8 +710,10 @@ before or after
 passing it any argument (<strong>OFF, QUIT, Q, X</strong>...) cancels
 its effect, meaning that first paragraphs will once again NOT be
 indented.
+<p>
 
-<a name="PP_SPACE"><h3><u>7. Spacing paragraphs -- PARA_SPACE</u></h3></a>
+<a name="PP_SPACE"><h3><u>8. Spacing paragraphs -- PARA_SPACE</u></h3></a>
+<p>
 By default, <strong>mom</strong> does not insert a blank line
 between paragraphs.  If you would like her to do so, invoke the
 macro <code>.PARA_SPACE</code> with no argument, either
@@ -593,6 +723,27 @@ before or after
 it any argument (<strong>OFF, QUIT, Q, X</strong>...) cancels its
 effect, meaning that paragraphs will once again NOT be separated by
 a blank line.
+<p>
+<strong>NOTE:</strong> If <strong>PARA_SPACE</strong> is on,
+<strong>mom</strong> spaces only those paragraphs that come after
+an &quot;initial&quot; paragraph.  Initial paragraphs are those
+that come immediately after the
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>,
+<a href="#EPIGRAPH_INTRO">epigraphs</a>,
+<a href="#HEAD_INTRO">heads</a>,
+<a href="#SUBHEAD_INTRO">subheads</a>
+and
+<a href="#LINEBREAK_INTRO">linebreaks</a>.
+(The first paragraph after these document elements requires no
+blank line to separate it from other paragraphs.)
+<p>
+Sometimes, you can be fairly deep into a document before using
+<strong>.PP</strong> for the first time, and when you do, because
+<strong>mom</strong> is still waiting for that &quot;initial&quot;
+paragraph, she doesn't space it with a blank line, even though
+you expect her to.  The simple workaround for this is to invoke
+<strong>.PP</strong> <em>twice</em> (in succession) at the point you
+expect the blank line to appear.
 <br>
 <hr>
 
@@ -613,21 +764,21 @@ hierarchically in numbered
 and
 <a href="#PARAHEAD_INTRO">paraheads</a>.
 <p>
-By default, heads are centered on the page, underlined,
+By default, heads are centred on the page, underlined,
 all in caps.  A double linespace precedes each head.  In <a
 href="docprocessing.html#PRINTSTYLE">PRINTSTYLE TYPESET</a>, heads
 are bold, slightly larger than paragraph text.
 <p>
 If these defaults don't suit you, you can change them with the
 head control macros.
-<br>
+<p>
 
 <!---HEAD--->
 
 <hr width="66%" align="left">
 <p>
 <a name="HEAD">
-	Macro: <strong>HEAD</strong> <var>&quot;&lt;text of head&gt;&quot; [ &quot;&lt;2nd line&gt;&quot; [ &quot;&lt;3rd line&gt;&quot; ... ] ]</var>
+	<nobr>Macro: <strong>HEAD</strong> &quot;&lt;text of head&gt;&quot; [ &quot;&lt;2nd line&gt;&quot; [ &quot;&lt;3rd line&gt;&quot; ... ] ]</nobr>
 </a>
 
 <p>
@@ -639,6 +790,33 @@ head, simply surround each line with double-quotes.
 and <strong>mom</strong> is unable to fit the head <em>plus at least
 one line of text underneath it</em>, she will set the head at the
 top of the next page.
+<p>
+<strong>ADDITIONAL NOTE:</strong> If an
+<a href="definitions.html#TERMS_INPUTLINE">input line</a>
+in a head (i.e. one of the lines surrounded by double-quotes) has
+to be broken by <strong>mom</strong> in order to fit the current
+line-length (say, a narrow column measure), the head underline
+(underscore) will not behave.  You'll recognize the problem as soon
+as you preview your document.  If you encounter a head that
+misbehaves with respect to underlining, the solution is to
+supply each line <em>as you want it</em> as a separate argument
+(surrounded by double-quotes) to the <strong>HEAD</strong> macro.
+<p>
+For example, if <strong>mom</strong> breaks
+<pre>
+	.HEAD "This is a very, very, very long head"
+</pre>
+into
+<pre>
+	This is a very, very, very
+	        long head        
+</pre>
+
+you'll see the misbehaving underscore and should change the
+argument to <strong>HEAD</strong> to
+<pre>
+	.HEAD "This is a very, very very" "long head"
+</pre>
 
 <a name="HEAD_CONTROL"><h3><u>Head control macros</u></h3></a>
 <p>
@@ -648,7 +826,7 @@ underlining, and so on.  Check them out if you're unhappy with
 <strong>mom</strong>'s defaults.
 <p>
 <ol>
-	<li><a href="#HEAD_GENERAL">Family/font/size/quad</a>
+	<li><a href="#HEAD_GENERAL">Family/font/size/colour/quad</a>
 	<li><a href="#HEAD_CAPS">Caps</a>
 	<li><a href="#HEAD_SPACE">Pre-head space</a>
 	<li><a href="#HEAD_UNDERLINE">Underlining</a>
@@ -657,7 +835,7 @@ underlining, and so on.  Check them out if you're unhappy with
 	<li><a href="#HEAD_INLINES">Vertical inline escapes inside heads</a>
 </ol>
 <p>
-<a name="HEAD_GENERAL"><h3><u>1. Family/font/size/quad</u></h3></a>
+<a name="HEAD_GENERAL"><h3><u>1. Family/font/size/colour/quad</u></h3></a>
 <p>
 See
 <a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
@@ -666,10 +844,12 @@ See
 .HEAD_FAMILY default = prevailing document family; default is Times Roman
 .HEAD_FONT   default = bold
 .HEAD_SIZE   default = +1 (point)
+.HEAD_COLOR  default = black
 .HEAD_QUAD   default = CENTER
 </pre>
 
 <a name="HEAD_CAPS"><h3><u>2. Capitalizing heads -- HEAD_CAPS</u></h3></a>
+<p>
 By default, <strong>mom</strong> sets heads in caps, regardless
 of the
 <a href="definitions.html#TERMS_STRINGARGUMENT">string(s)</a>
@@ -685,8 +865,10 @@ To change this behaviour, do
 any argument you like instead of <strong>OFF</strong> (<strong>END,
 QUIT, Q, X</strong>...).  To turn <strong>HEAD_CAPS</strong> back on,
 simply invoke it without an argument.
+<p>
 
 <a name="HEAD_SPACE"><h3><u>3. Space before heads -- HEAD_SPACE</u></h3></a>
+<p>
 By default, <strong>mom</strong> deposits 2 blank lines prior to every
 head.  If you'd prefer just a single blank line, do
 <p>
@@ -698,8 +880,10 @@ head.  If you'd prefer just a single blank line, do
 any argument you like instead of <strong>OFF</strong> (<strong>END,
 QUIT, Q, X</strong>...).  To restore the space before heads to 2
 blank lines, invoke <strong>HEAD_SPACE</strong> without an argument.
+<p>
 
 <a name="HEAD_UNDERLINE"><h3><u>4. Underlining heads -- HEAD_UNDERLINE</u></h3></a>
+<p>
 By default, <strong>mom</strong> underlines heads.  To change this
 behaviour, do
 <p>
@@ -711,8 +895,10 @@ behaviour, do
 use any argument you like instead of <strong>OFF</strong> (<strong>END,
 QUIT, Q, X</strong>...).  To restore underlining of heads, invoke
 <strong>HEAD_UNDERLINE</strong> without an argument.
+<p>
 
 <a name="NUMBER_HEADS"><h3><u>5. Number heads -- NUMBER_HEADS</u></h3></a>
+<p>
 If you'd like your heads numbered, simply invoke
 <strong>NUMBER_HEADS</strong> with no argument.  <strong>Mom</strong>
 will number all subsequent heads automatically (in ascending order,
@@ -729,8 +915,10 @@ Should you wish to stop head numbering, invoke
 <strong>NUMBER_HEADS</strong> with any argument (<strong>OFF, QUIT,
 END, X</strong>...).  Head numbering will cease, and the head number
 will not be included in the numbering of subheads and/or paraheads.
+<p>
 
 <a name="RESET_HEAD_NUMBER"><h3><u>6. Reset head numbering -- RESET_HEAD_NUMBER</u></h3></a>
+<p>
 Should you wish to reset the head number to &quot;1&quot;, invoke
 <strong>RESET_HEAD_NUMBER</strong> with no argument.  If, for some
 reason, you want <strong>mom</strong> to use a head number that is not
@@ -743,8 +931,10 @@ the next in ascending order (i.e. the last head number + 1), invoke
 
 Your next head will be numbered &quot;6&quot; and subsequent heads will
 be numbered in ascending order from &quot;6&quot;.
+<p>
 
 <a name="HEAD_INLINES"><h3><u>7. Vertical inline escapes inside heads</u></h3></a>
+<p>
 If you need to adjust the
 <a href="definitions.html#TERMS_BASELINE">baseline</a>
 position of a head (e.g. the head falls at the top of a column and
@@ -755,17 +945,17 @@ to line up with the ascenders of
 in other columns), you can embed a vertical motion
 <a href="definitions.html#TERMS_INLINES">inline escape</a>
 (either
-<a href="inlines.html#INLINE_VERTICAL_MOM">mom's</a>
+<a href="inlines.html#INLINE_VERTICAL_MOM">mom</a>'s
 or
-<a href="inlines.html#INLINE_VERTICAL_GROFF">groff's</a>
+<a href="inlines.html#INLINE_VERTICAL_GROFF">groff</a>'s
 in the string(s) you pass to <strong>HEAD</strong>
 <p>
 For example,
 <p>
 <pre>
 	.HEAD "\[ALD3]Text of head"
-        or
-    .HEAD "\[DOWN 3p]Text of head"
+	    or
+	.HEAD "\[DOWN 3p]Text of head"
 </pre>
 
 will lower the baseline of the head by three points.  Note that
@@ -776,14 +966,9 @@ the escape in the string for each line, like this:
 <p>
 <pre>
 	.HEAD "\[ALD3]First line" "\[ALD3]Next line" 
-        or
-    .HEAD "\[DOWN 3p]First line" "\[DOWN 3p]Next line" 
+	    or
+	.HEAD "\[DOWN 3p]First line" "\[DOWN 3p]Next line" 
 </pre>
-
-
-
-
-<br>
 <hr>
 
 <!====================================================================>
@@ -811,14 +996,14 @@ document structuring.
 <p>
 If these defaults don't suit you, you can change them with the
 subhead control macros.
-<br>
+<p>
 
 <!---SUBHEAD--->
 
 <hr width="66%" align="left">
 <p>
 <a name="SUBHEAD">
-	Macro: <strong>SUBHEAD</strong> <var>&quot;&lt;text of subhead&gt;&quot; [ &quot;&lt;2nd line&gt;&quot; [ &quot;&lt;3rd line&gt;&quot; ... ] ]</var>
+	<nobr>Macro: <strong>SUBHEAD</strong> &quot;&lt;text of subhead&gt;&quot; [ &quot;&lt;2nd line&gt;&quot; [ &quot;&lt;3rd line&gt;&quot; ... ] ]</nobr>
 </a>
 <p>
 The argument to <strong>SUBHEAD</strong> is the text of the subhead,
@@ -836,7 +1021,7 @@ In addition to the usual family/font/size/quad control
 macros, there are macros to manage subhead numbering.
 <p>
 <ol>
-	<li><a href="#SUBHEAD_GENERAL">Family/font/size/quad</a>
+	<li><a href="#SUBHEAD_GENERAL">Family/font/size/colour/quad</a>
 	<li><a href="#NUMBER_SUBHEADS">Numbering</a>
 	<li><a href="#RESET_SUBHEAD_NUMBER">Reset subhead numbering</a>
 	<li><a href="#SUBHEAD_INLINES">Vertical inline escapes inside subheads</a>
@@ -851,10 +1036,12 @@ See
 .SUBHEAD_FAMILY default = prevailing document family; default is Times Roman
 .SUBHEAD_FONT   default = bold
 .SUBHEAD_SIZE   default = +.5 (point)
+.SUBHEAD_COLOR  default = black
 .SUBHEAD_QUAD   default = LEFT
 </pre>
 
 <a name="NUMBER_SUBHEADS"><h3><u>2. Number subheads -- NUMBER_SUBHEADS</u></h3></a>
+<p>
 If you'd like your subheads numbered, simply invoke
 <strong>.NUMBER_SUBHEADS</strong> with no argument.
 <strong>Mom</strong> will number all subsequent subheads automatically
@@ -869,8 +1056,10 @@ Should you wish to stop subhead numbering, invoke
 <strong>NUMBER_SUBHEADS</strong> with any argument (<strong>OFF, QUIT,
 END, X</strong>...).  Subhead numbering will cease, and the subhead
 number will not be included in the numbering of paraheads.
+<p>
 
 <a name="RESET_SUBHEAD_NUMBER"><h3><u>3. Reset head numbering -- RESET_SUBHEAD_NUMBER</u></h3></a>
+<p>
 Should you wish to reset the subhead number to &quot;1&quot;, invoke
 <strong>RESET_SUBHEAD_NUMBER</strong> with no argument.  If, for some
 reason, you want <strong>mom</strong> to use a subhead number that is not
@@ -888,9 +1077,7 @@ subheads will be numbered in ascending order from &quot;4&quot;.
 See
 <a href="#HEAD_INLINES">Vertical inline escapes inside heads</a>.
 The information there applies equally to subheads.
-
-
-<br>
+<p>
 <hr>
 
 <!====================================================================>
@@ -917,14 +1104,14 @@ they are underlined.
 <p>
 If these defaults don't suit you, you can change them with the
 parahead control macros.
-<br>
+<p>
 
 <!---PARAHEAD--->
 
 <hr width="66%" align="left">
 <p>
 <a name="PARAHEAD">
-	Macro: <strong>PARAHEAD</strong> <var>&quot;&lt;text of parahead&gt;&quot;</var>
+	<nobr>Macro: <strong>PARAHEAD</strong> &quot;&lt;text of parahead&gt;&quot;</nobr>
 </a>
 <p>
 <strong>PARAHEAD</strong> must come AFTER
@@ -937,20 +1124,21 @@ only one argument (see
 <a href="#HEAD">HEAD</a>
 and
 <a href="#SUBHEAD">SUBHEAD</a>).
+<p>
 
 <a name="PARAHEAD_CONTROL"><h3><u>Parahead control macros</u></h3></a>
 <p>
-In addition to the family/font/size/indent control macros, there are
-macros to manage parahead numbering.
+In addition to the family/font/size/colour/indent control macros,
+there are macros to manage parahead numbering.
 <p>
 <ol>
-	<li><a href="#PARAHEAD_GENERAL">Family/font/size</a>
+	<li><a href="#PARAHEAD_GENERAL">Family/font/size/color</a>
 	<li><a href="#PARAHEAD_INDENT">Indent</a>
 	<li><a href="#NUMBER_PARAHEADS">Numbering</a>
 	<li><a href="#RESET_PARAHEAD_NUMBER">Reset parahead numbering</a>
 </ol>
 <p>
-<a name="PARAHEAD_GENERAL"><h3><u>1. Family/font/size</u></h3></a>
+<a name="PARAHEAD_GENERAL"><h3><u>1. Family/font/size/colour</u></h3></a>
 <p>
 See
 <a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
@@ -959,9 +1147,18 @@ See
 .PARAHEAD_FAMILY default = prevailing document family; default is Times Roman
 .PARAHEAD_FONT   default = bold italic
 .PARAHEAD_SIZE   default = +.5 (point)
+<a name="PARAHEAD_COLOR">.PARAHEAD_COLOR  default = black*</a>
+
+*If you colourize paragraph text, paraheads will appear in the same
+colour as the text unless you explicitly tell mom to colour them
+otherwise by invoking .PARAHEAD_COLOR.  If you do want paraheads
+that are coloured the same as paragraph text, it's generally a good
+idea to invoke .PARAHEAD_COLOR anyway (with the same colour used
+for paragraph text), just to let mom know.
 </pre>
 
 <a name="PARAHEAD_INDENT"><h3><u>2. Indent</u></h3></a>
+<p>
 Unlike other control macros that end in
 <a href="#CONTROL_INDENTS"><strong>_INDENT</strong></a>,
 the argument to the macro that controls indenting of paragraph heads
@@ -989,8 +1186,10 @@ paragraphs&quot;, as defined in
 are not indented unless you turn
 <a href="#INDENT_FIRST_PARAS">INDENT_FIRST_PARAS</a>
 on.
+<p>
 
 <a name="NUMBER_PARAHEADS"><h3><u>3. Number paraheads -- NUMBER_PARAHEADS</u></h3></a>
+<p>
 If you'd like your paraheads numbered, simply invoke
 <strong>.NUMBER_PARAHEADS</strong> with no argument.
 <strong>Mom</strong> will number all subsequent paraheads automatically
@@ -1006,8 +1205,10 @@ parahead number (separated by a period [dot]).
 Should you wish to stop parahead numbering, invoke
 <strong>NUMBER_PARAHEADS</strong> with any argument (<strong>OFF,
 QUIT, END, X</strong>...).  Parahead numbering will cease.
+<p>
 
 <a name="RESET_PARAHEAD_NUMBER"><h3><u>4. Reset head numbering -- RESET_PARAHEAD_NUMBER</u></h3></a>
+<p>
 Should you wish to reset the parahead number to &quot;1&quot;, invoke
 <strong>RESET_PARAHEAD_NUMBER</strong> with no argument.  If, for some
 reason, you want <strong>mom</strong> to use a parahead number that is not
@@ -1020,7 +1221,7 @@ the next in ascending order (i.e. the last parahead number + 1), invoke
 
 Your next parahead will be numbered &quot;7&quot; and subsequent
 paraheads will be numbered in ascending order from &quot;7&quot;.
-<br>
+<p>
 <hr>
 
 <!====================================================================>
@@ -1033,10 +1234,10 @@ paraheads will be numbered in ascending order from &quot;7&quot;.
 <p>
 By default, <strong>mom</strong> marks
 <a href="definitions.html#TERMS_LINEBREAK">author linebreaks</a>
-with three centered asterisks.  You can change this behaviour
+with three centred asterisks.  You can change this behaviour
 with the linebreak character
 <a href="definitions.html#TERMS_CONTROLMACRO">control macro</a>.
-<br>
+<p>
 
 <!---LINEBREAK--->
 
@@ -1045,6 +1246,8 @@ with the linebreak character
 <a name="LINEBREAK">
 	Macro: <strong>LINEBREAK</strong>
 </a>
+<br>
+Alias: <strong>SECTION</strong>
 
 <p>
 <strong>LINEBREAK</strong> takes no arguments.  Simply invoke it
@@ -1057,12 +1260,13 @@ macro.
 <h3><u>Linebreak character control macro</u></h3>
 <p>
 <a name="LINEBREAK_CHAR">
-	Macro: <strong>LINEBREAK_CHAR</strong> <var>[ &lt;character&gt; ] [ &lt;iterations&gt; [ &lt;vertical adjustment&gt; ] ]</var>
+	<nobr>Macro: <strong>LINEBREAK_CHAR</strong> [ &lt;character&gt; ] [ &lt;iterations&gt; [ &lt;vertical adjustment&gt; ] ]</nobr>
 </a>
+<br>
+Alias: <strong>SECTION_CHAR</strong>
 <br>
 <em>*The third optional argument requires a
 <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>.
-
 <p>
 <strong>LINEBREAK_CHAR</strong> determines what <strong>mom</strong>
 prints when <strong>LINEBREAK</strong> is invoked.  It takes 3
@@ -1074,12 +1278,13 @@ The first argument is any legal groff character (e.g. <kbd>*</kbd>
 [an asterisk], <kbd>\(dg</kbd> [a dagger], <kbd>\f(ZD\N'141\fP</kbd>
 [an arbitrary character from Zapf Dingbats], <kbd>\l'4P'</kbd>
 [a 4-pica long rule]).  <strong>Mom</strong> sets the character
-centered on the current line length.
+centred on the current line length.  (See &quot;man groff_char&quot;
+for a list of all legal groff characters.)
 <p>
 The second argument is the number of times to repeat the character.
 <p>
 The third argument is a +|- value by which to raise (+) or lower (-)
-the character in order to make it appear visually centered between
+the character in order to make it appear visually centred between
 sections of text.  This lets you make vertical adjustments
 to characters that don't sit on the
 <a href="definitions.html#TERMS_BASELINE">baseline</a>
@@ -1101,6 +1306,16 @@ position (for
 <a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE TYPESET</a>;
 the vertical adjustment is -2 points for
 <a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>).
+
+<h3><u>Linebreak colour control macro</u></h3>
+<p>
+<a name="LINEBREAK_COLOR">
+	<nobr>Macro: <strong>LINEBREAK_COLOR</strong> &lt;color name&gt;</nobr>
+</a>
+<p>
+To change the colour of the linebreak character(s), simply invoke
+<strong>LINBREAK_COLOR</strong> with the name of a pre-defined (or
+&quot;initialized&quot;) colour.
 <br>
 <hr>
 
@@ -1131,9 +1346,13 @@ or underlined
 <a href="docprocessing.html#PRINTSTYLE">(PRINTSTYLE TYPEWRITE)</a>,
 indented from the left margin.  Obviously, she's thinking
 &quot;quotes from poetry or song lyrics&quot;, but with the
-quote control macros you can change her defaults so
-<strong>QUOTE</strong> serves other needs, e.g. entering snippets of
-programming code, command line instructions, and so on.
+<a href="#QUOTE_CONTROL">quote control macros</a>
+you can change her defaults so <strong>QUOTE</strong> serves other
+needs, e.g. entering verbatim snippets of programming code, command
+line instructions, and so on.  (See the
+<a href="#QUOTE_TIP">tip</a>
+below for suggestions about including programming code snippets in
+documents.)
 <p>
 <a name="QUOTE_SPACING"></a>
 Besides indenting quotes, <strong>mom</strong> further sets them
@@ -1158,14 +1377,84 @@ and
 <a href="#BLOCKQUOTE">BLOCKQUOTE</a>,
 as does the control macro
 <a href="#QUOTE_INDENT">QUOTE_INDENT</a>.
-<br>
+<p>
+<strong>Version 1.3: mom</strong>'s handling of the vertical
+whitespace around quotes has changed slightly.  In versions prior
+to 1.3, it was not possible to alter the
+<a href="definitions.html#TERMS_LEADING">leading</a>
+of quotes and blockquotes (which was the same as the document
+leading), ensuring that the vertical whitespace remained consistent,
+as described above.  In 1.3 and later, it is possible to change the
+leading of quotes and blockquote via
+the <strong>QUOTE_AUTOLEAD</strong> and
+<strong>BLOCKQUOTE_AUTOLEAD</strong>macro.  Now, if your quote
+(or blockquote) leading differs from the document leading,
+<strong>mom</strong> attempts to observe the same rules for vertical
+whitespace outlined above; however, she will also insert a small,
+flexible amount of extra whitespace around the quotes to make sure
+the whitespace is equal, top and bottom.  Since she does this on a
+quote by quote basis, rather than by figuring out how much extra
+whitespace is needed to adjust <em>all</em> quotes on a page,
+the spacing around multiple quotes on the same page will differ
+slightly, although each will be balanced between lines of normal
+<a href="definitions.html#TERMS_RUNNING">running text</a>,
+top and bottom.  (The inability to scan an entire page and insert
+equalized whitespace at marked places is a limitation of groff,
+which, by and large, works in a linear, line by line fashion.)
+If you don't provide <strong>mom</strong> with a
+<strong>QUOTE_AUTOLEAD</strong>, quotes are leaded at the default
+for normal running text, meaning that multiple quotes on the same
+page are all spaced identically.
+<p>
+<a name="QUOTE_TIP"><strong>TIP:</strong></a>
+If you want to include snippets of programming code in
+<strong>mom</strong> documents, you may come acropper of the fact
+that groff (and <strong>mom</strong>'s) escape character is the
+backslash.  In order for <strong>mom</strong> not to interpret
+backslashes that occur in code snippets as escapes, you have to
+tell <strong>mom</strong> that the backslash character is
+(temporarily) no longer the escape character.  The easiest way
+to do this is to set the escape character to something else for
+the duration of the code snippet.  You accomplish this with
+<strong>ESC_CHAR</strong>, like this:
+<p>
+<pre>
+	.ESC_CHAR c
+</pre>
+
+where &quot;c&quot;, above, is the alternate escape character
+(which should be a character that does not appear in the code).  To
+set the escape character back to the backslash, simply invoke
+<strong>.ESC_CHAR</strong> by itself (i.e. with no argument).
+<p>
+Because <strong>mom</strong>, by default, sets the text after
+<strong>.QUOTE</strong> in italic (for <strong>PRINTSTYLE
+TYPESET</strong>) or underlined (for <strong>PRINTSTYLE
+TYPEWRITE</strong>), you'll want to change that behaviour as
+well.  Therefore, a recipe for setting verbatim code snippets using
+<strong>QUOTE</strong> could be (assuming you want a fixed width
+font like Courier):
+<p>
+<pre>
+	\# You only need the first two lines before the first invocation
+	\# of QUOTE.  They stay in effect for all subsequent invocations.
+	\#
+	.QUOTE_FONT       CR    \" Set quote font to Courier roman
+	.UNDERLINE_QUOTES OFF   \" Don't underline quotes in TYPEWRITE
+	.QUOTE
+	.ESC_CHAR ^             \" Change escape character to ^
+	&lt;code snippet&gt;
+	.ESC_CHAR               \" Restore escape character to \
+	.QUOTE OFF
+
+</pre>
 
 <!---QUOTE--->
 
 <hr width="66%" align="left">
 <p>
 <a name="QUOTE">
-	Macro: <strong>QUOTE</strong> <var>toggle</var>
+	<nobr>Macro: <strong>QUOTE</strong> toggle</nobr>
 </a>
 
 <p>
@@ -1186,27 +1475,30 @@ argument (e.g. OFF, END, X, Q...) to turn it off.  Example:
 
 <a name="QUOTE_CONTROL"><h3><u>Quote control macros</u></h3></a>
 <ol>
-	<li><a href="#QUOTE_GENERAL">Family/font/size/indent</a>
+	<li><a href="#QUOTE_GENERAL">Family/font/size/leading/colour/indent</a>
 	<li><a href="#ALWAYS_FULLSPACE_QUOTES">Spacing above and below (typeset only)</a>
 	<li><a href="#UNDERLINE_QUOTES">Underline quotes (typewrite only)</a>
 	<li><a href="#BREAK_QUOTE">Manually break a footnoted quote that crosses pages/columns</a>
 </ol>
 <p>
-<a name="QUOTE_GENERAL"><h3><u>1. Family/font/size/indent</u></h3></a>
+<a name="QUOTE_GENERAL"><h3><u>1. Family/font/size/colour/indent</u></h3></a>
 <p>
 See
 <a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
 <p>
 <pre>
-.QUOTE_FAMILY default = prevailing document family; default is Times Roman
-.QUOTE_FONT   default = italic
-.QUOTE_SIZE   default = 0 (i.e. same size as paragraph text)
-<a name="QUOTE_INDENT">.QUOTE_INDENT default = paragraph indent x 3 (typeset); x 2 (typewrite)</a>
-             (note that this macro also sets the indents (left and right)
-              for blockquotes)
+.QUOTE_FAMILY   default = prevailing document family; default is Times Roman
+.QUOTE_FONT     default = italic; underlined in TYPEWRITE
+.QUOTE_SIZE     default = +0 (i.e. same size as paragraph text)
+.QUOTE_AUTOLEAD default = none; leading of quotes is the same as paragraphs
+.QUOTE_COLOR    default = black
+<a name="QUOTE_INDENT">.QUOTE_INDENT   default = paragraph indent x 3 (typeset); x 2 (typewrite)</a>
+               (note that this macro also sets the indents (left and right)
+                for blockquotes)
 </pre>
 
 <a name="ALWAYS_FULLSPACE_QUOTES"><h3><u>2. Spacing above and below -- ALWAYS_FULLSPACE_QUOTES (typeset only)</u></h3></a>
+<p>
 If you'd like <strong>mom</strong> always to put a full linespace above
 and below quotes, invoke <strong>.ALWAYS_FULLSPACE_QUOTES</strong>
 with no argument.  If you wish to restore <strong>mom</strong>'s
@@ -1218,8 +1510,10 @@ X</strong>...)
 <strong>NOTE:</strong> This macro also sets <strong>mom</strong>'s
 spacing policy for
 <a href="#BLOCKQUOTE_INTRO">blockquotes</a>.
+<p>
 
 <a name="UNDERLINE_QUOTES"><h3><u>3. Underlining -- UNDERLINE_QUOTES (typewrite only)</u></h3></a>
+<p>
 By default in
 <a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
 <strong>mom</strong> underlines quotes.  If you'd rather she didn't,
@@ -1237,8 +1531,20 @@ of italics by default in <strong>PRINTSTYLE TYPEWRITE</strong>,
 you must also make sure that <strong>ITALIC_MEANS_ITALIC</strong>
 is enabled (see
 <a href="docprocessing.html#TYPEWRITE_CONTROL">PRINTSTYLE TYPEWRITE control macros</a>).
+<p>
 
 <a name="BREAK_QUOTE"><h3><u>4. Manually break a footnoted quote -- BREAK_QUOTE</u></h3></a>
+<p>
+<strong>NOTE:</strong> <em>As of version 1.1.9, the macro</em>
+<strong>BREAK_QUOTE</strong> <em>has become obsolete (or, at least,
+should have become obsolete.)  It remains here for backward
+compatibility with documents created prior to 1.1.9, and just in
+case, despite my efforts to make it obsolete, you still encounter the
+problem it's supposed to fix.  Should you find yourself having to
+use</em> <strong>BREAK_QUOTE</strong> <em>while running</em> <strong>mom</strong>
+1.1.9 <em>or higher, please notify me immediately.</em>
+
+<p>
 Exceptionally, a quote or blockquote containing a footnote may cross
 a page or column.  When this happens, the footnote marker may not be
 correct for its position relative to other footnotes on the page, and
@@ -1252,7 +1558,7 @@ will be marked correctly and appear on the correct page.
 <strong>BREAK_QUOTE</strong> may be used with both quotes and
 blockquotes, and hence is aliased as <strong>BREAK_BLOCKQUOTE,
 BREAK_CITATION</strong> and <strong>BREAK_CITE</strong>.
-<br>
+<p>
 <hr>
 
 <!====================================================================>
@@ -1281,24 +1587,16 @@ Besides indenting blockquotes, <strong>mom</strong> further sets them
 off from running text with a small amount of vertical whitespace top
 and bottom.  (See
 <a href="#QUOTE_SPACING">above</a>
-for a complete explanation of how this is managed, and how to control it.)
+for a complete explanation of how this is managed, and how to control it.
+Be sure to read the section <strong>Version 1.3</strong>.)
 <p>
-You may notice that <strong>BLOCKQUOTE</strong> has no macro to
-control
-<a href="definitions.html#TERMS_LEADING">leading</a>,
-although you can change the point size.  There are Very Good
-Reasons for this.  If you can't live with the limitation, change
-the leading of blockquotes (after invoking the tag) with
-<a href="typesetting.html#LS">LS</a>,
-but know that there will be Bottom Margin Consequences. 
-<br>
 
 <!---BLOCKQUOTE--->
 
 <hr width="66%" align="left">
 <p>
 <a name="BLOCKQUOTE">
-	Macro: <strong>BLOCKQUOTE</strong> <var>toggle</var>
+	<nobr>Macro: <strong>BLOCKQUOTE</strong> toggle</nobr>
 	<br>
 	Aliases: <strong>CITE, CITATION</strong>
 </a>
@@ -1326,31 +1624,35 @@ with
 <p>
 <strong>NOTE:</strong> The aliases <strong>CITE</strong>
 and <strong>CITATION</strong> may be used in place of the
-<strong>BLOCKQUOTE</strong> tag, but &quot;CITE&quot; and
-&quot;CITATION&quot; must not be used to replace &quot;BLOCKQUOTE&quot;
-in any of the tag's control macros.
+<strong>BLOCKQUOTE</strong> tag, as well as in any of the control
+macros that begin with <strong>BLOCKQUOTE_</strong> or end with
+<strong>_BLOCKQUOTE</strong>.
 
 <a name="BLOCKQUOTE_CONTROL"><h3><u>Blockquote control macros</u></h3></a>
 <ol>
-	<li><a href="#BLOCKQUOTE_GENERAL">Family/font/size/indent</a>
+	<li><a href="#BLOCKQUOTE_GENERAL">Family/font/size/leading/colour/quad/indent</a>
 	<li><a href="#ALWAYS_FULLSPACE_QUOTES">Spacing above and below (typeset only)</a>
 	<li><a href="#BREAK_QUOTE">Manually break a footnoted blockquote that crosses pages/columns</a>
 </ol>
 <p>
-<a name="BLOCKQUOTE_GENERAL"><h3><u>1. Family/font/size/indent</u></h3></a>
+<a name="BLOCKQUOTE_GENERAL"><h3><u>1. Family/font/size/colour/quad/indent</u></h3></a>
 <p>
 See
 <a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
 <p>
 <pre>
-.BLOCKQUOTE_FAMILY default = prevailing document family; default is Times Roman
-.BLOCKQUOTE_FONT   default = italic
-.BLOCKQUOTE_SIZE   default = -1 (point)
-.QUOTE_INDENT      default = paragraph indent x 3 (typeset); x 2 (typewrite)</a>
-                  (note that this macro also sets the left indent for quotes)
+.BLOCKQUOTE_FAMILY   default = prevailing document family; default is Times Roman
+.BLOCKQUOTE_FONT     default = roman
+.BLOCKQUOTE_SIZE     default = -1 (point)
+.BLOCKQUOTE_AUTOLEAD default = none; leading of blockquotes is the same as paragraphs
+.BLOCKQUOTE_COLOR    default = black
+.BLOCKQUOTE_QUAD     default = left
+.BLOCKQUOTE_INDENT   default = paragraph indent x 3 (typeset); x 2 (typewrite)</a>
+                    (note that this macro also sets the left indent for quotes)
 </pre>
 
 <a name="ALWAYS_FULLSPACE_QUOTES"><h3><u>2. Spacing above and below -- ALWAYS_FULLSPACE_QUOTES (typeset only)</u></h3></a>
+<p>
 If you'd like <strong>mom</strong> always to put a full linespace above
 and below blockquotes, invoke <strong>.ALWAYS_FULLSPACE_QUOTES</strong>
 with no argument.  If you wish to restore <strong>mom</strong>'s
@@ -1362,7 +1664,880 @@ X</strong>...).
 <strong>NOTE:</strong> This macro also sets <strong>mom</strong>'s
 spacing policy for
 <a href="#QUOTE_INTRO">quotes</a>.
+<p>
+<hr>
+
+<!====================================================================>
+
+<a name="LIST_INTRO"><h2><u>Nested lists</u></h2></a>
+<ul>
+	<li><a href="#LIST">Tag: LIST</a>
+	<li><a href="#ITEM">Tag: ITEM</a>
+	<li><a href="#LIST_CONTROL">LIST control macros</a>
+</ul>
+<p>
+Lists are points or items of interest or importance that are
+separated from
+<a href="definitions.html#TERMS_RUNNING">running text</a>
+by enumerators.  Some typical enumerators are
+<a href="definitions.html#TERMS_EM">en-dashes</a>,
+<a href="definitions.html#TERMS_BULLET">bullets</a>,
+digits and letters.
+<p>
+Setting lists with <strong>mom</strong> is easy.  First, you
+initialize a list with the <strong>LIST</strong> macro.  Then, for
+every item in the list, you invoke the macro, <strong>ITEM</strong>,
+followed by the text of the item.  When a list is finished, you
+exit the list with <strong>LIST OFF</strong> (or
+<strong>QUIT</strong>, <strong>END</strong>, <strong>BACK</strong>,
+etc.)
+<p>
+By default <strong>mom</strong> starts each list with the enumerator
+flush with the left margin of running text that comes before it,
+like this:
+<p>
+<pre>
+	My daily schedule needs organizing.  I can't
+	seem to get everything done I want.
+	o an hour's worth of exercise
+	o time to prepare at least one healthy
+	  meal per day
+	o reading time
+	o work on mom
+	o writing
+	  - changes from publisher
+	  - current novel
+	o a couple of hours at the piano
+</pre>
+
+In other words, <strong>mom</strong> does not, by default, indent
+entire lists.  Indenting a list is controlled by the macro,
+<a href="#SHIFT_LIST">SHIFT_LIST</a>.
+(This is a design decision; there are too many instances where a
+default indent is not desirable.)  Equally, <strong>mom</strong>
+does not add any extra space above or below lists.
+<p>
+Lists can be nested (as in the example above).  In other words, you
+can set lists within lists, each with an enumerator (and possibly,
+indent) of your choosing.  In nested lists, each invocation of
+<strong>LIST OFF</strong> (you may prefer to use <strong>LIST
+BACK</strong>) takes you back to the previous depth (or
+level) of list, with that list's enumerator and indent intact.  The
+final <strong>LIST OFF</strong> exits lists completely and returns
+you to the left margin of running text.
+<p>
+Finally, lists can be used in documents created with either the
+document processing macros or just the typesetting macros.
+<p>
+
+<!---LIST--->
+
+<hr width="66%" align="left">
+<p>
+<a name="LIST">
+	<nobr>Macro: <strong>LIST</strong> [ BULLET | DASH | DIGIT | ALPHA | alpha | ROMAN&lt;n&gt; | roman&lt;n&gt; | USER &lt;string&gt;] [ &lt;separator&gt; | &lt;user-defined enumerator&gt; ] [ &lt;prefix&gt; ] [ &lt;off&gt; ]</a></nobr>
+<p>
+Invoked by itself (i.e. with no argument), <strong>LIST</strong>
+initializes a list (with bullets as the default enumerator).
+Afterwards, each block of input text preceded by
+<a href="#ITEM">.ITEM</a>,
+on a line by itself, is treated as a list item.
+<p>
+<strong>NOTE:</strong> Every time you invoke <strong>LIST</strong>
+to start a list (as opposed to
+<a href="#LIST_EXIT">exiting one</a>),
+you must supply an enumerator (and optionally, a separator) for the
+list, unless you want <strong>mom</strong>'s default enumerator,
+which is a bullet.  Within nested lists, <strong>mom</strong>
+stores the enumerator, separator and indent for any list you return
+<em>backwards</em> to (i.e. with <strong>LIST OFF</strong>), but
+does not store any information for lists you move <em>forward</em>
+to.
 <br>
+
+<h3><u>The first argument--enumerator style</u></h3>
+<p>
+The optional arguments <strong>BULLET</strong>,
+<strong>DASH</strong>, <strong>DIGIT</strong> (for
+Arabic numerals), <strong>ALPHA</strong> (for uppercase
+letters), <strong>alpha</strong> (for lowercase letters),
+<strong>ROMAN&lt;n&gt;</strong> (for uppercase roman numerals),
+<strong>roman&lt;n&gt;</strong> (for lowercase roman numerals) tell
+<strong>mom</strong> what kind of enumerator to use for a given
+list.
+<p>
+The arguments, <strong>ROMAN&lt;n&gt;</strong> and
+<strong>roman&lt;n&gt;</strong>, are special.  You must append to
+them a digit (arabic, e.g.  "1" or "9" or "17") saying how many items
+a particular roman-numeralled <strong>LIST</strong> is going to
+have. <strong>Mom</strong> requires this information in order to
+align roman numerals sensibly, and will abort--with a message--if
+you don't provide it.
+<p>
+A roman-numeralled list containing, say, five items, would be set
+up like this:
+<p>
+<pre>
+	.LIST roman5        producing        i)   Item 1.
+	.ITEM                                ii)  Item 2.
+	Item 1.                              iii) Item 3.
+	.ITEM                                iv)  Item 4.
+	Item 2.                              v)   Item 5.
+	.ITEM
+	Item 3
+	.ITEM
+	Item 4
+	.ITEM
+	Item 5
+</pre>
+
+<p>
+The argument, <strong>USER</strong>, lets you make up your own
+enumerator, and must be followed by a second argument: what you'd
+like the enumerator to look like.  For example, if you want a list
+enumerated with
+<strong>=&gt;</strong>,
+<p>
+<pre>
+	.LIST USER =&gt;
+	.ITEM
+	A list item
+</pre>
+
+will produce
+<p>
+<pre>
+	=&gt; A list item
+</pre>
+
+<strong>Please note:</strong> if the argument to
+<strong>USER</strong> contains spaces, you must enclose the argument
+in double quotes.
+
+<br>
+
+<h3><u>The second argument--separator style</u></h3>
+<p>
+If you choose <strong>DIGIT</strong>, <strong>ALPHA</strong>,
+<strong>alpha</strong>, <strong>ROMAN&lt;n&gt;</strong>, or
+<strong>roman&lt;n&gt;</strong>, you may enter the optional
+argument, <strong>separator</strong>, to say what kind of separator
+you want after the enumerator.  The separator can be anything you
+like.  The default for <strong>DIGIT</strong> is a period (dot),
+like this:
+<p>
+<pre>
+	1. A list item
+</pre>
+
+The default separator for <strong>ALPHA</strong>,
+<strong>alpha</strong>, <strong>ROMAN&lt;n&gt;</strong> and
+<strong>roman&lt;n&gt;</strong> is a right parenthesis, like this:
+<p>
+<pre>
+	a) An alpha-ed list item
+	b) A second alpha-ed list item
+
+	   or
+
+	i)  A roman-ed list item
+	ii) A second roman-ed item
+</pre>
+
+If you'd prefer, say, digits with right-parenthesis separators
+instead of the default period, you'd do
+<p>
+<pre>
+	.LIST DIGIT )
+	.ITEM
+	A numberd list item
+</pre>
+
+which would produce
+<p>
+<pre>
+	1) A numbered list item
+</pre>
+
+<strong>Please note: BULLET</strong>, <strong>DASH</strong> and
+<strong>USER</strong> do not take a separator.
+<br>
+
+<h3><u>The third argument--prefix style</u></h3>
+<p>
+Additionally, you may give a prefix (i.e. a character that comes
+<em>before</em> the enumerator) when your enumerator style for a
+particular list is <strong>DIGIT</strong>, <strong>ALPHA</strong>,
+<strong>alpha</strong>, <strong>ROMAN&lt;n&gt;</strong>
+or <strong>roman&lt;n&gt;</strong>.  In the arguments to
+<strong>LIST</strong>, the prefix comes <em>after</em> the
+separator, which may seem counter-intuitive, so please be careful.
+<p>
+A prefix can be anything you like.  Most likely, you'll want some
+kind of open-bracket, such as a left parenthesis.  If, for example,
+you want a <strong>DIGIT</strong> list with the numbers enclosed in
+parentheses, you'd enter
+<p>
+<pre>
+	.LIST DIGIT ) (
+	.ITEM
+	The first item on the list.
+	.ITEM
+	The second item on the list.
+</pre>
+
+which would produce 
+<p>
+<pre>
+	(1) The first item on the list.
+	(2) The second item on the list.
+</pre>
+
+<strong>Please note: BULLET</strong>, <strong>DASH</strong> and
+<strong>USER</strong> do not take a prefix.
+<br>
+
+<a name="LIST_EXIT"></a>
+<h3><u>Exiting lists--.LIST OFF/BACK or .QUIT_LISTS</u></h3>
+<p>
+Any single argument to <strong>LIST</strong> other
+than <strong>BULLET</strong>, <strong>DASH</strong>,
+<strong>DIGIT</strong>, <strong>ALPHA</strong>,
+<strong>alpha</strong>, <strong>ROMAN&lt;n&gt;</strong>,
+<strong>roman&lt;n&gt;</strong> or <strong>USER</strong> (e.g.
+<strong>LIST</strong> <kbd>OFF</kbd> or <strong>LIST</strong>
+<kbd>BACK</kbd>) takes you out of the current list.
+<p>
+If you are at the first list-level (or "list-depth"),
+<strong>mom</strong> returns you to the left margin of running text.
+Any indents that were in effect prior to setting the list are fully
+restored.
+<p>
+If you are in a nested list, <strong>mom</strong> moves you
+<em>back one list-level</em> (i.e. does not take you out of the
+list structure) and restores the enumerator, separator and indent
+appropriate to that level.
+<p>
+Each invocation of <strong>LIST</strong> should be be matched by
+a corresponding <strong>LIST OFF</strong> in order to fully exit
+lists.  For example,
+<p>
+<pre>
+	Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+	sed diam nonumy eirmod tempor invidunt ut labore.
+	o List item in level 1
+	o List item in level 1
+	  - List item in level 2
+	  - List item in level 2
+	Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+	sed diam nonumy eirmod tempor invidunt ut labore.
+</pre>
+
+is created like this:
+<p>
+<pre>
+	Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+	sed diam nonumy eirmod tempor invidunt ut labore.
+	.LIST BULLET
+	.ITEM
+	List item in level 1
+	.ITEM
+	List item in level 1
+	.LIST DASH
+	.ITEM
+	List item in level 2
+	.ITEM
+	List item in level 2
+	.LIST OFF    \" Turn level 2 list off
+	.LIST OFF    \" Turn level 1 list off
+	Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+	sed diam nonumy eirmod tempor invidunt ut labore.
+</pre>
+
+Alternatively, you may use the single-purpose macro,
+<strong>QUIT_LISTS</strong>, to get yourself out of a list
+structure.  In the example above, the two <kbd>.LIST OFF</kbd>
+lines could be replaced with a single <kbd>.QUIT_LISTS</kbd>.
+<p>
+
+<hr width="33%" align="left">
+<p>
+<a name="ITEM">
+	Macro: <strong>ITEM</strong>
+<p>
+After you've initialized a list with
+<a href="#LIST">LIST</a>,
+precede each item you want in the list with <strong>ITEM</strong>.
+<strong>Mom</strong> takes care of everything else with respect to
+setting the item appropriate to the list you're in.
+<p>
+In document processing, it is legal to have list items that contain
+multiple paragraphs.  Simply issue a
+<a href="#PP">PP</a>
+request for each paragraph <em>following</em> the first item.
+I.e., don't do this:
+<p>
+<pre>
+	.ITEM
+	.PP
+	Some text...
+	.PP
+	A second paragraph of text
+</pre>
+
+but rather
+<p>
+<pre>
+	.ITEM
+	Some text...
+	.PP
+	A second paragraph of text
+</pre>
+<hr width="33%" align="left">
+
+<a name="LIST_CONTROL"><h3><u>List control macros</u></h3></a>
+<ol>
+	<li><a href="#SHIFT_LIST">Indenting lists (SHIFT_LIST)</a>
+	<li><a href="#RESET_LIST">Resetting an initialized list's enumerator (RESET_LIST)</a>
+	<li><a href="#PAD_LIST_DIGITS">Padding digit enumerators (PAD_LIST_DIGITS)</a>
+</ol>
+
+<a name="SHIFT_LIST"><h3><u>1. Indenting lists -- SHIFT_LIST</u></h3></a>
+<p>
+If you want a list to be indented to the right of running text, or
+indented to the right of a current list, use the macro
+<strong>SHIFT_LIST</strong> immediately after
+<a href="#LIST">LIST</a>.
+<strong>SHIFT_LIST</strong> takes just one argument: the amount by
+which you want the list shifted to the right.  The argument requires
+a
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>,
+<p>
+<strong>SHIFT_LIST</strong> applies <em>only</em> to the list you
+just initialized with <strong>LIST</strong>.  It does not carry
+over from one invocation of <strong>LIST</strong> to the next.
+However, the indent remains in effect when you <em>return</em> to a
+list level in a nested list.
+<p>
+For example, if you want a 2-level list, with each list indented to
+the right by 18
+<a href="definitions.html#TERMS_PICASPOINTS">points</a>,
+<p>
+<pre>
+	Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+	sed diam nonumy eirmod tempor invidunt ut labore.
+	.LIST           \" List 1
+	.SHIFT_LIST 18p \" Indent 18 points right of running text
+	.ITEM
+	List 1 item
+	.ITEM
+	List 1 item
+	.LIST DASH      \" List 2
+	.SHIFT_LIST 18p \" Indent 18 points right of list 1
+	.ITEM
+	List 2 item
+	.ITEM
+	List 2 item
+	.LIST OFF       \" Move back to list 1
+	.ITEM
+	List 1 item
+	.ITEM
+	List 1 item
+	.LIST OFF       \" Exit lists
+	Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+	sed diam nonumy eirmod tempor invidunt ut labore.
+</pre>
+
+produces (approximately)
+<p>
+<pre>
+	Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+	sed diam nonumy eirmod tempor invidunt ut labore.
+	    o List 1 item
+	    o List 1 item
+	        - List 2 item
+	        - List 2 item
+	    o List 1 item
+	    o List 1 item
+	Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+	sed diam nonumy eirmod tempor invidunt ut labore.
+</pre>
+
+<a name="RESET_LIST"><h3><u>2. Resetting an initialized list's enumerator -- RESET_LIST</u></h3></a>
+<p>
+In nested lists, if your choice of list enumerator for a given
+level of list is <strong>DIGIT</strong>, <strong>ALPHA</strong>,
+<strong>alpha</strong>, <strong>ROMAN</strong> or
+<strong>roman</strong>, you may sometimes want to reset the list's
+enumerator when you return to that list.  Consider the following:
+<p>
+<pre>
+	Things to do religiously each and every day:
+	1. Take care of the dog
+	   a) walk every day
+	   b) brush once a week
+	      - trim around the eyes every fourth brushing
+	      - don't forget to check nails
+	2. Feed the cat
+	   a) soft food on Mon., Wed. and Fri.
+	   b) dry food on Tues., Thurs. and Sat.
+	   c) canned tuna on Sunday
+</pre>
+
+Normally, within a nested list, when you return to an
+incrementally-enumerated list, the enumerator continues incrementing
+from where it left off.  That means, in the example above, the
+normal state of affairs for the alpha'ed list under &quot;2.  Feed
+the cat&quot; would be c), d) and e).  The solution, in such a case,
+is simply to reset the enumerator --before <strong>ITEM</strong>!--
+with the macro, <strong>RESET_LIST</strong>.
+<p>
+By default, with no argument, <strong>RESET_LIST</strong> resets the
+enumerator to 1, A, a, I or i depending on the style of enumerator.
+You may, if you wish, pass <strong>RESET_LISTS</strong> a numeric
+argument representing the starting enumerator for the reset (if
+different from "1"), although I can't at present think of a use for
+this feature.
+<p>
+<a name="PAD_LIST_DIGITS"><h3><u>3. Padding digit enumerators (PAD_LIST_DIGITS)</a></u></h3></a>
+<p>
+<strong><u>Arabic digits</u></strong>
+<p>
+When your choice of enumerators is <strong>DIGIT</strong> AND the
+number of items in the list exceeds nine (9), you have to make a
+design decision: should <strong>mom</strong> leave room for the
+extra numeral in two-numeral digits to the right or the left of
+the single-numeral digits?
+<p>
+If you want the extra space to the right, invoke the macro,
+<strong>.PAD_LIST_DIGITS</strong> (with no argument), after
+<strong>LIST</strong> and before <strong>ITEM</strong>.  This will
+produce something like
+<p>
+<pre>
+	8.  List item
+	9.  List item
+	10. List item
+</pre>
+
+If you want the extra space to the left, invoke
+<strong>PAD_LIST_DIGITS</strong> with the single argument,
+<strong>LEFT</strong>, which will produce
+<p>
+<pre>
+	 8. List item
+	 9. List item
+	10. List item
+</pre>
+
+Of course, if the number of items in the list is less than ten
+(10), there's no need for <strong>PAD_LIST_DIGITS</strong>.
+<p>
+<strong><u>Roman numerals</u></strong>
+<p>
+By default, <strong>mom</strong> sets roman numerals in lists flush
+left.  The <strong>&lt;n&gt;</strong> argument appended to
+<strong>ROMAN&lt;n&gt;</strong> or <strong>roman&lt;n&gt;</strong>
+allows her to calculate how much space to put after each numeral in
+order to ensure that the text of items lines up properly.
+<p>
+If you'd like the roman numerals to line up flush right (i.e. be
+padded "left"), simply invoke <strong>PAD_LIST_DIGITS</strong>
+<kbd>LEFT</kbd> after <strong>LIST</strong> <kbd>ROMAN&lt;n&gt;</kbd>
+or <strong>LIST</strong> <kbd>roman&lt;n&gt;</kbd> amd before
+<strong>ITEM</strong>.
+<p>
+<hr>
+
+<!---LINE NUMBERING--->
+
+<a name="NUMBER_LINES_INTRO"><h2><u>Line numbering</u></h2></a>
+<ul>
+	<li><a href="#NUMBER_LINES">Macro: NUMBER_LINES</a>
+	<li><a href="#NUMBER_LINES_CONTROL">Control macros</a> (for quotes and blockquotes)
+</ul>
+
+<p>
+<strong>Mom</strong>'s line-numbering capabilities are not as flexible
+as most of her other document processing macros.  The reason is
+that groff's underlying line-numbering
+<a href="definitions.html#TERMS_PRIMITIVEX">primitive</a>,
+<kbd>.nm</kbd>, is, well...primtive.  It is not possible, for
+example, to select a particular family or font for use exclusively
+with line numbers.  Nor is it possible to set the
+<a href="definitions.html#TERMS_GUTTER">gutter</a>
+using any
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
+other than the
+<a href="definitions.html#TERMS_FIGURESPACE">figure space</a>.
+<p>
+That said, when you turn line-numbering on, <strong>mom</strong>,
+by default
+<br>
+<a name="NUMBER_LINES_DEFAULTS"></a>
+<ul>
+    <li>numbers every line of paragraph text; line-numbering is
+        suspended for all other document processing tags (like
+        docheaders, epigraphs, heads, subheads, etc.) and special
+        pages (covers, endotes, bibliographies, etc.); be aware,
+        though, that if you turn
+        <a href="definitions.html#TERMS_DOCHEADER">docheaders</a>
+    	off (with
+    	<a href="docprocessing.html#DOCHEADER">DOCHEADER</a> <strong>OFF</strong>)
+    	and create your own docheader, <strong>mom</strong>
+    	<em>will</em> line-number your custom docheader
+    <li>doesn't touch your line length; line numbers are hung
+        outside your current left margin (as set with
+        <a href="typesetting.html#L_MARGIN">L_MARGIN</a>,
+        <a href="typesetting.html#PAGE">PAGE</a>
+        or
+        <a href="docprocessing.html#DOC_LEFT_MARGIN">DOC_LEFT_MARGIN</a>),
+        regardless of any indents that may be active
+    <li>separates line numbers from running text by two
+        <a href="definitions.html#TERMS_FIGURESPACE">figure spaces</a>.
+</ul>
+<p>
+Line numbering may be enabled and disabled for
+<a href="#QUOTE">QUOTE</a>
+and/or
+<a href="#BLOCKQUOTE">BLOCKQUOTE</a>
+in one of three styles.  See
+<a href="#NUMBER_LINES_CONTROL">Line numbering control macros for quotes and blockquotes</a>.
+<p>
+The first time you invoke
+<a href="#NUMBER_LINES">NUMBER_LINES</a>
+you must, at a minimum, tell it what line number you want the
+<em>next</em>
+<a href="definitions.html#TERMS_OUTPUTLINE">output line</a>
+to have.  Optional arguments allow you to state which lines should
+be numbered (e.g. every five or every ten lines), and the gutter to
+place between line numbers and
+<a href="definitions.html#TERMS_RUNNING">running text</a>.
+<p>
+Subsequently, you can turn line-numbering off, either permanently,
+or resume it later at a place of your choosing.  When you
+resume line-numbering, the line numbers pick up where you left off.
+<p>
+
+<!---NUMBER_LINES--->
+
+<hr width="66%" align="left">
+<p>
+<nobr>
+<a name="NUMBER_LINES">
+	<nobr>Macro: <strong>NUMBER_LINES</strong> &lt;start number&gt; [ &lt;which lines to number&gt; [ &lt;gutter&gt; ] ]</nobr>
+    <br>
+	<nobr>Macro: <strong>NUMBER_LINES</strong>  &lt;anything&gt; | RESUME</nobr>
+    <br>
+</a>
+</nobr>
+
+<p>
+<strong>NUMBER_LINES</strong> does what it says: prints line
+numbers, to the left of
+<a href="definitions.html#TERMS_OUTPUTLINE">output lines</a>
+of paragraph text.  One of the chief reasons for wanting numbered
+lines is in order to identify footnotes or endnotes by line number
+instead of by a marker in the text.  (See
+<a href="#FOOTNOTE_LINENUMBERS">.FOOTNOTE_MARKER_STYLE LINE</a>
+for instructions on line-numbered footnotes, and
+<a href="#ENDNOTE_MARKER_STYLE">.ENDNOTE_MARKER_STYLE</a>
+for instructions on line-numbered endnotes.)
+<p>
+Every time you invoke <strong>NUMBER_LINES</strong>, unless you are
+using the arguments <strong>OFF</strong> (<strong>QUIT</strong>,
+<strong>END</strong>, <strong>X</strong>, etc.) or
+<strong>RESUME</strong> you must, at a minimum, pass it one
+argument, namely the number (digit) you want the <em>next</em>
+<a href="definitions.html#TERMS_OUTPUTLINE">output line</a>
+to have.  For example,
+<pre>
+	.NUMBER_LINES 3
+</pre>
+
+will prepend the number, 3, to the next output line.
+<p>
+Normally, of course, you will number lines of text starting at 1.
+All you have to do in that case is ensure that
+<pre>
+	.NUMBER_LINES 1
+</pre>
+
+precedes your first line of input text, which will also be the
+first line of output text.
+<p>
+You can alter <strong>mom</strong>'s default line numbering
+behaviour (see
+<a href="#NUMBER_LINES_DEFAULT">above</a>)
+with the optional arguments <strong>&lt;which lines to
+number&gt;</strong> and <strong>&lt;gutter&gt;</strong>.
+<p>
+<strong>&lt;which lines to number&gt;</strong> instructs
+<strong>NUMBER_LINES</strong> to number only certain lines, e.g.
+every two lines or every five lines.  If you want, say, only every
+five lines to have a prepended number, you'd do
+<pre>
+	.NUMBER_LINES 1 5
+</pre>
+
+<strong>GOTCHA!</strong>  The argument to <strong>&lt;which
+lines to number&gt;</strong> only numbers those lines that are
+multiples of the argument.  Hence, in the above example, line
+number "1" will <em>not</em> be numbered, since "1" is not a
+multiple of "5".
+<p>
+If you wanted line number "1" to be numbered, you'd have to invoke
+<kbd>.NUMBER_LINES 1 1</kbd> before the first output line, then
+study your <em>output</em> copy and determine where best to insert
+the following in your <em>input</em> copy:
+<pre>
+	.NUMBER_LINES \n(ln 5
+</pre>
+
+(The escape, <kbd>\n(ln</kbd>, ensures that
+<strong>NUMBER_LINES</strong> automatically supplies the correct
+value for the first argument, <strong>&lt;start
+number&gt;</strong>.)
+<p>
+Following this recipe, line number 1 will be numbered; subsequently,
+only line numbers that are multiples of 5 will be numbered.  A
+little experimentation may be required to determine the best place
+for it.
+<p>
+The optional argument, <strong>&lt;gutter&gt;</strong>, tells
+<strong>mom</strong> how much space to put between the line numbers
+and the running text.
+<p>
+<strong>Note</strong>: when giving a value for
+<strong>&lt;gutter&gt;</strong>, you cannot skip the
+<strong>&lt;which lines to number&gt;</strong> argument.  Either
+fill in the desired value, or use two double-quotes
+(<strong>""</strong>) to have <strong>mom</strong> use the value
+formerly in effect.
+<p>
+<strong>&lt;gutter&gt;</strong> does not require (or even accept) a
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>.
+The argument you pass to it is the number of
+<a href="definitions.html#TERMS_FIGURESPACE">figure spaces</a>
+you want between line numbers and running text.
+<strong>Mom</strong>'s default gutter is two figure spaces.  If
+you'd like a wider gutter, say, four figures spaces, you'd do
+<pre>
+	.NUMBER_LINES 1 1 4
+	                |
+	                +-- Notice you *must* supply a value
+	                    for the 2nd argument in order to supply
+	                    a value for the 3rd.
+</pre>
+
+<p>
+After you've set up line-numbering, <strong>NUMBER_LINES</strong>
+can be used to control line numbering.
+<br>
+<h3><u>Line-numbering control</u></h3>
+<p>
+<strong>NUMBER_LINES OFF</strong> (or <strong>END, QUIT, X,</strong> etc.)
+turns line-numbering off.
+<p>
+Sometimes, you merely want to suspend line-numbering.  In that case,
+turn line numbering off with <strong>NUMBER_LINES OFF</strong>.
+Later, when you want it to resume, enter
+<pre>
+	.NUMBER_LINES RESUME
+</pre>
+
+Line numbering will resume exactly where it left off.  If this is
+not what you want--say you want to reset the line number to "1"--simply
+invoke <strong>NUMBER_LINES</strong> with whatever arguments
+are needed for the desired result.
+<p>
+<strong>Extra Notes:</strong>
+<br>
+<ol>
+    <li>In document processing, you may invoke <strong>NUMBER_LINES</strong>
+        either before or after <strong>START</strong>.
+        <strong>Mom</strong> doesn't care.
+    <li>If you're collating documents with
+        <a href="rectoverso.html#COLLATE">COLLATE</a>,
+        you should re-invoke, at a minimum, <kbd>.NUMBER_LINES
+        1</kbd> for each collated document, in order to ensure that
+        each begins with the number "1" prepended to the first line
+        (unless, of course, that is not what you want).
+    <li>Occasionally, you may want to change the current gutter
+        between line numbers and running text without knowing
+        what the next output line number should be.  Since
+        <strong>NUMBER_LINES</strong> requires this number
+        as its first argument, in such instances, pass
+        <strong>NUMBER_LINES</strong> as its first argument the
+        escape <kbd>\n(ln</kbd>.
+        <p>
+        For example, if you were numbering every 5 lines with a
+        gutter of 2 (figure spaces) and you needed to change the
+        gutter to 4 (figures spaces),
+        <p>
+        <kbd>&nbsp;&nbsp;&nbsp;&nbsp;.NUMBER_LINES \n(ln 5 4</kbd>
+        <p>
+        would do the trick.
+    <li>If you're using margin notes in a document, be sure to set
+        the gutter for margin notes wide enough to allow room for
+        the line numbers.
+    <li><strong>Mom</strong> (groff, actually), only numbers lines
+        <em>to the left of text</em>.  For aesthetic reason,
+        therefore, the use of line numbering when setting a document
+        in columns is discouraged.  However, should you wish to
+        number lines when setting in columns, make sure the
+        <a href="definitions.html#TERMS_GUTTER">gutter(s)</a>
+        between columns is wide enough to leave room for the
+        numbers.
+</ol>
+<hr width="33%" align="left">
+
+<a name="NUMBER_LINES_CONTROL"><h3><u>Line numbering control macros for QUOTE and BLOCKQUOTE</u></h3></a>
+<ol>
+	<li><a href="#NUMBER_QUOTE_LINES">NUMBER_QUOTE_LINES</a>
+	<li><a href="#NUMBER_BLOCKQUOTE_LINES">NUMBER_BLOCKQUOTE_LINES</a>
+	<li><a href="#NUMBER_LINES_QUOTES">Setting up line numbering in quotes and blockquotes on a case by case basis</a>
+</ol>
+
+<a name="NUMBER_QUOTE_LINES"><h3><u>1. NUMBER_QUOTE_LINES</u></h3></a>
+<p>
+If you'd like <strong>mom</strong> to number lines of output text
+in a
+<a href="#QUOTE">QUOTE</a>
+as part of the same order and sequence as paragraph text, simply
+invoke <strong>NUMBER_QUOTE_LINES</strong> by itself.
+<p>
+There is a catch with numbering quotes, though.  Owing to groff's
+restriction of accepting only the figure space as the line number
+gutter's unit of measure, it is not possible for line numbers
+in quotes to hang outside a document's overall left margin and
+be reliably flush with the line numbers of paragraph text.
+Conseqently, line numbers in quotes hang to the left of the quote,
+separated from the quote by the <strong>&lt;gutter&gt;</strong>
+argument.
+<p>
+If you'd like to change the gutter for quotes line-numbered in
+this way, invoke <strong>NUMBER_QUOTE_LINES</strong> with a digit
+representing the number of
+<a href="definitions.html#TERMS_FIGURESPACE">figure spaces</a>
+you'd like between the line numbers and the quoted text, like this:
+<pre>
+	.NUMBER_QUOTE_LINES 1
+</pre>
+
+With the above, line numbers in quotes (and only quotes) will have
+a gutter of 1 figure space.
+<p>
+If you are using "line numbering style" for footnotes
+(<a href="#FOOTNOTE_MARKER_STYLE">FOOTNOTE_MARKER_STYLE</a> <strong>LINE</strong>),
+you may not wish to have quotes <em>visibly</em> line-numbered, but
+still want to embed footnotes inside quotes.  In order to do that,
+<strong>mom</strong> allows you to say <strong>NUMBER_QUOTE_LINES
+SILENT</strong>.
+<p>
+When you invoke <strong>NUMBER_QUOTE_LINES</strong>
+<kbd>SILENT</kbd>, <strong>mom</strong> continues to increment line
+numbers while quotes are being output, but they won't appear in the
+output copy.  (Compare this with <strong>mom</strong>'s default
+behaviour of <em>suspending</em> incrementing of line numbers
+during the output of quotes.)  This allows you to embed
+line-numbered footnotes inside quotes and have the line number
+"label" in the footnote come out sensibly.
+<p>
+Once having turned <strong>NUMBER_QUOTE_LINES</strong> on, you
+may disable it with <strong>NUMBER_QUOTE_LINES OFF</strong> (or
+<strong>QUIT</strong>, <strong>END</strong>, <strong>X</strong>,
+etc).
+<p>
+
+<a name="NUMBER_BLOCKQUOTE_LINES"><h3><u>2. NUMBER_BLOCKQUOTE_LINES</u></h3></a>
+<p>
+If you'd like <strong>mom</strong> to number lines of output text
+in a
+<a href="#QUOTE">BLOCKQUOTE</a>
+as part of the same order and sequence as paragraph text, simply
+invoke <strong>NUMBER_BLOCKQUOTE_LINES</strong> by itself.
+<p>
+There is a catch with numbering blockquotes, though.  Owing to
+groff's restriction of accepting only the figure space as the
+line number gutter's unit of measure, it is not possible for line
+numbers in blockquotes to hang outside a document's overall left
+margin and be reliably flush with the line numbers of paragraph
+text.  Conseqently, line numbers in blockquotes hang to the
+left of the blockquote, separated from the blockquote by the
+<strong>&lt;gutter&gt;</strong> argument.
+<p>
+If you'd like to change the gutter for blockquotes line-numbered in
+this way, invoke <strong>NUMBER_BLOCKQUOTE_LINES</strong> with a digit
+representing the number of
+<a href="definitions.html#TERMS_FIGURESPACE">figure spaces</a>
+you'd like between the line numbers and the blockquoted text, like
+this:
+<pre>
+	.NUMBER_BLOCKQUOTE_LINES 1
+</pre>
+
+With the above, line numbers in blockquotes (and only blockquotes)
+will have a gutter of 1 figure space.
+<p>
+If you are using "line numbering style" for footnotes
+(<a href="#FOOTNOTE_MARKER_STYLE">FOOTNOTE_MARKER_STYLE</a> <strong>LINE</strong>),
+you may not wish to have blockquotes <em>visibly</em> line-numbered,
+but still want to embed footnotes inside blockquotes.  In
+order to do that, <strong>mom</strong> allows you to say
+<strong>NUMBER_BLOCKQUOTE_LINES SILENT</strong>.
+<p>
+When you invoke <strong>NUMBER_BLOCKQUOTE_LINES</strong>
+<kbd>SILENT</kbd>, <strong>mom</strong> continues to increment line
+numbers while blockquotes are being output, but they won't appear in
+the output copy.  (Compare this with <strong>mom</strong>'s default
+behaviour of <em>suspending</em> incrementing of line numbers during
+the output of blockquotes.)  This allows you to embed line-numbered
+footnotes inside blockquotes and have the line number "label" in the
+footnote come out sensibly.
+<p>
+Once having turned <strong>NUMBER_BLOCKQUOTE_LINES</strong> on, you
+may disable it with <strong>NUMBER_BLOCKQUOTE_LINES OFF</strong> (or
+<strong>QUIT</strong>, <strong>END</strong>, <strong>X</strong>,
+etc).
+<p>
+
+<a name="NUMBER_LINES_QUOTES"><h3><u>3. Setting up line numbering in quotes and blockquotes on a case by case basis</u></h3></a>
+<p>
+Sometimes, you may want quotes or blockquotes to have a different
+line numbering scheme from the one used in the rest of the
+document.  Or, you may want line numbering enabled only inside a
+particular quote or blockquote.  A common reason for this would be
+if you were using the
+<a href="#QUOTE">QUOTE</a>
+macro to insert lines of programming code into a document.  (See
+<a href="#QUOTE_TIP">here</a>
+for suggestions about including programming code snippets in
+documents.)
+<p>
+To enable line numbering within quotes or blockquotes on a case by
+case basis, simply invoke <strong>NUMBER_LINES</strong>, with the
+arguments you need, immediately after entering <strong>QUOTE</strong>
+or <strong>BLOCKQUOTE</strong>.  (<strong>NUMBER_QUOTE_LINES</strong>
+and/or <strong>NUMBER_BLOCKQUOTE_LINES</strong> should be turned
+off if you're doing this.)  The quote or blockquote will then be
+line-numbered according to your specifications: the starting line
+number of the quote or blockquote will be the one you give as a
+first argument to <strong>NUMBER_LINES</strong>; which lines to
+number will be the value you pass to <strong>&lt;which lines to
+number&gt;</strong> (defaults to "1"); line numbers will hang
+to the left of the quote or blockquote, separated from the quote or
+blockquote by <strong>&lt;gutter&gt;</strong> (defaults to "2").
+<p>
+As soon as <strong>QUOTE</strong> or <strong>BLOCKQUOTE</strong> is
+turned off, line numbering ceases, not only with respect to
+subsequent paragraph text (if they are not being line-numbered),
+but also for any subsequent invocation of <strong>QUOTE</strong> or
+<strong>BLOCKQUOTE</strong>.  In other words, you must re-enable
+quote or blockquote line-numbering inside every instance of
+<strong>QUOTE</strong> or <strong>BLOCKQUOTE</strong> when
+line-numbering either of them on a case by case basis.
+<p>
 <hr>
 
 <!====================================================================>
@@ -1370,6 +2545,9 @@ spacing policy for
 <a name="FOOTNOTE_INTRO"><h2><u>Footnotes</u></h2></a>
 <ul>
 	<li><a href="#FOOTNOTE_BEHAVIOUR">Footnote behaviour</a>
+	<ul>
+		<li><a href="#FN_AND_PUNCT">Footnote markers and punctuation in the running text</a>
+	</ul>
 	<li><a href="#FOOTNOTE">Tag: FOOTNOTE</a>
 	<li><a href="#FOOTNOTE_CONTROL">FOOTNOTE control macros</a>
 </ul>
@@ -1384,51 +2562,106 @@ You just type, for example
 	.FOOTNOTE
 	&lt;footnote about who the hell is Schelling&gt;
 	.FOOTNOTE OFF
-	were generally the points of discussion presenting the most
+	 were generally the points of discussion presenting the most
 	of beauty to the imaginative Morella.
 </pre>
 
-and be done with it.  (Note the obligatory use of the
-<strong>\c</strong>
-<a href="definitions.html#TERMS_INLINES">inline escape</a>.)
-<strong>Mom</strong> takes care of everything:
-putting footnote markers in the body of the document, keeping track
-of how many footnotes are on the page, identifying the footnotes
-themeselves appropriately, balancing them properly with the botton
-margin, deferring footnotes that don't fit on the page...  Even if
-you're using
+and be done with it.
+<p>
+(Note the obligatory use of the <strong>\c</strong>
+<a href="definitions.html#TERMS_INLINES">inline escape</a>.
+It is required when your
+<a href="#FOOTNOTE_MARKER_STYLE">FOOTNOTE_MARKER_STYLE</a>
+is either <strong>STAR</strong> [star/dagger footnotes] or
+<strong>NUMBER</strong> [superscript numbers]; it is NOT to be used
+when the <strong>FOOTNOTE_MARKER_STYLE</strong> is
+<strong>LINE</strong>, or when footnote markers have been disabled
+with
+<a href="#FOOTNOTE_MARKERS">.FOOTNOTE_MARKERS</a>
+<strong>OFF</strong>.)
+<p>
+<strong>***Version 1.3 change***</strong>
+<p>
+As of version 1.3, the manner of entering the line
+<em>after</em> <strong>.FOOTNOTE OFF</strong> has changed
+to accommodate users' differing wishes with respect to
+the order of punctuation and footnote markers.  The
+correct way to enter the line after <strong>.FOOTNOTE
+OFF</strong>--<strong><em><u>ONLY</u></em></strong> if your
+<a href="#FOOTNOTE_MARKER_STYLE">FOOTNOTE_MARKER_STYLE</a> is
+<strong>STAR</strong> or <strong>NUMBER</strong>--is to input
+it as if it's literally a continuation of the line before
+<strong>.FOOTNOTE</strong>, and therefore begins with either a space
+or a punctuation mark, as in the two following examples.
+<p>
+<pre>
+	   Example 1					  Example 2
+	   ---------                      ---------
+
+	A line of text,\c				A line of text\c
+	.FOOTNOTE						.FOOTNOTE
+	A footnote line.				A footnote line.
+	.FOOTNOTE OFF					.FOOTNOTE OFF
+	 broken up with a comma.		, broken up with a comma.
+
+	(last line begins with			(last line begins with
+	 a literal space)				 the comma and a space)
+</pre>
+
+If your <strong>FOOTNOTE_MARKER_STYLE</strong> is line, none of
+this is a concern.
+<p>
+<strong>***End of version 1.3 change***</strong>
+<p>
+After you invoke <strong>FOOTNOTE</strong>, <strong>mom</strong>
+takes care of everything: putting footnote markers in the body of
+the document, keeping track of how many footnotes are on the page,
+identifying the footnotes themselves appropriately, balancing them
+properly with the bottom margin, deferring footnotes that don't fit
+on the page...  Even if you're using
 <a href="columns.html#COLUMNS">COLUMNS</a>,
 <strong>mom</strong> knows what to do, and Does The Right Thing.
 <p>
 Footnotes can be sly little beasts, though.  If you're writing a
 document that's footnote-heavy, you might want to read the following.
+<p>
 
 <a name="FOOTNOTE_BEHAVIOUR"><h3><u>Footnote behaviour</u></h3></a>
 <p>
-By default, <strong>mom</strong> marks footnotes with
-alternating stars (asterisks) and daggers.  The first footnote
-gets a star, the second a dagger, the third two stars,
-the fourth two daggers, etc.  If you prefer numbered footnotes, rest
-assured <strong>mom</strong> is happy to oblige.
+By default, <strong>mom</strong> marks footnotes with alternating
+stars (asterisks), daggers, and double-daggers.  The first footnote
+gets a star, the second a dagger, the third a double-dagger, the
+fourth two stars, the fifth two daggers, etc.  If you prefer
+numbered footnotes, rest assured <strong>mom</strong> is happy to
+oblige.
 <p>
 A small amount of vertical whitespace and a short horizontal rule
 separate footnotes from the document body.  The amount of whitespace
 varies slightly from page to page depending on the number of lines
-in the  footnotes.  <strong>Mom</strong> tries for a nice balance
+in the footnotes. <strong>Mom</strong> tries for a nice balance
 between too little whitespace and too much, but when push comes to
-shove, she'll opt for ample over cramped.  The last lines of footnotes
-are always flush with the document's bottom margin.
+shove, she'll usually opt for ample over cramped.  The last lines of
+footnotes are always flush with the document's bottom margin.
+<a name="FOOTNOTE_RULES"></a>
 <p>
 If <strong>mom</strong> sees that a portion of a footnote cannot
 be fit on its page, she carries that portion over to the next
-page.  If an entire footnote can't be fitted on its page (i.e.
+page.  If an entire footnote can't be fit on its page (i.e.
 <strong>FOOTNOTE</strong> has been called too close to the bottom),
 she defers the footnote to the next page, but sets it with the
 appropriate marker from the previous page.
 <p>
+When footnotes occur within cited text, for example a
+<a href="#QUOTE">QUOTE</a>
+or a
+<a href="#BLOCKQUOTE">BLOCKQUOTE</a>,
+<strong>mom</strong> will usually opt for deferring the footnote
+over to the next page if it allows her to complete the cited text
+on one page.
+<p>
 In the unfortunate happenstance that a deferred footnote is the
 only footnote on its page (i.e. it's marked in the document body with
-a star) and the page it's deferred has its own footnotes,
+a star) and the page it's deferred to has its own footnotes,
 <strong>mom</strong> separates the deferred footnote from the page's
 proper footnote(s) with a blank line.  This avoids the confusion that
 might result from readers seeing two footnote entries on the same page
@@ -1437,32 +2670,102 @@ numbered footnotes that begin at 1 on every page).  The blank line
 makes it clear that the first footnote entry belongs to the previous
 page.
 <p>
-In the circumstance where a deferred footnote is not the only one on
-its page, and is consequently marked by something other than a single
-star, there's no confusion and <strong>mom</strong> doesn't bother
-with the blank line.  (By convention, the first footnote on a page is
-always marked with a single star, so if readers see, say, a dagger or two
-stars marking the first footnote entry, they'll know the entry belongs
-to the previous page).
+In the circumstance where a deferred footnote is not the only one
+on its page, and is consequently marked by something other than a
+single star, there's no confusion and <strong>mom</strong> doesn't
+bother with the blank line.  (By convention, the first footnote on
+a page is always marked with a single star, so if readers see, say,
+a dagger or double-dagger marking the first footnote entry, they'll
+know the entry belongs to the previous page).
+<p>
+Very exceptionally, two footnotes may have to be deferred (e.g. one
+occurs on the second to last line of a page, and another on the
+last line).  In such a circumstance, <strong>mom</strong> does not
+add a blank after the second deferred footnote.  If you'd like a
+blank line separating both deferred footnotes from any footnotes
+proper to the page the deferred ones were moved to, add the space
+manually by putting a 
+<a href="typesetting.html#SPACE">.SPACE</a>
+command at the end of the footnote text, before
+<strong>FOOTNOTE OFF</strong> (or <strong>FOOTNOTE X, QUIT,
+EXIT, etc...</strong>).
 <p>
 Obviously, deferred footnotes aren't an issue if you request numbered
 footnotes that increase incrementally throughout the whole document --
 yet another convenience <strong>mom</strong> has thought of.
 <p>
-Exceptionally, you may encounter problems with footnotes inside
-quotes and blockquotes that cross a page or column.  See
-<a href="#BREAK_QUOTE">BREAK_QUOTE</a>
+While <strong>mom</strong>'s handling of footnotes is
+sophisticated, and tries to take nearly every imaginable situation
+under which they might occur into account, some situations are
+simply impossible from a typographic standpoint.  For example, if
+you have a
+<a href="#HEAD">HEAD</a>
+near the bottom of the page AND that page has some footnotes on it,
+<strong>mom</strong> may simply not have room to set any text under
+the head (normally, she insists on having room for at least one line
+of text beneath a head).  In such an instance, <strong>mom</strong>
+will either set the head, with nothing under it but footnotes,
+or transfer the head to the next page.  Either way, you'll have a
+gaping hole at the bottom of the page.  It's a sort of typographic
+Catch-22, and can only be resolved by you, the writer or formatter
+of the document, adjusting the type on the offending page so as to
+circumvent the problem.
+<p>
+<strong>NOTE:</strong> Exceptionally, you may encounter problems with footnotes inside
+quotes and blockquotes that cross a page or column.  See <a
+href="#BREAK_QUOTE">BREAK_QUOTE</a>
 for a solution.
-<br>
+<p>
+
+<h3><u><a name="FN_AND_PUNCT">Footnote markers and punctuation in the running text</a></u></h3>
+
+<p>
+As of version 1.3, the manner of entering the line <em>after</em>
+<strong>.FOOTNOTE OFF</strong> has changed.  The correct way to
+enter the line after <strong>.FOOTNOTE OFF</strong> now is to
+input it as if it's literally a continuation of the line before
+<strong>.FOOTNOTE</strong>, and therefore begins with either a space
+or a punctuation mark, as in the two following examples.
+<p>
+<pre>
+	   Example 1					  Example 2
+	   ---------                      ---------
+
+	A line of text,\c				A line of text\c
+	.FOOTNOTE						.FOOTNOTE
+	A footnote line.				A footnote line.
+	.FOOTNOTE OFF					.FOOTNOTE OFF
+	 broken up with a comma.		, broken up with a comma.
+
+	(last line begins with			(last line begins with
+	 a literal space)				 the comma and a space)
+</pre>
+
+Care must be taken, though, if the punctuation mark that begins the
+line after <strong>FOOTNOTE OFF</strong> is a period (dot).  You
+<strong><em><u>must</u></em></strong> begin such lines with
+<strong>\&.</strong>, like this:
+<p>
+<pre>
+	end of a sentence\c
+	.FOOTNOTE
+	A footnote line.
+	.FOOTNOTE OFF
+	\&.  A new sentence...
+</pre>
+
+If you omit the <strong>\&.</strong>, the line will vanish!
+<p>
+
 
 <!---FOOTNOTE--->
 
 <hr width="66%" align="left">
 <p>
 <a name="FOOTNOTE">
-	Macro: <strong>FOOTNOTE</strong> <var>&lt;toggle&gt; | INDENT LEFT | RIGHT | BOTH &lt;indent value&gt;</var>
+	<nobr>Tag: <strong>FOOTNOTE</strong> &lt;toggle&gt; | INDENT LEFT | RIGHT | BOTH &lt;indent value&gt;</nobr>
 	<br>
-	<em>*See <a href="#FOOTNOTE_NOTE">HYPER-IMPORTANT NOTE</a>!!!
+	<em>*See <a href="#FOOTNOTE_NOTE">HYPER-IMPORTANT NOTE</a>!!!</em>
 	<br>
 	&lt;indent value&gt; requires a
 	<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
@@ -1502,25 +2805,45 @@ The final word on the
 that comes immediately before <strong>FOOTNOTE</strong> MUST terminate
 with a
 <a href="typesetting.html#JOIN">\c</a>
-inline escape.  Otherwise, the footnote marker for the word won't be attached to
-it (i.e. <strong>mom</strong> will insert a word space between the word
-and the marker).  See the
+inline escape if your
+<a href="#FOOTNOTE_MARKER_STYLE">FOOTNOTE_MARKER_STYLE</a>
+is either <strong>STAR</strong> or <strong>NUMBER</strong>.
+See the
 <a href="#FOOTNOTE_EXAMPLE">footnote example</a>
 above.
+<p>
+Additionally, the line <em>after</em> a <strong>FOOTNOTE
+OFF</strong> should be entered as if there were no interruption in
+the input text, i.e. the line should begin with a literal space or
+punctuation mark.  See
+<a href="#FN_AND_PUNCT">above</a>.
+<p>
+Do NOT use the <strong>\c</strong> inline escape if your
+<strong>FOOTNOTE_MARKER_STYLE</strong> is <strong>LINE</strong>, or
+if you have disabled footnote markers with
+<a href="#FOOTNOTE_MARKERS">.FOOTNOTE_MARKERS</a>
+<strong>OFF</strong>.  As well, the line after
+<strong>FOOTNOTE&nbsp;OFF</strong> should be entered normally.
 
 <p>
 <a name="FOOTNOTE_CONTROL"><h3><u>Footnote control macros</u></h3></a>
 <ol>
-	<li><a href="#FOOTNOTE_GENERAL">Family/font/size/lead/quad</a>
+	<li><a href="#FOOTNOTE_GENERAL">Family/font/size/colour/lead/quad</a>
 	<li><a href="#FOOTNOTE_MARKERS">Footnote markers</a> -- on or off
-	<li><a href="#FOOTNOTE_MARKER_STYLE">Footnote marker style</a> -- star+dagger or numbered
+	<li><a href="#FOOTNOTE_MARKER_STYLE">Footnote marker style</a> -- star+dagger, numbered or by line number
+	<ul>
+		<li><a href="#FOOTNOTE_LINENUMBER_BRACKETS">FOOTNOTE_LINENUMBER_BRACKETS</a>
+		<li><a href="#FOOTNOTE_LINENUMBER_SEPARATOR">FOOTNOTE_LINENUMBER_SEPARATOR</a>
+		<li><a href="#FOOTNOTES_RUN_ON">FOOTNOTES_RUN_ON</a>--line-numbered footnotes only
+	</ul>
 	<li><a href="#RESET_FOOTNOTE_NUMBER">Reset footnote number</a> -- set footnote marker number to 1
+	<li><a href="#FOOTNOTE_SPACE">Inter-footnote spacing</a>
 	<li><a href="#FOOTNOTE_RULE">Footnote rule</a> -- on or off
 	<li><a href="#FOOTNOTE_RULE_LENGTH">Footnote rule length</a> -- length of footnote separator rule
 	<li><a href="#FOOTNOTE_RULE_ADJ">Adjust vertical position of footnote separator rule</a>
 </ol>
 <p>
-<a name="FOOTNOTE_GENERAL"><h3><u>1. Family/font/size/quad/lead</u></h3></a>
+<a name="FOOTNOTE_GENERAL"><h3><u>1. Family/font/size/colour/lead/quad</u></h3></a>
 <p>
 See
 <a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
@@ -1529,11 +2852,13 @@ See
 .FOOTNOTE_FAMILY    default = prevailing document family; default is Times Roman
 .FOOTNOTE_FONT      default = roman
 .FOOTNOTE_SIZE      default = -2 (points)
+.FOOTNOTE_COLOR     default = black
 .FOOTNOTE_AUTOLEAD  default = 2 points (typeset); single-spaced (typewrite)
 .FOOTNOTE_QUAD      default = same as paragraphs
 </pre>
 
 <a name="FOOTNOTE_MARKERS"><h3><u>2. Footnote markers -- FOOTNOTE_MARKERS</u></h3></a>
+<p>
 If you don't want footnote markers, in either the body of
 the document or beside footnote entries themselves, toggle
 them off with <strong>.FOOTNOTE_MARKERS OFF</strong> (or
@@ -1541,8 +2866,14 @@ them off with <strong>.FOOTNOTE_MARKERS OFF</strong> (or
 you'll have to roll your own.  If you want them back on, invoke
 <strong>.FOOTNOTE_MARKERS</strong> with no argument.  Footnote markers
 are on by default.
+<p>
+If <strong>FOOTNOTE_MARKERS</strong> are disabled, do NOT use the
+<strong>\c</strong> inline escape to terminate the line before
+<strong>.FOOTNOTE</strong>.
+<p>
 
 <a name="FOOTNOTE_MARKER_STYLE"><h3><u>3. Footnote marker style -- FOOTNOTE_MARKER_STYLE</u></h3></a>
+<p>
 <strong>Mom</strong> gives you two choices of footnote marker style:
 star+dagger (see 
 <a href="#FOOTNOTE_BEHAVIOUR">footnote behaviour</a>
@@ -1557,28 +2888,137 @@ numbers, both in the document body and in the footnote entries
 themselves.  By default, footnote numbers increase incrementally
 (prev. footnote number + 1) throughout the whole document.  You can
 ask <strong>mom</strong> to start each page's footnote numbers at 1
-with <strong>.RESET_FOOTNOTE_NUMBER</strong> (see below).
+with <strong>.RESET_FOOTNOTE_NUMBER</strong>
+(<a href="#RESET_FOOTNOTE_NUMBER">see below</a>.)
+<a name="FOOTNOTE_LINENUMBERS"><p></a>
+<p>
+<strong>.FOOTNOTE_MARKER_STYLE LINE</strong> lets you have
+footnotes which are identified by line number, rather than by a
+marker in the text.  (Note that
+<a href="#NUMBER_LINES">NUMBER_LINES</a>
+must be enabled in order to use this marker style.)
+<p>
+With <strong>FOOTNOTE_MARKER_STYLE LINE</strong>, <strong>mom</strong>
+will identify footnotes either by single line numbers, or line
+ranges.  If what you want is a single line number, you need only
+invoke <strong>.FOOTNOTE</strong>, <em>without terminating the text
+line before it with</em> <strong>\c</strong>, at the appropriate
+place in running text.
+<p>
+If you want a range of line numbers (e.g.&nbsp;[5-11]&nbsp;),
+insert, directly into the first line of the range you want, the
+<a href="definitions.html#TERMS_INLINES">inline escape</a>,
+<strong>\*[FN-MARK]</strong>.  For the terminating line number of
+the range, you need only invoke <strong>.FOOTNOTE</strong>, (again,
+without attaching <strong>\c</strong> to the text line before it).
+<strong>Mom</strong> is smart enough to figure out that where
+<strong>FOOTNOTE</strong> was invoked represents the terminating
+line number.  Range-numbered footnotes are always output on the page
+where <strong>FOOTNOTE</strong> was invoked, not the page where
+<strong>\*[FN-MARK]</strong> appears (subject, of course, to the
+rules for footnotes that fall too close to the bottom of a page, as
+outlined
+<a href="#FOOTNOTE_RULES">here</a>).
+<a name="FOOTNOTE_LINENUMBER_BRACKETS"></a>
+<p>
+<strong>Mom</strong>, by default, puts footnote line numbers inside
+square brackets.  The style of the brackets may be changed with
+the macro, <strong>FOOTNOTE_LINENUMBER_BRACKETS</strong>, which
+takes one of three possible arguments: <strong>PARENS</strong>
+("round" brackets), <strong>SQUARE</strong> (the default) or
+<strong>BRACES</strong> (curly braces).  If you prefer a
+shortform, the arguments, <strong>(</strong>, <strong>[</strong> or
+<strong>{</strong> may be used instead.
+<a name="FOOTNOTE_LINENUMBER_SEPARATOR"></a>
+<p>
+If you don't want the numbers enclosed in brackets, you may tell
+<strong>mom</strong> to use a "separator" instead.  A common
+separator would be the colon, but it can be anything you like.  The
+macro to do this is <strong>FOOTNOTE_LINENUMBER_SEPARATOR</strong>,
+which takes, as its single argument, the separator you want.  For
+safety and consistency's sake, ALWAYS enclose the argument in
+double-quotes.
+<p>
+The separator can be composed of any legal groff character, or any
+combination of characters. <strong>A word of caution:</strong> when
+using a separator, <strong>mom</strong> doesn't insert a space
+after the separator.  Hence, if you want the space (you probably
+do), you must make the space part of the argument you pass to
+<strong>FOOTNOTE_LINENUMBER_SEPARATOR</strong>.  For example,
+to get a colon separator with a space after it, you'd do
+<p>
+<pre>
+	.FOOTNOTE_LINENUMBER_SEPARATOR ": "
+</pre>
 
-<a name="RESET_FOOTNOTE_NUMBER"><h3><u>4. Reset footnote number -- RESET FOOTNOTE NUMBER</u></h3></a>
+<a name="FOOTNOTES_RUN_ON"><strong><u>RUN-ON FOOTNOTES</u></strong></a>
+<p>
+Finally, if your footnote marker style is <strong>LINE</strong>, you
+may instruct <strong>mom</strong> to do "run-on style" footnotes.
+Run-on footnotes do not treat footnotes as discrete entities, i.e.
+on a line by themselves.  Rather, each footnote is separated from
+the footnote before it by a space, so that the footnotes on any
+given page form a continuous block, like lines in a paragraph.  The
+macro to get
+<strong>mom</strong> to run footnotes on is
+<strong>.FOOTNOTES_RUN_ON</strong>.  Invoked by itself, it turns
+the feature on.  Invoked with any other argument
+(<strong>OFF</strong>, <strong>NO</strong>, etc.), it turns the
+feature off.  It is generally NOT a good idea to turn the feature
+on and off during the course of a single document.  If you do,
+<strong>mom</strong> will issue a warning if there's going to be a
+problem.  However, it is always perfectly safe to enable/disable the
+feature after
+<a href="rectoverso.html#COLLATE">COLLATE</a>.
+<p>
+The usual reason for wanting run-on footnotes is that you're
+using them to hold many, short references.  (See
+<a href="refer.html#TOP">here</a>
+for instructions on using the <strong>groff</strong> program,
+<strong>refer</strong>, to set up references.)
+
+<p>
+
+<a name="RESET_FOOTNOTE_NUMBER"><h3><u>4. Reset footnote number -- RESET_FOOTNOTE_NUMBER</u></h3></a>
+<p>
 <strong>.RESET_FOOTNOTE_NUMBER</strong>, by itself, resets
 footnote numbering so that the next footnote you enter is
 numbered 1.
 <p>
 <strong>.RESET_FOOTNOTE_NUMBER PAGE</strong> tells
 <strong>mom</strong> to start every page's footnote numbering at 1.
+<p>
 
-<a name="FOOTNOTE_RULE"><h3><u>5. Footnote rule -- FOOTNOTE_RULE</u></h3></a>
+<a name="FOOTNOTE_SPACE"><h3><u>5. Inter-footnote spacing -- FOOTNOTE_SPACE</u></h3></a>
+<p>
+If you'd like a little extra space between footnotes, you can have
+<strong>mom</strong> put it in for you by invoking
+<strong>.FOOTNOTE_SPACE</strong> with an argument representing the
+amount of extra space you'd like.  The argument to
+<strong>FOOTNOTE_SPACE</strong> requires a
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>.
+<p>
+In the following example, footnotes will be separated from each
+other by 3
+<a href="definitions.html#TERMS_PICASPOINTS">points</a>.
+<pre>
+	.FOOTNOTE_SPACE 3p
+</pre>
+
+<a name="FOOTNOTE_RULE"><h3><u>6. Footnote rule -- FOOTNOTE_RULE</u></h3></a>
+<p>
 If you don't want a footnote separator rule, toggle it off with
 <strong>.FOOTNOTE_RULE OFF</strong> (or <strong>END,
 QUIT, X</strong>...).  Toggle it back on by invoking
 <strong>.FOOTNOTE_RULE</strong> with no argument.  The default is to
 print the rule.
+<p>
 
-<a name="FOOTNOTE_RULE_LENGTH"><h3><u>6. Footnote rule length -- FOOTNOTE_RULE_LENGTH</u></h3></a>
+<a name="FOOTNOTE_RULE_LENGTH"><h3><u>7. Footnote rule length -- FOOTNOTE_RULE_LENGTH</u></h3></a>
+<p>
 If you want to change the length of the footnote separator rule,
 invoke <strong>.FOOTNOTE_RULE_LENGTH</strong> with a length, like
 this,
-<p>
 <pre>
 	.FOOTNOTE_RULE_LENGTH 1i
 </pre>
@@ -1588,8 +3028,11 @@ which sets the length to 1 inch.  Note that a
 is required.  The default is 4
 <a href="definitions.html#TERMS_PICASPOINTS">picas</a>
 for both
-<a href="docprocessing.html#PRINTSTYLE">printstyles</a>.
-<a name="FOOTNOTE_RULE_ADJ"><h3><u>7. Adjust vertical position of footnote separator rule -- FOOTNOTE_RULE_ADJ</u></h3></a>
+<a href="docprocessing.html#PRINTSTYLE">PRINTSTYLES</a>.
+<p>
+
+<a name="FOOTNOTE_RULE_ADJ"><h3><u>8. Adjust vertical position of footnote separator rule -- FOOTNOTE_RULE_ADJ</u></h3></a>
+<p>
 The footnote separator rule is actually a baseline rule that falls
 on the
 <a href="definitions.html#TERMS_BASELINE">baseline</a>
@@ -1609,7 +3052,21 @@ raises the rule by 4-1/4 points.  Note that you can only raise
 the rule, not lower it.  A
 <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
 is required.
-<br>
+<p>
+<strong>Tip:</strong> If your document
+<a href="definitions.html#TERMS_LEADING">leading</a>
+is 2
+<a href="definitions.html#TERMS_PICASPOINTS">points</a>
+or less (e.g your
+<a href="definitions.html#TERMS_PS">point size</a>
+is 10 and your linespacing is 10, 11, or 12, lowering
+<strong>mom</strong>'s default footnote rule adjustment will
+almost certainly give you nicer looking results than leaving
+the adjustment at the default.  Furthermore, you can invoke
+<strong>FOOTNOTE_RULE_ADJ</strong> on any page in which footnotes
+appear, or in any column, so that the placement of the footnote rule
+can be changed on-the-fly, should you wish to do so.
+<p>
 <hr>
 
 <!====================================================================>
@@ -1623,7 +3080,7 @@ is required.
 	</ul>
 	<li><a href="#ENDNOTE">Tag: ENDNOTE</a>
 	<li><a href="#ENDNOTES">Macro: ENDNOTES</a> -- tell <strong>mom</strong> to output endnotes
-	<li><a href="#ENDNOTE_CONTROL">ENDNOTE control macros</a>
+	<li><a href="#ENDNOTE_CONTROL">ENDNOTES control macros</a>
 </ul>
 
 <p>
@@ -1641,27 +3098,66 @@ except that <kbd>.FOOTNOTE</kbd> has been replaced with
 	.ENDNOTE
 	&lt;endnote about who the hell is Schelling&gt;
 	.ENDNOTE OFF
-	were generally the points of discussion presenting the most
+	 were generally the points of discussion presenting the most
 	of beauty to the imaginative Morella.
 </pre>
 
 As with footnotes, note the obligatory use of the <strong>\c</strong>
-<a href="definitions.html#TERMS_INLINES">inline escape</a>.
+<a href="definitions.html#TERMS_INLINES">inline escape</a>
+when your
+<a href="#ENDNOTE_MARKER_STYLE">ENDNOTE_MARKER_STYLE</a>
+is <strong>NUMBER</strong> (which marks endnotes references in
+<a href="definitions.html#TERMS_RUNNING">running text</a>
+with superscript numbers).  When the marker style is
+<strong>LINE</strong>, you must <em>not</em> use the
+<strong>\c</strong> escape.
+<p>
+<strong>***Version 1.3 change***</strong>
+<p>
+As of version 1.3, the manner of entering the line <em>after</em>
+<strong>.ENDNOTE OFF</strong> has changed to accommodate users'
+differing wishes with respect to the order of punctuation and
+endnote markers.  The correct way to enter the line after
+<strong>.ENDNOTE OFF</strong>--but <strong><em><u>NOT</u></em></strong>
+if your
+<a href="#ENDNOTE_MARKER_STYLE">ENDNOTE_MARKER_STYLE</a>
+is <strong>LINE</strong>--is to input it as if it's literally
+a continuation of the line before <strong>.ENDNOTE</strong>, and
+therefore begins with either a space or a punctuation mark, as in
+the two following examples.
+<p>
+<a name="EN_PUNCT"></a>
+<pre>
+	   Example 1					  Example 2
+	   ---------                      ---------
+
+	A line of text,\c				A line of text\c
+	.ENDNOTE						.ENDNOTE
+	A footnote line.				A footnote line.
+	.ENDNOTE OFF					.ENDNOTE OFF
+	 broken up with a comma.		, broken up with a comma.
+
+	(last line begins with			(last line begins with
+	 a literal space)				 the comma and a space)
+</pre>
+
+<strong>***End version 1.3 change***</strong>
 <p>
 Endnotes differ from footnotes in two ways (other than the fact that
 endnotes come at the end of a document whereas footnotes appear in the
 body of the document):
 <br>
 <ol>
-    <li>Endnotes are always numbered incrementally throughout a
-	    document.  In other words, you don't get a choice of marker styles,
-	    as you do with footnotes.
+    <li>When your <strong>ENDNOTE_MARKER_STYLE</strong> is
+        <strong>NUMBER</strong>, endnotes are always numbered
+        incrementally, starting at "1".
 	<li>Endnotes MUST be output explicitly; <strong>mom</strong> does
 		not output them for you.  In
 		<a href="rectoverso.html#COLLATE">collated</a>
 		documents, this allows you to choose whether you
 		want the endnotes to appear at the end of each chapter or
-		section, or grouped together at the very end of the document.
+        article in a document, or grouped together at the very end
+        of the document.
 </ol>
 <p>
 Within endnotes, you may use the document element tags
@@ -1682,9 +3178,10 @@ to invoking <strong>QUOTE</strong> or <strong>BLOCKQUOTE</strong>, and
 undo them prior to terminating the endnote (i.e. before <strong>ENDNOTE
 OFF</strong>), otherwise the changes will affect subsequent quotes and
 blockquotes that appear in the document body as well.
+<p>
 
 <a name="ENDNOTE_BEHAVIOUR"><h3><u>Endnote behaviour</u></h3></a>
-<p>
+<br>
 When you output endnotes (with
 <a href="#ENDNOTES">ENDNOTES</a>),
 <strong>mom</strong> finishes processing the last page of your document,
@@ -1697,7 +3194,7 @@ the centre part of the
 removed.
 <p>
 By default, <strong>mom</strong> starts the endnotes page with a
-bold, centered, double-underscored head, &quot;ENDNOTES&quot;.
+bold, centred, double-underscored head, &quot;ENDNOTES&quot;.
 Underneath--flush left, bold, and underscored--she prints the document
 title (or, in the case of chapters, the chapter number or title).  She
 then prints the endnotes.  Each endnote is identified by its appropriate
@@ -1716,18 +3213,19 @@ The attentive will notice that endnotes have an awful lot of control
 macros.  This is because endnotes are like a mini-document unto
 themselves, and therefore need not be bound by the style parameters of
 the body of the document.
+<p>
 
 <a name="ENDNOTE_SPACING">
 	<h3><u>A Note on Endnote Spacing</u></h3>
 </a>
-<p>
+<br>
 On the endnotes page(s), each new endnote is separated from the
 previous endnote by a full line space.  This can result in a bottom
 margin that hangs, and is the one instance, other than the use of
 <a href="#PP_SPACE">PARA_SPACE</a>,
 where <strong>mom</strong> allows unequal bottom alignment of pages.
 Should you wish to correct this, by adding or subtracting small amounts
-of space between endnotes that appear together on an endnote page, make
+of space between endnotes that appear together on an endnotes page, make
 the adjustment (with
 <a href="typesetting.html#ALD">ALD</a>,
 <a href="typesetting.html#RLD">RLD</a>
@@ -1736,25 +3234,28 @@ or
 <em>at the end of each endnote</em> (i.e. just before invoking
 <a href="#ENDNOTE">ENDNOTE OFF</a>)
 rather than at the top.
+<p>
 
 <a name="ENDNOTE_COLUMNS">
 	<h3><u>Endnotes and columnar documents</u></h3>
 </a>
-<p>
-At present, there is no way to set a document in columns (see
-<a href="docprocessing.html#COLUMNS">COLUMNS</a>)
-and then turn off column mode for endnotes.  If your document is set in
-columns, your endnotes will be, too.
 <br>
+Formerly (pre 1.1.6), there was no way to set a document in columns
+(see
+<a href="docprocessing.html#COLUMNS">COLUMNS</a>)
+and then turn off column mode for endnotes.  As of version 1.1.6,
+you may now do so.  See
+<a href="#ENDNOTES_NO_COLUMNS">ENDNOTES_NO_COLUMNS</a>.
+<p>
 <hr>
 
 <!---ENDNOTE--->
 
 <p>
 <a name="ENDNOTE">
-	Macro: <strong>ENDNOTE</strong> <var>&lt;toggle&gt;</var>
+	<nobr>Macro: <strong>ENDNOTE</strong> &lt;toggle&gt;</nobr>
 	<br>
-	<em>*See <a href="#ENDNOTE_NOTE">HYPER-IMPORTANT NOTE</a>!!!
+	<em>*See <a href="#ENDNOTE_NOTE">HYPER-IMPORTANT NOTE</a>!!!</em>
 </a>
 
 <p>
@@ -1770,23 +3271,36 @@ that you've finished the endnote.
 tag.  Use <strong>PP</strong> only to introduce subsequent paragraphs.
 <p>
 <a name="ENDNOTE_NOTE"><strong>HYPER-IMPORTANT NOTE:</strong></a>
-The final word on the
+If your
+<a href="#ENDNOTE_MARKER_STYLE">ENDNOTE_MARKER_STYLE</a>
+is <strong>NUMBER</strong> (<strong>mom</strong>'s default), the
+final word on the
 <a href="definitions.html#TERMS_INPUTLINE">input line</a>
 that comes immediately before <strong>ENDNOTE</strong> MUST terminate
 with a
 <a href="typesetting.html#JOIN">\c</a>
-inline escape.  Otherwise, the endnote number for the word won't be attached to
-it (i.e. <strong>mom</strong> will insert a word space between the word
-and the number).  See the
+inline escape.  See the
 <a href="#ENDNOTE_EXAMPLE">endnote example</a>
 above.
-<br>
+<p>
+Additionally, the line <em>after</em>
+<strong>.ENDNOTE&nbsp;OFF</strong> should be entered as if there
+were no interruption in the input text, i.e. the line should begin
+with a literal space or punctuation mark.  See the two
+<a href="#EN_PUNCT">examples</a>, 
+above.
+<p>
+If your <strong>ENDNOTE_MARKER_STYLE</strong> is
+<strong>LINE</strong>, do NOT use the <strong>\c</strong> escape,
+and enter the line after <strong>.ENDNOTE&nbsp;OFF</strong>
+normally.
+<p>
 
 <!---ENDNOTES--->
 
 <hr width="66%" align="left">
 <p>
-<a name="ENDNOTES">Macro: <strong>ENDNOTES</strong></a>
+<a name="ENDNOTES">Tag: <strong>ENDNOTES</strong></a>
 
 <p>
 Unlike footnotes, which <strong>mom</strong> automatically outputs at the
@@ -1810,34 +3324,58 @@ appropriately, on a separate page prior to starting the next section of
 the document.  Each subsequent invocation of <strong>ENDNOTES</strong>
 outputs only those endnotes that <strong>mom</strong> collected
 after the previous invocation.
-<br>
+<p>
 <hr width="66%" align="left">
 
 <a name="ENDNOTE_CONTROL"><h3><u>Endnote control macros</u></h3></a>
 <p>
-Every time you embed an endnote in the body of a document,
-<strong>mom</strong> collects <em>and processes</em> the endnote for
-later outputting when you invoke
-<a href="#ENDNOTES">ENDNOTES</a>.
-For this reason, endnote control macros should always be invoked prior
-to the first instance of
-<a href="#ENDNOTE">ENDNOTE/ENDNOTE OFF</a>.
+<strong>VERY IMPORTANT NOTE!</strong>
 <br>
+Endnote control macros must always be invoked prior to the first
+instance of
+<a href="#ENDNOTE">ENDNOTE/ENDNOTE OFF</a>.
+<p>
+When you embed endnotes in the body of a document,
+<strong>mom</strong> collects <em>and processes</em> them for later
+outputting (when you invoke
+<a href="#ENDNOTES">ENDNOTES</a>).
+By the time you do invoke <strong>ENDNOTES</strong>, it's much too
+late to change your mind about how you want them to look.
+<p>
+My advice?  If you're planning to change the default appearance of
+endnotes pages, set them up prior to
+<a href="docprocessing.html#START">START</a>.
+<p>
 <ol>
 	<li><a href="#ENDNOTES_GENERAL"><strong>General endnotes-pages style control</strong></a>
 		<ul>
-			<li><a href="#ENDNOTE_GENERAL">Base family/font/quad for endnotes-pages</a>
+			<li><a href="#ENDNOTE_STYLE">Base family/font/quad for endnotes-pages</a>
 			<li><a href="#ENDNOTE_PT_SIZE">Base point size for the endnotes-pages</a>
 			<li><a href="#ENDNOTE_LEAD">Leading of endnotes-pages</a>
+			<li><a href="#SINGLESPACE_ENDNOTES">Singlespace endnotes (for TYPEWRITE only)</a>
 			<li><a href="#ENDNOTE_PARA_INDENT">Size of paragraph first line indent in multi-paragraph endnotes</a>
 			<li><a href="#ENDNOTE_PARA_SPACE">Inserting space between paragraphs of multi-paragraph endnotes</a>
+			<li><a href="#ENDNOTES_NO_COLUMNS">Turning off column mode during endnotes output</a>
+			<li>Pagination of endnotes:
+			<ul>
+				<li><a href="#ENDNOTES_PAGENUM_STYLE">Endnotes-pages page numbering style</a>
+				<li><a href="#ENDNOTES_FIRST_PAGENUMBER">Setting the first page number of endnotes pages</a>
+				<li><a href="#ENDNOTES_NO_FIRST_PAGENUM">Omitting a page number on the first page of endnotes</a>
+			</ul>
+			<li><a href="#SUSPEND_PAGINATION">Suspending pagination of endnotes pages</a>
 		</ul>
 	<li><a href="#ENDNOTES_HEADER_CONTROL"><strong>Endnotes-page header/footer control</strong></a>
-	<li><a href="#ENDNOTES_MAIN_TITLE"><strong>Endnotes-page head control</strong></a>
+		<ul>
+			<li><a href="#ENDNOTES_MODIFY_HDRFTR">Modifying what goes in the endnotes-pages header/footer</a>
+			<li><a href="#ENDNOTES_HDRFTR_CENTER">Enabling a header/footer centre when doctype is CHAPTER</a>
+			<li><a href="#ENDNOTES_ALLOWS_HEADERS">Allow headers on endnotes-pages</a>
+		</ul>
+	<li><a href="#ENDNOTES_MAIN_TITLE"><strong>Endnotes-page head (i.e. the title at the top) control</strong></a>
 		<ul>
 			<li><a href="#ENDNOTE_STRING">Creating/modifying the endnotes-page head</a>
 			<li><a href="#ENDNOTE_STRING_CONTROL">Endnotes-page head control</a>
 			<li><a href="#ENDNOTE_STRING_UNDERSCORE">Endnotes-page head underscoring</a>
+			<li><a href="#ENDNOTE_STRING_CAPS">Endnotes-page head capitalization</a>
 		</ul>
 	<li><a href="#ENDNOTES_DOC_TITLE"><strong>Endnote document-identification title</strong></a>
 		<ul>
@@ -1847,6 +3385,12 @@ to the first instance of
 		</ul>
 	<li><a href="#ENDNOTES_NUMBERING"><strong>Endnotes-pages endnote numbering style</strong></a>
 		<ul>
+			<li><a href="#ENDNOTE_MARKER_STYLE">Endnote marker style</a>--by numbers in the text, or by line number
+			<ul>
+				<li><a href="#ENDNOTE_LINENUMBER_GAP">ENDNOTE_LINENUMBER_GAP</a>
+				<li><a href="#ENDNOTE_LINENUMBER_BRACKETS">ENDNOTE_LINENUMBER_BRACKETS</a>
+				<li><a href="#ENDNOTE_LINENUMBER_SEPARATOR">ENDNOTE_LINENUMBER_SEPARATOR</a>
+			</ul>
 			<li><a href="#ENDNOTE_NUMBER_CONTROL">Endnotes-pages endnote numbering style control</a>
 			<li><a href="#ENDNOTE_NUMBER_ALIGNMENT">Endnote numbering alignment</a>
 			<ul>
@@ -1859,7 +3403,7 @@ to the first instance of
 
 <a name="ENDNOTES_GENERAL"><h2><u>1. General endnotes page style control</u></h2>
 
-<a name="ENDNOTE_GENERAL"><h3><u>Endnote family/font/quad</u></h3></a>
+<a name="ENDNOTE_STYLE"><h3><u>*Endnote family/font/quad</u></h3></a>
 <p>
 See
 <a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
@@ -1867,14 +3411,16 @@ See
 <pre>
 .ENDNOTE_FAMILY    default = prevailing document family; default is Times Roman
 .ENDNOTE_FONT      default = roman
-.ENDNOTE_QUAD      default = justified
+.ENDNOTE_QUAD*     default = justified
+
+*Note: ENDNOTE_QUAD must be set to either L or J
 </pre>
 
 <!---ENDNOTE_PT_SIZE--->
 
-<a name="ENDNOTE_PT_SIZE"><h3><u>Endnote point size</u></h3></a>
+<a name="ENDNOTE_PT_SIZE"><h3><u>*Endnote point size</u></h3></a>
 <p>
-Macro: <strong>ENDNOTE_PT_SIZE</strong> <var>&lt;base type size of endnotes&gt;</var>
+<nobr>Macro: <strong>ENDNOTE_PT_SIZE</strong> &lt;base type size of endnotes&gt;</nobr>
 
 <p>
 Unlike most other control macros that deal with size of document
@@ -1906,13 +3452,16 @@ the point size of other endnote page elements is calculated.
 <p>
 The default for
 <a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE TYPESET</a>
-is 12 points (the same default size used in the body of the document).
+is 12.5 points (the same default size used in the body of the document).
+<p>
 
 <!---ENDNOTE_LEAD--->
 
-<a name="ENDNOTE_LEAD"><h3><u>Endnote lead</u></h3></a>
+<a name="ENDNOTE_LEAD"><h3><u>*Endnote lead</u></h3></a>
 <p>
-Macro: <strong>ENDNOTE_LEAD</strong> <var>&lt;base leading of endnotes&gt;</var>
+<nobr>Macro: <strong>ENDNOTE_LEAD</strong> &lt;base leading of endnotes&gt; [ ADJUST ] </nobr>
+<br>
+<em>*Does not require a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>; points is assumed</em>
 
 <p>
 Unlike most other control macros that deal with leading of document
@@ -1939,15 +3488,52 @@ points, whereas
 
 sets the base leading of type on the endnotes page to 1/2 inch.
 <p>
+If you want the leading of endnotes adjusted to fill the page, pass
+<strong>ENDNOTE_LEAD</strong> the optional argument
+<strong>ADJUST</strong>.  (See
+<a href="docprocessing.html#DOC_LEAD_ADJUST">DOC_LEAD_ADJUST</a>
+for an explanation of leading adjustment.)
+<p>
 The default for
 <a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE TYPESET</a>
-is 14 points.
+is 14 points, adjusted.
+<p>
+<strong>NOTE:</strong> Even if you give <strong>mom</strong> a
+<strong>DOC_LEAD_ADJUST OFF</strong> command, she will still, by
+default, adjust endnote leading.  You MUST enter
+<strong>ENDNOTE_LEAD &lt;lead&gt;</strong> with no
+<strong>ADJUST</strong> argument to disable this default behaviour.
+<p>
+
+<!---SINGLESPACE_ENDNOTES--->
+
+<a name="SINGLESPACE_ENDNOTES"><h3><u>*Singlespace endnotes (TYPEWRITE only)</u></h3></a>
+<p>
+<nobr>Macro: <strong>SINGLESPACE_ENDNOTES</strong> &lt;toggle&gt;</nobr>
+
+<p>
+If your 
+<a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE</a>
+is <strong>TYPEWRITE</strong> and you use TYPEWRITE's default
+double-spacing, endnotes are double-spaced.  If your document is
+single-spaced, endnotes are single-spaced.
+<p>
+If, for some reason, you'd prefer that endnotes be single-spaced
+in an otherwise double-spaced document (including double-spaced
+<a href="rectoverso.html#COLLATE">collated</a>
+documents), invoke <strong>SINGLESPACE_ENDNOTES</strong> with
+no argument.  And if, god help you, you want to change endnote
+single-spacing back to double-spacing for different spacing of
+endnotes output at the ends of separate documents in a collated
+document, invoke <strong>SINGLESPACE_ENDNOTES</strong> with any
+argument (<strong>OFF, QUIT, Q, X</strong>...).
+<p>
 
 <!---ENDNOTE_PARA_INDENT--->
 
-<a name="ENDNOTE_PARA_INDENT"><h3><u>Endnote paragraph indent</u></h3></a>
+<a name="ENDNOTE_PARA_INDENT"><h3><u>*Endnote paragraph indenting</u></h3></a>
 <p>
-Macro: <strong>ENDNOTE_PARA_INDENT</strong> <var>&lt;amount to indent first line of paragraphs in endnotes&gt;</var>
+<nobr>Macro: <strong>ENDNOTE_PARA_INDENT</strong> &lt;amount to indent first line of paragraphs in endnotes&gt;</nobr>
 <br>
 <em>*Requires a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
 
@@ -1969,12 +3555,13 @@ for
 (the one attached immediately to the identifying endnote number) is
 never indented.  Only subsequent paragraphs are affected by
 <strong>ENDNOTE_PARA_INDENT</strong>.  
+<p>
 
 <!---ENDNOTE_PARA_SPACE--->
 
-<a name="ENDNOTE_PARA_SPACE"><h3><u>Endnote paragraph spacing</u></h3></a>
+<a name="ENDNOTE_PARA_SPACE"><h3><u>*Endnote paragraph spacing</u></h3></a>
 <p>
-Macro: <strong>ENDNOTE_PARA_SPACE</strong> <var>&lt;toggle&gt;</var>
+<nobr>Macro: <strong>ENDNOTE_PARA_SPACE</strong> &lt;toggle&gt;</nobr>
 
 <p>
 <strong>ENDNOTE_PARA_SPACE</strong> works exactly the same way as
@@ -1988,11 +3575,107 @@ endnotes.
 <strong>NOTE:</strong> Each endnote itself is always separated from any
 previous endnote by a line space.  <strong>ENDNOTE_PARA_SPACE</strong>
 refers only to paragraphs that appear within each discrete endnote.
+<p>
+
+<!---ENDNOTES_NO_COLUMNS--->
+
+<a name="ENDNOTES_NO_COLUMNS"><h3><u>*Turning off column mode during endnotes output</u></h3></a>
+<p>
+<nobr>Macro: <strong>ENDNOTES_NO_COLUMNS</strong> &lt;toggle&gt;</nobr>
+
+<p>
+By default, if your document is
+<a href="columns.html#COLUMNS">set in columns</a>,
+<strong>mom</strong> sets the endnotes in columns, too.  However,
+if your document is set in columns and you'd like the endnotes not
+to be, just invoke <strong>ENDNOTES_NO_COLUMNS</strong> with no
+argument.  The endnotes pages will be set to the full page measure
+of your document.
+<p>
+If you output endnotes at the end of each document in a
+<a href="rectoverso.html#COLLATE">collated</a>
+document set in columns, column mode will automatically
+be reinstated for each document, even with
+<strong>ENDNOTES_NO_COLUMNS</strong> turned on.
+<p>
+
+<!---ENDNOTES_PAGENUM_STYLE--->
+
+<a name="ENDNOTES_PAGENUM_STYLE"><h3><u>*Endnotes-pages page numbering style</u></h3></a>
+<p>
+<nobr>Macro: <strong>ENDNOTES_PAGENUM_STYLE</strong> DIGIT | ROMAN | roman | ALPHA | alpha</nobr>
+
+<p>
+Use this macro to set the page numbering style of endnotes pages.
+The arguments are identical to those for
+<a href="headfootpage.html#PAGENUM_STYLE">PAGENUM_STYLE</a>.
+The default is <strong>digit</strong>.  You may want to change it
+to, say, <strong>alpha</strong>, which you would do with
+<p>
+<pre>
+	.ENDNOTES_PAGENUM_STYLE alpha
+</pre>
+
+<!---ENDNOTES_FIRST_PAGENUMBER--->
+
+<a name="ENDNOTES_FIRST_PAGENUMBER"><h3><u>*Setting the first page number of endnotes pages</u></h3></a>
+<p>
+<nobr>Macro: <strong>ENDNOTES_FIRST_PAGENUMBER</strong> &lt;page # that appears on page 1 of endnotes&gt;</nobr>
+
+<p>
+Use this macro with caution.  If all endnotes for several
+<a href="rectoverso.html#COLLATE">collated</a>
+documents are to be output at once, i.e. not at the end of each
+separate doc, <strong>ENDNOTES_FIRST_PAGENUMBER</strong> tells
+<strong>mom</strong> what page number to put on the first page of
+the endnotes.
+<p>
+If you set <strong>ENDNOTES_FIRST_PAGENUMBER</strong> in collated
+documents where the endnotes are output after each separate doc,
+you have to reset every separate document's first page number after
+<a href="rectoverso.html#COLLATE">COLLATE</a>
+and before
+<a href="docprocessing.html#START">START</a>.
+<p>
+
+<!---ENDNOTES_NO_FIRST_PAGENUN--->
+
+<a name="ENDNOTES_NO_FIRST_PAGENUM"><h3><u>*Omitting a page number on the first page of endnotes</u></h3></a>
+<p>
+<nobr>Macro: <strong>ENDNOTES_NO_FIRST_PAGENUM</strong> &lt;toggle&gt;</nobr>
+
+<p>
+This macro is for use only if <strong>FOOTERS</strong> are on.  It
+tells
+<a href="#ENDNOTES">ENDNOTES</a>
+not to print a page number on the first endnotes page.
+<strong>Mom</strong>'s default is to print the page number.
+<p>
+
+<!---SUSPEND_PAGINATION--->
+
+<a name="SUSPEND_PAGINATION"><h3><u>*Suspending pagination of endnotes pages</u></h3></a>
+<p>
+Macro: <strong>SUSPEND_PAGINATION</strong>
+<br>
+Macro: <strong>RESTORE_PAGINATION</strong>
+
+<p>
+<strong>SUSPEND_PAGINATION</strong> doesn't take an argument.
+Invoked immediately prior to
+<a href="#ENDNOTES">ENDNOTES</a>,
+it turns off endnotes pages pagination.  <strong>Mom</strong>
+continues, however to increment page numbers silently.
+<p>
+To restore normal document pagination after endnotes, invoke
+<strong>RESTORE_PAGINATION</strong> (again, with no argument)
+immediately after <strong>ENDNOTES</strong>.
 
 <a name="ENDNOTES_HEADER_CONTROL"><h2><u>2. Endnotes-page header/footer control</u></h2></a>
 <p>
-If you wish to modify the header/footer that appears on endnotes
-page(s), make the changes before you invoke
+<a name="ENDNOTES_MODIFY_HDRFTR"></a>
+If you wish to modify what appears in the header/footer that appears
+on endnotes page(s), make the changes before you invoke
 <a href="#ENDNOTES">ENDNOTES</a>,
 not afterwards.
 <p>
@@ -2007,10 +3690,27 @@ title.)  In most cases, this is what you want.  However, should you
 the endnotes page(s) headers/footers, invoke
 <a href="#ENDNOTES_HDRFTR_CENTER">ENDNOTES_HEADER_CENTER</a>
 with no argument. 
-
-<a name="ENDNOTES_HDRFTR_CENTER"><h3><u>Endnotes page(s) header/footer center string</u></h3></a>
 <p>
-Macro: <strong>ENDNOTES_HEADER_CENTER</strong> <var>toggle</var>
+An important change you may want to make is to put the word
+&quot;Endnotes&quot; in the header/footer centre position.
+To do so, do
+<p>
+<pre>
+	.HEADER_CENTER "Endnotes"
+	           or
+	.FOOTER_CENTER "Endnotes"
+</pre>
+
+prior to invoking <strong>.ENDNOTES</strong>.  If your
+<a href="docprocessing.html#DOCTYPE">DOCTYPE</a>
+is <kbd>CHAPTER</kbd>, you must also invoke
+<a href="#ENDNOTES_HDRFTR_CENTER">ENDNOTES_HEADER_CENTER</a>
+for the <strong>HEADER_CENTER</strong> to appear.
+<p>
+
+<a name="ENDNOTES_HDRFTR_CENTER"><h3><u>*Endnotes page(s) header/footer centre string</u></h3></a>
+<p>
+<nobr>Macro: <strong>ENDNOTES_HEADER_CENTER</strong> toggle</nobr>
 
 <p>
 If your
@@ -2019,20 +3719,45 @@ is <kbd>CHAPTER</kbd> and you want <strong>mom</strong> to include
 a centre string in the headers/footers that appear on endnotes pages,
 invoke <strong>ENDNOTES_HEADER_CENTER</strong> (or
 <strong>ENDNOTES_FOOTER_CENTER</strong>) with no argument.
-<strong>Mom</strong>'s default is NOT to print the center string.
+<strong>Mom</strong>'s default is NOT to print the centre string.
 <p>
-If, for some
-reason, having enabled the header/footer center string on endnotes
-pages, you wish to disable it, invoke the same macro with any argument
-(<strong>OFF, QUIT, Q, X</strong>...).
+If, for some reason, having enabled the header/footer centre string
+on endnotes pages, you wish to disable it, invoke the same macro
+with any argument (<strong>OFF, QUIT, Q, X</strong>...).
+<p>
 
-<a name="ENDNOTES_MAIN_TITLE"><h2><u>3. Endnotes page head control</u></h2>
+<a name="ENDNOTES_ALLOWS_HEADERS"><h3><u>*Allow headers on endnotes-pages</u></h3></a>
+<p>
+<nobr>Macro: <strong>ENDNOTES_ALLOWS_HEADERS</strong> &lt;none&gt; | ALL</nobr>
+
+<p>
+By default, if <strong>HEADERS</strong> are on, <strong>mom</strong>
+prints page headers on all endnotes pages except the first.  If you
+don't want her to print headers on endnotes pages, do
+<p>
+<pre>
+	.ENDNOTES_ALLOWS_HEADERS OFF
+</pre>
+
+If you want headers on every page <em>including the first</em>, do
+<p>
+<pre>
+	.ENDNOTES_ALLOWS_HEADERS ALL
+</pre>
+
+<strong>NOTE:</strong> If <strong>FOOTERS</strong> are on,
+<strong>mom</strong> prints footers on every endnotes page.  This is
+a style convention.  In <strong>mom</strong>, there is no such beast
+as <strong>ENDNOTES_ALLOWS_FOOTERS OFF</strong>.
+<p>
+
+<a name="ENDNOTES_MAIN_TITLE"><h2><u>3. Endnotes-page first page head (title) control</u></h2>
 
 <!---ENDNOTE_STRING--->
 
-<a name="ENDNOTE_STRING"><h3><u>Endnotes-page head string</u></h3></a>
+<a name="ENDNOTE_STRING"><h3><u>*Endnotes-page first page head (title) string</u></h3></a>
 <p>
-Macro: <strong>ENDNOTE_STRING</strong> <var>&quot;&lt;head to print at the top of endnotes&gt;&quot;</var>
+<nobr>Macro: <strong>ENDNOTE_STRING</strong> &quot;&lt;head to print at the top of endnotes&gt;&quot;</nobr>
 
 <p>
 By default, <strong>mom</strong> prints the word &quot;ENDNOTES&quot;
@@ -2043,28 +3768,29 @@ you don't want a head at the top of the first endnotes-page, invoke
 <strong>ENDNOTE_STRING</strong> with a blank argument (either two
 double-quotes side by side -- <kbd>&quot;&quot;</kbd> -- or no argument
 at all).
+<p>
 
 <!---ENDNOTE_STRING_CONTROL--->
 
-<a name="ENDNOTE_STRING_CONTROL"><h3><u>Endnotes-page head control</u></h3></a>
+<a name="ENDNOTE_STRING_CONTROL"><h3><u>*Endnotes-page first page head (title) control</u></h3></a>
 <p>
 See
 <a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
 <p>
 <pre>
 .ENDNOTE_STRING_FAMILY    default = prevailing document family; default is Times Roman
-.ENDNOTE_STRING_FONT*     default = bold
-.ENDNOTE_STRING_SIZE      default = +1
-.ENDNOTE_STRING_QUAD      default = centered
+.ENDNOTE_STRING_FONT      default = bold
+.ENDNOTE_STRING_SIZE*     default = +1
+.ENDNOTE_STRING_QUAD      default = centred
 
 *Relative to the size of the endnotes text (set with ENDNOTE_PT_SIZE)
 </pre>
 
 <!---ENDNOTE_STRING_UNDERSCORE--->
 
-<a name="ENDNOTE_STRING_UNDERSCORE"><h3><u>Endnotes-page head underscoring</h3></u></a>
+<a name="ENDNOTE_STRING_UNDERSCORE"><h3><u>*Endnotes-page head (title) underscoring</h3></u></a>
 <p>
-Macro: <strong>ENDNOTE_STRING_UNDERSCORE</strong> <var>toggle | 2</var>
+<nobr>Macro: <strong>ENDNOTE_STRING_UNDERSCORE</strong> toggle | 2</nobr>
 
 <p>
 Invoked by itself, <strong>ENDNOTE_STRING_UNDERSCORE</strong> will
@@ -2079,27 +3805,55 @@ head, therefore if you want no underscoring, you must insert
 NONE,</kbd> etc.) into your document prior to outputting endnotes with
 <a href="#ENDNOTES">ENDNOTES</a>.
 
+<!---ENDNOTE_STRING_CAPS--->
+
+<a name="ENDNOTE_STRING_CAPS"><h3><u>*Endnotes-page head (title) automatic capitalization</h3></u></a>
+<p>
+<nobr>Macro: <strong>ENDNOTE_STRING_CAPS</strong> toggle</nobr>
+
+<p>
+Invoked by itself, <strong>ENDNOTE_STRING_CAPS</strong> will
+automatically capitalize the endnotes-page head.  Invoked with any
+other argument, the macro disables automatic capitalization of the
+head.
+<p>
+If you're generating a table of contents, you may want the
+endnotes-pages head string in caps, but the toc entry in caps/lower
+case.  If the argument to
+<a href="#ENDNOTE_STRING">ENDNOTE_STRING</a>
+is in caps/lower case and <strong>ENDNOTE_STRING_CAPS</strong> is
+on, this is exactly what will happen.
+<p>
+<strong>Mom</strong>'s default is to capitalize the endnotes-pages
+head string.
+<p>
+
 <!---ENDNOTE_TITLE--->
 
 <a name="ENDNOTES_DOC_TITLE"><h2><u>4. Endnote document-identification title</u></h2>
-<a name="ENDNOTE_TITLE"><h3><u>Endnote document-identification title string</u></h3></a>
+<a name="ENDNOTE_TITLE"><h3><u>*Endnote document-identification title string</u></h3></a>
 <p>
-Macro: <strong>ENDNOTE_TITLE</strong> <var>&quot;&lt;title to identify a document in endnotes&gt;&quot;</var>
+<nobr>Macro: <strong>ENDNOTE_TITLE</strong> &quot;&lt;title to identify a document in endnotes&gt;&quot;</nobr>
 
 <p>
 By default, <strong>mom</strong> identifies the document(s) to which
 endnotes belong by the document title(s) given to the
 <a href="docprocessing.html#TITLE">TITLE</a>
-macro.  If you want her to identify the document(s) another way,
-invoke <strong>ENDNOTE_TITLE</strong> with the identifying title you
-want, surrounded by double-quotes.  If you don't any identifying title,
-invoke <strong>ENDNOTE_TITLE</strong> with a blank argument (either two
-double-quotes side by side -- <kbd>&quot;&quot;</kbd> -- or no argument
-at all).
+macro.  If you'd want her to identify the document(s) another way,
+just invoke <strong>ENDNOTE_TITLE</strong> with the identifying
+title you want, surrounded by double-quotes.
+<p>
+If you don't want any identifying title, invoke
+<strong>ENDNOTE_TITLE</strong> with a blank argument (either two
+double-quotes side by side -- <kbd>&quot;&quot;</kbd> -- or no
+argument at all).  This is particularly useful if you have a single
+(i.e. non-collated) document and find having the document's title
+included in the endnotes redundant.
+<p>
 
 <!---ENDNOTE_TITLE_CONTROL--->
 
-<a name="ENDNOTE_TITLE_CONTROL"><h3><u>Endnote document-identification title control</u></h3></a>
+<a name="ENDNOTE_TITLE_CONTROL"><h3><u>*Endnote document-identification title control</u></h3></a>
 <p>
 See
 <a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
@@ -2115,27 +3869,126 @@ See
 
 <!---ENDNOTE_TITLE_UNDERSCORE--->
 
-<a name="ENDNOTE_TITLE_UNDERSCORE"><h3><u>Endnote document-identification title underscoring</h3></u></a>
+<a name="ENDNOTE_TITLE_UNDERSCORE"><h3><u>*Endnote document-identification title underscoring</h3></u></a>
 <p>
-Macro: <strong>ENDNOTE_TITLE_UNDERSCORE</strong> <var>toggle</var>
+<nobr>Macro: <strong>ENDNOTE_TITLE_UNDERSCORE</strong> toggle</nobr>
 
 <p>
-Inovked by itself, <strong>ENDNOTE_TITLE_UNDERSCORE</strong> will
-underscore the endnote document-identification title.  Invoked with any
-other argument, the macro disables underscoring of the title.
+Invoked by itself, <strong>ENDNOTE_TITLE_UNDERSCORE</strong> will
+underscore the endnote document-identification title(s).  Invoked with any
+other argument, the macro disables underscoring of the title(s).
 <p>
 <strong>Mom</strong>'s default is to underscore the document-identification title, therefore if you want no underscoring, you must
 insert <kbd>.ENDNOTE_TITLE_UNDERSCORE OFF</kbd> (or <kbd>QUIT, X, NO,
 NONE,</kbd> etc.) into your document prior to outputting endnotes with
 <a href="#ENDNOTES">ENDNOTES</a>.
-
-at all.
+<p>
 
 <!---ENDNOTE_NUMBERING--->
 
 <a name="ENDNOTES_NUMBERING"><h2><u>5. Endnotes-pages endnote numbering style</u></h2>
 
-<a name="ENDNOTE_NUMBER_CONTROL"><h3><u>Endnote numbering style control</u></h3></a>
+<a name="ENDNOTE_MARKER_STYLE"><h3><u>*Endnote marker style</u></h3></a>
+<p>
+The macro to control how endnotes are referenced is
+<strong>ENDNOTE_MARKER_STYLE</strong>.
+<p>
+By default, <strong>mom</strong> places superscript numbers in
+<a href="definitions.html#RUNNING">running text</a>
+to identify endnotes.  However, if you have
+<a href="#NUMBER_LINES">line-numbering</a>
+turned on, you may instruct <strong>mom</strong> not to put
+superscript numbers in the running text, but rather to reference
+endnotes by line number.  The command to do this is
+<p>
+<pre>
+	.ENDNOTE_MARKER_STYLE LINE
+</pre>
+
+With <strong>ENDNOTE_MARKER_STYLE LINE</strong>, <strong>mom</strong>
+will identify endnotes either by single line numbers, or line
+ranges.  If what you want is a single line number, you need only
+invoke <strong>.ENDNOTE</strong>, <em>without terminating the text
+line before it with</em> <strong>\c</strong>, at the appropriate
+place in running text.  (Should you wish to revert to
+<strong>mom</strong>'s default behaviour of placing a superscript
+number in the text to identify an endnote, you can invoke
+<strong>ENDNOTE_MARKER_STYLE</strong> with the argument,
+<strong>NUMBER</strong>.  It is not advisable to switch marker
+styles within a single document, for aesthetic reasons, but there
+is nothing to prevent you from doing so.)
+<p>
+If you want a range of line numbers (e.g.&nbsp;[5-11]&nbsp;),
+insert, directly into the first line of the range you want, the
+<a href="definitions.html#TERMS_INLINES">inline escape</a>,
+<strong>\*[EN-MARK]</strong>.  For the terminating line number of
+the range, you need only invoke <strong>.ENDNOTE</strong>, (again,
+without attaching <strong>\c</strong> to the text line before it).
+<strong>Mom</strong> is smart enough to figure out that where
+<strong>ENDNOTE</strong> was invoked represents the terminating
+line number.
+<a name="ENDNOTE_LINENUMBER_GAP"></a>
+<p>
+Given the impossibility of knowing, in advance, the "string length"
+of all the line numbers or ranges of line numbers that will be used
+in endnotes (the string length of 12 is two; the string length
+of 12-15 is 5), <strong>mom</strong> cannot "hang" line numbers
+and guarantee that they, and the endnote text, will align in a
+visually pleasing manner.  Consequently, <strong>mom</strong> sets
+the entirety of line-numbered endnotes completely flush left,
+<strong>including the line numbers themselves</strong>.  The line
+numbers (by default, enclosed in square brackets) are separated from
+the beginning of each endnote by a gap, so that a line-numbered
+endnote looks approximately like this:
+<p>
+<pre>
+	[1-2]   Notwithstanding, Frye later asserts that Christianity
+	is "a ghost  with the chains of a foul historical record of
+	cruelty clanking behind it."
+</pre>
+
+The default gap for <strong>PRINTSTYLE TYPESET</strong> and
+<strong>PRINSTYLE TYPEWRITE</strong> is 1.5
+<a href="definitions.html#TERMS_EM">ems</a>.
+You can change the size of the gap with the macro,
+<strong>ENDNOTE_LINENUMBER_GAP</strong>, which takes, as its single
+argument, the size of the gap.  The argument requires a
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>,
+so, for example, to change the gap to 2
+<a href="definitions.html#TERMS_PICASPOINTS">picas</a>,
+you'd do
+<p>
+<pre>
+	.ENDNOTE_LINENUMBER_GAP 2P
+</pre>
+
+<a name="ENDNOTE_LINENUMBER_BRACKETS"></a>
+By default, <strong>mom</strong> puts endnote line numbers inside
+square brackets.  The style of the brackets may be changed with
+the macro, <strong>ENDNOTE_LINENUMBER_BRACKETS</strong>, which
+takes one of three possible arguments: <strong>PARENS</strong>
+("round" brackets), <strong>SQUARE</strong> (the default) or
+<strong>BRACES</strong> (curly braces).  If you prefer a
+shortform, the arguments, <strong>(</strong>, <strong>[</strong> or
+<strong>{</strong> may be used instead.
+<a name="ENDNOTE_LINENUMBER_SEPARATOR"></a>
+<p>
+If you don't want the numbers enclosed in brackets, you may tell
+<strong>mom</strong> to use a "separator" instead.  A common
+separator would be the colon, but it can be anything you like.  The
+macro to do this is <strong>ENDNOTE_LINENUMBER_SEPARATOR</strong>,
+which takes, as its single argument, the separator you want.
+(If the argument contains spaces, don't forget to enclose the
+argument in double-quotes.)  The separator can be composed of
+any legal groff character, or any combination of characters.
+For example, to get a colon separator after the line number in
+line-numbered endnotes, you'd do
+<p>
+<pre>
+	.ENDNOTE_LINENUMBER_SEPARATOR :
+</pre>
+
+<a name="ENDNOTE_NUMBER_CONTROL"><h3><u>*Endnote numbering style control</u></h3></a>
 <p>
 See
 <a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
@@ -2152,7 +4005,7 @@ endnote numbers that appear in the body of the document(s).
 *Relative to the size of the endnotes text (set with ENDNOTE_PT_SIZE)
 </pre>
 
-<a name="ENDNOTE_NUMBER_ALIGNMENT"><h3><u>Endnote numbering alignment</u></h3></a>
+<a name="ENDNOTE_NUMBER_ALIGNMENT"><h3><u>*Endnote numbering alignment</u></h3></a>
 <p>
 By default, <strong>mom</strong> hangs the numbers on endnotes pages,
 aligned right to two placeholders, producing this:
@@ -2181,7 +4034,7 @@ The macros to alter this behaviour are
 
 <p>
 <a name="ENDNOTE_NUMBERS_ALIGN_RIGHT">
-	Macro: <strong>ENDNOTE_NUMBERS_ALIGN_RIGHT</strong> <var>&lt;number of placeholders&gt;</var>
+	<nobr>Macro: <strong>ENDNOTE_NUMBERS_ALIGN_RIGHT</strong> &lt;number of placeholders&gt;</nobr>
 </a>
 <p>
 <strong>ENDNOTE_NUMBERS_ALIGN_RIGHT</strong> takes one (non-optional)
@@ -2203,7 +4056,8 @@ endnotes, you'd want to do
 </pre>
 
 to ensure that the numbers hang and are properly right-aligned.
-<br>
+<p>
+
 <hr width="66%" align="left">
 
 <!---ENDNOTE_NUMBERS_ALIGN_LEFT--->
@@ -2229,11 +4083,291 @@ comes out like this:
 	sed diam nonumy eirmod tempor invidunt ut labore et
 	dolore magna aliquyam erat, sed diam voluptua.
 </pre>
-
-<br>
 <hr>
 
 <!====================================================================>
+
+<a name="MARGIN_NOTES_INTRO"><h2><u>Margin notes</u></h2></a>
+<ul>
+	<li><a href="#MARGIN_NOTES_BEHAVIOUR">Margin notes behaviour
+	<ul>
+		<li><a href="#MARGIN_NOTES_VERTICAL">Adjusting the vertical position of margin notes</a>
+	</ul>
+	<li><a href="#MN_INIT">Macro: MN_INIT</a> -- initialize margin notes
+	<li><a href="#MN">Tag: MN</a>
+</ul>
+
+<p>
+Margin notes are short annotations that appear in either the left
+or right margin of a document.  Sometimes they comment on the text.
+Sometimes they assist in following the "flow" of a document by
+summarizing the subject of a portion of text.  Sometimes they're
+comments to yourself in a draft copy.
+<p>
+The margin notes macros and routines in om.tmac
+(<strong>mom</strong>) are "mommified" versions of the margin notes
+macros and routines written by Werner Lemberg and patched by Gaius
+Mulley.
+<p>
+
+<a name="MARGIN_NOTES_BEHAVIOUR"<h3><u>Margin notes behaviour</u></h3>
+<p>
+First things first: before you enter your first margin note, you
+must "initialize" margin notes with
+<a href="#MN_INIT">MN_INIT</a>.
+<strong>MN_INIT</strong> sets up the style parameters for margin
+notes, including things like
+<a href="definitions.html#TERMS_FONT">font</a>,
+<a href="definitions.html#TERMS_FAMILY">family</a>
+and
+<a href="definitions.html#TERMS_LEADING">leading</a>.
+<p>
+After initializing margin notes, you create margin notes with the
+<a href="#MN">MN</a>
+macro.  Based on the argument you pass <strong>MN</strong>, your
+margin note will go in either the left or the right margin.
+<p>
+Margin notes are tricky from a typographic standpoint with respect
+to vertical placement.  Since the leading of margin notes may
+differ from that of
+<a href="definitions.html#TERMS_RUNNING">running text</a>,
+it's impossible for <strong>mom</strong> to guess whether to align
+the first lines of margin notes with a document
+<a href="definitions.html#TERMS_BASELINE">baseline</a>,
+whether to align the last lines of margin notes with a document
+baseline, or whether to center them, vertically, so that neither
+first nor last line aligns with anything!
+<p>
+Given this difficulty, <strong>mom</strong> always aligns the first
+line of any margin note with a document baseline.  If you want a
+different behaviour, you must adjust the position(s) of margin
+notes yourself, on a note by note basis.  (See
+<a href="#MARGIN_NOTES_VERTICAL">Adjusting the vertical position of margin notes</a>.)
+<p>
+Generally speaking, <strong>mom</strong> tries to place margin
+notes at the point where you invoke the tag,
+<a href="#MN">MN</a>.
+However, in the event that a margin note runs deep, she may not
+be able to place a subsequent margin note exactly where you want.
+In such an instance, <strong>mom</strong> will "shift" the margin
+note down on the page, placing it one (margin note)
+linespace beneath the previous margin note (plus whatever vertical
+space is required to get the first line to line up with a baseline
+of running text).  A warning will be issued, letting you know this
+has happened, and where.
+<p>
+Sometimes, if a margin note has to be shifted down, there simply
+isn't enough room to start the margin note on the page on which
+<strong>MN</strong> is invoked.  In that case, <strong>mom</strong>
+ignores the margin note entirely and issues a warning, letting you
+know what she's done, and where.
+<p>
+In the event that a margin note, sucessfully begun on a page, 
+runs past your bottom margin (or the last line before footnotes
+begin), the margin note will "flow" onto the next page.  If it is a
+"left" margin note, it will continue in the left margin.  If it is a
+"right" margin note, it will continue in the right margin.
+<p>
+If your document is being set in two columns, <strong>mom</strong>
+will sensibly and automatically set all margin notes pertaining
+to the left column in the left margin, and all margin notes
+pertaining to the right column in the right margin, regardless of
+the "direction" argument you give the <strong>MN</strong> tag.  If
+you try to use <strong>MN</strong> in documents of more than two
+columns, <strong>mom</strong> will ignore all margin notes, and
+issue warning for each.
+<p>
+<h3><u><a name="MARGIN_NOTES_VERTICAL">Adjusting the vertical position of margin notes</a></u></h3>
+<p>
+When the
+<a href="definitions.html#TERM_LEADING">leading</a>
+of margin notes differs from the leading used throughout a document,
+you may want to adjust the vertical position of individual margin
+notes.  This is most often going to be the case with margin notes
+that end near the bottom of the page, where you want the last line of
+the margin note to line up with the last line of text on the page.
+<p>
+Adjustments to the vertical position of margin notes must be done
+inside the margin note (i.e. after <strong>MN</strong>), at the
+top, before entering text.  The commands to use are
+\!<a href="typesetting.html#ALD">.ALD</a>
+(to lower the margin note), and
+\!<a href="typesetting.html#RLD">.RLD</a>
+(to raise it).  The <strong>\!</strong> <em>must</em> precede the
+macros, or they won't have any effect.
+
+<p>
+<hr width="66%" align="left">
+
+<!---MN_INIT--->
+
+<p>
+<a name="MN_INIT">
+	<nobr>Macro: <strong>MN_INIT</strong>&nbsp;[ ragged | symmetric ] &lt; left-width right-width gutter family+font point-size lead colour hyphenation-flags &gt;</nobr>
+</a>
+<p>
+Before you enter your first margin note, you must initialize
+all the parameters associated with margin notes with
+<strong>MN_INIT</strong>.  If you forget to do so,
+<strong>mom</strong> will issue a warning and abort.
+<p>
+The argument list is quite long; an
+explanation of each argument follows.  Any argument whose value you
+want to be the default must be entered as "" (i.e. two
+double-quotes with no space between them).  Defaults for each
+argument are given in the explanation below.
+<p>
+<strong>[ ragged | symmetric ]</strong>
+<br>
+If the first argument is "ragged", both left and right margin notes
+will be flush left.  If the first argument is "symmetric", left
+margin notes will be set flush <em>right</em>, and right margin
+notes will be set flush <em>left</em>.  The effect is something
+like this:
+<p>
+<pre>
+	     A left    This is a meaningless batch        A right
+	margin note    of text whose sole purpose is      margin note
+	  with just    to demonstrate how the sym-        with just
+	a few words    metric argument to MN sets left    a few words
+	     in it.    and right margin notes.            in it.
+</pre>
+
+
+If the argument is omitted,
+or given as "", both left and right margin notes will be set
+justified.  (Justified is usually not a good idea, since the narrow
+measure of margin notes makes pleasing justification a near
+impossibility.)
+<p>
+<strong>left-width</strong>
+<br>
+The width of left margin notes.  A
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
+must be appended directly onto the argument.  The default is to set
+left margin notes right out to the edge of the page, which is
+almost certainly not what you want, so you should give a value for
+this argument if using left margin notes.
+<p>
+<strong>right-width</strong>
+<br>
+The width of right margin notes.  A
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
+must be appended directly onto the argument.  The default is to set
+right margin notes right out to the edge of the page, which is
+almost certainly not what you want, so you should give a value for
+this argument if using right margin notes.
+<p>
+<strong>gutter</strong>
+<br>
+The
+<a href="definitions.html#TERMS_GUTTER">gutter</a>
+between margin notes and
+<a href="definitions.html#TERMS_RUNNING">running text</a>.
+A
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
+must be appended directly onto the argument.  The gutter applies to
+both left and right margin notes. The default is 1
+<a href="definitions.html#TERMS_EM">em</a>.
+<p>
+<strong>font</strong>
+<br>
+The family+font for margin notes.  Yes, that's right: the family
+PLUS font combo.  For example, if you want Times Roman Medium,
+the argument must be TR.  If you want Palatino Medium Italic, the
+argument must be PI.  The default is the same family+font combo used
+for a document's paragraph text.
+<p>
+<strong>lead</strong>
+<br>
+The
+<a href="definitions.html#TERMS_LEADING">leading</a>
+of margin notes.  <strong>lead</strong> uses
+<a href="definitions.html#TERMS_PICASPOINTS">points</a>
+as its unit of measure, so don't tack a unit of measure onto the
+end of the argument.  The default lead is the same leading as
+is used for paragraph text (i.e. the document's base leading).
+For convenience and clarity, you may also give the word,
+<strong>DOC</strong>, to this argument, which indicates that the
+leading should be the same as the document's base leading.
+<p>
+<strong>colour</strong>
+<br>
+The colour of margin notes.  The colour must be pre-initialized
+with
+<a href="color.html#NEWCOLOR">NEWCOLOR</a>
+or
+<a href="color.html#XCOLOR">XCOLOR</a>.
+The default is black.
+<p>
+<strong>hyphenation-flags</strong>
+<br>
+A number telling <strong>groff</strong> how you want margin notes
+hyphenated.
+<p>
+<pre>
+	1 = hyphenate without restrictions
+	2 = do not hyphenate the last word on the page
+	4 = do not hyphenate the last two characters of a word
+	8 = do not hyphenate the first two characters of a word
+</pre>
+
+The values can be added together, so, for example, if you want
+neither the first two nor the last two characters of words
+hyphenated, the hyphenation-flag would be 12.  The default value is
+14 (i.e. 2+4+8).
+
+<p>
+<hr width="66%" align="left">
+
+<!---MN_INIT--->
+
+<p>
+<a name="MN">
+	<nobr>Macro: <strong>MN</strong>&nbsp;LEFT|RIGHT | &lt;anything&gt;</nobr>
+</a>
+<p>
+Once you've initialized margin notes with
+<a href="#MN_INIT">MN_INIT</a>,
+you can enter margin notes any time you like with
+<strong>MN</strong>.  An argument of <strong>LEFT</strong> will set
+a left margin note.  An argument of <strong>RIGHT</strong> will set
+a right margin note.
+<p>
+Any argument, such as <strong>OFF</strong> (or
+<strong>QUIT</strong>, <strong>END</strong>, <strong>X</strong>,
+etc) exits the current margin note.
+
+<p>
+<hr>
+
+<!====================================================================>
+
+<a name="BLANK_PAGE_TITLE"><h2><u>Inserting a blank page into the document</u></h2></a>
+<p>
+<a name="BLANK_PAGE">
+	<nobr>Macro: <strong>BLANKPAGE</strong> &lt;# of blank pages to insert&gt;</nobr>
+</a>
+
+<p>
+This one does exactly what you'd expect -- inserts a blank page into
+the document. <strong>Mom</strong> silently increments the page
+number of every blank page and keeps track of
+<a href="rectoverso.html#RECTO_VERSO">recto/verso</a>
+stuff, but otherwise, does nothing.  It's up to you, the user, to
+figure out what to do with this feature.  However, it's worth
+noting that without it, inserting completely blank pages, to use
+a vernacular Québécois phrase, &quot;c'est pas évident&quot;
+(somewhere between &quot;isn't easy&quot;, &quot;isn't
+obvious&quot; and &quot;isn't fun&quot;).
+<p>
+The argument to <strong>BLANK_PAGE</strong> is the number of blank
+pages to insert.  The argument is not optional, hence even if you
+only want one blank page, you have to tell <strong>mom</strong>:
+<p>
+<pre>
+	.BLANKPAGE 1
+</pre>
 
 <a name="FINIS_INTRO"><h2><u>Terminate document processing</u></h2></a>
 <ul>
@@ -2243,18 +4377,586 @@ comes out like this:
 
 <p>
 The use of <strong>FINIS</strong> is optional.  If you invoke it
-(at the end of a document, of course), <strong>mom</strong> turns off
-<a href="definitions.html#TERMS_FOOTER">footers</a>
-(if they're on) and page numbering (if page
-numbers are at the bottom of the page) and deposits the word
-END, centered after a blank line, beneath the last
+(at the end of a document before
+<a href="#TOC">TOC</a>
+or
+<a href="#ENDNOTES">ENDNOTES</a>),
+<strong>mom</strong>
+deposits the word END, centred after a blank line, beneath the last
 line of the document.  END is enclosed between
 <a href="definitions.html#TERMS_EM">em-dashes</a>.
+<p>
+<strong>Please note</strong> that in versions of
+<strong>mom</strong> prior to 1.1.9, <strong>FINIS</strong> used to
+turn off
+<a href="definitions.html#TERMS_FOOTER">footers</a>
+(if they were on) and page numbering (if page numbers were at the
+bottom of the page).  Damned if I can recall why I thought anyone
+would want this behaviour, but it has been removed.
 <p>
 If you're writing in a language other than English, you can
 change what <strong>mom</strong> prints for END with
 the control macro <strong>FINIS_STRING</strong>.
+<p>
+<hr>
+
+<!====================================================================>
+
+<a name="TOC_INTRO"><h2><u>Table of contents</u></h2></a>
+<ul>
+	<li><a href="#TOC_BEHAVIOUR">TOC behaviour</a>
+	<li><a href="#TOC">Macro: TOC</a> -- tell <strong>mom</strong> to output a table of contents
+	<li><a href="#TOC_CONTROL">TOC control macros</a>
+</ul>
+
+<p>
+Want a table of contents for your document?  Easy.  Just enter
+<p>
+<pre>
+	.TOC
+</pre>
+
+as the very last macro of your document file. <strong>Mom</strong>
+will have picked up all document titles (in
+<a href="docprocessing.html#COLLATE">collated</a>
+documents), all heads, subheads, and paragraph heads, as well as any
+endnotes pages that have been output, and assigned them the
+appropriate page number (and page numbering style).  Talk about a
+no-brainer!
+
+That said, tables of contents (tocs) have even more control macros
+than endnotes.  As always, the reason for so many control macros is
+so that if you want to change just about any aspect of the toc's
+typographic appearance, you can.  <strong>Mom</strong> is all about
+simplicity AND flexibility.
+<p>
+
+<a name="TOC_BEHAVIOUR"><h3><u>TOC behaviour</u></h3></a>
+<p>
+When you output a toc (with
+<a href="#TOC">TOC</a>),
+<strong>mom</strong> finishes processing the last page of your document,
+then breaks to a new page for printing the toc.
+<p>
+<strong>Mom</strong> follows standard typesetting conventions for
+tables of contents.  To this end, if
+<a href="headfootpage.html#HEADERS">HEADERS</a>
+are on for the document, the first page of the toc has no page
+header, but does have a first page (roman numeral) number, always
+&quot;1&quot;, in the bottom margin.  If
+<a href="headfootpage.html#FOOTERS">FOOTERS</a>
+are on for the document, the first page has neither a footer, nor a
+page number in the top margin.  (If you absolutely must have a page
+footer on the first page of the toc, simply invoke
+<a href="headfootpage.html#FOOTER_ON_FIRST_PAGE">FOOTER_ON_FIRST_PAGE</a>
+immediately before <strong>TOC</strong>.)  Subsequent toc pages have
+both page headers or footers and a page number.
+<p>
+Entries in the toc are hierarchically indented, as you would
+expect.  By default, each type of entry (e.g. a head or a subhead)
+is set in a different font as well.  If any of heads, subheads or
+paragraph heads are numbered in the body of the document, they are
+also numbered in the toc.  Head numbering in the toc is NOT
+concatenated as it is in the body of the document, which would be
+visually redundant in a toc.
+<p>
+Tocs are never set in columns, regardless of whether the rest of
+the document is.  Lastly, if
+<a href="rectoverso.html#RECTO_VERSO">recto/verso</a>
+printing is enabled, the toc respects it.  This sometimes leads to
+tocs that begin with the wrong margins, but the margins can be
+corrected either by outputting a
+<a href="#BLANK_PAGE">BLANKPAGE</a>
+or by using the toc control macro
+<a href="#TOC_RV_SWITCH">TOC_RV_SWITCH</a>.
+<p>
+The overall toc
+<a href="definitions.html#TERMS_FAMILY">family</a>,
+<a href="definitions.html#TERMS_PS">point size</a>
+and
+<a href="definitions.html#TERMS_LEADING">lead</a>
+can be altered with the toc 
+<a href="definitions.html#TERMS_CONTROLMACRO">control macros</a>,
+as can the family,
+<a href="definitions.html#TERMS_FONT">font</a>,
+point size and indent of each type of toc entry (i.e. title, head,
+subhead, paragraph head).  Furthermore, the page numbering style
+can be changed, as can the amount of visual space reserved for toc
+entry page numbers.
+<p>
+
+<!---TOC--->
+
+<hr width="66%" align="left">
+<p>
+<a name="TOC">Macro: <strong>TOC</strong></a>
+
+<p>
+If you want a toc, just put <strong>TOC</strong> as the last macro
+in a document.  <strong>Mom</strong> takes care of the rest.
+<p>
+<hr width="66%" align="left">
+
+<a name="TOC_CONTROL"><h3><u>TOC control macros</u></h3></a>
+<p>
+Toc entries are not actually processed when <strong>mom</strong>
+collects them, so you can put any toc control macros anywhere you
+like in your document.  Some may prefer to place them at the top of
+the file.  Others may prefer to place them just before outputting
+the toc.  The choice is yours.
 <br>
+<ol>
+	<li><a href="#TOC_GENERAL"><strong>General toc page style control</strong></a>
+		<ul>
+			<li><a href="#TOC_FAMILY">Base family for toc pages</a>
+			<li><a href="#TOC_PT_SIZE">Base point size for toc pages</a>
+			<li><a href="#TOC_LEAD">Leading of toc pages</a>
+		</ul>
+	<li><a href="#TOC_PAGENUMBERING"><strong>Toc page numbering</strong></a>
+		<ul>
+			<li><a href="#PAGINATE_TOC">Turn toc pagination on or off</a>
+			<li><a href="#TOC_PAGENUM_STYLE">Toc page numbering style</a>
+		</ul>
+	<li><a href="#TOC_HEADER"><strong>Changing the toc header (title), string and style</strong></a>
+		<ul>
+			<li><a href="#TOC_HEADER_STRING">Changing the string (title)</a>
+			<li><a href="#TOC_HEADER_STYLE">Changing the string (title) style</a>
+		</ul>
+	<li><a href="#TOC_STYLE"><strong>Changing the style for toc entries</strong></a>
+	    <ul>
+	        <li><a href="#TOC_INDENT">The toc _INDENT control macros</a>
+	        <li><a href="#TOC_TITLE">Changing the style for toc title entries</a>
+	        <li><a href="#TOC_HEAD">Changing the style for toc head entries</a>
+	        <li><a href="#TOC_SUBHEAD">Changing the style for toc subhead entries</a>
+	        <li><a href="#TOC_PARAHEAD">Changing the style for toc paragraph head entries</a>
+	        <li><a href="#TOC_PN">Changing the style for toc page number listings</a>
+	    </ul>
+	<li><a href="#TOC_ADDITIONAL"><strong>Additional toc control macros</strong></a>
+	    <ul>
+	        <li><a href="#TOC_TITLE_ENTRY">Change the wording of a toc title entry</a>
+	        <li><a href="#TOC_APPENDS_AUTHOR">Append author(s) to toc title entries</a>
+	        <li><a href="#TOC_RV_SWITCH">TOC_RV_SWITCH</a>
+	        <li><a href="#TOC_PADDING">TOC_PADDING</a>
+	    </ul>
+</ol>
+<hr>
+
+<a name="TOC_GENERAL"><h2><u>1. General toc page style control</u></h2>
+
+<a name="TOC_FAMILY"><h3><u>*Toc family</u></h3></a>
+<p>
+See
+<a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
+<p>
+Set the family of toc pages with <strong>TOC_FAMILY</strong>, which
+establishes the default family for every element of a toc page,
+including the toc title (&quot;Contents&quot;) and the page number
+in the top or bottom margin.  The default is the prevailing document
+family.
+<p>
+All elements on a toc page also have their own _FAMILY
+control macros, which override the default set by
+<strong>TOC_FAMILY</strong>.
+<p>
+
+<!---TOC_PT_SIZE--->
+
+<a name="TOC_PT_SIZE"><h3><u>*Toc point size</u></h3></a>
+<p>
+<nobr>Macro: <strong>TOC_PT_SIZE</strong> &lt;base type size of the toc&gt;</nobr>
+
+<p>
+Unlike most other control macros that deal with size of document
+elements, <strong>TOC_PT_SIZE</strong> takes as its argument an
+absolute value, relative to nothing.  Therefore, the argument
+represents the size of toc type in
+<a href="definitions.html#TERMS_PICASPOINTS">points</a>,
+unless you append an alternative
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>.
+For example,
+<p>
+<pre>
+	.TOC_PT_SIZE 12
+</pre>
+
+sets the base point size of type for the toc to 12 points, whereas
+<p>
+<pre>
+	.TOC_PT_SIZE .6i
+</pre>
+
+sets the base point size of type for the toc to 1/6 of an inch.
+<p>
+The type size set with <strong>TOC_PT_SIZE</strong> forms the basis
+from which the point size of other toc page elements are calculated.
+<p>
+The default for
+<a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE TYPESET</a>
+is 12.5 points (the same default size used in the body of the
+document).
+<p>
+
+<!---TOC_LEAD--->
+
+<a name="TOC_LEAD"><h3><u>*Toc lead</u></h3></a>
+<p>
+<nobr>Macro: <strong>TOC_LEAD</strong> &lt;leading of the toc&gt; [ ADJUST ]</nobr>
+<br>
+<em>*Does not require a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>; points is assumed</em>
+
+<p>
+Unlike most other control macros that deal with leading of document
+elements, <strong>TOC_LEAD</strong> takes as its argument an
+absolute value, relative to nothing.  Therefore, the argument
+represents the
+<a href="definitions.html#TERMS_LEADING">leading</a>
+of tocs in
+<a href="definitions.html#TERMS_PICASPOINTS">points</a>
+unless you append an alternative
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>.
+For example,
+<p>
+<pre>
+	.TOC_LEAD 14
+</pre>
+
+sets the base leading of type on the endnotes page to 14
+points, whereas
+<p>
+<pre>
+	.TOC_LEAD .5i
+</pre>
+
+sets the base leading of type on the endnotes page to 1/2 inch.
+<p>
+If you want the leading of toc pages adjusted to fill the
+page, pass <strong>TOC_LEAD</strong> the optional argument
+<strong>ADJUST</strong>.  (See
+<a href="docprocessing.html#DOC_LEAD_ADJUST">DOC_LEAD_ADJUST</a>
+for an explanation of leading adjustment.)
+<p>
+The default for
+<a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE TYPESET</a>
+is the prevailing document lead (16 by default), adjusted.
+<p>
+<strong>NOTE:</strong> Even if you give <strong>mom</strong> a
+<strong>DOC_LEAD_ADJUST OFF</strong> command, she will still, by
+default, adjust toc leading.  You MUST enter
+<strong>TOC_LEAD &lt;lead&gt;</strong> with no
+<strong>ADJUST</strong> argument to disable this default behaviour.
+<p>
+<strong>ADDITIONAL NOTE:</strong> Tocs are always double-spaced in
+<strong>PRINTSTYLE TYPEWRITE</strong>, regardless of whether the
+body of the document is single-spaced.
+
+<a name="TOC_PAGENUMBERING"><h2><u>2. Toc page numbering</u></h2></a>
+<p>
+The page numbering of toc pages is controlled by the same macros
+that control
+<a href="headfootpage.html#PAGINATION">document page numbering</a>,
+except
+<a href="headfootpage.html#PAGENUM">PAGENUM</a>
+(tocs always start on page 1).  The defaults are the same as the
+rest of the document.
+<p>
+If you wish to change some aspect of toc pagination, use the
+document pagination control macros immediately prior to
+<strong>.TOC</strong>.
+<p>
+A special macro,
+<a href="#TOC_PAGENUM_STYLE">TOC_PAGENUM_STYLE</a>
+controls the style of toc pages page numbers.
+<p>
+
+<hr width="33%" align="left">
+
+<!---PAGINATE_TOC--->
+
+<p>
+<a name="PAGINATE_TOC">
+	<nobr>Macro: <strong>PAGINATE_TOC</strong> &lt;toggle&gt;</nobr>
+</a>
+<p>
+By default, <strong>mom</strong> paginates the toc.  If you'd like
+her not to, do 
+<p>
+<pre>
+	.PAGINATE_TOC OFF
+</pre>
+
+<strong>NOTE:</strong> Simply invoking <strong>PAGINATION
+OFF</strong> or <strong>PAGINATE OFF</strong> disables toc
+pagination <em>for the first toc page only.</em> You MUST use
+<strong>.PAGINATE_TOC OFF</strong> to disable toc pagination, even
+if pagination is turned off elsewhere in your document.
+<p>
+
+<hr width="33%" align="left">
+<p>
+
+<!---TOC_PAGENUM_STYLE--->
+
+<a name="TOC_PAGENUM_STYLE">
+	<nobr>Macro: <strong>TOC_PAGENUM_STYLE</strong> &lt;DIGIT | ROMAN | roman | ALPHA | alpha&gt;</nobr>
+</a>
+<p>
+By default, <strong>mom</strong> uses roman numerals to number
+toc pages.  Use <strong>TOC_PAGENUM_STYLE</strong> if you'd prefer
+something else.  For example, to have standard digits instead of
+roman numerals, do the following:
+<p>
+<pre>
+	.TOC_PAGENUM_STYLE DIGIT
+</pre>
+
+<hr width="33%" align="left">
+
+<a name="TOC_HEADER"><h2><u>3. Changing the toc header (title) string and style</u></h2></a>
+<p>
+The toc header string is the title that appears at to top of the
+toc.  By default, it's &quot;Contents&quot;.  If you'd like
+something else, say, &quot;Table of Contents&quot;, do
+<p>
+<a name="TOC_HEADER_STRING"></a>
+<pre>
+	.TOC_HEADER_STRING "Table of Contents"
+</pre>
+
+<a name="TOC_HEADER_STYLE"></a>
+The style of the toc header (title) is managed by the usual control
+macros (see
+<a href="#CONTROL_MACRO_ARGS">arguments to the control macros</a>).
+<p>
+<pre>
+	.TOC_HEADER_FAMILY  default = prevailing doc family (Times Roman in TYPEWRITE)
+	.TOC_HEADER_FONT    default = bold
+	.TOC_HEADER_SIZE    default = +4
+	.TOC_HEADER_QUAD    default = left
+</pre>
+
+<a name="TOC_STYLE"><h2><u>4. Changing the style for toc entries</u></h2></a>
+<p>
+&quot;Toc entries&quot; refers to titles, heads, subheads and
+paragraph heads as they appear in the toc.  Their style is managed
+by the usual
+<a href="definitions.html#TERMS_CONTROLMACRO">control macros</a>,
+starting with TOC_
+<p>
+
+<a name="TOC_INDENT"><h3><u>The toc _INDENT control macros</u></h3></a>
+<p>
+The toc control macros that end in _INDENT all take a single
+argument that requires a
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>.
+The argument is the distance to indent the entry, always measured
+from the left margin.  For example,
+<p>
+<pre>
+	.TOC_HEAD_INDENT 2P
+</pre>
+
+indents head entries 2
+<a href="definitions.html#TERMS_PICASPOINTS">picas</a>
+from the left margin.
+<p>
+
+<a name="TOC_TITLE"><h3><u>*Changing the style for toc title entries</u></h3></a>
+<p>
+(See
+<a href="#CONTROL_MACRO_ARGS">arguments to the control macros</a>).
+<p>
+Toc title entries are the titles of documents that have been
+<a href="rectoverso.html#COLLATE">collated</a>
+together.
+<p>
+<pre>
+	.TOC_TITLE_FAMILY  default = prevailing doc family (Times Roman in TYPEWRITE)
+	.TOC_TITLE_FONT    default = bold italic
+	.TOC_TITLE_SIZE    default = +0
+	.TOC_TITLE_INDENT  default = 0 for TYPESET and TYPEWRITE
+</pre>
+
+<a name="TOC_HEAD"><h3><u>*Changing the style for toc head entries</u></h3></a>
+<p>
+(See
+<a href="#CONTROL_MACRO_ARGS">arguments to the control macros</a>).
+<p>
+Toc head entries are main heads that appear in the body of a
+document.
+<p>
+<pre>
+	.TOC_HEAD_FAMILY  default = prevailing doc family (Times Roman in TYPEWRITE)
+	.TOC_HEAD_FONT    default = bold
+	.TOC_HEAD_SIZE    default = +.5
+	.TOC_HEAD_INDENT  default = 18p for TYPESET; 2m for TYPEWRITE
+</pre>
+
+<a name="TOC_SUBHEAD"><h3><u>*Changing the style for toc subhead entries</u></h3></a>
+<p>
+(See
+<a href="#CONTROL_MACRO_ARGS">arguments to the control macros</a>).
+<p>
+Toc subhead entries are subheads that appear in the body of a
+document.
+<p>
+<pre>
+	.TOC_SUBHEAD_FAMILY  default = prevailing doc family (Times Roman in TYPEWRITE)
+	.TOC_SUBHEAD_FONT    default = roman
+	.TOC_SUBHEAD_SIZE    default = +0
+	.TOC_SUBHEAD_INDENT  default = 30p for TYPESET; 4m for TYPEWRITE
+</pre>
+
+<a name="TOC_PARAHEAD"><h3><u>*Changing the style for toc paragraph head entries</u></h3></a>
+<p>
+(See
+<a href="#CONTROL_MACRO_ARGS">arguments to the control macros</a>).
+<p>
+Toc paragraph head entries are paragraph heads that appear in the
+body of a document.
+<p>
+<pre>
+	.TOC_PARAHEAD_FAMILY  default = prevailing doc family (Times Roman in TYPEWRITE)
+	.TOC_PARAHEAD_FONT    default = italic
+	.TOC_PARAHEAD_SIZE    default = +0
+	.TOC_PARAHEAD_INDENT  default = 42p for TYPESET; 6m for TYPEWRITE
+</pre>
+
+<a name="TOC_PN"><h3><u>*Changing the style for toc paragraph page number listings</u></h3></a>
+<p>
+(See
+<a href="#CONTROL_MACRO_ARGS">arguments to the control macros</a>).
+<p>
+Toc paragraph head entries are paragraph heads that appear in the
+body of a document.
+<p>
+<pre>
+	.TOC_PN_FAMILY  default = prevailing doc family (Times Roman in TYPEWRITE)
+	.TOC_PN_FONT    default = roman
+	.TOC_PN_SIZE    default = +0
+</pre>
+
+<a name="TOC_ADDITIONAL"><h2><u>5. Additional toc macros</u></h2></a>
+<p>
+The following macros allow you to switch page margins should
+they be incorrect for recto/verso printing, to establish how
+many placeholders to leave for page listings, and to have
+<strong>mom</strong> append author(s) to toc title entries.
+<p>
+
+<hr width="33%" align="left">
+
+<!---TOC_RV_SWITCH--->
+
+<p>
+<a name="TOC_RV_SWITCH">
+	Macro: <strong>TOC_RV_SWITCH</strong>
+</a>
+<p>
+<strong>TOC_RV_SWITCH</strong> doesn't take an argument.  It simply
+instructs <strong>mom</strong> to switch the left and right margins
+of
+<a href="rectoverso.html#RECTO_VERSO">recto/verso</a>
+documents should the toc happen to begin on an even page when you
+want an odd, or vice versa.
+<p>
+The same result can be accomplished by outputting a
+<a href="#BLANK_PAGE">BLANKPAGE</a>.
+<p>
+
+<hr width="33%" align="left">
+
+<!---TOC_TITLE_ENTRY--->
+
+<p>
+<a name="TOC_TITLE_ENTRY">
+	<nobr>Macro: <strong>TOC_TITLE_ENTRY</strong> &lt;&quot;alternate wording for a title entry in the toc&quot;&gt;</nobr>
+</a>
+<p>
+In 
+<a href="rectoverso.html#COLLATE">collated</a>
+documents, the title of each separate document appears in the table
+of contents.  It may sometimes happen that you don't want the title
+as it appears in the toc to be the same as what appears in
+the
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>.
+You might, for example, want to shorten it.  Or, in the case of
+chapters where the docheader contains both a chapter number and a
+chapter title, like this
+<p>
+<pre>
+	           Chapter 6
+	Burning Bush -- Maybe God Was Right
+</pre>
+
+you might want only the chapter title, not the chapter number, to
+show up in the toc.  (By default, <strong>TOC</strong> generates
+both.)
+<p>
+If you want to change the wording of a title entry in the toc,
+simply invoke <strong>TOC_TITLE_ENTRY</strong> with the desired
+wording, enclosed in double-quotes.  Using the example, above,
+<p>
+<pre>
+	.CHAPTER 6
+	.CHAPTER_TITLE "Burning Bush -- Maybe God Was Right"
+	.TOC_TITLE_ENTRY "Burning Bush"
+	.DOCTYPE CHAPTER
+</pre>
+
+would identify chapter 6 in the toc simply as &quot;Burning
+Bush&quot;.
+
+<p>
+
+<hr width="33%" align="left">
+
+<!---TOC_APPENDS_AUTHOR--->
+
+<p>
+<a name="TOC_APPENDS_AUTHOR">
+	<nobr>Macro: <strong>TOC_APPENDS_AUTHOR</strong> &lt;none&gt; | &lt;&quot;name(s) of authors&quot;&gt;</nobr>
+</a>
+<p>
+In certain kinds of collated documents, different authors are
+responsible for the articles or stories contained within them.  In
+such documents, you may wish to have the author or authors
+appended to the toc's title entry for each story or article.
+<p>
+If you invoke <strong>TOC_APPENDS_AUTHOR</strong> with no argument,
+<strong>mom</strong> appends the first argument you passed to
+<a href="docprocessing.html#AUTHOR">AUTHOR</a>
+to toc title entries, separated by a front-slash.
+<p>
+If you invoke <strong>TOC_APPENDS_AUTHOR</strong> with an argument
+(surrounded by double-quotes), <strong>mom</strong> will append it
+to the toc title entries instead.  This is useful if you have
+multiple authors you wish to identify by last name only.  For
+example, if three authors--Joe Blough, Jane Doe, and John
+Deere--are responsible for a single article
+<p>
+<pre>
+	.TOC_APPENDS_AUTHOR "Blough et al."
+</pre>
+
+would be a good way to identify them in the toc.
+<p>
+
+<hr width="33%" align="left">
+
+<!---TOC_PADDING--->
+
+<p>
+<a name="TOC_PADDING">
+	<nobr>Macro: <strong>TOC_PADDING</strong> &lt;# of placeholders to allow for page number listings&gt;</nobr>
+</a>
+<p>
+By default, <strong>mom</strong> allows room for 3 digits in the
+page number listings of tocs.  If you'd like some other number of
+placeholders, say 2, do
+<p>
+<pre>
+	.TOC_PADDING 2
+</pre>
 
 <!---FINIS--->
 
@@ -2266,7 +4968,11 @@ the control macro <strong>FINIS_STRING</strong>.
 
 <p>
 The use of <strong>FINIS</strong> is optional, but if you use
-it, it should be the last macro you invoke in a document.  See
+it, it should be the last macro you invoke in a document (before
+<a href="#ENDNOTES">ENDNOTES</a>
+or
+<a href="#TOC">TOC</a>).
+See
 <a href="#FINIS_INTRO">above</a>
 for a description of how <strong>FINIS</strong> behaves.
 <p>
@@ -2309,10 +5015,21 @@ a blank string, i.e.
 
 <strong>mom</strong> will still print the em-dashes if you
 invoke <strong>FINIS</strong>.  This, in effect, produces a
-short, centered horizontal rule that terminates the document.
+short, centred horizontal rule that terminates the document.
 (In
 <a href="docprocessing.html.#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
 it's a short, dashed line composed of four hyphens.)
+
+<a name="FINIS_COLOR"><h3><u>Changing the FINIS colour</u></h3></a>
+<p>
+Invoking <strong>FINIS_COLOR</strong> with a pre-defined (or
+&quot;initalized&quot;) color changes the colour of both the FINIS
+string and the em-dashes that surround it.  If you use the
+<a href="definitions.html#TERMS_INLINE">inline escape</a>,
+<a href="color.html#COLOR_INLINE">\*[&lt;colorname&gt;]</a>,
+in the argument passed to <strong>FINIS</strong>, only the text
+will be in the new colour; the em-dashes will be in the default
+document colour (usually black).
 
 <p>
 <hr>

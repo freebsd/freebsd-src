@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+/* Copyright (C) 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
  *
  *  Gaius Mulley (gaius@glam.ac.uk) wrote html-table.h
  *
@@ -24,7 +24,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "html.h"
 
@@ -45,6 +45,7 @@ public:
   void  clear         (void);
   int   compatible    (const char *s);
   void  init          (const char *s);
+  void  check_init    (const char *s);
   int   find_tab      (int pos);
   int   get_tab_pos   (int n);
   char  get_tab_align (int n);
@@ -91,14 +92,15 @@ public:
   void  add_indent        (int indent);
   void  finish_row        (void);
   int   get_effective_linelength (void);
+  void  set_space         (int space);
 
   tabs          *tab_stops;    /* tab stop positions */
+  simple_output *out;
 private:
   cols          *columns;      /* column entries */
-  simple_output *out;
   int            linelength;
   cols          *last_col;     /* last column started */
-  int            start_space;  /* encapsulate with <p> </p> */
+  int            start_space;  /* have we seen a `.sp' tag? */
 
   void  remove_cols (cols *c);
 };

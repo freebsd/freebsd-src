@@ -2,9 +2,9 @@
 
 /* <groff_src_dir>/src/libs/libgroff/color.cpp
 
-Last update: 13 Apr 2003
+Last update: 26 May 2004
 
-Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
     Written by Gaius Mulley <gaius@glam.ac.uk>
 
 This file is part of groff.
@@ -21,8 +21,9 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
+#include "lib.h"
 #include "color.h"
 #include "cset.h"
 #ifdef HAVE_UNISTD_H
@@ -73,6 +74,7 @@ void color::operator delete(void *p)
 
 color::color(const color * const c)
 {
+  nm = c->nm;
   scheme = c->scheme;
   components[0] = c->components[0];
   components[1] = c->components[1];

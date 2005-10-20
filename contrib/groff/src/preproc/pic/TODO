@@ -1,5 +1,3 @@
-Dotted and dashed ellipses.
-
 In troff mode, dotted and dashed splines.
 
 Make DELIMITED have type lstr; this would allow us to give better

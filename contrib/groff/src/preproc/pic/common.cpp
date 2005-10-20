@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2003 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -16,7 +16,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "pic.h"
 #include "common.h"
@@ -76,6 +76,157 @@ void common_output::dotted_circle(const position &cent, double rad,
   double ang = 0.0;
   for (int i = 0; i < ndots; i++, ang += gap_angle)
     dot(cent + position(cos(ang), sin(ang))*rad, lt);
+}
+
+// recursive function for dash drawing, used by dashed_ellipse
+
+void common_output::ellipse_arc(const position &cent,
+				const position &z0, const position &z1,
+				const distance &dim, const line_type &lt)
+{
+  assert(lt.type == line_type::solid);
+  assert(dim.x != 0 && dim.y != 0);
+  double eps = 0.0001;
+  position zml = (z0 + z1) / 2;
+  // apply affine transformation (from ellipse to circle) to compute angle
+  // of new position, then invert transformation to get exact position
+  double psi = atan2(zml.y / dim.y, zml.x / dim.x);
+  position zm = position(dim.x * cos(psi), dim.y * sin(psi));
+  // to approximate the ellipse arc with one or more circle arcs, we
+  // first compute the radius of curvature in zm
+  double a_2 = dim.x * dim.x;
+  double a_4 = a_2 * a_2;
+  double b_2 = dim.y * dim.y;
+  double b_4 = b_2 * b_2;
+  double e_2 = a_2 - b_2;
+  double temp = a_4 * zm.y * zm.y + b_4 * zm.x * zm.x;
+  double rho = sqrt(temp / a_4 / b_4 * temp / a_4 / b_4 * temp);
+  // compute center of curvature circle
+  position M = position(e_2 * zm.x / a_2 * zm.x / a_2 * zm.x,
+			-e_2 * zm.y / b_2 * zm.y / b_2 * zm.y);
+  // compute distance between circle and ellipse arc at start and end
+  double phi0 = atan2(z0.y - M.y, z0.x - M.x);
+  double phi1 = atan2(z1.y - M.y, z1.x - M.x);
+  position M0 = position(rho * cos(phi0), rho * sin(phi0)) + M;
+  position M1 = position(rho * cos(phi1), rho * sin(phi1)) + M;
+  double dist0 = hypot(z0 - M0) / sqrt(z0 * z0);
+  double dist1 = hypot(z1 - M1) / sqrt(z1 * z1);
+  if (dist0 < eps && dist1 < eps)
+    solid_arc(M + cent, rho, phi0, phi1, lt);
+  else {
+    ellipse_arc(cent, z0, zm, dim, lt);
+    ellipse_arc(cent, zm, z1, dim, lt);
+  }
+}
+
+// output a dashed ellipse as a series of arcs
+
+void common_output::dashed_ellipse(const position &cent, const distance &dim,
+				   const line_type &lt)
+{
+  assert(lt.type == line_type::dashed);
+  double dim_x = dim.x / 2;
+  double dim_y = dim.y / 2;
+  line_type slt = lt;
+  slt.type = line_type::solid;
+  double dw = lt.dash_width;
+  // we use an approximation to compute the ellipse length (found in:
+  // Bronstein, Semendjajew, Taschenbuch der Mathematik)
+  double lambda = (dim.x - dim.y) / (dim.x + dim.y);
+  double le = M_PI / 2 * (dim.x + dim.y)
+	      * ((64 - 3 * lambda * lambda * lambda * lambda )
+		 / (64 - 16 * lambda * lambda));
+  // for symmetry we make nmax a multiple of 8
+  int nmax = 8 * int(le / dw / 8 + 0.5);
+  if (nmax < 8) {
+    nmax = 8;
+    dw = le / 8;
+  }
+  int ndash = nmax / 2;
+  double gapwidth = (le - dw * ndash) / ndash;
+  double l = 0;
+  position z = position(dim_x, 0);
+  position zdot = z;
+  int j = 0;
+  int jmax = int(10 / lt.dash_width);
+  for (int i = 0; i <= nmax; i++) {
+    position zold = z;
+    position zpre = zdot;
+    double ld = (int(i / 2) + 0.5) * dw + int((i + 1) / 2) * gapwidth;
+    double lold = 0;
+    double dl = 1;
+    // find next position for fixed arc length
+    while (l < ld) {
+      j++;
+      lold = l;
+      zold = z;
+      double phi = j * 2 * M_PI / jmax;
+      z = position(dim_x * cos(phi), dim_y * sin(phi));
+      dl = hypot(z - zold);
+      l += dl;
+    }
+    // interpolate linearly between the last two points,
+    // using the length difference as the scaling factor
+    double delta = (ld - lold) / dl;
+    zdot = zold + (z - zold) * delta;
+    // compute angle of new position on the affine circle
+    // and use it to get the exact value on the ellipse
+    double psi = atan2(zdot.y / dim_y, zdot.x / dim_x);
+    zdot = position(dim_x * cos(psi), dim_y * sin(psi));
+    if ((i % 2 == 0) && (i > 1))
+      ellipse_arc(cent, zpre, zdot, dim / 2, slt);
+  }
+}
+
+// output a dotted ellipse as a series of dots
+
+void common_output::dotted_ellipse(const position &cent, const distance &dim,
+				   const line_type &lt)
+{
+  assert(lt.type == line_type::dotted);
+  double dim_x = dim.x / 2;
+  double dim_y = dim.y / 2;
+  line_type slt = lt;
+  slt.type = line_type::solid;
+  // we use an approximation to compute the ellipse length (found in:
+  // Bronstein, Semendjajew, Taschenbuch der Mathematik)
+  double lambda = (dim.x - dim.y) / (dim.x + dim.y);
+  double le = M_PI / 2 * (dim.x + dim.y)
+	      * ((64 - 3 * lambda * lambda * lambda * lambda )
+		 / (64 - 16 * lambda * lambda));
+  // for symmetry we make nmax a multiple of 4
+  int ndots = 4 * int(le / lt.dash_width / 4 + 0.5);
+  if (ndots < 4)
+    ndots = 4;
+  double l = 0;
+  position z = position(dim_x, 0);
+  int j = 0;
+  int jmax = int(10 / lt.dash_width);
+  for (int i = 1; i <= ndots; i++) {
+    position zold = z;
+    double lold = l;
+    double ld = i * le / ndots;
+    double dl = 1;
+    // find next position for fixed arc length
+    while (l < ld) {
+      j++;
+      lold = l;
+      zold = z;
+      double phi = j * 2 * M_PI / jmax;
+      z = position(dim_x * cos(phi), dim_y * sin(phi));
+      dl = hypot(z - zold);
+      l += dl;
+    }
+    // interpolate linearly between the last two points,
+    // using the length difference as the scaling factor
+    double delta = (ld - lold) / dl;
+    position zdot = zold + (z - zold) * delta;
+    // compute angle of new position on the affine circle
+    // and use it to get the exact value on the ellipse
+    double psi = atan2(zdot.y / dim_y, zdot.x / dim_x);
+    zdot = position(dim_x * cos(psi), dim_y * sin(psi));
+    dot(cent + zdot, slt);
+  }
 }
 
 // return non-zero iff we can compute a center

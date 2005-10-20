@@ -11,6 +11,103 @@ Generic Problems
 
 
 
+* Displaying a man page on a terminal with/without my favourite pager
+  only gives garbage.
+
+groff by default now uses SGR escape sequences (`ANSI color') to
+control the display attributes (bold, underlined, colour) on TTYs. 
+Some terminals (e.g. `kterm') don't understand SGR, and some pagers
+(e.g. older versions of `less' or `less' without the -R option) don't
+understand SGR either.  There are three solutions to fix this, in order
+of preference; please read the grotty man page for more details.
+
+The fourth and probably best option is to update your terminal program
+and pager to versions which can handle SGR.
+
+  1. Set the GROFF_NO_SGR environment variable.
+
+  2. Pass option -c to grotty.
+
+  3. Append the following fragment to the `troffrc' file:
+
+
+--- start ---
+.if n \{\
+.  nr _C \n(.C
+.  cp 0
+.
+.  \" The following code sets a top-of-page trap to disable grotty's TTY
+.  \" mode.  Since neither \X nor .output can be used before the first
+.  \" page has started, we must use a trap.  To make it work with troff's
+.  \" -o option, we wait until the first printed page.
+.
+.  de sgr@dummy
+.  .
+.
+.  rn wh wh@old
+.
+.  \" The stand-alone version.  If no other trap is set, we can safely
+.  \" insert the truncated vertical space caused by the trap (if any).
+.  \" Otherwise we assume that the document's main macro package takes
+.  \" care of that.  As soon as the trap has been executed, it is removed.
+.  de1 no@sgr
+.    if \\n[.P] \{\
+.      if (\\n[.t] == \\n[.p]) \{\
+.        rn wh@old wh
+.        rm no@sgr
+.        wh 0
+.        sp \\n[.trunc]
+.        nop \X'tty: sgr 0'
+.        sp -1
+.    \}\}
+.  .
+.
+.  wh@old 0 no@sgr
+.
+.  \" The piggyback version to be appended to macros planted with the
+.  \" modified `wh' request.
+.  de1 no@sgr1
+.    if \\n[.P] \{\
+.      rn wh@old wh
+.      ds no@sgr1
+.      nop \X'tty: sgr 0'
+.      sp -1
+.    \}
+.  .
+.
+.  \" We redefine the `wh' request so that `no@sgr1' is appended to
+.  \" the trap macro.
+.  de1 wh
+.    am1 \\$2 sgr@dummy
+.      no@sgr1
+.    sgr@dummy
+.    wh@old \\$1 \\$2
+.  .
+.
+.  cp \n[_C]
+.\}
+--- end ---
+
+----------------------------------------------------------------------
+
+* The UTF-8 output of grotty has strange characters for the minus, the
+  hyphen, and the right quote.  Why?
+
+The used Unicode characters (U+2212 for the minus sign and U+2010 for
+the hyphen) are the correct ones, but many programs can't search them
+properly.  The same is true for the right quote (U+201D).  To map those
+characters back to the ASCII characters, insert the following code
+snippet into the `troffrc' configuration file:
+
+.if '\*[.T]'utf8' \{\
+.  char \- \N'45'
+.  char  - \N'45'
+.  char  ' \N'39'
+.\}
+
+
+----------------------------------------------------------------------
+
 * My document says that the current year is 19100, not 2000.
 
 In groff, as in traditional troff, the yr number register yields the
@@ -295,7 +392,7 @@ Printing and Display Problems
 A PostScript document must meet three requirements in order to be
 included with the PSPIC macro: it must comply with the Adobe Document
 Structuring Conventions; it must contain a BoundingBox line; it must
-be ``well-behaved''.  The BoundingBox line should be of the form:
+be `well-behaved'.  The BoundingBox line should be of the form:
 
   %%BoundingBox: llx lly urx ury
 
@@ -315,7 +412,7 @@ format.  (This is available from the Adobe file server; send a message
 with a body of `help' to ps-file-server@adobe.com.)
 
 If an EPS file to be included via \X'ps: import' does not start with
-%!PS-Adobe-...', gtroff will still include the file, but grops will
+`%!PS-Adobe-...', gtroff will still include the file, but grops will
 not add any fonts to the generated output file that are listed in the
 EPS file, even though the files are listed in the `download' file and
 are available in the devps directory.
@@ -352,9 +449,13 @@ Make sure that the paper size is `letter'.  See groff_tmac(5).
   Error: Widget viewport has zero width and/or height
 
 This error means you haven't correctly installed the application
-defaults file, GXditview.ad; ``make install'' does this for you
-automatically, so either you didn't do ``make install'', or you don't
-have imake configured correctly.
+defaults file, GXditview.ad; `make install' does this for you
+automatically, so either you didn't do `make install', or you haven't
+passed a good `--appresdir=<DIR>' argument to groff's configure script.
+
+See the X(7) man page for information how and where application resource
+files have to be located.  Look for the XAPPLRESDIR and XUSERFILESEARCHPATH
+environment variables.
 
 ----------------------------------------------------------------------
 
@@ -362,7 +463,7 @@ have imake configured correctly.
   the same as when I print the document with -Tps: the line and page
   breaks come in different places.
 
-Use groff -X -Tps.
+Use `groff -X -Tps'.
 
 ----------------------------------------------------------------------
 
@@ -532,13 +633,13 @@ as empty):
 
 Create a script called 'eqn':
 
- > #!/bin/sh
+ > #! /bin/sh
  > if [ ${1:-""} = /usr/pub/eqnchar ] ; then shift ; fi
  > geqn $*
 
 and a script called 'neqn':
 
- > #!/bin/sh
+ > #! /bin/sh
  > if [ ${1:-""} = /usr/pub/eqnchar ] ; then shift ; fi
  > geqn -Tascii $*
 
@@ -558,7 +659,7 @@ To get PostScript output from 'man -t', you also need to create a
 --- /usr/local/bin/psroff       Sat Feb 13 17:45:46 1993
 ***************
 *** 1,8 ****
-  #!/bin/sh
+  #! /bin/sh
 ! # Emulate nroff with groff.
 
   prog="$0"
@@ -567,7 +668,7 @@ To get PostScript output from 'man -t', you also need to create a
 
   for i
 --- 1,8 ----
-  #!/bin/sh
+  #! /bin/sh
 ! # Emulate psroff with groff.
 
   prog="$0"
@@ -697,12 +798,15 @@ argument is a const char *.  Fix the declaration of open() in
 This occurs because GNU make and Unix make handle VPATH differently,
 and the groff build relies on GNU make's VPATH handling.
 
-Use GNU make to work around the problem.  In Solaris 8, GNU make is
-on the Software Companion CD and is installed as /opt/sfw/bin/gmake.
+Use GNU make <http://www.gnu.org/software/make/> to work around this.
+In Solaris 8 and 9, GNU make is on the Software Companion CD in
+package SFWgmake and is installed as /opt/sfw/bin/gmake.  Prebuilt
+versions of GNU make for Solaris are also available from
+sunfreeware.com.
 
 ----------------------------------------------------------------------
 
-* On Ultrix, the make stops with the message
+* On Ultrix, the make program stops with the message
 
     *** Error code 1
 
@@ -773,11 +877,27 @@ directory and include that directory with a -I option.
 
 ----------------------------------------------------------------------
 
-* I get errors when I try to compile groff with Sun C++ version 5.0
-  or 5.1.
+* I get errors when I try to compile groff with Forte Development 6
+  or 6u1, or Sun C++ version 5.0 through 5.2.
 
-This is a known problem; see Sun bug #4301919.  As of this writing, no
-patch is available.  Use GCC 2.95.2 or later instead.
+This is a known problem; see Sun bug #4301919.  See Sun patches
+109482, 109490, 109508, and 109509 for fixes.
+
+----------------------------------------------------------------------
+
+* I get warnings from the Sun linker while using gcc 3.4.0:
+
+  ld: warning: relocation error: R_SPARC_UA32:
+      file groff/src/libs/libgroff/libgroff.a(getopt.o): symbol optarg:
+      external symbolic relocation against non-allocatable
+      section .debug_info; cannot be processed at runtime:
+      relocation ignored
+
+This seems to be a known problem (Sun bugs #4910101 and #4910810,
+filed in September 2003; gcc bug #15599, filed May 2004) without a
+public fix as of this writing.  A work-around is to use option
+`-gstabs+' instead of `-g' (and a high probability that the output is
+only debuggable with gdb but not with Sun's debuggers).
 
 ----------------------------------------------------------------------
 
@@ -790,6 +910,7 @@ Makefile.  If that doesn't solve the problem, define INT_MIN as
 
 ----------------------------------------------------------------------
 
-* When compiling on MacOS X, groff compiles but does not run well.
+* When compiling on MacOS X, groff compiles but does not run well,
+  especially `eqn', causing many `can't break line' messages.
 
 Use  ./configure CXX=g++2  then make as usual.

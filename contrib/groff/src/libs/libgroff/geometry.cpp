@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
      Written by Gaius Mulley <gaius@glam.ac.uk>
      using adjust_arc_center() from printer.cpp, written by James Clark.
@@ -18,7 +18,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 
 #include <stdio.h>
@@ -113,174 +113,67 @@ int printer::adjust_arc_center(const int *p, double *c)
  *                            Works out in which quadrant the arc starts and
  *                            stops, and from this it determines the x, y
  *                            max/min limits.  The arc is drawn clockwise.
- *
- *                            [I'm sure there is a better way to do this, but
- *                             I don't know how.  Please can someone let me
- *                             know or "improve" this function.]
  */
 
-void check_output_arc_limits(int x1, int y1,
-			     int xv1, int yv1,
-			     int xv2, int yv2,
-			     double c0, double c1,
+void check_output_arc_limits(int x_1, int y_1,
+			     int xv_1, int yv_1,
+			     int xv_2, int yv_2,
+			     double c_0, double c_1,
 			     int *minx, int *maxx,
 			     int *miny, int *maxy)
 {
-  int radius = (int)sqrt(c0*c0 + c1*c1);
-  int x2 = x1 + xv1 + xv2;			// end of arc is (x2, y2)
-  int y2 = y1 + yv1 + yv2;
-
-  // firstly lets use the `circle' limitation
-  *minx = x1 + xv1 - radius;
-  *maxx = x1 + xv1 + radius;
-  *miny = y1 + yv1 - radius;
-  *maxy = y1 + yv1 + radius;
-
-  /*  now to see which min/max can be reduced and increased for the limits of
-   *  the arc
-   *
-   *       Q2   |   Q1
-   *       -----+-----
-   *       Q3   |   Q4
-   *
-   *
-   *  NB. (x1+xv1, y1+yv1) is at the origin
-   *
-   *  below we ask a nested question
-   *  (i)  from which quadrant does the first vector start?
-   *  (ii) into which quadrant does the second vector go?
-   *  from the 16 possible answers we determine the limits of the arc
-   */
-  if (xv1 > 0 && yv1 > 0) {
-    // first vector in Q3
-    if (xv2 >= 0 && yv2 >= 0 ) {
-      // second in Q1
-      *maxx = x2;
-      *miny = y1;
+  int radius = (int)sqrt(c_0 * c_0 + c_1 * c_1);
+  // clockwise direction
+  int xcenter = x_1 + xv_1;
+  int ycenter = y_1 + yv_1;
+  int xend = xcenter + xv_2;
+  int yend = ycenter + yv_2;
+  // for convenience, transform to counterclockwise direction,
+  // centered at the origin
+  int xs = xend - xcenter;
+  int ys = yend - ycenter;
+  int xe = x_1 - xcenter;
+  int ye = y_1 - ycenter;
+  *minx = *maxx = xs;
+  *miny = *maxy = ys;
+  if (xe > *maxx)
+    *maxx = xe;
+  else if (xe < *minx)
+    *minx = xe;
+  if (ye > *maxy)
+    *maxy = ye;
+  else if (ye < *miny)
+    *miny = ye;
+  int qs, qe;			// quadrants 0..3
+  if (xs >= 0)
+    qs = (ys >= 0) ? 0 : 3;
+  else
+    qs = (ys >= 0) ? 1 : 2;
+  if (xe >= 0)
+    qe = (ye >= 0) ? 0 : 3;
+  else
+    qe = (ye >= 0) ? 1 : 2;
+  // make qs always smaller than qe
+  if ((qs > qe)
+      || ((qs == qe) && (double(xs) * ye < double(xe) * ys)))
+    qe += 4;
+  for (int i = qs; i < qe; i++)
+    switch (i % 4) {
+    case 0:
+      *maxy = radius;
+      break;
+    case 1:
+      *minx = -radius;
+      break;
+    case 2:
+      *miny = -radius;
+      break;
+    case 3:
+      *maxx = radius;
+      break;
     }
-    else if (xv2 < 0 && yv2 >= 0) {
-      // second in Q2
-      *maxx = x2;
-      *miny = y1;
-    }
-    else if (xv2 >= 0 && yv2 < 0) {
-      // second in Q4
-      *miny = MIN(y1, y2);
-    }
-    else if (xv2 < 0 && yv2 < 0) {
-      // second in Q3
-      if (x1 >= x2) {
-	*minx = x2;
-	*maxx = x1;
-	*miny = MIN(y1, y2);
-	*maxy = MAX(y1, y2);
-      }
-      else {
-	// xv2, yv2 could all be zero?
-      }
-    }
-  }
-  else if (xv1 > 0 && yv1 < 0) {
-    // first vector in Q2
-    if (xv2 >= 0 && yv2 >= 0) {
-      // second in Q1
-      *maxx = MAX(x1, x2);
-      *minx = MIN(x1, x2);
-      *miny = y1;
-    }
-    else if (xv2 < 0 && yv2 >= 0) {
-      // second in Q2
-      if (x1 < x2) {
-	*maxx = x2;
-	*minx = x1;
-	*miny = MIN(y1, y2);
-	*maxy = MAX(y1, y2);
-      }
-      else {
-	// otherwise almost full circle anyway
-      }
-    }
-    else if (xv2 >= 0 && yv2 < 0) {
-      // second in Q4
-      *miny = y2;
-      *minx = x1;
-    }
-    else if (xv2 < 0 && yv2 < 0) {
-      // second in Q3
-      *minx = MIN(x1, x2);
-    }
-  }
-  else if (xv1 <= 0 && yv1 <= 0) {
-    // first vector in Q1
-    if (xv2 >= 0 && yv2 >= 0) {
-      // second in Q1
-      if (x1 < x2) {
-	*minx = x1;
-	*maxx = x2;
-	*miny = MIN(y1, y2);
-	*maxy = MAX(y1, y2);
-      }
-      else {
-	// nearly full circle
-      }
-    }
-    else if (xv2 < 0 && yv2 >= 0) {
-      // second in Q2
-      *maxy = MAX(y1, y2);
-    }
-    else if (xv2 >= 0 && yv2 < 0) {
-      // second in Q4
-      *miny = MIN(y1, y2);
-      *maxy = MAX(y1, y2);
-      *minx = MIN(x1, x2);
-    }
-    else if (xv2 < 0 && yv2 < 0) {
-      // second in Q3
-      *minx = x2;
-      *maxy = y1;
-    }
-  }
-  else if (xv1 <= 0 && yv1 > 0) {
-    // first vector in Q4
-    if (xv2 >= 0 && yv2 >= 0) {
-      // second in Q1
-      *maxx = MAX(x1, x2);
-    }
-    else if (xv2 < 0 && yv2 >= 0) {
-      // second in Q2
-      *maxy = MAX(y1, y2);
-      *maxx = MAX(x1, x2);
-    }
-    else if (xv2 >= 0 && yv2 < 0) {
-      // second in Q4
-      if (x1 >= x2) {
-	*miny = MIN(y1, y2);
-	*maxy = MAX(y1, y2);
-	*minx = MIN(x1, x2);
-	*maxx = MAX(x2, x2);
-      }
-      else {
-	// nearly full circle
-      }
-    }
-    else if (xv2 < 0 && yv2 < 0) {
-      // second in Q3
-      *maxy = MAX(y1, y2);
-      *minx = MIN(x1, x2);
-      *maxx = MAX(x1, x2);
-    }
-  }
-
-  // this should *never* happen but if it does it means a case above is wrong
-  // this code is only present for safety sake
-  if (*maxx < *minx) {
-    fprintf(stderr, "assert failed *minx > *maxx\n");
-    fflush(stderr);
-    *maxx = *minx;
-  }
-  if (*maxy < *miny) {
-    fprintf(stderr, "assert failed *miny > *maxy\n");
-    fflush(stderr);
-    *maxy = *miny;
-  }
+  *minx += xcenter;
+  *maxx += xcenter;
+  *miny += ycenter;
+  *maxy += ycenter;
 }

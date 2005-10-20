@@ -2,11 +2,12 @@
 .ig
 groff.man
 
-Last update: 13 Feb 2003
+Last update: 17 Feb 2005
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005
+  Free Software Foundation, Inc.
 written by Bernd Warken <bwarken@mayn.de>
 maintained by Werner Lemberg <wl@gnu.org>
 
@@ -23,6 +24,9 @@ FDL in the main directory of the groff source package.
 .\" --------------------------------------------------------------------
 .\" Setup
 .\" --------------------------------------------------------------------
+.
+.do nr groff_C \n[.C]
+.cp 0
 .
 .mso www.tmac
 .
@@ -1012,6 +1016,17 @@ True if there is a register named
 Formatter is
 .BR troff .
 .
+.TPx
+.BI F font
+True if there exists a font named
+.IR font .
+.
+.TPx
+.BI S style
+True if a style named
+.I style
+has been registered.
+.
 .RE
 .PD
 .
@@ -1165,6 +1180,16 @@ until
 .request .end
 is called.
 .
+.REQ .am1 macro
+Same as
+.request .am
+but with compatibility mode switched off during macro expansion.
+.
+.REQ .am1 macro end
+Same as
+.request .am
+but with compatibility mode switched off during macro expansion.
+.
 .REQ .ami macro
 Append to a macro whose name is contained in the string register
 .I macro
@@ -1180,14 +1205,14 @@ and
 are string registers whose contents are interpolated for the macro name
 and the end macro, respectively.
 .
-.REQ .am1 macro
+.REQ .ami1 macro
 Same as
-.request .am
+.request .ami
 but with compatibility mode switched off during macro expansion.
 .
-.REQ .am1 macro end
+.REQ .ami1 macro end
 Same as
-.request .am
+.request .ami
 but with compatibility mode switched off during macro expansion.
 .
 .REQ .as stringvar anything
@@ -1196,14 +1221,14 @@ Append
 to
 .IR stringvar .
 .
-.REQ .asciify diversion
-Unformat ASCII characters, spaces, and some escape sequences in
-.IR diversion .
-.
 .REQ .as1 stringvar anything
 Same as
 .request .as
 but with compatibility mode switched off during string expansion.
+.
+.REQ .asciify diversion
+Unformat ASCII characters, spaces, and some escape sequences in
+.IR diversion .
 .
 .REQ .backtrace
 Print a backtrace of the input on stderr.
@@ -1429,6 +1454,16 @@ and
 are string registers whose contents are interpolated for the macro name
 and the end macro, respectively.
 .
+.REQ .dei1 macro
+Same as
+.request .dei
+but with compatibility mode switched off during macro expansion.
+.
+.REQ .dei1 macro end
+Same as
+.request .dei
+but with compatibility mode switched off during macro expansion.
+.
 .REQ .di
 End current diversion.
 .
@@ -1530,6 +1565,13 @@ Define fallback character
 as string
 .IR anything .
 .
+.REQ .fcolor
+Set fill color to previous fill color.
+.
+.REQ .fcolor c
+Set fill color to
+.IR c .
+.
 .REQ .fi
 Fill output lines.
 .
@@ -1591,6 +1633,13 @@ Translate
 .I font1
 to
 .IR font2 .
+.
+.REQ .gcolor
+Set glyph color to previous glyph color.
+.
+.REQ .gcolor c
+Set glyph color to
+.IR c .
 .
 .REQ .hc
 Remove additional hyphenation indicator character.
@@ -1962,6 +2011,10 @@ Read insertion.
 .
 .REQ .return
 Return from a macro.
+.
+.REQ .return anything
+Return twice, namely from the macro at the current level and from the macro
+one level higher.
 .
 .REQ .rfschar f c1 c2 .\|.\|.\&
 Remove the definitions of characters
@@ -3041,7 +3094,7 @@ The skew of a character is how far to the right of the center of a character
 the center of an accent over that character should be placed.
 .
 .REG .d
-Current vertical place in current diversion; equal to register
+Current vertical place in current diversion; equal to
 .register nl .
 .
 .REG .ev
@@ -3137,6 +3190,12 @@ The title length (as set by the
 .request lt
 request).
 .
+.REG .m
+The current drawing color (string-valued).
+.
+.REG .M
+The current background color (string-valued).
+.
 .REG .n
 Length of text portion on previous output line.
 .
@@ -3188,6 +3247,19 @@ The slant of the current font as set with
 The last requested pointsize in points as a decimal fraction
 (string-valued).
 .
+.REG .ss
+The value of the parameters set by the first argument of the
+.request ss
+request.
+.
+.REG .sss
+The value of the parameters set by the second argument of the
+.request ss
+request.
+.
+.REG .sty
+The current font style (string-valued).
+.
 .REG .t
 Distance to the next trap.
 .
@@ -3215,21 +3287,13 @@ the difference of what the vertical position would have been but for
 the trap, and what the vertical position actually is.
 .
 Useful in conjunction with the
-.register .ne
-register.
-.
-.REG .ss
-The value of the parameters set by the first argument of the
-.request ss
-request.
-.
-.REG .sss
-The value of the parameters set by the second argument of the
-.request ss
-request.
+.register .ne .
 .
 .REG .u
-Equal to 1 bin fill mode and 0 in nofill mode.
+Equal to 1 in fill mode and 0 in nofill mode.
+.
+.REG .U
+Equal to 1 in safer mode and 0 in unsafe mode.
 .
 .REG .v
 Current vertical line spacing.
@@ -3387,7 +3451,7 @@ The current year (year 2000 compliant).
 .REG yr
 Current year minus 1900.
 .
-For Y2K compliance use register
+For Y2K compliance use
 .register year
 instead.
 .
@@ -3424,7 +3488,8 @@ be reproduced, and say which version of groff you are using.
 .SH AUTHORS
 .\" --------------------------------------------------------------------
 .
-Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005
+Free Software Foundation, Inc.
 .
 .P
 This document is distributed under the terms of the FDL (GNU Free
@@ -3488,6 +3553,7 @@ pointers to further documentation.
      "Nroff/\:Troff User's Manual by Osanna & Kernighan"
 \[em] the bible for classical troff.
 .
+.cp \n[groff_C]
 .
 .\" --------------------------------------------------------------------
 .\" Emacs Setup

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 2000, 2001, 2003 Free Software Foundation, Inc.
+/* Copyright (C) 2000, 2001, 2003, 2004, 2005 Free Software Foundation, Inc.
  *
  *  Gaius Mulley (gaius@glam.ac.uk) wrote output.cpp
  *  but it owes a huge amount of ideas and raw code from
@@ -25,7 +25,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "driver.h"
 #include "stringclass.h"
@@ -67,7 +67,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 word::word (const char *w, int n)
   : next(0)
 {
-  s = (char *)malloc(n+1);
+  s = new char[n+1];
   strncpy(s, w, n);
   s[n] = (char)0;
 }
@@ -78,7 +78,7 @@ word::word (const char *w, int n)
 
 word::~word ()
 {
-  free(s);
+  a_delete s;
 }
 
 /*
@@ -253,6 +253,19 @@ simple_output &simple_output::space_or_newline (void)
 }
 
 /*
+ *  force_nl - forces a newline.
+ */
+
+simple_output &simple_output::force_nl (void)
+{
+  space_or_newline();
+  col += last_word.flush(fp);
+  FPUTC('\n', fp);
+  col = 0;
+  return *this ;
+}
+
+/*
  *  nl - writes a newline providing that we
  *       are not in the first column.
  */
@@ -261,10 +274,8 @@ simple_output &simple_output::nl (void)
 {
   space_or_newline();
   col += last_word.flush(fp);
-  if (col != 0) {
-    FPUTC('\n', fp);
-    col = 0;
-  }
+  FPUTC('\n', fp);
+  col = 0;
   return *this ;
 }
 

@@ -13,8 +13,7 @@
 .do if !d HTML-IMAGE-RIGHT  .do ds HTML-IMAGE-RIGHT
 .do if !d HTML-IMAGE-LEFT   .do ds HTML-IMAGE-LEFT
 .do if !d HTML-IMAGE-END    .do ds HTML-IMAGE-END
-.do if !d HTML-TAG          .do ds HTML-TAG
-.do if !d HTML-TAG-NS       .do ds HTML-TAG-NS
+.do if !d DEVTAG            .do ds DEVTAG
 .do if !d HTML-DO-IMAGE     .do ds HTML-DO-IMAGE
 .
 .\" Don't let blank lines creep in here.

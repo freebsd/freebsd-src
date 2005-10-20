@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2002, 2003, 2005 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -21,8 +21,13 @@ the original English.
 .\" Like TP, but if specified indent is more than half
 .\" the current line-length - indent, use the default indent.
 .de Tp
-.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
-.el .TP "\\$1"
+.  ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.  el .TP "\\$1"
+..
+.
+.de OP
+.  ie \\n(.$-1 .RI "[\ \fB\\$1\fP\ " "\\$2" "\ ]"
+.  el .RB "[\ " "\\$1" "\ ]"
 ..
 .
 .
@@ -40,12 +45,7 @@ afmtodit \- create font files for use with groff \-Tps
 .in +\w'\fBafmtodit 'u
 .ti \niu
 .B afmtodit
-.de OP
-.ie \\n(.$-1 .RI "[\ \fB\\$1\fP\ " "\\$2" "\ ]"
-.el .RB "[\ " "\\$1" "\ ]"
-..
-.
-.OP \-mnsv
+.OP \-mnsvx
 .OP \-a n
 .OP \-d desc_file
 .OP \-e enc_file
@@ -66,7 +66,7 @@ creates a font file for use with groff and
 .
 .B afmtodit
 is written in perl;
-you must have perl version 3 or newer installed in order to run
+you must have perl version 5.004 or newer installed in order to run
 .BR afmtodit .
 .
 .LP
@@ -104,24 +104,26 @@ If the file isn't found in the current directory, it is searched in
 the `devps/generate' subdirectory of the default font directory.
 .
 .LP
-If a PostScript character is in the encoding to be used for the font
-but is not mentioned in
+If a PostScript character is not named as
+.BI uni XXXX
+.RI ( XXXX
+are four uppercase hexadecimal digits), and is not mentioned in
 .IR map_file ,
-or if a generic groff glyph name can't be deduced using the Adobe Glyph
-List (built into
-.BR afmtodit )
+and a generic groff glyph name can't be deduced using the
+Adobe Glyph List (AGL, built into
+.BR  afmtodit ),
 then
 .B afmtodit
-will put it in the groff font file as an unnamed character,
-which can be accessed by the
+puts the PostScript character into the groff font file as an unnamed
+character which can only be accessed by the
 .B \eN
 escape sequence in
 .BR troff .
 .
 If option
 .B \-e
-is not specified, the encoding defined in the AFM file (i.e., entries with
-non-negative character codes) is used.
+is not specified, the encoding defined in the AFM file (i.e., entries
+with non-negative character codes) is used.
 .
 Please refer to section `Using Symbols' in the groff info file which
 describes how groff glyph names are constructed.
@@ -292,6 +294,10 @@ command to the font file.
 .TP
 .B \-v
 Print version.
+.
+.TP
+.B \-x
+Don't use the built-in Adobe Glyph List.
 .
 .
 .SH FILES

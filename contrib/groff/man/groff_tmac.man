@@ -14,11 +14,11 @@ groff_tmac.5
 
 File position: <groff-source>/man/groff_tmac.man
 
-Last update: 13 Mar 2003
+Last update: 27 Jul 2004
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 written by Bernd Warken <bwarken@mayn.de> and Werner Lemberg
 <wl@gnu.org>
 
@@ -35,6 +35,9 @@ FDL in the main directory of the groff source package.
 .\" --------------------------------------------------------------------
 .\" Setup
 .\" --------------------------------------------------------------------
+.
+.do nr groff_tmac_C \n[.C]
+.cp 0
 .
 .mso www.tmac
 .
@@ -339,6 +342,7 @@ This is the classical macro package for UNIX manual pages
 (man\~pages); it is quite handy and easy to use; see
 .BR groff_man (@MAN7EXT@).
 .
+.
 .TP
 .B doc
 .TP+
@@ -450,6 +454,22 @@ orientation:
 .
 .
 .TP
+.B pic
+This file provides proper definitions for the macros
+.B PS
+and
+.BR PE ,
+needed for the
+.BR @g@pic (@MAN1EXT@)
+preprocessor.
+.
+They will center each picture.
+.
+Use it only if your macro package doesn't provide proper definitions
+for those two macros (actually, most of them already have).
+.
+.
+.TP
 .B pspic
 A single macro is provided in this file,
 .BR PSPIC ,
@@ -508,6 +528,17 @@ option causes the graphic to be indented by\~\c
 .I n
 (default scaling indicator is\~\c
 .BR m ).
+.
+.
+.TP
+.B trace
+Use this for tracing macro calls.
+.
+It is only useful for debugging.
+.
+See
+.BR groff_trace (@MAN7EXT@) .
+.
 .
 .TP
 .B tty-char
@@ -1180,7 +1211,7 @@ See the previous section for a detailed description.
 .SH AUTHOR
 .\" --------------------------------------------------------------------
 .
-Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 .
 .P
 This document is distributed under the terms of the FDL (GNU Free
@@ -1210,9 +1241,11 @@ groff
 .BR info (1)
 file.
 .
+.
 .TP
 .BR groff (@MAN1EXT@)
 an overview of the groff system.
+.
 .
 .TP
 .BR groff_man (@MAN7EXT@),
@@ -1227,8 +1260,11 @@ an overview of the groff system.
 .TP+
 .BR groff_ms (@MAN7EXT@),
 .TP+
+.BR groff_trace (@MAN7EXT@),
+.TP+
 .BR groff_www (@MAN7EXT@).
 the groff tmac macro packages.
+.
 .
 .TP
 .BR groff (@MAN7EXT@)
@@ -1238,6 +1274,8 @@ the groff language.
 .P
 The Filesystem Hierarchy Standard is available at the
 .URL http://\:www.pathname.com/\:fhs/ "FHS web site" .
+.
+.cp \n[groff_tmac_C]
 .
 .\" Local Variables:
 .\" mode: nroff

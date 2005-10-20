@@ -1,3 +1,4 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
@@ -10,16 +11,16 @@
 <a href="inlines.html#TOP">Next</a>&nbsp;&nbsp;
 <a href="typesetting.html#TOP">Prev</a>&nbsp;&nbsp;
 <a href="toc.html">Back to Table of Contents</a>
-
+<p>
 <a name="TOP"></a>
 <a name="GOODIES">
-	<h2><u>Goodies</u></h2>
+	<h1 align="center"><u>Goodies</u></h1>
 </a>
-
+<p>
 <a name="INTRO_GOODIES"></a>
 The macros in this section are a collection of useful (and sometimes
-nearly indispensible) routines to simplify typesetting.
-
+nearly indispensable) routines to simplify typesetting.
+<p>
 <a name="INDEX_GOODIES">
 	<h3><u>Goodies list</u></h3>
 </a>
@@ -28,8 +29,9 @@ nearly indispensible) routines to simplify typesetting.
 	<li><a href="#ALIAS">ALIAS</a> (rename macros)
 	<li><a href="#SILENT">SILENT</a> (&quot;hide&quot; input lines from output)
 	<li><a href="#TRAP">TRAP</a> (suspend/re-invoke traps)
-	<li><a href="#SMARTQUOTES">SMARTQUOTES</a>
+	<li><a href="#SMARTQUOTES">SMARTQUOTES</a> (convert typewriter doublequotes to proper doublequotes)
 	<li><a href="#CAPS">CAPS</a> (convert to upper case)
+	<li><a href="#STRING">STRING</a> (user-definable strings)
 	<br>
 	<li><strong>Underscore/underline</strong>
 	<ul>
@@ -56,14 +58,24 @@ nearly indispensible) routines to simplify typesetting.
 			<li><a href="#DROPCAP_FAMILY">DROPCAP_FAMILY</a> (change drop cap family)
 			<li><a href="#DROPCAP_FONT">DROPCAP_FONT</a> (change drop cap font)
 			<li><a href="#DROPCAP_ADJUST">DROPCAP_ADJUST</a> (alter size of drop cap)
+			<li><a href="#DROPCAP_COLOR">DROPCAP_COLOR</a> (change colour of drop cap) 
 			<li><a href="#DROPCAP_GUTTER">DROPCAP_GUTTER</a> (change space between drop cap and running text) 
 		</ul>
 	</ul>
-	<li><strong>Superscript</strong>
+	<li><strong>Superscripts</strong>
 	<ul>
 		<li><a href="#SUP">\*[SUP]</a> (set superscript)
 		<li><a href="#CONDSUP">\*[CONDSUP]</a> (set condensed superscript)
-		<li><a href="#EXTSUP">\*[EXTSUP}</a> (set extended superscript)
+		<li><a href="#EXTSUP">\*[EXTSUP]</a> (set extended superscript)
+	</ul>
+	<li><strong>Lists</strong>
+	<ul>
+		<li><a href="docelement.html#LIST_INTRO">Introduction to lists</a>
+		<li><a href="docelement.html#LIST">LIST</a>
+		<li><a href="docelement.html#ITEM">ITEM</a>
+		<li><a href="docelement.html#SHIFT_LIST">SHIFT_LIST</a>
+		<li><a href="docelement.html#RESET_LIST">RESET_LIST</a>
+		<li><a href="docelement.html#PAD_LIST_DIGITS">PAD_LIST_DIGITS</a>
 	</ul>
 </ul>
 
@@ -72,7 +84,7 @@ nearly indispensible) routines to simplify typesetting.
 <hr width="66%" align="left">
 <a name="ALIAS"><h3><u>Rename macros</u></h3></a>
 <br>
-Macro: <strong>ALIAS</strong> <var>&lt;new name&gt; &lt;old name&gt;</var>
+<nobr>Macro: <strong>ALIAS</strong> &lt;new name&gt; &lt;old name&gt;</nobr>
 
 <p>
 The <strong>ALIAS</strong> macro may well be your best friend.  With it,
@@ -142,14 +154,14 @@ of your documents, please.
 <strong>EXPERTS:</strong> <strong>ALIAS</strong> is an alias of
 <code>.als</code>.  You can use either, or mix 'n' match with
 impunity.
-<br>
+<p>
 
 <!---SILENT--->
 
 <hr width="66%" align="left">
 <a name="SILENT"><h3><u>Hide input lines from output</u></h3></a>
 <br>
-Macro: <strong>SILENT</strong> <var>toggle</var>
+<nobr>Macro: <strong>SILENT</strong> toggle</nobr>
 <br>
 Alias: <strong>COMMENT</strong>
 
@@ -195,14 +207,14 @@ or
 to which you've passed the <strong>J</strong> or <strong>QUAD</strong>
 argument.  You must insert <code>.BR</code> yourself, or risk a
 portion of your text disappearing into a black hole.
-<br>
+<p>
 
 <!---TRAP--->
 
 <hr width="66%" align="left">
 <a name="TRAP"><h3><u>Suspend/re-invoke traps</u></h3></a>
 <br>
-Macro: <strong>TRAP</strong> <var>toggle</var>
+<nobr>Macro: <strong>TRAP</strong> toggle</nobr>
 
 <p>
 Traps are vertical positions on the output page at which you or
@@ -211,13 +223,8 @@ something automatically.  Commonly, this is near the bottom of
 the page, where automatic behind-the-scenes processing is needed
 in order for one page to finish and another to start.
 <p>
-Sometimes, traps get sprung when you don't want them, notably
-when using the
-<a href="#EL">EL</a>
-and
-<a href="#TN">TN</a>
-macros.  If this happens, surround just the offending macros and
-input lines with
+Sometimes, traps get sprung when you don't want them.  If this
+happens, surround just the offending macros and input lines with
 <p>
 <pre>
 	.TRAP OFF
@@ -229,22 +236,27 @@ input lines with
 turns it off (i.e. suspends the trap), and no argument turns it
 (back) on.
 <p>
-Have a look at the <strong>IMPORTANT</strong> sections
-of <strong>EL</strong> and <strong>TN</strong> to see
-<strong>TRAP</strong> in action.
-<br>
 
 <!---SMARTQUOTES--->
 
 <hr width="66%" align="left">
-<a name="SMARTQUOTES"><h3><u>Smartquotes</u></h3></a>
+<a name="SMARTQUOTES"><h3><u>Convert typewriter doublequotes to proper doublequotes</u></h3></a>
 <br>
-Macro: <strong>SMARTQUOTES</strong> <var>toggle</var>
+<nobr>Macro: <strong>SMARTQUOTES</strong> [&lt;off&gt;] [ ,, | &gt;&gt; | &lt;&lt; ]</nobr>
+<br>
+or
+<br>
+<nobr>Macro: <strong>SMARTQUOTES</strong> DA | DE | ES | FR | IT | NL | NO | PT | SV</nobr>
 
 <p>
-<strong>SMARTQUOTES</strong> converts all instances of the
-inch-mark, (<kbd>"</kbd> -- also called a &quot;doublequote&quot;),
-into the appropriate instances of true open- and close-doublequotes.
+If you invoke <strong>SMARTQUOTES</strong> without an argument,
+<strong>mom</strong> converts all instances of the inch-mark,
+(<kbd>"</kbd> -- also called a &quot;doublequote&quot;), into
+the appropriate instances of true Anglo-American open- and
+close-doublequotes.  (See
+<a href="#SQ_INTERNATIONAL">Internationalization</a>
+for how to get SMARTQUOTES to behave correctly for non-English
+quoting styles.)
 <p>
 Typographically, there is a difference between the inch-mark and
 doublequotes -- a BIG difference.  Sadly, typewriters and computer
@@ -255,19 +267,82 @@ typeset copy.  Failure to turn inches into quotes is the first thing
 a professional typesetter notices in documents prepared by amateurs.
 And you don't want to look like an amateur, do you?
 <p>
-When preparing documents for typesetting, by all means, use the
-inch-mark.  Just make sure to turn <strong>SMARTQUOTES</strong>
-on.  <strong>SMARTQUOTES</strong> is a toggle, so invoking it with
-no argument turns it on, and invoking it with any argument at all
-turns it off.
+<a name="SQ_INTERNATIONAL"><h3>Internationalization</h3></a>
+<p>
+If you invoke <strong>SMARTQUOTES</strong> with one of the optional
+arguments (<kbd>,,</kbd> or <kbd>&gt;&gt;</kbd> or
+<kbd>&lt;&lt;</kbd>) you can use <kbd>&quot;</kbd> as &quot;cheap&quot;
+open- and close-quotes when inputting text in a language other than
+English, and have <strong>mom</strong> convert them, on output,
+into the chosen open- and close-quote style.
+<p>
+<kbd>,,</kbd> opens quotes with &quot;lowered doublequotes&quot; and
+closes them with &quot;raised doublequotes&quot;, as in this ascii
+approximation:
+<p>
+<pre>
+	,,Hilfe !``
+</pre>
+
+<kbd>&gt;&gt;</kbd> opens quotes with guillemets pointing to the
+right, and closes them with guillemets pointing to the left, as in
+this ascii approximation:
+<p>
+<pre>
+	&gt;&gt;Zurück !&lt;&lt;
+</pre>
+
+<kbd>&lt;&lt;</kbd> opens quotes with guillemets pointing to the
+left, and closes them with guillemets pointing to the right, as in
+this ascii approximation:
+<p>
+<pre>
+	&lt;&lt;Mais monsieur! Je ne suis pas ce genre de fille!&gt;&gt;
+</pre>
+
+Please note: the above arguments to <strong>SMARTQUOTES</strong>
+are literal ASCII characters. <kbd>,,</kbd> is two commas,
+<kbd>&lt;&lt;</kbd> is two less-than signs and <kbd>&gt;&gt;</kbd>
+is two greater-than signs.
+<p>
+Alternatively, you can pass <strong>SMARTQUOTES</strong> the
+two-letter, ISO 639 abbreviation for the language you're writing in,
+and <strong>mom</strong> will output the correct quotes.
+<p>
+<pre>
+	.SMARTQUOTES DA     = Danish      &gt;&gt;text&lt;&lt;
+	.SMARTQUOTES DE     = German      ,,text``
+	.SMARTQUOTES ES     = Spanish     ``text´´
+	.SMARTQUOTES FR     = French      &lt;&lt; text &gt;&gt;
+	.SMARTQUOTES IT     = Italian     &lt;&lt; text &gt;&gt;
+	.SMARTQUOTES NL     = Dutch       ´´text´´
+	.SMARTQUOTES NO     = Norwegian   &lt;&lt;text&gt;&gt;
+	.SMARTQUOTES PT     = Portuguese  &lt;&lt;text&gt;&gt;
+	.SMARTQUOTES SV     = Swedish     &gt;&gt;text&gt;&gt;
+</pre>
+<p>
+Turn <strong>SMARTQUOTES</strong> off by passing it any argument
+<em>not</em> in the argument list (e.g. <strong>OFF</strong>,
+<strong>QUIT</strong>, <strong>X</strong>, etc.)
 <p>
 If you're using the
 <a href="docprocessing.html#DOCPROCESSING">document processing macros</a>
 with
 <a href="#PRINTSTYLE">PRINTSTYLE TYPESET</a>,
-<strong>SMARTQUOTES</strong> is on by default; with
+<strong>SMARTQUOTES</strong> is on by default (in the Anglo-American
+style); with
 <a href="#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
 it's off by default (and should probably stay that way).
+<p>
+Finally, if you're fussy about the kerning of quote marks in
+relation to the text they surround, or have special quoting needs,
+you have to enter quote marks by hand using groff's native
+<a href="definitions.html#TERMS_INLINES">inline escapes</a>
+for special characters (see man groff_char for a complete list of
+special characters).  Entering quote marks this way allows you to
+use <strong>mom</strong>'s
+<a href="inlines.html#INLINE_KERNING_MOM">inline kerning escapes</a>
+to fine-tune the look of quotes.
 <p>
 <strong>NOTE:</strong> <strong>SMARTQUOTES</strong> does not work on
 single quotes, which most people input with the apostrophe (found at
@@ -289,14 +364,14 @@ the foot- and inch-marks, when you need them, with the
 <a href="definitions.html#TERMS_INLINES">inline escapes</a>
 <strong>\*[FOOT]</strong> and <strong>\*[INCH]</strong>, instead
 of <kbd>'</kbd> and <kbd>"</kbd>.
-<br>
+<p>
 
 <!---CAPS--->
 
 <hr width="66%" align="left">
 <a name="CAPS"><h3><u>Convert to upper case</u></h3></a>
 <br>
-Macro: <strong>CAPS</strong> <var>toggle</var>
+<nobr>Macro: <strong>CAPS</strong> toggle</nobr>
 
 <p>
 <strong>CAPS</strong> converts all lower case letters to upper
@@ -318,12 +393,57 @@ produces, on output
 	ALL WORK AND NO PLAY MAKES JACK A DULL BOY.
 </pre>
 
+<!---STRING--->
+
+<hr width="66%" align="left">
+<a name="STRING"><h3><u>User-defined strings</u></h3></a>
+<br>
+<nobr>Macro: <strong>STRING</strong> &lt;name&gt; &lt;what you want in the string&gt;</nobr>
+
+<p>
+You may find sometimes that you have to type out portions of text
+repeatedly.  If you'd like not to wear out your fingers, you can
+define a &quot;string&quot; that, whenever you call it by name,
+outputs whatever you put into it.
+<p>
+For example, say you're creating a document that repeatedly uses
+the phrase &quot;the Montreal/Windsor corridor&quot;.  Instead of
+typing all that out every time, you could define a string, like
+this:
+<p>
+<pre>
+	.STRING mw the Montreal/Windsor corridor
+</pre>
+
+Once a string is defined, you can call it any time with the
+<a href="definitions.html#INLINES">inline escape</a>
+<kbd>\*[&lt;stringname&gt;]</kbd>.  Using the example string above
+<p>
+<pre>
+	The schedule for trains along \*[mw]:
+</pre>
+
+produces, on output
+<p>
+<pre>
+	The schedule for trains along the Montreal/Windsor corridor:
+</pre>
+
+<strong>NOTE:</strong> Be very careful not to put any spaces at the
+ends of strings you're defining, unless you want them.  Everything
+after the name argument you pass to <strong>STRING</strong> goes
+into the string, including trailing spaces.
+<p>
+<strong>Experts: STRING</strong> is an alias for <strong>ds</strong>.
+You can use either, or mix 'n' match with impunity.
+<p>
+
 <!---UNDERSCORE--->
 
 <hr width="66%" align="left">
 <a name="UNDERSCORE"><h3><u>Single underscore</u></h3></a>
 <br>
-Macro: <strong>UNDERSCORE</strong> <var>[ &lt;distance below baseline&gt; ] &quot;&lt;string&gt;&quot;</var>
+<nobr>Macro: <strong>UNDERSCORE</strong> [ &lt;distance below baseline&gt; ] &quot;&lt;string&gt;&quot;</nobr>
 <br>
 <em>*Optional argument requires a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
 
@@ -383,14 +503,14 @@ no solution to the occasional problems with justified copy.
 printed, looks fine.  Generally, I recommend using <strong>gv</strong>
 to preview files anyway.  See the section on
 <a href="#PREVIEWING">previewing</a>.
-<br>
+<p>
 
 <!---UNDERSCORE2--->
 
 <hr width="66%" align="left">
 <a name="UNDERSCORE2"><h3><u>Double underscore</u></h3></a>
 <br>
-Macro: <strong>UNDERSCORE2</strong> <var>[ &lt;distance below baseline&gt; [ &lt;distance between rules&gt; ] ] &quot;&lt;string&gt;&quot;</var>
+<nobr>Macro: <strong>UNDERSCORE2</strong> [ &lt;distance below baseline&gt; [ &lt;distance between rules&gt; ] ] &quot;&lt;string&gt;&quot;</nobr>
 <br>
 <em>*Optional arguments require a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
 
@@ -427,20 +547,20 @@ to <strong>UNDERSCORE2</strong> as to
 <strong>UNDERSCORE</strong>.  See the
 <a href="#NOTES_UNDERSCORE">NOTES</a>
 for <strong>UNDERSCORE</strong>.
-<br>
+<p>
 
 <!---UNDERLINE--->
 
 <hr width="66%" align="left">
 <a name="UNDERLINE"><h3><u>Underline text -- Courier font only!</u></h3></a>
 <br>
-Macro: <strong>UNDERLINE</strong> <var>toggle</var>
+<nobr>Macro: <strong>UNDERLINE</strong> toggle</nobr>
 
 <p>
 If your font is Courier, or you're using the document processing macro
 <a href="#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
 <strong>UNDERLINE</strong> allows you to underline words and
-passages that, in typeset copy, would be italicised.  You invoke
+passages that, in typeset copy, would be italicized.  You invoke
 <strong>UNDERLINE</strong> as you do with all toggle macros --
 by itself (i.e. with no argument) to initiate underlining, and
 with any argument to turn underlining off.
@@ -453,7 +573,7 @@ readable copy than a solid underline.
 <a href="definitions.html#TERMS_INLINES">inline</a>
 with the escapes
 <a href="#UL">\*[UL]...\*[ULX].</a>
-<br>
+<p>
 
 <!---UL--->
 
@@ -466,7 +586,7 @@ Inline: <strong>\*[UL]...\*[ULX]</strong>
 If your font is Courier, or you're using the document processing macro
 <a href="#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
 <strong>\*[UL]...\*[ULX]</strong> underlines words and
-passages that, in typeset copy, would be italicised.
+passages that, in typeset copy, would be italicized.
 <p>
 <strong>\*[UL]</strong> underlines all letters, words and numbers
 following it, but not punctuation or spaces.  This makes for more
@@ -512,11 +632,13 @@ produces the same result as
 <hr width="66%" align="left">
 <a name="PAD"><h3><u>Insert space into lines</u></h3></a>
 <br>
-Macro: <strong>PAD</strong> <var>&quot;&lt;string with pad markers inserted&gt;&quot;</var>
+<nobr>Macro: <strong>PAD</strong> &quot;&lt;string with pad markers inserted&gt;&quot; [NOBREAK]</nobr>
 
 <p>
 With <strong>PAD</strong>, you can insert unspecified amounts of
-whitespace into a line.
+whitespace into a line.  The optional <strong>NOBREAK</strong>
+argument tells <strong>mom</strong> not to advance on the page
+after the <strong>PAD</strong> macro has been invoked.
 <p>
 <strong>PAD</strong> calculates the difference between the length of
 text on the line and the distance remaining to its end, then inserts
@@ -560,55 +682,50 @@ particularly useful in conjunction with
 <a href="#STRING_TABS">string tabs</a>.
 The following uses the Date/Signature example above, but adds
 rules into the whitespace through the use of string tabs and
+<strong>mom</strong>'s
+<a href="definitions.html#TERMS_INLINES">inline escape</a>
+<a href="inlines.html#INLINE_RULE_MOM">\*[RULE]</a>.
+(Instead of <strong>\*[RULE]</strong>,
 groff's line drawing function,
-<a href="#INLINE_LINEDRAWING_GROFF">\l</a>.
+<a href="inlines.html#INLINE_LINEDRAWING_GROFF">\l</a>
+could be used.)
 <p>
 <pre>
 	.LL 30P
-	.PAD "Date\*[ST1]#\*[ST1X]Signature\*[ST2]###\*[ST2X]"
-	.EL
+	.PAD "Date \*[ST1]#\*[ST1X] Signature \*[ST2]###\*[ST2X]" NOBREAK
 	.ST 1 J
 	.ST 2 J
 	.TAB 1
-	\l'\n(.lu'
+	\*[RULE]
 	.TN
-	\l'\n(.lu'
+	\*[RULE]
 	.TQ
 </pre>
 
 If you're not a typesetter, and if you're new to groff, the
 example probably looks like gibberish.  My apologies.  However,
 remember that typesetting is a craft, and without having studied
-the craft, it takes a while to grasp its concepts.  Also,
-although <strong>mom</strong> tries very hard to provide
-consistent-looking, comprehensible alternatives to groff's
-native
-<a href="definitions.html#TERMS_INLINES">inline escapes</a>,
-<strong>mom</strong> has not yet found a replacement for
-<strong>\l</strong>.
+the craft, it takes a while to grasp its concepts.
 <p>
 Basically, what the example does is:
 <br>
 <ol>
 	<li>Pads the Date/Signature line (using the pad marker #),
 		encloses the padded space with two string tabs markers,
-		and outputs the line
+		and outputs the line.
 	<br>
 	<li>Sets the two string tabs (notice the use of
 		<a href="#EL">EL</a>
 		beforehand; you don't want <strong>mom</strong>
-		to advance a line at this point)
+		to advance a line at this point).
 	<br>
 	<li>Calls the first string tab and draws a rule to its full
-		length (<kbd>\l'\n(.lu'</kbd>; for an easier way to draw a rule
-		that fills a tab, see
-		<a href="inlines.html#INLINE_RULE_MOM">Full measure
-		rules</a>).
+		length.
 	<br>
 	<li>Calls the second tab with
 		<a href="#TN">TN</a>
 		(which moves to tab 2 and stays on the same baseline)
-		then draws a rule to the full length of string tab 2
+		then draws a rule to the full length of string tab 2.
 </ol>
 <br>
 Often, when setting up string tabs this way, you don't want the
@@ -632,14 +749,14 @@ this is to use the groff
 <strong>\(lq</strong> and <strong>\(rq</strong> (leftquote and
 rightquote respectively) whenever double-quotes are required in the
 string passed to <strong>PAD</strong>.
-<br>
+<p>
 
 <!---PAD_MARKER--->
 
 <hr width="66%" align="left">
 <a name="PAD_MARKER"><h3><u>Change/set the marker used with PAD</u></h3></a>
 <br>
-Macro: <strong>PAD_MARKER</strong> <var>&lt;character to use as the pad marker&gt;</var>
+<nobr>Macro: <strong>PAD_MARKER</strong> &lt;character to use as the pad marker&gt;</nobr>
 
 <p>
 If you need to change <strong>mom</strong>'s default pad marker
@@ -658,7 +775,7 @@ Once you've changed the pad marker, the new marker remains in
 effect for every instance of
 <a href="#PAD">PAD</a>
 until you change it again (say, back to the pound sign).
-<br>
+<p>
 
 <!---\*[LEADER]--->
 
@@ -714,7 +831,7 @@ with leaders.  The result looks like this:
 <hr width="66%" align="left">
 <a name="LEADER_CHARACTER"><h3><u>Change/set the leader character</u></h3></a>
 <br>
-Macro: <strong>LEADER_CHARACTER</strong> <var>&lt;character&gt;</var>
+<nobr>Macro: <strong>LEADER_CHARACTER</strong> &lt;character&gt;</nobr>
 
 <p>
 <strong>LEADER_CHARACTER</strong> takes one argument: a single
@@ -736,7 +853,7 @@ default (a period) to the underscore character, enter
 <hr width="66%" align="left">
 <a name="DROPCAP"><h3><u>Drop caps</u></h3></a>
 <br>
-Macro: <strong>DROPCAP</strong> <var>&lt;dropcap letter&gt; &lt;number of lines to drop&gt; [ COND &lt;percentage&gt; | EXT &lt;percentage&gt; ]</var>
+<nobr>Macro: <strong>DROPCAP</strong> &lt;dropcap letter&gt; &lt;number of lines to drop&gt; [ COND &lt;percentage&gt; | EXT &lt;percentage&gt; ]</nobr>
 
 <p>
 The first two arguments to <strong>DROPCAP</strong> are the letter you
@@ -812,6 +929,8 @@ rest she solves with macros that change the default behaviour of
 <br>
 <a href="#DROPCAP_FONT">DROPCAP_FONT</a>,
 <br>
+<a href="#DROPCAP_COLOR">DROPCAP_COLOR</a>,
+<br>
 <a href="#DROPCAP_ADJUST">DROPCAP_ADJUST</a>
 <br>
 and
@@ -862,9 +981,21 @@ e.g.
 <a href="definitions.html#TERMS_PICASPOINTS">points</a>,
 therefore do not append any
 <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
-to the argument.  And always be sure to preprend the plus or
+to the argument.  And always be sure to prepend the plus or
 minus sign, depending on whether you want the drop cap larger or
 smaller.
+
+
+<h3><a name="DROPCAP_COLOR"><u>DROPCAP_COLOR</u></a></h3>
+
+If you'd like your drop cap colourized, simply invoke
+<strong>DROPCAP_COLOR</strong> with the name of a colour you've already
+created (&quot;initialized&quot;) with
+<a href="color.html#NEWCOLOR">NEWCOLOR</a>
+or
+<a href="color.html#XCOLOR">XCOLOR</a>.  Only the drop cap will be
+colourized; all other text will remain at the current colour
+default (usually black).
 
 <h3><a name="DROPCAP_GUTTER"><u>DROPCAP_GUTTER</u></a></h3>
 
@@ -916,7 +1047,6 @@ I'm neither a mathematician nor a chemist, so I don't need them.
 Of course, anyone who wishes to contribute a subscript routine to
 <strong>mom</strong> will receive eternal blessings not only in this
 lifetime, but in all lifetimes to come.
-
 <p>
 <hr>
 <a href="inlines.html#TOP">Next</a>&nbsp;&nbsp;

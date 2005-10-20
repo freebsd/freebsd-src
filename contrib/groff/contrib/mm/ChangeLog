@@ -1,3 +1,37 @@
+Thu May 26 08:23:40 2005  Werner LEMBERG  <wl@gnu.org>
+
+	* m.tmac: Load devtag.tmac.
+
+Wed Mar 16 06:56:02 2005  Larry Kollar  <kollar@alltel.net>
+
+	Add rudimentary support for grohtml.
+
+	* m.tmac (H): Call DEVTAG-NH and DEVTAG-EO-H.
+	(pg@enable-trap, pg@header): Do nothing for devhtml.
+
+Sun Mar 7 16:34:46 2004  Jeff Conrad <jeff_conrad@msn.com>
+
+	* m.tmac (S): Improve debug message.
+
+Wed Mar 05:38:57 2004  Joergen Haegg <jh@axis.com>
+
+	* Changed default value for Hy in manual to 0
+	* Check Hy at each new page
+
+Mon Mar 1 22:16:38 2004  Jeff Conrad <jeff_conrad@msn.com>
+
+	* m.tmac (S): Fix scaling indicator for vertical spacing.
+
+Tue Nov 05:14:45 2003  Joergen Haegg <jh@axis.com>
+
+	* another patch from ulrich lauther to fix the
+	  TOC up to 14 heading levels.
+
+Mon Oct 13:48:25 2003  Joergen Haegg <jh@axis.com>
+
+	* problem with more than 7 levels of headings fixed with
+	  patch from ulrich lauther.
+
 Wed Apr 06:42:35 2003  Joergen Haegg <jh@axis.com>
 
 	* the footer was not adjusted by VM due to a missing
