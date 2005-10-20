@@ -479,6 +479,15 @@ main(int argc, char * argv[])
 	if (read_freqs(&numfreqs, &freqs, &mwatts))
 		err(1, "error reading supported CPU frequencies");
 
+	/*
+	 * Exit cleanly on signals; devd may send a SIGPIPE if it dies.  We
+	 * do this before acline_init() since it may create a thread and we
+	 * want it to inherit our signal mask.
+	 */
+	signal(SIGINT, handle_sigs);
+	signal(SIGTERM, handle_sigs);
+	signal(SIGPIPE, SIG_IGN);
+
 	/* Decide whether to use ACPI or APM to read the AC line status. */
 	acline_init();
 
@@ -494,12 +503,14 @@ main(int argc, char * argv[])
 			}
 			warn("cannot open pid file");
 		}
-		daemon(0, 0);
+		if (daemon(0, 0) != 0) {
+			warn("cannot enter daemon mode, exiting");
+			pidfile_remove(pfh);
+			exit(EXIT_FAILURE);
+
+		}
 		pidfile_write(pfh);
 	}
-	signal(SIGINT, handle_sigs);
-	signal(SIGTERM, handle_sigs);
-	signal(SIGPIPE, SIG_IGN);
 
 	/* Main loop. */
 	for (;;) {
