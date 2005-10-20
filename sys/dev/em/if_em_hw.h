@@ -556,6 +556,7 @@ uint8_t em_arc_subsystem_valid(struct em_hw *hw);
     E1000_IMS_TXDW   |    \
     E1000_IMS_RXDMT0 |    \
     E1000_IMS_RXSEQ  |    \
+    E1000_IMS_RXO    |    \
     E1000_IMS_LSC)
 
 

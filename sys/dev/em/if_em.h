@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/module.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -162,14 +163,6 @@ POSSIBILITY OF SUCH DAMAGE.
  *   conditions.
  */
 #define EM_RADV                         64
-
-
-/*
- * This parameter controls the maximum no of times the driver will loop
- * in the isr.
- *           Minimum Value = 1
- */
-#define EM_MAX_INTR                     3
 
 /*
  * Inform the stack about transmit checksum offload capabilities.
