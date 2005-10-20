@@ -1,6 +1,7 @@
 '\" t
 .ig
-Copyright (C) 1989-1995, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989-1995, 2001, 2002, 2003, 2004, 2005
+  Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -17,10 +18,22 @@ versions, except that this permission notice may be included in
 translations approved by the Free Software Foundation instead of in
 the original English.
 ..
+.
+.do nr groff_ms_C \n[.C]
+.cp 0
+.
 .TH GROFF_MS @MAN7EXT@ "@MDATE@" "Groff Version @VERSION@"
+.
+.
+.
 .SH NAME
+.
 groff_ms \- groff ms macros
+.
+.
+.
 .SH SYNOPSIS
+.
 .B groff
 .B \-ms
 [
@@ -38,8 +51,11 @@ groff_ms \- groff ms macros
 [
 .IR files .\|.\|.\&
 ]
-.\" -----
+.
+.
+.
 .SH DESCRIPTION
+.
 This manual page describes the GNU version of the
 .I ms
 macros,
@@ -60,8 +76,11 @@ The
 .I ms
 macros are suitable for reports, letters, books, and
 technical documentation.
-.\" -----
+.
+.
+.
 .SH USAGE
+.
 The
 .I ms
 macro package expects files to have
@@ -70,6 +89,7 @@ The simplest documents can begin with a paragraph macro
 and consist of text separated by paragraph macros
 or even blank lines.
 Longer documents have a structure as follows:
+.
 .TP
 .B "Document type"
 If you use the
@@ -84,6 +104,7 @@ Other document formats found in AT&T
 are specific to AT&T
 or Berkeley, and are not supported in
 .IR "groff ms" .
+.
 .TP
 .B "Format and layout"
 By setting number registers,
@@ -92,6 +113,7 @@ margins, spacing, headers and footers, and footnotes.
 See 
 .I "Document control registers"
 below for more details.
+.
 .TP
 .B "Cover page"
 A cover page consists of a title,
@@ -100,18 +122,22 @@ an abstract, and the date.
 See
 .I "Cover page macros"
 below for more details.
+.
 .TP
 .B "Body"
 Following the cover page is your document.
 It consists of paragraphs, headings, and lists.
+.
 .TP
 .B "Table of contents"
 Longer documents usually include a table of contents,
 which you can add by placing the
 .B TC
 macro at the end of your document.
-.\" -----
+.
+.
 .SS "Document control registers"
+.
 The following table lists the document control
 number registers.
 For the sake of consistency,
@@ -119,8 +145,9 @@ set registers related to margins at the beginning of your document,
 or just after the
 .B RP
 macro.
+.
 .LP
-.ne 9
+.ne 12
 .B Margin settings
 .RS
 .na
@@ -149,8 +176,9 @@ T}	next page	1i
 _
 .TE
 .RE
+.
 .LP
-.ne 7
+.ne 12
 .B Text settings
 .RS
 .TS
@@ -164,11 +192,22 @@ T}	next para.	10p
 VS	T{
 Line spacing (leading)
 T}	next para.	12p
+PSINCR	T{
+Point size increment
+for section headings of
+increasing importance
+T}	next heading	1p
+GROWPS	T{
+Heading level
+beyond which PSINCR
+is ignored
+T}	next heading	0
 _
 .TE
 .RE
+.
 .LP
-.ne 7
+.ne 11
 .B Paragraph settings
 .RS
 .TS
@@ -185,9 +224,18 @@ T}	next para.	0.3v
 QI	T{
 Quoted paragraph indent
 T}	next para.	5n
+PORPHANS	T{
+Number of initial lines
+to be kept together
+T}	next para.	1
+HORPHANS	T{
+Number of initial lines
+to be kept with heading
+T}	next heading	1
 _
 .TE
 .RE
+.
 .LP
 .ne 7
 .B Footnote settings
@@ -197,12 +245,16 @@ cb cb cb cb
 afCW l l l .
 Reg.	Definition	Effective	Default
 _
-FL	Footnote length	next footnote	LL*5/6
+FL	Footnote length	next footnote	\[rs]n[LL]*5/6
 FI	Footnote indent	next footnote	2n
 FF	Footnote format	next footnote	0
+FPS	Point size	next footnote	\[rs]n[PS]-2
+FVS	Vert. spacing	next footnote	\[rs]n[FPS]+2
+FPD	Para. spacing	next footnote	\[rs]n[PD]/2
 _
 .TE
 .RE
+.
 .LP
 .ne 6
 .B Other settings
@@ -219,12 +271,15 @@ _
 .TE
 .ad
 .RE
-.\" -----
+.
+.
 .SS "Cover page macros"
+.
 Use the following macros to create a cover page for your document
 in the order shown.
+.
 .TP
-.B \&.RP [no]
+.B .RP [no]
 Specifies the report format for your document.
 The report format creates a separate cover page.
 With no
@@ -233,6 +288,7 @@ macro,
 .I groff
 prints a subset of the
 cover page on page\~1 of your document.
+.
 .IP
 If you use the optional
 .B no
@@ -242,45 +298,52 @@ prints a title page but
 does not repeat any of the title page information
 (title, author, abstract, etc.\&)
 on page\~1 of the document.
+.
 .TP
-.B \&.P1 
+.B .P1 
 (P-one) Prints the header on page\~1.
 The default is to suppress the header.
+.
 .TP
-.BI "\&.DA [" xxx ]
+.BI ".DA [" xxx ]
 (optional) Print the current date,
 or the arguments to the macro if any,
 on the title page (if specified)
 and in the footers.
 This is the default for
 .IR nroff .
+.
 .TP
-.BI "\&.ND [" xxx ]
+.BI ".ND [" xxx ]
 (optional) Print the current date,
 or the arguments to the macro if any,
 on the title page (if specified)
 but not in the footers.
 This is the default for
 .IR troff .
+.
 .TP
-.B \&.TL
+.B .TL
 Specifies the document title.
 .I Groff
 collects text following the
 .B TL
 macro into the title, until reaching the author name or abstract.
+.
 .TP
-.B \&.AU
+.B .AU
 Specifies the author's name.
 You can specify multiple authors by using an
 .B AU
 macro for each author.
+.
 .TP
-.B \&.AI
+.B .AI
 Specifies the author's institution.
 You can specify multiple institutions.
+.
 .TP
-.B \&.AB [no]
+.B .AB [no]
 Begins the abstract.
 The default is to print the word
 .BR ABSTRACT ,
@@ -288,17 +351,21 @@ centered and in italics, above the text of the abstract.
 The option
 .B no
 suppresses this heading.
+.
 .TP
-.B \&.AE
+.B .AE
 End the abstract.
-.\" -----
+.
+.
 .SS Paragraphs
+.
 Use the
 .B PP
 macro to create indented paragraphs,
 and the
 .B LP
 macro to create paragraphs with no initial indent.
+.
 .PP
 The
 .B QP
@@ -308,6 +375,7 @@ The effect is identical to the HTML
 element.
 The next paragraph or heading
 returns margins to normal.
+.
 .PP
 The
 .B XP
@@ -317,18 +385,68 @@ the left margin,
 and subsequent lines are indented
 (the opposite of
 .BR PP ).
+.
+.PP
+For each of the above paragraph types,
+and also for any list entry introduced by the
+.B IP
+macro
+(described later),
+the document control register
+.BR PORPHANS ,
+sets the
+.I minimum
+number of lines which must be printed,
+after the start of the paragraph,
+and before any page break occurs.
+If there is insufficient space remaining on the current page
+to accommodate this number of lines,
+then a page break is forced
+.I before
+the first line of the paragraph is printed.
+.
+.PP
+Similarly,
+when a section heading
+(see subsection
+.I Headings
+below)
+preceeds any of these paragraph types,
+the
+.B HORPHANS
+document control register specifies the
+.I minimum
+number of lines of the paragraph
+which must be kept on the same page as the heading.
+If insufficient space remains on the current page
+to accommodate the heading and this number of lines of paragraph text,
+then a page break is forced
+.I before
+the heading is printed.
+.
+.
 .SS Headings
+.
 Use headings to create a hierarchical structure
 for your document.
-The
+By default,
+the
 .I ms
 macros print headings in
 .B bold
 using the same font family and point size as the body text.
+For output devices which support scalable fonts,
+this behaviour may be modified,
+by defining the document control registers,
+.B GROWPS
+and
+.BR PSINCR .
+.
 .PP
 The following heading macros are available:
+.
 .TP
-.BI \&.NH \0xx
+.BI .NH\  xx
 Numbered heading.
 The argument
 .I xx
@@ -344,17 +462,166 @@ after
 .BR ".NH\ 1" ,
 .I groff
 prints a warning on standard error.
+.
+.IP
+If the
+.B GROWPS
+register is set to a value
+greater than the level of the heading,
+then the point size of the heading will be increased by
+.B PSINCR
+units over the text size specified by the
+.B PS
+register,
+for each level by which the heading level is less than
+the value of
+.BR GROWPS .
+For example,
+the sequence:
+.
+.RS
+.ne 12
+.nf
+.IP
+\&.nr PS 10
+\&.nr GROWPS 3
+\&.nr PSINCR 1.5p
+\&.
+\&.NH 1
+Top Level Heading
+\&.
+\&.NH 2
+Second Level Heading
+\&.
+\&.NH 3
+Third Level Heading
+.fi
+.RE
+.
+.IP
+will cause
+.RI \*(lq 1.\ Top\ Level\ Heading \*(rq
+to be printed in 13pt
+.B bold
+text, followed by
+.RI \*(lq 1.1.\ Second\ Level\ Heading \*(rq
+in 11.5pt
+.B bold
+text, while
+.RI \*(lq 1.1.1.\ Third\ Level\ Heading \*(rq,
+and all more deeply nested heading levels,
+will remain in the 10pt
+.B bold
+text which is specified by the
+.B PS
+register.
+.
+.IP
+Note that the value stored in
+.B PSINCR
+is interpreted in
+.I groff
+basic units;
+the
+.I p
+scaling factor should be employed,
+when assigning a value specified in points.
+.
+.IP
+After invoking
+.BR .NH ,
+the assigned heading number is available in the strings
+.B SN-DOT
+(exactly as it appears in the formatted heading),
+and
+.B SN-NO-DOT
+(with its final period omitted).
+The string
+.B SN
+is also defined,
+as an alias for
+.BR SN-DOT ;
+if preferred,
+the user may redefine it as an alias for
+.BR SN-NO-DOT ,
+'ne 10
+by including the initialisation:
+.
+.RS
+.nf
+.IP
+\&.ds SN-NO-DOT
+\&.als SN SN-NO-DOT
+.fi
+.RE
+.
+.IP
+.I before
+the first use of
+.BR .NH ,
+or simply:
+.
+.RS
+.nf
+.IP
+\&.als SN SN-NO-DOT
+.fi
+.RE
+.
+.IP
+.I after
+the first use of
+.BR .NH .
+.
 .TP
-.B \&.SH
+.BI .SH\ [ xx ]
 Unnumbered subheading.
-.\" -----
+The use of the optional
+.I xx
+argument is a GNU extension,
+which adjusts the point size of the unnumbered subheading
+to match that of a numbered heading,
+introduced using
+.BI .NH\  xx
+with the same value of
+.IR xx .
+For example,
+given the same settings for
+.BR PS ,
+.B GROWPS
+and
+.BR PSINCR ,
+as used in the preceeding
+.B .NH
+example,
+the sequence:
+.
+.RS
+.ne
+.nf
+.IP
+\&.SH 2
+An Unnumbered Subheading
+.fi
+.RE
+.
+.IP
+will print
+.RI \*(lq "An Unnumbered Subheading" \*(rq
+in 11.5pt
+.B bold
+text.
+.
+.
 .SS Highlighting
+.
 The
 .I ms
 macros provide a variety of methods to highlight
 or emphasize text:
+.
 .TP
-.BI "\&.B [" txt " [" post " [" pre ]]]
+.B ".B [\fItxt\fP [\fIpost\fP [\fIpre\fP]]]"
 Sets its first argument in
 .BR "bold type" .
 If you specify a second argument,
@@ -370,86 +637,102 @@ in the previous font
 the first argument.
 For example,
 .RS
+.
 .IP
 \&.B foo ) (
 .RE
+.
 .IP
 prints
 .RB ( foo ).
+.
 .IP
 If you give this macro no arguments,
 .I groff
 prints all text following in bold until
 the next highlighting, paragraph, or heading macro.
+.
 .TP
-.BI "\&.R [" txt " [" post " [" pre ]]]
+.B ".R [\fItxt\fP [\fIpost\fP [\fIpre\fP]]]"
 Sets its first argument in
 roman (or regular) type.
 It operates similarly to the
 .B B
 macro otherwise.
+.
 .TP
-.BI "\&.I [" txt " [" post " [" pre ]]]
+.B ".I [\fItxt\fP [\fIpost\fP [\fIpre\fP]]]"
 Sets its first argument in
 .IR "italic type" .
 It operates similarly to the
 .B B
 macro otherwise.
+.
 .TP
-.BI "\&.CW [" txt " [" post " [" pre ]]]
+.B ".CW [\fItxt\fP [\fIpost\fP [\fIpre\fP]]]"
 Sets its first argument in a constant width face.
 It operates similarly to the
 .B B
 macro otherwise.
+.
 .TP
-.BI "\&.BI [" txt " [" post " [" pre ]]]
+.B ".BI [\fItxt\fP [\fIpost\fP [\fIpre\fP]]]"
 Sets its first argument in bold italic type.
 It operates similarly to the
 .B B
 macro otherwise.
+.
 .TP
-.BI "\&.BX [" txt ]
+.BI ".BX [" txt ]
 Prints its argument and draws a box around it.
 If you want to box a string that contains spaces,
 use a digit-width space (\[rs]0).
+.
 .TP
-.BI "\&.UL [" txt " [" post ]]
+.BI ".UL [" txt " [" post ]]
 Prints its first argument with an underline.
 If you specify a second argument,
 .I groff
 prints it in the previous font after
 the underlined text, with no intervening space.
+.
 .TP
-.B \&.LG
+.B .LG
 Prints all text following in larger type
 (2\~points larger than the current point size) until
 the next font size, highlighting, paragraph, or heading macro.
 You can specify this macro multiple times
 to enlarge the point size as needed.
+.
 .TP
-.B \&.SM
+.B .SM
 Prints all text following in
 smaller type
 (2\~points smaller than the current point size) until
 the next type size, highlighting, paragraph, or heading macro.
 You can specify this macro multiple times
 to reduce the point size as needed.
+.
 .TP
-.B \&.NL
+.B .NL
 Prints all text following in
 the normal point size
 (that is, the value of the
 .B PS
 register).
+.
 .TP
 .BI \[rs]*{ text \[rs]*}
 Print the enclosed
 .I text
 as a superscript.
-.\" -----
+.
+.
 .SS Indents
+.
 You may need to indent sections of text.
 A typical use for indents is to create nested lists and sublists.
+.
 .PP
 Use the
 .B RS
@@ -459,20 +742,25 @@ macros to start and end a section of indented text, respectively.
 The
 .B PI
 register controls the amount of indent.
+.
 .PP
 You can nest indented sections as deeply as needed by
 using multiple, nested pairs of
 .B RS
 and
 .BR RE .
-.\" -----
+.
+.
 .SS Lists
+.
 The
 .B IP
 macro handles duties for all lists.
 Its syntax is as follows:
+.
 .TP
 .BI ".IP [" marker " [" width ]]
+.
 .IP
 The
 .I marker
@@ -481,6 +769,7 @@ is usually a bullet character
 for unordered lists,
 a number (or auto-incrementing number register) for numbered lists,
 or a word or phrase for indented (glossary-style) lists.
+.
 .IP
 The
 .I width
@@ -490,7 +779,10 @@ list items in the document until specified again.
 .\" -----
 .br
 .ne 15
+.
+.
 .SS "Tab stops"
+.
 Use the
 .B ta
 request to set tab stops as needed.
@@ -500,8 +792,10 @@ macro to reset tabs to the default (every 5n).
 You can redefine the
 .B TA
 macro to create a different set of default tab stops.
-.\" -----
+.
+.
 .SS "Displays and keeps"
+.
 Use displays to show text-based examples or figures
 (such as code listings).
 Displays turn off filling, so lines of code can be
@@ -535,10 +829,26 @@ _
 .TE
 .RE
 .ad
+.
 .LP
 Use the
 .B DE
 macro to end any display type.
+The macros
+.B Ds
+and
+.B De
+were formerly provided as aliases for
+.B DS
+and
+.BR DE ,
+respectively, but they have been removed, and should no longer be used.
+X11 documents which actually use
+.B Ds
+and
+.B De
+always load a specific macro file from the X11 distribution (macros.t)
+which provides proper definitions for the two macros.
 .PP
 To
 .I keep
@@ -556,6 +866,7 @@ macro begins a block of text to be kept on a single page,
 and the
 .B KE
 macro ends the block.
+.
 .PP
 You can specify a
 .I "floating keep"
@@ -577,8 +888,23 @@ request or by reaching the end of the page,
 prints the floating keep at the top of the new page.
 This is useful for printing large graphics or tables
 that do not need to appear exactly where specified.
-.\" -----
+.
+.PP
+The macros
+.B B1
+and
+.B B2
+can be used to enclose a text within a box;
+.B .B1
+begins the box, and
+.B .B2
+ends it.
+Text in the box is automatically placed in a diversion
+(keep).
+.
+.
 .SS "Tables, figures, equations, and references"
+.
 The
 .I -ms
 macros support the standard
@@ -591,8 +917,9 @@ and
 .IR refer .
 Mark text meant for preprocessors by enclosing it
 in pairs of tags as follows:
+.
 .TP
-.BR "\&.TS [H]" " and " \&.TE
+.BR ".TS [H]" " and " .TE
 Denotes a table, to be processed by the
 .I tbl
 preprocessor.
@@ -609,8 +936,9 @@ prints the header at the beginning of the table;
 if the table runs onto another page,
 .I groff
 prints the header on the next page as well.
+.
 .TP
-.BR \&.PS " and " \&.PE
+.BR .PS " and " .PE
 Denotes a graphic, to be processed by the
 .I pic
 preprocessor.
@@ -622,8 +950,9 @@ AT&T
 manual available on the Web as a reference,
 or by using a graphics program such as
 .IR xfig .
+.
 .TP
-.BR "\&.EQ [\fI\,align\/\fP]" " and " \&.EN
+.BR ".EQ [\fI\,align\/\fP]" " and " .EN
 Denotes an equation, to be processed by the
 .I eqn
 preprocessor.
@@ -636,8 +965,9 @@ or\~\c
 .B I
 to center (the default), left-justify, or indent
 the equation.
+.
 .TP
-.BR \&.[ " and " \&.]
+.BR .[ " and " .]
 Denotes a reference, to be processed by the
 .I refer
 preprocessor.
@@ -646,8 +976,10 @@ The GNU
 manual page provides a comprehensive reference
 to the preprocessor and the format of the
 bibliographic database.
-.\" -----
+.
+.
 .SS Footnotes
+.
 The
 .I ms
 macros provide a flexible footnote system.
@@ -659,6 +991,7 @@ enclosed by
 and
 .B FE
 macros.
+.
 .PP
 You can specify symbolic footnotes
 by placing the mark character (such as
@@ -670,6 +1003,7 @@ enclosed by
 and
 .B FE
 macros.
+.
 .PP
 You can control how
 .I groff
@@ -678,19 +1012,24 @@ prints footnote numbers by changing the value of the
 register as follows:
 .RS
 .ne 7
+.
 .TP
 0
 Prints the footnote number as a superscript; indents the footnote (default).
+.
 .TP
 1
 Prints the number followed by a period (like\~1.\&)
 and indents the footnote.
+.
 .TP
 2
 Like\~1, without an indent.
+.
 .TP
 3
 Like\~1, but prints the footnote number as a hanging paragraph.
+.
 .LP
 .RE
 You can use footnotes safely within keeps and displays,
@@ -711,9 +1050,12 @@ and the occurrences of
 .B .FS
 are in the same order as the corresponding occurrences of
 .BR \[rs]** .
-.\" -----
+.
+.
 .SS "Headers and footers"
+.
 There are two ways to define headers and footers:
+.
 .IP \(bu 3n
 Use the strings
 .BR LH ,
@@ -728,6 +1070,7 @@ and
 to set the left, center, and right footers.
 This works best for documents that do not distinguish
 between odd and even pages.
+.
 .IP \(bu
 Use the
 .B OH
@@ -741,14 +1084,18 @@ macros to define footers for the odd and even pages.
 This is more flexible than defining the individual strings.
 The syntax for these macros is as follows:
 .RS
+.
 .IP
-.BI "\&.OH '" left ' center ' right '
+.B ".OH '\fIleft\fP'\fIcenter\fP'\fIright\fP'"
 .RE
+.
 .IP
 You can replace the quote (') marks with any character not
 appearing in the header or footer text.
-.\" -----
+.
+.
 .SS Margins
+.
 You control margins using a set of number registers.
 The following table lists the register names and defaults:
 .RS
@@ -778,13 +1125,16 @@ _
 .TE
 .RE
 .ad
+.
 .PP
 Note that there is no right margin setting.
 The combination of page offset and line length
 provide the information necessary to
 derive the right margin.
-.\" -----
+.
+.
 .SS "Multiple columns"
+.
 The
 .I ms
 macros can set text in as many columns as will reasonably
@@ -795,14 +1145,17 @@ However, if the current mode is single-column, starting a multi-column
 mode does
 .I not
 force a page break.
+.
 .TP
-.B \&.1C
+.B .1C
 Single-column mode.
+.
 .TP
-.B \&.2C
+.B .2C
 Two-column mode.
+.
 .TP
-.BI "\&.MC [" width " [" gutter ]]
+.BI ".MC [" width " [" gutter ]]
 Multi-column mode.
 If you specify no arguments, it is equivalent to the
 .B 2C
@@ -815,8 +1168,10 @@ is the space between columns.
 The
 .B MINGW
 number register is the default gutter width.
-.\" -----
+.
+.
 .SS "Creating a table of contents"
+.
 Wrap text that you want to appear in the
 table of contents in
 .B XS
@@ -829,6 +1184,7 @@ macro to print the table of contents at the end of the document,
 resetting the page number to\~\c
 .B i
 (Roman numeral\~1).
+.
 .PP
 You can manually create a table of contents
 by specifying a page number as the first argument to
@@ -838,6 +1194,7 @@ Add subsequent entries using the
 macro.
 For example:
 .RS
+.
 .PP
 .ne 8
 .nf
@@ -851,11 +1208,13 @@ Details of Galactic Formation
 \&.XE
 .fi
 .RE  
+.
 .LP  
 Use the
 .B PX  
 macro to print a manually-generated table of contents
 without resetting the page number.
+.
 .PP
 If you give the argument
 .B no
@@ -868,8 +1227,35 @@ suppresses printing the title
 specified by the
 .B \[rs]*[TOC]  
 string.
-.\" -----
+.
+.
+.SS "Fractional point sizes"
+.
+Traditionally, the
+.I ms
+macros only support integer values for the document's font size and
+vertical spacing.
+To overcome this restriction, values larger than or equal to 1000 are taken
+as fractional values, multiplied by 1000.
+For example, `.nr\~PS\~10250' sets the font size to 10.25 points.
+.
+.LP
+The following four registers accept fractional point sizes:
+.BR PS ,
+.BR VS ,
+.BR FPS ,
+and
+.BR FVS .
+.
+.LP
+Due to backwards compatibility, the value of
+.B VS
+must be smaller than 40000 (this is 40.0 points).
+.
+.
+.
 .SH "DIFFERENCES FROM troff ms"
+.
 The
 .I "groff ms"
 macros are a complete re-implementation,
@@ -879,6 +1265,7 @@ Since they take advantage of the extended features in
 they cannot be used with AT&T
 .IR troff .
 Other differences include:
+.
 .IP \(bu 3n
 The internals of
 .I "groff ms"
@@ -888,13 +1275,16 @@ Documents that depend upon implementation details of Unix
 .I ms
 may not format properly with
 .IR "groff ms" .
+.
 .IP \(bu
 The error-handling policy of
 .I "groff ms"
 is to detect and report errors,
 rather than silently to ignore them.
+.
 .IP \(bu
 Bell Labs localisms are not implemented.
+.
 .IP \(bu
 Berkeley localisms, in particular the
 .B TM
@@ -902,19 +1292,24 @@ and
 .B CT
 macros,
 are not implemented.
+.
 .IP \(bu
 .I "Groff ms"
-does not work in compatibility mode (e.g.\& with the
+does not work in compatibility mode (e.g., with the
 .B \-C
 option).
+.
 .IP \(bu
 There is no support for typewriter-like devices.
+.
 .IP \(bu
 .I "Groff ms"
 does not provide cut marks.
+.
 .IP \(bu
 Multiple line spacing is not supported
 (use a larger vertical spacing instead).
+.
 .IP \(bu
 Some Unix
 .I ms
@@ -923,11 +1318,13 @@ documentation says that the
 and
 .B GW
 number registers can be used to control the column width and
-gutter width respectively.
-These number registers are not used in groff ms.
+gutter width, respectively.
+These number registers are not used in
+.IR "groff ms" .
+.
 .IP \(bu
 Macros that cause a reset
-(paragraphs, headings, etc.)
+(paragraphs, headings, etc.\&)
 may change the indent.
 Macros that change the indent do not increment or decrement
 the indent, but rather set it absolutely.
@@ -940,6 +1337,7 @@ request but instead the
 and
 .B RE
 macros.
+.
 .IP \(bu
 The number register
 .B GS
@@ -955,9 +1353,26 @@ they are being formatted with Unix
 or
 .I "groff ms"
 should use this number register.
+.
+.IP \(bu
+To make
+.I "groff ms"
+use the default page offset (which also specifies the left margin),
+the
+.B PO
+number register must stay undefined until the first
+.B ms
+macro is evaluated.
+This implies that
+.B PO
+should not be used early in the document, unless it is changed also:
+Remember that accessing an undefined register automatically defines it.
 .br
-.ne 22
+.ne 23
+.
+.
 .SS Strings
+.
 You can redefine the following strings to adapt the
 .I "groff ms"
 macros to languages other than English:
@@ -984,17 +1399,33 @@ MONTH11	November
 MONTH12	December
 _
 .TE
+.
 .PP
 The
 .B \[rs]*-
 string produces an em dash \[em] like this.
-.\" -----
+.
+.PP
+Use
+.B \[rs]*Q
+and
+.B \[rs]*U
+to get a left and right typographer's quote,
+respectively, in
+.I troff
+(and plain quotes in
+.IR nroff ).
+
+.
+.
 .SS Text Settings
+.
 The
 .B FAM
 string sets the default font family.
 If this string is undefined at initialization,
 it is set to Times.
+.
 .LP
 The point size, vertical spacing, and inter-paragraph spacing for footnotes
 are controlled by the number registers
@@ -1006,10 +1437,11 @@ at initialization these are set to
 .BR \[rs]n(PS-2 ,
 .BR \[rs]n[FPS]+2 ,
 and
-.B \[rs]n(PD/2
+.BR \[rs]n(PD/2 ,
 respectively.
 If any of these registers are defined before initialization,
 the initialization macro does not change them.
+.
 .LP
 The hyphenation flags (as set by the
 .B hy
@@ -1017,6 +1449,7 @@ request) are set from the
 .B HY
 register;
 the default is\~14.
+.
 .PP
 Improved accent marks
 (as originally defined in Berkeley's
@@ -1031,52 +1464,73 @@ directly after the character.
 For example,
 .B n\[rs]*~ 
 produces an n with a tilde over it.
-.\" -----
+.
+.
+.
 .SH "NAMING CONVENTIONS"
+.
+.
 .LP
 The following conventions are used for names of macros, strings and
 number registers.
 External names available to documents that use the
 .I "groff ms"
 macros contain only uppercase letters and digits.
+.
 .LP
 Internally the macros are divided into modules;
 naming conventions are as follows:
+.
 .IP \(bu 3n
 Names used only within one module are of the form
 .IB \%module * name\fR.
+.
 .IP \(bu
 Names used outside the module in which they are defined are of the form
 .IB \%module @ name\fR.
+.
 .IP \(bu
 Names associated with a particular environment are of the form
-.IB \%environment : name;
+.IB \%environment : name\fR;
 these are used only within the
 .B par
 module.
+.
 .IP \(bu
 .I name
 does not have a module prefix.
+.
 .IP \(bu
 Constructed names used to implement arrays are of the form
 .IB \%array ! index\fR.
+.
 .PP
 Thus the groff ms macros reserve the following names:
+.
 .IP \(bu 3n
 Names containing the characters
 .BR * ,
 .BR @ ,
 and\~\c
 .BR : .
+.
 .IP \(bu
 Names containing only uppercase letters and digits.
+.
+.
+.
 .SH FILES
+.
 .B @MACRODIR@/ms.tmac
 (a wrapper file for
 .BR s.tmac )
 .br
 .B @MACRODIR@/s.tmac
+.
+.
+.
 .SH "SEE ALSO"
+.
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
 .BR @g@tbl (@MAN1EXT@),
@@ -1085,11 +1539,18 @@ Names containing only uppercase letters and digits.
 .BR @g@refer (@MAN1EXT@),
 .I Groff: The GNU Implementation of troff
 by Trent Fisher and Werner Lemberg.
+.
+.
+.
 .SH AUTHOR
+.
 Original manual page by James Clark
 .IR "et al" ;
 rewritten by Larry Kollar
 (\fIlkollar@despammed.com\fR).
+.
+.cp \n[groff_ms_C]
+.
 .\" Local Variables:
 .\" mode: nroff
 .\" End:

@@ -2,13 +2,13 @@
 
 // <groff_src_dir>/src/libs/libdriver/input.cpp
 
-/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    Written by James Clark (jjc@jclark.com)
    Major rewrite 2001 by Bernd Warken (bwarken@mayn.de)
 
-   Last update: 04 Apr 2003
+   Last update: 15 Jun 2005
 
    This file is part of groff, the GNU roff text processing system.
 
@@ -24,8 +24,8 @@
 
    You should have received a copy of the GNU General Public License
    along with groff; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.
+   Software Foundation, 51 Franklin St - Fifth Floor, Boston, MA
+   02110-1301, USA.
 */
 
 /* Description
@@ -272,16 +272,15 @@ public:
   IntArray(void);
   IntArray(const size_t);
   ~IntArray(void);
-  const IntArg operator[](const size_t i) const
+  IntArg operator[](const size_t i) const
   {
     if (i >= num_stored)
       fatal("index out of range");
     return (IntArg) data[i];
   }
   void append(IntArg);
-  const IntArg * const
-    get_data(void) const { return (IntArg *) data; }
-  const size_t len(void) const { return num_stored; }
+  IntArg *get_data(void) const { return (IntArg *)data; }
+  size_t len(void) const { return num_stored; }
 };
 
 // Characters read from the input queue.
@@ -442,7 +441,7 @@ EnvStack::EnvStack(void)
 {
   num_allocated = 4;
   // allocate pointer to array of num_allocated pointers to environment
-  data = (environment **) malloc(envp_size * num_allocated);
+  data = (environment **)malloc(envp_size * num_allocated);
   if (data == 0)
     fatal("could not allocate environment data");
   num_stored = 0;
@@ -475,7 +474,7 @@ EnvStack::push(environment *e)
   if (num_stored >= num_allocated) {
     environment **old_data = data;
     num_allocated *= 2;
-    data = (environment **) malloc(envp_size * num_allocated);
+    data = (environment **)malloc(envp_size * num_allocated);
     if (data == 0)
       fatal("could not allocate data");
     for (size_t i = 0; i < num_stored; i++)
@@ -608,6 +607,7 @@ void delete_current_env(void)
   delete current_env->col;
   delete current_env->fill;
   delete current_env;
+  current_env = 0;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -1034,13 +1034,13 @@ remember_filename(const char *filename)
 {
   char *fname;
   if (strcmp(filename, "-") == 0)
-    fname = "<standard input>";
+    fname = (char *)"<standard input>";
   else
-    fname = (char *) filename;
+    fname = (char *)filename;
   size_t len = strlen(fname) + 1;
   if (current_filename != 0)
     free((char *)current_filename);
-  current_filename = (const char *) malloc(len);
+  current_filename = (const char *)malloc(len);
   if (current_filename == 0)
     fatal("can't malloc space for filename");
   strncpy((char *)current_filename, (char *)fname, len);
@@ -1060,13 +1060,13 @@ remember_source_filename(const char *filename)
 {
   char *fname;
   if (strcmp(filename, "-") == 0)
-    fname = "<standard input>";
+    fname = (char *)"<standard input>";
   else
-    fname = (char *) filename;
+    fname = (char *)filename;
   size_t len = strlen(fname) + 1;
   if (current_source_filename != 0)
     free((char *)current_source_filename);
-  current_source_filename = (const char *) malloc(len);
+  current_source_filename = (const char *)malloc(len);
   if (current_source_filename == 0)
     fatal("can't malloc space for filename");
   strncpy((char *)current_source_filename, (char *)fname, len);
@@ -1083,7 +1083,7 @@ void
 send_draw(const Char subcmd, const IntArray * const args)
 {
   EnvInt n = (EnvInt) args->len();
-  pr->draw((int) subcmd, (IntArg *) args->get_data(), n, current_env);
+  pr->draw((int) subcmd, (IntArg *)args->get_data(), n, current_env);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -1520,6 +1520,9 @@ parse_x_command(void)
       char *str_arg = get_extended_arg(); // includes line skip
       if (npages <= 0)
 	error("`x X' command invalid before first `p' command");
+      else if (str_arg && (strncmp(str_arg, "devtag:",
+				   strlen("devtag:")) == 0))
+	pr->devtag(str_arg, current_env);
       else
 	pr->special(str_arg, current_env);
       a_delete str_arg;
@@ -1823,6 +1826,7 @@ do_file(const char *filename)
   if (npages > 0)
     pr->end_page(current_env->vpos);
   delete pr;
+  pr = 0;
   fclose(current_file);
   // If `stopped' is not `true' here then there wasn't any `x stop'.
   if (!stopped)

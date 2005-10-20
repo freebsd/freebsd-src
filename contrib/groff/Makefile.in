@@ -1,4 +1,5 @@
-# Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+# Copyright (C) 1989-2000, 2001, 2002, 2003, 2004, 2005
+#   Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 # 
 # This file is part of groff.
@@ -15,13 +16,23 @@
 # 
 # You should have received a copy of the GNU General Public License along
 # with groff; see the file COPYING.  If not, write to the Free Software
-# Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA.
+
+SHELL=@SHELL@
 
 srcdir=@srcdir@
-top_srcdir=@top_srcdir@
+top_srcdir=@abs_top_srcdir@
 VPATH=@srcdir@
-top_builddir=@groff_top_builddir@
-SEP=@PATH_SEPARATOR@
+top_builddir=@abs_top_builddir@
+
+# `RT_SEP' is the operating system's native PATH SEPARATOR CHAR, which
+# is to be used in runtime PATHs compiled into groff executables.
+RT_SEP=@GROFF_PATH_SEPARATOR@
+
+# `SH_SEP' is a alternative PATH SEPARATOR CHAR, to be used in shell
+# scripts and makefile rules; it may be the same as `RT_SEP', but,
+# particularly in some Microsoft environments, it may differ.
+SH_SEP=@PATH_SEPARATOR@
 
 version=`cat $(top_srcdir)/VERSION`
 # No additional number if revision is zero.
@@ -31,6 +42,18 @@ revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(top_srcdir)/REVISION`
 # paper (USA) and define it to be A4, if it uses A4 paper (rest of the
 # world).
 PAGE=@PAGE@
+
+# The name of the ghostscript program. Normally, gs, on GNU/Linux
+# but it might be different on MS-DOS/MS-WIN32 systems.
+GHOSTSCRIPT=@GHOSTSCRIPT@
+
+# `ALT_GHOSTSCRIPT_PROGS' specifies a list alternative names,
+# which can be tried if `GHOSTSCRIPT' cannot be found at run time.
+ALT_GHOSTSCRIPT_PROGS=@ALT_GHOSTSCRIPT_PROGS@
+
+# Similarly, `ALT_AWK_PROGS' specifies a list of alternative names,
+# which can be tried at run time, to identify the awk program.
+ALT_AWK_PROGS=@ALT_AWK_PROGS@
 
 # Normally the Postscript driver, grops, produces output that conforms
 # to version 3.0 of the Adobe Document Structuring Conventions.
@@ -57,6 +80,15 @@ BROKEN_SPOOLER_FLAGS=@BROKEN_SPOOLER_FLAGS@
 
 # `DEVICE' is the default device.
 DEVICE=ps
+
+# `XDEVDIRS' is either `font/devX{75,100}{,-12}' or empty.
+XDEVDIRS=@XDEVDIRS@
+
+# `XPROGDIRS' is either `src/devices/xditview src/utils/xtotroff' or empty.
+XPROGDIRS=@XPROGDIRS@
+
+# `XLIBDIRS' is either `src/libs/libxutil' or empty.
+XLIBDIRS=@XLIBDIRS@
 
 # `TTYDEVDIRS' is either `font/devascii font/devlatin1' (for
 # ASCII) or `font/devcp1047' (for EBCDIC) plus font/devutf8.
@@ -111,6 +143,9 @@ exampledir=$(docdir)/examples
 # `htmldocdir' says where to install documentation in HTML format.
 htmldocdir=$(docdir)/html
 
+# `pdfdocdir' says where to install documentation in PDF format.
+pdfdocdir=$(docdir)/pdf
+
 # `fontdir' says where to install dev*/*.
 fontdir=$(datasubdir)/font
 
@@ -121,7 +156,7 @@ localfontdir=$(dataprogramdir)/site-font
 legacyfontdir=/usr/lib/font
 
 # `fontpath' says where to look for dev*/*.
-fontpath=$(localfontdir)$(SEP)$(fontdir)$(SEP)$(legacyfontdir)
+fontpath=$(localfontdir)$(RT_SEP)$(fontdir)$(RT_SEP)$(legacyfontdir)
 
 # `tmacdir' says where to install macros.
 tmacdir=$(datasubdir)/tmac
@@ -132,12 +167,16 @@ systemtmacdir=$(libprogramdir)/site-tmac
 # `localtmacdir' says where local files will be installed.
 localtmacdir=$(dataprogramdir)/site-tmac
 
+# `appresdir' says where to install the application resource file for
+# gxditview.
+appresdir=@appresdir@
+
 # `tmacpath' says where to look for macro files.
 # The current directory will be prepended in unsafe mode only; the home
 # directory will be always added.
 # `troffrc' and `troffrc-end' (and `eqnrc') are searched neither in the
 # current nor in the home directory.
-tmacpath=$(systemtmacdir)$(SEP)$(localtmacdir)$(SEP)$(tmacdir)
+tmacpath=$(systemtmacdir)$(RT_SEP)$(localtmacdir)$(RT_SEP)$(tmacdir)
 
 # `sys_tmac_prefix' is prefix (if any) for system macro packages.
 sys_tmac_prefix=@sys_tmac_prefix@
@@ -206,6 +245,11 @@ man7dir=$(manroot)/man$(man7ext)
 make_html=@make_html@
 make_install_html=@make_install_html@
 
+# The configure script also checks whether all necessary utility programs
+# for pdfroff are available -- only then we can build PDF documentation.
+make_pdfdoc=@make_pdfdoc@
+make_install_pdfdoc=@make_install_pdfdoc@
+
 # DEFINES should include the following:
 # -DHAVE_MMAP			if you have mmap() and <sys/mman.h>
 # -DARRAY_DELETE_NEEDS_SIZE	if your C++ doesn't understand `delete []'
@@ -220,7 +264,7 @@ make_install_html=@make_install_html@
 # -DHAVE_CC_LIMITS_H		if you have a C++ <limits.h>
 # -DHAVE_MATH_H			if you have <math.h>
 # -DHAVE_CC_OSFCN_H		if you have a C++ <osfcn.h>
-# -DHAVE_CC_STDINT_H		if you have a C++ <stdint.h>
+# -DHAVE_CC_INTTYPES_H		if you have a C++ <inttypes.h>
 # -DHAVE_STDLIB_H		if you have <stdlib.h>
 # -DHAVE_STRING_H		if you have <string.h>
 # -DHAVE_STRINGS_H		if you have <strings.h>
@@ -232,6 +276,7 @@ make_install_html=@make_install_html@
 # -DHAVE_GETCWD			if you have getcwd()
 # -DHAVE_GETTIMEOFDAY		if you have gettimeofday()
 # -DHAVE_ISATTY			if you have isatty()
+# -DHAVE_KILL			if you have kill()
 # -DHAVE_MKSTEMP		if you have mkstemp()
 # -DHAVE_MMAP			if you have mmap()
 # -DHAVE_PUTENV			if you have putenv()
@@ -243,6 +288,7 @@ make_install_html=@make_install_html@
 # -DHAVE_STRERROR		if you have strerror()
 # -DHAVE_STRSEP			if you have strsep()
 # -DHAVE_STRTOL			if you have strtol()
+# -DHAVE_VSNPRINTF		if you have vsnprintf()
 #
 # -DNEED_DECLARATION_GETTIMEOFTODAY
 #				if your C++ <sys/time.h> doesn't declare
@@ -250,15 +296,21 @@ make_install_html=@make_install_html@
 # -DNEED_DECLARATION_HYPOT	if your C++ <math.h> doesn't declare hypot()
 # -DNEED_DECLARATION_PCLOSE	if your C++ <stdio.h> doesn't declare pclose()
 # -DNEED_DECLARATION_POPEN	if your C++ <stdio.h> doesn't declare popen()
-# -DNEED_DECLARATION_PUTENV	if your C++ <stdlib.h> doesn't declare putenv()
+# -DNEED_DECLARATION_PUTENV	if your C++ <stdlib.h> doesn't declare
+#				putenv()
 # -DNEED_DECLARATION_RAND	if your C++ <stdlib.h> doesn't declare rand()
-# -DNEED_DECLARATION_SNPRINTF	if your C++ <stdio.h> doesn't declare snprintf()
+# -DNEED_DECLARATION_SNPRINTF	if your C++ <stdio.h> doesn't declare
+# 				snprintf()
 # -DNEED_DECLARATION_SRAND	if your C++ <stdlib.h> doesn't declare srand()
 # -DNEED_DECLARATION_STRCASECMP if your C++ <string.h> doesn't declare
 #				strcasecmp()
 # -DNEED_DECLARATION_STRNCASECMP
 #				if your C++ <string.h> doesn't declare
 #				strncasecmp()
+# -DNEED_DECLARATION_VFPRINTF	if your C++ <stdio.h> doesn't declare
+#				vfprintf()
+# -DNEED_DECLARATION_VSNPRINTF	if your C++ <stdio.h> doesn't declare
+#				vsnprintf()
 #
 # -DRET_TYPE_SRAND_IS_VOID	if srand() returns void not int
 # -DHAVE_SYS_NERR		if you have sysnerr in <errno.h> or <stdio.h>
@@ -270,7 +322,9 @@ make_install_html=@make_install_html@
 # -DHAVE_STRUCT_EXCEPTION	if <math.h> defines struct exception
 # -DRETSIGTYPE=int		if signal handlers return int not void	
 # -DIS_EBCDIC_HOST		if the host's encoding is EBCDIC
-# -DPAGEA4			if the the printer's page size is A4
+# -DPAGE=A4			if the the printer's page size is A4
+# -DGHOSTSCRIPT=gs		the name (and directory if required) of the
+#				ghostscript program
 DEFINES=@DEFS@
 
 # Include
@@ -279,6 +333,7 @@ DEFINES=@DEFS@
 #    strerror,strncasecmp,strtol}.$(OBJEXT)
 #
 # in LIBOBJS if your C library is missing the corresponding function.
+# vsnprintf is defined in the snprintf.$(OBJEXT) module.
 LIBOBJS=@LIBOBJS@
 
 # `CCC' is the compiler for C++ (.cpp) files.
@@ -291,7 +346,14 @@ CDEFINES=$(DEFINES)
 
 CCFLAGS=@CXXFLAGS@
 CFLAGS=@CFLAGS@
+CPPFLAGS=@CPPFLAGS@
 LDFLAGS=@LDFLAGS@
+
+X_CFLAGS=@X_CFLAGS@
+X_LIBS=@X_LIBS@
+X_EXTRA_LIBS=@X_EXTRA_LIBS@
+X_PRE_LIBS=@X_PRE_LIBS@
+
 YACC=@YACC@
 YACCFLAGS=-v
 
@@ -317,9 +379,11 @@ ETAGSCCFLAG=-C
 PERLPATH=@PERLPATH@
 # Sed command with which to edit sh scripts.
 SH_SCRIPT_SED_CMD=@SH_SCRIPT_SED_CMD@
+# Sed script to deal with OS dependencies in sh scripts.
+SH_DEPS_SED_SCRIPT=$(top_builddir)/arch/misc/shdeps.sed
 
 # The program to create directory hierarchies.
-mkinstalldirs=$(top_srcdir)/mkinstalldirs
+mkinstalldirs= $(SHELL) $(top_srcdir)/mkinstalldirs
 
 PURIFY=purify
 PURIFYCCFLAGS=
@@ -330,6 +394,8 @@ PURIFYCCFLAGS=
 # copy of $(MDEFINES) when making individual directories; this could
 # cause the argument list to become too long on some systems.
 MDEFINES= \
+  "ALT_AWK_PROGS=$(ALT_AWK_PROGS)" \
+  "ALT_GHOSTSCRIPT_PROGS=$(ALT_GHOSTSCRIPT_PROGS)" \
   "AR=$(AR)" \
   "BROKEN_SPOOLER_FLAGS=$(BROKEN_SPOOLER_FLAGS)" \
   "CC=$(CC)" \
@@ -338,6 +404,7 @@ MDEFINES= \
   "CCFLAGS=$(CCFLAGS)" \
   "CDEFINES=$(CDEFINES)" \
   "CFLAGS=$(CFLAGS)" \
+  "CPPFLAGS=$(CPPFLAGS)" \
   "DEVICE=$(DEVICE)" \
   "DVIPRINT=$(DVIPRINT)" \
   "ETAGS=$(ETAGS)" \
@@ -357,16 +424,28 @@ MDEFINES= \
   "OBJEXT=$(OBJEXT)" \
   "OTHERDEVDIRS=$(OTHERDEVDIRS)" \
   "PAGE=$(PAGE)" \
+  "GHOSTSCRIPT=$(GHOSTSCRIPT)" \
   "PERLPATH=$(PERLPATH)" \
   "PSPRINT=$(PSPRINT)" \
   "PURIFY=$(PURIFY)" \
   "PURIFYCCFLAGS=$(PURIFYCCFLAGS)" \
   "RANLIB=$(RANLIB)" \
-  "SEP=$(SEP)" \
+  "RT_SEP=$(RT_SEP)" \
+  "SH_SEP=$(SH_SEP)" \
+  "SHELL=$(SHELL)" \
   "SH_SCRIPT_SED_CMD=$(SH_SCRIPT_SED_CMD)" \
+  "SH_DEPS_SED_SCRIPT=$(SH_DEPS_SED_SCRIPT)" \
   "TTYDEVDIRS=$(TTYDEVDIRS)" \
+  "XDEVDIRS=$(XDEVDIRS)" \
+  "XLIBDIRS=$(XLIBDIRS)" \
+  "XPROGDIRS=$(XPROGDIRS)" \
+  "X_CFLAGS=$(X_CFLAGS)" \
+  "X_LIBS=$(X_LIBS)" \
+  "X_EXTRA_LIBS=$(X_EXTRA_LIBS)" \
+  "X_PRE_LIBS=$(X_PRE_LIBS)" \
   "YACC=$(YACC)" \
   "YACCFLAGS=$(YACCFLAGS)" \
+  "appresdir=$(appresdir)" \
   "bindir=$(bindir)" \
   "common_words_file=$(common_words_file)" \
   "datadir=$(datadir)" \
@@ -379,6 +458,7 @@ MDEFINES= \
   "fontpath=$(fontpath)" \
   "g=$(g)" \
   "htmldocdir=$(htmldocdir)" \
+  "pdfdocdir=$(pdfdocdir)" \
   "indexdir=$(indexdir)" \
   "indexext=$(indexext)" \
   "indexname=$(indexname)" \
@@ -390,6 +470,8 @@ MDEFINES= \
   "localtmacdir=$(localtmacdir)" \
   "make_html=$(make_html)" \
   "make_install_html=$(make_install_html)" \
+  "make_pdfdoc=$(make_pdfdoc)" \
+  "make_install_pdfdoc=$(make_install_pdfdoc)" \
   "man1dir=$(man1dir)" \
   "man1ext=$(man1ext)" \
   "man5dir=$(man5dir)" \
@@ -413,12 +495,12 @@ MDEFINES= \
   "top_srcdir=$(top_srcdir)" \
   "version=$(version)"
 
-SHELL=/bin/sh
 INCDIRS=src/include
 LIBDIRS=\
   src/libs/libgroff \
   src/libs/libdriver \
-  src/libs/libbib
+  src/libs/libbib \
+  $(XLIBDIRS)
 CCPROGDIRS=\
   src/roff/groff \
   src/roff/troff \
@@ -441,40 +523,42 @@ CCPROGDIRS=\
   src/utils/indxbib \
   src/utils/lkbib \
   src/utils/addftinfo
-CPROGDIRS=src/utils/pfbtops
-PROGDIRS=$(CCPROGDIRS) $(CPROGDIRS)
+CPROGDIRS=\
+  src/utils/pfbtops \
+  $(XPROGDIRS)
+PROGDEPDIRS=arch/misc
+PROGDIRS=$(PROGDEPDIRS) $(CCPROGDIRS) $(CPROGDIRS)
 DEVDIRS=\
   font/devps \
   font/devdvi \
-  font/devX75 \
-  font/devX75-12 \
-  font/devX100 \
-  font/devX100-12 \
   font/devhtml
 ALLTTYDEVDIRS=\
   font/devascii \
   font/devlatin1 \
   font/devutf8 \
   font/devcp1047
+# `doc' must be processed before `contrib/pdfmark'.
 OTHERDIRS=\
   man \
   tmac \
   src/utils/afmtodit \
   src/roff/grog \
   src/roff/nroff \
+  doc \
   contrib/mm \
   contrib/pic2graph \
   contrib/eqn2graph \
+  contrib/grap2graph \
   contrib/groffer \
   contrib/mom \
-  doc
+  contrib/pdfmark \
+  contrib/gdiffmk
 ALLDIRS=$(INCDIRS) $(LIBDIRS) $(PROGDIRS) \
-  $(DEVDIRS) $(OTHERDEVDIRS) $(TTYDEVDIRS) $(OTHERDIRS)
+  $(DEVDIRS) $(XDEVDIRS) $(OTHERDEVDIRS) $(TTYDEVDIRS) $(OTHERDIRS)
 EXTRADIRS=\
   font/devps/generate \
   font/devdvi/generate \
   font/devlj4/generate \
-  src/xditview \
   doc
 NOMAKEDIRS=\
   arch/djgpp \
@@ -482,9 +566,10 @@ NOMAKEDIRS=\
   contrib/mm/mm \
   contrib/mom/examples \
   contrib/mom/momdoc \
+  contrib/gdiffmk/tests \
   src/libs/snprintf
 DISTDIRS=\
-  $(INCDIRS) $(LIBDIRS) $(PROGDIRS) $(DEVDIRS) $(OTHERDEVDIRS) \
+  $(INCDIRS) $(LIBDIRS) $(PROGDIRS) $(DEVDIRS) $(XDEVDIRS) $(OTHERDEVDIRS) \
   $(ALLTTYDEVDIRS) $(OTHERDIRS) $(EXTRADIRS) $(NOMAKEDIRS)
 TARGETS=all install install_bin install_data clean distclean mostlyclean \
   realclean extraclean distfiles TAGS depend uninstall_sub
@@ -493,8 +578,8 @@ TARGETS=all install install_bin install_data clean distclean mostlyclean \
 # where Make needs to be case-sensitive to find files like BI and VERSION.
 ENVSETUP=\
 	if test -f $(srcdir)/makefile.ccpg* && \
-	   test -f $(srcdir)/Makefile.ccpg*; \
-	then FNCASE=y; export FNCASE; \
+	   test -f $(srcdir)/Makefile.ccpg*; then \
+	  FNCASE=y; export FNCASE; \
 	else :; \
 	fi
 
@@ -515,9 +600,10 @@ dot: FORCE
 
 $(LIBDIRS): FORCE
 	@$(ENVSETUP); \
-	if test $(srcdir) = .; \
-	then srcdir=.; \
-	else srcdir=`cd $(srcdir); pwd`/$@; \
+	if test $(srcdir) = .; then \
+	  srcdir=.; \
+	else \
+	  srcdir=`cd $(srcdir); pwd`/$@; \
 	fi; \
 	test -d $@ || $(mkinstalldirs) $@; \
 	cd $@; \
@@ -530,9 +616,10 @@ $(LIBDIRS): FORCE
 
 $(CPROGDIRS): FORCE
 	@$(ENVSETUP); \
-	if test $(srcdir) = .; \
-	then srcdir=.; \
-	else srcdir=`cd $(srcdir); pwd`/$@; \
+	if test $(srcdir) = .; then \
+	  srcdir=.; \
+	else \
+	  srcdir=`cd $(srcdir); pwd`/$@; \
 	fi; \
 	test -d $@ || $(mkinstalldirs) $@; \
 	cd $@; \
@@ -545,9 +632,10 @@ $(CPROGDIRS): FORCE
 
 $(CCPROGDIRS): FORCE
 	@$(ENVSETUP); \
-	if test $(srcdir) = .; \
-	then srcdir=.; \
-	else srcdir=`cd $(srcdir); pwd`/$@; \
+	if test $(srcdir) = .; then \
+	  srcdir=.; \
+	else \
+	  srcdir=`cd $(srcdir); pwd`/$@; \
 	fi; \
 	test -d $@ || $(mkinstalldirs) $@; \
 	cd $@; \
@@ -558,11 +646,12 @@ $(CCPROGDIRS): FORCE
 	  -f $(top_srcdir)/Makefile.ccpg \
 	  -f Makefile.dep $(do)
 
-$(DEVDIRS) $(OTHERDEVDIRS) $(TTYDEVDIRS): FORCE
+$(DEVDIRS) $(XDEVDIRS) $(OTHERDEVDIRS) $(TTYDEVDIRS): FORCE
 	@$(ENVSETUP); \
-	if test $(srcdir) = .; \
-	then srcdir=.; \
-	else srcdir=`cd $(srcdir); pwd`/$@; \
+	if test $(srcdir) = .; then \
+	  srcdir=.; \
+	else \
+	  srcdir=`cd $(srcdir); pwd`/$@; \
 	fi; \
 	test -d $@ || $(mkinstalldirs) $@; \
 	cd $@; \
@@ -571,11 +660,12 @@ $(DEVDIRS) $(OTHERDEVDIRS) $(TTYDEVDIRS): FORCE
 	  -f $$srcdir/Makefile.sub \
 	  -f $(top_srcdir)/Makefile.dev $(do)
 
-$(INCDIRS) $(OTHERDIRS): FORCE
+$(INCDIRS) $(PROGDEPDIRS) $(OTHERDIRS): FORCE
 	@$(ENVSETUP); \
-	if test $(srcdir) = .; \
-	then srcdir=.; \
-	else srcdir=`cd $(srcdir); pwd`/$@; \
+	if test $(srcdir) = .; then \
+	  srcdir=.; \
+	else \
+	  srcdir=`cd $(srcdir); pwd`/$@; \
 	fi; \
 	test -d $@ || $(mkinstalldirs) $@; \
 	cd $@; \
@@ -605,7 +695,12 @@ dist:
 	$(MAKE) srcdir=. VPATH=. distfiles; \
 	$(MAKE) srcdir=. VPATH=. extraclean; \
 	for d in $(EXTRADIRS); do \
-	  (cd $$d; $(MAKE) extraclean); \
+	  (cd $$d; \
+	   if test -f Makefile; then \
+	     $(MAKE) extraclean; \
+	   else \
+	     $(MAKE) -f $(top_builddir)/$$d/Makefile extraclean; \
+	   fi); \
 	done; \
 	rm -f Makefile; \
 	$(LN_S) $$srcdir/Makefile.init Makefile
@@ -644,13 +739,37 @@ uninstall_dirs:
 	-rmdir $(man1dir) $(man5dir) $(man7dir) $(manroot) \
 	  $(tmacdir) $(systemtmacdir) $(localtmacdir) \
 	  $(fontdir) $(localfontdir) $(bindir) \
-	  $(datasubdir) $(dataprogramdir) $(datadir) $(infodir) \
-	  $(exampledir) $(htmldocdir) $(docdir) \
-	  $(libprogramdir) $(libdir)
+	  $(datasubdir) $(dataprogramdir) $(infodir) \
+	  $(exampledir) $(htmldocdir) $(pdfdocdir) $(docdir) \
+	  $(libprogramdir) $(libdir) \
+	  $(datadir)/doc/groff $(datadir)/doc $(datadir) 2>/dev/null || :
 
+.PHONY: check docheck
+check: site.exp docheck
 
-.PHONY: check
-check:
+docheck:
+	if $(SHELL) -c "runtest --version" > /dev/null 2>&1; then \
+	  runtest; \
+	else \
+	  echo "WARNING: could not find \`runtest'" 1>&2; \
+	fi
+
+# This snippet has been taken from the automake package.
+
+site.exp:
+	@echo "Making a new site.exp file..."
+	@echo "## these variables are automatically generated by make ##" >site.tmp
+	@echo "# Do not edit here.  If you wish to override these values" >>site.tmp
+	@echo "# edit the last section" >>site.tmp
+	@echo "set tool groff" >>site.tmp
+	@echo "set srcdir $(srcdir)/testsuite" >>site.tmp
+	@echo "set objdir `pwd`" >> site.tmp
+	@echo "## All variables above are generated by configure.  Do not edit! ##" >> site.tmp
+	@test ! -f site.exp \
+	  || sed '1,/^## All variables above are.*##/ d' site.exp >> site.tmp
+	@-rm -f site.bak
+	@test ! -f site.exp || mv site.exp site.bak
+	@mv site.tmp site.exp
 
 FORCE:
 

@@ -10,7 +10,7 @@ Installed position: groff's main macro directory.
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 written by Gaius Mulley <gaius@glam.ac.uk>, with additions by
 Werner Lemberg <wl@gnu.org> and Bernd Warken <bwarken@mayn.de>.
 
@@ -26,8 +26,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with groff; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.
+Software Foundation, 51 Franklin St - Fifth Floor, Boston, MA
+02110-1301, USA.
 
 
 ------------------------------------------------------------------------
@@ -42,8 +42,13 @@ www functionality.  It should work with any macro set.
 .\" Setup
 .\" --------------------------------------------------------------------
 .
+.do if d www:lenstr .nx
+.
+.do mso devtag.tmac
+.
 .nr _C \n(.C
 .cp 0
+.
 .
 .nr www-html 0
 .if '\*[.T]'html' .nr www-html 1
@@ -103,6 +108,18 @@ www functionality.  It should work with any macro set.
 .\" Local Macros
 .\" --------------------------------------------------------------------
 .
+.\" --------------------------------------------------------------------
+.\" www:paraspace
+.\"
+.\" Space before paragraph. Use \n[PD] if it exists.
+.\"
+.nr www:pd 0.5v
+.de www:paraspace
+.  ie r PD .sp \\n[PD]u
+.  el .sp \\n[www:pd]u
+..
+.
+.\"
 .\" --------------------------------------------------------------------
 .\" www:error (<test>...)
 .\"
@@ -191,7 +208,7 @@ www functionality.  It should work with any macro set.
 .\" Arguments: >=2: <result> <char> [<char>...]
 .\"
 .de www:url_breaks_splitted
-.  nr \\$0:min 5	\" minimal number of characters for next line
+.  nr \\$0:min 5             \" minimal number of characters for next line
 .  if (\\n[.$] < 2) \
 .    www:error .\\$0 expects at least 2 arguments.
 .  ds \\$0:res \\$1\"
@@ -244,23 +261,36 @@ www functionality.  It should work with any macro set.
 .\" --------------------------------------------------------------------
 .
 .\" --------------------------------------------------------------------
-.\" HTML (<address> <description> [<punctuation>])
+.\" HTML
 .\"
 .\" the main auxiliary macro for the HTML interface
 .\"
 .de HTML
 .  if \\n[www-html] \{\
-.    \" the following line makes the vertical mode leave, so to say
+.    \" was implemented via .nop \&\X^html:\\$*^ but
+.    \" is now implemented using HTML-NS to utilize code factoring.
+.    \"
+.    \" the `\&' makes the vertical mode leave, so to say
+.    \"
+.    nop \&\c
+.    HTML-NS \\$*
 .    nop \&
-.    nop \X^html:\\$*^
 .  \}
 ..
 .\"
 .\" an auxiliary macro for HTML (without following space)
 .\"
 .de HTML-NS
-.  if \\n[www-html] \
-.    nop \X^html:\\$*^\c
+.  nop \X^html:\\$*^\c
+..
+.\"
+.\" emit a HTML tag after shutting down a (possibly open) paragraph
+.\"
+.de HTML</p>
+.  if \\n[www-html] \{\
+.    \" the `\&' makes the vertical mode leave, so to say
+.    nop \&\X^html</p>:\\$*^
+.  \}
 ..
 .\" --------------------------------------------------------------------
 .\" HX n
@@ -292,20 +322,50 @@ www functionality.  It should work with any macro set.
 .\"     if description is absent then the url becomes the anchor text
 .\"
 .de URL
-.  ds \\$0:adr \\$1\"
-.  www:url_breaks \\$0:adr
+.  ie !'\\$1'' \{\
+.    ds \\$0:adr \\$1\"
+.    www:url_breaks \\$0:adr
+.  \}
 .  ie \\n[www-html] \{\
-.    ie '\\$2'' \
-.       HTML <a href="\\$1">\\$1</a>\\$3
+.    ie '\\$3'' \
+.      ds \\$0:after \&
 .    el \
-.       HTML <a href="\\$1">\\$2</a>\\$3
+.      ds \\$0:after \&\\$3
+.    ie '\\$2'' \
+.       HTML-NS <a href="\\$1">\\$1</a>
+.    el \
+.       HTML-NS <a href="\\$1">\\$2</a>
+.    nop \\*[\\$0:after]
+.    rm \\$0:after
 .  \}
 .  el \{\
 .    if !r ps4html .ad l
-.    ie '\\$2'' \
-.       nop \%\[la]\m[blue]\f[C]\\*[\\$0:adr]\f[]\m[]\[ra]\\$3
-.    el \
-.       nop \m[blue]\\$2\m[] \%\[la]\f[C]\\*[\\$0:adr]\f[]\[ra]\\$3
+.    ie '\\$2'' \{\
+.      ie '\\$1'' \{\
+.        ie !'\\$3'' \
+.          nop \\$3
+.      \}
+.      el \{\
+.        ie \\n[.color] \
+.          nop \%\[la]\m[blue]\f[C]\\*[\\$0:adr]\f[]\m[]\[ra]\\$3
+.        el \
+.          nop \%\[la]\f[CB]\\*[\\$0:adr]\f[]\[ra]\\$3
+.      \}
+.    \}
+.    el \{\
+.      ie '\\$1'' \{\
+.        ie \\n[.color] \
+.          nop \m[blue]\\$2\m[]\\$3
+.        el \
+.          nop \f[B]\\$2\f[]\\$3
+.      \}
+.      el \{\
+.        ie \\n[.color] \
+.          nop \m[blue]\\$2\m[] \%\[la]\f[C]\\*[\\$0:adr]\f[]\[ra]\\$3
+.        el \
+.          nop \f[B]\\$2\f[] \%\[la]\f[C]\\*[\\$0:adr]\f[]\[ra]\\$3
+.      \}
+.    \}
 .    if !r ps4html .ad
 .  \}
 .  rm \\$0:adr
@@ -340,10 +400,32 @@ www functionality.  It should work with any macro set.
 .      URL mailto:\\$1 "\\$2" "\\$3"
 .  \}
 .  el \{\
-.    ie '\\$2'' \
-.      nop \%\m[blue]\f[C]\\$1\f[]\m[]\\$3
-.    el \
-.      nop \m[blue]\\$2\m[] \%\[la]\f[C]\\$1\f[]\[ra]\\$3
+.    ie '\\$2'' \{\
+.      ie '\\$1'' \{\
+.        ie !'\\$3'' \
+.          nop \\$3
+.      \}
+.      el \{\
+.        ie \\n[.color] \
+.          nop \%\m[blue]\f[C]\\$1\f[]\m[]\\$3
+.        el \
+.          nop \%\f[CB]\\$1\f[]\\$3
+.      \}
+.    \}
+.    el \{\
+.      ie '\\$1'' \{\
+.        ie \\n[.color] \
+.          nop \m[blue]\\$2\m[]\\$3
+.        el \
+.          nop \f[B]\\$2\f[]\\$3
+.      \}
+.      el \{\
+.        ie \\n[.color] \
+.          nop \m[blue]\\$2\m[] \%\[la]\f[C]\\$1\f[]\[ra]\\$3
+.        el
+.          nop \f[B]\\$2\f[] \%\[la]\f[C]\\$1\f[]\[ra]\\$3
+.      \}
+.    \}
 .  \}
 ..
 .\" --------------------------------------------------------------------
@@ -366,12 +448,12 @@ www functionality.  It should work with any macro set.
 .de IMG
 .  ie \\n[www-html] \{\
 .    ie '\\$2'-R' \
-.      HTML-TAG ".right-image"
+.      DEVTAG ".right-image"
 .    el \{\
 .      ie '\\$2'-L' \
-.        HTML-TAG ".left-image"
+.        DEVTAG ".left-image"
 .      el \
-.        HTML-TAG ".centered-image"
+.        DEVTAG ".centered-image"
 .    \}
 .    nr www-width 100
 .    if !'\\$3'' \
@@ -379,31 +461,11 @@ www functionality.  It should work with any macro set.
 .    nr www-height \\n[www-width]
 .    if !'\\$4'' \
 .      nr www-height \\$4
-.    HTML <img src="\\$1" width=\\n[www-width] height=\\n[www-height]>
+.    HTML <img src="\\$1" alt="Image \\$1" \
+           width=\\n[www-width] height=\\n[www-height]>
 .  \}
 .  el \
 .    nop \[la]\f[C]\\$1\f[]\[ra]
-..
-.\" --------------------------------------------------------------------
-.\" HTML-TAG
-.\"
-.\"   Emit a tag for grohtml.  This is an internal macro.
-.\"
-.de HTML-TAG
-.  if \\n[www-html] \{\
-.    \" the following line makes the vertical mode leave, so to say
-.    nop \&
-.    nop \X^html-tag:\\$*^
-.  \}
-..
-.\" --------------------------------------------------------------------
-.\" HTML-TAG-NS
-.\"
-.\"   Emit a tag for grohtml (without a space).  This is an internal macro.
-.\"
-.de HTML-TAG-NS
-.  if \\n[www-html] \
-.    nop \X^html-tag:\\$*^\c
 ..
 .\" --------------------------------------------------------------------
 .\" PIMG  [-R|-L|-C] filename [width] [height]
@@ -419,12 +481,12 @@ www functionality.  It should work with any macro set.
 .de PIMG
 .  ie \\n[www-html] \{\
 .    ie '\\$1'-R' \
-.      HTML-TAG ".right-image"
+.      DEVTAG ".right-image"
 .    el \{\
 .      ie '\\$1'-L' \
-.        HTML-TAG ".left-image"
+.        DEVTAG ".left-image"
 .      el \
-.        HTML-TAG ".centered-image"
+.        DEVTAG ".centered-image"
 .    \}
 .    nr www-width 0
 .    nr www-height 0
@@ -434,15 +496,16 @@ www functionality.  It should work with any macro set.
 .      nr www-height (\\$4 * 100 / 240)
 .    ie (\\n[www-width] == 0) \{\
 .      ie (\\n[www-height] == 0) \
-.        HTML <img src="\\$2">
+.        HTML <img src="\\$2" alt="Image \\$2">
 .      el \
-.        HTML <img src="\\$1" height=\\n[www-height]>
+.        HTML <img src="\\$1" alt="Image \\$2" height=\\n[www-height]>
 .    \}
 .    el \{\
 .      ie (\\n[www-height] == 0) \
-.        HTML <img src="\\$2" width=\\n[www-width]>
+.        HTML <img src="\\$2" alt="Image \\$2" width=\\n[www-width]>
 .      el \
-.        HTML <img src="\\$2" width=\\n[www-width] height=\\n[www-height]>
+.        HTML <img src="\\$2" alt="Image \\$2" width=\\n[www-width] \
+               height=\\n[www-height]>
 .    \}
 .  \}
 .  el \{\
@@ -465,13 +528,14 @@ www functionality.  It should work with any macro set.
 .nr www-right-ll-trap 0
 .
 .de www-finish-left-po
-.  po -\\n[www-left-indent]u
+.  po -(\\n[www-left-indent]u + \\n[www-image-gap]u)
 .  wh \\n[www-left-po-trap]u
 .  nr www-left-indent 0
 ..
 .
+.\" called when the -R picture is finished
 .de www-finish-right-ll
-.  ll +\\n[www-right-indent]u
+.  ll +(\\n[www-right-indent]u + \\n[www-image-gap]u)
 .  \" now see whether we need to inline www-finish-left-ll
 .  if (\\n[www-left-ll-trap]u > 0) \
 .    if ((\\n[www-right-ll-trap]u + 1v) >= \\n[www-left-ll-trap]u) \{\
@@ -502,51 +566,161 @@ www functionality.  It should work with any macro set.
 .  mk www-left-po-trap
 .  nr www-left-po-trap +1v
 .  wh \\n[www-left-po-trap]u www-finish-left-po
-.  ll +\\n[www-left-indent]u
+.  ll +(\\n[www-left-indent]u + \\n[www-image-gap]u)
 .  wh \\n[www-left-ll-trap]u
 .  nr www-left-ll-trap 0
 ..
+.
+.\" www-handle-percent arg N1 N2 S1
+.\"                    arg - input string (number or number%)
+.\"                    output parameters:
+.\"                    N1 - name of number register 1=absolute 0=percentage
+.\"                    N2 - number register name for absolute value
+.\"                    S1 - string register name for percentage value
+.
+.de www-handle-percent 
+.  ds www-percent \\$1\"
+.  substring www-percent -1 -1
+.
+.  ie '\\*[www-percent]'%' \{\
+.    ds www-abs \\$1\"
+.    substring www-abs 0 -2
+.    nr \\$2 0
+.    nr \\$3 \\*[www-abs]
+.    ds \\$4 \\$1\"
+.  \}
+.  el \{\
+.    nr \\$2 1
+.    nr \\$3 \\$1
+.    ds \\$4 none\"
+.  \}
+..
+.
 .\" --------------------------------------------------------------------
-.\" MPIMG [-R|-L] filename [width] [height]
+.\" MPIMG [-R|-L] [-G gap] filename [width [height]]
 .\"
 .\"   Include a png image and wrap text around it.  It will work for
 .\"   -Tps and -Thtml.  The default value for WIDTH is 1i; default value
 .\"   for HEIGHT is WIDTH; the default alignment is left (-L).
+.\"   -G is used to insert a gap between the text and the image.
+.\"   The height and width can also be given as a percentage.
+.\"   The PostScript device converts the percentage width into an
+.\"   absolute value by using \\n[.l], and the height by using \\n[.p].
+.\"   
 .\"
 .\" Note: This macro can only be used with the `-U' option of groff,
 .\"       activating unsafe mode, if not used with -Thtml; the PNG image
 .\"       is then converted to the EPS format using netpbm utilities.
 .\"
+.
+.nr www-htmlimage-gap 0
+.
 .de MPIMG
+.  nr www-image-just 1
+.  nr www-image-gap 0
+.  while (\\n[.$] > 0) \{\
+.    if '-L'\\$1' \{\
+.      nr www-image-just 1
+.      shift
+.      continue
+.    \}
+.    if '-R'\\$1' \{\
+.      nr www-image-just 0
+.      shift
+.      continue
+.    \}
+.    if '-G'\\$1' \{\
+.      nr www-image-gap \\$2
+.      nr www-htmlimage-gap (\\$2 * 100 / 240)
+.      shift 2
+.      continue
+.    \}
+.    break
+.  \}
+.
 .  nr www-width 1i
-.  if !'\\$3'' \
-.    nr www-width \\$3
-.  nr www-height \\n[www-width]
-.  if !'\\$4'' \
-.    nr www-height \\$4
-.  nr www-width (\\n[www-width] * 100 / 240)
-.  nr www-height (\\n[www-height] * 100 / 240)
-.  ie \\n[www-html] \{\
-.    ie '\\$1'-R' \
-.      HTML <img src="\\$2" align=right width=\\n[www-width] height=\\n[www-height]>
-.    el \
-.      HTML <img src="\\$2" align=left width=\\n[www-width] height=\\n[www-height]>
+.  nr www-height 1i
+.  ds www-size-specs "width=\\n[www-width] height=\\n[www-height]\"
+.  ie !'\\$2'' \{\
+.    nr www-is-absolute 0
+.    nr www-absolute 0
+.    ds www-percentage none\"
+.    www-handle-percent \\$2 www-is-absolute www-absolute www-percentage
+.    ie !\\n[www-is-absolute] \{\
+.      \" percentage of linelength requested
+.      nr www-width (\\n[www-absolute] * \\n[.l] / 100)
+.      if \\n[www-html] \
+.        nr www-width (\\n[www-width] * 100 / 240)
+.      ds www-size-specs "width=\\*[www-percentage]\"
+.    \}
+.    el \{\
+.      nr www-width \\n[www-absolute]
+.      if \\n[www-html] \
+.        nr www-width (\\n[www-width] * 100 / 240)
+.      ds www-size-specs "width=\\n[www-width]\"
+.    \}
+.
+.    nr www-height \\n[www-width]
+.    ie !'\\$3'' \{\
+.      nr www-is-absolute 0
+.      nr www-absolute 0
+.      ds www-percentage none\"
+.      www-handle-percent \\$3 www-is-absolute www-absolute www-percentage
+.      ie !\\n[www-is-absolute] \{\
+.        \" percentage of pagelength requested
+.        nr www-height (\\n[www-absolute] * \\n[.p] / 100)
+.        if \\n[www-html] \
+.           nr www-height (\\n[www-height] * 100 / 240)
+.        ds www-size-specs "\\*[www-size-specs] height=\\*[www-percentage]\"
+.      \}
+.      el \{\
+.        nr www-height \\n[www-absolute]
+.        if \\n[www-html] \
+.           nr www-height (\\n[www-height] * 100 / 240)
+.        ds www-size-specs "\\*[www-size-specs] height=\\*[www-height]\"
+.      \}
+.    \}
 .  \}
 .  el \{\
+.    \" height not specified; use width value
+.    ie !\\n[www-is-absolute] \{\
+.       \" percentage value
+.       ds www-size-specs "\\*[www-size-specs] height=\\*[www-percentage]\"
+.       nr www-height \\n[www-width]
+.    \}
+.    el \{\
+.       ds www-size-specs "\\*[www-size-specs] height=\\*[www-width]\"
+.       nr www-height \\n[www-width]
+.    \}
+.  \}
+.
+.  ie \\n[www-html] \{\
+.    ie !\\n[www-image-just] \
+.      HTML <img src="\\$1" alt="Image \\$1" hspace=\\n[www-htmlimage-gap] \
+             align=right \\*[www-size-specs]>
+.    el \
+.      HTML <img src="\\$1" alt="Image \\$1" hspace=\\n[www-htmlimage-gap] \
+             align=left \\*[www-size-specs]>
+.  \}
+.  el \{\
+.    tm www-width is \\n[www-width]
+.    tm www-height is \\n[www-height]
 .    if !r ps4html \{\
 .      www-make-unique-name
-.      sy pngtopnm \\$2 | pnmcrop -white | @PNMTOPS_NOSETPAGE@ -noturn > \\*[www-unique-name].eps
-.      ie '\\$1'-R' \{\
+.      sy pngtopnm \\$1 | pnmcrop -white | @PNMTOPS_NOSETPAGE@ -noturn > \\*[www-unique-name].eps
+.      ie !\\n[www-image-just] \{\
 .        \" we must now disable a possible left image trap
 .        sp -1
 .        if (\\n[www-left-ll-trap] > 0) \
 .          wh \\n[www-left-ll-trap]u
 .        if (\\n[www-left-po-trap] > 0) \
 .          wh \\n[www-left-po-trap]u
-.        PSPIC -R \\*[www-unique-name].eps \\$3 \\$4
+.        PSPIC -R \\*[www-unique-name].eps \\n[www-width]u \\n[www-height]u
 .        sp -\\n[ps-desht]u
 .        nr www-right-indent \\n[ps-deswid]u
-.        ll -\\n[www-right-indent]u
+.        \" we want to have some space between text and image,
+.        \" so the line length must be shorter
+.        ll -(\\n[www-right-indent]u + \\n[www-image-gap]u)
 .        mk www-right-ll-trap
 .        nr www-right-ll-trap +(\\n[ps-desht]u - 1v)
 .        wh \\n[www-right-ll-trap]u www-finish-right-ll
@@ -560,11 +734,13 @@ www functionality.  It should work with any macro set.
 .        \" we must now disable a possible right image trap
 .        if (\\n[www-right-ll-trap] > 0) \
 .          wh \\n[www-right-ll-trap]u
-.        PSPIC -L \\*[www-unique-name].eps \\$3 \\$4
+.        PSPIC -L \\*[www-unique-name].eps \\n[www-width]u \\n[www-height]u
 .        sp -\\n[ps-desht]u
 .        nr www-left-indent \\n[ps-deswid]u
-.        po +\\n[www-left-indent]u
-.        ll -\\n[www-left-indent]u
+.        \" increase offset by gap
+.        po +(\\n[www-left-indent]u + \\n[www-image-gap]u)
+.        \" decrease line length by gap
+.        ll -(\\n[www-left-indent]u + \\n[www-image-gap]u)
 .        mk www-left-ll-trap
 .        nr www-left-ll-trap +(\\n[ps-desht]u - 1v)
 .        wh \\n[www-left-ll-trap]u www-finish-left-ll
@@ -595,13 +771,13 @@ www functionality.  It should work with any macro set.
 .    nr www-heading-no 1
 .  el \
 .    nr www-heading-no \\$1
-.  HTML-TAG ".NH \\n[www-heading-no]"
+.  DEVTAG-NH \\n[www-heading-no]
 ..
 .
 .de HnE
 .  if (\\n[www-heading-no] == -1) \
 .    www-error "HnE found without a corresponding HnS"
-.  br
+.  DEVTAG-EO-H
 ..
 .\" --------------------------------------------------------------------
 .\" LK
@@ -610,20 +786,15 @@ www functionality.  It should work with any macro set.
 .\"   section/numbered headings at this position.
 .\"
 .de LK
-.  HTML-TAG ".links"
+.  DEVTAG ".links"
 ..
 .\" --------------------------------------------------------------------
 .\" HR
 .\"
-.\"   Produce a horizontal line
+.\"   Produce a horizontal line.
 .\"
 .de HR
-.  ie \\n[www-html] \{\
-.    ti 0
-.    HTML-NS <hr>
-.  \}
-.  el \
-.    sp
+.  HTML</p> "<hr>"
 ..
 .\" --------------------------------------------------------------------
 .\" NHR
@@ -632,19 +803,21 @@ www functionality.  It should work with any macro set.
 .\"  emits by default.
 .\"
 .de NHR
-.  HTML-TAG ".no-auto-rule"
+.  DEVTAG ".no-auto-rule"
 ..
 .\"
 .\" www-end-nowhere - end of input trap called to finish diversion.
 .\"
 .de www-end-nowhere
-.  di
+.  if !\\n[www-html] \
+.    di
+.  DEVTAG-EO-TL
 ..
 .\" --------------------------------------------------------------------
 .\" HTL
 .\"
 .\"   Generate an HTML title only.  This differs from the -ms .TL macro
-.\"   which generates both an HTML title and a H1 heading.
+.\"   which generates both an HTML title and an H1 heading.
 .\"
 .\"   This is useful when an author wishes to use a HTML title as search
 .\"   engine fodder but a graphic title in the document.
@@ -652,51 +825,108 @@ www functionality.  It should work with any macro set.
 .\"   The macro terminates when a space or break is seen (.sp, .br).
 .\"
 .de HTL
-.  HTML-TAG ".html-tl"
-.  if !\\n[www-html] \{\
+.  DEVTAG ".html-tl"
+.  if !\\n[www-html] \
 .    di www-nowhere
-.    it 2 www-end-nowhere
-.  \}
+.  it 2 www-end-nowhere
 ..
 .
 .\" --------------------------------------------------------------------
-.\" auxiliary definitions for ULS / ULE
+.\" auxiliary definitions for lists
 .\"
-.ds www-level1 \[bu]\ \ \"
-.ds www-level2 \[sq]\ \ \"
-.ds www-level3 \[ci]\ \ \"
-.nr www-level 0
+.ds www-ul-level1 \[bu]\ \ \"
+.ds www-ul-level2 \[sq]\ \ \"
+.ds www-ul-level3 \[ci]\ \ \"
+.nr www-ul-level 0
+.
+.ds www-ol-level1 decimal\"
+.ds www-ol-level2 lower-alpha\"
+.ds www-ol-level3 lower-roman\"
+.ds www-ol-tmp 00\ \ \"
+.nr www-ol-ctr1 0 1
+.nr www-ol-ctr2 0 1
+.nr www-ol-ctr3 0 1
+.af www-ol-ctr2 a
+.af www-ol-ctr3 i
+.nr www-ol-level 0
+.
+.nr www-dl-level 0
+.nr www-dl-shift 5n
+.
+.\"
+.\" allow nested lists
+.\"
 .nr www-depth 0
+.nr www-li-indent \n[.i]
+.ds www-level0 nop\"
+.ds www-level1
+.ds www-level2
+.ds www-level3
+.ds www-level4
+.ds www-level5
+.ds www-level6
+.ds www-level7
+.ds www-level8
+.ds www-level9
+.
+.\" which macro to use for LI
+.de www-push-li
+.  nr www-depth +1
+.  ds www-level\\n[www-depth] \\$1\"
+.  als LI \\$1
+..
+.
+.de www-pop-li
+.  nr www-depth -1
+.  als LI \\*[www-level\\n[www-depth]]
+..
 .
 .\"
 .\" Auxiliary macro for ULS.
 .\"
-.de www-push-level
-.  nr www-level +1
-.  if (\\n[www-level] > 3) \
-.    www-error "too many levels of indentation (\\n[www-level])"
+.de www-push-ul-level
+.  nr www-ul-level +1
+.  if (\\n[www-ul-level] > 3) \
+.    www-error "ULS: too many levels of indentation (\\n[www-ul-level])"
 ..
 .\"
 .\" Auxiliary macro for ULE.
 .\"
-.de www-pop-level
-.  if !\\n[www-level] \
-.    www-error "trying to terminate a list which does not exist"
-.  nr www-level -1
+.de www-pop-ul-level
+.  if !\\n[www-ul-level] \
+.    www-error "ULE: trying to terminate a list which does not exist"
+.  nr www-ul-level -1
 ..
+.
+.\"
+.\" Auxiliary macro for OLS.
+.\"
+.de www-push-ol-level
+.  nr www-ol-level +1
+.  if (\\n[www-ol-level] > 3) \
+.    www-error "OLS: too many levels of indentation (\\n[www-ol-level])"
+..
+.\"
+.\" Auxiliary macro for OLE.
+.\"
+.de www-pop-ol-level
+.  if !\\n[www-ol-level] \
+.    www-error "OLE: trying to terminate a list which does not exist"
+.  nr www-ol-level -1
+..
+.
 .\" --------------------------------------------------------------------
 .\" ULS
 .\"
 .\"   Start an unordered list.
 .\"
 .de ULS
-.  www-push-level
+.  www-push-li www-li-ul
+.  www-push-ul-level
 .  ie \\n[www-html] \
-.    HTML "<ul>"
+.    HTML</p> "<ul>"
 .  el \{\
-.    if (\\n[www-level] == 1) \
-.      nr www-depth \\n[.i]
-.    nr www-depth +\w'\\*[www-level\\n[www-level]]'u
+.    nr www-li-indent +\w'\\*[www-ul-level\\n[www-ul-level]]'u
 .  \}
 ..
 .\" --------------------------------------------------------------------
@@ -708,23 +938,116 @@ www functionality.  It should work with any macro set.
 .  ie \\n[www-html] \
 .    HTML "</ul>"
 .  el \{\
-.    nr www-depth -\w'\\*[www-level\\n[www-level]]'u
-.    in \\n[www-depth]u
+.    nr www-li-indent -\w'\\*[www-ul-level\\n[www-ul-level]]'u
+.    in \\n[www-li-indent]u
 .  \}
-.  www-pop-level
+.  www-pop-ul-level
+.  www-pop-li
+..
+.\" --------------------------------------------------------------------
+.\" OLS
+.\"
+.\"   Start an ordered list.
+.\"
+.de OLS
+.  www-push-li www-li-ol
+.  www-push-ol-level
+.  ie \\n[www-html] \
+.    HTML</p> "<ol style='list-style-type: \\*[www-ol-level\\n[www-ol-level]]'>"
+.  el \
+.    nr www-li-indent +\w'\\*[www-ol-tmp]'u
+..
+.\" --------------------------------------------------------------------
+.\" OLE
+.\"
+.\"   End an ordered list.
+.\"
+.de OLE
+.  ie \\n[www-html] \
+.    HTML "</ol>"
+.  el \{\
+.    nr www-li-indent -\w'\\*[www-ol-tmp]'u
+.    in \\n[www-li-indent]u
+.    nr www-ol-ctr\\n[www-ol-level] 0 1
+.  \}
+.  www-pop-ol-level
+.  www-pop-li
+..
+.\" --------------------------------------------------------------------
+.\"
+.\" DLS
+.\"   Start a definition list.
+.\"
+.de DLS
+.  www-push-li www-li-dl
+.  nr www-dl-level +1
+.  ie \\n[www-html] \
+.    HTML</p> "<dl>"
+.  el \{\
+.    nr www-li-indent +\\n[www-dl-shift]u
+.    in \\n[www-li-indent]u
+.  \}
+..
+.\" --------------------------------------------------------------------
+.\"
+.\" DLE
+.\"   End a definition list.
+.\"
+.de DLE
+.  ie \\n[www-html] \
+.    HTML "</dl>"
+.  el \{\
+.    nr www-li-indent -\\n[www-dl-shift]u
+.    in \\n[www-li-indent]u
+.  \}
+.  nr www-dl-level -1
+.  www-pop-li
 ..
 .\" --------------------------------------------------------------------
 .\" LI
 .\"
 .\"   Insert a list item.
 .\"
-.de LI
+.\" ********
+.\" www-li-ul - bulleted list item
+.\"
+.de www-li-ul
 .  ie \\n[www-html] \
-.    HTML "<li>"
+.    HTML-NS "<li>"
 .  el \{\
-.    in \\n[www-depth]u
-.    ti -\w'\\*[www-level\\n[www-level]]'u
-.    nop \\*[www-level\\n[www-level]]\c
+.    www:paraspace
+.    in \\n[www-li-indent]u
+.    ti -\w'\\*[www-ul-level\\n[www-ul-level]]'u
+.    nop \\*[www-ul-level\\n[www-ul-level]]\c
+.  \}
+..
+.\" ********
+.\" www-li-ol - numbered list item
+.\"
+.de www-li-ol
+.  ie \\n[www-html] \
+.    HTML-NS "<li>"
+.  el \{\
+.    www:paraspace
+.    in \\n[www-li-indent]u
+.    ti -\w'\\n[www-ol-ctr\\n[www-ol-level]]\ \ 'u
+.    nop \\n+[www-ol-ctr\\n[www-ol-level]]\ \ \c
+.  \}
+..
+.\" ********
+.\" www-li-dl - definition list item
+.\"
+.de www-li-dl
+.  ie \\n[www-html] \{\
+.    HTML "<dt>\\$1</dt>"
+.    HTML-NS "<dd>"
+.  \}
+.  el \{\
+.    www:paraspace
+.    in \\n[www-li-indent]u
+.    ti -\\n[www-dl-shift]u
+.    nop \&\\$1
+.    br
 .  \}
 ..
 .\" --------------------------------------------------------------------
@@ -743,7 +1066,8 @@ www functionality.  It should work with any macro set.
 .    ds www-dropcolor \\$3
 .  ie '\*(.T'html' \{\
 .    www-make-unique-name
-.    MPIMG -L \\*[www-unique-name].png "(\\n[.v] * 2u)"
+.    nr www-drop-width (100u * \\n[.v]u * 3u / \\n[.l]u)
+.    MPIMG -L \\*[www-unique-name].png "\\n[www-drop-width]%"
 .  \}
 .  el \{\
 .    ie r ps4html \{\
@@ -754,20 +1078,24 @@ www functionality.  It should work with any macro set.
 .      \" glyphs overlap.
 .      bp
 .      ev www-DC
-.      vs 80p
+.      vs 320p
 .      nop \O[5i\\*[www-unique-name].png]\O[1]
-.      nop \m[\\*[www-dropcolor]]\s[40]\O[3]\\$1\O[4]
+.      nop \m[\\*[www-dropcolor]]\s[160]\O[3]\\$1\O[4]
 .      nop \O[2]\O[0]
 .      br
 .      ev
 .      bp
 .    \}
 .    el \{\
-.      nr dummy \w'\\$1'u
-.      nr dcht ((\\n[.v] + \\n[rst]) * \\n[.ps] / \\n[rst])
-.      char \[dcap] \m[\\*[www-dropcolor]]\s'\\n[dcht]u'\\$1
-.      nop \v'\\n[.v]u'\\[dcap]\v'-\\n[.v]u'\c
-'      ti \w'\\[dcap]'u
+.      ie n \
+.        nop \\$1\c
+.      el \{\
+.        nr dummy \w'\\$1'u
+.        nr dcht ((\\n[.v] + \\n[rst]) * \\n[.ps] / \\n[rst])
+.        char \[dcap] \m[\\*[www-dropcolor]]\s'\\n[dcht]u'\\$1
+.        nop \v'\\n[.v]u'\\[dcap]\v'-\\n[.v]u'\c
+'        ti \w'\\[dcap]'u
+.      \}
 .    \}
 .  \}
 .  nop \\$2
@@ -842,6 +1170,25 @@ www functionality.  It should work with any macro set.
 .  HTML-DO-IMAGE \\*[www-unique-name] i
 ..
 .
+.\" --------------------------------------------------------------------
+.\" JOBNAME
+.\"
+.\"   Generate multiple output files containing the html.
+.\"   A file is split whenever a .SH or .NH 1 is encountered.
+.\"   The argument to JOBNAME is the file stem for future output files.
+.\"
+.de JOBNAME
+.  DEVTAG .job-name \\$1
+..
+.\" --------------------------------------------------------------------
+.\" HEAD
+.\"
+.\"   Adds information to the <head> </head> section of the html
+.\"   document
+.\" --------------------------------------------------------------------
+.de HEAD
+.  DEVTAG .head "\\$*"
+..
 .\" --------------------------------------------------------------------
 .\" Final Setup
 .\" --------------------------------------------------------------------

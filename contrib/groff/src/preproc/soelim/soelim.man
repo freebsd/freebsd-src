@@ -1,5 +1,6 @@
+'\" p
 .ig
-Copyright (C) 1989-2000, 2001, 2003 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2003, 2004 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -16,6 +17,9 @@ versions, except that this permission notice may be included in
 translations approved by the Free Software Foundation instead of in
 the original English.
 ..
+.
+.mso pic.tmac
+.
 .TH @G@SOELIM @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
 .
 .SH NAME
@@ -80,7 +84,7 @@ even when followed by a character other than space or newline.
 This option may be used to specify a directory to search for
 files (both those on the command line and those named in
 .B \&.so
-lines).
+requests).
 The current directory is always searched first.
 This option may be specified more than once,
 the directories will be searched in the order specified.
@@ -98,6 +102,111 @@ the current file and line number.
 .TP
 .B \-v
 Print the version number.
+.
+.SH USAGE
+The normal processing sequence of groff is this:
+.
+.PP
+.ie t \{\
+.PS
+box invisible width 0.5 height 0.4 "input" "file";
+move to last box .bottom;
+down;
+arrow 0.3;
+box invisible width 0.8 height 0.2 "preprocessor";
+move to last box .right
+right;
+arrow 0.3;
+A: box invisible width 0.35 height 0.2 "troff";
+move to last box .top;
+up;
+move 0.3;
+box invisible width 0.6 height 0.4 "sourced" "file";
+line <- up 0.3 from A.top;
+move to A.right;
+right;
+arrow 0.3;
+box invisible width 0.85 height 0.2 "postprocessor";
+move to last box .bottom;
+down;
+arrow 0.3;
+box invisible width 0.5 height 0.4 "output" "file"
+.PE
+.\}
+.el \{\
+.nf
+          input        sourced
+          file          file
+            |             |
+            v             v
+        preprocessor -> troff -> postprocessor
+                                      |
+                                      v
+                                   output
+                                    file
+.fi
+.\}
+.PP
+.
+That is, files sourced with
+.B .so
+are normally read
+.I only
+by
+.B troff
+(the actual formatter).
+.B soelim
+is
+.I not
+required for
+.B troff
+to source files.
+.
+.PP
+If a file to be sourced should also be preprocessed, it must
+already be read
+.I before
+the input file passes through the preprocessor.
+This is handled by
+.BR soelim :
+.
+.PP
+.ie t \{\
+.PS
+box invisible width 0.5 height 0.4 "input" "file";
+move to last box .bottom;
+down;
+arrow 0.3;
+A: box invisible width 0.5 height 0.2 "soelim";
+line <- 0.3;
+box invisible width 0.5 height 0.4 "sourced" "file";
+move to A.right;
+right;
+arrow 0.3;
+box invisible width 0.8 height 0.2 "preprocessor";
+arrow 0.3;
+box invisible width 0.35 height 0.2 "troff";
+arrow 0.3
+box invisible width 0.85 height 0.2 "postprocessor";
+move to last box .bottom;
+down;
+arrow 0.3;
+box invisible width 0.5 height 0.4 "output" "file"
+.PE
+.\}
+.el \{\
+.nf
+          input
+          file
+            |
+            v
+          soelim -> preprocessor -> troff -> postprocessor
+            ^                                     |
+            |                                     v
+         sourced                               output
+          file                                  file
+.fi
+.\}
 .
 .SH "SEE ALSO"
 .BR groff (@MAN1EXT@)

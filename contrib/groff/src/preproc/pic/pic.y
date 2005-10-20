@@ -1,4 +1,4 @@
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -16,14 +16,13 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 %{
 #include "pic.h"
 #include "ptable.h"
 #include "object.h"
 
 extern int delim_flag;
-extern void do_copy(const char *);
 extern void copy_rest_thru(const char *, const char *);
 extern void copy_file_thru(const char *, const char *, const char *);
 extern void push_body(const char *);
@@ -1109,8 +1108,16 @@ sprintf_args:
 		    else {
 		      double *oldv = $$.v;
 		      $$.maxv *= 2;
+#if 0
 		      $$.v = new double[$$.maxv];
 		      memcpy($$.v, oldv, $$.nv*sizeof(double));
+#else
+		      // workaround for bug in Compaq C++ V6.5-033
+		      // for Compaq Tru64 UNIX V5.1A (Rev. 1885)
+		      double *foo = new double[$$.maxv];
+		      memcpy(foo, oldv, $$.nv*sizeof(double));
+		      $$.v = foo;
+#endif
 		      a_delete oldv;
 		    }
 		  }
@@ -1128,6 +1135,12 @@ position:
 		  $$.x = pos.x;
 		  $$.y = pos.y;
 		}
+	| '(' place ')'
+		{
+		  position pos = $2;
+		  $$.x = pos.x;
+		  $$.y = pos.y;
+		}
 	;
 
 position_not_place:
@@ -1138,10 +1151,20 @@ position_not_place:
 		  $$.x = $1.x + $3.x;
 		  $$.y = $1.y + $3.y;
 		}
+	| '(' position '+' expr_pair ')'
+		{
+		  $$.x = $2.x + $4.x;
+		  $$.y = $2.y + $4.y;
+		}
 	| position '-' expr_pair
 		{
 		  $$.x = $1.x - $3.x;
 		  $$.y = $1.y - $3.y;
+		}
+	| '(' position '-' expr_pair ')'
+		{
+		  $$.x = $2.x - $4.x;
+		  $$.y = $2.y - $4.y;
 		}
 	| '(' position ',' position ')'
 		{
@@ -1153,10 +1176,20 @@ position_not_place:
 		  $$.x = (1.0 - $1)*$3.x + $1*$5.x;
 		  $$.y = (1.0 - $1)*$3.y + $1*$5.y;
 		}
+	| '(' expr between position AND position ')'
+		{
+		  $$.x = (1.0 - $2)*$4.x + $2*$6.x;
+		  $$.y = (1.0 - $2)*$4.y + $2*$6.y;
+		}
 	| expr '<' position ',' position '>'
 		{
 		  $$.x = (1.0 - $1)*$3.x + $1*$5.x;
 		  $$.y = (1.0 - $1)*$3.y + $1*$5.y;
+		}
+	| '(' expr '<' position ',' position '>' ')'
+		{
+		  $$.x = (1.0 - $2)*$4.x + $2*$6.x;
+		  $$.y = (1.0 - $2)*$4.y + $2*$6.y;
 		}
 	;
 

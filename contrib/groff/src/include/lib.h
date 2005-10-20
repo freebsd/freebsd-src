@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2000, 2001, 2002, 2003, 2005
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -16,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -31,18 +32,8 @@ extern "C" {
   const char *if_to_a(int, int);
 }
 
-/* stdio.h on IRIX, OSF/1, emx, and UWIN include getopt.h */
-/* unistd.h on CYGWIN includes getopt.h */
-
-#if !(defined(__sgi) \
-      || (defined(__osf__) && defined(__alpha)) \
-      || defined(_UWIN) \
-      || defined(__EMX__) \
-      || defined(__CYGWIN__))
-#include <groff-getopt.h>
-#else
+#define __GETOPT_PREFIX groff_
 #include <getopt.h>
-#endif
 
 #ifdef HAVE_SETLOCALE
 #include <locale.h>
@@ -52,6 +43,7 @@ extern "C" {
 
 char *strsave(const char *s);
 int is_prime(unsigned);
+double groff_hypot(double, double);
 
 #include <stdio.h>
 #include <string.h>
@@ -59,13 +51,21 @@ int is_prime(unsigned);
 #include <strings.h>
 #endif
 
-/* HP-UX 10.20 doesn't declare snprintf() */
-#if !defined(HAVE_SNPRINTF) || defined(NEED_DECLARATION_SNPRINTF)
 #include <stdarg.h>
-extern "C" {
-  int snprintf(char *, size_t, const char *, /*args*/ ...);
-  int vsnprintf(char *, size_t, const char *, va_list);
-}
+
+/* HP-UX 10.20 and LynxOS 4.0.0 don't declare snprintf() */
+#if !defined(HAVE_SNPRINTF) || defined(NEED_DECLARATION_SNPRINTF)
+extern "C" { int snprintf(char *, size_t, const char *, /*args*/ ...); }
+#endif
+
+/* LynxOS 4.0.0 has snprintf() but no vsnprintf() */
+#if !defined(HAVE_VSNPRINTF) || defined(NEED_DECLARATION_VSNPRINTF)
+extern "C" { int vsnprintf(char *, size_t, const char *, va_list); }
+#endif
+
+/* LynxOS 4.0.0 doesn't declare vfprintf() */
+#ifdef NEED_DECLARATION_VFPRINTF
+extern "C" { int vfprintf(FILE *, const char *, va_list); }
 #endif
 
 #ifndef HAVE_MKSTEMP
@@ -90,6 +90,7 @@ extern "C" { int pclose (FILE *); }
 #endif /* NEED_DECLARATION_PCLOSE */
 
 size_t file_name_max(const char *fname);
+size_t path_name_max();
 
 int interpret_lf_args(const char *p);
 
@@ -102,29 +103,21 @@ inline int invalid_input_char(int c)
 
 #ifdef HAVE_STRCASECMP
 #ifdef NEED_DECLARATION_STRCASECMP
-extern "C" {
-  // Ultrix4.3's string.h fails to declare this.
-  int strcasecmp(const char *, const char *);
-}
+// Ultrix4.3's string.h fails to declare this.
+extern "C" { int strcasecmp(const char *, const char *); }
 #endif /* NEED_DECLARATION_STRCASECMP */
 #else /* not HAVE_STRCASECMP */
-extern "C" {
-  int strcasecmp(const char *, const char *);
-}
+extern "C" { int strcasecmp(const char *, const char *); }
 #endif /* HAVE_STRCASECMP */
 
 #if !defined(_AIX) && !defined(sinix) && !defined(__sinix__)
 #ifdef HAVE_STRNCASECMP
 #ifdef NEED_DECLARATION_STRNCASECMP
-extern "C" {
-  // SunOS's string.h fails to declare this.
-  int strncasecmp(const char *, const char *, int);
-}
+// SunOS's string.h fails to declare this.
+extern "C" { int strncasecmp(const char *, const char *, int); }
 #endif /* NEED_DECLARATION_STRNCASECMP */
 #else /* not HAVE_STRNCASECMP */
-extern "C" {
-  int strncasecmp(const char *, const char *, size_t);
-}
+extern "C" { int strncasecmp(const char *, const char *, size_t); }
 #endif /* HAVE_STRNCASECMP */
 #endif /* !_AIX && !sinix && !__sinix__ */
 

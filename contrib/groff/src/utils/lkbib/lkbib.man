@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2004 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -16,17 +16,23 @@ versions, except that this permission notice may be included in
 translations approved by the Free Software Foundation instead of in
 the original English.
 ..
-.ds g \" empty
-.ds G \" empty
+.
+.
 .\" Like TP, but if specified indent is more than half
 .\" the current line-length - indent, use the default indent.
 .de Tp
-.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
-.el .TP "\\$1"
+.  ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.  el .TP "\\$1"
 ..
+.
+.
 .TH LKBIB @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.
+.
 .SH NAME
 lkbib \- search bibliographic databases
+.
+.
 .SH SYNOPSIS
 .B lkbib
 [
@@ -42,13 +48,16 @@ lkbib \- search bibliographic databases
 .BI \-t n
 ]
 .IR key \|.\|.\|.
+.
 .PP
 It is possible to have whitespace between a command line option and its
 parameter.
+.
+.
 .SH DESCRIPTION
 .B lkbib
 searches bibliographic databases for references that contain the keys
-.IR key \|.\|.\|.
+.IR key \|.\|.\|.\&
 and prints any references found on the standard output.
 .B lkbib
 will search any databases given by
@@ -68,10 +77,13 @@ created by
 .BR @g@indxbib (@MAN1EXT@)
 exists, then it will be searched instead;
 each index can cover multiple databases.
+.
+.
 .SH OPTIONS
 .TP
 .B \-v
 Print the version number.
+.
 .TP
 .BI \-p filename
 Search
@@ -79,11 +91,13 @@ Search
 Multiple
 .B \-p
 options can be used.
+.
 .TP
 .BI \-i string
 When searching files for which no index exists,
 ignore the contents of fields whose names are in
 .IR string .
+.
 .TP
 .BI \-t n
 Only require the first
@@ -91,19 +105,27 @@ Only require the first
 characters of keys to be given.
 Initially
 .I n
-is 6.
+is\~6.
+.
+.
 .SH ENVIRONMENT
 .TP \w'\fBREFER'u+2n
 .SB REFER
 Default database.
+.
+.
 .SH FILES
 .Tp \w'\fB@DEFAULT_INDEX@'u+2n
 .B @DEFAULT_INDEX@
 Default database to be used if the
 .SB REFER
 environment variable is not set.
+.
+.TP
 .IB filename @INDEX_SUFFIX@
 Index files.
+.
+.
 .SH "SEE ALSO"
 .BR @g@refer (@MAN1EXT@),
 .BR @g@lookbib (@MAN1EXT@),

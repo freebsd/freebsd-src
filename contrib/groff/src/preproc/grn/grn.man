@@ -1,6 +1,6 @@
 '\" t
 .ig
-Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -17,17 +17,24 @@ versions, except that this permission notice may be included in
 translations approved by the Free Software Foundation instead of in
 the original English.
 ..
+.
+.do nr grn_C \n[.C]
+.cp 0
+.
 .de TQ
-.br
-.ns
-.TP \\$1
+.  br
+.  ns
+.  TP \\$1
 ..
+.
 .\" Like TP, but if specified indent is more than half
 .\" the current line-length - indent, use the default indent.
 .de Tp
-.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
-.el .TP "\\$1"
+.  ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.  el .TP "\\$1"
 ..
+.
+.
 .TH @G@GRN @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
 .SH NAME
 @g@grn \- groff preprocessor for gremlin files
@@ -142,7 +149,7 @@ Recognize
 .B .GS
 and
 .B .GE
-(resp.
+(and
 .BR .GF )
 even when followed by a character other than space or newline.
 .\".TP
@@ -188,7 +195,7 @@ Set
 text size number 1 (2, 3, or 4) to
 .I N
 points.
-The default is 12 (resp. 16, 24, and 36).
+The default is 12 (16, 24, and 36, respectively).
 .TP
 .BI roman\  f
 .TQ
@@ -202,7 +209,7 @@ Set the roman (italics, bold, or special) font to
 font
 .I f
 (either a name or number).
-The default is R (resp. I, B, and S).
+The default is R (I, B, and S, respectively).
 .TP
 .BI l\  f
 .TQ
@@ -242,11 +249,11 @@ may be abbreviated down to `sc'.
 .BI thick\  N
 Set the thickness of
 .IR gremlin 's
-narrow (resp. medium and thick) lines to
+narrow (medium and thick, respectively) lines to
 .I N
 times 0.15pt (this value can be changed at compile time).
-The default is 1.0 (resp. 3.0 and 5.0), which corresponds to 0.15pt
-(resp. 0.45pt and 0.75pt).
+The default is 1.0 (3.0 and 5.0, respectively), which corresponds to 0.15pt
+(0.45pt and 0.75pt, respectively).
 A thickness value of zero selects the smallest available line thickness.
 Negative values cause the line thickness to be proportional to the current
 point size.
@@ -255,7 +262,10 @@ point size.
 Scale text to match the picture.
 Gremlin text is usually printed in the point size specified with the
 commands
-.BR 1 ,\  2 ,\  3 ,\ or\  4
+.BR 1 ,
+.BR 2 ,
+.BR 3 ,
+.RB or\~ 4 ,
 regardless of any scaling factors in the picture.
 Setting
 .B pointscale
@@ -634,6 +644,8 @@ David Slattengren and Barry Roitblat wrote the original Berkeley
 .PP
 Daniel Senderowicz and Werner Lemberg modified it for
 .IR groff .
+.
+.cp \n[grn_C]
 .
 .\" Local Variables:
 .\" mode: nroff

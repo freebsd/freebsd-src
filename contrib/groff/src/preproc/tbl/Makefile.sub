@@ -1,6 +1,7 @@
 PROG=tbl$(EXEEXT)
 MAN1=tbl.n
 XLIBS=$(LIBGROFF)
+MLIB=$(LIBM)
 OBJS=\
   main.$(OBJEXT) \
   table.$(OBJEXT)

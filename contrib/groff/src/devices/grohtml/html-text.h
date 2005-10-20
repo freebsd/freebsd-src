@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+/* Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005
+ * Free Software Foundation, Inc.
  *
  *  Gaius Mulley (gaius@glam.ac.uk) wrote html-text.h
  *
@@ -23,10 +24,12 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "html.h"
 #include "html-table.h"
+
+#define STYLE_VERTICAL_SPACE "1em"
 
 /*
  *  html tags
@@ -64,9 +67,10 @@ public:
   void   do_pre            (void);
   void   do_small          (void);
   void   do_big            (void);
-  void   do_para           (const char *arg);  // used for no indentation
+  void   do_para           (const char *arg, int space); // used for no indentation
   void   do_para           (simple_output *op, const char *arg1,
-			    int indentation, int pageoffset, int linelength);
+			    int indentation, int pageoffset, int linelength,
+                            int space);
   void   do_sup            (void);
   void   do_sub            (void);
   void   do_space          (void);
@@ -87,11 +91,15 @@ public:
   int    emitted_text      (void);
   int    ever_emitted_text (void);
   int    starts_with_space (void);
+  int    retrieve_para_space (void);
   void   emit_space        (void);
   int    is_in_pre         (void);
+  int    uses_indent       (void);
   void   remove_tag        (HTML_TAG tag);
   void   remove_sub_sup    (void);
   void   remove_para_align (void);
+  void   remove_para_space (void);
+  char  *get_alignment     (void);
 
 private:
   tag_definition   *stackptr;    /* the current paragraph state */
@@ -108,7 +116,7 @@ private:
   int    is_present          (HTML_TAG t);
   void   end_tag             (tag_definition *t);
   void   start_tag           (tag_definition *t);
-  void   do_para             (const char *arg, html_indent *in);
+  void   do_para             (const char *arg, html_indent *in, int space);
   void   push_para           (HTML_TAG t);
   void   push_para           (HTML_TAG t, void *arg, html_indent *in);
   void   push_para           (color *c);
@@ -116,7 +124,7 @@ private:
   char  *shutdown            (HTML_TAG t);
   void   check_emit_text     (tag_definition *t);
   int    remove_break        (void);
-  void   issue_tag           (const char *tagname, const char *arg);
+  void   issue_tag           (const char *tagname, const char *arg, int space=2);
   void   issue_color_begin   (color *c);
   void   remove_def          (tag_definition *t);
   html_indent *remove_indent (HTML_TAG tag);
