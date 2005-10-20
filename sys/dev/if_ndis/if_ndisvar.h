@@ -35,6 +35,16 @@
 #define NDIS_DEFAULT_NODENAME	"FreeBSD NDIS node"
 #define NDIS_NODENAME_LEN	32
 
+/* For setting/getting OIDs from userspace. */
+
+struct ndis_oid_data {
+	uint32_t		oid;
+	uint32_t		len;
+#ifdef notdef
+	uint8_t			data[1];
+#endif
+};
+
 struct ndis_pci_type {
 	uint16_t		ndis_vid;
 	uint16_t		ndis_did;
@@ -49,32 +59,52 @@ struct ndis_pccard_type {
 };
 
 struct ndis_shmem {
+	list_entry		ndis_list;
 	bus_dma_tag_t		ndis_stag;
 	bus_dmamap_t		ndis_smap;
 	void			*ndis_saddr;
 	ndis_physaddr		ndis_paddr;
-	struct ndis_shmem	*ndis_next;
 };
 
 struct ndis_cfglist {
 	ndis_cfg		ndis_cfg;
+	struct sysctl_oid	*ndis_oid;
         TAILQ_ENTRY(ndis_cfglist)	link;
+};
+
+/*
+ * Helper struct to make parsing information
+ * elements easier.
+ */
+struct ndis_ie {
+	uint8_t		ni_oui[3];
+	uint8_t		ni_val;
 };
 
 TAILQ_HEAD(nch, ndis_cfglist);
 
-#define NDIS_INITIALIZED(sc)	(sc->ndis_block->nmb_miniportadapterctx != NULL)
+#define NDIS_INITIALIZED(sc)	(sc->ndis_block->nmb_devicectx != NULL)
 
+#define NDIS_TXPKTS 64
 #define NDIS_INC(x)		\
-	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % (x)->ndis_maxpkts 
+	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % NDIS_TXPKTS
 
+#if __FreeBSD_version < 600000
 #define arpcom ic.ic_ac
+#endif
+
+#define NDIS_EVENTS 4
+#define NDIS_EVTINC(x)	(x) = ((x) + 1) % NDIS_EVENTS
+
+struct ndis_evt {
+	uint32_t		ne_sts;
+	uint32_t		ne_len;
+	char			*ne_buf;
+};
 
 struct ndis_softc {
 	struct ieee80211com	ic;		/* interface info */
-#ifdef notdef
-	struct ieee80211com	arpcom;		/* interface info */
-#endif
+	struct ifnet		*ifp;
 	struct ifmedia		ifmedia;	/* media info */
 	u_long			ndis_hwassist;
 	uint32_t		ndis_v4tx;
@@ -95,7 +125,8 @@ struct ndis_softc {
 	struct resource		*ndis_res_cm;	/* common mem (pccard) */
 	struct resource_list	ndis_rl;
 	int			ndis_rescnt;
-	struct mtx		ndis_mtx;
+	kspin_lock		ndis_spinlock;
+	uint8_t			ndis_irql;
 	device_t		ndis_dev;
 	int			ndis_unit;
 	ndis_miniport_block	*ndis_block;
@@ -114,6 +145,7 @@ struct ndis_softc {
 	struct nch		ndis_cfglist_head;
 	int			ndis_80211;
 	int			ndis_link;
+	uint32_t		ndis_sts;
 	uint32_t		ndis_filter;
 	int			ndis_if_flags;
 	int			ndis_skip;
@@ -125,18 +157,53 @@ struct ndis_softc {
 	int			ndis_devidx;
 	interface_type		ndis_iftype;
 	driver_object		*ndis_dobj;
-	ndis_work_item		ndis_tickitem;
-	ndis_work_item		ndis_startitem;
-	ndis_work_item		ndis_resetitem;
+	io_workitem		*ndis_tickitem;
+	io_workitem		*ndis_startitem;
+	io_workitem		*ndis_resetitem;
+	io_workitem		*ndis_inputitem;
 	kdpc			ndis_rxdpc;
 	bus_dma_tag_t		ndis_parent_tag;
-	struct ndis_shmem	*ndis_shlist;
+	list_entry		ndis_shlist;
 	bus_dma_tag_t		ndis_mtag;
 	bus_dma_tag_t		ndis_ttag;
 	bus_dmamap_t		*ndis_mmaps;
 	bus_dmamap_t		*ndis_tmaps;
 	int			ndis_mmapcnt;
+	struct ndis_evt		ndis_evt[NDIS_EVENTS];
+	int			ndis_evtpidx;
+	int			ndis_evtcidx;
+	struct ifqueue		ndis_rxqueue;
+	kspin_lock		ndis_rxlock;
 };
 
-#define NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)
-#define NDIS_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndis_mtx)
+#define NDIS_LOCK(_sc)		KeAcquireSpinLock(&(_sc)->ndis_spinlock, \
+				    &(_sc)->ndis_irql);
+#define NDIS_UNLOCK(_sc)	KeReleaseSpinLock(&(_sc)->ndis_spinlock, \
+				    (_sc)->ndis_irql);
+
+/*
+ * Backwards compatibility defines.
+ */
+
+#ifndef IF_ADDR_LOCK
+#define IF_ADDR_LOCK(x)
+#define IF_ADDR_UNLOCK(x)
+#endif
+
+#ifndef IFF_DRV_OACTIVE
+#define IFF_DRV_OACTIVE IFF_OACTIVE
+#define IFF_DRV_RUNNING IFF_RUNNING
+#define if_drv_flags if_flags
+#endif
+
+#ifndef ic_def_txkey
+#define ic_def_txkey ic_wep_txkey
+#define wk_keylen wk_len
+#endif
+
+#ifndef SIOCGDRVSPEC
+#define SIOCSDRVSPEC	_IOW('i', 123, struct ifreq)	/* set driver-specific
+								parameters */
+#define SIOCGDRVSPEC	_IOWR('i', 123, struct ifreq)	/* get driver-specific
+								parameters */
+#endif

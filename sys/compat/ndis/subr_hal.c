@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/systm.h>
 #include <machine/clock.h>
-#include <machine/bus_memio.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 
 #include <sys/bus.h>
@@ -82,12 +80,18 @@ static void READ_PORT_BUFFER_UCHAR(uint8_t *,
 static uint64_t KeQueryPerformanceCounter(uint64_t *);
 static void dummy (void);
 
-extern struct mtx_pool *ndis_mtxpool;
+#define NDIS_MAXCPUS 64
+static struct mtx disp_lock[NDIS_MAXCPUS];
 
 int
 hal_libinit()
 {
 	image_patch_table	*patch;
+	int			i;
+
+	for (i = 0; i < NDIS_MAXCPUS; i++)
+		mtx_init(&disp_lock[i], "HAL preemption lock",
+		    "HAL lock", MTX_RECURSE|MTX_DEF);
 
 	patch = hal_functbl;
 	while (patch->ipt_func != NULL) {
@@ -97,6 +101,7 @@ hal_libinit()
 		patch++;
 	}
 
+	
 	return(0);
 }
 
@@ -104,6 +109,10 @@ int
 hal_libfini()
 {
 	image_patch_table	*patch;
+	int			i;
+
+	for (i = 0; i < NDIS_MAXCPUS; i++)
+		mtx_destroy(&disp_lock[i]);
 
 	patch = hal_functbl;
 	while (patch->ipt_func != NULL) {
@@ -287,6 +296,72 @@ READ_PORT_BUFFER_UCHAR(port, val, cnt)
  * KeAcquireSpinLock() must be running at IRQL <= DISPATCH_LEVEL. If
  * we detect someone trying to acquire a spinlock from DEVICE_LEVEL
  * or HIGH_LEVEL, we panic.
+ *
+ * Alternate sleep-lock-based spinlock implementation
+ * --------------------------------------------------
+ *
+ * The earlier spinlock implementation was arguably a bit of a hack
+ * and presented several problems. It was basically designed to provide
+ * the functionality of spinlocks without incurring the wrath of
+ * WITNESS. We could get away with using both our spinlock implementation
+ * and FreeBSD sleep locks at the same time, but if WITNESS knew what
+ * we were really up to, it would have spanked us rather severely.
+ *
+ * There's another method we can use based entirely on sleep locks.
+ * First, it's important to realize that everything we're locking
+ * resides inside Project Evil itself: any critical data being locked
+ * by drivers belongs to the drivers, and should not be referenced
+ * by any other OS code outside of the NDISulator. The priority-based
+ * locking scheme has system-wide effects, just like real spinlocks
+ * (blocking preemption affects the whole CPU), but since we keep all
+ * our critical data private, we can use a simpler mechanism that
+ * affects only code/threads directly related to Project Evil.
+ *
+ * The idea is to create a sleep lock mutex for each CPU in the system.
+ * When a CPU running in the NDISulator wants to acquire a spinlock, it
+ * does the following:
+ * - Pin ourselves to the current CPU
+ * - Acquire the mutex for the current CPU
+ * - Spin on the spinlock variable using atomic test and set, just like
+ *   a real spinlock.
+ * - Once we have the lock, we execute our critical code
+ *
+ * To give up the lock, we do:
+ * - Clear the spinlock variable with an atomic op
+ * - Release the per-CPU mutex
+ * - Unpin ourselves from the current CPU.
+ *
+ * On a uniprocessor system, this means all threads that access protected
+ * data are serialized through the per-CPU mutex. After one thread
+ * acquires the 'spinlock,' any other thread that uses a spinlock on the
+ * current CPU will block on the per-CPU mutex, which has the same general
+ * effect of blocking pre-emption, but _only_ for those threads that are
+ * running NDISulator code.
+ *
+ * On a multiprocessor system, threads on different CPUs all block on
+ * their respective per-CPU mutex, and the atomic test/set operation
+ * on the spinlock variable provides inter-CPU synchronization, though
+ * only for threads running NDISulator code.
+ *
+ * This method solves an important problem. In Windows, you're allowed
+ * to do an ExAllocatePoolWithTag() with a spinlock held, provided you
+ * allocate from NonPagedPool. This implies an atomic heap allocation
+ * that will not cause the current thread to sleep. (You can't sleep
+ * while holding real spinlock: clowns will eat you.) But in FreeBSD,
+ * malloc(9) _always_ triggers the acquisition of a sleep lock, even
+ * when you use M_NOWAIT. This is not a problem for FreeBSD native
+ * code: you're allowed to sleep in things like interrupt threads. But
+ * it is a problem with the old priority-based spinlock implementation:
+ * even though we get away with it most of the time, we really can't
+ * do a malloc(9) after doing a KeAcquireSpinLock() or KeRaiseIrql().
+ * With the new implementation, it's not a problem: you're allowed to
+ * acquire more than one sleep lock (as long as you avoid lock order
+ * reversals).
+ *
+ * The one drawback to this approach is that now we have a lot of
+ * contention on one per-CPU mutex within the NDISulator code. Whether
+ * or not this is preferable to the expected Windows spinlock behavior
+ * of blocking pre-emption is debatable.
  */
 
 uint8_t
@@ -316,10 +391,10 @@ KfReleaseSpinLock(lock, newirql)
 	return;
 }
 
- uint8_t
+uint8_t
 KeGetCurrentIrql()
 {
-	if (AT_DISPATCH_LEVEL(curthread))
+	if (mtx_owned(&disp_lock[curthread->td_oncpu]))
 		return(DISPATCH_LEVEL);
 	return(PASSIVE_LEVEL);
 }
@@ -340,19 +415,14 @@ KfRaiseIrql(irql)
 {
 	uint8_t			oldirql;
 
-	if (irql < KeGetCurrentIrql())
+	oldirql = KeGetCurrentIrql();
+	if (irql < oldirql)
 		panic("IRQL_NOT_LESS_THAN");
 
-	if (KeGetCurrentIrql() == DISPATCH_LEVEL)
-		return(DISPATCH_LEVEL);
-
-	mtx_lock_spin(&sched_lock);
-	oldirql = curthread->td_base_pri;
-	sched_prio(curthread, PI_REALTIME);
-#if __FreeBSD_version < 600000
-	curthread->td_base_pri = PI_REALTIME;
-#endif
-	mtx_unlock_spin(&sched_lock);
+	if (oldirql != DISPATCH_LEVEL) {
+		sched_pin();
+		mtx_lock(&disp_lock[curthread->td_oncpu]);
+	}
 
 	return(oldirql);
 }
@@ -367,12 +437,8 @@ KfLowerIrql(oldirql)
 	if (KeGetCurrentIrql() != DISPATCH_LEVEL)
 		panic("IRQL_NOT_GREATER_THAN");
 
-	mtx_lock_spin(&sched_lock);
-#if __FreeBSD_version < 600000
-	curthread->td_base_pri = oldirql;
-#endif
-	sched_prio(curthread, oldirql);
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock(&disp_lock[curthread->td_oncpu]);
+	sched_unpin();
 
 	return;
 }
