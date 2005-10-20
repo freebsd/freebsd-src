@@ -66,9 +66,6 @@ __FBSDID("$FreeBSD$");
 
 int (*openfirmware)(void *);
 
-static ihandle_t stdin;
-static ihandle_t stdout;
-
 ihandle_t mmu;
 ihandle_t memory;
 
@@ -396,7 +393,6 @@ OF_canon(const char *device, char *buf, int len)
 phandle_t
 OF_finddevice(const char *device)
 {
-	int i;
 	static struct {
 		cell_t		name;
 		cell_t		nargs;
