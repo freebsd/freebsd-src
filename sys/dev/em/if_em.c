@@ -985,51 +985,57 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 static void
 em_intr(void *arg)
 {
-        u_int32_t       loop_cnt = EM_MAX_INTR;
-        u_int32_t       reg_icr;
-        struct ifnet    *ifp;
-        struct adapter  *adapter = arg;
+	struct adapter	*adapter = arg;
+	struct ifnet	*ifp;
+	uint32_t	reg_icr;
+	int		wantinit = 0;
 
 	EM_LOCK(adapter);
 
-        ifp = adapter->ifp;  
+	ifp = adapter->ifp;  
 
 #ifdef DEVICE_POLLING
-        if (ifp->if_capenable & IFCAP_POLLING) {
+	if (ifp->if_capenable & IFCAP_POLLING) {
 		EM_UNLOCK(adapter);
-                return;
+		return;
 	}
 #endif /* DEVICE_POLLING */
 
-	reg_icr = E1000_READ_REG(&adapter->hw, ICR);
-        if (!reg_icr) {  
-		EM_UNLOCK(adapter);
-                return;
-        }
+	for (;;) {
+		reg_icr = E1000_READ_REG(&adapter->hw, ICR);
+		if (reg_icr == 0)
+			break;
 
-        /* Link status change */
-        if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-		callout_stop(&adapter->timer);
-                adapter->hw.get_link_status = 1;
-                em_check_for_link(&adapter->hw);
-                em_print_link_status(adapter);
-		callout_reset(&adapter->timer, hz, em_local_timer, adapter);
-        }
-
-        while (loop_cnt > 0) { 
-                if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-                        em_process_receive_interrupts(adapter, -1);
-                        em_clean_transmit_interrupts(adapter);
-                }
-                loop_cnt--;
-        }
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			em_process_receive_interrupts(adapter, -1);
+			em_clean_transmit_interrupts(adapter);
+		}
                  
-        if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+		/* Link status change */
+		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+			callout_stop(&adapter->timer);
+			adapter->hw.get_link_status = 1;
+			em_check_for_link(&adapter->hw);
+			em_print_link_status(adapter);
+			callout_reset(&adapter->timer, hz, em_local_timer,
+			    adapter);
+		}
+
+		if (reg_icr & E1000_ICR_RXO) {
+			log(LOG_WARNING, "%s: RX overrun\n", ifp->if_xname);
+			wantinit = 1;
+		}
+	}
+#if 0
+	if (wantinit)
+		em_init_locked(adapter);
+#endif
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-                em_start_locked(ifp);
+		em_start_locked(ifp);
 
 	EM_UNLOCK(adapter);
-        return;
+	return;
 }
 
 
