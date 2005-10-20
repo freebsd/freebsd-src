@@ -28,10 +28,12 @@ NORMALFILES=	mandoc.tmac andoc.tmac an-old.tmac \
 		dvi.tmac \
 		tty.tmac tty-char.tmac \
 		latin1.tmac latin2.tmac latin9.tmac cp1047.tmac \
+		unicode.tmac \
 		X.tmac Xps.tmac \
 		lj4.tmac \
 		lbp.tmac \
 		html.tmac html-end.tmac \
+		devtag.tmac \
 		europs.tmac \
 		composite.tmac \
 		eqnrc \

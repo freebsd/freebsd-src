@@ -28,3 +28,6 @@ DESC: DESC.proto
 	    -e "s/^vert .*$$/vert `expr $(RES) / $(LPI)`/" \
 	    -e "s/^fonts .*$$/fonts `set $(FONTS); echo $$#` $(FONTS)/" \
 	    ${.ALLSRC} >${.TARGET}
+.if defined(DESC_EXT)
+	@${DESC_EXT} >>${.TARGET}
+.endif
