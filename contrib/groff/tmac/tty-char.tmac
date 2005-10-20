@@ -1,4 +1,5 @@
 .\" tty-char.tmac
+.\" $FreeBSD$
 .\"
 .\" This file defines standard troff characters and some groff characters for
 .\" use with -Tascii, -Tlatin1, -Tutf8, and -Tcp1047.
@@ -141,7 +142,7 @@
 .tty-char \[rk] }
 .tty-char \[lt] ,-
 .tty-char \[rt] -.
-.\" Latin-1 characters
+.\" Latin characters
 .tty-char \[r!] \z,i
 .tty-char \[Po] \z-L
 .tty-char \[Cs] \zox
@@ -168,6 +169,7 @@
 .tty-char \[:A] \z"A
 .tty-char \[oA] \zoA
 .tty-char \[,C] \z,C
+.tty-char "\[S ,]" \z,S
 .tty-char \[`E] \z`E
 .tty-char \['E] \z'E
 .tty-char \[^E] \z^E
@@ -197,6 +199,7 @@
 .tty-char \[:a] \z"a
 .tty-char \[oa] \zoa
 .tty-char \[,c] \z,c
+.tty-char "\[s ,]" \z,s
 .tty-char \[`e] \z`e
 .tty-char \['e] \z'e
 .tty-char \[^e] \z^e
@@ -220,6 +223,10 @@
 .tty-char \['y] \z'y
 .tty-char \[Tp] \zpb
 .tty-char \[:y] \z"y
+.\" for Turkish
+.tty-char "\[G ab]" G
+.tty-char "\[g ab]" g
+.tty-char "\[I .]" I
 .\"tty-char \[:y] \ij
 .tty-char \[arrowvertex] |
 .tty-char \[mc] \z,u
