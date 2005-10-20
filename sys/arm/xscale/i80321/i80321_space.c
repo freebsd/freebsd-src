@@ -257,23 +257,11 @@ int
 i80321_mem_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
+	vm_paddr_t pa, endpa;
 
-	vm_offset_t va;
-	uint32_t busbase;
-	vm_paddr_t pa, endpa, physbase;
-
-	/*
-	 * Found the window -- PCI MEM space is not mapped by allocating
-	 * some kernel VA space and mapping the pages with pmap_enter().
-	 * pmap_enter() will map unmanaged pages as non-cacheable.
-	 */
-	pa = trunc_page((bpa - busbase) + physbase);
-	endpa = round_page(((bpa - busbase) + physbase) + size);
 	pa = trunc_page(bpa);
 	endpa = round_page(bpa + size);
 
-	*bshp = va + (bpa & PAGE_MASK);
-	*bshp = pa;
 	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
 		       
 	return (0);
