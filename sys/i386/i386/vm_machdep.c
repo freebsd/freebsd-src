@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -675,22 +676,10 @@ sf_buf_alloc(struct vm_page *m, int flags)
 				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 			}
 #ifdef SMP
-			cpumask = PCPU_GET(cpumask);
-			if ((sf->cpumask & cpumask) == 0) {
-				sf->cpumask |= cpumask;
-				invlpg(sf->kva);
-			}
-			if ((flags & SFB_CPUPRIVATE) == 0) {
-				other_cpus = PCPU_GET(other_cpus) & ~sf->cpumask;
-				if (other_cpus != 0) {
-					sf->cpumask |= other_cpus;
-					mtx_lock_spin(&smp_ipi_mtx);
-					smp_masked_invlpg(other_cpus, sf->kva);
-					mtx_unlock_spin(&smp_ipi_mtx);
-				}
-			}
-#endif
+			goto shootdown;	
+#else
 			goto done;
+#endif
 		}
 	}
 	while ((sf = TAILQ_FIRST(&sf_buf_freelist)) == NULL) {
@@ -719,28 +708,45 @@ sf_buf_alloc(struct vm_page *m, int flags)
 
 	/*
 	 * Update the sf_buf's virtual-to-physical mapping, flushing the
-	 * virtual address from the TLB only if the PTE implies that the old
-	 * mapping has been used.  Since the reference count for the sf_buf's
-	 * old mapping was zero, that mapping is not currently in use.
-	 * Consequently, there is no need to exchange the old and new PTEs
-	 * atomically, even under PAE.
+	 * virtual address from the TLB.  Since the reference count for 
+	 * the sf_buf's old mapping was zero, that mapping is not 
+	 * currently in use.  Consequently, there is no need to exchange 
+	 * the old and new PTEs atomically, even under PAE.
 	 */
 	ptep = vtopte(sf->kva);
 	opte = *ptep;
 	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
+
+	/*
+	 * Avoid unnecessary TLB invalidations: If the sf_buf's old
+	 * virtual-to-physical mapping was not used, then any processor
+	 * that has invalidated the sf_buf's virtual address from its TLB
+	 * since the last used mapping need not invalidate again.
+	 */
 #ifdef SMP
-	if (flags & SFB_CPUPRIVATE) {
-		if ((opte & (PG_A | PG_V)) == (PG_A | PG_V)) {
-			sf->cpumask = PCPU_GET(cpumask);
-			invlpg(sf->kva);
-		} else
-			sf->cpumask = all_cpus;
-		goto done;
-	} else
-		sf->cpumask = all_cpus;
-#endif
-	if ((opte & (PG_A | PG_V)) == (PG_A | PG_V))
+	if ((opte & (PG_V | PG_A)) ==  (PG_V | PG_A))
+		sf->cpumask = 0;
+shootdown:
+	sched_pin();
+	cpumask = PCPU_GET(cpumask);
+	if ((sf->cpumask & cpumask) == 0) {
+		sf->cpumask |= cpumask;
+		invlpg(sf->kva);
+	}
+	if ((flags & SFB_CPUPRIVATE) == 0) {
+		other_cpus = PCPU_GET(other_cpus) & ~sf->cpumask;
+		if (other_cpus != 0) {
+			sf->cpumask |= other_cpus;
+			mtx_lock_spin(&smp_ipi_mtx);
+			smp_masked_invlpg(other_cpus, sf->kva);
+			mtx_unlock_spin(&smp_ipi_mtx);
+		}
+	}
+	sched_unpin();	
+#else
+	if ((opte & (PG_V | PG_A)) ==  (PG_V | PG_A))
 		pmap_invalidate_page(kernel_pmap, sf->kva);
+#endif
 done:
 	mtx_unlock(&sf_buf_lock);
 	return (sf);
