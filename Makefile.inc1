@@ -777,7 +777,7 @@ _strfile=	games/fortune/strfile
 
 .if !defined(NO_CXX)
 _gperf=		gnu/usr.bin/gperf
-.if ${BOOTSTRAPPING} < 500113
+.if ${BOOTSTRAPPING} < 700004
 _groff=		gnu/usr.bin/groff
 .else
 _groff=		gnu/usr.bin/groff/tmac
