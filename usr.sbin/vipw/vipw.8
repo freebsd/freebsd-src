@@ -92,6 +92,8 @@ The editor specified by the string
 .Ev EDITOR
 will be invoked instead of the default editor
 .Xr vi 1 .
+This can be used to allow a script to non-interactively modify the
+password file.
 .It Ev PW_SCAN_BIG_IDS
 See
 .Xr pwd_mkdb 8 .
@@ -108,3 +110,10 @@ The
 .Nm
 utility appeared in
 .Bx 4.0 .
+.Sh BUGS
+The mechanism for checking for password file modifications requires that
+.Ev EDITOR
+run for at least one second.
+Non-interactive editor scripts should invoke
+.Xr sleep 1
+or equivalent to insure this happens.
