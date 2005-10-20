@@ -1,6 +1,0 @@
-You need the following tools to build groff directly from CVS:
-
-  the netpbm package
-  texinfo >= 4.3
-  bison >= 1.875b or byacc
-  ghostscript
