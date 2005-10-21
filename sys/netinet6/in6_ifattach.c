@@ -419,7 +419,7 @@ in6_ifattach_linklocal(ifp, altifp)
 {
 	struct in6_ifaddr *ia;
 	struct in6_aliasreq ifra;
-	struct nd_prefix pr0;
+	struct nd_prefixctl pr0;
 	int i, error;
 
 	/*
@@ -458,19 +458,13 @@ in6_ifattach_linklocal(ifp, altifp)
 	ifra.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
 
 	/*
-	 * Do not let in6_update_ifa() do DAD, since we need a random delay
-	 * before sending an NS at the first time the interface becomes up.
-	 * Instead, in6_if_up() will start DAD with a proper random delay.
-	 */
-	ifra.ifra_flags |= IN6_IFF_NODAD;
-
-	/*
 	 * Now call in6_update_ifa() to do a bunch of procedures to configure
 	 * a link-local address. We can set the 3rd argument to NULL, because
 	 * we know there's no other link-local address on the interface
 	 * and therefore we are adding one (instead of updating one).
 	 */
-	if ((error = in6_update_ifa(ifp, &ifra, NULL)) != 0) {
+	if ((error = in6_update_ifa(ifp, &ifra, NULL,
+				    IN6_IFAUPDATE_DADDELAY)) != 0) {
 		/*
 		 * XXX: When the interface does not support IPv6, this call
 		 * would fail in the SIOCSIFADDR ioctl.  I believe the
@@ -485,11 +479,6 @@ in6_ifattach_linklocal(ifp, altifp)
 		return (-1);
 	}
 
-	/*
-	 * Adjust ia6_flags so that in6_if_up will perform DAD.
-	 * XXX: Some P2P interfaces seem not to send packets just after
-	 * becoming up, so we skip p2p interfaces for safety.
-	 */
 	ia = in6ifa_ifpforlinklocal(ifp, 0); /* ia must not be NULL */
 #ifdef DIAGNOSTIC
 	if (!ia) {
@@ -497,10 +486,6 @@ in6_ifattach_linklocal(ifp, altifp)
 		/* NOTREACHED */
 	}
 #endif
-	if (in6if_do_dad(ifp) && (ifp->if_flags & IFF_POINTOPOINT) == 0) {
-		ia->ia6_flags &= ~IN6_IFF_NODAD;
-		ia->ia6_flags |= IN6_IFF_TENTATIVE;
-	}
 
 	/*
 	 * Make the link-local prefix (fe80::%link/64) as on-link.
@@ -513,7 +498,6 @@ in6_ifattach_linklocal(ifp, altifp)
 	pr0.ndpr_ifp = ifp;
 	/* this should be 64 at this moment. */
 	pr0.ndpr_plen = in6_mask2len(&ifra.ifra_prefixmask.sin6_addr, NULL);
-	pr0.ndpr_mask = ifra.ifra_prefixmask.sin6_addr;
 	pr0.ndpr_prefix = ifra.ifra_addr;
 	/* apply the mask for safety. (nd6_prelist_add will apply it again) */
 	for (i = 0; i < 4; i++) {
@@ -588,7 +572,7 @@ in6_ifattach_loopback(ifp)
 	 * We are sure that this is a newly assigned address, so we can set
 	 * NULL to the 3rd arg.
 	 */
-	if ((error = in6_update_ifa(ifp, &ifra, NULL)) != 0) {
+	if ((error = in6_update_ifa(ifp, &ifra, NULL, 0)) != 0) {
 		nd6log((LOG_ERR, "in6_ifattach_loopback: failed to configure "
 		    "the loopback address on %s (errno=%d)\n",
 		    if_name(ifp), error));
@@ -854,7 +838,7 @@ in6_ifdetach(ifp)
 	}
 }
 
-void
+int
 in6_get_tmpifid(ifp, retbuf, baseid, generate)
 	struct ifnet *ifp;
 	u_int8_t *retbuf;
@@ -878,6 +862,8 @@ in6_get_tmpifid(ifp, retbuf, baseid, generate)
 		    ndi->randomid);
 	}
 	bcopy(ndi->randomid, retbuf, 8);
+
+	return (0);
 }
 
 void
