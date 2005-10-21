@@ -525,7 +525,7 @@ skip_ipsec2:;
 
 	/* Source address validation */
 	if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src) &&
-	    (flags & IPV6_DADOUTPUT) == 0) {
+	    (flags & IPV6_UNSPECSRC) == 0) {
 		error = EOPNOTSUPP;
 		ip6stat.ip6s_badscope++;
 		goto bad;
