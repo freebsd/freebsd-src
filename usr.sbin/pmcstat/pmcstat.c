@@ -344,7 +344,7 @@ main(int argc, char **argv)
 {
 	double interval;
 	int option, npmc, ncpu;
-	int c, current_cpu, current_sampling_count;
+	int c, check_driver_stats, current_cpu, current_sampling_count;
 	int do_print, do_descendants;
 	int do_logproccsw, do_logprocexit;
 	int pipefd[2];
@@ -353,12 +353,14 @@ main(int argc, char **argv)
 	char *end;
 	const char *errmsg;
 	enum pmcstat_state runstate;
+	struct pmc_driverstats ds_start, ds_end;
 	struct pmcstat_ev *ev;
 	struct sigaction sa;
 	struct kevent kev;
 	struct winsize ws;
 	struct stat sb;
 
+	check_driver_stats      = 0;
 	current_cpu 		= 0;
 	current_sampling_count  = DEFAULT_SAMPLE_COUNT;
 	do_descendants          = 0;
@@ -749,6 +751,10 @@ main(int argc, char **argv)
 			err(EX_OSERR, "ERROR: Cannot configure log file");
 	}
 
+	/* remember to check for driver errors if we are sampling or logging */
+	check_driver_stats = (args.pa_flags & FLAG_HAS_SAMPLING_PMCS) ||
+	    (args.pa_flags & FLAG_HAS_OUTPUT_LOGFILE);
+
 	/*
 	 * Allocate PMCs.
 	 */
@@ -838,6 +844,9 @@ main(int argc, char **argv)
 	/* attach PMCs to the target process, starting it if specified */
 	if (args.pa_flags & (FLAG_HAS_PID | FLAG_HAS_COMMANDLINE))
 		pmcstat_setup_process(&args);
+
+	if (check_driver_stats && pmc_get_driver_stats(&ds_start) < 0)
+		err(EX_OSERR, "ERROR: Cannot retrieve driver statistics");
 
 	/* start the pmcs */
 	pmcstat_start_pmcs(&args);
@@ -956,5 +965,21 @@ main(int argc, char **argv)
 
 	pmcstat_cleanup(&args);
 
-	return 0;
+	/* check if the driver lost any samples or events */
+	if (check_driver_stats) {
+		if (pmc_get_driver_stats(&ds_end) < 0)
+			err(EX_OSERR, "ERROR: Cannot retrieve driver "
+			    "statistics");
+		if (ds_start.pm_intr_bufferfull != ds_end.pm_intr_bufferfull)
+			warn("WARNING: some samples were dropped.  Please "
+			    "consider tuning the \"kern.hwpmc.nsamples\" "
+			    "tunable.");
+		if (ds_start.pm_buffer_requests_failed !=
+		    ds_end.pm_buffer_requests_failed)
+			warn("WARNING: some events were discarded.  Please "
+			    "consider tuning the \"kern.hwpmc.nbuffers\" "
+			    "tunable.");
+	}
+
+	exit(EX_OK);
 }
