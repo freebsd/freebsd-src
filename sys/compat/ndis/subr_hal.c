@@ -374,7 +374,7 @@ KfAcquireSpinLock(lock)
 	if (KeGetCurrentIrql() > DISPATCH_LEVEL)
 		panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
 
-	oldirql = KeRaiseIrql(DISPATCH_LEVEL);
+	KeRaiseIrql(DISPATCH_LEVEL, &oldirql);
 	KeAcquireSpinLockAtDpcLevel(lock);
 
 	return(oldirql);
