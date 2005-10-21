@@ -1043,6 +1043,15 @@
       updated to support recent changes to the 802.11 subsystem and
       drivers.</para>
 
+    <para>The &man.ifconfig.8; utility now supports a <option>-tunnel</option>
+      parameter, which is just an alias for <option>deletetunnel</option>,
+      yet is more convenient and easier to type.</para>
+
+    <para>The <option>-vlandev</option> parameter to &man.ifconfig.8;
+      no longer requires a network interface as its argument.  The
+      argument still is supported for backward compatibility, but now
+      it is deprecated and its use is discouraged.</para>
+
     <para>Support for abbreviated forms of a number of &man.ipfw.8;
       options has been deprecated.  Warnings are printed to stderr
       indicating the correct full form when one of these abbreviations
