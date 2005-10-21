@@ -95,7 +95,6 @@ struct kdpc_queue {
 	kspin_lock		kq_lock;
 	nt_kevent		kq_proc;
 	nt_kevent		kq_done;
-	nt_kevent		kq_dead;
 };
 
 typedef struct kdpc_queue kdpc_queue;
@@ -2309,7 +2308,7 @@ KeAcquireSpinLockRaiseToDpc(kspin_lock *lock)
         if (KeGetCurrentIrql() > DISPATCH_LEVEL)
                 panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
 
-        oldirql = KeRaiseIrql(DISPATCH_LEVEL);
+        KeRaiseIrql(DISPATCH_LEVEL, &oldirql);
         KeAcquireSpinLockAtDpcLevel(lock);
 
         return(oldirql);
@@ -2555,19 +2554,6 @@ ntoskrnl_workitem_thread(arg)
 	kq->kq_exit = 0;
 	KeInitializeSpinLock(&kq->kq_lock);
 	KeInitializeEvent(&kq->kq_proc, EVENT_TYPE_SYNC, FALSE);
-	KeInitializeEvent(&kq->kq_dead, EVENT_TYPE_SYNC, FALSE);
-
-	/*
-	 * Boost the priority of the workitem threads,
-	 * though don't boost it as much as the DPC threads.
-	 */
-
-	mtx_lock_spin(&sched_lock);
-        sched_prio(curthread, PRIBIO);
-#if __FreeBSD_version < 600000
-        curthread->td_base_pri = PRIBIO;
-#endif
-	mtx_unlock_spin(&sched_lock);
 
 	while (1) {
 		KeWaitForSingleObject(&kq->kq_proc, 0, 0, TRUE, NULL);
@@ -2576,7 +2562,6 @@ ntoskrnl_workitem_thread(arg)
 
 		if (kq->kq_exit) {
 			KeReleaseSpinLock(&kq->kq_lock, irql);
-			KeSetEvent(&kq->kq_dead, IO_NO_INCREMENT, FALSE);
 			break;
 		}
 
@@ -2612,7 +2597,7 @@ ntoskrnl_destroy_workitem_threads(void)
 		kq = wq_queues + i;
 		kq->kq_exit = 1;
 		KeSetEvent(&kq->kq_proc, IO_NO_INCREMENT, FALSE);	
-		KeWaitForSingleObject(&kq->kq_dead, 0, 0, TRUE, NULL);
+		tsleep(kq->kq_td->td_proc, PWAIT, "waitiw", 0);
 	}
 
 	return;
@@ -3565,7 +3550,6 @@ ntoskrnl_dpc_thread(arg)
 	KeInitializeSpinLock(&kq->kq_lock);
 	KeInitializeEvent(&kq->kq_proc, EVENT_TYPE_SYNC, FALSE);
 	KeInitializeEvent(&kq->kq_done, EVENT_TYPE_SYNC, FALSE);
-	KeInitializeEvent(&kq->kq_dead, EVENT_TYPE_SYNC, FALSE);
 
 	/*
 	 * Elevate our priority. DPCs are used to run interrupt
@@ -3590,7 +3574,6 @@ ntoskrnl_dpc_thread(arg)
 
 		if (kq->kq_exit) {
 			KeReleaseSpinLock(&kq->kq_lock, irql);
-			KeSetEvent(&kq->kq_dead, IO_NO_INCREMENT, FALSE);
 			break;
 		}
 
@@ -3635,7 +3618,7 @@ ntoskrnl_destroy_dpc_threads(void)
 		KeInitializeDpc(&dpc, NULL, NULL);
 		KeSetTargetProcessorDpc(&dpc, i);
 		KeInsertQueueDpc(&dpc, NULL, NULL);
-		KeWaitForSingleObject(&kq->kq_dead, 0, 0, TRUE, NULL);
+		tsleep(kq->kq_td->td_proc, PWAIT, "dpcw", 0);
 	}
 
 	return;
@@ -3697,7 +3680,7 @@ KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 	if (dpc == NULL)
 		return(FALSE);
 
-	irql = KeRaiseIrql(DISPATCH_LEVEL);
+	KeRaiseIrql(DISPATCH_LEVEL, &irql);
 
 	/*
 	 * By default, the DPC is queued to run on the same CPU
@@ -3736,7 +3719,7 @@ KeRemoveQueueDpc(dpc)
 	if (dpc == NULL)
 		return(FALSE);
 
-	irql = KeRaiseIrql(DISPATCH_LEVEL);
+	KeRaiseIrql(DISPATCH_LEVEL, &irql);
 
 	kq = kq_queues + dpc->k_num;
 
