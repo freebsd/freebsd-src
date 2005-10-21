@@ -108,7 +108,10 @@ struct	in6_ifaddr {
 	int	ia6_flags;
 
 	struct in6_addrlifetime ia6_lifetime;
-	struct ifprefix *ia6_ifpr; /* back pointer to ifprefix */
+	time_t	ia6_createtime; /* the creation time of this address, which is
+				 * currently used for temporary addresses only.
+				 */
+	time_t	ia6_updatetime;
 
 	/* back pointer to the ND prefix (for autoconfigured addresses only) */
 	struct nd_prefix *ia6_ndpr;
@@ -518,9 +521,16 @@ struct	in6_multi {
 	u_int	in6m_refcount;		/* # membership claims by sockets */
 	u_int	in6m_state;		/* state of the membership */
 	u_int	in6m_timer;		/* MLD6 listener report timer */
+	struct timeval in6m_timer_expire; /* when the timer expires */
+	struct callout *in6m_timer_ch;
 };
 
+#define IN6M_TIMER_UNDEF -1
+
 #ifdef _KERNEL
+/* flags to in6_update_ifa */
+#define IN6_IFAUPDATE_DADDELAY	0x1 /* first time to configure an address */
+
 extern LIST_HEAD(in6_multihead, in6_multi) in6_multihead;
 
 /*
@@ -579,15 +589,15 @@ do { \
 } while(0)
 
 struct	in6_multi *in6_addmulti __P((struct in6_addr *, struct ifnet *,
-	int *));
+	int *, int));
 void	in6_delmulti __P((struct in6_multi *));
-struct in6_multi_mship *in6_joingroup(struct ifnet *, struct in6_addr *, int *);
+struct in6_multi_mship *in6_joingroup(struct ifnet *, struct in6_addr *, int *, int);
 int	in6_leavegroup(struct in6_multi_mship *);
 int	in6_mask2len __P((struct in6_addr *, u_char *));
 int	in6_control __P((struct socket *, u_long, caddr_t, struct ifnet *,
 	struct thread *));
 int	in6_update_ifa __P((struct ifnet *, struct in6_aliasreq *,
-	struct in6_ifaddr *));
+	struct in6_ifaddr *, int));
 void	in6_purgeaddr __P((struct ifaddr *));
 int	in6if_do_dad __P((struct ifnet *));
 void	in6_purgeif __P((struct ifnet *));
@@ -595,6 +605,7 @@ void	in6_savemkludge __P((struct in6_ifaddr *));
 void	*in6_domifattach __P((struct ifnet *));
 void	in6_domifdetach __P((struct ifnet *, void *));
 void	in6_setmaxmtu   __P((void));
+int	in6_if2idlen   __P((struct ifnet *));
 void	in6_restoremkludge __P((struct in6_ifaddr *, struct ifnet *));
 void	in6_purgemkludge __P((struct ifnet *));
 struct in6_ifaddr *in6ifa_ifpforlinklocal __P((struct ifnet *, int));

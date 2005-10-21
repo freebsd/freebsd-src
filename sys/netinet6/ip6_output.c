@@ -2764,16 +2764,9 @@ ip6_setmoptions(optname, im6op, m)
 		 * Everything looks good; add a new record to the multicast
 		 * address list for the given interface.
 		 */
-		imm = malloc(sizeof(*imm), M_IP6MADDR, M_WAITOK);
-		if (imm == NULL) {
-			error = ENOBUFS;
+		imm = in6_joingroup(ifp, &mreq->ipv6mr_multiaddr,  &error, 0);
+		if (imm == NULL)
 			break;
-		}
-		if ((imm->i6mm_maddr =
-		     in6_addmulti(&mreq->ipv6mr_multiaddr, ifp, &error)) == NULL) {
-			free(imm, M_IP6MADDR);
-			break;
-		}
 		LIST_INSERT_HEAD(&im6o->im6o_memberships, imm, i6mm_chain);
 		break;
 
@@ -3206,7 +3199,9 @@ ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 
 		/* turn off the previous option, then set the new option. */
 		ip6_clearpktopts(opt, IPV6_NEXTHOP);
-		opt->ip6po_nexthop = malloc(*buf, M_IP6OPT, M_WAITOK);
+		opt->ip6po_nexthop = malloc(*buf, M_IP6OPT, M_NOWAIT);
+		if (opt->ip6po_nexthop == NULL)
+			return (ENOBUFS);
 		bcopy(buf, opt->ip6po_nexthop, *buf);
 		break;
 
@@ -3239,7 +3234,9 @@ ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 
 		/* turn off the previous option, then set the new option. */
 		ip6_clearpktopts(opt, IPV6_HOPOPTS);
-		opt->ip6po_hbh = malloc(hbhlen, M_IP6OPT, M_WAITOK);
+		opt->ip6po_hbh = malloc(hbhlen, M_IP6OPT, M_NOWAIT);
+		if (opt->ip6po_hbh == NULL)
+			return (ENOBUFS);
 		bcopy(hbh, opt->ip6po_hbh, hbhlen);
 
 		break;
@@ -3301,7 +3298,9 @@ ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 
 		/* turn off the previous option, then set the new option. */
 		ip6_clearpktopts(opt, optname);
-		*newdest = malloc(destlen, M_IP6OPT, M_WAITOK);
+		*newdest = malloc(destlen, M_IP6OPT, M_NOWAIT);
+		if (newdest == NULL)
+			return (ENOBUFS);
 		bcopy(dest, *newdest, destlen);
 
 		break;
@@ -3341,7 +3340,9 @@ ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 
 		/* turn off the previous option */
 		ip6_clearpktopts(opt, IPV6_RTHDR);
-		opt->ip6po_rthdr = malloc(rthlen, M_IP6OPT, M_WAITOK);
+		opt->ip6po_rthdr = malloc(rthlen, M_IP6OPT, M_NOWAIT);
+		if (opt->ip6po_rthdr == NULL)
+			return (ENOBUFS);
 		bcopy(rth, opt->ip6po_rthdr, rthlen);
 
 		break;
