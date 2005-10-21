@@ -103,14 +103,11 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	struct vmspace *vmspace;
 	struct vm_map *map;
 	vm_offset_t offset, uva;
-	int s;
 
 	vmspace = curproc->p_vmspace;
 	map = &vmspace->vm_map;
 	uva = (vm_offset_t) uio->uio_iov->iov_base;
 	offset = uva & PAGE_MASK;
-
-	s = splvm();
 
        /* 
 	* verify page is mapped & not already wired for i/o
@@ -119,7 +116,6 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	pa=pmap_extract(map->pmap, uva);
 	if(!pa) {
 		socow_stats.fail_not_mapped++;
-		splx(s);
 		return(0);
 	}
 	pp = PHYS_TO_VM_PAGE(pa);
@@ -153,7 +149,6 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 			vm_page_free(pp);
 		vm_page_unlock_queues();
 		socow_stats.fail_sf_buf++;
-		splx(s);
 		return(0);
 	}
 	/* 
@@ -175,6 +170,5 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 		uio->uio_iovcnt--;
 	}
 
-	splx(s);
 	return(m0->m_len);
 }
