@@ -1397,7 +1397,7 @@ extern void IoQueueWorkItem(io_workitem *, io_workitem_func,
 #ifdef __i386__
 #define KeAcquireSpinLock(a, b)	*(b) = KfAcquireSpinLock(a)
 #define KeReleaseSpinLock(a, b)	KfReleaseSpinLock(a, b)
-#define KeRaiseIrql(a)		KfRaiseIrql(a)
+#define KeRaiseIrql(a, b)	*(b) = KfRaiseIrql(a)
 #define KeLowerIrql(a)		KfLowerIrql(a)
 #define KeAcquireSpinLockAtDpcLevel(a)	KefAcquireSpinLockAtDpcLevel(a)
 #define KeReleaseSpinLockFromDpcLevel(a)  KefReleaseSpinLockFromDpcLevel(a)
@@ -1411,7 +1411,7 @@ extern void IoQueueWorkItem(io_workitem *, io_workitem_func,
  * These may need to be redefined later;
  * not sure where they live on amd64 yet.
  */
-#define KeRaiseIrql(a)		KfRaiseIrql(a)
+#define KeRaiseIrql(a, b)	*(b) = KfRaiseIrql(a)
 #define KeLowerIrql(a)		KfLowerIrql(a)
 #endif /* __amd64__ */
 
