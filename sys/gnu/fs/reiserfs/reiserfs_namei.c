@@ -30,6 +30,7 @@ reiserfs_lookup(struct vop_cachedlookup_args *ap)
 
 	int flags         = cnp->cn_flags;
 	struct thread *td = cnp->cn_thread;
+	struct cpu_key *saved_ino;
 
 	struct vnode *vp;
 	struct vnode *pdp;  /* Saved dp during symlink work */
@@ -77,9 +78,10 @@ reiserfs_lookup(struct vop_cachedlookup_args *ap)
 		reiserfs_log(LOG_DEBUG, "reading vnode\n");
 		pdp = vdp;
 		if (flags & ISDOTDOT) {
+			saved_ino = (struct cpu_key *)&(de.de_dir_id);
 			VOP_UNLOCK(pdp, 0, td);
 			error = reiserfs_iget(vdp->v_mount,
-			    (struct cpu_key *)&(de.de_dir_id), &vp, td);
+			    saved_ino, &vp, td);
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (error != 0)
 				return (error);
