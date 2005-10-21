@@ -1359,12 +1359,12 @@ main (int argc, char **argv)
   if (program_name && strrchr (program_name, '/'))
     program_name = strrchr (program_name, '/') + 1;
 
-  if (strlen (program_name) > 1 && program_name[0] == 'b' && program_name[1] == 'z') {
+  if (program_name[0] == 'b' && program_name[1] == 'z') {
     BZflag = 1;
     program_name += 2;
   }
 #if HAVE_LIBZ > 0
-  else if (strlen (program_name) > 0 && program_name[0] == 'z') {
+  else if (program_name[0] == 'z') {
     Zflag = 1;
     ++program_name;
   }
