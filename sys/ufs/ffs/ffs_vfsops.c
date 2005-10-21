@@ -845,13 +845,13 @@ ffs_oldfscompat_read(fs, ump, sblockloc)
 	}
 	if (fs->fs_magic == FS_UFS1_MAGIC &&
 	    fs->fs_old_inodefmt < FS_44INODEFMT) {
-		fs->fs_maxfilesize = (u_quad_t) 1LL << 39;
+		fs->fs_maxfilesize = ((uint64_t)1 << 31) - 1;
 		fs->fs_qbmask = ~fs->fs_bmask;
 		fs->fs_qfmask = ~fs->fs_fmask;
 	}
 	if (fs->fs_magic == FS_UFS1_MAGIC) {
 		ump->um_savedmaxfilesize = fs->fs_maxfilesize;
-		maxfilesize = (u_int64_t)0x40000000 * fs->fs_bsize - 1;
+		maxfilesize = (uint64_t)0x80000000 * fs->fs_bsize - 1;
 		if (fs->fs_maxfilesize > maxfilesize)
 			fs->fs_maxfilesize = maxfilesize;
 	}
