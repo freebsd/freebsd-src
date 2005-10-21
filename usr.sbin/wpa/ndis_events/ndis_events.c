@@ -192,11 +192,14 @@ announce_event(ifname, sock, dst)
 
 	if (ioctl(s, SIOCGPRIVATE_0, &ifr) < 0) {
 		close(s);
-		if (errno == ENOENT)
-			dbgmsg("drained all events from %s", ifname, errno);
-		else
-			dbgmsg("failed to read event info from %s: %d",
-			    ifname, errno);
+		if (verbose) {
+			if (errno == ENOENT)
+				dbgmsg("drained all events from %s",
+				    ifname, errno);
+			else
+				dbgmsg("failed to read event info from %s: %d",
+				    ifname, errno);
+		}
 		return(ENOENT);
 	}
 
