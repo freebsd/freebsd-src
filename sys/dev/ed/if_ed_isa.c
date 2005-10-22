@@ -93,6 +93,7 @@ ed_isa_probe_Novell(device_t dev)
 static int
 ed_isa_probe(device_t dev)
 {
+	struct ed_softc *sc = device_get_softc(dev);
 	int flags = device_get_flags(dev);
 	int error = 0;
 
