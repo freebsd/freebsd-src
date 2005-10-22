@@ -101,7 +101,7 @@ MODULE_DEPEND(sis, pci, 1, 1, 1);
 MODULE_DEPEND(sis, ether, 1, 1, 1);
 MODULE_DEPEND(sis, miibus, 1, 1, 1);
 
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
+/* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 #define	SIS_LOCK(_sc)		mtx_lock(&(_sc)->sis_mtx)

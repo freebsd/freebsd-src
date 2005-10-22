@@ -131,7 +131,7 @@ MODULE_DEPEND(sk, pci, 1, 1, 1);
 MODULE_DEPEND(sk, ether, 1, 1, 1);
 MODULE_DEPEND(sk, miibus, 1, 1, 1);
 
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
+/* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 #ifndef lint
