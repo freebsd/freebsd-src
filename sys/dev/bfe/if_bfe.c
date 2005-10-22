@@ -72,7 +72,7 @@ MODULE_DEPEND(bfe, pci, 1, 1, 1);
 MODULE_DEPEND(bfe, ether, 1, 1, 1);
 MODULE_DEPEND(bfe, miibus, 1, 1, 1);
 
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
+/* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 #define BFE_DEVDESC_MAX		64	/* Maximum device description length */
