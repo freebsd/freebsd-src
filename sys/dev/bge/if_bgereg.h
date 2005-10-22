@@ -2355,6 +2355,9 @@ struct bge_softc {
 	struct callout		bge_stat_ch;
 	char			*bge_vpd_prodname;
 	char			*bge_vpd_readonly;
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif /* DEVICE_POLLING */
 };
 
 #define	BGE_LOCK_INIT(_sc, _name) \
