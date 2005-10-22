@@ -586,7 +586,7 @@ in6_control(so, cmd, data, ifp, td)
 			 * signed.
 			 */
 			maxexpire = (-1) &
-			    ~(1 << ((sizeof(maxexpire) * 8) - 1));
+			    ~((time_t)1 << ((sizeof(maxexpire) * 8) - 1));
 			if (ia->ia6_lifetime.ia6t_vltime <
 			    maxexpire - ia->ia6_updatetime) {
 				retlt->ia6t_expire = ia->ia6_updatetime +
@@ -604,7 +604,7 @@ in6_control(so, cmd, data, ifp, td)
 			 * signed.
 			 */
 			maxexpire = (-1) &
-			    ~(1 << ((sizeof(maxexpire) * 8) - 1));
+			    ~((time_t)1 << ((sizeof(maxexpire) * 8) - 1));
 			if (ia->ia6_lifetime.ia6t_pltime <
 			    maxexpire - ia->ia6_updatetime) {
 				retlt->ia6t_preferred = ia->ia6_updatetime +
