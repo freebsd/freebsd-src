@@ -66,6 +66,10 @@ __FBSDID("$FreeBSD$");
  * ring.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
@@ -265,6 +269,12 @@ static void bge_writereg_ind	(struct bge_softc *, int, int);
 static int bge_miibus_readreg	(device_t, int, int);
 static int bge_miibus_writereg	(device_t, int, int, int);
 static void bge_miibus_statchg	(device_t);
+#ifdef DEVICE_POLLING
+static void bge_poll		(struct ifnet *ifp, enum poll_cmd cmd,
+				    int count);
+static void bge_poll_locked	(struct ifnet *ifp, enum poll_cmd cmd,
+				    int count);
+#endif
 
 static void bge_reset		(struct bge_softc *);
 
@@ -2421,6 +2431,9 @@ bge_attach(dev)
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_HWTAGGING |
 	    IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 
 	/*
 	 * Figure out what sort of media we have by checking the
@@ -2520,6 +2533,11 @@ bge_detach(dev)
 
 	sc = device_get_softc(dev);
 	ifp = sc->bge_ifp;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
 
 	BGE_LOCK(sc);
 	bge_stop(sc);
@@ -2748,6 +2766,14 @@ bge_rxeof(sc)
 		u_int16_t		vlan_tag = 0;
 		int			have_tag = 0;
 
+#ifdef DEVICE_POLLING
+		if (ifp->if_capenable & IFCAP_POLLING) {
+			if (sc->rxcycles <= 0)
+				break;
+			sc->rxcycles--;
+		}
+#endif
+
 		cur_rx =
 	    &sc->bge_ldata.bge_rx_return_ring[sc->bge_rx_saved_considx];
 
@@ -2905,6 +2931,41 @@ bge_txeof(sc)
 	return;
 }
 
+#ifdef DEVICE_POLLING
+static void
+bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct bge_softc *sc = ifp->if_softc;
+	
+	BGE_LOCK(sc);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		bge_poll_locked(ifp, cmd, count);
+	BGE_UNLOCK(sc);
+}
+
+static void
+bge_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct bge_softc *sc = ifp->if_softc;
+
+	BGE_LOCK_ASSERT(sc);
+
+	sc->rxcycles = count;
+	bge_rxeof(sc);
+	bge_txeof(sc);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		bge_start_locked(ifp);
+
+	if (cmd == POLL_AND_CHECK_STATUS) {
+		u_int32_t status;
+
+		status = CSR_READ_4(sc, BGE_MAC_STS);
+		if (status)
+			CSR_WRITE_4(sc, BGE_MAC_STS, status);
+	}
+}
+#endif /* DEVICE_POLLING */
+
 static void
 bge_intr(xsc)
 	void *xsc;
@@ -2918,6 +2979,13 @@ bge_intr(xsc)
 	ifp = sc->bge_ifp;
 
 	BGE_LOCK(sc);
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		BGE_UNLOCK(sc);
+		return;
+	}
+#endif
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTWRITE);
@@ -3416,11 +3484,24 @@ bge_init_locked(sc)
 	/* Tell firmware we're alive. */
 	BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_STACKUP);
 
+#ifdef DEVICE_POLLING
+	/* Disable interrupts if we are polling. */
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		BGE_SETBIT(sc, BGE_PCI_MISC_CTL,
+		    BGE_PCIMISCCTL_MASK_PCI_INTR);
+		CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 1);
+		CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 1);
+		CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 1);
+	} else
+#endif
+	
 	/* Enable host interrupts. */
+	{
 	BGE_SETBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_CLEAR_INTA);
 	BGE_CLRBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
 	CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 0);
-
+	}
+	
 	bge_ifmedia_upd(ifp);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -3625,6 +3706,34 @@ bge_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+#ifdef DEVICE_POLLING
+		if (mask & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING) {
+				error = ether_poll_register(bge_poll, ifp);
+				if (error)
+					return(error);
+				BGE_LOCK(sc);
+				BGE_SETBIT(sc, BGE_PCI_MISC_CTL,
+				    BGE_PCIMISCCTL_MASK_PCI_INTR);
+				CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 1);
+				CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 1);
+				CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 1);
+				ifp->if_capenable |= IFCAP_POLLING;   
+				BGE_UNLOCK(sc);
+			} else {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupt even in error case */
+				BGE_LOCK(sc);
+				CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 0);
+				CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 0);
+				BGE_CLRBIT(sc, BGE_PCI_MISC_CTL,
+				    BGE_PCIMISCCTL_MASK_PCI_INTR);
+				CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 0);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				BGE_UNLOCK(sc);
+			}
+		}
+#endif
 		/* NB: the code for RX csum offload is disabled for now */
 		if (mask & IFCAP_TXCSUM) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
@@ -3633,7 +3742,6 @@ bge_ioctl(ifp, command, data)
 			else
 				ifp->if_hwassist = 0;
 		}
-		error = 0;
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
