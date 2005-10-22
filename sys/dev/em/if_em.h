@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/module.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -75,7 +76,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <dev/pci/pcireg.h>
 #include <sys/endian.h>
 #include <sys/proc.h>
-#include "opt_bdg.h"
 
 #include <dev/em/if_em_hw.h>
 
@@ -163,14 +163,6 @@ POSSIBILITY OF SUCH DAMAGE.
  *   conditions.
  */
 #define EM_RADV                         64
-
-
-/*
- * This parameter controls the maximum no of times the driver will loop
- * in the isr.
- *           Minimum Value = 1
- */
-#define EM_MAX_INTR                     3
 
 /*
  * Inform the stack about transmit checksum offload capabilities.
@@ -290,7 +282,6 @@ struct em_dma_alloc {
         bus_dma_tag_t           dma_tag;
         bus_dmamap_t            dma_map;
         bus_dma_segment_t       dma_seg;
-        bus_size_t              dma_size;
         int                     dma_nseg;
 };
 
@@ -323,8 +314,6 @@ typedef struct _DESCRIPTOR_PAIR
 /* Our adapter structure */
 struct adapter {
 	struct ifnet   *ifp;
-	struct adapter *next;
-	struct adapter *prev;
 	struct em_hw    hw;
 
 	/* FreeBSD operating-system-specific structures */
