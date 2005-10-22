@@ -103,7 +103,7 @@ MODULE_DEPEND(vr, pci, 1, 1, 1);
 MODULE_DEPEND(vr, ether, 1, 1, 1);
 MODULE_DEPEND(vr, miibus, 1, 1, 1);
 
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
+/* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 #undef VR_USESWSHIFT
