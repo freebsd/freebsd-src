@@ -133,7 +133,7 @@ MODULE_DEPEND(nge, pci, 1, 1, 1);
 MODULE_DEPEND(nge, ether, 1, 1, 1);
 MODULE_DEPEND(nge, miibus, 1, 1, 1);
 
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
+/* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 #define NGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)

@@ -105,7 +105,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/lge/if_lgereg.h>
 
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
+/* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 /*

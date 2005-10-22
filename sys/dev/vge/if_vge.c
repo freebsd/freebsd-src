@@ -120,7 +120,7 @@ MODULE_DEPEND(vge, pci, 1, 1, 1);
 MODULE_DEPEND(vge, ether, 1, 1, 1);
 MODULE_DEPEND(vge, miibus, 1, 1, 1);
 
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
+/* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 #include <dev/vge/if_vgereg.h>
