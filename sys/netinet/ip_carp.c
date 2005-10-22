@@ -1595,7 +1595,7 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		in6.s6_addr8[15] = 0x12;
 		if (in6_setscope(&in6, ifp, NULL) != 0)
 			goto cleanup;
-		if ((imm = in6_joingroup(ifp, &in6, &error)) == NULL)
+		if ((imm = in6_joingroup(ifp, &in6, &error, 0)) == NULL)
 			goto cleanup;
 		LIST_INSERT_HEAD(&im6o->im6o_memberships, imm, i6mm_chain);
 
@@ -1608,7 +1608,7 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		in6.s6_addr8[12] = 0xff;
 		if (in6_setscope(&in6, ifp, NULL) != 0)
 			goto cleanup;
-		if ((imm = in6_joingroup(ifp, &in6, &error)) == NULL)
+		if ((imm = in6_joingroup(ifp, &in6, &error, 0)) == NULL)
 			goto cleanup;
 		LIST_INSERT_HEAD(&im6o->im6o_memberships, imm, i6mm_chain);
 	}
