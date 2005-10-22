@@ -269,7 +269,11 @@ ntoskrnl_libinit()
 	mtx_init(&ntoskrnl_calllock, MTX_NTOSKRNL_SPIN_LOCK, NULL, MTX_SPIN);
 
 	kq_queues = ExAllocatePoolWithTag(NonPagedPool,
+#ifdef NTOSKRNL_MULTIPLE_DPCS
 	    sizeof(kdpc_queue) * mp_ncpus, 0);
+#else
+	    sizeof(kdpc_queue), 0);
+#endif
 
 	if (kq_queues == NULL)
 		return(ENOMEM);
@@ -287,7 +291,11 @@ ntoskrnl_libinit()
 	 * Launch the DPC threads.
 	 */
 
+#ifdef NTOSKRNL_MULTIPLE_DPCS
         for (i = 0; i < mp_ncpus; i++) {
+#else
+        for (i = 0; i < 1; i++) {
+#endif
 		kq = kq_queues + i;
 		kq->kq_cpu = i;
 		sprintf(name, "Windows DPC %d", i);
@@ -3558,8 +3566,10 @@ ntoskrnl_dpc_thread(arg)
 	 */
 
 	mtx_lock_spin(&sched_lock);
+#ifdef NTOSKRNL_MULTIPLE_DPCS
 #if __FreeBSD_version >= 502102
 	sched_bind(curthread, kq->kq_cpu);
+#endif
 #endif
         sched_prio(curthread, PRI_MIN_KERN);
 #if __FreeBSD_version < 600000
@@ -3611,7 +3621,11 @@ ntoskrnl_destroy_dpc_threads(void)
 	int			i;
 
 	kq = kq_queues;
+#ifdef NTOSKRNL_MULTIPLE_DPCS
 	for (i = 0; i < mp_ncpus; i++) {
+#else
+	for (i = 0; i < 1; i++) {
+#endif
 		kq += i;
 
 		kq->kq_exit = 1;
@@ -3680,6 +3694,9 @@ KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 	if (dpc == NULL)
 		return(FALSE);
 
+	kq = kq_queues;
+
+#ifdef NTOSKRNL_MULTIPLE_DPCS
 	KeRaiseIrql(DISPATCH_LEVEL, &irql);
 
 	/*
@@ -3687,13 +3704,15 @@ KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 	 * that scheduled it.
 	 */
 
-	kq = kq_queues;
 	if (dpc->k_num == KDPC_CPU_DEFAULT)
 		kq += curthread->td_oncpu;
 	else
 		kq += dpc->k_num;
-
 	KeAcquireSpinLockAtDpcLevel(&kq->kq_lock);
+#else
+	KeAcquireSpinLock(&kq->kq_lock, &irql);
+#endif
+
 	r = ntoskrnl_insert_dpc(&kq->kq_disp, dpc);
 	if (r == TRUE) {
 		dpc->k_sysarg1 = sysarg1;
@@ -3719,11 +3738,17 @@ KeRemoveQueueDpc(dpc)
 	if (dpc == NULL)
 		return(FALSE);
 
+#ifdef NTOSKRNL_MULTIPLE_DPCS
 	KeRaiseIrql(DISPATCH_LEVEL, &irql);
 
 	kq = kq_queues + dpc->k_num;
 
 	KeAcquireSpinLockAtDpcLevel(&kq->kq_lock);
+#else
+	kq = kq_queues;
+	KeAcquireSpinLock(&kq->kq_lock, &irql);
+#endif
+
 	if (dpc->k_dpclistentry.nle_flink == &dpc->k_dpclistentry) {
 		KeReleaseSpinLockFromDpcLevel(&kq->kq_lock);
 		KeLowerIrql(irql);
@@ -3775,7 +3800,11 @@ KeFlushQueuedDpcs(void)
 	 * for them to drain.
 	 */
 
+#ifdef NTOSKRNL_MULTIPLE_DPCS
 	for (i = 0; i < mp_ncpus; i++) {
+#else
+	for (i = 0; i < 1; i++) {
+#endif
 		kq = kq_queues + i;
 		KeSetEvent(&kq->kq_proc, IO_NO_INCREMENT, FALSE);
 		KeWaitForSingleObject(&kq->kq_done, 0, 0, TRUE, NULL);
