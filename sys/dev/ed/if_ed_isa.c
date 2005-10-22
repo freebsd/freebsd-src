@@ -115,8 +115,10 @@ ed_isa_probe(device_t dev)
 	ed_release_resources(dev);
 
 	error = ed_probe_RTL80x9(dev, 0, flags);
-	if (error == 0)
+	if (error == 0) {
+		ed_Novell_read_mac(sc);
 		goto end;
+	}
 	ed_release_resources(dev);
 	
 #ifdef ED_3C503
@@ -170,9 +172,6 @@ ed_isa_attach(device_t dev)
 		ed_release_resources(dev);
 		return (error);
 	}
-
-	if (sc->chip_type == ED_CHIP_TYPE_RTL8019)
-		ed_Novell_read_mac(sc);
 
 #ifdef ED_HPP
 	if (sc->vendor == ED_VENDOR_HP && sc->type == ED_TYPE_HP_PCLANPLUS)
