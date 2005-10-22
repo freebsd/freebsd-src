@@ -1493,8 +1493,12 @@ vm_object_backing_scan(vm_object_t object, int op)
 				 * can simply destroy it. 
 				 */
 				vm_page_lock_queues();
-				pmap_remove_all(p);
-				vm_page_free(p);
+				KASSERT(!pmap_page_is_mapped(p),
+				    ("freeing mapped page %p", p));
+				if (p->wire_count == 0)
+					vm_page_free(p);
+				else
+					vm_page_remove(p);
 				vm_page_unlock_queues();
 				p = next;
 				continue;
@@ -1513,8 +1517,12 @@ vm_object_backing_scan(vm_object_t object, int op)
 				 * Leave the parent's page alone
 				 */
 				vm_page_lock_queues();
-				pmap_remove_all(p);
-				vm_page_free(p);
+				KASSERT(!pmap_page_is_mapped(p),
+				    ("freeing mapped page %p", p));
+				if (p->wire_count == 0)
+					vm_page_free(p);
+				else
+					vm_page_remove(p);
 				vm_page_unlock_queues();
 				p = next;
 				continue;
