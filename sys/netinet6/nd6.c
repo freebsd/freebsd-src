@@ -1481,7 +1481,8 @@ nd6_ioctl(cmd, data, ifp)
 
 				/* XXX: we assume time_t is signed. */
 				maxexpire = (-1) &
-				    ~(1 << ((sizeof(maxexpire) * 8) - 1));
+				    ~((time_t)1 <<
+				    ((sizeof(maxexpire) * 8) - 1));
 				if (pr->ndpr_vltime <
 				    maxexpire - pr->ndpr_lastupdate) {
 					oprl->prefix[i].expire =
@@ -2330,7 +2331,8 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 
 				/* XXX: we assume time_t is signed. */
 				maxexpire = (-1) &
-				    ~(1 << ((sizeof(maxexpire) * 8) - 1));
+				    ~((time_t)1 <<
+				    ((sizeof(maxexpire) * 8) - 1));
 				if (pr->ndpr_vltime <
 				    maxexpire - pr->ndpr_lastupdate) {
 				    p->expire = pr->ndpr_lastupdate +
