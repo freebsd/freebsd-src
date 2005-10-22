@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -104,15 +105,21 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	struct vm_map *map;
 	vm_offset_t offset, uva;
 
+	socow_stats.attempted++;
 	vmspace = curproc->p_vmspace;
 	map = &vmspace->vm_map;
 	uva = (vm_offset_t) uio->uio_iov->iov_base;
 	offset = uva & PAGE_MASK;
 
+	/*
+	 * Verify that access to the given address is allowed from user-space.
+	 */
+	if (vm_fault_quick((caddr_t)uva, VM_PROT_READ) < 0)
+		return (0);
+
        /* 
 	* verify page is mapped & not already wired for i/o
 	*/
-	socow_stats.attempted++;
 	pa=pmap_extract(map->pmap, uva);
 	if(!pa) {
 		socow_stats.fail_not_mapped++;
