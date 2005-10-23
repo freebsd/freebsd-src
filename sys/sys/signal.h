@@ -203,11 +203,17 @@ typedef	struct __siginfo {
 		struct {
 			int	_trapno;/* machine specific trap code */
 		} _fault;
+		struct {
+			int	_timerid;
+			int	_overrun;
+		} _timer;
 		int	__spare__[7];	/* gimme some slack */
 	} _reason;
 } siginfo_t;
 
 #define si_trapno	_reason._fault._trapno
+#define si_timerid	_reason._timer._timerid
+#define si_overrun	_reason._timer._overrun
 
 /** si_code **/
 /* codes for SIGILL */
