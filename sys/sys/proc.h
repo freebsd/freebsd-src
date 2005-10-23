@@ -57,7 +57,6 @@
 #else
 #include <sys/pcpu.h>
 #endif
-#include <sys/timers.h>
 #include <sys/ucontext.h>
 #include <sys/ucred.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
@@ -547,7 +546,6 @@ struct proc {
 	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
 	struct mtx	p_mtx;		/* (n) Lock for this struct. */
-	struct itimers	p_itimers;	/* (c) POSIX interval timers. */
 	sigqueue_t	p_sigqueue;	/* (c) Sigs not delivered to a td. */
 #define p_siglist	p_sigqueue.sq_signals
 
@@ -582,6 +580,7 @@ struct proc {
 	int		p_boundary_count;/* (c) Num threads at user boundary */
 	struct ksegrp	*p_procscopegrp;
 	int		p_pendingcnt;	/* how many signals are pending */
+	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
