@@ -94,7 +94,7 @@ struct	itimers {
 	struct itimerlist	its_virtual;
 	struct itimerlist	its_prof;
 	TAILQ_HEAD(, itimer)	its_worklist;
-	struct itimer		**its_timers;
+	struct itimer		*its_timers[TIMER_MAX];
 };
 
 struct	kclock {
@@ -112,7 +112,7 @@ struct	kclock {
 #define	ITIMER_EV_EXEC	0
 #define	ITIMER_EV_EXIT	1
 
-void	itimers_init(struct itimers *its);
 void	itimers_event_hook(struct proc *p, int event);
+
 #endif
 #endif /* !_SYS_TIMERS_H_ */

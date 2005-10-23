@@ -278,7 +278,6 @@ proc_linkup(struct proc *p, struct ksegrp *kg, struct thread *td)
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	TAILQ_INIT(&p->p_suspended);	     /* Threads suspended */
 	sigqueue_init(&p->p_sigqueue, p);
-	itimers_init(&p->p_itimers);
 	p->p_numksegrps = 0;
 	p->p_numthreads = 0;
 
