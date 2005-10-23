@@ -97,8 +97,6 @@ static int	kern_sigtimedwait(struct thread *, sigset_t,
 			ksiginfo_t *, struct timespec *);
 static int	do_tdsignal(struct thread *, int, ksiginfo_t *, sigtarget_t);
 static void	sigqueue_start(void);
-static ksiginfo_t * ksiginfo_alloc(void);
-static void	ksiginfo_free(ksiginfo_t *);
 static int	psignal_common(struct proc *p, int sig, ksiginfo_t *ksi);
 
 static uma_zone_t	ksiginfo_zone = NULL;
@@ -215,18 +213,28 @@ sigqueue_start(void)
 	uma_prealloc(ksiginfo_zone, preallocate_siginfo);
 }
 
-static ksiginfo_t *
+ksiginfo_t *
 ksiginfo_alloc(void)
 {
 	if (ksiginfo_zone != NULL)
-		return ((ksiginfo_t *)uma_zalloc(ksiginfo_zone, M_NOWAIT));
+		return ((ksiginfo_t *)uma_zalloc(ksiginfo_zone, M_NOWAIT | M_ZERO));
 	return (NULL);
 }
 
-static void
+void
 ksiginfo_free(ksiginfo_t *ksi)
 {
 	uma_zfree(ksiginfo_zone, ksi);
+}
+
+static __inline int
+ksiginfo_tryfree(ksiginfo_t *ksi)
+{
+	if (!(ksi->ksi_flags & KSI_EXT)) {
+		uma_zfree(ksiginfo_zone, ksi);
+		return (1);
+	}
+	return (0);
 }
 
 void
@@ -253,7 +261,6 @@ sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 
 	KASSERT(sq->sq_flags & SQ_INIT, ("sigqueue not inited"));
 
-	ksiginfo_init(si);
 	if (!SIGISMEMBER(sq->sq_signals, signo))
 		return (0);
 
@@ -262,9 +269,9 @@ sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 		if (ksi->ksi_signo == signo) {
 			if (count == 0) {
 				TAILQ_REMOVE(&sq->sq_list, ksi, ksi_link);
+				ksi->ksi_sigq = NULL;
 				ksiginfo_copy(ksi, si);
-				ksiginfo_free(ksi);
-				if (p != NULL)
+				if (ksiginfo_tryfree(ksi) && p != NULL)
 					p->p_pendingcnt--;
 			}
 			count++;
@@ -275,6 +282,31 @@ sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 		SIGDELSET(sq->sq_signals, signo);
 	si->ksi_signo = signo;
 	return (signo);
+}
+
+void
+sigqueue_take(ksiginfo_t *ksi)
+{
+	struct ksiginfo *kp;
+	struct proc	*p;
+	sigqueue_t	*sq;
+
+	if ((sq = ksi->ksi_sigq) == NULL)
+		return;
+
+	p = sq->sq_proc;
+	TAILQ_REMOVE(&sq->sq_list, ksi, ksi_link);
+	ksi->ksi_sigq = NULL;
+	if (!(ksi->ksi_flags & KSI_EXT) && p != NULL)
+		p->p_pendingcnt--;
+
+	for (kp = TAILQ_FIRST(&sq->sq_list); kp != NULL;
+	     kp = TAILQ_NEXT(kp, ksi_link)) {
+		if (kp->ksi_signo == ksi->ksi_signo)
+			break;
+	}
+	if (kp == NULL)
+		SIGDELSET(sq->sq_signals, ksi->ksi_signo);
 }
 
 int
@@ -288,6 +320,13 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 	
 	if (signo == SIGKILL || signo == SIGSTOP || si == NULL)
 		goto out_set_bit;
+
+	/* directly insert the ksi, don't copy it */
+	if (si->ksi_flags & KSI_INS) {
+		TAILQ_INSERT_TAIL(&sq->sq_list, si, ksi_link);
+		si->ksi_sigq = sq;
+		goto out_set_bit;
+	}
 
 	if (__predict_false(ksiginfo_zone == NULL))
 		goto out_set_bit;
@@ -304,6 +343,7 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 		ksiginfo_copy(si, ksi);
 		ksi->ksi_signo = signo;
 		TAILQ_INSERT_TAIL(&sq->sq_list, ksi, ksi_link);
+		ksi->ksi_sigq = sq;
 	}
 
 	if ((si->ksi_flags & KSI_TRAP) != 0) {
@@ -327,10 +367,13 @@ sigqueue_flush(sigqueue_t *sq)
 
 	KASSERT(sq->sq_flags & SQ_INIT, ("sigqueue not inited"));
 
+	if (p != NULL)
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+
 	while ((ksi = TAILQ_FIRST(&sq->sq_list)) != NULL) {
 		TAILQ_REMOVE(&sq->sq_list, ksi, ksi_link);
-		ksiginfo_free(ksi);
-		if (p != NULL)
+		ksi->ksi_sigq = NULL;
+		if (ksiginfo_tryfree(ksi) && p != NULL)
 			p->p_pendingcnt--;
 	}
 
@@ -372,6 +415,7 @@ sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
 			if (p1 != NULL)
 				p1->p_pendingcnt--;
 			TAILQ_INSERT_TAIL(&dst->sq_list, ksi, ksi_link);
+			ksi->ksi_sigq = dst;
 			if (p2 != NULL)
 				p2->p_pendingcnt++;
 		}
@@ -410,8 +454,8 @@ sigqueue_delete_set(sigqueue_t *sq, sigset_t *set)
 		next = TAILQ_NEXT(ksi, ksi_link);
 		if (SIGISMEMBER(*set, ksi->ksi_signo)) {
 			TAILQ_REMOVE(&sq->sq_list, ksi, ksi_link);
-			ksiginfo_free(ksi);
-			if (p != NULL)
+			ksi->ksi_sigq = NULL;
+			if (ksiginfo_tryfree(ksi) && p != NULL)
 				p->p_pendingcnt--;
 		}
 	}
@@ -1205,6 +1249,7 @@ out:
 	if (sig) {
 		sig_t action;
 
+		ksiginfo_init(ksi);
 		sigqueue_get(&td->td_sigqueue, sig, ksi);
 		ksi->ksi_signo = sig;
 		error = 0;
@@ -2622,6 +2667,7 @@ postsig(sig)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	ps = p->p_sigacts;
 	mtx_assert(&ps->ps_mtx, MA_OWNED);
+	ksiginfo_init(&ksi);
 	sigqueue_get(&td->td_sigqueue, sig, &ksi);
 	ksi.ksi_signo = sig;
 
