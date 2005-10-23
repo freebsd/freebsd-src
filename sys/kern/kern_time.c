@@ -964,7 +964,7 @@ kern_timer_create(struct thread *td, clockid_t clock_id,
 			return (EINVAL);
 	}
 	
-	if (p->p_itimers.its_timers == NULL)
+	if (p->p_itimers == NULL)
 		itimers_alloc(p);
 	
 	it = uma_zalloc(itimer_zone, M_WAITOK);
@@ -988,7 +988,7 @@ kern_timer_create(struct thread *td, clockid_t clock_id,
 	if (preset_id != -1) {
 		KASSERT(preset_id >= 0 && preset_id < 3, ("invalid preset_id"));
 		id = preset_id;
-		if (p->p_itimers.its_timers[id] != NULL) {
+		if (p->p_itimers->its_timers[id] != NULL) {
 			PROC_UNLOCK(p);
 			error = 0;
 			goto out;
@@ -999,7 +999,7 @@ kern_timer_create(struct thread *td, clockid_t clock_id,
 		 * for setitimer().
 		 */
 		for (id = 3; id < TIMER_MAX; id++)
-			if (p->p_itimers.its_timers[id] == NULL)
+			if (p->p_itimers->its_timers[id] == NULL)
 				break;
 		if (id == TIMER_MAX) {
 			PROC_UNLOCK(p);
@@ -1008,7 +1008,7 @@ kern_timer_create(struct thread *td, clockid_t clock_id,
 		}
 	}
 	it->it_timerid = id;
-	p->p_itimers.its_timers[id] = it;
+	p->p_itimers->its_timers[id] = it;
 	if (evp != NULL)
 		it->it_sigev = *evp;
 	else {
@@ -1064,8 +1064,8 @@ itimer_find(struct proc *p, timer_t timerid, int include_deleting)
 	struct itimer *it;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((p->p_itimers.its_timers == NULL) || (timerid >= TIMER_MAX) ||
-	    (it = p->p_itimers.its_timers[timerid]) == NULL) {
+	if ((p->p_itimers == NULL) || (timerid >= TIMER_MAX) ||
+	    (it = p->p_itimers->its_timers[timerid]) == NULL) {
 		return (NULL);
 	}
 	ITIMER_LOCK(it);
@@ -1102,7 +1102,7 @@ kern_timer_delete(struct thread *td, timer_t timerid)
 	PROC_LOCK(p);
 	if (KSI_ONQ(&it->it_ksi))
 		sigqueue_take(&it->it_ksi);
-	p->p_itimers.its_timers[timerid] = NULL;
+	p->p_itimers->its_timers[timerid] = NULL;
 	PROC_UNLOCK(p);
 	uma_zfree(itimer_zone, it);
 	return (0);
@@ -1324,7 +1324,7 @@ realtimer_event_hook(struct proc *p, clockid_t clock_id, int event)
 		i = 1;
 	else
 		i = 0;
-	its = &p->p_itimers;
+	its = p->p_itimers;
 	for (; i < TIMER_MAX; i++) {
 		if ((it = its->its_timers[i]) != NULL &&
 		     it->it_clockid == clock_id) {
@@ -1404,27 +1404,24 @@ itimer_fire(struct itimer *it)
 static void
 itimers_alloc(struct proc *p)
 {
-	struct itimer **itp;
+	struct itimers *its;
+	int i;
 
-	itp = malloc(sizeof(struct itimer *) * TIMER_MAX, M_SUBPROC,
-		M_WAITOK | M_ZERO);
-	PROC_LOCK(p);
-	if (p->p_itimers.its_timers == NULL) {
-		p->p_itimers.its_timers = itp;
-		PROC_UNLOCK(p);
-	} else {
-		PROC_UNLOCK(p);
-		free(itp, M_SUBPROC);
-	}
-}
-
-void
-itimers_init(struct itimers *its)
-{
+	its = malloc(sizeof (struct itimers), M_SUBPROC, M_WAITOK | M_ZERO);
 	LIST_INIT(&its->its_virtual);
 	LIST_INIT(&its->its_prof);
 	TAILQ_INIT(&its->its_worklist);
-	its->its_timers = NULL;
+	for (i = 0; i < TIMER_MAX; i++)
+		its->its_timers[i] = NULL;
+	PROC_LOCK(p);
+	if (p->p_itimers == NULL) {
+		p->p_itimers = its;
+		PROC_UNLOCK(p);
+	}
+	else {
+		PROC_UNLOCK(p);
+		free(its, M_SUBPROC);
+	}
 }
 
 /* Clean up timers when some process events are being triggered. */
@@ -1435,8 +1432,8 @@ itimers_event_hook(struct proc *p, int event)
 	struct itimer *it;
 	int i;
 
-	if (p->p_itimers.its_timers != NULL) {
-		its = &p->p_itimers;
+	if (p->p_itimers != NULL) {
+		its = p->p_itimers;
 		for (i = 0; i < MAX_CLOCKS; ++i) {
 			if (posix_clocks[i].event_hook != NULL)
 				CLOCK_CALL(i, event_hook, (p, i, event));
@@ -1464,8 +1461,8 @@ itimers_event_hook(struct proc *p, int event)
 		if (its->its_timers[0] == NULL &&
 		    its->its_timers[1] == NULL &&
 		    its->its_timers[2] == NULL) {
-			free(its->its_timers, M_SUBPROC);
-			p->p_itimers.its_timers = NULL;
+			free(its, M_SUBPROC);
+			p->p_itimers = NULL;
 		}
 	}
 }
