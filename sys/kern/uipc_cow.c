@@ -99,7 +99,6 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 {
 	struct sf_buf *sf;
 	vm_page_t pp;
-	vm_paddr_t pa;
 	struct iovec *iov;
 	struct vmspace *vmspace;
 	struct vm_map *map;
@@ -120,12 +119,11 @@ socow_setup(struct mbuf *m0, struct uio *uio)
        /* 
 	* verify page is mapped & not already wired for i/o
 	*/
-	pa=pmap_extract(map->pmap, uva);
-	if(!pa) {
+	pp = pmap_extract_and_hold(map->pmap, uva, VM_PROT_READ);
+	if (pp == NULL) {
 		socow_stats.fail_not_mapped++;
 		return(0);
 	}
-	pp = PHYS_TO_VM_PAGE(pa);
 
 	/* 
 	 * set up COW
@@ -137,6 +135,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	 * wire the page for I/O
 	 */
 	vm_page_wire(pp);
+	vm_page_unhold(pp);
 	vm_page_unlock_queues();
 
 	/*
