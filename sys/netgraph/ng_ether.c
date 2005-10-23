@@ -62,6 +62,7 @@
 #include <net/if_arp.h>
 #include <net/if_var.h>
 #include <net/ethernet.h>
+#include <net/if_bridgevar.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -641,15 +642,23 @@ static int
 ng_ether_rcv_upper(node_p node, struct mbuf *m)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
+	struct ifnet *ifp = priv->ifp;
 
-	m->m_pkthdr.rcvif = priv->ifp;
+	m->m_pkthdr.rcvif = ifp;
 
 	if (BDG_ACTIVE(priv->ifp) )
 		if ((m = bridge_in_ptr(priv->ifp, m)) == NULL)
 			return (0);
 
+	/* Pass the packet to the bridge, it may come back to us */
+	if (ifp->if_bridge) {
+		BRIDGE_INPUT(ifp, m);
+		if (m == NULL)
+			return (0);
+	}
+
 	/* Route packet back in */
-	ether_demux(priv->ifp, m);
+	ether_demux(ifp, m);
 	return (0);
 }
 
