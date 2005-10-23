@@ -1388,8 +1388,6 @@ itimer_fire(struct itimer *it)
 		ITIMER_LOCK(it);
 		if (KSI_ONQ(&it->it_ksi)) {
 			it->it_overrun++;
-			it->it_ksi.ksi_overrun = it->it_overrun;
-			it->it_overrun_last = it->it_overrun;
 		} else {
 			it->it_ksi.ksi_overrun = it->it_overrun;
 			it->it_overrun_last = it->it_overrun;
