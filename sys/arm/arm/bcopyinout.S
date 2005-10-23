@@ -108,6 +108,7 @@ ENTRY(copyin)
 	moveq	r0, #0
 	RETeq
 
+.Lnormal:
 	SAVE_REGS
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
@@ -353,6 +354,7 @@ ENTRY(copyout)
 	moveq	r0, #0
 	RETeq
 
+.Lnormale:
 	SAVE_REGS
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
