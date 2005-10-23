@@ -4248,7 +4248,9 @@ pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
 void
 pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 {
+#if 0
 	struct vm_page *src_pg = PHYS_TO_VM_PAGE(src);
+#endif
 #ifdef DEBUG
 	struct vm_page *dst_pg = PHYS_TO_VM_PAGE(dst);
 

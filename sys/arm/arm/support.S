@@ -888,6 +888,7 @@ ENTRY(memcpy)
 	ldmfd	sp!, {r0-r2, r4, lr}
 	RETeq
 
+.Lnormal:
 	stmdb	sp!, {r0, lr}		/* memcpy() returns dest addr */
 
 	subs	r2, r2, #4
