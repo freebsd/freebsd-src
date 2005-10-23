@@ -439,11 +439,15 @@
 				    const struct timespec *tp); }
 234	AUE_NULL	MSTD	{ int clock_getres(clockid_t clock_id, \
 				    struct timespec *tp); }
-235	AUE_NULL	UNIMPL	timer_create
-236	AUE_NULL	UNIMPL	timer_delete
-237	AUE_NULL	UNIMPL	timer_settime
-238	AUE_NULL	UNIMPL	timer_gettime
-239	AUE_NULL	UNIMPL	timer_getoverrun
+235	AUE_NULL	MSTD	{ int timer_create(clockid_t clock_id, \
+				    struct sigevent *evp, timer_t *timerid); }
+236	AUE_NULL	MSTD	{ int timer_delete(timer_t timerid); }
+237	AUE_NULL	MSTD	{ int timer_settime(timer_t timerid, int flags, \
+				    const struct itimerspec *value, \
+				    struct itimerspec *ovalue); }
+238	AUE_NULL	MSTD	{ int timer_gettime(timer_t timerid, struct \
+				    itimerspec *value); }
+239	AUE_NULL	MSTD	{ int timer_getoverrun(timer_t timerid); }
 240	AUE_NULL	MSTD	{ int nanosleep(const struct timespec *rqtp, \
 				    struct timespec *rmtp); }
 241	AUE_NULL	UNIMPL	nosys

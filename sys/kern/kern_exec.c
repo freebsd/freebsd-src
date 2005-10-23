@@ -480,6 +480,9 @@ interpret:
 	 */
 	fdunshare(p, td);
 
+	/* Clear POSIX timers */
+	itimers_event_hook(p, ITIMER_EV_EXEC);
+
 	/*
 	 * Malloc things before we need locks.
 	 */
