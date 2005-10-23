@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/condvar.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
