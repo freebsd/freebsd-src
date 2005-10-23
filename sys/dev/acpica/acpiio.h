@@ -44,7 +44,9 @@ struct acpi_battinfo {
 
 #define ACPI_CMBAT_MAXSTRLEN 32
 struct acpi_bif {
-    uint32_t units;			/* 0 for mWh, 1 for mAh */
+    uint32_t units;			/* Units (mW or mA). */
+#define ACPI_BIF_UNITS_MW	0	/* Capacity in mWh, rate in mW. */
+#define ACPI_BIF_UNITS_MA	1	/* Capacity in mAh, rate in mA. */
     uint32_t dcap;			/* Design Capacity */
     uint32_t lfcap;			/* Last Full capacity */
     uint32_t btech;			/* Battery Technology */
@@ -82,6 +84,7 @@ union acpi_battery_ioctl_arg {
 };
 
 #define ACPI_BATTERY_ALL_UNITS 	(-1)
+#define ACPI_BATT_UNKNOWN 	0xffffffff /* _BST or _BIF value unknown. */
 
 /* Common battery ioctls */
 #define ACPIIO_BATT_GET_UNITS	  _IOR('B', 0x01, int)
