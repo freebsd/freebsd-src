@@ -38,6 +38,9 @@
 #ifndef _SYS_TIMERS_H_
 #define _SYS_TIMERS_H_
 
+#include <sys/time.h>
+
+#ifdef _KERNEL
 /*
  * Structures used to manage POSIX timers in a process.
  */
@@ -111,5 +114,5 @@ struct	kclock {
 
 void	itimers_init(struct itimers *its);
 void	itimers_event_hook(struct proc *p, int event);
-
+#endif
 #endif /* !_SYS_TIMERS_H_ */
