@@ -207,8 +207,6 @@ retry:
 	PROC_LOCK(p);
 	stopprofclock(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
-	sigqueue_flush(&p->p_sigqueue);
-	sigqueue_flush(&td->td_sigqueue);
 
 	/*
 	 * Stop the real interval timer.  If the handler is currently
@@ -221,7 +219,11 @@ retry:
 		KASSERT(!timevalisset(&p->p_realtimer.it_value),
 		    ("realtime timer is still armed"));
 	}
+	sigqueue_flush(&p->p_sigqueue);
+	sigqueue_flush(&td->td_sigqueue);
 	PROC_UNLOCK(p);
+
+	itimers_event_hook(p, ITIMER_EV_EXIT);
 
 	/*
 	 * Reset any sigio structures pointing to us as a result of

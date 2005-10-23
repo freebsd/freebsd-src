@@ -47,14 +47,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/time.h>
+#include <sys/timers.h>
 #include <sys/timetc.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+#define MAX_CLOCKS 	(CLOCK_MONOTONIC+1)
+
 int tz_minuteswest;
 int tz_dsttime;
+
+static struct kclock	posix_clocks[MAX_CLOCKS];
+static uma_zone_t	itimer_zone = NULL;
 
 /*
  * Time of day and interval timer support.
@@ -69,6 +75,34 @@ int tz_dsttime;
 static int	settime(struct thread *, struct timeval *);
 static void	timevalfix(struct timeval *);
 static void	no_lease_updatetime(int);
+
+static void	itimer_start(void);
+static int	itimer_init(void *, int, int);
+static void	itimer_fini(void *, int);
+static void	itimer_enter(struct itimer *);
+static void	itimer_leave(struct itimer *);
+static struct itimer *itimer_find(struct proc *, timer_t, int);
+static void	itimers_alloc(struct proc *);
+static int	realtimer_create(struct itimer *);
+static int	realtimer_gettime(struct itimer *, struct itimerspec *);
+static int	realtimer_settime(struct itimer *, int,
+			struct itimerspec *, struct itimerspec *);
+static int	realtimer_delete(struct itimer *);
+static void	realtimer_clocktime(clockid_t, struct timeval *);
+static void	realtimer_expire(void *);
+static void	realtimer_event_hook(struct proc *, clockid_t, int event);
+static int	kern_timer_create(struct thread *, clockid_t,
+			struct sigevent *, timer_t *, timer_t);
+static int	kern_timer_delete(struct thread *, timer_t);
+
+int		register_posix_clock(int, struct kclock *);
+void		itimer_fire(struct itimer *it);
+
+#define CLOCK_CALL(clock, call, arglist)		\
+	((*posix_clocks[clock].call) arglist)
+
+SYSINIT(posix_timer, SI_SUB_P1003_1B, SI_ORDER_FIRST+4, itimer_start, NULL);
+
 
 static void 
 no_lease_updatetime(deltat)
@@ -659,8 +693,7 @@ int
 itimerfix(struct timeval *tv)
 {
 
-	if (tv->tv_sec < 0 || tv->tv_sec > 100000000 ||
-	    tv->tv_usec < 0 || tv->tv_usec >= 1000000)
+	if (tv->tv_sec < 0 || tv->tv_usec < 0 || tv->tv_usec >= 1000000)
 		return (EINVAL);
 	if (tv->tv_sec == 0 && tv->tv_usec != 0 && tv->tv_usec < tick)
 		tv->tv_usec = tick;
@@ -805,5 +838,634 @@ ppsratecheck(struct timeval *lasttime, int *curpps, int maxpps)
 	} else {
 		(*curpps)++;		/* NB: ignore potential overflow */
 		return (maxpps < 0 || *curpps < maxpps);
+	}
+}
+
+static void
+itimer_start(void)
+{
+	struct kclock rt_clock = {
+		.timer_create  = realtimer_create,
+		.timer_delete  = realtimer_delete,
+		.timer_settime = realtimer_settime,
+		.timer_gettime = realtimer_gettime,
+		.event_hook     = realtimer_event_hook
+	};
+
+	itimer_zone = uma_zcreate("itimer", sizeof(struct itimer),
+		NULL, NULL, itimer_init, itimer_fini, UMA_ALIGN_PTR, 0);
+	register_posix_clock(CLOCK_REALTIME,  &rt_clock);
+	register_posix_clock(CLOCK_MONOTONIC, &rt_clock);
+}
+
+int
+register_posix_clock(int clockid, struct kclock *clk)
+{
+	if ((unsigned)clockid >= MAX_CLOCKS) {
+		printf("%s: invalid clockid\n", __func__);
+		return (0);
+	}
+	posix_clocks[clockid] = *clk;
+	return (1);
+}
+
+static int
+itimer_init(void *mem, int size, int flags)
+{
+	struct itimer *it;
+
+	it = (struct itimer *)mem;
+	mtx_init(&it->it_mtx, "itimer lock", NULL, MTX_DEF);
+	return (0);
+}
+
+static void
+itimer_fini(void *mem, int size)
+{
+	struct itimer *it;
+
+	it = (struct itimer *)mem;
+	mtx_destroy(&it->it_mtx);
+}
+
+static void
+itimer_enter(struct itimer *it)
+{
+
+	mtx_assert(&it->it_mtx, MA_OWNED);
+	it->it_usecount++;
+}
+
+static void
+itimer_leave(struct itimer *it)
+{
+
+	mtx_assert(&it->it_mtx, MA_OWNED);
+	KASSERT(it->it_usecount > 0, ("invalid it_usecount"));
+
+	if (--it->it_usecount == 0 && (it->it_flags & ITF_WANTED) != 0)
+		wakeup(it);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct timer_create_args {
+	clockid_t clock_id;
+	struct sigevent * evp;
+	timer_t * timerid;
+};
+#endif
+
+int
+timer_create(struct thread *td, struct timer_create_args *uap)
+{
+	struct sigevent *evp1, ev;
+	timer_t id;
+	int error;
+
+	if (uap->evp != NULL) {
+		error = copyin(uap->evp, &ev, sizeof(ev));
+		if (error != 0)
+			return (error);
+		evp1 = &ev;
+	} else
+		evp1 = NULL;
+
+	error = kern_timer_create(td, uap->clock_id, evp1, &id, -1);
+
+	if (error == 0) {
+		error = copyout(&id, uap->timerid, sizeof(timer_t));
+		if (error != 0)
+			kern_timer_delete(td, id);
+	}
+	return (error);
+}
+
+static int
+kern_timer_create(struct thread *td, clockid_t clock_id,
+	struct sigevent *evp, timer_t *timerid, timer_t preset_id)
+{
+	struct proc *p = td->td_proc;
+	struct itimer *it;
+	int id;
+	int error;
+
+	if (clock_id < 0 || clock_id >= MAX_CLOCKS)
+		return (EINVAL);
+
+	if (posix_clocks[clock_id].timer_create == NULL)
+		return (EINVAL);
+
+	if (evp != NULL) {
+		if (evp->sigev_notify != SIGEV_NONE &&
+		    evp->sigev_notify != SIGEV_SIGNAL)
+			return (EINVAL);
+		if (evp->sigev_notify == SIGEV_SIGNAL &&
+			!_SIG_VALID(evp->sigev_signo))
+			return (EINVAL);
+	}
+	
+	if (p->p_itimers.its_timers == NULL)
+		itimers_alloc(p);
+	
+	it = uma_zalloc(itimer_zone, M_WAITOK);
+	it->it_flags = 0;
+	it->it_usecount = 0;
+	it->it_active = 0;
+	timevalclear(&it->it_time.it_value);
+	timevalclear(&it->it_time.it_interval);
+	it->it_overrun = 0;
+	it->it_overrun_last = 0;
+	it->it_clockid = clock_id;
+	it->it_timerid = -1;
+	it->it_proc = p;
+	ksiginfo_init(&it->it_ksi);
+	it->it_ksi.ksi_flags |= KSI_INS | KSI_EXT;
+	error = CLOCK_CALL(clock_id, timer_create, (it));
+	if (error != 0)
+		goto out;
+
+	PROC_LOCK(p);
+	if (preset_id != -1) {
+		KASSERT(preset_id >= 0 && preset_id < 3, ("invalid preset_id"));
+		id = preset_id;
+		if (p->p_itimers.its_timers[id] != NULL) {
+			PROC_UNLOCK(p);
+			error = 0;
+			goto out;
+		}
+	} else {
+		/*
+		 * Find a free timer slot, skipping those reserved
+		 * for setitimer().
+		 */
+		for (id = 3; id < TIMER_MAX; id++)
+			if (p->p_itimers.its_timers[id] == NULL)
+				break;
+		if (id == TIMER_MAX) {
+			PROC_UNLOCK(p);
+			error = EAGAIN;
+			goto out;
+		}
+	}
+	it->it_timerid = id;
+	p->p_itimers.its_timers[id] = it;
+	if (evp != NULL)
+		it->it_sigev = *evp;
+	else {
+		it->it_sigev.sigev_notify = SIGEV_SIGNAL;
+		switch (clock_id) {
+		default:
+		case CLOCK_REALTIME:
+			it->it_sigev.sigev_signo = SIGALRM;
+			break;
+		case CLOCK_VIRTUAL:
+ 			it->it_sigev.sigev_signo = SIGVTALRM;
+			break;
+		case CLOCK_PROF:
+			it->it_sigev.sigev_signo = SIGPROF;
+			break;
+		}
+		it->it_sigev.sigev_value.sigval_int = id;
+	}
+
+	if (it->it_sigev.sigev_notify == SIGEV_SIGNAL) {
+		it->it_ksi.ksi_signo = it->it_sigev.sigev_signo;
+		it->it_ksi.ksi_code = SI_TIMER;
+		it->it_ksi.ksi_value = it->it_sigev.sigev_value;
+		it->it_ksi.ksi_timerid = id;
+	}
+	PROC_UNLOCK(p);
+	*timerid = id;
+	return (0);
+
+out:
+	ITIMER_LOCK(it);
+	CLOCK_CALL(it->it_clockid, timer_delete, (it));
+	ITIMER_UNLOCK(it);
+	uma_zfree(itimer_zone, it);
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct timer_delete_args {
+	timer_t timerid;
+};
+#endif
+
+int
+timer_delete(struct thread *td, struct timer_delete_args *uap)
+{
+	return (kern_timer_delete(td, uap->timerid));
+}
+
+static struct itimer *
+itimer_find(struct proc *p, timer_t timerid, int include_deleting)
+{
+	struct itimer *it;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if ((p->p_itimers.its_timers == NULL) || (timerid >= TIMER_MAX) ||
+	    (it = p->p_itimers.its_timers[timerid]) == NULL) {
+		return (NULL);
+	}
+	ITIMER_LOCK(it);
+	if (!include_deleting && (it->it_flags & ITF_DELETING) != 0) {
+		ITIMER_UNLOCK(it);
+		it = NULL;
+	}
+	return (it);
+}
+
+static int
+kern_timer_delete(struct thread *td, timer_t timerid)
+{
+	struct proc *p = td->td_proc;
+	struct itimer *it;
+
+	PROC_LOCK(p);
+	it = itimer_find(p, timerid, 0);
+	if (it == NULL) {
+		PROC_UNLOCK(p);
+		return (EINVAL);
+	}
+	PROC_UNLOCK(p);
+
+	it->it_flags |= ITF_DELETING;
+	while (it->it_usecount > 0) {
+		it->it_flags |= ITF_WANTED;
+		msleep(it, &it->it_mtx, PPAUSE, "itimer", 0);
+	}
+	it->it_flags &= ~ITF_WANTED;
+	CLOCK_CALL(it->it_clockid, timer_delete, (it));
+	ITIMER_UNLOCK(it);
+
+	PROC_LOCK(p);
+	if (KSI_ONQ(&it->it_ksi))
+		sigqueue_take(&it->it_ksi);
+	p->p_itimers.its_timers[timerid] = NULL;
+	PROC_UNLOCK(p);
+	uma_zfree(itimer_zone, it);
+	return (0);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct timer_settime_args {
+	timer_t timerid;
+	int flags;
+	const struct itimerspec * value;
+	struct itimerspec * ovalue;
+};
+#endif
+
+int
+timer_settime(struct thread *td, struct timer_settime_args *uap)
+{
+	struct proc *p = td->td_proc;
+	struct itimer *it;
+	struct itimerspec val, oval, *ovalp;
+	int error;
+
+	error = copyin(uap->value, &val, sizeof(val));
+	if (error != 0)
+		return (error);
+	
+	if (uap->ovalue != NULL)
+		ovalp = &oval;
+	else
+		ovalp = NULL;
+
+	PROC_LOCK(p);
+	if (uap->timerid < 3 ||
+	    (it = itimer_find(p, uap->timerid, 0)) == NULL) {
+		PROC_UNLOCK(p);
+		error = EINVAL;
+	} else {
+		PROC_UNLOCK(p);
+		itimer_enter(it);
+		error = CLOCK_CALL(it->it_clockid, timer_settime,
+				(it, uap->flags, &val, ovalp));
+		itimer_leave(it);
+		ITIMER_UNLOCK(it);
+	}
+	if (error == 0 && uap->ovalue != NULL)
+		error = copyout(ovalp, uap->ovalue, sizeof(*ovalp));
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct timer_gettime_args {
+	timer_t timerid;
+	struct itimerspec * value;
+};
+#endif
+
+int
+timer_gettime(struct thread *td, struct timer_gettime_args *uap)
+{
+	struct proc *p = td->td_proc;
+	struct itimer *it;
+	struct itimerspec val;
+	int error;
+
+	PROC_LOCK(p);
+	if (uap->timerid < 3 ||
+	   (it = itimer_find(p, uap->timerid, 0)) == NULL) {
+		PROC_UNLOCK(p);
+		error = EINVAL;
+	} else {
+		PROC_UNLOCK(p);
+		itimer_enter(it);
+		error = CLOCK_CALL(it->it_clockid, timer_gettime,
+				(it, &val));
+		itimer_leave(it);
+		ITIMER_UNLOCK(it);
+	}
+	if (error == 0)
+		error = copyout(&val, uap->value, sizeof(val));
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct timer_getoverrun_args {
+	timer_t timerid;
+};
+#endif
+
+int
+timer_getoverrun(struct thread *td, struct timer_getoverrun_args *uap)
+{
+	struct proc *p = td->td_proc;
+	struct itimer *it;
+	int error ;
+
+	PROC_LOCK(p);
+	if (uap->timerid < 3 ||
+	    (it = itimer_find(p, uap->timerid, 0)) == NULL) {
+		PROC_UNLOCK(p);
+		error = EINVAL;
+	} else {
+		PROC_UNLOCK(p);
+		td->td_retval[0] = it->it_overrun_last;
+		ITIMER_UNLOCK(it);
+		error = 0;
+	}
+	return (error);
+}
+
+static int
+realtimer_create(struct itimer *it)
+{
+	callout_init_mtx(&it->it_callout, &it->it_mtx, 0);
+	return (0);
+}
+
+static int
+realtimer_delete(struct itimer *it)
+{
+	mtx_assert(&it->it_mtx, MA_OWNED);
+	callout_stop(&it->it_callout);
+	return (0);
+}
+
+static int
+realtimer_gettime(struct itimer *it, struct itimerspec *ovalue)
+{
+	struct timespec ts;
+
+	mtx_assert(&it->it_mtx, MA_OWNED);
+
+	TIMEVAL_TO_TIMESPEC(&it->it_time.it_value, &ovalue->it_value);
+	TIMEVAL_TO_TIMESPEC(&it->it_time.it_interval, &ovalue->it_interval);
+	if (it->it_clockid == CLOCK_REALTIME)
+		getnanotime(&ts);
+	else /* CLOCK_MONOTONIC */
+		getnanouptime(&ts);
+	if (ovalue->it_value.tv_sec != 0 || ovalue->it_value.tv_nsec != 0) {
+		timespecsub(&ovalue->it_value, &ts);
+		if (ovalue->it_value.tv_sec < 0 ||
+		    (ovalue->it_value.tv_sec == 0 &&
+		     ovalue->it_value.tv_nsec == 0)) {
+			ovalue->it_value.tv_sec  = 0;
+			ovalue->it_value.tv_nsec = 1;
+		}
+	}
+	return (0);
+}
+
+static int
+realtimer_settime(struct itimer *it, int flags,
+	struct itimerspec *value, struct itimerspec *ovalue)
+{
+	struct timeval tv, tv2;
+	struct itimerval val;
+
+	mtx_assert(&it->it_mtx, MA_OWNED);
+
+	TIMESPEC_TO_TIMEVAL(&val.it_value, &value->it_value);
+	TIMESPEC_TO_TIMEVAL(&val.it_interval, &value->it_interval);
+
+	if (itimerfix(&val.it_value))
+		return (EINVAL);
+
+	if (timevalisset(&val.it_value)) {
+		if (itimerfix(&val.it_interval))
+			return (EINVAL);
+	} else {
+		timevalclear(&val.it_interval);
+	}
+	
+	if (ovalue != NULL)
+		realtimer_gettime(it, ovalue);
+
+	it->it_time = val;
+	if (timevalisset(&val.it_value)) {
+		realtimer_clocktime(it->it_clockid, &tv);
+		tv2 = val.it_value;
+		if ((flags & TIMER_ABSTIME) == 0) {
+			/* Convert to absolute time. */
+			timevaladd(&it->it_time.it_value, &tv);
+		} else {
+			timevalsub(&tv2, &tv);
+			/*
+			 * We don't care if tv2 is negative, tztohz will
+			 * fix it.
+			 */
+		}
+		callout_reset(&it->it_callout, tvtohz(&tv2),
+			realtimer_expire, it);
+	} else {
+		callout_stop(&it->it_callout);
+	}
+
+	return (0);
+}
+
+static void
+realtimer_clocktime(clockid_t id, struct timeval *tv)
+{
+	if (id == CLOCK_REALTIME)
+		getmicrotime(tv);
+	else	/* CLOCK_MONOTONIC */
+		getmicrouptime(tv);
+}
+
+static void
+realtimer_event_hook(struct proc *p, clockid_t clock_id, int event)
+{
+	struct itimers *its;
+	struct itimer  *it;
+	int i;
+
+	/*
+	 * Timer 0 (ITIMER_REAL) is XSI interval timer, according to POSIX
+	 * specification, it should be inherited by new process image.
+	 */
+	if (event == ITIMER_EV_EXEC)
+		i = 1;
+	else
+		i = 0;
+	its = &p->p_itimers;
+	for (; i < TIMER_MAX; i++) {
+		if ((it = its->its_timers[i]) != NULL &&
+		     it->it_clockid == clock_id) {
+			ITIMER_LOCK(it);
+			callout_stop(&it->it_callout);
+			ITIMER_UNLOCK(it);
+		}
+	}
+}
+
+/* Timeout callback for realtime timer */
+static void
+realtimer_expire(void *arg)
+{
+	struct timeval tv, tv2;
+	struct itimer *it;
+	struct proc *p;
+
+	it = (struct itimer *)arg;
+	p = it->it_proc;
+
+	realtimer_clocktime(it->it_clockid, &tv);
+	/* Only fire if time is reached. */
+	if (timevalcmp(&it->it_time.it_value, &tv, <=)) {
+		if (timevalisset(&it->it_time.it_interval)) {
+			timevaladd(&it->it_time.it_value,
+				   &it->it_time.it_interval);
+			while (timevalcmp(&it->it_time.it_value, &tv, <=)) {
+				it->it_overrun++;
+				timevaladd(&it->it_time.it_value,
+					&it->it_time.it_interval);
+			}
+		} else {
+			/* single shot timer ? */
+			timevalclear(&it->it_time.it_value);
+		}
+		if (timevalisset(&it->it_time.it_value)) {
+			tv2 = it->it_time.it_value;
+			timevalsub(&tv2, &tv);
+			callout_reset(&it->it_callout, tvtohz(&tv2),
+				 realtimer_expire, it);
+		}
+		ITIMER_UNLOCK(it);
+		itimer_fire(it);
+		ITIMER_LOCK(it);
+	} else if (timevalisset(&it->it_time.it_value)) {
+		tv2 = it->it_time.it_value;
+		timevalsub(&tv2, &tv);
+		callout_reset(&it->it_callout, tvtohz(&tv2), realtimer_expire,
+ 			it);
+	}
+}
+
+void
+itimer_fire(struct itimer *it)
+{
+	struct proc *p = it->it_proc;
+
+	if (it->it_sigev.sigev_notify == SIGEV_SIGNAL) {
+		PROC_LOCK(p);
+		ITIMER_LOCK(it);
+		if (KSI_ONQ(&it->it_ksi)) {
+			it->it_overrun++;
+			it->it_ksi.ksi_overrun = it->it_overrun;
+			it->it_overrun_last = it->it_overrun;
+		} else {
+			it->it_ksi.ksi_overrun = it->it_overrun;
+			it->it_overrun_last = it->it_overrun;
+			it->it_overrun = 0;
+			psignal_info(p, &it->it_ksi);
+		}
+		PROC_UNLOCK(p);
+		ITIMER_UNLOCK(it);
+	}
+}
+
+static void
+itimers_alloc(struct proc *p)
+{
+	struct itimer **itp;
+
+	itp = malloc(sizeof(struct itimer *) * TIMER_MAX, M_SUBPROC,
+		M_WAITOK | M_ZERO);
+	PROC_LOCK(p);
+	if (p->p_itimers.its_timers == NULL) {
+		p->p_itimers.its_timers = itp;
+		PROC_UNLOCK(p);
+	} else {
+		PROC_UNLOCK(p);
+		free(itp, M_SUBPROC);
+	}
+}
+
+void
+itimers_init(struct itimers *its)
+{
+	LIST_INIT(&its->its_virtual);
+	LIST_INIT(&its->its_prof);
+	TAILQ_INIT(&its->its_worklist);
+	its->its_timers = NULL;
+}
+
+/* Clean up timers when some process events are being triggered. */
+void
+itimers_event_hook(struct proc *p, int event)
+{
+	struct itimers *its;
+	struct itimer *it;
+	int i;
+
+	if (p->p_itimers.its_timers != NULL) {
+		its = &p->p_itimers;
+		for (i = 0; i < MAX_CLOCKS; ++i) {
+			if (posix_clocks[i].event_hook != NULL)
+				CLOCK_CALL(i, event_hook, (p, i, event));
+		}
+		/*
+		 * According to susv3, XSI interval timers should be inherited
+		 * by new image.
+		 */
+		if (event == ITIMER_EV_EXEC)
+			i = 3;
+		else if (event == ITIMER_EV_EXIT)
+			i = 0;
+		else
+			panic("unhandled event");
+		for (; i < TIMER_MAX; ++i) {
+			if ((it = its->its_timers[i]) != NULL) {
+				PROC_LOCK(p);
+				if (KSI_ONQ(&it->it_ksi))
+					sigqueue_take(&it->it_ksi);
+				PROC_UNLOCK(p);
+				uma_zfree(itimer_zone, its->its_timers[i]);
+				its->its_timers[i] = NULL;
+			}
+		}
+		if (its->its_timers[0] == NULL &&
+		    its->its_timers[1] == NULL &&
+		    its->its_timers[2] == NULL) {
+			free(its->its_timers, M_SUBPROC);
+			p->p_itimers.its_timers = NULL;
+		}
 	}
 }
