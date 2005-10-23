@@ -14,3 +14,6 @@ freebsd32_sysent.c freebsd32_syscalls.c freebsd32_syscall.h freebsd32_proto.h: \
 	-mv -f freebsd32_syscall.h freebsd32_syscall.h.bak
 	-mv -f freebsd32_proto.h freebsd32_proto.h.bak
 	sh ../../kern/makesyscalls.sh syscalls.master syscalls.conf
+
+clean:
+	rm -f freebsd32_sysent.c freebsd32_syscalls.c freebsd32_syscall.h freebsd32_proto.h
