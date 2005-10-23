@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
+#include <machine/cpu.h>
+
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_proto.h>
@@ -1389,6 +1391,205 @@ freebsd4_freebsd32_sigaction(struct thread *td,
 		CP(osa, s32, sa_flags);
 		CP(osa, s32, sa_mask);
 		error = copyout(&s32, uap->oact, sizeof(s32));
+	}
+	return (error);
+}
+#endif
+
+#ifdef COMPAT_43
+struct freebsd3_sigaction32 {
+	u_int32_t	sa_u;
+	osigset_t	sa_mask;
+	int		sa_flags;
+};
+
+#define	ONSIG	32
+
+int
+freebsd3_freebsd32_sigaction(struct thread *td,
+			     struct freebsd3_freebsd32_sigaction_args *uap)
+{
+	struct freebsd3_sigaction32 s32;
+	struct sigaction sa, osa, *sap;
+	int error;
+
+	if (uap->signum <= 0 || uap->signum >= ONSIG)
+		return (EINVAL);
+
+	if (uap->nsa) {
+		error = copyin(uap->nsa, &s32, sizeof(s32));
+		if (error)
+			return (error);
+		sa.sa_handler = PTRIN(s32.sa_u);
+		CP(s32, sa, sa_flags);
+		OSIG2SIG(s32.sa_mask, sa.sa_mask);
+		sap = &sa;
+	} else
+		sap = NULL;
+	error = kern_sigaction(td, uap->signum, sap, &osa, KSA_OSIGSET);
+	if (error == 0 && uap->osa != NULL) {
+		s32.sa_u = PTROUT(osa.sa_handler);
+		CP(osa, s32, sa_flags);
+		SIG2OSIG(osa.sa_mask, s32.sa_mask);
+		error = copyout(&s32, uap->osa, sizeof(s32));
+	}
+	return (error);
+}
+
+int
+freebsd3_freebsd32_sigprocmask(struct thread *td,
+			       struct freebsd3_freebsd32_sigprocmask_args *uap)
+{
+	sigset_t set, oset;
+	int error;
+
+	OSIG2SIG(uap->mask, set);
+	error = kern_sigprocmask(td, uap->how, &set, &oset, 1);
+	SIG2OSIG(oset, td->td_retval[0]);
+	return (error);
+}
+
+int
+freebsd3_freebsd32_sigpending(struct thread *td,
+			      struct freebsd3_freebsd32_sigpending_args *uap)
+{
+	struct proc *p = td->td_proc;
+	sigset_t siglist;
+
+	PROC_LOCK(p);
+	siglist = p->p_siglist;
+	SIGSETOR(siglist, td->td_siglist);
+	PROC_UNLOCK(p);
+	SIG2OSIG(siglist, td->td_retval[0]);
+	return (0);
+}
+
+struct sigvec32 {
+	u_int32_t	sv_handler;
+	int		sv_mask;
+	int		sv_flags;
+};
+
+int
+freebsd3_freebsd32_sigvec(struct thread *td,
+			  struct freebsd3_freebsd32_sigvec_args *uap)
+{
+	struct sigvec32 vec;
+	struct sigaction sa, osa, *sap;
+	int error;
+
+	if (uap->signum <= 0 || uap->signum >= ONSIG)
+		return (EINVAL);
+
+	if (uap->nsv) {
+		error = copyin(uap->nsv, &vec, sizeof(vec));
+		if (error)
+			return (error);
+		sa.sa_handler = PTRIN(vec.sv_handler);
+		OSIG2SIG(vec.sv_mask, sa.sa_mask);
+		sa.sa_flags = vec.sv_flags;
+		sa.sa_flags ^= SA_RESTART;
+		sap = &sa;
+	} else
+		sap = NULL;
+	error = kern_sigaction(td, uap->signum, sap, &osa, KSA_OSIGSET);
+	if (error == 0 && uap->osv != NULL) {
+		vec.sv_handler = PTROUT(osa.sa_handler);
+		SIG2OSIG(osa.sa_mask, vec.sv_mask);
+		vec.sv_flags = osa.sa_flags;
+		vec.sv_flags &= ~SA_NOCLDWAIT;
+		vec.sv_flags ^= SA_RESTART;
+		error = copyout(&vec, uap->osv, sizeof(vec));
+	}
+	return (error);
+}
+
+int
+freebsd3_freebsd32_sigblock(struct thread *td,
+			    struct freebsd3_freebsd32_sigblock_args *uap)
+{
+	struct proc *p = td->td_proc;
+	sigset_t set;
+
+	OSIG2SIG(uap->mask, set);
+	SIG_CANTMASK(set);
+	PROC_LOCK(p);
+	SIG2OSIG(td->td_sigmask, td->td_retval[0]);
+	SIGSETOR(td->td_sigmask, set);
+	PROC_UNLOCK(p);
+	return (0);
+}
+
+int
+freebsd3_freebsd32_sigsetmask(struct thread *td,
+			      struct freebsd3_freebsd32_sigsetmask_args *uap)
+{
+	struct proc *p = td->td_proc;
+	sigset_t set;
+
+	OSIG2SIG(uap->mask, set);
+	SIG_CANTMASK(set);
+	PROC_LOCK(p);
+	SIG2OSIG(td->td_sigmask, td->td_retval[0]);
+	SIGSETLO(td->td_sigmask, set);
+	signotify(td);
+	PROC_UNLOCK(p);
+	return (0);
+}
+
+int
+freebsd3_freebsd32_sigsuspend(struct thread *td,
+			      struct freebsd3_freebsd32_sigsuspend_args *uap)
+{
+	struct proc *p = td->td_proc;
+	sigset_t mask;
+
+	PROC_LOCK(p);
+	td->td_oldsigmask = td->td_sigmask;
+	td->td_pflags |= TDP_OLDMASK;
+	OSIG2SIG(uap->mask, mask);
+	SIG_CANTMASK(mask);
+	SIGSETLO(td->td_sigmask, mask);
+	signotify(td);
+	while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
+		/* void */;
+	PROC_UNLOCK(p);
+	/* always return EINTR rather than ERESTART... */
+	return (EINTR);
+}
+
+struct sigstack32 {
+	u_int32_t	ss_sp;
+	int		ss_onstack;
+};
+
+int
+freebsd3_freebsd32_sigstack(struct thread *td,
+			    struct freebsd3_freebsd32_sigstack_args *uap)
+{
+	struct sigstack32 s32;
+	struct sigstack nss, oss;
+	int error = 0;
+
+	if (uap->nss != NULL) {
+		error = copyin(uap->nss, &s32, sizeof(s32));
+		if (error)
+			return (error);
+		nss.ss_sp = PTRIN(s32.ss_sp);
+		CP(s32, nss, ss_onstack);
+	}
+	oss.ss_sp = td->td_sigstk.ss_sp;
+	oss.ss_onstack = sigonstack(cpu_getstack(td));
+	if (uap->nss != NULL) {
+		td->td_sigstk.ss_sp = nss.ss_sp;
+		td->td_sigstk.ss_size = 0;
+		td->td_sigstk.ss_flags |= nss.ss_onstack & SS_ONSTACK;
+		td->td_pflags |= TDP_ALTSTACK;
+	}
+	if (uap->oss != NULL) {
+		s32.ss_sp = PTROUT(oss.ss_sp);
+		CP(oss, s32, ss_onstack);
+		error = copyout(&s32, uap->oss, sizeof(s32));
 	}
 	return (error);
 }
