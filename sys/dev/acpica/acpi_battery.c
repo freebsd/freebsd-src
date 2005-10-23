@@ -53,6 +53,7 @@ ACPI_SERIAL_DECL(battery, "ACPI generic battery");
 
 static void acpi_reset_battinfo(struct acpi_battinfo *info);
 static void acpi_battery_clean_str(char *str, int len);
+static device_t acpi_battery_find_dev(u_int logical_unit);
 static int acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg);
 static int acpi_battery_sysctl(SYSCTL_HANDLER_ARGS);
 static int acpi_battery_units_sysctl(SYSCTL_HANDLER_ARGS);
