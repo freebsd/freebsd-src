@@ -634,7 +634,7 @@ main(int argc, char * argv[])
 			}
 			if (set_freq(freqs[i]) != 0)
 				warn("error setting CPU frequency %d",
-			    	    freqs[i]);
+				    freqs[i]);
 		}
 	}
 	free(freqs);
