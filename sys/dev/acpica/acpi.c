@@ -1571,8 +1571,13 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * Check that the device is present.  If it's not present,
 	     * leave it disabled (so that we have a device_t attached to
 	     * the handle, but we don't probe it).
+	     *
+	     * XXX PCI link devices sometimes report "present" but not
+	     * "functional" (i.e. if disabled).  Go ahead and probe them
+	     * anyway since we may enable them later.
 	     */
-	    if (type == ACPI_TYPE_DEVICE && !acpi_DeviceIsPresent(child)) {
+	    if (type == ACPI_TYPE_DEVICE && !acpi_DeviceIsPresent(child) &&
+		!acpi_MatchHid(handle, "PNP0C0F")) {
 		device_disable(child);
 		break;
 	    }
