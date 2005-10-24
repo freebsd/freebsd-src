@@ -488,9 +488,6 @@ main(int argc, char * argv[])
 	signal(SIGTERM, handle_sigs);
 	signal(SIGPIPE, SIG_IGN);
 
-	/* Decide whether to use ACPI or APM to read the AC line status. */
-	acline_init();
-
 	/* Run in the background unless in verbose mode. */
 	if (!vflag) {
 		pid_t otherpid;
@@ -511,6 +508,9 @@ main(int argc, char * argv[])
 		}
 		pidfile_write(pfh);
 	}
+
+	/* Decide whether to use ACPI or APM to read the AC line status. */
+	acline_init();
 
 	/* Main loop. */
 	for (;;) {
