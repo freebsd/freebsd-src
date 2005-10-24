@@ -102,9 +102,6 @@ int	stop_cpus(cpumask_t);
 void	smp_rendezvous_action(void);
 extern	struct mtx smp_ipi_mtx;
 
-#ifdef KDB_STOP_NMI
-int	stop_cpus_nmi(cpumask_t);
-#endif 
 #endif /* SMP */
 void	smp_rendezvous(void (*)(void *), 
 		       void (*)(void *),

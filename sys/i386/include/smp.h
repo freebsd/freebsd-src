@@ -79,9 +79,8 @@ void	smp_masked_invlpg_range(u_int mask, vm_offset_t startva,
 void	smp_invltlb(void);
 void	smp_masked_invltlb(u_int mask);
 
-#ifdef KDB_STOP_NMI
-int ipi_nmi_handler(void);
-void ipi_nmi_selected(u_int32_t cpus);
+#ifdef STOP_NMI
+int	ipi_nmi_handler(void);
 #endif
 
 #endif /* !LOCORE */
