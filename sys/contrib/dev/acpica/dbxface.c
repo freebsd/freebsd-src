@@ -115,10 +115,10 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "amlcode.h"
-#include "acdebug.h"
-#include "acdisasm.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/amlcode.h>
+#include <contrib/dev/acpica/acdebug.h>
+#include <contrib/dev/acpica/acdisasm.h>
 
 
 #ifdef ACPI_DEBUGGER

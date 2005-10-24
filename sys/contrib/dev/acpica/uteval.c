@@ -116,9 +116,9 @@
 
 #define __UTEVAL_C__
 
-#include "acpi.h"
-#include "acnamesp.h"
-#include "acinterp.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/acinterp.h>
 
 
 #define _COMPONENT          ACPI_UTILITIES
