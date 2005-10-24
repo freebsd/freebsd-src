@@ -116,8 +116,8 @@
 
 #define __DSWSCOPE_C__
 
-#include "acpi.h"
-#include "acdispat.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acdispat.h>
 
 
 #define _COMPONENT          ACPI_DISPATCHER

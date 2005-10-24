@@ -116,8 +116,8 @@
 
 #define __TBUTILS_C__
 
-#include "acpi.h"
-#include "actables.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/actables.h>
 
 
 #define _COMPONENT          ACPI_TABLES

@@ -117,8 +117,8 @@
 
 #define __NSWALK_C__
 
-#include "acpi.h"
-#include "acnamesp.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
 
 
 #define _COMPONENT          ACPI_NAMESPACE
