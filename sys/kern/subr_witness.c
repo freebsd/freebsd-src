@@ -451,6 +451,12 @@ static struct mtx all_mtx = {
 static int witness_cold = 1;
 
 /*
+ * This global is set to 1 once the static lock orders have been enrolled
+ * so that a warning can be issued for any spin locks enrolled later.
+ */
+static int witness_spin_warn = 0;
+
+/*
  * Global variables for book keeping.
  */
 static int lock_cur_cnt;
@@ -501,6 +507,7 @@ witness_initialize(void *dummy __unused)
 			w = w1;
 		}
 	}
+	witness_spin_warn = 1;
 
 	/* Iterate through all locks and add them to witness. */
 	mtx_lock(&all_mtx);
@@ -514,7 +521,7 @@ witness_initialize(void *dummy __unused)
 	mtx_unlock(&all_mtx);
 
 	/* Mark the witness code as being ready for use. */
-	atomic_store_rel_int(&witness_cold, 0);
+	witness_cold = 0;
 
 	mtx_lock(&Giant);
 }
@@ -1404,13 +1411,15 @@ enroll(const char *description, struct lock_class *lock_class)
 		}
 	}
 	/*
-	 * This isn't quite right, as witness_cold is still 0 while we
-	 * enroll all the locks initialized before witness_initialize().
+	 * We issue a warning for any spin locks not defined in the static
+	 * order list as a way to discourage their use (folks should really
+	 * be using non-spin mutexes most of the time).  However, several
+	 * 3rd part device drivers use spin locks because that is all they
+	 * have available on Windows and Linux and they think that normal
+	 * mutexes are insufficient.
 	 */
-	if ((lock_class->lc_flags & LC_SPINLOCK) && !witness_cold) {
-		mtx_unlock_spin(&w_mtx);
-		panic("spin lock %s not in order list", description);
-	}
+	if ((lock_class->lc_flags & LC_SPINLOCK) && witness_spin_warn)
+		printf("WITNESS: spin lock %s not in order list", description);
 	if ((w = witness_get()) == NULL)
 		return (NULL);
 	w->w_name = description;
