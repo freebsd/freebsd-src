@@ -205,7 +205,7 @@ SYSCTL_PROC(_debug_witness, OID_AUTO, watch, CTLFLAG_RW | CTLTYPE_INT, NULL, 0,
 /*
  * When KDB is enabled and witness_kdb is set to 1, it will cause the system
  * to drop into kdebug() when:
- *	- a lock heirarchy violation occurs
+ *	- a lock hierarchy violation occurs
  *	- locks are held when going to sleep.
  */
 #ifdef WITNESS_KDB
@@ -219,7 +219,7 @@ SYSCTL_INT(_debug_witness, OID_AUTO, kdb, CTLFLAG_RW, &witness_kdb, 0, "");
 /*
  * When KDB is enabled and witness_trace is set to 1, it will cause the system
  * to print a stack trace:
- *	- a lock heirarchy violation occurs
+ *	- a lock hierarchy violation occurs
  *	- locks are held when going to sleep.
  */
 int	witness_trace = 1;
