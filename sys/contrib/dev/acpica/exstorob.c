@@ -117,8 +117,8 @@
 
 #define __EXSTOROB_C__
 
-#include "acpi.h"
-#include "acinterp.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acinterp.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER

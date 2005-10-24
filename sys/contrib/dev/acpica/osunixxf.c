@@ -125,10 +125,10 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-#include "acpi.h"
-#include "amlcode.h"
-#include "acparser.h"
-#include "acdebug.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/amlcode.h>
+#include <contrib/dev/acpica/acparser.h>
+#include <contrib/dev/acpica/acdebug.h>
 
 #define _COMPONENT          ACPI_OS_SERVICES
         ACPI_MODULE_NAME    ("osunixxf")

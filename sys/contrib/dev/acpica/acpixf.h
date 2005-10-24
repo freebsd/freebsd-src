@@ -118,8 +118,8 @@
 #ifndef __ACXFACE_H__
 #define __ACXFACE_H__
 
-#include "actypes.h"
-#include "actbl.h"
+#include <contrib/dev/acpica/actypes.h>
+#include <contrib/dev/acpica/actbl.h>
 
 
  /*

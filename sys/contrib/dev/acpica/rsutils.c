@@ -117,9 +117,9 @@
 
 #define __RSUTILS_C__
 
-#include "acpi.h"
-#include "acnamesp.h"
-#include "acresrc.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/acresrc.h>
 
 
 #define _COMPONENT          ACPI_RESOURCES
