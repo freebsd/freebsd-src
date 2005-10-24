@@ -1051,13 +1051,12 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	int			i, error;
 	char			*str = NULL;
 	uint16_t		flags;
-	char			msgbuf[ERRMSGLEN];
 	device_t		dev;
 	driver_object		*drv;
 	struct ndis_softc	*sc;
 	struct ifnet		*ifp;
 	unicode_string		us;
-	ansi_string		as;
+	ansi_string		as = { 0, 0, NULL };
 
 	block = (ndis_miniport_block *)adapter;
 	dev = block->nmb_physdeviceobj->do_devext;
@@ -1069,11 +1068,12 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	    code, &str, &i, &flags);
 	if (error == 0 && flags & MESSAGE_RESOURCE_UNICODE &&
 	    ifp->if_flags & IFF_DEBUG) {
-		RtlInitUnicodeString(&us, (uint16_t *)msgbuf);
+		RtlInitUnicodeString(&us, (uint16_t *)str);
 		if (RtlUnicodeStringToAnsiString(&as, &us, TRUE))
 			return;
 		str = as.as_buf;
-	}
+	} else
+		str = NULL;
 
 	device_printf (dev, "NDIS ERROR: %x (%s)\n", code,
 	    str == NULL ? "unknown error" : str);
@@ -1087,7 +1087,7 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 		va_end(ap);
 	}
 
-	if (str != NULL)
+	if (as.as_len)
 		RtlFreeAnsiString(&as);
 
 	return;
