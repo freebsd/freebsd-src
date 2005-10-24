@@ -116,10 +116,10 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "acdebug.h"
-#include "acnamesp.h"
-#include "actables.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acdebug.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/actables.h>
 
 #if (defined ACPI_DEBUGGER || defined ACPI_DISASSEMBLER)
 

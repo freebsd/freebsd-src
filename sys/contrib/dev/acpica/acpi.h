@@ -122,21 +122,21 @@
  * We put them here because we don't want to duplicate them
  * in the rest of the source code again and again.
  */
-#include "acconfig.h"           /* Configuration constants */
-#include "acenv.h"     /* Target environment specific items */
-#include "actypes.h"            /* Fundamental common data types */
-#include "acexcep.h"            /* ACPI exception codes */
-#include "acmacros.h"           /* C macros */
-#include "actbl.h"              /* ACPI table definitions */
-#include "aclocal.h"            /* Internal data types */
-#include "acoutput.h"           /* Error output and Debug macros */
-#include "acpiosxf.h"           /* Interfaces to the ACPI-to-OS layer*/
-#include "acpixf.h"             /* ACPI core subsystem external interfaces */
-#include "acobject.h"           /* ACPI internal object */
-#include "acstruct.h"           /* Common structures */
-#include "acglobal.h"           /* All global variables */
-#include "achware.h"            /* Hardware defines and interfaces */
-#include "acutils.h"            /* Utility interfaces */
+#include <contrib/dev/acpica/acconfig.h>           /* Configuration constants */
+#include <contrib/dev/acpica/acenv.h>     /* Target environment specific items */
+#include <contrib/dev/acpica/actypes.h>            /* Fundamental common data types */
+#include <contrib/dev/acpica/acexcep.h>            /* ACPI exception codes */
+#include <contrib/dev/acpica/acmacros.h>           /* C macros */
+#include <contrib/dev/acpica/actbl.h>              /* ACPI table definitions */
+#include <contrib/dev/acpica/aclocal.h>            /* Internal data types */
+#include <contrib/dev/acpica/acoutput.h>           /* Error output and Debug macros */
+#include <contrib/dev/acpica/acpiosxf.h>           /* Interfaces to the ACPI-to-OS layer*/
+#include <contrib/dev/acpica/acpixf.h>             /* ACPI core subsystem external interfaces */
+#include <contrib/dev/acpica/acobject.h>           /* ACPI internal object */
+#include <contrib/dev/acpica/acstruct.h>           /* Common structures */
+#include <contrib/dev/acpica/acglobal.h>           /* All global variables */
+#include <contrib/dev/acpica/achware.h>            /* Hardware defines and interfaces */
+#include <contrib/dev/acpica/acutils.h>            /* Utility interfaces */
 
 
 #endif /* __ACPI_H__ */
