@@ -196,8 +196,17 @@ proc_init(void *mem, int size, int flags)
 static void
 proc_fini(void *mem, int size)
 {
+#ifdef notnow
+	struct proc *p;
 
+	p = (struct proc *)mem;
+	pstats_free(p->p_stats);
+	ksegrp_free(FIRST_KSEGRP_IN_PROC(p));
+	thread_free(FIRST_THREAD_IN_PROC(p));
+	mtx_destroy(&p->p_mtx);
+#else
 	panic("proc reclaimed");
+#endif
 }
 
 /*
