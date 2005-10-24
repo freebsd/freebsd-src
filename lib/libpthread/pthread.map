@@ -73,7 +73,9 @@ global:
 	_pthread_cond_wait;
 	_pthread_condattr_default;
 	_pthread_condattr_destroy;
+	_pthread_condattr_getpshared;
 	_pthread_condattr_init;
+	_pthread_condattr_setpshared;
 	_pthread_create;
 	_pthread_detach;
 	_pthread_equal;
@@ -101,11 +103,13 @@ global:
 	_pthread_mutexattr_getkind_np;
 	_pthread_mutexattr_getprioceiling;
 	_pthread_mutexattr_getprotocol;
+	_pthread_mutexattr_getpshared;
 	_pthread_mutexattr_gettype;
 	_pthread_mutexattr_init;
 	_pthread_mutexattr_setkind_np;
 	_pthread_mutexattr_setprioceiling;
 	_pthread_mutexattr_setprotocol;
+	_pthread_mutexattr_setpshared;
 	_pthread_mutexattr_settype;
 	_pthread_once;
 	_pthread_resume_all_np;
@@ -229,7 +233,9 @@ global:
 	pthread_cond_timedwait;
 	pthread_cond_wait;
 	pthread_condattr_destroy;
+	pthread_condattr_getpshared;
 	pthread_condattr_init;
+	pthread_condattr_setpshared;
 	pthread_create;
 	pthread_detach;
 	pthread_equal;
@@ -256,11 +262,13 @@ global:
 	pthread_mutexattr_getkind_np;
 	pthread_mutexattr_getprioceiling;
 	pthread_mutexattr_getprotocol;
+	pthread_mutexattr_getpshared;
 	pthread_mutexattr_gettype;
 	pthread_mutexattr_init;
 	pthread_mutexattr_setkind_np;
 	pthread_mutexattr_setprioceiling;
 	pthread_mutexattr_setprotocol;
+	pthread_mutexattr_setpshared;
 	pthread_mutexattr_settype;
 	pthread_once;
 	pthread_resume_all_np;
