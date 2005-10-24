@@ -117,9 +117,9 @@
 
 #define __NSDUMP_C__
 
-#include "acpi.h"
-#include "acnamesp.h"
-#include "acparser.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/acparser.h>
 
 
 #define _COMPONENT          ACPI_NAMESPACE

@@ -116,7 +116,7 @@
 
 #define __UTALLOC_C__
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utalloc")
