@@ -142,11 +142,16 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 
 				/*
 				 * Set another read-ahead mark so we know 
-				 * to check again.
+				 * to check again. (If we can lock the
+				 * buffer without waiting)
 				 */
-				if (((i % racluster) == (racluster - 1)) ||
-					(i == (maxra - 1)))
+				if ((((i % racluster) == (racluster - 1)) ||
+				    (i == (maxra - 1))) 
+				    && (0 == BUF_LOCK(rbp, 
+					LK_EXCLUSIVE | LK_NOWAIT, NULL))) {
 					rbp->b_flags |= B_RAM;
+					BUF_UNLOCK(rbp);
+				}			
 			}
 			VI_UNLOCK(vp);
 			if (i >= maxra) {
