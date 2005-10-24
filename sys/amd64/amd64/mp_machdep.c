@@ -902,7 +902,6 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 	}
 }
 
-
 void
 ipi_bitmap_handler(struct clockframe frame)
 {
@@ -1011,7 +1010,6 @@ ipi_self(u_int ipi)
 void
 ipi_nmi_selected(u_int32_t cpus)
 {
-
 	int cpu;
 	register_t icrlo;
 
@@ -1020,9 +1018,7 @@ ipi_nmi_selected(u_int32_t cpus)
 	
 	CTR2(KTR_SMP, "%s: cpus: %x nmi", __func__, cpus);
 
-
 	atomic_set_int(&ipi_nmi_pending, cpus);
-
 
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
@@ -1035,35 +1031,34 @@ ipi_nmi_selected(u_int32_t cpus)
 		if (!lapic_ipi_wait(BEFORE_SPIN))
 			panic("ipi_nmi_selected: previous IPI has not cleared");
 
-		lapic_ipi_raw(icrlo,cpu_apic_ids[cpu]);
+		lapic_ipi_raw(icrlo, cpu_apic_ids[cpu]);
 	}
 }
-
 
 int
 ipi_nmi_handler()
 {
-	int cpu  = PCPU_GET(cpuid);
+	int cpu = PCPU_GET(cpuid);
+	int cpumask = PCPU_GET(cpumask);
 
-	if(!(atomic_load_acq_int(&ipi_nmi_pending) & (1 << cpu)))
+	if (!(atomic_load_acq_int(&ipi_nmi_pending) & cpumask))
 		return 1;
 
-	atomic_clear_int(&ipi_nmi_pending,1 << cpu);
+	atomic_clear_int(&ipi_nmi_pending, cpumask);
 
 	savectx(&stoppcbs[cpu]);
 
 	/* Indicate that we are stopped */
-	atomic_set_int(&stopped_cpus,1 << cpu);
-
+	atomic_set_int(&stopped_cpus, cpumask);
 
 	/* Wait for restart */
-	while(!(atomic_load_acq_int(&started_cpus) & (1 << cpu)))
+	while (!(atomic_load_acq_int(&started_cpus) & cpumask))
 	    ia32_pause();
 
-	atomic_clear_int(&started_cpus,1 << cpu);
-	atomic_clear_int(&stopped_cpus,1 << cpu);
+	atomic_clear_int(&started_cpus, cpumask);
+	atomic_clear_int(&stopped_cpus, cpumask);
 
-	if(cpu == 0 && cpustop_restartfunc != NULL)
+	if (cpu == 0 && cpustop_restartfunc != NULL)
 		cpustop_restartfunc();
 
 	return 0;
