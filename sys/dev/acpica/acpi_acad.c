@@ -256,10 +256,8 @@ static void
 acpi_acad_ac_only(void __unused *arg)
 {
 
-    if (devclass_get_count(acpi_acad_devclass) > 0)
-	return;
-
-    acpi_UserNotify("ACAD", ACPI_ROOT_OBJECT, 1);
+    if (devclass_get_count(acpi_acad_devclass) == 0)
+	acpi_UserNotify("ACAD", ACPI_ROOT_OBJECT, 1);
 }
 
 /*
