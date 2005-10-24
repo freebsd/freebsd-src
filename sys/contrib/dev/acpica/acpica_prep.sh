@@ -67,6 +67,18 @@ for i in ${src_update_files}; do
     sed -e 's/platform\///' $i > $i.new && mv $i.new $i
 done
 
+# canonify include paths
+#for H in \
+#acpi.h acdispat.h amlcode.h acnamesp.h acevents.h acdebug.h acresrc.h acdisasm.h acparser.h acinterp.h actables.h
+#do
+#	sed -i "" -e "s|\"$H\"|\<contrib/dev/acpica/$H\>|g" *.c
+#done
+#for H in \
+#acconfig.h acenv.h actypes.h acexcep.h acmacros.h actbl.h actbl1.h actbl2.h aclocal.h acoutput.h acpiosxf.h acpixf.h acobject.h acstruct.h acglobal.h achware.h acutils.h acfreebsd.h acgcc.h amlresrc.h
+#do
+#	sed -i "" -e "s|\"$H\"|\<contrib/dev/acpica/$H\>|g" *.h
+#done
+
 # post-clean
 echo post-clean
 rm -rf ${wrk}
