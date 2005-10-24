@@ -117,12 +117,12 @@
 
 #define __EXRESNTE_C__
 
-#include "acpi.h"
-#include "acdispat.h"
-#include "acinterp.h"
-#include "acnamesp.h"
-#include "acparser.h"
-#include "amlcode.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acdispat.h>
+#include <contrib/dev/acpica/acinterp.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/acparser.h>
+#include <contrib/dev/acpica/amlcode.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER
