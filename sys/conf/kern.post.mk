@@ -63,9 +63,12 @@ modules-all modules-depend: modules-obj
 .endif
 .endif
 
-.if defined(DEBUG)
-install.debug reinstall.debug: gdbinit
-	cd ${.CURDIR}; ${MAKE} -DINSTALL_DEBUG ${.TARGET:R}
+.if !defined(DEBUG)
+FULLKERNEL=	${KERNEL_KO}
+.else
+FULLKERNEL=	${KERNEL_KO}.debug
+${KERNEL_KO}: ${FULLKERNEL}
+	${OBJCOPY} --strip-debug ${FULLKERNEL} ${KERNEL_KO}
 
 # Install gdbinit files for kernel debugging.
 gdbinit:
@@ -78,7 +81,7 @@ gdbinit:
 .endif
 .endif
 
-${KERNEL_KO}: ${SYSTEM_DEP} vers.o
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
@@ -104,7 +107,7 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
-	    ${KERNEL_KO} linterrs makelinks tags vers.c \
+	    ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks tags vers.c \
 	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	    ${CLEAN}
@@ -181,7 +184,7 @@ kernel-install: kernel-install-check
 .endif
 
 kernel-install:
-	@if [ ! -f ${KERNEL_KO} ] ; then \
+	@if [ ! -f ${FULLKERNEL} ] ; then \
 		echo "You must build a kernel first." ; \
 		exit 1 ; \
 	fi
@@ -200,11 +203,19 @@ kernel-install:
 	fi
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
+.if defined(DEBUG) && !defined(INSTALL_NODEBUG)
+	${INSTALL} -p -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
+.else
 	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
+.endif
 
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
+.if defined(DEBUG) && !defined(INSTALL_NODEBUG)
+	${INSTALL} -p -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
+.else
 	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
+.endif
 
 config.o env.o hints.o vers.o vnode_if.o:
 	${NORMAL_C}
