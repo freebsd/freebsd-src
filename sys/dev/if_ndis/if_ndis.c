@@ -1593,6 +1593,13 @@ ndis_ticktask(d, xsc)
 	sc = xsc;
 	ic = &sc->ic;
 
+	NDIS_LOCK(sc);
+	if (!NDIS_INITIALIZED(sc)) {
+		NDIS_UNLOCK(sc);
+		return;
+	}
+	NDIS_UNLOCK(sc);
+
 	hangfunc = sc->ndis_chars->nmc_checkhang_func;
 
 	if (hangfunc != NULL) {
@@ -1616,6 +1623,8 @@ ndis_ticktask(d, xsc)
 		NDIS_LOCK(sc);
 #ifdef LINK_STATE_UP
 		if_link_state_change(sc->ifp, LINK_STATE_UP);
+#else
+		device_printf(sc->ndis_dev, "link state changed to UP\n");
 #endif /* LINK_STATE_UP */
 	}
 
@@ -1626,6 +1635,8 @@ ndis_ticktask(d, xsc)
 			ic->ic_state = IEEE80211_S_ASSOC;
 #ifdef LINK_STATE_DOWN
 		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+#else
+		device_printf(sc->ndis_dev, "link state changed to DOWN\n");
 #endif /* LINK_STATE_DOWN */
 	}
 
