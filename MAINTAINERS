@@ -134,6 +134,7 @@ lib/libbluetooth	emax	Pre-commit review preferred.
 lib/libsdp		emax	Pre-commit review preferred.
 usr.bin/bluetooth	emax	Pre-commit review preferred.
 usr.sbin/bluetooth	emax	Pre-commit review preferred.
+gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
