@@ -115,9 +115,9 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "acparser.h"
-#include "acdispat.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acparser.h>
+#include <contrib/dev/acpica/acdispat.h>
 
 #define _COMPONENT          ACPI_PARSER
         ACPI_MODULE_NAME    ("pswalk")

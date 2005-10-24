@@ -116,8 +116,8 @@
  *
  *****************************************************************************/
 
-#include "acpi.h"
-#include "acevents.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acevents.h>
 
 
 #define _COMPONENT          ACPI_EVENTS
