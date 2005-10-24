@@ -117,8 +117,8 @@
 #define __UTGLOBAL_C__
 #define DEFINE_ACPI_GLOBALS
 
-#include "acpi.h"
-#include "acnamesp.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utglobal")

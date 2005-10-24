@@ -116,8 +116,8 @@
 
 #define __UTCOPY_C__
 
-#include "acpi.h"
-#include "amlcode.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/amlcode.h>
 
 
 #define _COMPONENT          ACPI_UTILITIES

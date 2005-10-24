@@ -118,9 +118,9 @@
 
 #define __HWREGS_C__
 
-#include "acpi.h"
-#include "acnamesp.h"
-#include "acevents.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/acevents.h>
 
 #define _COMPONENT          ACPI_HARDWARE
         ACPI_MODULE_NAME    ("hwregs")

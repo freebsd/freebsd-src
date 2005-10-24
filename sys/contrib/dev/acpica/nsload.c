@@ -116,9 +116,9 @@
 
 #define __NSLOAD_C__
 
-#include "acpi.h"
-#include "acnamesp.h"
-#include "acdispat.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/acdispat.h>
 
 
 #define _COMPONENT          ACPI_NAMESPACE

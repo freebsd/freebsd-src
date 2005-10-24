@@ -117,7 +117,7 @@
 
 #define __HWACPI_C__
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 
 
 #define _COMPONENT          ACPI_HARDWARE
