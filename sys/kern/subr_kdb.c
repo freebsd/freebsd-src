@@ -337,19 +337,18 @@ struct pcb *
 kdb_thr_ctx(struct thread *thr)
 #ifdef KDB_STOP_NMI
 {  
-  u_int		cpuid;
-  struct pcpu *pc;
+	struct pcpu *pc;
+	u_int cpuid;
   
-  if (thr == curthread) 
-    return &kdb_pcb;
+	if (thr == curthread) 
+		return (&kdb_pcb);
 
-  SLIST_FOREACH(pc, &cpuhead, pc_allcpu)  {
-    cpuid = pc->pc_cpuid;
-    if (pc->pc_curthread == thr && (atomic_load_acq_int(&stopped_cpus) & (1 << cpuid)))
-      return &stoppcbs[cpuid];
-  }
-
-  return  thr->td_pcb;
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)  {
+		cpuid = pc->pc_cpuid;
+		if (pc->pc_curthread == thr && (atomic_load_acq_int(&stopped_cpus) & (1 << cpuid)))
+			return (&stoppcbs[cpuid]);
+	}
+	return (thr->td_pcb);
 }
 #else
 {
