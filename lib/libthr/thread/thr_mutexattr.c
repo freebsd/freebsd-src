@@ -77,6 +77,8 @@ __weak_reference(_pthread_mutexattr_getkind_np, pthread_mutexattr_getkind_np);
 __weak_reference(_pthread_mutexattr_gettype, pthread_mutexattr_gettype);
 __weak_reference(_pthread_mutexattr_settype, pthread_mutexattr_settype);
 __weak_reference(_pthread_mutexattr_destroy, pthread_mutexattr_destroy);
+__weak_reference(_pthread_mutexattr_getpshared, pthread_mutexattr_getpshared);
+__weak_reference(_pthread_mutexattr_setpshared, pthread_mutexattr_setpshared);
 
 int
 _pthread_mutexattr_init(pthread_mutexattr_t *attr)
@@ -164,4 +166,30 @@ _pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
 		ret = 0;
 	}
 	return(ret);
+}
+
+int
+_pthread_mutexattr_getpshared(const pthread_mutexattr_t *attr,
+	int *pshared)
+{
+
+	if (attr == NULL || *attr == NULL)
+		return (EINVAL);
+
+	*pshared = PTHREAD_PROCESS_PRIVATE;
+	return (0);
+}
+
+int
+_pthread_mutexattr_setpshared(pthread_mutexattr_t *attr, int pshared)
+{
+
+	if (attr == NULL || *attr == NULL)
+		return (EINVAL);
+
+	/* Only PTHREAD_PROCESS_PRIVATE is supported. */
+	if (pshared != PTHREAD_PROCESS_PRIVATE)
+		return (EINVAL);
+
+	return (0);
 }
