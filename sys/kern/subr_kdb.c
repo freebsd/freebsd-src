@@ -42,16 +42,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/kdb.h>
 #include <machine/pcb.h>
 
-#ifdef KDB_STOP_NMI
+#ifdef SMP
+#if defined (__i386__) || defined(__amd64__)
+#define	HAVE_STOPPEDPCBS
 #include <machine/smp.h>
 #endif
-
-/* 
- * KDB_STOP_NMI requires SMP to pick up the right dependencies
- * (And isn't useful on UP anyway) 
- */
-#if defined(KDB_STOP_NMI) && !defined(SMP)
-#error "options KDB_STOP_NMI" requires "options SMP"
 #endif
 
 int kdb_active = 0;
@@ -91,19 +86,6 @@ static int kdb_stop_cpus = 1;
 SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLTYPE_INT | CTLFLAG_RW,
     &kdb_stop_cpus, 0, "");
 TUNABLE_INT("debug.kdb.stop_cpus", &kdb_stop_cpus);
-
-#ifdef KDB_STOP_NMI
-/* 
- * Provide an alternate method of stopping other CPUs. If another CPU has
- * disabled interrupts the conventional STOP IPI will be blocked. This 
- * NMI-based stop should get through in that case.
- */
-static int kdb_stop_cpus_with_nmi = 1;
-SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus_with_nmi, CTLTYPE_INT | CTLFLAG_RW,
-    &kdb_stop_cpus_with_nmi, 0, "");
-TUNABLE_INT("debug.kdb.stop_cpus_with_nmi", &kdb_stop_cpus_with_nmi);
-#endif /* KDB_STOP_NMI */
-
 #endif
 
 static int
@@ -335,26 +317,24 @@ kdb_reenter(void)
 
 struct pcb *
 kdb_thr_ctx(struct thread *thr)
-#ifdef KDB_STOP_NMI
 {  
+#ifdef HAVE_STOPPEDPCBS
 	struct pcpu *pc;
 	u_int cpuid;
+#endif
   
 	if (thr == curthread) 
 		return (&kdb_pcb);
 
+#ifdef HAVE_STOPPEDPCBS
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)  {
 		cpuid = pc->pc_cpuid;
-		if (pc->pc_curthread == thr && (atomic_load_acq_int(&stopped_cpus) & (1 << cpuid)))
+		if (pc->pc_curthread == thr && (stopped_cpus & (1 << cpuid)))
 			return (&stoppcbs[cpuid]);
 	}
+#endif
 	return (thr->td_pcb);
 }
-#else
-{
-	return ((thr == curthread) ? &kdb_pcb : thr->td_pcb);
-}
-#endif /* KDB_STOP_NMI */
 
 struct thread *
 kdb_thr_first(void)
@@ -451,14 +431,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 
 #ifdef SMP
 	if ((did_stop_cpus = kdb_stop_cpus) != 0)
-	  {
-#ifdef KDB_STOP_NMI
-	    if(kdb_stop_cpus_with_nmi)
-	      stop_cpus_nmi(PCPU_GET(other_cpus));
-	    else
-#endif /* KDB_STOP_NMI */
 		stop_cpus(PCPU_GET(other_cpus));
-	  }
 #endif
 
 	kdb_frame = tf;

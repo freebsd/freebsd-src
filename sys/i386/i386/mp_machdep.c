@@ -28,7 +28,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_apic.h"
 #include "opt_cpu.h"
-#include "opt_kdb.h"
 #include "opt_kstack_pages.h"
 #include "opt_mp_watchdog.h"
 #include "opt_sched.h"
@@ -177,8 +176,10 @@ vm_offset_t smp_tlb_addr1;
 vm_offset_t smp_tlb_addr2;
 volatile int smp_tlb_wait;
 
-#ifdef KDB_STOP_NMI
+#ifdef STOP_NMI
 volatile cpumask_t ipi_nmi_pending;
+
+static void	ipi_nmi_selected(u_int32_t cpus);
 #endif 
 
 #ifdef COUNT_IPIS
@@ -197,6 +198,20 @@ u_long *ipi_lazypmap_counts[MAXCPU];
 /*
  * Local data and functions.
  */
+
+#ifdef STOP_NMI
+/* 
+ * Provide an alternate method of stopping other CPUs. If another CPU has
+ * disabled interrupts the conventional STOP IPI will be blocked. This 
+ * NMI-based stop should get through in that case.
+ */
+static int stop_cpus_with_nmi = 1;
+SYSCTL_INT(_debug, OID_AUTO, stop_cpus_with_nmi, CTLTYPE_INT | CTLFLAG_RW,
+    &stop_cpus_with_nmi, 0, "");
+TUNABLE_INT("debug.stop_cpus_with_nmi", &stop_cpus_with_nmi);
+#else
+#define	stop_cpus_with_nmi	0
+#endif
 
 static u_int logical_cpus;
 
@@ -1182,6 +1197,12 @@ ipi_selected(u_int32_t cpus, u_int ipi)
 		ipi = IPI_BITMAP_VECTOR;
 	}
 
+#ifdef STOP_NMI
+	if (ipi == IPI_STOP && stop_cpus_with_nmi) {
+		ipi_nmi_selected(cpus);
+		return;
+	}
+#endif
 	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
@@ -1212,6 +1233,10 @@ void
 ipi_all(u_int ipi)
 {
 
+	if (IPI_IS_BITMAPED(ipi) || (ipi == IPI_STOP && stop_cpus_with_nmi)) {
+		ipi_selected(all_cpus, ipi);
+		return;
+	}
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_ALL);
 }
@@ -1223,6 +1248,10 @@ void
 ipi_all_but_self(u_int ipi)
 {
 
+	if (IPI_IS_BITMAPED(ipi) || (ipi == IPI_STOP && stop_cpus_with_nmi)) {
+		ipi_selected(PCPU_GET(other_cpus), ipi);
+		return;
+	}
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
@@ -1234,11 +1263,15 @@ void
 ipi_self(u_int ipi)
 {
 
+	if (IPI_IS_BITMAPED(ipi) || (ipi == IPI_STOP && stop_cpus_with_nmi)) {
+		ipi_selected(PCPU_GET(cpumask), ipi);
+		return;
+	}
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_SELF);
 }
 
-#ifdef KDB_STOP_NMI
+#ifdef STOP_NMI
 /*
  * send NMI IPI to selected CPUs
  */
@@ -1273,14 +1306,14 @@ ipi_nmi_selected(u_int32_t cpus)
 	}
 }
 
-
 int
 ipi_nmi_handler()
 {
 	int cpu = PCPU_GET(cpuid);
 	int cpumask = PCPU_GET(cpumask);
+	void (*restartfunc)(void);
 
-	if (!(atomic_load_acq_int(&ipi_nmi_pending) & cpumask))
+	if (!(ipi_nmi_pending & cpumask))
 		return 1;
 
 	atomic_clear_int(&ipi_nmi_pending, cpumask);
@@ -1291,19 +1324,21 @@ ipi_nmi_handler()
 	atomic_set_int(&stopped_cpus, cpumask);
 
 	/* Wait for restart */
-	while (!(atomic_load_acq_int(&started_cpus) & cpumask))
+	while (!(started_cpus & cpumask))
 	    ia32_pause();
 
 	atomic_clear_int(&started_cpus, cpumask);
 	atomic_clear_int(&stopped_cpus, cpumask);
 
-	if (cpu == 0 && cpustop_restartfunc != NULL)
-		cpustop_restartfunc();
+	restartfunc = (void (*)(void))atomic_readandclear_int(
+		(u_int *)&cpustop_restartfunc);
+	if (restartfunc != NULL)
+		restartfunc();
 
 	return 0;
 }
      
-#endif /* KDB_STOP_NMI */
+#endif /* STOP_NMI */
 
 /*
  * This is called once the rest of the system is up and running and we're
