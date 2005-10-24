@@ -39,6 +39,7 @@ SRCS+= \
 	thr_cond.c \
 	thr_condattr_destroy.c \
 	thr_condattr_init.c \
+	thr_condattr_pshared.c \
 	thr_connect.c \
 	thr_creat.c \
 	thr_create.c \
@@ -60,6 +61,7 @@ SRCS+= \
 	thr_main_np.c \
 	thr_mattr_init.c \
 	thr_mattr_kind_np.c \
+	thr_mattr_pshared.c \
 	thr_msync.c \
 	thr_multi_np.c \
 	thr_mutex.c \
