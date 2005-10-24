@@ -37,8 +37,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/time.h>
 #include <sys/unistd.h>
+
+int tq_in;
+SYSCTL_INT(_kern, OID_AUTO, tq_in, CTLFLAG_RD, &tq_in, 0, "");
+int tq_out;
+SYSCTL_INT(_kern, OID_AUTO, tq_out, CTLFLAG_RD, &tq_out, 0, "");
 
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 static void	*taskqueue_giant_ih;
@@ -166,6 +173,9 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 		return 0;
 	}
 
+	getnanotime(&task->ta_queuetime);
+	tq_in++;
+
 	/*
 	 * Optimise the case when all tasks have the same priority.
 	 */
@@ -197,6 +207,7 @@ void
 taskqueue_run(struct taskqueue *queue)
 {
 	struct task *task;
+	struct timespec tv;
 	int owned, pending;
 
 	owned = mtx_owned(&queue->tq_mutex);
@@ -212,8 +223,16 @@ taskqueue_run(struct taskqueue *queue)
 		pending = task->ta_pending;
 		task->ta_pending = 0;
 		queue->tq_running = task;
+ 		tq_out++;
 		mtx_unlock(&queue->tq_mutex);
 
+ 		getnanotime(&tv);
+ 		timespecsub(&tv, &task->ta_queuetime);
+ 		if (tv.tv_nsec >= 0500000000) {
+ 			printf("taskqueue_run: warning, queue time of %d.%09ld "
+ 			    "for context %p\n", tv.tv_sec, tv.tv_nsec,
+ 			    task->ta_func);
+ 		}
 		task->ta_func(task->ta_context, pending);
 
 		mtx_lock(&queue->tq_mutex);
