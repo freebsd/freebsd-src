@@ -59,7 +59,11 @@ cos(double x)
 
     /* |x| ~< pi/4 */
 	ix &= 0x7fffffff;
-	if(ix <= 0x3fe921fb) return __kernel_cos(x,z);
+	if(ix <= 0x3fe921fb) {
+	    if(ix<0x3e400000)			/* if x < 2**-27 */
+		if(((int)x)==0) return 1.0;	/* generate inexact */
+	    return __kernel_cos(x,z);
+	}
 
     /* cos(Inf or NaN) is NaN */
 	else if (ix>=0x7ff00000) return x-x;

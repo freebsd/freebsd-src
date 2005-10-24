@@ -20,8 +20,6 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-static const float one=1.0;
-
 float
 cosf(float x)
 {
@@ -32,7 +30,11 @@ cosf(float x)
 
     /* |x| ~< pi/4 */
 	ix &= 0x7fffffff;
-	if(ix <= 0x3f490fd8) return __kernel_cosf(x,z);
+	if(ix <= 0x3f490fd8) {
+	    if(ix<0x39800000)			/* if x < 2**-12 */
+		if(((int)x)==0) return 1.0;	/* generate inexact */
+	    return __kernel_cosf(x,z);
+	}
 
     /* cos(Inf or NaN) is NaN */
 	else if (ix>=0x7f800000) return x-x;

@@ -59,11 +59,7 @@ double
 __kernel_sin(double x, double y, int iy)
 {
 	double z,r,v;
-	int32_t ix;
-	GET_HIGH_WORD(ix,x);
-	ix &= 0x7fffffff;			/* high word of x */
-	if(ix<0x3e400000)			/* |x| < 2**-27 */
-	   {if((int)x==0) return x;}		/* generate inexact */
+
 	z	=  x*x;
 	v	=  z*x;
 	r	=  S2+z*(S3+z*(S4+z*(S5+z*S6)));
