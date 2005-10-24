@@ -1,0 +1,47 @@
+# Makefile.sub for `gdiffmk' (integration into the groff source tree)
+
+# File position: <groff-source>/contrib/gdiffmk/Makefile.sub
+
+# Last update: 12 December 2004
+
+# Copyright (C) 2004 Free Software Foundation, Inc.
+# Written by Mike Bianchi <MBianchi@Foveal.com <mailto:MBianchi@Foveal.com>>
+
+# This file is part of the gdiffmk utility, which is part of groff.
+
+# groff is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# groff is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with groff; see the files COPYING and LICENSE in the top
+# directory of the groff source.  If not, write to the Free Software
+# Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA.
+
+########################################################################
+
+MAN1=gdiffmk.n
+CLEANADD=gdiffmk tests/runtests
+
+all: gdiffmk
+
+gdiffmk: gdiffmk.sh
+	rm -f $@;						\
+	sed -e "s|@BINDIR@|$(bindir)|g"				\
+	    -e "s|@VERSION@|$(version)$(revision)|g"		\
+	    -e $(SH_SCRIPT_SED_CMD)  $(srcdir)/gdiffmk.sh  >$@;	\
+	chmod +x $@
+
+install_data: gdiffmk
+	-test -d $(bindir)  ||  $(mkinstalldirs) $(bindir)
+	-rm -f $(bindir)/gdiffmk
+	$(INSTALL_SCRIPT) gdiffmk $(bindir)/gdiffmk
+
+uninstall_sub:
+	-rm -f $(bindir)/gdiffmk
