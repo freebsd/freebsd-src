@@ -112,7 +112,7 @@ snd_cs4281	i386,amd64
 snd_csa	i386,amd64
 snd_ds1	i386,amd64
 snd_emu10k1	i386,amd64
-snd_es137x	i386,amd64
+snd_es137x	i386,sparc64,amd64
 snd_ess	i386,amd64
 snd_fm801	i386,amd64
 snd_gusc	i386,amd64
