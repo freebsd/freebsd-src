@@ -583,10 +583,6 @@ release.3:
 	cd ${.CURDIR}/..; \
 	${CROSSMAKE} ${KERNEL_FLAGS} \
 	    kernel \
-	    DESTDIR=${RD}/trees/base; \
-	cd ${.CURDIR}/..; \
-	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES \
-	    reinstallkernel -DINSTALL_DEBUG \
 	    DESTDIR=${RD}/trees/base
 	touch ${.TARGET}
 
