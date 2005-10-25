@@ -377,7 +377,7 @@ uart_tty_attach(struct uart_softc *sc)
 		ttyconsolemode(tp, 0);
 	}
 
-	swi_add(&tty_ithd, uart_driver_name, uart_tty_intr, sc, SWI_TTY,
+	swi_add(&tty_intr_event, uart_driver_name, uart_tty_intr, sc, SWI_TTY,
 	    INTR_TYPE_TTY, &sc->sc_softih);
 
 	ttycreate(tp, TS_CALLOUT, "u%r", unit);
@@ -392,7 +392,7 @@ int uart_tty_detach(struct uart_softc *sc)
 	tp = sc->sc_u.u_tty.tp;
 	tp->t_pps = NULL;
 	ttygone(tp);
-	ithread_remove_handler(sc->sc_softih);
+	intr_event_remove_handler(sc->sc_softih);
 	ttyfree(tp);
 
 	return (0);

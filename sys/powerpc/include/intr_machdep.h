@@ -30,12 +30,12 @@
 
 typedef void	ih_func_t(void *);
 
-struct ithd;
+struct intr_event;
 
-struct intr_handler {
+struct ppc_intr_handler {
 	ih_func_t	*ih_func;
 	void		*ih_arg;
-	struct		ithd *ih_ithd;
+	struct		intr_event *ih_event;
 	u_int		ih_irq;
 	u_int		ih_flags;
 	u_int 		ih_index;

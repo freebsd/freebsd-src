@@ -254,7 +254,7 @@ stray:
 #define IA64_HARDWARE_IRQ_BASE	0x20
 
 struct ia64_intr {
-    struct ithd		*ithd;  /* interrupt thread */
+    struct intr_event	*event; /* interrupt event */
     volatile long	*cntp;  /* interrupt counter */
 };
 
@@ -268,7 +268,7 @@ static void
 ithds_init(void *dummy)
 {
 
-	mtx_init(&ia64_intrs_lock, "ithread table lock", NULL, MTX_SPIN);
+	mtx_init(&ia64_intrs_lock, "intr table", NULL, MTX_SPIN);
 }
 SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 
@@ -291,7 +291,7 @@ ia64_setup_intr(const char *name, int irq, driver_intr_t handler, void *arg,
 {
 	struct ia64_intr *i;
 	int errcode;
-	int vector = irq + IA64_HARDWARE_IRQ_BASE;
+	intptr_t vector = irq + IA64_HARDWARE_IRQ_BASE;
 	char *intrname;
 
 	/*
@@ -321,8 +321,8 @@ ia64_setup_intr(const char *name, int irq, driver_intr_t handler, void *arg,
 			memset(intrname, ' ', INTRNAME_LEN - 1);
 			bcopy(name, intrname, strlen(name));
 		}
-		errcode = ithread_create(&i->ithd, vector, 0, 0,
-					 ia64_send_eoi, "intr:");
+		errcode = intr_event_create(&i->event, (void *)vector, 0,
+		    (void (*)(void *))ia64_send_eoi, "intr:");
 		if (errcode) {
 			free(i, M_DEVBUF);
 			return errcode;
@@ -334,8 +334,8 @@ ia64_setup_intr(const char *name, int irq, driver_intr_t handler, void *arg,
 	}
 
 	/* Second, add this handler. */
-	errcode = ithread_add_handler(i->ithd, name, handler, arg,
-	    ithread_priority(flags), flags, cookiep);
+	errcode = intr_event_add_handler(i->event, name, handler, arg,
+	    intr_priority(flags), flags, cookiep);
 	if (errcode)
 		return errcode;
 
@@ -346,53 +346,60 @@ int
 ia64_teardown_intr(void *cookie)
 {
 
-	return (ithread_remove_handler(cookie));
+	return (intr_event_remove_handler(cookie));
 }
 
 void
 ia64_dispatch_intr(void *frame, unsigned long vector)
 {
 	struct ia64_intr *i;
-	struct ithd *ithd;			/* our interrupt thread */
-	struct intrhand *ih;
-	int error;
+	struct intr_event *ie;			/* our interrupt event */
+	struct intr_handler *ih;
+	int error, thread;
 
 	/*
 	 * Find the interrupt thread for this vector.
 	 */
 	i = ia64_intrs[vector];
 	if (i == NULL)
-		return;			/* no ithread for this vector */
+		return;			/* no event for this vector */
 
 	if (i->cntp)
 		atomic_add_long(i->cntp, 1);
 
-	ithd = i->ithd;
-	KASSERT(ithd != NULL, ("interrupt vector without a thread"));
+	ie = i->event;
+	KASSERT(ie != NULL, ("interrupt vector without an event"));
 
 	/*
-	 * As an optimization, if an ithread has no handlers, don't
+	 * As an optimization, if an event has no handlers, don't
 	 * schedule it to run.
 	 */
-	if (TAILQ_EMPTY(&ithd->it_handlers))
+	if (TAILQ_EMPTY(&ie->ie_handlers))
 		return;
 
 	/*
-	 * Handle a fast interrupt if there is no actual thread for this
-	 * interrupt by calling the handler directly without Giant.  Note
+	 * Execute all fast interrupt handlers directly without Giant.  Note
 	 * that this means that any fast interrupt handler must be MP safe.
 	 */
-	ih = TAILQ_FIRST(&ithd->it_handlers);
-	if ((ih->ih_flags & IH_FAST) != 0) {
-		critical_enter();
+	thread = 0;
+	critical_enter();
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
+		if (!(ih->ih_flags & IH_FAST)) {
+			thread = 1;
+			continue;
+		}
+		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
+		    ih->ih_handler, ih->ih_argument, ih->ih_name);
 		ih->ih_handler(ih->ih_argument);
-		ia64_send_eoi(vector);
-		critical_exit();
 		return;
 	}
+	critical_exit();
 
-	error = ithread_schedule(ithd);
-	KASSERT(error == 0, ("got an impossible stray interrupt"));
+	if (thread) {
+		error = intr_event_schedule_thread(ie);
+		KASSERT(error == 0, ("got an impossible stray interrupt"));
+	} else
+		ia64_send_eoi(vector);
 }
 
 #ifdef DDB

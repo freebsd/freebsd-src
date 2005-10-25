@@ -325,8 +325,9 @@ LIST_HEAD(alpha_intr_list, alpha_intr);
 struct alpha_intr {
     LIST_ENTRY(alpha_intr) list; /* chain handlers in this hash bucket */
     uintptr_t		vector;	/* vector to match */
-    struct ithd		*ithd;  /* interrupt thread */
+    struct intr_event	*ie;    /* interrupt event structure */
     volatile long	*cntp;  /* interrupt counter */
+    void		(*disable)(uintptr_t);
 };
 
 static struct mtx alpha_intr_hash_lock;
@@ -338,7 +339,7 @@ static void
 ithds_init(void *dummy)
 {
 
-	mtx_init(&alpha_intr_hash_lock, "ithread table lock", NULL, MTX_SPIN);
+	mtx_init(&alpha_intr_hash_lock, "intr table", NULL, MTX_SPIN);
 }
 SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 
@@ -371,8 +372,9 @@ alpha_setup_intr(const char *name, uintptr_t vector, driver_intr_t handler, void
 			return ENOMEM;
 		i->vector = vector;
 		i->cntp = cntp;
-		errcode = ithread_create(&i->ithd, vector, 0, disable, enable,
-		    "intr:");
+		i->disable = disable;
+		errcode = intr_event_create(&i->ie, (void *)vector, 0,
+		    (void (*)(void *))enable, "intr:");
 		if (errcode) {
 			free(i, M_DEVBUF);
 			return errcode;
@@ -384,44 +386,49 @@ alpha_setup_intr(const char *name, uintptr_t vector, driver_intr_t handler, void
 	}
 
 	/* Second, add this handler. */
-	return (ithread_add_handler(i->ithd, name, handler, arg,
-	    ithread_priority(flags), flags, cookiep));
+	return (intr_event_add_handler(i->ie, name, handler, arg,
+	    intr_priority(flags), flags, cookiep));
 }
 
 int
 alpha_teardown_intr(void *cookie)
 {
 
-	return (ithread_remove_handler(cookie));
+	return (intr_event_remove_handler(cookie));
 }
 
+/*
+ * XXX: Alpha doesn't count stray interrupts like some of the other archs.
+ */
 void
 alpha_dispatch_intr(void *frame, unsigned long vector)
 {
 	int h = HASHVEC(vector);
 	struct alpha_intr *i;
-	struct ithd *ithd;			/* our interrupt thread */
-	struct intrhand *ih;
-	int error;
+	struct intr_event *ie;
+	struct intr_handler *ih;
+	int error, thread;
 
 	/*
 	 * Walk the hash bucket for this vector looking for this vector's
-	 * interrupt thread.
+	 * interrupt structure.
 	 */
 	for (i = LIST_FIRST(&alpha_intr_hash[h]); i && i->vector != vector;
 	    i = LIST_NEXT(i, list))
 		;	/* nothing */
-	if (i == NULL)
-		return;			/* no ithread for this vector */
 
-	ithd = i->ithd;
-	KASSERT(ithd != NULL, ("interrupt vector without a thread"));
+	/* No interrupt structure for this vector. */
+	if (i == NULL)
+		return;
+
+	ie = i->ie;
+	KASSERT(ie != NULL, ("interrupt structure without an event"));
 
 	/*
-	 * As an optimization, if an ithread has no handlers, don't
+	 * As an optimization, if an event has no handlers, don't
 	 * schedule it to run.
 	 */
-	if (TAILQ_EMPTY(&ithd->it_handlers))
+	if (TAILQ_EMPTY(&ie->ie_handlers))
 		return;
 
 	atomic_add_long(i->cntp, 1);
@@ -433,25 +440,32 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	 */
 	sched_pin();
 
-	/*
-	 * Handle a fast interrupt if there is no actual thread for this
-	 * interrupt by calling the handler directly without Giant.  Note
-	 * that this means that any fast interrupt handler must be MP safe.
-	 */
-	ih = TAILQ_FIRST(&ithd->it_handlers);
-	if ((ih->ih_flags & IH_FAST) != 0) {
-		critical_enter();
+	/* Execute all fast interrupt handlers directly. */	
+	thread = 0;
+	critical_enter();
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
+		if (!(ih->ih_flags & IH_FAST)) {
+			thread = 1;
+			continue;
+		}
+		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
+		    ih->ih_handler, ih->ih_argument, ih->ih_name);
 		ih->ih_handler(ih->ih_argument);
-		critical_exit();
-	} else {
-		if (ithd->it_disable) {
+	}
+	critical_exit();
+
+	/*
+	 * If the ithread needs to run, disable the source and schedule the
+	 * thread.
+	 */
+	if (thread) {
+		if (i->disable) {
 			CTR1(KTR_INTR,
 			    "alpha_dispatch_intr: disabling vector 0x%x",
 			    i->vector);
-			ithd->it_disable(ithd->it_vector);
+			i->disable(i->vector);
 		}
-
-		error = ithread_schedule(ithd);
+		error = intr_event_schedule_thread(ie);
 		KASSERT(error == 0, ("got an impossible stray interrupt"));
 	}
 	sched_unpin();
