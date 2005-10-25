@@ -57,7 +57,7 @@
 
 #define	MAX_STRAY_LOG	5
 
-typedef void (*mask_fn)(uintptr_t vector);
+typedef void (*mask_fn)(void *);
 
 static int intrcnt_index;
 static struct intsrc *interrupt_sources[NUM_IO_INTS];
@@ -81,15 +81,14 @@ intr_register_source(struct intsrc *isrc)
 	vector = isrc->is_pic->pic_vector(isrc);
 	if (interrupt_sources[vector] != NULL)
 		return (EEXIST);
-	error = ithread_create(&isrc->is_ithread, (uintptr_t)isrc, 0,
-	    (mask_fn)isrc->is_pic->pic_disable_source,
+	error = intr_event_create(&isrc->is_event, isrc, 0,
 	    (mask_fn)isrc->is_pic->pic_enable_source, "irq%d:", vector);
 	if (error)
 		return (error);
 	mtx_lock_spin(&intr_table_lock);
 	if (interrupt_sources[vector] != NULL) {
 		mtx_unlock_spin(&intr_table_lock);
-		ithread_destroy(isrc->is_ithread);
+		intr_event_destroy(isrc->is_event);
 		return (EEXIST);
 	}
 	intrcnt_register(isrc);
@@ -115,8 +114,8 @@ intr_add_handler(const char *name, int vector, driver_intr_t handler,
 	isrc = intr_lookup_source(vector);
 	if (isrc == NULL)
 		return (EINVAL);
-	error = ithread_add_handler(isrc->is_ithread, name, handler, arg,
-	    ithread_priority(flags), flags, cookiep);
+	error = intr_event_add_handler(isrc->is_event, name, handler, arg,
+	    intr_priority(flags), flags, cookiep);
 	if (error == 0) {
 		intrcnt_updatename(isrc);
 		isrc->is_pic->pic_enable_intr(isrc);
@@ -130,7 +129,7 @@ intr_remove_handler(void *cookie)
 {
 	int error;
 
-	error = ithread_remove_handler(cookie);
+	error = intr_event_remove_handler(cookie);
 #ifdef XXX
 	if (error == 0)
 		intrcnt_updatename(/* XXX */);
@@ -153,12 +152,11 @@ void
 intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 {
 	struct thread *td;
-	struct ithd *it;
-	struct intrhand *ih;
-	int error, vector;
+	struct intr_event *ie;
+	struct intr_handler *ih;
+	int error, vector, thread;
 
 	td = curthread;
-	td->td_intr_nesting_level++;
 
 	/*
 	 * We count software interrupts when we process them.  The
@@ -169,11 +167,7 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 	(*isrc->is_count)++;
 	PCPU_LAZY_INC(cnt.v_intr);
 
-	it = isrc->is_ithread;
-	if (it == NULL)
-		ih = NULL;
-	else
-		ih = TAILQ_FIRST(&it->it_handlers);
+	ie = isrc->is_event;
 
 	/*
 	 * XXX: We assume that IRQ 0 is only used for the ISA timer
@@ -183,40 +177,12 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 	if (vector == 0)
 		clkintr_pending = 1;
 
-	if (ih != NULL && ih->ih_flags & IH_FAST) {
-		/*
-		 * Execute fast interrupt handlers directly.
-		 * To support clock handlers, if a handler registers
-		 * with a NULL argument, then we pass it a pointer to
-		 * a trapframe as its argument.
-		 */
-		critical_enter();
-		TAILQ_FOREACH(ih, &it->it_handlers, ih_next) {
-			MPASS(ih->ih_flags & IH_FAST);
-			CTR3(KTR_INTR, "%s: executing handler %p(%p)",
-			    __func__, ih->ih_handler,
-			    ih->ih_argument == NULL ? iframe :
-			    ih->ih_argument);
-			if (ih->ih_argument == NULL)
-				ih->ih_handler(iframe);
-			else
-				ih->ih_handler(ih->ih_argument);
-		}
-		isrc->is_pic->pic_eoi_source(isrc);
-		error = 0;
-		critical_exit();
-	} else {
-		/*
-		 * For stray and threaded interrupts, we mask and EOI the
-		 * source.
-		 */
+	/*
+	 * For stray interrupts, mask and EOI the source, bump the
+	 * stray count, and log the condition.
+	 */
+	if (ie == NULL || TAILQ_EMPTY(&ie->ie_handlers)) {
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
-		if (ih == NULL)
-			error = EINVAL;
-		else
-			error = ithread_schedule(it);
-	}
-	if (error == EINVAL) {
 		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < MAX_STRAY_LOG)
 			log(LOG_ERR, "stray irq%d\n", vector);
@@ -224,6 +190,46 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 			log(LOG_CRIT,
 			    "too many stray irq %d's: not logging anymore\n",
 			    vector);
+	}
+
+	/*
+	 * Execute fast interrupt handlers directly.
+	 * To support clock handlers, if a handler registers
+	 * with a NULL argument, then we pass it a pointer to
+	 * an intrframe as its argument.
+	 */
+	td->td_intr_nesting_level++;
+	thread = 0;
+	critical_enter();
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
+		if (!(ih->ih_flags & IH_FAST)) {
+			thread = 1;
+			continue;
+		}
+		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
+		    ih->ih_handler, ih->ih_argument == NULL ? iframe :
+		    ih->ih_argument, ih->ih_name);
+		if (ih->ih_argument == NULL)
+			ih->ih_handler(iframe);
+		else
+			ih->ih_handler(ih->ih_argument);
+	}
+
+	/*
+	 * If there are any threaded handlers that need to run,
+	 * mask the source as well as sending it an EOI.  Otherwise,
+	 * just send it an EOI but leave it unmasked.
+	 */
+	if (thread)
+		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
+	else
+		isrc->is_pic->pic_eoi_source(isrc);
+	critical_exit();
+
+	/* Schedule the ithread if needed. */
+	if (thread) {
+		error = intr_event_schedule_thread(ie);
+		KASSERT(error == 0, ("bad stray interrupt"));
 	}
 	td->td_intr_nesting_level--;
 }
@@ -266,7 +272,7 @@ static void
 intrcnt_updatename(struct intsrc *is)
 {
 
-	intrcnt_setname(is->is_ithread->it_td->td_proc->p_comm, is->is_index);
+	intrcnt_setname(is->is_event->ie_fullname, is->is_index);
 }
 
 static void
@@ -275,7 +281,7 @@ intrcnt_register(struct intsrc *is)
 	char straystr[MAXCOMLEN + 1];
 
 	/* mtx_assert(&intr_table_lock, MA_OWNED); */
-	KASSERT(is->is_ithread != NULL, ("%s: isrc with no ithread", __func__));
+	KASSERT(is->is_event != NULL, ("%s: isrc with no event", __func__));
 	is->is_index = intrcnt_index;
 	intrcnt_index += 2;
 	snprintf(straystr, MAXCOMLEN + 1, "stray irq%d",
@@ -325,6 +331,6 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	for (i = 0; i < NUM_IO_INTS && !quit; i++, isrc++)
 		if (*isrc != NULL)
-			db_dump_ithread((*isrc)->is_ithread, verbose);
+			db_dump_intr_event((*isrc)->is_event, verbose);
 }
 #endif
