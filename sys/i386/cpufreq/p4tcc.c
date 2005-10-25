@@ -150,6 +150,7 @@ static int
 p4tcc_attach(device_t dev)
 {
 	struct p4tcc_softc *sc;
+	struct cf_setting set;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -187,6 +188,13 @@ p4tcc_attach(device_t dev)
 		break;
 	}
 	sc->lowest_val = TCC_NUM_SETTINGS - sc->set_count + 1;
+
+	/*
+	 * Before we finish attach, switch to 100%.  It's possible the BIOS
+	 * set us to a lower rate.  The user can override this after boot.
+	 */
+	set.freq = 10000;
+	p4tcc_set(dev, &set);
 
 	cpufreq_register(dev);
 	return (0);
