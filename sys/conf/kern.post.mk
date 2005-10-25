@@ -69,6 +69,8 @@ FULLKERNEL=	${KERNEL_KO}
 FULLKERNEL=	${KERNEL_KO}.debug
 ${KERNEL_KO}: ${FULLKERNEL}
 	${OBJCOPY} --strip-debug ${FULLKERNEL} ${KERNEL_KO}
+install.debug reinstall.debug: gdbinit
+	cd ${.CURDIR}; ${MAKE} ${.TARGET:R}
 
 # Install gdbinit files for kernel debugging.
 gdbinit:
@@ -204,7 +206,7 @@ kernel-install:
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG)
-	${INSTALL} -p -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}/${KERNEL_KO}
 .else
 	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .endif
@@ -212,7 +214,7 @@ kernel-install:
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG)
-	${INSTALL} -p -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}/${KERNEL_KO}
 .else
 	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .endif
