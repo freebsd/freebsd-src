@@ -117,7 +117,7 @@ static void	hme_setladrf(struct hme_softc *, int);
 static int	hme_mediachange(struct ifnet *);
 static void	hme_mediastatus(struct ifnet *, struct ifmediareq *);
 
-static int	hme_load_txmbuf(struct hme_softc *, struct mbuf *);
+static int	hme_load_txmbuf(struct hme_softc *, struct mbuf **);
 static void	hme_read(struct hme_softc *, int, int, u_int32_t);
 static void	hme_eint(struct hme_softc *, u_int);
 static void	hme_rint(struct hme_softc *);
@@ -126,8 +126,6 @@ static void	hme_txcksum(struct mbuf *, u_int32_t *);
 static void	hme_rxcksum(struct mbuf *, u_int32_t);
 
 static void	hme_cdma_callback(void *, bus_dma_segment_t *, int, int);
-static void	hme_txdma_callback(void *, bus_dma_segment_t *, int,
-    bus_size_t, int);
 
 devclass_t hme_devclass;
 
@@ -442,8 +440,28 @@ static void
 hme_tick(void *arg)
 {
 	struct hme_softc *sc = arg;
+	struct ifnet *ifp;
 
 	HME_LOCK_ASSERT(sc, MA_OWNED);
+
+	ifp = sc->sc_ifp;
+	/*
+	 * Unload collision counters
+	 */
+	ifp->if_collisions +=
+		HME_MAC_READ_4(sc, HME_MACI_NCCNT) +
+		HME_MAC_READ_4(sc, HME_MACI_FCCNT) +
+		HME_MAC_READ_4(sc, HME_MACI_EXCNT) +
+		HME_MAC_READ_4(sc, HME_MACI_LTCNT);
+
+	/*
+	 * then clear the hardware counters.
+	 */
+	HME_MAC_WRITE_4(sc, HME_MACI_NCCNT, 0);
+	HME_MAC_WRITE_4(sc, HME_MACI_FCCNT, 0);
+	HME_MAC_WRITE_4(sc, HME_MACI_EXCNT, 0);
+	HME_MAC_WRITE_4(sc, HME_MACI_LTCNT, 0);
+
 	mii_tick(sc->sc_mii);
 
 	callout_reset(&sc->sc_tick_ch, hz, hme_tick, sc);
@@ -517,7 +535,7 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 	 * the mapping must be done in a way that a burst can start on a
 	 * natural boundary we might need to extend this.
 	 */
-	a = max(HME_MINRXALIGN, sc->sc_burst);
+	a = imax(HME_MINRXALIGN, sc->sc_burst);
 	/*
 	 * Make sure the buffer suitably aligned. The 2 byte offset is removed
 	 * when the mbuf is handed up. XXX: this ensures at least 16 byte
@@ -597,10 +615,10 @@ hme_meminit(struct hme_softc *sc)
 	for (i = 0; i < HME_NTXQ; i++) {
 		td = &sc->sc_rb.rb_txdesc[i];
 		if (td->htx_m != NULL) {
-			m_freem(td->htx_m);
 			bus_dmamap_sync(sc->sc_tdmatag, td->htx_dmamap,
 			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
+			m_freem(td->htx_m);
 			td->htx_m = NULL;
 		}
 		STAILQ_INSERT_TAIL(&sc->sc_rb.rb_txfreeq, td, htx_q);
@@ -866,69 +884,6 @@ hme_init_locked(struct hme_softc *sc)
 	hme_start_locked(ifp);
 }
 
-struct hme_txdma_arg {
-	struct hme_softc	*hta_sc;
-	struct hme_txdesc	*hta_htx;
-	int			hta_ndescs;
-};
-
-/*
- * XXX: this relies on the fact that segments returned by bus_dmamap_load_mbuf()
- * are readable from the nearest burst boundary on (i.e. potentially before
- * ds_addr) to the first boundary beyond the end. This is usually a safe
- * assumption to make, but is not documented.
- */
-static void
-hme_txdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs,
-    bus_size_t totsz, int error)
-{
-	struct hme_txdma_arg *ta = xsc;
-	struct hme_txdesc *htx;
-	bus_size_t len = 0;
-	caddr_t txd;
-	u_int32_t flags = 0;
-	int i, tdhead, pci;
-
-	if (error != 0)
-		return;
-
-	tdhead = ta->hta_sc->sc_rb.rb_tdhead;
-	pci = ta->hta_sc->sc_pci;
-	txd = ta->hta_sc->sc_rb.rb_txd;
-	htx = ta->hta_htx;
-
-	if (ta->hta_sc->sc_rb.rb_td_nbusy + nsegs >= HME_NTXDESC) {
-		ta->hta_ndescs = -1;
-		return;
-	}
-	ta->hta_ndescs = nsegs;
-
-	for (i = 0; i < nsegs; i++) {
-		if (segs[i].ds_len == 0)
-			continue;
-
-		/* Fill the ring entry. */
-		flags = HME_XD_ENCODE_TSIZE(segs[i].ds_len);
-		if (len == 0)
-			flags |= HME_XD_SOP;
-		if (len + segs[i].ds_len == totsz)
-			flags |= HME_XD_EOP;
-		CTR5(KTR_HME, "hme_txdma_callback: seg %d/%d, ri %d, "
-		    "flags %#x, addr %#x", i + 1, nsegs, tdhead, (u_int)flags,
-		    (u_int)segs[i].ds_addr);
-		HME_XD_SETFLAGS(pci, txd, tdhead, flags);
-		HME_XD_SETADDR(pci, txd, tdhead, segs[i].ds_addr);
-
-		ta->hta_sc->sc_rb.rb_td_nbusy++;
-		htx->htx_lastdesc = tdhead;
-		tdhead = (tdhead + 1) % HME_NTXDESC;
-		len += segs[i].ds_len;
-	}
-	ta->hta_sc->sc_rb.rb_tdhead = tdhead;
-	KASSERT((flags & HME_XD_EOP) != 0,
-	    ("hme_txdma_callback: missed end of packet!"));
-}
-
 /* TX TCP/UDP checksum */
 static void
 hme_txcksum(struct mbuf *m, u_int32_t *cflags)
@@ -971,55 +926,103 @@ hme_txcksum(struct mbuf *m, u_int32_t *cflags)
  * start the transmission.
  * Returns 0 on success, -1 if there were not enough free descriptors to map
  * the packet, or an errno otherwise.
+ *
+ * XXX: this relies on the fact that segments returned by bus_dmamap_load_mbuf()
+ * are readable from the nearest burst boundary on (i.e. potentially before
+ * ds_addr) to the first boundary beyond the end. This is usually a safe
+ * assumption to make, but is not documented.
  */
 static int
-hme_load_txmbuf(struct hme_softc *sc, struct mbuf *m0)
+hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 {
-	struct hme_txdma_arg cba;
-	struct hme_txdesc *td;
-	int error, si, ri;
+	struct hme_txdesc *htx;
+	struct mbuf *m, *n;
+	caddr_t txd;
+	int i, pci, si, ri, nseg;
 	u_int32_t flags, cflags = 0;
+	int error = 0;
 
-	si = sc->sc_rb.rb_tdhead;
-	if ((td = STAILQ_FIRST(&sc->sc_rb.rb_txfreeq)) == NULL)
+	if ((htx = STAILQ_FIRST(&sc->sc_rb.rb_txfreeq)) == NULL)
 		return (-1);
-	if ((m0->m_pkthdr.csum_flags & sc->sc_csum_features) != 0)
-		hme_txcksum(m0, &cflags);
-	cba.hta_sc = sc;
-	cba.hta_htx = td;
-	if ((error = bus_dmamap_load_mbuf(sc->sc_tdmatag, td->htx_dmamap,
-	     m0, hme_txdma_callback, &cba, 0)) != 0)
-		goto fail;
-	if (cba.hta_ndescs == -1) {
-		error = -1;
-		goto fail;
+	m = *m0;
+	if ((m->m_pkthdr.csum_flags & sc->sc_csum_features) != 0)
+		hme_txcksum(m, &cflags);
+	error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, htx->htx_dmamap,
+	    m, sc->sc_rb.rb_txsegs, &nseg, 0);
+	if (error == EFBIG) {
+		n = m_defrag(m, M_DONTWAIT);
+		if (n == NULL) {
+			m_freem(m);
+			m = NULL;
+			return (ENOMEM);
+		}
+		m = n;
+		error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, htx->htx_dmamap,
+		    m, sc->sc_rb.rb_txsegs, &nseg, 0);
+		if (error != 0) {
+			m_freem(m);
+			m = NULL;
+			return (error);
+		}
+	} else if (error != 0)
+		return (error);
+	if (nseg == 0) {
+		m_freem(m);
+		m = NULL;
+		return (EIO);
 	}
-	bus_dmamap_sync(sc->sc_tdmatag, td->htx_dmamap,
-	    BUS_DMASYNC_PREWRITE);
+	if (sc->sc_rb.rb_td_nbusy + nseg >= HME_NTXDESC) {
+		bus_dmamap_unload(sc->sc_tdmatag, htx->htx_dmamap);
+		/* retry with m_defrag(9)? */
+		return (-2);
+	}
+	bus_dmamap_sync(sc->sc_tdmatag, htx->htx_dmamap, BUS_DMASYNC_PREWRITE);
 
-	STAILQ_REMOVE_HEAD(&sc->sc_rb.rb_txfreeq, htx_q);
-	STAILQ_INSERT_TAIL(&sc->sc_rb.rb_txbusyq, td, htx_q);
-	td->htx_m = m0;
-
-	/* Turn descriptor ownership to the hme, back to forth. */
-	ri = sc->sc_rb.rb_tdhead;
-	CTR2(KTR_HME, "hme_load_mbuf: next desc is %d (%#x)",
-	    ri, HME_XD_GETFLAGS(sc->sc_pci, sc->sc_rb.rb_txd, ri));
-	do {
-		ri = (ri + HME_NTXDESC - 1) % HME_NTXDESC;
-		flags = HME_XD_GETFLAGS(sc->sc_pci, sc->sc_rb.rb_txd, ri) |
-		    HME_XD_OWN | cflags;
+	si = ri = sc->sc_rb.rb_tdhead;
+	txd = sc->sc_rb.rb_txd;
+	pci = sc->sc_pci;
+	CTR2(KTR_HME, "hme_load_mbuf: next desc is %d (%#x)", ri,
+	    HME_XD_GETFLAGS(pci, txd, ri));
+	for (i = 0; i < nseg; i++) {
+		/* Fill the ring entry. */
+		flags = HME_XD_ENCODE_TSIZE(sc->sc_rb.rb_txsegs[i].ds_len);
+		if (i == 0)
+			flags |= HME_XD_SOP | cflags;
+		else
+			flags |= HME_XD_OWN | cflags;
 		CTR3(KTR_HME, "hme_load_mbuf: activating ri %d, si %d (%#x)",
 		    ri, si, flags);
-		HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_txd, ri, flags);
-	} while (ri != si);
+		HME_XD_SETADDR(pci, txd, ri, sc->sc_rb.rb_txsegs[i].ds_addr);
+		HME_XD_SETFLAGS(pci, txd, ri, flags);
+		sc->sc_rb.rb_td_nbusy++;
+		htx->htx_lastdesc = ri;
+		ri = (ri + 1) % HME_NTXDESC;
+	}
+	sc->sc_rb.rb_tdhead = ri;
+
+	/* set EOP on the last descriptor */
+	ri = (ri + HME_NTXDESC - 1) % HME_NTXDESC;
+	flags = HME_XD_GETFLAGS(pci, txd, ri);
+	flags |= HME_XD_EOP;
+	CTR3(KTR_HME, "hme_load_mbuf: setting EOP ri %d, si %d (%#x)", ri, si,
+	    flags);
+	HME_XD_SETFLAGS(pci, txd, ri, flags);
+
+	/* Turn the first descriptor ownership to the hme */
+	flags = HME_XD_GETFLAGS(pci, txd, si);
+	flags |= HME_XD_OWN;
+	CTR2(KTR_HME, "hme_load_mbuf: setting OWN for 1st desc ri %d, (%#x)",
+	    ri, flags);
+	HME_XD_SETFLAGS(pci, txd, si, flags);
+
+	STAILQ_REMOVE_HEAD(&sc->sc_rb.rb_txfreeq, htx_q);
+	STAILQ_INSERT_TAIL(&sc->sc_rb.rb_txbusyq, htx, htx_q);
+	htx->htx_m = m;
 
 	/* start the transmission. */
 	HME_ETX_WRITE_4(sc, HME_ETXI_PENDING, HME_ETX_TP_DMAWAKEUP);
+
 	return (0);
-fail:
-	bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
-	return (error);
 }
 
 /*
@@ -1091,30 +1094,26 @@ hme_start_locked(struct ifnet *ifp)
 	    IFF_DRV_RUNNING)
 		return;
 
-	error = 0;
-	for (;;) {
+	for (; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	    sc->sc_rb.rb_td_nbusy < HME_NTXDESC - 1;) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
 
-		error = hme_load_txmbuf(sc, m);
-		if (error == -1) {
+		error = hme_load_txmbuf(sc, &m);
+		if (error != 0) {
+			if (m == NULL)
+				break;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			break;
-		} else if (error > 0) {
-			printf("hme_start: error %d while loading mbuf\n",
-			    error);
-		} else {
-			enq = 1;
-			BPF_MTAP(ifp, m);
 		}
+		enq++;
+		BPF_MTAP(ifp, m);
 	}
 
-	if (sc->sc_rb.rb_td_nbusy == HME_NTXDESC || error == -1)
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	/* Set watchdog timer if a packet was queued */
-	if (enq) {
+	if (enq > 0) {
 		bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
 		    BUS_DMASYNC_PREWRITE);
 		ifp->if_timer = 5;
@@ -1127,27 +1126,12 @@ hme_start_locked(struct ifnet *ifp)
 static void
 hme_tint(struct hme_softc *sc)
 {
+	caddr_t txd;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct hme_txdesc *htx;
 	unsigned int ri, txflags;
 
-	/*
-	 * Unload collision counters
-	 */
-	ifp->if_collisions +=
-		HME_MAC_READ_4(sc, HME_MACI_NCCNT) +
-		HME_MAC_READ_4(sc, HME_MACI_FCCNT) +
-		HME_MAC_READ_4(sc, HME_MACI_EXCNT) +
-		HME_MAC_READ_4(sc, HME_MACI_LTCNT);
-
-	/*
-	 * then clear the hardware counters.
-	 */
-	HME_MAC_WRITE_4(sc, HME_MACI_NCCNT, 0);
-	HME_MAC_WRITE_4(sc, HME_MACI_FCCNT, 0);
-	HME_MAC_WRITE_4(sc, HME_MACI_EXCNT, 0);
-	HME_MAC_WRITE_4(sc, HME_MACI_LTCNT, 0);
-
+	txd = sc->sc_rb.rb_txd;
 	htx = STAILQ_FIRST(&sc->sc_rb.rb_txbusyq);
 	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_POSTREAD);
 	/* Fetch current position in the transmit ring */
@@ -1157,7 +1141,7 @@ hme_tint(struct hme_softc *sc)
 			break;
 		}
 
-		txflags = HME_XD_GETFLAGS(sc->sc_pci, sc->sc_rb.rb_txd, ri);
+		txflags = HME_XD_GETFLAGS(sc->sc_pci, txd, ri);
 		CTR2(KTR_HME, "hme_tint: index %d, flags %#x", ri, txflags);
 
 		if ((txflags & HME_XD_OWN) != 0)
@@ -1185,17 +1169,15 @@ hme_tint(struct hme_softc *sc)
 		STAILQ_INSERT_TAIL(&sc->sc_rb.rb_txfreeq, htx, htx_q);
 		htx = STAILQ_FIRST(&sc->sc_rb.rb_txbusyq);
 	}
-	/* Turn off watchdog */
-	if (sc->sc_rb.rb_td_nbusy == 0)
-		ifp->if_timer = 0;
+	/* Turn off watchdog if hme(4) transmitted queued packet */
+	ifp->if_timer = sc->sc_rb.rb_td_nbusy > 0 ? 5 : 0;
 
 	/* Update ring */
 	sc->sc_rb.rb_tdtail = ri;
 
-	hme_start_locked(ifp);
-
-	if (sc->sc_rb.rb_td_nbusy == 0)
-		ifp->if_timer = 0;
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		hme_start_locked(ifp);
 }
 
 /*
@@ -1312,7 +1294,11 @@ hme_eint(struct hme_softc *sc, u_int status)
 		return;
 	}
 
-	HME_WHINE(sc->sc_dev, "error signaled, status=%#x\n", status);
+	/* check for fatal errors that needs reset to unfreeze DMA engine */
+	if ((status & HME_SEB_STAT_FATAL_ERRORS) != 0) {
+		HME_WHINE(sc->sc_dev, "error signaled, status=%#x\n", status);
+		hme_init_locked(sc);
+	}
 }
 
 void
