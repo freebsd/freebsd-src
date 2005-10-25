@@ -226,9 +226,9 @@ static void
 parse_mode(char *arg, int *mode, int ch)
 {
 
-	if (strcmp(arg, "min") == 0)
+	if (strcmp(arg, "minimum") == 0 || strcmp(arg, "min") == 0)
 		*mode = MODE_MIN;
-	else if (strcmp(arg, "max") == 0)
+	else if (strcmp(arg, "maximum") == 0 || strcmp(arg, "max") == 0)
 		*mode = MODE_MAX;
 	else if (strcmp(arg, "adaptive") == 0)
 		*mode = MODE_ADAPTIVE;
@@ -334,14 +334,21 @@ main(int argc, char * argv[])
 	if (read_freqs(&numfreqs, &freqs, &mwatts))
 		err(1, "error reading supported CPU frequencies");
 
-	/* Decide whether to use ACPI or APM to read the AC line status. */
-	acline_init();
+	/*
+	 * Exit cleanly on signals; devd may send a SIGPIPE if it dies.  We
+	 * do this before acline_init() since it may create a thread and we
+	 * want it to inherit our signal mask.
+	 */
+	signal(SIGINT, handle_sigs);
+	signal(SIGTERM, handle_sigs);
+	signal(SIGPIPE, SIG_IGN);
 
 	/* Run in the background unless in verbose mode. */
 	if (!vflag)
 		daemon(0, 0);
-	signal(SIGINT, handle_sigs);
-	signal(SIGTERM, handle_sigs);
+
+	/* Decide whether to use ACPI or APM to read the AC line status. */
+	acline_init();
 
 	/* Main loop. */
 	for (;;) {
@@ -375,8 +382,11 @@ main(int argc, char * argv[])
 
 		/* Read the current frequency. */
 		len = sizeof(curfreq);
-		if (sysctl(freq_mib, 4, &curfreq, &len, NULL, 0))
-			err(1, "error reading current CPU frequency");
+		if (sysctl(freq_mib, 4, &curfreq, &len, NULL, 0) != 0) {
+			if (vflag)
+				warn("error reading current CPU frequency");
+			continue;
+		}
 
 		if (vflag) {
 			for (i = 0; i < numfreqs; i++) {
@@ -398,9 +408,11 @@ main(int argc, char * argv[])
 					    "changing frequency to %d MHz\n",
 					    modes[acline], freqs[numfreqs - 1]);
 				}
-				if (set_freq(freqs[numfreqs - 1]))
-					err(1, "error setting CPU freq %d",
+				if (set_freq(freqs[numfreqs - 1]) != 0) {
+					warn("error setting CPU freq %d",
 					    freqs[numfreqs - 1]);
+					continue;
+				}
 			}
 			continue;
 		}
@@ -413,16 +425,21 @@ main(int argc, char * argv[])
 					    "changing frequency to %d MHz\n",
 					    modes[acline], freqs[0]);
 				}
-				if (set_freq(freqs[0]))
-					err(1, "error setting CPU freq %d",
-					    freqs[0]);
+				if (set_freq(freqs[0]) != 0) {
+					warn("error setting CPU freq %d",
+				    	    freqs[0]);
+					continue;
+				}
 			}
 			continue;
 		}
 
 		/* Adaptive mode; get the current CPU usage times. */
-		if (read_usage_times(&idle, &total))
-			err(1, "read_usage_times");
+		if (read_usage_times(&idle, &total)) {
+			if (vflag)
+				warn("read_usage_times() failed");
+			continue;
+		}
 
 		/*
 		 * If we're idle less than the active mark, bump up two levels.
@@ -453,8 +470,8 @@ main(int argc, char * argv[])
 				    " speed from %d MHz to %d MHz\n",
 				    cpu_idle_mark, curfreq, freqs[i]);
 			}
-			if (set_freq(freqs[i]))
-				err(1, "error setting CPU frequency %d",
+			if (set_freq(freqs[i]) != 0)
+				warn("error setting CPU frequency %d",
 				    freqs[i]);
 		}
 	}
