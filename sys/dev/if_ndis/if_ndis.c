@@ -480,7 +480,7 @@ ndis_attach(dev)
 	int			i;
 
 	sc = device_get_softc(dev);
-#if __FreeBSD_version < 600000
+#if __FreeBSD_version < 600031
 	sc->ifp = &sc->arpcom.ac_if;
 	ifp = sc->ifp;
 #else
@@ -664,7 +664,7 @@ ndis_attach(dev)
 		uint32_t		arg;
 		int			r;
 
-#if __FreeBSD_version >= 600000
+#if __FreeBSD_version >= 600007
 		ic->ic_ifp = ifp;
 #endif
 	        ic->ic_phytype = IEEE80211_T_DS;
@@ -873,7 +873,7 @@ got_crypto:
 		if (r == 0)
 			ic->ic_caps |= IEEE80211_C_PMGT;
 		bcopy(eaddr, &ic->ic_myaddr, sizeof(eaddr));
-#if __FreeBSD_version < 600000
+#if __FreeBSD_version < 600007
 		ieee80211_ifattach(ifp);
 		ieee80211_media_init(ifp, ieee80211_media_change,
 		    ndis_media_status);
@@ -948,7 +948,7 @@ ndis_detach(dev)
 		NDIS_UNLOCK(sc);
 		ndis_stop(sc);
 		if (sc->ndis_80211)
-#if __FreeBSD_version < 600000
+#if __FreeBSD_version < 600007
 			ieee80211_ifdetach(ifp);
 #else
 			ieee80211_ifdetach(&sc->ic);
@@ -981,7 +981,7 @@ ndis_detach(dev)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    sc->ndis_altmem_rid, sc->ndis_res_altmem);
 
-#if __FreeBSD_version >= 600000
+#if __FreeBSD_version >= 600031
 	if (ifp != NULL)
 		if_free(ifp);
 #endif
@@ -1622,7 +1622,12 @@ ndis_ticktask(d, xsc)
 		}
 		NDIS_LOCK(sc);
 #ifdef LINK_STATE_UP
+#if __FreeBSD_version > 600006
 		if_link_state_change(sc->ifp, LINK_STATE_UP);
+#else
+		sc->ifp->if_link_state = LINK_STATE_UP;
+		rt_ifmsg(sc->ifp);
+#endif
 #else
 		device_printf(sc->ndis_dev, "link state changed to UP\n");
 #endif /* LINK_STATE_UP */
@@ -1634,7 +1639,12 @@ ndis_ticktask(d, xsc)
 		if (sc->ndis_80211)
 			ic->ic_state = IEEE80211_S_ASSOC;
 #ifdef LINK_STATE_DOWN
+#if __FreeBSD_version > 600006
 		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+#else
+		sc->ifp->if_link_state = LINK_STATE_DOWN;
+		rt_ifmsg(sc->ifp);
+#endif
 #else
 		device_printf(sc->ndis_dev, "link state changed to DOWN\n");
 #endif /* LINK_STATE_DOWN */
@@ -1917,7 +1927,12 @@ ndis_init(xsc)
 	sc->ndis_link = 0;
 
 #ifdef LINK_STATE_UNKNOWN
+#if __FreeBSD_version > 600006
 	if_link_state_change(sc->ifp, LINK_STATE_UNKNOWN);
+#else
+	sc->ifp->if_link_state = LINK_STATE_DOWN;
+	rt_ifmsg(sc->ifp);
+#endif
 #endif /* LINK_STATE_UNKNOWN */
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -2224,7 +2239,7 @@ ndis_setstate_80211(sc)
 
 	/* Set WEP */
 
-#if __FreeBSD_version < 600000
+#if __FreeBSD_version < 600007
 	if (ic->ic_flags & IEEE80211_F_WEPON) {
 #else
 	if (ic->ic_flags & IEEE80211_F_PRIVACY &&
@@ -2234,7 +2249,7 @@ ndis_setstate_80211(sc)
 
 		for (i = 0; i < IEEE80211_WEP_NKID; i++) {
 			if (ic->ic_nw_keys[i].wk_keylen) {
-#if __FreeBSD_version >= 600000
+#if __FreeBSD_version >= 600007
 				if (ic->ic_nw_keys[i].wk_cipher->ic_cipher !=
 				    IEEE80211_CIPHER_WEP)
 					continue;
@@ -2720,7 +2735,7 @@ ndis_ioctl(ifp, command, data)
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		if (sc->ndis_80211) {
-#if __FreeBSD_version < 600000
+#if __FreeBSD_version < 600007
 			error = ieee80211_ioctl(ifp, command, data);
 #else
 			error = ieee80211_ioctl(&sc->ic, command, data);
@@ -2871,7 +2886,7 @@ ndis_ioctl(ifp, command, data)
 do_80211:
 		sc->ndis_skip = 1;
 		if (sc->ndis_80211) {
-#if __FreeBSD_version < 600000
+#if __FreeBSD_version < 600007
 			error = ieee80211_ioctl(ifp, command, data);
 #else
 			error = ieee80211_ioctl(&sc->ic, command, data);
@@ -3134,7 +3149,7 @@ ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 		RtlFreeAnsiString(&as);
 		break;
 	default:
-#if __FreeBSD_version < 600000
+#if __FreeBSD_version < 600007
 		error = ieee80211_ioctl(ifp, command, data);
 #else
 		error = ieee80211_ioctl(&sc->ic, command, data);
@@ -3312,7 +3327,7 @@ ndis_80211_ioctl_set(struct ifnet *ifp, u_long command, caddr_t data)
 		RtlFreeUnicodeString(&us);
 		break;
 	default:
-#if __FreeBSD_version < 600000
+#if __FreeBSD_version < 600007
 		error = ieee80211_ioctl(ifp, command, data);
 #else
 		error = ieee80211_ioctl(&sc->ic, command, data);
