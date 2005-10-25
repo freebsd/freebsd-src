@@ -195,7 +195,7 @@ mirror_label(struct gctl_req *req)
 	}
 	bal = balance_id(str);
 	if (bal == -1) {
-		gctl_error(req, "Wrong balance algorithm.");
+		gctl_error(req, "Invalid balance algorithm.");
 		return;
 	}
 	md.md_balance = bal;
