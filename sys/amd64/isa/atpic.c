@@ -472,10 +472,10 @@ atpic_handle_intr(void *cookie, struct intrframe iframe)
 	isrc = &atintrs[vec].at_intsrc;
 
 	/*
-	 * If we don't have an ithread, see if this is a spurious
+	 * If we don't have an event, see if this is a spurious
 	 * interrupt.
 	 */
-	if (isrc->is_ithread == NULL && (vec == 7 || vec == 15)) {
+	if (isrc->is_event == NULL && (vec == 7 || vec == 15)) {
 		int port, isr;
 
 		/*

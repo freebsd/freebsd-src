@@ -32,20 +32,23 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+struct intr_event;
+struct intr_thread;
+
 /*
  * Describe a hardware interrupt handler.
  *
- * Multiple interrupt handlers for a specific vector can be chained
+ * Multiple interrupt handlers for a specific event can be chained
  * together.
  */
-struct intrhand {
+struct intr_handler {
 	driver_intr_t	*ih_handler;	/* Handler function. */
 	void		*ih_argument;	/* Argument to pass to handler. */
 	int		 ih_flags;
 	const char	*ih_name;	/* Name of handler. */
-	struct ithd	*ih_ithread;	/* Ithread we are connected to. */
+	struct intr_event *ih_event;	/* Event we are connected to. */
 	int		 ih_need;	/* Needs service. */
-	TAILQ_ENTRY(intrhand) ih_next;	/* Next handler for this vector. */
+	TAILQ_ENTRY(intr_handler) ih_next; /* Next handler for this event. */
 	u_char		 ih_pri;	/* Priority of this handler. */
 };
 
@@ -57,29 +60,26 @@ struct intrhand {
 #define	IH_MPSAFE	0x80000000	/* Handler does not need Giant. */
 
 /*
- * Describe an interrupt thread.  There is one of these per interrupt vector.
- * Note that this actually describes an interrupt source.  There may or may
- * not be an actual kernel thread attached to a given source.
+ * Describe an interrupt event.  An event holds a list of handlers.
  */
-struct ithd {
-	struct	mtx it_lock;
-	struct	thread *it_td;		/* Interrupt process. */
-	LIST_ENTRY(ithd) it_list;	/* All interrupt threads. */
-	TAILQ_HEAD(, intrhand) it_handlers; /* Interrupt handlers. */
-	struct	ithd *it_interrupted;	/* Who we interrupted. */
-	void	(*it_disable)(uintptr_t); /* Enable interrupt source. */
-	void	(*it_enable)(uintptr_t); /* Disable interrupt source. */
-	void	*it_md;			/* Hook for MD interrupt code. */
-	int	it_flags;		/* Interrupt-specific flags. */
-	int	it_need;		/* Needs service. */
-	uintptr_t it_vector;
-	char	it_name[MAXCOMLEN + 1];
+struct intr_event {
+	TAILQ_ENTRY(intr_event) ie_list;
+	TAILQ_HEAD(, intr_handler) ie_handlers; /* Interrupt handlers. */
+	char		ie_name[MAXCOMLEN]; /* Individual event name. */
+	char		ie_fullname[MAXCOMLEN];
+	struct mtx	ie_lock;
+	void		*ie_source;	/* Cookie used by MD code. */
+	struct intr_thread *ie_thread;	/* Thread we are connected to. */
+	void		(*ie_enable)(void *);
+	int		ie_flags;
+	int		ie_count;	/* Loop counter. */
+	int		ie_warned;	/* Warned about interrupt storm. */
 };
 
-/* Interrupt thread flags kept in it_flags */
-#define	IT_SOFT		0x000001	/* Software interrupt. */
-#define	IT_ENTROPY	0x000002	/* Interrupt is an entropy source. */
-#define	IT_DEAD		0x000004	/* Thread is waiting to exit. */
+/* Interrupt event flags kept in ie_flags. */
+#define	IE_SOFT		0x000001	/* Software interrupt. */
+#define	IE_ENTROPY	0x000002	/* Interrupt is an entropy source. */
+#define	IE_ADDING_THREAD 0x000004	/* Currently building an ithread. */
 
 /* Flags to pass to sched_swi. */
 #define	SWI_DELAY	0x2
@@ -97,8 +97,8 @@ struct ithd {
 #define	SWI_TQ		6
 #define	SWI_TQ_GIANT	6
 
-extern struct	ithd *tty_ithd;
-extern struct	ithd *clk_ithd;
+extern struct	intr_event *tty_intr_event;
+extern struct	intr_event *clk_intr_event;
 extern void	*softclock_ih;
 extern void	*vm_ih;
 
@@ -109,19 +109,19 @@ extern u_long 	intrcnt[];	/* counts for for each device and stray */
 extern char 	intrnames[];	/* string table containing device names */
 
 #ifdef DDB
-void	db_dump_ithread(struct ithd *ithd, int handlers);
+void	db_dump_intr_event(struct intr_event *ie, int handlers);
 #endif
-int	ithread_create(struct ithd **ithread, uintptr_t vector, int flags,
-	    void (*disable)(uintptr_t), void (*enable)(uintptr_t),
-	    const char *fmt, ...) __printflike(6, 7);
-int	ithread_destroy(struct ithd *ithread);
-u_char	ithread_priority(enum intr_type flags);
-int	ithread_add_handler(struct ithd *ithread, const char *name,
+u_char	intr_priority(enum intr_type flags);
+int	intr_event_add_handler(struct intr_event *ie, const char *name,
 	    driver_intr_t handler, void *arg, u_char pri, enum intr_type flags,
 	    void **cookiep);
-int	ithread_remove_handler(void *cookie);
-int	ithread_schedule(struct ithd *ithread);
-int     swi_add(struct ithd **ithdp, const char *name,
+int	intr_event_create(struct intr_event **event, void *source,
+	    int flags, void (*enable)(void *), const char *fmt, ...)
+	    __printflike(5, 6);
+int	intr_event_destroy(struct intr_event *ie);
+int	intr_event_remove_handler(void *cookie);
+int	intr_event_schedule_thread(struct intr_event *ie);
+int	swi_add(struct intr_event **eventp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
 	    void **cookiep);
 void	swi_sched(void *cookie, int flags);

@@ -75,7 +75,7 @@ enum {
  */
 struct intsrc {
 	struct pic *is_pic;
-	struct ithd *is_ithread;
+	struct intr_event *is_event;
 	u_long *is_count;
 	u_long *is_straycount;
 	u_int is_index;

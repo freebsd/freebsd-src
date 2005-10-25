@@ -227,38 +227,44 @@ void
 intr_init2()
 {
 
-	mtx_init(&intr_table_lock, "ithread table lock", NULL, MTX_SPIN);
+	mtx_init(&intr_table_lock, "intr table", NULL, MTX_SPIN);
 }
 
 static void
 intr_execute_handlers(void *cookie)
 {
 	struct intr_vector *iv;
-	struct ithd *ithd;
-	struct intrhand *ih;
-	int error;
+	struct intr_event *ie;
+	struct intr_handler *ih;
+	int error, thread;
 
 	iv = cookie;
-	ithd = iv->iv_ithd;
-
-	if (ithd == NULL)
-		ih = NULL;
-	else
-		ih = TAILQ_FIRST(&ithd->it_handlers);
-	if (ih != NULL && ih->ih_flags & IH_FAST) {
-		/* Execute fast interrupt handlers directly. */
-		TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
-			MPASS(ih->ih_flags & IH_FAST &&
-			    ih->ih_argument != NULL);
-			CTR3(KTR_INTR, "%s: executing handler %p(%p)",
-			    __func__, ih->ih_handler, ih->ih_argument);
-			ih->ih_handler(ih->ih_argument);
-		}
+	ie = iv->iv_event;
+	if (ie == NULL) {
+		intr_stray_vector(iv);
 		return;
 	}
 
+	/* Execute fast interrupt handlers directly. */
+	thread = 0;
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
+		if (!(ih->ih_flags & IH_FAST)) {
+			thread = 1;
+			continue;
+		}
+		MPASS(ih->ih_flags & IH_FAST && ih->ih_argument != NULL);
+		CTR3(KTR_INTR, "%s: executing handler %p(%p)", __func__,
+		    ih->ih_handler, ih->ih_argument);
+		ih->ih_handler(ih->ih_argument);
+	}
+
 	/* Schedule a heavyweight interrupt process. */
-	error = ithread_schedule(ithd);
+	if (thread)
+		error = intr_event_schedule_thread(ie);
+	else if (TAILQ_EMPTY(&ie->ie_handlers))
+		error = EINVAL;
+	else
+		error = 0;
 	if (error == EINVAL)
 		intr_stray_vector(iv);
 }
@@ -268,8 +274,8 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
     int flags, void **cookiep)
 {
 	struct intr_vector *iv;
-	struct ithd *ithd;		/* descriptor for the IRQ */
-	struct ithd *orphan;
+	struct intr_event *ie;		/* descriptor for the IRQ */
+	struct intr_event *orphan;
 	int errcode;
 
 	/*
@@ -278,27 +284,27 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 	 */
 	iv = &intr_vectors[vec];
 	mtx_lock_spin(&intr_table_lock);
-	ithd = iv->iv_ithd;
+	ie = iv->iv_event;
 	mtx_unlock_spin(&intr_table_lock);
-	if (ithd == NULL) {
-		errcode = ithread_create(&ithd, vec, 0, NULL, NULL, "vec%d:",
-		    vec);
+	if (ie == NULL) {
+		errcode = intr_event_create(&ie, (void *)(intptr_t)vec, 0, NULL,
+		    "vec%d:", vec);
 		if (errcode)
 			return (errcode);
 		mtx_lock_spin(&intr_table_lock);
-		if (iv->iv_ithd == NULL) {
-			iv->iv_ithd = ithd;
+		if (iv->iv_event == NULL) {
+			iv->iv_event = ie;
 			mtx_unlock_spin(&intr_table_lock);
 		} else {
-			orphan = ithd;
-			ithd = iv->iv_ithd;
+			orphan = ie;
+			ie = iv->iv_event;
 			mtx_unlock_spin(&intr_table_lock);
-			ithread_destroy(orphan);
+			intr_event_destroy(orphan);
 		}
 	}
 
-	errcode = ithread_add_handler(ithd, name, handler, arg,
-	    ithread_priority(flags), flags, cookiep);
+	errcode = intr_event_add_handler(ie, name, handler, arg,
+	    intr_priority(flags), flags, cookiep);
 	if (errcode)
 		return (errcode);
 	
@@ -307,7 +313,7 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 
 	intr_stray_count[vec] = 0;
 
-	intrcnt_updatename(vec, ithd->it_td->td_proc->p_comm, 0);
+	intrcnt_updatename(vec, ie->ie_fullname, 0);
 
 	return (0);
 }
@@ -318,15 +324,16 @@ inthand_remove(int vec, void *cookie)
 	struct intr_vector *iv;
 	int error;
 	
-	error = ithread_remove_handler(cookie);
+	error = intr_event_remove_handler(cookie);
 	if (error == 0) {
 		/*
 		 * XXX: maybe this should be done regardless of whether
-		 * ithread_remove_handler() succeeded?
+		 * intr_event_remove_handler() succeeded?
+		 * XXX: aren't the PIL's backwards below?
 		 */
 		iv = &intr_vectors[vec];
 		mtx_lock_spin(&intr_table_lock);
-		if (iv->iv_ithd == NULL)
+		if (iv->iv_event == NULL)
 			intr_setup(PIL_ITHREAD, intr_fast, vec,
 			    intr_stray_vector, iv);
 		else
