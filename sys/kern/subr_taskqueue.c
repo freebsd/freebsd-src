@@ -300,7 +300,7 @@ TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, 0,
 		     INTR_MPSAFE, &taskqueue_ih)); 
 
 TASKQUEUE_DEFINE(swi_giant, taskqueue_swi_giant_enqueue, 0,
-		 swi_add(NULL, "Giant task queue", taskqueue_swi_giant_run,
+		 swi_add(NULL, "Giant taskq", taskqueue_swi_giant_run,
 		     NULL, SWI_TQ_GIANT, 0, &taskqueue_giant_ih)); 
 
 TASKQUEUE_DEFINE_THREAD(thread);
@@ -409,7 +409,7 @@ taskqueue_define_fast(void *arg)
 	STAILQ_INSERT_TAIL(&taskqueue_queues, taskqueue_fast, tq_link);
 	mtx_unlock(&taskqueue_queues_mutex);
 
-	swi_add(NULL, "Fast task queue", taskqueue_fast_run,
+	swi_add(NULL, "Fast taskq", taskqueue_fast_run,
 		NULL, SWI_TQ_FAST, 0, &taskqueue_fast_ih);
 }
 SYSINIT(taskqueue_fast, SI_SUB_CONFIGURE, SI_ORDER_SECOND,
