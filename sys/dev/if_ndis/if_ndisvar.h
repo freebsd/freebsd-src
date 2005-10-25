@@ -89,7 +89,7 @@ TAILQ_HEAD(nch, ndis_cfglist);
 #define NDIS_INC(x)		\
 	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % NDIS_TXPKTS
 
-#if __FreeBSD_version < 600000
+#if __FreeBSD_version < 600007
 #define arpcom ic.ic_ac
 #endif
 
