@@ -35,7 +35,7 @@
 
 /* Node type name and magic cookie */
 #define NG_SPLIT_NODE_TYPE	"split"
-#define NGM_NG_SPLIT_COOKIE	949409402
+#define NGM_SPLIT_COOKIE	949409402
 
 /* My hook names */
 #define NG_SPLIT_HOOK_MIXED	"mixed"	/* Mixed stream (in/out) */
