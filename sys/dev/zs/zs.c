@@ -183,7 +183,7 @@ zs_attach(device_t dev)
 	for (i = 0; i < ZS_NCHAN; i++)
 		sc->sc_child[i] = device_get_softc(child[i]);
 
-	swi_add(&tty_ithd, "tty:zs", zs_softintr, sc, SWI_TTY,
+	swi_add(&tty_intr_event, "tty:zs", zs_softintr, sc, SWI_TTY,
 	    INTR_TYPE_TTY, &sc->sc_softih);
 
 	ZS_WRITE_REG(sc->sc_child[0], 2, sc->sc_child[0]->sc_creg[2]);
