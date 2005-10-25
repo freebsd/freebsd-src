@@ -99,9 +99,13 @@ ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
     return(ENOENT);
 
 found:
-    if (*s != '\0')
+    if (path != NULL && *s != '\0')
 	*path = s;
     idev = malloc(sizeof(struct ofw_devdesc));
+    if (idev == NULL) {
+	printf("ofw_parsedev: malloc failed\n");
+	return ENOMEM;
+    }
     strcpy(idev->d_path, name);
     idev->d_dev = dv;
     idev->d_type = dv->dv_type;
