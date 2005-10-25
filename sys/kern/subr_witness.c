@@ -376,7 +376,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "ng_worklist", &lock_class_mtx_spin },
 	{ "taskqueue_fast", &lock_class_mtx_spin },
 	{ "intr table", &lock_class_mtx_spin },
-	{ "ithread table lock", &lock_class_mtx_spin },
 	{ "sleepq chain", &lock_class_mtx_spin },
 	{ "sched lock", &lock_class_mtx_spin },
 	{ "turnstile chain", &lock_class_mtx_spin },

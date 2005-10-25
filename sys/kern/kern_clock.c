@@ -439,7 +439,8 @@ statclock(frame)
 		 * so that we know how much of its real time was spent
 		 * in ``non-process'' (i.e., interrupt) work.
 		 */
-		if ((td->td_ithd != NULL) || td->td_intr_nesting_level >= 2) {
+		if ((td->td_pflags & TDP_ITHREAD) ||
+		    td->td_intr_nesting_level >= 2) {
 			p->p_rux.rux_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
@@ -447,7 +448,7 @@ statclock(frame)
 				thread_statclock(0);
 			td->td_sticks++;
 			p->p_rux.rux_sticks++;
-			if (p != PCPU_GET(idlethread)->td_proc)
+			if (td != PCPU_GET(idlethread))
 				cp_time[CP_SYS]++;
 			else
 				cp_time[CP_IDLE]++;

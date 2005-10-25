@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/cpu.h>
 
-static struct ithd *ithreads[NIRQ];
+static struct intr_event *intr_events[NIRQ];
 static int intrcnt_tab[NIRQ];
 static int intrcnt_index = 0;
 static int last_printed = 0;
@@ -61,18 +61,18 @@ void
 arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg, 
     int irq, int flags, void **cookiep)
 {
-	struct ithd *cur_ith;
+	struct intr_event *event;
 	int error;
 
 	if (irq < 0 || irq >= NIRQ)
 		return;
-	cur_ith = ithreads[irq];
-	if (cur_ith == NULL) {
-		error = ithread_create(&cur_ith, irq, 0, arm_mask_irq,
-		    arm_unmask_irq, "intr%d:", irq);
+	event = intr_events[irq];
+	if (event == NULL) {
+		error = intr_event_create(&event, (void *)irq, 0,
+		    (void (*)(void *))arm_unmask_irq, "intr%d:", irq);
 		if (error)
 			return;
-		ithreads[irq] = cur_ith;
+		intr_events[irq] = event;
 		last_printed += 
 		    snprintf(intrnames + last_printed,
 		    MAXCOMLEN + 1,
@@ -82,14 +82,14 @@ arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg,
 		intrcnt_index++;
 		
 	}
-	ithread_add_handler(cur_ith, name, hand, arg, 
-	    ithread_priority(flags), flags, cookiep);
+	intr_event_add_handler(event, name, hand, arg,
+	    intr_priority(flags), flags, cookiep);
 }
 
 int
 arm_remove_irqhandler(void *cookie)
 {
-	return (ithread_remove_handler(cookie));
+	return (intr_event_remove_handler(cookie));
 }
 
 void dosoftints(void);
@@ -101,28 +101,34 @@ dosoftints(void)
 void
 arm_handler_execute(void *frame, int irqnb)
 {
-	struct ithd *ithd;
-	int i;
-	struct intrhand *ih;
+	struct intr_event *event;
+	struct intr_handler *ih;
 	struct thread *td = curthread;
+	int i, thread;
 
 	td->td_intr_nesting_level++;
 	while ((i = arm_get_next_irq()) != -1) {
 		arm_mask_irq(i);
 		intrcnt[intrcnt_tab[i]]++;
-		ithd = ithreads[i];
-		if (!ithd)
+		event = intr_events[i];
+		if (!event || TAILQ_EMPTY(&event->ie_handlers))
 			continue;
-		ih = TAILQ_FIRST(&ithd->it_handlers);
-		if (ih && ih->ih_flags & IH_FAST) {
-			TAILQ_FOREACH(ih, &ithd->it_handlers,
-			    ih_next) {
+
+		/* Execute fast handlers. */
+		thread = 0;
+		TAILQ_FOREACH(ih, &event->ie_handlers, ih_next) {
+			if (!(ih->ih_flags & IH_FAST))
+				thread = 1;
+			else
 				ih->ih_handler(ih->ih_argument ?
 				    ih->ih_argument : frame);
-			}
+		}
+
+		/* Schedule thread if needed. */
+		if (thread)
+			intr_event_schedule_thread(event);
+		else
 			arm_unmask_irq(i);
-		} else if (ih)
-			ithread_schedule(ithd);
 	}
 	td->td_intr_nesting_level--;
 }

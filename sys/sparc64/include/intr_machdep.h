@@ -67,7 +67,7 @@ struct intr_request {
 struct intr_vector {
 	iv_func_t *iv_func;
 	void	*iv_arg;
-	struct	ithd *iv_ithd;
+	struct	intr_event *iv_event;
 	u_int	iv_pri;
 	u_int	iv_vec;
 };

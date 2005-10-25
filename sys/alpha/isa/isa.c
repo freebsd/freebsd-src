@@ -389,14 +389,14 @@ isa_teardown_intr(device_t dev, device_t child,
 		  struct resource *irq, void *cookie)
 {
 	struct isa_intr *ii = cookie;
-	struct intrhand *ih, *handler = (struct intrhand *)ii->ih;
-	struct ithd *ithread = handler->ih_ithread;
+	struct intr_handler *ih, *handler = (struct intr_handler *)ii->ih;
+	struct intr_event *ie = handler->ih_event;
 	int num_handlers = 0;
 
-	mtx_lock(&ithread->it_lock);
-	TAILQ_FOREACH(ih, &ithread->it_handlers, ih_next)
+	mtx_lock(&ie->ie_lock);
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next)
 		num_handlers++;
-	mtx_unlock(&ithread->it_lock);
+	mtx_unlock(&ie->ie_lock);
 
 	/* 
 	 * Only disable the interrupt in hardware if there are no

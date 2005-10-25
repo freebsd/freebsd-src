@@ -254,7 +254,7 @@ sunkbd_attach(struct uart_softc *sc)
 #endif
 		sunkbd_enable(&sunkbd_softc.sc_kbd);
 
-		swi_add(&tty_ithd, uart_driver_name, sunkbd_uart_intr,
+		swi_add(&tty_intr_event, uart_driver_name, sunkbd_uart_intr,
 		    &sunkbd_softc, SWI_TTY, INTR_TYPE_TTY, &sc->sc_softih);
 
 		sc->sc_opened = 1;

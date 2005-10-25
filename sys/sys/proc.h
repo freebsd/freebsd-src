@@ -150,7 +150,6 @@ struct pargs {
  * either lock is sufficient for read access, but both locks must be held
  * for write access.
  */
-struct ithd;
 struct kg_sched;
 struct nlminfo;
 struct kaioinfo;
@@ -270,7 +269,6 @@ struct thread {
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	short		td_locks;	/* (k) DEBUG: lockmgr count of locks. */
 	struct turnstile *td_blocked;	/* (j) Lock process is blocked on. */
-	struct ithd	*td_ithd;	/* (b) For interrupt threads only. */
 	const char	*td_lockname;	/* (j) Name of lock blocked on. */
 	LIST_HEAD(, turnstile) td_contested;	/* (q) Contested locks. */
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
@@ -372,7 +370,7 @@ struct thread {
 #define	TDP_SA		0x00000080 /* A scheduler activation based thread. */
 #define	TDP_NOSLEEPING	0x00000100 /* Thread is not allowed to sleep on a sq. */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
-#define	TDP_UNUSED10	0x00000400 /* --available -- */
+#define	TDP_ITHREAD	0x00000400 /* Thread is an interrupt thread. */
 #define	TDP_CAN_UNBIND	0x00000800 /* Only temporarily bound. */
 #define	TDP_SCHED1	0x00001000 /* Reserved for scheduler private use */
 #define	TDP_SCHED2	0x00002000 /* Reserved for scheduler private use */

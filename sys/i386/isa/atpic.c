@@ -535,10 +535,10 @@ atpic_handle_intr(struct intrframe iframe)
 	isrc = &atintrs[iframe.if_vec].at_intsrc;
 
 	/*
-	 * If we don't have an ithread, see if this is a spurious
+	 * If we don't have an event, see if this is a spurious
 	 * interrupt.
 	 */
-	if (isrc->is_ithread == NULL &&
+	if (isrc->is_event == NULL &&
 	    (iframe.if_vec == 7 || iframe.if_vec == 15)) {
 		int port, isr;
 
