@@ -236,21 +236,17 @@ _INSTALLFLAGS:=	${INSTALLFLAGS}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
-.if !target(install.debug) && defined(DEBUG_FLAGS)
-install.debug:
-	cd ${.CURDIR}; ${MAKE} -DINSTALL_DEBUG install
-.endif
-
 .if !target(realinstall)
 realinstall: _kmodinstall
 .ORDER: beforeinstall _kmodinstall
 _kmodinstall:
-.if defined(DEBUG_FLAGS) && defined(INSTALL_DEBUG)
+.if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG)
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${FULLPROG} ${DESTDIR}${KMODDIR}
+	    ${_INSTALLFLAGS} ${FULLPROG} ${DESTDIR}${KMODDIR}/${PROG}
 .else
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
+.endif
 
 .include <bsd.links.mk>
 
@@ -263,7 +259,6 @@ _kldxref:
 		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
 		kldxref ${DESTDIR}${KMODDIR}; \
 	fi
-.endif
 .endif
 .endif # !target(realinstall)
 
