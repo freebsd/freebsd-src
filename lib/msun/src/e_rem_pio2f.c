@@ -26,6 +26,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
+/* Clip any extra precision in the float variable v. */
+#define	cliptofloat(v)	(*(volatile float *)&(v))
+
 /*
  * Table of constants for 2/pi, 396 Hex digits (476 decimal) of 2/pi
  */
@@ -117,22 +120,22 @@ pio2_3t =  6.1232342629e-17; /* 0x248d3132 */
 		z = x - pio2_1;
 		if((ix&0xfffe0000)!=0x3fc80000) { /* 17+24 bit pi OK */
 		    y[0] = z - pio2_1t;
-		    y[1] = (z-y[0])-pio2_1t;
+		    y[1] = (z-cliptofloat(y[0]))-pio2_1t;
 		} else {		/* near pi/2, use 17+17+24 bit pi */
 		    z -= pio2_2;
 		    y[0] = z - pio2_2t;
-		    y[1] = (z-y[0])-pio2_2t;
+		    y[1] = (z-cliptofloat(y[0]))-pio2_2t;
 		}
 		return 1;
 	    } else {	/* negative x */
 		z = x + pio2_1;
 		if((ix&0xfffe0000)!=0x3fc80000) { /* 17+24 bit pi OK */
 		    y[0] = z + pio2_1t;
-		    y[1] = (z-y[0])+pio2_1t;
+		    y[1] = (z-cliptofloat(y[0]))+pio2_1t;
 		} else {		/* near pi/2, use 17+17+24 bit pi */
 		    z += pio2_2;
 		    y[0] = z + pio2_2t;
-		    y[1] = (z-y[0])+pio2_2t;
+		    y[1] = (z-cliptofloat(y[0]))+pio2_2t;
 		}
 		return -1;
 	    }
@@ -168,7 +171,7 @@ pio2_3t =  6.1232342629e-17; /* 0x248d3132 */
 		    }
 		}
 	    }
-	    y[1] = (r-y[0])-w;
+	    y[1] = (r-cliptofloat(y[0]))-w;
 	    if(hx<0) 	{y[0] = -y[0]; y[1] = -y[1]; return -n;}
 	    else	 return n;
 	}
