@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <net/if.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
@@ -88,8 +89,7 @@ extern const char *__progname;
 #define SET_HDRS(x)	\
 	dos_hdr = (image_dos_header *)x;				\
 	nt_hdr = (image_nt_header *)(x + dos_hdr->idh_lfanew);		\
-	sect_hdr = (image_section_header *)((vm_offset_t)nt_hdr +	\
-	    sizeof(image_nt_header));
+	sect_hdr = IMAGE_FIRST_SECTION(nt_hdr);
 
 static
 int insert_padding(imgbase, imglen)
