@@ -63,6 +63,8 @@ SET_DECLARE(kdb_dbbe_set, struct kdb_dbbe);
 static int kdb_sysctl_available(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_current(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_enter(SYSCTL_HANDLER_ARGS);
+static int kdb_sysctl_panic(SYSCTL_HANDLER_ARGS);
+static int kdb_sysctl_trap(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW, NULL, "KDB nodes");
 
@@ -74,6 +76,12 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, current, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, enter, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
     kdb_sysctl_enter, "I", "set to enter the debugger");
+
+SYSCTL_PROC(_debug_kdb, OID_AUTO, panic, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
+    kdb_sysctl_panic, "I", "set to panic the kernel");
+
+SYSCTL_PROC(_debug_kdb, OID_AUTO, trap, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
+    kdb_sysctl_trap, "I", "set cause a page fault");
 
 /*
  * Flag indicating whether or not to IPI the other CPUs to stop them on
@@ -156,6 +164,38 @@ kdb_sysctl_enter(SYSCTL_HANDLER_ARGS)
 		return (EBUSY);
 	kdb_enter("sysctl debug.kdb.enter");
 	return (0);
+}
+
+static int
+kdb_sysctl_panic(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+
+	error = sysctl_wire_old_buffer(req, sizeof(int));
+	if (error == 0) {
+		i = 0;
+		error = sysctl_handle_int(oidp, &i, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	panic("kdb_sysctl_panic");
+	return (0);
+}
+
+static int
+kdb_sysctl_trap(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+	int *addr = (int *)0x10;
+
+	error = sysctl_wire_old_buffer(req, sizeof(int));
+	if (error == 0) {
+		i = 0;
+		error = sysctl_handle_int(oidp, &i, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	return (*addr);
 }
 
 /*
