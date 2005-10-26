@@ -75,6 +75,12 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 
 	filerecp = g_read_data(cp, voloff, recsize, &error);
 	fr = (struct filerec *)filerecp;
+
+	if(fr->fr_fixup.fh_magic != NTFS_FILEMAGIC){
+		label[0] = 0;
+		goto done;
+	}
+
 	for (ap = filerecp + fr->fr_attroff; atr = (struct attr *)ap, atr->a_hdr.a_type != -1; ap += atr->a_hdr.reclen) {
 		if (atr->a_hdr.a_type == NTFS_A_VOLUMENAME) {
 			if(atr->a_r.a_datalen >= size *2){
