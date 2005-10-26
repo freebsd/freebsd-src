@@ -125,5 +125,6 @@ int	swi_add(struct intr_event **eventp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
 	    void **cookiep);
 void	swi_sched(void *cookie, int flags);
+int	swi_remove(void *cookie);
 
 #endif
