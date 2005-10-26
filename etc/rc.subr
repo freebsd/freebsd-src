@@ -495,9 +495,7 @@ run_rc_command()
 	esac
 
 	eval _overide_command=\$${name}_program
-	if [ -n "$_overide_command" ]; then
-		command=$_overide_command
-	fi
+	command=${command:+${_overide_command:-$command}}
 
 	_keywords="start stop restart rcvar $extra_commands"
 	rc_pid=
