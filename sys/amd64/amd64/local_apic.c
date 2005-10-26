@@ -312,7 +312,7 @@ lapic_setup(void)
 
 	/* Program timer LVT and setup handler. */
 	lapic->lvt_timer = lvt_mode(la, LVT_TIMER, lapic->lvt_timer);
-	snprintf(buf, sizeof(buf), "lapic%d: timer", lapic_id());
+	snprintf(buf, sizeof(buf), "cpu%d: timer", PCPU_GET(cpuid));
 	intrcnt_add(buf, &la->la_timer_count);
 	if (PCPU_GET(cpuid) != 0) {
 		KASSERT(lapic_timer_period != 0, ("lapic%u: zero divisor",
@@ -322,7 +322,7 @@ lapic_setup(void)
 		lapic_timer_enable_intr();
 	}
 
-	/* XXX: Performance counter, error, and thermal LVTs */
+	/* XXX: Error and thermal LVTs */
 
 	intr_restore(eflags);
 }
@@ -927,8 +927,12 @@ lapic_ipi_vectored(u_int vector, int dest)
 	}
 
 	/* Wait for an earlier IPI to finish. */
-	if (!lapic_ipi_wait(BEFORE_SPIN))
-		panic("APIC: Previous IPI is stuck");
+	if (!lapic_ipi_wait(BEFORE_SPIN)) {
+		if (panicstr != NULL)
+			return;
+		else
+			panic("APIC: Previous IPI is stuck");
+	}
 
 	lapic_ipi_raw(icrlo, destfield);
 
