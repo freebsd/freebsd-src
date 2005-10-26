@@ -645,7 +645,7 @@ bt3c_pccard_attach(device_t dev)
 
 	/* Attach handler to TTY SWI thread */
 	sc->ith = NULL;
-	if (swi_add(&tty_ithd, device_get_nameunit(dev),
+	if (swi_add(&tty_intr_event, device_get_nameunit(dev),
 			bt3c_swi_intr, sc, SWI_TTY, 0, &sc->ith) < 0) {
 		device_printf(dev, "Could not setup SWI ISR\n");
 		goto bad;
@@ -682,7 +682,7 @@ bt3c_pccard_attach(device_t dev)
 	return (0);
 bad:
 	if (sc->ith != NULL) {
-		ithread_remove_handler(sc->ith);
+		intr_event_remove_handler(sc->ith);
 		sc->ith = NULL;
 	}
 
@@ -724,7 +724,7 @@ bt3c_pccard_detach(device_t dev)
 
 	device_set_softc(dev, NULL);
 
-	ithread_remove_handler(sc->ith);
+	intr_event_remove_handler(sc->ith);
 	sc->ith = NULL;
 
 	bus_teardown_intr(dev, sc->irq, sc->irq_cookie);
