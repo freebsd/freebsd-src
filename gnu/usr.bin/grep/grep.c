@@ -1359,16 +1359,16 @@ main (int argc, char **argv)
   if (program_name && strrchr (program_name, '/'))
     program_name = strrchr (program_name, '/') + 1;
 
+  if (program_name[0] == 'b' && program_name[1] == 'z') {
+    BZflag = 1;
+    program_name += 2;
+  }
 #if HAVE_LIBZ > 0
-  if (program_name[0] == 'z') {
+  else if (program_name[0] == 'z') {
     Zflag = 1;
     ++program_name;
   }
 #endif
-  if (program_name[0] == 'b') {
-    BZflag = 1;
-    ++program_name;
-  }
 
 #if defined(__MSDOS__) || defined(_WIN32)
   /* DOS and MS-Windows use backslashes as directory separators, and usually
