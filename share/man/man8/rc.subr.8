@@ -225,7 +225,7 @@ If
 .Ar interpreter
 is provided, parse the first line of
 .Ar procname ,
-ensure that the line is of the form
+ensure that the line is of the form:
 .Pp
 .Dl "#! interpreter [...]"
 .Pp
@@ -454,12 +454,13 @@ Optional arguments and/or shell directives for
 .Va command .
 .It Va command_interpreter
 .Va command
-is started with
+is started with:
 .Pp
 .Dl "#! command_interpreter [...]"
+.Pp
 which results in its
 .Xr ps 1
-command being
+command being:
 .Pp
 .Dl "command_interpreter [...] command"
 .Pp
@@ -473,14 +474,14 @@ Path to PID file.
 Used to determine the PID(s) of the running command.
 If
 .Va pidfile
-is set, use
+is set, use:
 .Pp
 .Dl "check_pidfile $pidfile $procname"
 .Pp
 to find the PID.
 Otherwise, if
 .Va command
-is set, use
+is set, use:
 .Pp
 .Dl "check_process $procname"
 .Pp
@@ -764,13 +765,14 @@ variable consisting of a daemon's name postfixed by the string
 .Dq Li "_enable" .
 This is not the case in
 .Nx .
-When the following line is included in a script
+When the following line is included in a script:
 .Pp
 .Dl "rcvar=`set_rcvar`"
 .Pp
-This function will use the value of the
+this function will use the value of the
 .Va $name
-variable, which should be defined by the calling script, to construct the appropriate
+variable, which should be defined by the calling script,
+to construct the appropriate
 .Xr rc.conf 5
 knob.
 If the
