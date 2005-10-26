@@ -1438,7 +1438,7 @@ prhead(char *buf, const char *fname, int pagcnt)
 	 * in the spec clearly does not limit length. No pr currently
 	 * restricts header length. However if we need to truncate in
 	 * a reasonable way, adjust the length of the printf by
-	 * changing HDFMT to allow a length max as an arguement printf.
+	 * changing HDFMT to allow a length max as an argument to printf.
 	 * buf (which contains the offset spaces and time field could
 	 * also be trimmed
 	 *
