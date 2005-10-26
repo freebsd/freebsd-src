@@ -612,11 +612,7 @@ bt3c_pccard_probe(device_t dev)
 static int
 bt3c_pccard_attach(device_t dev)
 {
-	bt3c_softc_p	sc = NULL;
-
-	sc = (bt3c_softc_p) malloc(sizeof(*sc), M_BT3C, M_NOWAIT|M_ZERO);
-	if (sc == NULL)
-		return (ENOMEM);
+	bt3c_softc_p	sc = (bt3c_softc_p) device_get_softc(dev);
 
 	/* Allocate I/O ports */
 	sc->iobase_rid = 0;
@@ -677,7 +673,6 @@ bt3c_pccard_attach(device_t dev)
 	sc->want = 1;
 
 	NG_NODE_SET_PRIVATE(sc->node, sc);
- 	device_set_softc(dev, sc);
 
 	return (0);
 bad:
@@ -705,8 +700,6 @@ bad:
 		sc->iobase_rid = 0;
 	}
 
-	free(sc, M_BT3C);
-
 	return (ENXIO);
 } /* bt3c_pccacd_attach */
 
@@ -721,8 +714,6 @@ bt3c_pccard_detach(device_t dev)
 
 	if (sc == NULL)
 		return (0);
-
-	device_set_softc(dev, NULL);
 
 	swi_remove(sc->ith);
 	sc->ith = NULL;
@@ -749,9 +740,6 @@ bt3c_pccard_detach(device_t dev)
 
 	mtx_destroy(&sc->inq.ifq_mtx);
 	mtx_destroy(&sc->outq.ifq_mtx);
-
-	bzero(sc, sizeof(*sc));
-	free(sc, M_BT3C);
 
 	return (0);
 } /* bt3c_pccacd_detach */
@@ -1197,7 +1185,7 @@ static device_method_t	bt3c_pccard_methods[] = {
 static driver_t		bt3c_pccard_driver = {
 	NG_BT3C_NODE_TYPE,
 	bt3c_pccard_methods,
-	0
+	sizeof(bt3c_softc_t)
 };
 
 static devclass_t	bt3c_devclass;
