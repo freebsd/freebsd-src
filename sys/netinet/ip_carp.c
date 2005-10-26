@@ -380,7 +380,7 @@ carp_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_softc = sc;
 	if_initname(ifp, CARP_IFNAME, unit);
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = 0;
+	ifp->if_flags = IFF_LOOPBACK;
 	ifp->if_ioctl = carp_ioctl;
 	ifp->if_output = carp_looutput;
 	ifp->if_start = carp_start;
