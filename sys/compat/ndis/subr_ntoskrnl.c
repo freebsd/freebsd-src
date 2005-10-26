@@ -2556,6 +2556,8 @@ MmMapIoSpace(paddr, len, cachetype)
 	int			i;
 	vm_offset_t		v;
 
+	/* There will always be at least one nexus. */
+
 	nexus_class = devclass_find("nexus");
 	devclass_get_devices(nexus_class, &nexus_devs, &nexus_count);
 
@@ -2593,7 +2595,7 @@ ntoskrnl_finddev(dev, paddr, res)
 	uint64_t		paddr;
 	struct resource		**res;
 {
-	device_t		*children;
+	device_t		*children = NULL;
 	device_t		matching_dev;
 	int			childcnt;
 	struct resource		*r;
@@ -2648,7 +2650,12 @@ ntoskrnl_finddev(dev, paddr, res)
 		}
 	}
 
-	free(children, M_TEMP);
+	
+	/* Won't somebody please think of the children! */
+
+	if (children != NULL)
+		free(children, M_TEMP);
+
 	return(NULL);
 }
 
