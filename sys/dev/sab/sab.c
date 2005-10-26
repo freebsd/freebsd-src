@@ -321,7 +321,7 @@ sab_attach(device_t dev)
 	for (i = 0; i < SAB_NCHAN; i++)
 		sc->sc_child[i] = device_get_softc(child[i]);
 
-	swi_add(&tty_intr_event, "tty:sab", sab_softintr, sc, SWI_TTY,
+	swi_add(&tty_intr_event, "sab", sab_softintr, sc, SWI_TTY,
 	    INTR_TYPE_TTY, &sc->sc_softih);
 
 	if (sabtty_cons != NULL) {

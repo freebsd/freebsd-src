@@ -682,7 +682,7 @@ bt3c_pccard_attach(device_t dev)
 	return (0);
 bad:
 	if (sc->ith != NULL) {
-		intr_event_remove_handler(sc->ith);
+		swi_remove(sc->ith);
 		sc->ith = NULL;
 	}
 
@@ -724,7 +724,7 @@ bt3c_pccard_detach(device_t dev)
 
 	device_set_softc(dev, NULL);
 
-	intr_event_remove_handler(sc->ith);
+	swi_remove(sc->ith);
 	sc->ith = NULL;
 
 	bus_teardown_intr(dev, sc->irq, sc->irq_cookie);
