@@ -426,6 +426,8 @@ wait_for_pids()
 #	reload		Similar to stop, except use $sig_reload instead,
 #			and doesn't wait_for_pids.
 #			$sig_reload defaults to HUP.
+#			Note that `reload' isn't provided by default,
+#			it should be enabled via $extra_commands.
 #
 #	restart		Run `stop' then `start'.
 #
