@@ -541,6 +541,10 @@ intr_event_schedule_thread(struct intr_event *ie)
 	return (0);
 }
 
+/*
+ * Add a software interrupt handler to a specified event.  If a given event
+ * is not specified, then a new event is created.
+ */
 int
 swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	    void *arg, int pri, enum intr_type flags, void **cookiep)
@@ -594,6 +598,19 @@ swi_sched(void *cookie, int flags)
 		error = intr_event_schedule_thread(ie);
 		KASSERT(error == 0, ("stray software interrupt"));
 	}
+}
+
+/*
+ * Remove a software interrupt handler.  Currently this code does not
+ * remove the associated interrupt event if it becomes empty.  Calling code
+ * may do so manually via intr_event_destroy(), but that's not really
+ * an optimal interface.
+ */
+int
+swi_remove(void *cookie)
+{
+
+	return (intr_event_remove_handler(cookie));
 }
 
 static void
