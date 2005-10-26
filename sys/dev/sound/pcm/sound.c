@@ -725,18 +725,21 @@ pcm_unregister(device_t dev)
 		}
 	}
 
-	SLIST_FOREACH(sce, &d->channels, link) {
-		destroy_dev(sce->dsp_devt);
-		destroy_dev(sce->dspW_devt);
-		destroy_dev(sce->audio_devt);
-		if (sce->dspr_devt)
-			destroy_dev(sce->dspr_devt);
-	}
-
 	if (mixer_uninit(dev)) {
 		device_printf(dev, "unregister: mixer busy\n");
 		snd_mtxunlock(d->lock);
 		return EBUSY;
+	}
+
+	SLIST_FOREACH(sce, &d->channels, link) {
+		if (sce->dsp_devt)
+			destroy_dev(sce->dsp_devt);
+		if (sce->dspW_devt)
+			destroy_dev(sce->dspW_devt);
+		if (sce->audio_devt)
+			destroy_dev(sce->audio_devt);
+		if (sce->dspr_devt)
+			destroy_dev(sce->dspr_devt);
 	}
 
 #ifdef SND_DYNSYSCTL
@@ -972,15 +975,15 @@ remok:
 
 /************************************************************************/
 
-#if notyet
 static int
 sound_modevent(module_t mod, int type, void *data)
 {
+#if 0
 	return (midi_modevent(mod, type, data));
+#else
+	return 0;
+#endif
 }
 
 DEV_MODULE(sound, sound_modevent, NULL);
-#else
-DEV_MODULE(sound, NULL, NULL);
-#endif /* notyet */
 MODULE_VERSION(sound, SOUND_MODVER);
