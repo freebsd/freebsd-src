@@ -1074,10 +1074,14 @@ Matches all TCP or UDP packets sent by or received for a
 A
 .Ar group
 may be specified by name or number.
+This option should be used only if debug.mpsafenet=0 to avoid possible
+deadlocks due to layering violations in its implementation.
 .It Cm jail Ar prisonID
 Matches all TCP or UDP packets sent by or received for the
 jail whos prison ID is
 .Ar prisonID .
+This option should be used only if debug.mpsafenet=0 to avoid possible
+deadlocks due to layering violations in its implementation.
 .It Cm icmptypes Ar types
 Matches ICMP packets whose ICMP type is in the list
 .Ar types .
@@ -1413,6 +1417,8 @@ Match all TCP or UDP packets sent by or received for a
 A
 .Ar user
 may be matched by name or identification number.
+This option should be used only if debug.mpsafenet=0 to avoid possible
+deadlocks due to layering violations in its implementation.
 .It Cm verrevpath
 For incoming packets,
 a routing table lookup is done on the packet's source address.
@@ -2517,3 +2523,7 @@ to a TCP connection, and the uid/gid associated with a packet may not
 be as expected if the associated process calls
 .Xr setuid 2
 or similar system calls.
+.Pp
+Rules which use uid, gid or jail based matching should be used only
+if debug.mpsafenet=0 to avoid possible deadlocks due to layering
+violations in its implementation.
