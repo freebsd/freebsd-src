@@ -204,6 +204,7 @@ static void *MmMapLockedPagesSpecifyCache(mdl *,
 	uint8_t, uint32_t, void *, uint32_t, uint32_t);
 static void MmUnmapLockedPages(void *, mdl *);
 static uint8_t MmIsAddressValid(void *);
+static device_t ntoskrnl_finddev(device_t, uint64_t, struct resource **);
 static size_t RtlCompareMemory(const void *, const void *, size_t);
 static ndis_status RtlUnicodeStringToInteger(unicode_string *,
 	uint32_t, uint32_t *);
@@ -2541,6 +2542,116 @@ MmIsAddressValid(vaddr)
 	return(FALSE);
 }
 
+void *
+MmMapIoSpace(paddr, len, cachetype)
+	uint64_t		paddr;
+	uint32_t		len;
+	uint32_t		cachetype;
+{
+	devclass_t		nexus_class;
+	device_t		*nexus_devs, devp;
+	int			nexus_count = 0;
+	device_t		matching_dev = NULL;
+	struct resource		*res;
+	int			i;
+	vm_offset_t		v;
+
+	nexus_class = devclass_find("nexus");
+	devclass_get_devices(nexus_class, &nexus_devs, &nexus_count);
+
+	for (i = 0; i < nexus_count; i++) {
+		devp = nexus_devs[i];
+		matching_dev = ntoskrnl_finddev(devp, paddr, &res);
+		if (matching_dev)
+			break;
+	}
+
+	free(nexus_devs, M_TEMP);
+
+	if (matching_dev == NULL)
+		return(NULL);
+
+	v = (vm_offset_t)rman_get_virtual(res);
+	if (paddr > rman_get_start(res))
+		v += paddr - rman_get_start(res);
+
+	return((void *)v);
+}
+
+void
+MmUnmapIoSpace(vaddr, len)
+	void			*vaddr;
+	size_t			len;
+{
+	return;
+}
+
+
+static device_t
+ntoskrnl_finddev(dev, paddr, res)
+	device_t		dev;
+	uint64_t		paddr;
+	struct resource		**res;
+{
+	device_t		*children;
+	device_t		matching_dev;
+	int			childcnt;
+	struct resource		*r;
+	struct resource_list	*rl;
+	struct resource_list_entry	*rle;
+	uint32_t		flags;
+	int			i;
+
+	/* We only want devices that have been successfully probed. */
+
+	if (device_is_alive(dev) == FALSE)
+		return(NULL);
+
+	rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
+	if (rl != NULL) {
+#if __FreeBSD_version < 600022
+		SLIST_FOREACH(rle, rl, link) {
+#else
+		STAILQ_FOREACH(rle, rl, link) {
+#endif
+			r = rle->res;
+
+			if (r == NULL)
+				continue;
+
+			flags = rman_get_flags(r);
+
+			if (rle->type == SYS_RES_MEMORY &&
+			    paddr >= rman_get_start(r) &&
+			    paddr <= rman_get_end(r)) {
+				if (!(flags & RF_ACTIVE))
+					bus_activate_resource(dev,
+					    SYS_RES_MEMORY, 0, r);
+				*res = r;
+				return(dev);
+			}
+		}
+	}
+
+	/*
+	 * If this device has children, do another
+	 * level of recursion to inspect them.
+	 */
+
+	device_get_children(dev, &children, &childcnt);
+
+	for (i = 0; i < childcnt; i++) {
+		matching_dev = ntoskrnl_finddev(children[i], paddr, res);
+		if (matching_dev != NULL) {
+			free(children, M_TEMP);
+			return(matching_dev);
+		}
+	}
+
+	free(children, M_TEMP);
+	return(NULL);
+}
+
 /*
  * Workitems are unlike DPCs, in that they run in a user-mode thread
  * context rather than at DISPATCH_LEVEL in kernel context. In our
@@ -4053,6 +4164,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(MmUnmapLockedPages, 2),
 	IMPORT_SFUNC(MmBuildMdlForNonPagedPool, 1),
 	IMPORT_SFUNC(MmIsAddressValid, 1),
+	IMPORT_SFUNC(MmMapIoSpace, 3 + 1),
+	IMPORT_SFUNC(MmUnmapIoSpace, 2),
 	IMPORT_SFUNC(KeInitializeSpinLock, 1),
 	IMPORT_SFUNC(IoIsWdmVersionAvailable, 2),
 	IMPORT_SFUNC(IoGetDeviceProperty, 5),
