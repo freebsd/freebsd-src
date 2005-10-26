@@ -687,8 +687,8 @@ out:
 	return (error);
 }
 
-static int
-do_wake(struct thread *td, void *uaddr, int n_wake)
+int
+kern_umtx_wake(struct thread *td, void *uaddr, int n_wake)
 {
 	struct umtx_key key;
 	int ret;
@@ -762,7 +762,7 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 		error = do_wait(td, uap->umtx, uap->id, ts);
 		break;
 	case UMTX_OP_WAKE:
-		error = do_wake(td, uap->umtx, uap->id);
+		error = kern_umtx_wake(td, uap->umtx, uap->id);
 		break;
 	default:
 		error = EINVAL;
