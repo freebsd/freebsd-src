@@ -392,7 +392,7 @@ int uart_tty_detach(struct uart_softc *sc)
 	tp = sc->sc_u.u_tty.tp;
 	tp->t_pps = NULL;
 	ttygone(tp);
-	intr_event_remove_handler(sc->sc_softih);
+	swi_remove(sc->sc_softih);
 	ttyfree(tp);
 
 	return (0);

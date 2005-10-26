@@ -311,7 +311,7 @@ rc_attach(device_t dev)
 		goto fail;
 	}
 		
-	swi_add(&tty_intr_event, "tty:rc", rc_pollcard, sc, SWI_TTY, 0,
+	swi_add(&tty_intr_event, "rc", rc_pollcard, sc, SWI_TTY, 0,
 	    &sc->sc_swicookie);
 	return (0);
 
@@ -336,7 +336,7 @@ rc_detach(device_t dev)
 	error = bus_teardown_intr(dev, sc->sc_irq, sc->sc_hwicookie);
 	if (error)
 		device_printf(dev, "failed to deregister interrupt handler\n");
-	intr_event_remove_handler(sc->sc_swicookie);
+	swi_remove(sc->sc_swicookie);
 	rc_release_resources(dev);
 
 	return (0);
