@@ -63,16 +63,11 @@ struct pci_id {
 };
 
 static struct pci_id pci_ns8250_ids[] = {
-	{ 0x100812b9, "3COM PCI FaxModem", 0x10 },
-	{ 0x2000131f, "CyberSerial (1-port) 16550", 0x10 },
-	{ 0x01101407, "Koutech IOFLEX-2S PCI Dual Port Serial", 0x10 },
-	{ 0x01111407, "Koutech IOFLEX-2S PCI Dual Port Serial", 0x10 },
-	{ 0x048011c1, "Lucent kermit based PCI Modem", 0x14 },
-	{ 0x95211415, "Oxford Semiconductor PCI Dual Port Serial", 0x10 },
-	{ 0x7101135e, "SeaLevel Ultra 530.PCI Single Port Serial", 0x18 },
-	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
-	{ 0x0103115d, "Xircom Cardbus modem", 0x10 },
-	{ 0x98459710, "Netmos Nm9845 PCI Bridge with Dual UART", 0x10 },
+	{ 0x048011c1, "Actiontec 56K PCI Master", 0x14 },
+	{ 0x01101407, "Lava Computers serial port", 0x10 },
+	{ 0x01111407, "Lava Computers serial port", 0x10 },
+	{ 0x9051deaf, "Middle Digital, Inc. Weasel serial port", 0x10 },
+	{ 0x950b1415, "Oxford Semiconductor OXCB950 UART", 0x10 },
 	{ 0x01c0135c, "Quatech SSCLP-200/300", 0x18 
 		/* 
 		 * NB: You must mount the "SPAD" jumper to correctly detect
@@ -80,6 +75,16 @@ static struct pci_id pci_ns8250_ids[] = {
 		 * we do not support the extra registers on the Quatech.
 		 */
 	},
+	{ 0x7101135e, "SeaLevel Ultra 530.PCI Single Port Serial", 0x18 },
+	{ 0x1000131f, "SIIG Cyber Serial PCI 16C550 (10x family)", 0x18 },
+	{ 0x1001131f, "SIIG Cyber Serial PCI 16C650 (10x family)", 0x18 },
+	{ 0x1002131f, "SIIG Cyber Serial PCI 16C850 (10x family)", 0x18 },
+	{ 0x2000131f, "SIIG Cyber Serial PCI 16C550 (20x family)", 0x10 },
+	{ 0x2001131f, "SIIG Cyber Serial PCI 16C650 (20x family)", 0x10 },
+	{ 0x2002131f, "SIIG Cyber Serial PCI 16C850 (20x family)", 0x10 },
+	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
+	{ 0x100812b9, "US Robotics (3Com) 3CP5609 PCI 16550 Modem", 0x10 },
+	{ 0x0103115d, "Xircom Cardbus modem", 0x10 },
 	{ 0x00000000, NULL, 0 }
 };
 
