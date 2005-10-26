@@ -57,6 +57,7 @@ extern int ndis_strncasecmp(const char *, const char *, size_t);
 #define strncasecmp(a, b, c) ndis_strncasecmp(a, b, c)
 #else
 #include <stdio.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -142,7 +143,7 @@ pe_get_optional_header(imgbase, hdr)
 	nt_hdr = (image_nt_header *)(imgbase + dos_hdr->idh_lfanew);
 
 	bcopy ((char *)&nt_hdr->inh_optionalhdr, (char *)hdr,
-	    sizeof(image_optional_header));
+	    nt_hdr->inh_filehdr.ifh_optionalhdrlen);
 
 	return(0);
 }
@@ -168,6 +169,14 @@ pe_get_file_header(imgbase, hdr)
 
 	dos_hdr = (image_dos_header *)imgbase;
 	nt_hdr = (image_nt_header *)(imgbase + dos_hdr->idh_lfanew);
+
+	/*
+	 * Note: the size of the nt_header is variable since it
+	 * can contain optional fields, as indicated by ifh_optionalhdrlen.
+	 * However it happens we're only interested in fields in the
+	 * non-variant portion of the nt_header structure, so we don't
+	 * bother copying the optional parts here.
+	 */
 
 	bcopy ((char *)&nt_hdr->inh_filehdr, (char *)hdr,
 	    sizeof(image_file_header));
@@ -197,8 +206,7 @@ pe_get_section_header(imgbase, hdr)
 
 	dos_hdr = (image_dos_header *)imgbase;
 	nt_hdr = (image_nt_header *)(imgbase + dos_hdr->idh_lfanew);
-	sect_hdr = (image_section_header *)((vm_offset_t)nt_hdr +
-	    sizeof(image_nt_header));
+	sect_hdr = IMAGE_FIRST_SECTION(nt_hdr);
 
 	bcopy ((char *)sect_hdr, (char *)hdr, sizeof(image_section_header));
 
@@ -280,8 +288,7 @@ pe_translate_addr(imgbase, rva)
 
 	dos_hdr = (image_dos_header *)imgbase;
 	nt_hdr = (image_nt_header *)(imgbase + dos_hdr->idh_lfanew);
-	sect_hdr = (image_section_header *)((vm_offset_t)nt_hdr +
-	    sizeof(image_nt_header));
+	sect_hdr = IMAGE_FIRST_SECTION(nt_hdr);
 
 	/*
 	 * The test here is to see if the RVA falls somewhere
@@ -339,8 +346,7 @@ pe_get_section(imgbase, hdr, name)
 
 	dos_hdr = (image_dos_header *)imgbase;
 	nt_hdr = (image_nt_header *)(imgbase + dos_hdr->idh_lfanew);
-	sect_hdr = (image_section_header *)((vm_offset_t)nt_hdr +
-	    sizeof(image_nt_header));
+	sect_hdr = IMAGE_FIRST_SECTION(nt_hdr);
 
 	for (i = 0; i < sections; i++) {
 		if (!strcmp ((char *)&sect_hdr->ish_name, name)) {
