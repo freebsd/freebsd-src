@@ -428,9 +428,9 @@ cyattach_common(cy_addr cy_iobase, int cy_align)
 			splx(s);
 
 			if (cy_fast_ih == NULL) {
-				swi_add(&tty_ithd, "cy", cypoll, NULL, SWI_TTY, 0,
+				swi_add(&tty_intr_event, "cy", cypoll, NULL, SWI_TTY, 0,
 					&cy_fast_ih);
-				swi_add(&clk_ithd, "cy", cypoll, NULL, SWI_CLOCK, 0,
+				swi_add(&clk_intr_event, "cy", cypoll, NULL, SWI_CLOCK, 0,
 					&cy_slow_ih);
 			}
 			ttycreate(tp, TS_CALLOUT, "c%r%r",

@@ -2547,7 +2547,7 @@ static int cx_modevent (module_t mod, int type, void *unused)
 		callout_init (&timeout_handle, cx_mpsafenet?CALLOUT_MPSAFE:0);
 		callout_reset (&timeout_handle, hz*5, cx_timeout, 0);
 		/* Software interrupt. */
-		swi_add(&tty_ithd, "cx", cx_softintr, NULL, SWI_TTY,
+		swi_add(&tty_intr_event, "cx", cx_softintr, NULL, SWI_TTY,
 		    (cx_mpsafenet?INTR_MPSAFE:0), &cx_fast_ih);
 		break;
 	case MOD_UNLOAD:
@@ -2560,7 +2560,7 @@ static int cx_modevent (module_t mod, int type, void *unused)
 		/* If we were wait it than it reasserted now, just stop it. */
 		if (!callout_drain (&timeout_handle))
 			callout_stop (&timeout_handle);
-		ithread_remove_handler (cx_fast_ih);
+		intr_event_remove_handler (cx_fast_ih);
 		--load_count;
 		break;
 	case MOD_SHUTDOWN:
