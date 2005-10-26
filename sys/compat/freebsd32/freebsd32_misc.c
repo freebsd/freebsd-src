@@ -1397,7 +1397,7 @@ freebsd4_freebsd32_sigaction(struct thread *td,
 #endif
 
 #ifdef COMPAT_43
-struct freebsd3_sigaction32 {
+struct osigaction32 {
 	u_int32_t	sa_u;
 	osigset_t	sa_mask;
 	int		sa_flags;
@@ -1406,10 +1406,10 @@ struct freebsd3_sigaction32 {
 #define	ONSIG	32
 
 int
-freebsd3_freebsd32_sigaction(struct thread *td,
-			     struct freebsd3_freebsd32_sigaction_args *uap)
+ofreebsd32_sigaction(struct thread *td,
+			     struct ofreebsd32_sigaction_args *uap)
 {
-	struct freebsd3_sigaction32 s32;
+	struct osigaction32 s32;
 	struct sigaction sa, osa, *sap;
 	int error;
 
@@ -1437,8 +1437,8 @@ freebsd3_freebsd32_sigaction(struct thread *td,
 }
 
 int
-freebsd3_freebsd32_sigprocmask(struct thread *td,
-			       struct freebsd3_freebsd32_sigprocmask_args *uap)
+ofreebsd32_sigprocmask(struct thread *td,
+			       struct ofreebsd32_sigprocmask_args *uap)
 {
 	sigset_t set, oset;
 	int error;
@@ -1450,8 +1450,8 @@ freebsd3_freebsd32_sigprocmask(struct thread *td,
 }
 
 int
-freebsd3_freebsd32_sigpending(struct thread *td,
-			      struct freebsd3_freebsd32_sigpending_args *uap)
+ofreebsd32_sigpending(struct thread *td,
+			      struct ofreebsd32_sigpending_args *uap)
 {
 	struct proc *p = td->td_proc;
 	sigset_t siglist;
@@ -1471,8 +1471,8 @@ struct sigvec32 {
 };
 
 int
-freebsd3_freebsd32_sigvec(struct thread *td,
-			  struct freebsd3_freebsd32_sigvec_args *uap)
+ofreebsd32_sigvec(struct thread *td,
+			  struct ofreebsd32_sigvec_args *uap)
 {
 	struct sigvec32 vec;
 	struct sigaction sa, osa, *sap;
@@ -1505,8 +1505,8 @@ freebsd3_freebsd32_sigvec(struct thread *td,
 }
 
 int
-freebsd3_freebsd32_sigblock(struct thread *td,
-			    struct freebsd3_freebsd32_sigblock_args *uap)
+ofreebsd32_sigblock(struct thread *td,
+			    struct ofreebsd32_sigblock_args *uap)
 {
 	struct proc *p = td->td_proc;
 	sigset_t set;
@@ -1521,8 +1521,8 @@ freebsd3_freebsd32_sigblock(struct thread *td,
 }
 
 int
-freebsd3_freebsd32_sigsetmask(struct thread *td,
-			      struct freebsd3_freebsd32_sigsetmask_args *uap)
+ofreebsd32_sigsetmask(struct thread *td,
+			      struct ofreebsd32_sigsetmask_args *uap)
 {
 	struct proc *p = td->td_proc;
 	sigset_t set;
@@ -1538,8 +1538,8 @@ freebsd3_freebsd32_sigsetmask(struct thread *td,
 }
 
 int
-freebsd3_freebsd32_sigsuspend(struct thread *td,
-			      struct freebsd3_freebsd32_sigsuspend_args *uap)
+ofreebsd32_sigsuspend(struct thread *td,
+			      struct ofreebsd32_sigsuspend_args *uap)
 {
 	struct proc *p = td->td_proc;
 	sigset_t mask;
@@ -1564,8 +1564,8 @@ struct sigstack32 {
 };
 
 int
-freebsd3_freebsd32_sigstack(struct thread *td,
-			    struct freebsd3_freebsd32_sigstack_args *uap)
+ofreebsd32_sigstack(struct thread *td,
+			    struct ofreebsd32_sigstack_args *uap)
 {
 	struct sigstack32 s32;
 	struct sigstack nss, oss;

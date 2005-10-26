@@ -116,18 +116,17 @@
 				    size_t offset, u_int scale); }
 45	AUE_NULL	MNOPROTO { int ktrace(const char *fname, int ops, \
 				    int facs, int pid); }
-46	AUE_NULL	MSTD	 { int freebsd3_freebsd32_sigaction( \
-				   int signum, \
-				   struct freebsd3_sigaction32 *nsa, \
-				   struct freebsd3_sigaction32 *osa); }
+46	AUE_NULL	MCOMPAT	 { int freebsd32_sigaction( int signum, \
+				   struct osigaction32 *nsa, \
+				   struct osigaction32 *osa); }
 47	AUE_NULL	MNOPROTO { gid_t getgid(void); }
-48	AUE_NULL	MSTD	 { int freebsd3_freebsd32_sigprocmask(int how, \
+48	AUE_NULL	MCOMPAT	 { int freebsd32_sigprocmask(int how, \
 				   osigset_t mask); }
 49	AUE_NULL	MNOPROTO { int getlogin(char *namebuf, \
 				    u_int namelen); }
 50	AUE_NULL	MNOPROTO { int setlogin(char *namebuf); }
 51	AUE_NULL	MNOPROTO { int acct(char *path); }
-52	AUE_NULL	MSTD	 { int freebsd3_freebsd32_sigpending(void); }
+52	AUE_NULL	MCOMPAT	 { int freebsd32_sigpending(void); }
 53	AUE_NULL	MSTD	{ int freebsd32_sigaltstack( \
 				    struct sigaltstack32 *ss, \
 				    struct sigaltstack32 *oss); }
@@ -209,15 +208,13 @@
 				    int name, caddr_t val, int valsize); }
 106	AUE_NULL	MNOPROTO { int listen(int s, int backlog); }
 107	AUE_NULL	OBSOL	vtimes
-108	AUE_NULL	MSTD	 { int freebsd3_freebsd32_sigvec(int signum, \
+108	AUE_NULL	MCOMPAT	 { int freebsd32_sigvec(int signum, \
 				     struct sigvec32 *nsv, \
 				     struct sigvec32 *osv); }
-109	AUE_NULL	MSTD	 { int freebsd3_freebsd32_sigblock(int mask); }
-110	AUE_NULL	MSTD	 { int freebsd3_freebsd32_sigsetmask( \
-				     int mask); }
-111	AUE_NULL	MSTD	 { int freebsd3_freebsd32_sigsuspend( \
-				     int mask); }
-112	AUE_NULL	MSTD	 { int freebsd3_freebsd32_sigstack( \
+109	AUE_NULL	MCOMPAT	 { int freebsd32_sigblock(int mask); }
+110	AUE_NULL	MCOMPAT	 { int freebsd32_sigsetmask( int mask); }
+111	AUE_NULL	MCOMPAT	 { int freebsd32_sigsuspend( int mask); }
+112	AUE_NULL	MCOMPAT	 { int freebsd32_sigstack( \
 				     struct sigstack32 *nss, \
 				     struct sigstack32 *oss); }
 113	AUE_NULL	OBSOL	orecvmsg
