@@ -82,6 +82,9 @@ __FBSDID("$FreeBSD$");
 /* Required to be non-static for SysVR4 emulator */
 MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
+/* Hook for NFS teardown procedure. */
+void (*nlminfo_release_p)(struct proc *p);
+
 /*
  * exit --
  *	Death of process.
@@ -232,6 +235,12 @@ retry:
 	 */
 	mtx_lock(&Giant);	/* XXX: not sure if needed */
 	funsetownlst(&p->p_sigiolst);
+
+	/*
+	 * If this process has an nlminfo data area (for lockd), release it
+	 */
+	if (nlminfo_release_p != NULL && p->p_nlminfo != NULL)
+		(*nlminfo_release_p)(p);
 
 	/*
 	 * Close open files and release open-file table.

@@ -62,9 +62,13 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs_lock.h>
 #include <nfsclient/nlminfo.h>
 
+extern void (*nlminfo_release_p)(struct proc *p);
+
 MALLOC_DEFINE(M_NFSLOCK, "NFS lock", "NFS lock request");
+MALLOC_DEFINE(M_NLMINFO, "nlminfo", "NFS lock process structure");
 
 static int nfslockdans(struct thread *td, struct lockd_ans *ansp);
+static void nlminfo_release(struct proc *p);
 /*
  * --------------------------------------------------------------------
  * A miniature device driver which the userland uses to talk to us.
@@ -194,6 +198,7 @@ nfslock_modevent(module_t mod __unused, int type, void *data __unused)
 			printf("nfslock: pseudo-device\n");
 		mtx_init(&nfslock_mtx, "nfslock", NULL, MTX_DEF);
 		TAILQ_INIT(&nfslock_list);
+		nlminfo_release_p = nlminfo_release;
 		nfslock_dev = make_dev(&nfslock_cdevsw, 0,
 		    UID_ROOT, GID_KMEM, 0600, _PATH_NFSLCKDEV);
 		return (0);
@@ -259,7 +264,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 	 */
 	if (p->p_nlminfo == NULL) {
 		MALLOC(p->p_nlminfo, struct nlminfo *,
-			sizeof(struct nlminfo), M_LOCKF, M_WAITOK | M_ZERO);
+			sizeof(struct nlminfo), M_NLMINFO, M_WAITOK | M_ZERO);
 		p->p_nlminfo->pid_start = p->p_stats->p_start;
 		timevaladd(&p->p_nlminfo->pid_start, &boottime);
 	}
@@ -381,3 +386,12 @@ nfslockdans(struct thread *td, struct lockd_ans *ansp)
 	return (0);
 }
 
+/*
+ * Free nlminfo attached to process.
+ */
+void        
+nlminfo_release(struct proc *p)
+{  
+	free(p->p_nlminfo, M_NLMINFO);
+	p->p_nlminfo = NULL;
+}
