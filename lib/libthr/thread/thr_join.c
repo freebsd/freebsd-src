@@ -76,10 +76,10 @@ join_common(pthread_t pthread, void **thread_return,
 	struct pthread *curthread = _get_curthread();
 	struct timespec ts, ts2, *tsp;
 	void *tmp;
-	long state;
+	long tid;
 	int oldcancel;
 	int ret = 0;
- 
+
 	if (pthread == NULL)
 		return (EINVAL);
 
@@ -107,7 +107,8 @@ join_common(pthread_t pthread, void **thread_return,
 	THR_CLEANUP_PUSH(curthread, backout_join, pthread);
 	oldcancel = _thr_cancel_enter(curthread);
 
-	while ((state = pthread->state) != PS_DEAD) {
+	tid = pthread->tid;
+	while (pthread->tid != TID_TERMINATED) {
 		if (abstime != NULL) {
 			clock_gettime(CLOCK_REALTIME, &ts);
 			TIMESPEC_SUB(&ts2, abstime, &ts);
@@ -118,7 +119,7 @@ join_common(pthread_t pthread, void **thread_return,
 			tsp = &ts2;
 		} else
 			tsp = NULL;
-		ret = _thr_umtx_wait(&pthread->state, state, tsp);
+		ret = _thr_umtx_wait(&pthread->tid, tid, tsp);
 		if (ret == ETIMEDOUT)
 			break;
 	}
