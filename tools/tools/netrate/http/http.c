@@ -35,6 +35,7 @@
 
 #include <err.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,8 +53,8 @@
 
 struct http_worker_description {
 	pthread_t	hwd_thread;
-	u_int64_t	hwd_count;
-	u_int64_t	hwd_errorcount;
+	uintmax_t	hwd_count;
+	uintmax_t	hwd_errorcount;
 };
 
 static struct sockaddr_in		 sin;
@@ -149,7 +150,7 @@ http_worker(void *arg)
 int
 main(int argc, char *argv[])
 {
-	u_int64_t total;
+	uintmax_t total;
 	int i;
 
 	if (argc != 4)
@@ -186,10 +187,10 @@ main(int argc, char *argv[])
 	total = 0;
 	for (i = 0; i < THREADS; i++)
 		total += hwd[i].hwd_count;
-	printf("%llu transfers/second\n", total / SECONDS);
+	printf("%ju transfers/second\n", total / SECONDS);
 	total = 0;
 	for (i = 0; i < THREADS; i++)
 		total += hwd[i].hwd_errorcount;
-	printf("%llu errors/second\n", total / SECONDS);
+	printf("%ju errors/second\n", total / SECONDS);
 	return (0);
 }
