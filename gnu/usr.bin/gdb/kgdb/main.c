@@ -197,6 +197,8 @@ kgdb_parse(const char *exp)
 	return (n);
 }
 
+#define	MSGBUF_SEQ_TO_POS(size, seq)	((seq) % (size))
+
 static void
 kgdb_init_target(void)
 {
@@ -241,6 +243,8 @@ kgdb_init_target(void)
 	size = (int)kgdb_parse("msgbufp->msg_size");
 	rseq = (int)kgdb_parse("msgbufp->msg_rseq");
 	wseq = (int)kgdb_parse("msgbufp->msg_wseq");
+	rseq = MSGBUF_SEQ_TO_POS(size, rseq);
+	wseq = MSGBUF_SEQ_TO_POS(size, wseq);
 	if (bufp == 0 || size == 0 || rseq == wseq)
 		return;
 
