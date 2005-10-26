@@ -238,12 +238,12 @@ vlan_modevent(module_t mod, int type, void *data)
 		if_clone_attach(&vlan_cloner);
 		break;
 	case MOD_UNLOAD:
-		if_clone_detach(&vlan_cloner);
 		vlan_input_p = NULL;
 		vlan_link_state_p = NULL;
 		while (!LIST_EMPTY(&ifv_list))
 			vlan_clone_destroy(&vlan_cloner,
 			    LIST_FIRST(&ifv_list)->ifv_ifp);
+		if_clone_detach(&vlan_cloner);
 		VLAN_LOCK_DESTROY();
 		break;
 	default:
