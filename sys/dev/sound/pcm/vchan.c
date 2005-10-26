@@ -251,7 +251,8 @@ vchan_create(struct pcm_channel *parent)
     	struct snddev_info *d = parent->parentsnddev;
 	struct pcmchan_children *pce;
 	struct pcm_channel *child;
-	int err, first;
+	struct pcmchan_caps *parent_caps;
+	int err, first, speed;
 
    	CHN_UNLOCK(parent);
 
@@ -295,7 +296,20 @@ vchan_create(struct pcm_channel *parent)
 		err = chn_reset(parent, AFMT_STEREO | AFMT_S16_LE);
 		if (err)
 			printf("chn_reset: %d\n", err);
-		err = chn_setspeed(parent, 44100);
+		speed = 44100;
+		parent_caps = chn_getcaps(parent);
+		if (parent_caps != NULL) {
+			/*
+			 * Limit speed based on driver caps.
+			 * This is supposed to help fixed rate, non-VRA
+			 * AC97 cards.
+			 */
+			if (speed < parent_caps->minspeed)
+				speed = parent_caps->minspeed;
+			if (speed > parent_caps->maxspeed)
+				speed = parent_caps->maxspeed;
+		}
+		err = chn_setspeed(parent, speed);
 		if (err)
 			printf("chn_setspeed: %d\n", err);
 	}
@@ -309,6 +323,7 @@ vchan_destroy(struct pcm_channel *c)
 	struct pcm_channel *parent = c->parentchannel;
     	struct snddev_info *d = parent->parentsnddev;
 	struct pcmchan_children *pce;
+	struct snddev_channel *sce;
 	int err, last;
 
 	CHN_LOCK(parent);
@@ -329,6 +344,19 @@ vchan_destroy(struct pcm_channel *c)
 	CHN_UNLOCK(parent);
 	return EINVAL;
 gotch:
+	SLIST_FOREACH(sce, &d->channels, link) {
+		if (sce->channel == c) {
+			if (sce->dsp_devt)
+				destroy_dev(sce->dsp_devt);
+			if (sce->dspW_devt)
+				destroy_dev(sce->dspW_devt);
+			if (sce->audio_devt)
+				destroy_dev(sce->audio_devt);
+			if (sce->dspr_devt)
+				destroy_dev(sce->dspr_devt);
+			break;
+		}
+	}
 	SLIST_REMOVE(&parent->children, pce, pcmchan_children, link);
 	free(pce, M_DEVBUF);
 
