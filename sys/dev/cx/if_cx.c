@@ -2560,7 +2560,7 @@ static int cx_modevent (module_t mod, int type, void *unused)
 		/* If we were wait it than it reasserted now, just stop it. */
 		if (!callout_drain (&timeout_handle))
 			callout_stop (&timeout_handle);
-		intr_event_remove_handler (cx_fast_ih);
+		swi_remove (cx_fast_ih);
 		--load_count;
 		break;
 	case MOD_SHUTDOWN:
