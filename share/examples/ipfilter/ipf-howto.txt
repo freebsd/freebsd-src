@@ -2564,7 +2564,7 @@ integrity of the firewall itself.  Can somebody  break  into
 your  firewall,  thereby  subverting its ruleset?  This is a
 common problem administrators must face,  particularly  when
 they're  using  firewall  solutions  on top of their Unix/NT
-machines.  Some use it as an arguement for blackbox hardware
+machines.  Some use it as an argument for blackbox hardware
 solutions,  under  the flawed notion that inherent obscurity
 
 
