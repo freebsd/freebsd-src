@@ -112,12 +112,14 @@ set_regs32(struct thread *td, struct reg32 *regs)
 	if (!EFL_SECURE(regs->r_eflags, tp->tf_rflags) || !CS_SECURE(regs->r_cs))
 		return (EINVAL);
 	pcb = td->td_pcb;
+#if 0
 	load_fs(regs->r_fs);
 	pcb->pcb_fs = regs->r_fs;
 	load_es(regs->r_es);
 	pcb->pcb_es = regs->r_es;
 	load_ds(regs->r_ds);
 	pcb->pcb_ds = regs->r_ds;
+#endif
 	tp->tf_rdi = regs->r_edi;
 	tp->tf_rsi = regs->r_esi;
 	tp->tf_rbp = regs->r_ebp;
@@ -130,8 +132,10 @@ set_regs32(struct thread *td, struct reg32 *regs)
 	tp->tf_rflags = regs->r_eflags;
 	tp->tf_rsp = regs->r_esp;
 	tp->tf_ss = regs->r_ss;
+#if 0
 	load_gs(regs->r_gs);
 	pcb->pcb_gs = regs->r_gs;
+#endif
 	return (0);
 }
 
