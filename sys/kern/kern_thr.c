@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/ucontext.h>
 #include <sys/thr.h>
+#include <sys/umtx.h>
+#include <sys/limits.h>
 
 #include <machine/frame.h>
 
@@ -275,8 +277,10 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 	p = td->td_proc;
 
 	/* Signal userland that it can free the stack. */
-	if ((void *)uap->state != NULL)
+	if ((void *)uap->state != NULL) {
 		suword((void *)uap->state, 1);
+		kern_umtx_wake(td, uap->state, INT_MAX);
+	}
 
 	PROC_LOCK(p);
 	sigqueue_flush(&td->td_sigqueue);
