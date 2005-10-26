@@ -1108,8 +1108,6 @@ ndis_reset_nic(arg)
 	return(0);
 }
 
-#undef NDIS_REAP_TIMERS
-
 int
 ndis_halt_nic(arg)
 	void			*arg;
@@ -1117,9 +1115,6 @@ ndis_halt_nic(arg)
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
 	ndis_halt_handler	haltfunc;
-#ifdef NDIS_REAP_TIMERS
-	ndis_miniport_timer	*t, *n;
-#endif
 	ndis_miniport_block	*block;
 	int			empty = 0;
 	uint8_t			irql;
@@ -1127,24 +1122,6 @@ ndis_halt_nic(arg)
 	sc = arg;
 	block = sc->ndis_block;
 
-#ifdef NDIS_REAP_TIMERS
-	/*
-	 * Drivers are sometimes very lax about cancelling all
-	 * their timers. Cancel them all ourselves, just to be
-	 * safe. We must do this before invoking MiniportHalt(),
-	 * since if we wait until after, the memory in which
-	 * the timers reside will no longer be valid.
-	 */
-
-	t = sc->ndis_block->nmb_timerlist;
-	while (t != NULL) {
-		KeCancelTimer(&t->nmt_ktimer);
-		n = t;
-		t = t->nmt_nexttimer;
-		n->nmt_nexttimer = NULL;
-	}
-	sc->ndis_block->nmb_timerlist = NULL;
-#endif
 	if (!cold)
 		KeFlushQueuedDpcs();
 

@@ -1257,8 +1257,6 @@ NdisMInitializeTimer(timer, handle, func, ctx)
 	ndis_timer_function	func;
 	void			*ctx;
 {
-	uint8_t			irql;
-
 	/* Save the driver's funcptr and context */
 
 	timer->nmt_timerfunc = func;
@@ -1275,13 +1273,6 @@ NdisMInitializeTimer(timer, handle, func, ctx)
 	KeInitializeDpc(&timer->nmt_kdpc,
 	    ndis_findwrap((funcptr)ndis_timercall), timer);
 	timer->nmt_ktimer.k_dpc = &timer->nmt_kdpc;
-
-	KeAcquireSpinLock(&timer->nmt_block->nmb_lock, &irql);
-
-	timer->nmt_nexttimer = timer->nmt_block->nmb_timerlist;
-	timer->nmt_block->nmb_timerlist = timer;
-
-	KeReleaseSpinLock(&timer->nmt_block->nmb_lock, irql);
 
 	return;
 }
@@ -1750,25 +1741,12 @@ NdisMMapIoSpace(vaddr, adapter, paddr, len)
 	ndis_physaddr		paddr;
 	uint32_t		len;
 {
-	ndis_miniport_block	*block;
-	struct ndis_softc	*sc;
-
 	if (adapter == NULL)
 		return(NDIS_STATUS_FAILURE);
 
-	block = (ndis_miniport_block *)adapter;
-	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	*vaddr = MmMapIoSpace(paddr.np_quad, len, 0);
 
-	if (sc->ndis_res_mem != NULL &&
-	    paddr.np_quad == rman_get_start(sc->ndis_res_mem))
-		*vaddr = (void *)rman_get_virtual(sc->ndis_res_mem);
-	else if (sc->ndis_res_altmem != NULL &&
-	     paddr.np_quad == rman_get_start(sc->ndis_res_altmem))
-		*vaddr = (void *)rman_get_virtual(sc->ndis_res_altmem);
-	else if (sc->ndis_res_am != NULL &&
-	     paddr.np_quad == rman_get_start(sc->ndis_res_am))
-		*vaddr = (void *)rman_get_virtual(sc->ndis_res_am);
-	else
+	if (*vaddr == NULL)
 		return(NDIS_STATUS_FAILURE);
 
 	return(NDIS_STATUS_SUCCESS);
@@ -1780,6 +1758,7 @@ NdisMUnmapIoSpace(adapter, vaddr, len)
 	void			*vaddr;
 	uint32_t		len;
 {
+	MmUnmapIoSpace(vaddr, len);
 	return;
 }
 

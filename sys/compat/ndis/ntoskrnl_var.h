@@ -1362,6 +1362,8 @@ extern void ExFreePool(void *);
 extern uint32_t IoConnectInterrupt(kinterrupt **, void *, void *,
 	kspin_lock *, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t,
 	uint32_t, uint8_t);
+extern void *MmMapIoSpace(uint64_t, uint32_t, uint32_t);
+extern void MmUnmapIoSpace(void *, size_t);
 extern void MmBuildMdlForNonPagedPool(mdl *);
 extern void IoDisconnectInterrupt(kinterrupt *);
 extern uint32_t IoAllocateDriverObjectExtension(driver_object *,
