@@ -63,7 +63,7 @@
   <sect2>
     <title>Common Installation Problems for &arch.print; Architecture Users</title>
 
-    <qandaset arch="i386,amd64">
+    <qandaset arch="i386">
       <qandaentry>
         <question>
           <para>My system hangs while probing hardware during boot, or it
@@ -87,21 +87,6 @@
             <filename>/boot/loader.conf</filename>.  More information about the
             boot loader can be found in the &os; Handbook.</para>
         </answer>
-      </qandaentry>
-      <qandaentry arch="amd64">
-        <question>
-          <para>My system uses the nVidia nForce3 Pro-150 chipset and I get hangs
-	    at the end of boot or suddenly starts losing interrupts.</para>
-	</question>
-	<answer>
-	  <para>There are problems with the apic on this chipset and/or the
-	    bios on every machine that we had seen at the time of release.
-	    While disabling ACPI as above will work, a less drastic option may
-	    be to set the <quote>hint.apic.0.disabled</quote> hint instead.
-	    If you have the option in the bios, try disabling the APIC support.
-	    Unfortunately some machines lack this option.
-	  </para>
-	</answer>
       </qandaentry>
       <qandaentry arch="i386,pc98,alpha,sparc64">
         <question>
