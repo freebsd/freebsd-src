@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.7
+     Original revision: 1.883.2.8
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -952,6 +952,14 @@
     <para>对 &man.ifconfig.8; 工具进行了重构。 现在其模块化更为清晰，
       并且在处理某些网络接口专有的功能时更为灵活。 对 802.11 支持进行了更新，
       以便支持最近对于 802.11 子系统和驱动程序所进行的改进。</para>
+
+    <para>&man.ifconfig.8; 工具新增了 <option>-tunnel</option>
+      参数， 它实际上等价于 <option>deletetunnel</option>，
+      以简化操作并方便输入。</para>
+
+    <para>&man.ifconfig.8; 的 <option>-vlandev</option> 参数，
+      不再要求必须附带网络接口的名字的参数了。 为了保持向下兼容，
+      原有的参数仍然保留， 但不再鼓励使用。</para>
 
     <para>对于相当数量的 &man.ipfw.8; 选项的简写形式的支持，
       不再推荐使用。 如果使用了这些简写， 则会在 stderr
