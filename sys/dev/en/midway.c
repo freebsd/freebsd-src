@@ -1869,7 +1869,9 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 #ifdef ENABLE_BPF
 		BPF_MTAP(sc->ifp, m);
 #endif
+		EN_UNLOCK(sc);
 		atm_input(sc->ifp, &ah, m, vc->rxhand);
+		EN_LOCK(sc);
 	}
 }
 
