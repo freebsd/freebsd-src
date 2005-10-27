@@ -65,7 +65,7 @@ _libvgl=	libvgl
 
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "ia64" && \
     ${MACHINE_ARCH} != "powerpc" && !defined(NO_LIBC_R)
-_libc_r=	libc_r
+_libc_r=
 .endif
 
 .if ${MACHINE_ARCH} != "arm"
