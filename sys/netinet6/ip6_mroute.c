@@ -172,7 +172,7 @@ extern struct socket *ip_mrouter;
  * can't be sent this way.  They only exist as a placeholder for
  * multicast source verification.
  */
-struct ifnet multicast_register_if;
+struct ifnet multicast_register_if6;
 
 #define ENCAP_HOPS 64
 
@@ -547,9 +547,12 @@ ip6_mrouter_done()
 	bzero((caddr_t)mf6ctable, sizeof(mf6ctable));
 
 	/*
-	 * Reset de-encapsulation cache
+	 * Reset register interface
 	 */
-	reg_mif_num = -1;
+	if (reg_mif_num != (mifi_t)-1) {
+		if_detach(&multicast_register_if6);
+		reg_mif_num = (mifi_t)-1;
+	}
 
 	ip6_mrouter = NULL;
 	ip6_mrouter_ver = 0;
@@ -590,15 +593,15 @@ add_m6if(mifcp)
 	ifp = ifnet_byindex(mifcp->mif6c_pifi);
 
 	if (mifcp->mif6c_flags & MIFF_REGISTER) {
-		if (reg_mif_num == (mifi_t)-1) {
-			strlcpy(multicast_register_if.if_xname, "register_mif",
-			    IFNAMSIZ);
-			multicast_register_if.if_flags |= IFF_LOOPBACK;
-			multicast_register_if.if_index = mifcp->mif6c_mifi;
-			reg_mif_num = mifcp->mif6c_mifi;
-		}
+		ifp = &multicast_register_if6;
 
-		ifp = &multicast_register_if;
+		if (reg_mif_num == (mifi_t)-1) {
+			if_initname(ifp, "register_mif", 0);
+			ifp->if_flags |= IFF_LOOPBACK;
+			ifp->if_index = mifcp->mif6c_mifi;
+			reg_mif_num = mifcp->mif6c_mifi;
+			if_attach(ifp);
+		}
 
 	} /* if REGISTER */
 	else {
@@ -669,6 +672,11 @@ del_m6if(mifip)
 		ifp = mifp->m6_ifp;
 
 		if_allmulti(ifp, 0);
+	} else {
+		if (reg_mif_num != (mifi_t)-1) {
+			if_detach(&multicast_register_if6);
+			reg_mif_num = (mifi_t)-1;
+		}
 	}
 
 #ifdef notyet
