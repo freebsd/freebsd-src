@@ -122,24 +122,17 @@ The libmap configuration file.
 #
 # candidate		mapping
 #
-libpthread.so.1		libpthread.so.1	# Everything uses 'libpthread'
-libpthread.so		libpthread.so
-
-libc_r.so.5		libpthread.so.1	# Everything that uses 'libc_r'
+libc_r.so.6		libpthread.so.2	# Everything that uses 'libc_r'
 libc_r.so		libpthread.so	# now uses 'libpthread'
 
 [/tmp/mplayer]		# Test version of mplayer uses libc_r
-libpthread.so.1		libc_r.so.5
+libpthread.so.2		libc_r.so.6
 libpthread.so		libc_r.so
-
-[mplayer]		# All other mplayers use libpthread
-libpthread.so.1		libpthread.so.1
-libpthread.so		libpthread.so
 
 [/usr/local/jdk1.4.1/]	# All Java 1.4.1 programs use libthr
 			# This works because "javavms" executes
 			# programs with the full pathname
-libpthread.so.1		libthr.so.1
+libpthread.so.2		libthr.so.2
 libpthread.so		libthr.so
 
 # Glue for Linux-only EPSON printer .so to be loaded into cups, etc.
