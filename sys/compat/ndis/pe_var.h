@@ -214,6 +214,10 @@ struct image_nt_header {
 
 typedef struct image_nt_header image_nt_header;
 
+#define	IMAGE_SIZEOF_NT_HEADER(nthdr)					\
+	(offsetof(image_nt_header, inh_optionalhdr) +			\
+	  ((image_nt_header *)(nthdr))->inh_filehdr.ifh_optionalhdrlen)
+
 /* Directory Entries */
 
 #define IMAGE_DIRECTORY_ENTRY_EXPORT         0   /* Export Directory */
@@ -280,6 +284,11 @@ struct image_section_header {
 typedef struct image_section_header image_section_header;
 
 #define IMAGE_SIZEOF_SECTION_HEADER          40
+
+#define IMAGE_FIRST_SECTION(nthdr)					\
+	((image_section_header *)((vm_offset_t)(nthdr) +		\
+	  offsetof(image_nt_header, inh_optionalhdr) +			\
+	  ((image_nt_header *)(nthdr))->inh_filehdr.ifh_optionalhdrlen))
 
 /*
  * Import format
