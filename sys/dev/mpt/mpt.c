@@ -43,9 +43,9 @@
  *    ("Disclaimer") and any redistribution must be conditioned upon including
  *    a substantially similar Disclaimer requirement for further binary
  *    redistribution.
- * 3. Neither the name of the LSI Logic Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
+ * 3. Neither the names of the above listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -1447,10 +1447,9 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 		 hdr.PageNumber, hdr.PageType);
 
 	len = hdr.PageLength * sizeof(uint32_t);
-	mpt->ioc_page2 = malloc(len, M_DEVBUF, M_NOWAIT);
+	mpt->ioc_page2 = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (mpt->ioc_page2 == NULL)
 		return (ENOMEM);
-	memset(mpt->ioc_page2, 0, sizeof(*mpt->ioc_page2));
 	memcpy(&mpt->ioc_page2->Header, &hdr, sizeof(hdr));
 	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
 				   &mpt->ioc_page2->Header, len,
@@ -1555,10 +1554,9 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 	if (mpt->ioc_page3 != NULL)
 		free(mpt->ioc_page3, M_DEVBUF);
 	len = hdr.PageLength * sizeof(uint32_t);
-	mpt->ioc_page3 = malloc(len, M_DEVBUF, M_NOWAIT);
+	mpt->ioc_page3 = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (mpt->ioc_page3 == NULL)
 		return (-1);
-	memset(mpt->ioc_page3, 0, sizeof(*mpt->ioc_page3));
 	memcpy(&mpt->ioc_page3->Header, &hdr, sizeof(hdr));
 	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
 				   &mpt->ioc_page3->Header, len,
