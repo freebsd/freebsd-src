@@ -693,6 +693,7 @@ nve_stop(struct nve_softc *sc)
 	sc->linkup = 0;
 	sc->cur_rx = 0;
 	sc->pending_rxs = 0;
+	sc->pending_txs = 0;
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
