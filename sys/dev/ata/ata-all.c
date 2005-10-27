@@ -533,12 +533,7 @@ ata_boot_attach(void)
     struct ata_channel *ch;
     int ctlr;
 
-    /* release the hook that got us here, only needed during boot */
-    if (ata_delayed_attach) {
-	config_intrhook_disestablish(ata_delayed_attach);
-	free(ata_delayed_attach, M_TEMP);
-	ata_delayed_attach = NULL;
-    }
+    mtx_lock(&Giant);       /* newbus suckage it needs Giant */
 
     /* kick of probe and attach on all channels */
     for (ctlr = 0; ctlr < devclass_get_maxunit(ata_devclass); ctlr++) {
@@ -546,6 +541,15 @@ ata_boot_attach(void)
 	    ata_identify(ch->dev);
 	}
     }
+
+    /* release the hook that got us here, we are only needed once during boot */
+    if (ata_delayed_attach) {
+	config_intrhook_disestablish(ata_delayed_attach);
+	ata_delayed_attach = NULL;
+	free(ata_delayed_attach, M_TEMP);
+    }
+
+    mtx_unlock(&Giant);     /* newbus suckage dealt with, release Giant */
 }
 
 
