@@ -606,7 +606,7 @@ struct txp_softc {
 	struct txp_cmd_ring	sc_cmdring;
 	struct txp_rsp_ring	sc_rspring;
 	struct txp_swdesc	sc_txd[TX_ENTRIES];
-	struct callout_handle	sc_tick;
+	struct callout		sc_tick;
 	struct ifmedia		sc_ifmedia;
 	struct txp_tx_ring	sc_txhir, sc_txlor;
 	struct txp_rxbuf_desc	*sc_rxbufs;
@@ -638,6 +638,10 @@ struct txp_fw_section_header {
     bus_space_write_4((sc)->sc_bt, (sc)->sc_bh, reg, val)
 #define	READ_REG(sc,reg) \
     bus_space_read_4((sc)->sc_bt, (sc)->sc_bh, reg)
+
+#define	TXP_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
+#define	TXP_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
+#define	TXP_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
 
 /*
  * 3Com PCI vendor ID.
