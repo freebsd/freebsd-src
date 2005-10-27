@@ -460,7 +460,6 @@ struct vr_softc {
 	void			*vr_intrhand;
 	device_t		vr_miibus;
 	struct vr_type		*vr_info;	/* Rhine adapter info */
-	u_int8_t		vr_unit;	/* interface number */
 	u_int8_t		vr_type;
 	u_int8_t		vr_revid;	/* Rhine chip revision */
 	u_int8_t                vr_flags;       /* See VR_F_* below */
