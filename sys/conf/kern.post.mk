@@ -63,10 +63,10 @@ modules-all modules-depend: modules-obj
 FULLKERNEL=	${KERNEL_KO}
 .else
 FULLKERNEL=	${KERNEL_KO}.debug
-${KERNEL_KO}: ${FULLKERNEL} ${KERNEL_KO}.dbg
-	${OBJCOPY} --strip-debug --add-gnu-debuglink=${KERNEL_KO}.dbg\
+${KERNEL_KO}: ${FULLKERNEL} ${KERNEL_KO}.symbols
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${KERNEL_KO}.symbols\
 	    ${FULLKERNEL} ${.TARGET}
-${KERNEL_KO}.dbg: ${FULLKERNEL}
+${KERNEL_KO}.symbols: ${FULLKERNEL}
 	${OBJCOPY} --only-keep-debug ${FULLKERNEL} ${.TARGET}
 install.debug reinstall.debug: gdbinit
 	cd ${.CURDIR}; ${MAKE} ${.TARGET:R}
@@ -108,7 +108,7 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
-	    ${FULLKERNEL} ${KERNEL_KO} ${KERNEL_KO}.dbg \
+	    ${FULLKERNEL} ${KERNEL_KO} ${KERNEL_KO}.symbols \
 	    linterrs makelinks tags vers.c \
 	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
@@ -207,14 +207,14 @@ kernel-install:
 	mkdir -p ${DESTDIR}${KODIR}
 	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG)
-	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO}.dbg ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
 .endif
 
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
 	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG)
-	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO}.dbg ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
 .endif
 
 config.o env.o hints.o vers.o vnode_if.o:

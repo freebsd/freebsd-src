@@ -143,10 +143,10 @@ PROG=	${KMOD}.ko
 FULLPROG=	${PROG}
 .else
 FULLPROG=	${PROG}.debug
-${PROG}: ${FULLPROG} ${PROG}.dbg
-	${OBJCOPY} --strip-debug --add-gnu-debuglink=${PROG}.dbg\
+${PROG}: ${FULLPROG} ${PROG}.symbols
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${PROG}.symbols\
 	    ${FULLPROG} ${.TARGET}
-${PROG}.dbg: ${FULLPROG}
+${PROG}.symbols: ${FULLPROG}
 	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
@@ -229,7 +229,7 @@ ${_ILINKS}:
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS}
 
 .if defined(DEBUG_FLAGS)
-CLEANFILES+= ${FULLPROG} ${PROG}.dbg
+CLEANFILES+= ${FULLPROG} ${PROG}.symbols
 .endif
 
 .if !target(install)
@@ -247,7 +247,7 @@ _kmodinstall:
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
 .if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG)
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${PROG}.dbg ${DESTDIR}${KMODDIR}
+	    ${_INSTALLFLAGS} ${PROG}.symbols ${DESTDIR}${KMODDIR}
 .endif
 
 .include <bsd.links.mk>
