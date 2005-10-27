@@ -153,8 +153,10 @@ static void wb_txeoc(struct wb_softc *);
 static void wb_intr(void *);
 static void wb_tick(void *);
 static void wb_start(struct ifnet *);
+static void wb_start_locked(struct ifnet *);
 static int wb_ioctl(struct ifnet *, u_long, caddr_t);
 static void wb_init(void *);
+static void wb_init_locked(struct wb_softc *);
 static void wb_stop(struct wb_softc *);
 static void wb_watchdog(struct ifnet *);
 static void wb_shutdown(device_t);
@@ -390,8 +392,6 @@ wb_mii_readreg(sc, frame)
 {
 	int			i, ack;
 
-	WB_LOCK(sc);
-
 	/*
 	 * Set up frame for RX.
 	 */
@@ -469,8 +469,6 @@ fail:
 	SIO_SET(WB_SIO_MII_CLK);
 	DELAY(1);
 
-	WB_UNLOCK(sc);
-
 	if (ack)
 		return(1);
 	return(0);
@@ -485,7 +483,6 @@ wb_mii_writereg(sc, frame)
 	struct wb_mii_frame	*frame;
 	
 {
-	WB_LOCK(sc);
 
 	/*
 	 * Set up frame for TX.
@@ -519,8 +516,6 @@ wb_mii_writereg(sc, frame)
 	 * Turn off xmit.
 	 */
 	SIO_CLR(WB_SIO_MII_DIR);
-
-	WB_UNLOCK(sc);
 
 	return(0);
 }
@@ -573,10 +568,8 @@ wb_miibus_statchg(dev)
 	struct mii_data		*mii;
 
 	sc = device_get_softc(dev);
-	WB_LOCK(sc);
 	mii = device_get_softc(sc->wb_miibus);
 	wb_setcfg(sc, mii->mii_media_active);
-	WB_UNLOCK(sc);
 
 	return;
 }
@@ -793,7 +786,9 @@ wb_attach(dev)
 	sc = device_get_softc(dev);
 
 	mtx_init(&sc->wb_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
+	callout_init_mtx(&sc->wb_stat_callout, &sc->wb_mtx, 0);
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -853,8 +848,7 @@ wb_attach(dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = wb_ioctl;
 	ifp->if_start = wb_start;
 	ifp->if_watchdog = wb_watchdog;
@@ -877,7 +871,7 @@ wb_attach(dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->wb_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->wb_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    wb_intr, sc, &sc->wb_intrhand);
 
 	if (error) {
@@ -909,7 +903,6 @@ wb_detach(dev)
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->wb_mtx), ("wb mutex not initialized"));
-	WB_LOCK(sc);
 	ifp = sc->wb_ifp;
 
 	/* 
@@ -917,7 +910,10 @@ wb_detach(dev)
 	 * This should only be done if attach succeeded.
 	 */
 	if (device_is_attached(dev)) {
+		WB_LOCK(sc);
 		wb_stop(sc);
+		WB_UNLOCK(sc);
+		callout_drain(&sc->wb_stat_callout);
 		ether_ifdetach(ifp);
 	}
 	if (sc->wb_miibus)
@@ -939,7 +935,6 @@ wb_detach(dev)
 		    M_DEVBUF);
 	}
 
-	WB_UNLOCK(sc);
 	mtx_destroy(&sc->wb_mtx);
 
 	return(0);
@@ -1097,7 +1092,7 @@ wb_rxeof(sc)
 				"bug, forcing reset\n");
 			wb_fixmedia(sc);
 			wb_reset(sc);
-			wb_init(sc);
+			wb_init_locked(sc);
 			return;
 		}
 
@@ -1247,7 +1242,7 @@ wb_intr(arg)
 	WB_LOCK(sc);
 	ifp = sc->wb_ifp;
 
-	if (!(ifp->if_flags & IFF_UP)) {
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		WB_UNLOCK(sc);
 		return;
 	}
@@ -1269,7 +1264,7 @@ wb_intr(arg)
 			wb_reset(sc);
 			if (status & WB_ISR_RX_ERR)
 				wb_fixmedia(sc);
-			wb_init(sc);
+			wb_init_locked(sc);
 			continue;
 		}
 
@@ -1306,7 +1301,7 @@ wb_intr(arg)
 
 		if (status & WB_ISR_BUS_ERR) {
 			wb_reset(sc);
-			wb_init(sc);
+			wb_init_locked(sc);
 		}
 
 	}
@@ -1315,7 +1310,7 @@ wb_intr(arg)
 	CSR_WRITE_4(sc, WB_IMR, WB_INTRS);
 
 	if (ifp->if_snd.ifq_head != NULL) {
-		wb_start(ifp);
+		wb_start_locked(ifp);
 	}
 
 	WB_UNLOCK(sc);
@@ -1331,14 +1326,12 @@ wb_tick(xsc)
 	struct mii_data		*mii;
 
 	sc = xsc;
-	WB_LOCK(sc);
+	WB_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->wb_miibus);
 
 	mii_tick(mii);
 
-	sc->wb_stat_ch = timeout(wb_tick, sc, hz);
-
-	WB_UNLOCK(sc);
+	callout_reset(&sc->wb_stat_callout, hz, wb_tick, sc);
 
 	return;
 }
@@ -1447,11 +1440,23 @@ wb_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct wb_softc		*sc;
+
+	sc = ifp->if_softc;
+	WB_LOCK(sc);
+	wb_start_locked(ifp);
+	WB_UNLOCK(sc);
+}
+
+static void
+wb_start_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct wb_softc		*sc;
 	struct mbuf		*m_head = NULL;
 	struct wb_chain		*cur_tx = NULL, *start_tx;
 
 	sc = ifp->if_softc;
-	WB_LOCK(sc);
+	WB_LOCK_ASSERT(sc);
 
 	/*
 	 * Check for an available queue slot. If there are none,
@@ -1459,7 +1464,6 @@ wb_start(ifp)
 	 */
 	if (sc->wb_cdata.wb_tx_free->wb_mbuf != NULL) {
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		WB_UNLOCK(sc);
 		return;
 	}
 
@@ -1490,10 +1494,8 @@ wb_start(ifp)
 	/*
 	 * If there are no packets queued, bail.
 	 */
-	if (cur_tx == NULL) {
-		WB_UNLOCK(sc);
+	if (cur_tx == NULL)
 		return;
-	}
 
 	/*
 	 * Place the request for the upload interrupt
@@ -1530,7 +1532,6 @@ wb_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
-	WB_UNLOCK(sc);
 
 	return;
 }
@@ -1540,11 +1541,21 @@ wb_init(xsc)
 	void			*xsc;
 {
 	struct wb_softc		*sc = xsc;
+
+	WB_LOCK(sc);
+	wb_init_locked(sc);
+	WB_UNLOCK(sc);
+}
+
+static void
+wb_init_locked(sc)
+	struct wb_softc		*sc;
+{
 	struct ifnet		*ifp = sc->wb_ifp;
 	int			i;
 	struct mii_data		*mii;
 
-	WB_LOCK(sc);
+	WB_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->wb_miibus);
 
 	/*
@@ -1595,7 +1606,6 @@ wb_init(xsc)
 		if_printf(ifp,
 		    "initialization failed: no memory for rx buffers\n");
 		wb_stop(sc);
-		WB_UNLOCK(sc);
 		return;
 	}
 
@@ -1648,8 +1658,7 @@ wb_init(xsc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->wb_stat_ch = timeout(wb_tick, sc, hz);
-	WB_UNLOCK(sc);
+	callout_reset(&sc->wb_stat_callout, hz, wb_tick, sc);
 
 	return;
 }
@@ -1665,8 +1674,10 @@ wb_ifmedia_upd(ifp)
 
 	sc = ifp->if_softc;
 
+	WB_LOCK(sc);
 	if (ifp->if_flags & IFF_UP)
-		wb_init(sc);
+		wb_init_locked(sc);
+	WB_UNLOCK(sc);
 
 	return(0);
 }
@@ -1684,11 +1695,13 @@ wb_ifmedia_sts(ifp, ifmr)
 
 	sc = ifp->if_softc;
 
+	WB_LOCK(sc);
 	mii = device_get_softc(sc->wb_miibus);
 
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	WB_UNLOCK(sc);
 
 	return;
 }
@@ -1704,21 +1717,23 @@ wb_ioctl(ifp, command, data)
 	struct ifreq		*ifr = (struct ifreq *) data;
 	int			error = 0;
 
-	WB_LOCK(sc);
-
 	switch(command) {
 	case SIOCSIFFLAGS:
+		WB_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			wb_init(sc);
+			wb_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				wb_stop(sc);
 		}
+		WB_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		WB_LOCK(sc);
 		wb_setmulti(sc);
+		WB_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
@@ -1753,10 +1768,10 @@ wb_watchdog(ifp)
 #endif
 	wb_stop(sc);
 	wb_reset(sc);
-	wb_init(sc);
+	wb_init_locked(sc);
 
 	if (ifp->if_snd.ifq_head != NULL)
-		wb_start(ifp);
+		wb_start_locked(ifp);
 	WB_UNLOCK(sc);
 
 	return;
@@ -1773,11 +1788,11 @@ wb_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
-	WB_LOCK(sc);
+	WB_LOCK_ASSERT(sc);
 	ifp = sc->wb_ifp;
 	ifp->if_timer = 0;
 
-	untimeout(wb_tick, sc, sc->wb_stat_ch);
+	callout_stop(&sc->wb_stat_callout);
 
 	WB_CLRBIT(sc, WB_NETCFG, (WB_NETCFG_RX_ON|WB_NETCFG_TX_ON));
 	CSR_WRITE_4(sc, WB_IMR, 0x00000000);
@@ -1810,7 +1825,6 @@ wb_stop(sc)
 		sizeof(sc->wb_ldata->wb_tx_list));
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	WB_UNLOCK(sc);
 
 	return;
 }
@@ -1826,7 +1840,10 @@ wb_shutdown(dev)
 	struct wb_softc		*sc;
 
 	sc = device_get_softc(dev);
+
+	WB_LOCK(sc);
 	wb_stop(sc);
+	WB_UNLOCK(sc);
 
 	return;
 }
