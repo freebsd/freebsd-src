@@ -93,6 +93,21 @@ uart_ebus_probe(device_t dev)
 				device_disable(dev);
 				return (ENXIO);
 		}
+		/*
+		 * XXX Hack
+		 * On E250 the IRQ of the on-board HME gets erroneously
+		 * also assigned to the second NS16550 due to interrupt
+		 * routing problems at some layer. As uart(4) uses a
+		 * INTR_FAST handler while hme(4) doesn't the IRQ can't
+		 * be actually "shared" causing hme(4) to not attach to
+		 * the on-board HME. Prefer the on-board HME at the
+		 * expense of the mouse port for now.
+		 */
+		if (!strcmp(sparc64_model, "SUNW,Ultra-250") &&
+		    device_get_unit(dev) % 2 == 1) {
+				device_disable(dev);
+				return (ENXIO);
+		}
 		sc->sc_class = &uart_ns8250_class;
 		return (uart_bus_probe(dev, 0, 0, 0, 0));
 	}
