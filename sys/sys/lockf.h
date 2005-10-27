@@ -40,10 +40,6 @@
 
 struct vop_advlock_args;
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_LOCKF);
-#endif
-
 /*
  * The lockf structure is a kernel structure which contains the information
  * associated with a byte range lock.  The lockf structures are linked into
