@@ -960,7 +960,7 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
 		    }
 		  else
 #endif /* MBS_SUPPORT */
-		  if (!WCHAR ((unsigned char) beg[-1]))
+		  if (WCHAR ((unsigned char) beg[-1]))
 		    goto next_char;
 		}
 #ifdef MBS_SUPPORT
@@ -980,7 +980,7 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
 		}
 	      else
 #endif /* MBS_SUPPORT */
-		if (beg + len >= buf + size && !WCHAR ((unsigned char) beg[len]))
+		if (beg + len >= buf + size || !WCHAR ((unsigned char) beg[len]))
 		  word_match = 1;
 	      if (word_match)
 		{
