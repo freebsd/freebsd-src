@@ -71,11 +71,12 @@ struct {
 	{ 502010, 502099, "/packages-5.2.1-release" },
 	{ 503000, 503099, "/packages-5.3-release" },
 	{ 504000, 504099, "/packages-5.4-release" },
+	{ 600000, 600099, "/packages-6.0-release" },
 	{ 300000, 399000, "/packages-3-stable" },
 	{ 400000, 499000, "/packages-4-stable" },
 	{ 502100, 502128, "/packages-5-current" },
 	{ 503100, 599000, "/packages-5-stable" },
-	{ 600000, 699000, "/packages-6-current" },
+	{ 600100, 699000, "/packages-6-stable" },
 	{ 700000, 799000, "/packages-7-current" },
 	{ 0, 9999999, "/packages-current" },
 	{ 0, 0, NULL }
