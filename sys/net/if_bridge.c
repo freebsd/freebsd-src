@@ -216,7 +216,8 @@ struct bridge_iflist *bridge_lookup_member(struct bridge_softc *,
 	    const char *name);
 struct bridge_iflist *bridge_lookup_member_if(struct bridge_softc *,
 	    struct ifnet *ifp);
-void	bridge_delete_member(struct bridge_softc *, struct bridge_iflist *);
+void	bridge_delete_member(struct bridge_softc *, struct bridge_iflist *,
+	    int);
 
 int	bridge_ioctl_add(struct bridge_softc *, void *);
 int	bridge_ioctl_del(struct bridge_softc *, void *);
@@ -501,7 +502,7 @@ bridge_clone_destroy(struct ifnet *ifp)
 	ifp->if_flags &= ~IFF_UP;
 
 	while ((bif = LIST_FIRST(&sc->sc_iflist)) != NULL)
-		bridge_delete_member(sc, bif);
+		bridge_delete_member(sc, bif, 0);
 
 	BRIDGE_UNLOCK(sc);
 
@@ -685,26 +686,29 @@ bridge_lookup_member_if(struct bridge_softc *sc, struct ifnet *member_ifp)
  *	Delete the specified member interface.
  */
 void
-bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif)
+bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
+    int gone)
 {
 	struct ifnet *ifs = bif->bif_ifp;
 
 	BRIDGE_LOCK_ASSERT(sc);
 
-	switch (ifs->if_type) {
-	case IFT_ETHER:
-	case IFT_L2VLAN:
-		/*
-		 * Take the interface out of promiscuous mode.
-		 */
-		(void) ifpromisc(ifs, 0);
-		break;
+	if (!gone) {
+	    switch (ifs->if_type) {
+	    case IFT_ETHER:
+	    case IFT_L2VLAN:
+		    /*
+		     * Take the interface out of promiscuous mode.
+		     */
+		    (void) ifpromisc(ifs, 0);
+		    break;
 
-	default:
+	    default:
 #ifdef DIAGNOSTIC
-		panic("bridge_delete_member: impossible");
+		    panic("bridge_delete_member: impossible");
 #endif
-		break;
+		    break;
+	    }
 	}
 
 	ifs->if_bridge = NULL;
@@ -806,7 +810,7 @@ bridge_ioctl_del(struct bridge_softc *sc, void *arg)
 	if (bif == NULL)
 		return (ENOENT);
 
-	bridge_delete_member(sc, bif);
+	bridge_delete_member(sc, bif, 0);
 
 	return (0);
 }
@@ -1202,14 +1206,16 @@ void
 bridge_ifdetach(struct ifnet *ifp)
 {
 	struct bridge_softc *sc = ifp->if_bridge;
-	struct ifbreq breq;
+	struct bridge_iflist *bif;
 
 	BRIDGE_LOCK(sc);
 
-	memset(&breq, 0, sizeof(breq));
-	snprintf(breq.ifbr_ifsname, sizeof(breq.ifbr_ifsname), ifp->if_xname);
+	bif = bridge_lookup_member_if(sc, ifp);
+	if (bif == NULL)
+		return;
 
-	(void) bridge_ioctl_del(sc, &breq);
+	bridge_delete_member(sc, bif, 1);
+
 	BRIDGE_UNLOCK(sc);
 }
 
